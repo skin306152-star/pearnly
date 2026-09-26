@@ -23,7 +23,7 @@ services:
     depends_on: {mariadb: {condition: service_healthy}}
     networks:
       default:
-        aliases: [erp.lab, billing.lab]
+        aliases: [erp.lab, erp2.lab, billing.lab]
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro

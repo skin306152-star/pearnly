@@ -11,12 +11,13 @@ import frappe  # noqa: E402
 
 facts = json.load(open("/tmp/lab-facts.json"))
 TENANT = "T-2026-0001"
+TENANT2 = "T-2026-0002"
 ROOT_TOKEN = "lab-billing-root-token"
 ISSUER = "http://keycloak:8080/realms/pearnly-business"
 
 
 def site_config(site, **values):
-    assert site in ("erp.lab", "billing.lab")
+    assert site in ("erp.lab", "erp2.lab", "billing.lab")
     path = f"{site}/site_config.json"
     data = json.load(open(path))
     data.update(values)
@@ -24,7 +25,7 @@ def site_config(site, **values):
 
 
 def run(site, fn):
-    assert site in ("erp.lab", "billing.lab")
+    assert site in ("erp.lab", "erp2.lab", "billing.lab")
     frappe.init(site=site, sites_path=".")
     frappe.connect()
     try:
@@ -44,39 +45,46 @@ def billing():
     from pearnly_control.account import member_service
     from pearnly_control.billing_auth import tenant_token
 
-    if not frappe.db.exists("Pearnly Tenant", TENANT):
-        frappe.get_doc({"doctype": "Pearnly Tenant", "tenant_name": "Lab Co", "status": "active"}).insert(
-            ignore_permissions=True, set_name=TENANT)
-    member_service.register_owner(TENANT, facts["subjects"]["owner@lab.test"])
-    member_service.register_owner(TENANT, facts["subjects"]["owner@lab.test"])  # idempotent
+    for tenant in (TENANT, TENANT2):
+        if not frappe.db.exists("Pearnly Tenant", tenant):
+            frappe.get_doc({"doctype": "Pearnly Tenant", "tenant_name": "Lab " + tenant, "status": "active"}).insert(
+                ignore_permissions=True, set_name=tenant)
+        # The same person owns both lab tenants (one identity, two sites).
+        member_service.register_owner(tenant, facts["subjects"]["owner@lab.test"])
+        member_service.register_owner(tenant, facts["subjects"]["owner@lab.test"])  # idempotent
+        facts["token_" + tenant] = tenant_token(ROOT_TOKEN, tenant, "erp")
     print("tenant identities:", frappe.get_all("Pearnly Tenant Identity", fields=["tenant", "subject", "role"]))
-    facts["erp_token"] = tenant_token(ROOT_TOKEN, TENANT, "erp")
 
 
 run("billing.lab", billing)
 
-site_config("erp.lab", host_name="http://erp.lab:8000", pearnly_product="erp", pearnly_tenant=TENANT,
-            pearnly_oidc_issuer=ISSUER, pearnly_oidc_client_id="erp.lab", pearnly_oidc_client_secret="erp-lab-oidc",
-            pearnly_oidc_redirect_uri="http://erp.lab:8000/api/method/pearnly_core.identity.callback",
-            pearnly_native_account=True, pearnly_billing_api="http://billing.lab:8000",
-            pearnly_billing_host_header="billing.lab", pearnly_billing_token=facts["erp_token"],
-            pearnly_line_liff_id="2010411313-labliff", pearnly_line_login_idp=facts["alias"])
+
+def erp_config(site, tenant):
+    site_config(site, host_name=f"http://{site}:8000", pearnly_product="erp", pearnly_tenant=tenant,
+                pearnly_oidc_issuer=ISSUER, pearnly_oidc_client_id=site, pearnly_oidc_client_secret=site + "-oidc",
+                pearnly_oidc_redirect_uri=f"http://{site}:8000/api/method/pearnly_core.identity.callback",
+                pearnly_native_account=True, pearnly_billing_api="http://billing.lab:8000",
+                pearnly_billing_host_header="billing.lab", pearnly_billing_token=facts["token_" + tenant],
+                pearnly_line_liff_id="2010411313-lab" + site.split(".")[0], pearnly_line_login_idp=facts["alias"])
 
 
-def erp():
-    for email, first in (("owner@lab.test", "Lab Owner"), ("stranger@lab.test", "Lab Stranger")):
-        if not frappe.db.exists("User", email):
-            frappe.get_doc({"doctype": "User", "email": email, "first_name": first, "enabled": 1,
-                            "user_type": "System User", "send_welcome_email": 0,
-                            "roles": [{"role": "System Manager"}]}).insert(ignore_permissions=True)
-        if not frappe.db.exists("Pearnly Identity", {"user": email}):
-            frappe.get_doc({"doctype": "Pearnly Identity", "issuer": ISSUER, "subject": facts["subjects"][email],
-                            "user": email, "status": "active"}).insert(ignore_permissions=True)
-    print("identities:", frappe.get_all("Pearnly Identity", fields=["user", "subject"]))
-    print("binding columns:", [c for c in frappe.db.get_table_columns("Pearnly LINE Binding") if "login" in c])
-    print("session columns:", [c for c in frappe.db.get_table_columns("Pearnly Session")
-                               if c in ("identity_provider", "line_user_id")])
+def erp_users(emails):
+    def create():
+        for email in emails:
+            if not frappe.db.exists("User", email):
+                frappe.get_doc({"doctype": "User", "email": email, "first_name": email.split("@")[0], "enabled": 1,
+                                "user_type": "System User", "send_welcome_email": 0,
+                                "roles": [{"role": "System Manager"}]}).insert(ignore_permissions=True)
+            if not frappe.db.exists("Pearnly Identity", {"user": email}):
+                frappe.get_doc({"doctype": "Pearnly Identity", "issuer": ISSUER, "subject": facts["subjects"][email],
+                                "user": email, "status": "active"}).insert(ignore_permissions=True)
+        print(frappe.local.site, "identities:", frappe.get_all("Pearnly Identity", fields=["user"]))
+        print("binding columns:", [c for c in frappe.db.get_table_columns("Pearnly LINE Binding") if "login" in c])
+    return create
 
 
-run("erp.lab", erp)
+erp_config("erp.lab", TENANT)
+run("erp.lab", erp_users(("owner@lab.test", "stranger@lab.test")))
+erp_config("erp2.lab", TENANT2)
+run("erp2.lab", erp_users(("owner@lab.test",)))
 json.dump(facts, open("/tmp/lab-facts.json", "w"))

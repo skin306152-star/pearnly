@@ -14,7 +14,7 @@ m = runpy.run_path("/lab/scripts/production/configure-line-login.py")
 KC = "http://keycloak:8080"
 root = m["Keycloak"](KC, "master", "lab-admin", "lab-admin-only")
 R = "pearnly-business"
-ALIAS = "line-erp-t-2026-0001"
+ALIAS = "line-2010411313"  # one shared entry per LINE Login channel
 for realm in (R, "fakeline"):
     try:
         root.request(f"/admin/realms/{realm}", "DELETE")
@@ -52,10 +52,11 @@ for user, line_id in LINES.items():
 api = m["Keycloak"](KC, "master", "lab-admin", "lab-admin-only")
 api.realm = R
 # Site OIDC client (as provisioning creates it), then the production realm settings.
-root.request(f"/admin/realms/{R}/clients", "POST", {
-    "clientId": "erp.lab", "secret": "erp-lab-oidc", "publicClient": False, "standardFlowEnabled": True,
-    "directAccessGrantsEnabled": False, "redirectUris": ["http://erp.lab:8000/api/method/pearnly_core.identity.callback"],
-    "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "http://erp.lab:8000/"}})
+for site in ("erp.lab", "erp2.lab"):
+    root.request(f"/admin/realms/{R}/clients", "POST", {
+        "clientId": site, "secret": site + "-oidc", "publicClient": False, "standardFlowEnabled": True,
+        "directAccessGrantsEnabled": False, "redirectUris": [f"http://{site}:8000/api/method/pearnly_core.identity.callback"],
+        "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": f"http://{site}:8000/"}})
 m["configure_realm"](api)
 fake = {"authorizationUrl": f"{KC}/realms/fakeline/protocol/openid-connect/auth",
         "tokenUrl": f"{KC}/realms/fakeline/protocol/openid-connect/token",

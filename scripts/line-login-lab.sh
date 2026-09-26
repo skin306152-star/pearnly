@@ -19,9 +19,9 @@ up() {
   dc up -d
   in_bench 'printf "frappe\nerpnext\npearnly_core\npearnly_dms\npearnly_cowork\npearnly_erp_portal\npearnly_control\n" > sites/apps.txt
     env/bin/python -c "import json;p=\"sites/common_site_config.json\";d=json.load(open(p));d.update(db_host=\"mariadb\",db_port=3306,redis_cache=\"redis://redis-cache:6379\",redis_queue=\"redis://redis-queue:6379\",redis_socketio=\"redis://redis-queue:6379\",serve_default_site=False);json.dump(d,open(p,\"w\"))"
-    for s in erp.lab billing.lab; do [ -d sites/$s ] || bench new-site $s --db-root-password lab-root-only --admin-password lab-admin-only --install-app pearnly_core; done
+    for s in erp.lab erp2.lab billing.lab; do [ -d sites/$s ] || bench new-site $s --db-root-password lab-root-only --admin-password lab-admin-only --install-app pearnly_core; done
     bench --site billing.lab list-apps | grep -q pearnly_control || bench --site billing.lab install-app pearnly_control
-    bench --site erp.lab migrate && bench --site billing.lab migrate'
+    bench --site erp.lab migrate && bench --site erp2.lab migrate && bench --site billing.lab migrate'
 }
 serve() {
   dc exec -T -d bench sh -c 'cd /home/frappe/frappe-bench && exec bench serve --port 8000 > /tmp/web.log 2>&1'

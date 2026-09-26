@@ -25,6 +25,7 @@ ALIAS, LINES, SUBJECTS = facts["alias"], facts["lines"], facts["subjects"]
 U1, U2 = LINES["lineuser1"], LINES["lineuser2"]
 OWNER, STRANGER = "owner@lab.test", "stranger@lab.test"
 SITE = "http://erp.lab:8000"
+SITE2 = "http://erp2.lab:8000"
 KC = "http://keycloak:8080"
 LINE_UA = "Mozilla/5.0 (iPhone) AppleWebKit Mobile Safari Line/14.9.0"
 m = runpy.run_path("/lab/scripts/production/configure-line-login.py")
@@ -38,8 +39,8 @@ def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + (f"  [{detail}]" if detail else ""))
 
 
-def db(fn):
-    frappe.init(site="erp.lab", sites_path=".")
+def db(fn, site="erp.lab"):
+    frappe.init(site=site, sites_path=".")
     frappe.connect()
     try:
         out = fn()
@@ -49,26 +50,26 @@ def db(fn):
         frappe.destroy()
 
 
-def bind(user, line_user_id):
+def bind(user, line_user_id, site="erp.lab"):
     from pearnly_core import line_binding
 
-    code = db(lambda: line_binding.generate_bind_code(user)["code"])
-    owner = db(lambda: line_binding.consume_bind_code(code, line_user_id=line_user_id))["user"]
-    return db(lambda: line_binding.bind(line_user_id, owner, "Lab LINE"))
+    code = db(lambda: line_binding.generate_bind_code(user)["code"], site)
+    owner = db(lambda: line_binding.consume_bind_code(code, line_user_id=line_user_id), site)["user"]
+    return db(lambda: line_binding.bind(line_user_id, owner, "Lab LINE"), site)
 
 
-def binding_state(line_user_id):
+def binding_state(line_user_id, site="erp.lab"):
     return db(lambda: frappe.db.get_value("Pearnly LINE Binding", {"line_user_id": line_user_id},
-                                          ["user", "status", "login_link"], as_dict=True))
+                                          ["user", "status", "login_link"], as_dict=True), site)
 
 
-def wait_link(line_user_id, want, seconds=40):
+def wait_link(line_user_id, want, seconds=40, site="erp.lab"):
     for _ in range(seconds * 2):
-        row = binding_state(line_user_id)
+        row = binding_state(line_user_id, site)
         if row and row.login_link == want:
             return row
         time.sleep(0.5)
-    return binding_state(line_user_id)
+    return binding_state(line_user_id, site)
 
 
 def kc_links(email):
@@ -91,7 +92,7 @@ class Browser:
             if loc.startswith("/"):
                 base = urlparse(r.url)
                 loc = f"{base.scheme}://{base.netloc}{loc}"
-            if stop_at_site and loc.startswith(SITE) and "/api/method/pearnly_core" not in loc:
+            if stop_at_site and loc.startswith((SITE, SITE2)) and "/api/method/pearnly_core" not in loc:
                 return r, loc
             r = self.s.get(loc, allow_redirects=False)
             self.trail.append((r.status_code, loc))
@@ -103,17 +104,17 @@ class Browser:
         action = html.unescape(re.search(r'action="([^"]+)"', r.text).group(1))
         return self.go("POST", action, stop_at_site=True, data=fields)
 
-    def user(self):
-        r = self.s.get(SITE + "/api/method/frappe.auth.get_logged_user")
+    def user(self, site=SITE):
+        r = self.s.get(site + "/api/method/frappe.auth.get_logged_user")
         return r.json().get("message") if r.status_code == 200 else f"HTTP {r.status_code}"
 
-    def enter(self, to="/desk/lab-target"):
-        return self.go("GET", f"{SITE}/api/method/pearnly_core.account.line_login.enter?to={to}", stop_at_site=True)
+    def enter(self, to="/desk/lab-target", site=SITE):
+        return self.go("GET", f"{site}/api/method/pearnly_core.account.line_login.enter?to={to}", stop_at_site=True)
 
 
-def line_login(line_user, to="/desk/lab-target"):
+def line_login(line_user, to="/desk/lab-target", site=SITE):
     b = Browser(LINE_UA)
-    r, landed = b.enter(to)
+    r, landed = b.enter(to, site)
     if landed:
         return b, r, landed
     if 'name="username"' not in r.text:
@@ -218,6 +219,23 @@ check("I1 reconcile relinks a failed binding", (ALIAS, U1) in kc_links(STRANGER)
 bind(OWNER, U2)
 row = wait_link(U2, "linked", seconds=15)
 check("J1 owner (registered) can hold a different LINE", row.login_link == "linked", row)
+
+# ── L. one shared entry: the same person binds the same LINE on two sites ─────
+bind(OWNER, U2, site="erp2.lab")
+row = wait_link(U2, "linked", site="erp2.lab")
+check("L1 second site links the same LINE through the shared entry", row and row.login_link == "linked", row)
+b, r, landed = line_login("lineuser2", site=SITE2)
+check("L2 LINE opens the second site without a password", b.user(SITE2) == OWNER, b.user(SITE2))
+db(lambda: __import__("pearnly_core.line_binding", fromlist=["x"]).unbind(U2))  # unbind on the first site only
+wait_link(U2, "unlinked")
+check("L3 unbinding on one site keeps the Keycloak link for the other", (ALIAS, U2) in kc_links(OWNER), kc_links(OWNER))
+b, r, landed = line_login("lineuser2", site=SITE2)
+check("L4 second site still opens by LINE", b.user(SITE2) == OWNER, b.user(SITE2))
+b, r, landed = line_login("lineuser2", site=SITE)
+check("L5 first site refuses the same LINE now it is unbound there", b.user(SITE) != OWNER, b.user(SITE))
+db(lambda: __import__("pearnly_core.line_binding", fromlist=["x"]).unbind(U2), "erp2.lab")
+wait_link(U2, "unlinked", site="erp2.lab")
+check("L6 unbinding on the last site removes the link", (ALIAS, U2) not in kc_links(OWNER), kc_links(OWNER))
 
 # ── K. only credential actions demand a fresh password; profile/locale keep Keycloak defaults ─
 ages = {a: ((kc.request(f"{R}/authentication/required-actions/{a}/config", ok=(200, 400, 404)) or {})
