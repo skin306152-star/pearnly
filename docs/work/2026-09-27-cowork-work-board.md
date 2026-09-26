@@ -14,7 +14,7 @@
 - 收尾状态：施工中
 - 分支 / 基线 SHA / 工作树 / 集成目标：`codex/cowork-work-board` / `5b8af27`（开工时 `af9aa34`，2026-09-27 按 ERP 窗口通知变基到
   `5b8af27`，无冲突）/ `/Users/skin/pearnly/.claude/worktrees/loving-gagarin-82ed99` / `main`
-- 合并 / 推送 / 远端回读状态：未合并、未推送
+- 合并 / 推送 / 远端回读状态：未合并、未推送；已变基到 `origin/main` `c11e7a2`（ERP 发布记录，无冲突）；测试机实时源码挂本工作树
 - 允许修改的路径：`apps/pearnly_cowork/pearnly_cowork/`（新域 `work/`、新 DocType、新页面、hooks、术语表、翻译包）、
   `docs/development/architecture-policy.json`（新域依赖登记）、`docs/development/architecture.md`（Cowork 域表）、`tests/`、本记录。
 - 运行资源：测试机 Cowork 栈（`testcowork.pearnly.com`，实时源码挂本工作树）；本机样板 `pearnly-sample` 的 Cowork 容器（挂本工作树）。
@@ -58,6 +58,7 @@
 | 2026-09-27 | 同上 | 本机样板 `cowork-a.localhost`（`dev-reload --migrate` 建表） | `scripts/test-cowork-work-native.py`：无权限拒绝、原生写被拦、建 / 拖 / 换列 / 完成时间、标签增改删、更新 + 版本冲突 + 非成员拒绝 + 富文本清洗、评论只能删自己的、附件私有且无权者读不到、归档 / 恢复 / 管理员删除、接口报错；整段一个事务后回滚 | 通过；回滚后表与临时用户均为 0 |
 | 2026-09-27 | 同上 | 本机样板，内置浏览器（桌面 1400 宽 + 手机 375 宽） | 列尾连加、跨列拖动、打开详情改成员 / 到期 / 清单并保存（保存键只在改动后出现）、标签管理与选用、评论、附件上传与私有下载、筛选、归档 / 恢复、手机分区导航 | 通过；发现并修掉：加卡按钮图标居中、时间显示成 HTML、标签颜色下拉被表格裁切、已归档表格在弹窗显示前绘制、已归档时间显示成 UTC |
 | 2026-09-27 | 同上 | 本机样板 | 实时刷新（socket.io） | 未验：本机样板代理不通 socket.io（`connected: false`），留到测试机 |
+| 2026-09-27 | `2d00c60`（变基到 `c11e7a2` 后） | 测试机 Cowork 栈（线上同一底座镜像 + 本工作树实时源码），`testcowork.pearnly.com` | `testenv.sh live cowork`（自动 migrate）；核对表、`Cowork Work` 角色、`pearnly-work` Page、测试账号 `pearnlyai@gmail.com`（Cowork Admin）可进；`work.js` / `work.css` 线上地址与本地字节一致；在测试租户上跑 `test-cowork-work-native.py` | 通过；事务回滚后卡片 / 标签 / 活动 / 临时用户 / 附件均为 0 |
 
 `python3 scripts/check-i18n.py --strict` 失败是存量（其他模块硬编码文案），本任务新增文件不在报告里；CI 不跑这一项。
 本机样板的测试数据（卡片、标签、附件、临时用户与会话）测完已删。
@@ -65,7 +66,8 @@
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
 | 实现 | 完成（待用户试用） | |
-| 本地验证 | 通过 | 见上表；实时刷新未验 |
+| 本地验证 | 通过 | 见上表；实时刷新（两人同时开看板）未验 |
+| 测试机 | 已上 | `testcowork.pearnly.com` 侧栏出现「工作协调」，等用户试用 |
 | CI | 未执行 | |
 | 部署 | 未执行 | 生产仍是 `15dea26` |
 | 外部业务结果 | 不适用 | 无外部写入 |
