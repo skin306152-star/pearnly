@@ -173,6 +173,9 @@ bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈�
   只在需要不接统一身份的空白站点时用；它现在与导入的账本共用一个账本站，`lab-init` 会往里登记 `T-TESTCOWORK`。
 - 与线上不同 / 边界：OCR 读的是测试机 `/run/secrets/ocr.json`（线上真凭据，识别是**真实付费调用**，只在人工验收时用）；
   账本是导入时的副本，扣费不回写线上；Cowork 独立账号池 `pearnly-cowork` 还没在线上建，`testcowork` 目前仍签到业务账号池。
+- **充值也只进测试账本**：切在测试机时，租户页面上的充值申请落在测试机账本副本（`billing.internal` 的 `Pearnly Topup Request`），
+  本机管理后台读的是线上账本、看不到它。只为测试时在测试账本里审核（`billing_api.approve_local`，备注写明测试）；
+  真实转账要切回线上后在线上再提交。2026-09-27：`TU-2026-00073`（testcowork，1000 泰铢）按用户要求在测试账本审核通过。
 
 ## 命令速查
 
