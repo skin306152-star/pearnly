@@ -287,6 +287,7 @@ def review(result):
         computed = None
     # 不按税票记 VAT 的单据（简式税票 / 收据），票面印的 VAT 不用来比。
     worked_vat = computed["vat_amount"] if computed and result.get("has_vat") is not False else None
-    issues += checks.computed_issues(printed, computed["grand_total"], worked_vat) if computed else (
+    issues += checks.computed_issues(printed, computed["grand_total"], worked_vat,
+                                     computed["net_payable"]) if computed else (
         ["computed_total"] if checks.money(printed.get("total")) is not None else [])
     return issues + checks.date_issues(result.get("doc_date")) + list(result.get("tax_review") or [])

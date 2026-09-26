@@ -175,13 +175,15 @@ def printed_issues(printed: dict, line_amounts: list, *, seller_tax=None, buyer_
     return issues
 
 
-def computed_issues(printed: dict, computed_total, computed_vat=None) -> list:
+def computed_issues(printed: dict, computed_total, computed_vat=None, net_payable=None) -> list:
     """按识别出的明细算出的合计 / VAT ≠ 票面（旧线上入账时的 422，这里提前）。
 
     VAT 也要比：09-26 实测一张含税票被读成「无 VAT」，合计照样对得上，入账却会少记 490.65 的税。"""
     issues = []
-    total, computed = money(printed.get("total")), money(computed_total)
-    if total is not None and computed is not None and abs(total - computed) > TOLERANCE:
+    total, computed, payable = money(printed.get("total")), money(computed_total), money(net_payable)
+    # 票面「合计」可能印的是扣了预扣税后的实付额：和实付额对上也算对（语料实测：预扣税票每张都误报并白升级一次）。
+    if total is not None and computed is not None and abs(total - computed) > TOLERANCE \
+            and (payable is None or abs(total - payable) > TOLERANCE):
         issues.append("computed_total")
     vat, worked = money(printed.get("vat")), money(computed_vat)
     if vat is not None and worked is not None and abs(vat - worked) > max(TOLERANCE, vat * RELATIVE):
