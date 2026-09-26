@@ -254,7 +254,57 @@ class NativeFlow(unittest.TestCase):
             connect()
         return len(jobs)
 
+    def local_snapshots(self):
+        """Operator identity plus complete local snapshots; bookings check masters against them (ADR-013)."""
+        from pearnly_dms.snapshots import store as snapshots
+        if self.snapshot_template:
+            return
+        self.assertFalse(frappe.db.exists("Pearnly ERP Endpoint", {
+            "adapter": "mrerp_dms", "owner_user": ["is", "not set"]}),
+            "Refusing an existing shared connection from another fixture")
+        template = frappe.get_doc({"doctype": "Pearnly ERP Endpoint", "label": self.label,
+            "adapter": "mrerp_dms", "enabled": 1, "system_url": "https://dms.invalid/index.php",
+            "booking_defaults": "{}"}).insert(ignore_permissions=True)
+        self.snapshot_template = template.name
+        frappe.get_doc({"doctype": "DMS Operator", "user": self.user, "display_name": self.label,
+            "status": "active", "dms_role": "sales", "dms_username": self.label,
+            "dms_password": "fake-only-" + self.label, "can_query_dms": 1}).insert(ignore_permissions=True)
+        self.assertEqual(frappe.db.get_value("Pearnly ERP Endpoint", {"owner_user": self.user}, "name"), self.endpoint)
+        authority = snapshots.scope(self.endpoint)
+        self.snapshot_keys.update((authority, snapshots.scope(self.endpoint, reader="sales")))
+        masters = {**self.dms.masters, "company_banks": [], "branches": [], "employees": [],
+            "prefixes": [["17", "นาย"]], "source_banks": [], "cheque_banks": [],
+            "cashier_banks": [], "card_banks": []}
+        snapshots.publish(self.endpoint, "directory", {"masters": masters,
+            "paints": {"car": [["paint", "PAINT", "Paint"]]},
+            "customers": {"customer": {"customer_id": "customer", **self.dms.read_customer("customer")}}},
+            time.time() - 1, expected_scope=authority)
+        # ADR-013: the pre-submit master check reads the per-group local snapshot, not a live admin read.
+        vehicle_keys = ("cars",)
+        snapshots.publish(self.endpoint, "vehicles", {
+            "masters": {key: masters[key] for key in vehicle_keys},
+            "paints": {"car": [["paint", "PAINT", "Paint"]]}, "catalogues": {"fixture": {}}},
+            time.time() - 1, expected_scope=authority)
+        snapshots.publish(self.endpoint, "company", {
+            "masters": {key: value for key, value in masters.items()
+                        if key not in vehicle_keys and key != "prefixes"},
+            "catalogues": {"fixture": {}}}, time.time() - 1, expected_scope=authority)
+        snapshots.publish(self.endpoint, "customers", {
+            "customers": {"customer": {"customer_id": "customer", **self.dms.read_customer("customer")}},
+            "prefixes": masters["prefixes"]}, time.time() - 1, expected_scope=authority)
+        frappe.db.commit()
+
+    def republish_company(self):
+        from pearnly_dms.snapshots import store as snapshots
+        masters = {key: value for key, value in self.dms.masters.items() if key != "cars"}
+        masters.update({"company_banks": [], "branches": [], "employees": [], "source_banks": [],
+                        "cheque_banks": [], "cashier_banks": [], "card_banks": []})
+        snapshots.publish(self.endpoint, "company", {"masters": masters, "catalogues": {"fixture": {}}},
+                          time.time(), expected_scope=snapshots.scope(self.endpoint))
+        frappe.db.commit()
+
     def review(self, *, attachments=False):
+        self.local_snapshots()
         qa = {"endpoint_id": self.endpoint, "step": "pay_more",
             "customer": {"id": "customer", "name": "Local Fixture"},
             "advisor": {"id": "advisor", "name": "Advisor"},
@@ -324,27 +374,7 @@ class NativeFlow(unittest.TestCase):
     def test_verified_booking_does_not_automatically_refresh_sales_or_claim_fresh_data(self):
         from pearnly_dms.snapshots import store as snapshots
         from pearnly_dms.query import snapshot_sync
-        self.assertFalse(frappe.db.exists("Pearnly ERP Endpoint", {
-            "adapter": "mrerp_dms", "owner_user": ["is", "not set"]}),
-            "Refusing an existing shared connection from another fixture")
-        template = frappe.get_doc({"doctype": "Pearnly ERP Endpoint", "label": self.label,
-            "adapter": "mrerp_dms", "enabled": 1, "system_url": "https://dms.invalid/index.php",
-            "booking_defaults": "{}"}).insert(ignore_permissions=True)
-        self.snapshot_template = template.name
-        frappe.get_doc({"doctype": "DMS Operator", "user": self.user, "display_name": self.label,
-            "status": "active", "dms_role": "sales", "dms_username": self.label,
-            "dms_password": "fake-only-" + self.label, "can_query_dms": 1}).insert(ignore_permissions=True)
-        self.assertEqual(frappe.db.get_value("Pearnly ERP Endpoint", {"owner_user": self.user}, "name"), self.endpoint)
-        authority = snapshots.scope(self.endpoint)
-        self.snapshot_keys.update((authority, snapshots.scope(self.endpoint, reader="sales")))
-        masters = {**self.dms.masters, "company_banks": [], "branches": [], "employees": [],
-            "prefixes": [["17", "นาย"]], "source_banks": [], "cheque_banks": [],
-            "cashier_banks": [], "card_banks": []}
-        snapshots.publish(self.endpoint, "directory", {"masters": masters,
-            "paints": {"car": [["paint", "PAINT", "Paint"]]},
-            "customers": {"customer": {"customer_id": "customer", **self.dms.read_customer("customer")}}},
-            time.time() - 1, expected_scope=authority)
-        frappe.db.commit()
+        self.local_snapshots()
         before = snapshots.read(self.endpoint)
         queue = get_queue("dms_sync")
         baseline = set(queue.get_job_ids())
@@ -437,7 +467,9 @@ class NativeFlow(unittest.TestCase):
     def test_master_rename_returns_one_updated_card_without_submitting(self):
         from pearnly_dms.booking.conversation import qa_cards
         nonce = self.review()
+        # The daytime change sync brings the DMS rename into the local snapshot (ADR-013).
         self.dms.masters["place_books"][0][2] = "Renamed Place"
+        self.republish_company()
         self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=nonce)
         self.assertEqual(self.drain(), 1)
         payload = store.get_session(self.uid)["payload"]

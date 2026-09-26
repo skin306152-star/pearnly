@@ -499,7 +499,8 @@ class BookingService(unittest.TestCase):
         self.masters = {key: [[rid, rid, "Live " + rid]] for key, rid in (
             ("cars", "car"), ("advisors", "a"), ("place_books", "place"),
             ("term_sales", "term"), ("regis_behalfs", "regis"))}
-        self.preflight = self.enterContext(patch("pearnly_dms.booking.booking_preflight.readonly_preflight"))
+        # ADR-013: pre-submit master check reads the local complete snapshot, never an admin session.
+        self.preflight = self.enterContext(patch("pearnly_dms.booking.booking_preflight.local_preflight"))
         self.preflight.side_effect = self.read_preflight
         ref = DMSMasterRef("org", "ORG", "Organization")
         self.enterContext(patch("pearnly_dms.booking.booking_org.resolve_booking_org",
@@ -533,8 +534,9 @@ class BookingService(unittest.TestCase):
         self.assertEqual(self.phase, "sales")
         yield True
 
-    def read_preflight(self, client, adapter, qa, **kw):
-        self.assertEqual(self.phase, "authority")
+    def read_preflight(self, qa, directory):
+        self.assertEqual(self.phase, "sales")  # no admin session is borrowed for master data
+        self.assertEqual(directory.endpoint, "EP-lab")
         return {"status": "ok", "qa": copy.deepcopy(qa), "masters": self.masters,
                 "paints": [["paint", "P", "Live paint"]]}
 

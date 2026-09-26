@@ -105,15 +105,17 @@ def book_in_session(
     只有这一个门进建单，半路丢了回调等于登记永远不生效 —— 而症状只在超时/重发时出现。
     真正的"登记先于写"判据在 `dms_booking_submit.submit_booking`（脚本 5.2 钉住）。
     """
-    from pearnly_dms.adapter.admin_read import authoritative_read_session
     from pearnly_dms.adapter.push import booking_defaults_from_endpoint
     from pearnly_dms.booking.booking_customer import card_from_customer
     from pearnly_dms.booking.booking_org import resolve_booking_org
     from pearnly_dms.booking.booking_payload import build_booking_payload
-    from pearnly_dms.booking.booking_preflight import readonly_preflight
+    from pearnly_dms.booking.booking_preflight import local_preflight
+    from pearnly_dms.contracts.client_base import DmsClientError
+    from pearnly_dms.snapshots import store
+    from pearnly_dms.snapshots.directory import Directory
     from pearnly_dms.contracts.payments import validate_payment_completeness
     from pearnly_dms.adapter.operations import err, run_logged_in
-    from pearnly_dms.masters.company_banks import fetch_payment_bank_masters, validate_company_bank_payments
+    from pearnly_dms.masters.company_banks import validate_company_bank_payments
     from pearnly_dms.adapter import snapshot_writeback
 
     # Resolver returns a mapping; Frappe treats mappings as SQL filters, not document names.
@@ -126,79 +128,82 @@ def book_in_session(
     def _do(cl, adapter):
         nonlocal qa
         validate_payment_completeness(qa.get("payments") or [])
-        with authoritative_read_session(cl):
-            preflight = readonly_preflight(
-                cl, adapter, qa,
-                fetch_masters=lambda client: client.fetch_masters(strict=True),
-                fetch_payment_banks=lambda source: fetch_payment_bank_masters(source, client=cl),
-            )
-            if preflight["status"] != "ok":
-                return {
-                    "ok": False,
-                    "preflight": preflight["status"],
-                    "field": preflight.get("field", ""),
-                    "error_code": preflight.get("code", "ERR_DMS_MASTER_CHANGED"),
-                    "qa": preflight["qa"],
-                }
-            qa = payload["qa"] = preflight["qa"]
-            answers = qa.get("answers") or {}
-            adv = qa.get("advisor") or {}
-            defaults = dataclasses.replace(
-                booking_defaults_from_endpoint(endpoint),
-                advisor_id=str(adv.get("id") or ""),
-                advisor_name=str(adv.get("name") or ""),
-                car_id=str((answers.get("car") or {}).get("id") or ""),
-                paint_id=str((answers.get("paint") or {}).get("id") or ""),
-                place_book_id=str((answers.get("place") or {}).get("id") or ""),
-                term_sale_id=str((answers.get("term") or {}).get("id") or ""),
-                regis_behalf_id=str((answers.get("regis") or {}).get("id") or ""),
-            )
-            card = card_payload(payload)
-            customer_id = str((qa.get("customer") or {}).get("id") or "")
-            # Master/identity reads can be slow. A reset or a rebind must revoke
-            # both the customer update and the later order submission.
-            guard = getattr(on_attempt, "assert_current", None)
-            if callable(guard):
-                import frappe
-                frappe.db.commit()
-                guard()
-            if qa.get("customer_dirty"):
-                from pearnly_dms.contracts import customer_merge
-                from pearnly_dms.intake.customer_attempt import Attempt
-                draft = dict(qa.get("draft") or {})
-                draft["name"] = str((qa.get("customer") or {}).get("name") or "")
-                baseline = qa.get("customer_baseline")
-                fields = {key: value for key, value in draft.items()
-                          if key in customer_merge.IDENTITY + customer_merge.ADDRESS
-                          and (baseline is None or str(value or "") != str(baseline.get(key) or ""))}
-                fields, addresses = customer_merge.split(qa.get("customer_changes",
-                                                         customer_merge.flatten(fields)))
-                marker = Attempt(endpoint, "booking-customer:" + str(payload.get("nonce") or ""),
-                    qa.get("user_id"), fields=fields, mode="overwrite", customer_id=customer_id,
-                    addresses=addresses, baseline=baseline)
-                # DmsClient.save_customer restores the original sales writer transport.
-                def begin_customer():
-                    if callable(guard):
-                        import frappe
-                        frappe.db.commit()  # live form reads must not freeze authority in an old RR view
-                        guard()
-                    marker.begin()
-                try:
-                    if not marker.previous():
-                        cl.save_customer(fields=fields, mode="overwrite", customer_id=customer_id,
-                                         addresses=addresses, baseline=baseline, on_attempt=begin_customer)
-                        marker.finish({"ok": True, "success": True, "customer_id": customer_id,
-                                       "mode": "overwrite"})
-                except customer_merge.DmsClientError as exc:
-                    result = err(exc.error_code, response_body=getattr(exc, "response_body", None))
-                    return marker.finish(result)
-                snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
-            master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
-            org = resolve_booking_org(cl, defaults.advisor_id, defaults)
-            booking = build_booking_payload(
-                defaults, masters=preflight["masters"], paints=preflight["paints"], org=org,
-            )
-            payments = validate_company_bank_payments(adapter, qa.get("payments") or [], client=cl)
+        # 提交前复核主档**对照本地完整快照**，不再借管理员去 DMS 实时读（ADR-013；用户
+        # 2026-09-27："主档信息一般不会经常变来变去"）。快照由白天每分钟增量 + 凌晨全量
+        # 保持新鲜。客户资料卡、顾问组织仍是销售会话实时读、读不到才借管理员（各自的回退）。
+        directory = Directory(str(qa.get("endpoint_id") or endpoint))
+        try:
+            preflight = local_preflight(qa, directory)
+        except (store.SnapshotUnavailable, DmsClientError) as exc:
+            return err(getattr(exc, "error_code", "") or "ERR_DMS_MASTER_UNAVAILABLE", str(exc))
+        if preflight["status"] != "ok":
+            return {
+                "ok": False,
+                "preflight": preflight["status"],
+                "field": preflight.get("field", ""),
+                "error_code": preflight.get("code", "ERR_DMS_MASTER_CHANGED"),
+                "qa": preflight["qa"],
+            }
+        qa = payload["qa"] = preflight["qa"]
+        answers = qa.get("answers") or {}
+        adv = qa.get("advisor") or {}
+        defaults = dataclasses.replace(
+            booking_defaults_from_endpoint(endpoint),
+            advisor_id=str(adv.get("id") or ""),
+            advisor_name=str(adv.get("name") or ""),
+            car_id=str((answers.get("car") or {}).get("id") or ""),
+            paint_id=str((answers.get("paint") or {}).get("id") or ""),
+            place_book_id=str((answers.get("place") or {}).get("id") or ""),
+            term_sale_id=str((answers.get("term") or {}).get("id") or ""),
+            regis_behalf_id=str((answers.get("regis") or {}).get("id") or ""),
+        )
+        card = card_payload(payload)
+        customer_id = str((qa.get("customer") or {}).get("id") or "")
+        # Master/identity reads can be slow. A reset or a rebind must revoke
+        # both the customer update and the later order submission.
+        guard = getattr(on_attempt, "assert_current", None)
+        if callable(guard):
+            import frappe
+            frappe.db.commit()
+            guard()
+        if qa.get("customer_dirty"):
+            from pearnly_dms.contracts import customer_merge
+            from pearnly_dms.intake.customer_attempt import Attempt
+            draft = dict(qa.get("draft") or {})
+            draft["name"] = str((qa.get("customer") or {}).get("name") or "")
+            baseline = qa.get("customer_baseline")
+            fields = {key: value for key, value in draft.items()
+                      if key in customer_merge.IDENTITY + customer_merge.ADDRESS
+                      and (baseline is None or str(value or "") != str(baseline.get(key) or ""))}
+            fields, addresses = customer_merge.split(qa.get("customer_changes",
+                                                     customer_merge.flatten(fields)))
+            marker = Attempt(endpoint, "booking-customer:" + str(payload.get("nonce") or ""),
+                qa.get("user_id"), fields=fields, mode="overwrite", customer_id=customer_id,
+                addresses=addresses, baseline=baseline)
+            # DmsClient.save_customer restores the original sales writer transport.
+            def begin_customer():
+                if callable(guard):
+                    import frappe
+                    frappe.db.commit()  # live form reads must not freeze authority in an old RR view
+                    guard()
+                marker.begin()
+            try:
+                if not marker.previous():
+                    cl.save_customer(fields=fields, mode="overwrite", customer_id=customer_id,
+                                     addresses=addresses, baseline=baseline, on_attempt=begin_customer)
+                    marker.finish({"ok": True, "success": True, "customer_id": customer_id,
+                                   "mode": "overwrite"})
+            except customer_merge.DmsClientError as exc:
+                result = err(exc.error_code, response_body=getattr(exc, "response_body", None))
+                return marker.finish(result)
+            snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
+        master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
+        org = resolve_booking_org(cl, defaults.advisor_id, defaults)
+        booking = build_booking_payload(
+            defaults, masters=preflight["masters"], paints=preflight["paints"], org=org,
+        )
+        payments = validate_company_bank_payments(adapter, qa.get("payments") or [], client=cl,
+                                                  catalogues=preflight["masters"])
         # Only submit on the original sales writer, using the single validated snapshot.
         booking = dataclasses.replace(
             booking,

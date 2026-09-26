@@ -63,3 +63,36 @@ def readonly_preflight(
         "paints": live_paints,
         "qa": preflight["qa"],
     }
+
+
+def local_preflight(qa: dict, directory: Any) -> Dict[str, Any]:
+    """提交前对照**本地完整快照**复核主档（ADR-013，用户 2026-09-27：主档不常变，不再为此
+    借管理员去 DMS 实时读）。返回形状与 `readonly_preflight` 相同。
+
+    快照由白天每分钟的增量同步与凌晨全量保持新鲜；这里不访问 DMS、不占任何账号。
+    选中车型已不在快照里 → 由 `reconcile` 按"主档已变"退回重选；颜色目录缺失 → 明确报
+    `ERR_DMS_MASTER_UNAVAILABLE`，不拿空表冒充"这车没颜色"。
+    """
+    from pearnly_dms.contracts.client_base import DmsClientError
+
+    answers = (qa.get("answers") or {}) if isinstance(qa, dict) else {}
+    masters = directory.masters()
+    selected_car_id = str((answers.get("car") or {}).get("id") or "")
+    paints: List[list] = []
+    if find_row(masters.get("cars"), selected_car_id) is not None:
+        try:
+            paints = directory.paints(selected_car_id)
+        except DmsClientError as exc:
+            raise DmsClientError(
+                f"DMS paint snapshot unavailable for car {selected_car_id!r}",
+                "ERR_DMS_MASTER_UNAVAILABLE",
+            ) from exc
+    preflight = master_contract.reconcile(qa, masters, paints)
+    if preflight["status"] != "ok":
+        return {
+            "status": preflight["status"],
+            "field": preflight.get("field", ""),
+            "code": preflight.get("code", "ERR_DMS_MASTER_CHANGED"),
+            "qa": preflight["qa"],
+        }
+    return {"status": "ok", "masters": masters, "paints": paints, "qa": preflight["qa"]}

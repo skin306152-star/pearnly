@@ -40,11 +40,11 @@
 | `scripts/production/configure-dms-runtime.py` | DMS bench `scheduler_tick_interval=60` |
 | 文案 | `ERR_DMS_BUSY` 与账号池界面 23 条，四语，进 DMS 自己的 `messages.tsv` |
 
-第 2 步"读取不再用管理员"的结论：前台只剩订车提交前主档复核还用管理员实时读，按安全考虑保留（见 ADR 第 3 点）。
+第 2 步"读取不再用管理员"：起初保留了订车提交前主档复核的管理员实时读；用户 2026-09-27 明确不要（"主档信息一般不会经常变来变去"），改为 `booking_preflight.local_preflight` 对照本地快照，收款银行核对同样读本地目录；建单整段去掉管理员会话包装，客户资料卡与顾问组织回到"销售先读、读不到才借管理员"。相应测试按新规则改写：`test-dms-line-runtime`（复核在销售阶段、读本地）、`test-dms-snapshot-consumers`（建单读本地快照、不调 `fetch_masters`）、`test-dms-native-flow`（每条建单用例先发布三组本地快照；主档改名用例改为"白天同步把改名写进本地快照"）。
 
 ## 验证（本机，候选源码）
 
-- 新增 `scripts/test-dms-session-reuse.py` 16 条（锁定 Frappe 16.33.0 镜像、`--network none`），已加入 `scripts/ci-candidate-checks.sh`。
+- 新增 `scripts/test-dms-session-reuse.py` 18 条（含本地复核两条）（锁定 Frappe 16.33.0 镜像、`--network none`），已加入 `scripts/ci-candidate-checks.sh`。
 - `tests/test_dms_change_sync.py` 20 条（新增"白天大组留给夜里"，旧用例固定为不延后）。
 - 架构 0 违规；调用契约、客户身份、快照读取、DMS 运行配置、队列目标、架构守卫、Desk 契约、功能目录、离线套件（含额度 46/46）通过；`i18n-build --check`、前端 i18n 严格检查通过；`check-i18n --strict` DMS 相关计数与 main 相同（既有积压）。
 - 镜像内：line-runtime 37、intake-queue 23、query-output 11、query-snapshots 40、snapshot-consumers 25、teardown 3、entrypoints 4。

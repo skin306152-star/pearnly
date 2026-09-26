@@ -285,12 +285,23 @@ class SnapshotConsumers(unittest.TestCase):
         self.assertFalse(self.writeback.sales(EP))
         enqueue.assert_not_called(); hooks.assert_not_called()
 
-    def test_booking_success_keeps_live_preflight_without_automatic_sales_refresh(self):
+    def test_booking_checks_masters_against_local_snapshot_without_sales_refresh(self):
+        """ADR-013：提交前主档复核读本地完整快照，不再借管理员去 DMS 实时读主档。"""
         from pearnly_dms.booking import service as booking_service
         client = booking_fixture.DmsFixture("SNAPSHOT-ONLY")
         self.replace(self.operations, "run_logged_in", side_effect=client.session)
         self.replace(booking_service, "booking_lock", side_effect=lambda _: nullcontext(True))
-        self.replace(self.store, "read", side_effect=AssertionError("Booking must use live preflight"))
+        banks = {key: [] for key in ("company_banks", "source_banks", "cheque_banks", "cashier_banks", "card_banks")}
+        local = {
+            "vehicles": {"masters": {"cars": client.masters["cars"]},
+                         "paints": {"car": [["paint", "PAINT", "Paint"]]}, "catalogues": {"fixture": {}}},
+            "company": {"masters": {**{k: v for k, v in client.masters.items() if k != "cars"}, **banks},
+                        "catalogues": {"fixture": {}}},
+            "customers": {"customers": {}, "prefixes": [["17", "Prefix"]]},
+        }
+        reads = self.replace(self.store, "read", side_effect=lambda endpoint, dataset, **kw: {
+            "data": copy.deepcopy(local[dataset]), "as_of": 1790209380, "completed_at": 1790209400,
+            "generation": "synthetic-" + dataset, "stale": False})
         enqueue = self.replace(frappe, "enqueue", return_value=None)
         customer_read = self.replace(client, "read_customer", wraps=client.read_customer)
         master_read = self.replace(client, "fetch_masters", wraps=client.fetch_masters)
@@ -311,7 +322,8 @@ class SnapshotConsumers(unittest.TestCase):
                 self.assertFalse(result["cache_refresh_requested"])
         self.assertEqual(len(client.orders), 2)
         self.assertEqual(customer_read.call_count, 2)
-        self.assertEqual(master_read.call_count, 2)
+        self.assertEqual(master_read.call_count, 0, "主档不再去 DMS 实时读")
+        self.assertTrue({"vehicles", "company"} <= {call.args[1] for call in reads.call_args_list})
         enqueue.assert_not_called()
 
     def test_scope_dedupes_authority_but_isolates_sales_owner_revision_and_site(self):

@@ -26,7 +26,7 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.payments import MANUAL_BANK_FLAG
@@ -250,7 +250,8 @@ def company_bank_payment_extra(row: list, existing: dict | None = None) -> Dict[
 
 
 def validate_company_bank_payments(
-    adapter: Any, payments: Iterable[dict], *, client: Any = None
+    adapter: Any, payments: Iterable[dict], *, client: Any = None,
+    catalogues: Optional[dict] = None,
 ) -> List[dict]:
     """提交前核对银行身份与完整转账资料；**不把银行编号当作公司账号**。
 
@@ -266,7 +267,15 @@ def validate_company_bank_payments(
 
     def bank_rows(key):
         if key not in by_key:
-            by_key[key] = _fetch_banks(adapter, PAYMENT_BANK_MASTERS[key], client=client)
+            if catalogues is not None:
+                # 本地完整快照里的同一份目录（收集时就是 `_fetch_banks` 读的、已规范化）。
+                rows = catalogues.get(key)
+                if not isinstance(rows, list):
+                    raise DmsClientError(f"bank catalogue {key!r} absent from snapshot",
+                                         "ERR_DMS_MASTER_UNAVAILABLE")
+                by_key[key] = rows
+            else:
+                by_key[key] = _fetch_banks(adapter, PAYMENT_BANK_MASTERS[key], client=client)
         return by_key[key]
 
     def current_bank(key, bank_id):

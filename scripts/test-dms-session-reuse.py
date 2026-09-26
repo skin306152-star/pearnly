@@ -279,6 +279,46 @@ class LiveSyncTests(unittest.TestCase):
         self.assertTrue(enqueue.call_args.kwargs["deduplicate"])
 
 
+class LocalPreflightTests(unittest.TestCase):
+    """ADR-013: the pre-submit master check reads the local snapshot only."""
+
+    def directory(self, cars, paints=None):
+        from pearnly_dms.contracts.client_base import DmsClientError
+
+        directory = Mock()
+        directory.masters.return_value = {"cars": cars, "place_books": [["place", "P", "Place"]],
+                                          "term_sales": [["term", "T", "Term"]],
+                                          "regis_behalfs": [["regis", "R", "Regis"]],
+                                          "advisors": [["a", "A", "Advisor"]], "branches": [],
+                                          **{key: [] for key in ("company_banks", "source_banks", "cheque_banks",
+                                                                 "cashier_banks", "card_banks")}}
+        if paints is None:
+            directory.paints.side_effect = DmsClientError("absent", "ERR_DMS_MASTER_CHANGED")
+        else:
+            directory.paints.return_value = paints
+        return directory
+
+    def qa(self):
+        return {"answers": {"car": {"id": "car"}, "paint": {"id": "paint"}, "place": {"id": "place"},
+                            "term": {"id": "term"}, "regis": {"id": "regis"}}}
+
+    def test_removed_car_is_not_ok_and_reads_no_paints(self):
+        from pearnly_dms.booking.booking_preflight import local_preflight
+
+        directory = self.directory([["other", "O", "Other"]])
+        result = local_preflight(self.qa(), directory)
+        self.assertNotEqual(result["status"], "ok")
+        directory.paints.assert_not_called()
+
+    def test_missing_paint_catalogue_is_reported_not_treated_as_empty(self):
+        from pearnly_dms.booking.booking_preflight import local_preflight
+        from pearnly_dms.contracts.client_base import DmsClientError
+
+        with self.assertRaises(DmsClientError) as raised:
+            local_preflight(self.qa(), self.directory([["car", "C", "Car"]], paints=None))
+        self.assertEqual(raised.exception.error_code, "ERR_DMS_MASTER_UNAVAILABLE")
+
+
 class BusyErrorTests(unittest.TestCase):
     def test_lock_timeout_is_reported_as_busy_and_retryable(self):
         from pearnly_dms.adapter import operations
