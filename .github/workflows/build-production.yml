@@ -69,7 +69,7 @@ jobs:
             -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
             "$IMAGE" /candidate/tests/test_dms_entrypoints.py
           docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
-            "$IMAGE" -m unittest pearnly_erp_portal.integrations.test_line_intake pearnly_erp_portal.team.test_identity pearnly_control.account.test_member_service pearnly_core.account.test_line_login
+            "$IMAGE" -m unittest pearnly_erp_portal.integrations.test_line_intake pearnly_erp_portal.team.test_identity pearnly_control.account.test_member_service pearnly_core.account.test_line_login pearnly_core.account.test_native_account_password
           docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
             -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-line-runtime.py
           docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \

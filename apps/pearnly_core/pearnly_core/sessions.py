@@ -157,6 +157,9 @@ def logout_everywhere(keep_current: bool = False):
     user = frappe.session.user
     if user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
+    from pearnly_core.password import refuse_on_native_account
+
+    refuse_on_native_account()
 
     current_sid = frappe.session.sid
     rows = _my_rows(user)

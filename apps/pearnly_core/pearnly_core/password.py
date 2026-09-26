@@ -98,11 +98,21 @@ def _verify_current_password(subject: str, current_password: str) -> None:
 
 
 @frappe.whitelist(methods=["POST"])
+def refuse_on_native_account():
+    """云端站点（`pearnly_native_account`）不持有身份服务管理凭据：改密、退出全部设备都在身份服务
+    自己的账户页完成（改密页可勾选"从其他设备登出"，经回通道登出结束各站点会话）。界面上已直接跳过去，
+    这里把仍对外开着的旧接口明确关掉，而不是让它去取管理令牌再报一个看不懂的错。"""
+    if frappe.conf.get("pearnly_native_account"):
+        frappe.throw(_("Change your password and sign out other devices on the account page of the identity service"),
+                     frappe.PermissionError)
+
+
 def change_password(current_password=None, new_password=None, confirm_password=None):
-    """改自己的密码。任何产品页面都调这一个接口。"""
+    """改自己的密码（本地样板站点用；站点须有身份服务管理凭据）。"""
     user = frappe.session.user
     if not user or user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
+    refuse_on_native_account()
 
     current_password = (current_password or "").strip()
     new_password = (new_password or "").strip()
