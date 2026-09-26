@@ -33,6 +33,11 @@ def _key(account_dir: str) -> str:
     )
 
 
+def _stamp(previous: float) -> float:
+    """完成时间严格递增:Windows 的 time.time() 精度约 15ms,同一刻度内完成的新快照不能看起来"不更新"。"""
+    return max(time.time(), previous + 1e-6)
+
+
 def _scan(key: str, account_dir: str) -> None:
     try:
         payload = catalog_payload(account_dir)
@@ -45,7 +50,7 @@ def _scan(key: str, account_dir: str) -> None:
             return
         refresh.running = False
         refresh.payload = payload
-        refresh.completed_at = time.time() if payload is not None else 0.0
+        refresh.completed_at = _stamp(refresh.completed_at) if payload is not None else 0.0
 
 
 def _scan_target(key: str, account_dir: str) -> None:
@@ -67,7 +72,7 @@ def _scan_target(key: str, account_dir: str) -> None:
             return
         refresh.running = False
         refresh.payload = payload
-        refresh.completed_at = time.time()
+        refresh.completed_at = _stamp(refresh.completed_at)
         refresh.error = error
 
 

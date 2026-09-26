@@ -29,7 +29,8 @@ def default_command() -> str:
 def enable(command: Optional[str] = None) -> str:
     winreg = _winreg()
     cmd = command or default_command()
-    with winreg.OpenKey(
+    # CreateKeyEx:Run 键不存在(全新账户)时建出来;已存在时等同打开。
+    with winreg.CreateKeyEx(
         winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE
     ) as key:
         winreg.SetValueEx(key, _VALUE_NAME, 0, winreg.REG_SZ, cmd)
