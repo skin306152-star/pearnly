@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-recon-income",
+  "page_name": "pearnly-recon-income",
+  "title": "cowork.nav.reconIncome",
+  "module": "Pearnly Cowork",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

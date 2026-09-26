@@ -660,3 +660,84 @@ Review differences	查看差异	ตรวจสอบผลต่าง	差異�
 Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	cowork.stock.workbench.saveNext
 Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际位置和数量，保存后自动进入下一项。	สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	cowork.stock.workbench.scanHint
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。	สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	cowork.stock.workbench.stockChanged
+Bank Reconciliation	银行对账	กระทบยอดธนาคาร	銀行照合	cowork.nav.reconBank
+Income Reconciliation	收入对账	กระทบยอดรายได้	収益照合	cowork.nav.reconIncome
+VAT Report Check	销项税报告核查	ตรวจสอบรายงานภาษีขาย	売上税報告チェック	cowork.nav.reconVat
+Bank statement	银行账单	รายการเดินบัญชีธนาคาร	銀行明細	cowork.recon.bank.left
+General ledger	总账	บัญชีแยกประเภททั่วไป	総勘定元帳	cowork.recon.bank.right
+General ledger	总账	บัญชีแยกประเภททั่วไป	総勘定元帳	cowork.recon.income.left
+Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	cowork.recon.income.right
+Task name	任务名称	ชื่องาน	タスク名	cowork.recon.col.title
+Bank	银行	ธนาคาร	銀行	cowork.recon.col.bank
+Status	状态	สถานะ	状態	cowork.recon.col.status
+Rows	行数	จำนวนรายการ	行数	cowork.recon.col.rows
+Matched	已匹配	จับคู่แล้ว	一致	cowork.recon.col.matched
+Differences	差异	ผลต่าง	差異	cowork.recon.col.differences
+Unmatched	未匹配	ไม่พบคู่	未照合	cowork.recon.col.unmatched
+Created	创建时间	สร้างเมื่อ	作成日時	cowork.recon.col.createdAt
+Date	日期	วันที่	日付	cowork.recon.col.date
+Reference	参考编号	เลขที่อ้างอิง	参照番号	cowork.recon.col.reference
+Bank amount	银行金额	ยอดธนาคาร	銀行金額	cowork.recon.col.stmtAmount
+Ledger amount	总账金额	ยอดบัญชีแยกประเภท	元帳金額	cowork.recon.col.glAmount
+Type	类型	ประเภท	種別	cowork.recon.col.kind
+Document no.	单号	เลขที่เอกสาร	伝票番号	cowork.recon.col.docNo
+Customer	客户	ลูกค้า	顧客	cowork.recon.col.customer
+VAT report amount	税表金额	ยอดตามรายงานภาษี	税報告金額	cowork.recon.col.vatAmount
+Difference	差额	ผลต่าง	差額	cowork.recon.col.difference
+Completed	已完成	เสร็จสิ้น	完了	cowork.recon.task.completed
+Needs review	待复核	รอตรวจสอบ	要確認	cowork.recon.task.needs_review
+New task	新建任务	สร้างงานใหม่	新規タスク	cowork.recon.new
+Delete {0}	删除 {0} 项	ลบ {0} รายการ	{0}件を削除	cowork.recon.deleteSelected
+Delete {0} reconciliation(s)?	删除这 {0} 个对账任务？	ลบงานกระทบยอด {0} รายการ?	{0}件の照合を削除しますか？	cowork.recon.deleteConfirm
+Deleted {0}	已删除 {0} 项	ลบแล้ว {0} รายการ	{0}件を削除しました	cowork.recon.deleted
+Choose file	选择文件	เลือกไฟล์	ファイルを選択	cowork.recon.pick
+File	文件	ไฟล์	ファイル	cowork.recon.file
+Start reconciliation	开始对账	เริ่มกระทบยอด	照合を開始	cowork.recon.start
+Choose both files first	请先选好两份文件	กรุณาเลือกไฟล์ทั้งสองก่อน	先に2つのファイルを選択してください	cowork.recon.bothFiles
+Checking	核对中	กำลังตรวจสอบ	照合中	cowork.recon.checking
+Uploading files	上传文件	กำลังอัปโหลดไฟล์	ファイルをアップロード中	cowork.recon.stage.upload
+Waiting to start	排队中	รอเริ่ม	開始待ち	cowork.recon.stage.queued
+Reading files	读取文件	กำลังอ่านไฟล์	ファイルを読み込み中	cowork.recon.stage.reading
+Reading the bank statement	读取银行账单	กำลังอ่านรายการเดินบัญชี	銀行明細を読み込み中	cowork.recon.stage.statement
+Reading the general ledger	读取总账	กำลังอ่านบัญชีแยกประเภท	総勘定元帳を読み込み中	cowork.recon.stage.ledger
+Reading the VAT report	读取税表	กำลังอ่านรายงานภาษี	税報告を読み込み中	cowork.recon.stage.report
+Matching and saving	逐笔核对并保存	กำลังจับคู่และบันทึก	照合して保存中	cowork.recon.stage.matching
+Done	已完成	เสร็จสิ้น	完了	cowork.recon.stage.done
+Reconciliation failed	对账失败	กระทบยอดไม่สำเร็จ	照合に失敗しました	cowork.recon.failed
+This is taking too long. Check the list later.	对账时间较长，请稍后在列表里查看。	ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง	時間がかかっています。後で一覧を確認してください。	cowork.recon.timeout
+Export	导出	ส่งออก	エクスポート	cowork.recon.export
+Match rate	匹配率	อัตราการจับคู่	一致率	cowork.recon.kpi.rate
+Matched	已匹配	จับคู่แล้ว	一致	cowork.recon.kpi.matched
+Differences to review	待处理差异	ผลต่างที่ต้องตรวจสอบ	要確認の差異	cowork.recon.kpi.pending
+Unmatched	未匹配	ไม่พบคู่	未照合	cowork.recon.kpi.unmatched
+Show	显示	แสดง	表示	cowork.recon.filter
+All	全部	ทั้งหมด	すべて	cowork.recon.filter.all
+Matched	已匹配	จับคู่แล้ว	一致	cowork.recon.filter.matched
+Differences	差异	ผลต่าง	差異	cowork.recon.filter.pending
+Unmatched	未匹配	ไม่พบคู่	未照合	cowork.recon.filter.unmatched
+Matched	已匹配	จับคู่แล้ว	一致	cowork.recon.status.matched
+Difference	差异	ผลต่าง	差異	cowork.recon.status.pending
+Unmatched	未匹配	ไม่พบคู่	未照合	cowork.recon.status.unmatched
+Matched	已匹配	จับคู่แล้ว	一致	cowork.recon.bank.matched
+Bank withdrawal only	仅银行支出	มีเฉพาะรายการถอนในธนาคาร	銀行出金のみ	cowork.recon.bank.stmt_withdrawal_only
+Bank deposit only	仅银行存入	มีเฉพาะรายการฝากในธนาคาร	銀行入金のみ	cowork.recon.bank.stmt_deposit_only
+Ledger debit only	仅总账借方	มีเฉพาะเดบิตในบัญชีแยกประเภท	元帳借方のみ	cowork.recon.bank.gl_debit_only
+Ledger credit only	仅总账贷方	มีเฉพาะเครดิตในบัญชีแยกประเภท	元帳貸方のみ	cowork.recon.bank.gl_credit_only
+The bank statement could not be read.	读不出银行账单。	ไม่สามารถอ่านรายการเดินบัญชีได้	銀行明細を読み取れません。	reconciliation.statement_unparsed
+The general ledger could not be read.	读不出总账。	ไม่สามารถอ่านบัญชีแยกประเภทได้	総勘定元帳を読み取れません。	reconciliation.ledger_unparsed
+The general ledger could not be read.	读不出总账。	ไม่สามารถอ่านบัญชีแยกประเภทได้	総勘定元帳を読み取れません。	reconciliation.gl_parse_failed
+The general ledger has no revenue account rows.	总账里没有收入科目的行。	ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท	総勘定元帳に収益科目の行がありません。	reconciliation.gl_no_revenue_rows
+The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.	读不出税表。请用 Excel、CSV 或带文字层的 PDF。	ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ	税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。	reconciliation.vat_report_unparsed
+The VAT report has no rows.	税表里没有明细行。	รายงานภาษีไม่มีรายการ	税報告に明細行がありません。	reconciliation.vat_no_rows
+Unknown reconciliation type.	未知的对账类型。	ประเภทการกระทบยอดไม่ถูกต้อง	不明な照合種別です。	reconciliation.type_invalid
+The reconciliation task was not found.	找不到这个对账任务。	ไม่พบงานกระทบยอดนี้	照合タスクが見つかりません。	reconciliation.task_not_found
+The request is invalid. Reload and try again.	请求无效，请刷新后重试。	คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่	リクエストが無効です。再読み込みしてやり直してください。	reconciliation.request_invalid
+This request was already used for different content.	这个请求已用于不同内容。	คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว	このリクエストは別の内容で使用済みです。	reconciliation.request_conflict
+The opening and closing values are invalid.	期初期末数值无效。	ยอดยกมาและยอดคงเหลือไม่ถูกต้อง	期首・期末の値が無効です。	reconciliation.header_invalid
+Upload both files.	请上传两份文件。	กรุณาอัปโหลดไฟล์ทั้งสอง	両方のファイルをアップロードしてください。	reconciliation.files_required
+A file is larger than 25 MB.	文件超过 25 MB。	มีไฟล์ขนาดเกิน 25 MB	25MBを超えるファイルがあります。	reconciliation.file_too_large
+This file type is not supported. Use PDF, Excel or CSV.	不支持这种文件，请用 PDF、Excel 或 CSV。	ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV	このファイル形式は使えません。PDF、Excel、CSV を使ってください。	reconciliation.file_type_unsupported
+The reconciliation could not be completed.	对账没有完成。	การกระทบยอดไม่สำเร็จ	照合を完了できませんでした。	reconciliation.failed
+Use the reconciliation workflow to change these records.	请通过对账流程更改这些记录。	กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด	照合の手順で変更してください。	reconciliation.dedicated_api_required
+The ledger file content is invalid.	总账内容无效。	ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง	元帳の内容が無効です。	reconciliation.gl_source_invalid
+The VAT report content is invalid.	税表内容无效。	ข้อมูลรายงานภาษีไม่ถูกต้อง	税報告の内容が無効です。	reconciliation.vat_source_invalid

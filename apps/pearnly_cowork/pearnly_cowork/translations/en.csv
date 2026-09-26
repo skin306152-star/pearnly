@@ -1,6 +1,7 @@
 A client cannot be moved to another company.,A client cannot be moved to another company.
 A completed record cannot become a draft.,A completed record cannot become a draft.
 "A document section exceeds 30,000 characters. Split the document before recognition.","A document section exceeds 30,000 characters. Split the document before recognition."
+A file is larger than 25 MB.,A file is larger than 25 MB.
 A name is required.,A name is required.
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
 A numeric value in the invoice is invalid. Correct it before exporting.,A numeric value in the invoice is invalid. Correct it before exporting.
@@ -45,6 +46,12 @@ At least one invoice page is required when editing.,At least one invoice page is
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
 Attempt Secret,Attempt Secret
+Bank,Bank
+Bank Reconciliation,Bank Reconciliation
+Bank amount,Bank amount
+Bank deposit only,Bank deposit only
+Bank statement,Bank statement
+Bank withdrawal only,Bank withdrawal only
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
@@ -80,9 +87,11 @@ Changed By,Changed By
 Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
+Checking,Checking
 Checks Json,Checks Json
 Choose a file,Choose a file
 Choose at least one job role,Choose at least one job role
+Choose both files first,Choose both files first
 Choose file,Choose file
 Choose the sheet to import,Choose the sheet to import
 Client,Client
@@ -98,6 +107,7 @@ Companion Report,Companion Report
 Companion authentication failed.,Companion authentication failed.
 Company,Company
 Complete statement review before exporting the result.,Complete statement review before exporting the result.
+Completed,Completed
 Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
@@ -160,17 +170,22 @@ Credential ID,Credential ID
 Credit,Credit
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
+Customer,Customer
+Date,Date
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
 Default Payment,Default Payment
 Delete selected ({0}),Delete selected ({0})
 Delete {0},Delete {0}
+Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
 Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Difference,Difference
 Difference value,Difference value
+Differences,Differences
+Differences to review,Differences to review
 Direction,Direction
 Directory Revision,Directory Revision
 Directory Scope Key,Directory Scope Key
@@ -179,6 +194,7 @@ Directory Snapshot,Directory Snapshot
 Disable,Disable
 Disable {0},Disable {0}
 Document Key,Document Key
+Document no.,Document no.
 Done,Done
 Download template,Download template
 Draft,Draft
@@ -219,6 +235,7 @@ Failed,Failed
 Failure Count,Failure Count
 Fence,Fence
 Field,Field
+File,File
 File Hash,File Hash
 Filter,Filter
 Find,Find
@@ -229,6 +246,7 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
 General,General
+General ledger,General ledger
 Generation Key,Generation Key
 History,History
 History Records,History Records
@@ -241,6 +259,7 @@ Import result,Import result
 In progress,In progress
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
+Income Reconciliation,Income Reconciliation
 Initial Password,Initial Password
 Installed At (UTC),Installed At (UTC)
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
@@ -279,6 +298,9 @@ Last Pushed At (UTC),Last Pushed At (UTC)
 Last Request Hash,Last Request Hash
 Last Request Key,Last Request Key
 Lease Expires At,Lease Expires At
+Ledger amount,Ledger amount
+Ledger credit only,Ledger credit only
+Ledger debit only,Ledger debit only
 Light,Light
 Location,Location
 Location mismatch,Location mismatch
@@ -288,14 +310,17 @@ Lock the connection before reading the push target.,Lock the connection before r
 Manual,Manual
 Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
+Match rate,Match rate
 Matched,Matched
 Matches,Matches
+Matching and saving,Matching and saving
 Name,Name
 Native Content Hash,Native Content Hash
 Needs review,Needs review
 New code,New code
 New records must start as drafts.,New records must start as drafts.
 New stock count,New stock count
+New task,New task
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No invoice summary found,No invoice summary found
 No product in this count matches that code,No product in this count matches that code
@@ -324,6 +349,7 @@ Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
 Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
 Outcome,Outcome
+Output VAT report,Output VAT report
 Over,Over
 Owner ID,Owner ID
 Owner Id,Owner Id
@@ -361,6 +387,10 @@ Push record not found.,Push record not found.
 Quantity,Quantity
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
+Reading files,Reading files
+Reading the VAT report,Reading the VAT report
+Reading the bank statement,Reading the bank statement
+Reading the general ledger,Reading the general ledger
 Ready for the next product,Ready for the next product
 Reason,Reason
 Recognition Confidence,Recognition Confidence
@@ -369,6 +399,7 @@ Recognition input and ownership cannot be changed.,Recognition input and ownersh
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognized with high confidence,Recognized with high confidence
+Reconciliation failed,Reconciliation failed
 Record,Record
 Record ID,Record ID
 Record Id,Record Id
@@ -377,6 +408,7 @@ Record Revision,Record Revision
 Record a count,Record a count
 Recount,Recount
 Recount this product,Recount this product
+Reference,Reference
 Refresh Error Code,Refresh Error Code
 Refresh Lease Expires At (UTC),Refresh Lease Expires At (UTC)
 Refresh Lease Generation,Refresh Lease Generation
@@ -456,6 +488,7 @@ Source Reference Count,Source Reference Count
 Source Reference Kind,Source Reference Kind
 Source Sha256,Source Sha256
 Start counting,Start counting
+Start reconciliation,Start reconciliation
 Started At,Started At
 Statement review is not available for this task.,Statement review is not available for this task.
 Status,Status
@@ -470,6 +503,7 @@ Submit,Submit
 Summary table import,Summary table import
 Target Json,Target Json
 Task,Task
+Task name,Task name
 Tax ID,Tax ID
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
@@ -501,8 +535,12 @@ The ERP target context is inconsistent.,The ERP target context is inconsistent.
 The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
 The PDF exceeds the allowed page count.,The PDF exceeds the allowed page count.
 The PDF file cannot be read.,The PDF file cannot be read.
+The VAT report content is invalid.,The VAT report content is invalid.
+"The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."
+The VAT report has no rows.,The VAT report has no rows.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
+The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The camera could not start,The camera could not start
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
@@ -534,6 +572,8 @@ The file exceeds the allowed size.,The file exceeds the allowed size.
 The file is larger than 5 MB.,The file is larger than 5 MB.
 The file size or page metadata is invalid.,The file size or page metadata is invalid.
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
+The general ledger could not be read.,The general ledger could not be read.
+The general ledger has no revenue account rows.,The general ledger has no revenue account rows.
 The image file cannot be read.,The image file cannot be read.
 The import columns do not match the stock count template.,The import columns do not match the stock count template.
 The import contains a repeated product code.,The import contains a repeated product code.
@@ -547,6 +587,8 @@ The invoice date is invalid. Correct it before exporting.,The invoice date is in
 The invoice fields have an invalid format.,The invoice fields have an invalid format.
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
+The ledger file content is invalid.,The ledger file content is invalid.
+The opening and closing values are invalid.,The opening and closing values are invalid.
 The original document manifest cannot be changed.,The original document manifest cannot be changed.
 The original document manifest exceeds the 8 MiB limit.,The original document manifest exceeds the 8 MiB limit.
 The original document manifest is not ready.,The original document manifest is not ready.
@@ -564,12 +606,15 @@ The push target has changed. Prepare the invoice again.,The push target has chan
 The quantity is not a valid number,The quantity is not a valid number
 The recognized content does not match the original references.,The recognized content does not match the original references.
 The recognized invoice manifest cannot be replaced.,The recognized invoice manifest cannot be replaced.
+The reconciliation could not be completed.,The reconciliation could not be completed.
+The reconciliation task was not found.,The reconciliation task was not found.
 The record changed. Reload it before saving.,The record changed. Reload it before saving.
 The record data is not valid JSON.,The record data is not valid JSON.
 The record metadata has an invalid format.,The record metadata has an invalid format.
 The record source is not supported.,The record source is not supported.
 The reported ERP capabilities are invalid.,The reported ERP capabilities are invalid.
 The reported ERP field definitions are invalid.,The reported ERP field definitions are invalid.
+The request is invalid. Reload and try again.,The request is invalid. Reload and try again.
 The requested page is not part of this invoice.,The requested page is not part of this invoice.
 The review workbook cannot be read. Check its format and content.,The review workbook cannot be read. Check its format and content.
 The review workbook contains an invalid number.,The review workbook contains an invalid number.
@@ -599,7 +644,9 @@ This delivery conflicts with the current task state.,This delivery conflicts wit
 This document format is not supported.,This document format is not supported.
 This file does not match the review workbook format.,This file does not match the review workbook format.
 This file type is not supported.,This file type is not supported.
+"This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
+This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
 This multi-page invoice has no verified combined record. Review it before exporting.,This multi-page invoice has no verified combined record. Review it before exporting.
 This operation ID has already been used for another request.,This operation ID has already been used for another request.
@@ -613,6 +660,7 @@ This request key has already been used for different content.,This request key h
 This request key was used for another credential operation.,This request key was used for another credential operation.
 This request key was used for different content.,This request key was used for different content.
 This request key was used for different push content.,This request key was used for different push content.
+This request was already used for different content.,This request was already used for different content.
 This stock count task is closed.,This stock count task is closed.
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 Time left {0},Time left {0}
@@ -621,10 +669,13 @@ Token Digest,Token Digest
 Token Generation,Token Generation
 Token Tail,Token Tail
 Transaction Date,Transaction Date
+Type,Type
 "Type or scan, then press Enter","Type or scan, then press Enter"
 Unbind LINE,Unbind LINE
 Unbind Pearnly Cowork LINE?,Unbind Pearnly Cowork LINE?
 Unit,Unit
+Unknown reconciliation type.,Unknown reconciliation type.
+Unmatched,Unmatched
 Unsupported ERP connection type.,Unsupported ERP connection type.
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
@@ -632,16 +683,21 @@ Updated At,Updated At
 Updated By,Updated By
 Updated {0} user(s),Updated {0} user(s)
 Upload a sheet,Upload a sheet
+Upload both files.,Upload both files.
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
 Uploaded By,Uploaded By
+Uploading files,Uploading files
 Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
 Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
 Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
 Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
 Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
+Use the reconciliation workflow to change these records.,Use the reconciliation workflow to change these records.
 Use the stock count workflow to change these records.,Use the stock count workflow to change these records.
 User Settings,User Settings
 Username can only have letters and numbers,Username can only have letters and numbers
+VAT Report Check,VAT Report Check
+VAT report amount,VAT report amount
 Valid,Valid
 Version,Version
 View differences,View differences
@@ -650,6 +706,7 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,Void this count of {0}?
 Voided,Voided
 "Voided, not in the total","Voided, not in the total"
+Waiting to start,Waiting to start
 Warehouse,Warehouse
 Wire Attempt,Wire Attempt
 With differences,With differences
@@ -709,10 +766,73 @@ cowork.line.status.bound,Bound
 cowork.line.status.unbound,Not bound
 cowork.line.unbind,Unbind LINE
 cowork.line.unbindConfirm,Unbind Pearnly Cowork LINE?
+cowork.nav.reconBank,Bank Reconciliation
+cowork.nav.reconIncome,Income Reconciliation
+cowork.nav.reconVat,VAT Report Check
 cowork.nav.work,Work Coordination
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.quality.pending,Needs review
+cowork.recon.bank.gl_credit_only,Ledger credit only
+cowork.recon.bank.gl_debit_only,Ledger debit only
+cowork.recon.bank.left,Bank statement
+cowork.recon.bank.matched,Matched
+cowork.recon.bank.right,General ledger
+cowork.recon.bank.stmt_deposit_only,Bank deposit only
+cowork.recon.bank.stmt_withdrawal_only,Bank withdrawal only
+cowork.recon.bothFiles,Choose both files first
+cowork.recon.checking,Checking
+cowork.recon.col.bank,Bank
+cowork.recon.col.createdAt,Created
+cowork.recon.col.customer,Customer
+cowork.recon.col.date,Date
+cowork.recon.col.difference,Difference
+cowork.recon.col.differences,Differences
+cowork.recon.col.docNo,Document no.
+cowork.recon.col.glAmount,Ledger amount
+cowork.recon.col.kind,Type
+cowork.recon.col.matched,Matched
+cowork.recon.col.reference,Reference
+cowork.recon.col.rows,Rows
+cowork.recon.col.status,Status
+cowork.recon.col.stmtAmount,Bank amount
+cowork.recon.col.title,Task name
+cowork.recon.col.unmatched,Unmatched
+cowork.recon.col.vatAmount,VAT report amount
+cowork.recon.deleteConfirm,Delete {0} reconciliation(s)?
+cowork.recon.deleteSelected,Delete {0}
+cowork.recon.deleted,Deleted {0}
+cowork.recon.export,Export
+cowork.recon.failed,Reconciliation failed
+cowork.recon.file,File
+cowork.recon.filter,Show
+cowork.recon.filter.all,All
+cowork.recon.filter.matched,Matched
+cowork.recon.filter.pending,Differences
+cowork.recon.filter.unmatched,Unmatched
+cowork.recon.income.left,General ledger
+cowork.recon.income.right,Output VAT report
+cowork.recon.kpi.matched,Matched
+cowork.recon.kpi.pending,Differences to review
+cowork.recon.kpi.rate,Match rate
+cowork.recon.kpi.unmatched,Unmatched
+cowork.recon.new,New task
+cowork.recon.pick,Choose file
+cowork.recon.stage.done,Done
+cowork.recon.stage.ledger,Reading the general ledger
+cowork.recon.stage.matching,Matching and saving
+cowork.recon.stage.queued,Waiting to start
+cowork.recon.stage.reading,Reading files
+cowork.recon.stage.report,Reading the VAT report
+cowork.recon.stage.statement,Reading the bank statement
+cowork.recon.stage.upload,Uploading files
+cowork.recon.start,Start reconciliation
+cowork.recon.status.matched,Matched
+cowork.recon.status.pending,Difference
+cowork.recon.status.unmatched,Unmatched
+cowork.recon.task.completed,Completed
+cowork.recon.task.needs_review,Needs review
+cowork.recon.timeout,This is taking too long. Check the list later.
 cowork.stock.action.export,Export
 cowork.stock.action.reload,Reload
 cowork.stock.actualLocation,Actual location
@@ -1006,11 +1126,29 @@ push.request_invalid,Invalid push request.
 push.utc_required,A timezone-aware UTC timestamp is required.
 recognized,recognized
 recognizing,recognizing
+reconciliation.dedicated_api_required,Use the reconciliation workflow to change these records.
+reconciliation.failed,The reconciliation could not be completed.
+reconciliation.file_too_large,A file is larger than 25 MB.
+reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."
+reconciliation.files_required,Upload both files.
+reconciliation.gl_no_revenue_rows,The general ledger has no revenue account rows.
+reconciliation.gl_parse_failed,The general ledger could not be read.
+reconciliation.gl_source_invalid,The ledger file content is invalid.
+reconciliation.header_invalid,The opening and closing values are invalid.
+reconciliation.ledger_unparsed,The general ledger could not be read.
+reconciliation.request_conflict,This request was already used for different content.
+reconciliation.request_invalid,The request is invalid. Reload and try again.
 reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
 reconciliation.review_balance_mismatch,Check the statement balance differences before confirming.
 reconciliation.review_required,Complete statement review before exporting the result.
 reconciliation.review_rows_invalid,Invalid statement review rows or row references.
 reconciliation.review_unavailable,Statement review is not available for this task.
+reconciliation.statement_unparsed,The bank statement could not be read.
+reconciliation.task_not_found,The reconciliation task was not found.
+reconciliation.type_invalid,Unknown reconciliation type.
+reconciliation.vat_no_rows,The VAT report has no rows.
+reconciliation.vat_report_unparsed,"The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."
+reconciliation.vat_source_invalid,The VAT report content is invalid.
 roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.
 roundtrip.export_amount_missing,Required invoice amounts are missing. Complete them before exporting.
 roundtrip.export_amount_not_roundtrippable,"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."

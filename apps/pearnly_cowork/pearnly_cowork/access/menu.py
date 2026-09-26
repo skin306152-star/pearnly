@@ -21,6 +21,8 @@ CATALOG = {
     "work": (None, "Cowork Work", "pearnly-work"),
     "profile": (None, PROFILE_ROLE, "user"),
 }
+# 目录里的路由不在侧栏时（对账中心拆成了三个入口）用这里的词作勾选名。
+LABELS = {"Cowork Bank Reconciliation": "nav.reconcile"}
 # LINE 不是页面，是个人信息里那一块的开关；排在个人信息后面。
 LINE_ENTRY = (None, LINE_ROLE, None)
 

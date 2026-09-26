@@ -35,15 +35,17 @@ class NativeDeskContract(unittest.TestCase):
         # Fixed product contract, independent of the new navigation implementation.
         # ERP 现在是 19 项：2026-09-23 撤掉「公司主档」（"不要公司资料公司主档"），同一天又把
         # **仓库**从公司页里拿出来单独成页（"仓库单独拿出，放在公司下方，仓库做成单独页"）。
-        # Cowork 6 项（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调 + 首页、团队管理；
+        # Cowork 8 项（用户 2026-09-26）：录入工作台、三个对账中心、库存盘点、工作协调 + 首页、团队管理；
         # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,6,19])
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,19])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
         cowork = {route: feature for _, route, _, feature in PAGES['cowork']}
+        # 对账中心拆成三个侧栏入口（银行 / 收入 / 销项税报告核查，用户 2026-09-26）。
         self.assertEqual(cowork, {'pearnly-home': None, 'pearnly-intake': 'intake',
-                                  'pearnly-reconcile': 'recon', 'pearnly-stocktake': 'stocktake',
+                                  'pearnly-recon-bank': 'recon', 'pearnly-recon-income': 'recon',
+                                  'pearnly-recon-vat': 'recon', 'pearnly-stocktake': 'stocktake',
                                   'pearnly-work': None, 'pearnly-team': None})
 
     def test_every_offered_route_has_native_page_without_platform_manager_role(self):
@@ -99,7 +101,7 @@ class NativeDeskContract(unittest.TestCase):
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
             'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
             # Cowork 库存盘点（上传盘点，2026-09-26）。
-            'pearnly-stocktake'})
+            'pearnly-stocktake', 'pearnly-recon-bank', 'pearnly-recon-income'})
         # The visible list, the saved sidebar and the personal order all filter
         # on the product's own list instead of one shared route set.
         self.assertNotIn('pearnly-', source.split('"""', 2)[-1])

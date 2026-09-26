@@ -63,7 +63,7 @@ def role_catalog() -> list:
             catalog.append({"name": role, "label": "LINE", "group": _(groups.get("user", "User Settings"))})
             continue
         route = routes[role]
-        catalog.append({"name": role, "label": _(labels.get(route, role)),
+        catalog.append({"name": role, "label": _(labels.get(route) or menu.LABELS.get(role, role)),
                         "group": _(groups.get(route, "General"))})
     return catalog
 

@@ -1,6 +1,7 @@
 A client cannot be moved to another company.,ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
 "A document section exceeds 30,000 characters. Split the document before recognition.","มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน"
+A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
 A name is required.,กรุณาระบุชื่อ
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,ค่าตัวเลขในใบแจ้งหนี้เกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
 A numeric value in the invoice is invalid. Correct it before exporting.,มีค่าตัวเลขในใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
@@ -45,6 +46,12 @@ At least one invoice page is required when editing.,เมื่อแก้ไ�
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
 Attempt Secret,ข้อมูลลับของการพยายาม
+Bank,ธนาคาร
+Bank Reconciliation,กระทบยอดธนาคาร
+Bank amount,ยอดธนาคาร
+Bank deposit only,มีเฉพาะรายการฝากในธนาคาร
+Bank statement,รายการเดินบัญชีธนาคาร
+Bank withdrawal only,มีเฉพาะรายการถอนในธนาคาร
 Barcode,บาร์โค้ด
 Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
 "Barcode, QR code or product code",บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
@@ -80,9 +87,11 @@ Changed By,ผู้แก้ไข
 Check the ERP connection settings.,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
+Checking,กำลังตรวจสอบ
 Checks Json,ผลตรวจสอบ JSON
 Choose a file,เลือกไฟล์
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
+Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
 Choose file,เลือกไฟล์
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Client,ลูกค้า
@@ -98,6 +107,7 @@ Companion Report,รายงานจาก Companion
 Companion authentication failed.,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
 Company,บริษัท
 Complete statement review before exporting the result.,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
+Completed,เสร็จสิ้น
 Completed At,เวลาที่เสร็จสิ้น
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
 Completed By,ผู้ทำรายการเสร็จสิ้น
@@ -160,17 +170,22 @@ Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
+Customer,ลูกค้า
+Date,วันที่
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete {0},ลบ {0} รายการ
+Delete {0} reconciliation(s)?,ลบงานกระทบยอด {0} รายการ?
 Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
 Delete {0} stock counts? Posted ones cannot be deleted.,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
 Deleted {0},ลบแล้ว {0} รายการ
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
 Difference,มีผลต่าง
 Difference value,มูลค่าผลต่าง
+Differences,ผลต่าง
+Differences to review,ผลต่างที่ต้องตรวจสอบ
 Direction,ทิศทางรายการ
 Directory Revision,รุ่นไดเรกทอรี
 Directory Scope Key,คีย์ขอบเขตไดเรกทอรี
@@ -179,6 +194,7 @@ Directory Snapshot,ภาพข้อมูลไดเรกทอรี
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
 Document Key,คีย์ป้องกันเอกสารซ้ำ
+Document no.,เลขที่เอกสาร
 Done,เสร็จสิ้น
 Download template,ดาวน์โหลดแม่แบบ
 Draft,ฉบับร่าง
@@ -219,6 +235,7 @@ Failed,ล้มเหลว
 Failure Count,จำนวนครั้งที่ล้มเหลว
 Fence,ลำดับแยกความพยายาม
 Field,ฟิลด์
+File,ไฟล์
 File Hash,ค่าแฮชของไฟล์
 Filter,ตัวกรอง
 Find,ค้นหา
@@ -229,6 +246,7 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 General,ทั่วไป
+General ledger,บัญชีแยกประเภททั่วไป
 Generation Key,คีย์รุ่นข้อมูลรับรอง
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
@@ -241,6 +259,7 @@ Import result,ผลการนำเข้า
 In progress,กำลังดำเนินการ
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
+Income Reconciliation,กระทบยอดรายได้
 Initial Password,รหัสผ่านเริ่มต้น
 Installed At (UTC),เวลาติดตั้ง (UTC)
 Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
@@ -279,6 +298,9 @@ Last Pushed At (UTC),เวลาส่งล่าสุด (UTC)
 Last Request Hash,แฮชคำขอล่าสุด
 Last Request Key,คีย์คำขอล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
+Ledger amount,ยอดบัญชีแยกประเภท
+Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
+Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 Light,ไฟ
 Location,ตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
@@ -288,14 +310,17 @@ Lock the connection before reading the push target.,ต้องล็อกก�
 Manual,กรอกเอง
 Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
-Matched,ตรงกัน
+Match rate,อัตราการจับคู่
+Matched,จับคู่แล้ว
 Matches,ตรงกัน
+Matching and saving,กำลังจับคู่และบันทึก
 Name,ชื่อ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
 New code,ขอรหัสใหม่
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 New stock count,สร้างการตรวจนับ
+New task,สร้างงานใหม่
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
@@ -324,6 +349,7 @@ Original files cannot be changed.,ไม่สามารถเปลี่ย�
 Original files cannot be deleted while invoice references may exist.,ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่
 Original files cannot be shared separately from their invoices.,ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้
 Outcome,ผลการดำเนินการ
+Output VAT report,รายงานภาษีขาย
 Over,เกิน
 Owner ID,รหัสเจ้าของ
 Owner Id,รหัสผู้ดำเนินการ
@@ -361,6 +387,10 @@ Push record not found.,ไม่พบรายการส่ง
 Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
+Reading files,กำลังอ่านไฟล์
+Reading the VAT report,กำลังอ่านรายงานภาษี
+Reading the bank statement,กำลังอ่านรายการเดินบัญชี
+Reading the general ledger,กำลังอ่านบัญชีแยกประเภท
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
@@ -369,6 +399,7 @@ Recognition input and ownership cannot be changed.,ไม่สามารถ�
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
+Reconciliation failed,กระทบยอดไม่สำเร็จ
 Record,บันทึก
 Record ID,รหัสรายการ
 Record Id,รหัสรายการ
@@ -377,6 +408,7 @@ Record Revision,รุ่นของรายการ
 Record a count,บันทึกการตรวจนับ
 Recount,นับใหม่
 Recount this product,นับสินค้านี้ใหม่
+Reference,เลขที่อ้างอิง
 Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
 Refresh Lease Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
 Refresh Lease Generation,รุ่นสิทธิ์การรีเฟรช
@@ -456,6 +488,7 @@ Source Reference Count,จำนวนรายการอ้างอิงต
 Source Reference Kind,ประเภทการอ้างอิงต้นฉบับ
 Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
 Start counting,เริ่มตรวจนับ
+Start reconciliation,เริ่มกระทบยอด
 Started At,เริ่มเมื่อ
 Statement review is not available for this task.,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
 Status,สถานะ
@@ -470,6 +503,7 @@ Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
 Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
+Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 That code is not valid,รหัสไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
@@ -501,8 +535,12 @@ The ERP target context is inconsistent.,บริบทของปลายท�
 The OCR connection changed after this task was accepted.,การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้
 The PDF exceeds the allowed page count.,ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต
 The PDF file cannot be read.,ไม่สามารถอ่านไฟล์ PDF นี้ได้
+The VAT report content is invalid.,ข้อมูลรายงานภาษีไม่ถูกต้อง
+"The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ"
+The VAT report has no rows.,รายงานภาษีไม่มีรายการ
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
+The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
 The camera could not start,ไม่สามารถเปิดกล้องได้
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
@@ -534,6 +572,8 @@ The file exceeds the allowed size.,ไฟล์มีขนาดเกินข
 The file is larger than 5 MB.,ไฟล์มีขนาดเกิน 5 MB
 The file size or page metadata is invalid.,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
 The frozen push target does not match the authorized target.,ปลายทางที่บันทึกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
+The general ledger could not be read.,ไม่สามารถอ่านบัญชีแยกประเภทได้
+The general ledger has no revenue account rows.,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
 The import columns do not match the stock count template.,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
 The import contains a repeated product code.,ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ
@@ -547,6 +587,8 @@ The invoice date is invalid. Correct it before exporting.,วันที่ใ�
 The invoice fields have an invalid format.,รูปแบบข้อมูลในช่องใบแจ้งหนี้ไม่ถูกต้อง
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง
+The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
+The opening and closing values are invalid.,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
 The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
 The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
 The original document manifest is not ready.,ดัชนีเนื้อหาเอกสารต้นฉบับยังไม่พร้อมใช้งาน
@@ -564,12 +606,15 @@ The push target has changed. Prepare the invoice again.,ปลายทางก
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
 The recognized content does not match the original references.,เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ
 The recognized invoice manifest cannot be replaced.,ไม่สามารถแทนที่รายการเชื่อมโยงใบแจ้งหนี้ที่อ่านแล้วได้
+The reconciliation could not be completed.,การกระทบยอดไม่สำเร็จ
+The reconciliation task was not found.,ไม่พบงานกระทบยอดนี้
 The record changed. Reload it before saving.,รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก
 The record data is not valid JSON.,ข้อมูลรายการไม่ใช่ JSON ที่ถูกต้อง
 The record metadata has an invalid format.,รูปแบบข้อมูลประกอบรายการไม่ถูกต้อง
 The record source is not supported.,ไม่รองรับแหล่งที่มาของรายการนี้
 The reported ERP capabilities are invalid.,ข้อมูลความสามารถของ ERP ที่รายงานไม่ถูกต้อง
 The reported ERP field definitions are invalid.,ข้อกำหนดฟิลด์ ERP ที่รายงานไม่ถูกต้อง
+The request is invalid. Reload and try again.,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 The requested page is not part of this invoice.,หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้
 The review workbook cannot be read. Check its format and content.,ไม่สามารถอ่านสมุดงานตรวจทานได้ กรุณาตรวจสอบรูปแบบและเนื้อหา
 The review workbook contains an invalid number.,สมุดงานตรวจทานมีค่าตัวเลขที่ไม่ถูกต้อง
@@ -599,7 +644,9 @@ This delivery conflicts with the current task state.,ผลรับนี้ข
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
+"This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
+This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This multi-page invoice has no verified combined record. Review it before exporting.,ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก
 This operation ID has already been used for another request.,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
@@ -613,6 +660,7 @@ This request key has already been used for different content.,รหัสคำ
 This request key was used for another credential operation.,คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว
 This request key was used for different content.,รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This request key was used for different push content.,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
+This request was already used for different content.,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This stock count task is closed.,งานตรวจนับสต็อกนี้ปิดแล้ว
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 Time left {0},เหลือเวลา {0}
@@ -621,10 +669,13 @@ Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
 Transaction Date,วันที่ทำรายการ
+Type,ประเภท
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ยืนยันการยกเลิกการเชื่อมต่อ?
 Unit,หน่วย
+Unknown reconciliation type.,ประเภทการกระทบยอดไม่ถูกต้อง
+Unmatched,ไม่พบคู่
 Unsupported ERP connection type.,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 Up to 5 photos per entry; take a photo or choose from the gallery.,บันทึกได้ไม่เกิน 5 รูปต่อรายการ ถ่ายรูปหรือเลือกจากอัลบั้มก็ได้
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
@@ -632,16 +683,21 @@ Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 Upload a sheet,อัปโหลดไฟล์
+Upload both files.,กรุณาอัปโหลดไฟล์ทั้งสอง
 Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
 Uploaded By,ผู้อัปโหลด
+Uploading files,กำลังอัปโหลดไฟล์
 Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง
 Use the Cowork Companion service to access deliveries.,โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน
 Use the Cowork OCR service to access recognition tasks.,กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork OCR service to change recognition tasks.,กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
+Use the reconciliation workflow to change these records.,กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด
 Use the stock count workflow to change these records.,กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก
 User Settings,เมนูผู้ใช้
 Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
+VAT Report Check,ตรวจสอบรายงานภาษีขาย
+VAT report amount,ยอดตามรายงานภาษี
 Valid,ใช้งาน
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
@@ -650,6 +706,7 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,ยกเลิกรายการนับ {0} นี้?
 Voided,ยกเลิกแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
+Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
@@ -709,10 +766,73 @@ cowork.line.status.bound,เชื่อมต่อแล้ว
 cowork.line.status.unbound,ยังไม่เชื่อมต่อ
 cowork.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 cowork.line.unbindConfirm,ยืนยันการยกเลิกการเชื่อมต่อ?
+cowork.nav.reconBank,กระทบยอดธนาคาร
+cowork.nav.reconIncome,กระทบยอดรายได้
+cowork.nav.reconVat,ตรวจสอบรายงานภาษีขาย
 cowork.nav.work,ประสานงาน
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 cowork.quality.pending,รอตรวจสอบ
+cowork.recon.bank.gl_credit_only,มีเฉพาะเครดิตในบัญชีแยกประเภท
+cowork.recon.bank.gl_debit_only,มีเฉพาะเดบิตในบัญชีแยกประเภท
+cowork.recon.bank.left,รายการเดินบัญชีธนาคาร
+cowork.recon.bank.matched,จับคู่แล้ว
+cowork.recon.bank.right,บัญชีแยกประเภททั่วไป
+cowork.recon.bank.stmt_deposit_only,มีเฉพาะรายการฝากในธนาคาร
+cowork.recon.bank.stmt_withdrawal_only,มีเฉพาะรายการถอนในธนาคาร
+cowork.recon.bothFiles,กรุณาเลือกไฟล์ทั้งสองก่อน
+cowork.recon.checking,กำลังตรวจสอบ
+cowork.recon.col.bank,ธนาคาร
+cowork.recon.col.createdAt,สร้างเมื่อ
+cowork.recon.col.customer,ลูกค้า
+cowork.recon.col.date,วันที่
+cowork.recon.col.difference,ผลต่าง
+cowork.recon.col.differences,ผลต่าง
+cowork.recon.col.docNo,เลขที่เอกสาร
+cowork.recon.col.glAmount,ยอดบัญชีแยกประเภท
+cowork.recon.col.kind,ประเภท
+cowork.recon.col.matched,จับคู่แล้ว
+cowork.recon.col.reference,เลขที่อ้างอิง
+cowork.recon.col.rows,จำนวนรายการ
+cowork.recon.col.status,สถานะ
+cowork.recon.col.stmtAmount,ยอดธนาคาร
+cowork.recon.col.title,ชื่องาน
+cowork.recon.col.unmatched,ไม่พบคู่
+cowork.recon.col.vatAmount,ยอดตามรายงานภาษี
+cowork.recon.deleteConfirm,ลบงานกระทบยอด {0} รายการ?
+cowork.recon.deleteSelected,ลบ {0} รายการ
+cowork.recon.deleted,ลบแล้ว {0} รายการ
+cowork.recon.export,ส่งออก
+cowork.recon.failed,กระทบยอดไม่สำเร็จ
+cowork.recon.file,ไฟล์
+cowork.recon.filter,แสดง
+cowork.recon.filter.all,ทั้งหมด
+cowork.recon.filter.matched,จับคู่แล้ว
+cowork.recon.filter.pending,ผลต่าง
+cowork.recon.filter.unmatched,ไม่พบคู่
+cowork.recon.income.left,บัญชีแยกประเภททั่วไป
+cowork.recon.income.right,รายงานภาษีขาย
+cowork.recon.kpi.matched,จับคู่แล้ว
+cowork.recon.kpi.pending,ผลต่างที่ต้องตรวจสอบ
+cowork.recon.kpi.rate,อัตราการจับคู่
+cowork.recon.kpi.unmatched,ไม่พบคู่
+cowork.recon.new,สร้างงานใหม่
+cowork.recon.pick,เลือกไฟล์
+cowork.recon.stage.done,เสร็จสิ้น
+cowork.recon.stage.ledger,กำลังอ่านบัญชีแยกประเภท
+cowork.recon.stage.matching,กำลังจับคู่และบันทึก
+cowork.recon.stage.queued,รอเริ่ม
+cowork.recon.stage.reading,กำลังอ่านไฟล์
+cowork.recon.stage.report,กำลังอ่านรายงานภาษี
+cowork.recon.stage.statement,กำลังอ่านรายการเดินบัญชี
+cowork.recon.stage.upload,กำลังอัปโหลดไฟล์
+cowork.recon.start,เริ่มกระทบยอด
+cowork.recon.status.matched,จับคู่แล้ว
+cowork.recon.status.pending,ผลต่าง
+cowork.recon.status.unmatched,ไม่พบคู่
+cowork.recon.task.completed,เสร็จสิ้น
+cowork.recon.task.needs_review,รอตรวจสอบ
+cowork.recon.timeout,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 cowork.stock.action.export,ส่งออก
 cowork.stock.action.reload,โหลดใหม่
 cowork.stock.actualLocation,ตำแหน่งจริง
@@ -1006,11 +1126,29 @@ push.request_invalid,คำขอส่งไม่ถูกต้อง
 push.utc_required,ต้องระบุเวลา UTC พร้อมเขตเวลา
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
+reconciliation.dedicated_api_required,กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด
+reconciliation.failed,การกระทบยอดไม่สำเร็จ
+reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
+reconciliation.file_type_unsupported,"ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
+reconciliation.files_required,กรุณาอัปโหลดไฟล์ทั้งสอง
+reconciliation.gl_no_revenue_rows,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
+reconciliation.gl_parse_failed,ไม่สามารถอ่านบัญชีแยกประเภทได้
+reconciliation.gl_source_invalid,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
+reconciliation.header_invalid,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
+reconciliation.ledger_unparsed,ไม่สามารถอ่านบัญชีแยกประเภทได้
+reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
+reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 reconciliation.review_amount_invalid,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม
 reconciliation.review_balance_mismatch,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 reconciliation.review_required,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
 reconciliation.review_rows_invalid,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
 reconciliation.review_unavailable,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
+reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้
+reconciliation.task_not_found,ไม่พบงานกระทบยอดนี้
+reconciliation.type_invalid,ประเภทการกระทบยอดไม่ถูกต้อง
+reconciliation.vat_no_rows,รายงานภาษีไม่มีรายการ
+reconciliation.vat_report_unparsed,"ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ"
+reconciliation.vat_source_invalid,ข้อมูลรายงานภาษีไม่ถูกต้อง
 roundtrip.document_limit,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ
 roundtrip.export_amount_missing,ใบแจ้งหนี้ขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก
 roundtrip.export_amount_not_roundtrippable,การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม

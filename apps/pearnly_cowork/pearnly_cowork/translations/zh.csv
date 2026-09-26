@@ -1,6 +1,7 @@
 A client cannot be moved to another company.,客户不能转移到另一家公司。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
 "A document section exceeds 30,000 characters. Split the document before recognition.","文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
+A file is larger than 25 MB.,文件超过 25 MB。
 A name is required.,请填写名称。
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
 A numeric value in the invoice is invalid. Correct it before exporting.,发票中有无效数值，请更正后再导出。
@@ -45,6 +46,12 @@ At least one invoice page is required when editing.,编辑时必须保留至少�
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
 Attempt Secret,尝试密钥
+Bank,银行
+Bank Reconciliation,银行对账
+Bank amount,银行金额
+Bank deposit only,仅银行存入
+Bank statement,银行账单
+Bank withdrawal only,仅银行支出
 Barcode,条形码
 Barcode / QR code,条码/二维码
 "Barcode, QR code or product code",条形码、二维码或物料编码
@@ -80,9 +87,11 @@ Changed By,修改人
 Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
+Checking,核对中
 Checks Json,检查结果JSON
 Choose a file,选择文件
 Choose at least one job role,至少勾一个功能权限
+Choose both files first,请先选好两份文件
 Choose file,选择文件
 Choose the sheet to import,请先选择要导入的表格
 Client,客户
@@ -98,6 +107,7 @@ Companion Report,伴侣端上报
 Companion authentication failed.,助手认证失败。
 Company,公司
 Complete statement review before exporting the result.,请先完成账单复核，再导出对账结果。
+Completed,已完成
 Completed At,完成时间
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
@@ -160,17 +170,22 @@ Credential ID,凭据 ID
 Credit,赊账
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
+Customer,客户
+Date,日期
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
 Delete selected ({0}),删除所选（{0}）
 Delete {0},删除 {0} 项
+Delete {0} reconciliation(s)?,删除这 {0} 个对账任务？
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,删除选中的 {0} 份盘点？已过账的删不掉。
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
 Difference,有差异
 Difference value,差异金额
+Differences,差异
+Differences to review,待处理差异
 Direction,业务方向
 Directory Revision,目录版本
 Directory Scope Key,目录范围键
@@ -179,7 +194,8 @@ Directory Snapshot,目录快照
 Disable,停用
 Disable {0},停用 {0}
 Document Key,单据防重键
-Done,完成
+Document no.,单号
+Done,已完成
 Download template,下载模板
 Draft,草稿
 Duplicate records are not allowed.,不能重复选择同一条记录。
@@ -219,6 +235,7 @@ Failed,失败
 Failure Count,失败次数
 Fence,尝试隔离序号
 Field,字段
+File,文件
 File Hash,文件哈希值
 Filter,筛选
 Find,查找
@@ -229,6 +246,7 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 General,常用功能
+General ledger,总账
 Generation Key,凭据版本键
 History,票据历史
 History Records,识别记录
@@ -241,6 +259,7 @@ Import result,导入结果
 In progress,进行中
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
+Income Reconciliation,收入对账
 Initial Password,初始密码
 Installed At (UTC),安装时间（UTC）
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
@@ -279,6 +298,9 @@ Last Pushed At (UTC),最近推送时间（UTC）
 Last Request Hash,最近请求摘要
 Last Request Key,最近请求编号
 Lease Expires At,租约到期时间
+Ledger amount,总账金额
+Ledger credit only,仅总账贷方
+Ledger debit only,仅总账借方
 Light,灯光
 Location,位置
 Location mismatch,仓位不符
@@ -288,14 +310,17 @@ Lock the connection before reading the push target.,读取推送目标前必须�
 Manual,手工
 Mapping Key,映射键
 Mapping Kind,映射类型
-Matched,一致
+Match rate,匹配率
+Matched,已匹配
 Matches,一致
+Matching and saving,逐笔核对并保存
 Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
 New code,换一个码
 New records must start as drafts.,新记录必须先保存为草稿。
 New stock count,新建盘点
+New task,新建任务
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No invoice summary found,未识别到摘要
 No product in this count matches that code,这个盘点里没有这个编码的商品
@@ -324,6 +349,7 @@ Original files cannot be changed.,原始文件不可更改。
 Original files cannot be deleted while invoice references may exist.,可能仍有关联发票时，不可删除原始文件。
 Original files cannot be shared separately from their invoices.,原始文件不能与其关联发票分开共享。
 Outcome,执行结果
+Output VAT report,销项税报告
 Over,盘盈
 Owner ID,所有者 ID
 Owner Id,执行者编号
@@ -361,6 +387,10 @@ Push record not found.,找不到推送记录。
 Quantity,数量
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
+Reading files,读取文件
+Reading the VAT report,读取税表
+Reading the bank statement,读取银行账单
+Reading the general ledger,读取总账
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Recognition Confidence,识别置信度
@@ -369,6 +399,7 @@ Recognition input and ownership cannot be changed.,识别输入和归属不能�
 Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
 Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
 Recognized with high confidence,高置信识别
+Reconciliation failed,对账失败
 Record,记录
 Record ID,记录 ID
 Record Id,记录 ID
@@ -377,6 +408,7 @@ Record Revision,记录版本
 Record a count,录入盘点
 Recount,重盘
 Recount this product,重新盘点该物料
+Reference,参考编号
 Refresh Error Code,刷新错误码
 Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
 Refresh Lease Generation,刷新租约版本
@@ -456,6 +488,7 @@ Source Reference Count,原件关联项数
 Source Reference Kind,原件关联类型
 Source Sha256,原始文件 SHA-256
 Start counting,开始盘点
+Start reconciliation,开始对账
 Started At,开始时间
 Statement review is not available for this task.,此任务没有逐行复核记录。
 Status,状态
@@ -470,6 +503,7 @@ Submit,提交
 Summary table import,汇总表导入
 Target Json,冻结目标JSON
 Task,任务
+Task name,任务名称
 Tax ID,纳税人识别号
 That code is not valid,验证码不正确
 That photo cannot be attached. Upload it again.,这张照片挂不上，请重新上传。
@@ -501,8 +535,12 @@ The ERP target context is inconsistent.,ERP目标上下文不一致。
 The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
 The PDF exceeds the allowed page count.,PDF 超过允许的页数上限。
 The PDF file cannot be read.,无法读取该 PDF 文件。
+The VAT report content is invalid.,税表内容无效。
+"The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",读不出税表。请用 Excel、CSV 或带文字层的 PDF。
+The VAT report has no rows.,税表里没有明细行。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
+The bank statement could not be read.,读不出银行账单。
 The billing receipt cannot be reverted.,计费回执不能撤回。
 The camera could not start,摄像头无法启动
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
@@ -534,6 +572,8 @@ The file exceeds the allowed size.,文件超过允许的大小上限。
 The file is larger than 5 MB.,文件超过 5 MB。
 The file size or page metadata is invalid.,文件大小或页数信息无效。
 The frozen push target does not match the authorized target.,已冻结的推送目标与授权目标不一致。
+The general ledger could not be read.,读不出总账。
+The general ledger has no revenue account rows.,总账里没有收入科目的行。
 The image file cannot be read.,无法读取该图像文件。
 The import columns do not match the stock count template.,导入列与盘点模板不匹配。
 The import contains a repeated product code.,导入数据包含重复的产品编码。
@@ -547,6 +587,8 @@ The invoice date is invalid. Correct it before exporting.,发票日期无效，�
 The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
 The invoice page data has an invalid format.,发票页面数据格式不正确。
+The ledger file content is invalid.,总账内容无效。
+The opening and closing values are invalid.,期初期末数值无效。
 The original document manifest cannot be changed.,原件内容索引不能修改。
 The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
 The original document manifest is not ready.,原件内容索引尚未就绪。
@@ -564,12 +606,15 @@ The push target has changed. Prepare the invoice again.,推送目标已变更，
 The quantity is not a valid number,数量不是有效数字
 The recognized content does not match the original references.,识别内容与原件关联不一致。
 The recognized invoice manifest cannot be replaced.,已识别的发票关联清单不能替换。
+The reconciliation could not be completed.,对账没有完成。
+The reconciliation task was not found.,找不到这个对账任务。
 The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
 The record data is not valid JSON.,记录数据不是有效的 JSON。
 The record metadata has an invalid format.,记录附加信息格式不正确。
 The record source is not supported.,不支持此记录来源。
 The reported ERP capabilities are invalid.,上报的 ERP 功能信息无效。
 The reported ERP field definitions are invalid.,上报的 ERP 字段定义无效。
+The request is invalid. Reload and try again.,请求无效，请刷新后重试。
 The requested page is not part of this invoice.,请求的页面不属于这张发票。
 The review workbook cannot be read. Check its format and content.,无法读取复核工作簿，请检查格式和内容。
 The review workbook contains an invalid number.,复核工作簿包含无效数值。
@@ -599,7 +644,9 @@ This delivery conflicts with the current task state.,此回执与任务当前状
 This document format is not supported.,不支持此文档格式。
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
 This file type is not supported.,不支持此文件类型。
+"This file type is not supported. Use PDF, Excel or CSV.",不支持这种文件，请用 PDF、Excel 或 CSV。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
+This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
 This item is also stocked at:,这件货还在别处：
 This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
 This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
@@ -613,6 +660,7 @@ This request key has already been used for different content.,此请求标识已
 This request key was used for another credential operation.,此请求键已用于其他凭据操作。
 This request key was used for different content.,此请求编号已用于其他内容。
 This request key was used for different push content.,此请求编号已用于其他推送内容。
+This request was already used for different content.,这个请求已用于不同内容。
 This stock count task is closed.,此盘点任务已关闭。
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
 Time left {0},剩余 {0}
@@ -621,10 +669,13 @@ Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
 Transaction Date,交易日期
+Type,类型
 "Type or scan, then press Enter",输入或扫码后按回车
 Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确认解绑 Pearnly Cowork LINE？
 Unit,单位
+Unknown reconciliation type.,未知的对账类型。
+Unmatched,未匹配
 Unsupported ERP connection type.,不支持此ERP连接类型。
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
@@ -632,16 +683,21 @@ Updated At,更新时间
 Updated By,更新人
 Updated {0} user(s),已更新 {0} 位用户
 Upload a sheet,上传导入
+Upload both files.,请上传两份文件。
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
 Uploaded By,上传人
+Uploading files,上传文件
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。
 Use the Cowork Companion service to access deliveries.,请通过 Cowork 助手服务访问任务领取记录。
 Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别服务访问识别任务。
 Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
 Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
+Use the reconciliation workflow to change these records.,请通过对账流程更改这些记录。
 Use the stock count workflow to change these records.,请通过盘点流程更改这些记录。
 User Settings,用户菜单
 Username can only have letters and numbers,用户名只能用英文字母和数字
+VAT Report Check,销项税报告核查
+VAT report amount,税表金额
 Valid,有效
 Version,版本
 View differences,查看差异
@@ -650,6 +706,7 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,撤销这条 {0} 的记录？
 Voided,已作废
 "Voided, not in the total",已撤销，不计入合计
+Waiting to start,排队中
 Warehouse,仓库
 Wire Attempt,发送尝试次数
 With differences,有差异
@@ -709,10 +766,73 @@ cowork.line.status.bound,已绑定
 cowork.line.status.unbound,未绑定
 cowork.line.unbind,解绑 LINE
 cowork.line.unbindConfirm,确认解绑 Pearnly Cowork LINE？
+cowork.nav.reconBank,银行对账
+cowork.nav.reconIncome,收入对账
+cowork.nav.reconVat,销项税报告核查
 cowork.nav.work,工作协调
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.quality.pending,待复核
+cowork.recon.bank.gl_credit_only,仅总账贷方
+cowork.recon.bank.gl_debit_only,仅总账借方
+cowork.recon.bank.left,银行账单
+cowork.recon.bank.matched,已匹配
+cowork.recon.bank.right,总账
+cowork.recon.bank.stmt_deposit_only,仅银行存入
+cowork.recon.bank.stmt_withdrawal_only,仅银行支出
+cowork.recon.bothFiles,请先选好两份文件
+cowork.recon.checking,核对中
+cowork.recon.col.bank,银行
+cowork.recon.col.createdAt,创建时间
+cowork.recon.col.customer,客户
+cowork.recon.col.date,日期
+cowork.recon.col.difference,差额
+cowork.recon.col.differences,差异
+cowork.recon.col.docNo,单号
+cowork.recon.col.glAmount,总账金额
+cowork.recon.col.kind,类型
+cowork.recon.col.matched,已匹配
+cowork.recon.col.reference,参考编号
+cowork.recon.col.rows,行数
+cowork.recon.col.status,状态
+cowork.recon.col.stmtAmount,银行金额
+cowork.recon.col.title,任务名称
+cowork.recon.col.unmatched,未匹配
+cowork.recon.col.vatAmount,税表金额
+cowork.recon.deleteConfirm,删除这 {0} 个对账任务？
+cowork.recon.deleteSelected,删除 {0} 项
+cowork.recon.deleted,已删除 {0} 项
+cowork.recon.export,导出
+cowork.recon.failed,对账失败
+cowork.recon.file,文件
+cowork.recon.filter,显示
+cowork.recon.filter.all,全部
+cowork.recon.filter.matched,已匹配
+cowork.recon.filter.pending,差异
+cowork.recon.filter.unmatched,未匹配
+cowork.recon.income.left,总账
+cowork.recon.income.right,销项税报告
+cowork.recon.kpi.matched,已匹配
+cowork.recon.kpi.pending,待处理差异
+cowork.recon.kpi.rate,匹配率
+cowork.recon.kpi.unmatched,未匹配
+cowork.recon.new,新建任务
+cowork.recon.pick,选择文件
+cowork.recon.stage.done,已完成
+cowork.recon.stage.ledger,读取总账
+cowork.recon.stage.matching,逐笔核对并保存
+cowork.recon.stage.queued,排队中
+cowork.recon.stage.reading,读取文件
+cowork.recon.stage.report,读取税表
+cowork.recon.stage.statement,读取银行账单
+cowork.recon.stage.upload,上传文件
+cowork.recon.start,开始对账
+cowork.recon.status.matched,已匹配
+cowork.recon.status.pending,差异
+cowork.recon.status.unmatched,未匹配
+cowork.recon.task.completed,已完成
+cowork.recon.task.needs_review,待复核
+cowork.recon.timeout,对账时间较长，请稍后在列表里查看。
 cowork.stock.action.export,导出
 cowork.stock.action.reload,刷新
 cowork.stock.actualLocation,实际仓位
@@ -1006,11 +1126,29 @@ push.request_invalid,推送请求无效。
 push.utc_required,必须提供带时区的UTC时间。
 recognized,已识别
 recognizing,识别中
+reconciliation.dedicated_api_required,请通过对账流程更改这些记录。
+reconciliation.failed,对账没有完成。
+reconciliation.file_too_large,文件超过 25 MB。
+reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。
+reconciliation.files_required,请上传两份文件。
+reconciliation.gl_no_revenue_rows,总账里没有收入科目的行。
+reconciliation.gl_parse_failed,读不出总账。
+reconciliation.gl_source_invalid,总账内容无效。
+reconciliation.header_invalid,期初期末数值无效。
+reconciliation.ledger_unparsed,读不出总账。
+reconciliation.request_conflict,这个请求已用于不同内容。
+reconciliation.request_invalid,请求无效，请刷新后重试。
 reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。
 reconciliation.review_balance_mismatch,请先修正账单余额差异，再确认。
 reconciliation.review_required,请先完成账单复核，再导出对账结果。
 reconciliation.review_rows_invalid,复核行内容或原始行编号无效。
 reconciliation.review_unavailable,此任务没有逐行复核记录。
+reconciliation.statement_unparsed,读不出银行账单。
+reconciliation.task_not_found,找不到这个对账任务。
+reconciliation.type_invalid,未知的对账类型。
+reconciliation.vat_no_rows,税表里没有明细行。
+reconciliation.vat_report_unparsed,读不出税表。请用 Excel、CSV 或带文字层的 PDF。
+reconciliation.vat_source_invalid,税表内容无效。
 roundtrip.document_limit,复核工作簿须包含 1 至 500 张发票。
 roundtrip.export_amount_missing,发票缺少必要金额，请补全后再导出。
 roundtrip.export_amount_not_roundtrippable,此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。

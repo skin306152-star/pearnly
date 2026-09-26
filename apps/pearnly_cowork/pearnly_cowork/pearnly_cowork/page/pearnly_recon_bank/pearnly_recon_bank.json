@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-recon-bank",
+  "page_name": "pearnly-recon-bank",
+  "title": "cowork.nav.reconBank",
+  "module": "Pearnly Cowork",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

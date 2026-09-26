@@ -120,6 +120,7 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 	values = {"stmt_opening": statement["opening"], "stmt_closing": statement["closing"],
 		"bank_code": statement["bank_code"]}
 	values.update(overrides)
+	stage("matching")
 	result = create(workspace, title, request_id,
 		bank_parse.decoded_statement_rows(statement["rows"]),
 		bank_parse.decoded_gl_rows(gl["rows"]), values, reconciliation_type,
@@ -147,7 +148,8 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 
 def create_from_documents(workspace, title, request_id, statement_bytes, statement_filename,
 		gl_bytes, gl_filename, header=None, gl_account_code="", reconciliation_type="bank",
-		model_rows=None, read_page=None, page_count=None, warnings=None, anchors=None, lang="th"):
+		model_rows=None, read_page=None, page_count=None, warnings=None, anchors=None, lang="th",
+		on_stage=None):
 	"""Store one reconciliation from **files**, through the native readers.
 
 	The bytes are handed in by the caller (the file store stays with the caller's
@@ -161,10 +163,14 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	bank_recon_access.require(workspace)
 	if not isinstance(statement_bytes, bytes) or not isinstance(gl_bytes, bytes):
 		frappe.throw(_("reconciliation.request_invalid"))
+	# 对账中心的后台任务据此显示走到哪一步（读账单 / 读总账 / 核对）；不传就是原来的行为。
+	stage = on_stage or (lambda _name: None)
+	stage("statement")
 	statement = bank_intake.read_statement_file(statement_bytes, statement_filename,
 		model_rows=model_rows, read_page=read_page, page_count=page_count)
 	if not statement.get("ok"):
 		frappe.throw(_("reconciliation.statement_unparsed"))
+	stage("ledger")
 	ledger = bank_intake.read_ledger_file(gl_bytes, gl_filename,
 		account_code=gl_account_code, model_rows=model_rows)
 	if not ledger.get("ok"):
@@ -176,6 +182,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		"bank_code": statement["bank_code"], "gl_opening": ledger["opening"],
 		"gl_closing": ledger["closing"], "gl_account_code": gl_account_code}
 	values.update(overrides)
+	stage("matching")
 	result = create(workspace, title, request_id,
 		bank_parse.decoded_statement_rows(statement["rows"]),
 		bank_parse.decoded_gl_rows(ledger["rows"]), values, reconciliation_type,

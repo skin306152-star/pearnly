@@ -226,6 +226,12 @@
       "history",
       "targets"
     ],
+    "recon_center": [
+      "access",
+      "ocr",
+      "reconciliation",
+      "tabular"
+    ],
     "reconciliation": [
       "access",
       "contracts",

@@ -76,11 +76,14 @@ class ReconTasks:
 			frappe.throw(_("reconciliation.request_conflict"))
 		return {"name": name, "replayed": True, "summary": json_loads(existing.summary_json)}
 
-	def records(self, workspace, start=0, limit=50):
+	def records(self, workspace, start=0, limit=50, sort_by=None, sort_order=None):
 		self.access.require(workspace)
 		start, limit = _window(start, limit, LIST_LIMIT)
+		# 列表页点列头排序：只认本任务表自己的列表字段（固定白名单），其它一律按创建时间。
+		column = sort_by if sort_by in self.list_fields and sort_by != "name" else "creation"
+		order = "asc" if str(sort_order or "").lower() == "asc" else "desc"
 		rows = frappe.get_all(self.task, filters={"workspace": workspace}, fields=self.list_fields,
-			order_by="creation desc, name desc", limit_start=start, limit_page_length=limit)
+			order_by=f"{column} {order}, name desc", limit_start=start, limit_page_length=limit)
 		return {"tasks": rows, "total": frappe.db.count(self.task, {"workspace": workspace})}
 
 	def detail(self, task_id, start=0, limit=100):

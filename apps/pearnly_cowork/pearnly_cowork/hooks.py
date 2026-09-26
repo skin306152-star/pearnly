@@ -279,6 +279,7 @@ app_include_js = [
     versioned_asset("pearnly_cowork", "desk/post-file.js"),
     versioned_asset("pearnly_cowork", "desk/stocktake-entry.js"),
     versioned_asset("pearnly_cowork", "desk/stocktake.js"),
+    versioned_asset("pearnly_cowork", "desk/recon.js"),
     versioned_asset("pearnly_cowork", "desk/line-binding.js"),
 ]
 app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css")]
@@ -389,8 +390,8 @@ pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
-# 识别记录、推送日志、客户、公司资料、集成、使用教程不做。库存盘点只做上传盘点（2026-09-26）；
-# 对账、工作协调的页面还没做，不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
+# 识别记录、推送日志、客户、公司资料、集成、使用教程不做。库存盘点照搬 ERP、只去掉盘点在库（2026-09-26）；
+# 销项税报告核查、工作协调的页面还没做，不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
   'profile_label': 'My Profile',
@@ -399,13 +400,19 @@ pearnly_navigation = [{'product': 'cowork',
                         ('User Settings', ['user'])],
   'pages': [('nav.home', 'pearnly-home', 'house', None),
             ('nav.intake', 'pearnly-intake', 'scan', 'intake'),
-            ('nav.reconcile', 'pearnly-reconcile', 'check', 'recon'),
+            # 对账中心拆成三个侧栏入口（用户 2026-09-26）；团队管理里仍是一个「对账中心」勾选。
+            ('cowork.nav.reconBank', 'pearnly-recon-bank', 'landmark', 'recon'),
+            ('cowork.nav.reconIncome', 'pearnly-recon-income', 'receipt', 'recon'),
+            ('cowork.nav.reconVat', 'pearnly-recon-vat', 'file-check', 'recon'),
             ('nav.stocktake', 'pearnly-stocktake', 'boxes', 'stocktake'),
             ('cowork.nav.work', 'pearnly-work', 'users', None),
             ('nav.team', 'pearnly-team', 'users-round', None)],
-  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-stocktake', 'pearnly-team'],
+  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-recon-bank', 'pearnly-recon-income',
+                'pearnly-stocktake', 'pearnly-team'],
   'permissions': {'pearnly-intake': {'doctype': 'Intake Record'},
-                  'pearnly-reconcile': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
+                  'pearnly-recon-bank': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
+                  'pearnly-recon-income': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
+                  'pearnly-recon-vat': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
                   'pearnly-stocktake': {'any_role': ['Cowork Stocktake', 'Cowork Admin']},
                   'pearnly-work': {'any_role': ['Cowork Work', 'Cowork Admin']},
                   # 能管本产品用户的是产品管理员（判据在 `team.service.require_admin`）。
