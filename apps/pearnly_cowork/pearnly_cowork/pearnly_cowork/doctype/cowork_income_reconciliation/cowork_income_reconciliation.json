@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-26 20:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -40,7 +40,8 @@
   "parse_info_json",
   "summary_json",
   "created_by",
-  "created_at"
+  "created_at",
+  "edit_json"
  ],
  "fields": [
   {
@@ -240,6 +241,13 @@
    "fieldname": "created_at",
    "fieldtype": "Datetime",
    "label": "Created At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "edit_json",
+   "fieldtype": "Long Text",
+   "label": "Edit History",
+   "hidden": 1,
    "read_only": 1
   }
  ],

@@ -19,6 +19,7 @@ A value in the ERP data report exceeds the allowed length.,ERP データレポ�
 Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
 Account Key,会計データキー
 Account Set Key,会計データ選択キー
+Account code,勘定科目コード
 Ack Digest,確認応答ダイジェスト
 Active,正常
 Active Attempt,現在の試行
@@ -36,6 +37,7 @@ Added {0},{0}を追加しました
 All,すべて
 Allowed Users,許可ユーザー
 Already exists,すでに存在します
+Amount,金額
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
@@ -46,11 +48,13 @@ At least one invoice page is required when editing.,編集時には請求書の�
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1件の記録につき写真は{0}枚まで
 Attempt Secret,試行用シークレット
+Balance,残高
 Bank,銀行
 Bank Reconciliation,銀行照合
 Bank amount,銀行金額
 Bank deposit only,銀行入金のみ
 Bank statement,銀行明細
+Bank statement detail,銀行明細
 Bank withdrawal only,銀行出金のみ
 Barcode,バーコード
 Barcode / QR code,バーコード / QRコード
@@ -172,6 +176,7 @@ Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Customer,顧客
 Date,日付
+Debit,借方
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
 Default Payment,既定の支払方法
@@ -182,7 +187,10 @@ Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
+Deposit,入金
+Description,摘要
 Difference,差異あり
+Difference detail,差異明細
 Difference value,差異金額
 Differences,差異
 Differences to review,要確認の差異
@@ -247,6 +255,7 @@ First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
 General,一般
 General ledger,総勘定元帳
+General ledger detail,総勘定元帳明細
 Generation Key,認証情報世代キー
 History,伝票履歴
 History Records,認識記録
@@ -477,6 +486,7 @@ Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Some rows were skipped,一部の行を取り込めませんでした
+Someone else changed this reconciliation. Reload it before saving.,この照合は他の人が変更しました。再読み込みしてから保存してください。
 Source Digest,元データのダイジェスト
 Source File,元ファイル
 Source Format,元データの形式
@@ -706,10 +716,12 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,この {0} の記録を取り消しますか？
 Voided,無効化済み
 "Voided, not in the total",取消済み（合計に含まない）
+Voucher no.,伝票番号
 Waiting to start,開始待ち
 Warehouse,倉庫
 Wire Attempt,送信試行回数
 With differences,差異あり
+Withdrawal,出金
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
@@ -782,14 +794,22 @@ cowork.recon.bank.stmt_deposit_only,銀行入金のみ
 cowork.recon.bank.stmt_withdrawal_only,銀行出金のみ
 cowork.recon.bothFiles,先に2つのファイルを選択してください
 cowork.recon.checking,照合中
+cowork.recon.col.account,勘定科目コード
+cowork.recon.col.amount,金額
+cowork.recon.col.balance,残高
 cowork.recon.col.bank,銀行
 cowork.recon.col.createdAt,作成日時
+cowork.recon.col.credit,貸方
 cowork.recon.col.customer,顧客
 cowork.recon.col.date,日付
+cowork.recon.col.debit,借方
+cowork.recon.col.deposit,入金
+cowork.recon.col.description,摘要
 cowork.recon.col.difference,差額
 cowork.recon.col.differences,差異
 cowork.recon.col.docNo,伝票番号
 cowork.recon.col.glAmount,元帳金額
+cowork.recon.col.item,項目
 cowork.recon.col.kind,種別
 cowork.recon.col.matched,一致
 cowork.recon.col.reference,参照番号
@@ -799,6 +819,8 @@ cowork.recon.col.stmtAmount,銀行金額
 cowork.recon.col.title,タスク名
 cowork.recon.col.unmatched,未照合
 cowork.recon.col.vatAmount,税報告金額
+cowork.recon.col.voucher,伝票番号
+cowork.recon.col.withdrawal,出金
 cowork.recon.deleteConfirm,{0}件の照合を削除しますか？
 cowork.recon.deleteSelected,{0}件を削除
 cowork.recon.deleted,{0}件を削除しました
@@ -818,6 +840,10 @@ cowork.recon.kpi.rate,一致率
 cowork.recon.kpi.unmatched,未照合
 cowork.recon.new,新規タスク
 cowork.recon.pick,ファイルを選択
+cowork.recon.saved,保存しました
+cowork.recon.sheet.difference,差異明細
+cowork.recon.sheet.gl,総勘定元帳明細
+cowork.recon.sheet.statement,銀行明細
 cowork.recon.stage.done,完了
 cowork.recon.stage.ledger,総勘定元帳を読み込み中
 cowork.recon.stage.matching,照合して保存中
@@ -1127,6 +1153,7 @@ push.utc_required,タイムゾーン付きのUTC時刻が必要です。
 recognized,認識済み
 recognizing,認識中
 reconciliation.dedicated_api_required,照合の手順で変更してください。
+reconciliation.edit_conflict,この照合は他の人が変更しました。再読み込みしてから保存してください。
 reconciliation.failed,照合を完了できませんでした。
 reconciliation.file_too_large,25MBを超えるファイルがあります。
 reconciliation.file_type_unsupported,このファイル形式は使えません。PDF、Excel、CSV を使ってください。

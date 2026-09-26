@@ -19,6 +19,7 @@ A value in the ERP data report exceeds the allowed length.,ERP 数据报告中�
 Access to the Companion queue has been revoked.,助手队列的访问权限已撤销。
 Account Key,账套键
 Account Set Key,账套选择键
+Account code,科目代码
 Ack Digest,回执摘要
 Active,正常
 Active Attempt,当前尝试
@@ -36,6 +37,7 @@ Added {0},已添加 {0}
 All,全部
 Allowed Users,授权用户
 Already exists,已存在
+Amount,金额
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
 An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
 An original file is already stored for this source.,此来源已保存原始文件。
@@ -46,11 +48,13 @@ At least one invoice page is required when editing.,编辑时必须保留至少�
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
 Attempt Secret,尝试密钥
+Balance,余额
 Bank,银行
 Bank Reconciliation,银行对账
 Bank amount,银行金额
 Bank deposit only,仅银行存入
 Bank statement,银行账单
+Bank statement detail,银行对账单明细
 Bank withdrawal only,仅银行支出
 Barcode,条形码
 Barcode / QR code,条码/二维码
@@ -172,6 +176,7 @@ Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Customer,客户
 Date,日期
+Debit,借方
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
@@ -182,7 +187,10 @@ Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,删除选中的 {0} 份盘点？已过账的删不掉。
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
+Deposit,存款
+Description,摘要
 Difference,有差异
+Difference detail,差异明细
 Difference value,差异金额
 Differences,差异
 Differences to review,待处理差异
@@ -247,6 +255,7 @@ First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 General,常用功能
 General ledger,总账
+General ledger detail,总账明细
 Generation Key,凭据版本键
 History,票据历史
 History Records,识别记录
@@ -477,6 +486,7 @@ Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 Some rows were skipped,部分行未导入
+Someone else changed this reconciliation. Reload it before saving.,这个对账刚被别人改过，请刷新后再保存。
 Source Digest,来源摘要
 Source File,原始文件
 Source Format,来源格式
@@ -706,10 +716,12 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,撤销这条 {0} 的记录？
 Voided,已作废
 "Voided, not in the total",已撤销，不计入合计
+Voucher no.,凭证号
 Waiting to start,排队中
 Warehouse,仓库
 Wire Attempt,发送尝试次数
 With differences,有差异
+Withdrawal,提款
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workspace,公司账套
@@ -782,14 +794,22 @@ cowork.recon.bank.stmt_deposit_only,仅银行存入
 cowork.recon.bank.stmt_withdrawal_only,仅银行支出
 cowork.recon.bothFiles,请先选好两份文件
 cowork.recon.checking,核对中
+cowork.recon.col.account,科目代码
+cowork.recon.col.amount,金额
+cowork.recon.col.balance,余额
 cowork.recon.col.bank,银行
 cowork.recon.col.createdAt,创建时间
+cowork.recon.col.credit,贷方
 cowork.recon.col.customer,客户
 cowork.recon.col.date,日期
+cowork.recon.col.debit,借方
+cowork.recon.col.deposit,存款
+cowork.recon.col.description,摘要
 cowork.recon.col.difference,差额
 cowork.recon.col.differences,差异
 cowork.recon.col.docNo,单号
 cowork.recon.col.glAmount,总账金额
+cowork.recon.col.item,项目说明
 cowork.recon.col.kind,类型
 cowork.recon.col.matched,已匹配
 cowork.recon.col.reference,参考编号
@@ -799,6 +819,8 @@ cowork.recon.col.stmtAmount,银行金额
 cowork.recon.col.title,任务名称
 cowork.recon.col.unmatched,未匹配
 cowork.recon.col.vatAmount,税表金额
+cowork.recon.col.voucher,凭证号
+cowork.recon.col.withdrawal,提款
 cowork.recon.deleteConfirm,删除这 {0} 个对账任务？
 cowork.recon.deleteSelected,删除 {0} 项
 cowork.recon.deleted,已删除 {0} 项
@@ -818,6 +840,10 @@ cowork.recon.kpi.rate,匹配率
 cowork.recon.kpi.unmatched,未匹配
 cowork.recon.new,新建任务
 cowork.recon.pick,选择文件
+cowork.recon.saved,已保存
+cowork.recon.sheet.difference,差异明细
+cowork.recon.sheet.gl,总账明细
+cowork.recon.sheet.statement,银行对账单明细
 cowork.recon.stage.done,已完成
 cowork.recon.stage.ledger,读取总账
 cowork.recon.stage.matching,逐笔核对并保存
@@ -1127,6 +1153,7 @@ push.utc_required,必须提供带时区的UTC时间。
 recognized,已识别
 recognizing,识别中
 reconciliation.dedicated_api_required,请通过对账流程更改这些记录。
+reconciliation.edit_conflict,这个对账刚被别人改过，请刷新后再保存。
 reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
 reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。

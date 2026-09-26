@@ -19,6 +19,7 @@ A value in the ERP data report exceeds the allowed length.,A value in the ERP da
 Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
 Account Key,Account Key
 Account Set Key,Account Set Key
+Account code,Account code
 Ack Digest,Ack Digest
 Active,Active
 Active Attempt,Active Attempt
@@ -36,6 +37,7 @@ Added {0},Added {0}
 All,All
 Allowed Users,Allowed Users
 Already exists,Already exists
+Amount,Amount
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
@@ -46,11 +48,13 @@ At least one invoice page is required when editing.,At least one invoice page is
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
 Attempt Secret,Attempt Secret
+Balance,Balance
 Bank,Bank
 Bank Reconciliation,Bank Reconciliation
 Bank amount,Bank amount
 Bank deposit only,Bank deposit only
 Bank statement,Bank statement
+Bank statement detail,Bank statement detail
 Bank withdrawal only,Bank withdrawal only
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
@@ -172,6 +176,7 @@ Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Customer,Customer
 Date,Date
+Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
 Default Payment,Default Payment
@@ -182,7 +187,10 @@ Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
+Deposit,Deposit
+Description,Description
 Difference,Difference
+Difference detail,Difference detail
 Difference value,Difference value
 Differences,Differences
 Differences to review,Differences to review
@@ -247,6 +255,7 @@ First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
 General,General
 General ledger,General ledger
+General ledger detail,General ledger detail
 Generation Key,Generation Key
 History,History
 History Records,History Records
@@ -477,6 +486,7 @@ Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Some rows were skipped,Some rows were skipped
+Someone else changed this reconciliation. Reload it before saving.,Someone else changed this reconciliation. Reload it before saving.
 Source Digest,Source Digest
 Source File,Source File
 Source Format,Source Format
@@ -706,10 +716,12 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,Void this count of {0}?
 Voided,Voided
 "Voided, not in the total","Voided, not in the total"
+Voucher no.,Voucher no.
 Waiting to start,Waiting to start
 Warehouse,Warehouse
 Wire Attempt,Wire Attempt
 With differences,With differences
+Withdrawal,Withdrawal
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workspace,Workspace
@@ -782,14 +794,22 @@ cowork.recon.bank.stmt_deposit_only,Bank deposit only
 cowork.recon.bank.stmt_withdrawal_only,Bank withdrawal only
 cowork.recon.bothFiles,Choose both files first
 cowork.recon.checking,Checking
+cowork.recon.col.account,Account code
+cowork.recon.col.amount,Amount
+cowork.recon.col.balance,Balance
 cowork.recon.col.bank,Bank
 cowork.recon.col.createdAt,Created
+cowork.recon.col.credit,Credit
 cowork.recon.col.customer,Customer
 cowork.recon.col.date,Date
+cowork.recon.col.debit,Debit
+cowork.recon.col.deposit,Deposit
+cowork.recon.col.description,Description
 cowork.recon.col.difference,Difference
 cowork.recon.col.differences,Differences
 cowork.recon.col.docNo,Document no.
 cowork.recon.col.glAmount,Ledger amount
+cowork.recon.col.item,Item
 cowork.recon.col.kind,Type
 cowork.recon.col.matched,Matched
 cowork.recon.col.reference,Reference
@@ -799,6 +819,8 @@ cowork.recon.col.stmtAmount,Bank amount
 cowork.recon.col.title,Task name
 cowork.recon.col.unmatched,Unmatched
 cowork.recon.col.vatAmount,VAT report amount
+cowork.recon.col.voucher,Voucher no.
+cowork.recon.col.withdrawal,Withdrawal
 cowork.recon.deleteConfirm,Delete {0} reconciliation(s)?
 cowork.recon.deleteSelected,Delete {0}
 cowork.recon.deleted,Deleted {0}
@@ -818,6 +840,10 @@ cowork.recon.kpi.rate,Match rate
 cowork.recon.kpi.unmatched,Unmatched
 cowork.recon.new,New task
 cowork.recon.pick,Choose file
+cowork.recon.saved,Saved
+cowork.recon.sheet.difference,Difference detail
+cowork.recon.sheet.gl,General ledger detail
+cowork.recon.sheet.statement,Bank statement detail
 cowork.recon.stage.done,Done
 cowork.recon.stage.ledger,Reading the general ledger
 cowork.recon.stage.matching,Matching and saving
@@ -1127,6 +1153,7 @@ push.utc_required,A timezone-aware UTC timestamp is required.
 recognized,recognized
 recognizing,recognizing
 reconciliation.dedicated_api_required,Use the reconciliation workflow to change these records.
+reconciliation.edit_conflict,Someone else changed this reconciliation. Reload it before saving.
 reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
 reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."

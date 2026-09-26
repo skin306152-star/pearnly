@@ -19,6 +19,7 @@ A value in the ERP data report exceeds the allowed length.,ค่าในรา
 Access to the Companion queue has been revoked.,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
 Account Key,คีย์ชุดบัญชี
 Account Set Key,คีย์เลือกชุดบัญชี
+Account code,รหัสบัญชี
 Ack Digest,แฮชผลตอบรับ
 Active,ปกติ
 Active Attempt,ความพยายามปัจจุบัน
@@ -36,6 +37,7 @@ Added {0},เพิ่มแล้ว {0}
 All,ทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Already exists,มีอยู่แล้ว
+Amount,จำนวนเงิน
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
 An option in the ERP data report is invalid.,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
@@ -46,11 +48,13 @@ At least one invoice page is required when editing.,เมื่อแก้ไ�
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
 Attempt Secret,ข้อมูลลับของการพยายาม
+Balance,ยอดคงเหลือ
 Bank,ธนาคาร
 Bank Reconciliation,กระทบยอดธนาคาร
 Bank amount,ยอดธนาคาร
 Bank deposit only,มีเฉพาะรายการฝากในธนาคาร
 Bank statement,รายการเดินบัญชีธนาคาร
+Bank statement detail,รายละเอียดรายการเดินบัญชี
 Bank withdrawal only,มีเฉพาะรายการถอนในธนาคาร
 Barcode,บาร์โค้ด
 Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
@@ -172,6 +176,7 @@ Current Directory Heads,ดัชนีรุ่นไดเรกทอรี�
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Customer,ลูกค้า
 Date,วันที่
+Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
@@ -182,7 +187,10 @@ Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายก
 Delete {0} stock counts? Posted ones cannot be deleted.,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
 Deleted {0},ลบแล้ว {0} รายการ
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
+Deposit,ฝาก
+Description,คำอธิบาย
 Difference,มีผลต่าง
+Difference detail,รายละเอียดผลต่าง
 Difference value,มูลค่าผลต่าง
 Differences,ผลต่าง
 Differences to review,ผลต่างที่ต้องตรวจสอบ
@@ -247,6 +255,7 @@ First Recognition Snapshot,สำเนาผลการอ่านครั�
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 General,ทั่วไป
 General ledger,บัญชีแยกประเภททั่วไป
+General ledger detail,รายละเอียดบัญชีแยกประเภท
 Generation Key,คีย์รุ่นข้อมูลรับรอง
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
@@ -477,6 +486,7 @@ Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
 Some rows were skipped,บางแถวไม่ได้นำเข้า
+Someone else changed this reconciliation. Reload it before saving.,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
 Source Digest,ค่าแฮชของข้อมูลต้นทาง
 Source File,ไฟล์ต้นฉบับ
 Source Format,รูปแบบข้อมูลต้นทาง
@@ -706,10 +716,12 @@ Void all current observations for this product and recount it? Previous records 
 Void this count of {0}?,ยกเลิกรายการนับ {0} นี้?
 Voided,ยกเลิกแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
+Voucher no.,เลขที่ใบสำคัญ
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
+Withdrawal,ถอน
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
@@ -782,14 +794,22 @@ cowork.recon.bank.stmt_deposit_only,มีเฉพาะรายการฝ�
 cowork.recon.bank.stmt_withdrawal_only,มีเฉพาะรายการถอนในธนาคาร
 cowork.recon.bothFiles,กรุณาเลือกไฟล์ทั้งสองก่อน
 cowork.recon.checking,กำลังตรวจสอบ
+cowork.recon.col.account,รหัสบัญชี
+cowork.recon.col.amount,จำนวนเงิน
+cowork.recon.col.balance,ยอดคงเหลือ
 cowork.recon.col.bank,ธนาคาร
 cowork.recon.col.createdAt,สร้างเมื่อ
+cowork.recon.col.credit,เครดิต
 cowork.recon.col.customer,ลูกค้า
 cowork.recon.col.date,วันที่
+cowork.recon.col.debit,เดบิต
+cowork.recon.col.deposit,ฝาก
+cowork.recon.col.description,คำอธิบาย
 cowork.recon.col.difference,ผลต่าง
 cowork.recon.col.differences,ผลต่าง
 cowork.recon.col.docNo,เลขที่เอกสาร
 cowork.recon.col.glAmount,ยอดบัญชีแยกประเภท
+cowork.recon.col.item,รายการ
 cowork.recon.col.kind,ประเภท
 cowork.recon.col.matched,จับคู่แล้ว
 cowork.recon.col.reference,เลขที่อ้างอิง
@@ -799,6 +819,8 @@ cowork.recon.col.stmtAmount,ยอดธนาคาร
 cowork.recon.col.title,ชื่องาน
 cowork.recon.col.unmatched,ไม่พบคู่
 cowork.recon.col.vatAmount,ยอดตามรายงานภาษี
+cowork.recon.col.voucher,เลขที่ใบสำคัญ
+cowork.recon.col.withdrawal,ถอน
 cowork.recon.deleteConfirm,ลบงานกระทบยอด {0} รายการ?
 cowork.recon.deleteSelected,ลบ {0} รายการ
 cowork.recon.deleted,ลบแล้ว {0} รายการ
@@ -818,6 +840,10 @@ cowork.recon.kpi.rate,อัตราการจับคู่
 cowork.recon.kpi.unmatched,ไม่พบคู่
 cowork.recon.new,สร้างงานใหม่
 cowork.recon.pick,เลือกไฟล์
+cowork.recon.saved,บันทึกแล้ว
+cowork.recon.sheet.difference,รายละเอียดผลต่าง
+cowork.recon.sheet.gl,รายละเอียดบัญชีแยกประเภท
+cowork.recon.sheet.statement,รายละเอียดรายการเดินบัญชี
 cowork.recon.stage.done,เสร็จสิ้น
 cowork.recon.stage.ledger,กำลังอ่านบัญชีแยกประเภท
 cowork.recon.stage.matching,กำลังจับคู่และบันทึก
@@ -1127,6 +1153,7 @@ push.utc_required,ต้องระบุเวลา UTC พร้อมเข
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
 reconciliation.dedicated_api_required,กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด
+reconciliation.edit_conflict,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
 reconciliation.failed,การกระทบยอดไม่สำเร็จ
 reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
 reconciliation.file_type_unsupported,"ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"

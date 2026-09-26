@@ -3,7 +3,8 @@
  *   列表：官方列表，列头排序、勾选删除，右上角「新建任务」；
  *   新建：上方两个上传口（各传一份对应的文件）→「开始对账」；
  *   核对中：官方整屏遮罩（`frappe.dom.freeze`），只显示阶段文字（照旧线上，不显示百分比）；
- *   完成：结果页——四个汇总数（匹配率 / 已匹配 / 待处理差异 / 未匹配，旧线上同一组）、筛选、明细表、导出。
+ *   完成：结果页就是导出的复核表（用户 2026-09-26）——四个汇总数 + 工作簿各页；输入那几页可在线改，
+ *         改了自动重算（服务端用同一套比对与同一个导出函数），有改动才出现「保存」。
  *
  * 全部是官方控件（列表、FieldGroup、DataTable、遮罩、msgprint），不自画控件。
  * 服务端：`recon_center/api.py`（任务、阶段、列表、结果、删除），导出沿用各对账域的下载接口。
@@ -12,9 +13,8 @@
 	const p = frappe.pearnly;
 	const api = "pearnly_cowork.recon_center.api.";
 	const POLL_MS = 1500, POLL_LIMIT_MS = 20 * 60 * 1000;
-	const money = value => value == null || value === "" ? "—" : p.number(value);
 
-	// 每种对账的差异：上传口、列表列、明细列与行状态。状态键见 `cowork.recon.status.*`。
+	// 每种对账的差异：上传口与列表列。结果页的各页见下面 `INPUTS` 与服务端 `recon_center/sheets.py`。
 	const KINDS = {
 		bank: {
 			root: "pearnly-recon-bank", title: "cowork.nav.reconBank", doctype: "Cowork Bank Reconciliation",
@@ -29,18 +29,6 @@
 				{ fieldname: "matched_count", width: 90, min_width: 72, label: t("cowork.recon.col.matched") },
 			],
 			sort: ["title", "bank_code", "status", "row_count", "matched_count", "created_at"],
-			state: r => r.match_status === "matched" ? (Number(r.match_layer) > 1 ? "pending" : "matched") : "unmatched",
-			detail: t => [t("cowork.recon.col.date"), t("cowork.recon.col.reference"), t("cowork.recon.col.stmtAmount"),
-				t("cowork.recon.col.glAmount"), t("cowork.recon.col.kind")],
-			cells: (r, t) => {
-				const stmt = Number(r.stmt_deposit || 0) - Number(r.stmt_withdrawal || 0);
-				const gl = Number(r.gl_debit || 0) - Number(r.gl_credit || 0);
-				const has_stmt = !String(r.match_status).startsWith("gl_");
-				const has_gl = !String(r.match_status).startsWith("stmt_");
-				return [r.stmt_date || r.gl_date || "", [r.gl_doc_no, r.stmt_desc || r.gl_desc].filter(Boolean).join(" · "),
-					has_stmt ? money(stmt) : "—", has_gl ? money(gl) : "—",
-					t(`cowork.recon.bank.${r.match_status}`)];
-			},
 		},
 		income: {
 			root: "pearnly-recon-income", title: "cowork.nav.reconIncome", doctype: "Cowork Income Reconciliation",
@@ -56,11 +44,6 @@
 					cell_class: value => Number(value) ? "pearnly-difference" : "" },
 			],
 			sort: ["title", "row_count", "matched_count", "diff_count", "unmatched_count", "created_at"],
-			state: r => !r.has_gl_match ? "unmatched" : Math.abs(Number(r.diff || 0)) >= 0.005 ? "pending" : "matched",
-			detail: t => [t("cowork.recon.col.docNo"), t("cowork.recon.col.date"), t("cowork.recon.col.customer"),
-				t("cowork.recon.col.vatAmount"), t("cowork.recon.col.glAmount"), t("cowork.recon.col.difference")],
-			cells: r => [r.doc_no || "", r.vat_date || "", r.customer_name || "", money(r.vat_amount),
-				r.has_gl_match ? money(r.gl_amount) : "—", r.has_gl_match ? money(r.diff) : "—"],
 		},
 	};
 
@@ -68,18 +51,18 @@
 		const spec = KINDS[kind];
 		const t = await p.texts("cowork.recon.");
 		const root = spec.root;
-		let list, table, current, rows = [], only = "all", sequence = 0;
+		let list, current, sequence = 0;
 		const title = () => __(spec.title);
 		const breadcrumbs = trail => p.breadcrumbs({ label: title(), route: p.subroute(root), trail: trail || [] });
 		p.add_refresh(page, () => current ? show_result(current) : list?.reload());
 
 		function clear() {
-			list?.destroy(); table?.destroy();
-			list = table = null;
+			list?.destroy();
+			list = null;
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
 			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
-			page.hide_form(); page.clear_primary_action(); page.clear_indicator();
+			page.hide_form(); page.clear_primary_action(); page.clear_secondary_action(); page.clear_indicator();
 		}
 
 		// ── 列表 ──────────────────────────────────────────────────────────────
@@ -170,60 +153,150 @@
 			}
 		}
 
-		// ── 结果 ──────────────────────────────────────────────────────────────
+		// ── 结果 = 导出的复核表：各页按工作簿顺序排成官方分区；输入那几页可改，改了自动重算，有改动才出现「保存」 ──
+		const sheets_api = "pearnly_cowork.recon_center.sheets.";
+		const lang = () => (frappe.boot.lang || "th").slice(0, 2);
+		const INPUTS = {
+			bank: [
+				{ key: "statement", label: "cowork.recon.sheet.statement", fields: [
+					["date", "Data", "cowork.recon.col.date", 2], ["description", "Data", "cowork.recon.col.description", 3],
+					["withdrawal", "Float", "cowork.recon.col.withdrawal", 1], ["deposit", "Float", "cowork.recon.col.deposit", 1],
+					["balance", "Float", "cowork.recon.col.balance", 2]],
+					// 读取器留下的三个标记随行带着（新加的行按“人工录入”：高置信、未校验、未自动更正）。
+					keep: { confidence: "high", balance_ok: "", autocorrected: 0 } },
+				{ key: "gl", label: "cowork.recon.sheet.gl", fields: [
+					["date", "Data", "cowork.recon.col.date", 2], ["doc_no", "Data", "cowork.recon.col.voucher", 1],
+					["account_code", "Data", "cowork.recon.col.account", 1], ["description", "Data", "cowork.recon.col.description", 2],
+					["debit", "Float", "cowork.recon.col.debit", 1], ["credit", "Float", "cowork.recon.col.credit", 1],
+					["balance", "Float", "cowork.recon.col.balance", 2]], keep: {} },
+			],
+			income: [
+				{ key: "vat", label: "cowork.recon.sheet.difference", fields: [
+					["doc_no", "Data", "cowork.recon.col.docNo", 1], ["date", "Data", "cowork.recon.col.date", 1],
+					["customer_name", "Data", "cowork.recon.col.customer", 2], ["vat_amount", "Float", "cowork.recon.col.vatAmount", 1],
+					["gl_amount", "Float", "cowork.recon.col.glAmount", 1], ["diff", "Float", "cowork.recon.col.difference", 1, true],
+					["status", "Data", "cowork.recon.col.status", 2, true]],
+					keep: { has_gl: 0, account_code: "" } },
+			],
+		};
+		const status_of = row => !row.has_gl ? "unmatched" : Math.abs(Number(row.diff || 0)) >= 0.005 ? "pending" : "matched";
+
 		async function show_result(name) {
 			const request = ++sequence;
-			const first = await p.call(api + "detail", { kind, task_id: name, start: 0, limit: 200 });
-			let all = first.rows;
-			while (all.length < first.total) {
-				const more = await p.call(api + "detail", { kind, task_id: name, start: all.length, limit: 200 });
-				if (!more.rows.length) break;
-				all = all.concat(more.rows);
-			}
+			const data = await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() });
 			if (request !== sequence || frappe.get_route()[1] !== name) return;
 			clear();
-			rows = all.map(row => ({ ...row, state: spec.state(row) }));
-			const counts = { matched: 0, pending: 0, unmatched: 0 };
-			rows.forEach(row => { counts[row.state] += 1; });
-			const rate = rows.length ? Math.round((counts.matched / rows.length) * 1000) / 10 : 0;
-			const task_title = first.task.title || name;
-			page.set_title(task_title); breadcrumbs([{ label: task_title }]);
-			page.set_indicator(t(`cowork.recon.task.${first.task.status}`), first.task.status === "completed" ? "green" : "orange");
-			page.set_primary_action(t("cowork.recon.export"), () => window.location.assign(
-				`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${encodeURIComponent((frappe.boot.lang || "th").slice(0, 2))}`));
-			// 四个汇总数：官方只读字段排成一行（旧线上结果页同一组）。
-			p.layout(page.main, [
-				{ fieldtype: "Data", fieldname: "rate", label: t("cowork.recon.kpi.rate"), read_only: 1, default: `${rate}%` },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Data", fieldname: "matched", label: t("cowork.recon.kpi.matched"), read_only: 1, default: String(counts.matched) },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Data", fieldname: "pending", label: t("cowork.recon.kpi.pending"), read_only: 1, default: String(counts.pending) },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Data", fieldname: "unmatched", label: t("cowork.recon.kpi.unmatched"), read_only: 1, default: String(counts.unmatched) },
-			]);
-			const filter = page.add_field({ fieldtype: "Select", fieldname: "only", label: t("cowork.recon.filter"), default: only,
-				options: ["all", "matched", "pending", "unmatched"].map(value => ({ value, label: t(`cowork.recon.filter.${value}`) })),
-				change: () => { only = filter.get_value() || "all"; void paint(); } });
-			const host = $("<div class='report-wrapper'>").appendTo(page.main);
-			const paint = async () => {
-				table?.destroy(); table = null;
-				const shown = rows.filter(row => only === "all" || row.state === only);
-				if (!shown.length) {
-					host.empty().append($(frappe.views.ListView.prototype.get_no_result_message.call({ doctype: spec.doctype,
-						meta: { description: __("Nothing to show") }, can_create: false, get_documentation_link: () => "" })));
-					return;
+			let modified = data.task.modified, dirty = false, timer = null, pending = null;
+			page.set_title(data.task.title || name); breadcrumbs([{ label: data.task.title || name }]);
+			page.set_indicator(t(`cowork.recon.task.${data.task.status}`), data.task.status === "completed" ? "green" : "orange");
+			const export_now = () => window.location.assign(`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${lang()}`);
+			const buttons = () => {
+				page.clear_primary_action(); page.clear_secondary_action();
+				if (dirty) {
+					page.set_primary_action(__("Save"), save);
+					page.set_secondary_action(t("cowork.recon.export"), export_now);
+				} else {
+					page.set_primary_action(t("cowork.recon.export"), export_now);
 				}
-				const status = row => {
-					const text = p.escape(t(`cowork.recon.status.${row.state}`));
-					return row.state === "matched" ? text : `<span style="color: var(--red-600)">${text}</span>`;
-				};
-				table = await p.table(host, [...spec.detail(t).map(name => ({ name, format: p.escape })),
-					{ name: t("cowork.recon.col.status"), format: value => value }],
-					shown.map(row => [...spec.cells(row, t), status(row)]),
-					{ language: frappe.boot.lang, translations: frappe.utils.datatable.get_translations() });
 			};
+			// 四个汇总数（匹配率 / 已匹配 / 待处理差异 / 未匹配）：官方只读字段一行。
+			const kpi = p.layout(page.main, ["rate", "matched", "pending", "unmatched"].flatMap((key, index) => [
+				...(index ? [{ fieldtype: "Column Break" }] : []),
+				{ fieldtype: "Data", fieldname: key, label: t(`cowork.recon.kpi.${key}`), read_only: 1 }]));
+			const paint_kpi = counts => {
+				const rate = counts.total ? Math.round((counts.matched / counts.total) * 1000) / 10 : 0;
+				kpi.set_value("rate", `${rate}%`);
+				["matched", "pending", "unmatched"].forEach(key => kpi.set_value(key, String(counts[key])));
+			};
+			// 各页：只读页（由导出同一函数生成）用官方表格显示；输入页是官方可编辑表格（Grid）。
+			const inputs = JSON.parse(JSON.stringify(data.inputs));
+			const layout_fields = [];
+			const read_only = data.sheets.map((sheet, index) => ({ ...sheet, field: `sheet_${index}` }));
+			const section = (label, collapsible = false) => ({ fieldtype: "Section Break", label, collapsible: collapsible ? 1 : 0 });
+			const read_only_field = (sheet, collapsed) => [section(sheet.name, collapsed), { fieldtype: "HTML", fieldname: sheet.field }];
+			const grid_field = spec_input => [section(t(spec_input.label)), {
+				fieldtype: "Table", fieldname: spec_input.key, in_place_edit: true, cannot_add_rows: kind === "income",
+				data: inputs[spec_input.key].map(row => ({ ...row, status: kind === "income" ? t(`cowork.recon.status.${status_of(row)}`) : undefined })),
+				fields: spec_input.fields.map(([fieldname, fieldtype, label, columns, locked]) => ({
+					fieldname, fieldtype, label: t(label), in_list_view: 1, columns, read_only: locked ? 1 : 0,
+					...(fieldtype === "Float" ? { formatter: value => value == null || value === "" ? "" : p.number(value) } : {}),
+					onchange: () => changed() })) }];
+			if (kind === "bank") {
+				layout_fields.push(...read_only_field(read_only[0]), ...read_only_field(read_only[1]));
+				INPUTS.bank.forEach(item => layout_fields.push(...grid_field(item)));
+			} else {
+				INPUTS.income.forEach(item => layout_fields.push(...grid_field(item)));
+				layout_fields.push(...read_only_field(read_only[0]), ...read_only_field(read_only[1], true));
+			}
+			const form = p.layout(page.main, layout_fields);
+			const tables = {};
+			const paint_sheets = async sheets => {
+				for (const [index, sheet] of sheets.entries()) {
+					tables[index]?.destroy();
+					const host = form.fields_dict[`sheet_${index}`].$wrapper;
+					const width = Math.max(...sheet.rows.map(row => row.length), 1);
+					// 工作簿里本身有表头行（每格都是文字）就用它当列名，否则按「项目说明 / 金额」。
+					const header = sheet.rows.length > 1 && sheet.rows[0].length === width
+						&& sheet.rows[0].every(value => typeof value === "string" && value.trim());
+					const columns = header ? sheet.rows[0].map(value => String(value ?? ""))
+						: Array.from({ length: width }, (_v, i) => i === 0 ? t("cowork.recon.col.item") : t("cowork.recon.col.amount"));
+					const body = (header ? sheet.rows.slice(1) : sheet.rows).map(row => columns.map((_c, i) => {
+						const value = row[i];
+						return typeof value === "number" ? p.number(value) : value ?? "";
+					}));
+					tables[index] = await p.table(host, columns.map(name => ({ name, format: p.escape })), body,
+						{ language: frappe.boot.lang, translations: frappe.utils.datatable.get_translations() });
+				}
+			};
+			const collect = () => {
+				const out = {};
+				for (const item of INPUTS[kind]) {
+					out[item.key] = form.fields_dict[item.key].grid.get_data().map(row => {
+						const clean = {};
+						for (const [fieldname] of item.fields) clean[fieldname] = row[fieldname] ?? "";
+						for (const [key, fallback] of Object.entries(item.keep)) clean[key] = row[key] ?? fallback;
+						delete clean.status;
+						return clean;
+					});
+				}
+				if (kind === "income") out.gl_only = inputs.gl_only;
+				return out;
+			};
+			const recalc = async () => {
+				const payload = collect();
+				pending = payload;
+				const result = await p.call(sheets_api + "recalc", { kind, task_id: name, inputs: JSON.stringify(payload), lang: lang() }, "POST");
+				if (pending !== payload || frappe.get_route()[1] !== name) return;
+				paint_kpi(result.counts);
+				await paint_sheets(result.sheets);
+				if (kind === "income") {
+					// 差额与状态是算出来的：按重算结果回填到表格里（不算用户的改动）。
+					const grid = form.fields_dict.vat.grid;
+					grid.get_data().forEach((row, i) => {
+						const fresh = result.inputs.vat[i];
+						if (!fresh) return;
+						Object.assign(row, { diff: fresh.diff, has_gl: fresh.has_gl, status: t(`cowork.recon.status.${status_of(fresh)}`) });
+					});
+					grid.refresh();
+				}
+			};
+			function changed() {
+				if (!dirty) { dirty = true; buttons(); }
+				clearTimeout(timer);
+				timer = setTimeout(() => void recalc(), 500);
+			}
+			async function save() {
+				clearTimeout(timer);
+				const saved = await p.call(sheets_api + "save", { kind, task_id: name, inputs: JSON.stringify(collect()),
+					modified, lang: lang() }, "POST");
+				modified = saved.task.modified; dirty = false;
+				p.success(t("cowork.recon.saved"));
+				await show_result(name);
+			}
+			buttons();
+			paint_kpi(data.counts);
 			await frappe.require("report.bundle.js");
-			await paint();
+			await paint_sheets(read_only);
 		}
 
 		async function show_route() {
@@ -231,14 +304,14 @@
 			if (route[0] !== root) return;
 			++sequence;
 			clear();
-			current = null; only = "all";
+			current = null;
 			if (!route[1]) show_list();
 			else if (route[1] === "new") show_new();
 			else { current = route[1]; await show_result(current); }
 		}
 
 		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
-		$(wrapper).on("hide", () => { ++sequence; table?.destroy(); table = null; });
+		$(wrapper).on("hide", () => { ++sequence; });
 		await show_route();
 	};
 })();

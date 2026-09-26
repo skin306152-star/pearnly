@@ -741,3 +741,18 @@ The reconciliation could not be completed.	对账没有完成。	การกร
 Use the reconciliation workflow to change these records.	请通过对账流程更改这些记录。	กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด	照合の手順で変更してください。	reconciliation.dedicated_api_required
 The ledger file content is invalid.	总账内容无效。	ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง	元帳の内容が無効です。	reconciliation.gl_source_invalid
 The VAT report content is invalid.	税表内容无效。	ข้อมูลรายงานภาษีไม่ถูกต้อง	税報告の内容が無効です。	reconciliation.vat_source_invalid
+Bank statement detail	银行对账单明细	รายละเอียดรายการเดินบัญชี	銀行明細	cowork.recon.sheet.statement
+General ledger detail	总账明细	รายละเอียดบัญชีแยกประเภท	総勘定元帳明細	cowork.recon.sheet.gl
+Difference detail	差异明细	รายละเอียดผลต่าง	差異明細	cowork.recon.sheet.difference
+Description	摘要	คำอธิบาย	摘要	cowork.recon.col.description
+Withdrawal	提款	ถอน	出金	cowork.recon.col.withdrawal
+Deposit	存款	ฝาก	入金	cowork.recon.col.deposit
+Balance	余额	ยอดคงเหลือ	残高	cowork.recon.col.balance
+Voucher no.	凭证号	เลขที่ใบสำคัญ	伝票番号	cowork.recon.col.voucher
+Account code	科目代码	รหัสบัญชี	勘定科目コード	cowork.recon.col.account
+Debit	借方	เดบิต	借方	cowork.recon.col.debit
+Credit	贷方	เครดิต	貸方	cowork.recon.col.credit
+Item	项目说明	รายการ	項目	cowork.recon.col.item
+Amount	金额	จำนวนเงิน	金額	cowork.recon.col.amount
+Saved	已保存	บันทึกแล้ว	保存しました	cowork.recon.saved
+Someone else changed this reconciliation. Reload it before saving.	这个对账刚被别人改过，请刷新后再保存。	งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก	この照合は他の人が変更しました。再読み込みしてから保存してください。	reconciliation.edit_conflict
