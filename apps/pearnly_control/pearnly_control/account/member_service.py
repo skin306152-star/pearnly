@@ -15,21 +15,25 @@ import re
 
 import frappe
 
+from pearnly_core.account import line_login_contract as line_contract
+
 from pearnly_control.billing_auth import valid_token
 from pearnly_control.account.member_provider import MemberError, MemberProvider, PREFIX
 
 IDENTITY = "Pearnly Member Identity"
 OPERATION = "Pearnly Member Operation"
+# 开户时登记的租户管理员（员工台账只记团队里建的号，管理员由控制面发号）。
+TENANT_IDENTITY = "Pearnly Tenant Identity"
 # ERP keys must stay byte-identical: ledger keys and owner stamps already exist.
 PRODUCTS = ("erp", "cowork")
 _CAPABILITY = object()
 
 
-def authorize(tenant):
+def authorize(tenant, products=PRODUCTS):
     product = frappe.get_request_header("X-Pearnly-Billing-Product")
     if (not frappe.conf.get("pearnly_billing_only")
             or not frappe.conf.get("pearnly_billing_scoped_tokens")
-            or product not in PRODUCTS
+            or product not in products
             or not isinstance(tenant, str) or not tenant or len(tenant) > 140
             or not valid_token(frappe.conf.get("pearnly_billing_token") or "", tenant,
                 product, frappe.get_request_header("X-Pearnly-Billing-Token") or "")):
@@ -135,7 +139,47 @@ def reset_password(tenant, email, password, request_id, product="erp"):
     return {"email": email}
 
 
-def execute(tenant, action, email, password, username="", request_id=""):
+def register_owner(tenant, subject):
+    """管理通道（开户 `register`）登记租户管理员身份。幂等；只增不改。"""
+    if not isinstance(subject, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", subject):
+        raise MemberError("invalid_request")
+    name = hashlib.sha256(json.dumps([tenant, subject], separators=(",", ":")).encode()).hexdigest()
+    if not frappe.db.exists(TENANT_IDENTITY, name):
+        _insert({"doctype": TENANT_IDENTITY, "name": name, "tenant": tenant, "subject": subject, "role": "owner"})
+
+
+def _registered(tenant, subject):
+    """这个身份是不是本租户的：开户登记的管理员，或团队里建的员工。"""
+    if not isinstance(subject, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", subject):
+        return False
+    return bool(frappe.db.exists(TENANT_IDENTITY, {"tenant": tenant, "subject": subject})
+                or frappe.db.exists(IDENTITY, {"tenant": tenant, "subject": subject}))
+
+
+def link_line(tenant, product, subject, line_user_id):
+    """把站点上已生效的 LINE 绑定关联到该身份在 Keycloak 的 LINE 登录入口。
+
+    站点只能替**本租户已登记**的身份关联；别名按（产品, 租户）计算，站点给不了别的别名。
+    """
+    if not line_contract.valid_line_user_id(line_user_id) or not _registered(tenant, subject):
+        raise MemberError("not_permitted")
+    MemberProvider(product).link_line(subject, line_contract.idp_alias(product, tenant), line_user_id)
+    return {"subject": subject}
+
+
+def unlink_line(tenant, product, subject):
+    if not _registered(tenant, subject):
+        raise MemberError("not_permitted")
+    MemberProvider(product).unlink_line(subject, line_contract.idp_alias(product, tenant))
+    return {"subject": subject}
+
+
+def execute(tenant, action, email, password, username="", request_id="", subject="", line_user_id=""):
+    if action in ("link-line", "unlink-line"):
+        tenant, product = authorize(tenant, line_contract.PRODUCTS)
+        if action == "link-line":
+            return link_line(tenant, product, subject, line_user_id)
+        return unlink_line(tenant, product, subject)
     tenant, product = authorize(tenant)
     if (not isinstance(email, str) or "@" not in email or len(email) > 140
             or not isinstance(password, str) or not password):
@@ -192,4 +236,5 @@ def purge_members(tenant):
     for row, _subject, _owner in members:
         frappe.db.delete(OPERATION, {"member": row.name})
         frappe.db.delete(IDENTITY, {"name": row.name, "tenant": tenant})
+    frappe.db.delete(TENANT_IDENTITY, {"tenant": tenant})
     return {"members": len(members)}

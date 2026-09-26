@@ -65,6 +65,14 @@ def dispatch(action: str, payload=None):
             frappe.get_doc({"doctype": "Pearnly Tenant", "tenant_name": payload.get("company_name") or tenant,
                             "status": "active"}).insert(ignore_permissions=True, set_name=tenant)
         billing.wallet_of(tenant)
+        if payload.get("owner_subject"):
+            # 开户管理员的身份登记在这里，LINE 登录关联只认本租户登记过的身份。
+            from pearnly_control.account import member_service
+            from pearnly_control.account.member_provider import MemberError
+            try:
+                member_service.register_owner(tenant, payload["owner_subject"])
+            except MemberError:
+                frappe.throw(_("Not permitted"), frappe.PermissionError)
         frappe.db.commit()
         return {"token": tenant_token(billing_api.service_token(create=False), tenant, product)}
     if action == "slip":

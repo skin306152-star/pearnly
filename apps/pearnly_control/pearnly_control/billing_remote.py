@@ -28,8 +28,11 @@ def call(action, **payload):
         frappe.throw(_("Billing service unavailable; please retry"))
 
 
-def provision_scope(tenant, product, company_name):
-    return call("register", tenant=tenant, product=product, company_name=company_name)
+def provision_scope(tenant, product, company_name, owner_subject=None):
+    payload = {"tenant": tenant, "product": product, "company_name": company_name}
+    if owner_subject:
+        payload["owner_subject"] = owner_subject
+    return call("register", **payload)
 
 
 def review(action, request, actor, amount=None, note=""):

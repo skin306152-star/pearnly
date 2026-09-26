@@ -43,12 +43,14 @@ def after_request(request=None, response=None):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @do_not_record
-def execute(tenant=None, action=None, email=None, password=None, username="", request_id=""):
+def execute(tenant=None, action=None, email=None, password=None, username="", request_id="",
+            subject="", line_user_id=""):
     # Expected and unexpected errors stay inside this boundary. Frappe must not
     # persist a traceback with the credential-bearing request locals.
     _private_request()
     try:
-        result = member_service.execute(tenant, action, email, password, username, request_id)
+        result = member_service.execute(tenant, action, email, password, username, request_id,
+                                        subject, line_user_id)
         frappe.db.commit()
         return {"ok": True, **result}
     except MemberError as error:

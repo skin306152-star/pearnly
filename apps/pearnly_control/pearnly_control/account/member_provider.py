@@ -20,7 +20,8 @@ class MemberError(Exception):
 def config_prefix(product="erp"):
     """每个产品一个账号池（realm）。ERP 沿用原来那组键（`pearnly_member_identity_*`），
     Cowork 用自己的一组（`pearnly_member_identity_cowork_*`，用户 2026-09-26：Cowork 与 ERP 分池）。"""
-    if product == "erp":
+    # DMS 与 ERP 同在业务 realm；DMS 只用 LINE 关联，不在这里建号（见 member_service）。
+    if product in ("erp", "dms"):
         return PREFIX
     if product == "cowork":
         return PREFIX + "_cowork"
@@ -131,4 +132,31 @@ class MemberProvider:
         response = self._request("PUT", "/users/" + quote(subject, safe="") + "/reset-password",
             json={"type": "password", "value": password, "temporary": False})
         if response.status_code not in (200, 204):
+            raise MemberError("unavailable")
+
+    def link_line(self, subject, alias, line_user_id):
+        """幂等：已是同一个 LINE 就不动；是别的 LINE 就换成这个。"""
+        path = "/users/" + quote(subject, safe="") + "/federated-identity"
+        response = self._request("GET", path)
+        if response.status_code == 404:
+            raise MemberError("not_permitted")
+        if response.status_code != 200:
+            raise MemberError("unavailable")
+        current = [row for row in response.json() or [] if row.get("identityProvider") == alias]
+        if current and current[0].get("userId") == line_user_id:
+            return
+        if current:
+            self.unlink_line(subject, alias)
+        response = self._request("POST", path + "/" + quote(alias, safe=""), json={
+            "identityProvider": alias, "userId": line_user_id, "userName": line_user_id})
+        if response.status_code == 409:
+            # 这个 LINE 已经关联在另一个账号上：不抢。
+            raise MemberError("conflict")
+        if response.status_code not in (200, 201, 204):
+            raise MemberError("unavailable")
+
+    def unlink_line(self, subject, alias):
+        response = self._request("DELETE", "/users/" + quote(subject, safe="")
+                                 + "/federated-identity/" + quote(alias, safe=""))
+        if response.status_code not in (200, 204, 404):
             raise MemberError("unavailable")

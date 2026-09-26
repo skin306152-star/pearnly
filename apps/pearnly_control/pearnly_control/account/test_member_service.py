@@ -177,5 +177,121 @@ class TestMembers(unittest.TestCase):
         self.native.db.rollback.assert_called_once()
 
 
+LINE = "U" + "a" * 32
+
+
+class TestLineLinks(unittest.TestCase):
+    """LINE 登录关联：只替本租户登记过的身份写 Keycloak，别名由服务端按（产品, 租户）算。"""
+
+    def setUp(self):
+        self.native = MagicMock()
+        self.native.conf = {"pearnly_billing_only": True, "pearnly_billing_scoped_tokens": True,
+                            "pearnly_billing_token": "unit-test-root-only"}
+        self.headers = {}
+        self.native.get_request_header.side_effect = lambda name: self.headers.get(name)
+        self.native.db.get_value.return_value = "active"
+        self.owners = {("tenant-a", "owner-subject")}
+        self.members = {("tenant-a", "member-subject")}
+        self.native.db.exists.side_effect = lambda doctype, filters=None: (
+            (filters["tenant"], filters["subject"]) in (
+                self.owners if doctype == service.TENANT_IDENTITY else self.members)
+            if isinstance(filters, dict) else False)
+        for module in (service, member_api, member_provider):
+            p = patch.object(module, "frappe", self.native)
+            p.start()
+            self.addCleanup(p.stop)
+        p = patch.object(service, "MemberProvider")
+        self.provider_class = p.start()
+        self.provider = self.provider_class.return_value
+        self.addCleanup(p.stop)
+
+    def scope(self, product, tenant="tenant-a"):
+        self.headers.update({"X-Pearnly-Billing-Product": product,
+                             "X-Pearnly-Billing-Token": tenant_token("unit-test-root-only", tenant, product)})
+
+    def test_owner_and_member_link_to_the_site_alias(self):
+        for product, subject in (("erp", "owner-subject"), ("dms", "member-subject")):
+            self.scope(product)
+            self.assertEqual(service.execute("tenant-a", "link-line", None, None, subject=subject,
+                                             line_user_id=LINE), {"subject": subject})
+            self.provider_class.assert_called_with(product)
+            self.provider.link_line.assert_called_with(subject, f"line-{product}-tenant-a", LINE)
+
+    def test_unregistered_or_other_tenant_subject_and_bad_line_id_rejected(self):
+        self.scope("erp")
+        for subject, line_user_id in (("stranger", LINE), ("owner-subject", "not-a-line-id"),
+                                      ("owner-subject", "U" + "A" * 32)):
+            with self.assertRaises(member_provider.MemberError):
+                service.execute("tenant-a", "link-line", None, None, subject=subject, line_user_id=line_user_id)
+        self.scope("erp", "tenant-b")
+        with self.assertRaises(member_provider.MemberError):
+            service.execute("tenant-b", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
+        self.provider.link_line.assert_not_called()
+
+    def test_dms_scope_can_link_but_never_create_or_reset(self):
+        self.scope("dms")
+        for action in ("create", "reset-password"):
+            with self.assertRaises(member_provider.MemberError):
+                service.execute("tenant-a", action, "x@example.test", "secret", "User1", "a" * 32)
+        self.provider.create.assert_not_called()
+        self.provider.reset_password.assert_not_called()
+
+    def test_unlink_is_scoped_too(self):
+        self.scope("erp")
+        self.assertEqual(service.execute("tenant-a", "unlink-line", None, None, subject="member-subject"),
+                         {"subject": "member-subject"})
+        self.provider.unlink_line.assert_called_once_with("member-subject", "line-erp-tenant-a")
+        with self.assertRaises(member_provider.MemberError):
+            service.execute("tenant-a", "unlink-line", None, None, subject="stranger")
+
+    def test_register_owner_is_idempotent_and_validated(self):
+        with patch.object(service, "_insert") as insert:
+            self.native.db.exists.side_effect = [False, True]
+            service.register_owner("tenant-a", "owner-subject")
+            service.register_owner("tenant-a", "owner-subject")
+            insert.assert_called_once()
+            self.assertEqual(insert.call_args[0][0]["role"], "owner")
+            with self.assertRaises(member_provider.MemberError):
+                service.register_owner("tenant-a", "../admin")
+
+
+class TestProviderLineLinks(unittest.TestCase):
+    def setUp(self):
+        self.provider = member_provider.MemberProvider.__new__(member_provider.MemberProvider)
+        self.calls = []
+        self.responses = {}
+
+        def request(method, path, **kwargs):
+            self.calls.append((method, path, kwargs.get("json")))
+            return SimpleNamespace(**self.responses.get(method, {"status_code": 204}),
+                                   json=lambda: self.responses.get(method, {}).get("body"))
+
+        self.provider._request = request
+
+    def test_same_link_is_a_noop_and_other_link_is_replaced(self):
+        self.responses["GET"] = {"status_code": 200, "body": [
+            {"identityProvider": "line-erp-t", "userId": LINE}]}
+        self.provider.link_line("s-1", "line-erp-t", LINE)
+        self.assertEqual([c[0] for c in self.calls], ["GET"])
+        self.calls.clear()
+        self.provider.link_line("s-1", "line-erp-t", "U" + "b" * 32)
+        self.assertEqual([c[0] for c in self.calls], ["GET", "DELETE", "POST"])
+        self.assertEqual(self.calls[-1][2]["userId"], "U" + "b" * 32)
+
+    def test_line_taken_by_another_account_is_a_conflict(self):
+        self.responses["GET"] = {"status_code": 200, "body": []}
+        self.responses["POST"] = {"status_code": 409}
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.provider.link_line("s-1", "line-erp-t", LINE)
+        self.assertEqual(raised.exception.code, "conflict")
+
+    def test_missing_user_and_unlink_absent(self):
+        self.responses["GET"] = {"status_code": 404}
+        with self.assertRaises(member_provider.MemberError):
+            self.provider.link_line("s-1", "line-erp-t", LINE)
+        self.responses["DELETE"] = {"status_code": 404}
+        self.provider.unlink_line("s-1", "line-erp-t")
+
+
 if __name__ == "__main__":
     unittest.main()
