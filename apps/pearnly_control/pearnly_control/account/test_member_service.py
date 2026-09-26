@@ -236,6 +236,19 @@ class TestLineLinks(unittest.TestCase):
         self.provider.create.assert_not_called()
         self.provider.reset_password.assert_not_called()
 
+    def test_line_moved_between_own_identities_is_relinked_but_foreign_holder_is_not(self):
+        self.scope("erp")
+        conflict = member_provider.MemberError("conflict")
+        self.provider.link_line.side_effect = [conflict, None]
+        self.provider.line_holder.return_value = "member-subject"
+        service.execute("tenant-a", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
+        self.provider.unlink_line.assert_called_once_with("member-subject", "line-erp-tenant-a")
+        self.provider.link_line.side_effect = [conflict]
+        self.provider.line_holder.return_value = "other-tenant-subject"
+        with self.assertRaises(member_provider.MemberError):
+            service.execute("tenant-a", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
+        self.provider.unlink_line.assert_called_once()
+
     def test_unlink_is_scoped_too(self):
         self.scope("erp")
         self.assertEqual(service.execute("tenant-a", "unlink-line", None, None, subject="member-subject"),

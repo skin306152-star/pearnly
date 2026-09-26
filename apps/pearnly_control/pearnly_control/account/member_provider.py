@@ -155,6 +155,17 @@ class MemberProvider:
         if response.status_code not in (200, 201, 204):
             raise MemberError("unavailable")
 
+    def line_holder(self, alias, line_user_id):
+        """这个 LINE 在该入口下关联在谁身上（没有就 None）。"""
+        response = self._request("GET", "/users", params={
+            "idpAlias": alias, "idpUserId": line_user_id, "briefRepresentation": "true"})
+        if response.status_code != 200:
+            raise MemberError("unavailable")
+        rows = response.json()
+        if not isinstance(rows, list) or len(rows) > 1:
+            raise MemberError("conflict")
+        return rows[0].get("id") if rows else None
+
     def unlink_line(self, subject, alias):
         response = self._request("DELETE", "/users/" + quote(subject, safe="")
                                  + "/federated-identity/" + quote(alias, safe=""))

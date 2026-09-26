@@ -163,7 +163,17 @@ def link_line(tenant, product, subject, line_user_id):
     """
     if not line_contract.valid_line_user_id(line_user_id) or not _registered(tenant, subject):
         raise MemberError("not_permitted")
-    MemberProvider(product).link_line(subject, line_contract.idp_alias(product, tenant), line_user_id)
+    alias = line_contract.idp_alias(product, tenant)
+    provider = MemberProvider(product)
+    try:
+        provider.link_line(subject, alias, line_user_id)
+    except MemberError as error:
+        # 同一个 LINE 在本站从 A 改绑到 B：A 身上的旧关联要先摘掉。只摘本租户登记过的身份。
+        holder = provider.line_holder(alias, line_user_id) if error.code == "conflict" else None
+        if not holder or holder == subject or not _registered(tenant, holder):
+            raise
+        provider.unlink_line(holder, alias)
+        provider.link_line(subject, alias, line_user_id)
     return {"subject": subject}
 
 
