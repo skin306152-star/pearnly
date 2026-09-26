@@ -21,8 +21,8 @@
 - `https://testcowork.pearnly.com` 已**切到测试机**（Cloudflare CNAME → 隧道），测试机 Cowork 栈**运行中**，镜像 main `02a3b22`
   `ghcr.io/skin306152-star/pearnly/frappe@sha256:3a1d5f26d985ad423795434d319826656bd5d8d86d95f7226cc9bd573361f382`。
 - 登录走线上 `auth.pearnly.com/realms/pearnly-business`（Cowork 独立账号池线上未建），测试账号由用户自己登录；不要替用户输入线上密码。
-- 修好一个问题要在测试环境复验：推分支 → 手动触发 `build-production.yml` 拿新 digest →
-  `PEARNLY_TESTENV_SRC=<工作树> PEARNLY_TESTENV_IMAGE=<新 digest> bash scripts/testenv.sh lab-start cowork`（复用已导入数据，自动 migrate / 清缓存）。
+- 修好一个问题（2026-09-27 起实时源码）：`PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live cowork`，约 13 秒生效，
+  不用推分支、不用构建镜像；表结构 / 补丁 / hooks 变了自动迁移。用户试用通过后再合入 main、从 main 构建镜像上生产。
 - 测完：`bash scripts/testenv.sh lab-stop cowork`（域名切回线上、停栈、卷保留）。**切在测试机时测试机不能关机。**
 - OCR 在测试机是线上真凭据：上传单据识别、图片 / PDF 发票都会产生**真实付费调用**，用户授权后才做。
 - 做法与坑见 [测试环境](../development/test-environment.md) 的 Cowork 一节、第十三批。
