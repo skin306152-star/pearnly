@@ -140,7 +140,7 @@
           if (!decoderFallback) decoderFallback = (async () => {
             if (!window.BarcodeDetectionAPI) await new Promise((resolve, reject) => {
               const script = document.createElement('script');
-              script.src = '/assets/pearnly_erp_portal/vendor/barcode-detector/ponyfill.js';
+              script.src = '/assets/pearnly_core/vendor/barcode-detector/ponyfill.js';
               script.onload = resolve;
               script.onerror = () => { hide(script); reject(new Error('decoder_unavailable')); };
               document.head.appendChild(script);
@@ -148,7 +148,7 @@
             const api = window.BarcodeDetectionAPI;
             await api.prepareZXingModule({ overrides: {
               locateFile: (name) => name.endsWith('.wasm')
-                ? '/assets/pearnly_erp_portal/vendor/barcode-detector/zxing_reader.wasm' : name,
+                ? '/assets/pearnly_core/vendor/barcode-detector/zxing_reader.wasm' : name,
             } });
             return api.BarcodeDetector;
           })().catch((error) => { decoderFallback = null; throw error; });

@@ -3,7 +3,9 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync('apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js', 'utf8');
+// 读码器本体在共用层，ERP 的扫码动作在 ERP；站点上按这个顺序加载（2026-09-26 去重）。
+const source = ['apps/pearnly_core/pearnly_core/public/desk/scan.js',
+  'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js'].map(path => fs.readFileSync(path, 'utf8')).join('\n');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 function fixture({ acquire, decode, muted = 0 } = {}) {

@@ -91,9 +91,9 @@ function fixture(options = {}) {
 
   const decoded = [], fallback = fixture({fallback: true});
   await fallback.page.startCamera(code => decoded.push(code));
-  assert.deepEqual(fallback.scripts, ['/assets/pearnly_erp_portal/vendor/barcode-detector/ponyfill.js']);
+  assert.deepEqual(fallback.scripts, ['/assets/pearnly_core/vendor/barcode-detector/ponyfill.js']);
   assert.equal(fallback.prepares[0].overrides.locateFile('reader.wasm'),
-    '/assets/pearnly_erp_portal/vendor/barcode-detector/zxing_reader.wasm');
+    '/assets/pearnly_core/vendor/barcode-detector/zxing_reader.wasm');
   await fallback.tick(); assert.equal(decoded.length, 0, 'one frame is not a confirmed result');
   await fallback.tick(); assert.deepEqual(decoded, ['QR + & 123']);
   assert.equal(fallback.stopped(), 1);

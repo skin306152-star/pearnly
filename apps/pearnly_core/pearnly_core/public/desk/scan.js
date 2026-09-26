@@ -1,9 +1,8 @@
 /* Shared local camera reader. Native decoder first, bundled production WASM fallback.
  * Dialogs remain Frappe native; the video surface is necessarily browser media API.
  *
- * 共用层的扫码器（浏览器能力，多产品共用）：2026-09-26 从 ERP `public/desk/scan.js` 原样复制过来给
- * Cowork 盘点用，只改了解码器资源路径，并去掉只属于 ERP 的部分（扫码弹窗 `p.scan` 与物料选择框扫码）。ERP 仍加载它自己那份（内容相同，后加载者生效），
- * 待与 ERP 窗口协调后由 ERP 删掉自己的副本、改用这里。
+ * 共用层的扫码器（浏览器能力，多产品共用）：2026-09-26 从 ERP 搬到这里，ERP、Cowork 都用这一份。
+ * 只属于 ERP 的部分（扫码弹窗 `p.scan` 与物料选择框扫码）留在 ERP 的 `public/desk/scan.js`。
  */
 frappe.provide("frappe.pearnly");
 (() => {
