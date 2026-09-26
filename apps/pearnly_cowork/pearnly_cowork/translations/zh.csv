@@ -16,6 +16,7 @@ A review workbook must contain between 1 and 500 invoices.,复核工作簿须包
 A successful push has no ERP document number. Check its receipt.,已有成功推送缺少ERP凭证号，请核对回执。
 A timezone-aware UTC timestamp is required.,必须提供带时区的UTC时间。
 A value in the ERP data report exceeds the allowed length.,ERP 数据报告中的值超过允许长度。
+Abbreviated Tax Invoice,简式税务发票
 Access to the Companion queue has been revoked.,助手队列的访问权限已撤销。
 Account Key,账套键
 Account Set Key,账套选择键
@@ -186,12 +187,11 @@ Created By,创建人
 Creation Request Hash,创建请求摘要
 Credential ID,凭据 ID
 Credit,赊账
-Credit note,贷项通知单
+Credit Note,贷项通知单
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Customer,客户
 Date,日期
-Date (BE),日期（佛历）
 Debit,借方
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
@@ -377,7 +377,7 @@ OUT,出账
 Observed At (UTC),观测时间（UTC）
 Only an active count can be deleted,只有进行中的盘点能删除
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
-Order evidence,订单凭证
+Order Evidence,订单截图
 Original Content Coverage Complete,原件内容已完整覆盖
 Original Document Manifest,原件内容索引
 Original File,原始文件
@@ -390,7 +390,7 @@ Original files can only be changed through the Cowork file service.,只能通过
 Original files cannot be changed.,原始文件不可更改。
 Original files cannot be deleted while invoice references may exist.,可能仍有关联发票时，不可删除原始文件。
 Original files cannot be shared separately from their invoices.,原始文件不能与其关联发票分开共享。
-Other document,其他单据
+Other,其它
 Outcome,执行结果
 Output VAT report,销项税报告
 Over,盘盈
@@ -402,8 +402,8 @@ Page preview is available only for PDF and image originals.,仅支持 PDF 和图
 Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Payload Json,冻结载荷JSON
+Payment Evidence,付款凭证
 Payment Method,付款方式
-Payment evidence,付款凭证
 Payment method,支付方式
 Pearnly Cowork,Pearnly Cowork
 Pending,待处理
@@ -533,7 +533,6 @@ Settings Json,配置数据（JSON）
 Sheet,表格文件
 Short,盘亏
 Show,显示
-Simplified tax invoice,简易税票
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
@@ -571,7 +570,7 @@ Target Json,冻结目标JSON
 Task,任务
 Task name,任务名称
 Tax ID,纳税人识别号
-Tax invoice,完整税票
+Tax Invoice,税务发票
 That code is not valid,验证码不正确
 That photo cannot be attached. Upload it again.,这张照片挂不上，请重新上传。
 The Companion delivery record is invalid.,助手任务领取记录无效。
@@ -743,6 +742,7 @@ Token Generation,令牌版本
 Token Tail,令牌末四位
 Total,含税
 Transaction Date,交易日期
+Transaction type,业务类型
 Transfer,转账
 Type,类型
 "Type or scan, then press Enter",输入或扫码后按回车

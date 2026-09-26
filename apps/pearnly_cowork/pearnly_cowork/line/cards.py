@@ -1,7 +1,7 @@
 """LINE 识别结果卡：每张票一张，版式照 ERP `pearnly_erp_portal.integrations.line_cards`（用户 2026-09-27：参考 ERP）。
 
 标题「复核单据 · 进项/销项」+ 副标题，进项绿、销项红；左灰标签、右粗体值；上面是 LINE 里的选择
-（目标 · 公司 · 年度、方向、入账方式），分隔线后是票面（单据号、日期、票种、对方名称 / 税号 / 分店 / 地址），
+（目标 · 公司 · 年度、业务类型、入账方式），分隔线后是票面（单据号、日期、票种、对方名称 / 税号 / 分店 / 地址），
 再是全部明细（名称、数量 × 单价 = 金额），最后是金额与付款。只有一个按钮：打开网页复核页
 （复核、提交 / 导出都在网页做）。字段取识别记录的主页面，与复核页同一判据。
 """
@@ -11,10 +11,9 @@ from decimal import Decimal, InvalidOperation
 import frappe
 from frappe import _
 
+from pearnly_core.tax_documents import codes as tax_codes
+
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
-DOC_TYPES = {"tax_invoice": "Tax invoice", "simplified_tax_invoice": "Simplified tax invoice",
-             "receipt": "Receipt", "credit_note": "Credit note", "payment_evidence": "Payment evidence",
-             "order_evidence": "Order evidence", "other": "Other document"}
 PAYMENTS = {"cash": "Cash", "credit": "Credit", "transfer": "Transfer", "promptpay": "PromptPay",
             "cheque": "Cheque", "card": "Card"}
 # 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细按实际大小列，放不下的报「还有 N 项」（ERP 同法）。
@@ -35,6 +34,15 @@ def _number(value) -> str:
         return f"{Decimal(str(value).replace(',', '')).normalize():f}"
     except (InvalidOperation, ValueError, TypeError):
         return str(value or "")
+
+
+def _be_date(iso, raw) -> str:
+    """日期按佛历年份显示（ERP 卡片同一口径，标签不写「佛历」）；没有公历日期就用票面原样。"""
+    try:
+        year, month, day = str(iso)[:10].split("-")
+        return f"{int(day):02d}/{int(month):02d}/{int(year) + 543}"
+    except (ValueError, TypeError):
+        return str(raw or "-")
 
 
 def _kv(label, value, *, accent=None):
@@ -96,12 +104,13 @@ def _card(record, pending, shown):
     payment = fields.get("posting_payment_manual") or fields.get("payment_method")
     body = [
         _kv(_("Target ERP"), pending.get("target")),
-        _kv(_("Direction"), head),
+        _kv(_("Transaction type"), head),
         *([_kv(_("Posting"), pending["mode"])] if pending.get("mode") else []),
         _separator(),
         _kv(_("Document no."), fields.get("invoice_number")),
-        _kv(_("Date (BE)"), fields.get("date_raw")),
-        _kv(_("Document type"), _(DOC_TYPES[kind]) if kind in DOC_TYPES else "-"),
+        _kv(_("Date"), _be_date(fields.get("date"), fields.get("date_raw"))),
+        # 票种按全平台共用码表写（ADR-0012，与 ERP 卡片同一份名称）。
+        _kv(_("Document type"), _(tax_codes.LABELS[kind]) if kind in tax_codes.LABELS else "-"),
         # 进项只列卖方（供应商），销项只列买方（客户）：本方不在卡上（ERP 同一口径）。
         *(_party_rows("Seller", fields, "seller") if direction != "sales" else _party_rows("Buyer", fields, "buyer")),
         _separator(),

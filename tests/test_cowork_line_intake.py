@@ -166,7 +166,7 @@ class LineCardTest(unittest.TestCase):
         from pearnly_cowork.line import cards
 
         fields = {"direction": direction, "invoice_number": "IV6906-00001", "date_raw": "1/6/2569",
-                  "document_type": "tax_invoice", "seller_name": "S Co", "seller_tax": "0105527028626",
+                  "date": "2026-06-01", "document_type": "tax_invoice", "seller_name": "S Co", "seller_tax": "0105527028626",
                   "buyer_name": "B Co", "subtotal": "1370.00", "vat": "95.90", "total_amount": "1465.90",
                   "items": [{"name": "ข้อต่อ", "qty": "2", "price": "60.00", "subtotal": "120.00"}]}
         record = mock.Mock(pages=__import__("json").dumps([{"fields": fields}]), total_amount="1465.90")
@@ -199,6 +199,9 @@ class LineCardTest(unittest.TestCase):
         self.assertNotIn("B Co", texts)
         self.assertIn("1. ข้อต่อ", texts)
         self.assertIn("1,465.90", texts)
+        self.assertIn("01/06/2569", texts)
+        self.assertIn("Transaction type", texts)
+        self.assertIn("Tax Invoice", texts)
         buttons = bubble["footer"]["contents"]
         self.assertEqual(len(buttons), 1)
         self.assertEqual(buttons[0]["action"]["uri"], "https://t.example/desk/pearnly-intake/new/CWH-1")

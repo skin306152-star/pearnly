@@ -804,7 +804,6 @@ Buyer branch	买方分店	สาขาผู้ซื้อ	買い手支店
 Buyer tax ID	买方税号	เลขผู้เสียภาษีผู้ซื้อ	買い手税番号	
 Card	刷卡	บัตร	カード	
 Cheque	支票	เช็ค	小切手	
-Date (BE)	日期（佛历）	วันที่ พ.ศ.	日付（仏暦）	
 Discount	折扣金额	ส่วนลด	割引額	
 Document summary · open details to review and post	单据摘要 · 进入明细完成复核与入账	สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี	書類の概要 · 明細画面で確認して計上してください	
 Document total	总金额	ยอดรวม	合計	
@@ -821,10 +820,11 @@ Seller tax ID	卖方税号	เลขผู้เสียภาษีผู้�
 Transfer	转账	โอนเงิน	振込	
 WHT amount	预扣税额	ภาษีหัก ณ ที่จ่าย	源泉税額	
 {0} more items	另有 {0} 项	และอีก {0} รายการ	ほか {0} 件	
-Tax invoice	完整税票	ใบกำกับภาษีเต็มรูป	正式税請求書	
-Simplified tax invoice	简易税票	ใบกำกับภาษีอย่างย่อ	簡易税請求書	
-Credit note	贷项通知单	ใบลดหนี้	クレジットノート	
-Payment evidence	付款凭证	หลักฐานการชำระเงิน	支払証憑	
-Order evidence	订单凭证	หลักฐานการสั่งซื้อ	注文証憑	
-Other document	其他单据	เอกสารอื่น	その他の書類	
 Posting	入账方式	วิธีลงบัญชี	計上方法	
+Transaction type	业务类型	ประเภทรายการ	取引区分	
+Tax Invoice	税务发票	ใบกำกับภาษี	税務請求書	
+Abbreviated Tax Invoice	简式税务发票	ใบกำกับภาษีอย่างย่อ	簡易税務請求書	
+Credit Note	贷项通知单	ใบลดหนี้	返品・値引伝票	
+Payment Evidence	付款凭证	หลักฐานการชำระเงิน	支払証跡	
+Order Evidence	订单截图	หลักฐานคำสั่งซื้อ	注文記録	
+Other	其它	อื่นๆ	その他	

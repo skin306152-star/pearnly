@@ -16,6 +16,7 @@ A review workbook must contain between 1 and 500 invoices.,確認用ワークブ
 A successful push has no ERP document number. Check its receipt.,成功済みの送信にERP伝票番号がありません。確認応答を確認してください。
 A timezone-aware UTC timestamp is required.,タイムゾーン付きのUTC時刻が必要です。
 A value in the ERP data report exceeds the allowed length.,ERP データレポート内の値が許容される長さを超えています。
+Abbreviated Tax Invoice,簡易税務請求書
 Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
 Account Key,会計データキー
 Account Set Key,会計データ選択キー
@@ -186,12 +187,11 @@ Created By,作成者
 Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
-Credit note,クレジットノート
+Credit Note,返品・値引伝票
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Customer,顧客
 Date,日付
-Date (BE),日付（仏暦）
 Debit,借方
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
@@ -377,7 +377,7 @@ OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
-Order evidence,注文証憑
+Order Evidence,注文記録
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
 Original File,元ファイル
@@ -390,7 +390,7 @@ Original files can only be changed through the Cowork file service.,元ファイ
 Original files cannot be changed.,元ファイルは変更できません。
 Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
 Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
-Other document,その他の書類
+Other,その他
 Outcome,実行結果
 Output VAT report,売上税報告
 Over,過剰
@@ -402,8 +402,8 @@ Page preview is available only for PDF and image originals.,ページプレビ�
 Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Payload Json,固定ペイロードJSON
+Payment Evidence,支払証跡
 Payment Method,支払方法
-Payment evidence,支払証憑
 Payment method,支払方法
 Pearnly Cowork,Pearnly Cowork
 Pending,処理待ち
@@ -533,7 +533,6 @@ Settings Json,設定データ（JSON）
 Sheet,シート
 Short,不足
 Show,表示
-Simplified tax invoice,簡易税請求書
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
@@ -571,7 +570,7 @@ Target Json,固定送信先JSON
 Task,タスク
 Task name,タスク名
 Tax ID,納税者番号
-Tax invoice,正式税請求書
+Tax Invoice,税務請求書
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
@@ -743,6 +742,7 @@ Token Generation,トークン世代
 Token Tail,トークン末尾
 Total,税込
 Transaction Date,取引日
+Transaction type,取引区分
 Transfer,振込
 Type,種別
 "Type or scan, then press Enter",入力またはスキャンして Enter

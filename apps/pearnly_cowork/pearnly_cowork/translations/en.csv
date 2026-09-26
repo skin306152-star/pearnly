@@ -16,6 +16,7 @@ A review workbook must contain between 1 and 500 invoices.,A review workbook mus
 A successful push has no ERP document number. Check its receipt.,A successful push has no ERP document number. Check its receipt.
 A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is required.
 A value in the ERP data report exceeds the allowed length.,A value in the ERP data report exceeds the allowed length.
+Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
 Account Key,Account Key
 Account Set Key,Account Set Key
@@ -186,12 +187,11 @@ Created By,Created By
 Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
 Credit,Credit
-Credit note,Credit note
+Credit Note,Credit Note
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Customer,Customer
 Date,Date
-Date (BE),Date (BE)
 Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
@@ -377,7 +377,7 @@ OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only an active count can be deleted,Only an active count can be deleted
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
-Order evidence,Order evidence
+Order Evidence,Order Evidence
 Original Content Coverage Complete,Original Content Coverage Complete
 Original Document Manifest,Original Document Manifest
 Original File,Original File
@@ -390,7 +390,7 @@ Original files can only be changed through the Cowork file service.,Original fil
 Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
 Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
-Other document,Other document
+Other,Other
 Outcome,Outcome
 Output VAT report,Output VAT report
 Over,Over
@@ -402,8 +402,8 @@ Page preview is available only for PDF and image originals.,Page preview is avai
 Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Payload Json,Payload Json
+Payment Evidence,Payment Evidence
 Payment Method,Payment Method
-Payment evidence,Payment evidence
 Payment method,Payment method
 Pearnly Cowork,Pearnly Cowork
 Pending,Pending
@@ -533,7 +533,6 @@ Settings Json,Settings Json
 Sheet,Sheet
 Short,Short
 Show,Show
-Simplified tax invoice,Simplified tax invoice
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
@@ -571,7 +570,7 @@ Target Json,Target Json
 Task,Task
 Task name,Task name
 Tax ID,Tax ID
-Tax invoice,Tax invoice
+Tax Invoice,Tax Invoice
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
 The Companion delivery record is invalid.,The Companion delivery record is invalid.
@@ -743,6 +742,7 @@ Token Generation,Token Generation
 Token Tail,Token Tail
 Total,Total
 Transaction Date,Transaction Date
+Transaction type,Transaction type
 Transfer,Transfer
 Type,Type
 "Type or scan, then press Enter","Type or scan, then press Enter"

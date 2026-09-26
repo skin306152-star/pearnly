@@ -16,6 +16,7 @@ A review workbook must contain between 1 and 500 invoices.,สมุดงาน
 A successful push has no ERP document number. Check its receipt.,รายการส่งสำเร็จไม่มีเลขที่เอกสาร ERP โปรดตรวจสอบผลตอบรับ
 A timezone-aware UTC timestamp is required.,ต้องระบุเวลา UTC พร้อมเขตเวลา
 A value in the ERP data report exceeds the allowed length.,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
+Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Access to the Companion queue has been revoked.,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
 Account Key,คีย์ชุดบัญชี
 Account Set Key,คีย์เลือกชุดบัญชี
@@ -186,12 +187,11 @@ Created By,ผู้สร้าง
 Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
-Credit note,ใบลดหนี้
+Credit Note,ใบลดหนี้
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Customer,ลูกค้า
 Date,วันที่
-Date (BE),วันที่ พ.ศ.
 Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
@@ -377,7 +377,7 @@ OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
-Order evidence,หลักฐานการสั่งซื้อ
+Order Evidence,หลักฐานคำสั่งซื้อ
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
 Original Document Manifest,ดัชนีเนื้อหาเอกสารต้นฉบับ
 Original File,ไฟล์ต้นฉบับ
@@ -390,7 +390,7 @@ Original files can only be changed through the Cowork file service.,เปลี
 Original files cannot be changed.,ไม่สามารถเปลี่ยนแปลงไฟล์ต้นฉบับได้
 Original files cannot be deleted while invoice references may exist.,ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่
 Original files cannot be shared separately from their invoices.,ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้
-Other document,เอกสารอื่น
+Other,อื่นๆ
 Outcome,ผลการดำเนินการ
 Output VAT report,รายงานภาษีขาย
 Over,เกิน
@@ -402,8 +402,8 @@ Page preview is available only for PDF and image originals.,ดูตัวอ�
 Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Payload Json,ข้อมูลส่งที่ตรึงไว้ JSON
+Payment Evidence,หลักฐานการชำระเงิน
 Payment Method,วิธีชำระเงิน
-Payment evidence,หลักฐานการชำระเงิน
 Payment method,วิธีชำระเงิน
 Pearnly Cowork,Pearnly Cowork
 Pending,รอดำเนินการ
@@ -533,7 +533,6 @@ Settings Json,ข้อมูลการตั้งค่า (JSON)
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
-Simplified tax invoice,ใบกำกับภาษีอย่างย่อ
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
@@ -571,7 +570,7 @@ Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
 Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
-Tax invoice,ใบกำกับภาษีเต็มรูป
+Tax Invoice,ใบกำกับภาษี
 That code is not valid,รหัสไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
@@ -743,6 +742,7 @@ Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
 Total,รวม VAT
 Transaction Date,วันที่ทำรายการ
+Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Type,ประเภท
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
