@@ -411,6 +411,18 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
   试过"镜像构建时后台预启动实验库数据库"，无可测收益，已撤回。
 - 再往下压需优化 DMS 快照存储测试或站点初始化，属 DMS 范围，登记待办。
 
+### 部署 02a3b22（2026-09-26，用户"现在部署"：旧改密接口清理 + ERP 扫码器去重）
+
+- main 上 Build `36253191853` → `sha256:3a1d5f26d985ad423795434d319826656bd5d8d86d95f7226cc9bd573361f382`，stage `36253472415`。
+- 部署目录备份 `/opt/pearnly/state/predeploy-02a3b22-20260926155334` 后同步（带上 Cowork 账号池相关的开户 / 身份脚本新版本，**未执行**其任何生产步骤），同源检查通过。
+- 只激活 **ERP、DMS**（`active-image-erp.json` / `active-image-dms.json` = `3a1d5f26…`）；备份 `20260926_225404-testerp_pearnly_com-*`、
+  `20260926_225628-ris_pearnly_com-*`、`20260926_225633-testdms_pearnly_com-*`。**Cowork 与计费站点仍为 `15dea26`**：Cowork 窗口答复其账号池（`pearnly-cowork` realm、
+  control-identity-cowork.json、成员服务 cowork 三键、nginx 放行）未就绪、整批功能未在测试环境验，由它发布。
+- 回读：ERP / DMS 容器 `02a3b22`；testerp 上以真实账号调旧改密接口 → 被拒并提示去身份服务账户页（事务回滚）；LINE 登录仍开（`line-2010411313`）；
+  `/assets/pearnly_core/vendor/barcode-detector/{ponyfill.js,zxing_reader.wasm}` 200、ERP 旧 vendor 路径 404；ERP Desk 加载顺序 core `scan.js`（第 16）在 ERP `scan.js`（第 57）之前；
+  三站 ping 200；ERP / DMS web / worker 10 分钟 0 traceback。未做：真机扫码、真机改密入口。
+- 本机控制面（挂主目录，已随 main 前进）：`bench migrate`（rc=0）+ 重启，开户目标 5 个 `cowork_*` 新列已迁；登录页 200。
+
 ### 待用户处理 / 授权
 
 - LINE 后台核实：ERP-TEST 官方号（2011288286）与 LINE Login 频道 2010411313 是否同一 Provider（不同则 LINE 用户 ID 不一致，关联全失败）；在该频道登记 Keycloak 回调地址（已授权范围内，改前告知）。
