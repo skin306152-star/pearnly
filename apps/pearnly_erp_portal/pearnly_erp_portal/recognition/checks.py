@@ -54,10 +54,11 @@ SOFT = frozenset({"date_future", "date_old", tax_rules.REVIEW_UNKNOWN_TYPE, tax_
 DISCOUNT_LINE = re.compile(r"^\s*(ส่วนลด|ลดราคา|คูปอง|discount\b|disc\.|coupon\b)", re.IGNORECASE)
 
 
-# 提示词片段（采购、销售共用）：语料实测 7-Eleven 小票把门店 / POS 码当成单号。
+# 提示词片段（采购、销售共用）：语料实测 7-Eleven 小票把门店 / POS 码当成单号；SM 小票的 3% 刷卡费没算进明细。
 POS_RULES = ("On a shop or POS slip doc_no is the receipt running number (printed after R#, Rcpt, No. or เลขที่),\n"
              "never the branch, store, POS, terminal or cashier code. Discount and coupon rows (ส่วนลด ...) are not\n"
-             "items: add them to discount_total.")
+             "items: add them to discount_total. A service charge or card fee printed below the items\n"
+             "(Service Charge 10%, Credit Card 3%) is an extra line with its printed amount.")
 
 
 def is_discount_line(description, *amounts) -> bool:
