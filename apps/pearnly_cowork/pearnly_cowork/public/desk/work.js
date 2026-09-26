@@ -78,7 +78,8 @@
 	if (frappe.app) listen();
 
 	p.coworkWork = async (page, t, wrapper) => {
-		const state = {cards: [], members: [], labels: [], me: frappe.session.user, admin: false, loaded_at: 0, unread: 0};
+		const state = {cards: [], members: [], labels: [], column_colors: {}, me: frappe.session.user, admin: false,
+			loaded_at: 0, unread: 0};
 		const member = user => state.members.find(row => row.user === user);
 		const member_name = user => member(user)?.name || user || "";
 		const label_of = name => state.labels.find(row => row.name === name);
@@ -169,6 +170,11 @@
 		const save_collapsed = () => {
 			try { localStorage.setItem(COLLAPSED, JSON.stringify([...collapsed])); } catch (error) { /* 无痕窗口 */ }
 		};
+		// 色块（照 Trello 直接点选）：列表颜色、标签颜色共用；当前选中的打勾。
+		const swatches = (current, attrs = "") => `<div class="pearnly-work-swatches">${COLORS.map(color =>
+			`<button type="button" class="pearnly-work-swatch ${color} ${color === current ? "selected" : ""}" ${attrs}
+				data-color="${color}" title="${p.escape(color_text(color))}" aria-label="${p.escape(color_text(color))}"
+				aria-pressed="${color === current}">${color === current ? icon("check") : ""}</button>`).join("")}</div>`;
 		const column_menu = status => {
 			const others = STATUSES.filter(other => other !== status);
 			const item = (action, label, extra = "") =>
@@ -180,7 +186,15 @@
 					item("sort", t(`cowork.work.column.sort_${key}`), `data-key="${key}"`)).join("")}
 				<div class="dropdown-divider"></div>
 				<h6 class="dropdown-header">${p.escape(t("cowork.work.column.moveAll"))}</h6>
-				${others.map(other => item("move-all", status_text(other), `data-target="${other}"`)).join("")}`;
+				${others.map(other => item("move-all", status_text(other), `data-target="${other}"`)).join("")}
+				<div class="dropdown-divider"></div>
+				<h6 class="dropdown-header">${p.escape(t("cowork.work.column.color"))}</h6>
+				${swatches(state.column_colors[status], "data-column-action=\"color\"")}
+				<div class="pearnly-work-popup-pad">
+					<button type="button" class="btn btn-default btn-xs btn-block" data-column-action="color" data-color="">
+						${icon("x")} ${p.escape(t("cowork.work.column.removeColor"))}</button></div>
+				<div class="dropdown-divider"></div>
+				${item("archive-all", t("cowork.work.column.archiveAll"))}`;
 		};
 		for (const status of STATUSES) {
 			const column = $(`<div class="kanban-column pearnly-work-column" data-status="${status}">`).appendTo(board);
@@ -305,6 +319,11 @@
 				</div></div>`;
 		};
 		const render = () => {
+			for (const status of STATUSES) {
+				const column = columns[status].column;
+				column.removeClass(COLORS.map(color => `tint-${color}`).join(" "));
+				if (state.column_colors?.[status]) column.addClass(`tint-${state.column_colors[status]}`);
+			}
 			const sorted = [...state.cards].sort((a, b) => a.position - b.position);
 			for (const status of STATUSES) {
 				const cards = sorted.filter(card => card.status === status);
@@ -338,7 +357,8 @@
 				try {
 					const data = await p.call(`${API}board`);
 					Object.assign(state, {cards: data.cards, members: data.members, labels: data.labels,
-						me: data.me, admin: data.admin, unread: data.unread, loaded_at: Date.now()});
+						column_colors: data.column_colors || {}, me: data.me, admin: data.admin, unread: data.unread,
+						loaded_at: Date.now()});
 					refresh_filter_options();
 					render();
 					show_unread();
@@ -503,6 +523,16 @@
 			}
 			if (action === "move-all") {
 				await p.call(`${API}move_column`, {source: status, target: button.attr("data-target")}, "POST");
+				return reload();
+			}
+			if (action === "color") {
+				const {color} = await p.call(`${API}column_color`, {status, color: button.attr("data-color") || ""}, "POST");
+				state.column_colors[status] = color;
+				return render();
+			}
+			if (action === "archive-all") {
+				const {archived} = await p.call(`${API}archive_column`, {status}, "POST");
+				if (archived) p.success(t("cowork.work.card.archived"));
 				return reload();
 			}
 		};
@@ -831,23 +861,23 @@
 		};
 
 		// ── 标签（全板共用） ───────────────────────────────────────────────────
+		// 标签编辑照 Trello：每个标签一行，名字 + 直接点选的色块；没有下拉。
 		const open_labels = () => {
+			const rows = state.labels.map(row => ({name: row.name, title: row.title || "", color: row.color}));
 			const d = new frappe.ui.Dialog({
 				title: t("cowork.work.labels.manage"),
-				fields: [{fieldname: "rows", fieldtype: "Table", in_place_edit: true, cannot_add_rows: false,
-					data: state.labels.map(row => ({label_id: row.name, title: row.title, color: row.color})),
-					fields: [
-						{fieldname: "title", fieldtype: "Data", label: t("cowork.work.labels.name"), in_list_view: 1, columns: 6},
-						{fieldname: "color", fieldtype: "Select", label: t("cowork.work.labels.color"), in_list_view: 1,
-							columns: 4, default: "blue", options: COLORS.map(color => ({value: color, label: color_text(color)}))},
-					]}],
+				fields: [{fieldname: "rows", fieldtype: "HTML"},
+					{fieldname: "add", fieldtype: "Button", label: t("cowork.work.labels.add"), click: () => {
+						rows.push({name: null, title: "", color: "blue"});
+						draw();
+						host.find(".pearnly-work-label-edit").last().find("input").trigger("focus");
+					}}],
 				primary_action_label: __("Save"),
 				primary_action: async () => {
-					const rows = (d.get_value("rows") || []).map(row => ({
-						name: row.label_id || null, title: (row.title || "").trim(), color: row.color || "blue"}));
 					d.disable_primary_action();
 					try {
-						state.labels = await p.call(`${API}save_labels`, {rows: JSON.stringify(rows)}, "POST");
+						state.labels = await p.call(`${API}save_labels`, {rows: JSON.stringify(rows.map(row => ({
+							name: row.name, title: row.title.trim(), color: row.color})))}, "POST");
 						d.hide();
 						p.success(t("cowork.work.labels.saved"));
 						await reload();
@@ -856,7 +886,32 @@
 					}
 				},
 			});
-			d.$wrapper.addClass("pearnly-dialog pearnly-work-labels-dialog");
+			d.$wrapper.addClass("pearnly-dialog pearnly-work-dialog");
+			const host = d.fields_dict.rows.$wrapper;
+			const draw = () => {
+				host.empty();
+				rows.forEach((row, index) => {
+					const line = $('<div class="pearnly-work-label-edit">').appendTo(host);
+					const head = $('<div class="pearnly-work-label-edit-head">').appendTo(line);
+					const preview = $(label_pill(row)).appendTo(head);
+					const name = frappe.ui.form.make_control({parent: $("<div class=\"pearnly-work-label-edit-name\">").appendTo(head),
+						render_input: true, only_input: true,
+						df: {fieldtype: "Data", fieldname: `label_${index}`, placeholder: t("cowork.work.labels.name")}});
+					name.set_input(row.title);
+					name.$input.on("input", () => {
+						row.title = name.get_input_value() || "";
+						preview.text(row.title);
+					});
+					$('<button type="button" class="btn btn-xs btn-link text-muted">').append(icon("trash-2", "sm"))
+						.attr({title: __("Delete"), "aria-label": __("Delete")}).appendTo(head)
+						.on("click", () => { rows.splice(index, 1); draw(); });
+					$(swatches(row.color)).appendTo(line).on("click", "[data-color]", event => {
+						row.color = $(event.currentTarget).attr("data-color");
+						draw();
+					});
+				});
+			};
+			draw();
 			d.show();
 		};
 

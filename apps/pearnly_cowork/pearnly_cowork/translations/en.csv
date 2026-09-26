@@ -50,6 +50,7 @@ Anchor Date,Anchor Date
 Another push holds the writer lock.,Another push holds the writer lock.
 Any due date,Any due date
 Archive,Archive
+Archive all cards in this list,Archive all cards in this list
 Archived at,Archived at
 Archived cards,Archived cards
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
@@ -110,6 +111,7 @@ Card restored,Card restored
 Cash,Cash
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
+Change list color,Change list color
 Change members,Change members
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
@@ -211,6 +213,7 @@ Cowork Stocktake Task,Cowork Stocktake Task
 Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
 Cowork Workspace,Cowork Workspace
 Cowork menu,Cowork menu
+Create a new label,Create a new label
 Create card,Create card
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created,Created
@@ -552,6 +555,7 @@ Reimporting review workbooks is not available on the new platform yet.,Reimporti
 Reload,Reload
 Remarks,Remarks
 Remove,Remove
+Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Report Credential,Report Credential
 Report Credential Generation,Report Credential Generation
@@ -1253,9 +1257,12 @@ cowork.work.color.pink,Pink
 cowork.work.color.purple,Purple
 cowork.work.color.red,Red
 cowork.work.color.yellow,Yellow
+cowork.work.column.archiveAll,Archive all cards in this list
 cowork.work.column.collapse,Collapse list
+cowork.work.column.color,Change list color
 cowork.work.column.menu,List actions
 cowork.work.column.moveAll,Move all cards in this list
+cowork.work.column.removeColor,Remove color
 cowork.work.column.sort,Sort by
 cowork.work.column.sort_created_asc,Date created (oldest first)
 cowork.work.column.sort_created_desc,Date created (newest first)
@@ -1310,6 +1317,7 @@ cowork.work.filter.noDue,No due date
 cowork.work.filter.noMember,No members
 cowork.work.filter.overdue,Overdue
 cowork.work.filter.soon,Due today or tomorrow
+cowork.work.labels.add,Create a new label
 cowork.work.labels.color,Color
 cowork.work.labels.manage,Labels
 cowork.work.labels.name,Name

@@ -50,6 +50,7 @@ Anchor Date,参考日期
 Another push holds the writer lock.,另一笔推送正在占用写入锁。
 Any due date,全部到期
 Archive,归档
+Archive all cards in this list,将此列表中的所有卡片归档
 Archived at,归档时间
 Archived cards,已归档的卡片
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
@@ -110,6 +111,7 @@ Card restored,已恢复
 Cash,现金
 Change cards on the work board,请在工作看板上修改卡片
 Change cover,更改封面
+Change list color,更改列表颜色
 Change members,变更成员
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
@@ -211,6 +213,7 @@ Cowork Stocktake Task,Cowork 盘点任务
 Cowork Supplier Posting Profile,Cowork 供应商过账档案
 Cowork Workspace,Cowork 公司账套
 Cowork menu,Cowork 菜单
+Create a new label,新建标签
 Create card,创建卡片
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Created,创建时间
@@ -552,6 +555,7 @@ Reimporting review workbooks is not available on the new platform yet.,新平台
 Reload,刷新
 Remarks,备注
 Remove,移除
+Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Report Credential,上报凭证
 Report Credential Generation,上报凭证版本
@@ -1253,9 +1257,12 @@ cowork.work.color.pink,粉
 cowork.work.color.purple,紫
 cowork.work.color.red,红
 cowork.work.color.yellow,黄
+cowork.work.column.archiveAll,将此列表中的所有卡片归档
 cowork.work.column.collapse,收起列表
+cowork.work.column.color,更改列表颜色
 cowork.work.column.menu,列表操作
 cowork.work.column.moveAll,移动此列表中的所有卡片
+cowork.work.column.removeColor,移除颜色
 cowork.work.column.sort,排序依据
 cowork.work.column.sort_created_asc,创建时间（最早优先）
 cowork.work.column.sort_created_desc,创建时间（最新优先）
@@ -1310,6 +1317,7 @@ cowork.work.filter.noDue,无到期日
 cowork.work.filter.noMember,没有成员
 cowork.work.filter.overdue,已过期
 cowork.work.filter.soon,今明两天到期
+cowork.work.labels.add,新建标签
 cowork.work.labels.color,颜色
 cowork.work.labels.manage,标签
 cowork.work.labels.name,名称

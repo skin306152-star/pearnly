@@ -14,7 +14,8 @@ CARD = "Cowork Work Card"
 LABEL = "Cowork Work Label"
 ACTIVITY = "Cowork Work Activity"
 NOTIFICATION = "Cowork Work Notification"
-TYPES = (CARD, LABEL, ACTIVITY, NOTIFICATION)
+COLUMN = "Cowork Work Column"
+TYPES = (CARD, LABEL, ACTIVITY, NOTIFICATION, COLUMN)
 
 
 def allowed(user=None):
@@ -71,6 +72,10 @@ def label_query(user=None):
 
 def activity_query(user=None):
     return _query(ACTIVITY, user)
+
+
+def column_query(user=None):
+    return _query(COLUMN, user)
 
 
 def notification_query(user=None):

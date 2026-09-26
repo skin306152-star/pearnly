@@ -122,7 +122,10 @@ def board():
     workspace = _workspace()
     rows = frappe.get_all(CARD, filters={"workspace": workspace, "archived": 0}, fields=SUMMARY_FIELDS,
                           order_by="position asc, creation asc", limit_page_length=0)
+    colors = dict(frappe.get_all(access.COLUMN, filters={"workspace": workspace}, fields=["status", "color"],
+                                 as_list=True))
     return {"cards": _summaries(rows), "members": members(), "labels": labels(workspace),
+            "column_colors": {status: colors.get(status) or "" for status in contracts.STATUSES},
             "statuses": list(contracts.STATUSES), "me": frappe.session.user, "admin": access.administrator(),
             "unread": frappe.db.count(access.NOTIFICATION, {"workspace": workspace, "user": frappe.session.user,
                                                             "is_read": 0})}
@@ -400,6 +403,36 @@ def move_column(source, target):
         persist(doc)
     _changed(None, "move")
     return {"moved": len(names)}
+
+
+def column_color(status, color):
+    """列菜单「更改列表颜色」：全队共用；空 = 移除颜色（回到原生灰）。"""
+    workspace = _workspace()
+    status = contracts.status(status)
+    color = contracts.color(color) if color else ""
+    frappe.db.get_value("DocType", access.COLUMN, "name", for_update=True)
+    name = frappe.db.get_value(access.COLUMN, {"workspace": workspace, "status": status})
+    doc = frappe.get_doc(access.COLUMN, name) if name else frappe.get_doc(
+        {"doctype": access.COLUMN, "workspace": workspace, "status": status})
+    doc.color = color
+    persist(doc)
+    _changed(None, "column")
+    return {"status": status, "color": color}
+
+
+def archive_column(status):
+    """列菜单「将此列表中的所有卡片归档」。"""
+    workspace = _workspace()
+    status = contracts.status(status)
+    names = frappe.get_all(CARD, filters={"workspace": workspace, "status": status, "archived": 0},
+                           pluck="name", limit_page_length=0)
+    for name in names:
+        doc = _card(name, workspace, lock=True, archived=False)
+        doc.archived, doc.archived_at = 1, _now()
+        persist(doc)
+        _log(doc.name, workspace, "archive")
+    _changed(None, "archive")
+    return {"archived": len(names)}
 
 
 def watch(name, on):

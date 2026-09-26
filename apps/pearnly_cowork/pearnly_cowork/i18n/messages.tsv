@@ -956,3 +956,7 @@ Edit card	编辑卡片	แก้ไขการ์ด	カードを編集	cowork.
 Watch	关注	ติดตาม	ウォッチ	cowork.work.quick.watch
 Stop watching	取消关注	เลิกติดตาม	ウォッチをやめる	cowork.work.quick.unwatch
 You are watching this card	你在关注这张卡片	คุณกำลังติดตามการ์ดนี้	このカードをウォッチしています	cowork.work.quick.watching
+Change list color	更改列表颜色	เปลี่ยนสีรายการ	リストの色を変更	cowork.work.column.color
+Remove color	移除颜色	ลบสี	色を削除	cowork.work.column.removeColor
+Archive all cards in this list	将此列表中的所有卡片归档	เก็บถาวรการ์ดทั้งหมดในรายการนี้	このリストのカードをすべてアーカイブ	cowork.work.column.archiveAll
+Create a new label	新建标签	สร้างป้ายกำกับใหม่	新しいラベルを作成	cowork.work.labels.add

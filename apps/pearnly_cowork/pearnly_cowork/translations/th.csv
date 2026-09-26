@@ -50,6 +50,7 @@ Anchor Date,วันที่อ้างอิง
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
 Any due date,ทุกกำหนดส่ง
 Archive,เก็บถาวร
+Archive all cards in this list,เก็บถาวรการ์ดทั้งหมดในรายการนี้
 Archived at,เวลาที่เก็บถาวร
 Archived cards,การ์ดที่เก็บถาวร
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
@@ -110,6 +111,7 @@ Card restored,กู้คืนแล้ว
 Cash,เงินสด
 Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 Change cover,เปลี่ยนปก
+Change list color,เปลี่ยนสีรายการ
 Change members,เปลี่ยนสมาชิก
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
@@ -211,6 +213,7 @@ Cowork Stocktake Task,งานตรวจนับสต็อก Cowork
 Cowork Supplier Posting Profile,โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
 Cowork menu,เมนู Cowork
+Create a new label,สร้างป้ายกำกับใหม่
 Create card,สร้างการ์ด
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
 Created,สร้างเมื่อ
@@ -552,6 +555,7 @@ Reimporting review workbooks is not available on the new platform yet.,แพล
 Reload,โหลดใหม่
 Remarks,ข้อสังเกต
 Remove,ลบ
+Remove color,ลบสี
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Report Credential,ข้อมูลรับรองของรายงาน
 Report Credential Generation,รุ่นข้อมูลรับรองของรายงาน
@@ -1253,9 +1257,12 @@ cowork.work.color.pink,ชมพู
 cowork.work.color.purple,ม่วง
 cowork.work.color.red,แดง
 cowork.work.color.yellow,เหลือง
+cowork.work.column.archiveAll,เก็บถาวรการ์ดทั้งหมดในรายการนี้
 cowork.work.column.collapse,ย่อรายการ
+cowork.work.column.color,เปลี่ยนสีรายการ
 cowork.work.column.menu,การดำเนินการของรายการ
 cowork.work.column.moveAll,ย้ายการ์ดทั้งหมดในรายการนี้
+cowork.work.column.removeColor,ลบสี
 cowork.work.column.sort,เรียงตาม
 cowork.work.column.sort_created_asc,วันที่สร้าง (เก่าสุดก่อน)
 cowork.work.column.sort_created_desc,วันที่สร้าง (ใหม่สุดก่อน)
@@ -1310,6 +1317,7 @@ cowork.work.filter.noDue,ไม่มีกำหนดส่ง
 cowork.work.filter.noMember,ไม่มีสมาชิก
 cowork.work.filter.overdue,เลยกำหนด
 cowork.work.filter.soon,ครบกำหนดวันนี้หรือพรุ่งนี้
+cowork.work.labels.add,สร้างป้ายกำกับใหม่
 cowork.work.labels.color,สี
 cowork.work.labels.manage,ป้ายกำกับ
 cowork.work.labels.name,ชื่อ

@@ -23,6 +23,30 @@
 	background-color: var(--kanban-column-bg);
 }
 
+/* 列表颜色（列菜单里点色块，全队共用）：原生色阶的浅色，深色模式换原生深色底；不选就是原生灰。 */
+.pearnly-work-board .kanban-column.tint-green { background-color: var(--green-100); }
+.pearnly-work-board .kanban-column.tint-yellow { background-color: var(--yellow-100); }
+.pearnly-work-board .kanban-column.tint-orange { background-color: var(--orange-100); }
+.pearnly-work-board .kanban-column.tint-red { background-color: var(--red-100); }
+.pearnly-work-board .kanban-column.tint-purple { background-color: var(--purple-100); }
+.pearnly-work-board .kanban-column.tint-blue { background-color: var(--blue-100); }
+.pearnly-work-board .kanban-column.tint-cyan { background-color: var(--cyan-100); }
+.pearnly-work-board .kanban-column.tint-pink { background-color: var(--pink-100); }
+.pearnly-work-board .kanban-column.tint-gray { background-color: var(--gray-100); }
+
+[data-theme="dark"] .pearnly-work-board .kanban-column[class*="tint-"] {
+	background-color: var(--kanban-column-bg);
+}
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-green { background-color: var(--bg-green); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-yellow { background-color: var(--bg-yellow); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-orange { background-color: var(--bg-orange); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-red { background-color: var(--bg-red); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-purple { background-color: var(--bg-purple); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-blue { background-color: var(--bg-blue); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-cyan { background-color: var(--bg-cyan); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-pink { background-color: var(--bg-pink); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-gray { background-color: var(--bg-gray); }
+
 .pearnly-work-board .pearnly-work-column-header {
 	align-items: center;
 	margin: 0 0 4px;
@@ -142,7 +166,7 @@
 }
 
 .pearnly-work-card:hover {
-	box-shadow: 0 0 0 2px var(--primary);
+	box-shadow: var(--shadow-md);
 }
 
 .pearnly-work-ghost .pearnly-work-card {
@@ -460,10 +484,91 @@
 	color: var(--text-muted);
 }
 
-/* 标签表只有两列窄栏：让表格不裁切颜色下拉（原生网格为横向滚动设了 overflow）。 */
-.pearnly-work-labels-dialog .form-grid-container,
-.pearnly-work-labels-dialog .form-grid {
-	overflow: visible;
+/* 色块：列表颜色与标签颜色共用，照 Trello 直接点选，选中的打勾。 */
+.pearnly-work-swatches {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 6px;
+	padding: 4px 12px 8px;
+}
+
+.pearnly-work-swatch {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--border-color);
+	border-radius: 6px;
+}
+
+.pearnly-work-swatch:hover {
+	filter: brightness(0.95);
+}
+
+.pearnly-work-swatch.selected {
+	box-shadow: 0 0 0 2px var(--text-color);
+}
+
+.pearnly-work-swatch .icon {
+	margin: 0;
+}
+
+.pearnly-work-swatch.green { background: var(--green-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.yellow { background: var(--yellow-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.orange { background: var(--orange-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.red { background: var(--red-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.purple { background: var(--purple-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.blue { background: var(--blue-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.cyan { background: var(--cyan-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.pink { background: var(--pink-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.gray { background: var(--gray-300); color: var(--gray-900, #1f272e); }
+
+.pearnly-work-popup-pad {
+	padding: 0 12px 4px;
+}
+
+.pearnly-work-popup-pad .btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+}
+
+.pearnly-work-popup-pad .btn .icon {
+	margin: 0;
+}
+
+/* 标签编辑：一行一个标签，名字 + 色块。 */
+.pearnly-work-label-edit {
+	padding: 8px 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pearnly-work-label-edit .pearnly-work-swatches {
+	padding: 8px 0 0;
+}
+
+.pearnly-work-label-edit-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pearnly-work-label-edit-head .pearnly-work-label {
+	width: 72px;
+	flex-shrink: 0;
+	line-height: 24px;
+	min-height: 24px;
+}
+
+.pearnly-work-label-edit-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-label-edit-name .form-group {
+	margin: 0;
 }
 
 /* 触屏没有悬停：完成圆圈与编辑按钮一直露出来。 */

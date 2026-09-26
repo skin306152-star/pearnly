@@ -50,6 +50,7 @@ Anchor Date,基準日
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
 Any due date,すべての期日
 Archive,アーカイブ
+Archive all cards in this list,このリストのカードをすべてアーカイブ
 Archived at,アーカイブ日時
 Archived cards,アーカイブ済みカード
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
@@ -110,6 +111,7 @@ Card restored,復元しました
 Cash,現金
 Change cards on the work board,作業ボードでカードを変更してください
 Change cover,カバーを変更
+Change list color,リストの色を変更
 Change members,メンバーを変更
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
@@ -211,6 +213,7 @@ Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
 Cowork Workspace,Cowork 会計対象会社
 Cowork menu,Coworkメニュー
+Create a new label,新しいラベルを作成
 Create card,カードを作成
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
 Created,作成日時
@@ -552,6 +555,7 @@ Reimporting review workbooks is not available on the new platform yet.,新プラ
 Reload,再読み込み
 Remarks,備考
 Remove,削除
+Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Report Credential,レポート認証情報
 Report Credential Generation,レポート認証情報の世代
@@ -1253,9 +1257,12 @@ cowork.work.color.pink,ピンク
 cowork.work.color.purple,紫
 cowork.work.color.red,赤
 cowork.work.color.yellow,黄
+cowork.work.column.archiveAll,このリストのカードをすべてアーカイブ
 cowork.work.column.collapse,リストを折りたたむ
+cowork.work.column.color,リストの色を変更
 cowork.work.column.menu,リストの操作
 cowork.work.column.moveAll,このリストのカードをすべて移動
+cowork.work.column.removeColor,色を削除
 cowork.work.column.sort,並べ替え
 cowork.work.column.sort_created_asc,作成日（古い順）
 cowork.work.column.sort_created_desc,作成日（新しい順）
@@ -1310,6 +1317,7 @@ cowork.work.filter.noDue,期日なし
 cowork.work.filter.noMember,メンバーなし
 cowork.work.filter.overdue,期限切れ
 cowork.work.filter.soon,今日か明日が期日
+cowork.work.labels.add,新しいラベルを作成
 cowork.work.labels.color,色
 cowork.work.labels.manage,ラベル
 cowork.work.labels.name,名前

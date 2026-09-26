@@ -137,3 +137,13 @@ def notifications():
 @frappe.whitelist(methods=["POST"])
 def read_notifications(names=None):
     return _run(service.read_notifications, _json(names, []))
+
+
+@frappe.whitelist(methods=["POST"])
+def column_color(status, color=None):
+    return _run(service.column_color, status, color)
+
+
+@frappe.whitelist(methods=["POST"])
+def archive_column(status):
+    return _run(service.archive_column, status)

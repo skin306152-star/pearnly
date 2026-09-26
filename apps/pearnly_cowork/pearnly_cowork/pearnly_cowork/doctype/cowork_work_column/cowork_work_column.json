@@ -1,0 +1,60 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Work Column",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-27 18:00:00.000000",
+ "modified": "2026-09-27 18:00:00.000000",
+ "autoname": "hash",
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "workspace",
+  "status",
+  "color"
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "options": "Cowork Workspace",
+   "read_only": 1,
+   "reqd": 1,
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "todo\ndoing\ndone",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Select",
+   "label": "Color",
+   "options": "\ngreen\nyellow\norange\nred\npurple\nblue\ncyan\npink\ngray",
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1
+  },
+  {
+   "role": "Cowork Work",
+   "read": 1
+  }
+ ]
+}

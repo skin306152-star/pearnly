@@ -216,6 +216,17 @@ def run():
     overdue = [row for row in service.notifications()["rows"] if row.kind == "overdue" and row.card == a["name"]]
     assert len(overdue) == 1, overdue
 
+    # 列表颜色（全队共用、可移除）与整列归档。
+    assert service.column_color("doing", "yellow")["color"] == "yellow"
+    assert service.board()["column_colors"]["doing"] == "yellow"
+    service.column_color("doing", "")
+    assert service.board()["column_colors"]["doing"] == ""
+    expect_error("bad column color", service.column_color, "doing", "#fff", error=Invalid)
+    extra = service.create("to archive", "done")
+    service.archive_column("done")
+    assert extra["name"] in {row.name for row in service.archived()}
+    service.restore(extra["name"])
+
     # 归档 / 恢复 / 彻底删除（只给管理员、只删已归档的）。
     service.archive(b["name"])
     assert b["name"] not in {row["name"] for row in service.board()["cards"]}
@@ -234,7 +245,7 @@ def run():
     frappe.set_user(worker)
     expect_error("api invalid", api.create, "  ", error=frappe.ValidationError)
     board = service.board()
-    assert len(board["cards"]) == before + 5, (before, len(board["cards"]))
+    assert len(board["cards"]) == before + 6, (before, len(board["cards"]))
 
 
 if __name__ == "__main__":
