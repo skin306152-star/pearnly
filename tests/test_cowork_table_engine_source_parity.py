@@ -74,6 +74,14 @@ def legacy_table(sources):
     return old
 
 
+def registered_where_present(prompt):
+    from test_cowork_engine_source_parity import L2_CHANGES
+
+    for before, after in L2_CHANGES:
+        prompt = prompt.replace(before, after, 1)
+    return prompt
+
+
 def run_parity(sources):
     old = legacy_table(sources)
     rng = random.Random(20260921)
@@ -121,6 +129,8 @@ def run_parity(sources):
                     assert legacy.engine == result.pipeline.engine
                     assert legacy.page_count == result.pipeline.page_count
                     compare_page(legacy.pages[0], result.pipeline.pages[0])
+                    # 表格路径复用发票 L2 提示词：套上引擎对照里登记的有意改动再比（语料实测 2026-09-27）。
+                    captured = [(registered_where_present(prompt), *rest) for prompt, *rest in captured]
                     assert captured == [(r.prompt, r.model, CONFIG.json_retries, r.timeout_s) for r in model.requests]
                     decision_count += 1
 

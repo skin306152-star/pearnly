@@ -97,6 +97,34 @@ def run_erp(content, mime):
     return out
 
 
+def run_erp_sales(content, mime):
+    from pearnly_core import ocr
+    from pearnly_erp_portal.recognition import policy
+    from pearnly_erp_portal.sales import contracts, recognition as sr
+
+    images = [ocr.upright(content, mime)]
+    documents = retrying(lambda: policy.read_all(sr.PROMPT, images, structured=sr._structured, review=sr.review,
+                                                 label="eval-sales", fields=sr._HEAD, finish=sr._finish), "erp-sales")
+    if not documents:
+        return {"error": "nothing"}
+    result, issues, model = documents[0]
+    out = {"model": model, "issues": issues, "documents": len(documents), "result": result}
+    try:
+        totals = contracts.compute_totals(result.get("lines") or [],
+                                          vat_rate=result.get("vat_rate") if result.get("has_vat") else 0,
+                                          header_discount_amount=result.get("header_discount") or 0,
+                                          price_includes_vat=bool(result.get("price_includes_vat")))
+        out["computed"] = {key: str(totals[key]) for key in ("vat_amount", "grand_total")}
+    except Exception as exc:  # noqa: BLE001
+        out["computed"] = {"error": str(exc)}
+    printed = result.get("printed") or {}
+    out["fields"] = {"total": out["computed"].get("grand_total"), "printed_total": printed.get("total"),
+                     "vat": out["computed"].get("vat_amount"), "read_vat": printed.get("vat"),
+                     "doc_no": result.get("doc_no"), "doc_date": result.get("doc_date"),
+                     "lines": len(result.get("lines") or []), "documents": len(documents)}
+    return out
+
+
 # ── Cowork ────────────────────────────────────────────────────────────────────
 
 
@@ -202,7 +230,7 @@ def main():
     parser.add_argument("--site", required=True)
     parser.add_argument("--corpus", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--product", default="both", choices=("erp", "cowork", "both"))
+    parser.add_argument("--product", default="both", choices=("erp", "cowork", "both", "erp-sales"))
     parser.add_argument("--only", default="")
     args = parser.parse_args()
     frappe.init(site=args.site, sites_path=os.environ.get("SITES_PATH", "."))
@@ -211,6 +239,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     manifest = json.loads((corpus / "manifest.json").read_text(encoding="utf-8"))
     products = ("erp", "cowork") if args.product == "both" else (args.product,)
+    runners = {"erp": lambda c, m, f: run_erp(c, m), "cowork": lambda c, m, f: run_cowork(c, f),
+               "erp-sales": lambda c, m, f: run_erp_sales(c, m)}
     for entry in manifest:
         if args.only and not re.search(args.only, entry["id"]):
             continue
@@ -222,7 +252,7 @@ def main():
                 continue
             started = time.monotonic()
             try:
-                row = run_erp(content, mime) if product == "erp" else run_cowork(content, entry["file"])
+                row = runners[product](content, mime, entry["file"])
             except Exception as exc:  # noqa: BLE001 - one bad document must not stop the corpus
                 row = {"error": f"{type(exc).__name__}: {exc}", "trace": traceback.format_exc()[-2000:]}
             row["seconds"] = round(time.monotonic() - started, 1)

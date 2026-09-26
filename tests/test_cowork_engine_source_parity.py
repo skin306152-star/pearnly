@@ -27,6 +27,28 @@ L3_NEW_TYPES = ('"document_type": "tax_invoice" | "simplified_tax_invoice" | "re
                 '"payment_evidence" | "order_evidence" | "other",')
 
 
+# 登记的有意改动（语料实测 2026-09-27）：小票单号取 R# 流水号；票面印了 VAT 照抄不重算。
+L2_CHANGES = (
+    ("invent or require a legal เลขที่.\n",
+     "invent or require a legal เลขที่. On a slip printed as \"R#0000970791P2 :0302013\" the\n     invoice number is the R# part; the \":0302013\" after it is the store / POS code, never\n     the invoice number.\n"),
+    ("Copy the printed VAT as-is; do not recompute it.\n",
+     "Copy the printed VAT as-is; do not recompute it. Shops mark VAT-exempt items (N / E),\n   so a printed VAT can be far below 7/107 of the total — keep the printed figure.\n"),
+)
+L3_CHANGES = (
+    ("The correct relationship is: subtotal + vat = total_amount (within rounding tolerance).\n",
+     "The correct relationship is: subtotal + vat = total_amount (within rounding tolerance). Copy a printed VAT exactly; never recompute it from the total (VAT-exempt items make it smaller).\n"),
+    ("9. is_copy_or_duplicate: true if the text contains สำเนา / COPY / DUPLICATE markers.\n10. MULTIPLE",
+     "9. is_copy_or_duplicate: true if the text contains สำเนา / COPY / DUPLICATE markers.\n9b. INVOICE NUMBER on shop slips: \"R#0000970791P2 :0302013\" → invoice_number is the R# part; the \":0302013\" after it is the store / POS code, never the invoice number.\n10. MULTIPLE"),
+)
+
+
+def registered(text, changes):
+    for old, new in changes:
+        assert text.count(old) == 1, old
+        text = text.replace(old, new, 1)
+    return text
+
+
 def load(root):
     sources = read_sources(root)
     for name, expected in HASHES.items():
@@ -55,7 +77,7 @@ def run_parity(sources):
         old[name].model_rebuild(_types_namespace=old, force=True)
     execute(definitions(sources["layer2_gemini.py"], {"_first_json_object", "_parse_json"}), old)
     execute(definitions(sources["layer2_prompts.py"], {"_SYSTEM_PROMPT", "_USER_PROMPT_PREFIX", "_RETRY_TRIM_HINT"}), old)
-    assert old["_SYSTEM_PROMPT"] == prompts.L2_SYSTEM
+    assert registered(old["_SYSTEM_PROMPT"], L2_CHANGES) == prompts.L2_SYSTEM
     assert old["_USER_PROMPT_PREFIX"] == prompts.L2_USER_PREFIX
     assert old["_RETRY_TRIM_HINT"] == prompts.L2_RETRY_HINT
     execute(definitions(sources["direct_read.py"], {"_IMAGE_INPUT_NOTE", "_sniff_mime"}), old)
@@ -64,7 +86,7 @@ def run_parity(sources):
     assert old["_RETRY_HINT_BASE"] == prompts.L3_RETRY_HINT
     execute(definitions(sources["layer3_fallback.py"], {"_SYSTEM_PROMPT", "_INDEPENDENT_REREAD", "MAX_TEXT_LENGTH", "_build_user_prompt"}), old)
     # 登记的有意改动（ADR-0012）：第三轮票种枚举补齐为共用码表的 7 个，其余逐字不变。
-    assert old["_SYSTEM_PROMPT"].replace(L3_OLD_TYPES, L3_NEW_TYPES, 1) == prompts.L3_SYSTEM
+    assert registered(old["_SYSTEM_PROMPT"], ((L3_OLD_TYPES, L3_NEW_TYPES), *L3_CHANGES)) == prompts.L3_SYSTEM
     execute(definitions(sources["totals_rescue.py"], {"_SYSTEM_PROMPT"}), old)
     assert old["_SYSTEM_PROMPT"] == prompts.RESCUE_SYSTEM
     old["json"] = json
