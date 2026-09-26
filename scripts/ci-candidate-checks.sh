@@ -31,7 +31,7 @@ offline() {
     pearnly_core.account.test_native_account_password
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \
-                tests/test_cowork_no_company_scope.py; do
+                tests/test_cowork_no_company_scope.py tests/test_cowork_line_intake.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }

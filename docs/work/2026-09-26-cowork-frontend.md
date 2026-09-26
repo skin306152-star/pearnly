@@ -84,10 +84,23 @@
   CI 同名闸门全过（3.9 不支持的 4 项用 3.14）；本机 `cowork-a` 迁移后，在回滚事务里模拟“员工账号 + 一份公司都没有 + 无授权行”：
   银行 / 收入 / 销项税列表、连接列表、盘点列表都返回，自动建出一份归属，回滚后恢复原样。
 
-**LINE（问题 1，待做）**：旧线上 `ec2e5c95` 的富菜单（旧项目发布的全体默认菜单）三格：发单据进 ERP = postback
+**LINE（问题 1）**：旧线上 `ec2e5c95` 的富菜单（旧项目发布的全体默认菜单）三格：发单据进 ERP = postback
 `action=cowork_erp_start` → 会话式（选目标 ERP → 进/销项 → 过账方式 → 发图片/PDF → 识别 → 复核卡 → LIFF 复核推送）；
-盘点 = LIFF `flow=cowork-stocktake`；工作协调 = Wekan（用户要重新设计，不搬）。新平台 `line.handlers` 只做绑定，postback 直接忽略，
-所以点了没回话；盘点 LIFF 还指向已退役的旧站。
+盘点 = LIFF `flow=cowork-stocktake`；工作协调 = Wekan。新平台 `line.handlers` 原来只做绑定、postback 直接忽略，所以点了没回话；
+盘点 LIFF 还指向已退役的旧站。用户选定：**照 ERP 新做法**（快捷回复逐步选，识别结果进网页录入列表，复核提交在网页）；
+**富菜单由新平台发布，先只发 Cowork-TEST**（外部写入，已授权）。
+
+| 入口 | 用途 | 实现 | 角色 / 配置 | 点击去向 | 验证 |
+| --- | --- | --- | --- | --- | --- |
+| 富菜单左上「发单据进 ERP」（旧菜单同一 postback） | LINE 里发单据 | `line/flow.py`：目标（MR.ERP 有连接 / Express 助手在线 / 识别后导出，不可选的在问句里列原因）→ 公司 → 年度（服务端已有的账套目录；没有就申请刷新并请稍后再点）→ 进/销项 → MR.ERP 付款（进项只赊账）/ Express 过账类型；按钮只带序号、只认当前一步、30 分钟会话 | 绑定 + LINE 开着 + `intake` 功能与录入角色 | 问完提示发 PDF / 图片 | 离线 15 项；本机样板真实连接与目录走完 MR.ERP 一轮 |
+| 发来的图片 / PDF | 进网页录入同一条链 | `line/intake.py`：webhook 只排队；后台任务取原件 → `files.service.create` → `ocr…submit`（目标记在票上），幂等键 `line:<消息号>`；识别完经新钩子 `cowork_ocr_recognized` 推卡（每张票对方 · 金额，按钮进复核页 / 多张进列表），最终失败经 `pearnly_ocr_failure_handlers` 回一句；换绑不下载不扣费 | 同上 | 卡片按钮 → `/desk/pearnly-intake/new/<票>` 或 `/desk/pearnly-intake` | 本机：原件落本站归属、受理参数正确（识别受理被截下，未产生识别调用）、卡片成形；测试后删掉了假绑定与原件文件 |
+| 富菜单中上「库存盘点」 | 在 LINE 内置浏览器打开网页端盘点页 | `line/menu.py` uri → `/desk/pearnly-stocktake` | 盘点功能 + 盘点角色 | 网页端盘点页（**Cowork 未接 LINE 登录**，内置浏览器里要自己登录一次） | 待真机 |
+| 其余四格 | 锁 | 工作协调要重新设计；旧菜单的「ประสานงาน」回“还没开放” | — | — | 离线 |
+
+- 菜单照 ERP：按权限 × 手机语言给绑定用户挂（`publish()` 幂等、内容散列命名，不删旧菜单、不改默认菜单）；每个事件核一次、绑定 / 解绑后重挂。
+  格子图 `scripts/render-cowork-line-menu-tiles.py`（旧线上 Cowork 菜单的卡片与图标，文字按四语重画）。
+- 架构策略：`line` 新增依赖 `companion / connections / files / ocr / stocktake`；`companion.credentials.online` 给录入入口判断助手在线（不要求管理权限）。
+- 未做：Cowork 的 LINE 登录（`LINE_LOGIN_PRODUCTS` 只有 erp，属共用身份改动，随 Cowork 独立账号池一起做）；生产官方号的菜单发布（另行授权）。
 
 ## 第六批：菜单收口 + 团队管理 + LINE 绑定（2026-09-26，第三个窗口）
 

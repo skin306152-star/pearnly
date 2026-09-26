@@ -240,6 +240,13 @@ def status(connection):
     return _dto(doc, _active(doc) or _latest(doc))
 
 
+def online(connection):
+    """录入入口（LINE 里选目标）看 Express 能不能选：本人能用这条连接、助手当前在线。不要求管理权限。"""
+    doc = _connection(connection)
+    access.require_connection(doc)
+    return _online(doc, _active(doc))
+
+
 def for_confirmation(connection):
     """Internal human submission proof; no token disclosure or machine login."""
     _enabled()

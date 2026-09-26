@@ -164,7 +164,19 @@ def _persist(doc):
     doc.requires_review = plan["requires_review"]
     store.save(doc)
     frappe.db.commit()
+    _announce(doc)
     return doc
+
+
+def _announce(doc):
+    """识别结果已落成票：告诉登记了 `cowork_ocr_recognized` 的入口（LINE 收单据此推卡）。
+
+    只在这一次落库时调用；通知失败不影响识别结果与扣费。"""
+    for path in frappe.get_hooks("cowork_ocr_recognized") or []:
+        try:
+            frappe.get_attr(path)(doc)
+        except Exception:
+            frappe.log_error(title="Cowork OCR recognized hook failed", message=frappe.get_traceback()[-1500:])
 
 
 def run(batch_name):

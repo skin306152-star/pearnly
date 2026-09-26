@@ -774,3 +774,28 @@ No invoice could be read.	没有读出任何发票。	ไม่สามาร�
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.	余额不足，无法识别图片和 PDF 发票，请充值后再试。	ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่	残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。	vat_check.balance_insufficient
 Invoice recognition is busy. Try again in a moment.	发票识别繁忙，请稍后再试。	ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง	請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。	vat_check.recognition_busy
 Invoice recognition took too long. Try again later.	发票识别超时，请稍后再试。	การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง	請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。	vat_check.recognition_timeout
+Cancelled	已取消	ยกเลิกแล้ว	キャンセルしました	
+Choose the company	选择公司	เลือกบริษัท	会社を選択	
+Choose the destination for these documents	选择这批单据推送到哪里	เลือกปลายทางสำหรับเอกสารชุดนี้	この書類の送信先を選択	
+Choose the payment method	选择付款方式	เลือกวิธีชำระเงิน	支払方法を選択	
+Choose the year	选择年度	เลือกปี	年度を選択	
+Choose what to do	选择要做的事	เลือกสิ่งที่ต้องการทำ	操作を選択	
+Could not read this document. Please send it again.	没能识别这份单据，请重新发送。	อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่	書類を読み取れませんでした。もう一度送信してください。	
+Could not store this document	没能保存这份单据	บันทึกเอกสารไม่สำเร็จ	書類を保存できませんでした	
+Cowork menu	Cowork 菜单	เมนู Cowork	Coworkメニュー	
+No ERP is ready to use	还没有可用的 ERP	ยังไม่มี ERP ที่พร้อมใช้งาน	使用できるERPがありません	
+No invoice was found in this document.	这份单据里没有识别到发票。	ไม่พบเอกสารที่อ่านได้ในไฟล์นี้	この書類から請求書が見つかりませんでした。	
+Please upload a PDF or image	请发送 PDF 或图片	กรุณาส่งรูปภาพหรือ PDF	PDFまたは画像を送信してください	
+Purchase or sales?	进项还是销项？	ซื้อหรือขาย?	仕入ですか、売上ですか？	
+Reading the company list from the ERP. Tap the menu again in a moment.	正在从 ERP 读取公司列表，请稍后再点一次菜单。	กำลังอ่านรายชื่อบริษัทจาก ERP กรุณากดเมนูอีกครั้งในอีกสักครู่	ERPから会社一覧を読み込んでいます。少ししてからもう一度メニューを押してください。	
+Recognised {0} documents	已识别 {0} 张单据	อ่านเอกสารแล้ว {0} ใบ	{0} 件の書類を読み取りました	
+Scan barcodes · Record quantities	扫条码 · 记数量	สแกนบาร์โค้ด · บันทึกจำนวน	バーコード読取 · 数量記録	
+Send documents to ERP	发单据进 ERP	ส่งเอกสารเข้า ERP	書類をERPへ送信	
+Service or stock?	服务还是存货？	บริการหรือสินค้า?	サービスですか、在庫品ですか？	
+Stock count	库存盘点	ตรวจนับสต็อก	棚卸	
+Tap Send documents to ERP in the menu first	请先点菜单里的「发单据进 ERP」	กรุณากด ส่งเอกสารเข้า ERP ในเมนูก่อน	先にメニューの「書類をERPへ送信」を押してください	
+Tap the menu to start	请点菜单开始	กดเมนูเพื่อเริ่มต้น	メニューを押して始めてください	
+There is not enough recognition balance. Top up and send the document again.	识别余额不足，请充值后重新发送。	ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่	読み取り残高が不足しています。チャージしてからもう一度送信してください。	
+This account cannot send documents	这个账号不能发单据	บัญชีนี้ส่งเอกสารไม่ได้	このアカウントは書類を送信できません	
+This option is no longer current	这个选项已失效，请重新点菜单	ตัวเลือกนี้หมดอายุแล้ว กรุณาเริ่มใหม่จากเมนู	この選択肢は無効です。メニューからやり直してください	
+Upload · Review · Choose destination	上传 · 复核 · 选目标	อัปโหลด · ตรวจสอบ · เลือกปลายทาง	アップロード · 確認 · 送信先選択	

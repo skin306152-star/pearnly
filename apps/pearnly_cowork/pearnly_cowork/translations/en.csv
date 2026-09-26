@@ -85,6 +85,7 @@ Branch,Branch
 Buyer Client,Buyer Client
 Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
+Cancelled,Cancelled
 Cash,Cash
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
@@ -97,7 +98,12 @@ Choose a file,Choose a file
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
 Choose file,Choose file
+Choose the company,Choose the company
+Choose the destination for these documents,Choose the destination for these documents
+Choose the payment method,Choose the payment method
 Choose the sheet to import,Choose the sheet to import
+Choose the year,Choose the year
+Choose what to do,Choose what to do
 Client,Client
 Close count,Close count
 Closed,Closed
@@ -127,6 +133,8 @@ Content Hash,Content Hash
 Continuous counting,Continuous counting
 Correct entry,Correct entry
 Corrected Value,Corrected Value
+Could not read this document. Please send it again.,Could not read this document. Please send it again.
+Could not store this document,Could not store this document
 Count Mode,Count Mode
 Count closed,Count closed
 Count saved,Count saved
@@ -166,6 +174,7 @@ Cowork Stocktake Operation,Cowork Stocktake Operation
 Cowork Stocktake Task,Cowork Stocktake Task
 Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
 Cowork Workspace,Cowork Workspace
+Cowork menu,Cowork menu
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created,Created
 Created By,Created By
@@ -337,8 +346,10 @@ New records must start as drafts.,New records must start as drafts.
 New stock count,New stock count
 New task,New task
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
+No ERP is ready to use,No ERP is ready to use
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
+No invoice was found in this document.,No invoice was found in this document.
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No warehouse matches that name,No warehouse matches that name
@@ -381,6 +392,7 @@ Pending,Pending
 Period,Period
 Phase,Phase
 Photos,Photos
+Please upload a PDF or image,Please upload a PDF or image
 Position differences,Position differences
 Posting Kind,Posting Kind
 Preparation Evidence,Preparation Evidence
@@ -397,6 +409,7 @@ Product codes and barcodes must be stored as text.,Product codes and barcodes mu
 Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 Provider Evidence,Provider Evidence
+Purchase or sales?,Purchase or sales?
 Push Attempt,Push Attempt
 Push Record,Push Record
 Push record not found.,Push record not found.
@@ -407,10 +420,12 @@ Quantity differences,Quantity differences
 Reading files,Reading files
 Reading the VAT report,Reading the VAT report
 Reading the bank statement,Reading the bank statement
+Reading the company list from the ERP. Tap the menu again in a moment.,Reading the company list from the ERP. Tap the menu again in a moment.
 Reading the general ledger,Reading the general ledger
 Reading the invoices,Reading the invoices
 Ready for the next product,Ready for the next product
 Reason,Reason
+Recognised {0} documents,Recognised {0} documents
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
@@ -476,6 +491,7 @@ Save and next,Save and next
 Saved,Saved
 Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
+Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scope Key,Scope Key
 Search name or barcode,Search name or barcode
@@ -485,8 +501,10 @@ Select between 1 and 500 records.,Select between 1 and 500 records.
 Select valid files to download.,Select valid files to download.
 Seller Name,Seller Name
 Seller Tax ID,Seller Tax ID
+Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
+Service or stock?,Service or stock?
 Settings Json,Settings Json
 Sheet,Sheet
 Short,Short
@@ -514,6 +532,7 @@ Statement review is not available for this task.,Statement review is not availab
 Status,Status
 Stock,Stock
 Stock changed; recount,Stock changed; recount
+Stock count,Stock count
 Stock count closed,Stock count closed
 "Stock count created, {0} rows","Stock count created, {0} rows"
 Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
@@ -521,6 +540,8 @@ Stock count template,Stock count template
 Stock count workbench,Stock count workbench
 Submit,Submit
 Summary table import,Summary table import
+Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
+Tap the menu to start,Tap the menu to start
 Target Json,Target Json
 Task,Task
 Task name,Task name
@@ -654,9 +675,11 @@ The uploaded file is empty.,The uploaded file is empty.
 The verified ERP export details are invalid.,The verified ERP export details are invalid.
 The worksheet row or column information is invalid.,The worksheet row or column information is invalid.
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
+There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
+This account cannot send documents,This account cannot send documents
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
 This channel is not open yet,This channel is not open yet
@@ -673,6 +696,7 @@ This is taking too long. Check the list later.,This is taking too long. Check th
 This item is also stocked at:,This item is also stocked at:
 This multi-page invoice has no verified combined record. Review it before exporting.,This multi-page invoice has no verified combined record. Review it before exporting.
 This operation ID has already been used for another request.,This operation ID has already been used for another request.
+This option is no longer current,This option is no longer current
 This original already has a recognition task with different parameters.,This original already has a recognition task with different parameters.
 This page is too large to preview safely.,This page is too large to preview safely.
 This push attempt is no longer current.,This push attempt is no longer current.
@@ -709,6 +733,7 @@ Updated {0} user(s),Updated {0} user(s)
 Upload a sheet,Upload a sheet
 Upload both files.,Upload both files.
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
+Upload · Review · Choose destination,Upload · Review · Choose destination
 Uploaded By,Uploaded By
 Uploading files,Uploading files
 Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.

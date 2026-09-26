@@ -393,6 +393,9 @@ override_whitelisted_methods = {
 pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run",
                         # 销项税报告核查的图片 / PDF 发票（同一个识别引擎，结果不进识别记录）
                         "cowork.vat_check": "pearnly_cowork.recon_center.invoice_ocr.run"}
+# LINE 发来的单据：识别落成票后推卡、最终失败时回一句（不是从 LINE 来的原件什么都不做）。
+cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized"]
+pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。

@@ -85,6 +85,7 @@ Branch,执行分支
 Buyer Client,买方客户
 Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
+Cancelled,已取消
 Cash,现金
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
@@ -97,7 +98,12 @@ Choose a file,选择文件
 Choose at least one job role,至少勾一个功能权限
 Choose both files first,请先选好两份文件
 Choose file,选择文件
+Choose the company,选择公司
+Choose the destination for these documents,选择这批单据推送到哪里
+Choose the payment method,选择付款方式
 Choose the sheet to import,请先选择要导入的表格
+Choose the year,选择年度
+Choose what to do,选择要做的事
 Client,客户
 Close count,结束盘点
 Closed,已结束
@@ -127,6 +133,8 @@ Content Hash,内容摘要
 Continuous counting,连续盘点
 Correct entry,修改记录
 Corrected Value,修正值
+Could not read this document. Please send it again.,没能识别这份单据，请重新发送。
+Could not store this document,没能保存这份单据
 Count Mode,盘点方式
 Count closed,盘点已结束
 Count saved,已保存
@@ -166,6 +174,7 @@ Cowork Stocktake Operation,Cowork 盘点操作记录
 Cowork Stocktake Task,Cowork 盘点任务
 Cowork Supplier Posting Profile,Cowork 供应商过账档案
 Cowork Workspace,Cowork 公司账套
+Cowork menu,Cowork 菜单
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Created,创建时间
 Created By,创建人
@@ -337,8 +346,10 @@ New records must start as drafts.,新记录必须先保存为草稿。
 New stock count,新建盘点
 New task,新建任务
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
+No ERP is ready to use,还没有可用的 ERP
 No invoice could be read.,没有读出任何发票。
 No invoice summary found,未识别到摘要
+No invoice was found in this document.,这份单据里没有识别到发票。
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
 No warehouse matches that name,该仓库名不存在
@@ -381,6 +392,7 @@ Pending,待处理
 Period,期间
 Phase,处理阶段
 Photos,照片
+Please upload a PDF or image,请发送 PDF 或图片
 Position differences,仓位差异
 Posting Kind,过账类型
 Preparation Evidence,准备资料证据
@@ -397,6 +409,7 @@ Product codes and barcodes must be stored as text.,产品编码和条形码必�
 Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 Provider Evidence,服务商调用证据
+Purchase or sales?,进项还是销项？
 Push Attempt,推送尝试
 Push Record,推送记录
 Push record not found.,找不到推送记录。
@@ -407,10 +420,12 @@ Quantity differences,数量差异
 Reading files,读取文件
 Reading the VAT report,读取税表
 Reading the bank statement,读取银行账单
+Reading the company list from the ERP. Tap the menu again in a moment.,正在从 ERP 读取公司列表，请稍后再点一次菜单。
 Reading the general ledger,读取总账
 Reading the invoices,读取发票
 Ready for the next product,可以盘下一个商品了
 Reason,原因
+Recognised {0} documents,已识别 {0} 张单据
 Recognition Confidence,识别置信度
 Recognition Quality,识别质量
 Recognition input and ownership cannot be changed.,识别输入和归属不能修改。
@@ -476,6 +491,7 @@ Save and next,保存并下一项
 Saved,已保存
 Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
+Scan barcodes · Record quantities,扫条码 · 记数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scope Key,权限范围标识
 Search name or barcode,搜索名称或条码
@@ -485,8 +501,10 @@ Select between 1 and 500 records.,请选择 1 至 500 条记录。
 Select valid files to download.,请选择有效文件进行下载。
 Seller Name,卖方名称
 Seller Tax ID,卖方税号
+Send documents to ERP,发单据进 ERP
 Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
+Service or stock?,服务还是存货？
 Settings Json,配置数据（JSON）
 Sheet,表格文件
 Short,盘亏
@@ -514,6 +532,7 @@ Statement review is not available for this task.,此任务没有逐行复核记�
 Status,状态
 Stock,库存
 Stock changed; recount,库存有变，需重盘
+Stock count,库存盘点
 Stock count closed,盘点已结束
 "Stock count created, {0} rows",盘点已创建，{0} 行
 Stock count photos are not yet supported. Remove the photos before saving.,盘点照片尚未接入，请先移除照片后保存。
@@ -521,6 +540,8 @@ Stock count template,盘点表模版
 Stock count workbench,盘点工作台
 Submit,提交
 Summary table import,汇总表导入
+Tap Send documents to ERP in the menu first,请先点菜单里的「发单据进 ERP」
+Tap the menu to start,请点菜单开始
 Target Json,冻结目标JSON
 Task,任务
 Task name,任务名称
@@ -654,9 +675,11 @@ The uploaded file is empty.,上传文件为空。
 The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
 The worksheet row or column information is invalid.,工作表行列信息无效。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
+There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
+This account cannot send documents,这个账号不能发单据
 This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This channel is not open yet,这个通道还没开放
@@ -673,6 +696,7 @@ This is taking too long. Check the list later.,对账时间较长，请稍后在
 This item is also stocked at:,这件货还在别处：
 This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
 This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
+This option is no longer current,这个选项已失效，请重新点菜单
 This original already has a recognition task with different parameters.,此原始文件已有参数不同的识别任务。
 This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
 This push attempt is no longer current.,此推送尝试已失效。
@@ -709,6 +733,7 @@ Updated {0} user(s),已更新 {0} 位用户
 Upload a sheet,上传导入
 Upload both files.,请上传两份文件。
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
+Upload · Review · Choose destination,上传 · 复核 · 选目标
 Uploaded By,上传人
 Uploading files,上传文件
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。

@@ -85,6 +85,7 @@ Branch,実行分岐
 Buyer Client,買い手顧客
 Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
+Cancelled,キャンセルしました
 Cash,現金
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
@@ -97,7 +98,12 @@ Choose a file,ファイルを選択
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
 Choose file,ファイルを選択
+Choose the company,会社を選択
+Choose the destination for these documents,この書類の送信先を選択
+Choose the payment method,支払方法を選択
 Choose the sheet to import,取り込むシートを選択してください
+Choose the year,年度を選択
+Choose what to do,操作を選択
 Client,顧客
 Close count,棚卸を終了
 Closed,終了
@@ -127,6 +133,8 @@ Content Hash,内容ハッシュ
 Continuous counting,連続棚卸
 Correct entry,記録を修正
 Corrected Value,修正値
+Could not read this document. Please send it again.,書類を読み取れませんでした。もう一度送信してください。
+Could not store this document,書類を保存できませんでした
 Count Mode,棚卸方式
 Count closed,棚卸を終了しました
 Count saved,保存しました
@@ -166,6 +174,7 @@ Cowork Stocktake Operation,Cowork 棚卸操作記録
 Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
 Cowork Workspace,Cowork 会計対象会社
+Cowork menu,Coworkメニュー
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
 Created,作成日時
 Created By,作成者
@@ -337,8 +346,10 @@ New records must start as drafts.,新しいレコードは下書きとして作�
 New stock count,棚卸を作成
 New task,新規タスク
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
+No ERP is ready to use,使用できるERPがありません
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
+No invoice was found in this document.,この書類から請求書が見つかりませんでした。
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
 No warehouse matches that name,その倉庫名は存在しません
@@ -381,6 +392,7 @@ Pending,処理待ち
 Period,期間
 Phase,処理段階
 Photos,写真
+Please upload a PDF or image,PDFまたは画像を送信してください
 Position differences,棚番の差異
 Posting Kind,記帳区分
 Preparation Evidence,準備情報の証拠
@@ -397,6 +409,7 @@ Product codes and barcodes must be stored as text.,商品コードとバーコ�
 Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 Provider Evidence,プロバイダー呼び出し証跡
+Purchase or sales?,仕入ですか、売上ですか？
 Push Attempt,送信試行
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
@@ -407,10 +420,12 @@ Quantity differences,数量差異
 Reading files,ファイルを読み込み中
 Reading the VAT report,税報告を読み込み中
 Reading the bank statement,銀行明細を読み込み中
+Reading the company list from the ERP. Tap the menu again in a moment.,ERPから会社一覧を読み込んでいます。少ししてからもう一度メニューを押してください。
 Reading the general ledger,総勘定元帳を読み込み中
 Reading the invoices,請求書を読み込み中
 Ready for the next product,次の商品を棚卸できます
 Reason,理由
+Recognised {0} documents,{0} 件の書類を読み取りました
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
 Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
@@ -476,6 +491,7 @@ Save and next,保存して次へ
 Saved,保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
 Scan barcode or QR code,バーコード・QRコードを読む
+Scan barcodes · Record quantities,バーコード読取 · 数量記録
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scope Key,権限範囲識別子
 Search name or barcode,名前・バーコードで検索
@@ -485,8 +501,10 @@ Select between 1 and 500 records.,1～500件のレコードを選択してくだ
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
 Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
+Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
+Service or stock?,サービスですか、在庫品ですか？
 Settings Json,設定データ（JSON）
 Sheet,シート
 Short,不足
@@ -514,6 +532,7 @@ Statement review is not available for this task.,このタスクには明細確�
 Status,状態
 Stock,在庫
 Stock changed; recount,在庫変動・再棚卸
+Stock count,棚卸
 Stock count closed,棚卸を終了しました
 "Stock count created, {0} rows",棚卸を作成しました（{0} 行）
 Stock count photos are not yet supported. Remove the photos before saving.,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
@@ -521,6 +540,8 @@ Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
 Submit,確定
 Summary table import,集計表の取り込み
+Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
+Tap the menu to start,メニューを押して始めてください
 Target Json,固定送信先JSON
 Task,タスク
 Task name,タスク名
@@ -654,9 +675,11 @@ The uploaded file is empty.,アップロードしたファイルは空です。
 The verified ERP export details are invalid.,確認済みの ERP エクスポート情報が無効です。
 The worksheet row or column information is invalid.,ワークシートの行または列の情報が無効です。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
+There is not enough recognition balance. Top up and send the document again.,読み取り残高が不足しています。チャージしてからもう一度送信してください。
 This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
+This account cannot send documents,このアカウントは書類を送信できません
 This account set is unavailable.,この会計データは利用できません。
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
 This channel is not open yet,このチャンネルはまだ開放していません
@@ -673,6 +696,7 @@ This is taking too long. Check the list later.,時間がかかっています。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This multi-page invoice has no verified combined record. Review it before exporting.,この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。
 This operation ID has already been used for another request.,この操作 ID は別のリクエストで使用されています。
+This option is no longer current,この選択肢は無効です。メニューからやり直してください
 This original already has a recognition task with different parameters.,この元ファイルには、異なるパラメーターの認識タスクが既にあります。
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
 This push attempt is no longer current.,この送信試行は無効になっています。
@@ -709,6 +733,7 @@ Updated {0} user(s),ユーザー{0}件を更新しました
 Upload a sheet,取り込み
 Upload both files.,両方のファイルをアップロードしてください。
 Upload the stock count sheet as an .xlsx file.,棚卸表は .xlsx 形式でアップロードしてください。
+Upload · Review · Choose destination,アップロード · 確認 · 送信先選択
 Uploaded By,アップロードしたユーザー
 Uploading files,ファイルをアップロード中
 Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。

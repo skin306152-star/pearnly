@@ -85,6 +85,7 @@ Branch,สาขาการดำเนินการ
 Buyer Client,ลูกค้าผู้ซื้อ
 Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
+Cancelled,ยกเลิกแล้ว
 Cash,เงินสด
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
@@ -97,7 +98,12 @@ Choose a file,เลือกไฟล์
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
 Choose file,เลือกไฟล์
+Choose the company,เลือกบริษัท
+Choose the destination for these documents,เลือกปลายทางสำหรับเอกสารชุดนี้
+Choose the payment method,เลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
+Choose the year,เลือกปี
+Choose what to do,เลือกสิ่งที่ต้องการทำ
 Client,ลูกค้า
 Close count,ปิดการตรวจนับ
 Closed,ปิดแล้ว
@@ -127,6 +133,8 @@ Content Hash,แฮชเนื้อหา
 Continuous counting,ตรวจนับต่อเนื่อง
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
+Could not read this document. Please send it again.,อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่
+Could not store this document,บันทึกเอกสารไม่สำเร็จ
 Count Mode,วิธีตรวจนับ
 Count closed,ปิดการตรวจนับแล้ว
 Count saved,บันทึกแล้ว
@@ -166,6 +174,7 @@ Cowork Stocktake Operation,บันทึกการดำเนินกา�
 Cowork Stocktake Task,งานตรวจนับสต็อก Cowork
 Cowork Supplier Posting Profile,โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
+Cowork menu,เมนู Cowork
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
 Created,สร้างเมื่อ
 Created By,ผู้สร้าง
@@ -337,8 +346,10 @@ New records must start as drafts.,รายการใหม่ต้องเ�
 New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
+No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
+No invoice was found in this document.,ไม่พบเอกสารที่อ่านได้ในไฟล์นี้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
@@ -381,6 +392,7 @@ Pending,รอดำเนินการ
 Period,งวด
 Phase,ขั้นตอนการประมวลผล
 Photos,รูปภาพ
+Please upload a PDF or image,กรุณาส่งรูปภาพหรือ PDF
 Position differences,ผลต่างตำแหน่ง
 Posting Kind,ประเภทการผ่านรายการ
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
@@ -397,6 +409,7 @@ Product codes and barcodes must be stored as text.,รหัสสินค้�
 Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
+Purchase or sales?,ซื้อหรือขาย?
 Push Attempt,ความพยายามส่ง
 Push Record,รายการส่ง
 Push record not found.,ไม่พบรายการส่ง
@@ -407,10 +420,12 @@ Quantity differences,ผลต่างจำนวน
 Reading files,กำลังอ่านไฟล์
 Reading the VAT report,กำลังอ่านรายงานภาษี
 Reading the bank statement,กำลังอ่านรายการเดินบัญชี
+Reading the company list from the ERP. Tap the menu again in a moment.,กำลังอ่านรายชื่อบริษัทจาก ERP กรุณากดเมนูอีกครั้งในอีกสักครู่
 Reading the general ledger,กำลังอ่านบัญชีแยกประเภท
 Reading the invoices,กำลังอ่านใบกำกับ
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
+Recognised {0} documents,อ่านเอกสารแล้ว {0} ใบ
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
@@ -476,6 +491,7 @@ Save and next,บันทึกและรายการถัดไป
 Saved,บันทึกแล้ว
 Saved. Scan the next item.,บันทึกแล้ว สแกนรายการถัดไป
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
+Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
 Scope Key,รหัสขอบเขตสิทธิ์
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
@@ -485,8 +501,10 @@ Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500
 Select valid files to download.,กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด
 Seller Name,ชื่อผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
+Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
+Service or stock?,บริการหรือสินค้า?
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Sheet,ไฟล์
 Short,ขาด
@@ -514,6 +532,7 @@ Statement review is not available for this task.,งานนี้ไม่ม�
 Status,สถานะ
 Stock,สต็อก
 Stock changed; recount,สต็อกเปลี่ยน ต้องนับใหม่
+Stock count,ตรวจนับสต็อก
 Stock count closed,ปิดการตรวจนับแล้ว
 "Stock count created, {0} rows",สร้างการตรวจนับแล้ว {0} แถว
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
@@ -521,6 +540,8 @@ Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
 Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
+Tap Send documents to ERP in the menu first,กรุณากด ส่งเอกสารเข้า ERP ในเมนูก่อน
+Tap the menu to start,กดเมนูเพื่อเริ่มต้น
 Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
 Task name,ชื่องาน
@@ -654,9 +675,11 @@ The uploaded file is empty.,ไฟล์ที่อัปโหลดว่า�
 The verified ERP export details are invalid.,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
 The worksheet row or column information is invalid.,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
+There is not enough recognition balance. Top up and send the document again.,ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
+This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
 This account set is unavailable.,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 This action is not allowed in the current push state.,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
@@ -673,6 +696,7 @@ This is taking too long. Check the list later.,ใช้เวลานาน �
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This multi-page invoice has no verified combined record. Review it before exporting.,ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก
 This operation ID has already been used for another request.,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
+This option is no longer current,ตัวเลือกนี้หมดอายุแล้ว กรุณาเริ่มใหม่จากเมนู
 This original already has a recognition task with different parameters.,ไฟล์ต้นฉบับนี้มีงานอ่านเอกสารที่ใช้พารามิเตอร์ต่างกันอยู่แล้ว
 This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
 This push attempt is no longer current.,ความพยายามส่งนี้ไม่ใช่รายการปัจจุบันแล้ว
@@ -709,6 +733,7 @@ Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 Upload a sheet,อัปโหลดไฟล์
 Upload both files.,กรุณาอัปโหลดไฟล์ทั้งสอง
 Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
+Upload · Review · Choose destination,อัปโหลด · ตรวจสอบ · เลือกปลายทาง
 Uploaded By,ผู้อัปโหลด
 Uploading files,กำลังอัปโหลดไฟล์
 Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง

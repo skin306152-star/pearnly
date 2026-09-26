@@ -206,7 +206,12 @@
       "ocr"
     ],
     "line": [
-      "access"
+      "access",
+      "companion",
+      "connections",
+      "files",
+      "ocr",
+      "stocktake"
     ],
     "masters": [
       "access",

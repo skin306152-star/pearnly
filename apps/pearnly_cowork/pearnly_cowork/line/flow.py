@@ -1,0 +1,309 @@
+"""LINE 里「发单据进 ERP」上传前的几步选择（用户 2026-09-26：照 ERP 的新做法）。
+
+点菜单「ส่งเอกสารเข้า ERP」（旧线上与新菜单都是 postback `action=cowork_erp_start`）之后，用 LINE
+原生快捷回复按钮依次问：目标 ERP → 公司 → 年度 → 进项 / 销项 → 入账方式 → 提示发 PDF 或图片。
+口径与网页「新建录入」弹窗同一套（`public/desk/intake-choices.js`）：
+  · 目标：MR.ERP 要有可用连接，Express 要助手在线，「识别后导出」不要连接；不能选的在问句里列出原因
+    （旧线上 `erp_picker_card` 的状态行）；
+  · 公司 / 年度：目标 ERP 自己的账套目录，取服务端已有的那份（LINE 里不等实时刷新；推送时网页照常
+    再取最新目录证据）；只有一个就直接选上；
+  · 入账方式以第三方为准：MR.ERP 选付款（进项只有赊账），Express 选过账类型（服务 / 存货）；
+  · 识别后导出只选进项 / 销项。
+每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
+按钮只带序号，值存在会话里（账套键可能很长，postback 有 300 字上限）；只接受当前在问的那一步。
+"""
+from urllib.parse import parse_qs, urlencode
+
+import frappe
+from frappe import _
+
+from pearnly_core import line, line_session
+
+from pearnly_cowork.access import scope
+
+STATE = "cowork_intake"
+TTL_MINUTES = 30
+START = "action=cowork_erp_start"
+RECOGNIZE_ONLY = "none"
+TARGETS = (("mrerp", "MR.ERP"), ("express", "Express"))
+DIRECTIONS = ("purchase", "sales")
+MODE = {"mrerp": "payment", "express": "posting_kind"}
+# 快捷回复一次最多 13 个按钮：选项最多 12 个，留一个给「取消」。
+MAX_CHOICES = 12
+MENU_WORDS = ("เมนู", "menu", "菜单", "菜單", "メニュー")
+
+
+# ── 会话 ────────────────────────────────────────────────────────────────────
+
+
+def choices(line_user_id) -> dict:
+    session = line_session.get_session(line_user_id) or {}
+    return dict(session.get("payload") or {}) if session.get("state") == STATE else {}
+
+
+def _save(line_user_id, payload):
+    line_session.set_session(line_user_id, STATE, payload, ttl_minutes=TTL_MINUTES)
+
+
+def keep(line_user_id, payload):
+    """又发了一张：选择原样保留，30 分钟重新计时。"""
+    _save(line_user_id, payload)
+
+
+def ready(payload) -> bool:
+    return bool(payload.get("target")) and _pending(payload) == "upload"
+
+
+# ── 消息 ────────────────────────────────────────────────────────────────────
+
+
+def _button(label, data):
+    label = str(label)[:20]
+    return {"type": "action", "action": {"type": "postback", "label": label, "data": data,
+                                         "displayText": label}}
+
+
+def _text(reply_token, text):
+    line.reply(reply_token, [{"type": "text", "text": text}])
+
+
+def _ask(reply_token, text, items):
+    items = items[:MAX_CHOICES] + [_button(_("Cancel"), "a=cowork&s=cancel")]
+    line.reply(reply_token, [{"type": "text", "text": text, "quickReply": {"items": items}}])
+
+
+def menu(reply_token):
+    """手打「เมนู」：给「发单据进 ERP」一个原生按钮（与富菜单同一个 postback）。"""
+    _ask(reply_token, _("Choose what to do"), [_button(_("Send documents to ERP"), START)])
+
+
+# ── 各步 ────────────────────────────────────────────────────────────────────
+
+
+def start(line_user_id, reply_token):
+    """从头问起（旧会话作废）。调用方已把会话用户切成绑定的这个账号。"""
+    _next(line_user_id, {}, reply_token)
+
+
+def cancel(line_user_id, reply_token):
+    line_session.clear_session(line_user_id)
+    _text(reply_token, _("Cancelled"))
+
+
+def answer(line_user_id, data, reply_token):
+    params = {key: values[0] for key, values in parse_qs(data or "").items()}
+    step = params.get("s") or ""
+    if step == "cancel":
+        return cancel(line_user_id, reply_token)
+    payload = choices(line_user_id)
+    offered = (payload.get("offered") or {}).get(step) or []
+    try:
+        value = offered[int(params.get("v", ""))]
+    except (ValueError, IndexError):
+        value = None
+    if not payload.get("offered") or step != _pending(payload) or value is None:
+        return _text(reply_token, _("This option is no longer current"))
+    if step == "target":
+        payload = {"target": value}
+    elif step == "company":
+        payload.update(company=value, account_set_key=None)
+    elif step == "year":
+        payload["account_set_key"] = value
+    else:
+        payload[step] = value
+    _next(line_user_id, payload, reply_token)
+
+
+def _pending(payload):
+    target = payload.get("target")
+    if not target:
+        return "target"
+    if target != RECOGNIZE_ONLY:
+        if not payload.get("company"):
+            return "company"
+        if not payload.get("account_set_key"):
+            return "year"
+    if not payload.get("direction"):
+        return "direction"
+    mode = MODE.get(target)
+    if mode and not payload.get(mode):
+        return mode
+    return "upload"
+
+
+def _next(line_user_id, payload, reply_token):
+    while True:
+        step = _pending(payload)
+        if step == "upload":
+            payload.pop("offered", None)
+            _save(line_user_id, payload)
+            return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image"))
+        if step == "target":
+            options, note = _targets()
+        else:
+            options, note = _options(step, payload), ""
+        if not options:
+            line_session.clear_session(line_user_id)
+            return _text(reply_token, _empty(step, payload))
+        # 只有一个可选就直接选上（公司、年度、MR.ERP 进项只有赊账；网页弹窗同一口径）。
+        if len(options) == 1 and step in ("company", "year", "payment"):
+            payload[{"year": "account_set_key"}.get(step, step)] = options[0][0]
+            continue
+        break
+    payload["offered"] = {step: [key for key, _label in options]}
+    _save(line_user_id, payload)
+    numbered = step in ("company", "year")
+    items = [_button(f"{index}. {label}" if numbered else label, urlencode({"a": "cowork", "s": step, "v": index}))
+             for index, (_key, label) in enumerate(options[:MAX_CHOICES])]
+    question = _QUESTIONS[step]()
+    _ask(reply_token, question + ("\n" + note if note else ""), items)
+
+
+_QUESTIONS = {
+    "target": lambda: _("Choose the destination for these documents"),
+    "company": lambda: _("Choose the company"),
+    "year": lambda: _("Choose the year"),
+    "direction": lambda: _("Purchase or sales?"),
+    "payment": lambda: _("Choose the payment method"),
+    "posting_kind": lambda: _("Service or stock?"),
+}
+
+
+def _empty(step, payload):
+    if step == "target":
+        return _("No ERP is ready to use")
+    # 服务端还没有这家 ERP 的账套目录：申请读一次（与网页弹窗同一个刷新），读到后再点菜单就有了。
+    if payload.get("connection"):
+        from uuid import uuid4
+
+        from pearnly_cowork.connections import service
+
+        try:
+            service.request_refresh(payload["connection"], str(uuid4()))
+        except frappe.ValidationError:
+            pass
+    return _("Reading the company list from the ERP. Tap the menu again in a moment.")
+
+
+# ── 选项 ────────────────────────────────────────────────────────────────────
+
+
+def _connections():
+    """本人能用的连接（与网页同一个接口，按当前会话用户判），每种目标取第一条。"""
+    from pearnly_cowork.connections import service
+
+    found = {}
+    for row in service.records(None, limit=100) or []:
+        found.setdefault(row.get("adapter"), row)
+    return found
+
+
+def _state(adapter, connection):
+    """这条通道现在能不能选、为什么不能（判据与网页 `targets.js` 的 `ready` / `describe` 相同）。"""
+    if not connection:
+        return False, _("connect.state.notConnected")
+    if not connection.get("enabled"):
+        return False, _("connect.state.disabled")
+    if adapter == "express":
+        from pearnly_cowork.companion import credentials
+
+        try:
+            online = credentials.online(connection["name"])
+        except frappe.PermissionError:
+            online = False
+        if not online:
+            return False, _("intake.agent.state.missing")
+    return True, ""
+
+
+def _targets():
+    connections = _connections()
+    options, lines = [], []
+    for adapter, label in TARGETS:
+        ok, reason = _state(adapter, connections.get(adapter))
+        if ok:
+            options.append((adapter, label))
+        else:
+            lines.append(f"• {label}: {reason}")
+    options.append((RECOGNIZE_ONLY, _("intake.target.recognizeOnly")))
+    return options, "\n".join(lines)
+
+
+def _catalog(payload):
+    """目标 ERP 的公司 → 年度（`targets.js` 的 `companies` 同一分组）。"""
+    from pearnly_cowork.connections import service
+
+    connection = _connections().get(payload["target"])
+    if not connection:
+        return []
+    payload["connection"] = connection["name"]
+    data = service.targets(connection["name"])
+    express = payload["target"] == "express"
+    found = {}
+    for row in data.get("account_sets") or []:
+        attrs = row.get("attributes") or {}
+        if row.get("active") is False or (express and attrs.get("writable") is False):
+            continue
+        if express:
+            key = label = attrs.get("company") or row.get("label") or ""
+            year = attrs.get("root_label") or attrs.get("root") or row.get("label") or ""
+        else:
+            key = attrs.get("company") or attrs.get("company_name") or row["source_id"]
+            label = " · ".join(v for v in (attrs.get("company"), attrs.get("company_name")) if v) or row.get("label") or key
+            year = row.get("label") or row["source_id"]
+        found.setdefault(key, {"label": label, "years": []})["years"].append((row["source_id"], year))
+    for company in found.values():
+        company["years"].sort(key=lambda item: _year_rank(item[1]), reverse=True)
+    return sorted(found.items(), key=lambda item: item[1]["label"])
+
+
+def _year_rank(label):
+    import re
+
+    numbers = [int(n) for n in re.findall(r"\d+", str(label))]
+    return max(numbers) if numbers else -1
+
+
+def _options(step, payload):
+    if step == "company":
+        return [(key, company["label"]) for key, company in _catalog(payload)]
+    if step == "year":
+        company = dict(_catalog(payload)).get(payload.get("company")) or {}
+        return list(company.get("years") or [])
+    if step == "direction":
+        return [("purchase", _("intake.dir.purchase")), ("sales", _("intake.dir.sales"))]
+    if step == "payment":
+        # 以第三方为准：MR.ERP 进项只有赊账（旧线上 `mode_options`）。
+        return ([] if payload.get("direction") == "purchase" else [("cash", _("Cash"))]) + [("credit", _("Credit"))]
+    if step == "posting_kind":
+        return [("service", _("Service")), ("stock", _("Stock"))]
+    return []
+
+
+def summary(payload) -> str:
+    """一行说清楚这次按什么录：目标 · 年度 · 进项 / 销项 · 入账方式。"""
+    target = payload.get("target")
+    parts = [dict(TARGETS).get(target) or _("intake.target.recognizeOnly")]
+    if target != RECOGNIZE_ONLY and payload.get("account_set_key"):
+        company = dict(_catalog(payload)).get(payload.get("company")) or {}
+        year = dict(company.get("years") or []).get(payload["account_set_key"])
+        parts.append(" · ".join(v for v in (company.get("label"), year) if v))
+    parts.append(dict(_options("direction", payload)).get(payload.get("direction"), ""))
+    labels = {"cash": _("Cash"), "credit": _("Credit"), "service": _("Service"), "stock": _("Stock")}
+    mode = MODE.get(target)
+    if mode and payload.get(mode):
+        parts.append(labels.get(payload[mode], payload[mode]))
+    return " · ".join(part for part in parts if part)
+
+
+def is_start(data) -> bool:
+    params = {key: values[0] for key, values in parse_qs(data or "").items()}
+    return params.get("action") == "cowork_erp_start"
+
+
+def is_step(data) -> bool:
+    return (parse_qs(data or "").get("a") or [""])[0] == "cowork"
+
+
+def allowed(user) -> bool:
+    return scope.allowed("intake", user)
