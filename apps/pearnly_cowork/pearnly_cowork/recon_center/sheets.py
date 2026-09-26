@@ -1,10 +1,11 @@
 """对账结果页 = 导出的复核表，逐格照画（用户 2026-09-26）：取表、改后重算、保存。
 
 “前端显示表格按导出表格 1:1 画，可以不用官方 UI 组件；使用说明不用出现，不要过多文案备注。”
+随后（同日）：三张表统一外观、去掉 KPI 与说明文案——改在导出工作簿本身（`reconciliation/export/theme.py`），页面照画即同步。
 
 页面上的每一页都由**导出同一个函数**在内存里生成的工作簿读出来：单元格文字（按单元格的数字格式排好）、
 底色、字色、粗斜体、字号、对齐、换行、边框、合并、列宽、行高、冻结窗格一并交给页面照画，
-所以页面与下载的 Excel 逐格一致。只有「使用说明」那页不出现。
+所以页面与下载的 Excel 逐格一致（工作簿里已不再有使用说明页）。
 
 可改的格子就是两边的输入落在表里的那几格（银行：对账单明细、总账明细；收入：差异明细的税表一侧与
 总账金额；销项税：发票明细、VAT 报告明细），每格带着它对应的输入位置。改了就用建任务时同一套比对重算，
@@ -19,8 +20,6 @@ from frappe import _
 
 from pearnly_cowork.reconciliation import revision, vat_check_service
 
-# 不在页面出现的页（按导出工作簿里的顺序）：收入、销项税的最后一页是使用说明。
-HIDDEN = {"bank": (), "income": (2,), "vat": (3,)}
 MAX_CELLS = 400000
 _SUM = re.compile(r"^=SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)$")
 
@@ -295,7 +294,7 @@ def _render(kind, content, inputs):
     edits = EDITS[kind](book, inputs)
     styles, style_ids = [], {}
     sheets = [_sheet(sheet, index, edits, inputs, styles, style_ids)
-              for index, sheet in enumerate(book.worksheets) if index not in HIDDEN[kind]]
+              for index, sheet in enumerate(book.worksheets)]
     return {"sheets": sheets, "styles": styles}
 
 

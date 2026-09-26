@@ -379,6 +379,9 @@ def workbook(
     build_stmt_detail_sheet(wb, recon_rows, lang)
     build_gl_detail_sheet(wb, recon_rows, lang, gl_opening=summary.gl_opening)
 
+    from pearnly_cowork.reconciliation.export import theme
+
+    theme.apply(wb, "bank")  # Cowork 三种复核表统一外观（用户 2026-09-26）
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

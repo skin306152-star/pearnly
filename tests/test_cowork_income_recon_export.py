@@ -40,12 +40,18 @@ def sheets(content):
 	return openpyxl.load_workbook(BytesIO(content), data_only=False)
 
 
+MONEY = "#,##0.00;[Red]-#,##0.00"
+OK, WARN, MISS, HEADER, EMPHASIS = "00DCFCE7", "00FEF3C7", "00FEE2E2", "001F2937", "00F3F4F6"
+
+
 class SheetLayout(unittest.TestCase):
-	def test_the_three_sheets_are_named_in_the_requested_language(self):
-		for lang, names in [("th", ("รายละเอียดผลต่าง", "กระทบยอด", "วิธีใช้งาน")),
-				("zh", ("差异明细", "对账汇总", "使用说明")),
-				("en", ("Detail", "Reconciliation", "Instructions")),
-				("ja", ("差異明細", "照合まとめ", "使い方"))]:
+	"""Cowork 统一复核表（用户 2026-09-26）：没有 KPI 与使用说明，外观走 export/theme.py。"""
+
+	def test_the_two_sheets_are_named_in_the_requested_language(self):
+		for lang, names in [("th", ("รายละเอียดผลต่าง", "กระทบยอด")),
+				("zh", ("差异明细", "对账汇总")),
+				("en", ("Detail", "Reconciliation")),
+				("ja", ("差異明細", "照合まとめ"))]:
 			with self.subTest(lang=lang):
 				book = sheets(income_workbook.export_gl_vat_excel([detail_row()], summary(),
 					lang=lang))
@@ -53,58 +59,36 @@ class SheetLayout(unittest.TestCase):
 
 	def test_an_unknown_language_falls_back_to_thai(self):
 		book = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="bogus"))
-		self.assertEqual(book.sheetnames[0], "รายละเอียดผลต่าง")
-		self.assertEqual(book.sheetnames[2], "วิธีใช้งาน")
+		self.assertEqual(book.sheetnames, ["รายละเอียดผลต่าง", "กระทบยอด"])
 
-	def test_the_detail_sheet_keeps_the_deployed_geometry(self):
+	def test_the_detail_sheet_starts_with_its_header(self):
 		content = income_workbook.export_gl_vat_excel([detail_row(), detail_row("GL-2")],
 			summary(), lang="en")
 		ws = sheets(content)["Detail"]
-		self.assertEqual((ws.max_row, ws.max_column), (6, 8))
-		self.assertEqual(ws.freeze_panes, "A5")
-		self.assertEqual(ws.row_dimensions[2].height, 28)
-		self.assertEqual(ws.row_dimensions[4].height, 22)
+		self.assertEqual((ws.max_row, ws.max_column), (3, 8))
+		self.assertEqual(ws.freeze_panes, "A2")
+		self.assertEqual((ws.row_dimensions[1].height, ws.row_dimensions[2].height), (22, 18))
 		self.assertEqual([ws.column_dimensions[letter].width for letter in "ABCDEFGH"],
 			[14, 20, 14, 32, 18, 18, 14, 22])
-		self.assertEqual([ws.cell(4, index).value for index in range(1, 9)],
+		self.assertEqual([ws.cell(1, index).value for index in range(1, 9)],
 			["Status", "Document No.", "Date", "Customer", "VAT Report Amount", "GL Amount",
 				"Difference", "Revenue Account"])
-		self.assertIsNone(ws.cell(3, 1).value)
-
-	def test_the_kpi_band_reports_the_deployed_counters(self):
-		rows = [detail_row("GL-1"), detail_row("GL-2", gl_amount=1100.0, diff=30.0),
-			detail_row("INV-9", gl_amount=None, diff=None, account_codes="")]
-		ws = sheets(income_workbook.export_gl_vat_excel(rows, summary(), lang="en"))["Detail"]
-		self.assertEqual([ws.cell(1, index).value for index in range(1, 6)],
-			["Total", "Matched", "Diff", "GL Missing", "Total Diff Amount"])
-		self.assertEqual([ws.cell(2, index).value for index in range(1, 6)],
-			[3, 1, 1, 1, 30.0])
-		self.assertEqual(ws.cell(2, 5).number_format, "#,##0.00;[Red](#,##0.00);0.00")
-		self.assertEqual(ws.cell(1, 1).font.color.rgb, "001D4ED8")
-		self.assertEqual(ws.cell(1, 1).fill.fgColor.rgb, "00EFF6FF")
-		self.assertEqual(ws.cell(2, 2).font.color.rgb, "0016A34A")
-		self.assertEqual(ws.cell(2, 2).fill.fgColor.rgb, "00DCFCE7")
-		self.assertEqual(ws.cell(2, 4).font.color.rgb, "00D97706")
-		self.assertEqual(ws.cell(2, 4).fill.fgColor.rgb, "00FFEDD5")
+		self.assertEqual((ws.cell(1, 1).fill.fgColor.rgb, ws.cell(1, 1).font.color.rgb), (HEADER, "00FFFFFF"))
 
 	def test_a_row_carries_its_status_text_and_colour(self):
 		rows = [detail_row("GL-1"), detail_row("GL-2", gl_amount=1100.0, diff=30.0),
 			detail_row("INV-9", gl_amount=None, diff=None, account_codes="")]
 		ws = sheets(income_workbook.export_gl_vat_excel(rows, summary(), lang="en"))["Detail"]
-		self.assertEqual([ws.cell(row, 1).value for row in (5, 6, 7)],
+		self.assertEqual([ws.cell(row, 1).value for row in (2, 3, 4)],
 			["✓ Matched", "⚠ Diff", "❗ GL Missing"])
-		self.assertEqual(ws.cell(5, 1).fill.fgColor.rgb, "00D6F5E3")
-		self.assertEqual(ws.cell(6, 1).fill.fgColor.rgb, "00FDE8E8")
-		self.assertEqual(ws.cell(7, 1).fill.fgColor.rgb, "00FFF3CD")
-		self.assertEqual(ws.cell(5, 7).fill.fgColor.rgb, "00D6F5E3")
-		self.assertEqual(ws.cell(6, 7).fill.fgColor.rgb, "00FDE8E8")
-		self.assertEqual(ws.cell(7, 6).fill.fgColor.rgb, "00FFF3CD")
-		self.assertEqual(ws.cell(7, 7).fill.fgColor.rgb, "00FFF3CD")
-		self.assertEqual(ws.cell(5, 1).alignment.horizontal, "left")
+		# 三张表同一口径：绿 = 一致，黄 = 有差异，红 = 缺一边。
+		self.assertEqual([ws.cell(row, 1).fill.fgColor.rgb for row in (2, 3, 4)], [OK, WARN, MISS])
+		self.assertEqual([ws.cell(2, 7).fill.fgColor.rgb, ws.cell(3, 7).fill.fgColor.rgb,
+			ws.cell(4, 6).fill.fgColor.rgb, ws.cell(4, 7).fill.fgColor.rgb], [OK, WARN, MISS, MISS])
+		self.assertEqual(ws.cell(2, 1).alignment.horizontal, "left")
 		for column in (5, 6, 7):
-			self.assertEqual(ws.cell(5, column).alignment.horizontal, "right")
-			self.assertEqual(ws.cell(5, column).number_format,
-				"#,##0.00;[Red](#,##0.00);0.00")
+			self.assertEqual(ws.cell(2, column).alignment.horizontal, "right")
+			self.assertEqual(ws.cell(2, column).number_format, MONEY)
 
 	def test_an_absent_ledger_side_reads_as_the_not_found_label(self):
 		rows = [detail_row("INV-9", gl_amount=None, diff=None, account_codes="")]
@@ -113,13 +97,12 @@ class SheetLayout(unittest.TestCase):
 			with self.subTest(lang=lang):
 				ws = sheets(income_workbook.export_gl_vat_excel(rows, summary(), lang=lang))[
 					income_workbook._t(lang, "sheet1")]
-				self.assertEqual((ws.cell(5, 6).value, ws.cell(5, 7).value), (label, label))
+				self.assertEqual((ws.cell(2, 6).value, ws.cell(2, 7).value), (label, label))
 
-	def test_an_empty_task_still_renders_the_band_and_the_header(self):
+	def test_an_empty_task_still_renders_the_header(self):
 		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))["Detail"]
-		self.assertEqual([ws.cell(2, index).value for index in range(1, 6)], [0, 0, 0, 0, 0])
-		self.assertEqual(ws.cell(4, 1).value, "Status")
-		self.assertEqual(ws.max_row, 4)
+		self.assertEqual(ws.cell(1, 1).value, "Status")
+		self.assertEqual(ws.max_row, 1)
 
 
 class SummarySheet(unittest.TestCase):
@@ -144,20 +127,21 @@ class SummarySheet(unittest.TestCase):
 				("    · GL-3  ·  03/06/2569  ·  no vat row", -500.0),
 				("    · INV-9  ·  05/06/2569  ·  BETA", 250.0)])
 
-	def test_the_emphasized_rows_and_the_item_rows_keep_their_formatting(self):
+	def test_the_emphasized_rows_and_the_item_rows_share_the_common_look(self):
 		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))[
 			"Reconciliation"]
-		self.assertEqual(ws.cell(2, 2).fill.fgColor.rgb, "001A3C5E")
-		self.assertEqual(ws.cell(2, 2).number_format, "#,##0.00;[Red](#,##0.00);0.00")
-		self.assertEqual(ws.cell(3, 1).fill.fgColor.rgb, "00EFF6FF")
-		self.assertEqual(ws.cell(3, 1).border.top.style, "thin")
+		self.assertEqual(ws.cell(1, 1).fill.fgColor.rgb, HEADER)
+		self.assertEqual((ws.cell(2, 2).fill.fgColor.rgb, ws.cell(2, 2).font.b), (EMPHASIS, True))
+		self.assertEqual(ws.cell(2, 2).number_format, MONEY)
+		self.assertEqual(ws.cell(3, 1).fill.fgColor.rgb, EMPHASIS)
 		self.assertEqual(ws.cell(4, 1).value, "    · GL-3  ·  03/06/2569  ·  no vat row")
 		# A credit row is shown negated.
 		self.assertEqual(ws.cell(4, 2).value, -500.0)
-		self.assertEqual(ws.cell(4, 1).fill.fgColor.rgb, "00FFFFFF")
-		self.assertEqual(ws.cell(4, 1).font.size, 9)
-		self.assertEqual(ws.cell(4, 2).number_format, "#,##0.00;[Red](#,##0.00);0.00")
-		self.assertEqual(ws.column_dimensions["A"].width, 90)
+		self.assertIsNone(ws.cell(4, 1).fill.fill_type)
+		self.assertEqual((ws.cell(4, 1).font.size, ws.cell(4, 1).font.name), (10, "Arial"))
+		self.assertEqual(ws.cell(4, 2).number_format, MONEY)
+		# 列宽统一不超过 48 个字符（原来 90，金额列会被挤出屏幕）。
+		self.assertEqual(ws.column_dimensions["A"].width, 48)
 		self.assertEqual(ws.column_dimensions["B"].width, 22)
 
 	def test_a_long_item_name_is_cut_with_an_ellipsis(self):
@@ -172,30 +156,12 @@ class SummarySheet(unittest.TestCase):
 		rows = {ws.cell(row, 1).value: ws.cell(row, 2).value for row in range(2, ws.max_row + 1)}
 		self.assertEqual(rows["    · INV-9  ·  05/06/2569  ·  BETA"], 250.0)
 
-	def test_the_group_separator_appears_from_the_second_section_on(self):
+	def test_every_row_of_the_ladder_is_ruled_alike(self):
 		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))[
 			"Reconciliation"]
-		headings = [row for row in range(3, ws.max_row)
-			if ws.cell(row, 2).value is None]
-		self.assertEqual(headings, [3, 5, 6, 8])
-		for row in headings:
+		for row in range(1, ws.max_row + 1):
 			self.assertEqual(ws.cell(row, 1).border.top.style, "thin")
-		# The totals and the item rows stay unruled.
-		for row in (2, 4, 7, 9):
-			self.assertIsNone(ws.cell(row, 1).border.top.style)
-
-
-class InstructionsSheet(unittest.TestCase):
-	def test_the_reference_card_lists_all_four_languages_whatever_the_language(self):
-		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))["Instructions"]
-		values = [ws.cell(row, 1).value for row in range(1, ws.max_row + 1)]
-		self.assertEqual(values[0], "GL vs VAT Reconciliation · Reference Card")
-		for title in ("中文 · 使用说明", "ภาษาไทย · วิธีใช้งาน", "English · Instructions",
-				"日本語 · 使い方"):
-			self.assertIn(title, values)
-		self.assertEqual(ws.column_dimensions["A"].width, 100)
-		body = [value for value in values if value and value.startswith("1. ")]
-		self.assertEqual(len(body), 4)
+			self.assertEqual(ws.cell(row, 2).border.bottom.style, "thin")
 
 
 class LabelTable(unittest.TestCase):

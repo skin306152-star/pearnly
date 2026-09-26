@@ -202,28 +202,6 @@ def _build_sheet2(wb, report_rows, period_year, period_month, L):
     ws2.freeze_panes = "A2"
 
 
-def _build_sheet4(wb, lang, L):
-    # ════════════ Sheet 4 · 使用说明 ════════════
-    ws4 = wb.create_sheet(L["sh4"])
-    ws4.sheet_properties.tabColor = "6B7280"  # Tab 灰
-    ws4.column_dimensions["A"].width = 100
-    ws4.cell(row=1, column=1, value=L["title"]).font = F_TITLE
-    ws4.row_dimensions[1].height = 28
-    for i, line in enumerate(L["help_lines"], start=3):
-        ws4.cell(row=i, column=1, value=line).font = F_NORM
-        ws4.cell(row=i, column=1).alignment = AL_L
-        ws4.row_dimensions[i].height = 22
-    other_langs = [k for k in _I18N.keys() if k != lang]
-    base_row = 3 + len(L["help_lines"]) + 2
-    for lk in other_langs:
-        for line in _I18N[lk]["help_lines"]:
-            c = ws4.cell(row=base_row, column=1, value=line)
-            c.font = Font(name=FONT_NAME, size=9, color="6B7280")
-            c.alignment = AL_L
-            base_row += 1
-        base_row += 1
-
-
 def build_excel(
     invoices: List[Dict[str, Any]],
     report_rows: List[Dict[str, Any]],
@@ -243,7 +221,9 @@ def build_excel(
     n_total, n_ok, n_diff, diff_amount_total, task_rows = _build_sheet3(
         wb, invoices, report_rows, client_name, period_year, period_month, L, lang
     )
-    _build_sheet4(wb, lang, L)
+    from pearnly_cowork.reconciliation.export import theme
+
+    theme.apply(wb, "vat")  # Cowork 三种复核表统一外观（用户 2026-09-26）
     bio = io.BytesIO()
     wb.save(bio)
     task_summary = {

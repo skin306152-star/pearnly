@@ -99,11 +99,24 @@ class MatchResultsSheet(unittest.TestCase):
         self.assertEqual((row[8], row[9]), ("GL-1", "1000"))
         self.assertEqual((row[14], row[15]), ("STM KBANK.pdf", "GL.xlsx"))
 
-    def test_amounts_use_the_deployed_number_format(self):
+    def test_amounts_use_the_shared_number_format(self):
         _, loaded = book()
         sheet = loaded[labels.t("sh_match_results", "th")]
-        self.assertEqual(sheet.cell(2, 5).number_format, "#,##0.00")
+        self.assertEqual(sheet.cell(2, 5).number_format, "#,##0.00;[Red]-#,##0.00")
         self.assertEqual(sheet.cell(2, 5).alignment.horizontal, "right")
+
+    def test_status_colour_sits_on_the_status_column_only(self):
+        # 统一外观（export/theme.py）：绿 = 一致、红 = 缺一边，只染状态列；其余格白底、同一字体。
+        rows = [result_row("matched", 1), result_row("gl_debit_only", None, withdrawal=0.0, credit=0.0,
+                                                     debit=75.0, gl_doc_no="GL-2")]
+        _, loaded = book(rows)
+        sheet = loaded[labels.t("sh_match_results", "th")]
+        self.assertEqual([sheet.cell(row, 1).fill.fgColor.rgb for row in (2, 3)], ["00DCFCE7", "00FEE2E2"])
+        self.assertTrue(all(sheet.cell(row, column).fill.fill_type is None
+                            for row in (2, 3) for column in range(2, sheet.max_column + 1)))
+        self.assertEqual({sheet.cell(row, column).font.name for row in (1, 2, 3)
+                          for column in range(1, sheet.max_column + 1)}, {"Arial"})
+        self.assertEqual(sheet.cell(1, 1).fill.fgColor.rgb, "001F2937")
 
     def test_one_sided_rows_take_their_layer_dash_and_status(self):
         rows = [result_row("matched", 2), result_row("gl_debit_only", None, withdrawal=0.0, credit=0.0,
@@ -152,10 +165,13 @@ class SummarySheet(unittest.TestCase):
         sheet = loaded[labels.t("sh_summary", "th")]
         self.assertEqual(sheet["B3"].value, "—")
 
-    def test_a_task_without_a_single_match_shows_the_banner(self):
+    def test_the_summary_carries_no_banner_or_usage_text(self):
+        # Cowork 统一复核表（用户 2026-09-26）：不写横幅与使用说明，匹配率在“匹配率”一行。
         _, loaded = book([result_row("gl_debit_only", None)])
         values = column(loaded[labels.t("sh_summary", "th")])
-        self.assertIn(labels.t("banner_no_match", "th"), values)
+        self.assertNotIn(labels.t("banner_no_match", "th"), values)
+        self.assertNotIn(labels.t("sh_usage", "th"), values)
+        self.assertIn(labels.t("lbl_match_rate", "th"), values)
 
     def test_the_match_banner_stays_away_when_something_matched(self):
         _, loaded = book()

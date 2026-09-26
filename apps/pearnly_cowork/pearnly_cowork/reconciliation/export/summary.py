@@ -13,7 +13,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from pearnly_cowork.reconciliation.bank_matching import BankReconRow, BankReconSummary
 from pearnly_cowork.reconciliation.export.labels import t
 from pearnly_cowork.reconciliation.export.styles import border_range
-from pearnly_cowork.reconciliation.export.usage import USAGE_BLOCKS
 
 
 def build_summary_sheet(
@@ -151,46 +150,12 @@ def build_summary_sheet(
     _match_rate = _matched_n / _total_items
     _low_match = (_matched_n == 0) or (_match_rate < 0.10 and _total_items >= 10)
 
-    def _banner(row, text, *, bg="FEE2E2", fg="991B1B"):
-        ws1.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
-        c = ws1.cell(row=row, column=1, value=text)
-        c.font = Font(bold=True, size=10, color=fg)
-        c.fill = PatternFill("solid", fgColor=bg)
-        c.alignment = Alignment(horizontal="left", vertical="center", indent=1, wrap_text=True)
-        ws1.row_dimensions[row].height = 46
-
-    _banner_msgs = []
-    if _matched_n == 0:
-        _banner_msgs.append(t("banner_no_match", lang))
-    elif _low_match:
-        _banner_msgs.append(
-            t("banner_low_match", lang).format(n=_matched_n, r=round(_match_rate * 100, 1))
-        )
-    # 调用方传入的输入不匹配警告(期间/科目/规模)· 与前端提示条同源
-    for _w in warnings or []:
-        if _w:
-            _banner_msgs.append(str(_w))
-    if _banner_msgs:
-        r += 1  # spacer
-        for _bm in _banner_msgs:
-            _banner(r, _bm)
-            r += 1
-    # P0.2 BUG-B-T2 v118.35.0.38 · 有 anchor 被覆盖 → 顶部一行警示『含手动录入 · 看末尾对照』
-    if anchor_overrides:
-        r += 1  # 警示前空 1 行 · 视觉舒服
-        ws1.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
-        warn_cell = ws1.cell(row=r, column=1, value=t("lbl_manual_warn", lang))
-        warn_cell.font = Font(bold=True, size=10, color="92400E")
-        warn_cell.fill = PatternFill("solid", fgColor="FEF3C7")  # 浅黄底
-        warn_cell.alignment = Alignment(
-            horizontal="left", vertical="center", indent=1, wrap_text=True
-        )
-        ws1.row_dimensions[r].height = 24
-        r += 1
+    # Cowork 统一复核表（用户 2026-09-26）：不写横幅与提示文案，匹配率见下方“匹配率”一行。
     r += 1  # blank-row spacer
 
     # ── 3. Column headers: 项目说明 | 金额 ──
     _header_row(r, t("col_summary_item", lang), t("col_summary_amount", lang))
+    header_row = r
     r += 1
 
     # ── 4. Start anchor: GL 期末余额 ──
@@ -269,12 +234,6 @@ def build_summary_sheet(
         r, t("lbl_formula_diff", lang), summary.formula_diff, bg=diff_bg, fg=diff_fg, size=13
     )
     r += 1
-    if diff_zero and _low_match:
-        # diff 为 0 却几乎没匹配 → 明确告知这是恒等式 · 不代表勾稽成功
-        _detail_row(
-            r, t("diff_identity_note", lang).format(n=_matched_n), "", italic=True, color="991B1B"
-        )
-        r += 1
 
     # ── 10. OCR accuracy check (only if any warnings) ──
     warn_balance = sum(1 for rr in recon_rows if rr.stmt_balance_ok is False)
@@ -444,23 +403,7 @@ def build_summary_sheet(
         ws1.row_dimensions[r].height = 18
         r += 1
 
-    # ── 12. How to Use sub-section ──
-    r += 2  # spacer
-    _section_row(r, t("sh_usage", lang))
-    r += 1
-
-    usage_block = USAGE_BLOCKS.get(lang, USAGE_BLOCKS["en"])
-    for text, bold in usage_block:
-        ws1.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
-        cell = ws1.cell(row=r, column=1, value=text)
-        cell.font = Font(bold=bold, size=10)
-        cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
-        if bold and text:
-            cell.fill = PatternFill("solid", fgColor="E5E7EB")
-        ws1.row_dimensions[r].height = 22 if bold else 18
-        r += 1
-
     # ── 13. Final border around the whole Summary sheet ──
     border_range(ws1, 1, r - 1, 1, 2)
     # Freeze header so it stays visible while scrolling
-    ws1.freeze_panes = "A6"
+    ws1.freeze_panes = f"A{header_row + 1}"

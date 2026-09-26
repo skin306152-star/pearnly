@@ -155,10 +155,9 @@ def export_gl_vat_excel(
 	summary: GlVatSummary,
 	lang: str = "th",
 ) -> bytes:
-	"""生成 3 Sheet Excel:
-	Sheet1 = 顶部 KPI + 状态列明细
+	"""生成 2 Sheet Excel（Cowork 统一复核表，用户 2026-09-26 去掉 KPI 与使用说明）:
+	Sheet1 = 状态列明细
 	Sheet2 = 对账汇总
-	Sheet3 = 使用说明（4 语言）
 	"""
 	try:
 		import openpyxl
@@ -178,60 +177,22 @@ def export_gl_vat_excel(
 	NORM = Font(name="Arial", size=10)
 	BOLD = Font(name="Arial", bold=True, size=11, color="FFFFFF")
 	SECT_FONT = Font(name="Arial", bold=True, size=10, color="111827")  # 分区标题
-	KPI_LABEL_FONT = Font(name="Arial", bold=True, size=11, color="1D4ED8")
-	KPI_LABEL_FILL = PatternFill("solid", fgColor="EFF6FF")
-	KPI_VAL_FONT = Font(name="Arial", bold=True, size=14, color="111827")
-	KPI_VAL_OK_FONT = Font(name="Arial", bold=True, size=14, color="16A34A")
-	KPI_VAL_MS_FONT = Font(name="Arial", bold=True, size=14, color="D97706")
 	OK_FILL = PatternFill("solid", fgColor="D6F5E3")  # 差异=0 绿
 	DIFF_FILL = PatternFill("solid", fgColor="FDE8E8")  # 差异≠0 红
 	MISS_FILL = PatternFill("solid", fgColor="FFF3CD")  # GL未找到 黄
 	WHITE_FILL = PatternFill("solid", fgColor="FFFFFF")  # 明细子行白底
-	KPI_OK_FILL = PatternFill("solid", fgColor="DCFCE7")  # KPI 匹配绿背景
-	KPI_MISS_FILL = PatternFill("solid", fgColor="FFEDD5")  # KPI 未找到橙背景
 	SECT_FILL = PatternFill("solid", fgColor="EFF6FF")  # 分区标题:淡蓝
 	GRPBORDER = Border(top=Side(style="thin", color="BFDBFE"))  # 组间蓝色细分隔线
 	CENTER = Alignment(horizontal="center", vertical="center")
 	RIGHT = Alignment(horizontal="right", vertical="center")
 	LEFT = Alignment(horizontal="left", vertical="center")
 
-	# ── 计算 KPI ──────────────────────────────────────────────────
-	total = len(detail)
-	matched = sum(1 for r in detail if r.gl_amount is not None and (r.diff or 0) == 0)
-	diff_cnt = sum(1 for r in detail if r.gl_amount is not None and (r.diff or 0) != 0)
-	missing_cnt = sum(1 for r in detail if r.gl_amount is None)
-	diff_sum = round(sum((r.diff or 0) for r in detail if r.diff is not None), 2)
-
-	# ── Sheet 1: 明细 + 顶部 KPI ─────────────────────────────────
+	# ── Sheet 1: 明细 ─────────────────────────────────────────────
 	ws1 = wb.active
 	ws1.title = _t(lang, "sheet1")
 
-	# Row 1: KPI 标签
-	kpi_labels = [
-		_t(lang, "kpi_total"),
-		_t(lang, "kpi_matched"),
-		_t(lang, "kpi_diff"),
-		_t(lang, "kpi_missing"),
-		_t(lang, "kpi_diff_sum"),
-	]
-	for i, lbl in enumerate(kpi_labels, 1):
-		c = ws1.cell(1, i, lbl)
-		c.font, c.fill, c.alignment = KPI_LABEL_FONT, KPI_LABEL_FILL, CENTER
-	# Row 2: KPI 数值（背景色 + 字体色双重着色）
-	kpi_vals = [total, matched, diff_cnt, missing_cnt, diff_sum]
-	kpi_val_fonts = [KPI_VAL_FONT, KPI_VAL_OK_FONT, KPI_VAL_FONT, KPI_VAL_MS_FONT, KPI_VAL_FONT]
-	kpi_val_fills = [WHITE_FILL, KPI_OK_FILL, WHITE_FILL, KPI_MISS_FILL, WHITE_FILL]
-	for i, (val, vfont, vfill) in enumerate(zip(kpi_vals, kpi_val_fonts, kpi_val_fills), 1):
-		c = ws1.cell(2, i, val)
-		c.font, c.fill, c.alignment = vfont, vfill, CENTER
-		if i == 5:
-			c.number_format = "#,##0.00;[Red](#,##0.00);0.00"
-	ws1.row_dimensions[2].height = 28
-
-	# Row 3: blank
-	ws1.append([])
-
-	# Row 4: 表头（含状态列）
+	# Cowork 统一复核表（用户 2026-09-26）：不写顶部 KPI，表头就在第 1 行。
+	# 表头（含状态列）
 	headers1 = [
 		_t(lang, "h_status"),
 		_t(lang, "h_doc_no"),
@@ -400,72 +361,9 @@ def export_gl_vat_excel(
 	ws2.column_dimensions["A"].width = 90
 	ws2.column_dimensions["B"].width = 22
 
-	# ── Sheet 3: 使用说明（4 语言并排展示） ─────────────────────
-	ws3 = wb.create_sheet(_t(lang, "sheet3"))
-	ws3.column_dimensions["A"].width = 100
-	TITLE_FONT = Font(name="Arial", bold=True, size=14, color="1A3C5E")
-	SECTION_FONT = Font(name="Arial", bold=True, size=11, color="1A3C5E")
-	BODY_FONT = Font(name="Arial", size=10)
+	from pearnly_cowork.reconciliation.export import theme
 
-	instructions_blocks = [
-		(
-			"中文 · 使用说明",
-			[
-				"1. 「差异明细」Sheet = VAT 报告与 GL 按单据号一一比对的结果",
-				"2. 状态列：✓ 匹配 = 差异 0 · ⚠ 有差异 = 金额不一致 · ❗ GL 未找到 = VAT 有记录但 GL 无对应凭证",
-				"3. 「对账汇总」Sheet = 总账金额 + 调整项 = 销项税报告金额（必须相等）",
-				"4. 匹配键：VAT 的「เลขที่เอกสารอ้างอิง」(参考单号) ↔ GL 的「ใบสำคัญ」(凭证号)",
-				"5. 红字发票（负数）→ 取 GL 借方并转负数；正常销售 → 取 GL 贷方",
-				"6. 收入科目筛选：默认 4xxx 开头（可在前端调整前缀）",
-			],
-		),
-		(
-			"ภาษาไทย · วิธีใช้งาน",
-			[
-				"1. ชีต «รายละเอียดผลต่าง» = ผลการกระทบ VAT vs GL ตามเลขที่เอกสาร",
-				"2. คอลัมน์สถานะ: ✓ จับคู่ · ⚠ ผลต่าง · ❗ ไม่พบใน GL",
-				"3. ชีต «กระทบยอด» = ยอด GL + รายการปรับ = ยอดรายงานภาษีขาย (ต้องเท่ากัน)",
-				"4. คีย์จับคู่: VAT «เลขที่เอกสารอ้างอิง» ↔ GL «ใบสำคัญ»",
-				"5. ใบลดหนี้ (ค่าติดลบ) → ใช้ฝั่งเดบิตของ GL และแปลงเป็นค่าลบ; ขายปกติ → ใช้ฝั่งเครดิตของ GL",
-				"6. ตัวกรองบัญชีรายได้: ค่าเริ่มต้น 4xxx (ปรับได้ที่หน้าจอ)",
-			],
-		),
-		(
-			"English · Instructions",
-			[
-				'1. "Detail" Sheet = VAT report rows reconciled with GL by document number.',
-				"2. Status column: ✓ Matched · ⚠ Diff · ❗ GL Missing",
-				'3. "Reconciliation" Sheet = GL Total + adjustments = VAT Report Total (must equal).',
-				"4. Matching key: VAT «reference doc no» ↔ GL «voucher no» (ใบสำคัญ)",
-				"5. Credit notes (negative) → use GL debit, negated. Normal sales → use GL credit.",
-				"6. Revenue account filter: defaults to codes starting with 4 (configurable in UI).",
-			],
-		),
-		(
-			"日本語 · 使い方",
-			[
-				"1. 「差異明細」シート = VAT 報告と GL を伝票番号で 1 対 1 照合した結果",
-				"2. ステータス列: ✓ 一致 · ⚠ 差異 · ❗ GL 未検出",
-				"3. 「照合まとめ」シート = GL 合計 + 調整 = VAT 報告合計 (必ず一致)",
-				"4. 照合キー: VAT「参照伝票番号」↔ GL「ใบสำคัญ (証憑番号)」",
-				"5. 赤伝 (負数) → GL 借方を負数化; 通常売上 → GL 貸方",
-				"6. 収益科目フィルター: デフォルト 4xxx (UI で変更可)",
-			],
-		),
-	]
-
-	ws3.cell(1, 1, "GL vs VAT Reconciliation · Reference Card").font = TITLE_FONT
-	cur_row = 3
-	for title, lines in instructions_blocks:
-		ws3.cell(cur_row, 1, title).font = SECTION_FONT
-		cur_row += 1
-		for line in lines:
-			cell = ws3.cell(cur_row, 1, line)
-			cell.font = BODY_FONT
-			cell.alignment = Alignment(wrap_text=True, vertical="top")
-			cur_row += 1
-		cur_row += 1  # 空行隔开
-
+	theme.apply(wb, "income")  # Cowork 三种复核表统一外观（用户 2026-09-26）
 	buf = io.BytesIO()
 	wb.save(buf)
 	return buf.getvalue()

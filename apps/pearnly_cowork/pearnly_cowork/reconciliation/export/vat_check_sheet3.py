@@ -1,6 +1,6 @@
 # 销项税报告核查（Cowork，用户 2026-09-26 定迁）：核查工作簿第 3 页：逐张对照（services/vat/vat_excel_sheet3.py）
 # 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径。
-"""Sheet 3 · 一对一对账结果(配对引擎 + KPI 卡 + 状态判定)· vat_excel_build 拆分。"""
+"""Sheet 3 · 一对一对账结果(配对引擎 + 状态判定)· vat_excel_build 拆分；Cowork 去掉了标题与 KPI 卡。"""
 
 from typing import List, Dict
 
@@ -21,7 +21,6 @@ from pearnly_cowork.reconciliation.export.vat_check_styles import (
     FONT_NAME,
     F_HEAD,
     F_NORM,
-    F_TITLE,
     F_DIFF_RED,
     FILL_HEAD,
     FILL_OK,
@@ -77,67 +76,10 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
     for ri in unmatched_rep:
         diff_amount_total += _get_rep_total(report_rows[ri])
 
-    # R1 · 标题行(Korn 样式 · 合并全行 · sz=18 · 高 36)
-    _n_cols3 = len(L["h_recon"])
-    ws3.merge_cells(f"A1:{get_column_letter(_n_cols3)}1")
-    _c_title = ws3.cell(row=1, column=1, value=L["title"])
-    _c_title.font = F_TITLE
-    _c_title.alignment = AL_C
-    ws3.row_dimensions[1].height = 36
-
-    # R2 · 客户+期间 meta
-    meta_parts = []
-    if client_name:
-        meta_parts.append(f"{L['client']}: {client_name}")
-    if period_year and period_month:
-        meta_parts.append(f"{L['period']}: {period_month:02d}/{period_year}")
-    if meta_parts:
-        ws3.cell(row=2, column=1, value=" · ".join(meta_parts)).font = F_NORM
-
-    # R3 · 空行
-
-    # R4-R5 · KPI 4 大卡(每卡 4 列宽 · 共 16 列 · 彩色底色)
-    F_KPI_LBL2 = Font(name=FONT_NAME, size=10, bold=True, color="FFFFFF")
-    F_KPI_VAL2 = Font(name=FONT_NAME, size=22, bold=True, color="FFFFFF")
-    FILL_KPI_B = PatternFill("solid", fgColor="2563EB")
-    FILL_KPI_G = PatternFill("solid", fgColor="16A34A")
-    FILL_KPI_R = PatternFill("solid", fgColor="DC2626")
-    FILL_KPI_O = PatternFill("solid", fgColor="D97706")
-    KPI_ROW_LBL = 4
-    KPI_ROW_VAL = 5
-    ws3.row_dimensions[KPI_ROW_LBL].height = 22
-    ws3.row_dimensions[KPI_ROW_VAL].height = 44
-
-    def _kpi(col_start, label, value, fill):
-        ws3.merge_cells(
-            start_row=KPI_ROW_LBL,
-            start_column=col_start,
-            end_row=KPI_ROW_LBL,
-            end_column=col_start + 3,
-        )
-        c1 = ws3.cell(row=KPI_ROW_LBL, column=col_start, value=label)
-        c1.font = F_KPI_LBL2
-        c1.fill = fill
-        c1.alignment = AL_C
-        ws3.merge_cells(
-            start_row=KPI_ROW_VAL,
-            start_column=col_start,
-            end_row=KPI_ROW_VAL,
-            end_column=col_start + 3,
-        )
-        c2 = ws3.cell(row=KPI_ROW_VAL, column=col_start, value=value)
-        c2.font = F_KPI_VAL2
-        c2.fill = fill
-        c2.alignment = AL_C
-
-    _kpi(1, L["kpi_total"], n_total, FILL_KPI_B)
-    _kpi(5, L["kpi_ok"], n_ok, FILL_KPI_G)
-    _kpi(9, L["kpi_diff"], n_diff, FILL_KPI_R)
-    _kpi(13, L["kpi_amt"], f"฿ {diff_amount_total:,.2f}", FILL_KPI_O)
-
-    # R6 · 表头(15 列)
-    HEADER_ROW = 6
-    DATA_START = 7
+    # Cowork 统一复核表（用户 2026-09-26）：不写标题、期间说明与 KPI 卡，表头就在第 1 行（期间见各行“期间”列）。
+    # 表头(15 列)
+    HEADER_ROW = 1
+    DATA_START = 2
     headers3 = L["h_recon"]
     for c, h in enumerate(headers3, 1):
         cell = ws3.cell(row=HEADER_ROW, column=c, value=h)
