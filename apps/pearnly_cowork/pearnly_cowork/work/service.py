@@ -1,8 +1,11 @@
-"""工作协调看板的服务端实现：读板、卡片增改移、完成、复制、归档、评论（@）、附件、封面、关注、标签。
+"""工作协调看板的服务端实现（照 Trello）。
 
-一个团队（站点）一块板，挂在站点内部那一份归属（`scope.default_workspace`）上；三列固定。
-每个写入口先 `access.require()`，再核对卡片属于本站归属；写入走 `documents.persist`，
-原生接口写不进来。改完用原生 `publish_realtime` 通知正在看板上的人刷新（只带卡片号）。
+一个团队（站点）一块板，挂在站点内部那一份归属（`scope.default_workspace`）上。
+- 列表：增删（归档 / 管理员彻底删除）、改名、排序、复制、颜色、「完成列表」（拖进去就算完成）。
+- 卡片：增改移、完成（重复到期的卡完成后滚到下一次到期）、复制、模板、镜像、归档；开始日、到期日与时间、
+  提醒时间；负责人、标签、多个清单、自定义字段、封面；附件（文件与链接）、评论（@）、关注。
+每个写入口先 `access.require()`，再核对对象属于本站归属；写入走 `documents.persist`，原生接口写不进来。
+改完用原生 `publish_realtime` 通知正在看板上的人刷新（只带卡片号）。
 """
 import json
 from datetime import datetime, timezone
@@ -17,8 +20,10 @@ from pearnly_cowork.work.contracts import Invalid
 from pearnly_cowork.work.documents import persist, remove
 
 CARD, LABEL, ACTIVITY = access.CARD, access.LABEL, access.ACTIVITY
+COLUMN, FIELD, MIRROR = access.COLUMN, access.FIELD, access.MIRROR
 REALTIME_EVENT = "cowork_work_changed"
-SUMMARY_FIELDS = ["name", "title", "status", "position", "due_date", "description", "cover_color", "cover_file",
+SUMMARY_FIELDS = ["name", "title", "board_list", "completed", "position", "start_date", "due_date", "due_time",
+                  "reminder", "recurrence", "is_template", "description", "cover_color", "cover_file",
                   "modified", "creation"]
 IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 
@@ -29,15 +34,9 @@ def _now():
 
 def _workspace():
     access.require()
-    return scope.default_workspace()
-
-
-def _card(name, workspace, *, lock=False, archived=False):
-    row = frappe.db.get_value(CARD, {"name": name or "", "workspace": workspace},
-                              ["name", "archived"], as_dict=True, for_update=lock)
-    if not row or (archived is not None and bool(row.archived) != archived):
-        raise Invalid("cowork.work.error.not_found")
-    return frappe.get_doc(CARD, row.name)
+    workspace = scope.default_workspace()
+    _ensure_lists(workspace)
+    return workspace
 
 
 def _changed(card, action=None):
@@ -52,18 +51,230 @@ def _log(card, workspace, action, detail=None, content=None):
     }))
 
 
+def _lock(doctype):
+    # 同类对象的并发新建 / 重排在 DocType 元数据行上排队（同 `scope.ensure_site_workspace`）。
+    frappe.db.get_value("DocType", doctype, "name", for_update=True)
+
+
+# ── 列表 ──────────────────────────────────────────────────────────────────────
+
+
+def _ensure_lists(workspace):
+    """新站点第一次打开看板：建默认三列（待办 / 进行中 / 已完成，最后一列是完成列表）。"""
+    if frappe.db.exists(COLUMN, {"workspace": workspace}):
+        return
+    _lock(COLUMN)
+    if frappe.db.exists(COLUMN, {"workspace": workspace}):
+        return
+    for index, (key, done) in enumerate(contracts.DEFAULT_LISTS):
+        persist(frappe.get_doc({"doctype": COLUMN, "workspace": workspace, "title": _(f"cowork.work.status.{key}"),
+                                "position": contracts.STEP * (index + 1), "is_done_list": 1 if done else 0}))
+
+
+def lists(workspace, archived=False):
+    return frappe.get_all(COLUMN, filters={"workspace": workspace, "archived": 1 if archived else 0},
+                          fields=["name", "title", "color", "is_done_list", "position", "archived_at"],
+                          order_by="position asc, creation asc", limit_page_length=0)
+
+
+def _list(name, workspace, *, archived=False, lock=False):
+    row = frappe.db.get_value(COLUMN, {"name": name or "", "workspace": workspace},
+                              ["name", "title", "archived", "is_done_list", "position"], as_dict=True,
+                              for_update=lock)
+    if not row or (archived is not None and bool(row.archived) != archived):
+        raise Invalid("cowork.work.error.list")
+    return row
+
+
+def _list_tail(workspace):
+    rows = frappe.get_all(COLUMN, filters={"workspace": workspace, "archived": 0}, fields=["position"],
+                          order_by="position desc", limit_page_length=1)
+    return rows[0].position if rows else None
+
+
+def create_list(title):
+    workspace = _workspace()
+    _lock(COLUMN)
+    if frappe.db.count(COLUMN, {"workspace": workspace, "archived": 0}) >= contracts.LISTS_MAX:
+        raise Invalid("cowork.work.error.too_many")
+    doc = persist(frappe.get_doc({"doctype": COLUMN, "workspace": workspace,
+                                  "title": contracts.text(title, contracts.LIST_TITLE_MAX, required=True),
+                                  "position": contracts.position_between(_list_tail(workspace), None)}))
+    _changed(None, "list")
+    return {"name": doc.name}
+
+
+def update_list(name, values):
+    """改名、颜色、是否完成列表。"""
+    workspace = _workspace()
+    if not isinstance(values, dict):
+        raise Invalid("cowork.work.error.request")
+    _list(name, workspace, lock=True)
+    doc = frappe.get_doc(COLUMN, name)
+    if "title" in values:
+        doc.title = contracts.text(values["title"], contracts.LIST_TITLE_MAX, required=True)
+    if "color" in values:
+        doc.color = contracts.color(values["color"]) if values["color"] else ""
+    if "is_done_list" in values:
+        doc.is_done_list = 1 if values["is_done_list"] in (1, True, "1") else 0
+    persist(doc)
+    _changed(None, "list")
+    return {"name": doc.name, "title": doc.title, "color": doc.color or "", "is_done_list": doc.is_done_list}
+
+
+def move_list(name, before=None, after=None):
+    """拖列表 / 列表菜单「移动列表」：落在 `before` 与 `after` 两个列表之间。"""
+    workspace = _workspace()
+    _lock(COLUMN)
+    _list(name, workspace)
+
+    def neighbour(other):
+        if not other or other == name:
+            return None
+        return frappe.db.get_value(COLUMN, {"name": other, "workspace": workspace, "archived": 0}, "position")
+
+    position = contracts.position_between(neighbour(before), neighbour(after))
+    if position is None:
+        rows = frappe.get_all(COLUMN, filters={"workspace": workspace, "archived": 0, "name": ["!=", name]},
+                              pluck="name", order_by="position asc, creation asc", limit_page_length=0)
+        for row, value in zip(rows, contracts.renumber(len(rows))):
+            frappe.db.set_value(COLUMN, row, "position", value, update_modified=False)
+        position = (contracts.position_between(neighbour(before), neighbour(after))
+                    or contracts.position_between(_list_tail(workspace), None))
+    frappe.db.set_value(COLUMN, name, "position", position, update_modified=False)
+    _changed(None, "list")
+    return {"name": name, "position": position}
+
+
+def copy_list(name, title):
+    """复制列表：新列表放在原列表后面，带上里面所有未归档的卡（清单、标签、成员、字段、描述、日期）。"""
+    workspace = _workspace()
+    _lock(COLUMN)
+    source = _list(name, workspace)
+    following = frappe.get_all(COLUMN, filters={"workspace": workspace, "archived": 0,
+                                                "position": [">", source.position]},
+                               fields=["position"], order_by="position asc", limit_page_length=1)
+    position = (contracts.position_between(source.position, following[0].position if following else None)
+                or contracts.position_between(_list_tail(workspace), None))
+    target = persist(frappe.get_doc({"doctype": COLUMN, "workspace": workspace,
+                                     "title": contracts.text(title, contracts.LIST_TITLE_MAX, required=True),
+                                     "color": frappe.db.get_value(COLUMN, name, "color"), "position": position}))
+    for card_name in frappe.get_all(CARD, filters={"workspace": workspace, "board_list": source.name, "archived": 0},
+                                    pluck="name", order_by="position asc, creation asc", limit_page_length=0):
+        _clone(frappe.get_doc(CARD, card_name), workspace, target.name, None,
+               {"checklist", "labels", "members", "fields"})
+    _changed(None, "list")
+    return {"name": target.name}
+
+
+def archive_list(name):
+    workspace = _workspace()
+    _list(name, workspace, lock=True)
+    if frappe.db.count(COLUMN, {"workspace": workspace, "archived": 0}) <= 1:
+        raise Invalid("cowork.work.error.last_list")
+    doc = frappe.get_doc(COLUMN, name)
+    doc.archived, doc.archived_at = 1, _now()
+    persist(doc)
+    _changed(None, "list")
+    return {"name": name}
+
+
+def restore_list(name):
+    workspace = _workspace()
+    _list(name, workspace, archived=True, lock=True)
+    doc = frappe.get_doc(COLUMN, name)
+    doc.archived, doc.archived_at = 0, None
+    doc.position = contracts.position_between(_list_tail(workspace), None)
+    persist(doc)
+    _changed(None, "list")
+    return {"name": name}
+
+
+def delete_list(name):
+    """彻底删除列表和里面的卡：只给管理员，且只删已归档的列表。"""
+    workspace = _workspace()
+    if not access.administrator():
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    _list(name, workspace, archived=True, lock=True)
+    for card_name in frappe.get_all(CARD, filters={"workspace": workspace, "board_list": name}, pluck="name",
+                                    limit_page_length=0):
+        _purge(frappe.get_doc(CARD, card_name))
+    for mirror_name in frappe.get_all(MIRROR, filters={"board_list": name}, pluck="name", limit_page_length=0):
+        remove(frappe.get_doc(MIRROR, mirror_name))
+    remove(frappe.get_doc(COLUMN, name))
+    _changed(None, "list")
+    return {"name": name}
+
+
+SORTS = {"created_desc": ("creation", True), "created_asc": ("creation", False),
+         "due": ("due_date", False), "title": ("title", False)}
+
+
+def sort_list(name, key):
+    """列表菜单「排序依据」：按选的规则把这一列重新排好（写回位置，所有人看到的一样）。"""
+    workspace = _workspace()
+    _list(name, workspace)
+    if key not in SORTS:
+        raise Invalid("cowork.work.error.request")
+    field, reverse = SORTS[key]
+    _lock(CARD)
+    rows = frappe.get_all(CARD, filters={"workspace": workspace, "board_list": name, "archived": 0},
+                          fields=["name", "title", "due_date", "creation"], limit_page_length=0)
+    if field == "due_date":
+        rows.sort(key=lambda row: (row.due_date is None, row.due_date or getdate("1900-01-01")))
+    elif field == "title":
+        rows.sort(key=lambda row: (row.title or "").casefold())
+    else:
+        rows.sort(key=lambda row: row.creation, reverse=reverse)
+    for row, value in zip(rows, contracts.renumber(len(rows))):
+        frappe.db.set_value(CARD, row.name, "position", value, update_modified=False)
+    _changed(None, "sort")
+    return {"count": len(rows)}
+
+
+def move_all(name, target):
+    """列表菜单「移动此列表中的所有卡片」：按原顺序接到目标列表列尾。"""
+    workspace = _workspace()
+    if name == target:
+        raise Invalid("cowork.work.error.request")
+    _list(name, workspace)
+    target_row = _list(target, workspace)
+    _lock(CARD)
+    names = frappe.get_all(CARD, filters={"workspace": workspace, "board_list": name, "archived": 0},
+                           pluck="name", order_by="position asc, creation asc", limit_page_length=0)
+    for card_name in names:
+        doc = frappe.get_doc(CARD, card_name)
+        _place(doc, workspace, target_row)
+        persist(doc)
+    _changed(None, "move")
+    return {"moved": len(names)}
+
+
+def archive_all(name):
+    """列表菜单「将此列表中的所有卡片归档」。"""
+    workspace = _workspace()
+    _list(name, workspace)
+    names = frappe.get_all(CARD, filters={"workspace": workspace, "board_list": name, "archived": 0},
+                           pluck="name", limit_page_length=0)
+    for card_name in names:
+        doc = _card(card_name, workspace, lock=True, archived=False)
+        doc.archived, doc.archived_at = 1, _now()
+        persist(doc)
+        _log(doc.name, workspace, "archive")
+    _changed(None, "archive")
+    return {"archived": len(names)}
+
+
 # ── 读 ────────────────────────────────────────────────────────────────────────
 
 
 def members():
-    """能被分派的人：启用的、勾了「工作协调」或是产品管理员的账号。"""
-    users = frappe.get_all("Has Role", filters={"parenttype": "User", "role": ["in", [access.ROLE, access.ADMIN_ROLE]]},
-                           pluck="parent", distinct=True)
-    users = [user for user in users if user not in ("Administrator", "Guest")]
+    """能被分派的人 = Cowork 团队管理里勾了「工作协调」的人和产品管理员（启用的账号）。"""
+    users = sorted(notify.members())
     if not users:
         return []
-    rows = frappe.get_all("User", filters={"name": ["in", users], "enabled": 1},
-                          fields=["name", "full_name", "user_image"], order_by="full_name asc")
+    rows = frappe.get_all("User", filters={"name": ["in", users]}, fields=["name", "full_name", "user_image"],
+                          order_by="full_name asc")
     return [{"user": row.name, "name": row.full_name or row.name, "image": row.user_image} for row in rows]
 
 
@@ -73,12 +284,22 @@ def labels(workspace=None):
                           order_by="creation asc")
 
 
-def _children(doctype, parents, fields):
+def fields(workspace=None):
+    workspace = workspace or _workspace()
+    rows = frappe.get_all(FIELD, filters={"workspace": workspace},
+                          fields=["name", "title", "fieldtype", "options", "show_on_card"],
+                          order_by="position asc, creation asc", limit_page_length=0)
+    for row in rows:
+        row.options = json.loads(row.options) if row.options else []
+    return rows
+
+
+def _children(doctype, parents, columns):
     if not parents:
         return {}
     grouped = {}
     for row in frappe.get_all(doctype, filters={"parenttype": CARD, "parent": ["in", parents]},
-                              fields=["parent", *fields], order_by="idx asc"):
+                              fields=["parent", *columns], order_by="idx asc", limit_page_length=0):
         grouped.setdefault(row.parent, []).append(row)
     return grouped
 
@@ -95,22 +316,26 @@ def _summaries(rows):
     names = [row.name for row in rows]
     assignees = _children("Cowork Work Card Assignee", names, ["user"])
     tags = _children("Cowork Work Card Label", names, ["label"])
+    checklist = _children("Cowork Work Checklist Item", names, ["title", "done"])
     watchers = _children("Cowork Work Card Watcher", names, ["user"])
+    values = _children("Cowork Work Card Value", names, ["field", "value"])
     covers = dict(frappe.get_all("File", filters={"name": ["in", [row.cover_file for row in rows if row.cover_file] or [""]]},
                                  fields=["name", "file_url"], as_list=True))
-    checklist = _children("Cowork Work Checklist Item", names, ["done"])
     comments = _counts(ACTIVITY, "card", names, {"action": "comment"})
     files = _counts("File", "attached_to_name", names, {"attached_to_doctype": CARD})
     result = []
     for row in rows:
-        items = checklist.get(row.name, [])
+        items = [item for item in checklist.get(row.name, []) if item.title]
         result.append({
-            "name": row.name, "title": row.title, "status": row.status, "position": row.position,
-            "due_date": row.due_date, "modified": str(row.modified),
+            "name": row.name, "title": row.title, "board_list": row.board_list, "completed": row.completed,
+            "position": row.position, "start_date": row.start_date, "due_date": row.due_date,
+            "due_time": str(row.due_time) if row.due_time is not None else None, "reminder": row.reminder,
+            "recurrence": row.recurrence, "is_template": row.is_template, "modified": str(row.modified),
             "has_description": bool(strip_html(row.description or "").strip()),
             "assignees": [item.user for item in assignees.get(row.name, [])],
             "labels": [item.label for item in tags.get(row.name, [])],
             "watching": any(item.user == frappe.session.user for item in watchers.get(row.name, [])),
+            "values": {item.field: item.value for item in values.get(row.name, [])},
             "cover_color": row.cover_color or "", "cover_url": covers.get(row.cover_file or "", ""),
             "checklist_done": sum(1 for item in items if item.done), "checklist_total": len(items),
             "comments": comments.get(row.name, 0), "attachments": files.get(row.name, 0),
@@ -120,13 +345,18 @@ def _summaries(rows):
 
 def board():
     workspace = _workspace()
-    rows = frappe.get_all(CARD, filters={"workspace": workspace, "archived": 0}, fields=SUMMARY_FIELDS,
-                          order_by="position asc, creation asc", limit_page_length=0)
-    colors = dict(frappe.get_all(access.COLUMN, filters={"workspace": workspace}, fields=["status", "color"],
-                                 as_list=True))
-    return {"cards": _summaries(rows), "members": members(), "labels": labels(workspace),
-            "column_colors": {status: colors.get(status) or "" for status in contracts.STATUSES},
-            "statuses": list(contracts.STATUSES), "me": frappe.session.user, "admin": access.administrator(),
+    open_lists = lists(workspace)
+    names = [row.name for row in open_lists]
+    rows = frappe.get_all(CARD, filters={"workspace": workspace, "archived": 0, "board_list": ["in", names or [""]]},
+                          fields=SUMMARY_FIELDS, order_by="position asc, creation asc", limit_page_length=0)
+    visible = {row.name for row in rows}
+    mirrors = [row for row in frappe.get_all(MIRROR, filters={"workspace": workspace, "board_list": ["in", names or [""]]},
+                                             fields=["name", "card", "board_list", "position"],
+                                             order_by="position asc, creation asc", limit_page_length=0)
+               if row.card in visible]
+    return {"lists": open_lists, "cards": _summaries(rows), "mirrors": mirrors, "members": members(),
+            "labels": labels(workspace), "fields": fields(workspace), "me": frappe.session.user,
+            "admin": access.administrator(),
             "unread": frappe.db.count(access.NOTIFICATION, {"workspace": workspace, "user": frappe.session.user,
                                                             "is_read": 0})}
 
@@ -140,9 +370,13 @@ def summary(name):
 
 
 def _attachments(name):
-    return frappe.get_all("File", filters={"attached_to_doctype": CARD, "attached_to_name": name},
-                          fields=["name", "file_name", "file_url", "file_size", "owner", "creation"],
+    rows = frappe.get_all("File", filters={"attached_to_doctype": CARD, "attached_to_name": name},
+                          fields=["name", "file_name", "file_url", "file_size", "is_private", "owner", "creation"],
                           order_by="creation desc")
+    for row in rows:
+        # 链接附件：原生 File 只存地址，没有文件内容。
+        row.is_link = (row.file_url or "").startswith(("http://", "https://"))
+    return rows
 
 
 def _activity(name):
@@ -153,58 +387,157 @@ def _activity(name):
     return rows
 
 
+def _checklists(doc):
+    groups = {}
+    for row in doc.checklist:
+        group = groups.setdefault(row.group_id or "c1", {"id": row.group_id or "c1", "title": row.checklist or "",
+                                                         "items": []})
+        if row.title:
+            group["items"].append({"title": row.title, "done": row.done})
+    return list(groups.values())
+
+
 def card(name):
     workspace = _workspace()
     doc = _card(name, workspace, archived=None)
     return {
-        "name": doc.name, "title": doc.title, "status": doc.status, "due_date": doc.due_date,
-        "description": doc.description or "", "archived": doc.archived, "modified": str(doc.modified),
-        "owner": doc.owner, "creation": doc.creation,
+        "name": doc.name, "title": doc.title, "board_list": doc.board_list, "completed": doc.completed,
+        "start_date": doc.start_date, "due_date": doc.due_date,
+        "due_time": str(doc.due_time) if doc.due_time is not None else None,
+        "reminder": doc.reminder or contracts.DEFAULT_REMINDER, "recurrence": doc.recurrence or "never",
+        "is_template": doc.is_template, "description": doc.description or "", "archived": doc.archived,
+        "modified": str(doc.modified), "owner": doc.owner, "creation": doc.creation,
         "assignees": [row.user for row in doc.assignees], "labels": [row.label for row in doc.labels],
         "watchers": [row.user for row in doc.watchers],
         "watching": any(row.user == frappe.session.user for row in doc.watchers),
         "cover_color": doc.cover_color or "", "cover_file": doc.cover_file or "",
-        "checklist": [{"title": row.title, "done": row.done} for row in doc.checklist],
+        "checklists": _checklists(doc), "values": {row.field: row.value for row in doc.get("values") or []},
+        "mirrors": frappe.get_all(MIRROR, filters={"card": doc.name}, fields=["name", "board_list"]),
         "attachments": _attachments(doc.name), "activity": _activity(doc.name),
     }
 
 
 def archived():
     workspace = _workspace()
-    rows = frappe.get_all(CARD, filters={"workspace": workspace, "archived": 1},
-                          fields=["name", "title", "status", "archived_at"], order_by="archived_at desc",
-                          limit_page_length=0)
+    titles = {row.name: row.title for row in frappe.get_all(COLUMN, filters={"workspace": workspace},
+                                                             fields=["name", "title"], limit_page_length=0)}
+    cards = frappe.get_all(CARD, filters={"workspace": workspace, "archived": 1},
+                           fields=["name", "title", "board_list", "archived_at"], order_by="archived_at desc",
+                           limit_page_length=0)
+    archived_lists = lists(workspace, archived=True)
     # 库里存 UTC；页面按站点时区的裸时间显示（同 `p.datetime_text` 的口径）。
-    for row in rows:
+    for row in [*cards, *archived_lists]:
         if row.archived_at:
             row.archived_at = convert_utc_to_system_timezone(row.archived_at).replace(tzinfo=None)
-    return rows
+    for row in cards:
+        row.list_title = titles.get(row.board_list, "")
+    return {"cards": cards, "lists": archived_lists}
 
 
 # ── 卡片 ──────────────────────────────────────────────────────────────────────
 
 
-def _column_tail(workspace, status, exclude=None):
-    filters = {"workspace": workspace, "status": status, "archived": 0}
+def _card(name, workspace, *, lock=False, archived=False):
+    row = frappe.db.get_value(CARD, {"name": name or "", "workspace": workspace},
+                              ["name", "archived"], as_dict=True, for_update=lock)
+    if not row or (archived is not None and bool(row.archived) != archived):
+        raise Invalid("cowork.work.error.not_found")
+    return frappe.get_doc(CARD, row.name)
+
+
+def _column_tail(workspace, board_list, exclude=None):
+    filters = {"workspace": workspace, "board_list": board_list, "archived": 0}
     if exclude:
         filters["name"] = ["!=", exclude]
     rows = frappe.get_all(CARD, filters=filters, fields=["position"], order_by="position desc", limit_page_length=1)
     return rows[0].position if rows else None
 
 
-def create(title, status="todo"):
+def _complete(doc, workspace, done):
+    """标记完成 / 未完成。重复到期的卡"完成"时不算完成：到期日滚到下一次（照 Trello），返回 True。"""
+    if done and (doc.recurrence or "never") != "never" and doc.due_date:
+        due = contracts.next_due(getdate(doc.due_date), doc.recurrence)
+        doc.due_date, doc.completed, doc.completed_at = str(due), 0, None
+        _log(doc.name, workspace, "repeat", {"due": str(due)})
+        return True
+    if bool(doc.completed) == bool(done):
+        return False
+    doc.completed = 1 if done else 0
+    doc.completed_at = _now() if done else None
+    _log(doc.name, workspace, "complete" if done else "uncomplete")
+    if done:
+        notify.send(notify.audience(doc), doc, "complete")
+    return False
+
+
+def _place(doc, workspace, target, position=None):
+    """换列表：记活动、提醒负责人和关注的人；进「完成列表」算完成、从完成列表拿出来算未完成。
+    重复到期的卡拖进完成列表：到期日滚到下一次，卡留在原列表。"""
+    if target.name != doc.board_list:
+        source = frappe.db.get_value(COLUMN, doc.board_list, ["name", "title", "is_done_list"], as_dict=True)
+        if target.is_done_list and not doc.completed and (doc.recurrence or "never") != "never" and doc.due_date:
+            _complete(doc, workspace, True)
+            return
+        _log(doc.name, workspace, "move", {"from": source.title if source else "", "to": target.title})
+        notify.send(notify.audience(doc), doc, "move", {"from": source.title if source else "", "to": target.title})
+        doc.board_list = target.name
+        if target.is_done_list:
+            _complete(doc, workspace, True)
+        elif source and source.is_done_list and doc.completed:
+            _complete(doc, workspace, False)
+        if position is None:
+            position = contracts.position_between(_column_tail(workspace, target.name, doc.name), None)
+    if position is not None:
+        doc.position = position
+
+
+def create(title, board_list, template=None):
+    """列尾快速新建；带 `template` 就照那张模板卡建（清单、标签、成员、字段、描述、日期、封面颜色）。"""
     workspace = _workspace()
+    target = _list(board_list, workspace)
     title = contracts.text(title, contracts.TITLE_MAX, required=True)
-    status = contracts.status(status)
-    # 同一列并发新建在列尾排队（DocType 元数据行上的锁，同 `scope.ensure_site_workspace`）。
-    frappe.db.get_value("DocType", CARD, "name", for_update=True)
-    doc = frappe.get_doc({"doctype": CARD, "workspace": workspace, "title": title, "status": status,
-                          "position": contracts.position_between(_column_tail(workspace, status), None),
-                          "completed_at": _now() if status == contracts.DONE else None})
-    persist(doc)
-    _log(doc.name, workspace, "create", {"status": status})
+    _lock(CARD)
+    if template:
+        source = _card(template, workspace, archived=None)
+        if not source.is_template:
+            raise Invalid("cowork.work.error.not_found")
+        doc = _clone(source, workspace, target.name, title, {"checklist", "labels", "members", "fields"},
+                     action="create")
+    else:
+        doc = persist(frappe.get_doc({"doctype": CARD, "workspace": workspace, "title": title,
+                                      "board_list": target.name, "reminder": contracts.DEFAULT_REMINDER,
+                                      "recurrence": "never", "completed": 1 if target.is_done_list else 0,
+                                      "completed_at": _now() if target.is_done_list else None,
+                                      "position": contracts.position_between(_column_tail(workspace, target.name), None)}))
+        _log(doc.name, workspace, "create", {"list": target.title})
     _changed(doc.name, "create")
     return summary(doc.name)
+
+
+def _clone(source, workspace, board_list, title, keep, action="copy"):
+    doc = frappe.get_doc({"doctype": CARD, "workspace": workspace, "title": title or source.title,
+                          "board_list": board_list, "description": source.description,
+                          "start_date": source.start_date, "due_date": source.due_date, "due_time": source.due_time,
+                          "reminder": source.reminder or contracts.DEFAULT_REMINDER,
+                          "recurrence": source.recurrence or "never", "cover_color": source.cover_color,
+                          "position": contracts.position_between(_column_tail(workspace, board_list), None)})
+    if frappe.db.get_value(COLUMN, board_list, "is_done_list"):
+        doc.completed, doc.completed_at = 1, _now()
+    if "checklist" in keep:
+        doc.set("checklist", [{"checklist": row.checklist, "group_id": row.group_id, "title": row.title,
+                               "done": 0 if action == "create" else row.done} for row in source.checklist])
+    if "labels" in keep:
+        doc.set("labels", [{"label": row.label} for row in source.labels])
+    if "members" in keep:
+        allowed = _members_set()
+        doc.set("assignees", [{"user": row.user} for row in source.assignees if row.user in allowed])
+    if "fields" in keep:
+        doc.set("values", [{"field": row.field, "value": row.value} for row in source.get("values") or []])
+    persist(doc)
+    _log(doc.name, workspace, action, {"from": source.title})
+    if doc.assignees:
+        notify.send([row.user for row in doc.assignees], doc, "assign")
+    return doc
 
 
 def _members_set():
@@ -212,7 +545,7 @@ def _members_set():
 
 
 def update(name, modified, values):
-    """保存详情弹窗里改过的字段。`modified` 是打开时的版本，别人先保存过就拒绝（请重新打开）。"""
+    """保存详情弹窗 / 快捷菜单里改过的字段。`modified` 是打开时的版本，别人先保存过就拒绝（请重新打开）。"""
     workspace = _workspace()
     if not isinstance(values, dict):
         raise Invalid("cowork.work.error.request")
@@ -226,15 +559,29 @@ def update(name, modified, values):
         if len(description) > contracts.DESCRIPTION_MAX:
             raise Invalid("cowork.work.error.too_long")
         doc.description = description if strip_html(description).strip() else ""
-    if "due_date" in values:
-        due = values["due_date"] or None
-        try:
-            due = str(getdate(due)) if due else None
-        except Exception:
-            raise Invalid("cowork.work.error.date")
-        if str(doc.due_date or "") != str(due or ""):
-            _log(doc.name, workspace, "due", {"due": due})
-        doc.due_date = due
+    for key in ("start_date", "due_date"):
+        if key in values:
+            try:
+                value = str(getdate(values[key])) if values[key] else None
+            except Exception:
+                raise Invalid("cowork.work.error.date")
+            if key == "due_date" and str(doc.due_date or "") != str(value or ""):
+                _log(doc.name, workspace, "due", {"due": value})
+            doc.set(key, value)
+    if "due_time" in values:
+        value = values["due_time"] or None
+        if value:
+            try:
+                contracts.due_at("2000-01-01", value)
+            except (ValueError, IndexError):
+                raise Invalid("cowork.work.error.date")
+        doc.due_time = value
+    if "reminder" in values:
+        doc.reminder = contracts.choice(values["reminder"], contracts.REMINDERS)
+    if "recurrence" in values:
+        doc.recurrence = contracts.choice(values["recurrence"], contracts.REPEATS)
+    if doc.start_date and doc.due_date and getdate(doc.start_date) > getdate(doc.due_date):
+        raise Invalid("cowork.work.error.start_after_due")
     if "assignees" in values:
         before = {row.user for row in doc.assignees}
         # 新加的人必须是现在能用看板的成员；已经在卡上的人（后来被停用 / 去掉权限）可以留着。
@@ -253,8 +600,16 @@ def update(name, modified, values):
         if set(chosen) - known:
             raise Invalid("cowork.work.error.label")
         doc.set("labels", [{"label": label} for label in chosen])
-    if "checklist" in values:
-        doc.set("checklist", contracts.checklist(values["checklist"]))
+    if "checklists" in values:
+        rows = []
+        for index, group in enumerate(contracts.checklists(values["checklists"]), start=1):
+            rows += [{"checklist": group["title"], "group_id": f"c{index}", **item} for item in group["items"]]
+            if not group["items"]:
+                # 空清单也要留住（刚建好、还没加项）：记一行空标题的占位，读的时候不算进度。
+                rows.append({"checklist": group["title"], "group_id": f"c{index}", "title": "", "done": 0})
+        doc.set("checklist", rows)
+    if "values" in values:
+        doc.set("values", _field_values(workspace, values["values"]))
     if "cover_color" in values:
         doc.cover_color = contracts.color(values["cover_color"]) if values["cover_color"] else ""
         if doc.cover_color:
@@ -263,195 +618,135 @@ def update(name, modified, values):
         doc.cover_file = _cover_file(doc.name, values["cover_file"]) if values["cover_file"] else ""
         if doc.cover_file:
             doc.cover_color = ""
-    if "status" in values:
-        # 弹窗里换列：放到目标列列尾（拖动才能插到中间）。
-        status = contracts.status(values["status"])
-        if status != doc.status:
-            _relocate(doc, workspace, status)
+    if "is_template" in values:
+        doc.is_template = 1 if values["is_template"] in (1, True, "1") else 0
+    if "completed" in values:
+        _complete(doc, workspace, values["completed"] in (1, True, "1"))
+    if "board_list" in values and values["board_list"] != doc.board_list:
+        _place(doc, workspace, _list(values["board_list"], workspace))
     persist(doc)
     _changed(doc.name, "update")
     return card(doc.name)
 
 
-def move(name, status, before=None, after=None):
-    """拖到 `status` 列、落在 `before` 与 `after` 两张卡之间（卡片号，没有就是列头 / 列尾）。"""
+def _field_values(workspace, raw):
+    if not isinstance(raw, dict):
+        raise Invalid("cowork.work.error.request")
+    known = {row.name: row for row in fields(workspace)}
+    rows = []
+    for field, value in raw.items():
+        if field not in known:
+            raise Invalid("cowork.work.error.field_value")
+        cleaned = contracts.field_value(known[field].fieldtype, known[field].options, value)
+        if cleaned != "":
+            rows.append({"field": field, "value": cleaned})
+    return rows
+
+
+def move(name, board_list, before=None, after=None):
+    """拖到 `board_list`、落在 `before` 与 `after` 两张卡之间（卡片号，没有就是列头 / 列尾）。"""
     workspace = _workspace()
-    status = contracts.status(status)
+    target = _list(board_list, workspace)
     doc = _card(name, workspace, lock=True, archived=False)
 
     def neighbour(other):
         if not other or other == doc.name:
             return None
-        row = frappe.db.get_value(CARD, {"name": other, "workspace": workspace, "status": status, "archived": 0},
-                                  "position")
-        return row
+        return frappe.db.get_value(CARD, {"name": other, "workspace": workspace, "board_list": target.name,
+                                          "archived": 0}, "position")
 
     position = contracts.position_between(neighbour(before), neighbour(after))
     if position is None:
         # 两卡之间挤不下：整列按当前顺序重排，再算一次。
-        column = frappe.get_all(CARD, filters={"workspace": workspace, "status": status, "archived": 0,
+        column = frappe.get_all(CARD, filters={"workspace": workspace, "board_list": target.name, "archived": 0,
                                                "name": ["!=", doc.name]},
-                                fields=["name"], order_by="position asc, creation asc", limit_page_length=0)
+                                pluck="name", order_by="position asc, creation asc", limit_page_length=0)
         for row, value in zip(column, contracts.renumber(len(column))):
-            frappe.db.set_value(CARD, row.name, "position", value, update_modified=False)
+            frappe.db.set_value(CARD, row, "position", value, update_modified=False)
         position = contracts.position_between(neighbour(before), neighbour(after))
     if position is None:
-        position = contracts.position_between(_column_tail(workspace, status, doc.name), None)
-    if status != doc.status:
-        _relocate(doc, workspace, status, position)
-    doc.position = position
+        position = contracts.position_between(_column_tail(workspace, target.name, doc.name), None)
+    _place(doc, workspace, target, position)
     persist(doc)
     _changed(doc.name, "move")
     return summary(doc.name)
-
-
-def _relocate(doc, workspace, status, position=None):
-    """换列：记活动、完成时间、提醒负责人和关注的人；不传位置就放到目标列列尾。"""
-    previous = doc.status
-    _log(doc.name, workspace, "move", {"from": previous, "to": status})
-    doc.status = status
-    doc.position = position if position is not None else contracts.position_between(
-        _column_tail(workspace, status, doc.name), None)
-    doc.completed_at = _now() if status == contracts.DONE else None
-    notify.send(notify.audience(doc), doc, "move", {"from": previous, "to": status})
 
 
 def toggle_done(name):
-    """卡片上的完成圆圈：没完成 → 移到「已完成」；已完成 → 回到完成前的那一列（查不到就回「待办」）。"""
+    """卡片上的完成圆圈（照 Trello）：只改完成与否，不挪列表；重复到期的卡完成后滚到下一次到期。"""
     workspace = _workspace()
     doc = _card(name, workspace, lock=True, archived=False)
-    if doc.status != contracts.DONE:
-        target = contracts.DONE
-    else:
-        target = "todo"
-        for row in frappe.get_all(ACTIVITY, filters={"card": doc.name, "action": "move"}, fields=["detail"],
-                                  order_by="creation desc", limit_page_length=20):
-            detail = json.loads(row.detail or "{}")
-            if detail.get("to") == contracts.DONE and detail.get("from") in contracts.STATUSES:
-                target = detail["from"] if detail["from"] != contracts.DONE else "todo"
-                break
-    _relocate(doc, workspace, target)
+    _complete(doc, workspace, not doc.completed)
     persist(doc)
-    _changed(doc.name, "move")
+    _changed(doc.name, "update")
     return summary(doc.name)
 
 
-def copy(name, title, status, keep=None):
-    """复制卡片（Trello「复制卡片」）：新标题、目标列；可选带上清单 / 标签 / 成员。放在目标列列尾。"""
+def copy(name, title, board_list, keep=None):
+    """复制卡片：新标题、目标列表；可选带上清单 / 标签 / 成员 / 字段。放在目标列表列尾。"""
     workspace = _workspace()
     source = _card(name, workspace, archived=None)
+    target = _list(board_list, workspace)
     title = contracts.text(title, contracts.TITLE_MAX, required=True)
-    status = contracts.status(status)
-    keep = set(contracts.distinct(keep, 3)) & {"checklist", "labels", "members"}
-    frappe.db.get_value("DocType", CARD, "name", for_update=True)
-    doc = frappe.get_doc({"doctype": CARD, "workspace": workspace, "title": title, "status": status,
-                          "description": source.description, "due_date": source.due_date,
-                          "position": contracts.position_between(_column_tail(workspace, status), None),
-                          "completed_at": _now() if status == contracts.DONE else None})
-    if "checklist" in keep:
-        doc.set("checklist", [{"title": row.title, "done": row.done} for row in source.checklist])
-    if "labels" in keep:
-        doc.set("labels", [{"label": row.label} for row in source.labels])
-    if "members" in keep:
-        allowed = _members_set()
-        doc.set("assignees", [{"user": row.user} for row in source.assignees if row.user in allowed])
-    persist(doc)
-    _log(doc.name, workspace, "copy", {"from": source.title})
+    keep = set(contracts.distinct(keep, 4)) & {"checklist", "labels", "members", "fields"}
+    _lock(CARD)
+    doc = _clone(source, workspace, target.name, title, keep)
     _changed(doc.name, "create")
     return summary(doc.name)
 
 
-SORTS = {"created_desc": ("creation", True), "created_asc": ("creation", False),
-         "due": ("due_date", False), "title": ("title", False)}
-
-
-def sort_column(status, key):
-    """列菜单「排序依据」：按选的规则把这一列重新排好（写回位置，所有人看到的一样）。"""
+def mirror(name, board_list):
+    """卡片镜像：这张卡也显示在另一个列表里（同一张卡，改哪边都是改它）。"""
     workspace = _workspace()
-    status = contracts.status(status)
-    if key not in SORTS:
-        raise Invalid("cowork.work.error.request")
-    field, reverse = SORTS[key]
-    frappe.db.get_value("DocType", CARD, "name", for_update=True)
-    rows = frappe.get_all(CARD, filters={"workspace": workspace, "status": status, "archived": 0},
-                          fields=["name", "title", "due_date", "creation"], limit_page_length=0)
-    if field == "due_date":
-        # 没有到期日的排在最后。
-        rows.sort(key=lambda row: (row.due_date is None, row.due_date or getdate("1900-01-01")))
-    elif field == "title":
-        rows.sort(key=lambda row: (row.title or "").casefold())
-    else:
-        rows.sort(key=lambda row: row.creation, reverse=reverse)
-    for row, value in zip(rows, contracts.renumber(len(rows))):
-        frappe.db.set_value(CARD, row.name, "position", value, update_modified=False)
-    _changed(None, "sort")
-    return {"status": status, "count": len(rows)}
+    doc = _card(name, workspace, archived=False)
+    target = _list(board_list, workspace)
+    if target.name == doc.board_list or frappe.db.exists(MIRROR, {"card": doc.name, "board_list": target.name}):
+        raise Invalid("cowork.work.error.mirror")
+    _lock(MIRROR)
+    tail = frappe.get_all(MIRROR, filters={"board_list": target.name}, fields=["position"], order_by="position desc",
+                          limit_page_length=1)
+    tails = [value for value in (tail[0].position if tail else None, _column_tail(workspace, target.name))
+             if value is not None]
+    row = persist(frappe.get_doc({"doctype": MIRROR, "workspace": workspace, "card": doc.name,
+                                  "board_list": target.name,
+                                  "position": contracts.position_between(max(tails) if tails else None, None)}))
+    _log(doc.name, workspace, "mirror", {"to": target.title})
+    _changed(doc.name, "mirror")
+    return {"name": row.name}
 
 
-def move_column(source, target):
-    """列菜单「移动此列表中的所有卡片」：按原顺序接到目标列列尾。"""
+def move_mirror(name, board_list, before=None, after=None):
     workspace = _workspace()
-    source, target = contracts.status(source), contracts.status(target)
-    if source == target:
-        raise Invalid("cowork.work.error.request")
-    frappe.db.get_value("DocType", CARD, "name", for_update=True)
-    names = frappe.get_all(CARD, filters={"workspace": workspace, "status": source, "archived": 0},
-                           pluck="name", order_by="position asc, creation asc", limit_page_length=0)
-    for name in names:
-        doc = frappe.get_doc(CARD, name)
-        _relocate(doc, workspace, target)
-        persist(doc)
-    _changed(None, "move")
-    return {"moved": len(names)}
+    row = frappe.db.get_value(MIRROR, {"name": name or "", "workspace": workspace}, ["name", "card"], as_dict=True)
+    if not row:
+        raise Invalid("cowork.work.error.not_found")
+    target = _list(board_list, workspace)
+    if target.name == frappe.db.get_value(CARD, row.card, "board_list"):
+        raise Invalid("cowork.work.error.mirror")
 
+    def neighbour(other):
+        if not other:
+            return None
+        return (frappe.db.get_value(CARD, {"name": other, "board_list": target.name}, "position")
+                or frappe.db.get_value(MIRROR, {"name": other, "board_list": target.name}, "position"))
 
-def column_color(status, color):
-    """列菜单「更改列表颜色」：全队共用；空 = 移除颜色（回到原生灰）。"""
-    workspace = _workspace()
-    status = contracts.status(status)
-    color = contracts.color(color) if color else ""
-    frappe.db.get_value("DocType", access.COLUMN, "name", for_update=True)
-    name = frappe.db.get_value(access.COLUMN, {"workspace": workspace, "status": status})
-    doc = frappe.get_doc(access.COLUMN, name) if name else frappe.get_doc(
-        {"doctype": access.COLUMN, "workspace": workspace, "status": status})
-    doc.color = color
+    doc = frappe.get_doc(MIRROR, row.name)
+    doc.board_list = target.name
+    doc.position = (contracts.position_between(neighbour(before), neighbour(after))
+                    or contracts.position_between(_column_tail(workspace, target.name), None))
     persist(doc)
-    _changed(None, "column")
-    return {"status": status, "color": color}
+    _changed(row.card, "mirror")
+    return {"name": doc.name}
 
 
-def archive_column(status):
-    """列菜单「将此列表中的所有卡片归档」。"""
+def unmirror(name):
     workspace = _workspace()
-    status = contracts.status(status)
-    names = frappe.get_all(CARD, filters={"workspace": workspace, "status": status, "archived": 0},
-                           pluck="name", limit_page_length=0)
-    for name in names:
-        doc = _card(name, workspace, lock=True, archived=False)
-        doc.archived, doc.archived_at = 1, _now()
-        persist(doc)
-        _log(doc.name, workspace, "archive")
-    _changed(None, "archive")
-    return {"archived": len(names)}
-
-
-def watch(name, on):
-    """关注 / 取消关注（只改自己）。"""
-    workspace = _workspace()
-    doc = _card(name, workspace, lock=True, archived=False)
-    others = [row.user for row in doc.watchers if row.user != frappe.session.user]
-    doc.set("watchers", [{"user": user} for user in others + ([frappe.session.user] if on else [])])
-    persist(doc)
-    _changed(doc.name, "watch")
-    return summary(doc.name)
-
-
-def _cover_file(card, file):
-    row = frappe.db.get_value("File", {"name": file, "attached_to_doctype": CARD, "attached_to_name": card},
-                              ["name", "file_name"], as_dict=True)
-    if not row or not (row.file_name or "").lower().endswith(IMAGE_TYPES):
-        raise Invalid("cowork.work.error.cover")
-    return row.name
+    row = frappe.db.get_value(MIRROR, {"name": name or "", "workspace": workspace}, ["name", "card"], as_dict=True)
+    if not row:
+        raise Invalid("cowork.work.error.not_found")
+    remove(frappe.get_doc(MIRROR, row.name))
+    _changed(row.card, "mirror")
+    return {"name": name}
 
 
 def archive(name):
@@ -467,12 +762,28 @@ def archive(name):
 def restore(name):
     workspace = _workspace()
     doc = _card(name, workspace, lock=True, archived=True)
+    target = frappe.db.get_value(COLUMN, doc.board_list, ["name", "archived"], as_dict=True)
+    if not target or target.archived:
+        # 原列表已归档 / 删掉：放回第一个列表。
+        first = lists(workspace)
+        if not first:
+            raise Invalid("cowork.work.error.list")
+        doc.board_list = first[0].name
     doc.archived, doc.archived_at = 0, None
-    doc.position = contracts.position_between(_column_tail(workspace, doc.status, doc.name), None)
+    doc.position = contracts.position_between(_column_tail(workspace, doc.board_list, doc.name), None)
     persist(doc)
     _log(doc.name, workspace, "restore")
     _changed(doc.name, "restore")
     return summary(doc.name)
+
+
+def _purge(doc):
+    for file in _attachments(doc.name):
+        frappe.delete_doc("File", file.name, ignore_permissions=True, force=True)
+    for doctype in (ACTIVITY, access.NOTIFICATION, MIRROR):
+        for row in frappe.get_all(doctype, filters={"card": doc.name}, pluck="name", limit_page_length=0):
+            remove(frappe.get_doc(doctype, row))
+    remove(doc)
 
 
 def delete(name):
@@ -480,16 +791,29 @@ def delete(name):
     workspace = _workspace()
     if not access.administrator():
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    doc = _card(name, workspace, lock=True, archived=True)
-    for file in _attachments(doc.name):
-        frappe.delete_doc("File", file.name, ignore_permissions=True, force=True)
-    for activity in frappe.get_all(ACTIVITY, filters={"card": doc.name}, pluck="name", limit_page_length=0):
-        remove(frappe.get_doc(ACTIVITY, activity))
-    for note in frappe.get_all(access.NOTIFICATION, filters={"card": doc.name}, pluck="name", limit_page_length=0):
-        remove(frappe.get_doc(access.NOTIFICATION, note))
-    remove(doc)
+    _purge(_card(name, workspace, lock=True, archived=True))
     _changed(name, "delete")
     return {"name": name}
+
+
+def watch(name, on):
+    """关注 / 取消关注（只改自己）。"""
+    workspace = _workspace()
+    doc = _card(name, workspace, lock=True, archived=False)
+    others = [row.user for row in doc.watchers if row.user != frappe.session.user]
+    doc.set("watchers", [{"user": user} for user in others + ([frappe.session.user] if on else [])])
+    persist(doc)
+    _changed(doc.name, "watch")
+    return summary(doc.name)
+
+
+def _cover_file(card_name, file):
+    row = frappe.db.get_value("File", {"name": file, "attached_to_doctype": CARD, "attached_to_name": card_name},
+                              ["name", "file_name", "file_url"], as_dict=True)
+    if (not row or (row.file_url or "").startswith(("http://", "https://"))
+            or not (row.file_name or "").lower().endswith(IMAGE_TYPES)):
+        raise Invalid("cowork.work.error.cover")
+    return row.name
 
 
 # ── 评论与附件 ────────────────────────────────────────────────────────────────
@@ -544,6 +868,20 @@ def attach(name, upload):
     return _attachments(doc.name)
 
 
+def attach_link(name, url, text=None):
+    """附件里加一个链接（照 Trello「搜索或粘贴链接」+「显示文本」）：原生 File 只存地址。"""
+    workspace = _workspace()
+    doc = _card(name, workspace, archived=False)
+    url = contracts.link(url)
+    label = contracts.text(text, contracts.TITLE_MAX) or url[:contracts.TITLE_MAX]
+    file = frappe.get_doc({"doctype": "File", "attached_to_doctype": CARD, "attached_to_name": doc.name,
+                           "file_name": label, "file_url": url, "is_private": 0})
+    file.insert(ignore_permissions=True)
+    _log(doc.name, workspace, "attach", {"file": label})
+    _changed(doc.name, "attach")
+    return _attachments(doc.name)
+
+
 def detach(name, file):
     workspace = _workspace()
     doc = _card(name, workspace, archived=False)
@@ -560,7 +898,7 @@ def detach(name, file):
     return _attachments(doc.name)
 
 
-# ── 标签 ──────────────────────────────────────────────────────────────────────
+# ── 标签与自定义字段（全板共用） ──────────────────────────────────────────────
 
 
 def save_labels(rows):
@@ -570,7 +908,7 @@ def save_labels(rows):
         raise Invalid("cowork.work.error.request")
     if len(rows) > contracts.LABELS_MAX:
         raise Invalid("cowork.work.error.too_many")
-    frappe.db.get_value("DocType", LABEL, "name", for_update=True)
+    _lock(LABEL)
     current = {row.name: row for row in labels(workspace)}
     kept = set()
     for row in rows:
@@ -594,6 +932,48 @@ def save_labels(rows):
         remove(frappe.get_doc(LABEL, name))
     _changed(None, "labels")
     return labels(workspace)
+
+
+def save_fields(rows):
+    """整板自定义字段一次保存（照标签）：名字、类型（文本 / 数字 / 日期 / 勾选 / 下拉）、下拉选项、是否显示在卡片正面。
+    删掉的字段从所有卡片上摘掉它的值；已有字段不改类型（改类型就删掉重建）。"""
+    workspace = _workspace()
+    if not isinstance(rows, list):
+        raise Invalid("cowork.work.error.request")
+    if len(rows) > contracts.FIELDS_MAX:
+        raise Invalid("cowork.work.error.too_many")
+    _lock(FIELD)
+    current = {row.name: row for row in fields(workspace)}
+    kept = set()
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            raise Invalid("cowork.work.error.request")
+        title = contracts.text(row.get("title"), contracts.LABEL_TITLE_MAX, required=True,
+                               key="cowork.work.error.field_title")
+        fieldtype = contracts.choice(row.get("fieldtype"), contracts.FIELD_TYPES)
+        options = contracts.field_options(fieldtype, row.get("options"))
+        values = {"title": title, "options": json.dumps(options, ensure_ascii=False) if options else None,
+                  "show_on_card": 1 if row.get("show_on_card") in (1, True, "1") else 0,
+                  "position": contracts.STEP * index}
+        name = row.get("name")
+        if name:
+            if name not in current or current[name].fieldtype != fieldtype:
+                raise Invalid("cowork.work.error.field_value")
+            kept.add(name)
+            doc = frappe.get_doc(FIELD, name)
+            doc.update(values)
+            persist(doc)
+            if fieldtype == "select":
+                # 下拉少了的选项：卡片上用着它的值一起清掉。
+                frappe.db.delete("Cowork Work Card Value", {"parenttype": CARD, "field": name,
+                                                            "value": ["not in", options]})
+        else:
+            persist(frappe.get_doc({"doctype": FIELD, "workspace": workspace, "fieldtype": fieldtype, **values}))
+    for name in set(current) - kept:
+        frappe.db.delete("Cowork Work Card Value", {"parenttype": CARD, "field": name})
+        remove(frappe.get_doc(FIELD, name))
+    _changed(None, "fields")
+    return fields(workspace)
 
 
 # ── 提醒 ──────────────────────────────────────────────────────────────────────

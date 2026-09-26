@@ -3,8 +3,9 @@
 照 ERP `pearnly_erp_portal.integrations.line_menu` 的做法（产品各自一份，不改 ERP / 共用层），
 版式照旧线上 `pearnly-cowork-work-v3`（3 列 2 行）：左上「发单据进 ERP」（postback
 `action=cowork_erp_start`，与旧菜单同一个，旧菜单点下去也走新流程）、中上「库存盘点」（在 LINE 内置
-浏览器打开网页端原生盘点页）；没有那项权限的格子只画锁、不可点。工作协调要重新设计、页面还没做，
-其余格子一直是锁（ERP 09-26 口径：锁上不写「เร็ว ๆ นี้」）。
+浏览器打开网页端原生盘点页）、右上「工作协调」（同样只是打开网页端看板，用户 2026-09-27："line 只做点击
+然后进入这个界面，不做多余功能"）；没有那项权限的格子只画锁、不可点。其余格子一直是锁
+（ERP 09-26 口径：锁上不写「เร็ว ๆ นี้」）。
 
 图由 `scripts/render-cowork-line-menu-tiles.py` 预先画好的格子在发布时拼成（产品镜像里不需要字体）。
 发布是一次明确的部署动作（`publish()`，写 LINE 官方号）；没发布过就什么都不做，不替换官方号的菜单。
@@ -27,13 +28,14 @@ from pearnly_cowork.line import binding, flow
 
 CONFIG = "pearnly_cowork_line_menus"
 # 格子顺序即位置（3 列 2 行，左上起）；其余格子恒为锁。
-FUNCTIONS = ("intake", "stocktake")
+FUNCTIONS = ("intake", "stocktake", "work")
 VARIANTS = tuple("+".join(combo) for size in range(1, len(FUNCTIONS) + 1)
                  for combo in itertools.combinations(FUNCTIONS, size))
 LANGUAGES = line.USER_LANGUAGES
 SIZE, CELL = (2500, 1686), (833, 843)
 BACKGROUND = "#F8F9FD"
 STOCKTAKE_ROUTE = "/desk/pearnly-stocktake"
+WORK_ROUTE = "/desk/pearnly-work"
 _APPLIED = "pearnly:cowork:line-menu:"
 
 
@@ -73,6 +75,9 @@ def payload(variant, language) -> dict:
         if name == "stocktake":
             action = {"type": "uri", "label": _("Stock count", lang=language)[:20],
                       "uri": frappe.utils.get_url().rstrip("/") + STOCKTAKE_ROUTE}
+        elif name == "work":
+            action = {"type": "uri", "label": _("Work Coordination", lang=language)[:20],
+                      "uri": frappe.utils.get_url().rstrip("/") + WORK_ROUTE}
         else:
             label = _("Send documents to ERP", lang=language)
             action = {"type": "postback", "data": flow.START, "displayText": label, "label": label[:20]}
@@ -132,12 +137,14 @@ def publish() -> dict:
 
 
 def wanted_variant(user) -> str:
-    """这个账号该看到哪套：LINE 开了没有 + 录入 / 盘点权限（与各自页面同一判据）。"""
+    """这个账号该看到哪套：LINE 开了没有 + 录入 / 盘点 / 工作协调权限（与各自页面同一判据）。"""
     from pearnly_cowork.stocktake import access as stocktake
+    from pearnly_cowork.work import access as work
 
     if not user or not binding.enabled(user):
         return ""
-    has = {"intake": scope.allowed("intake", user), "stocktake": stocktake.allowed(user)}
+    has = {"intake": scope.allowed("intake", user), "stocktake": stocktake.allowed(user),
+           "work": work.allowed(user)}
     return "+".join(name for name in FUNCTIONS if has[name])
 
 

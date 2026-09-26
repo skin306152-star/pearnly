@@ -896,7 +896,7 @@ Labels	标签	ป้ายกำกับ	ラベル	cowork.work.labels.manage
 Name	名称	ชื่อ	名前	cowork.work.labels.name
 Color	颜色	สี	色	cowork.work.labels.color
 Labels saved	标签已保存	บันทึกป้ายกำกับแล้ว	ラベルを保存しました	cowork.work.labels.saved
-Archived cards	已归档的卡片	การ์ดที่เก็บถาวร	アーカイブ済みカード	cowork.work.archived.title
+Archived items	已归档的项目	รายการที่เก็บถาวร	アーカイブ済みアイテム	cowork.work.archived.title
 Archived at	归档时间	เวลาที่เก็บถาวร	アーカイブ日時	cowork.work.archived.at
 Restore	恢复	กู้คืน	復元	cowork.work.archived.restore
 Card restored	已恢复	กู้คืนแล้ว	復元しました	cowork.work.archived.restored
@@ -960,3 +960,77 @@ Change list color	更改列表颜色	เปลี่ยนสีรายกา�
 Remove color	移除颜色	ลบสี	色を削除	cowork.work.column.removeColor
 Archive all cards in this list	将此列表中的所有卡片归档	เก็บถาวรการ์ดทั้งหมดในรายการนี้	このリストのカードをすべてアーカイブ	cowork.work.column.archiveAll
 Create a new label	新建标签	สร้างป้ายกำกับใหม่	新しいラベルを作成	cowork.work.labels.add
+Assign · Track · Discuss	分派 · 跟进 · 讨论	มอบหมาย · ติดตาม · พูดคุย	割り当て · 追跡 · 相談
+Archived lists	已归档的列表	รายการที่เก็บถาวร	アーカイブ済みリスト	cowork.work.archived.lists
+Add a checklist	添加清单	เพิ่มรายการตรวจสอบ	チェックリストを追加	cowork.work.checklist.add
+Add an item	添加项目	เพิ่มรายการ	項目を追加	cowork.work.checklist.addItem
+A dropdown field needs at least one option	下拉字段至少要有一个选项	ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ	ドロップダウンには選択肢が1つ以上必要です	cowork.work.error.field_options
+Enter a field name	请输入字段名称	กรุณาใส่ชื่อช่อง	フィールド名を入力してください	cowork.work.error.field_title
+Invalid field value	字段的值无效	ค่าของช่องไม่ถูกต้อง	フィールドの値が無効です	cowork.work.error.field_value
+A board needs at least one list	看板至少要留一个列表	บอร์ดต้องมีอย่างน้อยหนึ่งรายการ	ボードには少なくとも1つのリストが必要です	cowork.work.error.last_list
+Enter a link that starts with http:// or https://	请输入以 http:// 或 https:// 开头的链接	กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://	http:// または https:// で始まるリンクを入力してください	cowork.work.error.link
+This list no longer exists	列表不存在	ไม่มีรายการนี้แล้ว	このリストはもうありません	cowork.work.error.list
+The card is already in that list	卡片已经在那个列表里	การ์ดอยู่ในรายการนั้นแล้ว	カードはすでにそのリストにあります	cowork.work.error.mirror
+The start date is after the due date	开始日期晚于到期日	วันเริ่มอยู่หลังวันครบกำหนด	開始日が期日より後です	cowork.work.error.start_after_due
+Complete	完成	เสร็จ	完了	cowork.work.field.completed
+Dates	日期	วันที่	日付	cowork.work.field.dates
+Due time	到期时间	เวลาครบกำหนด	期限時刻	cowork.work.field.dueTime
+List	列表	รายการ	リスト	cowork.work.field.list
+Set reminder	设置提醒	ตั้งการเตือน	リマインダー	cowork.work.field.reminder
+Recurring	重复性	การทำซ้ำ	繰り返し	cowork.work.field.repeat
+Start date	开始日期	วันเริ่ม	開始日	cowork.work.field.start
+Add a field	新建字段	เพิ่มช่อง	フィールドを追加	cowork.work.fields.add
+Custom fields	自定义字段	ช่องที่กำหนดเอง	カスタムフィールド	cowork.work.fields.manage
+Field name	字段名称	ชื่อช่อง	フィールド名	cowork.work.fields.name
+Options (one per line)	选项（每行一个）	ตัวเลือก (บรรทัดละหนึ่งรายการ)	選択肢（1行に1つ）	cowork.work.fields.options
+Custom fields saved	自定义字段已保存	บันทึกช่องที่กำหนดเองแล้ว	カスタムフィールドを保存しました	cowork.work.fields.saved
+Show on card	显示在卡片正面	แสดงบนการ์ด	カードに表示	cowork.work.fields.showOnCard
+Type	类型	ประเภท	種類	cowork.work.fields.type
+Text	文本	ข้อความ	テキスト	cowork.work.fieldtype.text
+Number	数字	ตัวเลข	数値	cowork.work.fieldtype.number
+Date	日期	วันที่	日付	cowork.work.fieldtype.date
+Checkbox	勾选	ช่องทำเครื่องหมาย	チェックボックス	cowork.work.fieldtype.checkbox
+Dropdown	下拉	ดรอปดาวน์	ドロップダウン	cowork.work.fieldtype.select
+Insert	插入	แทรก	挿入	cowork.work.file.insert
+Add a link	添加链接	เพิ่มลิงก์	リンクを追加	cowork.work.file.link
+Display text (optional)	显示文本（可选）	ข้อความที่แสดง (ไม่บังคับ)	表示テキスト（任意）	cowork.work.file.text
+Paste a link	粘贴链接	วางลิงก์	リンクを貼り付け	cowork.work.file.url
+Add another list	添加另一个列表	เพิ่มรายการอื่น	リストを追加	cowork.work.list.add
+Archive this list	将此列表进行归档	เก็บถาวรรายการนี้	このリストをアーカイブ	cowork.work.list.archive
+List archived	列表已归档	เก็บถาวรรายการแล้ว	リストをアーカイブしました	cowork.work.list.archived
+Delete this list and all its cards permanently? This cannot be undone.	彻底删除这个列表和里面所有卡片？删除后无法恢复。	ลบรายการนี้และการ์ดทั้งหมดถาวรหรือไม่? กู้คืนไม่ได้	このリストとすべてのカードを完全に削除しますか？元に戻せません。	cowork.work.list.confirmDelete
+Copy list	复制列表	คัดลอกรายการ	リストをコピー	cowork.work.list.copy
+Done list (cards moved here are complete)	完成列表（移入即完成）	รายการเสร็จ (ย้ายมาแล้วถือว่าเสร็จ)	完了リスト（移動すると完了）	cowork.work.list.doneList
+Move list	移动列表	ย้ายรายการ	リストを移動	cowork.work.list.move
+List name	列表名称	ชื่อรายการ	リスト名	cowork.work.list.name
+Enter list name	输入列表名称	ใส่ชื่อรายการ	リスト名を入力	cowork.work.list.placeholder
+Position	位置	ตำแหน่ง	位置	cowork.work.list.position
+Mirror	镜像	มิเรอร์	ミラー	cowork.work.mirror.add
+Mirror	镜像	มิเรอร์	ミラー	cowork.work.mirror.badge
+Remove mirror	移除镜像	ลบมิเรอร์	ミラーを削除	cowork.work.mirror.remove
+Template	模板	เทมเพลต	テンプレート	cowork.work.template.badge
+Create from template	从模板创建	สร้างจากเทมเพลต	テンプレートから作成	cowork.work.template.create
+No templates yet	还没有模板	ยังไม่มีเทมเพลต	テンプレートはまだありません	cowork.work.template.empty
+Make template	设为模板	ตั้งเป็นเทมเพลต	テンプレートにする	cowork.work.template.set
+Card templates	卡片模板	เทมเพลตการ์ด	カードテンプレート	cowork.work.template.title
+Remove template	取消模板	ยกเลิกเทมเพลต	テンプレートを解除	cowork.work.template.unset
+None	无	ไม่มี	なし	cowork.work.reminder.none
+At time of due date	到期时	เมื่อถึงกำหนด	期限時	cowork.work.reminder.at_due
+5 minutes before	5 分钟前	5 นาทีก่อน	5分前	cowork.work.reminder.5m
+10 minutes before	10 分钟前	10 นาทีก่อน	10分前	cowork.work.reminder.10m
+15 minutes before	15 分钟前	15 นาทีก่อน	15分前	cowork.work.reminder.15m
+1 hour before	1 小时前	1 ชั่วโมงก่อน	1時間前	cowork.work.reminder.1h
+2 hours before	2 小时前	2 ชั่วโมงก่อน	2時間前	cowork.work.reminder.2h
+1 day before	1 天前	1 วันก่อน	1日前	cowork.work.reminder.1d
+2 days before	2 天前	2 วันก่อน	2日前	cowork.work.reminder.2d
+Never	绝不	ไม่ซ้ำ	なし	cowork.work.repeat.never
+Daily	每天	ทุกวัน	毎日	cowork.work.repeat.daily
+Weekly	每周	ทุกสัปดาห์	毎週	cowork.work.repeat.weekly
+Monthly	每月	ทุกเดือน	毎月	cowork.work.repeat.monthly
+Yearly	每年	ทุกปี	毎年	cowork.work.repeat.yearly
+{0} completed {1}	{0} 完成了卡片「{1}」	{0} ทำการ์ด "{1}" เสร็จแล้ว	{0} が「{1}」を完了しました	cowork.work.notify.complete
+{1} is due at {2}	卡片「{1}」将在 {2} 到期	การ์ด "{1}" จะครบกำหนดเมื่อ {2}	「{1}」の期限は {2} です	cowork.work.notify.reminder
+{who} marked this card complete	{who} 把这张卡片标记为已完成	{who} ทำเครื่องหมายว่าการ์ดนี้เสร็จแล้ว	{who} がこのカードを完了にしました	cowork.work.activity.complete
+{who} marked this card incomplete	{who} 把这张卡片标记为未完成	{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ	{who} がこのカードを未完了にしました	cowork.work.activity.uncomplete
+{who} completed this recurring card; next due {0}	{who} 完成了这张重复卡片，下次到期 {0}	{who} ทำการ์ดที่ทำซ้ำนี้เสร็จ ครบกำหนดครั้งถัดไป {0}	{who} が繰り返しカードを完了しました。次の期限は {0}	cowork.work.activity.repeat
+{who} mirrored this card to {0}	{who} 把这张卡片镜像到了{0}	{who} มิเรอร์การ์ดนี้ไปที่{0}	{who} がこのカードを{0}にミラーしました	cowork.work.activity.mirror

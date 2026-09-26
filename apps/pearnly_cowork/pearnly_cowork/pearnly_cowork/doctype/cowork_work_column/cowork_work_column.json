@@ -8,16 +8,21 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-27 18:00:00.000000",
- "modified": "2026-09-27 18:00:00.000000",
+ "modified": "2026-09-28 00:00:00.000000",
  "autoname": "hash",
- "sort_field": "creation",
+ "sort_field": "position",
  "sort_order": "ASC",
  "actions": [],
  "links": [],
  "field_order": [
   "workspace",
-  "status",
-  "color"
+  "title",
+  "position",
+  "color",
+  "is_done_list",
+  "archived",
+  "archived_at",
+  "status"
  ],
  "fields": [
   {
@@ -31,13 +36,19 @@
    "search_index": 1
   },
   {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "todo\ndoing\ndone",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "length": 60,
    "reqd": 1,
-   "read_only": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "position",
+   "fieldtype": "Float",
+   "label": "Position",
+   "precision": "9",
+   "hidden": 1
   },
   {
    "fieldname": "color",
@@ -45,6 +56,33 @@
    "label": "Color",
    "options": "\ngreen\nyellow\norange\nred\npurple\nblue\ncyan\npink\ngray",
    "in_list_view": 1
+  },
+  {
+   "fieldname": "is_done_list",
+   "fieldtype": "Check",
+   "label": "Done List",
+   "default": "0"
+  },
+  {
+   "fieldname": "archived",
+   "fieldtype": "Check",
+   "label": "Archived",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "archived_at",
+   "fieldtype": "Datetime",
+   "label": "Archived At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Legacy Status",
+   "length": 20,
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "permissions": [
@@ -56,5 +94,6 @@
    "role": "Cowork Work",
    "read": 1
   }
- ]
+ ],
+ "title_field": "title"
 }

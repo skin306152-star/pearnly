@@ -1,6 +1,15 @@
+1 day before,1 วันก่อน
+1 hour before,1 ชั่วโมงก่อน
+10 minutes before,10 นาทีก่อน
+15 minutes before,15 นาทีก่อน
+2 days before,2 วันก่อน
+2 hours before,2 ชั่วโมงก่อน
+5 minutes before,5 นาทีก่อน
+A board needs at least one list,บอร์ดต้องมีอย่างน้อยหนึ่งรายการ
 A client cannot be moved to another company.,ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
 "A document section exceeds 30,000 characters. Split the document before recognition.","มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน"
+A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
 A name is required.,กรุณาระบุชื่อ
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,ค่าตัวเลขในใบแจ้งหนี้เกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
@@ -33,6 +42,11 @@ Actual positions and quantities,ตำแหน่งจริงและจำ
 Actual warehouse,คลังที่พบจริง
 Add User,เพิ่มผู้ใช้
 Add a card,เพิ่มการ์ด
+Add a checklist,เพิ่มรายการตรวจสอบ
+Add a field,เพิ่มช่อง
+Add a link,เพิ่มลิงก์
+Add an item,เพิ่มรายการ
+Add another list,เพิ่มรายการอื่น
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
 Added {0},เพิ่มแล้ว {0}
@@ -51,13 +65,18 @@ Another push holds the writer lock.,การส่งอื่นกำลั�
 Any due date,ทุกกำหนดส่ง
 Archive,เก็บถาวร
 Archive all cards in this list,เก็บถาวรการ์ดทั้งหมดในรายการนี้
+Archive this list,เก็บถาวรรายการนี้
 Archived at,เวลาที่เก็บถาวร
 Archived cards,การ์ดที่เก็บถาวร
+Archived items,รายการที่เก็บถาวร
+Archived lists,รายการที่เก็บถาวร
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
+Assign · Track · Discuss,มอบหมาย · ติดตาม · พูดคุย
 Assigned to me,มอบหมายให้ฉัน
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
+At time of due date,เมื่อถึงกำหนด
 Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
 Balance,ยอดคงเหลือ
@@ -108,6 +127,7 @@ Card archived,เก็บถาวรแล้ว
 Card deleted,ลบแล้ว
 Card name (alphabetically),ชื่อการ์ด (ตามตัวอักษร)
 Card restored,กู้คืนแล้ว
+Card templates,เทมเพลตการ์ด
 Cash,เงินสด
 Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 Change cover,เปลี่ยนปก
@@ -118,6 +138,7 @@ Changed By,ผู้แก้ไข
 Check the ERP connection settings.,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
+Checkbox,ช่องทำเครื่องหมาย
 Checking,กำลังตรวจสอบ
 Checklist,รายการตรวจสอบ
 Checks Json,ผลตรวจสอบ JSON
@@ -150,6 +171,7 @@ Comments and activity,ความคิดเห็นและกิจกร�
 Companion Report,รายงานจาก Companion
 Companion authentication failed.,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
 Company,บริษัท
+Complete,เสร็จ
 Complete statement review before exporting the result.,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
 Completed,เสร็จสิ้น
 Completed At,เวลาที่เสร็จสิ้น
@@ -167,6 +189,7 @@ Content Hash,แฮชเนื้อหา
 Continuous counting,ตรวจนับต่อเนื่อง
 Copy card,คัดลอกการ์ด
 Copy link,คัดลอกลิงก์
+Copy list,คัดลอกรายการ
 Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
@@ -215,6 +238,7 @@ Cowork Workspace,Cowork บริษัทที่จัดทำบัญช�
 Cowork menu,เมนู Cowork
 Create a new label,สร้างป้ายกำกับใหม่
 Create card,สร้างการ์ด
+Create from template,สร้างจากเทมเพลต
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
 Created,สร้างเมื่อ
 Created By,ผู้สร้าง
@@ -225,17 +249,22 @@ Credit Note,ใบลดหนี้
 Currency,สกุลเงิน
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
+Custom fields,ช่องที่กำหนดเอง
+Custom fields saved,บันทึกช่องที่กำหนดเองแล้ว
 Customer,ลูกค้า
 Cyan,ฟ้า
+Daily,ทุกวัน
 Date,วันที่
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
+Dates,วันที่
 Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete this card permanently? This cannot be undone.,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
+Delete this list and all its cards permanently? This cannot be undone.,ลบรายการนี้และการ์ดทั้งหมดถาวรหรือไม่? กู้คืนไม่ได้
 Delete {0},ลบ {0} รายการ
 Delete {0} reconciliation(s)?,ลบงานกระทบยอด {0} รายการ?
 Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
@@ -259,16 +288,20 @@ Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
 Discount,ส่วนลด
 Discount Amount,จำนวนส่วนลด
+Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี
 Document total,ยอดรวม
 Document type,ประเภทเอกสาร
 Done,เสร็จสิ้น
+Done list (cards moved here are complete),รายการเสร็จ (ย้ายมาแล้วถือว่าเสร็จ)
 Download template,ดาวน์โหลดแม่แบบ
 Draft,ฉบับร่าง
+Dropdown,ดรอปดาวน์
 Due,กำหนดส่ง
 Due date,วันครบกำหนด
+Due time,เวลาครบกำหนด
 Due today or tomorrow,ครบกำหนดวันนี้หรือพรุ่งนี้
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
 ERP Code,รหัส ERP
@@ -289,10 +322,13 @@ Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
 Enter a comment,กรุณาใส่ความคิดเห็น
+Enter a field name,กรุณาใส่ชื่อช่อง
+Enter a link that starts with http:// or https://,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
 Enter a quantity,กรุณากรอกจำนวน
 Enter a stock count title of 1 to 120 characters.,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter a valid quantity with no more than six decimal places.,กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง
+Enter list name,ใส่ชื่อรายการ
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Entries,รายการ
 Entries · {0},รายการบันทึก · {0}
@@ -311,6 +347,7 @@ Failed,ล้มเหลว
 Failure Count,จำนวนครั้งที่ล้มเหลว
 Fence,ลำดับแยกความพยายาม
 Field,ฟิลด์
+Field name,ชื่อช่อง
 File,ไฟล์
 File Hash,ค่าแฮชของไฟล์
 Filter,ตัวกรอง
@@ -342,11 +379,13 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,ปิดใช้งาน
 Income Reconciliation,กระทบยอดรายได้
 Initial Password,รหัสผ่านเริ่มต้น
+Insert,แทรก
 Installed At (UTC),เวลาติดตั้ง (UTC)
 Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
 Invalid checklist,รายการตรวจสอบไม่ถูกต้อง
 Invalid color,สีไม่ถูกต้อง
 Invalid date,วันที่ไม่ถูกต้อง
+Invalid field value,ค่าของช่องไม่ถูกต้อง
 Invalid original document manifest.,ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง
 Invalid original filename.,ชื่อไฟล์ต้นฉบับไม่ถูกต้อง
 Invalid posting type.,ประเภทการลงบัญชีไม่ถูกต้อง
@@ -398,12 +437,16 @@ Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 Light,ไฟ
+List,รายการ
 List actions,การดำเนินการของรายการ
+List archived,เก็บถาวรรายการแล้ว
+List name,ชื่อรายการ
 Location,ตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
 Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
+Make template,ตั้งเป็นเทมเพลต
 Manual,กรอกเอง
 Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
@@ -416,11 +459,15 @@ Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
 Member,สมาชิก
 Members,สมาชิก
+Mirror,มิเรอร์
+Monthly,ทุกเดือน
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
+Move list,ย้ายรายการ
 Name,ชื่อ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
+Never,ไม่ซ้ำ
 New code,ขอรหัสใหม่
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 New stock count,สร้างการตรวจนับ
@@ -436,6 +483,7 @@ No members,ไม่มีสมาชิก
 No notifications,ไม่มีการแจ้งเตือน
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
+No templates yet,ยังไม่มีเทมเพลต
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 None,ไม่มี
 Not Permitted,ไม่ได้รับอนุญาต
@@ -446,11 +494,13 @@ Not set,ยังไม่กรอก
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Notifications,การแจ้งเตือน
+Number,ตัวเลข
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 Open card,เปิดการ์ด
+Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
 Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
@@ -477,6 +527,7 @@ Page Count,จำนวนหน้า
 Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
 Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
+Paste a link,วางลิงก์
 Payload Json,ข้อมูลส่งที่ตรึงไว้ JSON
 Payment Evidence,หลักฐานการชำระเงิน
 Payment Method,วิธีชำระเงิน
@@ -488,6 +539,7 @@ Phase,ขั้นตอนการประมวลผล
 Photos,รูปภาพ
 Pink,ชมพู
 Please upload a PDF or image,กรุณาส่งรูปภาพหรือ PDF
+Position,ตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
 Posting,วิธีลงบัญชี
 Posting Kind,ประเภทการผ่านรายการ
@@ -540,6 +592,7 @@ Record Revision,รุ่นของรายการ
 Record a count,บันทึกการตรวจนับ
 Recount,นับใหม่
 Recount this product,นับสินค้านี้ใหม่
+Recurring,การทำซ้ำ
 Red,แดง
 Reference,เลขที่อ้างอิง
 Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
@@ -557,6 +610,8 @@ Remarks,ข้อสังเกต
 Remove,ลบ
 Remove color,ลบสี
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
+Remove mirror,ลบมิเรอร์
+Remove template,ยกเลิกเทมเพลต
 Report Credential,ข้อมูลรับรองของรายงาน
 Report Credential Generation,รุ่นข้อมูลรับรองของรายงาน
 Report Received At (UTC),เวลารับรายงาน (UTC)
@@ -613,10 +668,12 @@ Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
 Service or stock?,บริการหรือสินค้า?
+Set reminder,ตั้งการเตือน
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
+Show on card,แสดงบนการ์ด
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
@@ -636,6 +693,7 @@ Source Reference Count,จำนวนรายการอ้างอิงต
 Source Reference Kind,ประเภทการอ้างอิงต้นฉบับ
 Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
 Start counting,เริ่มตรวจนับ
+Start date,วันเริ่ม
 Start reconciliation,เริ่มกระทบยอด
 Started At,เริ่มเมื่อ
 Statement review is not available for this task.,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
@@ -659,6 +717,8 @@ Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 Tax Invoice,ใบกำกับภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
+Template,เทมเพลต
+Text,ข้อความ
 Text is too long,ข้อความยาวเกินไป
 That code is not valid,รหัสไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
@@ -698,6 +758,7 @@ The acknowledgement conflicts with the recorded result.,ผลตอบรับ
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
 The camera could not start,ไม่สามารถเปิดกล้องได้
+The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่มีการ์ดนี้แล้ว
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
@@ -783,6 +844,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,ชื่อแผ่นงานตรวจทานมีช่องว่างเกินมา กรุณาคืนชื่อแผ่นงานเดิม
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
+The start date is after the due date,วันเริ่มอยู่หลังวันครบกำหนด
 The stock count record was not found.,ไม่พบรายการตรวจนับสต็อก
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The stocktake export snapshot is incomplete. Reload and try again.,ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง
@@ -812,6 +874,7 @@ This import request ID has already been used for different content.,รหัส
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
+This list no longer exists,ไม่มีรายการนี้แล้ว
 This member cannot be assigned,มอบหมายให้สมาชิกนี้ไม่ได้
 This multi-page invoice has no verified combined record. Review it before exporting.,ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก
 This operation ID has already been used for another request.,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
@@ -886,12 +949,14 @@ WHT amount,ภาษีหัก ณ ที่จ่าย
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Watch,ติดตาม
+Weekly,ทุกสัปดาห์
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
 Withdrawal,ถอน
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
+Yearly,ทุกปี
 Yellow,เหลือง
 You are watching this card,คุณกำลังติดตามการ์ดนี้
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
@@ -1227,19 +1292,24 @@ cowork.team.status,สถานะ
 cowork.work.activity.archive,{who} เก็บถาวรการ์ดนี้
 cowork.work.activity.assign,{who} เพิ่ม {0} ในการ์ดนี้
 cowork.work.activity.attach,{who} แนบไฟล์ {0}
+cowork.work.activity.complete,{who} ทำเครื่องหมายว่าการ์ดนี้เสร็จแล้ว
 cowork.work.activity.copy,"{who} คัดลอกการ์ดนี้จาก ""{0}"""
 cowork.work.activity.create,{who} เพิ่มการ์ดนี้
 cowork.work.activity.detach,{who} ลบไฟล์แนบ {0}
 cowork.work.activity.due,{who} ตั้งวันครบกำหนดเป็น {0}
+cowork.work.activity.mirror,{who} มิเรอร์การ์ดนี้ไปที่{0}
 cowork.work.activity.move,{who} ย้ายการ์ดนี้จาก{0}ไป{1}
 cowork.work.activity.noDue,ไม่มี
+cowork.work.activity.repeat,{who} ทำการ์ดที่ทำซ้ำนี้เสร็จ ครบกำหนดครั้งถัดไป {0}
 cowork.work.activity.restore,{who} กู้คืนการ์ดนี้
+cowork.work.activity.uncomplete,{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ
 cowork.work.archived.at,เวลาที่เก็บถาวร
 cowork.work.archived.confirmDelete,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
 cowork.work.archived.deleted,ลบแล้ว
+cowork.work.archived.lists,รายการที่เก็บถาวร
 cowork.work.archived.restore,กู้คืน
 cowork.work.archived.restored,กู้คืนแล้ว
-cowork.work.archived.title,การ์ดที่เก็บถาวร
+cowork.work.archived.title,รายการที่เก็บถาวร
 cowork.work.card.add,เพิ่มการ์ด
 cowork.work.card.archive,เก็บถาวร
 cowork.work.card.archived,เก็บถาวรแล้ว
@@ -1248,6 +1318,8 @@ cowork.work.card.placeholder,ใส่ชื่อ
 cowork.work.card.saved,บันทึกแล้ว
 cowork.work.card.title,การ์ด
 cowork.work.card.undone,ทำเครื่องหมายว่ายังไม่เสร็จ
+cowork.work.checklist.add,เพิ่มรายการตรวจสอบ
+cowork.work.checklist.addItem,เพิ่มรายการ
 cowork.work.color.blue,น้ำเงิน
 cowork.work.color.cyan,ฟ้า
 cowork.work.color.gray,เทา
@@ -1281,12 +1353,20 @@ cowork.work.error.conflict,มีคนแก้ไขการ์ดนี้�
 cowork.work.error.cover,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 cowork.work.error.date,วันที่ไม่ถูกต้อง
 cowork.work.error.dedicated_api,กรุณาแก้ไขการ์ดบนบอร์ดงาน
+cowork.work.error.field_options,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
+cowork.work.error.field_title,กรุณาใส่ชื่อช่อง
+cowork.work.error.field_value,ค่าของช่องไม่ถูกต้อง
 cowork.work.error.file,กรุณาเลือกไฟล์
 cowork.work.error.file_size,ไฟล์ใหญ่เกิน 25 MB
 cowork.work.error.label,ไม่มีป้ายกำกับนี้แล้ว
+cowork.work.error.last_list,บอร์ดต้องมีอย่างน้อยหนึ่งรายการ
+cowork.work.error.link,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
+cowork.work.error.list,ไม่มีรายการนี้แล้ว
 cowork.work.error.member,มอบหมายให้สมาชิกนี้ไม่ได้
+cowork.work.error.mirror,การ์ดอยู่ในรายการนั้นแล้ว
 cowork.work.error.not_found,ไม่มีการ์ดนี้แล้ว
 cowork.work.error.request,คำขอไม่ถูกต้อง
+cowork.work.error.start_after_due,วันเริ่มอยู่หลังวันครบกำหนด
 cowork.work.error.status,สถานะไม่ถูกต้อง
 cowork.work.error.title,กรุณาใส่ชื่อ
 cowork.work.error.too_long,ข้อความยาวเกินไป
@@ -1295,16 +1375,39 @@ cowork.work.field.activity,ความคิดเห็นและกิจ�
 cowork.work.field.attachments,ไฟล์แนบ
 cowork.work.field.checklist,รายการตรวจสอบ
 cowork.work.field.comments,ความคิดเห็น
+cowork.work.field.completed,เสร็จ
 cowork.work.field.cover,ปก
+cowork.work.field.dates,วันที่
 cowork.work.field.description,รายละเอียด
 cowork.work.field.done,เสร็จ
 cowork.work.field.due,วันครบกำหนด
+cowork.work.field.dueTime,เวลาครบกำหนด
 cowork.work.field.item,รายการ
 cowork.work.field.labels,ป้ายกำกับ
+cowork.work.field.list,รายการ
 cowork.work.field.members,สมาชิก
+cowork.work.field.reminder,ตั้งการเตือน
+cowork.work.field.repeat,การทำซ้ำ
+cowork.work.field.start,วันเริ่ม
 cowork.work.field.status,สถานะ
 cowork.work.field.title,ชื่อ
+cowork.work.fields.add,เพิ่มช่อง
+cowork.work.fields.manage,ช่องที่กำหนดเอง
+cowork.work.fields.name,ชื่อช่อง
+cowork.work.fields.options,ตัวเลือก (บรรทัดละหนึ่งรายการ)
+cowork.work.fields.saved,บันทึกช่องที่กำหนดเองแล้ว
+cowork.work.fields.showOnCard,แสดงบนการ์ด
+cowork.work.fields.type,ประเภท
+cowork.work.fieldtype.checkbox,ช่องทำเครื่องหมาย
+cowork.work.fieldtype.date,วันที่
+cowork.work.fieldtype.number,ตัวเลข
+cowork.work.fieldtype.select,ดรอปดาวน์
+cowork.work.fieldtype.text,ข้อความ
+cowork.work.file.insert,แทรก
+cowork.work.file.link,เพิ่มลิงก์
+cowork.work.file.text,ข้อความที่แสดง (ไม่บังคับ)
 cowork.work.file.upload,อัปโหลด
+cowork.work.file.url,วางลิงก์
 cowork.work.filter.anyDue,ทุกกำหนดส่ง
 cowork.work.filter.anyLabel,ป้ายกำกับทั้งหมด
 cowork.work.filter.anyMember,สมาชิกทั้งหมด
@@ -1322,14 +1425,29 @@ cowork.work.labels.color,สี
 cowork.work.labels.manage,ป้ายกำกับ
 cowork.work.labels.name,ชื่อ
 cowork.work.labels.saved,บันทึกป้ายกำกับแล้ว
+cowork.work.list.add,เพิ่มรายการอื่น
+cowork.work.list.archive,เก็บถาวรรายการนี้
+cowork.work.list.archived,เก็บถาวรรายการแล้ว
+cowork.work.list.confirmDelete,ลบรายการนี้และการ์ดทั้งหมดถาวรหรือไม่? กู้คืนไม่ได้
+cowork.work.list.copy,คัดลอกรายการ
+cowork.work.list.doneList,รายการเสร็จ (ย้ายมาแล้วถือว่าเสร็จ)
+cowork.work.list.move,ย้ายรายการ
+cowork.work.list.name,ชื่อรายการ
+cowork.work.list.placeholder,ใส่ชื่อรายการ
+cowork.work.list.position,ตำแหน่ง
+cowork.work.mirror.add,มิเรอร์
+cowork.work.mirror.badge,มิเรอร์
+cowork.work.mirror.remove,ลบมิเรอร์
 cowork.work.notify.assign,"{0} เพิ่มคุณในการ์ด ""{1}"""
 cowork.work.notify.comment,"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
+cowork.work.notify.complete,"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
 cowork.work.notify.due_soon,"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
 cowork.work.notify.empty,ไม่มีการแจ้งเตือน
 cowork.work.notify.mention,"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 cowork.work.notify.move,"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
 cowork.work.notify.overdue,"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
 cowork.work.notify.readAll,ทำเครื่องหมายว่าอ่านทั้งหมด
+cowork.work.notify.reminder,"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
 cowork.work.notify.title,การแจ้งเตือน
 cowork.work.quick.copy,คัดลอกการ์ด
 cowork.work.quick.cover,เปลี่ยนปก
@@ -1343,9 +1461,29 @@ cowork.work.quick.title,แก้ไขการ์ด
 cowork.work.quick.unwatch,เลิกติดตาม
 cowork.work.quick.watch,ติดตาม
 cowork.work.quick.watching,คุณกำลังติดตามการ์ดนี้
+cowork.work.reminder.10m,10 นาทีก่อน
+cowork.work.reminder.15m,15 นาทีก่อน
+cowork.work.reminder.1d,1 วันก่อน
+cowork.work.reminder.1h,1 ชั่วโมงก่อน
+cowork.work.reminder.2d,2 วันก่อน
+cowork.work.reminder.2h,2 ชั่วโมงก่อน
+cowork.work.reminder.5m,5 นาทีก่อน
+cowork.work.reminder.at_due,เมื่อถึงกำหนด
+cowork.work.reminder.none,ไม่มี
+cowork.work.repeat.daily,ทุกวัน
+cowork.work.repeat.monthly,ทุกเดือน
+cowork.work.repeat.never,ไม่ซ้ำ
+cowork.work.repeat.weekly,ทุกสัปดาห์
+cowork.work.repeat.yearly,ทุกปี
 cowork.work.status.doing,กำลังทำ
 cowork.work.status.done,เสร็จแล้ว
 cowork.work.status.todo,รอดำเนินการ
+cowork.work.template.badge,เทมเพลต
+cowork.work.template.create,สร้างจากเทมเพลต
+cowork.work.template.empty,ยังไม่มีเทมเพลต
+cowork.work.template.set,ตั้งเป็นเทมเพลต
+cowork.work.template.title,เทมเพลตการ์ด
+cowork.work.template.unset,ยกเลิกเทมเพลต
 cowork_line,Cowork LINE
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
@@ -1533,6 +1671,7 @@ vat_check.recognition_timeout,การอ่านใบกำกับใช�
 vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
 {0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
+{0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
 {0} files,{0} ไฟล์
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
@@ -1540,13 +1679,18 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
+{1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
 {1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
 {1} is overdue ({2}),"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
 {who} added this card,{who} เพิ่มการ์ดนี้
 {who} added {0} to this card,{who} เพิ่ม {0} ในการ์ดนี้
 {who} archived this card,{who} เก็บถาวรการ์ดนี้
 {who} attached {0},{who} แนบไฟล์ {0}
+{who} completed this recurring card; next due {0},{who} ทำการ์ดที่ทำซ้ำนี้เสร็จ ครบกำหนดครั้งถัดไป {0}
 {who} copied this card from {0},"{who} คัดลอกการ์ดนี้จาก ""{0}"""
+{who} marked this card complete,{who} ทำเครื่องหมายว่าการ์ดนี้เสร็จแล้ว
+{who} marked this card incomplete,{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ
+{who} mirrored this card to {0},{who} มิเรอร์การ์ดนี้ไปที่{0}
 {who} moved this card from {0} to {1},{who} ย้ายการ์ดนี้จาก{0}ไป{1}
 {who} removed attachment {0},{who} ลบไฟล์แนบ {0}
 {who} restored this card,{who} กู้คืนการ์ดนี้

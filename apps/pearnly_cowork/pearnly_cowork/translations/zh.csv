@@ -1,6 +1,15 @@
+1 day before,1 天前
+1 hour before,1 小时前
+10 minutes before,10 分钟前
+15 minutes before,15 分钟前
+2 days before,2 天前
+2 hours before,2 小时前
+5 minutes before,5 分钟前
+A board needs at least one list,看板至少要留一个列表
 A client cannot be moved to another company.,客户不能转移到另一家公司。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
 "A document section exceeds 30,000 characters. Split the document before recognition.","文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
+A dropdown field needs at least one option,下拉字段至少要有一个选项
 A file is larger than 25 MB.,文件超过 25 MB。
 A name is required.,请填写名称。
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
@@ -33,6 +42,11 @@ Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
 Add User,添加用户
 Add a card,添加卡片
+Add a checklist,添加清单
+Add a field,新建字段
+Add a link,添加链接
+Add an item,添加项目
+Add another list,添加另一个列表
 Add photo,添加照片
 Add photos,添加照片
 Added {0},已添加 {0}
@@ -51,13 +65,18 @@ Another push holds the writer lock.,另一笔推送正在占用写入锁。
 Any due date,全部到期
 Archive,归档
 Archive all cards in this list,将此列表中的所有卡片归档
+Archive this list,将此列表进行归档
 Archived at,归档时间
 Archived cards,已归档的卡片
+Archived items,已归档的项目
+Archived lists,已归档的列表
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
+Assign · Track · Discuss,分派 · 跟进 · 讨论
 Assigned to me,分配给我的
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
+At time of due date,到期时
 Attachments,附件
 Attempt Secret,尝试密钥
 Balance,余额
@@ -108,6 +127,7 @@ Card archived,已归档
 Card deleted,已删除
 Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
+Card templates,卡片模板
 Cash,现金
 Change cards on the work board,请在工作看板上修改卡片
 Change cover,更改封面
@@ -118,6 +138,7 @@ Changed By,修改人
 Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
+Checkbox,勾选
 Checking,核对中
 Checklist,清单
 Checks Json,检查结果JSON
@@ -150,6 +171,7 @@ Comments and activity,评论和活动
 Companion Report,伴侣端上报
 Companion authentication failed.,助手认证失败。
 Company,公司
+Complete,完成
 Complete statement review before exporting the result.,请先完成账单复核，再导出对账结果。
 Completed,已完成
 Completed At,完成时间
@@ -167,6 +189,7 @@ Content Hash,内容摘要
 Continuous counting,连续盘点
 Copy card,复制卡片
 Copy link,复制链接
+Copy list,复制列表
 Copy to,复制到
 Correct entry,修改记录
 Corrected Value,修正值
@@ -215,6 +238,7 @@ Cowork Workspace,Cowork 公司账套
 Cowork menu,Cowork 菜单
 Create a new label,新建标签
 Create card,创建卡片
+Create from template,从模板创建
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Created,创建时间
 Created By,创建人
@@ -225,17 +249,22 @@ Credit Note,贷项通知单
 Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
+Custom fields,自定义字段
+Custom fields saved,自定义字段已保存
 Customer,客户
 Cyan,青
+Daily,每天
 Date,日期
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
+Dates,日期
 Debit,借方
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
 Delete selected ({0}),删除所选（{0}）
 Delete this card permanently? This cannot be undone.,彻底删除这张卡片？删除后无法恢复。
+Delete this list and all its cards permanently? This cannot be undone.,彻底删除这个列表和里面所有卡片？删除后无法恢复。
 Delete {0},删除 {0} 项
 Delete {0} reconciliation(s)?,删除这 {0} 个对账任务？
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
@@ -259,16 +288,20 @@ Disable,停用
 Disable {0},停用 {0}
 Discount,折扣金额
 Discount Amount,折扣金额
+Display text (optional),显示文本（可选）
 Document Key,单据防重键
 Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
 Done,已完成
+Done list (cards moved here are complete),完成列表（移入即完成）
 Download template,下载模板
 Draft,草稿
+Dropdown,下拉
 Due,到期
 Due date,到期日
+Due time,到期时间
 Due today or tomorrow,今明两天到期
 Duplicate records are not allowed.,不能重复选择同一条记录。
 ERP Code,ERP 编码
@@ -289,10 +322,13 @@ Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
 Enter a comment,请输入评论
+Enter a field name,请输入字段名称
+Enter a link that starts with http:// or https://,请输入以 http:// 或 https:// 开头的链接
 Enter a quantity,请填写数量
 Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符的盘点标题。
 Enter a valid email,请填写正确的邮箱
 Enter a valid quantity with no more than six decimal places.,请输入有效数量，最多保留六位小数。
+Enter list name,输入列表名称
 Enter the user name,请填写用户名
 Entries,记录
 Entries · {0},逐笔记录 · {0}
@@ -311,6 +347,7 @@ Failed,失败
 Failure Count,失败次数
 Fence,尝试隔离序号
 Field,字段
+Field name,字段名称
 File,文件
 File Hash,文件哈希值
 Filter,筛选
@@ -342,11 +379,13 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,已停用
 Income Reconciliation,收入对账
 Initial Password,初始密码
+Insert,插入
 Installed At (UTC),安装时间（UTC）
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
 Invalid checklist,清单无效
 Invalid color,颜色无效
 Invalid date,日期无效
+Invalid field value,字段的值无效
 Invalid original document manifest.,原件内容索引无效。
 Invalid original filename.,原始文件名无效。
 Invalid posting type.,过账类型无效。
@@ -398,12 +437,16 @@ Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
 Light,灯光
+List,列表
 List actions,列表操作
+List archived,列表已归档
+List name,列表名称
 Location,位置
 Location mismatch,仓位不符
 Lock Key,锁键
 Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
+Make template,设为模板
 Manual,手工
 Mapping Key,映射键
 Mapping Kind,映射类型
@@ -416,11 +459,15 @@ Matches,一致
 Matching and saving,逐笔核对并保存
 Member,成员
 Members,成员
+Mirror,镜像
+Monthly,每月
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
+Move list,移动列表
 Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
+Never,绝不
 New code,换一个码
 New records must start as drafts.,新记录必须先保存为草稿。
 New stock count,新建盘点
@@ -436,6 +483,7 @@ No members,没有成员
 No notifications,没有提醒
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
+No templates yet,还没有模板
 No warehouse matches that name,该仓库名不存在
 None,无
 Not Permitted,没有权限
@@ -446,11 +494,13 @@ Not set,未填
 Note,说明
 Notes,备注
 Notifications,提醒
+Number,数字
 OUT,出账
 Observed At (UTC),观测时间（UTC）
 Only an active count can be deleted,只有进行中的盘点能删除
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
 Open card,打开卡片
+Options (one per line),选项（每行一个）
 Orange,橙
 Order Evidence,订单截图
 Original Content Coverage Complete,原件内容已完整覆盖
@@ -477,6 +527,7 @@ Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
 Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
+Paste a link,粘贴链接
 Payload Json,冻结载荷JSON
 Payment Evidence,付款凭证
 Payment Method,付款方式
@@ -488,6 +539,7 @@ Phase,处理阶段
 Photos,照片
 Pink,粉
 Please upload a PDF or image,请发送 PDF 或图片
+Position,位置
 Position differences,仓位差异
 Posting,入账方式
 Posting Kind,过账类型
@@ -540,6 +592,7 @@ Record Revision,记录版本
 Record a count,录入盘点
 Recount,重盘
 Recount this product,重新盘点该物料
+Recurring,重复性
 Red,红
 Reference,参考编号
 Refresh Error Code,刷新错误码
@@ -557,6 +610,8 @@ Remarks,备注
 Remove,移除
 Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
+Remove mirror,移除镜像
+Remove template,取消模板
 Report Credential,上报凭证
 Report Credential Generation,上报凭证版本
 Report Received At (UTC),上报接收时间（UTC）
@@ -613,10 +668,12 @@ Send documents to ERP,发单据进 ERP
 Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
 Service or stock?,服务还是存货？
+Set reminder,设置提醒
 Settings Json,配置数据（JSON）
 Sheet,表格文件
 Short,盘亏
 Show,显示
+Show on card,显示在卡片正面
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
@@ -636,6 +693,7 @@ Source Reference Count,原件关联项数
 Source Reference Kind,原件关联类型
 Source Sha256,原始文件 SHA-256
 Start counting,开始盘点
+Start date,开始日期
 Start reconciliation,开始对账
 Started At,开始时间
 Statement review is not available for this task.,此任务没有逐行复核记录。
@@ -659,6 +717,8 @@ Task name,任务名称
 Tax ID,纳税人识别号
 Tax Invoice,税务发票
 Taxes and Charges,税费
+Template,模板
+Text,文本
 Text is too long,内容太长
 That code is not valid,验证码不正确
 That photo cannot be attached. Upload it again.,这张照片挂不上，请重新上传。
@@ -698,6 +758,7 @@ The acknowledgement conflicts with the recorded result.,回执与已记录结果
 The bank statement could not be read.,读不出银行账单。
 The billing receipt cannot be reverted.,计费回执不能撤回。
 The camera could not start,摄像头无法启动
+The card is already in that list,卡片已经在那个列表里
 The card no longer exists,卡片不存在
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
@@ -783,6 +844,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,复核工作表名称包含多余空格，请恢复原工作表名。
 The row has no product code or barcode,这一行没有物料编号或条码
 The source page number must be a positive integer.,源文件页码必须是正整数。
+The start date is after the due date,开始日期晚于到期日
 The stock count record was not found.,找不到盘点记录。
 The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
 The stocktake export snapshot is incomplete. Reload and try again.,盘点导出数据不完整，请刷新后重试。
@@ -812,6 +874,7 @@ This import request ID has already been used for different content.,此导入请
 This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
 This item is also stocked at:,这件货还在别处：
 This label no longer exists,标签不存在
+This list no longer exists,列表不存在
 This member cannot be assigned,不能分配给这个成员
 This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
 This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
@@ -886,12 +949,14 @@ WHT amount,预扣税额
 Waiting to start,排队中
 Warehouse,仓库
 Watch,关注
+Weekly,每周
 Wire Attempt,发送尝试次数
 With differences,有差异
 Withdrawal,提款
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workspace,公司账套
+Yearly,每年
 Yellow,黄
 You are watching this card,你在关注这张卡片
 You do not have access to this ERP target.,无权访问此ERP目标。
@@ -1227,19 +1292,24 @@ cowork.team.status,状态
 cowork.work.activity.archive,{who} 归档了这张卡片
 cowork.work.activity.assign,{who} 把 {0} 加入了这张卡片
 cowork.work.activity.attach,{who} 添加了附件 {0}
+cowork.work.activity.complete,{who} 把这张卡片标记为已完成
 cowork.work.activity.copy,{who} 从「{0}」复制了这张卡片
 cowork.work.activity.create,{who} 添加了这张卡片
 cowork.work.activity.detach,{who} 删除了附件 {0}
 cowork.work.activity.due,{who} 把到期日设为 {0}
+cowork.work.activity.mirror,{who} 把这张卡片镜像到了{0}
 cowork.work.activity.move,{who} 把这张卡片从{0}移到{1}
 cowork.work.activity.noDue,无
+cowork.work.activity.repeat,{who} 完成了这张重复卡片，下次到期 {0}
 cowork.work.activity.restore,{who} 恢复了这张卡片
+cowork.work.activity.uncomplete,{who} 把这张卡片标记为未完成
 cowork.work.archived.at,归档时间
 cowork.work.archived.confirmDelete,彻底删除这张卡片？删除后无法恢复。
 cowork.work.archived.deleted,已删除
+cowork.work.archived.lists,已归档的列表
 cowork.work.archived.restore,恢复
 cowork.work.archived.restored,已恢复
-cowork.work.archived.title,已归档的卡片
+cowork.work.archived.title,已归档的项目
 cowork.work.card.add,添加卡片
 cowork.work.card.archive,归档
 cowork.work.card.archived,已归档
@@ -1248,6 +1318,8 @@ cowork.work.card.placeholder,输入标题
 cowork.work.card.saved,已保存
 cowork.work.card.title,卡片
 cowork.work.card.undone,标记未完成
+cowork.work.checklist.add,添加清单
+cowork.work.checklist.addItem,添加项目
 cowork.work.color.blue,蓝
 cowork.work.color.cyan,青
 cowork.work.color.gray,灰
@@ -1281,12 +1353,20 @@ cowork.work.error.conflict,这张卡片刚被别人改过，请关闭后重新�
 cowork.work.error.cover,请选这张卡片上的图片附件
 cowork.work.error.date,日期无效
 cowork.work.error.dedicated_api,请在工作看板上修改卡片
+cowork.work.error.field_options,下拉字段至少要有一个选项
+cowork.work.error.field_title,请输入字段名称
+cowork.work.error.field_value,字段的值无效
 cowork.work.error.file,请选择文件
 cowork.work.error.file_size,文件超过 25 MB
 cowork.work.error.label,标签不存在
+cowork.work.error.last_list,看板至少要留一个列表
+cowork.work.error.link,请输入以 http:// 或 https:// 开头的链接
+cowork.work.error.list,列表不存在
 cowork.work.error.member,不能分配给这个成员
+cowork.work.error.mirror,卡片已经在那个列表里
 cowork.work.error.not_found,卡片不存在
 cowork.work.error.request,请求无效
+cowork.work.error.start_after_due,开始日期晚于到期日
 cowork.work.error.status,状态无效
 cowork.work.error.title,请输入标题
 cowork.work.error.too_long,内容太长
@@ -1295,16 +1375,39 @@ cowork.work.field.activity,评论和活动
 cowork.work.field.attachments,附件
 cowork.work.field.checklist,清单
 cowork.work.field.comments,评论
+cowork.work.field.completed,完成
 cowork.work.field.cover,封面
+cowork.work.field.dates,日期
 cowork.work.field.description,描述
 cowork.work.field.done,完成
 cowork.work.field.due,到期日
+cowork.work.field.dueTime,到期时间
 cowork.work.field.item,项目
 cowork.work.field.labels,标签
+cowork.work.field.list,列表
 cowork.work.field.members,成员
+cowork.work.field.reminder,设置提醒
+cowork.work.field.repeat,重复性
+cowork.work.field.start,开始日期
 cowork.work.field.status,状态
 cowork.work.field.title,标题
+cowork.work.fields.add,新建字段
+cowork.work.fields.manage,自定义字段
+cowork.work.fields.name,字段名称
+cowork.work.fields.options,选项（每行一个）
+cowork.work.fields.saved,自定义字段已保存
+cowork.work.fields.showOnCard,显示在卡片正面
+cowork.work.fields.type,类型
+cowork.work.fieldtype.checkbox,勾选
+cowork.work.fieldtype.date,日期
+cowork.work.fieldtype.number,数字
+cowork.work.fieldtype.select,下拉
+cowork.work.fieldtype.text,文本
+cowork.work.file.insert,插入
+cowork.work.file.link,添加链接
+cowork.work.file.text,显示文本（可选）
 cowork.work.file.upload,上传
+cowork.work.file.url,粘贴链接
 cowork.work.filter.anyDue,全部到期
 cowork.work.filter.anyLabel,全部标签
 cowork.work.filter.anyMember,全部成员
@@ -1322,14 +1425,29 @@ cowork.work.labels.color,颜色
 cowork.work.labels.manage,标签
 cowork.work.labels.name,名称
 cowork.work.labels.saved,标签已保存
+cowork.work.list.add,添加另一个列表
+cowork.work.list.archive,将此列表进行归档
+cowork.work.list.archived,列表已归档
+cowork.work.list.confirmDelete,彻底删除这个列表和里面所有卡片？删除后无法恢复。
+cowork.work.list.copy,复制列表
+cowork.work.list.doneList,完成列表（移入即完成）
+cowork.work.list.move,移动列表
+cowork.work.list.name,列表名称
+cowork.work.list.placeholder,输入列表名称
+cowork.work.list.position,位置
+cowork.work.mirror.add,镜像
+cowork.work.mirror.badge,镜像
+cowork.work.mirror.remove,移除镜像
 cowork.work.notify.assign,{0} 把你加入了卡片「{1}」
 cowork.work.notify.comment,{0} 评论了卡片「{1}」
+cowork.work.notify.complete,{0} 完成了卡片「{1}」
 cowork.work.notify.due_soon,卡片「{1}」快到期了（{2}）
 cowork.work.notify.empty,没有提醒
 cowork.work.notify.mention,{0} 在卡片「{1}」提到了你
 cowork.work.notify.move,{0} 把卡片「{1}」移到了{2}
 cowork.work.notify.overdue,卡片「{1}」已过期（{2}）
 cowork.work.notify.readAll,全部标为已读
+cowork.work.notify.reminder,卡片「{1}」将在 {2} 到期
 cowork.work.notify.title,提醒
 cowork.work.quick.copy,复制卡片
 cowork.work.quick.cover,更改封面
@@ -1343,9 +1461,29 @@ cowork.work.quick.title,编辑卡片
 cowork.work.quick.unwatch,取消关注
 cowork.work.quick.watch,关注
 cowork.work.quick.watching,你在关注这张卡片
+cowork.work.reminder.10m,10 分钟前
+cowork.work.reminder.15m,15 分钟前
+cowork.work.reminder.1d,1 天前
+cowork.work.reminder.1h,1 小时前
+cowork.work.reminder.2d,2 天前
+cowork.work.reminder.2h,2 小时前
+cowork.work.reminder.5m,5 分钟前
+cowork.work.reminder.at_due,到期时
+cowork.work.reminder.none,无
+cowork.work.repeat.daily,每天
+cowork.work.repeat.monthly,每月
+cowork.work.repeat.never,绝不
+cowork.work.repeat.weekly,每周
+cowork.work.repeat.yearly,每年
 cowork.work.status.doing,进行中
 cowork.work.status.done,已完成
 cowork.work.status.todo,待办
+cowork.work.template.badge,模板
+cowork.work.template.create,从模板创建
+cowork.work.template.empty,还没有模板
+cowork.work.template.set,设为模板
+cowork.work.template.title,卡片模板
+cowork.work.template.unset,取消模板
 cowork_line,Cowork LINE
 document,文档
 erp.account_set_unavailable,此账套不可用。
@@ -1533,6 +1671,7 @@ vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
 {0} added you to {1},{0} 把你加入了卡片「{1}」
 {0} commented on {1},{0} 评论了卡片「{1}」
+{0} completed {1},{0} 完成了卡片「{1}」
 {0} files,{0} 个文件
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
@@ -1540,13 +1679,18 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
+{1} is due at {2},卡片「{1}」将在 {2} 到期
 {1} is due soon ({2}),卡片「{1}」快到期了（{2}）
 {1} is overdue ({2}),卡片「{1}」已过期（{2}）
 {who} added this card,{who} 添加了这张卡片
 {who} added {0} to this card,{who} 把 {0} 加入了这张卡片
 {who} archived this card,{who} 归档了这张卡片
 {who} attached {0},{who} 添加了附件 {0}
+{who} completed this recurring card; next due {0},{who} 完成了这张重复卡片，下次到期 {0}
 {who} copied this card from {0},{who} 从「{0}」复制了这张卡片
+{who} marked this card complete,{who} 把这张卡片标记为已完成
+{who} marked this card incomplete,{who} 把这张卡片标记为未完成
+{who} mirrored this card to {0},{who} 把这张卡片镜像到了{0}
 {who} moved this card from {0} to {1},{who} 把这张卡片从{0}移到{1}
 {who} removed attachment {0},{who} 删除了附件 {0}
 {who} restored this card,{who} 恢复了这张卡片

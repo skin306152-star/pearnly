@@ -34,6 +34,7 @@ FONTS = {
 FUNCTIONS = {
     "intake": ("Send documents to ERP", "Upload · Review · Choose destination", (0, 0)),
     "stocktake": ("Stock count", "Scan barcodes · Record quantities", (1, 0)),
+    "work": ("Work Coordination", "Assign · Track · Discuss", (2, 0)),
 }
 LOCKED = (0, 1)
 # Text band of a source card (tile coordinates) that is repainted with the card colour.

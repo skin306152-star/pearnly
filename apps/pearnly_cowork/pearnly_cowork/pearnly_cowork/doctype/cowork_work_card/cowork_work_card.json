@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-27 00:00:00.000000",
- "modified": "2026-09-27 12:00:00.000000",
+ "modified": "2026-09-28 00:00:00.000000",
  "autoname": "hash",
  "sort_field": "creation",
  "sort_order": "DESC",
@@ -28,13 +28,20 @@
  "field_order": [
   "workspace",
   "title",
-  "status",
+  "board_list",
+  "completed",
   "position",
+  "start_date",
   "due_date",
+  "due_time",
+  "reminder",
+  "recurrence",
   "assignees",
   "labels",
   "description",
   "checklist",
+  "values",
+  "is_template",
   "watchers",
   "cover_color",
   "cover_file",
@@ -62,13 +69,19 @@
    "in_list_view": 1
   },
   {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "todo\ndoing\ndone",
-   "default": "todo",
+   "fieldname": "board_list",
+   "fieldtype": "Link",
+   "label": "List",
+   "options": "Cowork Work Column",
    "reqd": 1,
+   "search_index": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "completed",
+   "fieldtype": "Check",
+   "label": "Completed",
+   "default": "0"
   },
   {
    "fieldname": "position",
@@ -78,9 +91,33 @@
    "hidden": 1
   },
   {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date"
+  },
+  {
    "fieldname": "due_date",
    "fieldtype": "Date",
    "label": "Due Date"
+  },
+  {
+   "fieldname": "due_time",
+   "fieldtype": "Time",
+   "label": "Due Time"
+  },
+  {
+   "fieldname": "reminder",
+   "fieldtype": "Select",
+   "label": "Reminder",
+   "options": "none\nat_due\n5m\n10m\n15m\n1h\n2h\n1d\n2d",
+   "default": "1d"
+  },
+  {
+   "fieldname": "recurrence",
+   "fieldtype": "Select",
+   "label": "Repeat",
+   "options": "never\ndaily\nweekly\nmonthly\nyearly",
+   "default": "never"
   },
   {
    "fieldname": "assignees",
@@ -104,6 +141,18 @@
    "fieldtype": "Table",
    "label": "Checklist",
    "options": "Cowork Work Checklist Item"
+  },
+  {
+   "fieldname": "values",
+   "fieldtype": "Table",
+   "label": "Custom Fields",
+   "options": "Cowork Work Card Value"
+  },
+  {
+   "fieldname": "is_template",
+   "fieldtype": "Check",
+   "label": "Template",
+   "default": "0"
   },
   {
    "fieldname": "watchers",

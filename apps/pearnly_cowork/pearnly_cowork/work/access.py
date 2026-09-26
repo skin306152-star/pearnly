@@ -15,7 +15,9 @@ LABEL = "Cowork Work Label"
 ACTIVITY = "Cowork Work Activity"
 NOTIFICATION = "Cowork Work Notification"
 COLUMN = "Cowork Work Column"
-TYPES = (CARD, LABEL, ACTIVITY, NOTIFICATION, COLUMN)
+FIELD = "Cowork Work Field"
+MIRROR = "Cowork Work Mirror"
+TYPES = (CARD, LABEL, ACTIVITY, NOTIFICATION, COLUMN, FIELD, MIRROR)
 
 
 def allowed(user=None):
@@ -76,6 +78,14 @@ def activity_query(user=None):
 
 def column_query(user=None):
     return _query(COLUMN, user)
+
+
+def field_query(user=None):
+    return _query(FIELD, user)
+
+
+def mirror_query(user=None):
+    return _query(MIRROR, user)
 
 
 def notification_query(user=None):

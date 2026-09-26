@@ -117,6 +117,62 @@
 	display: none;
 }
 
+.pearnly-work-column-footer {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.pearnly-work-column-footer .pearnly-work-add {
+	flex: 1;
+	margin-top: 0;
+}
+
+.pearnly-work-template-button {
+	color: var(--text-muted);
+}
+
+.pearnly-work-template-button .icon {
+	margin: 0;
+}
+
+/* 列表最后一格「添加另一个列表」：半透明的一格，照 Trello。 */
+.pearnly-work-board .kanban-column.pearnly-work-add-list {
+	background-color: transparent;
+	border: 1px dashed var(--border-color);
+}
+
+.pearnly-work-board .kanban-column.pearnly-work-add-list .pearnly-work-add {
+	margin-top: 0;
+}
+
+.pearnly-work-column-header .kanban-column-title {
+	flex: 1;
+	min-width: 0;
+	cursor: pointer;
+}
+
+.pearnly-work-column-header .kanban-title {
+	margin-left: 0;
+}
+
+.pearnly-work-rename {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-rename .form-group,
+.pearnly-work-checklist .form-group,
+.pearnly-work-label-edit-name .form-group {
+	margin: 0;
+}
+
+.pearnly-work-check {
+	display: inline-flex;
+	width: 16px;
+}
+
 .pearnly-work-add {
 	display: flex;
 	align-items: center;
@@ -356,6 +412,29 @@
 .pearnly-work-badge.due.soon { background: var(--bg-yellow); color: var(--text-on-yellow); }
 .pearnly-work-badge.due.done { background: var(--bg-green); color: var(--text-on-green); }
 .pearnly-work-badge.complete { color: var(--green-600); }
+.pearnly-work-badge.template { padding: 0 4px; border-radius: 4px; background: var(--bg-blue); color: var(--text-on-blue); }
+
+/* 镜像卡：同一张卡出现在另一个列表里，虚线边框区分。 */
+.pearnly-work-card.is-mirror {
+	box-shadow: none;
+	border: 1px dashed var(--gray-400);
+}
+
+.pearnly-work-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.pearnly-work-field-chip {
+	padding: 0 6px;
+	border-radius: 4px;
+	background: var(--control-bg);
+	color: var(--text-muted);
+	font-size: var(--text-xs);
+	line-height: 18px;
+}
 
 /* 浮在页面上的小菜单（卡片快捷菜单、列菜单），原生 dropdown 的样子。 */
 .pearnly-work-popup {
@@ -569,6 +648,77 @@
 
 .pearnly-work-label-edit-name .form-group {
 	margin: 0;
+}
+
+/* 多个清单（卡片详情里）：标题 + 进度条 + 项目。 */
+.pearnly-work-checklist {
+	margin-bottom: 16px;
+}
+
+.pearnly-work-checklist-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pearnly-work-checklist-icon {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+
+.pearnly-work-checklist-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-progress {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 8px 0 4px;
+	color: var(--text-muted);
+	font-size: var(--text-xs);
+}
+
+.pearnly-work-progress span {
+	width: 32px;
+}
+
+.pearnly-work-progress .progress {
+	flex: 1;
+	height: 8px;
+	margin: 0;
+}
+
+.pearnly-work-checklist-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 2px 0;
+}
+
+.pearnly-work-checklist-check .checkbox {
+	margin: 0;
+}
+
+.pearnly-work-checklist-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-checklist-text input.is-done {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
+.pearnly-work-checklist-add {
+	margin: 4px 0 0 28px;
+}
+
+/* 自定义字段设置：一格一个字段。 */
+.pearnly-work-field-edit {
+	padding: 8px 0 12px;
+	border-bottom: 1px solid var(--border-color);
 }
 
 /* 触屏没有悬停：完成圆圈与编辑按钮一直露出来。 */

@@ -33,6 +33,12 @@ def _json(value, default):
     return value
 
 
+def _flag(value):
+    return str(value).lower() in ("1", "true")
+
+
+# ── 读 ──
+
 @frappe.whitelist(methods=["GET"])
 def board():
     return _run(service.board)
@@ -48,9 +54,16 @@ def archived():
     return _run(service.archived)
 
 
+@frappe.whitelist(methods=["GET"])
+def notifications():
+    return _run(service.notifications)
+
+
+# ── 卡片 ──
+
 @frappe.whitelist(methods=["POST"])
-def create(title, status="todo"):
-    return _run(service.create, title, status)
+def create(title, board_list, template=None):
+    return _run(service.create, title, board_list, template or None)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -59,8 +72,33 @@ def update(name, modified, values):
 
 
 @frappe.whitelist(methods=["POST"])
-def move(name, status, before=None, after=None):
-    return _run(service.move, name, status, before, after)
+def move(name, board_list, before=None, after=None):
+    return _run(service.move, name, board_list, before, after)
+
+
+@frappe.whitelist(methods=["POST"])
+def toggle_done(name):
+    return _run(service.toggle_done, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def copy(name, title, board_list, keep=None):
+    return _run(service.copy, name, title, board_list, _json(keep, []))
+
+
+@frappe.whitelist(methods=["POST"])
+def mirror(name, board_list):
+    return _run(service.mirror, name, board_list)
+
+
+@frappe.whitelist(methods=["POST"])
+def move_mirror(name, board_list, before=None, after=None):
+    return _run(service.move_mirror, name, board_list, before, after)
+
+
+@frappe.whitelist(methods=["POST"])
+def unmirror(name):
+    return _run(service.unmirror, name)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -76,6 +114,11 @@ def restore(name):
 @frappe.whitelist(methods=["POST"])
 def delete(name):
     return _run(service.delete, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def watch(name, on):
+    return _run(service.watch, name, _flag(on))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -95,9 +138,68 @@ def attach(name):
 
 
 @frappe.whitelist(methods=["POST"])
+def attach_link(name, url, text=None):
+    return _run(service.attach_link, name, url, text)
+
+
+@frappe.whitelist(methods=["POST"])
 def detach(name, file):
     return _run(service.detach, name, file)
 
+
+# ── 列表 ──
+
+@frappe.whitelist(methods=["POST"])
+def create_list(title):
+    return _run(service.create_list, title)
+
+
+@frappe.whitelist(methods=["POST"])
+def update_list(name, values):
+    return _run(service.update_list, name, _json(values, {}))
+
+
+@frappe.whitelist(methods=["POST"])
+def move_list(name, before=None, after=None):
+    return _run(service.move_list, name, before, after)
+
+
+@frappe.whitelist(methods=["POST"])
+def copy_list(name, title):
+    return _run(service.copy_list, name, title)
+
+
+@frappe.whitelist(methods=["POST"])
+def archive_list(name):
+    return _run(service.archive_list, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def restore_list(name):
+    return _run(service.restore_list, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_list(name):
+    return _run(service.delete_list, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def sort_list(name, key):
+    return _run(service.sort_list, name, key)
+
+
+@frappe.whitelist(methods=["POST"])
+def move_all(name, target):
+    return _run(service.move_all, name, target)
+
+
+@frappe.whitelist(methods=["POST"])
+def archive_all(name):
+    return _run(service.archive_all, name)
+
+
+# ── 全板设置与提醒 ──
 
 @frappe.whitelist(methods=["POST"])
 def save_labels(rows):
@@ -105,45 +207,10 @@ def save_labels(rows):
 
 
 @frappe.whitelist(methods=["POST"])
-def toggle_done(name):
-    return _run(service.toggle_done, name)
-
-
-@frappe.whitelist(methods=["POST"])
-def copy(name, title, status, keep=None):
-    return _run(service.copy, name, title, status, _json(keep, []))
-
-
-@frappe.whitelist(methods=["POST"])
-def sort_column(status, key):
-    return _run(service.sort_column, status, key)
-
-
-@frappe.whitelist(methods=["POST"])
-def move_column(source, target):
-    return _run(service.move_column, source, target)
-
-
-@frappe.whitelist(methods=["POST"])
-def watch(name, on):
-    return _run(service.watch, name, str(on).lower() in ("1", "true"))
-
-
-@frappe.whitelist(methods=["GET"])
-def notifications():
-    return _run(service.notifications)
+def save_fields(rows):
+    return _run(service.save_fields, _json(rows, []))
 
 
 @frappe.whitelist(methods=["POST"])
 def read_notifications(names=None):
     return _run(service.read_notifications, _json(names, []))
-
-
-@frappe.whitelist(methods=["POST"])
-def column_color(status, color=None):
-    return _run(service.column_color, status, color)
-
-
-@frappe.whitelist(methods=["POST"])
-def archive_column(status):
-    return _run(service.archive_column, status)

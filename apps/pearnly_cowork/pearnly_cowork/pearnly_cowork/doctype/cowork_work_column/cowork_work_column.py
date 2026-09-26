@@ -1,4 +1,4 @@
-"""看板一列的外观设置（目前只有颜色，全队共用）；写入只走 `work.service`。"""
+"""看板上的一个列表（标题、顺序、颜色、是否完成列表、归档）；写入只走 `work.service`。"""
 from pearnly_cowork.work.documents import WorkDocument
 
 

@@ -8,22 +8,38 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-27 00:00:00.000000",
- "modified": "2026-09-27 00:00:00.000000",
+ "modified": "2026-09-28 00:00:00.000000",
  "istable": 1,
  "editable_grid": 1,
  "field_order": [
+  "checklist",
+  "group_id",
   "title",
   "done"
  ],
  "fields": [
   {
+   "fieldname": "checklist",
+   "fieldtype": "Data",
+   "label": "Checklist",
+   "length": 60,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "group_id",
+   "fieldtype": "Data",
+   "label": "Checklist Id",
+   "length": 20,
+   "hidden": 1
+  },
+  {
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Item",
-   "reqd": 1,
    "length": 200,
    "in_list_view": 1,
-   "columns": 8
+   "columns": 5
   },
   {
    "fieldname": "done",

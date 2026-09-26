@@ -1,6 +1,15 @@
+1 day before,1日前
+1 hour before,1時間前
+10 minutes before,10分前
+15 minutes before,15分前
+2 days before,2日前
+2 hours before,2時間前
+5 minutes before,5分前
+A board needs at least one list,ボードには少なくとも1つのリストが必要です
 A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
 "A document section exceeds 30,000 characters. Split the document before recognition.","文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
+A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A file is larger than 25 MB.,25MBを超えるファイルがあります。
 A name is required.,名前を入力してください。
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
@@ -33,6 +42,11 @@ Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
 Add User,ユーザーを追加
 Add a card,カードを追加
+Add a checklist,チェックリストを追加
+Add a field,フィールドを追加
+Add a link,リンクを追加
+Add an item,項目を追加
+Add another list,リストを追加
 Add photo,写真を追加
 Add photos,写真を追加
 Added {0},{0}を追加しました
@@ -51,13 +65,18 @@ Another push holds the writer lock.,別の送信が書き込みロックを保�
 Any due date,すべての期日
 Archive,アーカイブ
 Archive all cards in this list,このリストのカードをすべてアーカイブ
+Archive this list,このリストをアーカイブ
 Archived at,アーカイブ日時
 Archived cards,アーカイブ済みカード
+Archived items,アーカイブ済みアイテム
+Archived lists,アーカイブ済みリスト
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
+Assign · Track · Discuss,割り当て · 追跡 · 相談
 Assigned to me,自分に割り当て
 At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1件の記録につき写真は{0}枚まで
+At time of due date,期限時
 Attachments,添付ファイル
 Attempt Secret,試行用シークレット
 Balance,残高
@@ -108,6 +127,7 @@ Card archived,アーカイブしました
 Card deleted,削除しました
 Card name (alphabetically),カード名（アルファベット順）
 Card restored,復元しました
+Card templates,カードテンプレート
 Cash,現金
 Change cards on the work board,作業ボードでカードを変更してください
 Change cover,カバーを変更
@@ -118,6 +138,7 @@ Changed By,変更者
 Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
+Checkbox,チェックボックス
 Checking,照合中
 Checklist,チェックリスト
 Checks Json,検証結果JSON
@@ -150,6 +171,7 @@ Comments and activity,コメントとアクティビティ
 Companion Report,Companion レポート
 Companion authentication failed.,アシスタント認証に失敗しました。
 Company,会社
+Complete,完了
 Complete statement review before exporting the result.,明細確認を完了してから照合結果を出力してください。
 Completed,完了
 Completed At,完了日時
@@ -167,6 +189,7 @@ Content Hash,内容ハッシュ
 Continuous counting,連続棚卸
 Copy card,カードをコピー
 Copy link,リンクをコピー
+Copy list,リストをコピー
 Copy to,コピー先
 Correct entry,記録を修正
 Corrected Value,修正値
@@ -215,6 +238,7 @@ Cowork Workspace,Cowork 会計対象会社
 Cowork menu,Coworkメニュー
 Create a new label,新しいラベルを作成
 Create card,カードを作成
+Create from template,テンプレートから作成
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
 Created,作成日時
 Created By,作成者
@@ -225,17 +249,22 @@ Credit Note,返品・値引伝票
 Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
+Custom fields,カスタムフィールド
+Custom fields saved,カスタムフィールドを保存しました
 Customer,顧客
 Cyan,水色
+Daily,毎日
 Date,日付
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
+Dates,日付
 Debit,借方
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
 Default Payment,既定の支払方法
 Delete selected ({0}),選択を削除（{0}）
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
+Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0},{0}件を削除
 Delete {0} reconciliation(s)?,{0}件の照合を削除しますか？
 Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
@@ -259,16 +288,20 @@ Disable,無効化
 Disable {0},{0}件を無効化
 Discount,割引額
 Discount Amount,割引額
+Display text (optional),表示テキスト（任意）
 Document Key,伝票重複防止キー
 Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
 Document type,書類種類
 Done,完了
+Done list (cards moved here are complete),完了リスト（移動すると完了）
 Download template,テンプレートをダウンロード
 Draft,下書き
+Dropdown,ドロップダウン
 Due,期日
 Due date,期日
+Due time,期限時刻
 Due today or tomorrow,今日か明日が期日
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
 ERP Code,ERP コード
@@ -289,10 +322,13 @@ Email,メール
 Enable,有効化
 Enable {0},{0}件を有効化
 Enter a comment,コメントを入力してください
+Enter a field name,フィールド名を入力してください
+Enter a link that starts with http:// or https://,http:// または https:// で始まるリンクを入力してください
 Enter a quantity,数量を入力してください
 Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～120 文字で入力してください。
 Enter a valid email,正しいメールアドレスを入力してください
 Enter a valid quantity with no more than six decimal places.,有効な数量を小数点以下 6 桁以内で入力してください。
+Enter list name,リスト名を入力
 Enter the user name,ユーザー名を入力してください
 Entries,記録
 Entries · {0},記録 · {0}
@@ -311,6 +347,7 @@ Failed,失敗
 Failure Count,失敗回数
 Fence,試行分離番号
 Field,項目
+Field name,フィールド名
 File,ファイル
 File Hash,ファイルのハッシュ値
 Filter,絞り込み
@@ -342,11 +379,13 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,無効
 Income Reconciliation,収益照合
 Initial Password,初期パスワード
+Insert,挿入
 Installed At (UTC),インストール日時（UTC）
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid checklist,チェックリストが無効です
 Invalid color,色が無効です
 Invalid date,日付が無効です
+Invalid field value,フィールドの値が無効です
 Invalid original document manifest.,元文書の内容索引が無効です。
 Invalid original filename.,元ファイル名が無効です。
 Invalid posting type.,転記タイプが無効です。
@@ -398,12 +437,16 @@ Ledger amount,元帳金額
 Ledger credit only,元帳貸方のみ
 Ledger debit only,元帳借方のみ
 Light,ライト
+List,リスト
 List actions,リストの操作
+List archived,リストをアーカイブしました
+List name,リスト名
 Location,場所
 Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
+Make template,テンプレートにする
 Manual,手入力
 Mapping Key,マッピングキー
 Mapping Kind,マッピング種類
@@ -416,11 +459,15 @@ Matches,一致
 Matching and saving,照合して保存中
 Member,メンバー
 Members,メンバー
+Mirror,ミラー
+Monthly,毎月
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
+Move list,リストを移動
 Name,名前
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
+Never,なし
 New code,新しいコード
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 New stock count,棚卸を作成
@@ -436,6 +483,7 @@ No members,メンバーなし
 No notifications,通知はありません
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
+No templates yet,テンプレートはまだありません
 No warehouse matches that name,その倉庫名は存在しません
 None,なし
 Not Permitted,適切な権限がありません
@@ -446,11 +494,13 @@ Not set,未入力
 Note,メモ
 Notes,備考
 Notifications,通知
+Number,数値
 OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
 Open card,カードを開く
+Options (one per line),選択肢（1行に1つ）
 Orange,橙
 Order Evidence,注文記録
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
@@ -477,6 +527,7 @@ Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
 Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
+Paste a link,リンクを貼り付け
 Payload Json,固定ペイロードJSON
 Payment Evidence,支払証跡
 Payment Method,支払方法
@@ -488,6 +539,7 @@ Phase,処理段階
 Photos,写真
 Pink,ピンク
 Please upload a PDF or image,PDFまたは画像を送信してください
+Position,位置
 Position differences,棚番の差異
 Posting,計上方法
 Posting Kind,記帳区分
@@ -540,6 +592,7 @@ Record Revision,レコードの版
 Record a count,棚卸を入力
 Recount,再棚卸
 Recount this product,この商品を再棚卸
+Recurring,繰り返し
 Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
@@ -557,6 +610,8 @@ Remarks,備考
 Remove,削除
 Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
+Remove mirror,ミラーを削除
+Remove template,テンプレートを解除
 Report Credential,レポート認証情報
 Report Credential Generation,レポート認証情報の世代
 Report Received At (UTC),レポート受信日時（UTC）
@@ -613,10 +668,12 @@ Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
 Service or stock?,サービスですか、在庫品ですか？
+Set reminder,リマインダー
 Settings Json,設定データ（JSON）
 Sheet,シート
 Short,不足
 Show,表示
+Show on card,カードに表示
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
@@ -636,6 +693,7 @@ Source Reference Count,元ファイルの参照項目数
 Source Reference Kind,元ファイルの参照種別
 Source Sha256,元ファイルの SHA-256
 Start counting,棚卸を開始
+Start date,開始日
 Start reconciliation,照合を開始
 Started At,開始日時
 Statement review is not available for this task.,このタスクには明細確認記録がありません。
@@ -659,6 +717,8 @@ Task name,タスク名
 Tax ID,納税者番号
 Tax Invoice,税務請求書
 Taxes and Charges,税金および諸費用
+Template,テンプレート
+Text,テキスト
 Text is too long,テキストが長すぎます
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
@@ -698,6 +758,7 @@ The acknowledgement conflicts with the recorded result.,確認応答が記録済
 The bank statement could not be read.,銀行明細を読み取れません。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
 The camera could not start,カメラを起動できません
+The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
@@ -783,6 +844,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,確認用シート名に余分な空白があります。元のシート名に戻してください。
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The source page number must be a positive integer.,元ファイルのページ番号には正の整数が必要です。
+The start date is after the due date,開始日が期日より後です
 The stock count record was not found.,棚卸記録が見つかりません。
 The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
 The stocktake export snapshot is incomplete. Reload and try again.,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
@@ -812,6 +874,7 @@ This import request ID has already been used for different content.,このイン
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This label no longer exists,このラベルはもうありません
+This list no longer exists,このリストはもうありません
 This member cannot be assigned,このメンバーには割り当てられません
 This multi-page invoice has no verified combined record. Review it before exporting.,この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。
 This operation ID has already been used for another request.,この操作 ID は別のリクエストで使用されています。
@@ -886,12 +949,14 @@ WHT amount,源泉税額
 Waiting to start,開始待ち
 Warehouse,倉庫
 Watch,ウォッチ
+Weekly,毎週
 Wire Attempt,送信試行回数
 With differences,差異あり
 Withdrawal,出金
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
+Yearly,毎年
 Yellow,黄
 You are watching this card,このカードをウォッチしています
 You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
@@ -1227,19 +1292,24 @@ cowork.team.status,状態
 cowork.work.activity.archive,{who} がこのカードをアーカイブしました
 cowork.work.activity.assign,{who} がこのカードに {0} を追加しました
 cowork.work.activity.attach,{who} が {0} を添付しました
+cowork.work.activity.complete,{who} がこのカードを完了にしました
 cowork.work.activity.copy,{who} が「{0}」からこのカードをコピーしました
 cowork.work.activity.create,{who} がこのカードを追加しました
 cowork.work.activity.detach,{who} が添付ファイル {0} を削除しました
 cowork.work.activity.due,{who} が期日を {0} に設定しました
+cowork.work.activity.mirror,{who} がこのカードを{0}にミラーしました
 cowork.work.activity.move,{who} がこのカードを{0}から{1}に移動しました
 cowork.work.activity.noDue,なし
+cowork.work.activity.repeat,{who} が繰り返しカードを完了しました。次の期限は {0}
 cowork.work.activity.restore,{who} がこのカードを復元しました
+cowork.work.activity.uncomplete,{who} がこのカードを未完了にしました
 cowork.work.archived.at,アーカイブ日時
 cowork.work.archived.confirmDelete,このカードを完全に削除しますか？元に戻せません。
 cowork.work.archived.deleted,削除しました
+cowork.work.archived.lists,アーカイブ済みリスト
 cowork.work.archived.restore,復元
 cowork.work.archived.restored,復元しました
-cowork.work.archived.title,アーカイブ済みカード
+cowork.work.archived.title,アーカイブ済みアイテム
 cowork.work.card.add,カードを追加
 cowork.work.card.archive,アーカイブ
 cowork.work.card.archived,アーカイブしました
@@ -1248,6 +1318,8 @@ cowork.work.card.placeholder,タイトルを入力
 cowork.work.card.saved,保存しました
 cowork.work.card.title,カード
 cowork.work.card.undone,未完了に戻す
+cowork.work.checklist.add,チェックリストを追加
+cowork.work.checklist.addItem,項目を追加
 cowork.work.color.blue,青
 cowork.work.color.cyan,水色
 cowork.work.color.gray,グレー
@@ -1281,12 +1353,20 @@ cowork.work.error.conflict,このカードは他の人が変更しました。�
 cowork.work.error.cover,このカードに添付した画像を選んでください
 cowork.work.error.date,日付が無効です
 cowork.work.error.dedicated_api,作業ボードでカードを変更してください
+cowork.work.error.field_options,ドロップダウンには選択肢が1つ以上必要です
+cowork.work.error.field_title,フィールド名を入力してください
+cowork.work.error.field_value,フィールドの値が無効です
 cowork.work.error.file,ファイルを選択してください
 cowork.work.error.file_size,ファイルが 25 MB を超えています
 cowork.work.error.label,このラベルはもうありません
+cowork.work.error.last_list,ボードには少なくとも1つのリストが必要です
+cowork.work.error.link,http:// または https:// で始まるリンクを入力してください
+cowork.work.error.list,このリストはもうありません
 cowork.work.error.member,このメンバーには割り当てられません
+cowork.work.error.mirror,カードはすでにそのリストにあります
 cowork.work.error.not_found,カードはもうありません
 cowork.work.error.request,リクエストが無効です
+cowork.work.error.start_after_due,開始日が期日より後です
 cowork.work.error.status,ステータスが無効です
 cowork.work.error.title,タイトルを入力してください
 cowork.work.error.too_long,テキストが長すぎます
@@ -1295,16 +1375,39 @@ cowork.work.field.activity,コメントとアクティビティ
 cowork.work.field.attachments,添付ファイル
 cowork.work.field.checklist,チェックリスト
 cowork.work.field.comments,コメント
+cowork.work.field.completed,完了
 cowork.work.field.cover,カバー
+cowork.work.field.dates,日付
 cowork.work.field.description,説明
 cowork.work.field.done,完了
 cowork.work.field.due,期日
+cowork.work.field.dueTime,期限時刻
 cowork.work.field.item,項目
 cowork.work.field.labels,ラベル
+cowork.work.field.list,リスト
 cowork.work.field.members,メンバー
+cowork.work.field.reminder,リマインダー
+cowork.work.field.repeat,繰り返し
+cowork.work.field.start,開始日
 cowork.work.field.status,ステータス
 cowork.work.field.title,タイトル
+cowork.work.fields.add,フィールドを追加
+cowork.work.fields.manage,カスタムフィールド
+cowork.work.fields.name,フィールド名
+cowork.work.fields.options,選択肢（1行に1つ）
+cowork.work.fields.saved,カスタムフィールドを保存しました
+cowork.work.fields.showOnCard,カードに表示
+cowork.work.fields.type,種類
+cowork.work.fieldtype.checkbox,チェックボックス
+cowork.work.fieldtype.date,日付
+cowork.work.fieldtype.number,数値
+cowork.work.fieldtype.select,ドロップダウン
+cowork.work.fieldtype.text,テキスト
+cowork.work.file.insert,挿入
+cowork.work.file.link,リンクを追加
+cowork.work.file.text,表示テキスト（任意）
 cowork.work.file.upload,アップロード
+cowork.work.file.url,リンクを貼り付け
 cowork.work.filter.anyDue,すべての期日
 cowork.work.filter.anyLabel,すべてのラベル
 cowork.work.filter.anyMember,すべてのメンバー
@@ -1322,14 +1425,29 @@ cowork.work.labels.color,色
 cowork.work.labels.manage,ラベル
 cowork.work.labels.name,名前
 cowork.work.labels.saved,ラベルを保存しました
+cowork.work.list.add,リストを追加
+cowork.work.list.archive,このリストをアーカイブ
+cowork.work.list.archived,リストをアーカイブしました
+cowork.work.list.confirmDelete,このリストとすべてのカードを完全に削除しますか？元に戻せません。
+cowork.work.list.copy,リストをコピー
+cowork.work.list.doneList,完了リスト（移動すると完了）
+cowork.work.list.move,リストを移動
+cowork.work.list.name,リスト名
+cowork.work.list.placeholder,リスト名を入力
+cowork.work.list.position,位置
+cowork.work.mirror.add,ミラー
+cowork.work.mirror.badge,ミラー
+cowork.work.mirror.remove,ミラーを削除
 cowork.work.notify.assign,{0} があなたを「{1}」に追加しました
 cowork.work.notify.comment,{0} が「{1}」にコメントしました
+cowork.work.notify.complete,{0} が「{1}」を完了しました
 cowork.work.notify.due_soon,「{1}」の期日が近づいています（{2}）
 cowork.work.notify.empty,通知はありません
 cowork.work.notify.mention,{0} が「{1}」であなたをメンションしました
 cowork.work.notify.move,{0} が「{1}」を{2}に移動しました
 cowork.work.notify.overdue,「{1}」は期限切れです（{2}）
 cowork.work.notify.readAll,すべて既読にする
+cowork.work.notify.reminder,「{1}」の期限は {2} です
 cowork.work.notify.title,通知
 cowork.work.quick.copy,カードをコピー
 cowork.work.quick.cover,カバーを変更
@@ -1343,9 +1461,29 @@ cowork.work.quick.title,カードを編集
 cowork.work.quick.unwatch,ウォッチをやめる
 cowork.work.quick.watch,ウォッチ
 cowork.work.quick.watching,このカードをウォッチしています
+cowork.work.reminder.10m,10分前
+cowork.work.reminder.15m,15分前
+cowork.work.reminder.1d,1日前
+cowork.work.reminder.1h,1時間前
+cowork.work.reminder.2d,2日前
+cowork.work.reminder.2h,2時間前
+cowork.work.reminder.5m,5分前
+cowork.work.reminder.at_due,期限時
+cowork.work.reminder.none,なし
+cowork.work.repeat.daily,毎日
+cowork.work.repeat.monthly,毎月
+cowork.work.repeat.never,なし
+cowork.work.repeat.weekly,毎週
+cowork.work.repeat.yearly,毎年
 cowork.work.status.doing,進行中
 cowork.work.status.done,完了
 cowork.work.status.todo,未着手
+cowork.work.template.badge,テンプレート
+cowork.work.template.create,テンプレートから作成
+cowork.work.template.empty,テンプレートはまだありません
+cowork.work.template.set,テンプレートにする
+cowork.work.template.title,カードテンプレート
+cowork.work.template.unset,テンプレートを解除
 cowork_line,Cowork LINE
 document,文書
 erp.account_set_unavailable,この会計データは利用できません。
@@ -1533,6 +1671,7 @@ vat_check.recognition_timeout,請求書の読み取りに時間がかかりす�
 vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認してください。
 {0} added you to {1},{0} があなたを「{1}」に追加しました
 {0} commented on {1},{0} が「{1}」にコメントしました
+{0} completed {1},{0} が「{1}」を完了しました
 {0} files,{0} 件のファイル
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
@@ -1540,13 +1679,18 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 棚卸済み {1}/{2} · 差異 {3}
+{1} is due at {2},「{1}」の期限は {2} です
 {1} is due soon ({2}),「{1}」の期日が近づいています（{2}）
 {1} is overdue ({2}),「{1}」は期限切れです（{2}）
 {who} added this card,{who} がこのカードを追加しました
 {who} added {0} to this card,{who} がこのカードに {0} を追加しました
 {who} archived this card,{who} がこのカードをアーカイブしました
 {who} attached {0},{who} が {0} を添付しました
+{who} completed this recurring card; next due {0},{who} が繰り返しカードを完了しました。次の期限は {0}
 {who} copied this card from {0},{who} が「{0}」からこのカードをコピーしました
+{who} marked this card complete,{who} がこのカードを完了にしました
+{who} marked this card incomplete,{who} がこのカードを未完了にしました
+{who} mirrored this card to {0},{who} がこのカードを{0}にミラーしました
 {who} moved this card from {0} to {1},{who} がこのカードを{0}から{1}に移動しました
 {who} removed attachment {0},{who} が添付ファイル {0} を削除しました
 {who} restored this card,{who} がこのカードを復元しました

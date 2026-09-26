@@ -1,6 +1,15 @@
+1 day before,1 day before
+1 hour before,1 hour before
+10 minutes before,10 minutes before
+15 minutes before,15 minutes before
+2 days before,2 days before
+2 hours before,2 hours before
+5 minutes before,5 minutes before
+A board needs at least one list,A board needs at least one list
 A client cannot be moved to another company.,A client cannot be moved to another company.
 A completed record cannot become a draft.,A completed record cannot become a draft.
 "A document section exceeds 30,000 characters. Split the document before recognition.","A document section exceeds 30,000 characters. Split the document before recognition."
+A dropdown field needs at least one option,A dropdown field needs at least one option
 A file is larger than 25 MB.,A file is larger than 25 MB.
 A name is required.,A name is required.
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
@@ -33,6 +42,11 @@ Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
 Add User,Add User
 Add a card,Add a card
+Add a checklist,Add a checklist
+Add a field,Add a field
+Add a link,Add a link
+Add an item,Add an item
+Add another list,Add another list
 Add photo,Add photo
 Add photos,Add photos
 Added {0},Added {0}
@@ -51,13 +65,18 @@ Another push holds the writer lock.,Another push holds the writer lock.
 Any due date,Any due date
 Archive,Archive
 Archive all cards in this list,Archive all cards in this list
+Archive this list,Archive this list
 Archived at,Archived at
 Archived cards,Archived cards
+Archived items,Archived items
+Archived lists,Archived lists
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
+Assign · Track · Discuss,Assign · Track · Discuss
 Assigned to me,Assigned to me
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
+At time of due date,At time of due date
 Attachments,Attachments
 Attempt Secret,Attempt Secret
 Balance,Balance
@@ -108,6 +127,7 @@ Card archived,Card archived
 Card deleted,Card deleted
 Card name (alphabetically),Card name (alphabetically)
 Card restored,Card restored
+Card templates,Card templates
 Cash,Cash
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
@@ -118,6 +138,7 @@ Changed By,Changed By
 Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
+Checkbox,Checkbox
 Checking,Checking
 Checklist,Checklist
 Checks Json,Checks Json
@@ -150,6 +171,7 @@ Comments and activity,Comments and activity
 Companion Report,Companion Report
 Companion authentication failed.,Companion authentication failed.
 Company,Company
+Complete,Complete
 Complete statement review before exporting the result.,Complete statement review before exporting the result.
 Completed,Completed
 Completed At,Completed At
@@ -167,6 +189,7 @@ Content Hash,Content Hash
 Continuous counting,Continuous counting
 Copy card,Copy card
 Copy link,Copy link
+Copy list,Copy list
 Copy to,Copy to
 Correct entry,Correct entry
 Corrected Value,Corrected Value
@@ -215,6 +238,7 @@ Cowork Workspace,Cowork Workspace
 Cowork menu,Cowork menu
 Create a new label,Create a new label
 Create card,Create card
+Create from template,Create from template
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created,Created
 Created By,Created By
@@ -225,17 +249,22 @@ Credit Note,Credit Note
 Currency,Currency
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
+Custom fields,Custom fields
+Custom fields saved,Custom fields saved
 Customer,Customer
 Cyan,Cyan
+Daily,Daily
 Date,Date
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
+Dates,Dates
 Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
 Default Payment,Default Payment
 Delete selected ({0}),Delete selected ({0})
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
+Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0},Delete {0}
 Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
 Delete {0} stock count(s)?,Delete {0} stock count(s)?
@@ -259,16 +288,20 @@ Disable,Disable
 Disable {0},Disable {0}
 Discount,Discount
 Discount Amount,Discount Amount
+Display text (optional),Display text (optional)
 Document Key,Document Key
 Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
 Done,Done
+Done list (cards moved here are complete),Done list (cards moved here are complete)
 Download template,Download template
 Draft,Draft
+Dropdown,Dropdown
 Due,Due
 Due date,Due date
+Due time,Due time
 Due today or tomorrow,Due today or tomorrow
 Duplicate records are not allowed.,Duplicate records are not allowed.
 ERP Code,ERP Code
@@ -289,10 +322,13 @@ Email,Email
 Enable,Enable
 Enable {0},Enable {0}
 Enter a comment,Enter a comment
+Enter a field name,Enter a field name
+Enter a link that starts with http:// or https://,Enter a link that starts with http:// or https://
 Enter a quantity,Enter a quantity
 Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1 to 120 characters.
 Enter a valid email,Enter a valid email
 Enter a valid quantity with no more than six decimal places.,Enter a valid quantity with no more than six decimal places.
+Enter list name,Enter list name
 Enter the user name,Enter the user name
 Entries,Entries
 Entries · {0},Entries · {0}
@@ -311,6 +347,7 @@ Failed,Failed
 Failure Count,Failure Count
 Fence,Fence
 Field,Field
+Field name,Field name
 File,File
 File Hash,File Hash
 Filter,Filter
@@ -342,11 +379,13 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,Inactive
 Income Reconciliation,Income Reconciliation
 Initial Password,Initial Password
+Insert,Insert
 Installed At (UTC),Installed At (UTC)
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
 Invalid checklist,Invalid checklist
 Invalid color,Invalid color
 Invalid date,Invalid date
+Invalid field value,Invalid field value
 Invalid original document manifest.,Invalid original document manifest.
 Invalid original filename.,Invalid original filename.
 Invalid posting type.,Invalid posting type.
@@ -398,12 +437,16 @@ Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
 Light,Light
+List,List
 List actions,List actions
+List archived,List archived
+List name,List name
 Location,Location
 Location mismatch,Location mismatch
 Lock Key,Lock Key
 Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
+Make template,Make template
 Manual,Manual
 Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
@@ -416,11 +459,15 @@ Matches,Matches
 Matching and saving,Matching and saving
 Member,Member
 Members,Members
+Mirror,Mirror
+Monthly,Monthly
 Move,Move
 Move all cards in this list,Move all cards in this list
+Move list,Move list
 Name,Name
 Native Content Hash,Native Content Hash
 Needs review,Needs review
+Never,Never
 New code,New code
 New records must start as drafts.,New records must start as drafts.
 New stock count,New stock count
@@ -436,6 +483,7 @@ No members,No members
 No notifications,No notifications
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
+No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 None,None
 Not Permitted,Not Permitted
@@ -446,11 +494,13 @@ Not set,Not set
 Note,Note
 Notes,Notes
 Notifications,Notifications
+Number,Number
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only an active count can be deleted,Only an active count can be deleted
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
 Open card,Open card
+Options (one per line),Options (one per line)
 Orange,Orange
 Order Evidence,Order Evidence
 Original Content Coverage Complete,Original Content Coverage Complete
@@ -477,6 +527,7 @@ Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
 Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
+Paste a link,Paste a link
 Payload Json,Payload Json
 Payment Evidence,Payment Evidence
 Payment Method,Payment Method
@@ -488,6 +539,7 @@ Phase,Phase
 Photos,Photos
 Pink,Pink
 Please upload a PDF or image,Please upload a PDF or image
+Position,Position
 Position differences,Position differences
 Posting,Posting
 Posting Kind,Posting Kind
@@ -540,6 +592,7 @@ Record Revision,Record Revision
 Record a count,Record a count
 Recount,Recount
 Recount this product,Recount this product
+Recurring,Recurring
 Red,Red
 Reference,Reference
 Refresh Error Code,Refresh Error Code
@@ -557,6 +610,8 @@ Remarks,Remarks
 Remove,Remove
 Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
+Remove mirror,Remove mirror
+Remove template,Remove template
 Report Credential,Report Credential
 Report Credential Generation,Report Credential Generation
 Report Received At (UTC),Report Received At (UTC)
@@ -613,10 +668,12 @@ Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
 Service or stock?,Service or stock?
+Set reminder,Set reminder
 Settings Json,Settings Json
 Sheet,Sheet
 Short,Short
 Show,Show
+Show on card,Show on card
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
@@ -636,6 +693,7 @@ Source Reference Count,Source Reference Count
 Source Reference Kind,Source Reference Kind
 Source Sha256,Source Sha256
 Start counting,Start counting
+Start date,Start date
 Start reconciliation,Start reconciliation
 Started At,Started At
 Statement review is not available for this task.,Statement review is not available for this task.
@@ -659,6 +717,8 @@ Task name,Task name
 Tax ID,Tax ID
 Tax Invoice,Tax Invoice
 Taxes and Charges,Taxes and Charges
+Template,Template
+Text,Text
 Text is too long,Text is too long
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
@@ -698,6 +758,7 @@ The acknowledgement conflicts with the recorded result.,The acknowledgement conf
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The camera could not start,The camera could not start
+The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
@@ -783,6 +844,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,The review worksheet name contains extra spaces. Restore the original name.
 The row has no product code or barcode,The row has no product code or barcode
 The source page number must be a positive integer.,The source page number must be a positive integer.
+The start date is after the due date,The start date is after the due date
 The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
 The stocktake export snapshot is incomplete. Reload and try again.,The stocktake export snapshot is incomplete. Reload and try again.
@@ -812,6 +874,7 @@ This import request ID has already been used for different content.,This import 
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
 This label no longer exists,This label no longer exists
+This list no longer exists,This list no longer exists
 This member cannot be assigned,This member cannot be assigned
 This multi-page invoice has no verified combined record. Review it before exporting.,This multi-page invoice has no verified combined record. Review it before exporting.
 This operation ID has already been used for another request.,This operation ID has already been used for another request.
@@ -886,12 +949,14 @@ WHT amount,WHT amount
 Waiting to start,Waiting to start
 Warehouse,Warehouse
 Watch,Watch
+Weekly,Weekly
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workspace,Workspace
+Yearly,Yearly
 Yellow,Yellow
 You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
@@ -1227,19 +1292,24 @@ cowork.team.status,Status
 cowork.work.activity.archive,{who} archived this card
 cowork.work.activity.assign,{who} added {0} to this card
 cowork.work.activity.attach,{who} attached {0}
+cowork.work.activity.complete,{who} marked this card complete
 cowork.work.activity.copy,{who} copied this card from {0}
 cowork.work.activity.create,{who} added this card
 cowork.work.activity.detach,{who} removed attachment {0}
 cowork.work.activity.due,{who} set the due date to {0}
+cowork.work.activity.mirror,{who} mirrored this card to {0}
 cowork.work.activity.move,{who} moved this card from {0} to {1}
 cowork.work.activity.noDue,none
+cowork.work.activity.repeat,{who} completed this recurring card; next due {0}
 cowork.work.activity.restore,{who} restored this card
+cowork.work.activity.uncomplete,{who} marked this card incomplete
 cowork.work.archived.at,Archived at
 cowork.work.archived.confirmDelete,Delete this card permanently? This cannot be undone.
 cowork.work.archived.deleted,Card deleted
+cowork.work.archived.lists,Archived lists
 cowork.work.archived.restore,Restore
 cowork.work.archived.restored,Card restored
-cowork.work.archived.title,Archived cards
+cowork.work.archived.title,Archived items
 cowork.work.card.add,Add a card
 cowork.work.card.archive,Archive
 cowork.work.card.archived,Card archived
@@ -1248,6 +1318,8 @@ cowork.work.card.placeholder,Enter a title
 cowork.work.card.saved,Saved
 cowork.work.card.title,Card
 cowork.work.card.undone,Mark incomplete
+cowork.work.checklist.add,Add a checklist
+cowork.work.checklist.addItem,Add an item
 cowork.work.color.blue,Blue
 cowork.work.color.cyan,Cyan
 cowork.work.color.gray,Gray
@@ -1281,12 +1353,20 @@ cowork.work.error.conflict,Someone else changed this card. Close it and open it 
 cowork.work.error.cover,Choose an image attached to this card
 cowork.work.error.date,Invalid date
 cowork.work.error.dedicated_api,Change cards on the work board
+cowork.work.error.field_options,A dropdown field needs at least one option
+cowork.work.error.field_title,Enter a field name
+cowork.work.error.field_value,Invalid field value
 cowork.work.error.file,Choose a file
 cowork.work.error.file_size,The file is larger than 25 MB
 cowork.work.error.label,This label no longer exists
+cowork.work.error.last_list,A board needs at least one list
+cowork.work.error.link,Enter a link that starts with http:// or https://
+cowork.work.error.list,This list no longer exists
 cowork.work.error.member,This member cannot be assigned
+cowork.work.error.mirror,The card is already in that list
 cowork.work.error.not_found,The card no longer exists
 cowork.work.error.request,Invalid request
+cowork.work.error.start_after_due,The start date is after the due date
 cowork.work.error.status,Invalid status
 cowork.work.error.title,Enter a title
 cowork.work.error.too_long,Text is too long
@@ -1295,16 +1375,39 @@ cowork.work.field.activity,Comments and activity
 cowork.work.field.attachments,Attachments
 cowork.work.field.checklist,Checklist
 cowork.work.field.comments,Comments
+cowork.work.field.completed,Complete
 cowork.work.field.cover,Cover
+cowork.work.field.dates,Dates
 cowork.work.field.description,Description
 cowork.work.field.done,Done
 cowork.work.field.due,Due date
+cowork.work.field.dueTime,Due time
 cowork.work.field.item,Item
 cowork.work.field.labels,Labels
+cowork.work.field.list,List
 cowork.work.field.members,Members
+cowork.work.field.reminder,Set reminder
+cowork.work.field.repeat,Recurring
+cowork.work.field.start,Start date
 cowork.work.field.status,Status
 cowork.work.field.title,Title
+cowork.work.fields.add,Add a field
+cowork.work.fields.manage,Custom fields
+cowork.work.fields.name,Field name
+cowork.work.fields.options,Options (one per line)
+cowork.work.fields.saved,Custom fields saved
+cowork.work.fields.showOnCard,Show on card
+cowork.work.fields.type,Type
+cowork.work.fieldtype.checkbox,Checkbox
+cowork.work.fieldtype.date,Date
+cowork.work.fieldtype.number,Number
+cowork.work.fieldtype.select,Dropdown
+cowork.work.fieldtype.text,Text
+cowork.work.file.insert,Insert
+cowork.work.file.link,Add a link
+cowork.work.file.text,Display text (optional)
 cowork.work.file.upload,Upload
+cowork.work.file.url,Paste a link
 cowork.work.filter.anyDue,Any due date
 cowork.work.filter.anyLabel,All labels
 cowork.work.filter.anyMember,All members
@@ -1322,14 +1425,29 @@ cowork.work.labels.color,Color
 cowork.work.labels.manage,Labels
 cowork.work.labels.name,Name
 cowork.work.labels.saved,Labels saved
+cowork.work.list.add,Add another list
+cowork.work.list.archive,Archive this list
+cowork.work.list.archived,List archived
+cowork.work.list.confirmDelete,Delete this list and all its cards permanently? This cannot be undone.
+cowork.work.list.copy,Copy list
+cowork.work.list.doneList,Done list (cards moved here are complete)
+cowork.work.list.move,Move list
+cowork.work.list.name,List name
+cowork.work.list.placeholder,Enter list name
+cowork.work.list.position,Position
+cowork.work.mirror.add,Mirror
+cowork.work.mirror.badge,Mirror
+cowork.work.mirror.remove,Remove mirror
 cowork.work.notify.assign,{0} added you to {1}
 cowork.work.notify.comment,{0} commented on {1}
+cowork.work.notify.complete,{0} completed {1}
 cowork.work.notify.due_soon,{1} is due soon ({2})
 cowork.work.notify.empty,No notifications
 cowork.work.notify.mention,{0} mentioned you on {1}
 cowork.work.notify.move,{0} moved {1} to {2}
 cowork.work.notify.overdue,{1} is overdue ({2})
 cowork.work.notify.readAll,Mark all as read
+cowork.work.notify.reminder,{1} is due at {2}
 cowork.work.notify.title,Notifications
 cowork.work.quick.copy,Copy card
 cowork.work.quick.cover,Change cover
@@ -1343,9 +1461,29 @@ cowork.work.quick.title,Edit card
 cowork.work.quick.unwatch,Stop watching
 cowork.work.quick.watch,Watch
 cowork.work.quick.watching,You are watching this card
+cowork.work.reminder.10m,10 minutes before
+cowork.work.reminder.15m,15 minutes before
+cowork.work.reminder.1d,1 day before
+cowork.work.reminder.1h,1 hour before
+cowork.work.reminder.2d,2 days before
+cowork.work.reminder.2h,2 hours before
+cowork.work.reminder.5m,5 minutes before
+cowork.work.reminder.at_due,At time of due date
+cowork.work.reminder.none,None
+cowork.work.repeat.daily,Daily
+cowork.work.repeat.monthly,Monthly
+cowork.work.repeat.never,Never
+cowork.work.repeat.weekly,Weekly
+cowork.work.repeat.yearly,Yearly
 cowork.work.status.doing,In progress
 cowork.work.status.done,Done
 cowork.work.status.todo,To do
+cowork.work.template.badge,Template
+cowork.work.template.create,Create from template
+cowork.work.template.empty,No templates yet
+cowork.work.template.set,Make template
+cowork.work.template.title,Card templates
+cowork.work.template.unset,Remove template
 cowork_line,Cowork LINE
 document,document
 erp.account_set_unavailable,This account set is unavailable.
@@ -1533,6 +1671,7 @@ vat_check.recognition_timeout,Invoice recognition took too long. Try again later
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} added you to {1},{0} added you to {1}
 {0} commented on {1},{0} commented on {1}
+{0} completed {1},{0} completed {1}
 {0} files,{0} files
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
@@ -1540,13 +1679,18 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
+{1} is due at {2},{1} is due at {2}
 {1} is due soon ({2}),{1} is due soon ({2})
 {1} is overdue ({2}),{1} is overdue ({2})
 {who} added this card,{who} added this card
 {who} added {0} to this card,{who} added {0} to this card
 {who} archived this card,{who} archived this card
 {who} attached {0},{who} attached {0}
+{who} completed this recurring card; next due {0},{who} completed this recurring card; next due {0}
 {who} copied this card from {0},{who} copied this card from {0}
+{who} marked this card complete,{who} marked this card complete
+{who} marked this card incomplete,{who} marked this card incomplete
+{who} mirrored this card to {0},{who} mirrored this card to {0}
 {who} moved this card from {0} to {1},{who} moved this card from {0} to {1}
 {who} removed attachment {0},{who} removed attachment {0}
 {who} restored this card,{who} restored this card

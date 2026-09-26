@@ -325,6 +325,8 @@ permission_query_conditions = {
     "Cowork Work Activity": "pearnly_cowork.work.access.activity_query",
     "Cowork Work Notification": "pearnly_cowork.work.access.notification_query",
     "Cowork Work Column": "pearnly_cowork.work.access.column_query",
+    "Cowork Work Field": "pearnly_cowork.work.access.field_query",
+    "Cowork Work Mirror": "pearnly_cowork.work.access.mirror_query",
 }
 has_permission = {
     "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
@@ -364,6 +366,8 @@ has_permission = {
     "Cowork Work Activity": "pearnly_cowork.work.access.has_permission",
     "Cowork Work Notification": "pearnly_cowork.work.access.notification_permission",
     "Cowork Work Column": "pearnly_cowork.work.access.has_permission",
+    "Cowork Work Field": "pearnly_cowork.work.access.has_permission",
+    "Cowork Work Mirror": "pearnly_cowork.work.access.has_permission",
 }
 doc_events = {"Pearnly OCR Work": {
     "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",
@@ -453,6 +457,6 @@ pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 
 
 # MR.ERP 推送的兜底巡检：丢失的排队任务重新排上、过期的执行转结果不明（见 push.mrerp.runner.sweep）。
-# 工作协调看板：每小时给快到期 / 已过期的卡发一次提醒（同一张卡同一个到期日每人各一次）。
-scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep"]},
-                    "hourly": ["pearnly_cowork.work.reminders.run"]}
+# 工作协调看板：每 5 分钟按卡片的"提醒时间"发到期提醒、到期后发一次过期提醒（同一到期时刻每人各一次）。
+scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep",
+                                             "pearnly_cowork.work.reminders.run"]}}

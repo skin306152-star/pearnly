@@ -211,7 +211,8 @@
       "connections",
       "files",
       "ocr",
-      "stocktake"
+      "stocktake",
+      "work"
     ],
     "masters": [
       "access",

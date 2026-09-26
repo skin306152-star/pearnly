@@ -7,3 +7,4 @@
 pearnly_cowork.patches.v0_0_1_revoke_cowork_work_shares
 pearnly_cowork.patches.v0_0_2_backfill_history_parties
 pearnly_cowork.patches.v0_0_3_drop_company_grants
+pearnly_cowork.patches.v0_0_4_work_lists
