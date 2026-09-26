@@ -262,7 +262,7 @@ VAT 631.18）；入账 VAT 却是 838.04 —— 采购计算「先按折扣前�
 
 HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准。
 
-## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，实现与本机验证完成，未部署）
+## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，已上线、开关未开，待用户配置与真机验收）
 
 分支 `codex/line-login`（工作树 `/Users/skin/pearnly/.claude/worktrees/gifted-lehmann-d677ce`），基线 `origin/main` = `19ade38`。
 线上核对（开工时）：ERP 7 个容器均 `sha256:b7c07a7f…`（revision `a1f6488`）；`testerp.pearnly.com` 经 `@1.1.1.1` 解析 `107.155.65.74`（线上）；测试机关机。
@@ -315,6 +315,29 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 | 测试机 / 线上 / 真机 | — | **未做** |
 
 限制（如实）：LINE 本身是假的 OIDC realm —— 真 LINE 的 HS256 ID token、无 `preferred_username`、LINE 内置浏览器自动登录与首次授权页，只能在真机验；"官方号与 LINE Login 频道同一 Provider"未核实；`max_auth_age=1` 仍有 1 秒理论窗口；Keycloak 里 LINE 会话在解绑后不能由站点直接终止（无管理凭据），靠站点回调拒绝 + 结束会话兜底。
+
+### 合并与上线（2026-09-26，用户授权「合入 main，上线 testerp 真机验」）
+
+- 合入：`f41cb55`（功能）→ 远端 `main`；随后 `bf497be`（配置脚本修正，见下）→ 远端 `main`；每次都是分支 Development checks 通过后主目录快进、立即推送、回读一致。
+  Cowork 窗口的 `member-by-product` 补丁原样在 `73e6c33`（另修一条随之失效的断言）。
+- 镜像：main 上 Build `36232328077` → `sha256:52cf808c1be5e4dd74d3d725f5e00d18c9243b67ce0204195cd9ed67a80fd2dd`（`f41cb55`，与分支构建 digest 相同）；
+  Build `36233152128` → `sha256:235f71c56ac93de9a4617b09f80fc1c90d04ffa5bd7b54eabb8814cb63d3fd93`（`bf497be`）。均经 stage-production 暂存。
+- 部署目录：先备份 `/opt/pearnly/state/predeploy-line-login-20260926092447`，从镜像同步后 `check-deploy-image` 通过；现与 `235f71c5` 同源。
+- 计费站点：`activate-foundation.sh 52cf808c…` → billing-web `f41cb55`（原 `6a13b98`，区间内他人改动只有 `d54c33b` 控制面开户修复）；激活前备份
+  `20260926_162520-billing_internal-*`；`Pearnly Tenant Identity` 已建；`active-image.json` = `52cf808c…`。日志 `/opt/pearnly/state/activate-foundation-f41cb55.log`。
+- ERP：`activate-product.sh 52cf808c… erp` → 7 容器 `f41cb55`；备份 `20260926_162725-testerp_pearnly_com-*`；新列已迁；从站点查计费余额正常（1,000）；日志 0 错误。
+  日志 `/opt/pearnly/state/activate-erp-f41cb55.log`。DMS（`4207bf1`，另一窗口 09:13 部署）、Cowork 未动。
+- Keycloak（线上 realm `pearnly-business`）：执行前快照 `/opt/pearnly/state/keycloak-before-line-login.json`（600）。**快照发现**线上 `max_auth_age` 还覆盖资料、语言、
+  邮箱验证等动作，原脚本会一并改成 1 秒 → 先修 `bf497be`（只改凭据类：改密、邮箱、TOTP、恢复码、通行密钥、删凭据、关联账号），本机实验 25/25 后才执行。
+  回读：`pearnly-line-deny` 流程；`pearnly-login-source` 为默认作用域，12 个客户端中 10 个带上（另 2 个为 bearer-only 内置客户端，按设计跳过）；外部身份提供者 0 个；
+  凭据类 `max_auth_age=1`、资料 / 语言 / 邮箱验证未动；注册仍关闭。
+- 计费站点登记 testerp 管理员：`T-2026-0283` / `009eae24-…`（= `ISS-2026-0282` 的 `identity_subject` = testerp `Pearnly Identity`）。
+- ERP 富菜单重新发布：28 套（含盘点的新建），绑定用户已换挂新菜单，盘点 URI = `…/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-stock-count`。
+- 本机控制面（`control.localhost`，挂主目录代码 `bf497be`）：用户同意后 `bench migrate` 并重启 web / worker / scheduler；LINE 渠道表单已有新字段；
+  testerp 渠道 `LINE-DEP-2026-0285` 的回调地址计算为 `https://auth.pearnly.com/realms/pearnly-business/broker/line-erp-t-2026-0283/endpoint`。
+
+**当前状态：代码与配置已上线，LINE 登录开关仍关**（testerp 无 `pearnly_line_login_idp`、realm 无 LINE 入口）—— 等用户填 LINE Login 频道密钥（控制面 → 开户执行器 `set_line` 自动建入口并开关）、
+在 LINE Login 频道 2010411313 登记上面的回调地址、核实与 ERP-TEST 同一 Provider；之后立即触发一次关联同步，再真机验收。
 
 ### 待用户处理 / 授权
 
