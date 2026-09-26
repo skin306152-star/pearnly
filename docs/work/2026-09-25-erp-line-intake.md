@@ -262,7 +262,7 @@ VAT 631.18）；入账 VAT 却是 838.04 —— 采购计算「先按折扣前�
 
 HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准。
 
-## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，testerp 已开启，待真机验收）
+## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，已上线、收尾完成，待真机验收）
 
 分支 `codex/line-login`（工作树 `/Users/skin/pearnly/.claude/worktrees/gifted-lehmann-d677ce`），基线 `origin/main` = `19ade38`。
 线上核对（开工时）：ERP 7 个容器均 `sha256:b7c07a7f…`（revision `a1f6488`）；`testerp.pearnly.com` 经 `@1.1.1.1` 解析 `107.155.65.74`（线上）；测试机关机。
@@ -422,6 +422,28 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
   `/assets/pearnly_core/vendor/barcode-detector/{ponyfill.js,zxing_reader.wasm}` 200、ERP 旧 vendor 路径 404；ERP Desk 加载顺序 core `scan.js`（第 16）在 ERP `scan.js`（第 57）之前；
   三站 ping 200；ERP / DMS web / worker 10 分钟 0 traceback。未做：真机扫码、真机改密入口。
 - 本机控制面（挂主目录，已随 main 前进）：`bench migrate`（rc=0）+ 重启，开户目标 5 个 `cowork_*` 新列已迁；登录页 200。
+
+### 收尾（2026-09-26，用户"收尾吧"）
+
+**状态：实现、部署完成；真机验收未确认（用户未回报，不代签）。** 待验：LINE 里点卡片「编辑」/ 菜单「盘点」免密进入、解绑后不能；ERP 网页端扫码（共用读码器）。
+
+已清理（逐项回读）：
+- 本机实验：`pearnly-line-login-lab` 容器与具名卷 `down --volumes`，Colima 虚拟机 `pearnly-line-login` 删除（其 docker context 随之消失；默认 context 仍 `colima-pearnly`，
+  `pearnly` / `pearnly-stocktake` 两个虚拟机未动）。原型 Keycloak `line-login-kc-proto`（曾在共享虚拟机）早已删除。
+- 分支：`codex/line-login`（`e3d7cc6`，已并入 main）本地非强制删除、远端按核实 SHA 租约删除，回读不存在；`codex/legacy-password-cleanup`、`codex/ci-parallel-candidate-checks`、
+  `codex/erp-scan-dedupe`、`codex/release-02a3b22-notes` 均合入后已删（本地与远端）；本记录所在的 `codex/line-login-wrapup` 合入后删除。临时 main 检出工作树 `line-login-base` / `line-login-baseline` 已移除。
+- 临时文件：Mac `/tmp` 下本任务测试输出、会话草稿目录的实验文件与虚拟环境已删；服务器容器内 / 主机 `/tmp` 无本任务残留，`pearnly-deploy-check` 容器不存在。
+
+保留项：
+
+| 保留项 | 用途 / 原因 | 解除条件 |
+| --- | --- | --- |
+| 服务器 `/opt/pearnly/state/predeploy-line-login-*`、`predeploy-02a3b22-*`、`nginx-conf.d-before-http2-*`、`keycloak-before-line-login.json`（600） | 部署目录 / nginx / Keycloak 回退依据 | 真机验收通过并稳定一周后，由运维确认删除 |
+| 各站点激活前备份（testerp、ris、testdms、testcowork、billing，时间戳见上文各节） | 数据回退依据 | 按站点备份保留策略 |
+| 本会话工作树 `gifted-lehmann-d677ce`（分离在 main，无改动）与应用分支 `pearnly/gifted-lehmann-d677ce`（应用创建，无本任务提交） | 当前会话所在 | 会话结束后由应用清理 |
+| 会话「Verify and fix "log out everywhere"」及其工作树 `pensive-williamson-c1f4a9` | 用户点开的后台任务，首条命令即中断、无改动；问题已由本窗口处理 | 用户归档 |
+| 线上 Cowork 与计费站点仍 `15dea26` | Cowork 账号池与整批功能由 Cowork 窗口发布 | Cowork 窗口发布 |
+| 第 6 节原登记的保留项（`strange-swartz-a8b667` 工作树、测试机 ERP 数据卷、线上 `/root/te-export/`） | 不属本窗口，未动 | 见第 6 节 |
 
 ### 待用户处理 / 授权
 
