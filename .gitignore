@@ -18,3 +18,7 @@ apps/pearnly_core/pearnly_core/public/pearnly-app/
 frontend/auto-imports.d.ts
 frontend/components.d.ts
 .testenv-secrets
+
+# Windows 小助手（companion/）的本机构建产物
+/companion/build/
+/companion/dist/
