@@ -8,9 +8,10 @@ from pearnly_cowork.reconciliation import recon_access as _shared
 TASK = "Cowork Bank Reconciliation"
 ROW = "Cowork Bank Reconciliation Row"
 TYPES = (TASK, ROW)
-ROLES = _shared.ROLES
+ROLE = "Cowork Bank Reconciliation"
 
-_access = _shared.recon_access(TASK, ROW)
+_access = _shared.recon_access(TASK, ROW, ROLE)
+ROLES = _access.ROLES
 
 allowed = _access.allowed
 require = _access.require

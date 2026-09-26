@@ -20,7 +20,7 @@ from werkzeug.wrappers import Response
 
 BASE = runpy.run_path(str(Path(__file__).with_name("cowork-backend-lab-verify.py")))
 connect, user, grant = (BASE[key] for key in ("connect", "user", "grant"))
-ROLE = "Cowork Bank Reconciliation"
+ROLE = "Cowork Income Reconciliation"
 TASK = "Cowork Income Reconciliation"
 ROW = "Cowork Income Reconciliation Row"
 

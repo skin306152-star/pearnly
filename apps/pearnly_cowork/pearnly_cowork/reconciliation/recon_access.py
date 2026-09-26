@@ -6,8 +6,10 @@ internal ownership row only keeps references consistent), no generic delete or
 share, and query conditions that follow the same rules. This module
 holds those rules once and each domain module binds its own DocType names.
 
-Signatures are reconciled here: the deployed recon permissions did not distinguish
-between bank and income reconciliation, so one operator role covers both.
+The deployed recon permissions used one operator role for every type; the user split
+it into one role per type on 2026-09-27 (team management ticks each separately).
+Each domain module passes its own role; holders of the old shared role were given
+all three by `patches.v0_0_5_split_recon_roles`.
 """
 import frappe
 from frappe import _
@@ -15,17 +17,17 @@ from frappe import _
 from pearnly_core.shell import entitlements
 from pearnly_cowork.access import scope
 
-ROLES = {"Cowork Bank Reconciliation", "Cowork Admin"}
+ADMIN_ROLE = "Cowork Admin"
 
 
 class ReconAccess:
 	"""Permission rules for one task/row DocType pair."""
 
-	def __init__(self, task, row, roles=ROLES):
+	def __init__(self, task, row, role):
 		self.TASK = task
 		self.ROW = row
 		self.TYPES = (task, row)
-		self.ROLES = set(roles)
+		self.ROLES = {role, ADMIN_ROLE}
 
 	def allowed(self, user=None):
 		user = user or frappe.session.user
@@ -74,5 +76,5 @@ class ReconAccess:
 		return self._query(self.ROW, user)
 
 
-def recon_access(task, row, roles=ROLES):
-	return ReconAccess(task, row, roles)
+def recon_access(task, row, role):
+	return ReconAccess(task, row, role)

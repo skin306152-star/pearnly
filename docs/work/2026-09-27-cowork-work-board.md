@@ -122,6 +122,18 @@
 4. **测试环境 `live` 后整站 502**：一起重启时 web 换了 IP、前端 nginx 仍连旧 IP。`infrastructure/testenv/run.sh` 的 `live` 在重启后再单独重启一次前端。
    （当时用户正在用 testcowork，约 1–2 分钟 502，已恢复。）
 
+### 第六批（用户 2026-09-27："三个对账搞点数据进去……团队管理那边把三个对账拆出来，可单独选……这些不要太靠左"）
+
+- **工作协调各视图加左右内边距**：`.pearnly-work-view` 桌面 `--padding-md`、手机 `--padding-sm`；看板第一列、我的任务分组标题、表格与上方视图切换 / 筛选框左对齐。
+- **对账权限拆成三个角色**（团队管理里三个勾选，各进各的页面）：银行对账沿用 `Cowork Bank Reconciliation`，
+  收入对账新角色 `Cowork Income Reconciliation`，销项税报告核查新角色 `Cowork VAT Check`（随各自 DocType 的权限行生成）。
+  服务端判据（`reconciliation.*_access`，列表查询条件与单据权限同源）、侧栏 `any_role`、`access.menu.CATALOG`、勾选分组一起改；
+  补丁 `v0_0_5_split_recon_roles` 给原来持有对账角色的人补上两个新角色，升级不丢权限。
+  收入对账的实验室验证脚本（`scripts/cowork-income-recon-lab-verify.py`）角色随之改名。
+- **测试租户的对账演示数据**：`testcowork` 上以 `pearnlyai@gmail.com` 身份各建一份
+  （「演示 · KBank 2569年6月」13 行 8 配、差异 0；「演示 · 收入对账 2569年6月」10 行 8 配 1 差 1 缺；「演示 · 销项税核查 2569年6月」9 张发票 7 配 1 差 3 缺）。
+  输入全是 Excel，走确定性解析，**不走模型 / 付费识别**（银行对账不给模型兜底、发票为结构化清单）。需要清掉时在各列表勾选删除即可。
+
 ## 验证
 
 | 时间 | 代码 | 环境与数据归属 | 命令或场景 | 结果 |
@@ -143,6 +155,10 @@
 | 2026-09-27 | 第五批（`fbeacf52` + 未提交修正） | 本机样板 | CI 同名闸门；`test-cowork-work-native.py` 加测规则（进入列表 / 新建触发、停用、完成）、全文搜索、导出 xlsx；浏览器：视图切换、我的任务分组、日历拖动改到期日、表格点开卡片与导出、自动化设置、详情开关 | 通过 |
 | 2026-09-27 | 同上 | **测试机**：测试租户 `testcowork` 与空白站点 `cowork.test.localhost`（线上同一底座镜像 + 本工作树实时源码） | 两个站点各跑 `test-cowork-work-native.py`；经 SSH 隧道用临时账号（本地密码，测完删除）在空白站点点：列尾连加、拖入空的完成列表并记为完成、详情里设成员与到期日保存、我的任务 / 日历 / 表格、自动化规则生效、手机布局 | 通过（先发现上面 1–3 三个问题，修后复验通过）；临时账号与测试数据已删，空白站点只留默认三列；用户在 testcowork 上自己的数据未动 |
 | 2026-09-27 | 同上 | 测试机 socket.io | 实时刷新：经隧道打开时 socket.io 鉴权要回调页面来源地址，隧道地址在容器里不可达，无法在隧道里验证；确认 socketio 容器能访问 `https://testcowork.pearnly.com` | 未验：需在 testcowork 上两个会话实测 |
+| 2026-09-27 | 第六批未提交差异（基于 `7fd56697`） | 本机离线（python3.12） | CI 同名闸门、`test_cowork_team_menu.py`（三种对账各为一个角色、未买对账不发）、`test_cowork_work_contracts.py` | 通过 |
+| 2026-09-27 | 同上 | 本机样板 `cowork-a.localhost`（`--migrate`） | 临时账号持旧对账角色跑补丁两次 → 三个角色各一份；只给某一种对账角色的账号只能进那一种（其余两种 `allowed` 为假、列表条件 `1=0`）；团队管理「添加用户」出现银行 / 收入 / 销项税三个勾选；演示数据在三个结果页的显示；看板第一列与视图切换对齐（左边距 65px 对 65px） | 通过；临时账号回滚，本机演示数据已删 |
+| 2026-09-27 | 同上 | 测试机（`testcowork.pearnly.com` 与 `cowork.test.localhost`） | `live cowork`（两站 migrate + 补丁均 ok）；在 testcowork 核对三个角色与 DocPerm，写入演示数据后以用户身份调用三个结果页的加载接口 | 通过；testcowork 原来没人持有对账角色（只有管理员），补丁无需补发 |
+| 2026-09-27 | 同上 | 实验室 bench | `scripts/cowork-income-recon-lab-verify.py`（只改了角色名） | 未跑：需要专用实验室站点 |
 
 `python3 scripts/check-i18n.py --strict` 失败是存量（其他模块硬编码文案），本任务新增文件不在报告里；CI 不跑这一项。
 本机样板的测试数据（卡片、标签、附件、临时用户与会话）测完已删。

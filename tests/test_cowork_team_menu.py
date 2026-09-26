@@ -13,13 +13,21 @@ class MenuCatalogTest(unittest.TestCase):
 
     def test_order_and_groups_follow_catalog(self):
         self.assertEqual(menu.offered({"intake", "recon", "stocktake"}, self.ALL), (
-            "Cowork Intake", "Cowork Bank Reconciliation", "Cowork Stocktake",
-            "Cowork Work", "Cowork Profile", "Cowork LINE"))
+            "Cowork Intake", "Cowork Bank Reconciliation", "Cowork Income Reconciliation",
+            "Cowork VAT Check", "Cowork Stocktake", "Cowork Work", "Cowork Profile", "Cowork LINE"))
+
+    def test_three_reconciliations_are_separate_roles(self):
+        # 用户 2026-09-27：对账中心拆成银行 / 收入 / 销项税核查三项，可单独勾选，各进各的页面。
+        routes = {spec[1]: spec[2] for spec in menu.CATALOG.values() if spec[0] == "recon"}
+        self.assertEqual(routes, {"Cowork Bank Reconciliation": "pearnly-recon-bank",
+                                  "Cowork Income Reconciliation": "pearnly-recon-income",
+                                  "Cowork VAT Check": "pearnly-recon-vat"})
 
     def test_unpurchased_feature_is_not_offered(self):
         offered = menu.offered({"intake"}, self.ALL)
         self.assertNotIn("Cowork Stocktake", offered)
-        self.assertNotIn("Cowork Bank Reconciliation", offered)
+        self.assertFalse({"Cowork Bank Reconciliation", "Cowork Income Reconciliation",
+                          "Cowork VAT Check"} & set(offered))
         self.assertIn("Cowork Work", offered)
 
     def test_missing_role_is_not_offered(self):

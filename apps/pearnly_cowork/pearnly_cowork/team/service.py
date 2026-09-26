@@ -5,7 +5,7 @@
 
 与 ERP 的差别：
 - Cowork 不做公司隔离（用户 2026-09-26），新用户不分配公司，只勾功能权限。
-- 勾选项是 `access.menu.CATALOG`（录入 / 对账 / 盘点 / 工作协调 / 个人信息 / LINE）。
+- 勾选项是 `access.menu.CATALOG`（录入 / 三种对账 / 盘点 / 工作协调 / 个人信息 / LINE）。
 
 写 `User` 时显式 `ignore_permissions`：核心的 User 权限钩子只让非超管访问自己那条，
 判据因此放在本模块（与 ERP、开通侧 `ensure_local_user` 同一做法）。
@@ -61,7 +61,7 @@ def role_catalog() -> list:
             catalog.append({"name": role, "label": "LINE", "group": _(groups.get("user", "User Settings"))})
             continue
         route = routes[role]
-        catalog.append({"name": role, "label": _(labels.get(route) or menu.LABELS.get(role, role)),
+        catalog.append({"name": role, "label": _(labels.get(route) or role),
                         "group": _(groups.get(route, "General"))})
     return catalog
 

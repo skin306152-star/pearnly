@@ -16,6 +16,11 @@
 	border: 0;
 }
 
+/* 各视图内容与上方视图切换对齐，不贴页面左边（用户 2026-09-27）。 */
+.pearnly-work-view {
+	padding: var(--padding-xs) var(--padding-md) var(--padding-md);
+}
+
 .pearnly-work-empty {
 	padding: var(--padding-lg) 0;
 }
@@ -807,6 +812,10 @@
 }
 
 @media (max-width: 767px) {
+	.pearnly-work-view {
+		padding: 0 var(--padding-sm) var(--padding-sm);
+	}
+
 	.pearnly-work-nav {
 		display: block;
 		position: sticky;

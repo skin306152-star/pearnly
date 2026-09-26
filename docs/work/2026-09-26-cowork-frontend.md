@@ -338,7 +338,7 @@ testcowork 上 3 张识别记录（`IV6906-00001` ×2 进项、`02000137` 销项
   另一个口径问题：识别引擎不抽买方分支号，旧线上逐项比对会比分支（空当 00000），接识别前需定处理方式。
 - 发现的既有问题（未改）：银行对账的 `document_model_rows`（`pearnly_cowork/doctype/cowork_bank_reconciliation`）在识别任务之外调模型，
   真走到模型那一步会报 `ocr.durable_work_required`；现在只有文字层读不出的 PDF 账单会触发。
-- 团队管理仍是一个「对账中心」勾选（角色 `Cowork Bank Reconciliation`），侧栏三个入口共用；勾选名见 `access.menu.LABELS`。
+- 团队管理原是一个「对账中心」勾选（角色 `Cowork Bank Reconciliation`）；2026-09-27 拆成银行 / 收入 / 销项税三个角色，见 [工作协调任务记录](2026-09-27-cowork-work-board.md) 第六批。
 - 验证：架构 / 四语 / 前端文案 / 空白 PASS；原生 Desk 合同 22 项；Cowork 离线全量 6 个既有错误无新增；样板浏览器与接口实测如上。
   未验：页面上真选文件（测试浏览器不能驱动系统文件框，改为同一接口直传）、慢文件的中间阶段文字、需复核（PDF 低置信）任务的在线修改保存。
 
