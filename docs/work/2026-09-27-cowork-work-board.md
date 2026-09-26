@@ -159,6 +159,26 @@
 - Express「连接」报没有权限：原因是站点的 ERP 推送总闸 `pearnly_cowork_erp_push_enabled` 没开（生成助手密钥要它）；线上唯一的 Cowork 站点
   `testcowork.pearnly.com` 与导入到测试机的副本都没开。用户选择在线上打开（2026-09-27，AskUserQuestion「打开（推荐）」），随本次部署执行。
 
+## 合并与部署（2026-09-27，用户："最后这批改完直接部署上线"）
+
+- 合入：任务分支 `c4a04ca8`（基线 `c11e7a2`，已含 ERP 的 `76b6a6e`，无需变基）；Development checks `36275578515` 通过 → 主目录 `main` 快进并推送，远端回读 `c4a04ca8`。
+- 镜像：Build `36275645328`（`c4a04ca8`，含候选镜像三条检查线）通过 →
+  `ghcr.io/skin306152-star/pearnly/frappe@sha256:38b58ff93d48acd215e30506e81b679e6842425a188a440ec26d3a4e90ccd20d`；Stage `36275949454` 成功。
+- 部署目录：`check-deploy-image` 直接通过（本次没改 `infrastructure/production` 与 `scripts/production`），未同步、未备份部署目录。
+- 第一次激活停在容量检查（维护模式之前，线上未变）：另一个窗口的 OCR 语料评测容器 `pearnly-ocr-impl`（ERP `76b6a6e` 镜像，对 testerp 跑评测，
+  当时 93/390、被识别限流）没有内存上限。经用户同意（AskUserQuestion「给它补内存上限」）执行
+  `docker update --memory 2g --memory-swap 2g pearnly-ocr-impl`（实际占用 143 MiB，不重启、评测继续），容量检查随即通过。
+  **该容器的上限是本窗口加的**，评测窗口知悉即可，无需恢复。
+- 激活：`activate-product.sh <digest> cowork` → "Product cowork activated with verified image."，日志 `/opt/pearnly/state/activate-cowork-c4a04ca8.log`；
+  激活前备份 `20260927_052314-testcowork_pearnly_com-*`（库、公开 / 私有文件、配置）。上一版 `15dea26`（`sha256:317b2feb…`），回退用它与该备份。
+- ERP 推送总闸：按用户决定 `bench --site testcowork.pearnly.com set-config -p pearnly_cowork_erp_push_enabled 1`。
+- 回读：7 个 Cowork 容器均为 `c4a04ca8` running；`maintenance_mode=0`、`pause_scheduler=0`；公网 ping 200；六个服务切换后 10 分钟日志 0 错误；
+  站点内 patch `v0_0_4_work_lists` / `v0_0_5_split_recon_roles` 已执行，三个对账角色、`Cowork Work`、`pearnly-work` 页面存在，
+  默认三列表已建（站点语言是英文，所以叫 To do / In progress / Done，用户可在看板上改名）；线上还没有 ERP 连接，总闸已开。
+- 未做：线上 LINE 官方号的新菜单图（含「任务管理」格）没有发布——对正式官方号是外部写入，只在测试号上得到过同意；
+  线上没发布全套组合时挂菜单逻辑直接跳过，用户仍看到原菜单。Cowork 账号池迁移、`COWORK_OCR` 识别配置仍是另外的生产步骤。
+- 未验：真机 / 用户验收（任务管理、三个对账页面、Express 连接生成密钥）；实时刷新与到期提醒。
+
 ## 验证
 
 | 时间 | 代码 | 环境与数据归属 | 命令或场景 | 结果 |
@@ -195,8 +215,8 @@
 | --- | --- | --- |
 | 实现 | 完成（待用户试用） | |
 | 本地验证 | 通过 | 见上表；实时刷新（两人同时开看板）未验 |
-| 测试机 | 已上 | `testcowork.pearnly.com` 侧栏出现「工作协调」，等用户试用 |
-| CI | 未执行 | |
-| 部署 | 未执行 | 生产仍是 `15dea26` |
+| 测试机 | 已停 | 2026-09-27 按用户要求 `lab-stop cowork`（卷保留，内有三份演示对账），交给另一个窗口 |
+| CI | 通过 | Development checks `36275578515`、Build `36275645328` |
+| 部署 | 已执行 | 生产 Cowork `c4a04ca8`（`sha256:38b58ff9…`），见「合并与部署」 |
 | 外部业务结果 | 不适用 | 无外部写入 |
 | 用户 / 真机验收 | 未执行 | |

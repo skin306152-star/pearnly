@@ -12,7 +12,7 @@
 | --- | --- |
 | `origin/main` | **已含本任务全部代码**：第十四批验收修复（公司隔离拿掉、LINE 发单据 + 富菜单、识别配置、目标记在票上、ERP 式卡片、编辑页照 ERP 排版、含税小票导出）经用户同意 2026-09-27 合入（`8b26357`，CI 通过、远端回读一致）+ 共用票种表（ADR-0012）+ 测试环境实时源码规则 |
 | 任务分支 `codex/cowork-frontend`（工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | **已删除**（2026-09-27 第五个窗口）：测试机实时源码与本机样板改到新工作树后，删了工作树、本地分支与远端分支（删前回读均为 `af9aa34`，无独有提交） |
-| 生产 | Cowork 仍是 `15dea26`；本任务新功能、Cowork 账号池、`COWORK_OCR` 识别配置**都没上生产**，每一步要用户同意 |
+| 生产 | Cowork 2026-09-27 升到 `c4a04ca8`（任务管理、三个对账可单独授权与新页面，见 [工作协调任务记录](2026-09-27-cowork-work-board.md)），ERP 推送总闸已开；Cowork 账号池、`COWORK_OCR` 识别配置仍**没上生产**，每一步要用户同意 |
 
 **新功能怎么开分支**：新功能在 Cowork 基础上做，从最新 `origin/main` 开自己的 `codex/<主题>` 分支与工作树（记录基线 SHA）。
 然后把测试机实时源码切到新工作树：`PEARNLY_TESTENV_SRC=<新工作树> bash scripts/testenv.sh live cowork`；
