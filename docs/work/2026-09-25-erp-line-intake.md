@@ -393,8 +393,13 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
   配置里未写明。备份 `/opt/pearnly/state/nginx-conf.d-before-http2-20260926114612` 后把 auth / default（含 IPv6 行）/ landing / ris / testdms / testerp
   的 `listen … 443 ssl` 补上 `http2`，`nginx -t` 通过后 reload。外网回读：6 个域名 `http_version=2`；静态资源 `max-age=31536000` + HSTS + nosniff；
   `/desk` `no-store`；HTTP/1.1 客户端仍可访问（LINE 回调等不受影响）。服务器无 IPv6 出口，IPv6 未实测。
-- **ERP 扫码器去重**（用户 2026-09-26 要求做，等前置）：Cowork 窗口已把 ERP `public/desk/scan.js` 通用部分复制到 `pearnly_core/public/desk/scan.js`（分支 `codex/cowork-frontend`）；其合入后可删 ERP 副本、
-  `www/stocktake.html` 改指 core 路径。Cowork 窗口确认去重由本窗口做，其合入 main（等用户同意）后发 SHA，再基于 main 施工；在那之前不碰这几个文件。
+- **ERP 扫码器去重**（用户 2026-09-26 要求做，已完成代码）：Cowork 把读码器与 `vendor/barcode-detector` 合入 main（`c24e24c`）后，ERP `public/desk/scan.js`
+  只留扫码弹窗 `p.scan` 与物料选择框扫码 `p.scan_link`，读码器用共用层那份（共用层先加载）；删除逐字节相同的 ERP `scan.css`（及钩子加载项）与 `vendor/barcode-detector`；
+  LINE 盘点页 `www/stocktake.html` 与 `tests/test-line-stocktake.cjs` 改指 `/assets/pearnly_core/vendor/barcode-detector/`；`tests/test-stocktake-scanner.cjs` 按站点顺序加载两份。
+  验证：test-line-stocktake、test-stocktake-scanner、test-native-desk、test_pos_lifecycle 通过；check-desk-ui 输出与 main 一致。随 ERP 下次发布生效；真机扫码未验。
+  Cowork 的 `stocktake-entry.js` 注释"改 ERP 那份时请同步这份"已过时，已告知 Cowork 窗口（其文件本窗口不改）。
+- 顺带发现：`tests/test-link-options.cjs`（不在 CI 中）在 main 上即失败（`addEventListener` of undefined），与本次无关，未修，登记待办。
+- DMS 快照测试提速（构建加速的剩余瓶颈）：见上一节，属 DMS 范围。
 
 ### 构建加速 B（2026-09-26 用户要求做）
 
