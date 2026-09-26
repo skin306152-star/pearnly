@@ -40,7 +40,9 @@
 
 ## 保留与后续
 
-- 旧仓库 `skin306152-star/pearnly-companion`：停用、不再发布，未归档（归档是对 GitHub 的外部改动，等用户决定）；
-  本机克隆 `/Users/skin/Developer/Pearnly/pearnly-companion` 未动。
-- `~/Backups/pearnly-cleanup-2026-09-26/companion-simplify/`：内容已进 `f12bff8f`，可由用户决定删除。
+- 旧仓库 `skin306152-star/pearnly-companion`：2026-09-27 按用户要求在 GitHub **已归档**（只读，旧分支与发布记录保留）。
+  本机克隆 `/Users/skin/Developer/Pearnly/pearnly-companion` 未动（干净、与归档前远端一致），不再使用。
+- `~/Backups/pearnly-cleanup-2026-09-26/companion-simplify/`：8 个文件与 `f12bff8f` 逐字一致，按用户要求**已删除**（`~/Backups` 随之为空并删除）。
+- 代码签名：用户决定以后再说。
 - 本机样板 `cowork-a` 的本地 Express 连接：本次重新生成了第 7 代测试密钥并有一次探针心跳（只在样板）。
+- 本任务工作树 / 分支 `codex/companion-monorepo` 已删（本地、远端）；标签 `companion-v1.2.0` 作为发布记录保留。
