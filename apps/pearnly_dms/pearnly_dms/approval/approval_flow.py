@@ -42,6 +42,7 @@ from pearnly_dms.line.out import push_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
 from pearnly_dms.line.out import start_loading as _start_loading
+from pearnly_dms import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -204,16 +205,18 @@ def _target(binding: dict, line_user_id: str, reply_token: str, pb: dict) -> Non
         _reply(reply_token, cards.TXT_EXPIRED)
         return
 
-    card = approval_cards.request_card(
-        str(req["id"]),
-        _operator_display_name(str(req["operator_user_id"])),
-        req.get("customer_name") or "",
-        str(req.get("customer_id") or ""),
-        _display_diffs(req),
-    )
-    # 逐个推（同步栈；每次 push 都是一次 HTTP，串行即可，不占 webhook）
+    # 逐个推（同步栈；每次 push 都是一次 HTTP，串行即可，不占 webhook）。
+    # 卡片按**审批人自己**手机上的语言生成，不沿用发起销售的语言。
     for target in targets:
-        _send(target["line_user_id"], card)
+        with i18n.line_language(target["line_user_id"]):
+            card = approval_cards.request_card(
+                str(req["id"]),
+                _operator_display_name(str(req["operator_user_id"])),
+                req.get("customer_name") or "",
+                str(req.get("customer_id") or ""),
+                _display_diffs(req),
+            )
+            _send(target["line_user_id"], card)
     _send(line_user_id, approval_cards.waiting_card(str(req["id"]), label), reply_token)
 
 
@@ -253,7 +256,7 @@ def _decide(
             _reply(reply_token, approval_cards.TXT_REQ_STALE)
             return
         _reply(reply_token, approval_cards.TXT_REQ_REJECTED_ADMIN)
-        _notify_operator(req, approval_cards.TXT_REQ_REJECTED_SALES)
+        _notify_operator(req, "TXT_REQ_REJECTED_SALES")
         return
 
     # 批准：先说"正在处理"，执行丢后台（要重新登录 DMS、还要写库）
@@ -334,21 +337,22 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
                 and pending.get("approval_request") == req["id"]
                 and matches(pending.get("binding") or {}, luid)):
             from pearnly_dms.intake.review import build
-            new, card = build(operator_id, pending["source"], conflict,
-                              has_admin=bool(pending["source"].get("has_admin")))
-            if store.replace_session_snapshot(luid, current, "reviewing", new):
-                _send(luid, card)
-        _push(admin_line_user_id, (result.get("error_friendly") or {}).get("th") or cards.TXT_SAVE_FAIL)
+            with i18n.line_language(luid):  # 这张卡发给申请的销售：按他的语言生成
+                new, card = build(operator_id, pending["source"], conflict,
+                                  has_admin=bool(pending["source"].get("has_admin")))
+                if store.replace_session_snapshot(luid, current, "reviewing", new):
+                    _send(luid, card)
+        _push(admin_line_user_id, (result.get("error_friendly") or {}).get(i18n.line_lang()) or cards.TXT_SAVE_FAIL)
     elif success:
         if not finish("approved"):
             return
         _push(admin_line_user_id, approval_cards.TXT_REQ_APPROVED_ADMIN)
-        _notify_operator(req, approval_cards.TXT_REQ_APPROVED_SALES)
+        _notify_operator(req, "TXT_REQ_APPROVED_SALES")
     else:
         # A durable unknown dispatch cannot be authorized for replay by another approver.
         if not finish("rejected" if (result.get("response_body") or {}).get("submitted") else "pending"):
             return
-        friendly = (result.get("error_friendly") or {}).get("th") or ""
+        friendly = (result.get("error_friendly") or {}).get(i18n.line_lang()) or ""
         _push(
             admin_line_user_id,
             (friendly + "\n" if friendly else "") + approval_cards.TXT_EXEC_FAIL_ADMIN,
@@ -389,7 +393,7 @@ def _operator_display_name(user_id: str) -> str:
     return (prof or {}).get("display_name") or approval_cards.TXT_SALES_FALLBACK
 
 
-def _notify_operator(req: dict, text: str) -> None:
+def _notify_operator(req: dict, key: str) -> None:
     """把结果告诉申请人（他绑了 LINE 才发得出去；没绑就静默 —— 他下次上线会看到）。"""
     operator_id = str(req.get("operator_user_id") or "")
     if not operator_id:
@@ -398,7 +402,8 @@ def _notify_operator(req: dict, text: str) -> None:
     if not line_user_id:
         logger.info("[approval] 申请人没绑 LINE，结果不推送：%s", operator_id)
         return
-    _push(line_user_id, text)
+    with i18n.line_language(line_user_id):  # 按申请人自己的手机语言
+        _push(line_user_id, getattr(approval_cards, key))
 
 
 def _write_push_log(

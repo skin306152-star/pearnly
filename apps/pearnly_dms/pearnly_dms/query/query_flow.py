@@ -34,6 +34,7 @@ from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
 from pearnly_dms.line.identity import matches as current_binding
 from pearnly_dms.snapshots import manual
+from pearnly_dms import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -435,10 +436,10 @@ def _failure_text(result: dict) -> str:
     if result.get("error_code") == "ERR_NO_CREDS":
         return query_cards.TXT_NO_ENDPOINT
     if str(result.get("error_code") or "").startswith("ERR_DMS_SNAPSHOT_"):
-        return friendly(result["error_code"])["th"]
+        return friendly(result["error_code"])[i18n.line_lang()]
     if result.get("error_code") == "ERR_DMS_QUERY_FORBIDDEN":
         return query_cards.TXT_DENIED
-    return (result.get("error_friendly") or {}).get("th") or query_cards.TXT_QUERY_FAILED
+    return (result.get("error_friendly") or {}).get(i18n.line_lang()) or query_cards.TXT_QUERY_FAILED
 
 
 # ── 翻页 / 重读 ──────────────────────────────────────────────────────────────

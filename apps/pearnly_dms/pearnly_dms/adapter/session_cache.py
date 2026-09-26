@@ -106,7 +106,7 @@ def load(account_key: str) -> Optional[List[dict]]:
         cookies = data.get("cookies")
         return cookies if isinstance(cookies, list) and cookies else None
     except Exception:
-        logger.warning("[dms session] 会话缓存读不出，本次照常登录")
+        logger.warning("[dms session] cached session unreadable; signing in normally")
         forget(account_key)
         return None
 
@@ -129,7 +129,7 @@ def save(account_key: str, cookies: List[dict], base_url: str, *, idle: Optional
         frappe.cache().set_value(_key(account_key), payload, expires_in_sec=limit)
         return True
     except Exception:
-        logger.warning("[dms session] 会话缓存写不进，下次照常登录")
+        logger.warning("[dms session] could not cache the session; next run signs in")
         return False
 
 
@@ -137,7 +137,7 @@ def forget(account_key: str) -> None:
     try:
         frappe.cache().delete_value(_key(account_key))
     except Exception:
-        logger.warning("[dms session] 会话缓存清不掉（会自然过期）")
+        logger.warning("[dms session] could not drop the cached session (it will expire)")
 
 
 def alive(request_context: Any, base_url: str) -> bool:
@@ -163,7 +163,7 @@ def restore(context: Any, account_key: str, base_url: str) -> bool:
         # 还在闲置期限内却已失效 = 有人用同一账号登录顶掉了它（或对方重启过会话）。
         _mark_kicked(account_key)
     except Exception:
-        logger.warning("[dms session] 复用会话失败，改为重新登录")
+        logger.warning("[dms session] session reuse failed; signing in again")
         try:
             context.clear_cookies()
         except Exception:

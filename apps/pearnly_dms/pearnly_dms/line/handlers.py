@@ -12,6 +12,7 @@
 import frappe
 
 from pearnly_core import line, line_binding
+from pearnly_dms import i18n
 from pearnly_dms.line import cards as cards
 
 # 解绑指令词：这是**用户手打的词**，所以按通道语言认（LINE 那头是泰国销售），
@@ -20,7 +21,9 @@ from pearnly_dms.line import cards as cards
 # 用的是 `ยกเลิกการเชื่อมต่อ`（"断开连接"，见线上基准 501589f0 的
 # `routes/line_dms_webhook_routes.py`）。老用户按旧话术打字也必须能解绑 ——
 # 原先的注释写"老产品只认一个中文词"，与 DMS 通道的事实不符（2026-09-21 复核改正）。
-UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind")
+UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind", "連携解除")
+# 帮助提示里示范给用户打的那个词：按他手机的语言给（用户 2026-09-27）。
+_UNBIND_HINT = {"th": "ยกเลิกการผูก", "zh": "解绑", "en": "unbind", "ja": "連携解除"}
 
 
 def _is_unbind(text: str) -> bool:
@@ -39,7 +42,14 @@ def handle(event: dict) -> bool:
     以前"先回一句、再发一张卡"会让第二条变成计费推播；现在整批走免费回覆。
     """
     source = event.get("source") or {}
-    with line.batch(source.get("userId") or "", event.get("replyToken") or ""):
+    user_id = source.get("userId") or ""
+    # 回给这个人的卡片、提示用他手机上 LINE 的语言（用户 2026-09-27，与 ERP 一致）；
+    # 顺手核一下他的图文菜单是不是这个语言，不是就排一次重挂。
+    with i18n.line_language(user_id) as language, line.batch(user_id, event.get("replyToken") or ""):
+        if user_id:
+            from pearnly_dms.menu import rich_menu
+
+            rich_menu.ensure(user_id, language)
         return _handle(event)
 
 
@@ -197,5 +207,6 @@ def _reply_need_bind_or_help(user_id: str, reply_token: str) -> None:
     bound = line_binding.user_of(user_id)
     name = (frappe.db.get_value("DMS Operator", {"user": bound}, "display_name")
             or frappe.db.get_value("User", bound, "full_name")) if bound else ""
-    text = cards.MSG_BIND_HELP.format(name or "", UNBIND_WORDS[0]) if bound else cards.MSG_BIND_NEED
+    hint = _UNBIND_HINT.get(i18n.line_lang(), UNBIND_WORDS[0])
+    text = cards.MSG_BIND_HELP.format(name or "", hint) if bound else cards.MSG_BIND_NEED
     line.reply(reply_token, [{"type": "text", "text": text}])

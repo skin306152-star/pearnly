@@ -44,6 +44,7 @@ from pearnly_dms.ocr import timing as ocr_timing
 from pearnly_dms.line import out as out
 from pearnly_dms.line.identity import matches as current_binding
 from pearnly_dms.config import pacing as dms_retry
+from pearnly_dms import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
             _reply(reply_token, cards.TXT_EXPIRED)
             return
         _send(line_user_id, cards.edit_entry_card(
-            pb["nonce"], notice=dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang="th")
+            pb["nonce"], notice=dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang=i18n.line_lang())
         ), reply_token)
         return
 
@@ -400,7 +401,7 @@ def run_dedup(
     if not res.get("ok"):
         fr = res.get("error_friendly") or {}
         _dms_failed(binding, line_user_id, kind="dedup", attempt=attempt,
-                    code=res.get("error_code"), text=fr.get("th") or cards.TXT_LOOKUP_FAIL,
+                    code=res.get("error_code"), text=fr.get(i18n.line_lang()) or cards.TXT_LOOKUP_FAIL,
                     reply_token=reply_token)
         return
 
@@ -504,7 +505,7 @@ def _dms_failed(
         # 第三次仍连不上：只说那一句，不再给按键（文案在错误码表里，与上面那句同源）。
         from pearnly_dms.line.errors import friendly as _friendly
 
-        _push(line_user_id, _friendly("ERR_DMS_UNREACHABLE", lang="th"), reply_token)
+        _push(line_user_id, _friendly("ERR_DMS_UNREACHABLE", lang=i18n.line_lang()), reply_token)
         return
     payload["dms_retry"] = {
         "kind": kind,
@@ -689,7 +690,7 @@ def execute(
         # 连不上 DMS（超时/打不开）时不把锅甩给"我们内部错误"：给一次「重试」的机会，
         # 三次仍不行才说"联系管理员"。见 `_dms_failed`。
         _dms_failed(binding, line_user_id, kind=retry_kind, attempt=attempt,
-                    code=result.get("error_code"), text=fr.get("th") or cards.TXT_SAVE_FAIL,
+                    code=result.get("error_code"), text=fr.get(i18n.line_lang()) or cards.TXT_SAVE_FAIL,
                     retry_payload=payload, reply_token=reply_token)
 
 

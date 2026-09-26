@@ -54,7 +54,7 @@ def __getattr__(name: str) -> Any:
 
 def _t(key: str, **kw) -> str:
     """取一条查资料文案。默认泰文（LINE 通道的语言）。"""
-    return i18n.t(f"dms.card.query.{key}", lang="th", **kw)
+    return i18n.t(f"dms.card.query.{key}", lang=i18n.line_lang(), **kw)
 
 
 def _data(action: str, **values: str) -> str:

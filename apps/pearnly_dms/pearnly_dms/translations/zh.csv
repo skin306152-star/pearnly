@@ -1,21 +1,105 @@
+1 Sales records,1 销售记录
+"A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.",附有转账凭证，但还没有转账付款。请添加转账或删除凭证后再查看汇总。
+Account & password,修改账号密码
 Account busy — click Read later to continue,账号忙，请稍后点击读取继续
 Account busy — click Update data later to continue,账号忙，请稍后点击更新数据继续
 Account busy — the read will continue shortly,账号忙，读取稍后会自动继续
 Action,操作
+Add a channel,添加付款方式
+Add and edit customers,新增和修改客户资料
 Add system account,添加系统账号
+Add transfer,添加转账
 Added {0},已添加 {0}
+Address,地址
 Address data as of {time}; refreshed manually,地址资料时间：{time}；手动读取更新
 Address directory,地址目录
 Address sync is delayed; showing address data as of {time},地址同步有延迟，当前显示 {time} 的地址资料
+Advisor,顾问
+Advisor: {name},销售顾问：{name}
+Allocated,已配车
+Allocation,配车
+Amount,金额
+"Amount ({channel}) — type the amount, e.g. 5000",金额（{channel}）— 请输入金额，例如 5000
+An admin account must be set up in Pearnly before updating.,需要先在 Pearnly 设置管理员账号才能更新。
+Any other payment channel?,还有其他付款方式吗？
 Apply,执行
+Approve,批准
+Approved. Customer data updated.,已批准，客户资料已更新。
+Approver,审批人
+Attached,已附上
+Awaiting manager,待销售经理
+Bank transfer,转账
+Booking,订车单
 Booking ID,订车编号
 Booking Number,订车单号
+"Booking created
+Booking no.: {booking_no}
+Model: {car}
+Delivery date: {delivery_date_be}","订车单已建立
+订车单号：{booking_no}
+车型：{car}
+交车日期：{delivery_date_be}"
+Booking date,订车日期
+Booking failed · Retry,订车单建立失败 · 重试
+Booking location,订车地点
+Booking location — choose below,订车地点 — 请在下方选择
+Booking summary — check before confirming,订车单汇总 — 确认前请核对
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
+Brand,品牌
 Cached result captured at {time},已缓存结果读取于 {time}
+Cancel,取消
+Car,车辆
+Car allocation,配车
+Car details,车辆说明
+Car model,车型
+"Car model — type a short model name to search, e.g. dmax",车型 — 输入简短的车型名称搜索，例如 dmax
+Car type,车辆类型
+Cash,现金
+Cash purchase,现金购买
+Cash/finance,现金/贷款
+Cashier's cheque,本票
+Change approver,更换审批人
+Change request sent. Waiting for the approver.,修改申请已发出，等待审批人处理。
+Channel details — type them,付款方式说明 — 请输入
+Cheque,支票
+Choose a bank,选择银行
+Choose a car model ({n} found),选择车型（共 {n} 项）
+Choose a colour for {car},选择 {car} 的颜色
+Choose a period and number of items (all branches/teams this account can see),选择时间段和条数（此账号可见的全部分店/团队）
+Choose a status,选择状态
+"Choose an approver, or send to everyone so whoever is free can approve",选择审批人，或发给所有人，由先有空的人审批
+Choose an item to continue,选择一项继续
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
+Choose the matching customer,请选择对应的客户
+Colour,颜色
+Coming soon,即将推出
 Company information,公司资料
+Confirm,确认
+Confirm booking,确认订车
+Confirm saving a new customer,确认保存新客户
+Continue booking,继续订车
+Continuing with the existing data,继续使用原资料
+Contract not opened,未签合同
+Contract opened,已签合同
+Contract status,合同状态
+Could not check the customer data. Please try again.,核对客户资料失败，请重试。
+Could not read data from DMS. Please try again.,从 DMS 读取资料失败，请重试。
+Count,数量
+"Create a car booking: choose the model and colour, then save",建立订车单：选择车型、颜色并保存
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。
+"Create a new customer from an ID card, or update an existing customer",用身份证建立新客户，或更新已有客户的资料
+Create and track bookings,建立和跟进订车单
+Credit/debit card,信用卡/借记卡
+Custom 1–30,自定义 1–30
+Customer,客户
+Customer data,客户资料
+Customer data change request,客户资料修改申请
+Customer data differs,客户资料有差异
+Customer data matches,客户资料一致
+Customer data saved. Type menu for other tasks.,客户资料已保存。输入 菜单 办理其他事项。
+Customer data updated,更新客户资料
+Customer found in the system,系统中已有这位客户
 Customer records,客户资料
 DMS,DMS
 DMS System Account,DMS 系统账号
@@ -28,30 +112,109 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},资料时间：{time}
 Data captured at,资料取得时间
 Data updated,数据更新完成
+Date,日期
+Date of birth,出生日期
+Delivery,交车
+Deposit payment channel — choose one,订金付款方式 — 请选择
+Deposit transfer slip,订金转账凭证
+Differences,差异
+Discard,放弃
+Discarded. Nothing was saved · Type menu to start again,已放弃，没有保存任何资料 · 输入 菜单 重新开始
+District,区（县）
+Docs/engine,单据/发动机
+Draft,草稿
+Edit,编辑
 Enable the DMS connection before reading data,请先启用 DMS 连接，再读取资料
+Engine,发动机
+Engine number,发动机号
 Enter the DMS password.,请填写 DMS 密码。
+"Existing data found, but some fields differ",找到原有资料，部分不一致
+Existing data kept. Type menu for other tasks.,已沿用原资料。输入 菜单 办理其他事项。
+Expected delivery date — tap the button to pick a date,预计交车日期 — 点按钮选择日期
 Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,只给系统用的额外 DMS 账号。管理员读取和客户资料写入会挑空闲的一个，操作员不必在同一个账号上排队。
+Finance,贷款
+Finance approved,贷款已批
+Finance pending,贷款待批
 Full address directory,完整地址目录
 Full customer records,完整客户资料
+Gear,变速箱
+Grade,等级
+"Hello 🙏
+Welcome to Pearnly DMS
+Please choose a menu below to get started","你好 🙏
+欢迎使用 Pearnly DMS
+请选择下方菜单开始使用"
+House no.,门牌号
+ID card copy,身份证复印件
+ID card photo received. Please type the customer's phone number.,已收到身份证照片，请输入客户的电话号码。
+ID no.,证件号码
+"Invalid amount. Type a number, e.g. 5000 or 5,000.50","金额不正确，请输入数字，例如 5000 或 5,000.50"
+Invalid format. Please fill in both fields {hint},格式不正确，请两栏都填写 {hint}
+Keep existing data,使用原资料
 Last Check,最近检查
 Last Checked At,最近检查时间
 Last Error,上次错误
 Last successful completion,上次成功完成时间
 Last successful record count,上次成功记录数
+Latest 10,最近 10 条
 Latest error code,最近错误代码
+Latest sales from DMS,DMS 最新销售
 Manage system accounts,管理系统账号
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。
 Master data and all vehicle colors,主档与全部车型颜色
+Menu,菜单
+Model year,生产年份
+Model/colour,车型/颜色
+Moo,村组（Moo）
 Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
 Multiple primary DMS connections exist; ask an administrator to check the configuration,存在多条 DMS 主连接，请管理员检查配置
+Name,姓名
+New customer,新客户
+New customer created,新建客户
+New customer — confirm the data to save,新客户，确认资料后保存
+Next,下一页
 Next Attempt,下次尝试
+Next page,下一页
+No active DMS account found. Ask the owner to check the operator data.,找不到可用的 DMS 账号，请老板检查操作员资料。
+No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,系统里还没有连接 LINE 的审批人，请通知管理员到 pearnly.com/dms 添加
+"No company receiving account yet. Please ask the admin to set it up in DMS, then try again.",还没有公司的收款账户资料，请管理员在 DMS 设置后再试。
+No matching model. Please try typing again.,没有找到对应车型，请重新输入。
+No records for this condition · Last read from DMS at,没有符合条件的记录 · 最近一次从 DMS 读取于
+No sales in this period,这段时间没有销售
 None (the connection's own account is used),未配置（只用连接自己的账号）
+Not all files were attached. Please add them in DMS.,附件没有全部上传，请到 DMS 补上。
+Not allocated yet,尚未配车
+Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 Not read yet,尚未读取
+Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 Older data as of {time}; refresh manually if needed,当前为 {time} 的旧资料，需要时请手动刷新
 Older data: {0},旧资料：{0}
+Open DMS,进入 DMS
+Open Pearnly DMS without typing your password again,免重新输入密码，直接打开 Pearnly DMS
+Other,其他
+Page,页
+Phone,电话
+Phone number received. Please take a photo of the customer's ID card.,已收到电话号码，请拍客户的身份证。
+Pick a date,选择日期
+Pick just one main condition and the search runs right away. No need to answer everything.,只要选一个主要条件，系统马上查询，不用每项都答。
+Please choose a menu,请选择需要的菜单
+Please choose a menu below to get started,请选择下方菜单开始使用
+"Please choose from the card above, or type restart to begin a new item",请从上方卡片中选择，或输入 重新开始 办理新的一项
+Please choose the type of data to search,请选择要查询的资料类型
+Please send a photo of the customer's ID card,请发送客户的身份证照片
+Please send the customer's ID card photo and phone number,请发送客户的身份证照片和电话号码
+"Please sign out of DMS elsewhere, then tap Retry within 30 minutes",请先在其他地方退出 DMS，再在 30 分钟内点「重试」
+Please take the ID card photo again,请重新拍摄身份证
+Postcode,邮编
+Previous,上一页
+Previous page,上一页
+Price in DMS,DMS 价格
 Progress {processed}/{total},进度 {processed}/{total}
+Province,府
 Queued,已排队
+Rank by number of cars or amount?,按台数还是金额排行？
+Rank sales by what?,按什么排行销售？
 Read / refresh selected data,读取／刷新所选资料
 Read / refresh this query,读取／刷新本次查询
 Read completed,读取完成
@@ -66,32 +229,82 @@ Read time unknown,读取时间未知
 Reading,正在读取
 Reading DMS master data…,正在读取 DMS 主档…
 "Reading data, please wait…",正在读取资料，请稍候…
+Reading the latest data from DMS,正在从 DMS 读取最新资料
 Reading this query now. The result arrives as soon as it is ready.,正在读取这个条件的记录，读完马上把结果发过来。
 Reading this query.,正在读取本次查询。
+Ready for pickup,可提车
+Receiving bank — choose the bank the company received the money in,收款银行 — 选择公司收款的银行
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
+Registered under,登记名义
+Registered under — choose below,登记名义 — 请在下方选择
+"Registration name — tap Use name on card, or type another name",登记人姓名 — 点「使用证件上的姓名」，或输入其他姓名
+Reject,拒绝
 Reload List,刷新列表
 Remove,移除
+"Remove slip, go on",删除凭证后继续
 Removed {0},已移除 {0}
+Request approval,提交审批
+Request rejected,已拒绝申请
+Requested by,申请人
 Resumed {0},已启用 {0}
+Retry,重试
+Retry booking,重新建立订车单
+Road,路
+Sales advisor,销售顾问
+Sales document no.,销售单据号
+Sales records from DMS,DMS 销售记录
+Sales terms,销售条件
+Sales terms — choose below,销售条件 — 请在下方选择
+Salesperson,销售
+Save failed. Please try again.,保存失败，请重试。
+Save new customer,保存新客户
 Saved DMS data,DMS 已读取资料
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
+"Saved · {action}
+Customer ID: {customer_id}
+Name: {name}","保存成功 · {action}
+客户编号：{customer_id}
+姓名：{name}"
+Search data,查询资料
 Select at least one data group.,请至少选择一组资料。
 Select one or more DMS data groups to read,请选择至少一组需要读取的 DMS 资料
 "Select the data to update, then wait for the read to finish.",选择需要更新的资料，点击后请等待读取完成。
+"Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",请发送订金转账凭证 · 如果客户付现金，输入 现金 跳过这一步
+Send to everyone,发给所有人
+Sent to,发送给
+"Separate fields with | , / or ·","栏位之间用 | , / 或 · 分隔"
+Similar customers found. Choose the one that matches.,找到相似的客户，请选择对应的一位。
+Soi,巷（Soi）
+Something went wrong. Please try again.,系统出错，请重试。
+Start over,重新开始
+Started over. Take a photo of the ID card to start a customer record.,已重新开始，拍摄身份证即可登记客户。
+Status not given,未注明状态
 Stop / resume,停用 / 启用
 Stopped {0},已停用 {0}
+Subdistrict,镇（区）
 Submission Evidence,提交凭据
 Submission Nonce,提交随机码
+Subtype,子类型
 Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
 System accounts,系统账号
+THB,泰铢
+Take a photo of the customer's ID card to start a new customer record.,拍摄客户身份证即可开始登记新客户。
+Tap Confirm or Discard on the summary above,请在上方汇总中点「确认」或「放弃」
 Test and add,测试并添加
+That's all,已全部添加
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
 The DMS account is busy. The read retries automatically; please wait.,DMS 账号忙，系统会自动重读，请稍等。
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。
+The DMS connection is not set up yet. Please contact the admin.,尚未设置 DMS 连接，请联系管理员。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
+The booking cannot be opened yet · The DMS account in use is «{username}»,暂时无法建立订车单 · 当前使用的 DMS 账号是「{username}」
+The booking cannot be opened yet · The DMS account of this user cannot be read,暂时无法建立订车单 · 系统还读不到这位用户的 DMS 账号
+The booking could not be created,订车单建立失败
+The booking could not be created. Please try again.,订车单建立失败，请重试。
+The card could not be read clearly. Please take the photo again.,身份证看不清，请重新拍照。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 The data volume exceeds the read limit. Please contact an administrator.,数据量超过了读取上限，请联系管理人员。
@@ -102,22 +315,72 @@ The recognition result needs checking. Please do not resend this image yet.,识�
 "The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.",现有 DMS 资料已过期，暂不能使用。请手动重新读取，成功后再试。
 The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",提交已发出，但结果尚未确认。请勿重复提交，先核实结果。
+There are more colours. Type a colour name to search.,还有更多颜色，可输入颜色名称搜索。
+There is a transfer payment. Please send the transfer slip before viewing the summary.,有转账付款，请先发送转账凭证再查看汇总。
 These conditions have not been read. Click Read this query.,尚未读取此条件，请点击读取本次查询。
+This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。
 This account is already the connection's own account,这个账号已经是连接自己的账号
+This customer already exists and the data matches,这位客户已有资料，资料一致
+This item has expired. Please start again.,此项已过期，请重新开始。
+This item has expired. Type menu to search again,此项已过期，输入 菜单 重新查询
+This menu is not available in the first release. Please choose 1 Sales records,此菜单首版尚未开放，请选择「1 销售记录」
+This month Top 10,本月 Top 10
+This month Top 20,本月 Top 20
+This month Top 30,本月 Top 30
+This month Top 5,本月 Top 5
 This query is queued.,本次查询已排队。
 This read failed. Click Read to retry.,本次读取失败，可点击读取重试。
 This read failed. Please try again later.,本次读取失败，请稍后再试。
 This read was interrupted. Click Read again to retry; previously completed data was retained.,本次读取已中断，请再次点击读取重试；此前成功资料仍保留。
+This request has already been handled,此申请已被处理
+This request has expired. Please start again.,此申请已过期，请重新开始。
+This step does not need a picture. Please follow the question above.,这一步不需要图片，按上面的问题操作即可。
+"This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",这一步需要凭证的图片，请以图片发送；没有转账就输入 现金。
 This system account is already registered,这个系统账号已经登记过了
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
+This year Top 10,今年 Top 10
+Title,称谓
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
+Top sales,销售排行
+Top sales from DMS,DMS 销售排行
+Total deposit,订金合计
+"Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",请输入日期范围和条数，例如 01/08/2569-31/08/2569 15（佛历）
+"Type bank name | card type, e.g. KBank | VISA",请输入 银行名称 | 卡种，例如 KBank | VISA
+"Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank",请输入 支票号码 | 支票簿号 | 银行名称，例如 123456 | 01 | KBank
+"Type cheque no. | cheque book no., e.g. 123456 | 01",请输入 支票号码 | 支票簿号，例如 123456 | 01
+Type menu to bring up this menu any time,随时输入 菜单 即可调出此菜单
+"Type the booking date, e.g. 01/09/2569 (Buddhist year)",请输入订车日期，例如 01/09/2569（佛历）
+Type the car colour,请输入车辆颜色
+Type the car model,请输入车型
+"Type the card type, e.g. VISA",请输入卡种，例如 VISA
+Type the customer's name,请输入客户姓名
+Type the engine number,请输入发动机号
+"Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)",请输入预计交车日期，例如 15/09/2569（佛历）
+Type the sales advisor's name,请输入销售顾问姓名
+Type the sales document number,请输入销售单据号
+Type what you want to search for,请输入要查询的内容
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
 Update data,更新数据
+Update failed (DMS refused it). The request is still open; approve again to retry.,更新失败（DMS 拒绝）。申请仍在，重新批准即可再试一次。
 Update failed — click Update data to retry,更新失败，点击更新数据可重试
+Update failed. Please ask the admin to check the admin password in Pearnly.,更新失败，请通知管理员检查 Pearnly 里的管理员密码。
+Update the DMS username and password saved in Pearnly,更新保存在 Pearnly 里的 DMS 用户名和密码
+Update your DMS sign-in,更新 DMS 登录资料
 Updating data…,数据更新中...
+"Updating the data, please wait",正在更新资料，请稍候
+Use name on card,使用证件上的姓名
+Use the back office,使用后台系统
 Vehicle master data,车辆主档信息
 View result / status,查看结果／状态
+View the latest sales data from DMS within your permissions,按你的权限查看 DMS 最新的销售资料
+Welcome to Pearnly DMS,欢迎使用 Pearnly DMS
+Who should approve this request?,把申请发给谁审批？
+Your account cannot approve this request,你的账号没有权限审批这项申请
+"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",你的账号还没有设置 DMS 连接，无法审批，请通知管理员。
+Your change request was approved and the customer data is updated.,修改申请已获批准，客户资料已更新。
+Your change request was rejected. Contact the approver if needed.,修改申请被拒绝，如有需要请联系审批人。
+cars,台
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
 dms.account.invalid,请填写 DMS 密码。
@@ -129,14 +392,241 @@ dms.account.save,保存
 dms.account.saved,已保存，下次连接 DMS 时使用这些凭据。
 dms.account.title,我的 DMS 账号
 dms.account.username,DMS 用户名
+dms.card.BTN_CANCEL_BOOKING,取消
+dms.card.BTN_CONFIRM_BOOKING,确认订车
+dms.card.BTN_CONTINUE_BOOKING,继续订车
+dms.card.BTN_EDIT,编辑
+dms.card.BTN_KEEP,使用原资料
+dms.card.BTN_NEW_CUSTOMER,新客户
+dms.card.BTN_RESTART,重新开始
+dms.card.BTN_RETRY,重试
+dms.card.BTN_RETRY_BOOKING,重新建立订车单
+dms.card.BTN_SAVE_NEW,保存新客户
+dms.card.BTN_SUBMIT_APPROVAL,提交审批
+dms.card.BTN_UPDATE,更新资料
 dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
 dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
 dms.card.MSG_BIND_HELP,已绑定账号：{0}\n发「{1}」可以解除绑定。
 dms.card.MSG_BIND_NEED,还没有绑定账号。请把网页上生成的绑定码发给我。
 dms.card.MSG_BIND_OK,绑定成功，账号：{0}\n现在可以直接把工作交给我。
 dms.card.MSG_BIND_UNBOUND,已解除绑定。需要时请用新的绑定码重新绑定。
+dms.card.TXT_ACTION_CREATE,新建客户
+dms.card.TXT_ACTION_UPDATE,更新客户资料
+dms.card.TXT_ADMIN_AUTH_FAIL,更新失败，请通知管理员检查 Pearnly 里的管理员密码。
+dms.card.TXT_ADMIN_NEEDED,需要先在 Pearnly 设置管理员账号才能更新。
+dms.card.TXT_ASK_CARD,已收到电话号码，请拍客户的身份证。
+dms.card.TXT_ASK_PHONE,已收到身份证照片，请输入客户的电话号码。
+dms.card.TXT_BLURRY,身份证看不清，请重新拍照。
+dms.card.TXT_BOOKING_CANCELLED,已放弃，没有保存任何资料 · 输入 菜单 重新开始
+dms.card.TXT_BOOKING_CUSTOMER,系统中已有这位客户
+dms.card.TXT_BOOKING_FAIL,订车单建立失败，请重试。
+dms.card.TXT_CANDIDATES_ALT,请选择对应的客户
+dms.card.TXT_CANDIDATES_HEAD,找到相似的客户，请选择对应的一位。
+dms.card.TXT_DIFF_ALT,客户资料有差异
+dms.card.TXT_DIFF_HEAD,找到原有资料，部分不一致
+dms.card.TXT_DIFF_HEADER,差异
+dms.card.TXT_DONE_SAME,已沿用原资料。输入 菜单 办理其他事项。
+dms.card.TXT_DONE_SAVED,客户资料已保存。输入 菜单 办理其他事项。
 dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
+dms.card.TXT_EXPIRED,此项已过期，请重新开始。
+dms.card.TXT_INTRO,拍摄客户身份证即可开始登记新客户。
+dms.card.TXT_KEEP,继续使用原资料
+dms.card.TXT_LOOKUP_FAIL,核对客户资料失败，请重试。
+dms.card.TXT_MENU_BAR,菜单
+dms.card.TXT_MENU_D1,用身份证建立新客户，或更新已有客户的资料
+dms.card.TXT_MENU_D2,建立订车单：选择车型、颜色并保存
+dms.card.TXT_MENU_D3,免重新输入密码，直接打开 Pearnly DMS
+dms.card.TXT_MENU_D4,更新保存在 Pearnly 里的 DMS 用户名和密码
+dms.card.TXT_MENU_D5,按你的权限查看 DMS 最新的销售资料
+dms.card.TXT_MENU_GREETING,"你好 🙏
+欢迎使用 Pearnly DMS
+请选择下方菜单开始使用"
+dms.card.TXT_MENU_HINT,随时输入 菜单 即可调出此菜单
+dms.card.TXT_MENU_ITEM1,客户资料
+dms.card.TXT_MENU_ITEM2,订车
+dms.card.TXT_MENU_ITEM3,进入 DMS
+dms.card.TXT_MENU_ITEM4,修改账号密码
+dms.card.TXT_MENU_ITEM5,查询资料
+dms.card.TXT_MENU_PICK,请选择需要的菜单
+dms.card.TXT_MENU_PICK_SUB,选择一项继续
+dms.card.TXT_MENU_SEND_CARD,请发送客户的身份证照片
+dms.card.TXT_MENU_SUBTITLE,请选择下方菜单开始使用
+dms.card.TXT_MENU_TITLE,欢迎使用 Pearnly DMS
+dms.card.TXT_NEED_BOTH,请发送客户的身份证照片和电话号码
+dms.card.TXT_NEW_CARD_ALT,确认保存新客户
+dms.card.TXT_NEW_CARD_HEAD,新客户，确认资料后保存
+dms.card.TXT_NO_CREDIT,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
+dms.card.TXT_NO_ENDPOINT,尚未设置 DMS 连接，请联系管理员。
+dms.card.TXT_PICK_ABOVE,请从上方卡片中选择，或输入 重新开始 办理新的一项
+dms.card.TXT_RECEIPT_ADVISOR,销售顾问：{name}
+dms.card.TXT_RECEIPT_BOOKING,"订车单已建立
+订车单号：{booking_no}
+车型：{car}
+交车日期：{delivery_date_be}"
+dms.card.TXT_RECEIPT_SAVE,"保存成功 · {action}
+客户编号：{customer_id}
+姓名：{name}"
+dms.card.TXT_RESET,已重新开始，拍摄身份证即可登记客户。
+dms.card.TXT_RETAKE,请重新拍摄身份证
+dms.card.TXT_SAME,这位客户已有资料，资料一致
+dms.card.TXT_SAME_ALT,客户资料一致
+dms.card.TXT_SAVE_FAIL,保存失败，请重试。
+dms.card.TXT_SYSTEM_ERROR,系统出错，请重试。
+dms.card.approval.BTN_ALL_APPROVERS,发给所有人
+dms.card.approval.BTN_APPROVE,批准
+dms.card.approval.BTN_CHANGE_APPROVER,更换审批人
+dms.card.approval.BTN_REJECT,拒绝
+dms.card.approval.LBL_APPROVER,审批人
+dms.card.approval.LBL_CUSTOMER,客户
+dms.card.approval.LBL_REQUESTER,申请人
+dms.card.approval.LBL_SENT_TO,发送给
+dms.card.approval.TITLE_REQUEST,客户资料修改申请
+dms.card.approval.TXT_APPROVER_NO_ENDPOINT,你的账号还没有设置 DMS 连接，无法审批，请通知管理员。
+dms.card.approval.TXT_EXEC_FAIL_ADMIN,更新失败（DMS 拒绝）。申请仍在，重新批准即可再试一次。
+dms.card.approval.TXT_NOT_APPROVER,你的账号没有权限审批这项申请
+dms.card.approval.TXT_NO_APPROVERS,系统里还没有连接 LINE 的审批人，请通知管理员到 pearnly.com/dms 添加
+dms.card.approval.TXT_PICK_APPROVER,把申请发给谁审批？
+dms.card.approval.TXT_PICK_APPROVER_SUB,选择审批人，或发给所有人，由先有空的人审批
+dms.card.approval.TXT_PROCESSING,正在更新资料，请稍候
+dms.card.approval.TXT_REQ_APPROVED_ADMIN,已批准，客户资料已更新。
+dms.card.approval.TXT_REQ_APPROVED_SALES,修改申请已获批准，客户资料已更新。
+dms.card.approval.TXT_REQ_EXPIRED,此申请已过期，请重新开始。
+dms.card.approval.TXT_REQ_REJECTED_ADMIN,已拒绝申请
+dms.card.approval.TXT_REQ_REJECTED_SALES,修改申请被拒绝，如有需要请联系审批人。
+dms.card.approval.TXT_REQ_STALE,此申请已被处理
+dms.card.approval.TXT_SALES_FALLBACK,销售
+dms.card.approval.TXT_SENT_WAIT,修改申请已发出，等待审批人处理。
+dms.card.car.brand,品牌
+dms.card.car.desc,车辆说明
+dms.card.car.engine,发动机
+dms.card.car.gear,变速箱
+dms.card.car.grade,等级
+dms.card.car.price,DMS 价格
+dms.card.car.type,车辆类型
+dms.card.car.year,生产年份
+dms.card.diff.birthday_be,出生日期
+dms.card.diff.district_id,区（县）
+dms.card.diff.house_no,门牌号
+dms.card.diff.moo,村组（Moo）
+dms.card.diff.name,姓名
+dms.card.diff.phone,电话
+dms.card.diff.prefix_id,称谓
+dms.card.diff.province_id,府
+dms.card.diff.road,路
+dms.card.diff.soi,巷（Soi）
+dms.card.diff.subdistrict_id,镇（区）
+dms.card.diff.zipcode_id,邮编
+dms.card.qa.BTN_ADD_TRANSFER,添加转账
+dms.card.qa.BTN_CONFIRM,确认
+dms.card.qa.BTN_DISCARD,放弃
+dms.card.qa.BTN_EDIT,编辑
+dms.card.qa.BTN_MORE_ADD,添加付款方式
+dms.card.qa.BTN_MORE_DONE,已全部添加
+dms.card.qa.BTN_PAGE_NEXT,下一页
+dms.card.qa.BTN_PAGE_PREV,上一页
+dms.card.qa.BTN_PICK_DATE,选择日期
+dms.card.qa.BTN_REGIS_NAME_CARD,使用证件上的姓名
+dms.card.qa.BTN_REMOVE_SLIP,删除凭证后继续
+dms.card.qa.LBL_ADVISOR,销售顾问
+dms.card.qa.LBL_ATTACH_CARD,身份证复印件
+dms.card.qa.LBL_ATTACH_SLIP,订金转账凭证
+dms.card.qa.LBL_CAR,车型/颜色
+dms.card.qa.LBL_DELIVERY,交车日期
+dms.card.qa.LBL_PLACE,订车地点
+dms.card.qa.LBL_POSTCODE,邮编
+dms.card.qa.LBL_REGIS,登记名义
+dms.card.qa.LBL_TERM,销售条件
+dms.card.qa.LBL_TOTAL,订金合计
+dms.card.qa.TXT_ADVISOR_BLOCK,暂时无法建立订车单 · 当前使用的 DMS 账号是「{username}」
+dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER,暂时无法建立订车单 · 系统还读不到这位用户的 DMS 账号
+dms.card.qa.TXT_ASK_AMOUNT,金额（{channel}）— 请输入金额，例如 5000
+dms.card.qa.TXT_ASK_CAR,车型 — 输入简短的车型名称搜索，例如 dmax
+dms.card.qa.TXT_ASK_CARD_REF,请输入卡种，例如 VISA
+dms.card.qa.TXT_ASK_CARD_REF_MANUAL,请输入 银行名称 | 卡种，例如 KBank | VISA
+dms.card.qa.TXT_ASK_CHEQUE_REF,请输入 支票号码 | 支票簿号，例如 123456 | 01
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,请输入 支票号码 | 支票簿号 | 银行名称，例如 123456 | 01 | KBank
+dms.card.qa.TXT_ASK_DATE,预计交车日期 — 点按钮选择日期
+dms.card.qa.TXT_ASK_MORE,还有其他付款方式吗？
+dms.card.qa.TXT_ASK_OTHER_REF,付款方式说明 — 请输入
+dms.card.qa.TXT_ASK_PAINT,选择 {car} 的颜色
+dms.card.qa.TXT_ASK_PAY_CHANNEL,订金付款方式 — 请选择
+dms.card.qa.TXT_ASK_PAY_DST,收款银行 — 选择公司收款的银行
+dms.card.qa.TXT_ASK_PLACE,订车地点 — 请在下方选择
+dms.card.qa.TXT_ASK_REGIS,登记名义 — 请在下方选择
+dms.card.qa.TXT_ASK_REGIS_NAME,登记人姓名 — 点「使用证件上的姓名」，或输入其他姓名
+dms.card.qa.TXT_ASK_SLIP,请发送订金转账凭证 · 如果客户付现金，输入 现金 跳过这一步
+dms.card.qa.TXT_ASK_TERM,销售条件 — 请在下方选择
+dms.card.qa.TXT_ATTACH_FAIL,附件没有全部上传，请到 DMS 补上。
+dms.card.qa.TXT_BAD_AMOUNT,"金额不正确，请输入数字，例如 5000 或 5,000.50"
+dms.card.qa.TXT_BAD_PAYMENT_DETAIL,格式不正确，请两栏都填写 {hint}
+dms.card.qa.TXT_CAR_NONE,没有找到对应车型，请重新输入。
+dms.card.qa.TXT_CAR_PICK,选择车型（共 {n} 项）
+dms.card.qa.TXT_CONFIRM_ABOVE,请在上方汇总中点「确认」或「放弃」
+dms.card.qa.TXT_NEED_SLIP,有转账付款，请先发送转账凭证再查看汇总。
+dms.card.qa.TXT_NO_COMPANY_BANK,还没有公司的收款账户资料，请管理员在 DMS 设置后再试。
+dms.card.qa.TXT_NO_IMAGE_NEEDED,这一步不需要图片，按上面的问题操作即可。
+dms.card.qa.TXT_PAINT_MANY,还有更多颜色，可输入颜色名称搜索。
+dms.card.qa.TXT_PICK_BANK,选择银行
+dms.card.qa.TXT_PREVIEW_TITLE,订车单汇总 — 确认前请核对
+dms.card.qa.TXT_SEP_HINT,"栏位之间用 | , / 或 · 分隔"
+dms.card.qa.TXT_SLIP_CONFLICT,附有转账凭证，但还没有转账付款。请添加转账或删除凭证后再查看汇总。
+dms.card.qa.TXT_SLIP_ONLY_IMAGE,这一步需要凭证的图片，请以图片发送；没有转账就输入 现金。
+dms.card.qa.VAL_ATTACHED,已附上
+dms.card.qa._TH_RETRY,然后再试一次
+dms.card.qa.pay.card,信用卡/借记卡
+dms.card.qa.pay.cash,现金
+dms.card.qa.pay.cashier_cheque,本票
+dms.card.qa.pay.cheque,支票
+dms.card.qa.pay.other,其他
+dms.card.qa.pay.transfer,转账
+dms.card.qa.retry.alt,订车单建立失败 · 重试
+dms.card.qa.retry.failed,订车单建立失败
+dms.card.qa.retry.hint,请先在其他地方退出 DMS，再在 30 分钟内点「重试」
+dms.card.query.ALT_RECORDS,DMS 最新销售记录 {n} 条
+dms.card.query.ALT_TOP,DMS 销售排行
+dms.card.query.ASK_ADVISOR,请输入销售顾问姓名
+dms.card.query.ASK_ANY,请输入要查询的内容
+dms.card.query.ASK_BOOKING_DATE,请输入订车日期，例如 01/09/2569（佛历）
+dms.card.query.ASK_COLOR,请输入车辆颜色
+dms.card.query.ASK_CUSTOMER,请输入客户姓名
+dms.card.query.ASK_DELIVERY_DATE,请输入预计交车日期，例如 15/09/2569（佛历）
+dms.card.query.ASK_ENGINE_NO,请输入发动机号
+dms.card.query.ASK_SALES_DOC_NO,请输入销售单据号
+dms.card.query.ASK_TOP_CUSTOM,请输入日期范围和条数，例如 01/08/2569-31/08/2569 15（佛历）
+dms.card.query.ASK_TOP_GROUP,按什么排行销售？
+dms.card.query.ASK_TOP_METRIC,按台数还是金额排行？
+dms.card.query.ASK_TOP_PERIOD,选择时间段和条数（此账号可见的全部分店/团队）
+dms.card.query.ASK_VEHICLE,请输入车型
 dms.card.query.CARD_NOTE,DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
+dms.card.query.CARD_TITLE,DMS 销售记录
+dms.card.query.DIM_ADVISOR,销售顾问
+dms.card.query.DIM_ALLOCATION,配车
+dms.card.query.DIM_BOOKING_DATE,订车日期
+dms.card.query.DIM_COLOR,颜色
+dms.card.query.DIM_CONTRACT,合同状态
+dms.card.query.DIM_CUSTOMER,客户
+dms.card.query.DIM_DELIVERY_DATE,交车日期
+dms.card.query.DIM_ENGINE_NO,发动机号
+dms.card.query.DIM_FINANCE,现金/贷款
+dms.card.query.DIM_LATEST,最近 10 条
+dms.card.query.DIM_SALES_DOC_NO,销售单据号
+dms.card.query.DIM_TOP,销售排行
+dms.card.query.DIM_VEHICLE,车型
+dms.card.query.EMPTY_RECORDS_PREFIX,没有符合条件的记录 · 最近一次从 DMS 读取于
+dms.card.query.EMPTY_TOP,这段时间没有销售
+dms.card.query.GRP_MODEL,车型
+dms.card.query.GRP_SUBTYPE,子类型
+dms.card.query.GRP_TYPE,车辆类型
+dms.card.query.LBL_ADVISOR,顾问
+dms.card.query.LBL_ALLOCATION,配车
+dms.card.query.LBL_CAR,车辆
+dms.card.query.LBL_COUNT,数量
+dms.card.query.LBL_CUSTOMER,客户
+dms.card.query.LBL_DATE,日期
+dms.card.query.LBL_DELIVERY,交车
+dms.card.query.LBL_DOCS,单据/发动机
+dms.card.query.LBL_FINANCE,贷款
+dms.card.query.LBL_PAGE,页
 dms.card.query.LBL_READ_AT,资料取得时间
 dms.card.query.LBL_UNKNOWN_TIME,读取时间未知
 dms.card.query.MANUAL_AS_OF,已缓存结果读取于 {time}
@@ -147,8 +637,59 @@ dms.card.query.MANUAL_QUEUED,正在读取这个条件的记录，读完马上把
 dms.card.query.MANUAL_RUNNING,正在读取这个条件的记录，读完马上把结果发过来。
 dms.card.query.MANUAL_SUCCEEDED,读取完成，正在把结果发过来。
 dms.card.query.MANUAL_WAITING,DMS 账号忙，系统会自动重读，请稍等。
+dms.card.query.MET_AMOUNT,金额
+dms.card.query.MET_QTY,台数
+dms.card.query.NAV_NEXT,下一页
+dms.card.query.NAV_PREV,上一页
 dms.card.query.NAV_REFRESH,重新读取
+dms.card.query.PERIOD_CUSTOM,自定义 1–30
+dms.card.query.PERIOD_M_10,本月 Top 10
+dms.card.query.PERIOD_M_20,本月 Top 20
+dms.card.query.PERIOD_M_30,本月 Top 30
+dms.card.query.PERIOD_M_5,本月 Top 5
+dms.card.query.PERIOD_Y_10,今年 Top 10
+dms.card.query.PICK_STATUS,选择状态
+dms.card.query.STATUS_UNKNOWN,未注明状态
+dms.card.query.ST_ALLOCATED,已配车
+dms.card.query.ST_BOOKING,订车单
+dms.card.query.ST_CASH,现金购买
+dms.card.query.ST_CONTRACT_NOT_OPENED,未签合同
+dms.card.query.ST_CONTRACT_OPENED,已签合同
+dms.card.query.ST_DRAFT,草稿
+dms.card.query.ST_FINANCE_APPROVED,贷款已批
+dms.card.query.ST_FINANCE_PENDING,贷款待批
+dms.card.query.ST_MANAGER_PENDING,待销售经理
+dms.card.query.ST_READY,可提车
+dms.card.query.ST_UNALLOCATED,尚未配车
+dms.card.query.TITLE_TOP,销售排行
 dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
+dms.card.query.TXT_COMING_SOON,此菜单首版尚未开放，请选择「1 销售记录」
+dms.card.query.TXT_DENIED,此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。
+dms.card.query.TXT_EXPIRED,此项已过期，输入 菜单 重新查询
+dms.card.query.TXT_LOADING,正在从 DMS 读取最新资料
+dms.card.query.TXT_NO_ENDPOINT,找不到可用的 DMS 账号，请老板检查操作员资料。
+dms.card.query.TXT_PICK_SALES,只要选一个主要条件，系统马上查询，不用每项都答。
+dms.card.query.TXT_PICK_TYPE,请选择要查询的资料类型
+dms.card.query.TXT_QUERY_FAILED,从 DMS 读取资料失败，请重试。
+dms.card.query.TYPE_SALES,1 销售记录
+dms.card.query.UNIT_AMOUNT,泰铢
+dms.card.query.UNIT_QTY,台
+dms.card.rich.booking.sub,建立和跟进订车单
+dms.card.rich.booking.title,订车
+dms.card.rich.credentials.sub,更新 DMS 登录资料
+dms.card.rich.credentials.title,修改账号密码
+dms.card.rich.customer.sub,新增和修改客户资料
+dms.card.rich.customer.title,客户资料
+dms.card.rich.portal.sub,使用后台系统
+dms.card.rich.portal.title,进入 DMS
+dms.card.rich.query.sub,DMS 最新销售
+dms.card.rich.query.title,查询资料
+dms.card.rich.soon,即将推出
+dms.card.sum.address,地址
+dms.card.sum.birthday_be,出生日期
+dms.card.sum.name,姓名
+dms.card.sum.people_id,证件号码
+dms.card.sum.phone,电话
 dms.connect.cache.changed,读取状态已变化，请刷新页面确认后再试。
 dms.connect.cache.dataset.company,公司资料
 dms.connect.cache.dataset.customers,客户资料
@@ -338,7 +879,9 @@ dms.snapshot.geo_stale,当前为 {time} 的旧地址资料，需要时请管理�
 dms.snapshot.stale,当前为 {time} 的旧资料，需要时请手动刷新
 in use,启用
 stopped,停用
+then try again,然后再试一次
 {0} processed; total not yet known,已处理 {0} 项，总数尚未确定
 {0} records,{0} 条
 "{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个
 {0}/{1} groups,{0}/{1} 组
+{n} latest sales records from DMS,DMS 最新销售记录 {n} 条

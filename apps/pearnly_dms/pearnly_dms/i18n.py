@@ -55,6 +55,52 @@ PREFIX = "dms."
 LANGUAGES = ("th", "en", "zh", "ja")
 FALLBACK_LANG = "th"
 
+
+# ── LINE 收件人的语言（用户 2026-09-27："dms 这边的 line 语言做成和 erp 一样，跟随用户设备语言"）──
+#
+# 发给某个 LINE 用户的卡片、提示、错误话术，用**他手机上 LINE 的语言**（`pearnly_core.line.
+# user_language`，问 LINE profile、缓存一小时；问不到或不是四种之一就用泰文 —— DMS 通道的原语言）。
+# 入口（webhook 事件、后台任务、定时补发）用 `line_language(user)` 包住这次处理；块内所有
+# `line_lang()` 都拿到这个人的语言，Frappe 的 `_()` 也跟着切换，块结束原样还原。
+
+
+def line_lang() -> str:
+    """当前 LINE 收件人的语言；不在任何收件人块里就是泰文（与改动前一致）。"""
+    return getattr(frappe.local, "dms_line_lang", None) or FALLBACK_LANG
+
+
+class line_language:
+    """`with i18n.line_language(line_user_id):` —— 块内按这个 LINE 用户的手机语言说话。
+
+    嵌套时内层覆盖、退出时还原外层（例如在一个人的处理里通知另一个人）。
+    `language=` 直接指定时不问 LINE（测试或已知语言的场合）。
+    """
+
+    def __init__(self, line_user_id: str = "", *, language: str | None = None):
+        self.line_user_id = line_user_id or ""
+        self.language = language
+
+    def __enter__(self):
+        self._previous = (getattr(frappe.local, "dms_line_lang", None), getattr(frappe.local, "lang", None))
+        language = self.language
+        if not language:
+            try:
+                from pearnly_core import line
+
+                language = line.user_language(self.line_user_id, default=FALLBACK_LANG) if self.line_user_id else ""
+            except Exception:
+                language = ""
+        language = language if language in LANGUAGES else FALLBACK_LANG
+        frappe.local.dms_line_lang = language
+        frappe.local.lang = language
+        return language
+
+    def __exit__(self, *exc):
+        frappe.local.dms_line_lang, previous_lang = self._previous
+        if previous_lang is not None:
+            frappe.local.lang = previous_lang
+        return False
+
 _cache: dict[str, dict] = {}
 
 

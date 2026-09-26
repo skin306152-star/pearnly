@@ -23,14 +23,23 @@ _MENU_PREFIX = "เมน"
 _MENU_MAX_LEN = 6  # เมนู 的常见打错（เมน / เมนB · 真机实拍）都落在这个长度内
 _GREETING_PREFIX = "สวัสดี"
 
+# 其他语言的同一组命令（用户 2026-09-27：LINE 跟随手机语言；提示里写的就是这些词）。
+# 一律**整句相同**才算，不做前缀匹配 —— 逐问里用户会打姓名、备注，前缀太宽会误判。
+RESET_WORDS = frozenset({RESET_WORD, "重新开始", "やり直し", "restart", "start over"})
+MENU_WORDS = frozenset({"menu", "菜单", "選單", "メニュー"})
+GREETING_WORDS = frozenset({"你好", "您好", "こんにちは", "hello", "hi"})
+
 
 def classify(text: str) -> Optional[str]:
     """文本 → 全局命令；没命中返回 None。"""
     stripped = (text or "").strip()
-    if stripped == RESET_WORD:
+    folded = stripped.casefold()
+    if stripped == RESET_WORD or folded in RESET_WORDS:
         return CMD_RESET
-    if stripped.casefold() == "menu":
+    if folded in MENU_WORDS:
         return CMD_MENU
+    if folded in GREETING_WORDS:
+        return CMD_GREETING
     if len(stripped) <= _MENU_MAX_LEN and stripped.startswith(_MENU_PREFIX):
         return CMD_MENU
     if stripped.startswith(_GREETING_PREFIX):

@@ -1,21 +1,105 @@
+1 Sales records,1 販売記録
+"A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.",振込明細が添付されていますが、振込の支払いがありません。振込を追加するか明細を削除してから概要を見てください。
+Account & password,アカウントとパスワード
 Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
 Account busy — click Update data later to continue,アカウントが使用中です。後で「データを更新」を押して続行してください
 Account busy — the read will continue shortly,アカウントが使用中です。まもなく自動的に続行します
 Action,操作
+Add a channel,支払方法を追加
+Add and edit customers,顧客の追加と編集
 Add system account,システムアカウントを追加
+Add transfer,振込を追加
 Added {0},{0} を追加しました
+Address,住所
 Address data as of {time}; refreshed manually,住所データ取得時刻：{time}。手動で更新します。
 Address directory,住所一覧
 Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
+Advisor,担当
+Advisor: {name},担当：{name}
+Allocated,割当済み
+Allocation,割当
+Amount,金額
+"Amount ({channel}) — type the amount, e.g. 5000",金額（{channel}）— 金額を入力（例：5000）
+An admin account must be set up in Pearnly before updating.,更新するには、先に Pearnly で管理者アカウントを設定してください。
+Any other payment channel?,ほかの支払方法はありますか？
 Apply,実行
+Approve,承認
+Approved. Customer data updated.,承認しました。顧客データを更新しました。
+Approver,承認者
+Attached,添付済み
+Awaiting manager,営業マネージャー待ち
+Bank transfer,振込
+Booking,予約
 Booking ID,予約ID
 Booking Number,予約番号
+"Booking created
+Booking no.: {booking_no}
+Model: {car}
+Delivery date: {delivery_date_be}","予約を作成しました
+予約番号：{booking_no}
+車種：{car}
+納車日：{delivery_date_be}"
+Booking date,予約日
+Booking failed · Retry,予約作成に失敗 · 再試行
+Booking location,予約受付場所
+Booking location — choose below,予約受付場所 — 下から選択
+Booking summary — check before confirming,予約の概要 — 確定前に確認してください
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
+Brand,メーカー
 Cached result captured at {time},保存済み結果の取得時刻：{time}
+Cancel,キャンセル
+Car,車両
+Car allocation,車両の割当
+Car details,車両の詳細
+Car model,車種
+"Car model — type a short model name to search, e.g. dmax",車種 — 短い車種名を入力して検索（例：dmax）
+Car type,車両タイプ
+Cash,現金
+Cash purchase,現金購入
+Cash/finance,現金/ローン
+Cashier's cheque,預金小切手
+Change approver,承認者を変更
+Change request sent. Waiting for the approver.,変更申請を送りました。承認者の対応を待っています。
+Channel details — type them,支払方法の詳細 — 入力してください
+Cheque,小切手
+Choose a bank,銀行を選択
+Choose a car model ({n} found),車種を選択（{n} 件）
+Choose a colour for {car},{car} の色を選択
+Choose a period and number of items (all branches/teams this account can see),期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
+Choose a status,ステータスを選択
+"Choose an approver, or send to everyone so whoever is free can approve",承認者を選ぶか、全員に送って手の空いた人に承認してもらいます
+Choose an item to continue,項目を選んで続けます
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
+Choose the matching customer,該当する顧客を選択
+Colour,色
+Coming soon,近日公開
 Company information,会社情報
+Confirm,確定
+Confirm booking,予約を確定
+Confirm saving a new customer,新規顧客の保存を確認
+Continue booking,予約を続ける
+Continuing with the existing data,既存データで続けます
+Contract not opened,契約未締結
+Contract opened,契約締結済み
+Contract status,契約状況
+Could not check the customer data. Please try again.,顧客データを確認できませんでした。もう一度お試しください。
+Could not read data from DMS. Please try again.,DMS からデータを読み取れませんでした。もう一度お試しください。
+Count,件数
+"Create a car booking: choose the model and colour, then save",車の予約を作成：車種と色を選んで保存
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。
+"Create a new customer from an ID card, or update an existing customer",身分証明書から新規顧客を作成、または既存顧客を更新
+Create and track bookings,予約の作成と確認
+Credit/debit card,クレジット/デビットカード
+Custom 1–30,カスタム 1–30
+Customer,顧客
+Customer data,顧客データ
+Customer data change request,顧客データの変更申請
+Customer data differs,顧客データに違いがあります
+Customer data matches,顧客データが一致しています
+Customer data saved. Type menu for other tasks.,顧客データを保存しました。ほかの操作は メニュー と入力してください。
+Customer data updated,顧客データを更新
+Customer found in the system,システムに顧客データがあります
 Customer records,顧客情報
 DMS,DMS
 DMS System Account,DMS システムアカウント
@@ -28,30 +112,109 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},データ取得時刻：{time}
 Data captured at,データ取得時刻
 Data updated,データ更新完了
+Date,日付
+Date of birth,生年月日
+Delivery,納車
+Deposit payment channel — choose one,予約金の支払方法 — 選択してください
+Deposit transfer slip,予約金の振込明細
+Differences,相違点
+Discard,破棄
+Discarded. Nothing was saved · Type menu to start again,破棄しました。何も保存されていません · メニュー と入力してやり直してください
+District,郡
+Docs/engine,伝票/エンジン
+Draft,下書き
+Edit,編集
 Enable the DMS connection before reading data,データを読み取る前に DMS 接続を有効にしてください
+Engine,エンジン
+Engine number,エンジン番号
 Enter the DMS password.,DMS パスワードを入力してください。
+"Existing data found, but some fields differ",既存データがありますが、一部が一致しません
+Existing data kept. Type menu for other tasks.,既存データを使用しました。ほかの操作は メニュー と入力してください。
+Expected delivery date — tap the button to pick a date,納車予定日 — ボタンを押して日付を選択
 Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。
+Finance,ローン
+Finance approved,ローン承認済み
+Finance pending,ローン審査中
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
+Gear,ギア
+Grade,グレード
+"Hello 🙏
+Welcome to Pearnly DMS
+Please choose a menu below to get started","こんにちは 🙏
+Pearnly DMS へようこそ
+下のメニューから始めてください"
+House no.,番地
+ID card copy,身分証明書のコピー
+ID card photo received. Please type the customer's phone number.,身分証明書の写真を受け取りました。お客様の電話番号を入力してください。
+ID no.,身分証番号
+"Invalid amount. Type a number, e.g. 5000 or 5,000.50","金額が正しくありません。数字で入力してください（例：5000 または 5,000.50）"
+Invalid format. Please fill in both fields {hint},形式が正しくありません。2 つとも入力してください {hint}
+Keep existing data,既存データを使う
 Last Check,最終チェック
 Last Checked At,最終チェック日時
 Last Error,前回のエラー
 Last successful completion,前回成功時の完了時刻
 Last successful record count,前回成功時の件数
+Latest 10,最新 10 件
 Latest error code,最新のエラーコード
+Latest sales from DMS,DMS の最新販売
 Manage system accounts,システムアカウントを管理
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 Master data and all vehicle colors,マスターデータと全車種の色
+Menu,メニュー
+Model year,年式
+Model/colour,車種/色
+Moo,ムー
 Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
 Multiple primary DMS connections exist; ask an administrator to check the configuration,DMS の主接続が複数あります。管理者に設定の確認を依頼してください
+Name,氏名
+New customer,新規顧客
+New customer created,新規顧客を作成
+New customer — confirm the data to save,新規顧客です。データを確認して保存してください
+Next,次へ
 Next Attempt,次回試行
+Next page,次のページ
+No active DMS account found. Ask the owner to check the operator data.,有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。
+No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,LINE と連携した承認者がまだいません。pearnly.com/dms で承認者を追加するよう管理者に依頼してください
+"No company receiving account yet. Please ask the admin to set it up in DMS, then try again.",会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。
+No matching model. Please try typing again.,該当する車種が見つかりません。もう一度入力してください。
+No records for this condition · Last read from DMS at,この条件の記録はありません · DMS から最後に読み取った時刻
+No sales in this period,この期間の販売はありません
 None (the connection's own account is used),未設定（接続自身のアカウントのみ使用）
+Not all files were attached. Please add them in DMS.,添付ファイルがすべて付いていません。DMS で追加してください。
+Not allocated yet,未割当
+Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください
 Not read yet,未読み取り
+Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 Older data as of {time}; refresh manually if needed,{time} 時点の古いデータです。必要に応じて手動で更新してください。
 Older data: {0},古いデータ：{0}
+Open DMS,DMS を開く
+Open Pearnly DMS without typing your password again,パスワードを再入力せずに Pearnly DMS を開く
+Other,その他
+Page,ページ
+Phone,電話番号
+Phone number received. Please take a photo of the customer's ID card.,電話番号を受け取りました。お客様の身分証明書を撮影してください。
+Pick a date,日付を選ぶ
+Pick just one main condition and the search runs right away. No need to answer everything.,主な条件を 1 つ選ぶだけですぐに検索します。全部に答える必要はありません。
+Please choose a menu,メニューを選んでください
+Please choose a menu below to get started,下のメニューから始めてください
+"Please choose from the card above, or type restart to begin a new item",上のカードから選ぶか、やり直し と入力して新しく始めてください
+Please choose the type of data to search,検索するデータの種類を選んでください
+Please send a photo of the customer's ID card,お客様の身分証明書の写真を送ってください
+Please send the customer's ID card photo and phone number,お客様の身分証明書の写真と電話番号を送ってください
+"Please sign out of DMS elsewhere, then tap Retry within 30 minutes",ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください
+Please take the ID card photo again,身分証明書をもう一度撮影してください
+Postcode,郵便番号
+Previous,前へ
+Previous page,前のページ
+Price in DMS,DMS の価格
 Progress {processed}/{total},進捗 {processed}/{total}
+Province,県
 Queued,待機中
+Rank by number of cars or amount?,台数と金額のどちらでランキングしますか？
+Rank sales by what?,何で販売ランキングを出しますか？
 Read / refresh selected data,選択したデータを読み取り／更新
 Read / refresh this query,この検索を読み取り／更新
 Read completed,読み取り完了
@@ -66,32 +229,82 @@ Read time unknown,読み取り時刻不明
 Reading,読み取り中
 Reading DMS master data…,DMS マスターデータを読み取り中…
 "Reading data, please wait…",データを読み取り中です。しばらくお待ちください…
+Reading the latest data from DMS,DMS から最新データを読み取っています
 Reading this query now. The result arrives as soon as it is ready.,この条件のデータを読み取っています。読み終わり次第結果をお送りします。
 Reading this query.,この検索を読み取り中です。
+Ready for pickup,納車準備完了
+Receiving bank — choose the bank the company received the money in,入金先銀行 — 会社が入金を受けた銀行を選択
 Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
+Registered under,登録名義
+Registered under — choose below,登録名義 — 下から選択
+"Registration name — tap Use name on card, or type another name",登録者名 — 「カードの氏名を使う」を押すか、別の氏名を入力
+Reject,却下
 Reload List,リストを再読み込み
 Remove,削除
+"Remove slip, go on",明細を削除して続ける
 Removed {0},{0} を削除しました
+Request approval,承認を申請
+Request rejected,申請を却下しました
+Requested by,申請者
 Resumed {0},{0} を再開しました
+Retry,再試行
+Retry booking,予約を再作成
+Road,通り
+Sales advisor,営業担当
+Sales document no.,販売伝票番号
+Sales records from DMS,DMS の販売記録
+Sales terms,販売条件
+Sales terms — choose below,販売条件 — 下から選択
+Salesperson,営業担当
+Save failed. Please try again.,保存できませんでした。もう一度お試しください。
+Save new customer,新規顧客を保存
 Saved DMS data,読み取り済み DMS データ
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
+"Saved · {action}
+Customer ID: {customer_id}
+Name: {name}","保存しました · {action}
+顧客番号：{customer_id}
+氏名：{name}"
+Search data,データ検索
 Select at least one data group.,データを1種類以上選択してください。
 Select one or more DMS data groups to read,読み取る DMS データを1種類以上選択してください
 "Select the data to update, then wait for the read to finish.",更新するデータを選択し、読み取りが完了するまでお待ちください。
+"Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",予約金の振込明細を送ってください · 現金払いの場合は 現金 と入力するとこの手順を飛ばせます
+Send to everyone,全員に送る
+Sent to,送信先
+"Separate fields with | , / or ·","項目は | , / または · で区切ってください"
+Similar customers found. Choose the one that matches.,似た顧客が見つかりました。該当する顧客を選んでください。
+Soi,ソイ
+Something went wrong. Please try again.,システムエラーです。もう一度お試しください。
+Start over,やり直し
+Started over. Take a photo of the ID card to start a customer record.,やり直しました。身分証明書を撮影して顧客登録を始めてください。
+Status not given,ステータス未設定
 Stop / resume,停止 / 再開
 Stopped {0},{0} を停止しました
+Subdistrict,町
 Submission Evidence,送信エビデンス
 Submission Nonce,送信ノンス
+Subtype,サブタイプ
 Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
 System accounts,システムアカウント
+THB,バーツ
+Take a photo of the customer's ID card to start a new customer record.,お客様の身分証明書を撮影すると、新規顧客の登録を始めます。
+Tap Confirm or Discard on the summary above,上の概要で「確定」または「破棄」を押してください
 Test and add,テストして追加
+That's all,これで全部
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
 The DMS account is busy. The read retries automatically; please wait.,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
+The DMS connection is not set up yet. Please contact the admin.,DMS 接続がまだ設定されていません。管理者に連絡してください。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
 The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
+The booking cannot be opened yet · The DMS account in use is «{username}»,まだ予約を作成できません · 使用中の DMS アカウントは「{username}」です
+The booking cannot be opened yet · The DMS account of this user cannot be read,まだ予約を作成できません · このユーザーの DMS アカウントを読み取れません
+The booking could not be created,予約を作成できませんでした
+The booking could not be created. Please try again.,予約を作成できませんでした。もう一度お試しください。
+The card could not be read clearly. Please take the photo again.,カードがはっきり読み取れませんでした。もう一度撮影してください。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 The data volume exceeds the read limit. Please contact an administrator.,データ量が読み取り上限を超えています。管理者にご連絡ください。
@@ -102,22 +315,72 @@ The recognition result needs checking. Please do not resend this image yet.,認�
 "The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.",保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
+There are more colours. Type a colour name to search.,ほかにも色があります。色の名前を入力して検索できます。
+There is a transfer payment. Please send the transfer slip before viewing the summary.,振込の支払いがあります。概要を見る前に振込明細を送ってください。
 These conditions have not been read. Click Read this query.,この条件のデータは未読み取りです。この検索の読み取りを押してください。
+This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。
 This account is already the connection's own account,このアカウントはすでに接続自身のアカウントです
+This customer already exists and the data matches,この顧客はすでに登録済みで、データも一致しています
+This item has expired. Please start again.,有効期限が切れました。もう一度やり直してください。
+This item has expired. Type menu to search again,有効期限が切れました。メニュー と入力して検索し直してください
+This menu is not available in the first release. Please choose 1 Sales records,このメニューは初版ではまだ使えません。「1 販売記録」を選んでください
+This month Top 10,今月 Top 10
+This month Top 20,今月 Top 20
+This month Top 30,今月 Top 30
+This month Top 5,今月 Top 5
 This query is queued.,この検索は待機中です。
 This read failed. Click Read to retry.,今回の読み取りは失敗しました。読み取りを押して再試行できます。
 This read failed. Please try again later.,今回の読み取りは失敗しました。しばらくしてからお試しください。
 This read was interrupted. Click Read again to retry; previously completed data was retained.,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
+This request has already been handled,この申請はすでに処理されています
+This request has expired. Please start again.,この申請は期限切れです。やり直してください。
+This step does not need a picture. Please follow the question above.,この手順では画像は不要です。上の質問に沿って進めてください。
+"This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。
 This system account is already registered,このシステムアカウントは登録済みです
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",このテナントのデータ量が現在の読み取り上限を超えているため、このグループは読み取っていません。接続は正常です。管理者が上限を上げてから再度読み取ってください。
+This year Top 10,今年 Top 10
+Title,敬称
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
+Top sales,販売ランキング
+Top sales from DMS,DMS の販売ランキング
+Total deposit,予約金合計
+"Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",期間と件数を入力してください（例：01/08/2569-31/08/2569 15、仏暦）
+"Type bank name | card type, e.g. KBank | VISA",銀行名 | カードの種類 を入力（例：KBank | VISA）
+"Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank",小切手番号 | 小切手帳番号 | 銀行名 を入力（例：123456 | 01 | KBank）
+"Type cheque no. | cheque book no., e.g. 123456 | 01",小切手番号 | 小切手帳番号 を入力（例：123456 | 01）
+Type menu to bring up this menu any time,いつでも メニュー と入力するとこのメニューを表示します
+"Type the booking date, e.g. 01/09/2569 (Buddhist year)",予約日を入力してください（例：01/09/2569、仏暦）
+Type the car colour,車の色を入力してください
+Type the car model,車種を入力してください
+"Type the card type, e.g. VISA",カードの種類を入力（例：VISA）
+Type the customer's name,顧客名を入力してください
+Type the engine number,エンジン番号を入力してください
+"Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)",納車予定日を入力してください（例：15/09/2569、仏暦）
+Type the sales advisor's name,営業担当の名前を入力してください
+Type the sales document number,販売伝票番号を入力してください
+Type what you want to search for,検索したい語を入力してください
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
 Update data,データを更新
+Update failed (DMS refused it). The request is still open; approve again to retry.,更新できませんでした（DMS が拒否）。申請は残っています。もう一度承認すると再試行します。
 Update failed — click Update data to retry,更新に失敗しました。「データを更新」を押して再試行してください
+Update failed. Please ask the admin to check the admin password in Pearnly.,更新できませんでした。Pearnly の管理者パスワードを管理者に確認してもらってください。
+Update the DMS username and password saved in Pearnly,Pearnly に保存した DMS のユーザー名とパスワードを更新
+Update your DMS sign-in,DMS のログイン情報を更新
 Updating data…,データを更新中…
+"Updating the data, please wait",データを更新しています。しばらくお待ちください
+Use name on card,カードの氏名を使う
+Use the back office,管理画面を使う
 Vehicle master data,車両マスター情報
 View result / status,結果／状態を見る
+View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
+Welcome to Pearnly DMS,Pearnly DMS へようこそ
+Who should approve this request?,誰に承認を依頼しますか？
+Your account cannot approve this request,あなたのアカウントにはこの申請を承認する権限がありません
+"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",あなたのアカウントには DMS 接続が設定されていないため承認できません。管理者に連絡してください。
+Your change request was approved and the customer data is updated.,変更申請が承認され、顧客データを更新しました。
+Your change request was rejected. Contact the approver if needed.,変更申請は却下されました。必要なら承認者に連絡してください。
+cars,台
 dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
 dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
 dms.account.invalid,DMS パスワードを入力してください。
@@ -129,14 +392,241 @@ dms.account.save,保存
 dms.account.saved,保存しました。次回の DMS ログインに使用します。
 dms.account.title,自分の DMS アカウント
 dms.account.username,DMS ユーザー名
+dms.card.BTN_CANCEL_BOOKING,キャンセル
+dms.card.BTN_CONFIRM_BOOKING,予約を確定
+dms.card.BTN_CONTINUE_BOOKING,予約を続ける
+dms.card.BTN_EDIT,編集
+dms.card.BTN_KEEP,既存データを使う
+dms.card.BTN_NEW_CUSTOMER,新規顧客
+dms.card.BTN_RESTART,やり直し
+dms.card.BTN_RETRY,再試行
+dms.card.BTN_RETRY_BOOKING,予約を再作成
+dms.card.BTN_SAVE_NEW,新規顧客を保存
+dms.card.BTN_SUBMIT_APPROVAL,承認を申請
+dms.card.BTN_UPDATE,データを更新
 dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
 dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
 dms.card.MSG_BIND_HELP,連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。
 dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Webページで発行した連携コードを送ってください。
 dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
 dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
+dms.card.TXT_ACTION_CREATE,新規顧客を作成
+dms.card.TXT_ACTION_UPDATE,顧客データを更新
+dms.card.TXT_ADMIN_AUTH_FAIL,更新できませんでした。Pearnly の管理者パスワードを管理者に確認してもらってください。
+dms.card.TXT_ADMIN_NEEDED,更新するには、先に Pearnly で管理者アカウントを設定してください。
+dms.card.TXT_ASK_CARD,電話番号を受け取りました。お客様の身分証明書を撮影してください。
+dms.card.TXT_ASK_PHONE,身分証明書の写真を受け取りました。お客様の電話番号を入力してください。
+dms.card.TXT_BLURRY,カードがはっきり読み取れませんでした。もう一度撮影してください。
+dms.card.TXT_BOOKING_CANCELLED,破棄しました。何も保存されていません · メニュー と入力してやり直してください
+dms.card.TXT_BOOKING_CUSTOMER,システムに顧客データがあります
+dms.card.TXT_BOOKING_FAIL,予約を作成できませんでした。もう一度お試しください。
+dms.card.TXT_CANDIDATES_ALT,該当する顧客を選択
+dms.card.TXT_CANDIDATES_HEAD,似た顧客が見つかりました。該当する顧客を選んでください。
+dms.card.TXT_DIFF_ALT,顧客データに違いがあります
+dms.card.TXT_DIFF_HEAD,既存データがありますが、一部が一致しません
+dms.card.TXT_DIFF_HEADER,相違点
+dms.card.TXT_DONE_SAME,既存データを使用しました。ほかの操作は メニュー と入力してください。
+dms.card.TXT_DONE_SAVED,顧客データを保存しました。ほかの操作は メニュー と入力してください。
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
+dms.card.TXT_EXPIRED,有効期限が切れました。もう一度やり直してください。
+dms.card.TXT_INTRO,お客様の身分証明書を撮影すると、新規顧客の登録を始めます。
+dms.card.TXT_KEEP,既存データで続けます
+dms.card.TXT_LOOKUP_FAIL,顧客データを確認できませんでした。もう一度お試しください。
+dms.card.TXT_MENU_BAR,メニュー
+dms.card.TXT_MENU_D1,身分証明書から新規顧客を作成、または既存顧客を更新
+dms.card.TXT_MENU_D2,車の予約を作成：車種と色を選んで保存
+dms.card.TXT_MENU_D3,パスワードを再入力せずに Pearnly DMS を開く
+dms.card.TXT_MENU_D4,Pearnly に保存した DMS のユーザー名とパスワードを更新
+dms.card.TXT_MENU_D5,権限の範囲で DMS の最新の販売データを見る
+dms.card.TXT_MENU_GREETING,"こんにちは 🙏
+Pearnly DMS へようこそ
+下のメニューから始めてください"
+dms.card.TXT_MENU_HINT,いつでも メニュー と入力するとこのメニューを表示します
+dms.card.TXT_MENU_ITEM1,顧客データ
+dms.card.TXT_MENU_ITEM2,車の予約
+dms.card.TXT_MENU_ITEM3,DMS を開く
+dms.card.TXT_MENU_ITEM4,アカウントとパスワード
+dms.card.TXT_MENU_ITEM5,データ検索
+dms.card.TXT_MENU_PICK,メニューを選んでください
+dms.card.TXT_MENU_PICK_SUB,項目を選んで続けます
+dms.card.TXT_MENU_SEND_CARD,お客様の身分証明書の写真を送ってください
+dms.card.TXT_MENU_SUBTITLE,下のメニューから始めてください
+dms.card.TXT_MENU_TITLE,Pearnly DMS へようこそ
+dms.card.TXT_NEED_BOTH,お客様の身分証明書の写真と電話番号を送ってください
+dms.card.TXT_NEW_CARD_ALT,新規顧客の保存を確認
+dms.card.TXT_NEW_CARD_HEAD,新規顧客です。データを確認して保存してください
+dms.card.TXT_NO_CREDIT,クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください
+dms.card.TXT_NO_ENDPOINT,DMS 接続がまだ設定されていません。管理者に連絡してください。
+dms.card.TXT_PICK_ABOVE,上のカードから選ぶか、やり直し と入力して新しく始めてください
+dms.card.TXT_RECEIPT_ADVISOR,担当：{name}
+dms.card.TXT_RECEIPT_BOOKING,"予約を作成しました
+予約番号：{booking_no}
+車種：{car}
+納車日：{delivery_date_be}"
+dms.card.TXT_RECEIPT_SAVE,"保存しました · {action}
+顧客番号：{customer_id}
+氏名：{name}"
+dms.card.TXT_RESET,やり直しました。身分証明書を撮影して顧客登録を始めてください。
+dms.card.TXT_RETAKE,身分証明書をもう一度撮影してください
+dms.card.TXT_SAME,この顧客はすでに登録済みで、データも一致しています
+dms.card.TXT_SAME_ALT,顧客データが一致しています
+dms.card.TXT_SAVE_FAIL,保存できませんでした。もう一度お試しください。
+dms.card.TXT_SYSTEM_ERROR,システムエラーです。もう一度お試しください。
+dms.card.approval.BTN_ALL_APPROVERS,全員に送る
+dms.card.approval.BTN_APPROVE,承認
+dms.card.approval.BTN_CHANGE_APPROVER,承認者を変更
+dms.card.approval.BTN_REJECT,却下
+dms.card.approval.LBL_APPROVER,承認者
+dms.card.approval.LBL_CUSTOMER,顧客
+dms.card.approval.LBL_REQUESTER,申請者
+dms.card.approval.LBL_SENT_TO,送信先
+dms.card.approval.TITLE_REQUEST,顧客データの変更申請
+dms.card.approval.TXT_APPROVER_NO_ENDPOINT,あなたのアカウントには DMS 接続が設定されていないため承認できません。管理者に連絡してください。
+dms.card.approval.TXT_EXEC_FAIL_ADMIN,更新できませんでした（DMS が拒否）。申請は残っています。もう一度承認すると再試行します。
+dms.card.approval.TXT_NOT_APPROVER,あなたのアカウントにはこの申請を承認する権限がありません
+dms.card.approval.TXT_NO_APPROVERS,LINE と連携した承認者がまだいません。pearnly.com/dms で承認者を追加するよう管理者に依頼してください
+dms.card.approval.TXT_PICK_APPROVER,誰に承認を依頼しますか？
+dms.card.approval.TXT_PICK_APPROVER_SUB,承認者を選ぶか、全員に送って手の空いた人に承認してもらいます
+dms.card.approval.TXT_PROCESSING,データを更新しています。しばらくお待ちください
+dms.card.approval.TXT_REQ_APPROVED_ADMIN,承認しました。顧客データを更新しました。
+dms.card.approval.TXT_REQ_APPROVED_SALES,変更申請が承認され、顧客データを更新しました。
+dms.card.approval.TXT_REQ_EXPIRED,この申請は期限切れです。やり直してください。
+dms.card.approval.TXT_REQ_REJECTED_ADMIN,申請を却下しました
+dms.card.approval.TXT_REQ_REJECTED_SALES,変更申請は却下されました。必要なら承認者に連絡してください。
+dms.card.approval.TXT_REQ_STALE,この申請はすでに処理されています
+dms.card.approval.TXT_SALES_FALLBACK,営業担当
+dms.card.approval.TXT_SENT_WAIT,変更申請を送りました。承認者の対応を待っています。
+dms.card.car.brand,メーカー
+dms.card.car.desc,車両の詳細
+dms.card.car.engine,エンジン
+dms.card.car.gear,ギア
+dms.card.car.grade,グレード
+dms.card.car.price,DMS の価格
+dms.card.car.type,車両タイプ
+dms.card.car.year,年式
+dms.card.diff.birthday_be,生年月日
+dms.card.diff.district_id,郡
+dms.card.diff.house_no,番地
+dms.card.diff.moo,ムー
+dms.card.diff.name,氏名
+dms.card.diff.phone,電話番号
+dms.card.diff.prefix_id,敬称
+dms.card.diff.province_id,県
+dms.card.diff.road,通り
+dms.card.diff.soi,ソイ
+dms.card.diff.subdistrict_id,町
+dms.card.diff.zipcode_id,郵便番号
+dms.card.qa.BTN_ADD_TRANSFER,振込を追加
+dms.card.qa.BTN_CONFIRM,確定
+dms.card.qa.BTN_DISCARD,破棄
+dms.card.qa.BTN_EDIT,編集
+dms.card.qa.BTN_MORE_ADD,支払方法を追加
+dms.card.qa.BTN_MORE_DONE,これで全部
+dms.card.qa.BTN_PAGE_NEXT,次へ
+dms.card.qa.BTN_PAGE_PREV,前へ
+dms.card.qa.BTN_PICK_DATE,日付を選ぶ
+dms.card.qa.BTN_REGIS_NAME_CARD,カードの氏名を使う
+dms.card.qa.BTN_REMOVE_SLIP,明細を削除して続ける
+dms.card.qa.LBL_ADVISOR,営業担当
+dms.card.qa.LBL_ATTACH_CARD,身分証明書のコピー
+dms.card.qa.LBL_ATTACH_SLIP,予約金の振込明細
+dms.card.qa.LBL_CAR,車種/色
+dms.card.qa.LBL_DELIVERY,納車日
+dms.card.qa.LBL_PLACE,予約受付場所
+dms.card.qa.LBL_POSTCODE,郵便番号
+dms.card.qa.LBL_REGIS,登録名義
+dms.card.qa.LBL_TERM,販売条件
+dms.card.qa.LBL_TOTAL,予約金合計
+dms.card.qa.TXT_ADVISOR_BLOCK,まだ予約を作成できません · 使用中の DMS アカウントは「{username}」です
+dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER,まだ予約を作成できません · このユーザーの DMS アカウントを読み取れません
+dms.card.qa.TXT_ASK_AMOUNT,金額（{channel}）— 金額を入力（例：5000）
+dms.card.qa.TXT_ASK_CAR,車種 — 短い車種名を入力して検索（例：dmax）
+dms.card.qa.TXT_ASK_CARD_REF,カードの種類を入力（例：VISA）
+dms.card.qa.TXT_ASK_CARD_REF_MANUAL,銀行名 | カードの種類 を入力（例：KBank | VISA）
+dms.card.qa.TXT_ASK_CHEQUE_REF,小切手番号 | 小切手帳番号 を入力（例：123456 | 01）
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,小切手番号 | 小切手帳番号 | 銀行名 を入力（例：123456 | 01 | KBank）
+dms.card.qa.TXT_ASK_DATE,納車予定日 — ボタンを押して日付を選択
+dms.card.qa.TXT_ASK_MORE,ほかの支払方法はありますか？
+dms.card.qa.TXT_ASK_OTHER_REF,支払方法の詳細 — 入力してください
+dms.card.qa.TXT_ASK_PAINT,{car} の色を選択
+dms.card.qa.TXT_ASK_PAY_CHANNEL,予約金の支払方法 — 選択してください
+dms.card.qa.TXT_ASK_PAY_DST,入金先銀行 — 会社が入金を受けた銀行を選択
+dms.card.qa.TXT_ASK_PLACE,予約受付場所 — 下から選択
+dms.card.qa.TXT_ASK_REGIS,登録名義 — 下から選択
+dms.card.qa.TXT_ASK_REGIS_NAME,登録者名 — 「カードの氏名を使う」を押すか、別の氏名を入力
+dms.card.qa.TXT_ASK_SLIP,予約金の振込明細を送ってください · 現金払いの場合は 現金 と入力するとこの手順を飛ばせます
+dms.card.qa.TXT_ASK_TERM,販売条件 — 下から選択
+dms.card.qa.TXT_ATTACH_FAIL,添付ファイルがすべて付いていません。DMS で追加してください。
+dms.card.qa.TXT_BAD_AMOUNT,"金額が正しくありません。数字で入力してください（例：5000 または 5,000.50）"
+dms.card.qa.TXT_BAD_PAYMENT_DETAIL,形式が正しくありません。2 つとも入力してください {hint}
+dms.card.qa.TXT_CAR_NONE,該当する車種が見つかりません。もう一度入力してください。
+dms.card.qa.TXT_CAR_PICK,車種を選択（{n} 件）
+dms.card.qa.TXT_CONFIRM_ABOVE,上の概要で「確定」または「破棄」を押してください
+dms.card.qa.TXT_NEED_SLIP,振込の支払いがあります。概要を見る前に振込明細を送ってください。
+dms.card.qa.TXT_NO_COMPANY_BANK,会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。
+dms.card.qa.TXT_NO_IMAGE_NEEDED,この手順では画像は不要です。上の質問に沿って進めてください。
+dms.card.qa.TXT_PAINT_MANY,ほかにも色があります。色の名前を入力して検索できます。
+dms.card.qa.TXT_PICK_BANK,銀行を選択
+dms.card.qa.TXT_PREVIEW_TITLE,予約の概要 — 確定前に確認してください
+dms.card.qa.TXT_SEP_HINT,"項目は | , / または · で区切ってください"
+dms.card.qa.TXT_SLIP_CONFLICT,振込明細が添付されていますが、振込の支払いがありません。振込を追加するか明細を削除してから概要を見てください。
+dms.card.qa.TXT_SLIP_ONLY_IMAGE,この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。
+dms.card.qa.VAL_ATTACHED,添付済み
+dms.card.qa._TH_RETRY,その後もう一度お試しください
+dms.card.qa.pay.card,クレジット/デビットカード
+dms.card.qa.pay.cash,現金
+dms.card.qa.pay.cashier_cheque,預金小切手
+dms.card.qa.pay.cheque,小切手
+dms.card.qa.pay.other,その他
+dms.card.qa.pay.transfer,振込
+dms.card.qa.retry.alt,予約作成に失敗 · 再試行
+dms.card.qa.retry.failed,予約を作成できませんでした
+dms.card.qa.retry.hint,ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください
+dms.card.query.ALT_RECORDS,DMS の最新販売記録 {n} 件
+dms.card.query.ALT_TOP,DMS の販売ランキング
+dms.card.query.ASK_ADVISOR,営業担当の名前を入力してください
+dms.card.query.ASK_ANY,検索したい語を入力してください
+dms.card.query.ASK_BOOKING_DATE,予約日を入力してください（例：01/09/2569、仏暦）
+dms.card.query.ASK_COLOR,車の色を入力してください
+dms.card.query.ASK_CUSTOMER,顧客名を入力してください
+dms.card.query.ASK_DELIVERY_DATE,納車予定日を入力してください（例：15/09/2569、仏暦）
+dms.card.query.ASK_ENGINE_NO,エンジン番号を入力してください
+dms.card.query.ASK_SALES_DOC_NO,販売伝票番号を入力してください
+dms.card.query.ASK_TOP_CUSTOM,期間と件数を入力してください（例：01/08/2569-31/08/2569 15、仏暦）
+dms.card.query.ASK_TOP_GROUP,何で販売ランキングを出しますか？
+dms.card.query.ASK_TOP_METRIC,台数と金額のどちらでランキングしますか？
+dms.card.query.ASK_TOP_PERIOD,期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
+dms.card.query.ASK_VEHICLE,車種を入力してください
 dms.card.query.CARD_NOTE,読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
+dms.card.query.CARD_TITLE,DMS の販売記録
+dms.card.query.DIM_ADVISOR,営業担当
+dms.card.query.DIM_ALLOCATION,車両の割当
+dms.card.query.DIM_BOOKING_DATE,予約日
+dms.card.query.DIM_COLOR,色
+dms.card.query.DIM_CONTRACT,契約状況
+dms.card.query.DIM_CUSTOMER,顧客
+dms.card.query.DIM_DELIVERY_DATE,納車日
+dms.card.query.DIM_ENGINE_NO,エンジン番号
+dms.card.query.DIM_FINANCE,現金/ローン
+dms.card.query.DIM_LATEST,最新 10 件
+dms.card.query.DIM_SALES_DOC_NO,販売伝票番号
+dms.card.query.DIM_TOP,販売ランキング
+dms.card.query.DIM_VEHICLE,車種
+dms.card.query.EMPTY_RECORDS_PREFIX,この条件の記録はありません · DMS から最後に読み取った時刻
+dms.card.query.EMPTY_TOP,この期間の販売はありません
+dms.card.query.GRP_MODEL,車種
+dms.card.query.GRP_SUBTYPE,サブタイプ
+dms.card.query.GRP_TYPE,車両タイプ
+dms.card.query.LBL_ADVISOR,担当
+dms.card.query.LBL_ALLOCATION,割当
+dms.card.query.LBL_CAR,車両
+dms.card.query.LBL_COUNT,件数
+dms.card.query.LBL_CUSTOMER,顧客
+dms.card.query.LBL_DATE,日付
+dms.card.query.LBL_DELIVERY,納車
+dms.card.query.LBL_DOCS,伝票/エンジン
+dms.card.query.LBL_FINANCE,ローン
+dms.card.query.LBL_PAGE,ページ
 dms.card.query.LBL_READ_AT,データ取得時刻
 dms.card.query.LBL_UNKNOWN_TIME,読み取り時刻不明
 dms.card.query.MANUAL_AS_OF,保存済み結果の取得時刻：{time}
@@ -147,8 +637,59 @@ dms.card.query.MANUAL_QUEUED,この条件のデータを読み取っています
 dms.card.query.MANUAL_RUNNING,この条件のデータを読み取っています。読み終わり次第結果をお送りします。
 dms.card.query.MANUAL_SUCCEEDED,読み取りが完了しました。結果をお送りします。
 dms.card.query.MANUAL_WAITING,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
+dms.card.query.MET_AMOUNT,金額
+dms.card.query.MET_QTY,台数
+dms.card.query.NAV_NEXT,次のページ
+dms.card.query.NAV_PREV,前のページ
 dms.card.query.NAV_REFRESH,再読み取り
+dms.card.query.PERIOD_CUSTOM,カスタム 1–30
+dms.card.query.PERIOD_M_10,今月 Top 10
+dms.card.query.PERIOD_M_20,今月 Top 20
+dms.card.query.PERIOD_M_30,今月 Top 30
+dms.card.query.PERIOD_M_5,今月 Top 5
+dms.card.query.PERIOD_Y_10,今年 Top 10
+dms.card.query.PICK_STATUS,ステータスを選択
+dms.card.query.STATUS_UNKNOWN,ステータス未設定
+dms.card.query.ST_ALLOCATED,割当済み
+dms.card.query.ST_BOOKING,予約
+dms.card.query.ST_CASH,現金購入
+dms.card.query.ST_CONTRACT_NOT_OPENED,契約未締結
+dms.card.query.ST_CONTRACT_OPENED,契約締結済み
+dms.card.query.ST_DRAFT,下書き
+dms.card.query.ST_FINANCE_APPROVED,ローン承認済み
+dms.card.query.ST_FINANCE_PENDING,ローン審査中
+dms.card.query.ST_MANAGER_PENDING,営業マネージャー待ち
+dms.card.query.ST_READY,納車準備完了
+dms.card.query.ST_UNALLOCATED,未割当
+dms.card.query.TITLE_TOP,販売ランキング
 dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
+dms.card.query.TXT_COMING_SOON,このメニューは初版ではまだ使えません。「1 販売記録」を選んでください
+dms.card.query.TXT_DENIED,このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。
+dms.card.query.TXT_EXPIRED,有効期限が切れました。メニュー と入力して検索し直してください
+dms.card.query.TXT_LOADING,DMS から最新データを読み取っています
+dms.card.query.TXT_NO_ENDPOINT,有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。
+dms.card.query.TXT_PICK_SALES,主な条件を 1 つ選ぶだけですぐに検索します。全部に答える必要はありません。
+dms.card.query.TXT_PICK_TYPE,検索するデータの種類を選んでください
+dms.card.query.TXT_QUERY_FAILED,DMS からデータを読み取れませんでした。もう一度お試しください。
+dms.card.query.TYPE_SALES,1 販売記録
+dms.card.query.UNIT_AMOUNT,バーツ
+dms.card.query.UNIT_QTY,台
+dms.card.rich.booking.sub,予約の作成と確認
+dms.card.rich.booking.title,車の予約
+dms.card.rich.credentials.sub,DMS のログイン情報を更新
+dms.card.rich.credentials.title,アカウントとパスワード
+dms.card.rich.customer.sub,顧客の追加と編集
+dms.card.rich.customer.title,顧客データ
+dms.card.rich.portal.sub,管理画面を使う
+dms.card.rich.portal.title,DMS を開く
+dms.card.rich.query.sub,DMS の最新販売
+dms.card.rich.query.title,データ検索
+dms.card.rich.soon,近日公開
+dms.card.sum.address,住所
+dms.card.sum.birthday_be,生年月日
+dms.card.sum.name,氏名
+dms.card.sum.people_id,身分証番号
+dms.card.sum.phone,電話番号
 dms.connect.cache.changed,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 dms.connect.cache.dataset.company,会社情報
 dms.connect.cache.dataset.customers,顧客情報
@@ -338,7 +879,9 @@ dms.snapshot.geo_stale,{time} 時点の古い住所データです。必要に�
 dms.snapshot.stale,{time} 時点の古いデータです。必要に応じて手動で更新してください。
 in use,使用中
 stopped,停止中
+then try again,その後もう一度お試しください
 {0} processed; total not yet known,{0} 件処理済み。総数は未確定です
 {0} records,{0} 件
 "{0} registered, {1} in use",登録 {0} 件、利用可能 {1} 件
 {0}/{1} groups,{0}/{1} グループ
+{n} latest sales records from DMS,DMS の最新販売記録 {n} 件

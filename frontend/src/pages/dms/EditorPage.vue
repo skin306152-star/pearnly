@@ -41,6 +41,7 @@ import {
 import {
   createTexts,
   type Locale,
+  adoptAccountLocale,
 } from "../../lib/i18n";
 
 const route = useRoute();
@@ -425,6 +426,14 @@ async function save(): Promise<void> {
 }
 
 onMounted(async () => {
+  // 从 LINE 打开：入口页把"他手机上 LINE 的语言"放在会话里（与聊天卡片同一个来源），
+  // 编辑页跟着它，免得聊天是中文、点开编辑页却是泰文（用户 2026-09-27）。
+  try {
+    const fromLine = sessionStorage.getItem("pearnly_dms_lang");
+    if (fromLine) adoptAccountLocale(fromLine);
+  } catch {
+    /* 隐私模式读不到会话存储：按原来的缓存 / 浏览器语言 */
+  }
   document.documentElement.lang = locale.value;
   try {
     await loadTexts();

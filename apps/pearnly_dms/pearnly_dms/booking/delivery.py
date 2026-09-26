@@ -100,6 +100,14 @@ def _repair_files(doc, marker):
     return bool(result.get("ok"))
 
 
+def _receipt_text(doc, marker):
+    qa = marker["context"].get("qa") or {}
+    answers = qa.get("answers") or {}
+    return cards.booking_receipt_text(doc.booking_no,
+        str((answers.get("car") or {}).get("label") or ""),
+        str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""))
+
+
 def deliver(name):
     cache, owner = frappe.cache(), uuid.uuid4().hex
     key = cache.make_key("pearnly:dms:delivery:" + name)
@@ -128,12 +136,11 @@ def deliver(name):
                 actor=binding["user_id"])
         receipt = marker.get("receipt")
         if not receipt:
-            qa = marker["context"].get("qa") or {}
-            answers = qa.get("answers") or {}
-            receipt = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(),
-                "text": cards.booking_receipt_text(doc.booking_no,
-                    str((answers.get("car") or {}).get("label") or ""),
-                    str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""))}
+            from pearnly_dms import i18n
+
+            with i18n.line_language(doc.line_user_id):  # 回执按收件人自己的手机语言
+                receipt_text = _receipt_text(doc, marker)
+            receipt = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(), "text": receipt_text}
             marker["receipt"] = receipt
         _save(doc, marker)
         frappe.db.commit()

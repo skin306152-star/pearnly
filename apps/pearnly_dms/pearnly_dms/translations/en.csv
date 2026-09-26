@@ -1,21 +1,105 @@
+1 Sales records,1 Sales records
+"A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.","A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary."
+Account & password,Account & password
 Account busy — click Read later to continue,Account busy — click Read later to continue
 Account busy — click Update data later to continue,Account busy — click Update data later to continue
 Account busy — the read will continue shortly,Account busy — the read will continue shortly
 Action,Action
+Add a channel,Add a channel
+Add and edit customers,Add and edit customers
 Add system account,Add system account
+Add transfer,Add transfer
 Added {0},Added {0}
+Address,Address
 Address data as of {time}; refreshed manually,Address data as of {time}; refreshed manually
 Address directory,Address directory
 Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
+Advisor,Advisor
+Advisor: {name},Advisor: {name}
+Allocated,Allocated
+Allocation,Allocation
+Amount,Amount
+"Amount ({channel}) — type the amount, e.g. 5000","Amount ({channel}) — type the amount, e.g. 5000"
+An admin account must be set up in Pearnly before updating.,An admin account must be set up in Pearnly before updating.
+Any other payment channel?,Any other payment channel?
 Apply,Apply
+Approve,Approve
+Approved. Customer data updated.,Approved. Customer data updated.
+Approver,Approver
+Attached,Attached
+Awaiting manager,Awaiting manager
+Bank transfer,Bank transfer
+Booking,Booking
 Booking ID,Booking ID
 Booking Number,Booking Number
+"Booking created
+Booking no.: {booking_no}
+Model: {car}
+Delivery date: {delivery_date_be}","Booking created
+Booking no.: {booking_no}
+Model: {car}
+Delivery date: {delivery_date_be}"
+Booking date,Booking date
+Booking failed · Retry,Booking failed · Retry
+Booking location,Booking location
+Booking location — choose below,Booking location — choose below
+Booking summary — check before confirming,Booking summary — check before confirming
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
+Brand,Brand
 Cached result captured at {time},Cached result captured at {time}
+Cancel,Cancel
+Car,Car
+Car allocation,Car allocation
+Car details,Car details
+Car model,Car model
+"Car model — type a short model name to search, e.g. dmax","Car model — type a short model name to search, e.g. dmax"
+Car type,Car type
+Cash,Cash
+Cash purchase,Cash purchase
+Cash/finance,Cash/finance
+Cashier's cheque,Cashier's cheque
+Change approver,Change approver
+Change request sent. Waiting for the approver.,Change request sent. Waiting for the approver.
+Channel details — type them,Channel details — type them
+Cheque,Cheque
+Choose a bank,Choose a bank
+Choose a car model ({n} found),Choose a car model ({n} found)
+Choose a colour for {car},Choose a colour for {car}
+Choose a period and number of items (all branches/teams this account can see),Choose a period and number of items (all branches/teams this account can see)
+Choose a status,Choose a status
+"Choose an approver, or send to everyone so whoever is free can approve","Choose an approver, or send to everyone so whoever is free can approve"
+Choose an item to continue,Choose an item to continue
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
+Choose the matching customer,Choose the matching customer
+Colour,Colour
+Coming soon,Coming soon
 Company information,Company information
+Confirm,Confirm
+Confirm booking,Confirm booking
+Confirm saving a new customer,Confirm saving a new customer
+Continue booking,Continue booking
+Continuing with the existing data,Continuing with the existing data
+Contract not opened,Contract not opened
+Contract opened,Contract opened
+Contract status,Contract status
+Could not check the customer data. Please try again.,Could not check the customer data. Please try again.
+Could not read data from DMS. Please try again.,Could not read data from DMS. Please try again.
+Count,Count
+"Create a car booking: choose the model and colour, then save","Create a car booking: choose the model and colour, then save"
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.","Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website."
+"Create a new customer from an ID card, or update an existing customer","Create a new customer from an ID card, or update an existing customer"
+Create and track bookings,Create and track bookings
+Credit/debit card,Credit/debit card
+Custom 1–30,Custom 1–30
+Customer,Customer
+Customer data,Customer data
+Customer data change request,Customer data change request
+Customer data differs,Customer data differs
+Customer data matches,Customer data matches
+Customer data saved. Type menu for other tasks.,Customer data saved. Type menu for other tasks.
+Customer data updated,Customer data updated
+Customer found in the system,Customer found in the system
 Customer records,Customer records
 DMS,DMS
 DMS System Account,DMS System Account
@@ -28,30 +112,109 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},Data as of {time}
 Data captured at,Data captured at
 Data updated,Data updated
+Date,Date
+Date of birth,Date of birth
+Delivery,Delivery
+Deposit payment channel — choose one,Deposit payment channel — choose one
+Deposit transfer slip,Deposit transfer slip
+Differences,Differences
+Discard,Discard
+Discarded. Nothing was saved · Type menu to start again,Discarded. Nothing was saved · Type menu to start again
+District,District
+Docs/engine,Docs/engine
+Draft,Draft
+Edit,Edit
 Enable the DMS connection before reading data,Enable the DMS connection before reading data
+Engine,Engine
+Engine number,Engine number
 Enter the DMS password.,Enter the DMS password.
+"Existing data found, but some fields differ","Existing data found, but some fields differ"
+Existing data kept. Type menu for other tasks.,Existing data kept. Type menu for other tasks.
+Expected delivery date — tap the button to pick a date,Expected delivery date — tap the button to pick a date
 Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.
+Finance,Finance
+Finance approved,Finance approved
+Finance pending,Finance pending
 Full address directory,Full address directory
 Full customer records,Full customer records
+Gear,Gear
+Grade,Grade
+"Hello 🙏
+Welcome to Pearnly DMS
+Please choose a menu below to get started","Hello 🙏
+Welcome to Pearnly DMS
+Please choose a menu below to get started"
+House no.,House no.
+ID card copy,ID card copy
+ID card photo received. Please type the customer's phone number.,ID card photo received. Please type the customer's phone number.
+ID no.,ID no.
+"Invalid amount. Type a number, e.g. 5000 or 5,000.50","Invalid amount. Type a number, e.g. 5000 or 5,000.50"
+Invalid format. Please fill in both fields {hint},Invalid format. Please fill in both fields {hint}
+Keep existing data,Keep existing data
 Last Check,Last Check
 Last Checked At,Last Checked At
 Last Error,Last Error
 Last successful completion,Last successful completion
 Last successful record count,Last successful record count
+Latest 10,Latest 10
 Latest error code,Latest error code
+Latest sales from DMS,Latest sales from DMS
 Manage system accounts,Manage system accounts
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.","Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly."
 Master data and all vehicle colors,Master data and all vehicle colors
+Menu,Menu
+Model year,Model year
+Model/colour,Model/colour
+Moo,Moo
 Multiple DMS connections exist for this operator,Multiple DMS connections exist for this operator
 Multiple primary DMS connections exist; ask an administrator to check the configuration,Multiple primary DMS connections exist; ask an administrator to check the configuration
+Name,Name
+New customer,New customer
+New customer created,New customer created
+New customer — confirm the data to save,New customer — confirm the data to save
+Next,Next
 Next Attempt,Next Attempt
+Next page,Next page
+No active DMS account found. Ask the owner to check the operator data.,No active DMS account found. Ask the owner to check the operator data.
+No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms
+"No company receiving account yet. Please ask the admin to set it up in DMS, then try again.","No company receiving account yet. Please ask the admin to set it up in DMS, then try again."
+No matching model. Please try typing again.,No matching model. Please try typing again.
+No records for this condition · Last read from DMS at,No records for this condition · Last read from DMS at
+No sales in this period,No sales in this period
 None (the connection's own account is used),None (the connection's own account is used)
+Not all files were attached. Please add them in DMS.,Not all files were attached. Please add them in DMS.
+Not allocated yet,Not allocated yet
+Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 Not read yet,Not read yet
+Number of cars,Number of cars
 Older address data as of {time}; ask an administrator to refresh if needed,Older address data as of {time}; ask an administrator to refresh if needed
 Older data as of {time}; refresh manually if needed,Older data as of {time}; refresh manually if needed
 Older data: {0},Older data: {0}
+Open DMS,Open DMS
+Open Pearnly DMS without typing your password again,Open Pearnly DMS without typing your password again
+Other,Other
+Page,Page
+Phone,Phone
+Phone number received. Please take a photo of the customer's ID card.,Phone number received. Please take a photo of the customer's ID card.
+Pick a date,Pick a date
+Pick just one main condition and the search runs right away. No need to answer everything.,Pick just one main condition and the search runs right away. No need to answer everything.
+Please choose a menu,Please choose a menu
+Please choose a menu below to get started,Please choose a menu below to get started
+"Please choose from the card above, or type restart to begin a new item","Please choose from the card above, or type restart to begin a new item"
+Please choose the type of data to search,Please choose the type of data to search
+Please send a photo of the customer's ID card,Please send a photo of the customer's ID card
+Please send the customer's ID card photo and phone number,Please send the customer's ID card photo and phone number
+"Please sign out of DMS elsewhere, then tap Retry within 30 minutes","Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
+Please take the ID card photo again,Please take the ID card photo again
+Postcode,Postcode
+Previous,Previous
+Previous page,Previous page
+Price in DMS,Price in DMS
 Progress {processed}/{total},Progress {processed}/{total}
+Province,Province
 Queued,Queued
+Rank by number of cars or amount?,Rank by number of cars or amount?
+Rank sales by what?,Rank sales by what?
 Read / refresh selected data,Read / refresh selected data
 Read / refresh this query,Read / refresh this query
 Read completed,Read completed
@@ -66,32 +229,82 @@ Read time unknown,Read time unknown
 Reading,Reading
 Reading DMS master data…,Reading DMS master data…
 "Reading data, please wait…","Reading data, please wait…"
+Reading the latest data from DMS,Reading the latest data from DMS
 Reading this query now. The result arrives as soon as it is ready.,Reading this query now. The result arrives as soon as it is ready.
 Reading this query.,Reading this query.
+Ready for pickup,Ready for pickup
+Receiving bank — choose the bank the company received the money in,Receiving bank — choose the bank the company received the money in
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
+Registered under,Registered under
+Registered under — choose below,Registered under — choose below
+"Registration name — tap Use name on card, or type another name","Registration name — tap Use name on card, or type another name"
+Reject,Reject
 Reload List,Reload List
 Remove,Remove
+"Remove slip, go on","Remove slip, go on"
 Removed {0},Removed {0}
+Request approval,Request approval
+Request rejected,Request rejected
+Requested by,Requested by
 Resumed {0},Resumed {0}
+Retry,Retry
+Retry booking,Retry booking
+Road,Road
+Sales advisor,Sales advisor
+Sales document no.,Sales document no.
+Sales records from DMS,Sales records from DMS
+Sales terms,Sales terms
+Sales terms — choose below,Sales terms — choose below
+Salesperson,Salesperson
+Save failed. Please try again.,Save failed. Please try again.
+Save new customer,Save new customer
 Saved DMS data,Saved DMS data
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.","Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again."
+"Saved · {action}
+Customer ID: {customer_id}
+Name: {name}","Saved · {action}
+Customer ID: {customer_id}
+Name: {name}"
+Search data,Search data
 Select at least one data group.,Select at least one data group.
 Select one or more DMS data groups to read,Select one or more DMS data groups to read
 "Select the data to update, then wait for the read to finish.","Select the data to update, then wait for the read to finish."
+"Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step","Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step"
+Send to everyone,Send to everyone
+Sent to,Sent to
+"Separate fields with | , / or ·","Separate fields with | , / or ·"
+Similar customers found. Choose the one that matches.,Similar customers found. Choose the one that matches.
+Soi,Soi
+Something went wrong. Please try again.,Something went wrong. Please try again.
+Start over,Start over
+Started over. Take a photo of the ID card to start a customer record.,Started over. Take a photo of the ID card to start a customer record.
+Status not given,Status not given
 Stop / resume,Stop / resume
 Stopped {0},Stopped {0}
+Subdistrict,Subdistrict
 Submission Evidence,Submission Evidence
 Submission Nonce,Submission Nonce
+Subtype,Subtype
 Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
 System accounts,System accounts
+THB,THB
+Take a photo of the customer's ID card to start a new customer record.,Take a photo of the customer's ID card to start a new customer record.
+Tap Confirm or Discard on the summary above,Tap Confirm or Discard on the summary above
 Test and add,Test and add
+That's all,That's all
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
 The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,The DMS account stayed busy; automatic retries did not get through. Please try again later.
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.","The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
+The DMS connection is not set up yet. Please contact the admin.,The DMS connection is not set up yet. Please contact the admin.
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
+The booking cannot be opened yet · The DMS account in use is «{username}»,The booking cannot be opened yet · The DMS account in use is «{username}»
+The booking cannot be opened yet · The DMS account of this user cannot be read,The booking cannot be opened yet · The DMS account of this user cannot be read
+The booking could not be created,The booking could not be created
+The booking could not be created. Please try again.,The booking could not be created. Please try again.
+The card could not be read clearly. Please take the photo again.,The card could not be read clearly. Please take the photo again.
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
 The data volume exceeds the read limit. Please contact an administrator.,The data volume exceeds the read limit. Please contact an administrator.
@@ -102,22 +315,72 @@ The recognition result needs checking. Please do not resend this image yet.,The 
 "The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.","The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds."
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.","The submission was sent, but its result is unconfirmed. Do not submit again; check the result first."
+There are more colours. Type a colour name to search.,There are more colours. Type a colour name to search.
+There is a transfer payment. Please send the transfer slip before viewing the summary.,There is a transfer payment. Please send the transfer slip before viewing the summary.
 These conditions have not been read. Click Read this query.,These conditions have not been read. Click Read this query.
+This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
 This account is already the connection's own account,This account is already the connection's own account
+This customer already exists and the data matches,This customer already exists and the data matches
+This item has expired. Please start again.,This item has expired. Please start again.
+This item has expired. Type menu to search again,This item has expired. Type menu to search again
+This menu is not available in the first release. Please choose 1 Sales records,This menu is not available in the first release. Please choose 1 Sales records
+This month Top 10,This month Top 10
+This month Top 20,This month Top 20
+This month Top 30,This month Top 30
+This month Top 5,This month Top 5
 This query is queued.,This query is queued.
 This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read failed. Please try again later.,This read failed. Please try again later.
 This read was interrupted. Click Read again to retry; previously completed data was retained.,This read was interrupted. Click Read again to retry; previously completed data was retained.
+This request has already been handled,This request has already been handled
+This request has expired. Please start again.,This request has expired. Please start again.
+This step does not need a picture. Please follow the question above.,This step does not need a picture. Please follow the question above.
+"This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.","This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer."
 This system account is already registered,This system account is already registered
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.","This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
+This year Top 10,This year Top 10
+Title,Title
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
+Top sales,Top sales
+Top sales from DMS,Top sales from DMS
+Total deposit,Total deposit
+"Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)","Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)"
+"Type bank name | card type, e.g. KBank | VISA","Type bank name | card type, e.g. KBank | VISA"
+"Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank","Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank"
+"Type cheque no. | cheque book no., e.g. 123456 | 01","Type cheque no. | cheque book no., e.g. 123456 | 01"
+Type menu to bring up this menu any time,Type menu to bring up this menu any time
+"Type the booking date, e.g. 01/09/2569 (Buddhist year)","Type the booking date, e.g. 01/09/2569 (Buddhist year)"
+Type the car colour,Type the car colour
+Type the car model,Type the car model
+"Type the card type, e.g. VISA","Type the card type, e.g. VISA"
+Type the customer's name,Type the customer's name
+Type the engine number,Type the engine number
+"Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)","Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)"
+Type the sales advisor's name,Type the sales advisor's name
+Type the sales document number,Type the sales document number
+Type what you want to search for,Type what you want to search for
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
 Update data,Update data
+Update failed (DMS refused it). The request is still open; approve again to retry.,Update failed (DMS refused it). The request is still open; approve again to retry.
 Update failed — click Update data to retry,Update failed — click Update data to retry
+Update failed. Please ask the admin to check the admin password in Pearnly.,Update failed. Please ask the admin to check the admin password in Pearnly.
+Update the DMS username and password saved in Pearnly,Update the DMS username and password saved in Pearnly
+Update your DMS sign-in,Update your DMS sign-in
 Updating data…,Updating data…
+"Updating the data, please wait","Updating the data, please wait"
+Use name on card,Use name on card
+Use the back office,Use the back office
 Vehicle master data,Vehicle master data
 View result / status,View result / status
+View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
+Welcome to Pearnly DMS,Welcome to Pearnly DMS
+Who should approve this request?,Who should approve this request?
+Your account cannot approve this request,Your account cannot approve this request
+"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.","Your account has no DMS connection set up, so it cannot approve. Please tell the admin."
+Your change request was approved and the customer data is updated.,Your change request was approved and the customer data is updated.
+Your change request was rejected. Contact the approver if needed.,Your change request was rejected. Contact the approver if needed.
+cars,cars
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
 dms.account.invalid,Enter the DMS password.
@@ -129,14 +392,241 @@ dms.account.save,Save
 dms.account.saved,Saved. The next DMS login will use these credentials.
 dms.account.title,My DMS account
 dms.account.username,DMS username
+dms.card.BTN_CANCEL_BOOKING,Cancel
+dms.card.BTN_CONFIRM_BOOKING,Confirm booking
+dms.card.BTN_CONTINUE_BOOKING,Continue booking
+dms.card.BTN_EDIT,Edit
+dms.card.BTN_KEEP,Keep existing data
+dms.card.BTN_NEW_CUSTOMER,New customer
+dms.card.BTN_RESTART,Start over
+dms.card.BTN_RETRY,Retry
+dms.card.BTN_RETRY_BOOKING,Retry booking
+dms.card.BTN_SAVE_NEW,Save new customer
+dms.card.BTN_SUBMIT_APPROVAL,Request approval
+dms.card.BTN_UPDATE,Update data
 dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
 dms.card.MSG_BIND_GREETING,Hello
 dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.
 dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the web page.
 dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
 dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
+dms.card.TXT_ACTION_CREATE,New customer created
+dms.card.TXT_ACTION_UPDATE,Customer data updated
+dms.card.TXT_ADMIN_AUTH_FAIL,Update failed. Please ask the admin to check the admin password in Pearnly.
+dms.card.TXT_ADMIN_NEEDED,An admin account must be set up in Pearnly before updating.
+dms.card.TXT_ASK_CARD,Phone number received. Please take a photo of the customer's ID card.
+dms.card.TXT_ASK_PHONE,ID card photo received. Please type the customer's phone number.
+dms.card.TXT_BLURRY,The card could not be read clearly. Please take the photo again.
+dms.card.TXT_BOOKING_CANCELLED,Discarded. Nothing was saved · Type menu to start again
+dms.card.TXT_BOOKING_CUSTOMER,Customer found in the system
+dms.card.TXT_BOOKING_FAIL,The booking could not be created. Please try again.
+dms.card.TXT_CANDIDATES_ALT,Choose the matching customer
+dms.card.TXT_CANDIDATES_HEAD,Similar customers found. Choose the one that matches.
+dms.card.TXT_DIFF_ALT,Customer data differs
+dms.card.TXT_DIFF_HEAD,"Existing data found, but some fields differ"
+dms.card.TXT_DIFF_HEADER,Differences
+dms.card.TXT_DONE_SAME,Existing data kept. Type menu for other tasks.
+dms.card.TXT_DONE_SAVED,Customer data saved. Type menu for other tasks.
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
+dms.card.TXT_EXPIRED,This item has expired. Please start again.
+dms.card.TXT_INTRO,Take a photo of the customer's ID card to start a new customer record.
+dms.card.TXT_KEEP,Continuing with the existing data
+dms.card.TXT_LOOKUP_FAIL,Could not check the customer data. Please try again.
+dms.card.TXT_MENU_BAR,Menu
+dms.card.TXT_MENU_D1,"Create a new customer from an ID card, or update an existing customer"
+dms.card.TXT_MENU_D2,"Create a car booking: choose the model and colour, then save"
+dms.card.TXT_MENU_D3,Open Pearnly DMS without typing your password again
+dms.card.TXT_MENU_D4,Update the DMS username and password saved in Pearnly
+dms.card.TXT_MENU_D5,View the latest sales data from DMS within your permissions
+dms.card.TXT_MENU_GREETING,"Hello 🙏
+Welcome to Pearnly DMS
+Please choose a menu below to get started"
+dms.card.TXT_MENU_HINT,Type menu to bring up this menu any time
+dms.card.TXT_MENU_ITEM1,Customer data
+dms.card.TXT_MENU_ITEM2,Car booking
+dms.card.TXT_MENU_ITEM3,Open DMS
+dms.card.TXT_MENU_ITEM4,Account & password
+dms.card.TXT_MENU_ITEM5,Search data
+dms.card.TXT_MENU_PICK,Please choose a menu
+dms.card.TXT_MENU_PICK_SUB,Choose an item to continue
+dms.card.TXT_MENU_SEND_CARD,Please send a photo of the customer's ID card
+dms.card.TXT_MENU_SUBTITLE,Please choose a menu below to get started
+dms.card.TXT_MENU_TITLE,Welcome to Pearnly DMS
+dms.card.TXT_NEED_BOTH,Please send the customer's ID card photo and phone number
+dms.card.TXT_NEW_CARD_ALT,Confirm saving a new customer
+dms.card.TXT_NEW_CARD_HEAD,New customer — confirm the data to save
+dms.card.TXT_NO_CREDIT,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
+dms.card.TXT_NO_ENDPOINT,The DMS connection is not set up yet. Please contact the admin.
+dms.card.TXT_PICK_ABOVE,"Please choose from the card above, or type restart to begin a new item"
+dms.card.TXT_RECEIPT_ADVISOR,Advisor: {name}
+dms.card.TXT_RECEIPT_BOOKING,"Booking created
+Booking no.: {booking_no}
+Model: {car}
+Delivery date: {delivery_date_be}"
+dms.card.TXT_RECEIPT_SAVE,"Saved · {action}
+Customer ID: {customer_id}
+Name: {name}"
+dms.card.TXT_RESET,Started over. Take a photo of the ID card to start a customer record.
+dms.card.TXT_RETAKE,Please take the ID card photo again
+dms.card.TXT_SAME,This customer already exists and the data matches
+dms.card.TXT_SAME_ALT,Customer data matches
+dms.card.TXT_SAVE_FAIL,Save failed. Please try again.
+dms.card.TXT_SYSTEM_ERROR,Something went wrong. Please try again.
+dms.card.approval.BTN_ALL_APPROVERS,Send to everyone
+dms.card.approval.BTN_APPROVE,Approve
+dms.card.approval.BTN_CHANGE_APPROVER,Change approver
+dms.card.approval.BTN_REJECT,Reject
+dms.card.approval.LBL_APPROVER,Approver
+dms.card.approval.LBL_CUSTOMER,Customer
+dms.card.approval.LBL_REQUESTER,Requested by
+dms.card.approval.LBL_SENT_TO,Sent to
+dms.card.approval.TITLE_REQUEST,Customer data change request
+dms.card.approval.TXT_APPROVER_NO_ENDPOINT,"Your account has no DMS connection set up, so it cannot approve. Please tell the admin."
+dms.card.approval.TXT_EXEC_FAIL_ADMIN,Update failed (DMS refused it). The request is still open; approve again to retry.
+dms.card.approval.TXT_NOT_APPROVER,Your account cannot approve this request
+dms.card.approval.TXT_NO_APPROVERS,No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms
+dms.card.approval.TXT_PICK_APPROVER,Who should approve this request?
+dms.card.approval.TXT_PICK_APPROVER_SUB,"Choose an approver, or send to everyone so whoever is free can approve"
+dms.card.approval.TXT_PROCESSING,"Updating the data, please wait"
+dms.card.approval.TXT_REQ_APPROVED_ADMIN,Approved. Customer data updated.
+dms.card.approval.TXT_REQ_APPROVED_SALES,Your change request was approved and the customer data is updated.
+dms.card.approval.TXT_REQ_EXPIRED,This request has expired. Please start again.
+dms.card.approval.TXT_REQ_REJECTED_ADMIN,Request rejected
+dms.card.approval.TXT_REQ_REJECTED_SALES,Your change request was rejected. Contact the approver if needed.
+dms.card.approval.TXT_REQ_STALE,This request has already been handled
+dms.card.approval.TXT_SALES_FALLBACK,Salesperson
+dms.card.approval.TXT_SENT_WAIT,Change request sent. Waiting for the approver.
+dms.card.car.brand,Brand
+dms.card.car.desc,Car details
+dms.card.car.engine,Engine
+dms.card.car.gear,Gear
+dms.card.car.grade,Grade
+dms.card.car.price,Price in DMS
+dms.card.car.type,Car type
+dms.card.car.year,Model year
+dms.card.diff.birthday_be,Date of birth
+dms.card.diff.district_id,District
+dms.card.diff.house_no,House no.
+dms.card.diff.moo,Moo
+dms.card.diff.name,Name
+dms.card.diff.phone,Phone
+dms.card.diff.prefix_id,Title
+dms.card.diff.province_id,Province
+dms.card.diff.road,Road
+dms.card.diff.soi,Soi
+dms.card.diff.subdistrict_id,Subdistrict
+dms.card.diff.zipcode_id,Postcode
+dms.card.qa.BTN_ADD_TRANSFER,Add transfer
+dms.card.qa.BTN_CONFIRM,Confirm
+dms.card.qa.BTN_DISCARD,Discard
+dms.card.qa.BTN_EDIT,Edit
+dms.card.qa.BTN_MORE_ADD,Add a channel
+dms.card.qa.BTN_MORE_DONE,That's all
+dms.card.qa.BTN_PAGE_NEXT,Next
+dms.card.qa.BTN_PAGE_PREV,Previous
+dms.card.qa.BTN_PICK_DATE,Pick a date
+dms.card.qa.BTN_REGIS_NAME_CARD,Use name on card
+dms.card.qa.BTN_REMOVE_SLIP,"Remove slip, go on"
+dms.card.qa.LBL_ADVISOR,Sales advisor
+dms.card.qa.LBL_ATTACH_CARD,ID card copy
+dms.card.qa.LBL_ATTACH_SLIP,Deposit transfer slip
+dms.card.qa.LBL_CAR,Model/colour
+dms.card.qa.LBL_DELIVERY,Delivery date
+dms.card.qa.LBL_PLACE,Booking location
+dms.card.qa.LBL_POSTCODE,Postcode
+dms.card.qa.LBL_REGIS,Registered under
+dms.card.qa.LBL_TERM,Sales terms
+dms.card.qa.LBL_TOTAL,Total deposit
+dms.card.qa.TXT_ADVISOR_BLOCK,The booking cannot be opened yet · The DMS account in use is «{username}»
+dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER,The booking cannot be opened yet · The DMS account of this user cannot be read
+dms.card.qa.TXT_ASK_AMOUNT,"Amount ({channel}) — type the amount, e.g. 5000"
+dms.card.qa.TXT_ASK_CAR,"Car model — type a short model name to search, e.g. dmax"
+dms.card.qa.TXT_ASK_CARD_REF,"Type the card type, e.g. VISA"
+dms.card.qa.TXT_ASK_CARD_REF_MANUAL,"Type bank name | card type, e.g. KBank | VISA"
+dms.card.qa.TXT_ASK_CHEQUE_REF,"Type cheque no. | cheque book no., e.g. 123456 | 01"
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,"Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank"
+dms.card.qa.TXT_ASK_DATE,Expected delivery date — tap the button to pick a date
+dms.card.qa.TXT_ASK_MORE,Any other payment channel?
+dms.card.qa.TXT_ASK_OTHER_REF,Channel details — type them
+dms.card.qa.TXT_ASK_PAINT,Choose a colour for {car}
+dms.card.qa.TXT_ASK_PAY_CHANNEL,Deposit payment channel — choose one
+dms.card.qa.TXT_ASK_PAY_DST,Receiving bank — choose the bank the company received the money in
+dms.card.qa.TXT_ASK_PLACE,Booking location — choose below
+dms.card.qa.TXT_ASK_REGIS,Registered under — choose below
+dms.card.qa.TXT_ASK_REGIS_NAME,"Registration name — tap Use name on card, or type another name"
+dms.card.qa.TXT_ASK_SLIP,"Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step"
+dms.card.qa.TXT_ASK_TERM,Sales terms — choose below
+dms.card.qa.TXT_ATTACH_FAIL,Not all files were attached. Please add them in DMS.
+dms.card.qa.TXT_BAD_AMOUNT,"Invalid amount. Type a number, e.g. 5000 or 5,000.50"
+dms.card.qa.TXT_BAD_PAYMENT_DETAIL,Invalid format. Please fill in both fields {hint}
+dms.card.qa.TXT_CAR_NONE,No matching model. Please try typing again.
+dms.card.qa.TXT_CAR_PICK,Choose a car model ({n} found)
+dms.card.qa.TXT_CONFIRM_ABOVE,Tap Confirm or Discard on the summary above
+dms.card.qa.TXT_NEED_SLIP,There is a transfer payment. Please send the transfer slip before viewing the summary.
+dms.card.qa.TXT_NO_COMPANY_BANK,"No company receiving account yet. Please ask the admin to set it up in DMS, then try again."
+dms.card.qa.TXT_NO_IMAGE_NEEDED,This step does not need a picture. Please follow the question above.
+dms.card.qa.TXT_PAINT_MANY,There are more colours. Type a colour name to search.
+dms.card.qa.TXT_PICK_BANK,Choose a bank
+dms.card.qa.TXT_PREVIEW_TITLE,Booking summary — check before confirming
+dms.card.qa.TXT_SEP_HINT,"Separate fields with | , / or ·"
+dms.card.qa.TXT_SLIP_CONFLICT,"A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary."
+dms.card.qa.TXT_SLIP_ONLY_IMAGE,"This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer."
+dms.card.qa.VAL_ATTACHED,Attached
+dms.card.qa._TH_RETRY,then try again
+dms.card.qa.pay.card,Credit/debit card
+dms.card.qa.pay.cash,Cash
+dms.card.qa.pay.cashier_cheque,Cashier's cheque
+dms.card.qa.pay.cheque,Cheque
+dms.card.qa.pay.other,Other
+dms.card.qa.pay.transfer,Bank transfer
+dms.card.qa.retry.alt,Booking failed · Retry
+dms.card.qa.retry.failed,The booking could not be created
+dms.card.qa.retry.hint,"Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
+dms.card.query.ALT_RECORDS,{n} latest sales records from DMS
+dms.card.query.ALT_TOP,Top sales from DMS
+dms.card.query.ASK_ADVISOR,Type the sales advisor's name
+dms.card.query.ASK_ANY,Type what you want to search for
+dms.card.query.ASK_BOOKING_DATE,"Type the booking date, e.g. 01/09/2569 (Buddhist year)"
+dms.card.query.ASK_COLOR,Type the car colour
+dms.card.query.ASK_CUSTOMER,Type the customer's name
+dms.card.query.ASK_DELIVERY_DATE,"Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)"
+dms.card.query.ASK_ENGINE_NO,Type the engine number
+dms.card.query.ASK_SALES_DOC_NO,Type the sales document number
+dms.card.query.ASK_TOP_CUSTOM,"Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)"
+dms.card.query.ASK_TOP_GROUP,Rank sales by what?
+dms.card.query.ASK_TOP_METRIC,Rank by number of cars or amount?
+dms.card.query.ASK_TOP_PERIOD,Choose a period and number of items (all branches/teams this account can see)
+dms.card.query.ASK_VEHICLE,Type the car model
 dms.card.query.CARD_NOTE,"Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again."
+dms.card.query.CARD_TITLE,Sales records from DMS
+dms.card.query.DIM_ADVISOR,Sales advisor
+dms.card.query.DIM_ALLOCATION,Car allocation
+dms.card.query.DIM_BOOKING_DATE,Booking date
+dms.card.query.DIM_COLOR,Colour
+dms.card.query.DIM_CONTRACT,Contract status
+dms.card.query.DIM_CUSTOMER,Customer
+dms.card.query.DIM_DELIVERY_DATE,Delivery date
+dms.card.query.DIM_ENGINE_NO,Engine number
+dms.card.query.DIM_FINANCE,Cash/finance
+dms.card.query.DIM_LATEST,Latest 10
+dms.card.query.DIM_SALES_DOC_NO,Sales document no.
+dms.card.query.DIM_TOP,Top sales
+dms.card.query.DIM_VEHICLE,Car model
+dms.card.query.EMPTY_RECORDS_PREFIX,No records for this condition · Last read from DMS at
+dms.card.query.EMPTY_TOP,No sales in this period
+dms.card.query.GRP_MODEL,Car model
+dms.card.query.GRP_SUBTYPE,Subtype
+dms.card.query.GRP_TYPE,Car type
+dms.card.query.LBL_ADVISOR,Advisor
+dms.card.query.LBL_ALLOCATION,Allocation
+dms.card.query.LBL_CAR,Car
+dms.card.query.LBL_COUNT,Count
+dms.card.query.LBL_CUSTOMER,Customer
+dms.card.query.LBL_DATE,Date
+dms.card.query.LBL_DELIVERY,Delivery
+dms.card.query.LBL_DOCS,Docs/engine
+dms.card.query.LBL_FINANCE,Finance
+dms.card.query.LBL_PAGE,Page
 dms.card.query.LBL_READ_AT,Data captured at
 dms.card.query.LBL_UNKNOWN_TIME,Read time unknown
 dms.card.query.MANUAL_AS_OF,Cached result captured at {time}
@@ -147,8 +637,59 @@ dms.card.query.MANUAL_QUEUED,Reading this query now. The result arrives as soon 
 dms.card.query.MANUAL_RUNNING,Reading this query now. The result arrives as soon as it is ready.
 dms.card.query.MANUAL_SUCCEEDED,Read completed. Sending the result now.
 dms.card.query.MANUAL_WAITING,The DMS account is busy. The read retries automatically; please wait.
+dms.card.query.MET_AMOUNT,Amount
+dms.card.query.MET_QTY,Number of cars
+dms.card.query.NAV_NEXT,Next page
+dms.card.query.NAV_PREV,Previous page
 dms.card.query.NAV_REFRESH,Read again
+dms.card.query.PERIOD_CUSTOM,Custom 1–30
+dms.card.query.PERIOD_M_10,This month Top 10
+dms.card.query.PERIOD_M_20,This month Top 20
+dms.card.query.PERIOD_M_30,This month Top 30
+dms.card.query.PERIOD_M_5,This month Top 5
+dms.card.query.PERIOD_Y_10,This year Top 10
+dms.card.query.PICK_STATUS,Choose a status
+dms.card.query.STATUS_UNKNOWN,Status not given
+dms.card.query.ST_ALLOCATED,Allocated
+dms.card.query.ST_BOOKING,Booking
+dms.card.query.ST_CASH,Cash purchase
+dms.card.query.ST_CONTRACT_NOT_OPENED,Contract not opened
+dms.card.query.ST_CONTRACT_OPENED,Contract opened
+dms.card.query.ST_DRAFT,Draft
+dms.card.query.ST_FINANCE_APPROVED,Finance approved
+dms.card.query.ST_FINANCE_PENDING,Finance pending
+dms.card.query.ST_MANAGER_PENDING,Awaiting manager
+dms.card.query.ST_READY,Ready for pickup
+dms.card.query.ST_UNALLOCATED,Not allocated yet
+dms.card.query.TITLE_TOP,Top sales
 dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
+dms.card.query.TXT_COMING_SOON,This menu is not available in the first release. Please choose 1 Sales records
+dms.card.query.TXT_DENIED,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
+dms.card.query.TXT_EXPIRED,This item has expired. Type menu to search again
+dms.card.query.TXT_LOADING,Reading the latest data from DMS
+dms.card.query.TXT_NO_ENDPOINT,No active DMS account found. Ask the owner to check the operator data.
+dms.card.query.TXT_PICK_SALES,Pick just one main condition and the search runs right away. No need to answer everything.
+dms.card.query.TXT_PICK_TYPE,Please choose the type of data to search
+dms.card.query.TXT_QUERY_FAILED,Could not read data from DMS. Please try again.
+dms.card.query.TYPE_SALES,1 Sales records
+dms.card.query.UNIT_AMOUNT,THB
+dms.card.query.UNIT_QTY,cars
+dms.card.rich.booking.sub,Create and track bookings
+dms.card.rich.booking.title,Car booking
+dms.card.rich.credentials.sub,Update your DMS sign-in
+dms.card.rich.credentials.title,Account & password
+dms.card.rich.customer.sub,Add and edit customers
+dms.card.rich.customer.title,Customer data
+dms.card.rich.portal.sub,Use the back office
+dms.card.rich.portal.title,Open DMS
+dms.card.rich.query.sub,Latest sales from DMS
+dms.card.rich.query.title,Search data
+dms.card.rich.soon,Coming soon
+dms.card.sum.address,Address
+dms.card.sum.birthday_be,Date of birth
+dms.card.sum.name,Name
+dms.card.sum.people_id,ID no.
+dms.card.sum.phone,Phone
 dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
 dms.connect.cache.dataset.company,Company information
 dms.connect.cache.dataset.customers,Customer records
@@ -338,7 +879,9 @@ dms.snapshot.geo_stale,Older address data as of {time}; ask an administrator to 
 dms.snapshot.stale,Older data as of {time}; refresh manually if needed
 in use,in use
 stopped,stopped
+then try again,then try again
 {0} processed; total not yet known,{0} processed; total not yet known
 {0} records,{0} records
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
+{n} latest sales records from DMS,{n} latest sales records from DMS

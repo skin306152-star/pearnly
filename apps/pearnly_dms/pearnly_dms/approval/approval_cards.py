@@ -45,7 +45,7 @@ def __getattr__(name: str) -> Any:
 
 
 def _t(key: str, **kw) -> str:
-    return i18n.t(f"dms.card.approval.{key}", lang="th", **kw)
+    return i18n.t(f"dms.card.approval.{key}", lang=i18n.line_lang(), **kw)
 
 
 def picker_card(request_id: str, approvers: List[Dict[str, str]]) -> Dict[str, Any]:

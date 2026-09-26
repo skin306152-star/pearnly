@@ -50,6 +50,7 @@ from pearnly_dms.booking.service import book_in_session
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
 from pearnly_dms.line.out import enqueue as _enqueue_shared
 from pearnly_dms.line.out import send as _send
+from pearnly_dms import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +189,7 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
         nonce = secrets.token_hex(8)
         if not _arm_retry(tenant, line_user_id, payload, nonce):
             return
-        _push(line_user_id, friendly.get("th") or cards.TXT_BOOKING_FAIL)
+        _push(line_user_id, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL)
         _send(line_user_id, qa_cards.preview_card(qa, nonce))
         return
     if _retryable_result(result):
@@ -197,12 +198,12 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
             _send(
                 line_user_id,
                 qa_cards.booking_retry_card(
-                    friendly.get("th") or cards.TXT_BOOKING_FAIL,
+                    friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL,
                     retry_nonce,
                 ),
             )
             return
-    _push(line_user_id, friendly.get("th") or cards.TXT_BOOKING_FAIL)
+    _push(line_user_id, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL)
 
 
 def _resume_after_customer_change(line_user_id, payload, result):

@@ -21,13 +21,13 @@ from urllib.parse import urlencode
 from pearnly_dms import i18n
 
 
-def _t(key: str, lang: str = "th", **kw) -> str:
-    """按键取卡片文案。默认泰文（LINE 通道的语言）。
+def _t(key: str, lang: str | None = None, **kw) -> str:
+    """按键取卡片文案。默认按当前 LINE 收件人的语言（`i18n.line_lang()`，块外是泰文）。
 
     首参叫 `key` 不叫 `name`：回执模板本身就有 `name=` 这个占位符
     （客户姓名），参数名撞了会直接 `TypeError`。
     """
-    return i18n.t(f"dms.card.{key}", lang=lang, **kw)
+    return i18n.t(f"dms.card.{key}", lang=lang or i18n.line_lang(), **kw)
 
 
 def __getattr__(name: str) -> Any:
@@ -36,6 +36,8 @@ def __getattr__(name: str) -> Any:
     文案在包里，所以这里动态解析 —— 模块里不再有同名常量，
     Python 找不到全局名就会走到这儿（PEP 562）。
     """
+    if name == "FIELD_LABELS_TH":
+        return field_labels()
     if name.startswith(("TXT_", "BTN_", "MSG_")):
         return _t(name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -79,7 +81,10 @@ ACT_RETRY = "retry"
 _DIFF_FIELD_NAMES = ("prefix_id", "name", "birthday_be", "phone", "house_no",
                      "moo", "soi", "road", "province_id", "district_id",
                      "subdistrict_id", "zipcode_id")
-FIELD_LABELS_TH: Dict[str, str] = {f: _t(f"diff.{f}") for f in _DIFF_FIELD_NAMES}
+def field_labels() -> Dict[str, str]:
+    """差异卡的字段名，按当前 LINE 收件人的语言现取（外部旧写法 `cards.FIELD_LABELS_TH`
+    经 `__getattr__` 仍可用；名字里的 `_TH` 是历史遗留，内容已跟随收件人语言）。"""
+    return {f: _t(f"diff.{f}") for f in _DIFF_FIELD_NAMES}
 
 _MAX_CANDIDATES = 4  # 候选卡按钮上限（LINE bubble 体积限制）
 

@@ -134,6 +134,12 @@ class SnapshotLabCase(unittest.TestCase):
         frappe.set_user("Administrator")
         frappe.flags.dms_snapshot_status = None
         self.endpoint = self.endpoints[0]
+        # Pushing a result asks LINE for the recipient's phone language (user 2026-09-27);
+        # that lookup is not what these snapshot tests are about, so it answers Thai offline.
+        from unittest.mock import patch
+        language = patch("pearnly_core.line.user_language", return_value="th")
+        language.start()
+        self.addCleanup(language.stop)
 
     def tearDown(self):
         frappe.db.rollback()

@@ -106,4 +106,4 @@ def qat(name: str, **kw) -> str:
     """
     from pearnly_dms import i18n
 
-    return i18n.t(f"dms.card.qa.{name}", lang=kw.pop("lang", "th"), **kw)
+    return i18n.t(f"dms.card.qa.{name}", lang=kw.pop("lang", None) or i18n.line_lang(), **kw)

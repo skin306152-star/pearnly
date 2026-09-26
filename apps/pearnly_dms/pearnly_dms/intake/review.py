@@ -8,10 +8,11 @@ from pearnly_dms.intake import draft
 from pearnly_dms.line import cards, out
 from pearnly_dms.line.errors import friendly
 from pearnly_dms.line.identity import matches
+from pearnly_dms import i18n
 
 
 def conflict_notice(conflict):
-    text = friendly("ERR_DMS_CUSTOMER_CHANGED", lang="th")
+    text = friendly("ERR_DMS_CUSTOMER_CHANGED", lang=i18n.line_lang())
     for change in conflict.get("conflicts") or []:
         label = cards.FIELD_LABELS_TH.get(change["field"], change["field"])
         text += "\n" + str(label) + ": " + str(change["old"]) + " → " + str(change["new"])
@@ -56,6 +57,6 @@ def reopen(binding, line_user_id, payload, result, *, reply_token="", expected=N
         result["response_body"]["customer_conflict"], has_admin=draft.has_admin_creds(endpoint))
     if not store.replace_session_snapshot(line_user_id, current, "reviewing", updated):
         return False
-    out.push_or_reply_text(line_user_id, friendly(result["error_code"], lang="th"), reply_token)
+    out.push_or_reply_text(line_user_id, friendly(result["error_code"], lang=i18n.line_lang()), reply_token)
     out.send(line_user_id, card)
     return True

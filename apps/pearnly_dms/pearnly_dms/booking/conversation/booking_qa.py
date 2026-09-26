@@ -52,6 +52,8 @@ logger = logging.getLogger(__name__)
 
 _STATE = "booking_qa"
 _CASH_WORD = "เงินสด"
+# 其他语言里"现金"的写法（提示按手机语言显示，用户照着打的就是这些）。
+_CASH_WORDS = frozenset({_CASH_WORD, "现金", "現金", "cash"})
 _MAX_REGIS_NAME = 120
 
 
@@ -268,7 +270,7 @@ _MASTER_PICKS = {
 
 # ── 文本步 ───────────────────────────────────────────────────────────────────
 def _on_slip(tenant_id, line_user_id, qa, text, reply_token) -> None:
-    if text.strip() == _CASH_WORD:
+    if text.strip().casefold() in _CASH_WORDS:
         qa["step"] = "place"  # 现金声明 → 无凭证图，slip_mid 保持空
         _persist(tenant_id, line_user_id, qa)
         send_step(tenant_id, line_user_id, qa, "place", reply_token)

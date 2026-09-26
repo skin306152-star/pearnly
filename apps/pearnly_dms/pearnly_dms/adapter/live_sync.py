@@ -117,7 +117,7 @@ def pull(endpoint: str) -> dict:
         result = run_logged_in(endpoint, work, authoritative_read=True, background=True,
                                read_only_batch=True)
     except Exception:
-        logger.warning("[dms live sync] 本轮没做完", exc_info=True)
+        logger.warning("[dms live sync] round did not finish", exc_info=True)
         return {"ok": False}
     return result if isinstance(result, dict) else {"ok": False}
 

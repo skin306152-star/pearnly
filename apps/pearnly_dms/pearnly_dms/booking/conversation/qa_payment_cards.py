@@ -24,14 +24,24 @@ from pearnly_dms.booking.conversation.qa_util import qat
 # （半/全角竖线、英文/中文逗号、顿号、斜杠、居中点、留白点号）。
 # 文案只列最常用的四种，**不再声称"只能用 |"**——用户怎么写都能收，
 # 只在真的拆不出来时才重问。
-TXT_SEP_HINT = qat("TXT_SEP_HINT")
+def _sep_hint() -> str:
+    return qat("TXT_SEP_HINT")
+
 
 # 该渠道银行目录权威为空时的兼容问法：多问一项银行名称（隐藏 bank id 允许为空）。
-# ⚠️ 与上面 `TXT_ASK_CHEQUE_REF` 同一个坑：线上尾句前有个**换行**，
-# 而语言包读取器对每条值做 `strip()`，行尾换行存不进 CSV —— 换行必须在这里补。
-# （两条线上是 `"…KBank\n" + TXT_SEP_HINT` / `"…VISA\n" + TXT_SEP_HINT`。）
-TXT_ASK_CHEQUE_REF_MANUAL = qat("TXT_ASK_CHEQUE_REF_MANUAL") + "\n" + TXT_SEP_HINT
-TXT_ASK_CARD_REF_MANUAL = qat("TXT_ASK_CARD_REF_MANUAL") + "\n" + TXT_SEP_HINT
+# ⚠️ 线上尾句前有个**换行**，而语言包读取器对每条值做 `strip()`，行尾换行存不进 CSV ——
+# 换行在这里补。按当前 LINE 收件人的语言用到时现拼，不在导入时算好。
+_COMPOSED = {
+    "TXT_SEP_HINT": _sep_hint,
+    "TXT_ASK_CHEQUE_REF_MANUAL": lambda: qat("TXT_ASK_CHEQUE_REF_MANUAL") + "\n" + _sep_hint(),
+    "TXT_ASK_CARD_REF_MANUAL": lambda: qat("TXT_ASK_CARD_REF_MANUAL") + "\n" + _sep_hint(),
+}
+
+
+def __getattr__(name: str):
+    if name in _COMPOSED:
+        return _COMPOSED[name]()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def ask_pay_ref(channel: str, manual_bank: bool = False) -> dict:
@@ -50,7 +60,7 @@ def ask_pay_ref(channel: str, manual_bank: bool = False) -> dict:
     if CHANNEL_EXTRA_SHAPE.get(channel) != "ref":
         return _msg(TXT_ASK_OTHER_REF)
     if manual_bank:
-        return _msg(TXT_ASK_CARD_REF_MANUAL if channel == "card" else TXT_ASK_CHEQUE_REF_MANUAL)
+        return _msg(_COMPOSED["TXT_ASK_CARD_REF_MANUAL" if channel == "card" else "TXT_ASK_CHEQUE_REF_MANUAL"]())
     return _msg(TXT_ASK_CARD_REF if channel == "card" else TXT_ASK_CHEQUE_REF)
 
 

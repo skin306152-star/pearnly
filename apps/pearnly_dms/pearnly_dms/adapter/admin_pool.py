@@ -85,4 +85,4 @@ def note_status(username: str, status: str) -> None:
                                                 "last_checked_at": frappe.utils.now_datetime()},
                                 update_modified=False)
     except Exception:
-        logger.debug("[dms admin pool] 状态回写失败", exc_info=True)
+        logger.debug("[dms admin pool] status write-back failed", exc_info=True)

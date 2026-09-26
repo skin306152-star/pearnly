@@ -328,10 +328,11 @@ def main():
     check("没开块的调用方（ERP/Cowork/网页编辑页）行为不变", urls() == ["push"], FakeRequests.calls)
 
     check("webhook 每个事件都在 line.batch 里处理",
-          "with line.batch(source.get(\"userId\") or \"\", event.get(\"replyToken\") or \"\"):" in handlers_src)
+          'line.batch(user_id, event.get("replyToken") or ""):' in handlers_src
+          and 'user_id = source.get("userId") or ""' in handlers_src)
     check("后台任务（run_guarded）都在 line.batch 里执行",
           'user = arguments.get("line_user_id") or ""' in out_src
-          and 'with line.batch(user, arguments.get("reply_token") or ""):' in out_src)
+          and 'line.batch(user, arguments.get("reply_token") or ""):' in out_src)
     check("订车确认的令牌进了建单任务",
           '_enqueue("booking", _execute_booking, binding, line_user_id, payload, reply_token)' in booking_src
           and "reply_token" in (params("apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py",

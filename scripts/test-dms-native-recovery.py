@@ -63,7 +63,7 @@ class NativeRecovery(unittest.TestCase):
         self.user = self.uid.lower() + "@example.invalid"
         self.nonce = uuid.uuid4().hex
         self.number = "BK-" + uuid.uuid4().hex
-        self.http, self.dms_calls, self.forbidden = [], [], []
+        self.http, self.dms_calls, self.forbidden, self.profile_reads = [], [], [], []
         self.jobs = set()
         self.revoke_on_download = ""
         self.endpoint = None
@@ -120,6 +120,15 @@ class NativeRecovery(unittest.TestCase):
         self.assertEqual(self.forbidden, [], "Unexpected network/write attempt was swallowed")
 
     def line_transport(self, method, url, **kwargs):
+        if method.upper() == "GET" and url == "https://api.line.me/v2/bot/profile/" + self.uid:
+            # The receipt is written in the recipient's phone language (user 2026-09-27):
+            # a read-only profile lookup, recorded apart from the message traffic.
+            self.profile_reads.append(url)
+            response = requests.Response()
+            response.status_code = 200
+            response._content = b'{"language": "th"}'
+            response._content_consumed = True
+            return response
         self.http.append((method.upper(), url, copy.deepcopy(kwargs)))
         is_content = url == "https://api-data.line.me/v2/bot/message/fixture-image/content"
         is_push = url == "https://api.line.me/v2/bot/message/push"

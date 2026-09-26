@@ -1,21 +1,105 @@
+1 Sales records,1 บันทึกการขาย
+"A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.",พบสลิปโอนเงินแนบอยู่ แต่ยังไม่มีช่องทางเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุปครับ
+Account & password,เปลี่ยนบัญชีและรหัสผ่าน
 Account busy — click Read later to continue,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
 Account busy — click Update data later to continue,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
 Account busy — the read will continue shortly,บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่
 Action,การดำเนินการ
+Add a channel,เพิ่มช่องทาง
+Add and edit customers,เพิ่มและแก้ไขข้อมูลลูกค้า
 Add system account,เพิ่มบัญชีระบบ
+Add transfer,เพิ่มเงินโอน
 Added {0},เพิ่ม {0} แล้ว
+Address,ที่อยู่
 Address data as of {time}; refreshed manually,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 Address directory,รายการที่อยู่
 Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
+Advisor,ที่ปรึกษา
+Advisor: {name},ที่ปรึกษา: {name}
+Allocated,จัดสรรแล้ว
+Allocation,จัดสรร
+Amount,ยอดเงิน
+"Amount ({channel}) — type the amount, e.g. 5000",ยอดเงิน ({channel}) — พิมพ์จำนวนเงิน เช่น 5000
+An admin account must be set up in Pearnly before updating.,ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้
+Any other payment channel?,มีช่องทางอื่นอีกไหม
 Apply,ดำเนินการ
+Approve,อนุมัติ
+Approved. Customer data updated.,อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย
+Approver,ผู้อนุมัติ
+Attached,แนบแล้ว
+Awaiting manager,รอ ผจก.ขาย
+Bank transfer,เงินโอน
+Booking,ใบจอง
 Booking ID,รหัสการจอง
 Booking Number,เลขที่การจอง
+"Booking created
+Booking no.: {booking_no}
+Model: {car}
+Delivery date: {delivery_date_be}","เปิดใบจองสำเร็จ
+เลขที่ใบจอง: {booking_no}
+รุ่นรถ: {car}
+วันที่ส่งมอบ: {delivery_date_be}"
+Booking date,วันที่จอง
+Booking failed · Retry,สร้างใบจองไม่สำเร็จ · ลองใหม่
+Booking location,สถานที่รับจอง
+Booking location — choose below,สถานที่รับจอง — กดเลือกด้านล่าง
+Booking summary — check before confirming,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
+Brand,ยี่ห้อ
 Cached result captured at {time},อ่านผลที่บันทึกไว้เมื่อ {time}
+Cancel,ยกเลิก
+Car,รถ
+Car allocation,การจัดสรรรถ
+Car details,รายละเอียดรถ
+Car model,รุ่นรถ
+"Car model — type a short model name to search, e.g. dmax",รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax
+Car type,ประเภทรถ
+Cash,เงินสด
+Cash purchase,ซื้อเงินสด
+Cash/finance,เงินสด/ไฟแนนซ์
+Cashier's cheque,แคชเชียร์เช็ค
+Change approver,เปลี่ยนผู้อนุมัติ
+Change request sent. Waiting for the approver.,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
+Channel details — type them,รายละเอียดช่องทาง — พิมพ์
+Cheque,เช็ค
+Choose a bank,เลือกธนาคาร
+Choose a car model ({n} found),เลือกรุ่นรถ (พบ {n} รายการ)
+Choose a colour for {car},เลือกสีของ {car}
+Choose a period and number of items (all branches/teams this account can see),เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
+Choose a status,เลือกสถานะที่ต้องการ
+"Choose an approver, or send to everyone so whoever is free can approve",เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
+Choose an item to continue,เลือกรายการเพื่อดำเนินการต่อ
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ
+Choose the matching customer,เลือกลูกค้าที่ตรงกัน
+Colour,สี
+Coming soon,เร็ว ๆ นี้
 Company information,ข้อมูลบริษัท
+Confirm,ยืนยัน
+Confirm booking,ยืนยันจอง
+Confirm saving a new customer,ยืนยันบันทึกลูกค้าใหม่
+Continue booking,ทำใบจองต่อ
+Continuing with the existing data,ใช้ข้อมูลเดิมต่อ
+Contract not opened,ยังไม่เปิดสัญญา
+Contract opened,เปิดสัญญาแล้ว
+Contract status,สถานะสัญญา
+Could not check the customer data. Please try again.,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
+Could not read data from DMS. Please try again.,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
+Count,จำนวน
+"Create a car booking: choose the model and colour, then save",สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS
+"Create a new customer from an ID card, or update an existing customer",จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
+Create and track bookings,สร้างและติดตามใบจอง
+Credit/debit card,บัตรเครดิต/เดบิต
+Custom 1–30,กำหนดเอง 1–30
+Customer,ลูกค้า
+Customer data,จัดทำข้อมูลลูกค้า
+Customer data change request,คำขอแก้ไขข้อมูลลูกค้า
+Customer data differs,พบข้อมูลลูกค้าที่ต่างกัน
+Customer data matches,ข้อมูลลูกค้าตรงกัน
+Customer data saved. Type menu for other tasks.,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
+Customer data updated,อัปเดตข้อมูลลูกค้า
+Customer found in the system,พบข้อมูลลูกค้าในระบบ
 Customer records,ข้อมูลลูกค้า
 DMS,DMS
 DMS System Account,บัญชีระบบ DMS
@@ -28,30 +112,109 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},ข้อมูล ณ {time}
 Data captured at,เวลาที่ซิงก์ข้อมูล
 Data updated,อัปเดตข้อมูลแล้ว
+Date,วันที่
+Date of birth,วันเกิด
+Delivery,ส่งมอบ
+Deposit payment channel — choose one,ช่องทางชำระเงินจอง — เลือกช่องทาง
+Deposit transfer slip,ใบโอนเงินจอง
+Differences,ความต่าง
+Discard,ทิ้ง
+Discarded. Nothing was saved · Type menu to start again,ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่
+District,อำเภอ
+Docs/engine,เอกสาร/เครื่อง
+Draft,แบบร่าง
+Edit,แก้ไข
 Enable the DMS connection before reading data,กรุณาเปิดใช้งานการเชื่อมต่อ DMS ก่อนอ่านข้อมูล
+Engine,เครื่องยนต์
+Engine number,หมายเลขเครื่อง
 Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
+"Existing data found, but some fields differ",พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน
+Existing data kept. Type menu for other tasks.,ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น
+Expected delivery date — tap the button to pick a date,วันที่คาดว่าจะส่งมอบรถ — กดปุ่มเพื่อเลือกวันที่
 Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว
+Finance,ไฟแนนซ์
+Finance approved,ไฟแนนซ์อนุมัติ
+Finance pending,ไฟแนนซ์รออนุมัติ
 Full address directory,รายการที่อยู่ครบชุด
 Full customer records,ข้อมูลลูกค้าครบชุด
+Gear,เกียร์
+Grade,เกรด
+"Hello 🙏
+Welcome to Pearnly DMS
+Please choose a menu below to get started","สวัสดีค่ะ 🙏
+ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
+กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน"
+House no.,บ้านเลขที่
+ID card copy,สำเนาบัตรประชาชน
+ID card photo received. Please type the customer's phone number.,รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า
+ID no.,เลขบัตร
+"Invalid amount. Type a number, e.g. 5000 or 5,000.50","จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
+Invalid format. Please fill in both fields {hint},รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
+Keep existing data,ใช้ข้อมูลเดิม
 Last Check,ตรวจสอบล่าสุด
 Last Checked At,เวลาตรวจสอบล่าสุด
 Last Error,ข้อผิดพลาดล่าสุด
 Last successful completion,เวลาที่อ่านสำเร็จล่าสุด
 Last successful record count,จำนวนรายการที่อ่านสำเร็จล่าสุด
+Latest 10,ล่าสุด 10 รายการ
 Latest error code,รหัสข้อผิดพลาดล่าสุด
+Latest sales from DMS,ยอดขายล่าสุดจาก DMS
 Manage system accounts,จัดการบัญชีระบบ
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่
 Master data and all vehicle colors,ข้อมูลหลักและสีรถทุกรุ่น
+Menu,เมนู
+Model year,ปีผลิต
+Model/colour,รุ่น/สี
+Moo,หมู่
 Multiple DMS connections exist for this operator,ผู้ปฏิบัติงานนี้มีการเชื่อมต่อ DMS หลายรายการ
 Multiple primary DMS connections exist; ask an administrator to check the configuration,มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลตรวจสอบการตั้งค่า
+Name,ชื่อ
+New customer,ลูกค้าใหม่
+New customer created,สร้างลูกค้าใหม่
+New customer — confirm the data to save,ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก
+Next,ถัดไป
 Next Attempt,ครั้งถัดไปที่ลอง
+Next page,หน้าถัดไป
+No active DMS account found. Ask the owner to check the operator data.,ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน
+No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms
+"No company receiving account yet. Please ask the admin to set it up in DMS, then try again.",ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
+No matching model. Please try typing again.,ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง
+No records for this condition · Last read from DMS at,ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ
+No sales in this period,ไม่พบยอดขายในช่วงเวลานี้
 None (the connection's own account is used),ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)
+Not all files were attached. Please add them in DMS.,แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS
+Not allocated yet,ยังไม่จัดสรรรถ
+Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
 Not read yet,ยังไม่ได้อ่าน
+Number of cars,จำนวนคัน
 Older address data as of {time}; ask an administrator to refresh if needed,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 Older data as of {time}; refresh manually if needed,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
 Older data: {0},ข้อมูลเก่า ณ {0}
+Open DMS,เข้าสู่ระบบ DMS
+Open Pearnly DMS without typing your password again,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
+Other,อื่นๆ
+Page,หน้า
+Phone,เบอร์โทร
+Phone number received. Please take a photo of the customer's ID card.,รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า
+Pick a date,เลือกวันที่
+Pick just one main condition and the search runs right away. No need to answer everything.,เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ
+Please choose a menu,กรุณาเลือกเมนูที่ต้องการ
+Please choose a menu below to get started,กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน
+"Please choose from the card above, or type restart to begin a new item",กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
+Please choose the type of data to search,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
+Please send a photo of the customer's ID card,กรุณาส่งรูปบัตรประชาชนของลูกค้า
+Please send the customer's ID card photo and phone number,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
+"Please sign out of DMS elsewhere, then tap Retry within 30 minutes",กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
+Please take the ID card photo again,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
+Postcode,รหัสไปรษณีย์
+Previous,ก่อนหน้า
+Previous page,หน้าก่อน
+Price in DMS,ราคาตาม DMS
 Progress {processed}/{total},ความคืบหน้า {processed}/{total}
+Province,จังหวัด
 Queued,อยู่ในคิว
+Rank by number of cars or amount?,จัดอันดับด้วยจำนวนคันหรือยอดเงิน
+Rank sales by what?,จัดอันดับยอดขายตามอะไร
 Read / refresh selected data,อ่าน / อัปเดตข้อมูลที่เลือก
 Read / refresh this query,อ่าน / อัปเดตข้อมูลครั้งนี้
 Read completed,อ่านเสร็จแล้ว
@@ -66,32 +229,82 @@ Read time unknown,ไม่ทราบเวลาที่อ่าน
 Reading,กำลังอ่าน
 Reading DMS master data…,กำลังอ่านข้อมูลหลักจาก DMS…
 "Reading data, please wait…",กำลังอ่านข้อมูล กรุณารอสักครู่…
+Reading the latest data from DMS,กำลังอ่านข้อมูลล่าสุดจาก DMS
 Reading this query now. The result arrives as soon as it is ready.,กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ
 Reading this query.,กำลังอ่านข้อมูลครั้งนี้
+Ready for pickup,พร้อมรับรถ
+Receiving bank — choose the bank the company received the money in,ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน
 Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
+Registered under,จดทะเบียนในนาม
+Registered under — choose below,จดทะเบียนในนาม — กดเลือกด้านล่าง
+"Registration name — tap Use name on card, or type another name",ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น
+Reject,ปฏิเสธ
 Reload List,โหลดรายการใหม่
 Remove,ลบออก
+"Remove slip, go on",ลบสลิปแล้วไปต่อ
 Removed {0},ลบ {0} แล้ว
+Request approval,ส่งขออนุมัติ
+Request rejected,ปฏิเสธคำขอแล้ว
+Requested by,ผู้ขอ
 Resumed {0},ใช้งาน {0} แล้ว
+Retry,ลองใหม่
+Retry booking,ลองสร้างใบจองอีกครั้ง
+Road,ถนน
+Sales advisor,ที่ปรึกษาการขาย
+Sales document no.,เลขที่เอกสารขาย
+Sales records from DMS,บันทึกการขายจาก DMS
+Sales terms,เงื่อนไขการขาย
+Sales terms — choose below,เงื่อนไขการขาย — กดเลือกด้านล่าง
+Salesperson,พนักงานขาย
+Save failed. Please try again.,บันทึกไม่สำเร็จ กรุณาลองใหม่
+Save new customer,บันทึกลูกค้าใหม่
 Saved DMS data,ข้อมูล DMS ที่อ่านไว้
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",ข้อมูล DMS ที่อ่านไว้ อัปเดตเมื่อกดอ่าน / อัปเดตเท่านั้น แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การดูผลไม่อ่าน DMS ซ้ำ
+"Saved · {action}
+Customer ID: {customer_id}
+Name: {name}","บันทึกสำเร็จ · {action}
+รหัสลูกค้า: {customer_id}
+ชื่อ: {name}"
+Search data,ค้นหาข้อมูล
 Select at least one data group.,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 Select one or more DMS data groups to read,กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม
 "Select the data to update, then wait for the read to finish.",เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
+"Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้
+Send to everyone,ส่งหาทุกคน
+Sent to,ส่งถึง
+"Separate fields with | , / or ·","คั่นช่องด้วย | , / หรือ ·"
+Similar customers found. Choose the one that matches.,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
+Soi,ซอย
+Something went wrong. Please try again.,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
+Start over,เริ่มใหม่
+Started over. Take a photo of the ID card to start a customer record.,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
+Status not given,ไม่ระบุสถานะ
 Stop / resume,หยุดใช้ / ใช้งาน
 Stopped {0},หยุดใช้ {0} แล้ว
+Subdistrict,ตำบล
 Submission Evidence,หลักฐานการส่ง
 Submission Nonce,nonce การส่ง
+Subtype,ประเภทย่อย
 Sync is delayed; showing data as of {time},การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}
 System accounts,บัญชีระบบ
+THB,บาท
+Take a photo of the customer's ID card to start a new customer record.,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
+Tap Confirm or Discard on the summary above,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
 Test and add,ทดสอบและเพิ่ม
+That's all,ครบแล้ว
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
 The DMS account is busy. The read retries automatically; please wait.,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,บัญชี DMS ไม่ว่าง ระบบลองอ่านซ้ำอัตโนมัติหลายครั้งแล้วยังไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่
+The DMS connection is not set up yet. Please contact the admin.,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง
 The account is busy. Click Read later to continue.,บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ
+The booking cannot be opened yet · The DMS account in use is «{username}»,ยังเปิดใบจองไม่ได้ครับ · บัญชี DMS ที่ใช้อยู่คือ «{username}»
+The booking cannot be opened yet · The DMS account of this user cannot be read,ยังเปิดใบจองไม่ได้ครับ · ระบบยังอ่านบัญชี DMS ของผู้ใช้นี้ไม่ได้
+The booking could not be created,สร้างใบจองไม่สำเร็จ
+The booking could not be created. Please try again.,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
+The card could not be read clearly. Please take the photo again.,อ่านบัตรไม่ชัด กรุณาถ่ายใหม่
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 The data volume exceeds the read limit. Please contact an administrator.,ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ
@@ -102,22 +315,72 @@ The recognition result needs checking. Please do not resend this image yet.,ก�
 "The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.",ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณากดอ่านข้อมูลใหม่ แล้วลองอีกครั้งเมื่อสำเร็จ
 The saved credentials cannot be read back; check the site encryption key,อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",ส่งข้อมูลแล้วแต่ยังยืนยันผลไม่ได้ กรุณาอย่าส่งซ้ำ ให้ตรวจสอบผลก่อน
+There are more colours. Type a colour name to search.,มีสีมากกว่านี้ พิมพ์ชื่อสีเพื่อค้นหาได้
+There is a transfer payment. Please send the transfer slip before viewing the summary.,มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ
 These conditions have not been read. Click Read this query.,ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้
+This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 This account is already the connection's own account,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
+This customer already exists and the data matches,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
+This item has expired. Please start again.,รายการหมดอายุ เริ่มใหม่อีกครั้ง
+This item has expired. Type menu to search again,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
+This menu is not available in the first release. Please choose 1 Sales records,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
+This month Top 10,เดือนนี้ Top 10
+This month Top 20,เดือนนี้ Top 20
+This month Top 30,เดือนนี้ Top 30
+This month Top 5,เดือนนี้ Top 5
 This query is queued.,การอ่านครั้งนี้อยู่ในคิวแล้ว
 This read failed. Click Read to retry.,อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้
 This read failed. Please try again later.,อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 This read was interrupted. Click Read again to retry; previously completed data was retained.,การอ่านครั้งนี้หยุดกลางทาง กรุณากดอ่านอีกครั้งเพื่อลองใหม่ ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่
+This request has already been handled,คำขอนี้ถูกดำเนินการไปแล้ว
+This request has expired. Please start again.,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
+This step does not need a picture. Please follow the question above.,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
+"This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
 This system account is already registered,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",ข้อมูลของ租户นี้มากกว่าเพดานการอ่านปัจจุบัน กลุ่มนี้จึงยังไม่ได้อ่าน การเชื่อมต่อปกติดี ผู้ดูแลต้องปรับเพดานแล้วอ่านอีกครั้ง
+This year Top 10,ปีนี้ Top 10
+Title,คำนำหน้า
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่
+Top sales,ยอดขายสูงสุด
+Top sales from DMS,ยอดขายสูงสุดจาก DMS
+Total deposit,ยอดเงินจองรวม
+"Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",พิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
+"Type bank name | card type, e.g. KBank | VISA",พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA
+"Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank",พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
+"Type cheque no. | cheque book no., e.g. 123456 | 01",พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01
+Type menu to bring up this menu any time,พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา
+"Type the booking date, e.g. 01/09/2569 (Buddhist year)",พิมพ์วันที่จอง เช่น 01/09/2569
+Type the car colour,พิมพ์สีรถ
+Type the car model,พิมพ์รุ่นรถ
+"Type the card type, e.g. VISA",พิมพ์ประเภทบัตร เช่น VISA
+Type the customer's name,พิมพ์ชื่อลูกค้า
+Type the engine number,พิมพ์หมายเลขเครื่อง
+"Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)",พิมพ์วันที่คาดว่าจะส่งมอบ เช่น 15/09/2569
+Type the sales advisor's name,พิมพ์ชื่อที่ปรึกษาการขาย
+Type the sales document number,พิมพ์เลขที่เอกสารการขาย
+Type what you want to search for,พิมพ์คำที่ต้องการค้นหา
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง
 Update data,อัปเดตข้อมูล
+Update failed (DMS refused it). The request is still open; approve again to retry.,อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่
 Update failed — click Update data to retry,อัปเดตไม่สำเร็จ กดอัปเดตข้อมูลเพื่อลองใหม่
+Update failed. Please ask the admin to check the admin password in Pearnly.,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly
+Update the DMS username and password saved in Pearnly,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
+Update your DMS sign-in,อัปเดตข้อมูลเข้าสู่ระบบ DMS
 Updating data…,กำลังอัปเดตข้อมูล…
+"Updating the data, please wait",กำลังอัปเดตข้อมูล กรุณารอสักครู่
+Use name on card,ใช้ชื่อตามบัตร
+Use the back office,เข้าใช้งานระบบหลังบ้าน
 Vehicle master data,ข้อมูลหลักรถยนต์
 View result / status,ดูผล / สถานะการอ่าน
+View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
+Welcome to Pearnly DMS,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
+Who should approve this request?,ส่งคำขอให้ใครอนุมัติ
+Your account cannot approve this request,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
+"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
+Your change request was approved and the customer data is updated.,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
+Your change request was rejected. Contact the approver if needed.,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
+cars,คัน
 dms.account.expired,ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง
 dms.account.failed,ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่
 dms.account.invalid,กรุณากรอกรหัสผ่าน DMS
@@ -169,6 +432,7 @@ dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใ�
 dms.card.TXT_INTRO,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
 dms.card.TXT_KEEP,ใช้ข้อมูลเดิมต่อ
 dms.card.TXT_LOOKUP_FAIL,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_MENU_BAR,เมนู
 dms.card.TXT_MENU_D1,จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
 dms.card.TXT_MENU_D2,สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
 dms.card.TXT_MENU_D3,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
@@ -195,8 +459,13 @@ dms.card.TXT_NO_CREDIT,เครดิตไม่เพียงพอ กร�
 dms.card.TXT_NO_ENDPOINT,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล
 dms.card.TXT_PICK_ABOVE,กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
 dms.card.TXT_RECEIPT_ADVISOR,ที่ปรึกษา: {name}
-dms.card.TXT_RECEIPT_BOOKING,เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}
-dms.card.TXT_RECEIPT_SAVE,บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id}\nชื่อ: {name}
+dms.card.TXT_RECEIPT_BOOKING,"เปิดใบจองสำเร็จ
+เลขที่ใบจอง: {booking_no}
+รุ่นรถ: {car}
+วันที่ส่งมอบ: {delivery_date_be}"
+dms.card.TXT_RECEIPT_SAVE,"บันทึกสำเร็จ · {action}
+รหัสลูกค้า: {customer_id}
+ชื่อ: {name}"
 dms.card.TXT_RESET,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
 dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
 dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
@@ -405,6 +674,17 @@ dms.card.query.TXT_QUERY_FAILED,อ่านข้อมูลจาก DMS ไ�
 dms.card.query.TYPE_SALES,1 บันทึกการขาย
 dms.card.query.UNIT_AMOUNT,บาท
 dms.card.query.UNIT_QTY,คัน
+dms.card.rich.booking.sub,สร้างและติดตามใบจอง
+dms.card.rich.booking.title,จัดทำใบจองรถยนต์
+dms.card.rich.credentials.sub,อัปเดตข้อมูลเข้าสู่ระบบ DMS
+dms.card.rich.credentials.title,เปลี่ยนบัญชีและรหัสผ่าน
+dms.card.rich.customer.sub,เพิ่มและแก้ไขข้อมูลลูกค้า
+dms.card.rich.customer.title,จัดทำข้อมูลลูกค้า
+dms.card.rich.portal.sub,เข้าใช้งานระบบหลังบ้าน
+dms.card.rich.portal.title,เข้าสู่ระบบ DMS
+dms.card.rich.query.sub,ยอดขายล่าสุดจาก DMS
+dms.card.rich.query.title,ค้นหาข้อมูล
+dms.card.rich.soon,เร็ว ๆ นี้
 dms.card.sum.address,ที่อยู่
 dms.card.sum.birthday_be,วันเกิด
 dms.card.sum.name,ชื่อ
@@ -599,7 +879,9 @@ dms.snapshot.geo_stale,ข้อมูลที่อยู่เดิม ณ {
 dms.snapshot.stale,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
 in use,ใช้งาน
 stopped,หยุดใช้
+then try again,แล้วลองใหม่อีกครั้ง
 {0} processed; total not yet known,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
 {0} records,{0} รายการ
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
+{n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ

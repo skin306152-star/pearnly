@@ -241,18 +241,20 @@ def _push_result(endpoint, dataset, request_id, conditions):
         binding = (request.get("params") or {}).get("_binding") or {}
         if not current_binding(binding, binding.get("line_user_id")):
             return
+        from pearnly_dms import i18n
         from pearnly_dms.query import query_flow
 
         kind = conditions["kind"]
-        if kind == "capabilities":
-            query_flow._run_dimensions(binding, binding["line_user_id"])
-        else:
-            # 条件形状与 `_begin_records` 当初写进会话的那份逐字一致 —— 否则
-            # `_same_query_session` 会认为"操作员已经换条件了"，结果就不该推。
-            params = {"query_kind": kind, **{key: value for key, value in conditions.items()
-                                             if key != "kind"}}
-            runner = query_flow._run_records if kind == "records" else query_flow._run_top
-            runner(binding, binding["line_user_id"], params)
+        with i18n.line_language(binding["line_user_id"]):  # 读完推结果：按发起人的手机语言
+            if kind == "capabilities":
+                query_flow._run_dimensions(binding, binding["line_user_id"])
+            else:
+                # 条件形状与 `_begin_records` 当初写进会话的那份逐字一致 —— 否则
+                # `_same_query_session` 会认为"操作员已经换条件了"，结果就不该推。
+                params = {"query_kind": kind, **{key: value for key, value in conditions.items()
+                                                 if key != "kind"}}
+                runner = query_flow._run_records if kind == "records" else query_flow._run_top
+                runner(binding, binding["line_user_id"], params)
     except Exception:
         logger.warning("DMS query result push failed", exc_info=True)
 

@@ -161,8 +161,11 @@ def run_guarded(target, arguments):
     user = arguments.get("line_user_id") or ""
     # 排队等 DMS 账号时，每隔一会儿续一次"正在输入"（免费），别让对方以为没反应。
     frappe.local.dms_lock_wait_hook = (lambda: start_loading(user, 60)) if user else None
+    from pearnly_dms import i18n
+
     try:
-        with line.batch(user, arguments.get("reply_token") or ""):
+        # 后台任务同样按这个人手机上的语言说话（问过的语言有一小时缓存，不会每次都问 LINE）。
+        with i18n.line_language(user), line.batch(user, arguments.get("reply_token") or ""):
             return frappe.get_attr(target)(**arguments)
     finally:
         frappe.local.dms_lock_wait_hook = None

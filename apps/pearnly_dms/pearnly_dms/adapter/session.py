@@ -58,7 +58,7 @@ def _lock_wait_heartbeat() -> None:
         if callable(hook):
             hook()
     except Exception:
-        logger.debug("DMS 等锁回调失败", exc_info=True)
+        logger.debug("DMS lock-wait hook failed", exc_info=True)
 from pearnly_dms.config import pacing
 from frappe import _
 
@@ -373,7 +373,7 @@ class MrerpDmsAdapter:
                 if session_cache.save(key, context.cookies(), self.base_url, idle=idle):
                     return
             except Exception:
-                logger.debug("DMS 会话缓存保存失败，改为登出", exc_info=True)
+                logger.debug("DMS session cache save failed; signing out instead", exc_info=True)
         session_cache.forget(key)
         self._logout_page(page)
 

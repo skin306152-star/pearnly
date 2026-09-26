@@ -126,6 +126,21 @@ def _as_dict(value: Any) -> Dict[str, Any]:
     return {}
 
 
+def _page_language(line_user_id: str) -> str:
+    """从 LINE 打开的编辑页用什么语言：**和 LINE 里的卡片同一个来源**——他手机上 LINE 的语言
+    （用户 2026-09-27：DMS 的 LINE 语言跟随设备，与 ERP 一致）；问不到再退回账号语言。
+
+    否则会出现"聊天里是中文、点开编辑页变泰文"。
+    """
+    account = _bound_language(line_user_id)
+    try:
+        from pearnly_core import line
+
+        return line.user_language(line_user_id, default=account or "th") if line_user_id else account
+    except Exception:
+        return account
+
+
 def _bound_language(line_user_id: str) -> str:
     """这个 LINE 用户对应账号的语言（ADR-006：语言跟账号走）。取不到回空串。"""
     try:
@@ -167,7 +182,7 @@ def browser_auth(id_token: str = "", draft: str = "", editor: str = "booking") -
     return {
         "ticket": ticket,
         "mode": mode,
-        "language": _bound_language(line_user_id),
+        "language": _page_language(line_user_id),
         "draft": str(draft or ""),
     }
 

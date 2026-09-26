@@ -24,6 +24,7 @@ from typing import Any, Dict, Optional
 from pearnly_core import line_session as store
 from pearnly_dms.line import errors as dms_errors
 from pearnly_dms.contracts.client_base import DmsClientError
+from pearnly_dms import i18n
 
 UNKNOWN = "ERR_DMS_BOOKING_OUTCOME_UNKNOWN"
 
@@ -108,7 +109,7 @@ def clear_completed(tenant, line_user_id, payload) -> bool:
 
 def message(result) -> str:
     """"结果未知"要说给用户听的那句话；有单号就把单号带上。"""
-    text = dms_errors.friendly(UNKNOWN)["th"]
+    text = dms_errors.friendly(UNKNOWN)[i18n.line_lang()]
     number = str((result or {}).get("booking_no") or "")
     return f"{text}\nเลขที่รายการ: {number}" if number else text
 
