@@ -1,8 +1,12 @@
 #!/usr/bin/python3
-"""Configure the new business realm, never import sample users or clients.
+"""Configure a product realm, never import sample users or clients.
 
 Run on the VPS. Optional stdin contains SMTP configuration, never logged.
 All admin API calls stay on loopback; production credentials stay mode 0600.
+
+`--realm pearnly-cowork` configures Cowork's own account pool (split from ERP / DMS on 2026-09-26)
+with the same settings; its control credentials go to control-identity-cowork.json.
+Without the flag it is the business realm (ERP / DMS), exactly as before.
 """
 import json
 import os
@@ -15,7 +19,10 @@ from urllib.request import Request, urlopen
 ROOT = Path("/opt/pearnly/secrets")
 config = dict(line.split("=", 1) for line in (ROOT / "runtime.env").read_text().splitlines() if "=" in line)
 BASE = "http://127.0.0.1:8180"
-REALM = "pearnly-business"
+REALMS = {"pearnly-business": "control-identity.json", "pearnly-cowork": "control-identity-cowork.json"}
+REALM = sys.argv[sys.argv.index("--realm") + 1] if "--realm" in sys.argv else "pearnly-business"
+if REALM not in REALMS:
+    raise SystemExit("Unknown realm")
 
 
 def request(path, method="GET", data=None, token=None, form=False):
@@ -95,7 +102,7 @@ roles = [request(clients_path + f"/{manager}/roles/{role}", token=token)
 request(f"/admin/realms/{REALM}/users/{service_user}/role-mappings/clients/{manager}", "POST", roles, token)
 request(clients_path + f"/{cid}/scope-mappings/clients/{manager}", "POST", roles, token)
 secret = request(clients_path + f"/{cid}/client-secret", token=token)["value"]
-secret_file = ROOT / "control-identity.json"
+secret_file = ROOT / REALMS[REALM]
 fd = os.open(secret_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
 with os.fdopen(fd, "w") as handle:
     json.dump({"issuer": "https://auth.pearnly.com/realms/" + REALM,

@@ -26,7 +26,7 @@
 set -euo pipefail
 
 KC=http://keycloak.localhost:8105
-REALMS=(pearnly-business pearnly-platform)
+REALMS=(pearnly-business pearnly-cowork pearnly-platform)
 ADMIN_CLIENT=pearnly-admin
 
 TOKEN=$(curl -sS -m 20 -X POST "$KC/realms/master/protocol/openid-connect/token" \

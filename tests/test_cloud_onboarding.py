@@ -69,12 +69,13 @@ class CloudOnly(unittest.TestCase):
             identity.assert_not_called()
 
     def test_cloud_activation_reaches_configured_identity_without_local_fallback(self):
-        doc = SimpleNamespace(status="draft", target="cloud", name="ISSUE")
+        doc = SimpleNamespace(status="draft", target="cloud", name="ISSUE", apps=[SimpleNamespace(app="dms")])
         with patch.object(frappe, "get_doc", return_value=doc), \
              patch.object(issues.kc, "client_for_target", return_value=(Mock(), "cloud")) as identity, \
              patch.object(issues, "_activate", return_value={"issue": "ISSUE"}) as activate:
             self.assertEqual(issues.issue_from_doc("ISSUE"), {"issue": "ISSUE"})
-            identity.assert_called_once_with("cloud")
+            # DMS 在业务账号池（以 ERP 作该池代表）；Cowork 有自己的池，这张单没开就不查。
+            identity.assert_called_once_with("cloud", "erp")
             activate.assert_called_once_with(doc, "Administrator", target_name="cloud")
 
     def test_historical_local_result_is_readable_without_identity_calls(self):

@@ -16,6 +16,12 @@
   "admin_client_secret",
   "password_check_client_id",
   "password_check_client_secret",
+  "section_cowork_pool",
+  "cowork_realm",
+  "cowork_admin_client_id",
+  "cowork_admin_client_secret",
+  "cowork_password_check_client_id",
+  "cowork_password_check_client_secret",
   "section_provision",
   "provision_url",
   "section_line_login",
@@ -90,6 +96,38 @@
    "label": "Password-check Client Secret"
   },
   {
+   "fieldname": "section_cowork_pool",
+   "fieldtype": "Section Break",
+   "label": "Cowork Account Pool",
+   "description": "Cowork sites sign in with their own accounts in this realm, separate from ERP and DMS. Leave empty and Cowork cannot be issued on this target."
+  },
+  {
+   "fieldname": "cowork_realm",
+   "fieldtype": "Data",
+   "label": "Cowork Realm",
+   "description": "For example pearnly-cowork"
+  },
+  {
+   "fieldname": "cowork_admin_client_id",
+   "fieldtype": "Data",
+   "label": "Cowork Admin Client ID"
+  },
+  {
+   "fieldname": "cowork_admin_client_secret",
+   "fieldtype": "Password",
+   "label": "Cowork Admin Client Secret"
+  },
+  {
+   "fieldname": "cowork_password_check_client_id",
+   "fieldtype": "Data",
+   "label": "Cowork Password-check Client ID"
+  },
+  {
+   "fieldname": "cowork_password_check_client_secret",
+   "fieldtype": "Password",
+   "label": "Cowork Password-check Client Secret"
+  },
+  {
    "fieldname": "section_provision",
    "fieldtype": "Section Break",
    "label": "Site Provisioning API"
@@ -141,7 +179,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-26 12:00:00.000000",
+ "modified": "2026-09-26 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Target",

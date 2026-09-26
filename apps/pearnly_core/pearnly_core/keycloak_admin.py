@@ -379,31 +379,44 @@ class AdminClient:
         return {"client_id": client_id, "client_secret": secret_resp.json().get("value", "")}
 
 
-def client_for_target(target_name: str | None = None) -> tuple["AdminClient", str]:
+# 产品 → 开户目标上那组账号池字段的前缀（用户 2026-09-26：Cowork 用自己的账号池 / realm，与 ERP、DMS 分开）。
+# 不在表里的产品（erp、dms）用目标上原来那组字段（业务账号池）。
+POOL_PREFIX = {"cowork": "cowork_"}
+POOL_FIELDS = ("realm", "admin_client_id", "admin_client_secret",
+               "password_check_client_id", "password_check_client_secret")
+
+
+def pool_fields(product: str | None = None) -> dict:
+    """该产品的账号池在开户目标上用哪几个字段：{"realm": "cowork_realm", ...}。"""
+    prefix = POOL_PREFIX.get(product or "", "")
+    return {field: prefix + field for field in POOL_FIELDS}
+
+
+def client_for_target(target_name: str | None = None, product: str | None = None) -> tuple["AdminClient", str]:
     """按 `Pearnly Target` 取一个管理客户端。返回 (client, 目标名)。
 
     没指定就取默认目标；一个目标都没有则报错——开户必须知道打到哪。
+    `product` 决定打到哪个账号池：Cowork 打到目标上配的 Cowork 账号池，没配就拒绝（不悄悄落进业务账号池）。
     """
+    fields = pool_fields(product)
     filters = {"target_name": target_name} if target_name else {"is_default": 1}
     row = frappe.db.get_value(
         "Pearnly Target", filters,
-        ["target_name", "base_url", "realm", "admin_client_id", "admin_client_secret"],
+        ["target_name", "base_url", fields["realm"], fields["admin_client_id"]],
         as_dict=True,
     )
     if not row:
         frappe.throw(_("No provisioning target is available; configure one under “Provisioning Target” first"))
-    secret = row.admin_client_secret
-    if secret:
-        try:
-            from frappe.utils.password import get_decrypted_password
+    realm, client_id = row.get(fields["realm"]), row.get(fields["admin_client_id"])
+    if not realm or not client_id:
+        frappe.throw(_("The provisioning target {0} has no account pool for {1}").format(row.target_name, product))
+    from frappe.utils.password import get_decrypted_password
 
-            secret = get_decrypted_password(
-                "Pearnly Target", row.target_name, "admin_client_secret", raise_exception=False
-            ) or secret
-        except Exception:
-            pass
+    secret = get_decrypted_password(
+        "Pearnly Target", row.target_name, fields["admin_client_secret"], raise_exception=False
+    ) or ""
     api_url = (frappe.conf.get("pearnly_target_api_urls") or {}).get(row.target_name) or row.base_url
-    return AdminClient(api_url, row.realm, row.admin_client_id, secret), row.target_name
+    return AdminClient(api_url, realm, client_id, secret), row.target_name
 
 
 def invite_client_id_for(target_name: str | None = None) -> str:

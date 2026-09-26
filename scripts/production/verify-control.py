@@ -23,6 +23,12 @@ client, name = client_for_target()
 assert name == target
 assert client.base == "http://host.docker.internal:18180"
 assert provisioning._issuer_url(target) == "https://auth.pearnly.com/realms/pearnly-business"
+assert provisioning._issuer_url(target, "erp") == provisioning._issuer_url(target, "dms") == provisioning._issuer_url(target)
+# Cowork has its own account pool once connected (connect-control.py carries control-identity-cowork.json).
+if frappe.db.get_value("Pearnly Target", target, "cowork_realm"):
+    assert provisioning._issuer_url(target, "cowork") == "https://auth.pearnly.com/realms/pearnly-cowork"
+    assert provisioning.target_credentials(target, "cowork") == {"native_account": True}
+    assert client_for_target(target, "cowork")[0].realm == "pearnly-cowork"
 assert not any(job["payload"].get("site", "").endswith(".pearnly.com") for job in provisioning.next_steps())
 print("PASS target routing, local TEST URL preservation, no cloud realm secret in tenant payload")
 

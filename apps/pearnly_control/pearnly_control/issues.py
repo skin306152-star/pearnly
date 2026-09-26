@@ -6,6 +6,7 @@
 1. 校验（域名前缀与全局唯一、账号邮箱、产品多选）；
 2. 租户：按名称找到或新建；
 3. 账号：在身份服务里建号，**已存在则拒绝**（不按邮箱合并到别人的账号）；
+   ERP / DMS 在业务账号池、Cowork 在自己的账号池（用户 2026-09-26 分池），两类都开就两个池各建一个；
 4. 产出开通清单：每个产品一行（含各自域名）+ 该产品的**全部**功能。
 
 **功能不勾了**（用户 2026-09-18 定）：选了哪个产品，那个产品的功能就全开，
@@ -28,6 +29,7 @@ from frappe import _
 from frappe.utils import now
 
 from pearnly_core import keycloak_admin as kc
+from pearnly_control.account import identity_pools
 from pearnly_control import features as features_mod
 from pearnly_control.onboarding.targets import cloud_target_names, require_cloud_target
 
@@ -113,8 +115,10 @@ def issue(
     features = {p: features_mod.codes_of(p) for p in features_mod.PRODUCTS
                 if p in selected_products}
 
-    # 本地后台只向明确配置的云端目标开户，缺配置时拒绝。
-    kc_client, target_name = kc.client_for_target(require_cloud_target(target))
+    # 本地后台只向明确配置的云端目标开户，缺配置时拒绝；所选产品的账号池都要配齐。
+    target_name = require_cloud_target(target)
+    for product in identity_pools.pools_for(selected_products):
+        _kc_client, target_name = kc.client_for_target(target_name, product)
 
     apps_payload = []
     for row in apps:
@@ -161,11 +165,13 @@ def issue_from_doc(issue_name: str) -> dict:
     """
     operator = _require_operator()
     doc = frappe.get_doc(ISSUE, issue_name)
-    if doc.status == "issued" and doc.identity_subject:
-        return _result(doc, doc.identity_subject, doc.target or "")
+    if identity_pools.issued(doc):
+        return _result(doc, doc.target or "")
     if doc.status == "failed":
         frappe.throw(_("The last issue attempt failed; set it back to draft before issuing again"))
-    kc_client, target_name = kc.client_for_target(require_cloud_target(doc.target, use_default=False))
+    target_name = require_cloud_target(doc.target, use_default=False)
+    for product in identity_pools.pools_for([row.app for row in doc.apps]):
+        _kc_client, target_name = kc.client_for_target(target_name, product)
     doc.target = target_name
     return _activate(doc, operator, target_name=target_name)
 
@@ -173,8 +179,8 @@ def issue_from_doc(issue_name: str) -> dict:
 def _activate(doc, operator: str, *, target_name: str) -> dict:
     with frappe.cache.lock(f"pearnly:issue:{doc.name}", timeout=120, blocking_timeout=2):
         doc.reload()
-        if doc.status == "issued" and doc.identity_subject:
-            return _result(doc, doc.identity_subject, doc.target or target_name)
+        if identity_pools.issued(doc):
+            return _result(doc, doc.target or target_name)
         doc.target = target_name
         doc.save(ignore_permissions=True)
         frappe.db.commit()
@@ -187,16 +193,20 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
     两条入口（API 一次发号、Desk 存草稿后点发号）共用这一份 ——
     分开写迟早会有一条路忘了改。
     """
-    kc_client, _target = kc.client_for_target(require_cloud_target(target_name, use_default=False))
+    target_name = require_cloud_target(target_name, use_default=False)
+    # 每个要建号的池一个管理客户端（ERP / DMS 在业务池，Cowork 在自己的池）。
+    clients = [(product, kc.client_for_target(target_name, product)[0])
+               for product in identity_pools.pools_for([row.app for row in doc.apps])]
 
-    # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。
-    if kc_client.find_user_id_by_email(doc.account_email):
-        frappe.throw(
-            _("Account {0} already exists in target \"{1}\". Invite the existing account instead of issuing again.").format(
-                doc.account_email, target_name)
-        )
+    # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。任何一个池里已有都不建。
+    for product, kc_client in clients:
+        if kc_client.find_user_id_by_email(doc.account_email):
+            frappe.throw(
+                _("Account {0} already exists in target \"{1}\". Invite the existing account instead of issuing again.").format(
+                    doc.account_email, target_name)
+            )
 
-    subject = None
+    created = []
     try:
         # ⚠️ 必须用 get_password()：`account_password` 是 Frappe 的 Password 字段，
         # 直接读属性拿到的是**密文**（`__Auth` 里的那段），拿它建号等于建了个假密码 ——
@@ -205,12 +215,15 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         initial_password = doc.get_password("account_password", raise_exception=False)
         if not initial_password:
             frappe.throw(_("This issue has no usable initial password; fill it in again before issuing"))
-        subject = kc_client.create_user(
-            doc.account_email,
-            username=doc.account_username,
-            first_name=doc.account_username[:140],
-            password=initial_password,
-        )
+        for product, kc_client in clients:
+            subject = kc_client.create_user(
+                doc.account_email,
+                username=doc.account_username,
+                first_name=doc.account_username[:140],
+                password=initial_password,
+            )
+            created.append((kc_client, subject))
+            doc.set(identity_pools.subject_field(product), subject)
         # 不再发邀请邮件：用户拿的就是初始密码，能直接登录。
         # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
         tenant = _find_or_create_tenant(doc.tenant_name)
@@ -221,7 +234,6 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         if not infra.is_cloud(target_name):
             billing.wallet_of(tenant)
         doc.tenant = tenant
-        doc.identity_subject = subject
         doc.status = "issued"
         doc.issued_at = now()
         doc.issued_by = operator
@@ -230,8 +242,8 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         frappe.db.commit()
     except Exception:
         frappe.db.rollback()
-        if subject:
-            # Only compensate the exact identity created by this attempt.
+        # Only compensate the exact identities created by this attempt.
+        for kc_client, subject in created:
             kc_client.delete_user(subject)
         doc.reload()
         doc.status = "failed"
@@ -239,10 +251,10 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         frappe.db.commit()
         raise
 
-    return _result(doc, subject, target_name)
+    return _result(doc, target_name)
 
 
-def _result(doc, subject: str, target_name: str) -> dict:
+def _result(doc, target_name: str) -> dict:
     """发号结果。⚠️ **不回显密码**：开户人自己设的，他知道。"""
     return {
         "issue": doc.name,
@@ -250,7 +262,8 @@ def _result(doc, subject: str, target_name: str) -> dict:
         "target": target_name,
         "account_email": doc.account_email,
         "account_username": doc.account_username,
-        "identity_subject": subject,
+        "identity_subject": doc.identity_subject,
+        "cowork_identity_subject": doc.get("cowork_identity_subject"),
         "delivery": "password",
         "features": {
             p: [row.feature for row in doc.get(f"{p}_features") or []]

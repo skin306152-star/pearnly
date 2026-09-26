@@ -10,7 +10,8 @@ import runpy
 
 
 def line_login(p, group, runtime):
-    """在业务 realm 建/更新 LIFF 所属 LINE Login 频道的共用隐藏入口，返回别名；不开就返回空串。"""
+    """在该产品的账号池（ERP / DMS 业务 realm，Cowork 自己的 realm）建/更新 LIFF 所属 LINE Login 频道的
+    共用隐藏入口，返回别名；不开就返回空串。"""
     from pearnly_core.account.line_login_contract import idp_alias, login_channel_of
 
     channel, secret = login_channel_of(p.get("liff_id")), p.get("login_channel_secret") or ""
@@ -18,7 +19,7 @@ def line_login(p, group, runtime):
         return ""
     alias = idp_alias(channel)
     keycloak = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-line-login.py")
-    api = keycloak["Keycloak"]("http://keycloak:8080", keycloak["REALM"], "pearnly-bootstrap",
+    api = keycloak["Keycloak"]("http://keycloak:8080", keycloak["REALMS"][group], "pearnly-bootstrap",
                                runtime["KEYCLOAK_ADMIN_PASSWORD"])
     keycloak["configure_site"](api, alias=alias, login_channel_id=channel, login_channel_secret=secret)
     return alias
@@ -113,7 +114,9 @@ def main():
         if p["app"] not in frappe.get_installed_apps():
             install_app(p["app"])
     elif action == "set_oidc":
-        assert p["issuer"] == "https://auth.pearnly.com/realms/pearnly-business"
+        # 每个产品组签到自己的账号池：Cowork 是 pearnly-cowork，ERP / DMS 是业务账号池。
+        realm = "pearnly-cowork" if group == "cowork" else "pearnly-business"
+        assert p["issuer"] == "https://auth.pearnly.com/realms/" + realm
         assert p["client_id"] == site and p["native_account"] is True
         assert p["redirect_uri"] == "https://" + site + "/api/method/pearnly_core.identity.callback"
         assert not any(p.get(key) for key in ("admin_client_secret", "password_check_client_secret"))

@@ -32,6 +32,7 @@ from frappe.utils import now
 
 from pearnly_control import features as features_mod
 from pearnly_control import infra
+from pearnly_control.account import identity_pools
 from pearnly_core import keycloak_admin as kc
 
 REQUEST = "Pearnly Provisioning Request"
@@ -213,7 +214,8 @@ def _ensure_oidc_client(dep, target: str | None = None) -> None:
 
     回调地址按站点域名与端口算 —— 这正是"共用客户端不行"的原因。
     """
-    client, _target_name = kc.client_for_target(target)
+    # 客户端建在该产品的账号池里（Cowork 在自己的池，ERP / DMS 在业务池）。
+    client, _target_name = kc.client_for_target(target, dep.product)
     base = infra.deployment_base_url(dep)
     urls = [f"{base}/api/method/pearnly_core.identity.callback"]
     origins = [base]
@@ -240,7 +242,7 @@ def oidc_secret_of(deployment: str) -> str:
     ) or ""
 
 
-def target_credentials(target_name=None) -> dict:
+def target_credentials(target_name=None, product=None) -> dict:
     """开户目标上的**realm 级**凭据，开通时要一起写进租户站点。
 
     为什么必须下发，而不是让站点自己想办法：改密功能要用这两个客户端 ——
@@ -248,7 +250,8 @@ def target_credentials(target_name=None) -> dict:
     - `pearnly-admin`：以 client_credentials 换管理员令牌，去身份服务改密码；
     - `pearnly-password-check`：只开密码授权，用来校验用户填的"当前密码"对不对。
 
-    它们是 **realm 级**的（同一 realm 下所有租户共用一套），所以存在开户目标上最合适。
+    它们是 **realm 级**的（同一 realm 下所有租户共用一套），所以存在开户目标上最合适；
+    Cowork 有自己的账号池，取目标上 Cowork 那一组（`keycloak_admin.pool_fields`）。
 
     踩过的坑：这两个凭据以前只在样板站上手工写过，**开通流程从来没下发** ——
     结果是"改密在样板站验过、在真租户站上一直是坏的"（报"取管理令牌失败"，
@@ -258,21 +261,22 @@ def target_credentials(target_name=None) -> dict:
 
     if infra.is_cloud(target_name):
         return {"native_account": True}
-    _client, target = kc.client_for_target(target_name)
+    _client, target = kc.client_for_target(target_name, product)
+    fields = kc.pool_fields(product)
     row = frappe.db.get_value(
         "Pearnly Target",
         {"target_name": target},
-        ["admin_client_id", "password_check_client_id"],
+        [fields["admin_client_id"], fields["password_check_client_id"]],
         as_dict=True,
     ) or {}
     return {
-        "admin_client_id": row.get("admin_client_id") or "",
+        "admin_client_id": row.get(fields["admin_client_id"]) or "",
         "admin_client_secret": get_decrypted_password(
-            "Pearnly Target", target, "admin_client_secret", raise_exception=False
+            "Pearnly Target", target, fields["admin_client_secret"], raise_exception=False
         ) or "",
-        "password_check_client_id": row.get("password_check_client_id") or "",
+        "password_check_client_id": row.get(fields["password_check_client_id"]) or "",
         "password_check_client_secret": get_decrypted_password(
-            "Pearnly Target", target, "password_check_client_secret", raise_exception=False
+            "Pearnly Target", target, fields["password_check_client_secret"], raise_exception=False
         ) or "",
     }
 
@@ -290,19 +294,20 @@ def _feature_rows(issue, product) -> list[dict]:
     ]
 
 
-def _issuer_url(target_name=None) -> str:
+def _issuer_url(target_name=None, product=None) -> str:
     """统一身份签发方。必须浏览器与容器都能访问到同一个字符串。
 
     取目标环境配的地址（本机样板是 http://keycloak.localhost:8105/realms/pearnly-business），
-    与各样板站点用的完全一致，避免出现两套 issuer。
+    与各样板站点用的完全一致，避免出现两套 issuer。按产品取账号池：Cowork 是它自己的 realm。
     """
-    _client, target = kc.client_for_target(target_name)
+    _client, target = kc.client_for_target(target_name, product)
+    realm_field = kc.pool_fields(product)["realm"]
     row = frappe.db.get_value(
-        "Pearnly Target", {"target_name": target}, ["base_url", "realm"], as_dict=True
+        "Pearnly Target", {"target_name": target}, ["base_url", realm_field], as_dict=True
     )
     if not row:
         frappe.throw(_("Cannot read the provisioning target, so the identity service URL is unknown"))
-    return f"{row.base_url.rstrip('/')}/realms/{row.realm}"
+    return f"{row.base_url.rstrip('/')}/realms/{row.get(realm_field)}"
 
 
 def _line_payload(dep, site: str, group: str) -> dict:
@@ -484,7 +489,7 @@ def _billing_payload(issue, dep) -> dict:
     from pearnly_control import billing_remote
     if infra.is_cloud(issue.target):
         scope = billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name,
-                                               owner_subject=issue.identity_subject)
+                                               owner_subject=identity_pools.subject_of(issue, dep.product))
         return {
             "site": dep.site_name, "group": dep.bench_group, "tenant": issue.tenant,
             "api": "http://billing-web:8000", "host_header": "billing.internal", "token": scope["token"],
@@ -520,13 +525,13 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "payload": json.dumps({
              "site": site, "group": group,
              "product": dep.product,
-             "issuer": _issuer_url(issue.target),
+             "issuer": _issuer_url(issue.target, dep.product),
              "client_id": dep.oidc_client_id,
              "client_secret": oidc_secret_of(dep.name),
              "redirect_uri": f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.identity.callback",
              # realm 级的两个客户端凭据也要一起写：改密功能依赖它们
              # （只写本部署的 client 会导致"能登录但改不了密码"）
-             **target_credentials(issue.target),
+             **target_credentials(issue.target, dep.product),
          }, ensure_ascii=False)},
         {"step_key": f"{dep.name}:restart_web", "deployment": dep.name,
          "action": "restart_web", "status": "pending",
@@ -557,7 +562,8 @@ def _steps_for(issue, dep, row) -> list[dict]:
              # 于是 `bench migrate` 同步一次字段就会让这行抛 AttributeError、把整条开通链卡死
              # （2026-09-19 实踩）。取不到就退回公司名。
              "full_name": issue.get("account_username") or issue.tenant_name,
-             "subject": issue.identity_subject,
+             # 绑该产品账号池里为本单建的那个身份（Cowork 与 ERP / DMS 分池）。
+             "subject": identity_pools.subject_of(issue, dep.product),
              "deployment": dep.name,
          }, ensure_ascii=False)},
         {"step_key": f"{dep.name}:set_roles", "deployment": dep.name,

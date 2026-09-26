@@ -35,6 +35,8 @@ import logging
 import frappe
 from frappe import _
 
+from pearnly_control.account import identity_pools
+
 logger = logging.getLogger(__name__)
 
 TENANT = "Pearnly Tenant"
@@ -65,11 +67,11 @@ def targets_of(tenant: str) -> dict:
 
     deployments = frappe.get_all(
         DEPLOYMENT, filters={"tenant": tenant},
-        fields=["name", "site_name", "bench_group", "app", "port", "url", "oidc_client_id", "issue"],
+        fields=["name", "product", "site_name", "bench_group", "app", "port", "url", "oidc_client_id", "issue"],
     )
     issues = frappe.get_all(
         ISSUE, filters={"tenant": tenant},
-        fields=["name", "account_email", "account_username", "identity_subject", "target"],
+        fields=["name", "account_email", "account_username", "identity_subject", "cowork_identity_subject", "target"],
     )
     counts = {}
     for doctype, field in (
@@ -257,18 +259,19 @@ def api_purge_control(request: str) -> dict:
     from pearnly_core import keycloak_admin as kc
 
     removed_users, kept_users, removed_clients = [], [], []
+    # 每张单在各账号池里建的身份（Cowork 与 ERP / DMS 分池，见 identity_pools）：按池删。
     subjects = []
     for name in _issue_names_for(targets, doc):
-        subject = frappe.db.get_value(ISSUE, name, "identity_subject")
-        if subject:
-            subjects.append((name, subject))
+        issue = frappe.db.get_value(ISSUE, name, list(identity_pools.SUBJECT_FIELDS.values()), as_dict=True) or {}
+        for product, subject in identity_pools.subjects_of(issue):
+            subjects.append((name, product, subject))
 
     # 有东西要删就必须拿到管理客户端：拿不到就**如实失败**。
     # 曾经这里写过 `except: client = None` 悄悄跳过 —— 结果这一步"成功"了、
     # 账号和 OIDC 客户端一个都没删（真踩过，验收脚本当场抓到）。
-    for issue_name, subject in subjects:
-        client, _target = kc.client_for_target(frappe.db.get_value(ISSUE, issue_name, "target"))
-        if _subject_used_elsewhere(subject, keep_issues={name for name, _ in subjects} | {doc.issue}):
+    for issue_name, product, subject in subjects:
+        client, _target = kc.client_for_target(frappe.db.get_value(ISSUE, issue_name, "target"), product)
+        if _subject_used_elsewhere(subject, product, keep_issues={name for name, _p, _s in subjects} | {doc.issue}):
             # 同一个登录邮箱还挂在别的租户上：**不删**，如实记下来
             kept_users.append(subject)
             continue
@@ -280,7 +283,7 @@ def api_purge_control(request: str) -> dict:
         client_id = dep.get("oidc_client_id")
         if not client_id:
             continue
-        client, _target = kc.client_for_target(frappe.db.get_value(ISSUE, dep["issue"], "target"))
+        client, _target = kc.client_for_target(frappe.db.get_value(ISSUE, dep["issue"], "target"), dep.get("product"))
         if client and client.delete_oidc_client(client_id):
             removed_clients.append(client_id)
 
@@ -290,7 +293,7 @@ def api_purge_control(request: str) -> dict:
 
     frappe.db.commit()
     # 复核：该删的都真删了才算这一步成功（"报了完成但其实还在"是最难查的一种）
-    left_users = [s for _, s in subjects if s not in removed_users and s not in kept_users]
+    left_users = [s for _n, _p, s in subjects if s not in removed_users and s not in kept_users]
     if left_users:
         frappe.throw(_("These accounts could not be deleted: {0}").format(", ".join(left_users)))
     return {
@@ -308,10 +311,10 @@ def _issue_names_for(targets: dict, request_doc) -> list[str]:
     return names
 
 
-def _subject_used_elsewhere(subject: str, *, keep_issues: set) -> bool:
-    """这个 subject 还有没有**别的**发号单在用（别的租户共用同一个登录邮箱）。"""
+def _subject_used_elsewhere(subject: str, product=None, *, keep_issues: set) -> bool:
+    """这个 subject 还有没有**别的**发号单在用（别的租户共用同一个登录邮箱；只看同一个账号池）。"""
     rows = frappe.get_all(
-        ISSUE, filters={"identity_subject": subject}, fields=["name"], limit=50
+        ISSUE, filters={identity_pools.subject_field(product): subject}, fields=["name"], limit=50
     )
     return any(row["name"] not in keep_issues for row in rows)
 

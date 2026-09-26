@@ -13,12 +13,15 @@ Keycloak 实验复用（见 docs/work/2026-09-25-erp-line-intake.md 第 7 节）
 """
 import json
 import os
+import sys
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 REALM = "pearnly-business"
+# 产品组 → 账号池（Cowork 用自己的 realm，用户 2026-09-26 与 ERP / DMS 分开）。
+REALMS = {"erp": REALM, "dms": REALM, "cowork": "pearnly-cowork"}
 DENY_FLOW = "pearnly-line-deny"
 SCOPE = "pearnly-login-source"
 # 会话备注 → ID token 声明（与 pearnly_core.account.line_login_contract 一致）。
@@ -199,7 +202,11 @@ def main():
         raise SystemExit("Run on the production host as the deployment operator")
     env = dict(line.split("=", 1) for line in
                Path("/opt/pearnly/secrets/runtime.env").read_text().splitlines() if "=" in line)
-    api = Keycloak("http://127.0.0.1:8180", REALM, "pearnly-bootstrap", env["KEYCLOAK_ADMIN_PASSWORD"])
+    # `--realm pearnly-cowork`：给 Cowork 的账号池做同样的 realm 级设置（默认仍是业务 realm）。
+    realm = sys.argv[sys.argv.index("--realm") + 1] if "--realm" in sys.argv else REALM
+    if realm not in set(REALMS.values()):
+        raise SystemExit("Unknown realm")
+    api = Keycloak("http://127.0.0.1:8180", realm, "pearnly-bootstrap", env["KEYCLOAK_ADMIN_PASSWORD"])
     configure_realm(api)
     print("LINE sign-in realm settings verified: deny-unlinked first login, login-source scope, re-auth age")
 

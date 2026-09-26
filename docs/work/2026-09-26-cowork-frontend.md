@@ -98,6 +98,31 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
 样板 `cowork-a`（迁移后）服务端实测：三个新角色已建、LINE 处理器已注册；管理员能看到 6 项勾选、侧栏只有首页 / 录入、团队管理进左下角；
 管理员本人一行锁定。浏览器：团队管理名单与「添加用户」弹窗、个人信息 LINE 块已看。未验：添加用户成功路径、员工视角、真实 LINE 绑定。
 
+## 第十一批：Cowork 独立账号池 `pearnly-cowork`（2026-09-26，代码 + 本机验；生产未动）
+
+用户定方案 A：Cowork 账号与 ERP / DMS 分开（“账号分开可以”），ERP / DMS 仍在 `pearnly-business`。
+基线：本分支已变基到 `origin/main` `ec79bbd`（含 ERP 窗口的全平台 LINE 登录 `c4bf731`、控制面按产品选池的成员服务）。
+
+| 层 | 改动 | 验证 |
+| --- | --- | --- |
+| 开户目标 `Pearnly Target` | 新增「Cowork Account Pool」一组：`cowork_realm`、`cowork_admin_client_*`、`cowork_password_check_client_*`；原字段即业务池 | 迁移后生效（本机控制面挂的是长期主目录，未在本机控制面迁移） |
+| 选管理客户端 `pearnly_core.keycloak_admin.client_for_target(target, product)` | 按产品取池（`POOL_PREFIX = {"cowork": "cowork_"}`）；Cowork 池没配就拒绝，不悄悄落进业务池 | 单测 |
+| 开户 `issues` | 所选产品需要几个池就在几个池建号（同用户名、同初始密码）；任一池已有该邮箱就都不建；任一步失败删掉本次建的全部账号；身份分记 `identity_subject`（业务池）/ `cowork_identity_subject`（新字段） | 单测 3 条（两池各建、已存在都不建、第二池失败回滚第一池） |
+| 开通 `provisioning` | OIDC 客户端建在产品所在池；`set_oidc` 的 issuer 与两个 realm 级凭据按产品；`bind_user`、计费登记开户管理员都用该产品池里的身份 | 单测 + 既有开通测试 |
+| 拆除 `teardown` / 员工身份核对 / 开户欢迎信 | 按池删账号与客户端；两池身份都核对；“已开户”判据认两池 | 既有测试改为按池断言后通过 |
+| 生产脚本 | `bootstrap-auth.py --realm pearnly-cowork`（同设置，控制凭据写 `control-identity-cowork.json`）；`connect-control.py` / `runner_bridge setup` 带上 Cowork 池凭据（没有就不配）；`configure-member-identity.py` 在 Cowork realm 存在时补 `pearnly_member_identity_cowork_*`（所有权密钥共用）；`bootstrap-billing.py` / `verify-foundation.py` 接受“三键全有或全无”；`auth-tls.conf` 放行 `/realms/pearnly-cowork/`；`site-step.py` 的 `set_oidc` 按组断言 issuer、LINE 入口按组选 realm；`configure-line-login.py --realm`；`verify-control.py` 加 Cowork 断言 | 语法 / CI 同名闸门；**未在生产执行** |
+| 本机样板 | `scripts/sample-cowork-realm.py`（建池、两个客户端，密钥写 `~/.config/pearnly/cowork-realm.env` 0600）；`sample-keycloak-local.sh` / 主题 / 发信脚本加上 `pearnly-cowork`；`sample-configure-site.sh` 按组选 issuer；`sample-ensure-target.sh` 可带 Cowork 池两个密钥 | 本机实测：建池、本机 http / 忘记密码 / 空密码策略 / 管理角色、主题回读；`cowork-a` 站点改签到 `pearnly-cowork`（新客户端 `cowork-a`、测试管理员绑定），浏览器跳到 Cowork 池登录页、登录后进首页 `tenant-admin@sample.local` |
+
+- LINE：Cowork 目前没有“LINE 绑定即登录”（`LINE_LOGIN_PRODUCTS` 仍只有 `erp`）；Cowork 池的 LINE 回调已由用户在 LINE 后台登记
+  （`…/realms/pearnly-cowork/broker/line-2010411313/endpoint`，回读三条）。Cowork 接 LINE 登录时再把 `cowork` 加进去并对 Cowork 池跑 `configure-line-login.py --realm pearnly-cowork`。
+- 本机样板的变更（属本任务）：Keycloak 新 realm `pearnly-cowork` 及其 `pearnly-admin` / `pearnly-password-check` / `cowork-a` 客户端、测试管理员
+  `tenant-admin`（密码只在 `~/.config/pearnly/cowork-realm.env`）；`cowork-a` 站点 OIDC 配置改到 Cowork 池（原配置备份在 cowork-web 容器 `/tmp/cowork-a-oidc-backup.json`），
+  站点多一条 `Pearnly Identity`（Cowork 池 issuer）。ERP / DMS 样板站与业务池未动。
+- **生产上线顺序（每步需授权，均未做）**：① 合入 main → 构建镜像；② 生产主机 `bootstrap-auth.py --realm pearnly-cowork --smtp`（发信配置经标准输入）；
+  ③ 替换 `auth-tls.conf` 并重载 nginx；④ `configure-member-identity.py` → 重跑计费站点初始化（带上 Cowork 三键）→ `verify-foundation.py`；
+  ⑤ 本机 `connect-control.py`（带 Cowork 池凭据）→ `verify-control.py`；⑥ 已有 Cowork 站点（ERP 窗口 2026-09-26 把 `testcowork` 升到 `15dea26`，仍签到业务池）
+  要迁到 Cowork 池：在 Cowork 池建该租户账号与站点客户端、改站点 OIDC、按新 issuer 绑定——这是生产数据变更，单独授权、单独记录。
+
 ## 第十批：复核表 1:1 照画、分支号口径、图片 / PDF 发票识别（2026-09-26）
 
 用户：“前端显示表格按导出表格 1:1 画，可以不用官方 UI 组件，使用说明不用出现，不要过多文案备注”；

@@ -40,10 +40,19 @@ def dispatch(command):
             json={"action": "topups", "payload": {"pending": True}},
             headers={"Host": "billing.internal", "X-Pearnly-Billing-Management": args["billing_token"]}, timeout=20)
         response.raise_for_status()
+        # Cowork has its own account pool (realm pearnly-cowork, split from ERP / DMS on 2026-09-26).
+        # Optional until bootstrap-auth.py has created it; without it this target refuses Cowork issues.
+        cowork = args.get("cowork_identity")
+        if cowork:
+            AdminClient("http://host.docker.internal:18180", "pearnly-cowork",
+                        cowork["client_id"], cowork["client_secret"]).find_user_id_by_email("connect-check@pearnly.invalid")
         target = frappe.get_doc("Pearnly Target", target_name) if frappe.db.exists("Pearnly Target", target_name) else frappe.new_doc("Pearnly Target")
         target.update({"target_name": target_name, "base_url": "https://auth.pearnly.com",
                        "realm": "pearnly-business", "admin_client_id": credentials["client_id"],
                        "admin_client_secret": credentials["client_secret"], "is_default": 1})
+        if cowork:
+            target.update({"cowork_realm": "pearnly-cowork", "cowork_admin_client_id": cowork["client_id"],
+                           "cowork_admin_client_secret": cowork["client_secret"]})
         target.save(ignore_permissions=True)
         frappe.db.set_value("Pearnly Target", {"name": ("!=", target_name)}, "is_default", 0)
         runtime = dict(frappe.conf.get("pearnly_target_runtime") or {})

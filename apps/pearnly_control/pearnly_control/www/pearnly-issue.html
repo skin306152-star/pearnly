@@ -219,7 +219,7 @@
       "<div style='margin-top:4px'>开户目标：<b>" + esc(m.target || "-") + "</b></div>" +
       "<div style='margin-top:6px'>邮箱：<b>" + esc(m.account_email) + "</b>　用户名：<b>" + esc(m.account_username) + "</b></div>" +
       "<div style='margin-top:6px'>已开通功能：" + esc(feats || "-") + "</div>" +
-      "<div style='margin-top:6px'>身份主体：" + esc(m.identity_subject) + "</div>" +
+      "<div style='margin-top:6px'>身份主体：" + esc([m.identity_subject, m.cowork_identity_subject].filter(Boolean).join(" / ")) + "</div>" +
       "<table class='pi-list'><tr><th>产品</th><th>域名</th><th>状态</th></tr>" + rows + "</table>";
     document.getElementById("pi-result").style.display = "block";
   }

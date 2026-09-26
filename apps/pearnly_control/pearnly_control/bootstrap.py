@@ -125,6 +125,9 @@ def ensure_target(
     password_check_client_secret: str | None = None,
     is_default: int = 1,
     notes: str | None = None,
+    cowork_realm: str = "pearnly-cowork",
+    cowork_admin_client_secret: str | None = None,
+    cowork_password_check_client_secret: str | None = None,
 ) -> str:
     """配一个开户目标。
 
@@ -153,6 +156,14 @@ def ensure_target(
     doc.admin_client_secret = admin_client_secret
     doc.password_check_client_id = password_check_client_id
     doc.password_check_client_secret = password_check_client_secret
+    # Cowork 自己的账号池（用户 2026-09-26 与 ERP / DMS 分池）：给了它的两个密钥才配，
+    # 不给就保持原样 —— 没配的目标开不了 Cowork（开户时拒绝），不会悄悄落进业务账号池。
+    if cowork_admin_client_secret and cowork_password_check_client_secret:
+        doc.cowork_realm = cowork_realm
+        doc.cowork_admin_client_id = admin_client_id
+        doc.cowork_admin_client_secret = cowork_admin_client_secret
+        doc.cowork_password_check_client_id = password_check_client_id
+        doc.cowork_password_check_client_secret = cowork_password_check_client_secret
     doc.notes = notes or doc.notes
     if existing:
         doc.save(ignore_permissions=True)

@@ -20,13 +20,15 @@ class MemberTeardown(unittest.TestCase):
             return {"subjects": ["employee"]}
         def references(*args, **kwargs):
             events.append("check")
-            self.assertEqual(kwargs["filters"], {"tenant": ["!=", "T"], "identity_subject": ["in", ["employee"]]})
+            # 两个账号池（业务 / Cowork）的开户身份字段都要查。
+            self.assertIn(kwargs["filters"], ({"tenant": ["!=", "T"], "identity_subject": ["in", ["employee"]]},
+                                              {"tenant": ["!=", "T"], "cowork_identity_subject": ["in", ["employee"]]}))
             return []
         with patch.object(boundary.infra, "is_cloud", return_value=True), \
                 patch.object(boundary.billing_remote, "call", side_effect=freeze), \
                 patch.object(frappe, "get_all", side_effect=references):
             boundary.prepare("T", [{"target": "cloud"}])
-        self.assertEqual(events, ["freeze", "check"])
+        self.assertEqual(events, ["freeze", "check", "check"])
 
     def test_reused_member_and_remote_failure_abort_plan(self):
         with patch.object(boundary.infra, "is_cloud", return_value=True), \

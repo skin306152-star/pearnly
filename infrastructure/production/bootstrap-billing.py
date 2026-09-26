@@ -13,7 +13,12 @@ config = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=
 member_config = json.loads(Path("/run/secrets/member-identity.json").read_text())
 member_keys = {"pearnly_member_identity_issuer", "pearnly_member_identity_admin_client_id",
                "pearnly_member_identity_admin_client_secret", "pearnly_member_identity_ownership_key"}
-if set(member_config) != member_keys or not all(member_config.values()):
+# Cowork's own account pool (optional until it exists): all three keys or none.
+cowork_keys = {"pearnly_member_identity_cowork_issuer", "pearnly_member_identity_cowork_admin_client_id",
+               "pearnly_member_identity_cowork_admin_client_secret"}
+present = set(member_config)
+if (present - cowork_keys != member_keys or present & cowork_keys not in (set(), cowork_keys)
+        or not all(member_config.values())):
     raise SystemExit("Private member identity configuration is incomplete")
 os.setgid(1000)
 os.setuid(1000)

@@ -11,7 +11,6 @@ set -euo pipefail
 
 CTX=colima-pearnly
 COMPOSE=infrastructure/compose/01-bench.yml
-ISSUER=http://keycloak:8080/realms/pearnly-business
 ADMIN_CID=pearnly-admin
 PWCHECK_CID=pearnly-password-check
 SUBJECT_DEFAULT=f549a7e4-e64f-4344-b269-8be1d8a9f274
@@ -22,6 +21,9 @@ client_id="${3:?}"
 client_secret="${4:?}"
 port="${5:?}"
 subject="${6:-$SUBJECT_DEFAULT}"
+# Cowork 有自己的账号池（用户 2026-09-26 与 ERP / DMS 分开）；此时两个 realm 级密钥也要给 Cowork 池的那一组。
+if [ "$group" = cowork ]; then realm=pearnly-cowork; else realm=pearnly-business; fi
+ISSUER="http://keycloak:8080/realms/$realm"
 
 adm_secret="${PEARNLY_ADMIN_CLIENT_SECRET:?需要环境变量 PEARNLY_ADMIN_CLIENT_SECRET}"
 pw_secret="${PEARNLY_PWCHECK_CLIENT_SECRET:?需要环境变量 PEARNLY_PWCHECK_CLIENT_SECRET}"

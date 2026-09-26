@@ -113,6 +113,15 @@ def main():
     existing = json.loads(path.read_text()) if path.exists() else None
     api = Keycloak("http://127.0.0.1:8180", "pearnly-business", "pearnly-bootstrap", env["KEYCLOAK_ADMIN_PASSWORD"])
     values = configure(api, existing)
+    # Cowork has its own account pool (split from ERP / DMS on 2026-09-26). Once bootstrap-auth.py
+    # --realm pearnly-cowork has created it, give the member service a client there too
+    # (keys pearnly_member_identity_cowork_*; the ownership key stays shared).
+    if any(row["realm"] == "pearnly-cowork" for row in api.request("/admin/realms")):
+        cowork = configure(Keycloak("http://127.0.0.1:8180", "pearnly-cowork", "pearnly-bootstrap",
+                                    env["KEYCLOAK_ADMIN_PASSWORD"]), values)
+        values.update({key.replace("pearnly_member_identity_", "pearnly_member_identity_cowork_"): cowork[key]
+                       for key in ("pearnly_member_identity_issuer", "pearnly_member_identity_admin_client_id",
+                                   "pearnly_member_identity_admin_client_secret")})
     temporary = root / "member-identity.json.new"
     fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w") as stream:

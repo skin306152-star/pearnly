@@ -26,7 +26,7 @@ TOKEN=$(curl -sS -m 20 -X POST "$KC/realms/master/protocol/openid-connect/token"
 [ -n "$TOKEN" ] || { echo "取管理员令牌失败（身份服务起来了吗？）" >&2; exit 1; }
 
 # realm:期望的默认语言
-REALMS=("pearnly-business:th" "pearnly-platform:zh-CN")
+REALMS=("pearnly-business:th" "pearnly-cowork:th" "pearnly-platform:zh-CN")
 
 for entry in "${REALMS[@]}"; do
   realm="${entry%%:*}"

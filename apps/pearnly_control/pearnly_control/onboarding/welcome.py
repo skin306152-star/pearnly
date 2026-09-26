@@ -6,6 +6,7 @@ import json
 import frappe
 from frappe import _
 
+from pearnly_control.account import identity_pools
 from pearnly_control.onboarding.targets import require_cloud_target
 
 ISSUE = "Pearnly Issue"
@@ -40,7 +41,7 @@ def _queue_safely(request):
 
 
 def ready_products(issue, request):
-    if issue.status != "issued" or not issue.identity_subject or request.status != "done":
+    if not identity_pools.issued(issue) or request.status != "done":
         raise ValueError("Account is not ready")
     if not issue.apps or not request.steps or any(s.status not in ("done", "skipped") for s in request.steps):
         raise ValueError("Provisioning is incomplete")

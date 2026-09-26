@@ -19,6 +19,10 @@ SITE=control.localhost
 SECRET="${PEARNLY_BIZ_ADMIN_SECRET:?需要环境变量 PEARNLY_BIZ_ADMIN_SECRET}"
 CHECK_SECRET="${PEARNLY_BIZ_PASSWORD_CHECK_SECRET:?需要环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET}"
 
-printf 'import frappe; print("RESULT=" + frappe.get_attr("pearnly_control.bootstrap.ensure_target")(admin_client_secret="%s", password_check_client_secret="%s"))\n' "$SECRET" "$CHECK_SECRET" \
+# Cowork 自己的账号池（可选；`scripts/sample-cowork-realm.py` 建池并把两个密钥写到 ~/.config/pearnly/cowork-realm.env）。
+COWORK_SECRET="${PEARNLY_COWORK_ADMIN_SECRET:-}"
+COWORK_CHECK_SECRET="${PEARNLY_COWORK_PASSWORD_CHECK_SECRET:-}"
+
+printf 'import frappe; print("RESULT=" + frappe.get_attr("pearnly_control.bootstrap.ensure_target")(admin_client_secret="%s", password_check_client_secret="%s", cowork_admin_client_secret="%s" or None, cowork_password_check_client_secret="%s" or None))\n' "$SECRET" "$CHECK_SECRET" "$COWORK_SECRET" "$COWORK_CHECK_SECRET" \
   | docker --context "$CTX" compose -f "$COMPOSE" exec -T control-bench \
   bench --site "$SITE" console 2>&1 | grep -oE 'RESULT=[A-Z]+' | tail -1

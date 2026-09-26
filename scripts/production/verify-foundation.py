@@ -26,6 +26,9 @@ response = requests.post(member, headers=headers, json={"action": "create"}, tim
 assert response.status_code == 200 and response.json().get("message") == {"ok": False, "error": "not_permitted"}
 assert all(config.get("pearnly_member_identity_" + key) for key in (
     "issuer", "admin_client_id", "admin_client_secret", "ownership_key"))
+# Cowork's own account pool: all three keys or none (none until the realm exists).
+cowork = [config.get("pearnly_member_identity_cowork_" + key) for key in ("issuer", "admin_client_id", "admin_client_secret")]
+assert all(cowork) or not any(cowork)
 print("PASS cloud billing: restricted routes, rejected anonymous access, authenticated read")
 
 import frappe
