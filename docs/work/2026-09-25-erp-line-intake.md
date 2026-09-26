@@ -383,6 +383,15 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
   LINE 登录关闭；会话表新列已迁；ping 200，web / worker 日志 0 错误；未做 Cowork 业务 / UI 验收。至此线上 ERP / DMS / Cowork / 计费均为 `15dea26`，缺口关闭。
 - 另一个 ERP 窗口已被告知线上 ERP 为 `15dea26`，发布须基于最新 main。
 
+### 本窗口登记的后续小项（2026-09-26）
+
+- **旧改密接口清理**（低优先级，非用户可见缺陷）：`pearnly_core.password.change_password` 与 `sessions.logout_everywhere` 依赖站点上的 Keycloak 管理凭据，
+  云端租户站点没有，手动调用会报错；但云端站点（`pearnly_native_account`）的改密按钮与 `/pearnly-password` 都直接跳 Keycloak 原生改密，界面无任何入口调用这两个接口，
+  `public/js/pearnly_account.js` 也未被任何页面加载。改密后踢其他设备由 Keycloak 改密页"从其他设备登出" + 回通道登出承担（未实测）。建议：云端站点直接拒绝这两个接口并删除无引用脚本。
+  用户点开的后台会话「Verify and fix "log out everywhere"」首条命令即被中断，未做任何改动。
+- **ERP 扫码器去重**：Cowork 窗口已把 ERP `public/desk/scan.js` 通用部分复制到 `pearnly_core/public/desk/scan.js`（分支 `codex/cowork-frontend`）；其合入后可删 ERP 副本、
+  `www/stocktake.html` 改指 core 路径。动手前与 Cowork 窗口约定，避免同时改。
+
 ### 待用户处理 / 授权
 
 - LINE 后台核实：ERP-TEST 官方号（2011288286）与 LINE Login 频道 2010411313 是否同一 Provider（不同则 LINE 用户 ID 不一致，关联全失败）；在该频道登记 Keycloak 回调地址（已授权范围内，改前告知）。
