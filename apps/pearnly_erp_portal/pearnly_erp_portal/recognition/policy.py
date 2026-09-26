@@ -15,6 +15,10 @@ from pearnly_erp_portal.recognition import checks
 MODE = "economy"
 
 
+class UnsupportedDocument(frappe.ValidationError):
+    """读出来了、但不能按本单录入（不是单据、贷项通知单）：给本人看的话，LINE 与网页都原样转达。"""
+
+
 def models():
     from pearnly_core import ocr
 

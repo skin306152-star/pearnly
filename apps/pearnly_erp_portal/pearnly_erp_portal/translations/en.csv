@@ -547,6 +547,7 @@ No stock count in progress,No stock count in progress
 No terminal yet,No terminal yet
 No warehouse is available for this company,No warehouse is available for this company
 No warehouse matches that name,No warehouse matches that name
+Non-claimable VAT,Non-claimable VAT
 None,None
 Normal,Normal
 Not Available,Not Available
@@ -1015,6 +1016,7 @@ This document was already recorded,This document was already recorded
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This file holds {0} documents; only the first is filled in. Upload the others separately.,This file holds {0} documents; only the first is filled in. Upload the others separately.
+This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is a credit note: check the amounts and the original invoice,This is a credit note: check the amounts and the original invoice
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:

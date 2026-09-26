@@ -547,6 +547,7 @@ No stock count in progress,進行中の棚卸はありません
 No terminal yet,レジはまだありません
 No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
+Non-claimable VAT,控除できない消費税
 None,なし
 Normal,正常
 Not Available,在庫なし
@@ -1015,6 +1016,7 @@ This document was already recorded,この書類は記録済みです
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This file holds {0} documents; only the first is filled in. Upload the others separately.,このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
+This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
 This is a credit note: check the amounts and the original invoice,これは返品・値引伝票です。金額と元の請求書を確認してください
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:

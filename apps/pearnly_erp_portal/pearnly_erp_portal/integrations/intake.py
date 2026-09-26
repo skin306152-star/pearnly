@@ -171,11 +171,11 @@ def run(intake, line_user_id, reply_token="", filename=""):
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
                                                           billing_reference="erp.line_intake:" + doc.name)
         except frappe.ValidationError as exc:
-            from pearnly_erp_portal.recognition import billing
+            from pearnly_erp_portal.recognition import billing, policy
 
             _drop(doc, FAILED, str(exc))
-            # 余额不足要原话告诉本人（去充值）；其余识别失败统一请他重发。
-            text = str(exc) if isinstance(exc, billing.InsufficientBalance) else _(
+            # 余额不足、不能按本单录入（不是单据 / 贷项通知单）要原话告诉本人；其余识别失败统一请他重发。
+            text = str(exc) if isinstance(exc, (billing.InsufficientBalance, policy.UnsupportedDocument)) else _(
                 "Could not read this document. Please send it again.")
             line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
             return {"failed": "recognition_failed", "notified": True}
@@ -244,8 +244,10 @@ def build_payload(doc, result=None) -> dict:
                 payload.pop("due_date")
         lines = []
         for row in result.get("lines") or []:
-            row = {**row, "item_type": "goods" if goods else "service"}
-            if goods and doc.warehouse:
+            # 识别补的「不可抵扣的增值税」行永远是服务，不按 LINE 里选的「库存商品」入库。
+            stock = goods and not row.get(recognition.NON_CLAIMABLE_VAT)
+            row = {**row, "item_type": "goods" if stock else "service"}
+            if stock and doc.warehouse:
                 row["warehouse"] = doc.warehouse
             lines.append(row)
         payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,

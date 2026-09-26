@@ -243,6 +243,10 @@ class Documents(Base):
         self.assertEqual(self.last_text(), "Could not store this document")
 
 
+def _raise(message, exc=Exception):
+    raise exc(message)
+
+
 def _doc(**values):
     base = dict(name="LI-1", direction="purchase", company="CO-1", party="SUP-1", is_paid=1,
                 payment_method="transfer", item_kind="goods", warehouse="WH-1", status="ready",
@@ -591,6 +595,100 @@ class Checks(unittest.TestCase):
         from pearnly_erp_portal.recognition import checks
 
         self.assertEqual(checks.hard(recognition.review(unknown)), [])
+
+    def test_corpus_receipts_without_quantities_or_with_discount_rows_still_add_up(self):
+        from pearnly_erp_portal.purchasing import recognition
+
+        base = {"document_type": "simplified_tax_invoice", "document_title": "ใบกำกับภาษีอย่างย่อ"}
+        # 语料 9c2c…：小票不印数量 —— 当 1 件，合计与票面一致。
+        no_qty = recognition._structured({**base, "printed": {"subtotal": 204.67, "vat": 14.33, "total": 219}, "lines": [
+            {"description": "น้ำเปล่า", "qty": 2, "unit_price": 7}, {"description": "ข้าวกะเพรา", "qty": None, "unit_price": 75},
+            {"description": "กาแฟดำ", "unit_price": 50}, {"description": "มักกะโรนี", "amount": 80}]})
+        self.assertEqual([row["qty"] for row in no_qty["lines"]], [2, 1, 1, 1])
+        self.assertEqual(recognition.review(no_qty), [])
+        # 语料 fd54…：折扣行没有单价、只有折扣 —— 并进整单折扣，不算商品。
+        coupon = recognition._structured({**base, "printed": {"total": 278}, "lines": [
+            {"description": "มันหวาน", "qty": 1, "unit_price": 29}, {"description": "น้ำดื่ม", "qty": 2, "unit_price": 7},
+            {"description": "นมโปร", "qty": 3, "unit_price": 49}, {"description": "อเมริกาโน่", "qty": 2, "unit_price": 45},
+            {"description": "ส่วนลดโปรเทีนโปรคืนสูง", "qty": 1, "unit_price": None, "discount": 2}]})
+        self.assertEqual((len(coupon["lines"]), coupon["discount_total"]), (4, 2.0))
+        self.assertEqual(recognition.review(coupon), [])
+        # 语料 2470…：模型把同一笔折扣既读成一行、又读进整单折扣 —— 不重复扣。
+        twice = recognition._structured({**base, "discount_total": 5, "printed": {"total": 110}, "lines": [
+            {"description": "อเมริกาโน่เย็น", "qty": 2, "unit_price": 45}, {"description": "ข้าวโพด", "qty": 1, "unit_price": 25},
+            {"description": "ส่วนลดข้าวโพด", "qty": 1, "unit_price": 5}]})
+        self.assertEqual((len(twice["lines"]), twice["discount_total"]), (2, 5))
+        self.assertEqual(recognition.review(twice), [])
+
+    def test_withholding_on_the_printed_total_is_carried_to_the_lines(self):
+        from pearnly_erp_portal.purchasing import entry, recognition
+        from pearnly_erp_portal.recognition import checks
+
+        # 语料 v2_007：1,946 + VAT 136.22 − 3% 预扣 58.38 = 实付 2,023.84，模型没读出预扣税率。
+        raw = {"document_type": "tax_invoice", "buyer_tax_id": "0105546015062",
+               "printed": {"subtotal": 1946, "vat": 136.22, "total": 2023.84}, "lines": [
+                   {"description": "ค่าซ่อมเครื่องพิมพ์", "qty": 4, "unit_price": 154},
+                   {"description": "กระดาษ A4", "qty": 1, "unit_price": 183},
+                   {"description": "หมึกพิมพ์", "qty": 2, "unit_price": 212},
+                   {"description": "กาแฟ", "qty": 3, "unit_price": 241}]}
+        result = recognition._structured(raw)
+        self.assertEqual({row["wht_rate"] for row in result["lines"]}, {3.0})
+        totals = entry._calculate({"lines": result["lines"], "has_vat": True, "price_mode": result["price_mode"]})
+        self.assertEqual((str(totals["grand_total"]), str(totals["net_payable"])), ("2082.22", "2023.84"))
+        self.assertNotIn("printed_math", recognition.review(result))
+        # 等式不成立（或几档都说得通）就不猜。
+        self.assertIsNone(checks.withholding_rate(1000, 70, 1051))
+        self.assertEqual(checks.withholding_rate(1000, 70, 1000, wht_amount=30), 3)
+        self.assertEqual(checks.money("(183.82)"), -checks.money("183.82"))
+
+    def test_credit_notes_are_not_recorded_as_purchases(self):
+        from pearnly_erp_portal.purchasing import recognition
+        from pearnly_erp_portal.recognition import policy
+
+        result = recognition._structured({"document_type": "credit_note", "document_title": "ใบลดหนี้",
+                                          "printed": {"total": "(349.89)", "vat": "(22.89)"},
+                                          "lines": [{"description": "น้ำดื่ม", "qty": 2, "unit_price": -48}]})
+        with patch.object(recognition.guard, "require"), \
+                patch("pearnly_core.ocr.is_configured", return_value=True), \
+                patch.object(recognition.files, "upload", return_value=frappe._dict(file_name="a.jpg",
+                             get_content=lambda: b"x")), \
+                patch.object(recognition.billing, "pages", return_value=1), \
+                patch.object(recognition.billing, "gate"), patch.object(recognition.billing, "charge") as charge, \
+                patch.object(policy, "read_all", return_value=[(result, [], "m")]), \
+                patch("pearnly_core.ocr.upright", side_effect=lambda content, mime: (content, mime)), \
+                patch.object(recognition.frappe, "throw", side_effect=_raise), patch.object(recognition, "_", str):
+            with self.assertRaises(policy.UnsupportedDocument):
+                recognition.recognise([{"file": "F", "kind": "bill"}])
+        charge.assert_not_called()
+
+    def test_non_claimable_vat_added_on_top_is_part_of_the_cost(self):
+        from pearnly_erp_portal.integrations import intake
+        from pearnly_erp_portal.purchasing import entry, recognition
+
+        # 语料 e402…：自助餐收据（不能抵进项），票面 2,544 + VAT 178.08 = 2,722。
+        raw = {"document_type": "receipt", "document_title": "ใบเสร็จรับเงิน", "rounding": -0.08,
+               "printed": {"subtotal": 2544, "vat": 178.08, "total": 2722}, "lines": [
+                   {"description": "Buffet Premium 799", "qty": 3, "unit_price": 799},
+                   {"description": "เครื่องดื่มรีฟิล", "qty": 3, "unit_price": 49}]}
+        result = recognition._structured(raw)
+        recognition._finish(result)  # 归组后会再跑一次：不重复加
+        vat_rows = [row for row in result["lines"] if row.get(recognition.NON_CLAIMABLE_VAT)]
+        self.assertEqual((result["has_vat"], len(vat_rows), vat_rows[0]["unit_price"], vat_rows[0]["item_type"]),
+                         (False, 1, 178.08, "service"))
+        totals = entry._calculate({"lines": result["lines"], "has_vat": False, "price_mode": result.get("price_mode"),
+                                   "rounding": result.get("rounding")})
+        self.assertEqual(str(totals["grand_total"]), "2722.00")
+        self.assertEqual(recognition.review(result), [])
+        # LINE 里选了「库存商品」：这一行仍是服务、不进仓库。
+        doc = _doc(item_kind="goods", result=json.dumps(result))
+        with patch.object(intake, "_fallback_name", return_value="x"):
+            rows = intake.build_payload(doc)["lines"]
+        self.assertEqual([(row["item_type"], "warehouse" in row) for row in rows],
+                         [("goods", True), ("goods", True), ("service", False)])
+        # 含税价的简式税票明细里已含 VAT：不加这一行。
+        abb = recognition._structured({"document_type": "simplified_tax_invoice", "printed": {"vat": 8.57, "total": 131},
+                                       "lines": [{"description": "x", "qty": 1, "unit_price": 131}]})
+        self.assertFalse(any(row.get(recognition.NON_CLAIMABLE_VAT) for row in abb["lines"]))
 
     def test_printed_dates_are_converted_by_code(self):
         from datetime import date

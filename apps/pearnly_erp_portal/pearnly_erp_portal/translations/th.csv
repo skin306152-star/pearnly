@@ -547,6 +547,7 @@ No stock count in progress,ไม่มีการตรวจนับที�
 No terminal yet,ยังไม่มีเครื่องขาย
 No warehouse is available for this company,บริษัทนี้ยังไม่มีคลังสินค้า
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
+Non-claimable VAT,ภาษีซื้อที่ขอคืนไม่ได้
 None,ไม่มี
 Normal,ปกติ
 Not Available,ไม่มีสินค้า
@@ -1015,6 +1016,7 @@ This document was already recorded,เอกสารนี้บันทึก
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 This entry changed underneath you; reload and try again,รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
+This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังบันทึกเป็นใบซื้อไม่ได้
 This is a credit note: check the amounts and the original invoice,เอกสารนี้เป็นใบลดหนี้ กรุณาตรวจสอบยอดเงินและใบกำกับภาษีเดิม
 This is not a purchase or sales document,เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:

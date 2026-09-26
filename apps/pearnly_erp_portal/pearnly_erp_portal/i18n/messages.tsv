@@ -684,6 +684,8 @@ This document cannot be recorded yet	这张单据还不能落定	ยังบั
 Quantity must be greater than zero	数量必须大于 0	จำนวนต้องมากกว่า 0	数量は 0 より大きい必要があります
 Discount cannot exceed the amount	折扣不能超过金额	ส่วนลดต้องไม่เกินยอดเงิน	割引は金額を超えられません
 Net total - discount + VAT must equal the total	金额对不上：净总计 − 折扣 + 增值税 必须等于总计	ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม	金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
+Non-claimable VAT	不可抵扣的增值税	ภาษีซื้อที่ขอคืนไม่ได้	控除できない消費税
+This is a credit note. Credit notes cannot be recorded as a purchase yet.	这是贷项通知单，暂时不能按采购单录入。	เอกสารนี้เป็นใบลดหนี้ ยังบันทึกเป็นใบซื้อไม่ได้	これは返品・値引伝票です。仕入としてはまだ登録できません。
 The document type was not recognised, so input VAT is not claimed	认不出票种，未记进项税	ไม่ทราบประเภทเอกสาร จึงไม่บันทึกภาษีซื้อ	書類の種類が判別できないため仕入税額を計上していません
 This tax invoice shows no VAT, so input VAT is not claimed	这张税票没读到增值税额，未记进项税	ใบกำกับภาษีนี้ไม่พบยอดภาษีมูลค่าเพิ่ม จึงไม่บันทึกภาษีซื้อ	この税務請求書に消費税額がないため仕入税額を計上していません
 This tax invoice does not name the buyer, so input VAT is not claimed	这张税票没写买方，未记进项税	ใบกำกับภาษีนี้ไม่ระบุผู้ซื้อ จึงไม่บันทึกภาษีซื้อ	この税務請求書に買い手の記載がないため仕入税額を計上していません

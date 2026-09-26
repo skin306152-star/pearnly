@@ -17,6 +17,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from pearnly_erp_portal.masters.contracts import PARTY_TYPES
+from pearnly_erp_portal.recognition import checks
 
 _CENT = Decimal("0.01")
 _HUNDRED = Decimal("100")
@@ -281,13 +282,25 @@ def _header_discount(value):
     return float(amount.quantize(_CENT)) if amount > 0 else 0
 
 
+def _merged_discount(header, discount_lines):
+    """模型已经把同一笔折扣读进了整单折扣就不重复加。"""
+    if not discount_lines or abs(_d(header) - discount_lines) <= Decimal("0.005"):
+        return header
+    return float((_d(header) + discount_lines).quantize(_CENT))
+
+
 def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = "") -> dict:
     """把识别结果归一成 `create_document` 的入参形状。缺什么就留空，不猜。"""
     payload = payload or {}
-    lines = []
+    lines, discount_lines = [], Decimal(0)
     for row in payload.get("lines") or []:
         description = str(row.get("description") or "").strip()
         if not description:
+            continue
+        if checks.is_discount_line(description, row.get("amount"), row.get("unit_price")):
+            # 折扣 / 优惠券行不是商品：并进整单折扣（`recognition.checks.is_discount_line`）。
+            discount_lines += abs(checks.money(row.get("amount")) or checks.money(row.get("unit_price"))
+                                  or checks.money(row.get("discount")) or 0)
             continue
         lines.append({
             "description": description[:300],
@@ -314,7 +327,7 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
         # 门市小票（ABB）通常是含税价：票面写着含税就按含税算，不在上面再加一次 VAT。
         "price_includes_vat": payload.get("price_includes_vat") is True,
         # 票面整单折扣（金额）：以前没读，有整单折扣的小票入账会多记。
-        "header_discount": _header_discount(payload.get("discount_total")),
+        "header_discount": _merged_discount(_header_discount(payload.get("discount_total")), discount_lines),
         "lines": lines,
         "source_file": source_file or None,
         "image_sha256": image_sha256 or None,

@@ -13,6 +13,7 @@
 **按识别出的明细算出的合计必须等于票面合计**。这里提前到识别阶段，因为新流程的卡片
 直接给出合计（09-26 真机：20% 折扣被丢、只有金额没有单价，这两次都该在这里被拦下）。
 """
+import re
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -48,13 +49,53 @@ SOFT = frozenset({"date_future", "date_old", tax_rules.REVIEW_UNKNOWN_TYPE, tax_
                   tax_rules.REVIEW_TAX_INVOICE_WITHOUT_BUYER, tax_rules.REVIEW_CREDIT_NOTE})
 
 
+# 折扣 / 优惠券印成一行（「ส่วนลด…」）：不是商品，并进整单折扣（采购、销售共用；语料实测：被记成正数商品多算，
+# 或与整单折扣重复扣）。
+DISCOUNT_LINE = re.compile(r"^\s*(ส่วนลด|ลดราคา|คูปอง|discount\b|disc\.|coupon\b)", re.IGNORECASE)
+
+
+# 提示词片段（采购、销售共用）：语料实测 7-Eleven 小票把门店 / POS 码当成单号。
+POS_RULES = ("On a shop or POS slip doc_no is the receipt running number (printed after R#, Rcpt, No. or เลขที่),\n"
+             "never the branch, store, POS, terminal or cashier code. Discount and coupon rows (ส่วนลด ...) are not\n"
+             "items: add them to discount_total.")
+
+
+def is_discount_line(description, *amounts) -> bool:
+    """这一行是折扣行：名称是折扣 / 优惠券，或金额 / 单价印成负数。"""
+    if DISCOUNT_LINE.match(str(description or "")):
+        return True
+    return any((money(value) or 0) < 0 for value in amounts)
+
+
 def money(value):
+    """票面金额 → Decimal；会计写法的括号「(183.82)」是负数（贷项通知单常见，语料实测读不出合计）。"""
     if value in (None, ""):
         return None
+    text = str(value).replace(",", "").replace("฿", "").strip()
+    negative = text.startswith("(") and text.endswith(")")
     try:
-        return Decimal(str(value).replace(",", "").replace("฿", "").strip())
+        amount = Decimal(text.strip("()").strip())
     except (InvalidOperation, ValueError):
         return None
+    return -amount if negative else amount
+
+
+# 泰国预扣税常用税率（%）：票面只印了扣税后的实付额时，按这几档反推（`withholding_rate`）。
+WHT_RATES = (Decimal(1), Decimal("1.5"), Decimal(2), Decimal(3), Decimal(5), Decimal(10), Decimal(15))
+
+
+def withholding_rate(base, vat, total, wht_amount=None):
+    """票面「合计」是扣了预扣税后的实付额：基数 + VAT − 基数 × 税率 = 合计。印了预扣税额就按它算，
+    否则只在某一档常用税率使等式正好成立时才认（语料实测：3% 服务费票没读出预扣税，合计对不上）。"""
+    base, vat, total = money(base), money(vat) or Decimal(0), money(total)
+    if base is None or total is None or base <= 0:
+        return None
+    printed = money(wht_amount)
+    if printed and printed > 0:
+        candidates = [rate for rate in WHT_RATES if abs(base * rate / 100 - printed) <= Decimal("0.01")]
+    else:
+        candidates = [rate for rate in WHT_RATES if abs(base + vat - base * rate / 100 - total) <= Decimal("0.01")]
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def digits(value) -> str:
@@ -113,7 +154,9 @@ def printed_issues(printed: dict, line_amounts: list, *, seller_tax=None, buyer_
             expected = net * VAT_RATE
             if abs(total - net) > TOLERANCE and abs(total - net - expected) > max(TOLERANCE, expected * RELATIVE):
                 issues.append("printed_math")
-        elif min(abs(sub + vat - total), abs(sub - discount + vat - total)) > TOLERANCE:
+        elif min(abs(sub + vat - total), abs(sub - discount + vat - total)) > TOLERANCE \
+                and withholding_rate(sub - discount, vat, total) is None:
+            # 合计是扣了预扣税后的实付额（基数 + VAT − 基数 × 常用税率）也是平的，不算票面错。
             issues.append("printed_math")
     if not inclusive and not _vat_ratio_ok(sub, vat, discount):
         issues.append("vat_ratio")
@@ -172,6 +215,6 @@ def vat_mode(printed: dict, line_sum, discount=0):
     net = lines - (money(discount) or 0)
     if abs(net - total) <= TOLERANCE:
         return "inclusive"
-    if abs(net - (total - vat)) <= TOLERANCE:
+    if abs(net - (total - vat)) <= TOLERANCE or withholding_rate(net, vat, total) is not None:
         return "exclusive"
     return None

@@ -547,6 +547,7 @@ No stock count in progress,无进行中的盘点
 No terminal yet,还没有收银台
 No warehouse is available for this company,这家公司没有可用的仓库
 No warehouse matches that name,该仓库名不存在
+Non-claimable VAT,不可抵扣的增值税
 None,无
 Normal,正常
 Not Available,无货
@@ -1015,6 +1016,7 @@ This document was already recorded,这张单据已经入账
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
 This file holds {0} documents; only the first is filled in. Upload the others separately.,这个文件里有 {0} 张单据，这里只填了第一张，其余请分开上传。
+This is a credit note. Credit notes cannot be recorded as a purchase yet.,这是贷项通知单，暂时不能按采购单录入。
 This is a credit note: check the amounts and the original invoice,这是贷项通知单，请核对金额和原发票
 This is not a purchase or sales document,这不是采购或销售单据
 This item is also stocked at:,这件货还在别处：
