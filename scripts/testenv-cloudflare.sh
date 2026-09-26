@@ -9,12 +9,13 @@
 # 凭据只从本机文件读：~/.config/pearnly-testenv/cloudflare.token（600，不进仓库）
 #
 # 用法：
-#   bash scripts/testenv-cloudflare.sh status [dms] [erp]
+#   bash scripts/testenv-cloudflare.sh status [dms] [erp] [cowork]
 #   bash scripts/testenv-cloudflare.sh tunnel-create     # 只做一次
 #   bash scripts/testenv-cloudflare.sh switch-lab  dms    # 只把 DMS 测试租户切过去
 #   bash scripts/testenv-cloudflare.sh switch-prod erp    # 只把 ERP 测试租户切回来
 #
-# 不带产品名 = 两个都切（与旧行为一致）。隧道本身同时带这两个域名，
+# 2026-09-26 起加上 Cowork 的测试租户 testcowork.pearnly.com（Cowork 前端 8181）。
+# 不带产品名 = 全部都切。隧道本身同时带这几个域名，
 # 所以"切哪个产品"只是"给哪个域名建/删自己的 CNAME"。
 set -euo pipefail
 
@@ -22,13 +23,14 @@ config_dir=${PEARNLY_TESTENV_CFG:-$HOME/.config/pearnly-testenv}
 token_file=$config_dir/cloudflare.token
 env_file=$config_dir/cloudflare.env
 zone_name=${PEARNLY_TESTENV_ZONE:-pearnly.com}
-hosts=(testdms.pearnly.com testerp.pearnly.com)
+hosts=(testdms.pearnly.com testerp.pearnly.com testcowork.pearnly.com)
 
 host_for() {
   case "$1" in
     dms) echo testdms.pearnly.com ;;
     erp) echo testerp.pearnly.com ;;
-    *) echo "unknown app: $1 (expected dms|erp)" >&2; exit 2 ;;
+    cowork) echo testcowork.pearnly.com ;;
+    *) echo "unknown app: $1 (expected dms|erp|cowork)" >&2; exit 2 ;;
   esac
 }
 
@@ -100,6 +102,7 @@ cmd_tunnel_create() {
     "ingress": [
       {"hostname": "testdms.pearnly.com", "service": "http://127.0.0.1:8183"},
       {"hostname": "testerp.pearnly.com", "service": "http://127.0.0.1:8182"},
+      {"hostname": "testcowork.pearnly.com", "service": "http://127.0.0.1:8181"},
       {"service": "http_status:404"}
     ]
   }
@@ -152,5 +155,5 @@ case "${1:-}" in
   tunnel-create) cmd_tunnel_create ;;
   switch-lab) shift; cmd_switch_lab "$@" ;;
   switch-prod) shift; cmd_switch_prod "$@" ;;
-  *) echo 'usage: testenv-cloudflare.sh {status|tunnel-create|switch-lab|switch-prod} [dms] [erp]'; exit 2 ;;
+  *) echo 'usage: testenv-cloudflare.sh {status|tunnel-create|switch-lab|switch-prod} [dms] [erp] [cowork]'; exit 2 ;;
 esac

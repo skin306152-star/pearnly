@@ -159,7 +159,7 @@ case "${1:-}" in
     case "$app" in
       dms) entries=("dms.${site_suffix}:8183" "testdms.pearnly.com:8183") ;;
       erp) entries=("erp.${site_suffix}:8182" "testerp.pearnly.com:8182") ;;
-      cowork) entries=("cowork.${site_suffix}:8181") ;;
+      cowork) entries=("cowork.${site_suffix}:8181" "testcowork.pearnly.com:8181") ;;
     esac
     for entry in "${entries[@]}" "billing.internal:8184"; do
       host_name=${entry%%:*}; port=${entry##*:}

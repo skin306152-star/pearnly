@@ -120,6 +120,7 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 | --- | --- | --- | --- |
 | DMS | 09-25 按用户要求清零（见 [Windows 测试环境记录](../work/2026-09-24-windows-testenv.md)） | `testdms.pearnly.com` | 建卷并从线上重新导出导入（首次较慢） |
 | ERP | **保留**（用户 09-26 定）：`pearnly-testenv-erp_{database,queue,sites-erp,sites-billing}` | `testerp.pearnly.com`（09-25 导入 + 09-26 测试数据） | 复用，约 2 分钟；要线上最新数据加 `PEARNLY_TESTENV_REFRESH=1` |
+| Cowork | `pearnly-testenv-cowork_{database,queue,sites-cowork,sites-billing}`（09-26 导入） | `testcowork.pearnly.com`（09-26 导入，镜像 `02a3b22` `sha256:3a1d5f26…`） | 复用；要线上最新数据加 `PEARNLY_TESTENV_REFRESH=1` |
 
 ERP 上次跑的是已上线的 `a1f6488`（`sha256:b7c07a7f…`）。
 
@@ -144,26 +145,26 @@ bash scripts/testenv.sh lab-stop erp                                          # 
 都会在下一次 `lab-start` 远程拉起 WSL 时自己起来。**切在测试机上时关机**，被切过去的那个测试租户会整体打不开，
 所以关机前先 `lab-stop`。
 
-## Cowork：空白站点 + 本栈账本（2026-09-26 起）
+## Cowork：测试租户 `testcowork.pearnly.com`（2026-09-26 起与 DMS / ERP 同一套做法）
 
-Cowork 线上还没有租户，没法像 `testdms` / `testerp` 那样整站导入，所以 Cowork 用栈里的空白站点
-`cowork.test.localhost`，外加 `lab-init` 把它配成能走录入工作台的样子（实现见
-[`cowork-lab.py`](../../infrastructure/testenv/cowork-lab.py)）：
+线上已有 Cowork 测试租户 `testcowork.pearnly.com`（ERP 窗口 2026-09-26 开通并升到 `15dea26`），所以 Cowork 与
+`testdms` / `testerp` 一样：整站导入 + 切域名，登录走线上 Keycloak 与同一批测试账号。
 
 ```bash
 export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
 export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
-bash scripts/testenv.sh up cowork        # 起 Cowork 栈（会先停别的测试栈，卷保留）+ 建空白站点
-bash scripts/testenv.sh lab-init cowork  # 本栈账本 billing.internal + 测试租户 T-TESTCOWORK（1000 THB）+ 开通全部功能 + 管理员 + 公司资料
-bash scripts/testenv.sh urls             # Mac 侧端口转发；浏览器开 http://cowork.test.localhost:8181
+bash scripts/testenv.sh lab-start cowork   # 起 Cowork 栈 →（首次或要求刷新）导入 testcowork + 账本 → 收尾 → 切 testcowork 域名
+bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈（卷保留）
 ```
 
-- 管理员 `labadmin@testcowork.local`（用户名 `labadmin`），密码在本机 `~/.config/pearnly-testenv/testenv-secrets`
-  的 `COWORK_LAB_ADMIN_PASSWORD`（600，不进仓库）。
-- **与线上不同之处（如实说明）**：站点不接统一身份，用本地密码经 `/api/method/login` 登录（线上业务站点没有这条路，
-  等 Cowork 账号池 `pearnly-cowork` 拆分完成后换成真实登录）；账本是本栈自建的，不是线上账本的副本；
-  不配 OCR（真实识别是付费调用，另行授权）、不配 LINE、不切域名；ERP 连接由人在网页里填。
-- 全部幂等；`reset cowork` 会连本栈账本一起删掉，之后重新 `up` + `lab-init`。
+- 隧道入口加了 `testcowork.pearnly.com → 127.0.0.1:8181`（`testenv-cloudflare.sh tunnel-create` 已更新线上隧道配置）；
+  切换只动 `testcowork` 一条 CNAME，DMS / ERP 域名不受影响。改完解析后几分钟内才全部生效，期间请求可能仍落到线上。
+- 第一次（2026-09-26）遇到的坑：Cowork 栈的账本卷里原来有一个实验室自建的 `billing.internal`（下面旧做法留下的），没有
+  导入标记，导入脚本拒绝覆盖。已删掉该实验室账本站与其数据库后重新导入。今后 Cowork 栈的账本都是线上账本的副本。
+- 空白站点 `cowork.test.localhost` 仍在栈里（`lab-init cowork` 的旧做法：本地密码登录、本栈自建账本），
+  只在需要不接统一身份的空白站点时用；它现在与导入的账本共用一个账本站，`lab-init` 会往里登记 `T-TESTCOWORK`。
+- 与线上不同 / 边界：OCR 读的是测试机 `/run/secrets/ocr.json`（线上真凭据，识别是**真实付费调用**，只在人工验收时用）；
+  账本是导入时的副本，扣费不回写线上；Cowork 独立账号池 `pearnly-cowork` 还没在线上建，`testcowork` 目前仍签到业务账号池。
 
 ## 命令速查
 
@@ -180,7 +181,7 @@ bash scripts/testenv.sh urls             # Mac 侧端口转发；浏览器开 ht
 | `bash scripts/testenv.sh smoke` | 入口冒烟（按 Host 头访问各站点） |
 | `bash scripts/testenv.sh urls` | 打印 Mac 侧端口转发与可访问地址 |
 | `bash scripts/testenv.sh logs <服务>` / `down` / `reset` | 看日志 / 停栈（保留数据）/ 删测试环境数据卷 |
-| `bash scripts/testenv.sh lab-start [dms\|erp]` / `lab-stop [dms\|erp]` | 见上"一键切换"；可只切一个产品 |
+| `bash scripts/testenv.sh lab-start [dms\|erp\|cowork]` / `lab-stop [dms\|erp\|cowork]` | 见上"一键切换"；可只切一个产品 |
 | `bash scripts/testenv-cloudflare.sh status` | 只读：这两个测试域名现在指向线上还是测试机 |
 
 ## 凭据与边界

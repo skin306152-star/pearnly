@@ -228,7 +228,7 @@ lab_stop() {
 
 # 有公网测试租户的产品：app → <组>:<站点>；不带参数=全部。
 lab_apps() {
-  if (( $# == 0 )); then printf '%s\n' dms erp; else printf '%s\n' "$@"; fi
+  if (( $# == 0 )); then printf '%s\n' dms erp cowork; else printf '%s\n' "$@"; fi
 }
 
 tenant_spec() {
@@ -236,7 +236,8 @@ tenant_spec() {
     case "$app" in
       dms) echo 'dms:testdms.pearnly.com' ;;
       erp) echo 'erp:testerp.pearnly.com' ;;
-      *) echo "unknown app: $app (expected dms|erp)" >&2; exit 2 ;;
+      cowork) echo 'cowork:testcowork.pearnly.com' ;;
+      *) echo "unknown app: $app (expected dms|erp|cowork)" >&2; exit 2 ;;
     esac
   done
 }

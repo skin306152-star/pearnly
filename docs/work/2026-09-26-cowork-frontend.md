@@ -98,6 +98,22 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
 样板 `cowork-a`（迁移后）服务端实测：三个新角色已建、LINE 处理器已注册；管理员能看到 6 项勾选、侧栏只有首页 / 录入、团队管理进左下角；
 管理员本人一行锁定。浏览器：团队管理名单与「添加用户」弹窗、个人信息 LINE 块已看。未验：添加用户成功路径、员工视角、真实 LINE 绑定。
 
+## 第十三批：Cowork 真实测试环境（2026-09-26，测试机，镜像 main `02a3b22` `sha256:3a1d5f26…`）
+
+用户：“开始搭测试环境”。线上已有 Cowork 测试租户 `testcowork.pearnly.com`（ERP 窗口开通并升到 `15dea26`），
+所以照 DMS / ERP 的做法：整站导入 + 切域名（不再用本地密码的空白站点）。
+
+- 脚本：`testenv.sh` / `testenv-cloudflare.sh` / `run.sh` 加上 `cowork → testcowork.pearnly.com`（隧道入口 → 8181）；
+  `tunnel-create` 已把新入口写进线上隧道配置（原两条不变）。文档 `docs/development/test-environment.md` Cowork 一节改写。
+- 执行：`lab-start cowork` → 拉镜像 → 起 Cowork 栈 → 线上导出 `testcowork` 与账本 → 导入 `testcowork`（`IMPORT_OK`，287 张表）；
+  账本导入被拒（Cowork 栈账本卷里是第七批实验室自建的 `billing.internal`，无导入标记）→ 删掉该实验室账本站与其库
+  `_f7b1e2dfec5cbff0` → 重新导入账本、迁移、收尾（两个 Cowork 站点 migrate / clear-cache ok，识别凭据可读）→ 入口冒烟
+  （两站 ping 200、账本匿名 403 属正常）→ `switch-lab cowork`。本机导出副本已删。
+- 回读：`testcowork.pearnly.com` CNAME → 隧道；经域名取 `recon.css`（只有新镜像有）200，确认流量到测试机（解析生效约几分钟）；
+  登录跳线上 `auth.pearnly.com/realms/pearnly-business`（Cowork 独立账号池线上未建，仍是业务池）。
+- **未做 / 待用户**：用测试账号登录后逐项业务验收（录入、三个对账、盘点、团队管理、LINE 绑定）；真实识别是付费调用，需授权。
+- 现状：Cowork 栈在测试机上**运行中**，`testcowork` **已切到测试机**；测完用 `lab-stop cowork` 切回线上并停栈（卷保留）。
+
 ## 第十二批：三种对账复核表统一外观（2026-09-26）
 
 用户：“三个对账的表格继续优化统一，不动逻辑，视觉对齐整齐，颜色统一，格式能统一的统一，KPI 卡片不要，说明文案删掉，统一框架，统一视觉效果”；
