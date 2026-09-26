@@ -24,7 +24,7 @@ class PearnlyLINEChannel(Document):
     def validate(self):
         dep = frappe.db.get_value(
             "Pearnly Deployment", self.deployment,
-            ["product", "site_name", "port", "url", "tenant", "issue"], as_dict=True,
+            ["product", "site_name", "port", "url"], as_dict=True,
         )
         if not dep:
             frappe.throw(_("No such deployment: {0}").format(self.deployment))
@@ -41,7 +41,6 @@ class PearnlyLINEChannel(Document):
         self.webhook_url = (
             f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.line.webhook"
         )
-        self.login_callback_url = _login_callback_url(dep) if self.liff_id else ""
 
     def on_update(self):
         """渠道一保存就把当前凭据/开关状态排进云端的 set_line 步骤（开通之后再配渠道靠它）。
@@ -60,19 +59,3 @@ class PearnlyLINEChannel(Document):
         from pearnly_control.provisioning import queue_cloud_line_config
 
         queue_cloud_line_config(self, enabled=False)
-
-
-def _login_callback_url(dep) -> str:
-    """LINE Login 频道要登记的回调地址：身份服务里本站 LINE 入口的回调（别名按产品 × 租户算）。"""
-    from pearnly_core.account.line_login_contract import idp_alias
-
-    from pearnly_control import infra
-    from pearnly_control.provisioning import _issuer_url
-
-    target = frappe.db.get_value("Pearnly Issue", dep.issue, "target")
-    if not infra.is_cloud(target) or not dep.tenant:
-        return ""
-    try:
-        return f"{_issuer_url(target)}/broker/{idp_alias(dep.product, dep.tenant)}/endpoint"
-    except ValueError:
-        return ""
