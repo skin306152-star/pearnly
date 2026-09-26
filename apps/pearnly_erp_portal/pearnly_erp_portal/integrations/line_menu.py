@@ -23,6 +23,7 @@ import requests
 from frappe import _
 
 from pearnly_core import line, line_binding
+from pearnly_core.account import line_login
 
 CONFIG = "pearnly_erp_line_menus"
 # 格子顺序即位置（3 列 2 行，左上起）；后三格恒为锁。
@@ -73,7 +74,7 @@ def payload(variant, language) -> dict:
             continue
         if name == "stocktake":
             action = {"type": "uri", "label": _("Stock count", lang=language)[:20],
-                      "uri": frappe.utils.get_url().rstrip("/") + STOCKTAKE_ROUTE}
+                      "uri": line_login.entry_url(STOCKTAKE_ROUTE)}
         else:
             label = _(LABELS[name], lang=language)
             action = {"type": "postback", "data": "a=mode:" + name, "displayText": label, "label": label[:20]}

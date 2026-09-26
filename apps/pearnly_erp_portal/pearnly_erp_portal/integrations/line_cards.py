@@ -245,6 +245,8 @@ def _card(doc, result, totals, shown) -> dict:
 
 
 def editor_link(doc) -> str:
-    """网页端原生页里「从这张 LINE 单据打开」的地址（LINE 内置浏览器打开；没登录先走正常登录）。"""
+    """网页端原生页里「从这张 LINE 单据打开」的地址。经 LINE 入口：LINE 里未登录时用绑定的 LINE 免密登录。"""
+    from pearnly_core.account import line_login
+
     root = "pearnly-purchase" if doc.direction == "purchase" else "pearnly-sales"
-    return f"{frappe.utils.get_url().rstrip('/')}/desk/{root}/line/{doc.name}"
+    return line_login.entry_url(f"/desk/{root}/line/{doc.name}")

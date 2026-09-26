@@ -373,7 +373,7 @@ class RichMenu(Base):
         self.assertEqual([area["bounds"]["x"] for area in areas], [0, 1666])  # 销售那格是锁、不可点
         self.assertEqual(areas[0]["action"]["data"], "a=mode:purchase")
         self.assertEqual(areas[1]["action"], {"type": "uri", "label": "Stock count",
-                         "uri": "https://testerp.pearnly.com/desk/pearnly-stock-count"})
+                         "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-stock-count"})
         self.roles["buyer"] = {"integration.read", "purchase.write", "count.write"}
         self.assertEqual(line_menu.wanted_variant("buyer"), "purchase+stocktake")
         self.roles["buyer"] = {"purchase.write"}
@@ -949,7 +949,7 @@ class CardShape(Base):
         footer = card["contents"]["footer"]["contents"]
         self.assertEqual(len(footer), 1)
         self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",
-                         "uri": "https://testerp.pearnly.com/desk/pearnly-purchase/line/LI-1"})
+                         "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-purchase%2Fline%2FLI-1"})
 
     def test_long_documents_stay_within_the_line_bubble_limit(self):
         doc = _doc()

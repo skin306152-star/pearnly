@@ -62,6 +62,15 @@ def in_line_app() -> bool:
     return " Line/" in (frappe.get_request_header("User-Agent") or "")
 
 
+ENTER_METHOD = "pearnly_core.account.line_login.enter"
+
+
+def entry_url(path: str) -> str:
+    """发到 LINE 里的网页端链接一律经这里：LINE 内置浏览器里未登录时直接走 LINE 登录。"""
+    return (frappe.utils.get_url().rstrip("/") + "/api/method/" + ENTER_METHOD + "?"
+            + urlencode({"to": _local_path(path)}))
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def enter(to=None):
     """LINE 卡片与菜单的链接入口：已登录直接去；LINE 里未登录走 LINE 登录；别处照常登录。"""
