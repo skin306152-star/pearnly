@@ -69,6 +69,29 @@
 测试机线上镜像内 line-runtime 37、session-reuse 18、line-language 12、intake-queue 23、query-output 11、snapshot-consumers 25、query-snapshots 40；架构 0 违规、`check-dms-offline`、`i18n-build --check` 通过。
 `sample-verify-dms-menu-wiring` 在清理步骤报 "A submitted booking cannot be discarded"，main 上同样失败（既有问题，不在 CI），未在本任务处理。
 
+## 读档账号与改写账号（用户 2026-09-27："右上角只留两个按钮……读档账号只用于白天 6–22:00 每分钟运行一次"）
+
+用途、入口、配置与验证（AGENTS.md 要求增减入口前登记）：
+
+| 入口 | 用途 | 实现 | 点击去向 |
+| --- | --- | --- | --- |
+| 「添加改写权限账号」（主按钮） | 客户档建/改、权威读取用的账号；登记了就不再用连接账号 | `connections.api.save_write_accounts` → `admin_pool.members` | 弹窗：官方 Grid 默认一行账号密码，「添加行」加一行；已登记的密码留空=不改，删行=移除；整表按"改写"试过才存 |
+| 「添加读档账号」/「修改读档账号」（次按钮） | 只用于白天 6:00–22:00 的后台读取 | `connections.api.set_read_account` → `admin_pool.read_account` / `operations.daytime_read_account` | 弹窗：账号 + 密码，按"读档"试过才替换 |
+| 「…」→「编辑帐户」 | 换公司连接账号（原主按钮） | 原 `wizard` 不变 | 原连接弹窗 |
+
+- 角色：System Manager（`_require_admin`）；数据：DocType `DMS System Account` 新增 `purpose`（write / read，默认 write），`bench migrate` 生效。
+- 没有读档账号：白天不做每分钟同步（只靠凌晨全量），保证白天不占连接账号。白天同步窗口默认改为 `6-22`。
+- 同时修掉会话复用带来的漏洞：**验证账号密码时复用了缓存会话 → 输错密码也"测试通过"**（登记系统账号与连接向导都受影响）。现在验证时一律真登，缓存里活着的旧会话先正常登出。
+- 本站启用中的 DMS 连接用到的账号（公司连接、每个操作员的销售账号）不能登记为系统账号。
+- 连接页错误话术（服务端回四语字典）按界面语言取一句（连接向导原先同样会显示成对象）。
+
+验证（测试机线上镜像 + 实时源码，DMS-TEST）：
+- 按用途试探：`sale03`（销售账号，其连接已停用）与 `dmstest` 读档、改写两项全部通过（DMS-TEST 给销售的权限也够；正式公司的权限要以实际账号为准）。
+- 读档：错密码被拒（修复后）；登记 `sale03` 后白天同步一轮只产生 `sale03` 会话，不再登录 `dmstest`。
+- 改写：登记操作员的 `sale02` 被拒；错密码被拒；登记 `sale03` 后客户写入会话用 `sale03`，保留（不填密码）不重试探；清空后恢复用 `dmstest`。
+- 测试：session-reuse 25、line-runtime 37、line-language 12、连接页 `test-dms-connect-overlay.cjs` 14（原 9 条中 8 条在账号池加入后已坏，现修复并加入 Development checks）、native-desk、desk 契约 22、connection-snapshots 13、架构 0 违规、`check-dms-offline`、`i18n-build --check`。
+- 测试站现状：读档账号 = `sale03`；改写账号未登记（等 DMS-TEST 上新建管理员账号后再试多账号分流）。
+
 ## 上线前要做 / 限制
 
 - 部署后需要**重新发布图文菜单**（`rich_menu.publish()`，写 LINE 官方号，需用户同意）才会出现多语言菜单；不发布时一切照旧挂泰文菜单。
