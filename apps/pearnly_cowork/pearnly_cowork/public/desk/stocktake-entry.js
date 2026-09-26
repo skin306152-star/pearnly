@@ -2,7 +2,8 @@
  *
  * Cowork 盘点记录弹窗：ERP `pearnly_erp_portal/public/desk/stocktake-entry.js` 的原样副本（用户 2026-09-26
  * “其它照搬”）。只改了接口前缀、词条前缀，以及“实际仓库”由 ERP 仓库下拉改为填写（Cowork 没有仓库主档）。
- * 扫码器用共用层那份（`pearnly_core/public/desk/scan.js`）。改 ERP 那份时请同步这份。
+ * 读码器与 ERP 共用 `pearnly_core/public/desk/scan.js`（ERP 2026-09-26 去重后也只用这份）。
+ * 改 ERP 的盘点记录弹窗时请同步这份弹窗。
  */
 (() => {
 	const p = frappe.pearnly, api = "pearnly_cowork.stocktake.desk_api.";
