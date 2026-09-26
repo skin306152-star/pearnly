@@ -142,6 +142,9 @@ class ChangeSyncTests(unittest.TestCase):
         self.sync = importlib.import_module("pearnly_dms.adapter.change_sync")
         self.read = Mock(return_value={"customer_id": "59", "people_id": ID_CARD})
         self.enterContext(patch.object(self.sync, "read_customer_complete", self.read))
+        # 这些用例测的是"点不出记录就整组重读"本身，与白天/夜里无关：默认不延后（ADR-012）。
+        self.defer = self.enterContext(
+            patch("pearnly_dms.adapter.live_sync.defer_heavy", return_value=False))
 
     def baseline(self, **overrides):
         """一个已建好的水位：默认每个模块都是"零事件、水位 1"，可逐个改。"""
@@ -179,6 +182,19 @@ class ChangeSyncTests(unittest.TestCase):
         entry = self.store.written[-1]["modules"][CUSTOMERS]
         self.assertEqual((entry["count"], entry["seq"], entry["dirty_since"]), (231, 832, 0))
         self.assertEqual(self.manual.requests, [], "按记录补上了就不该整组重读")
+
+    def test_daytime_leaves_a_big_group_read_for_the_night(self):
+        """白天点不出记录：客户组只标记待重读、水位推进，不马上登记一个多小时的整组读取。"""
+        self.defer.side_effect = lambda dataset: dataset == "customers"
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS, target="")]}})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.manual.requests, [])
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual((entry["count"], entry["seq"]), (231, 832))
+        self.assertGreater(entry["dirty_since"], 0, "留着待重读标记，凌晨全量读完才清")
 
     def test_change_without_an_identified_record_falls_back_to_a_group_read(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})

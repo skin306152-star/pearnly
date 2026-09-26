@@ -195,3 +195,83 @@ def _default_url() -> str:
         if existing:
             return existing
     return DMS_DEFAULT_URL
+
+
+# ── 系统账号池（ADR-013）─────────────────────────────────────────────────
+# 管理员会话（客户档写入、订车前复核、后台读取）从池里挑空闲账号；池子是空的就只用
+# 连接自己那组账号，行为与以前一致。先真登一次再存，和主账号同一个口径。
+
+SYSTEM_ACCOUNT = "DMS System Account"
+
+
+def _pool_row(doc) -> dict:
+    return {
+        "name": doc.name,
+        "username": doc.username,
+        "enabled": bool(doc.enabled),
+        "usable": bool(read_password(SYSTEM_ACCOUNT, doc.name, "password")),
+        "last_status": doc.last_status or "",
+        "last_checked_at": str(doc.last_checked_at or ""),
+    }
+
+
+@frappe.whitelist()
+def list_system_accounts() -> list:
+    _require_admin()
+    names = frappe.get_all(SYSTEM_ACCOUNT, pluck="name", order_by="creation asc")
+    return [_pool_row(frappe.get_doc(SYSTEM_ACCOUNT, name)) for name in names]
+
+
+@frappe.whitelist(methods=["POST"])
+def add_system_account(username: str, password: str) -> dict:
+    """真登一次通过才存；与主账号、已登记账号同名的拒绝。"""
+    _require_admin()
+    username = (username or "").strip()
+    if not username or not password:
+        frappe.throw(_("Both account and password are required"))
+    name = _endpoint_name()
+    if not name:
+        frappe.throw(_("No DMS connection has been configured yet"))
+    endpoint = frappe.get_doc(ENDPOINT, name)
+    if username in {endpoint.username, endpoint.admin_username}:
+        frappe.throw(_("This account is already the connection's own account"))
+    if frappe.db.exists(SYSTEM_ACCOUNT, {"username": username}):
+        frappe.throw(_("This system account is already registered"))
+    probe = test_credentials(username, password, endpoint.system_url)
+    if not probe.get("ok"):
+        return {"ok": False, "error_friendly": probe.get("error_friendly")}
+    doc = frappe.get_doc({"doctype": SYSTEM_ACCOUNT, "username": username, "password": password,
+                          "enabled": 1, "last_status": "ok",
+                          "last_checked_at": frappe.utils.now_datetime()})
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return {"ok": True, "account": _pool_row(doc)}
+
+
+@frappe.whitelist(methods=["POST"])
+def set_system_account_enabled(name: str, enabled: int | bool = 1) -> dict:
+    _require_admin()
+    doc = frappe.get_doc(SYSTEM_ACCOUNT, name)
+    doc.enabled = 1 if int(enabled or 0) else 0
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return _pool_row(doc)
+
+
+@frappe.whitelist(methods=["POST"])
+def remove_system_account(name: str) -> dict:
+    """移除前先把它缓存着的会话丢掉，免得还有人接着用。"""
+    _require_admin()
+    doc = frappe.get_doc(SYSTEM_ACCOUNT, name)
+    endpoint_name = _endpoint_name()
+    if endpoint_name:
+        from pearnly_core.session_lock import dms_login_key
+        from pearnly_dms.adapter import session_cache
+        from pearnly_dms.adapter.session import MrerpDmsAdapter
+
+        system_url = frappe.db.get_value(ENDPOINT, endpoint_name, "system_url") or ""
+        login_url, _base = MrerpDmsAdapter._normalize_urls(system_url)
+        session_cache.forget(dms_login_key(login_url, doc.username))
+    frappe.delete_doc(SYSTEM_ACCOUNT, name, ignore_permissions=True)
+    frappe.db.commit()
+    return {"ok": True}

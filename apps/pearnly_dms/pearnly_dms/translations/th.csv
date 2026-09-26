@@ -1,9 +1,13 @@
 Account busy — click Read later to continue,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
 Account busy — click Update data later to continue,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
 Account busy — the read will continue shortly,บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่
+Action,การดำเนินการ
+Add system account,เพิ่มบัญชีระบบ
+Added {0},เพิ่ม {0} แล้ว
 Address data as of {time}; refreshed manually,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 Address directory,รายการที่อยู่
 Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
+Apply,ดำเนินการ
 Booking ID,รหัสการจอง
 Booking Number,เลขที่การจอง
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
@@ -11,8 +15,10 @@ Booking Number,เลขที่การจอง
 Cached result captured at {time},อ่านผลที่บันทึกไว้เมื่อ {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ
 Company information,ข้อมูลบริษัท
+"Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS
 Customer records,ข้อมูลลูกค้า
 DMS,DMS
+DMS System Account,บัญชีระบบ DMS
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง
 "DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.",ข้อมูล DMS ยังไม่พร้อม กรุณาดูสถานะการอ่าน หากยังไม่มีงานอ่าน ให้กดอ่านใน LINE หรือหน้าการเชื่อมต่อ DMS
@@ -24,16 +30,22 @@ Data captured at,เวลาที่ซิงก์ข้อมูล
 Data updated,อัปเดตข้อมูลแล้ว
 Enable the DMS connection before reading data,กรุณาเปิดใช้งานการเชื่อมต่อ DMS ก่อนอ่านข้อมูล
 Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
+Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว
 Full address directory,รายการที่อยู่ครบชุด
 Full customer records,ข้อมูลลูกค้าครบชุด
+Last Check,ตรวจสอบล่าสุด
+Last Checked At,เวลาตรวจสอบล่าสุด
 Last Error,ข้อผิดพลาดล่าสุด
 Last successful completion,เวลาที่อ่านสำเร็จล่าสุด
 Last successful record count,จำนวนรายการที่อ่านสำเร็จล่าสุด
 Latest error code,รหัสข้อผิดพลาดล่าสุด
+Manage system accounts,จัดการบัญชีระบบ
+"Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่
 Master data and all vehicle colors,ข้อมูลหลักและสีรถทุกรุ่น
 Multiple DMS connections exist for this operator,ผู้ปฏิบัติงานนี้มีการเชื่อมต่อ DMS หลายรายการ
 Multiple primary DMS connections exist; ask an administrator to check the configuration,มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลตรวจสอบการตั้งค่า
 Next Attempt,ครั้งถัดไปที่ลอง
+None (the connection's own account is used),ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)
 Not read yet,ยังไม่ได้อ่าน
 Older address data as of {time}; ask an administrator to refresh if needed,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 Older data as of {time}; refresh manually if needed,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
@@ -58,14 +70,21 @@ Reading this query now. The result arrives as soon as it is ready.,กำลั�
 Reading this query.,กำลังอ่านข้อมูลครั้งนี้
 Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
 Reload List,โหลดรายการใหม่
+Remove,ลบออก
+Removed {0},ลบ {0} แล้ว
+Resumed {0},ใช้งาน {0} แล้ว
 Saved DMS data,ข้อมูล DMS ที่อ่านไว้
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",ข้อมูล DMS ที่อ่านไว้ อัปเดตเมื่อกดอ่าน / อัปเดตเท่านั้น แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การดูผลไม่อ่าน DMS ซ้ำ
 Select at least one data group.,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 Select one or more DMS data groups to read,กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม
 "Select the data to update, then wait for the read to finish.",เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
+Stop / resume,หยุดใช้ / ใช้งาน
+Stopped {0},หยุดใช้ {0} แล้ว
 Submission Evidence,หลักฐานการส่ง
 Submission Nonce,nonce การส่ง
 Sync is delayed; showing data as of {time},การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}
+System accounts,บัญชีระบบ
+Test and add,ทดสอบและเพิ่ม
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
 The DMS account is busy. The read retries automatically; please wait.,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,บัญชี DMS ไม่ว่าง ระบบลองอ่านซ้ำอัตโนมัติหลายครั้งแล้วยังไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง
@@ -84,10 +103,12 @@ The recognition result needs checking. Please do not resend this image yet.,ก�
 The saved credentials cannot be read back; check the site encryption key,อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",ส่งข้อมูลแล้วแต่ยังยืนยันผลไม่ได้ กรุณาอย่าส่งซ้ำ ให้ตรวจสอบผลก่อน
 These conditions have not been read. Click Read this query.,ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้
+This account is already the connection's own account,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
 This query is queued.,การอ่านครั้งนี้อยู่ในคิวแล้ว
 This read failed. Click Read to retry.,อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้
 This read failed. Please try again later.,อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 This read was interrupted. Click Read again to retry; previously completed data was retained.,การอ่านครั้งนี้หยุดกลางทาง กรุณากดอ่านอีกครั้งเพื่อลองใหม่ ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่
+This system account is already registered,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",ข้อมูลของ租户นี้มากกว่าเพดานการอ่านปัจจุบัน กลุ่มนี้จึงยังไม่ได้อ่าน การเชื่อมต่อปกติดี ผู้ดูแลต้องปรับเพดานแล้วอ่านอีกครั้ง
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่
@@ -417,6 +438,29 @@ dms.connect.cache.state.succeeded,อัปเดตข้อมูลแล้�
 dms.connect.cache.state.waiting,บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่
 dms.connect.cache.title,ข้อมูล DMS ที่อ่านไว้
 dms.connect.cache.unconfirmed,ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง
+dms.connect.pool.action,การดำเนินการ
+dms.connect.pool.add,เพิ่มบัญชีระบบ
+dms.connect.pool.added,เพิ่ม {0} แล้ว
+dms.connect.pool.apply,ดำเนินการ
+dms.connect.pool.disabled,หยุดใช้ {0} แล้ว
+dms.connect.pool.enabled,ใช้งาน {0} แล้ว
+dms.connect.pool.errDuplicate,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
+dms.connect.pool.errOwn,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
+dms.connect.pool.field,บัญชีระบบ
+dms.connect.pool.help,สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS
+dms.connect.pool.manage,จัดการบัญชีระบบ
+dms.connect.pool.none,ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)
+dms.connect.pool.off,หยุดใช้
+dms.connect.pool.on,ใช้งาน
+dms.connect.pool.remove,ลบออก
+dms.connect.pool.removed,ลบ {0} แล้ว
+dms.connect.pool.summary,ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
+dms.connect.pool.testAndAdd,ทดสอบและเพิ่ม
+dms.connect.pool.toggle,หยุดใช้ / ใช้งาน
+dms.doctype.system_account,บัญชีระบบ DMS
+dms.doctype.system_account.description,บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว
+dms.doctype.system_account.last_checked_at,เวลาตรวจสอบล่าสุด
+dms.doctype.system_account.last_status,ตรวจสอบล่าสุด
 dms.edit.addPayment,เพิ่มช่องทาง
 dms.edit.addressSnapshotAsOf,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 dms.edit.addressSnapshotStale,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
@@ -517,6 +561,7 @@ dms.err.ERR_DMS_AUTH,เข้าสู่ระบบ DMS ไม่สำเร
 dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,ร่างใบจองนี้เปลี่ยนไปหรือมีประวัติส่งแล้ว จึงไม่ได้ส่งคำขอใหม่ กรุณาตรวจสอบร่างปัจจุบันและประวัติการส่ง
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,ส่งคำขอจองแล้ว แต่ยังตรวจสอบผลใน DMS ไม่ได้ กรุณาอย่าส่งซ้ำ ให้ผู้ดูแลตรวจสอบตามเลขที่รายการนี้
 dms.err.ERR_DMS_BOOKING_PATCH,เติมข้อมูลใบจองไม่สำเร็จ — กรุณาลองใหม่
+dms.err.ERR_DMS_BUSY,ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่
 dms.err.ERR_DMS_CONCURRENT_LOGIN,บัญชี DMS นี้กำลังถูกใช้งานที่อื่น · กรุณาออกจากระบบที่อื่นแล้วลองใหม่
 dms.err.ERR_DMS_CUSTOMER_CHANGED,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
@@ -552,6 +597,9 @@ dms.snapshot.as_of,ข้อมูล ณ {time}
 dms.snapshot.geo_as_of,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 dms.snapshot.geo_stale,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 dms.snapshot.stale,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
+in use,ใช้งาน
+stopped,หยุดใช้
 {0} processed; total not yet known,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
 {0} records,{0} รายการ
+"{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม

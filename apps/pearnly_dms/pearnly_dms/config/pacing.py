@@ -51,7 +51,8 @@ MAX_ATTEMPTS = len(ATTEMPT_TIMEOUT_MS)
 BACKGROUND_TIMEOUT_MS = 90_000
 
 #: 可以重试的错误码：**连不上对方系统**这一类（用户那颗「重试」按钮就按这个给）。
-RETRYABLE = frozenset({"ERR_DMS_UNREACHABLE", "ERR_DMS_TECHNICAL"})
+# `ERR_DMS_BUSY`：等账号等到超时（人多排队）。锁没拿到就不会发出任何请求，重试是安全的。
+RETRYABLE = frozenset({"ERR_DMS_UNREACHABLE", "ERR_DMS_TECHNICAL", "ERR_DMS_BUSY"})
 
 # ── 熔断 ─────────────────────────────────────────────────────────────────────
 

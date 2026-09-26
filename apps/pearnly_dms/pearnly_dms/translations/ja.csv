@@ -1,9 +1,13 @@
 Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
 Account busy — click Update data later to continue,アカウントが使用中です。後で「データを更新」を押して続行してください
 Account busy — the read will continue shortly,アカウントが使用中です。まもなく自動的に続行します
+Action,操作
+Add system account,システムアカウントを追加
+Added {0},{0} を追加しました
 Address data as of {time}; refreshed manually,住所データ取得時刻：{time}。手動で更新します。
 Address directory,住所一覧
 Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
+Apply,実行
 Booking ID,予約ID
 Booking Number,予約番号
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
@@ -11,8 +15,10 @@ Booking Number,予約番号
 Cached result captured at {time},保存済み結果の取得時刻：{time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
 Company information,会社情報
+"Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。
 Customer records,顧客情報
 DMS,DMS
+DMS System Account,DMS システムアカウント
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
 "DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.",DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。
@@ -24,16 +30,22 @@ Data captured at,データ取得時刻
 Data updated,データ更新完了
 Enable the DMS connection before reading data,データを読み取る前に DMS 接続を有効にしてください
 Enter the DMS password.,DMS パスワードを入力してください。
+Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
+Last Check,最終チェック
+Last Checked At,最終チェック日時
 Last Error,前回のエラー
 Last successful completion,前回成功時の完了時刻
 Last successful record count,前回成功時の件数
 Latest error code,最新のエラーコード
+Manage system accounts,システムアカウントを管理
+"Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 Master data and all vehicle colors,マスターデータと全車種の色
 Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
 Multiple primary DMS connections exist; ask an administrator to check the configuration,DMS の主接続が複数あります。管理者に設定の確認を依頼してください
 Next Attempt,次回試行
+None (the connection's own account is used),未設定（接続自身のアカウントのみ使用）
 Not read yet,未読み取り
 Older address data as of {time}; ask an administrator to refresh if needed,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 Older data as of {time}; refresh manually if needed,{time} 時点の古いデータです。必要に応じて手動で更新してください。
@@ -58,14 +70,21 @@ Reading this query now. The result arrives as soon as it is ready.,この条件�
 Reading this query.,この検索を読み取り中です。
 Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
 Reload List,リストを再読み込み
+Remove,削除
+Removed {0},{0} を削除しました
+Resumed {0},{0} を再開しました
 Saved DMS data,読み取り済み DMS データ
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
 Select at least one data group.,データを1種類以上選択してください。
 Select one or more DMS data groups to read,読み取る DMS データを1種類以上選択してください
 "Select the data to update, then wait for the read to finish.",更新するデータを選択し、読み取りが完了するまでお待ちください。
+Stop / resume,停止 / 再開
+Stopped {0},{0} を停止しました
 Submission Evidence,送信エビデンス
 Submission Nonce,送信ノンス
 Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
+System accounts,システムアカウント
+Test and add,テストして追加
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
 The DMS account is busy. The read retries automatically; please wait.,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
@@ -84,10 +103,12 @@ The recognition result needs checking. Please do not resend this image yet.,認�
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
 These conditions have not been read. Click Read this query.,この条件のデータは未読み取りです。この検索の読み取りを押してください。
+This account is already the connection's own account,このアカウントはすでに接続自身のアカウントです
 This query is queued.,この検索は待機中です。
 This read failed. Click Read to retry.,今回の読み取りは失敗しました。読み取りを押して再試行できます。
 This read failed. Please try again later.,今回の読み取りは失敗しました。しばらくしてからお試しください。
 This read was interrupted. Click Read again to retry; previously completed data was retained.,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
+This system account is already registered,このシステムアカウントは登録済みです
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",このテナントのデータ量が現在の読み取り上限を超えているため、このグループは読み取っていません。接続は正常です。管理者が上限を上げてから再度読み取ってください。
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
@@ -156,6 +177,29 @@ dms.connect.cache.state.succeeded,データ更新完了
 dms.connect.cache.state.waiting,アカウントが使用中です。まもなく自動的に続行します
 dms.connect.cache.title,読み取り済み DMS データ
 dms.connect.cache.unconfirmed,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
+dms.connect.pool.action,操作
+dms.connect.pool.add,システムアカウントを追加
+dms.connect.pool.added,{0} を追加しました
+dms.connect.pool.apply,実行
+dms.connect.pool.disabled,{0} を停止しました
+dms.connect.pool.enabled,{0} を再開しました
+dms.connect.pool.errDuplicate,このシステムアカウントは登録済みです
+dms.connect.pool.errOwn,このアカウントはすでに接続自身のアカウントです
+dms.connect.pool.field,システムアカウント
+dms.connect.pool.help,このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。
+dms.connect.pool.manage,システムアカウントを管理
+dms.connect.pool.none,未設定（接続自身のアカウントのみ使用）
+dms.connect.pool.off,停止中
+dms.connect.pool.on,使用中
+dms.connect.pool.remove,削除
+dms.connect.pool.removed,{0} を削除しました
+dms.connect.pool.summary,登録 {0} 件、利用可能 {1} 件
+dms.connect.pool.testAndAdd,テストして追加
+dms.connect.pool.toggle,停止 / 再開
+dms.doctype.system_account,DMS システムアカウント
+dms.doctype.system_account.description,システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。
+dms.doctype.system_account.last_checked_at,最終チェック日時
+dms.doctype.system_account.last_status,最終チェック
 dms.edit.addPayment,支払方法を追加
 dms.edit.addressSnapshotAsOf,住所データ取得時刻：{time}。手動で更新します。
 dms.edit.addressSnapshotStale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
@@ -256,6 +300,7 @@ dms.err.ERR_DMS_AUTH,DMS へのログインに失敗しました · ユーザー
 dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。
 dms.err.ERR_DMS_BOOKING_PATCH,予約情報の入力に失敗しました · 再試行してください
+dms.err.ERR_DMS_BUSY,現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください
 dms.err.ERR_DMS_CUSTOMER_CHANGED,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
@@ -291,6 +336,9 @@ dms.snapshot.as_of,データ取得時刻：{time}
 dms.snapshot.geo_as_of,住所データ取得時刻：{time}。手動で更新します。
 dms.snapshot.geo_stale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 dms.snapshot.stale,{time} 時点の古いデータです。必要に応じて手動で更新してください。
+in use,使用中
+stopped,停止中
 {0} processed; total not yet known,{0} 件処理済み。総数は未確定です
 {0} records,{0} 件
+"{0} registered, {1} in use",登録 {0} 件、利用可能 {1} 件
 {0}/{1} groups,{0}/{1} グループ

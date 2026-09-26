@@ -383,7 +383,16 @@ def _refreshed(endpoint, dataset, *, since):
 
 
 def _request_refresh(endpoint, dataset, *, actor):
-    """登记一次整组重读（走既有队列，不阻塞操作员）。登记不上返回 False。"""
+    """登记一次整组重读（走既有队列，不阻塞操作员）。登记不上返回 False。
+
+    白天窗口内客户/地址这两个大组**不马上读**（一次可能一个多小时，会长时间占着账号），
+    只算"已处理"：模块保持待重读，由凌晨全量完成后 `_refreshed` 自然对上账（ADR-013）。
+    """
+    from pearnly_dms.adapter import live_sync
+
+    if live_sync.defer_heavy(dataset):
+        logger.info("[dms changes] daytime: %s group read left for the nightly refresh", dataset)
+        return True
     try:
         manual.request(endpoint, dataset, reader="authority", actor=actor or SERVICE_ACTOR)
         return True

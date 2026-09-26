@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -40,6 +41,24 @@ from pearnly_dms.adapter.read_priority import (
 READ_DEFER_TIMEOUT_SECONDS = 30.0
 #: 后台读取拿账号锁最多等多久（秒）。同一笔操作刚收尾时锁可能还没放。
 READ_LOCK_WAIT_SECONDS = 10.0
+#: 操作员那一笔拿账号锁最多等多久（秒），与改动前一致。
+FOREGROUND_LOCK_WAIT_SECONDS = 180.0
+#: 等锁时每隔多久回调一次（让 LINE 的"正在输入"不断掉；LINE 最长 60 秒）。
+LOCK_HEARTBEAT_SECONDS = 20.0
+#: 账号池里"试一下这个账号空不空"最多等多久（秒）。
+POOL_PROBE_SECONDS = 0.3
+
+
+def _lock_wait_heartbeat() -> None:
+    """等锁期间的回调：由调用方（例如 LINE 后台任务）挂在 `frappe.local` 上。失败不影响等锁。"""
+    try:
+        import frappe
+
+        hook = getattr(frappe.local, "dms_lock_wait_hook", None)
+        if callable(hook):
+            hook()
+    except Exception:
+        logger.debug("DMS 等锁回调失败", exc_info=True)
 from pearnly_dms.config import pacing
 from frappe import _
 
@@ -141,6 +160,12 @@ class MrerpDmsAdapter:
         self._admin_ctx: Any = None
         self._admin_page: Any = None
         self._admin_logged_in = False
+        # 账号池：懒解析；实际选中的管理员账号及其锁（用到时才拿）
+        self._admin_pool = None
+        self._admin_account = None
+        self._admin_lock_held: Optional[bool] = None
+        # 本次是否复用了缓存的销售会话（诊断用）
+        self.session_reused = False
 
     # ----- 凭据来源 ---------------------------------------------------
 
@@ -209,34 +234,31 @@ class MrerpDmsAdapter:
     # ----- 会话生命周期 -------------------------------------------------
 
     def __enter__(self) -> "MrerpDmsAdapter":
-        # 先抢账号锁：拿不到就不许开浏览器（并发登同一账号会把对方踢下线）
-        # Lock both actual logins in stable order. Distinct employees can share
-        # one admin reader; locking only the employee lets those readers eject
-        # each other midway through a preflight or customer write.
+        # 先抢账号锁：拿不到就不许开浏览器（并发登同一账号会把对方踢下线）。
+        #
+        # 2026-09-27 起**管理员账号的锁用到时才拿**（`_acquire_admin`）：以前只要配了管理员，
+        # 每次操作都同时锁销售与管理员两个账号，全体操作员因此在管理员这一把锁上排队，
+        # 哪怕这次根本用不到管理员。加锁顺序固定为"先销售、后管理员"，不会互相等死；
+        # 只用管理员的后台读取（`skip_sales_session`）只锁管理员。
         self._lock_cm = ExitStack()
         try:
             self._lock_cm.__enter__()
-            accounts = {dms_login_key(self.login_url, self._username)}
-            if self.has_distinct_admin_creds:
-                accounts.add(dms_login_key(self.login_url, self._admin_username))
             read_batch = bool(getattr(self, "read_only_batch", False))
+            admin_only = bool(getattr(self, "skip_sales_session", False)) and self.has_distinct_admin_creds
+            # "交互优先"的标记仍覆盖本次可能用到的全部账号：后台读取据此让路。
+            priority = {self._sales_key()} | {self._key(a.username) for a in self._admin_members()}
             if read_batch:
                 # 撞上操作员的会话就**等它做完**（有界），不要立刻退回 busy。
-                wait_for_foreground(accounts, READ_DEFER_TIMEOUT_SECONDS)
+                wait_for_foreground(priority, READ_DEFER_TIMEOUT_SECONDS)
             else:
-                self._lock_cm.enter_context(foreground(accounts))
-            try:
-                self._lock_held = all([
-                    self._lock_cm.enter_context(account_lock(
-                        key, timeout_sec=READ_LOCK_WAIT_SECONDS if read_batch else 180))
-                    for key in sorted(accounts)
-                ])
-            except SessionLockUnavailable as exc:
-                if read_batch:
-                    raise ReadDeferred("The DMS account is busy") from exc
-                raise
+                self._lock_cm.enter_context(foreground(priority))
+            if admin_only:
+                self._acquire_admin()
+                self._lock_held = self._admin_lock_held
+            else:
+                self._lock_held = self._take_lock(self._sales_key())
             if read_batch:
-                yield_to_foreground(accounts)
+                yield_to_foreground(priority)
             secrets = [self._password]
             if len(self._username) >= 3:
                 secrets.append(self._username)
@@ -251,9 +273,78 @@ class MrerpDmsAdapter:
             self._release_lock(type(exc), exc, exc.__traceback__)
             raise
 
+    # ----- 账号锁与账号池 -----------------------------------------------
+
+    def _key(self, username: str) -> str:
+        return dms_login_key(self.login_url, username)
+
+    def _sales_key(self) -> str:
+        return self._key(self._username)
+
+    def _admin_members(self):
+        if self._admin_pool is None:
+            if not self.has_distinct_admin_creds:
+                self._admin_pool = []
+            else:
+                from pearnly_dms.adapter import admin_pool
+
+                self._admin_pool = admin_pool.members(
+                    self._admin_username, self._admin_password, exclude=self._username)
+        return self._admin_pool
+
+    def _take_lock(self, key: str, *, wait: Optional[float] = None) -> bool:
+        """在本次的 ExitStack 里拿一把账号锁。等待期间定时回调（让 LINE 保持"正在输入"）。"""
+        read_batch = bool(getattr(self, "read_only_batch", False))
+        total = READ_LOCK_WAIT_SECONDS if read_batch else FOREGROUND_LOCK_WAIT_SECONDS
+        total = total if wait is None else wait
+        deadline = time.monotonic() + total
+        while True:
+            chunk = max(0.1, min(LOCK_HEARTBEAT_SECONDS, deadline - time.monotonic()))
+            try:
+                return bool(self._lock_cm.enter_context(account_lock(key, timeout_sec=chunk)))
+            except SessionLockUnavailable as exc:
+                if time.monotonic() >= deadline - 0.05:
+                    if read_batch:
+                        raise ReadDeferred("The DMS account is busy") from exc
+                    raise
+                _lock_wait_heartbeat()
+
+    def _acquire_admin(self) -> None:
+        """挑一个空闲的管理员账号并锁住它：先按轮转顺序各试一下，都忙才排队等一个。"""
+        if self._admin_lock_held is not None:
+            return
+        from pearnly_dms.adapter import admin_pool
+
+        candidates = admin_pool.rotated(self._admin_members())
+        if not candidates:
+            raise DmsTechnicalError(_("An admin session was requested but no admin credentials are configured"))
+        chosen = None
+        if len(candidates) > 1:
+            for account in candidates:
+                try:
+                    held = self._take_lock(self._key(account.username), wait=POOL_PROBE_SECONDS)
+                except (SessionLockUnavailable, ReadDeferred):
+                    continue
+                chosen = account
+                break
+        if chosen is None:
+            chosen = candidates[0]
+            held = self._take_lock(self._key(chosen.username))
+        self._admin_username, self._admin_password = chosen.username, chosen.password
+        self._admin_account = chosen
+        self._admin_lock_held = held
+
     def __exit__(self, exc_type, exc, tb) -> None:
+        # 能复用就不登出：会话连同 cookie 存进缓存，下一次同账号操作直接接着用
+        # （见 `adapter/session_cache`）。出了技术故障、或被别处登录顶掉时照旧登出并丢缓存。
+        from pearnly_dms.adapter import session_cache
+        from pearnly_dms.contracts.client_base import DmsClientError
+
+        keep = (session_cache.enabled() and not self.concurrent_login_detected
+                and (exc_type is None or issubclass(exc_type, DmsClientError)))
         if self._admin_page is not None:
-            self._logout_page(self._admin_page)
+            self._finish_session(self._admin_ctx, self._admin_page, self._admin_username,
+                                 self._admin_logged_in, keep, idle=session_cache.idle_seconds())
         if self._admin_ctx is not None:
             try:
                 self._admin_ctx.close()
@@ -263,11 +354,28 @@ class MrerpDmsAdapter:
         self._admin_page = None
         self._admin_logged_in = False
         if self._session is not None:
-            self._logout_page(self._session.page)
+            # 只用管理员的后台读取不会登销售；主会话若就是连接自己的账号（单凭据），也按短时长留。
+            self._finish_session(self._session.page.context, self._session.page, self._username,
+                                 self._logged_in, keep, idle=session_cache.sales_idle_seconds())
             self._session.__exit__(exc_type, exc, tb)
         self._session = None
         self._logged_in = False
         self._release_lock(exc_type, exc, tb)
+
+    def _finish_session(self, context, page, username, logged_in, keep, *, idle) -> None:
+        from pearnly_dms.adapter import session_cache
+
+        if not logged_in:
+            return
+        key = self._key(username)
+        if keep:
+            try:
+                if session_cache.save(key, context.cookies(), self.base_url, idle=idle):
+                    return
+            except Exception:
+                logger.debug("DMS 会话缓存保存失败，改为登出", exc_info=True)
+        session_cache.forget(key)
+        self._logout_page(page)
 
     def _release_lock(self, exc_type=None, exc=None, tb=None) -> None:
         if self._lock_cm is None:
@@ -277,6 +385,7 @@ class MrerpDmsAdapter:
         finally:
             self._lock_cm = None
             self._lock_held = None
+            self._admin_lock_held = None
 
     def _logout_page(self, page: Any) -> None:
         """显式结束 DMS 服务端会话 —— 光关浏览器，那边的登录槽还占着。"""
@@ -340,7 +449,12 @@ class MrerpDmsAdapter:
         """
         if self._logged_in:
             return
-        self._perform_login(self.page, self._username, self._password)
+        from pearnly_dms.adapter import session_cache
+
+        if session_cache.restore(self.page.context, self._sales_key(), self.base_url):
+            self.session_reused = True
+        else:
+            self._perform_login(self.page, self._username, self._password)
         self._logged_in = True
 
     def _perform_login(self, page, username: str, password: str) -> None:
@@ -452,13 +566,21 @@ class MrerpDmsAdapter:
             raise DmsTechnicalError(_("An admin session was requested but no admin credentials are configured"))
         if self._session is None:
             raise DmsTechnicalError(_("The admin session must be requested inside a `with` block"))
+        self._acquire_admin()
         secrets = [self._admin_password]
         if len(self._admin_username) >= 3:
             secrets.append(self._admin_username)
         self._admin_ctx, self._admin_page = self._session.new_isolated_page(extra_secrets=secrets)
+        from pearnly_dms.adapter import admin_pool, session_cache
+
+        if session_cache.restore(self._admin_ctx, self._key(self._admin_username), self.base_url):
+            self._admin_logged_in = True
+            return
         try:
             self._perform_login(self._admin_page, self._admin_username, self._admin_password)
         except DmsAuthError as exc:
+            if self._admin_account is not None and self._admin_account.pooled:
+                admin_pool.note_status(self._admin_username, "login refused")
             raise DmsAdminAuthError(_("DMS admin credentials failed to sign in: {0}").format(exc))
         self._admin_logged_in = True
 

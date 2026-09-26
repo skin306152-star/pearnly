@@ -1,9 +1,13 @@
 Account busy — click Read later to continue,账号忙，请稍后点击读取继续
 Account busy — click Update data later to continue,账号忙，请稍后点击更新数据继续
 Account busy — the read will continue shortly,账号忙，读取稍后会自动继续
+Action,操作
+Add system account,添加系统账号
+Added {0},已添加 {0}
 Address data as of {time}; refreshed manually,地址资料时间：{time}；手动读取更新
 Address directory,地址目录
 Address sync is delayed; showing address data as of {time},地址同步有延迟，当前显示 {time} 的地址资料
+Apply,执行
 Booking ID,订车编号
 Booking Number,订车单号
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
@@ -11,8 +15,10 @@ Booking Number,订车单号
 Cached result captured at {time},已缓存结果读取于 {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
 Company information,公司资料
+"Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。
 Customer records,客户资料
 DMS,DMS
+DMS System Account,DMS 系统账号
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS 中已有此证号的客户，请重新核对差异并确认；没有自动覆盖资料。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。
 "DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.",DMS 资料尚未就绪，请查看读取状态；若未在读取，请在 LINE 或 DMS 连接页手动发起读取。
@@ -24,16 +30,22 @@ Data captured at,资料取得时间
 Data updated,数据更新完成
 Enable the DMS connection before reading data,请先启用 DMS 连接，再读取资料
 Enter the DMS password.,请填写 DMS 密码。
+Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.,只给系统用的额外 DMS 账号。管理员读取和客户资料写入会挑空闲的一个，操作员不必在同一个账号上排队。
 Full address directory,完整地址目录
 Full customer records,完整客户资料
+Last Check,最近检查
+Last Checked At,最近检查时间
 Last Error,上次错误
 Last successful completion,上次成功完成时间
 Last successful record count,上次成功记录数
 Latest error code,最近错误代码
+Manage system accounts,管理系统账号
+"Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。
 Master data and all vehicle colors,主档与全部车型颜色
 Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
 Multiple primary DMS connections exist; ask an administrator to check the configuration,存在多条 DMS 主连接，请管理员检查配置
 Next Attempt,下次尝试
+None (the connection's own account is used),未配置（只用连接自己的账号）
 Not read yet,尚未读取
 Older address data as of {time}; ask an administrator to refresh if needed,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 Older data as of {time}; refresh manually if needed,当前为 {time} 的旧资料，需要时请手动刷新
@@ -58,14 +70,21 @@ Reading this query now. The result arrives as soon as it is ready.,正在读取�
 Reading this query.,正在读取本次查询。
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
 Reload List,刷新列表
+Remove,移除
+Removed {0},已移除 {0}
+Resumed {0},已启用 {0}
 Saved DMS data,DMS 已读取资料
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
 Select at least one data group.,请至少选择一组资料。
 Select one or more DMS data groups to read,请选择至少一组需要读取的 DMS 资料
 "Select the data to update, then wait for the read to finish.",选择需要更新的资料，点击后请等待读取完成。
+Stop / resume,停用 / 启用
+Stopped {0},已停用 {0}
 Submission Evidence,提交凭据
 Submission Nonce,提交随机码
 Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
+System accounts,系统账号
+Test and add,测试并添加
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
 The DMS account is busy. The read retries automatically; please wait.,DMS 账号忙，系统会自动重读，请稍等。
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。
@@ -84,10 +103,12 @@ The recognition result needs checking. Please do not resend this image yet.,识�
 The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",提交已发出，但结果尚未确认。请勿重复提交，先核实结果。
 These conditions have not been read. Click Read this query.,尚未读取此条件，请点击读取本次查询。
+This account is already the connection's own account,这个账号已经是连接自己的账号
 This query is queued.,本次查询已排队。
 This read failed. Click Read to retry.,本次读取失败，可点击读取重试。
 This read failed. Please try again later.,本次读取失败，请稍后再试。
 This read was interrupted. Click Read again to retry; previously completed data was retained.,本次读取已中断，请再次点击读取重试；此前成功资料仍保留。
+This system account is already registered,这个系统账号已经登记过了
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
@@ -156,6 +177,29 @@ dms.connect.cache.state.succeeded,数据更新完成
 dms.connect.cache.state.waiting,账号忙，读取稍后会自动继续
 dms.connect.cache.title,DMS 已读取资料
 dms.connect.cache.unconfirmed,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
+dms.connect.pool.action,操作
+dms.connect.pool.add,添加系统账号
+dms.connect.pool.added,已添加 {0}
+dms.connect.pool.apply,执行
+dms.connect.pool.disabled,已停用 {0}
+dms.connect.pool.enabled,已启用 {0}
+dms.connect.pool.errDuplicate,这个系统账号已经登记过了
+dms.connect.pool.errOwn,这个账号已经是连接自己的账号
+dms.connect.pool.field,系统账号
+dms.connect.pool.help,在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。
+dms.connect.pool.manage,管理系统账号
+dms.connect.pool.none,未配置（只用连接自己的账号）
+dms.connect.pool.off,停用
+dms.connect.pool.on,启用
+dms.connect.pool.remove,移除
+dms.connect.pool.removed,已移除 {0}
+dms.connect.pool.summary,已登记 {0} 个，可用 {1} 个
+dms.connect.pool.testAndAdd,测试并添加
+dms.connect.pool.toggle,停用 / 启用
+dms.doctype.system_account,DMS 系统账号
+dms.doctype.system_account.description,只给系统用的额外 DMS 账号。管理员读取和客户资料写入会挑空闲的一个，操作员不必在同一个账号上排队。
+dms.doctype.system_account.last_checked_at,最近检查时间
+dms.doctype.system_account.last_status,最近检查
 dms.edit.addPayment,添加支付方式
 dms.edit.addressSnapshotAsOf,地址资料时间：{time}；手动读取更新
 dms.edit.addressSnapshotStale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
@@ -256,6 +300,7 @@ dms.err.ERR_DMS_AUTH,DMS 登录失败 · 请检查用户名和密码
 dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。
 dms.err.ERR_DMS_BOOKING_PATCH,回填订车单资料失败 · 请稍后重试
+dms.err.ERR_DMS_BUSY,现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。
 dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出其他登录后重试
 dms.err.ERR_DMS_CUSTOMER_CHANGED,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS 中已有此证号的客户，请重新核对差异并确认；没有自动覆盖资料。
@@ -291,6 +336,9 @@ dms.snapshot.as_of,资料时间：{time}
 dms.snapshot.geo_as_of,地址资料时间：{time}；手动读取更新
 dms.snapshot.geo_stale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 dms.snapshot.stale,当前为 {time} 的旧资料，需要时请手动刷新
+in use,启用
+stopped,停用
 {0} processed; total not yet known,已处理 {0} 项，总数尚未确定
 {0} records,{0} 条
+"{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个
 {0}/{1} groups,{0}/{1} 组

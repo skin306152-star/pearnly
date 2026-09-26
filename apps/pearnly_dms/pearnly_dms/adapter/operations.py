@@ -25,6 +25,15 @@ def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[
     }
 
 
+def live_sync_active() -> bool:
+    try:
+        from pearnly_dms.adapter import live_sync
+
+        return live_sync.enabled()
+    except Exception:
+        return False
+
+
 def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
                   background: bool = False, read_only_batch: bool = False,
                   catch_up: bool = False):
@@ -71,6 +80,10 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
     # 这一次的"打开登录页"预算（默认那档就比老的 15 秒宽）。
     adapter.page_timeout_ms = pacing.budget_ms(attempt, background=background)
     adapter.read_only_batch = bool(read_only_batch)
+    # 权威只读 + 独立管理员 = 这一块只用管理员会话：适配器据此**只锁管理员账号**，
+    # 不去占销售账号（以前两个都锁，后台读取会挡住销售本人的操作）。
+    adapter.skip_sales_session = bool(authoritative_read) and bool(
+        getattr(adapter, "has_distinct_admin_creds", False))
     if read_only_batch:
         adapter.page_timeout_ms = min(adapter.page_timeout_ms, 15000)
     try:
@@ -103,7 +116,9 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
 
                     def run_and_catch_up():
                         out = fn(client, adapter)
-                        if catch_up:
+                        # 白天同步开着时（`adapter/live_sync`，每分钟看一次使用记录），
+                        # 不在操作员等待的这条路上再顺手翻日志 —— 那最多要 6 秒、还占着账号。
+                        if catch_up and not live_sync_active():
                             from pearnly_dms.adapter import change_sync
 
                             change_sync.catch_up(endpoint, client=client)
@@ -153,8 +168,12 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
             return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
                        getattr(exc, "response_body", None))
     except Exception as exc:  # noqa: BLE001
+        from pearnly_core.session_lock import SessionLockUnavailable
         from pearnly_dms.adapter.read_priority import ReadDeferred
         if isinstance(exc, ReadDeferred):
             return {**err("ERR_DMS_SNAPSHOT_BUSY"), "busy": True}
+        if isinstance(exc, SessionLockUnavailable):
+            # 等账号等到超时：是"人太多在排队"，不是我们服务器坏了。
+            return {**err("ERR_DMS_BUSY", str(exc)), "busy": True}
         logger.exception("DMS 操作意外失败")
         return err("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")

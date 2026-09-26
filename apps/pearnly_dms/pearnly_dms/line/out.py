@@ -158,8 +158,14 @@ def run_guarded(target, arguments):
         return {"cancelled": "binding_changed"}
     # 一个后台任务 = 一次反应：发给本人的消息攒到任务结束一次发出，带着令牌就免费回覆，
     # 没令牌（或已过期）也只算一条推播。见 `pearnly_core.line.batch`。
-    with line.batch(arguments.get("line_user_id") or "", arguments.get("reply_token") or ""):
-        return frappe.get_attr(target)(**arguments)
+    user = arguments.get("line_user_id") or ""
+    # 排队等 DMS 账号时，每隔一会儿续一次"正在输入"（免费），别让对方以为没反应。
+    frappe.local.dms_lock_wait_hook = (lambda: start_loading(user, 60)) if user else None
+    try:
+        with line.batch(user, arguments.get("reply_token") or ""):
+            return frappe.get_attr(target)(**arguments)
+    finally:
+        frappe.local.dms_lock_wait_hook = None
 
 
 def run_image(binding, line_user_id, message_id, reply_token=""):

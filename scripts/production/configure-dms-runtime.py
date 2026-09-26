@@ -12,7 +12,10 @@ from pathlib import Path
 def configured(values):
     result = copy.deepcopy(values)
     result.setdefault("workers", {}).setdefault("dms_sync", {})["timeout"] = 420
-    # Manual reads enqueue directly. Do not change a bench's scheduler cadence.
+    # ADR-013: daytime change sync runs every minute, so this DMS bench's
+    # scheduler must look every 60 s (Frappe's default is 240 s). Other benches
+    # keep their own cadence; this script only ever runs against the DMS bench.
+    result["scheduler_tick_interval"] = 60
     return result
 
 

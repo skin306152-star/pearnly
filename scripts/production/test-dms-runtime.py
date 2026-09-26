@@ -10,15 +10,15 @@ runtime = runpy.run_path(str(Path(__file__).with_name("configure-dms-runtime.py"
 
 
 class DmsRuntime(unittest.TestCase):
-    def test_native_queue_merge_preserves_scheduler_and_all_unrelated_values(self):
+    def test_native_queue_merge_sets_minute_scheduler_and_keeps_unrelated_values(self):
         original = {"workers": {"ocr": {"timeout": 600}, "long": {"timeout": 1800},
                                 "dms_sync": {"background_workers": 1}},
                     "scheduler_tick_interval": 240, "db_host": "unchanged", "sentinel": {"a": 1}}
         before = copy.deepcopy(original)
         result = runtime["configured"](original)
         self.assertEqual(original, before)
-        self.assertEqual(result["scheduler_tick_interval"], 240)
-        self.assertNotIn("scheduler_tick_interval", runtime["configured"]({}))
+        self.assertEqual(result["scheduler_tick_interval"], 60)
+        self.assertEqual(runtime["configured"]({})["scheduler_tick_interval"], 60)
         self.assertEqual(result["workers"]["dms_sync"], {"background_workers": 1, "timeout": 420})
         for key in ("ocr", "long"):
             self.assertEqual(result["workers"][key], original["workers"][key])

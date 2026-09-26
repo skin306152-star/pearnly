@@ -76,3 +76,27 @@ Data captured at	资料取得时间	เวลาที่ซิงก์ข้�
 Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of	本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间	สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ	このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻	dms.card.query.TOP_NOTE_PREFIX
 The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.	DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。	การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่	DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。	dms.err.ERR_DMS_SNAPSHOT_RETRY
 The data volume exceeds the read limit. Please contact an administrator.	数据量超过了读取上限，请联系管理人员。	ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ	データ量が読み取り上限を超えています。管理者にご連絡ください。	dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE
+Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.	现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。	ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่	現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_BUSY
+Add system account	添加系统账号	เพิ่มบัญชีระบบ	システムアカウントを追加	dms.connect.pool.add
+Manage system accounts	管理系统账号	จัดการบัญชีระบบ	システムアカウントを管理	dms.connect.pool.manage
+System accounts	系统账号	บัญชีระบบ	システムアカウント	dms.connect.pool.field
+None (the connection's own account is used)	未配置（只用连接自己的账号）	ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)	未設定（接続自身のアカウントのみ使用）	dms.connect.pool.none
+{0} registered, {1} in use	已登记 {0} 个，可用 {1} 个	ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี	登録 {0} 件、利用可能 {1} 件	dms.connect.pool.summary
+Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.	在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。	สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS	このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。	dms.connect.pool.help
+Test and add	测试并添加	ทดสอบและเพิ่ม	テストして追加	dms.connect.pool.testAndAdd
+Added {0}	已添加 {0}	เพิ่ม {0} แล้ว	{0} を追加しました	dms.connect.pool.added
+in use	启用	ใช้งาน	使用中	dms.connect.pool.on
+stopped	停用	หยุดใช้	停止中	dms.connect.pool.off
+Action	操作	การดำเนินการ	操作	dms.connect.pool.action
+Stop / resume	停用 / 启用	หยุดใช้ / ใช้งาน	停止 / 再開	dms.connect.pool.toggle
+Remove	移除	ลบออก	削除	dms.connect.pool.remove
+Apply	执行	ดำเนินการ	実行	dms.connect.pool.apply
+Removed {0}	已移除 {0}	ลบ {0} แล้ว	{0} を削除しました	dms.connect.pool.removed
+Stopped {0}	已停用 {0}	หยุดใช้ {0} แล้ว	{0} を停止しました	dms.connect.pool.disabled
+Resumed {0}	已启用 {0}	ใช้งาน {0} แล้ว	{0} を再開しました	dms.connect.pool.enabled
+This account is already the connection's own account	这个账号已经是连接自己的账号	บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว	このアカウントはすでに接続自身のアカウントです	dms.connect.pool.errOwn
+This system account is already registered	这个系统账号已经登记过了	บัญชีระบบนี้ลงทะเบียนไว้แล้ว	このシステムアカウントは登録済みです	dms.connect.pool.errDuplicate
+DMS System Account	DMS 系统账号	บัญชีระบบ DMS	DMS システムアカウント	dms.doctype.system_account
+Last Check	最近检查	ตรวจสอบล่าสุด	最終チェック	dms.doctype.system_account.last_status
+Last Checked At	最近检查时间	เวลาตรวจสอบล่าสุด	最終チェック日時	dms.doctype.system_account.last_checked_at
+Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.	只给系统用的额外 DMS 账号。管理员读取和客户资料写入会挑空闲的一个，操作员不必在同一个账号上排队。	บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว	システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。	dms.doctype.system_account.description

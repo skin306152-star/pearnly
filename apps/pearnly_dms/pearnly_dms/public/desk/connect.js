@@ -2,6 +2,8 @@
 	const p = frappe.pearnly;
 	p.connect = async (page, t, wrapper) => {
 		const cacheText = await p.texts("dms.connect.cache.");
+		const poolText = await p.texts("dms.connect.pool.");
+		let pool = [];
 		let conn;
 		// 四组都在：绑定成功时它们会被一起排队（缓存底座），这里是**进度显示**，
 		// 不是"等操作员点按钮"。页面不再有手动触发。
@@ -126,8 +128,15 @@
 			unfreeze();
 			conn = await p.call("pearnly_dms.connections.api.get_connection");
 			const ep = conn.endpoint;
+			pool = ep ? await p.call("pearnly_dms.connections.api.list_system_accounts") : [];
 			page.main.empty();
 			page.clear_inner_toolbar();
+			// 系统账号池（ADR-013）放进页面菜单：页面上仍然只有右上角那一个主按钮。
+			page.clear_menu();
+			if (ep) {
+				page.add_menu_item(poolText("dms.connect.pool.add"), addSystemAccount);
+				if (pool.length) page.add_menu_item(poolText("dms.connect.pool.manage"), manageSystemAccounts);
+			}
 			page.set_primary_action(
 				t(ep ? "connect.action.edit" : "connect.action.connect"),
 				wizard,
@@ -151,12 +160,13 @@
 				["account", "account", ep?.username || "—"],
 				["url", "url", ep?.system_url || "—"],
 				["admin", "adminCreds", t(ep?.has_admin_creds ? "connect.yes" : "connect.no")],
+				["pool", null, poolSummary()],
 
 			]) {
 				fields.push({
 					fieldtype: "Data",
 					fieldname: name,
-					label: t("connect.field." + key),
+					label: key ? t("connect.field." + key) : poolText("dms.connect.pool.field"),
 					default: value,
 					read_only: 1,
 				});
@@ -187,6 +197,74 @@
 				),
 			);
 			return true;
+		}
+		function poolSummary() {
+			if (!pool.length) return poolText("dms.connect.pool.none");
+			const on = pool.filter((row) => row.enabled && row.usable).length;
+			return poolText("dms.connect.pool.summary", pool.length, on);
+		}
+		function addSystemAccount() {
+			p.dialog(
+				poolText("dms.connect.pool.add"),
+				[
+					{ fieldtype: "HTML", fieldname: "help", options: `<p class="text-muted">${p.escape(poolText("dms.connect.pool.help"))}</p>` },
+					{ fieldtype: "Data", fieldname: "username", label: t("connect.field.account"), reqd: 1 },
+					{ fieldtype: "Password", fieldname: "password", label: __("Password"), reqd: 1 },
+				],
+				poolText("dms.connect.pool.testAndAdd"),
+				async (values, d) => {
+					const result = await p.call("pearnly_dms.connections.api.add_system_account", values, "POST");
+					if (!result.ok) {
+						feedback(result);
+						return;
+					}
+					d.set_value("password", "");
+					d.hide();
+					p.success(poolText("dms.connect.pool.added", values.username));
+					await refresh();
+				},
+			);
+		}
+		function manageSystemAccounts() {
+			const options = pool.map((row) => ({
+				value: row.name,
+				label: `${row.username} · ${poolText(row.enabled ? "dms.connect.pool.on" : "dms.connect.pool.off")}`,
+			}));
+			const d = p.dialog(
+				poolText("dms.connect.pool.manage"),
+				[
+					{ fieldtype: "Select", fieldname: "account", label: t("connect.field.account"), options, reqd: 1 },
+					{
+						fieldtype: "Select",
+						fieldname: "action",
+						label: poolText("dms.connect.pool.action"),
+						reqd: 1,
+						options: [
+							{ value: "toggle", label: poolText("dms.connect.pool.toggle") },
+							{ value: "remove", label: poolText("dms.connect.pool.remove") },
+						],
+					},
+				],
+				poolText("dms.connect.pool.apply"),
+				async (values, dialog) => {
+					const row = pool.find((item) => item.name === values.account);
+					if (!row) return;
+					if (values.action === "remove") {
+						await p.call("pearnly_dms.connections.api.remove_system_account", { name: row.name }, "POST");
+						p.success(poolText("dms.connect.pool.removed", row.username), "delete");
+					} else {
+						await p.call(
+							"pearnly_dms.connections.api.set_system_account_enabled",
+							{ name: row.name, enabled: row.enabled ? 0 : 1 },
+							"POST",
+						);
+						p.success(poolText(row.enabled ? "dms.connect.pool.disabled" : "dms.connect.pool.enabled", row.username));
+					}
+					dialog.hide();
+					await refresh();
+				},
+			);
+			return d;
 		}
 		function wizard() {
 			p.dialog(

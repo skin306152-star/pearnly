@@ -39,6 +39,8 @@ pearnly_dms_snapshot_collectors = [
      "method": "pearnly_dms.adapter.geo_sync.refresh"},
 ]
 scheduler_events = {"cron": {
+    # 白天每分钟看一次 DMS 使用记录（ADR-013）；窗口、间隔与开关在 `adapter/live_sync`。
+    "* * * * *": ["pearnly_dms.adapter.live_sync.tick"],
     "*/10 * * * *": [schedule_menu_reconciliation],
     "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
