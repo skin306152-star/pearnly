@@ -676,6 +676,10 @@ class Checks(unittest.TestCase):
         from pearnly_erp_portal.purchasing import entry, recognition
 
         # 语料 e402…：自助餐收据（不能抵进项），票面 2,544 + VAT 178.08 = 2,722。
+        # 行名按站点语言翻译：离线容器没有翻译缓存，这里不测翻译本身。
+        translate = patch.object(recognition, "_", lambda message, lang=None: message)
+        translate.start()
+        self.addCleanup(translate.stop)
         raw = {"document_type": "receipt", "document_title": "ใบเสร็จรับเงิน", "rounding": -0.08,
                "printed": {"subtotal": 2544, "vat": 178.08, "total": 2722}, "lines": [
                    {"description": "Buffet Premium 799", "qty": 3, "unit_price": 799},
