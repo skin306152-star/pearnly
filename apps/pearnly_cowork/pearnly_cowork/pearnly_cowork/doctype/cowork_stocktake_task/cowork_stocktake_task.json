@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-26 18:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -21,6 +21,7 @@
   "count_mode",
   "source_digest",
   "source_format",
+  "notes",
   "created_by",
   "created_at",
   "closed_by",
@@ -88,6 +89,11 @@
    "label": "Source Format",
    "read_only": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
   },
   {
    "fieldname": "created_by",

@@ -1,43 +1,49 @@
-/* 盘点记录弹窗（Cowork）：查商品 → 填实际仓库 / 仓位 / 数量（可带照片）→ 保存 → 下一条。
+/* Scan -> observe actual fields -> save -> next. One native Dialog, one camera stream.
  *
- * 照 ERP `stocktake-entry.js`：一个官方 Dialog，编码框回车即查（扫码枪就是“输入 + 回车”）。
- * 与 ERP 的差别：Cowork 没有仓库主档，实际仓库是自由填写（默认账面仓位 / 上一条的位置）；
- * 一个商品在任务里只有一行，不用选账面行。摄像头扫码组件目前在 ERP 应用里，
- * 共用层有 `p.scan_reader` 时才出现“摄像头”按钮。
+ * Cowork 盘点记录弹窗：ERP `pearnly_erp_portal/public/desk/stocktake-entry.js` 的原样副本（用户 2026-09-26
+ * “其它照搬”）。只改了接口前缀、词条前缀，以及“实际仓库”由 ERP 仓库下拉改为填写（Cowork 没有仓库主档）。
+ * 扫码器用共用层那份（`pearnly_core/public/desk/scan.js`）。改 ERP 那份时请同步这份。
  */
 (() => {
-	const p = frappe.pearnly, api = "pearnly_cowork.stocktake.api.";
-	const PHOTO_MAX = 5;  // 服务端 `counting.PHOTO_LIMIT` 才是权威，这里只先拦一下
-
-	p.coworkStockEntry = async ({ task_id, t, item = null, entry = null, continuous = false, on_saved, on_done }) => {
-		let selected = null, request_id, scanner, busy = false, closed = false, camera = false, last_place = null;
+	const p = frappe.pearnly, api = "pearnly_cowork.stocktake.desk_api.";
+	// 一条记录最多 5 张照片（服务端 `counts.PHOTO_LIMIT` 同值，它才是权威，这里只是先拦一下）。
+	const PHOTO_MAX = 5;
+	p.stockCountEntry = async ({ count, t, row, entry, continuous = false, on_saved, on_done }) => {
+		let selected, lookup, request_id, scanner, busy = false, closed = false, camera = false;
+		let last_place = null;
+		// `photos` 是本次要随记录提交的（桌面端上传后拿到 file_url，服务端再挂到这条记录上）；
+		// `existing` 是这条记录**已经有**的照片，只做只读预览（旧项目也没有删照片的入口）。
 		const photos = [];
 		let existing = [];
-		const can_scan = typeof p.scan_reader === "function";
+		const w = key => t(`cowork.stock.workbench.${key}`);
 		const fields = [
 			{ fieldtype: "Section Break", fieldname: "scan_section" },
-			{ fieldtype: "Data", fieldname: "code", label: t("cowork.stock.code"), description: t("cowork.stock.scanHint") },
-			{ fieldtype: "Button", fieldname: "find", label: t("cowork.stock.find"), click: () => match(d.get_value("code")) },
-			...(can_scan ? [
-				{ fieldtype: "Button", fieldname: "camera", label: t("cowork.stock.camera"), click: () => start_camera() },
-				{ fieldtype: "HTML", fieldname: "video", options: p.scan_stage(), hidden: 1 },
-			] : []),
+			{ fieldtype: "Data", fieldname: "code", label: w("code"), description: w("scanHint") },
+			{ fieldtype: "Button", fieldname: "find", label: w("find"), click: () => match(d.get_value("code")) },
+			{ fieldtype: "Button", fieldname: "camera", label: w("camera"), click: () => start_camera() },
+			{ fieldtype: "HTML", fieldname: "video", options: p.scan_stage(), hidden: 1 },
+			{ fieldtype: "Check", fieldname: "torch", label: __("cowork.stock.scan.light"), hidden: 1,
+				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
 			{ fieldtype: "HTML", fieldname: "message" },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("cowork.stock.col.name"), read_only: 1 },
-			{ fieldtype: "Data", fieldname: "book_position", label: t("cowork.stock.col.position"), read_only: 1 },
+			{ fieldtype: "Select", fieldname: "source_row", label: w("bookPosition"), options: [],
+				change: () => choose_source() },
 			{ fieldtype: "Data", fieldname: "unit", label: t("cowork.stock.col.unit"), read_only: 1 },
-			{ fieldtype: "Column Break" },
-			{ fieldtype: "Data", fieldname: "warehouse", label: t("cowork.stock.actualWarehouse"), reqd: 1 },
-			{ fieldtype: "Data", fieldname: "location", label: t("cowork.stock.actualLocation") },
-			{ fieldtype: "Float", fieldname: "qty", label: t("cowork.stock.entryQty"), precision: 3, reqd: 1 },
+			{ fieldtype: "Data", fieldname: "warehouse", label: w("actualWarehouse"), reqd: 1 },
+			// 「这件货还在别处」：货的账可能在另一个仓/仓位（用户 2026-09-23 那次盘点就是这样，
+			// 数出来的货落成了新位置）。摆在"实际仓库"下面，当场就能改（见 `render_elsewhere`）。
+			{ fieldtype: "HTML", fieldname: "elsewhere", hidden: 1 },
+			{ fieldtype: "Data", fieldname: "location", label: w("actualLocation") },
+			{ fieldtype: "Float", fieldname: "qty", label: w("entryQty"), precision: 3, reqd: 1 },
+			{ fieldtype: "Small Text", fieldname: "note", label: t("cowork.stock.count.note") },
 			{ fieldtype: "Section Break", fieldname: "photo_section", hidden: 1 },
-			{ fieldtype: "HTML", fieldname: "photos" },
+			{ fieldtype: "HTML", fieldname: "photos", hidden: 1 },
 		];
-		const d = p.dialog(entry ? t("cowork.stock.editEntry") : (continuous ? t("cowork.stock.continuous") : t("cowork.stock.record")),
-			fields, continuous ? t("cowork.stock.saveNext") : __("Save"), async values => {
+		const d = p.dialog(entry ? w("editEntry") : (continuous ? w("continuous") : w("record")), fields,
+			continuous ? w("saveNext") : __("Save"), async values => {
 				if (!selected || busy) return;
-				// 官方 Float 会把空输入当 0；盘点数必须明确填。
+				// Native Float normalizes an empty input to 0; an observation must be explicit.
 				if (!String(d.fields_dict.qty.$input.val()).trim()) {
 					frappe.msgprint(__("Enter a quantity"));
 					d.fields_dict.qty.$input.trigger("focus");
@@ -45,12 +51,15 @@
 				}
 				busy = true;
 				try {
-					const payload = { task_id, request_id, quantity: String(values.qty), warehouse: values.warehouse,
-						location: values.location || "", photos: JSON.stringify(photos.map(photo => photo.url)) };
-					if (entry) await p.call(api + "edit_entry", { ...payload, entry_id: entry.id, version: entry.version }, "POST");
-					else await p.call(api + "add_entry", { ...payload, item_id: selected.id }, "POST");
+					const payload = { qty: values.qty, warehouse: values.warehouse,
+						location: values.location || "", note: values.note || "", stock_token: lookup.stock_token,
+						photos: photos.map(photo => photo.url) };
+					if (entry) await p.call(api + "api_stock_count_edit_entry",
+						{ ...payload, entry: entry.name, version: entry.version }, "POST");
+					else await p.call(api + "api_stock_count_add_entry", { ...payload, count,
+						item: values.source_row || undefined, product: selected.name, request_id }, "POST");
 					last_place = { warehouse: values.warehouse, location: values.location || "" };
-					p.success(t("cowork.stock.entrySaved"), "click");
+					p.success(t("cowork.stock.count.entrySaved"), "click");
 					photos.length = 0;
 					await on_saved?.();
 					if (closed) return;
@@ -60,33 +69,54 @@
 			});
 		d.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		d.set_secondary_action(() => { d.hide(); on_done?.(); });
-		d.set_secondary_action_label(continuous ? t("cowork.stock.done") : t("cowork.stock.review"));
+		// 连续盘点时第二颗是"完成"：收工离开扫码，落到差异那一屏（用户 2026-09-22 口径：
+		// "…下一项或者完成"）。单条录入/修改时它仍是"查看差异"。
+		d.set_secondary_action_label(continuous ? w("done") : w("review"));
 		d.onhide = () => { closed = true; scanner?.stop(); };
 		d.fields_dict.code.$input.on("keydown", event => {
 			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void match(d.get_value("code")); }
 		});
-		// 扫码枪的回车只用来查商品，不能把记录提交出去。
+		// A scanner's Enter finds the product; it must not submit the observation.
 		d.fields_dict.code.$input.off("keypress").on("keypress", event => {
 			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
 		});
-		const message = text => d.fields_dict.message.$wrapper.empty().append($("<p class='text-muted'>").text(text));
+		function message(text) { d.fields_dict.message.$wrapper.empty().append($("<p class='text-muted'>").text(text)); }
+		// 「这件货还在别处」：`lookup.elsewhere` 是服务端给的"别的仓/仓位还有多少"。
+		// 有就摆出来，没有就不占地方（用户 2026-09-23："盘点时不提示'这件货的账在别处'"）。
+		function render_elsewhere() {
+			const host = d.fields_dict.elsewhere;
+			if (!host) return;
+			const places = lookup?.elsewhere || [];
+			host.$wrapper.empty();
+			d.set_df_property("elsewhere", "hidden", places.length ? 0 : 1);
+			if (!places.length) return;
+			const text = places.slice(0, 3)
+				.map(place => `${place.warehouse_name} / ${place.location || t("cowork.stock.count.blank")} · `
+					+ `${p.number(place.qty)} ${place.unit || ""}`.trim())
+				.join("；");
+			host.$wrapper.append($("<p class='text-muted small mb-0'>").text(`${w("elsewhere")} ${text}`));
+		}
 		function editor(show) {
 			d.set_df_property("scan_section", "hidden", show);
 			d.set_df_property("entry_section", "hidden", !show);
 			d.set_df_property("photo_section", "hidden", !show);
+			d.set_df_property("photos", "hidden", !show);
 			d.get_primary_btn().toggle(show);
 		}
-
-		// ── 照片：官方上传器存成私有文件，提交时服务端挂到这条记录上 ─────────────
+		// ── 照片 ────────────────────────────────────────────────────────────────
+		// 原生上传器（`frappe.ui.FileUploader`）：多选、可选拍照，默认存成私有文件；
+		// 这里只收集 `file_url`，提交时由服务端把 File 挂到这条记录上（`counts._save_photos`）。
 		function pick_photos() {
-			if (existing.length + photos.length >= PHOTO_MAX) { frappe.msgprint(t("cowork.stock.photoLimit")); return; }
+			const left = PHOTO_MAX - existing.length - photos.length;
+			if (left <= 0) { frappe.msgprint(w("photoLimit")); return; }
 			new frappe.ui.FileUploader({
-				allow_multiple: true, allow_take_photo: true, allow_toggle_private: false,
-				make_attachments_public: false, disable_file_browser: true,
+				allow_multiple: true,
+				allow_take_photo: true,
+				allow_toggle_private: false,
 				restrictions: { allowed_file_types: ["image/*"] },
 				on_success: file => {
 					if (!file?.file_url) return;
-					if (existing.length + photos.length >= PHOTO_MAX) { frappe.msgprint(t("cowork.stock.photoLimit")); return; }
+					if (existing.length + photos.length >= PHOTO_MAX) { frappe.msgprint(w("photoLimit")); return; }
 					photos.push({ url: file.file_url, name: file.file_name || String(file.file_url).split("/").pop() });
 					render_photos();
 				},
@@ -97,13 +127,13 @@
 			if (!host) return;
 			const total = existing.length + photos.length;
 			host.empty();
-			$("<p class='text-muted'>").text(`${t("cowork.stock.photos")} ${total} / ${PHOTO_MAX}`).appendTo(host);
+			$("<p class='text-muted'>").text(`${w("photos")} ${total} / ${PHOTO_MAX} · ${w("photoHint")}`).appendTo(host);
 			const strip = $("<div class='pearnly-count-photos'>").appendTo(host);
 			const thumb = (url, name, removable) => {
 				const cell = $("<div class='pearnly-count-photo'>").appendTo(strip);
 				$("<img>").attr({ src: url, alt: name }).appendTo(cell);
 				if (!removable) return;
-				$("<button type='button' class='btn btn-default btn-xs'>").text(t("cowork.stock.removePhoto"))
+				$("<button type='button' class='btn btn-default btn-xs'>").text(w("removePhoto"))
 					.on("click", () => {
 						const index = photos.findIndex(photo => photo.url === url);
 						if (index >= 0) photos.splice(index, 1);
@@ -113,62 +143,79 @@
 			existing.forEach(photo => thumb(photo.file_url, photo.file_name || "", false));
 			photos.forEach(photo => thumb(photo.url, photo.name, true));
 			if (total < PHOTO_MAX) {
-				$("<button type='button' class='btn btn-default btn-sm'>").text(t("cowork.stock.addPhoto"))
+				$("<button type='button' class='btn btn-default btn-sm'>").text(w("addPhoto"))
 					.on("click", () => pick_photos()).appendTo(host);
 			}
 		}
-
-		async function match(code, item_id) {
-			if (busy || selected || closed || (!code && !item_id)) return;
+		async function load_photos() {
+			if (!entry?.name) return;
+			existing = await p.call(api + "api_stock_count_photos", { entry: entry.name });
+			render_photos();
+		}
+		async function choose_source() {
+			if (!lookup || !selected) return;
+			const source = lookup.rows.find(r => r.name === d.get_value("source_row"));
+			await d.set_value("warehouse", entry?.warehouse_name || source?.warehouse_name || lookup.warehouse_name);
+			await d.set_value("location", entry?.location ?? source?.location ?? "");
+		}
+		async function match(code, product) {
+			if (busy || selected || closed || (!code && !product)) return;
 			busy = true; scanner?.pause();
 			try {
-				const found = await p.call(api + "lookup", { task_id, code: code || undefined, item_id });
+				lookup = await p.call(api + "api_stock_count_lookup", { count, code: code || undefined, product });
 				if (closed) return;
-				selected = found.item;
+				selected = lookup.product;
 				request_id = crypto.randomUUID();
-				await d.set_value("product_name", `${selected.product_name} · ${selected.product_code}`);
-				await d.set_value("book_position", `${selected.warehouse || "—"} / ${selected.location || "—"} · `
-					+ `${p.number(selected.book_qty)} ${selected.unit || ""}`.trim());
-				await d.set_value("unit", selected.unit || "");
-				const place = entry || last_place || { warehouse: selected.warehouse, location: selected.location };
-				await d.set_value("warehouse", place.warehouse || "");
-				await d.set_value("location", place.location || "");
-				await d.set_value("qty", entry ? entry.quantity : "");
+				d.set_df_property("source_row", "options", lookup.rows.map(r => ({
+					value: r.name, label: `${r.warehouse_name} / ${r.location || t("cowork.stock.count.blank")} · ${p.number(r.book_qty)} ${r.unit || ""}`,
+				})));
+				d.set_df_property("source_row", "hidden", !lookup.rows.length);
+				await d.set_value("source_row", row?.name || lookup.rows[0]?.name || "");
+				await d.set_value("product_name", selected.product_name);
+				await d.set_value("unit", selected.base_unit || selected.unit || "");
+				await choose_source();
+				if (last_place) { await d.set_value("warehouse", last_place.warehouse); await d.set_value("location", last_place.location); }
+				await d.set_value("qty", entry ? entry.qty : "");
 				if (!entry) d.fields_dict.qty.$input.val("");
+				await d.set_value("note", entry?.note || "");
 				editor(true);
-				existing = entry ? await p.call(api + "entry_photos", { task_id, entry_id: entry.id }) : [];
+				await load_photos();
 				render_photos();
+				render_elsewhere();
 				d.fields_dict.qty.$input.trigger("focus");
-				if (code) p.scan_result_sound?.(true);
+				// 结果那一声：查到了才响（从码来的那一次才算 —— 打开已录那一行不算"查了"）。
+				if (code) p.scan_result_sound(true);
 			} catch (error) {
 				selected = null;
-				message(t("cowork.stock.lookupFailed"));
+				message(w("lookupFailed"));
 				if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				scanner?.resume();
-				if (code) p.scan_result_sound?.(false);
+				if (code) p.scan_result_sound(false);
 			} finally { busy = false; }
 		}
 		async function start_camera() {
-			if (scanner || closed || !can_scan) return;
+			if (scanner || closed) return;
 			camera = true;
 			d.set_df_property("video", "hidden", false);
 			scanner = p.scan_reader({ host: d.fields_dict.video.$wrapper, kind: "all",
 				on_result: code => match(code),
-				on_error: () => { scanner?.stop(); scanner = null; camera = false; message(t("cowork.stock.cameraFailed")); },
+				on_error: () => { scanner?.stop(); scanner = null; camera = false; message(w("cameraFailed")); },
 			});
 			await scanner.start();
+			d.set_df_property("torch", "hidden", !scanner?.has_torch());
 		}
 		async function next() {
-			selected = null; item = null; entry = null; existing = [];
+			selected = null; lookup = null; row = null; entry = null;
+			existing = [];
 			photos.length = 0;
 			await d.set_value("code", ""); await d.set_value("qty", "");
-			editor(false); render_photos(); message(t("cowork.stock.nextReady"));
+			editor(false); render_photos(); message(w("nextReady"));
+			render_elsewhere();   // 换下一条：别处那份提示也收起来
 			if (camera) scanner?.resume();
 			else d.fields_dict.code.$input.trigger("focus");
 		}
-
 		editor(false);
-		if (item) await match(null, item.id);
-		else d.fields_dict.code.$input.trigger("focus");
+		if (row) await match(null, row.product);
+		else if (continuous) await start_camera();
 	};
 })();

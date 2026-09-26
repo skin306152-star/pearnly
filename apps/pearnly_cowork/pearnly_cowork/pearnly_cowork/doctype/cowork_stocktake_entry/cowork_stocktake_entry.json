@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-26 18:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -21,6 +21,7 @@
   "warehouse",
   "location",
   "quantity",
+  "note",
   "voided",
   "version",
   "counted_by",
@@ -89,6 +90,11 @@
    "read_only": 1,
    "length": 30,
    "description": "Exact decimal quantity, at most six decimal places; empty actual quantity means not counted."
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
   },
   {
    "fieldname": "voided",

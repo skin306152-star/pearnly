@@ -562,77 +562,101 @@ Book quantity	账面数量	จำนวนตามบัญชี	帳簿数量	
 Counted quantity	实盘数量	จำนวนที่นับได้	実地数量	cowork.stocktake.col.actual_qty
 Warehouse	仓库	คลังสินค้า	倉庫	cowork.stocktake.col.warehouse
 Location	仓位	ตำแหน่ง	棚番	cowork.stocktake.col.location
-In progress	进行中	กำลังตรวจนับ	進行中	cowork.stock.statusActive
-Closed	已结束	ปิดแล้ว	終了	cowork.stock.statusClosed
-Show	显示	แสดง	表示	cowork.stock.filter
-All	全部	ทั้งหมด	すべて	cowork.stock.filter.all
-Not counted	未盘	ยังไม่นับ	未棚卸	cowork.stock.filter.uncounted
-Differences	有差异	มีผลต่าง	差異あり	cowork.stock.filter.differences
-Location mismatch	仓位不符	ตำแหน่งไม่ตรง	棚番不一致	cowork.stock.filter.locations
-New stock count	新建盘点	สร้างการตรวจนับ	新規棚卸	cowork.stock.new
-Delete {0}	删除 {0} 项	ลบ {0} รายการ	{0}件を削除	cowork.stock.deleteSelected
-Delete {0} stock count(s)?	删除这 {0} 个盘点？	ลบการตรวจนับ {0} รายการ?	{0}件の棚卸を削除しますか？	cowork.stock.deleteConfirm
-Deleted {0}	已删除 {0} 项	ลบแล้ว {0} รายการ	{0}件を削除しました	cowork.stock.deleted
-Name	盘点名称	ชื่อการตรวจนับ	棚卸名	cowork.stock.name
-Status	状态	สถานะ	状態	cowork.stock.status
-Rows	行数	จำนวนรายการ	行数	cowork.stock.rows
-Counted	已盘	นับแล้ว	棚卸済み	cowork.stock.countedRows
-Differences	差异	ผลต่าง	差異	cowork.stock.differenceRows
-Created	创建时间	สร้างเมื่อ	作成日時	cowork.stock.createdAt
-Count sheet	盘点表	ไฟล์ตรวจนับ	棚卸表	cowork.stock.file
-Choose file	选择文件	เลือกไฟล์	ファイルを選択	cowork.stock.pick
-Download template	下载模板	ดาวน์โหลดแม่แบบ	テンプレートをダウンロード	cowork.stock.template
-Imported {0} rows, {1} counted	已导入 {0} 行，其中 {1} 行有实盘	นำเข้า {0} รายการ มียอดนับจริง {1} รายการ	{0}行を取り込み、{1}行に実数あり	cowork.stock.created
-Some rows were skipped	部分行未导入	บางแถวไม่ได้นำเข้า	一部の行を取り込めませんでした	cowork.stock.importTitle
-Skipped {0} row(s) (row: reason)	跳过 {0} 行（行号: 原因）	ข้าม {0} แถว (แถว: เหตุผล)	{0}行をスキップ（行: 理由）	cowork.stock.importSkipped
-{0} · counted {1}/{2} · differences {3}	{0} · 已盘 {1}/{2} · 差异 {3}	{0} · นับแล้ว {1}/{2} · ผลต่าง {3}	{0} · 棚卸済み {1}/{2} · 差異 {3}	cowork.stock.headline
-Close count	结束盘点	ปิดการตรวจนับ	棚卸を終了	cowork.stock.close
-Export	导出	ส่งออก	エクスポート	cowork.stock.export
-Stock count closed	盘点已结束	ปิดการตรวจนับแล้ว	棚卸を終了しました	cowork.stock.closed
-Product	商品	สินค้า	商品	cowork.stock.col.name
-Code	编码	รหัส	コード	cowork.stock.col.code
-Barcode	条码	บาร์โค้ด	バーコード	cowork.stock.col.barcode
-Book location	账面仓位	ตำแหน่งตามบัญชี	帳簿上の棚番	cowork.stock.col.position
-Unit	单位	หน่วย	単位	cowork.stock.col.unit
-Book	账面	ตามบัญชี	帳簿	cowork.stock.col.book
-Counted	实盘	นับได้	実数	cowork.stock.col.actual
-Difference	差异	ผลต่าง	差異	cowork.stock.col.difference
-Result	结果	ผลการนับ	結果	cowork.stock.col.result
-Not counted	未盘	ยังไม่นับ	未棚卸	cowork.stock.result.not_counted
-Matched	一致	ตรงกัน	一致	cowork.stock.result.matched
-Over	盘盈	เกิน	過剰	cowork.stock.result.over
-Short	盘亏	ขาด	不足	cowork.stock.result.short
 The file is larger than 5 MB.	文件超过 5 MB。	ไฟล์มีขนาดเกิน 5 MB	ファイルが5MBを超えています。	stocktake.file_too_large
 Upload the stock count sheet as an .xlsx file.	请上传 .xlsx 格式的盘点表。	กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx	棚卸表は .xlsx 形式でアップロードしてください。	stocktake.file_invalid
-Start counting	开始盘点	เริ่มตรวจนับ	棚卸を開始	cowork.stock.start
-Record	记录	บันทึก	記録	cowork.stock.record
-Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	cowork.stock.continuous
-Save and next	保存并下一条	บันทึกและถัดไป	保存して次へ	cowork.stock.saveNext
-Done	完成	เสร็จสิ้น	完了	cowork.stock.done
-View differences	查看差异	ดูผลต่าง	差異を見る	cowork.stock.review
-Code or barcode	编码或条码	รหัสหรือบาร์โค้ด	コードまたはバーコード	cowork.stock.code
-Type or scan, then press Enter	输入或扫码后按回车	พิมพ์หรือสแกน แล้วกด Enter	入力またはスキャンして Enter	cowork.stock.scanHint
-Find	查找	ค้นหา	検索	cowork.stock.find
-Camera	摄像头	กล้อง	カメラ	cowork.stock.camera
-The camera could not start	摄像头无法启动	ไม่สามารถเปิดกล้องได้	カメラを起動できません	cowork.stock.cameraFailed
-No product in this count matches that code	这个盘点里没有这个编码的商品	ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้	この棚卸にそのコードの商品はありません	cowork.stock.lookupFailed
-Ready for the next product	可以盘下一个商品了	พร้อมตรวจนับสินค้าถัดไป	次の商品を棚卸できます	cowork.stock.nextReady
-Actual warehouse	实际仓库	คลังสินค้าจริง	実際の倉庫	cowork.stock.actualWarehouse
-Actual location	实际仓位	ตำแหน่งจริง	実際の棚番	cowork.stock.actualLocation
-Quantity	数量	จำนวน	数量	cowork.stock.entryQty
-Photos	照片	รูปภาพ	写真	cowork.stock.photos
-Add photo	添加照片	เพิ่มรูปภาพ	写真を追加	cowork.stock.addPhoto
-Remove	移除	นำออก	削除	cowork.stock.removePhoto
-At most 5 photos per entry	每条记录最多 5 张照片	บันทึกละไม่เกิน 5 รูป	1件の記録につき写真は5枚まで	cowork.stock.photoLimit
-Entry saved	已记录	บันทึกแล้ว	記録しました	cowork.stock.entrySaved
-Entries · {0}	逐笔记录 · {0}	รายการบันทึก · {0}	記録 · {0}	cowork.stock.entriesTitle
-Recount	重盘	นับใหม่	再棚卸	cowork.stock.recount
-Edit	修改	แก้ไข	修正	cowork.stock.editEntry
-Void	作废	ยกเลิก	取消	cowork.stock.void
-Voided	已作废	ยกเลิกแล้ว	取消済み	cowork.stock.entryVoided
-Valid	有效	ใช้งาน	有効	cowork.stock.entryLive
-Counted by	盘点人	ผู้ตรวจนับ	棚卸担当	cowork.stock.countedBy
-Counted at	盘点时间	เวลาที่นับ	棚卸日時	cowork.stock.countedAt
 Enter a quantity	请填写数量	กรุณากรอกจำนวน	数量を入力してください
 That photo cannot be attached. Upload it again.	这张照片挂不上，请重新上传。	ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่	この写真は添付できません。もう一度アップロードしてください。	stocktake.photo_invalid
 At most {0} photos per entry	每条记录最多 {0} 张照片	บันทึกละไม่เกิน {0} รูป	1件の記録につき写真は{0}枚まで	stocktake.photo_limit
+Export	导出	ส่งออก	エクスポート	cowork.stock.action.export
+Reload	刷新	โหลดใหม่	再読み込み	cowork.stock.action.reload
+Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	cowork.stock.board.title
+Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	cowork.stock.col.barcode
+Code	编码	รหัส	コード	cowork.stock.col.code
+Product name	物料名称	ชื่อสินค้า	商品名	cowork.stock.col.name
+Status	状态	สถานะ	状態	cowork.stock.col.status
+Unit	单位	หน่วย	単位	cowork.stock.col.unit
+Not set	未填	ยังไม่กรอก	未入力	cowork.stock.count.blank
+Book quantity	账面数量	จำนวนตามบัญชี	帳簿数量	cowork.stock.count.book
+Close count	结束盘点	ปิดการตรวจนับ	棚卸を終了	cowork.stock.count.close
+Count closed	盘点已结束	ปิดการตรวจนับแล้ว	棚卸を終了しました	cowork.stock.count.closed
+Counted quantity	实盘数量	จำนวนที่นับได้	実地数量	cowork.stock.count.counted
+Counted at	盘点时间	เวลาที่นับ	日時	cowork.stock.count.countedAt
+Counted by	盘点人	ผู้ตรวจนับ	担当者	cowork.stock.count.countedBy
+Counted	已盘点	นับแล้ว	棚卸済み	cowork.stock.count.countedRows
+Stock count created, {0} rows	盘点已创建，{0} 行	สร้างการตรวจนับแล้ว {0} แถว	棚卸を作成しました（{0} 行）	cowork.stock.count.created
+Created	创建时间	สร้างเมื่อ	作成日時	cowork.stock.count.createdAt
+Only an active count can be deleted	只有进行中的盘点能删除	ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่	進行中の棚卸のみ削除できます	cowork.stock.count.deleteBlocked
+Delete {0} stock counts? Posted ones cannot be deleted.	删除选中的 {0} 份盘点？已过账的删不掉。	ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้	選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。	cowork.stock.count.deleteConfirm
+Delete selected ({0})	删除所选（{0}）	ลบที่เลือก ({0})	選択を削除（{0}）	cowork.stock.count.deleteSelected
+Deleted {0} stock counts	已删除 {0} 份盘点	ลบการตรวจนับแล้ว {0} รายการ	棚卸を {0} 件削除しました	cowork.stock.count.deleted
+With differences	有差异	มีผลต่าง	差異あり	cowork.stock.count.differenceRows
+Difference value	差异金额	มูลค่าผลต่าง	差異金額	cowork.stock.count.differenceValue
+Entries	记录	รายการ	記録	cowork.stock.count.entries
+Entries — {0}	记录 — {0}	รายการ — {0}	記録 — {0}	cowork.stock.count.entriesTitle
+Counted in total	计入合计	นับรวมแล้ว	合計に含む	cowork.stock.count.entryLive
+Count saved	已保存	บันทึกแล้ว	保存しました	cowork.stock.count.entrySaved
+Voided, not in the total	已撤销，不计入合计	ยกเลิกแล้ว ไม่รวมในยอด	取消済み（合計に含まない）	cowork.stock.count.entryVoided
+Filter	筛选	ตัวกรอง	絞り込み	cowork.stock.count.filter
+All	全部	ทั้งหมด	すべて	cowork.stock.count.filter.all
+With differences	有差异	มีผลต่าง	差異あり	cowork.stock.count.filter.differences
+Not counted	未盘点	ยังไม่นับ	未棚卸	cowork.stock.count.filter.uncounted
+{0} · counted {1} / {2} · differences {3}	{0} · 已盘点 {1} / {2} · 差异 {3}	{0} · นับแล้ว {1} / {2} · ผลต่าง {3}	{0} · 棚卸済み {1} / {2} · 差異 {3}	cowork.stock.count.headline
+Sheet	表格文件	ไฟล์	シート	cowork.stock.count.importFile
+Choose the sheet to import	请先选择要导入的表格	กรุณาเลือกไฟล์ที่ต้องการนำเข้า	取り込むシートを選択してください	cowork.stock.count.importMissing
+Choose a file	选择文件	เลือกไฟล์	ファイルを選択	cowork.stock.count.importPick
+{0} rows were not imported	{0} 行没有导入	นำเข้าไม่ได้ {0} แถว	{0} 行は取り込めませんでした	cowork.stock.count.importSkipped
+Import result	导入结果	ผลการนำเข้า	取り込み結果	cowork.stock.count.importTitle
+Upload a sheet	上传导入	อัปโหลดไฟล์	取り込み	cowork.stock.count.modeImport
+Name	名称	ชื่อ	名前	cowork.stock.count.name
+New stock count	新建盘点	สร้างการตรวจนับ	棚卸を作成	cowork.stock.count.new
+Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.	按表格登记行与实盘数；实盘数可以留空，之后在线盘点。	ใช้รายการและจำนวนนับจริงจากไฟล์ เว้นจำนวนนับจริงว่างไว้เพื่อตรวจนับออนไลน์ภายหลังได้	表の行と実数を登録します。実数を空欄にすると、後でオンラインで棚卸できます。	cowork.stock.count.newHint
+Note	说明	หมายเหตุ	メモ	cowork.stock.count.note
+Notes	备注	หมายเหตุ	備考	cowork.stock.count.notes
+No product matches that code	该编号找不到物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	cowork.stock.count.problemCode
+The row has no product code or barcode	这一行没有物料编号或条码	แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด	この行に商品コードもバーコードもありません	cowork.stock.count.problemIdentifier
+The quantity is not a valid number	数量不是有效数字	จำนวนไม่ถูกต้อง	数量が正しい数値ではありません	cowork.stock.count.problemNumber
+No warehouse matches that name	该仓库名不存在	ไม่พบคลังสินค้าชื่อนี้	その倉庫名は存在しません	cowork.stock.count.problemWarehouse
+Quantity	数量	จำนวน	数量	cowork.stock.count.qty
+Difference	有差异	มีผลต่าง	差異あり	cowork.stock.count.rowDifference
+Matches	一致	ตรงกัน	一致	cowork.stock.count.rowMatch
+Not counted	未盘点	ยังไม่นับ	未棚卸	cowork.stock.count.rowUncounted
+Rows	行数	จำนวนแถว	行数	cowork.stock.count.rows
+Start counting	开始盘点	เริ่มตรวจนับ	棚卸を開始	cowork.stock.count.start
+In progress	进行中	กำลังดำเนินการ	進行中	cowork.stock.count.statusActive
+Closed	已结束	ปิดแล้ว	終了	cowork.stock.count.statusClosed
+Stock count template	盘点表模版	เทมเพลตตรวจนับ	棚卸テンプレート	cowork.stock.count.template
+Void	撤销	ยกเลิก	取消	cowork.stock.count.void
+Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	cowork.stock.count.voidConfirm
+Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	cowork.stock.field.search
+Light	灯光	ไฟ	ライト	cowork.stock.scan.light
+Actual position	实际仓位	ตำแหน่งที่พบจริง	実際の棚番	cowork.stock.workbench.actualLocation
+Actual positions and quantities	实际仓位及数量	ตำแหน่งจริงและจำนวน	実際の棚番と数量	cowork.stock.workbench.actualPositions
+Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	cowork.stock.workbench.actualWarehouse
+Add photos	添加照片	เพิ่มรูปภาพ	写真を追加	cowork.stock.workbench.addPhoto
+Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	cowork.stock.workbench.bookPosition
+Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	cowork.stock.workbench.camera
+Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。	เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	cowork.stock.workbench.cameraFailed
+Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	cowork.stock.workbench.code
+Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	cowork.stock.workbench.continuous
+Finish	完成	เสร็จสิ้น	完了	cowork.stock.workbench.done
+Correct entry	修改记录	แก้ไขรายการ	記録を修正	cowork.stock.workbench.editEntry
+This item is also stocked at:	这件货还在别处：	สินค้านี้มีอยู่ที่อื่นด้วย:	この商品は他の場所にも在庫があります:	cowork.stock.workbench.elsewhere
+Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	cowork.stock.workbench.entryQty
+Find product	查找物料	ค้นหาสินค้า	商品を検索	cowork.stock.workbench.find
+Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.	确定结束盘点？已盘点 {0} 项，未盘点 {1} 项。结束后任务只可查看和导出。	ปิดการตรวจนับนี้? นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดจะดูและส่งออกได้เท่านั้น	棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。	cowork.stock.workbench.finishConfirm
+Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	cowork.stock.workbench.locationDiff
+Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	cowork.stock.workbench.lookupFailed
+Stock changed; recount	库存有变，需重盘	สต็อกเปลี่ยน ต้องนับใหม่	在庫変動・再棚卸	cowork.stock.workbench.needsRecount
+Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว สแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	cowork.stock.workbench.nextReady
+Up to 5 photos per entry; take a photo or choose from the gallery.	每条记录最多 5 张照片，可以拍照或从相册选择。	บันทึกได้ไม่เกิน 5 รูปต่อรายการ ถ่ายรูปหรือเลือกจากอัลบั้มก็ได้	1記録につき写真は5枚まで。撮影またはアルバムから選択できます。	cowork.stock.workbench.photoHint
+At most 5 photos per entry	每条记录最多 5 张照片	บันทึกได้ไม่เกิน 5 รูปต่อรายการ	1記録につき写真は5枚までです	cowork.stock.workbench.photoLimit
+Photos	照片	รูปภาพ	写真	cowork.stock.workbench.photos
+Quantity differences	数量差异	ผลต่างจำนวน	数量差異	cowork.stock.workbench.quantityDiff
+Record a count	录入盘点	บันทึกการตรวจนับ	棚卸を入力	cowork.stock.workbench.record
+Recount this product	重新盘点该物料	นับสินค้านี้ใหม่	この商品を再棚卸	cowork.stock.workbench.recount
+Void all current observations for this product and recount it? Previous records remain in the history.	将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？	ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	cowork.stock.workbench.recountConfirm
+Remove	移除	ลบ	削除	cowork.stock.workbench.removePhoto
+Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	cowork.stock.workbench.review
+Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	cowork.stock.workbench.saveNext
+Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际位置和数量，保存后自动进入下一项。	สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	cowork.stock.workbench.scanHint
+Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。	สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	cowork.stock.workbench.stockChanged

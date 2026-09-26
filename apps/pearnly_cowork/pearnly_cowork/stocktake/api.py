@@ -1,7 +1,7 @@
 """Dedicated native stocktake RPCs and private scan workbook download."""
 import frappe
 from frappe.core.doctype.access_log.access_log import make_access_log
-from pearnly_cowork.stocktake import counting, service, upload
+from pearnly_cowork.stocktake import counting, service
 
 
 def _transaction(function, *args, **kwargs):
@@ -56,26 +56,6 @@ def edit_entry(task_id, entry_id, request_id, quantity, warehouse, version, loca
                         version=version, voided=voided)
 
 
-@frappe.whitelist()
-def lookup(task_id, code=None, item_id=None):
-    return _transaction(counting.lookup, task_id, code, item_id)
-
-
-@frappe.whitelist()
-def item_entries(task_id, item_id):
-    return _transaction(counting.item_entries, task_id, item_id)
-
-
-@frappe.whitelist()
-def entry_photos(task_id, entry_id):
-    return _transaction(counting.entry_photos, task_id, entry_id)
-
-
-@frappe.whitelist(methods=["POST"])
-def recount(task_id, item_id):
-    return _transaction(counting.recount, task_id, item_id)
-
-
 @frappe.whitelist(methods=["POST"])
 def close(task_id):
     return _transaction(service.close, task_id)
@@ -93,39 +73,3 @@ def export(task_id):
     frappe.local.response.update(type="download", filename="cowork-stocktake.xlsx", filecontent=content,
         display_content_as="attachment", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     frappe.local.cowork_private_response = True
-
-
-# ── 上传盘点（Cowork 不做在线盘点，见 stocktake.upload）────────────────────────
-
-
-@frappe.whitelist(methods=["POST"])
-def upload_count(title, request_id):
-    """multipart：`file` 是盘点表（xlsx），`title` 任务名，`request_id` 一次提交一个 UUID。"""
-    stream = (frappe.request.files or {}).get("file") if frappe.request else None
-    if not stream:
-        service.fail("stocktake.file_invalid")
-    content = stream.stream.read(upload.MAX_BYTES + 1)
-    return _transaction(upload.create, title, request_id, content)
-
-
-@frappe.whitelist()
-def tasks(start=0, limit=20, sort_by="created_at", sort_order="desc"):
-    return upload.records(start, limit, sort_by, sort_order)
-
-
-@frappe.whitelist()
-def task(task_id):
-    return _transaction(upload.detail, task_id)
-
-
-@frappe.whitelist(methods=["POST"])
-def delete(task_ids):
-    return _transaction(upload.delete, task_ids)
-
-
-@frappe.whitelist(methods=["GET"])
-def template():
-    content = upload.template()
-    frappe.local.response.update(type="download", filename="cowork-stock-count-template.xlsx",
-        filecontent=content, display_content_as="attachment",
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

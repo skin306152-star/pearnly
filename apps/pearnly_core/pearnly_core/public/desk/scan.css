@@ -1,0 +1,114 @@
+/* 扫码窗：视频画面 + 扫到那一下的绿闪与对勾（见 desk/scan.js）。 */
+.pearnly-scan-stage {
+	position: relative;
+	line-height: 0;
+}
+
+.pearnly-scan-video {
+	width: 100%;
+	max-height: 60vh;
+	border-radius: var(--border-radius-md, 10px);
+	background: #000;
+}
+
+.pearnly-scan-flash,
+.pearnly-scan-check {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.pearnly-scan-flash {
+	border-radius: var(--border-radius-md, 10px);
+	background: var(--green-500, #14a44d);
+	opacity: 0;
+}
+
+.pearnly-scan-check {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--green-500, #14a44d);
+	opacity: 0;
+	transform: scale(0.6);
+}
+
+.pearnly-scan-check svg {
+	width: 72px;
+	height: 72px;
+	filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+.pearnly-scan-done .pearnly-scan-flash {
+	animation: pearnly-scan-flash 420ms ease-out;
+}
+
+.pearnly-scan-done .pearnly-scan-check {
+	animation: pearnly-scan-check 420ms ease-out;
+}
+
+@keyframes pearnly-scan-flash {
+	0% { opacity: 0.55; }
+	100% { opacity: 0; }
+}
+
+@keyframes pearnly-scan-check {
+	0% { opacity: 0; transform: scale(0.6); }
+	40% { opacity: 1; transform: scale(1); }
+	100% { opacity: 0.9; transform: scale(1); }
+}
+
+/* 商品表单：条码/二维码那一格右侧的扫码按钮。
+   图标按钮压在输入框右内边缘（原生输入框 + 一个 SVG），不占额外一行，
+   也不跟对话框底部的"保存"抢位置。 */
+.pearnly-code-input {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.pearnly-code-input .form-control {
+	padding-right: 32px;
+}
+
+.pearnly-scan-icon {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--border-radius-sm, 4px);
+	background: transparent;
+	color: var(--text-muted, #6c7688);
+	cursor: pointer;
+}
+
+.pearnly-scan-icon:hover {
+	color: var(--text-color, #1f272e);
+	background: var(--gray-100, #f4f5f6);
+}
+
+.pearnly-scan-icon:focus-visible {
+	outline: 2px solid var(--focus-color, #2490ef);
+	outline-offset: 1px;
+}
+
+.pearnly-scan-icon svg {
+	width: 15px;
+	height: 15px;
+}
+
+/* 尊重"减少动态效果"的系统设置：只留颜色，不做缩放的动静。 */
+@media (prefers-reduced-motion: reduce) {
+	.pearnly-scan-done .pearnly-scan-check {
+		animation: none;
+		opacity: 1;
+		transform: none;
+	}
+}

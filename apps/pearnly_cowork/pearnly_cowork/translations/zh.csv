@@ -25,9 +25,12 @@ Active Key,活动防重键
 Actor,操作人
 Actual Qty,实盘数量
 Actual location,实际仓位
+Actual position,实际仓位
+Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
 Add User,添加用户
 Add photo,添加照片
+Add photos,添加照片
 Added {0},已添加 {0}
 All,全部
 Allowed Users,授权用户
@@ -43,6 +46,8 @@ At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
 Attempt Secret,尝试密钥
 Barcode,条形码
+Barcode / QR code,条码/二维码
+"Barcode, QR code or product code",条形码、二维码或物料编码
 Billing Code,计费代码
 Billing Kind,计费类型
 Billing Receipt,计费回执
@@ -56,6 +61,7 @@ Blocked By,阻塞记录
 Book,账面
 Book Qty,账面数量
 Book location,账面仓位
+Book position,账面仓库／仓位
 Book quantity,账面数量
 Bound,已绑定
 Bound Account Set,绑定账套
@@ -66,6 +72,7 @@ Bound to {0},已绑定到 {0}
 Branch,执行分支
 Buyer Client,买方客户
 Camera,摄像头
+"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
 Cannot tell which company this entry belongs to; the site must have exactly one.,无法确定这条记录归属的公司资料，本站点必须恰好有一份。
 Cash,现金
 Changed At (UTC),修改时间（UTC）
@@ -74,8 +81,10 @@ Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checks Json,检查结果JSON
+Choose a file,选择文件
 Choose at least one job role,至少勾一个功能权限
 Choose file,选择文件
+Choose the sheet to import,请先选择要导入的表格
 Client,客户
 Close count,结束盘点
 Closed,已结束
@@ -102,13 +111,18 @@ Connection Revision,连接版本
 Connection or directory record not found.,找不到此连接或目录记录。
 Content Hash,内容摘要
 Continuous counting,连续盘点
+Correct entry,修改记录
 Corrected Value,修正值
 Count Mode,盘点方式
+Count closed,盘点已结束
+Count saved,已保存
 Count sheet,盘点表
+Counted,已盘点
 Counted At,盘点时间
 Counted By,盘点人
 Counted at,盘点时间
 Counted by,盘点人
+Counted in total,计入合计
 Counted quantity,实盘数量
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
@@ -149,10 +163,14 @@ Current Json,当前数据（JSON）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
+Delete selected ({0}),删除所选（{0}）
 Delete {0},删除 {0} 项
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
+Delete {0} stock counts? Posted ones cannot be deleted.,删除选中的 {0} 份盘点？已过账的删不掉。
 Deleted {0},已删除 {0} 项
-Difference,差异
+Deleted {0} stock counts,已删除 {0} 份盘点
+Difference,有差异
+Difference value,差异金额
 Direction,业务方向
 Directory Revision,目录版本
 Directory Scope Key,目录范围键
@@ -184,7 +202,9 @@ Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符�
 Enter a valid email,请填写正确的邮箱
 Enter a valid quantity with no more than six decimal places.,请输入有效数量，最多保留六位小数。
 Enter the user name,请填写用户名
+Entries,记录
 Entries · {0},逐笔记录 · {0}
+Entries — {0},记录 — {0}
 Entry,记录
 Entry saved,已记录
 Event Key,事件标识
@@ -200,7 +220,12 @@ Failure Count,失败次数
 Fence,尝试隔离序号
 Field,字段
 File Hash,文件哈希值
+Filter,筛选
 Find,查找
+Find product,查找物料
+Finish,完成
+Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
+Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,确定结束盘点？已盘点 {0} 项，未盘点 {1} 项。结束后任务只可查看和导出。
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 General,常用功能
@@ -211,8 +236,10 @@ History Version,票据历史版本
 Holder,锁持有者
 Holder Fence,持锁尝试序号
 IN,入账
+Import result,导入结果
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
 In progress,进行中
+In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
 Initial Password,初始密码
 Installed At (UTC),安装时间（UTC）
@@ -252,6 +279,7 @@ Last Pushed At (UTC),最近推送时间（UTC）
 Last Request Hash,最近请求摘要
 Last Request Key,最近请求编号
 Lease Expires At,租约到期时间
+Light,灯光
 Location,位置
 Location mismatch,仓位不符
 Lock Key,锁键
@@ -261,7 +289,8 @@ Manual,手工
 Mapping Key,映射键
 Mapping Kind,映射类型
 Matched,一致
-Name,盘点名称
+Matches,一致
+Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
 New code,换一个码
@@ -270,11 +299,17 @@ New stock count,新建盘点
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No invoice summary found,未识别到摘要
 No product in this count matches that code,这个盘点里没有这个编码的商品
+No product matches that code,该编号找不到物料
+No warehouse matches that name,该仓库名不存在
 Not Permitted,没有权限
 Not bound,未绑定
-Not counted,未盘
+Not counted,未盘点
+Not set,未填
+Note,说明
+Notes,备注
 OUT,出账
 Observed At (UTC),观测时间（UTC）
+Only an active count can be deleted,只有进行中的盘点能删除
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
 Original Content Coverage Complete,原件内容已完整覆盖
 Original Document Manifest,原件内容索引
@@ -303,6 +338,7 @@ Pearnly Cowork,Pearnly Cowork
 Pending,待处理
 Phase,处理阶段
 Photos,照片
+Position differences,仓位差异
 Posting Kind,过账类型
 Preparation Evidence,准备资料证据
 Preparation data does not match the connection or account set.,推送准备资料与当前连接或账套不一致。
@@ -316,12 +352,15 @@ Product Name,产品名称
 Product code,商品编码
 Product codes and barcodes must be stored as text.,产品编码和条形码必须以文本格式保存。
 Product name,商品名称
+Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 Provider Evidence,服务商调用证据
 Push Attempt,推送尝试
 Push Record,推送记录
 Push record not found.,找不到推送记录。
 "Pushing is not enabled for this site, so nothing was sent.",本站点未开启推送，没有发送任何内容。
 Quantity,数量
+Quantity counted this time,本次实盘数量
+Quantity differences,数量差异
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Recognition Confidence,识别置信度
@@ -335,7 +374,9 @@ Record ID,记录 ID
 Record Id,记录 ID
 Record Key,记录键
 Record Revision,记录版本
+Record a count,录入盘点
 Recount,重盘
+Recount this product,重新盘点该物料
 Refresh Error Code,刷新错误码
 Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
 Refresh Lease Generation,刷新租约版本
@@ -346,6 +387,7 @@ Refresh Started At (UTC),刷新开始时间（UTC）
 Refresh Status,刷新状态
 Refresh the account directory before continuing.,请先刷新账套目录。
 Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
+Reload,刷新
 Remove,移除
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Report Credential,上报凭证
@@ -368,6 +410,7 @@ Result Json,识别结果（JSON）
 Result Unknown,结果未知
 Review,复核
 Review JSON,复核记录 JSON
+Review differences,查看差异
 Reviewed amounts need a balance and at most two decimal places.,复核行必须填写余额，金额最多保留两位小数。
 Revision,版本
 Revocation Reason,撤销原因
@@ -375,11 +418,16 @@ Revoked At (UTC),撤销时间（UTC）
 Revoked By,撤销人
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
+Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格登记行与实盘数；实盘数可以留空，之后在线盘点。
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票需要包含税前金额的明细后才能导出。
 Sample Key,修正例标识
-Save and next,保存并下一条
+Save and next,保存并下一项
 Saved,已保存
+Saved. Scan the next item.,已保存，请扫描下一项。
+Scan barcode or QR code,扫描条形码或二维码
+"Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scope Key,权限范围标识
+Search name or barcode,搜索名称或条码
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
@@ -389,11 +437,13 @@ Seller Tax ID,卖方税号
 Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
 Settings Json,配置数据（JSON）
+Sheet,表格文件
 Short,盘亏
 Show,显示
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
+Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 Some rows were skipped,部分行未导入
 Source Digest,来源摘要
 Source File,原始文件
@@ -410,8 +460,12 @@ Started At,开始时间
 Statement review is not available for this task.,此任务没有逐行复核记录。
 Status,状态
 Stock,库存
+Stock changed; recount,库存有变，需重盘
 Stock count closed,盘点已结束
+"Stock count created, {0} rows",盘点已创建，{0} 行
 Stock count photos are not yet supported. Remove the photos before saving.,盘点照片尚未接入，请先移除照片后保存。
+Stock count template,盘点表模版
+Stock count workbench,盘点工作台
 Submit,提交
 Summary table import,汇总表导入
 Target Json,冻结目标JSON
@@ -507,6 +561,7 @@ The printed invoice date cannot be read. Check the date shown on the document.,�
 The push data exceeds the size limit.,推送数据超过大小限制。
 The push record has changed. Reload and try again.,推送记录已更新，请重新读取后再试。
 The push target has changed. Prepare the invoice again.,推送目标已变更，请重新准备票据。
+The quantity is not a valid number,数量不是有效数字
 The recognized content does not match the original references.,识别内容与原件关联不一致。
 The recognized invoice manifest cannot be replaced.,已识别的发票关联清单不能替换。
 The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
@@ -521,6 +576,7 @@ The review workbook contains an invalid number.,复核工作簿包含无效数�
 The review workbook contains no invoice rows to import.,复核工作簿中没有可回导的发票行。
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,复核工作簿在连续 50 个空行之后仍有数据，请移除空行间隔后回导。
 The review worksheet name contains extra spaces. Restore the original name.,复核工作表名称包含多余空格，请恢复原工作表名。
+The row has no product code or barcode,这一行没有物料编号或条码
 The source page number must be a positive integer.,源文件页码必须是正整数。
 The stock count record was not found.,找不到盘点记录。
 The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
@@ -544,6 +600,7 @@ This document format is not supported.,不支持此文档格式。
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
 This file type is not supported.,不支持此文件类型。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
+This item is also stocked at:,这件货还在别处：
 This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
 This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
 This original already has a recognition task with different parameters.,此原始文件已有参数不同的识别任务。
@@ -569,10 +626,12 @@ Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确认解绑 Pearnly Cowork LINE？
 Unit,单位
 Unsupported ERP connection type.,不支持此ERP连接类型。
+Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
 Updated At,更新时间
 Updated By,更新人
 Updated {0} user(s),已更新 {0} 位用户
+Upload a sheet,上传导入
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
 Uploaded By,上传人
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。
@@ -586,10 +645,14 @@ Username can only have letters and numbers,用户名只能用英文字母和数�
 Valid,有效
 Version,版本
 View differences,查看差异
-Void,作废
+Void,撤销
+Void all current observations for this product and recount it? Previous records remain in the history.,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+Void this count of {0}?,撤销这条 {0} 的记录？
 Voided,已作废
+"Voided, not in the total",已撤销，不计入合计
 Warehouse,仓库
 Wire Attempt,发送尝试次数
+With differences,有差异
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workspace,公司账套
@@ -650,24 +713,80 @@ cowork.nav.work,工作协调
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.quality.pending,待复核
+cowork.stock.action.export,导出
+cowork.stock.action.reload,刷新
 cowork.stock.actualLocation,实际仓位
 cowork.stock.actualWarehouse,实际仓库
 cowork.stock.addPhoto,添加照片
+cowork.stock.board.title,盘点工作台
 cowork.stock.camera,摄像头
 cowork.stock.cameraFailed,摄像头无法启动
 cowork.stock.close,结束盘点
 cowork.stock.closed,盘点已结束
 cowork.stock.code,编码或条码
 cowork.stock.col.actual,实盘
-cowork.stock.col.barcode,条码
+cowork.stock.col.barcode,条码/二维码
 cowork.stock.col.book,账面
 cowork.stock.col.code,编码
 cowork.stock.col.difference,差异
-cowork.stock.col.name,商品
+cowork.stock.col.name,物料名称
 cowork.stock.col.position,账面仓位
 cowork.stock.col.result,结果
+cowork.stock.col.status,状态
 cowork.stock.col.unit,单位
 cowork.stock.continuous,连续盘点
+cowork.stock.count.blank,未填
+cowork.stock.count.book,账面数量
+cowork.stock.count.close,结束盘点
+cowork.stock.count.closed,盘点已结束
+cowork.stock.count.counted,实盘数量
+cowork.stock.count.countedAt,盘点时间
+cowork.stock.count.countedBy,盘点人
+cowork.stock.count.countedRows,已盘点
+cowork.stock.count.created,盘点已创建，{0} 行
+cowork.stock.count.createdAt,创建时间
+cowork.stock.count.deleteBlocked,只有进行中的盘点能删除
+cowork.stock.count.deleteConfirm,删除选中的 {0} 份盘点？已过账的删不掉。
+cowork.stock.count.deleteSelected,删除所选（{0}）
+cowork.stock.count.deleted,已删除 {0} 份盘点
+cowork.stock.count.differenceRows,有差异
+cowork.stock.count.differenceValue,差异金额
+cowork.stock.count.entries,记录
+cowork.stock.count.entriesTitle,记录 — {0}
+cowork.stock.count.entryLive,计入合计
+cowork.stock.count.entrySaved,已保存
+cowork.stock.count.entryVoided,已撤销，不计入合计
+cowork.stock.count.filter,筛选
+cowork.stock.count.filter.all,全部
+cowork.stock.count.filter.differences,有差异
+cowork.stock.count.filter.uncounted,未盘点
+cowork.stock.count.headline,{0} · 已盘点 {1} / {2} · 差异 {3}
+cowork.stock.count.importFile,表格文件
+cowork.stock.count.importMissing,请先选择要导入的表格
+cowork.stock.count.importPick,选择文件
+cowork.stock.count.importSkipped,{0} 行没有导入
+cowork.stock.count.importTitle,导入结果
+cowork.stock.count.modeImport,上传导入
+cowork.stock.count.name,名称
+cowork.stock.count.new,新建盘点
+cowork.stock.count.newHint,按表格登记行与实盘数；实盘数可以留空，之后在线盘点。
+cowork.stock.count.note,说明
+cowork.stock.count.notes,备注
+cowork.stock.count.problemCode,该编号找不到物料
+cowork.stock.count.problemIdentifier,这一行没有物料编号或条码
+cowork.stock.count.problemNumber,数量不是有效数字
+cowork.stock.count.problemWarehouse,该仓库名不存在
+cowork.stock.count.qty,数量
+cowork.stock.count.rowDifference,有差异
+cowork.stock.count.rowMatch,一致
+cowork.stock.count.rowUncounted,未盘点
+cowork.stock.count.rows,行数
+cowork.stock.count.start,开始盘点
+cowork.stock.count.statusActive,进行中
+cowork.stock.count.statusClosed,已结束
+cowork.stock.count.template,盘点表模版
+cowork.stock.count.void,撤销
+cowork.stock.count.voidConfirm,撤销这条 {0} 的记录？
 cowork.stock.countedAt,盘点时间
 cowork.stock.countedBy,盘点人
 cowork.stock.countedRows,已盘
@@ -685,6 +804,7 @@ cowork.stock.entryQty,数量
 cowork.stock.entrySaved,已记录
 cowork.stock.entryVoided,已作废
 cowork.stock.export,导出
+cowork.stock.field.search,搜索名称或条码
 cowork.stock.file,盘点表
 cowork.stock.filter,显示
 cowork.stock.filter.all,全部
@@ -712,6 +832,7 @@ cowork.stock.result.short,盘亏
 cowork.stock.review,查看差异
 cowork.stock.rows,行数
 cowork.stock.saveNext,保存并下一条
+cowork.stock.scan.light,灯光
 cowork.stock.scanHint,输入或扫码后按回车
 cowork.stock.start,开始盘点
 cowork.stock.status,状态
@@ -719,6 +840,37 @@ cowork.stock.statusActive,进行中
 cowork.stock.statusClosed,已结束
 cowork.stock.template,下载模板
 cowork.stock.void,作废
+cowork.stock.workbench.actualLocation,实际仓位
+cowork.stock.workbench.actualPositions,实际仓位及数量
+cowork.stock.workbench.actualWarehouse,实际仓库
+cowork.stock.workbench.addPhoto,添加照片
+cowork.stock.workbench.bookPosition,账面仓库／仓位
+cowork.stock.workbench.camera,扫描条形码或二维码
+cowork.stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
+cowork.stock.workbench.code,条形码、二维码或物料编码
+cowork.stock.workbench.continuous,连续盘点
+cowork.stock.workbench.done,完成
+cowork.stock.workbench.editEntry,修改记录
+cowork.stock.workbench.elsewhere,这件货还在别处：
+cowork.stock.workbench.entryQty,本次实盘数量
+cowork.stock.workbench.find,查找物料
+cowork.stock.workbench.finishConfirm,确定结束盘点？已盘点 {0} 项，未盘点 {1} 项。结束后任务只可查看和导出。
+cowork.stock.workbench.locationDiff,仓位差异
+cowork.stock.workbench.lookupFailed,未找到物料，请核对编码后重试。
+cowork.stock.workbench.needsRecount,库存有变，需重盘
+cowork.stock.workbench.nextReady,已保存，请扫描下一项。
+cowork.stock.workbench.photoHint,每条记录最多 5 张照片，可以拍照或从相册选择。
+cowork.stock.workbench.photoLimit,每条记录最多 5 张照片
+cowork.stock.workbench.photos,照片
+cowork.stock.workbench.quantityDiff,数量差异
+cowork.stock.workbench.record,录入盘点
+cowork.stock.workbench.recount,重新盘点该物料
+cowork.stock.workbench.recountConfirm,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+cowork.stock.workbench.removePhoto,移除
+cowork.stock.workbench.review,查看差异
+cowork.stock.workbench.saveNext,保存并下一项
+cowork.stock.workbench.scanHint,扫码后填写实际位置和数量，保存后自动进入下一项。
+cowork.stock.workbench.stockChanged,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 cowork.stocktake.col.actual_qty,实盘数量
 cowork.stocktake.col.barcode,条码
 cowork.stocktake.col.book_qty,账面数量
@@ -904,4 +1056,6 @@ stocktake.row_invalid,导入行无效或缺少必填值。
 stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
 stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入
+{0} rows were not imported,{0} 行没有导入
+{0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}

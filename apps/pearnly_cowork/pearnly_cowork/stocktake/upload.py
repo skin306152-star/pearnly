@@ -148,11 +148,3 @@ def delete(task_ids):
             frappe.db.delete(TASK, {"name": task.name, "workspace": task.workspace})
             deleted.append(task.name)
     return {"deleted": len(deleted), "ids": deleted}
-
-
-def detail(task_id):
-    """详情 + 每行结果（一致 / 盘盈 / 盘亏 / 未盘）与仓位对照，页面一次拿齐。"""
-    task = service._task(task_id)
-    if task.count_mode != "scan":
-        return service.detail(task_id)
-    return service.report(task_id)
