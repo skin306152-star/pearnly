@@ -20,7 +20,7 @@ IMMUTABLE = ("workspace", "client", "source", "request_key", "request_fingerprin
              "ai_raw", "confidence", "posting_kind", "source_pdf_id", "source_page_indices",
              "source_index", "source_total", "filename", "file_hash", "page_count", "source_file",
              # 新建录入时选的推送目标（连接 / 账套），识别落库时写入，之后按它推（用户 2026-09-26「按第一次选择」）。
-             "push_connection", "push_account_set")
+             "push_connection", "push_account_set", "intake_target")
 SUMMARY_FIELDS = ("invoice_no", "invoice_date", "seller_name", "total_amount")
 
 
@@ -198,7 +198,7 @@ def project(doc):
         "confidence", "quality_status", "posting_kind", *SUMMARY_FIELDS,
         "edit_count", "fields_edited_at", "confirmed_by", "confirmed_at",
         "source_file", "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count",
-        "push_connection", "push_account_set")}
+        "push_connection", "push_account_set", "intake_target")}
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
     result["posting_kind"] = normalize_posting_kind(doc.posting_kind)

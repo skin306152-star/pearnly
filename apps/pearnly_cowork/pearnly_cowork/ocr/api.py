@@ -9,12 +9,12 @@ from pearnly_cowork.roundtrip.contracts import RoundtripParseError
 
 @frappe.whitelist(methods=["POST"])
 def submit(source_file, request_key, direction=None, posting_kind=None, payment=None,
-           connection=None, account_set_key=None):
+           connection=None, account_set_key=None, target=None):
     for attempt in range(3):
         try:
             result = service.submit(source_file, request_key, direction=direction,
                                     posting_kind=posting_kind, payment=payment,
-                                    connection=connection, account_set_key=account_set_key)
+                                    connection=connection, account_set_key=account_set_key, target=target)
             return {"accepted": True, **result}
         except frappe.QueryDeadlockError:
             frappe.db.rollback()

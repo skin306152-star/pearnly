@@ -121,6 +121,14 @@
    "hidden": 1
   },
   {
+   "fieldname": "intake_target",
+   "fieldtype": "Data",
+   "label": "Intake Target",
+   "length": 20,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
    "fieldname": "payment",
    "fieldtype": "Data",
    "label": "Payment Method",
@@ -253,6 +261,7 @@
   "posting_kind",
   "target_connection",
   "target_account_set",
+  "intake_target",
   "billing_code",
   "page_count",
   "anchor_date",

@@ -46,8 +46,11 @@ def _target(connection, account_set_key):
     return connection, account_set_key
 
 
+TARGETS = ("mrerp", "express", "none")
+
+
 def submit(source_file, request_key, *, direction=None, posting_kind=None, payment=None,
-           connection=None, account_set_key=None):
+           connection=None, account_set_key=None, target=None):
     scope.require("intake")
     if not isinstance(request_key, str) or not 1 <= len(request_key.strip()) <= 128:
         frappe.throw(_("A request key of 1 to 128 characters is required."))
@@ -55,13 +58,18 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
     # 入口勾的付款方式：认不出就拒（不静默丢掉商家的选择）。
     payment = normalize_payment(payment)
     connection, account_set_key = _target(connection, account_set_key)
+    # 新建录入选的目标卡片（MR.ERP / Express / 识别后导出）：记在票上，之后打开复核页才知道右上角是「提交」还是「导出」。
+    target = str(target or "").strip() or None
+    if target and target not in TARGETS:
+        frappe.throw(_("Invalid push target."))
     source = frappe.get_doc(files.SOURCE, source_file, for_update=True)
     scope.require_scope(source.workspace, source.client)
     files.require_full(source)
     name = store.digest([KIND, source.name])
     # 目标只在带了时进指纹：不带目标的老请求指纹不变，重放照旧认得出来。
     fingerprint = store.digest([source.name, source.sha256, frappe.session.user, request_key,
-                                direction, posting_kind, payment, *([connection, account_set_key] if connection else [])])
+                                direction, posting_kind, payment, *([connection, account_set_key] if connection else []),
+                                *([target] if target else [])])
     if frappe.db.exists(access.DOCTYPE, name):
         doc = store.read(name, write=True)
         if doc.request_fingerprint != fingerprint:
@@ -98,7 +106,8 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
         "billing_reference": "cowork.invoice:" + name, "settings_json": store.encode(frozen),
         "examples_json": store.encode(examples), "anchor_date": frozen["anchor_date"],
         "direction": direction, "posting_kind": posting_kind, "payment": payment,
-        "target_connection": connection, "target_account_set": account_set_key, "phase": "admitted",
+        "target_connection": connection, "target_account_set": account_set_key, "intake_target": target,
+        "phase": "admitted",
         "billing_state": "not_due", "work_name": work_name})
     # Core commits admission+Work together. The Batch already contains the exact
     # deterministic Work name before a worker can be enqueued by that commit.

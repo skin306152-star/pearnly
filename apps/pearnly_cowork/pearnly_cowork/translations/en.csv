@@ -83,9 +83,13 @@ Bound at,Bound at
 Bound to {0},Bound to {0}
 Branch,Branch
 Buyer Client,Buyer Client
+Buyer address,Buyer address
+Buyer branch,Buyer branch
+Buyer tax ID,Buyer tax ID
 Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Cancelled,Cancelled
+Card,Card
 Cash,Cash
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
@@ -94,6 +98,7 @@ Check the statement balance differences before confirming.,Check the statement b
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checking,Checking
 Checks Json,Checks Json
+Cheque,Cheque
 Choose a file,Choose a file
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
@@ -181,10 +186,12 @@ Created By,Created By
 Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
 Credit,Credit
+Credit note,Credit note
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Customer,Customer
 Date,Date
+Date (BE),Date (BE)
 Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
@@ -210,8 +217,12 @@ Directory Scope Kind,Directory Scope Kind
 Directory Snapshot,Directory Snapshot
 Disable,Disable
 Disable {0},Disable {0}
+Discount,Discount
 Document Key,Document Key
 Document no.,Document no.
+Document summary · open details to review and post,Document summary · open details to review and post
+Document total,Document total
+Document type,Document type
 Done,Done
 Download template,Download template
 Draft,Draft
@@ -262,6 +273,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
 General,General
 General ledger,General ledger
 General ledger detail,General ledger detail
@@ -350,12 +362,14 @@ No ERP is ready to use,No ERP is ready to use
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
+No items were read,No items were read
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No warehouse matches that name,No warehouse matches that name
 Not Permitted,Not Permitted
 Not bound,Not bound
 Not counted,Not counted
+Not permitted,Not permitted
 Not set,Not set
 Note,Note
 Notes,Notes
@@ -363,6 +377,7 @@ OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only an active count can be deleted,Only an active count can be deleted
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
+Order evidence,Order evidence
 Original Content Coverage Complete,Original Content Coverage Complete
 Original Document Manifest,Original Document Manifest
 Original File,Original File
@@ -375,6 +390,7 @@ Original files can only be changed through the Cowork file service.,Original fil
 Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
 Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
+Other document,Other document
 Outcome,Outcome
 Output VAT report,Output VAT report
 Over,Over
@@ -387,6 +403,8 @@ Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Payload Json,Payload Json
 Payment Method,Payment Method
+Payment evidence,Payment evidence
+Payment method,Payment method
 Pearnly Cowork,Pearnly Cowork
 Pending,Pending
 Period,Period
@@ -394,6 +412,7 @@ Phase,Phase
 Photos,Photos
 Please upload a PDF or image,Please upload a PDF or image
 Position differences,Position differences
+Posting,Posting
 Posting Kind,Posting Kind
 Preparation Evidence,Preparation Evidence
 Preparation data does not match the connection or account set.,Preparation data does not match the connection or account set.
@@ -408,6 +427,7 @@ Product code,Product code
 Product codes and barcodes must be stored as text.,Product codes and barcodes must be stored as text.
 Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
+PromptPay,PromptPay
 Provider Evidence,Provider Evidence
 Purchase or sales?,Purchase or sales?
 Push Attempt,Push Attempt
@@ -425,6 +445,7 @@ Reading the general ledger,Reading the general ledger
 Reading the invoices,Reading the invoices
 Ready for the next product,Ready for the next product
 Reason,Reason
+Receipt,Receipt
 Recognised {0} documents,Recognised {0} documents
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
@@ -501,6 +522,9 @@ Select between 1 and 500 records.,Select between 1 and 500 records.
 Select valid files to download.,Select valid files to download.
 Seller Name,Seller Name
 Seller Tax ID,Seller Tax ID
+Seller address,Seller address
+Seller branch,Seller branch
+Seller tax ID,Seller tax ID
 Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
@@ -509,6 +533,7 @@ Settings Json,Settings Json
 Sheet,Sheet
 Short,Short
 Show,Show
+Simplified tax invoice,Simplified tax invoice
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
@@ -546,6 +571,7 @@ Target Json,Target Json
 Task,Task
 Task name,Task name
 Tax ID,Tax ID
+Tax invoice,Tax invoice
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
 The Companion delivery record is invalid.,The Companion delivery record is invalid.
@@ -717,6 +743,7 @@ Token Generation,Token Generation
 Token Tail,Token Tail
 Total,Total
 Transaction Date,Transaction Date
+Transfer,Transfer
 Type,Type
 "Type or scan, then press Enter","Type or scan, then press Enter"
 Unbind LINE,Unbind LINE
@@ -758,6 +785,7 @@ Void this count of {0}?,Void this count of {0}?
 Voided,Voided
 "Voided, not in the total","Voided, not in the total"
 Voucher no.,Voucher no.
+WHT amount,WHT amount
 Waiting to start,Waiting to start
 Warehouse,Warehouse
 Wire Attempt,Wire Attempt
@@ -1281,6 +1309,7 @@ vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
 vat_check.recognition_timeout,Invoice recognition took too long. Try again later.
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} files,{0} files
+{0} more items,{0} more items
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}

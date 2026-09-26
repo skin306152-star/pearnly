@@ -83,9 +83,13 @@ Bound at,เชื่อมต่อเมื่อ
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Branch,สาขาการดำเนินการ
 Buyer Client,ลูกค้าผู้ซื้อ
+Buyer address,ที่อยู่ผู้ซื้อ
+Buyer branch,สาขาผู้ซื้อ
+Buyer tax ID,เลขผู้เสียภาษีผู้ซื้อ
 Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
 Cancelled,ยกเลิกแล้ว
+Card,บัตร
 Cash,เงินสด
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
@@ -94,6 +98,7 @@ Check the statement balance differences before confirming.,กรุณาแก
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checking,กำลังตรวจสอบ
 Checks Json,ผลตรวจสอบ JSON
+Cheque,เช็ค
 Choose a file,เลือกไฟล์
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
@@ -181,10 +186,12 @@ Created By,ผู้สร้าง
 Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
+Credit note,ใบลดหนี้
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Customer,ลูกค้า
 Date,วันที่
+Date (BE),วันที่ พ.ศ.
 Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
@@ -210,8 +217,12 @@ Directory Scope Kind,ประเภทขอบเขตไดเรกทอ�
 Directory Snapshot,ภาพข้อมูลไดเรกทอรี
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
+Discount,ส่วนลด
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document no.,เลขที่เอกสาร
+Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี
+Document total,ยอดรวม
+Document type,ประเภทเอกสาร
 Done,เสร็จสิ้น
 Download template,ดาวน์โหลดแม่แบบ
 Draft,ฉบับร่าง
@@ -262,6 +273,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,ปิดการตรวจนับนี้? นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดจะดูและส่งออกได้เท่านั้น
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น
 General,ทั่วไป
 General ledger,บัญชีแยกประเภททั่วไป
 General ledger detail,รายละเอียดบัญชีแยกประเภท
@@ -350,12 +362,14 @@ No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใ�
 No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 No invoice was found in this document.,ไม่พบเอกสารที่อ่านได้ในไฟล์นี้
+No items were read,ไม่พบรายการสินค้า
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 Not Permitted,ไม่ได้รับอนุญาต
 Not bound,ยังไม่เชื่อมต่อ
 Not counted,ยังไม่นับ
+Not permitted,ไม่ได้รับอนุญาต
 Not set,ยังไม่กรอก
 Note,หมายเหตุ
 Notes,หมายเหตุ
@@ -363,6 +377,7 @@ OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
+Order evidence,หลักฐานการสั่งซื้อ
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
 Original Document Manifest,ดัชนีเนื้อหาเอกสารต้นฉบับ
 Original File,ไฟล์ต้นฉบับ
@@ -375,6 +390,7 @@ Original files can only be changed through the Cowork file service.,เปลี
 Original files cannot be changed.,ไม่สามารถเปลี่ยนแปลงไฟล์ต้นฉบับได้
 Original files cannot be deleted while invoice references may exist.,ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่
 Original files cannot be shared separately from their invoices.,ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้
+Other document,เอกสารอื่น
 Outcome,ผลการดำเนินการ
 Output VAT report,รายงานภาษีขาย
 Over,เกิน
@@ -387,6 +403,8 @@ Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Payload Json,ข้อมูลส่งที่ตรึงไว้ JSON
 Payment Method,วิธีชำระเงิน
+Payment evidence,หลักฐานการชำระเงิน
+Payment method,วิธีชำระเงิน
 Pearnly Cowork,Pearnly Cowork
 Pending,รอดำเนินการ
 Period,งวด
@@ -394,6 +412,7 @@ Phase,ขั้นตอนการประมวลผล
 Photos,รูปภาพ
 Please upload a PDF or image,กรุณาส่งรูปภาพหรือ PDF
 Position differences,ผลต่างตำแหน่ง
+Posting,วิธีลงบัญชี
 Posting Kind,ประเภทการผ่านรายการ
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
 Preparation data does not match the connection or account set.,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
@@ -408,6 +427,7 @@ Product code,รหัสสินค้า
 Product codes and barcodes must be stored as text.,รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ
 Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
+PromptPay,พร้อมเพย์
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
 Purchase or sales?,ซื้อหรือขาย?
 Push Attempt,ความพยายามส่ง
@@ -425,6 +445,7 @@ Reading the general ledger,กำลังอ่านบัญชีแยก�
 Reading the invoices,กำลังอ่านใบกำกับ
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
+Receipt,ใบเสร็จ
 Recognised {0} documents,อ่านเอกสารแล้ว {0} ใบ
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
@@ -501,6 +522,9 @@ Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500
 Select valid files to download.,กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด
 Seller Name,ชื่อผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
+Seller address,ที่อยู่ผู้ขาย
+Seller branch,สาขาผู้ขาย
+Seller tax ID,เลขผู้เสียภาษีผู้ขาย
 Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
@@ -509,6 +533,7 @@ Settings Json,ข้อมูลการตั้งค่า (JSON)
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
+Simplified tax invoice,ใบกำกับภาษีอย่างย่อ
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
@@ -546,6 +571,7 @@ Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
 Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
+Tax invoice,ใบกำกับภาษีเต็มรูป
 That code is not valid,รหัสไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
@@ -717,6 +743,7 @@ Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
 Total,รวม VAT
 Transaction Date,วันที่ทำรายการ
+Transfer,โอนเงิน
 Type,ประเภท
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
@@ -758,6 +785,7 @@ Void this count of {0}?,ยกเลิกรายการนับ {0} นี
 Voided,ยกเลิกแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Voucher no.,เลขที่ใบสำคัญ
+WHT amount,ภาษีหัก ณ ที่จ่าย
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
@@ -1281,6 +1309,7 @@ vat_check.recognition_busy,ระบบอ่านใบกำกับไม�
 vat_check.recognition_timeout,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
 {0} files,{0} ไฟล์
+{0} more items,และอีก {0} รายการ
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}

@@ -193,8 +193,11 @@
 		// 以第三方为准（用户 2026-09-26）：MR.ERP 不分服务 / 存货（旧线上 `mode_options`），
 		// 这一批是 MR.ERP 就不摆「过账类型」（整票与明细行都不摆）；复核已有记录时不知道目标，照常显示。
 		// 「仅识别」（用户 2026-09-26）：识别后导出复核工作簿，不推送；过账类型同样不摆，右上角是「导出」。
-		const recognize_only = choice?.target === p.intake_targets?.RECOGNIZE_ONLY;
-		const no_kind = choice?.target === "mrerp" || recognize_only ? 1 : 0;
+		// 从列表 / LINE 卡片打开已有的票：目标卡片记在票上（`intake_target`，新建时写入），没有弹窗里的选择可用。
+		const opened = name ? await p.call(HISTORY + "detail", {name}).catch(() => null) : null;
+		const target = choice?.target || opened?.intake_target || "";
+		const recognize_only = target === p.intake_targets?.RECOGNIZE_ONLY;
+		const no_kind = target === "mrerp" || recognize_only ? 1 : 0;
 		const stage = name ? __("Review") : __("Upload");
 		page.set_title(stage);
 		p.breadcrumbs({label: t("intake.title"), route: p.subroute("pearnly-intake"),
@@ -687,6 +690,8 @@
 				// 没选的就不传（空串在合同里是「非法值」，不是「没选」）。
 				? {direction: choice.direction, posting_kind: choice.posting_kind || undefined,
 					payment: choice.payment || undefined,
+					// 选的是哪张目标卡片也记上：之后打开复核页才知道是「提交」还是「导出」。
+					target: choice.target || undefined,
 					// 第一次选的推送目标记在票上，之后从列表进来提交也按它推（用户 2026-09-26）。
 					...(choice.connection && !recognize_only
 						? {connection: choice.connection, account_set_key: choice.account_set_key || undefined} : {})}

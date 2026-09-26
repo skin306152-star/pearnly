@@ -83,9 +83,13 @@ Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,実行分岐
 Buyer Client,買い手顧客
+Buyer address,買い手住所
+Buyer branch,買い手支店
+Buyer tax ID,買い手税番号
 Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 Cancelled,キャンセルしました
+Card,カード
 Cash,現金
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
@@ -94,6 +98,7 @@ Check the statement balance differences before confirming.,明細の残高差異
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checking,照合中
 Checks Json,検証結果JSON
+Cheque,小切手
 Choose a file,ファイルを選択
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
@@ -181,10 +186,12 @@ Created By,作成者
 Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
+Credit note,クレジットノート
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Customer,顧客
 Date,日付
+Date (BE),日付（仏暦）
 Debit,借方
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
@@ -210,8 +217,12 @@ Directory Scope Kind,ディレクトリ範囲タイプ
 Directory Snapshot,ディレクトリスナップショット
 Disable,無効化
 Disable {0},{0}件を無効化
+Discount,割引額
 Document Key,伝票重複防止キー
 Document no.,伝票番号
+Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
+Document total,合計
+Document type,書類種類
 Done,完了
 Download template,テンプレートをダウンロード
 Draft,下書き
@@ -262,6 +273,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 General,一般
 General ledger,総勘定元帳
 General ledger detail,総勘定元帳明細
@@ -350,12 +362,14 @@ No ERP is ready to use,使用できるERPがありません
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
+No items were read,明細を読み取れませんでした
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
 No warehouse matches that name,その倉庫名は存在しません
 Not Permitted,適切な権限がありません
 Not bound,未連携
 Not counted,未棚卸
+Not permitted,権限がありません
 Not set,未入力
 Note,メモ
 Notes,備考
@@ -363,6 +377,7 @@ OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
+Order evidence,注文証憑
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
 Original File,元ファイル
@@ -375,6 +390,7 @@ Original files can only be changed through the Cowork file service.,元ファイ
 Original files cannot be changed.,元ファイルは変更できません。
 Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
 Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
+Other document,その他の書類
 Outcome,実行結果
 Output VAT report,売上税報告
 Over,過剰
@@ -387,6 +403,8 @@ Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Payload Json,固定ペイロードJSON
 Payment Method,支払方法
+Payment evidence,支払証憑
+Payment method,支払方法
 Pearnly Cowork,Pearnly Cowork
 Pending,処理待ち
 Period,期間
@@ -394,6 +412,7 @@ Phase,処理段階
 Photos,写真
 Please upload a PDF or image,PDFまたは画像を送信してください
 Position differences,棚番の差異
+Posting,計上方法
 Posting Kind,記帳区分
 Preparation Evidence,準備情報の証拠
 Preparation data does not match the connection or account set.,準備情報が接続または会計データと一致しません。
@@ -408,6 +427,7 @@ Product code,商品コード
 Product codes and barcodes must be stored as text.,商品コードとバーコードは文字列として保存してください。
 Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
+PromptPay,PromptPay
 Provider Evidence,プロバイダー呼び出し証跡
 Purchase or sales?,仕入ですか、売上ですか？
 Push Attempt,送信試行
@@ -425,6 +445,7 @@ Reading the general ledger,総勘定元帳を読み込み中
 Reading the invoices,請求書を読み込み中
 Ready for the next product,次の商品を棚卸できます
 Reason,理由
+Receipt,領収書
 Recognised {0} documents,{0} 件の書類を読み取りました
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
@@ -501,6 +522,9 @@ Select between 1 and 500 records.,1～500件のレコードを選択してくだ
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
 Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
+Seller address,売り手住所
+Seller branch,売り手支店
+Seller tax ID,売り手税番号
 Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
@@ -509,6 +533,7 @@ Settings Json,設定データ（JSON）
 Sheet,シート
 Short,不足
 Show,表示
+Simplified tax invoice,簡易税請求書
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
@@ -546,6 +571,7 @@ Target Json,固定送信先JSON
 Task,タスク
 Task name,タスク名
 Tax ID,納税者番号
+Tax invoice,正式税請求書
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
@@ -717,6 +743,7 @@ Token Generation,トークン世代
 Token Tail,トークン末尾
 Total,税込
 Transaction Date,取引日
+Transfer,振込
 Type,種別
 "Type or scan, then press Enter",入力またはスキャンして Enter
 Unbind LINE,LINE 連携を解除
@@ -758,6 +785,7 @@ Void this count of {0}?,この {0} の記録を取り消しますか？
 Voided,無効化済み
 "Voided, not in the total",取消済み（合計に含まない）
 Voucher no.,伝票番号
+WHT amount,源泉税額
 Waiting to start,開始待ち
 Warehouse,倉庫
 Wire Attempt,送信試行回数
@@ -1281,6 +1309,7 @@ vat_check.recognition_busy,請求書の読み取りが混み合っています�
 vat_check.recognition_timeout,請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認してください。
 {0} files,{0} 件のファイル
+{0} more items,ほか {0} 件
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 棚卸済み {1}/{2} · 差異 {3}

@@ -153,11 +153,13 @@ def _persist(doc):
     if doc.phase in {"saved", "not_invoice"}:
         return doc
     rows = persist_batch(doc.source_file, plan["groups"], doc.name, anchor_year=anchor) if plan["groups"] else []
-    if doc.get("target_connection"):
-        # 新建录入选的推送目标抄到每张票上：之后从列表进来提交也按第一次的选择推（用户 2026-09-26）。
+    if doc.get("target_connection") or doc.get("intake_target"):
+        # 新建录入选的推送目标抄到每张票上：之后从列表进来提交也按第一次的选择推（用户 2026-09-26）；
+        # 选的是哪张目标卡片也抄上（识别后导出的票打开复核页是「导出」，不是「提交」）。
         for row in rows:
-            frappe.db.set_value("Cowork OCR History", row["name"], {"push_connection": doc.target_connection,
-                "push_account_set": doc.get("target_account_set") or ""}, update_modified=False)
+            frappe.db.set_value("Cowork OCR History", row["name"], {"push_connection": doc.get("target_connection") or "",
+                "push_account_set": doc.get("target_account_set") or "",
+                "intake_target": doc.get("intake_target") or ""}, update_modified=False)
     doc.history_records = store.encode([r["name"] for r in rows])
     doc.phase = "saved" if rows else "not_invoice"
     doc.billing_state = "pending" if rows else "not_billable"

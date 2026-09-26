@@ -108,6 +108,13 @@
 测试环境 `finish-start.py` 同一份）：Vertex + 旧线上兜底档 `economy`。测试机已写入，`settings.snapshot()` 通过（economy / B 档 / vertex / 凭据在）。
 **生产未改**（随下次上线、另行授权）。另：testcowork 的账本副本余额不足（`insufficient_balance`），识别会被拒，待用户决定。
 
+**真机第二轮（2026-09-27）**：LINE 识别后导出的票从卡片打开是「提交」而不是「导出」——复核页只从新建弹窗的选择判断
+“识别后导出”，从列表 / 卡片打开已有票时没有这份选择（网页同样有此问题）。改为识别时把目标卡片记在票上：
+`Cowork OCR Batch` / `Cowork OCR History` 新增 `intake_target`（`mrerp` / `express` / `none`，不可改），`ocr.api.submit` 收 `target`
+（只在带了时进指纹），落库时抄到每张票；复核页先读票再定「导出 / 提交」和是否摆过账类型。
+用户要求上传提示与卡片参考 ERP：提示后加 ERP 同一句拍摄提示；卡片改为每张票一张（`line/cards.py`，版式照 ERP `line_cards.py`：
+方向色页头、选择项、单据号 / 日期 / 票种 / 对方四项、全部明细、金额与付款、一个复核按钮；一次回复 5 张，其余推送）。
+
 ## 第六批：菜单收口 + 团队管理 + LINE 绑定（2026-09-26，第三个窗口）
 
 用户：“按 ERP 的团队管理和 LINE 先把配置搭建好，前端画出来，团队管理的功能权限写 Cowork”；

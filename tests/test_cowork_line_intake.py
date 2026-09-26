@@ -159,13 +159,63 @@ class LineHandlerTest(unittest.TestCase):
         self.assertEqual(receive.call_args.kwargs["choices"], ready)
 
 
+class LineCardTest(unittest.TestCase):
+    """卡片照 ERP：进项绿、只列卖方、明细逐行、合计用主题色、只有一个复核按钮。"""
+
+    def card(self, direction="purchase"):
+        from pearnly_cowork.line import cards
+
+        fields = {"direction": direction, "invoice_number": "IV6906-00001", "date_raw": "1/6/2569",
+                  "document_type": "tax_invoice", "seller_name": "S Co", "seller_tax": "0105527028626",
+                  "buyer_name": "B Co", "subtotal": "1370.00", "vat": "95.90", "total_amount": "1465.90",
+                  "items": [{"name": "ข้อต่อ", "qty": "2", "price": "60.00", "subtotal": "120.00"}]}
+        record = mock.Mock(pages=__import__("json").dumps([{"fields": fields}]), total_amount="1465.90")
+        record.name = "CWH-1"
+        with mock.patch.object(cards, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(cards.frappe.utils, "get_url", return_value="https://t.example"):
+            return cards.preview(record, {"target": "识别后导出", "direction": direction, "mode": ""})
+
+    def texts(self, card):
+        found = []
+
+        def walk(node):
+            if isinstance(node, dict):
+                if node.get("type") == "text":
+                    found.append(node["text"])
+                for value in node.values():
+                    walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    walk(value)
+        walk(card)
+        return found
+
+    def test_purchase_card(self):
+        card = self.card()
+        bubble = card["contents"]
+        self.assertEqual(bubble["header"]["backgroundColor"], "#16873E")
+        texts = self.texts(card)
+        self.assertIn("S Co", texts)
+        self.assertNotIn("B Co", texts)
+        self.assertIn("1. ข้อต่อ", texts)
+        self.assertIn("1,465.90", texts)
+        buttons = bubble["footer"]["contents"]
+        self.assertEqual(len(buttons), 1)
+        self.assertEqual(buttons[0]["action"]["uri"], "https://t.example/desk/pearnly-intake/new/CWH-1")
+
+    def test_sales_card_lists_the_buyer(self):
+        texts = self.texts(self.card("sales"))
+        self.assertIn("B Co", texts)
+        self.assertNotIn("S Co", texts)
+
+
 class LineAnnounceTest(unittest.TestCase):
     def test_only_the_first_announcement_is_sent(self):
         cache = {intake._PENDING + "CWS-1": {"line_user_id": "U1", "language": "th", "reply_token": "tok"}}
         fake = mock.Mock(get_value=cache.get, delete_value=lambda key: cache.pop(key, None))
         with mock.patch.object(intake.frappe, "cache", fake), \
                 mock.patch.object(intake.frappe, "local", mock.Mock(lang="zh")), \
-                mock.patch.object(intake, "card", return_value={"type": "flex"}), \
+                mock.patch("pearnly_cowork.line.cards.previews", return_value=[{"type": "flex"}]), \
                 mock.patch.object(intake.line, "reply_or_push") as send:
             intake.announce("CWS-1", "saved", ["H1"])
             intake.announce("CWS-1", "saved", ["H1"])

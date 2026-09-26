@@ -137,7 +137,9 @@ def _next(line_user_id, payload, reply_token):
         if step == "upload":
             payload.pop("offered", None)
             _save(line_user_id, payload)
-            return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image"))
+            # 上传前的拍摄提示照 ERP（用户 2026-09-26）：侧着的照片会读错，不另花识别费去转正。
+            return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image") + "\n"
+                         + _("For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."))
         if step == "target":
             options, note = _targets()
         else:
@@ -280,19 +282,27 @@ def _options(step, payload):
     return []
 
 
-def summary(payload) -> str:
-    """一行说清楚这次按什么录：目标 · 年度 · 进项 / 销项 · 入账方式。"""
+def target_label(payload) -> str:
+    """目标 · 公司 · 年度（识别后导出只有目标）。"""
     target = payload.get("target")
     parts = [dict(TARGETS).get(target) or _("intake.target.recognizeOnly")]
     if target != RECOGNIZE_ONLY and payload.get("account_set_key"):
         company = dict(_catalog(payload)).get(payload.get("company")) or {}
         year = dict(company.get("years") or []).get(payload["account_set_key"])
         parts.append(" · ".join(v for v in (company.get("label"), year) if v))
-    parts.append(dict(_options("direction", payload)).get(payload.get("direction"), ""))
+    return " · ".join(part for part in parts if part)
+
+
+def mode_label(payload) -> str:
     labels = {"cash": _("Cash"), "credit": _("Credit"), "service": _("Service"), "stock": _("Stock")}
-    mode = MODE.get(target)
-    if mode and payload.get(mode):
-        parts.append(labels.get(payload[mode], payload[mode]))
+    value = payload.get(MODE.get(payload.get("target")) or "")
+    return labels.get(value, value or "")
+
+
+def summary(payload) -> str:
+    """一行说清楚这次按什么录：目标 · 年度 · 进项 / 销项 · 入账方式。"""
+    parts = [target_label(payload), dict(_options("direction", payload)).get(payload.get("direction"), ""),
+             mode_label(payload)]
     return " · ".join(part for part in parts if part)
 
 

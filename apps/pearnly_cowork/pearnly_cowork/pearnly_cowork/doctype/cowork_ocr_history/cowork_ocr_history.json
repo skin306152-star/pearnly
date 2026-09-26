@@ -51,6 +51,7 @@
   "last_push_reason",
   "push_connection",
   "push_account_set",
+  "intake_target",
   "duplicate_check_status",
   "duplicate_level",
   "duplicate_match"
@@ -340,6 +341,14 @@
    "fieldtype": "Data",
    "label": "Push Account Set",
    "length": 255,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "intake_target",
+   "fieldtype": "Data",
+   "label": "Intake Target",
+   "length": 20,
    "read_only": 1,
    "hidden": 1
   }
