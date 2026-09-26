@@ -44,6 +44,34 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(wb[rt.SHEET_SALES]["V2"].value, "PRN:H-1:0")
         wb.close()
 
+    def test_vat_included_receipt_lines_become_pre_vat_shares(self):
+        # 2026-09-27 真机：简式税票逐行是含税价（相加＝合计 2768.00），未税 2586.92、税额 181.08。
+        items = [{"name": "A", "qty": "1", "price": "390.00", "subtotal": "390.00"},
+                 {"name": "B", "qty": "1", "price": "390.00", "subtotal": "390.00"},
+                 {"name": "C", "qty": "2", "price": "470.00", "subtotal": "940.00"},
+                 {"name": "D", "qty": "1", "price": "79.00", "subtotal": "79.00"},
+                 {"name": "E", "qty": "1", "price": "189.00", "subtotal": "189.00"},
+                 {"name": "F", "qty": "2", "price": "390.00", "subtotal": "780.00"}]
+        value = record(subtotal="2586.92", vat="181.08", total_amount="2768.00", items=items)
+        before = deepcopy(value)
+        parsed = parse_roundtrip_workbook(build_review_workbook([value]))["documents"][0]["fields"]
+        self.assertEqual((parsed["amount_before_vat"], parsed["vat_amount"], parsed["total_amount"]),
+                         (Decimal("2586.92"), Decimal("181.08"), Decimal("2768.00")))
+        self.assertEqual(sum(item["amount"] for item in parsed["items"]), Decimal("2586.92"))
+        self.assertEqual(value, before)  # 只改导出表，不改识别记录
+
+    def test_pre_vat_lines_are_left_alone(self):
+        prepared = validate_records([record()])
+        self.assertEqual(prepared.sales[0]["merged_fields"]["items"][0]["unit_price"], "50")
+
+    def test_workbook_opens_on_the_sheet_with_data(self):
+        wb = workbook([record(direction="purchase")])
+        self.assertEqual(wb.active.title, rt.SHEET_PURCHASE)
+        wb.close()
+        wb = workbook([record(), record("H-2", "purchase")])
+        self.assertEqual(wb.active.title, rt.SHEET_SALES)
+        wb.close()
+
     def test_all_empty_sheets_are_kept(self):
         wb = workbook([])
         self.assertEqual([s.max_row for s in wb], [1, 1, 1, 1])

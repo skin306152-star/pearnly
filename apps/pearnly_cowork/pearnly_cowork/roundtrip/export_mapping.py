@@ -89,6 +89,38 @@ def _equal_if_present(fields, names, expected):
             raise ExportError("roundtrip.export_amount_not_roundtrippable", field=name)
 
 
+def _exclusive_lines(fields, amounts):
+    """票面明细是含税价（逐行相加＝价税合计，且未税 + 税额＝合计）时，把每行换成它的未税份额。
+
+    销项表的行金额是未税、回导时再加税额（旧线上协议）；含税价原样写进去，回导会多算一次税
+    （2026-09-27 真机：简式税票 2768.00 回导成 2949.08，被拦下）。按未税 / 合计的比例摊到各行，
+    末行吸收分位差，逐行相加恰好等于票面未税；单价按新行金额 ÷ 数量。只改导出表，不改识别记录。
+    """
+    base = number(fields.get("amount_before_vat") or fields.get("subtotal"))
+    vat = number(fields.get("vat_amount") or fields.get("vat"))
+    total = number(fields.get("total_amount"))
+    if (not amounts or base is None or not vat or total is None or not total
+            or money.sum_money(amounts) != total or money.quantize_money(base + vat) != total):
+        return amounts
+    shares = [money.quantize_money(amount * base / total) for amount in amounts[:-1]]
+    shares.append(money.quantize_money(base - sum(shares, Decimal("0"))))
+    for item, share in zip(fields["items"], shares):
+        qty = number(item.get("qty") or item.get("quantity"))
+        price = (share / qty).quantize(Decimal("0.000001")) if qty else None
+        for name in ("amount", "total", "subtotal"):
+            if name in item or name == "amount":
+                item[name] = str(share)
+        if price is not None and money.line_amount(qty, price) == share:
+            for name in ("unit_price", "price"):
+                if item.get(name) not in (None, ""):
+                    item[name] = str(price.normalize())
+        else:
+            # 数量 × 单价凑不回这一行：单价留空，回导按行金额（协议允许只有行金额）。
+            for name in ("unit_price", "price"):
+                item.pop(name, None)
+    return shares
+
+
 def _check_sales(fields):
     sales_date(fields.get("date"))
     total = number(fields.get("total_amount"))
@@ -125,6 +157,7 @@ def _check_sales(fields):
         _equal_if_present(item, ("qty", "quantity"), qty)
         _equal_if_present(item, ("unit_price", "price"), price)
         amounts.append(actual)
+    amounts = _exclusive_lines(fields, amounts)
     printed = number(fields.get("vat_amount")) or number(fields.get("vat"))
     base, vat, returned_total = money.doc_totals(amounts, printed_vat=printed)
     for value in (base, vat, returned_total):

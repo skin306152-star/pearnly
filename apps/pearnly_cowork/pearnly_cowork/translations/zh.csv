@@ -663,6 +663,7 @@ The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
 The invoice page data has an invalid format.,发票页面数据格式不正确。
 The ledger file content is invalid.,总账内容无效。
+"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",这张票的明细金额、未税金额、税额和合计对不上，导出后金额会变。请在编辑页核对这几项。
 The opening and closing values are invalid.,期初期末数值无效。
 The original document manifest cannot be changed.,原件内容索引不能修改。
 The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
@@ -1268,7 +1269,7 @@ reconciliation.vat_report_unparsed,读不出税表。请用 Excel、CSV 或带�
 reconciliation.vat_source_invalid,税表内容无效。
 roundtrip.document_limit,复核工作簿须包含 1 至 500 张发票。
 roundtrip.export_amount_missing,发票缺少必要金额，请补全后再导出。
-roundtrip.export_amount_not_roundtrippable,此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
+roundtrip.export_amount_not_roundtrippable,这张票的明细金额、未税金额、税额和合计对不上，导出后金额会变。请在编辑页核对这几项。
 roundtrip.export_date_invalid,发票日期无效，请更正后再导出。
 roundtrip.export_facts_invalid,已核实的 ERP 导出信息无效。
 roundtrip.export_history_invalid,导出包含无效或重复的历史记录引用。

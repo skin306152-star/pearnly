@@ -663,6 +663,7 @@ The invoice fields have an invalid format.,The invoice fields have an invalid fo
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
 The ledger file content is invalid.,The ledger file content is invalid.
+"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.","The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
 The opening and closing values are invalid.,The opening and closing values are invalid.
 The original document manifest cannot be changed.,The original document manifest cannot be changed.
 The original document manifest exceeds the 8 MiB limit.,The original document manifest exceeds the 8 MiB limit.
@@ -1268,7 +1269,7 @@ reconciliation.vat_report_unparsed,"The VAT report could not be read. Use Excel,
 reconciliation.vat_source_invalid,The VAT report content is invalid.
 roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.
 roundtrip.export_amount_missing,Required invoice amounts are missing. Complete them before exporting.
-roundtrip.export_amount_not_roundtrippable,"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+roundtrip.export_amount_not_roundtrippable,"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
 roundtrip.export_date_invalid,The invoice date is invalid. Correct it before exporting.
 roundtrip.export_facts_invalid,The verified ERP export details are invalid.
 roundtrip.export_history_invalid,The export contains an invalid or repeated history reference.

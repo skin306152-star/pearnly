@@ -663,6 +663,7 @@ The invoice fields have an invalid format.,รูปแบบข้อมูล�
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง
 The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
+"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",ยอดรายการ ยอดก่อน VAT ภาษี และยอดรวมของเอกสารนี้ไม่ตรงกัน หากส่งออกยอดเงินจะเปลี่ยน กรุณาตรวจสอบในหน้าแก้ไข
 The opening and closing values are invalid.,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
 The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
 The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
@@ -1268,7 +1269,7 @@ reconciliation.vat_report_unparsed,"ไม่สามารถอ่านร�
 reconciliation.vat_source_invalid,ข้อมูลรายงานภาษีไม่ถูกต้อง
 roundtrip.document_limit,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ
 roundtrip.export_amount_missing,ใบแจ้งหนี้ขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก
-roundtrip.export_amount_not_roundtrippable,การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
+roundtrip.export_amount_not_roundtrippable,ยอดรายการ ยอดก่อน VAT ภาษี และยอดรวมของเอกสารนี้ไม่ตรงกัน หากส่งออกยอดเงินจะเปลี่ยน กรุณาตรวจสอบในหน้าแก้ไข
 roundtrip.export_date_invalid,วันที่ใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
 roundtrip.export_facts_invalid,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
 roundtrip.export_history_invalid,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน

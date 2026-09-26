@@ -663,6 +663,7 @@ The invoice fields have an invalid format.,請求書の項目データの形式�
 The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
 The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
 The ledger file content is invalid.,元帳の内容が無効です。
+"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。
 The opening and closing values are invalid.,期首・期末の値が無効です。
 The original document manifest cannot be changed.,元文書の内容索引は変更できません。
 The original document manifest exceeds the 8 MiB limit.,元文書の内容索引が上限の 8 MiB を超えています。
@@ -1268,7 +1269,7 @@ reconciliation.vat_report_unparsed,税報告を読み取れません。Excel、C
 reconciliation.vat_source_invalid,税報告の内容が無効です。
 roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
 roundtrip.export_amount_missing,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
-roundtrip.export_amount_not_roundtrippable,この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
+roundtrip.export_amount_not_roundtrippable,この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。
 roundtrip.export_date_invalid,請求書の日付が無効です。修正してからエクスポートしてください。
 roundtrip.export_facts_invalid,確認済みの ERP エクスポート情報が無効です。
 roundtrip.export_history_invalid,エクスポート対象に無効または重複した履歴参照があります。

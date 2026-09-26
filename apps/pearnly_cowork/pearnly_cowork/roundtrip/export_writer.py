@@ -211,6 +211,11 @@ def write_workbook(prepared: PreparedWorkbook) -> bytes:
              text(value.get("code")), text(value.get("name")), text(value.get("docnum")), text(value.get("acc_group"))]
             for value in prepared.created_masters]
     _grid(workbook.create_sheet(rt.SHEET_SUMMARY), SUMMARY_HEADERS, SUMMARY_WIDTHS, rows)
+    # 打开就落在有内容的那一页（只导了进项时第一页「ขาย」是空的，用户 2026-09-27 以为导出没内容）。
+    for index, group in enumerate((prepared.sales, prepared.purchase, prepared.pending)):
+        if group:
+            workbook.active = index
+            break
     buffer = io.BytesIO()
     workbook.save(buffer)
     workbook.close()
