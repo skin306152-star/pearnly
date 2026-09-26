@@ -452,8 +452,10 @@ pearnly_navigation = [{'product': 'cowork',
 
 # 团队管理 / 个人信息 / LINE 三个没有 DocType 挂着的角色，装好、升级后确保存在；
 # 站点内部那一份归属（Cowork 不做公司隔离）也一并确保存在。
-after_install = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.scope.ensure_on_migrate"]
-after_migrate = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.scope.ensure_on_migrate"]
+after_install = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.scope.ensure_on_migrate",
+                 "pearnly_cowork.work.service.ensure_on_migrate"]
+after_migrate = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.scope.ensure_on_migrate",
+                 "pearnly_cowork.work.service.ensure_on_migrate"]
 boot_session = "pearnly_cowork.line.boot.boot_session"
 pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 

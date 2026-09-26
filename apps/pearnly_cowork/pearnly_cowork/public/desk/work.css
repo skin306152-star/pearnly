@@ -141,7 +141,8 @@
 
 .pearnly-work-board .kanban-column .kanban-cards {
 	height: auto;
-	min-height: 8px;
+	/* 空列表也要留出能放卡的位置，否则拖不进去（测试机实测）。 */
+	min-height: 40px;
 	margin: 0 -4px;
 	padding: 2px 4px 4px;
 }

@@ -147,6 +147,9 @@ live_sync() {
   else
     echo "· 重启本产品容器（新代码生效）"
     dc restart $(app_services) >/dev/null
+    # 一起重启时 web 可能换了 IP，而前端 nginx 在自己启动那一刻解析 upstream：若它先起，会一直连旧 IP、
+    # 整站 502（2026-09-27 测试机实测）。等其他容器都起来后再单独重启一次前端，让它解析到当前地址。
+    dc restart "$app-frontend" >/dev/null 2>&1 || true
   fi
   local stamp="$root/live/$app.migrate"
   if [[ -n "$migrate_hash" && "$(cat "$stamp" 2>/dev/null)" == "$migrate_hash" ]]; then

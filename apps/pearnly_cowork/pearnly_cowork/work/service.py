@@ -60,7 +60,11 @@ def _lock(doctype):
 
 
 def _ensure_lists(workspace):
-    """新站点第一次打开看板：建默认三列（待办 / 进行中 / 已完成，最后一列是完成列表）。"""
+    """看板还没有任何列表时建默认三列（待办 / 进行中 / 已完成，最后一列是完成列表）。
+
+    正常由装好 / 升级后的 `ensure_on_migrate` 建好；这里是兜底。打开看板是 GET 请求，框架会回滚 GET 里的写入，
+    所以兜底建完要当场提交，否则页面拿到的列表号根本不存在（测试机空白站点 2026-09-27 实测）。
+    """
     if frappe.db.exists(COLUMN, {"workspace": workspace}):
         return
     _lock(COLUMN)
@@ -69,6 +73,14 @@ def _ensure_lists(workspace):
     for index, (key, done) in enumerate(contracts.DEFAULT_LISTS):
         persist(frappe.get_doc({"doctype": COLUMN, "workspace": workspace, "title": _(f"cowork.work.status.{key}"),
                                 "position": contracts.STEP * (index + 1), "is_done_list": 1 if done else 0}))
+    frappe.db.commit()
+
+
+def ensure_on_migrate():
+    """装好 / 升级后给站点那一份归属建好默认三列（名字用站点语言；只在 Cowork 业务站点做）。"""
+    if frappe.conf.get("pearnly_product") != "cowork" or not frappe.db.table_exists(COLUMN):
+        return
+    _ensure_lists(scope.ensure_site_workspace())
 
 
 def lists(workspace, archived=False):

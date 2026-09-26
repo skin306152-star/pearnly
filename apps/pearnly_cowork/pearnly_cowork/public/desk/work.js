@@ -294,6 +294,8 @@
 			const nav_item = $('<li class="nav-item">').append(link);
 			new Sortable(list[0], {
 				group: "pearnly-work-cards", animation: 150, draggable: ".pearnly-work-card-wrap",
+				// 拖到空列表上方附近就算放进去（照 Trello，整列都能接）。
+				emptyInsertThreshold: 60,
 				filter: ".pearnly-work-card-tools, .pearnly-work-done", preventOnFilter: false,
 				ghostClass: "pearnly-work-ghost", dragClass: "pearnly-work-dragging",
 				// 手机上长按才拖，免得滑动翻页时误拖。
@@ -813,7 +815,10 @@
 				try {
 					upsert(await p.call(`${API}create`, {title, board_list: name}, "POST"));
 					render();
-					control.set_input("");
+					// 回车同时触发了输入框原生的 change，控件会把刚才的标题写回模型；要连模型一起清掉，
+					// 否则下一张卡的标题会接在上一张后面（测试机实测）。
+					await control.set_value("");
+					control.$input.val("");
 					list.scrollTop(list[0].scrollHeight);
 				} finally {
 					busy = false;
