@@ -1,6 +1,6 @@
 # ERP 测试环境与 LINE 收单迁移（2026-09-25）
 
-**范围状态：已上线（2026-09-26），测试环境保留数据待复用；真机验收以用户确认为准。** 本记录管两件事：① 在 Windows 测试机为 ERP 起测试环境并把测试租户
+**范围状态：LINE 收单已上线（2026-09-26）；第 7 节 LINE 绑定即登录进行中。** 测试环境保留数据待复用；真机验收以用户确认为准。 本记录管两件事：① 在 Windows 测试机为 ERP 起测试环境并把测试租户
 `testerp.pearnly.com` 切过去（已完成，见第 1 节）；② 用户在真机验收中要求把 ERP 的 LINE 收单
 迁回旧线上的业务逻辑，并按用户 2026-09-25 的新口径调整（方案见第 3 节，分批实施）。
 
@@ -261,6 +261,47 @@ VAT 631.18）；入账 VAT 却是 838.04 —— 采购计算「先按折扣前�
 此前 `f033c9c` 之后约四分之一的生产镜像构建因此失败。
 
 HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准。
+
+## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，进行中）
+
+分支 `codex/line-login`（工作树 `/Users/skin/pearnly/.claude/worktrees/gifted-lehmann-d677ce`），基线 `origin/main` = `19ade38`。
+线上核对（开工时）：ERP 7 个容器均 `sha256:b7c07a7f…`（revision `a1f6488`）；`testerp.pearnly.com` 经 `@1.1.1.1` 解析 `107.155.65.74`（线上）；测试机关机。
+
+### 用户定稿（2026-09-26）
+
+| 问题 | 决定 |
+| --- | --- |
+| 路线 | Keycloak 身份代理：业务 realm 为每个站点加隐藏的 LINE（OIDC）身份提供者，会话仍由 Keycloak 签发、照常登记 |
+| 关联方式 | **C：扩展现有员工建号服务**（计费站点 `pearnly_control.account.member_api`），站点**不拿** Keycloak 管理凭据（沿用 `site-step.py` 断言与 `member_client.py` 的既有决定）。B（站点受限管理钥匙）被否：实测 Keycloak 细粒度权限按组授予 `manage-members` 时同时允许改本组人员密码与邮箱，拆不掉 |
+| 范围 | 共用层一次做好；本窗口接 ERP、DMS；Cowork 等本分支合入后由 Cowork 窗口（`codex/cowork-identity-realm`）接。顺序由用户定：本分支先合，Cowork 分池暂停 |
+| 解绑 / 取消 LINE | 立即作废经 LINE 登录的本站会话 |
+| 已有绑定 | 上线时自动补关联 |
+
+### 原型证据（本机临时 Keycloak 26.7.4，同 digest `82a77884…`，容器 `line-login-kc-proto`，用完删除）
+
+以一个假 LINE realm 充当外部身份提供者，脚本走完整浏览器流程（`kc_idp_hint`）：
+
+- 已关联的 LINE → 直接登录，不输密码；未关联的 → Keycloak 返回 Access denied，**不建号**（首次登录流程只放一个 `deny-access-authenticator`）。
+- `hideOnLogin` 后登录页不出现 LINE 按钮；密码重新验证页也不出现。
+- IdP 映射器 `oidc-user-session-note-idp-mapper`（`sub`，正则）+ realm 默认客户端作用域里的 `oidc-usersessionmodel-note-mapper`：ID token 带 `pearnly_idp`（入口别名）与 `pearnly_line_user_id`（LINE 用户 ID）。
+- **跨产品**：LINE 登录站点 A 后单点进站点 B，B 的 ID token 同样带这两项（B 在作用域建立之后创建，默认作用域自动带上）→ 各站点回调可拒绝不属于本站的 LINE 登录。
+- 风险实测：LINE 登录后直接 `kc_action=UPDATE_PASSWORD` 会出「设新密码」而不要旧密码；把该必需动作的 `max_auth_age` 设为 1 秒后改为要求输入当前密码（仍有 1 秒理论窗口，记为残留风险）。
+- B 方案实测（已否）：`manage-members` 可关联/取消关联本组成员、不能碰其他组、不能建/删号，但能 `reset-password` 与改邮箱；对全体用户加拒绝规则会把关联也一并拒掉。
+
+### 设计（实施中）
+
+1. **Keycloak（realm 级，一次性、幂等脚本，线上写入需授权）**：首次登录拒绝流程；默认作用域 `pearnly-login-source`（两个会话备注映射器，加到所有现有客户端并设为 realm 默认）；`UPDATE_PASSWORD` 的 `max_auth_age=1`；`bootstrap-auth.py` 的“无外部身份提供者”断言改为“只允许隐藏的、拒绝首次登录的 `line-*`”。
+2. **每站点 IdP**：别名 `line-<产品>-<租户>`；LINE Login 频道（LIFF ID 前缀）+ 其 channel secret；`hideOnLogin`、拒绝首次登录流程、`sub` 会话备注映射器。随 `set_line` 步骤下发；secret 由用户在控制面 LINE 渠道表单填写，不经对话。
+3. **建号服务**：新动作 `link-line` / `unlink-line`（站点给 subject 与 LINE 用户 ID）；只允许本租户已登记的身份：员工台账 + 新增的租户管理员登记（开户 `register` 带上管理员 subject，已有租户补登）。
+4. **站点（共用层）**：绑定变化钩子 → 排队同步关联（失败可重试、定时对账补齐）；登录回调：`pearnly_idp` 存在时必须等于本站别名，且 `pearnly_line_user_id` 必须是该账号在本站的生效绑定，否则拒绝并结束该 Keycloak 会话；会话登记记下登录来源，解绑时作废 LINE 来源的会话；LINE 入口 `/api/method/pearnly_core.account.line_login.enter?to=…` 仅在 LINE 内置浏览器里带 `kc_idp_hint`。
+5. **ERP**：卡片「编辑」与菜单「盘点」经入口；菜单重新发布。
+6. **DMS**：先核对 DMS 网页端账号与花名册绑定码（管理员替操作员发码）的影响，再定接法——需向用户确认。
+
+### 待用户处理 / 授权
+
+- LINE 后台核实：ERP-TEST 官方号（2011288286）与 LINE Login 频道 2010411313 是否同一 Provider（不同则 LINE 用户 ID 不一致，关联全失败）；在该频道登记 Keycloak 回调地址（已授权范围内，改前告知）。
+- LINE Login 频道 secret 由用户填入控制面。
+- 线上 Keycloak realm 配置、租户管理员补登、生产部署：分别授权。
 
 ## 6. 交接（2026-09-26 第二窗口 f58107 收尾，交接保留）—— 以本节为准
 
