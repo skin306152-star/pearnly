@@ -1,84 +1,283 @@
-/* 对账结果页 = 导出的复核表逐格照画（用户 2026-09-26：按导出表格 1:1 画，可以不用官方组件）。
+/* 对账结果页（2026-09-27 按用户改成原生风格：“改为图二那种，可以点击排序……整屏看起来视觉上协调能对齐”）。
  *
- * 每格的底色、字色、字号、对齐、边框、列宽、行高由服务端从导出的工作簿读出、逐格写在行内样式上；
- * 这里只管 Excel 本身的外观：白底表格、冻结窗格、不换行的字伸到右边空格、底部工作表标签、可改格子的选中框。
- * 表格保持 Excel 的白底黑字，不随深色主题变。
+ * 明细表照框架原生表格（`frappe_datatable.scss`）的取值：表头 `--subtle-fg` 底、常规字重、行高 35px、
+ * 线色 `--table-border-color`、格子底 `--fg-color`、数字等宽（tnum）；状态格用原生 `indicator-pill`。
+ * 汇总表拆成卡片：调节过程一张主卡，右侧叠账户信息 / 结果 / 文件信息。颜色一律取 Desk 变量，深色模式跟着走。
+ * 数据（每格文字与底色）仍来自导出同一个工作簿，这里只换外观。
  */
-.pearnly-sheet {
-	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius-md);
-	background: #fff;
-	color-scheme: light;
-	overflow: hidden;
+.pearnly-recon-book {
+	padding: 0 var(--padding-md);
 }
 
-.pearnly-sheet-scroll {
+.pearnly-recon-tabs {
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-recon-tabs .nav-link {
+	background: transparent;
+	border: 0;
+}
+
+.pearnly-recon-scroll {
 	overflow: auto;
-	max-height: calc(100vh - 210px);
-	min-height: 240px;
+	min-height: 320px;
+	border: 1px solid var(--table-border-color);
+	border-radius: var(--border-radius-md);
+	background: var(--fg-color);
+	scrollbar-width: thin;
 }
 
-.pearnly-sheet-table {
-	border-collapse: collapse;
+/* 汇总是卡片，外框由卡片自己画。 */
+.pearnly-recon-scroll.is-summary {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+
+/* ── 表格（明细与汇总共用）──────────────────────────────────────────────── */
+.pearnly-recon-table {
+	width: 100%;
 	table-layout: fixed;
-	color: #000;
-	font-family: Calibri, Arial, sans-serif;
-	line-height: 1.25;
+	border-collapse: separate;
+	border-spacing: 0;
+	color: var(--text-color);
+	font-size: var(--text-base);
+	font-feature-settings: "tnum";
+	font-variant-numeric: tabular-nums;
 }
 
-.pearnly-sheet-table td {
-	padding: 0 3px;
+.pearnly-recon-table th,
+.pearnly-recon-table td {
+	height: 35px;
+	padding: 0 var(--padding-sm);
+	border-bottom: 1px solid var(--table-border-color);
 	overflow: hidden;
-	text-overflow: clip;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	vertical-align: middle;
+	text-align: left;
 }
 
-.pearnly-sheet-table td.spill {
-	overflow: visible;
+.pearnly-recon-table th + th,
+.pearnly-recon-table td + td {
+	border-left: 1px solid var(--table-border-color);
 }
 
-.pearnly-sheet-table td.frozen {
+.pearnly-recon-table th {
 	position: sticky;
+	top: 0;
+	z-index: 2;
+	background: var(--subtle-fg);
+	color: var(--text-muted);
+	font-weight: normal;
 }
 
-.pearnly-sheet-table td.editable {
+.pearnly-recon-table th.sortable {
+	cursor: pointer;
+	user-select: none;
+}
+
+.pearnly-recon-table th.sortable:hover {
+	color: var(--text-color);
+}
+
+.pearnly-recon-table th .ellipsis {
+	display: inline-block;
+	max-width: calc(100% - 16px);
+	vertical-align: middle;
+}
+
+.pearnly-recon-sort {
+	display: inline-block;
+	width: 14px;
+	margin-left: 2px;
+	color: var(--text-color);
+	vertical-align: middle;
+}
+
+.pearnly-recon-table td {
+	background: var(--fg-color);
+}
+
+.pearnly-recon-table:not(.pearnly-recon-summary) tbody tr:hover td {
+	background: var(--highlight-color);
+}
+
+.pearnly-recon-table .is-number {
+	text-align: right;
+}
+
+.pearnly-recon-table .is-center {
+	text-align: center;
+}
+
+.pearnly-recon-table .is-bold {
+	font-weight: 600;
+}
+
+.pearnly-recon-table .text-red {
+	color: var(--red-600);
+}
+
+.pearnly-recon-table .text-green {
+	color: var(--green-600);
+}
+
+.pearnly-recon-table .indicator-pill {
+	max-width: 100%;
+	vertical-align: middle;
+}
+
+/* 合计行：固定在表底，灰底加粗，不参与排序。 */
+.pearnly-recon-table tfoot td {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+	background: var(--subtle-fg);
+	font-weight: 600;
+	border-top: 1px solid var(--table-border-color);
+	border-bottom: 0;
+}
+
+/* 冻结列（对账结果的状态与匹配层）：横向滚动时留在左边。 */
+.pearnly-recon-table .is-pinned {
+	position: sticky;
+	left: var(--pin-left);
+	z-index: 1;
+}
+
+.pearnly-recon-table th.is-pinned,
+.pearnly-recon-table tfoot td.is-pinned {
+	z-index: 3;
+}
+
+.pearnly-recon-table .is-pinned-last {
+	box-shadow: 1px 0 0 var(--table-border-color);
+}
+
+/* 可改的格子（两边输入落在表里的那几格）：悬停出细框，编辑时主题色框。 */
+.pearnly-recon-table td.editable {
 	cursor: text;
 }
 
-.pearnly-sheet-table td.editable:hover {
-	outline: 1px solid #217346;
-	outline-offset: -1px;
+.pearnly-recon-table td.editable:hover {
+	box-shadow: inset 0 0 0 1px var(--gray-400);
 }
 
-.pearnly-sheet-table td.editable:focus {
-	outline: 2px solid #217346;
-	outline-offset: -2px;
+.pearnly-recon-table td.editable:focus {
+	outline: none;
+	box-shadow: inset 0 0 0 2px var(--primary);
+	text-overflow: clip;
+}
+
+/* ── 汇总：卡片 ───────────────────────────────────────────────────────────── */
+.pearnly-recon-summary-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+	gap: var(--margin-md);
+	align-items: start;
+}
+
+.pearnly-recon-summary-layout.single {
+	grid-template-columns: minmax(0, 900px);
+}
+
+.pearnly-recon-summary-side {
+	display: grid;
+	gap: var(--margin-md);
+}
+
+.pearnly-recon-card {
 	overflow: hidden;
+	border: 1px solid var(--table-border-color);
+	border-radius: var(--border-radius-md);
+	background: var(--fg-color);
 }
 
-.pearnly-sheet-tabs {
-	display: flex;
-	overflow-x: auto;
-	border-top: 1px solid #d9d9d9;
-	background: #f3f3f3;
-}
-
-.pearnly-sheet-tab {
-	padding: 4px 16px;
-	border-right: 1px solid #d9d9d9;
-	color: #444;
-	font-size: 12px;
-	white-space: nowrap;
-	cursor: pointer;
-}
-
-.pearnly-sheet-tab:hover {
-	color: #217346;
-	text-decoration: none;
-}
-
-.pearnly-sheet-tab.active {
-	background: #fff;
-	color: #217346;
+.pearnly-recon-card-title {
+	padding: var(--padding-sm) var(--padding-md);
+	border-bottom: 1px solid var(--table-border-color);
 	font-weight: 600;
-	box-shadow: inset 0 -2px 0 #217346;
+	color: var(--heading-color, var(--text-color));
+}
+
+.pearnly-recon-summary th,
+.pearnly-recon-summary td {
+	padding: 0 var(--padding-md);
+}
+
+.pearnly-recon-summary col.amount {
+	width: 180px;
+}
+
+.pearnly-recon-summary td + td,
+.pearnly-recon-summary th + th {
+	border-left: 0;
+	text-align: right;
+}
+
+.pearnly-recon-summary th {
+	position: static;
+}
+
+.pearnly-recon-summary tr:last-child td {
+	border-bottom: 0;
+}
+
+.pearnly-recon-summary tr.is-section td,
+.pearnly-recon-summary tr.is-subtotal td {
+	background: var(--subtle-fg);
+	font-weight: 600;
+}
+
+.pearnly-recon-summary td.is-detail {
+	padding-left: calc(var(--padding-md) + var(--padding-md));
+	color: var(--text-muted);
+}
+
+.pearnly-recon-summary tr.tone-green td {
+	background: var(--bg-green);
+	color: var(--text-on-green, var(--green-700));
+	font-weight: 600;
+}
+
+.pearnly-recon-summary tr.tone-red td {
+	background: var(--bg-red);
+	color: var(--text-on-red, var(--red-700));
+	font-weight: 600;
+}
+
+.pearnly-recon-summary tr.tone-orange td {
+	background: var(--bg-orange);
+	color: var(--text-on-orange, var(--orange-700));
+	font-weight: 600;
+}
+
+@media (max-width: 991px) {
+	.pearnly-recon-summary-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 767px) {
+	.pearnly-recon-book {
+		padding: 0 var(--padding-sm);
+	}
+
+	/* 手机屏窄，冻结列会占掉大半宽度：整表一起横向滑。 */
+	.pearnly-recon-table td.is-pinned {
+		position: static;
+	}
+
+	.pearnly-recon-table th.is-pinned {
+		left: auto;
+	}
+
+	.pearnly-recon-table .is-pinned-last {
+		box-shadow: none;
+	}
+
+	.pearnly-recon-summary col.amount {
+		width: 128px;
+	}
 }

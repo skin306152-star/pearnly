@@ -735,6 +735,7 @@ Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the men
 Tap the menu to start,Tap the menu to start
 Target Json,Target Json
 Task,Task
+Task Management,Task Management
 Task name,Task name
 Tax ID,Tax ID
 Tax Invoice,Tax Invoice
@@ -1039,7 +1040,7 @@ cowork.line.unbindConfirm,Unbind Pearnly Cowork LINE?
 cowork.nav.reconBank,Bank Reconciliation
 cowork.nav.reconIncome,Income Reconciliation
 cowork.nav.reconVat,VAT Report Check
-cowork.nav.work,Work Coordination
+cowork.nav.work,Task Management
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.quality.pending,Needs review

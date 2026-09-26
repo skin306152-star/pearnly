@@ -735,6 +735,7 @@ Tap Send documents to ERP in the menu first,กรุณากด ส่งเ�
 Tap the menu to start,กดเมนูเพื่อเริ่มต้น
 Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
+Task Management,จัดการงาน
 Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 Tax Invoice,ใบกำกับภาษี
@@ -1039,7 +1040,7 @@ cowork.line.unbindConfirm,ยืนยันการยกเลิกการ
 cowork.nav.reconBank,กระทบยอดธนาคาร
 cowork.nav.reconIncome,กระทบยอดรายได้
 cowork.nav.reconVat,ตรวจสอบรายงานภาษีขาย
-cowork.nav.work,ประสานงาน
+cowork.nav.work,จัดการงาน
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 cowork.quality.pending,รอตรวจสอบ

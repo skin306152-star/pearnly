@@ -421,6 +421,7 @@ pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.oc
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
 # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。库存盘点照搬 ERP、只去掉盘点在库（2026-09-26）；
 # 工作协调是团队看板（2026-09-27）：不单独售卖（功能码 None），勾了「工作协调」或管理员就能进。
+# 显示名 2026-09-27 改为「任务管理」，图标 square-kanban，与 LINE 菜单格子同一个图标。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
   'profile_label': 'My Profile',
@@ -435,7 +436,7 @@ pearnly_navigation = [{'product': 'cowork',
             ('cowork.nav.reconIncome', 'pearnly-recon-income', 'receipt', 'recon'),
             ('cowork.nav.reconVat', 'pearnly-recon-vat', 'file-check', 'recon'),
             ('nav.stocktake', 'pearnly-stocktake', 'boxes', 'stocktake'),
-            ('cowork.nav.work', 'pearnly-work', 'users', None),
+            ('cowork.nav.work', 'pearnly-work', 'square-kanban', None),
             ('nav.team', 'pearnly-team', 'users-round', None)],
   'available': ['pearnly-home', 'pearnly-intake', 'pearnly-recon-bank', 'pearnly-recon-income', 'pearnly-recon-vat',
                 'pearnly-stocktake', 'pearnly-work', 'pearnly-team'],

@@ -735,6 +735,7 @@ Tap Send documents to ERP in the menu first,先にメニューの「書類をERP
 Tap the menu to start,メニューを押して始めてください
 Target Json,固定送信先JSON
 Task,タスク
+Task Management,タスク管理
 Task name,タスク名
 Tax ID,納税者番号
 Tax Invoice,税務請求書
@@ -1039,7 +1040,7 @@ cowork.line.unbindConfirm,Pearnly Cowork LINE の連携を解除しますか？
 cowork.nav.reconBank,銀行照合
 cowork.nav.reconIncome,収益照合
 cowork.nav.reconVat,売上税報告チェック
-cowork.nav.work,業務連携
+cowork.nav.work,タスク管理
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.quality.pending,要確認

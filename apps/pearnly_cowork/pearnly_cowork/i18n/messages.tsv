@@ -510,7 +510,7 @@ Review	复核	ตรวจทาน	レビュー
 Submit	提交	ยืนยัน	確定
 Pushing is not enabled for this site, so nothing was sent.	本站点未开启推送，没有发送任何内容。	ไซต์นี้ยังไม่ได้เปิดการส่ง ยังไม่มีการส่งข้อมูลใด ๆ	このサイトでは送信が有効になっていないため、何も送信されていません。	push.disabled
 Invalid push target.	推送目标无效。	เป้าหมายการส่งไม่ถูกต้อง	送信先が無効です。
-Work Coordination	工作协调	ประสานงาน	業務連携	cowork.nav.work
+Task Management	任务管理	จัดการงาน	タスク管理	cowork.nav.work
 General	常用功能	ทั่วไป	一般
 User Settings	用户菜单	เมนูผู้ใช้	ユーザーメニュー
 Email	邮箱	อีเมล	メール	cowork.team.email

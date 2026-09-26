@@ -13,6 +13,9 @@ The cards and icons are the old `pearnly-cowork-work-v3` menu (legacy
 `ec2e5c95:static/brand/line-richmenu-cowork-v3-2500x1686.png`, kept as
 `line-menu-source.png`); only the wording is redrawn per language. The lock is
 the old "coming soon" card without its text (ERP 2026-09-26 rule).
+
+Task management (user 2026-09-27: "图标和 line 对齐") draws the web sidebar's
+Lucide `square-kanban` glyph over the old people icon, so both entries share one icon.
 """
 import csv
 from pathlib import Path
@@ -34,8 +37,13 @@ FONTS = {
 FUNCTIONS = {
     "intake": ("Send documents to ERP", "Upload · Review · Choose destination", (0, 0)),
     "stocktake": ("Stock count", "Scan barcodes · Record quantities", (1, 0)),
-    "work": ("Work Coordination", "Assign · Track · Discuss", (2, 0)),
+    "work": ("Task Management", "Assign · Track · Discuss", (2, 0)),
 }
+# function -> Lucide glyph drawn over the source icon (same name as the sidebar icon in hooks).
+GLYPHS = {"work": "square-kanban"}
+# Icon box of a source card (tile coordinates): repainted, then the glyph is drawn centred in it.
+ICON_BOX = (250, 120, 590, 420)
+ICON_SIZE = 240  # 24 Lucide units -> 10 px each, stroke 2 units
 LOCKED = (0, 1)
 # Text band of a source card (tile coordinates) that is repainted with the card colour.
 BAND = (70, 450, 763, 740)
@@ -64,6 +72,31 @@ def blank(tile):
     return tile
 
 
+def glyph(tile, name):
+    """Lucide `square-kanban` (rect 3..21 rx2; bars x=8/12/16 from y=7 to 14/11/16), stroke 2, round caps."""
+    assert name == "square-kanban"
+    fill = tile.getpixel((ICON_BOX[0] + 5, ICON_BOX[1] + 5))
+    ink = min((tile.getpixel((x, y)) for x in range(300, 540, 4) for y in range(150, 390, 4)), key=sum)
+    ImageDraw.Draw(tile).rectangle(ICON_BOX, fill=fill)
+    scale = 4  # supersample, then shrink for smooth edges
+    unit = ICON_SIZE * scale / 24
+    layer = Image.new("RGBA", (ICON_SIZE * scale,) * 2, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    stroke = round(2 * unit)
+    at = lambda value: round(value * unit)  # noqa: E731
+    draw.rounded_rectangle((at(3) - stroke // 2, at(3) - stroke // 2, at(21) + stroke // 2, at(21) + stroke // 2),
+                           radius=at(2) + stroke // 2, outline=ink, width=stroke)
+    for x, bottom in ((8, 14), (12, 11), (16, 16)):
+        draw.line((at(x), at(7), at(x), at(bottom)), fill=ink, width=stroke)
+        for y in (7, bottom):
+            draw.ellipse((at(x) - stroke / 2, at(y) - stroke / 2, at(x) + stroke / 2, at(y) + stroke / 2), fill=ink)
+    layer = layer.resize((ICON_SIZE, ICON_SIZE), Image.LANCZOS)
+    left = (ICON_BOX[0] + ICON_BOX[2] - ICON_SIZE) // 2
+    top = (ICON_BOX[1] + ICON_BOX[3] - ICON_SIZE) // 2
+    tile.paste(layer, (left, top), layer)
+    return tile
+
+
 def fit(path, size, value, width):
     while size > 20:
         font = ImageFont.truetype(path, size)
@@ -80,6 +113,8 @@ def main():
     for name, (title, subtitle, (column, row)) in FUNCTIONS.items():
         for lang in LANGS:
             tile = blank(cell(source, column, row))
+            if name in GLYPHS:
+                tile = glyph(tile, GLYPHS[name])
             bold, regular, stroke = FONTS[lang]  # CJK fonts have no bold face: a thin stroke instead
             draw = ImageDraw.Draw(tile)
             head, sub = words[title][lang], words[subtitle][lang]

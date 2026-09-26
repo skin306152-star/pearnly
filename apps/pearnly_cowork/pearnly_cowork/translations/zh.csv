@@ -735,6 +735,7 @@ Tap Send documents to ERP in the menu first,请先点菜单里的「发单据进
 Tap the menu to start,请点菜单开始
 Target Json,冻结目标JSON
 Task,任务
+Task Management,任务管理
 Task name,任务名称
 Tax ID,纳税人识别号
 Tax Invoice,税务发票
@@ -1039,7 +1040,7 @@ cowork.line.unbindConfirm,确认解绑 Pearnly Cowork LINE？
 cowork.nav.reconBank,银行对账
 cowork.nav.reconIncome,收入对账
 cowork.nav.reconVat,销项税报告核查
-cowork.nav.work,工作协调
+cowork.nav.work,任务管理
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.quality.pending,待复核

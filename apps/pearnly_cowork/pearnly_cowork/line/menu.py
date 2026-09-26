@@ -76,7 +76,7 @@ def payload(variant, language) -> dict:
             action = {"type": "uri", "label": _("Stock count", lang=language)[:20],
                       "uri": frappe.utils.get_url().rstrip("/") + STOCKTAKE_ROUTE}
         elif name == "work":
-            action = {"type": "uri", "label": _("Work Coordination", lang=language)[:20],
+            action = {"type": "uri", "label": _("Task Management", lang=language)[:20],
                       "uri": frappe.utils.get_url().rstrip("/") + WORK_ROUTE}
         else:
             label = _("Send documents to ERP", lang=language)
