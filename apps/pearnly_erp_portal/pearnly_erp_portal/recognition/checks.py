@@ -209,6 +209,16 @@ def hard(issues) -> list:
     return [code for code in issues if code not in SOFT]
 
 
+# 值得再读一遍的只有「金额 / 结构对不上」。税号校验位不过：语料实测 3.8 重读后多半还是错，改由 OCR 原文
+# 按校验位核对（`purchasing.recognition._anchor`）；贷项通知单本来就不录；票种 / 进项原因、日期软标注只标红。
+NOT_REREAD = frozenset({"tax_id_checksum", "negative", "same_tax_id"})
+
+
+def reread(issues) -> list:
+    """值得让模型再读的问题（ADR-013）。"""
+    return [code for code in hard(issues) if code not in NOT_REREAD]
+
+
 def vat_mode(printed: dict, line_sum, discount=0):
     """票面是含税价还是不含税价：旧线上入账时的判法（`services/erp/invoice_amounts.py:28-58`）——
     明细合计 − 折扣 等于票面合计就是含税，等于税前金额（合计 − VAT）就是不含税；都不等返回 None。

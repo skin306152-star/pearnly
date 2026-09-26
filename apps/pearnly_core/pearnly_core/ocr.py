@@ -240,9 +240,28 @@ def thinking_for(model: str) -> dict:
     return {"thinkingLevel": "MINIMAL"}
 
 
+def labels(**extra) -> dict:
+    """Vertex 请求标签（结算报告可按标签分组：哪个租户、哪个产品、哪一步花的钱）。只用于账单归属，不影响识别。
+    Google 的规则：小写字母、数字、`-`、`_`，每个值最多 63 个字符；不合规的字符换成 `-`。"""
+    import re
+
+    try:
+        tenant = frappe.conf.get("pearnly_tenant") or frappe.local.site
+    except (AttributeError, RuntimeError):
+        tenant = None
+    values = {"tenant": tenant, **extra}
+    clean = {}
+    for key, value in values.items():
+        value = re.sub(r"[^a-z0-9_-]", "-", str(value or "").lower())[:63].strip("-")
+        if value:
+            clean[key] = value
+    return clean
+
+
 def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
                      model: str, timeout_s: int = DEFAULT_TIMEOUT_SECONDS,
-                     max_tokens: int = 16384, thinking: dict | None = None) -> dict | None:
+                     max_tokens: int = 16384, thinking: dict | None = None,
+                     request_labels: dict | None = None) -> dict | None:
     """图片（或 PDF）+ 提示词 → JSON dict。失败返回 None，由调用方决定是否升档。
 
     temperature=0，要求模型直接吐 JSON。限流/临时不可用在同一模型上
@@ -281,6 +300,9 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
             **({"thinkingConfig": dict(thinking)} if thinking else {}),
         },
     }
+    if backend() == "vertex":
+        # 账单归属标签（Vertex 专有字段；AI Studio 不认，不带）。
+        payload["labels"] = labels(**(request_labels or {}))
 
     try:
         resp = _post_with_backoff(url, headers, payload, timeout_s, model)
@@ -304,6 +326,40 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
         # 走到这里说明**服务是通的**（HTTP 200），只是这次输出没法用
         # （被截断、不是 JSON、空候选）。返回 None 让上层决定要不要升档。
         frappe.logger("pearnly.ocr").warning(f"ocr unparsable model={model}: {exc}")
+        return None
+
+
+VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
+VISION_MODEL = "DOCUMENT_TEXT_DETECTION"
+
+
+def text_from_image(data: bytes, mime: str) -> str | None:
+    """Google Vision 的整页 OCR 原文（DOCUMENT_TEXT_DETECTION），给识别结果做「以检查为准」的数字校对用。
+
+    只在 vertex 后端（服务账号）、只对图片；PDF、没配服务账号、Vision 拒绝时返回 None，由调用方照常往下走。
+    走与模型调用同一条发送（`provider.post`）：共用预算、断点，限流时 `Deferred` 让队列按时重试。
+    按页计费（每月前 1,000 页免费，之后约 $1.50 / 1,000 页），调用方只在检查需要时才调。
+    """
+    if backend() != "vertex" or not mime.startswith("image/"):
+        return None
+    from pearnly_core.execution import budget, provider
+
+    payload = {"requests": [{"image": {"content": base64.b64encode(data).decode("ascii")},
+                             "features": [{"type": VISION_MODEL}],
+                             "imageContext": {"languageHints": ["th", "en"]}}]}
+    headers = {"Authorization": "Bearer " + access_token(), "Content-Type": "application/json",
+               "x-goog-user-project": project()}
+    bucket = budget.scope("vision", project(), "global", VISION_MODEL)
+    try:
+        response = provider.post(VISION_URL, headers, payload, 60, VISION_MODEL, bucket)
+    except requests.RequestException:
+        return None
+    if response.status_code != 200:
+        frappe.logger("pearnly.ocr").warning(f"vision http {response.status_code}: {response.text[:200]}")
+        return None
+    try:
+        return ((response.json().get("responses") or [{}])[0].get("fullTextAnnotation") or {}).get("text") or None
+    except ValueError:
         return None
 
 

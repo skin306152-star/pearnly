@@ -1,68 +1,113 @@
-"""ERP 采购 / 销售识别的调用策略：照旧线上发票识别的实际运行配置。
+"""ERP 采购 / 销售识别的读法（ADR-013）：便宜模型读，代码兜底，只在值得时再读，默认不用 3.8。
 
-旧线上（`pearnly-app@ec2e5c95`，运行配置取证见 docs/work/cowork-backend/ocr-runtime-policy.md）：
-发票为 economy 档，先用 `gemini-3.1-flash-lite` 直接读图，思考等级 MINIMAL；读出的结果过不了
-确定性硬闸，才升到 `gemini-3.8-flash`（思考等级 LOW）重读（旧 `vertex.py:118-132`、
-`direct_read.py:429-445`）。旧线上硬闸不过是改走 Vision 转写路线，但那条路线在线上缺凭据
-不可用（同一份取证记录），所以这里直接升级到旧线上 L3 用的那个模型。
+语料实测（2026-09-27，194 张金标：真实小票、退化照片、真实采购税票、合成压力集，
+`scripts/ocr-policy-bench.py` / `ocr-policy-report.py`）：
 
-ERP 显式用这套，不跟站点的 `pearnly_ocr_mode`（DMS 的证件识别用企业档，与发票无关）。
+| 读法 | 金额+VAT+进项全对 | 错了没标红 | 每张原价 | 平均 / P95 |
+| --- | --- | --- | --- | --- |
+| 旧：3.1 → 过不了硬闸整张升 3.8 | 170 | 8 | ฿0.176 | 7.4 / 15.3 秒 |
+| 新：3.1 → 代码修复 → 3.1 带提示复核 → OCR 校对 | 171 | 5 | ฿0.089 | 5.7 / 9.4 秒 |
+
+3.8 只在两张真实采购税票上胜过 3.1，而那两张用代码（反推整单折扣、OCR 原文确认本公司）也能修好；
+退化照片、压力集上它没有提升，「错了没标红」反而更多。所以：
+
+1. `gemini-3.1-flash-lite` 思考 MINIMAL 读（PDF 自带文字层时首读只传文字，旧线上文字快路）；
+2. 调用方的 `structured` 做确定性整理与修复（折扣、预扣、不可抵扣 VAT、票种、反推整单折扣…）；
+3. 只有「金额 / 结构对不上」（`checks.reread`）才让同一个便宜模型带着第一次的读数和没过的检查、
+   思考调高一档再看原件核对一次；
+4. 高金额票据可按站点配置 `pearnly_erp_ocr_escalation = {"model": "gemini-3.8-flash", "min_total": 50000}`
+   再升一次，**默认没有这项、不升级**（用户 2026-09-27：保留开关、默认关）；
+5. 还不过就标红交人工。税号校验位、本公司是否为买方由采购识别用 OCR 原文另做核对（`purchasing.recognition`）。
 """
+import json
+
 import frappe
 
 from pearnly_erp_portal.recognition import checks
 
-MODE = "economy"
+PRIMARY = "gemini-3.1-flash-lite"
+RECHECK_THINKING = {"thinkingLevel": "LOW"}
 
 
 class UnsupportedDocument(frappe.ValidationError):
     """读出来了、但不能按本单录入（不是单据、贷项通知单）：给本人看的话，LINE 与网页都原样转达。"""
 
 
-def models():
-    from pearnly_core import ocr
-
-    table = ocr.MODE_MODEL_MAPS[MODE]
-    return table["flash_lite"], table["fallback"]
+def escalation():
+    """站点开关：{"model": 模型名, "min_total": 票面合计下限}；没配、配错都当关。"""
+    try:
+        value = frappe.conf.get("pearnly_erp_ocr_escalation")
+    except (AttributeError, RuntimeError):  # 没有站点上下文（离线检查）
+        return None
+    if not isinstance(value, dict) or not str(value.get("model") or "").strip():
+        return None
+    return str(value["model"]).strip(), checks.money(value.get("min_total")) or 0
 
 
 TEXT_NOTE = ("The document is given below as the text layer extracted from its PDF instead of an image; "
              "read it the same way.\n\n")
+KEEP_FOR_RECHECK = ("doc_no", "doc_date", "doc_date_raw", "supplier_tax_id", "buyer_tax_id", "seller_tax_id",
+                    "discount_total", "wht_rate", "wht_amount", "printed", "lines")
+
+
+def recheck_prompt(prompt, raw, issues):
+    """带提示复核：把第一次的读数和没过的检查告诉模型，请它看原件改读错的、保留读对的。"""
+    if not isinstance(raw, dict):
+        return prompt
+    keep = {key: raw.get(key) for key in KEEP_FOR_RECHECK if key in raw}
+    reasons = "; ".join(checks.MESSAGES.get(code, code) for code in issues)
+    return (prompt + "\n\nA first reading of this document returned:\n" + json.dumps(keep, ensure_ascii=False, default=str)
+            + f"\nIt failed these checks: {reasons}.\nLook at the document again carefully, especially the parts "
+              "these checks concern (amounts at the foot, line amounts, discounts, tax IDs, dates), correct what was "
+              "misread and return the complete JSON in the same format. Keep values that were read correctly.")
+
+
+def _outcome(raw, structured, review, model):
+    result = structured(raw) if isinstance(raw, dict) else None
+    return None if result is None else (result, review(result), model, raw)
+
+
+def _better(current, candidate):
+    """硬闸问题更少的那次；一样多保留先读的那次（复核没有改善就不换）。"""
+    if candidate is None:
+        return current
+    if current is None or len(checks.hard(candidate[1])) < len(checks.hard(current[1])):
+        return candidate
+    return current
+
+
+def _labels(label, stage):
+    return {"product": "erp", "task": label.split()[0], "stage": stage}
 
 
 def read(prompt, images, *, structured, review, label):
-    """读一次；硬闸不过就用升级模型再读一次。
-
-    PDF 自带文字层时首读只传文字（`inputs.text_path`，旧线上文字快路）；升级那次一律读原件。
-    `structured(raw)` 把模型原始输出整理成结果（不合格返回 None）；`review(result)` 给出检查
-    代码。返回 (结果, 检查代码, 用的模型)；两次都读不出结构返回 (None, [], 模型)。
-    """
+    """读一张（或一页）：返回 (结果, 检查代码, 用的模型)；读不出结构返回 (None, [], 模型)。"""
     from pearnly_core import ocr
 
     from pearnly_erp_portal.recognition import inputs
 
-    primary, fallback = models()
     text = inputs.text_path(images)
-    best = None
-    for model in (primary, fallback):
-        if text is not None and model == primary:
-            raw = ocr.json_from_images(prompt + "\n" + TEXT_NOTE + text, [], model=model,
-                                       thinking=ocr.thinking_for(model))
-        else:
-            raw = ocr.json_from_images(prompt, images, model=model, thinking=ocr.thinking_for(model))
-        result = structured(raw) if isinstance(raw, dict) else None
-        if result is None:
-            frappe.logger("pearnly.ocr").info(f"{label}: {model} 没读出结构")
-            continue
-        issues = review(result)
-        current = (result, issues, model)
-        # 升级后仍不过：留硬闸问题少的那次（相同则留升级模型的）。
-        if best is None or len(checks.hard(issues)) <= len(checks.hard(best[1])):
-            best = current
-        if not checks.hard(issues):
-            break
-        frappe.logger("pearnly.ocr").info(f"{label}: {model} 硬闸 {issues}，升级重读")
-    return best or (None, [], fallback)
+    if text is not None:
+        raw = ocr.json_from_images(prompt + "\n" + TEXT_NOTE + text, [], model=PRIMARY,
+                                   thinking=ocr.thinking_for(PRIMARY), request_labels=_labels(label, "read"))
+    else:
+        raw = ocr.json_from_images(prompt, images, model=PRIMARY, thinking=ocr.thinking_for(PRIMARY),
+                                   request_labels=_labels(label, "read"))
+    best = _outcome(raw, structured, review, PRIMARY)
+    if best is None or checks.reread(best[1]):
+        frappe.logger("pearnly.ocr").info(f"{label}: {PRIMARY} {best and best[1]}，带提示复核")
+        raw = ocr.json_from_images(recheck_prompt(prompt, best and best[3], best[1] if best else []), images,
+                                   model=PRIMARY, thinking=RECHECK_THINKING, request_labels=_labels(label, "recheck"))
+        best = _better(best, _outcome(raw, structured, review, PRIMARY))
+    upgrade = escalation()
+    if upgrade and (best is None or checks.reread(best[1])):
+        total = checks.money(((best[0] if best else {}) or {}).get("printed", {}).get("total")) or 0
+        if best is None or total >= upgrade[1]:
+            frappe.logger("pearnly.ocr").info(f"{label}: 站点开启升级，{upgrade[0]} 重读")
+            raw = ocr.json_from_images(prompt, images, model=upgrade[0], thinking=ocr.thinking_for(upgrade[0]),
+                                       request_labels=_labels(label, "upgrade"))
+            best = _better(best, _outcome(raw, structured, review, upgrade[0]))
+    return best[:3] if best else (None, [], PRIMARY)
 
 
 def describe(codes):

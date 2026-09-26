@@ -2,6 +2,7 @@
 import hashlib
 import json
 import mimetypes
+import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 import frappe
@@ -117,7 +118,7 @@ def clean_result(raw):
     return result
 
 
-def recognise(attachments, document_name=None, billing_reference=None):
+def recognise(attachments, document_name=None, billing_reference=None, company=None):
     guard.require("purchase.write")
     from pearnly_core import ocr
 
@@ -152,6 +153,7 @@ def recognise(attachments, document_name=None, billing_reference=None):
                                 fields=HEADER_FIELDS, finish=_finish)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
+    documents = _anchor_with_ocr(documents, images, company)
     result, issues, model = documents[0]
     if result.get("not_document"):
         frappe.throw(_("This is not a purchase or sales document"), policy.UnsupportedDocument)
@@ -191,14 +193,20 @@ def _structured(raw):
         if not result["due_date"]:
             result.pop("due_date")
     result["additional_documents"] = raw.get("additional_documents")
+    if "has_vat" in result:
+        result["read_has_vat"] = result["has_vat"]
     _finish(result)
     return result
 
 
 def _finish(result):
     """含税 / 不含税按票面数字定（多页归组后整张再定一次）。"""
-    # 可能跑两次（逐页一次、归组后一次）：先去掉上次补的「不可抵扣的增值税」行再判。
+    # 可能跑多次（逐页一次、归组后一次、OCR 核对后一次）：先去掉上次补的「不可抵扣的增值税」行、
+    # 回到模型读的「有无 VAT」再判，结果只取决于读数。
     result["lines"] = [row for row in result.get("lines") or [] if not row.get(NON_CLAIMABLE_VAT)]
+    if "read_has_vat" in result:
+        result["has_vat"] = result["read_has_vat"]
+    _infer_bill_discount(result)
     mode = checks.vat_mode(result.get("printed") or {}, _line_sum(result.get("lines") or []), result.get("discount_total"))
     if mode:
         result.update(has_vat=True, price_mode=mode)
@@ -236,6 +244,99 @@ def _withholding(result):
                 row["wht_rate"] = float(rate)
 
 
+def _infer_bill_discount(result):
+    """代码修复：明细加起来比票面合计多出一截、又没读到整单折扣时，多出的就是整单折扣 —— 但只在票面 VAT
+    能独立印证折后金额时才采用（含税：VAT = 合计 × 7/107；不含税：VAT = 小计 × 7% 且小计 + VAT = 合计），
+    不是硬凑合计。语料实测：Giffarine 税票 3.1 把折扣 3,162 读成 0，旧流程只能靠 3.8 重读。"""
+    if checks.money(result.get("discount_total")):
+        return
+    printed = result.get("printed") or {}
+    total, vat, sub = (checks.money(printed.get(key)) for key in ("total", "vat", "subtotal"))
+    gross = _line_sum(result.get("lines") or [])
+    if total is None or not vat or vat <= 0 or gross is None or gross <= total + checks.TOLERANCE:
+        return
+    rate = checks.VAT_RATE
+    if abs(vat - total * rate / (1 + rate)) <= checks.TOLERANCE:
+        result["discount_total"] = float((gross - total).quantize(Decimal("0.01")))
+    elif sub is not None and gross > sub + checks.TOLERANCE and abs(sub + vat - total) <= checks.TOLERANCE \
+            and abs(vat - sub * rate) <= checks.TOLERANCE:
+        result["discount_total"] = float((gross - sub).quantize(Decimal("0.01")))
+
+
+def _anchor_with_ocr(documents, images, company):
+    """按需 OCR 核对（ADR-013）：只在「税票没写买方」或「税号校验位不过」时调一次 Vision 取原文（单张图片），
+    用原文确认买方是不是本公司、按校验位找回读错的税号、找回读错一位的票面金额；每一处改动都要让检查问题
+    变少才采用。语料实测：修好 6 张被判成「没写买方、不抵进项」的真实税票，以及几处读错的税号。"""
+    wanted = {tax_rules.REVIEW_TAX_INVOICE_WITHOUT_BUYER, "tax_id_checksum"}
+    if len(images) != 1 or not images[0][1].startswith("image/") or \
+            not any(wanted & set(issues) for _result, issues, _model in documents):
+        return documents
+    from pearnly_core import ocr
+
+    text = ocr.text_from_image(*images[0])
+    if not text:
+        return documents
+    own = re.sub(r"\D", "", str(frappe.db.get_value("ERP Company", company, "tax_id") or "")) if company else ""
+    return [(*_anchor(result, issues, text, own), model) if wanted & set(issues) else (result, issues, model)
+            for result, issues, model in documents]
+
+
+_TAX_IN_TEXT = re.compile(r"(?<!\d)(?:\d[\s-]?){12}\d(?!\d)")
+_AMOUNT_IN_TEXT = re.compile(r"(?<![\d.])\d{1,3}(?:,\d{3})*\.\d{2}(?!\d)|(?<![\d.,])\d+\.\d{2}(?!\d)")
+
+
+def _anchor(result, issues, text, own_tax):
+    from copy import deepcopy
+
+    def recheck(candidate):
+        _finish(candidate)
+        return candidate, review(candidate)
+
+    def score(found):
+        return len(checks.hard(found)), len(found)
+
+    best = (result, issues)
+    taxes = {t for t in (re.sub(r"\D", "", m) for m in _TAX_IN_TEXT.findall(text)) if checks.valid_tax_id(t)}
+    buyer = re.sub(r"\D", "", str(result.get("buyer_tax_id") or ""))
+    seller = re.sub(r"\D", "", str(result.get("supplier_tax_id") or ""))
+    if len(own_tax) == 13 and seller == own_tax:
+        # 买卖读反了（语料 SM 税票：本公司税号被读进卖方）：本公司是买方，卖方取原文里另一个合法税号（唯一才填）。
+        others = sorted(taxes - {own_tax})
+        candidate = recheck(dict(deepcopy(result), buyer_tax_id=own_tax,
+                                 supplier_tax_id=others[0] if len(others) == 1 else None))
+        if score(candidate[1]) <= score(best[1]):
+            best = candidate
+            buyer = own_tax
+    if len(own_tax) == 13 and buyer != own_tax and (
+            own_tax in re.sub(r"\D", "", text) or any(sum(a != b for a, b in zip(t, own_tax)) <= 1 for t in taxes)):
+        # 买方就是本公司：原文里印着本公司税号（差一位以内）。
+        candidate = recheck(dict(deepcopy(result), buyer_tax_id=own_tax))
+        if score(candidate[1]) <= score(best[1]):
+            best = candidate
+    supplier = re.sub(r"\D", "", str(best[0].get("supplier_tax_id") or ""))
+    if len(supplier) == 13 and not checks.valid_tax_id(supplier):
+        near = [t for t in taxes if sum(a != b for a, b in zip(t, supplier)) <= 2 and t != own_tax]
+        if len(near) == 1:
+            candidate = recheck(dict(deepcopy(best[0]), supplier_tax_id=near[0]))
+            if score(candidate[1]) < score(best[1]):
+                best = candidate
+    amounts = {checks.money(a) for a in _AMOUNT_IN_TEXT.findall(text)} - {None}
+    for key in ("total", "vat", "subtotal", "discount"):
+        value = checks.money((best[0].get("printed") or {}).get(key))
+        if value is None or value < 0 or value in amounts:
+            continue
+        for amount in amounts:
+            a, b = f"{amount:.2f}", f"{value:.2f}"
+            if len(a) == len(b) and sum(x != y for x, y in zip(a, b)) == 1:
+                trial = deepcopy(best[0])
+                trial["printed"][key] = float(amount)
+                candidate = recheck(trial)
+                if score(candidate[1]) < score(best[1]):
+                    best = candidate
+                    break
+    return best
+
+
 def _non_claimable_vat(result):
     """不抵进项、票面又是「不含税价 + 另加 VAT」时，VAT 是实付成本的一部分：记成一行「不可抵扣的
     增值税」，合计才等于实付（语料实测：自助餐收据 2,544 + VAT 178.08 = 2,722，被记成 2,543.92，
@@ -269,7 +370,10 @@ def review(result):
         return []
     from pearnly_erp_portal.purchasing import amounts
 
-    printed, lines = result.get("printed") or {}, result.get("lines") or []
+    printed, lines = dict(result.get("printed") or {}), result.get("lines") or []
+    if not checks.money(printed.get("discount")) and checks.money(result.get("discount_total")):
+        # 票面折扣没读到、由代码反推出来（`_infer_bill_discount`）：票面算式也按这笔折扣核对。
+        printed["discount"] = result["discount_total"]
     line_amounts = []
     for row in lines:
         qty, price = checks.money(row.get("qty") or 1), checks.money(row.get("unit_price"))

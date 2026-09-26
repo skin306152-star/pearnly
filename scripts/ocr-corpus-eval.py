@@ -57,7 +57,41 @@ def retrying(call, label):
 # ── ERP ───────────────────────────────────────────────────────────────────────
 
 
-def run_erp(content, mime):
+OWN_TAX = {"sm-tax": "0105567178203"}  # 语料里的本公司税号（买方就是本公司）
+
+
+USAGE = []
+
+
+def spy_core():
+    """记下每次模型 / Vision 调用的模型、耗时与 token（算每张成本与速度用）。"""
+    import pearnly_core.ocr as core
+    from pearnly_core.execution import provider
+
+    if getattr(provider, "_eval_spied", False):
+        return
+    original = provider.post
+
+    def spied(url, headers, payload, timeout_s, model, bucket):
+        started = time.monotonic()
+        response = original(url, headers, payload, timeout_s, model, bucket)
+        usage = None
+        try:
+            usage = response.json().get("usageMetadata") if response.status_code == 200 else None
+        except Exception:  # noqa: BLE001
+            pass
+        USAGE.append({"model": model, "ms": int((time.monotonic() - started) * 1000),
+                      "status": response.status_code, "usage": usage,
+                      "stage": (payload.get("labels") or {}).get("stage")})
+        return response
+
+    provider.post = spied
+    provider._eval_spied = True
+
+
+def run_erp(content, mime, own_tax=None):
+    spy_core()
+    USAGE.clear()
     from pearnly_core import ocr
     from pearnly_erp_portal.purchasing import amounts, recognition as pr
     from pearnly_erp_portal.recognition import policy
@@ -67,11 +101,16 @@ def run_erp(content, mime):
                                                  label="eval", fields=pr.HEADER_FIELDS, finish=pr._finish), "erp")
     if not documents:
         return {"error": "nothing"}
+    # 与 `recognise` 相同：按需 OCR 核对（本公司税号由语料给定，不查库）。
+    from unittest.mock import patch
+
+    with patch.object(frappe.db, "get_value", return_value=own_tax):
+        documents = pr._anchor_with_ocr(documents, images, "CO" if own_tax else None)
     result, issues, model = documents[0]
     from pearnly_core.tax_documents import codes as tax_codes
     if result.get("document_type") == tax_codes.CREDIT_NOTE:
         result = {**result, "blocked": "credit_note"}
-    out = {"model": model, "issues": issues, "documents": len(documents), "result": result}
+    out = {"model": model, "issues": issues, "documents": len(documents), "result": result, "usage": list(USAGE)}
     try:
         totals = amounts.calculate(result.get("lines") or [], has_vat=result.get("has_vat") is not False,
                                    price_mode=result.get("price_mode") or "exclusive",
@@ -239,8 +278,9 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     manifest = json.loads((corpus / "manifest.json").read_text(encoding="utf-8"))
     products = ("erp", "cowork") if args.product == "both" else (args.product,)
-    runners = {"erp": lambda c, m, f: run_erp(c, m), "cowork": lambda c, m, f: run_cowork(c, f),
-               "erp-sales": lambda c, m, f: run_erp_sales(c, m)}
+    runners = {"erp": lambda c, m, f, e: run_erp(c, m, OWN_TAX.get(e.get("set"))),
+               "cowork": lambda c, m, f, e: run_cowork(c, f),
+               "erp-sales": lambda c, m, f, e: run_erp_sales(c, m)}
     for entry in manifest:
         if args.only and not re.search(args.only, entry["id"]):
             continue
@@ -252,7 +292,7 @@ def main():
                 continue
             started = time.monotonic()
             try:
-                row = runners[product](content, mime, entry["file"])
+                row = runners[product](content, mime, entry["file"], entry)
             except Exception as exc:  # noqa: BLE001 - one bad document must not stop the corpus
                 row = {"error": f"{type(exc).__name__}: {exc}", "trace": traceback.format_exc()[-2000:]}
             row["seconds"] = round(time.monotonic() - started, 1)

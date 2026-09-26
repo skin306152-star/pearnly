@@ -115,7 +115,10 @@ def api_recognise_purchase(attachments=None, document_name=None):
     from pearnly_erp_portal.purchasing import recognition
     from pearnly_erp_portal.recognition import policy
 
-    return policy.for_web(lambda: recognition.recognise(frappe.parse_json(attachments), document_name=document_name))
+    from pearnly_erp_portal.masters import company
+
+    return policy.for_web(lambda: recognition.recognise(frappe.parse_json(attachments), document_name=document_name,
+                                                        company=company.active_company()))
 
 
 @frappe.whitelist()

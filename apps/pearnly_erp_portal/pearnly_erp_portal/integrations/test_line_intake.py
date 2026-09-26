@@ -651,6 +651,62 @@ class Checks(unittest.TestCase):
                                         "lines": [{"description": "ส่วนลดคูปองเต็มจำนวน", "qty": 1, "unit_price": 0}]})
         self.assertEqual(len(zero["lines"]), 1)
 
+    def test_a_missed_bill_discount_is_derived_only_when_the_printed_vat_confirms_it(self):
+        from pearnly_erp_portal.purchasing import entry, recognition
+
+        # 语料 Giffarine（ADR-013）：3.1 把整单折扣 3,162 读成 0；票面 VAT 631.18 = 9,648 × 7/107 印证折后金额。
+        lines = [{"description": "Giffarine A", "qty": 40, "unit_price": 300}, {"description": "Giffarine B", "qty": 6,
+                                                                                    "unit_price": 135}]
+        raw = {"document_type": "tax_invoice", "buyer_tax_id": "0105567178203", "discount_total": 0,
+               "printed": {"subtotal": 9016.82, "discount": 0, "vat": 631.18, "total": 9648}, "lines": lines}
+        result = recognition._structured(raw)
+        self.assertEqual(result["discount_total"], 3162.0)
+        totals = entry._calculate({"lines": result["lines"], "has_vat": True, "price_mode": result["price_mode"],
+                                   "discount_total": result["discount_total"]})
+        self.assertEqual((str(totals["vat_amount"]), str(totals["grand_total"])), ("631.18", "9648.00"))
+        self.assertEqual(recognition.review(result), [])
+        # 票面 VAT 对不上折后金额：不猜，照常标红。
+        unproven = recognition._structured({**raw, "printed": {"subtotal": 9016.82, "vat": 700, "total": 9648}})
+        self.assertFalse(unproven.get("discount_total"))
+        self.assertIn("computed_total", recognition.review(unproven))
+
+    def test_ocr_text_confirms_our_company_as_buyer_and_recovers_a_misread_tax_id(self):
+        from pearnly_erp_portal.purchasing import recognition
+
+        # 语料 SM 采购税票：3.1 没读到买方 → 判成「没写买方、不抵进项」；Vision 原文里印着本公司税号。
+        raw = {"document_type": "tax_invoice", "supplier_tax_id": "0107542000017",
+               "printed": {"subtotal": 2407.48, "vat": 168.52, "total": 2576},
+               "lines": [{"description": "อุปกรณ์สำนักงาน", "qty": 1, "unit_price": 2576}]}
+        result = recognition._structured(raw)
+        issues = recognition.review(result)
+        self.assertEqual((result["has_vat"], "tax_invoice_without_buyer" in issues, "tax_id_checksum" in issues),
+                         (False, True, True))
+        text = "ใบกำกับภาษี\nเลขประจำตัวผู้เสียภาษี 0107542000011\nลูกค้า บริษัท ซิสเตอร์ เมคอัพ\nTax ID 0105567178203\n2,576.00"
+        fixed, found = recognition._anchor(result, issues, text, "0105567178203")
+        self.assertEqual((fixed["buyer_tax_id"], fixed["supplier_tax_id"], fixed["has_vat"], found),
+                         ("0105567178203", "0107542000011", True, []))
+        # 买卖读反：本公司税号被读进卖方 —— 挪到买方，卖方取原文里另一个合法税号。
+        swapped = recognition._structured({**raw, "supplier_tax_id": "0105567178203"})
+        fixed, found = recognition._anchor(swapped, recognition.review(swapped), text, "0105567178203")
+        self.assertEqual((fixed["buyer_tax_id"], fixed["supplier_tax_id"], fixed["has_vat"]),
+                         ("0105567178203", "0107542000011", True))
+        # 原文里没有本公司税号：不改。
+        same, found = recognition._anchor(result, issues, "no tax id here 2,576.00", "0105567178203")
+        self.assertIs(same, result)
+
+    def test_vision_is_only_called_when_the_checks_ask_for_it(self):
+        from pearnly_core import ocr
+        from pearnly_erp_portal.purchasing import recognition
+
+        clean = [({"lines": []}, [], "m")]
+        with patch.object(ocr, "text_from_image") as vision:
+            self.assertIs(recognition._anchor_with_ocr(clean, [(b"x", "image/jpeg")], "CO-1"), clean)
+            flagged = [({"lines": []}, ["computed_total"], "m")]
+            recognition._anchor_with_ocr(flagged, [(b"x", "image/jpeg")], "CO-1")
+            pdf = [({"lines": []}, ["tax_id_checksum"], "m")]
+            recognition._anchor_with_ocr(pdf, [(b"%PDF", "application/pdf")], "CO-1")
+        vision.assert_not_called()
+
     def test_credit_notes_are_not_recorded_as_purchases(self):
         from pearnly_erp_portal.purchasing import recognition
         from pearnly_erp_portal.recognition import policy
@@ -736,9 +792,9 @@ class Checks(unittest.TestCase):
 
 
 class Escalation(unittest.TestCase):
-    """先 3.1-flash-lite + MINIMAL，硬闸不过才 3.8 + LOW（旧线上发票直读）。"""
+    """ADR-013：3.1 读 → 金额 / 结构对不上才 3.1 带提示复核 → 站点开关打开才升级（默认关）。"""
 
-    def read(self, answers, review):
+    def read(self, answers, review, upgrade=None):
         from pearnly_core import ocr
 
         from pearnly_erp_portal.recognition import policy
@@ -746,31 +802,55 @@ class Escalation(unittest.TestCase):
         calls = []
 
         def fake(prompt, images, *, model, thinking=None, **kw):
-            calls.append((model, thinking))
+            calls.append((model, thinking, "failed these checks" in prompt))
             return answers[len(calls) - 1]
 
         with patch.object(ocr, "json_from_images", side_effect=fake), \
+                patch.object(policy, "escalation", return_value=upgrade), \
                 patch.object(frappe, "logger", return_value=Mock(), create=True):
             result = policy.read("P", [(b"x", "image/jpeg")], structured=lambda raw: raw if "lines" in raw else None,
                                  review=review, label="t")
         return result, calls
 
-    def test_a_clean_first_read_is_not_escalated(self):
+    def test_a_clean_first_read_is_not_read_again(self):
         (result, issues, model), calls = self.read([{"lines": [], "n": 1}], lambda r: [])
-        self.assertEqual(calls, [("gemini-3.1-flash-lite", {"thinkingLevel": "MINIMAL"})])
+        self.assertEqual(calls, [("gemini-3.1-flash-lite", {"thinkingLevel": "MINIMAL"}, False)])
         self.assertEqual((result["n"], issues, model), (1, [], "gemini-3.1-flash-lite"))
 
-    def test_a_failed_gate_escalates_and_soft_flags_do_not(self):
-        answers = [{"lines": [], "n": 1}, {"lines": [], "n": 2}]
+    def test_amounts_that_do_not_add_up_get_a_hinted_recheck_with_the_same_cheap_model(self):
+        answers = [{"lines": [], "n": 1, "printed": {"total": 10}}, {"lines": [], "n": 2}]
         (result, issues, model), calls = self.read(answers, lambda r: ["computed_total"] if r["n"] == 1 else ["date_old"])
-        self.assertEqual([c[1] for c in calls], [{"thinkingLevel": "MINIMAL"}, {"thinkingLevel": "LOW"}])
-        self.assertEqual((result["n"], issues, model), (2, ["date_old"], "gemini-3.8-flash"))
-        (_result, _issues, _model), calls = self.read([{"lines": [], "n": 1}], lambda r: ["date_old"])
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls, [("gemini-3.1-flash-lite", {"thinkingLevel": "MINIMAL"}, False),
+                                 ("gemini-3.1-flash-lite", {"thinkingLevel": "LOW"}, True)])
+        self.assertEqual((result["n"], issues, model), (2, ["date_old"], "gemini-3.1-flash-lite"))
+        # 复核没有改善：保留第一次。
+        (result, _issues, _model), _calls = self.read(answers, lambda r: ["computed_total"])
+        self.assertEqual(result["n"], 1)
 
-    def test_unreadable_first_answer_escalates(self):
+    def test_problems_a_reread_does_not_fix_are_only_flagged(self):
+        # 语料实测：税号校验位不过，3.8 重读多半还是错 —— 只标红（采购识别另用 OCR 原文核对）；软标注同样不重读。
+        for issues in (["tax_id_checksum"], ["date_old"], ["credit_note"], ["tax_invoice_without_buyer"]):
+            with self.subTest(issues):
+                (_result, got, _model), calls = self.read([{"lines": [], "n": 1}], lambda r, i=issues: i)
+                self.assertEqual((len(calls), got), (1, issues))
+
+    def test_unreadable_first_answer_is_read_again(self):
         (result, issues, model), calls = self.read([None, {"lines": [], "n": 2}], lambda r: [])
-        self.assertEqual((len(calls), result["n"], model), (2, 2, "gemini-3.8-flash"))
+        self.assertEqual((len(calls), result["n"], model), (2, 2, "gemini-3.1-flash-lite"))
+
+    def test_the_site_switch_upgrades_only_high_value_documents_that_still_fail(self):
+        big = {"lines": [], "n": 1, "printed": {"total": 80000}}
+        answers = [big, dict(big, n=2), {"lines": [], "n": 3}]
+        review = lambda r: [] if r["n"] == 3 else ["computed_total"]
+        (result, _issues, model), calls = self.read(answers, review, upgrade=("gemini-3.8-flash", 50000))
+        self.assertEqual(([c[0] for c in calls], result["n"], model),
+                         (["gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash"], 3, "gemini-3.8-flash"))
+        small = {"lines": [], "n": 1, "printed": {"total": 300}}
+        (_result, _issues, _model), calls = self.read([small, dict(small, n=2)], review,
+                                                      upgrade=("gemini-3.8-flash", 50000))
+        self.assertEqual(len(calls), 2)  # 金额不到下限：不升级
+        (_result, _issues, _model), calls = self.read([big, dict(big, n=2)], review)
+        self.assertEqual(len(calls), 2)  # 默认没有开关：不升级
 
     def test_a_pdf_with_a_text_layer_is_read_as_text_first(self):
         from pearnly_core import ocr
@@ -785,12 +865,13 @@ class Escalation(unittest.TestCase):
 
         pdf = [(b"%PDF", "application/pdf")]
         with patch.object(ocr, "json_from_images", side_effect=fake), \
+                patch.object(policy, "escalation", return_value=None), \
                 patch.object(frappe, "logger", return_value=Mock(), create=True), \
                 patch.object(inputs, "pdf_text", return_value=(1, "PAGE TEXT " * 40)):
             policy.read("P", pdf, structured=lambda raw: raw, review=lambda r: ["computed_total"] if r["n"] == 1 else [],
                         label="t")
-        # 首读 3.1 只给文字、不传原件；过不了检查，升级 3.8 读 PDF 原件。
-        self.assertEqual(sent, [("gemini-3.1-flash-lite", True, 0), ("gemini-3.8-flash", False, 1)])
+        # 首读只给文字、不传原件；金额对不上，复核读 PDF 原件。
+        self.assertEqual(sent, [("gemini-3.1-flash-lite", True, 0), ("gemini-3.1-flash-lite", False, 1)])
         with patch.object(inputs, "pdf_text", return_value=(3, "short")):
             self.assertIsNone(inputs.text_path(pdf))  # 文字太少（扫描件）：照常传原件
 
