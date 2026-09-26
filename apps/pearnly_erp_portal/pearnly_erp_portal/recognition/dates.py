@@ -14,13 +14,18 @@ def _plausible(value, today):
     return today - timedelta(days=365 * 5) <= value <= today + timedelta(days=1)
 
 
-def printed(raw, today=None):
-    """票面原样日期 → ISO；认不出返回 None。支持 D/M/YYYY、YYYY-M-D 与 D/M/YY。"""
+def printed(raw, today=None, *, after=None):
+    """票面原样日期 → ISO；认不出返回 None。支持 D/M/YYYY、YYYY-M-D 与 D/M/YY。
+
+    `after`：到期日这类「单据日期当天及以后」的日期，两位年份取落在该日 ~ 两年后的那个
+    （09-26 票面「ครบกำหนด 19/05/69」原样进了到期日，网页日期框报格式错误）。"""
     match = _NUMERIC.match(str(raw or ""))
     if not match:
         return None
     first, second, third = match.groups()
     anchor = today or date.today()
+    plausible = (lambda value: after <= value <= after + timedelta(days=366 * 2)) if after else (
+        lambda value: _plausible(value, anchor))
     if len(first) == 4:
         year, month, day = int(first), int(second), int(third)
         candidates = [year - 543 if year >= 2400 else year]
@@ -42,7 +47,21 @@ def printed(raw, today=None):
             continue
         found.append(value)
     if len(candidates) > 1:
-        found = [value for value in found if _plausible(value, anchor)]
+        found = [value for value in found if plausible(value)]
         if len(found) != 1:
             return None
     return found[0].isoformat() if found else None
+
+
+def iso(value):
+    """已经是有效的 YYYY-MM-DD 就原样返回，否则 None。"""
+    try:
+        return date.fromisoformat(str(value or "")).isoformat() if len(str(value or "")) == 10 else None
+    except ValueError:
+        return None
+
+
+def due(raw, doc_date):
+    """到期日：模型给的若不是 ISO（常见是照抄票面「19/05/69」），按票面日期规则换算；换不出就不填。"""
+    start = iso(doc_date)
+    return iso(raw) or printed(raw, after=date.fromisoformat(start) if start else None)

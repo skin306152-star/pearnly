@@ -24,6 +24,12 @@ def money(value):
 # `beforevat = grandtotal − discount`，`vat = beforevat × rate`；采购、销售同一函数）与本仓销售。
 # 版本 2 是「先算 VAT、后扣折扣」（旧线上手工录入口径），已有单据按它继续算，保存时金额不变。
 DISCOUNT_BEFORE_VAT = 3
+# 计算版本 4（2026-09-27 起新建的单据）：含税票的 VAT 从含税合计反算（合计 × 7/107），不含税额 = 合计 − VAT，
+# 与票面、本仓销售（`sales/contracts.py` 价内反算）一致。版本 3 逐行先除 1.07 再取整，三行
+# 6,400 / 750 / 350 的含税票算成 7,009.34 + 490.65 = 7,499.99，票面是 7,009.35 + 490.65 = 7,500.00
+# （用户 2026-09-26 真机单 `PUR-2026-00049`）。不含税票与版本 3 相同。
+INCLUSIVE_VAT_FROM_TOTAL = 4
+CURRENT_VERSION = INCLUSIVE_VAT_FROM_TOTAL
 
 
 def _allocate(total, weights):
@@ -39,8 +45,36 @@ def _allocate(total, weights):
     return shares
 
 
+def _inclusive_from_total(rows, discount):
+    """版本 4 含税票：按税率分组，含税合计先扣整单折扣（票面口径、含税），VAT = 含税额 × 税率 / (100 + 税率)
+    整组一次取整，不含税额 = 含税额 − VAT；各行的不含税额与 VAT 按含税金额分摊，尾差落在该组最后一行。
+    返回 (折前不含税小计, 不含税整单折扣, VAT, 预扣)，合计因此正好等于含税金额之和 − 整单折扣。"""
+    gross = [money(row["qty"] * row["unit_price"]) - money(row["discount"]) for row in rows]
+    shares = _allocate(discount, gross)
+    if any(amount < 0 for amount in gross) or any(share > amount for share, amount in zip(shares, gross)):
+        raise ValueError("Discount cannot exceed the amount")
+    subtotal = exclusive_discount = vat = wht = Decimal(0)
+    for rate in {row["vat_rate"] for row in rows}:
+        group = [index for index, row in enumerate(rows) if row["vat_rate"] == rate]
+        before = sum((gross[index] for index in group), Decimal(0))
+        after = before - sum((shares[index] for index in group), Decimal(0))
+        net_before = before - money(before * rate / (100 + rate))
+        group_vat = money(after * rate / (100 + rate))
+        for index, net in zip(group, _allocate(net_before, [gross[index] for index in group])):
+            rows[index]["line_total"] = net
+        for index, share in zip(group, _allocate(group_vat, [gross[index] - shares[index] for index in group])):
+            rows[index]["vat_amount"] = share
+        subtotal += net_before
+        exclusive_discount += net_before - (after - group_vat)
+        vat += group_vat
+    for row in rows:
+        row["wht_amount"] = money(row["line_total"] * row["wht_rate"] / 100)
+        wht += row["wht_amount"]
+    return subtotal, exclusive_discount, vat, wht
+
+
 def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
-              rounding=0, amount_override=None, discount_before_vat=False):
+              rounding=0, amount_override=None, discount_before_vat=False, vat_from_total=False):
     if not isinstance(lines, list) or not lines:
         raise ValueError("Items are required")
     if price_mode not in ("exclusive", "inclusive"):
@@ -67,7 +101,9 @@ def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
     discount = money(decimal(discount_total))
     adjustment = money(rounding)
     exclusive_discount = discount
-    if discount_before_vat and normalized:
+    if discount_before_vat and vat_from_total and price_mode == "inclusive" and normalized:
+        subtotal, exclusive_discount, vat, wht = _inclusive_from_total(normalized, discount)
+    elif discount_before_vat and normalized:
         # 整单折扣按票面口径输入、原样存（含税票就是含税的折扣，与行折扣同一口径）；按各行金额
         # 分摊、换成不含税后从 VAT 基数里扣掉。存的是输入值，所以反复保存重算结果不变。
         factors = [1 + row["vat_rate"] / 100 if price_mode == "inclusive" else Decimal(1) for row in normalized]
@@ -97,7 +133,7 @@ def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
                                          ("subtotal", "discount_total", "vat_amount", "grand_total"))
         adjustment = money(grand - (subtotal - discount + vat))
         if discount > subtotal or abs(adjustment) > CENT:
-            raise ValueError("Totals do not match")
+            raise ValueError("Net total - discount + VAT must equal the total")
     payable = money(grand - wht)
     if payable < 0:
         raise ValueError("Invalid value")

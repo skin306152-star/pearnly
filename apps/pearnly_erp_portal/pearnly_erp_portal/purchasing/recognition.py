@@ -155,6 +155,10 @@ def _structured(raw):
     result["buyer_tax_id"] = raw.get("buyer_tax_id")
     # 票面日期由代码换算佛历（旧线上口径），换算不出才用模型给的。
     result["doc_date"] = dates.printed(raw.get("doc_date_raw")) or result.get("doc_date")
+    if result.get("due_date") not in (None, ""):
+        result["due_date"] = dates.due(result["due_date"], result.get("doc_date"))
+        if not result["due_date"]:
+            result.pop("due_date")
     result["additional_documents"] = raw.get("additional_documents")
     _finish(result)
     return result
@@ -195,7 +199,8 @@ def review(result):
         computed = amounts.calculate(lines, has_vat=result.get("has_vat") is not False,
                                      price_mode=result.get("price_mode") or "exclusive",
                                      discount_total=result.get("discount_total") or 0,
-                                     rounding=result.get("rounding") or 0, discount_before_vat=True)
+                                     rounding=result.get("rounding") or 0, discount_before_vat=True,
+                                     vat_from_total=True)
     except (ValueError, KeyError, ArithmeticError, TypeError):
         computed = None
     issues += checks.computed_issues(printed, computed["grand_total"], computed["vat_amount"]) if computed else (

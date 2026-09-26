@@ -38,7 +38,7 @@ class PurchaseAmounts(unittest.TestCase):
         override = {'subtotal': 200, 'discount_total': 10, 'vat_amount': 14, 'grand_total': '204.01'}
         result = a.calculate(lines, amount_override=override)
         self.assertEqual(result['grand_total'], Decimal('204.01'))
-        with self.assertRaisesRegex(ValueError, 'Totals do not match'):
+        with self.assertRaisesRegex(ValueError, 'must equal the total'):
             a.calculate(lines, amount_override={**override, 'grand_total': '204.02'})
 
     def test_version_3_takes_the_bill_discount_before_vat(self):
@@ -67,6 +67,38 @@ class PurchaseAmounts(unittest.TestCase):
         self.assertEqual((v3['vat_amount'], v3['grand_total']), (Decimal('2.11'), Decimal('32.26')))
         self.assertEqual(sum(row['vat_amount'] for row in v3['lines']), Decimal('2.11'))
         self.assertEqual(a.calculate(lines)['vat_amount'], Decimal('2.10'))  # 版本 2 照旧逐行
+
+    def test_version_4_takes_vat_out_of_the_inclusive_total(self):
+        # 09-26 กิจสยามยานยนต์ 含税票 6,400 / 750 / 350：票面 7,009.35 + 490.65 = 7,500.00；
+        # 版本 3 逐行除 1.07 取整，算成 7,009.34 + 490.65 = 7,499.99。
+        lines = [{'qty': 1, 'unit_price': price, 'vat_rate': 7} for price in (6400, 750, 350)]
+        v4 = a.calculate(lines, price_mode='inclusive', discount_before_vat=True, vat_from_total=True)
+        self.assertEqual((v4['subtotal'], v4['vat_amount'], v4['grand_total']),
+                         (Decimal('7009.35'), Decimal('490.65'), Decimal('7500.00')))
+        self.assertEqual(sum(row['line_total'] for row in v4['lines']), v4['subtotal'])
+        self.assertEqual(sum(row['vat_amount'] for row in v4['lines']), v4['vat_amount'])
+        v3 = a.calculate(lines, price_mode='inclusive', discount_before_vat=True)
+        self.assertEqual(v3['grand_total'], Decimal('7499.99'))  # 版本 3 的旧单据保存时金额不变
+        # 整单折扣（含税口径）+ 行折扣 + 两种税率：合计正好是含税金额之和 − 折扣。
+        mixed = [{'qty': 2, 'unit_price': 1070, 'discount': 107, 'vat_rate': 7, 'wht_rate': 3},
+                 {'qty': 1, 'unit_price': 535, 'vat_rate': 0}]
+        v4 = a.calculate(mixed, price_mode='inclusive', discount_total=100, discount_before_vat=True,
+                         vat_from_total=True)
+        self.assertEqual((v4['vat_amount'], v4['grand_total'], v4['rounding']),
+                         (Decimal('127.82'), Decimal('2468.00'), Decimal('0.00')))
+        self.assertEqual(v4['wht_amount'], Decimal('57.00'))  # 1,900.00 × 3%（折前不含税）
+        # Giffarine 含税票与版本 3 结果相同。
+        giffarine = [{'qty': 40, 'unit_price': 300, 'vat_rate': 7}, {'qty': 6, 'unit_price': 135, 'vat_rate': 7}]
+        v4 = a.calculate(giffarine, price_mode='inclusive', discount_total=3162, discount_before_vat=True,
+                         vat_from_total=True)
+        self.assertEqual((v4['vat_amount'], v4['grand_total']), (Decimal('631.18'), Decimal('9648.00')))
+        # 不含税票与版本 3 一样。
+        plain = [{'qty': 1, 'unit_price': '10.05', 'vat_rate': 7} for _ in range(3)]
+        self.assertEqual(a.calculate(plain, discount_before_vat=True, vat_from_total=True),
+                         a.calculate(plain, discount_before_vat=True))
+        with self.assertRaises(ValueError):
+            a.calculate(lines, price_mode='inclusive', discount_total=7501, discount_before_vat=True,
+                        vat_from_total=True)
 
     def test_version_3_discount_cannot_exceed_the_amount(self):
         with self.assertRaises(ValueError):

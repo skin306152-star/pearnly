@@ -567,6 +567,11 @@ class Checks(unittest.TestCase):
         self.assertEqual(dates.printed("2569-05-27", today), "2026-05-27")
         self.assertIsNone(dates.printed("10 พ.ค. 69", today))               # 泰文月份：交给模型
         self.assertIsNone(dates.printed("31/02/2026", today))
+        # 到期日：模型照抄了票面「19/05/69」—— 按单据日期之后换算；已是 ISO 原样；换不出不填。
+        self.assertEqual(dates.due("19/05/69", "2026-05-19"), "2026-05-19")
+        self.assertEqual(dates.due("18/06/69", "2026-05-19"), "2026-06-18")
+        self.assertEqual(dates.due("2026-06-18", "2026-05-19"), "2026-06-18")
+        self.assertIsNone(dates.due("30 วัน", "2026-05-19"))
 
     def test_dates_are_soft(self):
         from datetime import date
@@ -930,9 +935,9 @@ class CardShape(Base):
                          ("Review document · Buy", "#16873E"))
         rows = self.rows(card)
         labels = [label for label in rows]
-        self.assertEqual(labels[:4], ["Company", "Direction", "Documents", "Item Type"])
+        self.assertEqual(labels[:4], ["Company", "Transaction type", "Documents", "Item Type"])
         # 采购只列卖方；金额与付款在明细下面（用户 2026-09-26）。
-        self.assertEqual(labels[4:], ["Document no.", "Date (BE)", "Document type", "Seller", "Seller tax ID",
+        self.assertEqual(labels[4:], ["Document no.", "Date", "Document type", "Seller", "Seller tax ID",
                          "Seller branch", "Seller address", "Notes",
                          "Subtotal", "Discount", "VAT", "WHT amount", "Document total", "Currency", "Payment method"])
         body = card["contents"]["body"]["contents"]
@@ -941,7 +946,7 @@ class CardShape(Base):
         subtotal_at = next(i for i, row in enumerate(body) if row.get("layout") == "horizontal"
                            and row["contents"][0]["text"] == "Subtotal")
         self.assertLess(items_at, subtotal_at)
-        self.assertEqual((rows["Date (BE)"], rows["Seller"], rows["Subtotal"], rows["Document total"]),
+        self.assertEqual((rows["Date"], rows["Seller"], rows["Subtotal"], rows["Document total"]),
                          ("25/09/2569", "NBC", "100.00", "107.00"))
         text = json.dumps(card, ensure_ascii=False)
         for i in range(12):  # 商品名称全部显示（用户 2026-09-26）
@@ -965,7 +970,7 @@ class CardShape(Base):
         doc = _doc(direction="sales", party="@any")
         card = self.card(doc, {"doc_date": "2026-05-27", "lines": []}, {})
         rows = self.rows(card)
-        self.assertEqual((rows["Direction"], rows["Buyer"], rows["Payment method"]), ("Sell", "Walk-in customer", "Transfer"))
+        self.assertEqual((rows["Transaction type"], rows["Buyer"], rows["Payment method"]), ("Sell", "Walk-in customer", "Transfer"))
         self.assertNotIn("Seller", rows)  # 销售不列卖方（就是我方公司）
         self.assertEqual(card["contents"]["header"]["backgroundColor"], "#B11B50")
         self.assertIn("No items were read", json.dumps(card))

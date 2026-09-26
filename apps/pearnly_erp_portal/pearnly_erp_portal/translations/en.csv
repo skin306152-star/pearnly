@@ -512,6 +512,7 @@ More Filters,More Filters
 Name,Name
 Net,Net
 Net Total,Net Total
+Net total - discount + VAT must equal the total,Net total - discount + VAT must equal the total
 New,New
 New Category,New Category
 New Customer,New Customer
@@ -1046,6 +1047,7 @@ Total · {0} row(s),Total · {0} row(s)
 Totals,Totals
 Track batches,Track batches
 Track expiry,Track expiry
+Transaction type,Transaction type
 Transfer,Transfer
 Type,Type
 Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new

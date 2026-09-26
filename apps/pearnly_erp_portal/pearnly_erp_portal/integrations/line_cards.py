@@ -3,7 +3,8 @@
 版式与字段顺序照旧线上的审核卡（`pearnly-app@ec2e5c95`：`services/line_erp/cards.py` →
 `cowork_line/review_cards.py` → `line_platform/summary_review_card.py`，用户 2026-09-26 给的截图）：
 标题「ตรวจสอบเอกสาร · ซื้อ/ขาย」+ 副标题，采购绿、销售红；左灰标签、右粗体值；
-公司 / 方向 / 单据数，分隔线后是票面的 19 个字段（单号 … 备注），合计用主题色。
+公司 / 业务类型 / 单据数，分隔线后是票面的 19 个字段（单号 … 备注），合计用主题色。
+〔定·09-26〕旧卡的「方向」改叫「业务类型」；日期仍按佛历年份显示，标签不加「佛历」。
 
 与旧卡不同的地方（用户口径）：
 - 〔定·09-25〕只有「编辑」一个按钮：打开网页端原生的采购 / 销售页，提交才入账；卡片不过期。
@@ -43,7 +44,7 @@ def _number(value) -> str:
 
 
 def _be_date(value) -> str:
-    """旧卡片显示佛历日期（วันที่ พ.ศ.），读不懂的原样给人看。"""
+    """日期按佛历年份显示（旧卡片口径），读不懂的原样给人看。"""
     try:
         year, month, day = str(value)[:10].split("-")
         return f"{int(day):02d}/{int(month):02d}/{int(year) + 543}"
@@ -204,12 +205,12 @@ def _card(doc, result, totals, shown) -> dict:
     body = [
         *_review(result),
         _kv(_("Company"), _company(doc)["name"]),
-        _kv(_("Direction"), head),
+        _kv(_("Transaction type"), head),
         _kv(_("Documents"), "1"),
         _kv(_("Item Type"), _item_kind(doc)),
         _separator(),
         _kv(_("Document no."), result.get("doc_no")),
-        _kv(_("Date (BE)"), _be_date(result["doc_date"]) if result.get("doc_date") else "-"),
+        _kv(_("Date"), _be_date(result["doc_date"]) if result.get("doc_date") else "-"),
         _kv(_("Document type"), _(DOC_KINDS[kind]) if kind in DOC_KINDS else "-"),
         # 采购只列卖方（供应商，票面识别或 LINE 里选的），销售只列买方（客户）；我方公司已在上面
         # 「公司」一行（用户 2026-09-26）。

@@ -512,6 +512,7 @@ More Filters,更多筛选条件
 Name,名称
 Net,净额
 Net Total,净总计
+Net total - discount + VAT must equal the total,金额对不上：净总计 − 折扣 + 增值税 必须等于总计
 New,新建
 New Category,新建分类
 New Customer,新建客户
@@ -1046,6 +1047,7 @@ Total · {0} row(s),合计 · {0} 条明细
 Totals,合计
 Track batches,批次管理
 Track expiry,有效期管理
+Transaction type,业务类型
 Transfer,转账
 Type,类型
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个

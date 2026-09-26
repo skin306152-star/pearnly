@@ -235,6 +235,13 @@ def build_payload(doc, result=None) -> dict:
 
         payload = {key: result[key] for key in recognition.HEADER_FIELDS
                    if result.get(key) not in (None, "")}
+        if payload.get("due_date"):
+            # 修正前识别的卡片，到期日可能还是票面原样（「19/05/69」），网页日期框会报格式错误。
+            from pearnly_erp_portal.recognition import dates
+
+            payload["due_date"] = dates.due(payload["due_date"], payload.get("doc_date"))
+            if not payload["due_date"]:
+                payload.pop("due_date")
         lines = []
         for row in result.get("lines") or []:
             row = {**row, "item_type": "goods" if goods else "service"}

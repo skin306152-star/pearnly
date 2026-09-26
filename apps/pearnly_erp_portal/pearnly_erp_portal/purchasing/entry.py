@@ -103,7 +103,8 @@ def _calculate(payload):
     try:
         return amounts.calculate(payload.get("lines"), has_vat=flag(payload.get("has_vat"), True),
             price_mode=payload.get("price_mode") or "exclusive", discount_total=payload.get("discount_total", 0),
-            rounding=payload.get("rounding", 0), amount_override=override, discount_before_vat=True)
+            rounding=payload.get("rounding", 0), amount_override=override, discount_before_vat=True,
+            vat_from_total=True)
     except (ValueError, KeyError, ArithmeticError) as exc:
         frappe.throw(_(str(exc)))
 
@@ -192,7 +193,7 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
         "currency": payload.get("currency") or "THB", "fx_rate": rate,
         "system_no": doc.get("system_no") or numbering.allocate(direction="purchase", on=day,
               exists=lambda value: bool(frappe.db.exists("Purchase Document", {"system_no": value}))),
-        "calculation_version": amounts.DISCOUNT_BEFORE_VAT, "status": "submitted", "has_vat": int(has_vat),
+        "calculation_version": amounts.CURRENT_VERSION, "status": "submitted", "has_vat": int(has_vat),
         "request_id": request_id, "request_hash": fingerprint, "dedupe_ref": reference,
         "corrected_from": amended_from, "price_mode": payload.get("price_mode") or "exclusive",
         "update_stock": int(flag(payload.get("update_stock"), True)),

@@ -512,6 +512,7 @@ More Filters,ตัวกรองเพิ่มเติม
 Name,ชื่อ
 Net,ยอดสุทธิ
 Net Total,ยอดรวมสุทธิ
+Net total - discount + VAT must equal the total,ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม
 New,ใหม่
 New Category,สร้างหมวดหมู่
 New Customer,เพิ่มลูกค้า
@@ -1046,6 +1047,7 @@ Total · {0} row(s),รวม · {0} รายการ
 Totals,ยอดรวม
 Track batches,ติดตามล็อต
 Track expiry,ติดตามวันหมดอายุ
+Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Type,ประเภท
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้

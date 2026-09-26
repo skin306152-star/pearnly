@@ -43,8 +43,10 @@ class PurchaseDocument(Document):
                     has_vat=bool(self.has_vat), price_mode=self.price_mode or "exclusive",
                     discount_total=self.discount_total, rounding=self.rounding,
                     amount_override=override,
-                    # 版本 2 的旧单据保持原算法（保存时金额不变），版本 3 起整单折扣先于 VAT。
-                    discount_before_vat=self.calculation_version >= amounts.DISCOUNT_BEFORE_VAT)
+                    # 旧版本的单据保持原算法（保存时金额不变）：版本 3 起整单折扣先于 VAT，
+                    # 版本 4 起含税票的 VAT 从含税合计反算。
+                    discount_before_vat=self.calculation_version >= amounts.DISCOUNT_BEFORE_VAT,
+                    vat_from_total=self.calculation_version >= amounts.INCLUSIVE_VAT_FROM_TOTAL)
             except (ValueError, KeyError) as exc:
                 frappe.throw(_(str(exc)))
             for row, result in zip(self.lines, totals.pop("lines")):

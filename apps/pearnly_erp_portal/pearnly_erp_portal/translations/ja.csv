@@ -512,6 +512,7 @@ More Filters,追加フィルタ
 Name,名前
 Net,純額
 Net Total,正味合計
+Net total - discount + VAT must equal the total,金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
 New,新規
 New Category,カテゴリ作成
 New Customer,顧客を追加
@@ -1046,6 +1047,7 @@ Total · {0} row(s),合計 · {0} 明細
 Totals,合計
 Track batches,ロット管理
 Track expiry,有効期限管理
+Transaction type,取引区分
 Transfer,振込
 Type,種別
 Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
