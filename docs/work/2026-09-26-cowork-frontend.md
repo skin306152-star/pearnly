@@ -2,20 +2,20 @@
 
 ## 当前入口 · 换窗口交接（2026-09-27 第四次，新窗口从这里开始）
 
-**状态：交接保留。** 用户：“现在你做交接，下个窗口准备做新功能，新功能待我通知”——新窗口**先读本节，等用户说新功能再动手**，
-不要自己挑活。用户口径见下方「用户定下的口径」和用户记忆 `cowork-frontend-ui-rules`（中文、先说结果、不多加文案、没有确认步骤）。
+**状态：交接保留。** 用户：“现在你做交接，下个窗口准备做新功能，新功能待我通知”“我是在 cowork 基础上开发新功能”——
+新窗口**先读本节，等用户说新功能再动手**，不要自己挑活。用户口径见下方「用户定下的口径」和用户记忆 `cowork-frontend-ui-rules`（中文、先说结果、不多加文案、没有确认步骤）。
 
 ### 代码与线上
 
 | 位置 | 状态 |
 | --- | --- |
-| `origin/main` `fdd88b0` | 含 ERP 窗口共用票种表（ADR-0012，`840fb6e`）+ 本窗口的测试环境实时源码规则（`fdd88b0`） |
-| 任务分支 `codex/cowork-frontend` `362ec12`（已推送，CI 通过，工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | 比 main 多 10 个提交 = 第十四批全部用户验收修复（公司隔离拿掉、LINE 发单据 + 富菜单、识别配置、目标记在票上、ERP 式卡片、编辑页照 ERP 排版、含税小票导出）。**未合入 main**：用户在 testcowork 试用过大部分，合入前问用户一句 |
+| `origin/main` | **已含本任务全部代码**：第十四批验收修复（公司隔离拿掉、LINE 发单据 + 富菜单、识别配置、目标记在票上、ERP 式卡片、编辑页照 ERP 排版、含税小票导出）经用户同意 2026-09-27 合入（`8b26357`，CI 通过、远端回读一致）+ 共用票种表（ADR-0012）+ 测试环境实时源码规则 |
+| 任务分支 `codex/cowork-frontend`（工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | 与 main 相同，无独有提交；**仍被使用**：本机样板容器挂载它、测试机实时源码来自它 |
 | 生产 | Cowork 仍是 `15dea26`；本任务新功能、Cowork 账号池、`COWORK_OCR` 识别配置**都没上生产**，每一步要用户同意 |
 
-**新功能怎么开分支**：Cowork 的新功能大概率依赖上面 10 个未合入提交。先问用户“这 10 个修复是否先合入 main”：
-同意 → 按主线规则合入（本地同名闸门 → 等分支 CI → 主目录快进 main → 推送 → 回读），再从新 main 开 `codex/<主题>`；
-不同意 → 在本任务分支上继续（先 `git fetch` 变基）。不是 Cowork 的功能就直接从 `origin/main` 开新分支与工作树。
+**新功能怎么开分支**：新功能在 Cowork 基础上做，从最新 `origin/main` 开自己的 `codex/<主题>` 分支与工作树（记录基线 SHA）。
+然后把测试机实时源码切到新工作树：`PEARNLY_TESTENV_SRC=<新工作树> bash scripts/testenv.sh live cowork`；
+本机样板要用时把 `pearnly-sample` 的 Cowork 容器改挂新工作树。两处都不再用旧工作树后，删掉 `codex/cowork-frontend` 工作树与本地 / 远端分支（已合入）。
 
 ### 测试环境（2026-09-27 起「实时源码」，三个产品同一规则，见 AGENTS.md「真实环境验证」）
 
@@ -51,7 +51,7 @@ testcowork 上 3 张识别记录（`IV6906-00001` ×2 进项、`02000137` 销项
 
 | 保留项 | 用途 | 解除条件 |
 | --- | --- | --- |
-| 工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly` + 分支 `codex/cowork-frontend` | 10 个待合提交；本机样板挂载它；测试机实时源码来自它 | 合入 main 且样板改挂别处后删 |
+| 工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly` + 分支 `codex/cowork-frontend`（已合入 main，无独有提交） | 本机样板挂载它；测试机实时源码来自它 | 新窗口把测试机 `live` 与本机样板改到新工作树后删 |
 | 本机样板 `cowork-a.localhost:8101`（本机 `pearnly-cowork` 账号池，测试管理员密码在 `~/.config/pearnly/cowork-realm.env`） | 本机验证 | 样板切回或废弃时删 `/tmp/cowork-a-oidc-backup.json` |
 | 测试机 Cowork 栈、`testcowork` 切在测试机、`/opt/pearnly-testenv/live/cowork` | 用户验收 | 测完 `lab-stop cowork`；不再需要实时源码时 `live-off cowork` |
 | 演示数据（第 2~6 批）、test01 上真推的 8 张单据与自建主档 | 录入演示 | 删前与用户确认 |
