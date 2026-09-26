@@ -9,6 +9,22 @@ import sys
 import runpy
 
 
+def line_login(p, group, runtime):
+    """在业务 realm 建/更新本站隐藏的 LINE 入口，返回别名；不开就返回空串。"""
+    liff, secret = str(p.get("liff_id") or ""), p.get("login_channel_secret") or ""
+    channel = liff.split("-", 1)[0]
+    if not secret or not channel.isdigit():
+        return ""
+    from pearnly_core.account.line_login_contract import idp_alias
+
+    alias = idp_alias(group, p["tenant"])
+    keycloak = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-line-login.py")
+    api = keycloak["Keycloak"]("http://keycloak:8080", keycloak["REALM"], "pearnly-bootstrap",
+                               runtime["KEYCLOAK_ADMIN_PASSWORD"])
+    keycloak["configure_site"](api, alias=alias, login_channel_id=channel, login_channel_secret=secret)
+    return alias
+
+
 def main():
     job = json.load(sys.stdin)
     action, p = job["action"], job["payload"]
@@ -116,7 +132,8 @@ def main():
     elif action == "set_line":
         if p.get("clear_credentials"):
             config(pearnly_line_channel_id="", pearnly_line_channel_secret="",
-                   pearnly_line_channel_access_token="", pearnly_line_liff_id="")
+                   pearnly_line_channel_access_token="", pearnly_line_liff_id="",
+                   pearnly_line_login_idp="")
         else:
             assert p["configured"] and p["channel_secret"] and p["channel_access_token"]
             config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
@@ -130,6 +147,8 @@ def main():
                 from pearnly_dms.menu import rich_menu
 
                 rich_menu.publish()
+            # LINE 绑定即登录：渠道带了 LINE Login 频道密钥才开；没带就关（站点侧回落密码登录）。
+            config(pearnly_line_login_idp=line_login(p, group, runtime))
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()

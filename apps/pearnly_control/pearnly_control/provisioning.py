@@ -345,6 +345,8 @@ def _line_payload(dep, site: str, group: str) -> dict:
         "liff_id": channel.liff_id or "",
         "channel_secret": _secret("channel_secret"),
         "channel_access_token": _secret("channel_access_token"),
+        # 有它才在身份服务里开本站的 LINE 登录入口（见 scripts/production/configure-line-login.py）。
+        "login_channel_secret": _secret("login_channel_secret"),
     })
     return payload
 
@@ -381,6 +383,8 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
         frappe.throw(_("LINE configuration is being applied. Try again shortly."))
     secret = channel.get_password("channel_secret", raise_exception=False) if enabled else ""
     token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
+    login_secret = (channel.get_password("login_channel_secret", raise_exception=False) or ""
+                    if enabled and channel.login_channel_secret else "")
     if enabled and not (secret and token):
         frappe.throw(_("LINE credentials are required before activation."))
     # `restart`: 这是**改一个正在服务的站点**，站点会继续按进程内的旧副本应答最长一分钟
@@ -390,7 +394,8 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     payload = {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
                "configured": enabled, "clear_credentials": not enabled, "restart": True,
                "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
-               "channel_secret": secret, "channel_access_token": token}
+               "channel_secret": secret, "channel_access_token": token,
+               "login_channel_secret": login_secret}
     step.payload = json.dumps(payload)
     step.status, step.output, step.finished_at = "pending", "", None
     req.status, req.error, req.finished_at = "pending", "", None

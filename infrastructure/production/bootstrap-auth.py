@@ -104,7 +104,11 @@ readback = request(f"/admin/realms/{REALM}", token=token)
 assert all(readback.get(key) == settings[key] for key in (
     "sslRequired", "registrationAllowed", "loginWithEmailAllowed", "loginTheme",
     "defaultLocale", "bruteForceProtected", "resetPasswordAllowed", "editUsernameAllowed"))
-assert not request(f"/admin/realms/{REALM}/identity-provider/instances", token=token)
+# The only external sign-in allowed is Pearnly's per-site LINE entry: hidden, and its first
+# login flow denies (never creates or links accounts). See scripts/production/configure-line-login.py.
+assert all(idp["alias"].startswith("line-") and idp.get("hideOnLogin")
+           and idp.get("firstBrokerLoginFlowAlias") == "pearnly-line-deny" and not idp.get("trustEmail")
+           for idp in request(f"/admin/realms/{REALM}/identity-provider/instances", token=token) or [])
 print("Production realm verified: Thai default, cat theme, email/username login, reset enabled, no social/signup")
 print("Local control client configured; secret stored privately, not printed")
 service_token = request(f"/realms/{REALM}/protocol/openid-connect/token", "POST", {
