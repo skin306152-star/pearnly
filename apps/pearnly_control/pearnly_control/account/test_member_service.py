@@ -66,7 +66,7 @@ class TestMembers(unittest.TestCase):
             username="Employee42", subject="member-subject", create_request_hash="wrong-test-fingerprint")
 
     def test_scoped_active_erp_auth(self):
-        self.assertEqual(service.authorize("tenant-a"), "tenant-a")
+        self.assertEqual(service.authorize("tenant-a"), ("tenant-a", "erp"))
         self.native.db.get_value.assert_called_with("Pearnly Tenant", "tenant-a", "status", for_update=True)
 
     def test_wrong_scope_cross_tenant_root_secret_and_inactive_denied(self):

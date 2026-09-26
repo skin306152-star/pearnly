@@ -17,11 +17,22 @@ class MemberError(Exception):
         self.code = code
 
 
+def config_prefix(product="erp"):
+    """每个产品一个账号池（realm）。ERP 沿用原来那组键（`pearnly_member_identity_*`），
+    Cowork 用自己的一组（`pearnly_member_identity_cowork_*`，用户 2026-09-26：Cowork 与 ERP 分池）。"""
+    if product == "erp":
+        return PREFIX
+    if product == "cowork":
+        return PREFIX + "_cowork"
+    raise MemberError("not_permitted")
+
+
 class MemberProvider:
-    def __init__(self):
-        issuer = str(frappe.conf.get(PREFIX + "_issuer") or "").rstrip("/")
-        self.client_id = frappe.conf.get(PREFIX + "_admin_client_id")
-        self.secret = frappe.conf.get(PREFIX + "_admin_client_secret")
+    def __init__(self, product="erp"):
+        prefix = config_prefix(product)
+        issuer = str(frappe.conf.get(prefix + "_issuer") or "").rstrip("/")
+        self.client_id = frappe.conf.get(prefix + "_admin_client_id")
+        self.secret = frappe.conf.get(prefix + "_admin_client_secret")
         if "/realms/" not in issuer or not self.client_id or not self.secret:
             raise MemberError("unavailable")
         base, realm = issuer.rsplit("/realms/", 1)

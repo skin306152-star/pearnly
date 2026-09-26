@@ -16,7 +16,8 @@ TIMEOUT = 45
 def _call(action, *, email, password, username=""):
     config = {key: str(frappe.conf.get("pearnly_" + key) or "") for key in (
         "tenant", "product", "billing_api", "billing_host_header", "billing_token")}
-    if config["product"] != "erp" or not all(config.values()):
+    # 各产品各自一个账号池（ERP / Cowork 分池，用户 2026-09-26）；控制面按令牌里的产品选池。
+    if config["product"] not in ("erp", "cowork") or not all(config.values()):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     request_id = uuid.uuid4().hex
     payload = {"tenant": config["tenant"], "action": action, "email": email,
