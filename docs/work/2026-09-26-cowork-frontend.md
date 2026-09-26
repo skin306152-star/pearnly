@@ -1,35 +1,40 @@
 # Cowork 前端：录入工作台（接后端）
 
-## 当前入口 · 换窗口交接（2026-09-26 第二次，新窗口从这里开始）
+## 当前入口 · 换窗口交接（2026-09-26 第三次，新窗口从这里开始）
 
-**状态：交接保留。** 用户：“做完后交接给新窗口，新窗口准备搭建 ERP 和 DMS 同款测试环境。”
-Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；**两个仓库的改动都未提交、未推送、未部署**。
+**状态：交接保留。** 用户：“做交接，发给新窗口，我测好问题发出来修复”——新窗口的工作是**等用户在测试环境测出的问题，逐个修复**。
 
-### 代码在哪
+### 代码与线上
 
-| 仓库 | 工作树 / 分支 | 基线 | 状态 |
-| --- | --- | --- | --- |
-| pearnly（本仓） | `/Users/skin/.codex/worktrees/cowork-frontend/pearnly` · `codex/cowork-frontend` | `a38d043`；`origin/main` 已到 `ee986f5`（ERP 线 10 个提交，含“可复用 ERP 测试环境”交接）。核对过：与本工作树改动**文件交集为 0** | 未提交约 64 项，无远端分支 |
-| pearnly-companion（来源仓库，用户明确要求改） | `/Users/skin/.codex/worktrees/companion-simplify/pearnly-companion` · `codex/companion-simplify` | `origin/master`＝`ca7f267` | 未提交 8 项；master 的 CI 会发布安装包，不能随手推 |
+| 位置 | 状态 |
+| --- | --- |
+| `origin/main` `02a3b22` | 已含本任务全部功能（合入提交 `c24e24c`，CI 通过）+ ERP 窗口的扫码器去重 |
+| 任务分支 `codex/cowork-frontend`（已推送，工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | 比 main 多 3 个未合入提交：`56734ef`（盘点弹窗注释）、`2598f46`（测试环境加 testcowork + 文档）、本交接文档；CI 跑完即可按主线规则合入 |
+| 生产 | Cowork 线上仍是 `15dea26`（ERP 窗口 2026-09-26 为补 LINE 登录核对升级）；本任务的 Cowork 新功能与账号池**都未部署** |
 
-### 新窗口要做的（用户定的方向）
+新窗口修问题：从最新 `origin/main` 开自己的 `codex/<主题>` 分支与工作树（或在本任务分支上继续，先 `git fetch` 变基），
+改完走主线规则（本地同名闸门 → 推分支等 Development checks → 主目录快进 main → 推送 → 回读）。
+构建检查脚本已改为 `scripts/ci-candidate-checks.sh` 三条并行线（ERP 窗口 `02a3b22` 前后），新测试加进该脚本，不再加 workflow。
 
-搭 Cowork 的测试环境，做法与 ERP / DMS 同款：见 [测试环境](../development/test-environment.md)（`origin/main` 上已更新）、`scripts/testenv.sh`、
-`infrastructure/testenv/`，以及 ERP 窗口的交接（`origin/main` 的 `38461dc`）。建议顺序：
-1. 本分支变基到最新 `origin/main`（无文件交集；变基后重跑 `scripts/i18n-build.py`、架构检查、Cowork 离线全量）→ 提交 → 推任务分支 → CI 出镜像 digest。
-2. 起 Cowork 测试栈 + 测试租户（仿 `testdms` / `testerp`），站点配置补齐：计费（`pearnly_billing_*`，本地缺它导致复核工作簿导回在额度查询处失败）、
-   识别配置、`pearnly_cowork_erp_push_enabled=1`、MR.ERP test01 连接、Express 连接。
-3. 在 Windows 上装本分支的小助手（`codex/companion-simplify`，需出安装包）配对测试栈，验：配对 / 心跳 / 网页选非默认账套推送 / 写入 Express。
-4. 真实识别（付费 OCR）与外部写入按用户授权；test01 已授权真推。
+### 测试环境（用户正在测）
+
+- `https://testcowork.pearnly.com` 已**切到测试机**（Cloudflare CNAME → 隧道），测试机 Cowork 栈**运行中**，镜像 main `02a3b22`
+  `ghcr.io/skin306152-star/pearnly/frappe@sha256:3a1d5f26d985ad423795434d319826656bd5d8d86d95f7226cc9bd573361f382`。
+- 登录走线上 `auth.pearnly.com/realms/pearnly-business`（Cowork 独立账号池线上未建），测试账号由用户自己登录；不要替用户输入线上密码。
+- 修好一个问题要在测试环境复验：推分支 → 手动触发 `build-production.yml` 拿新 digest →
+  `PEARNLY_TESTENV_SRC=<工作树> PEARNLY_TESTENV_IMAGE=<新 digest> bash scripts/testenv.sh lab-start cowork`（复用已导入数据，自动 migrate / 清缓存）。
+- 测完：`bash scripts/testenv.sh lab-stop cowork`（域名切回线上、停栈、卷保留）。**切在测试机时测试机不能关机。**
+- OCR 在测试机是线上真凭据：上传单据识别、图片 / PDF 发票都会产生**真实付费调用**，用户授权后才做。
+- 做法与坑见 [测试环境](../development/test-environment.md) 的 Cowork 一节、第十三批。
 
 ### 这一任务做完了什么（细节见下方各批）
 
-- 录入工作台：新建弹窗（MR.ERP / Express / **识别后导出**，公司→年度→进销项→付款或过账类型）、上传识别、复核、列表（排序、勾选删除）。
-- 推送：**MR.ERP 推送整条迁完**（导入表生成 7 种与旧版逐成员一致、导入 5 步 + 逐行回读、缺客户 / 供应商 / 商品自建、服务端执行任务 + 账本 + 巡检）；
-  复核页右上角「提交」= 这一批全部推送，「保存」只在有改动时出现；目标按新建时第一次的选择（记在票上）；
-  状态只有 录入中 / 成功 / 失败，失败原因悬浮在状态图标上；列表有录入中时自动刷新。
-- 销项客户按票面买方（税号）；复核页「货品 / 费用」（进项）；MR.ERP / Express 卡片可导入我们导出的复核工作簿。
-- Express：连接弹窗（下载助手 + 密钥）、状态按小助手实际在线；账套以网页为准（服务端认小助手上报的任意可写账套）；小助手界面精简（第五批）。
+- 录入工作台（MR.ERP 推送整条、Express、仅识别导出、复核、列表）——第一~五批；团队管理 + LINE 绑定——第六批；
+  库存盘点（照搬 ERP，只去掉盘点在库）——第八批；对账中心三个入口（银行 / 收入 / 销项税报告核查），结果页照导出的 Excel 逐格画、
+  可改可存、自动重算——第九、十批；图片 / PDF 发票走录入同一识别引擎（持久 Work `cowork.vat_check`）——第十批；
+  分支号口径（发票没读到分公司就不比）——第十批；三种复核表统一外观（去 KPI 与说明文案，页面与导出同步）——第十二批。
+- Cowork 独立账号池 `pearnly-cowork`（控制面按产品分池开户 / 开通 / 拆除；生产脚本已备好）——第十一批，**生产步骤未执行**。
+  LINE 后台已由用户登记 Cowork 池回调（三条回读一致）。
 
 ### 用户定下的口径（继续有效，也记在用户记忆 `cowork-frontend-ui-rules`）
 
@@ -39,19 +44,24 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
 
 ### 未验 / 待办
 
-1. 复核工作簿导回（本地无计费）；Express 整链（本机无小助手）；新小助手真机；真实识别。
-2. 非默认账套的 Express 推送不带小助手缓存（科目表等），可能部分票转失败——真机验证时看。
-3. Express 小助手用旧 URL 的话，新平台的 `companion.wsgi` 入口还没在部署定义里挂出来（见“推送依赖”盘点）。
+1. 用户在 testcowork 的逐项业务验收（进行中）；真实识别（付费，需授权）；Express 整链与新小助手真机。
+2. 非默认账套的 Express 推送不带小助手缓存，可能部分票转失败——真机验证时看；Express 小助手旧 URL 的 `companion.wsgi` 入口未挂出。
+3. Cowork 独立账号池上生产（每步需授权，顺序见第十一批）：建 realm → nginx 放行 → 成员服务 cowork 三键 → 控制面接池 → 把 testcowork 迁到 Cowork 池。
+4. 本机控制面站点（挂长期主目录，共享）需要 `bench migrate` 才有 `cowork_*` 新列；未迁移时本机 Cowork 开户 / 拆除会报缺列（未动，已告知 ERP 窗口）。
+5. 已知既有问题：银行对账 `document_model_rows` 在识别任务外调模型（文字层读不出的 PDF 账单会报 `ocr.durable_work_required`）。
 
-### 本地环境（本机样板，均属本任务，交接保留）
+### 本地环境与保留项（均属本任务）
 
-- 预览 `http://cowork-a.localhost:8101/desk/pearnly-intake`，账号 `tenant-admin`（密码见 `docs/p2/03-password-change.md`）；样板容器挂本工作树，
-  改后 `bash scripts/dev-reload.sh cowork --sites cowork-a.localhost`（改 DocType 加 `--migrate`）。
-- 站点配置：`pearnly_cowork_erp_push_enabled=1`；最小识别配置（只让确定性导回可用，无模型凭据）；cowork 组 Redis 队列库 2。
-- 电脑重启后：`docker start` mariadb / 两个 redis；重启控制面容器；colima 虚拟机 DNS 若失效，临时改虚拟机 `/etc/resolv.conf`（见第四批）。
-- 演示数据：第 2~6 批（`scripts/sample-cowork-intake-demo.py <轮次> [mrerp 6:1]`），其中已真推 test01 的票状态为成功；
-  test01 上新增：第 3/4/5/6 批共 8 张单据及自建的客户 / 供应商 / 商品 / 费用物料（均未删除）。
-- 解除条件：本分支合入 main、测试环境跑通后清理两个工作树与分支；演示数据与样板配置随样板保留，删前与用户确认。
+| 保留项 | 用途 | 解除条件 |
+| --- | --- | --- |
+| 工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly` + 分支 `codex/cowork-frontend` | 本机 Cowork 样板容器挂载它；3 个待合提交 | 待合提交进 main、样板改挂别处或废弃后删 |
+| 本机 `cowork-a.localhost:8101` 已改签到本机 Keycloak 的 `pearnly-cowork`（测试管理员 `tenant-admin`，密码在 `~/.config/pearnly/cowork-realm.env`）；原 OIDC 配置备份在 cowork-web 容器 `/tmp/cowork-a-oidc-backup.json` | 本机验证 Cowork 独立账号池 | 样板切回或废弃时删备份 |
+| 本机 Keycloak 新 realm `pearnly-cowork` 及其客户端 | 同上 | 随样板保留 |
+| 测试机 Cowork 栈与卷、`testcowork` 切在测试机 | 用户验收 | 测完 `lab-stop cowork` |
+| 演示数据（第 2~6 批）、test01 上真推的 8 张单据与自建主档 | 录入演示 | 删前与用户确认 |
+
+本机样板：改后 `bash scripts/dev-reload.sh cowork --sites cowork-a.localhost`（改 DocType 加 `--migrate`）；
+电脑重启后 `docker start` mariadb / 两个 redis，colima DNS 失效见第四批。
 
 ## 第六批：菜单收口 + 团队管理 + LINE 绑定（2026-09-26，第三个窗口）
 
