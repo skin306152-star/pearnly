@@ -44,7 +44,9 @@ resolve_app() {
 
 sync() {
   # 工具取本分支，产品代码与 compose 取被测树（$src）。
-  tar -czf "/tmp/$archive" \
+  # COPYFILE_DISABLE：macOS 自带的 tar 默认把扩展属性写成 `._文件名` 一起打包，
+  # 解到测试机就是一堆同名的二进制 `._*.py`（2026-09-27 实测混进了实时源码目录）。
+  COPYFILE_DISABLE=1 tar -czf "/tmp/$archive" \
     -C "$root" infrastructure/testenv \
     -C "$src" infrastructure/production infrastructure/keycloak
   scp -q -o BatchMode=yes "/tmp/$archive" "$host:C:/Users/codexops/AppData/Local/Temp/$archive"
@@ -182,9 +184,10 @@ lab_start() {
   echo "== 实时源码：挂上 $src 的代码"
   live "$first" | tail -6
 
-  echo "== 4/4 域名切到测试环境"
+  echo "== 4/4 域名切到测试环境；线上那份测试租户的定时任务暂停（lab-stop 恢复）"
   bash "$root/scripts/testenv-cloudflare.sh" switch-lab $apps
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
+  prod_scheduler pause "$first"
 }
 
 live() {
@@ -196,7 +199,7 @@ live() {
   list=$(cd "$src/apps" && git ls-files -co --exclude-standard -- "${apps[@]}" \
     | while IFS= read -r file; do [[ -f "$file" ]] && printf '%s\n' "$file"; done)
   [[ -n "$list" ]] || { echo "no product code under $src/apps" >&2; exit 2; }
-  (cd "$src/apps" && printf '%s\n' "$list" | tar -czf "$tarball" -T -)
+  (cd "$src/apps" && printf '%s\n' "$list" | COPYFILE_DISABLE=1 tar -czf "$tarball" -T -)
   migrate_hash=$(cd "$src/apps" && printf '%s\n' "$list" \
     | grep -E '/doctype/.*\.json$|/patches\.txt$|/patches/.*\.py$|/hooks\.py$|/fixtures/' \
     | LC_ALL=C sort | while IFS= read -r file; do printf '%s\n' "$file"; cat "$file"; done | shasum -a 256 | cut -c1-16)
@@ -241,11 +244,27 @@ tenant_present() {
   wsl test -s "/var/lib/docker/volumes/pearnly-testenv-${app}_sites-${app}/_data/$site/site_config.json"
 }
 
+# 线上那份测试租户的定时任务：切到测试机期间暂停，切回线上时恢复（用户 2026-09-27 定）。
+# 为什么：切域名只把 LINE / 网页流量引到测试机，线上那份站点的定时任务照跑 —— 它按线上旧配置
+# 每 10 分钟把 LINE 图文菜单挂回去、用同一个第三方账号登录做回读与补救，测出来的菜单、同步与
+# 并发结果就不是被测代码的。只动测试租户（`tenant_spec` 里那一个站点），正式租户不碰。
+prod_scheduler() {
+  local action=$1 app=$2 spec site group
+  spec=$(printf '%s\n' "$app" | tenant_spec); group=${spec%%:*}; site=${spec#*:}
+  local prod_host=${PEARNLY_TESTENV_PROD_HOST:-107.155.65.74}
+  local prod_key=${PEARNLY_TESTENV_PROD_KEY:-$HOME/.config/pearnly-production/operator}
+  [[ -s "$prod_key" ]] || { echo "missing production key $prod_key" >&2; return 2; }
+  ssh -i "$prod_key" -o BatchMode=yes "root@$prod_host" \
+    "docker exec -w /home/frappe/frappe-bench pearnly-production-$group-web-1 bench --site $site scheduler $action \
+     && docker exec -w /home/frappe/frappe-bench pearnly-production-$group-web-1 bench --site $site scheduler status"
+}
+
 lab_stop() {
   # 一键结束测试：域名切回线上 → 停本栈（站点与数据库卷保留，下次 up 直接回来）。
   local apps; apps=$(lab_apps "$@" | paste -sd' ' -)
   bash "$root/scripts/testenv-cloudflare.sh" switch-prod $apps
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
+  for one in $apps; do prod_scheduler resume "$one"; done
   for one in $apps; do bash "$0" down "$one"; done
   echo '本栈已停，数据卷保留；重新开始测试用 lab-start。'
 }
