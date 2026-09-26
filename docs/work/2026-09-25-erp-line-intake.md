@@ -385,12 +385,16 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 
 ### 本窗口登记的后续小项（2026-09-26）
 
-- **旧改密接口清理**（低优先级，非用户可见缺陷）：`pearnly_core.password.change_password` 与 `sessions.logout_everywhere` 依赖站点上的 Keycloak 管理凭据，
-  云端租户站点没有，手动调用会报错；但云端站点（`pearnly_native_account`）的改密按钮与 `/pearnly-password` 都直接跳 Keycloak 原生改密，界面无任何入口调用这两个接口，
-  `public/js/pearnly_account.js` 也未被任何页面加载。改密后踢其他设备由 Keycloak 改密页"从其他设备登出" + 回通道登出承担（未实测）。建议：云端站点直接拒绝这两个接口并删除无引用脚本。
-  用户点开的后台会话「Verify and fix "log out everywhere"」首条命令即被中断，未做任何改动。
-- **ERP 扫码器去重**：Cowork 窗口已把 ERP `public/desk/scan.js` 通用部分复制到 `pearnly_core/public/desk/scan.js`（分支 `codex/cowork-frontend`）；其合入后可删 ERP 副本、
-  `www/stocktake.html` 改指 core 路径。动手前与 Cowork 窗口约定，避免同时改。
+- **旧改密接口清理**（用户 2026-09-26 要求做）：云端站点（`pearnly_native_account`）上 `password.change_password` 与 `sessions.logout_everywhere`
+  改为先拒绝并提示"在身份服务账户页修改密码并退出其他设备"（不再去取管理令牌）；删除无引用的 `public/js/pearnly_account.js`；本地样板站点不变。
+  单元测试 `pearnly_core.account.test_native_account_password`（已加入镜像构建）。随各产品下次发布生效。
+  用户点开的后台会话「Verify and fix "log out everywhere"」首条命令即被中断，未做任何改动，可归档。
+- **主机 nginx HTTP/2**（用户 2026-09-26 授权，已完成）：改前外网实测 6 个域名已是 HTTP/2 —— 只因 `testcowork` 在同一 IPv4 443 端口开了 http2 而"顺带生效"，
+  配置里未写明。备份 `/opt/pearnly/state/nginx-conf.d-before-http2-20260926114612` 后把 auth / default（含 IPv6 行）/ landing / ris / testdms / testerp
+  的 `listen … 443 ssl` 补上 `http2`，`nginx -t` 通过后 reload。外网回读：6 个域名 `http_version=2`；静态资源 `max-age=31536000` + HSTS + nosniff；
+  `/desk` `no-store`；HTTP/1.1 客户端仍可访问（LINE 回调等不受影响）。服务器无 IPv6 出口，IPv6 未实测。
+- **ERP 扫码器去重**（用户 2026-09-26 要求做，等前置）：Cowork 窗口已把 ERP `public/desk/scan.js` 通用部分复制到 `pearnly_core/public/desk/scan.js`（分支 `codex/cowork-frontend`）；其合入后可删 ERP 副本、
+  `www/stocktake.html` 改指 core 路径。Cowork 窗口确认去重由本窗口做，其合入 main（等用户同意）后发 SHA，再基于 main 施工；在那之前不碰这几个文件。
 
 ### 待用户处理 / 授权
 

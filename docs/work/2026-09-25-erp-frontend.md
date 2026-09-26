@@ -59,6 +59,7 @@
 - **部署时额外要做**（需授权）：按产品激活时前端会重建，模板随 `infrastructure/production/` 投递；但主机 nginx 已存在的
   站点文件（`/etc/nginx/conf.d/pearnly-tenant-*.conf`、`pearnly-auth.conf`、`pearnly-default.conf` 等）不会自动重写，
   要逐个改成 `listen 443 ssl http2`，`nginx -t` 通过后 `reload`，再从外网回读 `http_version=2` 与缓存头。
+  → **已完成（2026-09-26，见 [ERP LINE 收单记录](2026-09-25-erp-line-intake.md) 第 7 节「本窗口登记的后续小项」）。**
 
 ## 接 LINE：按人开通（`e9836e7` → `0c620c0` → 本提交，未部署）
 
