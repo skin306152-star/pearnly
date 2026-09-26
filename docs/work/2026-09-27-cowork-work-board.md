@@ -91,6 +91,7 @@
 | 2026-09-27 | `2d00c60`（变基到 `c11e7a2` 后） | 测试机 Cowork 栈（线上同一底座镜像 + 本工作树实时源码），`testcowork.pearnly.com` | `testenv.sh live cowork`（自动 migrate）；核对表、`Cowork Work` 角色、`pearnly-work` Page、测试账号 `pearnlyai@gmail.com`（Cowork Admin）可进；`work.js` / `work.css` 线上地址与本地字节一致；在测试租户上跑 `test-cowork-work-native.py` | 通过；事务回滚后卡片 / 标签 / 活动 / 临时用户 / 附件均为 0 |
 | 2026-09-27 | `d784b549` | 测试机（实时源码，`testcowork.pearnly.com`） | `live cowork`（自动 migrate 两张新表）；`test-cowork-work-native.py` 全套 | 通过；回滚后临时用户 / 标签 / 提醒 / 附件为 0，用户自己试用建的 4 张卡与 11 条活动未动；`work.js` / `work.css` 带版本号地址与源码字节一致（不带版本号的地址被 Cloudflare 缓存着旧版，页面用的是带版本号的） |
 | 2026-09-27 | 第三批未提交差异（基于 `bf2b99b9`） | 本机离线 + 本机样板 | CI 同名闸门；`test-cowork-work-native.py` 加测列表颜色设 / 取 / 移除 / 拒绝非法色、整列归档；浏览器：列菜单色块改列色、标签编辑色块保存 | 通过 |
+| 2026-09-27 | `f10950ad` + 测试脚本修正 | 测试机（`testcowork.pearnly.com`） | `live cowork`（migrate 新表）；`test-cowork-work-native.py` | 第一次失败：整列归档把用户已有的「已完成」卡也归档了，脚本计数对不上（事务回滚，用户的 4 张卡未动，核对活动记录全是用户本人操作）；脚本改成把整列归档的卡全部恢复后重跑，本机与测试机均通过 |
 
 `python3 scripts/check-i18n.py --strict` 失败是存量（其他模块硬编码文案），本任务新增文件不在报告里；CI 不跑这一项。
 本机样板的测试数据（卡片、标签、附件、临时用户与会话）测完已删。

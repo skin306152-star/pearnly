@@ -223,9 +223,11 @@ def run():
     assert service.board()["column_colors"]["doing"] == ""
     expect_error("bad column color", service.column_color, "doing", "#fff", error=Invalid)
     extra = service.create("to archive", "done")
-    service.archive_column("done")
-    assert extra["name"] in {row.name for row in service.archived()}
-    service.restore(extra["name"])
+    in_done = {row["name"] for row in service.board()["cards"] if row["status"] == "done"}
+    assert service.archive_column("done")["archived"] == len(in_done)
+    assert in_done <= {row.name for row in service.archived()}
+    for name in in_done:  # 站点上原有的卡也一起放回去，下面的计数才对得上。
+        service.restore(name)
 
     # 归档 / 恢复 / 彻底删除（只给管理员、只删已归档的）。
     service.archive(b["name"])
