@@ -464,6 +464,16 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 | 本会话工作树 `gifted-lehmann-d677ce` 与应用分支 `pearnly/gifted-lehmann-d677ce` | 当前会话 | 会话结束由应用清理 |
 | `~/Backups/pearnly-cleanup-2026-09-26/` | companion 未提交改动的备份 | 用户确认不再需要 |
 
+### 服务器备份只留最新一份（2026-09-26，用户要求）
+
+删除前确认无正在进行的备份 / 导出进程，最新导出子目录自带站点配置；按具体名称 / 时间戳删除，回读每类仅剩一份：
+- `/opt/pearnly/state`：留 `predeploy-02a3b22-20260926155334`、`nginx-conf.d-before-http2-20260926114612`、`keycloak-before-line-login.json`（后两类本就一份）；
+  删 `predeploy-line-login-20260926092447`、`predeploy-line-login-shared-20260926102803`。
+- `/opt/pearnly/backups`：留 `unified-release-20260924.K5e3d5`；删 `foundation-20260920`（目录与 tar.gz）、`mariadb-incomplete-init-20260920.sql`。
+- `/root/te-export`：留 Cowork 窗口 16:07 UTC 的导出子目录 `20260926T160724Z`（原样）；删 09-24 / 09-25 散落旧导出与 3 个旧站点配置副本（已告知 Cowork 窗口）。
+- 站点备份各留最新一组：testerp `20260926_225404`、ris `20260926_225628`、testdms `20260926_225633`、testcowork `20260926_230729`、billing `20260926_230740`；更早的组已删。
+上文各节提到的更早备份时间戳因此已不存在；回退依据以本节保留项为准。
+
 ### 待用户处理 / 授权
 
 - LINE 后台核实：ERP-TEST 官方号（2011288286）与 LINE Login 频道 2010411313 是否同一 Provider（不同则 LINE 用户 ID 不一致，关联全失败）；在该频道登记 Keycloak 回调地址（已授权范围内，改前告知）。
