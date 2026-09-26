@@ -35,6 +35,7 @@ Add User,Add User
 Add photo,Add photo
 Add photos,Add photos
 Added {0},Added {0}
+Address,Address
 All,All
 Allowed Users,Allowed Users
 Already exists,Already exists
@@ -48,6 +49,7 @@ Assign Cowork access through company and client permissions.,Assign Cowork acces
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
+Attachments,Attachments
 Attempt Secret,Attempt Secret
 Balance,Balance
 Bank,Bank
@@ -83,6 +85,7 @@ Bound Profile Key,Bound Profile Key
 Bound at,Bound at
 Bound to {0},Bound to {0}
 Branch,Branch
+Branch No,Branch No
 Buyer Client,Buyer Client
 Buyer address,Buyer address
 Buyer branch,Buyer branch
@@ -188,6 +191,7 @@ Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
 Credit,Credit
 Credit Note,Credit Note
+Currency,Currency
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Customer,Customer
@@ -205,6 +209,7 @@ Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Deposit,Deposit
 Description,Description
+Details,Details
 Difference,Difference
 Difference detail,Difference detail
 Difference value,Difference value
@@ -218,6 +223,7 @@ Directory Snapshot,Directory Snapshot
 Disable,Disable
 Disable {0},Disable {0}
 Discount,Discount
+Discount Amount,Discount Amount
 Document Key,Document Key
 Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
@@ -322,6 +328,7 @@ Issued At (UTC),Issued At (UTC)
 Issued By,Issued By
 Issued Request Digest,Issued Request Digest
 Item,Item
+Items,Items
 Job Roles,Job Roles
 LINE is not enabled for this account,LINE is not enabled for this account
 LINE name,LINE name
@@ -474,6 +481,7 @@ Refresh Status,Refresh Status
 Refresh the account directory before continuing.,Refresh the account directory before continuing.
 Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
 Reload,Reload
+Remarks,Remarks
 Remove,Remove
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Report Credential,Report Credential
@@ -571,6 +579,7 @@ Task,Task
 Task name,Task name
 Tax ID,Tax ID
 Tax Invoice,Tax Invoice
+Taxes and Charges,Taxes and Charges
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
 The Companion delivery record is invalid.,The Companion delivery record is invalid.

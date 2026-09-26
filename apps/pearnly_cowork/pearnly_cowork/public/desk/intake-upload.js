@@ -38,20 +38,28 @@
 	const PARALLEL = 6;
 	const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 	/* 复核字段照旧线上 `dms-intake-review-fields.ts`（ec2e5c95）：对方（进项看卖方、销项看买方）
-	 * 名称与税号、单据号、票面日期、未税、税额；下一组是价税合计、另一方名称与税号、预扣税额。
+	 * 名称与税号、单据号、票面日期、未税、税额、价税合计、另一方名称与税号、预扣税额；
+	 * 分组与顺序照 ERP 采购页（用户 2026-09-27「排版做成一致」），并补上识别已读到、ERP 页也有的
+	 * 对方地址 / 分店、票种、折扣、币种、备注（ERP 自己记账才用的入账日期、到期日、汇率等不加）。
 	 * 表单字段名按「位置」取（party / other），存回记录时按进项 / 销项落到 seller_* / buyer_*。
 	 * 日期改的是**票面日期** `date_raw`（佛历原样），公历 `date` 由服务端换算（改 `date` 会被覆盖）。 */
 	const PARTY = direction => (direction === "sales"
 		? {party: "buyer", other: "seller"} : {party: "seller", other: "buyer"});
 	const FIELD_KEYS = direction => {
 		const {party, other} = PARTY(direction);
-		return {party_name: `${party}_name`, party_tax: `${party}_tax`, invoice_number: "invoice_number",
-			date_raw: "date_raw", subtotal: "subtotal", vat: "vat", total_amount: "total_amount",
+		return {party_name: `${party}_name`, party_tax: `${party}_tax`, party_addr: `${party}_addr`,
+			party_branch: `${party}_branch`, invoice_number: "invoice_number", date_raw: "date_raw",
+			document_type: "document_type", subtotal: "subtotal", vat: "vat", discount: "discount",
+			total_amount: "total_amount", currency: "currency", notes: "notes",
 			other_name: `${other}_name`, other_tax: `${other}_tax`, wht_amount: "wht_amount",
 			direction: "direction", posting_payment_manual: "posting_payment_manual", posting_kind: "posting_kind",
 			posting_item_type_manual: "posting_item_type_manual"};
 	};
 	const EDITABLE = Object.keys(FIELD_KEYS(""));
+	// 票种码表与名称照共用层 `pearnly_core.tax_documents.codes`（ADR-0012，ERP 卡片同一份）。
+	const DOCUMENT_TYPES = [["tax_invoice", "Tax Invoice"], ["simplified_tax_invoice", "Abbreviated Tax Invoice"],
+		["receipt", "Receipt"], ["credit_note", "Credit Note"], ["payment_evidence", "Payment Evidence"],
+		["order_evidence", "Order Evidence"], ["other", "Other"]];
 	// 空着要提醒的（旧版 `warnFields`）：单据号、价税合计、对方税号；销项的简易税票 / 收据可以没有买方税号。
 	const ANONYMOUS_BUYER = new Set(["simplified_tax_invoice", "receipt"]);
 	// 明细四列照旧版（名称 / 数量 / 单价 / 金额，键是 `price` / `subtotal`），能改、不能增删行；
@@ -198,7 +206,8 @@
 		const target = choice?.target || opened?.intake_target || "";
 		const recognize_only = target === p.intake_targets?.RECOGNIZE_ONLY;
 		const no_kind = target === "mrerp" || recognize_only ? 1 : 0;
-		const stage = name ? __("Review") : __("Upload");
+		// 从列表 / LINE 卡片打开已有的票叫「编辑」（用户 2026-09-27：复核改为编辑）。
+		const stage = name ? __("Edit") : __("Upload");
 		page.set_title(stage);
 		p.breadcrumbs({label: t("intake.title"), route: p.subroute("pearnly-intake"),
 			trail: [{label: stage, route: ""}]});
@@ -210,26 +219,20 @@
 		const left = $("<div class='pearnly-intake-data'>").appendTo(body);
 		const result_region = $("<section>").appendTo(left);
 		const items_region = $("<section>").appendTo(left);
+		const amounts_region = $("<section>").appendTo(left);
 		const form = p.layout(result_region, [
 			// 一批多张票时（一份多票 / 一页多票）在这里切换，旧版的「发票 i/n」；切走前先把改动存好。
 			{fieldtype: "Select", fieldname: "invoice", label: t("intake.field.invoice"), options: [], hidden: 1,
 				onchange: () => void pick_invoice(form.get_value("invoice"))},
 			// 旧版的漏识别提示（可能漏识别发票），用官方的表单提示条。
 			{fieldtype: "HTML", fieldname: "notice"},
-			{fieldtype: "Data", fieldname: "party_name", label: t("intake.field.seller")},
-			{fieldtype: "Data", fieldname: "party_tax", label: t("intake.field.sellerTax")},
+			// 单据信息（ERP「详情」第一段：左边单号 / 日期 / 类型，右边业务类型与付款）。
 			{fieldtype: "Data", fieldname: "invoice_number", label: t("intake.field.docNo")},
-			{fieldtype: "Column Break"},
 			{fieldtype: "Data", fieldname: "date_raw", label: t("intake.field.printedDate")},
-			{fieldtype: "Data", fieldname: "subtotal", label: t("intake.field.netAmount")},
-			{fieldtype: "Data", fieldname: "vat", label: t("intake.field.vatAmount")},
-			{fieldtype: "Section Break"},
-			{fieldtype: "Data", fieldname: "total_amount", label: t("intake.col.grandTotal")},
-			{fieldtype: "Data", fieldname: "other_name", label: t("intake.field.buyer")},
+			// 票种按全平台共用码表（ADR-0012）：决定抵不抵进项，复核要能纠正。
+			{fieldtype: "Select", fieldname: "document_type", label: __("Document type"),
+				options: [{value: "", label: ""}, ...DOCUMENT_TYPES.map(([value, label]) => ({value, label: __(label)}))]},
 			{fieldtype: "Column Break"},
-			{fieldtype: "Data", fieldname: "other_tax", label: t("intake.field.buyerTax")},
-			{fieldtype: "Data", fieldname: "wht_amount", label: t("intake.field.whtAmount")},
-			{fieldtype: "Section Break"},
 			// 进项 / 销项换了，对方就从卖方换成买方（字段跟着换位，不丢已填的值）。
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"),
 				options: [{value: "", label: ""}, {value: "purchase", label: t("intake.dir.purchase")},
@@ -241,20 +244,49 @@
 			{fieldtype: "Select", fieldname: "posting_item_type_manual", label: t("intake.field.itemType"),
 				options: [{value: "", label: ""}, {value: "goods", label: t("intake.itemType.goods")},
 					{value: "expense", label: t("intake.itemType.expense")}], hidden: 1},
-			{fieldtype: "Column Break"},
 			// 过账类型：这一张票自己的（默认＝入口预选 / 记录值），整票服务或整票存货。
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"),
 				options: KIND_OPTIONS, hidden: no_kind},
+			// 对方（ERP 这一段没有标题，名字只在字段标签上说一次）：左边名称 / 税号 / 地址，右边分店。
+			{fieldtype: "Section Break"},
+			{fieldtype: "Data", fieldname: "party_name", label: t("intake.field.seller")},
+			{fieldtype: "Data", fieldname: "party_tax", label: t("intake.field.sellerTax")},
+			{fieldtype: "Small Text", fieldname: "party_addr", label: __("Address")},
+			{fieldtype: "Column Break"},
+			{fieldtype: "Data", fieldname: "party_branch", label: __("Branch No")},
+			// 另一方（本方）：推送核对本方税号要用，ERP 页面上没有这一段，放在对方下面。
+			{fieldtype: "Section Break"},
+			{fieldtype: "Data", fieldname: "other_name", label: t("intake.field.buyer")},
+			{fieldtype: "Column Break"},
+			{fieldtype: "Data", fieldname: "other_tax", label: t("intake.field.buyerTax")},
+			// 税费金额与备注：排在明细下面（ERP 同位置），渲染后整段移到 `amounts_region`。
+			{fieldtype: "Section Break", label: __("Taxes and Charges"), fieldname: "amounts_section"},
+			{fieldtype: "Data", fieldname: "discount", label: __("Discount Amount")},
+			{fieldtype: "Data", fieldname: "currency", label: __("Currency")},
+			{fieldtype: "Column Break"},
+			{fieldtype: "Data", fieldname: "subtotal", label: t("intake.field.netAmount")},
+			{fieldtype: "Data", fieldname: "vat", label: t("intake.field.vatAmount")},
+			{fieldtype: "Data", fieldname: "wht_amount", label: t("intake.field.whtAmount")},
+			{fieldtype: "Data", fieldname: "total_amount", label: t("intake.col.grandTotal")},
+			{fieldtype: "Section Break", fieldname: "notes_section"},
+			{fieldtype: "Small Text", fieldname: "notes", label: __("Remarks")},
 		]);
 		// 明细照 ERP 采购页的物料行：每行一个可折叠的原生小节（第一行展开），手机上不挤表格。
 		const items_form = p.layout(items_region, [
 			{fieldtype: "Section Break", label: t("intake.nav.items"), fieldname: "items_section"},
 			{fieldtype: "HTML", fieldname: "lines"},
 		]);
+		// 税费金额与备注放在明细下面（ERP `purchase-layout.js` 同法：定义在一张表单里，按分段挪到各自区域）。
+		let moving = false;
+		for (const section of form.sections) {
+			if (section.df.fieldname === "amounts_section") moving = true;
+			if (moving) section.wrapper.appendTo(amounts_region);
+		}
+		// 分区导航的名称照 ERP：附件 / 详情 / 明细。
 		const nav = section_nav(page, body, [
-			{key: "original", label: t("intake.nav.original"), element: right},
-			{key: "result", label: t("intake.nav.result"), element: result_region},
-			{key: "items", label: t("intake.nav.items"), element: items_region},
+			{key: "original", label: __("Attachments"), element: right},
+			{key: "result", label: __("Details"), element: result_region},
+			{key: "items", label: __("Items"), element: items_region},
 		]);
 		// 文件选择口：一个隐藏的原生 input（用 DOM 建，不写标签字符串 —— Desk 页面脚本不许手写
 		// 通用控件标签，架构检查会拦），由紧挨着的那颗官方按钮（下面的 `pick`）点开。

@@ -35,6 +35,7 @@ Add User,ユーザーを追加
 Add photo,写真を追加
 Add photos,写真を追加
 Added {0},{0}を追加しました
+Address,住所
 All,すべて
 Allowed Users,許可ユーザー
 Already exists,すでに存在します
@@ -48,6 +49,7 @@ Assign Cowork access through company and client permissions.,会社と顧客の�
 At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1件の記録につき写真は{0}枚まで
+Attachments,添付ファイル
 Attempt Secret,試行用シークレット
 Balance,残高
 Bank,銀行
@@ -83,6 +85,7 @@ Bound Profile Key,関連付け設定キー
 Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,実行分岐
+Branch No,支店番号
 Buyer Client,買い手顧客
 Buyer address,買い手住所
 Buyer branch,買い手支店
@@ -188,6 +191,7 @@ Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
 Credit Note,返品・値引伝票
+Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Customer,顧客
@@ -205,6 +209,7 @@ Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Deposit,入金
 Description,摘要
+Details,詳細
 Difference,差異あり
 Difference detail,差異明細
 Difference value,差異金額
@@ -218,6 +223,7 @@ Directory Snapshot,ディレクトリスナップショット
 Disable,無効化
 Disable {0},{0}件を無効化
 Discount,割引額
+Discount Amount,割引額
 Document Key,伝票重複防止キー
 Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
@@ -235,7 +241,7 @@ ERP Username,ERPユーザー名
 ERP records cannot be saved in Cowork.,ERPのレコードはCoworkに保存できません。
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
-Edit,修正
+Edit,編集
 Edit Count,編集回数
 Edit in Full Page,全画面で編集
 Email,メール
@@ -322,6 +328,7 @@ Issued At (UTC),発行日時 (UTC)
 Issued By,発行者
 Issued Request Digest,発行リクエストのダイジェスト
 Item,項目
+Items,品目
 Job Roles,機能権限
 LINE is not enabled for this account,このアカウントは LINE が有効になっていません
 LINE name,LINE の名前
@@ -474,6 +481,7 @@ Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
 Reload,再読み込み
+Remarks,備考
 Remove,削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Report Credential,レポート認証情報
@@ -571,6 +579,7 @@ Task,タスク
 Task name,タスク名
 Tax ID,納税者番号
 Tax Invoice,税務請求書
+Taxes and Charges,税金および諸費用
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。

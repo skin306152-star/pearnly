@@ -35,6 +35,7 @@ Add User,添加用户
 Add photo,添加照片
 Add photos,添加照片
 Added {0},已添加 {0}
+Address,地址
 All,全部
 Allowed Users,授权用户
 Already exists,已存在
@@ -48,6 +49,7 @@ Assign Cowork access through company and client permissions.,请通过公司和�
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
+Attachments,附件
 Attempt Secret,尝试密钥
 Balance,余额
 Bank,银行
@@ -83,6 +85,7 @@ Bound Profile Key,绑定配置键
 Bound at,绑定时间
 Bound to {0},已绑定到 {0}
 Branch,执行分支
+Branch No,分支编号
 Buyer Client,买方客户
 Buyer address,买方地址
 Buyer branch,买方分店
@@ -188,6 +191,7 @@ Creation Request Hash,创建请求摘要
 Credential ID,凭据 ID
 Credit,赊账
 Credit Note,贷项通知单
+Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Customer,客户
@@ -205,6 +209,7 @@ Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
 Deposit,存款
 Description,摘要
+Details,详细信息
 Difference,有差异
 Difference detail,差异明细
 Difference value,差异金额
@@ -218,6 +223,7 @@ Directory Snapshot,目录快照
 Disable,停用
 Disable {0},停用 {0}
 Discount,折扣金额
+Discount Amount,折扣金额
 Document Key,单据防重键
 Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
@@ -235,7 +241,7 @@ ERP Username,ERP用户名
 ERP records cannot be saved in Cowork.,ERP 记录不能保存到 Cowork。
 Each record must have a name and revision.,每条记录都必须提供标识和版本。
 Each record must have a valid name.,每条记录都必须提供有效标识。
-Edit,修改
+Edit,编辑
 Edit Count,修改次数
 Edit in Full Page,全屏编辑
 Email,邮箱
@@ -322,6 +328,7 @@ Issued At (UTC),签发时间（UTC）
 Issued By,签发人
 Issued Request Digest,签发请求摘要
 Item,项目
+Items,物料
 Job Roles,功能权限
 LINE is not enabled for this account,这个账号没有开通 LINE
 LINE name,LINE 名称
@@ -474,6 +481,7 @@ Refresh Status,刷新状态
 Refresh the account directory before continuing.,请先刷新账套目录。
 Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
 Reload,刷新
+Remarks,备注
 Remove,移除
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Report Credential,上报凭证
@@ -571,6 +579,7 @@ Task,任务
 Task name,任务名称
 Tax ID,纳税人识别号
 Tax Invoice,税务发票
+Taxes and Charges,税费
 That code is not valid,验证码不正确
 That photo cannot be attached. Upload it again.,这张照片挂不上，请重新上传。
 The Companion delivery record is invalid.,助手任务领取记录无效。

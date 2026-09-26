@@ -2,7 +2,7 @@
 
 标题「复核单据 · 进项/销项」+ 副标题，进项绿、销项红；左灰标签、右粗体值；上面是 LINE 里的选择
 （目标 · 公司 · 年度、业务类型、入账方式），分隔线后是票面（单据号、日期、票种、对方名称 / 税号 / 分店 / 地址），
-再是全部明细（名称、数量 × 单价 = 金额），最后是金额与付款。只有一个按钮：打开网页复核页
+再是全部明细（名称、数量 × 单价 = 金额），最后是金额与付款。只有一个「编辑」按钮：打开网页编辑页
 （复核、提交 / 导出都在网页做）。字段取识别记录的主页面，与复核页同一判据。
 """
 import json
@@ -139,7 +139,7 @@ def _card(record, pending, shown):
                 "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
                 "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [
                     {"type": "button", "style": "primary", "height": "sm", "color": accent,
-                     "action": {"type": "uri", "label": str(_("Review"))[:20], "uri": uri}}]}}}
+                     "action": {"type": "uri", "label": str(_("Edit"))[:20], "uri": uri}}]}}}
 
 
 def preview(record, pending) -> dict:

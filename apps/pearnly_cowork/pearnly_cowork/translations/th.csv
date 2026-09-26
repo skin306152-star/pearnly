@@ -35,6 +35,7 @@ Add User,เพิ่มผู้ใช้
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
 Added {0},เพิ่มแล้ว {0}
+Address,ที่อยู่
 All,ทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Already exists,มีอยู่แล้ว
@@ -48,6 +49,7 @@ Assign Cowork access through company and client permissions.,กรุณาก�
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
+Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
 Balance,ยอดคงเหลือ
 Bank,ธนาคาร
@@ -83,6 +85,7 @@ Bound Profile Key,คีย์โปรไฟล์ที่ผูกไว้
 Bound at,เชื่อมต่อเมื่อ
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Branch,สาขาการดำเนินการ
+Branch No,เลขที่สาขา
 Buyer Client,ลูกค้าผู้ซื้อ
 Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
@@ -188,6 +191,7 @@ Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
 Credit Note,ใบลดหนี้
+Currency,สกุลเงิน
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Customer,ลูกค้า
@@ -205,6 +209,7 @@ Deleted {0},ลบแล้ว {0} รายการ
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
 Deposit,ฝาก
 Description,คำอธิบาย
+Details,รายละเอียด
 Difference,มีผลต่าง
 Difference detail,รายละเอียดผลต่าง
 Difference value,มูลค่าผลต่าง
@@ -218,6 +223,7 @@ Directory Snapshot,ภาพข้อมูลไดเรกทอรี
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
 Discount,ส่วนลด
+Discount Amount,จำนวนส่วนลด
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี
@@ -322,6 +328,7 @@ Issued At (UTC),เวลาออก (UTC)
 Issued By,ผู้ออก
 Issued Request Digest,แฮชคำขอออกข้อมูลรับรอง
 Item,รายการ
+Items,รายการ
 Job Roles,สิทธิ์การใช้งาน
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
 LINE name,ชื่อ LINE
@@ -474,6 +481,7 @@ Refresh Status,สถานะการรีเฟรช
 Refresh the account directory before continuing.,โปรดรีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
 Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 Reload,โหลดใหม่
+Remarks,ข้อสังเกต
 Remove,ลบ
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Report Credential,ข้อมูลรับรองของรายงาน
@@ -571,6 +579,7 @@ Task,งาน
 Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 Tax Invoice,ใบกำกับภาษี
+Taxes and Charges,ภาษีและค่าธรรมเนียม
 That code is not valid,รหัสไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
