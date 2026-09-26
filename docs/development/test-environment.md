@@ -1,7 +1,8 @@
 # 真实环境验证：Windows 测试环境
 
-**结论先行**：需要"真实环境验证"的改动，先在这台隔离局域网里的 Windows 上验，通过了再合并、推送、部署。
-它跑的是**线上正在用的同一份镜像**，验证站点用**测试租户**，不占用正式服务器资源。
+**结论先行**：需要"真实环境验证"的改动，先在这台隔离局域网里的 Windows 上由用户试用，通过了再合并、推送、部署。
+底座是**线上正在用的同一份镜像**，产品代码是**被测工作树的实时源码**（用户 2026-09-27 定，三个产品同一规则：
+改了马上能试，不再每改一次就构建镜像）；验证站点用**测试租户**，不占用正式服务器资源。
 
 ## 它是什么
 
@@ -16,18 +17,25 @@
 - 操作入口：[`scripts/testenv.sh`](../../scripts/testenv.sh)（Mac 侧）、
   [`infrastructure/testenv/`](../../infrastructure/testenv/README.md)（设备侧）。
 
-## 每次开发的流程
+## 每次开发的流程（实时源码）
 
-1. Mac 上改代码并跑本地快循环（语法、单测、前端 build、`scripts/check-architecture.py`）。
-2. 推分支 → 手动触发 `build-production.yml`，在 CI 跑完强制检查与隔离 lab，产出镜像并记下 **digest**。
-3. 把那个分支的代码与 compose 指给驱动，然后起这一版（**一次只起一个产品**）：
+1. 第一次（或换了底座镜像）：用**线上正在跑的 digest** 起栈，并挂上被测工作树的代码（**一次只起一个产品**）：
    ```bash
    export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
-   export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
-   bash scripts/testenv.sh lab-start dms        # 必要时拉镜像 → 起 DMS 栈 →（首次才导入）→ 切域名
+   export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…   # 线上 digest
+   bash scripts/testenv.sh lab-start cowork     # 起栈 →（首次才导入租户）→ 挂实时源码 → 切域名
    ```
-4. 按下面的"一键切换"用测试租户做真实验证。
-5. 通过 → 合并推送，再用**同一个 digest** 部署；不通过 → 在测试环境里改，线上从没被动过。
+2. 之后每改一处：本地快循环（语法、单测、`scripts/check-architecture.py`）→
+   `PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live cowork`（约 13 秒；表结构 / 补丁 / hooks 变了自动迁移，约 35 秒）
+   → 用户刷新页面就是新代码。**不用推分支、不用构建镜像。**
+3. 用户试用没问题 → 按主线规则合入 main（本地同名闸门、分支 CI 通过、快进、推送）→ 从 main 触发 `build-production.yml`
+   → 部署生产（每一步仍需用户同意）。生产只跑 main 构建出来的镜像。
+4. 实时源码盖不到的改动，要构建镜像再用新 digest `lab-start`：依赖 / Dockerfile / Frappe 底座版本、`frontend/` 的前端 SPA
+   （它是构建产物；实时同步时镜像里的那份原样保留）。要单独验"镜像本身"：`bash scripts/testenv.sh live-off <app>`。
+
+实时源码怎么做到的：`live` 把工作树里 5 个自有 App（`git ls-files`，含未提交改动）打包送到测试机
+`/opt/pearnly-testenv/live/<app>/`，原地同步后以只读挂载盖在镜像的 App 目录上（`/opt/pearnly-testenv/live-<app>.yml`，
+挂到本产品全部应用容器），再重启这些容器、清缓存。镜像里仓库不跟踪的构建产物（前端 SPA）从镜像补回，不会被挂载盖没。
 
 ## 一个产品一套栈
 
@@ -182,6 +190,8 @@ bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈�
 | `bash scripts/testenv.sh urls` | 打印 Mac 侧端口转发与可访问地址 |
 | `bash scripts/testenv.sh logs <服务>` / `down` / `reset` | 看日志 / 停栈（保留数据）/ 删测试环境数据卷 |
 | `bash scripts/testenv.sh lab-start [dms\|erp\|cowork]` / `lab-stop [dms\|erp\|cowork]` | 见上"一键切换"；可只切一个产品 |
+| `PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live [dms\|erp\|cowork]` | 把工作树当前代码同步到测试机并生效（实时源码，约 13 秒） |
+| `bash scripts/testenv.sh live-off [dms\|erp\|cowork]` | 摘掉实时源码，回到纯镜像 |
 | `bash scripts/testenv-cloudflare.sh status` | 只读：这两个测试域名现在指向线上还是测试机 |
 
 ## 凭据与边界

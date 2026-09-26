@@ -74,12 +74,18 @@
 
 ### 真实环境验证（Windows 测试环境）
 
-需要"真实环境验证"的改动，在隔离局域网那台 Windows 上验完再合并推送部署；它跑的是**线上同一份镜像**，
-验证站点用**测试租户**（`testdms.pearnly.com` / `testerp.pearnly.com`）。
+需要"真实环境验证"的改动，在隔离局域网那台 Windows 上由用户试用通过后再合并推送部署。
+测试环境跑**实时源码**（用户 2026-09-27 定，DMS / ERP / Cowork 同一规则）：底座是**线上同一份镜像**（依赖、Frappe 版本一致），
+产品代码取被测工作树（含未提交改动）挂上去，改完 `bash scripts/testenv.sh live <app>` 十几秒生效，用户刷新就能试，
+**不再为每次修改构建镜像**。验证站点用**测试租户**（`testdms.pearnly.com` / `testerp.pearnly.com` / `testcowork.pearnly.com`）。
 做法、命令与边界见 [测试环境](docs/development/test-environment.md)。
 
-- 起环境：`PEARNLY_TESTENV_IMAGE=<digest> bash scripts/testenv.sh up`。
-- 整租户切换：`bash scripts/testenv.sh lab-start`（拉线上测试租户数据并切域名）/ `lab-stop`（切回线上）。
+- 起环境 / 整租户切换：`PEARNLY_TESTENV_SRC=<工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> bash scripts/testenv.sh lab-start <app>`
+  （起栈、首次导入测试租户、挂上实时源码、切域名）/ `lab-stop <app>`（切回线上）。
+- 改代码后：`PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live <app>`（表结构 / 补丁 / hooks 变了自动迁移）。
+- 用户试用没问题 → 按「主线集成」合入 main → 从 main 构建镜像 → 部署生产（生产每一步仍需用户同意，部署只用 main 上的镜像）。
+- 实时源码盖不到的改动要换镜像再试：依赖 / Dockerfile / 底座版本、`frontend/` 前端 SPA 构建产物。
+  要单独验"镜像本身"时 `testenv.sh live-off <app>`。
 - 测试环境不能替代线上的部分（WSL2 内核与网络、生产并发、真机与真实消息验收）必须如实说明；
   HTTP 200、页面能打开、健康检查都不算业务验收。
 - 凭据只存本机 `~/.config/pearnly-testenv/`（600），不进仓库；不把正式账本、付费 OCR、

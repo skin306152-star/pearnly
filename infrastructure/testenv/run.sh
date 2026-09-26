@@ -24,7 +24,16 @@ project=${TESTENV_PROJECT:-pearnly-testenv-$app}
 export TESTENV_PROJECT="$project"
 
 [[ -s "$env_file" ]] || { echo "Missing $env_file"; exit 2; }
-dc() { docker compose --project-name "$project" --env-file "$env_file" -f "$compose" -f "$override" --profile "$app" "$@"; }
+# 实时源码（用户 2026-09-27：改了马上能试）：镜像仍是线上那份（底座与依赖一致），产品代码取被测工作树，
+# 挂在镜像里的 App 目录上面。`live` 同步并挂上，`live-off` 摘掉回到纯镜像。见 docs/development/test-environment.md。
+live_dir=$root/live/$app
+live_override=$root/live-$app.yml
+LIVE_APPS=(pearnly_core pearnly_cowork pearnly_dms pearnly_erp_portal pearnly_control)
+dc() {
+  local files=(-f "$compose" -f "$override")
+  [[ -f "$live_override" ]] && files+=(-f "$live_override")
+  docker compose --project-name "$project" --env-file "$env_file" "${files[@]}" --profile "$app" "$@"
+}
 
 ensure_volumes() {
   # 正式 compose 把这些卷声明为 external；只建本栈要用的那两个（站点 + 账本）。
@@ -92,7 +101,77 @@ init_sites() {
   done
 }
 
+app_services() { dc config --services | grep "^$app-"; }
+
+write_live_override() {
+  # 本产品的每个应用容器（web / worker / 识别 / 定时 / socketio / 前端）都挂同一份源码（只读）。
+  {
+    echo "# 由 run.sh live 生成：把 $live_dir 下的产品代码挂到镜像的 App 目录上（只读）。"
+    echo "services:"
+    local service pkg
+    for service in $(app_services); do
+      echo "  $service:"
+      echo "    volumes:"
+      for pkg in "${LIVE_APPS[@]}"; do
+        echo "      - $live_dir/$pkg/$pkg:/home/frappe/frappe-bench/apps/$pkg/$pkg:ro"
+      done
+    done
+  } > "$live_override.tmp"
+  mv "$live_override.tmp" "$live_override"
+}
+
+live_sync() {
+  # $1 = Mac 侧打好的源码包，$2 = DocType / 补丁 / hooks 的指纹（变了才迁移）。
+  local tarball=${1:?tarball} migrate_hash=${2:-} staging image
+  staging=$(mktemp -d)
+  tar xzf "$tarball" -C "$staging"
+  rm -f "$tarball"
+  # 镜像里有、仓库不跟踪的构建产物（前端 SPA、构建时生成的图标）：从镜像补进来，挂载后不能把它们盖没。
+  image=$(grep -E '^PEARNLY_IMAGE=' "$env_file" | cut -d= -f2-)
+  if [[ ! -e "$staging/pearnly_core/pearnly_core/public/pearnly-app/index.html" ]]; then
+    docker run --rm --entrypoint tar "$image" -C /home/frappe/frappe-bench/apps -cf - \
+      pearnly_core/pearnly_core/public/pearnly-app pearnly_control/pearnly_control/public/icons \
+      | tar -xf - -C "$staging" --skip-old-files
+  fi
+  mkdir -p "$live_dir"
+  # 原地同步（不换目录）：运行中的容器挂的是这个目录本身，换掉它容器就看不到新代码。
+  rsync -a --delete "$staging/" "$live_dir/"
+  rm -rf "$staging"
+  chmod -R a+rX "$live_dir"
+  local fresh=0
+  [[ -f "$live_override" ]] || fresh=1
+  write_live_override
+  if (( fresh )) || ! docker inspect "${project}-${app}-web-1" --format '{{range .Mounts}}{{.Source}} {{end}}' 2>/dev/null | grep -q "$live_dir"; then
+    echo "· 首次挂上实时源码：重建本产品容器"
+    dc up -d --no-deps $(app_services)
+  else
+    echo "· 重启本产品容器（新代码生效）"
+    dc restart $(app_services) >/dev/null
+  fi
+  local stamp="$root/live/$app.migrate"
+  if [[ -n "$migrate_hash" && "$(cat "$stamp" 2>/dev/null)" == "$migrate_hash" ]]; then
+    echo "· 表结构 / 补丁 / hooks 没变：只清缓存"
+    local site
+    for site in $(dc exec -T "$app-web" bash -c 'cd /home/frappe/frappe-bench/sites && ls -d */site_config.json 2>/dev/null | cut -d/ -f1'); do
+      dc exec -T -w /home/frappe/frappe-bench "$app-web" bench --site "$site" clear-cache >/dev/null && echo "  clear-cache $site"
+    done
+  else
+    echo "· 表结构 / 补丁 / hooks 有变化：迁移 + 清缓存"
+    finish_start
+    [[ -n "$migrate_hash" ]] && echo "$migrate_hash" > "$stamp"
+  fi
+  wait_healthy
+}
+
 case "${1:-}" in
+  live) shift; live_sync "$@" ;;
+  live-off)
+    # 摘掉实时源码，回到纯镜像（验证“镜像本身”时用）。
+    rm -f "$live_override" "$root/live/$app.migrate"
+    dc up -d --no-deps $(app_services)
+    finish_start
+    wait_healthy
+    ;;
   volumes)
     ensure_volumes
     docker volume ls --filter "name=${project}_" --format '{{.Name}}'
@@ -229,5 +308,5 @@ case "${1:-}" in
     dc exec "$@" bash
     ;;
   *)
-    echo "usage: TESTENV_APP=<dms|erp|cowork> run.sh {volumes|pull|config|up|ps|logs|down|reset|sites|sh|lab-init}"; exit 2 ;;
+    echo "usage: TESTENV_APP=<dms|erp|cowork> run.sh {live|live-off|volumes|pull|config|up|ps|logs|down|reset|sites|sh|lab-init}"; exit 2 ;;
 esac

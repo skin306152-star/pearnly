@@ -178,9 +178,33 @@ lab_start() {
     echo "== 3/4 复用测试机上已导入的 $site（要最新线上数据：PEARNLY_TESTENV_REFRESH=1）"
   fi
 
+  # 测试环境跑被测工作树的实时代码（用户 2026-09-27）：之后改代码只要 `testenv.sh live`，不必再构建镜像。
+  echo "== 实时源码：挂上 $src 的代码"
+  live "$first" | tail -6
+
   echo "== 4/4 域名切到测试环境"
   bash "$root/scripts/testenv-cloudflare.sh" switch-lab $apps
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
+}
+
+live() {
+  # 实时源码：把被测工作树（$src）当前的产品代码（含未提交的改动）同步到测试机，挂进本产品容器并重启。
+  # 表结构 / 补丁 / hooks 没变时只清缓存（十几秒）；变了才迁移。镜像不换，仍是 PEARNLY_TESTENV_IMAGE 那份。
+  local target_app; target_app=$(resolve_app "${1:-}")
+  local apps=(pearnly_core pearnly_cowork pearnly_dms pearnly_erp_portal pearnly_control)
+  local tarball=/tmp/pearnly-testenv-live.tgz list migrate_hash
+  list=$(cd "$src/apps" && git ls-files -co --exclude-standard -- "${apps[@]}" \
+    | while IFS= read -r file; do [[ -f "$file" ]] && printf '%s\n' "$file"; done)
+  [[ -n "$list" ]] || { echo "no product code under $src/apps" >&2; exit 2; }
+  (cd "$src/apps" && printf '%s\n' "$list" | tar -czf "$tarball" -T -)
+  migrate_hash=$(cd "$src/apps" && printf '%s\n' "$list" \
+    | grep -E '/doctype/.*\.json$|/patches\.txt$|/patches/.*\.py$|/hooks\.py$|/fixtures/' \
+    | LC_ALL=C sort | while IFS= read -r file; do printf '%s\n' "$file"; cat "$file"; done | shasum -a 256 | cut -c1-16)
+  sync
+  scp -q -o BatchMode=yes "$tarball" "$host:C:/Users/codexops/AppData/Local/Temp/pearnly-testenv-live.tgz"
+  rm -f "$tarball"
+  echo "源码：$(git -C "$src" rev-parse --short HEAD)$(git -C "$src" diff --quiet HEAD -- apps || echo ' + 未提交改动')（$src）"
+  bash_remote_app "$target_app" live "$win_temp/pearnly-testenv-live.tgz" "$migrate_hash"
 }
 
 lab_refresh() {
@@ -291,6 +315,8 @@ case "${1:-}" in
   sh) shift; bash_remote_app "$(resolve_app)" sh "$@" ;;
   urls) urls ;;
   lab-start) shift; lab_start "$@" ;;
+  live) live "${2:-}" ;;
+  live-off) app=$(resolve_app "${2:-}"); sync; bash_remote_app "$app" live-off ;;
   lab-stop) shift; lab_stop "$@" ;;
   *)
     cat <<'EOF'

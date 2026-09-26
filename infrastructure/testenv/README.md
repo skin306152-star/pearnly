@@ -3,8 +3,9 @@
 > 权威说明（流程、命令、边界、清理）见 [真实环境验证：Windows 测试环境](../../docs/development/test-environment.md)。
 > 本文件只记设备侧的结构与差异。
 
-在一台独立的 Windows 机器（WSL2 + Ubuntu 24.04，x86_64）上跑**与正式环境同一份镜像、同一份 compose**的验证栈。
-目的是：Mac 上改完 → 出镜像 → 在这台机器上用真实环境验一遍 → 没问题再把同一个 digest 部署到正式服务器。
+在一台独立的 Windows 机器（WSL2 + Ubuntu 24.04，x86_64）上跑**与正式环境同一份镜像、同一份 compose**的验证栈，
+产品代码用被测工作树的**实时源码**（用户 2026-09-27）：Mac 上改完 → `scripts/testenv.sh live <app>` 十几秒生效 →
+用户试用没问题 → 合入 main、从 main 构建镜像部署正式服务器。
 
 ## 与正式环境的关系
 
@@ -19,6 +20,7 @@
 | 项 | 正式 | 这里 | 原因 |
 | --- | --- | --- | --- |
 | 数据卷 | `external`、固定名 `pearnly-production_sites-*` | 项目内卷 `pearnly-testenv_sites-*` | 不碰正式数据 |
+| 产品代码 | 镜像里的 App | `/opt/pearnly-testenv/live/<app>/` 只读挂在 App 目录上（`live-<app>.yml`，`run.sh live` 生成） | 改了马上能试；`live-off` 回到纯镜像 |
 | 域名 | `*.pearnly.com` + 正式 DNS | `*.test.localhost`，隧道另给公网名 | 不占用正式域名 |
 | OCR 凭据 | 正式 Vertex 凭据 | 占位空凭据，测试站点不启用 OCR | 不产生付费调用 |
 | 计费/身份 | 正式 Keycloak realm 与计费租户 | 本机 Keycloak 与测试租户 | 不写正式账本 |
