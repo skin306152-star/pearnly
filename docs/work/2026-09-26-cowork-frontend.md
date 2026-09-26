@@ -1,6 +1,63 @@
 # Cowork 前端：录入工作台（接后端）
 
-## 当前入口 · 换窗口交接（2026-09-26 第三次，新窗口从这里开始）
+## 当前入口 · 换窗口交接（2026-09-27 第四次，新窗口从这里开始）
+
+**状态：交接保留。** 用户：“现在你做交接，下个窗口准备做新功能，新功能待我通知”——新窗口**先读本节，等用户说新功能再动手**，
+不要自己挑活。用户口径见下方「用户定下的口径」和用户记忆 `cowork-frontend-ui-rules`（中文、先说结果、不多加文案、没有确认步骤）。
+
+### 代码与线上
+
+| 位置 | 状态 |
+| --- | --- |
+| `origin/main` `fdd88b0` | 含 ERP 窗口共用票种表（ADR-0012，`840fb6e`）+ 本窗口的测试环境实时源码规则（`fdd88b0`） |
+| 任务分支 `codex/cowork-frontend` `362ec12`（已推送，CI 通过，工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | 比 main 多 10 个提交 = 第十四批全部用户验收修复（公司隔离拿掉、LINE 发单据 + 富菜单、识别配置、目标记在票上、ERP 式卡片、编辑页照 ERP 排版、含税小票导出）。**未合入 main**：用户在 testcowork 试用过大部分，合入前问用户一句 |
+| 生产 | Cowork 仍是 `15dea26`；本任务新功能、Cowork 账号池、`COWORK_OCR` 识别配置**都没上生产**，每一步要用户同意 |
+
+**新功能怎么开分支**：Cowork 的新功能大概率依赖上面 10 个未合入提交。先问用户“这 10 个修复是否先合入 main”：
+同意 → 按主线规则合入（本地同名闸门 → 等分支 CI → 主目录快进 main → 推送 → 回读），再从新 main 开 `codex/<主题>`；
+不同意 → 在本任务分支上继续（先 `git fetch` 变基）。不是 Cowork 的功能就直接从 `origin/main` 开新分支与工作树。
+
+### 测试环境（2026-09-27 起「实时源码」，三个产品同一规则，见 AGENTS.md「真实环境验证」）
+
+- `https://testcowork.pearnly.com` **切在测试机上**（测试机不能关机），Cowork 栈运行中；底座镜像 `sha256:7eb33e678729efdb33f055128c71810c73b6dc81aba85071da2e8d8ff03aaea2`
+  （本分支 `146faba` 构建），上面挂着工作树的实时源码（`/opt/pearnly-testenv/live-cowork.yml`）。
+- **改完代码**：`PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live cowork`（约 13 秒；表结构 / 补丁 / hooks 变了自动迁移，约 35 秒），
+  用户刷新即见。不用推分支、不用构建镜像。依赖 / Dockerfile / 底座 / `frontend/` SPA 改动才要换镜像。
+- **新功能在另一个工作树**：`PEARNLY_TESTENV_SRC` 指向新工作树再跑 `live cowork`，测试机就换成那份代码（同一时间只挂一份）。
+- 测完：`bash scripts/testenv.sh lab-stop cowork`（切回线上、停栈、卷保留）。
+- 登录走线上 `auth.pearnly.com/realms/pearnly-business`，测试账号 `pearnlyai@gmail.com` 由用户自己登，不替用户输线上密码。
+- 识别在测试机是**真实付费调用**（配置 economy + vertex）；账本是测试副本：`TU-2026-00073` 1000 泰铢已按用户要求在测试账本审核通过
+  （切在测试机时充值只进测试账本，本机管理后台看不到）。
+- LINE：测试官方号 Cowork-TEST（`@771hffyh`）已由新平台发布富菜单并挂给已绑定的 `pearnlyai@gmail.com`；菜单配置
+  `pearnly_cowork_line_menus` 只在测试机站点配置里。生产官方号没动。
+
+### 测试机上的测试数据（均属本任务）
+
+testcowork 上 3 张识别记录（`IV6906-00001` ×2 进项、`02000137` 销项，都是“识别后导出”，其中第一张的 `intake_target` 是手工补记的）、
+自动建的站点内部归属行、LINE 绑定一条。删前与用户确认。
+
+### 未验 / 待办
+
+1. LINE 盘点格在 LINE 内置浏览器打开 Cowork 盘点页：Cowork 没接 LINE 登录，要用户自己登一次（`LINE_LOGIN_PRODUCTS` 只有 erp，属共用身份改动，随账号池做）。
+2. Express 整链真机（小助手在线、推送）；非默认账套推送缺小助手缓存（旧待办）。
+3. 生产待授权：`COWORK_OCR` 识别配置（`site-step.py`，每个 Cowork 租户都缺，否则识别报“请先配置”）、Cowork 独立账号池（第十一批顺序）、
+   正式官方号富菜单发布、上线前按站点核对「公司资料」份数（多份时只用最早那份）。
+4. ERP 窗口（会话名「ERP卡片标题和日期问题」）正在改 Cowork 识别提示词（7-Eleven / Lawson 小票单号取 R# 流水号），合入 main 后会发 SHA，
+   本分支再变基；他们登记给 Cowork 的后续：识别抄 `document_title` 并套 classify、对账按票种给配对键、ABB 未印 VAT 时模型自算 VAT、
+   Tops 部分含税 VAT 读错（3.93 → 22.84）。
+5. 工作协调（WeKan 替代）用户要重新设计，富菜单上是锁；旧菜单那格回“还没开放”。
+
+### 本地环境与保留项（均属本任务）
+
+| 保留项 | 用途 | 解除条件 |
+| --- | --- | --- |
+| 工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly` + 分支 `codex/cowork-frontend` | 10 个待合提交；本机样板挂载它；测试机实时源码来自它 | 合入 main 且样板改挂别处后删 |
+| 本机样板 `cowork-a.localhost:8101`（本机 `pearnly-cowork` 账号池，测试管理员密码在 `~/.config/pearnly/cowork-realm.env`） | 本机验证 | 样板切回或废弃时删 `/tmp/cowork-a-oidc-backup.json` |
+| 测试机 Cowork 栈、`testcowork` 切在测试机、`/opt/pearnly-testenv/live/cowork` | 用户验收 | 测完 `lab-stop cowork`；不再需要实时源码时 `live-off cowork` |
+| 演示数据（第 2~6 批）、test01 上真推的 8 张单据与自建主档 | 录入演示 | 删前与用户确认 |
+
+## 当前入口 · 换窗口交接（2026-09-26 第三次，已被第四次取代，留作历史）
+
 
 **状态：交接保留。** 用户：“做交接，发给新窗口，我测好问题发出来修复”——新窗口的工作是**等用户在测试环境测出的问题，逐个修复**。
 
