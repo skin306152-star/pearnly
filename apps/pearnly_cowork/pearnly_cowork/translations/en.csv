@@ -32,11 +32,14 @@ Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
 Add User,Add User
+Add a card,Add a card
 Add photo,Add photo
 Add photos,Add photos
 Added {0},Added {0}
 Address,Address
 All,All
+All labels,All labels
+All members,All members
 Allowed Users,Allowed Users
 Already exists,Already exists
 Amount,Amount
@@ -45,7 +48,12 @@ An option in the ERP data report is invalid.,An option in the ERP data report is
 An original file is already stored for this source.,An original file is already stored for this source.
 Anchor Date,Anchor Date
 Another push holds the writer lock.,Another push holds the writer lock.
+Any due date,Any due date
+Archive,Archive
+Archived at,Archived at
+Archived cards,Archived cards
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
+Assigned to me,Assigned to me
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
@@ -73,6 +81,7 @@ Bind this account first,Bind this account first
 Binding Generation,Binding Generation
 Binding code,Binding code
 Blocked By,Blocked By
+Blue,Blue
 Book,Book
 Book Qty,Book Qty
 Book location,Book location
@@ -94,13 +103,18 @@ Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Cancelled,Cancelled
 Card,Card
+Card archived,Card archived
+Card deleted,Card deleted
+Card restored,Card restored
 Cash,Cash
+Change cards on the work board,Change cards on the work board
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
 Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checking,Checking
+Checklist,Checklist
 Checks Json,Checks Json
 Cheque,Cheque
 Choose a file,Choose a file
@@ -122,6 +136,10 @@ Code,Code
 Code expired,Code expired
 Code or barcode,Code or barcode
 Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
+Color,Color
+Comment,Comment
+Comments,Comments
+Comments and activity,Comments and activity
 Companion Report,Companion Report
 Companion authentication failed.,Companion authentication failed.
 Company,Company
@@ -195,12 +213,14 @@ Currency,Currency
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Customer,Customer
+Cyan,Cyan
 Date,Date
 Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
 Default Payment,Default Payment
 Delete selected ({0}),Delete selected ({0})
+Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete {0},Delete {0}
 Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
 Delete {0} stock count(s)?,Delete {0} stock count(s)?
@@ -232,6 +252,9 @@ Document type,Document type
 Done,Done
 Download template,Download template
 Draft,Draft
+Due,Due
+Due date,Due date
+Due today or tomorrow,Due today or tomorrow
 Duplicate records are not allowed.,Duplicate records are not allowed.
 ERP Code,ERP Code
 ERP Connection,ERP Connection
@@ -247,6 +270,7 @@ Edit in Full Page,Edit in Full Page
 Email,Email
 Enable,Enable
 Enable {0},Enable {0}
+Enter a comment,Enter a comment
 Enter a quantity,Enter a quantity
 Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1 to 120 characters.
 Enter a valid email,Enter a valid email
@@ -284,6 +308,8 @@ General,General
 General ledger,General ledger
 General ledger detail,General ledger detail
 Generation Key,Generation Key
+Gray,Gray
+Green,Green
 History,History
 History Records,History Records
 History Version,History Version
@@ -300,6 +326,9 @@ Income Reconciliation,Income Reconciliation
 Initial Password,Initial Password
 Installed At (UTC),Installed At (UTC)
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
+Invalid checklist,Invalid checklist
+Invalid color,Invalid color
+Invalid date,Invalid date
 Invalid original document manifest.,Invalid original document manifest.
 Invalid original filename.,Invalid original filename.
 Invalid posting type.,Invalid posting type.
@@ -307,8 +336,10 @@ Invalid push execution mode.,Invalid push execution mode.
 Invalid push request.,Invalid push request.
 Invalid push target.,Invalid push target.
 Invalid recognized invoice group.,Invalid recognized invoice group.
+Invalid request,Invalid request
 Invalid request key.,Invalid request key.
 Invalid statement review rows or row references.,Invalid statement review rows or row references.
+Invalid status,Invalid status
 Invoice Count,Invoice Count
 Invoice Date,Invoice Date
 Invoice Index,Invoice Index
@@ -333,6 +364,9 @@ Job Roles,Job Roles
 LINE is not enabled for this account,LINE is not enabled for this account
 LINE name,LINE name
 LINE unbound,LINE unbound
+Label,Label
+Labels,Labels
+Labels saved,Labels saved
 Last Fields Edit (UTC),Last Fields Edit (UTC)
 Last Login,Last Login
 Last Push Record,Last Push Record
@@ -357,6 +391,8 @@ Match rate,Match rate
 Matched,Matched
 Matches,Matches
 Matching and saving,Matching and saving
+Member,Member
+Members,Members
 Name,Name
 Native Content Hash,Native Content Hash
 Needs review,Needs review
@@ -366,10 +402,12 @@ New stock count,New stock count
 New task,New task
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
+No due date,No due date
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
 No items were read,No items were read
+No members,No members
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No warehouse matches that name,No warehouse matches that name
@@ -384,6 +422,7 @@ OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only an active count can be deleted,Only an active count can be deleted
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
+Orange,Orange
 Order Evidence,Order Evidence
 Original Content Coverage Complete,Original Content Coverage Complete
 Original Document Manifest,Original Document Manifest
@@ -401,6 +440,7 @@ Other,Other
 Outcome,Outcome
 Output VAT report,Output VAT report
 Over,Over
+Overdue,Overdue
 Owner ID,Owner ID
 Owner Id,Owner Id
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
@@ -417,6 +457,7 @@ Pending,Pending
 Period,Period
 Phase,Phase
 Photos,Photos
+Pink,Pink
 Please upload a PDF or image,Please upload a PDF or image
 Position differences,Position differences
 Posting,Posting
@@ -437,6 +478,7 @@ Product not found. Check the code and try again.,Product not found. Check the co
 PromptPay,PromptPay
 Provider Evidence,Provider Evidence
 Purchase or sales?,Purchase or sales?
+Purple,Purple
 Push Attempt,Push Attempt
 Push Record,Push Record
 Push record not found.,Push record not found.
@@ -469,6 +511,7 @@ Record Revision,Record Revision
 Record a count,Record a count
 Recount,Recount
 Recount this product,Recount this product
+Red,Red
 Reference,Reference
 Refresh Error Code,Refresh Error Code
 Refresh Lease Expires At (UTC),Refresh Lease Expires At (UTC)
@@ -498,6 +541,7 @@ Required invoice amounts are missing. Complete them before exporting.,Required i
 Requires Review,Requires Review
 Reset Password,Reset Password
 Response Json,Response Json
+Restore,Restore
 Result,Result
 Result Directory Revision,Result Directory Revision
 Result Json,Result Json
@@ -523,6 +567,7 @@ Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scope Key,Scope Key
+Search cards,Search cards
 Search name or barcode,Search name or barcode
 Select a file to upload.,Select a file to upload.
 Select between 1 and 100 distinct history records to export.,Select between 1 and 100 distinct history records to export.
@@ -533,6 +578,7 @@ Seller Tax ID,Seller Tax ID
 Seller address,Seller address
 Seller branch,Seller branch
 Seller tax ID,Seller tax ID
+Send,Send
 Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
@@ -546,6 +592,7 @@ Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Some rows were skipped,Some rows were skipped
+Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Someone else changed this reconciliation. Reload it before saving.,Someone else changed this reconciliation. Reload it before saving.
 Source Digest,Source Digest
 Source File,Source File
@@ -580,6 +627,7 @@ Task name,Task name
 Tax ID,Tax ID
 Tax Invoice,Tax Invoice
 Taxes and Charges,Taxes and Charges
+Text is too long,Text is too long
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
 The Companion delivery record is invalid.,The Companion delivery record is invalid.
@@ -618,6 +666,7 @@ The acknowledgement conflicts with the recorded result.,The acknowledgement conf
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The camera could not start,The camera could not start
+The card no longer exists,The card no longer exists
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
@@ -644,6 +693,7 @@ The document reader is unavailable. Contact your administrator.,The document rea
 The document sections are incomplete or invalid.,The document sections are incomplete or invalid.
 The export contains an invalid or repeated history reference.,The export contains an invalid or repeated history reference.
 The file exceeds the allowed size.,The file exceeds the allowed size.
+The file is larger than 25 MB,The file is larger than 25 MB
 The file is larger than 5 MB.,The file is larger than 5 MB.
 The file size or page metadata is invalid.,The file size or page metadata is invalid.
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
@@ -729,6 +779,8 @@ This file type is not supported.,This file type is not supported.
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
+This label no longer exists,This label no longer exists
+This member cannot be assigned,This member cannot be assigned
 This multi-page invoice has no verified combined record. Review it before exporting.,This multi-page invoice has no verified combined record. Review it before exporting.
 This operation ID has already been used for another request.,This operation ID has already been used for another request.
 This option is no longer current,This option is no longer current
@@ -747,9 +799,11 @@ This stock count task is closed.,This stock count task is closed.
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 Time left {0},Time left {0}
 Title,Title
+To do,To do
 Token Digest,Token Digest
 Token Generation,Token Generation
 Token Tail,Token Tail
+Too many items,Too many items
 Total,Total
 Transaction Date,Transaction Date
 Transaction type,Transaction type
@@ -767,6 +821,7 @@ Update invoice records through the Cowork review service.,Update invoice records
 Updated At,Updated At
 Updated By,Updated By
 Updated {0} user(s),Updated {0} user(s)
+Upload,Upload
 Upload a sheet,Upload a sheet
 Upload both files.,Upload both files.
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
@@ -804,6 +859,7 @@ Withdrawal,Withdrawal
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workspace,Workspace
+Yellow,Yellow
 You do not have access to this ERP target.,You do not have access to this ERP target.
 account,account
 active,active
@@ -1134,6 +1190,86 @@ cowork.team.password,Initial Password
 cowork.team.resetPassword,Reset Password
 cowork.team.roles,Job Roles
 cowork.team.status,Status
+cowork.work.activity.archive,{who} archived this card
+cowork.work.activity.assign,{who} added {0} to this card
+cowork.work.activity.attach,{who} attached {0}
+cowork.work.activity.create,{who} added this card
+cowork.work.activity.detach,{who} removed attachment {0}
+cowork.work.activity.due,{who} set the due date to {0}
+cowork.work.activity.move,{who} moved this card from {0} to {1}
+cowork.work.activity.noDue,none
+cowork.work.activity.restore,{who} restored this card
+cowork.work.archived.at,Archived at
+cowork.work.archived.confirmDelete,Delete this card permanently? This cannot be undone.
+cowork.work.archived.deleted,Card deleted
+cowork.work.archived.restore,Restore
+cowork.work.archived.restored,Card restored
+cowork.work.archived.title,Archived cards
+cowork.work.card.add,Add a card
+cowork.work.card.archive,Archive
+cowork.work.card.archived,Card archived
+cowork.work.card.placeholder,Enter a title
+cowork.work.card.saved,Saved
+cowork.work.card.title,Card
+cowork.work.color.blue,Blue
+cowork.work.color.cyan,Cyan
+cowork.work.color.gray,Gray
+cowork.work.color.green,Green
+cowork.work.color.orange,Orange
+cowork.work.color.pink,Pink
+cowork.work.color.purple,Purple
+cowork.work.color.red,Red
+cowork.work.color.yellow,Yellow
+cowork.work.comment.label,Comment
+cowork.work.comment.send,Send
+cowork.work.error.checklist,Invalid checklist
+cowork.work.error.color,Invalid color
+cowork.work.error.comment,Enter a comment
+cowork.work.error.conflict,Someone else changed this card. Close it and open it again.
+cowork.work.error.date,Invalid date
+cowork.work.error.dedicated_api,Change cards on the work board
+cowork.work.error.file,Choose a file
+cowork.work.error.file_size,The file is larger than 25 MB
+cowork.work.error.label,This label no longer exists
+cowork.work.error.member,This member cannot be assigned
+cowork.work.error.not_found,The card no longer exists
+cowork.work.error.request,Invalid request
+cowork.work.error.status,Invalid status
+cowork.work.error.title,Enter a title
+cowork.work.error.too_long,Text is too long
+cowork.work.error.too_many,Too many items
+cowork.work.field.activity,Comments and activity
+cowork.work.field.attachments,Attachments
+cowork.work.field.checklist,Checklist
+cowork.work.field.comments,Comments
+cowork.work.field.description,Description
+cowork.work.field.done,Done
+cowork.work.field.due,Due date
+cowork.work.field.item,Item
+cowork.work.field.labels,Labels
+cowork.work.field.members,Members
+cowork.work.field.status,Status
+cowork.work.field.title,Title
+cowork.work.file.upload,Upload
+cowork.work.filter.anyDue,Any due date
+cowork.work.filter.anyLabel,All labels
+cowork.work.filter.anyMember,All members
+cowork.work.filter.due,Due
+cowork.work.filter.keyword,Search cards
+cowork.work.filter.label,Label
+cowork.work.filter.member,Member
+cowork.work.filter.mine,Assigned to me
+cowork.work.filter.noDue,No due date
+cowork.work.filter.noMember,No members
+cowork.work.filter.overdue,Overdue
+cowork.work.filter.soon,Due today or tomorrow
+cowork.work.labels.color,Color
+cowork.work.labels.manage,Labels
+cowork.work.labels.name,Name
+cowork.work.labels.saved,Labels saved
+cowork.work.status.doing,In progress
+cowork.work.status.done,Done
+cowork.work.status.todo,To do
 cowork_line,Cowork LINE
 document,document
 erp.account_set_unavailable,This account set is unavailable.
@@ -1182,6 +1318,7 @@ leased,leased
 legacy,legacy
 logical_section,logical_section
 manual,Manual
+none,none
 not_billable,not_billable
 not_due,not_due
 not_invoice,not_invoice
@@ -1323,3 +1460,11 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
+{who} added this card,{who} added this card
+{who} added {0} to this card,{who} added {0} to this card
+{who} archived this card,{who} archived this card
+{who} attached {0},{who} attached {0}
+{who} moved this card from {0} to {1},{who} moved this card from {0} to {1}
+{who} removed attachment {0},{who} removed attachment {0}
+{who} restored this card,{who} restored this card
+{who} set the due date to {0},{who} set the due date to {0}

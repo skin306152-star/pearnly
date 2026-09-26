@@ -838,3 +838,83 @@ Details	详细信息	รายละเอียด	詳細
 Attachments	附件	ไฟล์แนบ	添付ファイル	
 Items	物料	รายการ	品目	
 Edit	编辑	แก้ไข	編集	
+To do	待办	รอดำเนินการ	未着手	cowork.work.status.todo
+In progress	进行中	กำลังทำ	進行中	cowork.work.status.doing
+Done	已完成	เสร็จแล้ว	完了	cowork.work.status.done
+Green	绿	เขียว	緑	cowork.work.color.green
+Yellow	黄	เหลือง	黄	cowork.work.color.yellow
+Orange	橙	ส้ม	橙	cowork.work.color.orange
+Red	红	แดง	赤	cowork.work.color.red
+Purple	紫	ม่วง	紫	cowork.work.color.purple
+Blue	蓝	น้ำเงิน	青	cowork.work.color.blue
+Cyan	青	ฟ้า	水色	cowork.work.color.cyan
+Pink	粉	ชมพู	ピンク	cowork.work.color.pink
+Gray	灰	เทา	グレー	cowork.work.color.gray
+Add a card	添加卡片	เพิ่มการ์ด	カードを追加	cowork.work.card.add
+Enter a title	输入标题	ใส่ชื่อ	タイトルを入力	cowork.work.card.placeholder
+Card	卡片	การ์ด	カード	cowork.work.card.title
+Archive	归档	เก็บถาวร	アーカイブ	cowork.work.card.archive
+Card archived	已归档	เก็บถาวรแล้ว	アーカイブしました	cowork.work.card.archived
+Saved	已保存	บันทึกแล้ว	保存しました	cowork.work.card.saved
+Title	标题	ชื่อ	タイトル	cowork.work.field.title
+Status	状态	สถานะ	ステータス	cowork.work.field.status
+Due date	到期日	วันครบกำหนด	期日	cowork.work.field.due
+Members	成员	สมาชิก	メンバー	cowork.work.field.members
+Labels	标签	ป้ายกำกับ	ラベル	cowork.work.field.labels
+Description	描述	รายละเอียด	説明	cowork.work.field.description
+Checklist	清单	รายการตรวจสอบ	チェックリスト	cowork.work.field.checklist
+Item	项目	รายการ	項目	cowork.work.field.item
+Done	完成	เสร็จ	完了	cowork.work.field.done
+Attachments	附件	ไฟล์แนบ	添付ファイル	cowork.work.field.attachments
+Comments	评论	ความคิดเห็น	コメント	cowork.work.field.comments
+Comments and activity	评论和活动	ความคิดเห็นและกิจกรรม	コメントとアクティビティ	cowork.work.field.activity
+Upload	上传	อัปโหลด	アップロード	cowork.work.file.upload
+Comment	评论	ความคิดเห็น	コメント	cowork.work.comment.label
+Send	发表	ส่ง	送信	cowork.work.comment.send
+{who} added this card	{who} 添加了这张卡片	{who} เพิ่มการ์ดนี้	{who} がこのカードを追加しました	cowork.work.activity.create
+{who} moved this card from {0} to {1}	{who} 把这张卡片从{0}移到{1}	{who} ย้ายการ์ดนี้จาก{0}ไป{1}	{who} がこのカードを{0}から{1}に移動しました	cowork.work.activity.move
+{who} attached {0}	{who} 添加了附件 {0}	{who} แนบไฟล์ {0}	{who} が {0} を添付しました	cowork.work.activity.attach
+{who} removed attachment {0}	{who} 删除了附件 {0}	{who} ลบไฟล์แนบ {0}	{who} が添付ファイル {0} を削除しました	cowork.work.activity.detach
+{who} archived this card	{who} 归档了这张卡片	{who} เก็บถาวรการ์ดนี้	{who} がこのカードをアーカイブしました	cowork.work.activity.archive
+{who} restored this card	{who} 恢复了这张卡片	{who} กู้คืนการ์ดนี้	{who} がこのカードを復元しました	cowork.work.activity.restore
+{who} added {0} to this card	{who} 把 {0} 加入了这张卡片	{who} เพิ่ม {0} ในการ์ดนี้	{who} がこのカードに {0} を追加しました	cowork.work.activity.assign
+{who} set the due date to {0}	{who} 把到期日设为 {0}	{who} ตั้งวันครบกำหนดเป็น {0}	{who} が期日を {0} に設定しました	cowork.work.activity.due
+none	无	ไม่มี	なし	cowork.work.activity.noDue
+Search cards	搜索卡片	ค้นหาการ์ด	カードを検索	cowork.work.filter.keyword
+Member	成员	สมาชิก	メンバー	cowork.work.filter.member
+Label	标签	ป้ายกำกับ	ラベル	cowork.work.filter.label
+Due	到期	กำหนดส่ง	期日	cowork.work.filter.due
+All members	全部成员	สมาชิกทั้งหมด	すべてのメンバー	cowork.work.filter.anyMember
+Assigned to me	分配给我的	มอบหมายให้ฉัน	自分に割り当て	cowork.work.filter.mine
+No members	没有成员	ไม่มีสมาชิก	メンバーなし	cowork.work.filter.noMember
+All labels	全部标签	ป้ายกำกับทั้งหมด	すべてのラベル	cowork.work.filter.anyLabel
+Any due date	全部到期	ทุกกำหนดส่ง	すべての期日	cowork.work.filter.anyDue
+Overdue	已过期	เลยกำหนด	期限切れ	cowork.work.filter.overdue
+Due today or tomorrow	今明两天到期	ครบกำหนดวันนี้หรือพรุ่งนี้	今日か明日が期日	cowork.work.filter.soon
+No due date	无到期日	ไม่มีกำหนดส่ง	期日なし	cowork.work.filter.noDue
+Labels	标签	ป้ายกำกับ	ラベル	cowork.work.labels.manage
+Name	名称	ชื่อ	名前	cowork.work.labels.name
+Color	颜色	สี	色	cowork.work.labels.color
+Labels saved	标签已保存	บันทึกป้ายกำกับแล้ว	ラベルを保存しました	cowork.work.labels.saved
+Archived cards	已归档的卡片	การ์ดที่เก็บถาวร	アーカイブ済みカード	cowork.work.archived.title
+Archived at	归档时间	เวลาที่เก็บถาวร	アーカイブ日時	cowork.work.archived.at
+Restore	恢复	กู้คืน	復元	cowork.work.archived.restore
+Card restored	已恢复	กู้คืนแล้ว	復元しました	cowork.work.archived.restored
+Delete this card permanently? This cannot be undone.	彻底删除这张卡片？删除后无法恢复。	ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้	このカードを完全に削除しますか？元に戻せません。	cowork.work.archived.confirmDelete
+Card deleted	已删除	ลบแล้ว	削除しました	cowork.work.archived.deleted
+Enter a title	请输入标题	กรุณาใส่ชื่อ	タイトルを入力してください	cowork.work.error.title
+Invalid status	状态无效	สถานะไม่ถูกต้อง	ステータスが無効です	cowork.work.error.status
+Invalid color	颜色无效	สีไม่ถูกต้อง	色が無効です	cowork.work.error.color
+Invalid checklist	清单无效	รายการตรวจสอบไม่ถูกต้อง	チェックリストが無効です	cowork.work.error.checklist
+Enter a comment	请输入评论	กรุณาใส่ความคิดเห็น	コメントを入力してください	cowork.work.error.comment
+Someone else changed this card. Close it and open it again.	这张卡片刚被别人改过，请关闭后重新打开	มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่	このカードは他の人が変更しました。閉じて開き直してください	cowork.work.error.conflict
+Invalid date	日期无效	วันที่ไม่ถูกต้อง	日付が無効です	cowork.work.error.date
+Change cards on the work board	请在工作看板上修改卡片	กรุณาแก้ไขการ์ดบนบอร์ดงาน	作業ボードでカードを変更してください	cowork.work.error.dedicated_api
+Choose a file	请选择文件	กรุณาเลือกไฟล์	ファイルを選択してください	cowork.work.error.file
+The file is larger than 25 MB	文件超过 25 MB	ไฟล์ใหญ่เกิน 25 MB	ファイルが 25 MB を超えています	cowork.work.error.file_size
+This label no longer exists	标签不存在	ไม่มีป้ายกำกับนี้แล้ว	このラベルはもうありません	cowork.work.error.label
+This member cannot be assigned	不能分配给这个成员	มอบหมายให้สมาชิกนี้ไม่ได้	このメンバーには割り当てられません	cowork.work.error.member
+The card no longer exists	卡片不存在	ไม่มีการ์ดนี้แล้ว	カードはもうありません	cowork.work.error.not_found
+Invalid request	请求无效	คำขอไม่ถูกต้อง	リクエストが無効です	cowork.work.error.request
+Text is too long	内容太长	ข้อความยาวเกินไป	テキストが長すぎます	cowork.work.error.too_long
+Too many items	项目太多	รายการมากเกินไป	項目が多すぎます	cowork.work.error.too_many

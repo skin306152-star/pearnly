@@ -32,11 +32,14 @@ Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
 Add User,ユーザーを追加
+Add a card,カードを追加
 Add photo,写真を追加
 Add photos,写真を追加
 Added {0},{0}を追加しました
 Address,住所
 All,すべて
+All labels,すべてのラベル
+All members,すべてのメンバー
 Allowed Users,許可ユーザー
 Already exists,すでに存在します
 Amount,金額
@@ -45,7 +48,12 @@ An option in the ERP data report is invalid.,ERP データレポート内の選�
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
 Anchor Date,基準日
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
+Any due date,すべての期日
+Archive,アーカイブ
+Archived at,アーカイブ日時
+Archived cards,アーカイブ済みカード
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
+Assigned to me,自分に割り当て
 At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1件の記録につき写真は{0}枚まで
@@ -73,6 +81,7 @@ Bind this account first,先にアカウントを連携してください
 Binding Generation,関連付け世代
 Binding code,連携コード
 Blocked By,ブロック元の記録
+Blue,青
 Book,帳簿
 Book Qty,帳簿数量
 Book location,帳簿上の棚番
@@ -94,13 +103,18 @@ Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 Cancelled,キャンセルしました
 Card,カード
+Card archived,アーカイブしました
+Card deleted,削除しました
+Card restored,復元しました
 Cash,現金
+Change cards on the work board,作業ボードでカードを変更してください
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
 Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checking,照合中
+Checklist,チェックリスト
 Checks Json,検証結果JSON
 Cheque,小切手
 Choose a file,ファイルを選択
@@ -122,6 +136,10 @@ Code,コード
 Code expired,コードの有効期限が切れました
 Code or barcode,コードまたはバーコード
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
+Color,色
+Comment,コメント
+Comments,コメント
+Comments and activity,コメントとアクティビティ
 Companion Report,Companion レポート
 Companion authentication failed.,アシスタント認証に失敗しました。
 Company,会社
@@ -195,12 +213,14 @@ Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Customer,顧客
+Cyan,水色
 Date,日付
 Debit,借方
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
 Default Payment,既定の支払方法
 Delete selected ({0}),選択を削除（{0}）
+Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete {0},{0}件を削除
 Delete {0} reconciliation(s)?,{0}件の照合を削除しますか？
 Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
@@ -232,6 +252,9 @@ Document type,書類種類
 Done,完了
 Download template,テンプレートをダウンロード
 Draft,下書き
+Due,期日
+Due date,期日
+Due today or tomorrow,今日か明日が期日
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
 ERP Code,ERP コード
 ERP Connection,ERP接続
@@ -247,6 +270,7 @@ Edit in Full Page,全画面で編集
 Email,メール
 Enable,有効化
 Enable {0},{0}件を有効化
+Enter a comment,コメントを入力してください
 Enter a quantity,数量を入力してください
 Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～120 文字で入力してください。
 Enter a valid email,正しいメールアドレスを入力してください
@@ -284,6 +308,8 @@ General,一般
 General ledger,総勘定元帳
 General ledger detail,総勘定元帳明細
 Generation Key,認証情報世代キー
+Gray,グレー
+Green,緑
 History,伝票履歴
 History Records,認識記録
 History Version,伝票履歴バージョン
@@ -300,6 +326,9 @@ Income Reconciliation,収益照合
 Initial Password,初期パスワード
 Installed At (UTC),インストール日時（UTC）
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
+Invalid checklist,チェックリストが無効です
+Invalid color,色が無効です
+Invalid date,日付が無効です
 Invalid original document manifest.,元文書の内容索引が無効です。
 Invalid original filename.,元ファイル名が無効です。
 Invalid posting type.,転記タイプが無効です。
@@ -307,8 +336,10 @@ Invalid push execution mode.,送信実行モードが無効です。
 Invalid push request.,送信要求が無効です。
 Invalid push target.,送信先が無効です。
 Invalid recognized invoice group.,認識した請求書グループが無効です。
+Invalid request,リクエストが無効です
 Invalid request key.,要求キーが無効です。
 Invalid statement review rows or row references.,確認明細または元の行番号が無効です。
+Invalid status,ステータスが無効です
 Invoice Count,請求書の件数
 Invoice Date,請求書の日付
 Invoice Index,請求書の順番
@@ -333,6 +364,9 @@ Job Roles,機能権限
 LINE is not enabled for this account,このアカウントは LINE が有効になっていません
 LINE name,LINE の名前
 LINE unbound,LINE の連携を解除しました
+Label,ラベル
+Labels,ラベル
+Labels saved,ラベルを保存しました
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
 Last Login,最終ログイン
 Last Push Record,最終送信記録
@@ -357,6 +391,8 @@ Match rate,一致率
 Matched,一致
 Matches,一致
 Matching and saving,照合して保存中
+Member,メンバー
+Members,メンバー
 Name,名前
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
@@ -366,10 +402,12 @@ New stock count,棚卸を作成
 New task,新規タスク
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
+No due date,期日なし
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
 No items were read,明細を読み取れませんでした
+No members,メンバーなし
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
 No warehouse matches that name,その倉庫名は存在しません
@@ -384,6 +422,7 @@ OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
+Orange,橙
 Order Evidence,注文記録
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
@@ -401,6 +440,7 @@ Other,その他
 Outcome,実行結果
 Output VAT report,売上税報告
 Over,過剰
+Overdue,期限切れ
 Owner ID,所有者 ID
 Owner Id,実行者ID
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
@@ -417,6 +457,7 @@ Pending,処理待ち
 Period,期間
 Phase,処理段階
 Photos,写真
+Pink,ピンク
 Please upload a PDF or image,PDFまたは画像を送信してください
 Position differences,棚番の差異
 Posting,計上方法
@@ -437,6 +478,7 @@ Product not found. Check the code and try again.,商品が見つかりません�
 PromptPay,PromptPay
 Provider Evidence,プロバイダー呼び出し証跡
 Purchase or sales?,仕入ですか、売上ですか？
+Purple,紫
 Push Attempt,送信試行
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
@@ -469,6 +511,7 @@ Record Revision,レコードの版
 Record a count,棚卸を入力
 Recount,再棚卸
 Recount this product,この商品を再棚卸
+Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
 Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
@@ -498,6 +541,7 @@ Required invoice amounts are missing. Complete them before exporting.,請求書�
 Requires Review,確認が必要
 Reset Password,パスワードを再設定
 Response Json,確認応答JSON
+Restore,復元
 Result,結果
 Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
@@ -523,6 +567,7 @@ Scan barcode or QR code,バーコード・QRコードを読む
 Scan barcodes · Record quantities,バーコード読取 · 数量記録
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scope Key,権限範囲識別子
+Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
@@ -533,6 +578,7 @@ Seller Tax ID,売り手の納税者番号
 Seller address,売り手住所
 Seller branch,売り手支店
 Seller tax ID,売り手税番号
+Send,送信
 Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
@@ -546,6 +592,7 @@ Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Some rows were skipped,一部の行を取り込めませんでした
+Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
 Someone else changed this reconciliation. Reload it before saving.,この照合は他の人が変更しました。再読み込みしてから保存してください。
 Source Digest,元データのダイジェスト
 Source File,元ファイル
@@ -580,6 +627,7 @@ Task name,タスク名
 Tax ID,納税者番号
 Tax Invoice,税務請求書
 Taxes and Charges,税金および諸費用
+Text is too long,テキストが長すぎます
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
@@ -618,6 +666,7 @@ The acknowledgement conflicts with the recorded result.,確認応答が記録済
 The bank statement could not be read.,銀行明細を読み取れません。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
 The camera could not start,カメラを起動できません
+The card no longer exists,カードはもうありません
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
@@ -644,6 +693,7 @@ The document reader is unavailable. Contact your administrator.,文書の読み�
 The document sections are incomplete or invalid.,文書の論理単位が不完全または無効です。
 The export contains an invalid or repeated history reference.,エクスポート対象に無効または重複した履歴参照があります。
 The file exceeds the allowed size.,ファイルサイズが上限を超えています。
+The file is larger than 25 MB,ファイルが 25 MB を超えています
 The file is larger than 5 MB.,ファイルが5MBを超えています。
 The file size or page metadata is invalid.,ファイルサイズまたはページ情報が無効です。
 The frozen push target does not match the authorized target.,固定された送信先が許可された送信先と一致しません。
@@ -729,6 +779,8 @@ This file type is not supported.,このファイル形式には対応してい�
 This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
+This label no longer exists,このラベルはもうありません
+This member cannot be assigned,このメンバーには割り当てられません
 This multi-page invoice has no verified combined record. Review it before exporting.,この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。
 This operation ID has already been used for another request.,この操作 ID は別のリクエストで使用されています。
 This option is no longer current,この選択肢は無効です。メニューからやり直してください
@@ -747,9 +799,11 @@ This stock count task is closed.,この棚卸タスクはクローズ済みで�
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 Time left {0},残り {0}
 Title,タイトル
+To do,未着手
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代
 Token Tail,トークン末尾
+Too many items,項目が多すぎます
 Total,税込
 Transaction Date,取引日
 Transaction type,取引区分
@@ -767,6 +821,7 @@ Update invoice records through the Cowork review service.,Coworkの確認機能�
 Updated At,更新日時
 Updated By,更新者
 Updated {0} user(s),ユーザー{0}件を更新しました
+Upload,アップロード
 Upload a sheet,取り込み
 Upload both files.,両方のファイルをアップロードしてください。
 Upload the stock count sheet as an .xlsx file.,棚卸表は .xlsx 形式でアップロードしてください。
@@ -804,6 +859,7 @@ Withdrawal,出金
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
+Yellow,黄
 You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
 account,勘定科目
 active,有効
@@ -1134,6 +1190,86 @@ cowork.team.password,初期パスワード
 cowork.team.resetPassword,パスワードを再設定
 cowork.team.roles,機能権限
 cowork.team.status,状態
+cowork.work.activity.archive,{who} がこのカードをアーカイブしました
+cowork.work.activity.assign,{who} がこのカードに {0} を追加しました
+cowork.work.activity.attach,{who} が {0} を添付しました
+cowork.work.activity.create,{who} がこのカードを追加しました
+cowork.work.activity.detach,{who} が添付ファイル {0} を削除しました
+cowork.work.activity.due,{who} が期日を {0} に設定しました
+cowork.work.activity.move,{who} がこのカードを{0}から{1}に移動しました
+cowork.work.activity.noDue,なし
+cowork.work.activity.restore,{who} がこのカードを復元しました
+cowork.work.archived.at,アーカイブ日時
+cowork.work.archived.confirmDelete,このカードを完全に削除しますか？元に戻せません。
+cowork.work.archived.deleted,削除しました
+cowork.work.archived.restore,復元
+cowork.work.archived.restored,復元しました
+cowork.work.archived.title,アーカイブ済みカード
+cowork.work.card.add,カードを追加
+cowork.work.card.archive,アーカイブ
+cowork.work.card.archived,アーカイブしました
+cowork.work.card.placeholder,タイトルを入力
+cowork.work.card.saved,保存しました
+cowork.work.card.title,カード
+cowork.work.color.blue,青
+cowork.work.color.cyan,水色
+cowork.work.color.gray,グレー
+cowork.work.color.green,緑
+cowork.work.color.orange,橙
+cowork.work.color.pink,ピンク
+cowork.work.color.purple,紫
+cowork.work.color.red,赤
+cowork.work.color.yellow,黄
+cowork.work.comment.label,コメント
+cowork.work.comment.send,送信
+cowork.work.error.checklist,チェックリストが無効です
+cowork.work.error.color,色が無効です
+cowork.work.error.comment,コメントを入力してください
+cowork.work.error.conflict,このカードは他の人が変更しました。閉じて開き直してください
+cowork.work.error.date,日付が無効です
+cowork.work.error.dedicated_api,作業ボードでカードを変更してください
+cowork.work.error.file,ファイルを選択してください
+cowork.work.error.file_size,ファイルが 25 MB を超えています
+cowork.work.error.label,このラベルはもうありません
+cowork.work.error.member,このメンバーには割り当てられません
+cowork.work.error.not_found,カードはもうありません
+cowork.work.error.request,リクエストが無効です
+cowork.work.error.status,ステータスが無効です
+cowork.work.error.title,タイトルを入力してください
+cowork.work.error.too_long,テキストが長すぎます
+cowork.work.error.too_many,項目が多すぎます
+cowork.work.field.activity,コメントとアクティビティ
+cowork.work.field.attachments,添付ファイル
+cowork.work.field.checklist,チェックリスト
+cowork.work.field.comments,コメント
+cowork.work.field.description,説明
+cowork.work.field.done,完了
+cowork.work.field.due,期日
+cowork.work.field.item,項目
+cowork.work.field.labels,ラベル
+cowork.work.field.members,メンバー
+cowork.work.field.status,ステータス
+cowork.work.field.title,タイトル
+cowork.work.file.upload,アップロード
+cowork.work.filter.anyDue,すべての期日
+cowork.work.filter.anyLabel,すべてのラベル
+cowork.work.filter.anyMember,すべてのメンバー
+cowork.work.filter.due,期日
+cowork.work.filter.keyword,カードを検索
+cowork.work.filter.label,ラベル
+cowork.work.filter.member,メンバー
+cowork.work.filter.mine,自分に割り当て
+cowork.work.filter.noDue,期日なし
+cowork.work.filter.noMember,メンバーなし
+cowork.work.filter.overdue,期限切れ
+cowork.work.filter.soon,今日か明日が期日
+cowork.work.labels.color,色
+cowork.work.labels.manage,ラベル
+cowork.work.labels.name,名前
+cowork.work.labels.saved,ラベルを保存しました
+cowork.work.status.doing,進行中
+cowork.work.status.done,完了
+cowork.work.status.todo,未着手
 cowork_line,Cowork LINE
 document,文書
 erp.account_set_unavailable,この会計データは利用できません。
@@ -1182,6 +1318,7 @@ leased,取得済み
 legacy,旧形式
 logical_section,文書の論理単位
 manual,手入力
+none,なし
 not_billable,課金対象外
 not_due,課金処理前
 not_invoice,請求書以外
@@ -1323,3 +1460,11 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 棚卸済み {1}/{2} · 差異 {3}
+{who} added this card,{who} がこのカードを追加しました
+{who} added {0} to this card,{who} がこのカードに {0} を追加しました
+{who} archived this card,{who} がこのカードをアーカイブしました
+{who} attached {0},{who} が {0} を添付しました
+{who} moved this card from {0} to {1},{who} がこのカードを{0}から{1}に移動しました
+{who} removed attachment {0},{who} が添付ファイル {0} を削除しました
+{who} restored this card,{who} がこのカードを復元しました
+{who} set the due date to {0},{who} が期日を {0} に設定しました

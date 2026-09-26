@@ -69,6 +69,7 @@
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
 | `companion` | 伴生端采集、投递与心跳 | 只消费上述域的公开入口，不直连数据库表 |
 | `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
+| `work` | 工作协调团队看板：卡片、标签、评论与活动、附件（原生私有 File） | `service` / `api`；只依赖 `access`；原生资源只读，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
 
 已登记的既有环（债务，本次不扩围）：`ocr ↔ roundtrip`、`files ↔ ocr`、`history ↔ ocr`（后两组各有一条是函数内延迟导入）。它们来自旧项目同一批抽取与往返流程的相互调用，搬迁时按原职责落位；下次改到这些链时，要按真实职责把方向拆开并补回归，不能用新的延迟导入扩大环。`ocr` 与 `reconciliation` 之间没有也不应有依赖：两侧只通过 `contracts` 共享纯契约，抽取产物由调用方以数据形式交出。

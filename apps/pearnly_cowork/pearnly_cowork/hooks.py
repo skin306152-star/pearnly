@@ -281,8 +281,10 @@ app_include_js = [
     versioned_asset("pearnly_cowork", "desk/stocktake.js"),
     versioned_asset("pearnly_cowork", "desk/recon.js"),
     versioned_asset("pearnly_cowork", "desk/line-binding.js"),
+    versioned_asset("pearnly_cowork", "desk/work.js"),
 ]
-app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css"), versioned_asset("pearnly_cowork", "desk/recon.css")]
+app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css"), versioned_asset("pearnly_cowork", "desk/recon.css"),
+                   versioned_asset("pearnly_cowork", "desk/work.css")]
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
@@ -318,6 +320,9 @@ permission_query_conditions = {
     "Cowork Income Reconciliation": "pearnly_cowork.reconciliation.income_recon_access.task_query",
     "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.row_query",
     "Cowork VAT Check": "pearnly_cowork.reconciliation.vat_check_access.task_query",
+    "Cowork Work Card": "pearnly_cowork.work.access.card_query",
+    "Cowork Work Label": "pearnly_cowork.work.access.label_query",
+    "Cowork Work Activity": "pearnly_cowork.work.access.activity_query",
 }
 has_permission = {
     "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
@@ -352,6 +357,9 @@ has_permission = {
     "Cowork Income Reconciliation": "pearnly_cowork.reconciliation.income_recon_access.has_permission",
     "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.has_permission",
     "Cowork VAT Check": "pearnly_cowork.reconciliation.vat_check_access.has_permission",
+    "Cowork Work Card": "pearnly_cowork.work.access.has_permission",
+    "Cowork Work Label": "pearnly_cowork.work.access.has_permission",
+    "Cowork Work Activity": "pearnly_cowork.work.access.has_permission",
 }
 doc_events = {"Pearnly OCR Work": {
     "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",
@@ -367,7 +375,8 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
         "pearnly_cowork.reconciliation.income_recon_access.reject_share",
-        "pearnly_cowork.reconciliation.vat_check_access.reject_share"],
+        "pearnly_cowork.reconciliation.vat_check_access.reject_share",
+        "pearnly_cowork.work.access.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
@@ -376,7 +385,8 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
         "pearnly_cowork.reconciliation.income_recon_access.reject_share",
-        "pearnly_cowork.reconciliation.vat_check_access.reject_share"],
+        "pearnly_cowork.reconciliation.vat_check_access.reject_share",
+        "pearnly_cowork.work.access.reject_share"],
 }}
 extend_doctype_class = {
     "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
@@ -400,7 +410,7 @@ pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.oc
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
 # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。库存盘点照搬 ERP、只去掉盘点在库（2026-09-26）；
-# 工作协调的页面还没做，不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
+# 工作协调是团队看板（2026-09-27）：不单独售卖（功能码 None），勾了「工作协调」或管理员就能进。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
   'profile_label': 'My Profile',
@@ -417,7 +427,7 @@ pearnly_navigation = [{'product': 'cowork',
             ('cowork.nav.work', 'pearnly-work', 'users', None),
             ('nav.team', 'pearnly-team', 'users-round', None)],
   'available': ['pearnly-home', 'pearnly-intake', 'pearnly-recon-bank', 'pearnly-recon-income', 'pearnly-recon-vat',
-                'pearnly-stocktake', 'pearnly-team'],
+                'pearnly-stocktake', 'pearnly-work', 'pearnly-team'],
   'permissions': {'pearnly-intake': {'doctype': 'Intake Record'},
                   'pearnly-recon-bank': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
                   'pearnly-recon-income': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},

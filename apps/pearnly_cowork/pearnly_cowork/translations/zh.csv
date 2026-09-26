@@ -32,11 +32,14 @@ Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
 Add User,添加用户
+Add a card,添加卡片
 Add photo,添加照片
 Add photos,添加照片
 Added {0},已添加 {0}
 Address,地址
 All,全部
+All labels,全部标签
+All members,全部成员
 Allowed Users,授权用户
 Already exists,已存在
 Amount,金额
@@ -45,7 +48,12 @@ An option in the ERP data report is invalid.,ERP 数据报告中的选项无效�
 An original file is already stored for this source.,此来源已保存原始文件。
 Anchor Date,参考日期
 Another push holds the writer lock.,另一笔推送正在占用写入锁。
+Any due date,全部到期
+Archive,归档
+Archived at,归档时间
+Archived cards,已归档的卡片
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
+Assigned to me,分配给我的
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
@@ -73,6 +81,7 @@ Bind this account first,请先绑定账号
 Binding Generation,绑定版本
 Binding code,绑定码
 Blocked By,阻塞记录
+Blue,蓝
 Book,账面
 Book Qty,账面数量
 Book location,账面仓位
@@ -94,13 +103,18 @@ Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
 Cancelled,已取消
 Card,刷卡
+Card archived,已归档
+Card deleted,已删除
+Card restored,已恢复
 Cash,现金
+Change cards on the work board,请在工作看板上修改卡片
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
 Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checking,核对中
+Checklist,清单
 Checks Json,检查结果JSON
 Cheque,支票
 Choose a file,选择文件
@@ -122,6 +136,10 @@ Code,编码
 Code expired,绑定码已过期
 Code or barcode,编码或条码
 Collection is not connected for this ERP data type.,此 ERP 数据类型尚未接入采集。
+Color,颜色
+Comment,评论
+Comments,评论
+Comments and activity,评论和活动
 Companion Report,伴侣端上报
 Companion authentication failed.,助手认证失败。
 Company,公司
@@ -195,12 +213,14 @@ Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Customer,客户
+Cyan,青
 Date,日期
 Debit,借方
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
 Delete selected ({0}),删除所选（{0}）
+Delete this card permanently? This cannot be undone.,彻底删除这张卡片？删除后无法恢复。
 Delete {0},删除 {0} 项
 Delete {0} reconciliation(s)?,删除这 {0} 个对账任务？
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
@@ -232,6 +252,9 @@ Document type,单据类型
 Done,已完成
 Download template,下载模板
 Draft,草稿
+Due,到期
+Due date,到期日
+Due today or tomorrow,今明两天到期
 Duplicate records are not allowed.,不能重复选择同一条记录。
 ERP Code,ERP 编码
 ERP Connection,ERP连接
@@ -247,6 +270,7 @@ Edit in Full Page,全屏编辑
 Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
+Enter a comment,请输入评论
 Enter a quantity,请填写数量
 Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符的盘点标题。
 Enter a valid email,请填写正确的邮箱
@@ -284,6 +308,8 @@ General,常用功能
 General ledger,总账
 General ledger detail,总账明细
 Generation Key,凭据版本键
+Gray,灰
+Green,绿
 History,票据历史
 History Records,识别记录
 History Version,票据历史版本
@@ -300,6 +326,9 @@ Income Reconciliation,收入对账
 Initial Password,初始密码
 Installed At (UTC),安装时间（UTC）
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
+Invalid checklist,清单无效
+Invalid color,颜色无效
+Invalid date,日期无效
 Invalid original document manifest.,原件内容索引无效。
 Invalid original filename.,原始文件名无效。
 Invalid posting type.,过账类型无效。
@@ -307,8 +336,10 @@ Invalid push execution mode.,推送执行模式无效。
 Invalid push request.,推送请求无效。
 Invalid push target.,推送目标无效。
 Invalid recognized invoice group.,识别出的发票分组无效。
+Invalid request,请求无效
 Invalid request key.,请求编号无效。
 Invalid statement review rows or row references.,复核行内容或原始行编号无效。
+Invalid status,状态无效
 Invoice Count,发票数量
 Invoice Date,发票日期
 Invoice Index,发票序号
@@ -333,6 +364,9 @@ Job Roles,功能权限
 LINE is not enabled for this account,这个账号没有开通 LINE
 LINE name,LINE 名称
 LINE unbound,LINE 已解绑
+Label,标签
+Labels,标签
+Labels saved,标签已保存
 Last Fields Edit (UTC),最近字段修改时间（UTC）
 Last Login,最后登录
 Last Push Record,最近推送记录
@@ -357,6 +391,8 @@ Match rate,匹配率
 Matched,已匹配
 Matches,一致
 Matching and saving,逐笔核对并保存
+Member,成员
+Members,成员
 Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
@@ -366,10 +402,12 @@ New stock count,新建盘点
 New task,新建任务
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No ERP is ready to use,还没有可用的 ERP
+No due date,无到期日
 No invoice could be read.,没有读出任何发票。
 No invoice summary found,未识别到摘要
 No invoice was found in this document.,这份单据里没有识别到发票。
 No items were read,未识别到明细
+No members,没有成员
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
 No warehouse matches that name,该仓库名不存在
@@ -384,6 +422,7 @@ OUT,出账
 Observed At (UTC),观测时间（UTC）
 Only an active count can be deleted,只有进行中的盘点能删除
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
+Orange,橙
 Order Evidence,订单截图
 Original Content Coverage Complete,原件内容已完整覆盖
 Original Document Manifest,原件内容索引
@@ -401,6 +440,7 @@ Other,其它
 Outcome,执行结果
 Output VAT report,销项税报告
 Over,盘盈
+Overdue,已过期
 Owner ID,所有者 ID
 Owner Id,执行者编号
 PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
@@ -417,6 +457,7 @@ Pending,待处理
 Period,期间
 Phase,处理阶段
 Photos,照片
+Pink,粉
 Please upload a PDF or image,请发送 PDF 或图片
 Position differences,仓位差异
 Posting,入账方式
@@ -437,6 +478,7 @@ Product not found. Check the code and try again.,未找到物料，请核对编�
 PromptPay,PromptPay
 Provider Evidence,服务商调用证据
 Purchase or sales?,进项还是销项？
+Purple,紫
 Push Attempt,推送尝试
 Push Record,推送记录
 Push record not found.,找不到推送记录。
@@ -469,6 +511,7 @@ Record Revision,记录版本
 Record a count,录入盘点
 Recount,重盘
 Recount this product,重新盘点该物料
+Red,红
 Reference,参考编号
 Refresh Error Code,刷新错误码
 Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
@@ -498,6 +541,7 @@ Required invoice amounts are missing. Complete them before exporting.,发票缺�
 Requires Review,需要人工核对
 Reset Password,重置密码
 Response Json,回执JSON
+Restore,恢复
 Result,结果
 Result Directory Revision,结果目录版本
 Result Json,识别结果（JSON）
@@ -523,6 +567,7 @@ Scan barcode or QR code,扫描条形码或二维码
 Scan barcodes · Record quantities,扫条码 · 记数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scope Key,权限范围标识
+Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
@@ -533,6 +578,7 @@ Seller Tax ID,卖方税号
 Seller address,卖方地址
 Seller branch,卖方分店
 Seller tax ID,卖方税号
+Send,发表
 Send documents to ERP,发单据进 ERP
 Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
@@ -546,6 +592,7 @@ Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 Some rows were skipped,部分行未导入
+Someone else changed this card. Close it and open it again.,这张卡片刚被别人改过，请关闭后重新打开
 Someone else changed this reconciliation. Reload it before saving.,这个对账刚被别人改过，请刷新后再保存。
 Source Digest,来源摘要
 Source File,原始文件
@@ -580,6 +627,7 @@ Task name,任务名称
 Tax ID,纳税人识别号
 Tax Invoice,税务发票
 Taxes and Charges,税费
+Text is too long,内容太长
 That code is not valid,验证码不正确
 That photo cannot be attached. Upload it again.,这张照片挂不上，请重新上传。
 The Companion delivery record is invalid.,助手任务领取记录无效。
@@ -618,6 +666,7 @@ The acknowledgement conflicts with the recorded result.,回执与已记录结果
 The bank statement could not be read.,读不出银行账单。
 The billing receipt cannot be reverted.,计费回执不能撤回。
 The camera could not start,摄像头无法启动
+The card no longer exists,卡片不存在
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
 The connection has changed. Reload and try again.,连接已更新，请重新读取后再试。
@@ -644,6 +693,7 @@ The document reader is unavailable. Contact your administrator.,文档读取服�
 The document sections are incomplete or invalid.,文档逻辑单元不完整或无效。
 The export contains an invalid or repeated history reference.,导出包含无效或重复的历史记录引用。
 The file exceeds the allowed size.,文件超过允许的大小上限。
+The file is larger than 25 MB,文件超过 25 MB
 The file is larger than 5 MB.,文件超过 5 MB。
 The file size or page metadata is invalid.,文件大小或页数信息无效。
 The frozen push target does not match the authorized target.,已冻结的推送目标与授权目标不一致。
@@ -729,6 +779,8 @@ This file type is not supported.,不支持此文件类型。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
 This item is also stocked at:,这件货还在别处：
+This label no longer exists,标签不存在
+This member cannot be assigned,不能分配给这个成员
 This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
 This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
 This option is no longer current,这个选项已失效，请重新点菜单
@@ -747,9 +799,11 @@ This stock count task is closed.,此盘点任务已关闭。
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
 Time left {0},剩余 {0}
 Title,标题
+To do,待办
 Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
+Too many items,项目太多
 Total,含税
 Transaction Date,交易日期
 Transaction type,业务类型
@@ -767,6 +821,7 @@ Update invoice records through the Cowork review service.,请通过 Cowork 复�
 Updated At,更新时间
 Updated By,更新人
 Updated {0} user(s),已更新 {0} 位用户
+Upload,上传
 Upload a sheet,上传导入
 Upload both files.,请上传两份文件。
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
@@ -804,6 +859,7 @@ Withdrawal,提款
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workspace,公司账套
+Yellow,黄
 You do not have access to this ERP target.,无权访问此ERP目标。
 account,科目
 active,有效
@@ -1134,6 +1190,86 @@ cowork.team.password,初始密码
 cowork.team.resetPassword,重置密码
 cowork.team.roles,功能权限
 cowork.team.status,状态
+cowork.work.activity.archive,{who} 归档了这张卡片
+cowork.work.activity.assign,{who} 把 {0} 加入了这张卡片
+cowork.work.activity.attach,{who} 添加了附件 {0}
+cowork.work.activity.create,{who} 添加了这张卡片
+cowork.work.activity.detach,{who} 删除了附件 {0}
+cowork.work.activity.due,{who} 把到期日设为 {0}
+cowork.work.activity.move,{who} 把这张卡片从{0}移到{1}
+cowork.work.activity.noDue,无
+cowork.work.activity.restore,{who} 恢复了这张卡片
+cowork.work.archived.at,归档时间
+cowork.work.archived.confirmDelete,彻底删除这张卡片？删除后无法恢复。
+cowork.work.archived.deleted,已删除
+cowork.work.archived.restore,恢复
+cowork.work.archived.restored,已恢复
+cowork.work.archived.title,已归档的卡片
+cowork.work.card.add,添加卡片
+cowork.work.card.archive,归档
+cowork.work.card.archived,已归档
+cowork.work.card.placeholder,输入标题
+cowork.work.card.saved,已保存
+cowork.work.card.title,卡片
+cowork.work.color.blue,蓝
+cowork.work.color.cyan,青
+cowork.work.color.gray,灰
+cowork.work.color.green,绿
+cowork.work.color.orange,橙
+cowork.work.color.pink,粉
+cowork.work.color.purple,紫
+cowork.work.color.red,红
+cowork.work.color.yellow,黄
+cowork.work.comment.label,评论
+cowork.work.comment.send,发表
+cowork.work.error.checklist,清单无效
+cowork.work.error.color,颜色无效
+cowork.work.error.comment,请输入评论
+cowork.work.error.conflict,这张卡片刚被别人改过，请关闭后重新打开
+cowork.work.error.date,日期无效
+cowork.work.error.dedicated_api,请在工作看板上修改卡片
+cowork.work.error.file,请选择文件
+cowork.work.error.file_size,文件超过 25 MB
+cowork.work.error.label,标签不存在
+cowork.work.error.member,不能分配给这个成员
+cowork.work.error.not_found,卡片不存在
+cowork.work.error.request,请求无效
+cowork.work.error.status,状态无效
+cowork.work.error.title,请输入标题
+cowork.work.error.too_long,内容太长
+cowork.work.error.too_many,项目太多
+cowork.work.field.activity,评论和活动
+cowork.work.field.attachments,附件
+cowork.work.field.checklist,清单
+cowork.work.field.comments,评论
+cowork.work.field.description,描述
+cowork.work.field.done,完成
+cowork.work.field.due,到期日
+cowork.work.field.item,项目
+cowork.work.field.labels,标签
+cowork.work.field.members,成员
+cowork.work.field.status,状态
+cowork.work.field.title,标题
+cowork.work.file.upload,上传
+cowork.work.filter.anyDue,全部到期
+cowork.work.filter.anyLabel,全部标签
+cowork.work.filter.anyMember,全部成员
+cowork.work.filter.due,到期
+cowork.work.filter.keyword,搜索卡片
+cowork.work.filter.label,标签
+cowork.work.filter.member,成员
+cowork.work.filter.mine,分配给我的
+cowork.work.filter.noDue,无到期日
+cowork.work.filter.noMember,没有成员
+cowork.work.filter.overdue,已过期
+cowork.work.filter.soon,今明两天到期
+cowork.work.labels.color,颜色
+cowork.work.labels.manage,标签
+cowork.work.labels.name,名称
+cowork.work.labels.saved,标签已保存
+cowork.work.status.doing,进行中
+cowork.work.status.done,已完成
+cowork.work.status.todo,待办
 cowork_line,Cowork LINE
 document,文档
 erp.account_set_unavailable,此账套不可用。
@@ -1182,6 +1318,7 @@ leased,已领取
 legacy,旧版
 logical_section,文档逻辑单元
 manual,手工
+none,无
 not_billable,无需计费
 not_due,尚无需计费
 not_invoice,非发票
@@ -1323,3 +1460,11 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
+{who} added this card,{who} 添加了这张卡片
+{who} added {0} to this card,{who} 把 {0} 加入了这张卡片
+{who} archived this card,{who} 归档了这张卡片
+{who} attached {0},{who} 添加了附件 {0}
+{who} moved this card from {0} to {1},{who} 把这张卡片从{0}移到{1}
+{who} removed attachment {0},{who} 删除了附件 {0}
+{who} restored this card,{who} 恢复了这张卡片
+{who} set the due date to {0},{who} 把到期日设为 {0}

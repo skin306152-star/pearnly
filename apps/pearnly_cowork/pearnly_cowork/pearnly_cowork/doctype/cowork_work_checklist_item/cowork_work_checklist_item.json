@@ -1,0 +1,37 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Work Checklist Item",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-27 00:00:00.000000",
+ "modified": "2026-09-27 00:00:00.000000",
+ "istable": 1,
+ "editable_grid": 1,
+ "field_order": [
+  "title",
+  "done"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Item",
+   "reqd": 1,
+   "length": 200,
+   "in_list_view": 1,
+   "columns": 8
+  },
+  {
+   "fieldname": "done",
+   "fieldtype": "Check",
+   "label": "Done",
+   "default": "0",
+   "in_list_view": 1,
+   "columns": 2
+  }
+ ]
+}

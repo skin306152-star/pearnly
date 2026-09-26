@@ -1,0 +1,85 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Work Activity",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-27 00:00:00.000000",
+ "modified": "2026-09-27 00:00:00.000000",
+ "autoname": "hash",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1
+  },
+  {
+   "role": "Cowork Work",
+   "read": 1
+  }
+ ],
+ "field_order": [
+  "workspace",
+  "card",
+  "actor",
+  "action",
+  "detail",
+  "content"
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "options": "Cowork Workspace",
+   "read_only": 1,
+   "reqd": 1,
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "card",
+   "fieldtype": "Link",
+   "label": "Card",
+   "options": "Cowork Work Card",
+   "reqd": 1,
+   "read_only": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Select",
+   "label": "Action",
+   "options": "create\nmove\ncomment\nattach\ndetach\narchive\nrestore\nassign\ndue",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "detail",
+   "fieldtype": "Small Text",
+   "label": "Detail",
+   "read_only": 1
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Long Text",
+   "label": "Comment",
+   "read_only": 1
+  }
+ ]
+}

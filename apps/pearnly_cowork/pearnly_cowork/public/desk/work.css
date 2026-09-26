@@ -1,0 +1,175 @@
+/* 工作协调看板：在 Frappe 原生看板样式（`.kanban*`，kanban.scss）上只改版式——
+ * 列按内容长高（原生是整屏高）、卡片不留固定最小高度、加标签 / 徽标 / 头像一行。
+ * 手机上三列纵排，顶上分区导航（借 Desk 的 `form-tabs-list`，照 ERP / 录入二级页）。 */
+.pearnly-work-nav {
+	display: none;
+}
+
+.pearnly-work-board.kanban {
+	margin: 0;
+	align-items: flex-start;
+	overflow-x: auto;
+}
+
+.pearnly-work-board .kanban-column {
+	flex: 1 0 280px;
+	max-width: none;
+	min-height: 0;
+	background-color: var(--kanban-column-bg);
+}
+
+.pearnly-work-board .kanban-column .kanban-column-header {
+	align-items: center;
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-work-board .kanban-column .kanban-cards {
+	height: auto;
+	min-height: 40px;
+}
+
+.pearnly-work-board .kanban-column .kanban-cards .kanban-card-wrapper .kanban-card {
+	min-height: 0;
+}
+
+.pearnly-work-board .kanban-column .kanban-cards .kanban-card-wrapper:last-child .kanban-card {
+	margin-bottom: 0;
+}
+
+.pearnly-work-board .kanban-column .kanban-cards .kanban-card-wrapper .kanban-card .kanban-card-body {
+	cursor: pointer;
+	padding: var(--padding-sm) var(--padding-md);
+}
+
+.pearnly-work-board .kanban-card-title {
+	font-size: var(--text-md);
+	font-weight: 500;
+	color: var(--text-color);
+	white-space: normal;
+	word-break: break-word;
+}
+
+.pearnly-work-board .kanban-column .add-card {
+	width: 100%;
+	border: 0;
+	justify-content: flex-start;
+	gap: 4px;
+	padding: 0 var(--padding-sm);
+	margin: var(--margin-sm) 0 0;
+}
+
+.pearnly-work-board .kanban-column .add-card .icon {
+	margin: 0;
+}
+
+.pearnly-work-compose {
+	margin-top: var(--margin-sm);
+}
+
+.pearnly-work-compose-actions {
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.pearnly-work-labels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+
+.pearnly-work-label {
+	min-width: 32px;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pearnly-work-meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.pearnly-work-badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--text-xs);
+}
+
+.pearnly-work-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.pearnly-work-dialog .pearnly-work-activity {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.pearnly-work-dialog .pearnly-work-activity-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-dialog .pearnly-work-comment {
+	margin-top: 4px;
+	padding: 6px 10px;
+	border-radius: var(--border-radius);
+	background: var(--control-bg);
+	word-break: break-word;
+}
+
+.pearnly-work-dialog .pearnly-work-file {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 4px;
+	min-width: 0;
+}
+
+.pearnly-work-dialog .pearnly-work-file a {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* 标签表只有两列窄栏：让表格不裁切颜色下拉（原生网格为横向滚动设了 overflow）。 */
+.pearnly-work-labels-dialog .form-grid-container,
+.pearnly-work-labels-dialog .form-grid {
+	overflow: visible;
+}
+
+@media (max-width: 767px) {
+	.pearnly-work-nav {
+		display: block;
+		position: sticky;
+		top: var(--navbar-height, 48px);
+		z-index: 3;
+		background: var(--bg-color);
+	}
+
+	.pearnly-work-board.kanban {
+		flex-direction: column;
+		align-items: stretch;
+		overflow: visible;
+	}
+
+	.pearnly-work-board .kanban-column {
+		flex: none;
+		width: 100%;
+		scroll-margin-top: 110px;
+	}
+
+	.pearnly-work-board .kanban-column .kanban-cards {
+		max-height: none;
+		overflow: visible;
+	}
+}

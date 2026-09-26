@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-work",
+  "page_name": "pearnly-work",
+  "title": "cowork.nav.work",
+  "module": "Pearnly Cowork",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

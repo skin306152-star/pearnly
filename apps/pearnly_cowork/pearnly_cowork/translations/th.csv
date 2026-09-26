@@ -32,11 +32,14 @@ Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
 Add User,เพิ่มผู้ใช้
+Add a card,เพิ่มการ์ด
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
 Added {0},เพิ่มแล้ว {0}
 Address,ที่อยู่
 All,ทั้งหมด
+All labels,ป้ายกำกับทั้งหมด
+All members,สมาชิกทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Already exists,มีอยู่แล้ว
 Amount,จำนวนเงิน
@@ -45,7 +48,12 @@ An option in the ERP data report is invalid.,ตัวเลือกในร�
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
 Anchor Date,วันที่อ้างอิง
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
+Any due date,ทุกกำหนดส่ง
+Archive,เก็บถาวร
+Archived at,เวลาที่เก็บถาวร
+Archived cards,การ์ดที่เก็บถาวร
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
+Assigned to me,มอบหมายให้ฉัน
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
@@ -73,6 +81,7 @@ Bind this account first,กรุณาผูกบัญชีก่อนใ�
 Binding Generation,รุ่นการผูก
 Binding code,รหัสเชื่อมต่อ
 Blocked By,รายการที่ขัดขวาง
+Blue,น้ำเงิน
 Book,ตามบัญชี
 Book Qty,จำนวนตามบัญชี
 Book location,ตำแหน่งตามบัญชี
@@ -94,13 +103,18 @@ Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
 Cancelled,ยกเลิกแล้ว
 Card,บัตร
+Card archived,เก็บถาวรแล้ว
+Card deleted,ลบแล้ว
+Card restored,กู้คืนแล้ว
 Cash,เงินสด
+Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
 Check the ERP connection settings.,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checking,กำลังตรวจสอบ
+Checklist,รายการตรวจสอบ
 Checks Json,ผลตรวจสอบ JSON
 Cheque,เช็ค
 Choose a file,เลือกไฟล์
@@ -122,6 +136,10 @@ Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
 Code or barcode,รหัสหรือบาร์โค้ด
 Collection is not connected for this ERP data type.,ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
+Color,สี
+Comment,ความคิดเห็น
+Comments,ความคิดเห็น
+Comments and activity,ความคิดเห็นและกิจกรรม
 Companion Report,รายงานจาก Companion
 Companion authentication failed.,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
 Company,บริษัท
@@ -195,12 +213,14 @@ Currency,สกุลเงิน
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Customer,ลูกค้า
+Cyan,ฟ้า
 Date,วันที่
 Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete this card permanently? This cannot be undone.,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
 Delete {0},ลบ {0} รายการ
 Delete {0} reconciliation(s)?,ลบงานกระทบยอด {0} รายการ?
 Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
@@ -232,6 +252,9 @@ Document type,ประเภทเอกสาร
 Done,เสร็จสิ้น
 Download template,ดาวน์โหลดแม่แบบ
 Draft,ฉบับร่าง
+Due,กำหนดส่ง
+Due date,วันครบกำหนด
+Due today or tomorrow,ครบกำหนดวันนี้หรือพรุ่งนี้
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
 ERP Code,รหัส ERP
 ERP Connection,การเชื่อมต่อ ERP
@@ -247,6 +270,7 @@ Edit in Full Page,แก้ไขแบบเต็มหน้า
 Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
+Enter a comment,กรุณาใส่ความคิดเห็น
 Enter a quantity,กรุณากรอกจำนวน
 Enter a stock count title of 1 to 120 characters.,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
@@ -284,6 +308,8 @@ General,ทั่วไป
 General ledger,บัญชีแยกประเภททั่วไป
 General ledger detail,รายละเอียดบัญชีแยกประเภท
 Generation Key,คีย์รุ่นข้อมูลรับรอง
+Gray,เทา
+Green,เขียว
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
 History Version,รุ่นประวัติเอกสาร
@@ -300,6 +326,9 @@ Income Reconciliation,กระทบยอดรายได้
 Initial Password,รหัสผ่านเริ่มต้น
 Installed At (UTC),เวลาติดตั้ง (UTC)
 Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
+Invalid checklist,รายการตรวจสอบไม่ถูกต้อง
+Invalid color,สีไม่ถูกต้อง
+Invalid date,วันที่ไม่ถูกต้อง
 Invalid original document manifest.,ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง
 Invalid original filename.,ชื่อไฟล์ต้นฉบับไม่ถูกต้อง
 Invalid posting type.,ประเภทการลงบัญชีไม่ถูกต้อง
@@ -307,8 +336,10 @@ Invalid push execution mode.,โหมดการส่งไม่ถูกต
 Invalid push request.,คำขอส่งไม่ถูกต้อง
 Invalid push target.,เป้าหมายการส่งไม่ถูกต้อง
 Invalid recognized invoice group.,กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง
+Invalid request,คำขอไม่ถูกต้อง
 Invalid request key.,รหัสคำขอไม่ถูกต้อง
 Invalid statement review rows or row references.,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
+Invalid status,สถานะไม่ถูกต้อง
 Invoice Count,จำนวนใบแจ้งหนี้
 Invoice Date,วันที่ใบแจ้งหนี้
 Invoice Index,ลำดับใบแจ้งหนี้
@@ -333,6 +364,9 @@ Job Roles,สิทธิ์การใช้งาน
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
 LINE name,ชื่อ LINE
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
+Label,ป้ายกำกับ
+Labels,ป้ายกำกับ
+Labels saved,บันทึกป้ายกำกับแล้ว
 Last Fields Edit (UTC),แก้ไขข้อมูลล่าสุดเมื่อ (UTC)
 Last Login,เข้าใช้ล่าสุด
 Last Push Record,บันทึกการส่งล่าสุด
@@ -357,6 +391,8 @@ Match rate,อัตราการจับคู่
 Matched,จับคู่แล้ว
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
+Member,สมาชิก
+Members,สมาชิก
 Name,ชื่อ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
@@ -366,10 +402,12 @@ New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
+No due date,ไม่มีกำหนดส่ง
 No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 No invoice was found in this document.,ไม่พบเอกสารที่อ่านได้ในไฟล์นี้
 No items were read,ไม่พบรายการสินค้า
+No members,ไม่มีสมาชิก
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
@@ -384,6 +422,7 @@ OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
+Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
 Original Document Manifest,ดัชนีเนื้อหาเอกสารต้นฉบับ
@@ -401,6 +440,7 @@ Other,อื่นๆ
 Outcome,ผลการดำเนินการ
 Output VAT report,รายงานภาษีขาย
 Over,เกิน
+Overdue,เลยกำหนด
 Owner ID,รหัสเจ้าของ
 Owner Id,รหัสผู้ดำเนินการ
 PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
@@ -417,6 +457,7 @@ Pending,รอดำเนินการ
 Period,งวด
 Phase,ขั้นตอนการประมวลผล
 Photos,รูปภาพ
+Pink,ชมพู
 Please upload a PDF or image,กรุณาส่งรูปภาพหรือ PDF
 Position differences,ผลต่างตำแหน่ง
 Posting,วิธีลงบัญชี
@@ -437,6 +478,7 @@ Product not found. Check the code and try again.,ไม่พบสินค้�
 PromptPay,พร้อมเพย์
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
 Purchase or sales?,ซื้อหรือขาย?
+Purple,ม่วง
 Push Attempt,ความพยายามส่ง
 Push Record,รายการส่ง
 Push record not found.,ไม่พบรายการส่ง
@@ -469,6 +511,7 @@ Record Revision,รุ่นของรายการ
 Record a count,บันทึกการตรวจนับ
 Recount,นับใหม่
 Recount this product,นับสินค้านี้ใหม่
+Red,แดง
 Reference,เลขที่อ้างอิง
 Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
 Refresh Lease Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
@@ -498,6 +541,7 @@ Required invoice amounts are missing. Complete them before exporting.,ใบแ�
 Requires Review,ต้องตรวจสอบโดยผู้ใช้
 Reset Password,ตั้งรหัสผ่านใหม่
 Response Json,ผลตอบรับ JSON
+Restore,กู้คืน
 Result,ผลการนับ
 Result Directory Revision,รุ่นไดเรกทอรีผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
@@ -523,6 +567,7 @@ Scan barcode or QR code,สแกนบาร์โค้ดหรือคิ�
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
 Scope Key,รหัสขอบเขตสิทธิ์
+Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 100 distinct history records to export.,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
@@ -533,6 +578,7 @@ Seller Tax ID,เลขประจำตัวผู้เสียภาษี
 Seller address,ที่อยู่ผู้ขาย
 Seller branch,สาขาผู้ขาย
 Seller tax ID,เลขผู้เสียภาษีผู้ขาย
+Send,ส่ง
 Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
@@ -546,6 +592,7 @@ Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
 Some rows were skipped,บางแถวไม่ได้นำเข้า
+Someone else changed this card. Close it and open it again.,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
 Someone else changed this reconciliation. Reload it before saving.,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
 Source Digest,ค่าแฮชของข้อมูลต้นทาง
 Source File,ไฟล์ต้นฉบับ
@@ -580,6 +627,7 @@ Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 Tax Invoice,ใบกำกับภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
+Text is too long,ข้อความยาวเกินไป
 That code is not valid,รหัสไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
@@ -618,6 +666,7 @@ The acknowledgement conflicts with the recorded result.,ผลตอบรับ
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
 The camera could not start,ไม่สามารถเปิดกล้องได้
+The card no longer exists,ไม่มีการ์ดนี้แล้ว
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง
@@ -644,6 +693,7 @@ The document reader is unavailable. Contact your administrator.,บริกา�
 The document sections are incomplete or invalid.,ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง
 The export contains an invalid or repeated history reference.,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน
 The file exceeds the allowed size.,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
+The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The file is larger than 5 MB.,ไฟล์มีขนาดเกิน 5 MB
 The file size or page metadata is invalid.,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
 The frozen push target does not match the authorized target.,ปลายทางที่บันทึกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
@@ -729,6 +779,8 @@ This file type is not supported.,ไม่รองรับไฟล์ปร�
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
+This member cannot be assigned,มอบหมายให้สมาชิกนี้ไม่ได้
 This multi-page invoice has no verified combined record. Review it before exporting.,ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก
 This operation ID has already been used for another request.,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
 This option is no longer current,ตัวเลือกนี้หมดอายุแล้ว กรุณาเริ่มใหม่จากเมนู
@@ -747,9 +799,11 @@ This stock count task is closed.,งานตรวจนับสต็อก�
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 Time left {0},เหลือเวลา {0}
 Title,ชื่อเรื่อง
+To do,รอดำเนินการ
 Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
+Too many items,รายการมากเกินไป
 Total,รวม VAT
 Transaction Date,วันที่ทำรายการ
 Transaction type,ประเภทรายการ
@@ -767,6 +821,7 @@ Update invoice records through the Cowork review service.,กรุณาแก�
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
+Upload,อัปโหลด
 Upload a sheet,อัปโหลดไฟล์
 Upload both files.,กรุณาอัปโหลดไฟล์ทั้งสอง
 Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
@@ -804,6 +859,7 @@ Withdrawal,ถอน
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
+Yellow,เหลือง
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
 account,บัญชี
 active,ใช้งานอยู่
@@ -1134,6 +1190,86 @@ cowork.team.password,รหัสผ่านเริ่มต้น
 cowork.team.resetPassword,ตั้งรหัสผ่านใหม่
 cowork.team.roles,สิทธิ์การใช้งาน
 cowork.team.status,สถานะ
+cowork.work.activity.archive,{who} เก็บถาวรการ์ดนี้
+cowork.work.activity.assign,{who} เพิ่ม {0} ในการ์ดนี้
+cowork.work.activity.attach,{who} แนบไฟล์ {0}
+cowork.work.activity.create,{who} เพิ่มการ์ดนี้
+cowork.work.activity.detach,{who} ลบไฟล์แนบ {0}
+cowork.work.activity.due,{who} ตั้งวันครบกำหนดเป็น {0}
+cowork.work.activity.move,{who} ย้ายการ์ดนี้จาก{0}ไป{1}
+cowork.work.activity.noDue,ไม่มี
+cowork.work.activity.restore,{who} กู้คืนการ์ดนี้
+cowork.work.archived.at,เวลาที่เก็บถาวร
+cowork.work.archived.confirmDelete,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
+cowork.work.archived.deleted,ลบแล้ว
+cowork.work.archived.restore,กู้คืน
+cowork.work.archived.restored,กู้คืนแล้ว
+cowork.work.archived.title,การ์ดที่เก็บถาวร
+cowork.work.card.add,เพิ่มการ์ด
+cowork.work.card.archive,เก็บถาวร
+cowork.work.card.archived,เก็บถาวรแล้ว
+cowork.work.card.placeholder,ใส่ชื่อ
+cowork.work.card.saved,บันทึกแล้ว
+cowork.work.card.title,การ์ด
+cowork.work.color.blue,น้ำเงิน
+cowork.work.color.cyan,ฟ้า
+cowork.work.color.gray,เทา
+cowork.work.color.green,เขียว
+cowork.work.color.orange,ส้ม
+cowork.work.color.pink,ชมพู
+cowork.work.color.purple,ม่วง
+cowork.work.color.red,แดง
+cowork.work.color.yellow,เหลือง
+cowork.work.comment.label,ความคิดเห็น
+cowork.work.comment.send,ส่ง
+cowork.work.error.checklist,รายการตรวจสอบไม่ถูกต้อง
+cowork.work.error.color,สีไม่ถูกต้อง
+cowork.work.error.comment,กรุณาใส่ความคิดเห็น
+cowork.work.error.conflict,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
+cowork.work.error.date,วันที่ไม่ถูกต้อง
+cowork.work.error.dedicated_api,กรุณาแก้ไขการ์ดบนบอร์ดงาน
+cowork.work.error.file,กรุณาเลือกไฟล์
+cowork.work.error.file_size,ไฟล์ใหญ่เกิน 25 MB
+cowork.work.error.label,ไม่มีป้ายกำกับนี้แล้ว
+cowork.work.error.member,มอบหมายให้สมาชิกนี้ไม่ได้
+cowork.work.error.not_found,ไม่มีการ์ดนี้แล้ว
+cowork.work.error.request,คำขอไม่ถูกต้อง
+cowork.work.error.status,สถานะไม่ถูกต้อง
+cowork.work.error.title,กรุณาใส่ชื่อ
+cowork.work.error.too_long,ข้อความยาวเกินไป
+cowork.work.error.too_many,รายการมากเกินไป
+cowork.work.field.activity,ความคิดเห็นและกิจกรรม
+cowork.work.field.attachments,ไฟล์แนบ
+cowork.work.field.checklist,รายการตรวจสอบ
+cowork.work.field.comments,ความคิดเห็น
+cowork.work.field.description,รายละเอียด
+cowork.work.field.done,เสร็จ
+cowork.work.field.due,วันครบกำหนด
+cowork.work.field.item,รายการ
+cowork.work.field.labels,ป้ายกำกับ
+cowork.work.field.members,สมาชิก
+cowork.work.field.status,สถานะ
+cowork.work.field.title,ชื่อ
+cowork.work.file.upload,อัปโหลด
+cowork.work.filter.anyDue,ทุกกำหนดส่ง
+cowork.work.filter.anyLabel,ป้ายกำกับทั้งหมด
+cowork.work.filter.anyMember,สมาชิกทั้งหมด
+cowork.work.filter.due,กำหนดส่ง
+cowork.work.filter.keyword,ค้นหาการ์ด
+cowork.work.filter.label,ป้ายกำกับ
+cowork.work.filter.member,สมาชิก
+cowork.work.filter.mine,มอบหมายให้ฉัน
+cowork.work.filter.noDue,ไม่มีกำหนดส่ง
+cowork.work.filter.noMember,ไม่มีสมาชิก
+cowork.work.filter.overdue,เลยกำหนด
+cowork.work.filter.soon,ครบกำหนดวันนี้หรือพรุ่งนี้
+cowork.work.labels.color,สี
+cowork.work.labels.manage,ป้ายกำกับ
+cowork.work.labels.name,ชื่อ
+cowork.work.labels.saved,บันทึกป้ายกำกับแล้ว
+cowork.work.status.doing,กำลังทำ
+cowork.work.status.done,เสร็จแล้ว
+cowork.work.status.todo,รอดำเนินการ
 cowork_line,Cowork LINE
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
@@ -1182,6 +1318,7 @@ leased,รับงานแล้ว
 legacy,ระบบเดิม
 logical_section,ส่วนข้อมูลของเอกสาร
 manual,กรอกเอง
+none,ไม่มี
 not_billable,ไม่ต้องเรียกเก็บเงิน
 not_due,ยังไม่ถึงขั้นตอนเรียกเก็บเงิน
 not_invoice,ไม่ใช่ใบแจ้งหนี้
@@ -1323,3 +1460,11 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
+{who} added this card,{who} เพิ่มการ์ดนี้
+{who} added {0} to this card,{who} เพิ่ม {0} ในการ์ดนี้
+{who} archived this card,{who} เก็บถาวรการ์ดนี้
+{who} attached {0},{who} แนบไฟล์ {0}
+{who} moved this card from {0} to {1},{who} ย้ายการ์ดนี้จาก{0}ไป{1}
+{who} removed attachment {0},{who} ลบไฟล์แนบ {0}
+{who} restored this card,{who} กู้คืนการ์ดนี้
+{who} set the due date to {0},{who} ตั้งวันครบกำหนดเป็น {0}
