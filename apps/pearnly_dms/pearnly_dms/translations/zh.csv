@@ -273,6 +273,7 @@ Select one or more DMS data groups to read,请选择至少一组需要读取的 
 Send to everyone,发给所有人
 Sent to,发送给
 "Separate fields with | , / or ·","栏位之间用 | , / 或 · 分隔"
+Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。
 Similar customers found. Choose the one that matches.,找到相似的客户，请选择对应的一位。
 Soi,巷（Soi）
 Something went wrong. Please try again.,系统出错，请重试。
@@ -729,7 +730,7 @@ dms.connect.pool.enabled,已启用 {0}
 dms.connect.pool.errDuplicate,这个系统账号已经登记过了
 dms.connect.pool.errOwn,这个账号已经是连接自己的账号
 dms.connect.pool.field,系统账号
-dms.connect.pool.help,在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。
+dms.connect.pool.help,人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。
 dms.connect.pool.manage,管理系统账号
 dms.connect.pool.none,未配置（只用连接自己的账号）
 dms.connect.pool.off,停用

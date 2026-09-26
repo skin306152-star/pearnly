@@ -273,6 +273,7 @@ Select one or more DMS data groups to read,Select one or more DMS data groups to
 Send to everyone,Send to everyone
 Sent to,Sent to
 "Separate fields with | , / or ·","Separate fields with | , / or ·"
+Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.
 Similar customers found. Choose the one that matches.,Similar customers found. Choose the one that matches.
 Soi,Soi
 Something went wrong. Please try again.,Something went wrong. Please try again.
@@ -729,7 +730,7 @@ dms.connect.pool.enabled,Resumed {0}
 dms.connect.pool.errDuplicate,This system account is already registered
 dms.connect.pool.errOwn,This account is already the connection's own account
 dms.connect.pool.field,System accounts
-dms.connect.pool.help,"Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website."
+dms.connect.pool.help,Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.
 dms.connect.pool.manage,Manage system accounts
 dms.connect.pool.none,None (the connection's own account is used)
 dms.connect.pool.off,stopped

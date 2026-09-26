@@ -273,6 +273,7 @@ Select one or more DMS data groups to read,กรุณาเลือกข้�
 Send to everyone,ส่งหาทุกคน
 Sent to,ส่งถึง
 "Separate fields with | , / or ·","คั่นช่องด้วย | , / หรือ ·"
+Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS
 Similar customers found. Choose the one that matches.,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
 Soi,ซอย
 Something went wrong. Please try again.,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
@@ -729,7 +730,7 @@ dms.connect.pool.enabled,ใช้งาน {0} แล้ว
 dms.connect.pool.errDuplicate,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
 dms.connect.pool.errOwn,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
 dms.connect.pool.field,บัญชีระบบ
-dms.connect.pool.help,สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS
+dms.connect.pool.help,ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS
 dms.connect.pool.manage,จัดการบัญชีระบบ
 dms.connect.pool.none,ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)
 dms.connect.pool.off,หยุดใช้

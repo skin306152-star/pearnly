@@ -273,6 +273,7 @@ Select one or more DMS data groups to read,読み取る DMS データを1種類�
 Send to everyone,全員に送る
 Sent to,送信先
 "Separate fields with | , / or ·","項目は | , / または · で区切ってください"
+Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。
 Similar customers found. Choose the one that matches.,似た顧客が見つかりました。該当する顧客を選んでください。
 Soi,ソイ
 Something went wrong. Please try again.,システムエラーです。もう一度お試しください。
@@ -729,7 +730,7 @@ dms.connect.pool.enabled,{0} を再開しました
 dms.connect.pool.errDuplicate,このシステムアカウントは登録済みです
 dms.connect.pool.errOwn,このアカウントはすでに接続自身のアカウントです
 dms.connect.pool.field,システムアカウント
-dms.connect.pool.help,このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。
+dms.connect.pool.help,同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。
 dms.connect.pool.manage,システムアカウントを管理
 dms.connect.pool.none,未設定（接続自身のアカウントのみ使用）
 dms.connect.pool.off,停止中

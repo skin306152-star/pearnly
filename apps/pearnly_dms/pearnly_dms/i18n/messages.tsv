@@ -82,7 +82,7 @@ Manage system accounts	管理系统账号	จัดการบัญชีร�
 System accounts	系统账号	บัญชีระบบ	システムアカウント	dms.connect.pool.field
 None (the connection's own account is used)	未配置（只用连接自己的账号）	ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)	未設定（接続自身のアカウントのみ使用）	dms.connect.pool.none
 {0} registered, {1} in use	已登记 {0} 个，可用 {1} 个	ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี	登録 {0} 件、利用可能 {1} 件	dms.connect.pool.summary
-Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.	在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。	สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS	このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。	dms.connect.pool.help
+Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.	人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。	ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS	同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。	dms.connect.pool.help
 Test and add	测试并添加	ทดสอบและเพิ่ม	テストして追加	dms.connect.pool.testAndAdd
 Added {0}	已添加 {0}	เพิ่ม {0} แล้ว	{0} を追加しました	dms.connect.pool.added
 in use	启用	ใช้งาน	使用中	dms.connect.pool.on
