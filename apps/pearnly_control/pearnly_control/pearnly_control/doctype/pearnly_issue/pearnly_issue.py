@@ -30,6 +30,7 @@ from frappe.model.document import Document
 
 from pearnly_control import features as features_mod
 from pearnly_control.domains import base_domain
+from pearnly_control.onboarding.line_ids import normalize_liff_id
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -50,6 +51,7 @@ RESERVED_PREFIXES = {
     "control", "desk", "dev", "test", "staging", "stage", "demo", "sandbox",
     "pearnly", "cowork", "erp", "dms", "internal", "monitor", "grafana", "work",
 }
+
 
 
 class PearnlyIssue(Document):
@@ -119,6 +121,11 @@ class PearnlyIssue(Document):
                 )
             row.domain_prefix = prefix
             row.domain = domain
+            # LINE 后台给的是 LIFF URL，贴进来就归一成 ID；别的写法当场拒绝
+            try:
+                row.line_liff_id = normalize_liff_id(row.line_liff_id)
+            except ValueError:
+                frappe.throw(_("Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234").format(row.line_liff_id))
 
     # ── 已开通功能 ────────────────────────────────────────────
     def _summarize_features(self):

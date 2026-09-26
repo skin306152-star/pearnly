@@ -109,6 +109,7 @@ Initial password is required (the user signs in with it directly),初期パス�
 Install core apps,基盤アプリを導入
 Install the product app,製品アプリを導入
 Insufficient balance; please top up first,残高不足です。先にチャージしてください
+"Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID の形式が正しくありません: {0}。ID のみ入力してください（例: 2010411313-abcd1234）
 Invalid amount,金額が正しくありません
 Invalid billing reference,課金参照番号が正しくありません
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63

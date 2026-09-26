@@ -109,6 +109,7 @@ Initial password is required (the user signs in with it directly),初始密码�
 Install core apps,装基础 App
 Install the product app,装产品 App
 Insufficient balance; please top up first,余额不足，请先充值
+"Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID 格式不对：{0}。只填编号，例如 2010411313-abcd1234
 Invalid amount,金额不对
 Invalid billing reference,计费参考号不对
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63

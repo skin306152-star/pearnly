@@ -290,3 +290,4 @@ Tenant Provisioning	租户开通	การเตรียมผู้เช่�
 The billing reference was already used for another request	这个计费参考号已经用在别的请求上了	เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว	この課金参照番号は別のリクエストで使用済みです
 This is a read-only copy of the cloud billing request	这是云端计费请求的只读副本	นี่คือสำเนาอ่านอย่างเดียวของคำขอเรียกเก็บเงินบนคลาวด์	これはクラウド課金リクエストの読み取り専用コピーです
 An employee identity is used by another tenant; review it before deleting this tenant	有员工身份被其他租户使用，请先核对后再删除本租户	บัญชีพนักงานถูกใช้งานโดยผู้เช่ารายอื่น โปรดตรวจสอบก่อนลบผู้เช่ารายนี้	従業員アカウントが他のテナントで使用されています。このテナントを削除する前に確認してください
+Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234	LIFF ID 格式不对：{0}。只填编号，例如 2010411313-abcd1234	LIFF ID ไม่ถูกต้อง: {0} กรอกเฉพาะรหัส เช่น 2010411313-abcd1234	LIFF ID の形式が正しくありません: {0}。ID のみ入力してください（例: 2010411313-abcd1234）

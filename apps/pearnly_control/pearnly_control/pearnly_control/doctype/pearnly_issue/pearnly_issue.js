@@ -79,6 +79,25 @@ function pcall(method, args) {
 		.then((r) => r.message);
 }
 
+// 先存再动。⚠️ 两个坑：表单没改动时 Frappe 不调保存回调（见 issue_and_provision）；
+// 保存**失败**时 `frm.save()` 照样 resolve —— 报错它自己已经弹过了。所以存完要看
+// 单子是不是还新/还脏：没存上就停，不能拿临时单号（new-pearnly-issue-…）去调后端。
+const NOT_SAVED = "pearnly:not-saved";
+
+function save_first(frm) {
+	if (!frm.is_dirty() && !frm.is_new()) return Promise.resolve();
+	return frm.save().then(() => {
+		if (frm.is_new() || frm.is_dirty()) throw NOT_SAVED;
+	});
+}
+
+// 服务端的错 Frappe 已经按原文弹过了（`frappe.call` 失败时给的是响应对象，
+// 当文字显示就是 "[object Object]"）；只有前端自己抛的 Error 才需要再弹一次。
+function report_error(title, e) {
+	if (!(e instanceof Error)) return;
+	frappe.msgprint({ title: title, message: e.message, indicator: "red" });
+}
+
 function state_of(frm) {
 	return pcall("pearnly_control.provisioning.api_state_for_issue", { issue: frm.doc.name });
 }
@@ -163,26 +182,17 @@ function start_provision(frm) {
 		})
 		.catch((e) => {
 			frappe.dom.unfreeze();
-			frappe.msgprint({
-				title: __("Could not queue provisioning"),
-				message: (e && e.message) || String(e),
-				indicator: "red",
-			});
+			report_error(__("Could not queue provisioning"), e);
 		});
 }
 
 function retry_provision(frm, request) {
 	frappe.dom.freeze(__("Queueing provisioning…"));
-	const save = frm.is_dirty() ? frm.save() : Promise.resolve();
-	return save
+	return save_first(frm)
 		.then(() => pcall("pearnly_control.provisioning.api_retry_failed", { request }))
 		.then(() => frm.reload_doc())
 		.then(() => open_progress(frm))
-		.catch((e) => frappe.msgprint({
-			title: __("Could not queue provisioning"),
-			message: (e && e.message) || String(e),
-			indicator: "red",
-		}))
+		.catch((e) => report_error(__("Could not queue provisioning"), e))
 		.finally(() => frappe.dom.unfreeze());
 }
 
@@ -232,9 +242,8 @@ function issue_and_provision(frm) {
 	// ⚠️ **表单没改动时不能等 `frm.save()`**：Frappe 那条路只弹一句"未做任何修改"，
 	// 压根不调回调 —— 而 `frm.save()` 是 `new Promise((resolve) => …)`，
 	// 回调不调就**永远不落地**，链子会卡死在 freeze 上：界面一直"正在发号…"，
-	// 后台什么也没发生（今天就是这么卡住的）。所以按 `is_dirty()` 分流。
-	const save = () => (frm.is_dirty() ? frm.save() : Promise.resolve());
-	save()
+	// 后台什么也没发生（今天就是这么卡住的）。所以按 `is_dirty()` 分流（`save_first`）。
+	save_first(frm)
 		.then(() => pcall("pearnly_control.issues.api_issue_from_doc", { issue: frm.doc.name }))
 		.then((res) => {
 			frappe.dom.unfreeze();
@@ -250,11 +259,7 @@ function issue_and_provision(frm) {
 		})
 		.catch((e) => {
 			frappe.dom.unfreeze();
-			frappe.msgprint({
-				title: __("Issue failed"),
-				message: (e && e.message) || String(e),
-				indicator: "red",
-			});
+			report_error(__("Issue failed"), e);
 		});
 }
 

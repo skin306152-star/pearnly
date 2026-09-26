@@ -17,6 +17,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from pearnly_control.onboarding.line_ids import normalize_liff_id
+
 
 class PearnlyLINEChannel(Document):
     def validate(self):
@@ -28,6 +30,10 @@ class PearnlyLINEChannel(Document):
             frappe.throw(_("No such deployment: {0}").format(self.deployment))
         # 产品以部署为准，避免单据之间对不上
         self.product = dep.product
+        try:
+            self.liff_id = normalize_liff_id(self.liff_id)
+        except ValueError:
+            frappe.throw(_("Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234").format(self.liff_id))
         # 地址由**部署的对外地址**算出来，与开通时下发给站点的那条永远一致：
         # 本机是 http://xxx.localhost:8103/…，生产是 https://xxx.pearnly.com/…（不带端口）。
         from pearnly_control import infra

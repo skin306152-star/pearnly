@@ -109,6 +109,7 @@ Initial password is required (the user signs in with it directly),ต้อง�
 Install core apps,ติดตั้งแอปพื้นฐาน
 Install the product app,ติดตั้งแอปผลิตภัณฑ์
 Insufficient balance; please top up first,ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน
+"Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID ไม่ถูกต้อง: {0} กรอกเฉพาะรหัส เช่น 2010411313-abcd1234
 Invalid amount,จำนวนเงินไม่ถูกต้อง
 Invalid billing reference,เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63
