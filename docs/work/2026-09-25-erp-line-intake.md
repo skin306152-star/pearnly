@@ -445,6 +445,25 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 | 线上 Cowork 与计费站点仍 `15dea26` | Cowork 账号池与整批功能由 Cowork 窗口发布 | Cowork 窗口发布 |
 | 第 6 节原登记的保留项（`strange-swartz-a8b667` 工作树、测试机 ERP 数据卷、线上 `/root/te-export/`） | 不属本窗口，未动 | 见第 6 节 |
 
+### 跨任务清理（2026-09-26，用户："除了 Cowork 在做的，该清理的清理"，逐项确认）
+
+逐项核对（未提交 / 忽略内容、容器挂载、进程）后处理：
+- 本仓：归档会话「Continue ERP LINE intake verification and fixes」与「Verify and fix "log out everywhere"」（可恢复）；非强制移除其工作树 `funny-mendel-36f374`（仅缓存）、
+  `pensive-williamson-c1f4a9`（干净），删除已并入 main 的 `pearnly/pensive-williamson-c1f4a9`。远端只剩 `main`，无 stash。
+- 旧 `pearnly-erp`：非强制移除干净的分离工作树 `~/.codex/worktrees/erp-local-sample`（未动 `~/pearnly-erp` 主目录）。
+- 旧 `pearnly-companion`：工作树 `~/.codex/worktrees/companion-simplify` 有 7 个改动 + 1 个未跟踪文件 → 用户选"存补丁后删"：备份到
+  `~/Backups/pearnly-cleanup-2026-09-26/companion-simplify/`（补丁 + 8 个原文件 + README），在基线 `ca7f267` 的全新检出上 `git apply` 验证、结果逐字节一致后，
+  强制移除工作树、删除无独有提交的 `codex/companion-simplify`；并清理 3 条目录已不存在的工作树登记与其分支（均无独有提交、远端不存在）。
+- Colima：删除已停机的 `pearnly-stocktake`（用户确认不可恢复）；现仅剩共享样板 `pearnly`。
+
+保留（未动，需要时再定）：
+| 保留项 | 原因 | 解除条件 |
+| --- | --- | --- |
+| Cowork：`codex/cowork-frontend`（领先 main 1 个提交）、`~/.codex/worktrees/cowork-frontend`、工作树 `pensive-babbage-3ed931` | Cowork 进行中 | Cowork 窗口收尾 |
+| `~/pearnly-erp`：`codex/system-auth-mail` 领先 1 个未合入提交；主目录 `README.md` 被删、子模块 `upstream/frappe_docker` 有改动、一个名为长空格 + `.md` 的未跟踪文件 | 未保存工作，归属不明 | 用户决定 |
+| 本会话工作树 `gifted-lehmann-d677ce` 与应用分支 `pearnly/gifted-lehmann-d677ce` | 当前会话 | 会话结束由应用清理 |
+| `~/Backups/pearnly-cleanup-2026-09-26/` | companion 未提交改动的备份 | 用户确认不再需要 |
+
 ### 待用户处理 / 授权
 
 - LINE 后台核实：ERP-TEST 官方号（2011288286）与 LINE Login 频道 2010411313 是否同一 Provider（不同则 LINE 用户 ID 不一致，关联全失败）；在该频道登记 Keycloak 回调地址（已授权范围内，改前告知）。
