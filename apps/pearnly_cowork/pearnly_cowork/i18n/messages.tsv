@@ -918,3 +918,41 @@ The card no longer exists	卡片不存在	ไม่มีการ์ดนี�
 Invalid request	请求无效	คำขอไม่ถูกต้อง	リクエストが無効です	cowork.work.error.request
 Text is too long	内容太长	ข้อความยาวเกินไป	テキストが長すぎます	cowork.work.error.too_long
 Too many items	项目太多	รายการมากเกินไป	項目が多すぎます	cowork.work.error.too_many
+Mark complete	标记完成	ทำเครื่องหมายว่าเสร็จ	完了にする	cowork.work.card.done
+Mark incomplete	标记未完成	ทำเครื่องหมายว่ายังไม่เสร็จ	未完了に戻す	cowork.work.card.undone
+Collapse list	收起列表	ย่อรายการ	リストを折りたたむ	cowork.work.column.collapse
+List actions	列表操作	การดำเนินการของรายการ	リストの操作	cowork.work.column.menu
+Move all cards in this list	移动此列表中的所有卡片	ย้ายการ์ดทั้งหมดในรายการนี้	このリストのカードをすべて移動	cowork.work.column.moveAll
+Sort by	排序依据	เรียงตาม	並べ替え	cowork.work.column.sort
+Date created (newest first)	创建时间（最新优先）	วันที่สร้าง (ใหม่สุดก่อน)	作成日（新しい順）	cowork.work.column.sort_created_desc
+Date created (oldest first)	创建时间（最早优先）	วันที่สร้าง (เก่าสุดก่อน)	作成日（古い順）	cowork.work.column.sort_created_asc
+Due date	到期日	วันครบกำหนด	期日	cowork.work.column.sort_due
+Card name (alphabetically)	卡片名称（按字母）	ชื่อการ์ด (ตามตัวอักษร)	カード名（アルファベット順）	cowork.work.column.sort_title
+Create card	创建卡片	สร้างการ์ด	カードを作成	cowork.work.copy.create
+Keep	保留	คงไว้	引き継ぐ	cowork.work.copy.keep
+Copy to	复制到	คัดลอกไปที่	コピー先	cowork.work.copy.to
+None	无	ไม่มี	なし	cowork.work.cover.none
+Choose an image attached to this card	请选这张卡片上的图片附件	กรุณาเลือกรูปภาพที่แนบในการ์ดนี้	このカードに添付した画像を選んでください	cowork.work.error.cover
+Cover	封面	ปก	カバー	cowork.work.field.cover
+No notifications	没有提醒	ไม่มีการแจ้งเตือน	通知はありません	cowork.work.notify.empty
+Mark all as read	全部标为已读	ทำเครื่องหมายว่าอ่านทั้งหมด	すべて既読にする	cowork.work.notify.readAll
+Notifications	提醒	การแจ้งเตือน	通知	cowork.work.notify.title
+{0} added you to {1}	{0} 把你加入了卡片「{1}」	{0} เพิ่มคุณในการ์ด "{1}"	{0} があなたを「{1}」に追加しました	cowork.work.notify.assign
+{0} mentioned you on {1}	{0} 在卡片「{1}」提到了你	{0} กล่าวถึงคุณในการ์ด "{1}"	{0} が「{1}」であなたをメンションしました	cowork.work.notify.mention
+{0} commented on {1}	{0} 评论了卡片「{1}」	{0} แสดงความคิดเห็นในการ์ด "{1}"	{0} が「{1}」にコメントしました	cowork.work.notify.comment
+{0} moved {1} to {2}	{0} 把卡片「{1}」移到了{2}	{0} ย้ายการ์ด "{1}" ไปที่{2}	{0} が「{1}」を{2}に移動しました	cowork.work.notify.move
+{1} is due soon ({2})	卡片「{1}」快到期了（{2}）	การ์ด "{1}" ใกล้ครบกำหนด ({2})	「{1}」の期日が近づいています（{2}）	cowork.work.notify.due_soon
+{1} is overdue ({2})	卡片「{1}」已过期（{2}）	การ์ด "{1}" เลยกำหนดแล้ว ({2})	「{1}」は期限切れです（{2}）	cowork.work.notify.overdue
+{who} copied this card from {0}	{who} 从「{0}」复制了这张卡片	{who} คัดลอกการ์ดนี้จาก "{0}"	{who} が「{0}」からこのカードをコピーしました	cowork.work.activity.copy
+Open card	打开卡片	เปิดการ์ด	カードを開く	cowork.work.quick.open
+Edit labels	修改标签	แก้ไขป้ายกำกับ	ラベルを編集	cowork.work.quick.labels
+Change members	变更成员	เปลี่ยนสมาชิก	メンバーを変更	cowork.work.quick.members
+Change cover	更改封面	เปลี่ยนปก	カバーを変更	cowork.work.quick.cover
+Edit dates	编辑日期	แก้ไขวันที่	日付を編集	cowork.work.quick.due
+Move	移动	ย้าย	移動	cowork.work.quick.move
+Copy card	复制卡片	คัดลอกการ์ด	カードをコピー	cowork.work.quick.copy
+Copy link	复制链接	คัดลอกลิงก์	リンクをコピー	cowork.work.quick.link
+Edit card	编辑卡片	แก้ไขการ์ด	カードを編集	cowork.work.quick.title
+Watch	关注	ติดตาม	ウォッチ	cowork.work.quick.watch
+Stop watching	取消关注	เลิกติดตาม	ウォッチをやめる	cowork.work.quick.unwatch
+You are watching this card	你在关注这张卡片	คุณกำลังติดตามการ์ดนี้	このカードをウォッチしています	cowork.work.quick.watching

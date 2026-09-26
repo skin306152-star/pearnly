@@ -1,5 +1,6 @@
-/* 工作协调看板：在 Frappe 原生看板样式（`.kanban*`，kanban.scss）上只改版式——
- * 列按内容长高（原生是整屏高）、卡片不留固定最小高度、加标签 / 徽标 / 头像一行。
+/* 工作协调看板。卡片的样子照 Trello（用户 2026-09-27）：圆角白卡带轻阴影、悬停描边并出现完成圆圈
+ * 与归档 / 编辑按钮、标签条、封面、徽标行、头像；底色用我们自己的——页面白底、列用原生看板灰
+ * （`--kanban-column-bg`）。颜色一律取 Desk 原生变量，深色模式跟着走。
  * 手机上三列纵排，顶上分区导航（借 Desk 的 `form-tabs-list`，照 ERP / 录入二级页）。 */
 .pearnly-work-nav {
 	display: none;
@@ -7,63 +8,117 @@
 
 .pearnly-work-board.kanban {
 	margin: 0;
+	gap: 12px;
 	align-items: flex-start;
 	overflow-x: auto;
 }
 
+/* ── 列 ─────────────────────────────────────────────────────────────────────── */
 .pearnly-work-board .kanban-column {
-	flex: 1 0 280px;
-	max-width: none;
+	flex: 0 0 272px;
+	max-width: 272px;
 	min-height: 0;
+	padding: 8px;
+	border-radius: 12px;
 	background-color: var(--kanban-column-bg);
 }
 
-.pearnly-work-board .kanban-column .kanban-column-header {
+.pearnly-work-board .pearnly-work-column-header {
 	align-items: center;
-	margin-bottom: var(--margin-sm);
+	margin: 0 0 4px;
+	padding: 2px 4px 2px 8px;
+}
+
+.pearnly-work-column-tools {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.pearnly-work-count {
+	margin-right: 4px;
+	color: var(--text-muted);
+	font-size: var(--text-sm);
+}
+
+.pearnly-work-column-tools .btn {
+	padding: 2px 6px;
+	color: var(--text-muted);
+}
+
+.pearnly-work-column-tools .btn:hover {
+	color: var(--text-color);
+	background: var(--fg-hover-color);
 }
 
 .pearnly-work-board .kanban-column .kanban-cards {
 	height: auto;
-	min-height: 40px;
+	min-height: 8px;
+	margin: 0 -4px;
+	padding: 2px 4px 4px;
 }
 
-.pearnly-work-board .kanban-column .kanban-cards .kanban-card-wrapper .kanban-card {
-	min-height: 0;
-}
-
-.pearnly-work-board .kanban-column .kanban-cards .kanban-card-wrapper:last-child .kanban-card {
-	margin-bottom: 0;
-}
-
-.pearnly-work-board .kanban-column .kanban-cards .kanban-card-wrapper .kanban-card .kanban-card-body {
+/* 收起：一条竖条，标题竖排，点一下展开。 */
+.pearnly-work-board .kanban-column.collapsed {
+	flex: 0 0 44px;
+	max-width: 44px;
 	cursor: pointer;
-	padding: var(--padding-sm) var(--padding-md);
 }
 
-.pearnly-work-board .kanban-card-title {
-	font-size: var(--text-md);
-	font-weight: 500;
-	color: var(--text-color);
-	white-space: normal;
-	word-break: break-word;
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-column-header {
+	flex-direction: column;
+	gap: 8px;
+	padding: 4px 0;
 }
 
-.pearnly-work-board .kanban-column .add-card {
+.pearnly-work-board .kanban-column.collapsed .kanban-column-title {
+	writing-mode: vertical-rl;
+	padding: 0;
+}
+
+.pearnly-work-board .kanban-column.collapsed .kanban-column-title .kanban-title {
+	margin: 8px 0 0;
+}
+
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-column-tools {
+	order: -1;
+	flex-direction: column;
+}
+
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-column-tools [data-popup],
+.pearnly-work-board .kanban-column.collapsed .kanban-cards,
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-add,
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-compose {
+	display: none;
+}
+
+.pearnly-work-add {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	width: 100%;
+	margin-top: 4px;
+	padding: 6px 8px;
 	border: 0;
-	justify-content: flex-start;
-	gap: 4px;
-	padding: 0 var(--padding-sm);
-	margin: var(--margin-sm) 0 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--text-md);
+	text-align: left;
 }
 
-.pearnly-work-board .kanban-column .add-card .icon {
+.pearnly-work-add:hover {
+	background: var(--fg-hover-color);
+	color: var(--text-color);
+}
+
+.pearnly-work-add .icon {
 	margin: 0;
 }
 
 .pearnly-work-compose {
-	margin-top: var(--margin-sm);
+	margin-top: 4px;
 }
 
 .pearnly-work-compose-actions {
@@ -71,6 +126,69 @@
 	gap: 6px;
 	margin-top: 6px;
 }
+
+/* ── 卡片 ───────────────────────────────────────────────────────────────────── */
+.pearnly-work-card-wrap {
+	padding: 4px 0;
+}
+
+.pearnly-work-card {
+	position: relative;
+	overflow: hidden;
+	border-radius: 8px;
+	background: var(--card-bg);
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+}
+
+.pearnly-work-card:hover {
+	box-shadow: 0 0 0 2px var(--primary);
+}
+
+.pearnly-work-ghost .pearnly-work-card {
+	opacity: 0.4;
+}
+
+.pearnly-work-dragging .pearnly-work-card {
+	transform: rotate(3deg);
+}
+
+.pearnly-work-card-body {
+	padding: 8px 12px 6px;
+}
+
+.pearnly-work-cover {
+	height: 36px;
+}
+
+.pearnly-work-cover.image {
+	height: 140px;
+	background-color: var(--subtle-fg);
+	background-position: center;
+	background-size: cover;
+}
+
+.pearnly-work-cover.large {
+	height: 120px;
+	margin-bottom: var(--margin-md);
+	border-radius: var(--border-radius-md);
+}
+
+.pearnly-work-cover.image.large {
+	height: 200px;
+	background-size: contain;
+	background-repeat: no-repeat;
+}
+
+.pearnly-work-cover.green { background: var(--green-500); }
+.pearnly-work-cover.yellow { background: var(--yellow-400); }
+.pearnly-work-cover.orange { background: var(--orange-500); }
+.pearnly-work-cover.red { background: var(--red-500); }
+.pearnly-work-cover.purple { background: var(--purple-500); }
+.pearnly-work-cover.blue { background: var(--blue-500); }
+.pearnly-work-cover.cyan { background: var(--cyan-500); }
+.pearnly-work-cover.pink { background: var(--pink-500); }
+.pearnly-work-cover.gray { background: var(--gray-500); }
 
 .pearnly-work-labels {
 	display: flex;
@@ -80,10 +198,105 @@
 }
 
 .pearnly-work-label {
-	min-width: 32px;
+	display: inline-block;
+	min-width: 40px;
 	max-width: 100%;
+	min-height: 16px;
+	padding: 0 8px;
+	border-radius: 4px;
+	font-size: var(--text-xs);
+	font-weight: 500;
+	line-height: 16px;
+	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.pearnly-work-label.green { background: var(--bg-green); color: var(--text-on-green); }
+.pearnly-work-label.yellow { background: var(--bg-yellow); color: var(--text-on-yellow); }
+.pearnly-work-label.orange { background: var(--bg-orange); color: var(--text-on-orange); }
+.pearnly-work-label.red { background: var(--bg-red); color: var(--text-on-red); }
+.pearnly-work-label.purple { background: var(--bg-purple); color: var(--text-on-purple); }
+.pearnly-work-label.blue { background: var(--bg-blue); color: var(--text-on-blue); }
+.pearnly-work-label.cyan { background: var(--bg-cyan); color: var(--text-on-cyan); }
+.pearnly-work-label.pink { background: var(--bg-pink); color: var(--text-on-pink); }
+.pearnly-work-label.gray { background: var(--bg-gray); color: var(--text-on-gray); }
+
+.pearnly-work-title-row {
+	display: flex;
+	align-items: flex-start;
+}
+
+.pearnly-work-title {
+	flex: 1;
+	min-width: 0;
+	color: var(--text-color);
+	font-size: var(--text-md);
+	line-height: 20px;
+	word-break: break-word;
+}
+
+/* 完成圆圈：平时收着，悬停才滑出来；已完成的卡一直显示绿勾。 */
+.pearnly-work-done {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	width: 0;
+	height: 20px;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	background: transparent;
+	color: var(--text-muted);
+	opacity: 0;
+	transition: width 0.15s ease, opacity 0.15s ease, margin 0.15s ease;
+}
+
+.pearnly-work-card:hover .pearnly-work-done,
+.pearnly-work-card.is-done .pearnly-work-done {
+	width: 18px;
+	margin-right: 6px;
+	opacity: 1;
+}
+
+.pearnly-work-card.is-done .pearnly-work-done {
+	color: var(--green-500);
+}
+
+.pearnly-work-done:hover {
+	color: var(--text-color);
+}
+
+/* 悬停右上角：归档、编辑（快捷菜单）。 */
+.pearnly-work-card-tools {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: none;
+	gap: 4px;
+}
+
+.pearnly-work-card:hover .pearnly-work-card-tools {
+	display: flex;
+}
+
+.pearnly-work-card-tools .btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border-radius: 50%;
+	background: var(--card-bg);
+	box-shadow: var(--shadow-sm);
+	color: var(--text-muted);
+}
+
+.pearnly-work-card-tools .btn:hover {
+	color: var(--text-color);
+	background: var(--fg-hover-color);
 }
 
 .pearnly-work-meta {
@@ -91,14 +304,15 @@
 	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
-	margin-top: 8px;
+	margin-top: 6px;
 }
 
 .pearnly-work-badges {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
+	gap: 2px 8px;
+	color: var(--text-muted);
 	font-size: var(--text-xs);
 }
 
@@ -106,8 +320,60 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 3px;
+	line-height: 20px;
 }
 
+.pearnly-work-badge.due {
+	padding: 0 4px;
+	border-radius: 4px;
+}
+
+.pearnly-work-badge.due.overdue { background: var(--bg-red); color: var(--text-on-red); }
+.pearnly-work-badge.due.soon { background: var(--bg-yellow); color: var(--text-on-yellow); }
+.pearnly-work-badge.due.done { background: var(--bg-green); color: var(--text-on-green); }
+.pearnly-work-badge.complete { color: var(--green-600); }
+
+/* 浮在页面上的小菜单（卡片快捷菜单、列菜单），原生 dropdown 的样子。 */
+.pearnly-work-popup {
+	z-index: 1060;
+	min-width: 200px;
+	max-height: calc(100vh - 16px);
+	overflow-y: auto;
+}
+
+.pearnly-work-popup .dropdown-item {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 8px;
+	text-align: left;
+}
+
+.pearnly-work-popup .dropdown-item .icon {
+	flex-shrink: 0;
+	margin: 0;
+}
+
+/* 右上角铃铛上的未读数。 */
+.pearnly-work-bell {
+	position: relative;
+}
+
+.pearnly-work-bell-count {
+	position: absolute;
+	top: -2px;
+	right: -4px;
+	min-width: 16px;
+	padding: 0 4px;
+	border-radius: 8px;
+	background: var(--red-500);
+	color: #fff;
+	font-size: 10px;
+	line-height: 16px;
+	text-align: center;
+}
+
+/* ── 弹窗 ───────────────────────────────────────────────────────────────────── */
 .pearnly-work-dialog .pearnly-work-activity {
 	display: flex;
 	gap: 8px;
@@ -130,9 +396,17 @@
 .pearnly-work-dialog .pearnly-work-file {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	margin-bottom: 4px;
+	gap: 8px;
+	margin-bottom: 6px;
 	min-width: 0;
+}
+
+.pearnly-work-dialog .pearnly-work-file img {
+	width: 64px;
+	height: 44px;
+	object-fit: cover;
+	border-radius: var(--border-radius-sm);
+	flex-shrink: 0;
 }
 
 .pearnly-work-dialog .pearnly-work-file a {
@@ -141,10 +415,76 @@
 	white-space: nowrap;
 }
 
+.pearnly-work-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	width: 100%;
+	padding: 8px;
+	border: 0;
+	border-radius: var(--border-radius);
+	background: transparent;
+	text-align: left;
+}
+
+.pearnly-work-notice:hover {
+	background: var(--fg-hover-color);
+}
+
+.pearnly-work-notice.unread {
+	background: var(--subtle-accent);
+	font-weight: 500;
+}
+
+.pearnly-work-notice-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.pearnly-work-notice-quote {
+	color: var(--text-muted);
+	font-weight: 400;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pearnly-work-notice-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	color: var(--text-muted);
+}
+
 /* 标签表只有两列窄栏：让表格不裁切颜色下拉（原生网格为横向滚动设了 overflow）。 */
 .pearnly-work-labels-dialog .form-grid-container,
 .pearnly-work-labels-dialog .form-grid {
 	overflow: visible;
+}
+
+/* 触屏没有悬停：完成圆圈与编辑按钮一直露出来。 */
+@media (hover: none) {
+	.pearnly-work-done {
+		width: 18px;
+		margin-right: 6px;
+		opacity: 1;
+	}
+
+	.pearnly-work-card-tools {
+		display: flex;
+	}
+
+	.pearnly-work-card-tools [data-action="archive"] {
+		display: none;
+	}
+
+	.pearnly-work-card-body {
+		padding-right: 40px;
+	}
 }
 
 @media (max-width: 767px) {
@@ -165,11 +505,17 @@
 	.pearnly-work-board .kanban-column {
 		flex: none;
 		width: 100%;
+		max-width: none;
 		scroll-margin-top: 110px;
 	}
 
 	.pearnly-work-board .kanban-column .kanban-cards {
 		max-height: none;
 		overflow: visible;
+	}
+
+	/* 手机上不收列（分区导航已经够用）。 */
+	.pearnly-work-collapse {
+		display: none;
 	}
 }

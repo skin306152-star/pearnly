@@ -1,4 +1,4 @@
-"""工作协调看板的服务端实现：读板、卡片增改移、归档、评论、附件、标签。
+"""工作协调看板的服务端实现：读板、卡片增改移、完成、复制、归档、评论（@）、附件、封面、关注、标签。
 
 一个团队（站点）一块板，挂在站点内部那一份归属（`scope.default_workspace`）上；三列固定。
 每个写入口先 `access.require()`，再核对卡片属于本站归属；写入走 `documents.persist`，
@@ -12,13 +12,15 @@ from frappe import _
 from frappe.utils import convert_utc_to_system_timezone, getdate, strip_html
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.work import access, contracts
+from pearnly_cowork.work import access, contracts, notify
 from pearnly_cowork.work.contracts import Invalid
 from pearnly_cowork.work.documents import persist, remove
 
 CARD, LABEL, ACTIVITY = access.CARD, access.LABEL, access.ACTIVITY
 REALTIME_EVENT = "cowork_work_changed"
-SUMMARY_FIELDS = ["name", "title", "status", "position", "due_date", "description", "modified", "creation"]
+SUMMARY_FIELDS = ["name", "title", "status", "position", "due_date", "description", "cover_color", "cover_file",
+                  "modified", "creation"]
+IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 
 
 def _now():
@@ -93,6 +95,9 @@ def _summaries(rows):
     names = [row.name for row in rows]
     assignees = _children("Cowork Work Card Assignee", names, ["user"])
     tags = _children("Cowork Work Card Label", names, ["label"])
+    watchers = _children("Cowork Work Card Watcher", names, ["user"])
+    covers = dict(frappe.get_all("File", filters={"name": ["in", [row.cover_file for row in rows if row.cover_file] or [""]]},
+                                 fields=["name", "file_url"], as_list=True))
     checklist = _children("Cowork Work Checklist Item", names, ["done"])
     comments = _counts(ACTIVITY, "card", names, {"action": "comment"})
     files = _counts("File", "attached_to_name", names, {"attached_to_doctype": CARD})
@@ -105,6 +110,8 @@ def _summaries(rows):
             "has_description": bool(strip_html(row.description or "").strip()),
             "assignees": [item.user for item in assignees.get(row.name, [])],
             "labels": [item.label for item in tags.get(row.name, [])],
+            "watching": any(item.user == frappe.session.user for item in watchers.get(row.name, [])),
+            "cover_color": row.cover_color or "", "cover_url": covers.get(row.cover_file or "", ""),
             "checklist_done": sum(1 for item in items if item.done), "checklist_total": len(items),
             "comments": comments.get(row.name, 0), "attachments": files.get(row.name, 0),
         })
@@ -116,7 +123,9 @@ def board():
     rows = frappe.get_all(CARD, filters={"workspace": workspace, "archived": 0}, fields=SUMMARY_FIELDS,
                           order_by="position asc, creation asc", limit_page_length=0)
     return {"cards": _summaries(rows), "members": members(), "labels": labels(workspace),
-            "statuses": list(contracts.STATUSES), "me": frappe.session.user, "admin": access.administrator()}
+            "statuses": list(contracts.STATUSES), "me": frappe.session.user, "admin": access.administrator(),
+            "unread": frappe.db.count(access.NOTIFICATION, {"workspace": workspace, "user": frappe.session.user,
+                                                            "is_read": 0})}
 
 
 def summary(name):
@@ -149,6 +158,9 @@ def card(name):
         "description": doc.description or "", "archived": doc.archived, "modified": str(doc.modified),
         "owner": doc.owner, "creation": doc.creation,
         "assignees": [row.user for row in doc.assignees], "labels": [row.label for row in doc.labels],
+        "watchers": [row.user for row in doc.watchers],
+        "watching": any(row.user == frappe.session.user for row in doc.watchers),
+        "cover_color": doc.cover_color or "", "cover_file": doc.cover_file or "",
         "checklist": [{"title": row.title, "done": row.done} for row in doc.checklist],
         "attachments": _attachments(doc.name), "activity": _activity(doc.name),
     }
@@ -193,7 +205,7 @@ def create(title, status="todo"):
 
 
 def _members_set():
-    return {row["user"] for row in members()}
+    return notify.members()
 
 
 def update(name, modified, values):
@@ -231,6 +243,7 @@ def update(name, modified, values):
         doc.set("assignees", [{"user": user} for user in users])
         if added:
             _log(doc.name, workspace, "assign", {"users": added})
+            notify.send(added, doc, "assign")
     if "labels" in values:
         chosen = contracts.distinct(values["labels"], contracts.LABELS_MAX)
         known = {row.name for row in labels(workspace)}
@@ -239,14 +252,19 @@ def update(name, modified, values):
         doc.set("labels", [{"label": label} for label in chosen])
     if "checklist" in values:
         doc.set("checklist", contracts.checklist(values["checklist"]))
+    if "cover_color" in values:
+        doc.cover_color = contracts.color(values["cover_color"]) if values["cover_color"] else ""
+        if doc.cover_color:
+            doc.cover_file = ""
+    if "cover_file" in values:
+        doc.cover_file = _cover_file(doc.name, values["cover_file"]) if values["cover_file"] else ""
+        if doc.cover_file:
+            doc.cover_color = ""
     if "status" in values:
         # 弹窗里换列：放到目标列列尾（拖动才能插到中间）。
         status = contracts.status(values["status"])
         if status != doc.status:
-            _log(doc.name, workspace, "move", {"from": doc.status, "to": status})
-            doc.position = contracts.position_between(_column_tail(workspace, status, doc.name), None)
-            doc.completed_at = _now() if status == contracts.DONE else None
-            doc.status = status
+            _relocate(doc, workspace, status)
     persist(doc)
     _changed(doc.name, "update")
     return card(doc.name)
@@ -276,15 +294,131 @@ def move(name, status, before=None, after=None):
         position = contracts.position_between(neighbour(before), neighbour(after))
     if position is None:
         position = contracts.position_between(_column_tail(workspace, status, doc.name), None)
-    previous = doc.status
-    doc.status = status
+    if status != doc.status:
+        _relocate(doc, workspace, status, position)
     doc.position = position
-    if status != previous:
-        doc.completed_at = _now() if status == contracts.DONE else None
-        _log(doc.name, workspace, "move", {"from": previous, "to": status})
     persist(doc)
     _changed(doc.name, "move")
     return summary(doc.name)
+
+
+def _relocate(doc, workspace, status, position=None):
+    """换列：记活动、完成时间、提醒负责人和关注的人；不传位置就放到目标列列尾。"""
+    previous = doc.status
+    _log(doc.name, workspace, "move", {"from": previous, "to": status})
+    doc.status = status
+    doc.position = position if position is not None else contracts.position_between(
+        _column_tail(workspace, status, doc.name), None)
+    doc.completed_at = _now() if status == contracts.DONE else None
+    notify.send(notify.audience(doc), doc, "move", {"from": previous, "to": status})
+
+
+def toggle_done(name):
+    """卡片上的完成圆圈：没完成 → 移到「已完成」；已完成 → 回到完成前的那一列（查不到就回「待办」）。"""
+    workspace = _workspace()
+    doc = _card(name, workspace, lock=True, archived=False)
+    if doc.status != contracts.DONE:
+        target = contracts.DONE
+    else:
+        target = "todo"
+        for row in frappe.get_all(ACTIVITY, filters={"card": doc.name, "action": "move"}, fields=["detail"],
+                                  order_by="creation desc", limit_page_length=20):
+            detail = json.loads(row.detail or "{}")
+            if detail.get("to") == contracts.DONE and detail.get("from") in contracts.STATUSES:
+                target = detail["from"] if detail["from"] != contracts.DONE else "todo"
+                break
+    _relocate(doc, workspace, target)
+    persist(doc)
+    _changed(doc.name, "move")
+    return summary(doc.name)
+
+
+def copy(name, title, status, keep=None):
+    """复制卡片（Trello「复制卡片」）：新标题、目标列；可选带上清单 / 标签 / 成员。放在目标列列尾。"""
+    workspace = _workspace()
+    source = _card(name, workspace, archived=None)
+    title = contracts.text(title, contracts.TITLE_MAX, required=True)
+    status = contracts.status(status)
+    keep = set(contracts.distinct(keep, 3)) & {"checklist", "labels", "members"}
+    frappe.db.get_value("DocType", CARD, "name", for_update=True)
+    doc = frappe.get_doc({"doctype": CARD, "workspace": workspace, "title": title, "status": status,
+                          "description": source.description, "due_date": source.due_date,
+                          "position": contracts.position_between(_column_tail(workspace, status), None),
+                          "completed_at": _now() if status == contracts.DONE else None})
+    if "checklist" in keep:
+        doc.set("checklist", [{"title": row.title, "done": row.done} for row in source.checklist])
+    if "labels" in keep:
+        doc.set("labels", [{"label": row.label} for row in source.labels])
+    if "members" in keep:
+        allowed = _members_set()
+        doc.set("assignees", [{"user": row.user} for row in source.assignees if row.user in allowed])
+    persist(doc)
+    _log(doc.name, workspace, "copy", {"from": source.title})
+    _changed(doc.name, "create")
+    return summary(doc.name)
+
+
+SORTS = {"created_desc": ("creation", True), "created_asc": ("creation", False),
+         "due": ("due_date", False), "title": ("title", False)}
+
+
+def sort_column(status, key):
+    """列菜单「排序依据」：按选的规则把这一列重新排好（写回位置，所有人看到的一样）。"""
+    workspace = _workspace()
+    status = contracts.status(status)
+    if key not in SORTS:
+        raise Invalid("cowork.work.error.request")
+    field, reverse = SORTS[key]
+    frappe.db.get_value("DocType", CARD, "name", for_update=True)
+    rows = frappe.get_all(CARD, filters={"workspace": workspace, "status": status, "archived": 0},
+                          fields=["name", "title", "due_date", "creation"], limit_page_length=0)
+    if field == "due_date":
+        # 没有到期日的排在最后。
+        rows.sort(key=lambda row: (row.due_date is None, row.due_date or getdate("1900-01-01")))
+    elif field == "title":
+        rows.sort(key=lambda row: (row.title or "").casefold())
+    else:
+        rows.sort(key=lambda row: row.creation, reverse=reverse)
+    for row, value in zip(rows, contracts.renumber(len(rows))):
+        frappe.db.set_value(CARD, row.name, "position", value, update_modified=False)
+    _changed(None, "sort")
+    return {"status": status, "count": len(rows)}
+
+
+def move_column(source, target):
+    """列菜单「移动此列表中的所有卡片」：按原顺序接到目标列列尾。"""
+    workspace = _workspace()
+    source, target = contracts.status(source), contracts.status(target)
+    if source == target:
+        raise Invalid("cowork.work.error.request")
+    frappe.db.get_value("DocType", CARD, "name", for_update=True)
+    names = frappe.get_all(CARD, filters={"workspace": workspace, "status": source, "archived": 0},
+                           pluck="name", order_by="position asc, creation asc", limit_page_length=0)
+    for name in names:
+        doc = frappe.get_doc(CARD, name)
+        _relocate(doc, workspace, target)
+        persist(doc)
+    _changed(None, "move")
+    return {"moved": len(names)}
+
+
+def watch(name, on):
+    """关注 / 取消关注（只改自己）。"""
+    workspace = _workspace()
+    doc = _card(name, workspace, lock=True, archived=False)
+    others = [row.user for row in doc.watchers if row.user != frappe.session.user]
+    doc.set("watchers", [{"user": user} for user in others + ([frappe.session.user] if on else [])])
+    persist(doc)
+    _changed(doc.name, "watch")
+    return summary(doc.name)
+
+
+def _cover_file(card, file):
+    row = frappe.db.get_value("File", {"name": file, "attached_to_doctype": CARD, "attached_to_name": card},
+                              ["name", "file_name"], as_dict=True)
+    if not row or not (row.file_name or "").lower().endswith(IMAGE_TYPES):
+        raise Invalid("cowork.work.error.cover")
+    return row.name
 
 
 def archive(name):
@@ -318,6 +452,8 @@ def delete(name):
         frappe.delete_doc("File", file.name, ignore_permissions=True, force=True)
     for activity in frappe.get_all(ACTIVITY, filters={"card": doc.name}, pluck="name", limit_page_length=0):
         remove(frappe.get_doc(ACTIVITY, activity))
+    for note in frappe.get_all(access.NOTIFICATION, filters={"card": doc.name}, pluck="name", limit_page_length=0):
+        remove(frappe.get_doc(access.NOTIFICATION, note))
     remove(doc)
     _changed(name, "delete")
     return {"name": name}
@@ -326,10 +462,17 @@ def delete(name):
 # ── 评论与附件 ────────────────────────────────────────────────────────────────
 
 
-def comment(name, content):
+def comment(name, content, mentions=None):
+    """发评论；`mentions` 是评论里 @ 到的成员（页面在选人时收集），各发一条"@了你"，
+    负责人和关注的人再各发一条"有新评论"（已经被 @ 的不重复）。"""
     workspace = _workspace()
     doc = _card(name, workspace, archived=False)
-    _log(doc.name, workspace, "comment", content=contracts.comment(content))
+    content = contracts.comment(content)
+    mentioned = set(contracts.distinct(mentions, 50)) & _members_set()
+    _log(doc.name, workspace, "comment", {"mentions": sorted(mentioned)} if mentioned else None, content=content)
+    excerpt = content[:120]
+    notify.send(mentioned, doc, "mention", {"text": excerpt})
+    notify.send(notify.audience(doc) - mentioned, doc, "comment", {"text": excerpt})
     _changed(doc.name, "comment")
     return _activity(doc.name)
 
@@ -375,6 +518,9 @@ def detach(name, file):
                                        "attached_to_name": doc.name}, ["name", "file_name"], as_dict=True)
     if not row:
         raise Invalid("cowork.work.error.not_found")
+    if doc.cover_file == row.name:
+        doc.cover_file = ""
+        persist(doc)
     frappe.delete_doc("File", row.name, ignore_permissions=True)
     _log(doc.name, workspace, "detach", {"file": row.file_name})
     _changed(doc.name, "attach")
@@ -415,3 +561,16 @@ def save_labels(rows):
         remove(frappe.get_doc(LABEL, name))
     _changed(None, "labels")
     return labels(workspace)
+
+
+# ── 提醒 ──────────────────────────────────────────────────────────────────────
+
+
+def notifications():
+    return notify.mine(_workspace())
+
+
+def read_notifications(names=None):
+    workspace = _workspace()
+    notify.mark_read(workspace, contracts.distinct(names, 200) if names else None)
+    return notify.mine(workspace)

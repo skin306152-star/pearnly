@@ -105,9 +105,12 @@ Cancelled,已取消
 Card,刷卡
 Card archived,已归档
 Card deleted,已删除
+Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
 Cash,现金
 Change cards on the work board,请在工作看板上修改卡片
+Change cover,更改封面
+Change members,变更成员
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
 Check the ERP connection settings.,请检查ERP连接配置。
@@ -118,6 +121,7 @@ Checklist,清单
 Checks Json,检查结果JSON
 Cheque,支票
 Choose a file,选择文件
+Choose an image attached to this card,请选这张卡片上的图片附件
 Choose at least one job role,至少勾一个功能权限
 Choose both files first,请先选好两份文件
 Choose file,选择文件
@@ -135,6 +139,7 @@ Closed By,关闭人
 Code,编码
 Code expired,绑定码已过期
 Code or barcode,编码或条码
+Collapse list,收起列表
 Collection is not connected for this ERP data type.,此 ERP 数据类型尚未接入采集。
 Color,颜色
 Comment,评论
@@ -158,6 +163,9 @@ Connection Revision,连接版本
 Connection or directory record not found.,找不到此连接或目录记录。
 Content Hash,内容摘要
 Continuous counting,连续盘点
+Copy card,复制卡片
+Copy link,复制链接
+Copy to,复制到
 Correct entry,修改记录
 Corrected Value,修正值
 Could not read this document. Please send it again.,没能识别这份单据，请重新发送。
@@ -173,6 +181,7 @@ Counted at,盘点时间
 Counted by,盘点人
 Counted in total,计入合计
 Counted quantity,实盘数量
+Cover,封面
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
 Cowork Client,Cowork 买方客户
@@ -202,6 +211,7 @@ Cowork Stocktake Task,Cowork 盘点任务
 Cowork Supplier Posting Profile,Cowork 供应商过账档案
 Cowork Workspace,Cowork 公司账套
 Cowork menu,Cowork 菜单
+Create card,创建卡片
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Created,创建时间
 Created By,创建人
@@ -215,6 +225,8 @@ Current Json,当前数据（JSON）
 Customer,客户
 Cyan,青
 Date,日期
+Date created (newest first),创建时间（最新优先）
+Date created (oldest first),创建时间（最早优先）
 Debit,借方
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
@@ -266,7 +278,10 @@ Each record must have a name and revision.,每条记录都必须提供标识和�
 Each record must have a valid name.,每条记录都必须提供有效标识。
 Edit,编辑
 Edit Count,修改次数
+Edit card,编辑卡片
+Edit dates,编辑日期
 Edit in Full Page,全屏编辑
+Edit labels,修改标签
 Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
@@ -361,6 +376,7 @@ Issued Request Digest,签发请求摘要
 Item,项目
 Items,物料
 Job Roles,功能权限
+Keep,保留
 LINE is not enabled for this account,这个账号没有开通 LINE
 LINE name,LINE 名称
 LINE unbound,LINE 已解绑
@@ -379,6 +395,7 @@ Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
 Light,灯光
+List actions,列表操作
 Location,位置
 Location mismatch,仓位不符
 Lock Key,锁键
@@ -387,12 +404,17 @@ Lock the connection before reading the push target.,读取推送目标前必须�
 Manual,手工
 Mapping Key,映射键
 Mapping Kind,映射类型
+Mark all as read,全部标为已读
+Mark complete,标记完成
+Mark incomplete,标记未完成
 Match rate,匹配率
 Matched,已匹配
 Matches,一致
 Matching and saving,逐笔核对并保存
 Member,成员
 Members,成员
+Move,移动
+Move all cards in this list,移动此列表中的所有卡片
 Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
@@ -408,9 +430,11 @@ No invoice summary found,未识别到摘要
 No invoice was found in this document.,这份单据里没有识别到发票。
 No items were read,未识别到明细
 No members,没有成员
+No notifications,没有提醒
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
 No warehouse matches that name,该仓库名不存在
+None,无
 Not Permitted,没有权限
 Not bound,未绑定
 Not counted,未盘点
@@ -418,10 +442,12 @@ Not permitted,没有权限
 Not set,未填
 Note,说明
 Notes,备注
+Notifications,提醒
 OUT,出账
 Observed At (UTC),观测时间（UTC）
 Only an active count can be deleted,只有进行中的盘点能删除
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
+Open card,打开卡片
 Orange,橙
 Order Evidence,订单截图
 Original Content Coverage Complete,原件内容已完整覆盖
@@ -594,6 +620,7 @@ Some products had stock movements during counting. Open the affected row and rec
 Some rows were skipped,部分行未导入
 Someone else changed this card. Close it and open it again.,这张卡片刚被别人改过，请关闭后重新打开
 Someone else changed this reconciliation. Reload it before saving.,这个对账刚被别人改过，请刷新后再保存。
+Sort by,排序依据
 Source Digest,来源摘要
 Source File,原始文件
 Source Format,来源格式
@@ -617,6 +644,7 @@ Stock count closed,盘点已结束
 Stock count photos are not yet supported. Remove the photos before saving.,盘点照片尚未接入，请先移除照片后保存。
 Stock count template,盘点表模版
 Stock count workbench,盘点工作台
+Stop watching,取消关注
 Submit,提交
 Summary table import,汇总表导入
 Tap Send documents to ERP in the menu first,请先点菜单里的「发单据进 ERP」
@@ -853,6 +881,7 @@ Voucher no.,凭证号
 WHT amount,预扣税额
 Waiting to start,排队中
 Warehouse,仓库
+Watch,关注
 Wire Attempt,发送尝试次数
 With differences,有差异
 Withdrawal,提款
@@ -860,6 +889,7 @@ Work Coordination,工作协调
 Work Name,后台任务标识
 Workspace,公司账套
 Yellow,黄
+You are watching this card,你在关注这张卡片
 You do not have access to this ERP target.,无权访问此ERP目标。
 account,科目
 active,有效
@@ -1193,6 +1223,7 @@ cowork.team.status,状态
 cowork.work.activity.archive,{who} 归档了这张卡片
 cowork.work.activity.assign,{who} 把 {0} 加入了这张卡片
 cowork.work.activity.attach,{who} 添加了附件 {0}
+cowork.work.activity.copy,{who} 从「{0}」复制了这张卡片
 cowork.work.activity.create,{who} 添加了这张卡片
 cowork.work.activity.detach,{who} 删除了附件 {0}
 cowork.work.activity.due,{who} 把到期日设为 {0}
@@ -1208,9 +1239,11 @@ cowork.work.archived.title,已归档的卡片
 cowork.work.card.add,添加卡片
 cowork.work.card.archive,归档
 cowork.work.card.archived,已归档
+cowork.work.card.done,标记完成
 cowork.work.card.placeholder,输入标题
 cowork.work.card.saved,已保存
 cowork.work.card.title,卡片
+cowork.work.card.undone,标记未完成
 cowork.work.color.blue,蓝
 cowork.work.color.cyan,青
 cowork.work.color.gray,灰
@@ -1220,12 +1253,25 @@ cowork.work.color.pink,粉
 cowork.work.color.purple,紫
 cowork.work.color.red,红
 cowork.work.color.yellow,黄
+cowork.work.column.collapse,收起列表
+cowork.work.column.menu,列表操作
+cowork.work.column.moveAll,移动此列表中的所有卡片
+cowork.work.column.sort,排序依据
+cowork.work.column.sort_created_asc,创建时间（最早优先）
+cowork.work.column.sort_created_desc,创建时间（最新优先）
+cowork.work.column.sort_due,到期日
+cowork.work.column.sort_title,卡片名称（按字母）
 cowork.work.comment.label,评论
 cowork.work.comment.send,发表
+cowork.work.copy.create,创建卡片
+cowork.work.copy.keep,保留
+cowork.work.copy.to,复制到
+cowork.work.cover.none,无
 cowork.work.error.checklist,清单无效
 cowork.work.error.color,颜色无效
 cowork.work.error.comment,请输入评论
 cowork.work.error.conflict,这张卡片刚被别人改过，请关闭后重新打开
+cowork.work.error.cover,请选这张卡片上的图片附件
 cowork.work.error.date,日期无效
 cowork.work.error.dedicated_api,请在工作看板上修改卡片
 cowork.work.error.file,请选择文件
@@ -1242,6 +1288,7 @@ cowork.work.field.activity,评论和活动
 cowork.work.field.attachments,附件
 cowork.work.field.checklist,清单
 cowork.work.field.comments,评论
+cowork.work.field.cover,封面
 cowork.work.field.description,描述
 cowork.work.field.done,完成
 cowork.work.field.due,到期日
@@ -1267,6 +1314,27 @@ cowork.work.labels.color,颜色
 cowork.work.labels.manage,标签
 cowork.work.labels.name,名称
 cowork.work.labels.saved,标签已保存
+cowork.work.notify.assign,{0} 把你加入了卡片「{1}」
+cowork.work.notify.comment,{0} 评论了卡片「{1}」
+cowork.work.notify.due_soon,卡片「{1}」快到期了（{2}）
+cowork.work.notify.empty,没有提醒
+cowork.work.notify.mention,{0} 在卡片「{1}」提到了你
+cowork.work.notify.move,{0} 把卡片「{1}」移到了{2}
+cowork.work.notify.overdue,卡片「{1}」已过期（{2}）
+cowork.work.notify.readAll,全部标为已读
+cowork.work.notify.title,提醒
+cowork.work.quick.copy,复制卡片
+cowork.work.quick.cover,更改封面
+cowork.work.quick.due,编辑日期
+cowork.work.quick.labels,修改标签
+cowork.work.quick.link,复制链接
+cowork.work.quick.members,变更成员
+cowork.work.quick.move,移动
+cowork.work.quick.open,打开卡片
+cowork.work.quick.title,编辑卡片
+cowork.work.quick.unwatch,取消关注
+cowork.work.quick.watch,关注
+cowork.work.quick.watching,你在关注这张卡片
 cowork.work.status.doing,进行中
 cowork.work.status.done,已完成
 cowork.work.status.todo,待办
@@ -1455,15 +1523,22 @@ vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
 vat_check.recognition_busy,发票识别繁忙，请稍后再试。
 vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
+{0} added you to {1},{0} 把你加入了卡片「{1}」
+{0} commented on {1},{0} 评论了卡片「{1}」
 {0} files,{0} 个文件
+{0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
+{0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
+{1} is due soon ({2}),卡片「{1}」快到期了（{2}）
+{1} is overdue ({2}),卡片「{1}」已过期（{2}）
 {who} added this card,{who} 添加了这张卡片
 {who} added {0} to this card,{who} 把 {0} 加入了这张卡片
 {who} archived this card,{who} 归档了这张卡片
 {who} attached {0},{who} 添加了附件 {0}
+{who} copied this card from {0},{who} 从「{0}」复制了这张卡片
 {who} moved this card from {0} to {1},{who} 把这张卡片从{0}移到{1}
 {who} removed attachment {0},{who} 删除了附件 {0}
 {who} restored this card,{who} 恢复了这张卡片

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-27 00:00:00.000000",
- "modified": "2026-09-27 00:00:00.000000",
+ "modified": "2026-09-27 12:00:00.000000",
  "autoname": "hash",
  "sort_field": "creation",
  "sort_order": "DESC",
@@ -35,6 +35,9 @@
   "labels",
   "description",
   "checklist",
+  "watchers",
+  "cover_color",
+  "cover_file",
   "archived",
   "completed_at",
   "archived_at"
@@ -101,6 +104,25 @@
    "fieldtype": "Table",
    "label": "Checklist",
    "options": "Cowork Work Checklist Item"
+  },
+  {
+   "fieldname": "watchers",
+   "fieldtype": "Table MultiSelect",
+   "label": "Watchers",
+   "options": "Cowork Work Card Watcher"
+  },
+  {
+   "fieldname": "cover_color",
+   "fieldtype": "Select",
+   "label": "Cover Color",
+   "options": "\ngreen\nyellow\norange\nred\npurple\nblue\ncyan\npink\ngray"
+  },
+  {
+   "fieldname": "cover_file",
+   "fieldtype": "Data",
+   "label": "Cover File",
+   "length": 140,
+   "read_only": 1
   },
   {
    "fieldname": "archived",

@@ -13,7 +13,8 @@ ADMIN_ROLE = "Cowork Admin"
 CARD = "Cowork Work Card"
 LABEL = "Cowork Work Label"
 ACTIVITY = "Cowork Work Activity"
-TYPES = (CARD, LABEL, ACTIVITY)
+NOTIFICATION = "Cowork Work Notification"
+TYPES = (CARD, LABEL, ACTIVITY, NOTIFICATION)
 
 
 def allowed(user=None):
@@ -40,6 +41,14 @@ def has_permission(doc, ptype=None, user=None, **kwargs):
     return True
 
 
+def notification_permission(doc, ptype=None, user=None, **kwargs):
+    # 提醒只给收件人本人看。
+    has_permission(doc, ptype, user)
+    if doc.user != (user or frappe.session.user):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    return True
+
+
 def reject_share(doc, method=None):
     if doc.share_doctype in TYPES:
         frappe.throw(_("Assign Cowork access through company and client permissions."))
@@ -62,3 +71,10 @@ def label_query(user=None):
 
 def activity_query(user=None):
     return _query(ACTIVITY, user)
+
+
+def notification_query(user=None):
+    clause = _query(NOTIFICATION, user)
+    if clause == "1=0":
+        return clause
+    return f"{clause} AND `tab{NOTIFICATION}`.user={frappe.db.escape(user or frappe.session.user)}"

@@ -79,8 +79,8 @@ def delete(name):
 
 
 @frappe.whitelist(methods=["POST"])
-def comment(name, content):
-    return _run(service.comment, name, content)
+def comment(name, content, mentions=None):
+    return _run(service.comment, name, content, _json(mentions, []))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -102,3 +102,38 @@ def detach(name, file):
 @frappe.whitelist(methods=["POST"])
 def save_labels(rows):
     return _run(service.save_labels, _json(rows, []))
+
+
+@frappe.whitelist(methods=["POST"])
+def toggle_done(name):
+    return _run(service.toggle_done, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def copy(name, title, status, keep=None):
+    return _run(service.copy, name, title, status, _json(keep, []))
+
+
+@frappe.whitelist(methods=["POST"])
+def sort_column(status, key):
+    return _run(service.sort_column, status, key)
+
+
+@frappe.whitelist(methods=["POST"])
+def move_column(source, target):
+    return _run(service.move_column, source, target)
+
+
+@frappe.whitelist(methods=["POST"])
+def watch(name, on):
+    return _run(service.watch, name, str(on).lower() in ("1", "true"))
+
+
+@frappe.whitelist(methods=["GET"])
+def notifications():
+    return _run(service.notifications)
+
+
+@frappe.whitelist(methods=["POST"])
+def read_notifications(names=None):
+    return _run(service.read_notifications, _json(names, []))

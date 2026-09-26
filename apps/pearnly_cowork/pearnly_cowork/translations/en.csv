@@ -105,9 +105,12 @@ Cancelled,Cancelled
 Card,Card
 Card archived,Card archived
 Card deleted,Card deleted
+Card name (alphabetically),Card name (alphabetically)
 Card restored,Card restored
 Cash,Cash
 Change cards on the work board,Change cards on the work board
+Change cover,Change cover
+Change members,Change members
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
 Check the ERP connection settings.,Check the ERP connection settings.
@@ -118,6 +121,7 @@ Checklist,Checklist
 Checks Json,Checks Json
 Cheque,Cheque
 Choose a file,Choose a file
+Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
 Choose file,Choose file
@@ -135,6 +139,7 @@ Closed By,Closed By
 Code,Code
 Code expired,Code expired
 Code or barcode,Code or barcode
+Collapse list,Collapse list
 Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
 Color,Color
 Comment,Comment
@@ -158,6 +163,9 @@ Connection Revision,Connection Revision
 Connection or directory record not found.,Connection or directory record not found.
 Content Hash,Content Hash
 Continuous counting,Continuous counting
+Copy card,Copy card
+Copy link,Copy link
+Copy to,Copy to
 Correct entry,Correct entry
 Corrected Value,Corrected Value
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
@@ -173,6 +181,7 @@ Counted at,Counted at
 Counted by,Counted by
 Counted in total,Counted in total
 Counted quantity,Counted quantity
+Cover,Cover
 Cowork,Cowork
 Cowork Bank Evidence,Cowork Bank Evidence
 Cowork Client,Cowork Client
@@ -202,6 +211,7 @@ Cowork Stocktake Task,Cowork Stocktake Task
 Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
 Cowork Workspace,Cowork Workspace
 Cowork menu,Cowork menu
+Create card,Create card
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created,Created
 Created By,Created By
@@ -215,6 +225,8 @@ Current Json,Current Json
 Customer,Customer
 Cyan,Cyan
 Date,Date
+Date created (newest first),Date created (newest first)
+Date created (oldest first),Date created (oldest first)
 Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
@@ -266,7 +278,10 @@ Each record must have a name and revision.,Each record must have a name and revi
 Each record must have a valid name.,Each record must have a valid name.
 Edit,Edit
 Edit Count,Edit Count
+Edit card,Edit card
+Edit dates,Edit dates
 Edit in Full Page,Edit in Full Page
+Edit labels,Edit labels
 Email,Email
 Enable,Enable
 Enable {0},Enable {0}
@@ -361,6 +376,7 @@ Issued Request Digest,Issued Request Digest
 Item,Item
 Items,Items
 Job Roles,Job Roles
+Keep,Keep
 LINE is not enabled for this account,LINE is not enabled for this account
 LINE name,LINE name
 LINE unbound,LINE unbound
@@ -379,6 +395,7 @@ Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
 Light,Light
+List actions,List actions
 Location,Location
 Location mismatch,Location mismatch
 Lock Key,Lock Key
@@ -387,12 +404,17 @@ Lock the connection before reading the push target.,Lock the connection before r
 Manual,Manual
 Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
+Mark all as read,Mark all as read
+Mark complete,Mark complete
+Mark incomplete,Mark incomplete
 Match rate,Match rate
 Matched,Matched
 Matches,Matches
 Matching and saving,Matching and saving
 Member,Member
 Members,Members
+Move,Move
+Move all cards in this list,Move all cards in this list
 Name,Name
 Native Content Hash,Native Content Hash
 Needs review,Needs review
@@ -408,9 +430,11 @@ No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
 No items were read,No items were read
 No members,No members
+No notifications,No notifications
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No warehouse matches that name,No warehouse matches that name
+None,None
 Not Permitted,Not Permitted
 Not bound,Not bound
 Not counted,Not counted
@@ -418,10 +442,12 @@ Not permitted,Not permitted
 Not set,Not set
 Note,Note
 Notes,Notes
+Notifications,Notifications
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only an active count can be deleted,Only an active count can be deleted
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
+Open card,Open card
 Orange,Orange
 Order Evidence,Order Evidence
 Original Content Coverage Complete,Original Content Coverage Complete
@@ -594,6 +620,7 @@ Some products had stock movements during counting. Open the affected row and rec
 Some rows were skipped,Some rows were skipped
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Someone else changed this reconciliation. Reload it before saving.,Someone else changed this reconciliation. Reload it before saving.
+Sort by,Sort by
 Source Digest,Source Digest
 Source File,Source File
 Source Format,Source Format
@@ -617,6 +644,7 @@ Stock count closed,Stock count closed
 Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
+Stop watching,Stop watching
 Submit,Submit
 Summary table import,Summary table import
 Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
@@ -853,6 +881,7 @@ Voucher no.,Voucher no.
 WHT amount,WHT amount
 Waiting to start,Waiting to start
 Warehouse,Warehouse
+Watch,Watch
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
@@ -860,6 +889,7 @@ Work Coordination,Work Coordination
 Work Name,Work Name
 Workspace,Workspace
 Yellow,Yellow
+You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
 account,account
 active,active
@@ -1193,6 +1223,7 @@ cowork.team.status,Status
 cowork.work.activity.archive,{who} archived this card
 cowork.work.activity.assign,{who} added {0} to this card
 cowork.work.activity.attach,{who} attached {0}
+cowork.work.activity.copy,{who} copied this card from {0}
 cowork.work.activity.create,{who} added this card
 cowork.work.activity.detach,{who} removed attachment {0}
 cowork.work.activity.due,{who} set the due date to {0}
@@ -1208,9 +1239,11 @@ cowork.work.archived.title,Archived cards
 cowork.work.card.add,Add a card
 cowork.work.card.archive,Archive
 cowork.work.card.archived,Card archived
+cowork.work.card.done,Mark complete
 cowork.work.card.placeholder,Enter a title
 cowork.work.card.saved,Saved
 cowork.work.card.title,Card
+cowork.work.card.undone,Mark incomplete
 cowork.work.color.blue,Blue
 cowork.work.color.cyan,Cyan
 cowork.work.color.gray,Gray
@@ -1220,12 +1253,25 @@ cowork.work.color.pink,Pink
 cowork.work.color.purple,Purple
 cowork.work.color.red,Red
 cowork.work.color.yellow,Yellow
+cowork.work.column.collapse,Collapse list
+cowork.work.column.menu,List actions
+cowork.work.column.moveAll,Move all cards in this list
+cowork.work.column.sort,Sort by
+cowork.work.column.sort_created_asc,Date created (oldest first)
+cowork.work.column.sort_created_desc,Date created (newest first)
+cowork.work.column.sort_due,Due date
+cowork.work.column.sort_title,Card name (alphabetically)
 cowork.work.comment.label,Comment
 cowork.work.comment.send,Send
+cowork.work.copy.create,Create card
+cowork.work.copy.keep,Keep
+cowork.work.copy.to,Copy to
+cowork.work.cover.none,None
 cowork.work.error.checklist,Invalid checklist
 cowork.work.error.color,Invalid color
 cowork.work.error.comment,Enter a comment
 cowork.work.error.conflict,Someone else changed this card. Close it and open it again.
+cowork.work.error.cover,Choose an image attached to this card
 cowork.work.error.date,Invalid date
 cowork.work.error.dedicated_api,Change cards on the work board
 cowork.work.error.file,Choose a file
@@ -1242,6 +1288,7 @@ cowork.work.field.activity,Comments and activity
 cowork.work.field.attachments,Attachments
 cowork.work.field.checklist,Checklist
 cowork.work.field.comments,Comments
+cowork.work.field.cover,Cover
 cowork.work.field.description,Description
 cowork.work.field.done,Done
 cowork.work.field.due,Due date
@@ -1267,6 +1314,27 @@ cowork.work.labels.color,Color
 cowork.work.labels.manage,Labels
 cowork.work.labels.name,Name
 cowork.work.labels.saved,Labels saved
+cowork.work.notify.assign,{0} added you to {1}
+cowork.work.notify.comment,{0} commented on {1}
+cowork.work.notify.due_soon,{1} is due soon ({2})
+cowork.work.notify.empty,No notifications
+cowork.work.notify.mention,{0} mentioned you on {1}
+cowork.work.notify.move,{0} moved {1} to {2}
+cowork.work.notify.overdue,{1} is overdue ({2})
+cowork.work.notify.readAll,Mark all as read
+cowork.work.notify.title,Notifications
+cowork.work.quick.copy,Copy card
+cowork.work.quick.cover,Change cover
+cowork.work.quick.due,Edit dates
+cowork.work.quick.labels,Edit labels
+cowork.work.quick.link,Copy link
+cowork.work.quick.members,Change members
+cowork.work.quick.move,Move
+cowork.work.quick.open,Open card
+cowork.work.quick.title,Edit card
+cowork.work.quick.unwatch,Stop watching
+cowork.work.quick.watch,Watch
+cowork.work.quick.watching,You are watching this card
 cowork.work.status.doing,In progress
 cowork.work.status.done,Done
 cowork.work.status.todo,To do
@@ -1455,15 +1523,22 @@ vat_check.periods_differ,The reports cover different periods ({0}).
 vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
 vat_check.recognition_timeout,Invoice recognition took too long. Try again later.
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
+{0} added you to {1},{0} added you to {1}
+{0} commented on {1},{0} commented on {1}
 {0} files,{0} files
+{0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
+{0} moved {1} to {2},{0} moved {1} to {2}
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
+{1} is due soon ({2}),{1} is due soon ({2})
+{1} is overdue ({2}),{1} is overdue ({2})
 {who} added this card,{who} added this card
 {who} added {0} to this card,{who} added {0} to this card
 {who} archived this card,{who} archived this card
 {who} attached {0},{who} attached {0}
+{who} copied this card from {0},{who} copied this card from {0}
 {who} moved this card from {0} to {1},{who} moved this card from {0} to {1}
 {who} removed attachment {0},{who} removed attachment {0}
 {who} restored this card,{who} restored this card

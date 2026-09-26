@@ -147,6 +147,75 @@ def run():
     assert service.summary(a["name"])["attachments"] == 1
     assert service.detach(a["name"], files[0].name) == []
 
+    # 完成圆圈：进行中 → 已完成 → 回到原来那一列。
+    mid = service.create("Circle", "doing")
+    assert service.toggle_done(mid["name"])["status"] == "done"
+    assert service.toggle_done(mid["name"])["status"] == "doing"
+
+    # 复制：带清单 / 标签 / 成员，放到目标列列尾。
+    copied = service.copy(a["name"], "Renamed (copy)", "todo", ["checklist", "labels", "members"])
+    card = service.card(copied["name"])
+    assert copied["status"] == "todo" and len(card["checklist"]) == 2 and card["labels"] == [red.name]
+    assert set(card["assignees"]) == {other, worker}
+    assert any(row.action == "copy" for row in card["activity"])
+
+    # 列菜单：按名称排序、整列移到另一列。
+    service.create("aaa", "todo")
+    service.sort_column("todo", "title")
+    todo = [row["title"] for row in sorted(service.board()["cards"], key=lambda row: row["position"])
+            if row["status"] == "todo"]
+    assert todo == sorted(todo, key=str.casefold), todo
+    moved = service.move_column("todo", "doing")["moved"]
+    assert moved == len(todo) and not [row for row in service.board()["cards"] if row["status"] == "todo"]
+    expect_error("same column", service.move_column, "doing", "doing", error=Invalid)
+
+    # 封面：颜色、图片附件（非本卡 / 非图片拒绝）、删附件时封面一起清掉。
+    fresh = service.card(a["name"])
+    fresh = service.update(a["name"], fresh["modified"], {"cover_color": "green"})
+    assert service.summary(a["name"])["cover_color"] == "green"
+    image = service.attach(a["name"], FileStorage(stream=io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 32), filename="cover.png"))[0]
+    text = service.attach(a["name"], FileStorage(stream=io.BytesIO(b"x"), filename="x.txt"))[0]
+    expect_error("text cover", service.update, a["name"], service.card(a["name"])["modified"], {"cover_file": text.name},
+                 error=Invalid)
+    service.update(a["name"], service.card(a["name"])["modified"], {"cover_file": image.name})
+    summary = service.summary(a["name"])
+    assert summary["cover_url"] and not summary["cover_color"], summary
+    service.detach(a["name"], image.name)
+    assert not service.card(a["name"])["cover_file"]
+
+    # 关注、@、提醒：自己做的不提醒自己；只看得到自己的提醒。
+    NOTE = access.NOTIFICATION
+    service.watch(a["name"], True)
+    assert service.summary(a["name"])["watching"]
+    frappe.set_user(other)
+    service.comment(a["name"], "@Work please check", [worker, outsider])
+    frappe.set_user(worker)
+    kinds = {row.kind for row in service.notifications()["rows"] if row.card == a["name"]}
+    assert "mention" in kinds and "comment" not in kinds, kinds
+    assert not frappe.db.exists(NOTE, {"user": outsider}), "outsider notified"
+    assert not frappe.db.exists(NOTE, {"user": other, "kind": "mention"}), "actor notified"
+    mine = service.notifications()
+    assert mine["unread"] >= 1
+    frappe.set_user(other)
+    theirs = {row.name for row in service.notifications()["rows"]}
+    assert not theirs & {row.name for row in mine["rows"]}, "notifications leak between users"
+    expect_error("read others", lambda: frappe.get_doc(NOTE, mine["rows"][0].name).check_permission("read"),
+                 error=frappe.PermissionError)
+    frappe.set_user(worker)
+    assert service.read_notifications()["unread"] == 0
+
+    # 到期提醒：过期 / 快到期各发一次，重跑不重复。
+    from frappe.utils import add_days, today
+    from pearnly_cowork.work import reminders
+    fresh = service.card(a["name"])
+    service.update(a["name"], fresh["modified"], {"due_date": add_days(today(), -1), "status": "doing"})
+    frappe.set_user("Administrator")
+    reminders.run()
+    reminders.run()
+    frappe.set_user(worker)
+    overdue = [row for row in service.notifications()["rows"] if row.kind == "overdue" and row.card == a["name"]]
+    assert len(overdue) == 1, overdue
+
     # 归档 / 恢复 / 彻底删除（只给管理员、只删已归档的）。
     service.archive(b["name"])
     assert b["name"] not in {row["name"] for row in service.board()["cards"]}
@@ -165,7 +234,7 @@ def run():
     frappe.set_user(worker)
     expect_error("api invalid", api.create, "  ", error=frappe.ValidationError)
     board = service.board()
-    assert len(board["cards"]) == before + 2, (before, len(board["cards"]))
+    assert len(board["cards"]) == before + 5, (before, len(board["cards"]))
 
 
 if __name__ == "__main__":

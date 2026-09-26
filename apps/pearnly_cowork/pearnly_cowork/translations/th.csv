@@ -105,9 +105,12 @@ Cancelled,ยกเลิกแล้ว
 Card,บัตร
 Card archived,เก็บถาวรแล้ว
 Card deleted,ลบแล้ว
+Card name (alphabetically),ชื่อการ์ด (ตามตัวอักษร)
 Card restored,กู้คืนแล้ว
 Cash,เงินสด
 Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
+Change cover,เปลี่ยนปก
+Change members,เปลี่ยนสมาชิก
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
 Check the ERP connection settings.,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
@@ -118,6 +121,7 @@ Checklist,รายการตรวจสอบ
 Checks Json,ผลตรวจสอบ JSON
 Cheque,เช็ค
 Choose a file,เลือกไฟล์
+Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
 Choose file,เลือกไฟล์
@@ -135,6 +139,7 @@ Closed By,ผู้ปิด
 Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
 Code or barcode,รหัสหรือบาร์โค้ด
+Collapse list,ย่อรายการ
 Collection is not connected for this ERP data type.,ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Color,สี
 Comment,ความคิดเห็น
@@ -158,6 +163,9 @@ Connection Revision,รุ่นการเชื่อมต่อ
 Connection or directory record not found.,ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี
 Content Hash,แฮชเนื้อหา
 Continuous counting,ตรวจนับต่อเนื่อง
+Copy card,คัดลอกการ์ด
+Copy link,คัดลอกลิงก์
+Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
 Could not read this document. Please send it again.,อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่
@@ -173,6 +181,7 @@ Counted at,เวลาที่นับ
 Counted by,ผู้ตรวจนับ
 Counted in total,นับรวมแล้ว
 Counted quantity,จำนวนที่นับได้
+Cover,ปก
 Cowork,Cowork
 Cowork Bank Evidence,หลักฐานธนาคารของ Cowork
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
@@ -202,6 +211,7 @@ Cowork Stocktake Task,งานตรวจนับสต็อก Cowork
 Cowork Supplier Posting Profile,โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
 Cowork menu,เมนู Cowork
+Create card,สร้างการ์ด
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
 Created,สร้างเมื่อ
 Created By,ผู้สร้าง
@@ -215,6 +225,8 @@ Current Json,ข้อมูลปัจจุบัน (JSON)
 Customer,ลูกค้า
 Cyan,ฟ้า
 Date,วันที่
+Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
+Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
 Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
@@ -266,7 +278,10 @@ Each record must have a name and revision.,แต่ละรายการต�
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
 Edit,แก้ไข
 Edit Count,จำนวนครั้งที่แก้ไข
+Edit card,แก้ไขการ์ด
+Edit dates,แก้ไขวันที่
 Edit in Full Page,แก้ไขแบบเต็มหน้า
+Edit labels,แก้ไขป้ายกำกับ
 Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
@@ -361,6 +376,7 @@ Issued Request Digest,แฮชคำขอออกข้อมูลรับ�
 Item,รายการ
 Items,รายการ
 Job Roles,สิทธิ์การใช้งาน
+Keep,คงไว้
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
 LINE name,ชื่อ LINE
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
@@ -379,6 +395,7 @@ Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 Light,ไฟ
+List actions,การดำเนินการของรายการ
 Location,ตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
 Lock Key,คีย์ล็อก
@@ -387,12 +404,17 @@ Lock the connection before reading the push target.,ต้องล็อกก�
 Manual,กรอกเอง
 Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
+Mark all as read,ทำเครื่องหมายว่าอ่านทั้งหมด
+Mark complete,ทำเครื่องหมายว่าเสร็จ
+Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
 Match rate,อัตราการจับคู่
 Matched,จับคู่แล้ว
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
 Member,สมาชิก
 Members,สมาชิก
+Move,ย้าย
+Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Name,ชื่อ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
@@ -408,9 +430,11 @@ No invoice summary found,ไม่พบข้อมูลสรุปใบแ�
 No invoice was found in this document.,ไม่พบเอกสารที่อ่านได้ในไฟล์นี้
 No items were read,ไม่พบรายการสินค้า
 No members,ไม่มีสมาชิก
+No notifications,ไม่มีการแจ้งเตือน
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
+None,ไม่มี
 Not Permitted,ไม่ได้รับอนุญาต
 Not bound,ยังไม่เชื่อมต่อ
 Not counted,ยังไม่นับ
@@ -418,10 +442,12 @@ Not permitted,ไม่ได้รับอนุญาต
 Not set,ยังไม่กรอก
 Note,หมายเหตุ
 Notes,หมายเหตุ
+Notifications,การแจ้งเตือน
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
+Open card,เปิดการ์ด
 Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
@@ -594,6 +620,7 @@ Some products had stock movements during counting. Open the affected row and rec
 Some rows were skipped,บางแถวไม่ได้นำเข้า
 Someone else changed this card. Close it and open it again.,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
 Someone else changed this reconciliation. Reload it before saving.,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
+Sort by,เรียงตาม
 Source Digest,ค่าแฮชของข้อมูลต้นทาง
 Source File,ไฟล์ต้นฉบับ
 Source Format,รูปแบบข้อมูลต้นทาง
@@ -617,6 +644,7 @@ Stock count closed,ปิดการตรวจนับแล้ว
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
 Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
+Stop watching,เลิกติดตาม
 Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
 Tap Send documents to ERP in the menu first,กรุณากด ส่งเอกสารเข้า ERP ในเมนูก่อน
@@ -853,6 +881,7 @@ Voucher no.,เลขที่ใบสำคัญ
 WHT amount,ภาษีหัก ณ ที่จ่าย
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
+Watch,ติดตาม
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
 Withdrawal,ถอน
@@ -860,6 +889,7 @@ Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
 Yellow,เหลือง
+You are watching this card,คุณกำลังติดตามการ์ดนี้
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
 account,บัญชี
 active,ใช้งานอยู่
@@ -1193,6 +1223,7 @@ cowork.team.status,สถานะ
 cowork.work.activity.archive,{who} เก็บถาวรการ์ดนี้
 cowork.work.activity.assign,{who} เพิ่ม {0} ในการ์ดนี้
 cowork.work.activity.attach,{who} แนบไฟล์ {0}
+cowork.work.activity.copy,"{who} คัดลอกการ์ดนี้จาก ""{0}"""
 cowork.work.activity.create,{who} เพิ่มการ์ดนี้
 cowork.work.activity.detach,{who} ลบไฟล์แนบ {0}
 cowork.work.activity.due,{who} ตั้งวันครบกำหนดเป็น {0}
@@ -1208,9 +1239,11 @@ cowork.work.archived.title,การ์ดที่เก็บถาวร
 cowork.work.card.add,เพิ่มการ์ด
 cowork.work.card.archive,เก็บถาวร
 cowork.work.card.archived,เก็บถาวรแล้ว
+cowork.work.card.done,ทำเครื่องหมายว่าเสร็จ
 cowork.work.card.placeholder,ใส่ชื่อ
 cowork.work.card.saved,บันทึกแล้ว
 cowork.work.card.title,การ์ด
+cowork.work.card.undone,ทำเครื่องหมายว่ายังไม่เสร็จ
 cowork.work.color.blue,น้ำเงิน
 cowork.work.color.cyan,ฟ้า
 cowork.work.color.gray,เทา
@@ -1220,12 +1253,25 @@ cowork.work.color.pink,ชมพู
 cowork.work.color.purple,ม่วง
 cowork.work.color.red,แดง
 cowork.work.color.yellow,เหลือง
+cowork.work.column.collapse,ย่อรายการ
+cowork.work.column.menu,การดำเนินการของรายการ
+cowork.work.column.moveAll,ย้ายการ์ดทั้งหมดในรายการนี้
+cowork.work.column.sort,เรียงตาม
+cowork.work.column.sort_created_asc,วันที่สร้าง (เก่าสุดก่อน)
+cowork.work.column.sort_created_desc,วันที่สร้าง (ใหม่สุดก่อน)
+cowork.work.column.sort_due,วันครบกำหนด
+cowork.work.column.sort_title,ชื่อการ์ด (ตามตัวอักษร)
 cowork.work.comment.label,ความคิดเห็น
 cowork.work.comment.send,ส่ง
+cowork.work.copy.create,สร้างการ์ด
+cowork.work.copy.keep,คงไว้
+cowork.work.copy.to,คัดลอกไปที่
+cowork.work.cover.none,ไม่มี
 cowork.work.error.checklist,รายการตรวจสอบไม่ถูกต้อง
 cowork.work.error.color,สีไม่ถูกต้อง
 cowork.work.error.comment,กรุณาใส่ความคิดเห็น
 cowork.work.error.conflict,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
+cowork.work.error.cover,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 cowork.work.error.date,วันที่ไม่ถูกต้อง
 cowork.work.error.dedicated_api,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 cowork.work.error.file,กรุณาเลือกไฟล์
@@ -1242,6 +1288,7 @@ cowork.work.field.activity,ความคิดเห็นและกิจ�
 cowork.work.field.attachments,ไฟล์แนบ
 cowork.work.field.checklist,รายการตรวจสอบ
 cowork.work.field.comments,ความคิดเห็น
+cowork.work.field.cover,ปก
 cowork.work.field.description,รายละเอียด
 cowork.work.field.done,เสร็จ
 cowork.work.field.due,วันครบกำหนด
@@ -1267,6 +1314,27 @@ cowork.work.labels.color,สี
 cowork.work.labels.manage,ป้ายกำกับ
 cowork.work.labels.name,ชื่อ
 cowork.work.labels.saved,บันทึกป้ายกำกับแล้ว
+cowork.work.notify.assign,"{0} เพิ่มคุณในการ์ด ""{1}"""
+cowork.work.notify.comment,"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
+cowork.work.notify.due_soon,"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
+cowork.work.notify.empty,ไม่มีการแจ้งเตือน
+cowork.work.notify.mention,"{0} กล่าวถึงคุณในการ์ด ""{1}"""
+cowork.work.notify.move,"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
+cowork.work.notify.overdue,"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
+cowork.work.notify.readAll,ทำเครื่องหมายว่าอ่านทั้งหมด
+cowork.work.notify.title,การแจ้งเตือน
+cowork.work.quick.copy,คัดลอกการ์ด
+cowork.work.quick.cover,เปลี่ยนปก
+cowork.work.quick.due,แก้ไขวันที่
+cowork.work.quick.labels,แก้ไขป้ายกำกับ
+cowork.work.quick.link,คัดลอกลิงก์
+cowork.work.quick.members,เปลี่ยนสมาชิก
+cowork.work.quick.move,ย้าย
+cowork.work.quick.open,เปิดการ์ด
+cowork.work.quick.title,แก้ไขการ์ด
+cowork.work.quick.unwatch,เลิกติดตาม
+cowork.work.quick.watch,ติดตาม
+cowork.work.quick.watching,คุณกำลังติดตามการ์ดนี้
 cowork.work.status.doing,กำลังทำ
 cowork.work.status.done,เสร็จแล้ว
 cowork.work.status.todo,รอดำเนินการ
@@ -1455,15 +1523,22 @@ vat_check.periods_differ,รายงานคนละงวด ({0}) กรุ
 vat_check.recognition_busy,ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง
 vat_check.recognition_timeout,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
+{0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
+{0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
 {0} files,{0} ไฟล์
+{0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
+{0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
+{1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
+{1} is overdue ({2}),"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
 {who} added this card,{who} เพิ่มการ์ดนี้
 {who} added {0} to this card,{who} เพิ่ม {0} ในการ์ดนี้
 {who} archived this card,{who} เก็บถาวรการ์ดนี้
 {who} attached {0},{who} แนบไฟล์ {0}
+{who} copied this card from {0},"{who} คัดลอกการ์ดนี้จาก ""{0}"""
 {who} moved this card from {0} to {1},{who} ย้ายการ์ดนี้จาก{0}ไป{1}
 {who} removed attachment {0},{who} ลบไฟล์แนบ {0}
 {who} restored this card,{who} กู้คืนการ์ดนี้
