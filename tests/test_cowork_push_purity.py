@@ -44,7 +44,9 @@ class PurePushBoundary(unittest.TestCase):
                     self.assertTrue(name.split(".")[0] in allowed or name.startswith((
                         "pearnly_cowork.contracts", "pearnly_cowork.push.express",
                         "pearnly_cowork.push.lifecycle", "pearnly_cowork.push.retry",
-                        "pearnly_cowork.push.receipts", "pearnly_cowork.targets")),
+                        "pearnly_cowork.push.receipts", "pearnly_cowork.targets",
+                        # 全平台共用的票种决策表（ADR-0012），本身只依赖标准库（tests/test_tax_documents.py 核对）。
+                        "pearnly_core.tax_documents")),
                         f"{path.relative_to(root)}:{node.lineno}: non-pure dependency {name}")
 
     def test_preparation_never_reads_io_or_wall_clock(self):

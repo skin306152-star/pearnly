@@ -246,6 +246,7 @@ Created when the draft is confirmed,草稿确认后生成
 Created {0} product(s),已新建 {0} 个物料
 Created {0}; {1} row(s) were not saved — fix them and save again,已新建 {0} 个；{1} 行没保存成功，修正后再存
 Creation,创建日期
+Credit Note,贷项通知单
 Currency,货币
 Current,当前
 Custom,自定义
@@ -605,6 +606,7 @@ Opening stock review,期初库存核对
 Opening stock review is not configured,期初核对配置缺失，请联系管理员
 Opening unit cost,库存成本单价
 Opening value,期初金额
+Order Evidence,订单截图
 Original Item and Location,原单物料与仓位
 Original Line,原单明细行
 Other,其它
@@ -633,6 +635,7 @@ Password updated,密码已更新
 Pay,收款
 Payment,付款
 Payment Date,付款日期
+Payment Evidence,付款凭证
 Payment Failed,收款失败
 Payment Method,付款方式
 Payment Needs Approval,付款需要审批
@@ -959,6 +962,7 @@ The company used for new documents and for the company profile page,新建单据
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The document date is in the future,单据日期在未来，请核对年份
 The document date is more than 5 years old,单据日期早于 5 年前，请核对年份
+"The document type was not recognised, so input VAT is not claimed",认不出票种，未记进项税
 The first row must be the column headings; the sheet needs at least a product name column,第一行是表头；表里至少要有物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
 The items add up to more than the subtotal,明细之和大于小计
@@ -1011,6 +1015,7 @@ This document was already recorded,这张单据已经入账
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
 This file holds {0} documents; only the first is filled in. Upload the others separately.,这个文件里有 {0} 张单据，这里只填了第一张，其余请分开上传。
+This is a credit note: check the amounts and the original invoice,这是贷项通知单，请核对金额和原发票
 This is not a purchase or sales document,这不是采购或销售单据
 This item is also stocked at:,这件货还在别处：
 This option is no longer current,这个选项已失效，请按最新一步选择
@@ -1026,6 +1031,8 @@ This stock count is already posted,这张盘点单已经过账了
 This stock count is closed,这张盘点已结束
 This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
 This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
+"This tax invoice does not name the buyer, so input VAT is not claimed",这张税票没写买方，未记进项税
+"This tax invoice shows no VAT, so input VAT is not claimed",这张税票没读到增值税额，未记进项税
 This terminal already has an open shift,这台收银台已经有开着的班次
 This terminal has no warehouse; set one in the terminal settings,这台收银台还没配仓库，请先在收银台上选一个仓
 This unit is not defined on the product,这个单位没有在这个物料上定义

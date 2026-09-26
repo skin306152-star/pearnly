@@ -22,6 +22,11 @@ from test_cowork_invoice_validation_source_parity import legacy_validation, reas
 HASHES = {'direct_read.py': '7417300bd59f1dd4b523685068e4230790d9a2e62ad9a35538bd99c64beb6cfa', 'layer2_prompts.py': '7087750fd5eede4dd0a36d7a4a5bbc4e32d4869c56bbf03b074ebcffaac0bfa6', 'layer2_gemini.py': 'b5a2af8baaea0ca6966354d028727890d7f9107680b9eb085b79271de8cd5f87', 'layer2_structure.py': '8b1e0cb0e31a70d5b25fdab8838438b57dc2938acdcc823ecff446501d7433ea', 'layer3_fallback.py': '8cdfd0cfed25b8756234a7bca952fe216ad8b5925f85594ac9ecfdf61e8fba9f', 'layer3_gemini.py': 'fc8d064cb100cf43e3212cfefe6ced1147a2dc630b1536a8c2001bad115cc785', 'totals_rescue.py': '1d5df4e2623ce74476751b56b866277a7760ce84c573dced736aaf926f054fa6', 'page_runner.py': 'c4ef017901b6e62c86d9135ddfeba8c2326b5650ea7c8b902cb1bb0ff0cf620f', 'feedback/fewshot.py': '32008315e86ad6b14739c22b459501a41dd6c2139ee4fcf37ac302018d03a7d5', 'pattern_memory.py': '63513537f1357a77a36d086d592ffd2ed4fd42ba4321ec76cb8776c514cfd6fa'}
 
 
+L3_OLD_TYPES = '"document_type": "tax_invoice" | "receipt" | "credit_note" | "other",'
+L3_NEW_TYPES = ('"document_type": "tax_invoice" | "simplified_tax_invoice" | "receipt" | "credit_note" | '
+                '"payment_evidence" | "order_evidence" | "other",')
+
+
 def load(root):
     sources = read_sources(root)
     for name, expected in HASHES.items():
@@ -58,7 +63,8 @@ def run_parity(sources):
     execute(definitions(sources["layer3_gemini.py"], {"_RETRY_HINT_BASE"}), old)
     assert old["_RETRY_HINT_BASE"] == prompts.L3_RETRY_HINT
     execute(definitions(sources["layer3_fallback.py"], {"_SYSTEM_PROMPT", "_INDEPENDENT_REREAD", "MAX_TEXT_LENGTH", "_build_user_prompt"}), old)
-    assert old["_SYSTEM_PROMPT"] == prompts.L3_SYSTEM
+    # 登记的有意改动（ADR-0012）：第三轮票种枚举补齐为共用码表的 7 个，其余逐字不变。
+    assert old["_SYSTEM_PROMPT"].replace(L3_OLD_TYPES, L3_NEW_TYPES, 1) == prompts.L3_SYSTEM
     execute(definitions(sources["totals_rescue.py"], {"_SYSTEM_PROMPT"}), old)
     assert old["_SYSTEM_PROMPT"] == prompts.RESCUE_SYSTEM
     old["json"] = json

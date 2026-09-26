@@ -547,7 +547,8 @@ class Checks(unittest.TestCase):
         self.assertIsNone(checks.vat_mode(printed, 1000))
         self.assertIsNone(checks.vat_mode({"total": 100}, 100))
         # 模型读成「无 VAT、不含税」，票面数字说它是含税的 —— 用票面的。
-        result = recognition._structured({"has_vat": False, "price_mode": "exclusive", "printed": printed, "lines": [
+        result = recognition._structured({"has_vat": False, "price_mode": "exclusive", "printed": printed,
+                                          "document_type": "tax_invoice", "buyer_tax_id": "0105546015062", "lines": [
             {"description": "Tyre", "qty": 1, "unit_price": 6400, "vat_rate": None, "discount": None},
             {"description": "Tube", "qty": 1, "unit_price": 750},
             {"description": "Flap", "qty": 1, "unit_price": 350}]})
@@ -571,9 +572,25 @@ class Checks(unittest.TestCase):
                                    "price_mode": result["price_mode"]})
         self.assertEqual((str(totals["vat_amount"]), str(totals["grand_total"])), ("0.00", "131.00"))
         self.assertEqual([str(row["line_total"]) for row in totals["lines"]], ["47.00", "35.00", "49.00"])
-        # 完整税票照旧记进项税。
-        full = recognition._structured({**raw, "document_type": "tax_invoice"})
+        # 票面标题认得出就以标题为准：模型说是完整税票，标题写着「อย่างย่อ」照样不抵。
+        titled = recognition._structured({**raw, "document_type": "tax_invoice",
+                                          "document_title": "ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ"})
+        self.assertEqual((titled["document_type"], titled["document_type_basis"], titled["has_vat"]),
+                         ("simplified_tax_invoice", "title", False))
+        # 完整税票：印了 VAT、写明买方才记进项税；缺买方不记，并在卡上红字说明原因。
+        full = recognition._structured({**raw, "document_type": "tax_invoice", "buyer_tax_id": "0105546015062"})
         self.assertIs(full["has_vat"], True)
+        self.assertEqual(recognition.review(full), [])
+        anonymous = recognition._structured({**raw, "document_type": "tax_invoice"})
+        self.assertIs(anonymous["has_vat"], False)
+        self.assertIn("tax_invoice_without_buyer", recognition.review(anonymous))
+        # 认不出票种：不记进项税，交人看；这类原因只标注，不触发换模型重读（不多花识别费）。
+        unknown = recognition._structured({**raw, "document_type": None})
+        self.assertEqual((unknown["document_type"], unknown["has_vat"]), ("other", False))
+        self.assertIn("document_type_unknown", recognition.review(unknown))
+        from pearnly_erp_portal.recognition import checks
+
+        self.assertEqual(checks.hard(recognition.review(unknown)), [])
 
     def test_printed_dates_are_converted_by_code(self):
         from datetime import date

@@ -246,6 +246,7 @@ Created when the draft is confirmed,สร้างเมื่อยืนย�
 Created {0} product(s),สร้างสินค้า {0} รายการแล้ว
 Created {0}; {1} row(s) were not saved — fix them and save again,สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง
 Creation,การสร้าง
+Credit Note,ใบลดหนี้
 Currency,สกุลเงิน
 Current,ปัจจุบัน
 Custom,กำหนดเอง
@@ -605,6 +606,7 @@ Opening stock review,ตรวจสอบสต็อกยกมา
 Opening stock review is not configured,ยังไม่ได้ตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแล
 Opening unit cost,ต้นทุนต่อหน่วยยกมา
 Opening value,มูลค่ายกมา
+Order Evidence,หลักฐานคำสั่งซื้อ
 Original Item and Location,สินค้าและตำแหน่งในบิลเดิม
 Original Line,บรรทัดเดิม
 Other,อื่นๆ
@@ -633,6 +635,7 @@ Password updated,อัปเดตรหัสผ่านแล้ว
 Pay,รับชำระ
 Payment,การชำระเงิน
 Payment Date,วันที่ชำระเงิน
+Payment Evidence,หลักฐานการชำระเงิน
 Payment Failed,ชำระเงินไม่สำเร็จ
 Payment Method,วิธีชำระเงิน
 Payment Needs Approval,การจ่ายต้องอนุมัติ
@@ -959,6 +962,7 @@ The company used for new documents and for the company profile page,บริษ
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่
 The document date is in the future,วันที่เอกสารอยู่ในอนาคต กรุณาตรวจสอบปี
 The document date is more than 5 years old,วันที่เอกสารเก่ากว่า 5 ปี กรุณาตรวจสอบปี
+"The document type was not recognised, so input VAT is not claimed",ไม่ทราบประเภทเอกสาร จึงไม่บันทึกภาษีซื้อ
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The items add up to more than the subtotal,ผลรวมรายการมากกว่ายอดก่อนภาษี
@@ -1011,6 +1015,7 @@ This document was already recorded,เอกสารนี้บันทึก
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 This entry changed underneath you; reload and try again,รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
+This is a credit note: check the amounts and the original invoice,เอกสารนี้เป็นใบลดหนี้ กรุณาตรวจสอบยอดเงินและใบกำกับภาษีเดิม
 This is not a purchase or sales document,เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This option is no longer current,ตัวเลือกนี้ไม่ใช่ขั้นตอนปัจจุบันแล้ว
@@ -1026,6 +1031,8 @@ This stock count is already posted,เอกสารตรวจนับนี
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This stock position already has stock movements; use a stock adjustment,สินค้าตำแหน่งนี้มีการเคลื่อนไหวแล้ว กรุณาใช้การปรับสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้าตำแหน่งนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับสต็อก
+"This tax invoice does not name the buyer, so input VAT is not claimed",ใบกำกับภาษีนี้ไม่ระบุผู้ซื้อ จึงไม่บันทึกภาษีซื้อ
+"This tax invoice shows no VAT, so input VAT is not claimed",ใบกำกับภาษีนี้ไม่พบยอดภาษีมูลค่าเพิ่ม จึงไม่บันทึกภาษีซื้อ
 This terminal already has an open shift,เครื่องขายนี้มีกะที่เปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้

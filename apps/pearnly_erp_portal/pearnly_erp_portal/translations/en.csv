@@ -246,6 +246,7 @@ Created when the draft is confirmed,Created when the draft is confirmed
 Created {0} product(s),Created {0} product(s)
 Created {0}; {1} row(s) were not saved — fix them and save again,Created {0}; {1} row(s) were not saved — fix them and save again
 Creation,Creation
+Credit Note,Credit Note
 Currency,Currency
 Current,Current
 Custom,Custom
@@ -605,6 +606,7 @@ Opening stock review,Opening stock review
 Opening stock review is not configured,Opening stock review is not configured
 Opening unit cost,Opening unit cost
 Opening value,Opening value
+Order Evidence,Order Evidence
 Original Item and Location,Original Item and Location
 Original Line,Original Line
 Other,Other
@@ -633,6 +635,7 @@ Password updated,Password updated
 Pay,Pay
 Payment,Payment
 Payment Date,Payment Date
+Payment Evidence,Payment Evidence
 Payment Failed,Payment Failed
 Payment Method,Payment Method
 Payment Needs Approval,Payment Needs Approval
@@ -959,6 +962,7 @@ The company used for new documents and for the company profile page,The company 
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The document date is in the future,The document date is in the future
 The document date is more than 5 years old,The document date is more than 5 years old
+"The document type was not recognised, so input VAT is not claimed","The document type was not recognised, so input VAT is not claimed"
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The items add up to more than the subtotal,The items add up to more than the subtotal
@@ -1011,6 +1015,7 @@ This document was already recorded,This document was already recorded
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This file holds {0} documents; only the first is filled in. Upload the others separately.,This file holds {0} documents; only the first is filled in. Upload the others separately.
+This is a credit note: check the amounts and the original invoice,This is a credit note: check the amounts and the original invoice
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:
 This option is no longer current,This option is no longer current
@@ -1026,6 +1031,8 @@ This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
 This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
 This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
+"This tax invoice does not name the buyer, so input VAT is not claimed","This tax invoice does not name the buyer, so input VAT is not claimed"
+"This tax invoice shows no VAT, so input VAT is not claimed","This tax invoice shows no VAT, so input VAT is not claimed"
 This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product

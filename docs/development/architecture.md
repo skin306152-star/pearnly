@@ -73,6 +73,13 @@
 
 已登记的既有环（债务，本次不扩围）：`ocr ↔ roundtrip`、`files ↔ ocr`、`history ↔ ocr`（后两组各有一条是函数内延迟导入）。它们来自旧项目同一批抽取与往返流程的相互调用，搬迁时按原职责落位；下次改到这些链时，要按真实职责把方向拆开并补回归，不能用新的延迟导入扩大环。`ocr` 与 `reconciliation` 之间没有也不应有依赖：两侧只通过 `contracts` 共享纯契约，抽取产物由调用方以数据形式交出。
 
+## 票种与业务处理的共用口径（ADR-012）
+
+票据的票种（完整税票 / 简式税票 / 收据 / 贷项通知单 …）与由它决定的业务处理（抵不抵进项、默认付款、要不要人看）只在
+`pearnly_core.tax_documents` 定义一次：`codes` 是码表与提示词片段，`rules` 是票种判定与采购决策表，纯契约、只依赖标准库。
+ERP 采购识别、Cowork 的识别枚举与 Express / MR.ERP 推送判据都调用它，产品里不再写票种字符串判断；改规则先加
+`tests/fixtures/tax-documents/cases.json` 用例。详见 [ADR-012](../adr/0012-shared-tax-document-rules.md)。
+
 ## 本地控制面与云端开户
 
 管理后台继续运行在本机。正式开户只面向 `pearnly_target_runtime` 中明确配置 `executor=production`、且存在对应 Target 记录的云端目标。SSH 隧道的回环地址不等于本地租户。

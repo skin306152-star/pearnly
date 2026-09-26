@@ -246,6 +246,7 @@ Created when the draft is confirmed,下書きの確定時に作成されます
 Created {0} product(s),{0}件の商品を作成しました
 Created {0}; {1} row(s) were not saved — fix them and save again,{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください
 Creation,作成日時
+Credit Note,返品・値引伝票
 Currency,通貨
 Current,現在
 Custom,カスタム
@@ -605,6 +606,7 @@ Opening stock review,期首在庫の確認
 Opening stock review is not configured,期首確認の設定がありません。管理者に連絡してください
 Opening unit cost,期首在庫単価
 Opening value,期首金額
+Order Evidence,注文記録
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
 Other,その他
@@ -633,6 +635,7 @@ Password updated,パスワードを更新しました
 Pay,会計
 Payment,支払
 Payment Date,支払日
+Payment Evidence,支払証跡
 Payment Failed,入金失敗
 Payment Method,支払方法
 Payment Needs Approval,支払いに承認が必要
@@ -959,6 +962,7 @@ The company used for new documents and for the company profile page,新しい伝
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
 The document date is in the future,書類の日付が未来です。年を確認してください
 The document date is more than 5 years old,書類の日付が5年以上前です。年を確認してください
+"The document type was not recognised, so input VAT is not claimed",書類の種類が判別できないため仕入税額を計上していません
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
 The items add up to more than the subtotal,明細の合計が小計を超えています
@@ -1011,6 +1015,7 @@ This document was already recorded,この書類は記録済みです
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This file holds {0} documents; only the first is filled in. Upload the others separately.,このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
+This is a credit note: check the amounts and the original invoice,これは返品・値引伝票です。金額と元の請求書を確認してください
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This option is no longer current,この選択肢は現在の手順ではありません
@@ -1026,6 +1031,8 @@ This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
+"This tax invoice does not name the buyer, so input VAT is not claimed",この税務請求書に買い手の記載がないため仕入税額を計上していません
+"This tax invoice shows no VAT, so input VAT is not claimed",この税務請求書に消費税額がないため仕入税額を計上していません
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit is not defined on the product,この単位はこの商品に定義されていません

@@ -16,6 +16,8 @@
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
+from pearnly_core.tax_documents import rules as tax_rules
+
 TOLERANCE = Decimal("0.5")
 VAT_RATE = Decimal("0.07")
 RELATIVE = Decimal("0.02")
@@ -36,8 +38,14 @@ MESSAGES = {
     "total_below_line": "The total is less than one of the items",
     "date_future": "The document date is in the future",
     "date_old": "The document date is more than 5 years old",
+    # 共用决策表（`pearnly_core.tax_documents.rules`，ADR-0012）要人看的原因：只标注、不换模型重读。
+    tax_rules.REVIEW_UNKNOWN_TYPE: "The document type was not recognised, so input VAT is not claimed",
+    tax_rules.REVIEW_TAX_INVOICE_WITHOUT_VAT: "This tax invoice shows no VAT, so input VAT is not claimed",
+    tax_rules.REVIEW_TAX_INVOICE_WITHOUT_BUYER: "This tax invoice does not name the buyer, so input VAT is not claimed",
+    tax_rules.REVIEW_CREDIT_NOTE: "This is a credit note: check the amounts and the original invoice",
 }
-SOFT = frozenset({"date_future", "date_old"})
+SOFT = frozenset({"date_future", "date_old", tax_rules.REVIEW_UNKNOWN_TYPE, tax_rules.REVIEW_TAX_INVOICE_WITHOUT_VAT,
+                  tax_rules.REVIEW_TAX_INVOICE_WITHOUT_BUYER, tax_rules.REVIEW_CREDIT_NOTE})
 
 
 def money(value):

@@ -9,6 +9,7 @@ from typing import Dict, List, Literal, Optional, get_args
 
 from pydantic import BaseModel, Field, PrivateAttr, ValidationInfo, field_validator, model_validator
 from pearnly_cowork.ocr.schema.evidence import FieldRef
+from pearnly_core.tax_documents import codes as tax_codes
 
 # 泰式 2 位年(DD/MM/YY)正则:两个分隔符 + 结尾 2 位年。
 _TWO_DIGIT_DATE = re.compile(r"^\s*\d{1,2}[/\-.]\d{1,2}[/\-.](\d{2})\s*$")
@@ -130,22 +131,10 @@ class ThaiInvoice(BaseModel):
     arithmetic validation is needed.
     """
 
-    document_type: Literal[
-        "tax_invoice",
-        "simplified_tax_invoice",
-        "receipt",
-        "credit_note",
-        "payment_evidence",
-        "order_evidence",
-        "other",
-    ] = Field(
-        default="tax_invoice",
-        description="document type. tax_invoice = full Thai tax invoice "
-        "(ใบกำกับภาษีเต็มรูป, can claim input VAT, legal invoice no required); "
-        "simplified_tax_invoice = ใบกำกับภาษีอย่างย่อ/ABB (POS slip, no legal "
-        "invoice no, cannot claim VAT); payment_evidence = bank/PromptPay transfer "
-        "slip (proves payment, not a tax doc); order_evidence = e-commerce order "
-        "screenshot; receipt/credit_note/other otherwise",
+    # 票种码表与说明取自全平台共用的一份（`pearnly_core.tax_documents.codes`，ADR-0012）。
+    document_type: Literal[tax_codes.DOCUMENT_TYPES] = Field(
+        default=tax_codes.TAX_INVOICE,
+        description=tax_codes.PROMPT_DESCRIPTION,
     )
     is_not_invoice: bool = Field(
         default=False,
