@@ -296,6 +296,9 @@ Item / description,Item / description
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
 Kind,Kind
 LINE Display Name,LINE Display Name
+LINE Login,LINE Login
+LINE Login Link,LINE Login Link
+LINE Login Link Updated,LINE Login Link Updated
 LINE User ID,LINE User ID
 LINE could not be reached; please try again,LINE could not be reached; please try again
 LINE status,LINE status
@@ -511,6 +514,7 @@ Sign in again before changing your username.,Sign in again before changing your 
 Sign out,Sign out
 Sign out and sign in again,Sign out and sign in again
 Sign-in Credentials,Sign-in Credentials
+Signed In Via,Signed In Via
 Site config is missing {0},Site config is missing {0}
 Site config is missing {0}_admin_client_id / _secret,Site config is missing {0}_admin_client_id / _secret
 Site config is missing {0}_issuer,Site config is missing {0}_issuer
@@ -607,6 +611,7 @@ The two passwords do not match,The two passwords do not match
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.
 "There is no DMS customer reference, so it cannot be pushed","There is no DMS customer reference, so it cannot be pushed"
+This LINE account is not bound to this account on this site. Sign in with your password.,This LINE account is not bound to this account on this site. Sign in with your password.
 This Operator's Own DMS Credentials,This Operator's Own DMS Credentials
 "This account has no identity binding, so it cannot change its own password; contact an admin","This account has no identity binding, so it cannot change its own password; contact an admin"
 This advisor is no longer in the current DMS list. Please select again.,This advisor is no longer in the current DMS list. Please select again.
@@ -676,6 +681,7 @@ Warehouses,Warehouses
 "Warehouses, stock-in and stock-out documents","Warehouses, stock-in and stock-out documents"
 What Was Pushed,What Was Pushed
 What Was Recognised,What Was Recognised
+Whether this LINE can sign in to this account; kept in step with the identity service.,Whether this LINE can sign in to this account; kept in step with the identity service.
 Which connection it went to. Empty = it failed before a connection was chosen.,Which connection it went to. Empty = it failed before a connection was chosen.
 Which customer is being changed.,Which customer is being changed.
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.

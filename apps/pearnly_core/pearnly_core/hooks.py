@@ -334,4 +334,8 @@ persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]
 
 # Durable OCR backlog repair; second-level ETA delivery uses execution.dispatch.
 scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"]},
+                    "hourly": ["pearnly_core.account.line_login.reconcile"],
                     "daily": ["pearnly_core.execution.work.prune_checkpoints"]}
+
+# LINE 绑定即登录：绑定变化 → 作废失效的 LINE 会话、同步身份服务里的关联（多产品共用）。
+pearnly_line_binding_changed = ["pearnly_core.account.line_login.binding_changed"]

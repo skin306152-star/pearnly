@@ -9,19 +9,19 @@ import frappe
 import requests
 from frappe import _
 
+from pearnly_core.account import line_login_contract
+
 METHOD = "pearnly_control.account.member_api.execute"
 TIMEOUT = 45
 
 
-def _call(action, *, email, password, username=""):
+def _post(payload, products):
     config = {key: str(frappe.conf.get("pearnly_" + key) or "") for key in (
         "tenant", "product", "billing_api", "billing_host_header", "billing_token")}
     # 各产品各自一个账号池（ERP / Cowork 分池，用户 2026-09-26）；控制面按令牌里的产品选池。
-    if config["product"] not in ("erp", "cowork") or not all(config.values()):
+    if config["product"] not in products or not all(config.values()):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
-    request_id = uuid.uuid4().hex
-    payload = {"tenant": config["tenant"], "action": action, "email": email,
-        "password": password, "username": username, "request_id": request_id}
+    payload = {"tenant": config["tenant"], **payload}
     headers = {"Host": config["billing_host_header"],
         "X-Pearnly-Billing-Product": config["product"],
         "X-Pearnly-Billing-Token": config["billing_token"]}
@@ -45,9 +45,29 @@ def _call(action, *, email, password, username=""):
         if code in ("not_permitted", "invalid_request"):
             frappe.throw(_("Not permitted"), frappe.PermissionError)
         frappe.throw(_("Please try again later"))
+    return result
+
+
+def _call(action, *, email, password, username=""):
+    result = _post({"action": action, "email": email, "password": password, "username": username,
+                    "request_id": uuid.uuid4().hex}, ("erp", "cowork"))
     if result.get("email") != email or (action == "create" and not result.get("subject")):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return result
+
+
+def link_line(subject, line_user_id):
+    """把本站生效的 LINE 绑定关联到该身份的 LINE 登录入口（服务端核对归属、计算别名）。"""
+    result = _post({"action": "link-line", "subject": subject, "line_user_id": line_user_id},
+                   line_login_contract.PRODUCTS)
+    if result.get("subject") != subject:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+def unlink_line(subject):
+    result = _post({"action": "unlink-line", "subject": subject}, line_login_contract.PRODUCTS)
+    if result.get("subject") != subject:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
 def create(email, username, password):

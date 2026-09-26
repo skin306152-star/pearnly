@@ -135,6 +135,12 @@ LINE Display Name	LINE 昵称	ชื่อที่แสดงบน LINE	LINE�
 Time	时间	เวลา	日時
 Bound At	绑定时间	ผูกเมื่อ	連携日時
 Unbound At	解绑时间	ยกเลิกผูกเมื่อ	連携解除日時
+LINE Login	LINE 登录	เข้าสู่ระบบด้วย LINE	LINEログイン
+LINE Login Link	LINE 登录关联	การเชื่อมโยงการเข้าสู่ระบบด้วย LINE	LINEログイン連携
+LINE Login Link Updated	LINE 登录关联更新时间	อัปเดตการเชื่อมโยงเมื่อ	LINEログイン連携の更新日時
+Whether this LINE can sign in to this account; kept in step with the identity service.	这个 LINE 能否免密登录此账号；与身份服务自动保持一致。	LINE นี้เข้าสู่ระบบบัญชีนี้ได้หรือไม่ ระบบซิงก์กับบริการยืนยันตัวตนให้อัตโนมัติ	このLINEでこのアカウントにログインできるか。ID サービスと自動で同期します。
+Signed In Via	登录方式	เข้าสู่ระบบผ่าน	ログイン方法
+This LINE account is not bound to this account on this site. Sign in with your password.	这个 LINE 没有绑定本站的这个账号，请用账号密码登录。	บัญชี LINE นี้ไม่ได้ผูกกับบัญชีนี้ในเว็บไซต์นี้ กรุณาเข้าสู่ระบบด้วยรหัสผ่าน	このLINEはこのサイトのこのアカウントに連携されていません。パスワードでログインしてください。
 Event ID	事件 ID	Event ID	イベントID
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.	LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理	webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก	LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
 Source	来源	ที่มา	ソース

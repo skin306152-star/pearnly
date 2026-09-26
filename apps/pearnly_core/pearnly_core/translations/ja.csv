@@ -297,6 +297,9 @@ Item / description,品名・摘要
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
 Kind,種類
 LINE Display Name,LINE表示名
+LINE Login,LINEログイン
+LINE Login Link,LINEログイン連携
+LINE Login Link Updated,LINEログイン連携の更新日時
 LINE User ID,LINEユーザーID
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
 LINE status,LINEステータス
@@ -513,6 +516,7 @@ Sign in again before changing your username.,ユーザー名を変更する前�
 Sign out,ログアウト
 Sign out and sign in again,ログアウトして再ログイン
 Sign-in Credentials,ログイン資格情報
+Signed In Via,ログイン方法
 Site config is missing {0},サイト設定に {0} がありません
 Site config is missing {0}_admin_client_id / _secret,サイト設定に {0}_admin_client_id / _secret がありません
 Site config is missing {0}_issuer,サイト設定に {0}_issuer がありません
@@ -609,6 +613,7 @@ The two passwords do not match,パスワードが一致しません
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
 "There is no DMS customer reference, so it cannot be pushed",DMS顧客参照がないため送信できません
+This LINE account is not bound to this account on this site. Sign in with your password.,このLINEはこのサイトのこのアカウントに連携されていません。パスワードでログインしてください。
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 "This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
 This advisor is no longer in the current DMS list. Please select again.,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
@@ -678,6 +683,7 @@ Warehouses,倉庫
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
 What Was Pushed,何を送ったか
 What Was Recognised,認識の記録
+Whether this LINE can sign in to this account; kept in step with the identity service.,このLINEでこのアカウントにログインできるか。ID サービスと自動で同期します。
 Which connection it went to. Empty = it failed before a connection was chosen.,どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
 Which customer is being changed.,どの顧客を変更するか。
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。

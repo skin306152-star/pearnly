@@ -69,6 +69,9 @@ def register_session(login_manager=None):
         "user": user,
         "session_id": sid,
         "keycloak_sid": kc.get("sid"),
+        # 经 LINE 登录的会话记下来源：绑定变了就只作废这些（见 account/line_login.py）。
+        "identity_provider": kc.get("identity_provider"),
+        "line_user_id": kc.get("line_user_id"),
         "deployment": frappe.local.site,
         "user_agent": (frappe.get_request_header("User-Agent") or "")[:255],
         "ip_address": (frappe.local.request_ip or "")[:64],

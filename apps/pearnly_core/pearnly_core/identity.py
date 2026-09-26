@@ -79,7 +79,16 @@ def begin_password_change():
     return _begin_login("/desk/user/" + quote(frappe.session.user, safe=""), password_change=True)
 
 
-def _begin_login(redirect_to=None, password_change=False):
+def begin_login_via(redirect_to, idp_hint):
+    """直接走某个外部登录入口（目前只有 LINE，见 account/line_login.py）。"""
+    return _begin_login(redirect_to, idp_hint=idp_hint)
+
+
+def end_session_endpoint() -> str:
+    return _discovery()["end_session_endpoint"]
+
+
+def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
     verifier, challenge = _pkce_pair()
@@ -106,6 +115,8 @@ def _begin_login(redirect_to=None, password_change=False):
         params["ui_locales"] = preferred
     if password_change:
         params.update(kc_action="UPDATE_PASSWORD", prompt="login", login_hint=frappe.session.user)
+    elif idp_hint:
+        params["kc_idp_hint"] = idp_hint
     url = _discovery()["authorization_endpoint"] + "?" + urlencode(params)
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = url
@@ -139,11 +150,24 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if saved.get("expected_user") and user != saved["expected_user"]:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
+    # 经外部入口（LINE）登录的：必须是本站入口、且是该账号在本站生效的绑定。
+    # 不通过就不建本地会话，并把身份服务那边这次会话也结束掉（否则单点登录会反复带回来）。
+    from pearnly_core.account import line_login
+
+    try:
+        source = line_login.verify_login_source(claims, user)
+    except frappe.PermissionError:
+        frappe.local.response["type"] = "redirect"
+        frappe.local.response["location"] = line_login.end_session_url(
+            frappe.local.pearnly_verified_tokens["id_token"])
+        return
+
     # 把身份服务侧的会话 id 暂存，交由 on_session_creation 记进会话登记表。
     frappe.local.pearnly_kc = {
         "sid": claims.get("sid"),
         "sub": subject,
         "iss": token_issuer,
+        **source,
     }
     _login_as(user)
     oidc_session.remember(frappe.local.pearnly_verified_tokens, subject)

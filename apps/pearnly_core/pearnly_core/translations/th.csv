@@ -297,6 +297,9 @@ Item / description,ชื่อสินค้า / คำอธิบาย
 "Kept as evidence, not a business field; only the confirmed fields are.",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น
 Kind,ประเภท
 LINE Display Name,ชื่อที่แสดงบน LINE
+LINE Login,เข้าสู่ระบบด้วย LINE
+LINE Login Link,การเชื่อมโยงการเข้าสู่ระบบด้วย LINE
+LINE Login Link Updated,อัปเดตการเชื่อมโยงเมื่อ
 LINE User ID,LINE User ID
 LINE could not be reached; please try again,เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง
 LINE status,สถานะ LINE
@@ -513,6 +516,7 @@ Sign in again before changing your username.,กรุณาเข้าสู�
 Sign out,ออกจากระบบ
 Sign out and sign in again,ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง
 Sign-in Credentials,ข้อมูลรับรองเข้าสู่ระบบ
+Signed In Via,เข้าสู่ระบบผ่าน
 Site config is missing {0},ค่าตั้งเว็บไซต์ขาด {0}
 Site config is missing {0}_admin_client_id / _secret,ค่าตั้งเว็บไซต์ขาด {0}_admin_client_id / _secret
 Site config is missing {0}_issuer,ค่าตั้งเว็บไซต์ขาด {0}_issuer
@@ -609,6 +613,7 @@ The two passwords do not match,รหัสผ่านทั้งสองไ�
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","ค่าอ้างตามผลิตภัณฑ์เดิม (success | failed | skipped_dup | pending | retrying | manual) **นี่คือแหล่งความจริงเดียวของสถานะการส่ง** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง การตัดสินว่า ""ส่งสำเร็จหรือยัง"" ต้องดูที่นี่"
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก
 "There is no DMS customer reference, so it cannot be pushed",ไม่มีรหัสอ้างอิงลูกค้า DMS จึงส่งไม่ได้
+This LINE account is not bound to this account on this site. Sign in with your password.,บัญชี LINE นี้ไม่ได้ผูกกับบัญชีนี้ในเว็บไซต์นี้ กรุณาเข้าสู่ระบบด้วยรหัสผ่าน
 This Operator's Own DMS Credentials,บัญชี DMS ของผู้ปฏิบัติงานรายนี้
 "This account has no identity binding, so it cannot change its own password; contact an admin",บัญชีนี้ยังไม่ได้ผูกตัวตน จึงเปลี่ยนรหัสผ่านเองไม่ได้ กรุณาติดต่อผู้ดูแล
 This advisor is no longer in the current DMS list. Please select again.,ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่
@@ -678,6 +683,7 @@ Warehouses,คลังสินค้า
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
 What Was Pushed,ส่งอะไรไป
 What Was Recognised,สิ่งที่อ่านได้
+Whether this LINE can sign in to this account; kept in step with the identity service.,LINE นี้เข้าสู่ระบบบัญชีนี้ได้หรือไม่ ระบบซิงก์กับบริการยืนยันตัวตนให้อัตโนมัติ
 Which connection it went to. Empty = it failed before a connection was chosen.,ส่งไปยังการเชื่อมต่อใด เว้นว่าง = ล้มเหลวก่อนเลือกการเชื่อมต่อ
 Which customer is being changed.,จะแก้ลูกค้ารายใด
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,ปลายทางคือระบบใด ค่าอ้างตามผลิตภัณฑ์เดิม (webhook | xero | flowaccount | mrerp | mrerp_dms | express) แพลตฟอร์มใหม่ทำเฉพาะ mrerp_dms ส่วนที่เหลือลิสต์ไว้เพื่อไม่ให้สัญญาเปลี่ยนแบบเงียบ ๆ

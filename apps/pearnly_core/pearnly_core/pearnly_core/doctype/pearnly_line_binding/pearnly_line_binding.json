@@ -13,7 +13,10 @@
   "display_name",
   "section_time",
   "bound_at",
-  "unbound_at"
+  "unbound_at",
+  "section_login",
+  "login_link",
+  "login_link_at"
  ],
  "fields": [
   {"fieldname": "line_user_id", "fieldtype": "Data", "in_list_view": 1, "label": "LINE User ID", "reqd": 1, "unique": 1, "columns": 4},
@@ -23,11 +26,14 @@
   {"fieldname": "display_name", "fieldtype": "Data", "label": "LINE Display Name"},
   {"fieldname": "section_time", "fieldtype": "Section Break", "label": "Time"},
   {"fieldname": "bound_at", "fieldtype": "Datetime", "label": "Bound At"},
-  {"fieldname": "unbound_at", "fieldtype": "Datetime", "label": "Unbound At"}
+  {"fieldname": "unbound_at", "fieldtype": "Datetime", "label": "Unbound At"},
+  {"fieldname": "section_login", "fieldtype": "Section Break", "label": "LINE Login"},
+  {"fieldname": "login_link", "fieldtype": "Select", "label": "LINE Login Link", "options": "\npending\nlinked\nunlinked\nfailed", "read_only": 1, "description": "Whether this LINE can sign in to this account; kept in step with the identity service."},
+  {"fieldname": "login_link_at", "fieldtype": "Datetime", "label": "LINE Login Link Updated", "read_only": 1}
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-18 00:00:00.000000",
+ "modified": "2026-09-26 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly LINE Binding",
