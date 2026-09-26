@@ -1,6 +1,6 @@
 # OCR 语料实测与识别逻辑修正（2026-09-27）
 
-**范围状态：实现与付费复测完成，已合入 main（SHA 见第 7 节）；未部署。** 用户要求：用本机金标语料（优先照片）加生产 OCR 凭据，实测并修好 ERP 和 Cowork 的识别逻辑；
+**范围状态：实现与付费复测完成，ERP 已部署生产（第 7 节）；Cowork 的提示词改动由 Cowork 窗口随其发布上线。** 用户要求：用本机金标语料（优先照片）加生产 OCR 凭据，实测并修好 ERP 和 Cowork 的识别逻辑；
 动到共享文件要和 Cowork 协调；做完再考虑部署。
 
 ## 0. 基线与归属
@@ -96,3 +96,21 @@
 - ERP：采购贷项 / 退货单据（需要新单据类型，属于功能开发）；单据的票种没有持久化。
 - 个别数字读错（如单号 14569 读成 14669、税号 0107538 读成 0107536）属于图像层问题。税号校验位也拦不住的，只能靠供应商主档比对。
 - MR.ERP 的现金销售明细从 6 月才开始，5 月的 Sister Makeup 销售小票没有答案可对，ERP 销售识别这次没有金标实测。
+
+## 7. 合并与部署（2026-09-27，用户：「部署 ERP 到生产，cowork 的让它自己处理」）
+
+- 合入：`5b8af27` → 远端 `main`（Cowork 窗口已收到 SHA）。
+- 第一次在 main 上构建镜像（Build `36266498049`，`5b8af27`）失败：候选镜像的离线检查里，新测试
+  `test_non_claimable_vat_added_on_top_is_part_of_the_cost` 取带语言的翻译，离线容器没有 Redis。
+  本地用的旧样板镜像没暴露这个问题；换用生产镜像在服务器上复现，main 上同样失败。
+  修复只改测试（`76b6a6e`），同一镜像里 ERP 离线测试 74 项通过；分支 CI 通过后快进合入。**以后 ERP 离线测试改用生产镜像跑。**
+- 镜像：Build `36266984032`（`76b6a6e`）通过 → `sha256:15bcd462bab3bf2be25793ce6d473549fce864bfacb3fb18c15f1d970aa804d7`；Stage `36267319977` 成功。
+- 部署目录：只有 `infrastructure/production/site-step.py` 不同源（Cowork 已合入 main 的开户识别配置）。
+  先备份到 `/opt/pearnly/state/predeploy-76b6a6e-20260926194912`，再从镜像同步，`check-deploy-image` 通过。
+- 激活：`bash activate-product.sh <digest> erp` → “Product erp activated with verified image.”，日志 `/opt/pearnly/state/activate-erp-76b6a6e.log`。
+  激活前备份 `20260927_024948-testerp_pearnly_com-*`（库、公开文件、私有文件）。上一版 `3a1d5f26…`（`02a3b22`）。
+- 回读：ERP 7 个容器都是 `76b6a6e`；`maintenance_mode=0`、`pause_scheduler=0`；公网 ping 200；web / worker / ocr-worker / scheduler 5 分钟内日志 0 错误。
+  线上站点内核对：含税票 6,400 / 750 / 350 算出 7,500.00（计算版本 4）；简式税票标题判为不抵进项；新词条（业务类型、不可抵扣的增值税）翻译生效；
+  采购提示词带单号规则和标题字段。
+- DMS、Cowork、计费站点都没动。Cowork 的提示词改动由 Cowork 窗口随其发布上线。
+- 未做：真机验收（LINE 发单、网页上传识别、贷项通知单的拦截提示），用户确认前不算通过。服务器上的旧备份没有清理，是否只留最新一份由用户决定。
