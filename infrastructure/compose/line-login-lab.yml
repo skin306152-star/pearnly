@@ -1,0 +1,35 @@
+# LINE sign-in E2E laboratory (docs/work/2026-09-25-erp-line-intake.md §7). Never a tenant target.
+# Synthetic data, fake LINE provider, no host ports. Run only through scripts/line-login-lab.sh.
+name: pearnly-line-login-lab
+services:
+  mariadb:
+    image: mariadb:11.8
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --skip-character-set-client-handshake]
+    environment: {MARIADB_ROOT_PASSWORD: lab-root-only}
+    volumes: [db:/var/lib/mysql]
+    healthcheck: {test: [CMD, healthcheck.sh, --connect], interval: 5s, retries: 30}
+  redis-cache:
+    image: redis:6.2-alpine
+  redis-queue:
+    image: redis:6.2-alpine
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    command: [start-dev]
+    environment: {KC_BOOTSTRAP_ADMIN_USERNAME: lab-admin, KC_BOOTSTRAP_ADMIN_PASSWORD: lab-admin-only}
+  bench:
+    image: pearnly/frappe-sample:16.34.1
+    entrypoint: [sleep, infinity]
+    environment: {PEARNLY_LINE_LOGIN_LAB: "1"}
+    depends_on: {mariadb: {condition: service_healthy}}
+    networks:
+      default:
+        aliases: [erp.lab, billing.lab]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+      - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+      - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      - ../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+      - ../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro
+      - ../../scripts:/lab/scripts:ro
+volumes: {db: {}, sites: {}}
