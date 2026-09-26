@@ -317,6 +317,7 @@ permission_query_conditions = {
     "Cowork Bank Reconciliation Row": "pearnly_cowork.reconciliation.bank_recon_access.row_query",
     "Cowork Income Reconciliation": "pearnly_cowork.reconciliation.income_recon_access.task_query",
     "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.row_query",
+    "Cowork VAT Check": "pearnly_cowork.reconciliation.vat_check_access.task_query",
 }
 has_permission = {
     "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
@@ -350,6 +351,7 @@ has_permission = {
     "Cowork Bank Reconciliation Row": "pearnly_cowork.reconciliation.bank_recon_access.has_permission",
     "Cowork Income Reconciliation": "pearnly_cowork.reconciliation.income_recon_access.has_permission",
     "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.has_permission",
+    "Cowork VAT Check": "pearnly_cowork.reconciliation.vat_check_access.has_permission",
 }
 doc_events = {"Pearnly OCR Work": {
     "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",
@@ -364,7 +366,8 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
         "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
-        "pearnly_cowork.reconciliation.income_recon_access.reject_share"],
+        "pearnly_cowork.reconciliation.income_recon_access.reject_share",
+        "pearnly_cowork.reconciliation.vat_check_access.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
@@ -372,7 +375,8 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
         "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
-        "pearnly_cowork.reconciliation.income_recon_access.reject_share"],
+        "pearnly_cowork.reconciliation.income_recon_access.reject_share",
+        "pearnly_cowork.reconciliation.vat_check_access.reject_share"],
 }}
 extend_doctype_class = {
     "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
@@ -391,7 +395,7 @@ pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
 # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。库存盘点照搬 ERP、只去掉盘点在库（2026-09-26）；
-# 销项税报告核查、工作协调的页面还没做，不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
+# 工作协调的页面还没做，不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
   'profile_label': 'My Profile',
@@ -407,7 +411,7 @@ pearnly_navigation = [{'product': 'cowork',
             ('nav.stocktake', 'pearnly-stocktake', 'boxes', 'stocktake'),
             ('cowork.nav.work', 'pearnly-work', 'users', None),
             ('nav.team', 'pearnly-team', 'users-round', None)],
-  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-recon-bank', 'pearnly-recon-income',
+  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-recon-bank', 'pearnly-recon-income', 'pearnly-recon-vat',
                 'pearnly-stocktake', 'pearnly-team'],
   'permissions': {'pearnly-intake': {'doctype': 'Intake Record'},
                   'pearnly-recon-bank': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},

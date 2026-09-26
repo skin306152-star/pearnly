@@ -1,0 +1,187 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork VAT Check",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-26 21:00:00.000000",
+ "modified": "2026-09-26 21:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "title",
+  "status",
+  "client_name",
+  "period",
+  "invoice_count",
+  "report_count",
+  "matched_count",
+  "diff_count",
+  "unmatched_count",
+  "diff_amount",
+  "lang",
+  "request_key",
+  "inputs_json",
+  "summary_json",
+  "edit_json",
+  "created_by",
+  "created_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "read_only": 1,
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "options": "completed",
+   "default": "completed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client_name",
+   "fieldtype": "Data",
+   "label": "Client Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Data",
+   "label": "Period",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_count",
+   "fieldtype": "Int",
+   "label": "Invoice Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "report_count",
+   "fieldtype": "Int",
+   "label": "Report Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "matched_count",
+   "fieldtype": "Int",
+   "label": "Matched",
+   "read_only": 1
+  },
+  {
+   "fieldname": "diff_count",
+   "fieldtype": "Int",
+   "label": "Differences",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unmatched_count",
+   "fieldtype": "Int",
+   "label": "Unmatched",
+   "read_only": 1
+  },
+  {
+   "fieldname": "diff_amount",
+   "fieldtype": "Float",
+   "label": "Difference Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lang",
+   "fieldtype": "Data",
+   "label": "Language",
+   "read_only": 1,
+   "length": 5
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "inputs_json",
+   "fieldtype": "Long Text",
+   "label": "Inputs",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "summary_json",
+   "fieldtype": "Long Text",
+   "label": "Summary",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "edit_json",
+   "fieldtype": "Long Text",
+   "label": "Edit History",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Bank Reconciliation",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

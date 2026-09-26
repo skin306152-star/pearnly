@@ -10,10 +10,10 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_cowork.reconciliation import income_recon_service, revision
+from pearnly_cowork.reconciliation import income_recon_service, revision, vat_check_service
 
 # 由输入生成、页面只读显示的那几页（按导出工作簿里的顺序取）。
-READ_ONLY_SHEETS = {"bank": (0, 1), "income": (1, 2)}
+READ_ONLY_SHEETS = {"bank": (0, 1), "income": (1, 2), "vat": (2, 3)}
 
 
 def _lang(lang):
@@ -33,7 +33,22 @@ def _cells(content, indexes):
     return out
 
 
+def _task(kind, task_id, for_update=False):
+    if kind == "vat":
+        return vat_check_service.task(task_id, for_update=for_update)
+    return revision.task(kind, task_id, for_update=for_update)
+
+
 def _view(kind, doc, inputs, lang):
+    if kind == "vat":
+        content, summary = vat_check_service.compute(vat_check_service._inputs(inputs), lang)
+        counts = vat_check_service._counts(summary)
+        total = len(summary.get("rows") or [])
+        # 旧线上的“有差异”把两边缺失的也算在内；页面四个数互不重叠：差异 = 总数 − 一致 − 缺失。
+        matched, unmatched = counts["matched_count"], counts["unmatched_count"]
+        return {"sheets": _cells(content, READ_ONLY_SHEETS[kind]), "inputs": inputs,
+                "counts": {"total": total, "matched": matched, "pending": max(0, total - matched - unmatched),
+                           "unmatched": unmatched}}
     if kind == "bank":
         _rows, _header, results, summary = revision.bank_compute(doc, inputs)
         content = revision.bank_workbook_bytes(doc, results, summary, lang)
@@ -62,25 +77,31 @@ def _parse(inputs):
 
 @frappe.whitelist()
 def load(kind, task_id, lang=None):
-    doc = revision.task(kind, task_id)
-    inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
+    doc = _task(kind, task_id)
+    if kind == "vat":
+        inputs, version = vat_check_service.stored_inputs(doc), vat_check_service.revision(doc)
+    else:
+        inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
+        version = revision.revision(doc)
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
-                     "revision": revision.revision(doc)}, **_view(kind, doc, inputs, _lang(lang))}
+                     "revision": version}, **_view(kind, doc, inputs, _lang(lang))}
 
 
 @frappe.whitelist(methods=["POST"])
 def recalc(kind, task_id, inputs, lang=None):
-    doc = revision.task(kind, task_id)
+    doc = _task(kind, task_id)
     return _view(kind, doc, _parse(inputs), _lang(lang))
 
 
 @frappe.whitelist(methods=["POST"])
 def save(kind, task_id, inputs, modified, lang=None):
-    doc = revision.task(kind, task_id, for_update=True)
+    doc = _task(kind, task_id, for_update=True)
     if str(doc.modified) != str(modified):
         frappe.throw(_("reconciliation.edit_conflict"))
     inputs = _parse(inputs)
-    if kind == "bank":
+    if kind == "vat":
+        vat_check_service.save(doc, inputs, _lang(lang))
+    elif kind == "bank":
         revision.bank_save(doc, inputs)
     else:
         revision.income_save(doc, inputs)

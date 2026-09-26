@@ -59,6 +59,7 @@ Bank withdrawal only,มีเฉพาะรายการถอนในธ�
 Barcode,บาร์โค้ด
 Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
 "Barcode, QR code or product code",บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
+Before VAT,ก่อน VAT
 Billing Code,รหัสค่าบริการ
 Billing Kind,ประเภทการคิดค่าบริการ
 Billing Receipt,ผลยืนยันการเรียกเก็บเงิน
@@ -263,6 +264,7 @@ History Version,รุ่นประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับผู้ถือล็อก
 IN,เงินเข้า
+Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน
 Import result,ผลการนำเข้า
 "Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
 In progress,กำลังดำเนินการ
@@ -290,7 +292,10 @@ Invoice Pages,หน้าใบแจ้งหนี้
 Invoice References Complete,เชื่อมโยงใบแจ้งหนี้ครบแล้ว
 Invoice References Fingerprint,ลายนิ้วมือการเชื่อมโยงใบแจ้งหนี้
 Invoice Total,ยอดรวมใบแจ้งหนี้
+Invoice detail,รายละเอียดใบกำกับ
+Invoice no.,เลขที่ใบกำกับ
 Invoice pages do not match the original page references.,หน้าใบแจ้งหนี้ไม่ตรงกับหน้าต้นฉบับที่อ้างอิง
+Invoices,จำนวนใบกำกับ
 Issued At (UTC),เวลาออก (UTC)
 Issued By,ผู้ออก
 Issued Request Digest,แฮชคำขอออกข้อมูลรับรอง
@@ -331,6 +336,7 @@ New records must start as drafts.,รายการใหม่ต้องเ�
 New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
+No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
@@ -371,6 +377,7 @@ Payload Json,ข้อมูลส่งที่ตรึงไว้ JSON
 Payment Method,วิธีชำระเงิน
 Pearnly Cowork,Pearnly Cowork
 Pending,รอดำเนินการ
+Period,งวด
 Phase,ขั้นตอนการประมวลผล
 Photos,รูปภาพ
 Position differences,ผลต่างตำแหน่ง
@@ -400,6 +407,7 @@ Reading files,กำลังอ่านไฟล์
 Reading the VAT report,กำลังอ่านรายงานภาษี
 Reading the bank statement,กำลังอ่านรายการเดินบัญชี
 Reading the general ledger,กำลังอ่านบัญชีแยกประเภท
+Reading the invoices,กำลังอ่านใบกำกับ
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
@@ -460,6 +468,7 @@ Revoked By,ผู้ยกเลิก
 Row {0}: {1},แถว {0}: {1}
 Rows,จำนวนแถว
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,ใช้รายการและจำนวนนับจริงจากไฟล์ เว้นจำนวนนับจริงว่างไว้เพื่อตรวจนับออนไลน์ภายหลังได้
+Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
@@ -624,6 +633,8 @@ The record metadata has an invalid format.,รูปแบบข้อมูล�
 The record source is not supported.,ไม่รองรับแหล่งที่มาของรายการนี้
 The reported ERP capabilities are invalid.,ข้อมูลความสามารถของ ERP ที่รายงานไม่ถูกต้อง
 The reported ERP field definitions are invalid.,ข้อกำหนดฟิลด์ ERP ที่รายงานไม่ถูกต้อง
+The reports belong to different sellers ({0}).,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
+The reports cover different periods ({0}).,รายงานคนละงวด ({0}) กรุณาตรวจสอบ
 The request is invalid. Reload and try again.,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 The requested page is not part of this invoice.,หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้
 The review workbook cannot be read. Check its format and content.,ไม่สามารถอ่านสมุดงานตรวจทานได้ กรุณาตรวจสอบรูปแบบและเนื้อหา
@@ -678,6 +689,7 @@ Title,ชื่อเรื่อง
 Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
+Total,รวม VAT
 Transaction Date,วันที่ทำรายการ
 Type,ประเภท
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
@@ -706,8 +718,10 @@ Use the reconciliation workflow to change these records.,กรุณาแก�
 Use the stock count workflow to change these records.,กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก
 User Settings,เมนูผู้ใช้
 Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
+VAT,VAT
 VAT Report Check,ตรวจสอบรายงานภาษีขาย
 VAT report amount,ยอดตามรายงานภาษี
+VAT report detail,รายละเอียดรายงาน VAT
 Valid,ใช้งาน
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
@@ -809,15 +823,22 @@ cowork.recon.col.difference,ผลต่าง
 cowork.recon.col.differences,ผลต่าง
 cowork.recon.col.docNo,เลขที่เอกสาร
 cowork.recon.col.glAmount,ยอดบัญชีแยกประเภท
+cowork.recon.col.invoiceNo,เลขที่ใบกำกับ
+cowork.recon.col.invoices,จำนวนใบกำกับ
 cowork.recon.col.item,รายการ
 cowork.recon.col.kind,ประเภท
 cowork.recon.col.matched,จับคู่แล้ว
+cowork.recon.col.period,งวด
+cowork.recon.col.preVat,ก่อน VAT
 cowork.recon.col.reference,เลขที่อ้างอิง
 cowork.recon.col.rows,จำนวนรายการ
 cowork.recon.col.status,สถานะ
 cowork.recon.col.stmtAmount,ยอดธนาคาร
+cowork.recon.col.taxId,เลขประจำตัวผู้เสียภาษี
 cowork.recon.col.title,ชื่องาน
+cowork.recon.col.total,รวม VAT
 cowork.recon.col.unmatched,ไม่พบคู่
+cowork.recon.col.vat,VAT
 cowork.recon.col.vatAmount,ยอดตามรายงานภาษี
 cowork.recon.col.voucher,เลขที่ใบสำคัญ
 cowork.recon.col.withdrawal,ถอน
@@ -827,6 +848,7 @@ cowork.recon.deleted,ลบแล้ว {0} รายการ
 cowork.recon.export,ส่งออก
 cowork.recon.failed,กระทบยอดไม่สำเร็จ
 cowork.recon.file,ไฟล์
+cowork.recon.files,{0} ไฟล์
 cowork.recon.filter,แสดง
 cowork.recon.filter.all,ทั้งหมด
 cowork.recon.filter.matched,จับคู่แล้ว
@@ -843,8 +865,11 @@ cowork.recon.pick,เลือกไฟล์
 cowork.recon.saved,บันทึกแล้ว
 cowork.recon.sheet.difference,รายละเอียดผลต่าง
 cowork.recon.sheet.gl,รายละเอียดบัญชีแยกประเภท
+cowork.recon.sheet.invoices,รายละเอียดใบกำกับ
+cowork.recon.sheet.report,รายละเอียดรายงาน VAT
 cowork.recon.sheet.statement,รายละเอียดรายการเดินบัญชี
 cowork.recon.stage.done,เสร็จสิ้น
+cowork.recon.stage.invoice,กำลังอ่านใบกำกับ
 cowork.recon.stage.ledger,กำลังอ่านบัญชีแยกประเภท
 cowork.recon.stage.matching,กำลังจับคู่และบันทึก
 cowork.recon.stage.queued,รอเริ่ม
@@ -859,6 +884,8 @@ cowork.recon.status.unmatched,ไม่พบคู่
 cowork.recon.task.completed,เสร็จสิ้น
 cowork.recon.task.needs_review,รอตรวจสอบ
 cowork.recon.timeout,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
+cowork.recon.vat.left,รายงานภาษีขาย
+cowork.recon.vat.right,ใบกำกับภาษีขาย
 cowork.stock.action.export,ส่งออก
 cowork.stock.action.reload,โหลดใหม่
 cowork.stock.actualLocation,ตำแหน่งจริง
@@ -1221,6 +1248,11 @@ stocktake.row_invalid,แถวนำเข้าไม่ถูกต้อง�
 stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว"
 stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 summary_table_batch,นำเข้าตารางสรุป
+vat_check.no_invoices,ไม่สามารถอ่านใบกำกับได้เลย
+vat_check.periods_differ,รายงานคนละงวด ({0}) กรุณาตรวจสอบ
+vat_check.scanned_not_ready,ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน
+vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
+{0} files,{0} ไฟล์
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}

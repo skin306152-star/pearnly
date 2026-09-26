@@ -15,9 +15,12 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.reconciliation import bank_recon_access, bank_recon_service, income_recon_access
-from pearnly_cowork.reconciliation import income_recon_service
+from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 
-KINDS = {"bank": bank_recon_access, "income": income_recon_access}
+KINDS = {"bank": bank_recon_access, "income": income_recon_access, "vat": vat_check_access}
+# 每个上传口可以放几份：银行 / 收入各一份；销项税核查的报告可多份（同卖方同期间合并）、发票可很多张。
+MULTIPLE = {"vat"}
+MAX_FILES = 200
 MAX_BYTES = 25 * 1024 * 1024
 TTL = 24 * 3600
 
@@ -39,19 +42,22 @@ def _save(content, filename):
     return save_file(filename, content, None, None, is_private=1).name
 
 
-def start(kind, title, files, options=None):
-    """files: [(filename, bytes), (filename, bytes)]——左、右两个上传口，顺序固定。"""
+def start(kind, title, sides, options=None):
+    """sides: {"left": [(filename, bytes), ...], "right": [...]}——左、右两个上传口。"""
     if kind not in KINDS:
         frappe.throw(_("reconciliation.type_invalid"))
     workspace = scope.default_workspace()
     KINDS[kind].require(workspace)
-    title = str(title or "").strip() or " / ".join(name for name, _content in files)
-    if len(files) != 2 or any(not content for _name, content in files):
+    everything = [item for side in ("left", "right") for item in sides.get(side) or []]
+    if (any(not sides.get(side) for side in ("left", "right")) or any(not content for _name, content in everything)
+            or (kind not in MULTIPLE and any(len(sides[side]) != 1 for side in ("left", "right")))
+            or len(everything) > MAX_FILES):
         frappe.throw(_("reconciliation.files_required"))
-    if any(len(content) > MAX_BYTES for _name, content in files):
+    if any(len(content) > MAX_BYTES for _name, content in everything):
         frappe.throw(_("reconciliation.file_too_large"))
+    title = str(title or "").strip() or " / ".join(name for name, _content in everything[:2])
     job_id = uuid.uuid4().hex
-    saved = [_save(content, name) for name, content in files]
+    saved = {side: [_save(content, name) for name, content in sides[side]] for side in ("left", "right")}
     _state(job_id, user=frappe.session.user, kind=kind, state="queued", stage="queued", task=None, error=None)
     frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long", timeout=1800, job_id=f"cowork-recon-{job_id}",
                    enqueue_after_commit=True, recon_job=job_id, kind=kind, workspace=workspace, title=title[:140],
@@ -80,9 +86,15 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
     stage = lambda name: _state(recon_job, state="running", stage=name)  # noqa: E731
     try:
         stage("reading")
-        (left_name, left), (right_name, right) = _read(files)
+        lefts, rights = _read(files["left"]), _read(files["right"])
         request_id = recon_job
-        if kind == "bank":
+        if kind == "vat":
+            from pearnly_cowork.recon_center import vat_check
+
+            result = vat_check.run(workspace, title, request_id, lefts, rights, options.get("lang") or "th",
+                                   on_stage=stage)
+        elif kind == "bank":
+            (left_name, left), (right_name, right) = lefts[0], rights[0]
             from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
                 document_model_rows,
             )
@@ -94,6 +106,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         else:
             from pearnly_cowork.recon_center import sources
 
+            (left_name, left), (right_name, right) = lefts[0], rights[0]
             stage("ledger")
             gl_source = sources.ledger_source(left, left_name)
             stage("report")
@@ -110,7 +123,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             frappe.log_error(title="cowork reconciliation job", message=frappe.get_traceback())
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
     finally:
-        for name in files:
+        for name in files["left"] + files["right"]:
             if frappe.db.exists("File", name):
                 frappe.delete_doc("File", name, ignore_permissions=True, force=True)
         frappe.db.commit()

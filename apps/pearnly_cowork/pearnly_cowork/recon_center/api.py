@@ -8,7 +8,7 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.recon_center import jobs
-from pearnly_cowork.reconciliation import bank_recon_service, income_recon_service
+from pearnly_cowork.reconciliation import bank_recon_service, income_recon_service, vat_check_service
 
 TASKS = {"bank": bank_recon_service.TASKS, "income": income_recon_service.TASKS}
 
@@ -21,15 +21,11 @@ def _tasks(kind):
 
 @frappe.whitelist(methods=["POST"])
 def start(kind, title="", gl_account_code="", lang="th"):
-    """multipart：`left`、`right` 两个文件（左、右上传口），其余是表单字段。"""
-    files = (frappe.request.files or {}) if frappe.request else {}
-    picked = []
-    for field in ("left", "right"):
-        stream = files.get(field)
-        if not stream:
-            frappe.throw(_("reconciliation.files_required"))
-        picked.append((stream.filename, stream.stream.read(jobs.MAX_BYTES + 1)))
-    return jobs.start(kind, title, picked, {"gl_account_code": gl_account_code, "lang": lang})
+    """multipart：`left`、`right` 两个上传口（销项税核查每口可多份），其余是表单字段。"""
+    files = frappe.request.files if frappe.request else None
+    sides = {field: [(stream.filename, stream.stream.read(jobs.MAX_BYTES + 1))
+                     for stream in (files.getlist(field) if files else [])] for field in ("left", "right")}
+    return jobs.start(kind, title, sides, {"gl_account_code": gl_account_code, "lang": lang})
 
 
 @frappe.whitelist()
@@ -39,6 +35,8 @@ def status(job):
 
 @frappe.whitelist()
 def tasks(kind, start=0, limit=20, sort_by=None, sort_order=None):
+    if kind == "vat":
+        return vat_check_service.records(scope.default_workspace(), start, limit, sort_by, sort_order)
     return _tasks(kind).records(scope.default_workspace(), start, limit, sort_by, sort_order)
 
 
@@ -49,6 +47,18 @@ def detail(kind, task_id, start=0, limit=200):
 
 @frappe.whitelist(methods=["POST"])
 def delete(kind, task_ids):
-    result = _tasks(kind).delete_many(task_ids)
+    result = vat_check_service.delete_many(task_ids) if kind == "vat" else _tasks(kind).delete_many(task_ids)
     frappe.db.commit()
     return result
+
+
+@frappe.whitelist(methods=["GET"])
+def export_vat(task_id, lang=None):
+    """销项税报告核查工作簿（由存档的两边输入当场重建，改过就是改过的版本）。"""
+    from frappe.core.doctype.access_log.access_log import make_access_log
+
+    result = vat_check_service.export(task_id, lang)
+    make_access_log(doctype=vat_check_service.TASK, document=task_id, file_type="vat_check_workbook")
+    frappe.local.response.update(type="download", filename=result["filename"], filecontent=result["content"],
+        display_content_as="attachment",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

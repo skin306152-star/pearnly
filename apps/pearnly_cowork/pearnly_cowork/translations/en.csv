@@ -59,6 +59,7 @@ Bank withdrawal only,Bank withdrawal only
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
+Before VAT,Before VAT
 Billing Code,Billing Code
 Billing Kind,Billing Kind
 Billing Receipt,Billing Receipt
@@ -263,6 +264,7 @@ History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
 IN,IN
+Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
 Import result,Import result
 "Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
 In progress,In progress
@@ -290,7 +292,10 @@ Invoice Pages,Invoice Pages
 Invoice References Complete,Invoice References Complete
 Invoice References Fingerprint,Invoice References Fingerprint
 Invoice Total,Invoice Total
+Invoice detail,Invoice detail
+Invoice no.,Invoice no.
 Invoice pages do not match the original page references.,Invoice pages do not match the original page references.
+Invoices,Invoices
 Issued At (UTC),Issued At (UTC)
 Issued By,Issued By
 Issued Request Digest,Issued Request Digest
@@ -331,6 +336,7 @@ New records must start as drafts.,New records must start as drafts.
 New stock count,New stock count
 New task,New task
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
+No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
@@ -371,6 +377,7 @@ Payload Json,Payload Json
 Payment Method,Payment Method
 Pearnly Cowork,Pearnly Cowork
 Pending,Pending
+Period,Period
 Phase,Phase
 Photos,Photos
 Position differences,Position differences
@@ -400,6 +407,7 @@ Reading files,Reading files
 Reading the VAT report,Reading the VAT report
 Reading the bank statement,Reading the bank statement
 Reading the general ledger,Reading the general ledger
+Reading the invoices,Reading the invoices
 Ready for the next product,Ready for the next product
 Reason,Reason
 Recognition Confidence,Recognition Confidence
@@ -460,6 +468,7 @@ Revoked By,Revoked By
 Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
+Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
 Save and next,Save and next
@@ -624,6 +633,8 @@ The record metadata has an invalid format.,The record metadata has an invalid fo
 The record source is not supported.,The record source is not supported.
 The reported ERP capabilities are invalid.,The reported ERP capabilities are invalid.
 The reported ERP field definitions are invalid.,The reported ERP field definitions are invalid.
+The reports belong to different sellers ({0}).,The reports belong to different sellers ({0}).
+The reports cover different periods ({0}).,The reports cover different periods ({0}).
 The request is invalid. Reload and try again.,The request is invalid. Reload and try again.
 The requested page is not part of this invoice.,The requested page is not part of this invoice.
 The review workbook cannot be read. Check its format and content.,The review workbook cannot be read. Check its format and content.
@@ -678,6 +689,7 @@ Title,Title
 Token Digest,Token Digest
 Token Generation,Token Generation
 Token Tail,Token Tail
+Total,Total
 Transaction Date,Transaction Date
 Type,Type
 "Type or scan, then press Enter","Type or scan, then press Enter"
@@ -706,8 +718,10 @@ Use the reconciliation workflow to change these records.,Use the reconciliation 
 Use the stock count workflow to change these records.,Use the stock count workflow to change these records.
 User Settings,User Settings
 Username can only have letters and numbers,Username can only have letters and numbers
+VAT,VAT
 VAT Report Check,VAT Report Check
 VAT report amount,VAT report amount
+VAT report detail,VAT report detail
 Valid,Valid
 Version,Version
 View differences,View differences
@@ -809,15 +823,22 @@ cowork.recon.col.difference,Difference
 cowork.recon.col.differences,Differences
 cowork.recon.col.docNo,Document no.
 cowork.recon.col.glAmount,Ledger amount
+cowork.recon.col.invoiceNo,Invoice no.
+cowork.recon.col.invoices,Invoices
 cowork.recon.col.item,Item
 cowork.recon.col.kind,Type
 cowork.recon.col.matched,Matched
+cowork.recon.col.period,Period
+cowork.recon.col.preVat,Before VAT
 cowork.recon.col.reference,Reference
 cowork.recon.col.rows,Rows
 cowork.recon.col.status,Status
 cowork.recon.col.stmtAmount,Bank amount
+cowork.recon.col.taxId,Tax ID
 cowork.recon.col.title,Task name
+cowork.recon.col.total,Total
 cowork.recon.col.unmatched,Unmatched
+cowork.recon.col.vat,VAT
 cowork.recon.col.vatAmount,VAT report amount
 cowork.recon.col.voucher,Voucher no.
 cowork.recon.col.withdrawal,Withdrawal
@@ -827,6 +848,7 @@ cowork.recon.deleted,Deleted {0}
 cowork.recon.export,Export
 cowork.recon.failed,Reconciliation failed
 cowork.recon.file,File
+cowork.recon.files,{0} files
 cowork.recon.filter,Show
 cowork.recon.filter.all,All
 cowork.recon.filter.matched,Matched
@@ -843,8 +865,11 @@ cowork.recon.pick,Choose file
 cowork.recon.saved,Saved
 cowork.recon.sheet.difference,Difference detail
 cowork.recon.sheet.gl,General ledger detail
+cowork.recon.sheet.invoices,Invoice detail
+cowork.recon.sheet.report,VAT report detail
 cowork.recon.sheet.statement,Bank statement detail
 cowork.recon.stage.done,Done
+cowork.recon.stage.invoice,Reading the invoices
 cowork.recon.stage.ledger,Reading the general ledger
 cowork.recon.stage.matching,Matching and saving
 cowork.recon.stage.queued,Waiting to start
@@ -859,6 +884,8 @@ cowork.recon.status.unmatched,Unmatched
 cowork.recon.task.completed,Completed
 cowork.recon.task.needs_review,Needs review
 cowork.recon.timeout,This is taking too long. Check the list later.
+cowork.recon.vat.left,Output VAT report
+cowork.recon.vat.right,Sales invoices
 cowork.stock.action.export,Export
 cowork.stock.action.reload,Reload
 cowork.stock.actualLocation,Actual location
@@ -1221,6 +1248,11 @@ stocktake.row_invalid,The import row is invalid or has missing required values.
 stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
 stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
 summary_table_batch,Summary table import
+vat_check.no_invoices,No invoice could be read.
+vat_check.periods_differ,The reports cover different periods ({0}).
+vat_check.scanned_not_ready,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
+vat_check.sellers_differ,The reports belong to different sellers ({0}).
+{0} files,{0} files
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}

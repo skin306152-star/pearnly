@@ -45,6 +45,23 @@
 			],
 			sort: ["title", "row_count", "matched_count", "diff_count", "unmatched_count", "created_at"],
 		},
+		vat: {
+			root: "pearnly-recon-vat", title: "cowork.nav.reconVat", doctype: "Cowork VAT Check",
+			export: "pearnly_cowork.recon_center.api.export_vat", multiple: true,
+			accept: ".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,.tsv",
+			left: "cowork.recon.vat.left", right: "cowork.recon.vat.right",
+			list: t => [
+				{ fieldname: "title", width: 220, min_width: 160, label: t("cowork.recon.col.title") },
+				{ fieldname: "period", width: 90, min_width: 72, label: t("cowork.recon.col.period") },
+				{ fieldname: "invoice_count", width: 80, min_width: 64, label: t("cowork.recon.col.invoices") },
+				{ fieldname: "matched_count", width: 90, min_width: 72, label: t("cowork.recon.col.matched") },
+				{ fieldname: "diff_count", width: 90, min_width: 72, label: t("cowork.recon.col.differences"),
+					cell_class: value => Number(value) ? "pearnly-difference" : "" },
+				{ fieldname: "unmatched_count", width: 90, min_width: 72, label: t("cowork.recon.col.unmatched"),
+					cell_class: value => Number(value) ? "pearnly-difference" : "" },
+			],
+			sort: ["title", "period", "invoice_count", "matched_count", "diff_count", "unmatched_count", "created_at"],
+		},
 	};
 
 	p.coworkRecon = kind => async (page, _shell_t, wrapper) => {
@@ -103,10 +120,11 @@
 			const slot = side => [
 				{ fieldtype: "Heading", fieldname: `${side}_heading`, label: t(spec[side]) },
 				{ fieldtype: "Button", fieldname: `${side}_pick`, label: t("cowork.recon.pick"), click: async () => {
-					const file = await p.pick_file(".pdf,.xlsx,.xls,.csv,.tsv");
-					if (!file) return;
-					chosen[side] = file;
-					await form.set_value(`${side}_file`, file.name);
+					const files = await p.pick_files(spec.accept || ".pdf,.xlsx,.xls,.csv,.tsv", Boolean(spec.multiple));
+					if (!files.length) return;
+					chosen[side] = spec.multiple ? files : files[0];
+					await form.set_value(`${side}_file`, files.length > 1
+						? t("cowork.recon.files", files.length) : files[0].name);
 				} },
 				{ fieldtype: "Data", fieldname: `${side}_file`, label: t("cowork.recon.file"), read_only: 1 },
 			];
@@ -179,6 +197,18 @@
 					keep: { has_gl: 0, account_code: "" } },
 			],
 		};
+		INPUTS.vat = [
+			{ key: "invoices", label: "cowork.recon.sheet.invoices", all: true, fields: [
+				["invoice_no", "Data", "cowork.recon.col.invoiceNo", 1], ["invoice_date", "Data", "cowork.recon.col.date", 1],
+				["buyer_name", "Data", "cowork.recon.col.customer", 2], ["buyer_tax_id", "Data", "cowork.recon.col.taxId", 2],
+				["amount_pre_vat", "Float", "cowork.recon.col.preVat", 1], ["vat_amount", "Float", "cowork.recon.col.vat", 1],
+				["total_amount", "Float", "cowork.recon.col.total", 1], ["filename", "Data", "cowork.recon.file", 1, true]], keep: {} },
+			{ key: "report_rows", label: "cowork.recon.sheet.report", all: true, fields: [
+				["report_invoice_no", "Data", "cowork.recon.col.invoiceNo", 1], ["report_date", "Data", "cowork.recon.col.date", 1],
+				["report_buyer_name", "Data", "cowork.recon.col.customer", 2], ["report_buyer_tax_id", "Data", "cowork.recon.col.taxId", 2],
+				["report_amount_pre_vat", "Float", "cowork.recon.col.preVat", 1], ["report_vat_amount", "Float", "cowork.recon.col.vat", 1],
+				["report_amount", "Float", "cowork.recon.col.total", 2]], keep: {} },
+		];
 		const status_of = row => !row.has_gl ? "unmatched" : Math.abs(Number(row.diff || 0)) >= 0.005 ? "pending" : "matched";
 
 		async function show_result(name) {
@@ -224,6 +254,10 @@
 			if (kind === "bank") {
 				layout_fields.push(...read_only_field(read_only[0]), ...read_only_field(read_only[1]));
 				INPUTS.bank.forEach(item => layout_fields.push(...grid_field(item)));
+			} else if (kind === "vat") {
+				layout_fields.push(...read_only_field(read_only[0]));
+				INPUTS.vat.forEach(item => layout_fields.push(...grid_field(item)));
+				layout_fields.push(...read_only_field(read_only[1], true));
 			} else {
 				INPUTS.income.forEach(item => layout_fields.push(...grid_field(item)));
 				layout_fields.push(...read_only_field(read_only[0]), ...read_only_field(read_only[1], true));
@@ -235,16 +269,25 @@
 					tables[index]?.destroy();
 					const host = form.fields_dict[`sheet_${index}`].$wrapper;
 					const width = Math.max(...sheet.rows.map(row => row.length), 1);
-					// 工作簿里本身有表头行（每格都是文字）就用它当列名，否则按「项目说明 / 金额」。
-					const header = sheet.rows.length > 1 && sheet.rows[0].length === width
-						&& sheet.rows[0].every(value => typeof value === "string" && value.trim());
-					const columns = header ? sheet.rows[0].map(value => String(value ?? ""))
-						: Array.from({ length: width }, (_v, i) => i === 0 ? t("cowork.recon.col.item") : t("cowork.recon.col.amount"));
-					const body = (header ? sheet.rows.slice(1) : sheet.rows).map(row => columns.map((_c, i) => {
+					// 工作簿的一页常是“标题块 + 表头 + 明细”：第一行“大部分格有字、且全是文字”的当表头，它上面的标题块原样列在表前。
+					const filled = row => row.filter(value => value !== null && value !== "").length;
+					const at = sheet.rows.findIndex(row => filled(row) >= Math.max(Math.min(width, 3), Math.ceil(width * 0.6))
+						&& row.filter(value => value !== null && value !== "").every(value => typeof value === "string"));
+					const header = at >= 0 && at < sheet.rows.length - 1;
+					const preface = header ? sheet.rows.slice(0, at) : [];
+					host.empty();
+					const lead = $("<div class='text-muted small mb-2'>").appendTo(host);
+					preface.forEach(row => $("<div>").text(row.filter(v => v !== null && v !== "")
+						.map(v => typeof v === "number" ? p.number(v) : String(v)).join(" · ")).appendTo(lead));
+					const grid_host = $("<div>").appendTo(host);
+					const columns = header ? sheet.rows[at].map(value => String(value ?? ""))
+						: width === 2 ? [t("cowork.recon.col.item"), t("cowork.recon.col.amount")]
+						: Array.from({ length: width }, (_v, i) => String.fromCharCode(65 + (i % 26)));
+					const body = (header ? sheet.rows.slice(at + 1) : sheet.rows).map(row => columns.map((_c, i) => {
 						const value = row[i];
 						return typeof value === "number" ? p.number(value) : value ?? "";
 					}));
-					tables[index] = await p.table(host, columns.map(name => ({ name, format: p.escape })), body,
+					tables[index] = await p.table(grid_host, columns.map(name => ({ name, format: p.escape })), body,
 						{ language: frappe.boot.lang, translations: frappe.utils.datatable.get_translations() });
 				}
 			};
@@ -252,7 +295,11 @@
 				const out = {};
 				for (const item of INPUTS[kind]) {
 					out[item.key] = form.fields_dict[item.key].grid.get_data().map(row => {
-						const clean = {};
+						// 销项税核查的行带着很多识别 / 解析留下的字段（来源文件、页码、分支……），整行带回，
+						// 只去掉表格自己加的那几个键；银行两张表按固定字段收（服务端要求字段集合一致）。
+						const clean = item.all ? Object.fromEntries(Object.entries(row).filter(([key]) =>
+							!key.startsWith("__") && !["name", "idx", "doctype", "parent", "parentfield", "parenttype", "owner",
+								"creation", "modified", "modified_by", "docstatus"].includes(key))) : {};
 						for (const [fieldname] of item.fields) clean[fieldname] = row[fieldname] ?? "";
 						for (const [key, fallback] of Object.entries(item.keep)) clean[key] = row[key] ?? fallback;
 						delete clean.status;
@@ -260,6 +307,9 @@
 					});
 				}
 				if (kind === "income") out.gl_only = inputs.gl_only;
+				if (kind === "vat") {
+					for (const key of ["seller_name", "seller_tax_id", "period_year", "period_month", "failed_files"]) out[key] = inputs[key];
+				}
 				return out;
 			};
 			const recalc = async () => {

@@ -756,3 +756,20 @@ Item	项目说明	รายการ	項目	cowork.recon.col.item
 Amount	金额	จำนวนเงิน	金額	cowork.recon.col.amount
 Saved	已保存	บันทึกแล้ว	保存しました	cowork.recon.saved
 Someone else changed this reconciliation. Reload it before saving.	这个对账刚被别人改过，请刷新后再保存。	งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก	この照合は他の人が変更しました。再読み込みしてから保存してください。	reconciliation.edit_conflict
+Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	cowork.recon.vat.left
+Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	cowork.recon.vat.right
+{0} files	{0} 个文件	{0} ไฟล์	{0} 件のファイル	cowork.recon.files
+Period	期间	งวด	期間	cowork.recon.col.period
+Invoices	发票数	จำนวนใบกำกับ	請求書数	cowork.recon.col.invoices
+Invoice no.	发票号	เลขที่ใบกำกับ	請求書番号	cowork.recon.col.invoiceNo
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	cowork.recon.col.taxId
+Before VAT	不含税	ก่อน VAT	税抜	cowork.recon.col.preVat
+VAT	VAT	VAT	VAT	cowork.recon.col.vat
+Total	含税	รวม VAT	税込	cowork.recon.col.total
+Invoice detail	发票明细	รายละเอียดใบกำกับ	請求書明細	cowork.recon.sheet.invoices
+VAT report detail	VAT 报告明细	รายละเอียดรายงาน VAT	VAT 報告明細	cowork.recon.sheet.report
+Reading the invoices	读取发票	กำลังอ่านใบกำกับ	請求書を読み込み中	cowork.recon.stage.invoice
+The reports belong to different sellers ({0}).	多份报告卖方不一致（税号：{0}），请检查。	รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ	報告の売り手が異なります（{0}）。確認してください。	vat_check.sellers_differ
+The reports cover different periods ({0}).	多份报告期间不一致（{0}），请检查。	รายงานคนละงวด ({0}) กรุณาตรวจสอบ	報告の期間が異なります（{0}）。確認してください。	vat_check.periods_differ
+No invoice could be read.	没有读出任何发票。	ไม่สามารถอ่านใบกำกับได้เลย	請求書を1件も読み取れませんでした。	vat_check.no_invoices
+Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.	图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。	ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน	画像・PDF の請求書はまだ使えません。当面は Excel か CSV を使ってください。	vat_check.scanned_not_ready

@@ -59,6 +59,7 @@ Bank withdrawal only,仅银行支出
 Barcode,条形码
 Barcode / QR code,条码/二维码
 "Barcode, QR code or product code",条形码、二维码或物料编码
+Before VAT,不含税
 Billing Code,计费代码
 Billing Kind,计费类型
 Billing Receipt,计费回执
@@ -263,6 +264,7 @@ History Version,票据历史版本
 Holder,锁持有者
 Holder Fence,持锁尝试序号
 IN,入账
+Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。
 Import result,导入结果
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
 In progress,进行中
@@ -290,7 +292,10 @@ Invoice Pages,发票页面
 Invoice References Complete,发票关联已完整
 Invoice References Fingerprint,发票关联指纹
 Invoice Total,发票总额
+Invoice detail,发票明细
+Invoice no.,发票号
 Invoice pages do not match the original page references.,发票页面与原件页码关联不一致。
+Invoices,发票数
 Issued At (UTC),签发时间（UTC）
 Issued By,签发人
 Issued Request Digest,签发请求摘要
@@ -331,6 +336,7 @@ New records must start as drafts.,新记录必须先保存为草稿。
 New stock count,新建盘点
 New task,新建任务
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
+No invoice could be read.,没有读出任何发票。
 No invoice summary found,未识别到摘要
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
@@ -371,6 +377,7 @@ Payload Json,冻结载荷JSON
 Payment Method,付款方式
 Pearnly Cowork,Pearnly Cowork
 Pending,待处理
+Period,期间
 Phase,处理阶段
 Photos,照片
 Position differences,仓位差异
@@ -400,6 +407,7 @@ Reading files,读取文件
 Reading the VAT report,读取税表
 Reading the bank statement,读取银行账单
 Reading the general ledger,读取总账
+Reading the invoices,读取发票
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Recognition Confidence,识别置信度
@@ -460,6 +468,7 @@ Revoked By,撤销人
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格登记行与实盘数；实盘数可以留空，之后在线盘点。
+Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票需要包含税前金额的明细后才能导出。
 Sample Key,修正例标识
 Save and next,保存并下一项
@@ -624,6 +633,8 @@ The record metadata has an invalid format.,记录附加信息格式不正确。
 The record source is not supported.,不支持此记录来源。
 The reported ERP capabilities are invalid.,上报的 ERP 功能信息无效。
 The reported ERP field definitions are invalid.,上报的 ERP 字段定义无效。
+The reports belong to different sellers ({0}).,多份报告卖方不一致（税号：{0}），请检查。
+The reports cover different periods ({0}).,多份报告期间不一致（{0}），请检查。
 The request is invalid. Reload and try again.,请求无效，请刷新后重试。
 The requested page is not part of this invoice.,请求的页面不属于这张发票。
 The review workbook cannot be read. Check its format and content.,无法读取复核工作簿，请检查格式和内容。
@@ -678,6 +689,7 @@ Title,标题
 Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
+Total,含税
 Transaction Date,交易日期
 Type,类型
 "Type or scan, then press Enter",输入或扫码后按回车
@@ -706,8 +718,10 @@ Use the reconciliation workflow to change these records.,请通过对账流程�
 Use the stock count workflow to change these records.,请通过盘点流程更改这些记录。
 User Settings,用户菜单
 Username can only have letters and numbers,用户名只能用英文字母和数字
+VAT,VAT
 VAT Report Check,销项税报告核查
 VAT report amount,税表金额
+VAT report detail,VAT 报告明细
 Valid,有效
 Version,版本
 View differences,查看差异
@@ -809,15 +823,22 @@ cowork.recon.col.difference,差额
 cowork.recon.col.differences,差异
 cowork.recon.col.docNo,单号
 cowork.recon.col.glAmount,总账金额
+cowork.recon.col.invoiceNo,发票号
+cowork.recon.col.invoices,发票数
 cowork.recon.col.item,项目说明
 cowork.recon.col.kind,类型
 cowork.recon.col.matched,已匹配
+cowork.recon.col.period,期间
+cowork.recon.col.preVat,不含税
 cowork.recon.col.reference,参考编号
 cowork.recon.col.rows,行数
 cowork.recon.col.status,状态
 cowork.recon.col.stmtAmount,银行金额
+cowork.recon.col.taxId,税号
 cowork.recon.col.title,任务名称
+cowork.recon.col.total,含税
 cowork.recon.col.unmatched,未匹配
+cowork.recon.col.vat,VAT
 cowork.recon.col.vatAmount,税表金额
 cowork.recon.col.voucher,凭证号
 cowork.recon.col.withdrawal,提款
@@ -827,6 +848,7 @@ cowork.recon.deleted,已删除 {0} 项
 cowork.recon.export,导出
 cowork.recon.failed,对账失败
 cowork.recon.file,文件
+cowork.recon.files,{0} 个文件
 cowork.recon.filter,显示
 cowork.recon.filter.all,全部
 cowork.recon.filter.matched,已匹配
@@ -843,8 +865,11 @@ cowork.recon.pick,选择文件
 cowork.recon.saved,已保存
 cowork.recon.sheet.difference,差异明细
 cowork.recon.sheet.gl,总账明细
+cowork.recon.sheet.invoices,发票明细
+cowork.recon.sheet.report,VAT 报告明细
 cowork.recon.sheet.statement,银行对账单明细
 cowork.recon.stage.done,已完成
+cowork.recon.stage.invoice,读取发票
 cowork.recon.stage.ledger,读取总账
 cowork.recon.stage.matching,逐笔核对并保存
 cowork.recon.stage.queued,排队中
@@ -859,6 +884,8 @@ cowork.recon.status.unmatched,未匹配
 cowork.recon.task.completed,已完成
 cowork.recon.task.needs_review,待复核
 cowork.recon.timeout,对账时间较长，请稍后在列表里查看。
+cowork.recon.vat.left,销项税报告
+cowork.recon.vat.right,销售发票
 cowork.stock.action.export,导出
 cowork.stock.action.reload,刷新
 cowork.stock.actualLocation,实际仓位
@@ -1221,6 +1248,11 @@ stocktake.row_invalid,导入行无效或缺少必填值。
 stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
 stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入
+vat_check.no_invoices,没有读出任何发票。
+vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
+vat_check.scanned_not_ready,图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。
+vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
+{0} files,{0} 个文件
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}

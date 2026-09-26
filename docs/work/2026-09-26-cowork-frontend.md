@@ -107,7 +107,7 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
 | 入口 | 实现 | 状态 |
 | --- | --- | --- |
 | 侧栏「银行对账」「收入对账」（`pearnly-recon-bank / -income`，Cowork 自己的 Page 文档） | `public/desk/recon.js`（列表 / 新建 / 结果三段路由） | 样板验 |
-| 侧栏「销项税报告核查」`pearnly-recon-vat` | 已登记，不在 `available` | 迁移中（方向已定：发票图片 / PDF 复用录入的发票识别，Excel / CSV 直读） |
+| 侧栏「销项税报告核查」`pearnly-recon-vat` | `recon_center/vat_check.py` + `reconciliation/vat_check_*`（新任务类型 `Cowork VAT Check`）；每个上传口可多份 | 样板验：报告 + Excel 发票 → 匹配 2 / 差异 1 / 缺失 2；改 IV002 金额重算 → 匹配 3，保存第 2 版、导出 200、列表同步。**图片 / PDF 发票未接**（见下） |
 | 新建：左右两个上传口 →「开始对账」→ 官方整屏遮罩写阶段文字 | `recon_center/jobs.py`（文件先存本人私有 File，后台 `long` 队列跑，阶段进缓存 24 小时，只本人可查，读完删临时文件） | 样板验（样例一秒内完成，只见到“完成”一阶段） |
 | 结果页 = 导出的复核表：四个汇总数 + 工作簿各页（官方分区）；银行两张明细 / 收入差异明细可改，改后自动重算；有改动才出现「保存」 | `recon_center/sheets.py`（页面各页由导出同一函数在内存生成）、`reconciliation/revision.py`（从已存结果还原两边输入、同一比对重算、整份替换 + 修订记录 `edit_json`，按修改时间防并发） | 样板验：收入改 IV002 总账金额 → 匹配率 75%、汇总 4,500，保存后第 2 版、列表同步、过期保存被拒；银行加一笔存款重算 → 已匹配 4 |
 
@@ -115,6 +115,14 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
   税表 PDF 先表后文字行）。差异：新平台只有 pypdf（无 pdfplumber 表格抽取）；税表扫描件 / 图片的模型读取未迁（识别层无 vat_report 文档模型），明确报读不出。
 - 银行 `create_from_documents` 加可选阶段回调（不传即原行为）；对账任务列表加白名单排序；对账角色的用户经 `recon_center.api.start` 直接上传，不再要求录入权限。
 - Tab 在本镜像的 Frappe 里只能用于表单（需表单 doctype），所以工作簿各页用官方分区按顺序排列，使用说明默认折叠。
+- 销项税报告核查（用户定迁）：旧线上 `vat_recon_core`、`vat_excel_build / sheet3 / i18n / styles`、`vat_report_merge` 的合并校验、
+  `report_row_to_invoice` 逐字移植到 `reconciliation/vat_check_core.py` 与 `export/vat_check_*.py`（只改导入路径）；任务存两边输入 + 汇总，
+  核查工作簿随时由输入重建，所以复核表可改可存、导出即当前版本。报告读取同收入对账税表（Excel / CSV / 文字层 PDF）。
+  **未接：图片 / PDF 发票识别。** 用户定“复用录入的发票识别”，但识别引擎只能在持久识别任务（Pearnly OCR Work）里跑
+  （防重复计费、限流），需要新增 `cowork.vat_check` 任务类型并把入库的识别步骤抽成共用函数；在此之前这类发票明确报“暂不支持”。
+  另一个口径问题：识别引擎不抽买方分支号，旧线上逐项比对会比分支（空当 00000），接识别前需定处理方式。
+- 发现的既有问题（未改）：银行对账的 `document_model_rows`（`pearnly_cowork/doctype/cowork_bank_reconciliation`）在识别任务之外调模型，
+  真走到模型那一步会报 `ocr.durable_work_required`；现在只有文字层读不出的 PDF 账单会触发。
 - 团队管理仍是一个「对账中心」勾选（角色 `Cowork Bank Reconciliation`），侧栏三个入口共用；勾选名见 `access.menu.LABELS`。
 - 验证：架构 / 四语 / 前端文案 / 空白 PASS；原生 Desk 合同 22 项；Cowork 离线全量 6 个既有错误无新增；样板浏览器与接口实测如上。
   未验：页面上真选文件（测试浏览器不能驱动系统文件框，改为同一接口直传）、慢文件的中间阶段文字、需复核（PDF 低置信）任务的在线修改保存。

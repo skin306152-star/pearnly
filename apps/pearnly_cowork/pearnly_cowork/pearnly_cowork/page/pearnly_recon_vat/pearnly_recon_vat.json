@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-recon-vat",
+  "page_name": "pearnly-recon-vat",
+  "title": "cowork.nav.reconVat",
+  "module": "Pearnly Cowork",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

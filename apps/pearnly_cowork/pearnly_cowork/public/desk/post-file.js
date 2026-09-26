@@ -21,19 +21,22 @@
 
 	// 选一个文件：系统文件框由官方按钮点开。选择框用 DOM 建、用完即删（与录入工作台同一做法，
 	// 页面脚本不手写通用控件标签）。取消选择时返回 null。
-	p.pick_file = (accept) => new Promise(resolve => {
+	p.pick_files = (accept, multiple = false) => new Promise(resolve => {
 		const input = $(document.createElement("input")).attr({ type: "file", accept }).addClass("hide")
-			.appendTo(document.body);
-		input.on("change", () => { resolve(input[0].files?.[0] || null); input.remove(); });
-		input.on("cancel", () => { resolve(null); input.remove(); });
+			.prop("multiple", multiple).appendTo(document.body);
+		input.on("change", () => { resolve(Array.from(input[0].files || [])); input.remove(); });
+		input.on("cancel", () => { resolve([]); input.remove(); });
 		input.trigger("click");
 	});
+	p.pick_file = async accept => (await p.pick_files(accept, false))[0] || null;
 
 	p.post_files = async (method, fields) => {
 		const body = new FormData();
 		for (const [key, value] of Object.entries(fields)) {
-			if (value instanceof File) body.append(key, value, value.name);
-			else if (value !== undefined && value !== null) body.append(key, value);
+			for (const item of Array.isArray(value) ? value : [value]) {
+				if (item instanceof File) body.append(key, item, item.name);
+				else if (item !== undefined && item !== null) body.append(key, item);
+			}
 		}
 		const response = await fetch(`/api/method/${method}`, {
 			method: "POST", body, credentials: "same-origin",
