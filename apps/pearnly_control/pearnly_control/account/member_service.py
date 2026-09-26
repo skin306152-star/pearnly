@@ -168,11 +168,15 @@ def link_line(tenant, product, subject, line_user_id):
     try:
         provider.link_line(subject, alias, line_user_id)
     except MemberError as error:
-        # 同一个 LINE 在本站从 A 改绑到 B：A 身上的旧关联要先摘掉。只摘本租户登记过的身份。
-        holder = provider.line_holder(alias, line_user_id) if error.code == "conflict" else None
-        if not holder or holder == subject or not _registered(tenant, holder):
+        # 同一个 LINE 在本站从 A 改绑到 B：A 身上的旧关联要先摘掉。只摘本租户登记过的身份，
+        # 挂在别处（不属于本租户）的一律不动、不抢。
+        if error.code != "conflict":
             raise
-        provider.unlink_line(holder, alias)
+        others = [h for h in provider.line_holders(alias, line_user_id) if h != subject]
+        if not others or not all(_registered(tenant, holder) for holder in others):
+            raise
+        for holder in others:
+            provider.unlink_line(holder, alias)
         provider.link_line(subject, alias, line_user_id)
     return {"subject": subject}
 

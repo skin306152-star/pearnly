@@ -135,7 +135,13 @@ class MemberProvider:
             raise MemberError("unavailable")
 
     def link_line(self, subject, alias, line_user_id):
-        """幂等：已是同一个 LINE 就不动；是别的 LINE 就换成这个。"""
+        """幂等：已是同一个 LINE 就不动；是别的 LINE 就换成这个。
+
+        Keycloak 的管理接口**不保证**同一入口下一个 LINE 只挂一个人（26.7.4 实测可重复关联），
+        所以先查：挂在别人身上就报 conflict，交给服务层决定能不能摘。
+        """
+        if any(holder != subject for holder in self.line_holders(alias, line_user_id)):
+            raise MemberError("conflict")
         path = "/users/" + quote(subject, safe="") + "/federated-identity"
         response = self._request("GET", path)
         if response.status_code == 404:
@@ -150,21 +156,20 @@ class MemberProvider:
         response = self._request("POST", path + "/" + quote(alias, safe=""), json={
             "identityProvider": alias, "userId": line_user_id, "userName": line_user_id})
         if response.status_code == 409:
-            # 这个 LINE 已经关联在另一个账号上：不抢。
             raise MemberError("conflict")
         if response.status_code not in (200, 201, 204):
             raise MemberError("unavailable")
 
-    def line_holder(self, alias, line_user_id):
-        """这个 LINE 在该入口下关联在谁身上（没有就 None）。"""
+    def line_holders(self, alias, line_user_id):
+        """这个 LINE 在该入口下关联在哪些身份上。"""
         response = self._request("GET", "/users", params={
-            "idpAlias": alias, "idpUserId": line_user_id, "briefRepresentation": "true"})
+            "idpAlias": alias, "idpUserId": line_user_id, "briefRepresentation": "true", "max": 20})
         if response.status_code != 200:
             raise MemberError("unavailable")
         rows = response.json()
-        if not isinstance(rows, list) or len(rows) > 1:
-            raise MemberError("conflict")
-        return rows[0].get("id") if rows else None
+        if not isinstance(rows, list):
+            raise MemberError("unavailable")
+        return [row.get("id") for row in rows if row.get("id")]
 
     def unlink_line(self, subject, alias):
         response = self._request("DELETE", "/users/" + quote(subject, safe="")

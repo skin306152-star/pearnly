@@ -240,11 +240,11 @@ class TestLineLinks(unittest.TestCase):
         self.scope("erp")
         conflict = member_provider.MemberError("conflict")
         self.provider.link_line.side_effect = [conflict, None]
-        self.provider.line_holder.return_value = "member-subject"
+        self.provider.line_holders.return_value = ["member-subject", "owner-subject"]
         service.execute("tenant-a", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
         self.provider.unlink_line.assert_called_once_with("member-subject", "line-erp-tenant-a")
         self.provider.link_line.side_effect = [conflict]
-        self.provider.line_holder.return_value = "other-tenant-subject"
+        self.provider.line_holders.return_value = ["member-subject", "other-tenant-subject"]
         with self.assertRaises(member_provider.MemberError):
             service.execute("tenant-a", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
         self.provider.unlink_line.assert_called_once()
@@ -282,6 +282,7 @@ class TestProviderLineLinks(unittest.TestCase):
         self.provider._request = request
 
     def test_same_link_is_a_noop_and_other_link_is_replaced(self):
+        self.provider.line_holders = lambda alias, line: []
         self.responses["GET"] = {"status_code": 200, "body": [
             {"identityProvider": "line-erp-t", "userId": LINE}]}
         self.provider.link_line("s-1", "line-erp-t", LINE)
@@ -291,14 +292,16 @@ class TestProviderLineLinks(unittest.TestCase):
         self.assertEqual([c[0] for c in self.calls], ["GET", "DELETE", "POST"])
         self.assertEqual(self.calls[-1][2]["userId"], "U" + "b" * 32)
 
-    def test_line_taken_by_another_account_is_a_conflict(self):
-        self.responses["GET"] = {"status_code": 200, "body": []}
-        self.responses["POST"] = {"status_code": 409}
+    def test_line_held_by_another_account_is_a_conflict_before_any_write(self):
+        # Keycloak itself accepts a duplicate link (verified on 26.7.4), so the check is ours.
+        self.responses["GET"] = {"status_code": 200, "body": [{"id": "s-2"}]}
         with self.assertRaises(member_provider.MemberError) as raised:
             self.provider.link_line("s-1", "line-erp-t", LINE)
         self.assertEqual(raised.exception.code, "conflict")
+        self.assertEqual([(c[0], c[1]) for c in self.calls], [("GET", "/users")])
 
     def test_missing_user_and_unlink_absent(self):
+        self.provider.line_holders = lambda alias, line: []
         self.responses["GET"] = {"status_code": 404}
         with self.assertRaises(member_provider.MemberError):
             self.provider.link_line("s-1", "line-erp-t", LINE)
