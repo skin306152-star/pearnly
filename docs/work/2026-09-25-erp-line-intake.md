@@ -396,6 +396,16 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 - **ERP 扫码器去重**（用户 2026-09-26 要求做，等前置）：Cowork 窗口已把 ERP `public/desk/scan.js` 通用部分复制到 `pearnly_core/public/desk/scan.js`（分支 `codex/cowork-frontend`）；其合入后可删 ERP 副本、
   `www/stocktake.html` 改指 core 路径。Cowork 窗口确认去重由本窗口做，其合入 main（等用户同意）后发 SHA，再基于 main 施工；在那之前不碰这几个文件。
 
+### 构建加速 B（2026-09-26 用户要求做）
+
+- 做法：镜像构建后的三组检查（离线检查、DMS 流程实验站点、DMS 快照实验站点）互不共享端口 / 卷 / 网络，改为同一任务内三条并行线
+  （`scripts/ci-candidate-checks.sh parallel`）；每条线日志分组、每条命令带用时；任一线失败整步失败；发布仍在全部通过之后，拆除步骤不变；
+  旧步骤里的 23 项检查逐项核对无缺。没有采用"先推镜像再拆多任务并行"：会让未验镜像先进仓库、每个任务还要重新拉镜像。
+- 实测（GitHub 运行器，分支 `codex/ci-parallel-candidate-checks`）：检查阶段 207 s 串行 → 157–167 s；整次构建约 6m13s → 5m25s–5m50s（运行器本身 ±20 s 波动）。
+  收益约 40–50 秒，比预估少：快照线本身是下限（站点初始化约 60 s + `test-dms-snapshot-store-native.py` 约 77 s，并行时被拖慢 10–20 s）。
+  试过"镜像构建时后台预启动实验库数据库"，无可测收益，已撤回。
+- 再往下压需优化 DMS 快照存储测试或站点初始化，属 DMS 范围，登记待办。
+
 ### 待用户处理 / 授权
 
 - LINE 后台核实：ERP-TEST 官方号（2011288286）与 LINE Login 频道 2010411313 是否同一 Provider（不同则 LINE 用户 ID 不一致，关联全失败）；在该频道登记 Keycloak 回调地址（已授权范围内，改前告知）。
