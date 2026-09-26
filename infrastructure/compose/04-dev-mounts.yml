@@ -68,11 +68,19 @@ services:
   dms-scheduler:
     volumes: *app-volumes
 
+  # 控制面经本机 SSH 隧道（127.0.0.1:18180 / 18184）连线上身份与计费，站点配置写的是
+  # host.docker.internal。Colima 靠虚拟机里的域名服务解析这个名字，开机时它可能起不来，
+  # 所以这里直接写死本机在虚拟机里的固定地址。Docker Desktop 改设
+  # PEARNLY_HOST_ADDRESS=host-gateway。
   control-bench:
     volumes: *app-volumes
+    extra_hosts: &control-host ["host.docker.internal:${PEARNLY_HOST_ADDRESS:-192.168.5.2}"]
   control-web:
     volumes: *app-volumes
+    extra_hosts: *control-host
   control-worker:
     volumes: *app-volumes
+    extra_hosts: *control-host
   control-scheduler:
     volumes: *app-volumes
+    extra_hosts: *control-host
