@@ -554,6 +554,27 @@ class Checks(unittest.TestCase):
         self.assertEqual((result["has_vat"], result["price_mode"]), (True, "inclusive"))
         self.assertEqual(recognition.review(result), [])
 
+    def test_abbreviated_tax_invoices_do_not_claim_input_vat(self):
+        from pearnly_erp_portal.purchasing import entry, recognition
+
+        # 09-26 真机 7-Eleven 小票（ใบกำกับภาษีอย่างย่อ，VAT Included）：记成 122.43 + 进项税 8.57。
+        lines = [{"description": "ข้าวผัดกะเพราหมู", "qty": 1, "unit_price": 47},
+                 {"description": "LPขนมปังฟักทองลูกเก", "qty": 1, "unit_price": 35},
+                 {"description": "Hซินเซน น้ำส้มคั้น", "qty": 1, "unit_price": 49}]
+        raw = {"doc_kind": "purchase_invoice", "has_vat": True, "price_mode": "inclusive",
+               "document_type": "simplified_tax_invoice", "lines": lines,
+               "printed": {"subtotal": 122.43, "vat": 8.57, "total": 131}}
+        result = recognition._structured(raw)
+        self.assertIs(result["has_vat"], False)
+        self.assertEqual(recognition.review(result), [])
+        totals = entry._calculate({"lines": result["lines"], "has_vat": result["has_vat"],
+                                   "price_mode": result["price_mode"]})
+        self.assertEqual((str(totals["vat_amount"]), str(totals["grand_total"])), ("0.00", "131.00"))
+        self.assertEqual([str(row["line_total"]) for row in totals["lines"]], ["47.00", "35.00", "49.00"])
+        # 完整税票照旧记进项税。
+        full = recognition._structured({**raw, "document_type": "tax_invoice"})
+        self.assertIs(full["has_vat"], True)
+
     def test_printed_dates_are_converted_by_code(self):
         from datetime import date
 
@@ -965,6 +986,11 @@ class CardShape(Base):
         text = json.dumps(card, ensure_ascii=False)
         self.assertLessEqual(len(text.encode()), 28 * 1024)
         self.assertIn("more items", text)
+
+    def test_card_names_an_abbreviated_tax_invoice(self):
+        card = self.card(_doc(), {"doc_kind": "purchase_invoice", "document_type": "simplified_tax_invoice",
+                                  "lines": []}, {})
+        self.assertEqual(self.rows(card)["Document type"], "Abbreviated Tax Invoice")
 
     def test_sales_card_shows_our_company_as_seller_and_the_fallback_buyer(self):
         doc = _doc(direction="sales", party="@any")

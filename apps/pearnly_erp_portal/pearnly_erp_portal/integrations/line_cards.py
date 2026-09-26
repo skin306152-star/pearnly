@@ -22,6 +22,8 @@ from pearnly_erp_portal.integrations import line_flow
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
 DOC_KINDS = {"purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order",
              "expense": "Expense", "receipt": "Receipt", "quotation": "Quotation"}
+# 简式税票 / 收据不能抵进项税，卡上写明票种（`purchasing/recognition.py` 的 `NOT_CLAIMABLE`）。
+TAX_DOCUMENTS = {"simplified_tax_invoice": "Abbreviated Tax Invoice", "receipt": "Receipt"}
 # 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细按实际大小列，放不下的报「还有 N 项」。
 # 实测一行泰文商品约 570 字节，40 行就到 32.5 KB（09-26）；留一点余量。
 MAX_BYTES = 28 * 1024
@@ -211,7 +213,8 @@ def _card(doc, result, totals, shown) -> dict:
         _separator(),
         _kv(_("Document no."), result.get("doc_no")),
         _kv(_("Date"), _be_date(result["doc_date"]) if result.get("doc_date") else "-"),
-        _kv(_("Document type"), _(DOC_KINDS[kind]) if kind in DOC_KINDS else "-"),
+        _kv(_("Document type"), _(TAX_DOCUMENTS[result["document_type"]])
+            if result.get("document_type") in TAX_DOCUMENTS else _(DOC_KINDS[kind]) if kind in DOC_KINDS else "-"),
         # 采购只列卖方（供应商，票面识别或 LINE 里选的），销售只列买方（客户）；我方公司已在上面
         # 「公司」一行（用户 2026-09-26）。
         *_party_rows("Seller" if doc.direction == "purchase" else "Buyer",
