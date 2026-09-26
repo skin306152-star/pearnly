@@ -6,6 +6,69 @@
 	display: none;
 }
 
+/* 视图切换（看板 / 我的任务 / 日历 / 表格）：借 Desk 的 `form-tabs-list`。 */
+.pearnly-work-views {
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-work-views .nav-link {
+	background: transparent;
+	border: 0;
+}
+
+.pearnly-work-empty {
+	padding: var(--padding-lg) 0;
+}
+
+/* 我的任务：按到期分组，卡片照看板的样子排成网格。 */
+.pearnly-work-mine-group {
+	margin-bottom: var(--margin-lg);
+}
+
+.pearnly-work-mine-title {
+	margin: 0 0 var(--margin-sm);
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.pearnly-work-mine-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 4px 12px;
+}
+
+/* 日历：卡片按到期状态上色（过期红、今明黄、完成绿、其余蓝）。 */
+.pearnly-work-calendar .fc-theme-standard {
+	padding: 0;
+}
+
+.pearnly-work-calendar .pearnly-work-event {
+	border: 0;
+	color: var(--gray-900, #1f272e);
+	cursor: pointer;
+}
+
+.pearnly-work-calendar .pearnly-work-event .fc-event-main {
+	color: inherit;
+}
+
+.pearnly-work-calendar .pearnly-work-event.due-later { background: var(--blue-300); }
+.pearnly-work-calendar .pearnly-work-event.due-soon { background: var(--yellow-300); }
+.pearnly-work-calendar .pearnly-work-event.due-overdue { background: var(--red-300); }
+.pearnly-work-calendar .pearnly-work-event.is-done { background: var(--green-300); text-decoration: line-through; }
+
+.pearnly-work-table-bar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-work-table-bar .btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
 .pearnly-work-board.kanban {
 	margin: 0;
 	gap: 12px;
@@ -23,16 +86,16 @@
 	background-color: var(--kanban-column-bg);
 }
 
-/* 列表颜色（列菜单里点色块，全队共用）：原生色阶的浅色，深色模式换原生深色底；不选就是原生灰。 */
-.pearnly-work-board .kanban-column.tint-green { background-color: var(--green-100); }
-.pearnly-work-board .kanban-column.tint-yellow { background-color: var(--yellow-100); }
-.pearnly-work-board .kanban-column.tint-orange { background-color: var(--orange-100); }
-.pearnly-work-board .kanban-column.tint-red { background-color: var(--red-100); }
-.pearnly-work-board .kanban-column.tint-purple { background-color: var(--purple-100); }
-.pearnly-work-board .kanban-column.tint-blue { background-color: var(--blue-100); }
-.pearnly-work-board .kanban-column.tint-cyan { background-color: var(--cyan-100); }
-.pearnly-work-board .kanban-column.tint-pink { background-color: var(--pink-100); }
-.pearnly-work-board .kanban-column.tint-gray { background-color: var(--gray-100); }
+/* 列表颜色（列菜单里点色块，全队共用）：原生色阶 200（照 Trello 列表的饱和度），深色模式换原生深色底；不选就是原生灰。 */
+.pearnly-work-board .kanban-column.tint-green { background-color: var(--green-200); }
+.pearnly-work-board .kanban-column.tint-yellow { background-color: var(--yellow-200); }
+.pearnly-work-board .kanban-column.tint-orange { background-color: var(--orange-200); }
+.pearnly-work-board .kanban-column.tint-red { background-color: var(--red-200); }
+.pearnly-work-board .kanban-column.tint-purple { background-color: var(--purple-200); }
+.pearnly-work-board .kanban-column.tint-blue { background-color: var(--blue-200); }
+.pearnly-work-board .kanban-column.tint-cyan { background-color: var(--cyan-200); }
+.pearnly-work-board .kanban-column.tint-pink { background-color: var(--pink-200); }
+.pearnly-work-board .kanban-column.tint-gray { background-color: var(--gray-200); }
 
 [data-theme="dark"] .pearnly-work-board .kanban-column[class*="tint-"] {
 	background-color: var(--kanban-column-bg);
@@ -292,15 +355,15 @@
 	text-overflow: ellipsis;
 }
 
-.pearnly-work-label.green { background: var(--bg-green); color: var(--text-on-green); }
-.pearnly-work-label.yellow { background: var(--bg-yellow); color: var(--text-on-yellow); }
-.pearnly-work-label.orange { background: var(--bg-orange); color: var(--text-on-orange); }
-.pearnly-work-label.red { background: var(--bg-red); color: var(--text-on-red); }
-.pearnly-work-label.purple { background: var(--bg-purple); color: var(--text-on-purple); }
-.pearnly-work-label.blue { background: var(--bg-blue); color: var(--text-on-blue); }
-.pearnly-work-label.cyan { background: var(--bg-cyan); color: var(--text-on-cyan); }
-.pearnly-work-label.pink { background: var(--bg-pink); color: var(--text-on-pink); }
-.pearnly-work-label.gray { background: var(--bg-gray); color: var(--text-on-gray); }
+.pearnly-work-label.green { background: var(--green-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.yellow { background: var(--yellow-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.orange { background: var(--orange-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.red { background: var(--red-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.purple { background: var(--purple-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.blue { background: var(--blue-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.cyan { background: var(--cyan-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.pink { background: var(--pink-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.gray { background: var(--gray-400); color: var(--gray-900, #1f272e); }
 
 .pearnly-work-title-row {
 	display: flex;
@@ -593,15 +656,15 @@
 	margin: 0;
 }
 
-.pearnly-work-swatch.green { background: var(--green-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.yellow { background: var(--yellow-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.orange { background: var(--orange-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.red { background: var(--red-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.purple { background: var(--purple-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.blue { background: var(--blue-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.cyan { background: var(--cyan-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.pink { background: var(--pink-300); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.gray { background: var(--gray-300); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.green { background: var(--green-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.yellow { background: var(--yellow-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.orange { background: var(--orange-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.red { background: var(--red-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.purple { background: var(--purple-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.blue { background: var(--blue-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.cyan { background: var(--cyan-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.pink { background: var(--pink-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.gray { background: var(--gray-400); color: var(--gray-900, #1f272e); }
 
 .pearnly-work-popup-pad {
 	padding: 0 12px 4px;

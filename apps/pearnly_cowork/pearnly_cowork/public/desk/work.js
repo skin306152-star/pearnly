@@ -21,6 +21,9 @@
 	const EVENT = "cowork_work_changed";
 	const NOTIFY = "cowork_work_notify";
 	const COLLAPSED = "pearnly-work-collapsed";
+	const DETAILS = "pearnly-work-activity-details";
+	const VIEWS = ["board", "mine", "calendar", "table"];
+	const RULE_ACTIONS = ["assign", "label", "due_days", "complete", "watch"];
 	const mobile = () => window.matchMedia("(max-width: 767px)").matches;
 	const icon = (name, size = "xs") => frappe.utils.icon(name, size);
 	const card_url = name => `${window.location.origin}${p.subroute(ROOT, name)}`;
@@ -130,7 +133,23 @@
 					{value: "none", label: t("cowork.work.filter.noDue")}],
 				change: () => apply()}),
 		};
-		filters.keyword.$input.on("input", frappe.utils.debounce(() => apply(), 150));
+		let searching = 0;
+		const search = async () => {
+			const keyword = (filters.keyword.get_value() || filters.keyword.get_input_value?.() || "").trim();
+			const request = ++searching;
+			if (keyword.length < 2) {
+				state.search_hits = null;
+			} else {
+				const names = await p.call(`${API}search`, {keyword});
+				if (request !== searching) return;
+				state.search_hits = new Set(names);
+			}
+			apply();
+		};
+		filters.keyword.df.change = () => void search();
+		filters.keyword.$input.on("input", frappe.utils.debounce(() => {
+			filters.keyword.set_value(filters.keyword.get_input_value() || "");
+		}, 250));
 		const set_options = (field, options) => {
 			const value = field.get_value();
 			field.df.options = options;
@@ -145,9 +164,12 @@
 			set_options(filters.label, [{value: "", label: t("cowork.work.filter.anyLabel")},
 				...state.labels.map(row => ({value: row.name, label: row.title || color_text(row.color)}))]);
 		};
+		// 关键词：两个字以上时交给服务端全文搜（标题、描述、评论、清单项、字段值），一个字只比标题。
 		const matches = card => {
 			const keyword = (filters.keyword.get_value() || "").trim().toLowerCase();
-			if (keyword && !card.title.toLowerCase().includes(keyword)) return false;
+			if (keyword && state.search_hits) {
+				if (!state.search_hits.has(card.name)) return false;
+			} else if (keyword && !card.title.toLowerCase().includes(keyword)) return false;
 			const who = filters.member.get_value();
 			if (who === "__me" && !card.assignees.includes(state.me)) return false;
 			if (who === "__none" && card.assignees.length) return false;
@@ -172,13 +194,25 @@
 		page.add_menu_item(t("cowork.work.notify.title"), () => void open_notifications());
 		page.add_menu_item(t("cowork.work.labels.manage"), () => open_labels());
 		page.add_menu_item(t("cowork.work.fields.manage"), () => open_fields());
+		page.add_menu_item(t("cowork.work.rules.manage"), () => void open_rules());
 		page.add_menu_item(t("cowork.work.archived.title"), () => open_archived());
 
 		// ── 看板骨架 ─────────────────────────────────────────────────────────────
 		const root = $('<div class="pearnly-work">').appendTo(page.main);
-		const nav = $('<nav class="form-tabs-list pearnly-work-nav">').appendTo(root);
+		// 视图（照 Trello 的视图切换）：看板 / 我的任务 / 日历 / 表格；路由 `pearnly-work/view/<视图>`，可收藏、可返回。
+		const views_bar = $('<nav class="form-tabs-list pearnly-work-views">').appendTo(root);
+		const views_list = $('<ul class="nav form-tabs">').appendTo(views_bar);
+		const view_panes = {};
+		for (const view of VIEWS) {
+			$('<li class="nav-item">').append($('<button type="button" class="nav-link">').attr("data-view", view)
+				.text(t(`cowork.work.view.${view}`))
+				.on("click", () => frappe.set_route(...(view === "board" ? [ROOT] : [ROOT, "view", view]))))
+				.appendTo(views_list);
+			view_panes[view] = $(`<div class="pearnly-work-view" data-view="${view}">`).appendTo(root);
+		}
+		const nav = $('<nav class="form-tabs-list pearnly-work-nav">').appendTo(view_panes.board);
 		const nav_list = $('<ul class="nav form-tabs">').appendTo(nav);
-		const board = $('<div class="kanban pearnly-work-board">').appendTo(root);
+		const board = $('<div class="kanban pearnly-work-board">').appendTo(view_panes.board);
 		const adder = $('<div class="kanban-column pearnly-work-column pearnly-work-add-list">').appendTo(board);
 		const collapsed = new Set((() => {
 			try { return JSON.parse(localStorage.getItem(COLLAPSED) || "[]"); } catch (error) { return []; }
@@ -397,7 +431,7 @@
 			if (field.fieldtype === "date") return `${field.title}: ${frappe.datetime.str_to_user(value)}`;
 			return `${field.title}: ${value}`;
 		};
-		const card_html = (card, mirror = null) => {
+		const card_html = (card, mirror = null, show_list = false) => {
 			const done = Boolean(card.completed);
 			const cover = card.cover_url
 				? `<div class="pearnly-work-cover image" style="background-image: url(&quot;${p.escape(css_url(card.cover_url))}&quot;)"></div>`
@@ -406,6 +440,7 @@
 			const badges = [];
 			if (card.is_template) badges.push(badge_html("layout-template", t("cowork.work.template.badge"), "", "template"));
 			if (mirror) badges.push(badge_html("copy-plus", t("cowork.work.mirror.badge"), list_of(card.board_list)?.title || ""));
+			if (show_list) badges.push(badge_html("columns-3", list_of(card.board_list)?.title || "", t("cowork.work.field.list")));
 			if (card.watching) badges.push(badge_html("eye", "", t("cowork.work.quick.watching")));
 			if (card.due_date || card.start_date) {
 				badges.push(badge_html("clock", due_text(card), t("cowork.work.field.due"),
@@ -476,6 +511,7 @@
 				parts.count.text(shown);
 			}
 			spy();
+			render_view();
 		};
 		const upsert = card => {
 			const index = state.cards.findIndex(row => row.name === card.name);
@@ -538,12 +574,12 @@
 				await reload();
 			}
 		};
-		board.on("click", ".pearnly-work-card-wrap", event => {
+		root.on("click", ".pearnly-work-card-wrap", event => {
 			if ($(event.target).closest(".pearnly-work-card-tools, .pearnly-work-done").length) return;
 			const name = $(event.currentTarget).attr("data-name");
 			if (name) void open_card(name);
 		});
-		board.on("click", ".pearnly-work-card-wrap [data-action]", event => {
+		root.on("click", ".pearnly-work-card-wrap [data-action]", event => {
 			const button = $(event.currentTarget);
 			const wrap = button.closest(".pearnly-work-card-wrap");
 			const card = card_of(wrap.attr("data-name"));
@@ -820,6 +856,8 @@
 				detach: () => [detail.file || ""],
 				copy: () => [detail.from || ""],
 				mirror: () => [list_name(t, detail.to)],
+				rule: () => [t(`cowork.work.rules.action_${detail.action}`), detail.user ? member_name(detail.user)
+					: (detail.label || (detail.due ? frappe.datetime.str_to_user(detail.due) : ""))],
 			}[row.action]?.() || [];
 			return t(`cowork.work.activity.${row.action}`, ...args.map(p.escape))
 				.replace("{who}", `<b>${p.escape(member_name(row.actor))}</b>`);
@@ -940,6 +978,7 @@
 
 		const open_card = async name => {
 			const data = await p.call(`${API}card`, {name});
+			let details = (() => { try { return localStorage.getItem(DETAILS) !== "0"; } catch (error) { return true; } })();
 			let modified = data.modified;
 			let watching = data.watching;
 			let attachments = data.attachments;
@@ -981,6 +1020,8 @@
 					{fieldname: "upload", fieldtype: "Button", label: t("cowork.work.file.upload"), click: () => void upload()},
 					{fieldname: "add_link", fieldtype: "Button", label: t("cowork.work.file.link"), click: () => add_link()},
 					{fieldtype: "Section Break", label: t("cowork.work.field.activity")},
+					{fieldname: "details", fieldtype: "Button", click: () => toggle_details(),
+						label: t(details ? "cowork.work.activity.hideDetails" : "cowork.work.activity.showDetails")},
 					{fieldname: "comment", fieldtype: "Small Text", label: t("cowork.work.comment.label")},
 					{fieldname: "send", fieldtype: "Button", label: t("cowork.work.comment.send"), click: () => void send()},
 					{fieldname: "activity", fieldtype: "HTML"},
@@ -1009,7 +1050,18 @@
 				field.set_input(field.df.options.some(option => option.value === value) ? value : "");
 				draw_cover();
 			};
-			const draw_activity = rows => d.fields_dict.activity.$wrapper.html(activity_html(rows));
+			// 「显示详情 / 隐藏详情」（照 Trello）：隐藏时只看评论；每人自己的偏好，记在浏览器本地。
+			let activity_rows = data.activity;
+			const draw_activity = rows => {
+				activity_rows = rows;
+				d.fields_dict.activity.$wrapper.html(activity_html(details ? rows : rows.filter(row => row.action === "comment")));
+			};
+			const toggle_details = () => {
+				details = !details;
+				try { localStorage.setItem(DETAILS, details ? "1" : "0"); } catch (error) { /* 无痕窗口 */ }
+				d.fields_dict.details.$input.text(t(details ? "cowork.work.activity.hideDetails" : "cowork.work.activity.showDetails"));
+				draw_activity(activity_rows);
+			};
 			draw_files(data.attachments);
 			draw_activity(data.activity);
 			const mentioned = new Map();
@@ -1065,7 +1117,9 @@
 					}, "btn-default pearnly-work-watch");
 			}
 			d.onhide = () => {
-				if (frappe.get_route()[0] === ROOT && frappe.get_route()[1]) frappe.set_route(ROOT);
+				// 从卡片链接打开的：关掉后回到看板；在视图里打开的留在视图。
+				const [root_route, second] = frappe.get_route();
+				if (root_route === ROOT && second && second !== "view") frappe.set_route(ROOT);
 			};
 			d.show();
 			// 富文本编辑器是异步装上的；装好后再取基线，免得一打开就算"改过"。
@@ -1352,6 +1406,216 @@
 			d.show();
 		};
 
+		// ── 视图：我的任务 / 日历 / 表格（都用同一份数据和筛选） ────────────────
+		const current_view = () => {
+			const [root_route, second, third] = frappe.get_route();
+			return root_route === ROOT && second === "view" && VIEWS.includes(third) ? third : "board";
+		};
+		const shown_cards = () => state.cards.filter(card => !card.is_template && matches(card));
+		const show_view = () => {
+			const view = current_view();
+			// 视图的路由多了几段，框架的面包屑会丢掉页面名：每次切换都把标题补回来。
+			if (view !== "board") p.breadcrumbs({label: __("cowork.nav.work"), route: p.subroute(ROOT)});
+			for (const [name, pane] of Object.entries(view_panes)) pane.toggleClass("hide", name !== view);
+			views_list.find("[data-view]").each((_, node) => $(node).toggleClass("active", node.dataset.view === view));
+			render_view();
+		};
+		const render_view = () => {
+			const view = current_view();
+			if (view === "mine") render_mine();
+			if (view === "calendar") void render_calendar();
+			if (view === "table") void render_table();
+		};
+
+		// 我的任务（照 Trello「我的卡片」）：分给我的卡，按到期分组；点卡片照常打开详情。
+		const render_mine = () => {
+			const pane = view_panes.mine.empty();
+			const today = frappe.datetime.get_today();
+			const groups = {overdue: [], today: [], week: [], later: [], none: [], done: []};
+			for (const card of shown_cards().filter(card => card.assignees.includes(state.me))) {
+				if (card.completed) groups.done.push(card);
+				else if (!card.due_date) groups.none.push(card);
+				else {
+					const days = frappe.datetime.get_diff(card.due_date, today);
+					groups[days < 0 ? "overdue" : (days === 0 ? "today" : (days <= 7 ? "week" : "later"))].push(card);
+				}
+			}
+			const empty = Object.values(groups).every(list => !list.length);
+			if (empty) {
+				pane.append($('<div class="text-muted pearnly-work-empty">').text(t("cowork.work.mine.empty")));
+				return;
+			}
+			for (const [key, cards] of Object.entries(groups)) {
+				if (!cards.length) continue;
+				cards.sort((a, b) => String(a.due_date || "").localeCompare(String(b.due_date || "")));
+				const section = $('<section class="pearnly-work-mine-group">').appendTo(pane);
+				$('<h6 class="pearnly-work-mine-title">').text(`${t(`cowork.work.mine.${key}`)} · ${cards.length}`).appendTo(section);
+				$('<div class="pearnly-work-mine-cards">').html(cards.map(card => card_html(card, null, true)).join("")).appendTo(section);
+			}
+		};
+
+		// 日历（Frappe 自带的 FullCalendar）：卡片按到期日排在月 / 周视图里，拖到别的日子就改到期日。
+		let calendar = null;
+		const calendar_events = () => shown_cards().filter(card => card.due_date).map(card => ({
+			id: card.name, title: card.title, allDay: !card.due_time,
+			start: card.due_time ? `${card.due_date}T${hhmm(card.due_time)}` : card.due_date,
+			classNames: ["pearnly-work-event", card.completed ? "is-done" : `due-${due_state(card) || "later"}`,
+				...(list_of(card.board_list)?.color ? [`tint-${list_of(card.board_list).color}`] : [])],
+		}));
+		const style_calendar = () => {
+			// 照原生日历视图（`frappe.views.Calendar.set_css`）：工具栏按钮换成 Desk 原生按钮样式。
+			view_panes.calendar.find("button.fc-button").removeClass("fc-button-primary").addClass("btn btn-default btn-sm");
+		};
+		const render_calendar = async () => {
+			if (!calendar) {
+				await frappe.require("calendar.bundle.js");
+				if (calendar || current_view() !== "calendar") return;
+				const host = $('<div class="pearnly-work-calendar">').appendTo(view_panes.calendar);
+				calendar = new frappe.FullCalendar(host[0], {
+					plugins: frappe.FullCalendar.Plugins, initialView: "dayGridMonth", locale: frappe.boot.lang,
+					firstDay: frappe.datetime.get_first_day_of_the_week_index(), eventDisplay: "block",
+					headerToolbar: {left: "prev,title,next", center: "", right: "today,dayGridMonth,timeGridWeek"},
+					buttonText: {today: __("Today"), month: __("Month"), week: __("Week")},
+					editable: true, height: "auto", dayMaxEvents: 4, nowIndicator: true,
+					events: (info, success) => success(calendar_events()),
+					datesSet: style_calendar,
+					eventClick: info => { info.jsEvent.preventDefault(); void open_card(info.event.id); },
+					eventDrop: async info => {
+						const card = card_of(info.event.id);
+						const start = info.event.start;
+						const pad = value => String(value).padStart(2, "0");
+						const values = {due_date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+							due_time: info.event.allDay ? (card.due_time || "") : `${pad(start.getHours())}:${pad(start.getMinutes())}`};
+						try {
+							await quick_update(card, values);
+						} catch (error) {
+							info.revert();
+						}
+					},
+				});
+				calendar.render();
+				style_calendar();
+				return;
+			}
+			calendar.refetchEvents();
+			calendar.updateSize();
+		};
+
+		// 表格（照 Trello 表格视图）：一张卡一行，原生 DataTable（列头可排序）；可导出 Excel（就是表里这些卡）。
+		let table = null;
+		const render_table = async () => {
+			const pane = view_panes.table;
+			if (!pane.children().length) {
+				const bar = $('<div class="pearnly-work-table-bar">').appendTo(pane);
+				$('<button type="button" class="btn btn-default btn-sm">').append(icon("download", "sm"))
+					.append($("<span>").text(t("cowork.work.table.export"))).appendTo(bar)
+					.on("click", () => {
+						const names = shown_cards().map(card => card.name).join(",");
+						window.open(`/api/method/${API}export?names=${encodeURIComponent(names)}`);
+					});
+				$('<div class="pearnly-work-table">').appendTo(pane);
+				pane.on("click", "[data-open]", event => {
+					event.preventDefault();
+					void open_card($(event.currentTarget).attr("data-open"));
+				});
+			}
+			const host = pane.find(".pearnly-work-table");
+			const lists = Object.fromEntries(state.lists.map((row, index) => [row.name, index]));
+			const cards = shown_cards().sort((a, b) => (lists[a.board_list] - lists[b.board_list]) || (a.position - b.position));
+			const field_cell = (field, value) => (value ? field_text({...field, title: ""}, value).replace(/^: /, "") || "✓" : "");
+			table?.destroy?.();
+			table = await p.table(host, [
+				{name: t("cowork.work.field.title"), format: (value, row) => `<a href="#" data-open="${p.escape(row[row.length - 1])}">${p.escape(value)}</a>`},
+				{name: t("cowork.work.field.list"), format: p.escape},
+				{name: t("cowork.work.field.labels"), format: value => value},
+				{name: t("cowork.work.field.members"), format: p.escape},
+				{name: t("cowork.work.field.due"), format: (value, row) => p.escape(value)},
+				{name: t("cowork.work.field.completed"), format: value => (value ? icon("check") : "")},
+				{name: t("cowork.work.field.checklist"), format: p.escape},
+				...state.fields.map(field => ({name: field.title, format: p.escape})),
+				{name: "", format: () => "", width: 1},
+			], cards.map(card => [
+				card.title, list_of(card.board_list)?.title || "",
+				card.labels.map(label_of).filter(Boolean).map(label_pill).join(" "),
+				card.assignees.map(member_name).join(", "),
+				card.due_date ? `${frappe.datetime.str_to_user(card.due_date)}${card.due_time ? ` ${hhmm(card.due_time)}` : ""}` : "",
+				card.completed ? 1 : 0,
+				card.checklist_total ? `${card.checklist_done}/${card.checklist_total}` : "",
+				...state.fields.map(field => field_cell(field, card.values?.[field.name])),
+				card.name,
+			]));
+		};
+
+		// ── 自动化（照 Trello「卡片被添加到列表中时」）：进入某列表时自动分派 / 加标签 / 设到期日 / 完成 / 加关注 ──
+		const open_rules = async () => {
+			const rows = (await p.call(`${API}rules`)).map(row => ({...row}));
+			const d = new frappe.ui.Dialog({
+				title: t("cowork.work.rules.manage"), size: "large",
+				fields: [{fieldname: "rows", fieldtype: "HTML"},
+					{fieldname: "add", fieldtype: "Button", label: t("cowork.work.rules.add"), click: () => {
+						rows.push({name: null, board_list: state.lists[0]?.name, action: "assign", user: state.me, label: null,
+							days: 1, enabled: 1});
+						draw();
+					}}],
+				primary_action_label: __("Save"),
+				primary_action: async () => {
+					d.disable_primary_action();
+					try {
+						await p.call(`${API}save_rules`, {rows: JSON.stringify(rows)}, "POST");
+						d.hide();
+						p.success(t("cowork.work.rules.saved"));
+					} finally {
+						d.enable_primary_action();
+					}
+				},
+			});
+			d.$wrapper.addClass("pearnly-dialog pearnly-work-dialog");
+			const host = d.fields_dict.rows.$wrapper;
+			const draw = () => {
+				host.empty();
+				rows.forEach((row, index) => {
+					const box = $('<div class="pearnly-work-field-edit">').appendTo(host);
+					const target = {
+						assign: {fieldname: "user", fieldtype: "Select", label: t("cowork.work.field.members"), default: row.user,
+							options: state.members.map(item => ({value: item.user, label: item.name}))},
+						watch: {fieldname: "user", fieldtype: "Select", label: t("cowork.work.field.members"), default: row.user,
+							options: state.members.map(item => ({value: item.user, label: item.name}))},
+						label: {fieldname: "label", fieldtype: "Select", label: t("cowork.work.field.labels"), default: row.label,
+							options: state.labels.map(item => ({value: item.name, label: item.title || color_text(item.color)}))},
+						due_days: {fieldname: "days", fieldtype: "Int", label: t("cowork.work.rules.days"), default: row.days},
+					}[row.action];
+					const form = new frappe.ui.FieldGroup({body: box, fields: [
+						{fieldname: "board_list", fieldtype: "Select", label: t("cowork.work.rules.when"), default: row.board_list,
+							options: list_options()},
+						{fieldtype: "Column Break"},
+						{fieldname: "action", fieldtype: "Select", label: t("cowork.work.rules.then"), default: row.action,
+							options: RULE_ACTIONS.map(value => ({value, label: t(`cowork.work.rules.action_${value}`)}))},
+						{fieldtype: "Column Break"},
+						target || {fieldname: "spacer", fieldtype: "HTML"},
+						{fieldtype: "Column Break"},
+						{fieldname: "enabled", fieldtype: "Check", label: t("cowork.work.rules.enabled"), default: row.enabled},
+					]});
+					form.make();
+					box.on("input change", () => {
+						const values = form.get_values(true) || {};
+						const action_changed = values.action && values.action !== row.action;
+						Object.assign(row, {board_list: values.board_list, action: values.action || row.action,
+							enabled: values.enabled ? 1 : 0});
+						if (target) row[target.fieldname] = values[target.fieldname];
+						if (action_changed) {
+							if (["assign", "watch"].includes(row.action) && !row.user) row.user = state.me;
+							if (row.action === "label" && !row.label) row.label = state.labels[0]?.name || null;
+							draw();
+						}
+					});
+					$('<button type="button" class="btn btn-xs btn-default">').text(__("Delete")).appendTo(box)
+						.on("click", () => { rows.splice(index, 1); draw(); });
+				});
+			};
+			draw();
+			d.show();
+		};
+
 		// ── 多人同时在看：别人改了就刷新（原生 socket.io；连不上时手动刷新照常可用） ──
 		const on_change = frappe.utils.debounce(() => {
 			if (frappe.get_route()[0] === ROOT) void reload();
@@ -1361,15 +1625,17 @@
 		// 卡片链接 `/desk/pearnly-work/<卡片>`（复制链接、提醒点进来、LINE 菜单进来）：打开那张卡。
 		const open_from_route = () => {
 			const [root_route, name] = frappe.get_route();
-			if (root_route === ROOT && name && !$(".pearnly-work-dialog.show").length) void open_card(name);
+			if (root_route === ROOT && name && name !== "view" && !$(".pearnly-work-dialog.show").length) void open_card(name);
 		};
 		const native_show = frappe.pages[ROOT].on_page_show;
 		frappe.pages[ROOT].on_page_show = () => {
 			native_show?.();
+			show_view();
 			if (state.loaded_at && Date.now() - state.loaded_at > 2000) void reload();
 			open_from_route();
 		};
 
+		show_view();
 		await reload();
 		open_from_route();
 	};

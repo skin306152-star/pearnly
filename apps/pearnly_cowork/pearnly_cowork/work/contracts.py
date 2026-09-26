@@ -17,6 +17,10 @@ REMINDERS = {"none": None, "at_due": 0, "5m": 5, "10m": 10, "15m": 15, "1h": 60,
 DEFAULT_REMINDER = "1d"
 REPEATS = ("never", "daily", "weekly", "monthly", "yearly")
 FIELD_TYPES = ("text", "number", "date", "checkbox", "select")
+# 自动化（照 Trello 的"当卡片被添加到列表中时"）：分派给成员、加标签、到期日设为 N 天后、标记完成、加关注。
+RULE_ACTIONS = ("assign", "label", "due_days", "complete", "watch")
+RULES_MAX = 50
+SEARCH_MIN = 2
 # 只填了到期日、没填时间：按当天最后一分钟算到期。
 END_OF_DAY = time(23, 59)
 

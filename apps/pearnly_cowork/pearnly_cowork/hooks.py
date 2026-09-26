@@ -327,6 +327,7 @@ permission_query_conditions = {
     "Cowork Work Column": "pearnly_cowork.work.access.column_query",
     "Cowork Work Field": "pearnly_cowork.work.access.field_query",
     "Cowork Work Mirror": "pearnly_cowork.work.access.mirror_query",
+    "Cowork Work Rule": "pearnly_cowork.work.access.rule_query",
 }
 has_permission = {
     "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
@@ -368,6 +369,7 @@ has_permission = {
     "Cowork Work Column": "pearnly_cowork.work.access.has_permission",
     "Cowork Work Field": "pearnly_cowork.work.access.has_permission",
     "Cowork Work Mirror": "pearnly_cowork.work.access.has_permission",
+    "Cowork Work Rule": "pearnly_cowork.work.access.has_permission",
 }
 doc_events = {"Pearnly OCR Work": {
     "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",

@@ -214,3 +214,27 @@ def save_fields(rows):
 @frappe.whitelist(methods=["POST"])
 def read_notifications(names=None):
     return _run(service.read_notifications, _json(names, []))
+
+
+@frappe.whitelist(methods=["GET"])
+def rules():
+    return _run(service.rules)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_rules(rows):
+    return _run(service.save_rules, _json(rows, []))
+
+
+@frappe.whitelist(methods=["GET"])
+def search(keyword):
+    return _run(service.search, keyword)
+
+
+@frappe.whitelist(methods=["GET"])
+def export(names=None):
+    """下载工作簿（原生二进制响应）；`names` 是逗号分隔的卡片号。"""
+    content = _run(service.export, [name for name in (names or "").split(",") if name] or None)
+    frappe.response["filename"] = f"{_('cowork.nav.work')}-{frappe.utils.today()}.xlsx"
+    frappe.response["filecontent"] = content
+    frappe.response["type"] = "binary"

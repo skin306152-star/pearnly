@@ -243,6 +243,41 @@ def run():
     overdue = [row for row in service.notifications()["rows"] if row.kind == "overdue" and row.card == a["name"]]
     assert len(overdue) == 1, overdue
 
+    # ── 自动化：卡片进入列表（拖入 / 新建）时分派、加标签、到期日、关注、完成 ──
+    ruled = service.create_list("T-ruled")["name"]
+    saved = service.save_rules([
+        {"board_list": ruled, "action": "assign", "user": other},
+        {"board_list": ruled, "action": "label", "label": red.name},
+        {"board_list": ruled, "action": "due_days", "days": 3},
+        {"board_list": ruled, "action": "watch", "user": worker}])
+    assert len(saved) == 4
+    expect_error("rule outsider", service.save_rules, [{"board_list": ruled, "action": "assign", "user": outsider}],
+                 error=Invalid)
+    expect_error("rule days", service.save_rules, [{"board_list": ruled, "action": "due_days", "days": 999}],
+                 error=Invalid)
+    auto = service.create("Auto card", todo)
+    service.move(auto["name"], ruled)
+    card = service.card(auto["name"])
+    assert other in card["assignees"] and red.name in card["labels"] and worker in card["watchers"], card
+    assert str(card["due_date"]) == add_days(today(), 3), card["due_date"]
+    assert any(row.action == "rule" for row in card["activity"])
+    created = service.card(service.create("Born here", ruled)["name"])
+    assert other in created["assignees"], "rules must run on create too"
+    service.save_rules([*[{"name": row.name, "board_list": row.board_list, "action": row.action, "user": row.user,
+                           "label": row.label, "days": row.days, "enabled": 0} for row in saved],
+                        {"board_list": ruled, "action": "complete"}])
+    completed = service.create("Completes", ruled)
+    assert completed["completed"] and not completed["assignees"], completed
+
+    # ── 全文搜索（标题 / 描述 / 评论 / 清单项 / 字段值）与导出 ──
+    assert a["name"] in service.search("hello")          # 描述
+    assert a["name"] in service.search("please check")   # 评论
+    assert a["name"] in service.search("Prepare") or a["name"] in service.search("one")  # 清单项
+    assert auto["name"] in service.search("auto CARD")    # 标题、不区分大小写
+    assert service.search("x") == []
+    content = service.export([a["name"], auto["name"]])
+    assert content[:2] == b"PK" and len(content) > 1000, len(content)
+
     # ── 列表菜单：排序、复制列表、整列移动、归档 / 恢复列表、整列归档 ──
     service.create("aaa", todo)
     service.sort_list(todo, "title")
@@ -281,7 +316,7 @@ def run():
     frappe.set_user(worker)
     expect_error("api invalid", api.create, "  ", todo, error=frappe.ValidationError)
     # 站点上原有的卡片数量不受影响（新建的都在本脚本的列表里）。
-    ours = {todo, doing, done}
+    ours = {todo, doing, done, ruled}
     assert len([row for row in service.board()["cards"] if row["board_list"] not in ours]) == before_cards
     assert extra["name"]
 
@@ -290,5 +325,7 @@ if __name__ == "__main__":
     try:
         main(sys.argv[1])
     except AssertionError as error:
-        print(f"RESULT: FAIL {error}")
+        import traceback
+        line = traceback.extract_tb(error.__traceback__)[-1]
+        print(f"RESULT: FAIL line {line.lineno}: {line.line} {error}")
         raise SystemExit(1)

@@ -47,8 +47,10 @@ Add a field,新建字段
 Add a link,添加链接
 Add an item,添加项目
 Add another list,添加另一个列表
+Add label,加标签
 Add photo,添加照片
 Add photos,添加照片
+Add watcher,加关注人
 Added {0},已添加 {0}
 Address,地址
 All,全部
@@ -71,6 +73,7 @@ Archived cards,已归档的卡片
 Archived items,已归档的项目
 Archived lists,已归档的列表
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
+Assign to,分派给成员
 Assign · Track · Discuss,分派 · 跟进 · 讨论
 Assigned to me,分配给我的
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
@@ -79,6 +82,7 @@ At most {0} photos per entry,每条记录最多 {0} 张照片
 At time of due date,到期时
 Attachments,附件
 Attempt Secret,尝试密钥
+Automation,自动化
 Balance,余额
 Bank,银行
 Bank Reconciliation,银行对账
@@ -102,6 +106,7 @@ Binding Generation,绑定版本
 Binding code,绑定码
 Blocked By,阻塞记录
 Blue,蓝
+Board,看板
 Book,账面
 Book Qty,账面数量
 Book location,账面仓位
@@ -119,6 +124,7 @@ Buyer Client,买方客户
 Buyer address,买方地址
 Buyer branch,买方分店
 Buyer tax ID,买方税号
+Calendar,日历
 Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
 Cancelled,已取消
@@ -237,6 +243,7 @@ Cowork Supplier Posting Profile,Cowork 供应商过账档案
 Cowork Workspace,Cowork 公司账套
 Cowork menu,Cowork 菜单
 Create a new label,新建标签
+Create a rule,新建规则
 Create card,创建卡片
 Create from template,从模板创建
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
@@ -258,6 +265,7 @@ Date,日期
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
 Dates,日期
+Days later,天后
 Debit,借方
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
@@ -301,7 +309,10 @@ Draft,草稿
 Dropdown,下拉
 Due,到期
 Due date,到期日
+Due later,以后到期
+Due this week,7 天内到期
 Due time,到期时间
+Due today,今天到期
 Due today or tomorrow,今明两天到期
 Duplicate records are not allowed.,不能重复选择同一条记录。
 ERP Code,ERP 编码
@@ -321,9 +332,11 @@ Edit labels,修改标签
 Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
+Enabled,启用
 Enter a comment,请输入评论
 Enter a field name,请输入字段名称
 Enter a link that starts with http:// or https://,请输入以 http:// 或 https:// 开头的链接
+Enter a number of days from 0 to 365,天数请填 0 到 365
 Enter a quantity,请填写数量
 Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符的盘点标题。
 Enter a valid email,请填写正确的邮箱
@@ -340,6 +353,7 @@ Evidence Fingerprint,证据指纹
 Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
 Export,导出
+Export Excel,导出 Excel
 Export records from the same company and client together.,同次导出只能包含同一公司、同一客户的记录。
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
 External Docnum,ERP凭证号
@@ -365,6 +379,7 @@ General ledger detail,总账明细
 Generation Key,凭据版本键
 Gray,灰
 Green,绿
+Hide details,隐藏详情
 History,票据历史
 History Records,识别记录
 History Version,票据历史版本
@@ -464,6 +479,7 @@ Monthly,每月
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
+My cards,我的任务
 Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
@@ -474,6 +490,7 @@ New stock count,新建盘点
 New task,新建任务
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No ERP is ready to use,还没有可用的 ERP
+No cards are assigned to you,还没有分给你的卡片
 No due date,无到期日
 No invoice could be read.,没有读出任何发票。
 No invoice summary found,未识别到摘要
@@ -483,6 +500,7 @@ No members,没有成员
 No notifications,没有提醒
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
+No rules yet,还没有规则
 No templates yet,还没有模板
 No warehouse matches that name,该仓库名不存在
 None,无
@@ -642,6 +660,7 @@ Revoked By,撤销人
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格登记行与实盘数；实盘数可以留空，之后在线盘点。
+Rules saved,规则已保存
 Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票需要包含税前金额的明细后才能导出。
 Sample Key,修正例标识
@@ -668,11 +687,13 @@ Send documents to ERP,发单据进 ERP
 Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
 Service or stock?,服务还是存货？
+Set due date,到期日设为 N 天后
 Set reminder,设置提醒
 Settings Json,配置数据（JSON）
 Sheet,表格文件
 Short,盘亏
 Show,显示
+Show details,显示详情
 Show on card,显示在卡片正面
 Site,站点
 Site Name,站点名称
@@ -709,6 +730,7 @@ Stock count workbench,盘点工作台
 Stop watching,取消关注
 Submit,提交
 Summary table import,汇总表导入
+Table,表格
 Tap Send documents to ERP in the menu first,请先点菜单里的「发单据进 ERP」
 Tap the menu to start,请点菜单开始
 Target Json,冻结目标JSON
@@ -853,6 +875,7 @@ The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限�
 The uploaded file is empty.,上传文件为空。
 The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
 The worksheet row or column information is invalid.,工作表行列信息无效。
+Then,自动
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
@@ -950,6 +973,7 @@ Waiting to start,排队中
 Warehouse,仓库
 Watch,关注
 Weekly,每周
+When a card enters,卡片进入列表时
 Wire Attempt,发送尝试次数
 With differences,有差异
 Withdrawal,提款
@@ -1297,11 +1321,14 @@ cowork.work.activity.copy,{who} 从「{0}」复制了这张卡片
 cowork.work.activity.create,{who} 添加了这张卡片
 cowork.work.activity.detach,{who} 删除了附件 {0}
 cowork.work.activity.due,{who} 把到期日设为 {0}
+cowork.work.activity.hideDetails,隐藏详情
 cowork.work.activity.mirror,{who} 把这张卡片镜像到了{0}
 cowork.work.activity.move,{who} 把这张卡片从{0}移到{1}
 cowork.work.activity.noDue,无
 cowork.work.activity.repeat,{who} 完成了这张重复卡片，下次到期 {0}
 cowork.work.activity.restore,{who} 恢复了这张卡片
+cowork.work.activity.rule,自动化（{who}）：{0} {1}
+cowork.work.activity.showDetails,显示详情
 cowork.work.activity.uncomplete,{who} 把这张卡片标记为未完成
 cowork.work.archived.at,归档时间
 cowork.work.archived.confirmDelete,彻底删除这张卡片？删除后无法恢复。
@@ -1366,6 +1393,7 @@ cowork.work.error.member,不能分配给这个成员
 cowork.work.error.mirror,卡片已经在那个列表里
 cowork.work.error.not_found,卡片不存在
 cowork.work.error.request,请求无效
+cowork.work.error.rule_days,天数请填 0 到 365
 cowork.work.error.start_after_due,开始日期晚于到期日
 cowork.work.error.status,状态无效
 cowork.work.error.title,请输入标题
@@ -1435,6 +1463,13 @@ cowork.work.list.move,移动列表
 cowork.work.list.name,列表名称
 cowork.work.list.placeholder,输入列表名称
 cowork.work.list.position,位置
+cowork.work.mine.done,已完成
+cowork.work.mine.empty,还没有分给你的卡片
+cowork.work.mine.later,以后到期
+cowork.work.mine.none,无到期日
+cowork.work.mine.overdue,已过期
+cowork.work.mine.today,今天到期
+cowork.work.mine.week,7 天内到期
 cowork.work.mirror.add,镜像
 cowork.work.mirror.badge,镜像
 cowork.work.mirror.remove,移除镜像
@@ -1475,15 +1510,33 @@ cowork.work.repeat.monthly,每月
 cowork.work.repeat.never,绝不
 cowork.work.repeat.weekly,每周
 cowork.work.repeat.yearly,每年
+cowork.work.rules.action_assign,分派给成员
+cowork.work.rules.action_complete,标记完成
+cowork.work.rules.action_due_days,到期日设为 N 天后
+cowork.work.rules.action_label,加标签
+cowork.work.rules.action_watch,加关注人
+cowork.work.rules.add,新建规则
+cowork.work.rules.days,天后
+cowork.work.rules.empty,还没有规则
+cowork.work.rules.enabled,启用
+cowork.work.rules.manage,自动化
+cowork.work.rules.saved,规则已保存
+cowork.work.rules.then,自动
+cowork.work.rules.when,卡片进入列表时
 cowork.work.status.doing,进行中
 cowork.work.status.done,已完成
 cowork.work.status.todo,待办
+cowork.work.table.export,导出 Excel
 cowork.work.template.badge,模板
 cowork.work.template.create,从模板创建
 cowork.work.template.empty,还没有模板
 cowork.work.template.set,设为模板
 cowork.work.template.title,卡片模板
 cowork.work.template.unset,取消模板
+cowork.work.view.board,看板
+cowork.work.view.calendar,日历
+cowork.work.view.mine,我的任务
+cowork.work.view.table,表格
 cowork_line,Cowork LINE
 document,文档
 erp.account_set_unavailable,此账套不可用。
@@ -1695,3 +1748,4 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {who} removed attachment {0},{who} 删除了附件 {0}
 {who} restored this card,{who} 恢复了这张卡片
 {who} set the due date to {0},{who} 把到期日设为 {0}
+{who}'s automation: {0} {1},自动化（{who}）：{0} {1}

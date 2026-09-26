@@ -64,7 +64,7 @@
    "fieldname": "action",
    "fieldtype": "Select",
    "label": "Action",
-   "options": "create\nmove\ncomment\nattach\ndetach\narchive\nrestore\nassign\ndue\ncopy\ncomplete\nuncomplete\nrepeat\nmirror",
+   "options": "create\nmove\ncomment\nattach\ndetach\narchive\nrestore\nassign\ndue\ncopy\ncomplete\nuncomplete\nrepeat\nmirror\nrule",
    "reqd": 1,
    "read_only": 1,
    "in_list_view": 1

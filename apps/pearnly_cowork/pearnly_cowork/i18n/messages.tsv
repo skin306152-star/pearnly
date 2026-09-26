@@ -1034,3 +1034,31 @@ Yearly	每年	ทุกปี	毎年	cowork.work.repeat.yearly
 {who} marked this card incomplete	{who} 把这张卡片标记为未完成	{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ	{who} がこのカードを未完了にしました	cowork.work.activity.uncomplete
 {who} completed this recurring card; next due {0}	{who} 完成了这张重复卡片，下次到期 {0}	{who} ทำการ์ดที่ทำซ้ำนี้เสร็จ ครบกำหนดครั้งถัดไป {0}	{who} が繰り返しカードを完了しました。次の期限は {0}	cowork.work.activity.repeat
 {who} mirrored this card to {0}	{who} 把这张卡片镜像到了{0}	{who} มิเรอร์การ์ดนี้ไปที่{0}	{who} がこのカードを{0}にミラーしました	cowork.work.activity.mirror
+Board	看板	บอร์ด	ボード	cowork.work.view.board
+My cards	我的任务	งานของฉัน	自分のカード	cowork.work.view.mine
+Calendar	日历	ปฏิทิน	カレンダー	cowork.work.view.calendar
+Table	表格	ตาราง	テーブル	cowork.work.view.table
+No cards are assigned to you	还没有分给你的卡片	ยังไม่มีการ์ดที่มอบหมายให้คุณ	割り当てられたカードはありません	cowork.work.mine.empty
+Overdue	已过期	เลยกำหนด	期限切れ	cowork.work.mine.overdue
+Due today	今天到期	ครบกำหนดวันนี้	今日が期限	cowork.work.mine.today
+Due this week	7 天内到期	ครบกำหนดภายใน 7 วัน	7日以内が期限	cowork.work.mine.week
+Due later	以后到期	ครบกำหนดภายหลัง	それ以降	cowork.work.mine.later
+No due date	无到期日	ไม่มีกำหนดส่ง	期日なし	cowork.work.mine.none
+Completed	已完成	เสร็จแล้ว	完了	cowork.work.mine.done
+Export Excel	导出 Excel	ส่งออก Excel	Excel に出力	cowork.work.table.export
+Automation	自动化	ระบบอัตโนมัติ	自動化	cowork.work.rules.manage
+Create a rule	新建规则	สร้างกฎ	ルールを作成	cowork.work.rules.add
+Rules saved	规则已保存	บันทึกกฎแล้ว	ルールを保存しました	cowork.work.rules.saved
+When a card enters	卡片进入列表时	เมื่อการ์ดเข้ารายการ	カードがリストに入ったとき	cowork.work.rules.when
+Then	自动	ให้ทำ	実行	cowork.work.rules.then
+Days later	天后	วันถัดไป	日後	cowork.work.rules.days
+Enabled	启用	เปิดใช้	有効	cowork.work.rules.enabled
+Assign to	分派给成员	มอบหมายให้	担当に追加	cowork.work.rules.action_assign
+Add label	加标签	เพิ่มป้ายกำกับ	ラベルを追加	cowork.work.rules.action_label
+Set due date	到期日设为 N 天后	ตั้งวันครบกำหนดเป็น N วันถัดไป	期日を N 日後に設定	cowork.work.rules.action_due_days
+Mark complete	标记完成	ทำเครื่องหมายว่าเสร็จ	完了にする	cowork.work.rules.action_complete
+Add watcher	加关注人	เพิ่มผู้ติดตาม	ウォッチャーを追加	cowork.work.rules.action_watch
+Hide details	隐藏详情	ซ่อนรายละเอียด	詳細を隠す	cowork.work.activity.hideDetails
+Show details	显示详情	แสดงรายละเอียด	詳細を表示	cowork.work.activity.showDetails
+{who}'s automation: {0} {1}	自动化（{who}）：{0} {1}	ระบบอัตโนมัติ ({who}): {0} {1}	自動化（{who}）：{0} {1}	cowork.work.activity.rule
+Enter a number of days from 0 to 365	天数请填 0 到 365	กรุณาใส่จำนวนวัน 0 ถึง 365	日数は 0〜365 で入力してください	cowork.work.error.rule_days

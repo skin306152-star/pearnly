@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import frappe
 from frappe import _
-from frappe.utils import convert_utc_to_system_timezone, getdate, strip_html
+from frappe.utils import add_days, convert_utc_to_system_timezone, getdate, strip_html, today
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.work import access, contracts, notify
@@ -20,7 +20,7 @@ from pearnly_cowork.work.contracts import Invalid
 from pearnly_cowork.work.documents import persist, remove
 
 CARD, LABEL, ACTIVITY = access.CARD, access.LABEL, access.ACTIVITY
-COLUMN, FIELD, MIRROR = access.COLUMN, access.FIELD, access.MIRROR
+COLUMN, FIELD, MIRROR, RULE = access.COLUMN, access.FIELD, access.MIRROR, access.RULE
 REALTIME_EVENT = "cowork_work_changed"
 SUMMARY_FIELDS = ["name", "title", "board_list", "completed", "position", "start_date", "due_date", "due_time",
                   "reminder", "recurrence", "is_template", "description", "cover_color", "cover_file",
@@ -199,8 +199,9 @@ def delete_list(name):
     for card_name in frappe.get_all(CARD, filters={"workspace": workspace, "board_list": name}, pluck="name",
                                     limit_page_length=0):
         _purge(frappe.get_doc(CARD, card_name))
-    for mirror_name in frappe.get_all(MIRROR, filters={"board_list": name}, pluck="name", limit_page_length=0):
-        remove(frappe.get_doc(MIRROR, mirror_name))
+    for doctype in (MIRROR, RULE):
+        for row in frappe.get_all(doctype, filters={"board_list": name}, pluck="name", limit_page_length=0):
+            remove(frappe.get_doc(doctype, row))
     remove(frappe.get_doc(COLUMN, name))
     _changed(None, "list")
     return {"name": name}
@@ -485,6 +486,7 @@ def _place(doc, workspace, target, position=None):
             _complete(doc, workspace, True)
         elif source and source.is_done_list and doc.completed:
             _complete(doc, workspace, False)
+        _apply_rules(doc, workspace, target.name)
         if position is None:
             position = contracts.position_between(_column_tail(workspace, target.name, doc.name), None)
     if position is not None:
@@ -510,6 +512,8 @@ def create(title, board_list, template=None):
                                       "completed_at": _now() if target.is_done_list else None,
                                       "position": contracts.position_between(_column_tail(workspace, target.name), None)}))
         _log(doc.name, workspace, "create", {"list": target.title})
+        if _apply_rules(doc, workspace, target.name):
+            persist(doc)
     _changed(doc.name, "create")
     return summary(doc.name)
 
@@ -537,6 +541,8 @@ def _clone(source, workspace, board_list, title, keep, action="copy"):
     _log(doc.name, workspace, action, {"from": source.title})
     if doc.assignees:
         notify.send([row.user for row in doc.assignees], doc, "assign")
+    if _apply_rules(doc, workspace, board_list):
+        persist(doc)
     return doc
 
 
@@ -987,3 +993,163 @@ def read_notifications(names=None):
     workspace = _workspace()
     notify.mark_read(workspace, contracts.distinct(names, 200) if names else None)
     return notify.mine(workspace)
+
+
+# ── 自动化（照 Trello「卡片被添加到列表中时」） ────────────────────────────────
+
+
+def rules(workspace=None):
+    workspace = workspace or _workspace()
+    return frappe.get_all(RULE, filters={"workspace": workspace},
+                          fields=["name", "board_list", "action", "user", "label", "days", "enabled"],
+                          order_by="creation asc", limit_page_length=0)
+
+
+def _apply_rules(doc, workspace, board_list):
+    """卡片进入 `board_list`（新建、拖入、复制进来）时按规则自动做事；有改动返回 True（调用方再保存）。
+    规则只改负责人 / 标签 / 到期日 / 完成 / 关注，不挪卡片，所以不会互相触发成死循环。"""
+    changed = False
+    for rule in frappe.get_all(RULE, filters={"workspace": workspace, "board_list": board_list, "enabled": 1},
+                               fields=["action", "user", "label", "days"], order_by="creation asc",
+                               limit_page_length=0):
+        detail = {"action": rule.action}
+        if rule.action == "assign":
+            if not rule.user or rule.user not in _members_set() or rule.user in {row.user for row in doc.assignees}:
+                continue
+            doc.append("assignees", {"user": rule.user})
+            notify.send([rule.user], doc, "assign")
+            detail["user"] = rule.user
+        elif rule.action == "watch":
+            if not rule.user or rule.user in {row.user for row in doc.watchers}:
+                continue
+            doc.append("watchers", {"user": rule.user})
+            detail["user"] = rule.user
+        elif rule.action == "label":
+            title = frappe.db.get_value(LABEL, {"name": rule.label or "", "workspace": workspace}, "title")
+            if title is None or rule.label in {row.label for row in doc.labels}:
+                continue
+            doc.append("labels", {"label": rule.label})
+            detail["label"] = title
+        elif rule.action == "due_days":
+            doc.due_date = str(getdate(add_days(today(), int(rule.days or 0))))
+            detail["due"] = doc.due_date
+        elif rule.action == "complete":
+            if doc.completed:
+                continue
+            _complete(doc, workspace, True)
+        else:
+            continue
+        _log(doc.name, workspace, "rule", detail)
+        changed = True
+    return changed
+
+
+def save_rules(rows):
+    """整板规则一次保存（照标签）：带 name 的是改，不带的是新建，不在列表里的删掉。"""
+    workspace = _workspace()
+    if not isinstance(rows, list):
+        raise Invalid("cowork.work.error.request")
+    if len(rows) > contracts.RULES_MAX:
+        raise Invalid("cowork.work.error.too_many")
+    _lock(RULE)
+    current = {row.name: row for row in rules(workspace)}
+    members = _members_set()
+    known_labels = {row.name for row in labels(workspace)}
+    kept = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise Invalid("cowork.work.error.request")
+        _list(row.get("board_list"), workspace)
+        action = contracts.choice(row.get("action"), contracts.RULE_ACTIONS)
+        values = {"board_list": row["board_list"], "action": action, "user": None, "label": None, "days": 0,
+                  "enabled": 0 if row.get("enabled") in (0, False, "0") else 1}
+        if action in ("assign", "watch"):
+            if row.get("user") not in members:
+                raise Invalid("cowork.work.error.member")
+            values["user"] = row["user"]
+        elif action == "label":
+            if row.get("label") not in known_labels:
+                raise Invalid("cowork.work.error.label")
+            values["label"] = row["label"]
+        elif action == "due_days":
+            try:
+                days = int(row.get("days"))
+            except (TypeError, ValueError):
+                raise Invalid("cowork.work.error.rule_days")
+            if not 0 <= days <= 365:
+                raise Invalid("cowork.work.error.rule_days")
+            values["days"] = days
+        name = row.get("name")
+        if name:
+            if name not in current:
+                raise Invalid("cowork.work.error.request")
+            kept.add(name)
+            doc = frappe.get_doc(RULE, name)
+            doc.update(values)
+            persist(doc)
+        else:
+            persist(frappe.get_doc({"doctype": RULE, "workspace": workspace, **values}))
+    for name in set(current) - kept:
+        remove(frappe.get_doc(RULE, name))
+    _changed(None, "rules")
+    return rules(workspace)
+
+
+# ── 全文搜索与导出 ────────────────────────────────────────────────────────────
+
+
+def search(keyword):
+    """筛选区的关键词：卡片标题、描述、评论、清单项、自定义字段值里有就算（不区分大小写）。"""
+    workspace = _workspace()
+    keyword = contracts.text(keyword, 100)
+    if len(keyword) < contracts.SEARCH_MIN:
+        return []
+    like = ["like", f"%{keyword}%"]
+    names = set(frappe.get_all(CARD, filters={"workspace": workspace, "archived": 0},
+                               or_filters={"title": like, "description": like}, pluck="name", limit_page_length=0))
+    names |= set(frappe.get_all(ACTIVITY, filters={"workspace": workspace, "action": "comment", "content": like},
+                                pluck="card", limit_page_length=0))
+    for doctype, field in (("Cowork Work Checklist Item", "title"), ("Cowork Work Card Value", "value")):
+        names |= set(frappe.get_all(doctype, filters={"parenttype": CARD, field: like}, pluck="parent",
+                                    limit_page_length=0))
+    if not names:
+        return []
+    return frappe.get_all(CARD, filters={"workspace": workspace, "archived": 0, "name": ["in", list(names)]},
+                          pluck="name", limit_page_length=0)
+
+
+def export(names=None):
+    """表格视图「导出 Excel」：按页面上当前看得到的卡片（`names`，没给就是整板）出一张工作簿。"""
+    from frappe.utils.xlsxutils import make_xlsx
+
+    data = board()
+    wanted = set(contracts.distinct(names, 5000)) if names else None
+    list_order = {row.name: (index, row.title) for index, row in enumerate(data["lists"])}
+    people = {row["user"]: row["name"] for row in data["members"]}
+    tags = {row.name: row.title or _(f"cowork.work.color.{row.color}") for row in data["labels"]}
+    custom = data["fields"]
+    header = [_("cowork.work.field.title"), _("cowork.work.field.list"), _("cowork.work.field.completed"),
+              _("cowork.work.field.start"), _("cowork.work.field.due"), _("cowork.work.field.dueTime"),
+              _("cowork.work.field.members"), _("cowork.work.field.labels"), _("cowork.work.field.checklist"),
+              *[field.title for field in custom]]
+    rows = [header]
+    cards = [card for card in data["cards"] if not card["is_template"] and (wanted is None or card["name"] in wanted)]
+    cards.sort(key=lambda card: (list_order.get(card["board_list"], (999, ""))[0], card["position"]))
+    for card in cards:
+        rows.append([
+            card["title"], list_order.get(card["board_list"], (0, ""))[1], _("Yes") if card["completed"] else "",
+            str(card["start_date"] or ""), str(card["due_date"] or ""), (card["due_time"] or "")[:5],
+            ", ".join(people.get(user, user) for user in card["assignees"]),
+            ", ".join(tags.get(label, "") for label in card["labels"]),
+            f"{card['checklist_done']}/{card['checklist_total']}" if card["checklist_total"] else "",
+            *[_field_cell(field, card["values"].get(field.name)) for field in custom],
+        ])
+    return make_xlsx(rows, _("cowork.nav.work")[:31]).getvalue()
+
+
+def _field_cell(field, value):
+    if value in (None, ""):
+        return ""
+    if field.fieldtype == "checkbox":
+        return _("Yes")
+    return value

@@ -47,8 +47,10 @@ Add a field,เพิ่มช่อง
 Add a link,เพิ่มลิงก์
 Add an item,เพิ่มรายการ
 Add another list,เพิ่มรายการอื่น
+Add label,เพิ่มป้ายกำกับ
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
+Add watcher,เพิ่มผู้ติดตาม
 Added {0},เพิ่มแล้ว {0}
 Address,ที่อยู่
 All,ทั้งหมด
@@ -71,6 +73,7 @@ Archived cards,การ์ดที่เก็บถาวร
 Archived items,รายการที่เก็บถาวร
 Archived lists,รายการที่เก็บถาวร
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
+Assign to,มอบหมายให้
 Assign · Track · Discuss,มอบหมาย · ติดตาม · พูดคุย
 Assigned to me,มอบหมายให้ฉัน
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
@@ -79,6 +82,7 @@ At most {0} photos per entry,บันทึกละไม่เกิน {0} �
 At time of due date,เมื่อถึงกำหนด
 Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
+Automation,ระบบอัตโนมัติ
 Balance,ยอดคงเหลือ
 Bank,ธนาคาร
 Bank Reconciliation,กระทบยอดธนาคาร
@@ -102,6 +106,7 @@ Binding Generation,รุ่นการผูก
 Binding code,รหัสเชื่อมต่อ
 Blocked By,รายการที่ขัดขวาง
 Blue,น้ำเงิน
+Board,บอร์ด
 Book,ตามบัญชี
 Book Qty,จำนวนตามบัญชี
 Book location,ตำแหน่งตามบัญชี
@@ -119,6 +124,7 @@ Buyer Client,ลูกค้าผู้ซื้อ
 Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขผู้เสียภาษีผู้ซื้อ
+Calendar,ปฏิทิน
 Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
 Cancelled,ยกเลิกแล้ว
@@ -237,6 +243,7 @@ Cowork Supplier Posting Profile,โปรไฟล์การลงบัญช
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
 Cowork menu,เมนู Cowork
 Create a new label,สร้างป้ายกำกับใหม่
+Create a rule,สร้างกฎ
 Create card,สร้างการ์ด
 Create from template,สร้างจากเทมเพลต
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
@@ -258,6 +265,7 @@ Date,วันที่
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
 Dates,วันที่
+Days later,วันถัดไป
 Debit,เดบิต
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
@@ -301,7 +309,10 @@ Draft,ฉบับร่าง
 Dropdown,ดรอปดาวน์
 Due,กำหนดส่ง
 Due date,วันครบกำหนด
+Due later,ครบกำหนดภายหลัง
+Due this week,ครบกำหนดภายใน 7 วัน
 Due time,เวลาครบกำหนด
+Due today,ครบกำหนดวันนี้
 Due today or tomorrow,ครบกำหนดวันนี้หรือพรุ่งนี้
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
 ERP Code,รหัส ERP
@@ -321,9 +332,11 @@ Edit labels,แก้ไขป้ายกำกับ
 Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
+Enabled,เปิดใช้
 Enter a comment,กรุณาใส่ความคิดเห็น
 Enter a field name,กรุณาใส่ชื่อช่อง
 Enter a link that starts with http:// or https://,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
+Enter a number of days from 0 to 365,กรุณาใส่จำนวนวัน 0 ถึง 365
 Enter a quantity,กรุณากรอกจำนวน
 Enter a stock count title of 1 to 120 characters.,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
@@ -340,6 +353,7 @@ Evidence Fingerprint,ลายนิ้วมือหลักฐาน
 Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
 Export,ส่งออก
+Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 External Docnum,เลขที่เอกสาร ERP
@@ -365,6 +379,7 @@ General ledger detail,รายละเอียดบัญชีแยกป�
 Generation Key,คีย์รุ่นข้อมูลรับรอง
 Gray,เทา
 Green,เขียว
+Hide details,ซ่อนรายละเอียด
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
 History Version,รุ่นประวัติเอกสาร
@@ -464,6 +479,7 @@ Monthly,ทุกเดือน
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
+My cards,งานของฉัน
 Name,ชื่อ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
@@ -474,6 +490,7 @@ New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
+No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No due date,ไม่มีกำหนดส่ง
 No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
@@ -483,6 +500,7 @@ No members,ไม่มีสมาชิก
 No notifications,ไม่มีการแจ้งเตือน
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
+No rules yet,ยังไม่มีกฎ
 No templates yet,ยังไม่มีเทมเพลต
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 None,ไม่มี
@@ -642,6 +660,7 @@ Revoked By,ผู้ยกเลิก
 Row {0}: {1},แถว {0}: {1}
 Rows,จำนวนแถว
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,ใช้รายการและจำนวนนับจริงจากไฟล์ เว้นจำนวนนับจริงว่างไว้เพื่อตรวจนับออนไลน์ภายหลังได้
+Rules saved,บันทึกกฎแล้ว
 Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
@@ -668,11 +687,13 @@ Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
 Service or stock?,บริการหรือสินค้า?
+Set due date,ตั้งวันครบกำหนดเป็น N วันถัดไป
 Set reminder,ตั้งการเตือน
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
+Show details,แสดงรายละเอียด
 Show on card,แสดงบนการ์ด
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
@@ -709,6 +730,7 @@ Stock count workbench,หน้าปฏิบัติงานตรวจน�
 Stop watching,เลิกติดตาม
 Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
+Table,ตาราง
 Tap Send documents to ERP in the menu first,กรุณากด ส่งเอกสารเข้า ERP ในเมนูก่อน
 Tap the menu to start,กดเมนูเพื่อเริ่มต้น
 Target Json,ปลายทางที่ตรึงไว้ JSON
@@ -853,6 +875,7 @@ The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโ�
 The uploaded file is empty.,ไฟล์ที่อัปโหลดว่างเปล่า
 The verified ERP export details are invalid.,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
 The worksheet row or column information is invalid.,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
+Then,ให้ทำ
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 There is not enough recognition balance. Top up and send the document again.,ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
@@ -950,6 +973,7 @@ Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Watch,ติดตาม
 Weekly,ทุกสัปดาห์
+When a card enters,เมื่อการ์ดเข้ารายการ
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
 Withdrawal,ถอน
@@ -1297,11 +1321,14 @@ cowork.work.activity.copy,"{who} คัดลอกการ์ดนี้จ�
 cowork.work.activity.create,{who} เพิ่มการ์ดนี้
 cowork.work.activity.detach,{who} ลบไฟล์แนบ {0}
 cowork.work.activity.due,{who} ตั้งวันครบกำหนดเป็น {0}
+cowork.work.activity.hideDetails,ซ่อนรายละเอียด
 cowork.work.activity.mirror,{who} มิเรอร์การ์ดนี้ไปที่{0}
 cowork.work.activity.move,{who} ย้ายการ์ดนี้จาก{0}ไป{1}
 cowork.work.activity.noDue,ไม่มี
 cowork.work.activity.repeat,{who} ทำการ์ดที่ทำซ้ำนี้เสร็จ ครบกำหนดครั้งถัดไป {0}
 cowork.work.activity.restore,{who} กู้คืนการ์ดนี้
+cowork.work.activity.rule,ระบบอัตโนมัติ ({who}): {0} {1}
+cowork.work.activity.showDetails,แสดงรายละเอียด
 cowork.work.activity.uncomplete,{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ
 cowork.work.archived.at,เวลาที่เก็บถาวร
 cowork.work.archived.confirmDelete,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
@@ -1366,6 +1393,7 @@ cowork.work.error.member,มอบหมายให้สมาชิกนี�
 cowork.work.error.mirror,การ์ดอยู่ในรายการนั้นแล้ว
 cowork.work.error.not_found,ไม่มีการ์ดนี้แล้ว
 cowork.work.error.request,คำขอไม่ถูกต้อง
+cowork.work.error.rule_days,กรุณาใส่จำนวนวัน 0 ถึง 365
 cowork.work.error.start_after_due,วันเริ่มอยู่หลังวันครบกำหนด
 cowork.work.error.status,สถานะไม่ถูกต้อง
 cowork.work.error.title,กรุณาใส่ชื่อ
@@ -1435,6 +1463,13 @@ cowork.work.list.move,ย้ายรายการ
 cowork.work.list.name,ชื่อรายการ
 cowork.work.list.placeholder,ใส่ชื่อรายการ
 cowork.work.list.position,ตำแหน่ง
+cowork.work.mine.done,เสร็จแล้ว
+cowork.work.mine.empty,ยังไม่มีการ์ดที่มอบหมายให้คุณ
+cowork.work.mine.later,ครบกำหนดภายหลัง
+cowork.work.mine.none,ไม่มีกำหนดส่ง
+cowork.work.mine.overdue,เลยกำหนด
+cowork.work.mine.today,ครบกำหนดวันนี้
+cowork.work.mine.week,ครบกำหนดภายใน 7 วัน
 cowork.work.mirror.add,มิเรอร์
 cowork.work.mirror.badge,มิเรอร์
 cowork.work.mirror.remove,ลบมิเรอร์
@@ -1475,15 +1510,33 @@ cowork.work.repeat.monthly,ทุกเดือน
 cowork.work.repeat.never,ไม่ซ้ำ
 cowork.work.repeat.weekly,ทุกสัปดาห์
 cowork.work.repeat.yearly,ทุกปี
+cowork.work.rules.action_assign,มอบหมายให้
+cowork.work.rules.action_complete,ทำเครื่องหมายว่าเสร็จ
+cowork.work.rules.action_due_days,ตั้งวันครบกำหนดเป็น N วันถัดไป
+cowork.work.rules.action_label,เพิ่มป้ายกำกับ
+cowork.work.rules.action_watch,เพิ่มผู้ติดตาม
+cowork.work.rules.add,สร้างกฎ
+cowork.work.rules.days,วันถัดไป
+cowork.work.rules.empty,ยังไม่มีกฎ
+cowork.work.rules.enabled,เปิดใช้
+cowork.work.rules.manage,ระบบอัตโนมัติ
+cowork.work.rules.saved,บันทึกกฎแล้ว
+cowork.work.rules.then,ให้ทำ
+cowork.work.rules.when,เมื่อการ์ดเข้ารายการ
 cowork.work.status.doing,กำลังทำ
 cowork.work.status.done,เสร็จแล้ว
 cowork.work.status.todo,รอดำเนินการ
+cowork.work.table.export,ส่งออก Excel
 cowork.work.template.badge,เทมเพลต
 cowork.work.template.create,สร้างจากเทมเพลต
 cowork.work.template.empty,ยังไม่มีเทมเพลต
 cowork.work.template.set,ตั้งเป็นเทมเพลต
 cowork.work.template.title,เทมเพลตการ์ด
 cowork.work.template.unset,ยกเลิกเทมเพลต
+cowork.work.view.board,บอร์ด
+cowork.work.view.calendar,ปฏิทิน
+cowork.work.view.mine,งานของฉัน
+cowork.work.view.table,ตาราง
 cowork_line,Cowork LINE
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
@@ -1695,3 +1748,4 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {who} removed attachment {0},{who} ลบไฟล์แนบ {0}
 {who} restored this card,{who} กู้คืนการ์ดนี้
 {who} set the due date to {0},{who} ตั้งวันครบกำหนดเป็น {0}
+{who}'s automation: {0} {1},ระบบอัตโนมัติ ({who}): {0} {1}

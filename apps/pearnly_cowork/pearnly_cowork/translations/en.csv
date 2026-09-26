@@ -47,8 +47,10 @@ Add a field,Add a field
 Add a link,Add a link
 Add an item,Add an item
 Add another list,Add another list
+Add label,Add label
 Add photo,Add photo
 Add photos,Add photos
+Add watcher,Add watcher
 Added {0},Added {0}
 Address,Address
 All,All
@@ -71,6 +73,7 @@ Archived cards,Archived cards
 Archived items,Archived items
 Archived lists,Archived lists
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
+Assign to,Assign to
 Assign · Track · Discuss,Assign · Track · Discuss
 Assigned to me,Assigned to me
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
@@ -79,6 +82,7 @@ At most {0} photos per entry,At most {0} photos per entry
 At time of due date,At time of due date
 Attachments,Attachments
 Attempt Secret,Attempt Secret
+Automation,Automation
 Balance,Balance
 Bank,Bank
 Bank Reconciliation,Bank Reconciliation
@@ -102,6 +106,7 @@ Binding Generation,Binding Generation
 Binding code,Binding code
 Blocked By,Blocked By
 Blue,Blue
+Board,Board
 Book,Book
 Book Qty,Book Qty
 Book location,Book location
@@ -119,6 +124,7 @@ Buyer Client,Buyer Client
 Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
+Calendar,Calendar
 Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Cancelled,Cancelled
@@ -237,6 +243,7 @@ Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
 Cowork Workspace,Cowork Workspace
 Cowork menu,Cowork menu
 Create a new label,Create a new label
+Create a rule,Create a rule
 Create card,Create card
 Create from template,Create from template
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
@@ -258,6 +265,7 @@ Date,Date
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
 Dates,Dates
+Days later,Days later
 Debit,Debit
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
@@ -301,7 +309,10 @@ Draft,Draft
 Dropdown,Dropdown
 Due,Due
 Due date,Due date
+Due later,Due later
+Due this week,Due this week
 Due time,Due time
+Due today,Due today
 Due today or tomorrow,Due today or tomorrow
 Duplicate records are not allowed.,Duplicate records are not allowed.
 ERP Code,ERP Code
@@ -321,9 +332,11 @@ Edit labels,Edit labels
 Email,Email
 Enable,Enable
 Enable {0},Enable {0}
+Enabled,Enabled
 Enter a comment,Enter a comment
 Enter a field name,Enter a field name
 Enter a link that starts with http:// or https://,Enter a link that starts with http:// or https://
+Enter a number of days from 0 to 365,Enter a number of days from 0 to 365
 Enter a quantity,Enter a quantity
 Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1 to 120 characters.
 Enter a valid email,Enter a valid email
@@ -340,6 +353,7 @@ Evidence Fingerprint,Evidence Fingerprint
 Evidence Owner,Evidence Owner
 Examples Json,Examples Json
 Export,Export
+Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
 External Docnum,External Docnum
@@ -365,6 +379,7 @@ General ledger detail,General ledger detail
 Generation Key,Generation Key
 Gray,Gray
 Green,Green
+Hide details,Hide details
 History,History
 History Records,History Records
 History Version,History Version
@@ -464,6 +479,7 @@ Monthly,Monthly
 Move,Move
 Move all cards in this list,Move all cards in this list
 Move list,Move list
+My cards,My cards
 Name,Name
 Native Content Hash,Native Content Hash
 Needs review,Needs review
@@ -474,6 +490,7 @@ New stock count,New stock count
 New task,New task
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
+No cards are assigned to you,No cards are assigned to you
 No due date,No due date
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
@@ -483,6 +500,7 @@ No members,No members
 No notifications,No notifications
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
+No rules yet,No rules yet
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 None,None
@@ -642,6 +660,7 @@ Revoked By,Revoked By
 Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
+Rules saved,Rules saved
 Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
@@ -668,11 +687,13 @@ Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
 Service or stock?,Service or stock?
+Set due date,Set due date
 Set reminder,Set reminder
 Settings Json,Settings Json
 Sheet,Sheet
 Short,Short
 Show,Show
+Show details,Show details
 Show on card,Show on card
 Site,Site
 Site Name,Site Name
@@ -709,6 +730,7 @@ Stock count workbench,Stock count workbench
 Stop watching,Stop watching
 Submit,Submit
 Summary table import,Summary table import
+Table,Table
 Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
 Tap the menu to start,Tap the menu to start
 Target Json,Target Json
@@ -853,6 +875,7 @@ The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 M
 The uploaded file is empty.,The uploaded file is empty.
 The verified ERP export details are invalid.,The verified ERP export details are invalid.
 The worksheet row or column information is invalid.,The worksheet row or column information is invalid.
+Then,Then
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
@@ -950,6 +973,7 @@ Waiting to start,Waiting to start
 Warehouse,Warehouse
 Watch,Watch
 Weekly,Weekly
+When a card enters,When a card enters
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
@@ -1297,11 +1321,14 @@ cowork.work.activity.copy,{who} copied this card from {0}
 cowork.work.activity.create,{who} added this card
 cowork.work.activity.detach,{who} removed attachment {0}
 cowork.work.activity.due,{who} set the due date to {0}
+cowork.work.activity.hideDetails,Hide details
 cowork.work.activity.mirror,{who} mirrored this card to {0}
 cowork.work.activity.move,{who} moved this card from {0} to {1}
 cowork.work.activity.noDue,none
 cowork.work.activity.repeat,{who} completed this recurring card; next due {0}
 cowork.work.activity.restore,{who} restored this card
+cowork.work.activity.rule,{who}'s automation: {0} {1}
+cowork.work.activity.showDetails,Show details
 cowork.work.activity.uncomplete,{who} marked this card incomplete
 cowork.work.archived.at,Archived at
 cowork.work.archived.confirmDelete,Delete this card permanently? This cannot be undone.
@@ -1366,6 +1393,7 @@ cowork.work.error.member,This member cannot be assigned
 cowork.work.error.mirror,The card is already in that list
 cowork.work.error.not_found,The card no longer exists
 cowork.work.error.request,Invalid request
+cowork.work.error.rule_days,Enter a number of days from 0 to 365
 cowork.work.error.start_after_due,The start date is after the due date
 cowork.work.error.status,Invalid status
 cowork.work.error.title,Enter a title
@@ -1435,6 +1463,13 @@ cowork.work.list.move,Move list
 cowork.work.list.name,List name
 cowork.work.list.placeholder,Enter list name
 cowork.work.list.position,Position
+cowork.work.mine.done,Completed
+cowork.work.mine.empty,No cards are assigned to you
+cowork.work.mine.later,Due later
+cowork.work.mine.none,No due date
+cowork.work.mine.overdue,Overdue
+cowork.work.mine.today,Due today
+cowork.work.mine.week,Due this week
 cowork.work.mirror.add,Mirror
 cowork.work.mirror.badge,Mirror
 cowork.work.mirror.remove,Remove mirror
@@ -1475,15 +1510,33 @@ cowork.work.repeat.monthly,Monthly
 cowork.work.repeat.never,Never
 cowork.work.repeat.weekly,Weekly
 cowork.work.repeat.yearly,Yearly
+cowork.work.rules.action_assign,Assign to
+cowork.work.rules.action_complete,Mark complete
+cowork.work.rules.action_due_days,Set due date
+cowork.work.rules.action_label,Add label
+cowork.work.rules.action_watch,Add watcher
+cowork.work.rules.add,Create a rule
+cowork.work.rules.days,Days later
+cowork.work.rules.empty,No rules yet
+cowork.work.rules.enabled,Enabled
+cowork.work.rules.manage,Automation
+cowork.work.rules.saved,Rules saved
+cowork.work.rules.then,Then
+cowork.work.rules.when,When a card enters
 cowork.work.status.doing,In progress
 cowork.work.status.done,Done
 cowork.work.status.todo,To do
+cowork.work.table.export,Export Excel
 cowork.work.template.badge,Template
 cowork.work.template.create,Create from template
 cowork.work.template.empty,No templates yet
 cowork.work.template.set,Make template
 cowork.work.template.title,Card templates
 cowork.work.template.unset,Remove template
+cowork.work.view.board,Board
+cowork.work.view.calendar,Calendar
+cowork.work.view.mine,My cards
+cowork.work.view.table,Table
 cowork_line,Cowork LINE
 document,document
 erp.account_set_unavailable,This account set is unavailable.
@@ -1695,3 +1748,4 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {who} removed attachment {0},{who} removed attachment {0}
 {who} restored this card,{who} restored this card
 {who} set the due date to {0},{who} set the due date to {0}
+{who}'s automation: {0} {1},{who}'s automation: {0} {1}
