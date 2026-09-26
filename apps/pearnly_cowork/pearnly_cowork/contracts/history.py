@@ -152,8 +152,11 @@ def _summary_amount(value) -> str | None:
 	return str(amount) if amount.is_finite() else None
 
 
-def extract_summary_fields(pages: list[dict]) -> dict:
-	"""Keep legacy first-original-page selection, then highest-field-count fallback."""
+PARTY_FIELDS = ("seller_tax", "buyer_name", "buyer_tax")
+
+
+def primary_page_fields(pages: list[dict]) -> dict:
+	"""The page the summary, push and learning read: legacy first original page, then best-filled page."""
 	def score(page):
 		fields = page.get("fields") or {}
 		return sum(bool(fields.get(key)) for key in ("invoice_number", "total_amount", "seller_name", "date"))
@@ -169,7 +172,12 @@ def extract_summary_fields(pages: list[dict]) -> dict:
 		best = max(pages, key=score)
 		if score(best) > 0:
 			selected = best
-	fields = (selected or {}).get("fields") or {}
+	return (selected or {}).get("fields") or {}
+
+
+def extract_summary_fields(pages: list[dict]) -> dict:
+	"""Keep legacy first-original-page selection, then highest-field-count fallback."""
+	fields = primary_page_fields(pages)
 	invoice_date = None
 	if fields.get("date"):
 		try:
@@ -184,6 +192,12 @@ def extract_summary_fields(pages: list[dict]) -> dict:
 		"seller_name": _summary_text(fields.get("seller_name")),
 		"total_amount": _summary_amount(fields.get("total_amount")),
 	}
+
+
+def extract_party_fields(pages: list[dict]) -> dict:
+	"""List columns for both parties, read from the same primary page as the summary."""
+	fields = primary_page_fields(pages)
+	return {key: _summary_text(fields.get(key)) for key in PARTY_FIELDS}
 
 
 def list_status(confidence, summary: dict) -> str:

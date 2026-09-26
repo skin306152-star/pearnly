@@ -270,6 +270,9 @@ def reserve(*, context, request_key, frozen_target, frozen_payload,
             # A DB unique constraint is the final guard, even if a future caller
             # accidentally omits the ordered admission lock.
             fail('push.native_reservation_conflict')
+        if disposition == 'manual':
+            # 准备阶段就被拦下：历史列表上要看到「待人工核对 + 原因」（用户 2026-09-26）。
+            push_state.mirror(row, timestamp, select=True)
         return {**project(row), 'replayed': False}
 
 
@@ -424,8 +427,12 @@ def confirm(name, *, context, credential, expected_revision, request_key):
         if frappe.conf.get('pearnly_cowork_erp_push_enabled') not in (True, 1):
             fail('ERR_EXPRESS_DISABLED')
         _dispatch_record(row, context)
-        evidence = target.get('preparation_evidence') or {}
-        if not evidence.get('credential') or evidence['credential'] != credential:
+        if target.get('adapter') == 'express':
+            evidence = target.get('preparation_evidence') or {}
+            if not evidence.get('credential') or evidence['credential'] != credential:
+                fail('push.native_target_changed')
+        elif credential is not None:
+            # MR.ERP 由服务端直连执行，不存在小助手凭据；带了就是调用方搞错了通道。
             fail('push.native_target_changed')
         _dispatch_target(context, loaded, target)
         row.confirmation_request, row.confirmation_revision = operation, expected_revision
@@ -569,7 +576,11 @@ def _release(row, locks):
         persist(lock)
 
 
-def _response(branch, stage, docnum, line_modes, meta):
+def _response(branch, stage, docnum, line_modes, meta, adapter='express'):
+    if adapter == 'mrerp':
+        return {'ok': stage == common.STAGE_SUCCESS,
+                'mrerp_bill_no': docnum if stage == common.STAGE_SUCCESS else None,
+                'meta': {**common.sanitize_push_meta(meta), 'stage': stage}}
     body = {'ok': stage == common.STAGE_SUCCESS, 'express_docnum': docnum if stage == common.STAGE_SUCCESS else None}
     # Both source ACK callers only pass line modes on success; the response
     # builder's ability to accept them on other stages was not a live contract.
@@ -598,7 +609,8 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         raw = frappe.db.get_value(RECORD, name, 'target_json')
         if not raw:
             fail('push.native_record_not_found')
-        locks = _locks(context, json.loads(raw))
+        target = json.loads(raw)
+        locks = _locks(context, target)
         row = _record(name, context)
         attempt = _attempt(row, adapter, attempt_token, fence)
         if row.status == 'success':
@@ -606,7 +618,7 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         transition = acknowledgement(branch=row.branch, attempt=int(row.wire_attempt),
             success=success, outcome=outcome, error=error)
         docnum = call(text, express_docnum, length=140, optional=True) or None
-        response = _response(row.branch, transition.stage, docnum, line_modes, meta)
+        response = _response(row.branch, transition.stage, docnum, line_modes, meta, target.get('adapter') or 'express')
         response_json = call(encode, response)
         ack_digest = call(digest, [transition.stage, success, docnum, error, line_modes, meta])
         if attempt.status == 'finished':
@@ -654,6 +666,33 @@ def recover_expired(name, *, context, adapter, now=None):
         persist(attempt)
         row.status, row.result_unknown, row.reason = 'manual', 1, 'ERP_CONFIRMED_PUSH_RESULT_UNKNOWN'
         _save_record(row, timestamp)
+        return {**project(row), 'replayed': False}
+
+
+def mark_unknown(name, *, context, adapter, fence, attempt_token, reason='ERP_CONFIRMED_PUSH_RESULT_UNKNOWN'):
+    """The owning attempt already sent an irreversible write and then lost its result.
+
+    Same effect as an expired lease (`recover_expired`): manual + unknown, all writer
+    locks retained, never retried automatically. Used by the server-side MR.ERP
+    executor after its import confirmation request was sent.
+    """
+    with atomic():
+        _receipt_scope(context, adapter)
+        raw = frappe.db.get_value(RECORD, name, 'target_json')
+        if not raw:
+            fail('push.native_record_not_found')
+        locks = _locks(context, json.loads(raw))
+        row = _record(name, context)
+        attempt = _attempt(row, adapter, attempt_token, fence)
+        if row.status != 'leased' or attempt.status != 'leased':
+            return {**project(row), 'replayed': True}
+        if any(lock.holder != row.name or int(lock.holder_fence or 0) != int(row.fence) for lock in locks):
+            fail('push.native_lock_conflict')
+        attempt.status = 'unknown'
+        persist(attempt)
+        row.status, row.result_unknown = 'manual', 1
+        row.reason = call(text, reason, length=500)
+        _save_record(row, now_utc())
         return {**project(row), 'replayed': False}
 
 

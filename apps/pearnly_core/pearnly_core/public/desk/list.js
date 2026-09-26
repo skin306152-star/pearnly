@@ -78,7 +78,9 @@
 						? column.cell_class(value, row) : column.cell_class;
 					const klass = String(extra ?? "").split(/\s+/).filter(Boolean)
 						.map(name => p.escape(name)).join(" ");
-					return `<span class="ellipsis${klass ? ` ${klass}` : ""}" title="${p.escape(text ?? "")}">${p.escape(text ?? "")}</span>`;
+					// 悬浮提示默认就是格子里的字；列可以给 `title(value, row)` 换成别的（例如失败原因）。
+					const tip = typeof column.title === "function" ? column.title(value, row) || text : text;
+					return `<span class="ellipsis${klass ? ` ${klass}` : ""}" title="${p.escape(tip ?? "")}">${p.escape(text ?? "")}</span>`;
 				};
 				return {type: i === 0 ? "Subject" : "Field", df: {fieldtype: "Data", ...column}};
 			});

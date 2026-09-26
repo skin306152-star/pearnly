@@ -1,0 +1,132 @@
+/* 录入页那几组选择卡片与上传区的**排布**。
+ *
+ * 只管布局与中性色：颜色、按钮、状态药丸仍旧由官方 Desk 与共用皮肤决定。
+ * 配色口径（用户 2026-09-25）：**主题色只出现在侧栏和主按钮**，所以这里的选中态
+ * 用中性描边 + 加粗，不拿 `--pearnly-accent` 去描卡片；不可选态只是压暗。
+ */
+/* 三张目标卡一排等宽等高（MR.ERP / Express / 仅识别），窄屏改成一列。 */
+.pearnly-choice {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+@media (max-width: 575px) {
+	.pearnly-choice {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* 弹窗里那四组选择各自的标题（卡片上方一行小标题）。 */
+.pearnly-choice-title {
+	margin: 4px 0 8px;
+	font-weight: 600;
+}
+
+/* 二级页面：照 ERP 采购页的排布（`purchase.css`）。DOM 里原件区在前、字段在后：
+ * 桌面用网格把原件摆到右栏并吸顶；手机按顺序纵排（原件在上），另有一条分区导航。 */
+.pearnly-intake-nav {
+	display: none;
+	top: var(--pearnly-intake-head-height, 50px);
+}
+
+.pearnly-intake-body {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+	align-items: start;
+	gap: 16px;
+}
+
+.pearnly-intake-data {
+	grid-column: 1;
+	grid-row: 1;
+	min-width: 0;
+}
+
+.pearnly-intake-evidence {
+	grid-column: 2;
+	grid-row: 1;
+	min-width: 0;
+	position: sticky;
+	top: var(--pearnly-intake-head-height, 50px);
+	padding-left: 16px;
+	border-left: 1px solid var(--border-color, #d1d8dd);
+}
+
+@media (max-width: 767px) {
+	.pearnly-intake-nav {
+		display: block;
+	}
+
+	.pearnly-intake-body {
+		display: block;
+	}
+
+	.pearnly-intake-evidence {
+		position: static;
+		padding-left: 0;
+		border-left: 0;
+	}
+}
+
+.pearnly-choice-card {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	padding: 10px 12px;
+	border: 1px solid var(--border-color, #d1d8dd);
+	border-radius: 8px;
+	background: var(--fg-color, #fff);
+	cursor: pointer;
+}
+
+/* 名称一行、状态固定在下一行：状态文字长短不同，三张卡的排版也一致。 */
+.pearnly-choice-head {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+}
+
+.pearnly-choice-label {
+	font-weight: 500;
+}
+
+.pearnly-choice-hint {
+	margin-top: 6px;
+	line-height: 1.45;
+}
+
+/* 按钮贴卡片底边：三张卡不论有没有状态、按钮，底线都对齐。 */
+.pearnly-choice-actions {
+	margin-top: auto;
+	padding-top: 10px;
+	display: flex;
+	gap: 8px;
+}
+
+/* 选中：中性色描边（深色文字色），并把标签加粗 —— 不引入主题色。 */
+.pearnly-choice-card.is-picked {
+	border-color: var(--text-color, #1f272e);
+	box-shadow: inset 0 0 0 1px var(--text-color, #1f272e);
+}
+
+.pearnly-choice-card.is-picked .pearnly-choice-label {
+	font-weight: 600;
+}
+
+/* 不可选：只是压暗并去掉手型，不改颜色语义。 */
+.pearnly-choice-card.is-blocked {
+	cursor: not-allowed;
+}
+
+/* 只压暗名称与状态；卡上的「连接」正是用来解除不可选的，不能跟着变灰。 */
+.pearnly-choice-card.is-blocked .pearnly-choice-head {
+	opacity: 0.6;
+}
+
+/* 文件选择框自己藏起来：界面上只留官方那颗按钮（键盘也走那颗按钮）。 */
+.pearnly-upload-input {
+	display: none;
+}

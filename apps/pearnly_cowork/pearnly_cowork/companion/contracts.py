@@ -50,6 +50,11 @@ def operation_identity(site, actor, connection, request_key):
     return fingerprint([text(site), text(actor), text(connection), text(request_key, maximum=200)])
 
 
+def wire_flag(value):
+    """HTTP form 把布尔值送成字符串：只认这四种确切写法，别的原样交给合同去拒绝。"""
+    return {'1': True, 'true': True, '0': False, 'false': False}.get(value, value) if isinstance(value, str) else value
+
+
 def issue_intent(reset, expected_generation):
     if type(reset) is not bool or (not reset and expected_generation is not None):
         raise CredentialError('companion.request_invalid')

@@ -40,3 +40,17 @@ def records(connection, start=0, limit=50):
 @frappe.whitelist(methods=["POST"])
 def cancel_prepared(name, expected_revision):
     return _local_transaction(service.cancel_prepared, name, expected_revision)
+
+
+@frappe.whitelist(methods=["POST"])
+def confirm(name, expected_revision, request_key):
+    """MR.ERP：确认发送（服务端直连执行）。Express 的确认走 `companion.submission.confirm`。"""
+    return _local_transaction(service.confirm_server, name, expected_revision, request_key)
+
+
+@frappe.whitelist(methods=["POST"])
+def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
+           account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None):
+    """复核页「提交」一张票：失败不抛，原因记在票上（列表状态图标悬浮可看）。"""
+    return _local_transaction(service.submit, history, connection, request_key, expected_history_version,
+        expected_connection_revision, account_set_key, catalog_request_id, catalog_revision, posting_kind)

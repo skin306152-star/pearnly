@@ -112,16 +112,39 @@ def _row_scope(row, doc):
         frappe.throw(_('Not Permitted'), frappe.PermissionError)
 
 
+# 旧线上 `erp-agent-liveness.ts`：3 分钟内有心跳算在线；助手主动下线时时间戳写成 1970。
+ONLINE_SECONDS = 180
+
+
+def _online(doc, row, now=None):
+    """助手实际连上：**当前这把**有效密钥最近 3 分钟内报过到。只生成了密钥、旧密钥报的、
+    时间戳缺失或读不出，一律算没连上（旧版同样“拿不准一律判离线”）。"""
+    if row is None or row.revoked_at or not row.active_key:
+        return False
+    if (doc.get('report_credential') != row.name
+            or int(doc.get('report_generation') or 0) != int(row.token_generation)):
+        return False
+    try:
+        seen = datetime.fromisoformat(str(json.loads(doc.get('report_json') or '{}').get('agent_last_seen_at') or ''))
+    except (TypeError, ValueError, AttributeError):
+        return False
+    if seen.tzinfo is None:
+        return False
+    age = ((now or datetime.now(timezone.utc)) - seen).total_seconds()
+    return 0 <= age < ONLINE_SECONDS
+
+
 def _dto(doc, row):
     if row is None:
         return {'connection': doc.name, 'credential_id': None, 'generation': 0,
                 'state': 'missing', 'tail': '', 'issuer': None, 'issued_at': None,
-                'revoked_at': None, 'connection_enabled': bool(doc.enabled)}
+                'revoked_at': None, 'connection_enabled': bool(doc.enabled), 'online': False}
     _row_scope(row, doc)
     return {'connection': doc.name, 'credential_id': row.name, 'generation': int(row.token_generation),
             'state': 'active' if row.active_key and not row.revoked_at else 'revoked',
             'tail': row.token_tail, 'issuer': row.issuer, 'issued_at': row.issued_at,
-            'revoked_at': row.revoked_at, 'connection_enabled': bool(doc.enabled)}
+            'revoked_at': row.revoked_at, 'connection_enabled': bool(doc.enabled),
+            'online': _online(doc, row)}
 
 
 def _find_receipt(doc, operation, intent):

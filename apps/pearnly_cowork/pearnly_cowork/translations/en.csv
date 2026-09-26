@@ -19,11 +19,15 @@ Access to the Companion queue has been revoked.,Access to the Companion queue ha
 Account Key,Account Key
 Account Set Key,Account Set Key
 Ack Digest,Ack Digest
+Active,Active
 Active Attempt,Active Attempt
 Active Key,Active Key
 Actor,Actor
 Actual Qty,Actual Qty
+Add User,Add User
+Added {0},Added {0}
 Allowed Users,Allowed Users
+Already exists,Already exists
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
@@ -39,23 +43,32 @@ Billing Receipt,Billing Receipt
 Billing Reference,Billing Reference
 Billing State,Billing State
 Billing Units,Billing Units
+Bind this account first,Bind this account first
 Binding Generation,Binding Generation
+Binding code,Binding code
 Blocked By,Blocked By
 Book Qty,Book Qty
+Bound,Bound
 Bound Account Set,Bound Account Set
 Bound Invoice Records,Bound Invoice Records
 Bound Profile Key,Bound Profile Key
+Bound at,Bound at
+Bound to {0},Bound to {0}
 Branch,Branch
 Buyer Client,Buyer Client
+Cannot tell which company this entry belongs to; the site must have exactly one.,Cannot tell which company this entry belongs to; the site must have exactly one.
+Cash,Cash
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
 Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checks Json,Checks Json
+Choose at least one job role,Choose at least one job role
 Client,Client
 Closed At,Closed At
 Closed By,Closed By
+Code expired,Code expired
 Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
 Companion Report,Companion Report
 Companion authentication failed.,Companion authentication failed.
@@ -109,6 +122,7 @@ Create invoice records through the Cowork intake service.,Create invoice records
 Created By,Created By
 Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
+Credit,Credit
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
@@ -119,6 +133,8 @@ Directory Revision,Directory Revision
 Directory Scope Key,Directory Scope Key
 Directory Scope Kind,Directory Scope Kind
 Directory Snapshot,Directory Snapshot
+Disable,Disable
+Disable {0},Disable {0}
 Document Key,Document Key
 Draft,Draft
 Duplicate records are not allowed.,Duplicate records are not allowed.
@@ -131,8 +147,14 @@ ERP records cannot be saved in Cowork.,ERP records cannot be saved in Cowork.
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
 Edit Count,Edit Count
+Edit in Full Page,Edit in Full Page
+Email,Email
+Enable,Enable
+Enable {0},Enable {0}
 Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1 to 120 characters.
+Enter a valid email,Enter a valid email
 Enter a valid quantity with no more than six decimal places.,Enter a valid quantity with no more than six decimal places.
+Enter the user name,Enter the user name
 Entry,Entry
 Event Key,Event Key
 Evidence Fingerprint,Evidence Fingerprint
@@ -148,6 +170,7 @@ Field,Field
 File Hash,File Hash
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
+General,General
 Generation Key,Generation Key
 History,History
 History Records,History Records
@@ -155,6 +178,8 @@ History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
 IN,IN
+Inactive,Inactive
+Initial Password,Initial Password
 Installed At (UTC),Installed At (UTC)
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
 Invalid original document manifest.,Invalid original document manifest.
@@ -162,6 +187,7 @@ Invalid original filename.,Invalid original filename.
 Invalid posting type.,Invalid posting type.
 Invalid push execution mode.,Invalid push execution mode.
 Invalid push request.,Invalid push request.
+Invalid push target.,Invalid push target.
 Invalid recognized invoice group.,Invalid recognized invoice group.
 Invalid request key.,Invalid request key.
 Invalid statement review rows or row references.,Invalid statement review rows or row references.
@@ -179,7 +205,12 @@ Issued At (UTC),Issued At (UTC)
 Issued By,Issued By
 Issued Request Digest,Issued Request Digest
 Item,Item
+Job Roles,Job Roles
+LINE is not enabled for this account,LINE is not enabled for this account
+LINE name,LINE name
+LINE unbound,LINE unbound
 Last Fields Edit (UTC),Last Fields Edit (UTC)
+Last Login,Last Login
 Last Push Record,Last Push Record
 Last Push Status,Last Push Status
 Last Pushed At (UTC),Last Pushed At (UTC)
@@ -195,10 +226,12 @@ Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
 Native Content Hash,Native Content Hash
 Needs review,Needs review
+New code,New code
 New records must start as drafts.,New records must start as drafts.
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No invoice summary found,No invoice summary found
 Not Permitted,Not Permitted
+Not bound,Not bound
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
@@ -220,8 +253,10 @@ Owner Id,Owner Id
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
 Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
+Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Payload Json,Payload Json
+Payment Method,Payment Method
 Pearnly Cowork,Pearnly Cowork
 Pending,Pending
 Phase,Phase
@@ -239,6 +274,7 @@ Provider Evidence,Provider Evidence
 Push Attempt,Push Attempt
 Push Record,Push Record
 Push record not found.,Push record not found.
+"Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
 Quantity,Quantity
 Reason,Reason
 Recognition Confidence,Recognition Confidence
@@ -274,10 +310,12 @@ Request Receipts,Request Receipts
 Requested At (UTC),Requested At (UTC)
 Required invoice amounts are missing. Complete them before exporting.,Required invoice amounts are missing. Complete them before exporting.
 Requires Review,Requires Review
+Reset Password,Reset Password
 Response Json,Response Json
 Result Directory Revision,Result Directory Revision
 Result Json,Result Json
 Result Unknown,Result Unknown
+Review,Review
 Review JSON,Review JSON
 Reviewed amounts need a balance and at most two decimal places.,Reviewed amounts need a balance and at most two decimal places.
 Revision,Revision
@@ -287,6 +325,7 @@ Revoked By,Revoked By
 Row {0}: {1},Row {0}: {1}
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
+Saved,Saved
 Scope Key,Scope Key
 Select a file to upload.,Select a file to upload.
 Select between 1 and 100 distinct history records to export.,Select between 1 and 100 distinct history records to export.
@@ -294,6 +333,7 @@ Select between 1 and 500 records.,Select between 1 and 500 records.
 Select valid files to download.,Select valid files to download.
 Seller Name,Seller Name
 Seller Tax ID,Seller Tax ID
+Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
 Settings Json,Settings Json
 Site,Site
@@ -310,12 +350,15 @@ Source Reference Kind,Source Reference Kind
 Source Sha256,Source Sha256
 Started At,Started At
 Statement review is not available for this task.,Statement review is not available for this task.
+Status,Status
 Stock,Stock
 Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
+Submit,Submit
 Summary table import,Summary table import
 Target Json,Target Json
 Task,Task
 Tax ID,Tax ID
+That code is not valid,That code is not valid
 The Companion delivery record is invalid.,The Companion delivery record is invalid.
 The Companion delivery record was not found.,The Companion delivery record was not found.
 The Companion identity is no longer valid. Authenticate again.,The Companion identity is no longer valid. Authenticate again.
@@ -430,6 +473,7 @@ This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
+This channel is not open yet,This channel is not open yet
 This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
 This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
@@ -452,15 +496,19 @@ This request key was used for different content.,This request key was used for d
 This request key was used for different push content.,This request key was used for different push content.
 This stock count task is closed.,This stock count task is closed.
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
+Time left {0},Time left {0}
 Title,Title
 Token Digest,Token Digest
 Token Generation,Token Generation
 Token Tail,Token Tail
 Transaction Date,Transaction Date
+Unbind LINE,Unbind LINE
+Unbind Pearnly Cowork LINE?,Unbind Pearnly Cowork LINE?
 Unsupported ERP connection type.,Unsupported ERP connection type.
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Updated At,Updated At
 Updated By,Updated By
+Updated {0} user(s),Updated {0} user(s)
 Uploaded By,Uploaded By
 Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
 Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
@@ -468,10 +516,13 @@ Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR servi
 Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
 Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
 Use the stock count workflow to change these records.,Use the stock count workflow to change these records.
+User Settings,User Settings
+Username can only have letters and numbers,Username can only have letters and numbers
 Version,Version
 Voided,Voided
 Warehouse,Warehouse
 Wire Attempt,Wire Attempt
+Work Coordination,Work Coordination
 Work Name,Work Name
 Workspace,Workspace
 You do not have access to this ERP target.,You do not have access to this ERP target.
@@ -517,9 +568,38 @@ connection.scope_immutable,"The company, client and type of a connection cannot 
 connection.snapshot_invalid,The directory snapshot does not match this connection.
 connection.snapshot_too_large,The directory snapshot exceeds the 16 MiB limit.
 connection.url_invalid,The ERP address is invalid or not allowed.
+cowork.line.boundAt,Bound at
+cowork.line.code,Binding code
+cowork.line.expired,Code expired
+cowork.line.lineName,LINE name
+cowork.line.newCode,New code
+cowork.line.remaining,Time left {0}
+cowork.line.status.bound,Bound
+cowork.line.status.unbound,Not bound
+cowork.line.unbind,Unbind LINE
+cowork.line.unbindConfirm,Unbind Pearnly Cowork LINE?
+cowork.nav.work,Work Coordination
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.quality.pending,Needs review
+cowork.team.action.bulkDisable,Disable {0}
+cowork.team.action.bulkEnable,Enable {0}
+cowork.team.active,Active
+cowork.team.disable,Disable
+cowork.team.email,Email
+cowork.team.enable,Enable
+cowork.team.inactive,Inactive
+cowork.team.lastLogin,Last Login
+cowork.team.new,Add User
+cowork.team.notice.added,Added {0}
+cowork.team.notice.password,Password updated
+cowork.team.notice.saved,Saved
+cowork.team.notice.toggled,Updated {0} user(s)
+cowork.team.password,Initial Password
+cowork.team.resetPassword,Reset Password
+cowork.team.roles,Job Roles
+cowork.team.status,Status
+cowork.workspace_unresolved,Cannot tell which company this entry belongs to; the site must have exactly one.
 cowork_line,Cowork LINE
 document,document
 erp.account_set_unavailable,This account set is unavailable.
@@ -605,6 +685,7 @@ pending,Pending
 physical_page,physical_page
 push.adapter_not_connected,This ERP adapter is not connected yet.
 push.branch_invalid,Invalid push execution mode.
+push.disabled,"Pushing is not enabled for this site, so nothing was sent."
 push.native_ack_conflict,The acknowledgement conflicts with the recorded result.
 push.native_history_changed,The invoice has changed. Prepare it again.
 push.native_lock_conflict,Another push holds the writer lock.

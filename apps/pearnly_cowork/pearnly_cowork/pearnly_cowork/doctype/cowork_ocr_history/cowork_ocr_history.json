@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-09-20 00:00:00.000000",
+ "modified": "2026-09-26 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -26,6 +26,9 @@
   "invoice_no",
   "invoice_date",
   "seller_name",
+  "seller_tax",
+  "buyer_name",
+  "buyer_tax",
   "total_amount",
   "record_version",
   "edit_count",
@@ -45,6 +48,9 @@
   "last_push_status",
   "last_pushed_at",
   "last_push_record",
+  "last_push_reason",
+  "push_connection",
+  "push_account_set",
   "duplicate_check_status",
   "duplicate_level",
   "duplicate_match"
@@ -161,6 +167,27 @@
    "length": 200,
    "read_only": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "seller_tax",
+   "fieldtype": "Data",
+   "label": "Seller Tax ID",
+   "length": 200,
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_name",
+   "fieldtype": "Data",
+   "label": "Buyer Name",
+   "length": 200,
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_tax",
+   "fieldtype": "Data",
+   "label": "Buyer Tax ID",
+   "length": 200,
+   "read_only": 1
   },
   {
    "fieldname": "total_amount",
@@ -290,6 +317,29 @@
    "fieldname": "last_push_record",
    "label": "Last Push Record",
    "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "last_push_reason",
+   "fieldtype": "Small Text",
+   "label": "Last Push Reason",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "push_connection",
+   "fieldtype": "Data",
+   "label": "Push Connection",
+   "length": 140,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "push_account_set",
+   "fieldtype": "Data",
+   "label": "Push Account Set",
+   "length": 255,
    "read_only": 1,
    "hidden": 1
   }

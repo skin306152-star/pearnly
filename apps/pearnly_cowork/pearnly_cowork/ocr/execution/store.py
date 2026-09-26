@@ -14,7 +14,7 @@ from pearnly_cowork.ocr.execution import access
 WRITE = object()
 IMMUTABLE = ("source_file", "workspace", "client", "actor", "request_key", "request_fingerprint",
              "source_sha256", "page_count", "billing_reference", "settings_json", "examples_json",
-             "anchor_date", "direction", "posting_kind", "work_name",
+             "anchor_date", "direction", "posting_kind", "payment", "work_name",
              "reference_kind", "billing_kind", "billing_units")
 
 

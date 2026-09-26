@@ -9,7 +9,8 @@ from collections import Counter
 from copy import deepcopy
 
 from pearnly_cowork.contracts.history import normalize_source
-from pearnly_cowork.contracts.push import apply_batch_direction, normalize_direction, normalize_posting_kind
+from pearnly_cowork.contracts.push import (apply_batch_direction, apply_batch_payment,
+    normalize_direction, normalize_payment, normalize_posting_kind)
 from pearnly_cowork.ocr.grouping import group_invoices
 from pearnly_cowork.ocr.pages import (
     aggregate_confidence_band, all_pages_not_invoice, assess_confidence,
@@ -74,7 +75,7 @@ def _require_complete(result, expected_page_count):
 
 
 def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, workspace: str,
-                          source: str, client=None, posting_kind=None, direction=None,
+                          source: str, client=None, posting_kind=None, direction=None, payment=None,
                           reference_kind="physical_page") -> dict:
     """Prepare groups for persist_batch; a result is never a billing permission.
 
@@ -102,6 +103,10 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
             raise OcrResultError("ocr.result_unvalidated")
         groups = prepare_groups(result, workspace=workspace, client=client, source=source,
                                 posting_kind=normalize_posting_kind(posting_kind))
+        # 复核工作簿自己也声明一套字段，付款方式只补**没人定过**的那些页。
+        for group in groups:
+            for page in group.get("pages") or []:
+                apply_batch_payment(page.get("fields"), normalize_payment(payment))
         return {"state": "review_required" if review_pages else "ready", "groups": groups,
                 "raw_pages": flatten_pipeline_pages(result.pages), "invoice_count": len(groups),
                 **references, "confidence": None, "confidence_band": aggregate_confidence_band(result.pages),
@@ -125,8 +130,11 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
     groups = group_invoices(assessed["pages"])
     prepared = []
     declared_direction = normalize_direction(direction)
+    # 入口勾的付款方式（现金/赊账）：先归一，再逐张写成人工裁决。
+    declared_payment = normalize_payment(payment)
     for group in groups:
         apply_batch_direction(group["invoice_fields"], declared_direction)
+        apply_batch_payment(group["invoice_fields"], declared_payment)
         first_final_pages = history_pages(group)
         prepared.append({"workspace": workspace, "client": client, "source": source,
             "source_page_indices": list(group["page_indices"]), "pages": first_final_pages,

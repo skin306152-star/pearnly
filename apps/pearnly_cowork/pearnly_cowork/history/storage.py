@@ -10,14 +10,17 @@ from frappe import _
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
 from . import categories, duplicates
-from pearnly_cowork.contracts.history import HistoryContractError, initial_history, prepare_pages, extract_summary_fields, list_status, normalize_posting_kind
+from pearnly_cowork.contracts.history import (HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
+    extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind)
 
 DOCTYPE = "Cowork OCR History"
 _CREATE_TOKEN = object()
 _UPDATE_TOKEN = object()
 IMMUTABLE = ("workspace", "client", "source", "request_key", "request_fingerprint",
              "ai_raw", "confidence", "posting_kind", "source_pdf_id", "source_page_indices",
-             "source_index", "source_total", "filename", "file_hash", "page_count", "source_file")
+             "source_index", "source_total", "filename", "file_hash", "page_count", "source_file",
+             # 新建录入时选的推送目标（连接 / 账套），识别落库时写入，之后按它推（用户 2026-09-26「按第一次选择」）。
+             "push_connection", "push_account_set")
 SUMMARY_FIELDS = ("invoice_no", "invoice_date", "seller_name", "total_amount")
 
 
@@ -98,6 +101,9 @@ def validate_document(doc):
     summary = extract_summary_fields(pages)
     for field in SUMMARY_FIELDS:
         doc.set(field, summary[field])
+    # 列表的买卖方与税号列：与摘要同一主页面，随每次写入重算，才能在服务端排序。
+    for field, value in extract_party_fields(pages).items():
+        doc.set(field, value)
     doc.quality_status = list_status(doc.confidence, summary)
 
 
@@ -191,7 +197,8 @@ def project(doc):
         "name", "workspace", "client", "source", "staged", "record_version", *PUSH_FIELDS,
         "confidence", "quality_status", "posting_kind", *SUMMARY_FIELDS,
         "edit_count", "fields_edited_at", "confirmed_by", "confirmed_at",
-        "source_file", "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count")}
+        "source_file", "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count",
+        "push_connection", "push_account_set")}
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
     result["posting_kind"] = normalize_posting_kind(doc.posting_kind)

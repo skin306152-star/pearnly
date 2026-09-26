@@ -9,7 +9,8 @@ from pearnly_core import billing_client
 from pearnly_core.execution import work
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.access import scope
-from pearnly_cowork.contracts.push import normalize_direction, normalize_posting_kind
+from pearnly_cowork.contracts.push import (normalize_direction, normalize_payment,
+                                          normalize_posting_kind)
 from pearnly_cowork.files import access as files
 from pearnly_cowork.files import service as originals
 from pearnly_cowork.ocr.execution import access, settings, store, work_guard
@@ -36,16 +37,31 @@ def balance(units, tier, *, kind="pdf"):
         raise Deferred(code, 60)
 
 
-def submit(source_file, request_key, *, direction=None, posting_kind=None):
+def _target(connection, account_set_key):
+    """新建录入选的推送目标：只记下来（推送时由推送域按当前授权与目录证据再核），这里只查形状。"""
+    connection = str(connection or "").strip() or None
+    account_set_key = str(account_set_key or "").strip() or None
+    if (connection and len(connection) > 140) or (account_set_key and (len(account_set_key) > 255 or not connection)):
+        frappe.throw(_("Invalid push target."))
+    return connection, account_set_key
+
+
+def submit(source_file, request_key, *, direction=None, posting_kind=None, payment=None,
+           connection=None, account_set_key=None):
     scope.require("intake")
     if not isinstance(request_key, str) or not 1 <= len(request_key.strip()) <= 128:
         frappe.throw(_("A request key of 1 to 128 characters is required."))
     direction, posting_kind = normalize_direction(direction), normalize_posting_kind(posting_kind)
+    # 入口勾的付款方式：认不出就拒（不静默丢掉商家的选择）。
+    payment = normalize_payment(payment)
+    connection, account_set_key = _target(connection, account_set_key)
     source = frappe.get_doc(files.SOURCE, source_file, for_update=True)
     scope.require_scope(source.workspace, source.client)
     files.require_full(source)
     name = store.digest([KIND, source.name])
-    fingerprint = store.digest([source.name, source.sha256, frappe.session.user, request_key, direction, posting_kind])
+    # 目标只在带了时进指纹：不带目标的老请求指纹不变，重放照旧认得出来。
+    fingerprint = store.digest([source.name, source.sha256, frappe.session.user, request_key,
+                                direction, posting_kind, payment, *([connection, account_set_key] if connection else [])])
     if frappe.db.exists(access.DOCTYPE, name):
         doc = store.read(name, write=True)
         if doc.request_fingerprint != fingerprint:
@@ -81,7 +97,8 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None):
         "billing_kind": billing_kind, "billing_units": billing_units,
         "billing_reference": "cowork.invoice:" + name, "settings_json": store.encode(frozen),
         "examples_json": store.encode(examples), "anchor_date": frozen["anchor_date"],
-        "direction": direction, "posting_kind": posting_kind, "phase": "admitted",
+        "direction": direction, "posting_kind": posting_kind, "payment": payment,
+        "target_connection": connection, "target_account_set": account_set_key, "phase": "admitted",
         "billing_state": "not_due", "work_name": work_name})
     # Core commits admission+Work together. The Batch already contains the exact
     # deterministic Work name before a worker can be enqueued by that commit.

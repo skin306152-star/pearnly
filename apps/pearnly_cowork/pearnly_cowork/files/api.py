@@ -8,8 +8,12 @@ from pearnly_cowork.files import access, service
 
 
 @frappe.whitelist(methods=["POST"])
-def upload(workspace, request_key, client=None):
+def upload(workspace=None, request_key=None, client=None):
+    # 界面上不出现账套（Cowork 不记账、只留记录），所以归属由服务端解析；
+    # 内部调用方仍可以显式传一份（lab 脚本、批处理走的就是那条）。
+    # 参数顺序保持原样（有调用方按位置传），只是让它变成可选。
     scope.require("intake")
+    workspace = workspace or scope.default_workspace()
     scope.require_scope(workspace, client)
     incoming = frappe.request.files.get("file") if frappe.request else None
     if not incoming:

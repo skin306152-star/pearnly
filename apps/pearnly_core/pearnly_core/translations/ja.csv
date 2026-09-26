@@ -42,6 +42,7 @@ Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
 Assign To,承認者の指定
+Assistant not connected,アシスタント未接続
 Attempt,試行回数
 Attempts,試行回数
 Auto Push,自動送信
@@ -67,6 +68,8 @@ Bound At,連携日時
 Branches {0},支店 {0}
 Business Key,業務キー
 Business number,業務番号
+Buyer,買い手
+Buyer Tax ID,買い手税番号
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
@@ -102,6 +105,7 @@ Confirmed,確認済み
 Confirmed At,確認日時
 Confirmed By,確認者
 Confirmed · ready to push,確認済み・送信可能
+Connect,接続
 Connect DMS before adding an operator.,オペレーターを追加する前にDMSを接続してください。
 Connect DMS to load the advisor list.,DMSを接続すると担当者一覧を読み込めます。
 Connect and save,接続して保存
@@ -116,6 +120,7 @@ Connection OK · {0},接続正常 · {0}
 Connection failed,接続に失敗しました
 Console,コンソール
 Contact support with the record ID,記録番号を添えてサポートへご連絡ください
+Copy,コピー
 Could not call the model: {0},モデルを呼び出せません: {0}
 Could not create the OIDC client: {0} {1},OIDCクライアントの作成に失敗: {0} {1}
 Could not create the account in the target environment: {0} {1},対象環境でのアカウント作成に失敗: {0} {1}
@@ -126,6 +131,7 @@ Could not get the admin token,管理者トークンの取得に失敗しまし�
 Could not get the admin token: {0},管理者トークンの取得に失敗: {0}
 Could not look the account up by email: {0},メールでアカウントを照会できませんでした: {0}
 Could not look up the account: {0} {1},アカウントの照会に失敗: {0} {1}
+Could not read companies and years. Please try again.,会社と年度を読み込めませんでした。もう一度お試しください。
 Could not read the account profile: {0},アカウント情報の読み取りに失敗: {0}
 Could not read the client secret: {0} {1},クライアントシークレットの取得に失敗: {0} {1}
 Could not send the invitation email: {0} {1},招待メールの送信に失敗: {0} {1}
@@ -183,12 +189,14 @@ DMS sign-in did not finish (after retrying there was neither a successful checkl
 DMS usage and balance,DMS側の利用量と残高
 DMS username,DMSユーザー名
 Date,日付
+Date as printed,伝票の日付
 Dedupe Key,重複防止キー
 Default Connection,既定の接続
 Delete,削除
 Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,選択した{0}名の操作員を削除しますか。LINE連携とDMS接続を解除し、送信ログは保持します。
 Delete {0} selected push records from this list? Sent business documents will not be affected.,選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。
+Delete {0} selected records? Pushed ones cannot be deleted.,選択した {0} 件を削除しますか？送信済みは削除できません。
 Deleted,削除しました
 Deleted {0} operators,{0}名の操作員を削除しました
 Deleted {0} push records,{0}件の送信記録を削除しました
@@ -209,6 +217,8 @@ Document Type,伝票種別
 Document date,伝票日付
 Document no.,伝票番号
 Documents,伝票数
+Done · {0} ok · {1} failed,完了 · 成功 {0} · 失敗 {1}
+Download assistant,アシスタントをダウンロード
 Draft,下書き
 Due Date,支払期日
 Duplicate skipped,重複のためスキップ
@@ -230,9 +240,12 @@ Endpoint,接続先
 Endpoint {0} has no password configured,端点 {0} にパスワードが設定されていません
 Endpoint {0} is disabled,端点 {0} は無効です
 "Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} のアダプタは {1} で、mrerp_dms ではありません
+Entering,入力中
+Entry status,登録ステータス
 Error Message,エラーメッセージ
 Event ID,イベントID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
+Expense,経費
 Expense / Item Category,費用・商品カテゴリ
 Expired,期限切れ
 Expires At,有効期限
@@ -258,12 +271,16 @@ Fill in a display name and this operator's own DMS account and password; issue b
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
 "Filters must be four-value rows with string doctypes, fields, and operators.",フィルタは doctype・フィールド・演算子の4値行である必要があります
 Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
+Fiscal year,年度
 Flow Status,進行ステータス
 For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
 Frappe Light,Pearnly
 Full Name,氏名
 Gender,性別
+Goods,商品
 Goods & Stock,商品と在庫
+Goods / Service,商品 / サービス
+Goods / expense,商品 / 経費
 Grand Total,税込合計
 Guests are not allowed to upload files for {0} Doctype,ゲストは {0} にファイルをアップロードできません
 Guide,使い方
@@ -289,6 +306,8 @@ Integrations,連携
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",フィールド {0} のフィルタが無効です。フィルタはリストで、各項目は doctype・フィールド名・演算子・値の4値である必要があります
 Invalid push channel,送信チャネルが不正です
 Invited By,招待者
+Invoice No. / Count,請求書
+Invoice {0}/{1},請求書 {0}/{1}
 Issue bind code,連携コードを発行
 Issuer,発行者
 Item / Description,品名・説明
@@ -296,6 +315,7 @@ Item / description,品名・摘要
 "JPG, PNG or PDF, up to 10 MB",JPG・PNG・PDF、10 MB まで
 "Kept as evidence, not a business field",証跡用で業務フィールドではありません
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
+Key,キー
 Kind,種類
 LINE Display Name,LINE表示名
 LINE Login,LINEログイン
@@ -320,6 +340,7 @@ Leave blank to keep unchanged,空欄なら変更しません
 Line Amount,行金額
 Line Discount,行値引
 Line No,行番号
+Line items,明細
 Lines,明細
 Linked,連携済み
 Loading advisors…,担当者一覧を読み込み中…
@@ -334,6 +355,7 @@ Manual handling,手動処理
 Master Data,マスタデータ
 Match result must be unmatched / existing customer / new customer,照合結果は 不一致／既存顧客／新規顧客 のいずれかです
 Max Retries,最大再試行
+May have missed an invoice — please verify page/invoice count against the original,請求書の読み取り漏れの可能性 · 原本のページ数・枚数をご確認ください
 Missing code or state,code または state がありません
 My Profile,個人プロフィール
 Name,名称
@@ -343,6 +365,7 @@ Net Amount,税抜金額
 Net Payable,支払純額
 Net amount,税抜金額
 Net payable,支払純額
+Network error,ネットワークエラー
 New Customer,今回新規作成
 New DMS password,新しいDMSパスワード
 New entry,新規入力
@@ -360,6 +383,7 @@ No existing customer matched and no DMS customer reference was given: confirm ma
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
 No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
 No purchase orders yet. Use “New purchase order” in the top right to add the first one.,まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。
+No recognition result — please re-upload,読取結果がありません。再アップロードしてください
 No records,記録はありません
 No records yet. Use “New entry” in the top right to add the first one.,まだ記録がありません。右上の「新規入力」から最初の1件を登録してください。
 No service account configured (site config pearnly_ocr_credentials),サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）
@@ -395,6 +419,7 @@ Operator list,オペレーター一覧
 Operators,オペレーター
 Optional,空欄可
 Order Discount,伝票全体の値引
+Original document,原本
 Outstanding,未払い
 Overage: {0}/page,超過料金：{0}/ページ
 Overage: {0}/page · Expires: {1},超過料金：{0}/ページ · 有効期限：{1}
@@ -455,11 +480,21 @@ Qty,数量
 Query access,照会権限
 Queued to push,送信待ち
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
+Reading companies and years from {0}…,{0} から会社と年度を読み込み中…
+Reading companies and years took too long. Please try again.,会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。
+Reading file contents,ファイル内容を読み取り中
+"Reading supplier, amounts, dates and tax fields",仕入先・金額・日付・税項目を読み取り中
 Received,受領額
 Recognition Raw,認識の生データ
 Recognition Records,認識記録
+Recognition failed. Please try again.,読み取りに失敗しました。もう一度お試しください。
 Recognition records,認識記録
+Recognition result,読み取り結果
+Recognition took too long. Please try again later.,読み取りに時間がかかりすぎました。後でもう一度お試しください。
+Recognition waited too long in the queue. Please upload again.,読み取り待ちが長すぎました。再アップロードしてください。
+Recognize and export,読み取り後にエクスポート
 Recognized,読み取り済み
+Recognizing,読み取り中
 Reconcile documents against the ledger,伝票と帳簿の照合
 Reconciliation,照合センター
 Records,明細
@@ -512,6 +547,8 @@ Save purchase order,仕入伝票を保存
 Saved,保存しました
 Saved as a draft; confirm it before it can be pushed,保存すると下書きになります。確認してから送信できます
 "Scan to add this account, then send the bind code in LINE.",スキャンして友だち追加し、LINEでこの連携コードを送信してください。
+Seller,売り手
+Seller Tax ID,売り手税番号
 Session Payload,セッションのペイロード
 Sign in again before changing your username.,ユーザー名を変更する前に再ログインしてください。
 Sign out,ログアウト
@@ -552,6 +589,7 @@ Supplier name,仕入先名
 Suppliers,仕入先
 System URL,システムURL
 System URL is not filled in,システムURLが未入力です
+Target ERP,連携先 ERP
 Team,チーム
 Tenant boot data,このサイトの起動データ
 Test connection,接続テスト
@@ -560,6 +598,7 @@ Testing…,テスト中…
 The DMS account is marked as resigned,DMSアカウントは退職として記録されています
 The DMS account is not approved to use the system,DMSアカウントはシステム利用が承認されていません
 The DMS advisor list is empty.,DMS担当者一覧は空です。
+The ERP timed out or the network failed. Please try again later.,ERP への接続がタイムアウトしたか、ネットワークに問題があります。後でもう一度お試しください。
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
 The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
@@ -597,9 +636,12 @@ The name is resolved server-side when pinning; the client's value is not trusted
 The new password cannot be the same as the current one,新しいパスワードは現在のものと同じにできません
 The new password is required,新しいパスワードは必須です
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです
+The old key stops working right away.,古いキーはすぐに使えなくなります。
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。
 The plan quota is used first; anything over is charged per plan rate from the balance,登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます
 The push channel must be companion or cloud,送信チャネルは companion または cloud のみです
+The recognition queue is full. Please try again later.,読み取り待ちがいっぱいです。後でもう一度お試しください。
+The recognition result is not confirmed yet. Refresh later to check.,読み取り結果はまだ確定していません。後で更新して確認してください。
 The result of each push,各連携の結果
 The service account could not exchange its token: {0},サービスアカウントのトークン交換に失敗: {0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。
@@ -614,11 +656,13 @@ The two passwords do not match,パスワードが一致しません
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
 "There is no DMS customer reference, so it cannot be pushed",DMS顧客参照がないため送信できません
+This ERP account has no company or year to choose.,この ERP アカウントには選択できる会社・年度がありません。
 This LINE account is not bound to this account on this site. Sign in with your password.,このLINEはこのサイトのこのアカウントに連携されていません。パスワードでログインしてください。
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 "This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
 This advisor is no longer in the current DMS list. Please select again.,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
 This company’s LINE official account is not configured yet.,会社のLINE公式アカウントはまだ設定されていません。
+This connection has no username and password yet.,この接続にはユーザー名とパスワードがまだ設定されていません。
 This document has already been recorded: {0},この伝票は既に登録済みです: {0}
 This identity is already bound to account {0} (record {1}),このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています
 This identity is already bound to {0},このアイデンティティは既に {0} に紐づいています
@@ -629,8 +673,10 @@ This operator's DMS account,このオペレーターのDMSアカウント
 This operator's DMS password,このオペレーターのDMSパスワード
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
 "This site has no LINE access token configured, so it cannot send messages",このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
+This site has no assistant installer address yet.,このサイトにはアシスタントのインストーラーURLがまだありません。
 This site has no product manifest installed; it cannot run as a business site.,このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
 This site has no product workspace yet,このサイトにはまだ製品ワークスペースがありません
+This system address is not allowed; only public addresses can be used.,このシステムアドレスは使用できません。公開アドレスのみ使用できます。
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?",「{0}」のLINE連携を解除しDMS接続も削除します。送信ログは残ります。削除しますか。
 This username is already in use.,このユーザー名は使用されています。
 This year,今年
@@ -679,6 +725,7 @@ VAT Amount,税額
 VAT Included,税込
 VAT Rate %,税率%
 Valid for {0},残り有効時間 {0}
+WHT deducted,源泉徴収税額
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 Warehouses,倉庫
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
@@ -695,6 +742,7 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,源泉税
 Work together,コラボレーション
 Workspace,ワークスペース
+Wrong ERP username or password. Check it under Connect and try again.,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。
 Yes,はい
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
 Your access domain,アクセスドメイン
@@ -872,41 +920,85 @@ home.topup.transfer,下記口座に振り込み、振込明細をアップロー
 intake.action.confirm,確認
 intake.action.new,新規入力
 intake.action.queue,送信
+intake.agent.copy,コピー
+intake.agent.key,キー
+intake.agent.reset,再生成
+intake.agent.resetConfirm,古いキーはすぐに使えなくなります。
+intake.agent.state.missing,アシスタント未接続
 intake.card.purchaseTotal,仕入合計（確認済み以上）
 intake.card.readyToPush,確認済み・送信可能
 intake.card.salesTotal,売上合計（確認済み以上）
 intake.card.waiting,確認待ち
+intake.catalog.ERR_ACCOUNT_SET_EMPTY,この ERP アカウントには選択できる会社・年度がありません。
+intake.catalog.ERR_AUTH,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。
+intake.catalog.ERR_NO_CREDS,この接続にはユーザー名とパスワードがまだ設定されていません。
+intake.catalog.ERR_TECHNICAL,ERP への接続がタイムアウトしたか、ネットワークに問題があります。後でもう一度お試しください。
+intake.catalog.ERR_TIMEOUT,会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。
+intake.catalog.ERR_UNEXPECTED,会社と年度を読み込めませんでした。もう一度お試しください。
+intake.catalog.ERR_URL_BLOCKED,このシステムアドレスは使用できません。公開アドレスのみ使用できます。
+intake.catalog.loading,{0} から会社と年度を読み込み中…
 intake.col.actions,操作
 intake.col.counterparty,取引先
 intake.col.date,日付
 intake.col.direction,区分
+intake.col.entryStatus,登録ステータス
 intake.col.grandTotal,税込合計
 intake.col.name,番号
 intake.col.status,ステータス
 intake.collapse,閉じる
+intake.confirm.delete,選択した {0} 件を削除しますか？送信済みは削除できません。
 intake.dir.purchase,仕入
 intake.dir.purchaseFull,仕入（受領した請求書）
 intake.dir.sales,売上
 intake.dir.salesFull,売上（自社発行の請求書）
 intake.empty,まだ記録がありません。右上の「新規入力」から最初の1件を登録してください。
 intake.error.http,リクエスト失敗（HTTP {0}）
+intake.error.poll_unreachable,ネットワークエラー
+intake.error.provider_outcome_unknown,読み取り結果はまだ確定していません。後で更新して確認してください。
+intake.error.queue_expired,読み取り待ちが長すぎました。再アップロードしてください。
+intake.error.queue_full,読み取り待ちがいっぱいです。後でもう一度お試しください。
+intake.error.timeout,読み取りに時間がかかりすぎました。後でもう一度お試しください。
+intake.error.workflow_error,読み取りに失敗しました。もう一度お試しください。
+intake.field.buyer,買い手
+intake.field.buyerTax,買い手税番号
 intake.field.counterparty,取引先
 intake.field.direction,仕入 / 売上
 intake.field.docDate,伝票日付
 intake.field.docNo,伝票番号
+intake.field.invoice,請求書
+intake.field.itemType,商品 / 経費
 intake.field.netAmount,税抜金額
+intake.field.printedDate,伝票の日付
+intake.field.seller,売り手
+intake.field.sellerTax,売り手税番号
 intake.field.source,取得元
 intake.field.vatAmount,税額
+intake.field.whtAmount,源泉徴収税額
 intake.filter.allDirections,全ての区分
 intake.filter.allStatuses,全てのステータス
 intake.hint.afterSave,保存すると下書きになります。確認してから送信できます
+intake.installerMissing,このサイトにはアシスタントのインストーラーURLがまだありません。
+intake.item.name,商品 / サービス
+intake.itemType.expense,経費
+intake.itemType.goods,商品
 intake.loading,読み込み中…
+intake.nav.items,明細
+intake.nav.original,原本
+intake.nav.result,読み取り結果
 intake.notice.created,登録しました：{0}
 intake.notice.moved,{0} → {1}
 intake.placeholder.counterparty,仕入先 / 顧客
 intake.placeholder.docNo,空欄可
+intake.proc.batchFail,完了 · 成功 {0} · 失敗 {1}
+intake.proc.empty,読取結果がありません。再アップロードしてください
+intake.proc.sub,仕入先・金額・日付・税項目を読み取り中
+intake.proc.title,ファイル内容を読み取り中
 intake.processing,処理中…
+intake.push.pending,入力中
 intake.refresh,更新
+intake.review.dupWarn,重複の可能性がある請求書 {0} 件を検出
+intake.review.invoice,請求書 {0}/{1}
+intake.review.missed,請求書の読み取り漏れの可能性 · 原本のページ数・枚数をご確認ください
 intake.save,保存
 intake.saving,保存中…
 intake.source.email,メール
@@ -918,8 +1010,13 @@ intake.status.failed,送信失敗
 intake.status.pushed,送信済み
 intake.status.queued,送信待ち
 intake.status.recognized,読み取り済み
+intake.status.recognizing,読み取り中
 intake.status.rejected,差戻し
 intake.subtitle,内容を確認して確定後、送信してください。
+intake.target.download,アシスタントをダウンロード
+intake.target.recognizeOnly,読み取り後にエクスポート
+intake.target.title,連携先 ERP
+intake.target.year,年度
 intake.title,取り込みワークベンチ
 nav.cashier,POS レジ
 nav.clients,顧客管理
@@ -1090,6 +1187,7 @@ system_url is required,system_url は必須です
 username / password are required,username / password は必須です
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ
+{0} possible duplicate invoice(s) detected,重複の可能性がある請求書 {0} 件を検出
 {0} record(s) deleted.,{0}件を削除しました。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました

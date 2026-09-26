@@ -86,6 +86,21 @@ def require_scope(workspace, client=None):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 
+def default_workspace() -> str:
+    """本站点那一份归属（公司资料），给**不经过界面选择**的调用方用。
+
+    产品口径（用户 2026-09-25）：Cowork 不记账、只留记录，界面上不出现账套，
+    所以录入这条链不该逼调用方先选一份。这里在**服务端**把它解析出来：
+    站点里恰好一份就用它；一份都没有、或有多份而调用方没说用哪一份，就明确报错
+    —— 不替人挑一份（挑错等于把记录挂到别人家账上）。
+    """
+    rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},
+                          pluck="name", order_by="name", limit_page_length=2)
+    if len(rows) == 1:
+        return rows[0]
+    frappe.throw(_("cowork.workspace_unresolved"))
+
+
 def history_permission(doc, ptype=None, user=None, **kwargs):
     feature_ok = any(allowed(f, user) for f in READ_FEATURES) if ptype in READ_TYPES else allowed("intake", user)
     return _decision(feature_ok and ptype not in {"delete", "share", "submit", "cancel"}

@@ -42,6 +42,7 @@ Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
 Are you sure you want to sign out?,确定要退出登录吗？
 Assign To,指定审批人
+Assistant not connected,助手未连接
 Attempt,第几次尝试
 Attempts,尝试次数
 Auto Push,自动推送
@@ -67,6 +68,8 @@ Bound At,绑定时间
 Branches {0},分店 {0}
 Business Key,业务键
 Business number,业务编号
+Buyer,买方
+Buyer Tax ID,买方税号
 Cancel,取消
 Cannot confirm while the status is {0},当前状态 {0} 不能确认
 Cannot match while the status is {0},当前状态 {0} 不能做匹配
@@ -102,6 +105,7 @@ Confirmed,已确认
 Confirmed At,确认时间
 Confirmed By,确认人
 Confirmed · ready to push,已确认 · 可推送
+Connect,连接
 Connect DMS before adding an operator.,请先连接 DMS，再添加操作员。
 Connect DMS to load the advisor list.,连接 DMS 后才能读取顾问名册。
 Connect and save,连接并保存
@@ -116,6 +120,7 @@ Connection OK · {0},连接正常 · {0}
 Connection failed,连接失败
 Console,控制台
 Contact support with the record ID,请提供记录编号联系支持
+Copy,复制
 Could not call the model: {0},调不动模型：{0}
 Could not create the OIDC client: {0} {1},创建 OIDC 客户端失败：{0} {1}
 Could not create the account in the target environment: {0} {1},在目标环境建账号失败：{0} {1}
@@ -126,6 +131,7 @@ Could not get the admin token,取管理令牌失败
 Could not get the admin token: {0},取管理令牌失败：{0}
 Could not look the account up by email: {0},按邮箱查账号失败：{0}
 Could not look up the account: {0} {1},查账号失败：{0} {1}
+Could not read companies and years. Please try again.,没能读取公司和年度，请重试。
 Could not read the account profile: {0},读取账号资料失败：{0}
 Could not read the client secret: {0} {1},取客户端密钥失败：{0} {1}
 Could not send the invitation email: {0} {1},邀请邮件发送失败：{0} {1}
@@ -183,12 +189,14 @@ DMS sign-in did not finish (after retrying there was neither a successful checkl
 DMS usage and balance,DMS 侧的用量与余额
 DMS username,DMS 用户名
 Date,日期
+Date as printed,票面日期
 Dedupe Key,去重键
 Default Connection,默认连接
 Delete,删除
 Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,确定删除选中的 {0} 名操作员？将解除 LINE 绑定并移除 DMS 连接，推送记录保留。
 Delete {0} selected push records from this list? Sent business documents will not be affected.,删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。
+Delete {0} selected records? Pushed ones cannot be deleted.,删除选中的 {0} 条记录？已推送的删不掉。
 Deleted,已删除
 Deleted {0} operators,已删除 {0} 名操作员
 Deleted {0} push records,已删除 {0} 条推送记录
@@ -209,6 +217,8 @@ Document Type,单据类型
 Document date,单据日期
 Document no.,单据号
 Documents,单据数
+Done · {0} ok · {1} failed,完成 · 成功 {0} · 失败 {1}
+Download assistant,下载助手
 Draft,草稿
 Due Date,到期日
 Duplicate skipped,重复已跳过
@@ -230,9 +240,12 @@ Endpoint,连接端点
 Endpoint {0} has no password configured,端点 {0} 没配密码
 Endpoint {0} is disabled,端点 {0} 已停用
 "Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} 的适配器是 {1}，不是 mrerp_dms
+Entering,录入中
+Entry status,录入状态
 Error Message,错误信息
 Event ID,事件 ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。
+Expense,费用
 Expense / Item Category,费用/物料类别
 Expired,已过期
 Expires At,过期时间
@@ -258,12 +271,16 @@ Fill in a display name and this operator's own DMS account and password; issue b
 "Fill in the display name, DMS username and password",请填写显示名、DMS 用户名和密码
 "Filters must be four-value rows with string doctypes, fields, and operators.",筛选必须是四值行：doctype、字段、运算符
 Finalize failed: desktop:home_page={0} is_setup_complete={1},收尾没成功：desktop:home_page={0} is_setup_complete={1}
+Fiscal year,年度
 Flow Status,流程状态
 For an inbound document the counterparty tax ID cannot be your own,进项的对方税号不能等于自己
 Frappe Light,Pearnly主题
 Full Name,姓名
 Gender,性别
+Goods,货品
 Goods & Stock,物料与库存
+Goods / Service,商品 / 服务
+Goods / expense,货品 / 费用
 Grand Total,价税合计
 Guests are not allowed to upload files for {0} Doctype,访客不能为 {0} 上传文件
 Guide,使用教程
@@ -289,6 +306,8 @@ Integrations,集成
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",字段 {0} 的筛选无效：筛选必须是筛选列表，每个筛选是含四个值（doctype、字段名、运算符、值）的列表
 Invalid push channel,推送渠道不合法
 Invited By,邀请人
+Invoice No. / Count,发票
+Invoice {0}/{1},发票 {0}/{1}
 Issue bind code,发绑定码
 Issuer,签发方
 Item / Description,品名/说明
@@ -296,6 +315,7 @@ Item / description,品名 / 说明
 "JPG, PNG or PDF, up to 10 MB",JPG、PNG 或 PDF，最大 10 MB
 "Kept as evidence, not a business field",留证用，不是业务字段
 "Kept as evidence, not a business field; only the confirmed fields are.",留证用，不是业务字段；确认后的字段才是
+Key,密钥
 Kind,类型
 LINE Display Name,LINE 昵称
 LINE Login,LINE 登录
@@ -320,6 +340,7 @@ Leave blank to keep unchanged,留空则不修改
 Line Amount,行金额
 Line Discount,行折扣
 Line No,行号
+Line items,明细
 Lines,明细
 Linked,已绑
 Loading advisors…,正在读取顾问名册…
@@ -334,6 +355,7 @@ Manual handling,人工处理
 Master Data,主数据
 Match result must be unmatched / existing customer / new customer,匹配结果只能是 未匹配/已有客户/新建客户
 Max Retries,最多重试
+May have missed an invoice — please verify page/invoice count against the original,可能漏识别发票 · 请人工核对原件页数与张数
 Missing code or state,缺少 code 或 state
 My Profile,个人信息
 Name,名称
@@ -343,6 +365,7 @@ Net Amount,不含税金额
 Net Payable,应付净额
 Net amount,未税金额
 Net payable,应付净额
+Network error,网络错误
 New Customer,本次新建
 New DMS password,新 DMS 密码
 New entry,新建录入
@@ -360,6 +383,7 @@ No existing customer matched and no DMS customer reference was given: confirm ma
 No operators yet — add one above,还没有操作员，先在上方新增
 No provisioning target is available; configure one under “Provisioning Target” first,没有可用的开户目标，请先在“开户目标”里配一个
 No purchase orders yet. Use “New purchase order” in the top right to add the first one.,还没有采购单。点右上角「新建采购单」录第一张。
+No recognition result — please re-upload,识别结果为空，请重新上传
 No records,暂无记录
 No records yet. Use “New entry” in the top right to add the first one.,还没有记录。点右上角「新建录入」录第一张。
 No service account configured (site config pearnly_ocr_credentials),没有配服务账号（站点配置 pearnly_ocr_credentials）
@@ -395,6 +419,7 @@ Operator list,操作员名单
 Operators,操作员
 Optional,可留空
 Order Discount,整单折扣
+Original document,原件
 Outstanding,未付
 Overage: {0}/page,超额单价：{0}/页
 Overage: {0}/page · Expires: {1},超额单价：{0}/页 · 到期时间：{1}
@@ -455,11 +480,21 @@ Qty,数量
 Query access,查询权限
 Queued to push,待推送
 "Read the ID card, match it against the DMS customer base, then confirm",读身份证、与 DMS 客户库比对后确认资料
+Reading companies and years from {0}…,正在从 {0} 读取公司和年度…
+Reading companies and years took too long. Please try again.,读取公司和年度超时，请重试。
+Reading file contents,正在整理文件内容
+"Reading supplier, amounts, dates and tax fields",正在读取供应商、金额、日期和税务字段
 Received,实收金额
 Recognition Raw,识别原始输出
 Recognition Records,识别记录
+Recognition failed. Please try again.,识别失败，请重试。
 Recognition records,识别记录
+Recognition result,识别结果
+Recognition took too long. Please try again later.,识别超时，请稍后重试。
+Recognition waited too long in the queue. Please upload again.,识别排队超时，请重新上传。
+Recognize and export,识别后导出
 Recognized,已识别
+Recognizing,识别中
 Reconcile documents against the ledger,单据与账套的对账
 Reconciliation,对账中心
 Records,记录明细
@@ -512,6 +547,8 @@ Save purchase order,保存采购单
 Saved,已保存
 Saved as a draft; confirm it before it can be pushed,保存后是「草稿」，确认之后才能推送
 "Scan to add this account, then send the bind code in LINE.",扫码添加好友，再发送此绑定码。
+Seller,卖方
+Seller Tax ID,卖方税号
 Session Payload,会话载荷
 Sign in again before changing your username.,请重新登录后再更改用户名。
 Sign out,退出登录
@@ -552,6 +589,7 @@ Supplier name,供应商名称
 Suppliers,供应商
 System URL,系统地址
 System URL is not filled in,没填系统地址
+Target ERP,目标 ERP
 Team,团队管理
 Tenant boot data,本站点启动数据
 Test connection,测试连接
@@ -560,6 +598,7 @@ Testing…,测试中…
 The DMS account is marked as resigned,DMS 账号已标记为离职
 The DMS account is not approved to use the system,DMS 账号未被批准使用系统
 The DMS advisor list is empty.,DMS 顾问名册为空。
+The ERP timed out or the network failed. Please try again later.,连接目标 ERP 超时或网络异常，请稍后重试。
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
@@ -597,9 +636,12 @@ The name is resolved server-side when pinning; the client's value is not trusted
 The new password cannot be the same as the current one,新密码不能与当前密码相同
 The new password is required,新密码不能为空
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
+The old key stops working right away.,旧密钥会立即失效。
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,点批准的那个人（认领时刻写下；写失败回炉时会清掉）。
 The plan quota is used first; anything over is charged per plan rate from the balance,订阅后先用套餐额度，超额按套餐单价从余额扣
 The push channel must be companion or cloud,推送渠道只能是 companion 或 cloud
+The recognition queue is full. Please try again later.,识别队列已满，请稍后重试。
+The recognition result is not confirmed yet. Refresh later to check.,识别结果尚未确认，请稍后刷新查看。
 The result of each push,每次推送的结果
 The service account could not exchange its token: {0},服务账号换令牌失败：{0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码
@@ -614,11 +656,13 @@ The two passwords do not match,两次输入不一致
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理
 "There is no DMS customer reference, so it cannot be pushed",没有 DMS 客户引用，不能推送
+This ERP account has no company or year to choose.,这个账号在目标 ERP 里没有可选的公司和年度。
 This LINE account is not bound to this account on this site. Sign in with your password.,这个 LINE 没有绑定本站的这个账号，请用账号密码登录。
 This Operator's Own DMS Credentials,该操作员自己的 DMS 账密
 "This account has no identity binding, so it cannot change its own password; contact an admin",当前账号没有登记身份绑定，无法自助改密，请联系管理员
 This advisor is no longer in the current DMS list. Please select again.,该顾问已不在当前 DMS 名册中，请重新选择。
 This company’s LINE official account is not configured yet.,本公司尚未配置 LINE 官方账号。
+This connection has no username and password yet.,这条连接还没有填账号和密码。
 This document has already been recorded: {0},这张单已经录过：{0}
 This identity is already bound to account {0} (record {1}),该身份已绑定到账号 {0}（记录 {1}）
 This identity is already bound to {0},该身份已绑定到 {0}
@@ -629,8 +673,10 @@ This operator's DMS account,该操作员的 DMS 账号
 This operator's DMS password,该操作员的 DMS 密码
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品
 "This site has no LINE access token configured, so it cannot send messages",本站点没有配 LINE access token，发不出消息
+This site has no assistant installer address yet.,本站点还没有配置助手的安装包地址。
 This site has no product manifest installed; it cannot run as a business site.,本站点没有安装任何产品清单，不能作为业务站点运行
 This site has no product workspace yet,本站点还没有产品工作区
+This system address is not allowed; only public addresses can be used.,这个系统地址不被允许，只能连公网地址。
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?",将解绑「{0}」的 LINE、移除 DMS 连接；推送记录将保留。确定删除？
 This username is already in use.,该用户名已被使用。
 This year,今年
@@ -679,6 +725,7 @@ VAT Amount,税额
 VAT Included,含增值税
 VAT Rate %,税率%
 Valid for {0},剩余有效期 {0}
+WHT deducted,预扣税额
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}
 Warehouses,仓库
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
@@ -695,6 +742,7 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,预扣税
 Work together,工作协作
 Workspace,工作区
+Wrong ERP username or password. Check it under Connect and try again.,目标 ERP 的账号或密码错误，请在「连接」里检查后重试。
 Yes,是
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,这一页需要登录站点之后才能打开。请从站点域名进入并完成登录。
 Your access domain,您的访问域名
@@ -872,41 +920,85 @@ home.topup.transfer,请向以下账户转账，然后上传转账凭证提交审
 intake.action.confirm,确认
 intake.action.new,新建录入
 intake.action.queue,推送
+intake.agent.copy,复制
+intake.agent.key,密钥
+intake.agent.reset,重新生成
+intake.agent.resetConfirm,旧密钥会立即失效。
+intake.agent.state.missing,助手未连接
 intake.card.purchaseTotal,进项合计（已确认及以上）
 intake.card.readyToPush,已确认 · 可推送
 intake.card.salesTotal,销项合计（已确认及以上）
 intake.card.waiting,待确认
+intake.catalog.ERR_ACCOUNT_SET_EMPTY,这个账号在目标 ERP 里没有可选的公司和年度。
+intake.catalog.ERR_AUTH,目标 ERP 的账号或密码错误，请在「连接」里检查后重试。
+intake.catalog.ERR_NO_CREDS,这条连接还没有填账号和密码。
+intake.catalog.ERR_TECHNICAL,连接目标 ERP 超时或网络异常，请稍后重试。
+intake.catalog.ERR_TIMEOUT,读取公司和年度超时，请重试。
+intake.catalog.ERR_UNEXPECTED,没能读取公司和年度，请重试。
+intake.catalog.ERR_URL_BLOCKED,这个系统地址不被允许，只能连公网地址。
+intake.catalog.loading,正在从 {0} 读取公司和年度…
 intake.col.actions,操作
 intake.col.counterparty,对方
 intake.col.date,日期
 intake.col.direction,方向
+intake.col.entryStatus,录入状态
 intake.col.grandTotal,价税合计
 intake.col.name,单号
 intake.col.status,状态
 intake.collapse,收起
+intake.confirm.delete,删除选中的 {0} 条记录？已推送的删不掉。
 intake.dir.purchase,进项
 intake.dir.purchaseFull,进项（收到的票）
 intake.dir.sales,销项
 intake.dir.salesFull,销项（自己开的票）
 intake.empty,还没有记录。点右上角「新建录入」录第一张。
 intake.error.http,请求失败（HTTP {0}）
+intake.error.poll_unreachable,网络错误
+intake.error.provider_outcome_unknown,识别结果尚未确认，请稍后刷新查看。
+intake.error.queue_expired,识别排队超时，请重新上传。
+intake.error.queue_full,识别队列已满，请稍后重试。
+intake.error.timeout,识别超时，请稍后重试。
+intake.error.workflow_error,识别失败，请重试。
+intake.field.buyer,买方
+intake.field.buyerTax,买方税号
 intake.field.counterparty,对方名称
 intake.field.direction,进项 / 销项
 intake.field.docDate,单据日期
 intake.field.docNo,单据号
+intake.field.invoice,发票
+intake.field.itemType,货品 / 费用
 intake.field.netAmount,未税金额
+intake.field.printedDate,票面日期
+intake.field.seller,卖方
+intake.field.sellerTax,卖方税号
 intake.field.source,来源
 intake.field.vatAmount,税额
+intake.field.whtAmount,预扣税额
 intake.filter.allDirections,全部方向
 intake.filter.allStatuses,全部状态
 intake.hint.afterSave,保存后是「草稿」，确认之后才能推送
+intake.installerMissing,本站点还没有配置助手的安装包地址。
+intake.item.name,商品 / 服务
+intake.itemType.expense,费用
+intake.itemType.goods,货品
 intake.loading,加载中…
+intake.nav.items,明细
+intake.nav.original,原件
+intake.nav.result,识别结果
 intake.notice.created,已录入：{0}
 intake.notice.moved,{0} → {1}
 intake.placeholder.counterparty,供应商 / 客户
 intake.placeholder.docNo,可留空
+intake.proc.batchFail,完成 · 成功 {0} · 失败 {1}
+intake.proc.empty,识别结果为空，请重新上传
+intake.proc.sub,正在读取供应商、金额、日期和税务字段
+intake.proc.title,正在整理文件内容
 intake.processing,处理中…
+intake.push.pending,录入中
 intake.refresh,刷新
+intake.review.dupWarn,检测到 {0} 张可能重复的发票
+intake.review.invoice,发票 {0}/{1}
+intake.review.missed,可能漏识别发票 · 请人工核对原件页数与张数
 intake.save,保存
 intake.saving,提交中…
 intake.source.email,邮件
@@ -918,8 +1010,13 @@ intake.status.failed,推送失败
 intake.status.pushed,已推送
 intake.status.queued,待推送
 intake.status.recognized,已识别
+intake.status.recognizing,识别中
 intake.status.rejected,已退回
 intake.subtitle,核对并确认单据后即可推送。
+intake.target.download,下载助手
+intake.target.recognizeOnly,识别后导出
+intake.target.title,目标 ERP
+intake.target.year,年度
 intake.title,录入工作台
 nav.cashier,收银 POS
 nav.clients,客户管理
@@ -1090,6 +1187,7 @@ system_url is required,system_url 必填
 username / password are required,username / password 必填
 {0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
 {0} pages per cycle,每周期 {0} 页
+{0} possible duplicate invoice(s) detected,检测到 {0} 张可能重复的发票
 {0} record(s) deleted.,已删除 {0} 条记录。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} 需要 {1} 个参数，但入队传了 {2} 个

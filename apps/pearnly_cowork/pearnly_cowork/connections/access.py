@@ -95,3 +95,19 @@ def require_assignee(actor, workspace, client=None):
             or not {"Cowork Intake", "Cowork Push Log", "Cowork Admin"}.intersection(roles(actor))):
         deny()
     require_scope(workspace, client, actor=actor)
+
+
+def default_workspace() -> str:
+    """本站点那一份归属（公司资料），给**界面上不选账套**的调用方用。
+
+    与 `pearnly_cowork.access.scope.default_workspace` 是同一条口径（Cowork 不记账、
+    只留记录，界面不出现账套，归属由服务端解析；恰好一份才解析，否则明确报错）。
+    这里必须自己写一份：连接域允许依赖的域里没有 `pearnly_cowork.access`
+    （见 `docs/development/architecture-policy.json`），而本文件本来就是连接域
+    自己那份授权实现（`_current`、`roles` 也是同样的做法）。
+    """
+    rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},
+                          pluck="name", order_by="name", limit_page_length=2)
+    if len(rows) == 1:
+        return rows[0]
+    frappe.throw(_("cowork.workspace_unresolved"))

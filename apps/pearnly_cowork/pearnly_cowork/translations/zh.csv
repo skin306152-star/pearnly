@@ -19,11 +19,15 @@ Access to the Companion queue has been revoked.,助手队列的访问权限已�
 Account Key,账套键
 Account Set Key,账套选择键
 Ack Digest,回执摘要
+Active,正常
 Active Attempt,当前尝试
 Active Key,活动防重键
 Actor,操作人
 Actual Qty,实盘数量
+Add User,添加用户
+Added {0},已添加 {0}
 Allowed Users,授权用户
+Already exists,已存在
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
 An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
 An original file is already stored for this source.,此来源已保存原始文件。
@@ -39,23 +43,32 @@ Billing Receipt,计费回执
 Billing Reference,计费关联号
 Billing State,计费状态
 Billing Units,计费单位
+Bind this account first,请先绑定账号
 Binding Generation,绑定版本
+Binding code,绑定码
 Blocked By,阻塞记录
 Book Qty,账面数量
+Bound,已绑定
 Bound Account Set,绑定账套
 Bound Invoice Records,已关联发票记录
 Bound Profile Key,绑定配置键
+Bound at,绑定时间
+Bound to {0},已绑定到 {0}
 Branch,执行分支
 Buyer Client,买方客户
+Cannot tell which company this entry belongs to; the site must have exactly one.,无法确定这条记录归属的公司资料，本站点必须恰好有一份。
+Cash,现金
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
 Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checks Json,检查结果JSON
+Choose at least one job role,至少勾一个功能权限
 Client,客户
 Closed At,关闭时间
 Closed By,关闭人
+Code expired,绑定码已过期
 Collection is not connected for this ERP data type.,此 ERP 数据类型尚未接入采集。
 Companion Report,伴侣端上报
 Companion authentication failed.,助手认证失败。
@@ -109,6 +122,7 @@ Create invoice records through the Cowork intake service.,请通过 Cowork 录�
 Created By,创建人
 Creation Request Hash,创建请求摘要
 Credential ID,凭据 ID
+Credit,赊账
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
@@ -119,6 +133,8 @@ Directory Revision,目录版本
 Directory Scope Key,目录范围键
 Directory Scope Kind,目录范围类型
 Directory Snapshot,目录快照
+Disable,停用
+Disable {0},停用 {0}
 Document Key,单据防重键
 Draft,草稿
 Duplicate records are not allowed.,不能重复选择同一条记录。
@@ -131,8 +147,14 @@ ERP records cannot be saved in Cowork.,ERP 记录不能保存到 Cowork。
 Each record must have a name and revision.,每条记录都必须提供标识和版本。
 Each record must have a valid name.,每条记录都必须提供有效标识。
 Edit Count,修改次数
+Edit in Full Page,全屏编辑
+Email,邮箱
+Enable,启用
+Enable {0},启用 {0}
 Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符的盘点标题。
+Enter a valid email,请填写正确的邮箱
 Enter a valid quantity with no more than six decimal places.,请输入有效数量，最多保留六位小数。
+Enter the user name,请填写用户名
 Entry,记录
 Event Key,事件标识
 Evidence Fingerprint,证据指纹
@@ -148,6 +170,7 @@ Field,字段
 File Hash,文件哈希值
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
+General,常用功能
 Generation Key,凭据版本键
 History,票据历史
 History Records,识别记录
@@ -155,6 +178,8 @@ History Version,票据历史版本
 Holder,锁持有者
 Holder Fence,持锁尝试序号
 IN,入账
+Inactive,已停用
+Initial Password,初始密码
 Installed At (UTC),安装时间（UTC）
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
 Invalid original document manifest.,原件内容索引无效。
@@ -162,6 +187,7 @@ Invalid original filename.,原始文件名无效。
 Invalid posting type.,过账类型无效。
 Invalid push execution mode.,推送执行模式无效。
 Invalid push request.,推送请求无效。
+Invalid push target.,推送目标无效。
 Invalid recognized invoice group.,识别出的发票分组无效。
 Invalid request key.,请求编号无效。
 Invalid statement review rows or row references.,复核行内容或原始行编号无效。
@@ -179,7 +205,12 @@ Issued At (UTC),签发时间（UTC）
 Issued By,签发人
 Issued Request Digest,签发请求摘要
 Item,项目
+Job Roles,功能权限
+LINE is not enabled for this account,这个账号没有开通 LINE
+LINE name,LINE 名称
+LINE unbound,LINE 已解绑
 Last Fields Edit (UTC),最近字段修改时间（UTC）
+Last Login,最后登录
 Last Push Record,最近推送记录
 Last Push Status,最近推送状态
 Last Pushed At (UTC),最近推送时间（UTC）
@@ -195,10 +226,12 @@ Mapping Key,映射键
 Mapping Kind,映射类型
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
+New code,换一个码
 New records must start as drafts.,新记录必须先保存为草稿。
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No invoice summary found,未识别到摘要
 Not Permitted,没有权限
+Not bound,未绑定
 OUT,出账
 Observed At (UTC),观测时间（UTC）
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
@@ -220,8 +253,10 @@ Owner Id,执行者编号
 PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
 Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
+Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Payload Json,冻结载荷JSON
+Payment Method,付款方式
 Pearnly Cowork,Pearnly Cowork
 Pending,待处理
 Phase,处理阶段
@@ -239,6 +274,7 @@ Provider Evidence,服务商调用证据
 Push Attempt,推送尝试
 Push Record,推送记录
 Push record not found.,找不到推送记录。
+"Pushing is not enabled for this site, so nothing was sent.",本站点未开启推送，没有发送任何内容。
 Quantity,数量
 Reason,原因
 Recognition Confidence,识别置信度
@@ -274,10 +310,12 @@ Request Receipts,请求回执
 Requested At (UTC),请求时间（UTC）
 Required invoice amounts are missing. Complete them before exporting.,发票缺少必要金额，请补全后再导出。
 Requires Review,需要人工核对
+Reset Password,重置密码
 Response Json,回执JSON
 Result Directory Revision,结果目录版本
 Result Json,识别结果（JSON）
 Result Unknown,结果未知
+Review,复核
 Review JSON,复核记录 JSON
 Reviewed amounts need a balance and at most two decimal places.,复核行必须填写余额，金额最多保留两位小数。
 Revision,版本
@@ -287,6 +325,7 @@ Revoked By,撤销人
 Row {0}: {1},第 {0} 行：{1}
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票需要包含税前金额的明细后才能导出。
 Sample Key,修正例标识
+Saved,已保存
 Scope Key,权限范围标识
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
@@ -294,6 +333,7 @@ Select between 1 and 500 records.,请选择 1 至 500 条记录。
 Select valid files to download.,请选择有效文件进行下载。
 Seller Name,卖方名称
 Seller Tax ID,卖方税号
+Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
 Settings Json,配置数据（JSON）
 Site,站点
@@ -310,12 +350,15 @@ Source Reference Kind,原件关联类型
 Source Sha256,原始文件 SHA-256
 Started At,开始时间
 Statement review is not available for this task.,此任务没有逐行复核记录。
+Status,状态
 Stock,库存
 Stock count photos are not yet supported. Remove the photos before saving.,盘点照片尚未接入，请先移除照片后保存。
+Submit,提交
 Summary table import,汇总表导入
 Target Json,冻结目标JSON
 Task,任务
 Tax ID,纳税人识别号
+That code is not valid,验证码不正确
 The Companion delivery record is invalid.,助手任务领取记录无效。
 The Companion delivery record was not found.,未找到助手任务领取记录。
 The Companion identity is no longer valid. Authenticate again.,助手身份已失效，请重新认证。
@@ -430,6 +473,7 @@ This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
 This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
+This channel is not open yet,这个通道还没开放
 This connection does not support an Express Companion credential.,此连接不支持 Express 助手凭据。
 This connection is disabled.,此连接已停用。
 This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
@@ -452,15 +496,19 @@ This request key was used for different content.,此请求编号已用于其他�
 This request key was used for different push content.,此请求编号已用于其他推送内容。
 This stock count task is closed.,此盘点任务已关闭。
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
+Time left {0},剩余 {0}
 Title,标题
 Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
 Transaction Date,交易日期
+Unbind LINE,解绑 LINE
+Unbind Pearnly Cowork LINE?,确认解绑 Pearnly Cowork LINE？
 Unsupported ERP connection type.,不支持此ERP连接类型。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
 Updated At,更新时间
 Updated By,更新人
+Updated {0} user(s),已更新 {0} 位用户
 Uploaded By,上传人
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。
 Use the Cowork Companion service to access deliveries.,请通过 Cowork 助手服务访问任务领取记录。
@@ -468,10 +516,13 @@ Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别�
 Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
 Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
 Use the stock count workflow to change these records.,请通过盘点流程更改这些记录。
+User Settings,用户菜单
+Username can only have letters and numbers,用户名只能用英文字母和数字
 Version,版本
 Voided,已作废
 Warehouse,仓库
 Wire Attempt,发送尝试次数
+Work Coordination,工作协调
 Work Name,后台任务标识
 Workspace,公司账套
 You do not have access to this ERP target.,无权访问此ERP目标。
@@ -517,9 +568,38 @@ connection.scope_immutable,连接的公司、客户和类型不能直接修改�
 connection.snapshot_invalid,目录快照与当前连接不一致。
 connection.snapshot_too_large,目录快照超过16MiB限制。
 connection.url_invalid,ERP连接地址无效或不允许访问。
+cowork.line.boundAt,绑定时间
+cowork.line.code,绑定码
+cowork.line.expired,绑定码已过期
+cowork.line.lineName,LINE 名称
+cowork.line.newCode,换一个码
+cowork.line.remaining,剩余 {0}
+cowork.line.status.bound,已绑定
+cowork.line.status.unbound,未绑定
+cowork.line.unbind,解绑 LINE
+cowork.line.unbindConfirm,确认解绑 Pearnly Cowork LINE？
+cowork.nav.work,工作协调
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.quality.pending,待复核
+cowork.team.action.bulkDisable,停用 {0}
+cowork.team.action.bulkEnable,启用 {0}
+cowork.team.active,正常
+cowork.team.disable,停用
+cowork.team.email,邮箱
+cowork.team.enable,启用
+cowork.team.inactive,已停用
+cowork.team.lastLogin,最后登录
+cowork.team.new,添加用户
+cowork.team.notice.added,已添加 {0}
+cowork.team.notice.password,密码已更新
+cowork.team.notice.saved,已保存
+cowork.team.notice.toggled,已更新 {0} 位用户
+cowork.team.password,初始密码
+cowork.team.resetPassword,重置密码
+cowork.team.roles,功能权限
+cowork.team.status,状态
+cowork.workspace_unresolved,无法确定这条记录归属的公司资料，本站点必须恰好有一份。
 cowork_line,Cowork LINE
 document,文档
 erp.account_set_unavailable,此账套不可用。
@@ -605,6 +685,7 @@ pending,待处理
 physical_page,物理页
 push.adapter_not_connected,此ERP适配器尚未接通。
 push.branch_invalid,推送执行模式无效。
+push.disabled,本站点未开启推送，没有发送任何内容。
 push.native_ack_conflict,回执与已记录结果冲突。
 push.native_history_changed,票据已修改，请重新准备。
 push.native_lock_conflict,另一笔推送正在占用写入锁。

@@ -145,6 +145,7 @@ def _persist(doc):
         require_links(result, doc.workspace, doc.client)
     plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
         source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
+        payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
         reference_kind=doc.get("reference_kind") or "physical_page")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
@@ -152,6 +153,11 @@ def _persist(doc):
     if doc.phase in {"saved", "not_invoice"}:
         return doc
     rows = persist_batch(doc.source_file, plan["groups"], doc.name, anchor_year=anchor) if plan["groups"] else []
+    if doc.get("target_connection"):
+        # 新建录入选的推送目标抄到每张票上：之后从列表进来提交也按第一次的选择推（用户 2026-09-26）。
+        for row in rows:
+            frappe.db.set_value("Cowork OCR History", row["name"], {"push_connection": doc.target_connection,
+                "push_account_set": doc.get("target_account_set") or ""}, update_modified=False)
     doc.history_records = store.encode([r["name"] for r in rows])
     doc.phase = "saved" if rows else "not_invoice"
     doc.billing_state = "pending" if rows else "not_billable"

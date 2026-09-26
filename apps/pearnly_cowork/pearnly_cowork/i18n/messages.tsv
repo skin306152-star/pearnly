@@ -503,3 +503,54 @@ Complete statement review before exporting the result.	请先完成账单复核�
 Invalid statement review rows or row references.	复核行内容或原始行编号无效。	ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง	確認明細または元の行番号が無効です。	reconciliation.review_rows_invalid
 Reviewed amounts need a balance and at most two decimal places.	复核行必须填写余额，金额最多保留两位小数。	รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม	確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。	reconciliation.review_amount_invalid
 Review JSON	复核记录 JSON	ข้อมูลการตรวจทาน JSON	確認記録 JSON	Review JSON
+Cannot tell which company this entry belongs to; the site must have exactly one.	无法确定这条记录归属的公司资料，本站点必须恰好有一份。	ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว	この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。	cowork.workspace_unresolved
+Payment Method	付款方式	วิธีชำระเงิน	支払方法
+Cash	现金	เงินสด	現金
+Credit	赊账	เชื่อ	掛け
+Review	复核	ตรวจทาน	レビュー
+Submit	提交	ยืนยัน	確定
+Pushing is not enabled for this site, so nothing was sent.	本站点未开启推送，没有发送任何内容。	ไซต์นี้ยังไม่ได้เปิดการส่ง ยังไม่มีการส่งข้อมูลใด ๆ	このサイトでは送信が有効になっていないため、何も送信されていません。	push.disabled
+Invalid push target.	推送目标无效。	เป้าหมายการส่งไม่ถูกต้อง	送信先が無効です。
+Work Coordination	工作协调	ประสานงาน	業務連携	cowork.nav.work
+General	常用功能	ทั่วไป	一般
+User Settings	用户菜单	เมนูผู้ใช้	ユーザーメニュー
+Email	邮箱	อีเมล	メール	cowork.team.email
+Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード	cowork.team.password
+Job Roles	功能权限	สิทธิ์การใช้งาน	機能権限	cowork.team.roles
+Last Login	最后登录	เข้าใช้ล่าสุด	最終ログイン	cowork.team.lastLogin
+Status	状态	สถานะ	状態	cowork.team.status
+Active	正常	ปกติ	正常	cowork.team.active
+Inactive	已停用	ปิดใช้งาน	無効	cowork.team.inactive
+Add User	添加用户	เพิ่มผู้ใช้	ユーザーを追加	cowork.team.new
+Reset Password	重置密码	ตั้งรหัสผ่านใหม่	パスワードを再設定	cowork.team.resetPassword
+Enable	启用	เปิดใช้งาน	有効化	cowork.team.enable
+Disable	停用	ปิดใช้งาน	無効化	cowork.team.disable
+Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	cowork.team.action.bulkEnable
+Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	cowork.team.action.bulkDisable
+Added {0}	已添加 {0}	เพิ่มแล้ว {0}	{0}を追加しました	cowork.team.notice.added
+Saved	已保存	บันทึกแล้ว	保存しました	cowork.team.notice.saved
+Password updated	密码已更新	อัปเดตรหัสผ่านแล้ว	パスワードを更新しました	cowork.team.notice.password
+Updated {0} user(s)	已更新 {0} 位用户	อัปเดตผู้ใช้ {0} คน	ユーザー{0}件を更新しました	cowork.team.notice.toggled
+Choose at least one job role	至少勾一个功能权限	เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง	機能権限を1つ以上選んでください
+Enter a valid email	请填写正确的邮箱	กรุณากรอกอีเมลให้ถูกต้อง	正しいメールアドレスを入力してください
+Enter the user name	请填写用户名	กรุณากรอกชื่อผู้ใช้	ユーザー名を入力してください
+Already exists	已存在	มีอยู่แล้ว	すでに存在します
+Username can only have letters and numbers	用户名只能用英文字母和数字	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข	ユーザー名は英数字のみ使用できます
+Bound	已绑定	เชื่อมต่อแล้ว	連携済み	cowork.line.status.bound
+Not bound	未绑定	ยังไม่เชื่อมต่อ	未連携	cowork.line.status.unbound
+Binding code	绑定码	รหัสเชื่อมต่อ	連携コード	cowork.line.code
+New code	换一个码	ขอรหัสใหม่	新しいコード	cowork.line.newCode
+Time left {0}	剩余 {0}	เหลือเวลา {0}	残り {0}	cowork.line.remaining
+Code expired	绑定码已过期	รหัสหมดอายุแล้ว	コードの有効期限が切れました	cowork.line.expired
+LINE name	LINE 名称	ชื่อ LINE	LINE の名前	cowork.line.lineName
+Bound at	绑定时间	เชื่อมต่อเมื่อ	連携日時	cowork.line.boundAt
+Unbind LINE	解绑 LINE	ยกเลิกการเชื่อมต่อ LINE	LINE 連携を解除	cowork.line.unbind
+Unbind Pearnly Cowork LINE?	确认解绑 Pearnly Cowork LINE？	ยืนยันการยกเลิกการเชื่อมต่อ?	Pearnly Cowork LINE の連携を解除しますか？	cowork.line.unbindConfirm
+That code is not valid	验证码不正确	รหัสไม่ถูกต้อง	コードが正しくありません
+LINE is not enabled for this account	这个账号没有开通 LINE	บัญชีนี้ยังไม่ได้เปิดใช้ LINE	このアカウントは LINE が有効になっていません
+Bound to {0}	已绑定到 {0}	เชื่อมต่อกับ {0} แล้ว	{0} に連携しました
+Send the code from the Cowork page to bind	请把 Cowork 页面上的绑定码发过来	กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ	Cowork 画面のコードを送信して連携してください
+LINE unbound	LINE 已解绑	ยกเลิกการเชื่อมต่อแล้ว	LINE の連携を解除しました
+Bind this account first	请先绑定账号	กรุณาผูกบัญชีก่อนใช้งาน	先にアカウントを連携してください
+This channel is not open yet	这个通道还没开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません
+Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集

@@ -105,6 +105,30 @@
    "length": 140
   },
   {
+   "fieldname": "target_connection",
+   "fieldtype": "Data",
+   "label": "Push Connection",
+   "length": 140,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "target_account_set",
+   "fieldtype": "Data",
+   "label": "Push Account Set",
+   "length": 255,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "payment",
+   "fieldtype": "Data",
+   "label": "Payment Method",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
    "fieldname": "billing_code",
    "fieldtype": "Data",
    "label": "Billing Code",
@@ -227,6 +251,8 @@
   "billing_reference",
   "direction",
   "posting_kind",
+  "target_connection",
+  "target_account_set",
   "billing_code",
   "page_count",
   "anchor_date",
@@ -242,5 +268,6 @@
   "reference_kind",
   "billing_kind",
   "billing_units"
- ]
+ ],
+ "modified": "2026-09-26 12:00:00.000000"
 }

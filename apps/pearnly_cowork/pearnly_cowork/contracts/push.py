@@ -132,10 +132,29 @@ def require_document_choices(direction, payment=None) -> tuple[str, str | None]:
 	direction = str(direction or "").strip().lower()
 	if direction not in _DIRECTIONS:
 		raise PushContractError("direction_required")
-	payment = str(payment).strip().lower() if payment is not None else None
-	if payment not in _PAYMENTS | {None}:
+	return direction, normalize_payment(payment)
+
+
+def normalize_payment(value: Any) -> str | None:
+	"""入口选的付款方式：只认现金/赊账两个值；没选是 None。
+
+	空串、False、0 这类值是**非法**，不当成「没选」（合同原本就把两者分开，
+	见 `test_payment_invalid_is_distinct_from_not_declared`）：调用方没选就别传。
+	这是**人工裁决**那一层（`posting_payment_manual`），在付款判定的六级漏斗里
+	优先级最高 —— 录入时选了现金就是现金，不再让 OCR 或票种把它推翻。
+	"""
+	if value is None:
+		return None
+	payment = str(value).strip().lower()
+	if payment not in _PAYMENTS:
 		raise PushContractError("payment_invalid")
-	return direction, payment
+	return payment
+
+
+def apply_batch_payment(fields: dict[str, Any] | None, payment: str | None) -> None:
+	"""把入口勾的付款方式写成人工裁决；票面已给出同一层的值时不覆盖。"""
+	if payment and fields is not None and not fields.get("posting_payment_manual"):
+		fields["posting_payment_manual"] = payment
 
 
 def require_history_workspace(history, workspace_id) -> int:

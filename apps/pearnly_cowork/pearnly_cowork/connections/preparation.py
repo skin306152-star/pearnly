@@ -53,6 +53,16 @@ def _read_optional(function, default, *args):
     return result, 'present' if present else 'empty'
 
 
+def reported_writable(report, account, root):
+    """小助手本次上报的账套目录里有这个账套（同一数据根）且没标不可写。"""
+    for row in report.get('reported_account_sets') or []:
+        if not isinstance(row, dict) or row.get('writable') is False:
+            continue
+        if identity(row.get('path') or row.get('code')) == account and (not root or identity(row.get('root')) == root):
+            return True
+    return False
+
+
 def collect(loaded, target, *, seller_tax='', invoice_date=None):
     doc = state.read(state.CONNECTION, loaded.doc.name)
     access.require_connection(doc, actor=loaded.access.user_id)
@@ -71,14 +81,17 @@ def collect(loaded, target, *, seller_tax='', invoice_date=None):
     report = model.parse(doc.report_json, {})
     binding = report.get('_preparation_binding') or {}
     credential = None
-    if (binding.get('online') is True and binding.get('account_set') == account
-            and binding.get('root_key') == root and binding.get('credential_id') == doc.report_credential
-            and binding.get('generation') == doc.report_generation):
+    online = (binding.get('online') is True and binding.get('credential_id') == doc.report_credential
+              and binding.get('generation') == doc.report_generation)
+    default = online and binding.get('account_set') == account and binding.get('root_key') == root
+    # 账套以网页第一步的选择为准，小助手不再选（用户 2026-09-26）：助手在线、且它上报的可写账套里有这一个，
+    # 凭据同样成立；但小助手默认账套的缓存（科目表等）不挪给别的账套用。
+    if default or (online and reported_writable(report, account, root)):
         credential = {k: binding[k] for k in ('credential_id', 'generation', 'issuer')}
     origins = report.get('_preparation_origins') or {}
     expected = {k: binding[k] for k in binding if k != 'online'}
     reported = {k: deepcopy(report[k]) for k in model.REPORTED_KEYS
-                if credential and k in report and origins.get(k) == expected}
+                if default and credential and k in report and origins.get(k) == expected}
     maps, map_state = _read_optional(push_inputs.mappings, {'accounts': [], 'clients': []}, doc.client)
     profiles, profile_state = (_read_optional(push_inputs.profiles, {}, doc.workspace, seller_tax)
         if seller_tax else ({}, 'not_applicable'))

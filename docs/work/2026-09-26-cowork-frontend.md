@@ -1,0 +1,455 @@
+# Cowork 前端：录入工作台（接后端）
+
+## 当前入口 · 换窗口交接（2026-09-26 第二次，新窗口从这里开始）
+
+**状态：交接保留。** 用户：“做完后交接给新窗口，新窗口准备搭建 ERP 和 DMS 同款测试环境。”
+Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；**两个仓库的改动都未提交、未推送、未部署**。
+
+### 代码在哪
+
+| 仓库 | 工作树 / 分支 | 基线 | 状态 |
+| --- | --- | --- | --- |
+| pearnly（本仓） | `/Users/skin/.codex/worktrees/cowork-frontend/pearnly` · `codex/cowork-frontend` | `a38d043`；`origin/main` 已到 `ee986f5`（ERP 线 10 个提交，含“可复用 ERP 测试环境”交接）。核对过：与本工作树改动**文件交集为 0** | 未提交约 64 项，无远端分支 |
+| pearnly-companion（来源仓库，用户明确要求改） | `/Users/skin/.codex/worktrees/companion-simplify/pearnly-companion` · `codex/companion-simplify` | `origin/master`＝`ca7f267` | 未提交 8 项；master 的 CI 会发布安装包，不能随手推 |
+
+### 新窗口要做的（用户定的方向）
+
+搭 Cowork 的测试环境，做法与 ERP / DMS 同款：见 [测试环境](../development/test-environment.md)（`origin/main` 上已更新）、`scripts/testenv.sh`、
+`infrastructure/testenv/`，以及 ERP 窗口的交接（`origin/main` 的 `38461dc`）。建议顺序：
+1. 本分支变基到最新 `origin/main`（无文件交集；变基后重跑 `scripts/i18n-build.py`、架构检查、Cowork 离线全量）→ 提交 → 推任务分支 → CI 出镜像 digest。
+2. 起 Cowork 测试栈 + 测试租户（仿 `testdms` / `testerp`），站点配置补齐：计费（`pearnly_billing_*`，本地缺它导致复核工作簿导回在额度查询处失败）、
+   识别配置、`pearnly_cowork_erp_push_enabled=1`、MR.ERP test01 连接、Express 连接。
+3. 在 Windows 上装本分支的小助手（`codex/companion-simplify`，需出安装包）配对测试栈，验：配对 / 心跳 / 网页选非默认账套推送 / 写入 Express。
+4. 真实识别（付费 OCR）与外部写入按用户授权；test01 已授权真推。
+
+### 这一任务做完了什么（细节见下方各批）
+
+- 录入工作台：新建弹窗（MR.ERP / Express / **识别后导出**，公司→年度→进销项→付款或过账类型）、上传识别、复核、列表（排序、勾选删除）。
+- 推送：**MR.ERP 推送整条迁完**（导入表生成 7 种与旧版逐成员一致、导入 5 步 + 逐行回读、缺客户 / 供应商 / 商品自建、服务端执行任务 + 账本 + 巡检）；
+  复核页右上角「提交」= 这一批全部推送，「保存」只在有改动时出现；目标按新建时第一次的选择（记在票上）；
+  状态只有 录入中 / 成功 / 失败，失败原因悬浮在状态图标上；列表有录入中时自动刷新。
+- 销项客户按票面买方（税号）；复核页「货品 / 费用」（进项）；MR.ERP / Express 卡片可导入我们导出的复核工作簿。
+- Express：连接弹窗（下载助手 + 密钥）、状态按小助手实际在线；账套以网页为准（服务端认小助手上报的任意可写账套）；小助手界面精简（第五批）。
+
+### 用户定下的口径（继续有效，也记在用户记忆 `cowork-frontend-ui-rules`）
+
+- 界面不照搬旧项目（重构），业务规则 / 第三方口径以旧线上 `ec2e5c95` 为准；不多加文案；没有「确认」步骤；手机端照 ERP。
+- 推送：提交即推送整批；目标按第一次选择；结果不明不放开重新推送（一单推完再下一单）；状态三种，原因悬浮看，不弹窗。
+- 不做：公司主档、推送日志页、旧项目附带功能。
+
+### 未验 / 待办
+
+1. 复核工作簿导回（本地无计费）；Express 整链（本机无小助手）；新小助手真机；真实识别。
+2. 非默认账套的 Express 推送不带小助手缓存（科目表等），可能部分票转失败——真机验证时看。
+3. Express 小助手用旧 URL 的话，新平台的 `companion.wsgi` 入口还没在部署定义里挂出来（见“推送依赖”盘点）。
+
+### 本地环境（本机样板，均属本任务，交接保留）
+
+- 预览 `http://cowork-a.localhost:8101/desk/pearnly-intake`，账号 `tenant-admin`（密码见 `docs/p2/03-password-change.md`）；样板容器挂本工作树，
+  改后 `bash scripts/dev-reload.sh cowork --sites cowork-a.localhost`（改 DocType 加 `--migrate`）。
+- 站点配置：`pearnly_cowork_erp_push_enabled=1`；最小识别配置（只让确定性导回可用，无模型凭据）；cowork 组 Redis 队列库 2。
+- 电脑重启后：`docker start` mariadb / 两个 redis；重启控制面容器；colima 虚拟机 DNS 若失效，临时改虚拟机 `/etc/resolv.conf`（见第四批）。
+- 演示数据：第 2~6 批（`scripts/sample-cowork-intake-demo.py <轮次> [mrerp 6:1]`），其中已真推 test01 的票状态为成功；
+  test01 上新增：第 3/4/5/6 批共 8 张单据及自建的客户 / 供应商 / 商品 / 费用物料（均未删除）。
+- 解除条件：本分支合入 main、测试环境跑通后清理两个工作树与分支；演示数据与样板配置随样板保留，删前与用户确认。
+
+## 第六批：菜单收口 + 团队管理 + LINE 绑定（2026-09-26，第三个窗口）
+
+用户：“按 ERP 的团队管理和 LINE 先把配置搭建好，前端画出来，团队管理的功能权限写 Cowork”；
+菜单只要 录入工作台 / 对账中心 / 库存盘点 / 工作协调 + 个人信息 / LINE，其余旧菜单都不要；LINE 这次只做配置 + 绑定；
+**工作协调不搬旧的（WeKan），用户要重新设计**。开工：本分支从 `a38d043` 快进到 `origin/main` `ee986f5`（无文件交集，未提交改动保留）。
+
+| 入口 | 用途 | 实现 | 角色 / 配置 | 点击去向 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| 侧栏：首页、录入工作台 | 已有 | — | 录入 = `Cowork Intake` | `/desk/pearnly-intake` | 可用 |
+| 侧栏：对账中心、库存盘点、工作协调 | 待做页面 | 只在目录与团队管理里；**不在 `available`，侧栏不出现** | `Cowork Bank Reconciliation` / `Cowork Stocktake` / `Cowork Work` | — | 页面未做 |
+| 左下角：团队管理 | 添加用户、改功能权限、重置密码、停用启用 | `team/`（service/api/setup）+ `public/desk/team.js`（页面文件在 core `pearnly-team`） | 只 `Cowork Admin`；服务端 `team.service.require_admin` | `/desk/pearnly-team` | 名单 / 弹窗已验；**添加用户受身份服务限制，见下** |
+| 个人信息里的 LINE 块 | 本人绑 / 解绑本站点官方号 | `line/`（binding/api/handlers/boot）+ `line-binding.js`、`user-line.js` | `Cowork LINE` 或 `Cowork Admin`；站点需 `pearnly_line_*` 频道配置 | 个人信息页 | 块已出现；本地无频道配置，发码处提示未配置 |
+
+- 勾选目录 `access/menu.py`（纯数据）：业务四项直接用各域已有操作角色，不另造菜单角色；新建角色 `Cowork Work` / `Cowork Profile` / `Cowork LINE`
+  由 `after_install` / `after_migrate`（`team.setup.sync_roles`）确保存在，不带单据权限。分组：「常用功能」「用户菜单」（同 ERP）。
+- 与 ERP 的差别：没有多公司分配；新用户自动授权本站点启用中的 `Cowork Workspace`（官方 User Permission，各域范围判据要它）。
+- LINE 通道侧：`follow` 回“把 Cowork 页面上的绑定码发过来”，收码绑定、解绑词解绑、`unfollow` 解绑；已绑定的人发别的回“通道还没开放”。
+  团队管理取消 LINE = 立即解绑。前端块与 ERP 同款（复制后改接口与词条命名空间 `cowork.line.*`，未改 ERP / 共用层）。
+- 菜单去掉：识别记录、推送日志、客户、公司资料、集成、使用教程（`tests/test_native_desk_contract.py` 菜单清单随之改为 6 项并注明依据）。
+- 架构策略登记新域 `team → access`、`line → access`。
+
+**阻塞：统一身份站点上“添加用户 / 重置密码”走控制面私有建号接口，现只认 ERP**
+（`pearnly_core.account.member_client` 要求 `pearnly_product == "erp"`；`pearnly_control.account.member_service.PRODUCT = "erp"`，
+身份台账键也含产品）。本地样板 `cowork-a` 接了 Keycloak，所以实测添加用户被拒 `Not permitted`；名单、目录、权限拒绝路径正常。
+放开给 Cowork 属于身份 / 授权保护范围的共享改动，待用户决定。
+
+**用户决定（2026-09-26）**：采用“按产品分账号池”——Cowork 用新 realm `pearnly-cowork`，ERP / DMS 留在 `pearnly-business`，
+同一租户同时买 Cowork 和 ERP 时是两个独立账号（已确认可接受）。**顺序：ERP 窗口的「LINE 绑定即登录」先合入 main，分池暂停**
+（两件事改同一批身份共用文件，已与 ERP 窗口协调，对方合入后发 SHA）。
+
+- 分池工作树（交接保留）：`/Users/skin/.codex/worktrees/cowork-identity-realm/pearnly` · `codex/cowork-identity-realm`，基线 `19ade38`，
+  已改未提交 3 个文件：`pearnly_control/account/member_service.py`（产品 erp/cowork，只从令牌头取；ERP 台账键与归属印记不变）、
+  `account/member_provider.py`（Cowork 读 `pearnly_member_identity_cowork_*`）、`pearnly_core/account/member_client.py`（放开 cowork）。
+  解除条件：ERP LINE 登录合入 main → 变基 → 按 `client_for_target(target, product)` 做完其余改动（开户按产品选池并各建号、删除按池、
+  线上 bootstrap-auth / 成员身份配置 / site-step / auth-tls / connect-control）→ 本地验证 → 合入。
+- 其余改动点清单见本窗口与 ERP 窗口的协调消息（开户 / 删除 / 线上脚本共约 14 处）。
+
+验证（本机，`ee986f5` + 本工作树未提交改动）：架构 PASS；`i18n-build --check` PASS；前端文案 PASS；
+`tests/test_cowork_team_menu.py` 4 项、`tests/test_native_desk_contract.py` 22 项、`test_architecture_guard` 通过；
+`test_product_feature_catalog` 在 bench Python 下通过（本机 3.9 语法不支持，非本改动）。
+样板 `cowork-a`（迁移后）服务端实测：三个新角色已建、LINE 处理器已注册；管理员能看到 6 项勾选、侧栏只有首页 / 录入、团队管理进左下角；
+管理员本人一行锁定。浏览器：团队管理名单与「添加用户」弹窗、个人信息 LINE 块已看。未验：添加用户成功路径、员工视角、真实 LINE 绑定。
+
+## 工作包：推送依赖的后端（2026-09-26 起，进行中）
+
+用户 2026-09-26 定的范围：**只要能顺利推送到目标 ERP**——按票面、按用户的选择（弹窗）、按用户的修改（复核）、按识别结果。
+**不要**：公司主档（Cowork 不做）、推送日志页（只显示状态）、其它旧项目附带功能；先不改前端逻辑（推送顺序后面要重排）。
+
+盘点结论（两路只读核对，旧 `ec2e5c95` ↔ 本工作树）：录入前半段（上传/识别/复核/删除/目录）已有；**MR.ERP 发票推送整条没有**
+（`push.application.service.prepare` 只接 Express）；Express 链路后端在，但结果不明会锁死连接、前端只调了准备没调确认（前端待重排时一起改）。
+
+### MR.ERP 推送：来源 → 落点（旧线上 `ec2e5c95`，只读 `git show`）
+
+| 旧来源 | 新落点 | 说明 |
+| --- | --- | --- |
+| `services/erp/mrerp_http/modules.py` | `push/mrerp/modules.py` | 导入模块表（只保留推送用到的销项赊账/现金、采购货品/费用、三类主档） |
+| `mrerp_adapter_models.py`、`exceptions.py` | `push/mrerp/models.py` | 结果类型、回执单号 |
+| `mrerp_http/routing.py` | `push/mrerp/routing.py` | 按方向 + 付款 + 货/费分流、单据防呆、散客现金、匹配闸；复用已迁 `contracts.push` / `push.express` 判定 |
+| `mrerp_http/account_valve.py`、`preview_parse.py`、`report_parse.py`、`mrerp_report_parser.py` | `push/mrerp/` 同名纯函数 | 科目阀、预览表单、主档/发票回执解析 |
+| `mrerp_xlsx_*`（generator/sales_credit/sales_cash/purchase/customer/supplier/product/lookups/fmt/schemas/sharedstrings）+ 7 个模板 | `push/mrerp/xlsx/` | 导入表生成 |
+| `mrerp_http/autocreate.py` | `push/mrerp/autocreate.py` | 缺客户/供应商/商品自建（确定性码、幂等） |
+| `mrerp_http/session.py`、`adapter.py` | `connections/mrerp_session.py`（会话，与只读采集共用）+ `push/mrerp/transport.py`（导入 5 步 + 逐行回读） | 联网；会话锁用 `pearnly_core.session_lock` |
+| `erp_push.py::push_mrerp_history`、`erp_push_adapters.py` | `push/application` MR.ERP 分支 + 服务端执行 | 接进原生账本（准备 → 确认 → 领取 → 回执） |
+
+不搬：四语友好文案目录（`mrerp_business_friendly*`，展示用）、库存进出单、Playwright 旧适配器、DMS 的 `mrerp_dms_*`、推送日志/统计/批量重推。
+
+### 第一批进展（2026-09-26，MR.ERP 推送后端已接通，未真推）
+
+实现（`apps/pearnly_cowork/pearnly_cowork/`）：
+- `push/mrerp/`：`modules`、`models`、`routing`、`account_valve`、`preview_parse`、`report_parse`、`report_parser`、`autocreate`、
+  `xlsx/`（11 个生成模块 + 6 个模板）——纯逻辑，按旧文件逐字移植，只改导入路径 / 模板位置；`transport.py`（导入 5 步 + 逐行回读，
+  `import_sent` 标记导入确认是否已发出）；`runner.py`（确认后排 `short` 队列任务：领取 → 导入 → 回执，同连接串行，一条结束接下一条）。
+- `connections/mrerp_session.py`：MR.ERP 会话从只读采集器抽出来共用（登录 / 进账套抓 idus / 业务请求；公网校验、不许跳出原站点）。
+- 推送应用层：`prepare` 增加 MR.ERP 分支（冻结目标账套 + 整理后的票面 + 已配置映射 + 本方税号）；新 RPC
+  `push.application.api.confirm`（MR.ERP 确认发送并排执行任务；Express 仍走 `companion.submission.confirm`）。
+- 账本：目标类型放开到 express / mrerp；MR.ERP 确认不要求小助手凭据；回执带 `mrerp_bill_no`；新增 `mark_unknown`
+  （导入确认发出后异常：转人工 + 结果不明，保留写者锁，同 `recover_expired`）。`push_inputs.mappings` 增 `erp_type` 参数（默认 express）。
+
+有意差异（需求依据：用户 2026-09-26「按用户的选择 / 票面推」）：
+1. **销项现金按用户选择推**：旧 `route_and_upload` 只把采购切出默认赊销，用户选的「现金」算出 `sales_cash` 却被丢掉（旧缺陷）；现在采用 `choose_doc_type` 的结果。
+2. 失败细分：导入确认没发出前的失败（登录 / 上传被拒 / 预览无可导入行）确定没写入 → 转人工并释放锁；发出之后的异常才算结果不明。旧版技术失败一律按不明。
+3. 「发票号已存在」记为成功（旧 `skipped_dup`：单号由票据 id 确定性派生，同票同号）。不自动重试（旧 MR.ERP 同样不重试）。
+4. 客户编号按字符串比较（新平台 Cowork Client 主键是名称，旧版整数 id）。
+5. 不搬：四语失败文案、库存进出单、银行流水佐证（付款仍按人工选择 → 票面判定）。
+
+验证（本机，基线 `a38d043` + 本工作树未提交改动）：
+- 导入表来源对照（`tests/test_cowork_mrerp_xlsx_source_parity.py`，旧 `ec2e5c95` 经 `git show` 导出、经 `PEARNLY_MRERP_LEGACY_ROOT` 传入）：
+  7 种表型逐成员一致，票号派生与推送前校验一致。
+- 离线（`tests/test_cowork_mrerp_push.py`，假 MR.ERP 站点）：分流（用户付款 / 货费选择）、客户 / 供应商 / 商品先自建再导入、
+  赊销 118 / 现金 125 / 采购 67 / 费用 453、逐行回执、非数字回复整批失败、上传被拒在发送前、别家票不进导入；
+  结果落定：成功带单号、已存在 = 成功、登录错 / 上传被拒 = 失败、确认后断线 = 不明。
+- 本地样板全链路（准备 → 确认 → 执行 → 回执，联网一步换假结果，全程回滚不留数据）：成功 → 成功 + 单号 + 识别记录「成功」+ 锁释放；
+  拒收 → 转人工 + 原因 + 锁释放；确认后断线 → 转人工 + 不明 + **锁保留**。执行器拿到账套 15:1、test01、解密后的密码、本方税号、进项。
+- Cowork 离线全量 1420 项，失败集合与 `origin/main` 同结构基线相同；架构 / 四语 / 前端文案 PASS。
+
+未做 / 待定：真推 test01（外部写入，需授权）；结果不明后锁不释放（Express 同样存在），需要处理入口；前端提交流程未改（等推送顺序重排）；
+Express 小助手旧地址入口（`companion.wsgi`）未挂。
+- 已补：只读目录采集与推送共用同一 MR.ERP 账号锁（`mrerp_session.lock_key` + `pearnly_core.session_lock.account_lock`；采集等锁 120 秒，
+  拿不到按 `ERR_TECHNICAL` 走原有重试）——否则推送中打开弹窗触发刷新会把导入会话踢掉。真实环境刷新（test01 只读）2 秒成功。
+
+### 第二批：test01 真推验证（2026-09-26，用户授权“test01 可以真推验证”）
+
+用户同时定：**不放开结果不明后的重新推送**（实际使用是完成一单再下一单）。
+
+- 数据：新注入第 3、4 批演示票（不动用户在点的第 2 批）；账套 test01 / TEST2019（6:1，旧版真机验证用的同一账套）；一单推完再推下一单。
+- 真推结果（按 MR.ERP 导入回执逐行判定 + 列表独立只读回读 `allview` / `showdata.php` 按单号搜）：
+
+| 单据 | 票 | 人工选择 | 结果 / MR.ERP 单号 | 回读模块 | 金额 | 客户 / 供应商 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 销项赊账 | SV6909-0307 | 赊账 | 成功 SI690923-841904 | artran/118 | 28,890.00 | **เงินสด** |
+| 销项现金 | SV6909-0407 | 现金 | 成功 SI690924-093665 | arse/125 | 28,890.00 | **เงินสด** |
+| 采购货品 | IV6909-0312 | 货品 | 成功 690915-963946 | aptran/67 | 13,375.00 | บริษัท สยามซัพพลาย จำกัด |
+| 采购费用 | TC-2569/0615 | 费用 | 成功 690908-536693 | aptran/453 | 5,350.00 | บริษัท ไทยคลีนนิ่ง เซอร์วิส จำกัด |
+
+  交叉检查：现金单不在赊销列表、赊销单不在现金列表、货品单不在费用菜单。识别记录状态均回写「成功」，每单约 3 秒。
+- test01 上的外部写入（测试账套，已授权）：上表 4 张单据，以及推送时自动建的供应商（两家，按税号）、商品（按名称派生码）、通用费用物料、现金客户（幂等确保）。未删除。
+- 问题：**销项客户都落在现金客户 เงินสด，不是票面买方**。旧逻辑销项客户只取识别记录关联的客户（`client_id`），没关联就当散客；
+  新平台录入流程不关联客户（改挂/解绑已取消），所以所有销项都会挂现金客户。待用户确认改为“无关联客户时按票面买方（税号）建 / 取客户”。
+- 复核页没有「货品 / 费用」选项，本次按复核保存接口写入 `posting_item_type_manual` 模拟人工选择；界面上目前只有自动判断。
+
+### 第三批：销项客户按票面买方 + 复核页货品 / 费用（2026-09-26，用户：“按票面买方改，复核页加上货品费用选项”）
+
+- 销项客户：`xlsx/lookups.resolve_customer_code` 关联客户映射 > **票面买方税号**（`invoice_buyer_code`，13 位）> 现金客户 เงินสด；
+  `autocreate.provision_customers` 无关联客户但有买方税号时按买方自建（码 = 税号，与生成器同源取码，不注入）；
+  买方 / 卖方取值同时认新平台键名 `buyer_tax` / `buyer_addr` / `seller_addr`（旧 OCR 是 `*_tax_id` / `*_address`）。有意差异见代码注释。
+- 复核页：`posting_item_type_manual` 下拉（空＝自动判断 / 货品 / 费用），只在进项显示、换方向跟着显隐，保存走原复核接口（空值删键）；
+  新词条 `intake.field.itemType`、`intake.itemType.goods/expense`（Core 术语表，四语）。
+- 验证：新增客户解析 / 买方自建测试 2 项；Cowork 离线全量 1424 项，失败集合同 `origin/main` 基线，导入表来源对照仍一致；
+  **test01 真推 SV6909-0507（第 5 批，无关联客户）→ 成功 SI690925-749804**，只读回读：赊销单客户 = บริษัท กรีนฟาร์ม จำกัด，
+  客户档 0105562055501（ลูกหนี้การค้า）已建。页面：进项票显示「货品 / 费用」、销项票隐藏；经复核保存接口写「费用」后重开回显「费用」，随后恢复留空
+  （IV6909-0212 版本号 +2，内容不变）。界面点选未做（内置浏览器面板隐藏时点击不落页面）。
+- test01 新增外部写入：上述 1 张赊销单 + 客户 บริษัท กรีนฟาร์ม จำกัด（0105562055501）。
+
+### 第四批：提交即推送、目标按第一次选择、失败原因上状态图标（2026-09-26）
+
+用户定：复核页右上角「提交」= 把这一批全部推送；「保存」只在字段有改动时出现；提交后回列表看状态；
+推送目标按第一次的选择；失败只把原因放在状态图标里（悬浮看）；状态只有 录入中 / 成功 / 失败；
+第三张卡片改「识别后导出」（我们的复核工作簿模板），MR.ERP / Express 两张卡片能导入这份模板解析后推送。
+
+实现：
+- 目标跟票走：`ocr.api.submit` 增 `connection` / `account_set_key`（只在带了时进请求指纹，老请求重放不受影响）→ `Cowork OCR Batch.target_*`
+  → 识别落库时抄到 `Cowork OCR History.push_connection` / `push_account_set`（不可改，`storage.IMMUTABLE`）。
+- 失败原因：`Cowork OCR History.last_push_reason`；`push_state.mirror` 转人工时写账本原因、其它状态清空；准备阶段被拦（reserve manual）也回写；
+  还没进账本就失败的走新 RPC `push.application.api.submit`（准备 + MR.ERP 确认一次做完，失败整笔回滚后 `record_failure` 只记原因、不改状态、正常返回）；
+  Express 的 `companion.submission.confirm` 同样失败不抛、记原因。
+- 前端：提交逐张（一张推完再下一张）按票上目标推，弹窗当场这一批用弹窗目录证据、从列表进来的现刷一次目录；幂等键 = 内容 + 上一次推送记录
+  （失败后再提交会重推，连点仍是一次）；已成功 / 录入中的跳过；推完回列表，不弹业务失败窗。「保存」按改动显隐（等回填完成再比）。
+  列表状态：manual 显示「失败」、只有原因没有状态也显示「失败」，悬浮 = 原因（共用 `list.js` 增可选 `title(value,row)`）；有录入中的每 4 秒自动重拉。
+  上传框：MR.ERP / Express 收 `.xlsx`（复核工作簿，服务端认出往返表走确定性解析）。卡片三改名「识别后导出」；删 `intake.push.manual`。
+- 兜底巡检 `push.mrerp.runner.sweep`（hooks cron 每 5 分钟）：丢失的待发送重新排队；过期租约转结果不明（不重推）。回执原因不再重复前缀。
+
+验证：
+- 浏览器：打开第 6 批 3 张票的复核页，「保存」初始不出现、改字段出现、改回消失；点「提交」→ 回列表 → test01 真推 3 张全部成功
+  （第一次提交因本机 Docker 虚拟机 DNS 故障 3 张失败、原因记在票上；修好 DNS 后再提交 → 3 张成功、原因清空）。
+- 本地样板（全程回滚）：连接版本不符 → `submit` 返回 failed、原因记票、状态不动；执行失败 → 状态 manual + 原因；巡检无事可做时不报错。
+- Cowork 离线全量 1424 项，失败集合仍是既有 7 项；架构 / 四语 / 前端文案 PASS。
+- 未验：从 MR.ERP / Express 卡片导入复核工作簿——本地 Cowork 站点**没配计费**（导回按字符计费，要先查额度，本地 `lookup_error`），需在测试环境验；
+  Express 整链（本机无小助手）。
+
+本地环境（本批，属本任务）：cowork-a 加了最小识别配置 `pearnly_cowork_ocr_environment={"OCR_LLM_BACKEND":"vertex"}`、`pearnly_cowork_ocr_policy={"mode":"economy"}`
+（只让确定性导回可用；无模型凭据，付费识别路径在凭据检查处被拦）；第 6 批演示票带目标 MR.ERP / 6:1（`sample-cowork-intake-demo.py 6 mrerp 6:1`）。
+电脑重启后：mariadb / redis 需手动 `docker start`；控制面容器需重启重连数据库；colima 虚拟机 DNS（192.168.5.4）失效，临时把虚拟机
+`/etc/resolv.conf` 指向 8.8.8.8 / 1.1.1.1（备份在 `/etc/resolv.conf.colima-bak`，colima 重启会恢复原状）。test01 新增：第 6 批 3 张单据（及可能自建的主档）。
+
+### 第五批：小助手精简 + 账套以网页为准（2026-09-26）
+
+用户（附 v1.1.77 截图）：小助手去掉多余文案、只保留必要标题；不显示账套 / 年度、只显示连接人的基础账号信息；去掉账套和年度选择，
+目标账套 / 年度以网页第一步选择为准；托盘右下角那个框太大撑破了。
+
+- **小助手**（来源仓库 `pearnly-companion`，用户本次明确要求改；单独工作树 `/Users/skin/.codex/worktrees/companion-simplify/pearnly-companion`，
+  分支 `codex/companion-simplify`，基线 `origin/master`＝`ca7f267`，**未提交、未推送、未出安装包**——该仓 master 的 CI 会把安装包发布到 Cloud Storage，不能随手推）：
+  - 连接列表每行只显示「Pearnly 账号 · 状态」，去掉公司 / 账套 / 端点 / 密钥尾号与顶部说明；托盘连接名用 Pearnly 账号（原来用 Express 公司名，
+    正是截图里的泰文乱码），菜单状态行超长截断（48 字，完整在悬停提示）。
+  - 编辑窗：介绍、「选择 Express 账套」「年度 / 数据根」「选择账套」说明、「允许全部年度与账套」不再显示（控件隐藏保留，配对仍要用检测结果）；
+    检测到的数据根**全部授权**；内部默认账套自动取（沿用已配的，否则第一个），只用于心跳身份。保留：配对码、开机自启、选择 Express 文件夹、状态行。
+    文案：标题改「添加 / 编辑 Express 连接」、检测结果「已找到 Express 数据」、配对成功只说「小助手将在后台运行」。
+  - 测试：新增 `tests/test_gui_pairing_simplified.py`，改 `test_gui_profiles` / `test_i18n` 两处旧口径断言；PySide6 6.11.1 环境 30 项界面相关通过；
+    仓库 `.venv` 跑 `tests/` 504 通过、5 失败——与 master 同为既有失败（`test_dbf_writer` 等），无新增。
+- **服务端**：`connections.preparation.collect` 以前只认小助手默认账套才给推送凭据证明；现在助手在线、且它上报的可写账套里有网页选的这一个也成立
+  （`reported_writable`），但默认账套的缓存（科目表等）不挪给别的账套（这种情况不带小助手缓存）。新增 `tests/test_cowork_preparation_dynamic.py`。
+  Cowork 全量 1426 项，失败集合仍是既有 7 项。
+- 未验：真机（Windows + Express）上新小助手与新平台的配对、心跳、领取、写入；非默认账套推送时缺小助手缓存会不会让部分票转失败（needs_mapping）。
+
+## 开工核对
+
+- 同步前备份：未提交补丁与未跟踪文件存放在本会话临时目录（不入仓）；快进后逐文件比对 31 处改动全部保留。
+- 与 ERP 的文件冲突：`codex/erp-testenv`（领先 main 19 个提交，未合）与 `.claude/worktrees/strange-swartz-a8b667` 的未提交改动，和本工作树改动**文件交集为 0**；ERP 对 `pearnly_core/ocr.py`、`line.py` 只做了新增，Cowork 调用面不变。
+- 前一窗口遗留的两个契约失败已处理（见下方“决定”第 4、5 条）。
+
+## 本批目标与范围
+
+用户 2026-09-26：新建录入弹窗「补付款方式，加公司选项、年度选项；MR.ERP 这个选项是第三方 ERP 映射过的实时选项，旧项目已有」；
+追问付款选项时的口径：“优先录入，优先第三方为准”。
+
+不做：MR.ERP 推送（新平台未迁，`push.application.service.prepare` 仍只接 Express）；选定账套层的商品/客户目录（旧版走 Playwright）；
+真实付费 OCR；Express 目录的本地验证（本地无 Express 连接与助手）。
+
+## 迁移线上基准
+
+- 旧线上最后承接流量的版本：Cloud Run `pearnly-web-ec2e5c957e6b-s3`，digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`，
+  源码 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`（映射见 [Cowork 后端迁移](2026-09-20-cowork-backend-migration.md)）。
+- 旧云已于 2026-09-24 退役（[退役记录](2026-09-24-legacy-cloud-retirement.md)），无法再在线回读；按该记录“以退役前冻结证据为来源”，首尾基准同为上述版本，无增量。
+- 只读来源：本机 `/Users/skin/Developer/Pearnly/pearnly-app` 的 `git show ec2e5c95:<path>`，未 checkout/fetch/修改。
+
+| 旧来源（`ec2e5c95`） | 新落点 | 保持的契约 |
+| --- | --- | --- |
+| `services/erp/mrerp_http/session.py`（login / list_account_sets / select_company / idus） | `connections/mrerp_collector.py::_Session` | 先 GET 登录页建会话；checklogin 后以进账套是否被踢回判真伪；抓 idus；30 秒超时 |
+| `services/erp/erp_mrerp_listing.py::test_mrerp_endpoint` | `mrerp_collector.collect` | 列账套后用第一个试选；永不抛；`ERR_AUTH/ERR_TECHNICAL/ERR_NO_CREDS/ERR_UNEXPECTED` |
+| `mrerp_target_projection.py::_run_live/_account_sets/_observation` | `mrerp_collector.collect`、`connections/mrerp_catalog.py` | 网络类失败隔 2 秒重试一次；键 `comidyear:seldb`；采集器 `cloud / mrerp-live-v1`；整站目录不带主档/表单；空目录 `ERR_ACCOUNT_SET_EMPTY` |
+| `target_refresh.py::process_mrerp_request` + `mrerp_refresh_worker.py` | `mrerp_collector.run/_lease/_complete` | 租约 180 秒、最多领 3 次；完成时核租约、配置版本；期间又被申请就重排、不发布旧观察 |
+| `services/erp/ssrf_guard.py` | `mrerp_collector.public_host` | 系统地址只许解析到公网（另加：跳转不许离开原站点） |
+| `line_target_projection.py:435 mode_options`、`cowork_line/document_preflight.py:178` | `public/desk/intake-choices.js` | MR.ERP 入口选现金/赊账、进项现金拦截；Express 入口选服务/存货 |
+| `src/home/dms-intake-erp-catalog-refresh.ts`、`dms-intake-erp-accounts.ts` | `public/desk/targets.js::catalog/companies` | 0.8 秒/2.5 秒轮询；快照版本须等于刷新结果版本；Express 年度＝程序目录、不可写账套不给选、年度按数字倒序 |
+
+有意差异（均为用户本次要求或新平台约束）：
+
+1. **公司、年度分两级**：旧版只抓链接文字，平铺成一个「账套」下拉。实读 test01 的选公司页（2026-09-26）是 `<p>` 行 / `<span>` 格（Comname / Comfullname / Remark / Database name），按行读出公司、链接文字仍是年度；认不出行时退回旧版平铺读法。
+2. **选择时点**：旧版 Web 在第 4 步（推送前）选账套；这里在新建录入弹窗里选，并把账套键与目录证据（刷新单号 + 快照版本）一路带到推送准备；证明规则不变（非默认账套必须带最新成功刷新的证据）。用户 2026-09-26 看过逐项对照后确认：**公司/年度仍在上传前先选**。
+3. **对外请求期间不持行锁**：租约一笔提交、采集、完成一笔提交（旧版同为租约围栏，事务划分按本仓 Frappe 任务实现）。
+4. 只做整站目录；按账套范围申请明确失败 `ERR_ACCOUNT_SCOPE_UNSUPPORTED`。
+
+## 变更
+
+后端（`apps/pearnly_cowork/pearnly_cowork/connections/`）：
+- 新增 `mrerp_catalog.py`（纯函数：选公司页解析、目录快照）、`mrerp_collector.py`（后台任务：租约、公网校验、登录读取、发布快照）。
+- `api.request_refresh` 落库后调 `mrerp_collector.dispatch`（`frappe.enqueue`，`job_id` 按申请去重、提交后入队、short 队列）。
+- `service`：`collector_available` 对 MR.ERP 为真（服务端采集）；`targets` 放行 `company_name` 属性。
+
+前端（`public/desk/`）：
+- `targets.js`：公司/年度目录（先给已有快照，再刷新并轮询），默认账套预选，错误码文案。
+- `intake-choices.js`：弹窗字段改为 目标 → 公司 → 年度 → 进项/销项 → 付款方式（MR.ERP）或过账类型（Express）；失败时显示原因与「重试」；下拉变化改用字段 `onchange`（产品皮肤的组合框上原生 change 只在失焦触发，实测会漏）。
+- `intake-upload.js`：目标显示为「系统 · 公司 · 年度」；推送准备带 `account_set_key` 与目录证据；识别提交不传空值；MR.ERP 批次不显示过账类型（整票与明细行）。
+
+其它：新增 10 条词条（年度、目录加载、MR.ERP 进项只能赊账、7 个目录错误码），四语包已重新生成。原判断放 Cowork 术语表 → `intake.` 前缀按 `browser_text` 约定归 core → 已全部移到 pearnly_core 术语表（见第二批）。
+
+## 决定
+
+1. 付款方式以第三方为准：MR.ERP 只有现金/赊账，进项只剩赊账（旧版拦截“进项+现金”）；Express 入口不问付款（票面六级漏斗判定，复核页可逐张改），改问过账类型。
+2. 每次打开弹窗选中 MR.ERP 都实时刷新一次（约 7 个请求，本地实测 0.76 秒）；旧版同样在首次选择时刷新，且同一连接同范围只有一个进行中的申请。
+3. 本地样板 cowork 组的 Redis 队列改到库 2（见“环境变更”）。
+4. `installer`（小助手安装包地址，登录用户 GET）加入 companion 允许的 RPC 集合，测试同时断言它只接受 GET 且先过 `require_actor`。
+5. 付款方式合同恢复严格：`None` 是没选，空串/False/0 仍是 `payment_invalid`（前一窗口曾放宽，与既有测试冲突）；识别工作流从库里读回的空值在调用处归一为 None。
+
+## 2026-09-26 第三批（本窗口）
+
+- 列表卖方税号 / 买方 / 买方税号可排序：`Cowork OCR History` 新增 `seller_tax`、`buyer_name`、`buyer_tax` 三个摘要列
+  （`contracts/history.py::extract_party_fields`，与摘要同一主页面），`storage.validate_document` 每次写入重算；
+  补丁 `v0_0_2_backfill_history_parties` 回填旧行（直接写列、不改修改时间）；`history/api.py` 去掉逐页现算的 `_with_parties`，排序白名单加这三列。
+- 录入状态「推送中」→「录入中」。
+- Express 连接弹窗（`targets.js::express_dialog`），新增词条 `intake.agent.key/copy/reset/resetConfirm`。
+- 修 `companion.api.issue`：表单把 `reset` 送成字符串，合同要求布尔，网页上的「重新生成」此前必然 `companion.request_invalid`；
+  入口用 `contracts.wire_flag` 只认 `1/true/0/false` 四种写法，合同层严格性不变。
+- 本地环境：cowork-a 打开 `pearnly_cowork_erp_push_enabled=1`（生成密钥需要；回退：`bench --site cowork-a.localhost set-config -p pearnly_cowork_erp_push_enabled 0`）；
+  建了一条本地 Express 连接并生成过 2 代密钥（第 1 代已因重新生成失效）。本机未装助手，没有外部写入。
+- 演示脚本加轮次参数；轮次 2 已注入。
+- 验证：架构 PASS；四语与前端文案 PASS；bench Python 下 `test_cowork_*` 1401 项，与 `origin/main` 同结构基线（1382 项）逐项对比失败集合相同、无新增
+  （既有失败：缺 `docx`、manifest 测试桩缺 `check_duplicates` 参数、缺 `scripts/cowork-migration-baseline.py` 以外的同项）；
+  浏览器：三列升/降序接口核对正确，Express 弹窗首次生成、再开显示末 4 位、重新生成、复制按钮均走通（内置浏览器禁止写剪贴板，复制提示需在 Chrome 里看）。
+- ~~已知问题：Express 以“有有效密钥”判已绑定~~ → 已改，见第四批。
+
+## 2026-09-26 第四批（本窗口）
+
+- Express 状态按助手**实际连上**判断：`companion/credentials._online`（旧线上 `erp-agent-liveness.ts` 同一判据：
+  当前这把有效密钥 3 分钟内报过到；只生成密钥、旧密钥报的、时间戳缺失/无时区/1970 下线标记一律不算），`status` 回 `online`；
+  卡片「已连接」（与 MR.ERP 同词）/「助手未连接」，Express 只有在线才可选；弹窗开着时每 30 秒重读一次（旧版同节奏），
+  状态变了才重画、就绪变了才重读目录。删掉不再使用的 `intake.agent.state.bound/revoked`。
+- ~~Express 改「年度 → 账套」~~ → 用户 2026-09-26 定：两家的账套都是「一家公司的一个年度」（MR.ERP 公司下挂年度库，Express 年度目录下
+  每家公司一个账套文件夹，只是嵌套相反），**界面统一「公司 → 年度」**。Express 按公司名归组、年度取目录名倒序（旧版界面先年度后账套，是照
+  Express 目录结构；这是有意差异）。未新增词条。浏览器用本机虚构目录核对：ACME → 2568/2567，BETA → 2568。
+- 目标卡片：三张一排等宽等高（窄屏一列），名称一行、状态下一行、「连接」贴底；不可选时只压暗名称与状态，「连接」不变灰。
+- 验证：新增 `tests/test_cowork_companion_liveness.py` 3 项通过；bench Python `test_cowork_*` 1404 项，失败集合与 `origin/main` 基线相同；
+  架构 / 四语 / 前端文案 PASS。浏览器：无助手时 Express「助手未连接」不可选；本机用测试密钥模拟助手报到一次（第 4 代密钥，
+  虚构 2 个年度 3 个账套，只打本机）后 Express「已连接」可选，年度 2568/2567 倒序，选 2568 后账套为该目录下两家；桌面与 375 宽手机排版核对。
+- 本地残留：该 Express 连接带着模拟报到写入的虚构目录与心跳（3 分钟后自然转离线）；Express 目录刷新申请没有真实助手领取，会在 240 秒后显示超时。
+
+## 验证（均为本机，代码＝本工作树未提交状态，基线 `a38d043`）
+
+| 场景 | 环境 / 命令 | 结果 |
+| --- | --- | --- |
+| 架构 | `python3 scripts/check-architecture.py` | PASS，0 violations |
+| 四语 | `i18n-build.py --check`、`check-frontend-i18n.py --strict` | PASS / 0 问题；ERP、DMS 翻译包未被连带改动 |
+| JS 语法 | `node --check public/desk/*.js` | 通过 |
+| 选公司页解析与目录 | `tests/test_cowork_mrerp_catalog.py`（宿主 Python 3.14） | 8 项通过（含实测 `<p>/<span>` 形状、平铺回退、去重、选择层兼容） |
+| 采集会话 | `tests/test_cowork_mrerp_collector.py`（cowork bench Python，假 HTTP） | 9 项通过：登录顺序、账号错误不重试、缺凭据不外呼、网络失败重试一次、5xx、跳出原站、空目录、异常收敛、公网/语法校验 |
+| Cowork 离线全量 | cowork bench Python，`unittest discover -p 'test_cowork_*.py'` | 1408 项，6 error；与 `origin/main` 同环境基线（1390 项，同样 6 个 error：缺 `docx` 等依赖）逐项对比**无新增失败** |
+| 真实 MR.ERP 读取 | 本地样板 + test01（用户授权，只读） | 刷新成功，快照 revision 2：`TEST · 1010-01-000006 บริษัท ทดสอบการใช้ จำกัด` → `TEST2020 (15:1)`、`TEST2019 (6:1)` |
+| 推送侧证明关卡 | bench 内 `read_for_push` + `freeze_target` | 带证据选 15:1 通过；无证据 `catalog_refresh_required`；旧版本、未知账套 `catalog_refresh_invalid` |
+| 浏览器 | 内置浏览器真实点击 | 公司自动选中、年度倒序；进项→只剩赊账并提示；销项→现金/赊账；「继续」按规则禁用/启用；上传页显示「MR.ERP · TEST · … · TEST2019」、MR.ERP 批次无过账类型 |
+| 失败显示 | 浏览器内替换目录函数模拟 `ERR_AUTH` | 显示原因、出现「重试」、「继续」禁用；点「重试」重新读取 |
+
+未覆盖：MR.ERP/Express 实际推送；Express 目录（本地无连接）；真实识别（付费 OCR）；用户验收。HTTP 200 与页面可打开不算业务验收。
+
+## 环境变更（本地样板，均属本任务）
+
+- `pearnly-sample_sites-cowork` 卷的 `common_site_config.json`：`redis_queue` 由 `redis://redis-queue:6379` 改为 `redis://redis-queue:6379/2`。原因：cowork 与 control 两组共用库 0，cowork 的后台任务被 control worker 领走并报 `cowork-a.localhost does not exist`（ERP 组此前已在库 1，未见记录）。根因在 `scripts/sample-init-group.sh` 给所有组写同一个库，本次未改该共用脚本。回退：`bench set-config -g redis_queue redis://redis-queue:6379` 后重启 cowork 组。
+- 本地 MR.ERP 连接 `CWEC-6229892c-…`：凭据由演示账号改为 test01（经 `connections.service.configure`，revision 1 → 2）。
+- 容器 `/tmp` 下的测试副本已清除。
+
+## 识别结果轮询（2026-09-26 第二批）
+
+用户：“先把识别结果轮询补上，用官方原生的白屏覆盖和旧项目的百分比”。
+
+- 缺口：识别提交是后台排队（批次 `admitted` → 任务 queued/running/deferred → 批次 `saved`/`not_invoice`，或任务 `failed/uncertain/cancelled`），
+  前端原来只看提交那一刻的返回，正常情况下左边不会回填。
+- 来源（`ec2e5c95`）：`src/home/dms-intake-invoice.ts` `startRecognize/renderProcessing`（6 份并发；「已完成/总数 · 百分比」按份数；
+  结束后「完成 · 成功 {ok} · 失败 {fail}」、全空报「识别结果为空，请重新上传」）；`src/home/ocr-job-poll.ts`（每 1.5 秒、最长 20 分钟、
+  连续 10 次读不到才算失联）。四语文案取自旧 `static/i18n-data.js` 的 `dxi-proc-title/-sub`、`dxi-batch-fail`、`dxi-rev-empty`。
+- 新落点：`public/desk/intake-upload.js` `run_batch / wait_batch / paint_progress`。遮罩用官方 `frappe.dom.freeze`，正文改 `#freeze .freeze-message p.lead`
+  （与 DMS 连接页同一写法）；状态查询用 `frappe.call(..., silent: true)`，失败静默重试。离开页面时收起遮罩。
+- 有意差异：官方遮罩里没有「停止识别」按钮（旧版的停止只是放弃前端等待，后台任务不会停）；批次表新增「识别中」「已识别」「非发票」三种状态。
+- 词条：`intake.` 前缀按 `browser_text` 约定归 pearnly_core，本批新增的 `intake.*` 词条（含上一批的年度/目录/付款说明）全部放在 core 术语表；
+  年度英文原文用 “Fiscal year”，避免按英文补的别名行把 Frappe 自带的 “Year” 全站改译。Cowork 语言包里上一批残留的行已删。
+- 验证：浏览器里替换上传/提交/状态三个调用做模拟批次（不产生真实识别与费用）：遮罩依次显示 1/3 · 33%、2/3 · 67%，全部有结论后收起；
+  状态查询全部静默；批次表 a 已识别 / b 非发票 / c 失败；第一张回填（PV-2026-0001）。真实识别未跑（付费）。
+- 余项：失败原因目前显示原始码（如 `queue_full`），错误码文案随识别字段对照一起补。
+
+## 复核页对齐旧线上（2026-09-26 第三批）
+
+用户：核实识别字段、分页、拆页、一份多页、一页多票是否按旧项目；目标 ERP、原始文件名、页数不显示在识别结果区（随后“干脆不要显示目标 ERP”）；
+界面兼容手机，明细与预览照 ERP 页的成熟做法。
+
+对照结论（来源 `ec2e5c95`：`src/home/dms-intake-review*.ts`、`image-viewer.ts`、`services/ocr/invoice_grouper.py`、`routes/history_routes.py`）：
+
+| 项目 | 旧线上 | 新后端 | 本批前端 |
+| --- | --- | --- | --- |
+| 识别字段表 | `schemas_invoice.py` 30 个抬头 + 明细 4 键 | 原样已迁 | — |
+| 复核字段 | 对方（进项卖方 / 销项买方）名称与税号、单据号、票面日期、未税、税额；价税合计、另一方名称与税号、预扣税额 | — | 照旧版补齐并按进/销项换位 |
+| 日期 | 改 `date_raw`，服务端换算 `date` | 同规则 | 原前端改 `date` 会被覆盖 → 改为票面日期 |
+| 明细 | 名称/数量/单价/金额（`price`/`subtotal`）可改，不能增删 | — | 原前端读 `unit_price`/`amount` 导致单价、金额为空 → 改正；行级过账类型保留（新平台增项，MR.ERP 不摆） |
+| 空值提醒 | 单据号、合计、对方税号标黄；销项简易票/收据免买方税号 | — | 用官方必填样式标出，只提醒不拦 |
+| 分页 | 整份原件翻页、点票跳到它第一页、翻页反向联动 | 页图接口只给本票自己的页（有意收紧） | 把这一批所有票的页串起来翻；翻到别的票就切到那张票 |
+| 编辑落点 | 每张票的合并字段（主页面） | 合计/推送/学习只认主页面 | 原前端“按页编辑”第 2 页以后无效 → 改为写回主页面 |
+| 拆页 / 合页 / 移页 | 没有 | 没有且锁死 | 一致，不做 |
+| 一份多页 / 一页多票 | 自动分组，一张票一条记录；「发票 i/n」；漏识别横幅 | 已迁 | 「发票」下拉切换全部票（切走前自动保存）；漏识别提示 |
+| 重复发票 | 识别后提示 N 张可能重复 | 每条记录有 `duplicate_warning` | 识别后提示 + 本票提示条 |
+
+原判断 → 新证据 → 当前结论：上个窗口注释写“复核逐页做、保存只写当前这一页（用户 2026-09-25）” → 服务端只认主页面，第 2 页以后的改动不影响合计、推送、学习 →
+保留“翻页换左侧内容”，改为按票切换、写回主页面（旧线上同一做法）。
+
+手机（照 ERP 采购页 `purchase-layout.js` / `purchase-form.js`）：DOM 里原件区在前、字段在后，桌面网格右栏吸顶，手机纵排；手机上有分区导航（原件 / 识别结果 / 明细，
+Desk `form-tabs-list` 样式，只滚动不切换，滚到底高亮最后一区）；明细每行一个可折叠原生小节（第一行展开）。分区导航是录入页自己的小函数，
+与 ERP 同写法；若要抽到 core 共用，需与 ERP 窗口协调后再做。目标 ERP、原始文件名、页数已从页面去掉（推送仍按弹窗选择）。
+
+验证（本地样板，内置浏览器）：
+- 桌面：字段按旧版排布，票面日期显示佛历原样，空卖方税号标必填；明细金额有值。
+- 手机 375×812 与面板窄屏 706：整页宽度＝视口（无横向滚动），原件区在上、工具条换行，分区导航跳转与高亮正常，明细折叠小节正常。
+- 保存（演示记录 `CWH-9ea9…`）：改预扣税额 10、票面日期 26/09/2569 → 主页面写入、`date` 由服务端换算为 2026-09-26、其它页不变、未改的格子不写；随后已改回原值（版本 12 → 16，`edit_count` 随之增加）。
+- 切换：第 1 张有未存改动时切到第 2 张，第 1 张先自动保存；进/销项改为销项后对方换成买方、卖方挪到另一方（未保存，已丢弃）。
+- 漏识别、可能重复两条提示用替换的详情数据验证显示；真实重复/漏识别数据未跑。
+
+## 演示数据与口径收敛（2026-09-26 第四批）
+
+用户：“不要多加文案，新平台以推送和批量识别为主，识别后人工会自然复核”；复核页不加「确认」按钮。
+
+- 撤掉本任务自加、旧版没有的两句：本票“可能重复”提示条、“MR.ERP 的进项只能按赊账入账”；旧版原有的漏识别提示、重复张数提示、批量成功/失败提示保留。
+- `history.api.workbench` 增加可选 `source_file`（同一份原件的票，按 `source_index` 排）：从列表进复核时，同一份原件识别出的几张票也能用「发票 i/n」与翻页切换。
+- 本地演示数据（`cowork-a.localhost`，用户 tenant-admin@sample.local，工作区唯一那一份）：会话临时目录的造数脚本走真实 `files.service.create` →
+  `prepare_history_batch`（分组）→ `persist_batch`（落库、原件绑定、重复检查），只把模型识别换成固定结果（不调模型、不计费、不外连；请求键固定，重跑幂等）。
+  原件用容器内泰文字体 Loma 画成票据，公司与税号为虚构测试值。
+  共 6 份原件、9 张票：两页一票（IV6909-0012，明细跨页 6 行）、一页两票（RC-0441 / BN2569-88213）、三页三票（TC-2569/0315、OM-66-10421、AE-0927，含 3% 预扣）、
+  销项（SV6909-0007）、F3 首张的重复件（服务端判为 exact 重复）、带漏识别信号的收据（0005821）。
+- 浏览器抽查：一页两票从列表进来显示「发票 1/2」，翻页切到第二张；销项对方为买方；两页一票明细 6 行、原件 2 页；漏识别提示出现。
+
+- 列表去掉「确认」（行内与勾选后的「确认选中的 N 张」，即 `history.api.complete` 把草稿标成已完成）与「草稿」筛选（用户：“外面那个确认复核按钮不要了”）；勾选框按用户要求保留。
+  推送、对账、导出都不看 `staged`，去掉不影响推送；后端 `complete` 接口保留未动。词条 `intake.action.confirmCount` 随之删除。
+
+## 仅识别、勾选删除、列表（2026-09-26 第五批）
+
+用户：新建录入加「仅识别」（识别后导出、不推送，用已有模板）；勾选后右上角出现删除（照 ERP）；列头点了排序看着乱；
+列表列改为不要系统单号、加买卖方与税号、价税合计、录入状态（黄推送中 / 红失败 / 绿成功，旧项目有）；不要「复核」按钮。
+
+- **仅识别**：目标卡片加第三张「仅识别」（无需连接）；只选进项 / 销项；上传页右上角「导出」代替「提交」，导出这一批全部票的
+  复核工作簿（新后端 `roundtrip.api.export`，旧线上复核工作簿协议，一次 ≤100 张，多了分批）。工作簿要求每张票能原样回导，
+  缺金额等会被拒；整份失败时逐张找出不合格的，其余照常导出，不合格的列「单号：服务端原话」。不新增文案。
+- **删除**：新增 `history.api.delete(records)`（`history/removal.py`，来源旧线上 `history_batch_delete`：≤500 条，回
+  `{deleted, skipped}`）。有意差异：已推送（推送记录 / 推送通知 / `last_push_status`）跳过；原件不删（计费批次引用）；纠错样本
+  按设计不可删、原样保留（取样按内连接，记录删后不再参与），删除时 `force` 跳过关联检查；Frappe 仍留「已删除文档」备份；
+  DocType `on_trash` 只对删除服务放行，通用 REST / `frappe.client.delete` 仍 403。已知窄窗口：已受理未执行的识别若冻结了被删
+  记录的纠错样本，该次识别会在调用模型前校验失败（不计费，重传即可）。列表勾选后右上角「删除」+ 确认「删除选中的 {0} 条记录？已推送的删不掉。」。
+- **排序**：价税合计在库里是 Decimal 文本，数据库按文字排（1200 < 13375 < 2140 < 450）；Frappe 16 的 `order_by` 不许表达式，
+  改为与计数同一条权限查询取全部行、服务端按数值排序再分页。「单号」是随机号，去掉其列头排序。
+- **列表列**：单据号、日期、卖方、卖方税号、买方、买方税号、价税合计、录入状态（`workbench` 按主页面补出卖方税号 / 买方 / 买方税号，
+  主页面判据抽成 `contracts.history.primary_page_fields`，摘要与列表共用）。录入状态＝最近一次推送结果，颜色照旧线上
+  `erp-log-card.ts`：`pending` 黄「推送中」、`success` 绿「成功」、`manual` 红「待人工核对」、其余红「失败」，未推送不标；
+  用 `cell_class` 挂官方 `indicator-pill` 颜色类（共用列表 `format` 只出文字）。去掉行内「复核」与详情弹窗，点一行进复核页。
+- 验证：删除（API：删 1 / 跳过 1，同页另一张页图仍 200；UI 勾选→删除→确认→已删除）；通用删除接口 403；价税合计升 / 降 / 翻页按数值；
+  「仅识别」弹窗只剩进项 / 销项，上传页「导出」下载 1 份工作簿、RC-0441 列为不合格；列表新列与三种颜色；点行进复核。
+  Cowork 离线全量 1408 项，与 main 基线同样 6 个环境 error，无新增失败。
+- 本地样板数据：另建并已删除两张 `DEL-TEST-*` 测试票（原件保留）；为看颜色给 IV6909-0012 / AE-0927 / OM-66-10421 直接写了
+  演示用 `last_push_status`（success / pending / manual，非真实推送，这三张因此删不掉）。
+
+## 下一步
+
+1. 用真实识别结果（需付费 OCR 授权）走一遍上传 → 识别 → 复核 → 提交；复核后的「确认」（`history.api.complete`）入口是否放在复核页待定。
+2. 本批与前一窗口遗留改动提交到任务分支（待用户同意），推送前跑 `build-production.yml` 同名闸门。
+3. 可另开小任务修 `scripts/sample-init-group.sh` 的按组分库。
+
+## 收尾状态
+
+交接保留：工作树与本地分支承载全部未提交改动，不能删除；解除条件＝录入完成、提交并按主线规则合入 main 后清理。无远端分支。

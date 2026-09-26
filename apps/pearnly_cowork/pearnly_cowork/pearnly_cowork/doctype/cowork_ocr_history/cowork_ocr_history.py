@@ -18,5 +18,7 @@ class CoworkOCRHistory(Document):
         validate_document(self)
 
     def on_trash(self):
-        if self.source_file:
+        # 只有删除服务（`history/removal.py`）核过权限与推送后才放行；别的入口删不掉带原件的记录。
+        from pearnly_cowork.history.removal import DELETE
+        if self.source_file and self.flags.cowork_history_delete is not DELETE:
             frappe.throw(_("Original evidence and ownership cannot be changed."), frappe.PermissionError)

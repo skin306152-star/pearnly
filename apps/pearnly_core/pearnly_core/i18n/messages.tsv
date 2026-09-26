@@ -597,6 +597,9 @@ Sale	销项	ขาย	売上	intake.dir.sales
 Purchase (bills received)	进项（收到的票）	ซื้อ (บิลที่ได้รับ)	仕入（受領した請求書）	intake.dir.purchaseFull
 Sale (bills we issue)	销项（自己开的票）	ขาย (บิลที่เราออก)	売上（自社発行の請求書）	intake.dir.salesFull
 Purchase / Sale	进项 / 销项	ซื้อ / ขาย	仕入 / 売上	intake.field.direction
+Goods / expense	货品 / 费用	สินค้า / ค่าใช้จ่าย	商品 / 経費	intake.field.itemType
+Goods	货品	สินค้า	商品	intake.itemType.goods
+Expense	费用	ค่าใช้จ่าย	経費	intake.itemType.expense
 Source	来源	แหล่งที่มา	取得元	intake.field.source
 Upload	上传	อัปโหลด	アップロード	intake.source.upload
 Email	邮件	อีเมล	メール	intake.source.email
@@ -808,3 +811,50 @@ Not Permitted	没有权限	ไม่มีสิทธิ์	権限がありま�
 Nothing to show	没有可显示的内容	ไม่มีข้อมูลให้แสดง	表示する項目がありません
 Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรียงตาม {0}	{0} で並べ替え
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
+Target ERP	目标 ERP	ERP ปลายทาง	連携先 ERP	intake.target.title
+Assistant not connected	助手未连接	ผู้ช่วยยังไม่เชื่อมต่อ	アシスタント未接続	intake.agent.state.missing
+Key	密钥	คีย์	キー	intake.agent.key
+Copy	复制	คัดลอก	コピー	intake.agent.copy
+Regenerate	重新生成	สร้างใหม่	再生成	intake.agent.reset
+The old key stops working right away.	旧密钥会立即失效。	คีย์เดิมจะใช้ไม่ได้ทันที	古いキーはすぐに使えなくなります。	intake.agent.resetConfirm
+Download assistant	下载助手	ดาวน์โหลดผู้ช่วย	アシスタントをダウンロード	intake.target.download
+This site has no assistant installer address yet.	本站点还没有配置助手的安装包地址。	ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้งผู้ช่วย	このサイトにはアシスタントのインストーラーURLがまだありません。	intake.installerMissing
+Connect	连接	เชื่อมต่อ	接続
+Fiscal year	年度	ปีบัญชี	年度	intake.target.year
+Reading companies and years from {0}…	正在从 {0} 读取公司和年度…	กำลังอ่านบริษัทและปีบัญชีจาก {0}…	{0} から会社と年度を読み込み中…	intake.catalog.loading
+Wrong ERP username or password. Check it under Connect and try again.	目标 ERP 的账号或密码错误，请在「连接」里检查后重试。	ชื่อผู้ใช้หรือรหัสผ่าน ERP ไม่ถูกต้อง กรุณาตรวจสอบที่ «เชื่อมต่อ» แล้วลองใหม่	ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。	intake.catalog.ERR_AUTH
+The ERP timed out or the network failed. Please try again later.	连接目标 ERP 超时或网络异常，请稍后重试。	เชื่อมต่อ ERP หมดเวลาหรือเครือข่ายขัดข้อง กรุณาลองใหม่ภายหลัง	ERP への接続がタイムアウトしたか、ネットワークに問題があります。後でもう一度お試しください。	intake.catalog.ERR_TECHNICAL
+This connection has no username and password yet.	这条连接还没有填账号和密码。	การเชื่อมต่อนี้ยังไม่มีชื่อผู้ใช้และรหัสผ่าน	この接続にはユーザー名とパスワードがまだ設定されていません。	intake.catalog.ERR_NO_CREDS
+This system address is not allowed; only public addresses can be used.	这个系统地址不被允许，只能连公网地址。	ไม่อนุญาตที่อยู่ระบบนี้ ใช้ได้เฉพาะที่อยู่สาธารณะ	このシステムアドレスは使用できません。公開アドレスのみ使用できます。	intake.catalog.ERR_URL_BLOCKED
+This ERP account has no company or year to choose.	这个账号在目标 ERP 里没有可选的公司和年度。	บัญชี ERP นี้ไม่มีบริษัทหรือปีบัญชีให้เลือก	この ERP アカウントには選択できる会社・年度がありません。	intake.catalog.ERR_ACCOUNT_SET_EMPTY
+Reading companies and years took too long. Please try again.	读取公司和年度超时，请重试。	อ่านบริษัทและปีบัญชีนานเกินไป กรุณาลองใหม่	会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。	intake.catalog.ERR_TIMEOUT
+Could not read companies and years. Please try again.	没能读取公司和年度，请重试。	อ่านบริษัทและปีบัญชีไม่สำเร็จ กรุณาลองใหม่	会社と年度を読み込めませんでした。もう一度お試しください。	intake.catalog.ERR_UNEXPECTED
+Reading file contents	正在整理文件内容	กำลังอ่านเนื้อหาไฟล์	ファイル内容を読み取り中	intake.proc.title
+Reading supplier, amounts, dates and tax fields	正在读取供应商、金额、日期和税务字段	กำลังอ่านผู้ขาย ยอดเงิน วันที่ และช่องภาษี	仕入先・金額・日付・税項目を読み取り中	intake.proc.sub
+No recognition result — please re-upload	识别结果为空，请重新上传	ไม่มีผลการอ่าน กรุณาอัปโหลดใหม่	読取結果がありません。再アップロードしてください	intake.proc.empty
+Done · {0} ok · {1} failed	完成 · 成功 {0} · 失败 {1}	เสร็จ · สำเร็จ {0} · ล้มเหลว {1}	完了 · 成功 {0} · 失敗 {1}	intake.proc.batchFail
+Recognizing	识别中	กำลังอ่าน	読み取り中	intake.status.recognizing
+Seller	卖方	ผู้ขาย	売り手	intake.field.seller
+Buyer	买方	ผู้ซื้อ	買い手	intake.field.buyer
+Seller Tax ID	卖方税号	เลขภาษีผู้ขาย	売り手税番号	intake.field.sellerTax
+Buyer Tax ID	买方税号	เลขภาษีผู้ซื้อ	買い手税番号	intake.field.buyerTax
+Date as printed	票面日期	วันที่ตามใบกำกับ	伝票の日付	intake.field.printedDate
+WHT deducted	预扣税额	ภาษีหัก ณ ที่จ่าย	源泉徴収税額	intake.field.whtAmount
+Goods / Service	商品 / 服务	สินค้า / บริการ	商品 / サービス	intake.item.name
+Invoice {0}/{1}	发票 {0}/{1}	ใบกำกับ {0}/{1}	請求書 {0}/{1}	intake.review.invoice
+May have missed an invoice — please verify page/invoice count against the original	可能漏识别发票 · 请人工核对原件页数与张数	อาจอ่านใบกำกับตกหล่น โปรดตรวจจำนวนหน้าและจำนวนใบกับต้นฉบับ	請求書の読み取り漏れの可能性 · 原本のページ数・枚数をご確認ください	intake.review.missed
+{0} possible duplicate invoice(s) detected	检测到 {0} 张可能重复的发票	พบใบกำกับที่อาจซ้ำ {0} รายการ	重複の可能性がある請求書 {0} 件を検出	intake.review.dupWarn
+The recognition queue is full. Please try again later.	识别队列已满，请稍后重试。	คิวการอ่านเต็ม กรุณาลองใหม่ภายหลัง	読み取り待ちがいっぱいです。後でもう一度お試しください。	intake.error.queue_full
+Recognition took too long. Please try again later.	识别超时，请稍后重试。	การอ่านใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง	読み取りに時間がかかりすぎました。後でもう一度お試しください。	intake.error.timeout
+Network error	网络错误	เครือข่ายผิดพลาด	ネットワークエラー	intake.error.poll_unreachable
+Recognition failed. Please try again.	识别失败，请重试。	การอ่านไม่สำเร็จ กรุณาลองใหม่	読み取りに失敗しました。もう一度お試しください。	intake.error.workflow_error
+The recognition result is not confirmed yet. Refresh later to check.	识别结果尚未确认，请稍后刷新查看。	ยังไม่ยืนยันผลการอ่าน กรุณารีเฟรชภายหลัง	読み取り結果はまだ確定していません。後で更新して確認してください。	intake.error.provider_outcome_unknown
+Recognition waited too long in the queue. Please upload again.	识别排队超时，请重新上传。	รอคิวการอ่านนานเกินไป กรุณาอัปโหลดใหม่	読み取り待ちが長すぎました。再アップロードしてください。	intake.error.queue_expired
+Invoice No. / Count	发票	ใบกำกับ	請求書	intake.field.invoice
+Original document	原件	ต้นฉบับ	原本	intake.nav.original
+Recognition result	识别结果	ผลการอ่าน	読み取り結果	intake.nav.result
+Line items	明细	รายการ	明細	intake.nav.items
+Recognize and export	识别后导出	อ่านแล้วส่งออก	読み取り後にエクスポート	intake.target.recognizeOnly
+Delete {0} selected records? Pushed ones cannot be deleted.	删除选中的 {0} 条记录？已推送的删不掉。	ลบ {0} รายการที่เลือก? รายการที่ส่งแล้วลบไม่ได้	選択した {0} 件を削除しますか？送信済みは削除できません。	intake.confirm.delete
+Entering	录入中	กำลังบันทึก	入力中	intake.push.pending
+Entry status	录入状态	สถานะการบันทึก	登録ステータス	intake.col.entryStatus

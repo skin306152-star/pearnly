@@ -66,9 +66,12 @@ class NativePushContract(unittest.TestCase):
         self.assertNotEqual(first['request_fingerprint'],frozen_values(self.context,self.target,{'amount':'2.675'},'prepared','',[])['request_fingerprint'])
 
     def test_target_binding_and_final_states_cannot_be_client_supplied(self):
-        for change in ({'endpoint_id':'other'},{'account_set':'other'},{'binding_generation':1},{'adapter':'mrerp'}):
+        for change in ({'endpoint_id':'other'},{'account_set':'other'},{'binding_generation':1},
+                       {'adapter':'mrerp_dms'},{'adapter':None}):
             with self.subTest(change=change),self.assertRaises(PushLedgerError):
                 frozen_values(self.context,{**self.target,**change},{},'prepared','',[])
+        # MR.ERP 发票推送已接入同一账本（服务端直连执行），目标类型只认 express / mrerp 两种。
+        self.assertIn('target_json',frozen_values(self.context,{**self.target,'adapter':'mrerp'},{},'prepared','',[]))
         for state in ('pending','leased','success','cancelled'):
             with self.assertRaises(PushLedgerError):frozen_values(self.context,self.target,{},state,'',[])
 

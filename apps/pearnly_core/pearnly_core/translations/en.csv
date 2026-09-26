@@ -42,6 +42,7 @@ Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Assign To,Assign To
+Assistant not connected,Assistant not connected
 Attempt,Attempt
 Attempts,Attempts
 Auto Push,Auto Push
@@ -67,6 +68,8 @@ Bound At,Bound At
 Branches {0},Branches {0}
 Business Key,Business Key
 Business number,Business number
+Buyer,Buyer
+Buyer Tax ID,Buyer Tax ID
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
@@ -102,6 +105,7 @@ Confirmed,Confirmed
 Confirmed At,Confirmed At
 Confirmed By,Confirmed By
 Confirmed · ready to push,Confirmed · ready to push
+Connect,Connect
 Connect DMS before adding an operator.,Connect DMS before adding an operator.
 Connect DMS to load the advisor list.,Connect DMS to load the advisor list.
 Connect and save,Connect and save
@@ -116,6 +120,7 @@ Connection OK · {0},Connection OK · {0}
 Connection failed,Connection failed
 Console,Console
 Contact support with the record ID,Contact support with the record ID
+Copy,Copy
 Could not call the model: {0},Could not call the model: {0}
 Could not create the OIDC client: {0} {1},Could not create the OIDC client: {0} {1}
 Could not create the account in the target environment: {0} {1},Could not create the account in the target environment: {0} {1}
@@ -126,6 +131,7 @@ Could not get the admin token,Could not get the admin token
 Could not get the admin token: {0},Could not get the admin token: {0}
 Could not look the account up by email: {0},Could not look the account up by email: {0}
 Could not look up the account: {0} {1},Could not look up the account: {0} {1}
+Could not read companies and years. Please try again.,Could not read companies and years. Please try again.
 Could not read the account profile: {0},Could not read the account profile: {0}
 Could not read the client secret: {0} {1},Could not read the client secret: {0} {1}
 Could not send the invitation email: {0} {1},Could not send the invitation email: {0} {1}
@@ -183,12 +189,14 @@ DMS sign-in did not finish (after retrying there was neither a successful checkl
 DMS usage and balance,DMS usage and balance
 DMS username,DMS username
 Date,Date
+Date as printed,Date as printed
 Dedupe Key,Dedupe Key
 Default Connection,Default Connection
 Delete,Delete
 Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.
 Delete {0} selected push records from this list? Sent business documents will not be affected.,Delete {0} selected push records from this list? Sent business documents will not be affected.
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.
+Delete {0} selected records? Pushed ones cannot be deleted.,Delete {0} selected records? Pushed ones cannot be deleted.
 Deleted,Deleted
 Deleted {0} operators,Deleted {0} operators
 Deleted {0} push records,Deleted {0} push records
@@ -209,6 +217,8 @@ Document Type,Document Type
 Document date,Document date
 Document no.,Document no.
 Documents,Documents
+Done · {0} ok · {1} failed,Done · {0} ok · {1} failed
+Download assistant,Download assistant
 Draft,Draft
 Due Date,Due Date
 Duplicate skipped,Duplicate skipped
@@ -230,9 +240,12 @@ Endpoint,Endpoint
 Endpoint {0} has no password configured,Endpoint {0} has no password configured
 Endpoint {0} is disabled,Endpoint {0} is disabled
 "Endpoint {0} uses adapter {1}, not mrerp_dms","Endpoint {0} uses adapter {1}, not mrerp_dms"
+Entering,Entering
+Entry status,Entry status
 Error Message,Error Message
 Event ID,Event ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).
+Expense,Expense
 Expense / Item Category,Expense / Item Category
 Expired,Expired
 Expires At,Expires At
@@ -257,12 +270,16 @@ Fill in a display name and this operator's own DMS account and password; issue b
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
 "Filters must be four-value rows with string doctypes, fields, and operators.","Filters must be four-value rows with string doctypes, fields, and operators."
 Finalize failed: desktop:home_page={0} is_setup_complete={1},Finalize failed: desktop:home_page={0} is_setup_complete={1}
+Fiscal year,Fiscal year
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
 Frappe Light,Pearnly
 Full Name,Full Name
 Gender,Gender
+Goods,Goods
 Goods & Stock,Goods & Stock
+Goods / Service,Goods / Service
+Goods / expense,Goods / expense
 Grand Total,Grand Total
 Guests are not allowed to upload files for {0} Doctype,Guests are not allowed to upload files for {0} Doctype
 Guide,Guide
@@ -288,6 +305,8 @@ Integrations,Integrations
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.","Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value."
 Invalid push channel,Invalid push channel
 Invited By,Invited By
+Invoice No. / Count,Invoice No. / Count
+Invoice {0}/{1},Invoice {0}/{1}
 Issue bind code,Issue bind code
 Issuer,Issuer
 Item / Description,Item / Description
@@ -295,6 +314,7 @@ Item / description,Item / description
 "JPG, PNG or PDF, up to 10 MB","JPG, PNG or PDF, up to 10 MB"
 "Kept as evidence, not a business field","Kept as evidence, not a business field"
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
+Key,Key
 Kind,Kind
 LINE Display Name,LINE Display Name
 LINE Login,LINE Login
@@ -319,6 +339,7 @@ Leave blank to keep unchanged,Leave blank to keep unchanged
 Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
+Line items,Line items
 Lines,Lines
 Linked,Linked
 Loading advisors…,Loading advisors…
@@ -333,6 +354,7 @@ Manual handling,Manual handling
 Master Data,Master Data
 Match result must be unmatched / existing customer / new customer,Match result must be unmatched / existing customer / new customer
 Max Retries,Max Retries
+May have missed an invoice — please verify page/invoice count against the original,May have missed an invoice — please verify page/invoice count against the original
 Missing code or state,Missing code or state
 My Profile,My Profile
 Name,Name
@@ -342,6 +364,7 @@ Net Amount,Net Amount
 Net Payable,Net Payable
 Net amount,Net amount
 Net payable,Net payable
+Network error,Network error
 New Customer,New Customer
 New DMS password,New DMS password
 New entry,New entry
@@ -359,6 +382,7 @@ No existing customer matched and no DMS customer reference was given: confirm ma
 No operators yet — add one above,No operators yet — add one above
 No provisioning target is available; configure one under “Provisioning Target” first,No provisioning target is available; configure one under “Provisioning Target” first
 No purchase orders yet. Use “New purchase order” in the top right to add the first one.,No purchase orders yet. Use “New purchase order” in the top right to add the first one.
+No recognition result — please re-upload,No recognition result — please re-upload
 No records,No records
 No records yet. Use “New entry” in the top right to add the first one.,No records yet. Use “New entry” in the top right to add the first one.
 No service account configured (site config pearnly_ocr_credentials),No service account configured (site config pearnly_ocr_credentials)
@@ -393,6 +417,7 @@ Operator list,Operator list
 Operators,Operators
 Optional,Optional
 Order Discount,Order Discount
+Original document,Original document
 Outstanding,Outstanding
 Overage: {0}/page,Overage: {0}/page
 Overage: {0}/page · Expires: {1},Overage: {0}/page · Expires: {1}
@@ -453,11 +478,21 @@ Qty,Qty
 Query access,Query access
 Queued to push,Queued to push
 "Read the ID card, match it against the DMS customer base, then confirm","Read the ID card, match it against the DMS customer base, then confirm"
+Reading companies and years from {0}…,Reading companies and years from {0}…
+Reading companies and years took too long. Please try again.,Reading companies and years took too long. Please try again.
+Reading file contents,Reading file contents
+"Reading supplier, amounts, dates and tax fields","Reading supplier, amounts, dates and tax fields"
 Received,Received
 Recognition Raw,Recognition Raw
 Recognition Records,Recognition Records
+Recognition failed. Please try again.,Recognition failed. Please try again.
 Recognition records,Recognition records
+Recognition result,Recognition result
+Recognition took too long. Please try again later.,Recognition took too long. Please try again later.
+Recognition waited too long in the queue. Please upload again.,Recognition waited too long in the queue. Please upload again.
+Recognize and export,Recognize and export
 Recognized,Recognized
+Recognizing,Recognizing
 Reconcile documents against the ledger,Reconcile documents against the ledger
 Reconciliation,Reconciliation
 Records,Records
@@ -510,6 +545,8 @@ Save purchase order,Save purchase order
 Saved,Saved
 Saved as a draft; confirm it before it can be pushed,Saved as a draft; confirm it before it can be pushed
 "Scan to add this account, then send the bind code in LINE.","Scan to add this account, then send the bind code in LINE."
+Seller,Seller
+Seller Tax ID,Seller Tax ID
 Session Payload,Session Payload
 Sign in again before changing your username.,Sign in again before changing your username.
 Sign out,Sign out
@@ -550,6 +587,7 @@ Supplier name,Supplier name
 Suppliers,Suppliers
 System URL,System URL
 System URL is not filled in,System URL is not filled in
+Target ERP,Target ERP
 Team,Team
 Tenant boot data,Tenant boot data
 Test connection,Test connection
@@ -558,6 +596,7 @@ Testing…,Testing…
 The DMS account is marked as resigned,The DMS account is marked as resigned
 The DMS account is not approved to use the system,The DMS account is not approved to use the system
 The DMS advisor list is empty.,The DMS advisor list is empty.
+The ERP timed out or the network failed. Please try again later.,The ERP timed out or the network failed. Please try again later.
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
 The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
@@ -595,9 +634,12 @@ The name is resolved server-side when pinning; the client's value is not trusted
 The new password cannot be the same as the current one,The new password cannot be the same as the current one
 The new password is required,The new password is required
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available","The new platform has no DMS advisor roster source yet, so for now only automatic matching is available"
+The old key stops working right away.,The old key stops working right away.
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).
 The plan quota is used first; anything over is charged per plan rate from the balance,The plan quota is used first; anything over is charged per plan rate from the balance
 The push channel must be companion or cloud,The push channel must be companion or cloud
+The recognition queue is full. Please try again later.,The recognition queue is full. Please try again later.
+The recognition result is not confirmed yet. Refresh later to check.,The recognition result is not confirmed yet. Refresh later to check.
 The result of each push,The result of each push
 The service account could not exchange its token: {0},The service account could not exchange its token: {0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.","The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change."
@@ -612,11 +654,13 @@ The two passwords do not match,The two passwords do not match
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.
 "There is no DMS customer reference, so it cannot be pushed","There is no DMS customer reference, so it cannot be pushed"
+This ERP account has no company or year to choose.,This ERP account has no company or year to choose.
 This LINE account is not bound to this account on this site. Sign in with your password.,This LINE account is not bound to this account on this site. Sign in with your password.
 This Operator's Own DMS Credentials,This Operator's Own DMS Credentials
 "This account has no identity binding, so it cannot change its own password; contact an admin","This account has no identity binding, so it cannot change its own password; contact an admin"
 This advisor is no longer in the current DMS list. Please select again.,This advisor is no longer in the current DMS list. Please select again.
 This company’s LINE official account is not configured yet.,This company’s LINE official account is not configured yet.
+This connection has no username and password yet.,This connection has no username and password yet.
 This document has already been recorded: {0},This document has already been recorded: {0}
 This identity is already bound to account {0} (record {1}),This identity is already bound to account {0} (record {1})
 This identity is already bound to {0},This identity is already bound to {0}
@@ -627,8 +671,10 @@ This operator's DMS account,This operator's DMS account
 This operator's DMS password,This operator's DMS password
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,This site has more than one product manifest installed: {0}. One deployment can host only one product.
 "This site has no LINE access token configured, so it cannot send messages","This site has no LINE access token configured, so it cannot send messages"
+This site has no assistant installer address yet.,This site has no assistant installer address yet.
 This site has no product manifest installed; it cannot run as a business site.,This site has no product manifest installed; it cannot run as a business site.
 This site has no product workspace yet,This site has no product workspace yet
+This system address is not allowed; only public addresses can be used.,This system address is not allowed; only public addresses can be used.
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?","This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?"
 This username is already in use.,This username is already in use.
 This year,This year
@@ -677,6 +723,7 @@ VAT Amount,VAT Amount
 VAT Included,VAT Included
 VAT Rate %,VAT Rate %
 Valid for {0},Valid for {0}
+WHT deducted,WHT deducted
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
 Warehouses,Warehouses
 "Warehouses, stock-in and stock-out documents","Warehouses, stock-in and stock-out documents"
@@ -693,6 +740,7 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,Withholding Tax
 Work together,Work together
 Workspace,Workspace
+Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP username or password. Check it under Connect and try again.
 Yes,Yes
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
 Your access domain,Your access domain
@@ -870,41 +918,85 @@ home.topup.transfer,"Transfer to the account below, then upload your slip for re
 intake.action.confirm,Confirm
 intake.action.new,New entry
 intake.action.queue,Push
+intake.agent.copy,Copy
+intake.agent.key,Key
+intake.agent.reset,Regenerate
+intake.agent.resetConfirm,The old key stops working right away.
+intake.agent.state.missing,Assistant not connected
 intake.card.purchaseTotal,Purchases (confirmed and above)
 intake.card.readyToPush,Confirmed · ready to push
 intake.card.salesTotal,Sales (confirmed and above)
 intake.card.waiting,To confirm
+intake.catalog.ERR_ACCOUNT_SET_EMPTY,This ERP account has no company or year to choose.
+intake.catalog.ERR_AUTH,Wrong ERP username or password. Check it under Connect and try again.
+intake.catalog.ERR_NO_CREDS,This connection has no username and password yet.
+intake.catalog.ERR_TECHNICAL,The ERP timed out or the network failed. Please try again later.
+intake.catalog.ERR_TIMEOUT,Reading companies and years took too long. Please try again.
+intake.catalog.ERR_UNEXPECTED,Could not read companies and years. Please try again.
+intake.catalog.ERR_URL_BLOCKED,This system address is not allowed; only public addresses can be used.
+intake.catalog.loading,Reading companies and years from {0}…
 intake.col.actions,Actions
 intake.col.counterparty,Counterparty
 intake.col.date,Date
 intake.col.direction,Direction
+intake.col.entryStatus,Entry status
 intake.col.grandTotal,Total incl. VAT
 intake.col.name,No.
 intake.col.status,Status
 intake.collapse,Collapse
+intake.confirm.delete,Delete {0} selected records? Pushed ones cannot be deleted.
 intake.dir.purchase,Purchase
 intake.dir.purchaseFull,Purchase (bills received)
 intake.dir.sales,Sale
 intake.dir.salesFull,Sale (bills we issue)
 intake.empty,No records yet. Use “New entry” in the top right to add the first one.
 intake.error.http,Request failed (HTTP {0})
+intake.error.poll_unreachable,Network error
+intake.error.provider_outcome_unknown,The recognition result is not confirmed yet. Refresh later to check.
+intake.error.queue_expired,Recognition waited too long in the queue. Please upload again.
+intake.error.queue_full,The recognition queue is full. Please try again later.
+intake.error.timeout,Recognition took too long. Please try again later.
+intake.error.workflow_error,Recognition failed. Please try again.
+intake.field.buyer,Buyer
+intake.field.buyerTax,Buyer Tax ID
 intake.field.counterparty,Counterparty
 intake.field.direction,Purchase / Sale
 intake.field.docDate,Document date
 intake.field.docNo,Document no.
+intake.field.invoice,Invoice No. / Count
+intake.field.itemType,Goods / expense
 intake.field.netAmount,Net amount
+intake.field.printedDate,Date as printed
+intake.field.seller,Seller
+intake.field.sellerTax,Seller Tax ID
 intake.field.source,Source
 intake.field.vatAmount,VAT
+intake.field.whtAmount,WHT deducted
 intake.filter.allDirections,All directions
 intake.filter.allStatuses,All statuses
 intake.hint.afterSave,Saved as a draft; confirm it before it can be pushed
+intake.installerMissing,This site has no assistant installer address yet.
+intake.item.name,Goods / Service
+intake.itemType.expense,Expense
+intake.itemType.goods,Goods
 intake.loading,Loading…
+intake.nav.items,Line items
+intake.nav.original,Original document
+intake.nav.result,Recognition result
 intake.notice.created,Created: {0}
 intake.notice.moved,{0} → {1}
 intake.placeholder.counterparty,Supplier / customer
 intake.placeholder.docNo,Optional
+intake.proc.batchFail,Done · {0} ok · {1} failed
+intake.proc.empty,No recognition result — please re-upload
+intake.proc.sub,"Reading supplier, amounts, dates and tax fields"
+intake.proc.title,Reading file contents
 intake.processing,Processing…
+intake.push.pending,Entering
 intake.refresh,Refresh
+intake.review.dupWarn,{0} possible duplicate invoice(s) detected
+intake.review.invoice,Invoice {0}/{1}
+intake.review.missed,May have missed an invoice — please verify page/invoice count against the original
 intake.save,Save
 intake.saving,Saving…
 intake.source.email,Email
@@ -916,8 +1008,13 @@ intake.status.failed,Push failed
 intake.status.pushed,Pushed
 intake.status.queued,Queued to push
 intake.status.recognized,Recognized
+intake.status.recognizing,Recognizing
 intake.status.rejected,Returned
 intake.subtitle,Review and confirm documents before sending.
+intake.target.download,Download assistant
+intake.target.recognizeOnly,Recognize and export
+intake.target.title,Target ERP
+intake.target.year,Fiscal year
 intake.title,Intake Workbench
 nav.cashier,POS
 nav.clients,Customers
@@ -1088,6 +1185,7 @@ system_url is required,system_url is required
 username / password are required,username / password are required
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle
+{0} possible duplicate invoice(s) detected,{0} possible duplicate invoice(s) detected
 {0} record(s) deleted.,{0} record(s) deleted.
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} records · grand total {1} · payable {2} · outstanding {3}
 "{0} takes {1} arguments, but {2} were passed to the queue","{0} takes {1} arguments, but {2} were passed to the queue"

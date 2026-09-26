@@ -49,6 +49,15 @@ class CredentialContracts(unittest.TestCase):
         for values in ((False, 1), (True, None), ('true', 1), (1, 1)):
             with self.assertRaises(c.CredentialError): c.issue_intent(*values)
 
+    def test_wire_flag_only_maps_exact_form_booleans(self):
+        # 网页经表单提交，`reset` 到服务端是字符串；此前「重新生成」因此总是 request_invalid。
+        for raw, expected in (('1', True), ('true', True), ('0', False), ('false', False), (True, True), (False, False)):
+            self.assertIs(c.wire_flag(raw), expected)
+        for raw in ('True', 'yes', ' 1', '', 1, None):
+            self.assertEqual(c.wire_flag(raw), raw)
+        self.assertEqual(c.issue_intent(c.wire_flag('1'), '3')['expected_generation'], 3)
+        with self.assertRaises(c.CredentialError): c.issue_intent(c.wire_flag('yes'), 1)
+
     def test_revoke_normalizes_reason_but_does_not_drop_generation(self):
         self.assertEqual(c.revoke_intent('2', ' synthetic '),
                          {'operation': 'revoke', 'expected_generation': 2, 'reason': 'synthetic'})
@@ -114,7 +123,11 @@ class CredentialContracts(unittest.TestCase):
     def test_only_human_management_rpc_methods_are_whitelisted(self):
         tree = ast.parse((DOMAIN / 'api.py').read_text())
         exposed = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.decorator_list}
-        self.assertEqual(exposed, {'issue', 'revoke', 'status'})
+        # installer 只回安装包地址（部署配置），同样是登录用户的 GET、先过 require_actor。
+        self.assertEqual(exposed, {'issue', 'revoke', 'status', 'installer'})
+        installer = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'installer')
+        self.assertIn("methods=['GET']", ast.unparse(installer.decorator_list[0]))
+        self.assertIn('access.require_actor()', ast.unparse(installer))
         self.assertNotIn('allow_guest', (DOMAIN / 'api.py').read_text())
         self.assertIn('cowork_private_response = True', (DOMAIN / 'api.py').read_text())
         service = (DOMAIN / 'credentials.py').read_text()

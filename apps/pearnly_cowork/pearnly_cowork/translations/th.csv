@@ -19,11 +19,15 @@ Access to the Companion queue has been revoked.,สิทธิ์เข้า�
 Account Key,คีย์ชุดบัญชี
 Account Set Key,คีย์เลือกชุดบัญชี
 Ack Digest,แฮชผลตอบรับ
+Active,ปกติ
 Active Attempt,ความพยายามปัจจุบัน
 Active Key,คีย์ป้องกันรายการซ้ำที่ใช้งาน
 Actor,ผู้ดำเนินการ
 Actual Qty,จำนวนที่ตรวจนับจริง
+Add User,เพิ่มผู้ใช้
+Added {0},เพิ่มแล้ว {0}
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
+Already exists,มีอยู่แล้ว
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
 An option in the ERP data report is invalid.,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
@@ -39,23 +43,32 @@ Billing Receipt,ผลยืนยันการเรียกเก็บเ�
 Billing Reference,เลขที่อ้างอิงการเรียกเก็บเงิน
 Billing State,สถานะการเรียกเก็บเงิน
 Billing Units,หน่วยคิดค่าบริการ
+Bind this account first,กรุณาผูกบัญชีก่อนใช้งาน
 Binding Generation,รุ่นการผูก
+Binding code,รหัสเชื่อมต่อ
 Blocked By,รายการที่ขัดขวาง
 Book Qty,จำนวนตามบัญชี
+Bound,เชื่อมต่อแล้ว
 Bound Account Set,ชุดบัญชีที่ผูกไว้
 Bound Invoice Records,รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว
 Bound Profile Key,คีย์โปรไฟล์ที่ผูกไว้
+Bound at,เชื่อมต่อเมื่อ
+Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Branch,สาขาการดำเนินการ
 Buyer Client,ลูกค้าผู้ซื้อ
+Cannot tell which company this entry belongs to; the site must have exactly one.,ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว
+Cash,เงินสด
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
 Check the ERP connection settings.,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checks Json,ผลตรวจสอบ JSON
+Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Client,ลูกค้า
 Closed At,เวลาปิด
 Closed By,ผู้ปิด
+Code expired,รหัสหมดอายุแล้ว
 Collection is not connected for this ERP data type.,ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Companion Report,รายงานจาก Companion
 Companion authentication failed.,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
@@ -109,6 +122,7 @@ Create invoice records through the Cowork intake service.,กรุณาสร�
 Created By,ผู้สร้าง
 Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
+Credit,เชื่อ
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
@@ -119,6 +133,8 @@ Directory Revision,รุ่นไดเรกทอรี
 Directory Scope Key,คีย์ขอบเขตไดเรกทอรี
 Directory Scope Kind,ประเภทขอบเขตไดเรกทอรี
 Directory Snapshot,ภาพข้อมูลไดเรกทอรี
+Disable,ปิดใช้งาน
+Disable {0},ปิดใช้งาน {0}
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Draft,ฉบับร่าง
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
@@ -131,8 +147,14 @@ ERP records cannot be saved in Cowork.,ไม่สามารถบันท�
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและรุ่นของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
 Edit Count,จำนวนครั้งที่แก้ไข
+Edit in Full Page,แก้ไขแบบเต็มหน้า
+Email,อีเมล
+Enable,เปิดใช้งาน
+Enable {0},เปิดใช้งาน {0}
 Enter a stock count title of 1 to 120 characters.,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
+Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter a valid quantity with no more than six decimal places.,กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง
+Enter the user name,กรุณากรอกชื่อผู้ใช้
 Entry,รายการ
 Event Key,รหัสเหตุการณ์
 Evidence Fingerprint,ลายนิ้วมือหลักฐาน
@@ -148,6 +170,7 @@ Field,ฟิลด์
 File Hash,ค่าแฮชของไฟล์
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
+General,ทั่วไป
 Generation Key,คีย์รุ่นข้อมูลรับรอง
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
@@ -155,6 +178,8 @@ History Version,รุ่นประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับผู้ถือล็อก
 IN,เงินเข้า
+Inactive,ปิดใช้งาน
+Initial Password,รหัสผ่านเริ่มต้น
 Installed At (UTC),เวลาติดตั้ง (UTC)
 Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
 Invalid original document manifest.,ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง
@@ -162,6 +187,7 @@ Invalid original filename.,ชื่อไฟล์ต้นฉบับไม�
 Invalid posting type.,ประเภทการลงบัญชีไม่ถูกต้อง
 Invalid push execution mode.,โหมดการส่งไม่ถูกต้อง
 Invalid push request.,คำขอส่งไม่ถูกต้อง
+Invalid push target.,เป้าหมายการส่งไม่ถูกต้อง
 Invalid recognized invoice group.,กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง
 Invalid request key.,รหัสคำขอไม่ถูกต้อง
 Invalid statement review rows or row references.,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
@@ -179,7 +205,12 @@ Issued At (UTC),เวลาออก (UTC)
 Issued By,ผู้ออก
 Issued Request Digest,แฮชคำขอออกข้อมูลรับรอง
 Item,รายการ
+Job Roles,สิทธิ์การใช้งาน
+LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
+LINE name,ชื่อ LINE
+LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
 Last Fields Edit (UTC),แก้ไขข้อมูลล่าสุดเมื่อ (UTC)
+Last Login,เข้าใช้ล่าสุด
 Last Push Record,บันทึกการส่งล่าสุด
 Last Push Status,สถานะการส่งล่าสุด
 Last Pushed At (UTC),เวลาส่งล่าสุด (UTC)
@@ -195,10 +226,12 @@ Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
+New code,ขอรหัสใหม่
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 Not Permitted,ไม่ได้รับอนุญาต
+Not bound,ยังไม่เชื่อมต่อ
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
@@ -220,8 +253,10 @@ Owner Id,รหัสผู้ดำเนินการ
 PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
 Page Count,จำนวนหน้า
 Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
+Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Payload Json,ข้อมูลส่งที่ตรึงไว้ JSON
+Payment Method,วิธีชำระเงิน
 Pearnly Cowork,Pearnly Cowork
 Pending,รอดำเนินการ
 Phase,ขั้นตอนการประมวลผล
@@ -239,6 +274,7 @@ Provider Evidence,หลักฐานการเรียกใช้ผู�
 Push Attempt,ความพยายามส่ง
 Push Record,รายการส่ง
 Push record not found.,ไม่พบรายการส่ง
+"Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดการส่ง ยังไม่มีการส่งข้อมูลใด ๆ
 Quantity,จำนวน
 Reason,เหตุผล
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
@@ -274,10 +310,12 @@ Request Receipts,ผลรับคำขอ
 Requested At (UTC),เวลาร้องขอ (UTC)
 Required invoice amounts are missing. Complete them before exporting.,ใบแจ้งหนี้ขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก
 Requires Review,ต้องตรวจสอบโดยผู้ใช้
+Reset Password,ตั้งรหัสผ่านใหม่
 Response Json,ผลตอบรับ JSON
 Result Directory Revision,รุ่นไดเรกทอรีผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
+Review,ตรวจทาน
 Review JSON,ข้อมูลการตรวจทาน JSON
 Reviewed amounts need a balance and at most two decimal places.,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม
 Revision,รุ่น
@@ -287,6 +325,7 @@ Revoked By,ผู้ยกเลิก
 Row {0}: {1},แถว {0}: {1}
 Sales invoices need line items with tax-exclusive amounts before export.,ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
+Saved,บันทึกแล้ว
 Scope Key,รหัสขอบเขตสิทธิ์
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 100 distinct history records to export.,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
@@ -294,6 +333,7 @@ Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500
 Select valid files to download.,กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด
 Seller Name,ชื่อผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
+Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Site,เว็บไซต์
@@ -310,12 +350,15 @@ Source Reference Kind,ประเภทการอ้างอิงต้น�
 Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
 Started At,เริ่มเมื่อ
 Statement review is not available for this task.,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
+Status,สถานะ
 Stock,สต็อก
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
+Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
 Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
+That code is not valid,รหัสไม่ถูกต้อง
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
 The Companion delivery record was not found.,ไม่พบบันทึกการรับงานของผู้ช่วย
 The Companion identity is no longer valid. Authenticate again.,ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่
@@ -430,6 +473,7 @@ This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP 
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
 This account set is unavailable.,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 This action is not allowed in the current push state.,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
+This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This connection does not support an Express Companion credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express
 This connection is disabled.,การเชื่อมต่อนี้ถูกปิดใช้งาน
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
@@ -452,15 +496,19 @@ This request key was used for different content.,รหัสคำขอนี�
 This request key was used for different push content.,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 This stock count task is closed.,งานตรวจนับสต็อกนี้ปิดแล้ว
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
+Time left {0},เหลือเวลา {0}
 Title,ชื่อเรื่อง
 Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
 Transaction Date,วันที่ทำรายการ
+Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
+Unbind Pearnly Cowork LINE?,ยืนยันการยกเลิกการเชื่อมต่อ?
 Unsupported ERP connection type.,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
+Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 Uploaded By,ผู้อัปโหลด
 Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง
 Use the Cowork Companion service to access deliveries.,โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน
@@ -468,10 +516,13 @@ Use the Cowork OCR service to access recognition tasks.,กรุณาเข้
 Use the Cowork OCR service to change recognition tasks.,กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
 Use the stock count workflow to change these records.,กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก
+User Settings,เมนูผู้ใช้
+Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
 Version,เวอร์ชัน
 Voided,ยกเลิกแล้ว
 Warehouse,คลังสินค้า
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
+Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
@@ -517,9 +568,38 @@ connection.scope_immutable,ไม่สามารถเปลี่ยนบ�
 connection.snapshot_invalid,ข้อมูลไดเรกทอรีไม่ตรงกับการเชื่อมต่อนี้
 connection.snapshot_too_large,ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB
 connection.url_invalid,ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต
+cowork.line.boundAt,เชื่อมต่อเมื่อ
+cowork.line.code,รหัสเชื่อมต่อ
+cowork.line.expired,รหัสหมดอายุแล้ว
+cowork.line.lineName,ชื่อ LINE
+cowork.line.newCode,ขอรหัสใหม่
+cowork.line.remaining,เหลือเวลา {0}
+cowork.line.status.bound,เชื่อมต่อแล้ว
+cowork.line.status.unbound,ยังไม่เชื่อมต่อ
+cowork.line.unbind,ยกเลิกการเชื่อมต่อ LINE
+cowork.line.unbindConfirm,ยืนยันการยกเลิกการเชื่อมต่อ?
+cowork.nav.work,ประสานงาน
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 cowork.quality.pending,รอตรวจสอบ
+cowork.team.action.bulkDisable,ปิดใช้งาน {0}
+cowork.team.action.bulkEnable,เปิดใช้งาน {0}
+cowork.team.active,ปกติ
+cowork.team.disable,ปิดใช้งาน
+cowork.team.email,อีเมล
+cowork.team.enable,เปิดใช้งาน
+cowork.team.inactive,ปิดใช้งาน
+cowork.team.lastLogin,เข้าใช้ล่าสุด
+cowork.team.new,เพิ่มผู้ใช้
+cowork.team.notice.added,เพิ่มแล้ว {0}
+cowork.team.notice.password,อัปเดตรหัสผ่านแล้ว
+cowork.team.notice.saved,บันทึกแล้ว
+cowork.team.notice.toggled,อัปเดตผู้ใช้ {0} คน
+cowork.team.password,รหัสผ่านเริ่มต้น
+cowork.team.resetPassword,ตั้งรหัสผ่านใหม่
+cowork.team.roles,สิทธิ์การใช้งาน
+cowork.team.status,สถานะ
+cowork.workspace_unresolved,ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว
 cowork_line,Cowork LINE
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
@@ -605,6 +685,7 @@ pending,รอดำเนินการ
 physical_page,หน้าจริงของเอกสาร
 push.adapter_not_connected,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 push.branch_invalid,โหมดการส่งไม่ถูกต้อง
+push.disabled,ไซต์นี้ยังไม่ได้เปิดการส่ง ยังไม่มีการส่งข้อมูลใด ๆ
 push.native_ack_conflict,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 push.native_history_changed,เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่
 push.native_lock_conflict,การส่งอื่นกำลังใช้ล็อกการเขียน

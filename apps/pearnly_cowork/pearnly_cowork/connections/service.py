@@ -13,6 +13,7 @@ from frappe import _
 from frappe.utils.password import get_decrypted_password
 from pearnly_core.shell import entitlements
 
+from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.targets import TargetAccess, TargetEvidence
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
@@ -39,17 +40,28 @@ def _error(code):
     frappe.throw(_(code))
 
 
+def _collector_available(doc):
+    # MR.ERP 的账套目录由服务端采集（`mrerp_collector`）；Express 靠已绑定的小助手上报。
+    if doc.adapter == "mrerp":
+        return True
+    return bool(doc.adapter == "express" and not doc.binding_generation
+                and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))
+
+
 def _dto(doc):
     return {"name": doc.name, "label": doc.label, "adapter": doc.adapter, "workspace": doc.workspace,
             "client": doc.client or None, "enabled": bool(doc.enabled), "revision": int(doc.record_revision),
             "config": model.parse(doc.config_json, {}), "users": model.parse(doc.allowed_users, []),
             "has_username": bool(doc.get("credential_username")), "has_password": bool(doc.get("credential_password")),
-            "has_token": bool(doc.get("credential_token")), "collector_available": bool(doc.adapter == "express" and not doc.binding_generation and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))}
+            "has_token": bool(doc.get("credential_token")), "collector_available": _collector_available(doc)}
 
 
 def configure(workspace, adapter, request_key, label, config, client=None, users=None,
               name=None, expected_revision=None, enabled=True, credentials=None):
     actor = access.require_actor(management=True)
+    # 界面上不出现账套（Cowork 不记账、只留记录），调用方没说明就用站点里那一份；
+    # 一份都没有或多份都说不清时明确报错，不替人挑（挑错等于挂到别人家账上）。
+    workspace = workspace or access.default_workspace()
     access.require_scope(workspace, client)
     adapter = str(adapter or "").strip().lower()
     config = model.configuration(adapter, config)
@@ -128,7 +140,7 @@ def targets(name):
     head = _heads(doc).get(key, {})
     result = {"connection": doc.name, "connection_revision": doc.record_revision,
               "status": head.get("status") or "missing", "refresh_request_id": head.get("request_id"),
-              "revision": head.get("revision"), "error_code": head.get("error_code"), "account_sets": [], "collector_available": bool(doc.adapter == "express" and not doc.binding_generation and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))}
+              "revision": head.get("revision"), "error_code": head.get("error_code"), "account_sets": [], "collector_available": _collector_available(doc)}
     if head.get("request_id"):
         refresh = _read(REFRESH, head["request_id"])
         if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
@@ -140,7 +152,7 @@ def targets(name):
             _error("connection.snapshot_invalid")
         for row in model.parse(snapshot.body)["account_sets"]:
             attributes = row.get("attributes") or {}
-            safe = {key: attributes[key] for key in ("path", "root", "root_label", "writable", "company", "row", "comidyear", "seldb")
+            safe = {key: attributes[key] for key in ("path", "root", "root_label", "writable", "company", "company_name", "row", "comidyear", "seldb")
                     if key in attributes}
             mapping = attributes.get("mapping")
             if isinstance(mapping, dict):
@@ -154,6 +166,7 @@ def records(workspace, client=None, start=0, limit=50):
     actor = frappe.session.user
     management = _manager_view()
     access.require_actor(management=management)
+    workspace = workspace or access.default_workspace()
     access.require_scope(workspace, client)
     try:
         start, limit = max(0, int(start)), max(1, min(100, int(limit)))
@@ -232,7 +245,7 @@ def _refresh_dto(doc):
     return {"request_id": doc.name, "connection": doc.connection, "status": doc.status,
             "account_set_key": doc.account_set_key, "result_revision": doc.result_revision or None,
             "error_code": doc.get("error_code") or None,
-            "collector_available": bool(doc.adapter == "express" and not doc.binding_generation and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))}
+            "collector_available": _collector_available(doc)}
 
 
 def refresh_status(name, request_id):
@@ -356,6 +369,18 @@ def read_for_log(connection_id, workspace=None, client=None, actor=None, lock=Fa
     if actor not in model.parse(doc.allowed_users, []) or (workspace and (workspace, client or "") != (doc.workspace, doc.client or "")):
         access.deny()
     return _dto(doc)
+
+
+def adapter_of(connection_id):
+    """连接的 ERP 类型（express / mrerp）；只给推送编排选确认通道用，授权仍在各自入口里核。"""
+    return frappe.db.get_value(CONNECTION, connection_id, "adapter")
+
+
+def mrerp_mappings(loaded):
+    """MR.ERP 推送用的已配置映射（客户 / 科目）。没有配置不是错误：推送时按税号自建客户（旧版同）。"""
+    if loaded.doc.adapter != "mrerp":
+        _error("connection.adapter_invalid")
+    return push_inputs.mappings(loaded.doc.client, "mrerp")
 
 
 def credentials_for_use(loaded):

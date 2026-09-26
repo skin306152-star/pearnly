@@ -1,5 +1,6 @@
 """Authorized native preparation. No worker registration or external dispatch."""
 from copy import deepcopy
+import json
 from dataclasses import asdict
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -11,12 +12,13 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax
-from pearnly_cowork.history import storage
+from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.express.prepare import prepare_express
 from pearnly_cowork.push.express.preflight import ExpressContext
 from pearnly_cowork.push.express.history import flatten_history_for_mrerp
 from pearnly_cowork.push.express.common import parse_invoice_date
+from pearnly_cowork.push.mrerp import runner
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.receipts import derive_external_ref, express_prior_number
 from pearnly_cowork.targets.choice import endpoint_with_account_choice
@@ -74,10 +76,14 @@ def prepare(history, connection, request_key, expected_history_version, expected
         return _view(previous)
     if int(doc.record_version) != intent["expected_history_version"] or loaded.revision != intent["expected_connection_revision"]:
         storage.conflict()
-    if loaded.endpoint.get("adapter") != "express":
+    adapter = loaded.endpoint.get("adapter")
+    if adapter not in ("express", "mrerp"):
         frappe.throw(_("push.adapter_not_connected"))
     if frappe.conf.get("pearnly_cowork_erp_push_enabled") not in (True, 1):
         return {"status": "disabled", "reason": "ERR_EXPRESS_DISABLED", "history": doc.name, "connection": connection}
+    if adapter == "mrerp":
+        return _view(_prepare_mrerp(doc, loaded, request_key, intent, account_set_key,
+                                    catalog_request_id, catalog_revision))
     try:
         target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
             account_set_key=account_set_key, request_id=catalog_request_id, revision=catalog_revision)
@@ -128,6 +134,36 @@ def prepare(history, connection, request_key, expected_history_version, expected
     return _view(row)
 
 
+def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_request_id, catalog_revision):
+    """MR.ERP：冻结目标账套 + 整理后的票面 + 已配置映射 + 本方税号，交服务端执行（`push.mrerp.runner`）。
+
+    推什么由票面决定（旧 `push_mrerp_history` 同一组输入）：用户在入口选的进 / 销项与付款方式、
+    复核改过的字段都已写在票面里（`direction` / `posting_payment_manual`），分流与建档在执行时按旧规则做。
+    """
+    try:
+        target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
+            account_set_key=account_set_key, request_id=catalog_request_id, revision=catalog_revision)
+    except TargetSelectionError as error:
+        frappe.throw(_(error.code), frappe.PermissionError if error.status_code == 403 else frappe.ValidationError)
+    own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id", for_update=True) or ""
+    history_value = storage.project(doc)
+    history_value.update(id=doc.name, client_id=doc.client or None,
+        tenant_id=loaded.access.tenant_id, workspace_client_id=doc.workspace)
+    prior = original_history(doc)
+    mappings = deepcopy(connections.mrerp_mappings(loaded))
+    if own_tax:
+        mappings["_own_tax_id"] = own_tax  # 匹配闸锚点：确认是别家的票就挡下，不推错账套
+    today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
+    frozen = asdict(target)
+    frozen.update(request_intent=intent, connection_revision=loaded.revision, original_history=prior,
+        preparation_date=today.isoformat(), own_tax_id=own_tax)
+    # 冻结进账本须是纯 JSON：库里读出的日期 / 时间 / Decimal 转成字符串（生成器按字符串解析日期）。
+    payload = json.loads(json.dumps({"histories": [flatten_history_for_mrerp(history_value)], "mappings": mappings},
+                                    ensure_ascii=False, default=str))
+    return ledger.reserve(context=_context(doc, loaded, target.account_set), request_key=request_key,
+        frozen_target=frozen, frozen_payload=payload, disposition="prepared")
+
+
 def detail(name):
     # Native generic access remains denied. The purpose-built log view checks
     # the current log role and connection grant even for disabled connections.
@@ -170,6 +206,49 @@ def confirm(name, expected_revision, request_key, *, credential):
     context = _context(history, loaded, doc.account_key)
     return _view(ledger.confirm(name, context=context, credential=credential,
         expected_revision=storage.revision(expected_revision), request_key=request_key))
+
+
+def confirm_server(name, expected_revision, request_key):
+    """MR.ERP：人工确认（prepared → pending）后排服务端执行任务。Express 走小助手确认入口。"""
+    scope.require('intake')
+    row = frappe.db.get_value('Cowork Push Record', name,
+        ['connection', 'workspace', 'client', 'history', 'target_json'], as_dict=True)
+    if not row:
+        frappe.throw(_('push.record_not_found'), frappe.DoesNotExistError)
+    if (frappe.parse_json(row.target_json or '{}') or {}).get('adapter') != 'mrerp':
+        frappe.throw(_('push.native_target_changed'))
+    result = confirm(name, expected_revision, request_key, credential=None)
+    if result.get('status') == 'pending':
+        runner.dispatch(name)
+    return result
+
+
+def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
+           account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None):
+    """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
+
+    失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
+    （`push_state.record_failure`），回 `{"status": "failed", "reason"}`。推送状态本身仍只由账本投影。
+    """
+    try:
+        result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
+            account_set_key, catalog_request_id, catalog_revision, posting_kind)
+        if result.get("status") == "disabled":
+            return submission_failed(history, _("push.disabled"))
+        if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":
+            result = confirm_server(result["name"], result["revision"], "confirm:" + str(request_key))
+        return result
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        return submission_failed(history, str(error))
+
+
+def submission_failed(history, reason):
+    """提交失败：整笔回滚，只把原因记在这张票上（小助手确认入口共用）。"""
+    frappe.db.rollback()
+    frappe.clear_messages()  # 原因记在票上，不再弹给页面
+    storage.read(history)  # 仍要有这张票的读取范围才记
+    push_state.record_failure(history, reason)
+    return {"status": "failed", "reason": reason, "history": history}
 
 
 def records(connection, start=0, limit=50):

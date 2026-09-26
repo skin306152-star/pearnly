@@ -205,6 +205,9 @@
       "files",
       "ocr"
     ],
+    "line": [
+      "access"
+    ],
     "masters": [
       "access",
       "tabular"
@@ -238,7 +241,10 @@
     "stocktake": [
       "access"
     ],
+    "tabular": [],
     "targets": [],
-    "tabular": []
+    "team": [
+      "access"
+    ]
   }
 }

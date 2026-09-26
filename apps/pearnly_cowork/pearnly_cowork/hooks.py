@@ -46,6 +46,8 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+# 个人信息页（共用层的原生 User 表单）里追加 LINE 绑定块。
+doctype_js = {"User": "public/desk/user-line.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -265,7 +267,18 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
-app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
+# 录入工作台这一条链的页面脚本：工作台（列表 + 目标弹窗）、目标/连接状态、
+# 上传识别二级页。按内容版本号加载，改完刷新即生效。
+app_include_js = [
+    versioned_asset("pearnly_cowork", "desk/choice.js"),
+    versioned_asset("pearnly_cowork", "desk/targets.js"),
+    versioned_asset("pearnly_cowork", "desk/intake.js"),
+    versioned_asset("pearnly_cowork", "desk/intake-choices.js"),
+    versioned_asset("pearnly_cowork", "desk/intake-upload.js"),
+    versioned_asset("pearnly_cowork", "desk/team.js"),
+    versioned_asset("pearnly_cowork", "desk/line-binding.js"),
+]
+app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css")]
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
@@ -372,18 +385,38 @@ override_whitelisted_methods = {
 pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run"}
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
+# 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
+# 识别记录、推送日志、客户、公司资料、集成、使用教程不做。对账、盘点、工作协调的页面还没做，
+# 不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
+  'profile_label': 'My Profile',
+  # 团队管理勾选框的分组：业务功能一组，个人信息 + LINE 一组（与 ERP「用户菜单」同一口径）。
+  'permission_groups': [('General', ['pearnly-intake', 'pearnly-reconcile', 'pearnly-stocktake', 'pearnly-work']),
+                        ('User Settings', ['user'])],
   'pages': [('nav.home', 'pearnly-home', 'house', None),
             ('nav.intake', 'pearnly-intake', 'scan', 'intake'),
-            ('nav.history', 'pearnly-history', 'list', 'ocr_history'),
-            ('nav.pushLogs', 'pearnly-push-logs', 'list', 'push_log'),
             ('nav.reconcile', 'pearnly-reconcile', 'check', 'recon'),
             ('nav.stocktake', 'pearnly-stocktake', 'boxes', 'stocktake'),
-            ('nav.clients', 'pearnly-clients', 'users', 'master_data'),
-            ('nav.company', 'pearnly-company', 'building-2', 'master_data'),
-            ('nav.team', 'pearnly-team', 'users', 'master_data'),
-            ('nav.integrations', 'pearnly-integrations', 'plug', 'master_data'),
-            ('nav.guide', 'pearnly-guide', 'circle-help', 'express_guide')],
-  'available': ['pearnly-home', 'pearnly-intake'],
-  'permissions': {'pearnly-intake': {'doctype': 'Intake Record'}}}]
+            ('cowork.nav.work', 'pearnly-work', 'users', None),
+            ('nav.team', 'pearnly-team', 'users-round', None)],
+  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-team'],
+  'permissions': {'pearnly-intake': {'doctype': 'Intake Record'},
+                  'pearnly-reconcile': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
+                  'pearnly-stocktake': {'any_role': ['Cowork Stocktake', 'Cowork Admin']},
+                  'pearnly-work': {'any_role': ['Cowork Work', 'Cowork Admin']},
+                  # 能管本产品用户的是产品管理员（判据在 `team.service.require_admin`）。
+                  'pearnly-team': {'any_role': ['Cowork Admin']},
+                  # 个人信息：勾了「个人信息」或「LINE」的人都进得去（LINE 在个人信息里绑）。
+                  'user': {'any_role': ['Cowork Profile', 'Cowork LINE', 'Cowork Admin']}},
+  'user_menu': ['pearnly-team']}]
+
+# 团队管理 / 个人信息 / LINE 三个没有 DocType 挂着的角色，装好、升级后确保存在。
+after_install = "pearnly_cowork.team.setup.sync_roles"
+after_migrate = "pearnly_cowork.team.setup.sync_roles"
+boot_session = "pearnly_cowork.line.boot.boot_session"
+pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
+
+
+# MR.ERP 推送的兜底巡检：丢失的排队任务重新排上、过期的执行转结果不明（见 push.mrerp.runner.sweep）。
+scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep"]}}

@@ -19,11 +19,15 @@ Access to the Companion queue has been revoked.,アシスタントのキュー�
 Account Key,会計データキー
 Account Set Key,会計データ選択キー
 Ack Digest,確認応答ダイジェスト
+Active,正常
 Active Attempt,現在の試行
 Active Key,有効な重複防止キー
 Actor,実行者
 Actual Qty,実棚数量
+Add User,ユーザーを追加
+Added {0},{0}を追加しました
 Allowed Users,許可ユーザー
+Already exists,すでに存在します
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
@@ -39,23 +43,32 @@ Billing Receipt,課金処理結果
 Billing Reference,課金参照番号
 Billing State,課金状態
 Billing Units,課金単位
+Bind this account first,先にアカウントを連携してください
 Binding Generation,関連付け世代
+Binding code,連携コード
 Blocked By,ブロック元の記録
 Book Qty,帳簿数量
+Bound,連携済み
 Bound Account Set,関連付けられた会計データ
 Bound Invoice Records,関連付け済みの請求書記録
 Bound Profile Key,関連付け設定キー
+Bound at,連携日時
+Bound to {0},{0} に連携しました
 Branch,実行分岐
 Buyer Client,買い手顧客
+Cannot tell which company this entry belongs to; the site must have exactly one.,この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。
+Cash,現金
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
 Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checks Json,検証結果JSON
+Choose at least one job role,機能権限を1つ以上選んでください
 Client,顧客
 Closed At,クローズ日時
 Closed By,クローズしたユーザー
+Code expired,コードの有効期限が切れました
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
 Companion Report,Companion レポート
 Companion authentication failed.,アシスタント認証に失敗しました。
@@ -109,6 +122,7 @@ Create invoice records through the Cowork intake service.,Coworkの取り込み�
 Created By,作成者
 Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
+Credit,掛け
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
@@ -119,6 +133,8 @@ Directory Revision,ディレクトリリビジョン
 Directory Scope Key,ディレクトリ範囲キー
 Directory Scope Kind,ディレクトリ範囲タイプ
 Directory Snapshot,ディレクトリスナップショット
+Disable,無効化
+Disable {0},{0}件を無効化
 Document Key,伝票重複防止キー
 Draft,下書き
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
@@ -131,8 +147,14 @@ ERP records cannot be saved in Cowork.,ERPのレコードはCoworkに保存で�
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
 Edit Count,編集回数
+Edit in Full Page,全画面で編集
+Email,メール
+Enable,有効化
+Enable {0},{0}件を有効化
 Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～120 文字で入力してください。
+Enter a valid email,正しいメールアドレスを入力してください
 Enter a valid quantity with no more than six decimal places.,有効な数量を小数点以下 6 桁以内で入力してください。
+Enter the user name,ユーザー名を入力してください
 Entry,エントリー
 Event Key,イベント識別子
 Evidence Fingerprint,証跡フィンガープリント
@@ -148,6 +170,7 @@ Field,項目
 File Hash,ファイルのハッシュ値
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
+General,一般
 Generation Key,認証情報世代キー
 History,伝票履歴
 History Records,認識記録
@@ -155,6 +178,8 @@ History Version,伝票履歴バージョン
 Holder,ロック保持者
 Holder Fence,ロック保持試行番号
 IN,入金
+Inactive,無効
+Initial Password,初期パスワード
 Installed At (UTC),インストール日時（UTC）
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid original document manifest.,元文書の内容索引が無効です。
@@ -162,6 +187,7 @@ Invalid original filename.,元ファイル名が無効です。
 Invalid posting type.,転記タイプが無効です。
 Invalid push execution mode.,送信実行モードが無効です。
 Invalid push request.,送信要求が無効です。
+Invalid push target.,送信先が無効です。
 Invalid recognized invoice group.,認識した請求書グループが無効です。
 Invalid request key.,要求キーが無効です。
 Invalid statement review rows or row references.,確認明細または元の行番号が無効です。
@@ -179,7 +205,12 @@ Issued At (UTC),発行日時 (UTC)
 Issued By,発行者
 Issued Request Digest,発行リクエストのダイジェスト
 Item,項目
+Job Roles,機能権限
+LINE is not enabled for this account,このアカウントは LINE が有効になっていません
+LINE name,LINE の名前
+LINE unbound,LINE の連携を解除しました
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
+Last Login,最終ログイン
 Last Push Record,最終送信記録
 Last Push Status,最終送信状態
 Last Pushed At (UTC),最終送信日時（UTC）
@@ -195,10 +226,12 @@ Mapping Key,マッピングキー
 Mapping Kind,マッピング種類
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
+New code,新しいコード
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No invoice summary found,請求書の概要情報なし
 Not Permitted,適切な権限がありません
+Not bound,未連携
 OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
@@ -220,8 +253,10 @@ Owner Id,実行者ID
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
 Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
+Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Payload Json,固定ペイロードJSON
+Payment Method,支払方法
 Pearnly Cowork,Pearnly Cowork
 Pending,処理待ち
 Phase,処理段階
@@ -239,6 +274,7 @@ Provider Evidence,プロバイダー呼び出し証跡
 Push Attempt,送信試行
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
+"Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
 Quantity,数量
 Reason,理由
 Recognition Confidence,認識の信頼度
@@ -274,10 +310,12 @@ Request Receipts,リクエストの受領記録
 Requested At (UTC),要求日時（UTC）
 Required invoice amounts are missing. Complete them before exporting.,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
 Requires Review,確認が必要
+Reset Password,パスワードを再設定
 Response Json,確認応答JSON
 Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
+Review,レビュー
 Review JSON,確認記録 JSON
 Reviewed amounts need a balance and at most two decimal places.,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
 Revision,リビジョン
@@ -287,6 +325,7 @@ Revoked By,失効者
 Row {0}: {1},{0} 行目：{1}
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
 Sample Key,修正例識別子
+Saved,保存しました
 Scope Key,権限範囲識別子
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
@@ -294,6 +333,7 @@ Select between 1 and 500 records.,1～500件のレコードを選択してくだ
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
 Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
+Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
 Settings Json,設定データ（JSON）
 Site,サイト
@@ -310,12 +350,15 @@ Source Reference Kind,元ファイルの参照種別
 Source Sha256,元ファイルの SHA-256
 Started At,開始日時
 Statement review is not available for this task.,このタスクには明細確認記録がありません。
+Status,状態
 Stock,在庫
 Stock count photos are not yet supported. Remove the photos before saving.,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
+Submit,確定
 Summary table import,集計表の取り込み
 Target Json,固定送信先JSON
 Task,タスク
 Tax ID,納税者番号
+That code is not valid,コードが正しくありません
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
 The Companion delivery record was not found.,アシスタントのタスク受領記録が見つかりません。
 The Companion identity is no longer valid. Authenticate again.,アシスタントの認証が無効になりました。再認証してください。
@@ -430,6 +473,7 @@ This ERP adapter is not connected yet.,このERPアダプターはまだ接続�
 This ERP connection is disabled.,このERP接続は無効です。
 This account set is unavailable.,この会計データは利用できません。
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
+This channel is not open yet,このチャンネルはまだ開放していません
 This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
 This connection is disabled.,この接続は無効です。
 This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
@@ -452,15 +496,19 @@ This request key was used for different content.,この要求キーは別の内�
 This request key was used for different push content.,この要求キーは別の送信内容に使用されています。
 This stock count task is closed.,この棚卸タスクはクローズ済みです。
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
+Time left {0},残り {0}
 Title,タイトル
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代
 Token Tail,トークン末尾
 Transaction Date,取引日
+Unbind LINE,LINE 連携を解除
+Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？
 Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
+Updated {0} user(s),ユーザー{0}件を更新しました
 Uploaded By,アップロードしたユーザー
 Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
 Use the Cowork Companion service to access deliveries.,タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。
@@ -468,10 +516,13 @@ Use the Cowork OCR service to access recognition tasks.,認識タスクへのア
 Use the Cowork OCR service to change recognition tasks.,認識タスクの変更には Cowork 認識サービスを使用してください。
 Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
 Use the stock count workflow to change these records.,これらの記録は棚卸の操作から変更してください。
+User Settings,ユーザーメニュー
+Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
 Version,バージョン
 Voided,無効化済み
 Warehouse,倉庫
 Wire Attempt,送信試行回数
+Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
 You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
@@ -517,9 +568,38 @@ connection.scope_immutable,接続の会社、顧客、タイプは変更でき�
 connection.snapshot_invalid,ディレクトリのスナップショットが接続と一致しません。
 connection.snapshot_too_large,ディレクトリのスナップショットが16 MiBの上限を超えています。
 connection.url_invalid,ERPのアドレスが無効か、許可されていません。
+cowork.line.boundAt,連携日時
+cowork.line.code,連携コード
+cowork.line.expired,コードの有効期限が切れました
+cowork.line.lineName,LINE の名前
+cowork.line.newCode,新しいコード
+cowork.line.remaining,残り {0}
+cowork.line.status.bound,連携済み
+cowork.line.status.unbound,未連携
+cowork.line.unbind,LINE 連携を解除
+cowork.line.unbindConfirm,Pearnly Cowork LINE の連携を解除しますか？
+cowork.nav.work,業務連携
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.quality.pending,要確認
+cowork.team.action.bulkDisable,{0}件を無効化
+cowork.team.action.bulkEnable,{0}件を有効化
+cowork.team.active,正常
+cowork.team.disable,無効化
+cowork.team.email,メール
+cowork.team.enable,有効化
+cowork.team.inactive,無効
+cowork.team.lastLogin,最終ログイン
+cowork.team.new,ユーザーを追加
+cowork.team.notice.added,{0}を追加しました
+cowork.team.notice.password,パスワードを更新しました
+cowork.team.notice.saved,保存しました
+cowork.team.notice.toggled,ユーザー{0}件を更新しました
+cowork.team.password,初期パスワード
+cowork.team.resetPassword,パスワードを再設定
+cowork.team.roles,機能権限
+cowork.team.status,状態
+cowork.workspace_unresolved,この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。
 cowork_line,Cowork LINE
 document,文書
 erp.account_set_unavailable,この会計データは利用できません。
@@ -605,6 +685,7 @@ pending,処理待ち
 physical_page,物理ページ
 push.adapter_not_connected,このERPアダプターはまだ接続されていません。
 push.branch_invalid,送信実行モードが無効です。
+push.disabled,このサイトでは送信が有効になっていないため、何も送信されていません。
 push.native_ack_conflict,確認応答が記録済みの結果と矛盾しています。
 push.native_history_changed,伝票が変更されました。再度準備してください。
 push.native_lock_conflict,別の送信が書き込みロックを保持しています。

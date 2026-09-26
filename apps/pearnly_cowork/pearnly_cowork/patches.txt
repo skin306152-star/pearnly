@@ -5,3 +5,4 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 pearnly_cowork.patches.v0_0_1_revoke_cowork_work_shares
+pearnly_cowork.patches.v0_0_2_backfill_history_parties

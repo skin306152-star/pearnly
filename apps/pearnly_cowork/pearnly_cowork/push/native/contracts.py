@@ -112,7 +112,7 @@ def frozen_values(context, target, payload, disposition, reason, checks):
     if (target.get('endpoint_id') != context.connection
             or normalize_express_account_key(target.get('account_set')) != context.account
             or target.get('binding_generation') != context.binding_generation
-            or target.get('adapter') != 'express'):
+            or target.get('adapter') not in ('express', 'mrerp')):
         raise PushLedgerError('push.native_target_mismatch')
     reason = text(reason, length=500, optional=True)
     values = {'context': asdict(context), 'target': target, 'payload': payload,

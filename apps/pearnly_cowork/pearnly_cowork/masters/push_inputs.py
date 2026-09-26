@@ -188,11 +188,13 @@ def clear_profile(workspace, seller_tax_id):
     return {'deleted': deleted}
 
 
-def mappings(client):
+def mappings(client, erp_type='express'):
     """Internal scoped projection. The caller has already authorized the History."""
+    if erp_type not in ('express', 'mrerp'):
+        deny()
     rows = frappe.db.sql('''SELECT kind,mapping_key,erp_type,erp_code FROM `tabCowork ERP Mapping`
-        WHERE erp_type='express' AND (kind='account' OR (kind='client' AND mapping_key=%s))
-        ORDER BY kind,mapping_key LOCK IN SHARE MODE''', (client or '',), as_dict=True)
+        WHERE erp_type=%s AND (kind='account' OR (kind='client' AND mapping_key=%s))
+        ORDER BY kind,mapping_key LOCK IN SHARE MODE''', (erp_type, client or ''), as_dict=True)
     return {'accounts': [{'erp_type': r.erp_type, 'pearnly_category': r.mapping_key, 'erp_code': r.erp_code}
                          for r in rows if r.kind == 'account' and r.erp_code],
             'clients': [{'erp_type': r.erp_type, 'client_id': r.mapping_key, 'erp_code': r.erp_code}
