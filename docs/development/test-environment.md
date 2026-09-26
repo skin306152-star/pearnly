@@ -144,6 +144,27 @@ bash scripts/testenv.sh lab-stop erp                                          # 
 都会在下一次 `lab-start` 远程拉起 WSL 时自己起来。**切在测试机上时关机**，被切过去的那个测试租户会整体打不开，
 所以关机前先 `lab-stop`。
 
+## Cowork：空白站点 + 本栈账本（2026-09-26 起）
+
+Cowork 线上还没有租户，没法像 `testdms` / `testerp` 那样整站导入，所以 Cowork 用栈里的空白站点
+`cowork.test.localhost`，外加 `lab-init` 把它配成能走录入工作台的样子（实现见
+[`cowork-lab.py`](../../infrastructure/testenv/cowork-lab.py)）：
+
+```bash
+export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
+export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
+bash scripts/testenv.sh up cowork        # 起 Cowork 栈（会先停别的测试栈，卷保留）+ 建空白站点
+bash scripts/testenv.sh lab-init cowork  # 本栈账本 billing.internal + 测试租户 T-TESTCOWORK（1000 THB）+ 开通全部功能 + 管理员 + 公司资料
+bash scripts/testenv.sh urls             # Mac 侧端口转发；浏览器开 http://cowork.test.localhost:8181
+```
+
+- 管理员 `labadmin@testcowork.local`（用户名 `labadmin`），密码在本机 `~/.config/pearnly-testenv/testenv-secrets`
+  的 `COWORK_LAB_ADMIN_PASSWORD`（600，不进仓库）。
+- **与线上不同之处（如实说明）**：站点不接统一身份，用本地密码经 `/api/method/login` 登录（线上业务站点没有这条路，
+  等 Cowork 账号池 `pearnly-cowork` 拆分完成后换成真实登录）；账本是本栈自建的，不是线上账本的副本；
+  不配 OCR（真实识别是付费调用，另行授权）、不配 LINE、不切域名；ERP 连接由人在网页里填。
+- 全部幂等；`reset cowork` 会连本栈账本一起删掉，之后重新 `up` + `lab-init`。
+
 ## 命令速查
 
 | 命令 | 用途 |
@@ -152,6 +173,7 @@ bash scripts/testenv.sh lab-stop erp                                          # 
 | `bash scripts/testenv.sh up [dms\|erp\|cowork]` | 拉起该产品的独立栈（先停别的栈），并自动升级库 / 清缓存 / 写运行配置 |
 | `bash scripts/testenv.sh finish [产品]` | 只跑那三个收尾动作（导入数据后、换镜像后单独用） |
 | `bash scripts/testenv.sh sites [产品]` | 只建/迁移本栈的空白站点 |
+| `bash scripts/testenv.sh lab-init cowork` | Cowork 空白站点配成可用（本栈账本、功能、管理员），见上节 |
 | `bash scripts/testenv.sh import <组> <站点>` | 导入某个测试租户（数据来源于线上导出） |
 | `bash scripts/testenv.sh migrate <组> <站点>` | 发版后升级某个站点 |
 | `bash scripts/testenv.sh check` | 读回每个站点的产品、已装 App、版本、数据量 |

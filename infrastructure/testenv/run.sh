@@ -124,6 +124,27 @@ case "${1:-}" in
     dc ps
     ;;
   ps) dc ps -a ;;
+  lab-init)
+    # Cowork 线上没有租户可导入：给空白站点建本栈自己的账本、开通功能、建管理员（见 cowork-lab.py）。
+    [[ "$app" == cowork ]] || { echo "lab-init is only for cowork" >&2; exit 2; }
+    site="cowork.${site_suffix}"
+    db_pw=$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)
+    admin_pw=$(grep -E '^COWORK_LAB_ADMIN_PASSWORD=' "$env_file" | cut -d= -f2-)
+    [[ -n "$admin_pw" ]] || { echo "missing COWORK_LAB_ADMIN_PASSWORD in $env_file" >&2; exit 2; }
+    dc run --rm --no-deps -T billing-web \
+      /home/frappe/frappe-bench/env/bin/python /workspace/testenv/billing-init.py
+    # 租户令牌只在这里从一个容器进程传给另一个，不回显。
+    out=$(dc run --rm --no-deps -T -e TESTENV_DB_ROOT_PASSWORD="$db_pw" billing-web \
+      /home/frappe/frappe-bench/env/bin/python /workspace/testenv/cowork-lab.py billing)
+    printf '%s\n' "$out" | grep -v '^LAB_BILLING '
+    lab=$(printf '%s\n' "$out" | sed -n 's/^LAB_BILLING //p' | tail -1)
+    [[ -n "$lab" ]] || { echo 'billing lab init failed' >&2; exit 1; }
+    dc run --rm --no-deps -T -e TESTENV_SITE="$site" -e LAB_BILLING="$lab" \
+      -e LAB_ADMIN_EMAIL=labadmin@testcowork.local -e LAB_ADMIN_PASSWORD="$admin_pw" cowork-web \
+      /home/frappe/frappe-bench/env/bin/python /workspace/testenv/cowork-lab.py site
+    dc restart billing-web cowork-web cowork-worker >/dev/null
+    finish_start
+    ;;
   # 导入/换镜像之后单独再跑一次收尾（升级站点库 + 清缓存）。见 finish-start.py。
   finish) finish_start ;;
   check)
@@ -208,5 +229,5 @@ case "${1:-}" in
     dc exec "$@" bash
     ;;
   *)
-    echo "usage: TESTENV_APP=<dms|erp|cowork> run.sh {volumes|pull|config|up|ps|logs|down|reset|sites|sh}"; exit 2 ;;
+    echo "usage: TESTENV_APP=<dms|erp|cowork> run.sh {volumes|pull|config|up|ps|logs|down|reset|sites|sh|lab-init}"; exit 2 ;;
 esac

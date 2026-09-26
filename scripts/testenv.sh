@@ -73,6 +73,9 @@ write_env() {
       printf 'KEYCLOAK_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 24)"
     } > "$state"
   fi
+  # Cowork 实验室站点管理员的本地密码（线上没有 Cowork 租户，见 infrastructure/testenv/cowork-lab.py）。
+  grep -q '^COWORK_LAB_ADMIN_PASSWORD=' "$state" \
+    || (umask 077; printf 'COWORK_LAB_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 12)" >> "$state")
   umask 077
   {
     printf 'PEARNLY_IMAGE=%s\n' "$image"
@@ -272,6 +275,7 @@ case "${1:-}" in
   #   PEARNLY_TESTENV_APP=erp bash scripts/testenv.sh logs dms-web
   logs) shift; sync; bash_remote_app "$(resolve_app)" logs "$@" ;;
   sites) app=$(resolve_app "${2:-}"); sync; bash_remote_app "$app" sites ;;
+  lab-init) app=$(resolve_app "${2:-cowork}"); sync; bash_remote_app "$app" lab-init ;;
   import)
     group=${2:?group}; site=${3:?site}
     # 账本不是产品：它住在当前那套栈的 billing-web 里（app 用 PEARNLY_TESTENV_APP 选）。
@@ -297,6 +301,7 @@ usage: testenv.sh {setup|sync|env|pull|config|up|finish|ps|logs|urls|down|reset|
                    起完自动升级站点库、清 Frappe 缓存、补 OCR 容量与队列配置
   finish [产品]    只跑上面那三个收尾动作（导入数据后、换镜像后单独用）
   sites [产品]     建/迁移本栈的空白测试站点
+  lab-init [cowork] Cowork 空白站点：建本栈账本、开通功能、建实验室管理员（线上没有 Cowork 租户可导入）
   urls             打印 Mac 侧端口转发与可直接打开的地址
   logs <服务>      看某个服务日志（产品用 PEARNLY_TESTENV_APP 选，默认 dms）
   reset            停栈并删除本栈的数据卷（只删本产品项目名下的卷）

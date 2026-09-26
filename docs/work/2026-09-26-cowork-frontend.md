@@ -89,12 +89,33 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
   解除条件：ERP LINE 登录合入 main → 变基 → 按 `client_for_target(target, product)` 做完其余改动（开户按产品选池并各建号、删除按池、
   线上 bootstrap-auth / 成员身份配置 / site-step / auth-tls / connect-control）→ 本地验证 → 合入。
 - 其余改动点清单见本窗口与 ERP 窗口的协调消息（开户 / 删除 / 线上脚本共约 14 处）。
+- 更新：ERP 窗口改为扩展同一个建号服务（加 LINE 关联动作），会改这 3 个文件；已把本窗口的按产品改法导出为
+  `/Users/skin/.codex/worktrees/cowork-identity-realm/member-by-product.patch` 交给它一并合入。对方合入 main 后，本工作树的未提交改动以 main 为准丢弃。
 
 验证（本机，`ee986f5` + 本工作树未提交改动）：架构 PASS；`i18n-build --check` PASS；前端文案 PASS；
 `tests/test_cowork_team_menu.py` 4 项、`tests/test_native_desk_contract.py` 22 项、`test_architecture_guard` 通过；
 `test_product_feature_catalog` 在 bench Python 下通过（本机 3.9 语法不支持，非本改动）。
 样板 `cowork-a`（迁移后）服务端实测：三个新角色已建、LINE 处理器已注册；管理员能看到 6 项勾选、侧栏只有首页 / 录入、团队管理进左下角；
 管理员本人一行锁定。浏览器：团队管理名单与「添加用户」弹窗、个人信息 LINE 块已看。未验：添加用户成功路径、员工视角、真实 LINE 绑定。
+
+## 第七批：Cowork 测试环境（2026-09-26，已起过一次，按用户要求暂停）
+
+- 分支提交 `cfcc66d` 已推 `origin/codex/cowork-frontend`（用户授权“只推任务分支”）；Development checks 通过；
+  `build-production.yml` 出镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:1a25a8e8f9a9884a5b8877d679b9c3af5d329ff9ff1772de9ae5a1fd2a892b67`（revision = `cfcc66d`）。
+  本地闸门：CI 同名 Python 检查（3.12）全过、Node 检查除需 `npm ci` 的 DMS 编辑器快照外全过（本机 npm 快捷方式损坏，交 CI），
+  Cowork 离线全量 1438 项，6 个既有错误（缺 docx 2、原件清单桩 4），无新增。
+- 测试机 IP 由 `192.168.0.94` 变为 `192.168.0.65`（主机指纹核对为同一台），本机 `~/.ssh/config` 的 `lenovo-office-lan` 已改
+  `HostName 192.168.0.65` + `HostKeyAlias 192.168.0.94`（改前备份在会话临时目录）。建议路由器固定该机 IP。
+- Cowork 线上无租户可导入，新增 `scripts/testenv.sh lab-init cowork`（`infrastructure/testenv/cowork-lab.py`）：本栈账本
+  `billing.internal`、测试租户 `T-TESTCOWORK`（1000 THB）、全部 Cowork 功能、管理员 `labadmin@testcowork.local`（密码在
+  `~/.config/pearnly-testenv/testenv-secrets`）、公司资料、MR.ERP 推送开关。与线上不同：本地密码登录、自建账本、无 OCR / LINE。
+- 实测（测试机，上述镜像）：`up cowork` + `lab-init` 成功；站点侧查余额 1000 THB、功能全开、侧栏首页 + 录入工作台；
+  Mac 端口转发 ping 200。**浏览器录入流程未验**。
+- 发现：WSL 在没有会话时会自动关停，容器随之重启（本次 VM 在初始化后重启过一次）；测试期间需从 Mac 挂一条
+  `ssh lenovo-office-lan "wsl -d Ubuntu-24.04 -u root -- sleep infinity"` 保活（未改 Windows 配置）。
+- 用户：“测试先不搞，等那边搞完你再做独立号池，然后再搞真实测试环境。” 已 `down cowork`（容器删、4 个卷
+  `pearnly-testenv-cowork_{database,queue,sites-billing,sites-cowork}` 保留），端口转发与保活会话已关，域名未动过。
+  解除条件：分号池完成后按真实登录重建或复用这 4 个卷；不再需要时 `reset cowork`。
 
 ## 工作包：推送依赖的后端（2026-09-26 起，进行中）
 
