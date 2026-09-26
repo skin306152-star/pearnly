@@ -308,9 +308,9 @@ def _check_update(cfg: CompanionConfig, state: dict, on_update_available) -> Non
         return
     state["last_update_check"] = now
     try:
-        from .updater import check_update
+        from .updater import DOWNLOAD_SITE, check_update
 
-        up = check_update(cfg.backend_url)
+        up = check_update(DOWNLOAD_SITE)
         if up:
             on_update_available(up)
     except Exception as e:

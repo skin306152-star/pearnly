@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """首次配对:校验配对码 → 锁定客户所选账套 → 存 config(method=dbf)→ 写自启。
 
-配对码 = FE 弹窗生成的 `exp_<endpoint_id>_<secret>`。客户在配对窗从**探测到的真实账套
+配对码 = 网页连接弹窗复制出来的 `exp_<endpoint_id>_<secret>@<租户域名>`:@ 前是密钥,
+@ 后是这家租户的站点(小助手从此连它,不再写死某个域名)。客户在配对窗从**探测到的真实账套
 列表**里选自家那一个(显示真公司名),配对据此一步到位:确认码有效(连云端 heartbeat)、
 把所选账套的目录/公司/账套名/grid 行号锁进 config(= 写盘唯一合法目标)、把探测列表 +
 所选账套上报云端(供 FE 选/镜像)、打开开机自启。纯逻辑(无 GUI),供配对窗 + 单测调用。
@@ -10,6 +11,7 @@
 from __future__ import annotations
 
 import ntpath
+import re
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import List, Optional
@@ -26,7 +28,21 @@ from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
 
-DEFAULT_BACKEND = "https://pearnly.com"
+# 配对码 @ 后面的站点:域名(可带端口)。本机开发用的 localhost / *.localhost / 127.0.0.1 走 http,其余一律 https。
+_HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(?::\d{1,5})?$")
+_LOCAL_HOSTS = ("localhost", "127.0.0.1")
+
+
+def split_pairing_code(code: str) -> tuple[str, str]:
+    """`exp_…@租户域名` → (密钥, 站点 URL);格式不对返回 ("", "")。"""
+    value = "".join(str(code or "").split())
+    token, sep, host = value.rpartition("@")
+    name = host.split(":")[0].lower()
+    local = name in _LOCAL_HOSTS or name.endswith(".localhost")
+    if not sep or not token.startswith("exp_") or not _HOST.match(host) or ("." not in name and not local):
+        return "", ""
+    scheme = "http" if local else "https"
+    return token, f"{scheme}://{host.lower()}"
 
 # 科目映射 6 键 · 载荷/配置/配对窗共用一份清单(config.py 字段与此同序,增删键三处只改这里)。
 ACCOUNT_MAP_KEYS = (
@@ -100,7 +116,7 @@ def pair(
     chosen: AccountSet,
     all_sets: Optional[List[AccountSet]] = None,
     express_root: str,
-    backend_url: str = DEFAULT_BACKEND,
+    backend_url: str = "",
     express_exe: Optional[str] = None,
     express_workdate: str = "",
     enable_autostart: bool = True,
@@ -112,12 +128,17 @@ def pair(
 ) -> PairResult:
     # lang="" 落 t() 内部 normalize() 的默认逻辑(按 Windows 语言),无需在此重复解析。
     cfg = config or CompanionConfig.load()
-    token = (token or "").strip()
-    if not token:
+    code = (token or "").strip()
+    if not code:
         if not bool(getattr(cfg, "paired", False)):
             return _failure("pair_err_code_required", lang)
-        token = str(cfg.bearer_token or "").strip()  # 编辑时留空 = 沿用当前密钥
-    if not token.startswith("exp_"):
+        # 编辑时留空 = 沿用当前密钥和它所属的站点。
+        token = str(cfg.bearer_token or "").strip()
+        backend_url = backend_url or str(cfg.backend_url or "").strip()
+    else:
+        token, site = split_pairing_code(code)
+        backend_url = backend_url or site
+    if not token.startswith("exp_") or not backend_url.startswith(("https://", "http://")):
         return _failure("pair_err_token_format", lang)
     if chosen is None:
         return _failure("pair_err_no_chosen", lang)

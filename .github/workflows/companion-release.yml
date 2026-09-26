@@ -1,0 +1,134 @@
+name: Companion release
+
+# Windows 小助手的构建与发布（2026-09-27 起在本仓，安装包放在我们自己的服务器 pearnly.com/downloads/companion/）。
+#
+#   正式发布：改 companion/src/companion/version.py → 合入 main → 推标签 companion-v<版本>（或手动选 prod）。
+#   测试发布：手动运行、target=staging，只写 staging/ 目录，用户看到的下载和自动更新都不变。
+#
+# 只发 main 上的提交。Windows 上先跑全量测试再打包；Ubuntu 把安装包经受限 SSH 交给
+# infrastructure/production/receive-companion.py（服务器上只允许这一个命令），再从公网下载回来比对校验值。
+on:
+  push:
+    tags: ['companion-v*']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: staging 只做测试发布；prod 更新下载与自动更新
+        type: choice
+        options: [staging, prod]
+        default: staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: companion-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Check the source is on main and the tag matches version.py
+        id: identity
+        shell: pwsh
+        env:
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_SHA) { throw 'checkout SHA mismatch' }
+          git merge-base --is-ancestor $env:SOURCE_SHA origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'only commits on main are released' }
+          $ver = (python -c "from src.companion.version import VERSION; print(VERSION)").Trim()
+          if ($env:SOURCE_REF.StartsWith('refs/tags/') -and $env:SOURCE_REF -ne "refs/tags/companion-v$ver") {
+            throw "tag must be companion-v$ver"
+          }
+          "version=$ver" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Install the pinned build and test dependencies
+        run: python -m pip install --quiet --no-deps -r packaging/requirements-build.txt
+      - name: Run the helper tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q -p no:cacheprovider tests
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build the installer (no publication credentials in this job)
+        shell: pwsh
+        env:
+          RELEASE_PY: python
+          RELEASE_ISCC: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: companion-installer
+          path: |
+            companion/dist/PearnlyCompanion-Setup.exe
+            companion/dist/release.json
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: companion-installer
+          path: dist
+      - name: Send the installer to the download directory and read it back
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          TARGET: ${{ startsWith(github.ref, 'refs/tags/') && 'prod' || inputs.target }}
+          SSH_KEY: ${{ secrets.COMPANION_PUBLISH_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PRODUCTION_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          installer=dist/PearnlyCompanion-Setup.exe
+          sha256=$(sha256sum "$installer" | cut -d' ' -f1)
+          size=$(stat -c %s "$installer")
+          manifest=$(python3 - "$sha256" "$size" <<'EOF'
+          import json, os, sys
+          release = json.load(open("dist/release.json", encoding="utf-8-sig"))
+          sha256, size = sys.argv[1], int(sys.argv[2])
+          if release["source_sha"] != os.environ["SOURCE_SHA"] or release["sha256"] != sha256 or int(release["size"]) != size:
+              raise SystemExit("artifact does not match this run")
+          print(json.dumps({"target": os.environ["TARGET"], "version": release["version"],
+                            "source_sha": release["source_sha"], "sha256": sha256, "size": size,
+                            "publication": f"{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"}))
+          EOF
+          )
+          target_host=$(python3 -c "import json; print(json.load(open('infrastructure/production/target.json'))['ssh_host'])")
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/companion_publisher
+          chmod 600 ~/.ssh/companion_publisher
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          result=$({ printf '%s\n' "$manifest"; cat "$installer"; } |
+            ssh -T -i ~/.ssh/companion_publisher -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "root@$target_host")
+          echo "$result"
+          url=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['url'].split('?')[0])" "$result")
+          downloaded=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://pearnly.com$url" | sha256sum | cut -d' ' -f1)
+          [ "$downloaded" = "$sha256" ] || { echo "public download does not match"; exit 1; }
+          if [ "$TARGET" = prod ]; then
+            fixed=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' https://pearnly.com/downloads/companion/PearnlyCompanion-Setup.exe | sha256sum | cut -d' ' -f1)
+            [ "$fixed" = "$sha256" ] || { echo "fixed-name download does not match"; exit 1; }
+            curl -fsSL https://pearnly.com/downloads/companion/latest.json
+          fi
+          printf 'Published (%s): `https://pearnly.com%s` sha256 `%s`\n' "$TARGET" "$url" "$sha256" >> "$GITHUB_STEP_SUMMARY"

@@ -39,6 +39,10 @@ jobs:
         run: python3 scripts/check-production-capacity.py
       - name: Verify drained product activation and failure boundary
         run: python3 scripts/production/test-activate-product.py
+      - name: Verify the Windows helper and the server agree on endpoints, pairing code and downloads
+        run: python3 tests/test_companion_contract.py
+      - name: Verify the helper installer receiver refuses anything but one verified installer
+        run: python3 tests/test_companion_receiver.py
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: '22.14.0'

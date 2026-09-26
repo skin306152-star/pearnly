@@ -427,6 +427,7 @@ Page unavailable,Page unavailable
 Page {0} of {1} · {2} records,Page {0} of {1} · {2} records
 Pages,Pages
 Paid Amount,Paid Amount
+Pairing code,Pairing code
 Password,Password
 Password updated. Use the new password next time you sign in.,Password updated. Use the new password next time you sign in.
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.
@@ -919,7 +920,7 @@ intake.action.confirm,Confirm
 intake.action.new,New entry
 intake.action.queue,Push
 intake.agent.copy,Copy
-intake.agent.key,Key
+intake.agent.key,Pairing code
 intake.agent.reset,Regenerate
 intake.agent.resetConfirm,The old key stops working right away.
 intake.agent.state.missing,Assistant not connected

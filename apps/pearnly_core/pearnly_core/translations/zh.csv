@@ -429,6 +429,7 @@ Page unavailable,页面暂不可用
 Page {0} of {1} · {2} records,第 {0} / {1} 页 · 共 {2} 条
 Pages,张数
 Paid Amount,已付金额
+Pairing code,配对码
 Password,密码
 Password updated. Use the new password next time you sign in.,密码已更新。下次登录请用新密码。
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。
@@ -921,7 +922,7 @@ intake.action.confirm,确认
 intake.action.new,新建录入
 intake.action.queue,推送
 intake.agent.copy,复制
-intake.agent.key,密钥
+intake.agent.key,配对码
 intake.agent.reset,重新生成
 intake.agent.resetConfirm,旧密钥会立即失效。
 intake.agent.state.missing,助手未连接

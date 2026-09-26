@@ -4,6 +4,10 @@
 闸 = 写盘目标须 == 客户所选账套(目录 + 账套名);缺所选 → 拒(没选不能瞎写)。
 """
 
+import sys
+
+import pytest
+
 from src.companion.dbf_schema import path_ambiguity
 from src.companion.dbf_writer import account_dir_allowed
 from src.companion.purchase_adapter import (
@@ -58,6 +62,7 @@ def test_validate_failsafe_when_no_selection():
 
 
 # ── 写盘目录闸(C2)──────────────────────────────────────────
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 路径 / 系统接口")
 def test_account_dir_exact_match_to_selected():
     assert account_dir_allowed(OTHER_DIR, selected_dir=OTHER_DIR) is True
     # 归一:正斜杠/大小写差异仍匹配
@@ -84,6 +89,7 @@ SINGLE_SLASH = (
 )
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 路径 / 系统接口")
 def test_path_ambiguity_flags_single_backslash_unc():
     # 真 UNC:系统不会再解释 → 安全(返回空串)
     assert path_ambiguity(DATAT_DIR) == ""

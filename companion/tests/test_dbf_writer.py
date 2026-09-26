@@ -94,6 +94,7 @@ def _rows(d, name, **match):
 
 
 # ── 所选账套目录闸(C2)──────────────────────────────────────
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 路径 / 系统接口")
 def test_account_dir_matches_selected(tmp_path):
     sel = tmp_path / "70EXP" / "test"
     assert W.account_dir_allowed(sel, str(sel))  # 目标 == 所选 → 放行

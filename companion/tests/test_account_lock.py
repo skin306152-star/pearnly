@@ -2,6 +2,8 @@
 """账套占用探测:错误码判定 · 缺路径/哨兵不拦 · 占用→True/空闲→False(打桩 Win32)。"""
 import sys
 
+import pytest
+
 import src.companion.account_lock as al
 
 
@@ -45,6 +47,7 @@ def _fake_kernel32(create_ret, closed_counter=None):
     return k
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 路径 / 系统接口")
 def test_busy_when_sharing_violation(tmp_path, monkeypatch):
     (tmp_path / al.SENTINEL_TABLE).write_bytes(b"x")
     monkeypatch.setattr(sys, "platform", "win32")
@@ -54,6 +57,7 @@ def test_busy_when_sharing_violation(tmp_path, monkeypatch):
     assert al.is_account_busy(tmp_path) is True
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 路径 / 系统接口")
 def test_free_when_open_succeeds(tmp_path, monkeypatch):
     (tmp_path / al.SENTINEL_TABLE).write_bytes(b"x")
     monkeypatch.setattr(sys, "platform", "win32")

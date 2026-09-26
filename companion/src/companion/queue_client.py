@@ -1,12 +1,13 @@
-"""Companion 队列客户端 → Pearnly P1 Agent API(出站拉取)。
+"""Companion 队列客户端 → Pearnly 新平台的原生接口(出站拉取)。
 
-对接 pearnly-app 已上线的 Express 本地 Agent 接口(routes/erp_agent.py):
-  POST /api/erp/agent/heartbeat                       心跳自检
-  POST /api/erp/agent/lease  {max, agent_id}          领取待录入发票(置租约 120s)
-  POST /api/erp/agent/ack    {log_id, result, ...}    回报录入结果
+新平台(本仓 `apps/pearnly_cowork/pearnly_cowork/companion/`)的三个机器接口,地址是租户自己的域名
+(配对码 `exp_…@<租户域名>` 带来,见 `pairing.split_pairing_code`):
+  POST /api/method/pearnly_cowork.companion.heartbeat.report        心跳 + 上报账套
+  POST /api/method/pearnly_cowork.companion.queue_api.lease         领取待录入发票
+  POST /api/method/pearnly_cowork.companion.queue_api.acknowledge   回报录入结果
+请求体与旧线上相同;回应是 Frappe 的 `{"message": {...}}` 封套,这里取出里面那一层。
 
-鉴权:Authorization: Bearer <agent token>(后端比对 endpoint.config.agent_token_hash)。
-全部受后端特性开关 ERP_PUSH_ENABLED 保护(off → 404)。
+鉴权:Authorization: Bearer <exp_ 密钥>。站点 ERP 推送总闸关着时服务端拒绝(403)。
 
 契约小适配,公开接口(health/poll/ack_success/ack_failure + IncomingTask 字段)保持不变,
 故 main.py / 其余 companion 模块零改动。
@@ -23,9 +24,18 @@ from .logger import get_logger
 
 log = get_logger(__name__)
 
-_HEARTBEAT = "/api/erp/agent/heartbeat"
-_LEASE = "/api/erp/agent/lease"
-_ACK = "/api/erp/agent/ack"
+_METHOD = "/api/method/pearnly_cowork.companion."
+_HEARTBEAT = _METHOD + "heartbeat.report"
+_LEASE = _METHOD + "queue_api.lease"
+_ACK = _METHOD + "queue_api.acknowledge"
+
+
+def unwrap(response: httpx.Response) -> dict:
+    """原生接口回 `{"message": {...}}`;取出里面那一层(其余形状原样返回,由调用方判 ok)。"""
+    data = response.json()
+    if isinstance(data, dict) and isinstance(data.get("message"), dict):
+        return data["message"]
+    return data if isinstance(data, dict) else {}
 
 
 def _device_name() -> str:
@@ -138,9 +148,9 @@ class QueueClient:
             )  # 上报本机名 → 网页显示"已连接:<电脑名>"(链接设备身份)
         if selected:
             body.update(selected)  # 整组所选账套并入 body 顶层(对齐云端契约)
-        r = self._client.post(_HEARTBEAT, json=body or None)
+        r = self._client.post(_HEARTBEAT, json=body)
         r.raise_for_status()
-        return r.json()
+        return unwrap(r)
 
     def poll(self) -> Optional[IncomingTask]:
         """领取首个待录入发票(max=1)。空队列返回 None。"""
@@ -148,7 +158,7 @@ class QueueClient:
             _LEASE, json={"max": 1, "agent_id": self.cfg.companion_id}
         )
         r.raise_for_status()
-        response = r.json()
+        response = unwrap(r)
         command = response.get("master_refresh")
         if isinstance(command, dict) and command.get("request_id"):
             self._master_refresh = command
@@ -221,4 +231,4 @@ class QueueClient:
             body["meta"] = meta
         r = self._client.post(_ACK, json=body)
         r.raise_for_status()
-        return bool(r.json().get("ok", False))
+        return bool(unwrap(r).get("ok", False))

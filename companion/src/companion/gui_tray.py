@@ -305,7 +305,9 @@ class TrayApp(QObject):
             pearnly_icon(),
         )
         # 下载放后台线程 → UI 不卡死(61MB 主线程同步下载是「点了就卡」的根因)。
-        self._update_worker = _UpdateWorker(self.cfg.backend_url, url)
+        from .updater import DOWNLOAD_SITE
+
+        self._update_worker = _UpdateWorker(DOWNLOAD_SITE, url)
         self._update_worker.done.connect(self._on_update_downloaded)
         self._update_worker.failed.connect(self._on_update_failed)
         self._update_worker.start()

@@ -105,25 +105,27 @@ class _FakeP1Client:
         pass
 
     def post(self, url, json=None, **kw):
-        if url.endswith("/heartbeat"):
-            return _FakeResp(
+        # 新平台原生接口:地址是 /api/method/…,回应包在 {"message": …} 里。
+        assert isinstance(json, dict), "native machine RPCs require a JSON object body"
+        if url == "/api/method/pearnly_cowork.companion.heartbeat.report":
+            return _FakeResp({"message":
                 {"ok": True, "connected": True, "account_set": "DATAT", "method": "rpa"}
-            )
-        if url.endswith("/lease"):
+            })
+        if url == "/api/method/pearnly_cowork.companion.queue_api.lease":
             n = (json or {}).get("max", 1)
             taken, self.jobs = self.jobs[:n], self.jobs[n:]
             command, self.master_refresh = self.master_refresh, None
-            return _FakeResp(
+            return _FakeResp({"message":
                 {
                     "ok": True,
                     "lease_seconds": 120,
                     "jobs": taken,
                     "master_refresh": command,
                 }
-            )
-        if url.endswith("/ack"):
+            })
+        if url == "/api/method/pearnly_cowork.companion.queue_api.acknowledge":
             self.acks.append(json)
-            return _FakeResp({"ok": True})
+            return _FakeResp({"message": {"ok": True}})
         raise AssertionError(f"unexpected url: {url}")
 
 
@@ -138,7 +140,7 @@ def test_queue_client_p1_flow(monkeypatch):
     )
 
     cfg = QueueClientConfig(
-        backend_url="https://pearnly.com",
+        backend_url="https://testcowork.pearnly.com",
         bearer_token="agent-tok",
         companion_id="comp-1",
     )

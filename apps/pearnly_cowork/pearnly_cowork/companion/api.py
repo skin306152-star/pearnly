@@ -7,6 +7,8 @@ from pearnly_cowork.connections import access
 
 from . import contracts, credentials
 
+INSTALLER_URL = 'https://pearnly.com/downloads/companion/PearnlyCompanion-Setup.exe'
+
 
 def _local_transaction(function, *args, **kwargs):
     # after_request applies no-store/no-cache/nosniff. Set on errors and replays too, so
@@ -39,12 +41,13 @@ def status(connection):
 
 @frappe.whitelist(methods=['GET'])
 def installer():
-    """助手的安装包在哪里：程序本体不在本仓，所以地址是**部署配置**。
+    """助手的安装包在哪里。
 
-    没配置就如实回 `configured: false`，前端据此说"未配置"——不猜一个地址，
-    也不给一个我们并不拥有的默认下载链接（那会把商家送到打不开的页面上）。
+    2026-09-27 起小助手源码在本仓 `companion/`，安装包由发布流水线放到我们自己的服务器
+    `pearnly.com/downloads/companion/`（固定名始终是最新正式版），全平台一个地址，默认就用它；
+    站点配置 `pearnly_cowork_agent_installer` 只在要临时指向别处时覆盖。
     """
     access.require_actor()
-    url = str(frappe.conf.get('pearnly_cowork_agent_installer') or '').strip()
+    url = str(frappe.conf.get('pearnly_cowork_agent_installer') or '').strip() or INSTALLER_URL
     version = str(frappe.conf.get('pearnly_cowork_agent_version') or '').strip()
     return {'url': url, 'version': version, 'configured': bool(url)}

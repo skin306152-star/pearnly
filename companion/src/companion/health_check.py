@@ -35,12 +35,15 @@ class HealthReport:
 
 
 def _check_backend(cfg: CompanionConfig) -> CheckItem:
-    # 与 queue_client 统一:打 P1 Agent 心跳(Bearer agent token)。
+    # 与 queue_client 统一:打新平台原生心跳(Bearer exp_ 密钥;原生接口要求 JSON 对象体)。
+    from .queue_client import _HEARTBEAT
+
     try:
         with httpx.Client(timeout=3.0) as c:
             r = c.post(
-                f"{cfg.backend_url}/api/erp/agent/heartbeat",
+                f"{cfg.backend_url}{_HEARTBEAT}",
                 headers={"Authorization": f"Bearer {cfg.bearer_token}"},
+                json={},
             )
             if r.status_code == 200:
                 return CheckItem("backend", True, cfg.backend_url)

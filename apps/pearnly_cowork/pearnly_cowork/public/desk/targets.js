@@ -98,9 +98,10 @@
 	}
 
 	/**
-	 * Express 的连接：打开就是「下载助手」和密钥两样。
+	 * Express 的连接：打开就是「下载助手」和配对码两样。
 	 * 还没有 Express 通道就先建一条；还没有密钥就当场生成（同一通道已有有效密钥时服务端直接回它，
 	 * 不会重复生成）。明文只在生成那一次拿得到，之后只剩末 4 位；丢了就「重新生成」，旧的立即失效。
+	 * 配对码 = 密钥 + `@` + 本站域名（2026-09-27）：小助手从配对码知道该连哪家租户，不再写死域名。
 	 */
 	async function express_dialog({connection, on_done}) {
 		if (!connection) {
@@ -124,7 +125,7 @@
 					click: () => void download_agent()},
 				{fieldtype: "Data", fieldname: "key", label: __("intake.agent.key"), read_only: 1},
 				{fieldtype: "Button", fieldname: "copy", label: __("intake.agent.copy"),
-					click: () => frappe.utils.copy_to_clipboard(token)},
+					click: () => frappe.utils.copy_to_clipboard(`${token}@${window.location.host}`)},
 			],
 			primary_action_label: __("intake.agent.reset"),
 			primary_action: () => frappe.confirm(__("intake.agent.resetConfirm"), async () => {
@@ -133,7 +134,7 @@
 			}),
 		});
 		const paint = () => {
-			d.set_value("key", token || `exp_…${status.tail || ""}`);
+			d.set_value("key", `${token || `exp_…${status.tail || ""}`}@${window.location.host}`);
 			// 完整密钥只在刚生成时有（服务端只存指纹），这时才有「复制」。
 			d.set_df_property("copy", "hidden", token ? 0 : 1);
 		};

@@ -429,6 +429,7 @@ Page unavailable,このページは利用できません
 Page {0} of {1} · {2} records,{0} / {1} ページ · 全 {2} 件
 Pages,枚数
 Paid Amount,支払済金額
+Pairing code,ペアリングコード
 Password,パスワード
 Password updated. Use the new password next time you sign in.,パスワードを更新しました。次回は新しいパスワードでログインしてください。
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。
@@ -921,7 +922,7 @@ intake.action.confirm,確認
 intake.action.new,新規入力
 intake.action.queue,送信
 intake.agent.copy,コピー
-intake.agent.key,キー
+intake.agent.key,ペアリングコード
 intake.agent.reset,再生成
 intake.agent.resetConfirm,古いキーはすぐに使えなくなります。
 intake.agent.state.missing,アシスタント未接続

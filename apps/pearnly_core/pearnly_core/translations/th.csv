@@ -429,6 +429,7 @@ Page unavailable,ไม่สามารถใช้งานหน้านี
 Page {0} of {1} · {2} records,หน้า {0} จาก {1} · {2} รายการ
 Pages,จำนวนหน้า
 Paid Amount,จำนวนที่จ่ายแล้ว
+Pairing code,รหัสจับคู่
 Password,รหัสผ่าน
 Password updated. Use the new password next time you sign in.,อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า
@@ -921,7 +922,7 @@ intake.action.confirm,ยืนยัน
 intake.action.new,บันทึกใหม่
 intake.action.queue,ส่ง
 intake.agent.copy,คัดลอก
-intake.agent.key,คีย์
+intake.agent.key,รหัสจับคู่
 intake.agent.reset,สร้างใหม่
 intake.agent.resetConfirm,คีย์เดิมจะใช้ไม่ได้ทันที
 intake.agent.state.missing,ผู้ช่วยยังไม่เชื่อมต่อ

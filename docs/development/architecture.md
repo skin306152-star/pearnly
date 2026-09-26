@@ -67,7 +67,7 @@
 | `roundtrip` | 往返单契约与解析 | `service` / `parser` |
 | `push` | 推送装配、试算、幂等与写者锁 | `application.service` / `native`；外部写只在目标域 |
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
-| `companion` | 伴生端采集、投递与心跳 | 只消费上述域的公开入口，不直连数据库表 |
+| `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |
 | `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
 | `work` | 工作协调团队看板：卡片、标签、评论与活动、附件（原生私有 File） | `service` / `api`；只依赖 `access`；原生资源只读，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |

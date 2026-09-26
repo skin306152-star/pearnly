@@ -72,14 +72,14 @@ def test_new_profile_requires_pairing_code(tmp_path, monkeypatch):
 
 def test_rejects_no_chosen(tmp_path):
     r = pairing.pair(
-        token="exp_a_b", chosen=None, express_root=str(tmp_path), lang="zh"
+        token="exp_a_b@testcowork.pearnly.com", chosen=None, express_root=str(tmp_path), lang="zh"
     )
     assert not r.ok and "选一个账套" in r.error
 
 
 def test_rejects_missing_account_dir(tmp_path):
     acc = _acc(tmp_path / "nope")
-    r = pairing.pair(token="exp_a_b", chosen=acc, express_root=str(tmp_path), lang="zh")
+    r = pairing.pair(token="exp_a_b@testcowork.pearnly.com", chosen=acc, express_root=str(tmp_path), lang="zh")
     assert not r.ok and "目录不存在" in r.error
 
 
@@ -99,7 +99,7 @@ def test_network_exception_is_logged_but_not_exposed_to_customer(tmp_path, monke
     monkeypatch.setattr(pairing, "QueueClient", BrokenQueue)
 
     result = pairing.pair(
-        token="exp_e_s",
+        token="exp_e_s@testcowork.pearnly.com",
         chosen=acc,
         all_sets=[acc],
         express_root=str(tmp_path),
@@ -129,7 +129,7 @@ def test_rejects_disabled_endpoint_403(tmp_path, monkeypatch):
     monkeypatch.setattr(pairing.CompanionConfig, "load", staticmethod(lambda: fake_cfg))
 
     r = pairing.pair(
-        token="exp_e_s",
+        token="exp_e_s@testcowork.pearnly.com",
         chosen=acc,
         all_sets=[acc],
         express_root=str(tmp_path),
@@ -162,7 +162,7 @@ def test_success_locks_selection_and_reports(tmp_path, monkeypatch):
     monkeypatch.setattr(pairing.autostart, "enable", lambda: None)
 
     r = pairing.pair(
-        token="exp_e_s", chosen=acc, all_sets=[acc], express_root=str(tmp_path)
+        token="exp_e_s@testcowork.pearnly.com", chosen=acc, all_sets=[acc], express_root=str(tmp_path)
     )
     assert r.ok and r.company == acc.company and r.account_sets == 1
     kwargs = fake_cfg.update.call_args_list[0].kwargs
@@ -275,7 +275,7 @@ def test_pairing_reports_accounts_from_each_authorized_root(tmp_path, monkeypatc
     )
 
     result = pairing.pair(
-        token="exp_e_s",
+        token="exp_e_s@testcowork.pearnly.com",
         chosen=account_a,
         all_sets=[account_a],
         express_root=str(root_a),
@@ -311,7 +311,7 @@ def test_same_directory_can_pair_another_profile(tmp_path, monkeypatch):
     monkeypatch.setattr(pairing, "QueueClient", lambda _cfg: cm)
 
     r = pairing.pair(
-        token="exp_new_secret",
+        token="exp_new_secret@testcowork.pearnly.com",
         chosen=_acc(tmp_path),
         all_sets=[_acc(tmp_path)],
         express_root=str(tmp_path),
@@ -347,7 +347,7 @@ def test_profile_save_error_keeps_edit_config_unchanged(tmp_path, monkeypatch):
     monkeypatch.setattr(pairing, "QueueClient", lambda _cfg: cm)
 
     r = pairing.pair(
-        token="exp_new_secret",
+        token="exp_new_secret@testcowork.pearnly.com",
         chosen=acc,
         all_sets=[acc],
         express_root=str(tmp_path),
@@ -375,8 +375,58 @@ def test_probe_when_all_sets_absent_uses_chosen_code(tmp_path, monkeypatch):
     monkeypatch.setattr(pairing.CompanionConfig, "load", staticmethod(lambda: fake_cfg))
     monkeypatch.setattr(pairing.autostart, "enable", lambda: None)
 
-    r = pairing.pair(token="exp_e_s", chosen=acc, express_root=str(tmp_path))
+    r = pairing.pair(token="exp_e_s@testcowork.pearnly.com", chosen=acc, express_root=str(tmp_path))
     assert r.ok
     assert fake_cfg.update.call_args_list[0].kwargs["account_set"] == str(
         tmp_path
     )  # 唯一键 = PATH
+
+
+# ── 配对码带租户域名(2026-09-27:小助手不再写死某个域名,连配对码里那家站点) ──
+def test_split_pairing_code_takes_the_site_after_the_last_at():
+    assert pairing.split_pairing_code(" exp_CWEC-1_s3cret@testcowork.pearnly.com \n") == (
+        "exp_CWEC-1_s3cret", "https://testcowork.pearnly.com")
+    assert pairing.split_pairing_code("exp_a_b@TestCowork.Pearnly.com") == (
+        "exp_a_b", "https://testcowork.pearnly.com")
+    # 本机开发站点走 http,带端口也行。
+    assert pairing.split_pairing_code("exp_a_b@127.0.0.1:8101") == ("exp_a_b", "http://127.0.0.1:8101")
+    assert pairing.split_pairing_code("exp_a_b@localhost:8101") == ("exp_a_b", "http://localhost:8101")
+    assert pairing.split_pairing_code("exp_a_b@cowork-a.localhost:8101") == ("exp_a_b", "http://cowork-a.localhost:8101")
+
+
+def test_split_pairing_code_rejects_codes_without_a_site():
+    for code in ("exp_a_b", "exp_a_b@", "abc@testcowork.pearnly.com", "exp_a_b@bad host",
+                 "exp_a_b@https://x.com", ""):
+        assert pairing.split_pairing_code(code) == ("", ""), code
+
+
+def test_code_without_a_site_is_refused_before_any_request(tmp_path, monkeypatch):
+    monkeypatch.setattr(pairing, "QueueClient", lambda cfg: (_ for _ in ()).throw(AssertionError("no request")))
+    r = pairing.pair(token="exp_e_s", chosen=_acc(tmp_path), all_sets=[_acc(tmp_path)],
+                     express_root=str(tmp_path), lang="zh")
+    assert not r.ok and r.error_key == "pair_err_token_format"
+
+
+def test_pairing_connects_to_and_saves_the_site_from_the_code(tmp_path, monkeypatch):
+    acc = _acc(tmp_path)
+    qc_obj = mock.MagicMock()
+    qc_obj.health.return_value = {"ok": True}
+    cm = mock.MagicMock()
+    cm.__enter__.return_value = qc_obj
+    seen = {}
+
+    def queue_client(queue_cfg):
+        seen["url"], seen["token"] = queue_cfg.backend_url, queue_cfg.bearer_token
+        return cm
+
+    monkeypatch.setattr(pairing, "QueueClient", queue_client)
+    cfg = CompanionConfig(bearer_token="", paired=False, profile_id="new")
+    store = mock.Mock()
+    store.profiles = ()
+    r = pairing.pair(token="exp_CWEC-9_s3cret@testcowork.pearnly.com", chosen=acc, all_sets=[acc],
+                     express_root=str(tmp_path), enable_autostart=False, config=cfg, profile_store=store)
+    assert r.ok
+    assert seen == {"url": "https://testcowork.pearnly.com", "token": "exp_CWEC-9_s3cret"}
+    saved = store.save_profile.call_args.args[0]
+    assert saved.backend_url == "https://testcowork.pearnly.com"
+    assert saved.bearer_token == "exp_CWEC-9_s3cret"

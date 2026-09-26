@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """小助手自动更新:拉云端 latest.json 比对版本,有新版下载安装包静默安装。
 
-云端发布版本 = `static/companion/latest.json`({"version","url"});companion 周期拉它
-(走 nginx 静态·带 _nocache 破 CDN 缓存),版本更高则提示 + 一键装。安装包静默运行
-(Inno /VERYSILENT)会关旧进程→装新→自启,无需用户手动重装。release 脚本写 latest.json。
+发布版本 = `https://pearnly.com/downloads/companion/latest.json`({"version","url"}),全平台一份,
+与小助手连哪家租户无关(2026-09-27 起安装包放在我们自己的服务器,见本仓 `companion/README.md`)。
+companion 周期拉它(带时间戳参数防缓存),版本更高则提示 + 一键装。安装包静默运行
+(Inno /VERYSILENT)会关旧进程→装新→自启,无需用户手动重装。发布流水线写 latest.json。
 """
 from __future__ import annotations
 
@@ -20,7 +21,8 @@ from .version import VERSION, version_tuple
 
 log = get_logger(__name__)
 
-_LATEST_PATH = "/static/companion/latest.json"
+DOWNLOAD_SITE = "https://pearnly.com"
+_LATEST_PATH = "/downloads/companion/latest.json"
 
 
 def check_update(backend_url: str, current_version: str = VERSION, timeout: float = 8.0) -> Optional[dict]:

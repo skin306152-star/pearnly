@@ -813,7 +813,7 @@ Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรี�
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Target ERP	目标 ERP	ERP ปลายทาง	連携先 ERP	intake.target.title
 Assistant not connected	助手未连接	ผู้ช่วยยังไม่เชื่อมต่อ	アシスタント未接続	intake.agent.state.missing
-Key	密钥	คีย์	キー	intake.agent.key
+Pairing code	配对码	รหัสจับคู่	ペアリングコード	intake.agent.key
 Copy	复制	คัดลอก	コピー	intake.agent.copy
 Regenerate	重新生成	สร้างใหม่	再生成	intake.agent.reset
 The old key stops working right away.	旧密钥会立即失效。	คีย์เดิมจะใช้ไม่ได้ทันที	古いキーはすぐに使えなくなります。	intake.agent.resetConfirm
