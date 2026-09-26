@@ -175,8 +175,11 @@
 - 回读：7 个 Cowork 容器均为 `c4a04ca8` running；`maintenance_mode=0`、`pause_scheduler=0`；公网 ping 200；六个服务切换后 10 分钟日志 0 错误；
   站点内 patch `v0_0_4_work_lists` / `v0_0_5_split_recon_roles` 已执行，三个对账角色、`Cowork Work`、`pearnly-work` 页面存在，
   默认三列表已建（站点语言是英文，所以叫 To do / In progress / Done，用户可在看板上改名）；线上还没有 ERP 连接，总闸已开。
-- 未做：线上 LINE 官方号的新菜单图（含「任务管理」格）没有发布——对正式官方号是外部写入，只在测试号上得到过同意；
-  线上没发布全套组合时挂菜单逻辑直接跳过，用户仍看到原菜单。Cowork 账号池迁移、`COWORK_OCR` 识别配置仍是另外的生产步骤。
+- LINE 菜单（用户 2026-09-27 随后同意"把线上 LINE 官方号的新菜单也发布了"）：线上 `testcowork` 接的也是 Cowork-TEST（@771hffyh），
+  菜单图测试机已发过；在线上站点执行 `line.menu.publish()`：28 套全部复用同名菜单、写入站点菜单表并重挂已绑定用户，
+  `pearnlyai@gmail.com` → intake+stocktake+work。Cowork 账号池迁移、`COWORK_OCR` 识别配置仍是另外的生产步骤。
+- 收工：本机样板 5 个 Cowork 容器改挂主目录（同一组编排文件 `--no-deps --force-recreate`，cowork-a ping 200），
+  之后删除工作树 `loving-gagarin-82ed99`、本地分支与远端分支 `codex/cowork-work-board`（均为已合入的 `a7f612af`）。
 - 未验：真机 / 用户验收（任务管理、三个对账页面、Express 连接生成密钥）；实时刷新与到期提醒。
 
 ## 验证
