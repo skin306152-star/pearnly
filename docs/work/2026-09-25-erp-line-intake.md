@@ -378,7 +378,9 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 
 - DMS：`4207bf1..15dea26` 只有本任务的共用层改动（DMS 窗口已发布完），用户让本窗口处理 → `activate-product.sh 317b2feb… dms`：8 容器 `15dea26`；
   备份 `20260926_181035-ris_pearnly_com-*`、`20260926_181039-testdms_pearnly_com-*`；两站 LINE 登录保持关闭（`enabled_alias` 空）；ping 200，日志 0 错误；已通知 DMS 窗口。
-- **Cowork：仍是 `dd81a3f`，缺口仍在。** 之间有大量共用层 / desk 改动（如 `f848f91` 共用单据查看器），发布时机由 Cowork 窗口定，已发消息请示；在它答复前本窗口不动 Cowork。
+- Cowork：原为 `dd81a3f`（之间有大量共用层 / desk 改动，如 `f848f91` 共用单据查看器）。Cowork 窗口答复其用户确认"现在激活到 `317b2feb`"（Cowork 新前端与号池拆分在
+  未合入的 `codex/cowork-frontend`，不在本次）→ `activate-product.sh 317b2feb… cowork`：7 容器 `15dea26`；备份 `20260926_182910-testcowork_pearnly_com-*`；
+  LINE 登录关闭；会话表新列已迁；ping 200，web / worker 日志 0 错误；未做 Cowork 业务 / UI 验收。至此线上 ERP / DMS / Cowork / 计费均为 `15dea26`，缺口关闭。
 - 另一个 ERP 窗口已被告知线上 ERP 为 `15dea26`，发布须基于最新 main。
 
 ### 待用户处理 / 授权
