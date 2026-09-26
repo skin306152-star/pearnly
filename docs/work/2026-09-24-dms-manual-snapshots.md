@@ -1317,3 +1317,30 @@ REPEATABLE READ，独立连接刚提交的写入在它眼里看不见；`frappe.
 正在读不重排/全新鲜则什么都不做/基线必须排在四组之前/只用登记的采集器且不登录）并已进
 `check-dms-offline.py`；`tests/test_queue_targets.py` 通过（cron 里的点号目标可解析）；
 隔离实验室里实测 `hooks.scheduler_events` 两条 cron 都能解析到该函数。
+
+## 夜间回读：改为 3:00 强制重读 + 4:30 补读（2026-09-26）
+
+### 线上核对（只读，镜像 `b2e32d17…`／源码 `583262a`，泰国时间）
+
+- ris：`45 4` 那一枪 04:48 触发，车辆（8 步，04:53:38）、公司（5 步，04:52:21）、地址（04:49:08）
+  全部成功、`last_error` 空、无重试；**客户组被跳过** —— 前一天 19:06 有人手动读过，按"20 小时内读过"判为够新。
+- testdms：四组都在 09-25 13:50–17:40 读过，全部判够新，什么都没做。
+- 两站点 `Scheduled Job Type` 里都**只有 `45 4 * * *`**：Frappe 以方法名去重，`0 4` 与 `45 4` 指同一个
+  `run`，后者覆盖前者，4:00 那一枪从来没跑过。
+- 日志里三组第一步 04:48:07 开读，`change_sync.seed` 04:49:09 才跑 —— `manual.request` 当场入队，
+  而 `run` 把 seed 排在最后，与注释写的顺序相反（绑定时的 `connections/snapshots.py` 顺序是对的）。
+
+### 修改（用户要求：夜间强制重读、不管够不够新，改到凌晨 3 点开始）
+
+- `adapter/nightly_refresh.py`：`run`（3:00）四组一律重读，只让开**确实还在读**的组；新增 `retry`（4:30）
+  只补今晚没读成的组（`RETRY_FRESH_SECONDS` = 2 小时内开读的算已完成）；seed 先于任何一组入队。
+  删除 `FRESH_SECONDS`。
+- `hooks.py`：`0 3 * * *` → `run`，`30 4 * * *` → `retry`（两个函数，各自登记）。
+- 测试：`tests/test_dms_nightly_refresh.py` 13 项，入队与登记共用时间线，真实断言 seed 在前（把顺序改回旧写法
+  该用例失败）；`tests/test_queue_targets.py` 新增"同一方法不得多次排进定时任务"，对旧 `hooks.py` 报错。
+
+### 闸门与限制
+
+`check-architecture.py` 0 违规；`check-dms-offline.py`（Python 3.12）18 项全 PASS；`test_queue_targets.py` 通过。
+没有在真实 Site 上跑 `migrate` 看 `Scheduled Job Type` 变成两条，也未部署；部署后需回读两站点的
+`Scheduled Job Type`（应为 `0 3` 的 `run` 与 `30 4` 的 `retry`），并在次日回读 3:00 那一枪四组（含客户组）是否都换了新代。

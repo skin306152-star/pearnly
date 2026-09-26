@@ -43,11 +43,12 @@ scheduler_events = {"cron": {
     "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],
-    # 每日全量回读（第二层保险）：泰国凌晨 4:00 那一枪，4:45 那一枪是失败重试
-    # （数据已经够新的组会被跳过，所以成功之后第二枪什么都不做）。
-    # cron 按**站点时区**求值，本站 Asia/Bangkok → 就是泰国凌晨 4 点。
-    "0 4 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
-    "45 4 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
+    # 每日全量回读（第二层保险）：泰国凌晨 3:00 四组强制重读，4:30 只补今晚没读成的组。
+    # 两枪必须是**两个不同的函数**：Frappe 按方法名登记定时任务，同一函数挂两条 cron
+    # 只会留下后一条（2026-09-26 线上 4:00 那一枪因此从没跑过）。
+    # cron 按**站点时区**求值，本站 Asia/Bangkok → 就是泰国凌晨 3 点。
+    "0 3 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
+    "30 4 * * *": ["pearnly_dms.adapter.nightly_refresh.retry"],
 }}
 
 # Apps

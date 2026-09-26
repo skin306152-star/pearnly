@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""每日一次的全量回读（泰国凌晨 4–5 点），作为"顺手同步"之外的第二层保险。
+"""每日一次的全量回读（泰国凌晨 3 点起），作为"顺手同步"之外的第二层保险。
 
 ## 为什么要有它
 
@@ -9,6 +9,14 @@
 旧值上，没有任何东西会来纠正它。** 这个任务就是那个"没人管也会自己纠一次"的兜底：
 每天凌晨把四组整份重读一遍，把增量漏掉的东西按 DMS 现状重新对齐。
 
+## 为什么是强制重读
+
+第一枪（`run`）**不看数据新不新**，四组一律重读。2026-09-26 线上实测：前一天傍晚有人
+手动读过客户组，夜间任务按"20 小时内读过就跳过"把它跳了 —— 而客户组恰恰是增量最容易
+漏的那一组，保险在它身上等于没有。"读过"只说明那一刻对齐过，不说明此后的增量没漏，
+所以夜间这一枪不认任何"够新"。唯一的例外是**这一组此刻正在读**：再排一次只会抢同一个
+账号，而正在读的那一代本身就是最新的。
+
 ## 为什么是这个时段、这个频率
 
 · 全国地址是租户可编辑的字典，客户/车辆/公司也是天天在动，所以"永久拉一次"不成立；
@@ -16,26 +24,31 @@
   租户车辆组 653 个请求／46 秒，客户组 **15,135 个请求／50–85 分钟**。高频全量重扫会长时间
   占着第三方账号，那正是旧做法的病根（每 4 分钟一次，把操作员的实时操作和采集互相挡住，
   线上为此把它停掉了）；
-· 泰国车行凌晨 4–5 点没人用，所以把这次**可能长达一个多小时**的读取放在这个时段，
-  占账号的时间对业务影响最小。第二枪的跳过判据（`FRESH_SECONDS` / `IN_FLIGHT`）已经能
-  挡住"第一枪还在跑"和"第一枪已经成功"两种情况，不会重复读。
+· 泰国车行凌晨没人用，所以把这次**可能长达一个多小时**的读取从 3:00 开始，
+  占账号的时间对业务影响最小。
 
-只排**两枪**：4:00 与 4:45。第二枪是失败重试——每组自己的数据若已经够新会被跳过，
-所以第一枪成功之后第二枪什么都不做，不会重复读。
+只排**两枪**，而且是**两个不同的入口**：3:00 `run`（强制重读）与 4:30 `retry`（补读）。
+必须是两个函数 —— Frappe 按**方法名**登记定时任务（`Scheduled Job Type` 以 method 去重），
+同一个函数挂两条 cron，后一条会把前一条覆盖掉。2026-09-26 线上就是这样：`0 4` 与 `45 4`
+指向同一个 `run`，线上只登记了 `45 4`，4:00 那一枪从来没跑过。
+
+`retry` 只补"今晚还没读成"的组：`RETRY_FRESH_SECONDS` 内开始读过的算已完成（第一枪 3:00
+开读、补读 4:30 触发，间隔 90 分钟 < 2 小时）；仍在读的不重排（客户组可能读到 4 点多）；
+第一枪失败的组数据仍是上一代，会被重新登记。
 
 ## 多租户
 
 我们"一个租户一个站点"，而 Frappe 的调度是**按站点**跑的：每个站点自己的 cron 只处理
 本站点的主连接。所以不需要（也不应该）写一个跨租户的循环。
 
-时区：Frappe 的 cron 按**站点时区**求值（本站 Asia/Bangkok），`0 4 * * *` 就是泰国凌晨 4 点，
+时区：Frappe 的 cron 按**站点时区**求值（本站 Asia/Bangkok），`0 3 * * *` 就是泰国凌晨 3 点，
 不依赖宿主容器时区。若某个站点的时区被设错，这条会在白天跑 —— 那会占用操作员正在用的
 第三方账号，所以 `run` 里还有一道"最近有人用过就先让开"的护栏（见 `_busy_with_people`）。
 
 ## 已知风险（如实写下来，不假装没有）
 
-1. **两个站点共用同一个 DMS 账号**时，两个站点的 4:00 会撞在同一条账号锁上：
-   后到的最多等 180 秒，等不到就失败——4:45 那一枪会补上，且失败的站点保留上一代数据，
+1. **两个站点共用同一个 DMS 账号**时，两个站点的 3:00 会撞在同一条账号锁上：
+   后到的最多等 180 秒，等不到就失败——4:30 那一枪会补上，且失败的站点保留上一代数据，
    不会留下半份脏数据。
 2. 对方 DMS 夜里若在做维护，这一晚的读取会失败并记下错误码；老数据继续可用。
 3. 这是一次**只读**的全量重读：不写对方任何东西，也不改变我们已发布的代际语义
@@ -57,9 +70,10 @@ ENDPOINT = "Pearnly ERP Endpoint"
 #: 服务自身的动作以谁的名义登记（Frappe 的 Administrator 具备全部角色）。
 SERVICE_ACTOR = "Administrator"
 
-#: 多久算"今天已经读过了"。取 20 小时：凌晨成功一次后，4:45 的第二枪会跳过；
-#: 若第一次失败（数据仍是昨天或更早），第二枪照常重试。
-FRESH_SECONDS = 20 * 3600
+#: 补读那一枪眼里的"今晚已经读过"：这么久之内**开始读**的一代算数。
+#: 取 2 小时，必须大于两枪的间隔（3:00 → 4:30 = 90 分钟），又远小于一天，
+#: 这样前一天白天手动读过的组在补读时仍会被重读。
+RETRY_FRESH_SECONDS = 2 * 3600
 
 #: 一次全量回读要覆盖的组（与绑定时建底座的那四组一致）。
 READ_ORDER = ("vehicles", "customers", "company", "geo")
@@ -97,7 +111,7 @@ def _primary_endpoint():
 def _busy_with_people(endpoint):
     """最近有人真用过这条连接吗？用过就先让开，等下一枪。
 
-    正常情况（站点时区正确、凌晨 4 点）这里永远返回 False。它是防"时区被设错导致
+    正常情况（站点时区正确、凌晨 3 点）这里永远返回 False。它是防"时区被设错导致
     这条在白天跑"的护栏：宁可今天不补，也不去抢操作员正在用的那个第三方账号。
     """
     try:
@@ -109,8 +123,22 @@ def _busy_with_people(endpoint):
 
 
 def run():
-    """排一次四组全量回读。**不在这里登录第三方**（真正的读取由既有采集器在队列里做）。
+    """凌晨 3:00：四组一律重读（只让开正在读的组）。"""
+    return _refresh(fresh_within=None)
 
+
+def retry():
+    """凌晨 4:30：只补今晚还没读成的组。
+
+    与 `run` 必须是不同的函数：Frappe 按方法名登记定时任务，同名会互相覆盖。
+    """
+    return _refresh(fresh_within=RETRY_FRESH_SECONDS)
+
+
+def _refresh(*, fresh_within):
+    """排一次全量回读。**不在这里登录第三方**（真正的读取由既有采集器在队列里做）。
+
+    `fresh_within` 为空＝强制重读；给了秒数＝这么久之内开始读过的组跳过。
     返回一句话摘要（进 scheduler 日志），不做任何业务写入。
     """
     endpoint = _primary_endpoint()
@@ -119,31 +147,34 @@ def run():
     if _busy_with_people(endpoint):
         return {"skipped": "in-use-by-operator"}
 
-    requested, skipped = [], {}
+    due, skipped = [], {}
     for dataset in READ_ORDER:
         status = manual.status(endpoint, dataset, reader="authority")
         if status.get("state") in IN_FLIGHT and not _stalled(status):
             skipped[dataset] = "already-running"
             continue
         as_of = float(status.get("as_of") or 0)
-        if as_of and time.time() - as_of < FRESH_SECONDS:
-            skipped[dataset] = "fresh"
+        if fresh_within and as_of and time.time() - as_of < fresh_within:
+            skipped[dataset] = "read-tonight"
             continue
-        manual.request(endpoint, dataset, reader="authority", actor=SERVICE_ACTOR)
-        requested.append(dataset)
-    if not requested:
+        due.append(dataset)
+    if not due:
         frappe.db.commit()
         return {"skipped": "nothing-to-do", "detail": skipped}
 
-    # 水位与全量读**同批对齐**：先记下"此刻读到哪里"，再让四组去读。
+    # 水位与全量读**同批对齐**：先记下"此刻读到哪里"，再让各组去读。
     # 顺序不能反 —— 反过来会把"读取期间发生的改动"整段跳过（seed 只记位置、不补数据）。
+    # `manual.request` 是**当场入队**的（`enqueue_after_commit=False`），所以 seed 必须
+    # 先于第一次 `request` 入队；2026-09-26 线上日志里三组第一步早于 seed 一分钟就是这个坑。
     # 这与绑定时的 `connections.snapshots.bootstrap` 是同一套顺序、同一个入口。
     frappe.enqueue("pearnly_dms.adapter.change_sync.seed", endpoint=endpoint,
                    actor=SERVICE_ACTOR, queue=manual.QUEUE, timeout=420,
                    job_id=f"dms-changes-seed-{endpoint}", deduplicate=True,
                    enqueue_after_commit=False)
+    for dataset in due:
+        manual.request(endpoint, dataset, reader="authority", actor=SERVICE_ACTOR)
     frappe.db.commit()
-    return {"requested": requested, "detail": skipped}
+    return {"requested": due, "detail": skipped}
 
 
-__all__ = ["FRESH_SECONDS", "READ_ORDER", "run"]
+__all__ = ["READ_ORDER", "RETRY_FRESH_SECONDS", "retry", "run"]

@@ -111,3 +111,40 @@ class QueueTargets(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _scheduler_methods(hooks: Path) -> list:
+    """`scheduler_events` 里登记的全部方法（常量串，以及指向模块级常量串的变量名）。"""
+    tree = ast.parse(hooks.read_text(encoding="utf-8"))
+    constants = {target.id: node.value.value for node in tree.body if isinstance(node, ast.Assign)
+                 and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+                 for target in node.targets if isinstance(target, ast.Name)}
+    methods = []
+    for node in tree.body:
+        if not (isinstance(node, ast.Assign)
+                and any(getattr(t, "id", "") == "scheduler_events" for t in node.targets)):
+            continue
+        for item in ast.walk(node.value):
+            if isinstance(item, ast.List):
+                for element in item.elts:
+                    if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                        methods.append(element.value)
+                    elif isinstance(element, ast.Name) and element.id in constants:
+                        methods.append(constants[element.id])
+    return methods
+
+
+class SchedulerMethods(unittest.TestCase):
+    def test_a_method_is_scheduled_at_most_once(self):
+        # Frappe 以**方法名**去重 `Scheduled Job Type`：同一方法挂在两条 cron（或 cron 加
+        # daily）下，后登记的会覆盖前一条，前一条的时刻从此不再触发，且没有任何报错。
+        # 2026-09-26 线上：DMS 夜间回读 `0 4` 与 `45 4` 同指一个函数，4:00 那一枪从没跑过。
+        # 要两个时刻就写两个函数。
+        bad, seen_any = [], False
+        for hooks in sorted(APPS.glob("*/pearnly_*/hooks.py")):
+            methods = _scheduler_methods(hooks)
+            seen_any = seen_any or bool(methods)
+            for method in sorted({m for m in methods if methods.count(m) > 1}):
+                bad.append(f"{hooks.relative_to(ROOT)}: {method} 登记了 {methods.count(method)} 次")
+        self.assertTrue(seen_any, "一个定时任务都没扫到，说明扫描规则失效了")
+        self.assertEqual([], bad, "同一方法被多次排进定时任务：\n" + "\n".join(bad))
