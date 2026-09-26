@@ -228,6 +228,7 @@
     ],
     "recon_center": [
       "access",
+      "files",
       "ocr",
       "reconciliation",
       "tabular"

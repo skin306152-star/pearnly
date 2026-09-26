@@ -295,6 +295,8 @@ Invoice Total,发票总额
 Invoice detail,发票明细
 Invoice no.,发票号
 Invoice pages do not match the original page references.,发票页面与原件页码关联不一致。
+Invoice recognition is busy. Try again in a moment.,发票识别繁忙，请稍后再试。
+Invoice recognition took too long. Try again later.,发票识别超时，请稍后再试。
 Invoices,发票数
 Issued At (UTC),签发时间（UTC）
 Issued By,签发人
@@ -652,6 +654,7 @@ The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限�
 The uploaded file is empty.,上传文件为空。
 The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
 The worksheet row or column information is invalid.,工作表行列信息无效。
+There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
@@ -1248,9 +1251,11 @@ stocktake.row_invalid,导入行无效或缺少必填值。
 stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
 stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入
+vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 vat_check.no_invoices,没有读出任何发票。
 vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
-vat_check.scanned_not_ready,图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。
+vat_check.recognition_busy,发票识别繁忙，请稍后再试。
+vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
 {0} files,{0} 个文件
 {0} rows were not imported,{0} 行没有导入

@@ -282,7 +282,7 @@ app_include_js = [
     versioned_asset("pearnly_cowork", "desk/recon.js"),
     versioned_asset("pearnly_cowork", "desk/line-binding.js"),
 ]
-app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css")]
+app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css"), versioned_asset("pearnly_cowork", "desk/recon.css")]
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
@@ -390,7 +390,9 @@ override_whitelisted_methods = {
     "frappe.core.api.file.zip_files": "pearnly_cowork.files.api.guarded_zip_files",
 }
 
-pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run"}
+pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run",
+                        # 销项税报告核查的图片 / PDF 发票（同一个识别引擎，结果不进识别记录）
+                        "cowork.vat_check": "pearnly_cowork.recon_center.invoice_ocr.run"}
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。

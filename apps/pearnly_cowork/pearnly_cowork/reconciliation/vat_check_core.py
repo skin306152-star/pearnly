@@ -1,5 +1,6 @@
 # 销项税报告核查（Cowork，用户 2026-09-26 定迁）：配对与维度差异（services/recon/vat_recon_core.py）；另含 services/vat/vat_ocr_extract.py::_ocr_validate_invoice
-# 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径。
+# 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径；
+# 唯一有意改动：发票一侧分公司为空时不比分公司（见 `_diff_dims`，用户 2026-09-26 定）。
 """VAT 对账核心:金额/期间归一化 + 一对一配对 + 维度差异计算 · vat_excel_export 拆分 leaf。"""
 
 from typing import List, Dict, Any, Optional
@@ -415,7 +416,9 @@ def _diff_dims(inv: Dict, rep: Dict, lang: str = "th") -> Dict[str, str]:
         return s
 
     # 两侧都空时归一后同为 00000 · 不会进差异;只有一侧是真实非总部支店码才报差
-    if _norm_branch(b1) != _norm_branch(b2):
+    # Cowork 有意改动（用户 2026-09-26 定）：发票一侧没读到分公司（空）就不比分公司——
+    #   识别目前读不出分公司码，空不代表总部；空 vs 报告的支店码不再报“分公司差异”。发票读到了照旧比。
+    if b1 and _norm_branch(b1) != _norm_branch(b2):
         out["branch"] = f"{b1 or '—'} ≠ {b2 or '—'}"
     # 客户名
     name1 = (inv.get("buyer_name") or "").strip()

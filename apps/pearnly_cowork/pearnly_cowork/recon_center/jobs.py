@@ -92,7 +92,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             from pearnly_cowork.recon_center import vat_check
 
             result = vat_check.run(workspace, title, request_id, lefts, rights, options.get("lang") or "th",
-                                   on_stage=stage)
+                                   on_stage=stage, invoice_files=files["right"], recon_job=recon_job)
         elif kind == "bank":
             (left_name, left), (right_name, right) = lefts[0], rights[0]
             from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (

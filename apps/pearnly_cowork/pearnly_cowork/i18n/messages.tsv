@@ -772,4 +772,6 @@ Reading the invoices	读取发票	กำลังอ่านใบกำกั�
 The reports belong to different sellers ({0}).	多份报告卖方不一致（税号：{0}），请检查。	รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ	報告の売り手が異なります（{0}）。確認してください。	vat_check.sellers_differ
 The reports cover different periods ({0}).	多份报告期间不一致（{0}），请检查。	รายงานคนละงวด ({0}) กรุณาตรวจสอบ	報告の期間が異なります（{0}）。確認してください。	vat_check.periods_differ
 No invoice could be read.	没有读出任何发票。	ไม่สามารถอ่านใบกำกับได้เลย	請求書を1件も読み取れませんでした。	vat_check.no_invoices
-Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.	图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。	ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน	画像・PDF の請求書はまだ使えません。当面は Excel か CSV を使ってください。	vat_check.scanned_not_ready
+There is not enough balance to recognize the image and PDF invoices. Top up and try again.	余额不足，无法识别图片和 PDF 发票，请充值后再试。	ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่	残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。	vat_check.balance_insufficient
+Invoice recognition is busy. Try again in a moment.	发票识别繁忙，请稍后再试。	ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง	請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。	vat_check.recognition_busy
+Invoice recognition took too long. Try again later.	发票识别超时，请稍后再试。	การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง	請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。	vat_check.recognition_timeout

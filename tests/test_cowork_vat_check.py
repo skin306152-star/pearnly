@@ -48,6 +48,24 @@ class MergeTest(unittest.TestCase):
                          ("IV9", "0105550000001", 535))
 
 
+class BranchTest(unittest.TestCase):
+    """有意改动：发票没读到分公司（空）就不比分公司；读到了照旧比。"""
+
+    def invoice(self, branch):
+        return {"invoice_no": "IV1", "invoice_date": "01/06/2569", "buyer_tax_id": "0105551234567",
+                "buyer_branch": branch, "buyer_name": "A"}
+
+    def report(self, branch):
+        return {**row("IV1", "01/06/2569", "A", "0105551234567", 100, 7), "report_buyer_branch": branch}
+
+    def test_blank_invoice_branch_is_not_compared(self):
+        self.assertEqual(vat_check_core._diff_dims(self.invoice(""), self.report("00001"))["branch"], "")
+
+    def test_read_invoice_branch_is_still_compared(self):
+        self.assertTrue(vat_check_core._diff_dims(self.invoice("00002"), self.report("00001"))["branch"])
+        self.assertEqual(vat_check_core._diff_dims(self.invoice("สำนักงานใหญ่"), self.report("00000"))["branch"], "")
+
+
 @unittest.skipIf(openpyxl is None, "openpyxl is not installed")
 class WorkbookTest(unittest.TestCase):
     def test_workbook_counts_matches_differences_and_orphans(self):

@@ -295,6 +295,8 @@ Invoice Total,請求書合計
 Invoice detail,請求書明細
 Invoice no.,請求書番号
 Invoice pages do not match the original page references.,請求書のページが元ファイルの参照ページと一致しません。
+Invoice recognition is busy. Try again in a moment.,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。
+Invoice recognition took too long. Try again later.,請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 Invoices,請求書数
 Issued At (UTC),発行日時 (UTC)
 Issued By,発行者
@@ -652,6 +654,7 @@ The uploaded file exceeds the 100 MiB limit.,アップロードしたファイ�
 The uploaded file is empty.,アップロードしたファイルは空です。
 The verified ERP export details are invalid.,確認済みの ERP エクスポート情報が無効です。
 The worksheet row or column information is invalid.,ワークシートの行または列の情報が無効です。
+There is not enough balance to recognize the image and PDF invoices. Top up and try again.,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
@@ -1248,9 +1251,11 @@ stocktake.row_invalid,インポート行が無効か、必須項目が不足し�
 stocktake.too_many_rows,"インポートデータが上限の 10,000 行を超えています。"
 stocktake.warehouse_required,倉庫と場所を確認してください。倉庫は必須です。
 summary_table_batch,集計表の取り込み
+vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 vat_check.no_invoices,請求書を1件も読み取れませんでした。
 vat_check.periods_differ,報告の期間が異なります（{0}）。確認してください。
-vat_check.scanned_not_ready,画像・PDF の請求書はまだ使えません。当面は Excel か CSV を使ってください。
+vat_check.recognition_busy,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。
+vat_check.recognition_timeout,請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認してください。
 {0} files,{0} 件のファイル
 {0} rows were not imported,{0} 行は取り込めませんでした

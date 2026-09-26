@@ -1,19 +1,28 @@
-"""对账结果页 = 导出的复核表（用户 2026-09-26）：取表、改后重算、保存。
+"""对账结果页 = 导出的复核表，逐格照画（用户 2026-09-26）：取表、改后重算、保存。
 
-页面上显示的每一页都由**导出同一个函数**在内存里生成的工作簿读出来，所以页面与导出的 Excel
-逐格一致；可改的只有两边的输入（银行：对账单明细、总账明细；收入：差异明细的税表一侧与总账金额），
-改了就用建任务时同一套比对重算。保存整份替换结果，并用任务的修改时间防止两个人同时改。
+“前端显示表格按导出表格 1:1 画，可以不用官方 UI 组件；使用说明不用出现，不要过多文案备注。”
+
+页面上的每一页都由**导出同一个函数**在内存里生成的工作簿读出来：单元格文字（按单元格的数字格式排好）、
+底色、字色、粗斜体、字号、对齐、换行、边框、合并、列宽、行高、冻结窗格一并交给页面照画，
+所以页面与下载的 Excel 逐格一致。只有「使用说明」那页不出现。
+
+可改的格子就是两边的输入落在表里的那几格（银行：对账单明细、总账明细；收入：差异明细的税表一侧与
+总账金额；销项税：发票明细、VAT 报告明细），每格带着它对应的输入位置。改了就用建任务时同一套比对重算，
+重新出表。保存整份替换结果，并用任务的修改时间防止两个人同时改。
 """
 import io
-import json
+import re
+from datetime import date, datetime
 
 import frappe
 from frappe import _
 
-from pearnly_cowork.reconciliation import income_recon_service, revision, vat_check_service
+from pearnly_cowork.reconciliation import revision, vat_check_service
 
-# 由输入生成、页面只读显示的那几页（按导出工作簿里的顺序取）。
-READ_ONLY_SHEETS = {"bank": (0, 1), "income": (1, 2), "vat": (2, 3)}
+# 不在页面出现的页（按导出工作簿里的顺序）：收入、销项税的最后一页是使用说明。
+HIDDEN = {"bank": (), "income": (2,), "vat": (3,)}
+MAX_CELLS = 400000
+_SUM = re.compile(r"^=SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)$")
 
 
 def _lang(lang):
@@ -21,16 +30,336 @@ def _lang(lang):
     return lang if lang in ("th", "en", "zh", "ja") else "th"
 
 
-def _cells(content, indexes):
+# ── 单元格 → 文字与样式 ─────────────────────────────────────────────────────
+
+
+def _rgb(color):
+    value = getattr(color, "rgb", None) if color is not None else None
+    if not isinstance(value, str) or len(value) < 6 or getattr(color, "type", "rgb") != "rgb":
+        return None
+    return "#" + value[-6:]
+
+
+def _section_text(number, section):
+    body = re.sub(r"\[[^\]]*\]|\"[^\"]*\"|[_*\\].", "", section).strip()
+    percent = "%" in body
+    if percent:
+        number *= 100
+    decimals = sum(1 for ch in body.split(".", 1)[1] if ch in "0#") if "." in body else 0
+    text = f"{number:,.{decimals}f}" if "," in body else f"{number:.{decimals}f}"
+    if "(" in body and ")" in body:
+        text = f"({text})"
+    elif body.startswith("-"):
+        text = "-" + text
+    return text + ("%" if percent else "")
+
+
+def _number(value, fmt):
+    """按 Excel 数字格式排数字：`正;负;零` 三段，`[Red]` 红字，括号负数。返回 (文字, 是否红字)。"""
+    fmt = fmt or "General"
+    if fmt in ("General", "@"):
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value)), False
+        return (f"{value:.10g}" if isinstance(value, float) else str(value)), False
+    sections = fmt.split(";")
+    if value < 0 and len(sections) > 1:
+        section, shown = sections[1], -value
+    elif value == 0 and len(sections) > 2:
+        section, shown = sections[2], 0.0
+    else:
+        section, shown = sections[0], value
+    return _section_text(shown, section), "[Red]" in section
+
+
+def _sum(sheet, formula):
+    match = _SUM.match(formula.replace(" ", ""))
+    if not match:
+        return None
+    from openpyxl.utils import column_index_from_string
+
+    first, top, last, bottom = match.groups()
+    total = 0.0
+    for row in sheet.iter_rows(min_row=int(top), max_row=int(bottom), min_col=column_index_from_string(first),
+                               max_col=column_index_from_string(last), values_only=True):
+        total += sum(value for value in row if isinstance(value, (int, float)) and not isinstance(value, bool))
+    return round(total, 2)
+
+
+def _value(sheet, cell):
+    value = cell.value
+    if isinstance(value, str) and value.startswith("="):
+        value = _sum(sheet, value)
+    if value is None:
+        return "", False, False
+    if isinstance(value, bool):
+        return str(value), False, False
+    if isinstance(value, (int, float)):
+        text, red = _number(value, cell.number_format)
+        return text, red, True
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y %H:%M") if (value.hour or value.minute) else value.strftime("%d/%m/%Y"), False, False
+    if isinstance(value, date):
+        return value.strftime("%d/%m/%Y"), False, False
+    return str(value), False, False
+
+
+def _side(side):
+    style = getattr(side, "style", None)
+    if not style:
+        return None
+    width = {"medium": 2, "thick": 3, "double": 3}.get(style, 1)
+    return [width, _rgb(side.color) or "#000000", "double" if style == "double" else
+            "dashed" if "dash" in style else "dotted" if style in ("dotted", "hair") else "solid"]
+
+
+def _style(cell, numeric, red):
+    font, fill, align, border = cell.font, cell.fill, cell.alignment, cell.border
+    style = {}
+    if fill is not None and fill.fill_type == "solid":
+        background = _rgb(fill.fgColor)
+        if background:
+            style["bg"] = background
+    color = "#FF0000" if red else _rgb(font.color) if font else None
+    if color:
+        style["fg"] = color
+    if font is not None:
+        if font.b:
+            style["b"] = 1
+        if font.i:
+            style["i"] = 1
+        if font.u:
+            style["u"] = 1
+        if font.sz:
+            style["sz"] = float(font.sz)
+        if font.name:
+            style["fn"] = font.name
+    horizontal = align.horizontal if align is not None else None
+    style["h"] = horizontal if horizontal in ("left", "center", "right", "justify") else (
+        "center" if horizontal in ("centerContinuous", "distributed") else "right" if numeric else "left")
+    style["v"] = {"center": "middle", "top": "top"}.get(align.vertical if align is not None else None, "bottom")
+    if align is not None and align.wrap_text:
+        style["w"] = 1
+    if align is not None and align.indent:
+        style["in"] = int(align.indent)
+    sides = [_side(getattr(border, name, None)) for name in ("top", "right", "bottom", "left")] if border else []
+    if any(sides):
+        style["bd"] = sides
+    return style
+
+
+# ── 可改的格子：表里的一格 → 输入里的哪一行哪一栏 ───────────────────────────
+
+
+def _num(value):
+    try:
+        return round(float(str(value).replace(",", "")), 2) if value not in (None, "") else 0.0
+    except ValueError:
+        return None
+
+
+def _iso_to_sheet(value):
+    try:
+        return date.fromisoformat(str(value)[:10]).strftime("%d/%m/%Y")
+    except ValueError:
+        return str(value or "")
+
+
+def _by_content(sheet, first_row, rows, key_of_row, key_of_cells, width):
+    """导出时这两页按日期等重新排过序：按内容把表里每一行认回它的输入行（同内容的行可以互换）；
+    认不出的行按剩下的输入行顺次补上。"""
+    lines = [list(values) for values in sheet.iter_rows(min_row=first_row, max_col=width, values_only=True)]
+    unused = {}
+    for index, row in enumerate(rows):
+        unused.setdefault(key_of_row(row), []).append(index)
+    mapped, missing = [], []
+    for offset, values in enumerate(lines):
+        bucket = unused.get(key_of_cells(values))
+        if bucket:
+            mapped.append((first_row + offset, bucket.pop(0)))
+        else:
+            missing.append(first_row + offset)
+    rest = sorted(index for bucket in unused.values() for index in bucket)
+    mapped.extend(zip(missing, rest))
+    return mapped
+
+
+def _bank_edits(book, inputs):
+    edits = {}
+    statement, ledger = inputs.get("statement") or [], inputs.get("gl") or []
+    stmt_key = lambda row: (_iso_to_sheet(row.get("date")), str(row.get("description") or ""),  # noqa: E731
+        _num(row.get("withdrawal")), _num(row.get("deposit")), _num(row.get("balance")))
+    stmt_cells = lambda v: (str(v[0] or ""), str(v[1] or ""), _num(v[2]), _num(v[3]), _num(v[4]))  # noqa: E731
+    fields = ("date", "description", "withdrawal", "deposit", "balance")
+    for sheet_row, index in _by_content(book.worksheets[2], 2, statement, stmt_key, stmt_cells, 5):
+        for column, field in enumerate(fields, 1):
+            edits[(2, sheet_row, column)] = ["statement", index, field]
+    gl_key = lambda row: (_iso_to_sheet(row.get("date")), str(row.get("doc_no") or ""),  # noqa: E731
+        str(row.get("account_code") or ""), str(row.get("description") or ""), _num(row.get("debit")), _num(row.get("credit")))
+    gl_cells = lambda v: (str(v[0] or ""), str(v[1] or ""), str(v[2] or ""), str(v[3] or ""), _num(v[4]), _num(v[5]))  # noqa: E731
+    fields = ("date", "doc_no", "account_code", "description", "debit", "credit", "balance")
+    for sheet_row, index in _by_content(book.worksheets[3], 2, ledger, gl_key, gl_cells, 6):
+        for column, field in enumerate(fields, 1):
+            edits[(3, sheet_row, column)] = ["gl", index, field]
+    return edits
+
+
+def _income_edits(book, inputs):
+    sheet = book.worksheets[0]
+    first = sheet.freeze_panes and int(re.sub(r"\D", "", sheet.freeze_panes) or 0) or 5
+    fields = {2: "doc_no", 3: "date", 4: "customer_name", 5: "vat_amount", 6: "gl_amount", 8: "account_code"}
+    return {(0, first + index, column): ["vat", index, field]
+            for index in range(len(inputs.get("vat") or [])) for column, field in fields.items()}
+
+
+def _vat_edits(_book, inputs):
+    edits = {}
+    invoice_fields = {2: "buyer_tax_id", 3: "buyer_name", 4: "invoice_no", 5: "invoice_date",
+                      7: "amount_pre_vat", 8: "vat_amount", 9: "total_amount"}
+    report_fields = {2: "report_buyer_tax_id", 3: "report_buyer_name", 4: "report_date",
+                     6: "report_amount_pre_vat", 7: "report_vat_amount"}
+    for sheet_index, key, fields in ((0, "invoices", invoice_fields), (1, "report_rows", report_fields)):
+        for index in range(len(inputs.get(key) or [])):
+            for column, field in fields.items():
+                edits[(sheet_index, index + 2, column)] = [key, index, field]
+    return edits
+
+
+EDITS = {"bank": _bank_edits, "income": _income_edits, "vat": _vat_edits}
+
+
+# ── 一页 → 页面照画的数据 ─────────────────────────────────────────────────
+
+
+def _sheet(sheet, index, edits, inputs, styles, style_ids):
+    from openpyxl.utils import get_column_letter
+
+    rows, columns = sheet.max_row, sheet.max_column
+    if rows * columns > MAX_CELLS:
+        frappe.throw(_("reconciliation.rows_invalid"))
+    covered, spans = set(), {}
+    for merged in sheet.merged_cells.ranges:
+        spans[(merged.min_row, merged.min_col)] = (merged.max_row - merged.min_row + 1, merged.max_col - merged.min_col + 1)
+        for row in range(merged.min_row, merged.max_row + 1):
+            for column in range(merged.min_col, merged.max_col + 1):
+                if (row, column) != (merged.min_row, merged.min_col):
+                    covered.add((row, column))
+    widths = []
+    for column in range(1, columns + 1):
+        dimension = sheet.column_dimensions.get(get_column_letter(column))
+        width = dimension.width if dimension is not None and dimension.width else 8.43
+        widths.append(0 if dimension is not None and dimension.hidden else round(width * 7 + 5))
+    out_rows = []
+    for row_number, cells in enumerate(sheet.iter_rows(min_row=1, max_row=rows, max_col=columns), 1):
+        dimension = sheet.row_dimensions.get(row_number)
+        height = dimension.height if dimension is not None and dimension.height else None
+        line = []
+        for cell in cells:
+            position = (row_number, cell.column)
+            if position in covered:
+                line.append(None)
+                continue
+            text, red, numeric = _value(sheet, cell)
+            style = _style(cell, numeric, red)
+            key = repr(sorted(style.items()))
+            if key not in style_ids:
+                style_ids[key] = len(styles)
+                styles.append(style)
+            item = [text, style_ids[key]]
+            extra = {}
+            if position in spans:
+                extra["rs"], extra["cs"] = spans[position]
+            edit = edits.get((index,) + position)
+            if edit:
+                raw = (inputs.get(edit[0]) or [])[edit[1]].get(edit[2])
+                extra["e"] = edit + [None if raw is None else raw]
+            if extra:
+                item.append(extra)
+            line.append(item)
+        out_rows.append({"h": round(height * 4 / 3) if height else None, "c": line})
+    freeze = sheet.freeze_panes
+    frozen_rows = frozen_columns = 0
+    if freeze:
+        from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
+
+        letters, number = coordinate_from_string(freeze)
+        frozen_rows, frozen_columns = number - 1, column_index_from_string(letters) - 1
+    return {"index": index, "name": sheet.title, "widths": widths, "rows": out_rows,
+            "grid": bool(sheet.sheet_view.showGridLines is not False),
+            "freeze": [frozen_rows, frozen_columns]}
+
+
+def _render(kind, content, inputs):
     from openpyxl import load_workbook
 
     book = load_workbook(io.BytesIO(content))
-    out = []
-    for index in indexes:
-        sheet = book.worksheets[index]
-        rows = [[cell for cell in row] for row in sheet.iter_rows(values_only=True)]
-        out.append({"name": sheet.title, "rows": [row for row in rows if any(v not in (None, "") for v in row)]})
-    return out
+    edits = EDITS[kind](book, inputs)
+    styles, style_ids = [], {}
+    sheets = [_sheet(sheet, index, edits, inputs, styles, style_ids)
+              for index, sheet in enumerate(book.worksheets) if index not in HIDDEN[kind]]
+    return {"sheets": sheets, "styles": styles}
+
+
+# ── 页面打进来的字 → 输入 ────────────────────────────────────────────────
+
+
+AMOUNTS = {
+    "bank": {"statement": ("withdrawal", "deposit", "balance"), "gl": ("debit", "credit", "balance")},
+    "income": {"vat": ("vat_amount", "gl_amount")},
+    "vat": {"invoices": ("amount_pre_vat", "vat_amount", "total_amount"),
+            "report_rows": ("report_amount_pre_vat", "report_vat_amount", "report_amount")},
+}
+BLANK_IS_NONE = {("statement", "balance"), ("gl", "balance"), ("vat", "gl_amount")}
+
+
+def _amount(value, blank):
+    if value is None or isinstance(value, (int, float)):
+        return value
+    text = str(value).strip().replace(",", "").replace(" ", "")
+    if not text:
+        return blank
+    negative = text.startswith("(") and text.endswith(")")
+    text = text.strip("()")
+    try:
+        number = round(float(text), 2)
+    except ValueError:
+        frappe.throw(_("reconciliation.amount_invalid"))
+    return -number if negative else number
+
+
+def _bank_date(value):
+    """复核表里日期显示成 日/月/年；打进来的日/月/年（佛历年自动减 543）换回任务里存的 年-月-日。"""
+    text = str(value or "").strip()
+    match = re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$", text)
+    if not match:
+        return text
+    day, month, year = (int(part) for part in match.groups())
+    year = year + 2000 if year < 100 else year
+    year = year - 543 if year > 2400 else year
+    try:
+        return date(year, month, day).isoformat()
+    except ValueError:
+        return text
+
+
+def _normalize(kind, inputs):
+    for key, fields in AMOUNTS[kind].items():
+        for row in inputs.get(key) or []:
+            if not isinstance(row, dict):
+                continue
+            for field in fields:
+                if field in row:
+                    row[field] = _amount(row[field], None if (key, field) in BLANK_IS_NONE else 0.0)
+            if kind == "bank":
+                row["date"] = _bank_date(row.get("date"))
+            if kind == "income":
+                row["has_gl"] = int(row.get("gl_amount") is not None)
+            if key == "report_rows" and row.get("report_amount_pre_vat") not in (None, ""):
+                # 报告明细里“含税”一栏就是不含税 + VAT（导出也是这样算的），改了两者之一跟着走。
+                row["report_amount"] = round(float(row["report_amount_pre_vat"]) + float(row.get("report_vat_amount") or 0), 2)
+    return inputs
+
+
+# ── 接口 ────────────────────────────────────────────────────────────────
 
 
 def _task(kind, task_id, for_update=False):
@@ -41,38 +370,21 @@ def _task(kind, task_id, for_update=False):
 
 def _view(kind, doc, inputs, lang):
     if kind == "vat":
-        content, summary = vat_check_service.compute(vat_check_service._inputs(inputs), lang)
-        counts = vat_check_service._counts(summary)
-        total = len(summary.get("rows") or [])
-        # 旧线上的“有差异”把两边缺失的也算在内；页面四个数互不重叠：差异 = 总数 − 一致 − 缺失。
-        matched, unmatched = counts["matched_count"], counts["unmatched_count"]
-        return {"sheets": _cells(content, READ_ONLY_SHEETS[kind]), "inputs": inputs,
-                "counts": {"total": total, "matched": matched, "pending": max(0, total - matched - unmatched),
-                           "unmatched": unmatched}}
-    if kind == "bank":
+        content, _summary = vat_check_service.compute(vat_check_service._inputs(inputs), lang)
+    elif kind == "bank":
         _rows, _header, results, summary = revision.bank_compute(doc, inputs)
         content = revision.bank_workbook_bytes(doc, results, summary, lang)
-        matched = sum(1 for r in results if r.match_status == "matched" and (r.match_layer or 1) == 1)
-        pending = sum(1 for r in results if r.match_status == "matched" and (r.match_layer or 1) > 1)
-        counts = {"total": len(results), "matched": matched, "pending": pending,
-                  "unmatched": len(results) - matched - pending}
     else:
         _rows, results, summary = revision.income_compute(doc, inputs)
         content = revision.income_workbook_bytes(results, summary, lang)
-        matched, findings, unmatched = income_recon_service.result_counts(results)
-        counts = {"total": len(results), "matched": matched, "pending": findings, "unmatched": unmatched}
-        # 差异明细里每行的差额与状态跟着重算走（页面那张可改的表要显示它们）。
-        for row, result in zip(inputs.get("vat") or [], results):
-            row["diff"] = result.diff
-            row["gl_amount"] = result.gl_amount if row.get("has_gl") else row.get("gl_amount")
-    return {"sheets": _cells(content, READ_ONLY_SHEETS[kind]), "counts": counts, "inputs": inputs}
+    return {**_render(kind, content, inputs), "inputs": inputs}
 
 
-def _parse(inputs):
+def _parse(kind, inputs):
     value = frappe.parse_json(inputs) if isinstance(inputs, str) else inputs
     if not isinstance(value, dict):
         frappe.throw(_("reconciliation.request_invalid"))
-    return value
+    return _normalize(kind, value)
 
 
 @frappe.whitelist()
@@ -90,7 +402,7 @@ def load(kind, task_id, lang=None):
 @frappe.whitelist(methods=["POST"])
 def recalc(kind, task_id, inputs, lang=None):
     doc = _task(kind, task_id)
-    return _view(kind, doc, _parse(inputs), _lang(lang))
+    return _view(kind, doc, _parse(kind, inputs), _lang(lang))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -98,7 +410,7 @@ def save(kind, task_id, inputs, modified, lang=None):
     doc = _task(kind, task_id, for_update=True)
     if str(doc.modified) != str(modified):
         frappe.throw(_("reconciliation.edit_conflict"))
-    inputs = _parse(inputs)
+    inputs = _parse(kind, inputs)
     if kind == "vat":
         vat_check_service.save(doc, inputs, _lang(lang))
     elif kind == "bank":

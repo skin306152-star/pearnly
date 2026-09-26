@@ -1,0 +1,84 @@
+/* 对账结果页 = 导出的复核表逐格照画（用户 2026-09-26：按导出表格 1:1 画，可以不用官方组件）。
+ *
+ * 每格的底色、字色、字号、对齐、边框、列宽、行高由服务端从导出的工作簿读出、逐格写在行内样式上；
+ * 这里只管 Excel 本身的外观：白底表格、冻结窗格、不换行的字伸到右边空格、底部工作表标签、可改格子的选中框。
+ * 表格保持 Excel 的白底黑字，不随深色主题变。
+ */
+.pearnly-sheet {
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius-md);
+	background: #fff;
+	color-scheme: light;
+	overflow: hidden;
+}
+
+.pearnly-sheet-scroll {
+	overflow: auto;
+	max-height: calc(100vh - 210px);
+	min-height: 240px;
+}
+
+.pearnly-sheet-table {
+	border-collapse: collapse;
+	table-layout: fixed;
+	color: #000;
+	font-family: Calibri, Arial, sans-serif;
+	line-height: 1.25;
+}
+
+.pearnly-sheet-table td {
+	padding: 0 3px;
+	overflow: hidden;
+	text-overflow: clip;
+}
+
+.pearnly-sheet-table td.spill {
+	overflow: visible;
+}
+
+.pearnly-sheet-table td.frozen {
+	position: sticky;
+}
+
+.pearnly-sheet-table td.editable {
+	cursor: text;
+}
+
+.pearnly-sheet-table td.editable:hover {
+	outline: 1px solid #217346;
+	outline-offset: -1px;
+}
+
+.pearnly-sheet-table td.editable:focus {
+	outline: 2px solid #217346;
+	outline-offset: -2px;
+	overflow: hidden;
+}
+
+.pearnly-sheet-tabs {
+	display: flex;
+	overflow-x: auto;
+	border-top: 1px solid #d9d9d9;
+	background: #f3f3f3;
+}
+
+.pearnly-sheet-tab {
+	padding: 4px 16px;
+	border-right: 1px solid #d9d9d9;
+	color: #444;
+	font-size: 12px;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.pearnly-sheet-tab:hover {
+	color: #217346;
+	text-decoration: none;
+}
+
+.pearnly-sheet-tab.active {
+	background: #fff;
+	color: #217346;
+	font-weight: 600;
+	box-shadow: inset 0 -2px 0 #217346;
+}

@@ -3,10 +3,10 @@
  *   列表：官方列表，列头排序、勾选删除，右上角「新建任务」；
  *   新建：上方两个上传口（各传一份对应的文件）→「开始对账」；
  *   核对中：官方整屏遮罩（`frappe.dom.freeze`），只显示阶段文字（照旧线上，不显示百分比）；
- *   完成：结果页就是导出的复核表（用户 2026-09-26）——四个汇总数 + 工作簿各页；输入那几页可在线改，
+ *   完成：结果页就是导出的复核表，按导出的 Excel 逐格照画（用户 2026-09-26）；输入落在表里的格子可在线改，
  *         改了自动重算（服务端用同一套比对与同一个导出函数），有改动才出现「保存」。
  *
- * 全部是官方控件（列表、FieldGroup、DataTable、遮罩、msgprint），不自画控件。
+ * 列表、新建、遮罩、提示用官方控件；复核表是用户明确要求的自画例外（照 Excel 画，见任务记录）。
  * 服务端：`recon_center/api.py`（任务、阶段、列表、结果、删除），导出沿用各对账域的下载接口。
  */
 (() => {
@@ -14,7 +14,7 @@
 	const api = "pearnly_cowork.recon_center.api.";
 	const POLL_MS = 1500, POLL_LIMIT_MS = 20 * 60 * 1000;
 
-	// 每种对账的差异：上传口与列表列。结果页的各页见下面 `INPUTS` 与服务端 `recon_center/sheets.py`。
+	// 每种对账的差异：上传口与列表列。结果页（复核表）的数据见服务端 `recon_center/sheets.py`。
 	const KINDS = {
 		bank: {
 			root: "pearnly-recon-bank", title: "cowork.nav.reconBank", doctype: "Cowork Bank Reconciliation",
@@ -171,54 +171,97 @@
 			}
 		}
 
-		// ── 结果 = 导出的复核表：各页按工作簿顺序排成官方分区；输入那几页可改，改了自动重算，有改动才出现「保存」 ──
+		// ── 结果 = 导出的复核表，逐格照画（用户 2026-09-26：按导出表格 1:1 画，可以不用官方组件，不出现使用说明）──
+		// 服务端（`recon_center/sheets.py`）用导出同一个函数生成工作簿，把每格的文字与样式、合并、列宽、行高、冻结窗格交过来；
+		// 这里照着画成表格，底下是 Excel 那样的工作表标签。带输入位置的格子可以直接改，改完自动重算、重画，有改动才出现「保存」。
 		const sheets_api = "pearnly_cowork.recon_center.sheets.";
 		const lang = () => (frappe.boot.lang || "th").slice(0, 2);
-		const INPUTS = {
-			bank: [
-				{ key: "statement", label: "cowork.recon.sheet.statement", fields: [
-					["date", "Data", "cowork.recon.col.date", 2], ["description", "Data", "cowork.recon.col.description", 3],
-					["withdrawal", "Float", "cowork.recon.col.withdrawal", 1], ["deposit", "Float", "cowork.recon.col.deposit", 1],
-					["balance", "Float", "cowork.recon.col.balance", 2]],
-					// 读取器留下的三个标记随行带着（新加的行按“人工录入”：高置信、未校验、未自动更正）。
-					keep: { confidence: "high", balance_ok: "", autocorrected: 0 } },
-				{ key: "gl", label: "cowork.recon.sheet.gl", fields: [
-					["date", "Data", "cowork.recon.col.date", 2], ["doc_no", "Data", "cowork.recon.col.voucher", 1],
-					["account_code", "Data", "cowork.recon.col.account", 1], ["description", "Data", "cowork.recon.col.description", 2],
-					["debit", "Float", "cowork.recon.col.debit", 1], ["credit", "Float", "cowork.recon.col.credit", 1],
-					["balance", "Float", "cowork.recon.col.balance", 2]], keep: {} },
-			],
-			income: [
-				{ key: "vat", label: "cowork.recon.sheet.difference", fields: [
-					["doc_no", "Data", "cowork.recon.col.docNo", 1], ["date", "Data", "cowork.recon.col.date", 1],
-					["customer_name", "Data", "cowork.recon.col.customer", 2], ["vat_amount", "Float", "cowork.recon.col.vatAmount", 1],
-					["gl_amount", "Float", "cowork.recon.col.glAmount", 1], ["diff", "Float", "cowork.recon.col.difference", 1, true],
-					["status", "Data", "cowork.recon.col.status", 2, true]],
-					keep: { has_gl: 0, account_code: "" } },
-			],
-		};
-		INPUTS.vat = [
-			{ key: "invoices", label: "cowork.recon.sheet.invoices", all: true, fields: [
-				["invoice_no", "Data", "cowork.recon.col.invoiceNo", 1], ["invoice_date", "Data", "cowork.recon.col.date", 1],
-				["buyer_name", "Data", "cowork.recon.col.customer", 2], ["buyer_tax_id", "Data", "cowork.recon.col.taxId", 2],
-				["amount_pre_vat", "Float", "cowork.recon.col.preVat", 1], ["vat_amount", "Float", "cowork.recon.col.vat", 1],
-				["total_amount", "Float", "cowork.recon.col.total", 1], ["filename", "Data", "cowork.recon.file", 1, true]], keep: {} },
-			{ key: "report_rows", label: "cowork.recon.sheet.report", all: true, fields: [
-				["report_invoice_no", "Data", "cowork.recon.col.invoiceNo", 1], ["report_date", "Data", "cowork.recon.col.date", 1],
-				["report_buyer_name", "Data", "cowork.recon.col.customer", 2], ["report_buyer_tax_id", "Data", "cowork.recon.col.taxId", 2],
-				["report_amount_pre_vat", "Float", "cowork.recon.col.preVat", 1], ["report_vat_amount", "Float", "cowork.recon.col.vat", 1],
-				["report_amount", "Float", "cowork.recon.col.total", 2]], keep: {} },
-		];
-		const status_of = row => !row.has_gl ? "unmatched" : Math.abs(Number(row.diff || 0)) >= 0.005 ? "pending" : "matched";
+		const clone = value => JSON.parse(JSON.stringify(value));
+
+		function cell_style(node, style, grid) {
+			const side = value => value ? `${value[0]}px ${value[2]} ${value[1]}` : grid && !style.bg ? "1px solid #d9d9d9" : "none";
+			const sides = style.bd || [];
+			Object.assign(node.style, {
+				background: style.bg || "", color: style.fg || "", fontWeight: style.b ? "700" : "", fontStyle: style.i ? "italic" : "",
+				textDecoration: style.u ? "underline" : "", fontSize: `${style.sz || 11}pt`,
+				fontFamily: style.fn ? `"${style.fn}", Calibri, Arial, sans-serif` : "",
+				textAlign: style.h, verticalAlign: style.v, whiteSpace: style.w ? "pre-wrap" : "pre",
+				paddingLeft: style.in ? `${style.in * 9 + 3}px` : "",
+				borderTop: side(sides[0]), borderRight: side(sides[1]), borderBottom: side(sides[2]), borderLeft: side(sides[3]),
+			});
+		}
+
+		function draw_sheet(host, sheet, styles, on_edit) {
+			const table = document.createElement("table");
+			table.className = "pearnly-sheet-table";
+			table.style.width = `${sheet.widths.reduce((sum, width) => sum + width, 0)}px`;
+			const columns = document.createElement("colgroup");
+			sheet.widths.forEach(width => {
+				const column = document.createElement("col");
+				column.style.width = `${width}px`;
+				columns.append(column);
+			});
+			table.append(columns);
+			const body = document.createElement("tbody");
+			const [frozen_rows, frozen_columns] = sheet.freeze;
+			const lefts = sheet.widths.reduce((out, width, i) => [...out, i ? out[i - 1] + sheet.widths[i - 1] : 0], []);
+			let top = 0;
+			sheet.rows.forEach((row, r) => {
+				const line = document.createElement("tr");
+				const height = row.h || 20;
+				line.style.height = `${height}px`;
+				row.c.forEach((item, c) => {
+					if (!item) return;
+					const [text, style_id, extra = {}] = item;
+					const node = document.createElement("td");
+					if (extra.cs > 1) node.colSpan = extra.cs;
+					if (extra.rs > 1) node.rowSpan = extra.rs;
+					const style = styles[style_id];
+					cell_style(node, style, sheet.grid);
+					node.textContent = text;
+					// 不换行的字像 Excel 一样可以伸到右边的空格子里；右边有字就截断。
+					const next = row.c[c + (extra.cs || 1)];
+					const spill = text !== "" && !style.w && style.h !== "right" && (!next || (next[0] === "" && !next[2]?.e));
+					if (spill) node.classList.add("spill");
+					const frozen_row = r < frozen_rows, frozen_column = c < frozen_columns;
+					if (frozen_row || frozen_column) {
+						node.classList.add("frozen");
+						if (!node.style.background) node.style.background = "#fff";
+						if (frozen_row) node.style.top = `${top}px`;
+						if (frozen_column) node.style.left = `${lefts[c]}px`;
+						// 冻结的格子各自叠在上层；伸出去的字要再高一层，才不会被右边的白底盖住。
+						node.style.zIndex = String((frozen_row && frozen_column ? 3 : 2) + (spill ? 2 : 0));
+					}
+					if (extra.e) {
+						node.contentEditable = "true";
+						node.classList.add("editable");
+						node.addEventListener("keydown", event => {
+							if (event.key === "Enter") { event.preventDefault(); node.blur(); }
+							if (event.key === "Escape") { node.textContent = text; node.blur(); }
+						});
+						node.addEventListener("blur", () => {
+							const typed = node.innerText.replace(/\n/g, " ").trim();
+							on_edit(extra.e, typed === text.trim() ? null : typed);
+						});
+					}
+					line.append(node);
+				});
+				if (r < frozen_rows) top += height;
+				body.append(line);
+			});
+			table.append(body);
+			host.replaceChildren(table);
+		}
 
 		async function show_result(name) {
 			const request = ++sequence;
 			const data = await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() });
 			if (request !== sequence || frappe.get_route()[1] !== name) return;
 			clear();
-			let modified = data.task.modified, dirty = false, timer = null, pending = null;
+			let modified = data.task.modified, dirty = false, pending = null, active = 0, view = data, waiting = null;
+			let inputs = clone(data.inputs), good = clone(data.inputs);
 			page.set_title(data.task.title || name); breadcrumbs([{ label: data.task.title || name }]);
-			page.set_indicator(t(`cowork.recon.task.${data.task.status}`), data.task.status === "completed" ? "green" : "orange");
+			if (data.task.status !== "completed") page.set_indicator(t(`cowork.recon.task.${data.task.status}`), "orange");
 			const export_now = () => window.location.assign(`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${lang()}`);
 			const buttons = () => {
 				page.clear_primary_action(); page.clear_secondary_action();
@@ -229,124 +272,65 @@
 					page.set_primary_action(t("cowork.recon.export"), export_now);
 				}
 			};
-			// 四个汇总数（匹配率 / 已匹配 / 待处理差异 / 未匹配）：官方只读字段一行。
-			const kpi = p.layout(page.main, ["rate", "matched", "pending", "unmatched"].flatMap((key, index) => [
-				...(index ? [{ fieldtype: "Column Break" }] : []),
-				{ fieldtype: "Data", fieldname: key, label: t(`cowork.recon.kpi.${key}`), read_only: 1 }]));
-			const paint_kpi = counts => {
-				const rate = counts.total ? Math.round((counts.matched / counts.total) * 1000) / 10 : 0;
-				kpi.set_value("rate", `${rate}%`);
-				["matched", "pending", "unmatched"].forEach(key => kpi.set_value(key, String(counts[key])));
-			};
-			// 各页：只读页（由导出同一函数生成）用官方表格显示；输入页是官方可编辑表格（Grid）。
-			const inputs = JSON.parse(JSON.stringify(data.inputs));
-			const layout_fields = [];
-			const read_only = data.sheets.map((sheet, index) => ({ ...sheet, field: `sheet_${index}` }));
-			const section = (label, collapsible = false) => ({ fieldtype: "Section Break", label, collapsible: collapsible ? 1 : 0 });
-			const read_only_field = (sheet, collapsed) => [section(sheet.name, collapsed), { fieldtype: "HTML", fieldname: sheet.field }];
-			const grid_field = spec_input => [section(t(spec_input.label)), {
-				fieldtype: "Table", fieldname: spec_input.key, in_place_edit: true, cannot_add_rows: kind === "income",
-				data: inputs[spec_input.key].map(row => ({ ...row, status: kind === "income" ? t(`cowork.recon.status.${status_of(row)}`) : undefined })),
-				fields: spec_input.fields.map(([fieldname, fieldtype, label, columns, locked]) => ({
-					fieldname, fieldtype, label: t(label), in_list_view: 1, columns, read_only: locked ? 1 : 0,
-					...(fieldtype === "Float" ? { formatter: value => value == null || value === "" ? "" : p.number(value) } : {}),
-					onchange: () => changed() })) }];
-			if (kind === "bank") {
-				layout_fields.push(...read_only_field(read_only[0]), ...read_only_field(read_only[1]));
-				INPUTS.bank.forEach(item => layout_fields.push(...grid_field(item)));
-			} else if (kind === "vat") {
-				layout_fields.push(...read_only_field(read_only[0]));
-				INPUTS.vat.forEach(item => layout_fields.push(...grid_field(item)));
-				layout_fields.push(...read_only_field(read_only[1], true));
-			} else {
-				INPUTS.income.forEach(item => layout_fields.push(...grid_field(item)));
-				layout_fields.push(...read_only_field(read_only[0]), ...read_only_field(read_only[1], true));
-			}
-			const form = p.layout(page.main, layout_fields);
-			const tables = {};
-			const paint_sheets = async sheets => {
-				for (const [index, sheet] of sheets.entries()) {
-					tables[index]?.destroy();
-					const host = form.fields_dict[`sheet_${index}`].$wrapper;
-					const width = Math.max(...sheet.rows.map(row => row.length), 1);
-					// 工作簿的一页常是“标题块 + 表头 + 明细”：第一行“大部分格有字、且全是文字”的当表头，它上面的标题块原样列在表前。
-					const filled = row => row.filter(value => value !== null && value !== "").length;
-					const at = sheet.rows.findIndex(row => filled(row) >= Math.max(Math.min(width, 3), Math.ceil(width * 0.6))
-						&& row.filter(value => value !== null && value !== "").every(value => typeof value === "string"));
-					const header = at >= 0 && at < sheet.rows.length - 1;
-					const preface = header ? sheet.rows.slice(0, at) : [];
-					host.empty();
-					const lead = $("<div class='text-muted small mb-2'>").appendTo(host);
-					preface.forEach(row => $("<div>").text(row.filter(v => v !== null && v !== "")
-						.map(v => typeof v === "number" ? p.number(v) : String(v)).join(" · ")).appendTo(lead));
-					const grid_host = $("<div>").appendTo(host);
-					const columns = header ? sheet.rows[at].map(value => String(value ?? ""))
-						: width === 2 ? [t("cowork.recon.col.item"), t("cowork.recon.col.amount")]
-						: Array.from({ length: width }, (_v, i) => String.fromCharCode(65 + (i % 26)));
-					const body = (header ? sheet.rows.slice(at + 1) : sheet.rows).map(row => columns.map((_c, i) => {
-						const value = row[i];
-						return typeof value === "number" ? p.number(value) : value ?? "";
-					}));
-					tables[index] = await p.table(grid_host, columns.map(name => ({ name, format: p.escape })), body,
-						{ language: frappe.boot.lang, translations: frappe.utils.datatable.get_translations() });
-				}
-			};
-			const collect = () => {
-				const out = {};
-				for (const item of INPUTS[kind]) {
-					out[item.key] = form.fields_dict[item.key].grid.get_data().map(row => {
-						// 销项税核查的行带着很多识别 / 解析留下的字段（来源文件、页码、分支……），整行带回，
-						// 只去掉表格自己加的那几个键；银行两张表按固定字段收（服务端要求字段集合一致）。
-						const clean = item.all ? Object.fromEntries(Object.entries(row).filter(([key]) =>
-							!key.startsWith("__") && !["name", "idx", "doctype", "parent", "parentfield", "parenttype", "owner",
-								"creation", "modified", "modified_by", "docstatus"].includes(key))) : {};
-						for (const [fieldname] of item.fields) clean[fieldname] = row[fieldname] ?? "";
-						for (const [key, fallback] of Object.entries(item.keep)) clean[key] = row[key] ?? fallback;
-						delete clean.status;
-						return clean;
+			const book = document.createElement("div");
+			book.className = "pearnly-sheet";
+			const scroller = document.createElement("div");
+			scroller.className = "pearnly-sheet-scroll";
+			const tabs = document.createElement("div");
+			tabs.className = "pearnly-sheet-tabs";
+			book.append(scroller, tabs);
+			page.main.append(book);
+
+			const paint = () => {
+				// 正在改某一格时先不重画，等这一格改完（失焦）再画最新的。
+				if (book.contains(document.activeElement) && document.activeElement.isContentEditable) { waiting = view; return; }
+				waiting = null;
+				const sheet = view.sheets[Math.min(active, view.sheets.length - 1)];
+				const scroll = [scroller.scrollLeft, scroller.scrollTop];
+				draw_sheet(scroller, sheet, view.styles, edit);
+				[scroller.scrollLeft, scroller.scrollTop] = scroll;
+				tabs.replaceChildren(...view.sheets.map((item, index) => {
+					const tab = document.createElement("a");
+					tab.className = `pearnly-sheet-tab${index === active ? " active" : ""}`;
+					tab.textContent = item.name;
+					tab.addEventListener("click", () => {
+						if (index === active) return;
+						active = index; scroller.scrollLeft = 0; scroller.scrollTop = 0; paint();
 					});
-				}
-				if (kind === "income") out.gl_only = inputs.gl_only;
-				if (kind === "vat") {
-					for (const key of ["seller_name", "seller_tax_id", "period_year", "period_month", "failed_files"]) out[key] = inputs[key];
-				}
-				return out;
+					return tab;
+				}));
 			};
 			const recalc = async () => {
-				const payload = collect();
+				const payload = clone(inputs);
 				pending = payload;
-				const result = await p.call(sheets_api + "recalc", { kind, task_id: name, inputs: JSON.stringify(payload), lang: lang() }, "POST");
-				if (pending !== payload || frappe.get_route()[1] !== name) return;
-				paint_kpi(result.counts);
-				await paint_sheets(result.sheets);
-				if (kind === "income") {
-					// 差额与状态是算出来的：按重算结果回填到表格里（不算用户的改动）。
-					const grid = form.fields_dict.vat.grid;
-					grid.get_data().forEach((row, i) => {
-						const fresh = result.inputs.vat[i];
-						if (!fresh) return;
-						Object.assign(row, { diff: fresh.diff, has_gl: fresh.has_gl, status: t(`cowork.recon.status.${status_of(fresh)}`) });
-					});
-					grid.refresh();
+				try {
+					const result = await p.call(sheets_api + "recalc", { kind, task_id: name, inputs: JSON.stringify(payload), lang: lang() }, "POST");
+					if (pending !== payload || frappe.get_route()[1] !== name) return;
+					view = result; inputs = clone(result.inputs); good = clone(result.inputs);
+				} catch (error) {
+					// 打进去的字不合格（日期、金额）：退回上一次算得通的输入，表也画回去。
+					if (pending !== payload) return;
+					inputs = clone(good);
 				}
+				paint();
 			};
-			function changed() {
+			function edit(target, typed) {
+				if (typed === null) { if (waiting) paint(); return; }
+				const [key, index, field] = target;
+				inputs[key][index][field] = typed;
 				if (!dirty) { dirty = true; buttons(); }
-				clearTimeout(timer);
-				timer = setTimeout(() => void recalc(), 500);
+				void recalc();
 			}
 			async function save() {
-				clearTimeout(timer);
-				const saved = await p.call(sheets_api + "save", { kind, task_id: name, inputs: JSON.stringify(collect()),
+				const saved = await p.call(sheets_api + "save", { kind, task_id: name, inputs: JSON.stringify(inputs),
 					modified, lang: lang() }, "POST");
 				modified = saved.task.modified; dirty = false;
+				view = saved; inputs = clone(saved.inputs); good = clone(saved.inputs);
+				buttons(); paint();
 				p.success(t("cowork.recon.saved"));
-				await show_result(name);
 			}
 			buttons();
-			paint_kpi(data.counts);
-			await frappe.require("report.bundle.js");
-			await paint_sheets(read_only);
+			paint();
 		}
 
 		async function show_route() {
