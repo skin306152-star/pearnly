@@ -262,7 +262,7 @@ VAT 631.18）；入账 VAT 却是 838.04 —— 采购计算「先按折扣前�
 
 HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准。
 
-## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，已上线、开关未开，待用户配置与真机验收）
+## 7. LINE 绑定即登录（2026-09-26 第三窗口 7e25ab，testerp 已开启，待真机验收）
 
 分支 `codex/line-login`（工作树 `/Users/skin/pearnly/.claude/worktrees/gifted-lehmann-d677ce`），基线 `origin/main` = `19ade38`。
 线上核对（开工时）：ERP 7 个容器均 `sha256:b7c07a7f…`（revision `a1f6488`）；`testerp.pearnly.com` 经 `@1.1.1.1` 解析 `107.155.65.74`（线上）；测试机关机。
@@ -356,6 +356,21 @@ HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准
 - LINE 渠道表单：去掉新旧全部字段说明，分节标题改为「凭据」；控制面新字段补四语词条。
 - 验证：单元 100 条（建号服务新增多站点记账用例）；实验环境加第二个 ERP 站点（另一租户、同一管理员），从零重建 31/31，新增 L1–L6：
   第二站点经共用入口关联并免密进入、一处解绑后另一处仍可用且 Keycloak 关联保留、已解绑的站点拒绝、最后一处解绑才去掉关联。
+
+### 共用入口上线（2026-09-26）
+
+- 合入 `15dea26`；main 上 Build `36235505740` → `sha256:317b2feb485df9524a90d47b495cddc329ed488974782c73282656e1438bcdb8`，stage `36235837841`。
+- 部署目录备份 `/opt/pearnly/state/predeploy-line-login-shared-20260926102803` 后同步（只差 `site-step.py`），同源检查通过。
+- 先计费站点（`activate-foundation`，备份 `20260926_172823-billing_internal-*`，`Pearnly LINE Login Link` 已建），后 ERP（`activate-product erp`，备份
+  `20260926_172951-testerp_pearnly_com-*`）；billing / ERP 均 `15dea26`；补丁把 testerp 绑定关联状态清空；计费余额查询正常。DMS / Cowork 未动。
+- 本机控制面迁移（第一次迁移输出中出现一次 `Killed`，重跑 `rc=0` 且无 `Killed`；补丁结果已回读）并重启：开户目标 `production-ssdnodes` 有频道号 `2010411313`、
+  回调 `…/broker/line-2010411313/endpoint`、密钥存档 1 条；渠道上的旧存档 0 条。`requeue_line_login("production-ssdnodes")` → testerp `set_line` done。
+- 回读：testerp `pearnly_line_login_idp` = `line-2010411313`；管理员 `login_link=linked`；计费站点关联登记 1 条（`T-2026-0283` / erp / `line-2010411313`）。
+  删除旧入口 `line-erp-t-2026-0283`（关联随之去掉），realm 只剩 `line-2010411313`，`verify_realm` 通过。
+- LINE 后台（频道 2010411313）回调改为：`https://auth.pearnly.com/realms/pearnly-business/broker/line-2010411313/endpoint` + 原有 `https://pearnly.com/api/auth/line/callback`，回读一致。
+- 以后新租户：开户单填官方号与 LIFF（`2010411313-*`）即可，LINE 登录随开通自动打开，不再填密钥、不再登记回调。
+
+**待用户真机验收**（用户确认前不算）：LINE 里点卡片「编辑」、菜单「盘点」免密进入；解绑后不能再免密进入。
 
 ### 待用户处理 / 授权
 
