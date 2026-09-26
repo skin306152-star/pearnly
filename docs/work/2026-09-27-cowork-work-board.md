@@ -81,6 +81,7 @@
 | 2026-09-27 | 第二批未提交差异（基于 `45a7566`） | 本机离线（python3.12）+ 本机样板 `cowork-a.localhost`（`--migrate`） | CI 同名闸门、`test_cowork_work_contracts.py`；`test-cowork-work-native.py` 加测完成圆圈往返、复制（带清单 / 标签 / 成员）、按名称排序、整列移动、封面（颜色 / 本卡图片 / 拒绝文本 / 删附件清封面）、关注、@ 提醒（非成员不发、不发给自己、不串到别人）、提醒只读本人、全部已读、到期提醒重跑不重复 | 通过；回滚后为 0 |
 | 2026-09-27 | 同上 | 本机样板，内置浏览器 | 卡片外观、悬停圆圈与按钮、快捷菜单（复制卡片）、列收起 / 展开、列菜单按到期日排序、铃铛未读数与列表、点提醒打开卡片、卡片链接直开、封面整宽、评论里敲 @ 选人发出后对方收到、手机布局 | 通过；发现并修掉：快捷菜单图标文字错位、封面挤在左栏、手机上铃铛看不到（加进菜单）、触屏长标题压到编辑按钮 |
 | 2026-09-27 | `2d00c60`（变基到 `c11e7a2` 后） | 测试机 Cowork 栈（线上同一底座镜像 + 本工作树实时源码），`testcowork.pearnly.com` | `testenv.sh live cowork`（自动 migrate）；核对表、`Cowork Work` 角色、`pearnly-work` Page、测试账号 `pearnlyai@gmail.com`（Cowork Admin）可进；`work.js` / `work.css` 线上地址与本地字节一致；在测试租户上跑 `test-cowork-work-native.py` | 通过；事务回滚后卡片 / 标签 / 活动 / 临时用户 / 附件均为 0 |
+| 2026-09-27 | `d784b549` | 测试机（实时源码，`testcowork.pearnly.com`） | `live cowork`（自动 migrate 两张新表）；`test-cowork-work-native.py` 全套 | 通过；回滚后临时用户 / 标签 / 提醒 / 附件为 0，用户自己试用建的 4 张卡与 11 条活动未动；`work.js` / `work.css` 带版本号地址与源码字节一致（不带版本号的地址被 Cloudflare 缓存着旧版，页面用的是带版本号的） |
 
 `python3 scripts/check-i18n.py --strict` 失败是存量（其他模块硬编码文案），本任务新增文件不在报告里；CI 不跑这一项。
 本机样板的测试数据（卡片、标签、附件、临时用户与会话）测完已删。
