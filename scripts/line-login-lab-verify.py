@@ -219,6 +219,14 @@ bind(OWNER, U2)
 row = wait_link(U2, "linked", seconds=15)
 check("J1 owner (registered) can hold a different LINE", row.login_link == "linked", row)
 
+# ── K. only credential actions demand a fresh password; profile/locale keep Keycloak defaults ─
+ages = {a: ((kc.request(f"{R}/authentication/required-actions/{a}/config", ok=(200, 400, 404)) or {})
+            .get("config") or {}).get("max_auth_age") for a in ("UPDATE_PASSWORD", "CONFIGURE_TOTP",
+                                                                "UPDATE_PROFILE", "update_user_locale")}
+check("K1 credential actions re-authenticate after 1 s, profile/locale untouched",
+      ages["UPDATE_PASSWORD"] == "1" and ages["CONFIGURE_TOTP"] == "1"
+      and ages["UPDATE_PROFILE"] != "1" and ages["update_user_locale"] != "1", ages)
+
 failed = [n for n, ok in results if not ok]
 print(f"\n{len(results) - len(failed)}/{len(results)} passed" + (f"; failed: {failed}" if failed else ""))
 sys.exit(1 if failed else 0)

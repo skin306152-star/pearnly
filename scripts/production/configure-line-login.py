@@ -23,8 +23,11 @@ DENY_FLOW = "pearnly-line-deny"
 SCOPE = "pearnly-login-source"
 # 会话备注 → ID token 声明（与 pearnly_core.account.line_login_contract 一致）。
 SCOPE_CLAIMS = (("identity_provider", "pearnly_idp"), ("sub", "pearnly_line_user_id"))
-# 改密等敏感动作：离上次认证超过 1 秒就要求重新输入密码（LINE 登录后不能直接改密）。
+# 改密等**凭据类**动作：离上次认证超过 1 秒就要求重新输入当前密码（LINE 登录后不能直接改密、
+# 加两步验证或关联别的外部账号）。资料、语言、邮箱验证等非凭据动作保持 Keycloak 默认，不打扰。
 MAX_AUTH_AGE = "1"
+SENSITIVE_ACTIONS = ("UPDATE_PASSWORD", "UPDATE_EMAIL", "CONFIGURE_TOTP", "CONFIGURE_RECOVERY_AUTHN_CODES",
+                     "webauthn-register", "webauthn-register-passwordless", "delete_credential", "idp_link")
 LINE = {
     "authorizationUrl": "https://access.line.me/oauth2/v2.1/authorize",
     "tokenUrl": "https://api.line.me/oauth2/v2.1/token",
@@ -116,15 +119,17 @@ def configure_realm(api):
         if client.get("protocol", "openid-connect") == "openid-connect" and not client.get("bearerOnly"):
             api.request(f"{prefix}/clients/{client['id']}/default-client-scopes/{sid}", "PUT", ok=already)
 
-    # 3. 敏感必需动作：LINE 登录（或任何登录）之后不能不输密码就改密、加凭据。
+    # 3. 凭据类必需动作：LINE 登录（或任何登录）之后不能不输密码就改密、加凭据。
     for action in api.request(f"{prefix}/authentication/required-actions") or []:
         alias = action["alias"]
+        if alias not in SENSITIVE_ACTIONS:
+            continue
         described = api.request(f"{prefix}/authentication/required-actions/{quote(alias)}/config-description",
-                                ok=(200, 404)) or {}
+                                ok=(200, 400, 404)) or {}
         if any(p.get("name") == "max_auth_age" for p in described.get("properties", [])):
             path = f"{prefix}/authentication/required-actions/{quote(alias)}/config"
             # 整份提交：只改 max_auth_age，其余配置原样保留（缺字段会被拒）。
-            current = (api.request(path, ok=(200, 404)) or {}).get("config") or {}
+            current = (api.request(path, ok=(200, 400, 404)) or {}).get("config") or {}
             for prop in described.get("properties", []):
                 if prop.get("name") not in current and prop.get("defaultValue") not in (None, ""):
                     current[prop["name"]] = str(prop["defaultValue"])
@@ -143,10 +148,10 @@ def verify_realm(api):
     defaults = {s["name"] for s in api.request(f"{prefix}/default-default-client-scopes") or []}
     if SCOPE not in defaults:
         raise RuntimeError("Login source scope is not a realm default")
-    update_password = api.request(f"{prefix}/authentication/required-actions/UPDATE_PASSWORD/config",
-                                  ok=(200, 404)) or {}
-    if (update_password.get("config") or {}).get("max_auth_age") != MAX_AUTH_AGE:
-        raise RuntimeError("UPDATE_PASSWORD re-authentication age failed readback")
+    for alias in ("UPDATE_PASSWORD", "CONFIGURE_TOTP", "delete_credential"):
+        current = api.request(f"{prefix}/authentication/required-actions/{alias}/config", ok=(200, 400, 404)) or {}
+        if (current.get("config") or {}).get("max_auth_age") != MAX_AUTH_AGE:
+            raise RuntimeError(f"{alias} re-authentication age failed readback")
     return True
 
 
