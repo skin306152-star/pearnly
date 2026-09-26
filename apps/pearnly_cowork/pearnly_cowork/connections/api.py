@@ -22,7 +22,7 @@ def _call(method, *args, **kwargs):
 def configure(workspace=None, adapter=None, request_key=None, label=None, config=None, client=None,
               users=None, name=None, expected_revision=None, enabled=True, credentials=None):
     # 连接也要落到一份归属上（推送目标按它解析），但界面上不让用户选：
-    # 站点里恰好一份就由服务端解析，调用方显式给了就用它（见 service.configure）。
+    # 不给就挂站点内部那一份归属（见 service.configure）。
     # 参数顺序与原来一致（有调用方按位置传），只是 workspace 变成可选。
     return _call(service.configure, workspace, adapter, request_key, label, config, client,
                  users, name, expected_revision, enabled, credentials)

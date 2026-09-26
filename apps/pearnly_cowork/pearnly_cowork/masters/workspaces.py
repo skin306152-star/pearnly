@@ -12,6 +12,11 @@ class DuplicateWorkspaceTax(frappe.ValidationError):
     pass
 
 
+def site_workspace() -> str:
+    """本站点那一份内部归属（没有就建）；实现在 `access.scope`，这里给不能依赖 `access` 的域用。"""
+    return scope.ensure_site_workspace()
+
+
 def require_manager():
     scope.require("master_data")
     if not scope.administrator():
@@ -34,7 +39,9 @@ def tax_taken(tax_id, *, exclude=None, current=False):
 
 
 def validate(doc):
-    require_manager()
+    # 站点内部归属行由服务端自动建（`scope.ensure_site_workspace`），不经管理员。
+    if not (doc.is_new() and doc.flags.site_workspace):
+        require_manager()
     try:
         clean = fields.values({field: doc.get(field) for field in fields.LIMITS})
     except fields.WorkspaceInputError as error:

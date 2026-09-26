@@ -503,7 +503,6 @@ Complete statement review before exporting the result.	请先完成账单复核�
 Invalid statement review rows or row references.	复核行内容或原始行编号无效。	ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง	確認明細または元の行番号が無効です。	reconciliation.review_rows_invalid
 Reviewed amounts need a balance and at most two decimal places.	复核行必须填写余额，金额最多保留两位小数。	รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม	確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。	reconciliation.review_amount_invalid
 Review JSON	复核记录 JSON	ข้อมูลการตรวจทาน JSON	確認記録 JSON	Review JSON
-Cannot tell which company this entry belongs to; the site must have exactly one.	无法确定这条记录归属的公司资料，本站点必须恰好有一份。	ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว	この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。	cowork.workspace_unresolved
 Payment Method	付款方式	วิธีชำระเงิน	支払方法
 Cash	现金	เงินสด	現金
 Credit	赊账	เชื่อ	掛け

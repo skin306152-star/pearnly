@@ -42,13 +42,9 @@ def _query(doctype, user=None):
         frappe.throw(_("Remove legacy document shares before accessing Cowork records."), frappe.PermissionError)
     if not allowed(user):
         return "1=0"
-    # Identifiers are internal constants. Values are database-escaped.
+    # Identifiers are internal constants. No per-user company filter (Cowork has none).
     table = f"`tab{doctype}`"
     clauses = [f"{table}.workspace IN (SELECT name FROM `tabCowork Workspace` WHERE enabled=1)"]
-    if not scope.administrator(user):
-        values = scope.grants("Cowork Workspace", user)
-        clauses.append(f"{table}.workspace IN ({', '.join(frappe.db.escape(v) for v in sorted(values))})"
-                       if values else "1=0")
     if doctype != TYPES[0]:
         clauses.append(f"EXISTS (SELECT name FROM `tabCowork Stocktake Task` t "
                        f"WHERE t.name={table}.task AND t.workspace={table}.workspace)")

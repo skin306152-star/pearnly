@@ -85,7 +85,6 @@ Branch,実行分岐
 Buyer Client,買い手顧客
 Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
-Cannot tell which company this entry belongs to; the site must have exactly one.,この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。
 Cash,現金
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
@@ -1072,7 +1071,6 @@ cowork.team.password,初期パスワード
 cowork.team.resetPassword,パスワードを再設定
 cowork.team.roles,機能権限
 cowork.team.status,状態
-cowork.workspace_unresolved,この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。
 cowork_line,Cowork LINE
 document,文書
 erp.account_set_unavailable,この会計データは利用できません。

@@ -1,8 +1,9 @@
 """Reconciliation permissions shared by the native task stores.
 
 The bank and income stores are two DocType pairs with the same rules: the recon
-purchase feature, a recon operator role, the caller's company scope, no generic
-delete or share, and query conditions that follow the same grants. This module
+purchase feature, a recon operator role, no company isolation (the Site's one
+internal ownership row only keeps references consistent), no generic delete or
+share, and query conditions that follow the same rules. This module
 holds those rules once and each domain module binds its own DocType names.
 
 Signatures are reconciled here: the deployed recon permissions did not distinguish
@@ -61,10 +62,6 @@ class ReconAccess:
 			return "1=0"
 		table = f"`tab{doctype}`"
 		clauses = [f"{table}.workspace IN (SELECT name FROM `tabCowork Workspace` WHERE enabled=1)"]
-		if not scope.administrator(user):
-			values = scope.grants("Cowork Workspace", user)
-			clauses.append(f"{table}.workspace IN ({', '.join(frappe.db.escape(value) for value in sorted(values))})"
-				if values else "1=0")
 		if doctype == self.ROW:
 			clauses.append(f"EXISTS (SELECT name FROM `tab{self.TASK}` t "
 				f"WHERE t.name={table}.task AND t.workspace={table}.workspace)")

@@ -2,6 +2,7 @@
 import frappe
 from frappe import _
 from pearnly_core.shell import entitlements
+from pearnly_cowork.masters import workspaces
 from . import model
 
 TYPES = ("Cowork ERP Connection", "Cowork ERP Snapshot", "Cowork ERP Refresh")
@@ -71,11 +72,7 @@ def require_scope(workspace, client=None, *, actor=None):
         rows = _current("SELECT enabled FROM `tabCowork Client` WHERE name=%s AND workspace=%s", (client, workspace))
         if not rows or not rows[0].enabled:
             deny()
-    if "Cowork Admin" not in roles(actor):
-        grants = {(r.allow, r.for_value) for r in _current(
-            "SELECT `allow`,for_value FROM `tabUser Permission` WHERE user=%s AND apply_to_all_doctypes=1", (actor,))}
-        if ("Cowork Workspace", workspace) not in grants or (client and ("Cowork Client", client) not in grants):
-            deny()
+    # 不按人分公司 / 客户（Cowork 不做公司隔离，用户 2026-09-26）；谁能用哪条连接看连接自己的名单。
 
 
 def require_connection(doc, *, actor=None, management=False, enabled=True):
@@ -98,16 +95,9 @@ def require_assignee(actor, workspace, client=None):
 
 
 def default_workspace() -> str:
-    """本站点那一份归属（公司资料），给**界面上不选账套**的调用方用。
+    """本站点那一份内部归属（口径见 `pearnly_cowork.access.scope.default_workspace`）。
 
-    与 `pearnly_cowork.access.scope.default_workspace` 是同一条口径（Cowork 不记账、
-    只留记录，界面不出现账套，归属由服务端解析；恰好一份才解析，否则明确报错）。
-    这里必须自己写一份：连接域允许依赖的域里没有 `pearnly_cowork.access`
-    （见 `docs/development/architecture-policy.json`），而本文件本来就是连接域
-    自己那份授权实现（`_current`、`roles` 也是同样的做法）。
+    连接域不能直接依赖 `access`（`docs/development/architecture-policy.json`），
+    经允许依赖的 `masters`（归属行的写入方）取同一个实现。
     """
-    rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},
-                          pluck="name", order_by="name", limit_page_length=2)
-    if len(rows) == 1:
-        return rows[0]
-    frappe.throw(_("cowork.workspace_unresolved"))
+    return workspaces.site_workspace()

@@ -4,8 +4,7 @@
 管理员本人与平台账号不可改。账号就是框架的 `User`，权限就是 `Role`，不另存一份。
 
 与 ERP 的差别：
-- Cowork 没有多公司分配；新用户直接授权本站点的公司资料（`Cowork Workspace`，
-  官方 User Permission），否则各域的范围判据（`access.scope.contains`）会把他挡在外面。
+- Cowork 不做公司隔离（用户 2026-09-26），新用户不分配公司，只勾功能权限。
 - 勾选项是 `access.menu.CATALOG`（录入 / 对账 / 盘点 / 工作协调 / 个人信息 / LINE）。
 
 写 `User` 时显式 `ignore_permissions`：核心的 User 权限钩子只让非超管访问自己那条，
@@ -27,7 +26,6 @@ USERNAME_REQUIRED = "Enter the user name"
 USERNAME_CHARSET = "Username can only have letters and numbers"
 USERNAME_TAKEN = "Username {0} already exists"
 USERNAME_RE = re.compile(r"^[A-Za-z0-9]+$")
-WORKSPACE = "Cowork Workspace"
 ALL_RECORDS_ROLES = (menu.ADMIN_ROLE, "System Manager")
 
 
@@ -190,14 +188,6 @@ def list_members() -> list:
     return members
 
 
-def _grant_workspaces(user: str):
-    """把本站点启用中的公司资料授权给新用户（官方 User Permission，对所有表生效）。"""
-    for workspace in frappe.get_all(WORKSPACE, filters={"enabled": 1}, pluck="name"):
-        if not frappe.db.exists("User Permission", {"user": user, "allow": WORKSPACE, "for_value": workspace}):
-            frappe.get_doc({"doctype": "User Permission", "user": user, "allow": WORKSPACE,
-                            "for_value": workspace, "apply_to_all_doctypes": 1}).insert(ignore_permissions=True)
-
-
 def add_member(username: str = "", email: str = "", roles=None, password=None) -> dict:
     """添加用户：用户名（英文数字，可登录）+ 邮箱 + 初始密码 + 勾选的功能权限。"""
     require_admin()
@@ -227,7 +217,6 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
     user.insert(ignore_permissions=True)
     if subject:
         _bind_member(user.name, subject)
-    _grant_workspaces(user.name)
     frappe.db.commit()
     return {"email": user.name, "username": user.username, "roles": sorted(wanted)}
 

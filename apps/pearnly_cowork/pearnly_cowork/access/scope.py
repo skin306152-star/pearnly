@@ -1,6 +1,9 @@
-"""Site, entitlement, role and explicit company/client scope for Cowork.
+"""Site, entitlement and role checks for Cowork.
 
-API callers never supply a tenant. Native User Permission grants scope.
+API callers never supply a tenant. Cowork has no company isolation (user
+2026-09-26): every record belongs to the Site's one internal ownership row
+(`Cowork Workspace`, never shown), and access is purchased feature + role.
+The `workspace` / `client` checks below only keep references consistent.
 Cowork Admin may manage the current Site, but still needs purchased features.
 """
 import frappe
@@ -60,24 +63,12 @@ def administrator(user=None):
     return "Cowork Admin" in frappe.get_roles(user or frappe.session.user)
 
 
-def grants(doctype, user=None):
-    # Do not cache: revoking membership takes effect on the next operation.
-    return set(frappe.get_all("User Permission", filters={
-        "user": user or frappe.session.user, "allow": doctype,
-        "apply_to_all_doctypes": 1,
-    }, pluck="for_value"))
-
-
 def contains(workspace, client=None, user=None):
+    # 只核对引用一致（归属存在且启用、客户属于它），不按人分公司 / 客户。
     if not workspace or not frappe.db.exists("Cowork Workspace", {"name": workspace, "enabled": 1}):
         return False
-    if not administrator(user) and workspace not in grants("Cowork Workspace", user):
+    if client and not frappe.db.exists("Cowork Client", {"name": client, "workspace": workspace, "enabled": 1}):
         return False
-    if client:
-        if not frappe.db.exists("Cowork Client", {"name": client, "workspace": workspace, "enabled": 1}):
-            return False
-        if not administrator(user) and client not in grants("Cowork Client", user):
-            return False
     return True
 
 
@@ -87,18 +78,36 @@ def require_scope(workspace, client=None):
 
 
 def default_workspace() -> str:
-    """本站点那一份归属（公司资料），给**不经过界面选择**的调用方用。
+    """本站点那一份内部归属，所有记录都挂在它上面。
 
-    产品口径（用户 2026-09-25）：Cowork 不记账、只留记录，界面上不出现账套，
-    所以录入这条链不该逼调用方先选一份。这里在**服务端**把它解析出来：
-    站点里恰好一份就用它；一份都没有、或有多份而调用方没说用哪一份，就明确报错
-    —— 不替人挑一份（挑错等于把记录挂到别人家账上）。
+    产品口径（用户 2026-09-26）：Cowork 新平台**不做公司数据隔离**，界面和权限里都没有公司。
+    记录上的 `workspace` 只是站点内部的归属键（防重、写者锁、幂等键都以它为锚，不能随手换），
+    所以这里保证站点里总有一份：取最早建的启用行；一份都没有就建一份（`ensure_site_workspace`）。
+    旧站点若留下多份，新记录和各列表都只用最早那份（上线前按站点核对份数）。
     """
+    return ensure_site_workspace()
+
+
+def ensure_site_workspace() -> str:
     rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},
-                          pluck="name", order_by="name", limit_page_length=2)
-    if len(rows) == 1:
+                          pluck="name", order_by="creation asc, name asc", limit_page_length=1)
+    if rows:
         return rows[0]
-    frappe.throw(_("cowork.workspace_unresolved"))
+    # 并发的第一次请求在 DocType 元数据行上排队，只建一份（与公司资料写入同一把锁）。
+    frappe.db.get_value("DocType", "Cowork Workspace", "name", for_update=True)
+    rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},
+                          pluck="name", order_by="creation asc, name asc", limit_page_length=1)
+    if rows:
+        return rows[0]
+    doc = frappe.get_doc({"doctype": "Cowork Workspace", "display_name": frappe.local.site, "enabled": 1})
+    doc.flags.site_workspace = True
+    return doc.insert(ignore_permissions=True).name
+
+
+def ensure_on_migrate():
+    """装好 / 升级后先把归属行建好，第一次业务请求就不必现建。只在 Cowork 业务站点做。"""
+    if frappe.conf.get("pearnly_product") == "cowork":
+        ensure_site_workspace()
 
 
 def history_permission(doc, ptype=None, user=None, **kwargs):
@@ -117,8 +126,7 @@ def history_query(user=None):
 
 def workspace_permission(doc, ptype=None, user=None, **kwargs):
     if ptype in READ_TYPES:
-        return _decision(any(allowed(f, user) for f in (*READ_FEATURES, "master_data"))
-                    and (administrator(user) or doc.name in grants("Cowork Workspace", user)))
+        return _decision(any(allowed(f, user) for f in (*READ_FEATURES, "master_data")))
     return _decision(ptype not in {"delete", "share"} and allowed("master_data", user) and administrator(user))
 
 
@@ -126,9 +134,7 @@ def workspace_query(user=None):
     _reject_share_fallback("Cowork Workspace", user)
     if not any(allowed(f, user) for f in (*READ_FEATURES, "master_data")):
         return "1=0"
-    if administrator(user):
-        return ""
-    return _in("`tabCowork Workspace`.`name`", grants("Cowork Workspace", user))
+    return ""
 
 
 def client_permission(doc, ptype=None, user=None, **kwargs):
@@ -144,24 +150,12 @@ def client_query(user=None):
     if not any(allowed(f, user) for f in (*READ_FEATURES, "master_data")):
         return "1=0"
     table = "`tabCowork Client`"
-    query = f"{table}.`enabled`=1 AND " + _scope_query(table, user)
-    if not administrator(user):
-        query += " AND " + _in(f"{table}.`name`", grants("Cowork Client", user))
-    return query
-
-
-def _in(column, values):
-    # The hook returns a SQL fragment; column names are fixed, values DB-escaped.
-    return f"{column} IN ({', '.join(frappe.db.escape(v) for v in sorted(values))})" if values else "1=0"
+    return f"{table}.`enabled`=1 AND " + _scope_query(table, user)
 
 
 def _scope_query(table, user, client=False):
+    # 只挡引用失效的行（归属 / 客户被停用），不按人过滤。
     clauses = [f"{table}.`workspace` IN (SELECT name FROM `tabCowork Workspace` WHERE enabled=1)"]
-    if not administrator(user):
-        clauses.append(_in(f"{table}.`workspace`", grants("Cowork Workspace", user)))
-        if client:
-            clauses.append(f"(COALESCE({table}.`client`, '')='' OR "
-                           + _in(f"{table}.`client`", grants("Cowork Client", user)) + ")")
     if client:
         clauses.append(f"(COALESCE({table}.`client`, '')='' OR {table}.`client` IN "
                        f"(SELECT name FROM `tabCowork Client` WHERE enabled=1 AND workspace={table}.`workspace`))")

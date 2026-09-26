@@ -85,7 +85,6 @@ Branch,执行分支
 Buyer Client,买方客户
 Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
-Cannot tell which company this entry belongs to; the site must have exactly one.,无法确定这条记录归属的公司资料，本站点必须恰好有一份。
 Cash,现金
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
@@ -1072,7 +1071,6 @@ cowork.team.password,初始密码
 cowork.team.resetPassword,重置密码
 cowork.team.roles,功能权限
 cowork.team.status,状态
-cowork.workspace_unresolved,无法确定这条记录归属的公司资料，本站点必须恰好有一份。
 cowork_line,Cowork LINE
 document,文档
 erp.account_set_unavailable,此账套不可用。

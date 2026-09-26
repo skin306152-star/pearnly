@@ -85,7 +85,6 @@ Branch,สาขาการดำเนินการ
 Buyer Client,ลูกค้าผู้ซื้อ
 Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
-Cannot tell which company this entry belongs to; the site must have exactly one.,ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว
 Cash,เงินสด
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
@@ -1072,7 +1071,6 @@ cowork.team.password,รหัสผ่านเริ่มต้น
 cowork.team.resetPassword,ตั้งรหัสผ่านใหม่
 cowork.team.roles,สิทธิ์การใช้งาน
 cowork.team.status,สถานะ
-cowork.workspace_unresolved,ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว
 cowork_line,Cowork LINE
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน

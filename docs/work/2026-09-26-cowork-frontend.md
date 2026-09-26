@@ -9,7 +9,7 @@
 | 位置 | 状态 |
 | --- | --- |
 | `origin/main` `02a3b22` | 已含本任务全部功能（合入提交 `c24e24c`，CI 通过）+ ERP 窗口的扫码器去重 |
-| 任务分支 `codex/cowork-frontend`（已推送，工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | 比 main 多 3 个未合入提交：`56734ef`（盘点弹窗注释）、`2598f46`（测试环境加 testcowork + 文档）、本交接文档；CI 跑完即可按主线规则合入 |
+| 任务分支 `codex/cowork-frontend`（已推送，工作树 `/Users/skin/.codex/worktrees/cowork-frontend/pearnly`） | 原 3 个待合提交已变基合入 main `77716e5`（第四个窗口，CI 通过、远端回读一致）；之后的验收修复见第十四批 |
 | 生产 | Cowork 线上仍是 `15dea26`（ERP 窗口 2026-09-26 为补 LINE 登录核对升级）；本任务的 Cowork 新功能与账号池**都未部署** |
 
 新窗口修问题：从最新 `origin/main` 开自己的 `codex/<主题>` 分支与工作树（或在本任务分支上继续，先 `git fetch` 变基），
@@ -62,6 +62,32 @@
 
 本机样板：改后 `bash scripts/dev-reload.sh cowork --sites cowork-a.localhost`（改 DocType 加 `--migrate`）；
 电脑重启后 `docker start` mariadb / 两个 redis，colima DNS 失效见第四批。
+
+## 第十四批：用户验收修复（2026-09-26，第四个窗口）
+
+用户在 testcowork 测出三处：LINE 菜单除工作协调外两格点了没反应；银行对账报“无法确定这条记录归属的公司资料”；
+新建录入里两张 ERP 卡片不显示连接按钮与状态。用户口径：**新平台不做公司数据隔离，以前依赖公司的都删掉**。
+
+**公司（修复 2、3，同一根因）**：testcowork 里 `Cowork Workspace` 为 0 行（只读查询），各域 `default_workspace()` 报错，
+页面与连接列表全挂。后端迁移时照旧版做成“一站多公司、按公司授权”，28 张表都挂 `workspace`。
+
+- 去掉按人分公司 / 客户：`access.scope`（`contains` / `_scope_query` / 公司与客户的 permission / query）、`recon_access`、
+  `stocktake.access`、`connections.access.require_scope` 不再查 User Permission；团队管理添加用户不再分配公司。
+- `workspace` 列留作站点内部归属键（**不删列**：推送防重、写者锁、幂等键、识别反馈范围键都以它为锚，换键等于关掉这些保护）：
+  `scope.ensure_site_workspace()` 取最早一份启用行，没有就在 DocType 行锁下建一份（名 = 站点名，不经管理员校验）；
+  `after_install` / `after_migrate` 先建好；连接域经 `masters.workspaces.site_workspace()` 取同一实现。
+- 补丁 `v0_0_3_drop_company_grants`：删掉 `allow` 为 Cowork 公司 / 客户的 User Permission（否则框架自身的 User Permission
+  过滤仍会按公司挡老账号）。作废词条 `cowork.workspace_unresolved` 已删。
+- 没动：本方税号仍读归属行的 `tax_id`（自动建的为空 → 进 / 销项靠录入时的明确选择，MR.ERP 的“别家票”闸不生效，
+  与没有公司资料时一致）；公司 / 客户主档的后台接口（无界面）；旧站点若有多份公司资料，新记录和列表只用最早那份——**上线前按站点核对份数**。
+- 验证：新增 `tests/test_cowork_no_company_scope.py` 7 项；Cowork 离线全量 1455 项，失败集合与 main 基线相同（6 个既有）；
+  CI 同名闸门全过（3.9 不支持的 4 项用 3.14）；本机 `cowork-a` 迁移后，在回滚事务里模拟“员工账号 + 一份公司都没有 + 无授权行”：
+  银行 / 收入 / 销项税列表、连接列表、盘点列表都返回，自动建出一份归属，回滚后恢复原样。
+
+**LINE（问题 1，待做）**：旧线上 `ec2e5c95` 的富菜单（旧项目发布的全体默认菜单）三格：发单据进 ERP = postback
+`action=cowork_erp_start` → 会话式（选目标 ERP → 进/销项 → 过账方式 → 发图片/PDF → 识别 → 复核卡 → LIFF 复核推送）；
+盘点 = LIFF `flow=cowork-stocktake`；工作协调 = Wekan（用户要重新设计，不搬）。新平台 `line.handlers` 只做绑定，postback 直接忽略，
+所以点了没回话；盘点 LIFF 还指向已退役的旧站。
 
 ## 第六批：菜单收口 + 团队管理 + LINE 绑定（2026-09-26，第三个窗口）
 

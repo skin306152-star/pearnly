@@ -85,7 +85,6 @@ Branch,Branch
 Buyer Client,Buyer Client
 Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
-Cannot tell which company this entry belongs to; the site must have exactly one.,Cannot tell which company this entry belongs to; the site must have exactly one.
 Cash,Cash
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
@@ -1072,7 +1071,6 @@ cowork.team.password,Initial Password
 cowork.team.resetPassword,Reset Password
 cowork.team.roles,Job Roles
 cowork.team.status,Status
-cowork.workspace_unresolved,Cannot tell which company this entry belongs to; the site must have exactly one.
 cowork_line,Cowork LINE
 document,document
 erp.account_set_unavailable,This account set is unavailable.

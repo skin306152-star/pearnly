@@ -59,8 +59,7 @@ def _dto(doc):
 def configure(workspace, adapter, request_key, label, config, client=None, users=None,
               name=None, expected_revision=None, enabled=True, credentials=None):
     actor = access.require_actor(management=True)
-    # 界面上不出现账套（Cowork 不记账、只留记录），调用方没说明就用站点里那一份；
-    # 一份都没有或多份都说不清时明确报错，不替人挑（挑错等于挂到别人家账上）。
+    # 界面上没有公司（Cowork 不做公司隔离），调用方没说明就挂站点内部那一份归属。
     workspace = workspace or access.default_workspace()
     access.require_scope(workspace, client)
     adapter = str(adapter or "").strip().lower()
