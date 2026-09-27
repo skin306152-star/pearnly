@@ -58,8 +58,18 @@ class ConnectionSnapshotTests(unittest.TestCase):
             "state": "queued", "dataset": ds, "request_id": "ab" * 16})
         endpoints = types.ModuleType("pearnly_core.endpoints")
         endpoints.read_password = Mock(side_effect=AssertionError("Status must not read passwords"))
+        # 底座读取的前提（用户 2026-09-27）：登记了读档账号；已有的组、已建的基线不重做。
+        self.pool = types.ModuleType("pearnly_dms.adapter.admin_pool")
+        self.pool.read_account = Mock(return_value=object())
+        self.changes = types.ModuleType("pearnly_dms.adapter.change_sync")
+        self.changes.seeded = Mock(return_value=False)
+        self.store = types.ModuleType("pearnly_dms.snapshots.store")
+        self.store.change_state = Mock(return_value=None)
+        self.store.clear_authorization = Mock()
         self.modules = patch.dict(sys.modules, {"frappe": self.frappe,
-            "pearnly_core.endpoints": endpoints, "pearnly_dms.snapshots.manual": self.manual})
+            "pearnly_core.endpoints": endpoints, "pearnly_dms.snapshots.manual": self.manual,
+            "pearnly_dms.adapter.admin_pool": self.pool, "pearnly_dms.adapter.change_sync": self.changes,
+            "pearnly_dms.snapshots.store": self.store})
         self.modules.start()
         for name in ("pearnly_dms.connections.api", "pearnly_dms.connections.snapshots"):
             sys.modules.pop(name, None)
@@ -93,8 +103,8 @@ class ConnectionSnapshotTests(unittest.TestCase):
             self.manual.request.reset_mock()
             # 状态是**本站唯一那条主连接**的，不看客户端传来的任何目标。
             self.api.get_status()
-            result = self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test")
-            self.assertEqual([row["dataset"] for row in result], list(self.api.DATASETS))
+            result = self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test")["queued"]
+            self.assertEqual([row["dataset"] for row in result], list(self.api.BOOTSTRAP_ORDER))
             self.manual.request.assert_any_call("PRIMARY-LOCAL", "geo", reader="authority",
                                                actor="admin@example.test")
         self.assertEqual(self.frappe.get_all.call_args.kwargs, {
@@ -112,15 +122,41 @@ class ConnectionSnapshotTests(unittest.TestCase):
 
     def test_bootstrap_reads_every_group_in_a_fixed_order(self):
         result = self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test")
-        self.assertEqual([row["dataset"] for row in result], list(self.api.DATASETS))
+        self.assertEqual(result["state"], "reading")
+        rows = result["queued"]
+        # 地址最快、客户列表读完就能查重，所以先排；车辆、公司随后。
+        self.assertEqual(list(self.api.BOOTSTRAP_ORDER), ["geo", "customers", "vehicles", "company"])
+        self.assertEqual([row["dataset"] for row in rows], list(self.api.BOOTSTRAP_ORDER))
         self.assertEqual([call.args[1] for call in self.manual.request.call_args_list],
-                         list(self.api.DATASETS))
-        self.assertTrue(all(row["state"] == "queued" for row in result))
+                         list(self.api.BOOTSTRAP_ORDER))
+        self.assertTrue(all(row["state"] == "queued" for row in rows))
         # 使用记录的**基线任务先排**：它记的是"此刻的水位"，排晚了窗口内的改动就漏了。
         self.assertEqual(self.frappe.enqueue.call_args.args[0],
                          "pearnly_dms.adapter.change_sync.seed")
         self.assertEqual(self.frappe.enqueue.call_args.kwargs["actor"], "admin@example.test")
         self.assertEqual(self.frappe.enqueue.call_args.kwargs["queue"], self.manual.QUEUE)
+        self.store.clear_authorization.assert_called_once_with("PRIMARY-LOCAL")
+
+    def test_without_a_read_account_nothing_is_read_yet(self):
+        """读全档要一个多小时，不能占着连接账号：没登记读档账号就先不读（凌晨全量或登记时再读）。"""
+        self.pool.read_account.return_value = None
+        self.assertEqual(self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test"),
+                         {"state": "awaiting_read_account", "queued": []})
+        self.manual.request.assert_not_called()
+        self.frappe.enqueue.assert_not_called()
+
+    def test_only_missing_groups_are_read_and_a_password_change_reads_nothing(self):
+        published = {"geo", "vehicles", "company"}
+        self.manual.status.side_effect = lambda ep, ds, **kw: {"as_of": 1.0 if ds in published else 0}
+        self.changes.seeded.return_value = True
+        result = self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test")
+        self.assertEqual([row["dataset"] for row in result["queued"]], ["customers"])
+        self.frappe.enqueue.assert_not_called()  # 基线已在，不重排
+        published.add("customers")
+        self.manual.request.reset_mock()
+        self.assertEqual(self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test"),
+                         {"state": "ready", "queued": []})
+        self.manual.request.assert_not_called()
 
     def test_bootstrap_keeps_going_and_never_leaks_a_raw_error(self):
         """一组登记失败不能拖垮别组，也不能把上游原文写进返回。"""
@@ -128,7 +164,7 @@ class ConnectionSnapshotTests(unittest.TestCase):
             {"state": "queued", "request_id": "ab" * 16},
             {"state": "queued", "request_id": "cd" * 16},
             {"state": "queued", "request_id": "ef" * 16}]
-        result = self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test")
+        result = self.api.bootstrap("PRIMARY-LOCAL", "admin@example.test")["queued"]
         self.assertEqual([row["state"] for row in result],
                          ["failed", "queued", "queued", "queued"])
         self.assertEqual(result[0]["error_code"], "ERR_DMS_SNAPSHOT_INTERRUPTED")
@@ -169,7 +205,7 @@ class ConnectionSnapshotTests(unittest.TestCase):
         row = result["datasets"][0]
         self.assertEqual(row["as_of"], 1720000000.5)
         self.assertEqual(row["completed_at"], 1720000010)
-        self.assertEqual(row["progress"], {"processed": 7, "total": 25, "unit": "vehicles"})
+        self.assertEqual(row["progress"], {"processed": 7, "total": 25, "unit": "vehicles", "usable": False})
         self.assertTrue(row["stale"])
         self.assertEqual(row["error_code"], "ERR_DMS_SNAPSHOT_INCOMPLETE")
         for secret in ("never-export", "private", "credential", "secret"):

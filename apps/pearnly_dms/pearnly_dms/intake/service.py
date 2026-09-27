@@ -202,11 +202,16 @@ def recognize_lookup(
     # 完整快照来自同一权威读取范围；不能混入销售被裁剪的目录。
     from pearnly_dms.snapshots.directory import Directory
     from pearnly_dms.contracts.client_base import DmsClientError
-    try:
+    from pearnly_dms.adapter.snapshot_writeback import with_customer_detail
+
+    def local():
         directory = Directory(endpoint)
         result = _do(directory, None)
         result["snapshot"] = directory.metadata()
         return result
+
+    try:
+        return with_customer_detail(endpoint, local)
     except DmsClientError as exc:
         return err(exc.error_code)
 
@@ -217,7 +222,9 @@ def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
 
     from pearnly_dms.snapshots.directory import Directory
     from pearnly_dms.contracts.client_base import DmsClientError
-    try:
+    from pearnly_dms.adapter.snapshot_writeback import with_customer_detail
+
+    def local():
         cl = Directory(endpoint)
         return {
             "ok": True,
@@ -227,6 +234,8 @@ def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
             "prefixes": cl.list_prefixes(),
         }
 
+    try:
+        return with_customer_detail(endpoint, local)
     except DmsClientError as exc:
         return err(exc.error_code)
 

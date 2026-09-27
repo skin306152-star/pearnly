@@ -81,6 +81,7 @@ Company information,Company information
 Confirm,Confirm
 Confirm booking,Confirm booking
 Confirm saving a new customer,Confirm saving a new customer
+Connected. Reading starts after you add the read account.,Connected. Reading starts after you add the read account.
 Continue booking,Continue booking
 Continuing with the existing data,Continuing with the existing data
 Contract not opened,Contract not opened
@@ -189,6 +190,7 @@ Not all files were attached. Please add them in DMS.,Not all files were attached
 Not allocated yet,Not allocated yet
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 Not read yet,Not read yet
+Not set (data is read only at night),Not set (data is read only at night)
 Not set (no daytime sync),Not set (no daytime sync)
 Not set (the connection account is used),Not set (the connection account is used)
 Number of cars,Number of cars
@@ -386,6 +388,7 @@ Updating data…,Updating data…
 Use name on card,Use name on card
 Use the back office,Use the back office
 "Used only for the every-minute sync, 6:00–22:00.","Used only for the every-minute sync, 6:00–22:00."
+Used only to read data: the first full read and the every-minute daytime sync.,Used only to read data: the first full read and the every-minute daytime sync.
 Used to create and edit customers. Leave a saved account's password empty to keep it.,Used to create and edit customers. Leave a saved account's password empty to keep it.
 Vehicle master data,Vehicle master data
 View result / status,View result / status
@@ -722,8 +725,9 @@ dms.connect.acct.missing,{0} lacks access to: {1}
 dms.connect.acct.readAdd,Add read account
 dms.connect.acct.readChange,Change read account
 dms.connect.acct.readField,Read account
-dms.connect.acct.readHelp,"Used only for the every-minute sync, 6:00–22:00."
-dms.connect.acct.readNone,Not set (no daytime sync)
+dms.connect.acct.readFirst,Connected. Reading starts after you add the read account.
+dms.connect.acct.readHelp,Used only to read data: the first full read and the every-minute daytime sync.
+dms.connect.acct.readNone,Not set (data is read only at night)
 dms.connect.acct.saved,Saved
 dms.connect.acct.testAndSave,Test and save
 dms.connect.acct.writeAdd,Add write accounts

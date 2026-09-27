@@ -156,8 +156,8 @@ def save_connection(username: str, password: str, system_url: str | None = None)
     from pearnly_dms.connections import snapshots as connection_snapshots
 
     # 内部入口，不开 RPC：读取只在"绑定"和"操作顺手带回"两个时点发生。
-    connection_snapshots.bootstrap(doc.name, actor)
-    return {"endpoint": saved}
+    reading = connection_snapshots.bootstrap(doc.name, actor)
+    return {"endpoint": saved, "reading": reading.get("state")}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -277,7 +277,11 @@ def set_read_account(username: str, password: str) -> dict:
                     "purpose": "read", "enabled": 1, "last_status": "ok",
                     "last_checked_at": frappe.utils.now_datetime()}).insert(ignore_permissions=True)
     frappe.db.commit()
-    return {"ok": True}
+    # 首次绑定时底座等的就是它：现在用读档账号把缺的那几组读起来（已齐就什么都不做）。
+    from pearnly_dms.connections import snapshots as connection_snapshots
+
+    reading = connection_snapshots.bootstrap(endpoint.name, frappe.session.user)
+    return {"ok": True, "reading": reading.get("state")}
 
 
 @frappe.whitelist(methods=["POST"])

@@ -81,6 +81,7 @@ Company information,公司资料
 Confirm,确认
 Confirm booking,确认订车
 Confirm saving a new customer,确认保存新客户
+Connected. Reading starts after you add the read account.,已连接。添加读档账号后开始读取资料。
 Continue booking,继续订车
 Continuing with the existing data,继续使用原资料
 Contract not opened,未签合同
@@ -189,6 +190,7 @@ Not all files were attached. Please add them in DMS.,附件没有全部上传，
 Not allocated yet,尚未配车
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 Not read yet,尚未读取
+Not set (data is read only at night),未设置（资料只在凌晨读取）
 Not set (no daytime sync),未设置（白天不同步）
 Not set (the connection account is used),未设置（使用连接账号）
 Number of cars,台数
@@ -386,6 +388,7 @@ Updating data…,数据更新中...
 Use name on card,使用证件上的姓名
 Use the back office,使用后台系统
 "Used only for the every-minute sync, 6:00–22:00.",只用于白天 6:00–22:00 每分钟同步。
+Used only to read data: the first full read and the every-minute daytime sync.,只用来读资料：首次读全档和白天每分钟同步。
 Used to create and edit customers. Leave a saved account's password empty to keep it.,建档、改资料时使用；已登记的账号密码留空即不改。
 Vehicle master data,车辆主档信息
 View result / status,查看结果／状态
@@ -722,8 +725,9 @@ dms.connect.acct.missing,{0} 权限不足：{1}
 dms.connect.acct.readAdd,添加读档账号
 dms.connect.acct.readChange,修改读档账号
 dms.connect.acct.readField,读档账号
-dms.connect.acct.readHelp,只用于白天 6:00–22:00 每分钟同步。
-dms.connect.acct.readNone,未设置（白天不同步）
+dms.connect.acct.readFirst,已连接。添加读档账号后开始读取资料。
+dms.connect.acct.readHelp,只用来读资料：首次读全档和白天每分钟同步。
+dms.connect.acct.readNone,未设置（资料只在凌晨读取）
 dms.connect.acct.saved,已保存
 dms.connect.acct.testAndSave,测试并保存
 dms.connect.acct.writeAdd,添加改写权限账号

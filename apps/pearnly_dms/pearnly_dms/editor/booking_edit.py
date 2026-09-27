@@ -200,7 +200,9 @@ def _snapshot(
         kwargs["include_booking_masters"] = False
     from pearnly_dms.contracts.client_base import DmsClientError
     try:
-        snapshot = read_edit_snapshot(endpoint, **kwargs)
+        from pearnly_dms.adapter.snapshot_writeback import with_customer_detail
+
+        snapshot = with_customer_detail(endpoint, lambda: read_edit_snapshot(endpoint, **kwargs))
     except DmsClientError as exc:
         raise DmsBookingEditError("dms.err." + exc.error_code, 503) from exc
     if not snapshot:

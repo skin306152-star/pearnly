@@ -29,7 +29,7 @@ const row = (dataset, state = 'idle', extra = {}) => ({
   as_of: 0, completed_at: 0, stale: false, error_code: '', ...extra,
 });
 
-function harness({connected = true, rows = null, accounts = null} = {}) {
+function harness({connected = true, rows = null, accounts = null, reading = 'reading'} = {}) {
   const calls = [], timers = new Map(), messages = [], successes = [], freezeTexts = [];
   const buttons = [], handlers = {}, menu = [], dialogs = [], layouts = [];
   let serverAccounts = clone(accounts || {read: null, write: []});
@@ -70,7 +70,7 @@ function harness({connected = true, rows = null, accounts = null} = {}) {
         return {configured: true, datasets: clone(serverRows)};
       }
       if (method.endsWith('test_credentials')) return {ok: true, masters: {car_models: [1]}};
-      if (method.endsWith('save_connection')) {savedConnection = true; return {ok: true};}
+      if (method.endsWith('save_connection')) {savedConnection = true; return {ok: true, reading};}
       if (method.endsWith('get_accounts')) return clone(serverAccounts);
       if (method.endsWith('set_read_account') || method.endsWith('save_write_accounts')) return clone(accountReply);
       throw new Error('Unexpected connection call: ' + method);
@@ -377,4 +377,36 @@ test('write accounts dialog starts with one empty row and sends the whole table'
   assert.deepEqual(JSON.parse(call.args.accounts), [
     {name: 'W1', username: 'w1', password: ''}, {name: '', username: 'w2', password: 'p2'}]);
   assert(hidden);
+});
+
+test('a usable customer group stops masking the page while its details keep reading', async () => {
+  const usable = {processed: 120, total: 15155, usable: true};
+  const h = harness({rows: [
+    row('geo', 'succeeded', {request_id: ID, count: 15729, as_of: 1}),
+    row('customers', 'running', {request_id: ID, progress: usable}),
+    row('vehicles', 'running', {request_id: ID, progress: {processed: 3, total: 31}}),
+    row('company', 'succeeded', {request_id: ID, count: 27, as_of: 1}),
+  ]});
+  await h.start();
+  assert.equal(h.frozen, true, 'vehicles are still needed before LINE can book');
+  h.setRows([
+    row('geo', 'succeeded', {request_id: ID, count: 15729, as_of: 1}),
+    row('customers', 'running', {request_id: ID, progress: usable}),
+    row('vehicles', 'succeeded', {request_id: ID, count: 31, as_of: 1}),
+    row('company', 'succeeded', {request_id: ID, count: 27, as_of: 1}),
+  ]);
+  await h.poll();
+  assert.equal(h.frozen, false, 'customer details reading in the background must not mask the page');
+  assert.equal(h.successes.length + h.messages.length, 0, 'nothing is announced before the last group finishes');
+  assert.equal(h.timers.size, 1, 'the page keeps following the background read');
+  h.setRows(groups.map((name, index) => row(name, 'succeeded', {request_id: ID, count: 10 + index, as_of: 1})));
+  await h.poll();
+  assert.equal(h.successes.length, 1, 'success once the customer details are done');
+});
+
+test('binding without a read account says reading starts after adding it', async () => {
+  const h = harness({connected: false, reading: 'awaiting_read_account'});
+  await h.start();
+  await h.connect();
+  assert.equal(h.messages.at(-1), zh['dms.connect.acct.readFirst']);
 });

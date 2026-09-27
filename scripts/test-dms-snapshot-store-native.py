@@ -332,14 +332,25 @@ class NativeSnapshotStore(SnapshotLabCase):
                 self.unavailable("ERR_DMS_SNAPSHOT_INCOMPLETE", self.publish, start=value)
                 self.assertEqual(store.read(self.endpoint, "customers"), before)
 
-    def test_credential_rotation_rejects_inflight_and_hides_old_scope(self):
+    def test_password_change_keeps_the_same_scope_and_data(self):
+        """用户 2026-09-27：同一账号只改了密码，看到的资料不变，不该把全档重读一遍。"""
+        key = self.key()
+        self.publish()
+        frappe.db.commit()
+        endpoint = frappe.get_doc("Pearnly ERP Endpoint", self.endpoint)
+        endpoint.admin_password = self.password + "-rotated"
+        endpoint.save(ignore_permissions=True)
+        self.assertEqual(self.key(), key)
+        self.assertTrue(store.read(self.endpoint, "customers")["data"]["customers"])
+
+    def test_account_change_rejects_inflight_and_hides_old_scope(self):
         old_key = self.key()
         self.publish()
         frappe.db.commit()
         old_name = store._name(old_key, "customers")
         old_payload = frappe.db.get_value(store.DT, old_name, "payload")
         endpoint = frappe.get_doc("Pearnly ERP Endpoint", self.endpoint)
-        endpoint.admin_password = self.password + "-rotated"
+        endpoint.admin_username = "snapshot-other-admin-" + uuid.uuid4().hex[:8]
         endpoint.save(ignore_permissions=True)
         self.assertNotEqual(self.key(), old_key)
         self.unavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED", store.publish, self.endpoint,
@@ -492,11 +503,11 @@ class NativeSnapshotStore(SnapshotLabCase):
         self.assertEqual(self.observe(dataset="geo")["data"], geo("complete-new"))
         self.assertIsNone(store.stage(self.endpoint))
 
-    def test_geo_checkpoint_cannot_cross_rotated_credentials(self):
+    def test_geo_checkpoint_cannot_cross_a_changed_account(self):
         key = self.key()
         store.checkpoint(self.endpoint, {"step": 1}, expected_scope=key)
         endpoint = frappe.get_doc("Pearnly ERP Endpoint", self.endpoint)
-        endpoint.admin_password = self.password + "-geo-rotation"
+        endpoint.admin_username = "snapshot-geo-admin-" + uuid.uuid4().hex[:8]
         endpoint.save(ignore_permissions=True)
         self.unavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED", store.checkpoint,
                          self.endpoint, {"step": 2}, expected_scope=key)
@@ -516,7 +527,7 @@ class NativeSnapshotStore(SnapshotLabCase):
         protocol = runpy.run_path(str(Path(__file__).with_name("test-dms-snapshot-reader.py")))
         marker = "SNAPSHOT-BUSINESS-" + uuid.uuid4().hex
         try:
-            for action, code in (("admin-password", "ERR_DMS_SNAPSHOT_SCOPE_CHANGED"),
+            for action, code in (("admin-account", "ERR_DMS_SNAPSHOT_SCOPE_CHANGED"),
                                  ("disable-operator", "ERR_NO_CREDS")):
                 with self.subTest(action=action):
                     operator = frappe.get_doc("DMS Operator", self.users[0])
@@ -662,9 +673,9 @@ if __name__ == "__main__":
                 if not (user.startswith("snapshot-") and user.endswith("@example.invalid")
                         and frappe.db.get_value("Pearnly ERP Endpoint", endpoint, "owner_user") == user):
                     raise RuntimeError("Refusing a non-owned synthetic identity")
-                if action == "admin-password":
+                if action == "admin-account":
                     doc = frappe.get_doc("Pearnly ERP Endpoint", endpoint)
-                    doc.admin_password = "fake-admin-rotation-" + uuid.uuid4().hex
+                    doc.admin_username = "fake-admin-account-" + uuid.uuid4().hex[:8]
                 elif action == "disable-operator":
                     doc = frappe.get_doc("DMS Operator", user)
                     doc.status = "inactive"

@@ -13,6 +13,9 @@
 		let startedAt = 0, peakDone = 0;
 		const cacheMethod = "pearnly_dms.connections.snapshots.";
 		const active = (row) => ["queued", "running", "waiting"].includes(row.state);
+		// 还在读、但这一组已经能用（客户组：索引已发布，逐个详情在后台读）：不再遮挡页面，
+		// 只继续轮询到读完。ris 的客户详情要一个多小时，不能让连接页白屏那么久。
+		const blocking = (row) => active(row) && !row.progress?.usable;
 		let sawActive = false;
 		function stopPoll() {
 			clearTimeout(timer);
@@ -56,7 +59,7 @@
 			return suffix ? `${head} ${suffix}` : head;
 		}
 		function updateOverlay() {
-			const running = statuses.filter((row) => active(row));
+			const running = statuses.filter((row) => blocking(row));
 			if (running.length) {
 				sawActive = true;
 				if (!startedAt) startedAt = Date.now();
@@ -86,6 +89,7 @@
 			const key = statuses.map((row) => `${row.dataset}:${row.state}:${row.count}`).join("|");
 			if (!key || key === announced) return;
 			announced = key;
+			if (statuses.some(active)) return; // 还有组在后台读：读完再说
 			const failed = statuses.some((row) => row.state === "failed");
 			const succeeded = statuses.length && statuses.every((row) => row.state === "succeeded");
 			if (failed) frappe.msgprint({ message: p.escape(cacheText("dms.connect.cache.state.failed")), indicator: "red" });
@@ -302,9 +306,13 @@
 						feedback(probe);
 						return;
 					}
-					await p.call("pearnly_dms.connections.api.save_connection", values, "POST");
+					const saved = await p.call("pearnly_dms.connections.api.save_connection", values, "POST");
 					d.set_value("password", "");
 					d.hide();
+					// 读全档要等读档账号（不占连接账号）：告诉管理员下一步做什么。
+					if (saved?.reading === "awaiting_read_account") {
+						frappe.msgprint(p.escape(acct("dms.connect.acct.readFirst")));
+					}
 					// **绑定成功不再弹"连接正常 · 车型 3 · 分店 1 …"**（用户 2026-09-25：
 					// "旧的提示和界面存在冲突"）。那句话是"快速探测"的产物，弹出时正好和
 					// 白屏上的读取进度叠在一起，看着像两件事同时在跑。

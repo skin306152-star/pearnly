@@ -212,7 +212,9 @@ def execute(endpoint, dataset, reader, request_id, step=0):
         frappe.db.commit()
         assert_active(endpoint, dataset, request_id, reader=reader)
         progress = {"processed": int(result.get("processed", result.get("count", 0))),
-                    "total": result.get("total", result.get("count")), "unit": "records"}
+                    "total": result.get("total", result.get("count")), "unit": "records",
+                    # 这一组已经能用了（客户组：索引已发布，详情还在后台读）：页面据此不再遮挡。
+                    "usable": bool(result.get("usable") or (result.get("ok") and result.get("complete", True)))}
         retries = int(req.get("retries") or 0)
         busy_waits = int(req.get("busy_waits") or 0)
         if result.get("busy"):

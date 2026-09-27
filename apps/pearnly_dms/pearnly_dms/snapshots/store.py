@@ -110,10 +110,36 @@ def scope(endpoint, *, reader="authority", current=False, _database=None):
         raise SnapshotUnavailable("ERR_NO_CREDS")
     if reader == "sales" and (not owner or not operator.can_query_dms):
         raise SnapshotUnavailable("ERR_DMS_QUERY_FORBIDDEN")
-    identity = [frappe.local.site, reader, dms_login_key(row.system_url, username), password]
-    if reader == "sales":
-        identity += [name, owner, str(operator.modified)]
+    return _scope_hash(scope_identity(row.system_url, username, reader,
+                                      sales=(name, owner, str(operator.modified)) if reader == "sales" else None))
+
+
+def scope_identity(system_url, username, reader, *, sales=None, password=None):
+    """缓存按"哪个站点 · 哪种读者 · 哪个 DMS 账号"区分，**不含密码**（用户 2026-09-27）：
+    同一账号只改了密码，看到的资料不变，不该把全档重读一遍（ris 一次一个多小时）。
+    `password` 只给一次性迁移算旧键用（`snapshots/scope_rekey`）。"""
+    identity = [frappe.local.site, reader, dms_login_key(system_url, username)]
+    if password is not None:
+        identity.append(password)
+    if sales:
+        identity += list(sales)
+    return identity
+
+
+def _scope_hash(identity):
     return hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
+
+
+def clear_authorization(endpoint, *, reader="authority"):
+    """凭据刚换过（连接向导先真登通过才存）：清掉旧的"认证被拒"记号，不等下一次整组读完。
+    缓存键不含密码之后，密码改对了也还是同一个键，旧记号会一直挡住读取。"""
+    key = scope(endpoint, reader=reader)
+    # 独立的短连接、当场提交：留在调用方事务里的行锁（含删掉的行上的间隙锁）会挡住
+    # 紧接着在另一条连接上登记读取的 `manual.request`，直到锁等待超时（测试机实测）。
+    with _cache_connection() as database:
+        for dataset in ("authorization", "vehicles", "company", "customers", "geo", "customer_index"):
+            database.sql(f"UPDATE `tab{DT}` SET last_error='' WHERE name=%s AND last_error IN %s",
+                         (_name(key, dataset), tuple(AUTH_ERRORS)))
 
 
 def _name(scope_key, dataset):
@@ -236,6 +262,14 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
         required = ("masters", "catalogues", "paints") if dataset == "vehicles" else ("masters", "catalogues")
         if not all(isinstance(data.get(k), dict) for k in required) or not data["catalogues"]:
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
+    elif dataset == "customer_index":
+        # 客户索引只是比对用的轻量视图（编号 → 客户码/姓名/证号 + 称谓），不是完整资料；
+        # 完整的 `customers` 发布后，读取方优先用完整的那份。
+        index, prefixes = data.get("index"), data.get("prefixes")
+        if (not isinstance(index, dict) or not isinstance(prefixes, list) or not prefixes
+                or any(not isinstance(row, dict) or set(row) != {"cuscode", "name", "people_id"}
+                       for row in index.values())):
+            raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
     elif dataset == "masters":
         if not all(isinstance(data.get(k), dict) for k in ("masters", "paints")):
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
@@ -282,6 +316,18 @@ def failed(endpoint, dataset, code, *, reader="authority", expected_scope=None):
         guard = _name(key, "authorization")
         _ensure(guard, key, "authorization")
         frappe.db.set_value(DT, guard, "last_error", safe)
+
+
+def customer_overlays(endpoint):
+    """已核实写回的客户（编号 → 完整字段），完整客户组还没发布时也在（`verified_customer`）。
+
+    用独立短连接读已提交的最新值：补读（`snapshot_writeback.fill_customer`）刚在另一条连接上
+    写回的那一条，调用方事务里旧的一致性视图看不见（测试机实测：补读成功后仍报"资料读取中"）。"""
+    key = scope(endpoint)
+    with _cache_connection() as database:
+        rows = database.sql(f"SELECT overlays FROM `tab{DT}` WHERE name=%s", _name(key, "customers"), as_dict=True)
+    raw = rows[0].overlays if rows else None
+    return {cid: item["fields"] for cid, item in (_load_big(raw) or {}).items()}
 
 
 def overlay_customer_ids(endpoint):

@@ -313,7 +313,8 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         self.master(qa, "cars")
         self.paints(qa)
         endpoint = frappe.get_doc("Pearnly ERP Endpoint", self.endpoint)
-        endpoint.admin_password = self.password + "-new"
+        # 换了账号才是另一份资料；只改密码不换（用户 2026-09-27，缓存键不含密码）。
+        endpoint.admin_username = "snapshot-other-admin-" + uuid.uuid4().hex[:8]
         endpoint.save(ignore_permissions=True)
         for read in (lambda: self.master(qa, "cars"), lambda: self.paints(qa)):
             with self.assertRaises(MasterSyncError) as caught:
@@ -455,7 +456,7 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
 
     def test_separate_connection_revocation_during_capture_is_not_hidden_by_rr(self):
         for action, expected in (("revoke", "ERR_DMS_QUERY_FORBIDDEN"),
-                                 ("password", "ERR_DMS_SNAPSHOT_SCOPE_CHANGED")):
+                                 ("account", "ERR_DMS_SNAPSHOT_SCOPE_CHANGED")):
             with self.subTest(action=action):
                 operator = frappe.get_doc("DMS Operator", self.users[0])
                 operator.can_query_dms = 1
@@ -497,9 +498,9 @@ if __name__ == "__main__":
             if action == "revoke":
                 doc = frappe.get_doc("DMS Operator", user)
                 doc.can_query_dms = 0
-            elif action == "password":
+            elif action == "account":
                 doc = frappe.get_doc("Pearnly ERP Endpoint", endpoint)
-                doc.password = "fake-concurrent-rotation-" + uuid.uuid4().hex
+                doc.username = "fake-concurrent-account-" + uuid.uuid4().hex[:8]
             else:
                 raise RuntimeError("Unknown fixture mutation")
             doc.save(ignore_permissions=True)

@@ -422,7 +422,7 @@ class AccountProbeTests(unittest.TestCase):
 
 
 class ReadAccountRoutingTests(unittest.TestCase):
-    """用户 2026-09-27：白天的后台读取只用读档账号；夜里、前台操作照旧。"""
+    """用户 2026-09-27：后台读取（同步、读全档、凌晨回读）登记了读档账号就只用它；前台操作照旧。"""
 
     def setUp(self):
         _patch_env(self)
@@ -441,11 +441,11 @@ class ReadAccountRoutingTests(unittest.TestCase):
             operations.run_logged_in("EP-1", lambda client, a: {"ok": True}, **kwargs)
         return adapter
 
-    def test_daytime_background_reads_use_the_read_account(self):
+    def test_background_reads_use_the_read_account_day_and_night(self):
         reader = admin_pool.Account("reader", "pr", True)
         background = dict(authoritative_read=True, background=True, read_only_batch=True)
         self.run_with(hour=10, reader=reader, **background).use_account.assert_called_once_with("reader", "pr")
-        self.run_with(hour=3, reader=reader, **background).use_account.assert_not_called()
+        self.run_with(hour=3, reader=reader, **background).use_account.assert_called_once_with("reader", "pr")
         self.run_with(hour=10, reader=None, **background).use_account.assert_not_called()
         self.run_with(hour=10, reader=reader, authoritative_read=True).use_account.assert_not_called()
         self.run_with(hour=10, reader=reader, background=True, read_only_batch=True).use_account.assert_not_called()

@@ -34,12 +34,10 @@ def live_sync_active() -> bool:
         return False
 
 
-def daytime_read_account():
-    """白天窗口内登记了读档账号就返回它；否则 None（后台读取照旧用连接自己的账号）。"""
-    from pearnly_dms.adapter import admin_pool, live_sync
+def background_read_account():
+    """登记了读档账号就返回它；否则 None（后台读取照旧用连接自己的账号）。"""
+    from pearnly_dms.adapter import admin_pool
 
-    if not live_sync.in_business_hours():
-        return None
     return admin_pool.read_account()
 
 
@@ -95,10 +93,10 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
         getattr(adapter, "has_distinct_admin_creds", False))
     if read_only_batch:
         adapter.page_timeout_ms = min(adapter.page_timeout_ms, 15000)
-    # 白天窗口内的后台读取（每分钟同步、它引出的整组重读、白天的底座读取）只用读档账号，
-    # 不去占连接自己的管理员账号 —— 网页上可能有人正用着它（用户 2026-09-27）。夜里照旧。
+    # 后台读取（每分钟同步、整组重读、首次读全档、凌晨回读）登记了读档账号就只用它，
+    # 不去占连接自己的管理员账号 —— 网页上可能有人正用着它（用户 2026-09-27）。
     if authoritative_read and background and read_only_batch:
-        reader = daytime_read_account()
+        reader = background_read_account()
         if reader:
             adapter.use_account(reader.username, reader.password)
     try:

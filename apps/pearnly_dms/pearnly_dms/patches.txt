@@ -5,3 +5,4 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 pearnly_dms.operators.endpoint_backfill
+pearnly_dms.snapshots.scope_rekey

@@ -547,7 +547,7 @@ def start_customers(client, *, extra_customer_ids=(), limits=None):
         if len(extras) > budget.limits.max_customers:
             _too_large("extra customer count exceeds bound")
         return {"version": 1, "phase": "list", "count": count, "ids": [],
-                "extras": extras, "customers": {}, "verified": [], "page": 1}
+                "extras": extras, "customers": {}, "verified": [], "page": 1, "index": {}}
     return _collect(client, begin, limits)
 
 
@@ -563,7 +563,22 @@ def _customer_page(client, budget, count, page):
             or len(parser.ids) != expected or len(set(parser.ids)) != expected
             or len(parser.ids) != len(re.findall(r"\bdata-val\s*=", body, re.I))):
         _fail("invalid customer page")
-    return parser.ids
+    return parser.ids, _index_rows(client, body, parser.ids)
+
+
+def _index_rows(client, body, ids):
+    """列表行里的 编号 → 客户码 / 姓名 / 证号（首次读全档时先发布的"客户索引"用）。
+
+    只是比对用的轻量索引，不是完整资料；与这一页的编号对不上就整页不给（调用方不发布索引），
+    不拿不完整的行去冒充"查无此客"。"""
+    try:
+        rows = client._parse_customer_rows(body)
+    except Exception:
+        return None
+    if [row.get("customer_id") for row in rows] != list(ids):
+        return None
+    return {row["customer_id"]: {key: str(row.get(key) or "") for key in ("cuscode", "name", "people_id")}
+            for row in rows}
 
 
 def _validate_customer_checkpoint_records(customers):
@@ -581,7 +596,10 @@ def _validate_customer_checkpoint_records(customers):
 
 
 def advance_customers(client, stage, *, max_nodes=20, limits=None):
-    """List, full details, then list/count verification across short sessions."""
+    """List, full details, then list/count verification across short sessions.
+
+    列表阶段顺手记下每行的 客户码/姓名/证号（`index`）：列表读完就能先发布一份客户索引，
+    查重不必等一个多小时的逐个详情（用户 2026-09-27）。旧检查点没有 `index` 就不发布。"""
     if type(max_nodes) is not int or not 1 <= max_nodes <= 100:
         _fail("invalid customer chunk size")
     def advance(budget):
@@ -621,10 +639,16 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
                     page = len(target) // budget.limits.page_size + 1
                     if page > budget.limits.max_pages:
                         _fail("customer page bound exceeded")
-                    rows = _customer_page(client, budget, count, page)
+                    rows, index_rows = _customer_page(client, budget, count, page)
                     if set(target).intersection(rows):
                         _fail("duplicate customer page")
                     target.extend(rows)
+                    if phase == "list" and isinstance(candidate.get("index"), dict):
+                        # 任何一页解析不全，整份索引作废（不发布），照旧等完整资料。
+                        if index_rows is None:
+                            candidate["index"] = None
+                        else:
+                            candidate["index"].update(index_rows)
                     if phase == "verify" and verified != ids[:len(verified)]:
                         _fail("customer list changed during capture")
                     candidate["page"] = page + 1

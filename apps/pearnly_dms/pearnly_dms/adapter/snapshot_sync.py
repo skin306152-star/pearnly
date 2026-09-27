@@ -27,7 +27,7 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
     if checkpoint is not None and (not isinstance(checkpoint, dict)
             or checkpoint.get("version") != 2
             or not {"version", "started_at", "phase", "tree"} <= set(checkpoint)
-            or set(checkpoint) - {"version", "started_at", "phase", "tree", "customers"}
+            or set(checkpoint) - {"version", "started_at", "phase", "tree", "customers", "index_published"}
             or checkpoint["phase"] not in {"catalogues", "projection"}
             or isinstance(checkpoint["started_at"], bool)
             or not isinstance(checkpoint["started_at"], (int, float))
@@ -72,9 +72,18 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
             # 100 是一步能取的最大块，30 秒租约内读得完。
             tree = advance_customers(client, stage["customers"], max_nodes=100, limits=limits)
             stage["customers"] = tree
-            if tree["phase"] != "done":
-                return {"ok": True, "stage": stage, "processed": len(tree["customers"]), "total": tree["count"]}
             prefixes = [[cid, row["fields"]["txtprefixname"]] for cid, row in catalogues["prefix"].items()]
+            # 列表读完就先发布客户索引（编号/姓名/证号 + 称谓）：LINE 查重马上能用，
+            # 逐个客户的详情再慢慢读（用户 2026-09-27；ris 详情一次约 69 分钟）。
+            index = _ready_index(tree, prefixes) if not stage.get("index_published") else None
+            if index is not None:
+                stage["index_published"] = True
+            if tree["phase"] != "done":
+                out = {"ok": True, "stage": stage, "processed": len(tree["customers"]), "total": tree["count"],
+                       "usable": bool(stage.get("index_published"))}
+                if index is not None:
+                    out["index"] = index
+                return out
             if not prefixes:
                 raise store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
             projection = {"customers": tree["customers"], "prefixes": prefixes}
@@ -106,6 +115,9 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
             frappe.db.commit()
             return result
         complete = "data" in result
+        if result.get("index") is not None:
+            store.publish(endpoint, "customer_index", result["index"], checkpoint["started_at"],
+                          expected_scope=expected)
         if complete:
             store.publish(endpoint, dataset, result["data"], checkpoint["started_at"], expected_scope=expected)
             store.checkpoint(endpoint, None, dataset=dataset, expected_scope=expected)
@@ -114,4 +126,15 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
     frappe.db.commit()
     count = result.get("count", result.get("processed", 0))
     return {"ok": True, "complete": complete, "count": count, "processed": count,
-            "total": count if complete else result.get("total")}
+            "total": count if complete else result.get("total"),
+            "usable": complete or bool(result.get("usable"))}
+
+
+def _ready_index(tree, prefixes):
+    """列表阶段已经读完、索引完整时返回要发布的客户索引；否则 None（不发布半份）。"""
+    index = tree.get("index")
+    if tree["phase"] == "list" or not isinstance(index, dict) or not prefixes:
+        return None
+    if len(index) != tree["count"] or set(index) != set(tree["ids"]):
+        return None
+    return {"index": index, "prefixes": prefixes}

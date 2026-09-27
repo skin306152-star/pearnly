@@ -80,8 +80,8 @@ Many people are using DMS right now, so this request timed out in the queue. Not
 Add read account	添加读档账号	เพิ่มบัญชีอ่านข้อมูล	読み取りアカウントを追加	dms.connect.acct.readAdd
 Change read account	修改读档账号	แก้ไขบัญชีอ่านข้อมูล	読み取りアカウントを変更	dms.connect.acct.readChange
 Read account	读档账号	บัญชีอ่านข้อมูล	読み取りアカウント	dms.connect.acct.readField
-Not set (no daytime sync)	未设置（白天不同步）	ยังไม่ตั้ง (ไม่ซิงก์ช่วงกลางวัน)	未設定（日中は同期しない）	dms.connect.acct.readNone
-Used only for the every-minute sync, 6:00–22:00.	只用于白天 6:00–22:00 每分钟同步。	ใช้เฉพาะซิงก์ทุกนาที 6:00–22:00	6:00〜22:00 の毎分同期にのみ使います。	dms.connect.acct.readHelp
+Not set (data is read only at night)	未设置（资料只在凌晨读取）	ยังไม่ตั้ง (อ่านข้อมูลเฉพาะตอนกลางคืน)	未設定（夜間のみ読み込み）	dms.connect.acct.readNone
+Used only to read data: the first full read and the every-minute daytime sync.	只用来读资料：首次读全档和白天每分钟同步。	ใช้อ่านข้อมูลเท่านั้น: อ่านทั้งหมดครั้งแรกและซิงก์ทุกนาทีช่วงกลางวัน	データの読み込み専用：初回の全件読み込みと日中の毎分同期。	dms.connect.acct.readHelp
 Add write accounts	添加改写权限账号	เพิ่มบัญชีสิทธิ์แก้ไข	書き込みアカウントを追加	dms.connect.acct.writeAdd
 Write accounts	改写权限账号	บัญชีสิทธิ์แก้ไข	書き込みアカウント	dms.connect.acct.writeField
 Not set (the connection account is used)	未设置（使用连接账号）	ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)	未設定（接続アカウントを使用）	dms.connect.acct.writeNone
@@ -97,6 +97,7 @@ This account is already in use by the connection or another system account	这�
 This system account no longer exists; reload the page	这个系统账号已不存在，请刷新页面	บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า	このシステムアカウントはもうありません。ページを再読み込みしてください	dms.connect.acct.errGone
 Remove the account and add it again to change its name	要改账号名，请删掉这一行再重新添加	หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่	アカウント名を変えるには行を削除して追加し直してください	dms.connect.acct.errRename
 The DMS account can only be switched before the session starts	只能在开始会话前切换 DMS 账号	เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น	DMS アカウントはセッション開始前にのみ切り替えられます	dms.connect.acct.errSwitch
+Connected. Reading starts after you add the read account.	已连接。添加读档账号后开始读取资料。	เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล	接続しました。読み取りアカウントを追加すると読み込みを始めます。	dms.connect.acct.readFirst
 DMS System Account	DMS 系统账号	บัญชีระบบ DMS	DMS システムアカウント	dms.doctype.system_account
 Last Check	最近检查	ตรวจสอบล่าสุด	最終チェック	dms.doctype.system_account.last_status
 Last Checked At	最近检查时间	เวลาตรวจสอบล่าสุด	最終チェック日時	dms.doctype.system_account.last_checked_at

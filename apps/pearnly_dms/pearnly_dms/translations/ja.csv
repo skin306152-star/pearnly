@@ -81,6 +81,7 @@ Company information,会社情報
 Confirm,確定
 Confirm booking,予約を確定
 Confirm saving a new customer,新規顧客の保存を確認
+Connected. Reading starts after you add the read account.,接続しました。読み取りアカウントを追加すると読み込みを始めます。
 Continue booking,予約を続ける
 Continuing with the existing data,既存データで続けます
 Contract not opened,契約未締結
@@ -189,6 +190,7 @@ Not all files were attached. Please add them in DMS.,添付ファイルがすべ
 Not allocated yet,未割当
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください
 Not read yet,未読み取り
+Not set (data is read only at night),未設定（夜間のみ読み込み）
 Not set (no daytime sync),未設定（日中は同期しない）
 Not set (the connection account is used),未設定（接続アカウントを使用）
 Number of cars,台数
@@ -386,6 +388,7 @@ Updating data…,データを更新中…
 Use name on card,カードの氏名を使う
 Use the back office,管理画面を使う
 "Used only for the every-minute sync, 6:00–22:00.",6:00〜22:00 の毎分同期にのみ使います。
+Used only to read data: the first full read and the every-minute daytime sync.,データの読み込み専用：初回の全件読み込みと日中の毎分同期。
 Used to create and edit customers. Leave a saved account's password empty to keep it.,顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。
 Vehicle master data,車両マスター情報
 View result / status,結果／状態を見る
@@ -722,8 +725,9 @@ dms.connect.acct.missing,{0} に権限がありません：{1}
 dms.connect.acct.readAdd,読み取りアカウントを追加
 dms.connect.acct.readChange,読み取りアカウントを変更
 dms.connect.acct.readField,読み取りアカウント
-dms.connect.acct.readHelp,6:00〜22:00 の毎分同期にのみ使います。
-dms.connect.acct.readNone,未設定（日中は同期しない）
+dms.connect.acct.readFirst,接続しました。読み取りアカウントを追加すると読み込みを始めます。
+dms.connect.acct.readHelp,データの読み込み専用：初回の全件読み込みと日中の毎分同期。
+dms.connect.acct.readNone,未設定（夜間のみ読み込み）
 dms.connect.acct.saved,保存しました
 dms.connect.acct.testAndSave,テストして保存
 dms.connect.acct.writeAdd,書き込みアカウントを追加
