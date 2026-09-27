@@ -158,7 +158,7 @@ Choose an existing product for opening stock,请选择已有的物料录入期�
 Choose at least one job role,至少勾一个功能权限
 Choose file,选择文件
 Choose purchase or sales first,请先选择采购或销售
-Choose the company,请选择公司
+Choose the company,选择公司
 Choose the customer,请选择客户
 Choose the payment method,请选择付款方式
 Choose the sheet to import,请先选择要导入的表格
@@ -236,7 +236,7 @@ Counted at,盘点时间
 Counted by,盘点人
 Counted in total,计入合计
 Counted quantity,实盘数量
-Counter 1,Counter 1
+Counter 1,收银台 1
 Create,创建
 Create New Item,创建新物料
 Create POS Opening Entry,新建开班记录
@@ -259,6 +259,7 @@ Customer is required,必须填写客户
 Customer not found,未找到客户
 Customer not found. Please select the customer again.,客户不存在，请重新选择客户。
 Customers,客户
+Damaged / written off,报损
 Date,日期
 Date (BE),日期（佛历）
 Decided At,处理时间
@@ -434,6 +435,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,已停用
 Initial Password,初始密码
 Input Tax,进项税额
+Internal use,内部领用
 Invalid Currency,币种无效
 Invalid Discount,无效折扣
 Invalid Return,无效退货
@@ -712,6 +714,7 @@ Purchase Record,采购记录
 Purchase Records,采购记录
 Purchase document not found,找不到这张采购单
 Purchasing,采购
+Purpose,用途
 QR Payload,QR 内容
 QR payload,二维码内容
 Qty,数量
@@ -778,6 +781,7 @@ Reset,重置
 Reset Password,重置密码
 Retry,重试
 Return,退货退款
+Return to stock,退库
 Returned,已退货
 Reversal,冲销
 Review differences,查看差异
@@ -1254,7 +1258,7 @@ company.status.active,正常
 company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
-company.terminalDefaultName,Counter 1
+company.terminalDefaultName,收银台 1
 company.terminalEdit,编辑
 company.terminalNew,新增收银台
 company.terminalNone,还没有收银台
@@ -1532,6 +1536,11 @@ stock.opening.submit,确认入账
 stock.opening.template,下载期初模板
 stock.opening.title,录入期初库存
 stock.opening.total,期初总金额
+stock.purpose.damage,报损
+stock.purpose.internal_use,内部领用
+stock.purpose.label,用途
+stock.purpose.other,其他
+stock.purpose.return,退库
 stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常

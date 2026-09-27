@@ -38,7 +38,8 @@ def ensure_default(company=None, warehouse=None) -> str:
     if any_terminal:
         frappe.db.set_value(DOCTYPE, any_terminal, "is_default", 1)
         return any_terminal
-    doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": "Counter 1",
+    # 默认收银台名按界面语言（录制问题 #5：泰语界面也叫「Counter 1」）。
+    doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": _("company.terminalDefaultName"),
                           "company": company,
                           "warehouse": warehouse or warehouses.sole(company) or "",
                           "is_default": 1, "is_active": 1})

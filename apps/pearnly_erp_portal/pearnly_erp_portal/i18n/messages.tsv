@@ -846,6 +846,12 @@ Company details	公司信息	ข้อมูลบริษัท	会社情報	c
 Warehouse	仓库	คลังสินค้า	倉庫	company.section.warehouse
 Warehouse	仓库	คลังสินค้า	倉庫	company.field.warehouse
 Main	主仓	คลังหลัก	メイン倉庫	company.warehouseDefaultName
+Counter 1	收银台 1	จุดขาย 1	レジ 1	company.terminalDefaultName
+Purpose	用途	วัตถุประสงค์	用途	stock.purpose.label
+Return to stock	退库	รับคืนเข้าคลัง	戻り入庫	stock.purpose.return
+Internal use	内部领用	เบิกใช้ภายใน	社内使用	stock.purpose.internal_use
+Damaged / written off	报损	ตัดชำรุด / เสียหาย	破損・廃棄	stock.purpose.damage
+Other	其他	อื่น ๆ	その他	stock.purpose.other
 First warehouse of this company (more on the Warehouses page)	这家公司的第一个仓库（之后在「仓库」页再加）	คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)	この会社の最初の倉庫（追加は「倉庫」ページから）	company.warehouseHint
 Warehouse name	仓库名称	ชื่อคลังสินค้า	倉庫名	company.col.warehouse
 New warehouse	新建仓库	เพิ่มคลังสินค้า	倉庫を追加	company.newWarehouse
@@ -1233,7 +1239,7 @@ Unbind LINE	解绑 LINE	ยกเลิกการเชื่อมต่อ L
 Unbind Pearnly ERP LINE?	确认解绑 Pearnly ERP LINE？	ยืนยันการยกเลิกการเชื่อมต่อ?	Pearnly ERP LINE の連携を解除しますか？	erp.line.unbindConfirm
 LINE is not enabled for this account	这个账号没有开通 LINE	บัญชีนี้ยังไม่ได้เปิดใช้ LINE	このアカウントは LINE が有効になっていません
 Choose purchase or sales first	请先选择采购或销售	กรุณาเลือก ซื้อ หรือ ขาย ก่อนส่งเอกสาร	先に仕入か売上を選んでください
-Choose the company	请选择公司	เลือกบริษัทที่ต้องการบันทึกครับ	会社を選んでください
+Choose the company	选择公司	เลือกบริษัท	会社を選んでください
 Choose the customer	请选择客户	เลือกลูกค้า	顧客を選んでください
 Choose the payment method	请选择付款方式	เลือกวิธีชำระเงิน	支払方法を選んでください
 Choose the supplier	请选择供应商	เลือกผู้จัดจำหน่าย	仕入先を選んでください

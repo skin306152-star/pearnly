@@ -460,8 +460,8 @@ for _key in ("home", "profile"):
 # LINE 只在本人的「个人信息」里绑（用户 2026-09-25），所以勾了 LINE 的人一定进得去那一页。
 from pearnly_erp_portal.access import rules as _rules
 pearnly_navigation[0]["permissions"][_menu_permissions.route("profile")]["any_role"].append(_rules.LINE_ROLE)
-after_install = "pearnly_erp_portal.access.setup.sync_roles"
-after_migrate = "pearnly_erp_portal.access.setup.sync_roles"
+after_install = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply"]
+after_migrate = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply"]
 
 has_permission.update({
     "ERP Stock Entry": "pearnly_erp_portal.inventory.access.entry_permission",

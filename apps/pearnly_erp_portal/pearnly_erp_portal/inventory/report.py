@@ -195,6 +195,8 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
     return {
         "product": product, "product_name": meta.get("product_name"), "unit": meta.get("base_unit") or meta.get("unit"),
         "warehouse": warehouse, "location": location, "date_from": date_from, "date_to": date_to,
+        # 页面顶部显示仓库名，不是内部编号（录制问题 #17）。
+        "warehouse_name": frappe.db.get_value("ERP Warehouse", warehouse, "warehouse_name") if warehouse else None,
         "opening": {"date": date_from, "qty": float(carried.qty),
                     "unit_cost": None if (not visible or carried.unit is None) else float(carried.unit),
                     "value": None if (not visible or carried.value is None) else float(carried.value)},

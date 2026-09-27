@@ -47,7 +47,9 @@ class EntryFlowAcceptance(unittest.TestCase):
             stock.apply_movement(product=cls.products[key], warehouse=cls.warehouse,
                 movement_type="stock_in", qty=quantity, unit_cost=10,
                 reason=cls.prefix, client_uuid=cls.prefix + "-seed-" + key, internal=True)
-        cls.tax_id = str(int(uuid4().hex[:10], 16)).zfill(13)
+        # 合成的 13 位税号要带正确的校验位：公司 / 供应商 / 客户保存时按校验位检查（录制问题 #11）。
+        base = str(int(uuid4().hex[:10], 16)).zfill(12)[-12:]
+        cls.tax_id = base + str((11 - sum(int(base[i]) * (13 - i) for i in range(12)) % 11) % 10)
         cls.suppliers = {}
         for branch in ("head", "0001", "0002"):
             cls.suppliers[branch] = suppliers.create_supplier(

@@ -74,6 +74,9 @@
 						click: () => lines?.add() }]
 				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced,
 					data: doc.lines || [] })]),
+			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。
+			{ fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
+				options: [{ value: "", label: "" }, ...purpose_options()], default: doc.purpose || "" },
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
 				default: doc.reason },
 		].map(field => ({ ...field, read_only: editable ? 0 : 1 }))
@@ -109,7 +112,13 @@
 		}
 
 		const clean = values => ({ posting_date: values.posting_date,
-			warehouse: values.warehouse, reason: values.reason, lines: p.trade.clean(values.lines) });
+			warehouse: values.warehouse, purpose: values.purpose || "", reason: values.reason,
+			lines: p.trade.clean(values.lines) });
+		const PURPOSES = { in: ["return", "other"], out: ["internal_use", "damage", "other"] };
+		// 这页的 `t` 只加载 `trade.` 前缀；用途的词条走原生 `__()`（键名词条同样认得）。
+		const purpose_options = () => (PURPOSES[direction] || []).map(value => ({ value,
+			label: __(`stock.purpose.${value}`) }));
+		const purpose_label = value => (value ? __(`stock.purpose.${value}`) : "");
 
 		function entry_values() {
 			const values = form.get_values();
@@ -168,7 +177,9 @@
 					{ fieldname: "posting_date", width: 110, min_width: 96, label: t("trade.date") },
 					{ fieldname: "warehouse_name", width: 150, min_width: 120, label: t("trade.warehouse") },
 					{ fieldname: "status", width: 90, min_width: 74, label: t("trade.status"), format: value => __(value) },
-					{ fieldname: "reason", width: 210, min_width: 150, label: t("trade.note") },
+					// 备注前面带上用途（五列一屏放得下，不另占一列）。
+					{ fieldname: "reason", width: 210, min_width: 150, label: t("trade.note"),
+						format: (value, row) => [purpose_label(row?.purpose), value].filter(Boolean).join(" · ") },
 				],
 			});
 			restore_new();

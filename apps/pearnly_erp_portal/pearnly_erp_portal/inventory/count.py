@@ -119,7 +119,8 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
                            fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
         PRODUCT, filters={"is_active": 1, "name": ["in", [r["product"] for r in rows] or [""]]},
-        fields=["name", "product_name", "code", "barcode", "unit", "base_unit"],
+        # 要带二维码内容：只有二维码的商品，盘点表「条码 / 二维码」那一格才不空（录制问题 #23）。
+        fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit"],
         limit_page_length=0)}
     created = 0
     for row in rows:
@@ -424,6 +425,12 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     for entry in all_entries:
         if not entry["voided"]:
             by_item.setdefault(entry["item"], []).append(entry)
+    # 以前建的盘点，只有二维码的商品那一格存成了空：显示时从商品上补（录制问题 #23）。
+    missing = {row.product for row in rows if not row.barcode}
+    shown = {p["name"]: product_contracts.shown_code(p) for p in frappe.get_all(
+        PRODUCT, filters={"name": ["in", list(missing) or [""]]}, fields=["name", "barcode", "qr_payload"])}
+    for row in rows:
+        row.barcode = row.barcode or shown.get(row.product) or None
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
@@ -558,7 +565,7 @@ def post_count(name: str, review_token=None) -> dict:
             warehouse=key[1],
             lines=[{"product": key[0], "qty": abs(delta), "location": key[2],
                     "unit_cost": unit_cost}],
-            reason=f"stocktake:{name}", ref_type="count", ref_id=name,
+            reason=stock_documents.adjustment_note(doc.title or name), ref_type="count", ref_id=name,
             dedupe_key=f"count:{name}:{index}", submit=True, commit=False,
             # 盘点走自己的编号定义（AD 段），与入库 IR / 出库 IS 分开。
             numbering_direction="stocktake")

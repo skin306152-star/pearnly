@@ -15,6 +15,7 @@ from frappe.utils import now, nowdate
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import contracts, positions, warehouses
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.products import contracts as product_contracts
 
 MOVEMENT = "ERP Stock Movement"
 BALANCE = "ERP Stock Balance"
@@ -351,7 +352,8 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
             # 同名在这里等于"只剩一行"，所以它必须唯一。
             "name": row["name"],
             "product": row["product"], "product_name": product.get("product_name"),
-            "code": product.get("code"), "barcode": product.get("barcode"),
+            # 「条码 / 二维码」一格：没有条码就显示二维码内容（同盘点表，录制问题 #23）。
+            "code": product.get("code"), "barcode": product_contracts.shown_code(product) or None,
             "warehouse": row["warehouse"],
             "location": row.get("location") or "",
             "warehouse_name": names.get(row["warehouse"]),

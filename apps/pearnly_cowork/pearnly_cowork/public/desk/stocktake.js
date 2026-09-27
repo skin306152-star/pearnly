@@ -188,20 +188,22 @@
 				empty.find(".btn-new-doc").text(w("record")).on("click", () => entry_form());
 				table_host.empty().append(empty); return;
 			}
-			// 手机上（用户 2026-09-26：11 列挤成一堆看不了）只留盘点时要看的五列：物料、账面、实际、
-			// 差异、状态；编码 / 条码 / 仓位 / 单位 / 金额点物料名进去看。仍是同一张官方表格，只是列少了。
+			// 手机上（用户 2026-09-26：11 列挤成一堆看不了）只留盘点时要看的四列：物料、账面、实际、差异；
+			// 编码 / 条码 / 仓位 / 单位 / 金额 / 状态点物料名进去看。仍是同一张官方表格，只是列少了，
+			// 并按比例铺满屏宽（ERP 录制问题 #22：五列定宽加起来比手机屏宽，物料名被挤得只剩两个字）。
+			// 状态并进物料名：这一行有问题（差异、位置不对、要重盘）物料名标红。
 			const narrow = window.matchMedia("(max-width: 767px)").matches;
 			const columns = [
-				{ name: t("cowork.stock.col.name"), width: narrow ? 120 : 210, format: value => value, phone: true },
+				{ name: t("cowork.stock.col.name"), width: narrow ? 5 : 210, format: value => value, phone: true },
 				{ name: t("cowork.stock.col.code"), width: 100 }, { name: t("cowork.stock.col.barcode"), width: 140 },
 				{ name: w("bookPosition"), width: 160 },
 				// 这几列会自己拼红字（差异那几格），所以不走默认的 `p.escape`。
 				{ name: w("actualPositions"), width: 230, format: value => value },
-				{ name: t("cowork.stock.col.unit"), width: 70 }, { name: t("cowork.stock.count.book"), width: narrow ? 64 : 90, phone: true },
-				{ name: t("cowork.stock.count.counted"), width: narrow ? 64 : 90, phone: true },
-				{ name: w("quantityDiff"), width: narrow ? 64 : 90, format: value => value, phone: true },
+				{ name: t("cowork.stock.col.unit"), width: 70 }, { name: t("cowork.stock.count.book"), width: narrow ? 2 : 90, phone: true },
+				{ name: t("cowork.stock.count.counted"), width: narrow ? 2 : 90, phone: true },
+				{ name: w("quantityDiff"), width: narrow ? 2 : 90, format: value => value, phone: true },
 				...(state.can_view_costs ? [{ name: t("cowork.stock.count.differenceValue"), width: 110, format: value => value }] : []),
-				{ name: t("cowork.stock.col.status"), width: narrow ? 84 : 140, format: value => value, phone: true },
+				{ name: t("cowork.stock.col.status"), width: 140, format: value => value },
 			];
 			const shown = columns.map((column, index) => [column, index]).filter(([column]) => !narrow || column.phone);
 			const pick = cells => shown.map(([_column, index]) => cells[index]);
@@ -213,8 +215,12 @@
 				const moved = Boolean(r.location_difference);
 				const status = r.stock_changed ? w("needsRecount") : !r.counted ? t("cowork.stock.count.rowUncounted")
 					: moved ? w("locationDiff") : quantity_diff ? t("cowork.stock.count.rowDifference") : t("cowork.stock.count.rowMatch");
+				const flagged = quantity_diff || moved || r.stock_changed;
+				// 红色要写在链接自己身上：包在外面会被链接的颜色盖掉。
+				const red = narrow && flagged ? ' style="color: var(--red-600)"' : "";
+				const name = `<a href="#" data-count-row="${p.escape(r.name)}"${red}>${p.escape(r.product_name)}</a>`;
 				return pick([
-					`<a href="#" data-count-row="${p.escape(r.name)}">${p.escape(r.product_name)}</a>`, r.code || "", r.barcode || "",
+					name, r.code || "", r.barcode || "",
 					`${p.escape(r.warehouse_name)} / ${p.escape(r.location || t("cowork.stock.count.blank"))}`,
 					moved ? danger(p.escape(r.actual_positions || "—")) : p.escape(r.actual_positions || "—"),
 					r.unit || "",
@@ -223,7 +229,7 @@
 					...(state.can_view_costs ? [value_diff ? danger(qty(r.difference_value)) : qty(r.difference_value)] : []),
 					quantity_diff || moved || r.stock_changed ? danger(p.escape(status)) : p.escape(status),
 				]);
-			}), table_options());
+			}), { ...table_options(), ...(narrow ? { layout: "ratio" } : {}) });
 		}
 		async function records(row) {
 			const entries = state.entries.filter(e=>e.item===row.name);

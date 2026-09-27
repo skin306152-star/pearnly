@@ -45,7 +45,10 @@
 				{ fieldname: "display", width: 150, min_width: 110, label: __("Username") },
 				{ fieldname: "email", width: 210, min_width: 150, label: t("team.email") },
 				{ fieldname: "roles", width: 200, min_width: 130, label: t("team.roles"),
-					format: value => (value || []).map(role_label).join(" · ") || "—" },
+					// 与编辑弹窗同一口径（录制问题 #9）：管理员本人那一行本来就拥有全部功能，列出全部功能名；
+					// 只显示团队管理里能勾的那些功能名，不把内部角色名（ERP Cashier…）摆出来。
+					format: (value, row) => (row?.locked ? data.roles.map(role => role.name) : value || [])
+						.filter(name => data.roles.some(role => role.name === name)).map(role_label).join(" · ") || "—" },
 				// 一租户多公司：这个账号被指到哪几家（没指 = 不限制，看全部）。
 				{ fieldname: "companies", width: 170, min_width: 120, label: t("team.companies"),
 					format: value => (value || []).map(company_label).join(" · ") || t("team.allCompanies") },

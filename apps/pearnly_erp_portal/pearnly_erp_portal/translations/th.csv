@@ -158,7 +158,7 @@ Choose an existing product for opening stock,กรุณาเลือกส�
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose file,เลือกไฟล์
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อนส่งเอกสาร
-Choose the company,เลือกบริษัทที่ต้องการบันทึกครับ
+Choose the company,เลือกบริษัท
 Choose the customer,เลือกลูกค้า
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
@@ -236,7 +236,7 @@ Counted at,เวลาที่นับ
 Counted by,ผู้ตรวจนับ
 Counted in total,นับรวมแล้ว
 Counted quantity,จำนวนที่นับได้
-Counter 1,Counter 1
+Counter 1,จุดขาย 1
 Create,สร้าง
 Create New Item,สร้างสินค้าใหม่
 Create POS Opening Entry,สร้างรายการเปิดกะ
@@ -259,6 +259,7 @@ Customer is required,กรุณาระบุลูกค้า
 Customer not found,ไม่พบลูกค้า
 Customer not found. Please select the customer again.,ไม่พบลูกค้า กรุณาเลือกใหม่
 Customers,ลูกค้า
+Damaged / written off,ตัดชำรุด / เสียหาย
 Date,วันที่
 Date (BE),วันที่ พ.ศ.
 Decided At,เวลาตัดสินใจ
@@ -434,6 +435,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,ปิดใช้งาน
 Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
+Internal use,เบิกใช้ภายใน
 Invalid Currency,สกุลเงินไม่ถูกต้อง
 Invalid Discount,ส่วนลดไม่ถูกต้อง
 Invalid Return,การคืนสินค้าไม่ถูกต้อง
@@ -712,6 +714,7 @@ Purchase Record,รายการจัดซื้อ
 Purchase Records,บันทึกการจัดซื้อ
 Purchase document not found,ไม่พบเอกสารจัดซื้อนี้
 Purchasing,จัดซื้อ
+Purpose,วัตถุประสงค์
 QR Payload,ข้อมูล QR
 QR payload,ข้อมูล QR
 Qty,ปริมาณ
@@ -778,6 +781,7 @@ Reset,เริ่มใหม่
 Reset Password,ตั้งรหัสผ่านใหม่
 Retry,ลองใหม่
 Return,คืนสินค้า
+Return to stock,รับคืนเข้าคลัง
 Returned,คืนแล้ว
 Reversal,กลับรายการ
 Review differences,ตรวจสอบผลต่าง
@@ -1254,7 +1258,7 @@ company.status.active,ปกติ
 company.status.inactive,ปิดใช้งาน
 company.subtitle,ข้อมูลบริษัทที่ใช้บนเอกสาร
 company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
-company.terminalDefaultName,Counter 1
+company.terminalDefaultName,จุดขาย 1
 company.terminalEdit,แก้ไข
 company.terminalNew,เพิ่มเครื่องขาย
 company.terminalNone,ยังไม่มีเครื่องขาย
@@ -1532,6 +1536,11 @@ stock.opening.submit,ยืนยันบันทึกสต็อกยก�
 stock.opening.template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
 stock.opening.title,บันทึกสต็อกยกมา
 stock.opening.total,มูลค่ายกมารวม
+stock.purpose.damage,ตัดชำรุด / เสียหาย
+stock.purpose.internal_use,เบิกใช้ภายใน
+stock.purpose.label,วัตถุประสงค์
+stock.purpose.other,อื่น ๆ
+stock.purpose.return,รับคืนเข้าคลัง
 stock.status.low,สต็อกต่ำ
 stock.status.lowWith,ต่ำ (≤{0})
 stock.status.ok,มีสินค้า

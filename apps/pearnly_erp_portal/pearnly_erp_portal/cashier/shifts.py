@@ -28,6 +28,15 @@ COUNTED_REQUIRED = "Counted amount is required"
 METHODS = (contracts.CASH, contracts.CARD, contracts.PROMPTPAY, contracts.TRANSFER)
 
 
+def _enabled_methods(terminal) -> set:
+    """这台收银台所属公司收哪几种钱（公司资料里勾的）；现金始终在（备用金与找零都记在现金上）。
+    录制问题 #19：公司取消了「刷卡」，交班对账表仍列出刷卡那一行。"""
+    from pearnly_erp_portal.masters import company as companies
+
+    company = frappe.db.get_value("ERP POS Terminal", terminal, "company") if terminal else None
+    return set(companies.configured_payment_methods(company)) | {contracts.CASH}
+
+
 def _clean_amounts(values) -> dict:
     """把 {支付方式: 金额} 收干净：只认认识的支付方式，空值当 0。
 
@@ -56,8 +65,10 @@ def _balance_rows(doc, *, by_method=None, change_total=0.0) -> list[dict]:
     """
     by_method = by_method or {}
     stored = {row.method: row for row in (doc.get("balances") or [])}
+    enabled = _enabled_methods(doc.terminal)
+    # 只列公司启用的方式，外加这一班实际收过钱的方式（事后停用了也要对得上账）。
     methods = [method for method in METHODS
-               if method == contracts.CASH or method in stored or method in by_method]
+               if method == contracts.CASH or method in by_method or (method in stored and method in enabled)]
     rows = []
     for method in methods:
         row = stored.get(method)
@@ -135,7 +146,7 @@ def open_shift(*, terminal=None, opening_float=0, balances=None, note=None) -> d
         "opened_at": now(), "shift_seq": _next_seq(),
         "opening_float": contracts.q2(opening_float), "note": note,
         "balances": [{"method": method, "opening_amount": opening.get(method, 0)}
-                     for method in METHODS],
+                     for method in METHODS if method in _enabled_methods(terminal)],
     })
     doc.insert(ignore_permissions=True)
     frappe.db.commit()

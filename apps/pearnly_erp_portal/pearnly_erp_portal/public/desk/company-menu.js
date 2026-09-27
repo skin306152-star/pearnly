@@ -39,6 +39,22 @@
 		});
 	};
 	p.header_title = () => (frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_name;
+	p.switch_company = name => switch_company(name, false);
+
+	/** 建公司 / 改公司名之后重取「我能用哪些公司、当前是哪家」，左上角公司名当场换掉
+	 *  （录制问题 #4：建第一家公司后要刷新页面才出现，公司列表「当前」一栏也先显示「—」）。 */
+	p.refresh_company_context = async () => {
+		const context = await p.call(api + "api_company_context");
+		frappe.boot.pearnly_companies = context.companies || [];
+		frappe.boot.pearnly_company = context.current || "";
+		const title = p.header_title();
+		if (!title) return;
+		const header = $(".sidebar-header");
+		header.find(".header-title").text(title).attr("title", title);
+		const first = [...new Intl.Segmenter(frappe.boot.lang || "th", { granularity: "grapheme" })
+			.segment(title)][0]?.segment.toLocaleUpperCase() || "";
+		header.find(".pearnly-company-initial").text(first);
+	};
 	p.header_menu_items = () => {
 		const rows = frappe.boot.pearnly_companies || [];
 		if (rows.length <= 1) return [];

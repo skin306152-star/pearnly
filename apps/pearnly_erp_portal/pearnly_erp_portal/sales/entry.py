@@ -115,6 +115,12 @@ def _buyer(payload):
     if party not in ("company", "person", "foreign", "anonymous"):
         frappe.throw(_("Invalid value"))
     payload["party_type"] = party
+    # 新买方进客户名录（录制问题 #13）：与采购提交时自动建供应商同一做法。散客（匿名）和
+    # 「未知买方」不建 —— 那不是一个真实客户。
+    unknown = {_("Unknown buyer", lang=lang) for lang in ("en", "zh", "th", "ja")}
+    if not key and party != "anonymous" and name not in unknown:
+        key = frappe.get_doc({"doctype": "ERP Customer", "customer_name": name, "party_type": party,
+                              "address": payload.get("address"), "is_active": 1}).insert(ignore_permissions=True).name
     return key, name
 
 

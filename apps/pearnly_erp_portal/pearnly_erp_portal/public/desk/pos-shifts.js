@@ -38,6 +38,11 @@
 			const by_method = data.by_method || {};
 			// 差额取这一行的实点 − 应有（`shifts.summary` 不给差额，交班时才落库到班次上）。
 			const diff = Math.round((num(row.counted_cash) - num(row.expected_cash)) * 100) / 100;
+			const labels = { cash: "trade.methodCash", card: "trade.methodCard", promptpay: "trade.methodPromptpay",
+				transfer: "trade.methodTransfer" };
+			const shown = (data.balances || []).map(balance => balance.method).filter(method => labels[method]);
+			const method_fields = (shown.length ? shown : Object.keys(labels))
+				.map(method => amount(`${method}_total`, t(labels[method]), by_method[method] || 0));
 			const dialog = p.dialog(`${t("trade.shiftNo")} ${row.name}`, [
 				{ fieldtype: "Data", fieldname: "terminal", label: t("trade.terminal"), read_only: 1,
 					default: row.terminal || "" },
@@ -53,11 +58,8 @@
 				amount("change_total", t("trade.changeTotal"), data.change_total),
 				amount("counted_cash", t("trade.countedCash"), row.counted_cash),
 				{ fieldtype: "Section Break", label: t("trade.byMethod") },
-				amount("cash_total", t("trade.methodCash"), by_method.cash || 0),
-				amount("card_total", t("trade.methodCard"), by_method.card || 0),
-				{ fieldtype: "Column Break" },
-				amount("promptpay_total", t("trade.methodPromptpay"), by_method.promptpay || 0),
-				amount("transfer_total", t("trade.methodTransfer"), by_method.transfer || 0),
+				// 只列公司启用的、或这一班实际收过的方式（与交班对账表同一份，录制问题 #19）。
+				...method_fields.flatMap((field, index) => index === 2 ? [{ fieldtype: "Column Break" }, field] : [field]),
 				// 不再加一节标题：下面只有一格，写"差额"两遍反而像两件事。
 				amount("cash_diff", t("trade.diff"), diff),
 			], t("trade.close"), async (_values, d) => d.hide());

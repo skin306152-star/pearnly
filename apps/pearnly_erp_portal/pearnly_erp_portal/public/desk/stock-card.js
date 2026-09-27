@@ -322,7 +322,7 @@
 				{ fieldtype: "Data", fieldname: "product", label: t("trade.product"),
 					read_only: 1, default: card.product_name || product },
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"),
-					read_only: 1, default: warehouse },
+					read_only: 1, default: card.warehouse_name || warehouse },
 				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"),
 					read_only: 1, default: location || "—" },
 				{ fieldtype: "Data", fieldname: "opening", label: t("trade.opening"),

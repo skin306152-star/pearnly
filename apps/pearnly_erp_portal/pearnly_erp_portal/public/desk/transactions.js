@@ -192,6 +192,25 @@
 				lines.splice(lines.indexOf(line), 1);
 				relabel();
 			}
+			// 扫码枪：码打完立刻补一个回车。网慢时 Link 下拉的结果还没回来，回车什么也没选中，
+			// 离开这一格时框架又把「不是商品编号的这串码」清掉，这一行就丢了（录制问题 #18）。
+			// 所以回车时如果下拉里没有选中项，就按码直接查商品（编码 / 条码 / 二维码 / 单位条码，
+			// 与扫码查商品同一个接口），查到就填上。
+			function scan_by_code(line) {
+				const control = line.form.fields_dict.product;
+				control.$input.on("keydown", event => {
+					if (event.key !== "Enter") return;
+					const code = String(control.$input.val() || "").trim();
+					const picked = control.awesomplete?.ul?.querySelector("[aria-selected='true']");
+					if (!code || picked) return;
+					event.preventDefault();
+					void p.call("pearnly_erp_portal.products.service.api_find_product", {value: code}).then(found => {
+						if (found?.name && line.form.get_value("product") !== found.name) {
+							return line.form.set_value("product", found.name).then(() => control.awesomplete?.close());
+						}
+					});
+				});
+			}
 			function add(values = {}, collapse_previous = true) {
 				if (collapse_previous) lines.forEach(line => line.section.collapse(true));
 				const wrapper = $("<div>").appendTo(host);
@@ -202,6 +221,7 @@
 				const line = { wrapper, section: outer.sections[0], ready: false,
 					stash: Object.fromEntries(Object.entries(values).filter(([key]) => !field_names.includes(key))) };
 				line.form = p.layout(outer.fields_dict.fields.$wrapper, line_fields(line));
+				scan_by_code(line);
 				lines.push(line);
 				relabel();
 				// 先铺值再放开 onchange：初始化时别把"带出来的"值又算一遍。

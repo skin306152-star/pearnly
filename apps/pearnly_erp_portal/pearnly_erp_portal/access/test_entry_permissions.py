@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import frappe
 
-from pearnly_erp_portal.access import guard, menu
+from pearnly_erp_portal.access import guard, menu, rules
 from pearnly_erp_portal.access.setup import sync_roles, migrate_members
 from pearnly_erp_portal.inventory import count, documents, stock, api as stock_api
 from pearnly_erp_portal.masters import company, selection, customers
@@ -142,7 +142,8 @@ class EntryPermissions(unittest.TestCase):
         self.denied(billing_www.home)
         self.assertFalse(user_permission(frappe.get_doc("User", self.users["team"])))
         keys = {row["name"] for row in team.role_catalog()}
-        self.assertEqual(keys, set(menu.roles()))
+        # LINE 的开关也在团队权限里（用户 2026-09-25：和个人信息、团队管理放在同一组）。
+        self.assertEqual(keys, set(menu.roles()) | {rules.LINE_ROLE})
 
     def test_profile_revocation_and_other_product_default(self):
         from pearnly_core.desk.permissions import user_permission

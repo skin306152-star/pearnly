@@ -175,9 +175,20 @@
 				} });
 			});
 			// 扫码枪就是个键盘（它打进来的是文字，没有码型）：打完补的那个回车不能顺手把表单存了。
+			// 回车或离开这一格时就查重，与摄像头扫码同一个时机提醒（录制问题 #6：以前要到保存才报）。
+			let checked = String(field.get_value() || "").trim();
+			const check = async () => {
+				const code = String(field.$input.val() || "").trim();
+				if (!code || code === checked) return;
+				checked = code;
+				await flag_taken(code, self_name, () => dialog.hide());
+			};
 			field.$input.off("keypress").on("keydown keypress", event => {
-				if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
+				if (event.key !== "Enter") return;
+				event.preventDefault(); event.stopPropagation();
+				if (event.type === "keydown") void check();
 			});
+			field.$input.on("blur", () => void check());
 		}
 
 		// 空串要变 null：那是"从未设过"，让它落成 0 就把"没设价"和"真的 ฿0"混成一个值。
@@ -411,6 +422,15 @@
 					const taken = await flag_taken(code, "", null);
 					p.scan_result_sound(!taken);
 				} });
+			});
+			// 手打或扫码枪打进表格那一格：回车或改完就查重（与摄像头扫码同一时机，录制问题 #6）。
+			const checked = new Set();
+			grid.wrapper.on("change keydown", "input[data-fieldname='code_value']", event => {
+				if (event.type === "keydown" && event.key !== "Enter") return;
+				const code = String(event.target.value || "").trim();
+				if (!code || checked.has(code)) return;
+				checked.add(code);
+				void flag_taken(code, "", null);
 			});
 
 			// Grid 的数字格读不出"空"（原生 Float/Currency 控件空值就是 0），所以这里按

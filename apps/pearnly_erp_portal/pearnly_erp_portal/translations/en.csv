@@ -259,6 +259,7 @@ Customer is required,Customer is required
 Customer not found,Customer not found
 Customer not found. Please select the customer again.,Customer not found. Please select the customer again.
 Customers,Customers
+Damaged / written off,Damaged / written off
 Date,Date
 Date (BE),Date (BE)
 Decided At,Decided At
@@ -434,6 +435,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,Inactive
 Initial Password,Initial Password
 Input Tax,Input Tax
+Internal use,Internal use
 Invalid Currency,Invalid Currency
 Invalid Discount,Invalid Discount
 Invalid Return,Invalid Return
@@ -712,6 +714,7 @@ Purchase Record,Purchase Record
 Purchase Records,Purchase Records
 Purchase document not found,Purchase document not found
 Purchasing,Purchasing
+Purpose,Purpose
 QR Payload,QR Payload
 QR payload,QR payload
 Qty,Qty
@@ -778,6 +781,7 @@ Reset,Reset
 Reset Password,Reset Password
 Retry,Retry
 Return,Return
+Return to stock,Return to stock
 Returned,Returned
 Reversal,Reversal
 Review differences,Review differences
@@ -1532,6 +1536,11 @@ stock.opening.submit,Confirm opening stock
 stock.opening.template,Download opening template
 stock.opening.title,Enter opening stock
 stock.opening.total,Total opening value
+stock.purpose.damage,Damaged / written off
+stock.purpose.internal_use,Internal use
+stock.purpose.label,Purpose
+stock.purpose.other,Other
+stock.purpose.return,Return to stock
 stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock

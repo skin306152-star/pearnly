@@ -16,7 +16,17 @@ BAD_TRANSITION = "This status change is not allowed"
 LOCKED = "A submitted entry cannot be changed"
 
 LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "supplier", "doc_no",
-               "status", "reason", "ref_type", "ref_id", "submitted_at")
+               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at")
+
+# 用途（录制问题 #14：以前只有自由填写的备注）：入库是退库，出库是内部领用 / 报损；都可选「其他」或不填。
+PURPOSES = {"in": ("return", "other"), "out": ("internal_use", "damage", "other")}
+
+
+def _purpose(direction, value):
+    value = str(value or "").strip()
+    if value and value not in PURPOSES.get(direction, ()):
+        frappe.throw(_("Invalid value"))
+    return value or None
 
 
 def _get(name):
@@ -51,7 +61,7 @@ def _business_lines(lines) -> list:
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
                  reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False,
-                 commit=True, numbering_direction=None):
+                 commit=True, numbering_direction=None, purpose=None):
     """建一张入库/出库单据；`submit=True` 时同一事务里过账。
 
     `commit=True`（默认）在建单/过账后提交事务。**盘点过账**要"整批一个事务"，
@@ -78,6 +88,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,
         "warehouse": warehouse, "supplier": supplier, "doc_no": doc_no, "reason": reason,
+        "purpose": _purpose(direction, purpose),
         "ref_type": ref_type, "ref_id": ref_id, "dedupe_key": dedupe_key, "status": "draft",
         "lines": [{
             "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
@@ -127,10 +138,35 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
         filters["status"] = status
     if date_from and date_to:
         filters["posting_date"] = ["between", [date_from, date_to]]
-    return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
+    rows = frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
                            order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS,
                                                      "posting_date desc, creation desc"),
                            limit_start=int(start), limit_page_length=int(limit))
+    # 列表的「仓库」一栏显示仓库名（录制问题 #16：只给了仓库编号，那一栏一直是空的）。
+    names = dict(frappe.get_all("ERP Warehouse", filters={"name": ["in", [r.warehouse for r in rows] or [""]]},
+                                fields=["name", "warehouse_name"], as_list=True))
+    for row in rows:
+        row["warehouse_name"] = names.get(row.warehouse) or row.warehouse
+    return _shown_reasons(rows)
+
+
+def adjustment_note(title) -> str:
+    """盘点调整单的备注：「盘点：盘点名称」（录制问题 #24：原来写内部编号 stocktake:STC-xxxxx）。
+    单据仍由 ref_type / ref_id 指回那份盘点。"""
+    return f"{_('nav.stockCount')}: {title}"
+
+
+_OLD_COUNT_NOTE = "stocktake:"
+
+
+def _shown_reasons(rows):
+    """以前的盘点调整单备注是内部编号：显示时照新口径换成「盘点：盘点名称」（库里不改）。"""
+    old = [r for r in rows if r.get("ref_type") == "count" and str(r.get("reason") or "").startswith(_OLD_COUNT_NOTE)]
+    titles = dict(frappe.get_all("ERP Stock Count", filters={"name": ["in", [r["ref_id"] for r in old] or [""]]},
+                                 fields=["name", "title"], as_list=True))
+    for row in old:
+        row["reason"] = adjustment_note(titles.get(row["ref_id"]) or row["ref_id"])
+    return rows
 
 
 def get_entry(name):
@@ -138,7 +174,7 @@ def get_entry(name):
     doc = _get(name)
     guard.require("stock." + doc.direction)
     company = warehouses.company_of(doc.warehouse)
-    data = {field: doc.get(field) for field in LIST_FIELDS}
+    data = _shown_reasons([{field: doc.get(field) for field in LIST_FIELDS}])[0]
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
          "unit_cost": row.unit_cost, "batch_no": row.batch_no,
@@ -157,6 +193,8 @@ def update_entry(name, **changes):
         frappe.throw(_(LOCKED))
     company = warehouses.company_of(doc.warehouse)
     # `doc_no` 不在可改字段里：号是发出去的，改它等于让历史流水对不上单据。
+    if "purpose" in changes:
+        doc.purpose = _purpose(doc.direction, changes["purpose"])
     for field in ("posting_date", "warehouse", "supplier", "reason",
                   "ref_type", "ref_id"):
         if field in changes:

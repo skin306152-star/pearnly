@@ -159,8 +159,12 @@ def payment_methods_of(company=None, user=None) -> list:
     回的是**服务端 key**（cash/card/promptpay/transfer，见 `cashier/contracts.py`），
     界面文案由各自的词条表翻。
     """
-    rows = frappe.get_all("ERP Company Payment Method",
-                          filters={"parent": document_company(company, user)},
+    return configured_payment_methods(document_company(company, user))
+
+
+def configured_payment_methods(company) -> list:
+    """同上，但不按当前账号核公司范围：给已经取到手的单据（班次 / 收银台）读它那家公司的配置。"""
+    rows = frappe.get_all("ERP Company Payment Method", filters={"parent": company or ""},
                           pluck="method", order_by="idx asc")
     return [m for m in rows if m] or list(POS_PAYMENT_METHODS)
 

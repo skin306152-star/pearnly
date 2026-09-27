@@ -12,6 +12,7 @@
   "doc_no",
   "status",
   "lines",
+  "purpose",
   "reason",
   "section_ref",
   "ref_type",
@@ -73,6 +74,12 @@
    "fieldtype": "Table",
    "label": "Lines",
    "options": "ERP Stock Entry Line"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Select",
+   "label": "Purpose",
+   "options": "\nreturn\ninternal_use\ndamage\nother"
   },
   {
    "fieldname": "reason",

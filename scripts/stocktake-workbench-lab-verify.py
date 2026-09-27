@@ -146,7 +146,7 @@ def main():
     # 盘点差异现在开**入库/出库单据**（带 IR/IS 号），所以"没留下东西"要按单据查：
     # 流水挂在单据下、单据指回这份盘点。失败整批回滚，两边都不该有残留。
     assert not frappe.db.count('ERP Stock Entry',{'ref_type':'count','ref_id':valuation})
-    assert not frappe.db.count('ERP Stock Movement',{'reason':'stocktake:'+valuation})
+    assert not frappe.db.count('ERP Stock Movement',{'reason':count.stock_documents.adjustment_note(frappe.db.get_value('ERP Stock Count',valuation,'title'))})
     assert stock.current_balance(valued,wh,'A').qty==2
     count.close_count(valuation)
     assert stock.current_balance(valued,wh,'A').value==44

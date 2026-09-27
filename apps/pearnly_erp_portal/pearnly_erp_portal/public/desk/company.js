@@ -199,7 +199,7 @@
 				// ── 收银台：可以多台，每台写明从哪个仓卖货 ──────────────────────
 				{fieldtype: "Section Break", label: __("Terminal")},
 				{fieldtype: "Table", fieldname: "terminals", cannot_add_rows: 0,
-					data: [{terminal_name: "Counter 1", warehouse: ""}],
+					data: [{terminal_name: t("company.terminalDefaultName"), warehouse: ""}],
 					fields: [
 						{fieldname: "terminal_name", fieldtype: "Data",
 							label: __("Terminal"), in_list_view: 1, reqd: 1},
@@ -235,6 +235,7 @@
 					pos_enabled: Number(form.get_value("pos_enabled")) ? 1 : 0,
 				}, "POST");
 				p.success(t("company.notice.created"), "click");
+				await p.refresh_company_context?.();
 				go_to();                       // 回公司列表；点进去就是刚建的这一家
 			});
 		}
@@ -329,13 +330,17 @@
 						{company_name: name || undefined,
 							rows: form.get_value("terminals") || []}, "POST");
 					p.success(t("company.notice.saved"), "click");
+					await p.refresh_company_context?.();   // 改了公司名：左上角跟着换
+					page.set_title(values.company_name || name);
+					p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
+						trail: [{label: values.company_name || name || "", route: ""}]});
 				});
 			} else {
 				page.clear_primary_action();
 			}
 			// 「设为当前公司」只在这一屏给（列表上不再放行内按钮）：写的是自己的用户默认值。
 			if (name && name !== frappe.boot.pearnly_company) {
-				page.add_inner_button(t("company.setCurrent"), () => set_current({name}));
+				page.add_inner_button(t("company.setCurrent"), () => p.switch_company(name));
 			}
 			// 右上角那颗刷新：重取一次值填回表单（不整页重画），免得把正在填的内容抹掉。
 			p.add_refresh(page, async () => {

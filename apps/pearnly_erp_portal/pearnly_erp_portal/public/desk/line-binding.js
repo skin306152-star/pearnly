@@ -104,8 +104,8 @@
 			if (!state.bound && state.channel === false) {
 				// 租户还没配 LINE 渠道：块里说一句就停，不发码（发码那一步会弹错误框）。
 				stop();
-				parent.empty().append($("<p class='text-muted'>")
-					.text(__("The LINE channel is not configured for this account")));
+				paint([{fieldtype: "HTML", fieldname: "note", options: $("<p class='text-muted'>")
+					.text(__("The LINE channel is not configured for this account"))[0].outerHTML}]);
 				return;
 			}
 			if (state.bound) {

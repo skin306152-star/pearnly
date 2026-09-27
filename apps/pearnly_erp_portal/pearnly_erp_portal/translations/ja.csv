@@ -236,7 +236,7 @@ Counted at,日時
 Counted by,担当者
 Counted in total,合計に含む
 Counted quantity,実地数量
-Counter 1,Counter 1
+Counter 1,レジ 1
 Create,作成
 Create New Item,新規品目作成
 Create POS Opening Entry,シフト開始を作成
@@ -259,6 +259,7 @@ Customer is required,顧客は必須です
 Customer not found,顧客が見つかりません
 Customer not found. Please select the customer again.,顧客が見つかりません。選択し直してください。
 Customers,顧客
+Damaged / written off,破損・廃棄
 Date,日付
 Date (BE),日付（仏暦）
 Decided At,判定日時
@@ -434,6 +435,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,無効
 Initial Password,初期パスワード
 Input Tax,仕入税額
+Internal use,社内使用
 Invalid Currency,通貨が無効です
 Invalid Discount,割引が無効です
 Invalid Return,無効な返品
@@ -712,6 +714,7 @@ Purchase Record,仕入記録
 Purchase Records,仕入記録
 Purchase document not found,購買伝票が見つかりません
 Purchasing,購買
+Purpose,用途
 QR Payload,QR内容
 QR payload,QR 内容
 Qty,数量
@@ -778,6 +781,7 @@ Reset,リセット
 Reset Password,パスワードを再設定
 Retry,再試行
 Return,返品・返金
+Return to stock,戻り入庫
 Returned,返品済み
 Reversal,取消仕訳
 Review differences,差異を確認
@@ -1254,7 +1258,7 @@ company.status.active,有効
 company.status.inactive,無効
 company.subtitle,書類に使う自社情報
 company.taxHint,13桁。支店は5桁の支店番号を続けます
-company.terminalDefaultName,Counter 1
+company.terminalDefaultName,レジ 1
 company.terminalEdit,編集
 company.terminalNew,レジを追加
 company.terminalNone,レジはまだありません
@@ -1532,6 +1536,11 @@ stock.opening.submit,期首在庫を確定
 stock.opening.template,期首在庫テンプレートをダウンロード
 stock.opening.title,期首在庫を登録
 stock.opening.total,期首金額合計
+stock.purpose.damage,破損・廃棄
+stock.purpose.internal_use,社内使用
+stock.purpose.label,用途
+stock.purpose.other,その他
+stock.purpose.return,戻り入庫
 stock.status.low,在庫少
 stock.status.lowWith,在庫少（≤{0}）
 stock.status.ok,在庫あり

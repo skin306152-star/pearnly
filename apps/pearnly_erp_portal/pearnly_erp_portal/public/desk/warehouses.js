@@ -100,14 +100,16 @@
 		const status_value = label => (label === t("company.status.inactive") ? 0 : 1);
 		function editor(row) {
 			const is_new = !row;
-			return p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
+			const companies = frappe.boot.pearnly_companies || [];
+			const dialog = p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
 				// **建仓必须先选公司**（用户 2026-09-24："没有绑定公司不可以建仓库"）：
 				// 新仓默认落在当前公司，可以改；改的那一侧只读（仓库属于公司，改归属等于换账）。
+				// 只有一家公司时直接带出、不摆出来（录制问题 #2：一开窗就展开的公司下拉盖住仓库名那一格）。
 				{fieldname: "company", label: __("Company"), fieldtype: "Select", reqd: 1,
-					read_only: !is_new,
+					read_only: !is_new, hidden: companies.length === 1 && is_new ? 1 : 0,
 					options: (frappe.boot.pearnly_companies || []).map(item => ({
 						value: item.name, label: item.company_name || item.name})),
-					default: row?.company || frappe.boot.pearnly_company || ""},
+					default: row?.company || frappe.boot.pearnly_company || (companies.length === 1 ? companies[0].name : "")},
 				f("warehouse_name", "company.field.warehouse", "Data",
 					{reqd: 1, default: row?.warehouse_name || inline?.initial || ""}),
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
@@ -128,6 +130,10 @@
 				await inline?.on_saved?.({...row, ...values, ...saved});
 				await list?.reload();
 			});
+			// 光标先放在仓库名（框架默认落在第一格，也就是公司那格，下拉一展开就盖住下面）。
+			const focus_name = () => dialog.fields_dict.warehouse_name?.$input?.trigger("focus");
+			dialog.$wrapper.one("shown.bs.modal", () => setTimeout(focus_name, 0));
+			return dialog;
 		}
 
 		if (inline) {
