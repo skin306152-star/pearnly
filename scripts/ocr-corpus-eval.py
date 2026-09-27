@@ -219,8 +219,9 @@ def run_cowork(content, filename):
     kind, _route = judge_direction(dict(data), today=today) if invoice is not None else (None, None)
     return {
         "engine": result.pipeline.engine, "models": sorted({call.model for call in result.calls}),
-        "calls": len(result.calls), "call_log": [{"stage": c.stage, "model": c.model, "text": (c.text or "")[:4000]}
-                                                for c in result.calls],
+        "calls": len(result.calls), "call_log": [{"stage": c.stage, "model": c.model, "ms": c.elapsed_ms, "text": (c.text or "")[:4000],
+                                                  "usage": (c.raw or {}).get("usageMetadata")} for c in result.calls],
+        "audit": getattr(page, "extraction_audit", None),
         "band": getattr(page, "confidence_band", None),
         "warnings": [str(w)[:200] for w in (getattr(page, "validation_warnings", None) or [])][:10],
         "error": getattr(page, "error", None), "result": data,

@@ -34,15 +34,18 @@ from pearnly_cowork.ocr.engine.contracts import (
 from pearnly_cowork.ocr.engine.errors import ContentError, EngineError
 from pearnly_cowork.ocr.engine.parsing import _parse_json
 from pearnly_cowork.ocr.engine.prompts import (
-    DIRECT_IMAGE_NOTE, L2_RETRY_HINT, L2_SYSTEM, L2_USER_PREFIX,
-    L3_RETRY_HINT, L3_SYSTEM, OCR_TRANSCRIPT_NOTE, RESCUE_SYSTEM, build_l3_user_prompt,
+    L2_RETRY_HINT, L2_SYSTEM, L2_USER_PREFIX,
+    IMAGE_SYSTEM, L3_RETRY_HINT, L3_SYSTEM, OCR_TRANSCRIPT_NOTE, RESCUE_SYSTEM, build_l3_user_prompt,
     build_recheck_prompt,
 )
 
 RESCUE_FIELDS = ("subtotal", "vat", "discount", "total_amount")
-# 复核与带原文再读用 LOW 思考档（ERP `recognition.policy.RECHECK_THINKING`）；带原文再读的输出上限同 ERP。
-RECHECK_THINKING = "LOW"
+# 带原文再读用 LOW 思考档（ERP `recognition.policy.RECHECK_THINKING`），输出上限同 ERP。复核不开思考：
+# 实测 LOW 一次平均多写约 1,800 个思考 token（约 ฿0.09），比直读本身还贵。
+OCR_READ_THINKING = "LOW"
 OCR_READ_TOKENS = 8192
+# 复核读数里空着、第一次读到了的字段沿用第一次（实测复核把金额改对的同时丢了买方）。
+KEEP_FROM_FIRST = frozenset({"additional_invoices", "source_refs", "is_not_invoice", "is_copy_or_duplicate"})
 IMAGE_READS = ("direct", "recheck", "ocr_read")
 
 
@@ -160,6 +163,13 @@ class _Run:
         )
         return self.parse_invoice(data, stage, page), calls
 
+    @staticmethod
+    def fill_missing(candidate, first):
+        update = {name: deepcopy(getattr(first, name)) for name in type(candidate).model_fields
+                  if name not in KEEP_FROM_FIRST and getattr(candidate, name) in (None, "", [])
+                  and getattr(first, name) not in (None, "", [])}
+        return candidate.model_copy(update=update) if update else candidate
+
     def gate(self, invoice):
         """直读闸：返回 (没过的原因, 已有提示)；原因为空就是过了。不是发票的页不拦。"""
         warnings = []
@@ -178,7 +188,7 @@ class _Run:
         first = len(self.calls)
         best = None
         try:
-            invoice, _ = self.read_image("direct", page, frame, L2_SYSTEM + DIRECT_IMAGE_NOTE)
+            invoice, _ = self.read_image("direct", page, frame, IMAGE_SYSTEM)
             issue, warnings = self.gate(invoice)
             if not issue:
                 return self.direct_result(page, invoice, warnings, self.calls[first:], ["ID"])
@@ -195,7 +205,8 @@ class _Run:
             chain.append("RC")
             try:
                 invoice, _ = self.read_image("recheck", page, frame, build_recheck_prompt(best, evidence["detail"]),
-                                             thinking=RECHECK_THINKING, retries=0)
+                                             retries=0)
+                invoice = self.fill_missing(invoice, best)
                 issue, warnings = self.gate(invoice)
                 if not issue:
                     result = self.direct_result(page, invoice, warnings, self.calls[first:], chain)
@@ -266,12 +277,13 @@ class _Run:
             try:
                 data, _ = self.model_json(
                     stage="ocr_read", page=page, model=self.config.layer2_model,
-                    prompt=L2_SYSTEM + DIRECT_IMAGE_NOTE + "\n\n" + fewshot + OCR_TRANSCRIPT_NOTE + text[:30000],
+                    prompt=IMAGE_SYSTEM + "\n\n" + fewshot + OCR_TRANSCRIPT_NOTE + text[:30000],
                     images=((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),),
                     tokens=OCR_READ_TOKENS, timeout=self.config.layer2_timeout_s, retries=0,
-                    thinking=RECHECK_THINKING,
+                    thinking=OCR_READ_THINKING,
                 )
-                l2 = self.parse_invoice(data, "ocr_read", page)
+                l2 = self.fill_missing(self.parse_invoice(data, "ocr_read", page), fallback) if fallback else \
+                    self.parse_invoice(data, "ocr_read", page)
             except ContentError as exc:
                 if fallback is None:
                     raise

@@ -36,11 +36,44 @@ RESCUE_SYSTEM = 'You are re-reading ONLY the totals/summary block of a Thai tax 
 
 # ── ADR-013 读票流程（2026-09-27，与 ERP `recognition.policy` 同一套先后与措辞）────────────────────────
 # 直读没过金额 / 合理性检查时，先用同一模型带提示复核一次；仍不过，再把 Vision 原文和原图一起给同一模型读。
+#
+# 看图读用下面这份精简提示词（用户 2026-09-27：「把 cowork 调到和 erp 同样的效果和速度及成本」）：L2_SYSTEM 约 1.2 万字符，
+# 每次读图都要付这份输入，还要求模型为每个金额 / 税号 / 日期写 source_refs（来源栏位），输出多出一倍；来源栏位只用于
+# 表格 / Excel 的「金额取自描述栏」检查，图片没有栏位。这里保留影响对错的规则、同一套输出字段，空字段可不写。
+# 表格与 PDF 文字层仍走 L2_SYSTEM，不受影响。
+
+IMAGE_SYSTEM = """You are an accountant reading the attached image of a Thai purchase document. Read every character from the image and output ONE JSON object (no markdown, no explanation). Omit any field that is empty or not printed.
+
+{"document_type": "tax_invoice"|"simplified_tax_invoice"|"receipt"|"credit_note"|"payment_evidence"|"order_evidence"|"other",
+ "is_not_invoice": false, "is_copy_or_duplicate": false,
+ "invoice_number": "", "date": "YYYY-MM-DD Gregorian", "date_raw": "date exactly as printed",
+ "seller_name": "", "seller_tax": "13 digits", "seller_branch": "", "seller_addr": "",
+ "buyer_name": "", "buyer_tax": "13 digits", "buyer_branch": "", "buyer_addr": "",
+ "subtotal": "pre-VAT base", "vat": "", "discount": "", "total_amount": "final net payable",
+ "wht_rate": "", "wht_amount": "", "cash_amount": "", "change_amount": "",
+ "payment_method": "cash|transfer|qr|card", "currency": "only if clearly not baht",
+ "items": [{"name": "", "qty": "", "price": "", "subtotal": ""}],
+ "notes": "", "category": "3-5 char summary in the items' language", "additional_invoices": []}
+
+Rules:
+1. Numbers: plain strings, no commas or currency symbols ("12450.00"). Tax IDs: exactly 13 digits, no dashes.
+2. Dates: a Buddhist year (>= 2400) minus 543 gives the Gregorian year (2569 -> 2026). Always copy date_raw as printed.
+3. Names and addresses exactly as printed; never correct or translate them. Seller = the issuer at the top; buyer = the customer (ลูกค้า / ผู้ซื้อ / Customer / Sold to) with its own tax ID.
+4. Items: every line item with a product/service name, in order; stitch a POS item wrapped over 2-3 lines into one. Skip subtotal / VAT / total / cash / change / discount / reprint-marker rows. Keep repeated lines. A line starting with "-" is an option of the item above: keep it only if it has its own price, without the "-".
+5. total_amount is the final net payable (Total / NET / ยอดสุทธิ / รวมสุทธิ / ยอดชำระ), after discounts; never the cash tendered (cash_amount) or change (change_amount). discount = total discount as printed.
+6. subtotal is the pre-VAT base: when VAT is included in the total, subtotal = total - VAT. Copy a printed VAT exactly; never recompute it (VAT-exempt items make it smaller than 7/107 of the total).
+7. Credit note (ใบลดหนี้): document_type "credit_note" and keep printed negative signs on amounts and items.
+8. Fuel receipts: liters in qty, price per liter in price; loyalty points are never money or quantity. Never invent a total you cannot read.
+9. WHT (หัก ณ ที่จ่าย), payment_method, currency: only when printed; never guess.
+10. document_type: "tax_invoice" = full ใบกำกับภาษี with a legal เลขที่ and the seller's 13-digit tax ID (fuel receipts included when they have both). "simplified_tax_invoice" = ใบกำกับภาษีอย่างย่อ / ABB / shop POS slip: keep the receipt running number as printed; on "R#0000970791P2 :0302013" the invoice number is the R# part, the ":0302013" is the store code. "payment_evidence" = bank transfer / PromptPay slip. "order_evidence" = online-shop order screenshot (order no. as invoice_number). Otherwise "receipt".
+11. is_not_invoice = true only for a letter, contract, blank page, purchase order, quotation, a bare delivery note (no ใบกำกับภาษี in the title) or a bare card-approval slip with no goods and no seller tax ID. "ใบส่งของ/ใบกำกับภาษี" is a tax invoice. is_copy_or_duplicate = true when marked สำเนา / COPY / DUPLICATE.
+12. Several invoices on one image (more than one invoice number / header / grand total): the first goes in the top-level fields, each other one as a complete object in additional_invoices. Never merge or drop one."""
+
 
 def build_recheck_prompt(previous, reason):
     """带提示复核：给出第一次的读数和没过的检查，请模型看原图改读错的、保留读对的。"""
-    keep = previous.model_dump(mode='json', exclude_none=True)
-    return (L2_SYSTEM + DIRECT_IMAGE_NOTE + '\n\nA first reading of this document returned:\n'
+    keep = previous.model_dump(mode='json', exclude_none=True, exclude_defaults=True, exclude={'source_refs'})
+    return (IMAGE_SYSTEM + '\n\nA first reading of this document returned:\n'
             + json.dumps(keep, ensure_ascii=False) + f'\nIt failed these checks: {reason}.\n'
             'Look at the document again carefully, especially the parts these checks concern (amounts at the foot, '
             'line amounts, discounts, tax IDs, dates), correct what was misread and return the complete JSON in the '

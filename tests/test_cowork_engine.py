@@ -98,9 +98,24 @@ class EngineTests(unittest.TestCase):
         model = Model([{**GOOD, "total_amount": "170"}, GOOD])
         run(model=model)
         recheck = model.requests[1]
-        self.assertEqual((recheck.thinking, recheck.images, recheck.attempt), ("LOW", model.requests[0].images, 0))
+        self.assertEqual((recheck.thinking, recheck.images, recheck.attempt), ("", model.requests[0].images, 0))
         self.assertIn('"total_amount": "170"', recheck.prompt)
         self.assertIn("It failed these checks:", recheck.prompt)
+
+    def test_recheck_keeps_fields_it_left_empty(self):
+        # 实测：复核把金额改对的同时丢了买方 —— 空着的字段沿用第一次读到的
+        first = {**GOOD, "total_amount": "170", "buyer_name": "ACME", "buyer_tax": "0105567178203"}
+        model = Model([first, GOOD])
+        page = run(model=model).pipeline.pages[0]
+        self.assertEqual((page.invoice.total_amount, page.invoice.buyer_name, page.invoice.buyer_tax),
+                         ("107", "ACME", "0105567178203"))
+
+    def test_image_reads_use_the_compact_prompt_without_source_refs(self):
+        model = Model([{**GOOD, "total_amount": "170"}, {**GOOD, "total_amount": "170"}, GOOD])
+        run(model=model)
+        for request in model.requests:
+            self.assertNotIn("source_refs", request.prompt.split("A first reading")[0])
+            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4000)
 
     def test_a_failed_recheck_reads_image_and_transcript_together(self):
         wrong = {**GOOD, "total_amount": "170"}
