@@ -150,6 +150,9 @@ def _grade(history: Dict[str, Any], payload: Dict[str, Any], has_category: bool,
             confidence_band=str(history.get("confidence") or ""),
             has_category=has_category,
             require_category=False,
+            # 识别质量不拦推送（用户 2026-09-27）：票先识别、再由用户复核改好才推，按复核后的票推。
+            # 金额 / 卖方 / 票号缺失与疑似重复仍拦 —— 那是推不了或会重复记账，不是识别好不好。
+            require_confidence=False,
         )
     except Exception:
         pass  # Diagnostic logging belongs to the calling service.

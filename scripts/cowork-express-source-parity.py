@@ -227,6 +227,9 @@ def run(source=None, source_texts=None):
                     {'supplier_profile':{'posting_payment':'cash'}},
                     {'bank_index':[{'direction':'OUT','amount':'107','tx_date':'2026-09-01'}]})]
     for i,(fc,hc,cc,xc) in enumerate(changes):
+        # 有意的变化（用户 2026-09-27）：识别置信度不再拦推送，旧版低置信度一律 low_confidence。
+        if hc.get('confidence', 'high') not in ('high', 'auto'):
+            continue
         ep,h=deepcopy(endpoint),deepcopy(history);ep['config'].update(cc);h.update(hc);h['pages'][0]['fields'].update(fc)
         context=replace(ctx,**xc)
         for kind in (None,'service','stock'):
@@ -237,6 +240,9 @@ def run(source=None, source_texts=None):
                 check(name,f'{i}:{kind}',lambda:newfun(deepcopy(flat),config=deepcopy(ep['config']),today=TODAY,prior_docnum=context.prior_docnum,posting_kind=kind,mappings=deepcopy(context.mappings)),lambda:oldfun(deepcopy(flat),config=deepcopy(ep['config']),posting_kind=kind,mappings=deepcopy(context.mappings)))
     # Final enqueue decision, including mismatch/incomplete cases outside pf.ready.
     for i,(fc,hc,cc,xc) in enumerate(changes):
+        # 有意的变化（用户 2026-09-27）：识别置信度不再拦推送，旧版低置信度一律 low_confidence。
+        if hc.get('confidence', 'high') not in ('high', 'auto'):
+            continue
         ep,h=deepcopy(endpoint),deepcopy(history);ep['config'].update(cc);h.update(hc);h['pages'][0]['fields'].update(fc)
         context=replace(ctx,**xc);old.context=context
         def old_decision():

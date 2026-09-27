@@ -106,12 +106,17 @@ class PreflightTests(unittest.TestCase):
         self.endpoint['config']['reported_accounts'] = [{'code': 'V'}, {'code': 'P'}]
         self.assertEqual(self.pf().reason, 'account_not_in_chart:A')
 
-    def test_confidence_gate_blocks_low(self):
+    def test_recognition_confidence_never_blocks_a_reviewed_push(self):
+        # 用户 2026-09-27：识别质量不拦推送（复核后按票推）；缺票号这类数据缺失照旧拦。
+        for band in ('low', 'medium', 'needs_review', ''):
+            self.history['confidence'] = band
+            self.assertTrue(self.pf().ready, band)
         self.history['confidence'] = 'low'
+        self.fields['invoice_number'] = ''
+        self.history['invoice_no'] = ''
         result = self.pf()
         self.assertTrue(result.blocked)
-        self.assertTrue(result.reason.startswith('low_confidence:'))
-        self.assertEqual(result.checks[-1].status, 'blocked')
+        self.assertIn('invoice_no_missing', result.reason)
 
     def test_item_review_is_after_preflight(self):
         for items, reason in [([{'name': 'A', 'subtotal': '10'}], 'items_mismatch'),

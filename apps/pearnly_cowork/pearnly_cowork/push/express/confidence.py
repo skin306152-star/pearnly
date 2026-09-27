@@ -54,6 +54,7 @@ def grade(
     has_category: bool = False,
     is_duplicate: bool = False,
     require_category: bool = True,
+    require_confidence: bool = True,
 ) -> Verdict:
     """判一笔录入该走 post / confirm / inbox。
 
@@ -76,7 +77,7 @@ def grade(
         return Verdict("confirm", True, ("duplicate_suspected",))
 
     high = str(confidence_band or "").lower() in _HIGH_BANDS
-    if not high:
+    if require_confidence and not high:
         reasons.append("low_confidence_band")
     # 卖家:仅正式票据(图路)要求;casual 文字记账无卖家属正常,不拦。
     if document_type in _FORMAL_DOCS and not (vendor_name or "").strip():
