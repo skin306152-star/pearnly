@@ -137,8 +137,12 @@ class RichMenuPublish(unittest.TestCase):
         return first, len([call for call in calls if call[0] == "image"]) - first, calls
 
     def test_re_publishing_the_same_menus_does_not_upload_the_image_again(self):
+        from pearnly_dms.menu import rich_menu
+
         first, second, calls = self.publish_twice()
-        self.assertEqual(first, 2, "the first publish uploads one image per menu")
+        # 每种语言 × 基础/带查询 各一套菜单（用户 2026-09-27：菜单跟着手机语言）。
+        self.assertEqual(first, len(rich_menu.LANGUAGES) * len(rich_menu.VARIANTS),
+                         "the first publish uploads one image per menu")
         self.assertEqual(second, 0, "the second publish must not re-upload an existing image")
         self.assertTrue([call for call in calls if call[0] == "POST" and call[1] == "user/all/richmenu/richmenu-created-1"],
                         "the OA default menu is still set on every publish")

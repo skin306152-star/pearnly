@@ -285,6 +285,15 @@ def main():
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     error_aliases["qa." + target.id] = "dms.err." + node.value.args[0].value
+        # 按收件人语言现取的那张表（`_COMPOSED = {"TXT_X": lambda: _err_text("ERR_Y"), ...}`）同理。
+        if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict)
+                and any(isinstance(t, ast.Name) and t.id == "_COMPOSED" for t in node.targets)):
+            for key, value in zip(node.value.keys, node.value.values):
+                body = value.body if isinstance(value, ast.Lambda) else None
+                if (isinstance(key, ast.Constant) and isinstance(body, ast.Call)
+                        and isinstance(body.func, ast.Name) and body.func.id == "_err_text"
+                        and len(body.args) == 1 and isinstance(body.args[0], ast.Constant)):
+                    error_aliases["qa." + key.value] = "dms.err." + body.args[0].value
     error_keys = {error_aliases[k] for k in used if k in error_aliases}
     def missing_error_keys(packs):
         return [(key, lang) for key in error_keys for lang in i18n.LANGUAGES
