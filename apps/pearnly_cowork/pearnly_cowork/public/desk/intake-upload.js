@@ -247,6 +247,12 @@
 			// 过账类型：这一张票自己的（默认＝入口预选 / 记录值），整票服务或整票存货。
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"),
 				options: KIND_OPTIONS, hidden: no_kind},
+			// 推送账套（用户 2026-09-27）：LINE 收单识别后自动挑的、或新建时选的，这里可改；选中即存到这张票。
+			// 两级与「新建录入」弹窗同一份目录分组：Express 年度（文件夹）→ 账套，MR.ERP 公司 → 年度。
+			{fieldtype: "Select", fieldname: "push_group", label: __("intake.target.year"), options: [], hidden: 1,
+				onchange: () => pick_group()},
+			{fieldtype: "Select", fieldname: "push_account", label: __("intake.target.accountSet"), options: [],
+				max_items: 1000, hidden: 1, onchange: () => void pick_account()},
 			// 对方（ERP 这一段没有标题，名字只在字段标签上说一次）：左边名称 / 税号 / 地址，右边分店。
 			{fieldtype: "Section Break"},
 			{fieldtype: "Data", fieldname: "party_name", label: t("intake.field.seller")},
@@ -334,7 +340,7 @@
 		}
 		// 弹窗选的这一批口径先落在原生字段上（不另画一行提示），识别回填时再按记录对齐。
 		if (choice) {
-			// 目标 ERP（系统 · 公司 · 年度）不在页面上显示（用户 2026-09-26），推送时仍按弹窗里的选择走。
+			// 目标系统不在页面上显示（用户 2026-09-26）；推送账套在「过账类型」下面的「年度 / 账套」可改（用户 2026-09-27）。
 			shown_direction = choice.direction || "";
 			form.set_values({direction: choice.direction,
 				posting_payment_manual: choice.payment, posting_kind: choice.posting_kind || ""});
@@ -462,6 +468,64 @@
 			if (maybe_missed(record)) lines.push(t("intake.review.missed"));
 			for (const line of lines) $("<div class='form-message yellow'>").text(line).appendTo(wrapper);
 		};
+		/* ── 推送账套：这张票推到目标 ERP 的哪一份账套 ─────────────────────────── */
+		const PUSH_TARGETS = ["express", "mrerp"];
+		let accounts = null;   // {connection, adapter, groups}：这张票所属连接的目录（服务端存着的那份）
+		let painting = false;  // 程序赋值时不当成用户换账套
+		const same_key = (a, b) => String(a || "").replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase()
+			=== String(b || "").replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+		const pushes = record => Boolean(record?.push_connection && PUSH_TARGETS.includes(record?.intake_target));
+		const locked = record => ["success", "pending"].includes(record?.last_push_status);
+		const load_accounts = async record => {
+			if (!pushes(record) || accounts?.connection === record.push_connection) return;
+			const rows = (await p.call(CONNECTIONS + "records", {limit: 100}).catch(() => [])) || [];
+			const connection = rows.find(row => row.name === record.push_connection);
+			if (!connection) return;
+			accounts = {connection: connection.name, adapter: connection.adapter, groups: []};
+			await p.intake_targets.catalog(connection, {alive: () => live && accounts?.connection === connection.name,
+				on_update: view => {
+					accounts = {connection: connection.name, adapter: connection.adapter, groups: view.groups || []};
+					paint_account();
+				}}).catch(() => null);
+		};
+		const group_of = key => (accounts?.groups || []).find(group => group.items.some(item => same_key(item.value, key)));
+		const paint_account = () => {
+			const show = pushes(current) && accounts?.connection === current.push_connection;
+			for (const name of ["push_group", "push_account"]) form.set_df_property(name, "hidden", show ? 0 : 1);
+			if (!show) return;
+			const express = accounts.adapter === "express";
+			form.set_df_property("push_group", "label", express ? __("intake.target.year") : __("Company"));
+			form.set_df_property("push_account", "label", express ? __("intake.target.accountSet") : __("intake.target.year"));
+			const group = group_of(current.push_account_set);
+			const item = group?.items.find(row => same_key(row.value, current.push_account_set));
+			painting = true;
+			form.set_df_property("push_group", "options", accounts.groups.map(({value, label}) => ({value, label})));
+			form.set_df_property("push_account", "options", group?.items || []);
+			form.set_value("push_group", group?.value || "");
+			form.set_value("push_account", item?.value || "");
+			painting = false;
+			for (const name of ["push_group", "push_account"]) form.set_df_property(name, "read_only", locked(current) ? 1 : 0);
+		};
+		const pick_group = () => {
+			if (painting || !accounts) return;
+			const group = accounts.groups.find(row => row.value === form.get_value("push_group"));
+			painting = true;
+			form.set_df_property("push_account", "options", group?.items || []);
+			if (!group?.items.some(item => item.value === form.get_value("push_account"))) form.set_value("push_account", "");
+			painting = false;
+		};
+		const pick_account = async () => {
+			const value = form.get_value("push_account");
+			if (painting || !value || !current || same_key(value, current.push_account_set)) return;
+			if (dirty()) await save_review({quiet: true});
+			const saved = await p.call(PUSH + "set_account",
+				{name: current.name, account_set_key: value, expected_version: current.record_version}, "POST");
+			details.set(saved.name, saved);
+			if (current.name !== saved.name) return;
+			current = saved;
+			p.success(__("Saved"));
+		};
+
 		/** 把一张票摆到左边（识别回填、换票、保存后重读都走这里）。 */
 		const fill = record => {
 			const pages = Array.isArray(record.pages) ? record.pages : [];
@@ -473,6 +537,8 @@
 			show_fields(working, direction);
 			show_notice(record);
 			set_reviewable(index >= 0);
+			paint_account();
+			void load_accounts(record);
 		};
 		const detail = async record_name => {
 			const record = await p.call(HISTORY + "detail", {name: record_name});
@@ -632,6 +698,11 @@
 					const pages = Array.isArray(record.pages) ? record.pages : [];
 					const fields = pages[primary_index(pages)]?.fields || {};
 					const target = resolve_target(record, rows);
+					// 推到 ERP 的票还没定账套（LINE 收单自动挑不出）：先在编辑页选年度和账套，不按默认账套猜。
+					if (PUSH_TARGETS.includes(record.intake_target) && !target.args.account_set_key) {
+						broken.push([record, __("Choose the year and account set first.")]);
+						continue;
+					}
 					const intent = {history: record.name, connection: target.connection?.name || "",
 						expected_history_version: record.record_version,
 						expected_connection_revision: target.connection?.revision ?? 0, ...target.args,

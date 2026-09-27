@@ -155,12 +155,12 @@ Choose an image attached to this card,このカードに添付した画像を選
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
 Choose file,ファイルを選択
-Choose the account set,会計データを選択
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
 Choose the payment method,支払方法を選択
 Choose the sheet to import,取り込むシートを選択してください
 Choose the year,年度を選択
+Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
 Client,顧客
 Close count,棚卸を終了
@@ -910,6 +910,7 @@ This original already has a recognition task with different parameters.,この�
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
 This push attempt is no longer current.,この送信試行は無効になっています。
 This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
+This record has already been pushed; its account set cannot be changed.,この伝票は送信済みのため、会計データを変更できません。
 This refresh request has expired. Request a new refresh.,この更新要求は期限切れです。再度要求してください。
 This request conflicts with an existing reservation.,この要求は既存の送信予約と矛盾しています。
 This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
@@ -921,6 +922,7 @@ This stock count task is closed.,この棚卸タスクはクローズ済みで�
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 Time left {0},残り {0}
 Title,タイトル
+To be chosen,未選択
 To do,未着手
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代

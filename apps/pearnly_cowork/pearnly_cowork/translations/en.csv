@@ -155,12 +155,12 @@ Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
 Choose file,Choose file
-Choose the account set,Choose the account set
 Choose the company,Choose the company
 Choose the destination for these documents,Choose the destination for these documents
 Choose the payment method,Choose the payment method
 Choose the sheet to import,Choose the sheet to import
 Choose the year,Choose the year
+Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
 Client,Client
 Close count,Close count
@@ -910,6 +910,7 @@ This original already has a recognition task with different parameters.,This ori
 This page is too large to preview safely.,This page is too large to preview safely.
 This push attempt is no longer current.,This push attempt is no longer current.
 This recognition service currently accepts PDF and image originals.,This recognition service currently accepts PDF and image originals.
+This record has already been pushed; its account set cannot be changed.,This record has already been pushed; its account set cannot be changed.
 This refresh request has expired. Request a new refresh.,This refresh request has expired. Request a new refresh.
 This request conflicts with an existing reservation.,This request conflicts with an existing reservation.
 This request key has already been used for different content.,This request key has already been used for different content.
@@ -921,6 +922,7 @@ This stock count task is closed.,This stock count task is closed.
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 Time left {0},Time left {0}
 Title,Title
+To be chosen,To be chosen
 To do,To do
 Token Digest,Token Digest
 Token Generation,Token Generation

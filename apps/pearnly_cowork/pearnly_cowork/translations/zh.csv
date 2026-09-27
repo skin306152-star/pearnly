@@ -155,12 +155,12 @@ Choose an image attached to this card,请选这张卡片上的图片附件
 Choose at least one job role,至少勾一个功能权限
 Choose both files first,请先选好两份文件
 Choose file,选择文件
-Choose the account set,选择账套
 Choose the company,选择公司
 Choose the destination for these documents,选择这批单据推送到哪里
 Choose the payment method,选择付款方式
 Choose the sheet to import,请先选择要导入的表格
 Choose the year,选择年度
+Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择要做的事
 Client,客户
 Close count,结束盘点
@@ -910,6 +910,7 @@ This original already has a recognition task with different parameters.,此原�
 This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
 This push attempt is no longer current.,此推送尝试已失效。
 This recognition service currently accepts PDF and image originals.,此识别服务目前仅支持 PDF 和图片原件。
+This record has already been pushed; its account set cannot be changed.,这张票已推送，不能再换账套。
 This refresh request has expired. Request a new refresh.,此刷新请求已过期，请重新申请刷新。
 This request conflicts with an existing reservation.,此请求与已有推送预留冲突。
 This request key has already been used for different content.,此请求标识已用于其他内容。
@@ -921,6 +922,7 @@ This stock count task is closed.,此盘点任务已关闭。
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
 Time left {0},剩余 {0}
 Title,标题
+To be chosen,待选择
 To do,待办
 Token Digest,令牌摘要
 Token Generation,令牌版本

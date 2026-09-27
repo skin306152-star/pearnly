@@ -155,12 +155,12 @@ Choose an image attached to this card,กรุณาเลือกรูปภ
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
 Choose file,เลือกไฟล์
-Choose the account set,เลือกชุดบัญชี
 Choose the company,เลือกบริษัท
 Choose the destination for these documents,เลือกปลายทางสำหรับเอกสารชุดนี้
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the year,เลือกปี
+Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
 Client,ลูกค้า
 Close count,ปิดการตรวจนับ
@@ -910,6 +910,7 @@ This original already has a recognition task with different parameters.,ไฟ�
 This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
 This push attempt is no longer current.,ความพยายามส่งนี้ไม่ใช่รายการปัจจุบันแล้ว
 This recognition service currently accepts PDF and image originals.,บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้
+This record has already been pushed; its account set cannot be changed.,เอกสารนี้ส่งแล้ว เปลี่ยนชุดบัญชีไม่ได้
 This refresh request has expired. Request a new refresh.,คำขอรีเฟรชนี้หมดอายุแล้ว โปรดส่งคำขอใหม่
 This request conflicts with an existing reservation.,คำขอนี้ขัดแย้งกับรายการที่จองไว้
 This request key has already been used for different content.,รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว
@@ -921,6 +922,7 @@ This stock count task is closed.,งานตรวจนับสต็อก�
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 Time left {0},เหลือเวลา {0}
 Title,ชื่อเรื่อง
+To be chosen,รอเลือก
 To do,รอดำเนินการ
 Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน

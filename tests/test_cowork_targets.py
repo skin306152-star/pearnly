@@ -5,7 +5,7 @@ import json
 import unittest
 
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, TargetSelectionError, freeze_target
-from pearnly_cowork.targets import catalog_groups, choice, choices, evidence, identity, projection, selection
+from pearnly_cowork.targets import account_match, catalog_groups, choice, choices, evidence, identity, projection, selection
 
 REQUEST_ID = "11111111-1111-4111-8111-111111111111"
 NEW_REQUEST_ID = "22222222-2222-4222-8222-222222222222"
@@ -425,6 +425,76 @@ class CatalogGroupTests(unittest.TestCase):
             {"value": "A", "label": "A · Alpha", "items": [{"value": "16:1", "label": "2568", "description": ""},
                                                           {"value": "15:1", "label": "2567", "description": ""}]}])
         self.assertEqual(catalog_groups.groups("other", rows), [])
+
+
+
+OWN_TAX = "0105551234567"
+
+
+def book(path, name, root_label, *, tax=OWN_TAX, start=None, end=None, next_end=None, branch=None, writable=True):
+    attributes = {"path": path, "root": "\\\\srv\\ACCOUNT\\" + root_label, "root_label": root_label,
+                  "tax_id": tax, "writable": writable}
+    if start:
+        attributes.update(period_start=start, period_end=end, next_end=next_end)
+    if branch is not None:
+        attributes["branch"] = branch
+    return {"source_id": path.lower(), "label": name, "active": True, "attributes": attributes}
+
+
+class AccountMatchTests(unittest.TestCase):
+    """用户 2026-09-27：LINE 里不选账套，识别后按本方税号 + 单据日期（会计期间）自动挑，挑不出就留给编辑页。"""
+
+    def pick(self, rows, fields, direction="purchase", recent=()):
+        return account_match.suggest("express", rows, direction=direction, fields=fields, recent=recent)
+
+    def test_own_tax_id_and_fiscal_period_pick_the_book(self):
+        rows = [book(r"S:\2568\EXP68\68ACME", "68ACME", "68EXP", start="2024-11-01", end="2025-10-31", next_end="2026-10-31"),
+                # 69 年的账登记在 68EXP 里：看会计期间，不看文件夹名。
+                book(r"S:\2569\EXP69\69ACME", "69ACME", "68EXP", start="2025-11-01", end="2026-10-31", next_end="2027-10-31"),
+                book(r"S:\2569\EXP69\69OTHER", "69OTHER", "69EXP", tax="0105559999999",
+                     start="2025-11-01", end="2026-10-31", next_end="2027-10-31")]
+        result = self.pick(rows, {"buyer_tax": "0-1055-51234-56-7", "date": "2026-03-15"})
+        self.assertEqual((result["account_set_key"], result["reason"]), (r"s:\2569\exp69\69acme", "tax_date"))
+        # 销项看卖方税号。
+        result = self.pick(rows, {"seller_tax": OWN_TAX, "buyer_tax": "0105559999999", "date": "2025-01-10"}, "sales")
+        self.assertEqual(result["account_set_key"], r"s:\2568\exp68\68acme")
+
+    def test_next_year_slot_is_used_only_when_no_book_covers_the_date(self):
+        rows = [book(r"S:\2568\EXP68\68ACME", "68ACME", "68EXP", start="2024-11-01", end="2025-10-31", next_end="2026-10-31")]
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX, "date": "2026-02-01"})["account_set_key"], r"s:\2568\exp68\68acme")
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX, "date": "2027-02-01"})["reason"], "no_match")
+
+    def test_books_without_periods_fall_back_to_the_year_folder(self):
+        rows = [book(r"S:\2568\EXP68\68ACME", "68ACME", "68EXP"), book(r"S:\2569\EXP69\69ACME", "69ACME", "69EXP")]
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX, "date": "2026-05-01"})["account_set_key"], r"s:\2569\exp69\69acme")
+
+    def test_several_books_for_one_company_use_recent_then_leave_it_to_the_user(self):
+        rows = [book(r"S:\2568\EXP68\68AUD", "68ACME AUDITED", "68EXP", start="2025-01-01", end="2025-12-31", next_end="2026-12-31"),
+                book(r"S:\2568\EXP68\68DATA", "68ACME DATA", "68EXP", start="2025-01-01", end="2025-12-31", next_end="2026-12-31")]
+        fields = {"buyer_tax": OWN_TAX, "date": "2025-06-01"}
+        self.assertEqual(self.pick(rows, fields)["reason"], "ambiguous")
+        self.assertEqual(self.pick(rows, fields, recent=[r"s:\other", r"s:\2568\exp68\68data"])["account_set_key"],
+                         r"s:\2568\exp68\68data")
+
+    def test_branch_narrows_only_when_books_report_it(self):
+        rows = [book(r"S:\HQ", "ACME HQ", "68EXP", branch="00000"), book(r"S:\B1", "ACME สาขา 1", "68EXP", branch="00001")]
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX, "buyer_branch": "สาขาที่ 00001", "date": "2025-06-01"})
+                         ["account_set_key"], r"s:\b1")
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX, "buyer_branch": "สำนักงานใหญ่", "date": "2025-06-01"})
+                         ["account_set_key"], r"s:\hq")
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX, "date": "2025-06-01"})["reason"], "ambiguous")
+
+    def test_no_guessing_without_tax_or_match_and_unwritable_books_skipped(self):
+        rows = [book(r"S:\A", "A", "68EXP", writable=False)]
+        self.assertEqual(self.pick(rows, {"date": "2025-06-01"})["reason"], "no_tax")
+        self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX})["reason"], "no_tax_match")
+
+    def test_mrerp_single_or_year_labelled_book(self):
+        rows = [{"source_id": "15:1", "label": "2567", "attributes": {}}, {"source_id": "16:1", "label": "2568", "attributes": {}}]
+        self.assertEqual(account_match.suggest("mrerp", rows[:1], direction="purchase", fields={})["account_set_key"], "15:1")
+        self.assertEqual(account_match.suggest("mrerp", rows, direction="purchase", fields={"date": "2025-03-01"})
+                         ["account_set_key"], "16:1")
+        self.assertEqual(account_match.suggest("mrerp", rows, direction="purchase", fields={})["reason"], "ambiguous")
 
 
 if __name__ == "__main__":

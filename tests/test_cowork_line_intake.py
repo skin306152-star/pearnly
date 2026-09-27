@@ -9,27 +9,6 @@ sys.path.insert(0, str(root / "apps" / "pearnly_cowork"))
 sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 
 from pearnly_cowork.line import flow, handlers, intake  # noqa: E402
-from pearnly_cowork.targets import catalog_groups  # noqa: E402
-
-
-def directory(adapter, account_sets):
-    """服务端 `connections.service.targets` 的形状：目录 + 两级分组。"""
-    return {"account_sets": account_sets, "groups": catalog_groups.groups(adapter, account_sets)}
-
-
-CATALOG = directory("mrerp", [
-    {"source_id": "15:1", "label": "2567", "attributes": {"company": "A", "company_name": "Alpha"}},
-    {"source_id": "16:1", "label": "2568", "attributes": {"company": "A", "company_name": "Alpha"}},
-])
-# Express：两个年度文件夹，69EXP 登录列表里两份同一公司的账套（审计版 / 数据版）。
-EXPRESS_CATALOG = directory("express", [
-    {"source_id": r"s:\2568\exp68\68acme", "label": "68ACME AUDITED",
-     "attributes": {"root": r"\\srv\ACCOUNT\68EXP", "root_label": "68EXP", "row": 1, "company": "Acme", "writable": True}},
-    {"source_id": r"s:\2569\exp69\69acmed", "label": "69ACME DATA",
-     "attributes": {"root": r"\\srv\ACCOUNT\69EXP", "root_label": "69EXP", "row": 2, "company": "Acme", "writable": True}},
-    {"source_id": r"s:\2569\exp69\69acme", "label": "69ACME AUDITED",
-     "attributes": {"root": r"\\srv\ACCOUNT\69EXP", "root_label": "69EXP", "row": 1, "company": "Acme", "writable": True}},
-])
 MRERP = {"name": "CON-M", "adapter": "mrerp", "enabled": 1}
 EXPRESS = {"name": "CON-X", "adapter": "express", "enabled": 1}
 
@@ -49,7 +28,6 @@ class LineFlowTest(unittest.TestCase):
             mock.patch.object(flow.line_session, "clear_session", side_effect=lambda user: store.pop(user, None)),
             mock.patch.object(flow.line, "reply", side_effect=lambda token, messages: self.replies.append(messages[0])),
             mock.patch.object(flow, "_connections", return_value={"mrerp": MRERP}),
-            mock.patch("pearnly_cowork.connections.service.targets", return_value=CATALOG),
         ]
         for patch in patches:
             patch.start()
@@ -71,41 +49,36 @@ class LineFlowTest(unittest.TestCase):
         self.assertEqual(self.labels(), ["MR.ERP", "intake.target.recognizeOnly"[:20], "Cancel"])
         self.assertIn("• Express: connect.state.notConnected", self.last()["text"])
 
-    def test_mrerp_sales_walks_company_year_direction_payment(self):
+    def test_mrerp_sales_walks_direction_then_payment_without_account_set(self):
+        """用户 2026-09-27：聊天里不选账套（快捷回复放不下），识别后按票自动挑、编辑页可改。"""
         flow.start("U1", "tok")
         self.tap("MR.ERP")
-        # 只有一家公司：直接选上，接着问年度（最近的在上）。
-        self.assertEqual(self.labels(), ["0. 2568", "1. 2567", "Cancel"])
-        self.tap("0. 2568")
+        self.assertTrue(self.last()["text"].startswith("Purchase or sales?"))
         self.tap("intake.dir.sales")
         self.assertEqual(self.labels(), ["Cash", "Credit", "Cancel"])
         self.tap("Credit")
         payload = flow.choices("U1")
         self.assertTrue(flow.ready(payload))
-        self.assertEqual((payload["connection"], payload["account_set_key"], payload["direction"], payload["payment"]),
-                         ("CON-M", "16:1", "sales", "credit"))
+        self.assertEqual((payload["connection"], payload["direction"], payload["payment"]), ("CON-M", "sales", "credit"))
+        self.assertNotIn("account_set_key", payload)
         self.assertIn("Please upload a PDF or image", self.last()["text"])
-        self.assertIn("A · Alpha · 2568", self.last()["text"])
+        self.assertIn("MR.ERP · intake.dir.sales · Credit", self.last()["text"])
 
-    def test_express_walks_year_folder_then_login_list_account_set(self):
-        """Express 照真实用法：先选年度（数据文件夹，新的在上），再选账套（登录列表原样顺序）。"""
+    def test_express_asks_direction_and_posting_kind_only(self):
         with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
-                mock.patch.object(flow, "_state", return_value=(True, "")), \
-                mock.patch("pearnly_cowork.connections.service.targets", return_value=EXPRESS_CATALOG):
+                mock.patch.object(flow, "_state", return_value=(True, "")):
             flow.start("U1", "tok")
             self.tap("Express")
-            self.assertTrue(self.last()["text"].startswith("Choose the year"))
-            self.assertEqual(self.labels(), ["0. 69EXP", "1. 68EXP", "Cancel"])
-            self.tap("0. 69EXP")
-            self.assertTrue(self.last()["text"].startswith("Choose the account set"))
-            self.assertEqual(self.labels(), ["0. 69ACME AUDITED", "1. 69ACME DATA", "Cancel"])
-            self.tap("1. 69ACME DATA")
-            self.assertEqual(flow.choices("U1")["account_set_key"], r"s:\2569\exp69\69acmed")
+            self.tap("intake.dir.purchase")
+            self.assertEqual(self.labels(), ["Service", "Stock", "Cancel"])
+            self.tap("Stock")
+            payload = flow.choices("U1")
+        self.assertTrue(flow.ready(payload))
+        self.assertEqual((payload["target"], payload["connection"], payload["posting_kind"]), ("express", "CON-X", "stock"))
 
     def test_mrerp_purchase_is_credit_only(self):
         flow.start("U1", "tok")
         self.tap("MR.ERP")
-        self.tap("1. 2567")
         self.tap("intake.dir.purchase")
         self.assertEqual(flow.choices("U1")["payment"], "credit")
         self.assertTrue(flow.ready(flow.choices("U1")))
@@ -242,6 +215,28 @@ class LineCardTest(unittest.TestCase):
         texts = self.texts(self.card("sales"))
         self.assertIn("B Co", texts)
         self.assertNotIn("S Co", texts)
+
+    def test_erp_card_shows_the_chosen_account_set_or_asks_to_choose(self):
+        """用户 2026-09-27：识别后自动挑到的账套写在卡上；没挑出来写「待选择」，点「编辑」去选。"""
+        from pearnly_cowork.line import cards
+
+        def record(account):
+            value = mock.MagicMock(pages="[]", total_amount="1.00", push_connection="CON-X", push_account_set=account)
+            value.name = "CWH-2"
+            value.get.side_effect = lambda key, default=None: {"intake_target": "express", "push_connection": "CON-X",
+                                                               "push_account_set": account}.get(key, default)
+            return value
+
+        with mock.patch.object(cards, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(cards.frappe.utils, "get_url", return_value="https://t.example"), \
+                mock.patch("pearnly_cowork.connections.directory.account_label",
+                           return_value="69EXP · 6902 ASIA-SPORT") as label:
+            chosen = self.texts(cards.preview(record(r"s:\\2569\\exp69\\6902asc"), {"target": "Express"}))
+            open_ = self.texts(cards.preview(record(""), {"target": "Express"}))
+        self.assertIn("intake.target.accountSet", chosen)
+        self.assertIn("69EXP · 6902 ASIA-SPORT", chosen)
+        self.assertIn("To be chosen", open_)
+        label.assert_called_once_with("CON-X", r"s:\\2569\\exp69\\6902asc")
 
 
 class LineAnnounceTest(unittest.TestCase):

@@ -1,12 +1,13 @@
 """LINE 里「发单据进 ERP」上传前的几步选择（用户 2026-09-26：照 ERP 的新做法）。
 
 点菜单「ส่งเอกสารเข้า ERP」（旧线上与新菜单都是 postback `action=cowork_erp_start`）之后，用 LINE
-原生快捷回复按钮依次问：目标 ERP → 公司 → 年度 → 进项 / 销项 → 入账方式 → 提示发 PDF 或图片。
+原生快捷回复按钮依次问：目标 ERP → 进项 / 销项 → 入账方式 → 提示发 PDF 或图片。
 口径与网页「新建录入」弹窗同一套（`public/desk/intake-choices.js`）：
   · 目标：MR.ERP 要有可用连接，Express 要助手在线，「识别后导出」不要连接；不能选的在问句里列出原因
     （旧线上 `erp_picker_card` 的状态行）；
-  · 公司 / 年度：目标 ERP 自己的账套目录，取服务端已有的那份（LINE 里不等实时刷新；推送时网页照常
-    再取最新目录证据）；只有一个就直接选上；
+  · **账套不在聊天里选**（用户 2026-09-27）：快捷回复一次最多 12 个选项，放不下几十上百份账套。
+    识别后按票上本方税号、分店与单据日期自动挑（`push/account_suggest.py`），卡片上写挑到的账套，
+    挑不出或挑错就点卡片「编辑」在编辑页选；
   · 入账方式以第三方为准：MR.ERP 选付款（进项只有赊账），Express 选过账类型（服务 / 存货）；
   · 识别后导出只选进项 / 销项。
 每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
@@ -105,10 +106,9 @@ def answer(line_user_id, data, reply_token):
         return _text(reply_token, _("This option is no longer current"))
     if step == "target":
         payload = {"target": value}
-    elif step == "company":
-        payload.update(company=value, account_set_key=None)
-    elif step == "year":
-        payload["account_set_key"] = value
+        connection = _connections().get(value) if value != RECOGNIZE_ONLY else None
+        if connection:
+            payload["connection"] = connection["name"]
     else:
         payload[step] = value
     _next(line_user_id, payload, reply_token)
@@ -118,11 +118,6 @@ def _pending(payload):
     target = payload.get("target")
     if not target:
         return "target"
-    if target != RECOGNIZE_ONLY:
-        if not payload.get("company"):
-            return "company"
-        if not payload.get("account_set_key"):
-            return "year"
     if not payload.get("direction"):
         return "direction"
     mode = MODE.get(target)
@@ -147,51 +142,29 @@ def _next(line_user_id, payload, reply_token):
         if not options:
             line_session.clear_session(line_user_id)
             return _text(reply_token, _empty(step, payload))
-        # 只有一个可选就直接选上（公司、年度、MR.ERP 进项只有赊账；网页弹窗同一口径）。
-        if len(options) == 1 and step in ("company", "year", "payment"):
-            payload[{"year": "account_set_key"}.get(step, step)] = options[0][0]
+        # 只有一个可选就直接选上（MR.ERP 进项只有赊账；网页弹窗同一口径）。
+        if len(options) == 1 and step == "payment":
+            payload[step] = options[0][0]
             continue
         break
     payload["offered"] = {step: [key for key, _label in options]}
     _save(line_user_id, payload)
-    numbered = step in ("company", "year")
-    items = [_button(f"{index}. {label}" if numbered else label, urlencode({"a": "cowork", "s": step, "v": index}))
+    items = [_button(label, urlencode({"a": "cowork", "s": step, "v": index}))
              for index, (_key, label) in enumerate(options[:MAX_CHOICES])]
-    question = _question(step, payload)
+    question = _QUESTIONS[step]()
     _ask(reply_token, question + ("\n" + note if note else ""), items)
 
 
 _QUESTIONS = {
     "target": lambda: _("Choose the destination for these documents"),
-    "company": lambda: _("Choose the company"),
-    "year": lambda: _("Choose the year"),
     "direction": lambda: _("Purchase or sales?"),
     "payment": lambda: _("Choose the payment method"),
     "posting_kind": lambda: _("Service or stock?"),
 }
 
 
-def _question(step, payload):
-    # Express 先选年度（数据文件夹）再选账套，照 Express 的真实用法。
-    if payload.get("target") == "express" and step in ("company", "year"):
-        return _("Choose the year") if step == "company" else _("Choose the account set")
-    return _QUESTIONS[step]()
-
-
 def _empty(step, payload):
-    if step == "target":
-        return _("No ERP is ready to use")
-    # 服务端还没有这家 ERP 的账套目录：申请读一次（与网页弹窗同一个刷新），读到后再点菜单就有了。
-    if payload.get("connection"):
-        from uuid import uuid4
-
-        from pearnly_cowork.connections import service
-
-        try:
-            service.request_refresh(payload["connection"], str(uuid4()))
-        except frappe.ValidationError:
-            pass
-    return _("Reading the company list from the ERP. Tap the menu again in a moment.")
+    return _("No ERP is ready to use")
 
 
 # ── 选项 ────────────────────────────────────────────────────────────────────
@@ -238,27 +211,7 @@ def _targets():
     return options, "\n".join(lines)
 
 
-def _catalog(payload):
-    """目标 ERP 的两级选项，与网页弹窗同一份分组（`targets/catalog_groups.py`）：
-    Express 是「年度（数据文件夹）→ 账套（登录列表原样）」，MR.ERP 是「公司 → 年度」。"""
-    from pearnly_cowork.connections import service
-
-    connection = _connections().get(payload["target"])
-    if not connection:
-        return []
-    payload["connection"] = connection["name"]
-    groups = service.targets(connection["name"]).get("groups") or []
-    return [(group["value"], {"label": group["label"],
-                              "years": [(item["value"], item["label"]) for item in group["items"]]})
-            for group in groups]
-
-
 def _options(step, payload):
-    if step == "company":
-        return [(key, company["label"]) for key, company in _catalog(payload)]
-    if step == "year":
-        company = dict(_catalog(payload)).get(payload.get("company")) or {}
-        return list(company.get("years") or [])
     if step == "direction":
         return [("purchase", _("intake.dir.purchase")), ("sales", _("intake.dir.sales"))]
     if step == "payment":
@@ -270,14 +223,8 @@ def _options(step, payload):
 
 
 def target_label(payload) -> str:
-    """目标 · 公司 · 年度（识别后导出只有目标）。"""
-    target = payload.get("target")
-    parts = [dict(TARGETS).get(target) or _("intake.target.recognizeOnly")]
-    if target != RECOGNIZE_ONLY and payload.get("account_set_key"):
-        company = dict(_catalog(payload)).get(payload.get("company")) or {}
-        year = dict(company.get("years") or []).get(payload["account_set_key"])
-        parts.append(" · ".join(v for v in (company.get("label"), year) if v))
-    return " · ".join(part for part in parts if part)
+    """目标 ERP（账套识别后按票定，写在每张卡片上）。"""
+    return dict(TARGETS).get(payload.get("target")) or _("intake.target.recognizeOnly")
 
 
 def mode_label(payload) -> str:
@@ -287,7 +234,7 @@ def mode_label(payload) -> str:
 
 
 def summary(payload) -> str:
-    """一行说清楚这次按什么录：目标 · 年度 · 进项 / 销项 · 入账方式。"""
+    """一行说清楚这次按什么录：目标 · 进项 / 销项 · 入账方式（账套识别后按票定）。"""
     parts = [target_label(payload), dict(_options("direction", payload)).get(payload.get("direction"), ""),
              mode_label(payload)]
     return " · ".join(part for part in parts if part)

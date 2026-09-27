@@ -94,7 +94,19 @@ def _party_rows(role, fields, prefix):
             _kv(_(role + " address"), fields.get(prefix + "_addr"))]
 
 
-def _card(record, pending, shown):
+def _account(record, labels):
+    """推到 ERP 的票写上推送账套（识别后自动挑的，或网页新建时选的）；还没定就写「待选择」，点「编辑」去选。"""
+    if record.get("intake_target") not in ("express", "mrerp"):
+        return []
+    key = (record.get("push_connection"), record.get("push_account_set"))
+    if key not in labels:
+        from pearnly_cowork.connections import directory
+
+        labels[key] = directory.account_label(*key) if all(key) else ""
+    return [_kv(_("intake.target.accountSet"), labels[key] or _("To be chosen"))]
+
+
+def _card(record, pending, shown, labels=None):
     fields = _primary(json.loads(record.pages or "[]"))
     direction = fields.get("direction") or pending.get("direction") or "purchase"
     accent = COLORS.get(direction, COLORS["purchase"])
@@ -104,6 +116,7 @@ def _card(record, pending, shown):
     payment = fields.get("posting_payment_manual") or fields.get("payment_method")
     body = [
         _kv(_("Target ERP"), pending.get("target")),
+        *_account(record, {} if labels is None else labels),
         _kv(_("Transaction type"), head),
         *([_kv(_("Posting"), pending["mode"])] if pending.get("mode") else []),
         _separator(),
@@ -142,11 +155,12 @@ def _card(record, pending, shown):
                      "action": {"type": "uri", "label": str(_("Edit"))[:20], "uri": uri}}]}}}
 
 
-def preview(record, pending) -> dict:
+def preview(record, pending, labels=None) -> dict:
     items = _primary(json.loads(record.pages or "[]")).get("items") or []
     shown = len(items)
+    labels = {} if labels is None else labels
     while True:
-        card = _card(record, pending, shown)
+        card = _card(record, pending, shown, labels)
         if shown == 0 or len(json.dumps(card, ensure_ascii=False).encode()) <= MAX_BYTES:
             return card
         shown -= 1
@@ -154,5 +168,7 @@ def preview(record, pending) -> dict:
 
 def previews(records, pending) -> list:
     rows = {row.name: row for row in frappe.get_all(
-        "Cowork OCR History", filters={"name": ["in", records]}, fields=["name", "pages", "total_amount"])}
-    return [preview(rows[name], pending) for name in records if name in rows]
+        "Cowork OCR History", filters={"name": ["in", records]},
+        fields=["name", "pages", "total_amount", "intake_target", "push_connection", "push_account_set"])}
+    labels = {}  # 同一批的账套名只按连接读一次目录
+    return [preview(rows[name], pending, labels) for name in records if name in rows]

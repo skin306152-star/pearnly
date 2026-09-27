@@ -779,7 +779,9 @@ Choose the company	选择公司	เลือกบริษัท	会社を選�
 Choose the destination for these documents	选择这批单据推送到哪里	เลือกปลายทางสำหรับเอกสารชุดนี้	この書類の送信先を選択	
 Choose the payment method	选择付款方式	เลือกวิธีชำระเงิน	支払方法を選択	
 Choose the year	选择年度	เลือกปี	年度を選択	
-Choose the account set	选择账套	เลือกชุดบัญชี	会計データを選択
+To be chosen	待选择	รอเลือก	未選択
+Choose the year and account set first.	请先选择年度和账套。	กรุณาเลือกปีบัญชีและชุดบัญชีก่อน	先に年度と会計データを選択してください。
+This record has already been pushed; its account set cannot be changed.	这张票已推送，不能再换账套。	เอกสารนี้ส่งแล้ว เปลี่ยนชุดบัญชีไม่ได้	この伝票は送信済みのため、会計データを変更できません。
 Account set	账套	ชุดบัญชี	会計データ	intake.target.accountSet
 Read again	重新读取	อ่านใหม่	再読み込み	intake.catalog.reload
 Choose what to do	选择要做的事	เลือกสิ่งที่ต้องการทำ	操作を選択	

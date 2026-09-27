@@ -296,6 +296,11 @@ def _account_sets(raw: Any) -> list[dict[str, Any]]:
             "root",
             "root_label",
             "mapping",
+            # 账套会计期间与本公司分店号（小助手 1.2.2 起）：识别后按单据日期、本方分店挑账套。
+            "period_start",
+            "period_end",
+            "next_end",
+            "branch",
         ),
     )
     normalized: list[dict[str, Any]] = []

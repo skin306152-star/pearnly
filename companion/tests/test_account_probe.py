@@ -351,3 +351,70 @@ def test_company_details_are_read_once_until_isinfo_changes(tmp_path, monkeypatc
     third = account_sets_payload(root)
     assert third[0]["company"] == "บริษัท บี"
     assert len(reads) == 2
+
+
+def _isprd(account_dir: Path, first_year: int, first_month: int):
+    """合成 ISPRD:CY 12 期从 first_year-first_month 起,NY 紧接其后 12 期。"""
+    import datetime as dt
+
+    spec = "; ".join(
+        f"BEG{m}{slot} D; END{m}{slot} D" for slot in ("", "NY") for m in range(1, 13)
+    )
+    table = dbf.Table(str(account_dir / "ISPRD.DBF"), spec, codepage="cp874", dbf_type="vfp")
+    table.open(dbf.READ_WRITE)
+    row, year, month = {}, first_year, first_month
+    for slot in ("", "NY"):
+        for m in range(1, 13):
+            beg = dt.date(year, month, 1)
+            year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+            row[f"BEG{m}{slot}"] = beg
+            row[f"END{m}{slot}"] = dt.date(year, month, 1) - dt.timedelta(days=1)
+    table.append(row)
+    table.close()
+
+
+def test_account_rows_carry_their_fiscal_window(tmp_path):
+    """按单据日期挑账套用:每份账套报本年起止与次年止(11 月起账的账套跨两个公历年)。"""
+    root = tmp_path / "68EXP"
+    account = root / "69ASIAMI"
+    _isinfo(account, "บริษัท น้ำแข็ง", "0105551234567")
+    _isprd(account, 2025, 11)
+    table = _sccomp(root)
+    table.append({"COMPNAM": "69ASIAMI", "COMPCOD": "ASIAMI", "PATH": "69ASIAMI", "CANDEL": "Y"})
+    table.append({"COMPNAM": "NOPRD", "COMPCOD": "NOPRD", "PATH": "NOPRD", "CANDEL": "Y"})
+    table.close()
+    _isinfo(root / "NOPRD", "บริษัท บี", "0105550000000")
+
+    rows = {row["name"]: row for row in account_sets_payload(root)}
+
+    assert rows["69ASIAMI"]["period_start"] == "2025-11-01"
+    assert rows["69ASIAMI"]["period_end"] == "2026-10-31"
+    assert rows["69ASIAMI"]["next_end"] == "2027-10-31"
+    assert "period_start" not in rows["NOPRD"]
+
+
+def test_account_rows_carry_own_branch_number_when_isinfo_has_it(tmp_path):
+    """同一税号下总公司和分店各一套账:报 ISINFO.ORGNUM(0 = 总公司),没这一列就不报。"""
+    root = tmp_path / "69EXP"
+    for folder, number in (("HQ", 0), ("B3", 3)):
+        account = root / folder
+        account.mkdir(parents=True)
+        table = dbf.Table(
+            str(account / "ISINFO.DBF"),
+            "THINAM C(40); TAXID C(15); ORGNUM N(5,0)",
+            codepage="cp874",
+            dbf_type="vfp",
+        )
+        table.open(dbf.READ_WRITE)
+        table.append({"THINAM": "บริษัท เอ", "TAXID": "0105551234567", "ORGNUM": number})
+        table.close()
+    _isinfo(root / "OLD", "บริษัท บี", "0105550000000")
+    registry = _sccomp(root)
+    for name in ("HQ", "B3", "OLD"):
+        registry.append({"COMPNAM": name, "COMPCOD": name, "PATH": name, "CANDEL": "Y"})
+    registry.close()
+
+    rows = {row["name"]: row for row in account_sets_payload(root)}
+
+    assert (rows["HQ"]["branch"], rows["B3"]["branch"]) == ("00000", "00003")
+    assert "branch" not in rows["OLD"]

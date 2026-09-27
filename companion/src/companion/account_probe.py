@@ -57,8 +57,20 @@ def _clean(v) -> str:
     return str(v or "").replace("\xa0", " ").strip()
 
 
-def _read_isinfo(account_dir: Path) -> Tuple[str, str]:
-    """只读账套 ISINFO 首行 → (公司名 THINAM, 税号 TAXID);无/坏档返 ('','')。"""
+def _branch_no(value) -> str:
+    """ISINFO.ORGNUM(本公司分店号,数字)→ 5 位;0 = 总公司 → '00000';读不出返 ''。"""
+    try:
+        number = int(str(value).strip() or "x")
+    except (TypeError, ValueError):
+        return ""
+    return f"{number:05d}" if 0 <= number <= 99999 else ""
+
+
+def _read_isinfo(account_dir: Path) -> Tuple[str, str, str]:
+    """只读账套 ISINFO 首行 → (公司名 THINAM, 税号 TAXID, 本公司分店号 ORGNUM);无/坏档返 ('','','')。
+
+    分店号用来在同一税号下分开总公司与各分店各自的账套(用户 2026-09-27:旧项目分店票录错)。
+    """
     for cand in (_INFO_DBF, _INFO_DBF.lower()):
         p = account_dir / cand
         if not p.exists():
@@ -69,14 +81,19 @@ def _read_isinfo(account_dir: Path) -> Tuple[str, str]:
             try:
                 if len(t):
                     r = t[0]
-                    return _clean(getattr(r, "THINAM", "")), _clean(
-                        getattr(r, "TAXID", "")
+                    branch = ""
+                    if "ORGNUM" in {name.upper() for name in t.field_names}:
+                        branch = _branch_no(getattr(r, "ORGNUM", ""))
+                    return (
+                        _clean(getattr(r, "THINAM", "")),
+                        _clean(getattr(r, "TAXID", "")),
+                        branch,
                     )
             finally:
                 t.close()
         except Exception:
             log.exception("ISINFO read failed: %s", p)
-    return "", ""
+    return "", "", ""
 
 
 # 账套 ISINFO 读出的(公司名, 税号, 默认科目)按文件修改时间缓存:近千份账套在共享盘上逐个开档要一两分钟,
@@ -93,25 +110,67 @@ def _isinfo_file(account_dir: Path) -> Path | None:
     return None
 
 
-def _account_details(account_dir: str) -> tuple:
-    """(公司名, 税号, 默认科目向量);按 ISINFO 的大小与修改时间缓存,读不到返 ('', '', {})。"""
-    if not account_dir:
-        return "", "", {}
-    path = _isinfo_file(Path(account_dir))
+def _stamp(path: Path | None) -> tuple | None:
     if path is None:
-        return "", "", {}
+        return None
     try:
         stat = path.stat()
     except OSError:
-        return "", "", {}
-    identity = ntpath.normcase(str(path))
-    stamp = (stat.st_size, stat.st_mtime_ns)
+        return None
+    return (stat.st_size, stat.st_mtime_ns)
+
+
+def _fiscal_window(account_dir: str) -> dict:
+    """账套会计期间(ISPRD):本年起止(CY 第 1 期起 ~ 第 12 期止)与次年止(NY 第 12 期止)。
+
+    用来按单据日期挑账套(用户 2026-09-27:文件夹名不一定是会计年度,如 69LJLAND 登记在 68EXP 里)。
+    读不到返 {}(调用方按判不出处理)。
+    """
+    from . import fiscal_period
+
+    try:
+        calendar = fiscal_period.load(account_dir)
+    except Exception:
+        log.exception("ISPRD read failed: %s", account_dir)
+        return {}
+    if calendar is None:
+        return {}
+    current = [p for p in calendar.periods if p.slot == fiscal_period.SLOT_CY]
+    following = [p for p in calendar.periods if p.slot == fiscal_period.SLOT_NY]
+    window = {}
+    if current:
+        window["period_start"] = min(p.beg for p in current).isoformat()
+        window["period_end"] = max(p.end for p in current).isoformat()
+    if following:
+        window["next_end"] = max(p.end for p in following).isoformat()
+    return window
+
+
+def _account_details(account_dir: str) -> tuple:
+    """(公司名, 税号, 默认科目向量, 会计期间);按 ISINFO / ISPRD 的大小与修改时间缓存。"""
+    if not account_dir:
+        return "", "", {}, {}
+    base = Path(account_dir)
+    info = _isinfo_file(base)
+    periods = base / "ISPRD.DBF"
+    stamp = (_stamp(info), _stamp(periods if periods.exists() else None))
+    if stamp == (None, None):
+        return "", "", {}, {}
+    identity = ntpath.normcase(str(base))
     with _details_lock:
         cached = _details_cache.get(identity)
     if cached and cached[0] == stamp:
         return cached[1]
-    company, tax_id = _read_isinfo(Path(account_dir))
-    details = (company, tax_id, probe_default_accounts(account_dir))
+    company, tax_id, branch = _read_isinfo(base) if info is not None else ("", "", "")
+    extra = _fiscal_window(account_dir) if stamp[1] is not None else {}
+    if branch:
+        extra = {**extra, "branch": branch}
+    details = (
+        company,
+        tax_id,
+        probe_default_accounts(account_dir) if info is not None else {},
+        extra,
+    )
     with _details_lock:
         _details_cache[identity] = (stamp, details)
     return details
@@ -186,8 +245,8 @@ def probe_account_sets(
     out: List[AccountSet] = []
     for i, (name, code, raw_path) in enumerate(raw_rows, start=1):
         path = _resolve_path(raw_path, express_root)
-        company, tax_id, _mapping = (
-            _account_details(path) if include_details and path else ("", "", {})
+        company, tax_id, _mapping, _window = (
+            _account_details(path) if include_details and path else ("", "", {}, {})
         )
         writable = False
         if include_details:
@@ -224,7 +283,9 @@ def account_sets_payload(
             row["root"] = root
             row["root_label"] = root_label
             if include_details:
-                row["mapping"] = dict(_account_details(account.path)[2])
+                details = _account_details(account.path)
+                row["mapping"] = dict(details[2])
+                row.update(details[3])  # period_start / period_end / next_end / branch
             else:
                 for key in ("company", "tax_id", "writable"):
                     row.pop(key, None)
