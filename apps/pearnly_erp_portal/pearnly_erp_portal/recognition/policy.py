@@ -31,6 +31,8 @@ PRIMARY = "gemini-3.1-flash-lite"
 # 一直写到上限（语料实测：两次各写满 16k token，共 ฿1.6、80 秒才判为读不出），上限减半把最坏成本减半。
 MAX_OUTPUT_TOKENS = 8192
 RECHECK_THINKING = {"thinkingLevel": "LOW"}
+# 提示词约定同一张图 / 一页上的其余单据放这里；模型改写成对象数组时共用层照此收下（`ocr.json_from_images`）。
+STACKED = "additional_documents"
 
 
 class UnsupportedDocument(frappe.ValidationError):
@@ -95,10 +97,10 @@ def read(prompt, images, *, structured, review, label):
     text = inputs.text_path(images)
     if text is not None:
         raw = ocr.json_from_images(prompt + "\n" + TEXT_NOTE + text, [], model=PRIMARY, max_tokens=MAX_OUTPUT_TOKENS,
-                                   thinking=ocr.thinking_for(PRIMARY), request_labels=_labels(label, "read"))
+                                   thinking=ocr.thinking_for(PRIMARY), stacked=STACKED, request_labels=_labels(label, "read"))
     else:
         raw = ocr.json_from_images(prompt, images, model=PRIMARY, thinking=ocr.thinking_for(PRIMARY),
-                                   max_tokens=MAX_OUTPUT_TOKENS, request_labels=_labels(label, "read"))
+                                   max_tokens=MAX_OUTPUT_TOKENS, stacked=STACKED, request_labels=_labels(label, "read"))
     best = _outcome(raw, structured, review, PRIMARY)
     image = len(images) == 1 and images[0][1].startswith("image/")
     # 首读读不出结构（多半是输出失控写满上限）时，照原样看图复核会同样失控：图片直接走下面的「原图 + 原文」。
@@ -106,7 +108,7 @@ def read(prompt, images, *, structured, review, label):
         frappe.logger("pearnly.ocr").info(f"{label}: {PRIMARY} {best and best[1]}，带提示复核")
         raw = ocr.json_from_images(recheck_prompt(prompt, best and best[3], best[1] if best else []), images,
                                    model=PRIMARY, thinking=RECHECK_THINKING, max_tokens=MAX_OUTPUT_TOKENS,
-                                   request_labels=_labels(label, "recheck"))
+                                   stacked=STACKED, request_labels=_labels(label, "recheck"))
         best = _better(best, _outcome(raw, structured, review, PRIMARY))
     if (best is None or checks.reread(best[1])) and image:
         # 复核后仍对不上：调一次 OCR 原文，原图 + 原文一起再读（语料实测：明细密集的税票，如 NBC 逐行折扣、
@@ -115,7 +117,7 @@ def read(prompt, images, *, structured, review, label):
         if text:
             frappe.logger("pearnly.ocr").info(f"{label}: 复核仍不过，按 OCR 原文再读")
             raw = ocr.json_from_images(prompt + OCR_NOTE + text, images, model=PRIMARY, thinking=RECHECK_THINKING,
-                                       max_tokens=MAX_OUTPUT_TOKENS, request_labels=_labels(label, "ocr-read"))
+                                       max_tokens=MAX_OUTPUT_TOKENS, stacked=STACKED, request_labels=_labels(label, "ocr-read"))
             best = _better(best, _outcome(raw, structured, review, PRIMARY))
     upgrade = escalation()
     if upgrade and (best is None or checks.reread(best[1])):
@@ -123,7 +125,7 @@ def read(prompt, images, *, structured, review, label):
         if best is None or total >= upgrade[1]:
             frappe.logger("pearnly.ocr").info(f"{label}: 站点开启升级，{upgrade[0]} 重读")
             raw = ocr.json_from_images(prompt, images, model=upgrade[0], thinking=ocr.thinking_for(upgrade[0]),
-                                       max_tokens=MAX_OUTPUT_TOKENS, request_labels=_labels(label, "upgrade"))
+                                       max_tokens=MAX_OUTPUT_TOKENS, stacked=STACKED, request_labels=_labels(label, "upgrade"))
             best = _better(best, _outcome(raw, structured, review, upgrade[0]))
     return best[:3] if best else (None, [], PRIMARY)
 

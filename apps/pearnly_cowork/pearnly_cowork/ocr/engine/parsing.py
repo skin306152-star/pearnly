@@ -28,7 +28,26 @@ def _first_json_object(s: str) -> str:
                 return s[start:i + 1]
     raise json.JSONDecodeError('unbalanced JSON object', s, start)
 
-def _parse_json(text: str) -> dict:
+def _fold_stacked(items: list, stacked: Optional[str]):
+    """模型把一张图 / 一页上的几张票写成对象数组（2026-09-28 压测：两到四张油票的照片每次都这样回）：
+    第一张作主票，其余照提示词本来的约定放进 ``stacked``（嵌套的也摊平）；没给 ``stacked`` 只收单个对象。"""
+    if not items or not all(isinstance(item, dict) for item in items):
+        return items
+    if len(items) == 1:
+        return items[0]
+    if not stacked:
+        return items
+    first = dict(items[0])
+    extras = list(first.get(stacked) or [])
+    for item in items[1:]:
+        item = dict(item)
+        nested = item.pop(stacked, None) or []
+        extras.append(item)
+        extras.extend(nested if isinstance(nested, list) else [])
+    first[stacked] = extras
+    return first
+
+def _parse_json(text: str, *, stacked: Optional[str] = None) -> dict:
     """Parse Gemini's response as JSON, stripping markdown fences if present.
 
     With response_mime_type='application/json' Gemini SHOULD not add ```json
@@ -36,8 +55,7 @@ def _parse_json(text: str) -> dict:
 
     Raises json.JSONDecodeError on parse failure.
 
-    有意变化（旧线上整批失败）：经济档模型偶尔把唯一一张票包成 ``[{...}]``，拆开取那一张；
-    多个对象的数组仍按解析失败（交重试），不猜哪张是主票。
+    有意变化（旧线上整批失败）：模型把票写成对象数组时按 ``_fold_stacked`` 收下；不是对象的数组仍按解析失败。
     """
     s = text.strip()
     if s.startswith('```'):
@@ -52,8 +70,8 @@ def _parse_json(text: str) -> dict:
         obj = json.loads(s)
     except json.JSONDecodeError:
         obj = json.loads(_first_json_object(s))
-    if isinstance(obj, list) and len(obj) == 1 and isinstance(obj[0], dict):
-        obj = obj[0]
+    if isinstance(obj, list):
+        obj = _fold_stacked(obj, stacked)
     if not isinstance(obj, dict):
         raise json.JSONDecodeError(f'expected JSON object, got {type(obj).__name__}', s, 0)
     return obj

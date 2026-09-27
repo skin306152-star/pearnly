@@ -261,11 +261,14 @@ def labels(**extra) -> dict:
 def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
                      model: str, timeout_s: int = DEFAULT_TIMEOUT_SECONDS,
                      max_tokens: int = 16384, thinking: dict | None = None,
-                     request_labels: dict | None = None) -> dict | None:
+                     request_labels: dict | None = None, stacked: str | None = None) -> dict | None:
     """图片（或 PDF）+ 提示词 → JSON dict。失败返回 None，由调用方决定是否升档。
 
     temperature=0，要求模型直接吐 JSON。限流/临时不可用在同一模型上
     有限退避；内容不合格的升档由上层负责，不把基础设施限流当成识别失败。
+
+    `stacked`：调用方提示词里「同一张图其余单据放哪个字段」（ERP 是 `additional_documents`）。模型把几张单
+    写成对象数组时，第一张作主结果、其余放进这个字段；不传（如 DMS 身份证）只收单个对象。
     """
     if backend() == "vertex":
         url = vertex_url(model)
@@ -327,10 +330,22 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
         # （被截断、不是 JSON、空候选）。返回 None 让上层决定要不要升档。
         frappe.logger("pearnly.ocr").warning(f"ocr unparsable model={model}: {exc}")
         return None
-    # 模型偶尔把唯一一份结果包成 [{...}]（2026-09-28 Cowork 压测实测，同一 3.1 flash-lite）：拆开取那一份。
-    # 其余不是对象的（多个对象的数组、数字、字符串）与读不出同样处理，不猜哪一份是主结果。
-    if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
-        data = data[0]
+    # 模型把结果写成对象数组（2026-09-28 Cowork 压测实测，同一 3.1 flash-lite：一张照片两到四张小票每次都这样回）：
+    # 一个对象就拆开；几个对象且调用方给了 `stacked`，第一张作主结果、其余照提示词约定放进 `stacked`（嵌套的摊平）。
+    # 其余不是对象的（没给 `stacked` 的多对象数组、数字、字符串）与读不出同样处理。
+    if isinstance(data, list) and data and all(isinstance(item, dict) for item in data):
+        if len(data) == 1:
+            data = data[0]
+        elif stacked:
+            first = dict(data[0])
+            extras = list(first.get(stacked) or [])
+            for item in data[1:]:
+                item = dict(item)
+                nested = item.pop(stacked, None) or []
+                extras.append(item)
+                extras.extend(nested if isinstance(nested, list) else [])
+            first[stacked] = extras
+            data = first
     if not isinstance(data, dict):
         frappe.logger("pearnly.ocr").warning(f"ocr not an object model={model}: {type(data).__name__}")
         return None

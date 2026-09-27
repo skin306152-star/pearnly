@@ -150,7 +150,7 @@ class _Run:
             try:
                 if not response.text or "MAX_TOKENS" in response.finish_reason:
                     raise json.JSONDecodeError("empty/truncated", response.text, 0)
-                data = _parse_json(response.text)
+                data = _parse_json(response.text, stacked="additional_invoices")
             except json.JSONDecodeError:
                 continue
             return data, self.calls[first:]

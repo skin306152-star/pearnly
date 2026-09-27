@@ -86,9 +86,17 @@ class EngineTests(unittest.TestCase):
         result = run(model=model)
         self.assertEqual(len(model.requests), 1)
         self.assertEqual(result.pipeline.pages[0].invoice.invoice_number, "IV69/100")
-        model = Model([[GOOD, GOOD], [1], GOOD])
+        # 一张照片几张票：模型写成对象数组（压测里二到四张油票每次都这样回），第一张作主票、其余进附加票，不重试。
+        second, third = {**GOOD, "invoice_number": "IV69/101"}, {**GOOD, "invoice_number": "IV69/102"}
+        model = Model([[GOOD, {**second, "additional_invoices": [third]}]])
+        invoice = run(model=model).pipeline.pages[0].invoice
+        self.assertEqual(len(model.requests), 1)
+        self.assertEqual([invoice.invoice_number] + [extra.invoice_number for extra in invoice.additional_invoices],
+                         ["IV69/100", "IV69/101", "IV69/102"])
+        self.assertTrue(all(extra.additional_invoices == [] for extra in invoice.additional_invoices))
+        model = Model([[1], "[]", GOOD])
         run(model=model)
-        self.assertEqual([r.attempt for r in model.requests][:2], [0, 1])  # 多票数组、非对象数组仍按格式错误重试
+        self.assertEqual([r.attempt for r in model.requests][:2], [0, 1])  # 不是对象的数组仍按格式错误重试
 
     def test_only_the_failed_page_is_rechecked_and_all_usage_is_kept(self):
         # ADR-013：一页没过闸只复核那一页，不再把整份文件改走 Vision 重读

@@ -962,6 +962,23 @@ class Escalation(unittest.TestCase):
                           for d, codes, _model in documents],
                          [("A1", [1, 2], 30, []), ("B7", [3], 5, [])])
 
+    def test_recognition_asks_the_shared_reader_to_keep_stacked_documents(self):
+        seen = []
+        from pearnly_core import ocr
+
+        from pearnly_erp_portal.recognition import inputs, policy
+
+        def fake(prompt, images, *, model, thinking=None, **kw):
+            seen.append(kw.get("stacked"))
+            return {"doc_no": "A1", "lines": [], "printed": {"total": 1}}
+
+        with patch.object(ocr, "json_from_images", side_effect=fake), \
+                patch.object(frappe, "logger", return_value=Mock(), create=True), \
+                patch.object(inputs, "text_path", return_value=None):
+            policy.read_all("P", [(b"x", "image/jpeg")], structured=lambda raw: dict(raw), review=lambda r: [],
+                            label="t", fields=("doc_no",))
+        self.assertEqual(seen, ["additional_documents"])  # 读法里每次调用都带，这里首读就过了
+
     def test_an_unreadable_page_marks_the_document_before_it_instead_of_vanishing(self):
         # 2026-09-28 压测：一页模型复读失控（单号后一长串 0），几次都读不出；旧做法静默跳过，那页上的单据就漏了。
         a1 = {"doc_no": "A1", "lines": [{"n": 1}], "printed": {"total": 30}}
@@ -992,12 +1009,18 @@ class Escalation(unittest.TestCase):
         self.enterContext(patch.object(ocr, "endpoint", return_value="https://x/{model}"))
         self.enterContext(patch.object(ocr, "_post_with_backoff", side_effect=post))
         self.enterContext(patch.object(frappe, "logger", return_value=Mock(), create=True))
-        for text, expected in (('[{"doc_no": "A1"}]', {"doc_no": "A1"}), ('{"doc_no": "A1"}', {"doc_no": "A1"}),
-                               ('[{"doc_no": "A1"}, {"doc_no": "A2"}]', None), ("[1]", None), ("[]", None),
-                               ('"text"', None), ("broken", None)):
-            with self.subTest(text=text):
+        stacked = '[{"doc_no": "A1"}, {"doc_no": "A2", "additional_documents": [{"doc_no": "A3"}]}]'
+        for text, key, expected in (
+                ('[{"doc_no": "A1"}]', None, {"doc_no": "A1"}), ('{"doc_no": "A1"}', None, {"doc_no": "A1"}),
+                # 一张图几张单写成数组（2026-09-28 压测实测）：ERP 给了 stacked 就第一张作主、其余进附加单据；
+                # DMS 身份证等不传 stacked 的照旧按读不出。
+                (stacked, "additional_documents",
+                 {"doc_no": "A1", "additional_documents": [{"doc_no": "A2"}, {"doc_no": "A3"}]}),
+                (stacked, None, None), ("[1]", "additional_documents", None), ("[]", None, None),
+                ('"text"', None, None), ("broken", None, None)):
+            with self.subTest(text=text, key=key):
                 replies.append(text)
-                self.assertEqual(ocr.json_from_images("P", [(b"x", "image/jpeg")], model="m"), expected)
+                self.assertEqual(ocr.json_from_images("P", [(b"x", "image/jpeg")], model="m", stacked=key), expected)
 
     def test_several_documents_on_one_image_become_separate_documents(self):
         answers = [{"doc_no": "R1", "lines": [], "additional_documents": [{"doc_no": "R2", "lines": []}]}]
