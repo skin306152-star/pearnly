@@ -463,6 +463,7 @@ Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
+MR.ERP purchases can only be entered on credit.,MR.ERP の仕入は掛けでのみ登録できます。
 Make template,テンプレートにする
 Manual,手入力
 Mapping Key,マッピングキー

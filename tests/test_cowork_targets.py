@@ -489,8 +489,15 @@ class AccountMatchTests(unittest.TestCase):
         self.assertEqual(self.pick(rows, {"date": "2025-06-01"})["reason"], "no_tax")
         self.assertEqual(self.pick(rows, {"buyer_tax": OWN_TAX})["reason"], "no_tax_match")
 
+    def test_mrerp_never_guesses_across_companies(self):
+        rows = [{"source_id": "15:1", "label": "2568", "attributes": {"company": "A"}},
+                {"source_id": "20:1", "label": "2568", "attributes": {"company": "B"}}]
+        result = account_match.suggest("mrerp", rows, direction="purchase", fields={"date": "2025-03-01"}, recent=["20:1"])
+        self.assertEqual((result["account_set_key"], result["reason"]), ("", "several_companies"))
+
     def test_mrerp_single_or_year_labelled_book(self):
-        rows = [{"source_id": "15:1", "label": "2567", "attributes": {}}, {"source_id": "16:1", "label": "2568", "attributes": {}}]
+        rows = [{"source_id": "15:1", "label": "2567", "attributes": {"company": "A"}},
+                {"source_id": "16:1", "label": "2568", "attributes": {"company": "A"}}]
         self.assertEqual(account_match.suggest("mrerp", rows[:1], direction="purchase", fields={})["account_set_key"], "15:1")
         self.assertEqual(account_match.suggest("mrerp", rows, direction="purchase", fields={"date": "2025-03-01"})
                          ["account_set_key"], "16:1")

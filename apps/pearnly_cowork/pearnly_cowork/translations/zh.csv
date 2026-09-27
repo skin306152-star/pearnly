@@ -463,6 +463,7 @@ Location mismatch,仓位不符
 Lock Key,锁键
 Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
+MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊账录入。
 Make template,设为模板
 Manual,手工
 Mapping Key,映射键

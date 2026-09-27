@@ -110,5 +110,30 @@ class SetAccountTest(unittest.TestCase):
             account_target.set_account("H1", r"S:\2568\EXP68\68ACME", 3)
 
 
+
+class MrerpPurchaseCashTest(unittest.TestCase):
+    """MR.ERP 没有现金采购模块：进项 + 现金在服务端挡下，不悄悄改成赊购（此前只靠入口不给选项）。"""
+
+    def test_purchase_cash_is_refused_before_anything_is_frozen(self):
+        from pearnly_cowork.push.application import service
+
+        doc = frappe._dict(pages=pages(direction="purchase", posting_payment_manual="cash"), workspace="W1")
+        with mock.patch.object(service, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(frappe, "throw", side_effect=_throw), \
+                mock.patch.object(service, "freeze_target") as freeze:
+            with self.assertRaises(frappe.ValidationError):
+                service._prepare_mrerp(doc, mock.Mock(), "key", {}, "16:1", None, None)
+        freeze.assert_not_called()
+
+    def test_sales_cash_goes_on_to_freeze_the_target(self):
+        from pearnly_cowork.push.application import service
+
+        doc = frappe._dict(pages=pages(direction="sales", posting_payment_manual="cash"), workspace="W1")
+        with mock.patch.object(service, "freeze_target", side_effect=RuntimeError("frozen")) as freeze:
+            with self.assertRaises(RuntimeError):
+                service._prepare_mrerp(doc, mock.Mock(), "key", {}, "16:1", None, None)
+        freeze.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

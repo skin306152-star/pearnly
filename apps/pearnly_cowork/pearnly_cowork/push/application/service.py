@@ -11,6 +11,7 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
+from pearnly_cowork.contracts.history import primary_page_fields
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application.provenance import original_history
@@ -140,6 +141,11 @@ def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_re
     推什么由票面决定（旧 `push_mrerp_history` 同一组输入）：用户在入口选的进 / 销项与付款方式、
     复核改过的字段都已写在票面里（`direction` / `posting_payment_manual`），分流与建档在执行时按旧规则做。
     """
+    # MR.ERP 没有打通现金采购（只有应付的采购 / 费用模块）：进项 + 现金在服务端挡下，不悄悄改成赊购
+    # （旧线上 `mrerp_purchase_cash_unverified`；此前只靠入口不给这个选项）。
+    fields = primary_page_fields(json.loads(doc.pages or "[]"))
+    if fields.get("direction") == "purchase" and fields.get("posting_payment_manual") == "cash":
+        frappe.throw(_("MR.ERP purchases can only be entered on credit."))
     try:
         target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
             account_set_key=account_set_key, request_id=catalog_request_id, revision=catalog_revision)

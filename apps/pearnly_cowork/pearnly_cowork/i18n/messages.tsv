@@ -1067,3 +1067,4 @@ Hide details	隐藏详情	ซ่อนรายละเอียด	詳細を�
 Show details	显示详情	แสดงรายละเอียด	詳細を表示	cowork.work.activity.showDetails
 {who}'s automation: {0} {1}	自动化（{who}）：{0} {1}	ระบบอัตโนมัติ ({who}): {0} {1}	自動化（{who}）：{0} {1}	cowork.work.activity.rule
 Enter a number of days from 0 to 365	天数请填 0 到 365	กรุณาใส่จำนวนวัน 0 ถึง 365	日数は 0〜365 で入力してください	cowork.work.error.rule_days
+MR.ERP purchases can only be entered on credit.	MR.ERP 的进项只能按赊账录入。	รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบเงินเชื่อ	MR.ERP の仕入は掛けでのみ登録できます。

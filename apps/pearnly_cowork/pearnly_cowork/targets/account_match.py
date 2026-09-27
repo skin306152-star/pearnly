@@ -4,7 +4,8 @@ LINE 里只选目标 ERP、进项 / 销项和入账方式，账套等识别出�
 - Express：本方税号（进项看买方、销项看卖方）对上账套的税号（ISINFO）；本方分店号对得上账套的
   分店号时再收窄；再按单据日期落在哪份账套的会计期间里（ISPRD，本年优先、其次次年）；
   账套没报会计期间的，退而看年度文件夹名的年份（69EXP ↔ 佛历 2569）。
-- MR.ERP：目录里没有税号，只有一份就是它；否则按账套名里的年份对单据年份。
+- MR.ERP：目录里没有税号，只有一份就是它；只有一家公司时按账套名里的年份对单据年份；
+  几家公司就不挑（认不出是哪家的）。
 剩下一份就选它；还有几份（审计版 / 数据版、分厂）先看这条连接最近推过的，仍定不下就留空，
 由用户在编辑页选。选不出来绝不猜。
 """
@@ -107,8 +108,13 @@ def suggest(adapter: object, account_sets: Iterable[Any] | None, *, direction: o
     rows = _usable(kind, account_sets)
     day = _day(fields.get("date"))
     if kind == "mrerp":
+        # MR.ERP 的目录没有税号，认不出票是哪家公司的：只有一家公司时才自动挑（再按年份），
+        # 有几家就留给用户选 —— 绝不跨公司猜（旧项目 07-23：票写进别家公司的账套）。
+        companies = {str(_attributes(r).get("company") or _attributes(r).get("company_name") or "") for r in rows}
         if len(rows) == 1:
             return _decide(rows, (), "only_one")
+        if len(companies) != 1:
+            return {"account_set_key": "", "reason": "several_companies", "candidates": len(rows)}
         return _decide(_by_label_year(rows, day), recent, "year")
     if kind != "express":
         return {"account_set_key": "", "reason": "unsupported", "candidates": 0}
