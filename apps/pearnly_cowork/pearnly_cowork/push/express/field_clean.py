@@ -70,13 +70,22 @@ def to_decimal(v) -> Decimal:
 
 
 
+_HEAD_OFFICE = ("สำนักงานใหญ่", "สนญ", "head office", "headoffice", "hq", "总公司", "總公司", "本社")
+
+
 def clean_branch_no(raw) -> str:
-    """分店号 → 5 位数字串('18'/'สาขาที่ 18'→'00018')。空/非数字/超 5 位 → ''(=未提供)。
+    """分店号 → 5 位数字串('18'/'สาขาที่ 18'→'00018';印「สำนักงานใหญ่ / Head Office」→ '00000')。
+    空/非数字/超 5 位 → ''(=未提供)。
 
     未提供必须留空而不是归一成总店 00000:连锁同税号多分店档靠它区分,
-    没填当总店会把分店票硬配到总店头上。
+    没填当总店会把分店票硬配到总店头上。**明确印了总公司**则是 00000(用户 2026-09-27:
+    以前把它也当成没提供,总店票就分不出总店档)。
     """
-    digits = re.sub(r"\D", "", str(raw or ""))
+    text = str(raw or "").strip()
+    lowered = text.casefold()
+    if lowered and not re.search(r"\d", text) and any(word in lowered for word in _HEAD_OFFICE):
+        return "00000"
+    digits = re.sub(r"\D", "", text)
     if not digits or len(digits) > 5:
         return ""
     return digits.zfill(5)

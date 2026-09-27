@@ -642,3 +642,19 @@ def test_same_tax_multi_branch_to_manual_and_branch_resolves(datat):
     hit = _rows(datat, "ARTRN", DOCNUM=by_branch.docnum)[0]
     branch_row = _rows(datat, "ARMAS", CUSCOD=(hit.CUSCOD or "").strip())[0]
     assert int(branch_row.ORGNUM) == 18
+
+
+def test_branch_customer_number_lands_on_voucher_and_vat_record(datat):
+    """连锁客户一个分店一条档:凭证表头与销项税记录的分店号跟着客户档(用户 2026-09-27)。"""
+    t = dbf.Table(str(datat / "ARMAS.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    try:
+        t.append({"CUSCOD": "C018", "CUSNAM": "บิ๊กซี", "TAXID": "0107536000633", "ORGNUM": 18, "STATUS": "A"})
+    finally:
+        t.close()
+    sale = _sale(ref_no="SO-BR18", customer={"code": "", "name": "บิ๊กซี", "tax_id": "0107536000633",
+                                              "prename": "บริษัท", "customer_new": False, "branch": "00018"})
+    res = WS.write_sale(sale, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    assert int(_rows(datat, "ARTRN", DOCNUM=res.docnum)[0].ORGNUM) == 18
+    assert int(_rows(datat, "ISVAT", DOCNUM=res.docnum)[0].ORGNUM) == 18

@@ -386,6 +386,8 @@ def _write_all(
     prefix = entry.doctype  # IV / HS
     cash = prefix == "HS"
     name = entry.customer_name
+    # 凭证表头与销项税记录的分店号 = 这家客户档的分店号(税表分店一栏;真账一致 99%+)。
+    orgnum = master_create.party_orgnum(account_dir, "ARMAS", "CUSCOD", entry.customer_code)
     flgvat, amount, aftdisc, total_, netval, netamt = amount_fields(
         cash, has_vat, base, vat, total
     )
@@ -420,7 +422,7 @@ def _write_all(
                 "IVCAMT": netamt if cash else 0.0,
                 "DOCSTAT": "N",
                 "USERID": userid,
-                **audit_fields(docdat, depcod, has_vat),
+                **audit_fields(docdat, depcod, has_vat, orgnum),
                 **nxtseq_override,
             }
         )
@@ -473,6 +475,7 @@ def _write_all(
                     "DOCSTAT": "N",
                     "TAXID": entry.customer_tax_id,
                     "PRENAM": entry.customer_prename[:15],
+                    **({"ORGNUM": orgnum} if "ORGNUM" in {f.upper() for f in iv.field_names} else {}),
                 }
             )
         finally:

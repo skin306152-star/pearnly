@@ -431,13 +431,14 @@ def test_multi_branch_ambiguous_raises(datat):
         M.find_customer_code(datat, _BIGC_TAX, "ชื่อที่ไม่ตรงสักอัน")
 
 
-def test_multi_branch_branch_miss_falls_to_name(datat):
-    # 给了分店号但 ORGNUM 没配上(会计没填)→ 落名字级,仍能定位。
+def test_multi_branch_branch_miss_creates_the_branch_record(datat):
+    # 给了分店号、这家分店还没有档 → 当未命中走建档,不拿同名挂到别的分店
+    # (用户 2026-09-27 · 旧项目 Big C 分店票记到总店名下:连锁各分店档名往往一样)。
     _seed_bigc(datat)
     got = M.find_customer_code(
         datat, _BIGC_TAX, "บิ๊กซี ซูเปอร์เซ็นเตอร์ (สาขา-ซอยประชุม)", branch="99"
     )
-    assert got == "BIGC-002"
+    assert got is None
 
 
 def test_single_tax_hit_keeps_old_behavior(datat):
@@ -475,15 +476,14 @@ def test_ensure_customer_ambiguous_propagates(datat):
 
 
 def test_single_hit_branch_mismatch_creates_new(datat):
-    # 只有总店档(ORGNUM 0),载荷明确分店 18 且名字不符 → 当未命中(走建档),
-    # 不复用总店;名字相等则仍复用(档只是没填分店号)。
+    # 只有总店档(ORGNUM 0),载荷明确分店 18 → 当未命中(走建档),名字相同也不复用总店;
+    # 载荷明确总店 / 没带分店号 → 复用。宁可多建一条分店档,也不把分店票记到总店名下。
     _seed_full(
         datat, "ARMAS", "CUSCOD", "CUSNAM", "B001", "บิ๊กซี สนญ", _BIGC_TAX
     )
     assert (
         M.find_customer_code(datat, _BIGC_TAX, "บิ๊กซี สาขาใหม่", branch="18") is None
     )
-    assert (
-        M.find_customer_code(datat, _BIGC_TAX, "บิ๊กซี สนญ", branch="18") == "B001"
-    )
+    assert M.find_customer_code(datat, _BIGC_TAX, "บิ๊กซี สนญ", branch="18") is None
+    assert M.find_customer_code(datat, _BIGC_TAX, "บิ๊กซี สนญ", branch="00000") == "B001"
     assert M.find_customer_code(datat, _BIGC_TAX, "ชื่ออื่น") == "B001"

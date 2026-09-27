@@ -86,6 +86,25 @@ def _row_branch(r) -> str:
     return S.orgnum_to_branch5(getattr(r, "ORGNUM", 0))
 
 
+def party_orgnum(account_dir: Path, table: str, codefield: str, code: str) -> int:
+    """对方档(APMAS/ARMAS)这条码的 ORGNUM(分店号,0 = 总店);查不到按总店 0。
+
+    凭证表头与进 / 销项税记录的分店号跟着对方档走(真账:表头 = 档 99%+,税记录 = 表头 99%+),
+    税表(ภ.พ.30)上的分店一栏就是它。
+    """
+    code = str(code or "").strip()
+    if not code:
+        return 0
+    t = _open(account_dir, table, dbf.READ_ONLY)
+    try:
+        for r in S.live_rows(t):
+            if (getattr(r, codefield) or "").strip() == code:
+                return int(S.orgnum_to_branch5(getattr(r, "ORGNUM", 0)))
+    finally:
+        t.close()
+    return 0
+
+
 def _supplier_flgvat(doctype: str, has_vat: bool) -> str:
     """供应商主档默认 VAT 类型(与交易/单别口径一致·真账实测语义):
     无税=0;现购 HP=价含税 '1';其余(赊购 RR / 默认税票)=价不含税 '2'。
@@ -197,11 +216,15 @@ def _find_code(
     branch: str = "",
 ) -> Optional[str]:
     """幂等查重(级联):
-    ① TAXID 唯一命中 → 复用;例外:载荷明确分店号且与该档 ORGNUM、名字都不符 →
-       当未命中走建档(分店档未建时,复用会把分店票静默挂到总店头上)。
-    ② 同税号多档(连锁分店):载荷带分店号则配 ORGNUM 取唯一;不行再核心名精确取唯一;
+    ① TAXID 唯一命中 → 复用;例外:载荷明确分店号且与该档 ORGNUM 不符 → 当未命中走建档。
+    ② 同税号多档(连锁分店):载荷带分店号则配 ORGNUM 取唯一(同分店多档再按核心名取唯一);
+       这家分店还没有档 → 当未命中走建档;载荷没带分店号 → 核心名精确取唯一;
        仍定不出 → raise AmbiguousPartyMatch 转人工,绝不静默取第一条。
     ③ 税号零命中 → 核心名精确后备(不变)。
+
+    **分店号明确时不拿名字挂回别的分店**(用户 2026-09-27 · 旧项目 Big C 分店票记到总店名下):连锁
+    各分店的档名往往一模一样,按名字复用就等于把分店票记到总店 / 别的分店头上。真账里连锁客户
+    本来就是一个分店一条档(Moritomo 一个客户几十条分店档),凭证与税记录的分店号跟着档走。
 
     只认还算数的档:会计删掉一个客户后复用它的码,新单就挂在 Express 里根本列不出来的
     对手方上 —— 单据落地了却查无此客户,比多建一个档难查得多。
@@ -231,25 +254,23 @@ def _find_code(
         return by_name
     if len(tax_hits) == 1:
         code, row_name, row_branch = tax_hits[0]
-        if not want_branch or row_branch == want_branch or (name and row_name == name):
+        if not want_branch or row_branch == want_branch:
             return code
-        # 载荷明确分店号,与唯一命中档不符且名字也不符 → 不是同一分支实体,当未命中
-        # 走建档(新档落正确 ORGNUM;同税号建档不触发疑似重复拦截)。复用会把分店票
-        # 静默挂到总店/别的分店头上。
+        # 载荷明确分店号,与唯一命中档不符 → 不是同一分店,当未命中走建档(新档落正确 ORGNUM;
+        # 同税号建档不触发疑似重复拦截)。名字相同也不复用:连锁各分店档名往往一样。
         return None
     if want_branch:
         branch_hits = [h for h in tax_hits if h[2] == want_branch]
         if len(branch_hits) == 1:
             return branch_hits[0][0]
-        pool = branch_hits or tax_hits
+        if not branch_hits:
+            # 这家分店还没有档 → find-or-create 建新分店档,不拿名字挂到别的分店。
+            return None
         if name:
-            name_hits = [c for c, n, _ in pool if n == name]
+            name_hits = [c for c, n, _ in branch_hits if n == name]
             if len(name_hits) == 1:
                 return name_hits[0]
-            if not name_hits and not branch_hits:
-                # 载荷明确分店号,该分店档不存在、名字也全不中 → find-or-create 建新分店档。
-                return None
-        raise AmbiguousPartyMatch(table, tax, [c for c, _, _ in tax_hits])
+        raise AmbiguousPartyMatch(table, tax, [c for c, _, _ in branch_hits])
     if name:
         name_hits = [c for c, n, _ in tax_hits if n == name]
         if len(name_hits) == 1:

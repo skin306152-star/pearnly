@@ -409,6 +409,11 @@ def _error_code(e: Exception) -> str:
     return ERR_WRITE
 
 
+def _vat_branch(table, orgnum: int) -> dict:
+    """税记录的分店号列(真表有 ORGNUM;老表没有这一列就不写)。"""
+    return {"ORGNUM": int(orgnum or 0)} if "ORGNUM" in {f.upper() for f in table.field_names} else {}
+
+
 def _write_all(
     account_dir,
     entry,
@@ -427,6 +432,8 @@ def _write_all(
     rectyp = S.RECTYP[prefix]
     paid = prefix == "HP"
     name = entry.supplier_name
+    # 凭证表头与进项税记录的分店号 = 这家供应商档的分店号(税表分店一栏;真账一致 99%+)。
+    orgnum = master_create.party_orgnum(account_dir, "APMAS", "SUPCOD", entry.supplier_code)
     flgvat, amount, aftdisc, total_, netval, netamt = amount_fields(
         paid, has_vat, base, vat, total
     )
@@ -460,7 +467,7 @@ def _write_all(
                 "PVATPRORAT": "-",
                 "DOCSTAT": "N",
                 "USERID": userid,
-                **audit_fields(docdat, depcod, has_vat),
+                **audit_fields(docdat, depcod, has_vat, orgnum),
                 **nxtseq_override,
             }
         )
@@ -494,6 +501,7 @@ def _write_all(
                     "DOCSTAT": "N",
                     "TAXID": entry.supplier_tax_id,
                     "PRENAM": entry.supplier_prename[:15],
+                    **_vat_branch(iv, orgnum),
                 }
             )
         finally:

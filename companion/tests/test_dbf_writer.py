@@ -473,3 +473,48 @@ def test_gold_field_assumptions_hold():
     assert (gi["0"].TRNTYP or "").strip() == "0"  # 采购借
     assert (gi["3"].TRNTYP or "").strip() == "0"  # 进项税借
     assert (gi["6"].TRNTYP or "").strip() == "1"  # 应付贷
+
+
+# ── 分店号跟着供应商档进凭证与税记录(用户 2026-09-27 · 旧项目分店票记到总店名下)──────
+def _seed_supplier(d, code, name, tax_id, orgnum):
+    t = dbf.Table(str(d / "APMAS.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    try:
+        t.append({"SUPCOD": code, "SUPNAM": name, "TAXID": tax_id, "ORGNUM": orgnum, "STATUS": "A"})
+    finally:
+        t.close()
+
+
+def test_branch_supplier_number_lands_on_voucher_and_vat_record(datat):
+    """真账:凭证表头分店号 = 对方档(99%+),税记录 = 表头(99%+);以前恒写 0 → 税表上成了总店。"""
+    _seed_supplier(datat, "S018", "บิ๊กซี", "0107536000633", 18)
+    p = _payload(ref_no="BR-18", supplier={"code": "", "name": "บิ๊กซี", "tax_id": "0107536000633",
+                                           "prename": "บริษัท", "supplier_new": False, "branch": "00018"})
+    res = W.write_purchase(p, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    assert res.party_code == "S018"
+    assert int(_rows(datat, "APTRN", DOCNUM=res.docnum)[0].ORGNUM) == 18
+    assert int(_rows(datat, "ISVAT", DOCNUM=res.docnum)[0].ORGNUM) == 18
+
+
+def test_branch_without_its_own_record_gets_one_instead_of_the_head_office(datat):
+    _seed_supplier(datat, "S000", "บิ๊กซี", "0107536000633", 0)
+    p = _payload(ref_no="BR-54", supplier={"code": "", "name": "บิ๊กซี", "tax_id": "0107536000633",
+                                           "prename": "บริษัท", "supplier_new": True, "branch": "00054"})
+    res = W.write_purchase(p, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    assert res.created_party and res.party_code != "S000"
+    assert int(_rows(datat, "APMAS", SUPCOD=res.party_code)[0].ORGNUM) == 54
+    assert int(_rows(datat, "APTRN", DOCNUM=res.docnum)[0].ORGNUM) == 54
+    assert int(_rows(datat, "ISVAT", DOCNUM=res.docnum)[0].ORGNUM) == 54
+
+
+def test_head_office_supplier_keeps_zero(datat):
+    _seed_supplier(datat, "S000", "ปตท", "0107544000108", 0)
+    p = _payload(ref_no="HQ-1", supplier={"code": "", "name": "ปตท", "tax_id": "0107544000108",
+                                          "prename": "บริษัท", "supplier_new": False, "branch": "00000"})
+    res = W.write_purchase(p, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    assert res.party_code == "S000"
+    assert int(_rows(datat, "APTRN", DOCNUM=res.docnum)[0].ORGNUM) == 0
+    assert int(_rows(datat, "ISVAT", DOCNUM=res.docnum)[0].ORGNUM) == 0

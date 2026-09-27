@@ -34,6 +34,18 @@ L2_CHANGES = (
     ("Copy the printed VAT as-is; do not recompute it.\n",
      "Copy the printed VAT as-is; do not recompute it. Shops mark VAT-exempt items (N / E),\n   so a printed VAT can be far below 7/107 of the total — keep the printed figure.\n"),
 )
+# 登记的有意改动（用户 2026-09-27：旧项目分店票记到总店名下）：两方都读分店号，总公司 = 00000。
+BRANCH_CHANGES = (
+    ('\n  "seller_tax": "13-digit Thai tax ID or empty string",\n',
+     '\n  "seller_tax": "13-digit Thai tax ID or empty string",\n  "seller_branch": "5-digit branch or empty string",\n'),
+    ('\n  "buyer_tax": "13-digit Thai tax ID or empty string",\n',
+     '\n  "buyer_tax": "13-digit Thai tax ID or empty string",\n  "buyer_branch": "5-digit branch or empty string",\n'),
+    ("5. TAX IDs: Exactly 13 digits, no dashes/spaces. Empty string if not found.\n",
+     "5. TAX IDs: Exactly 13 digits, no dashes/spaces. Empty string if not found.\n"
+     "5b. BRANCH (สาขา): seller_branch / buyer_branch = that party's branch as printed next to its name or tax ID, "
+     "as 5 digits: \"สำนักงานใหญ่\" / \"Head Office\" / \"HQ\" -> \"00000\"; \"สาขาที่ 18\" / \"สาขา 00018\" / "
+     "\"Branch 18\" -> \"00018\". Empty string when not printed. Never copy one party's branch to the other.\n"),
+)
 L3_CHANGES = (
     ("The correct relationship is: subtotal + vat = total_amount (within rounding tolerance).\n",
      "The correct relationship is: subtotal + vat = total_amount (within rounding tolerance). Copy a printed VAT exactly; never recompute it from the total (VAT-exempt items make it smaller).\n"),
@@ -77,7 +89,7 @@ def run_parity(sources):
         old[name].model_rebuild(_types_namespace=old, force=True)
     execute(definitions(sources["layer2_gemini.py"], {"_first_json_object", "_parse_json"}), old)
     execute(definitions(sources["layer2_prompts.py"], {"_SYSTEM_PROMPT", "_USER_PROMPT_PREFIX", "_RETRY_TRIM_HINT"}), old)
-    assert registered(old["_SYSTEM_PROMPT"], L2_CHANGES) == prompts.L2_SYSTEM
+    assert registered(old["_SYSTEM_PROMPT"], (*L2_CHANGES, *BRANCH_CHANGES)) == prompts.L2_SYSTEM
     assert old["_USER_PROMPT_PREFIX"] == prompts.L2_USER_PREFIX
     assert old["_RETRY_TRIM_HINT"] == prompts.L2_RETRY_HINT
     execute(definitions(sources["direct_read.py"], {"_IMAGE_INPUT_NOTE", "_sniff_mime"}), old)
@@ -86,7 +98,8 @@ def run_parity(sources):
     assert old["_RETRY_HINT_BASE"] == prompts.L3_RETRY_HINT
     execute(definitions(sources["layer3_fallback.py"], {"_SYSTEM_PROMPT", "_INDEPENDENT_REREAD", "MAX_TEXT_LENGTH", "_build_user_prompt"}), old)
     # 登记的有意改动（ADR-0012）：第三轮票种枚举补齐为共用码表的 7 个，其余逐字不变。
-    assert registered(old["_SYSTEM_PROMPT"], ((L3_OLD_TYPES, L3_NEW_TYPES), *L3_CHANGES)) == prompts.L3_SYSTEM
+    assert registered(old["_SYSTEM_PROMPT"], ((L3_OLD_TYPES, L3_NEW_TYPES), *L3_CHANGES, *BRANCH_CHANGES)) \
+        == prompts.L3_SYSTEM
     execute(definitions(sources["totals_rescue.py"], {"_SYSTEM_PROMPT"}), old)
     assert old["_SYSTEM_PROMPT"] == prompts.RESCUE_SYSTEM
     old["json"] = json

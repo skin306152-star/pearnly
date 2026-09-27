@@ -34,12 +34,13 @@ def amount_fields(is_cash: bool, has_vat: bool, base, vat, total):
     return "2", b, b, b, b, t
 
 
-def audit_fields(docdat, depcod: str, has_vat: bool) -> Dict[str, Any]:
+def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0) -> Dict[str, Any]:
     """Express GUI 录入时自动填、外部直写**必须补**的"审核/单据"字段。
 
     缺这些(尤其 `CMPLAPP='Y'`)→ Express 视为未审核/不完整,报表与放大镜列表都看不到
     (逐列比对真单 1739/1741 皆 CMPLAPP='Y' 锁定)。DEPCOD 账套相关 → 由连接 config 给,
-    不用部门的公司留空。ORGNUM 真单恒 0(非自增)。
+    不用部门的公司留空。ORGNUM = 对方档的分店号(0 = 总店;真账表头与对方档一致 99%+,
+    以前恒写 0 会让分店票在税表上显示成总店)。
     """
     return {
         "CMPLAPP": "Y",
@@ -49,6 +50,6 @@ def audit_fields(docdat, depcod: str, has_vat: bool) -> Dict[str, Any]:
         "BILNUM": "~",
         "NXTSEQ": "1",
         "DEPCOD": (depcod or ""),
-        "ORGNUM": 0,
+        "ORGNUM": int(orgnum or 0),
         "SRV_VATTYP": ("1" if has_vat else "-"),
     }
