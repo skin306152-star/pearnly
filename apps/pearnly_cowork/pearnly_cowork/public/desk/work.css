@@ -738,6 +738,26 @@
 .pearnly-work-swatch.pink { background: var(--pink-500); color: var(--gray-900, #1f272e); }
 .pearnly-work-swatch.gray { background: var(--gray-500); color: var(--gray-900, #1f272e); }
 
+/* 列表颜色的色块 = 列表实际的底色（上面 `.kanban-column.tint-*` 同一组变量），选什么画什么。 */
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.green { background: var(--green-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.yellow { background: var(--yellow-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.orange { background: var(--orange-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.red { background: var(--red-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.purple { background: var(--purple-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.blue { background: var(--blue-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.cyan { background: var(--cyan-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.pink { background: var(--pink-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.gray { background: var(--gray-200); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.green { background: var(--bg-green); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.yellow { background: var(--bg-yellow); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.orange { background: var(--bg-orange); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.red { background: var(--bg-red); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.purple { background: var(--bg-purple); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.blue { background: var(--bg-blue); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.cyan { background: var(--bg-cyan); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.pink { background: var(--bg-pink); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.gray { background: var(--bg-gray); color: var(--text-color); }
+
 .pearnly-work-popup-pad {
 	padding: 0 12px 4px;
 }

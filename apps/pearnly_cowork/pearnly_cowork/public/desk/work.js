@@ -251,8 +251,9 @@
 		const save_collapsed = () => {
 			try { localStorage.setItem(COLLAPSED, JSON.stringify([...collapsed])); } catch (error) { /* 无痕窗口 */ }
 		};
-		// 色块（照 Trello 直接点选）：列表颜色、标签颜色共用；当前选中的打勾。
-		const swatches = (current, attrs = "") => `<div class="pearnly-work-swatches">${COLORS.map(color =>
+		// 色块（照 Trello 直接点选）：列表颜色、标签颜色共用；当前选中的打勾。列表的色块用列表实际的底色
+		// （`list-tints`，用户 2026-09-27：选的时候鲜艳、画出来是浅色，对不上）。
+		const swatches = (current, attrs = "", kind = "") => `<div class="pearnly-work-swatches ${kind}">${COLORS.map(color =>
 			`<button type="button" class="pearnly-work-swatch ${color} ${color === current ? "selected" : ""}" ${attrs}
 				data-color="${color}" title="${p.escape(color_text(color))}" aria-label="${p.escape(color_text(color))}"
 				aria-pressed="${color === current}">${color === current ? icon("check") : ""}</button>`).join("")}</div>`;
@@ -276,7 +277,7 @@
 					${p.escape(t("cowork.work.list.doneList"))}</button>
 				<div class="dropdown-divider"></div>
 				<h6 class="dropdown-header">${p.escape(t("cowork.work.column.color"))}</h6>
-				${swatches(row.color, 'data-action="color"')}
+				${swatches(row.color, 'data-action="color"', "list-tints")}
 				<div class="pearnly-work-popup-pad">
 					<button type="button" class="btn btn-default btn-xs btn-block" data-action="color" data-color="">
 						${icon("x")} ${p.escape(t("cowork.work.column.removeColor"))}</button></div>
