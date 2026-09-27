@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import requests
 
 from pearnly_core.account import member_client, profile
-from pearnly_erp_portal.team import service
+from pearnly_erp_portal.team import login_settings, service
 from pearnly_erp_portal.patches import v1_9_username_login
 
 
@@ -18,7 +18,7 @@ class TestMemberClient(unittest.TestCase):
             "pearnly_billing_api": "http://private.invalid", "pearnly_billing_host_header": "billing.internal",
             "pearnly_billing_token": "scoped-test-only", "pearnly_oidc_issuer": "https://identity.invalid/realms/lab",
             "pearnly_native_account": True}
-        for module in (member_client, service, profile, v1_9_username_login):
+        for module in (member_client, service, profile, v1_9_username_login, login_settings):
             p = patch.object(module, "frappe", self.native)
             p.start()
             self.addCleanup(p.stop)
