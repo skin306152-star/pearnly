@@ -2,21 +2,18 @@
 
 纯函数：只依赖标准库，不依赖 Frappe、HTTP 或任何产品 App。原在 ERP `recognition.checks`，2026-09-27 搬到共用层
 给 Cowork 一起用（用户：「搬到共用层」）；数值与容差照抄旧线上 `pearnly-app@ec2e5c95` 的发票闸
-（`services/ocr/direct_read.py`、`sanity.py`、`date_sanity.py`、`services/erp/invoice_amounts.py`）。
+（`services/ocr/direct_read.py`、`sanity.py`、`services/erp/invoice_amounts.py`）。
 
-问题代码（`printed_issues` / `computed_issues` / `date_issues` 返回）给人看的话由各产品自己写：
+问题代码（`printed_issues` / `computed_issues` 返回）给人看的话由各产品自己写：
 total_missing、printed_math、computed_total、computed_vat、negative、same_tax_id、tax_id_checksum、vat_ratio、
-line_sum、total_below_line、date_future、date_old。
+line_sum、total_below_line。
 """
 import re
-from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 TOLERANCE = Decimal("0.5")
 VAT_RATE = Decimal("0.07")
 RELATIVE = Decimal("0.02")
-MAX_BACKDATE_YEARS = 5
-MAX_FUTURE_DAYS = 1
 
 # 折扣 / 优惠券印成一行（「ส่วนลด…」）：不是商品，并进整单折扣（采购、销售共用；语料实测：被记成正数商品多算，
 # 或与整单折扣重复扣）。
@@ -151,20 +148,6 @@ def computed_issues(printed: dict, computed_total, computed_vat=None, net_payabl
     if vat is not None and worked is not None and abs(vat - worked) > max(TOLERANCE, vat * RELATIVE):
         issues.append("computed_vat")
     return issues
-
-
-def date_issues(value, today=None) -> list:
-    try:
-        year, month, day = (int(part) for part in str(value or "")[:10].split("-"))
-        parsed = date(year, month, day)
-    except (ValueError, TypeError):
-        return []
-    anchor = today or date.today()
-    if parsed > anchor + timedelta(days=MAX_FUTURE_DAYS):
-        return ["date_future"]
-    if parsed < anchor - timedelta(days=365 * MAX_BACKDATE_YEARS):
-        return ["date_old"]
-    return []
 
 
 def vat_mode(printed: dict, line_sum, discount=0):

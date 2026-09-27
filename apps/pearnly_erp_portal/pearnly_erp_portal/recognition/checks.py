@@ -13,12 +13,17 @@
 **按识别出的明细算出的合计必须等于票面合计**。这里提前到识别阶段，因为新流程的卡片
 直接给出合计（09-26 真机：20% 折扣被丢、只有金额没有单价，这两次都该在这里被拦下）。
 """
+from datetime import date, timedelta
+
 from pearnly_core.tax_documents import rules as tax_rules
 # 票面核对的纯规则 2026-09-27 起在共用层（Cowork 同用）；这里只留 ERP 的提示语、重读策略与提示词片段。
 from pearnly_core.tax_documents.amounts import (  # noqa: F401 - ERP 各处按 checks.<名字> 调用
-    TOLERANCE, VAT_RATE, computed_issues, date_issues, is_discount_line, money, printed_issues, valid_tax_id,
+    TOLERANCE, VAT_RATE, computed_issues, is_discount_line, money, printed_issues, valid_tax_id,
     vat_mode, withholding_rate,
 )
+
+MAX_BACKDATE_YEARS = 5
+MAX_FUTURE_DAYS = 1
 
 # 代码 → 给人看的话（翻译在 i18n/messages.tsv）。
 MESSAGES = {
@@ -49,6 +54,20 @@ POS_RULES = ("On a shop or POS slip doc_no is the receipt running number (printe
              "never the branch, store, POS, terminal or cashier code. Discount and coupon rows (ส่วนลด ...) are not\n"
              "items: add them to discount_total. A service charge or card fee printed below the items\n"
              "(Service Charge 10%, Credit Card 3%) is an extra line with its printed amount.")
+
+
+def date_issues(value, today=None) -> list:
+    try:
+        year, month, day = (int(part) for part in str(value or "")[:10].split("-"))
+        parsed = date(year, month, day)
+    except (ValueError, TypeError):
+        return []
+    anchor = today or date.today()
+    if parsed > anchor + timedelta(days=MAX_FUTURE_DAYS):
+        return ["date_future"]
+    if parsed < anchor - timedelta(days=365 * MAX_BACKDATE_YEARS):
+        return ["date_old"]
+    return []
 
 
 def hard(issues) -> list:
