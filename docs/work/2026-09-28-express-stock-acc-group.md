@@ -29,4 +29,16 @@
   （Frappe 16.34.1 样板镜像，`--network none`）；Express 规则与旧线上源码对照 963 例 PASS（含存货科目组 15 例）；
   小助手 `test_stock_template` 等 48 通过（本机 Python 3.9，缺 httpx 的 1 条与需 Windows 的 11 个文件以 Windows CI 为准）。
 - 架构检查、i18n 生成检查、前端 i18n、Desk 原生契约通过；`check-i18n --strict` 的失败是存量（主线同为 541 条）。
-- 待补：分支 CI、生产镜像候选离线检查、真机（测试账套 70EXP\TEST）、部署。
+- 分支 CI（Development checks、Companion checks Windows 全量）通过；生产镜像 `b273e386` 挂本分支跑候选离线检查 `ci-candidate-checks.sh offline` 全过。
+- 合入：main 快进到 `d3daf502` 并推送，远端回读一致。小助手 1.2.4 从 main 发**测试通道**（staging，run 36336784417，
+  sha256 `aa128279…`），正式通道仍是 1.2.3。
+- 真实环境（Windows 测试环境：线上同一镜像 `b273e386` + main 实时源码，testcowork 租户从线上刷新导入后切到测试机；
+  站点迁移出新字段）：办公室测试机装 1.2.4（核对 sha256、静默安装后以 skin3 普通权限重启，日志可写账套 574）。
+  - 测试账套 `\\accserver\d$\account\70exp\test` 的视图：合格组 ST10（152 个品在用）、ST01（11 个），未选过 → 入口会问。
+  - 选 ST02（不合格）被拒；选 ST01 存到这份账套名下（chosen_by pearnlyai@gmail.com）。
+  - 合成存货进项票 `GRP-VERIFY-01`（新品名「สินค้าทดสอบกลุ่มบัญชี 0928」3 × 50）提交 → 载荷带 `stock_acccod=ST01`（该账套有 168 个存货主档，旧逻辑不会带）
+    → 小助手 1.2.4 写入 RR690928-001，新建库存品 PN00063。
+  - 读回测试账套（skin3 一次性计划任务只读复制 STMAS / STCRD / GLJNLIT / ISACC，核完已删任务与两端副本）：
+    **PN00063 ACCCOD = ST01**（存货科目 11-04-02-00），账套里 ST10 占 153 个；上一窗口未选组时建的 PN00062 是 ST10。
+    STCRD 入库 3 / 150；分录借贷平衡。
+- 未做：网页弹窗与提交前兜底弹窗、LINE 选组的真机点选（内置浏览器没有登录会话，不代填账号）；生产部署；小助手正式通道发布。
