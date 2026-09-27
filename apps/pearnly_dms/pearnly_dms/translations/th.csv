@@ -5,6 +5,7 @@ Account busy — click Read later to continue,บัญชีไม่ว่า�
 Account busy — click Update data later to continue,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
 Account busy — the read will continue shortly,บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่
 Action,การดำเนินการ
+Add,เพิ่ม
 Add a channel,เพิ่มช่องทาง
 Add and edit customers,เพิ่มและแก้ไขข้อมูลลูกค้า
 Add read account,เพิ่มบัญชีอ่านข้อมูล
@@ -82,6 +83,7 @@ Confirm,ยืนยัน
 Confirm booking,ยืนยันจอง
 Confirm saving a new customer,ยืนยันบันทึกลูกค้าใหม่
 Connected. Reading starts after you add the read account.,เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล
+Connection account,บัญชีการเชื่อมต่อ
 Continue booking,ทำใบจองต่อ
 Continuing with the existing data,ใช้ข้อมูลเดิมต่อ
 Contract not opened,ยังไม่เปิดสัญญา
@@ -248,7 +250,7 @@ Registered under — choose below,จดทะเบียนในนาม —
 "Registration name — tap Use name on card, or type another name",ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น
 Reject,ปฏิเสธ
 Reload List,โหลดรายการใหม่
-Remove,ลบออก
+Remove,ลบ
 "Remove slip, go on",ลบสลิปแล้วไปต่อ
 Remove the account and add it again to change its name,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 Removed {0},ลบ {0} แล้ว
@@ -713,10 +715,12 @@ dms.card.sum.birthday_be,วันเกิด
 dms.card.sum.name,ชื่อ
 dms.card.sum.people_id,เลขบัตร
 dms.card.sum.phone,เบอร์โทร
+dms.connect.acct.addRow,เพิ่ม
 dms.connect.acct.check.customer,ข้อมูลลูกค้า
 dms.connect.acct.check.customer_form,ฟอร์มเพิ่มลูกค้า
 dms.connect.acct.check.customers,รายชื่อลูกค้า
 dms.connect.acct.check.events,บันทึกการใช้งาน
+dms.connect.acct.connectionField,บัญชีการเชื่อมต่อ
 dms.connect.acct.errGone,บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า
 dms.connect.acct.errRename,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 dms.connect.acct.errSwitch,เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น
@@ -728,6 +732,7 @@ dms.connect.acct.readField,บัญชีอ่านข้อมูล
 dms.connect.acct.readFirst,เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล
 dms.connect.acct.readHelp,ใช้อ่านข้อมูลเท่านั้น: อ่านทั้งหมดครั้งแรกและซิงก์ทุกนาทีช่วงกลางวัน
 dms.connect.acct.readNone,ยังไม่ตั้ง (อ่านข้อมูลเฉพาะตอนกลางคืน)
+dms.connect.acct.removeRow,ลบ
 dms.connect.acct.saved,บันทึกแล้ว
 dms.connect.acct.testAndSave,ทดสอบและบันทึก
 dms.connect.acct.writeAdd,เพิ่มบัญชีสิทธิ์แก้ไข

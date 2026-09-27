@@ -98,6 +98,9 @@ This system account no longer exists; reload the page	这个系统账号已不�
 Remove the account and add it again to change its name	要改账号名，请删掉这一行再重新添加	หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่	アカウント名を変えるには行を削除して追加し直してください	dms.connect.acct.errRename
 The DMS account can only be switched before the session starts	只能在开始会话前切换 DMS 账号	เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น	DMS アカウントはセッション開始前にのみ切り替えられます	dms.connect.acct.errSwitch
 Connected. Reading starts after you add the read account.	已连接。添加读档账号后开始读取资料。	เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล	接続しました。読み取りアカウントを追加すると読み込みを始めます。	dms.connect.acct.readFirst
+Connection account	连接账号	บัญชีการเชื่อมต่อ	接続アカウント	dms.connect.acct.connectionField
+Add	添加	เพิ่ม	追加	dms.connect.acct.addRow
+Remove	删除	ลบ	削除	dms.connect.acct.removeRow
 DMS System Account	DMS 系统账号	บัญชีระบบ DMS	DMS システムアカウント	dms.doctype.system_account
 Last Check	最近检查	ตรวจสอบล่าสุด	最終チェック	dms.doctype.system_account.last_status
 Last Checked At	最近检查时间	เวลาตรวจสอบล่าสุด	最終チェック日時	dms.doctype.system_account.last_checked_at

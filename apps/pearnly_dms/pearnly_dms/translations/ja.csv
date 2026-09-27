@@ -5,6 +5,7 @@ Account busy — click Read later to continue,アカウントが使用中です�
 Account busy — click Update data later to continue,アカウントが使用中です。後で「データを更新」を押して続行してください
 Account busy — the read will continue shortly,アカウントが使用中です。まもなく自動的に続行します
 Action,操作
+Add,追加
 Add a channel,支払方法を追加
 Add and edit customers,顧客の追加と編集
 Add read account,読み取りアカウントを追加
@@ -82,6 +83,7 @@ Confirm,確定
 Confirm booking,予約を確定
 Confirm saving a new customer,新規顧客の保存を確認
 Connected. Reading starts after you add the read account.,接続しました。読み取りアカウントを追加すると読み込みを始めます。
+Connection account,接続アカウント
 Continue booking,予約を続ける
 Continuing with the existing data,既存データで続けます
 Contract not opened,契約未締結
@@ -713,10 +715,12 @@ dms.card.sum.birthday_be,生年月日
 dms.card.sum.name,氏名
 dms.card.sum.people_id,身分証番号
 dms.card.sum.phone,電話番号
+dms.connect.acct.addRow,追加
 dms.connect.acct.check.customer,顧客情報
 dms.connect.acct.check.customer_form,新規顧客フォーム
 dms.connect.acct.check.customers,顧客一覧
 dms.connect.acct.check.events,利用履歴
+dms.connect.acct.connectionField,接続アカウント
 dms.connect.acct.errGone,このシステムアカウントはもうありません。ページを再読み込みしてください
 dms.connect.acct.errRename,アカウント名を変えるには行を削除して追加し直してください
 dms.connect.acct.errSwitch,DMS アカウントはセッション開始前にのみ切り替えられます
@@ -728,6 +732,7 @@ dms.connect.acct.readField,読み取りアカウント
 dms.connect.acct.readFirst,接続しました。読み取りアカウントを追加すると読み込みを始めます。
 dms.connect.acct.readHelp,データの読み込み専用：初回の全件読み込みと日中の毎分同期。
 dms.connect.acct.readNone,未設定（夜間のみ読み込み）
+dms.connect.acct.removeRow,削除
 dms.connect.acct.saved,保存しました
 dms.connect.acct.testAndSave,テストして保存
 dms.connect.acct.writeAdd,書き込みアカウントを追加

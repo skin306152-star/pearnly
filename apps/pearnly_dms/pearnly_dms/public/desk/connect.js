@@ -155,26 +155,17 @@
 			);
 			// 不再有内联的「测试连接」「停用/启用」按钮（用户 2026-09-25）；服务端两个 RPC
 			// （test_endpoint / set_connection_enabled）保留不动，只是不再从这个页面露出。
-			const fields = [{ fieldtype: "Section Break", label: t("connect.title") }];
-			for (const [name, key, value] of [
-				[
-					"state",
-					"status",
-					t(conn.connected ? "connect.state.connected" : "connect.state.notConnected"),
-				],
-				["account", "account", ep?.username || "—"],
-				["url", "url", ep?.system_url || "—"],
-				["admin", "adminCreds", t(ep?.has_admin_creds ? "connect.yes" : "connect.no")],
-				["read", null, accounts.read?.username || acct("dms.connect.acct.readNone")],
-				["write", null, accounts.write.map((row) => row.username).join(", ") || acct("dms.connect.acct.writeNone")],
+			// 只列管理员要看的四样（用户 2026-09-27："界面调整下"）：连没连上看标题旁的状态；
+			// 连接账号只用来绑定，登记了读档 / 改写账号后系统读写都不再用它。
+			const fields = [{ fieldtype: "Section Break" }];
+			for (const [name, label, value] of [
+				["url", t("connect.field.url"), ep?.system_url || "—"],
+				["account", acct("dms.connect.acct.connectionField"), ep?.username || "—"],
+				["read", acct("dms.connect.acct.readField"), accounts.read?.username || acct("dms.connect.acct.readNone")],
+				["write", acct("dms.connect.acct.writeField"),
+					accounts.write.map((row) => row.username).join(", ") || acct("dms.connect.acct.writeNone")],
 			]) {
-				fields.push({
-					fieldtype: "Data",
-					fieldname: name,
-					label: key ? t("connect.field." + key) : acct(`dms.connect.acct.${name}Field`),
-					default: value,
-					read_only: 1,
-				});
+				fields.push({ fieldtype: "Data", fieldname: name, label, default: value, read_only: 1 });
 			}
 			p.layout(page.main, fields);
 			statuses = [];
@@ -237,33 +228,24 @@
 				},
 			);
 		}
-		// 改写账号：默认一行账号密码，表格下方「添加行」再加一行（官方 Grid）。已登记的行密码留空 = 不改；
-		// 删掉的行 = 移除。服务端整表校验，有一行试不过就一行都不存。
+		// 改写账号：默认一行「账号 · 密码」，下面「添加」再加一行，每行可删（用户 2026-09-27）。
+		// 用官方控件逐行拼（make_control），不用 Grid：Grid 的密码列不遮挡、编辑框会撑出表格。
+		// 已登记的行账号只读、密码留空 = 不改；删掉的行 = 移除。服务端整表试过才存。
 		function editWriteAccounts() {
-			const rows = accounts.write.map((row) => ({ account_id: row.name, username: row.username }));
-			p.dialog(
+			const entries = [];
+			const d = p.dialog(
 				acct("dms.connect.acct.writeAdd"),
 				[
 					{ fieldtype: "HTML", fieldname: "help", options: `<p class="text-muted">${p.escape(acct("dms.connect.acct.writeHelp"))}</p>` },
-					{
-						fieldtype: "Table",
-						fieldname: "accounts",
-						cannot_add_rows: 0,
-						in_place_edit: 1,
-						data: rows.length ? rows : [{}],
-						fields: [
-							{ fieldtype: "Data", fieldname: "account_id", hidden: 1 },
-							{ fieldtype: "Data", fieldname: "username", label: t("connect.field.account"), in_list_view: 1 },
-							{ fieldtype: "Password", fieldname: "password", label: __("Password"), in_list_view: 1 },
-						],
-					},
+					{ fieldtype: "HTML", fieldname: "rows" },
+					{ fieldtype: "Button", fieldname: "add", label: acct("dms.connect.acct.addRow"), click: () => addRow({}) },
 				],
 				acct("dms.connect.acct.testAndSave"),
-				async (values, d) => {
-					const payload = (values.accounts || []).map((row) => ({
-						name: row.account_id || "",
-						username: String(row.username || "").trim(),
-						password: row.password || "",
+				async (values, dialog) => {
+					const payload = entries.filter((entry) => !entry.removed).map((entry) => ({
+						name: entry.name,
+						username: String(entry.user.get_value() || "").trim(),
+						password: entry.pass.get_value() || "",
 					}));
 					const result = await p.call(
 						"pearnly_dms.connections.api.save_write_accounts",
@@ -271,11 +253,37 @@
 						"POST",
 					);
 					if (!result.ok) return accountFailure(result);
-					d.hide();
+					dialog.hide();
 					p.success(acct("dms.connect.acct.saved"));
 					await refresh();
 				},
 			);
+			const holder = d.fields_dict.rows.$wrapper;
+			function control(parent, df) {
+				const field = frappe.ui.form.make_control({ parent, df, only_input: true, render_input: true });
+				field.refresh();
+				return field;
+			}
+			function addRow(row) {
+				const $row = $('<div class="row form-group"></div>').appendTo(holder);
+				const entry = { name: row.name || "", removed: false };
+				entry.user = control($('<div class="col-xs-5"></div>').appendTo($row), {
+					fieldtype: "Data", fieldname: `username_${entries.length}`,
+					placeholder: t("connect.field.account"), read_only: row.name ? 1 : 0,
+				});
+				entry.user.set_value(row.username || "");
+				entry.pass = control($('<div class="col-xs-5"></div>').appendTo($row), {
+					fieldtype: "Password", fieldname: `password_${entries.length}`, placeholder: __("Password"),
+				});
+				control($('<div class="col-xs-2"></div>').appendTo($row), {
+					fieldtype: "Button", fieldname: `remove_${entries.length}`, label: acct("dms.connect.acct.removeRow"),
+					click: () => { entry.removed = true; $row.remove(); },
+				});
+				entries.push(entry);
+			}
+			const saved = accounts.write.map((row) => ({ name: row.name, username: row.username }));
+			(saved.length ? saved : [{}]).forEach(addRow);
+			return d;
 		}
 		function wizard() {
 			p.dialog(

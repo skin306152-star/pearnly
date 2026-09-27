@@ -5,6 +5,7 @@ Account busy — click Read later to continue,账号忙，请稍后点击读取�
 Account busy — click Update data later to continue,账号忙，请稍后点击更新数据继续
 Account busy — the read will continue shortly,账号忙，读取稍后会自动继续
 Action,操作
+Add,添加
 Add a channel,添加付款方式
 Add and edit customers,新增和修改客户资料
 Add read account,添加读档账号
@@ -82,6 +83,7 @@ Confirm,确认
 Confirm booking,确认订车
 Confirm saving a new customer,确认保存新客户
 Connected. Reading starts after you add the read account.,已连接。添加读档账号后开始读取资料。
+Connection account,连接账号
 Continue booking,继续订车
 Continuing with the existing data,继续使用原资料
 Contract not opened,未签合同
@@ -248,7 +250,7 @@ Registered under — choose below,登记名义 — 请在下方选择
 "Registration name — tap Use name on card, or type another name",登记人姓名 — 点「使用证件上的姓名」，或输入其他姓名
 Reject,拒绝
 Reload List,刷新列表
-Remove,移除
+Remove,删除
 "Remove slip, go on",删除凭证后继续
 Remove the account and add it again to change its name,要改账号名，请删掉这一行再重新添加
 Removed {0},已移除 {0}
@@ -713,10 +715,12 @@ dms.card.sum.birthday_be,出生日期
 dms.card.sum.name,姓名
 dms.card.sum.people_id,证件号码
 dms.card.sum.phone,电话
+dms.connect.acct.addRow,添加
 dms.connect.acct.check.customer,客户资料
 dms.connect.acct.check.customer_form,新建客户
 dms.connect.acct.check.customers,客户列表
 dms.connect.acct.check.events,使用记录
+dms.connect.acct.connectionField,连接账号
 dms.connect.acct.errGone,这个系统账号已不存在，请刷新页面
 dms.connect.acct.errRename,要改账号名，请删掉这一行再重新添加
 dms.connect.acct.errSwitch,只能在开始会话前切换 DMS 账号
@@ -728,6 +732,7 @@ dms.connect.acct.readField,读档账号
 dms.connect.acct.readFirst,已连接。添加读档账号后开始读取资料。
 dms.connect.acct.readHelp,只用来读资料：首次读全档和白天每分钟同步。
 dms.connect.acct.readNone,未设置（资料只在凌晨读取）
+dms.connect.acct.removeRow,删除
 dms.connect.acct.saved,已保存
 dms.connect.acct.testAndSave,测试并保存
 dms.connect.acct.writeAdd,添加改写权限账号

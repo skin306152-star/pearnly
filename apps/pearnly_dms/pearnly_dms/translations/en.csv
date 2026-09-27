@@ -5,6 +5,7 @@ Account busy — click Read later to continue,Account busy — click Read later 
 Account busy — click Update data later to continue,Account busy — click Update data later to continue
 Account busy — the read will continue shortly,Account busy — the read will continue shortly
 Action,Action
+Add,Add
 Add a channel,Add a channel
 Add and edit customers,Add and edit customers
 Add read account,Add read account
@@ -82,6 +83,7 @@ Confirm,Confirm
 Confirm booking,Confirm booking
 Confirm saving a new customer,Confirm saving a new customer
 Connected. Reading starts after you add the read account.,Connected. Reading starts after you add the read account.
+Connection account,Connection account
 Continue booking,Continue booking
 Continuing with the existing data,Continuing with the existing data
 Contract not opened,Contract not opened
@@ -713,10 +715,12 @@ dms.card.sum.birthday_be,Date of birth
 dms.card.sum.name,Name
 dms.card.sum.people_id,ID no.
 dms.card.sum.phone,Phone
+dms.connect.acct.addRow,Add
 dms.connect.acct.check.customer,customer details
 dms.connect.acct.check.customer_form,new customer form
 dms.connect.acct.check.customers,customer list
 dms.connect.acct.check.events,usage log
+dms.connect.acct.connectionField,Connection account
 dms.connect.acct.errGone,This system account no longer exists; reload the page
 dms.connect.acct.errRename,Remove the account and add it again to change its name
 dms.connect.acct.errSwitch,The DMS account can only be switched before the session starts
@@ -728,6 +732,7 @@ dms.connect.acct.readField,Read account
 dms.connect.acct.readFirst,Connected. Reading starts after you add the read account.
 dms.connect.acct.readHelp,Used only to read data: the first full read and the every-minute daytime sync.
 dms.connect.acct.readNone,Not set (data is read only at night)
+dms.connect.acct.removeRow,Remove
 dms.connect.acct.saved,Saved
 dms.connect.acct.testAndSave,Test and save
 dms.connect.acct.writeAdd,Add write accounts

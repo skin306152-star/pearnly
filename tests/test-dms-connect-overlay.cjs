@@ -29,6 +29,11 @@ const row = (dataset, state = 'idle', extra = {}) => ({
   as_of: 0, completed_at: 0, stale: false, error_code: '', ...extra,
 });
 
+// 页面用 jQuery 拼账号行：替身只需要"插进去 / 移除"。
+function element() {
+  return {removed: false, appendTo() {return this;}, remove() {this.removed = true;}};
+}
+
 function harness({connected = true, rows = null, accounts = null, reading = 'reading'} = {}) {
   const calls = [], timers = new Map(), messages = [], successes = [], freezeTexts = [];
   const buttons = [], handlers = {}, menu = [], dialogs = [], layouts = [];
@@ -75,14 +80,25 @@ function harness({connected = true, rows = null, accounts = null, reading = 'rea
       if (method.endsWith('set_read_account') || method.endsWith('save_write_accounts')) return clone(accountReply);
       throw new Error('Unexpected connection call: ' + method);
     },
-    dialog(title, fields, action, submit) {dialogSubmit = submit; dialogs.push({title, fields, action, submit});},
+    dialog(title, fields, action, submit) {
+      dialogSubmit = submit;
+      const dialog = {title, fields, action, submit, fields_dict: {rows: {$wrapper: element()}}};
+      dialogs.push(dialog);
+      return dialog;
+    },
     layout(parent, fields) {layouts.push(fields); return {fields: [], values: {}, set_value() {}};},
     escape: value => String(value),
     success(value) {successes.push(value);},
     tidy_number() {},
   };
+  const controls = [];
   const frappe = {
     pearnly: p, boot: {lang: 'zh'},
+    ui: {form: {make_control({df}) {
+      const control = {df, value: '', set_value(v) {this.value = v;}, get_value() {return this.value;}, refresh() {}};
+      controls.push(control);
+      return control;
+    }}},
     dom: {
       freeze(value) {frozen = true; freezeCount++; freezeTexts.push(value); freezeMessage = value;},
       unfreeze() {frozen = false; unfreezeCount++;},
@@ -92,7 +108,9 @@ function harness({connected = true, rows = null, accounts = null, reading = 'rea
   };
   const context = vm.createContext({
     frappe, p, __: text => text, console,
-    $: value => ({on(event, fn) {assert.equal(value, wrapper); handlers[event] = fn;}}),
+    $: value => (value === wrapper
+      ? {on(event, fn) {handlers[event] = fn;}}
+      : element()),
     // 只还原我们真正用的那一个选择器：原生覆盖的正文节点。
     document: {querySelector(selector) {
       assert.equal(selector, '#freeze .freeze-message p.lead');
@@ -105,7 +123,7 @@ function harness({connected = true, rows = null, accounts = null, reading = 'rea
   return {
     calls, buttons, messages, successes, freezeTexts, handlers,
     get savedConnection() {return savedConnection;},
-    menu, dialogs, layouts,
+    menu, dialogs, layouts, controls,
     primary() {assert(primaryAction, 'a primary action must exist'); primaryAction();},
     get primaryLabel() {return primaryLabel;}, get secondary() {return secondary;},
     get secondaryCleared() {return secondaryCleared;},
@@ -355,28 +373,43 @@ test('read account dialog saves through the probe and names missing rights', asy
   assert.equal(h.successes.at(-1), zh['dms.connect.acct.saved']);
 });
 
-test('write accounts dialog starts with one empty row and sends the whole table', async () => {
+test('write accounts dialog: one account/password row by default, add and remove rows', async () => {
   const fresh = harness();
   await fresh.start();
   fresh.primary();
-  const empty = fresh.dialogs.at(-1).fields.find(f => f.fieldname === 'accounts');
-  assert.equal(empty.fieldtype, 'Table', 'rows are added with the native grid');
-  assert.deepEqual(clone(empty.data), [{}], 'one account/password row by default');
-  assert.deepEqual(clone(empty.fields.filter(f => f.in_list_view).map(f => f.fieldname)), ['username', 'password']);
+  const types = () => fresh.controls.map(c => c.df.fieldtype);
+  assert.deepEqual(clone(types()), ['Data', 'Password', 'Button'], 'one row: account, password, remove');
+  const dialog = fresh.dialogs.at(-1);
+  assert.equal(dialog.fields.find(f => f.fieldname === 'add').label, zh['dms.connect.acct.addRow']);
+  assert(!dialog.fields.some(f => f.fieldtype === 'Table'), 'no grid: its password column shows plain text');
+  dialog.fields.find(f => f.fieldname === 'add').click();
+  assert.equal(fresh.controls.filter(c => c.df.fieldtype === 'Password').length, 2);
 
-  const h = harness({accounts: {read: null, write: [{name: 'W1', username: 'w1'}]}});
+  const h = harness({accounts: {read: null, write: [{name: 'W1', username: 'w1'}, {name: 'W2', username: 'w2'}]}});
   await h.start();
   h.primary();
-  const dialog = h.dialogs.at(-1);
-  assert.deepEqual(clone(dialog.fields.find(f => f.fieldname === 'accounts').data),
-    [{account_id: 'W1', username: 'w1'}], 'saved accounts come back without a password');
+  const users = h.controls.filter(c => c.df.fieldtype === 'Data');
+  assert.deepEqual(clone(users.map(c => [c.value, c.df.read_only])), [['w1', 1], ['w2', 1]],
+    'saved accounts come back read-only and without a password');
+  h.controls.filter(c => c.df.fieldtype === 'Button')[1].df.click();  // remove w2
+  h.dialogs.at(-1).fields.find(f => f.fieldname === 'add').click();
+  const added = h.controls.filter(c => c.df.fieldtype === 'Data').at(-1);
+  added.set_value(' w3 ');
+  h.controls.filter(c => c.df.fieldtype === 'Password').at(-1).set_value('p3');
   let hidden = false;
-  await dialog.submit({accounts: [{account_id: 'W1', username: 'w1'}, {username: ' w2 ', password: 'p2'}]},
-    {set_value() {}, hide() {hidden = true;}});
+  await h.dialogs.at(-1).submit({}, {set_value() {}, hide() {hidden = true;}});
   const call = h.calls.find(c => c.method.endsWith('save_write_accounts'));
   assert.deepEqual(JSON.parse(call.args.accounts), [
-    {name: 'W1', username: 'w1', password: ''}, {name: '', username: 'w2', password: 'p2'}]);
+    {name: 'W1', username: 'w1', password: ''}, {name: '', username: 'w3', password: 'p3'}]);
   assert(hidden);
+});
+
+test('the page lists address, connection, read and write accounts only', async () => {
+  const h = harness({accounts: {read: {name: 'R1', username: 'reader'}, write: []}});
+  await h.start();
+  const fields = h.layouts.at(-1).filter(f => f.fieldtype === 'Data');
+  assert.deepEqual(clone(fields.map(f => f.fieldname)), ['url', 'account', 'read', 'write']);
+  assert.equal(fields[1].label, zh['dms.connect.acct.connectionField']);
 });
 
 test('a usable customer group stops masking the page while its details keep reading', async () => {
