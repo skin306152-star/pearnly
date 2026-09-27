@@ -151,6 +151,9 @@ live_sync() {
     # 整站 502（2026-09-27 测试机实测）。等其他容器都起来后再单独重启一次前端，让它解析到当前地址。
     dc restart "$app-frontend" >/dev/null 2>&1 || true
   fi
+  # 前端（nginx）启动时就解析好了应用容器的地址；应用容器一起重启时可能换了内部 IP，
+  # 前端还连旧地址，页面一直 502（2026-09-27 实测）。应用都起来后再单独重启一次前端。
+  dc restart "$app-frontend" >/dev/null
   local stamp="$root/live/$app.migrate"
   if [[ -n "$migrate_hash" && "$(cat "$stamp" 2>/dev/null)" == "$migrate_hash" ]]; then
     echo "· 表结构 / 补丁 / hooks 没变：只清缓存"
