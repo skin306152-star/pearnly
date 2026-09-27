@@ -27,7 +27,7 @@
 
 ## 验证
 
-- 小助手：490 通过 / 41 跳过（本机，Windows 专属用例跳过；CI 在 Windows 跑全量）。
+- 小助手：491 通过 / 41 跳过（本机，Windows 专属用例跳过；CI 在 Windows 跑全量）。
 - `tests/test_cowork_targets.py` 34 通过（新推送规则、分组、同名文件夹区分）；`tests/test_cowork_line_intake.py` 18 通过（含 Express 年度 → 账套）。
 - 生产镜像 `246a6ca2` 挂本分支代码跑完整候选离线检查（`ci-candidate-checks.sh offline`）：全部通过。
 - 测试租户真实目录（一次性验证容器 + 独立缓存，结束已注销会话、删容器）：

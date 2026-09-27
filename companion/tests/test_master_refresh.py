@@ -220,3 +220,17 @@ def test_failed_scan_exposes_request_scoped_error(monkeypatch):
         )
         == "ERR_MASTER_SCAN_FAILED"
     )
+
+
+def test_slow_registry_stamp_does_not_hold_back_a_full_scan(monkeypatch):
+    """够不到的共享盘读修改时间会卡好几秒(Windows):整套重扫先交结果,修改时间随后再记。"""
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: time.sleep(1.5) or (1, 1))
+    monkeypatch.setattr(account_probe, "account_sets_payload", lambda root: [{"path": f"{root}/A"}])
+    kwargs = {"force": True, "account_sets_only": True}
+
+    started = time.monotonic()
+    master_refresh.request_master(r"\\server\books", r"\\server\books\A", **kwargs)
+    result = _wait(lambda: master_refresh.request_master(r"\\server\books", r"\\server\books\A", **kwargs))
+
+    assert result[0] == {"account_sets": [{"path": r"\\server\books/A"}]}
+    assert time.monotonic() - started < 1.0

@@ -122,23 +122,27 @@ def _scan(
     discover: bool = False,
     previous: Optional[tuple] = None,
 ) -> None:
-    """后台线程:`previous` 给了就先比登记表,没变就不扫(不产出新快照)。"""
+    """后台线程:`previous` 给了(平时的变化检查)就先比登记表,没变就不扫、不出新快照。
+    整套重扫时先扫、先把结果交出去,再记登记表的修改时间 —— 够不到的共享盘读修改时间会卡好几秒,
+    不能让它拖住这次结果。"""
     error = ""
     payload = None
-    signature: tuple = ()
+    signature: Optional[tuple] = None
+    roots: list[str] = []
     try:
         from .account_probe import account_sets_payload, chart_accounts_payload
 
         roots = _roots(express_root, authorized_roots)
         if discover:
             roots += _discover(roots)
-        signature = _signature(roots, account_dir, not account_sets_only)
-        if previous is not None and signature == previous:
-            with _lock:
-                refresh = _refreshes.get(key)
-                if refresh is not None:
-                    refresh.running = False
-            return
+        if previous is not None:
+            signature = _signature(roots, account_dir, not account_sets_only)
+            if signature == previous:
+                with _lock:
+                    refresh = _refreshes.get(key)
+                    if refresh is not None:
+                        refresh.running = False
+                return
         seen_accounts: set[tuple[str, str]] = set()
         account_sets: list[dict] = []
         for root in roots:
@@ -164,12 +168,23 @@ def _scan(
         refresh = _refreshes.get(key)
         if refresh is None:
             return
-        refresh.running = False
         refresh.payload = payload
         refresh.completed_at = time.time()
         refresh.error = error
-        if payload is not None:
+        if payload is None:
+            refresh.running = False
+            return
+    if signature is None:
+        try:
+            signature = _signature(roots, account_dir, not account_sets_only)
+        except Exception:
+            log.exception("Express registry stamp failed: %s", account_dir)
+            signature = ()
+    with _lock:
+        refresh = _refreshes.get(key)
+        if refresh is not None:
             refresh.signature = signature
+            refresh.running = False
 
 
 def request_master(
