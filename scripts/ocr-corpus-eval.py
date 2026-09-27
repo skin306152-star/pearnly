@@ -194,6 +194,8 @@ def run_cowork(content, filename):
 
     # 与线上开户写入的 Cowork 识别配置相同（`infrastructure/production/site-step.py` COWORK_OCR）。
     environment = {"OCR_LLM_BACKEND": "vertex", "GCP_PROJECT": ocr.project(), "VERTEX_LOCATION": ocr.location()}
+    if os.environ.get("COWORK_LAYER3") == "1":  # 对比 3.8 视觉复核打开时（ADR-013 默认关）
+        environment["OCR_LAYER3_ENABLED"] = "1"
     selected = invoice_policy(environment, {"mode": "economy"})
     config = config_from_environment(environment, selected)
     client = cowork_client(environment)
@@ -206,7 +208,7 @@ def run_cowork(content, filename):
 
     def call():
         with PageSource(content, filename, expected_page_count=pages_count, enable_text_path=selected.text_fast_path,
-                        image_max_long_edge=2400) as pages:
+                        image_max_long_edge=2400, orient=ocr.orient) as pages:
             return run_invoice(pages, client.model_call, client.vision_call, config=config,
                                anchor_year=today.year, today=today)
 

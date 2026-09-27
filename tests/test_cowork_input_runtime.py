@@ -101,6 +101,31 @@ class RuntimeInputs(unittest.TestCase):
                 self.assertEqual(reduced.format, format)
             self.assertEqual(frame.mime_type, "image/" + format.lower())
 
+    def test_orient_turns_the_reading_copy_and_shrinks_the_turned_one(self):
+        # 识别前转正（ADR-013）：直读 / 复核看转正后的图，Vision 用转正后再缩小的图；PDF 渲染页同样过一遍
+        seen = []
+
+        def orient(content, mime):
+            seen.append(mime)
+            with Image.open(io.BytesIO(content)) as original, original.rotate(90, expand=True) as turned:
+                output = io.BytesIO()
+                turned.convert("RGB").save(output, "JPEG")
+            return output.getvalue(), "image/jpeg"
+
+        with PageSource(image((300, 200)), "wide.png", expected_page_count=1, image_max_long_edge=150,
+                        orient=orient) as source:
+            frame = source.frame(1)
+        self.assertEqual((frame.mime_type, Image.open(io.BytesIO(frame.image_bytes)).size), ("image/jpeg", (200, 300)))
+        self.assertEqual(Image.open(io.BytesIO(frame.vision_bytes)).size, (100, 150))
+        with PageSource(pdf(("",)), "scan.pdf", expected_page_count=1, orient=orient) as source:
+            self.assertEqual(source.frame(1).mime_type, "image/jpeg")
+        self.assertEqual(seen, ["image/png", "image/png"])
+
+    def test_without_orient_the_original_bytes_are_sent(self):
+        original = image()
+        with PageSource(original, "a.png", expected_page_count=1) as source:
+            self.assertEqual(source.frame(1).image_bytes, original)
+
     def test_small_images_disabled_resize_and_resize_errors_preserve_bytes(self):
         content = image()
         self.assertIs(downscale_image_bytes(content, 2400), content)

@@ -1,5 +1,8 @@
 # Cowork 发票执行纯编排（第四批）
 
+> 2026-09-27 起图片页的读法改按 [ADR-013](../../adr/0013-ocr-read-strategy.md)「Cowork」一节：没过直读闸只复核同一页，
+> 不再整件回落；3.8（L3）默认关。下文记录的是第四批迁移时的旧线上对照口径，其余条目仍有效。
+
 本批落点为 `pearnly_cowork.ocr.engine`，不依赖 Frappe、网络、文件、线程、环境变量或系统时钟。公开 Python 入口是 `run_invoice`，公开 RPC/工作单/收费归 `ocr.execution`；帧渲染和 Core 供应商检查点归 `ocr.inputs_runtime` / `ocr.providers`。依赖方向只有运行适配器 → engine 合同 → 已迁 schema/validation/money/policy。
 
 ## 来源与运行边界

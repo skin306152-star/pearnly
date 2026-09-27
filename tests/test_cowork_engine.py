@@ -80,14 +80,89 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(model.requests[0].prompt, model.requests[1].prompt)
         self.assertEqual(result.pipeline.pages[0].layer2_input_tokens, 20)
 
-    def test_direct_fallback_reprocesses_whole_file_and_retains_all_usage(self):
-        model, source = Model([GOOD, {"total_amount": ""}, GOOD, GOOD]), Source(2)
+    def test_only_the_failed_page_is_rechecked_and_all_usage_is_kept(self):
+        # ADR-013：一页没过闸只复核那一页，不再把整份文件改走 Vision 重读
+        model, source = Model([GOOD, {"total_amount": ""}, GOOD]), Source(2)
         result = run(source, model)
-        self.assertEqual(source.frames, [1, 2, 1, 2])
-        self.assertEqual([r.stage for r in model.requests], ["direct", "direct", "layer2", "layer2"])
-        self.assertEqual(result.pipeline.engine, "pipeline_v1_id_fb")
-        self.assertEqual(len(result.calls), 6)
-        self.assertEqual(sum(c.input_tokens for c in result.calls), 40)
+        self.assertEqual(source.frames, [1, 2])
+        self.assertEqual([r.stage for r in model.requests], ["direct", "direct", "recheck"])
+        self.assertEqual(result.pipeline.engine, "image_checked")
+        self.assertEqual([p.layer_chain for p in result.pipeline.pages], [["ID"], ["ID", "RC"]])
+        self.assertNotIn("direct_fallback", result.pipeline.pages[0].extraction_audit)
+        self.assertEqual(result.pipeline.pages[1].extraction_audit["direct_fallback"],
+                         {"page_number": 2, "code": "ocr.direct_gate_failed", "detail": "total_amount missing"})
+        self.assertEqual(len(result.calls), 3)
+        self.assertEqual(result.pipeline.pages[1].layer2_input_tokens, 20)
+
+    def test_recheck_carries_the_first_read_and_why_it_failed(self):
+        model = Model([{**GOOD, "total_amount": "170"}, GOOD])
+        run(model=model)
+        recheck = model.requests[1]
+        self.assertEqual((recheck.thinking, recheck.images, recheck.attempt), ("LOW", model.requests[0].images, 0))
+        self.assertIn('"total_amount": "170"', recheck.prompt)
+        self.assertIn("It failed these checks:", recheck.prompt)
+
+    def test_a_failed_recheck_reads_image_and_transcript_together(self):
+        wrong = {**GOOD, "total_amount": "170"}
+        model = Model([wrong, wrong, GOOD])
+        result = run(model=model)
+        page = result.pipeline.pages[0]
+        self.assertEqual([r.stage for r in model.requests], ["direct", "recheck", "ocr_read"])
+        ocr_read = model.requests[2]
+        self.assertEqual((ocr_read.thinking, ocr_read.max_output_tokens), ("LOW", 8192))
+        self.assertTrue(ocr_read.images)
+        self.assertIn("An OCR transcript of this image follows.", ocr_read.prompt)
+        self.assertTrue(ocr_read.prompt.endswith(TEXT))
+        self.assertEqual(page.layer_chain, ["ID", "RC", "L1", "L2"])
+        self.assertEqual(page.invoice.total_amount, "107")
+        self.assertEqual(page.extraction_audit["direct_fallback"]["code"], "ocr.direct_gate_failed")
+        self.assertEqual([c.stage for c in result.calls], ["direct", "recheck", "layer1", "ocr_read"])
+
+    def test_unreadable_direct_skips_the_recheck(self):
+        model = Model(["broken", "broken", GOOD])
+        page = run(model=model).pipeline.pages[0]
+        self.assertEqual([r.stage for r in model.requests], ["direct", "direct", "ocr_read"])
+        self.assertEqual(page.layer_chain, ["ID", "L1", "L2"])
+
+    def test_truncated_image_read_is_not_repeated(self):
+        runaway = ModelResponse('{"invoice_number": "1', {}, 4, 8192, "lite", finish_reason="MAX_TOKENS")
+        model = Model([runaway, GOOD])
+        page = run(model=model).pipeline.pages[0]
+        self.assertEqual([r.stage for r in model.requests], ["direct", "ocr_read"])
+        self.assertEqual(page.extraction_audit["direct_fallback"]["detail"], "output hit the token limit")
+
+    def test_unreadable_transcript_read_keeps_the_image_read_for_review(self):
+        wrong = {**GOOD, "total_amount": "170"}
+        model = Model([wrong, wrong, "broken"])
+        page = run(model=model, config=replace(CONFIG, enable_layer3=False)).pipeline.pages[0]
+        self.assertEqual(page.layer_chain, ["ID", "RC", "L1", "L2_unread"])
+        self.assertEqual(page.invoice.total_amount, "170")
+        self.assertTrue(page.needs_manual_review)
+        self.assertIn("ocr_read: ocr.response_json_invalid", page.validation_warnings)
+        from pearnly_cowork.ocr.results import _require_complete
+        result = run(model=Model([wrong, wrong, "broken"]), config=replace(CONFIG, enable_layer3=False)).pipeline
+        self.assertEqual(_require_complete(result, 1), {1})  # 待复核，不是识别失败
+
+    def test_without_layer3_the_remaining_problems_are_flagged(self):
+        wrong = {**GOOD, "total_amount": "170"}
+        model = Model([wrong, wrong, wrong])
+        page = run(model=model, config=replace(CONFIG, enable_layer3=False)).pipeline.pages[0]
+        self.assertEqual([r.stage for r in model.requests], ["direct", "recheck", "ocr_read"])
+        self.assertTrue(page.needs_manual_review)
+        self.assertEqual(page.confidence_band, "needs_review")
+        text = run(Source(text=True), Model([{**GOOD, "invoice_number": "WRONG"}]),
+                   config=replace(CONFIG, enable_layer3=False)).pipeline.pages[0]
+        self.assertEqual(text.layer_chain, ["text", "L2"])
+        self.assertTrue(text.needs_manual_review)
+
+    def test_layer3_is_off_unless_the_site_turns_it_on(self):
+        environment = {"OCR_LLM_BACKEND": "vertex"}
+        self.assertFalse(config_from_environment(environment, invoice_policy(environment)).enable_layer3)
+        environment["OCR_LAYER3_ENABLED"] = "1"
+        self.assertTrue(config_from_environment(environment, invoice_policy(environment)).enable_layer3)
+        environment["OCR_LAYER3_ENABLED"] = "maybe"
+        with self.assertRaises(EngineError):
+            config_from_environment(environment, invoice_policy(environment))
 
     def test_text_path_has_no_render_or_vision_and_injects_fewshot_only_l2(self):
         source, model, seen = Source(text=True), Model(), []
@@ -243,8 +318,10 @@ class EngineTests(unittest.TestCase):
 
     def test_definite_provider_refusal_has_source_fallback(self):
         failure = ProviderFailure("ocr.provider_http_error", http_status=500)
-        result = run(model=Model([failure, GOOD]))
-        self.assertEqual(result.pipeline.engine, "pipeline_v1_id_fb")
+        model = Model([failure, GOOD])
+        result = run(model=model)
+        self.assertEqual(result.pipeline.engine, "image_checked")
+        self.assertEqual([r.stage for r in model.requests], ["direct", "ocr_read"])  # 没读出东西，不复核
         model = Model([{**GOOD, "invoice_number": "WRONG"}, failure])
         page = run(Source(text=True), model).pipeline.pages[0]
         self.assertEqual(page.layer_chain[-1], "L3_transient")
@@ -300,7 +377,7 @@ class EngineTests(unittest.TestCase):
         loose = run(model=Model([payload]), config=replace(CONFIG, amount_tolerance=Decimal(".5")))
         tight = run(model=Model([payload, GOOD]), config=replace(CONFIG, amount_tolerance=Decimal(".1")))
         self.assertEqual(loose.pipeline.engine, "image_direct")
-        self.assertEqual(tight.pipeline.engine, "pipeline_v1_id_fb")
+        self.assertEqual(tight.pipeline.engine, "image_checked")
         self.assertEqual(tight.pipeline.pages[0].extraction_audit["direct_fallback"]["code"], "ocr.direct_gate_failed")
 
     def test_enterprise_invoice_uses_same_source_chain(self):

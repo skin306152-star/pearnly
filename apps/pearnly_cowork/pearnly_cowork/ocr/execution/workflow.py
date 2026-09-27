@@ -11,6 +11,7 @@ import time
 
 import frappe
 from frappe import _
+from pearnly_core import ocr
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest
 from pearnly_cowork.files.access import reference_count, reference_kind
@@ -117,7 +118,7 @@ def _recognize(doc, frozen, examples):
     else:
         with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
                         enable_text_path=selected.text_fast_path,
-                        image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400"))) as pages:
+                        image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as pages:
             result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
                 anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
                 today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)

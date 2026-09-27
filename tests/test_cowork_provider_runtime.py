@@ -113,6 +113,20 @@ class ProviderRuntime(unittest.TestCase):
             self.assertEqual(call["payload"]["generationConfig"].get("thinkingConfig"), thinking)
             self.assertIn("/locations/" + location + "/", call["url"])
 
+    def test_requested_thinking_level_overrides_the_default(self):
+        # ADR-013：复核与带原文再读指定 LOW；2.5 仍按预算关思考，非法档位在发送前拒绝
+        client = self.core.client(environment={"VERTEX_LOCATION": "asia-southeast1", "VERTEX_LOCATION_25": "us-central1"})
+        for model, image, thinking in (("gemini-3.1-flash-lite", True, {"thinkingLevel": "LOW"}),
+                                       ("gemini-3.1-flash-lite", False, {"thinkingLevel": "LOW"}),
+                                       ("gemini-2.5-flash", True, {"thinkingBudget": 0})):
+            client.model_call(replace(self.request, model=model, thinking="LOW",
+                                      images=((b"x", "image/png"),) if image else ()))
+            self.assertEqual(self.core.calls[-1]["payload"]["generationConfig"].get("thinkingConfig"), thinking)
+        sent = len(self.core.calls)
+        with self.assertRaises(Exception):
+            client.model_call(replace(self.request, thinking="ULTRA"))
+        self.assertEqual(len(self.core.calls), sent)
+
     def test_completed_empty_truncated_and_invalid_model_json_are_not_retried_here(self):
         for body in ({}, {"candidates": [{"content": {"parts": [{"text": "{bad"}]}, "finishReason": "MAX_TOKENS"}]}):
             self.core.response = Response(body)

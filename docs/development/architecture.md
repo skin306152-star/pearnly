@@ -83,8 +83,9 @@ ERP 采购识别、Cowork 的识别枚举与 Express / MR.ERP 推送判据都调
 
 ## 识别读法（ADR-013）
 
-ERP 识别按 [ADR-013](../adr/0013-ocr-read-strategy.md)：`gemini-3.1-flash-lite` 读 → 产品代码做确定性修复 → 只在金额 / 结构对不上时
-同一模型带提示复核 → 采购按需调 Vision 原文做「以检查为准」的核对 → 还不过标红。3.8 只是站点开关（默认关）。
+ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：`gemini-3.1-flash-lite` 读 → 产品代码做确定性修复 → 只在金额 / 结构对不上时
+同一模型带提示复核 → 仍不过「原图 + Vision 原文」再读（ERP 采购另按需用原文核对税号 / 买方）→ 还不过标红。
+3.8 只是站点开关（默认关）。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
 改模型或规则前先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较。
 
 ## 本地控制面与云端开户

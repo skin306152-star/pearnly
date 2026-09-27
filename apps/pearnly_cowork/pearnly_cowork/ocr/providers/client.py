@@ -157,7 +157,8 @@ class ProviderClient:
         model = _identity(request.model, "ocr.invalid_model")
         location = _identity(vertex_location(model, self.environment), "ocr.invalid_location")
         if (not isinstance(request.prompt, str) or not request.prompt
-                or type(request.max_output_tokens) is not int or request.max_output_tokens < 1):
+                or type(request.max_output_tokens) is not int or request.max_output_tokens < 1
+                or request.thinking not in ("", "MINIMAL", "LOW", "MEDIUM", "HIGH")):
             raise ProviderConfigurationError("ocr.invalid_model_request")
         parts = []
         for content, mime in request.images:
@@ -173,6 +174,8 @@ class ProviderClient:
                 config["thinkingConfig"] = {"thinkingBudget": 0}
             else:
                 config["thinkingConfig"] = {"thinkingLevel": "LOW" if model.lower().startswith("gemini-3.8") else "MINIMAL"}
+        if request.thinking and not model.lower().startswith("gemini-2.5"):
+            config["thinkingConfig"] = {"thinkingLevel": request.thinking}
         payload = {"contents": [{"role": "user", "parts": parts}], "generationConfig": config}
         host = "aiplatform.googleapis.com" if location == "global" else location + "-aiplatform.googleapis.com"
         url = f"https://{host}/v1/projects/{quote(self.project, safe='')}/locations/{quote(location, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent"

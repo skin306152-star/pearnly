@@ -130,8 +130,12 @@ def run_parity(sources):
         try:
             legacy = old["read_page"](b"PNG", 1, "invoice")
         except Fallback:
+            # 登记的有意改动（ADR-013，2026-09-27）：旧线上直读没过闸就整份改走 Vision + L2；现在同一页先带提示复核，
+            # 闸判定本身不变（同一批输入在旧线上走回落的，新代码也判没过）。
             result = run(model=Model([payload, GOOD]))
-            assert result.pipeline.engine == "pipeline_v1_id_fb"
+            page = result.pipeline.pages[0]
+            assert result.pipeline.engine == "image_checked" and page.layer_chain == ["ID", "RC"]
+            assert page.extraction_audit["direct_fallback"]["code"] == "ocr.direct_gate_failed"
         else:
             result = run(model=Model([payload]))
             compare_page(legacy, result.pipeline.pages[0])

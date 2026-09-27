@@ -2,7 +2,9 @@
 
 - 状态：已采纳（2026-09-27，用户：「按这个方案施工，先做 ERP，3.8 开关保留默认关」）
 - 范围：ERP 采购 / 销售识别（`pearnly_erp_portal.recognition.policy`、`purchasing.recognition`）；共用层新增
-  `pearnly_core.ocr.text_from_image`、`ocr.labels`。Cowork 的识别引擎受旧线上逐字对照约束，等 ERP 验证后与 Cowork 窗口一起迁
+  `pearnly_core.ocr.text_from_image`、`ocr.labels`、`ocr.orient`。
+  Cowork 发票识别（`pearnly_cowork.ocr.engine.runner`，含对账中心的发票核对）2026-09-27 起按同一套先后执行，见下文「Cowork」
+  （用户：「cowork 那边只改读票和转正，对账不动」「由你来改造 cowork」）
 - 依据：[OCR 语料实测](../work/2026-09-27-ocr-corpus-eval.md) 第 8 节；评测脚本 `scripts/ocr-policy-bench.py`、`ocr-vision-bench.py`、`ocr-policy-report.py`
 - 关联：[ADR-012 票种决策表](0012-shared-tax-document-rules.md)
 
@@ -59,6 +61,21 @@
 6. 还不过就标红交人工，不再花钱硬读。
 7. Vertex 请求带账单标签（tenant / product / task / stage），结算报告可以按租户、产品、步骤分组。
 
+## Cowork
+
+识别结果的格式、对账、VAT 核对、历史、计费、断点续跑都不变；变的只有「怎么读」。
+
+- 每页图片：3.1 直读（原提示词、MINIMAL）→ 没过原直读闸（缺合计、金额对不上、合理性）就同一模型带提示复核（`RC`，LOW）
+  → 仍不过调 Vision，「原图 + 原文」一起给 3.1 再读（`ocr_read`，LOW，输出上限 8,192）→ 还有触发项标红。
+- **只处理没过的那一页**。旧线上一页没过就整份文件改走 Vision + 纯文字 L2。
+- 直读、复核、带原文再读写满输出上限时不再原样重试，直接进下一步。
+- 3.8 视觉复核（L3 与金额补读）改为站点开关 `OCR_LAYER3_ENABLED`（在 `pearnly_cowork_ocr_environment` 里），**默认关**。
+  关着时，原本要升级的触发项直接标红。表格路线原本就不升级，照旧。
+- 转正：`PageSource(orient=ocr.orient)`，图片与 PDF 渲染页都转；Vision 用转正后再缩小的图。
+- PDF 文字层路线（text fast path）与超过直读页数上限的文件仍走原来的 Vision / 文字 + L2。
+- 对照测试：`test_cowork_engine_source_parity.py` 对旧线上源码 `ec2e5c957e6b` 仍通过（600 直读判定、64 Vision 判定），
+  只登记「没过闸改为复核同一页」这一处有意改动。
+
 ## 未采用（有数据）
 
 - **首读加思考（LOW）**：准确率与 MINIMAL 相同，P95 更短（4.8 秒），每张多约 ฿0.003。可作为后续调优候选，本次不改首读。
@@ -71,5 +88,5 @@
 ## 后果
 
 - 每张原价从约 ฿0.18 降到约 ฿0.09，P95 从 15 秒降到约 9 秒。
-- 旧线上「硬闸不过换 3.8」的对照关系改变。ERP 这条不受旧线上逐字对照约束；Cowork 迁移时要在对照测试里登记。
+- 旧线上「硬闸不过换 3.8」的对照关系改变。ERP 这条不受旧线上逐字对照约束；Cowork 已在对照测试里登记（见上文「Cowork」）。
 - 评测脚本保留在 `scripts/`，以后换模型、改规则，都先用同一批语料跑一遍再上线。

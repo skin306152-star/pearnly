@@ -16,7 +16,7 @@ from datetime import date
 
 import frappe
 from frappe import _
-from pearnly_core import billing_client
+from pearnly_core import billing_client, ocr
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred
 
@@ -142,7 +142,7 @@ def _recognize(content, filename, pages, frozen):
 
     anchor = date.fromisoformat(frozen["anchor_date"])
     with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=selected.text_fast_path,
-                    image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400"))) as source:
+                    image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as source:
         result = run_invoice(source, guarded(client.model_call), guarded(client.vision_call), config=config,
                              anchor_year=anchor.year, today=anchor)
     return records(result.pipeline.pages, filename)

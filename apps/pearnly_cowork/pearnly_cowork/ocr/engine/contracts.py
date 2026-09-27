@@ -38,6 +38,7 @@ class ModelRequest:
     temperature: float = 0.0
     response_mime: bool = True
     tier: str = ""
+    thinking: str = ""  # 空＝按模型的默认档；复核 / 带原文再读用 "LOW"（ADR-013）
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ class EngineConfig:
     max_direct_pages: int = 20
     double_read: bool = False
     image_first: bool = False
-    enable_layer3: bool = True
+    enable_layer3: bool = True  # 3.8 视觉复核（L3）；按站点配置默认关（ADR-013），见 config_from_environment
     fallback_to_layer2: bool = True
     max_escalations: int | None = None
     direct_timeout_s: float = 60

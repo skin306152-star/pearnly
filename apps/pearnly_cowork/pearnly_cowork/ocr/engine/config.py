@@ -46,7 +46,12 @@ def config_from_environment(environment: Mapping[str, str], selected: InvoicePol
     review = decimal("OCR_CONF_REVIEW", "0.90", low=0, high=1)
     if review > auto or not 1 <= selected.direct_max_pages <= 50 or not 1 <= selected.direct_timeout_seconds <= 120:
         raise EngineError("ocr.engine_config_invalid")
+    # 3.8 视觉复核（L3 与其金额补读）：ADR-013 起默认关，站点显式 OCR_LAYER3_ENABLED=1 才开（用户 2026-09-27）。
+    layer3 = environment.get("OCR_LAYER3_ENABLED", "0").strip().lower()
+    if layer3 not in {"", "0", "1", "false", "true", "no", "yes", "off", "on"}:
+        raise EngineError("ocr.engine_config_invalid", detail="OCR_LAYER3_ENABLED")
     return EngineConfig(
+        enable_layer3=layer3 in {"1", "true", "yes", "on"},
         direct_model=selected.first_model, layer2_model=selected.first_model,
         layer3_model=selected.l3_model, mode=selected.mode, provider=selected.backend,
         direct_enabled=selected.direct_enabled, max_direct_pages=selected.direct_max_pages,

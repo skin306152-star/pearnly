@@ -3,6 +3,10 @@
 Infrastructure exceptions propagate. Completed JSON/schema failures alone may
 consume content retry budget. Definite ProviderFailure follows explicit source
 fallback rules; authentication and uncertain outcomes never do.
+
+图片页按 ADR-013 逐页读（2026-09-27，与 ERP 同一套先后）：同一模型直读 → 没过金额 / 合理性检查就带提示复核
+（`RC`）→ 仍不过才调 Vision，把原图和 OCR 原文一起再读（`L1` + `L2`）→ 还有问题标红交人工。3.8 视觉复核（`L3`）
+只在站点显式打开时才跑。只有没过的那一页走后面几步，不再因为一页没过把整份文件重读一遍。
 """
 from __future__ import annotations
 
@@ -27,14 +31,19 @@ from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
     PageSource, ProviderFailure, VisionCall,
 )
-from pearnly_cowork.ocr.engine.errors import ContentError, DirectFallback, EngineError
+from pearnly_cowork.ocr.engine.errors import ContentError, EngineError
 from pearnly_cowork.ocr.engine.parsing import _parse_json
 from pearnly_cowork.ocr.engine.prompts import (
     DIRECT_IMAGE_NOTE, L2_RETRY_HINT, L2_SYSTEM, L2_USER_PREFIX,
-    L3_RETRY_HINT, L3_SYSTEM, RESCUE_SYSTEM, build_l3_user_prompt,
+    L3_RETRY_HINT, L3_SYSTEM, OCR_TRANSCRIPT_NOTE, RESCUE_SYSTEM, build_l3_user_prompt,
+    build_recheck_prompt,
 )
 
 RESCUE_FIELDS = ("subtotal", "vat", "discount", "total_amount")
+# 复核与带原文再读用 LOW 思考档（ERP `recognition.policy.RECHECK_THINKING`）；带原文再读的输出上限同 ERP。
+RECHECK_THINKING = "LOW"
+OCR_READ_TOKENS = 8192
+IMAGE_READS = ("direct", "recheck", "ocr_read")
 
 
 def is_auth_failure(failure: ProviderFailure) -> bool:
@@ -109,9 +118,10 @@ class _Run:
                                detail=str(exc)) from exc
 
     def model_json(self, *, stage, page, model, prompt, images=(), tokens=8192,
-                   timeout=60, retries=None):
+                   timeout=60, retries=None, thinking=""):
         retries = self.config.json_retries if retries is None else retries
         first = len(self.calls)
+        truncated = False
         for attempt in range(retries + 1):
             retry_hint = ""
             if attempt and stage == "layer2":
@@ -119,7 +129,7 @@ class _Run:
             elif attempt and stage == "layer3":
                 retry_hint = L3_RETRY_HINT + "\n\nPrevious parse error: parse"
             request = ModelRequest(stage, page, attempt, model, prompt + retry_hint,
-                                   images, tokens, timeout)
+                                   images, tokens, timeout, thinking=thinking)
             # This call is deliberately outside every content-error try/except.
             response = self.model_call(request)
             self.calls.append(CallEvidence(
@@ -127,6 +137,10 @@ class _Run:
                 response.input_tokens, response.output_tokens, response.elapsed_ms,
                 response.finish_reason, response.checkpoint_key,
             ))
+            if "MAX_TOKENS" in response.finish_reason and stage in IMAGE_READS:
+                # 看图读写满了输出上限：同一张图重读多半照样写满（语料实测一次 16k token、90 秒），交下一步。
+                truncated = True
+                break
             try:
                 if not response.text or "MAX_TOKENS" in response.finish_reason:
                     raise json.JSONDecodeError("empty/truncated", response.text, 0)
@@ -135,38 +149,70 @@ class _Run:
                 continue
             return data, self.calls[first:]
         raise ContentError("ocr.response_json_invalid", stage=stage, page_number=page,
-                           detail=f"no valid JSON after {retries + 1} attempts (parse)")
+                           detail="output hit the token limit" if truncated
+                           else f"no valid JSON after {retries + 1} attempts (parse)")
 
-    def direct(self, page):
+    def read_image(self, stage, page, frame, prompt, *, thinking="", retries=None):
+        data, calls = self.model_json(
+            stage=stage, page=page, model=self.config.direct_model, prompt=prompt,
+            images=((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),),
+            timeout=self.config.direct_timeout_s, retries=retries, thinking=thinking,
+        )
+        return self.parse_invoice(data, stage, page), calls
+
+    def gate(self, invoice):
+        """直读闸：返回 (没过的原因, 已有提示)；原因为空就是过了。不是发票的页不拦。"""
+        warnings = []
+        if invoice.is_not_invoice:
+            return "", warnings
+        repaired = infer_missing_discount(invoice)
+        if repaired:
+            warnings.append(repaired)
+        issue = ("total_amount missing" if not str(invoice.total_amount or "").strip()
+                 else check_amount_math(invoice, tolerance=self.config.amount_tolerance))
+        return issue or "; ".join(evaluate_sanity(invoice)), warnings
+
+    def image_page(self, page):
+        """一页图片（ADR-013）：直读 → 带提示复核 → Vision 原文 + 原图再读；前一步过了闸就不再往下走。"""
         frame = self.source.frame(page)
+        first = len(self.calls)
+        best = None
         try:
-            data, calls = self.model_json(
-                stage="direct", page=page, model=self.config.direct_model,
-                prompt=L2_SYSTEM + DIRECT_IMAGE_NOTE,
-                images=((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),),
-                timeout=self.config.direct_timeout_s,
-            )
-            invoice = self.parse_invoice(data, "direct", page)
+            invoice, _ = self.read_image("direct", page, frame, L2_SYSTEM + DIRECT_IMAGE_NOTE)
+            issue, warnings = self.gate(invoice)
+            if not issue:
+                return self.direct_result(page, invoice, warnings, self.calls[first:], ["ID"])
+            best, evidence = invoice, {"code": "ocr.direct_gate_failed", "detail": issue}
         except ProviderFailure as exc:
             if is_auth_failure(exc):
                 raise
-            raise DirectFallback(exc.code, stage="direct", page_number=page) from exc
+            evidence = {"code": exc.code, "detail": None}
         except ContentError as exc:
-            raise DirectFallback(exc.code, stage="direct", page_number=page,
-                                 detail=exc.detail) from exc
-        warnings = []
-        if not invoice.is_not_invoice:
-            repaired = infer_missing_discount(invoice)
-            if repaired:
-                warnings.append(repaired)
-            issue = ("total_amount missing" if not str(invoice.total_amount or "").strip()
-                     else check_amount_math(invoice, tolerance=self.config.amount_tolerance))
-            sanity = evaluate_sanity(invoice)
-            if issue or sanity:
-                raise DirectFallback("ocr.direct_gate_failed", stage="direct", page_number=page,
-                                     detail=issue or "; ".join(sanity))
-            if not str(invoice.invoice_number or "").strip():
-                warnings.append("direct_read: invoice_number missing")
+            evidence = {"code": exc.code, "detail": exc.detail}
+        evidence = {"page_number": page, **evidence}
+        chain = ["ID"]
+        if best is not None:  # 直读读出了东西、只是没过闸：先让同一模型带着没过的原因看原图复核
+            chain.append("RC")
+            try:
+                invoice, _ = self.read_image("recheck", page, frame, build_recheck_prompt(best, evidence["detail"]),
+                                             thinking=RECHECK_THINKING, retries=0)
+                issue, warnings = self.gate(invoice)
+                if not issue:
+                    result = self.direct_result(page, invoice, warnings, self.calls[first:], chain)
+                    result.extraction_audit["direct_fallback"] = evidence
+                    return result
+            except ProviderFailure as exc:
+                if is_auth_failure(exc):
+                    raise
+            except ContentError:
+                pass
+        result = self.pipeline_page(page, None, frame=frame, prefix=chain, first=first, fallback=best)
+        result.extraction_audit["direct_fallback"] = evidence
+        return result
+
+    def direct_result(self, page, invoice, warnings, calls, chain):
+        if not invoice.is_not_invoice and not str(invoice.invoice_number or "").strip():
+            warnings.append("direct_read: invoice_number missing")
         force = any(w.startswith(DISCOUNT_INFERRED_PREFIX) for w in warnings)
         credit = credit_note_review_reason(invoice)
         if credit:
@@ -180,7 +226,7 @@ class _Run:
         band = self.bucket(confidence, force)
         return PipelinePageResult(
             page_number=page, invoice=invoice, document_type=self.config.document_type,
-            layer_chain=["ID"], layer2_model=calls[-1].model,
+            layer_chain=chain, layer2_model=calls[-1].model,
             layer2_input_tokens=sum(c.input_tokens for c in calls),
             layer2_output_tokens=sum(c.output_tokens for c in calls),
             layer2_ms=sum(c.elapsed_ms for c in calls), total_ms=sum(c.elapsed_ms for c in calls),
@@ -192,11 +238,13 @@ class _Run:
         return bucket_confidence(confidence, force, auto_threshold=self.config.auto_threshold,
                                  review_threshold=self.config.review_threshold)
 
-    def pipeline_page(self, page, text_page):
-        first = len(self.calls)
-        frame = None
+    def pipeline_page(self, page, text_page, *, frame=None, prefix=None, first=None, fallback=None):
+        """Vision（或 PDF 文字层）+ 模型。`prefix` 非空＝图片页直读 / 复核没过之后（ADR-013）：模型同时看原图和
+        Vision 原文（`ocr_read`），读不出时保留前面没过闸的那次读数并标红；没有 `prefix` 是原来的纯文字路线。"""
+        first = len(self.calls) if first is None else first
+        image_read = prefix is not None
         if text_page is None:
-            frame = self.source.frame(page)
+            frame = frame or self.source.frame(page)
             response = self.vision_call(frame, stage="layer1", page_number=page)
             l1 = response.page.model_copy(deep=True)
             if l1.page_number != page:
@@ -204,14 +252,33 @@ class _Run:
             self.calls.append(CallEvidence("layer1", page, 0, "vision", deepcopy(response.raw),
                                            elapsed_ms=response.elapsed_ms,
                                            checkpoint_key=response.checkpoint_key))
-            chain = ["L1", "L2"]
+            chain = [*(prefix or ()), "L1", "L2"]
             l1_ms = response.elapsed_ms
         else:
             l1 = text_page.model_copy(deep=True)
             chain, l1_ms = ["text", "L2"], 0
         text = page_text(l1).strip()
         l2_calls = []
-        if len(text) < 20:
+        unread = None
+        if image_read:
+            fewshot = self.fewshot_selector(text) if self.fewshot_selector and text else ""
+            l2_start = len(self.calls)
+            try:
+                data, _ = self.model_json(
+                    stage="ocr_read", page=page, model=self.config.layer2_model,
+                    prompt=L2_SYSTEM + DIRECT_IMAGE_NOTE + "\n\n" + fewshot + OCR_TRANSCRIPT_NOTE + text[:30000],
+                    images=((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),),
+                    tokens=OCR_READ_TOKENS, timeout=self.config.layer2_timeout_s, retries=0,
+                    thinking=RECHECK_THINKING,
+                )
+                l2 = self.parse_invoice(data, "ocr_read", page)
+            except ContentError as exc:
+                if fallback is None:
+                    raise
+                l2, unread = fallback, f"ocr_read: {exc.code}"
+                chain[-1] = "L2_unread"
+            l2_calls = self.calls[l2_start:]
+        elif len(text) < 20:
             l2 = self.parse_invoice({"is_not_invoice": True}, "layer2", page)
         else:
             text = text[:30000]
@@ -232,6 +299,12 @@ class _Run:
                                      amount_tolerance=self.config.amount_tolerance)
         soft_flags = evaluate_soft_flags(l1, l2, confidence_threshold=self.config.confidence_threshold)
         invoice, review, error = l2, False, None
+        if unread:  # 带原文再读也读不出：保留直读 / 复核那次没过闸的读数，交人工
+            warnings.append(unread)
+            review = True
+        if triggers and not self.config.enable_layer3 and self.source is not None:
+            # 3.8 视觉复核默认关（ADR-013）：原本要升级的问题直接标红交人工。表格路线（source 为空）本来就不升级，照旧只降置信度。
+            review = True
         l3_calls = []
         if triggers and self.config.enable_layer3:
             allowed = (self.config.max_escalations is None or
@@ -367,23 +440,13 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
             raise EngineError("ocr.page_association_invalid")
     run = _Run(source, model_call, vision_call, config, anchor_year, today,
                fewshot_selector, pattern_memory)
-    engine = "pipeline_v1"
-    pages = None
-    fallback_evidence = None
     if text_pages is None and config.direct_enabled and source.page_count <= config.max_direct_pages:
-        try:
-            pages = [run.direct(i) for i in range(1, source.page_count + 1)]
-            engine = "image_direct"
-        except DirectFallback as failure:
-            engine = "pipeline_v1_id_fb"
-            fallback_evidence = {"page_number": failure.page_number, "code": failure.code,
-                                 "detail": failure.detail}
-    if pages is None:
+        pages = [run.image_page(i) for i in range(1, source.page_count + 1)]
+        engine = "image_direct" if all(p.layer_chain == ["ID"] for p in pages) else "image_checked"
+    else:
+        engine = "pipeline_v1"
         pages = [run.pipeline_page(i, text_pages[i - 1] if text_pages is not None else None)
                  for i in range(1, source.page_count + 1)]
-    if fallback_evidence:
-        for page in pages:
-            page.extraction_audit["direct_fallback"] = deepcopy(fallback_evidence)
     # Adapters must supply a stable key. Empty keys (pure callers) represent unique calls.
     seen, calls = set(), []
     for call in run.calls:

@@ -89,7 +89,7 @@ class PageSource:
     """
     def __init__(self, content: bytes, filename: str, *, expected_page_count: int,
                  enable_text_path=False, image_max_long_edge=2400,
-                 max_render_pixels=MAX_RENDER_PIXELS):
+                 max_render_pixels=MAX_RENDER_PIXELS, orient=None):
         if not isinstance(content, bytes) or not isinstance(filename, str):
             raise InputRuntimeError("ocr.invalid_input_metadata")
         if type(expected_page_count) is not int or expected_page_count < 1:
@@ -105,6 +105,9 @@ class PageSource:
         validate_input_metadata(filename, len(content), pdf_page_count=expected_page_count)
         self._content, self._is_pdf = content, suffix == ".pdf"
         self._image_max_long_edge, self._max_render_pixels = image_max_long_edge, max_render_pixels
+        # 识别前转正（ADR-013）：调用方传 `pearnly_core.ocr.orient`（EXIF + 本地方向模型，免费、同一张图结果不变，
+        # 重跑时检查点照样对得上）；不传就原样送。只动送去识别的那份，存档的原件不变。
+        self._orient = orient
         self.text_pages = None
         if self._is_pdf:
             try:
@@ -136,8 +139,11 @@ class PageSource:
         if type(page_number) is not int or not 1 <= page_number <= self.page_count:
             raise InputRuntimeError("ocr.invalid_page_reference")
         if not self._is_pdf:
-            vision = downscale_image_bytes(self._content, self._image_max_long_edge)
-            return Frame(image_bytes=self._content, mime_type=_mime(self._content),
+            content, mime = self._content, _mime(self._content)
+            if self._orient:
+                content, mime = self._orient(content, mime)
+            vision = downscale_image_bytes(content, self._image_max_long_edge)
+            return Frame(image_bytes=content, mime_type=mime,
                          vision_bytes=vision, vision_mime_type=_mime(vision))
         try:
             with pymupdf.open(stream=self._content, filetype="pdf") as document:
@@ -147,7 +153,10 @@ class PageSource:
                 if pixels > self._max_render_pixels:
                     raise InputRuntimeError("ocr.render_pixel_limit", page_number=page_number)
                 content = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
-            return Frame(image_bytes=content, mime_type="image/png")
+            mime = "image/png"
+            if self._orient:  # 扫描 / 拍照生成的 PDF 页一样可能是歪的
+                content, mime = self._orient(content, mime)
+            return Frame(image_bytes=content, mime_type=mime)
         except InputRuntimeError:
             raise
         except (RuntimeError, ValueError) as exc:

@@ -32,3 +32,20 @@ def build_l3_user_prompt(layer1_text, layer2_invoice, trigger_reasons):
 L3_RETRY_HINT = '\n\nIMPORTANT — your previous response was invalid JSON. Common failure modes:\n  1. Unterminated string (missing closing double-quote)\n  2. Unescaped newline inside a string value\n  3. Missing comma between fields\n  4. Trailing comma after last field\nOutput exactly ONE complete JSON object. Close every string with a double-quote. Replace any literal newlines inside string values with spaces. Do NOT use markdown code fences. Do NOT add commentary before or after the JSON.'
 
 RESCUE_SYSTEM = 'You are re-reading ONLY the totals/summary block of a Thai tax invoice or receipt image. A previous extraction of this block failed a consistency check (subtotal + vat != total, or vat is not ~7% of the taxable base) — at least one digit in this block was very likely misread.\n\nLook ONLY at the summary area (usually bottom-right or bottom of the document — labels like มูลค่าสินค้า/ก่อนภาษี, ภาษีมูลค่าเพิ่ม/VAT, ส่วนลด/Discount, รวมเป็นเงินทั้งสิ้น/Grand Total/Total). Read every digit carefully, digit by digit — Thailand\'s standard VAT is a fixed 7% of the taxable base, and subtotal + vat (after any discount) must equal the total.\n\nOutput ONE JSON object, no markdown, no explanation:\n{"subtotal": "number-as-string or null", "vat": "number-as-string or null", "discount": "number-as-string or null (omit or empty string if none printed)", "total_amount": "number-as-string or null"}\nNo currency symbols, no thousand separators.'
+
+
+# ── ADR-013 读票流程（2026-09-27，与 ERP `recognition.policy` 同一套先后与措辞）────────────────────────
+# 直读没过金额 / 合理性检查时，先用同一模型带提示复核一次；仍不过，再把 Vision 原文和原图一起给同一模型读。
+
+def build_recheck_prompt(previous, reason):
+    """带提示复核：给出第一次的读数和没过的检查，请模型看原图改读错的、保留读对的。"""
+    keep = previous.model_dump(mode='json', exclude_none=True)
+    return (L2_SYSTEM + DIRECT_IMAGE_NOTE + '\n\nA first reading of this document returned:\n'
+            + json.dumps(keep, ensure_ascii=False) + f'\nIt failed these checks: {reason}.\n'
+            'Look at the document again carefully, especially the parts these checks concern (amounts at the foot, '
+            'line amounts, discounts, tax IDs, dates), correct what was misread and return the complete JSON in the '
+            'same format. Keep values that were read correctly.')
+
+
+OCR_TRANSCRIPT_NOTE = ('\n\nAn OCR transcript of this image follows. Use the image for the layout and the transcript to '
+                       'read every digit exactly.\n\n')
