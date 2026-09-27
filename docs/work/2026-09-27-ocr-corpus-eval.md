@@ -239,3 +239,14 @@
   随后跳过看图复核，直接「原图 + OCR 原文」再读，结果仍不对但已标红（`computed_total`），整张 ฿0.585。
 - 弄糊的 07d5 把 349.20 读成 346.20 且没有标红：模糊掉了一位数字，三方检查也对得上。清晰原图读对。
 - 本次付费合计约 ฿2.5。
+
+### 合并与部署（2026-09-27）
+
+- 合入 `main` `f62ebc9f`（分支 CI `architecture-and-offline` 通过）。
+- 生产镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:3cb0dfab7ccce4f51fb3339661a3ba160a2b76f2f68094fd12437d6faea1bde4`
+  （build-production 36286098489，stage-production 36286377663）。`check-deploy-image.py` 一致，
+  `activate-product.sh … erp` 只激活 ERP。
+- 回读：ERP 七个容器都是该 digest；ERP OCR worker 里 onnxruntime 1.30.0 / numpy 2.5.3，
+  方向模型可加载（空白图判为不转）；`testerp.pearnly.com` ping 200；重启后 10 分钟内 web / worker / ocr-worker / scheduler 日志无报错。
+- Cowork、DMS 未激活，仍为原镜像。评测容器与服务器、本机临时语料已删除。
+- 未做：真机 LINE 收单验收（待用户用歪拍 / 倒拍的小票试一张）。
