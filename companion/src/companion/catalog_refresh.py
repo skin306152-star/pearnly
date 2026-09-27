@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from .catalog_probe import catalog_payload, master_catalog_payload
+from .catalog_probe import catalog_payload
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -58,8 +58,10 @@ def _scan_target(key: str, account_dir: str) -> None:
     try:
         from .account_probe import chart_accounts_payload
 
+        # 完整目录(含记账指纹、可选存货科目组):推到非默认账套时服务端按这份做库存检查
+        # (用户 2026-09-27;以前只读商品 / 客户,库存检查拿不到这两样)。
         payload = {
-            "catalog": master_catalog_payload(account_dir),
+            "catalog": catalog_payload(account_dir),
             "accounts": chart_accounts_payload(account_dir),
         }
     except Exception:
@@ -112,7 +114,8 @@ def target_refresh_error(account_dir: str, *, newer_than: float) -> str:
 def request_target_catalog(
     account_dir: str, *, newer_than: float = 0.0
 ) -> tuple[Optional[Dict[str, Any]], float]:
-    """Refresh products, customers, and chart accounts for one requested account set."""
+    """Refresh the full catalog (products, customers, bookkeeping fingerprint, stock account groups)
+    and chart accounts for one requested account set."""
     normalized = _key(account_dir)
     if not normalized:
         return None, 0.0

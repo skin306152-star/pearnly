@@ -71,7 +71,7 @@ def test_sent_snapshot_schedules_a_new_refresh(monkeypatch):
 def test_failed_target_scan_exposes_request_scoped_error(monkeypatch):
     monkeypatch.setattr(
         catalog_refresh,
-        "master_catalog_payload",
+        "catalog_payload",
         lambda _path: (_ for _ in ()).throw(OSError()),
     )
 
@@ -89,17 +89,11 @@ def test_failed_target_scan_exposes_request_scoped_error(monkeypatch):
     )
 
 
-def test_target_scan_skips_posting_profile_probes(monkeypatch):
-    monkeypatch.setattr(
-        catalog_refresh,
-        "master_catalog_payload",
-        lambda _path: {"products": [{"code": "P1"}], "customers": []},
-    )
-    monkeypatch.setattr(
-        catalog_refresh,
-        "catalog_payload",
-        lambda _path: (_ for _ in ()).throw(AssertionError("posting scan must wait")),
-    )
+def test_target_scan_reads_the_full_catalog_for_stock_checks(monkeypatch):
+    """推到非默认账套也要做库存检查(用户 2026-09-27):按单个账套刷新带回记账指纹与存货科目组。"""
+    full = {"products": [{"code": "P1"}], "customers": [],
+            "fingerprint": {"stock_master_count": 3}, "isacc_candidates": [{"code": "01"}]}
+    monkeypatch.setattr(catalog_refresh, "catalog_payload", lambda _path: full)
     monkeypatch.setattr(
         account_probe,
         "chart_accounts_payload",
@@ -116,6 +110,6 @@ def test_target_scan_skips_posting_profile_probes(monkeypatch):
         time.sleep(0.01)
 
     assert result[0] == {
-        "catalog": {"products": [{"code": "P1"}], "customers": []},
+        "catalog": full,
         "accounts": [{"code": "1100"}],
     }
