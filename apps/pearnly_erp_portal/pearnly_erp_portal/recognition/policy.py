@@ -167,11 +167,21 @@ def read_all(prompt, images, *, structured, review, label, fields, finish=None):
     units = [[(page, "application/pdf")] for page in pages] or [images]
     page_review = (lambda result: [code for code in review(result) if code != "total_missing"]) if pages else review
     found = []
+    unread = []  # 还没有前一张可挂的读不出页（第 1 页起连着读不出），挂到下一张读出的单据上
     for index, unit in enumerate(units, 1):
         result, issues, model = read(prompt, unit, structured=structured, review=page_review,
                                      label=f"{label} page {index}" if pages else label)
         if result is None:
+            # 这一页几次都读不出（多半是输出失控写满上限）：不再静默跳过——那页上的单据会悄悄漏掉。
+            # 记在它前一页读出的单据上（续页多半属于它），归组后那张单据标红「有页没读出」。
+            if found:
+                found[-1][0].setdefault("unread_pages", []).append(index)
+            else:
+                unread.append(index)
             continue
+        if unread:
+            result["unread_pages"] = unread + list(result.get("unread_pages") or [])
+            unread = []
         extras = [structured(raw) for raw in result.pop("additional_documents", None) or [] if isinstance(raw, dict)]
         for extra in extras:
             if extra:
@@ -184,8 +194,12 @@ def read_all(prompt, images, *, structured, review, label, fields, finish=None):
     if finish:
         for result, _model in documents:
             finish(result)
-    return [(result, review(result), model) for result, model in documents] or (
-        [(found[0][0], [], found[0][1])] if found else [])
+    return [(result, review(result) + _unread(result), model) for result, model in documents] or (
+        [(found[0][0], _unread(found[0][0]), found[0][1])] if found else [])
+
+
+def _unread(result):
+    return [checks.PAGE_UNREAD] if result.get("unread_pages") else []
 
 
 def _group(documents, fields):
@@ -201,6 +215,8 @@ def _group(documents, fields):
             printed = result.get("printed") or {}
             if any(printed.get(key) not in (None, "") for key in ("total", "vat", "subtotal")):
                 previous["printed"] = printed
+            if result.get("unread_pages"):
+                previous["unread_pages"] = list(previous.get("unread_pages") or []) + result["unread_pages"]
             continue
         merged.append((result, model))
     return merged

@@ -962,6 +962,43 @@ class Escalation(unittest.TestCase):
                           for d, codes, _model in documents],
                          [("A1", [1, 2], 30, []), ("B7", [3], 5, [])])
 
+    def test_an_unreadable_page_marks_the_document_before_it_instead_of_vanishing(self):
+        # 2026-09-28 压测：一页模型复读失控（单号后一长串 0），几次都读不出；旧做法静默跳过，那页上的单据就漏了。
+        a1 = {"doc_no": "A1", "lines": [{"n": 1}], "printed": {"total": 30}}
+        b7 = {"doc_no": "B7", "lines": [{"n": 3}], "printed": {"total": 5}}
+        documents, calls = self.read_all([b"p1", b"p2", b"p3"], [dict(a1), None, None, dict(b7)])
+        self.assertEqual(len(calls), 4)  # 读不出的那页照旧带提示复核一次
+        self.assertEqual([(d["doc_no"], d.get("unread_pages"), codes) for d, codes, _model in documents],
+                         [("A1", [2], ["page_unread"]), ("B7", None, [])])
+        documents, _calls = self.read_all([b"p1", b"p2"], [None, None, dict(a1)])
+        self.assertEqual([(d["doc_no"], d.get("unread_pages"), codes) for d, codes, _model in documents],
+                         [("A1", [1], ["page_unread"])])
+        continued = {"doc_no": "", "lines": [{"n": 2}], "printed": {}}
+        documents, _calls = self.read_all([b"p1", b"p2", b"p3"], [dict(a1), dict(continued), None, None])
+        self.assertEqual([(d["doc_no"], d.get("unread_pages"), codes) for d, codes, _model in documents],
+                         [("A1", [3], ["page_unread"])])
+
+    def test_a_single_result_wrapped_in_an_array_is_read(self):
+        from pearnly_core import ocr
+
+        replies = []
+
+        def post(url, headers, payload, timeout_s, model):
+            return Mock(status_code=200, json=Mock(return_value={"candidates": [
+                {"content": {"parts": [{"text": replies.pop(0)}]}}]}))
+
+        self.enterContext(patch.object(ocr, "backend", return_value="aistudio"))
+        self.enterContext(patch.object(ocr, "api_key", return_value="k"))
+        self.enterContext(patch.object(ocr, "endpoint", return_value="https://x/{model}"))
+        self.enterContext(patch.object(ocr, "_post_with_backoff", side_effect=post))
+        self.enterContext(patch.object(frappe, "logger", return_value=Mock(), create=True))
+        for text, expected in (('[{"doc_no": "A1"}]', {"doc_no": "A1"}), ('{"doc_no": "A1"}', {"doc_no": "A1"}),
+                               ('[{"doc_no": "A1"}, {"doc_no": "A2"}]', None), ("[1]", None), ("[]", None),
+                               ('"text"', None), ("broken", None)):
+            with self.subTest(text=text):
+                replies.append(text)
+                self.assertEqual(ocr.json_from_images("P", [(b"x", "image/jpeg")], model="m"), expected)
+
     def test_several_documents_on_one_image_become_separate_documents(self):
         answers = [{"doc_no": "R1", "lines": [], "additional_documents": [{"doc_no": "R2", "lines": []}]}]
         documents, calls = self.read_all([], answers)

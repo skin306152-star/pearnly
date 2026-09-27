@@ -25,8 +25,12 @@ from pearnly_core.tax_documents.amounts import (  # noqa: F401 - ERP 各处按 c
 MAX_BACKDATE_YEARS = 5
 MAX_FUTURE_DAYS = 1
 
+# 多页 PDF 里有页几次都读不出：标在前一张单据上，只标红、不重读（ERP 旧版静默跳过那页）。
+PAGE_UNREAD = "page_unread"
+
 # 代码 → 给人看的话（翻译在 i18n/messages.tsv）。
 MESSAGES = {
+    PAGE_UNREAD: "A page of this file could not be read: a document on it may be missing. Check the original",
     "total_missing": "The total printed on the document was not found",
     "printed_math": "Subtotal, discount and VAT do not add up to the printed total",
     "computed_total": "The items do not add up to the printed total",
@@ -45,7 +49,7 @@ MESSAGES = {
     tax_rules.REVIEW_TAX_INVOICE_WITHOUT_BUYER: "This tax invoice does not name the buyer, so input VAT is not claimed",
     tax_rules.REVIEW_CREDIT_NOTE: "This is a credit note: check the amounts and the original invoice",
 }
-SOFT = frozenset({"date_future", "date_old", tax_rules.REVIEW_UNKNOWN_TYPE, tax_rules.REVIEW_TAX_INVOICE_WITHOUT_VAT,
+SOFT = frozenset({PAGE_UNREAD, "date_future", "date_old", tax_rules.REVIEW_UNKNOWN_TYPE, tax_rules.REVIEW_TAX_INVOICE_WITHOUT_VAT,
                   tax_rules.REVIEW_TAX_INVOICE_WITHOUT_BUYER, tax_rules.REVIEW_CREDIT_NOTE})
 
 

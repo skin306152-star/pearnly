@@ -321,12 +321,20 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
     try:
         body = resp.json()
         text = body["candidates"][0]["content"]["parts"][0]["text"]
-        return json.loads(text)
+        data = json.loads(text)
     except (KeyError, IndexError, ValueError, TypeError) as exc:
         # 走到这里说明**服务是通的**（HTTP 200），只是这次输出没法用
         # （被截断、不是 JSON、空候选）。返回 None 让上层决定要不要升档。
         frappe.logger("pearnly.ocr").warning(f"ocr unparsable model={model}: {exc}")
         return None
+    # 模型偶尔把唯一一份结果包成 [{...}]（2026-09-28 Cowork 压测实测，同一 3.1 flash-lite）：拆开取那一份。
+    # 其余不是对象的（多个对象的数组、数字、字符串）与读不出同样处理，不猜哪一份是主结果。
+    if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+        data = data[0]
+    if not isinstance(data, dict):
+        frappe.logger("pearnly.ocr").warning(f"ocr not an object model={model}: {type(data).__name__}")
+        return None
+    return data
 
 
 _vision_cache: dict = {}

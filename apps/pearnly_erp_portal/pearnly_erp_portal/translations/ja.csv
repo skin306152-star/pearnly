@@ -8,6 +8,7 @@ A confirmed draft must point at the purchase record it created,確認済みの�
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
 A customer needs a name,顧客には名前が必要です
 A negative amount was read,マイナスの金額が読み取られました
+A page of this file could not be read: a document on it may be missing. Check the original,このファイルの1ページを読み取れませんでした。そのページの書類が漏れている可能性があります。原本を確認してください
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
 A product needs a name,品目には名前が必要です
 A refund cannot be more than the original sale,返品は元の売上を超えられません

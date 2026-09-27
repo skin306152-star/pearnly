@@ -8,6 +8,7 @@ A confirmed draft must point at the purchase record it created,A confirmed draft
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
 A customer needs a name,A customer needs a name
 A negative amount was read,A negative amount was read
+A page of this file could not be read: a document on it may be missing. Check the original,A page of this file could not be read: a document on it may be missing. Check the original
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
 A product needs a name,A product needs a name
 A refund cannot be more than the original sale,A refund cannot be more than the original sale

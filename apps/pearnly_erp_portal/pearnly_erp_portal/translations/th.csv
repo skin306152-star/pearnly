@@ -8,6 +8,7 @@ A confirmed draft must point at the purchase record it created,รายกา�
 A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น
 A customer needs a name,ลูกค้าต้องมีชื่อ
 A negative amount was read,อ่านได้ยอดเงินติดลบ
+A page of this file could not be read: a document on it may be missing. Check the original,มีหน้าหนึ่งในไฟล์นี้อ่านไม่ออก เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจสอบต้นฉบับ
 A payment has to be approved before it counts as paid,การจ่ายต้องได้รับการอนุมัติก่อนจึงนับว่าจ่ายแล้ว
 A product needs a name,สินค้าต้องมีชื่อ
 A refund cannot be more than the original sale,คืนเงินได้ไม่เกินบิลขายต้นทาง

@@ -8,6 +8,7 @@ A confirmed draft must point at the purchase record it created,已确认的草�
 A confirmed draft must point at the record it created,已确认的草稿必须指向它创建的那条记录
 A customer needs a name,客户要有名称
 A negative amount was read,读到了负数金额
+A page of this file could not be read: a document on it may be missing. Check the original,这个文件有一页没读出，那页上的单据可能漏了，请核对原件
 A payment has to be approved before it counts as paid,付款要先经过审批才算已付
 A product needs a name,物料要有名称
 A refund cannot be more than the original sale,退款不能超过原始销售单
