@@ -77,7 +77,8 @@ function harness({connected = true, rows = null, accounts = null, reading = 'rea
       if (method.endsWith('test_credentials')) return {ok: true, masters: {car_models: [1]}};
       if (method.endsWith('save_connection')) {savedConnection = true; return {ok: true, reading};}
       if (method.endsWith('get_accounts')) return clone(serverAccounts);
-      if (method.endsWith('set_read_account') || method.endsWith('save_write_accounts')) return clone(accountReply);
+      if (method.endsWith('set_read_account')) {savedConnection = accountReply.ok; return clone(accountReply);}
+      if (method.endsWith('save_write_accounts')) return clone(accountReply);
       throw new Error('Unexpected connection call: ' + method);
     },
     dialog(title, fields, action, submit) {
@@ -128,11 +129,10 @@ function harness({connected = true, rows = null, accounts = null, reading = 'rea
     get primaryLabel() {return primaryLabel;}, get secondary() {return secondary;},
     get secondaryCleared() {return secondaryCleared;},
     setAccountReply(value) {accountReply = clone(value);},
-    // 已连上时换连接账号在「…」菜单里；没连上时右上角唯一的按钮就是「连接」。
+    // 读档账号就是连接本身：没连上时它是唯一的按钮，连上后是次按钮「修改读档账号」。
     async connect(values = {username: 'synthetic', password: 'synthetic'}) {
-      const edit = menu.find(item => item.label === 'connect.action.edit');
-      const open = connected ? edit?.fn : primaryAction;
-      assert(open, 'the connection dialog must be reachable');
+      const open = connected ? secondary?.fn : primaryAction;
+      assert(open, 'the read account dialog must be reachable');
       open();
       await tick();
       assert(dialogSubmit, 'the connection dialog must have been opened');
@@ -177,6 +177,7 @@ test('a successful re-bind shows only the reading overlay, not the old probe not
     row('company', 'idle'), row('geo', 'idle'),
   ]});
   await h.start();
+  h.setAccountReply({ok: true, reading: 'reading'});
   await h.connect();
   assert.equal(h.savedConnection, true, 'the credentials were saved');
   assert.equal(h.frozen, true, 'the reading overlay is up');
@@ -324,8 +325,7 @@ test('connected page keeps exactly two buttons: write accounts and the read acco
   await h.start();
   assert.equal(h.primaryLabel, zh['dms.connect.acct.writeAdd']);
   assert.equal(h.secondary.label, zh['dms.connect.acct.readAdd']);
-  assert.deepEqual(clone(h.menu.map(item => item.label)), ['connect.action.edit'],
-    'changing the connection account moved into the page menu');
+  assert.equal(h.menu.length, 0, 'no separate connection account: the read account is the connection');
   assert.equal(h.buttons.length, 0, 'no inner toolbar buttons');
   const fields = h.layouts.at(-1);
   assert.equal(fields.find(f => f.fieldname === 'read').default, zh['dms.connect.acct.readNone']);
@@ -342,9 +342,10 @@ test('a saved read account turns the button into "change" and shows its name', a
   assert.equal(fields.find(f => f.fieldname === 'write').default, 'w1, w2');
 });
 
-test('not connected: only the connect button, no account buttons', async () => {
+test('not connected: only the read account button, no account buttons', async () => {
   const h = harness({connected: false});
   await h.start();
+  assert.equal(h.primaryLabel, zh['dms.connect.acct.readAdd']);
   assert.equal(h.secondary, null);
   assert(h.secondaryCleared > 0);
   assert.equal(h.menu.length, 0);
@@ -404,12 +405,12 @@ test('write accounts dialog: one account/password row by default, add and remove
   assert(hidden);
 });
 
-test('the page lists address, connection, read and write accounts only', async () => {
+test('the page lists the address, the read account and the write accounts only', async () => {
   const h = harness({accounts: {read: {name: 'R1', username: 'reader'}, write: []}});
   await h.start();
   const fields = h.layouts.at(-1).filter(f => f.fieldtype === 'Data');
-  assert.deepEqual(clone(fields.map(f => f.fieldname)), ['url', 'account', 'read', 'write']);
-  assert.equal(fields[1].label, zh['dms.connect.acct.connectionField']);
+  assert.deepEqual(clone(fields.map(f => f.fieldname)), ['url', 'read', 'write']);
+  assert.equal(fields[1].default, 'reader');
 });
 
 test('a usable customer group stops masking the page while its details keep reading', async () => {
@@ -437,9 +438,11 @@ test('a usable customer group stops masking the page while its details keep read
   assert.equal(h.successes.length, 1, 'success once the customer details are done');
 });
 
-test('binding without a read account says reading starts after adding it', async () => {
-  const h = harness({connected: false, reading: 'awaiting_read_account'});
+test('the first read account save is the connection itself', async () => {
+  const h = harness({connected: false});
   await h.start();
-  await h.connect();
-  assert.equal(h.messages.at(-1), zh['dms.connect.acct.readFirst']);
+  await h.connect({username: 'reader', password: 'x'});
+  const call = h.calls.find(c => c.method.endsWith('set_read_account'));
+  assert.deepEqual(clone(call.args), {username: 'reader', password: 'x'});
+  assert.equal(h.count('save_connection') + h.count('test_credentials'), 0, 'no separate connection account step');
 });

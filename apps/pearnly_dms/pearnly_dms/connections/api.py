@@ -112,21 +112,26 @@ def test_credentials(username: str, password: str, system_url: str | None = None
 
 @frappe.whitelist(methods=["POST"])
 def save_connection(username: str, password: str, system_url: str | None = None) -> dict:
-    """把凭据写进本站唯一那条 DMS 连接（没有就建）。
+    """兼容入口：把凭据写进本站唯一那条 DMS 连接（没有就建），再补读缺的资料组。
 
-    ⚠️ **写库前不重复探针**：调用方必须先 `test_credentials` 通过再调这里。
-    要求"存"之前必须"测"，是为了不出现"保存成功但连不上"的假成功。
-
-    绑定成功后**自动建缓存底座**：把四组（车辆/客户/公司/地址）排队读一次。凭据一换，
-    缓存 scope 就变（scope 含凭据指纹），所以这里总是要重读。界面用原生白屏覆盖显示
-    实时进度，管理员绑完就能看到"底座正在建"。
+    连接页现在用 `set_read_account`（读档账号就是连接账号，保存前按"读档"真试）；这里保留给
+    旧客户端，调用方仍须先 `test_credentials` 通过再调，不出现"保存成功但连不上"的假成功。
     """
     actor = _require_admin()
     username = (username or "").strip()
     if not username or not password:
         frappe.throw(_("Both account and password are required"))
 
-    url = (system_url or _default_url()).strip()
+    doc, saved = _store_connection((system_url or _default_url()).strip(), username, password)
+    from pearnly_dms.connections import snapshots as connection_snapshots
+
+    # 内部入口，不开 RPC：读取只在"绑定"和"操作顺手带回"两个时点发生。
+    reading = connection_snapshots.bootstrap(doc.name, actor)
+    return {"endpoint": saved, "reading": reading.get("state")}
+
+
+def _store_connection(url: str, username: str, password: str):
+    """把凭据写进本站唯一那条 DMS 连接（没有就建），保存后回读确认解得开。"""
     name = _endpoint_name()
     if name:
         doc = frappe.get_doc(ENDPOINT, name)
@@ -138,8 +143,8 @@ def save_connection(username: str, password: str, system_url: str | None = None)
     doc.system_url = url
     doc.username = username
     doc.password = password
-    # 老产品把同一组凭据同时当主凭据和管理员凭据（销售人员另建操作员行，
-    # 改写客户档时继承老板这组）。
+    # 同一组凭据同时当主凭据和管理员凭据：保存时 `sync_operator` 把管理员这组复制到每个
+    # 操作员连接（没登记改写账号时，操作员改客户档就用它）。
     doc.admin_username = username
     doc.admin_password = password
     doc.enabled = 1
@@ -153,11 +158,7 @@ def save_connection(username: str, password: str, system_url: str | None = None)
     saved = _row(frappe.get_doc(ENDPOINT, doc.name))
     if not saved["usable"]:
         frappe.throw(_("The saved credentials cannot be read back; check the site encryption key"))
-    from pearnly_dms.connections import snapshots as connection_snapshots
-
-    # 内部入口，不开 RPC：读取只在"绑定"和"操作顺手带回"两个时点发生。
-    reading = connection_snapshots.bootstrap(doc.name, actor)
-    return {"endpoint": saved, "reading": reading.get("state")}
+    return doc, saved
 
 
 @frappe.whitelist(methods=["POST"])
@@ -221,13 +222,21 @@ def _forget_session(system_url: str, username: str) -> None:
     session_cache.forget(dms_login_key(login_url, username))
 
 
-def _taken_names(endpoint, *, ignore: set) -> set:
-    """不能再登记的用户名：本站启用中的 DMS 连接用到的账号（公司连接 + 每个操作员的销售账号），
-    以及已登记的系统账号（`ignore` 里的那几条除外）。同一账号不能同时给两处用 —— DMS 会互踢。"""
-    names = {endpoint.username, endpoint.admin_username}
-    for row in frappe.get_all(ENDPOINT, filters={"adapter": "mrerp_dms", "enabled": 1},
-                              fields=["username", "admin_username"]):
-        names.update((row.username, row.admin_username))
+def _taken_names(*, ignore: set, purpose: str) -> set:
+    """不能登记的用户名 —— 同一账号不能同时给两处用，DMS 会把重复登录踢下线：
+
+    * 操作员自己的销售账号（启用中的操作员连接）；
+    * 已登记的其他系统账号（`ignore` 里的那几条除外）；
+    * 登记改写账号时，也不能是读档账号本身（公司连接用的就是读档账号）。
+
+    操作员连接上的管理员账号是公司连接复制过去的，不算另有人在用。"""
+    names = set()
+    for row in frappe.get_all(ENDPOINT, filters={"adapter": ADAPTER, "enabled": 1},
+                              fields=["username", "admin_username", "owner_user"]):
+        if row.owner_user:
+            names.add(row.username)
+        elif purpose == "write":
+            names.update((row.username, row.admin_username))
     for row in frappe.get_all(SYSTEM_ACCOUNT, fields=["name", "username"]):
         if row.name not in ignore:
             names.add(row.username)
@@ -254,33 +263,40 @@ def get_accounts() -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def set_read_account(username: str, password: str) -> dict:
-    """添加或更换读档账号：按"读档"真试一次，通过才替换旧的那个。"""
-    _require_admin()
+def set_read_account(username: str, password: str, system_url: str | None = None) -> dict:
+    """添加或更换读档账号 —— 它就是本站连 DMS 用的账号（用户 2026-09-27："只要读档账号和
+    权限账号就好了"，不再另有一个"连接账号"）。
+
+    按"读档"真试一次（能看使用记录、客户列表与客户资料），通过才写进公司连接并替换旧的读档账号；
+    随后缺哪组资料读哪组（换了账号是另一份资料，只改密码不重读）。
+    """
+    actor = _require_admin()
     from pearnly_dms.adapter.account_probe import probe
 
     username = (username or "").strip()
     if not username or not password:
         frappe.throw(_("Both account and password are required"))
-    endpoint = _connection()
+    url = (system_url or _default_url()).strip()
     current = frappe.get_all(SYSTEM_ACCOUNT, filters={"purpose": "read"}, fields=["name", "username"])
-    keep = {row.name for row in current if row.username == username}
-    if username in _taken_names(endpoint, ignore=keep):
-        frappe.throw(_("This account is already in use by the connection or another system account"))
-    result = probe(endpoint.system_url, username, password, "read")
+    if username in _taken_names(ignore={row.name for row in current}, purpose="read"):
+        frappe.throw(_("This account is already used by an operator or another system account"))
+    result = probe(url, username, password, "read")
     if not result.get("ok"):
         return _probe_failure(result, username)
+    previous = frappe.db.get_value(ENDPOINT, _endpoint_name(), "username") if _endpoint_name() else None
+    doc, _saved = _store_connection(url, username, password)
+    for old in {row.username for row in current} | ({previous} if previous else set()):
+        if old != username:
+            _forget_session(url, old)
     for row in current:
-        _forget_session(endpoint.system_url, row.username)
         frappe.delete_doc(SYSTEM_ACCOUNT, row.name, ignore_permissions=True)
     frappe.get_doc({"doctype": SYSTEM_ACCOUNT, "username": username, "password": password,
                     "purpose": "read", "enabled": 1, "last_status": "ok",
                     "last_checked_at": frappe.utils.now_datetime()}).insert(ignore_permissions=True)
     frappe.db.commit()
-    # 首次绑定时底座等的就是它：现在用读档账号把缺的那几组读起来（已齐就什么都不做）。
     from pearnly_dms.connections import snapshots as connection_snapshots
 
-    reading = connection_snapshots.bootstrap(endpoint.name, frappe.session.user)
+    reading = connection_snapshots.bootstrap(doc.name, actor)
     return {"ok": True, "reading": reading.get("state")}
 
 
@@ -298,7 +314,7 @@ def save_write_accounts(accounts) -> dict:
     endpoint = _connection()
     existing = {row.name: row for row in frappe.get_all(
         SYSTEM_ACCOUNT, filters={"purpose": ["!=", "read"]}, fields=["name", "username"])}
-    taken = _taken_names(endpoint, ignore=set(existing))
+    taken = _taken_names(ignore=set(existing), purpose="write")
     seen, plan = set(), []
     for row in rows:
         name = str(row.get("name") or "")
@@ -313,7 +329,7 @@ def save_write_accounts(accounts) -> dict:
         if not username or (not name and not password):
             frappe.throw(_("Both account and password are required"))
         if username in taken or username in seen:
-            frappe.throw(_("This account is already in use by the connection or another system account"))
+            frappe.throw(_("This account is already used by an operator or another system account"))
         seen.add(username)
         plan.append((name, username, password))
     for name, username, password in plan:

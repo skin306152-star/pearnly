@@ -84,6 +84,7 @@ Confirm booking,确认订车
 Confirm saving a new customer,确认保存新客户
 Connected. Reading starts after you add the read account.,已连接。添加读档账号后开始读取资料。
 Connection account,连接账号
+"Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.",用来连接 DMS 和读资料：首次读全档、白天每分钟同步、凌晨回读。
 Continue booking,继续订车
 Continuing with the existing data,继续使用原资料
 Contract not opened,未签合同
@@ -192,9 +193,11 @@ Not all files were attached. Please add them in DMS.,附件没有全部上传，
 Not allocated yet,尚未配车
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 Not read yet,尚未读取
+Not set,未设置
 Not set (data is read only at night),未设置（资料只在凌晨读取）
 Not set (no daytime sync),未设置（白天不同步）
 Not set (the connection account is used),未设置（使用连接账号）
+Not set (the read account is used for writes),未设置（改写时用读档账号）
 Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 Older data as of {time}; refresh manually if needed,当前为 {time} 的旧资料，需要时请手动刷新
@@ -337,6 +340,7 @@ These conditions have not been read. Click Read this query.,尚未读取此条�
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。
 This account is already in use by the connection or another system account,这个账号已被连接或其他系统账号使用
 This account is already the connection's own account,这个账号已经是连接自己的账号
+This account is already used by an operator or another system account,这个账号已被操作员或其他系统账号使用
 This customer already exists and the data matches,这位客户已有资料，资料一致
 This item has expired. Please start again.,此项已过期，请重新开始。
 This item has expired. Type menu to search again,此项已过期，输入 菜单 重新查询
@@ -724,21 +728,21 @@ dms.connect.acct.connectionField,连接账号
 dms.connect.acct.errGone,这个系统账号已不存在，请刷新页面
 dms.connect.acct.errRename,要改账号名，请删掉这一行再重新添加
 dms.connect.acct.errSwitch,只能在开始会话前切换 DMS 账号
-dms.connect.acct.errTaken,这个账号已被连接或其他系统账号使用
+dms.connect.acct.errTaken,这个账号已被操作员或其他系统账号使用
 dms.connect.acct.missing,{0} 权限不足：{1}
 dms.connect.acct.readAdd,添加读档账号
 dms.connect.acct.readChange,修改读档账号
 dms.connect.acct.readField,读档账号
 dms.connect.acct.readFirst,已连接。添加读档账号后开始读取资料。
-dms.connect.acct.readHelp,只用来读资料：首次读全档和白天每分钟同步。
-dms.connect.acct.readNone,未设置（资料只在凌晨读取）
+dms.connect.acct.readHelp,用来连接 DMS 和读资料：首次读全档、白天每分钟同步、凌晨回读。
+dms.connect.acct.readNone,未设置
 dms.connect.acct.removeRow,删除
 dms.connect.acct.saved,已保存
 dms.connect.acct.testAndSave,测试并保存
 dms.connect.acct.writeAdd,添加改写权限账号
 dms.connect.acct.writeField,改写权限账号
 dms.connect.acct.writeHelp,建档、改资料时使用；已登记的账号密码留空即不改。
-dms.connect.acct.writeNone,未设置（使用连接账号）
+dms.connect.acct.writeNone,未设置（改写时用读档账号）
 dms.connect.cache.changed,读取状态已变化，请刷新页面确认后再试。
 dms.connect.cache.dataset.company,公司资料
 dms.connect.cache.dataset.customers,客户资料

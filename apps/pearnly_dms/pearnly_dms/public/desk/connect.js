@@ -135,18 +135,18 @@
 			accounts = ep ? await p.call("pearnly_dms.connections.api.get_accounts") : { read: null, write: [] };
 			page.main.empty();
 			page.clear_inner_toolbar();
-			// 右上角只留两个按钮（用户 2026-09-27）：改写权限账号（主）+ 读档账号（次）；
-			// 换连接账号放进「…」菜单。还没连上 DMS 时只有「连接」一个按钮。
+			// 右上角只有两个按钮（用户 2026-09-27："只要读档账号和权限账号就好了"）：
+			// 改写权限账号（主）+ 读档账号（次）。读档账号就是本站连 DMS 用的账号，没有另外的"连接账号"；
+			// 还没连上 DMS 时只有「添加读档账号」一个按钮。
 			page.clear_menu();
 			if (ep) {
-				page.add_menu_item(t("connect.action.edit"), wizard);
 				page.set_primary_action(acct("dms.connect.acct.writeAdd"), editWriteAccounts);
 				page.set_secondary_action(
 					acct(accounts.read ? "dms.connect.acct.readChange" : "dms.connect.acct.readAdd"),
 					editReadAccount,
 				);
 			} else {
-				page.set_primary_action(t("connect.action.connect"), wizard);
+				page.set_primary_action(acct("dms.connect.acct.readAdd"), editReadAccount);
 				page.clear_secondary_action();
 			}
 			page.set_indicator(
@@ -155,12 +155,10 @@
 			);
 			// 不再有内联的「测试连接」「停用/启用」按钮（用户 2026-09-25）；服务端两个 RPC
 			// （test_endpoint / set_connection_enabled）保留不动，只是不再从这个页面露出。
-			// 只列管理员要看的四样（用户 2026-09-27："界面调整下"）：连没连上看标题旁的状态；
-			// 连接账号只用来绑定，登记了读档 / 改写账号后系统读写都不再用它。
+			// 只列管理员要看的三样：连没连上看标题旁的状态。
 			const fields = [{ fieldtype: "Section Break" }];
 			for (const [name, label, value] of [
 				["url", t("connect.field.url"), ep?.system_url || "—"],
-				["account", acct("dms.connect.acct.connectionField"), ep?.username || "—"],
 				["read", acct("dms.connect.acct.readField"), accounts.read?.username || acct("dms.connect.acct.readNone")],
 				["write", acct("dms.connect.acct.writeField"),
 					accounts.write.map((row) => row.username).join(", ") || acct("dms.connect.acct.writeNone")],
@@ -177,28 +175,6 @@
 			if (!value || typeof value !== "object") return value || "";
 			const lang = (frappe.boot.lang || "th").slice(0, 2);
 			return value[lang] || value.th || "";
-		}
-		function feedback(result) {
-			if (!result.ok) {
-				frappe.msgprint({
-					message: p.escape(friendlyText(result.error_friendly) || t("connect.error.failed")),
-					indicator: "red",
-				});
-				return false;
-			}
-			const m = result.masters || {};
-			p.success(
-				t(
-					"connect.notice.ok",
-					[
-						t("connect.master.carModels", m.car_models?.length || 0),
-						t("connect.master.branches", m.branches?.length || 0),
-						t("connect.master.advisors", m.advisors?.length || 0),
-						t("connect.master.terms", m.term_sales?.length || 0),
-					].join(" · "),
-				),
-			);
-			return true;
 		}
 		// 按用途试过但权限不够：列出缺的那几项（使用记录 / 客户列表 …），不笼统说"失败"。
 		function accountFailure(result) {
@@ -219,11 +195,13 @@
 				],
 				acct("dms.connect.acct.testAndSave"),
 				async (values, d) => {
+					// 读档账号就是连接本身：第一次保存即连上 DMS，并开始读取缺的资料。
 					const result = await p.call("pearnly_dms.connections.api.set_read_account", values, "POST");
 					if (!result.ok) return accountFailure(result);
 					d.set_value("password", "");
 					d.hide();
-					p.success(acct("dms.connect.acct.saved"));
+					// 开始读资料时不另弹"已保存"：读取的遮罩与进度就是反馈（用户 2026-09-25：提示与界面别打架）。
+					if (result.reading !== "reading") p.success(acct("dms.connect.acct.saved"));
 					await refresh();
 				},
 			);
@@ -284,51 +262,6 @@
 			const saved = accounts.write.map((row) => ({ name: row.name, username: row.username }));
 			(saved.length ? saved : [{}]).forEach(addRow);
 			return d;
-		}
-		function wizard() {
-			p.dialog(
-				t("connect.title"),
-				[
-					{
-						fieldtype: "Data",
-						fieldname: "username",
-						label: t("connect.field.account"),
-						default: conn.endpoint?.username || "",
-						reqd: 1,
-					},
-					{
-						fieldtype: "Password",
-						fieldname: "password",
-						label: __("Password"),
-						reqd: 1,
-					},
-				],
-				t("connect.action.connect"),
-				async (values, d) => {
-					const probe = await p.call(
-						"pearnly_dms.connections.api.test_credentials",
-						values,
-						"POST",
-					);
-					if (!probe.ok) {
-						feedback(probe);
-						return;
-					}
-					const saved = await p.call("pearnly_dms.connections.api.save_connection", values, "POST");
-					d.set_value("password", "");
-					d.hide();
-					// 读全档要等读档账号（不占连接账号）：告诉管理员下一步做什么。
-					if (saved?.reading === "awaiting_read_account") {
-						frappe.msgprint(p.escape(acct("dms.connect.acct.readFirst")));
-					}
-					// **绑定成功不再弹"连接正常 · 车型 3 · 分店 1 …"**（用户 2026-09-25：
-					// "旧的提示和界面存在冲突"）。那句话是"快速探测"的产物，弹出时正好和
-					// 白屏上的读取进度叠在一起，看着像两件事同时在跑。
-					// 绑定后的反馈交给读取本身：白屏百分比 → 读完一句「数据更新完成」。
-					// 探测失败仍然照原样报错（那时没有读取在跑）。
-					await refresh();
-				},
-			);
 		}
 		await refresh();
 	};

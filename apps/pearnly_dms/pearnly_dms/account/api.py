@@ -28,7 +28,12 @@ def _endpoint(who):
     resolved = resolve_dms_endpoint(who["user"], None)
     if not resolved:
         browser_api._fail("dms_booking.no_endpoint", 409)
-    return frappe.get_doc("Pearnly ERP Endpoint", resolved["name"])
+    doc = frappe.get_doc("Pearnly ERP Endpoint", resolved["name"])
+    # 公司连接用的是读档账号（系统每分钟同步都在用它）：不能拿它登录 DMS 网页、也不能在这里改它的
+    # 密码 —— 同账号重复登录会被 DMS 互踢。没有自己 DMS 账号的人先在「操作员」里配。
+    if not doc.owner_user:
+        browser_api._fail("dms_booking.no_endpoint", 409)
+    return doc
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

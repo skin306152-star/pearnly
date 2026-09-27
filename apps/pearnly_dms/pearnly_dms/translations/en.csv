@@ -84,6 +84,7 @@ Confirm booking,Confirm booking
 Confirm saving a new customer,Confirm saving a new customer
 Connected. Reading starts after you add the read account.,Connected. Reading starts after you add the read account.
 Connection account,Connection account
+"Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.","Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread."
 Continue booking,Continue booking
 Continuing with the existing data,Continuing with the existing data
 Contract not opened,Contract not opened
@@ -192,9 +193,11 @@ Not all files were attached. Please add them in DMS.,Not all files were attached
 Not allocated yet,Not allocated yet
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 Not read yet,Not read yet
+Not set,Not set
 Not set (data is read only at night),Not set (data is read only at night)
 Not set (no daytime sync),Not set (no daytime sync)
 Not set (the connection account is used),Not set (the connection account is used)
+Not set (the read account is used for writes),Not set (the read account is used for writes)
 Number of cars,Number of cars
 Older address data as of {time}; ask an administrator to refresh if needed,Older address data as of {time}; ask an administrator to refresh if needed
 Older data as of {time}; refresh manually if needed,Older data as of {time}; refresh manually if needed
@@ -337,6 +340,7 @@ These conditions have not been read. Click Read this query.,These conditions hav
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
 This account is already in use by the connection or another system account,This account is already in use by the connection or another system account
 This account is already the connection's own account,This account is already the connection's own account
+This account is already used by an operator or another system account,This account is already used by an operator or another system account
 This customer already exists and the data matches,This customer already exists and the data matches
 This item has expired. Please start again.,This item has expired. Please start again.
 This item has expired. Type menu to search again,This item has expired. Type menu to search again
@@ -724,21 +728,21 @@ dms.connect.acct.connectionField,Connection account
 dms.connect.acct.errGone,This system account no longer exists; reload the page
 dms.connect.acct.errRename,Remove the account and add it again to change its name
 dms.connect.acct.errSwitch,The DMS account can only be switched before the session starts
-dms.connect.acct.errTaken,This account is already in use by the connection or another system account
+dms.connect.acct.errTaken,This account is already used by an operator or another system account
 dms.connect.acct.missing,{0} lacks access to: {1}
 dms.connect.acct.readAdd,Add read account
 dms.connect.acct.readChange,Change read account
 dms.connect.acct.readField,Read account
 dms.connect.acct.readFirst,Connected. Reading starts after you add the read account.
-dms.connect.acct.readHelp,Used only to read data: the first full read and the every-minute daytime sync.
-dms.connect.acct.readNone,Not set (data is read only at night)
+dms.connect.acct.readHelp,"Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread."
+dms.connect.acct.readNone,Not set
 dms.connect.acct.removeRow,Remove
 dms.connect.acct.saved,Saved
 dms.connect.acct.testAndSave,Test and save
 dms.connect.acct.writeAdd,Add write accounts
 dms.connect.acct.writeField,Write accounts
 dms.connect.acct.writeHelp,Used to create and edit customers. Leave a saved account's password empty to keep it.
-dms.connect.acct.writeNone,Not set (the connection account is used)
+dms.connect.acct.writeNone,Not set (the read account is used for writes)
 dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
 dms.connect.cache.dataset.company,Company information
 dms.connect.cache.dataset.customers,Customer records

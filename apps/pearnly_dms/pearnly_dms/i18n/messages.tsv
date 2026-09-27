@@ -80,11 +80,11 @@ Many people are using DMS right now, so this request timed out in the queue. Not
 Add read account	添加读档账号	เพิ่มบัญชีอ่านข้อมูล	読み取りアカウントを追加	dms.connect.acct.readAdd
 Change read account	修改读档账号	แก้ไขบัญชีอ่านข้อมูล	読み取りアカウントを変更	dms.connect.acct.readChange
 Read account	读档账号	บัญชีอ่านข้อมูล	読み取りアカウント	dms.connect.acct.readField
-Not set (data is read only at night)	未设置（资料只在凌晨读取）	ยังไม่ตั้ง (อ่านข้อมูลเฉพาะตอนกลางคืน)	未設定（夜間のみ読み込み）	dms.connect.acct.readNone
-Used only to read data: the first full read and the every-minute daytime sync.	只用来读资料：首次读全档和白天每分钟同步。	ใช้อ่านข้อมูลเท่านั้น: อ่านทั้งหมดครั้งแรกและซิงก์ทุกนาทีช่วงกลางวัน	データの読み込み専用：初回の全件読み込みと日中の毎分同期。	dms.connect.acct.readHelp
+Not set	未设置	ยังไม่ตั้ง	未設定	dms.connect.acct.readNone
+Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.	用来连接 DMS 和读资料：首次读全档、白天每分钟同步、凌晨回读。	ใช้เชื่อมต่อ DMS และอ่านข้อมูล: อ่านทั้งหมดครั้งแรก ซิงก์ทุกนาทีช่วงกลางวัน และอ่านซ้ำตอนกลางคืน	DMS への接続とデータ読み込みに使います：初回の全件読み込み、日中の毎分同期、夜間の再読み込み。	dms.connect.acct.readHelp
 Add write accounts	添加改写权限账号	เพิ่มบัญชีสิทธิ์แก้ไข	書き込みアカウントを追加	dms.connect.acct.writeAdd
 Write accounts	改写权限账号	บัญชีสิทธิ์แก้ไข	書き込みアカウント	dms.connect.acct.writeField
-Not set (the connection account is used)	未设置（使用连接账号）	ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)	未設定（接続アカウントを使用）	dms.connect.acct.writeNone
+Not set (the read account is used for writes)	未设置（改写时用读档账号）	ยังไม่ตั้ง (ใช้บัญชีอ่านข้อมูลในการแก้ไข)	未設定（書き込みに読み取りアカウントを使用）	dms.connect.acct.writeNone
 Used to create and edit customers. Leave a saved account's password empty to keep it.	建档、改资料时使用；已登记的账号密码留空即不改。	ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน	顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。	dms.connect.acct.writeHelp
 Test and save	测试并保存	ทดสอบและบันทึก	テストして保存	dms.connect.acct.testAndSave
 Saved	已保存	บันทึกแล้ว	保存しました	dms.connect.acct.saved
@@ -93,12 +93,10 @@ usage log	使用记录	บันทึกการใช้งาน	利用履�
 customer list	客户列表	รายชื่อลูกค้า	顧客一覧	dms.connect.acct.check.customers
 customer details	客户资料	ข้อมูลลูกค้า	顧客情報	dms.connect.acct.check.customer
 new customer form	新建客户	ฟอร์มเพิ่มลูกค้า	新規顧客フォーム	dms.connect.acct.check.customer_form
-This account is already in use by the connection or another system account	这个账号已被连接或其他系统账号使用	บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว	このアカウントは接続または他のシステムアカウントで使用中です	dms.connect.acct.errTaken
+This account is already used by an operator or another system account	这个账号已被操作员或其他系统账号使用	บัญชีนี้ถูกใช้โดยผู้ปฏิบัติงานหรือบัญชีระบบอื่นแล้ว	このアカウントはオペレーターまたは他のシステムアカウントで使用中です	dms.connect.acct.errTaken
 This system account no longer exists; reload the page	这个系统账号已不存在，请刷新页面	บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า	このシステムアカウントはもうありません。ページを再読み込みしてください	dms.connect.acct.errGone
 Remove the account and add it again to change its name	要改账号名，请删掉这一行再重新添加	หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่	アカウント名を変えるには行を削除して追加し直してください	dms.connect.acct.errRename
 The DMS account can only be switched before the session starts	只能在开始会话前切换 DMS 账号	เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น	DMS アカウントはセッション開始前にのみ切り替えられます	dms.connect.acct.errSwitch
-Connected. Reading starts after you add the read account.	已连接。添加读档账号后开始读取资料。	เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล	接続しました。読み取りアカウントを追加すると読み込みを始めます。	dms.connect.acct.readFirst
-Connection account	连接账号	บัญชีการเชื่อมต่อ	接続アカウント	dms.connect.acct.connectionField
 Add	添加	เพิ่ม	追加	dms.connect.acct.addRow
 Remove	删除	ลบ	削除	dms.connect.acct.removeRow
 DMS System Account	DMS 系统账号	บัญชีระบบ DMS	DMS システムアカウント	dms.doctype.system_account

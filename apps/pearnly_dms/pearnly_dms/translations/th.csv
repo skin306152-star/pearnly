@@ -84,6 +84,7 @@ Confirm booking,ยืนยันจอง
 Confirm saving a new customer,ยืนยันบันทึกลูกค้าใหม่
 Connected. Reading starts after you add the read account.,เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล
 Connection account,บัญชีการเชื่อมต่อ
+"Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.",ใช้เชื่อมต่อ DMS และอ่านข้อมูล: อ่านทั้งหมดครั้งแรก ซิงก์ทุกนาทีช่วงกลางวัน และอ่านซ้ำตอนกลางคืน
 Continue booking,ทำใบจองต่อ
 Continuing with the existing data,ใช้ข้อมูลเดิมต่อ
 Contract not opened,ยังไม่เปิดสัญญา
@@ -192,9 +193,11 @@ Not all files were attached. Please add them in DMS.,แนบไฟล์ไม
 Not allocated yet,ยังไม่จัดสรรรถ
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
 Not read yet,ยังไม่ได้อ่าน
+Not set,ยังไม่ตั้ง
 Not set (data is read only at night),ยังไม่ตั้ง (อ่านข้อมูลเฉพาะตอนกลางคืน)
 Not set (no daytime sync),ยังไม่ตั้ง (ไม่ซิงก์ช่วงกลางวัน)
 Not set (the connection account is used),ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)
+Not set (the read account is used for writes),ยังไม่ตั้ง (ใช้บัญชีอ่านข้อมูลในการแก้ไข)
 Number of cars,จำนวนคัน
 Older address data as of {time}; ask an administrator to refresh if needed,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 Older data as of {time}; refresh manually if needed,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
@@ -337,6 +340,7 @@ These conditions have not been read. Click Read this query.,ยังไม่�
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 This account is already in use by the connection or another system account,บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว
 This account is already the connection's own account,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
+This account is already used by an operator or another system account,บัญชีนี้ถูกใช้โดยผู้ปฏิบัติงานหรือบัญชีระบบอื่นแล้ว
 This customer already exists and the data matches,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
 This item has expired. Please start again.,รายการหมดอายุ เริ่มใหม่อีกครั้ง
 This item has expired. Type menu to search again,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
@@ -724,21 +728,21 @@ dms.connect.acct.connectionField,บัญชีการเชื่อมต�
 dms.connect.acct.errGone,บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า
 dms.connect.acct.errRename,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 dms.connect.acct.errSwitch,เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น
-dms.connect.acct.errTaken,บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว
+dms.connect.acct.errTaken,บัญชีนี้ถูกใช้โดยผู้ปฏิบัติงานหรือบัญชีระบบอื่นแล้ว
 dms.connect.acct.missing,{0} ไม่มีสิทธิ์: {1}
 dms.connect.acct.readAdd,เพิ่มบัญชีอ่านข้อมูล
 dms.connect.acct.readChange,แก้ไขบัญชีอ่านข้อมูล
 dms.connect.acct.readField,บัญชีอ่านข้อมูล
 dms.connect.acct.readFirst,เชื่อมต่อแล้ว จะเริ่มอ่านข้อมูลหลังเพิ่มบัญชีอ่านข้อมูล
-dms.connect.acct.readHelp,ใช้อ่านข้อมูลเท่านั้น: อ่านทั้งหมดครั้งแรกและซิงก์ทุกนาทีช่วงกลางวัน
-dms.connect.acct.readNone,ยังไม่ตั้ง (อ่านข้อมูลเฉพาะตอนกลางคืน)
+dms.connect.acct.readHelp,ใช้เชื่อมต่อ DMS และอ่านข้อมูล: อ่านทั้งหมดครั้งแรก ซิงก์ทุกนาทีช่วงกลางวัน และอ่านซ้ำตอนกลางคืน
+dms.connect.acct.readNone,ยังไม่ตั้ง
 dms.connect.acct.removeRow,ลบ
 dms.connect.acct.saved,บันทึกแล้ว
 dms.connect.acct.testAndSave,ทดสอบและบันทึก
 dms.connect.acct.writeAdd,เพิ่มบัญชีสิทธิ์แก้ไข
 dms.connect.acct.writeField,บัญชีสิทธิ์แก้ไข
 dms.connect.acct.writeHelp,ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน
-dms.connect.acct.writeNone,ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)
+dms.connect.acct.writeNone,ยังไม่ตั้ง (ใช้บัญชีอ่านข้อมูลในการแก้ไข)
 dms.connect.cache.changed,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
 dms.connect.cache.dataset.company,ข้อมูลบริษัท
 dms.connect.cache.dataset.customers,ข้อมูลลูกค้า
