@@ -11,7 +11,7 @@ const PEARNLY_PROFILE_FIELDS = new Set([
  * 首次绘制看着正常，下一次原生 layout.refresh 才给整列挂上 hide-control ——
  * 于是同一页"刚打开还在、点刷新就没了"，用户每次打开看到的内容都不一样。
  */
-function pearnlyProfileScope(frm) {
+function pearnlyProfileKeep(frm) {
     const keep = new Set(PEARNLY_PROFILE_FIELDS);
     let tab = null;
     let section = null;
@@ -32,6 +32,30 @@ function pearnlyProfileScope(frm) {
             }
         }
     }
+    return keep;
+}
+
+/* 表单第一次画出来之前（`setup`：布局已建、还没按文档刷新）就把不留的字段 / 页签 / 分节标成隐藏。
+ *
+ * 原先只在 `refresh` 里隐藏：框架先把整张原生用户表单（十几个字段、6 个页签、右侧栏）画出来，
+ * 再触发 `refresh`，点左下角时原生界面会先闪一下（2026-09-27 逐帧实测：约 1 秒，首次最明显）。
+ * 这时文档还没挂到布局上，不能调 `toggle_display`（它会立刻刷新控件），只改字段定义本身：
+ * 本表单用的这份、以及之后按单据复制出的那份都带上 hidden，第一次 `refresh_fields` 就是我们要的样子。
+ */
+function pearnlyProfileHideEarly(frm) {
+    const keep = pearnlyProfileKeep(frm);
+    const copies = frappe.meta.docfield_copy?.[frm.doctype]?.[frm.docname] || {};
+    for (const field of frm.meta.fields) {
+        if (!field.fieldname) continue;
+        const hidden = keep.has(field.fieldname) ? 0 : 1;
+        for (const df of [field, copies[field.fieldname], frm.fields_dict?.[field.fieldname]?.df]) {
+            if (df) df.hidden = hidden;
+        }
+    }
+}
+
+function pearnlyProfileScope(frm) {
+    const keep = pearnlyProfileKeep(frm);
     for (const field of frm.meta.fields) {
         if (field.fieldname) frm.toggle_display(field.fieldname, keep.has(field.fieldname));
     }
@@ -41,6 +65,17 @@ function pearnlyProfileScope(frm) {
 }
 
 frappe.ui.form.on("User", {
+    setup(frm) {
+        if (!frappe.boot.pearnly_product) return;
+        // 右侧栏、仪表盘、菜单由 product.css 按这个类从第一帧起就不显示（原先在 refresh 里才隐藏）。
+        frm.$wrapper.addClass("pearnly-account-profile");
+        pearnlyProfileHideEarly(frm);
+        // 原生「密码 → 重置密码」由我们的「修改密码」取代（refresh 里也会摘掉）。原生脚本在它自己的
+        // refresh 里加这颗按钮、中间还有一次异步，所以会先露出来再被摘掉；这里直接不让它加上。
+        const add = frm.add_custom_button.bind(frm);
+        frm.add_custom_button = (label, click, group) =>
+            label === __("Reset Password") && group === __("Password") ? null : add(label, click, group);
+    },
     refresh(frm) {
         if (!frappe.boot.pearnly_product) return;
         if (frm.doc.name !== frappe.session.user) {

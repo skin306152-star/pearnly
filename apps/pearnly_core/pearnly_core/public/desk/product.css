@@ -120,7 +120,12 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 /* The native User form also serves administrators; these document-only surfaces
    are inapplicable when a customer opens their own account preferences. */
 .pearnly-product-desk .pearnly-account-profile #user-connections_tab-tab,
-.pearnly-product-desk .pearnly-account-profile .form-footer {
+.pearnly-product-desk .pearnly-account-profile .form-footer,
+/* 个人信息页不用原生右侧栏 / 仪表盘 / 菜单：从第一帧起就不显示（点左下角原生界面先闪一下，2026-09-27）。 */
+.pearnly-product-desk .pearnly-account-profile .layout-side-section,
+.pearnly-product-desk .pearnly-account-profile .form-dashboard,
+.pearnly-product-desk .pearnly-account-profile .page-actions .menu-btn-group,
+.pearnly-product-desk .pearnly-account-profile [data-fieldname="__newname"] {
 	display: none;
 }
 
