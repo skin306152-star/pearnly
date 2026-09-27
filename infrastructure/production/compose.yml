@@ -212,7 +212,8 @@ services:
   erp-ocr-worker:
     profiles: [erp]
     <<: *worker
-    mem_limit: 512m
+    # 两个识别进程共用这一份上限：512m 时手机大图 / 多页 PDF 同时进来就被内核杀掉（2026-09-28 Cowork 压测约 80 次）。
+    mem_limit: 1536m
     command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
     volumes: *erp-volumes
     environment:
@@ -260,7 +261,8 @@ services:
   cowork-ocr-worker:
     profiles: [cowork]
     <<: *worker
-    mem_limit: 512m
+    # 两个识别进程共用这一份上限：512m 时手机大图 / 多页 PDF 同时进来就被内核杀掉（2026-09-28 Cowork 压测约 80 次）。
+    mem_limit: 1536m
     command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
     volumes: *cowork-volumes
     environment:
