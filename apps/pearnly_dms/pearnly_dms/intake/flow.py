@@ -406,6 +406,9 @@ def run_dedup(
         return
 
     scenario = res.get("scenario")
+    if res.get("name") and res["name"] != id_card.get("name"):
+        # 识别的姓名与主档只差一两个符号 → 按主档（读错一个声调符号不该报成改名）
+        id_card = {**id_card, "name": res["name"]}
     field_diffs = res.get("field_diffs") or []
     geo = res.get("geo") or {}
     draft_vals = draft.build_draft(id_card, geo, res.get("prefixes") or [], phone)

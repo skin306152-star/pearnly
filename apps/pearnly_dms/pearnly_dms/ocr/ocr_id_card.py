@@ -8,10 +8,15 @@
 那段提示词是拿真件调出来的（泰文月份表、"เม.ย. 是 04 不是 05"、
 "不确定就返回空号，不要编一个 13 位"），改一个字都可能把准确率改坏。
 
+只用 flash-lite 读一次（用户 2026-09-27 定，不再依赖 3.8）。ris 50 张真证件实测：
+号码、生日 50/50，地址与 3.8 持平，弱项只在泰文姓名偶尔漏一个元音/声调符号；这类误读
+由 DMS 主档比对兜住（`intake.service.master_name_if_close`，按证号找到的老客户姓名
+足够像就按主档，不报假"改名"）。读三次投票实测不更准（同一处常三次都读错），已放弃。
+
 两条业务规则也照搬：
 
-1. **13 位身份证号是刚需**：读不出合规的 13 位就升档再读一次
-   （老产品判据 `_has_id` = 去掉非数字后正好 13 位）。
+1. **13 位身份证号是刚需**：读不出就置空、打 needs_review（老产品"升档再读一次"
+   不再保留 —— 升档目标是 3.8；flash-lite 实测号码 50/50）。
 2. **归零门槛**：号不是 13 位就置空 —— **绝不把不合规的号推给 DMS**。
    而且号/名/姓缺任一项就标 `needs_review`，不许进推送流程。
 """
@@ -58,6 +63,10 @@ _ID_CARD_PROMPT = (
     "Do NOT invent a 13-digit number. If you are not sure it is exactly 13 digits, "
     "return an empty people_id."
 )
+
+# 身份证固定用 flash-lite（与站点 OCR 档位无关），不升档到 3.8。
+ID_CARD_MODEL = ocr.MODE_MODEL_MAPS["economy"]["flash_lite"]
+
 
 # 泰文称谓缩写 → 全称。身份证印缩写 น.ส.，而 DMS 称谓下拉是全称 นางสาว ——
 # 不归一会匹配不到、回落错值（老产品踩过）。
@@ -176,7 +185,7 @@ def extract(image_bytes: bytes) -> dict:
     三种结果分得很清楚，**不要混**：
 
     · 读出来了 → 返回归一结果（里面用 `needs_review` 表达"这张图够不够格"）；
-    · 服务是通的但两档都没读出内容 → 抛 `IdCardExtractError`（图的问题）；
+    · 服务是通的但没读出内容 → 抛 `IdCardExtractError`（图的问题）；
     · **根本调不动模型**（限流/配额/网络）→ 抛 `OcrUnavailable`（基础设施的问题），
       原样往上抛，**绝不伪装成"图不合格"**。
     """
@@ -186,18 +195,10 @@ def extract(image_bytes: bytes) -> dict:
     img = bytes(image_bytes)
     mime = ocr.detect_image_mime(img)
 
-    def _call(model_name: str):
-        out = ocr.json_from_images(_ID_CARD_PROMPT, [(img, mime)], model=model_name)
-        return out if isinstance(out, dict) else None
-
-    # 身份证唯一刚需字段 = 13 位号；读取臂读不出合规号就升档再读一次
-    def _has_id(d) -> bool:
-        return isinstance(d, dict) and len(_digits(d.get("people_id"))) == 13
-
-    # `OcrUnavailable` 会从这里直接冒出去（刻意不 catch）：配额/限流是基础设施问题，
-    # 上层要能分辨，不能落进"待人工核对"里。
-    data = ocr.try_with_fallback(_call, ok=_has_id, label="dms.id_card")
-    if data is None:
+    # `OcrUnavailable` / `Deferred` 会从这里直接冒出去（刻意不 catch）：配额/限流是
+    # 基础设施问题，上层要能分辨，不能落进"待人工核对"里。
+    data = ocr.json_from_images(_ID_CARD_PROMPT, [(img, mime)], model=ID_CARD_MODEL)
+    if not isinstance(data, dict):
         raise IdCardExtractError(
             _("Neither tier produced a result (network, key or model name could all be the cause)")
         )

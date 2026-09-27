@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""OCR 自检：请求形状 + 两档升级 + 归一化门槛。
+"""OCR 自检：请求形状 + 身份证只读一次 flash-lite + 归一化门槛。
 
 由 `scripts/sample-verify-ocr.sh` 送进容器、用 `bench console` 跑。
 
 **为什么用桩服务器而不是直接打真 API**：真调用需要可用凭据，而本机两样都没有
 （AI Studio 那把 key 的预付额度已耗尽 → 429；生产的 Vertex 项目当前账号无权访问）。
-桩服务器能验的是**这一层代码自己的问题**：请求长什么样、两档是不是按顺序升、
+桩服务器能验的是**这一层代码自己的问题**：请求长什么样、身份证是不是只用 flash-lite 读一次、
 归一化门槛对不对、密钥有没有泄露到日志。真正的"模型认不认这张卡"必须用真凭据
 + 真样本单独验，这一层**不冒充**那个结论。
 
@@ -34,7 +34,7 @@ def main():
         results.append((label, bool(ok), detail))
         print(("PASS " if ok else "FAIL ") + label + ((" — " + str(detail)) if detail else ""))
 
-    # ── 桩服务器：第一次故意给不合格的号，逼出"升档" ──────────────────────
+    # ── 桩服务器：回一份合格的身份证读数 ──────────────────────────────────────
     BAD = {"people_id": "123", "first_name_th": "สมชาย", "last_name_th": "ใจดี"}
     GOOD = {
         "people_id": "1 2345 67890 12 3",
@@ -75,8 +75,7 @@ def main():
                 self.end_headers()
                 self.wfile.write(err)
                 return
-            # 第 1 次给不合格的号（触发升档），第 2 次给合格的号
-            payload = BAD if len(captured) == 1 else GOOD
+            payload = GOOD
             out = json.dumps({
                 "candidates": [{"content": {"parts": [
                     {"text": json.dumps(payload, ensure_ascii=False)}
@@ -116,29 +115,18 @@ def main():
             "890000000a49444154789c6360000002000154a24f5c0000000049454e44ae426082"
         )
 
-        # ── 1. A 档（enterprise）：两臂是同一个模型，**只该调一次** ──────────
-        # 依据：老产品 `models_with_fallback` 会去重（`if fb not in out`），
-        # 所以两臂同模型时"升档"没有意义，不该白发第二次请求。
-        frappe.conf["pearnly_ocr_mode"] = "enterprise"
-        captured.clear()
-        out_enterprise = ocr_id_card.extract(png)
-        check("A 档两臂同模型 → 只调一次（不白发请求）", len(captured) == 1,
-              [c["model"] for c in captured])
-        check("A 档用的是 gemini-3.8-flash",
-              captured and captured[0]["model"] == "gemini-3.8-flash",
-              [c["model"] for c in captured])
-        check("读出不合格的号 → 标 needs_review（不硬推）",
-              out_enterprise.get("needs_review") is True,
-              out_enterprise.get("missing_fields"))
-
-        # ── 2. B 档（economy）：读取臂与升级臂不同 → 该升档一次 ──────────────
-        frappe.conf["pearnly_ocr_mode"] = "economy"
-        captured.clear()
-        out = ocr_id_card.extract(png)
-        check("B 档升档一次（共两次调用）", len(captured) == 2, [c["model"] for c in captured])
-        check("B 档先走轻量臂、再走升级臂",
-              [c["model"] for c in captured] == ["gemini-3.1-flash-lite", "gemini-3.8-flash"],
-              [c["model"] for c in captured])
+        # ── 1. 身份证固定 flash-lite 读一次，与站点档位无关（用户 2026-09-27 定，不升到 3.8）──
+        # 桩第一次给不合格的号：不再升档，直接置空并要人工核对。
+        for mode_name in ("enterprise", "economy"):
+            frappe.conf["pearnly_ocr_mode"] = mode_name
+            captured.clear()
+            out = ocr_id_card.extract(png)
+            check(f"{mode_name}：只读一次、用 gemini-3.1-flash-lite",
+                  [c["model"] for c in captured] == ["gemini-3.1-flash-lite"],
+                  [c["model"] for c in captured])
+        first = ocr_id_card.normalize(BAD)
+        check("读出不合格的号 → 置空并标 needs_review（不硬推、不升档）",
+              first["needs_review"] is True and first["id_card"]["people_id"] == "", first.get("missing_fields"))
 
         # ── 3. 请求形状：提示词、图片、生成参数 ────────────────────────────
         body = captured[0]["body"] if captured else {}
@@ -160,9 +148,9 @@ def main():
               captured and captured[0]["key"] == "stub-key-not-real"
               and "stub-key-not-real" not in json.dumps(body))
 
-        # ── 3. 归一化：升级后拿到的是合格号 ────────────────────────────────
+        # ── 3. 归一化：拿到的是合格号 ────────────────────────────────────────
         card = out.get("id_card") or {}
-        check("升级后拿到 13 位号（去掉空格/横线）",
+        check("拿到 13 位号（去掉空格/横线）",
               card.get("people_id") == "1234567890123", card.get("people_id"))
         check("姓名抽到了", card.get("first_name") == "สมหญิง" and card.get("last_name") == "แสนสุข")
         check("称谓缩写归一（น.ส. → นางสาว）", card.get("prefix_name") == "นางสาว",

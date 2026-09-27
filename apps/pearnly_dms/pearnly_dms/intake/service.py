@@ -6,7 +6,9 @@ The historical run_logged_in/err imports remain as thin compatibility exports.
 """
 from __future__ import annotations
 
+import difflib
 import logging
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -87,6 +89,24 @@ def incoming_for_diff(name: str, addr, resolved, phone: str = "") -> Dict[str, s
     return out
 
 
+#: 识别姓名与主档姓名（去空格）的相似度达到这一值就按主档。ris 50 张实测：flash-lite
+#: 误读（漏元音/声调、ช/ซ 这类形近字）都 ≥ 0.83；拿每张去比其余 49 位客户的姓名都 < 0.7。
+SAME_NAME_RATIO = 0.8
+
+
+def master_name_if_close(master: Any, name: str) -> str:
+    """证号已命中老客户时：识别的姓名与主档足够像就用主档写法，否则保留识别结果。
+
+    只在按完整证号找到的客户上用（身份已经由证号确定），所以这里只决定"要不要报改名"：
+    漏一个符号不该让用户去改 DMS 里本来对的名字；整段不同（例如婚后改姓）照常报差异。
+    """
+    master = str(master or "").strip()
+    a, b = re.sub(r"\s+", "", master), re.sub(r"\s+", "", str(name or ""))
+    if a and b and difflib.SequenceMatcher(None, a, b).ratio() >= SAME_NAME_RATIO:
+        return master
+    return name
+
+
 def recognize_lookup(
     endpoint: Any,
     *,
@@ -162,11 +182,13 @@ def recognize_lookup(
             if not parent or parent == str(taken_parent or ""):
                 continue
             geo[level] = _merge_geo_rows(geo[level], cl.list_geo(level, parent))
+        taken_name = name
         if look["found"]:
             scenario = "exact"
             fields = look["fields"]
+            taken_name = master_name_if_close(fields.get("name"), name)
             field_diffs = diff_customer_fields(
-                fields, incoming_for_diff(name, addr, resolved, phone)
+                fields, incoming_for_diff(taken_name, addr, resolved, phone)
             )
             candidates = [
                 {
@@ -188,6 +210,7 @@ def recognize_lookup(
         return {
             "ok": True,
             "scenario": scenario,
+            "name": taken_name,
             "match": {
                 "found": look["found"],
                 "customer_id": look["customer_id"],
