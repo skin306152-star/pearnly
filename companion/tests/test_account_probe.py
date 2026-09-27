@@ -88,6 +88,22 @@ def test_absolute_path_kept_cross_drive(tmp_path):
     assert sets[0].company == "บริษัท เอเซีย จำกัด"
 
 
+def test_server_path_unreachable_here_is_found_under_the_chosen_folder(tmp_path):
+    # 2026-09-27 真机:登记表写的是服务器上的 S:\\2558\\EXP58\\58ASIASP,本机 S 盘映射到别的层级 → 配对失败。
+    # 本机够不到时按所选 Express 文件夹重定位。
+    root = tmp_path / "share" / "EXP58"
+    _isinfo(root / "58ASIASP", "บริษัท เอเซีย จำกัด", "0000000000001")
+    _isinfo(tmp_path / "share" / "OTHER" / "DATX", "บริษัท อื่น จำกัด", "0000000000002")
+    t = _sccomp(root)
+    t.append({"COMPNAM": "A", "COMPCOD": "PDATAT", "PATH": "S:\\2558\\EXP58\\58ASIASP", "CANDEL": "Y"})
+    t.append({"COMPNAM": "B", "COMPCOD": "DATAX", "PATH": "S:\\2558\\EXP58\\NOPE", "CANDEL": "Y"})
+    t.close()
+    sets = probe_account_sets(root)
+    assert sets[0].path == str(root / "58ASIASP")  # 取所选文件夹名后面那段
+    assert sets[0].company == "บริษัท เอเซีย จำกัด"
+    assert sets[1].path == "S:\\2558\\EXP58\\NOPE"  # 重定位也找不到 → 原样,配对照旧提示目录不存在
+
+
 def test_deleted_records_skipped(tmp_path):
     root = tmp_path / "70EXP"
     t = _sccomp(root)

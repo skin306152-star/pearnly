@@ -79,11 +79,34 @@ def _read_isinfo(account_dir: Path) -> Tuple[str, str]:
 
 
 def _resolve_path(raw: str, express_root: str | Path) -> str:
-    """SCCOMP.PATH → 绝对路径:绝对(盘符/UNC)原样;相对则相对 express_root。"""
+    """SCCOMP.PATH → 绝对路径:相对则相对 express_root;绝对(盘符/UNC)本机够得到就原样。
+
+    绝对路径本机够不到时按所选 Express 文件夹重定位:登记表写的是 Express 所在服务器看到的路径
+    (如 `S:\\2558\\EXP58\\58ASIASP`),这台电脑的同名盘映射到另一层时原样用就「目录不存在」
+    (2026-09-27 真机:配对失败)。路径里有所选文件夹名(EXP58)就取它后面那段,否则取最后一级;
+    重定位后也找不到才原样返回,由配对提示「目录不存在」。
+    """
     raw = (raw or "").strip()
     if not raw:
         return ""
-    return raw if os.path.isabs(raw) else os.path.join(str(express_root), raw)
+    if not (os.path.isabs(raw) or ntpath.isabs(raw)):
+        return os.path.join(str(express_root), raw)
+    if os.path.exists(raw) or not express_root:
+        return raw
+    root = str(express_root)
+    parts = [p for p in ntpath.normpath(raw.replace("/", "\\")).split("\\") if p and not p.endswith(":")]
+    lowered = [p.lower() for p in parts]
+    name = ntpath.basename(ntpath.normpath(root.replace("/", "\\")).rstrip("\\")).lower()
+    tails = []
+    if name in lowered:
+        tails.append(parts[len(lowered) - lowered[::-1].index(name):])
+    tails.append(parts[-1:])
+    for tail in tails:
+        if tail:
+            candidate = os.path.join(root, *tail)
+            if os.path.isdir(candidate):
+                return candidate
+    return raw
 
 
 def probe_account_sets(
