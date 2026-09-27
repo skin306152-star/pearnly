@@ -321,3 +321,19 @@
 - 剩一张比旧线上差：糊的小票 VAT 2.81 读成 0（不抵进项的简易小票，合计对），没标红。
 - v2 合成组第一轮除贷项通知单外与旧线上持平（另有一张评测机连 Google 超时）。
 - 付费合计约 ฿60（新 195 + 旧 195 + 修后 77）。
+
+## 12. 合并与部署（2026-09-27 晚，用户：「先补跑大语料，没问题再部署」）
+
+- 生产镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:246a6ca27bd809149a055fdbcb548180189fd1947bcbb85d4b23b267ee8112a0`
+  （main `5f7e4360`，build-production 36319691130，stage 36320017177）；`check-deploy-image.py` 一致。
+- 首次构建（`74154d88`）在候选离线检查失败：DMS 的 `scripts/test-dms-line-runtime.py` 无站点上下文调用 `provider.post`，
+  限流等待读 `frappe.flags` 报 `object is not bound`。修 `5f7e4360`（无站点上下文照旧立即让出），在生产镜像里挂本树完整跑
+  `ci-candidate-checks.sh offline` 通过后重建。教训：共用层改动合入前要跑候选离线检查（分支 CI 不跑）。
+- 只激活 ERP、Cowork（`activate-product.sh … erp` / `… cowork`）；DMS 仍为 `3a1d5f26`，已通知 DMS 窗口下次基于最新 main，部署等用户通知。
+- 回读（两个产品同）：7 个容器均为 `246a6ca2`；Website / System Settings 应用名称 = Pearnly；User 表单脚本为早期隐藏版；
+  `pearnly_ocr_budget` 仍为 rpm 120 / 并发 8 / 每租户 3（三个产品与 Redis 策略一致，激活不重写该项）；转正模型可加载；
+  限流等待在位。Cowork：testcowork 补上 6 个默认颜色标签（补丁 v0_0_6 已记）、精简提示词含贷项规则。
+  日志：激活后仅 Cowork worker 1 条维护窗口内定时任务被拒（正常），其后无报错；两站点维护模式已关。
+- 小助手 1.2.1（main `45f9c846` 升版本；配对修复 `174399d4`、`9599f91f`）：staging 发布成功后 prod 发布（36320348323），
+  `latest.json` = 1.2.1、sha256 `f8ab58f4…`，全体客户一小时内自动更新。
+- 未做：真机验收（LINE 歪 / 糊票与续跑语言、Cowork 看板标签与拖动、三产品个人信息页与标签页标题、小助手配对）待用户。
