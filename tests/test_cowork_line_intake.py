@@ -11,6 +11,17 @@ sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 from pearnly_cowork.line import flow, handlers, intake  # noqa: E402
 MRERP = {"name": "CON-M", "adapter": "mrerp", "enabled": 1}
 EXPRESS = {"name": "CON-X", "adapter": "express", "enabled": 1}
+# MR.ERP 一家公司两个年度；Express 两个年度文件夹里三份（其中一份写不进）。
+MRERP_BOOKS = [{"source_id": "15:1", "label": "2567", "attributes": {"company": "A", "company_name": "Alpha"}},
+               {"source_id": "16:1", "label": "2568", "attributes": {"company": "A", "company_name": "Alpha"}}]
+EXPRESS_BOOKS = [
+    {"source_id": r"s:\2568\exp68\68acme", "label": "68ACME AUDITED",
+     "attributes": {"root_label": "68EXP", "row": 1, "company": "Acme", "writable": True}},
+    {"source_id": r"s:\2569\exp69\69acme", "label": "69ACME DATA",
+     "attributes": {"root_label": "69EXP", "row": 1, "company": "Acme", "writable": True}},
+    {"source_id": r"s:\2569\exp69\69old", "label": "69ACME OLD",
+     "attributes": {"root_label": "69EXP", "row": 2, "company": "Acme", "writable": False}},
+]
 
 
 class LineFlowTest(unittest.TestCase):
@@ -28,7 +39,11 @@ class LineFlowTest(unittest.TestCase):
             mock.patch.object(flow.line_session, "clear_session", side_effect=lambda user: store.pop(user, None)),
             mock.patch.object(flow.line, "reply", side_effect=lambda token, messages: self.replies.append(messages[0])),
             mock.patch.object(flow, "_connections", return_value={"mrerp": MRERP}),
+            mock.patch("pearnly_cowork.connections.service.targets", side_effect=lambda name: {
+                "account_sets": EXPRESS_BOOKS if name == "CON-X" else self.books}),
+            mock.patch.object(flow, "_last_used", side_effect=lambda payload, rows: self.last_used),
         ]
+        self.books, self.last_used = MRERP_BOOKS, ""
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
@@ -49,34 +64,70 @@ class LineFlowTest(unittest.TestCase):
         self.assertEqual(self.labels(), ["MR.ERP", "intake.target.recognizeOnly"[:20], "Cancel"])
         self.assertIn("• Express: connect.state.notConnected", self.last()["text"])
 
-    def test_mrerp_sales_walks_direction_then_payment_without_account_set(self):
-        """用户 2026-09-27：聊天里不选账套（快捷回复放不下），识别后按票自动挑、编辑页可改。"""
+    def search(self, text):
+        return flow.search("U1", text, "tok")
+
+    def test_mrerp_sales_types_a_word_then_picks_the_account_set(self):
+        """用户 2026-09-27：账套上传前由用户选；LINE 放不下全部账套，打几个字从匹配结果里点序号。"""
         flow.start("U1", "tok")
         self.tap("MR.ERP")
+        self.assertTrue(self.last()["text"].startswith("Type a few letters"))
+        self.assertEqual(self.labels(), ["Cancel"])
+        self.assertTrue(self.search("2568"))
+        self.assertIn("1. A · Alpha · 2568", self.last()["text"])
+        self.assertEqual(self.labels(), ["1", "Cancel"])
+        self.tap("1")
         self.assertTrue(self.last()["text"].startswith("Purchase or sales?"))
         self.tap("intake.dir.sales")
-        self.assertEqual(self.labels(), ["Cash", "Credit", "Cancel"])
         self.tap("Credit")
         payload = flow.choices("U1")
         self.assertTrue(flow.ready(payload))
-        self.assertEqual((payload["connection"], payload["direction"], payload["payment"]), ("CON-M", "sales", "credit"))
-        self.assertNotIn("account_set_key", payload)
-        self.assertIn("Please upload a PDF or image", self.last()["text"])
-        self.assertIn("MR.ERP · intake.dir.sales · Credit", self.last()["text"])
+        self.assertEqual((payload["connection"], payload["account_set_key"], payload["direction"], payload["payment"]),
+                         ("CON-M", "16:1", "sales", "credit"))
+        self.assertIn("MR.ERP · A · Alpha · 2568 · intake.dir.sales · Credit", self.last()["text"])
 
-    def test_express_asks_direction_and_posting_kind_only(self):
+    def test_no_match_asks_again_and_words_outside_the_step_are_not_taken(self):
+        self.assertFalse(self.search("2568"))  # 还没开始选
+        flow.start("U1", "tok")
+        self.tap("MR.ERP")
+        self.assertTrue(self.search("zzz"))
+        self.assertIn("No account set matches", self.last()["text"])
+        self.assertNotIn("account_set_key", flow.choices("U1"))
+
+    def test_last_used_is_one_tap(self):
+        self.last_used = "15:1"
+        flow.start("U1", "tok")
+        self.tap("MR.ERP")
+        self.assertIn("Last used: A · Alpha · 2567", self.last()["text"])
+        self.tap("Last used")
+        self.assertEqual(flow.choices("U1")["account_set_key"], "15:1")
+
+    def test_a_single_account_set_is_taken_without_asking(self):
+        self.books = MRERP_BOOKS[:1]
+        flow.start("U1", "tok")
+        self.tap("MR.ERP")
+        self.assertTrue(self.last()["text"].startswith("Purchase or sales?"))
+        self.assertEqual(flow.choices("U1")["account_set_key"], "15:1")
+
+    def test_express_search_hides_unwritable_books_then_asks_posting_kind(self):
         with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
                 mock.patch.object(flow, "_state", return_value=(True, "")):
             flow.start("U1", "tok")
             self.tap("Express")
+            self.search("acme")
+            self.assertEqual(self.last()["text"].splitlines()[1:],
+                             ["1. 69EXP · 69ACME DATA（Acme）", "2. 68EXP · 68ACME AUDITED（Acme）"])
+            self.tap("2")
             self.tap("intake.dir.purchase")
             self.assertEqual(self.labels(), ["Service", "Stock", "Cancel"])
             self.tap("Stock")
             payload = flow.choices("U1")
         self.assertTrue(flow.ready(payload))
-        self.assertEqual((payload["target"], payload["connection"], payload["posting_kind"]), ("express", "CON-X", "stock"))
+        self.assertEqual((payload["connection"], payload["account_set_key"], payload["posting_kind"]),
+                         ("CON-X", r"s:\2568\exp68\68acme", "stock"))
 
     def test_mrerp_purchase_is_credit_only(self):
+        self.books = MRERP_BOOKS[:1]
         flow.start("U1", "tok")
         self.tap("MR.ERP")
         self.tap("intake.dir.purchase")
@@ -127,6 +178,13 @@ class LineHandlerTest(unittest.TestCase):
 
     def event(self, **extra):
         return {"type": "message", "replyToken": "tok", **extra}
+
+    def test_words_typed_while_choosing_the_account_set_go_to_the_search(self):
+        with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
+                mock.patch.object(handlers.flow, "search", return_value=True) as search:
+            handlers._handle(self.event(message={"type": "text", "text": "LJ land"}), "U1")
+        search.assert_called_once_with("U1", "LJ land", "tok")
+        self.assertEqual(self.replies, [])
 
     def test_menu_tap_needs_binding(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value=None):
@@ -216,27 +274,22 @@ class LineCardTest(unittest.TestCase):
         self.assertIn("B Co", texts)
         self.assertNotIn("S Co", texts)
 
-    def test_erp_card_shows_the_chosen_account_set_or_asks_to_choose(self):
-        """用户 2026-09-27：识别后自动挑到的账套写在卡上；没挑出来写「待选择」，点「编辑」去选。"""
+    def test_erp_card_shows_the_chosen_account_set(self):
+        """推到 ERP 的票在卡片上写上传前选定的账套（票上记的那份）。"""
         from pearnly_cowork.line import cards
 
-        def record(account):
-            value = mock.MagicMock(pages="[]", total_amount="1.00", push_connection="CON-X", push_account_set=account)
-            value.name = "CWH-2"
-            value.get.side_effect = lambda key, default=None: {"intake_target": "express", "push_connection": "CON-X",
-                                                               "push_account_set": account}.get(key, default)
-            return value
-
+        record = mock.MagicMock(pages="[]", total_amount="1.00")
+        record.name = "CWH-2"
+        record.get.side_effect = lambda key, default=None: {"intake_target": "express", "push_connection": "CON-X",
+                                                            "push_account_set": r"s:\2569\exp69\6902asc"}.get(key, default)
         with mock.patch.object(cards, "_", side_effect=lambda text, *a, **k: text), \
                 mock.patch.object(cards.frappe.utils, "get_url", return_value="https://t.example"), \
                 mock.patch("pearnly_cowork.connections.directory.account_label",
                            return_value="69EXP · 6902 ASIA-SPORT") as label:
-            chosen = self.texts(cards.preview(record(r"s:\\2569\\exp69\\6902asc"), {"target": "Express"}))
-            open_ = self.texts(cards.preview(record(""), {"target": "Express"}))
-        self.assertIn("intake.target.accountSet", chosen)
-        self.assertIn("69EXP · 6902 ASIA-SPORT", chosen)
-        self.assertIn("To be chosen", open_)
-        label.assert_called_once_with("CON-X", r"s:\\2569\\exp69\\6902asc")
+            texts = self.texts(cards.preview(record, {"target": "Express"}))
+        self.assertIn("intake.target.accountSet", texts)
+        self.assertIn("69EXP · 6902 ASIA-SPORT", texts)
+        label.assert_called_once_with("CON-X", r"s:\2569\exp69\6902asc")
 
 
 class LineAnnounceTest(unittest.TestCase):

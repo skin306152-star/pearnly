@@ -779,9 +779,14 @@ Choose the company	选择公司	เลือกบริษัท	会社を選�
 Choose the destination for these documents	选择这批单据推送到哪里	เลือกปลายทางสำหรับเอกสารชุดนี้	この書類の送信先を選択	
 Choose the payment method	选择付款方式	เลือกวิธีชำระเงิน	支払方法を選択	
 Choose the year	选择年度	เลือกปี	年度を選択	
-To be chosen	待选择	รอเลือก	未選択
+Type a few letters of the company or account set name to find it	输入公司名或账套名里的几个字查找账套	พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา	会社名または会計データ名の一部を入力して検索してください
+Last used	上次用的	ที่ใช้ล่าสุด	前回使用
+No account set matches “{0}”	没有找到包含「{0}」的账套	ไม่พบชุดบัญชีที่ตรงกับ “{0}”	「{0}」に一致する会計データがありません
+Found {0}. Tap the number to choose:	找到 {0} 个，点序号选择：	พบ {0} รายการ แตะหมายเลขเพื่อเลือก:	{0} 件見つかりました。番号をタップして選択してください：
+Too many matches; type a few more letters to narrow it down	结果太多，请再多输入几个字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。もう少し入力して絞り込んでください
+The own tax ID on this document does not match the chosen account set. Check the account set and send it again.	票上本方税号与所选账套不一致，请核对账套后重新发送。	เลขผู้เสียภาษีของเราบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่	書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
+The document date is outside the fiscal period of the chosen account set. Check the year and send it again.	单据日期不在所选账套的会计期间内，请核对年度后重新发送。	วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่	書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。
 Choose the year and account set first.	请先选择年度和账套。	กรุณาเลือกปีบัญชีและชุดบัญชีก่อน	先に年度と会計データを選択してください。
-This record has already been pushed; its account set cannot be changed.	这张票已推送，不能再换账套。	เอกสารนี้ส่งแล้ว เปลี่ยนชุดบัญชีไม่ได้	この伝票は送信済みのため、会計データを変更できません。
 Account set	账套	ชุดบัญชี	会計データ	intake.target.accountSet
 Read again	重新读取	อ่านใหม่	再読み込み	intake.catalog.reload
 Choose what to do	选择要做的事	เลือกสิ่งที่ต้องการทำ	操作を選択	

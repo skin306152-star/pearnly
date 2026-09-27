@@ -95,7 +95,7 @@ def _party_rows(role, fields, prefix):
 
 
 def _account(record, labels):
-    """推到 ERP 的票写上推送账套（识别后自动挑的，或网页新建时选的）；还没定就写「待选择」，点「编辑」去选。"""
+    """推到 ERP 的票写上推送账套（上传前用户选定、记在票上的那份）。"""
     if record.get("intake_target") not in ("express", "mrerp"):
         return []
     key = (record.get("push_connection"), record.get("push_account_set"))
@@ -103,7 +103,7 @@ def _account(record, labels):
         from pearnly_cowork.connections import directory
 
         labels[key] = directory.account_label(*key) if all(key) else ""
-    return [_kv(_("intake.target.accountSet"), labels[key] or _("To be chosen"))]
+    return [_kv(_("intake.target.accountSet"), labels[key])]
 
 
 def _card(record, pending, shown, labels=None):

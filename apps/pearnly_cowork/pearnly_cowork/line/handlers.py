@@ -144,5 +144,8 @@ def _handle(event: dict, user_id: str) -> bool:
     if text.casefold() in {word.casefold() for word in flow.MENU_WORDS} and flow.allowed(bound):
         flow.menu(reply_token)
         return True
+    # 正在选账套：打的字就是找账套的关键词（用户 2026-09-27）。
+    if text and flow.allowed(bound) and _as(bound, lambda: flow.search(user_id, text, reply_token)):
+        return True
     _reply(reply_token, _("Tap the menu to start"))
     return True

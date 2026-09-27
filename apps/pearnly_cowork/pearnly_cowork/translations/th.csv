@@ -375,6 +375,7 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น
+Found {0}. Tap the number to choose:,พบ {0} รายการ แตะหมายเลขเพื่อเลือก:
 General,ทั่วไป
 General ledger,บัญชีแยกประเภททั่วไป
 General ledger detail,รายละเอียดบัญชีแยกประเภท
@@ -449,6 +450,7 @@ Last Push Status,สถานะการส่งล่าสุด
 Last Pushed At (UTC),เวลาส่งล่าสุด (UTC)
 Last Request Hash,แฮชคำขอล่าสุด
 Last Request Key,คีย์คำขอล่าสุด
+Last used,ที่ใช้ล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
 Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
@@ -493,6 +495,7 @@ New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
+No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No due date,ไม่มีกำหนดส่ง
 No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
@@ -807,6 +810,7 @@ The document contains too much text.,เอกสารมีปริมาณ�
 The document contains unsupported XML declarations.,เอกสารมีการประกาศ XML ที่ไม่รองรับ
 The document content is invalid.,เนื้อหาเอกสารไม่ถูกต้อง
 The document could not be read. Check the file and try again.,ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง
+The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่
 The document exceeds the allowed size after decompression.,เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด
 The document file is damaged or cannot be decompressed.,ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้
 The document reader is unavailable. Contact your administrator.,บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
@@ -845,6 +849,7 @@ The original file reference has changed.,การเชื่อมโยงไ
 The original invoice manifest is incomplete.,รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน
 The original invoice reference is invalid or unavailable.,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 The outdated unsent preparation was replaced.,แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว
+The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,เลขผู้เสียภาษีของเราบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่
 The printed invoice date cannot be read. Check the date shown on the document.,ไม่สามารถอ่านวันที่บนใบแจ้งหนี้ได้ กรุณาตรวจสอบวันที่บนเอกสาร
 The push data exceeds the size limit.,ข้อมูลส่งเกินขีดจำกัดขนาด
 The push record has changed. Reload and try again.,รายการส่งมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง
@@ -911,7 +916,6 @@ This original already has a recognition task with different parameters.,ไฟ�
 This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
 This push attempt is no longer current.,ความพยายามส่งนี้ไม่ใช่รายการปัจจุบันแล้ว
 This recognition service currently accepts PDF and image originals.,บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้
-This record has already been pushed; its account set cannot be changed.,เอกสารนี้ส่งแล้ว เปลี่ยนชุดบัญชีไม่ได้
 This refresh request has expired. Request a new refresh.,คำขอรีเฟรชนี้หมดอายุแล้ว โปรดส่งคำขอใหม่
 This request conflicts with an existing reservation.,คำขอนี้ขัดแย้งกับรายการที่จองไว้
 This request key has already been used for different content.,รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว
@@ -923,17 +927,18 @@ This stock count task is closed.,งานตรวจนับสต็อก�
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 Time left {0},เหลือเวลา {0}
 Title,ชื่อเรื่อง
-To be chosen,รอเลือก
 To do,รอดำเนินการ
 Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
 Too many items,รายการมากเกินไป
+Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
 Total,รวม VAT
 Transaction Date,วันที่ทำรายการ
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Type,ประเภท
+Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ยืนยันการยกเลิกการเชื่อมต่อ?

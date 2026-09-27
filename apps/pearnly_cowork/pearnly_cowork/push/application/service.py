@@ -24,7 +24,9 @@ from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.receipts import derive_external_ref, express_prior_number
 from pearnly_cowork.targets.choice import endpoint_with_account_choice
 from pearnly_cowork.targets.contracts import TargetSelectionError
+from pearnly_cowork.targets import account_match
 from pearnly_cowork.targets.freeze import freeze_target
+from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.selection import resolve_account_choice
 
 
@@ -113,6 +115,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
     direction = explicit_direction(flat, history_value) or detect_by_tax(flat, own_tax)
+    _require_matching_account(loaded, target, direction, fields, invoice_date)
     preparation, evidence = preparation_sources.collect(loaded, target,
         seller_tax=seller_tax if direction == 'purchase' else '',
         invoice_date=invoice_date.isoformat() if invoice_date else None)
@@ -133,6 +136,28 @@ def prepare(history, connection, request_key, expected_history_version, expected
         disposition="prepared" if prepared.disposition == "ready" else "manual",
         reason=prepared.reason or "", checks=prepared.preflight.checks_json())
     return _view(row)
+
+
+_ACCOUNT_CONFLICTS = {
+    account_match.TAX_MISMATCH: "The own tax ID on this document does not match the chosen account set. "
+                                "Check the account set and send it again.",
+    account_match.PERIOD_MISMATCH: "The document date is outside the fiscal period of the chosen account set. "
+                                   "Check the year and send it again.",
+}
+
+
+def _require_matching_account(loaded, target, direction, fields, invoice_date):
+    """用户选的账套与票面确定对不上就不推（规则见 `targets/account_match.py`）：本方税号不同、日期不在会计期间里。"""
+    rows = (loaded.evidence.snapshot or {}).get("account_sets") or []
+    if isinstance(rows, str):
+        rows = json.loads(rows)
+    key = normalize_express_account_key(target.account_set)
+    account = next((row for row in rows if isinstance(row, dict)
+                    and normalize_express_account_key(row.get("source_id")) == key), None)
+    facts = {**fields, "date": invoice_date.isoformat() if invoice_date else fields.get("date")}
+    reason = account_match.conflict("express", account, direction=direction, fields=facts)
+    if reason:
+        frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
 
 
 def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_request_id, catalog_revision):

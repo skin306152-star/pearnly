@@ -98,10 +98,10 @@ def _admit(line_user_id, message_id, filename, choices, language, reply_token):
 
 
 def _remember(source_name, line_user_id, language, reply_token, choices):
-    # 卡片上要摆这次的选择（目标、方向、入账方式；账套按票另写）：趁本人会话还在时算好一起记下。
+    # 卡片上要摆这次的选择（目标、方向、入账方式；账套取票上记的另起一行）：趁本人会话还在时算好一起记下。
     frappe.cache.set_value(_PENDING + source_name, {
         "line_user_id": line_user_id, "language": language, "reply_token": reply_token,
-        "direction": choices.get("direction"), "target": flow.target_label(choices),
+        "direction": choices.get("direction"), "target": flow.target_name(choices),
         "mode": flow.mode_label(choices)}, expires_in_sec=PENDING_SECONDS)
 
 

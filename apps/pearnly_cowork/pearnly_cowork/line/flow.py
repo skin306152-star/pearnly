@@ -1,13 +1,13 @@
 """LINE 里「发单据进 ERP」上传前的几步选择（用户 2026-09-26：照 ERP 的新做法）。
 
 点菜单「ส่งเอกสารเข้า ERP」（旧线上与新菜单都是 postback `action=cowork_erp_start`）之后，用 LINE
-原生快捷回复按钮依次问：目标 ERP → 进项 / 销项 → 入账方式 → 提示发 PDF 或图片。
+原生快捷回复按钮依次问：目标 ERP → 账套 → 进项 / 销项 → 入账方式 → 提示发 PDF 或图片。
 口径与网页「新建录入」弹窗同一套（`public/desk/intake-choices.js`）：
   · 目标：MR.ERP 要有可用连接，Express 要助手在线，「识别后导出」不要连接；不能选的在问句里列出原因
     （旧线上 `erp_picker_card` 的状态行）；
-  · **账套不在聊天里选**（用户 2026-09-27）：快捷回复一次最多 12 个选项，放不下几十上百份账套。
-    识别后按票上本方税号、分店与单据日期自动挑（`push/account_suggest.py`），卡片上写挑到的账套，
-    挑不出或挑错就点卡片「编辑」在编辑页选；
+  · **账套上传前由用户定**（用户 2026-09-27：系统判断不了的由用户选，按用户的选择执行）：快捷回复一次
+    最多 12 个选项，放不下几十上百份账套，所以请用户打几个字（公司名、账套名、年度文件夹、税号都认），
+    从匹配结果里点序号（`connections/account_search.py`）；另给「上次用的」一键选；目录里只有一份就直接选上；
   · 入账方式以第三方为准：MR.ERP 选付款（进项只有赊账），Express 选过账类型（服务 / 存货）；
   · 识别后导出只选进项 / 销项。
 每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
@@ -109,6 +109,11 @@ def answer(line_user_id, data, reply_token):
         connection = _connections().get(value) if value != RECOGNIZE_ONLY else None
         if connection:
             payload["connection"] = connection["name"]
+    elif step == "account":
+        labels = (payload.get("offered_labels") or {}).get("account") or []
+        index = int(params.get("v"))
+        payload.update(account_set_key=value, account_label=labels[index] if index < len(labels) else "")
+        payload.pop("offered_labels", None)
     else:
         payload[step] = value
     _next(line_user_id, payload, reply_token)
@@ -118,6 +123,8 @@ def _pending(payload):
     target = payload.get("target")
     if not target:
         return "target"
+    if target != RECOGNIZE_ONLY and not payload.get("account_set_key"):
+        return "account"
     if not payload.get("direction"):
         return "direction"
     mode = MODE.get(target)
@@ -131,10 +138,15 @@ def _next(line_user_id, payload, reply_token):
         step = _pending(payload)
         if step == "upload":
             payload.pop("offered", None)
+            payload.pop("offered_labels", None)
             _save(line_user_id, payload)
             # 上传前的拍摄提示照 ERP（用户 2026-09-26）：侧着的照片会读错，不另花识别费去转正。
             return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image") + "\n"
                          + _("For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."))
+        if step == "account":
+            if _ask_account(line_user_id, payload, reply_token):
+                return
+            continue  # 目录里只有一份：已直接选上
         if step == "target":
             options, note = _targets()
         else:
@@ -165,6 +177,100 @@ _QUESTIONS = {
 
 def _empty(step, payload):
     return _("No ERP is ready to use")
+
+
+# ── 账套：打字找 ────────────────────────────────────────────────────────────
+
+# 结果最多列 11 个（按钮是序号），留一个给「取消」。
+MAX_RESULTS = MAX_CHOICES - 1
+
+
+def _account_rows(payload):
+    """这条连接能选的账套（服务端存着的目录，按本人权限读）。"""
+    from pearnly_cowork.connections import service
+    from pearnly_cowork.connections import account_search
+
+    data = service.targets(payload["connection"])
+    return account_search.usable(payload["target"], data.get("account_sets") or [])
+
+
+def _last_used(payload, rows):
+    """本人在这条连接上最近一次用的账套（还在目录里、还能选才算）。"""
+    keys = {str(row.get("source_id")) for row in rows}
+    for key in frappe.get_all("Cowork OCR History", filters={
+            "owner": frappe.session.user, "push_connection": payload["connection"], "push_account_set": ["!=", ""]},
+            pluck="push_account_set", order_by="creation desc", limit=20):
+        if key in keys:
+            return key
+    return ""
+
+
+def _offer(line_user_id, payload, keys, labels):
+    payload["offered"] = {"account": keys}
+    payload["offered_labels"] = {"account": labels}
+    _save(line_user_id, payload)
+
+
+def _ask_account(line_user_id, payload, reply_token, note="") -> bool:
+    """请用户打字找账套；只有一份就直接选上（返回 False，接着问下一步）。"""
+    from pearnly_cowork.connections import account_search
+
+    rows = _account_rows(payload)
+    if not rows:
+        line_session.clear_session(line_user_id)
+        _request_directory(payload)
+        _text(reply_token, _("Reading the company list from the ERP. Tap the menu again in a moment."))
+        return True
+    if len(rows) == 1:
+        payload.update(account_set_key=str(rows[0]["source_id"]), account_label=account_search.label(payload["target"], rows[0]))
+        return False
+    last = _last_used(payload, rows)
+    last_label = next((account_search.label(payload["target"], row) for row in rows
+                       if str(row.get("source_id")) == last), "")
+    _offer(line_user_id, payload, [last] if last else [], [last_label] if last else [])
+    lines = [note] if note else []
+    lines.append(_("Type a few letters of the company or account set name to find it"))
+    if last:
+        lines.append(f"{_('Last used')}: {last_label}")
+    items = [_button(_("Last used"), urlencode({"a": "cowork", "s": "account", "v": 0}))] if last else []
+    _ask(reply_token, "\n".join(lines), items)
+    return True
+
+
+def search(line_user_id, text, reply_token) -> bool:
+    """在「账套」这一步收到的文字＝关键词：列出匹配的账套，按序号点选。不在这一步返回 False。"""
+    from pearnly_cowork.connections import account_search
+
+    payload = choices(line_user_id)
+    if not payload.get("target") or _pending(payload) != "account":
+        return False
+    rows = _account_rows(payload)
+    found = account_search.search(payload["target"], rows, text)
+    if not found:
+        _ask_account(line_user_id, payload, reply_token, note=_("No account set matches “{0}”").format(text[:40]))
+        return True
+    shown = found[:MAX_RESULTS]
+    _offer(line_user_id, payload, [row["value"] for row in shown], [row["label"] for row in shown])
+    lines = [_("Found {0}. Tap the number to choose:").format(len(found))]
+    lines += [f"{index + 1}. {row['label']}" for index, row in enumerate(shown)]
+    if len(found) > len(shown):
+        lines.append(_("Too many matches; type a few more letters to narrow it down"))
+    items = [_button(str(index + 1), urlencode({"a": "cowork", "s": "account", "v": index}))
+             for index in range(len(shown))]
+    _ask(reply_token, "\n".join(lines), items)
+    return True
+
+
+def _request_directory(payload):
+    """服务端还没有这家 ERP 的账套目录：申请读一次（与网页同一个刷新），读到后再点菜单就有了。"""
+    from uuid import uuid4
+
+    from pearnly_cowork.connections import service
+
+    try:
+        service.request_refresh(payload["connection"], str(uuid4()))
+    except frappe.ValidationError:
+        pass
 
 
 # ── 选项 ────────────────────────────────────────────────────────────────────
@@ -222,9 +328,17 @@ def _options(step, payload):
     return []
 
 
-def target_label(payload) -> str:
-    """目标 ERP（账套识别后按票定，写在每张卡片上）。"""
+def target_name(payload) -> str:
+    """只是目标 ERP 的名字（卡片上账套另起一行，取票上记的）。"""
     return dict(TARGETS).get(payload.get("target")) or _("intake.target.recognizeOnly")
+
+
+def target_label(payload) -> str:
+    """目标 ERP · 账套（识别后导出只有目标）。"""
+    parts = [dict(TARGETS).get(payload.get("target")) or _("intake.target.recognizeOnly")]
+    if payload.get("target") != RECOGNIZE_ONLY and payload.get("account_label"):
+        parts.append(payload["account_label"])
+    return " · ".join(parts)
 
 
 def mode_label(payload) -> str:
@@ -234,7 +348,7 @@ def mode_label(payload) -> str:
 
 
 def summary(payload) -> str:
-    """一行说清楚这次按什么录：目标 · 进项 / 销项 · 入账方式（账套识别后按票定）。"""
+    """一行说清楚这次按什么录：目标 · 账套 · 进项 / 销项 · 入账方式。"""
     parts = [target_label(payload), dict(_options("direction", payload)).get(payload.get("direction"), ""),
              mode_label(payload)]
     return " · ".join(part for part in parts if part)

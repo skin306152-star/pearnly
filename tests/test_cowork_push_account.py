@@ -1,4 +1,5 @@
-"""推送账套：识别后自动挑（LINE 收单）与编辑页改账套（用户 2026-09-27）。数据库与目录都用替身。"""
+"""推送前的防错（用户 2026-09-27）：MR.ERP 进项不能按现金；Express 用户选的账套与票面确定对不上就不推。"""
+import datetime as dt
 import json
 import sys
 import unittest
@@ -11,19 +12,13 @@ sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 
 import frappe  # noqa: E402
 
-from pearnly_cowork.push import account_suggest, account_target  # noqa: E402
+from pearnly_cowork.push.application import service  # noqa: E402
 
 OWN = "0105551234567"
-ROWS = [
-    {"source_id": r"s:\2569\exp69\69acme", "label": "69ACME", "active": True,
-     "attributes": {"root_label": "69EXP", "tax_id": OWN, "writable": True,
-                    "period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}},
-    {"source_id": r"s:\2568\exp68\68acme", "label": "68ACME", "active": True,
-     "attributes": {"root_label": "68EXP", "tax_id": OWN, "writable": True,
-                    "period_start": "2024-11-01", "period_end": "2025-10-31", "next_end": "2026-10-31"}},
-    {"source_id": r"s:\2569\exp69\locked", "label": "LOCKED", "active": True,
-     "attributes": {"root_label": "69EXP", "tax_id": OWN, "writable": False}},
-]
+OTHER = "0105559999996"
+BOOK = {"source_id": r"s:\2569\exp69\69acme", "label": "69ACME", "active": True,
+        "attributes": {"root_label": "69EXP", "tax_id": OWN, "writable": True,
+                       "period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}}
 
 
 def _throw(message, exc=None, *args, **kwargs):
@@ -34,89 +29,10 @@ def pages(**fields):
     return json.dumps([{"fields": {"invoice_number": "IV1", "total_amount": "10", **fields}}])
 
 
-class SuggestTest(unittest.TestCase):
-    def setUp(self):
-        self.written = {}
-        self.pages = {"H1": pages(direction="purchase", buyer_tax=OWN, date="2026-03-01"),
-                      "H2": pages(direction="purchase", buyer_tax="0105559999999", date="2026-03-01")}
-        patches = [
-            mock.patch.object(account_suggest.directory, "current", return_value=("express", ROWS)),
-            mock.patch.object(frappe, "db", mock.MagicMock()),
-        ]
-        for patch in patches:
-            patch.start()
-            self.addCleanup(patch.stop)
-        frappe.db.sql.return_value = []
-        frappe.db.get_value.side_effect = lambda doctype, name, field: self.pages[name]
-        frappe.db.set_value.side_effect = lambda doctype, name, field, value, **k: self.written.__setitem__(name, value)
-
-    def test_fills_only_the_records_it_can_decide(self):
-        results = account_suggest.fill("CON-X", ["H1", "H2"], "purchase")
-        self.assertEqual(self.written, {"H1": r"s:\2569\exp69\69acme"})
-        self.assertEqual(results["H2"]["reason"], "no_tax_match")
-
-    def test_hook_skips_batches_that_already_chose_or_do_not_push(self):
-        chosen = frappe._dict(target_connection="CON-X", target_account_set=r"s:\x", intake_target="express",
-                              history_records='["H1"]')
-        export = frappe._dict(target_connection="", target_account_set="", intake_target="none", history_records='["H1"]')
-        for batch in (chosen, export):
-            account_suggest.recognized(batch)
-        self.assertEqual(self.written, {})
-        account_suggest.recognized(frappe._dict(target_connection="CON-X", target_account_set="", intake_target="express",
-                                                history_records='["H1"]', direction="purchase"))
-        self.assertEqual(self.written, {"H1": r"s:\2569\exp69\69acme"})
-        frappe.db.commit.assert_called_once()
-
-
-class SetAccountTest(unittest.TestCase):
-    def setUp(self):
-        self.doc = frappe._dict(name="H1", workspace="W1", client="", record_version=3, last_push_status="",
-                                push_connection="CON-X", push_account_set="")
-        self.doc.check_permission = mock.Mock()
-        patches = [
-            mock.patch.object(account_target.scope, "require"),
-            mock.patch.object(account_target.storage, "read", return_value=self.doc),
-            mock.patch.object(account_target.storage, "project", side_effect=lambda doc: {"name": doc.name}),
-            mock.patch.object(account_target.directory, "current", return_value=("express", ROWS)),
-            mock.patch.object(frappe, "db", mock.MagicMock()),
-            mock.patch.object(account_target, "_", side_effect=lambda text, *a, **k: text),
-            mock.patch.object(account_target.storage, "_", side_effect=lambda text, *a, **k: text),
-            mock.patch.object(frappe, "throw", side_effect=_throw),
-        ]
-        for patch in patches:
-            patch.start()
-            self.addCleanup(patch.stop)
-        frappe.db.get_value.return_value = frappe._dict(workspace="W1", client="")
-
-    def test_changes_to_a_writable_account_in_the_current_directory(self):
-        account_target.set_account("H1", r"S:\2568\EXP68\68ACME", 3)
-        frappe.db.set_value.assert_called_once_with("Cowork OCR History", "H1", {
-            "push_account_set": r"s:\2568\exp68\68acme", "record_version": 4})
-
-    def test_rejects_stale_version_pushed_record_unknown_or_unwritable_account(self):
-        with self.assertRaises(frappe.TimestampMismatchError):
-            account_target.set_account("H1", r"S:\2568\EXP68\68ACME", 2)
-        for key in (r"S:\NOWHERE", r"S:\2569\EXP69\LOCKED"):
-            with self.assertRaises(frappe.ValidationError):
-                account_target.set_account("H1", key, 3)
-        self.doc.last_push_status = "success"
-        with self.assertRaises(frappe.ValidationError):
-            account_target.set_account("H1", r"S:\2568\EXP68\68ACME", 3)
-        frappe.db.set_value.assert_not_called()
-
-    def test_connection_of_another_workspace_is_refused(self):
-        frappe.db.get_value.return_value = frappe._dict(workspace="W2", client="")
-        with self.assertRaises(frappe.ValidationError):
-            account_target.set_account("H1", r"S:\2568\EXP68\68ACME", 3)
-
-
-
 class MrerpPurchaseCashTest(unittest.TestCase):
     """MR.ERP 没有现金采购模块：进项 + 现金在服务端挡下，不悄悄改成赊购（此前只靠入口不给选项）。"""
 
     def test_purchase_cash_is_refused_before_anything_is_frozen(self):
-        from pearnly_cowork.push.application import service
-
         doc = frappe._dict(pages=pages(direction="purchase", posting_payment_manual="cash"), workspace="W1")
         with mock.patch.object(service, "_", side_effect=lambda text, *a, **k: text), \
                 mock.patch.object(frappe, "throw", side_effect=_throw), \
@@ -126,13 +42,35 @@ class MrerpPurchaseCashTest(unittest.TestCase):
         freeze.assert_not_called()
 
     def test_sales_cash_goes_on_to_freeze_the_target(self):
-        from pearnly_cowork.push.application import service
-
         doc = frappe._dict(pages=pages(direction="sales", posting_payment_manual="cash"), workspace="W1")
         with mock.patch.object(service, "freeze_target", side_effect=RuntimeError("frozen")) as freeze:
             with self.assertRaises(RuntimeError):
                 service._prepare_mrerp(doc, mock.Mock(), "key", {}, "16:1", None, None)
         freeze.assert_called_once()
+
+
+class ExpressAccountMismatchTest(unittest.TestCase):
+    """用户选的 Express 账套：本方税号不同或日期不在会计期间里就不推；判断不了按用户的选择。"""
+
+    def check(self, fields, invoice_date, rows=(BOOK,)):
+        loaded = mock.Mock(evidence=mock.Mock(snapshot={"account_sets": json.dumps(list(rows))}))
+        target = mock.Mock(account_set=r"S:\2569\EXP69\69ACME")
+        with mock.patch.object(service, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(frappe, "throw", side_effect=_throw):
+            service._require_matching_account(loaded, target, "purchase", fields, invoice_date)
+
+    def test_matching_book_passes(self):
+        self.check({"buyer_tax": OWN}, dt.date(2026, 3, 1))
+        self.check({"buyer_tax": OWN}, None)
+
+    def test_other_company_or_year_is_refused(self):
+        with self.assertRaisesRegex(frappe.ValidationError, "own tax ID"):
+            self.check({"buyer_tax": OTHER}, dt.date(2026, 3, 1))
+        with self.assertRaisesRegex(frappe.ValidationError, "fiscal period"):
+            self.check({"buyer_tax": OWN}, dt.date(2024, 3, 1))
+
+    def test_book_missing_from_directory_is_left_to_the_other_checks(self):
+        self.check({"buyer_tax": OTHER}, dt.date(2024, 3, 1), rows=())
 
 
 if __name__ == "__main__":

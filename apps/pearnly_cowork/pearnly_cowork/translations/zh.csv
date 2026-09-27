@@ -375,6 +375,7 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",识别更准的拍法：单据摆正拍，文字朝上，整张入镜。
+Found {0}. Tap the number to choose:,找到 {0} 个，点序号选择：
 General,常用功能
 General ledger,总账
 General ledger detail,总账明细
@@ -449,6 +450,7 @@ Last Push Status,最近推送状态
 Last Pushed At (UTC),最近推送时间（UTC）
 Last Request Hash,最近请求摘要
 Last Request Key,最近请求编号
+Last used,上次用的
 Lease Expires At,租约到期时间
 Ledger amount,总账金额
 Ledger credit only,仅总账贷方
@@ -493,6 +495,7 @@ New stock count,新建盘点
 New task,新建任务
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No ERP is ready to use,还没有可用的 ERP
+No account set matches “{0}”,没有找到包含「{0}」的账套
 No cards are assigned to you,还没有分给你的卡片
 No due date,无到期日
 No invoice could be read.,没有读出任何发票。
@@ -807,6 +810,7 @@ The document contains too much text.,文档文本总量超过上限。
 The document contains unsupported XML declarations.,文档包含不支持的 XML 声明。
 The document content is invalid.,文档内容无效。
 The document could not be read. Check the file and try again.,无法读取文档，请检查文件后重试。
+The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,单据日期不在所选账套的会计期间内，请核对年度后重新发送。
 The document exceeds the allowed size after decompression.,文档解压后的大小超过上限。
 The document file is damaged or cannot be decompressed.,文档文件已损坏或无法解压。
 The document reader is unavailable. Contact your administrator.,文档读取服务不可用，请联系管理员。
@@ -845,6 +849,7 @@ The original file reference has changed.,原始文件关联已改变。
 The original invoice manifest is incomplete.,原始文件的发票关联清单不完整。
 The original invoice reference is invalid or unavailable.,原票据引用无效或不可访问。
 The outdated unsent preparation was replaced.,已替换过期且尚未发送的推送准备。
+The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,票上本方税号与所选账套不一致，请核对账套后重新发送。
 The printed invoice date cannot be read. Check the date shown on the document.,无法识别票面日期，请核对单据上的日期。
 The push data exceeds the size limit.,推送数据超过大小限制。
 The push record has changed. Reload and try again.,推送记录已更新，请重新读取后再试。
@@ -911,7 +916,6 @@ This original already has a recognition task with different parameters.,此原�
 This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
 This push attempt is no longer current.,此推送尝试已失效。
 This recognition service currently accepts PDF and image originals.,此识别服务目前仅支持 PDF 和图片原件。
-This record has already been pushed; its account set cannot be changed.,这张票已推送，不能再换账套。
 This refresh request has expired. Request a new refresh.,此刷新请求已过期，请重新申请刷新。
 This request conflicts with an existing reservation.,此请求与已有推送预留冲突。
 This request key has already been used for different content.,此请求标识已用于其他内容。
@@ -923,17 +927,18 @@ This stock count task is closed.,此盘点任务已关闭。
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
 Time left {0},剩余 {0}
 Title,标题
-To be chosen,待选择
 To do,待办
 Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
 Too many items,项目太多
+Too many matches; type a few more letters to narrow it down,结果太多，请再多输入几个字缩小范围
 Total,含税
 Transaction Date,交易日期
 Transaction type,业务类型
 Transfer,转账
 Type,类型
+Type a few letters of the company or account set name to find it,输入公司名或账套名里的几个字查找账套
 "Type or scan, then press Enter",输入或扫码后按回车
 Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确认解绑 Pearnly Cowork LINE？

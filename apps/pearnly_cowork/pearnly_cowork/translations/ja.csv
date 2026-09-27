@@ -375,6 +375,7 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
+Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタップして選択してください：
 General,一般
 General ledger,総勘定元帳
 General ledger detail,総勘定元帳明細
@@ -449,6 +450,7 @@ Last Push Status,最終送信状態
 Last Pushed At (UTC),最終送信日時（UTC）
 Last Request Hash,最終要求ハッシュ
 Last Request Key,最終要求キー
+Last used,前回使用
 Lease Expires At,リース有効期限
 Ledger amount,元帳金額
 Ledger credit only,元帳貸方のみ
@@ -493,6 +495,7 @@ New stock count,棚卸を作成
 New task,新規タスク
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
+No account set matches “{0}”,「{0}」に一致する会計データがありません
 No cards are assigned to you,割り当てられたカードはありません
 No due date,期日なし
 No invoice could be read.,請求書を1件も読み取れませんでした。
@@ -807,6 +810,7 @@ The document contains too much text.,文書のテキスト量が上限を超え�
 The document contains unsupported XML declarations.,文書に対応していない XML 宣言が含まれています。
 The document content is invalid.,文書の内容が無効です。
 The document could not be read. Check the file and try again.,文書を読み取れません。ファイルを確認してから再試行してください。
+The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。
 The document exceeds the allowed size after decompression.,展開後の文書サイズが上限を超えています。
 The document file is damaged or cannot be decompressed.,文書ファイルが破損しているか、展開できません。
 The document reader is unavailable. Contact your administrator.,文書の読み取り機能が利用できません。管理者にお問い合わせください。
@@ -845,6 +849,7 @@ The original file reference has changed.,元ファイルの参照が変更され
 The original invoice manifest is incomplete.,元ファイルの請求書関連付け一覧が不完全です。
 The original invoice reference is invalid or unavailable.,元の伝票の参照が無効か、アクセスできません。
 The outdated unsent preparation was replaced.,古い未送信の準備を置き換えました。
+The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
 The printed invoice date cannot be read. Check the date shown on the document.,請求書に記載された日付を読み取れません。書類の日付を確認してください。
 The push data exceeds the size limit.,送信データがサイズ制限を超えています。
 The push record has changed. Reload and try again.,送信記録が更新されました。再読み込みしてお試しください。
@@ -911,7 +916,6 @@ This original already has a recognition task with different parameters.,この�
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
 This push attempt is no longer current.,この送信試行は無効になっています。
 This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
-This record has already been pushed; its account set cannot be changed.,この伝票は送信済みのため、会計データを変更できません。
 This refresh request has expired. Request a new refresh.,この更新要求は期限切れです。再度要求してください。
 This request conflicts with an existing reservation.,この要求は既存の送信予約と矛盾しています。
 This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
@@ -923,17 +927,18 @@ This stock count task is closed.,この棚卸タスクはクローズ済みで�
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 Time left {0},残り {0}
 Title,タイトル
-To be chosen,未選択
 To do,未着手
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代
 Token Tail,トークン末尾
 Too many items,項目が多すぎます
+Too many matches; type a few more letters to narrow it down,候補が多すぎます。もう少し入力して絞り込んでください
 Total,税込
 Transaction Date,取引日
 Transaction type,取引区分
 Transfer,振込
 Type,種別
+Type a few letters of the company or account set name to find it,会社名または会計データ名の一部を入力して検索してください
 "Type or scan, then press Enter",入力またはスキャンして Enter
 Unbind LINE,LINE 連携を解除
 Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？

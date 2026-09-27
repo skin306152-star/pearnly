@@ -1,39 +1,25 @@
-"""识别后自动挑推送账套（用户 2026-09-27），纯函数，不做 IO。
+"""推送前核对「用户选的账套」与票面有没有确定对不上（用户 2026-09-27），纯函数，不做 IO。
 
-LINE 里只选目标 ERP、进项 / 销项和入账方式，账套等识别出来再定：
-- Express：本方税号（进项看买方、销项看卖方）对上账套的税号（ISINFO）；本方分店号对得上账套的
-  分店号时再收窄；再按单据日期落在哪份账套的会计期间里（ISPRD，本年优先、其次次年）；
-  账套没报会计期间的，退而看年度文件夹名的年份（69EXP ↔ 佛历 2569）。
-- MR.ERP：目录里没有税号，只有一份就是它；只有一家公司时按账套名里的年份对单据年份；
-  几家公司就不挑（认不出是哪家的）。
-剩下一份就选它；还有几份（审计版 / 数据版、分厂）先看这条连接最近推过的，仍定不下就留空，
-由用户在编辑页选。选不出来绝不猜。
+账套由用户在上传前选（网页下拉 / LINE 打字找），按用户的选择推；系统不自动挑。这里只拦**确定错了**的：
+- 票上本方税号（进项看买方、销项看卖方）是有效的 13 位税号（校验位对），账套也报了税号，两者不同
+  —— 这张票不是这家公司的（旧项目 07-23：票写进了别家公司的账套）；
+- 单据日期落在这份账套整个会计期间（本年起 ~ 次年止）之外 —— 年度选错了。
+读不出、账套没报的都不拦（判断不了就按用户的选择）。分店号没有校验位、识别常读错一位，不拿来拦。
 """
 from __future__ import annotations
 
 import datetime as dt
 import re
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 
-from .catalog_groups import year_rank
+from pearnly_core.tax_documents.amounts import valid_tax_id
 
-_BUDDHIST_OFFSET = 543
+TAX_MISMATCH = "account_tax_mismatch"
+PERIOD_MISMATCH = "account_period_mismatch"
 
 
 def _digits(value: object) -> str:
     return re.sub(r"\D", "", str(value or ""))
-
-
-def _branch(value: object) -> str:
-    """分店号统一成 5 位；「สำนักงานใหญ่ / 总公司 / head office」算 00000。空 → ''。"""
-    text = str(value or "").strip()
-    if not text:
-        return ""
-    lowered = text.casefold()
-    if any(word in lowered for word in ("สำนักงานใหญ่", "head office", "headoffice", "总公司", "總公司")):
-        return "00000"
-    digits = _digits(text)
-    return digits[-5:].zfill(5) if digits else ""
 
 
 def _day(value: object) -> dt.date | None:
@@ -43,95 +29,24 @@ def _day(value: object) -> dt.date | None:
         return None
 
 
-def _attributes(row: Mapping[str, Any]) -> Mapping[str, Any]:
-    value = row.get("attributes")
-    return value if isinstance(value, Mapping) else {}
-
-
-def _usable(adapter: str, rows: Iterable[Any]) -> list[Mapping[str, Any]]:
-    result = []
-    for row in rows or []:
-        if not isinstance(row, Mapping) or row.get("active") is False or not str(row.get("source_id") or "").strip():
-            continue
-        if adapter == "express" and _attributes(row).get("writable") is False:
-            continue
-        result.append(row)
-    return result
-
-
-def _within(day: dt.date, start: object, end: object) -> bool:
-    first, last = _day(start), _day(end)
-    return bool(first and last and first <= day <= last)
-
-
-def _by_date(rows: list[Mapping[str, Any]], day: dt.date | None) -> list[Mapping[str, Any]]:
-    """单据日期落在哪几份账套里：本年期间 → 次年期间 → （没报期间的）年度文件夹名年份。"""
-    if day is None:
-        return rows
-    current = [r for r in rows if _within(day, _attributes(r).get("period_start"), _attributes(r).get("period_end"))]
-    if current:
-        return current
-    following = [r for r in rows if _within(day, _attributes(r).get("period_end"), _attributes(r).get("next_end"))]
-    if following:
-        return following
-    short_year = (day.year + _BUDDHIST_OFFSET) % 100
-    return [r for r in rows if not _attributes(r).get("period_start")
-            and year_rank(_attributes(r).get("root_label")) % 100 == short_year]
-
-
-def _by_label_year(rows: list[Mapping[str, Any]], day: dt.date | None) -> list[Mapping[str, Any]]:
-    """MR.ERP 的账套名就是年度（佛历或公历都有）：对上单据年份的那几份。"""
-    if day is None:
-        return rows
-    years = {day.year, day.year + _BUDDHIST_OFFSET}
-    return [r for r in rows if year_rank(r.get("label")) in years]
-
-
-def _decide(candidates: list[Mapping[str, Any]], recent: Iterable[object], reason: str) -> dict[str, Any]:
-    keys = [str(row.get("source_id")) for row in candidates]
-    if len(keys) == 1:
-        return {"account_set_key": keys[0], "reason": reason, "candidates": 1}
-    for key in recent or []:
-        if str(key or "") in keys:
-            return {"account_set_key": str(key), "reason": "recent", "candidates": len(keys)}
-    return {"account_set_key": "", "reason": "ambiguous" if keys else "no_match", "candidates": len(keys)}
-
-
-def suggest(adapter: object, account_sets: Iterable[Any] | None, *, direction: object,
-            fields: Mapping[str, Any] | None, recent: Iterable[object] = ()) -> dict[str, Any]:
-    """→ `{account_set_key, reason, candidates}`；`account_set_key` 为空表示要用户自己选。
-
-    `recent`：这条连接最近推过的账套键（新的在前），只用来在同一公司的几份账套里挑。
-    """
-    kind = str(adapter or "").strip().lower()
+def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: object,
+             fields: Mapping[str, Any] | None) -> str:
+    """→ 对不上的原因码（`TAX_MISMATCH` / `PERIOD_MISMATCH`），没有确定的冲突返回 ''。只核 Express。"""
+    if str(adapter or "").strip().lower() != "express" or not isinstance(account, Mapping):
+        return ""
+    attributes = account.get("attributes") if isinstance(account.get("attributes"), Mapping) else {}
     fields = fields if isinstance(fields, Mapping) else {}
-    rows = _usable(kind, account_sets)
-    day = _day(fields.get("date"))
-    if kind == "mrerp":
-        # MR.ERP 的目录没有税号，认不出票是哪家公司的：只有一家公司时才自动挑（再按年份），
-        # 有几家就留给用户选 —— 绝不跨公司猜（旧项目 07-23：票写进别家公司的账套）。
-        companies = {str(_attributes(r).get("company") or _attributes(r).get("company_name") or "") for r in rows}
-        if len(rows) == 1:
-            return _decide(rows, (), "only_one")
-        if len(companies) != 1:
-            return {"account_set_key": "", "reason": "several_companies", "candidates": len(rows)}
-        return _decide(_by_label_year(rows, day), recent, "year")
-    if kind != "express":
-        return {"account_set_key": "", "reason": "unsupported", "candidates": 0}
     own = "buyer" if str(direction or "") == "purchase" else "seller"
     tax = _digits(fields.get(f"{own}_tax"))
-    if len(tax) != 13:
-        return {"account_set_key": "", "reason": "no_tax", "candidates": 0}
-    matched = [row for row in rows if _digits(_attributes(row).get("tax_id")) == tax]
-    if not matched:
-        return {"account_set_key": "", "reason": "no_tax_match", "candidates": 0}
-    # 同一税号下总公司和分店各记一本账时，按票上本方的分店号收窄；账套没报分店号就不收窄。
-    branch = _branch(fields.get(f"{own}_branch"))
-    if branch:
-        same_branch = [row for row in matched if _branch(_attributes(row).get("branch")) == branch]
-        if same_branch:
-            matched = same_branch
-    return _decide(_by_date(matched, day), recent, "tax_date")
+    book_tax = _digits(attributes.get("tax_id"))
+    if len(tax) == 13 and valid_tax_id(tax) and len(book_tax) == 13 and tax != book_tax:
+        return TAX_MISMATCH
+    day = _day(fields.get("date"))
+    start = _day(attributes.get("period_start"))
+    end = _day(attributes.get("next_end")) or _day(attributes.get("period_end"))
+    if day and start and end and not start <= day <= end:
+        return PERIOD_MISMATCH
+    return ""
 
 
-__all__ = ["suggest"]
+__all__ = ["PERIOD_MISMATCH", "TAX_MISMATCH", "conflict"]

@@ -1,7 +1,6 @@
 """Local preparation only; no generic dispatch, ACK or worker RPC."""
 import frappe
 
-from pearnly_cowork.push import account_target
 from pearnly_cowork.push.application import service
 
 
@@ -55,9 +54,3 @@ def submit(history, connection, request_key, expected_history_version, expected_
     """复核页「提交」一张票：失败不抛，原因记在票上（列表状态图标悬浮可看）。"""
     return _local_transaction(service.submit, history, connection, request_key, expected_history_version,
         expected_connection_revision, account_set_key, catalog_request_id, catalog_revision, posting_kind)
-
-
-@frappe.whitelist(methods=["POST"])
-def set_account(name, account_set_key, expected_version):
-    """编辑页换一张票的推送账套（见 `push/account_target.py`）。"""
-    return _local_transaction(account_target.set_account, name, account_set_key, expected_version)
