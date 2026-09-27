@@ -11,7 +11,7 @@ from frappe import _
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import files
 from pearnly_erp_portal.recognition import billing, checks, dates, policy
-from pearnly_core.tax_documents import codes as tax_codes, rules as tax_rules
+from pearnly_core.tax_documents import amounts as doc_amounts, codes as tax_codes, rules as tax_rules
 
 PROMPT = '''Read this purchase document. Return only a JSON object containing fields actually printed:
 doc_no, doc_date (YYYY-MM-DD), due_date, doc_kind (purchase_invoice|purchase_order|expense),
@@ -251,16 +251,10 @@ def _infer_bill_discount(result):
     if checks.money(result.get("discount_total")):
         return
     printed = result.get("printed") or {}
-    total, vat, sub = (checks.money(printed.get(key)) for key in ("total", "vat", "subtotal"))
-    gross = _line_sum(result.get("lines") or [])
-    if total is None or not vat or vat <= 0 or gross is None or gross <= total + checks.TOLERANCE:
-        return
-    rate = checks.VAT_RATE
-    if abs(vat - total * rate / (1 + rate)) <= checks.TOLERANCE:
-        result["discount_total"] = float((gross - total).quantize(Decimal("0.01")))
-    elif sub is not None and gross > sub + checks.TOLERANCE and abs(sub + vat - total) <= checks.TOLERANCE \
-            and abs(vat - sub * rate) <= checks.TOLERANCE:
-        result["discount_total"] = float((gross - sub).quantize(Decimal("0.01")))
+    discount = doc_amounts.inferred_bill_discount(printed.get("total"), printed.get("vat"), printed.get("subtotal"),
+                                              _line_sum(result.get("lines") or []))
+    if discount is not None:
+        result["discount_total"] = float(discount)
 
 
 def _anchor_with_ocr(documents, images, company):
@@ -281,10 +275,6 @@ def _anchor_with_ocr(documents, images, company):
             for result, issues, model in documents]
 
 
-_TAX_IN_TEXT = re.compile(r"(?<!\d)(?:\d[\s-]?){12}\d(?!\d)")
-_AMOUNT_IN_TEXT = re.compile(r"(?<![\d.])\d{1,3}(?:,\d{3})*\.\d{2}(?!\d)|(?<![\d.,])\d+\.\d{2}(?!\d)")
-
-
 def _anchor(result, issues, text, own_tax):
     from copy import deepcopy
 
@@ -296,7 +286,7 @@ def _anchor(result, issues, text, own_tax):
         return len(checks.hard(found)), len(found)
 
     best = (result, issues)
-    taxes = {t for t in (re.sub(r"\D", "", m) for m in _TAX_IN_TEXT.findall(text)) if checks.valid_tax_id(t)}
+    taxes = doc_amounts.tax_ids_in_text(text)
     buyer = re.sub(r"\D", "", str(result.get("buyer_tax_id") or ""))
     seller = re.sub(r"\D", "", str(result.get("supplier_tax_id") or ""))
     if len(own_tax) == 13 and seller == own_tax:
@@ -308,32 +298,30 @@ def _anchor(result, issues, text, own_tax):
             best = candidate
             buyer = own_tax
     if len(own_tax) == 13 and buyer != own_tax and (
-            own_tax in re.sub(r"\D", "", text) or any(sum(a != b for a, b in zip(t, own_tax)) <= 1 for t in taxes)):
+            own_tax in re.sub(r"\D", "", text) or any(doc_amounts.differing_digits(t, own_tax) <= 1 for t in taxes)):
         # 买方就是本公司：原文里印着本公司税号（差一位以内）。
         candidate = recheck(dict(deepcopy(result), buyer_tax_id=own_tax))
         if score(candidate[1]) <= score(best[1]):
             best = candidate
     supplier = re.sub(r"\D", "", str(best[0].get("supplier_tax_id") or ""))
     if len(supplier) == 13 and not checks.valid_tax_id(supplier):
-        near = [t for t in taxes if sum(a != b for a, b in zip(t, supplier)) <= 2 and t != own_tax]
-        if len(near) == 1:
-            candidate = recheck(dict(deepcopy(best[0]), supplier_tax_id=near[0]))
+        near = doc_amounts.nearest_tax_id(supplier, taxes, exclude={own_tax})
+        if near:
+            candidate = recheck(dict(deepcopy(best[0]), supplier_tax_id=near))
             if score(candidate[1]) < score(best[1]):
                 best = candidate
-    amounts = {checks.money(a) for a in _AMOUNT_IN_TEXT.findall(text)} - {None}
+    printed_in_text = doc_amounts.amounts_in_text(text)
     for key in ("total", "vat", "subtotal", "discount"):
         value = checks.money((best[0].get("printed") or {}).get(key))
-        if value is None or value < 0 or value in amounts:
+        if value is None or value < 0 or value in printed_in_text:
             continue
-        for amount in amounts:
-            a, b = f"{amount:.2f}", f"{value:.2f}"
-            if len(a) == len(b) and sum(x != y for x, y in zip(a, b)) == 1:
-                trial = deepcopy(best[0])
-                trial["printed"][key] = float(amount)
-                candidate = recheck(trial)
-                if score(candidate[1]) < score(best[1]):
-                    best = candidate
-                    break
+        for amount in doc_amounts.one_digit_amounts(value, printed_in_text):
+            trial = deepcopy(best[0])
+            trial["printed"][key] = float(amount)
+            candidate = recheck(trial)
+            if score(candidate[1]) < score(best[1]):
+                best = candidate
+                break
     return best
 
 
