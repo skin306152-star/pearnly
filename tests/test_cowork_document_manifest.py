@@ -297,12 +297,13 @@ class DocumentManifestTests(unittest.TestCase):
 
     def recognition(self):
         self.created = []
-        def create(workspace, body, key, client, *, attachment):
+        self.contracted = []
+        def create(workspace, body, key, client, *, attachment, check_duplicates=False):
             self.created.append(attachment)
             self.events.append(("create", attachment["source_page_indices"]))
             return {"name": "H-" + str(len(self.created)), **attachment}
         storage = SimpleNamespace(encode=lambda value: json.dumps(value, sort_keys=True), parse=json.loads,
-            contract=lambda fn, pages, **kw: {"source_page_indices": [page["page_index"] for page in pages]},
+            contract=lambda fn, pages, **kw: self.contracted.append(kw) or {"source_page_indices": [page["page_index"] for page in pages]},
             anchor_year=lambda: 2026, _create=create,
             read=lambda name, **kw: Row(name=name, source_file=self.source.name), project=dict)
         env = dict(frappe=self.frappe, scope=self.scope, access=self.access, guard=self.guard,
@@ -323,6 +324,8 @@ class DocumentManifestTests(unittest.TestCase):
         self.assertIsNone(result[0]["source_pdf_id"])
         self.assertTrue(self.source.binding_complete)
         self.assertFalse(self.access.full_allowed(self.source, "reader"))
+        # 识别入库走宽松日期口径：票面日期写法认不出不让整批失败（复核编辑仍严格）。
+        self.assertEqual([kw.get("recognized") for kw in self.contracted], [True])
 
     def test_unfrozen_document_is_rejected_before_history_write(self):
         env, _ = self.recognition()

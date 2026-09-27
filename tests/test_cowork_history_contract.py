@@ -152,6 +152,7 @@ class PagesAndDates(unittest.TestCase):
 			("31 พ.ค. 2569", "2026-05-31"), ("31 พค 69", "2026-05-31"),
 			("31 พฤษภาคม 2569", "2026-05-31"), ("31 May, 2026", "2026-05-31"),
 			("29/2/2567", "2024-02-29"), ("1/1/2400", "1857-01-01"),
+			("28 05 2026", "2026-05-28"), ("28 5 69", "2026-05-28"), ("28 / 05 / 2569", "2026-05-28"),
 		):
 			with self.subTest(raw=raw):
 				pages = [{"fields": {"date_raw": raw, "date": "1999-01-01"}}]
@@ -173,6 +174,21 @@ class PagesAndDates(unittest.TestCase):
 		for fields in ({"date_raw": "29/2/2569"}, {"date_raw": "nonsense"}, {"date": "2569-05-31"}, {"date_raw": " ", "date": "2569-05-31"}):
 			with self.subTest(fields=fields), self.assertRaisesRegex(history.HistoryContractError, "history.date_unreadable"):
 				history.prepare_pages([{"fields": fields}], anchor_year=2026)
+
+	def test_recognized_ingest_keeps_the_model_date_when_the_printed_date_is_unreadable(self):
+		# 旧线上识别入库不因票面日期写法认不出而整批失败：保留模型给的合法公历日期、原文照存待复核。
+		cases = ((" 28-May-26 ", "2026-05-28", "2026-05-28"), ("nonsense", "2026-02-30", None),
+		         ("nonsense", "2569-05-28", None), ("nonsense", None, None), ("29/2/2569", "2026-03-01", "2026-03-01"))
+		for raw, model, expected in cases:
+			with self.subTest(raw=raw, model=model):
+				pages = [{"fields": {"date_raw": raw, "date": model}}]
+				result = history.initial_history(pages, source="cowork_line", anchor_year=2026, recognized=True)
+				self.assertEqual(result["pages"][0]["fields"]["date"], expected)
+				self.assertEqual(result["pages"][0]["fields"]["date_raw"], raw)
+				with self.assertRaisesRegex(history.HistoryContractError, "history.date_unreadable"):
+					history.initial_history(pages, anchor_year=2026)
+		readable = [{"fields": {"date_raw": "31/5/2569", "date": "1999-01-01"}}]
+		self.assertEqual(history.prepare_pages(readable, anchor_year=2026, recognized=True)[0]["fields"]["date"], "2026-05-31")
 
 	def test_without_printed_date_legacy_value_is_preserved_and_only_summary_may_be_null(self):
 		pages = [{"fields": {"date": "not-a-date", "invoice_number": "I"}}]

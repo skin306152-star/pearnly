@@ -22,7 +22,8 @@ from pearnly_cowork.contracts.push import normalize_posting_kind
 SOURCES = frozenset({"manual", "cowork_line", "summary_table_batch"})
 _INTERNAL_ERP_SOURCES = frozenset({"erp_web", "line_erp"})
 _ISO_DATE = re.compile(r"^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$")
-_PRINTED_DATE = re.compile(r"^\s*(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\s*$")
+# 票面也常见空格分隔（「28 05 2026」），与斜杠 / 点 / 横线同样按日 月 年读（有意变化，旧线上不认）。
+_PRINTED_DATE = re.compile(r"^\s*(\d{1,2})(?:\s*[/\-.]\s*|\s+)(\d{1,2})(?:\s*[/\-.]\s*|\s+)(\d{2,4})\s*$")
 _NAMED_DATE = re.compile(r"^\s*(\d{1,2})\s+([^\d\s,]+)\s*,?\s*(\d{2,4})\s*$", re.I)
 _TH_MONTHS = (
 	"มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -104,11 +105,24 @@ def _printed_date(value, *, anchor_year: int | None) -> str | None:
 		return None
 
 
-def prepare_pages(pages, *, anchor_year: int | None = None) -> list[dict]:
+def _recognized_date(value) -> str | None:
+	iso = _ISO_DATE.match(str(value or ""))
+	if not iso or int(iso[1]) >= 2400:
+		return None
+	try:
+		return date(*map(int, iso.groups())).isoformat()
+	except ValueError:
+		return None
+
+
+def prepare_pages(pages, *, anchor_year: int | None = None, recognized: bool = False) -> list[dict]:
 	"""Copy complete pages and derive AD dates; incomplete invoices remain valid.
 
 	Empty pages can represent failed recognition, as in legacy insert. An update
 	service must separately enforce the old PUT route's nonempty-pages rule.
+	``recognized`` is the OCR ingest path: as in legacy insert, a printed date the
+	rules cannot read keeps the model's valid AD date (or none) for review instead
+	of failing the whole batch. Manual creation and review edits stay strict.
 	"""
 	if not isinstance(pages, list):
 		raise HistoryContractError("history.pages_invalid")
@@ -129,7 +143,9 @@ def prepare_pages(pages, *, anchor_year: int | None = None) -> list[dict]:
 			continue
 		derived = _printed_date(printed, anchor_year=anchor_year)
 		if derived is None:
-			raise HistoryContractError("history.date_unreadable")
+			if not recognized:
+				raise HistoryContractError("history.date_unreadable")
+			derived = _recognized_date(fields.get("date"))
 		fields["date"] = derived
 	return prepared
 
@@ -235,13 +251,13 @@ def clean_summary_fields(fields: dict) -> dict:
 def initial_history(
 	pages, *, source: str = "manual", confidence: str = "", posting_kind=None,
 	ai_raw=None, staged: bool = True, public_create: bool = False,
-	anchor_year: int | None = None,
+	anchor_year: int | None = None, recognized: bool = False,
 ) -> dict:
 	"""Prepare first persistence; ai_raw is independent and is never an update field."""
 	source = normalize_source(source, public_create=public_create)
 	if not isinstance(confidence, str) or not isinstance(staged, bool):
 		raise HistoryContractError("history.metadata_invalid")
-	prepared = prepare_pages(pages, anchor_year=anchor_year)
+	prepared = prepare_pages(pages, anchor_year=anchor_year, recognized=recognized)
 	summary = extract_summary_fields(prepared)
 	return {
 		"pages": prepared,

@@ -96,7 +96,10 @@ def validate_document(doc):
         doc.fields_edited_at, doc.confirmed_by, doc.confirmed_at = None, None, None
         if not doc.staged:
             frappe.throw(_("New records must start as drafts."))
-    pages = contract(prepare_pages, parse(doc.pages), anchor_year=anchor_year())
+    # 新建前各入口已按自己的口径（手工严格、识别宽松）过了合约；页面没变的保存（确认、推送状态）
+    # 只复算，不因识别时留下的认不出的票面日期拦住。改页面的只有复核编辑，仍严格。
+    edited = bool(previous) and doc.pages != previous.pages
+    pages = contract(prepare_pages, parse(doc.pages), anchor_year=anchor_year(), recognized=not edited)
     doc.pages = encode(pages)
     summary = extract_summary_fields(pages)
     for field in SUMMARY_FIELDS:
@@ -132,7 +135,7 @@ def create_recognized(workspace, pages, request_key, *, source, confidence, ai_r
     verified actor before calling, as ordinary workspace permission still applies.
     """
     body = contract(initial_history, pages, source=source, confidence=confidence, ai_raw=ai_raw,
-                           posting_kind=posting_kind, anchor_year=anchor_year())
+                           posting_kind=posting_kind, anchor_year=anchor_year(), recognized=True)
     return _create(workspace, body, request_key, client, check_duplicates=True)
 
 

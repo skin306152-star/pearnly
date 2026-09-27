@@ -40,7 +40,7 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
             frappe.throw(_("The requested page is not part of this invoice."))
         body = storage.contract(initial_history, group.get("pages"), source=group.get("source"),
             confidence=group.get("confidence"), ai_raw=group.get("ai_raw"),
-            posting_kind=group.get("posting_kind"), anchor_year=anchor_year or storage.anchor_year())
+            posting_kind=group.get("posting_kind"), anchor_year=anchor_year or storage.anchor_year(), recognized=True)
         if set(body["source_page_indices"]) != set(indices):
             frappe.throw(_("Invoice pages do not match the original page references."))
         prepared.append({"workspace": group["workspace"], "client": group.get("client"),
