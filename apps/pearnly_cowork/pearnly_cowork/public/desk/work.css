@@ -336,12 +336,33 @@
 	box-shadow: var(--shadow-md);
 }
 
+/* 拖动（照 Trello）：放手会落到的位置是一个灰色空槽；拖着的卡片 / 列表不透明、微斜、带阴影。
+   Sortable 模拟拖动时自己写行内 transform 定位，所以倾斜用独立的 rotate 属性；行内 opacity 0.8 要盖掉。 */
 .pearnly-work-ghost .pearnly-work-card {
-	opacity: 0.4;
+	background: var(--gray-500);
+	opacity: 0.25;
+	box-shadow: none;
 }
 
-.pearnly-work-dragging .pearnly-work-card {
-	transform: rotate(3deg);
+.pearnly-work-ghost .pearnly-work-card > *,
+.pearnly-work-column.pearnly-work-ghost > * {
+	visibility: hidden;
+}
+
+.pearnly-work-board .pearnly-work-column.pearnly-work-ghost {
+	background: var(--gray-500) !important;
+	opacity: 0.25;
+}
+
+.pearnly-work-dragging.sortable-fallback {
+	opacity: 1 !important;
+	rotate: 3deg;
+	cursor: grabbing;
+}
+
+.pearnly-work-dragging .pearnly-work-card,
+.pearnly-work-column.pearnly-work-dragging {
+	box-shadow: var(--shadow-xl);
 }
 
 .pearnly-work-card-body {
@@ -403,15 +424,16 @@
 	text-overflow: ellipsis;
 }
 
-.pearnly-work-label.green { background: var(--green-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.yellow { background: var(--yellow-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.orange { background: var(--orange-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.red { background: var(--red-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.purple { background: var(--purple-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.blue { background: var(--blue-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.cyan { background: var(--cyan-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.pink { background: var(--pink-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-label.gray { background: var(--gray-400); color: var(--gray-900, #1f272e); }
+/* 标签色取 Desk 原生色阶的 500（与封面同一档；400 太浅，用户 2026-09-27 对照 Trello）。 */
+.pearnly-work-label.green { background: var(--green-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.yellow { background: var(--yellow-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.orange { background: var(--orange-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.red { background: var(--red-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.purple { background: var(--purple-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.blue { background: var(--blue-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.cyan { background: var(--cyan-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.pink { background: var(--pink-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.gray { background: var(--gray-500); color: var(--gray-900, #1f272e); }
 
 .pearnly-work-title-row {
 	display: flex;
@@ -704,15 +726,15 @@
 	margin: 0;
 }
 
-.pearnly-work-swatch.green { background: var(--green-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.yellow { background: var(--yellow-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.orange { background: var(--orange-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.red { background: var(--red-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.purple { background: var(--purple-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.blue { background: var(--blue-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.cyan { background: var(--cyan-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.pink { background: var(--pink-400); color: var(--gray-900, #1f272e); }
-.pearnly-work-swatch.gray { background: var(--gray-400); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.green { background: var(--green-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.yellow { background: var(--yellow-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.orange { background: var(--orange-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.red { background: var(--red-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.purple { background: var(--purple-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.blue { background: var(--blue-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.cyan { background: var(--cyan-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.pink { background: var(--pink-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.gray { background: var(--gray-500); color: var(--gray-900, #1f272e); }
 
 .pearnly-work-popup-pad {
 	padding: 0 12px 4px;

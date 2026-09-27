@@ -24,6 +24,9 @@
 	const DETAILS = "pearnly-work-activity-details";
 	const VIEWS = ["board", "mine", "calendar", "table"];
 	const RULE_ACTIONS = ["assign", "label", "due_days", "complete", "watch"];
+	// 拖动的样子（照 Trello，用户 2026-09-27）：浏览器原生拖动只给一张半透明截图、样式改不了，改用 Sortable 的
+	// 模拟拖动，拖着的是实物（不透明、微斜、带阴影，见 work.css）；移动 3 像素以上才算拖，单击照旧打开卡片。
+	const DRAG_LOOK = {forceFallback: true, fallbackTolerance: 3};
 	const mobile = () => window.matchMedia("(max-width: 767px)").matches;
 	const icon = (name, size = "xs") => frappe.utils.icon(name, size);
 	const card_url = name => `${window.location.origin}${p.subroute(ROOT, name)}`;
@@ -325,7 +328,7 @@
 				// 拖到空列表上方附近就算放进去（照 Trello，整列都能接）。
 				emptyInsertThreshold: 60,
 				filter: ".pearnly-work-card-tools, .pearnly-work-done", preventOnFilter: false,
-				ghostClass: "pearnly-work-ghost", dragClass: "pearnly-work-dragging",
+				ghostClass: "pearnly-work-ghost", dragClass: "pearnly-work-dragging", ...DRAG_LOOK,
 				// 手机上长按才拖，免得滑动翻页时误拖。
 				delay: 200, delayOnTouchOnly: true,
 				onEnd: event => void dropped(event),
@@ -336,8 +339,8 @@
 		new Sortable(board[0], {
 			animation: 150, draggable: ".pearnly-work-column:not(.pearnly-work-add-list)",
 			handle: ".pearnly-work-column-header", filter: "button, input", preventOnFilter: false,
-			delay: 200, delayOnTouchOnly: true, ghostClass: "pearnly-work-ghost",
-			onEnd: event => void list_dropped(event),
+			delay: 200, delayOnTouchOnly: true, ghostClass: "pearnly-work-ghost", dragClass: "pearnly-work-dragging",
+			...DRAG_LOOK, onEnd: event => void list_dropped(event),
 		});
 		const sync_columns = () => {
 			const wanted = new Set(state.lists.map(row => row.name));
@@ -1339,7 +1342,9 @@
 			if (add) rows.push({name: null, title: "", color: "blue"});
 			draw();
 			d.show();
-			if (add) host.find(".pearnly-work-label-edit").last().find("input").trigger("focus");
+			// 弹窗动画结束时框架会把焦点放到第一个输入框；新建的那一行要等它之后再聚焦。
+			if (add) d.$wrapper.one("shown.bs.modal", () =>
+				host.find(".pearnly-work-label-edit").last().find("input").trigger("focus"));
 		};
 
 		// ── 自定义字段（全板共用，照 Trello）：名字、类型、下拉选项、是否显示在卡片正面 ──
