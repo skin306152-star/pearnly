@@ -8,6 +8,7 @@
 选择存在本人的 LINE 会话里（30 分钟），上传的每一张都按这组选择识别、各出一张预览卡。
 这里只管问与记；识别、预览卡、入账在 `intake`。权限全部按绑定的这个账号在服务端判。
 """
+import re
 from urllib.parse import parse_qs, urlencode
 
 import frappe
@@ -36,6 +37,11 @@ METHOD_LABELS = {"cash": "Cash", "transfer": "Transfer", "promptpay": "PromptPay
 DIRECTION_WORDS = {"1": "purchase", "ซื้อ": "purchase", "purchase": "purchase", "buy": "purchase",
                    "2": "sales", "ขาย": "sales", "sales": "sales", "sell": "sales"}
 MENU_WORDS = ("เมนู", "menu", "菜单")
+# LINE 按钮最多 20 字：几家都叫「บริษัท …」时截断后只剩「2. บริษัท เดโม่ เทร」，分不清（录制问题 #26）。
+# 提问里列出带编号的全名；按钮上去掉这些通用的公司类型词，留下能区分的那段。
+_GENERIC_NAME_WORDS = re.compile("|".join(re.escape(word) for word in sorted((
+    "ห้างหุ้นส่วนจำกัด", "ห้างหุ้นส่วนสามัญ", "บริษัท", "จำกัด", "(มหาชน)", "มหาชน", "หจก.", "บจก.", "บมจ.",
+    "Company Limited", "Co., Ltd.", "Co.,Ltd.", "Co., Ltd", "Limited", "Ltd."), key=len, reverse=True)), re.IGNORECASE)
 
 
 # ── 会话 ────────────────────────────────────────────────────────────────────
@@ -178,9 +184,18 @@ def _next(line_user_id, user, payload, reply_token):
         return _ask(reply_token, _QUESTIONS[step](payload),
                     [_button(label, urlencode({"a": "erp", "s": step, "v": key})) for key, label in options]
                     + [manual])
-    items = [_button(f"{index}. {label}" if numbered else label, urlencode({"a": "erp", "s": step, "v": key}))
+    items = [_button(f"{index}. {short_name(label)}" if numbered else label, urlencode({"a": "erp", "s": step, "v": key}))
              for index, (key, label) in enumerate(options, 1)]
-    _ask(reply_token, _QUESTIONS[step](payload), items)
+    question = _QUESTIONS[step](payload)
+    if numbered:
+        question += "\n" + "\n".join(f"{index}. {label}" for index, (_key, label) in enumerate(options, 1))
+    _ask(reply_token, question, items)
+
+
+def short_name(label) -> str:
+    """按钮上的名字：去掉通用的公司类型词（全名在提问里）；去完什么都不剩就用原名。"""
+    text = " ".join(_GENERIC_NAME_WORDS.sub(" ", str(label)).split())
+    return text or str(label)
 
 
 _QUESTIONS = {

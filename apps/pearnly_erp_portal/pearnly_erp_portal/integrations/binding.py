@@ -56,6 +56,8 @@ def status() -> dict:
     row = _active_binding(_current_user())
     return {
         "bound": bool(row),
+        # 这个租户还没配 LINE 渠道：页面在 LINE 那一块里说一句，不去发码（发码会弹错误框，录制问题 #8）。
+        "channel": line.is_configured(),
         "display_name": (row or {}).get("display_name") or None,
         # 页面用官方 Datetime 控件显示：库里带微秒，控件只认到秒，原样给会弹"日期格式不对"。
         "bound_at": (get_datetime(row.bound_at).strftime("%Y-%m-%d %H:%M:%S")

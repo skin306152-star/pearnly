@@ -4,6 +4,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.masters import tax_ids
 
 DOCTYPE = "ERP Supplier"
 
@@ -33,6 +34,7 @@ def create_supplier(*, supplier_name, tax_id=None, branch_type="head", branch_no
     if not supplier_name:
         frappe.throw(_(NAME_REQUIRED))
     branch_type = "branch" if branch_type == "branch" else "head"
+    tax_ids.require_valid(_clean(tax_id, 30), format_message="supplier.lookup.invalid_format")
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
         "supplier_name": supplier_name,
@@ -74,6 +76,9 @@ def update_supplier(name, **changes):
         doc.supplier_name = cleaned
     for field, limit in (("tax_id", 30), ("branch_no", 20), ("address", 2000), ("phone", 50)):
         if field in changes:
+            if field == "tax_id":
+                tax_ids.require_valid(_clean(changes[field], limit), previous=doc.tax_id,
+                                      format_message="supplier.lookup.invalid_format")
             doc.set(field, _clean(changes[field], limit))
     if "branch_type" in changes:
         doc.branch_type = "branch" if changes["branch_type"] == "branch" else "head"

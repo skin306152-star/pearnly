@@ -4,6 +4,10 @@
 不该有的值一律清空而不是留着。
 """
 
+import re
+
+from pearnly_core.tax_documents.amounts import digits as _digits, valid_tax_id
+
 PARTY_TYPES = ("company", "person", "foreign", "anonymous")
 DEFAULT_PARTY = "company"
 
@@ -20,6 +24,25 @@ MAX_NOTE = 1000
 MAX_COLOR = 20
 MAX_BRANCH_NO = 20
 MAX_PROMPTPAY = 50
+
+
+# 泰国税号：公司、供应商、客户与采购识别同一套校验（录制问题 #11）。校验位算法在共用层
+# （`pearnly_core.tax_documents`，识别也用它）。13 位数字一律验校验位；本公司的税号必须是 13 位。
+# 供应商 / 客户可能是外国主体，不是 13 位数字的照旧放行。
+TAX_ID_FORMAT = "format"
+TAX_ID_CHECKSUM = "checksum"
+
+
+def tax_id_problem(value, *, thai_required=False):
+    """税号哪里不对：`format`（必须 13 位而不是）、`checksum`（13 位但校验位不对）；没问题返回 None。"""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    raw = _digits(text)
+    # 只由数字加常见分隔（短横、空格）组成、共 13 位数字，才按泰国税号验。
+    if len(raw) != 13 or not re.fullmatch(r"[\d\s-]+", text):
+        return TAX_ID_FORMAT if thai_required else None
+    return None if valid_tax_id(raw) else TAX_ID_CHECKSUM
 
 
 def clean(value, limit: int):

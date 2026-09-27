@@ -171,7 +171,13 @@
 				await d.set_value("product_name", selected.product_name);
 				await d.set_value("unit", selected.base_unit || selected.unit || "");
 				await choose_source();
-				if (last_place) { await d.set_value("warehouse", last_place.warehouse); await d.set_value("location", last_place.location); }
+				// 沿用上一件的位置只给**账上没有位置**的新品（同一个货架连续盘时省得重填）；这件在账上有位置
+				// 就用账面位置，否则会盖掉它、凭空多出一条位置差异，结束盘点时真的调库存（录制问题 #21）。
+				// 修改已录的记录也不沿用：那条记录自己的位置才是对的。
+				if (last_place && !entry && !lookup.rows.length) {
+					await d.set_value("warehouse", last_place.warehouse);
+					await d.set_value("location", last_place.location);
+				}
 				await d.set_value("qty", entry ? entry.qty : "");
 				if (!entry) d.fields_dict.qty.$input.val("");
 				await d.set_value("note", entry?.note || "");

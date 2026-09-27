@@ -16,15 +16,17 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.masters import contracts
+from pearnly_erp_portal.masters import contracts, tax_ids
 
 DOCTYPE = "ERP Company"
 NOT_FOUND = "Company not found"
 NAME_REQUIRED = "A company needs a name"
 INVALID = "Invalid value"
 
+# 「单号前缀」（doc_prefix）不在这里：编号规则是写死的（PE / SI / IR / IS / AD），这个字段从未接上，
+# 用户 2026-09-28 定为隐藏（录制问题 #15）。库里的列与旧值保留，不读不写。
 LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "phone",
-               "contact_person", "contact_email", "promptpay_id", "doc_prefix",
+               "contact_person", "contact_email", "promptpay_id",
                "fiscal_year_start_month", "is_default", "is_active", "pos_enabled",
                "address", "note")
 
@@ -446,7 +448,7 @@ def _apply(doc, fields) -> None:
                          ("phone", contracts.MAX_PHONE), ("contact_person", contracts.MAX_CONTACT),
                          ("contact_email", contracts.MAX_EMAIL),
                          ("promptpay_id", contracts.MAX_PROMPTPAY),
-                         ("doc_prefix", 20), ("address", contracts.MAX_ADDRESS),
+                         ("address", contracts.MAX_ADDRESS),
                          ("note", contracts.MAX_NOTE)):
         if field not in fields:
             continue
@@ -456,6 +458,8 @@ def _apply(doc, fields) -> None:
             frappe.throw(_(INVALID))
         if field == "company_name" and not value:
             frappe.throw(_(NAME_REQUIRED))
+        if field == "tax_id":
+            tax_ids.require_valid(value, previous=doc.get("tax_id"), thai_required=True)
         doc.set(field, value)
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):

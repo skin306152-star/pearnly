@@ -43,6 +43,19 @@ MOVEMENT_TYPES = IN_TYPES + OUT_TYPES + (ADJUST, COUNT)
 SIGNED_TYPES = (ADJUST, COUNT)
 
 
+# 库存页搜索框写的是「按名称或条码搜」：名称、编码、条码、二维码内容任一包含关键字就算命中，
+# 与商品列表的搜索（`products.service._filters`）同一口径。扫码枪给的是完整的码，包含也就命中。
+SEARCH_FIELDS = ("product_name", "code", "barcode", "qr_payload")
+
+
+def product_matches(product, query) -> bool:
+    """商品是否命中库存页的搜索关键字（不分大小写，空关键字恒命中）。"""
+    wanted = str(query or "").strip().casefold()
+    if not wanted:
+        return True
+    return any(wanted in str((product or {}).get(field) or "").casefold() for field in SEARCH_FIELDS)
+
+
 def d(value) -> Decimal:
     if value in (None, ""):
         return Decimal("0")

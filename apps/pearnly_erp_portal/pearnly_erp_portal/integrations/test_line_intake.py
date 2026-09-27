@@ -101,6 +101,21 @@ class Flow(Base):
             self.tap({"data": "a=erp&s=entry&v=upload"})
         self.assertEqual([b["label"] for b in self.buttons()], ["1. Alpha", "2. Beta", "Cancel"])
 
+    def test_similar_company_names_stay_distinguishable_within_the_20_character_buttons(self):
+        """录制问题 #26：按钮去掉通用词，提问里列出带编号的全名。"""
+        self.companies = ["CO-1", "CO-2"]
+        names = [("CO-1", "บริษัท เดโม่ เทรดดิ้ง จำกัด"), ("CO-2", "บริษัท เดโม่ เทคโนโลยี จำกัด (มหาชน)")]
+        with patch.object(line_flow, "_options", side_effect=lambda step, payload, user:
+                          names if step == "company" else self.options(step, payload, user)), \
+                patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+            self.tap({"data": "a=erp&s=entry&v=upload"})
+        self.assertEqual([b["label"] for b in self.buttons()], ["1. เดโม่ เทรดดิ้ง", "2. เดโม่ เทคโนโลยี", "Cancel"])
+        self.assertEqual(self.last_text().splitlines()[1:],
+                         ["1. บริษัท เดโม่ เทรดดิ้ง จำกัด", "2. บริษัท เดโม่ เทคโนโลยี จำกัด (มหาชน)"])
+        self.assertEqual(line_flow.short_name("Acme Co., Ltd."), "Acme")
+        self.assertEqual(line_flow.short_name("บริษัท จำกัด"), "บริษัท จำกัด")
+
     def test_stale_or_forged_answers_do_not_advance(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.tap({"data": "a=mode:purchase"})
@@ -1246,6 +1261,21 @@ class CardShape(Base):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.assertFalse(handlers.handle({"type": "postback", "source": {"userId": "U1"},
                                               "postback": {"data": "a=card&op=confirm&i=LI-1&n=n1"}}))
+
+
+
+class ProfileBinding(Base):
+    """录制问题 #8：租户没配 LINE 渠道时，个人资料页的 LINE 块只说一句，不去发码（发码会弹错误框）。"""
+
+    def test_status_says_whether_the_channel_is_configured(self):
+        from pearnly_erp_portal.integrations import binding
+
+        self.roles["buyer"] = {"integration.read"}
+        with patch.object(frappe, "session", SimpleNamespace(user="buyer")):
+            for configured in (False, True):
+                with patch("pearnly_core.line.is_configured", return_value=configured):
+                    self.assertEqual(binding.status(), {"bound": False, "channel": configured,
+                                                        "display_name": None, "bound_at": None})
 
 
 if __name__ == "__main__":

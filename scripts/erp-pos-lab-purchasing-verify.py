@@ -90,7 +90,7 @@ def main():
         frappe.delete_doc("ERP Supplier", existing, force=True, ignore_permissions=True)
         frappe.db.commit()
     ok, supplier = as_user(OWNER, suppliers.create_supplier, supplier_name="Lab Supplier A",
-                           tax_id="0105550000000", branch_type="branch", branch_no="00001",
+                           tax_id="0105550000007", branch_type="branch", branch_no="00001",
                            phone="02-000-0000")
     results["create_supplier"] = ok
     supplier_name = supplier["name"] if ok else None

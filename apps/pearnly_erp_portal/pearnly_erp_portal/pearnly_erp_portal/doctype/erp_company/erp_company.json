@@ -92,7 +92,8 @@
    "fieldtype": "Data",
    "label": "Document Prefix",
    "length": 20,
-   "description": "Prefix for this company's document numbers"
+   "description": "Prefix for this company's document numbers",
+   "hidden": 1
   },
   {
    "fieldname": "fiscal_year_start_month",

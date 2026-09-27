@@ -13,6 +13,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/pearnly_erp_portal"))
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # 税号校验位与识别共用 `pearnly_core.tax_documents`
 
 from pearnly_erp_portal.access import rules  # noqa: E402
 from pearnly_erp_portal.products import contracts  # noqa: E402
@@ -553,6 +554,32 @@ class BuyerNormalisation(unittest.TestCase):
         self.assertFalse(master_contracts.fiscal_month_ok(0))
         self.assertFalse(master_contracts.fiscal_month_ok(13))
         self.assertFalse(master_contracts.fiscal_month_ok("jan"))
+
+
+class TaxIds(unittest.TestCase):
+    """录制问题 #11：公司 / 供应商 / 客户与采购识别同一套泰国税号校验。"""
+
+    def test_thirteen_digits_must_pass_the_check_digit(self):
+        self.assertEqual(master_contracts.tax_id_problem("0105599999999"), master_contracts.TAX_ID_CHECKSUM)
+        for good in ("0735527000289", "0-7355-27000-28-9", "0105555400542 ", "", None):
+            self.assertIsNone(master_contracts.tax_id_problem(good), good)
+
+    def test_own_company_needs_a_thai_tax_id_but_foreign_parties_may_differ(self):
+        for other in ("12345", "GB123456789", "01055554005420"):
+            self.assertEqual(master_contracts.tax_id_problem(other, thai_required=True), master_contracts.TAX_ID_FORMAT)
+            self.assertIsNone(master_contracts.tax_id_problem(other))
+
+
+class StockSearch(unittest.TestCase):
+    """录制问题 #1：库存页「按名称或条码搜」—— 名称、编码、条码、二维码内容任一包含关键字都命中。"""
+
+    def test_name_code_barcode_and_qr_content_all_match(self):
+        product = {"product_name": "Matcha Latte", "code": "P-0007", "barcode": "8850001112223",
+                   "qr_payload": "https://example.test/item/42"}
+        for query in ("matcha", "p-0007", "8850001112223", "item/42", "", None):
+            self.assertTrue(stock_contracts.product_matches(product, query), query)
+        self.assertFalse(stock_contracts.product_matches(product, "8850009999999"))
+        self.assertFalse(stock_contracts.product_matches({}, "x"))
 
 
 class IntegrationBinding(unittest.TestCase):

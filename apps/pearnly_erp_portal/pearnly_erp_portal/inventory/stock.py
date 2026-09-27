@@ -312,9 +312,13 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
                            order_by="modified desc", limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
         PRODUCT, filters={"name": ["in", [r["product"] for r in rows]] or [""]},
-        fields=["name", "product_name", "code", "barcode", "unit", "base_unit", "min_stock",
+        fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit", "min_stock",
                 "is_active"],
         limit_page_length=0)}
+    # 售卖单位上的条码（箱码 / 瓶码常挂在单位上）：扫到它也要找到这件商品（与扫码查商品同一口径）。
+    wanted = str(q or "").strip()
+    unit_hits = set(frappe.get_all("ERP Product Unit", filters={"barcode": wanted, "parent": ["in", list(products)]},
+                                   pluck="parent")) if wanted and products else set()
     names = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
         "ERP Warehouse", filters={"name": ["in", [r["warehouse"] for r in rows] or [""]]},
         fields=["name", "warehouse_name"], limit_page_length=0)}
@@ -325,7 +329,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     out = []
     for row in rows:
         product = products.get(row["product"]) or {}
-        if q and q.lower() not in (product.get("product_name") or "").lower():
+        if q and not contracts.product_matches(product, q) and row["product"] not in unit_hits:
             continue
         # "只看低库存/缺货"时零库存行必须在（缺货就是 0），所以那个开关隐含带上零库存。
         if not include_zero and not only_low and not by_qty and not row["qty_on_hand"]:

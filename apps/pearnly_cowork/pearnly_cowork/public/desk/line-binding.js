@@ -96,6 +96,13 @@
 		async function refresh() {
 			if (!alive()) {stop(); return;}
 			const state = await p.call(api + "api_line_binding");
+			if (!state.bound && state.channel === false) {
+				// 租户还没配 LINE 渠道：块里说一句就停，不发码（发码那一步会弹错误框）。
+				stop();
+				parent.empty().append($("<p class='text-muted'>")
+					.text(__("The LINE channel is not configured for this account")));
+				return;
+			}
 			if (state.bound) {
 				stop();
 				if (bound !== true) paint_bound(state);

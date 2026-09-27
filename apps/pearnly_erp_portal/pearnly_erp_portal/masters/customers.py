@@ -4,7 +4,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.masters import contracts
+from pearnly_erp_portal.masters import contracts, tax_ids
 
 DOCTYPE = "ERP Customer"
 NAME_REQUIRED = "A customer needs a name"
@@ -30,6 +30,7 @@ def create_customer(**fields) -> dict:
         frappe.throw(_(INVALID))
     if not clean["customer_name"]:
         frappe.throw(_(NAME_REQUIRED))
+    tax_ids.require_valid(clean["tax_id"], format_message="client.lookup.invalid_format")
     doc = frappe.get_doc({"doctype": DOCTYPE, **clean, "is_active": 1,
                           "note": contracts.clean(fields.get("note"), contracts.MAX_NOTE)})
     doc.insert()
@@ -68,6 +69,7 @@ def update_customer(name, **fields) -> dict:
         frappe.throw(_(INVALID))
     if not clean["customer_name"]:
         frappe.throw(_(NAME_REQUIRED))
+    tax_ids.require_valid(clean["tax_id"], previous=doc.get("tax_id"), format_message="client.lookup.invalid_format")
     for field, value in clean.items():
         doc.set(field, value)
     if "note" in fields:

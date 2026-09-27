@@ -109,15 +109,17 @@ def main():
     results["profile_readable_by_owner"] = ok
     results["profile_is_default"] = profile.get("name") == default if ok else profile
 
-    # 资料字段：前缀、财年起始月，越界要拒。
-    ok, saved = as_user(OWNER, company.update_profile, doc_prefix="LAB",
-                        fiscal_year_start_month=1, tax_id="0105550000000",
+    # 资料字段：备注、财年起始月，越界要拒；税号校验位不对要拒（单号前缀已隐藏，不再读写）。
+    ok, saved = as_user(OWNER, company.update_profile, note="LAB",
+                        fiscal_year_start_month=1, tax_id="0105550000007",
                         company_name="Lab Company A")
     results["update_profile"] = ok
     ok, err = as_user(OWNER, company.update_profile, fiscal_year_start_month=13)
     results["bad_fiscal_month_allowed"] = ok
+    ok, err = as_user(OWNER, company.update_profile, tax_id="0105599999999")
+    results["bad_tax_id_checksum_allowed"] = ok
     results["profile_after"] = {k: frappe.db.get_value("ERP Company", default, k)
-                                for k in ("company_name", "doc_prefix", "tax_id",
+                                for k in ("company_name", "note", "tax_id",
                                           "fiscal_year_start_month")}
 
     # 第二个公司：只有默认那条进资料页，列表能看到两条。
@@ -133,7 +135,7 @@ def main():
     # 客户：公司买方带税号与分店，匿名买家清掉税号与分店。建客户归销售岗位（客户名录），
     # 收银在客户表上只读 —— 与旧线上"客户目录是网页页、pos 只挑已有买方"一致。
     ok, buyer = as_user(SALES, customers.create_customer, customer_name="Lab Buyer Co",
-                        party_type="company", tax_id="0105550000001", branch_type="branch",
+                        party_type="company", tax_id="0105550000015", branch_type="branch",
                         branch_no="00002", address="Bangkok", contact_phone="02-000-0000")
     results["create_customer"] = ok
     results["create_customer_error"] = None if ok else buyer
@@ -178,7 +180,7 @@ def main():
     results["cashier_write_error"] = None if ok else err
     ok, _ = as_user(CASHIER, company.get_profile)
     results["cashier_can_read_profile"] = ok
-    ok, err = as_user(CASHIER, company.update_profile, doc_prefix="NO")
+    ok, err = as_user(CASHIER, company.update_profile, note="NO")
     results["cashier_can_write_profile"] = ok
     ok, err = as_user(OUTSIDER, customers.list_customers)
     results["outsider_can_read_customers"] = ok
@@ -272,6 +274,7 @@ def main():
         "profile_is_default": True,
         "update_profile": True,
         "bad_fiscal_month_allowed": False,
+        "bad_tax_id_checksum_allowed": False,
         "create_company": True,
         "profile_still_default": True,
         "create_customer": True,
@@ -310,15 +313,15 @@ def main():
                 if results.get(k) != v}
 
     buyer_row = results.get("buyer_row") or {}
-    if not isinstance(buyer_row, dict) or buyer_row.get("tax_id") != "0105550000001" \
+    if not isinstance(buyer_row, dict) or buyer_row.get("tax_id") != "0105550000015" \
             or buyer_row.get("branch_no") != "00002":
         problems["buyer_kept_company_fields"] = buyer_row
     walkin_row = results.get("walkin_row") or {}
     if not isinstance(walkin_row, dict) or walkin_row.get("tax_id") is not None \
             or walkin_row.get("branch_type") is not None:
         problems["walkin_should_drop_tax_and_branch"] = walkin_row
-    if results.get("profile_after", {}).get("doc_prefix") != "LAB":
-        problems["profile_doc_prefix"] = results.get("profile_after")
+    if results.get("profile_after", {}).get("note") != "LAB":
+        problems["profile_note"] = results.get("profile_after")
     company_count = results.get("company_count")
     if not isinstance(company_count, int) or company_count < 2:
         problems["company_count"] = company_count
