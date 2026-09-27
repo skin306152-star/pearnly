@@ -160,11 +160,11 @@ services:
     profiles: [dms]
     <<: *worker
     # One browser-capable background lane, never consumes interactive long/OCR.
-    # 8g：整组客户快照要一次性持在内存里再落库。rayong 租户 15,135 个客户的检查点
-    # JSON 只有 16MB，但 Python 对象膨胀了几十倍 —— 1g 会被 OOM 杀掉（2026-09-25 实测
-    # `oom=true / anon-rss 835MB`），按线性增长读满时会到 3.5GB 左右，4g 太贴边。
-    # 宿主 32GB，8g 安全。
-    mem_limit: 8g
+    # 2g：整组客户快照要一次性持在内存里再落库（含无头浏览器）。2026-09-25 在 1g 下被
+    # OOM 杀过（anon-rss 835MB）；2026-09-28 实测容器自 09-26 启动以来的 memory.peak
+    # 为 738MB，期间完整读完并发布了 ris 15,155 个客户。2g ≈ 实测峰值 2.7 倍，
+    # 客户数到约 4 万前都够用；原 8g 占了容量预算里最大的一块，却从未用到。
+    mem_limit: 2g
     command: [bench, worker, --queue, dms_sync]
     volumes:
       - sites-dms:/home/frappe/frappe-bench/sites
