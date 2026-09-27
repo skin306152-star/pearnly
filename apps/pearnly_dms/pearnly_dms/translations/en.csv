@@ -50,6 +50,7 @@ Booking summary — check before confirming,Booking summary — check before con
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
 Brand,Brand
+Building,Building
 Cached result captured at {time},Cached result captured at {time}
 Cancel,Cancel
 Car,Car
@@ -142,6 +143,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,Finance
 Finance approved,Finance approved
 Finance pending,Finance pending
+Floor,Floor
 Full address directory,Full address directory
 Full customer records,Full customer records
 Gear,Gear
@@ -264,6 +266,7 @@ Resumed {0},Resumed {0}
 Retry,Retry
 Retry booking,Retry booking
 Road,Road
+Room,Room
 Sales advisor,Sales advisor
 Sales document no.,Sales document no.
 Sales records from DMS,Sales records from DMS
@@ -399,6 +402,7 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 Vehicle master data,Vehicle master data
 View result / status,View result / status
 View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
+Village,Village
 Welcome to Pearnly DMS,Welcome to Pearnly DMS
 Who should approve this request?,Who should approve this request?
 Write accounts,Write accounts
@@ -533,7 +537,9 @@ dms.card.car.price,Price in DMS
 dms.card.car.type,Car type
 dms.card.car.year,Model year
 dms.card.diff.birthday_be,Date of birth
+dms.card.diff.building,Building
 dms.card.diff.district_id,District
+dms.card.diff.floor,Floor
 dms.card.diff.house_no,House no.
 dms.card.diff.moo,Moo
 dms.card.diff.name,Name
@@ -541,8 +547,10 @@ dms.card.diff.phone,Phone
 dms.card.diff.prefix_id,Title
 dms.card.diff.province_id,Province
 dms.card.diff.road,Road
+dms.card.diff.room,Room
 dms.card.diff.soi,Soi
 dms.card.diff.subdistrict_id,Subdistrict
+dms.card.diff.village,Village
 dms.card.diff.zipcode_id,Postcode
 dms.card.qa.BTN_ADD_TRANSFER,Add transfer
 dms.card.qa.BTN_CONFIRM,Confirm

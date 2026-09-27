@@ -120,6 +120,33 @@ class ImportTimeFreeze(unittest.TestCase):
         self.assertNotEqual(zh["altText"], en["altText"])
 
 
+class EditorAndDiffLabels(unittest.TestCase):
+    def test_every_diffable_customer_field_has_a_label(self):
+        from pearnly_dms.intake import customer_diff
+
+        with i18n.line_language(language="zh"):
+            labels = cards.field_labels()
+        self.assertFalse(set(customer_diff._DIFF_FIELDS) - set(labels))
+        self.assertEqual(labels["building"], "楼宇")
+
+    def test_editor_save_builds_cards_in_the_recipients_language(self):
+        from pearnly_dms.editor import browser_api
+
+        seen = {}
+
+        class Editor:
+            def save(self, line_user_id, nonce, form):
+                seen["lang"] = i18n.line_lang()
+                return "n2"
+
+        with patch.object(browser_api, "_ticket_line_user", return_value={"line_user_id": "U1", "mode": "customer"}), \
+             patch.object(browser_api, "_editor", return_value=Editor()), \
+             patch("pearnly_core.line.user_language", return_value="zh"):
+            self.assertEqual(browser_api.browser_save("t", "n1", {}), {"nonce": "n2"})
+        self.assertEqual(seen["lang"], "zh")
+        self.assertEqual(i18n.line_lang(), "th", "the language block ends with the request")
+
+
 class Commands(unittest.TestCase):
     def test_localised_command_words(self):
         for word in ("เมนู", "menu", "MENU", "菜单", "メニュー"):

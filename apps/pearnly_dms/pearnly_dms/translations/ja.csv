@@ -50,6 +50,7 @@ Booking summary — check before confirming,予約の概要 — 確定前に確�
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
 Brand,メーカー
+Building,建物
 Cached result captured at {time},保存済み結果の取得時刻：{time}
 Cancel,キャンセル
 Car,車両
@@ -142,6 +143,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ローン
 Finance approved,ローン承認済み
 Finance pending,ローン審査中
+Floor,階
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
 Gear,ギア
@@ -264,6 +266,7 @@ Resumed {0},{0} を再開しました
 Retry,再試行
 Retry booking,予約を再作成
 Road,通り
+Room,部屋番号
 Sales advisor,営業担当
 Sales document no.,販売伝票番号
 Sales records from DMS,DMS の販売記録
@@ -399,6 +402,7 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 Vehicle master data,車両マスター情報
 View result / status,結果／状態を見る
 View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
+Village,村
 Welcome to Pearnly DMS,Pearnly DMS へようこそ
 Who should approve this request?,誰に承認を依頼しますか？
 Write accounts,書き込みアカウント
@@ -533,7 +537,9 @@ dms.card.car.price,DMS の価格
 dms.card.car.type,車両タイプ
 dms.card.car.year,年式
 dms.card.diff.birthday_be,生年月日
+dms.card.diff.building,建物
 dms.card.diff.district_id,郡
+dms.card.diff.floor,階
 dms.card.diff.house_no,番地
 dms.card.diff.moo,ムー
 dms.card.diff.name,氏名
@@ -541,8 +547,10 @@ dms.card.diff.phone,電話番号
 dms.card.diff.prefix_id,敬称
 dms.card.diff.province_id,県
 dms.card.diff.road,通り
+dms.card.diff.room,部屋番号
 dms.card.diff.soi,ソイ
 dms.card.diff.subdistrict_id,町
+dms.card.diff.village,村
 dms.card.diff.zipcode_id,郵便番号
 dms.card.qa.BTN_ADD_TRANSFER,振込を追加
 dms.card.qa.BTN_CONFIRM,確定

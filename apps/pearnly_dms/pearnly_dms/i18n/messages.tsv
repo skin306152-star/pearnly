@@ -203,6 +203,10 @@ Model year	生产年份	ปีผลิต	年式	dms.card.car.year
 Date of birth	出生日期	วันเกิด	生年月日	dms.card.diff.birthday_be
 District	区（县）	อำเภอ	郡	dms.card.diff.district_id
 House no.	门牌号	บ้านเลขที่	番地	dms.card.diff.house_no
+Building	楼宇	อาคาร	建物	dms.card.diff.building
+Floor	楼层	ชั้น	階	dms.card.diff.floor
+Room	房号	ห้อง	部屋番号	dms.card.diff.room
+Village	村（小区）	หมู่บ้าน	村	dms.card.diff.village
 Moo	村组（Moo）	หมู่	ムー	dms.card.diff.moo
 Name	姓名	ชื่อ	氏名	dms.card.diff.name
 Phone	电话	เบอร์โทร	電話番号	dms.card.diff.phone

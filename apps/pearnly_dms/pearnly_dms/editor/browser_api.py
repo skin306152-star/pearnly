@@ -215,9 +215,14 @@ def browser_geo(ticket: str, nonce: str, level: str, parent_id: str = "") -> lis
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def browser_save(ticket: str, nonce: str, form: Any = None) -> dict:
     """保存草稿 → 服务端换新 nonce 并把新版卡发回 LINE；**LINE 没收到就不算成功**。"""
+    from pearnly_dms import i18n
+
     who = _ticket_line_user(ticket)
     submitted = _as_dict(form)
-    new_nonce = _guard(lambda: _editor(who["mode"]).save(who["line_user_id"], nonce, submitted))
+    # 保存后发回 LINE 的新版卡按这个人手机上的语言生成（与聊天里其它卡一致）：这条路不经过
+    # webhook，以前没套收件人语言，编辑完回来的卡片一律是泰文（用户 2026-09-27 截图）。
+    with i18n.line_language(who["line_user_id"]):
+        new_nonce = _guard(lambda: _editor(who["mode"]).save(who["line_user_id"], nonce, submitted))
     return {"nonce": new_nonce}
 
 

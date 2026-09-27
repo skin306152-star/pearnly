@@ -192,9 +192,8 @@ def main():
     store.set_session(uid, "collecting", {"mode": "customer"})
     menu_flow.after_customer_saved(binding, uid, endpoint_id="EP1", customer_id="C1",
                                    draft={"name": "คุณสมชาย"}, mode="customer")
-    ck("mode=customer（菜单 1 只建档）→ 收尾不提订车，会话结束",
-       not started and store.get_session(uid) is None
-       and pushed[-1] == cards.TXT_DONE_SAVED, pushed[-1:])
+    ck("mode=customer（菜单 1 只建档）→ 收尾不提订车，会话结束，不在保存回执后再补一句",
+       not started and store.get_session(uid) is None and not pushed, pushed[-1:])
 
     pushed.clear()
     menu_flow.after_customer_saved(binding, uid, endpoint_id="EP1", customer_id="C1",

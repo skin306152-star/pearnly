@@ -50,6 +50,7 @@ Booking summary — check before confirming,订车单汇总 — 确认前请核�
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
 Brand,品牌
+Building,楼宇
 Cached result captured at {time},已缓存结果读取于 {time}
 Cancel,取消
 Car,车辆
@@ -142,6 +143,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,贷款
 Finance approved,贷款已批
 Finance pending,贷款待批
+Floor,楼层
 Full address directory,完整地址目录
 Full customer records,完整客户资料
 Gear,变速箱
@@ -264,6 +266,7 @@ Resumed {0},已启用 {0}
 Retry,重试
 Retry booking,重新建立订车单
 Road,路
+Room,房号
 Sales advisor,销售顾问
 Sales document no.,销售单据号
 Sales records from DMS,DMS 销售记录
@@ -399,6 +402,7 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 Vehicle master data,车辆主档信息
 View result / status,查看结果／状态
 View the latest sales data from DMS within your permissions,按你的权限查看 DMS 最新的销售资料
+Village,村（小区）
 Welcome to Pearnly DMS,欢迎使用 Pearnly DMS
 Who should approve this request?,把申请发给谁审批？
 Write accounts,改写权限账号
@@ -533,7 +537,9 @@ dms.card.car.price,DMS 价格
 dms.card.car.type,车辆类型
 dms.card.car.year,生产年份
 dms.card.diff.birthday_be,出生日期
+dms.card.diff.building,楼宇
 dms.card.diff.district_id,区（县）
+dms.card.diff.floor,楼层
 dms.card.diff.house_no,门牌号
 dms.card.diff.moo,村组（Moo）
 dms.card.diff.name,姓名
@@ -541,8 +547,10 @@ dms.card.diff.phone,电话
 dms.card.diff.prefix_id,称谓
 dms.card.diff.province_id,府
 dms.card.diff.road,路
+dms.card.diff.room,房号
 dms.card.diff.soi,巷（Soi）
 dms.card.diff.subdistrict_id,镇（区）
+dms.card.diff.village,村（小区）
 dms.card.diff.zipcode_id,邮编
 dms.card.qa.BTN_ADD_TRANSFER,添加转账
 dms.card.qa.BTN_CONFIRM,确认

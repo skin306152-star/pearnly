@@ -250,4 +250,7 @@ def after_customer_saved(
         return
 
     store.clear_session(line_user_id)
-    _push(line_user_id, cards.TXT_DONE_SAME if same_data else cards.TXT_DONE_SAVED)
+    # 真写档时上面已经有「保存成功 · 客户编号 · 姓名」回执，不再补一句"已保存，输入菜单…"
+    # （用户 2026-09-27：录入成功后的下面那条不要了）。零写入时没有回执，保留那一句。
+    if same_data:
+        _push(line_user_id, cards.TXT_DONE_SAME)

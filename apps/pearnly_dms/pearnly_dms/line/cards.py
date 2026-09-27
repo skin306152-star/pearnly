@@ -78,7 +78,10 @@ ACT_APPROVAL_RETARGET = "approval_retarget"
 ACT_RETRY = "retry"
 
 # 差异卡上的字段名 —— 只列会出现在 diff 里的那些；标签从语言包取
+# 与 `intake/customer_diff._DIFF_FIELDS` 一一对应（楼/层/房/村 2026-09 补进比对后一直没标签，
+# 差异卡上显示成 building / floor / room 原名，用户 2026-09-27 截图）。
 _DIFF_FIELD_NAMES = ("prefix_id", "name", "birthday_be", "phone", "house_no",
+                     "building", "floor", "room", "village",
                      "moo", "soi", "road", "province_id", "district_id",
                      "subdistrict_id", "zipcode_id")
 def field_labels() -> Dict[str, str]:

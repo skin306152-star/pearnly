@@ -50,6 +50,7 @@ Booking summary — check before confirming,สรุปใบจอง — ต�
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
 Brand,ยี่ห้อ
+Building,อาคาร
 Cached result captured at {time},อ่านผลที่บันทึกไว้เมื่อ {time}
 Cancel,ยกเลิก
 Car,รถ
@@ -142,6 +143,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ไฟแนนซ์
 Finance approved,ไฟแนนซ์อนุมัติ
 Finance pending,ไฟแนนซ์รออนุมัติ
+Floor,ชั้น
 Full address directory,รายการที่อยู่ครบชุด
 Full customer records,ข้อมูลลูกค้าครบชุด
 Gear,เกียร์
@@ -264,6 +266,7 @@ Resumed {0},ใช้งาน {0} แล้ว
 Retry,ลองใหม่
 Retry booking,ลองสร้างใบจองอีกครั้ง
 Road,ถนน
+Room,ห้อง
 Sales advisor,ที่ปรึกษาการขาย
 Sales document no.,เลขที่เอกสารขาย
 Sales records from DMS,บันทึกการขายจาก DMS
@@ -399,6 +402,7 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 Vehicle master data,ข้อมูลหลักรถยนต์
 View result / status,ดูผล / สถานะการอ่าน
 View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
+Village,หมู่บ้าน
 Welcome to Pearnly DMS,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
 Who should approve this request?,ส่งคำขอให้ใครอนุมัติ
 Write accounts,บัญชีสิทธิ์แก้ไข
@@ -533,7 +537,9 @@ dms.card.car.price,ราคาตาม DMS
 dms.card.car.type,ประเภทรถ
 dms.card.car.year,ปีผลิต
 dms.card.diff.birthday_be,วันเกิด
+dms.card.diff.building,อาคาร
 dms.card.diff.district_id,อำเภอ
+dms.card.diff.floor,ชั้น
 dms.card.diff.house_no,บ้านเลขที่
 dms.card.diff.moo,หมู่
 dms.card.diff.name,ชื่อ
@@ -541,8 +547,10 @@ dms.card.diff.phone,เบอร์โทร
 dms.card.diff.prefix_id,คำนำหน้า
 dms.card.diff.province_id,จังหวัด
 dms.card.diff.road,ถนน
+dms.card.diff.room,ห้อง
 dms.card.diff.soi,ซอย
 dms.card.diff.subdistrict_id,ตำบล
+dms.card.diff.village,หมู่บ้าน
 dms.card.diff.zipcode_id,รหัสไปรษณีย์
 dms.card.qa.BTN_ADD_TRANSFER,เพิ่มเงินโอน
 dms.card.qa.BTN_CONFIRM,ยืนยัน
