@@ -141,10 +141,27 @@ def test_passed_in_acccod_goes_through_the_same_gate(acct):
         ST.pick(acct, CLONE, acccod="ST02")  # 费用科目
 
 
-def test_existing_stock_items_win_over_the_passed_in_acccod(acct):
-    """账里有真库存品就按众数走 —— 传入值只是「没得抄」时的回落,不是覆盖开关。"""
+def test_the_chosen_group_wins_over_the_dominant_one(acct):
+    """会计为账套选过组(每个账套选一次)→ 新建库存品挂所选的组,结构抄同组的真品,不看众数。"""
+    for i in range(3):
+        _stock(acct, f"ENG0{i}", "ST10", stkgrp="BB")
+    _stock(acct, "OIL01", "ST01", stkgrp="AA", qucod="กก")
+    tpl = ST.pick(acct, CLONE, acccod="ST01")
+    assert tpl == {"STKGRP": "AA", "QUCOD": "กก", "ACCCOD": "ST01"}
+
+
+def test_a_chosen_group_without_items_borrows_the_dominant_structure(acct):
+    """所选的组下还没有库存品:结构抄众数那一类,存货科目组换成所选。"""
+    _stock(acct, "OIL01", "ST01", stkgrp="AA", qucod="ลต")
+    tpl = ST.pick(acct, CLONE, acccod="ST10")
+    assert tpl == {"STKGRP": "AA", "QUCOD": "ลต", "ACCCOD": "ST10"}
+
+
+def test_the_chosen_group_goes_through_the_same_gate(acct):
+    """所选的组照样过 GLACC 判定:选中费用科目的组也不建档。"""
     _stock(acct, "OIL01", "ST01")
-    assert ST.pick(acct, CLONE, acccod="ST10")["ACCCOD"] == "ST01"
+    with pytest.raises(ST.InventoryAccountUnfit):
+        ST.pick(acct, CLONE, acccod="ST02")
 
 
 def test_rejects_expense_backed_account(acct):

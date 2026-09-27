@@ -15,6 +15,10 @@
 两条都过才建档,否则 escalate 交会计 —— 宁可停下,也不静默把货记进费用。
 70EXP 的 12 个 ST 码逐一验过此判据:只有 ST01/ST10 通过,ST00/ST02..ST09 全被挡下。
 
+**会计为这个账套选过存货科目组时**(服务端「每个账套选一次」,用户 2026-09-28,随载荷
+`stock_acccod` 传来):新建库存品一律挂所选的组,不再看众数 —— 科目规则由会计定一次、日常自动套用。
+结构优先抄同组的真库存品;这组下还没有库存品就抄众数那一类的结构、只把 ACCCOD 换成所选。同样过守门。
+
 **账里一条库存品都没有时**(新客户第一次卖库存):没有众数可取,回落抄一条服务品档
 (STKTYP=3)拿结构,存货科目改用调用方传入的账套配置值,同样过守门。选不出存货科目 =
 这套账压根没配存货科目组 —— 那是「选库存」剩下的唯一 escalate(StockAccGroupRequired)。
@@ -58,7 +62,7 @@ class StockAccGroupRequired(InventoryAccountUnfit):
 
 
 def pick(account_dir, clone_fields: Iterable[str], *, acccod: str = "") -> Dict:
-    """取克隆模板:账套里用得最多的那个存货科目(ACCCOD)下的一条真库存品。
+    """取克隆模板:传入的存货科目组(会计为账套选的)优先,没传取账套里用得最多的那个组。
 
     账里一条库存品都没有 → 回落抄服务品档结构 + 传入的 `acccod`(见 _service_template)。
     选中的 ACCCOD 经 ISACC/GLACC 判不出是存货 → 抛 InventoryAccountUnfit。
@@ -66,9 +70,16 @@ def pick(account_dir, clone_fields: Iterable[str], *, acccod: str = "") -> Dict:
     rows = _stock_rows(account_dir, clone_fields)
     if not rows:
         return _service_template(account_dir, clone_fields, acccod)
-    code = _dominant_acccod(rows)
+    dominant = _dominant_acccod(rows)
+    code = (acccod or "").strip() or dominant
     assert_inventory_account(account_dir, code)
-    return next(fields for c, fields in rows if c == code)
+    same = next((fields for c, fields in rows if c == code), None)
+    if same is not None:
+        return same
+    # 所选的组下还没有库存品:结构抄众数那一类的真品,存货科目组换成所选(只借结构,同服务品回落)。
+    fields = dict(next(f for c, f in rows if c == dominant))
+    fields["ACCCOD"] = code
+    return fields
 
 
 def _service_template(account_dir, clone_fields: Iterable[str], acccod: str) -> Dict:
