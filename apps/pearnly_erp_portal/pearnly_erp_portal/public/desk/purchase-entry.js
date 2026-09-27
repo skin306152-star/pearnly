@@ -29,8 +29,7 @@
 				state.sync_entry();
 			};
 			const modes = [
-				{mode: "ocr", label: __("Upload and Recognize"), description: __("Upload an invoice, then review the recognized details."),
-					tip: __("For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.")},
+				{mode: "ocr", label: __("Upload and Recognize"), description: __("Upload an invoice, then review the recognized details.")},
 				{mode: "manual", label: __("Manual Entry"), description: __("Enter purchase details. Files are added as attachments only.")},
 			];
 			const fields = [u.section("Entry Method")];
@@ -44,9 +43,8 @@
 				control.$wrapper.addClass("purchase-entry-choice");
 				control.$wrapper.find(".checkbox > label").addClass("px-3 py-2");
 				$(control.label_area).empty().append($('<span class="d-block font-weight-bold">').text(option.label))
-					.append($('<small class="d-block mt-1 text-muted font-weight-normal">').text(option.description))
-					// 上传识别下面加一句拍摄提示（用户 2026-09-26：侧着的照片会读错，不另花识别费转正）。
-					.append(option.tip ? $('<small class="d-block mt-1 text-muted font-weight-normal">').text(option.tip) : null);
+					// 网页上不加拍摄提示（用户 2026-09-27；LINE 上传前那句照留）。
+					.append($('<small class="d-block mt-1 text-muted font-weight-normal">').text(option.description));
 				choices.push({mode: option.mode, control});
 			}
 		} else layout.entry.hide();
