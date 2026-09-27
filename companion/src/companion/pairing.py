@@ -146,8 +146,14 @@ def pair(
     express_root = str(express_root or "").strip()
     account_dir = str(getattr(chosen, "path", "") or "").strip()
     if not account_dir or not Path(account_dir).exists():
-        key, fmt = _dir_missing_spec(account_dir)
-        return _failure(key, lang, **fmt)
+        # 账套由网页第一步选（用户 2026-09-26），这里的 chosen 只是界面上看不到的内部默认：它够不到就换成
+        # 第一个本机够得到的账套，不因此拦住配对（2026-09-27 真机：默认账套目录不存在 → 配对失败）。
+        reachable = next((item for item in (all_sets or []) if str(getattr(item, "path", "") or "").strip()
+                          and Path(str(item.path)).exists()), None)
+        if reachable is None:
+            key, fmt = _dir_missing_spec(account_dir)
+            return _failure(key, lang, **fmt)
+        chosen, account_dir = reachable, str(reachable.path).strip()
     effective_root = express_root or str(Path(account_dir).parent)
     requested_roots = (
         authorized_roots

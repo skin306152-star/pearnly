@@ -184,6 +184,31 @@ def test_success_locks_selection_and_reports(tmp_path, monkeypatch):
     assert sel["account_company"] == acc.company and sel["account_dir"] == str(tmp_path)
 
 
+def test_unreachable_hidden_default_falls_back_to_a_reachable_set(tmp_path, monkeypatch):
+    # 账套由网页选；配对窗里看不到的内部默认账套够不到时，换第一个本机够得到的，不拦配对（2026-09-27 真机）。
+    missing = _acc(r"S:\2558\EXP58\58ASIASP", code="PDATAT", row=1)
+    here = _acc(tmp_path, row=2)
+    qc_obj = mock.MagicMock()
+    qc_obj.health.return_value = {"ok": True}
+    cm = mock.MagicMock()
+    cm.__enter__.return_value = qc_obj
+    monkeypatch.setattr(pairing, "QueueClient", lambda cfg: cm)
+    fake_cfg = mock.MagicMock()
+    fake_cfg.update.return_value = fake_cfg
+    monkeypatch.setattr(pairing.CompanionConfig, "load", staticmethod(lambda: fake_cfg))
+    monkeypatch.setattr(pairing.autostart, "enable", lambda: None)
+
+    r = pairing.pair(token="exp_e_s@testcowork.pearnly.com", chosen=missing, all_sets=[missing, here],
+                     express_root=str(tmp_path))
+    assert r.ok and r.account_sets == 2
+    assert fake_cfg.update.call_args_list[0].kwargs["account_dir"] == str(tmp_path)
+    assert qc_obj.health.call_args.kwargs["selected"]["account_set_row"] == 2
+    # 一个都够不到才报目录不存在
+    r = pairing.pair(token="exp_e_s@testcowork.pearnly.com", chosen=missing, all_sets=[missing],
+                     express_root=str(tmp_path), lang="zh")
+    assert not r.ok
+
+
 def test_edit_profile_blank_code_reuses_its_token(tmp_path, monkeypatch):
     acc = _acc(tmp_path)
     cfg = CompanionConfig(
