@@ -1,135 +1,12 @@
 (() => {
 	const p = frappe.pearnly;
 	p.connect = async (page, t, wrapper) => {
-		const cacheText = await p.texts("dms.connect.cache.");
 		const acct = await p.texts("dms.connect.acct.");
 		let accounts = { read: null, write: [] };
 		let conn;
-		// 四组都在：绑定成功时它们会被一起排队（缓存底座），这里是**进度显示**，
-		// 不是"等操作员点按钮"。页面不再有手动触发。
-		const datasets = ["vehicles", "customers", "company", "geo"];
-		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
-		let frozen = false, announced = "";
-		let startedAt = 0, peakDone = 0;
-		const cacheMethod = "pearnly_dms.connections.snapshots.";
-		const active = (row) => ["queued", "running", "waiting"].includes(row.state);
-		// 还在读、但这一组已经能用（客户组：索引已发布，逐个详情在后台读）：不再遮挡页面，
-		// 只继续轮询到读完。ris 的客户详情要一个多小时，不能让连接页白屏那么久。
-		const blocking = (row) => active(row) && !row.progress?.usable;
-		let sawActive = false;
-		function stopPoll() {
-			clearTimeout(timer);
-			timer = null;
-		}
-		function schedulePoll() {
-			stopPoll();
-			// 只在真的有人在读的时候轮询：空闲页面读一次状态就停，不做无谓的定时敲门。
-			if (visible && conn?.connected && statuses.some(active)) timer = setTimeout(pollStatus, 2000);
-		}
-		// 「正在读取 DMS 主档… 2/4 组 · 12,480 条 · 00:48」
-		// 为什么不是百分比：一次全量的大部分时间花在排队和等第三方（2026-09-25 实测
-		// 四组一轮约 65 秒，前面还要排 53 秒），而百分比只按"正在读那一组"的条数比例
-		// 算，排队那段时间恒定 0%，管理员会以为页面卡死。换成两样一直在动的东西：
-		// 已完成的组数、读到的条数，以及从开始到现在的耗时。这三个都会随轮询往上走，
-		// 所以每隔两秒至少有一个数字在变。
-		function elapsedText() {
-			const total = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-			const minutes = String(Math.floor(total / 60)).padStart(2, "0");
-			return `${minutes}:${String(total % 60).padStart(2, "0")}`;
-		}
-		function progressSuffix() {
-			const rows = datasets
-				.map((dataset) => statuses.find((item) => item.dataset === dataset))
-				.filter(Boolean);
-			// 已完成组数只往上走：轮询之间偶发的状态回退不该让数字倒退，那看着像出错。
-			peakDone = Math.max(peakDone, rows.filter((row) => row.state === "succeeded").length);
-			// 占位符交给 `p.texts` 的取值函数填 —— 它**总是**会替换 `{n}`，自己先 replace
-			// 等于白填（不带参数时那些占位符会被换成空串，页面上只剩「/ 组」）。
-			const parts = [cacheText("dms.connect.cache.groups", peakDone, datasets.length)];
-			const records = rows.reduce((sum, row) => sum + (Number(row.progress?.processed) || 0), 0);
-			if (records > 0) {
-				parts.push(cacheText("dms.connect.cache.records", records.toLocaleString("en-US")));
-			}
-			if (startedAt) parts.push(elapsedText());
-			return parts.join(" · ");
-		}
-		function progressText() {
-			const head = cacheText("dms.connect.cache.processing");
-			const suffix = progressSuffix();
-			return suffix ? `${head} ${suffix}` : head;
-		}
-		function updateOverlay() {
-			const running = statuses.filter((row) => blocking(row));
-			if (running.length) {
-				sawActive = true;
-				if (!startedAt) startedAt = Date.now();
-				// Already frozen: keep the mask but let its text follow the progress.
-				const text = p.escape(progressText());
-				if (!frozen) { frappe.dom.freeze(text); frozen = true; }
-				else setOverlayText(text);
-				announced = "";
-				return;
-			}
-			// 这一轮读完了：计时和组数峰值都归零，下一轮从头算。
-			startedAt = 0;
-			peakDone = 0;
-			if (frozen) { frappe.dom.unfreeze(); frozen = false; }
-			announceResult();
-		}
-		// 原生覆盖的正文是 `#freeze .freeze-message p.lead`。重复调 freeze 只会加计数、
-		// 不换文字，所以冻结之后直接改这一段；没有 DOM（离线断言）时静默跳过。
-		function setOverlayText(text) {
-			if (typeof document === "undefined") return;
-			const lead = document.querySelector("#freeze .freeze-message p.lead");
-			if (lead) lead.textContent = text;
-		}
-		// 只在"从读取中变成读取完"那一次提示，不在每次轮询里重复弹。
-		function announceResult() {
-			if (!sawActive) return;
-			const key = statuses.map((row) => `${row.dataset}:${row.state}:${row.count}`).join("|");
-			if (!key || key === announced) return;
-			announced = key;
-			if (statuses.some(active)) return; // 还有组在后台读：读完再说
-			const failed = statuses.some((row) => row.state === "failed");
-			const succeeded = statuses.length && statuses.every((row) => row.state === "succeeded");
-			if (failed) frappe.msgprint({ message: p.escape(cacheText("dms.connect.cache.state.failed")), indicator: "red" });
-			else if (succeeded) p.success(cacheText("dms.connect.cache.state.succeeded"));
-		}
-		async function pollStatus() {
-			if (!visible || !conn?.connected || pollGeneration === generation) return;
-			const request = generation;
-			pollGeneration = request;
-			try {
-				const result = await p.call(cacheMethod + "get_status");
-				if (visible && request === generation) {
-					statuses = result.datasets || [];
-					updateOverlay();
-				}
-			} catch (error) {
-				// A failed status request must not leave the native page frozen.
-				if (visible && request === generation) {
-					unfreeze();
-					frappe.msgprint(p.escape(cacheText("dms.connect.cache.unconfirmed")));
-				}
-				return;
-			} finally {
-				if (pollGeneration === request) pollGeneration = null;
-			}
-			if (visible && request === generation) schedulePoll();
-		}
-		function unfreeze() {
-			if (frozen) { frappe.dom.unfreeze(); frozen = false; }
-		}
-		if (wrapper) {
-			$(wrapper).on("show", () => {
-				visible = true;
-				void pollStatus();
-			});
-			$(wrapper).on("hide", () => { visible = false; generation += 1; unfreeze(); });
-		}
+		// 读资料全在后台（用户 2026-09-27："那个白屏进度不要吧，首次读档让它在后台默认执行"）：
+		// 这个页面只管账号，不遮挡、不轮询、不播报读取进度。
 		async function refresh() {
-			generation += 1;
-			unfreeze();
 			conn = await p.call("pearnly_dms.connections.api.get_connection");
 			const ep = conn.endpoint;
 			accounts = ep ? await p.call("pearnly_dms.connections.api.get_accounts") : { read: null, write: [] };
@@ -166,9 +43,6 @@
 				fields.push({ fieldtype: "Data", fieldname: name, label, default: value, read_only: 1 });
 			}
 			p.layout(page.main, fields);
-			statuses = [];
-			shownPercent = 0;
-			if (conn.connected) await pollStatus();
 		}
 		// 服务端的错误话术按四种语言一起回（`{th, zh, en, ja}`）：按当前界面语言取一句，取不到退回泰文。
 		function friendlyText(value) {
@@ -200,8 +74,7 @@
 					if (!result.ok) return accountFailure(result);
 					d.set_value("password", "");
 					d.hide();
-					// 开始读资料时不另弹"已保存"：读取的遮罩与进度就是反馈（用户 2026-09-25：提示与界面别打架）。
-					if (result.reading !== "reading") p.success(acct("dms.connect.acct.saved"));
+					p.success(acct("dms.connect.acct.saved")); // 缺的资料组已在后台开始读，页面不等
 					await refresh();
 				},
 			);

@@ -223,9 +223,11 @@ class ConnectionSnapshotTests(unittest.TestCase):
 
     def test_product_owned_four_language_keys_and_named_placeholders(self):
         source = (ROOT / "apps/pearnly_dms/pearnly_dms/public/desk/connect.js").read_text()
-        self.assertIn('p.texts("dms.connect.cache.")', source)
-        keys = set(re.findall(r'cacheText\("(dms\.connect\.cache\.[\w.]+)"', source))
-        keys = {key for key in keys if not key.endswith(".")}
+        # 连接页只管账号（读取进度不再上页面，用户 2026-09-27）：页面用到的账号词条四语齐全。
+        self.assertIn('p.texts("dms.connect.acct.")', source)
+        keys = set(re.findall(r'"(dms\.connect\.acct\.[\w.]*\w)"', source))
+        keys |= {f"dms.connect.acct.check.{key}" for key in ("events", "customers", "customer", "customer_form")}
+        self.assertIn("dms.connect.acct.readChange", keys)
         keys |= {f"dms.connect.cache.dataset.{key}" for key in self.api.DATASETS}
         keys |= {f"dms.connect.cache.state.{key}" for key in self.api.STATES}
         keys |= {f"dms.connect.cache.field.{key}" for key in
