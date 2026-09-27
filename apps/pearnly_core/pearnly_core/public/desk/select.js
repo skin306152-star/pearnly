@@ -19,12 +19,20 @@
 			settings.filter = function(item, input) {
 				return filter.call(this, item, input === control.format_for_input(control.value) ? "" : input);
 			};
-			// Labels may come from DMS master data, so render them as text.
-			settings.item = item => {
+			// Labels may come from DMS master data, so render them as text. An option's
+			// description stays the official second line (small), also as text.
+			settings.item = function(item) {
 				const li = document.createElement("li");
 				li.setAttribute("aria-selected", "false");
 				const a = document.createElement("a");
 				a.textContent = item.label || item.value;
+				const description = this.get_item?.(item.value)?.description;
+				if (description) {
+					const small = document.createElement("span");
+					small.className = "small text-muted";
+					small.textContent = description;
+					a.append(document.createElement("br"), small);
+				}
 				li.appendChild(a);
 				return li;
 			};

@@ -157,7 +157,7 @@ def _next(line_user_id, payload, reply_token):
     numbered = step in ("company", "year")
     items = [_button(f"{index}. {label}" if numbered else label, urlencode({"a": "cowork", "s": step, "v": index}))
              for index, (_key, label) in enumerate(options[:MAX_CHOICES])]
-    question = _QUESTIONS[step]()
+    question = _question(step, payload)
     _ask(reply_token, question + ("\n" + note if note else ""), items)
 
 
@@ -169,6 +169,13 @@ _QUESTIONS = {
     "payment": lambda: _("Choose the payment method"),
     "posting_kind": lambda: _("Service or stock?"),
 }
+
+
+def _question(step, payload):
+    # Express 先选年度（数据文件夹）再选账套，照 Express 的真实用法。
+    if payload.get("target") == "express" and step in ("company", "year"):
+        return _("Choose the year") if step == "company" else _("Choose the account set")
+    return _QUESTIONS[step]()
 
 
 def _empty(step, payload):
@@ -232,38 +239,18 @@ def _targets():
 
 
 def _catalog(payload):
-    """目标 ERP 的公司 → 年度（`targets.js` 的 `companies` 同一分组）。"""
+    """目标 ERP 的两级选项，与网页弹窗同一份分组（`targets/catalog_groups.py`）：
+    Express 是「年度（数据文件夹）→ 账套（登录列表原样）」，MR.ERP 是「公司 → 年度」。"""
     from pearnly_cowork.connections import service
 
     connection = _connections().get(payload["target"])
     if not connection:
         return []
     payload["connection"] = connection["name"]
-    data = service.targets(connection["name"])
-    express = payload["target"] == "express"
-    found = {}
-    for row in data.get("account_sets") or []:
-        attrs = row.get("attributes") or {}
-        if row.get("active") is False or (express and attrs.get("writable") is False):
-            continue
-        if express:
-            key = label = attrs.get("company") or row.get("label") or ""
-            year = attrs.get("root_label") or attrs.get("root") or row.get("label") or ""
-        else:
-            key = attrs.get("company") or attrs.get("company_name") or row["source_id"]
-            label = " · ".join(v for v in (attrs.get("company"), attrs.get("company_name")) if v) or row.get("label") or key
-            year = row.get("label") or row["source_id"]
-        found.setdefault(key, {"label": label, "years": []})["years"].append((row["source_id"], year))
-    for company in found.values():
-        company["years"].sort(key=lambda item: _year_rank(item[1]), reverse=True)
-    return sorted(found.items(), key=lambda item: item[1]["label"])
-
-
-def _year_rank(label):
-    import re
-
-    numbers = [int(n) for n in re.findall(r"\d+", str(label))]
-    return max(numbers) if numbers else -1
+    groups = service.targets(connection["name"]).get("groups") or []
+    return [(group["value"], {"label": group["label"],
+                              "years": [(item["value"], item["label"]) for item in group["items"]]})
+            for group in groups]
 
 
 def _options(step, payload):

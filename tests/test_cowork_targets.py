@@ -5,7 +5,7 @@ import json
 import unittest
 
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, TargetSelectionError, freeze_target
-from pearnly_cowork.targets import choice, choices, evidence, identity, projection, selection
+from pearnly_cowork.targets import catalog_groups, choice, choices, evidence, identity, projection, selection
 
 REQUEST_ID = "11111111-1111-4111-8111-111111111111"
 NEW_REQUEST_ID = "22222222-2222-4222-8222-222222222222"
@@ -94,8 +94,9 @@ class TargetTests(unittest.TestCase):
         self.assertEqual(selected["key"], r"c:\erp\bound")
         self.assertEqual(selected["account_dir"], r"C:\ERP\BOUND")
 
-    def test_nondefault_requires_valid_request_and_revision(self):
-        for request_id, revision, reason in ((None, None, "proof_missing"), ("bad", 7, "proof_malformed"),
+    def test_nondefault_receipt_when_given_must_be_valid(self):
+        for request_id, revision, reason in ((None, 7, "proof_missing"), (REQUEST_ID, None, "proof_missing"),
+                                             ("bad", 7, "proof_malformed"),
                                              (REQUEST_ID, True, "proof_malformed"), (REQUEST_ID, -1, "proof_malformed")):
             result = evidence.validate_selection(**evidence_args(request_id=request_id, revision=revision))
             self.assertFalse(result["ok"])
@@ -132,10 +133,45 @@ class TargetTests(unittest.TestCase):
             result = evidence.validate_selection(**evidence_args("express", snapshot=snap, bound_root_key=r"C:\ERP"))
             self.assertEqual(result["reason"], expected)
 
-    def test_same_data_directory_different_program_root_requires_proof(self):
+    def test_same_data_directory_different_program_root_is_rejected(self):
+        snap = snapshot("express")
+        snap["account_sets"][0].update(source_id=r"c:\erp\old")
         result = evidence.validate_selection(**evidence_args("express", selected_account_set_key=r"C:\ERP\OLD",
-                    selected_root_key=r"C:\OTHER", bound_root_key=r"C:\ERP", request_id=None, revision=None))
-        self.assertEqual(result["reason"], "proof_missing")
+                    selected_root_key=r"C:\OTHER", bound_root_key=r"C:\ERP", request_id=None, revision=None,
+                    snapshot=snap))
+        self.assertEqual(result["reason"], "root_mismatch")
+
+    def test_without_receipt_the_current_directory_decides(self):
+        """用户 2026-09-27：网页用服务端存着的目录选，推送不再要一张刚刷新的回执；
+        所选账套在当前这份目录里、可用、可写、程序目录对得上就行（写入前助手再核一次）。"""
+        args = {"request_id": None, "revision": None, "latest_refresh": None}
+        ok = evidence.validate_selection(**evidence_args(**args))
+        self.assertEqual((ok["ok"], ok["reason"]), (True, "current_snapshot"))
+        # 刷新进行中 / 刷新失败时，当前这份目录照样算数。
+        for status in ("pending", "error"):
+            result = evidence.validate_selection(**evidence_args(**args, snapshot=snapshot(head_status=status)))
+            self.assertTrue(result["ok"])
+        for change, expected in (({"snapshot": None}, "snapshot_not_found"),
+                                 ({"snapshot": snapshot(head_snapshot_id="other")}, "snapshot_superseded"),
+                                 ({"snapshot": snapshot(adapter="express")}, "adapter_mismatch"),
+                                 ({"snapshot": snapshot(account_sets=[])}, "account_not_found"),
+                                 ({"user_id": ""}, "context_invalid")):
+            result = evidence.validate_selection(**evidence_args(**{**args, **change}))
+            self.assertEqual((result["ok"], result["reason"]), (False, expected))
+            self.assertEqual(result["error_code"], evidence.CATALOG_REFRESH_INVALID)
+
+    def test_without_receipt_any_year_folder_in_the_directory_can_be_chosen(self):
+        """Express 的年度是数据文件夹：同一条连接可以选别的年度文件夹里的账套，不钉死绑定的那个。"""
+        snap = snapshot("express")
+        snap["account_sets"][0]["attributes"]["root"] = r"\\server\ACCOUNT\68EXP"
+        result = evidence.validate_selection(**evidence_args("express", request_id=None, revision=None,
+                                                             latest_refresh=None, snapshot=snap,
+                                                             bound_root_key=r"\\server\ACCOUNT\69EXP"))
+        self.assertEqual((result["ok"], result["root_key"]), (True, r"\\server\account\68exp"))
+        snap["account_sets"][0]["attributes"]["writable"] = False
+        result = evidence.validate_selection(**evidence_args("express", request_id=None, revision=None,
+                                                             latest_refresh=None, snapshot=snap))
+        self.assertEqual(result["reason"], "account_not_writable")
 
     def test_switching_account_clears_old_mapping_and_catalogue_only(self):
         ep = endpoint("express", config={"account_set": r"C:\ERP\OLD", "account_dir": r"C:\ERP\OLD",
@@ -301,9 +337,12 @@ class TargetTests(unittest.TestCase):
                 freeze_target(ep, access=grant, evidence=proof)
             self.assertEqual(caught.exception.code, wanted)
         with self.assertRaises(TargetSelectionError) as caught:
-            freeze_target(endpoint(), access=access(), evidence=rows(), account_set_key="7:2",
-                          trusted_account_config={"comidyear": "7", "seldb": "2"})
-        self.assertEqual(caught.exception.code, "catalog_refresh_required")
+            freeze_target(endpoint(), access=access(), evidence=rows(snapshot=snapshot(account_sets=[])),
+                          account_set_key="7:2", trusted_account_config={"comidyear": "7", "seldb": "2"})
+        self.assertEqual(caught.exception.code, "catalog_refresh_invalid")
+        # 不带回执、账套在当前目录里：照当前目录冻结目标。
+        frozen = freeze_target(endpoint(), access=access(), evidence=rows(), account_set_key="7:2")
+        self.assertEqual(frozen.account_set, "7:2")
 
     def test_projection_hash_ignores_observation_order_time_and_collector(self):
         raw = observation(); changed = deepcopy(raw)
@@ -332,6 +371,60 @@ class TargetTests(unittest.TestCase):
         for raw, expected in cases:
             with self.assertRaises(projection.ProjectionContractError) as caught: projection.normalize_projection(raw)
             self.assertEqual(caught.exception.code, expected)
+
+
+
+def express_row(path, name, root_label, row, company="", writable=True, active=True):
+    return {"source_id": path.lower(), "label": name, "active": active,
+            "attributes": {"path": path, "root": "\\\\srv\\ACCOUNT\\" + root_label, "root_label": root_label,
+                           "row": row, "company": company, "writable": writable}}
+
+
+class CatalogGroupTests(unittest.TestCase):
+    """用户 2026-09-27：Express 照真实用法选——年度 = 数据文件夹，账套 = 登录列表原样。"""
+
+    def test_express_year_folders_newest_first_and_login_list_order_kept(self):
+        rows = [
+            express_row(r"S:\2559\EXP59\49LJLAND", "149LJLAND  LJLAND 2549  AUDITED BY YING", "59EXP", 4),
+            express_row(r"S:\2559\EXP59\46LJLAND", "146LJLAND  LJLAND 2546 AUDITED BY YING", "59EXP", 1),
+            express_row(r"S:\2569\EXP69\69LJLAND", "69LJLAND LJ LAND 2569-2570", "68EXP", 54, "บริษัท แอล เจ แลนด์ จำกัด"),
+            express_row(r"S:\2568\EXP68\68LJLAND", "68LJLAND LJ LAND LOCKED 2568", "68EXP", 21, "บริษัท แอล เจ แลนด์ จำกัด"),
+            express_row(r"D:\ExpressI\DEMO", "Z.DEMO", "ExpressI", 1),
+        ]
+        groups = catalog_groups.groups("express", rows)
+        self.assertEqual([group["label"] for group in groups], ["68EXP", "59EXP", "ExpressI"])
+        self.assertEqual([item["label"] for item in groups[0]["items"]],
+                         ["68LJLAND LJ LAND LOCKED 2568", "69LJLAND LJ LAND 2569-2570"])
+        self.assertEqual(groups[0]["items"][0]["description"], "บริษัท แอล เจ แลนด์ จำกัด")
+        self.assertEqual([item["value"] for item in groups[1]["items"]],
+                         [r"s:\2559\exp59\46ljland", r"s:\2559\exp59\49ljland"])
+
+    def test_express_hides_unwritable_and_inactive_and_tells_same_names_apart(self):
+        rows = [
+            express_row(r"S:\2568\EXP68\68NLT", "68NLT", "68EXP", 1),
+            express_row(r"S:\2568\EXP68\68NLTB", "68NLT", "68EXP", 2),
+            express_row(r"S:\2558\EXP58\58ASIASP", "58ASIASP", "68EXP", 3, writable=False),
+            express_row(r"S:\2568\EXP68\OLD", "OLD", "68EXP", 4, active=False),
+        ]
+        items = catalog_groups.groups("express", rows)[0]["items"]
+        self.assertEqual([item["label"] for item in items], ["68NLT (68nlt)", "68NLT (68nltb)"])
+
+    def test_same_named_year_folders_show_the_distinguishing_path(self):
+        a = express_row(r"S:\2563\EXP63\63A", "63A", "63EXP", 1)
+        b = express_row(r"S:\2563\EXP63\63B", "63B", "63EXP", 1)
+        a["attributes"]["root"] = "\\\\srv\\ACCOUNT\\63EXP"
+        b["attributes"]["root"] = "\\\\srv\\ACCOUNT\\64EXP\\63EXP"
+        c = express_row(r"S:\2564\EXP64\64C", "64C", "64EXP", 1)
+        self.assertEqual([group["label"] for group in catalog_groups.groups("express", [a, b, c])],
+                         ["64EXP", "63EXP", "64EXP\\63EXP"])
+
+    def test_mrerp_stays_company_then_year(self):
+        rows = [{"source_id": "15:1", "label": "2567", "attributes": {"company": "A", "company_name": "Alpha"}},
+                {"source_id": "16:1", "label": "2568", "attributes": {"company": "A", "company_name": "Alpha"}}]
+        self.assertEqual(catalog_groups.groups("mrerp", rows), [
+            {"value": "A", "label": "A · Alpha", "items": [{"value": "16:1", "label": "2568", "description": ""},
+                                                          {"value": "15:1", "label": "2567", "description": ""}]}])
+        self.assertEqual(catalog_groups.groups("other", rows), [])
 
 
 if __name__ == "__main__":

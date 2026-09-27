@@ -7,7 +7,7 @@
  *
  * **界面上不出现 Cowork 自己的公司资料**（用户 2026-09-25：Cowork 不记账、只留记录）：
  * 连接落在哪一份归属上由服务端解析，这里既不显示也不传。要选的「公司 / 年度」是
- * **目标 ERP 那边的**账套（用户 2026-09-26：以第三方为准、实时选项），见下方 `catalog`。
+ * **目标 ERP 那边的**账套（用户 2026-09-26：以第三方为准），见下方 `catalog`。
  *
  * 两条通道各带一颗属于自己的按钮：MR.ERP 云端连接（填账号密码），Express 在商家
  * 自己的电脑上跑助手，所以先装上并绑定助手。
@@ -145,40 +145,22 @@
 		return d;
 	}
 
-	/* ── 公司 / 年度：第三方 ERP 自己的账套目录（实时） ─────────────────────────
+	/* ── 公司 / 年度：第三方 ERP 自己的账套目录 ──────────────────────────────
 	 *
 	 * 目录只认服务端合同（`connections.api.targets`）：MR.ERP 由服务端登录去读选公司页
-	 * （`connections/mrerp_collector.py`），Express 由已连上的助手上报。两家的账套都是
-	 * 「一家公司的一个年度」，只是嵌套顺序相反；界面统一成「公司 → 年度」（用户 2026-09-26）：
-	 *   · MR.ERP：一行公司（简称 · 全称）下挂几个年度账套，年度就是 MR.ERP 的账套名；
-	 *   · Express：年度目录下每家公司一个账套文件夹，按公司名归组，年度取目录名（旧版界面是
-	 *     先年度后账套，照 Express 目录结构）；助手报告不可写的账套不给选（旧版同）。
-	 * 选中的值是账套键（`comidyear:seldb` / Express 路径），推送时连同目录证据一起交给服务端。
+	 * （`connections/mrerp_collector.py`），Express 由已连上的助手上报。两级怎么分由服务端给
+	 * （`groups`，与 LINE 同一份，见 `targets/catalog_groups.py`）：
+	 *   · MR.ERP：公司 → 年度（年度就是 MR.ERP 的账套名）；
+	 *   · Express：年度 → 账套，照 Express 的真实用法（用户 2026-09-27）：年度是数据文件夹
+	 *     （打开哪一年的 Express），账套是那个文件夹登录列表里的一行，名字与顺序原样。
+	 * **打开弹窗用服务端存着的那份，不现扫**（用户 2026-09-27）：助手发现登记表有变化会自己上报；
+	 * 要全盘重扫（例如新建了年度文件夹）就点「重新读取」。服务端还没有目录时才自动读一次。
+	 * 选中的值是账套键（`comidyear:seldb` / Express 路径）；推送时服务端按当前目录核对，
+	 * 写入前助手再对照 Express 登记表核一次。
 	 */
-	// 旧版轮询节奏：前 10 秒每 0.8 秒一次，之后每 2.5 秒；MR.ERP 一次租约 180 秒，放足余量再停。
-	const POLL = {fast_ms: 800, fast_for_ms: 10000, slow_ms: 2500, give_up_ms: 240000};
+	// 旧版轮询节奏：前 10 秒每 0.8 秒一次，之后每 2.5 秒；助手首次全盘扫描较慢，放足余量再停。
+	const POLL = {fast_ms: 800, fast_for_ms: 10000, slow_ms: 2500, give_up_ms: 330000};
 	const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-	// 年度按标签里最大的那个数字倒序（最近的年度在最上面，旧版 Express 年度下拉同法）。
-	const year_rank = label => Math.max(-1, ...(String(label).match(/\d+/g) || []).map(Number));
-
-	/** 目录 → 「公司 → 年度」两级选项 `[{value, label, years: [{value: 账套键, label}]}]`。 */
-	function companies(adapter, account_sets) {
-		const found = new Map();
-		const express = adapter === "express";
-		for (const row of account_sets || []) {
-			const a = row.attributes || {};
-			if (row.active === false || (express && a.writable === false)) continue;
-			const [key, label, year] = express
-				? [a.company || row.label, a.company || row.label, a.root_label || a.root || row.label]
-				: [a.company || a.company_name || row.source_id,
-					[a.company, a.company_name].filter(Boolean).join(" · ") || row.label, row.label];
-			if (!found.has(key)) found.set(key, {value: key, label, years: []});
-			found.get(key).years.push({value: row.source_id, label: year});
-		}
-		const list = [...found.values()];
-		for (const company of list) company.years.sort((a, b) => year_rank(b.label) - year_rank(a.label));
-		return list.sort((a, b) => a.label.localeCompare(b.label));
-	}
 
 	/** 连接上配置的默认账套（MR.ERP 的年/库、Express 的账套路径），用来预选。 */
 	function default_key(connection) {
@@ -189,24 +171,21 @@
 		return config.account_set || config.account_dir || "";
 	}
 
-	/** 目录快照 → 界面要的形状；`evidence` 是推送时证明「这份目录是最新刷新出来的」那两样。 */
 	function catalog_view(connection, data, extra = {}) {
-		const fresh = data.status === "fresh" && data.refresh_status === "succeeded";
-		return {companies: companies(connection.adapter, data.account_sets), status: data.status,
-			error_code: data.error_code || null, default_key: default_key(connection),
-			evidence: fresh ? {catalog_request_id: data.refresh_request_id, catalog_revision: data.revision} : null,
-			...extra};
+		return {groups: data.groups || [], status: data.status, error_code: data.error_code || null,
+			default_key: default_key(connection), collector_available: Boolean(data.collector_available), ...extra};
 	}
 
 	/**
-	 * 先把服务端已有的那份目录给出去（打开弹窗就有东西可选），再申请一次实时刷新；
-	 * 刷新完成且快照版本与刷新结果一致才算数（旧版同一判据）。`alive()` 为假时停止轮询。
+	 * 给出服务端存着的目录；`reload` 为真（「重新读取」）或服务端还没有目录时，才让助手 / 服务端
+	 * 重新读一次，读完换成新的（期间旧的照常能选）。`alive()` 为假时停止轮询。
 	 */
-	async function catalog(connection, {on_update, alive}) {
+	async function catalog(connection, {on_update, alive, reload = false}) {
 		const read = () => p.call(API.connections + "targets", {name: connection.name});
 		let data = await read();
 		if (!alive()) return;
-		if (!data.collector_available) {
+		const empty = !(data.groups || []).length && data.status === "missing";
+		if (!data.collector_available || !(reload || empty)) {
 			on_update(catalog_view(connection, data, {loading: false}));
 			return;
 		}
@@ -218,7 +197,8 @@
 		while (alive()) {
 			if (status.status === "succeeded") {
 				data = await read();
-				if (Number(data.revision) === Number(status.result_revision)) {
+				// 助手的自动上报可能已经在这次结果之后又更新了一版，同样算数。
+				if (Number(data.revision) >= Number(status.result_revision)) {
 					if (alive()) on_update(catalog_view(connection, data, {loading: false}));
 					return;
 				}

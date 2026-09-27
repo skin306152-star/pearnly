@@ -309,6 +309,7 @@ def test_endpoint_refresh_forces_account_scan_and_acknowledges_request():
         force=True,
         account_sets_only=True,
         authorized_roots=[],
+        discover=False,
     )
     heartbeat = qc.health_calls[0]
     assert heartbeat["account_sets"][0]["path"] == cfg.account_dir
@@ -556,3 +557,20 @@ def test_task_account_rejects_read_only_account_in_authorized_root():
         )
 
     assert settings is None
+
+
+def test_newly_found_year_folders_are_remembered_as_authorized(tmp_path):
+    """「重新读取」找到的新年度文件夹记进授权名单,已有的不重复记。"""
+    saved = []
+
+    class Cfg:
+        def update(self, **changes):
+            saved.append(changes)
+            return self
+
+        def save(self):
+            return None
+
+    worker._remember_roots(Cfg(), [r"C:\ACCOUNT\69EXP"], [r"c:\account\69exp\\", r"C:\ACCOUNT\70EXP"])
+    worker._remember_roots(Cfg(), [r"C:\ACCOUNT\69EXP"], None)
+    assert saved == [{"authorized_roots": [r"C:\ACCOUNT\69EXP", r"C:\ACCOUNT\70EXP"]}]

@@ -299,6 +299,17 @@ def _sync_connection_identity(cfg: CompanionConfig, hb: dict) -> None:
         cfg.update(**changes).save()
 
 
+def _remember_roots(cfg: CompanionConfig, authorized: list, found) -> None:
+    """「重新读取」找到的新年度文件夹记进授权名单:以后照常扫描,推送时也认。"""
+    if not isinstance(found, list):
+        return
+    known = {_norm_path(root) for root in authorized}
+    added = [str(root) for root in found if str(root or "").strip() and _norm_path(root) not in known]
+    if added:
+        cfg.update(authorized_roots=[*authorized, *added]).save()
+        log.info("[heartbeat] 新授权年度文件夹 %d 个", len(added))
+
+
 def _check_update(cfg: CompanionConfig, state: dict, on_update_available) -> None:
     """自动更新检查(独立节流·每小时一次):拉云端 latest.json,有新版回调通知托盘。"""
     if on_update_available is None:
@@ -337,15 +348,19 @@ def _run_periodic(
             from .version import VERSION
 
             root = cfg.resolved_express_root()
+            authorized = list(getattr(cfg, "authorized_roots", None) or ())
             master, master_version, refresh_error = projection_refresh.collect_endpoint(
                 state,
                 root or "",
                 cfg.account_dir or "",
                 now,
                 bool(refresh_request_id and refresh_scope == "endpoint"),
-                list(getattr(cfg, "authorized_roots", None) or ()),
+                authorized,
+                # 配对时选了「全部授权」(授权了不止一个年度文件夹):「重新读取」时连新建的年度文件夹一起找。
+                discover=len(authorized) > 1,
             )
             if master is not None:
+                _remember_roots(cfg, authorized, master.get("roots"))
                 projection_refresh.apply_endpoint_snapshot(
                     state, master, master_version
                 )

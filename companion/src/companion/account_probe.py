@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import ntpath
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import List, Tuple
@@ -76,6 +77,44 @@ def _read_isinfo(account_dir: Path) -> Tuple[str, str]:
         except Exception:
             log.exception("ISINFO read failed: %s", p)
     return "", ""
+
+
+# 账套 ISINFO 读出的(公司名, 税号, 默认科目)按文件修改时间缓存:近千份账套在共享盘上逐个开档要一两分钟,
+# 文件没变就不重读(用户 2026-09-27:目录改成手动「重新读取」+ 登记表变化才重扫,要快)。
+_details_lock = threading.Lock()
+_details_cache: dict = {}
+
+
+def _isinfo_file(account_dir: Path) -> Path | None:
+    for cand in (_INFO_DBF, _INFO_DBF.lower()):
+        p = account_dir / cand
+        if p.exists():
+            return p
+    return None
+
+
+def _account_details(account_dir: str) -> tuple:
+    """(公司名, 税号, 默认科目向量);按 ISINFO 的大小与修改时间缓存,读不到返 ('', '', {})。"""
+    if not account_dir:
+        return "", "", {}
+    path = _isinfo_file(Path(account_dir))
+    if path is None:
+        return "", "", {}
+    try:
+        stat = path.stat()
+    except OSError:
+        return "", "", {}
+    identity = ntpath.normcase(str(path))
+    stamp = (stat.st_size, stat.st_mtime_ns)
+    with _details_lock:
+        cached = _details_cache.get(identity)
+    if cached and cached[0] == stamp:
+        return cached[1]
+    company, tax_id = _read_isinfo(Path(account_dir))
+    details = (company, tax_id, probe_default_accounts(account_dir))
+    with _details_lock:
+        _details_cache[identity] = (stamp, details)
+    return details
 
 
 def _resolve_path(raw: str, express_root: str | Path) -> str:
@@ -147,8 +186,8 @@ def probe_account_sets(
     out: List[AccountSet] = []
     for i, (name, code, raw_path) in enumerate(raw_rows, start=1):
         path = _resolve_path(raw_path, express_root)
-        company, tax_id = (
-            _read_isinfo(Path(path)) if include_details and path else ("", "")
+        company, tax_id, _mapping = (
+            _account_details(path) if include_details and path else ("", "", {})
         )
         writable = False
         if include_details:
@@ -185,7 +224,7 @@ def account_sets_payload(
             row["root"] = root
             row["root_label"] = root_label
             if include_details:
-                row["mapping"] = probe_default_accounts(account.path)
+                row["mapping"] = dict(_account_details(account.path)[2])
             else:
                 for key in ("company", "tax_id", "writable"):
                     row.pop(key, None)

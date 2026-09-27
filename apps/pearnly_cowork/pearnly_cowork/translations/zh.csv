@@ -30,6 +30,7 @@ Access to the Companion queue has been revoked.,助手队列的访问权限已�
 Account Key,账套键
 Account Set Key,账套选择键
 Account code,科目代码
+Account set,账套
 Ack Digest,回执摘要
 Active,正常
 Active Attempt,当前尝试
@@ -154,6 +155,7 @@ Choose an image attached to this card,请选这张卡片上的图片附件
 Choose at least one job role,至少勾一个功能权限
 Choose both files first,请先选好两份文件
 Choose file,选择文件
+Choose the account set,选择账套
 Choose the company,选择公司
 Choose the destination for these documents,选择这批单据推送到哪里
 Choose the payment method,选择付款方式
@@ -585,6 +587,7 @@ Push record not found.,找不到推送记录。
 Quantity,数量
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
+Read again,重新读取
 Reading files,读取文件
 Reading the VAT report,读取税表
 Reading the bank statement,读取银行账单
@@ -1582,6 +1585,8 @@ history.pages_invalid,发票页面数据格式不正确。
 history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
 image,图像
+intake.catalog.reload,重新读取
+intake.target.accountSet,账套
 leased,已领取
 legacy,旧版
 logical_section,文档逻辑单元

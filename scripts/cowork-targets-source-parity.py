@@ -149,9 +149,11 @@ def run(root=None, source_texts=None):
     snapshot_variants = [None, {}, snapshot(), snapshot(head_status="stale"), snapshot(head_revision=8),
                          snapshot(head_snapshot_id="other"), snapshot(adapter="express"), snapshot(account_sets="bad"),
                          snapshot(account_sets=[]), snapshot(account_sets=[{"source_id": "7:2", "active": False}])]
+    # 有意的变化（用户 2026-09-27）：不带刷新回执时按当前目录核对（旧版一律 proof_missing），
+    # 见 tests/test_cowork_targets.py 的 test_without_receipt_*；这里只比带回执的路径。
     for ref in refresh_variants:
         for snap in snapshot_variants:
-            for request_id, revision in ((REQUEST_ID, 7), (None, None), ("bad", 7), (REQUEST_ID, True), (REQUEST_ID, "7")):
+            for request_id, revision in ((REQUEST_ID, 7), ("bad", 7), (REQUEST_ID, True), (REQUEST_ID, "7")):
                 args = evidence_args(latest_refresh=ref, snapshot=snap, request_id=request_id, revision=revision)
                 rows_args = {key: args.pop(key) for key in ("latest_refresh", "snapshot")}
                 compare(old.evidence.validate_selection(Cursor([ref, snap]), **args),
@@ -166,6 +168,8 @@ def run(root=None, source_texts=None):
         if rng.randrange(4) == 0: args["selected_root_key"] = r"D:\OTHER"
         if rng.randrange(4) == 0: args["request_id"] = rng.choice((None, "bad", NEW_REQUEST_ID))
         if rng.randrange(4) == 0: args["revision"] = rng.choice((None, True, 8, "7", "", -1))
+        if args["request_id"] in (None, "") and args["revision"] in (None, ""):
+            continue  # 不带回执：有意的变化，见上
         if rng.randrange(6) == 0: args["user_id"] = ""
         ref, snap = args.pop("latest_refresh"), args.pop("snapshot")
         row = snap["account_sets"][0]

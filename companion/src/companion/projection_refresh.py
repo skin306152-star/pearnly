@@ -5,7 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
-_REFRESH_TIMEOUT_S = 120.0
+# 网页「重新读取」:首次带公司名全扫近千份账套在共享盘上要一两分钟,放足余量。
+_REFRESH_TIMEOUT_S = 300.0
 
 
 def command(state: dict) -> tuple[str, str, str]:
@@ -98,6 +99,7 @@ def collect_endpoint(
     now: float,
     force: bool,
     authorized_roots: list[str] | None = None,
+    discover: bool = False,
 ) -> tuple[Optional[dict], float, str]:
     from .master_refresh import refresh_error, request_master
 
@@ -109,6 +111,7 @@ def collect_endpoint(
         force=force,
         account_sets_only=force,
         authorized_roots=authorized_roots,
+        discover=discover,
     )
     if master is not None or not force:
         return master, version, ""

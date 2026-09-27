@@ -70,6 +70,49 @@ def _normalized_roots(account_roots: Mapping[str, Any] | None) -> dict[str, str]
             roots.setdefault(normalized_key, normalized_root)
     return roots
 
+def _snapshot_reason(snapshot, *, adapter: str, selected_key: str, selected_root: str, expected_root: str, revision: int | None) -> tuple[str, str | None]:
+    """所选账套在这份目录里是否可用；`revision` 为 None 时只认「当前这一份」，不要求刚刷新过。"""
+    root_result = selected_root or None
+    if not snapshot:
+        return ('snapshot_not_found', root_result)
+    if revision is not None and str(snapshot.get('head_status') or '') != 'fresh':
+        return ('projection_not_fresh', root_result)
+    if revision is not None and _revision(snapshot.get('head_revision')) != revision:
+        return ('snapshot_superseded', root_result)
+    if str(snapshot.get('head_snapshot_id') or '') != str(snapshot.get('snapshot_id') or ''):
+        return ('snapshot_superseded', root_result)
+    if _adapter(snapshot.get('adapter')) != adapter:
+        return ('adapter_mismatch', root_result)
+    account_sets = _account_sets(snapshot.get('account_sets'))
+    if account_sets is None:
+        return ('snapshot_invalid', root_result)
+    selected = _selected_account(account_sets, adapter, selected_key)
+    if selected is None:
+        return ('account_not_found', root_result)
+    if selected.get('active', True) is False:
+        return ('account_inactive', root_result)
+    if adapter != 'express':
+        return ('', root_result)
+    attributes = selected.get('attributes') if isinstance(selected.get('attributes'), Mapping) else {}
+    snapshot_root = _root_identity(attributes.get('root'))
+    root_result = selected_root or snapshot_root or expected_root or None
+    if attributes.get('writable', True) is False:
+        return ('account_not_writable', root_result)
+    if snapshot_root and selected_root and (snapshot_root != selected_root):
+        return ('root_mismatch', root_result)
+    if snapshot_root and expected_root and (snapshot_root != expected_root):
+        return ('root_mismatch', root_result)
+    return ('', root_result)
+
+def _validate_current_snapshot(*, snapshot, adapter: str, selected_key: str, selected_root: str, expected_root: str='') -> dict[str, Any]:
+    """网页用服务端存着的目录选（用户 2026-09-27：打开弹窗不再现扫，改手动「重新读取」）：
+    不再要求一张刚刷新的回执，只要所选账套在当前这份目录里、可用可写、程序目录对得上。
+    真正写入前小助手还会对照 Express 登记表当场再核一次。"""
+    (reason, root_result) = _snapshot_reason(snapshot, adapter=adapter, selected_key=selected_key, selected_root=selected_root, expected_root=expected_root, revision=None)
+    if reason:
+        return _result(ok=False, proof_required=True, reason=reason, account_set_key=selected_key, root_key=root_result)
+    return _result(ok=True, proof_required=True, reason='current_snapshot', account_set_key=selected_key, root_key=root_result)
+
 def _validate_proof_rows(*, latest_refresh, snapshot, tenant_id: str, endpoint_id: str, adapter: str, selected_key: str, selected_root: str, expected_root: str='', request_id: str, revision: int) -> dict[str, Any]:
     root_result = selected_root or None
     refresh = latest_refresh
@@ -89,40 +132,7 @@ def _validate_proof_rows(*, latest_refresh, snapshot, tenant_id: str, endpoint_i
         reason = ''
     if reason:
         return _result(ok=False, proof_required=True, reason=reason, account_set_key=selected_key, root_key=root_result, request_id=request_id, revision=revision)
-    if not snapshot:
-        reason = 'snapshot_not_found'
-    elif str(snapshot.get('head_status') or '') != 'fresh':
-        reason = 'projection_not_fresh'
-    elif _revision(snapshot.get('head_revision')) != revision:
-        reason = 'snapshot_superseded'
-    elif str(snapshot.get('head_snapshot_id') or '') != str(snapshot.get('snapshot_id') or ''):
-        reason = 'snapshot_superseded'
-    elif _adapter(snapshot.get('adapter')) != adapter:
-        reason = 'adapter_mismatch'
-    else:
-        account_sets = _account_sets(snapshot.get('account_sets'))
-        if account_sets is None:
-            reason = 'snapshot_invalid'
-        else:
-            selected = _selected_account(account_sets, adapter, selected_key)
-            if selected is None:
-                reason = 'account_not_found'
-            elif selected.get('active', True) is False:
-                reason = 'account_inactive'
-            elif adapter == 'express':
-                attributes = selected.get('attributes') if isinstance(selected.get('attributes'), Mapping) else {}
-                snapshot_root = _root_identity(attributes.get('root'))
-                root_result = selected_root or snapshot_root or expected_root or None
-                if attributes.get('writable', True) is False:
-                    reason = 'account_not_writable'
-                elif snapshot_root and selected_root and (snapshot_root != selected_root):
-                    reason = 'root_mismatch'
-                elif snapshot_root and expected_root and (snapshot_root != expected_root):
-                    reason = 'root_mismatch'
-                else:
-                    reason = ''
-            else:
-                reason = ''
+    (reason, root_result) = _snapshot_reason(snapshot, adapter=adapter, selected_key=selected_key, selected_root=selected_root, expected_root=expected_root, revision=revision)
     if reason:
         return _result(ok=False, proof_required=True, reason=reason, account_set_key=selected_key, root_key=root_result, request_id=request_id, revision=revision)
     return _result(ok=True, proof_required=True, reason='validated_snapshot', account_set_key=selected_key, root_key=root_result, request_id=request_id, revision=revision)
@@ -147,6 +157,12 @@ def validate_selection(*, tenant_id: str, user_id: str, endpoint_id: str, adapte
         return _result(ok=False, proof_required=not is_bound_default, reason='selection_invalid', account_set_key=selected_key, root_key=root_result)
     if is_bound_default:
         return _result(ok=True, proof_required=False, reason='bound_default', account_set_key=selected_key, root_key=root_result)
+    if request_id in (None, '') and revision in (None, ''):
+        if not str(tenant_id or '').strip() or not str(user_id or '').strip() or not str(endpoint_id or '').strip():
+            return _result(ok=False, proof_required=True, reason='context_invalid', account_set_key=selected_key, root_key=root_result)
+        # 年度 = Express 数据文件夹，一条连接下可选多个（小助手授权过的才会出现在目录里），
+        # 所以不再钉死连接绑定的那个文件夹；账套属于哪个文件夹以目录为准，写入前小助手再核。
+        return _validate_current_snapshot(snapshot=snapshot, adapter=adapter, selected_key=selected_key, selected_root=selected_root)
     if request_id in (None, '') or revision in (None, ''):
         return _result(ok=False, proof_required=True, reason='proof_missing', account_set_key=selected_key, root_key=root_result)
     validated_request_id = _request_id(request_id)

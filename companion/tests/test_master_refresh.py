@@ -78,18 +78,27 @@ def test_consumed_snapshot_does_not_rescan_before_interval(monkeypatch):
     assert scans == ["C:/books"]
 
 
-def test_endpoint_refresh_only_scans_bound_root_and_skips_chart(monkeypatch):
+def _wait(call):
+    deadline = time.time() + 2
+    result = (None, 0.0)
+    while time.time() < deadline:
+        result = call()
+        if result[0] is not None:
+            break
+        time.sleep(0.01)
+    return result
+
+
+def test_endpoint_refresh_reads_company_names_and_skips_chart(monkeypatch):
+    """网页「重新读取」:扫描带公司名(不再有丢公司名的快扫),科目表跟着所选账套另行刷新;
+    没要求时不去找新的年度文件夹。"""
     scans = []
 
-    def lightweight_sets(root, *, include_details):
-        scans.append((root, include_details))
-        return [{"path": "C:/books/A"}]
+    def sets(root, **kwargs):
+        scans.append((root, kwargs))
+        return [{"path": "C:/books/A", "company": "ACME"}]
 
-    monkeypatch.setattr(
-        account_probe,
-        "account_sets_payload",
-        lightweight_sets,
-    )
+    monkeypatch.setattr(account_probe, "account_sets_payload", sets)
     monkeypatch.setattr(
         account_probe,
         "chart_accounts_payload",
@@ -98,37 +107,25 @@ def test_endpoint_refresh_only_scans_bound_root_and_skips_chart(monkeypatch):
     monkeypatch.setattr(
         express_locate,
         "candidate_roots",
-        lambda: (_ for _ in ()).throw(AssertionError("discovery root must not scan")),
+        lambda: (_ for _ in ()).throw(AssertionError("discovery was not asked for")),
     )
 
-    master_refresh.request_master(
-        "C:/books", "C:/books/A", force=True, account_sets_only=True
-    )
-    deadline = time.time() + 2
-    result = (None, 0.0)
-    while time.time() < deadline:
-        result = master_refresh.request_master(
-            "C:/books",
-            "C:/books/A",
-            force=True,
-            account_sets_only=True,
-        )
-        if result[0] is not None:
-            break
-        time.sleep(0.01)
+    kwargs = {"force": True, "account_sets_only": True}
+    master_refresh.request_master("C:/books", "C:/books/A", **kwargs)
+    result = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", **kwargs))
 
-    assert result[0] == {"account_sets": [{"path": "C:/books/A"}]}
-    assert scans == [("C:/books", False)]
+    assert result[0] == {"account_sets": [{"path": "C:/books/A", "company": "ACME"}]}
+    assert scans == [("C:/books", {})]
 
 
 def test_endpoint_refresh_scans_each_authorized_root_once(monkeypatch):
     scans = []
 
-    def lightweight_sets(root, *, include_details):
-        scans.append((root, include_details))
+    def sets(root, **kwargs):
+        scans.append(root)
         return [{"path": f"{root}/ACME", "root": root}]
 
-    monkeypatch.setattr(account_probe, "account_sets_payload", lightweight_sets)
+    monkeypatch.setattr(account_probe, "account_sets_payload", sets)
     monkeypatch.setattr(
         account_probe,
         "chart_accounts_payload",
@@ -141,19 +138,62 @@ def test_endpoint_refresh_scans_each_authorized_root_once(monkeypatch):
         "authorized_roots": ["C:/books", "D:/books-2020", "d:\\books-2020\\"],
     }
     master_refresh.request_master("C:/books", "C:/books/A", **kwargs)
-    deadline = time.time() + 2
-    result = (None, 0.0)
-    while time.time() < deadline:
-        result = master_refresh.request_master("C:/books", "C:/books/A", **kwargs)
-        if result[0] is not None:
-            break
-        time.sleep(0.01)
+    result = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", **kwargs))
 
-    assert scans == [("C:/books", False), ("D:/books-2020", False)]
+    assert scans == ["C:/books", "D:/books-2020"]
     assert [row["root"] for row in result[0]["account_sets"]] == [
         "C:/books",
         "D:/books-2020",
     ]
+
+
+def test_forced_refresh_with_discovery_adds_new_year_folders_once(monkeypatch):
+    """「重新读取」+ 全部授权:新建的年度文件夹也扫进来;同一份登记表换个路径看见的只算一次。"""
+    stamps = {"C:/books": (1, 1), "E:/70EXP": (2, 2), r"\\server\books": (1, 1), "F:/empty": (3, 3)}
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: stamps.get(root))
+    monkeypatch.setattr(
+        express_locate,
+        "candidate_roots",
+        lambda: ["C:/books", r"\\server\books", "E:/70EXP", "F:/empty", "G:/missing"],
+    )
+    monkeypatch.setattr(
+        express_locate, "sccomp_company_count", lambda root: 0 if root == "F:/empty" else 5
+    )
+    monkeypatch.setattr(
+        account_probe, "account_sets_payload", lambda root: [{"path": f"{root}/A", "root": root}]
+    )
+
+    kwargs = {"force": True, "account_sets_only": True, "discover": True}
+    master_refresh.request_master("C:/books", "C:/books/A", **kwargs)
+    result = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", **kwargs))
+
+    assert result[0]["roots"] == ["C:/books", "E:/70EXP"]
+    assert [row["root"] for row in result[0]["account_sets"]] == ["C:/books", "E:/70EXP"]
+
+
+def test_unchanged_registry_is_not_rescanned_until_it_changes(monkeypatch):
+    """平时只看登记表有没有变:没变不重扫、不出新快照;变了才重扫。"""
+    scans = []
+    stamp = {"value": (1, 1)}
+    monkeypatch.setattr(master_refresh, "_WATCH_INTERVAL_S", 0.0)
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: stamp["value"])
+    monkeypatch.setattr(
+        account_probe, "account_sets_payload", lambda root: scans.append(root) or [{"path": "C:/books/A"}]
+    )
+    monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
+
+    first = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A"))
+    assert scans == ["C:/books"]
+
+    for _ in range(5):
+        assert master_refresh.request_master("C:/books", "C:/books/A", newer_than=first[1]) == (None, 0.0)
+        time.sleep(0.02)
+    assert scans == ["C:/books"]
+
+    stamp["value"] = (2, 2)
+    second = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", newer_than=first[1]))
+    assert second[1] > first[1]
+    assert scans == ["C:/books", "C:/books"]
 
 
 def test_failed_scan_exposes_request_scoped_error(monkeypatch):

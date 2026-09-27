@@ -321,3 +321,33 @@ def test_registry_unavailable_no_folder_fallback(tmp_path):
     with pytest.raises(RegistryUnavailable):
         probe_account_sets(root)  # 绝不回退扫文件夹捞到 someacct
     assert account_sets_payload(root) == []  # 心跳路径吞错 → []
+
+
+def test_company_details_are_read_once_until_isinfo_changes(tmp_path, monkeypatch):
+    """近千份账套在共享盘上逐个开 ISINFO 很慢:文件没变就用上次读到的公司名 / 税号 / 默认科目。"""
+    import os
+
+    import companion.account_probe as probe
+
+    root = tmp_path / "69EXP"
+    account = root / "ACME"
+    _isinfo(account, "บริษัท เอ", "0105551234567")
+    table = _sccomp(root)
+    table.append({"COMPNAM": "69ACME", "COMPCOD": "ACME", "PATH": "ACME", "CANDEL": "Y"})
+    table.close()
+    reads = []
+    real = probe._read_isinfo
+    monkeypatch.setattr(probe, "_read_isinfo", lambda path: reads.append(path) or real(path))
+
+    first = account_sets_payload(root)
+    second = account_sets_payload(root)
+    assert first[0]["company"] == second[0]["company"] == "บริษัท เอ"
+    assert len(reads) == 1
+
+    (account / "ISINFO.DBF").unlink()
+    _isinfo(account, "บริษัท บี", "0105559999999")
+    stat = (account / "ISINFO.DBF").stat()
+    os.utime(account / "ISINFO.DBF", ns=(stat.st_atime_ns, stat.st_mtime_ns + 10**9))
+    third = account_sets_payload(root)
+    assert third[0]["company"] == "บริษัท บี"
+    assert len(reads) == 2

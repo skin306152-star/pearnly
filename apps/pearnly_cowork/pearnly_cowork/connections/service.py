@@ -14,7 +14,7 @@ from frappe.utils.password import get_decrypted_password
 from pearnly_core.shell import entitlements
 
 from pearnly_cowork.masters import push_inputs
-from pearnly_cowork.targets import TargetAccess, TargetEvidence
+from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
 from . import access, model, snapshots, refresh as refresh_leases
@@ -158,6 +158,8 @@ def targets(name):
                 safe["mapping"] = {key: mapping[key] for key in ("revenue_acc", "ar_acc", "vat_output_acc", "fallback_acc", "ap_acc", "vat_input_acc") if key in mapping}
             result["account_sets"].append({"source_id": row["source_id"], "label": row.get("label"),
                                            "active": row.get("active", True), "attributes": safe})
+    # 录入时要选的两级（网页弹窗与 LINE 同一份，见 targets/catalog_groups.py）。
+    result["groups"] = catalog_groups.groups(doc.adapter, result["account_sets"])
     return result
 
 

@@ -9,12 +9,29 @@ sys.path.insert(0, str(root / "apps" / "pearnly_cowork"))
 sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 
 from pearnly_cowork.line import flow, handlers, intake  # noqa: E402
+from pearnly_cowork.targets import catalog_groups  # noqa: E402
 
-CATALOG = {"account_sets": [
+
+def directory(adapter, account_sets):
+    """服务端 `connections.service.targets` 的形状：目录 + 两级分组。"""
+    return {"account_sets": account_sets, "groups": catalog_groups.groups(adapter, account_sets)}
+
+
+CATALOG = directory("mrerp", [
     {"source_id": "15:1", "label": "2567", "attributes": {"company": "A", "company_name": "Alpha"}},
     {"source_id": "16:1", "label": "2568", "attributes": {"company": "A", "company_name": "Alpha"}},
-]}
+])
+# Express：两个年度文件夹，69EXP 登录列表里两份同一公司的账套（审计版 / 数据版）。
+EXPRESS_CATALOG = directory("express", [
+    {"source_id": r"s:\2568\exp68\68acme", "label": "68ACME AUDITED",
+     "attributes": {"root": r"\\srv\ACCOUNT\68EXP", "root_label": "68EXP", "row": 1, "company": "Acme", "writable": True}},
+    {"source_id": r"s:\2569\exp69\69acmed", "label": "69ACME DATA",
+     "attributes": {"root": r"\\srv\ACCOUNT\69EXP", "root_label": "69EXP", "row": 2, "company": "Acme", "writable": True}},
+    {"source_id": r"s:\2569\exp69\69acme", "label": "69ACME AUDITED",
+     "attributes": {"root": r"\\srv\ACCOUNT\69EXP", "root_label": "69EXP", "row": 1, "company": "Acme", "writable": True}},
+])
 MRERP = {"name": "CON-M", "adapter": "mrerp", "enabled": 1}
+EXPRESS = {"name": "CON-X", "adapter": "express", "enabled": 1}
 
 
 class LineFlowTest(unittest.TestCase):
@@ -69,6 +86,21 @@ class LineFlowTest(unittest.TestCase):
                          ("CON-M", "16:1", "sales", "credit"))
         self.assertIn("Please upload a PDF or image", self.last()["text"])
         self.assertIn("A · Alpha · 2568", self.last()["text"])
+
+    def test_express_walks_year_folder_then_login_list_account_set(self):
+        """Express 照真实用法：先选年度（数据文件夹，新的在上），再选账套（登录列表原样顺序）。"""
+        with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
+                mock.patch.object(flow, "_state", return_value=(True, "")), \
+                mock.patch("pearnly_cowork.connections.service.targets", return_value=EXPRESS_CATALOG):
+            flow.start("U1", "tok")
+            self.tap("Express")
+            self.assertTrue(self.last()["text"].startswith("Choose the year"))
+            self.assertEqual(self.labels(), ["0. 69EXP", "1. 68EXP", "Cancel"])
+            self.tap("0. 69EXP")
+            self.assertTrue(self.last()["text"].startswith("Choose the account set"))
+            self.assertEqual(self.labels(), ["0. 69ACME AUDITED", "1. 69ACME DATA", "Cancel"])
+            self.tap("1. 69ACME DATA")
+            self.assertEqual(flow.choices("U1")["account_set_key"], r"s:\2569\exp69\69acmed")
 
     def test_mrerp_purchase_is_credit_only(self):
         flow.start("U1", "tok")

@@ -591,27 +591,14 @@
 			}
 		};
 
-		/** 一份最新的账套目录证据（与弹窗同一套刷新，见 `targets.js`）；刷不出来就不带，由服务端说原因。 */
-		const fresh_evidence = connection => new Promise(resolve => {
-			let done = false;
-			const finish = value => {if (!done) {done = true; resolve(value);}};
-			p.intake_targets.catalog(connection, {alive: () => !done,
-				on_update: view => {if (!view.loading) finish(view.evidence || {});}})
-				.then(() => finish({}), () => finish({}));
-		});
 		/** 推到第一次选的目标（用户 2026-09-26）：票上记的连接 / 账套（新建时写入）优先，当场这一批用弹窗里的；
-		 *  老票没记过目标、站点只有一条连接时用它（按连接默认账套）。 */
-		const resolve_target = async (record, rows, evidence) => {
+		 *  老票没记过目标、站点只有一条连接时用它（按连接默认账套）。所选账套由服务端按当前目录核对，
+		 *  不再为推送现扫一次（用户 2026-09-27）。 */
+		const resolve_target = (record, rows) => {
 			const name = record.push_connection || choice?.connection || (rows.length === 1 ? rows[0].name : "");
 			const connection = rows.find(row => row.name === name) || null;
 			const account = record.push_account_set || (choice?.connection === name ? choice?.account_set_key : "") || "";
-			if (!connection || !account) return {connection, args: {}};
-			if (choice?.connection === name && choice.account_set_key === account && choice.catalog_request_id) {
-				return {connection, args: {account_set_key: account, catalog_request_id: choice.catalog_request_id,
-					catalog_revision: choice.catalog_revision}};
-			}
-			if (!evidence.has(name)) evidence.set(name, await fresh_evidence(connection));
-			return {connection, args: {account_set_key: account, ...evidence.get(name)}};
+			return {connection, args: connection && account ? {account_set_key: account} : {}};
 		};
 
 		/** 幂等键＝这件事本身的指纹：同一份内容、同一目标重复提交是同一件事（服务端回原结果），
@@ -636,7 +623,6 @@
 			if (!batch.length) return;
 			if (dirty()) await save_review({quiet: true});
 			const rows = (await p.call(CONNECTIONS + "records", {limit: 100})) || [];
-			const evidence = new Map();
 			const broken = [];  // 只有请求本身出错（网络 / 服务器异常）才会到这里；业务失败都记在票上
 			frappe.dom.freeze(t("intake.action.queue"));
 			try {
@@ -645,7 +631,7 @@
 					if (["success", "pending"].includes(record.last_push_status)) continue;
 					const pages = Array.isArray(record.pages) ? record.pages : [];
 					const fields = pages[primary_index(pages)]?.fields || {};
-					const target = await resolve_target(record, rows, evidence);
+					const target = resolve_target(record, rows);
 					const intent = {history: record.name, connection: target.connection?.name || "",
 						expected_history_version: record.record_version,
 						expected_connection_revision: target.connection?.revision ?? 0, ...target.args,

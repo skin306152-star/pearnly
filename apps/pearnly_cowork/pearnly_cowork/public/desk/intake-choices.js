@@ -2,8 +2,9 @@
  *
  *   1. 目标 ERP（MR.ERP / Express / 仅识别）—— 先看连接状态：没连上 / 助手不在线的那张卡不可选，
  *      卡片自带「连接」；Express 的助手状态开着弹窗时每 30 秒重读一次（旧版同一节奏）；
- *   2. 公司、年度 —— **目标 ERP 自己的账套目录，实时读取**（用户 2026-09-26，见 `targets.js`
- *      的 `catalog`）：两家都是「公司 → 年度」；先给服务端已有的那份，同时刷新一次，刷新到了就换成最新的；
+ *   2. 两级账套 —— **目标 ERP 自己的账套目录**（用户 2026-09-26，见 `targets.js` 的 `catalog`）：
+ *      MR.ERP 是「公司 → 年度」，Express 照真实用法是「年度（数据文件夹）→ 账套（登录列表原样）」
+ *      （用户 2026-09-27）；用服务端存着的那份，「重新读取」才让助手重扫；上次选的账套下次预选；
  *   3. 进项 / 销项；
  *   4. 入账方式 —— **以第三方为准**（用户 2026-09-26），与旧线上 `mode_options` 一致：
  *      · MR.ERP 选付款方式（现金 / 赊账）；进项只有赊账（旧版对 MR.ERP 进项现金明确拦截，
@@ -18,7 +19,7 @@
 
 	p.intake_create = async (t, on_start) => {
 		let snapshot = null;
-		let catalog = null;            // 当前目标的公司/年度目录（见 `targets.js` 的 `catalog`）
+		let catalog = null;            // 当前目标的两级账套目录（见 `targets.js` 的 `catalog`）
 		let generation = 0;            // 换目标就作废上一次的目录轮询
 		const picked = {target: null, connection: null, company: null, account_set_key: null,
 			account_label: null, direction: null, posting_kind: null, payment: null};
@@ -31,8 +32,8 @@
 			posting_kind: () => [{value: "service", label: __("Service")}, {value: "stock", label: __("Stock")}],
 			payment: () => (picked.direction === "purchase" ? [] : [{value: "cash", label: __("Cash")}])
 				.concat([{value: "credit", label: __("Credit")}]),
-			company: () => (catalog?.companies || []).map(({value, label}) => ({value, label})),
-			year: () => (catalog?.companies || []).find(row => row.value === picked.company)?.years || [],
+			company: () => (catalog?.groups || []).map(({value, label}) => ({value, label})),
+			year: () => (catalog?.groups || []).find(row => row.value === picked.company)?.items || [],
 		};
 
 		// 下拉的变化一律走字段自己的 `onchange`（用户选和程序赋值都经过它）：产品皮肤把下拉换成了
@@ -41,10 +42,12 @@
 		const fields = [
 			{fieldtype: "HTML", fieldname: "target"},
 			{fieldtype: "Select", fieldname: "company", label: __("Company"), options: [], onchange: changed("company")},
-			{fieldtype: "Select", fieldname: "year", label: __("intake.target.year"), options: [], onchange: changed("year")},
+			// 一个 Express 年度文件夹里可能有上百份账套，下拉不能只列前 99 个（官方默认）。
+			{fieldtype: "Select", fieldname: "year", label: __("intake.target.year"), options: [], max_items: 1000,
+				onchange: changed("year")},
 			// 按钮一开始是隐藏的，Frappe 这时还没建按钮元素：点击要写在字段定义上，不能事后绑。
-			{fieldtype: "Button", fieldname: "catalog_retry", label: __("Retry"), hidden: 1,
-				click: () => load_catalog()},
+			{fieldtype: "Button", fieldname: "catalog_reload", label: __("intake.catalog.reload"), hidden: 1,
+				click: () => load_catalog(true)},
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"), options: [],
 				onchange: changed("direction")},
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: [], hidden: 1,
@@ -53,9 +56,18 @@
 				onchange: changed("payment")},
 		];
 		const d = p.dialog(t("intake.action.new"), fields, __("Continue"), () => {
+			remember(picked.connection, picked.account_set_key);
 			d.hide();
-			on_start({...picked, ...(catalog?.evidence || {})});
+			on_start({...picked});
 		});
+		// 上次在这条连接上选的账套，下次打开直接预选（只是本机的方便，读写失败就当没有）。
+		const LAST = "pearnly.intake.account_set.";
+		const remembered = connection => {
+			try { return connection ? localStorage.getItem(LAST + connection) || "" : ""; } catch (error) { return ""; }
+		};
+		const remember = (connection, account) => {
+			try { if (connection && account) localStorage.setItem(LAST + connection, account); } catch (error) { /* 无痕窗口等 */ }
+		};
 
 		const mode = () => MODE[picked.target] || null;
 		const recognize_only = () => picked.target === p.intake_targets.RECOGNIZE_ONLY;
@@ -105,10 +117,15 @@
 			let note = "";
 			if (catalog?.loading) note = __("intake.catalog.loading", [connection_label]);
 			else if (catalog?.error_code) note = p.intake_targets.catalog_error(catalog.error_code);
-			else if (catalog && !catalog.companies.length) note = __("intake.catalog.ERR_ACCOUNT_SET_EMPTY");
+			else if (catalog && !catalog.groups.length) note = __("intake.catalog.ERR_ACCOUNT_SET_EMPTY");
 			d.set_df_property("company", "description", note);
-			d.set_df_property("catalog_retry", "hidden", !(catalog && !catalog.loading && catalog.error_code));
-			// 仅识别不对接任何 ERP：公司 / 年度整排不摆。
+			// Express 先年度（数据文件夹）后账套；MR.ERP 先公司后年度。
+			const express = picked.target === "express";
+			d.set_df_property("company", "label", express ? __("intake.target.year") : __("Company"));
+			d.set_df_property("year", "label", express ? __("intake.target.accountSet") : __("intake.target.year"));
+			d.set_df_property("catalog_reload", "hidden", !(catalog?.collector_available && !recognize_only()));
+			d.fields_dict.catalog_reload.$input?.prop("disabled", Boolean(catalog?.loading));
+			// 仅识别不对接任何 ERP：两级账套整排不摆。
 			for (const name of ["company", "year"]) d.set_df_property(name, "hidden", recognize_only() ? 1 : 0);
 			paint("company");
 			paint_year();
@@ -121,10 +138,12 @@
 			paint_catalog();
 		};
 
-		/** 读目标 ERP 的公司/年度：先有先给，刷新到了再换；默认账套在目录里就预选。 */
-		const load_catalog = () => {
+		/** 读目标 ERP 的两级账套：用服务端那份；`reload` 时让助手重扫、扫完再换（旧的照常可选）。
+		 *  上次选的账套在目录里就预选，否则用连接的默认账套。 */
+		const load_catalog = (reload = false) => {
 			const run = ++generation;
-			catalog = null;
+			if (!reload) catalog = null;
+			else if (catalog) { catalog = {...catalog, loading: true, error_code: null}; paint_catalog(); }
 			const connection = snapshot?.connections?.[picked.target];
 			if (!gated() || !connection || recognize_only()) {
 				paint_catalog();
@@ -132,21 +151,32 @@
 			}
 			void p.intake_targets.catalog(connection, {
 				alive: () => run === generation,
+				reload,
 				on_update: next => {
 					catalog = next;
 					paint_catalog();  // 先把选项铺上，下面的预选才落得进下拉
-					const home = !picked.company && next.default_key
-						&& next.companies.find(row => row.years.some(year => year.value === next.default_key));
-					if (home) {
-						set_value("company", home.value);
+					if (picked.company) return;
+					// Express 的账套键是规范化后的路径（小写、反斜杠），连接上存的默认账套是原样路径。
+					const same_key = (a, b) => String(a).replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase()
+						=== String(b).replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+					const locate = key => {
+						for (const group of key ? next.groups : []) {
+							const item = group.items.find(row => same_key(row.value, key));
+							if (item) return {group, item};
+						}
+						return null;
+					};
+					const found = locate(remembered(connection.name)) || locate(next.default_key);
+					if (found) {
+						set_value("company", found.group.value);
 						paint_year();
-						set_value("year", next.default_key);
+						set_value("year", found.item.value);
 						paint_catalog();
 					}
 				},
 			}).catch(error => {
 				if (run !== generation) return;
-				catalog = {companies: [], loading: false, error_code: error?.exc_type || "ERR_UNEXPECTED"};
+				catalog = {groups: [], ...catalog, loading: false, error_code: error?.exc_type || "ERR_UNEXPECTED"};
 				paint_catalog();
 			});
 		};
