@@ -6,7 +6,7 @@ frappe.connect()
 product = frappe.conf.get("pearnly_product")
 try:
     assert frappe.local.site == "auth-preview.localhost"
-    from pearnly_core.desk.branding import FAVICON, ensure_site_favicon
+    from pearnly_core.desk.branding import APP_NAME, FAVICON, ensure_site_app_name, ensure_site_favicon
     from frappe.website.doctype.website_settings.website_settings import get_website_settings
 
     assert "pearnly_core.desk.branding.ensure_site_favicon" in frappe.get_hooks("after_migrate")
@@ -29,7 +29,23 @@ try:
     frappe.db.set_single_value("Website Settings", "favicon", "")
     ensure_site_favicon()
     assert not frappe.db.get_single_value("Website Settings", "favicon")
-    print("PASS three product defaults, rendered context, idempotence, framework replacement, custom/control preservation")
+    # 浏览器标签的应用名称（刷新时不再闪「Frappe」）：框架默认值换掉，自定义保留，控制面不动
+    assert "pearnly_core.desk.branding.ensure_site_app_name" in frappe.get_hooks("after_migrate")
+    for value in ("dms", "cowork", "erp"):
+        frappe.conf.pearnly_product = value
+        for doctype in ("Website Settings", "System Settings"):
+            frappe.db.set_single_value(doctype, "app_name", "Frappe")
+        ensure_site_app_name()
+        assert frappe.db.get_single_value("Website Settings", "app_name") == APP_NAME
+        assert frappe.db.get_single_value("System Settings", "app_name") == APP_NAME
+    frappe.db.set_single_value("Website Settings", "app_name", "Acme Books")
+    ensure_site_app_name()
+    assert frappe.db.get_single_value("Website Settings", "app_name") == "Acme Books"
+    frappe.conf.pearnly_product = ""
+    frappe.db.set_single_value("Website Settings", "app_name", "Frappe")
+    ensure_site_app_name()
+    assert frappe.db.get_single_value("Website Settings", "app_name") == "Frappe"
+    print("PASS three product defaults, rendered context, idempotence, framework replacement, custom/control preservation, app name")
 finally:
     frappe.conf.pearnly_product = product
     frappe.db.rollback()

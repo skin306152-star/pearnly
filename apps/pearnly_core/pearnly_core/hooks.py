@@ -319,6 +319,7 @@ sounds = [
 after_migrate = [
     "pearnly_core.desk.navigation.ensure_navigation",
     "pearnly_core.desk.branding.ensure_site_favicon",
+    "pearnly_core.desk.branding.ensure_site_app_name",
     "pearnly_core.account.layout.ensure_profile_fields",
 ]
 
