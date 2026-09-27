@@ -103,7 +103,9 @@ def invoice_policy(environment: Mapping[str, str], policy_value=None, *, plan_co
         fallback_location=vertex_location(upgrade, environment) if backend == "vertex" and upgrade else None,
         l3_location=vertex_location(l3, environment) if backend == "vertex" else None,
         direct_enabled=environment.get("OCR_IMAGE_DIRECT", "1").strip().lower() not in {"0", "false", "no", "off"},
-        direct_max_pages=int(environment.get("OCR_IMAGE_DIRECT_MAX_PAGES", "20")),
+        # 旧线上 20：那时一页没过闸整份改走 Vision + 文字。ADR-013 起逐页复核，上限跟上传上限一样 50 页
+        # （2026-09-27 多页压测：21–50 页走 Vision + 长提示词，请求多一倍、检查点大一倍）。
+        direct_max_pages=int(environment.get("OCR_IMAGE_DIRECT_MAX_PAGES", "50")),
         direct_timeout_seconds=int(environment.get("OCR_DIRECT_TIMEOUT_SECONDS") or "60"),
         text_fast_path=environment.get("OCR_FAST_PATH_ENABLED", "false").strip().lower() == "true",
         image_first=environment.get("OCR_IMAGE_FIRST", "").strip().lower() in {"1", "true", "yes", "on"},

@@ -12,7 +12,9 @@ class InvoicePolicyTests(unittest.TestCase):
                          ("economy", "vertex", "gemini-3.1-flash-lite", "gemini-3.8-flash"))
         self.assertEqual((p.first_location, p.fallback_location, p.l3_location), ("global", "global", "global"))
         self.assertEqual(p.l3_model, "gemini-3.8-flash")
-        self.assertEqual([p.route(n) for n in (1, 20, 21, 50)], ["image_direct", "image_direct", "pipeline_v1", "pipeline_v1"])
+        self.assertEqual([p.route(n) for n in (1, 20, 21, 50)], ["image_direct"] * 4)  # ADR-013：逐页复核，直读到 50 页
+        self.assertEqual(invoice_policy({**env, "OCR_IMAGE_DIRECT_MAX_PAGES": "20"}, {"mode": "economy"}).route(21),
+                         "pipeline_v1")
         self.assertTrue(p.fewshot_enabled)
         self.assertTrue(p.text_fast_path)
         self.assertFalse(p.double_read)

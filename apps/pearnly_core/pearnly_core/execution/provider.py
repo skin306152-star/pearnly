@@ -25,7 +25,30 @@ def retry_delay(response):
     return min(300, delay)
 
 
+# 后台识别任务里，拿不到额度 / 被 429 要求冷却时，短的等待原地等（同时每次重试都刷新排队位置），
+# 不整份让出。多页压测（2026-09-27，`scripts/ocr-multipage-stress.py`）：50 页 PDF 每次让出都要从第 1 页
+# 起把检查点取回一遍，越往后越慢（16 → 35 秒）；超过公平队列 30 秒的「还在排」时限后排到队尾，从第 8 次
+# 续跑起一个请求也发不出去，照这样会在 30 分钟后过期失败。网页请求里仍然立即让出，不卡住页面。
+WAIT_STEP_LIMIT = 20
+WAIT_PER_CALL = 60
+
+
 def post(url, headers, payload, timeout_s, model, bucket):
+    waited = 0.0
+    while True:
+        try:
+            return _post(url, headers, payload, timeout_s, model, bucket)
+        except Deferred as exc:
+            # 只有明确可重试的（额度 / 429 / 503）才会走到这里；结果不明（Uncertain）照旧往上抛。
+            delay = float(exc.delay or 1)
+            if not frappe.flags.get("pearnly_ocr_work") or delay > WAIT_STEP_LIMIT \
+                    or waited + delay > WAIT_PER_CALL:
+                raise
+            time.sleep(delay)
+            waited += delay
+
+
+def _post(url, headers, payload, timeout_s, model, bucket):
     key = work.checkpoint_key(payload, model)
     saved = work.checkpoint(key)
     if saved and saved["state"] == "done":

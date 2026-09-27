@@ -165,10 +165,12 @@ def job_language(user):
 def context(name):
     previous = frappe.flags.get("pearnly_ocr_work")
     frappe.flags.pearnly_ocr_work = name
+    frappe.flags.pearnly_ocr_checkpoints = None
     try:
         yield
     finally:
         frappe.flags.pearnly_ocr_work = previous
+        frappe.flags.pearnly_ocr_checkpoints = None
 
 
 def run(name):
@@ -228,11 +230,21 @@ def checkpoint_key(payload, model):
     return hashlib.sha256((model + "\0" + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
 
 
+def _stages(name):
+    """本次运行的检查点：每次运行只从库里读一次（同一时刻只有持租约的这一个运行在写）。多页压测：50 页的检查点
+    长到 2.6 MB，续跑时每个调用都整块读一遍再解析，取回本身就要 30 多秒。"""
+    cached = frappe.flags.get("pearnly_ocr_checkpoints")
+    if not cached or cached[0] != name:
+        cached = (name, json.loads(frappe.db.get_value(DT, name, "checkpoints") or "{}"))
+        frappe.flags.pearnly_ocr_checkpoints = cached
+    return cached[1]
+
+
 def checkpoint(key, state=None, body=None):
     name = frappe.flags.get("pearnly_ocr_work")
     if not name:
         return None
-    stages = json.loads(frappe.db.get_value(DT, name, "checkpoints") or "{}")
+    stages = _stages(name)
     if state is None:
         return stages.get(key)
     stages[key] = {"state": state, "body": body}
