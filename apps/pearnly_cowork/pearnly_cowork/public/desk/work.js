@@ -639,6 +639,18 @@
 			render();
 			p.success(t("cowork.work.card.archived"));
 		};
+		// 修改标签（照 Trello 的标签弹窗）：勾选已有标签；「新建标签」建好后回到这里，已勾的不丢。
+		const edit_labels = (card, chosen) => {
+			const d = small_dialog(t("cowork.work.quick.labels"), [
+				{fieldname: "labels", fieldtype: "MultiCheck", columns: "10rem", sort_options: false,
+					options: label_options(chosen)},
+				{fieldname: "add_label", fieldtype: "Button", label: t("cowork.work.labels.add"), click: () => {
+					const picked = d.get_value("labels");
+					d.hide();
+					open_labels({add: true, after: () => edit_labels(card_of(card.name) || card, picked)});
+				}}],
+				(_, dialog) => quick_update(card, {labels: dialog.get_value("labels")}));
+		};
 		const quick_update = async (card, values) => {
 			await p.call(`${API}update`, {name: card.name, modified: card.modified, values: JSON.stringify(values)}, "POST");
 			await reload();
@@ -708,12 +720,7 @@
 				return;
 			}
 			if (action === "template") return quick_update(card, {is_template: card.is_template ? 0 : 1});
-			if (action === "labels") {
-				small_dialog(t("cowork.work.quick.labels"), [{fieldname: "labels", fieldtype: "MultiCheck",
-					columns: "10rem", sort_options: false, options: label_options(card.labels)}],
-					(_, d) => quick_update(card, {labels: d.get_value("labels")}));
-				return;
-			}
+			if (action === "labels") return edit_labels(card, card.labels);
 			if (action === "members") {
 				small_dialog(t("cowork.work.quick.members"), [{fieldname: "assignees", fieldtype: "MultiCheck",
 					columns: "12rem", sort_options: false, options: member_options(card.assignees)}],
@@ -1279,7 +1286,7 @@
 		};
 
 		// ── 标签（全板共用）：照 Trello，一行一个标签，名字 + 直接点选的色块 ──────
-		const open_labels = () => {
+		const open_labels = ({add = false, after = null} = {}) => {
 			const rows = state.labels.map(row => ({name: row.name, title: row.title || "", color: row.color}));
 			const d = new frappe.ui.Dialog({
 				title: t("cowork.work.labels.manage"),
@@ -1298,6 +1305,7 @@
 						d.hide();
 						p.success(t("cowork.work.labels.saved"));
 						await reload();
+						if (after) after();
 					} finally {
 						d.enable_primary_action();
 					}
@@ -1328,8 +1336,10 @@
 					});
 				});
 			};
+			if (add) rows.push({name: null, title: "", color: "blue"});
 			draw();
 			d.show();
+			if (add) host.find(".pearnly-work-label-edit").last().find("input").trigger("focus");
 		};
 
 		// ── 自定义字段（全板共用，照 Trello）：名字、类型、下拉选项、是否显示在卡片正面 ──

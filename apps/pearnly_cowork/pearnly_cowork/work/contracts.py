@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 DEFAULT_LISTS = (("todo", False), ("doing", False), ("done", True))
 # 标签 / 列表 / 封面的颜色用 Desk 原生色（指示色与色阶），不另造色板。
 LABEL_COLORS = ("green", "yellow", "orange", "red", "purple", "blue", "cyan", "pink", "gray")
+# 新看板自带的六个无名颜色标签（照 Trello；2026-09-27 实测：没有标签时「修改标签」是个空弹窗）。
+DEFAULT_LABEL_COLORS = ("green", "yellow", "orange", "red", "purple", "blue")
 # 到期前多久提醒（分钟）；none = 不提醒。照 Trello 的选项。
 REMINDERS = {"none": None, "at_due": 0, "5m": 5, "10m": 10, "15m": 15, "1h": 60, "2h": 120,
              "1d": 1440, "2d": 2880}

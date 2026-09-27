@@ -73,7 +73,16 @@ def _ensure_lists(workspace):
     for index, (key, done) in enumerate(contracts.DEFAULT_LISTS):
         persist(frappe.get_doc({"doctype": COLUMN, "workspace": workspace, "title": _(f"cowork.work.status.{key}"),
                                 "position": contracts.STEP * (index + 1), "is_done_list": 1 if done else 0}))
+    seed_labels(workspace)
     frappe.db.commit()
+
+
+def seed_labels(workspace):
+    """新看板带上默认的六个颜色标签（照 Trello）。只在一个标签都没有时建：用户自己删光了也不再补。"""
+    if frappe.db.exists(LABEL, {"workspace": workspace}):
+        return
+    for color in contracts.DEFAULT_LABEL_COLORS:
+        persist(frappe.get_doc({"doctype": LABEL, "workspace": workspace, "title": "", "color": color}))
 
 
 def ensure_on_migrate():
