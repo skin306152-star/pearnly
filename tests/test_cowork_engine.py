@@ -80,6 +80,16 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(model.requests[0].prompt, model.requests[1].prompt)
         self.assertEqual(result.pipeline.pages[0].layer2_input_tokens, 20)
 
+    def test_a_single_invoice_wrapped_in_an_array_is_read_without_retry(self):
+        # 经济档模型偶尔把唯一一张票包成 [{...}]（2026-09-28 压测实测），拆开即可，不算格式错误。
+        model = Model([[GOOD]])
+        result = run(model=model)
+        self.assertEqual(len(model.requests), 1)
+        self.assertEqual(result.pipeline.pages[0].invoice.invoice_number, "IV69/100")
+        model = Model([[GOOD, GOOD], [1], GOOD])
+        run(model=model)
+        self.assertEqual([r.attempt for r in model.requests][:2], [0, 1])  # 多票数组、非对象数组仍按格式错误重试
+
     def test_only_the_failed_page_is_rechecked_and_all_usage_is_kept(self):
         # ADR-013：一页没过闸只复核那一页，不再把整份文件改走 Vision 重读
         model, source = Model([GOOD, {"total_amount": ""}, GOOD]), Source(2)

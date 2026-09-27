@@ -35,6 +35,9 @@ def _parse_json(text: str) -> dict:
     fences. But occasionally it does anyway. Be defensive.
 
     Raises json.JSONDecodeError on parse failure.
+
+    有意变化（旧线上整批失败）：经济档模型偶尔把唯一一张票包成 ``[{...}]``，拆开取那一张；
+    多个对象的数组仍按解析失败（交重试），不猜哪张是主票。
     """
     s = text.strip()
     if s.startswith('```'):
@@ -49,6 +52,8 @@ def _parse_json(text: str) -> dict:
         obj = json.loads(s)
     except json.JSONDecodeError:
         obj = json.loads(_first_json_object(s))
+    if isinstance(obj, list) and len(obj) == 1 and isinstance(obj[0], dict):
+        obj = obj[0]
     if not isinstance(obj, dict):
         raise json.JSONDecodeError(f'expected JSON object, got {type(obj).__name__}', s, 0)
     return obj
