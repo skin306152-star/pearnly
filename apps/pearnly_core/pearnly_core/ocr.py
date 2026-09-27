@@ -329,6 +329,7 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
         return None
 
 
+_vision_cache: dict = {}
 VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
 VISION_MODEL = "DOCUMENT_TEXT_DETECTION"
 
@@ -342,6 +343,11 @@ def text_from_image(data: bytes, mime: str) -> str | None:
     """
     if backend() != "vertex" or not mime.startswith("image/"):
         return None
+    import hashlib
+
+    key = hashlib.sha256(data).hexdigest()
+    if key in _vision_cache:  # 同一张图在同一次识别里可能被复核和核对各要一次，只付一次钱
+        return _vision_cache[key]
     from pearnly_core.execution import budget, provider
 
     payload = {"requests": [{"image": {"content": base64.b64encode(data).decode("ascii")},
@@ -358,9 +364,13 @@ def text_from_image(data: bytes, mime: str) -> str | None:
         frappe.logger("pearnly.ocr").warning(f"vision http {response.status_code}: {response.text[:200]}")
         return None
     try:
-        return ((response.json().get("responses") or [{}])[0].get("fullTextAnnotation") or {}).get("text") or None
+        text = ((response.json().get("responses") or [{}])[0].get("fullTextAnnotation") or {}).get("text") or None
     except ValueError:
         return None
+    _vision_cache[key] = text
+    while len(_vision_cache) > 16:
+        _vision_cache.pop(next(iter(_vision_cache)))
+    return text
 
 
 def try_with_fallback(call, *, ok, label: str = "ocr"):
@@ -410,6 +420,78 @@ def upright(data: bytes, mime: str) -> tuple[bytes, str]:
         ImageOps.exif_transpose(image).convert("RGB").save(out, "JPEG", quality=92)
         return out.getvalue(), "image/jpeg"
     except Exception:
+        return data, mime
+
+
+ORIENT_MODEL = "ocr_models/doc_ori.onnx"
+ORIENT_LABELS = (0, 90, 180, 270)
+ORIENT_MIN_PROBABILITY = 0.9
+_orient_session = None
+
+
+def _orientation(image):
+    """PaddleOCR 方向分类（`ocr_models/README.md`）：短边缩到 224，沿长边取上 / 中 / 下三块，三块都判成同一方向、
+    且平均概率 ≥ 0.9 才算数。返回 (要逆时针转的角度, 概率)；不确定返回 (0, 概率)。"""
+    import os
+
+    import numpy
+    import onnxruntime
+
+    global _orient_session
+    if _orient_session is None:
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = 1  # 每个 worker 一个线程，不和别的任务抢 CPU
+        options.inter_op_num_threads = 1
+        _orient_session = onnxruntime.InferenceSession(os.path.join(os.path.dirname(__file__), ORIENT_MODEL),
+                                                       options, providers=["CPUExecutionProvider"])
+    from PIL import Image
+
+    width, height = image.size
+    scale = 224 / min(width, height)
+    image = image.resize((max(224, round(width * scale)), max(224, round(height * scale))), Image.BILINEAR)
+    width, height = image.size
+    mean = numpy.array([0.485, 0.456, 0.406], numpy.float32)
+    std = numpy.array([0.229, 0.224, 0.225], numpy.float32)
+    crops = []
+    for fraction in (0.2, 0.5, 0.8):
+        left = int((width - 224) * (fraction if width > height else 0.5))
+        top = int((height - 224) * (fraction if height >= width else 0.5))
+        crop = numpy.asarray(image.crop((left, top, left + 224, top + 224)), numpy.float32) / 255.0
+        crops.append(((crop - mean) / std).transpose(2, 0, 1))
+    session = _orient_session
+    probabilities = session.run(None, {session.get_inputs()[0].name: numpy.stack(crops)})[0]
+    agreed = {int(row.argmax()) for row in probabilities}
+    average = probabilities.mean(axis=0)
+    best = int(average.argmax())
+    probability = float(average[best])
+    if len(agreed) != 1 or probability < ORIENT_MIN_PROBABILITY:
+        return 0, probability
+    return ORIENT_LABELS[best], probability
+
+
+def orient(data: bytes, mime: str) -> tuple[bytes, str]:
+    """转正（ADR-013）：先按 EXIF；再用本地方向分类模型把侧拍 / 倒拍的照片转正（免费，约 15 毫秒，只用 CPU）。
+
+    语料实测（37 张真实照片 × 4 个方向）：正常照片误转 0/37；歪的小票转对 67/96、转错 0；A4 整页照片把握低、
+    多半不动（歪的 A4 有 3/15 被转成另一个错的方向，不会把拍正的转坏）。模型或 onnxruntime 不可用、图打不开时
+    只做 EXIF 转正。"""
+    data, mime = upright(data, mime)
+    if not mime.startswith("image/"):
+        return data, mime
+    try:
+        import io
+
+        from PIL import Image
+
+        image = Image.open(io.BytesIO(data)).convert("RGB")
+        angle, _probability = _orientation(image)
+        if not angle:
+            return data, mime
+        out = io.BytesIO()
+        image.rotate(angle, expand=True).save(out, "JPEG", quality=92)
+        return out.getvalue(), "image/jpeg"
+    except Exception:  # noqa: BLE001 - 转正失败绝不挡识别
+        frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True)
         return data, mime
 
 

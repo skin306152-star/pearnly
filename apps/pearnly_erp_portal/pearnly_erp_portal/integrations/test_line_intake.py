@@ -721,7 +721,7 @@ class Checks(unittest.TestCase):
                 patch.object(recognition.billing, "pages", return_value=1), \
                 patch.object(recognition.billing, "gate"), patch.object(recognition.billing, "charge") as charge, \
                 patch.object(policy, "read_all", return_value=[(result, [], "m")]), \
-                patch("pearnly_core.ocr.upright", side_effect=lambda content, mime: (content, mime)), \
+                patch("pearnly_core.ocr.orient", side_effect=lambda content, mime: (content, mime)), \
                 patch.object(recognition.frappe, "throw", side_effect=_raise), patch.object(recognition, "_", str):
             with self.assertRaises(policy.UnsupportedDocument):
                 recognition.recognise([{"file": "F", "kind": "bill"}])
@@ -801,10 +801,18 @@ class Escalation(unittest.TestCase):
 
         calls = []
 
+        self.last_prompts = []
+
         def fake(prompt, images, *, model, thinking=None, **kw):
             calls.append((model, thinking, "failed these checks" in prompt))
+            self.last_prompts.append(prompt)
+            self.assertEqual(kw.get("max_tokens"), policy.MAX_OUTPUT_TOKENS)
             return answers[len(calls) - 1]
 
+        vision = patch.object(ocr, "text_from_image", return_value=None)
+        if not isinstance(ocr.text_from_image, Mock):  # 调用方自己替换了原文时不覆盖
+            vision.start()
+            self.addCleanup(vision.stop)
         with patch.object(ocr, "json_from_images", side_effect=fake), \
                 patch.object(policy, "escalation", return_value=upgrade), \
                 patch.object(frappe, "logger", return_value=Mock(), create=True):
@@ -834,9 +842,32 @@ class Escalation(unittest.TestCase):
                 (_result, got, _model), calls = self.read([{"lines": [], "n": 1}], lambda r, i=issues: i)
                 self.assertEqual((len(calls), got), (1, issues))
 
-    def test_unreadable_first_answer_is_read_again(self):
-        (result, issues, model), calls = self.read([None, {"lines": [], "n": 2}], lambda r: [])
-        self.assertEqual((len(calls), result["n"], model), (2, 2, "gemini-3.1-flash-lite"))
+    def test_an_unreadable_photo_goes_straight_to_the_ocr_text_read(self):
+        from pearnly_core import ocr
+
+        # 语料实测：严重退化的照片让模型重复输出、写满上限；看图复核会同样失控，直接「原图 + 原文」读。
+        with patch.object(ocr, "text_from_image", return_value="TOTAL 98.00"):
+            (result, issues, model), calls = self.read([None, {"lines": [], "n": 2}], lambda r: [])
+        self.assertEqual((len(calls), calls[1][2], result["n"]), (2, False, 2))
+        self.assertIn("OCR transcript", self.last_prompts[1])
+        (result, _issues, _model), calls = self.read([None], lambda r: [])  # 没有原文：不再花钱
+        self.assertEqual((len(calls), result), (1, None))
+
+    def test_a_recheck_that_still_fails_reads_the_image_with_its_ocr_text(self):
+        from pearnly_core import ocr
+
+        from pearnly_erp_portal.recognition import policy
+
+        # 语料 NBC 逐行折扣 / Giffarine 整单折扣：看图两次都对不上，「原图 + OCR 原文」读对。
+        answers = [{"lines": [], "n": 1}, {"lines": [], "n": 2}, {"lines": [], "n": 3}]
+        review = lambda r: [] if r["n"] == 3 else ["computed_total"]
+        with patch.object(ocr, "text_from_image", return_value="TOTAL 67,852.80") as vision:
+            (result, issues, model), calls = self.read(answers, review)
+        vision.assert_called_once()
+        self.assertEqual((result["n"], issues, len(calls)), (3, [], 3))
+        with patch.object(ocr, "text_from_image", return_value=None):
+            (result, _issues, _model), calls = self.read(answers[:2], review)
+        self.assertEqual((result["n"], len(calls)), (1, 2))  # 没有原文：不再读
 
     def test_the_site_switch_upgrades_only_high_value_documents_that_still_fail(self):
         big = {"lines": [], "n": 1, "printed": {"total": 80000}}

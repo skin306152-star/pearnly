@@ -14,7 +14,8 @@
 1. `gemini-3.1-flash-lite` 思考 MINIMAL 读（PDF 自带文字层时首读只传文字，旧线上文字快路）；
 2. 调用方的 `structured` 做确定性整理与修复（折扣、预扣、不可抵扣 VAT、票种、反推整单折扣…）；
 3. 只有「金额 / 结构对不上」（`checks.reread`）才让同一个便宜模型带着第一次的读数和没过的检查、
-   思考调高一档再看原件核对一次；
+   思考调高一档再看原件核对一次；还不过、且是单张图片时，调一次 Vision 原文，「原图 + 原文」再读一次
+   （18 张对比实测：补上了看图读不对的明细密集税票）；
 4. 高金额票据可按站点配置 `pearnly_erp_ocr_escalation = {"model": "gemini-3.8-flash", "min_total": 50000}`
    再升一次，**默认没有这项、不升级**（用户 2026-09-27：保留开关、默认关）；
 5. 还不过就标红交人工。税号校验位、本公司是否为买方由采购识别用 OCR 原文另做核对（`purchasing.recognition`）。
@@ -26,6 +27,9 @@ import frappe
 from pearnly_erp_portal.recognition import checks
 
 PRIMARY = "gemini-3.1-flash-lite"
+# 单次输出上限：正常票据 400–1,100 个 token，60 行明细也在 4,000 以内。严重退化的照片会让模型重复输出、
+# 一直写到上限（语料实测：两次各写满 16k token，共 ฿1.6、80 秒才判为读不出），上限减半把最坏成本减半。
+MAX_OUTPUT_TOKENS = 8192
 RECHECK_THINKING = {"thinkingLevel": "LOW"}
 
 
@@ -46,6 +50,8 @@ def escalation():
 
 TEXT_NOTE = ("The document is given below as the text layer extracted from its PDF instead of an image; "
              "read it the same way.\n\n")
+OCR_NOTE = ("\n\nAn OCR transcript of this image follows. Use the image for the layout and the transcript to read "
+            "every digit exactly.\n\n")
 KEEP_FOR_RECHECK = ("doc_no", "doc_date", "doc_date_raw", "supplier_tax_id", "buyer_tax_id", "seller_tax_id",
                     "discount_total", "wht_rate", "wht_amount", "printed", "lines")
 
@@ -88,24 +94,36 @@ def read(prompt, images, *, structured, review, label):
 
     text = inputs.text_path(images)
     if text is not None:
-        raw = ocr.json_from_images(prompt + "\n" + TEXT_NOTE + text, [], model=PRIMARY,
+        raw = ocr.json_from_images(prompt + "\n" + TEXT_NOTE + text, [], model=PRIMARY, max_tokens=MAX_OUTPUT_TOKENS,
                                    thinking=ocr.thinking_for(PRIMARY), request_labels=_labels(label, "read"))
     else:
         raw = ocr.json_from_images(prompt, images, model=PRIMARY, thinking=ocr.thinking_for(PRIMARY),
-                                   request_labels=_labels(label, "read"))
+                                   max_tokens=MAX_OUTPUT_TOKENS, request_labels=_labels(label, "read"))
     best = _outcome(raw, structured, review, PRIMARY)
-    if best is None or checks.reread(best[1]):
+    image = len(images) == 1 and images[0][1].startswith("image/")
+    # 首读读不出结构（多半是输出失控写满上限）时，照原样看图复核会同样失控：图片直接走下面的「原图 + 原文」。
+    if (best is not None and checks.reread(best[1])) or (best is None and not image):
         frappe.logger("pearnly.ocr").info(f"{label}: {PRIMARY} {best and best[1]}，带提示复核")
         raw = ocr.json_from_images(recheck_prompt(prompt, best and best[3], best[1] if best else []), images,
-                                   model=PRIMARY, thinking=RECHECK_THINKING, request_labels=_labels(label, "recheck"))
+                                   model=PRIMARY, thinking=RECHECK_THINKING, max_tokens=MAX_OUTPUT_TOKENS,
+                                   request_labels=_labels(label, "recheck"))
         best = _better(best, _outcome(raw, structured, review, PRIMARY))
+    if (best is None or checks.reread(best[1])) and image:
+        # 复核后仍对不上：调一次 OCR 原文，原图 + 原文一起再读（语料实测：明细密集的税票，如 NBC 逐行折扣、
+        # Giffarine 整单折扣，看图读不对，给了原文就对；Vision 原文同一次识别里只取一次）。
+        text = ocr.text_from_image(*images[0])
+        if text:
+            frappe.logger("pearnly.ocr").info(f"{label}: 复核仍不过，按 OCR 原文再读")
+            raw = ocr.json_from_images(prompt + OCR_NOTE + text, images, model=PRIMARY, thinking=RECHECK_THINKING,
+                                       max_tokens=MAX_OUTPUT_TOKENS, request_labels=_labels(label, "ocr-read"))
+            best = _better(best, _outcome(raw, structured, review, PRIMARY))
     upgrade = escalation()
     if upgrade and (best is None or checks.reread(best[1])):
         total = checks.money(((best[0] if best else {}) or {}).get("printed", {}).get("total")) or 0
         if best is None or total >= upgrade[1]:
             frappe.logger("pearnly.ocr").info(f"{label}: 站点开启升级，{upgrade[0]} 重读")
             raw = ocr.json_from_images(prompt, images, model=upgrade[0], thinking=ocr.thinking_for(upgrade[0]),
-                                       request_labels=_labels(label, "upgrade"))
+                                       max_tokens=MAX_OUTPUT_TOKENS, request_labels=_labels(label, "upgrade"))
             best = _better(best, _outcome(raw, structured, review, upgrade[0]))
     return best[:3] if best else (None, [], PRIMARY)
 

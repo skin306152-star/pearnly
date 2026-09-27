@@ -96,7 +96,7 @@ def run_erp(content, mime, own_tax=None):
     from pearnly_erp_portal.purchasing import amounts, recognition as pr
     from pearnly_erp_portal.recognition import policy
 
-    images = [ocr.upright(content, mime)]
+    images = [ocr.orient(content, mime)]  # 与 `recognise` 相同：EXIF + 方向分类转正
     documents = retrying(lambda: policy.read_all(pr.PROMPT, images, structured=pr._structured, review=pr.review,
                                                  label="eval", fields=pr.HEADER_FIELDS, finish=pr._finish), "erp")
     if not documents:
@@ -141,7 +141,7 @@ def run_erp_sales(content, mime):
     from pearnly_erp_portal.recognition import policy
     from pearnly_erp_portal.sales import contracts, recognition as sr
 
-    images = [ocr.upright(content, mime)]
+    images = [ocr.orient(content, mime)]  # 与 `recognise` 相同：EXIF + 方向分类转正
     documents = retrying(lambda: policy.read_all(sr.PROMPT, images, structured=sr._structured, review=sr.review,
                                                  label="eval-sales", fields=sr._HEAD, finish=sr._finish), "erp-sales")
     if not documents:

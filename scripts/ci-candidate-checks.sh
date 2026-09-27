@@ -27,7 +27,7 @@ offline() {
     -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
     "$IMAGE" /candidate/tests/test_dms_entrypoints.py
   offline_py "$IMAGE" -m unittest pearnly_erp_portal.integrations.test_line_intake pearnly_erp_portal.team.test_identity \
-    pearnly_control.account.test_member_service pearnly_core.account.test_line_login \
+    pearnly_control.account.test_member_service pearnly_core.account.test_line_login pearnly_core.ocr_models.test_orient \
     pearnly_core.account.test_native_account_password
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \

@@ -53,6 +53,12 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pypdf==6.15.0"
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
     "openpyxl==3.1.5" "et-xmlfile==2.0.0" "python-docx==1.2.0" "lxml==6.1.2"
 
+# 识别前的本地转正（ADR-013，`pearnly_core.ocr.orient`）：PaddleOCR 方向分类模型（`ocr_models/doc_ori.onnx`，
+# Apache-2.0）用 onnxruntime 在 CPU 上跑，约 15 毫秒一张、不调任何 API。版本钉死；三个包都有 cp314 manylinux 轮子，
+# 实测连同依赖使环境增大约 136 MB，`pip check` 无新增冲突（2026-09-27，用户同意加这项底座改动）。
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
+    "onnxruntime==1.30.0" "numpy==2.5.3" "flatbuffers==25.12.19"
+
 # ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
 #
 # 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走

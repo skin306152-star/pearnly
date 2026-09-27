@@ -144,8 +144,8 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
         hashes.append(hashlib.sha256(content).hexdigest())
     if not images:
         frappe.throw(_("File not found"))
-    # 照片自带方向信息就先在本地转正（免费；侧着读会编商品名，见 `ocr.upright`）。
-    images = [ocr.upright(content, mime) for content, mime in images]
+    # 本地转正：EXIF + 方向分类模型（免费，见 `ocr.orient`；侧着读会编商品名、读错单号）。
+    images = [ocr.orient(content, mime) for content, mime in images]
     # 照旧线上：先便宜模型、最低思考读，过不了确定性检查才升级重读（见 `recognition.policy`）。
     units = billing.pages(images)
     billing.gate(units)
