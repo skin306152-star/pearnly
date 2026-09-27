@@ -41,4 +41,14 @@
   - 读回测试账套（skin3 一次性计划任务只读复制 STMAS / STCRD / GLJNLIT / ISACC，核完已删任务与两端副本）：
     **PN00063 ACCCOD = ST01**（存货科目 11-04-02-00），账套里 ST10 占 153 个；上一窗口未选组时建的 PN00062 是 ST10。
     STCRD 入库 3 / 150；分录借贷平衡。
-- 未做：网页弹窗与提交前兜底弹窗、LINE 选组的真机点选（内置浏览器没有登录会话，不代填账号）；生产部署；小助手正式通道发布。
+- 未做：网页弹窗与提交前兜底弹窗、LINE 选组的真机点选（内置浏览器没有登录会话，不代填账号；用户未试用，直接同意部署）。
+
+## 部署（用户 2026-09-28 同意）
+
+- 生产镜像：`build-production.yml` run 36338438428（main `d3daf502`）→ `sha256:2c0f6ed8…`；`stage-production.yml` run 36338726871 success。
+- 服务器：`check-deploy-image.py` → Deploy tooling matches this image；`activate-product.sh <镜像> cowork` 95 秒，
+  `Product cowork activated with verified image.`，7 个容器 `2c0f6ed8`。上一版 `b273e386`。ERP / DMS 未动。
+- 线上回读（testcowork）：`stock_acc_groups` 列已迁移；测试账套选组视图 known、合格组 ST10 / ST01、线上未选（测试环境里选的 ST01 只在测试副本）；ping 200。
+- 小助手正式通道：标签 `companion-v1.2.4` → run 36338442365 success，`latest.json` 回读 1.2.4（sha256 `fa7131e9…`）；
+  办公室测试机（staging 1.2.4）心跳已回到线上 testcowork。
+- 测试环境：`lab-stop cowork`，testcowork 解析回落线上通配，栈已停、卷保留。
