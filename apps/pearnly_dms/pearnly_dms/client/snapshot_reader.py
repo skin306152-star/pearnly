@@ -123,6 +123,30 @@ class _Budget:
             self.failed = True
             _too_large("row budget exceeded")
 
+    def before(self, path, data):
+        """每个请求发出前：只许读、不超请求数（串行与并行读取同一套检查）。"""
+        self.check()
+        # This collector must never acquire a write capability accidentally.
+        if path not in READ_PATHS or (path.endswith("/form.php") and data.get("status") not in {"n", "e"}):
+            self.failed = True
+            _fail("unexpected read endpoint")
+        self.requests += 1
+        if self.requests > self.limits.max_requests:
+            self.failed = True
+            _too_large("request budget exceeded")
+
+    def after(self, body):
+        """每个响应回来后：必须是文本、不超单个与总字节数。"""
+        self.check()
+        if not isinstance(body, str):
+            self.failed = True
+            _fail("non-text response")
+        size = len(body.encode("utf-8"))
+        self.bytes += size
+        if size > self.limits.max_response_bytes or self.bytes > self.limits.max_total_bytes:
+            self.failed = True
+            _too_large("response budget exceeded")
+
     @contextmanager
     def bind(self, client):
         """Bound all nested client reads; restore the request-local client on exit."""
@@ -131,15 +155,7 @@ class _Budget:
         previous = client.__dict__.get("_post_text")
 
         def read(path, data):
-            self.check()
-            # This collector must never acquire a write capability accidentally.
-            if path not in READ_PATHS or (path.endswith("/form.php") and data.get("status") not in {"n", "e"}):
-                self.failed = True
-                _fail("unexpected read endpoint")
-            self.requests += 1
-            if self.requests > self.limits.max_requests:
-                self.failed = True
-                _too_large("request budget exceeded")
+            self.before(path, data)
             try:
                 body = original(path, data)
             except Exception:
@@ -147,15 +163,7 @@ class _Budget:
                 # partial fallback. Such a read must still poison the whole batch.
                 self.failed = True
                 raise
-            self.check()
-            if not isinstance(body, str):
-                self.failed = True
-                _fail("non-text response")
-            size = len(body.encode("utf-8"))
-            self.bytes += size
-            if size > self.limits.max_response_bytes or self.bytes > self.limits.max_total_bytes:
-                self.failed = True
-                _too_large("response budget exceeded")
+            self.after(body)
             if path.endswith("/bshsd.php"):
                 if body == "" and data.get("elemname") in EMPTY_BANK_SELECTORS:
                     return body  # Known native empty, not whitespace/error HTML/null.
@@ -439,9 +447,38 @@ def _customer_id(cid):
 
 def _read_customer_complete(client, cid, budget):
     cid = _customer_id(cid)
+    return _customer_from_form(client, cid, client._post_text("cus/form.php", {"status": "e", "id": cid}), budget)
+
+
+def _read_customers_complete(client, cids, budget):
+    """一批客户的完整资料。会话上挂了并行读取器（`adapter/parallel_reads`）就同时发几个请求，
+    否则逐个读；每个请求与响应都过同一套预算与只读检查。
+
+    为什么要并行：ris 的 15,155 个客户逐个读，每个约 0.24 秒、整组 61 分钟几乎全在等 DMS 回
+    一张客户表单（2026-09-27 线上日志）；同一会话并发在 DMS-TEST 实测正常、4 个约快 3 倍。"""
+    cids = [_customer_id(cid) for cid in cids]
+    fetch = getattr(client, "_parallel_post_text", None)
+    if fetch is None or len(cids) < 2:
+        return {cid: _read_customer_complete(client, cid, budget) for cid in cids}
+    requests = [{"status": "e", "id": cid} for cid in cids]
+    for data in requests:
+        budget.before("cus/form.php", data)
+    try:
+        pages = fetch("cus/form.php", requests)
+    except Exception:
+        budget.failed = True
+        raise
+    if len(pages) != len(cids):
+        budget.failed = True
+        _fail("parallel customer read lost a response")
+    for page in pages:
+        budget.after(page)
+    return {cid: _customer_from_form(client, cid, page, budget) for cid, page in zip(cids, pages)}
+
+
+def _customer_from_form(client, cid, page, budget):
     required = set(_IDENTITY_MAP.values()) | {"txtcuscode", _BRANCH_VAL, _BRANCH_CODE}
     required.update(field + suffix for field in _ADDR_MAP.values() for suffix in _ADDR_SUFFIXES)
-    page = client._post_text("cus/form.php", {"status": "e", "id": cid})
     data = client._identity_form_data(page)
     controls = [client._attr(attrs, "name")
                 for attrs in re.findall(r"<(?:input|select|textarea)\b([^>]*)>", page, re.I | re.S)]
@@ -595,12 +632,18 @@ def _validate_customer_checkpoint_records(customers):
             _fail("incomplete customer checkpoint fields")
 
 
+#: 一步最多处理几个节点（列表页 / 客户详情各算一个）。并行读详情后一步能多做，少排队、少存几次进度。
+MAX_CUSTOMER_NODES = 500
+#: 详情阶段一批读几个客户（并行读取时同时在路上的请求数由读取器自己限，见 `adapter/parallel_reads`）。
+DETAIL_BATCH = 20
+
+
 def advance_customers(client, stage, *, max_nodes=20, limits=None):
     """List, full details, then list/count verification across short sessions.
 
     列表阶段顺手记下每行的 客户码/姓名/证号（`index`）：列表读完就能先发布一份客户索引，
     查重不必等一个多小时的逐个详情（用户 2026-09-27）。旧检查点没有 `index` 就不发布。"""
-    if type(max_nodes) is not int or not 1 <= max_nodes <= 100:
+    if type(max_nodes) is not int or not 1 <= max_nodes <= MAX_CUSTOMER_NODES:
         _fail("invalid customer chunk size")
     def advance(budget):
         candidate = deepcopy(stage)
@@ -629,9 +672,11 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
             _fail("incomplete customer checkpoint details")
         if candidate["phase"] == "done" and verified != ids:
             _fail("incomplete customer checkpoint verification")
-        for _ in range(max_nodes):
+        nodes = 0
+        while nodes < max_nodes:
             if budget.limits.max_seconds - (time.monotonic() - budget.started) < 5:
                 break
+            nodes += 1
             phase = candidate["phase"]
             if phase in {"list", "verify"}:
                 target = ids if phase == "list" else verified
@@ -663,8 +708,9 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
             elif phase == "details":
                 pending = [cid for cid in detail_ids if cid not in customers]
                 if pending:
-                    cid = pending[0]
-                    customers[cid] = _read_customer_complete(client, cid, budget)
+                    batch = pending[:max(1, min(DETAIL_BATCH, max_nodes - nodes + 1))]
+                    customers.update(_read_customers_complete(client, batch, budget))
+                    nodes += len(batch) - 1
                 else:
                     candidate["phase"] = "verify"
             else:

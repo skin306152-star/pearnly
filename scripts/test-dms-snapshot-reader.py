@@ -602,6 +602,65 @@ class ManualCustomerChunks(unittest.TestCase):
         self.assertEqual(len(self.transport.calls), calls)
 
 
+class ParallelCustomerDetails(unittest.TestCase):
+    """详情并行读（2026-09-27）：结果与逐个读完全一样，每个请求照样计入预算，丢响应整批作废。"""
+
+    def setUp(self):
+        self.transport = Transport(ids=[f"C{i}" for i in range(1, 8)])
+        self.client = DmsClient(self.transport, "https://snapshot.invalid/dms/")
+
+    def finish(self, *, max_nodes=500):
+        from pearnly_dms.client.snapshot_reader import start_customers, advance_customers
+        stage = start_customers(self.client, limits=LIMITS)
+        for _ in range(20):
+            stage = advance_customers(self.client, stage, max_nodes=max_nodes, limits=LIMITS)
+            if stage["phase"] == "done":
+                return stage
+        self.fail("never completed")
+
+    def parallel(self, *, drop=False):
+        batches = []
+
+        def fetch(path, datas):
+            batches.append([d["id"] for d in datas])
+            bodies = [self.transport.post("https://snapshot.invalid/dms/" + path, data=d).text for d in datas]
+            return bodies[:-1] if drop else bodies
+        self.client._parallel_post_text = fetch
+        return batches
+
+    def test_parallel_result_equals_one_by_one(self):
+        sequential = self.finish()
+        calls = len(self.transport.calls)
+        self.setUp()
+        batches = self.parallel()
+        parallel = self.finish()
+        self.assertEqual(parallel, sequential)
+        self.assertEqual(len(self.transport.calls), calls, "same requests, just concurrent")
+        self.assertEqual(batches, [[f"C{i}" for i in range(1, 8)]], "one batch per step up to the batch size")
+
+    def test_batches_respect_the_node_budget(self):
+        batches = self.parallel()
+        self.finish(max_nodes=4)
+        self.assertTrue(all(len(batch) <= 4 for batch in batches), batches)
+        self.assertEqual(sorted(cid for batch in batches for cid in batch), sorted(f"C{i}" for i in range(1, 8)))
+
+    def test_a_lost_response_fails_the_step(self):
+        from pearnly_dms.client.snapshot_reader import start_customers, advance_customers
+        stage = start_customers(self.client, limits=LIMITS)
+        stage = advance_customers(self.client, stage, max_nodes=3, limits=LIMITS)  # list + count
+        self.parallel(drop=True)
+        with self.assertRaises(DmsClientError):
+            advance_customers(self.client, stage, max_nodes=500, limits=LIMITS)
+
+    def test_parallel_reader_refuses_writes(self):
+        from pearnly_dms.adapter.parallel_reads import ParallelForms
+        reader = ParallelForms.__new__(ParallelForms)
+        reader._client = self.client
+        for path, data in (("cus/new.php", {"status": "n"}), ("cus/form.php", {"status": "d", "id": "C1"})):
+            with self.subTest(path=path), self.assertRaises(DmsClientError):
+                reader(path, [data])
+
+
 if __name__ == "__main__":
     with patch.object(socket, "create_connection", side_effect=AssertionError("Network forbidden")), \
             patch.object(socket.socket, "connect", side_effect=AssertionError("Network forbidden")):

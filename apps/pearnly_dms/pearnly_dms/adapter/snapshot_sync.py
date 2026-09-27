@@ -5,6 +5,7 @@ import time
 
 import frappe
 
+from pearnly_dms.adapter import parallel_reads
 from pearnly_dms.adapter.operations import run_logged_in
 from pearnly_dms.client.catalogue_reader import start_catalogues, advance_catalogues
 from pearnly_dms.client.snapshot_reader import (
@@ -14,6 +15,9 @@ from pearnly_dms.masters.company_banks import fetch_payment_bank_masters
 from pearnly_dms.snapshots import manual, store
 
 logger = logging.getLogger(__name__)
+
+#: 客户组一步最多处理的节点数（列表页 / 客户详情各算一个）。
+CUSTOMER_STEP_NODES = 400
 
 
 def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
@@ -67,10 +71,12 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
             if "customers" not in stage:
                 stage["customers"] = start_customers(client,
                     extra_customer_ids=store.overlay_customer_ids(endpoint), limits=limits)
-            # 每步尽量多做：一次队列 job 要付一次完整登录（6–16 秒），20 个客户一步
-            # 意味着 15,135 个客户要 757 步、光登录就两个多小时（2026-09-25 实测）。
-            # 100 是一步能取的最大块，30 秒租约内读得完。
-            tree = advance_customers(client, stage["customers"], max_nodes=100, limits=limits)
+            # 每步尽量多做：每一步都要排一次队、恢复会话、存一次检查点。详情并行读（同一会话 4 个并发，
+            # `adapter/parallel_reads`）后一步 400 个客户约二三十秒，远在 120 秒租约内；
+            # ris 15,155 个客户由 156 步降到约 38 步（2026-09-27）。
+            with parallel_reads.attached(client):
+                tree = advance_customers(client, stage["customers"], max_nodes=CUSTOMER_STEP_NODES,
+                                         limits=limits)
             stage["customers"] = tree
             prefixes = [[cid, row["fields"]["txtprefixname"]] for cid, row in catalogues["prefix"].items()]
             # 列表读完就先发布客户索引（编号/姓名/证号 + 称谓）：LINE 查重马上能用，
