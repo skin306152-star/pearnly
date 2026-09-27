@@ -150,6 +150,9 @@ class CompanionReportTests(unittest.TestCase):
         self.assertEqual(plan.observations[1]["account_set_key"], r"e:\data\other")
         self.assertEqual(plan.completion, {"request_id": "R", "scope": "account_set",
                                           "account_set": r"e:\data\other", "error_code": None})
+        # 这次心跳带的主档属于被刷新的那份账套（收心跳时另存，不盖默认账套的缓存）。
+        self.assertEqual(plan.refreshed_account, r"e:\data\other")
+        self.assertEqual(plan_report(body(catalog={}), {}, NOW).refreshed_account, "")
 
     def test_reported_refresh_error_can_coexist_with_valid_component_publication(self):
         plan = plan_report(body(catalog={}, master_refresh_request_id="R", master_refresh_scope="endpoint",

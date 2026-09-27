@@ -91,6 +91,8 @@ def endpoint_with_account_choice(
             "reported_customers",
             "reported_stock_acc_groups",
             "catalog_fingerprint",
+            # 存货科目组是按账套选的：带到别的账套会按不属于它的组建存货档（用户 2026-09-27）。
+            "stock_acccod",
         ):
             config.pop(key, None)
     for key in (

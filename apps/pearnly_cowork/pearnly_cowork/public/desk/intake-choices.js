@@ -57,6 +57,7 @@
 		];
 		const d = p.dialog(t("intake.action.new"), fields, __("Continue"), () => {
 			remember(picked.connection, picked.account_set_key);
+			p.intake_targets.prefetch_account(snapshot?.connections?.[picked.target], picked.account_set_key);
 			d.hide();
 			on_start({...picked});
 		});

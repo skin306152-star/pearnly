@@ -177,7 +177,7 @@ class TargetTests(unittest.TestCase):
     def test_switching_account_clears_old_mapping_and_catalogue_only(self):
         ep = endpoint("express", config={"account_set": r"C:\ERP\OLD", "account_dir": r"C:\ERP\OLD",
                      "revenue_acc": "old", "reported_products": [{"code": "old"}], "catalog_fingerprint": "old",
-                     "username_enc": "do-not-expose", "other_flag": True})
+                     "stock_acccod": "OLD-GROUP", "username_enc": "do-not-expose", "other_flag": True})
         before = deepcopy(ep)
         result = choice.endpoint_with_account_choice(ep, {"account_set": r"C:\ERP\NEW", "root_key": r"C:\ERP",
                                                           "mapping": {"revenue_acc": "new", "unapproved": "ignored"}})
@@ -185,6 +185,7 @@ class TargetTests(unittest.TestCase):
         self.assertEqual(result["config"]["revenue_acc"], "new")
         self.assertNotIn("reported_products", result["config"])
         self.assertNotIn("catalog_fingerprint", result["config"])
+        self.assertNotIn("stock_acccod", result["config"])  # 存货科目组按账套选，不带到别的账套
         self.assertNotIn("unapproved", result["config"])
         self.assertTrue(result["config"]["other_flag"])
 

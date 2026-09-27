@@ -114,6 +114,7 @@ def answer(line_user_id, data, reply_token):
         index = int(params.get("v"))
         payload.update(account_set_key=value, account_label=labels[index] if index < len(labels) else "")
         payload.pop("offered_labels", None)
+        _prefetch_account(payload)
     else:
         payload[step] = value
     _next(line_user_id, payload, reply_token)
@@ -223,6 +224,7 @@ def _ask_account(line_user_id, payload, reply_token, note="") -> bool:
         return True
     if len(rows) == 1:
         payload.update(account_set_key=str(rows[0]["source_id"]), account_label=account_search.label(payload["target"], rows[0]))
+        _prefetch_account(payload)
         return False
     last = _last_used(payload, rows)
     last_label = next((account_search.label(payload["target"], row) for row in rows
@@ -259,6 +261,20 @@ def search(line_user_id, text, reply_token) -> bool:
              for index in range(len(shown))]
     _ask(reply_token, "\n".join(lines), items)
     return True
+
+
+def _prefetch_account(payload):
+    """选定 Express 账套就让助手读这份账套的主档，推送前的库存检查才有它的资料（与网页同一个刷新）。"""
+    if payload.get("target") != "express":
+        return
+    from uuid import uuid4
+
+    from pearnly_cowork.connections import service
+
+    try:
+        service.request_refresh(payload["connection"], str(uuid4()), payload["account_set_key"])
+    except frappe.ValidationError:
+        pass
 
 
 def _request_directory(payload):

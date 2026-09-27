@@ -4,13 +4,41 @@ The machine ingress owns current credential validation and the transaction. This
 module has no HTTP, authentication, commit or external IO. Directory observations
 never attest the separate preparation facts needed to push an ERP document.
 """
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import frappe
 from frappe import _
+from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection
 from . import access, model, preparation, refresh, snapshots, state
 from .reports import CACHE_KEYS, MAPPING_KEYS, SELECTED_KEYS
+
+
+# 按单个账套刷新带回来的主档，属于那份账套（用户 2026-09-27：推到非默认账套也要先做库存检查）。
+ACCOUNT_CACHE_KEYS = ('reported_accounts', 'accounts_seen_at', 'reported_products', 'reported_customers',
+                      'catalog_seen_at', 'catalog_fingerprint', 'reported_stock_acc_groups', 'stock_acc_groups_seen_at')
+_MAX_ACCOUNT_CACHES = 10
+
+
+def _keep_account_caches(report, plan, credential_id, token_generation, now):
+    """别的账套的主档另存在 `_account_caches[账套]`，不覆盖小助手默认账套的缓存，也不记成它的。
+
+    以前按单个账套刷新带回的商品 / 存货科目组 / 记账指纹 / 科目表直接盖在公共位置上，归属又按小助手
+    默认账套记 —— 推到默认账套时会拿别的账套的存货资料做检查。只保留最近用到的几份。
+    """
+    account = plan.refreshed_account
+    if not account or account == normalize_express_account_key(plan.lease_selection):
+        return plan
+    patch = dict(plan.patch)
+    moved = {key: patch.pop(key) for key in ACCOUNT_CACHE_KEYS if key in patch}
+    if moved:
+        caches = dict(report.get('_account_caches') or {})
+        caches[account] = {**moved, '_seen_at': now.isoformat(), '_credential': credential_id,
+                           '_generation': int(token_generation)}
+        keep = sorted(caches, key=lambda key: caches[key].get('_seen_at') or '', reverse=True)[:_MAX_ACCOUNT_CACHES]
+        report['_account_caches'] = {key: caches[key] for key in keep}
+    return replace(plan, patch=patch)
 
 
 def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
@@ -28,8 +56,9 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
         doc.config_json = model.dumps(updated)
         doc.record_revision += 1
         doc.projection_heads = '{}'
-    report = {**model.parse(doc.get('report_json'), {}),
-              **{key: value for key, value in plan.patch.items() if key in CACHE_KEYS}}
+    report = model.parse(doc.get('report_json'), {})
+    plan = _keep_account_caches(report, plan, credential_id, token_generation, now)
+    report.update({key: value for key, value in plan.patch.items() if key in CACHE_KEYS})
     preparation.attribute_report(doc, report, plan, credential_id, token_generation, issuer)
     if len(model.dumps(report).encode()) > 16 * 1024 * 1024:
         frappe.throw(_('connection.snapshot_too_large'))

@@ -219,6 +219,16 @@
 		}
 	}
 
+	/**
+	 * 选定 Express 账套就让助手去读这份账套的主档（商品、存货科目组、记账指纹、科目表），识别期间读完，
+	 * 推送前的库存检查才有这份账套的资料（用户 2026-09-27）。读不到不拦推送，失败不打扰用户。
+	 */
+	function prefetch_account(connection, account_set_key) {
+		if (connection?.adapter !== "express" || !account_set_key) return;
+		void p.call(API.connections + "request_refresh",
+			{name: connection.name, request_key: key(), account_set_key}, "POST").catch(() => null);
+	}
+
 	/** 目录失败的原因：错误码有对应文案就用，没有就给通用那一句（不把原始码摆给商家）。 */
 	function catalog_error(code) {
 		const text = __(`intake.catalog.${code}`);
@@ -226,6 +236,7 @@
 	}
 
 	p.intake_targets = {TARGETS, RECOGNIZE_ONLY, catalog, catalog_error, connect_dialog, describe, download_agent,
+		prefetch_account,
 		express_dialog,
 		ready, state};
 })();

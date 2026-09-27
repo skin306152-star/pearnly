@@ -43,6 +43,9 @@ class LineFlowTest(unittest.TestCase):
                 "account_sets": EXPRESS_BOOKS if name == "CON-X" else self.books}),
             mock.patch.object(flow, "_last_used", side_effect=lambda payload, rows: self.last_used),
         ]
+        refresh = mock.patch("pearnly_cowork.connections.service.request_refresh")
+        self.refresh = refresh.start()
+        self.addCleanup(refresh.stop)
         self.books, self.last_used = MRERP_BOOKS, ""
         for patch in patches:
             patch.start()
@@ -125,6 +128,15 @@ class LineFlowTest(unittest.TestCase):
         self.assertTrue(flow.ready(payload))
         self.assertEqual((payload["connection"], payload["account_set_key"], payload["posting_kind"]),
                          ("CON-X", r"s:\2568\exp68\68acme", "stock"))
+        # 选定 Express 账套就让助手读这份账套的主档（推送前的库存检查用）；MR.ERP 不需要。
+        self.assertEqual(self.refresh.call_args.args[0], "CON-X")
+        self.assertEqual(self.refresh.call_args.args[2], r"s:\2568\exp68\68acme")
+
+    def test_mrerp_choice_does_not_ask_for_an_account_read(self):
+        self.books = MRERP_BOOKS[:1]
+        flow.start("U1", "tok")
+        self.tap("MR.ERP")
+        self.refresh.assert_not_called()
 
     def test_mrerp_purchase_is_credit_only(self):
         self.books = MRERP_BOOKS[:1]

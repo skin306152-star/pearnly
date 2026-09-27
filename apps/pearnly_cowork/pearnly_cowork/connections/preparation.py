@@ -63,6 +63,18 @@ def reported_writable(report, account, root):
     return False
 
 
+def _account_cache(report, account, doc):
+    """非默认账套：用按单个账套刷新带回、且出自这份凭据的主档（选账套时已申请刷新）；没有就空着。"""
+    cache = (report.get('_account_caches') or {}).get(account) or {}
+    if cache.get('_credential') != doc.report_credential or cache.get('_generation') != doc.report_generation:
+        return {}
+    reported = {k: deepcopy(cache[k]) for k in model.REPORTED_KEYS if k in cache}
+    if reported:
+        # 小助手本身的能力（载荷版本 / 版本号）与账套无关。
+        reported.update({k: report[k] for k in ('max_payload_version', 'companion_version') if k in report})
+    return reported
+
+
 def collect(loaded, target, *, seller_tax='', invoice_date=None):
     doc = state.read(state.CONNECTION, loaded.doc.name)
     access.require_connection(doc, actor=loaded.access.user_id)
@@ -72,12 +84,7 @@ def collect(loaded, target, *, seller_tax='', invoice_date=None):
     if (target.endpoint_id != doc.name or target.user_id != loaded.access.user_id
             or target.tenant_id != frappe.local.site or target.binding_generation != doc.binding_generation):
         frappe.throw(_('connection.preparation_invalid'))
-    heads = state.heads(doc)
-    account_head = state.scope(account, 'express')[2]
-    endpoint_head = state.scope(None)[2]
-    head = heads.get(account_head, heads.get(endpoint_head))
-    if head and head.get('status') != 'fresh':
-        frappe.throw(_('connection.preparation_incomplete'))
+    # 目录刷新进行中 / 失败不拦推送（用户 2026-09-27 选 A）：检查用得上的资料就用，没有就留给小助手写入时核。
     report = model.parse(doc.report_json, {})
     binding = report.get('_preparation_binding') or {}
     credential = None
@@ -92,6 +99,8 @@ def collect(loaded, target, *, seller_tax='', invoice_date=None):
     expected = {k: binding[k] for k in binding if k != 'online'}
     reported = {k: deepcopy(report[k]) for k in model.REPORTED_KEYS
                 if default and credential and k in report and origins.get(k) == expected}
+    if credential and not default:
+        reported = _account_cache(report, account, doc)
     maps, map_state = _read_optional(push_inputs.mappings, {'accounts': [], 'clients': []}, doc.client)
     profiles, profile_state = (_read_optional(push_inputs.profiles, {}, doc.workspace, seller_tax)
         if seller_tax else ({}, 'not_applicable'))
