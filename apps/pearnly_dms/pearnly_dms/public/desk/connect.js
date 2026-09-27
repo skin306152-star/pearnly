@@ -237,9 +237,14 @@
 				},
 			);
 			const holder = d.fields_dict.rows.$wrapper;
+			// 用完整的官方控件结构（不是 only_input）：密码框的"显示密码"眼睛靠 `.control-input` 定位在
+			// 框内右侧，只取输入框时眼睛会掉到框下面（用户 2026-09-27 截图）。标签留空，靠占位文字说明。
 			function control(parent, df) {
-				const field = frappe.ui.form.make_control({ parent, df, only_input: true, render_input: true });
+				const field = frappe.ui.form.make_control({ parent, df: { label: "", ...df }, render_input: true });
 				field.refresh();
+				field.disable_password_checks?.(); // 这里不是设密码，不要密码强度条
+				// 空标签也占一行高度，输入框会比同一行的「删除」按钮低一截：藏掉让整行对齐。
+				field.$wrapper?.find(".control-label").addClass("hide");
 				return field;
 			}
 			function addRow(row) {
