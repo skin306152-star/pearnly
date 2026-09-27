@@ -570,6 +570,9 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
     # The response may display the previous selection. Refresh leasing must use
     # only this heartbeat's choice; the legacy lease then canonicalizes its key.
     lease_selection = str(body.get("account_set") or body.get("account_dir") or "").strip()
+    # 只有这次按单个账套读取成功、且确实带回了目录，这些主档才属于那份账套；读取失败时心跳里带的是
+    # 小助手默认账套的缓存（例如重启后账套还没扫完），不能记到被刷新的账套名下。
+    account_refreshed = scope == "account_set" and refreshed and not error and isinstance(catalog, Mapping)
     return ReportPlan(False, deepcopy(patch), deepcopy(observations), projection_error, completion,
                       response, lease_selection=lease_selection,
-                      refreshed_account=refreshed if scope == "account_set" and refreshed else "")
+                      refreshed_account=refreshed if account_refreshed else "")

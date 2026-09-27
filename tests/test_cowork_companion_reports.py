@@ -153,6 +153,11 @@ class CompanionReportTests(unittest.TestCase):
         # 这次心跳带的主档属于被刷新的那份账套（收心跳时另存，不盖默认账套的缓存）。
         self.assertEqual(plan.refreshed_account, r"e:\data\other")
         self.assertEqual(plan_report(body(catalog={}), {}, NOW).refreshed_account, "")
+        # 读取失败（例如重启后还没扫完账套）或没带目录：心跳里的主档不是那份账套的。
+        failed = dict(value, master_refresh_error="ERR_ACCOUNT_SET_UNAVAILABLE")
+        self.assertEqual(plan_report(failed, {}, NOW).refreshed_account, "")
+        no_catalog = {k: v for k, v in value.items() if k != "catalog"}
+        self.assertEqual(plan_report(no_catalog, {}, NOW).refreshed_account, "")
 
     def test_reported_refresh_error_can_coexist_with_valid_component_publication(self):
         plan = plan_report(body(catalog={}, master_refresh_request_id="R", master_refresh_scope="endpoint",
