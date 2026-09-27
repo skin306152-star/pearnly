@@ -79,6 +79,48 @@
 	gap: 12px;
 	align-items: flex-start;
 	overflow-x: auto;
+	/* 框架看板把横向滚动条整个藏掉了，鼠标没法左右走（用户 2026-09-27：左右滑动不灵敏）。
+	   这里显示一条细滚动条；看板高度由脚本撑到窗口底部，滚动条就停在屏幕最下面。
+	   空白处按住拖动、或滚滚轮也能左右移动（照 Trello）。 */
+	/* 标准属性回到 auto：Chrome 只要标准属性不是 auto 就忽略下面的 ::-webkit-scrollbar，
+	   Mac 上会变成滚动时才出现的隐形滚动条。 */
+	scrollbar-width: auto;
+	scrollbar-color: auto;
+	padding-bottom: 8px;
+	cursor: grab;
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar {
+	display: block;
+	height: 10px;
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar-thumb {
+	border-radius: 5px;
+	background: var(--gray-400);
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar-track {
+	border-radius: 5px;
+	background: var(--subtle-fg);
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar-thumb:hover {
+	background: var(--gray-500);
+}
+
+.pearnly-work-board.kanban.panning {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.pearnly-work-board.kanban > * {
+	cursor: auto;
+}
+
+/* 筛选区的下拉（成员 / 标签 / 到期）要盖在吸顶的视图页签上面，否则上半截被页签挡住（用户 2026-09-27 截图）。 */
+#page-pearnly-work .page-form .awesomplete > ul {
+	z-index: 6;
 }
 
 /* ── 列 ─────────────────────────────────────────────────────────────────────── */
@@ -828,6 +870,7 @@
 		flex-direction: column;
 		align-items: stretch;
 		overflow: visible;
+		cursor: auto;
 	}
 
 	.pearnly-work-board .kanban-column {

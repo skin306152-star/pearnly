@@ -213,6 +213,34 @@
 		const nav = $('<nav class="form-tabs-list pearnly-work-nav">').appendTo(view_panes.board);
 		const nav_list = $('<ul class="nav form-tabs">').appendTo(nav);
 		const board = $('<div class="kanban pearnly-work-board">').appendTo(view_panes.board);
+		// 左右移动（用户 2026-09-27："左右滑动看下怎么改比较灵敏点"）：看板撑到窗口底部，横向滚动条停在屏幕最下面；
+		// 空白处（列表之间、列表下方）按住拖动或滚滚轮，整块看板左右走（照 Trello）。手机上列表纵排，不需要。
+		const fit_board = () => {
+			if (mobile() || !board.is(":visible")) { board.css("height", ""); return; }
+			const top = board[0].getBoundingClientRect().top;
+			board.css("height", `${Math.max(320, Math.floor(window.innerHeight - top - 12))}px`);
+		};
+		$(window).on("resize.pearnlyWorkBoard", frappe.utils.debounce(fit_board, 100));
+		let pan = null;
+		board.on("pointerdown", event => {
+			if (event.target !== board[0] || event.button !== 0 || mobile()) return;
+			pan = {x: event.clientX, left: board[0].scrollLeft, id: event.pointerId};
+			board[0].setPointerCapture(event.pointerId);
+			board.addClass("panning");
+		});
+		board.on("pointermove", event => {
+			if (pan && event.pointerId === pan.id) board[0].scrollLeft = pan.left - (event.clientX - pan.x);
+		});
+		board.on("pointerup pointercancel", event => {
+			if (!pan || event.pointerId !== pan.id) return;
+			pan = null;
+			board.removeClass("panning");
+		});
+		board[0].addEventListener("wheel", event => {
+			if (event.target !== board[0] || mobile() || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+			board[0].scrollLeft += event.deltaY;
+			event.preventDefault();
+		}, {passive: false});
 		const adder = $('<div class="kanban-column pearnly-work-column pearnly-work-add-list">').appendTo(board);
 		const collapsed = new Set((() => {
 			try { return JSON.parse(localStorage.getItem(COLLAPSED) || "[]"); } catch (error) { return []; }
@@ -520,6 +548,14 @@
 			if (index >= 0) state.cards[index] = card;
 			else state.cards.push(card);
 		};
+		// 新加 / 复制出来的卡被当前筛选挡住时清空筛选，让它直接出现（用户 2026-09-27：搜索框里留着字，
+		// 加完卡什么都看不见，以为没加上）。不弹提示；筛选框空了本身就说明发生了什么。
+		const reveal = card => {
+			if (!card || matches(card)) return;
+			searching++;
+			state.search_hits = null;
+			for (const field of Object.values(filters)) field.set_input("");
+		};
 
 		let loading = null;
 		const reload = async () => {
@@ -728,8 +764,10 @@
 					{fieldname: "board_list", fieldtype: "Select", reqd: 1, label: t("cowork.work.copy.to"),
 						default: card.board_list, options: list_options()},
 				], async (values, d) => {
-					upsert(await p.call(`${API}copy`, {name: card.name, title: values.title, board_list: values.board_list,
-						keep: JSON.stringify(d.get_value("keep") || [])}, "POST"));
+					const copied = await p.call(`${API}copy`, {name: card.name, title: values.title, board_list: values.board_list,
+						keep: JSON.stringify(d.get_value("keep") || [])}, "POST");
+					upsert(copied);
+					reveal(copied);
 					render();
 				}, t("cowork.work.copy.create"));
 			}
@@ -813,7 +851,9 @@
 				if (!title || busy) return;
 				busy = true;
 				try {
-					upsert(await p.call(`${API}create`, {title, board_list: name}, "POST"));
+					const created = await p.call(`${API}create`, {title, board_list: name}, "POST");
+					upsert(created);
+					reveal(created);
 					render();
 					// 回车同时触发了输入框原生的 change，控件会把刚才的标题写回模型；要连模型一起清掉，
 					// 否则下一张卡的标题会接在上一张后面（测试机实测）。
@@ -843,7 +883,9 @@
 				small_dialog(t("cowork.work.template.create"), [{fieldname: "title", fieldtype: "Data", reqd: 1,
 					label: t("cowork.work.field.title"), default: template.title}],
 					async values => {
-						upsert(await p.call(`${API}create`, {title: values.title, board_list: name, template: template.name}, "POST"));
+						const created = await p.call(`${API}create`, {title: values.title, board_list: name, template: template.name}, "POST");
+						upsert(created);
+						reveal(created);
 						render();
 					}, t("cowork.work.copy.create"));
 			});
@@ -1424,6 +1466,7 @@
 			for (const [name, pane] of Object.entries(view_panes)) pane.toggleClass("hide", name !== view);
 			views_list.find("[data-view]").each((_, node) => $(node).toggleClass("active", node.dataset.view === view));
 			render_view();
+			requestAnimationFrame(fit_board);
 		};
 		const render_view = () => {
 			const view = current_view();
