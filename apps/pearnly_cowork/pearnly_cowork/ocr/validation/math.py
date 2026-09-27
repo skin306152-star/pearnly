@@ -65,16 +65,20 @@ def check_amount_math(invoice, *, tolerance=Decimal("0.5")) -> str | None:
         vat = _strict_money(invoice.vat)
         total = _strict_money(invoice.total_amount)
         discount = normalize_money(getattr(invoice, "discount", None)) or Decimal("0")
+        # 票面印了预扣税额时，合计可能是扣税后的实付额（ADR-013 共用会计规则，2026-09-27；旧线上没有这一式）。
+        withheld = normalize_money(getattr(invoice, "wht_amount", None)) or Decimal("0")
     except (InvalidOperation, ValueError, TypeError):
         return "amount field not numeric (parse failed)"
     if sub is None or vat is None or total is None:
         return None
-    return _reconcile(sub, vat, total, discount, tolerance)
+    return _reconcile(sub, vat, total, discount, tolerance, withheld)
 
 
 @exact_money
-def _reconcile(sub, vat, total, discount, tolerance):
+def _reconcile(sub, vat, total, discount, tolerance, withheld=Decimal("0")):
     diff = min(abs(sub + vat - total), abs(sub - discount + vat - total))
+    if withheld > 0:
+        diff = min(diff, abs(sub - discount + vat - withheld - total))
     if diff > tolerance:
         return (
             f"amount math fail: subtotal {sub:.2f} - discount {discount:.2f} "

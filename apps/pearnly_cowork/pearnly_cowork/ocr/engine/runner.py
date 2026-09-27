@@ -27,6 +27,7 @@ from pearnly_cowork.ocr.validation import (
     vat_ratio_mismatch,
 )
 from pearnly_cowork.ocr.money import normalize_money
+from pearnly_cowork.ocr.validation.accounting import infer_withholding, normalize_amounts, repair_from_transcript
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
     PageSource, ProviderFailure, VisionCall,
@@ -175,9 +176,13 @@ class _Run:
         warnings = []
         if invoice.is_not_invoice:
             return "", warnings
+        normalize_amounts(invoice)
         repaired = infer_missing_discount(invoice)
         if repaired:
             warnings.append(repaired)
+        withheld = infer_withholding(invoice)  # 共用会计规则（与 ERP 同一套）
+        if withheld:
+            warnings.append(withheld)
         issue = ("total_amount missing" if not str(invoice.total_amount or "").strip()
                  else check_amount_math(invoice, tolerance=self.config.amount_tolerance))
         return issue or "; ".join(evaluate_sanity(invoice)), warnings
@@ -301,10 +306,16 @@ class _Run:
                 tokens=16384, timeout=self.config.layer2_timeout_s,
             )
             l2 = self.parse_invoice(data, "layer2", page)
+        if not l2.is_not_invoice:
+            normalize_amounts(l2)
         warnings = validate_invoice_sources(l2, today=self.today)
         repaired = infer_missing_discount(l2) if not l2.is_not_invoice else None
         if repaired:
             warnings.append(repaired)
+        if not l2.is_not_invoice:  # 共用会计规则：预扣税、用 Vision 原文核对税号与读错一位的金额
+            withheld = infer_withholding(l2)
+            warnings.extend([withheld] if withheld else [])
+            warnings.extend(repair_from_transcript(l2, l1.full_text, tolerance=self.config.amount_tolerance))
         anomaly = (self.pattern_memory.check_anomaly(l2.seller_tax, l2.invoice_number)
                    if self.pattern_memory else None)
         triggers = evaluate_triggers(l1, l2, pattern_anomaly=anomaly,

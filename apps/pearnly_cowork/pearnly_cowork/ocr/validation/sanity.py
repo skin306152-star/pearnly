@@ -137,6 +137,10 @@ def _core_reasons(invoice) -> List[str]:
     if vat is not None and sub is not None and (total is not None) and (sub > 0):
         gross_diff = abs(sub + vat - total)
         net_diff = abs(sub - (discount or Decimal('0.0')) + vat - total)
+        # 合计是扣了预扣税后的实付额（票面 / 推断出的预扣税额，ADR-013 共用会计规则）也是平的。
+        withheld = _money(getattr(invoice, 'wht_amount', None))
+        if withheld and withheld > 0:
+            net_diff = min(net_diff, abs(sub - (discount or Decimal('0.0')) + vat - withheld - total))
         if min(gross_diff, net_diff) > _TOL:
             reasons.append(f'总额 {total} != 小计 {sub} − 折扣 {discount or 0} + VAT {vat}(差 {min(gross_diff, net_diff):.2f}) — 勾稽不平(疑漏折扣行/选错列)')
     ratio_reason = vat_ratio_mismatch(sub, vat, discount)
