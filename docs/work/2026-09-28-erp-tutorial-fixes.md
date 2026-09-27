@@ -59,6 +59,6 @@
 
 - ERP 栈：已 `lab-stop erp`，testerp 域名已回落线上通配记录；卷保留。ERP 卷里新增合成站点 `erp.acc.localhost`
   （集成测试与界面验证的合成数据、合成管理员 `acc-owner@example.test`；站点标了 `pearnly_erp_pos_lab`）——下一批验证继续用，用户要求时 drop-site。
-  testerp 在测试机上的那份导入数据里有验证时写的合成数据（testerp 只读核对，未写）。
+  testerp（测试机上的导入副本）只做了只读核对，会被拒的写入都已回滚，没有留下数据。
 - Cowork 栈：已 `down cowork`，卷保留；`cowork.test.localhost` 里有合成管理员与合成盘点「ตรวจนับ CW21」。
 - 合成管理员的密码只在本机会话临时目录，未进仓库。
