@@ -33,6 +33,13 @@ WAIT_STEP_LIMIT = 20
 WAIT_PER_CALL = 60
 
 
+def _in_queue_job() -> bool:
+    try:
+        return bool(frappe.flags.get("pearnly_ocr_work"))
+    except RuntimeError:  # 没有站点上下文（离线测试直接调用）：不是后台识别任务
+        return False
+
+
 def post(url, headers, payload, timeout_s, model, bucket):
     waited = 0.0
     while True:
@@ -41,7 +48,7 @@ def post(url, headers, payload, timeout_s, model, bucket):
         except Deferred as exc:
             # 只有明确可重试的（额度 / 429 / 503）才会走到这里；结果不明（Uncertain）照旧往上抛。
             delay = float(exc.delay or 1)
-            if not frappe.flags.get("pearnly_ocr_work") or delay > WAIT_STEP_LIMIT \
+            if not _in_queue_job() or delay > WAIT_STEP_LIMIT \
                     or waited + delay > WAIT_PER_CALL:
                 raise
             time.sleep(delay)
