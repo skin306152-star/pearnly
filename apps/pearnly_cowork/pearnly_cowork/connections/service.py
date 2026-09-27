@@ -17,7 +17,9 @@ from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
+from pearnly_cowork.targets import stock_groups
 from . import access, model, snapshots, refresh as refresh_leases
+from .preparation import reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope
 
 CONNECTION, SNAPSHOT, REFRESH = access.TYPES
@@ -256,6 +258,44 @@ def refresh_status(name, request_id):
     if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
         _error("connection.refresh_stale")
     return _refresh_dto(refresh)
+
+
+def _stock_group_account(doc, account_set_key):
+    if doc.adapter != "express":
+        _error("connection.adapter_invalid")
+    account = normalize_express_account_key(account_set_key)
+    if not account:
+        _error("connection.config_invalid")
+    return account
+
+
+def stock_acc_group(name, account_set_key):
+    """这份账套的合格存货科目组与选过的那个（新建录入、LINE 与提交前按它决定要不要请用户选）。"""
+    doc = _read(CONNECTION, name)
+    access.require_connection(doc)
+    account = _stock_group_account(doc, account_set_key)
+    return stock_groups.view(doc.stock_acc_groups, account,
+                             reported_stock_groups(doc, account))
+
+
+def choose_stock_acc_group(name, account_set_key, acccod):
+    """记下这份账套的存货科目组，以后在这份账套新建的库存品都挂它（每个账套选一次，用户 2026-09-28）。
+
+    与连接配置分开存：不升连接版本、不作废账套目录，正在推的票照常。同一个值重复提交结果不变。
+    """
+    doc = _read(CONNECTION, name)
+    actor = access.require_connection(doc)
+    account = _stock_group_account(doc, account_set_key)
+    groups = reported_stock_groups(doc, account)
+    current = stock_groups.choices(doc.stock_acc_groups).get(account) or {}
+    if current.get("acccod") != str(acccod or "").strip():
+        value = stock_groups.choose(doc.stock_acc_groups, account, acccod, groups,
+                                    actor=actor, at=_now().isoformat())
+        if value is None:
+            _error("connection.stock_acc_group_invalid")
+        doc.stock_acc_groups = model.dumps(value)
+        access.write(doc)
+    return stock_groups.view(doc.stock_acc_groups, account, groups)
 
 
 def install_snapshot(name, observation, request_id, expected_revision, preparation=None):

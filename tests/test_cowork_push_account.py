@@ -73,5 +73,22 @@ class ExpressAccountMismatchTest(unittest.TestCase):
         self.check({"buyer_tax": OTHER}, dt.date(2024, 3, 1), rows=())
 
 
+
+class ExpressStockGroupTest(unittest.TestCase):
+    """存货科目组每个账套选一次（用户 2026-09-28）：推哪份账套就带哪份账套选过的组。"""
+
+    def test_the_chosen_group_of_the_target_account_set_is_used(self):
+        stored = json.dumps({r"s:\2569\exp69\69acme": {"acccod": "SA"}, r"s:\2569\exp69\other": {"acccod": "SB"}})
+        connection = frappe._dict(stock_acc_groups=stored)
+        config = {"stock_acccod": "LEGACY"}
+        service._apply_stock_group(config, connection, r"S:\2569\EXP69\69ACME")
+        self.assertEqual(config["stock_acccod"], "SA")
+        config = {}
+        service._apply_stock_group(config, connection, r"S:\2569\EXP69\NEW")
+        self.assertEqual(config, {})  # 这份账套没选过：照旧（零存货主档时按候选数解析）
+        service._apply_stock_group(config, frappe._dict(stock_acc_groups=None), r"S:\2569\EXP69\69ACME")
+        self.assertEqual(config, {})
+
+
 if __name__ == "__main__":
     unittest.main()

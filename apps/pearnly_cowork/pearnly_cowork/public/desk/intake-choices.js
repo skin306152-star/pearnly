@@ -10,6 +10,8 @@
  *      · MR.ERP 选付款方式（现金 / 赊账）；进项只有赊账（旧版对 MR.ERP 进项现金明确拦截，
  *        `mrerp_purchase_cash_unverified`）；不选过账类型；
  *      · Express 选过账类型（服务 / 存货）；付款按票面由六级漏斗判定，复核页仍可逐张改。
+ *        选了存货、这份账套又有两个以上合格的存货科目组且没选过：在这里选一次存回账套（用户 2026-09-28），
+ *        以后这份账套新建的库存品都挂它；小助手还没读过这份账套时不问，提交前再问（`intake-upload.js`）。
  *   「仅识别」（用户 2026-09-26）：识别后导出复核工作簿、不推送，只选进项 / 销项。
  * 这几排是**官方下拉**（用户 2026-09-25：ERP 那种卡片只留给目标系统）。都选好「继续」才可点；
  * 目标系统没就绪之前，后面几排没有选项、也点不动。目标卡片只有一份实现（`choice.js`）。
@@ -52,10 +54,16 @@
 				onchange: changed("direction")},
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: [], hidden: 1,
 				onchange: changed("posting_kind")},
+			{fieldtype: "Select", fieldname: "stock_acc_group", label: __("Inventory account group"), options: [], hidden: 1,
+				onchange: () => paint_primary()},
 			{fieldtype: "Select", fieldname: "payment", label: __("Payment Method"), options: [], hidden: 1,
 				onchange: changed("payment")},
 		];
-		const d = p.dialog(t("intake.action.new"), fields, __("Continue"), () => {
+		const d = p.dialog(t("intake.action.new"), fields, __("Continue"), async () => {
+			if (stock_needed()) {
+				await p.intake_targets.choose_stock_group(snapshot.connections[picked.target], picked.account_set_key,
+					d.get_value("stock_acc_group"));
+			}
 			remember(picked.connection, picked.account_set_key);
 			p.intake_targets.prefetch_account(snapshot?.connections?.[picked.target], picked.account_set_key);
 			d.hide();
@@ -75,11 +83,39 @@
 		const gated = () => Boolean(snapshot) && p.intake_targets.ready(picked.target, snapshot);
 		// 「继续」只在该选的都选好时可用；其余情况是真禁用（不是只看着灰）。
 		const paint_primary = () => {
+			sync_stock_group();
 			const ready = gated() && Boolean(picked.direction
-				&& (recognize_only() || (picked.account_set_key && mode() && picked[mode()])));
+				&& (recognize_only() || (picked.account_set_key && mode() && picked[mode()])))
+				&& (!stock_needed() || Boolean(d.get_value("stock_acc_group")));
 			if (ready) d.enable_primary_action();
 			else d.disable_primary_action();
 			d.get_primary_btn?.()?.prop("disabled", !ready);
+		};
+		// 存货科目组：Express + 存货 + 选定账套时读这份账套的候选，该选才摆出下拉（见文件头）。
+		let stock_key = null;
+		let stock_view = null;
+		const stock_needed = () => Boolean(stock_key) && p.intake_targets.stock_group_needed(stock_view);
+		const paint_stock_group = () => {
+			const show = stock_needed();
+			d.set_df_property("stock_acc_group", "options", show ? p.intake_targets.stock_group_options(stock_view) : []);
+			if (d.get_value("stock_acc_group")) d.set_value("stock_acc_group", "");
+			d.set_df_property("stock_acc_group", "hidden", show ? 0 : 1);
+		};
+		const sync_stock_group = () => {
+			const connection = snapshot?.connections?.[picked.target];
+			const key = picked.target === "express" && picked.posting_kind === "stock" && picked.account_set_key
+				&& connection?.name ? `${connection.name}\n${picked.account_set_key}` : null;
+			if (key === stock_key) return;
+			stock_key = key;
+			stock_view = null;
+			paint_stock_group();
+			if (!key) return;
+			void p.intake_targets.stock_group(connection, picked.account_set_key).then(view => {
+				if (stock_key !== key) return;
+				stock_view = view;
+				paint_stock_group();
+				paint_primary();
+			});
 		};
 		const set_value = (name, value) => {
 			const key = name === "year" ? "account_set_key" : name;

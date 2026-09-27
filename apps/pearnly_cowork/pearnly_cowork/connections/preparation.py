@@ -75,6 +75,23 @@ def _account_cache(report, account, doc):
     return reported
 
 
+def reported_stock_groups(doc, account):
+    """小助手为这份账套上报的存货科目组（须出自当前凭据）；没读过这份账套是 None，不当成「没有组」。
+
+    默认账套用公共缓存（须记在这份账套名下），其他账套用按账套刷新带回的那份，与推送准备同一来源。
+    """
+    report = model.parse(doc.report_json, {})
+    binding = report.get('_preparation_binding') or {}
+    if (account and binding.get('account_set') == account and binding.get('credential_id') == doc.report_credential
+            and binding.get('generation') == doc.report_generation):
+        expected = {k: binding[k] for k in binding if k != 'online'}
+        groups = report.get('reported_stock_acc_groups')
+        origin = (report.get('_preparation_origins') or {}).get('reported_stock_acc_groups')
+        return deepcopy(groups) if origin == expected and isinstance(groups, list) else None
+    groups = _account_cache(report, account, doc).get('reported_stock_acc_groups')
+    return groups if isinstance(groups, list) else None
+
+
 def collect(loaded, target, *, seller_tax='', invoice_date=None):
     doc = state.read(state.CONNECTION, loaded.doc.name)
     access.require_connection(doc, actor=loaded.access.user_id)

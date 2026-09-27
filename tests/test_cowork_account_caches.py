@@ -2,6 +2,7 @@
 
 按单个账套刷新带回的主档另存到这份账套名下，不盖、也不记成小助手默认账套的；推送准备按所选账套取。
 """
+import json
 import sys
 import unittest
 from datetime import datetime
@@ -65,6 +66,26 @@ class AccountCacheTest(unittest.TestCase):
         self.assertEqual(preparation._account_cache(report, OTHER, frappe._dict(report_credential="NEW",
                                                                               report_generation=3)), {})
         self.assertEqual(preparation._account_cache(report, r"s:\none", doc), {})
+
+
+    def test_stock_group_candidates_come_from_the_same_source_as_push_preparation(self):
+        """选存货科目组的候选（用户 2026-09-28）：默认账套用记在它名下的公共缓存，其他账套用它自己的缓存；
+        没读过、或出自旧凭据的都算「不知道」（None），不当成「没有组」。"""
+        default = r"s:\2569\exp69\6902asc"
+        binding = {"account_set": default, "root_key": r"s:\2569\exp69", "credential_id": "CRED",
+                   "generation": 3, "issuer": "x", "online": True}
+        report = {"_preparation_binding": binding, "reported_stock_acc_groups": [{"code": "ASC"}],
+                  "_preparation_origins": {"reported_stock_acc_groups": {k: v for k, v in binding.items() if k != "online"}},
+                  "_account_caches": {OTHER: {**OTHER_CACHE, "_credential": "CRED", "_generation": 3}}}
+        doc = frappe._dict(report_credential="CRED", report_generation=3, report_json=json.dumps(report))
+        self.assertEqual(preparation.reported_stock_groups(doc, default), [{"code": "ASC"}])
+        self.assertEqual(preparation.reported_stock_groups(doc, OTHER), [{"code": "LJ"}])
+        self.assertIsNone(preparation.reported_stock_groups(doc, r"s:\none"))
+        stale = frappe._dict(doc, report_generation=4)
+        self.assertIsNone(preparation.reported_stock_groups(stale, default))
+        self.assertIsNone(preparation.reported_stock_groups(stale, OTHER))
+        report["_preparation_origins"] = {}  # 公共缓存里的组不是这份账套的（别的账套那次刷新留下的）
+        self.assertIsNone(preparation.reported_stock_groups(frappe._dict(doc, report_json=json.dumps(report)), default))
 
 
 if __name__ == "__main__":

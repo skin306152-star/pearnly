@@ -11,6 +11,7 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
+from pearnly_cowork.targets import stock_groups
 from pearnly_cowork.contracts.history import primary_page_fields
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax
 from pearnly_cowork.history import push_state, storage
@@ -121,6 +122,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
         invoice_date=invoice_date.isoformat() if invoice_date else None)
     # Choice clears other-account caches before applying attributed observations.
     selected['config'].update(deepcopy(preparation['reported_config']))
+    _apply_stock_group(selected['config'], loaded.doc, target.account_set)
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
         context=ExpressContext(enabled=True, today=today, own_tax_id=own_tax,
@@ -136,6 +138,13 @@ def prepare(history, connection, request_key, expected_history_version, expected
         disposition="prepared" if prepared.disposition == "ready" else "manual",
         reason=prepared.reason or "", checks=prepared.preflight.checks_json())
     return _view(row)
+
+
+def _apply_stock_group(config, connection, account_set):
+    """存货科目组每个账套选一次（用户 2026-09-28）：这份账套选过就用它，新建库存品都挂它；没选过照旧。"""
+    chosen = stock_groups.chosen(connection.get("stock_acc_groups"), normalize_express_account_key(account_set))
+    if chosen:
+        config["stock_acccod"] = chosen
 
 
 _ACCOUNT_CONFLICTS = {

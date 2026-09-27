@@ -229,6 +229,45 @@
 			{name: connection.name, request_key: key(), account_set_key}, "POST").catch(() => null);
 	}
 
+	/* ── 存货科目组：每个账套选一次（用户 2026-09-28）──
+	 * 以后在这份账套新建的库存品都挂所选的组。候选是小助手为这份账套上报、判过确是存货科目的组；
+	 * 只有一个就不问（直接用它），一个都没有由推送拦下（要会计先在 Express 建组）。 */
+
+	/** 这份 Express 账套的存货科目组：`{known, groups, chosen}`。读不到当作未知（不问、不拦）。 */
+	async function stock_group(connection, account_set_key) {
+		if (connection?.adapter !== "express" || !account_set_key) return null;
+		return p.call(API.connections + "stock_acc_group", {name: connection.name, account_set_key}).catch(() => null);
+	}
+
+	/** 该请用户选：候选已知、合格的有两个以上、这份账套还没选过。 */
+	function stock_group_needed(view) {
+		return Boolean(view?.known && !view.chosen && (view.groups || []).length >= 2);
+	}
+
+	/** 下拉选项：「码 · 科目号 · 科目名 · N 个商品在用」（用量帮会计认出这家真在用的组）。 */
+	function stock_group_options(view) {
+		return (view?.groups || []).map(group => ({value: group.acccod, label: [group.label,
+			typeof group.used_by === "number" ? __("used by {0} items", [group.used_by]) : ""].filter(Boolean).join(" · ")}));
+	}
+
+	function choose_stock_group(connection, account_set_key, acccod) {
+		return p.call(API.connections + "choose_stock_acc_group", {name: connection.name, account_set_key, acccod}, "POST");
+	}
+
+	/** 请用户选一次（原生弹窗 + 下拉）。选好存下返回 true；关掉弹窗返回 false。 */
+	function ask_stock_group(connection, account_set_key, view) {
+		return new Promise(resolve => {
+			const d = p.dialog(__("Inventory account group"), [{fieldtype: "Select", fieldname: "acccod",
+				label: __("Inventory account group"), options: stock_group_options(view), reqd: 1}], __("Save"),
+			async values => {
+				await choose_stock_group(connection, account_set_key, values.acccod);
+				resolve(true);
+				d.hide();
+			});
+			d.onhide = () => resolve(false);
+		});
+	}
+
 	/** 目录失败的原因：错误码有对应文案就用，没有就给通用那一句（不把原始码摆给商家）。 */
 	function catalog_error(code) {
 		const text = __(`intake.catalog.${code}`);
@@ -238,5 +277,6 @@
 	p.intake_targets = {TARGETS, RECOGNIZE_ONLY, catalog, catalog_error, connect_dialog, describe, download_agent,
 		prefetch_account,
 		express_dialog,
+		stock_group, stock_group_needed, stock_group_options, choose_stock_group, ask_stock_group,
 		ready, state};
 })();

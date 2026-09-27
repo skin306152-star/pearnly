@@ -620,6 +620,27 @@
 			}
 		};
 
+		/** 推存货进 Express 前，这份账套的存货科目组得定下来（每个账套选一次，用户 2026-09-28）：新建录入时
+		 *  小助手还没读过这份账套、或 LINE 上组太多没法点选的，在这里用原生弹窗选一次。关掉弹窗 = 这份账套的票
+		 *  这次先不推。同一次提交里每份账套只问一次。 */
+		const stock_group_ready = async (target, asked) => {
+			const account = target.args.account_set_key;
+			const key = `${target.connection.name}\n${account}`;
+			if (!asked.has(key)) {
+				asked.set(key, (async () => {
+					const view = await p.intake_targets.stock_group(target.connection, account);
+					if (!p.intake_targets.stock_group_needed(view)) return true;
+					frappe.dom.unfreeze();
+					try {
+						return await p.intake_targets.ask_stock_group(target.connection, account, view);
+					} finally {
+						frappe.dom.freeze(t("intake.action.queue"));
+					}
+				})());
+			}
+			return asked.get(key);
+		};
+
 		/** 提交＝推送（用户 2026-09-26）：右上角点一次，把这一批的票按顺序全部推出去（一张推完再下一张），
 		 *  没有「确认」这一步。推完回列表，状态在列表上看（录入中 / 成功 / 待人工核对）；推不了的原因由服务端
 		 *  记在票上，列表状态图标悬浮可看，这里不弹窗。已经推过或正在推的跳过。 */
@@ -628,6 +649,7 @@
 			if (dirty()) await save_review({quiet: true});
 			const rows = (await p.call(CONNECTIONS + "records", {limit: 100})) || [];
 			const broken = [];  // 只有请求本身出错（网络 / 服务器异常）才会到这里；业务失败都记在票上
+			const asked = new Map();  // 连接 + 账套 → 存货科目组是否已定
 			frappe.dom.freeze(t("intake.action.queue"));
 			try {
 				for (const record_name of batch) {
@@ -646,6 +668,10 @@
 						expected_connection_revision: target.connection?.revision ?? 0, ...target.args,
 						// 推的是这一张票自己的过账类型（复核改过就用改过的），没定就不猜。
 						posting_kind: fields.posting_kind || record.posting_kind || choice?.posting_kind || undefined};
+					const stock = [intent.posting_kind, ...(Array.isArray(fields.items) ? fields.items : [])
+						.map(item => item?.posting_kind)].includes("stock");
+					if (target.connection?.adapter === "express" && target.args.account_set_key && stock
+						&& !(await stock_group_ready(target, asked))) continue;
 					// 键里带上一次推送记录：失败后再点提交是新的一次（会重推），连点两下仍是同一次。
 					const submitted = await push_call(PUSH + "submit", {...intent,
 						request_key: await stable_key("prepare", intent, record.last_push_record || "")});

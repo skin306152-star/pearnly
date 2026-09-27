@@ -157,6 +157,7 @@ Choose both files first,先に2つのファイルを選択してください
 Choose file,ファイルを選択
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
+Choose the inventory account group for this account set. Tap the number:,この会計データの在庫勘定グループを選択してください。番号をタップ：
 Choose the payment method,支払方法を選択
 Choose the sheet to import,取り込むシートを選択してください
 Choose the year,年度を選択
@@ -415,6 +416,7 @@ Invalid request,リクエストが無効です
 Invalid request key.,要求キーが無効です。
 Invalid statement review rows or row references.,確認明細または元の行番号が無効です。
 Invalid status,ステータスが無効です
+Inventory account group,在庫勘定グループ
 Invoice Count,請求書の件数
 Invoice Date,請求書の日付
 Invoice Index,請求書の順番
@@ -904,6 +906,7 @@ This file does not match the review workbook format.,このファイルは確認
 This file type is not supported.,このファイル形式には対応していません。
 "This file type is not supported. Use PDF, Excel or CSV.",このファイル形式は使えません。PDF、Excel、CSV を使ってください。
 This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
+This inventory account group cannot be chosen for this account set.,この会計データではこの在庫勘定グループを選択できません。
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This label no longer exists,このラベルはもうありません
@@ -1037,6 +1040,7 @@ connection.revision_conflict,接続が更新されました。再読み込みし
 connection.scope_immutable,接続の会社、顧客、タイプは変更できません。
 connection.snapshot_invalid,ディレクトリのスナップショットが接続と一致しません。
 connection.snapshot_too_large,ディレクトリのスナップショットが16 MiBの上限を超えています。
+connection.stock_acc_group_invalid,この会計データではこの在庫勘定グループを選択できません。
 connection.url_invalid,ERPのアドレスが無効か、許可されていません。
 cowork.line.boundAt,連携日時
 cowork.line.code,連携コード
@@ -1730,6 +1734,7 @@ stocktake.row_invalid,インポート行が無効か、必須項目が不足し�
 stocktake.too_many_rows,"インポートデータが上限の 10,000 行を超えています。"
 stocktake.warehouse_required,倉庫と場所を確認してください。倉庫は必須です。
 summary_table_batch,集計表の取り込み
+used by {0} items,{0} 品目が使用中
 vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 vat_check.no_invoices,請求書を1件も読み取れませんでした。
 vat_check.periods_differ,報告の期間が異なります（{0}）。確認してください。

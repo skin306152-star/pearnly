@@ -46,6 +46,15 @@ class LineFlowTest(unittest.TestCase):
         refresh = mock.patch("pearnly_cowork.connections.service.request_refresh")
         self.refresh = refresh.start()
         self.addCleanup(refresh.stop)
+        # 存货科目组：默认小助手还没读过这份账套（不问）；各测试按需改。
+        self.stock_view = {"known": False, "groups": [], "chosen": None}
+        stock = mock.patch("pearnly_cowork.connections.service.stock_acc_group",
+                           side_effect=lambda name, key: self.stock_view)
+        choose = mock.patch("pearnly_cowork.connections.service.choose_stock_acc_group")
+        stock.start()
+        self.choose = choose.start()
+        self.addCleanup(stock.stop)
+        self.addCleanup(choose.stop)
         self.books, self.last_used = MRERP_BOOKS, ""
         for patch in patches:
             patch.start()
@@ -131,6 +140,41 @@ class LineFlowTest(unittest.TestCase):
         # 选定 Express 账套就让助手读这份账套的主档（推送前的库存检查用）；MR.ERP 不需要。
         self.assertEqual(self.refresh.call_args.args[0], "CON-X")
         self.assertEqual(self.refresh.call_args.args[2], r"s:\2568\exp68\68acme")
+
+    def express_stock(self):
+        with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
+                mock.patch.object(flow, "_state", return_value=(True, "")):
+            flow.start("U1", "tok")
+            self.tap("Express")
+            self.search("acme")
+            self.tap("2")
+            self.tap("intake.dir.purchase")
+            self.tap("Stock")
+
+    def test_express_stock_asks_the_stock_account_group_once_for_the_account_set(self):
+        """用户 2026-09-28：合格组两个以上又没选过，点序号选一次，存回这份账套。"""
+        groups = [{"acccod": "SA", "label": "SA · 11-04-01-00 · Stock A"},
+                  {"acccod": "SB", "label": "SB · 11-04-02-00 · Stock B"}]
+        self.stock_view = {"known": True, "groups": groups, "chosen": None}
+        self.express_stock()
+        self.assertEqual(self.last()["text"].splitlines()[1:],
+                         ["1. SA · 11-04-01-00 · Stock A", "2. SB · 11-04-02-00 · Stock B"])
+        self.assertEqual(self.labels(), ["1", "2", "Cancel"])
+        self.tap("2")
+        self.choose.assert_called_once_with("CON-X", r"s:\2568\exp68\68acme", "SB")
+        self.assertTrue(flow.ready(flow.choices("U1")))
+        self.assertTrue(self.last()["text"].endswith("the text the right way up and the whole page in frame."))
+
+    def test_express_stock_does_not_ask_when_there_is_nothing_to_choose_here(self):
+        """选过、只有一个、小助手还没读过这份账套、组多到一屏点不完：LINE 不问（网页提交前再问）。"""
+        many = [{"acccod": f"S{i}", "label": f"S{i}"} for i in range(flow.MAX_RESULTS + 1)]
+        two = [{"acccod": "SA", "label": "SA"}, {"acccod": "SB", "label": "SB"}]
+        for view in ({"known": True, "groups": two, "chosen": "SA"}, {"known": True, "groups": two[:1], "chosen": None},
+                     {"known": False, "groups": [], "chosen": None}, {"known": True, "groups": many, "chosen": None}):
+            self.stock_view = view
+            self.express_stock()
+            self.assertTrue(flow.ready(flow.choices("U1")), view)
+        self.choose.assert_not_called()
 
     def test_mrerp_choice_does_not_ask_for_an_account_read(self):
         self.books = MRERP_BOOKS[:1]

@@ -9,6 +9,8 @@
     最多 12 个选项，放不下几十上百份账套，所以请用户打几个字（公司名、账套名、年度文件夹、税号都认），
     从匹配结果里点序号（`connections/account_search.py`）；另给「上次用的」一键选；目录里只有一份就直接选上；
   · 入账方式以第三方为准：MR.ERP 选付款（进项只有赊账），Express 选过账类型（服务 / 存货）；
+  · Express 选了存货、这份账套有两个以上合格的存货科目组又没选过：点序号选一次存回账套（用户 2026-09-28，
+    与网页同一规则）；小助手还没读过这份账套、或组多到一屏点不完时这里不问，网页提交前再问；
   · 识别后导出只选进项 / 销项。
 每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
 按钮只带序号，值存在会话里（账套键可能很长，postback 有 300 字上限）；只接受当前在问的那一步。
@@ -109,6 +111,9 @@ def answer(line_user_id, data, reply_token):
         connection = _connections().get(value) if value != RECOGNIZE_ONLY else None
         if connection:
             payload["connection"] = connection["name"]
+    elif step == STOCK_GROUP:
+        _choose_stock_group(payload, value)
+        payload[step] = value
     elif step == "account":
         labels = (payload.get("offered_labels") or {}).get("account") or []
         index = int(params.get("v"))
@@ -131,6 +136,8 @@ def _pending(payload):
     mode = MODE.get(target)
     if mode and not payload.get(mode):
         return mode
+    if target == "express" and payload.get("posting_kind") == "stock" and STOCK_GROUP not in payload:
+        return STOCK_GROUP
     return "upload"
 
 
@@ -148,6 +155,10 @@ def _next(line_user_id, payload, reply_token):
             if _ask_account(line_user_id, payload, reply_token):
                 return
             continue  # 目录里只有一份：已直接选上
+        if step == STOCK_GROUP:
+            if _ask_stock_group(line_user_id, payload, reply_token):
+                return
+            continue  # 不用问（已选过 / 只有一个 / 候选未知或太多）
         if step == "target":
             options, note = _targets()
         else:
@@ -285,6 +296,43 @@ def _request_directory(payload):
 
     try:
         service.request_refresh(payload["connection"], str(uuid4()))
+    except frappe.ValidationError:
+        pass
+
+
+# ── 存货科目组：每个账套选一次 ──────────────────────────────────────────────
+
+STOCK_GROUP = "stock_acc_group"
+
+
+def _ask_stock_group(line_user_id, payload, reply_token) -> bool:
+    """该选就列出合格组请用户点序号（组名长，按钮只放序号）；不用问时记为空、返回 False 接着走。"""
+    from pearnly_cowork.connections import service
+
+    try:
+        view = service.stock_acc_group(payload["connection"], payload["account_set_key"])
+    except frappe.ValidationError:
+        view = {}
+    groups = view.get("groups") or []
+    if not (view.get("known") and not view.get("chosen") and 2 <= len(groups) <= MAX_RESULTS):
+        payload[STOCK_GROUP] = ""
+        return False
+    payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in groups]}
+    _save(line_user_id, payload)
+    lines = [_("Choose the inventory account group for this account set. Tap the number:")]
+    lines += [f"{index + 1}. {group['label']}" for index, group in enumerate(groups)]
+    items = [_button(str(index + 1), urlencode({"a": "cowork", "s": STOCK_GROUP, "v": index}))
+             for index in range(len(groups))]
+    _ask(reply_token, "\n".join(lines), items)
+    return True
+
+
+def _choose_stock_group(payload, acccod):
+    """存回这份账套；存不进（候选刚变了）就不拦上传，网页提交前会再问。"""
+    from pearnly_cowork.connections import service
+
+    try:
+        service.choose_stock_acc_group(payload["connection"], payload["account_set_key"], acccod)
     except frappe.ValidationError:
         pass
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, NamedTuple, Optional
 
+from pearnly_cowork.targets import stock_groups
 from pearnly_cowork.push.receipts import request_payload
 
 # 零库存主档的账套要建第一个库存品时,缺的到底是哪一样 —— 两个码分开,补救卡给的指引才不一样:
@@ -33,10 +34,7 @@ def fit_stock_acc_groups(config: Optional[Dict[str, Any]]) -> List[Dict[str, Any
     单一名单源:端点 PATCH 用它校验选择、异常卡用它渲染下拉、下面的三档解析用它数候选 ——
     三处认同一份名单,不会出现「卡里选得到、存的时候 400」。
     """
-    raw = (config or {}).get("reported_stock_acc_groups")
-    if not isinstance(raw, list):
-        return []
-    return [g for g in raw if isinstance(g, dict) and g.get("fit") and g.get("acccod")]
+    return stock_groups.fit((config or {}).get("reported_stock_acc_groups"))
 
 
 def resolve_stock_acc_group(config: Optional[Dict[str, Any]]) -> StockAccGroupChoice:
@@ -76,11 +74,8 @@ def describe_from_request(request_body: Any, reported: Any) -> Dict[str, str]:
 
 def stock_acc_group_label(group: Dict[str, str]) -> str:
     """「码 · 科目号 · 科目名」—— 会计要拿推送日志卡和导出 Excel 互相对照,
-    分隔符和字段顺序必须同源,不能两边各拼一次。"""
-    return " · ".join(x for x in (group.get(k) for k in _LABEL_PARTS) if x)
-
-
-_LABEL_PARTS = ("acccod", "stock_acc", "stock_acc_name")
+    分隔符和字段顺序必须同源,不能两边各拼一次(选组下拉也用这一份)。"""
+    return stock_groups.label(group)
 
 
 def describe_stock_acc_group(reported: Any, acccod: str) -> Dict[str, str]:

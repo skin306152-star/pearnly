@@ -157,6 +157,7 @@ Choose both files first,กรุณาเลือกไฟล์ทั้ง�
 Choose file,เลือกไฟล์
 Choose the company,เลือกบริษัท
 Choose the destination for these documents,เลือกปลายทางสำหรับเอกสารชุดนี้
+Choose the inventory account group for this account set. Tap the number:,เลือกกลุ่มบัญชีสินค้าคงคลังของชุดบัญชีนี้ แตะหมายเลขเพื่อเลือก:
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the year,เลือกปี
@@ -415,6 +416,7 @@ Invalid request,คำขอไม่ถูกต้อง
 Invalid request key.,รหัสคำขอไม่ถูกต้อง
 Invalid statement review rows or row references.,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
 Invalid status,สถานะไม่ถูกต้อง
+Inventory account group,กลุ่มบัญชีสินค้าคงคลัง
 Invoice Count,จำนวนใบแจ้งหนี้
 Invoice Date,วันที่ใบแจ้งหนี้
 Invoice Index,ลำดับใบแจ้งหนี้
@@ -904,6 +906,7 @@ This file does not match the review workbook format.,ไฟล์นี้ไม
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
 "This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
+This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
@@ -1037,6 +1040,7 @@ connection.revision_conflict,การเชื่อมต่อมีการ
 connection.scope_immutable,ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 connection.snapshot_invalid,ข้อมูลไดเรกทอรีไม่ตรงกับการเชื่อมต่อนี้
 connection.snapshot_too_large,ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB
+connection.stock_acc_group_invalid,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
 connection.url_invalid,ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต
 cowork.line.boundAt,เชื่อมต่อเมื่อ
 cowork.line.code,รหัสเชื่อมต่อ
@@ -1730,6 +1734,7 @@ stocktake.row_invalid,แถวนำเข้าไม่ถูกต้อง�
 stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว"
 stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 summary_table_batch,นำเข้าตารางสรุป
+used by {0} items,มีสินค้าใช้อยู่ {0} รายการ
 vat_check.balance_insufficient,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 vat_check.no_invoices,ไม่สามารถอ่านใบกำกับได้เลย
 vat_check.periods_differ,รายงานคนละงวด ({0}) กรุณาตรวจสอบ

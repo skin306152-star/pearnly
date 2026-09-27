@@ -157,6 +157,7 @@ Choose both files first,请先选好两份文件
 Choose file,选择文件
 Choose the company,选择公司
 Choose the destination for these documents,选择这批单据推送到哪里
+Choose the inventory account group for this account set. Tap the number:,选这份账套的存货科目组，点序号选择：
 Choose the payment method,选择付款方式
 Choose the sheet to import,请先选择要导入的表格
 Choose the year,选择年度
@@ -415,6 +416,7 @@ Invalid request,请求无效
 Invalid request key.,请求编号无效。
 Invalid statement review rows or row references.,复核行内容或原始行编号无效。
 Invalid status,状态无效
+Inventory account group,存货科目组
 Invoice Count,发票数量
 Invoice Date,发票日期
 Invoice Index,发票序号
@@ -904,6 +906,7 @@ This file does not match the review workbook format.,此文件不符合复核工
 This file type is not supported.,不支持此文件类型。
 "This file type is not supported. Use PDF, Excel or CSV.",不支持这种文件，请用 PDF、Excel 或 CSV。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
+This inventory account group cannot be chosen for this account set.,这份账套不能选这个存货科目组。
 This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
 This item is also stocked at:,这件货还在别处：
 This label no longer exists,标签不存在
@@ -1037,6 +1040,7 @@ connection.revision_conflict,连接已更新，请重新读取后再试。
 connection.scope_immutable,连接的公司、客户和类型不能直接修改。
 connection.snapshot_invalid,目录快照与当前连接不一致。
 connection.snapshot_too_large,目录快照超过16MiB限制。
+connection.stock_acc_group_invalid,这份账套不能选这个存货科目组。
 connection.url_invalid,ERP连接地址无效或不允许访问。
 cowork.line.boundAt,绑定时间
 cowork.line.code,绑定码
@@ -1730,6 +1734,7 @@ stocktake.row_invalid,导入行无效或缺少必填值。
 stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
 stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入
+used by {0} items,{0} 个商品在用
 vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 vat_check.no_invoices,没有读出任何发票。
 vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
