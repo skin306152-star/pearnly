@@ -10,6 +10,8 @@ name: pearnly-sample
 services:
   mariadb:
     image: mariadb:11.8
+    # 与其余服务一致：Mac 睡眠唤醒 / 重启后 Docker 起来就自动拉起，否则上层全部连不上库、反复重启。
+    restart: unless-stopped
     mem_limit: 2g
     command:
       - --character-set-server=utf8mb4
@@ -31,12 +33,14 @@ services:
 
   redis-cache:
     image: redis:6.2-alpine
+    restart: unless-stopped
     mem_limit: 128m
     command: [redis-server, --maxmemory, 96mb, --maxmemory-policy, allkeys-lru]
     networks: [sample]
 
   redis-queue:
     image: redis:6.2-alpine
+    restart: unless-stopped
     mem_limit: 128m
     command: [redis-server, --appendonly, "no"]
     networks: [sample]
