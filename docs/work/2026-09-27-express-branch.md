@@ -36,4 +36,8 @@
 - 生产镜像：候选离线检查全过；`test_cowork_express_branch` 3、`test_tax_documents` 7 通过；提示词与旧线上源码对照 PASS。
 - 识别实测（付费，8 张真实小票 / 税票，一次一个容器、2G 上限、只读挂载、跑完即删）：印了分店号的 6 张全对
   （含 7-Eleven 括号里的「(03020)」、Central「สาขาที่ 00016」、PTT 00242），没印的 2 张（Tops、BCM）留空；买方分店都为空（小票无买方）。
-- 真实测试账套（`\\Accserver\d$\ACCOUNT\70EXP\TEST`）写入待部署后按用户同意做：推一张分店供应商的进项，回读 APMAS / APTRN / ISVAT 的 ORGNUM。
+- 真实测试账套写入（用户 2026-09-27 同意；Cowork 145269b5 / 057069aa、小助手 1.2.2 / 1.2.3，testcowork 网页编辑页「提交」，
+  读回用办公室 Windows 上 skin3 身份的一次性任务只读复制表，核完已删任务与副本）：
+  - `BR54-VERIFY-01`（卖方 สาขาที่ 00054）→ RR690927-001，新建供应商 ท031 ORGNUM 54，凭证表头 ORGNUM 54，ISVAT ORGNUM 54，APMAS 485→486；
+  - `STK-VERIFY-01`（同一分店、存货）→ RR690927-002，复用 ท031，表头 / ISVAT ORGNUM 54，新建库存品 PN00062（STKTYP 0、ST10）入库 2 × 100。
+  - 两张都是明确标注的合成测试票，留在测试账套与 testcowork 作证据。
