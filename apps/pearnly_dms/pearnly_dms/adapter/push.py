@@ -105,6 +105,20 @@ def _probe_adapter(adapter, t0: float) -> Dict[str, Any]:
         return _fail("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")
 
 
+def logged_in_probe(adapter, inspect):
+    """登记账号前的按用途试用（`account_probe`）：套共用第一档预算、真登录一次，
+    返回 `inspect(adapter)`；被顶下线时回 `None` 由调用方报并发登录。异常原样上抛。"""
+    from pearnly_dms.config import pacing
+
+    adapter.page_timeout_ms = pacing.budget_ms(1)
+    with adapter:
+        adapter.login()
+        if adapter.concurrent_login_detected:
+            return None
+        result = inspect(adapter)
+        return None if adapter.concurrent_login_detected else result
+
+
 def _failed_probe(code: str, raw: str, t0: float, friendly_text: str = "") -> Dict[str, Any]:
     """失败结果。和成功结果同为"向导形状"，界面不需要分两条渲染路径。"""
     if not friendly_text:

@@ -58,31 +58,30 @@ def probe(system_url: str, username: str, password: str, purpose: str) -> Dict[s
         DmsUnreachableError,
         MrerpDmsAdapter,
     )
+    from pearnly_dms.adapter import push
     from pearnly_dms.line.errors import friendly
 
     def fail(code):
         return {"ok": False, "error_code": code, "error_friendly": friendly(code)}
 
+    def inspect(adapter):
+        client = adapter.client()
+        missing = []
+        for name, check in CHECKS[purpose]:
+            try:
+                if not check(client):
+                    missing.append(name)
+            except Exception:
+                logger.info("[dms account probe] %s check failed for a %s account", name, purpose,
+                            exc_info=True)
+                missing.append(name)
+        return {"ok": not missing, "missing": missing}
+
     try:
         adapter = MrerpDmsAdapter(system_url=system_url, username=username, password=password, headless=True)
         adapter.verify_password = True
-        with adapter:
-            adapter.login()
-            if adapter.concurrent_login_detected:
-                return fail("ERR_DMS_CONCURRENT_LOGIN")
-            client = adapter.client()
-            missing = []
-            for name, check in CHECKS[purpose]:
-                try:
-                    if not check(client):
-                        missing.append(name)
-                except Exception:
-                    logger.info("[dms account probe] %s check failed for a %s account", name, purpose,
-                                exc_info=True)
-                    missing.append(name)
-            if adapter.concurrent_login_detected:
-                return fail("ERR_DMS_CONCURRENT_LOGIN")
-            return {"ok": not missing, "missing": missing}
+        result = push.logged_in_probe(adapter, inspect)
+        return result if result is not None else fail("ERR_DMS_CONCURRENT_LOGIN")
     except DmsAuthError:
         return fail("ERR_DMS_AUTH")
     except DmsUnreachableError:
