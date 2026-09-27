@@ -53,7 +53,16 @@
   合成管理员、从上传表格建合成盘点：#21（第二件保持自己的账面位置 A-03）、#22（手机 375 宽、位置差异那行标红）、#8（LINE 区块一句话、已对齐）操作通过。
 - 分支 CI（Development checks）`a8daae95` 通过。
 - 未覆盖：LINE 真机（#26、#25 只做了单元测试与词条）；POS 收银页里的交班弹窗未在界面操作（同一份班次数据已核对）；报表按用途统计未做。
-- 未合入、未部署（等用户通知）。
+- 用户 2026-09-28「部署吧」。
+
+## 部署（2026-09-28）
+
+- main 快进到 `1c8b5af9` 后第一次构建（run 36343082712）**失败**：候选离线检查里 `team.test_identity` 报错 —— 用户名登录开关的判断抽到 `team/login_settings.py` 后，
+  这条测试只替换了补丁模块里的 `frappe`，新模块没被替换，在无站点上下文时读 `frappe.conf`。本地其实也跑到了这条失败，我当时误读成 DMS 离线检查的结果。
+  修正测试（把 `login_settings` 也纳入替换）→ 在服务器用生产镜像并把本分支 App 挂到镜像 App 目录上完整跑候选离线检查通过 → 分支 CI 通过 → main 快进到 `e6ad3363`。
+- 构建 run 36343604451 success → `sha256:b5b52787…`；投递 run 36343951106 success；`check-deploy-image.py` 一致；
+  `activate-product.sh … erp` 177 秒、`… cowork` 117 秒，均 `activated with verified image`，14 个容器 `b5b52787`。上一版 ERP `145269b5`、Cowork `2c0f6ed8`。DMS 未动。
+- 线上只读回读（testerp）：单号前缀 hidden、`ERP Stock Entry.purpose` 列存在、接统一身份站点的用户名登录开关未被改动、迁移钩子含 `login_settings.apply`；testerp / testcowork ping 200。
 
 ## 测试环境留下的东西
 
