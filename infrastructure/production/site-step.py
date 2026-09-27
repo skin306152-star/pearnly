@@ -44,6 +44,9 @@ def main():
                   redis_queue=f"redis://redis-queue:6379/{queue_db}", redis_socketio=f"redis://redis-queue:6379/{queue_db}",
                   socketio_port=9000, serve_default_site=False,
                   pearnly_ocr_budget_redis="redis://redis-queue:6379/6",
+                  # 共用 OCR 限额：各产品必须一字不差，否则 budget.permit 报 policy_mismatch 全部延后。
+                  # 2026-09-27 用户定每分钟 120 次（线上三个产品已手工改成同值）。
+                  pearnly_ocr_budget={"concurrency": 8, "tenant_concurrency": 3, "rpm": 120},
                   workers={**values.get("workers", {}), "ocr": {"timeout": 600}})
     if group == "dms":
         configure = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py")
