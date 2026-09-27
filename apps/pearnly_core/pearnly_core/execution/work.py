@@ -144,6 +144,23 @@ def _finish(name, status, code="", delay=0, notify=True):
             pass  # Admission reservation expires conservatively.
 
 
+def job_language(user):
+    """识别任务开跑前把界面语言定为提交识别的那个人的语言，并告诉 Frappe「已定好」。
+
+    Frappe 16 的后台任务在第一次不带 lang 的 `_()` 时，会按**排队那一刻的会话用户**重设
+    `frappe.local.lang`（`frappe.utils.translations._` → `set_user_lang(job.user)`）。续跑的任务是
+    调度器以 Administrator 排的队，于是产品在处理函数里设好的语言（如 LINE 手机语言）会被
+    冲成站点默认语言：2026-09-27 ERP 销售识别第一次被限流、续跑后整张卡变成泰文（第一次就跑完的
+    采购卡是中文）。这里先定下，产品处理函数再按自己的口径改 `frappe.local.lang` 就不会被覆盖。"""
+    from frappe.utils.translations import set_user_lang
+
+    if user:
+        set_user_lang(user)
+    job = getattr(frappe.local, "job", None)
+    if job is not None:
+        job.lang_resolved = True
+
+
 @contextmanager
 def context(name):
     previous = frappe.flags.get("pearnly_ocr_work")
@@ -184,6 +201,7 @@ def run(name):
         from .resources import check_memory
         check_memory()
         with context(name):
+            job_language(doc.user)
             result = frappe.get_attr(handler(doc.kind))(**json.loads(doc.arguments))
         outcome = result or {}
         if outcome.get("cancelled"):
