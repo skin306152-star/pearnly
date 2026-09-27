@@ -336,11 +336,31 @@
 			return {column, title, list, count, footer, add, compose, link, nav_item};
 		};
 		// 列表本身也能拖着排（拖列表头），照 Trello。
-		new Sortable(board[0], {
-			animation: 150, draggable: ".pearnly-work-column:not(.pearnly-work-add-list)",
+		// 鼠标在列表下方的空白处时，Sortable 会当成「放到最后」让空槽跳到末尾；照 Trello 改成只看左右位置。
+		const LISTS = ".pearnly-work-column:not(.pearnly-work-add-list)";
+		let dragged_list = null;
+		const follow_list = event => {
+			if (!dragged_list || mobile() || document.elementFromPoint(event.clientX, event.clientY) !== board[0]) return;
+			const next = board.children(LISTS).not(dragged_list).get()
+				.find(node => { const rect = node.getBoundingClientRect(); return event.clientX < rect.left + rect.width / 2; })
+				|| adder[0];
+			if (dragged_list.nextElementSibling === next) return;
+			list_sortable.captureAnimationState();
+			board[0].insertBefore(dragged_list, next);
+			list_sortable.animateAll();
+		};
+		const list_sortable = new Sortable(board[0], {
+			animation: 150, draggable: LISTS,
 			handle: ".pearnly-work-column-header", filter: "button, input", preventOnFilter: false,
 			delay: 200, delayOnTouchOnly: true, ghostClass: "pearnly-work-ghost", dragClass: "pearnly-work-dragging",
-			...DRAG_LOOK, onEnd: event => void list_dropped(event),
+			...DRAG_LOOK,
+			onStart: event => { dragged_list = event.item; document.addEventListener("pointermove", follow_list); },
+			onMove: (event, pointer) => mobile() || pointer?.target !== board[0],
+			onEnd: event => {
+				dragged_list = null;
+				document.removeEventListener("pointermove", follow_list);
+				void list_dropped(event);
+			},
 		});
 		const sync_columns = () => {
 			const wanted = new Set(state.lists.map(row => row.name));

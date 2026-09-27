@@ -336,8 +336,9 @@
 	box-shadow: var(--shadow-md);
 }
 
-/* 拖动（照 Trello）：放手会落到的位置是一个灰色空槽；拖着的卡片 / 列表不透明、微斜、带阴影。
-   Sortable 模拟拖动时自己写行内 transform 定位，所以倾斜用独立的 rotate 属性；行内 opacity 0.8 要盖掉。 */
+/* 拖动（照 Trello）：放手会落到的位置是一个灰色空槽；拖着的卡片 / 列表不透明、微斜、带阴影，紧跟鼠标。
+   Sortable 模拟拖动时每动一下改写行内 transform 的平移、保留其中的旋转，所以倾斜写在 transform 里（写成独立的
+   rotate 会把平移也转歪，越拖越偏）；看板列自带的 0.2 秒过渡会让它一路追不上鼠标，要关掉；行内 opacity 0.8 要盖掉。 */
 .pearnly-work-ghost .pearnly-work-card {
 	background: var(--gray-500);
 	opacity: 0.25;
@@ -356,7 +357,8 @@
 
 .pearnly-work-dragging.sortable-fallback {
 	opacity: 1 !important;
-	rotate: 3deg;
+	transition: none !important;
+	transform: rotate(3deg);
 	cursor: grabbing;
 }
 
