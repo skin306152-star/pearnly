@@ -148,3 +148,17 @@
 - 部署后需要**重新发布图文菜单**（`rich_menu.publish()`，写 LINE 官方号，需用户同意）才会出现多语言菜单；不发布时一切照旧挂泰文菜单。
 - 泰文以外的译文由本 Agent 撰写，业务用语（例如"登记名义""配车"）请懂中文/日文的人在测试机上过目。
 - 未做真机验收：需要在测试机上把手机 LINE 语言分别切到中文/英文走一遍菜单 1、2、5。
+
+## 交接保留（2026-09-27 用户："所有改动先保持现状不动，只停测试机，是否部署等我通知"）
+
+已执行 `lab-stop dms`：`testdms.pearnly.com` 已切回线上（回读 200、无测试机 CNAME）；线上 `testdms` 定时任务已恢复（`scheduler status` = enabled），`ris` 始终 enabled；测试机 DMS 容器 0 个在跑。
+
+| 保留项 | 用途 / 原因 | 解除条件 |
+| --- | --- | --- |
+| 分支 `codex/dms-line-language`（本地，未推送；工作树 `/Users/skin/.codex/worktrees/dms-line-language/pearnly`） | 本轮全部改动（含 `codex/dms-fast-sync` 的提交） | 用户通知部署后按主线规则合并、推送、部署，再删工作树与分支 |
+| 分支 `codex/dms-fast-sync`（本地，未推送；工作树 `/Users/skin/.codex/worktrees/dms-fast-sync/pearnly`） | 已完整包含在上面的分支里，按"保持现状"未删 | 上面的分支合入 main 后一并删除 |
+| 测试机卷 `pearnly-testenv-dms_*` | 测试租户数据（读档 `dmstest001`、改写 `dmstest002/003`、白天窗口 `6-22`） | 下次 `lab-start dms` 复用；不再需要时 `reset` |
+| DMS-TEST 官方号的多语言图文菜单 | 测试期间发布（用户同意）；线上 `testdms` 仍按旧配置挂泰文菜单，官方号默认菜单为新泰文基础菜单 | 部署后按上线步骤重新发布 |
+| DMS-TEST 业务数据 | 测试订单 BK000002609000034 / 35、客户 115 / 119 的改动（均为用户或本任务授权的测试录入） | 无需清理 |
+
+上线仍需（每步经用户同意）：主线集成 → main 构建镜像 → 部署（`scope_rekey` 补丁随迁移执行）→ ris 登记读档与改写账号 → 发布多语言图文菜单。
