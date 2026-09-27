@@ -81,6 +81,12 @@
 ERP 采购识别、Cowork 的识别枚举与 Express / MR.ERP 推送判据都调用它，产品里不再写票种字符串判断；改规则先加
 `tests/fixtures/tax-documents/cases.json` 用例。详见 [ADR-012](../adr/0012-shared-tax-document-rules.md)。
 
+## 识别读法（ADR-013）
+
+ERP 识别按 [ADR-013](../adr/0013-ocr-read-strategy.md)：`gemini-3.1-flash-lite` 读 → 产品代码做确定性修复 → 只在金额 / 结构对不上时
+同一模型带提示复核 → 采购按需调 Vision 原文做「以检查为准」的核对 → 还不过标红。3.8 只是站点开关（默认关）。
+改模型或规则前先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较。
+
 ## 本地控制面与云端开户
 
 管理后台继续运行在本机。正式开户只面向 `pearnly_target_runtime` 中明确配置 `executor=production`、且存在对应 Target 记录的云端目标。SSH 隧道的回环地址不等于本地租户。

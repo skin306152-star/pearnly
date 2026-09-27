@@ -13,6 +13,7 @@
 - [ADR-009 各产品自己声明菜单、功能目录与术语表](0009-product-owned-declarations.md)
 - [ADR-010 DMS 后台完整读快照](0010-dms-background-read-snapshots.md)
 - [ADR-012 票种与业务处理：全平台一张决策表](0012-shared-tax-document-rules.md)
+- [ADR-013 识别读法：便宜模型读、代码兜底、按需复核，默认不用 3.8](0013-ocr-read-strategy.md)
 
 待定稿：
 
