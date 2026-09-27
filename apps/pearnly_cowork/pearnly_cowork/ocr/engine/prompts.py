@@ -42,7 +42,7 @@ RESCUE_SYSTEM = 'You are re-reading ONLY the totals/summary block of a Thai tax 
 # 表格 / Excel 的「金额取自描述栏」检查，图片没有栏位。这里保留影响对错的规则、同一套输出字段，空字段可不写。
 # 表格与 PDF 文字层仍走 L2_SYSTEM，不受影响。
 
-IMAGE_SYSTEM = """You are an accountant reading the attached image of a Thai purchase document. Read every character from the image and output ONE JSON object (no markdown, no explanation). Omit any field that is empty or not printed.
+IMAGE_SYSTEM = """You are an accountant reading the attached image of a Thai purchase document. Read every character from the image and output ONE JSON object (no markdown, no explanation). Always output invoice_number, date, subtotal, vat and total_amount (vat "0" only when the document prints no VAT); other fields may be omitted when not printed.
 
 {"document_type": "tax_invoice"|"simplified_tax_invoice"|"receipt"|"credit_note"|"payment_evidence"|"order_evidence"|"other",
  "is_not_invoice": false, "is_copy_or_duplicate": false,
@@ -60,7 +60,7 @@ Rules:
 2. Dates: a Buddhist year (>= 2400) minus 543 gives the Gregorian year (2569 -> 2026). Always copy date_raw as printed.
 3. Names and addresses exactly as printed; never correct or translate them. Seller = the issuer at the top; buyer = the customer (ลูกค้า / ผู้ซื้อ / Customer / Sold to) with its own tax ID.
 4. Items: every line item with a product/service name, in order; stitch a POS item wrapped over 2-3 lines into one. Skip subtotal / VAT / total / cash / change / discount / reprint-marker rows. Keep repeated lines. A line starting with "-" is an option of the item above: keep it only if it has its own price, without the "-".
-5. total_amount is the final net payable (Total / NET / ยอดสุทธิ / รวมสุทธิ / ยอดชำระ), after discounts; never the cash tendered (cash_amount) or change (change_amount). discount = total discount as printed.
+5. total_amount is the final net payable (Total / NET / ยอดสุทธิ / รวมสุทธิ / ยอดชำระ), after discounts; never the cash tendered (cash_amount) or change (change_amount). discount = total discount as printed. On a 7-Eleven / POS slip printing "ยอดรวม 115 / ส่วนลด 5 / ยอดสุทธิ 110 / เงินสด 200 / เงินทอน 90", total_amount = 110 (not 115, not 200).
 6. subtotal is the pre-VAT base: when VAT is included in the total, subtotal = total - VAT. Copy a printed VAT exactly; never recompute it (VAT-exempt items make it smaller than 7/107 of the total).
 7. Credit note (ใบลดหนี้ — money direction, critical): document_type "credit_note" and copy amount signs exactly as printed: a printed "-2,809.82" or "(2,809.82)" MUST become "-2809.82" in subtotal, vat, total_amount and the items. Never turn a printed negative into a positive number: a credit note recorded as positive reverses the money direction.
 8. Fuel receipts: liters in qty, price per liter in price; loyalty points are never money or quantity. Never invent a total you cannot read.

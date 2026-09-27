@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import re
 
 from pearnly_core.tax_documents import amounts
 
@@ -91,3 +92,30 @@ def repair_from_transcript(invoice, text, *, tolerance=Decimal("0.5")) -> list[s
                 return notes
             setattr(invoice, field, before)
     return notes
+
+
+_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9/\\\-.#]*[A-Za-z0-9]|[A-Za-z0-9]")
+
+
+def _norm(value) -> str:
+    return re.sub(r"[^0-9A-Z]", "", str(value or "").upper())
+
+
+def repair_invoice_number(invoice, text) -> str | None:
+    """完整税票的单号对照 Vision 原文：原文里有就不动；没有、但原文里恰好一个同长度只差一个字符的 → 换成原文写法。
+
+    2026-09-27 大语料 A/B：直读把 IN26-00658 读成 IN26-00668、ORVM6905… 读成 ORVMB905…，金额都对、闸拦不住；
+    旧线上碰巧走了 Vision 路线才读对。只差一个字符且唯一才换，拿不准不动。"""
+    read = str(getattr(invoice, "invoice_number", "") or "").strip()
+    wanted = _norm(read)
+    if not wanted or not text or wanted in _norm(text):
+        return None
+    tokens = _TOKEN.findall(str(text))
+    pool = set(tokens) | {a + b for a, b in zip(tokens, tokens[1:])}
+    near = {t for t in pool if len(_norm(t)) == len(wanted)
+            and sum(x != y for x, y in zip(_norm(t), wanted)) == 1}
+    if len({_norm(t) for t in near}) != 1:
+        return None
+    fixed = min(near, key=len)
+    invoice.invoice_number = fixed
+    return f"{TRANSCRIPT_PREFIX} invoice_number {read}→{fixed}"

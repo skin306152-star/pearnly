@@ -115,7 +115,16 @@ class EngineTests(unittest.TestCase):
         run(model=model)
         for request in model.requests:
             self.assertNotIn("source_refs", request.prompt.split("A first reading")[0])
-            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4000)
+            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4500)
+
+    def test_a_full_tax_invoice_is_checked_against_the_transcript(self):
+        # 2026-09-27 大语料：直读把单号读错一个字符、金额全对 —— 完整税票过了闸也拿 Vision 原文核对单号
+        wrong = {**GOOD, "document_type": "tax_invoice", "invoice_number": "IV69/108"}
+        page = run(model=Model([wrong])).pipeline.pages[0]
+        self.assertEqual((page.layer_chain, page.invoice.invoice_number), (["ID", "L1"], "IV69/100"))
+        self.assertTrue(any("invoice_number IV69/108" in w for w in page.validation_warnings))
+        receipt = run(model=Model([{**GOOD, "invoice_number": "IV69/108"}])).pipeline.pages[0]
+        self.assertEqual((receipt.layer_chain, receipt.invoice.invoice_number), (["ID"], "IV69/108"))  # 小票不多花
 
     def test_a_failed_recheck_reads_image_and_transcript_together(self):
         wrong = {**GOOD, "total_amount": "170"}

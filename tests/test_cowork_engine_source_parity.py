@@ -138,7 +138,13 @@ def run_parity(sources):
             assert page.extraction_audit["direct_fallback"]["code"] == "ocr.direct_gate_failed"
         else:
             result = run(model=Model([payload]))
-            compare_page(legacy, result.pipeline.pages[0])
+            page = result.pipeline.pages[0]
+            if payload["document_type"] == "tax_invoice" and not page.invoice.is_not_invoice:
+                # 登记的有意改动（2026-09-27 大语料 A/B）：完整税票过了直读闸也拿 Vision 原文核对单号 / 税号（`L1`），
+                # 判定与字段不变（桩原文里有这个单号、不改），只多这一步。
+                assert page.layer_chain == ["ID", "L1"], page.layer_chain
+                page = page.model_copy(update={"layer_chain": ["ID"]})
+            compare_page(legacy, page)
         direct_count += 1
 
     class L3Error(Exception): pass

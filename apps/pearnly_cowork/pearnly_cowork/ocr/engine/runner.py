@@ -27,7 +27,9 @@ from pearnly_cowork.ocr.validation import (
     vat_ratio_mismatch,
 )
 from pearnly_cowork.ocr.money import normalize_money
-from pearnly_cowork.ocr.validation.accounting import infer_withholding, normalize_amounts, repair_from_transcript
+from pearnly_cowork.ocr.validation.accounting import (
+    infer_withholding, normalize_amounts, repair_from_transcript, repair_invoice_number,
+)
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
     PageSource, ProviderFailure, VisionCall,
@@ -196,7 +198,8 @@ class _Run:
             invoice, _ = self.read_image("direct", page, frame, IMAGE_SYSTEM)
             issue, warnings = self.gate(invoice)
             if not issue:
-                return self.direct_result(page, invoice, warnings, self.calls[first:], ["ID"])
+                chain = ["ID"] + self.check_tax_invoice(page, frame, invoice, warnings)
+                return self.direct_result(page, invoice, warnings, self.calls[first:], chain)
             best, evidence = invoice, {"code": "ocr.direct_gate_failed", "detail": issue}
         except ProviderFailure as exc:
             if is_auth_failure(exc):
@@ -214,6 +217,7 @@ class _Run:
                 invoice = self.fill_missing(invoice, best)
                 issue, warnings = self.gate(invoice)
                 if not issue:
+                    chain += self.check_tax_invoice(page, frame, invoice, warnings)
                     result = self.direct_result(page, invoice, warnings, self.calls[first:], chain)
                     result.extraction_audit["direct_fallback"] = evidence
                     return result
@@ -225,6 +229,25 @@ class _Run:
         result = self.pipeline_page(page, None, frame=frame, prefix=chain, first=first, fallback=best)
         result.extraction_audit["direct_fallback"] = evidence
         return result
+
+    def check_tax_invoice(self, page, frame, invoice, warnings):
+        """完整税票过了闸也拿 Vision 原文核对一次单号与税号（2026-09-27 大语料 A/B：直读把单号读错一个字符，
+        金额全对、闸拦不住）。只对能抵进项的完整税票做，小票不多花；Vision 明确拒绝就跳过核对，不挡这一页。"""
+        if invoice.is_not_invoice or invoice.document_type != "tax_invoice" or self.vision_call is None:
+            return []
+        try:
+            response = self.vision_call(frame, stage="layer1", page_number=page)
+        except ProviderFailure as failure:
+            if is_auth_failure(failure):
+                raise
+            return []
+        self.calls.append(CallEvidence("layer1", page, 0, "vision", deepcopy(response.raw),
+                                       elapsed_ms=response.elapsed_ms, checkpoint_key=response.checkpoint_key))
+        text = response.page.full_text
+        notes = repair_from_transcript(invoice, text, tolerance=self.config.amount_tolerance)
+        fixed = repair_invoice_number(invoice, text)
+        warnings.extend(notes + ([fixed] if fixed else []))
+        return ["L1"]
 
     def direct_result(self, page, invoice, warnings, calls, chain):
         if not invoice.is_not_invoice and not str(invoice.invoice_number or "").strip():
@@ -242,7 +265,7 @@ class _Run:
         band = self.bucket(confidence, force)
         return PipelinePageResult(
             page_number=page, invoice=invoice, document_type=self.config.document_type,
-            layer_chain=chain, layer2_model=calls[-1].model,
+            layer_chain=chain, layer2_model=[c for c in calls if c.stage != "layer1"][-1].model,
             layer2_input_tokens=sum(c.input_tokens for c in calls),
             layer2_output_tokens=sum(c.output_tokens for c in calls),
             layer2_ms=sum(c.elapsed_ms for c in calls), total_ms=sum(c.elapsed_ms for c in calls),
