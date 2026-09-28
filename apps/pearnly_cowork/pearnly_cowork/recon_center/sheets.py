@@ -224,8 +224,8 @@ def _vat_edits(_book, inputs):
     edits = {}
     invoice_fields = {2: "buyer_tax_id", 3: "buyer_name", 4: "invoice_no", 5: "invoice_date",
                       7: "amount_pre_vat", 8: "vat_amount", 9: "total_amount"}
-    report_fields = {2: "report_buyer_tax_id", 3: "report_buyer_name", 4: "report_date",
-                     6: "report_amount_pre_vat", 7: "report_vat_amount"}
+    report_fields = {2: "report_invoice_no", 3: "report_buyer_tax_id", 4: "report_buyer_branch", 5: "report_buyer_name",
+                     6: "report_date", 8: "report_amount_pre_vat", 9: "report_vat_amount"}
     for sheet_index, key, fields in ((0, "invoices", invoice_fields), (1, "report_rows", report_fields)):
         for index in range(len(inputs.get(key) or [])):
             for column, field in fields.items():
@@ -469,6 +469,9 @@ def load(kind, task_id, lang=None):
         inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
         version = revision.revision(doc)
     notes = revision.bank_notes(doc) if kind == "bank" else []
+    if kind == "vat" and inputs.get("failed_files"):
+        # 读不出的发票文件原来存着却不显示（2026-09-28 录制读代码发现）：与银行同样写在标题下一句。
+        notes.append(_("vat_check.note.unread").format(", ".join(str(name) for name in inputs["failed_files"])))
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
                      "revision": version, "notes": notes}, **_view(kind, doc, inputs, _lang(lang))}
 

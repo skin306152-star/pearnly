@@ -44,13 +44,16 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
         from pearnly_cowork.recon_center import invoice_ocr
 
         try:
-            works = invoice_ocr.submit(recon_job or request_id, scanned, frappe.session.user)
+            works, rejected = invoice_ocr.submit(recon_job or request_id, scanned, frappe.session.user)
         except (Deferred, QueueFull) as error:
-            frappe.throw(_("vat_check.balance_insufficient") if getattr(error, "reason", "") == "insufficient_balance"
+            # 查不到余额（计费服务一时连不上）要说清楚，不当成识别繁忙（2026-09-28 录制读代码发现）。
+            reason = getattr(error, "reason", "")
+            frappe.throw(_("vat_check.balance_insufficient") if reason == "insufficient_balance"
+                         else _("vat_check.balance_unavailable") if reason == "lookup_error"
                          else _("vat_check.recognition_busy"))
-        found, unread = invoice_ocr.wait(works)
+        found, unread = invoice_ocr.wait(works) if works else ([], [])
         records.extend(found)
-        failed.extend(unread)
+        failed.extend(rejected + unread)
     if not records:
         frappe.throw(_("vat_check.no_invoices"))
     stage("matching")

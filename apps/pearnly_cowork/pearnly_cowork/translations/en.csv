@@ -851,6 +851,7 @@ The PDF file cannot be read.,The PDF file cannot be read.
 The VAT report content is invalid.,The VAT report content is invalid.
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."
 The VAT report has no rows.,The VAT report has no rows.
+The account balance could not be checked right now. Try again in a moment.,The account balance could not be checked right now. Try again in a moment.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
 The amounts do not add up (before VAT + VAT ≠ total),The amounts do not add up (before VAT + VAT ≠ total)
@@ -986,6 +987,7 @@ The worksheet row or column information is invalid.,The worksheet row or column 
 Then,Then
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
+These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
@@ -1958,7 +1960,9 @@ stocktake.warehouse_required,Check the warehouse and location. A warehouse is re
 summary_table_batch,Summary table import
 used by {0} items,used by {0} items
 vat_check.balance_insufficient,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
+vat_check.balance_unavailable,The account balance could not be checked right now. Try again in a moment.
 vat_check.no_invoices,No invoice could be read.
+vat_check.note.unread,These files could not be read and were left out: {0}
 vat_check.periods_differ,The reports cover different periods ({0}).
 vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
 vat_check.recognition_timeout,Invoice recognition took too long. Try again later.

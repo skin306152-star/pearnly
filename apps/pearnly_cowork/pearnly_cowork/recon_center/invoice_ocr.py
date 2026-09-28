@@ -72,14 +72,25 @@ def records(pages, filename):
 
 
 def submit(recon_job, files, user):
-    """files: [(File 名, 文件名, 内容)]。先冻结识别配置、查余额，再逐份建 Work；返回 [(Work 名, 文件名)]。"""
+    """files: [(File 名, 文件名, 内容)]。先冻结识别配置、查余额，再逐份建 Work；返回 ([(Work 名, 文件名)], 读不了的文件名)。
+
+    一份文件读不了（加密、超 50 页、坏图片、不支持的类型）只把它记成读不出，其余照常识别
+    （原来一份坏文件整批失败 —— 2026-09-28 录制读代码发现）。"""
     frozen = ocr_settings.snapshot()
-    inspected = []
+    inspected, rejected = [], []
     for file_name, filename, content in files:
-        info = inspect_content(filename, content)
+        try:
+            info = inspect_content(filename, content)
+        except frappe.ValidationError:
+            frappe.clear_last_message()
+            rejected.append(filename)
+            continue
         if info["kind"] not in ("pdf", "image"):
-            frappe.throw(_("This file type is not supported."))
+            rejected.append(filename)
+            continue
         inspected.append((file_name, filename, info))
+    if not inspected:
+        return [], rejected
     intake.balance(sum(info["page_count"] for _f, _n, info in inspected), frozen["billing_tier"])
     works = []
     for index, (file_name, filename, info) in enumerate(inspected):
@@ -87,7 +98,7 @@ def submit(recon_job, files, user):
                      "sha256": info["sha256"], "settings": frozen}
         with work_guard.work_creation():
             works.append((core_work.submit(KIND, f"{recon_job}:{index}", arguments, user), filename))
-    return works
+    return works, rejected
 
 
 def wait(works, on_stage=None):

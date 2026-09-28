@@ -851,6 +851,7 @@ The PDF file cannot be read.,この PDF ファイルを読み取れません。
 The VAT report content is invalid.,税報告の内容が無効です。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。
 The VAT report has no rows.,税報告に明細行がありません。
+The account balance could not be checked right now. Try again in a moment.,現在、残高を確認できません。しばらくしてからもう一度お試しください。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up (before VAT + VAT ≠ total),金額が合いません（税抜 + 税額 ≠ 合計）
@@ -986,6 +987,7 @@ The worksheet row or column information is invalid.,ワークシートの行ま�
 Then,実行
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 There is not enough recognition balance. Top up and send the document again.,読み取り残高が不足しています。チャージしてからもう一度送信してください。
+These files could not be read and were left out: {0},次のファイルは読み取れず、照合に含めていません：{0}
 This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
@@ -1958,7 +1960,9 @@ stocktake.warehouse_required,倉庫と場所を確認してください。倉庫
 summary_table_batch,集計表の取り込み
 used by {0} items,{0} 品目が使用中
 vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
+vat_check.balance_unavailable,現在、残高を確認できません。しばらくしてからもう一度お試しください。
 vat_check.no_invoices,請求書を1件も読み取れませんでした。
+vat_check.note.unread,次のファイルは読み取れず、照合に含めていません：{0}
 vat_check.periods_differ,報告の期間が異なります（{0}）。確認してください。
 vat_check.recognition_busy,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。
 vat_check.recognition_timeout,請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。

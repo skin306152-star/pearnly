@@ -214,7 +214,8 @@
 			if (tone && !numeric && text) {
 				const pill = document.createElement("span");
 				pill.className = `indicator-pill no-indicator-dot ${tone} ellipsis`;
-				pill.textContent = text.replace(/^[✓❗⚠✗✔]️?\s*/u, "");
+				// 标签颜色已表明状态：去掉开头的任何符号 / 表情（原来只去 ✓❗⚠✗✔，🔍🟡 留着）。
+				pill.textContent = text.replace(/^(?:[\p{Extended_Pictographic}\p{So}]\uFE0F?\s*)+/u, "");
 				pill.title = text;
 				node.append(pill);
 			} else {

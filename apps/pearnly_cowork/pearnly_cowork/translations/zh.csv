@@ -851,6 +851,7 @@ The PDF file cannot be read.,无法读取该 PDF 文件。
 The VAT report content is invalid.,税表内容无效。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",读不出税表。请用 Excel、CSV 或带文字层的 PDF。
 The VAT report has no rows.,税表里没有明细行。
+The account balance could not be checked right now. Try again in a moment.,暂时查不到账户余额，请稍后再试。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up (before VAT + VAT ≠ total),金额算不平（未税 + 税额 ≠ 合计）
@@ -986,6 +987,7 @@ The worksheet row or column information is invalid.,工作表行列信息无效�
 Then,自动
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
+These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
@@ -1958,7 +1960,9 @@ stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入
 used by {0} items,{0} 个商品在用
 vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
+vat_check.balance_unavailable,暂时查不到账户余额，请稍后再试。
 vat_check.no_invoices,没有读出任何发票。
+vat_check.note.unread,这些文件读不出来，没有计入核查：{0}
 vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
 vat_check.recognition_busy,发票识别繁忙，请稍后再试。
 vat_check.recognition_timeout,发票识别超时，请稍后再试。

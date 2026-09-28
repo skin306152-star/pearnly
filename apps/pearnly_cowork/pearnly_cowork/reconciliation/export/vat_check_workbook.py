@@ -159,7 +159,10 @@ def _build_sheet2(wb, report_rows, period_year, period_month, L):
         ws2.append(
             [
                 i,
+                # 发票号、分支配对要用，原来这页没有、屏幕上改不了（2026-09-28 录制读代码发现）
+                row.get("report_invoice_no") or "",
                 row.get("report_buyer_tax_id") or "",
+                row.get("report_buyer_branch") or "",
                 row.get("report_buyer_name") or "",
                 date_str,
                 period_val,
@@ -173,7 +176,7 @@ def _build_sheet2(wb, report_rows, period_year, period_month, L):
         last2 = len(report_rows) + 1
         sum_row2 = last2 + 1
         ws2.cell(row=sum_row2, column=1, value=L["sum"]).font = F_BOLD
-        for col in (6, 7, 8):  # Sheet 2 数字列 偏移 1(加了 日期 列)
+        for col in (8, 9, 10):  # Sheet 2 数字列（加了 日期、发票号、分支 列）
             cell = ws2.cell(
                 row=sum_row2,
                 column=col,
@@ -186,7 +189,7 @@ def _build_sheet2(wb, report_rows, period_year, period_month, L):
             ws2.cell(row=sum_row2, column=c).border = BORDER_TH
             ws2.cell(row=sum_row2, column=c).font = F_BOLD
 
-    widths2 = [5, 18, 28, 13, 12, 14, 14, 14]
+    widths2 = [5, 16, 18, 8, 28, 13, 12, 14, 14, 14]
     for i, w in enumerate(widths2, 1):
         ws2.column_dimensions[get_column_letter(i)].width = w
     for r in range(2, len(report_rows) + 2):
@@ -195,7 +198,7 @@ def _build_sheet2(wb, report_rows, period_year, period_month, L):
             cell = ws2.cell(row=r, column=c)
             cell.font = F_NORM
             cell.border = BORDER_TH
-        for col in (6, 7, 8):
+        for col in (8, 9, 10):
             ws2.cell(row=r, column=col).alignment = AL_R
             ws2.cell(row=r, column=col).number_format = "#,##0.00"
     _zebra(ws2, 2, len(report_rows) + 1, len(headers2))

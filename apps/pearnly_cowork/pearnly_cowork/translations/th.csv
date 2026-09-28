@@ -851,6 +851,7 @@ The PDF file cannot be read.,ไม่สามารถอ่านไฟล์
 The VAT report content is invalid.,ข้อมูลรายงานภาษีไม่ถูกต้อง
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ"
 The VAT report has no rows.,รายงานภาษีไม่มีรายการ
+The account balance could not be checked right now. Try again in a moment.,ตรวจสอบยอดเงินในบัญชีไม่ได้ชั่วคราว กรุณาลองใหม่ภายหลัง
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 The amounts do not add up (before VAT + VAT ≠ total),ยอดเงินไม่สมดุล (ก่อน VAT + VAT ≠ ยอดรวม)
@@ -986,6 +987,7 @@ The worksheet row or column information is invalid.,ข้อมูลแถว�
 Then,ให้ทำ
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 There is not enough recognition balance. Top up and send the document again.,ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่
+These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
@@ -1958,7 +1960,9 @@ stocktake.warehouse_required,กรุณาตรวจสอบคลังส
 summary_table_batch,นำเข้าตารางสรุป
 used by {0} items,มีสินค้าใช้อยู่ {0} รายการ
 vat_check.balance_insufficient,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
+vat_check.balance_unavailable,ตรวจสอบยอดเงินในบัญชีไม่ได้ชั่วคราว กรุณาลองใหม่ภายหลัง
 vat_check.no_invoices,ไม่สามารถอ่านใบกำกับได้เลย
+vat_check.note.unread,ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 vat_check.periods_differ,รายงานคนละงวด ({0}) กรุณาตรวจสอบ
 vat_check.recognition_busy,ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง
 vat_check.recognition_timeout,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
