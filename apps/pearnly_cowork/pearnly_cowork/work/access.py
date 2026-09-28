@@ -3,7 +3,7 @@
 能进任务管理 = 站点是 Cowork、账号启用、勾了「任务管理」（`Cowork Work`）或是产品管理员（`Cowork Admin`）。
 不单独售卖（用户 2026-09-27），所以不看开通功能。
 每块看板再按成员与可见范围算权利（用户 2026-09-29，矩阵在 `contracts.board_rights`）：团队可见的板有任务管理权限的人
-都能看能改，私有板只有看板成员，Cowork 管理员看得到、管得了所有看板。卡片不单独设权限。
+都能看、成员才能改（默认看板人人能改），私有板只有看板成员，Cowork 管理员看得到、管得了所有看板。卡片不单独设权限。
 原生资源只给读（且只读得到能看的看板），写一律走本域的专用接口（见 `documents`）。
 """
 import frappe
@@ -106,7 +106,7 @@ def rights(board, user=None):
             cache[key] = contracts.board_rights(
                 role=members_of(board).get(user), visibility=info.visibility, team_user=True,
                 cowork_admin=administrator(user), commenting=info.commenting,
-                member_management=info.member_management)
+                member_management=info.member_management, is_default=bool(info.is_default))
             if info.archived:
                 # 归档的看板只读（照 Trello 关闭的看板），能管的人可以恢复。
                 cache[key] = cache[key] & {"view", "manage"}
@@ -132,6 +132,19 @@ def viewers(board):
     if info.visibility == "team":
         return team
     return (set(members_of(board)) & team) | (_users_with((ADMIN_ROLE,)) & team)
+
+
+def editors(board):
+    """能改这块板的人：能被分派为负责人、被规则自动分派的只限这些人（负责人得能动自己的卡）。"""
+    info = board_info(board)
+    if not info:
+        return set()
+    team = team_users()
+    if info.is_default and info.visibility == "team":
+        return team
+    roles = members_of(board)
+    return ({user for user, role in roles.items() if role in ("admin", "member")} & team) | (
+        _users_with((ADMIN_ROLE,)) & team)
 
 
 def _visible_boards_sql(user):

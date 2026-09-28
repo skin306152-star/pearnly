@@ -1,6 +1,6 @@
 """Cowork 任务管理的看板权限矩阵（`work.contracts.board_rights` / `member_changes`），不依赖框架与 IO。
 
-用户口径 2026-09-29：私有 / 团队可见两档；看板管理员、成员、观察者三种角色；Cowork 管理员管所有看板；
+用户口径 2026-09-29：私有 / 团队可见两档（团队可见 = 大家能看、成员才能改，默认看板人人能改）；看板管理员、成员、观察者三种角色；Cowork 管理员管所有看板；
 谁能评论、谁能加减成员由看板管理员设置。
 """
 import sys
@@ -44,11 +44,20 @@ class BoardRightsTest(unittest.TestCase):
         # 团队可见的板上被设成观察者：按观察者算，不按"团队成员都能改"。
         self.assertEqual(rights(role="observer", visibility="team", member_management="members"), {"view"})
 
-    def test_team_board_non_member_views_and_edits(self):
-        self.assertEqual(rights(visibility="team"), {"view", "edit", "comment"})
-        self.assertEqual(rights(visibility="team", commenting="disabled"), {"view", "edit"})
-        # 非成员不能加减成员，即使设置是「所有成员」。
-        self.assertEqual(rights(visibility="team", member_management="members"), {"view", "edit", "comment"})
+    def test_team_board_non_member_only_views(self):
+        # 用户 2026-09-29 定 B：团队可见的板，没加进来的人只能看，评论按观察者算。
+        self.assertEqual(rights(visibility="team"), {"view"})
+        self.assertEqual(rights(visibility="team", commenting="observers"), {"view", "comment"})
+        self.assertEqual(rights(visibility="team", member_management="members"), {"view"})
+
+    def test_default_board_stays_editable_for_the_whole_team(self):
+        self.assertEqual(rights(visibility="team", is_default=True), {"view", "edit", "comment"})
+        self.assertEqual(rights(visibility="team", is_default=True, commenting="disabled"), {"view", "edit"})
+        self.assertEqual(rights(visibility="team", is_default=True, member_management="members"),
+                         {"view", "edit", "comment"})
+        # 默认看板被改成私有：没加进来的人就看不到了；被设成观察者的人照样只读。
+        self.assertEqual(rights(visibility="private", is_default=True), set())
+        self.assertEqual(rights(role="observer", visibility="team", is_default=True), {"view"})
 
     def test_private_board_non_member_gets_nothing(self):
         self.assertEqual(rights(), set())
@@ -56,6 +65,7 @@ class BoardRightsTest(unittest.TestCase):
 
     def test_without_task_management_nothing_on_team_board(self):
         self.assertEqual(rights(visibility="team", team_user=False), set())
+        self.assertEqual(rights(visibility="team", team_user=False, is_default=True), set())
 
 
 class MemberChangesTest(unittest.TestCase):

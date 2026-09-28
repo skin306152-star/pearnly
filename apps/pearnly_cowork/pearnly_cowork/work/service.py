@@ -477,15 +477,15 @@ def _complete(doc, done):
 
 
 def _rehome(doc, board):
-    """卡片换到另一块看板：标签、字段值只留目标看板有的；负责人、关注人只留能看目标看板的人。"""
+    """卡片换到另一块看板：标签、字段值只留目标看板有的；负责人只留能改目标看板的人，关注人只留能看的人。"""
     doc.board = board
     known_labels = {row.name for row in labels(board)}
     known_fields = {row.name for row in fields(board)}
-    viewers = access.viewers(board)
+    viewers, editors = access.viewers(board), access.editors(board)
     doc.set("labels", [{"label": row.label} for row in doc.labels if row.label in known_labels])
     doc.set("values", [{"field": row.field, "value": row.value} for row in doc.get("values") or []
                        if row.field in known_fields])
-    doc.set("assignees", [{"user": row.user} for row in doc.assignees if row.user in viewers])
+    doc.set("assignees", [{"user": row.user} for row in doc.assignees if row.user in editors])
     doc.set("watchers", [{"user": row.user} for row in doc.watchers if row.user in viewers])
 
 
@@ -556,7 +556,7 @@ def _clone(source, target, title, keep, action="copy"):
         known = {row.name for row in labels(target.board)}
         doc.set("labels", [{"label": row.label} for row in source.labels if row.label in known])
     if "members" in keep:
-        allowed = access.viewers(target.board)
+        allowed = access.editors(target.board)
         doc.set("assignees", [{"user": row.user} for row in source.assignees if row.user in allowed])
     if "fields" in keep:
         known = {row.name for row in fields(target.board)}
@@ -611,8 +611,8 @@ def update(name, modified, values):
         raise Invalid("cowork.work.error.start_after_due")
     if "assignees" in values:
         before = {row.user for row in doc.assignees}
-        # 新加的人必须是现在能看这块板的人；已经在卡上的人（后来被停用 / 去掉权限）可以留着。
-        allowed = access.viewers(doc.board) | before
+        # 新加的人必须是现在能改这块板的人；已经在卡上的人（后来被停用 / 去掉权限）可以留着。
+        allowed = access.editors(doc.board) | before
         users = contracts.distinct(values["assignees"], len(allowed) or 1)
         if set(users) - allowed:
             raise Invalid("cowork.work.error.member")
@@ -863,14 +863,14 @@ def comment(name, content, mentions=None):
 
 
 def delete_comment(activity):
-    """只能删自己写的评论。"""
+    """删自己写的评论；看板管理员（和 Cowork 管理员）也能删别人的（照 Trello，管不当评论）。"""
     access.require()
     row = frappe.db.get_value(ACTIVITY, {"name": activity or "", "workspace": scope.default_workspace(),
                                          "action": "comment"}, ["name", "card", "actor"], as_dict=True)
     if not row:
         raise Invalid("cowork.work.error.not_found")
     doc = _card(row.card, "view", archived=False)
-    if row.actor != frappe.session.user:
+    if row.actor != frappe.session.user and not access.can(doc.board, "manage"):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     remove(frappe.get_doc(ACTIVITY, row.name))
     _changed(doc.board, row.card, "comment")
@@ -1042,7 +1042,7 @@ def _apply_rules(doc, board_list):
                                limit_page_length=0):
         detail = {"action": rule.action}
         if rule.action == "assign":
-            if (not rule.user or rule.user not in access.viewers(doc.board)
+            if (not rule.user or rule.user not in access.editors(doc.board)
                     or rule.user in {row.user for row in doc.assignees}):
                 continue
             doc.append("assignees", {"user": rule.user})
@@ -1083,7 +1083,7 @@ def save_rules(rows, board=None):
         raise Invalid("cowork.work.error.too_many")
     _lock(RULE)
     current = {item.name: item for item in _rules(row.name)}
-    people = access.viewers(row.name)
+    people, editors = access.viewers(row.name), access.editors(row.name)
     known_labels = {item.name for item in labels(row.name)}
     kept = set()
     for item in rows:
@@ -1094,7 +1094,7 @@ def save_rules(rows, board=None):
         values = {"board_list": item["board_list"], "action": action, "user": None, "label": None, "days": 0,
                   "enabled": 0 if item.get("enabled") in (0, False, "0") else 1}
         if action in ("assign", "watch"):
-            if item.get("user") not in people:
+            if item.get("user") not in (editors if action == "assign" else people):
                 raise Invalid("cowork.work.error.member")
             values["user"] = item["user"]
         elif action == "label":

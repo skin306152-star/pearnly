@@ -727,8 +727,9 @@
 			d.show();
 			return d;
 		};
+		// 负责人只能选能改这块板的人（团队可见的板上没加进来的人只能看，用户 2026-09-29）；已在卡上的人照常显示。
 		const member_options = (chosen = []) => {
-			const people = [...state.members];
+			const people = state.members.filter(row => row.can_edit || chosen.includes(row.user));
 			for (const user of chosen) if (!member(user)) people.push({user, name: user});
 			return people.map(row => ({label: p.escape(row.name), value: row.user, checked: chosen.includes(row.user)}));
 		};
@@ -1004,7 +1005,8 @@
 		const activity_html = rows => rows.map(row => {
 			const when = `<span class="text-muted small">${comment_when(row.creation)}</span>`;
 			if (row.action === "comment") {
-				const remove = row.actor === state.me ? `<button type="button" class="btn btn-link btn-xs text-muted"
+				// 自己的评论能删；看板管理员也能删别人的。
+				const remove = row.actor === state.me || can("manage") ? `<button type="button" class="btn btn-link btn-xs text-muted"
 					data-comment="${p.escape(row.name)}">${p.escape(__("Delete"))}</button>` : "";
 				return `<div class="pearnly-work-activity">${avatar(row.actor)}<div class="pearnly-work-activity-body">
 					<div><b>${p.escape(member_name(row.actor))}</b> ${when} ${remove}</div>
@@ -1764,7 +1766,7 @@
 					const box = $('<div class="pearnly-work-field-edit">').appendTo(host);
 					const target = {
 						assign: {fieldname: "user", fieldtype: "Select", label: t("cowork.work.field.members"), default: row.user,
-							options: state.members.map(item => ({value: item.user, label: item.name}))},
+							options: state.members.filter(item => item.can_edit).map(item => ({value: item.user, label: item.name}))},
 						watch: {fieldname: "user", fieldtype: "Select", label: t("cowork.work.field.members"), default: row.user,
 							options: state.members.map(item => ({value: item.user, label: item.name}))},
 						label: {fieldname: "label", fieldtype: "Select", label: t("cowork.work.field.labels"), default: row.label,

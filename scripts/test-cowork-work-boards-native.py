@@ -1,6 +1,6 @@
 """Cowork 任务管理的多块看板与看板权限：在真实 Frappe Site 上逐个接口走一遍（整段一个事务，最后回滚）。
 
-每个接口覆盖：成功、没有任务管理权限、观察者、私有看板的非成员、Cowork 管理员（口径见
+每个接口覆盖：成功、没有任务管理权限、观察者、私有看板的非成员、团队可见看板的非成员（只能看）、Cowork 管理员（口径见
 `docs/work/2026-09-29-cowork-work-boards.md` 的权限矩阵）。另查实时刷新只推给能看的人、提醒按看板过滤、
 原生 REST / 附件下载按看板判、跨看板移动 / 复制 / 镜像两边都要权限、升级补丁可重跑。
 
@@ -182,9 +182,11 @@ def run():
     for who in (outsider, observer, stranger):
         frappe.set_user(who)
         expect_error(f"update as {who}", service.update, card, str(modified()), {"title": "x"}, error=DENIED)
-    as_user(member, service.update, card, str(modified()), {"title": "C-one 2", "assignees": [observer]})
+    as_user(member, service.update, card, str(modified()), {"title": "C-one 2", "assignees": [member]})
     frappe.set_user(member)
     expect_error("assign stranger", service.update, card, str(modified()), {"assignees": [stranger]}, error=Invalid)
+    # 负责人只能是能改这块板的人：观察者能看，但不能被分派。
+    expect_error("assign observer", service.update, card, str(modified()), {"assignees": [observer]}, error=Invalid)
     for label, function, args in (("move", service.move, (card, doing)), ("toggle", service.toggle_done, (card,)),
                                   ("toggle back", service.toggle_done, (card,))):
         matrix(label, function, *args, ok=(member, cadmin), no=(outsider, observer, stranger))
@@ -233,6 +235,10 @@ def run():
     assert frappe.db.exists(access.NOTIFICATION, {"user": member, "card": card, "kind": "mention"})
     denied("delete others comment", member, service.delete_comment, note)
     as_user(observer, service.delete_comment, note)
+    # 看板管理员（和 Cowork 管理员）能删别人的评论。
+    for who in (owner, cadmin):
+        mine = as_user(member, service.comment, card, f"by member for {who}", [])
+        as_user(who, service.delete_comment, next(row.name for row in mine if row.actor == member))
     as_user(owner, boards.update, P, {"commenting": "disabled"})
     matrix("comment off", service.comment, card, "x", [], ok=(owner, cadmin), no=(member, observer))
     as_user(owner, boards.update, P, {"commenting": "members"})
@@ -286,7 +292,8 @@ def run():
     changed = {who for event, who in sent if event == notify.CHANGED}
     assert None not in changed and stranger not in changed and {owner, member, observer, cadmin} <= changed, changed
     frappe.set_user(owner)
-    as_user(owner, service.update, card, str(modified()), {"assignees": [member, observer]})
+    as_user(observer, service.watch, card, True)
+    as_user(member, service.comment, card, "news", [])
     assert any(row.card == card for row in as_user(observer, service.notifications)["rows"])
     as_user(owner, boards.save_members, P, [row for row in current if row["user"] != observer])
     assert not any(row.card == card for row in as_user(observer, service.notifications)["rows"]), \
@@ -298,23 +305,52 @@ def run():
     assert not frappe.db.exists(access.NOTIFICATION, {"user": observer, "card": card, "kind": "overdue"})
     as_user(owner, boards.save_members, P, current)
 
-    # ── 跨看板：移动、复制、镜像两边都要权限 ──
+    # ── 团队可见的板（用户 2026-09-29 定 B）：没加进来的人只能看，评论按观察者算；加为成员后才能改 ──
     tlist = service.lists(T)[0].name
-    denied("move into private", stranger, service.move, as_user(stranger, service.create, "S-card", tlist)["name"],
+    first = service.lists(default)[0].name
+    assert set(as_user(stranger, service.board, T)["board"]["rights"]) == {"view"}
+    team_card = as_user(owner, service.create, "T-card", tlist)["name"]
+    for label, function, args in (("team create", service.create, ("x", tlist)),
+                                  ("team list", service.create_list, ("x", T)),
+                                  ("team move", service.move, (team_card, tlist)),
+                                  ("team comment", service.comment, (team_card, "x", []))):
+        matrix(label, function, *args, ok=(owner, cadmin), no=(outsider, stranger, member))
+    matrix("team archive", service.archive, team_card, ok=(owner,), no=(outsider, stranger, member))
+    matrix("team restore", service.restore, team_card, ok=(owner,), no=(outsider, stranger, member))
+    as_user(owner, boards.update, T, {"commenting": "observers"})
+    as_user(stranger, service.comment, team_card, "non-member comment", [])
+    as_user(owner, boards.update, T, {"commenting": "members"})
+    frappe.set_user(owner)
+    expect_error("assign non-member", service.update, team_card,
+                 str(frappe.db.get_value(access.CARD, team_card, "modified")), {"assignees": [stranger]}, error=Invalid)
+    expect_error("rule assigns non-member", service.save_rules,
+                 [{"board_list": tlist, "action": "assign", "user": stranger}], T, error=Invalid)
+    service.save_rules([{"board_list": tlist, "action": "watch", "user": stranger}], T)  # 能看就能被加关注
+    service.save_rules([], T)
+    assert not {row["user"]: row for row in service.board(T)["members"]}[stranger]["can_edit"]
+    as_user(owner, boards.save_members, T, [{"user": owner, "role": "admin"}, {"user": member, "role": "member"}])
+    as_user(member, service.create, "T-by-member", tlist)
+    assert {row["user"]: row for row in service.board(T)["members"]}[member]["can_edit"]
+    # 默认看板例外：有任务管理权限的人照常都能改。
+    assert set(as_user(stranger, service.board, default)["board"]["rights"]) == {"view", "edit", "comment"}
+
+    # ── 跨看板：移动、复制、镜像两边都要权限 ──
+    denied("move into private", stranger, service.move, as_user(stranger, service.create, "S-card", first)["name"],
            todo)
     denied("observer moves out", observer, service.move, card, tlist)
     moved = as_user(member, service.move, card, tlist)
     assert moved["board"] == T and hot not in moved["labels"], "labels of the old board are dropped"
     as_user(member, service.move, card, todo)
-    matrix("copy to team", service.copy, card, "copy", tlist, [], ok=(observer, member), no=(outsider, stranger))
-    denied("copy into private", stranger, service.copy, as_user(stranger, service.create, "S2", tlist)["name"], "c",
+    # 观察者能看源卡，但不是团队板成员：复制不进去。
+    matrix("copy to team", service.copy, card, "copy", tlist, [], ok=(member,), no=(outsider, stranger, observer))
+    denied("copy into private", stranger, service.copy, as_user(stranger, service.create, "S2", first)["name"], "c",
            todo)
     mirror = as_user(member, service.mirror, card, tlist)["name"]
     assert mirror not in {row.name for row in as_user(stranger, service.board, T)["mirrors"]}, "mirror leaked"
     team_view = as_user(owner, service.board, T)
     assert mirror in {row.name for row in team_view["mirrors"]} and card in {row["name"] for row in team_view["foreign"]}
-    # 镜像在团队板上：团队里能改的人都能移除。
-    matrix("unmirror", service.unmirror, mirror, ok=(stranger,), no=(outsider,))
+    # 镜像在团队板上：只有能改那块板的人能移除。
+    matrix("unmirror", service.unmirror, mirror, ok=(member,), no=(outsider, stranger, observer))
 
     # ── 归档看板：只读；默认看板不受影响 ──
     matrix("archive board", boards.archive, P, ok=(owner,), no=(outsider, member, observer, stranger))
@@ -325,7 +361,6 @@ def run():
     matrix("restore board", boards.restore, P, ok=(owner,), no=(outsider, member, stranger))
     as_user(member, service.create, "back", todo)
     # 默认看板：有任务管理权限的人照常能看能改，标签等设置只有 Cowork 管理员。
-    first = service.lists(default)[0].name
     as_user(stranger, service.create, "default card", first)
     denied("default labels", stranger, service.save_labels, [], default)
 

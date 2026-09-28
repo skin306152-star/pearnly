@@ -206,8 +206,12 @@ def people(users):
 
 
 def assignable(board):
-    """能被分派、被 @ 的人 = 能看这块板的人。"""
-    return people(access.viewers(board))
+    """能看这块板的人（能被 @、能关注）；`can_edit` = 能改这块板，只有这些人能被分派为负责人。"""
+    editors = access.editors(board)
+    rows = people(access.viewers(board))
+    for row in rows:
+        row["can_edit"] = row["user"] in editors
+    return rows
 
 
 def members(board):

@@ -53,11 +53,12 @@ class Invalid(ValueError):
 
 
 # ── 看板权限（用户 2026-09-29） ─────────────────────────────────────────────
-# 可见性：团队可见 = 有「任务管理」权限的人都能看、能改（Trello 工作区可见的口径）；私有 = 只有看板成员。
+# 可见性（用户 2026-09-29 定 B）：团队可见 = 有「任务管理」权限的人都能看，但只有看板成员能改（没加进来的人按观察者算）；
+# 默认看板（原来那一块）例外，有任务管理权限的人照常都能改。私有 = 只有看板成员能看。
 VISIBILITIES = ("team", "private")
 # 看板角色：管理员、成员（增改卡片 / 列表）、观察者（只读，评论看看板设置）。
 ROLES = ("admin", "member", "observer")
-# 谁能评论：成员（含管理员与团队可见时的非成员）/ 成员和观察者 / 关闭。
+# 谁能评论：成员（含管理员；默认看板上所有人）/ 成员和观察者（团队可见的板上没加进来的人按观察者算）/ 关闭。
 COMMENTING = ("members", "observers", "disabled")
 # 谁能加减成员：仅管理员 / 所有成员。
 MEMBER_MANAGEMENT = ("admins", "members")
@@ -69,20 +70,21 @@ BOARD_MEMBERS_MAX = 500
 
 
 def board_rights(*, role=None, visibility="private", team_user=False, cowork_admin=False,
-                 commenting="members", member_management="admins") -> frozenset:
+                 commenting="members", member_management="admins", is_default=False) -> frozenset:
     """一个人在一块看板上的权利。`role` 是他在这块板上的角色（不是成员为 None），
     `team_user` = 有「任务管理」权限（进得了页面），`cowork_admin` = Cowork 管理员（看得到、管得了所有看板）。"""
     if cowork_admin or role == "admin":
         return frozenset(RIGHTS)
-    if role == "observer":
-        return frozenset({"view", "comment"} if commenting == "observers" else {"view"})
-    if role == "member" or (role is None and team_user and visibility == "team"):
+    outsider = role is None and team_user and visibility == "team"
+    if role == "member" or (outsider and is_default):
         rights = {"view", "edit"}
         if commenting in ("members", "observers"):
             rights.add("comment")
         if role == "member" and member_management == "members":
             rights.add("members")
         return frozenset(rights)
+    if role == "observer" or outsider:
+        return frozenset({"view", "comment"} if commenting == "observers" else {"view"})
     return frozenset()
 
 
