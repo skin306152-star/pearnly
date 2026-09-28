@@ -116,16 +116,17 @@ def review_reasons(doc, pages):
     if doc.last_push_status == "success":
         return []
     fields = primary_page_fields(pages)
-    party = "buyer" if fields.get("direction") == "sales" else "seller"
-    raw_tax = str(fields.get(f"{party}_tax") or "").strip()
+    # 票号格式由开票方定：进项看供应商、销项看本公司自己开过的票，所以一律按卖方税号取历史。
+    raw_tax = str(fields.get("seller_tax") or "").strip()
     digits = re.sub(r"\D", "", raw_tax)
     numbers = []
     if len(digits) == 13:
-        # 同一对方、人核过（改过或推送成功）的票号，只取写法，不回显给别人看。
+        # 同一开票方、人核过（改过或推送成功）的票号，只取写法，不回显给别人看。一家可能同时用几套票号
+        # （压测：本公司给 Big C 与给别家的是两套），取近 500 张统计各种写法，只取最近几十张会漏掉另一套。
         numbers = frappe.db.sql_list(f"""SELECT invoice_no FROM `tab{DOCTYPE}`
-            WHERE workspace=%s AND name!=%s AND {party}_tax IN (%s, %s) AND COALESCE(invoice_no, '')!=''
+            WHERE workspace=%s AND name!=%s AND seller_tax IN (%s, %s) AND COALESCE(invoice_no, '')!=''
               AND (last_push_status='success' OR edit_count>0)
-            ORDER BY creation DESC LIMIT 30""", (doc.workspace, doc.name or "", raw_tax, digits))
+            ORDER BY creation DESC LIMIT 500""", (doc.workspace, doc.name or "", raw_tax, digits))
     own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id") if doc.workspace else None
     return review.reasons(pages, own_tax=own_tax, party_numbers=numbers,
                           duplicate=doc.duplicate_check_status == "matched", edited=int(doc.edit_count or 0) > 0)

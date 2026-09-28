@@ -62,6 +62,9 @@ class ReviewReasons(unittest.TestCase):
         pages[0]["_needs_manual_review"] = True
         self.assertEqual(review.reasons(pages), [{"code": "number_choice", "field": "invoice_number",
                                                   "choices": ["IV69/06-017", "IU69/06-017"]}])
+        # 这家以前人核过的票都是 IV99/99-999：模型读法对得上、原文读法对不上 → 不用问
+        self.assertEqual(codes(pages, party_numbers=["IV69/06-015", "IV69/06-016"]), [])
+        self.assertEqual(codes(pages, party_numbers=["IV69/06-015"]), ["number_choice"])  # 只有一张不下结论
         pages[0]["fields"]["invoice_number"] = "IU69/06-017"      # 选了原文那种
         self.assertEqual(codes(pages, edited=True), [])
         pages[0]["fields"].update(invoice_number="IV69/06-017", review_resolved=["number_choice"])  # 选了模型那种

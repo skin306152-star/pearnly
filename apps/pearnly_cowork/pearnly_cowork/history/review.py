@@ -93,6 +93,16 @@ def _voucher_reason(fields, direction):
     return None
 
 
+def _usual_shapes(party_numbers, *, exclude=()) -> set:
+    """这家以前至少两张票用过的写法。"""
+    counts = {}
+    for other in party_numbers or ():
+        text = str(other or "").strip()
+        if text and text not in exclude:
+            counts[shape(text)] = counts.get(shape(text), 0) + 1
+    return {value for value, count in counts.items() if count >= 2}
+
+
 def _pattern_reason(fields, party_numbers):
     """同一对方以前至少两张票都是同一种写法、这张不一样 → 提醒核对（IV69 读成 IV60 写法不变不会报；
     读成 IU69、多一个前缀、少一位会报）。"""
@@ -113,7 +123,7 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
     """→ 原因清单 `[{code, field?, ...}]`，没有就是空列表。
 
     `direction`：进项 / 销项（票面没写时用记录的）；`own_tax`：所选账套（或公司资料）的本方税号，没有就不比；
-    `party_numbers`：同一对方以前的票号；`duplicate`：识别入库时查到疑似重复；`edited`：人改过票面。
+    `party_numbers`：同一开票方（卖方）以前人核过的票号；`duplicate`：识别入库时查到疑似重复；`edited`：人改过票面。
     """
     pages = pages if isinstance(pages, list) else []
     fields = primary_page_fields(pages)
@@ -127,9 +137,15 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
     primary = next((page for page in pages if (page or {}).get("fields") is fields), {}) or {}
     notes = [str(note) for page in pages for note in [*((page or {}).get("_validation_warnings") or []),
                                                       *((page or {}).get("_trigger_reasons") or [])]]
+    settled = False  # 单号两种读法已由这家历史写法裁决（转复核就是因为它，不再笼统提醒）
     for note in notes:
         choice = number_alternative(note)
         if choice and str(fields.get("invoice_number") or "").strip() == choice[0]:
+            # 这家以前人核过的票号写法能裁决：模型读法对得上、原文读法对不上 → 不用再问（压测 27 张这样问多了）。
+            usual = _usual_shapes(party_numbers, exclude=choice)
+            if usual and shape(choice[0]) in usual and shape(choice[1]) not in usual:
+                settled = True
+                break
             found.append({"code": "number_choice", "field": "invoice_number", "choices": list(choice)})
             break
     if any(note.startswith("possible_missed_invoice") for note in notes):
@@ -154,7 +170,7 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
     if duplicate:
         found.append({"code": "duplicate"})
     # 识别自己说拿不准、上面又没说出具体哪里 → 笼统提醒一次；人改过票面就不再提。
-    if not found and not edited and primary.get("_needs_manual_review"):
+    if not found and not edited and not settled and primary.get("_needs_manual_review"):
         found.append({"code": "uncertain"})
     return [reason for reason in found if reason["code"] not in resolved]
 
