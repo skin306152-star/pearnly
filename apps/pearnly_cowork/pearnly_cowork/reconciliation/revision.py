@@ -9,6 +9,7 @@
 重算走的是建任务时同一个比对函数，保存则整份替换结果行与汇总，并记一笔修订（谁、何时、第几版）。
 """
 import json
+from decimal import Decimal
 
 import frappe
 from frappe import _
@@ -74,12 +75,37 @@ def bank_header(doc):
 		"gl_account_code": doc.gl_account_code or ""})
 
 
+def _ledger_amounts(rows):
+	return sorted((str(row.get("date") or ""), str(row.get("doc_no") or ""), row.get("debit") or Decimal(0),
+		row.get("credit") or Decimal(0)) for row in rows)
+
+
+def _ledger_net(rows):
+	return sum(((row.get("debit") or Decimal(0)) - (row.get("credit") or Decimal(0)) for row in rows), Decimal(0))
+
+
+def _follow_ledger_edits(doc, header, ledger):
+	"""总账金额改过：期末按改动的借贷差跟着走，各行余额从期末倒推（银行科目借增贷减）；没改金额一律不动。
+
+	2026-09-28 录制：把一笔借方 12,480 改成 12,840，匹配重算了，GL 期末 / 余额列仍是文件里的 252,716.14，
+	「差额（应为 0）」变成 360.00。对账单那边早已「期末跟着最后一行余额走」，这里补上总账这边。"""
+	_, stored = _contract(bank_recon_contracts.decode_rows, [], bank_inputs(doc).get("gl") or [])
+	if _ledger_amounts(stored) == _ledger_amounts(ledger):
+		return
+	header["gl_closing"] = header["gl_closing"] + _ledger_net(ledger) - _ledger_net(stored)
+	balance = header["gl_closing"]
+	for row in reversed(ledger):
+		row["balance"] = balance
+		balance -= (row.get("debit") or Decimal(0)) - (row.get("credit") or Decimal(0))
+
+
 def bank_compute(doc, inputs):
 	rows = _contract(bank_recon_contracts.decode_rows, inputs.get("statement") or [], inputs.get("gl") or [])
 	header = bank_header(doc)
 	# 对账单期末跟着改过的最后一行余额走（与复核确认同一口径），期初与总账两端不动。
 	if rows[0] and rows[0][-1].get("balance") is not None:
 		header["stmt_closing"] = rows[0][-1]["balance"]
+	_follow_ledger_edits(doc, header, rows[1])
 	results, summary = bank_recon_service._match(rows, header)
 	return rows, header, results, summary
 
