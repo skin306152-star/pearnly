@@ -49,9 +49,11 @@ class BankReview(unittest.TestCase):
 	def test_invalid_amount_date_and_missing_fields_are_refused(self):
 		row = review.editable_rows(ORIGINAL)[0]
 		for change in ({"balance": None}, {"balance": "NaN"}, {"withdrawal": "-1"},
-				{"deposit": "1.001"}, {"date": "tomorrow"}, {"description": ""}):
+				{"deposit": "1.001"}, {"date": "tomorrow"}):
 			with self.assertRaises(contracts.ReconciliationContractError):
 				review.validate_rows([{**row, **change}], ORIGINAL, [])
+		# 摘要可以空（旧版复核同样按空串收；2026-09-28 起不再因此整份失败）
+		review.validate_rows([{**row, "description": ""}], ORIGINAL, [])
 		incomplete = copy.deepcopy(row)
 		del incomplete["deposit"]
 		with self.assertRaises(contracts.ReconciliationContractError):
