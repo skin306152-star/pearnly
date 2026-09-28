@@ -72,16 +72,44 @@
 - **误操作说明**：复核页「提交」按设计推整批，点一次把同批 IV69/06-004、005、007、008、009 新写进 SINCTEST（已有客户档、未建主档），002 / 003 / 006 因税号不对转人工。SINCTEST 是测试账套，这 5 张与此前端到端测试单一样由用户决定是否在 Express 删除。
 - 未真机验：账套暂时读不到（没法安全断网络共享，单元测试覆盖）；分录部门码（1.3.5，等录制窗口用完 testcowork 再测）。
 
-## 未完成
+## 第三轮：对账（录制第 3–5 集转来，2026-09-28 晚–09-29）
 
-- 小助手 1.3.5 真机：推一张 52 类（使用部门 = Y）科目的进项，回读分录部门码。
-- 部署：Cowork 服务端、小助手正式版、ERP compose（需激活 ERP），逐项等用户同意；部署前与录制窗口约时间。
+用户定：「待检查」原因只在页面写（Excel 不加，维持 09-26 口径）；核查按整份 PDF 页数收费不改（与录入一致）。
+分支 `codex/cowork-bank-recon-fixes`，合入 main `413bb5bb`。
+
+- 银行对账：改总账金额后 GL 期末与各行余额跟着走（演示文件 12,480→12,840：期末 253,076.14、差额 0、匹配 10→11）；
+  导出文件名用任务名称（三种对账都改）；流水摘要可空（旧版口径）；对账错误码四语人话（`reconciliation/messages.py`）；
+  两位年按佛历（与识别同一 `normalization.parse_date`）；「待检查」原因写在标题旁原生指示器（这一版 Desk 页面模板没有副标题位，
+  `set_title_sub` 等于白写，与 ERP 库存页同一做法；太长截断、悬停看全文）；`create_from_parsed` 的 NameError。
+- 收入对账：调节表加「差额调整（税表 − GL）」（演示文件 144,500 − 1,500 + 6,500 − 800 = 148,700）；日期统一 日/月/年（公历）；
+  表格日期格子 / .xls 序列号 / 带时间日期都认（改在共用 `parse_date`，核查侧同时生效）；编辑按内容认回行；手打日期按佛历；
+  有未保存改动时导出先保存；总账负数按冲销记另一边（`(50,000.00)` 实测）；批量删除（页面发 JSON 串，服务端原来只收列表）。
+- 销项税核查：表头按「越具体越先判」（税务局标准表头、英文表头、VAT 在金额前、序号列 No.）；坏发票文件跳过不拖垮整批并列出；
+  报告页加发票号、分支两列可改；状态标签去掉所有开头符号；查不到余额单独提示；PDF 行尾三个数取未税与 VAT；
+  报告侧只收表格 / PDF；页面等待 32 分钟（≥ 任务 30 分钟）。
+- 验证：Cowork 测试 141 个通过（其余 6 个在 main 上同样失败或样板缺依赖，已另起任务）；测试环境真站点用录制窗口演示文件与合成数据实测；
+  浏览器实看核查页（读不出文件提示、报告页新列、改发票号后重算为「发票号差异」、保存）与收入调节表。
+
+## 小助手 1.3.5 真机与部署（2026-09-29，用户：「把你这边该测试的测试，该部署的部署了吧」）
+
+- 真机（测试环境 + SINCTEST，小助手 1.3.5 普通权限）：库存进项 `RR690929-001`（单头、库存卡部门 0008；所用科目未标使用部门，分录不带，合原账）；
+  服务费用选 52-01-00-00 的进项 `RR690929-002`：分录 52-01-00-00 带 0008、进项税与应付不带 —— 与原账规律一致。
+- 与录制窗口、看板权限窗口约时间后：main `413bb5bb` → build-production 36457254589 →
+  `ghcr.io/skin306152-star/pearnly/frappe@sha256:93264218fdb23aae7dfebee1a5e38b7991c61e19425c9860d30b33b2fbca8a5e`；
+  stage-production 36458004851（第一次 36457949749 把整段镜像地址当 digest 传失败，重跑）；服务器部署文件按镜像同步后 `check-deploy-image` 一致。
+- 激活前：Cowork 推送无排队 / 进行中、无进行中识别，主机可用内存约 26 GB；ERP 无进行中识别。
+- `activate-product.sh … cowork` 139 秒、`… erp` 134 秒，均 `activated with verified image`；两产品各 7 个容器 `93264218`；
+  维护模式 0、激活后 Error Log 0；testcowork / testerp https ping 200；ERP 网页进程 `Memory=1073741824`、gunicorn `--max-requests=2000 --max-requests-jitter=200`。
+  DMS 未动。
+- 小助手正式通道 companion-release 36458758342：`latest.json` = 1.3.5，sha256 `487ebf6a…`，source `413bb5bb`；客户端一小时内自动更新。
 - 线上真推第一张票无法模拟，上线后需人工看一次。
 
-## 临时资源
+## 临时资源（2026-09-29 收尾）
 
-- `~/.cache/pearnly-legacy-ec2e5c957e6b`（旧线上源码）、`~/.cache/pearnly-main-77036057` 与 `pearnly-main-2f367944`（main 对照）、`~/.cache/pearnly-seen`：任务结束删除。
-- 本地后端 lab（`pearnly-cowork-backend-lab`，colima）：已停，卷保留（按该 lab 惯例）。
-- 测试机：`C:\ProgramData\PearnlyVerify\retest.tar` 与 WSL `/tmp/retest`；测试环境库里的复测记录（`retest-*`、`retest2-*`、`retest3-*` 原件，只在测试环境）。
-- 测试环境：已 lab-stop，testcowork 切回线上（录制窗口录第 3 集中），栈停、数据卷保留。
-- 测试机：小助手 1.3.4 测试版（普通权限，连线上 testcowork）；`C:\\ProgramData\\PearnlyVerify` 下的安装包与脚本任务结束删除。
+- 已删：本机 `~/.cache/pearnly-legacy-ec2e5c957e6b`、`pearnly-main-*`、`pearnly-seen`；测试机 `C:\ProgramData\PearnlyVerify`（安装包、脚本、SINCTEST 读回副本）、
+  WSL `/tmp/retest` `/tmp/bank` `/tmp/income` 等。
+- 保留：测试机计划任务 `PearnlyRestoreCompanionConfig`（还原点日期 2026-09-02，非本任务所建，归属不明不动）；
+  本地后端 lab `pearnly-cowork-backend-lab` 已停、卷保留（该 lab 惯例）；测试环境栈与数据卷交给看板权限窗口使用；
+  测试环境库里的复测 / 端到端记录（`retest*`、`E2E-0928/0929-*`、`CBR/CIR/CVC` 测试任务）只在测试环境。
+- 测试账套 SINCTEST 里本任务写入的测试单：RR690928-002、RR690929-001、RR690929-002、HP690929-001，
+  以及复核页「提交」误推的 IV69/06-004、005、007、008、009（整批提交，新写入、未建主档），由用户决定是否在 Express 删除。
