@@ -209,6 +209,19 @@ def run():
         except frappe.PermissionError:
             readable = False
         assert bool(readable) == expected, (who, readable)
+    # 链接附件原生当公开文件：私有看板外的人也读不到；原生 File 列表不列出看不到的看板上的附件。
+    link_file = next(row.name for row in service._attachments(card) if row.is_link)
+    for who, expected in ((observer, True), (stranger, False), (outsider, False)):
+        frappe.set_user(who)
+        try:
+            readable = frappe.has_permission("File", "read", frappe.get_doc("File", link_file))
+        except frappe.PermissionError:
+            readable = False
+        assert bool(readable) == expected, ("link", who, readable)
+    files_of = lambda: set(frappe.get_list("File", filters={"attached_to_doctype": access.CARD},  # noqa: E731
+                                           pluck="name"))
+    assert {file_doc.name, link_file} <= as_user(observer, files_of)
+    assert not {file_doc.name, link_file} & as_user(stranger, files_of), "private board attachments listed"
     matrix("detach", service.detach, card, files[0].name, ok=(member,), no=(outsider, observer, stranger))
 
     # 评论：按「谁能评论」；删自己的评论只要能看。

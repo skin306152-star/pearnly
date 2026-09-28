@@ -179,6 +179,27 @@ def notification_permission(doc, ptype=None, user=None, **kwargs):
     return True
 
 
+def file_permission(doc, ptype=None, user=None, **kwargs):
+    # 卡片附件（链接附件在原生里算公开文件）只给能看那块看板的人；别的文件交给原生与其他钩子判。
+    if doc.attached_to_doctype != CARD:
+        return True
+    if not can(frappe.db.get_value(CARD, doc.attached_to_name, "board"), "view", user):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    return True
+
+
+def file_query(user=None):
+    # 原生 File 列表：能读卡片 DocType 就能列出所有卡片的附件（含私有看板的文件名、链接地址），这里按看板收窄。
+    user = user or frappe.session.user
+    if user == "Administrator":
+        return ""
+    others = f"COALESCE(`tabFile`.attached_to_doctype, '') != '{CARD}'"
+    if not allowed(user):
+        return f"({others})"
+    return (f"({others} OR `tabFile`.attached_to_name IN (SELECT c.name FROM `tab{CARD}` c "
+            f"WHERE c.board IN ({_visible_boards_sql(user)})))")
+
+
 def reject_share(doc, method=None):
     if doc.share_doctype in TYPES:
         frappe.throw(_("Assign Cowork access through company and client permissions."))
