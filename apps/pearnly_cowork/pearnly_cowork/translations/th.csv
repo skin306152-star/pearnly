@@ -136,6 +136,7 @@ Card name (alphabetically),ชื่อการ์ด (ตามตัวอั
 Card restored,กู้คืนแล้ว
 Card templates,เทมเพลตการ์ด
 Cash,เงินสด
+Cash sales,ขายเงินสด
 Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 Change cover,เปลี่ยนปก
 Change list color,เปลี่ยนสีรายการ
@@ -202,6 +203,7 @@ Copy list,คัดลอกรายการ
 Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
+Could not read the MR.ERP menus. Try again later.,อ่านเมนู MR.ERP ไม่ได้ กรุณาลองใหม่ภายหลัง
 Could not read this document. Please send it again.,อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Could not store this document,บันทึกเอกสารไม่สำเร็จ
 Count Mode,วิธีตรวจนับ
@@ -256,6 +258,7 @@ Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
 Credit Note,ใบลดหนี้
+Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
@@ -467,6 +470,11 @@ Location mismatch,ตำแหน่งไม่ตรง
 Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
+"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก ผลลัพธ์ไม่แน่ชัด กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
+MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
+MR.ERP import menu,เมนูนำเข้า MR.ERP
 MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบเงินเชื่อ
 Make template,ตั้งเป็นเทมเพลต
 Manual,กรอกเอง
@@ -584,17 +592,21 @@ Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
 PromptPay,พร้อมเพย์
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
+Purchase (expense),ซื้อ (ค่าใช้จ่าย)
+Purchase (goods),ซื้อ (สินค้า)
 Purchase or sales?,ซื้อหรือขาย?
 Purple,ม่วง
 Push Attempt,ความพยายามส่ง
 Push Record,รายการส่ง
 Push record not found.,ไม่พบรายการส่ง
+Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
 "Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดการส่ง ยังไม่มีการส่งข้อมูลใด ๆ
 Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
 Read again,อ่านใหม่
 Reading files,กำลังอ่านไฟล์
+Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
 Reading the VAT report,กำลังอ่านรายงานภาษี
 Reading the bank statement,กำลังอ่านรายการเดินบัญชี
 Reading the company list from the ERP. Tap the menu again in a moment.,กำลังอ่านรายชื่อบริษัทจาก ERP กรุณากดเมนูอีกครั้งในอีกสักครู่
@@ -779,6 +791,8 @@ The ERP report observation time is invalid.,เวลาเก็บข้อม
 The ERP report refresh status is invalid.,สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง
 The ERP report uses an unsupported adapter.,รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ
 The ERP target context is inconsistent.,บริบทของปลายทาง ERP ไม่สอดคล้องกัน
+The MR.ERP import page shows no menu (setup incomplete or no permission).,อ่านเมนูจากหน้านำเข้าของ MR.ERP ไม่ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
+The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 The OCR connection changed after this task was accepted.,การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้
 The PDF exceeds the allowed page count.,ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต
 The PDF file cannot be read.,ไม่สามารถอ่านไฟล์ PDF นี้ได้
@@ -893,6 +907,7 @@ There is not enough recognition balance. Top up and send the document again.,ย
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
+This MR.ERP menu cannot be chosen for this account set.,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
 This account set is unavailable.,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 This action is not allowed in the current push state.,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
@@ -1030,6 +1045,7 @@ connection.adapter_invalid,ไม่รองรับประเภทกา�
 connection.config_invalid,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 connection.disabled,การเชื่อมต่อนี้ถูกปิดใช้งาน
 connection.lock_required,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
+connection.mrerp_menu_invalid,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
 connection.not_found,ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี
 connection.preparation_incomplete,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
 connection.preparation_invalid,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
@@ -1598,6 +1614,20 @@ history.source_invalid,ไม่รองรับแหล่งที่มา
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 image,รูปภาพ
 intake.catalog.reload,อ่านใหม่
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
+intake.error.ERR_MRERP_MENU_CHANGED,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
+intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
+intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
+intake.error.ERR_MRERP_MENU_UNREADABLE,อ่านเมนูจากหน้านำเข้าของ MR.ERP ไม่ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
+intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก ผลลัพธ์ไม่แน่ชัด กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
+intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+intake.mrerpMenu.purchase,ซื้อ (สินค้า)
+intake.mrerpMenu.purchase_expense,ซื้อ (ค่าใช้จ่าย)
+intake.mrerpMenu.readFailed,อ่านเมนู MR.ERP ไม่ได้ กรุณาลองใหม่ภายหลัง
+intake.mrerpMenu.reading,กำลังอ่านเมนู MR.ERP…
+intake.mrerpMenu.sales_cash,ขายเงินสด
+intake.mrerpMenu.sales_credit,ขายเชื่อ
+intake.mrerpMenu.title,เมนูนำเข้า MR.ERP
 intake.target.accountSet,ชุดบัญชี
 leased,รับงานแล้ว
 legacy,ระบบเดิม

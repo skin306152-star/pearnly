@@ -10,7 +10,10 @@
   · 对外请求期间不持任何行锁（领取一笔提交、回执一笔提交）；
   · 失败分得更细：导入确认（importpc）**没发出**时的任何失败都确定没写入 → 转人工并释放锁；
     **发出之后**的异常才是结果不明（保留写者锁、不自动重推）。旧版技术类失败一律按不明处理；
-  · 「发票号已存在」按已推过记成功（旧 `skipped_dup` 中性态；单号由票据 id 确定性派生，同票同号）；
+  · 成功只认回读（2026-09-28 有意变化，修 MR.ERP 假成功）：导入受理后在所选菜单列表里查到才成功，回执记 MR.ERP
+    实际单号；「发票号已存在」也要在所选菜单查到才算已推过；受理了却查不到 = 结果不明（保留写者锁、不自动重推，
+    同导入确认发出后异常）。菜单定不下来（要人选 / 选过的失效 / 没有已关联日记账的）在导入前停下、转人工；
+    这次读到的菜单选项存回连接，给选择入口用；
   · 不自动重试（旧版 MR.ERP 同样不重试）；银行流水佐证未接（付款判定仍按人工选择 → 票面）。
 """
 from __future__ import annotations
@@ -30,7 +33,7 @@ from pearnly_cowork.push.mrerp.models import MRERPAuthError, MRERPBusinessError,
 from pearnly_cowork.push.mrerp.transport import MrErpImport
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
-from pearnly_cowork.push.retry import is_already_pushed_error, is_user_data_error
+from pearnly_cowork.push.retry import is_user_data_error
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +116,7 @@ def run(record):
 
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     outcome = execute(claim["payload"], target, secrets, system_url, today)
+    _remember_menus(row.connection, target.get("account_set"), outcome.get("menus"))
     fence, token = claim["fence"], claim["attempt_token"]
     if outcome["status"] == "unknown":
         ledger.mark_unknown(record, context=context, adapter=adapter, fence=fence, attempt_token=token,
@@ -127,8 +131,20 @@ def run(record):
     dispatch_next(row.connection)
 
 
+def _remember_menus(connection, account_set, menus):
+    """把这次读到的导入页菜单选项存回连接（选择入口用）；存不了不影响推送结果。"""
+    if not menus:
+        return
+    try:
+        connections.observe_mrerp_menus(connection, account_set, menus)
+        frappe.db.commit()
+    except Exception:  # noqa: BLE001 — 只是给选择入口的缓存
+        frappe.db.rollback()
+        logger.exception("MR.ERP menu options not stored")
+
+
 def execute(payload, target, secrets, system_url, today):
-    """一次 MR.ERP 导入（纯网络，不碰数据库）→ {status: success|failed|unknown, reason, docnum, meta}。"""
+    """一次 MR.ERP 导入（纯网络，不碰数据库）→ {status: success|failed|unknown, reason, docnum, meta, menus}。"""
     comidyear, _, seldb = str(target.get("account_set") or "").partition(":")
     importer = None
     try:
@@ -146,18 +162,24 @@ def execute(payload, target, secrets, system_url, today):
         logger.exception("MR.ERP push raised")
         return _exception(importer, f"ERR_UNEXPECTED: {type(error).__name__}: {error}")
     meta = {"elapsed_ms": result.elapsed_ms, "xlsx_size_bytes": result.xlsx_size_bytes}
+    menus = importer.observed_menus
+    if result.unknown:
+        # 导入受理了、所选菜单里却查不到：可能已落库，不能当失败重推，也不能当成功。
+        text = "; ".join(str(r) for r in result.unknown[0].reasons)[:500]
+        return {"status": "unknown", "reason": text, "meta": meta, "menus": menus}
     if result.success:
-        return {"status": "success", "docnum": result.success[0].mrerp_bill_no, "reason": "", "meta": meta}
+        row = result.success[0]
+        if row.already_pushed:
+            meta["already_pushed"] = True
+        return {"status": "success", "docnum": row.mrerp_bill_no, "reason": "", "meta": meta, "menus": menus}
     failed = result.failed[0] if result.failed else None
     reasons = failed.reasons if failed else ["ERR_UNKNOWN_UPLOAD_OUTCOME"]
     text = "; ".join(str(r) for r in reasons)[:500]
-    if failed and is_already_pushed_error(text):
-        # 单号由票据 id 确定性派生：MR.ERP 说这个号已存在 = 这张票之前已推进去了。
-        return {"status": "success", "docnum": failed.invoice_no, "reason": "",
-                "meta": {**meta, "already_pushed": True}}
-    return {"status": "failed", "reason": text, "meta": {**meta, "user_data": is_user_data_error(text)}}
+    return {"status": "failed", "reason": text, "meta": {**meta, "user_data": is_user_data_error(text)},
+            "menus": menus}
 
 
 def _exception(importer, reason):
     sent = bool(importer and importer.import_sent)
-    return {"status": "unknown" if sent else "failed", "reason": reason[:500]}
+    return {"status": "unknown" if sent else "failed", "reason": reason[:500],
+            "menus": importer.observed_menus if importer else {}}

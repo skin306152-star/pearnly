@@ -8,7 +8,7 @@
 方向再按付款状态细分成具体导入模块(见 modules.MODULES):
   销项:已付/现金 → sales_cash;否则 → sales_credit
   采购:judge_direction(services/purchase/intake · 与 Pearnly 自身单据同口径)判 expense →
-       purchase_expense(selmenu 453 · 费用档);判 purchase_invoice → purchase(selmenu 67 · 货品)
+       purchase_expense(费用档);判 purchase_invoice → purchase(货品)。各推这家公司的哪个菜单见 targets/mrerp_menus
 
 只做纯映射;own_tax_id 由调用方从套账主体解析后传入。doc_type=None 时调用方不自动推(留人工)。
 """
@@ -146,7 +146,7 @@ def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[st
     for h in histories:
         chosen = choose_doc_type(h, h, own_tax_id=own, mappings=mappings, today=today)
         if chosen in _PURCHASE_DOC_TYPES or chosen == "sales_cash":
-            # 采购(货品/67)、采购费用(453)、现金销售(125)分别切到各自模块。
+            # 采购(货品)、采购费用、现金销售分别切到各自模块(菜单在导入时按账套所选定)。
             # 有意差异：旧版这里只切采购，销项一律默认赊销（除散客）——用户在入口选的「现金」
             # (posting_payment_manual)算出了 sales_cash 却被丢掉；新平台按用户选择推（用户 2026-09-26）。
             dt = chosen
@@ -186,7 +186,7 @@ def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[st
             # 端点未真机验证(master_* 等 verified=False)→ 静态前置判掉,只转这一组人工,
             # 别拖累混批里已打通的组。条件与 adapter 的 verified 闸(upload 前 raise)同源;
             # 这里不 catch MRERPBusinessError——那也是已验证组真服务器拒收的载体,吞了会错标。
-            if not m.verified or m.selmenu is None:
+            if not m.verified:
                 logger.warning(
                     "[mrerp-route] doc=%s module unavailable · %d row(s) held for manual review",
                     dt,
@@ -198,6 +198,7 @@ def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[st
             r = adapter.upload_invoice_batch(groups[dt], mappings, today=today)
             merged.success.extend(r.success)
             merged.failed.extend(r.failed)
+            merged.unknown.extend(r.unknown)
             merged.elapsed_ms += r.elapsed_ms or 0
             merged.xlsx_size_bytes += r.xlsx_size_bytes or 0
     finally:

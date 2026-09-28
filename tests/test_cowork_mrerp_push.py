@@ -1,12 +1,16 @@
-"""MR.ERP 发票推送：分流 + 导入 5 步 + 逐行回执 + 结果落定。假 MR.ERP 站点，不连真实系统、不碰数据库。
+"""MR.ERP 发票推送：分流 + 核对菜单 + 导入 5 步 + 逐行回执 + 回读 + 结果落定。假 MR.ERP 站点，不连真实系统、不碰数据库。
 
 对照旧线上 `ec2e5c957e6b`：`mrerp_http/routing.py`（方向 / 付款 / 货费分流、匹配闸）、`mrerp_http/adapter.py`
 （formupload → uploadexcel → formrdpc → importpc → report；"1" 全成功、纯数字读 report 逐行判、
 非数字体整批失败）、`mrerp_http/autocreate.py`（缺客户 / 供应商 / 商品先自建）、
-`confirmed_push_reservation` 的结果判定（已存在 = 已推过；导入确认发出后异常 = 结果不明）。
+`confirmed_push_reservation` 的结果判定（导入确认发出后异常 = 结果不明）。
+
+有意变化（2026-09-28，修 MR.ERP 假成功）：菜单按导入页选项 + 账套所选（不写死 118 / 125 / 67 / 453）；
+受理后在所选菜单列表里回读到才算成功，「已存在」也要回读到；受理了却查不到 = 结果不明。
 """
 import contextlib
 import io
+import re
 import socket
 import unittest
 from datetime import date
@@ -14,7 +18,7 @@ from unittest.mock import patch
 
 try:
     import requests
-    from openpyxl import Workbook
+    from openpyxl import Workbook, load_workbook
     from pearnly_cowork.push.mrerp import routing, runner, transport
     from pearnly_cowork.push.mrerp.models import MRERPBusinessError
 except ImportError as exc:  # 需要 Frappe 环境（bench 的 Python）
@@ -51,16 +55,40 @@ def report(rows):
     return out.getvalue()
 
 
-class FakeMrErp:
-    """按路径回页面；记录每次导入落在哪个模块；发票导入的确认结果可配置。"""
+# 默认的导入页菜单（照 test01 · TEST2019 的形态，号是合成的）：采购有一个已关联、一个未关联；销项各一个。
+MENUS = {"impaptran": [("67", "ซื้อ-เดิม", False), ("68", "ซื้อ", True)],
+         "impartran": [("119", "ขายเชื่อ", True)], "imparse": [("126", "ใบขายเงินสด", True)]}
+LISTING = {"impaptran": "aptran", "impartran": "artran", "imparse": "arse"}
 
-    def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False):
+
+def form_page(options):
+    if options is None:
+        return '<input type="hidden" name="idus" value="15"><h3>กรุณาป้อนข้อมูล "ตั้งค่าระบบสินค้า"</h3>'
+    items = "".join(f'<option value="{v}" data-chklac="{1 if ok else 2}">{label}</option>' for v, label, ok in options)
+    return f'<input type="hidden" name="idus" value="15"><select name="selmenu" id="selmenu">{items}</select>'
+
+
+class FakeMrErp:
+    """按路径回页面；记录每次导入落在哪个模块 / 菜单；发票导入的确认结果与落库可配置。
+
+    `lands`：importpc 受理后单据是否真的出现在该菜单列表里；`prefix`：菜单单号前缀；
+    `listed`：{菜单: [已有单号]}；`unlinked_listing`：列表页提示未关联日记账的菜单；`menus`：导入页选项。
+    """
+
+    def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False,
+                 menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None):
         self.password, self.importpc, self.notes = password, importpc, notes
         self.upload_error, self.importpc_raises = upload_error, importpc_raises
+        self.menus = dict(MENUS, **(menus or {}))
+        self.lands, self.prefix = lands, {"68": "PG", "119": "SI", "126": "SE", **(prefix or {})}
+        self.listed = {k: list(v) for k, v in (listed or {}).items()}
+        self.unlinked_listing, self.change_menus_after = set(unlinked_listing), change_menus_after
         self.accepted, self.calls, self.uploads = False, [], []
+        self.pending, self.session_menu, self.form_opens = {}, None, 0
 
     def __call__(self, session, method, url, **kwargs):
         path = url.replace(BASE, "").split("?")[0]
+        query = url.split("?", 1)[1] if "?" in url else ""
         self.calls.append((method, path))
         if path == "/login/checklogin.php":
             session.cookies.set("PHPSESSID", "abc")
@@ -68,12 +96,22 @@ class FakeMrErp:
             return response(url)
         if path == "/login/mainmenu.php":
             return response(url, "<p>menu</p>") if self.accepted else response(BASE + "/login/login.php", LOGIN_PAGE)
-        if path.endswith("/formupload.php"):
-            return response(url, '<input type="hidden" name="idus" value="15">')
         module = path.strip("/").split("/")[0]
+        if path.endswith("/formupload.php"):
+            if module in LISTING:
+                self.form_opens += 1
+                if self.change_menus_after and self.form_opens > self.change_menus_after[0]:
+                    self.menus.update(self.change_menus_after[1])
+                return response(url, form_page(self.menus.get(module)))
+            return response(url, '<input type="hidden" name="idus" value="15">')
         if path.endswith("/component/uploadexcel.php"):
             self.uploads.append((module, kwargs["data"]["selmenu"]))
-            return response(url, self.upload_error if module in ("impartran", "imparse", "impaptran") else "")
+            if module in LISTING:
+                book = load_workbook(io.BytesIO(kwargs["files"]["uploadfile"][1]))
+                sheet = book.worksheets[0]
+                self.pending = {"menu": kwargs["data"]["selmenu"],
+                                "invoices": [str(r[0].value) for r in sheet.iter_rows(min_row=2) if r[0].value]}
+            return response(url, self.upload_error if module in LISTING else "")
         if path.endswith("/formrdpc.php"):
             return response(url, PREVIEW)
         if path.endswith("/component/importpc.php"):
@@ -81,9 +119,24 @@ class FakeMrErp:
                 return response(url, "1")  # 主档自建：全部受理
             if self.importpc_raises:
                 raise requests.ConnectionError("connection reset after import confirmation")
+            if self.lands and self.importpc == "1":
+                menu = self.pending["menu"]
+                self.listed.setdefault(menu, []).extend(self.prefix.get(menu, "") + i for i in self.pending["invoices"])
             return response(url, self.importpc)
         if path.endswith("/component/report.php"):
             return response(url, content=report(self.notes or []))
+        if path.endswith("/allview.php"):
+            self.session_menu = re.search(r"idmenu=(\d+)", query).group(1)
+            if self.session_menu in self.unlinked_listing:
+                return response(url, '<h3>กรุณากำหนดการเชื่อมโยง "สมุดรายวัน"</h3>')
+            return response(url, '<div id="showdata"></div>')
+        if path.endswith("/component/showdata.php"):
+            want = kwargs["data"]["searchdataval"]
+            rows = [d for d in self.listed.get(self.session_menu, []) if want in d]
+            if not rows:
+                return response(url, '<p id="nodata">No Data</p>')
+            return response(url, "".join(f"<p><span>{d}</span><span>12/09/2569</span><span>ผู้ขาย</span>"
+                                         f"<span>1,070.00</span><span><a></a></span></p>" for d in rows))
         return response(url, "<html></html>")
 
 
@@ -193,27 +246,36 @@ class Import(unittest.TestCase):
     def test_sales_credit_creates_missing_customer_and_product_then_imports(self):
         site = FakeMrErp()
         importer, result = push(site, [sales(posting_payment_manual="credit", client_id="7")])
-        self.assertEqual([s.mrerp_bill_no[:2] for s in result.success], ["SI"])
+        invoice_no = routing._gen.derive_mrerp_invoice_no(sales())
+        self.assertEqual([s.mrerp_bill_no for s in result.success], ["SI" + invoice_no])  # 回读到的实际单号
         self.assertFalse(result.failed)
         self.assertTrue(importer.import_sent)
-        # 客户（imparmas）、商品（impstkmas）先自建，再进销项赊账（impartran / selmenu 118）
-        self.assertEqual(site.uploads, [("imparmas", ""), ("impstkmas", ""), ("impartran", "118")])
+        # 客户（imparmas）、商品（impstkmas）先自建，再进销项赊账（impartran / 这家公司唯一已关联的 119）
+        self.assertEqual(site.uploads, [("imparmas", ""), ("impstkmas", ""), ("impartran", "119")])
 
     def test_sales_cash_goes_to_the_cash_module(self):
         site = FakeMrErp()
         _, result = push(site, [sales(posting_payment_manual="cash")],
                          {"products": [{"item_name": "กระดาษ A4", "erp_code": "P-A4"}]})
         self.assertEqual(len(result.success), 1)
-        self.assertEqual(site.uploads[-1], ("imparse", "125"))
+        self.assertEqual(site.uploads[-1], ("imparse", "126"))
 
-    def test_purchase_goods_and_expense_use_their_own_menus(self):
-        for kind, menu in (("goods", "67"), ("expense", "453")):
+    def test_purchase_goods_and_expense_use_their_own_chosen_menus(self):
+        menus = {"impaptran": [("67", "ซื้อ-เดิม", False), ("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]}
+        chosen = {"_mrerp_menus": {"purchase": "68", "purchase_expense": "454"}}
+        for kind, menu in (("goods", "68"), ("expense", "454")):
             with self.subTest(kind=kind):
-                site = FakeMrErp()
-                _, result = push(site, [purchase(posting_item_type_manual=kind)])
+                site = FakeMrErp(menus=menus, prefix={"454": "PN"})
+                _, result = push(site, [purchase(posting_item_type_manual=kind)], chosen)
                 self.assertEqual(len(result.success), 1)
                 self.assertEqual(site.uploads[0], ("impapmas", ""))  # 缺供应商先建
                 self.assertEqual(site.uploads[-1], ("impaptran", menu))
+
+    def test_single_linked_menu_is_used_without_a_choice(self):
+        site = FakeMrErp()  # 采购只有 68 已关联（67 未关联，不能用）
+        _, result = push(site, [purchase(posting_item_type_manual="expense")])
+        self.assertEqual(len(result.success), 1)
+        self.assertEqual(site.uploads[-1], ("impaptran", "68"))
 
     def test_numeric_reply_reads_the_report_row_by_row(self):
         invoice_no = routing._gen.derive_mrerp_invoice_no(purchase())
@@ -240,6 +302,52 @@ class Import(unittest.TestCase):
         self.assertFalse([u for u in site.uploads if u[0] in ("impartran", "imparse", "impaptran")])
 
 
+class Menu(unittest.TestCase):
+    """菜单定不下来就在导入前停下（不建主档、不上传），原因码原样交给账本；不自动换菜单。"""
+
+    def assert_stopped(self, site, histories, code, mappings=None):
+        importer, result = push(site, histories, mappings)
+        self.assertFalse(result.success)
+        self.assertEqual(result.failed[0].reasons, [code])
+        self.assertFalse(importer.import_sent)
+        return importer
+
+    def test_several_linked_menus_without_a_choice_ask_first(self):
+        from pearnly_cowork.targets import mrerp_menus
+        site = FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]})
+        self.assert_stopped(site, [purchase()], mrerp_menus.CHOICE_REQUIRED)
+        self.assertEqual(site.uploads, [])  # 供应商也没建
+
+    def test_chosen_menu_that_is_gone_or_unlinked_stops_instead_of_switching(self):
+        from pearnly_cowork.targets import mrerp_menus
+        for menus in ([("68", "ซื้อ", True)], [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", False)]):
+            with self.subTest(menus=menus):
+                site = FakeMrErp(menus={"impaptran": menus})
+                self.assert_stopped(site, [purchase()], mrerp_menus.CHANGED,
+                                    {"_mrerp_menus": {"purchase": "454", "purchase_expense": "454"}})
+                self.assertEqual(site.uploads, [])
+
+    def test_no_linked_menu_or_unreadable_page(self):
+        from pearnly_cowork.targets import mrerp_menus
+        self.assert_stopped(FakeMrErp(menus={"impaptran": [("67", "ซื้อ", False)]}), [purchase()],
+                            mrerp_menus.NOT_LINKED)
+        self.assert_stopped(FakeMrErp(menus={"impaptran": None}), [purchase()], mrerp_menus.UNREADABLE)
+
+    def test_menu_unlinked_while_masters_were_created_stops_before_upload(self):
+        from pearnly_cowork.targets import mrerp_menus
+        # 选账套抓 idus、核对菜单各打开一次导入页；第三次（主档自建之后、上传之前）时 68 已被取消关联。
+        site = FakeMrErp(change_menus_after=(2, {"impaptran": [("68", "ซื้อ", False)]}))
+        self.assert_stopped(site, [purchase()], mrerp_menus.CHANGED)
+        self.assertNotIn("impaptran", [module for module, _ in site.uploads])
+
+    def test_menu_failure_reaches_the_ledger_as_the_bare_code(self):
+        from pearnly_cowork.targets import mrerp_menus
+        site = FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]})
+        site.password_used = "test01"
+        out = execute(site, [purchase()])
+        self.assertEqual((out["status"], out["reason"]), ("failed", mrerp_menus.CHOICE_REQUIRED))
+
+
 class Outcome(unittest.TestCase):
     """落到账本的结果：成功 / 已推过 / 转人工 / 结果不明。"""
 
@@ -250,12 +358,39 @@ class Outcome(unittest.TestCase):
     def test_success_carries_the_mrerp_document_number(self):
         out = self.run_case(FakeMrErp(), [purchase()])
         self.assertEqual(out["status"], "success")
-        self.assertTrue(out["docnum"])
+        self.assertEqual(out["docnum"], "PG" + routing._gen.derive_mrerp_invoice_no(purchase()))
+        self.assertEqual([o["idmenu"] for o in out["menus"]["impaptran"]], ["67", "68"])  # 读到的选项交给调用方存
 
-    def test_already_existing_number_is_already_pushed(self):
+    def test_already_existing_number_found_in_the_chosen_menu_is_already_pushed(self):
         invoice_no = routing._gen.derive_mrerp_invoice_no(purchase())
-        out = self.run_case(FakeMrErp(importpc="2", notes=[(invoice_no, "เลขที่ดังกล่าวมีอยู่ในระบบแล้ว")]), [purchase()])
-        self.assertEqual((out["status"], out["docnum"]), ("success", invoice_no))
+        site = FakeMrErp(importpc="2", notes=[(invoice_no, "เลขที่ดังกล่าวมีอยู่ในระบบแล้ว")],
+                         listed={"68": ["PG" + invoice_no]})
+        out = self.run_case(site, [purchase()])
+        self.assertEqual((out["status"], out["docnum"], out["meta"].get("already_pushed")),
+                         ("success", "PG" + invoice_no, True))
+
+    def test_already_existing_number_not_found_in_the_chosen_menu_is_unknown(self):
+        invoice_no = routing._gen.derive_mrerp_invoice_no(purchase())
+        out = self.run_case(FakeMrErp(importpc="2", notes=[(invoice_no, "เลขที่ดังกล่าวมีอยู่ในระบบแล้ว")]),
+                            [purchase()])
+        self.assertEqual((out["status"], out["reason"]), ("unknown", transport.READBACK_NOT_FOUND))
+
+    def test_accepted_but_not_listed_is_unknown_not_success(self):
+        # MR.ERP 回 "1" 却在所选菜单里查不到（旧版就是在这里记了假成功）。
+        out = self.run_case(FakeMrErp(lands=False), [purchase()])
+        self.assertEqual((out["status"], out["reason"]), ("unknown", transport.READBACK_NOT_FOUND))
+
+    def test_listing_that_says_the_menu_has_no_journal_is_unknown(self):
+        out = self.run_case(FakeMrErp(unlinked_listing={"68"}), [purchase()])
+        self.assertEqual((out["status"], out["reason"]), ("unknown", transport.READBACK_NOT_LINKED))
+
+    def test_report_row_accepted_is_still_read_back(self):
+        # "2" 路径：report 里空备注的行也要回读；混批另一张失败照旧失败。
+        site = FakeMrErp(importpc="2", notes=[(routing._gen.derive_mrerp_invoice_no(purchase()), "")])
+        self.assertEqual(self.run_case(site, [purchase()])["status"], "unknown")  # 没落进列表
+        site = FakeMrErp(importpc="2", notes=[(routing._gen.derive_mrerp_invoice_no(purchase()), "")],
+                         listed={"68": ["PG" + routing._gen.derive_mrerp_invoice_no(purchase())]})
+        self.assertEqual(self.run_case(site, [purchase()])["status"], "success")
 
     def test_definite_failures_before_sending_are_not_unknown(self):
         for site, password, code in ((FakeMrErp(), "wrong", "ERR_AUTH"),

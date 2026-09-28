@@ -136,6 +136,7 @@ Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
 Card templates,卡片模板
 Cash,现金
+Cash sales,现金销售
 Change cards on the work board,请在工作看板上修改卡片
 Change cover,更改封面
 Change list color,更改列表颜色
@@ -202,6 +203,7 @@ Copy list,复制列表
 Copy to,复制到
 Correct entry,修改记录
 Corrected Value,修正值
+Could not read the MR.ERP menus. Try again later.,读不到 MR.ERP 菜单，请稍后再试。
 Could not read this document. Please send it again.,没能识别这份单据，请重新发送。
 Could not store this document,没能保存这份单据
 Count Mode,盘点方式
@@ -256,6 +258,7 @@ Creation Request Hash,创建请求摘要
 Credential ID,凭据 ID
 Credit,赊账
 Credit Note,贷项通知单
+Credit sales,赊销
 Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
@@ -467,6 +470,11 @@ Location mismatch,仓位不符
 Lock Key,锁键
 Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
+"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 受理了导入，但所选菜单没有关联日记账、不会入账，请到 MR.ERP 核对。
+"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 受理了导入，但在所选菜单里查不到这张单，结果不明。请先到 MR.ERP 核对，不要直接重推。
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 里这类单据今年没有已关联日记账的菜单，请先在 MR.ERP 里关联。
+MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP 里这类单据有多个已关联日记账的菜单，请先选一个再推。
+MR.ERP import menu,MR.ERP 导入菜单
 MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊账录入。
 Make template,设为模板
 Manual,手工
@@ -584,17 +592,21 @@ Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 PromptPay,PromptPay
 Provider Evidence,服务商调用证据
+Purchase (expense),采购（费用）
+Purchase (goods),采购（货品）
 Purchase or sales?,进项还是销项？
 Purple,紫
 Push Attempt,推送尝试
 Push Record,推送记录
 Push record not found.,找不到推送记录。
+Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,修复前推进 MR.ERP 的单，可能进了没关联日记账的菜单、没有入账。请到 MR.ERP 核对，核对前不要重推。
 "Pushing is not enabled for this site, so nothing was sent.",本站点未开启推送，没有发送任何内容。
 Quantity,数量
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
 Read again,重新读取
 Reading files,读取文件
+Reading the MR.ERP menus…,正在读取 MR.ERP 菜单…
 Reading the VAT report,读取税表
 Reading the bank statement,读取银行账单
 Reading the company list from the ERP. Tap the menu again in a moment.,正在从 ERP 读取公司列表，请稍后再点一次菜单。
@@ -779,6 +791,8 @@ The ERP report observation time is invalid.,ERP 报告的采集时间无效。
 The ERP report refresh status is invalid.,ERP 报告的刷新状态无效。
 The ERP report uses an unsupported adapter.,ERP 报告使用了不支持的适配器。
 The ERP target context is inconsistent.,ERP目标上下文不一致。
+The MR.ERP import page shows no menu (setup incomplete or no permission).,读不到 MR.ERP 导入页的菜单（设置未完成或账号没有权限）。
+The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP 菜单设置变了（所选菜单已不在或不再关联日记账），请重新选择。
 The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
 The PDF exceeds the allowed page count.,PDF 超过允许的页数上限。
 The PDF file cannot be read.,无法读取该 PDF 文件。
@@ -893,6 +907,7 @@ There is not enough recognition balance. Top up and send the document again.,识
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
+This MR.ERP menu cannot be chosen for this account set.,这份账套不能选这个 MR.ERP 菜单。
 This account cannot send documents,这个账号不能发单据
 This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
@@ -1030,6 +1045,7 @@ connection.adapter_invalid,不支持此ERP连接类型。
 connection.config_invalid,请检查ERP连接配置。
 connection.disabled,此连接已停用。
 connection.lock_required,读取推送目标前必须锁定连接。
+connection.mrerp_menu_invalid,这份账套不能选这个 MR.ERP 菜单。
 connection.not_found,找不到此连接或目录记录。
 connection.preparation_incomplete,此账套的推送准备资料尚未完整获取。
 connection.preparation_invalid,推送准备资料与当前连接或账套不一致。
@@ -1598,6 +1614,20 @@ history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
 image,图像
 intake.catalog.reload,重新读取
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,修复前推进 MR.ERP 的单，可能进了没关联日记账的菜单、没有入账。请到 MR.ERP 核对，核对前不要重推。
+intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP 菜单设置变了（所选菜单已不在或不再关联日记账），请重新选择。
+intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP 里这类单据有多个已关联日记账的菜单，请先选一个再推。
+intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 里这类单据今年没有已关联日记账的菜单，请先在 MR.ERP 里关联。
+intake.error.ERR_MRERP_MENU_UNREADABLE,读不到 MR.ERP 导入页的菜单（设置未完成或账号没有权限）。
+intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 受理了导入，但在所选菜单里查不到这张单，结果不明。请先到 MR.ERP 核对，不要直接重推。
+intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 受理了导入，但所选菜单没有关联日记账、不会入账，请到 MR.ERP 核对。
+intake.mrerpMenu.purchase,采购（货品）
+intake.mrerpMenu.purchase_expense,采购（费用）
+intake.mrerpMenu.readFailed,读不到 MR.ERP 菜单，请稍后再试。
+intake.mrerpMenu.reading,正在读取 MR.ERP 菜单…
+intake.mrerpMenu.sales_cash,现金销售
+intake.mrerpMenu.sales_credit,赊销
+intake.mrerpMenu.title,MR.ERP 导入菜单
 intake.target.accountSet,账套
 leased,已领取
 legacy,旧版

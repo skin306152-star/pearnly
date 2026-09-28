@@ -1,7 +1,7 @@
 """Dedicated RPCs; there is no browser snapshot-install or credential-read API."""
 import frappe
 from frappe import _
-from . import model, mrerp_collector, service
+from . import model, mrerp_collector, mrerp_menu_reader, service
 
 
 def _call(method, *args, **kwargs):
@@ -64,3 +64,21 @@ def stock_acc_group(name, account_set_key):
 @frappe.whitelist(methods=["POST"])
 def choose_stock_acc_group(name, account_set_key, acccod):
     return _call(service.choose_stock_acc_group, name, account_set_key, acccod)
+
+
+@frappe.whitelist()
+def mrerp_menu(name, account_set_key):
+    return _call(service.mrerp_menu, name, account_set_key)
+
+
+@frappe.whitelist(methods=["POST"])
+def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
+    return _call(service.choose_mrerp_menu, name, account_set_key, doc_type, idmenu)
+
+
+@frappe.whitelist(methods=["POST"])
+def request_mrerp_menu(name, account_set_key):
+    request = _call(service.request_mrerp_menu, name, account_set_key)
+    # 读 MR.ERP 导入页在后台做（提交后才入队）；前端按返回的申请时刻轮询 mrerp_menu。
+    mrerp_menu_reader.dispatch(request)
+    return {"account_set_key": request["account_set_key"], "requested_at": request["requested_at"]}

@@ -641,6 +641,23 @@
 			return asked.get(key);
 		};
 
+		/** 推 MR.ERP 前，这份账套这张票会用到的导入菜单得定下来（每个账套每类单据选一次，用户 2026-09-28）。
+		 *  同一次提交里每份账套、每个方向只问一次；关掉弹窗 = 这份账套的票这次先不推。 */
+		const mrerp_menu_ready = async (target, direction, asked) => {
+			const key = `${target.connection.name}\n${target.args.account_set_key}\n${direction || ""}`;
+			if (!asked.has(key)) {
+				asked.set(key, (async () => {
+					frappe.dom.unfreeze();
+					try {
+						return await p.intake_targets.mrerp_menu_ready(target.connection, target.args.account_set_key, direction);
+					} finally {
+						frappe.dom.freeze(t("intake.action.queue"));
+					}
+				})());
+			}
+			return asked.get(key);
+		};
+
 		/** 提交＝推送（用户 2026-09-26）：右上角点一次，把这一批的票按顺序全部推出去（一张推完再下一张），
 		 *  没有「确认」这一步。推完回列表，状态在列表上看（录入中 / 成功 / 待人工核对）；推不了的原因由服务端
 		 *  记在票上，列表状态图标悬浮可看，这里不弹窗。已经推过或正在推的跳过。 */
@@ -672,6 +689,8 @@
 						.map(item => item?.posting_kind)].includes("stock");
 					if (target.connection?.adapter === "express" && target.args.account_set_key && stock
 						&& !(await stock_group_ready(target, asked))) continue;
+					if (target.connection?.adapter === "mrerp" && target.args.account_set_key
+						&& !(await mrerp_menu_ready(target, fields.direction, asked))) continue;
 					// 键里带上一次推送记录：失败后再点提交是新的一次（会重推），连点两下仍是同一次。
 					const submitted = await push_call(PUSH + "submit", {...intent,
 						request_key: await stable_key("prepare", intent, record.last_push_record || "")});

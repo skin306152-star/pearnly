@@ -136,6 +136,7 @@ Card name (alphabetically),Card name (alphabetically)
 Card restored,Card restored
 Card templates,Card templates
 Cash,Cash
+Cash sales,Cash sales
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
 Change list color,Change list color
@@ -202,6 +203,7 @@ Copy list,Copy list
 Copy to,Copy to
 Correct entry,Correct entry
 Corrected Value,Corrected Value
+Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menus. Try again later.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
 Could not store this document,Could not store this document
 Count Mode,Count Mode
@@ -256,6 +258,7 @@ Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
 Credit,Credit
 Credit Note,Credit Note
+Credit sales,Credit sales
 Currency,Currency
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
@@ -467,6 +470,11 @@ Location mismatch,Location mismatch
 Lock Key,Lock Key
 Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
+"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.","MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.","MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
+MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
+MR.ERP import menu,MR.ERP import menu
 MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
 Make template,Make template
 Manual,Manual
@@ -584,17 +592,21 @@ Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 PromptPay,PromptPay
 Provider Evidence,Provider Evidence
+Purchase (expense),Purchase (expense)
+Purchase (goods),Purchase (goods)
 Purchase or sales?,Purchase or sales?
 Purple,Purple
 Push Attempt,Push Attempt
 Push Record,Push Record
 Push record not found.,Push record not found.
+Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
 "Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
 Quantity,Quantity
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Read again,Read again
 Reading files,Reading files
+Reading the MR.ERP menus…,Reading the MR.ERP menus…
 Reading the VAT report,Reading the VAT report
 Reading the bank statement,Reading the bank statement
 Reading the company list from the ERP. Tap the menu again in a moment.,Reading the company list from the ERP. Tap the menu again in a moment.
@@ -779,6 +791,8 @@ The ERP report observation time is invalid.,The ERP report observation time is i
 The ERP report refresh status is invalid.,The ERP report refresh status is invalid.
 The ERP report uses an unsupported adapter.,The ERP report uses an unsupported adapter.
 The ERP target context is inconsistent.,The ERP target context is inconsistent.
+The MR.ERP import page shows no menu (setup incomplete or no permission).,The MR.ERP import page shows no menu (setup incomplete or no permission).
+The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
 The PDF exceeds the allowed page count.,The PDF exceeds the allowed page count.
 The PDF file cannot be read.,The PDF file cannot be read.
@@ -893,6 +907,7 @@ There is not enough recognition balance. Top up and send the document again.,The
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
+This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
 This account cannot send documents,This account cannot send documents
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
@@ -1030,6 +1045,7 @@ connection.adapter_invalid,Unsupported ERP connection type.
 connection.config_invalid,Check the ERP connection settings.
 connection.disabled,This connection is disabled.
 connection.lock_required,Lock the connection before reading the push target.
+connection.mrerp_menu_invalid,This MR.ERP menu cannot be chosen for this account set.
 connection.not_found,Connection or directory record not found.
 connection.preparation_incomplete,Preparation data for this account set is incomplete.
 connection.preparation_invalid,Preparation data does not match the connection or account set.
@@ -1598,6 +1614,20 @@ history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
 image,image
 intake.catalog.reload,Read again
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
+intake.error.ERR_MRERP_MENU_CHANGED,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
+intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
+intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
+intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
+intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
+intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+intake.mrerpMenu.purchase,Purchase (goods)
+intake.mrerpMenu.purchase_expense,Purchase (expense)
+intake.mrerpMenu.readFailed,Could not read the MR.ERP menus. Try again later.
+intake.mrerpMenu.reading,Reading the MR.ERP menus…
+intake.mrerpMenu.sales_cash,Cash sales
+intake.mrerpMenu.sales_credit,Credit sales
+intake.mrerpMenu.title,MR.ERP import menu
 intake.target.accountSet,Account set
 leased,leased
 legacy,legacy

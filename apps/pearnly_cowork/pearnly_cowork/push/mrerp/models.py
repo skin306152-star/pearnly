@@ -1,4 +1,5 @@
 # 来源：旧线上 ec2e5c957e6b · services/erp/mrerp_adapter_models.py + services/erp/exceptions.py（只改导入路径）
+# 有意变化（2026-09-28）：成功单号取回读到的 MR.ERP 实际单号，删去自拼前缀的 bill_no_for；加「结果不明」一类。
 """
 mrerp_adapter_models.py · MRERPAdapter 返回值 dataclasses
 
@@ -38,8 +39,9 @@ class SuccessRow:
     """One invoice that landed in MR.ERP's DB."""
 
     invoice_no: str
-    mrerp_bill_no: str
+    mrerp_bill_no: str  # MR.ERP 列表里回读到的实际单号(菜单前缀 + 我方单号)
     original: Dict[str, Any]
+    already_pushed: bool = False  # MR.ERP 报「单号已存在」,且在所选菜单里回读查到
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -55,28 +57,24 @@ class ImportResult:
     elapsed_ms: int = 0
     xlsx_size_bytes: int = 0
     report_xlsx_path: Optional[str] = None
+    # 导入已受理、在所选菜单列表里却查不到(或列表提示未关联日记账)· 可能已落库 · 结果不明,要人工核对
+    unknown: List[FailedRow] = field(default_factory=list)
 
     @property
     def all_success(self) -> bool:
-        return self.total > 0 and not self.failed
+        return self.total > 0 and not self.failed and not self.unknown
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "total": self.total,
             "success": [s.to_dict() for s in self.success],
             "failed": [f.to_dict() for f in self.failed],
+            "unknown": [f.to_dict() for f in self.unknown],
             "elapsed_ms": self.elapsed_ms,
             "xlsx_size_bytes": self.xlsx_size_bytes,
             "report_xlsx_path": self.report_xlsx_path,
             "all_success": self.all_success,
         }
-
-
-def bill_no_for(doc_type: str, invoice_no: str) -> str:
-    """回执单号:销项类 MR.ERP 列表实测显示 SI+票号;采购/库存前缀未实测过,
-    不臆造(曾把采购也标 SI·纯显示化妆债)→ 非销项原样返票号(REFNUM 可查)。"""
-    prefix = "SI" if str(doc_type or "").startswith("sales") else ""
-    return f"{prefix}{invoice_no}"
 
 
 class MRERPError(Exception):

@@ -10,3 +10,4 @@ pearnly_cowork.patches.v0_0_3_drop_company_grants
 pearnly_cowork.patches.v0_0_4_work_lists
 pearnly_cowork.patches.v0_0_5_split_recon_roles
 pearnly_cowork.patches.v0_0_6_default_work_labels
+pearnly_cowork.patches.v0_0_7_mrerp_legacy_menu_review

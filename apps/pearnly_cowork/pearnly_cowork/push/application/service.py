@@ -193,6 +193,8 @@ def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_re
     mappings = deepcopy(connections.mrerp_mappings(loaded))
     if own_tax:
         mappings["_own_tax_id"] = own_tax  # 匹配闸锚点：确认是别家的票就挡下，不推错账套
+    # 这份账套各类单据选过的 MR.ERP 菜单（选一次记住，用户 2026-09-28）；推送时按导入页核对，失效就停下。
+    mappings["_mrerp_menus"] = connections.mrerp_chosen_menus(loaded, target.account_set)
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     frozen = asdict(target)
     frozen.update(request_intent=intent, connection_revision=loaded.revision, original_history=prior,

@@ -25,8 +25,9 @@ def pure_paths(root):
 class PurePushBoundary(unittest.TestCase):
     def test_imports_stay_within_explicit_pure_dependencies(self):
         root = Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
+        # html：只用 html.unescape（纯函数，读 MR.ERP 导入页菜单名，targets/mrerp_menus.py）。
         allowed = {"__future__", "collections", "copy", "dataclasses", "datetime", "decimal",
-                   "difflib", "enum", "hashlib", "json", "math", "ntpath", "re", "typing", "uuid"}
+                   "difflib", "enum", "hashlib", "html", "json", "math", "ntpath", "re", "typing", "uuid"}
         for path in pure_paths(root):
             for node in ast.walk(ast.parse(path.read_text())):
                 if isinstance(node, ast.Import):

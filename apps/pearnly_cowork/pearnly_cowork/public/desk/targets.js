@@ -268,6 +268,65 @@
 		});
 	}
 
+	/* ── MR.ERP 导入菜单：每个账套每类单据选一次（用户 2026-09-28）──
+	 * 菜单号是各公司自己的；只有当前年度已关联日记账的菜单能用（服务端从 MR.ERP 导入页读出来，见
+	 * `targets/mrerp_menus.py`）。某类只有一个就不问（直接用它）；多个且没选过、或选过的已失效时请人选一次，
+	 * 按连接 + 账套 + 单据类型记住。一个都没有由推送拦下（要先在 MR.ERP 关联日记账）。 */
+	const MENU_KINDS = {purchase: ["purchase", "purchase_expense"], sales: ["sales_credit", "sales_cash"]};
+	const MENU_READ = {every_ms: 1500, give_up_ms: 90000};
+
+	/** 这份 MR.ERP 账套的菜单视图；`fresh` 为真或还没读过时，先让服务端去 MR.ERP 读一次再给。读不到返回 null。 */
+	async function mrerp_menu(connection, account_set_key, {fresh = false} = {}) {
+		if (connection?.adapter !== "mrerp" || !account_set_key) return null;
+		const args = {name: connection.name, account_set_key};
+		const read = () => p.call(API.connections + "mrerp_menu", args).catch(() => null);
+		let view = await read();
+		if (!view || (view.known && !fresh)) return view;
+		const request = await p.call(API.connections + "request_mrerp_menu", args, "POST").catch(() => null);
+		if (!request) return view;
+		const started = Date.now();
+		while (Date.now() - started < MENU_READ.give_up_ms) {
+			await wait(MENU_READ.every_ms);
+			view = await read();
+			if (!view) return null;
+			if ((view.observed_at || "") >= request.requested_at || (view.error_at || "") >= request.requested_at) return view;
+		}
+		return view;
+	}
+
+	/** 这张票会用到、要请人选的单据类型（方向没定就四类都看）。 */
+	function mrerp_menu_needed(view, direction) {
+		const kinds = MENU_KINDS[direction] || [...MENU_KINDS.purchase, ...MENU_KINDS.sales];
+		return kinds.filter(kind => view?.kinds?.[kind]?.needed);
+	}
+
+	/**
+	 * 推 MR.ERP 前，这份账套这张票会用到的菜单得定下来。要选时先重读一次导入页（选项可能刚变），
+	 * 再用原生弹窗一次选齐；选好存下返回 true，关掉弹窗返回 false（这份账套的票这次先不推）。
+	 * 读不到菜单不在这里拦（推送时服务端会核对并说明原因）。
+	 */
+	async function mrerp_menu_ready(connection, account_set_key, direction) {
+		let view = await mrerp_menu(connection, account_set_key);
+		if (!mrerp_menu_needed(view, direction).length) return true;
+		view = await mrerp_menu(connection, account_set_key, {fresh: true});
+		const needed = mrerp_menu_needed(view, direction);
+		if (!needed.length) return true;
+		return new Promise(resolve => {
+			const d = p.dialog(__("intake.mrerpMenu.title"), needed.map(kind => ({fieldtype: "Select", fieldname: kind,
+				label: __(`intake.mrerpMenu.${kind}`), reqd: 1,
+				options: view.kinds[kind].options.map(option => ({value: option.idmenu, label: option.label || option.idmenu})),
+			})), __("Save"), async values => {
+				for (const kind of needed) {
+					await p.call(API.connections + "choose_mrerp_menu",
+						{name: connection.name, account_set_key, doc_type: kind, idmenu: values[kind]}, "POST");
+				}
+				resolve(true);
+				d.hide();
+			});
+			d.onhide = () => resolve(false);
+		});
+	}
+
 	/** 目录失败的原因：错误码有对应文案就用，没有就给通用那一句（不把原始码摆给商家）。 */
 	function catalog_error(code) {
 		const text = __(`intake.catalog.${code}`);
@@ -278,5 +337,6 @@
 		prefetch_account,
 		express_dialog,
 		stock_group, stock_group_needed, stock_group_options, choose_stock_group, ask_stock_group,
+		mrerp_menu, mrerp_menu_needed, mrerp_menu_ready,
 		ready, state};
 })();

@@ -1,4 +1,4 @@
-"""MR.ERP 发票导入：登录 → 选账套 → 导入 5 步 → 逐行回读 report 判成败。
+"""MR.ERP 发票导入：登录 → 选账套 → 核对菜单 → 导入 5 步 → 逐行回读 report → 在所选菜单列表里回读才算成功。
 
 来源：旧线上 ec2e5c957e6b · `services/erp/mrerp_http/adapter.py`（`MrErpHttpAdapter`）。
 导入 5 步：formupload（先 GET 建服务器侧导入上下文）→ component/uploadexcel → formrdpc（预览）→
@@ -11,6 +11,15 @@ component/importpc（确认）→ component/report（importpc 回纯数字时逐
   · `import_sent`：importpc 一旦发出就置真——之后任何异常都是**结果不明**（可能已落库），
     调用方不得当失败重推（旧 `confirmed_push_reservation.mark_reserved_push_unknown` 同一判据）；
   · 「今天」由调用方注入（分流判定用）；失败只留原因码，不带四语展示文案。
+
+有意变化（2026-09-28，MR.ERP 推送假成功，旧线上同样有此缺陷）：
+  · selmenu 不写死：每次推送读这次打开的导入页选项，只用已关联日记账的；这份账套选过的以选过的为准
+    （`mappings['_mrerp_menus']`，准备推送时冻结），失效就这张票停下请人重选，不自动换
+    （规则见 `targets/mrerp_menus.py`）。上传前紧挨着那次必需的 formupload GET 再核一次；
+  · importpc 回 "1" 或 report 行空备注都**不**直接算成功：先 GET `{列表模块}/allview.php?idmenu=所选菜单`
+    （写会话、看是否提示未关联日记账），再 POST `component/showdata.php` 按我方单号查，列表里以我方单号结尾的
+    那一行才算成功，记下 MR.ERP 实际单号（菜单前缀 + 我方单号）；查不到 = 结果不明（`unknown`，要人工核对）；
+  · 「单号已存在」同样要在所选菜单里查到才算已推过（MR.ERP 查重只在同一菜单 + 带前缀单号内）。
 """
 from __future__ import annotations
 
@@ -21,7 +30,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_core.session_lock import account_lock
 from pearnly_cowork.connections.mrerp_session import MrErpSession, SessionError, lock_key
-from pearnly_cowork.push.mrerp import routing
+from pearnly_cowork.push.mrerp import readback, routing
 from pearnly_cowork.push.mrerp.account_valve import ACCOUNT_REVIEW_CODE, account_gate, tag_account_review
 from pearnly_cowork.push.mrerp.models import (
     FailedRow,
@@ -30,20 +39,20 @@ from pearnly_cowork.push.mrerp.models import (
     MRERPBusinessError,
     MRERPTechnicalError,
     SuccessRow,
-    bill_no_for,
 )
 from pearnly_cowork.push.mrerp.modules import MrErpModule, get_module
 from pearnly_cowork.push.mrerp.preview_parse import TAGSTRIP_RE, parse_preview_form, preview_hints
 from pearnly_cowork.push.mrerp.report_parse import parse_master_report
 from pearnly_cowork.push.mrerp.report_parser import parse_import_report
 from pearnly_cowork.push.mrerp.xlsx import generator as _gen
+from pearnly_cowork.push.retry import is_already_pushed_error
+from pearnly_cowork.targets import mrerp_menus
 
 logger = logging.getLogger(__name__)
 
 
-def _selmenu_param(m) -> str:
-    """selmenu 表单参数 · 主数据导入(imparmas/impstkmas…)无 selmenu → 发空串,别发 'None'。"""
-    return "" if m.selmenu is None else str(m.selmenu)
+READBACK_NOT_FOUND = "ERR_MRERP_READBACK_NOT_FOUND"
+READBACK_NOT_LINKED = "ERR_MRERP_READBACK_NOT_LINKED"
 
 
 class MrErpImport:
@@ -60,6 +69,8 @@ class MrErpImport:
         self._lock_cm = None
         self._last_preview_html = ""
         self.import_sent = False
+        # 这次会话读到的导入页选项（导入页 → 选项 | None），调用方存下来给选择入口用。
+        self.observed_menus: Dict[str, Optional[List[Dict[str, Any]]]] = {}
 
     # ---- lifecycle ---------------------------------------------------
 
@@ -119,7 +130,7 @@ class MrErpImport:
         if self._sess is None:
             raise RuntimeError("MrErpImport used outside `with` block")
         m = self.module
-        if not m.verified or m.selmenu is None:
+        if not m.verified or m.doc_type not in mrerp_menus.PAGE_OF:
             raise MRERPBusinessError(f"doc_type={m.doc_type} direct-write not ready")
         t0 = time.time()
         original = histories
@@ -136,6 +147,15 @@ class MrErpImport:
             reasons = [ACCOUNT_REVIEW_CODE, ", ".join(review)]
             fr = [self._fail_row(h, reasons) for h in histories]
             return self._result(original, [], mismatch_failed + fr, t0, 0)
+
+        # 菜单：这次打开的导入页里，这份账套选过的（或唯一一个）已关联日记账的菜单；定不下来就不推、不建主档。
+        chosen = ((mappings or {}).get("_mrerp_menus") or {}).get(m.doc_type)
+        self._prepare(m)
+        menu, reason = mrerp_menus.resolve(self._read_menus(m), chosen)
+        if reason:
+            return self._result(original, [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories],
+                                t0, 0)
+        selmenu = menu["idmenu"]
 
         # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
         if m.doc_type.startswith("sales"):
@@ -160,9 +180,13 @@ class MrErpImport:
         xlsx_bytes = _gen.generate_xlsx(valid, mappings, sheet_kind=m.sheet_kind, expense=m.expense)
         expected = [_gen.derive_mrerp_invoice_no(h) for h in valid]
 
-        self._prepare(m)
-        self._upload_xlsx(xlsx_bytes)
-        form_fields, row_ids, idus_form = self._fetch_preview()
+        # 主档自建换掉了会话里的导入上下文：上传前必需的那次 formupload GET 顺便再核一次菜单（期间被改就停）。
+        _, reason = mrerp_menus.resolve(self._read_menus(m), selmenu)
+        if reason:
+            return self._result(original, [], mismatch_failed + preflight_failed
+                                + [self._fail_row(h, [reason]) for h in valid], t0, 0)
+        self._upload_xlsx(xlsx_bytes, selmenu=selmenu, opened=True)
+        form_fields, row_ids, idus_form = self._fetch_preview(selmenu=selmenu)
         if not row_ids:
             hints = preview_hints(self._last_preview_html or "")
             msg = "preview has no importable rows (xlsx rejected server-side)"
@@ -172,9 +196,11 @@ class MrErpImport:
         self.import_sent = True
         raw = self._confirm_import(form_fields, row_ids)
 
-        success_rows, failed_rows = self._classify(valid, expected, raw, idus_form)
-        return self._result(original, success_rows, mismatch_failed + preflight_failed + failed_rows,
-                            t0, len(xlsx_bytes))
+        success_rows, failed_rows, unknown_rows = self._classify(valid, expected, raw, idus_form, selmenu)
+        res = self._result(original, success_rows, mismatch_failed + preflight_failed + failed_rows,
+                           t0, len(xlsx_bytes))
+        res.unknown = unknown_rows
+        return res
 
     def _fail_row(self, h: Dict[str, Any], reasons: List[str]) -> FailedRow:
         return FailedRow(invoice_no=_gen.derive_mrerp_invoice_no(h), reasons=reasons, original=h)
@@ -232,17 +258,33 @@ class MrErpImport:
 
     # ---- 5 步 --------------------------------------------------------
 
-    def _upload_xlsx(self, xlsx_bytes: bytes, module=None) -> None:
+    def _open_form(self, module=None) -> str:
+        """GET 目标模块的 formupload（导入页），返回页面。"""
+        m = module or self.module
+        r = self._request("GET", f"{m.path}/formupload.php?idmenu={m.idmenu}",
+                          headers={"Referer": f"{self.login_url}/login/mainmenu.php"})
+        return r.text or ""
+
+    def _read_menus(self, module) -> Optional[List[Dict[str, Any]]]:
+        """打开导入页并读出菜单选项；页上没有菜单下拉返回 None。读到的记进 observed_menus（读不到的不记，
+        免得一次掉线把选择入口里已知的选项冲掉）。"""
+        options = mrerp_menus.parse_options(self._open_form(module))
+        if options is not None:
+            self.observed_menus[module.path] = options
+        return options
+
+    def _upload_xlsx(self, xlsx_bytes: bytes, module=None, *, selmenu: str = "", opened: bool = False) -> None:
         m = module or self.module
         # ★必须先显式 GET 目标模块的 formupload:老 PHP 按「最后打开的 form」在服务器 session 存导入上下文;
         # 主档自建先跑会吃掉首次导航 → 后续导入带错上下文 → importpc 空消息假成功(2026-07-09 真机根因)。
-        self._request("GET", f"{m.path}/formupload.php?idmenu={m.idmenu}",
-                      headers={"Referer": f"{self.login_url}/login/mainmenu.php"})
+        # opened=True:调用方刚为核对菜单 GET 过,中间没有别的导入请求。
+        if not opened:
+            self._open_form(m)
         r = self._request(
             "POST", f"{m.path}/component/uploadexcel.php",
             files={"uploadfile": ("import.xlsx", xlsx_bytes,
                                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-            data={"idus": str(self._sess.idus), "selmenu": _selmenu_param(m)},
+            data={"idus": str(self._sess.idus), "selmenu": selmenu},
             headers={"Referer": f"{self.login_url}/{m.path}/formupload.php?idmenu={m.idmenu}",
                      "X-Requested-With": "XMLHttpRequest", "Origin": self.login_url},
         )
@@ -253,11 +295,12 @@ class MrErpImport:
         if body:
             raise MRERPBusinessError(f"upload rejected: {body[:300]}")
 
-    def _fetch_preview(self, module=None) -> Tuple[List[Tuple[str, str]], List[str], Optional[str]]:
+    def _fetch_preview(self, module=None, *, selmenu: str = "") -> Tuple[List[Tuple[str, str]], List[str], Optional[str]]:
+        # 主数据导入(imparmas/impstkmas…)没有菜单:selmenu 发空串。
         m = module or self.module
         r = self._request(
             "POST", f"{m.path}/formrdpc.php",
-            data={"idus": str(self._sess.idus), "selmenu": _selmenu_param(m)},
+            data={"idus": str(self._sess.idus), "selmenu": selmenu},
             headers={"Referer": f"{self.login_url}/{m.path}/formupload.php?idmenu={m.idmenu}",
                      "Content-Type": "application/x-www-form-urlencoded", "Origin": self.login_url},
         )
@@ -298,36 +341,72 @@ class MrErpImport:
             raise MRERPBusinessError(f"report.php failed {r.status_code} ({len(r.content)}B)")
         return r.content
 
-    # ---- 分类:回读 report 判真成败 ----------------------------------
+    # ---- 分类:report 判受理 → 所选菜单列表回读判落库 ------------------------
 
-    def _classify(self, valid: List[Dict[str, Any]], expected: List[str], raw: str, idus_form: Optional[str]
-                  ) -> Tuple[List[SuccessRow], List[FailedRow]]:
+    def _classify(self, valid: List[Dict[str, Any]], expected: List[str], raw: str, idus_form: Optional[str],
+                  selmenu: str) -> Tuple[List[SuccessRow], List[FailedRow], List[FailedRow]]:
+        """→ (成功, 失败, 结果不明)。成功只来自回读查到；受理了却查不到的是结果不明（可能已落库）。"""
         by_inv = {inv: h for inv, h in zip(expected, valid)}
-
-        def _ok_row(i: str) -> SuccessRow:
-            return SuccessRow(invoice_no=i, mrerp_bill_no=bill_no_for(self.module.doc_type, i),
-                              original=by_inv.get(i, {}))
 
         def _fail(inv: str, reasons: List[str]) -> FailedRow:
             return FailedRow(invoice_no=inv, reasons=reasons, original=by_inv.get(inv, {}))
 
         if raw == "1":
-            # importpc "1" = 全部提交 · 不出报告
-            return [_ok_row(i) for i in expected], []
-        if not raw.strip().isdigit():
+            # importpc "1" = 全部受理 · 不出报告;落没落进所选菜单要回读
+            accepted, failed, already = list(expected), [], set()
+        elif not raw.strip().isdigit():
             # 非数字体(alert/script/Error…)= 服务器异常:此时 report 备注列全空,逐行判会把整批误判成功
             # 且实际不落库(2026-07-09 真机 453 假绿三连)→ 全部诚实置失败。
             summary = TAGSTRIP_RE.sub("", raw).strip()[:120]
             reasons = ["ERR_MRERP_IMPORT_ERROR"] + ([summary] if summary else [])
-            return [], [_fail(inv, reasons) for inv in expected]
-        # 纯数字(如 "2")= 正常受理但有逐行结果 → 必拉 report 逐行判定,不臆断
-        report = parse_import_report(self._fetch_report(idus_form))
-        success = [_ok_row(i) for i in report.success]
-        # 科目安全阀:report 报科目未匹配 → 归为 ERR_ACCOUNT_NEEDS_REVIEW(退回用户配置,不硬建)
-        failed = [_fail(row.invoice_no, tag_account_review(list(row.reasons))) for row in report.failed]
-        seen = {s.invoice_no for s in success} | {f.invoice_no for f in failed}
-        failed.extend(_fail(inv, ["report did not mention this invoice"]) for inv in expected if inv not in seen)
-        return success, failed
+            return [], [_fail(inv, reasons) for inv in expected], []
+        else:
+            # 纯数字(如 "2")= 正常受理但有逐行结果 → 必拉 report 逐行判定,不臆断
+            report = parse_import_report(self._fetch_report(idus_form))
+            accepted = list(report.success)
+            already = {row.invoice_no for row in report.failed if is_already_pushed_error("; ".join(row.reasons))}
+            accepted += [inv for inv in expected if inv in already and inv not in accepted]
+            # 科目安全阀:report 报科目未匹配 → 归为 ERR_ACCOUNT_NEEDS_REVIEW(退回用户配置,不硬建)
+            failed = [_fail(row.invoice_no, tag_account_review(list(row.reasons)))
+                      for row in report.failed if row.invoice_no not in already]
+            seen = set(accepted) | {f.invoice_no for f in failed}
+            failed.extend(_fail(inv, ["report did not mention this invoice"]) for inv in expected if inv not in seen)
+
+        found, problem = self._read_back(selmenu, accepted)
+        success: List[SuccessRow] = []
+        unknown: List[FailedRow] = []
+        for inv in accepted:
+            row = found.get(inv)
+            if row is None:
+                unknown.append(_fail(inv, [READBACK_NOT_LINKED if problem == "not_linked" else READBACK_NOT_FOUND]))
+            else:
+                success.append(SuccessRow(invoice_no=inv, mrerp_bill_no=row.docno, original=by_inv.get(inv, {}),
+                                          already_pushed=inv in already))
+        return success, failed, unknown
+
+    def _read_back(self, selmenu: str, invoice_nos: List[str]) -> Tuple[Dict[str, readback.ListedRow], Optional[str]]:
+        """在所选菜单的列表里逐张按单号查 → ({我方单号: 列表行}, 列表页问题)。列表页提示未关联日记账就不查。"""
+        if not invoice_nos:
+            return {}, None
+        listing = self.module.listing_module
+        page = self._request("GET", f"{listing}/allview.php?idmenu={selmenu}",
+                             headers={"Referer": f"{self.login_url}/login/mainmenu.php"})
+        problem = readback.listing_problem(page.text or "")
+        if problem:
+            logger.warning("[mrerp-readback] menu=%s listing unusable: %s", selmenu, problem)
+            return {}, problem
+        found: Dict[str, readback.ListedRow] = {}
+        for inv in invoice_nos:
+            r = self._request(
+                "POST", f"{listing}/component/showdata.php",
+                data={"showdata_numrows": str(readback.PAGE_ROWS), "showdata_pages": "1", "searchdataval": inv},
+                headers={"Referer": f"{self.login_url}/{listing}/allview.php", "X-Requested-With": "XMLHttpRequest",
+                         "Origin": self.login_url})
+            row = readback.find(readback.parse_rows(r.text or ""), inv) if r.status_code < 400 else None
+            if row is not None:
+                found[inv] = row
+        logger.info("[mrerp-readback] menu=%s found=%d/%d", selmenu, len(found), len(invoice_nos))
+        return found, None
 
     # ---- helpers -----------------------------------------------------
 

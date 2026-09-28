@@ -1,0 +1,455 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>Mr.erp</title>
+<script type="text/javascript" src="../component/javascript/jquery.js"></script>
+<script type="text/javascript" src="../component/javascript/calcwindow.js"></script>
+<script type="text/javascript" src="../component/javascript/searchdata.js"></script>
+<script type="text/javascript" src="../component/javascript/resizeform.js"></script>
+<script type="text/javascript" src="../component/javascript/showdata.js"></script>
+
+<link rel="stylesheet" type="text/css" href="../component/css/master-cen.css">
+<link rel="stylesheet" type="text/css" href="../component/css/header3span.css">
+<link rel="stylesheet" type="text/css" href="../component/css/verticalmiddle.css">
+<link rel="stylesheet" type="text/css" href="../component/css/showdata.css">
+
+<link rel="stylesheet" type="text/css" href="component/css/allview.css">
+<script type="text/javascript" src="component/javascript/allview.js"></script>
+
+</head>
+
+<body>
+    <div id="container">
+
+        <div id="header">
+            <span>
+                <button name="btnlistall" id="btnlistall" onclick="location='allview.php?mode=l';">List All</button>
+<button name="btnreviewed" id="btnreviewed" onclick="location='allview.php?mode=r';">Reviewed</button>
+<button name="btnapproved" id="btnapproved" onclick="location='allview.php?mode=a';">Approved</button>
+            </span>
+            <span>
+
+                <span id="labelsearch">ค้นหารายการ</span><input type="text" name="txtsearch" id="txtsearch" size="40" placeholder="ค้นหาจาก เลขที่, วันที่, ชื่อ และ จำนวนเงิน" onkeyup="searchdata(1);">
+                <button name="btnsearch" id="btnsearch" onclick="searchdata(2);">Search</button><input type="hidden" name="searchdataval" id="searchdataval" value="">
+
+                <button name="btnadd" id="btnadd" onclick="location='allform.php';">Add</button>
+                <button name="btnlink" id="btnlink" onclick="location='selapmas.php';">ใบสั่งซื้อ</button>
+
+            </span>
+            <span>
+                 <button name="btnmainmenu" id="btnmainmenu" onclick="location='../login/mainmenu.php?comidyear=6';">Mainmenu</button> 			</span>
+            <nav id="currposi">ใบรับสินค้า &gt; List All</nav>
+        </div>
+
+        <div id="body" style="height: 647px; width: 1440px;">
+            <div id="detail-box">
+
+                <!-- ======================================= -->
+
+                <div id="showdata">
+                    <p>
+                        <span>เลขที่เอกสาร</span>
+                        <span>วันที่เอกสาร</span>
+                        <span>ชื่อผู้จำหน่าย</span>
+                        <span>จำนวนเงิน</span>
+                        <span>URA</span>
+
+                        <span>View</span>
+
+                        <span>Edit</span>
+
+                        <span>Del</span>
+
+                    </p>
+                                <p>
+                    <span>PGteste09</span>
+                    <span>03/09/2569</span>
+                    <span>บริษัท ผู้ขาย ตัวอย่าง จำกัด</span>
+                    <span>107.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>03/09/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=76&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=76&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=76&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PG09</span>
+                    <span>03/09/2569</span>
+                    <span>บริษัท ผู้ขาย ตัวอย่าง จำกัด</span>
+                    <span>214.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>03/09/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=77&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=77&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=77&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PGALG260826_P01</span>
+                    <span>26/08/2569</span>
+                    <span>ยังไม่ระบุผู้จำหน่าย</span>
+                    <span>25,000.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>26/08/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=71&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=71&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=71&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PGPS5507-1</span>
+                    <span>02/07/2569</span>
+                    <span>ร้านวัสดุทดสอบ</span>
+                    <span>214.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>10/07/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=65&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=65&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=65&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PGPLCF59-1</span>
+                    <span>02/07/2569</span>
+                    <span>ร้านวัสดุทดสอบ</span>
+                    <span>214.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>10/07/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=66&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=66&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=66&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PGPLAE08-1</span>
+                    <span>02/07/2569</span>
+                    <span>ร้านวัสดุทดสอบ</span>
+                    <span>214.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>10/07/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=68&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=68&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=68&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PGPEARNLY-002</span>
+                    <span>10/05/2569</span>
+                    <span>เซเว่น อีเลเว่น</span>
+                    <span>107.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>10/05/2569</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=25&amp;status=vie"></a></span>
+
+                    <span><a href="allform.php?id=25&amp;status=edt"></a></span>
+
+                    <span><a href="allform.php?id=25&amp;status=del"></a></span>
+
+                </p>
+                <p>
+                    <span>PGtest109</span>
+                    <span>13/07/2567</span>
+                    <span>เซเว่น อีเลเว่น</span>
+                    <span>963.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo02</span>
+                                    <span>13/07/2567</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=22&amp;status=vie"></a></span>
+
+                    <span></span>
+
+                    <span></span>
+
+                </p>
+                <p>
+                    <span>PG671102-001</span>
+                    <span>11/02/2567</span>
+                    <span>เซเว่น อีเลเว่น</span>
+                    <span>4,280.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo01</span>
+                                    <span>11/02/2568</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=24&amp;status=vie"></a></span>
+
+                    <span></span>
+
+                    <span></span>
+
+                </p>
+                <p>
+                    <span>PGtest10</span>
+                    <span>01/11/2565</span>
+                    <span>เซเว่น อีเลเว่น</span>
+                    <span>428.00</span>
+                    <span><a class="waitreview"></a>
+                            <span class="showura">
+                                <span>
+                                    <span>รายการ</span>
+                                    <span>รหัส</span>
+                                    <span>วันที่</span>
+                                </span>
+                                <span>
+                                    <span>User</span>
+                                    <span>demo02</span>
+                                    <span>01/11/2565</span>
+                                </span>
+                                <span>
+                                    <span>Reviewed</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span>
+                                    <span>Approved</span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            </span>
+                        </span>
+
+                    <span><a href="allform.php?id=16&amp;status=vie"></a></span>
+
+                    <span></span>
+
+                    <span></span>
+
+                </p>
+</div>
+
+                <!-- ======================================= -->
+
+            </div>
+        </div>
+
+        <div id="footer">
+            <p>
+    <span>Username : </span>demo01	<span>Status : </span>User
+    <span>Company : </span>0000-00-000000 บริษัท ทดสอบการใช้ จำกัด
+    <span>Database Name : </span>TEST2019</p>
+        </div>
+
+    </div>
+
+    <script type="text/javascript">
+        showdata();
+    </script>
+
+
+
+</body></html>

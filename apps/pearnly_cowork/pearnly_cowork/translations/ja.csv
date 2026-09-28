@@ -136,6 +136,7 @@ Card name (alphabetically),カード名（アルファベット順）
 Card restored,復元しました
 Card templates,カードテンプレート
 Cash,現金
+Cash sales,現金売上
 Change cards on the work board,作業ボードでカードを変更してください
 Change cover,カバーを変更
 Change list color,リストの色を変更
@@ -202,6 +203,7 @@ Copy list,リストをコピー
 Copy to,コピー先
 Correct entry,記録を修正
 Corrected Value,修正値
+Could not read the MR.ERP menus. Try again later.,MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。
 Could not read this document. Please send it again.,書類を読み取れませんでした。もう一度送信してください。
 Could not store this document,書類を保存できませんでした
 Count Mode,棚卸方式
@@ -256,6 +258,7 @@ Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
 Credit Note,返品・値引伝票
+Credit sales,掛売上
 Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
@@ -467,6 +470,11 @@ Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
+"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
+MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
+MR.ERP import menu,MR.ERP 取込メニュー
 MR.ERP purchases can only be entered on credit.,MR.ERP の仕入は掛けでのみ登録できます。
 Make template,テンプレートにする
 Manual,手入力
@@ -584,17 +592,21 @@ Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 PromptPay,PromptPay
 Provider Evidence,プロバイダー呼び出し証跡
+Purchase (expense),仕入（経費）
+Purchase (goods),仕入（商品）
 Purchase or sales?,仕入ですか、売上ですか？
 Purple,紫
 Push Attempt,送信試行
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
+Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 "Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
 Quantity,数量
 Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
 Read again,再読み込み
 Reading files,ファイルを読み込み中
+Reading the MR.ERP menus…,MR.ERP のメニューを読み込み中…
 Reading the VAT report,税報告を読み込み中
 Reading the bank statement,銀行明細を読み込み中
 Reading the company list from the ERP. Tap the menu again in a moment.,ERPから会社一覧を読み込んでいます。少ししてからもう一度メニューを押してください。
@@ -779,6 +791,8 @@ The ERP report observation time is invalid.,ERP レポートの収集日時が�
 The ERP report refresh status is invalid.,ERP レポートの更新状態が無効です。
 The ERP report uses an unsupported adapter.,ERP レポートに対応していないアダプターが指定されています。
 The ERP target context is inconsistent.,ERP送信先の情報が一致しません。
+The MR.ERP import page shows no menu (setup incomplete or no permission).,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
+The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
 The PDF exceeds the allowed page count.,PDF のページ数が上限を超えています。
 The PDF file cannot be read.,この PDF ファイルを読み取れません。
@@ -893,6 +907,7 @@ There is not enough recognition balance. Top up and send the document again.,読
 This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
+This MR.ERP menu cannot be chosen for this account set.,この会計データではこの MR.ERP メニューを選択できません。
 This account cannot send documents,このアカウントは書類を送信できません
 This account set is unavailable.,この会計データは利用できません。
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
@@ -1030,6 +1045,7 @@ connection.adapter_invalid,このERP接続タイプはサポートされてい�
 connection.config_invalid,ERP接続設定を確認してください。
 connection.disabled,この接続は無効です。
 connection.lock_required,送信先を読み取る前に接続をロックしてください。
+connection.mrerp_menu_invalid,この会計データではこの MR.ERP メニューを選択できません。
 connection.not_found,接続またはディレクトリの記録が見つかりません。
 connection.preparation_incomplete,この会計データの送信準備情報が不足しています。
 connection.preparation_invalid,準備情報が接続または会計データと一致しません。
@@ -1598,6 +1614,20 @@ history.source_invalid,このレコードの取得元には対応していませ
 history.source_not_public,この画面からは手入力のレコードのみ作成できます。
 image,画像
 intake.catalog.reload,再読み込み
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
+intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
+intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
+intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
+intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
+intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
+intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+intake.mrerpMenu.purchase,仕入（商品）
+intake.mrerpMenu.purchase_expense,仕入（経費）
+intake.mrerpMenu.readFailed,MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。
+intake.mrerpMenu.reading,MR.ERP のメニューを読み込み中…
+intake.mrerpMenu.sales_cash,現金売上
+intake.mrerpMenu.sales_credit,掛売上
+intake.mrerpMenu.title,MR.ERP 取込メニュー
 intake.target.accountSet,会計データ
 leased,取得済み
 legacy,旧形式

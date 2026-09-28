@@ -41,7 +41,9 @@
   "report_received_at",
   "report_credential",
   "report_generation",
-  "stock_acc_groups"
+  "stock_acc_groups",
+  "mrerp_menus",
+  "mrerp_menu_options"
  ],
  "fields": [
   {
@@ -240,6 +242,22 @@
   {
    "fieldname": "stock_acc_groups",
    "label": "Stock Account Group per Account Set",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "mrerp_menus",
+   "label": "MR.ERP Import Menu per Account Set",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "mrerp_menu_options",
+   "label": "MR.ERP Import Menu Options Seen",
    "fieldtype": "Long Text",
    "read_only": 1,
    "no_copy": 1,

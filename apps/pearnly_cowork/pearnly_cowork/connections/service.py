@@ -6,6 +6,7 @@ locks Connection first; snapshots/refresh use current reads in the same unit.
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 import uuid
 
 import frappe
@@ -17,7 +18,7 @@ from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
-from pearnly_cowork.targets import stock_groups
+from pearnly_cowork.targets import mrerp_menus as menu_rules, stock_groups
 from . import access, model, snapshots, refresh as refresh_leases
 from .preparation import reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope
@@ -296,6 +297,78 @@ def choose_stock_acc_group(name, account_set_key, acccod):
         doc.stock_acc_groups = model.dumps(value)
         access.write(doc)
     return stock_groups.view(doc.stock_acc_groups, account, groups)
+
+
+_MRERP_ACCOUNT = re.compile(r"\d{1,9}:\d{1,9}")
+
+
+def mrerp_account_key(value):
+    """MR.ERP 账套键 `comidyear:seldb`（公司 + 年度）；不像就是空串。"""
+    key = str(value or "").strip()
+    return key if _MRERP_ACCOUNT.fullmatch(key) else ""
+
+
+def _mrerp_menu_account(doc, account_set_key):
+    if doc.adapter != "mrerp":
+        _error("connection.adapter_invalid")
+    account = mrerp_account_key(account_set_key)
+    if not account:
+        _error("connection.config_invalid")
+    return account
+
+
+def mrerp_menu(name, account_set_key):
+    """这份 MR.ERP 账套每类单据的已关联日记账菜单、选过哪个、要不要请人选（录入提交前按它决定问不问）。"""
+    doc = _read(CONNECTION, name)
+    access.require_connection(doc)
+    account = _mrerp_menu_account(doc, account_set_key)
+    return menu_rules.view(doc.mrerp_menus, doc.mrerp_menu_options, account)
+
+
+def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
+    """记下这份账套这类单据推哪个 MR.ERP 菜单（选一次，按连接 + 账套 + 单据类型记住，用户 2026-09-28）。
+
+    只收最近一次从 MR.ERP 导入页读到、当前年度已关联日记账的选项。与连接配置分开存：不升连接版本，
+    正在推的票照常（它们冻结的是准备推送时的选择）。同一个值重复提交结果不变。
+    """
+    doc = _read(CONNECTION, name)
+    actor = access.require_connection(doc)
+    account = _mrerp_menu_account(doc, account_set_key)
+    if menu_rules.chosen_map(doc.mrerp_menus, account).get(doc_type) != str(idmenu or "").strip():
+        value = menu_rules.choose(doc.mrerp_menus, account, doc_type, idmenu, doc.mrerp_menu_options,
+                                  actor=actor, at=_now().isoformat())
+        if value is None:
+            _error("connection.mrerp_menu_invalid")
+        doc.mrerp_menus = model.dumps(value)
+        access.write(doc)
+    return menu_rules.view(doc.mrerp_menus, doc.mrerp_menu_options, account)
+
+
+def request_mrerp_menu(name, account_set_key):
+    """申请去 MR.ERP 读这份账套的导入页菜单（后台任务，见 `mrerp_menu_reader`）；返回申请时刻，调用方轮询视图。"""
+    doc = _read(CONNECTION, name)
+    actor = access.require_connection(doc)
+    account = _mrerp_menu_account(doc, account_set_key)
+    if not doc.enabled:
+        _error("connection.disabled")
+    return {"connection": doc.name, "account_set_key": account, "actor": actor, "requested_at": _now().isoformat()}
+
+
+def observe_mrerp_menus(name, account_set_key, pages, error=None):
+    """内部：存下这次从 MR.ERP 读到的导入页选项（推送与读取任务共用）。不是 RPC，调用方负责提交。"""
+    account = mrerp_account_key(account_set_key)
+    if not account:
+        return
+    doc = _read(CONNECTION, name)
+    if doc.adapter != "mrerp":
+        return
+    value = menu_rules.observe(doc.mrerp_menu_options, account, pages, at=_now().isoformat(), error=error)
+    frappe.db.set_value(CONNECTION, doc.name, "mrerp_menu_options", model.dumps(value), update_modified=False)
+
+
+def mrerp_chosen_menus(loaded, account_set_key):
+    """准备推送时冻结进载荷的：这份账套各单据类型选过的菜单号。"""
+    return menu_rules.chosen_map(loaded.doc.get("mrerp_menus"), mrerp_account_key(account_set_key))
 
 
 def install_snapshot(name, observation, request_id, expected_revision, preparation=None):
