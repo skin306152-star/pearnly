@@ -152,6 +152,12 @@
 
 | 2026-09-29 | B 与删评论的未提交差异（基于 `f32900f0`） | 本机离线 + 测试机（`live cowork` 后两站） | `test_cowork_work_boards.py`（14 条，加团队可见非成员只读、默认看板例外）；`test-cowork-work-boards-native.py` 加测：团队板非成员不能建卡 / 建列表 / 移动 / 归档 / 评论（评论设为「成员和观察者」后能评论）、不能被分派、规则不能分派给他但能加关注、加为成员后能改、`can_edit` 标记、默认看板照常可改、观察者不能被分派、看板管理员与 Cowork 管理员删别人的评论；跨看板复制 / 镜像移除按新口径 | 通过（两站） |
 
+**录制用账号（用户 2026-09-29 要求"模拟两个角色进去"）**：只在测试机那份 `testcowork` 库里建 `somchai@example.com`、`nida@example.com`
+（`Desk User` + `Cowork Work`，泰语）。站点关着密码登录（`disable_user_pass_login=1`）、库里 Administrator 也有本地密码，所以不打开密码登录，
+改用框架自带的一次性登录链接（`frappe.www.login._generate_temporary_login_link`，单次、12 小时），链接存在本机
+`~/.config/pearnly-testenv/cowork-recording-login-links.txt`（600）。线上账号中心与统一身份都没写。这两个账号只存在于测试机副本，
+下次 `PEARNLY_TESTENV_REFRESH=1` 导入时会被覆盖；收尾时删掉链接文件。
+
 `python3 scripts/check-i18n.py --strict` 的失败是存量（其他模块硬编码文案），本任务文件不在报告里。
 
 | 层级 | 状态 | 依据与未覆盖项 |
