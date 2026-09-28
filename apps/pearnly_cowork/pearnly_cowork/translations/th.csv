@@ -972,6 +972,7 @@ The row has no product code or barcode,แถวนี้ไม่มีรห�
 The seller and buyer have the same tax ID. Correct it and submit again,ผู้ขายและผู้ซื้อมีเลขภาษีเดียวกัน กรุณาแก้แล้วส่งใหม่
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 The start date is after the due date,วันเริ่มอยู่หลังวันครบกำหนด
+The statement's count or totals do not match what it prints. A row may be missing or misread,จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด
 The stock count record was not found.,ไม่พบรายการตรวจนับสต็อก
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",บันทึกรายการสินค้าคงคลังไม่ได้ กรุณาตรวจชื่อสินค้า จำนวน และราคา
@@ -1237,6 +1238,9 @@ cowork.recon.kpi.pending,ผลต่างที่ต้องตรวจส�
 cowork.recon.kpi.rate,อัตราการจับคู่
 cowork.recon.kpi.unmatched,ไม่พบคู่
 cowork.recon.new,สร้างงานใหม่
+cowork.recon.note.amount_fixed,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ
+cowork.recon.note.completeness,จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด
+cowork.recon.note.low_conf,ใบแจ้งยอดมี {0} รายการที่อ่านได้ไม่แน่ชัด กรุณาตรวจกับต้นฉบับ
 cowork.recon.pick,เลือกไฟล์
 cowork.recon.saved,บันทึกแล้ว
 cowork.recon.sheet.difference,รายละเอียดผลต่าง
@@ -1970,6 +1974,8 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} more items,และอีก {0} รายการ
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
+{0} statement amounts were corrected from the running balance. Check them,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ
+{0} statement rows were read with low confidence. Check them against the original,ใบแจ้งยอดมี {0} รายการที่อ่านได้ไม่แน่ชัด กรุณาตรวจกับต้นฉบับ
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
 {0}: the check digit is wrong,{0}: หลักตรวจสอบไม่ถูกต้อง

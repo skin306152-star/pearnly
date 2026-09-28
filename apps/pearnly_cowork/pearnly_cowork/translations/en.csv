@@ -972,6 +972,7 @@ The row has no product code or barcode,The row has no product code or barcode
 The seller and buyer have the same tax ID. Correct it and submit again,The seller and buyer have the same tax ID. Correct it and submit again
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
+The statement's count or totals do not match what it prints. A row may be missing or misread,The statement's count or totals do not match what it prints. A row may be missing or misread
 The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
@@ -1237,6 +1238,9 @@ cowork.recon.kpi.pending,Differences to review
 cowork.recon.kpi.rate,Match rate
 cowork.recon.kpi.unmatched,Unmatched
 cowork.recon.new,New task
+cowork.recon.note.amount_fixed,{0} statement amounts were corrected from the running balance. Check them
+cowork.recon.note.completeness,The statement's count or totals do not match what it prints. A row may be missing or misread
+cowork.recon.note.low_conf,{0} statement rows were read with low confidence. Check them against the original
 cowork.recon.pick,Choose file
 cowork.recon.saved,Saved
 cowork.recon.sheet.difference,Difference detail
@@ -1970,6 +1974,8 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} more items,{0} more items
 {0} moved {1} to {2},{0} moved {1} to {2}
 {0} rows were not imported,{0} rows were not imported
+{0} statement amounts were corrected from the running balance. Check them,{0} statement amounts were corrected from the running balance. Check them
+{0} statement rows were read with low confidence. Check them against the original,{0} statement rows were read with low confidence. Check them against the original
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
 {0}: the check digit is wrong,{0}: the check digit is wrong

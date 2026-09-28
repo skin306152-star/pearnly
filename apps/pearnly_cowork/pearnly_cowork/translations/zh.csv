@@ -972,6 +972,7 @@ The row has no product code or barcode,这一行没有物料编号或条码
 The seller and buyer have the same tax ID. Correct it and submit again,卖方和买方税号相同，请改正后再提交
 The source page number must be a positive integer.,源文件页码必须是正整数。
 The start date is after the due date,开始日期晚于到期日
+The statement's count or totals do not match what it prints. A row may be missing or misread,对账单的笔数或合计与账单上印的对不上，可能漏行或读错
 The stock count record was not found.,找不到盘点记录。
 The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
 "The stock lines could not be posted. Check the items, quantities and prices",库存明细记不进去，请核对品名、数量和单价
@@ -1237,6 +1238,9 @@ cowork.recon.kpi.pending,待处理差异
 cowork.recon.kpi.rate,匹配率
 cowork.recon.kpi.unmatched,未匹配
 cowork.recon.new,新建任务
+cowork.recon.note.amount_fixed,对账单有 {0} 行金额按余额推算改过，请核对
+cowork.recon.note.completeness,对账单的笔数或合计与账单上印的对不上，可能漏行或读错
+cowork.recon.note.low_conf,对账单有 {0} 行读得不确定，请对照原件核对
 cowork.recon.pick,选择文件
 cowork.recon.saved,已保存
 cowork.recon.sheet.difference,差异明细
@@ -1970,6 +1974,8 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} more items,另有 {0} 项
 {0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}
 {0} rows were not imported,{0} 行没有导入
+{0} statement amounts were corrected from the running balance. Check them,对账单有 {0} 行金额按余额推算改过，请核对
+{0} statement rows were read with low confidence. Check them against the original,对账单有 {0} 行读得不确定，请对照原件核对
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
 {0}: the check digit is wrong,{0}校验位不对

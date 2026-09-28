@@ -460,8 +460,9 @@ def load(kind, task_id, lang=None):
     else:
         inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
         version = revision.revision(doc)
+    notes = revision.bank_notes(doc) if kind == "bank" else []
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
-                     "revision": version}, **_view(kind, doc, inputs, _lang(lang))}
+                     "revision": version, "notes": notes}, **_view(kind, doc, inputs, _lang(lang))}
 
 
 @frappe.whitelist(methods=["POST"])

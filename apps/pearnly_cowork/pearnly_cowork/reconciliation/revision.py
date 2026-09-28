@@ -20,6 +20,7 @@ from pearnly_cowork.reconciliation import (
 	bank_recon_access,
 	bank_recon_contracts,
 	bank_recon_service,
+	bank_warnings,
 	income_recon_access,
 	income_recon_contracts,
 	income_recon_service,
@@ -67,6 +68,31 @@ def bank_inputs(doc):
 	ledger.sort(key=lambda row: row["date"])
 	return {"statement": bank_recon_contracts.json_loads(bank_recon_contracts.json_dumps(statement)),
 		"gl": bank_recon_contracts.json_loads(bank_recon_contracts.json_dumps(ledger))}
+
+
+def bank_notes(doc):
+	"""这份对账为什么要人看一眼：一句话，页面标题下显示（用户 2026-09-28：只在页面写，Excel 不加）。
+
+	「待检查」来自 PDF 对账单的复核诊断（读得不确定的行、按余额推算改过的金额、笔数 / 合计对不上）；
+	期间不重叠、GL 行数太少、一笔都没匹配上等警告建任务时已算好存在运行记录里。"""
+	notes = []
+	if doc.status == "needs_review":
+		diagnostics = (bank_recon_contracts.json_loads(doc.review_json) or {}).get("diagnostics") or {}
+		if int(diagnostics.get("low_conf_count") or 0):
+			notes.append(_("cowork.recon.note.low_conf").format(int(diagnostics["low_conf_count"])))
+		if int(diagnostics.get("amount_fixed_count") or 0):
+			notes.append(_("cowork.recon.note.amount_fixed").format(int(diagnostics["amount_fixed_count"])))
+		if (diagnostics.get("completeness") or {}).get("ok") is False:
+			notes.append(_("cowork.recon.note.completeness"))
+	# 期间 / 行数 / 零匹配按当前的行、用看的人的语言现算（改过行也跟着准；存的是建任务时那种语言的原文）。
+	inputs = bank_inputs(doc)
+	statement, ledger = _contract(bank_recon_contracts.decode_rows, inputs["statement"], inputs["gl"])
+	matched = int((bank_recon_contracts.json_loads(doc.summary_json) or {}).get("matched_count") or 0)
+	lang = (frappe.local.lang or "th")[:2]
+	notes += [text.replace("⚠️", "").strip() for text in bank_warnings.detect_recon_mismatch(
+		bank_recon_contracts.matching_statement_rows(statement), bank_recon_contracts.matching_gl_rows(ledger),
+		matched, lang if lang in ("th", "zh", "en", "ja") else "th")]
+	return notes
 
 
 def bank_header(doc):

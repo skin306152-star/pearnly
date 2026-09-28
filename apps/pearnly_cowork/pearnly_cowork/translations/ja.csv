@@ -972,6 +972,7 @@ The row has no product code or barcode,この行に商品コードもバーコ�
 The seller and buyer have the same tax ID. Correct it and submit again,売手と買手の納税者番号が同じです。直して再送信してください
 The source page number must be a positive integer.,元ファイルのページ番号には正の整数が必要です。
 The start date is after the due date,開始日が期日より後です
+The statement's count or totals do not match what it prints. A row may be missing or misread,明細の件数または合計が印字と一致しません。行の漏れや読み違いの可能性があります
 The stock count record was not found.,棚卸記録が見つかりません。
 The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
 "The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
@@ -1237,6 +1238,9 @@ cowork.recon.kpi.pending,要確認の差異
 cowork.recon.kpi.rate,一致率
 cowork.recon.kpi.unmatched,未照合
 cowork.recon.new,新規タスク
+cowork.recon.note.amount_fixed,明細で残高から金額を補正した行が {0} 行あります。確認してください
+cowork.recon.note.completeness,明細の件数または合計が印字と一致しません。行の漏れや読み違いの可能性があります
+cowork.recon.note.low_conf,明細に読み取りが不確かな行が {0} 行あります。原本と照合してください
 cowork.recon.pick,ファイルを選択
 cowork.recon.saved,保存しました
 cowork.recon.sheet.difference,差異明細
@@ -1970,6 +1974,8 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} more items,ほか {0} 件
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} rows were not imported,{0} 行は取り込めませんでした
+{0} statement amounts were corrected from the running balance. Check them,明細で残高から金額を補正した行が {0} 行あります。確認してください
+{0} statement rows were read with low confidence. Check them against the original,明細に読み取りが不確かな行が {0} 行あります。原本と照合してください
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 棚卸済み {1}/{2} · 差異 {3}
 {0}: the check digit is wrong,{0}：チェックディジットが正しくありません

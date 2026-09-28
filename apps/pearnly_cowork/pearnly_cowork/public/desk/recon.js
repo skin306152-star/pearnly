@@ -79,7 +79,7 @@
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
 			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
-			page.hide_form(); page.clear_primary_action(); page.clear_secondary_action(); page.clear_indicator();
+			page.hide_form(); page.clear_primary_action(); page.clear_secondary_action(); page.clear_indicator(); page.set_title_sub("");
 		}
 
 		// ── 列表 ──────────────────────────────────────────────────────────────
@@ -461,6 +461,8 @@
 			let inputs = clone(data.inputs), good = clone(data.inputs);
 			page.set_title(data.task.title || name); breadcrumbs([{ label: data.task.title || name }]);
 			if (data.task.status !== "completed") page.set_indicator(t(`cowork.recon.task.${data.task.status}`), "orange");
+			// 为什么要人看一眼：一句话写在标题下（用户 2026-09-28：只在页面写，导出的 Excel 不加）。
+			page.set_title_sub((data.task.notes || []).length ? p.escape(data.task.notes.join(" · ")) : "", "orange");
 			const export_now = () => window.location.assign(`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${lang()}`);
 			const buttons = () => {
 				page.clear_primary_action(); page.clear_secondary_action();
