@@ -19,7 +19,7 @@
 - 本次范围状态：进行中
 - 收尾状态：施工中
 - 分支 / 基线 SHA / 工作树 / 集成目标：`codex/cowork-work-boards` / 开工 `43dcf12f`，已变基到 `413bb5bb`（对账修复，无冲突）/ `.claude/worktrees/eager-williamson-e6a07a` / `main`
-- 合并 / 推送 / 远端回读状态：未合并、未推送
+- 合并 / 推送 / 远端回读状态：任务分支已推送（CI Development checks 通过），未合并到 main
 - 允许修改的路径：`apps/pearnly_cowork/pearnly_cowork/work/`、新 DocType `cowork_work_board` / `cowork_work_board_member`、
   已有 `cowork_work_*` DocType 加 `board` 字段、`patches/`、`patches.txt`、`hooks.py`（权限登记）、`public/desk/work.js` / `work.css`、
   `i18n/messages.tsv` 与生成的翻译包、`scripts/test-cowork-work-native.py`、新脚本 `scripts/test-cowork-work-boards-native.py`、`tests/`、
@@ -122,6 +122,9 @@
   看板设置只对能管的人出现；只读（观察者、已归档的看板）时没有任何写入口（加卡、加列表、列表菜单、卡片悬停按钮、完成圆圈、拖动、日历拖动），
   卡片详情字段只读、没有保存 / 上传 / 归档，评论框按「谁能评论」；快捷菜单的移动 / 复制 / 镜像先选看板（只列能改的）再选列表；
   从提醒、卡片链接打开别的看板上的卡时先切到那块板；已归档里多一节「已归档的看板」（只列自己能管的，可恢复）。
+- **附件的原生读路径**（自查发现）：Frappe 自带的 File 列表条件对"能读卡片 DocType 的人"列出所有卡片的附件，链接附件在原生里又算公开文件，
+  私有看板外的人能看到文件名和链接地址。hooks 给 File 加一条本域的查询条件与行权限（`work.access.file_query` / `file_permission`，
+  与 `files.access` 的并列生效）：卡片附件只给能看那块看板的人。已确认只有框架原生判据时陌生人读得到、加上后被拒。
 - 四语词条 32 条（`cowork.work.board.*`、`cowork.work.archived.boards`、5 条错误），不加说明文字。
 - `features.json`、侧栏菜单与角色不变（任务管理不单独售卖；能建看板 = 已有的「任务管理」角色）。
 
@@ -135,8 +138,13 @@
 | 2026-09-29 | 同上 | 两个临时站点 | `scripts/test-cowork-work-boards-native.py`：每个接口按「成功 / 没有任务管理权限 / 观察者 / 私有看板非成员 / Cowork 管理员」走；另测评论三档、成员加减限制与离开、规则只给管理员（原生列表也读不到）、原生列表与行权限、附件下载、实时刷新接收人、离开看板后提醒消失、到期提醒不发给看不到的人、跨看板移动 / 复制 / 镜像、归档看板只读、默认看板照常可改；整段一个事务，过程中禁止提交，最后回滚 | 通过；回滚后看板 1、临时用户 0、附件 0 |
 | 2026-09-29 | 同上 | 两个临时站点 | `scripts/test-cowork-work-native.py`（原有全套；标签 / 字段 / 自动化改由 Cowork 管理员设置，并加测成员保存标签、读规则被拒） | 通过 |
 | 2026-09-29 | 同上 | 临时站点 + 内置浏览器（`bench serve` 只绑本机 127.0.0.1:8199，测试账号为本次生成） | 默认看板原样显示旧数据；切换看板；看板管理员的菜单、成员弹窗添加成员、看板设置；观察者：菜单只有提醒 / 新建看板 / 成员 / 已归档，看板上没有写入口，卡片详情只读、无评论框；新建看板后切到新板可编辑；快捷菜单「移动」选另一块看板后卡片移过去 | 通过；过程中修掉：观察者悬停仍出按钮（CSS 优先级）、只读详情报错（给不存在的字段设属性）、只读下拉显示代码、成员弹窗加人后选择框没清空、成员行按钮不齐 |
+| 2026-09-29 | `4e44a941` | 临时站点 | 附件：陌生人读私有看板的链接附件、原生 File 列表列私有看板附件；框架原生判据单独判为"可读"（漏洞确认），加钩子后拒绝；两个脚本复跑 | 通过 |
 | 2026-09-29 | `1ba042ad`（变基到 `413bb5bb` 后） | 本机离线（CI 同名闸门，Python 3.12 / Node） | architecture guard、native desk contract、feature catalog、LIFF、queue targets、DMS call/identity、`check-architecture`、`check-dms-offline`、provision agent、capacity、activate product、companion contract/receiver、welcome email、purchase amounts、tax documents、Node 各 Desk 测试、`i18n-build --check`、`git diff --check` | 通过（本机默认 python3 是 3.9，三项因 `X \| None` 语法报错，用 3.12 复跑通过；CI 用 3.12） |
 | 2026-09-29 | 同上 | 临时站点 | 变基后 `migrate` + 两个脚本在两个站点复跑 | 通过 |
+
+| 2026-09-29 | `4e44a941`（实时源码） | **测试机**：`lab-start cowork`，底座 = 线上 Cowork 同一镜像 `sha256:93264218…`（main `413bb5bb`，digest 由部署窗口告知）；`testcowork.pearnly.com` 已切到测试机 | 起栈时两站 `migrate` ok（补丁执行）；`testcowork` 原有 9 列表 / 12 卡 / 7 标签全部挂到默认看板「团队看板」（团队可见），空值 0；两个脚本在 `testcowork` 与 `cowork.test.localhost` 各跑一遍 | 通过；回滚后两站都只剩默认看板；`work.js` / `work.css` 带版本号地址经 testcowork 取回与源码字节一致 |
+
+本机临时站点 `boards-test.localhost` / `boards-fresh.localhost` 已 `drop-site`，一次性容器 `pearnly-boards-test`、站点卷、`~/.cache/pearnly-boards-test` 已删。
 
 `python3 scripts/check-i18n.py --strict` 的失败是存量（其他模块硬编码文案），本任务文件不在报告里。
 
@@ -144,7 +152,7 @@
 | --- | --- | --- |
 | 实现 | 完成（待测试机与用户试用） | |
 | 本地验证 | 通过 | 见上表；实时刷新只验了接收人名单（替身），没在两个真会话里看 |
-| 测试机 | 未执行 | 测试机当前被「Take over Express stress test findings」窗口占用，需约时间 |
+| 测试机 | 进行中（等用户试用） | `testcowork.pearnly.com` 当前切在测试机上（线上那份测试租户的定时任务已暂停）；试用完 `lab-stop cowork` 切回 |
 | CI | 未执行 | |
 | 部署 | 未执行 | 需用户同意 |
 | 外部业务结果 | 不适用 | 无外部写入 |
