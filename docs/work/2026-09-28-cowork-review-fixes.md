@@ -112,9 +112,14 @@ Cowork 全部非对照测试 99 个文件通过；对照 `test_cowork_engine_sou
   → 提交 → 测试机小助手（1.2.4）写入 SINCTEST 成功；回读 ARTRN 客户码、金额、ISVAT 税号与原账一致，ARMAS 没有新建客户（267 → 267）。
 - 页面：测试环境登录走线上 Keycloak 真实账号，未代为登录；「原因码 → 文案」「需复核原因 → 文案」两段逻辑在本机 Node 跑通（各种原因格式都认得）。
   列表橙色「待复核」、复核页提示条 / 单号两种读法按钮 / 选择对话框 / 「已在 ERP 核对」的外观待用户在测试环境看。
+- 共用层候选检查：测试机上以线上镜像 `1386e61e` 叠本分支 5 个 App 打本地候选镜像 `pearnly-cand:cowork-review`，
+  `ci-candidate-checks.sh offline` 通过（11 组 OK、退出码 0）。合入前变基到最新 main 后再跑一次。
 - 未验证：新版小助手（按码落账、部门码、POSOPR、分步计时、上报供应商 / 部门）只有从 main 才能发测试通道，合入后再装到测试机验证。
 
 ## 临时资源
 
 - `~/.cache/pearnly-legacy-ec2e5c957e6b`：旧线上 `ec2e5c957e6b` 源码（`git archive`，只读对照用），任务结束删除。
 - 会话临时目录下 `cvenv/`：跑小助手测试的 Python 3.12 虚拟环境。
+- 测试机 WSL：`/tmp/cand`（本分支源码副本）、本地镜像 `pearnly-cand:cowork-review`、`C:\\ProgramData\\PearnlyVerify\\cand.*`；
+  保活进程 `wsl … sleep infinity`（WMI 起，测试环境用完 lab-stop 后结束）。任务结束清理。
+- 测试环境：Cowork 栈在测试机运行、testcowork 域名切在测试机（lab-start），部署前 lab-stop 切回线上。
