@@ -175,16 +175,48 @@
 - 泰文以外的译文由本 Agent 撰写，业务用语（例如"登记名义""配车"）请懂中文/日文的人在测试机上过目。
 - 未做真机验收：需要在测试机上把手机 LINE 语言分别切到中文/英文走一遍菜单 1、2、5。
 
-## 交接保留（2026-09-27 用户："所有改动先保持现状不动，只停测试机，是否部署等我通知"）
+## 部署（2026-09-28，用户："如果不影响旧方案和旧租户的正常使用，且新方案能按预期生效就正常部署吧，其它的暂时不要动了"）
 
-已执行 `lab-stop dms`：`testdms.pearnly.com` 已切回线上（回读 200、无测试机 CNAME）；线上 `testdms` 定时任务已恢复（`scheduler status` = enabled），`ris` 始终 enabled；测试机 DMS 容器 0 个在跑。
+- 集成：分支变基到最新 main。唯一的冲突是 ADR 编号，本任务的会话复用 ADR 改为 [ADR-014](../adr/0014-dms-session-reuse-live-sync.md)；[ADR-013](../adr/0013-ocr-read-strategy.md) 补了 DMS 身份证一节。
+- 本地闸门：Development checks 同名全部通过。其中两处修正：
+  - `check-production-capacity.py` 把同步进程钉在 8g，按实测改为 2g；
+  - `test-dms-intake-queue.py` 仍按"保存后回两条消息"断言，按用户要求去掉完成提示后改为一条。这个脚本只在构建时的候选检查里跑。
+- 构建前在服务器用生产镜像挂本分支，跑完整候选离线检查，全部通过。
+- 分支 CI：run 36404495053 success。之后 main 快进到 `f0f0178f` 并推送，远端回读 `f0f0178f`。
+- 生产镜像：build-production run 36404639778 success。候选并行检查 offline 33 秒、DMS 流程实验室 66 秒、快照实验室 157 秒；镜像 `sha256:ad7beb3f6fdaab4f25d09e514a8274049198b2245f7bc51866ebf30d7e3c24e1`。
+- 投递：stage-production run 36405354839 success。服务器部署脚本先从该镜像同步（compose、site-step、configure-dms-runtime 有变），之后 `check-deploy-image.py` 一致。
+- 激活：
+  - 09:45 UTC 第一次被 `capacity.py` 在第一步拦下（那一刻主机 MemAvailable 301MB，几分钟后恢复到 26.7GB；未进维护模式，没有改动）。
+  - 10:01 UTC 重跑，`Product dms activated with verified image`。
+  - 两站点都先做了带文件的备份，`scope_rekey` 在 ris 和 testdms 都执行成功。
+  - 上一版镜像 `3a1d5f26`，日志 `/opt/pearnly/state/activate-dms-20260928T100125.log`。
+- 线上只读回读（10:05 UTC）：
 
-| 保留项 | 用途 / 原因 | 解除条件 |
-| --- | --- | --- |
-| 分支 `codex/dms-line-language`（本地，未推送；工作树 `/Users/skin/.codex/worktrees/dms-line-language/pearnly`） | 本轮全部改动（含 `codex/dms-fast-sync` 的提交） | 用户通知部署后按主线规则合并、推送、部署，再删工作树与分支 |
-| 分支 `codex/dms-fast-sync`（本地，未推送；工作树 `/Users/skin/.codex/worktrees/dms-fast-sync/pearnly`） | 已完整包含在上面的分支里，按"保持现状"未删 | 上面的分支合入 main 后一并删除 |
-| 测试机卷 `pearnly-testenv-dms_*` | 测试租户数据（读档 `dmstest001`、改写 `dmstest002/003`、白天窗口 `6-22`） | 下次 `lab-start dms` 复用；不再需要时 `reset` |
-| DMS-TEST 官方号的多语言图文菜单 | 测试期间发布（用户同意）；线上 `testdms` 仍按旧配置挂泰文菜单，官方号默认菜单为新泰文基础菜单 | 部署后按上线步骤重新发布 |
-| DMS-TEST 业务数据 | 测试订单 BK000002609000034 / 35、客户 115 / 119 的改动（均为用户或本任务授权的测试录入） | 无需清理 |
+  | 核对项 | 结果 |
+  | --- | --- |
+  | 容器 | 8 个 DMS 容器都是 `ad7beb3f`；同步进程 2048M，识别进程 1024M |
+  | 站点 | ris / testdms ping 200，未处于维护模式，定时任务开着 |
+  | 四组快照 | 均 succeeded，未触发重读，各队列为空 |
+  | 按证号查客户 | ris 15,162 位客户、查得到，1.6 秒 |
+  | 账号用法（老租户未登记新账号） | 仍用连接管理员；白天同步未开启 |
+  | 账号锁 / 身份证识别 | `lock_ttl` 120；身份证模型 `gemini-3.1-flash-lite` |
+  | 部署后 Error Log | 0 |
 
-上线仍需（每步经用户同意）：主线集成 → main 构建镜像 → 部署（`scope_rekey` 补丁随迁移执行）→ ris 登记读档与改写账号 → 发布多语言图文菜单。
+- 未做（用户："其它的暂时不要动了"）：
+  - 正式官号的多语言图文菜单没有发布，线上仍是泰文菜单；
+  - ris 还没登记读档和改写账号；
+  - 真机没有验收。
+- ris 登记账号时的注意事项：
+  1. 读档账号和改写账号要一起登记。只登记读档账号的话，公司连接会换成读档账号，没有改写账号时改客户也会退回用它；它没有写权限，录客户就会失败。
+  2. 登记读档账号会在后台重读全部客户。重读期间 LINE 按证号查客户会暂时显示"正在同步"，直到客户名单读完。建议下班后再登记。
+
+## 交接与收尾（2026-09-28）
+
+| 项 | 处理 |
+| --- | --- |
+| 分支 `codex/dms-line-language` | 已并入 main（`f0f0178f` 及本记录提交）；合入后删除本地与远端分支、工作树 |
+| 分支 `codex/dms-fast-sync` | 三个提交已随上面的分支进入 main（range-diff 只差 ADR 编号），无远端；删除本地分支与工作树 |
+| 服务器临时目录 `/root/pearnly-idlab`、`/root/dms-idcard-test`、`/root/dms-candidate`、`/root/lock-src` | 已删除；评测用的身份证图片与答案均不存在 |
+| 测试机卷 `pearnly-testenv-dms_*` | 保留：测试租户数据（读档 `dmstest001`、改写 `dmstest002/003`），下次 `lab-start dms` 复用；不再需要时 `reset` |
+| DMS-TEST 官号多语言图文菜单 | 保留：测试期间发布（用户同意）。正式官号发布待用户决定 |
+| DMS-TEST 业务数据 | 测试订单 BK000002609000034 / 35、客户 115 / 119 的改动，无需清理 |
