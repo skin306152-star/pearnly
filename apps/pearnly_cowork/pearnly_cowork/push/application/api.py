@@ -62,3 +62,15 @@ def submit(history, connection, request_key, expected_history_version, expected_
 
 def _flag(value):
     return str(value or "").strip().lower() in {"1", "true", "yes"}
+
+
+@frappe.whitelist()
+def choices(history, connection, account_set_key=None, posting_kind=None):
+    """提交前要人选一次的项（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）与可选值。"""
+    return _local_transaction(service.choices_view, history, connection, account_set_key, posting_kind)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_choices(history, connection, account_set_key, items):
+    """记下会计选的，这份账套里同类以后自动套用。"""
+    return _local_transaction(service.save_choices, history, connection, account_set_key, items)

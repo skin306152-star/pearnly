@@ -18,8 +18,10 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 2}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 3}) == ERR_PAYLOAD_VERSION
 
 
-def test_supported_set_is_exactly_v1_today():
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1})
+def test_supported_set_is_v1_and_v2_today():
+    # v2(2026-09-28):明细 `code`(选定的存货按码落账)+ 单头 `depcod`(部门码)
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2})
+    assert check_payload_version({"payload_version": 2}) is None

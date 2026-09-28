@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1})
+# 2:明细行可带 `code`(复核时选定的 Express 存货,按码落账、码不在就报错)、单头可带 `depcod`(部门码)。
+# 旧版小助手会静默忽略这两个键(按品名新建存货、部门留空),所以带了它们的载荷盖 2,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

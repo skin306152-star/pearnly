@@ -526,6 +526,10 @@
 			if (record?.last_push_reason && (pushed === "manual" || !pushed)) {
 				const row = $("<div class='form-message red'>").appendTo(wrapper);
 				$("<span>").text(p.intake_push_reason(record.last_push_reason)).appendTo(row);
+				if (/^choice_needed/.test(String(record.last_push_reason)) && !recognize_only) {
+					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.choice.title"))
+						.on("click", () => void submit({names: [record.name]})).appendTo(row);
+				}
 				if (SEND_ANYWAY.test(String(record.last_push_reason)) && !recognize_only) {
 					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.review.send_anyway"))
 						.on("click", () => void submit({names: [record.name], extra: {confirm_duplicate: 1}}))
@@ -746,6 +750,17 @@
 			return asked.get(key);
 		};
 
+		/** 推 Express 前，这张票在这份账套里要人选一次的（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）先问齐。 */
+		const express_choices_ready = async (target, record, posting_kind) => {
+			frappe.dom.unfreeze();
+			try {
+				return await p.intake_targets.express_choices_ready(target.connection, target.args.account_set_key,
+					record.name, posting_kind);
+			} finally {
+				frappe.dom.freeze(t("intake.action.queue"));
+			}
+		};
+
 		/** 提交＝推送（用户 2026-09-26）：右上角点一次，把这一批的票按顺序全部推出去（一张推完再下一张），
 		 *  没有「确认」这一步。推完回列表，状态在列表上看（录入中 / 成功 / 待人工核对）；推不了的原因由服务端
 		 *  记在票上，列表状态图标悬浮可看，这里不弹窗。已经推过或正在推的跳过。 */
@@ -777,6 +792,8 @@
 						.map(item => item?.posting_kind)].includes("stock");
 					if (target.connection?.adapter === "express" && target.args.account_set_key && stock
 						&& !(await stock_group_ready(target, asked))) continue;
+					if (target.connection?.adapter === "express" && target.args.account_set_key
+						&& !(await express_choices_ready(target, record, intent.posting_kind))) continue;
 					if (target.connection?.adapter === "mrerp" && target.args.account_set_key
 						&& !(await mrerp_menu_ready(target, fields.direction, asked))) continue;
 					// 键里带上一次推送记录：失败后再点提交是新的一次（会重推），连点两下仍是同一次。

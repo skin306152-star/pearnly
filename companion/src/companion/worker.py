@@ -157,7 +157,8 @@ def _handle_dbf_task(
     direction = str(payload.get("direction") or "purchase").strip().lower()
     # 三重一致性闸期望值全来自客户所选账套(配对锁定):账套名 + 目录 + 公司。
     common = dict(
-        depcod=cfg.default_depcod,
+        # 部门码:账套设置里选一次、随载荷下发(2026-09-28 压测:原账 SUTI、推送为空);没下发用本机配置。
+        depcod=str(payload.get("depcod") or "").strip() or cfg.default_depcod,
         allowed_sets=allowed_account_sets(st.account_set),
         selected_dir=st.account_dir,
         expected_company=st.account_company,

@@ -296,6 +296,10 @@ def preflight_express(
                 body["items"] = mres.items
             return _block(pf, "mapping", reason=mres.reason, request_body=body)
         payload = mres.payload
+        # 带了选定存货码 / 部门码的载荷是 2:小助手报过支持的版本更低就拦下(旧版会静默忽略这两个键)。
+        if reported_pv is not None and int(payload.get("payload_version") or 1) > supported_pv:
+            return _block(pf, "payload_version", reason=f"payload_version_outdated:{supported_pv}",
+                          request_body={"adapter": "express", "max_payload_version": supported_pv})
         pf.payload = payload
         payload.update(
             {

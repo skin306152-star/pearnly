@@ -285,18 +285,22 @@ def write_purchase(
         return _open(account_dir, "APTRN", dbf.READ_ONLY)
 
     try:
-        existing_code = entry.supplier_code or master_create.find_supplier_code(
-            account_dir,
-            entry.supplier_tax_id,
-            entry.supplier_name,
-            branch=entry.supplier_branch,
+        existing_code = entry.supplier_code or (
+            ""
+            if entry.supplier_confirmed_new
+            else master_create.find_supplier_code(
+                account_dir,
+                entry.supplier_tax_id,
+                entry.supplier_name,
+                branch=entry.supplier_branch,
+            )
         )
     except master_create.AmbiguousPartyMatch as exc:
         # 连锁同税号多档且分店号/名字定不出唯一 → 转人工,绝不静默挂错分店。
         return DbfWriteResult(False, error_code=ERR_SUPPLIER_AMBIGUOUS, error=str(exc))
     if existing_code:
         entry.supplier_code = existing_code
-    elif master_create.suspected_supplier_dup(account_dir, entry):
+    elif not entry.supplier_confirmed_new and master_create.suspected_supplier_dup(account_dir, entry):
         # 新供应商疑似重复(核心名相似·税号不同)→ 不静默建重复户,转人工确认。
         return DbfWriteResult(False, error_code=ERR_SUPPLIER_DUP, error="dup")
 

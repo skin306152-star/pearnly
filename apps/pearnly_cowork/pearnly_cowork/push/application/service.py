@@ -13,9 +13,12 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.targets import stock_groups
 from pearnly_cowork.contracts.history import primary_page_fields
-from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax
+from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax, resolve_posting_kind
 from pearnly_cowork.history import push_state, storage
+from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
+from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
 from pearnly_cowork.push.express.prepare import prepare_express
 from pearnly_cowork.push.express.preflight import ExpressContext
 from pearnly_cowork.push.express.history import flatten_history_for_mrerp
@@ -127,6 +130,19 @@ def prepare(history, connection, request_key, expected_history_version, expected
     # Choice clears other-account caches before applying attributed observations.
     selected['config'].update(deepcopy(preparation['reported_config']))
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
+    decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
+                          selected['config'], preparation)
+    if decision["needed"]:
+        # 拿不准的项（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）还没人选：不发小助手，停在这里等人选一次。
+        kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
+        row = ledger.reserve(context=context, request_key=request_key, frozen_target={**asdict(target),
+            "request_intent": intent, "connection_revision": loaded.revision, "original_history": prior,
+            "preparation_date": datetime.now(ZoneInfo("Asia/Bangkok")).date().isoformat(),
+            "own_tax_id": own_tax, "preparation_evidence": evidence},
+            frozen_payload={"adapter": "express", "choice_needed": decision["needed"]},
+            disposition="manual", reason=f"choice_needed:{kinds}", checks=[])
+        return _view(row)
+    selected['config']['choices'] = decision["applied"]
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
         context=ExpressContext(enabled=True, today=today, own_tax_id=own_tax,
@@ -175,6 +191,109 @@ def _require_matching_account(loaded, target, direction, fields, invoice_date):
     reason = account_match.conflict("express", account, direction=direction, fields=facts)
     if reason:
         frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
+
+
+def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation):
+    """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
+
+    票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。"""
+    category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
+    _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
+    remembered = choice_store.remembered(connection, account_set)
+    kind = resolve_posting_kind(posting_kind, flat)
+    decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
+                                    remembered=remembered, account_resolved=source == SRC_CATEGORY)
+    applied = decision["applied"]
+    remember = applied.pop("remember_payment", None)
+    if remember:
+        name, tax = ((fields.get("seller_name"), fields.get("seller_tax")) if direction == "purchase"
+                     else (fields.get("buyer_name"), fields.get("buyer_tax")))
+        choice_store.record(connection, account_set, "payment",
+                            choice_rules.supplier_subject(direction, tax, name), remember, name)
+    return decision
+
+
+def choices_view(history, connection, account_set_key=None, posting_kind=None):
+    """复核页提交前 / 退回后要人选的项与可选值（与准备同一套判定，不建推送记录）。"""
+    scope.require("intake")
+    doc = storage.read(history)
+    loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
+    if loaded.endpoint.get("adapter") != "express":
+        return {"needed": [], "options": {}}
+    target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
+    decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
+                          config, preparation)
+    frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
+    kinds = {item["kind"] for item in decision["needed"]}
+    options = {}
+    if "item" in kinds:
+        options["products"] = [{"code": row["code"], "name": row.get("name") or ""}
+                               for row in config.get("reported_products") or []
+                               if isinstance(row, dict) and str(row.get("kind") or "stock") == "stock"][:5000]
+    if "account" in kinds:
+        options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
+                               for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
+    return {"needed": decision["needed"], "options": options, "account_set": target.account_set}
+
+
+def save_choices(history, connection, account_set_key, items):
+    """记下会计在复核页选的（每项 `{kind, subject, value, label}`）；值须在这份账套的主档里（或「新建」）。"""
+    scope.require("intake")
+    doc = storage.read(history)
+    loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
+    target, _flat, _fields, _direction, _preparation, config = _express_facts(doc, loaded, account_set_key)
+    items = json.loads(items) if isinstance(items, str) else items
+    if not isinstance(items, list) or not 1 <= len(items) <= 200:
+        frappe.throw(_("connection.config_invalid"))
+    allowed = {
+        "party": None, "item": {r.get("code") for r in config.get("reported_products") or [] if isinstance(r, dict)},
+        "account": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
+        "department": {r.get("code") for r in config.get("reported_departments") or [] if isinstance(r, dict)},
+        "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES)}
+    parties = {r.get("code") for key in ("reported_customers", "reported_suppliers")
+               for r in config.get(key) or [] if isinstance(r, dict)}
+    saved = 0
+    for item in items:
+        if not isinstance(item, dict) or item.get("kind") not in allowed:
+            frappe.throw(_("connection.config_invalid"))
+        kind, value = item["kind"], str(item.get("value") or "").strip()
+        options = parties if kind == "party" else allowed[kind]
+        if kind in ("party", "item") and value == choice_rules.NEW:
+            pass
+        elif not value or (options and value not in options) or (kind in ("payment", "vat") and value not in options):
+            frappe.throw(_("cowork.choice.invalid"))
+        saved += int(choice_store.record(loaded.doc.name, target.account_set, kind, str(item.get("subject") or ""),
+                                         value, item.get("label")))
+    return {"saved": saved}
+
+
+def _express_facts(doc, loaded, account_set_key):
+    """与准备同一套取数：冻结目标、推送准备主档、方向、主页面字段。"""
+    try:
+        target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
+                               account_set_key=account_set_key, request_id=None, revision=None)
+        choice = resolve_account_choice(loaded.endpoint, tenant_id=loaded.access.tenant_id,
+            user_id=loaded.access.user_id, account_set_key=account_set_key,
+            state={"snapshot": loaded.evidence.snapshot or {}})
+    except TargetSelectionError as error:
+        frappe.throw(_(error.code), frappe.PermissionError if error.status_code == 403 else frappe.ValidationError)
+    selected = endpoint_with_account_choice(deepcopy(loaded.endpoint), choice)
+    own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id") or ""
+    history_value = storage.project(doc)
+    history_value.update(id=doc.name, client_id=doc.client or None,
+        tenant_id=loaded.access.tenant_id, workspace_client_id=doc.workspace)
+    pages = history_value.get("pages") or []
+    primary = next((p for p in pages if not p.get("is_duplicate") and not p.get("is_copy")), pages[0] if pages else {})
+    fields = primary.get("fields") or {}
+    flat = flatten_history_for_mrerp(history_value)
+    invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
+    direction = explicit_direction(flat, history_value) or detect_by_tax(flat, own_tax)
+    seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
+    preparation, _evidence = preparation_sources.collect(loaded, target,
+        seller_tax=seller_tax if direction == 'purchase' else '',
+        invoice_date=invoice_date.isoformat() if invoice_date else None)
+    selected['config'].update(deepcopy(preparation['reported_config']))
+    return target, flat, fields, direction, preparation, selected['config']
 
 
 def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_request_id, catalog_revision):

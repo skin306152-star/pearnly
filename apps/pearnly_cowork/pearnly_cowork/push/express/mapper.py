@@ -39,6 +39,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from pearnly_cowork.push.express.prior_doc import attach_prior_docnum
+from pearnly_cowork.push.express.choices import apply_to_payload
 from datetime import date
 from pearnly_cowork.push.express.posting_kind import (
     POSTING_KIND_SERVICE,
@@ -59,6 +60,7 @@ from pearnly_cowork.push.express.common import (
     fail,
     finalize_payload,
     item_mode_for,
+    ITEM_MODE_DIRECT,
     ITEM_MODE_NONSTOCK,
     ITEM_MODE_STOCK,
     ITEMS_OK,
@@ -194,9 +196,14 @@ def build_express_payload(
     base, vat, total = amts
 
     accounts = mappings.get("accounts") or []
+    # 会计在这份账套里选定的决定(`choices.resolve`,服务端解析好放进 config):费用科目 / 付款 / 抵进项 /
+    # 对方档 / 存货码 / 部门码。没选过的项照旧由下面各自的规则定。
+    choices = config.get("choices") if isinstance(config.get("choices"), dict) else {}
     purchase_acc, acc_source = resolve_account_sourced(
         accounts, category, config.get("fallback_acc")
     )
+    if choices.get("account"):
+        purchase_acc, acc_source = str(choices["account"]), "choice"
     if not purchase_acc:
         return fail("no_purchase_account")
     ap_acc = resolve_account(accounts, "accounts_payable", config.get("ap_acc"))
@@ -208,6 +215,9 @@ def build_express_payload(
         return fail("posting_kind_needed", line_item_names(fields))
     # 货/费判据(单一事实源 · 与 MR.ERP routing.choose_doc_type 同判据,防两车道判据漂移)。
     is_expense, item_src = item_verdict(fields, today=today)
+    # 小票 / 简易税票抵不抵进项:这家选过就照选的(2026-09-28 压测:6 张会计抵了进项,推送按不抵)。
+    if choices.get("vat") in ("claim", "expense"):
+        is_expense, item_src = choices["vat"] == "expense", "choice"
     # 记账画像:这家客户的商品行该怎么落(非库存/直接科目/库存/交人)。指纹未上报→unknown→
     # 非库存(=今天默认,行为不变)。★永续客户库存路未开时,goods 行绝不静默按周期制落
     # (会与其既有永续账双重计成本)→ escalate 交会计;费用票不动库存,不受此闸约束。
@@ -293,6 +303,9 @@ def build_express_payload(
     # 现购 HP / 赊购 RR:六级漏斗(common.payment_verdict)—— 人工裁决 > 票面显式字段 >
     # 票种语义(F3)> 供应商过账档案(F4)> 银行佐证(F6)> config 默认(B2B 缺省 RR)。
     # verdict_src 留痕排障用:现/赊哪层定的。
+    if choices.get("payment") in ("cash", "credit") and not fields.get("posting_payment_manual"):
+        # 这家记过现购 / 赊购(会计第一次选的)· 票面没人工裁决时按它,仍低于本票人工裁决。
+        fields = {**fields, "posting_payment_manual": choices["payment"]}
     paid, verdict_src = payment_verdict_for(
         history, fields, mappings, direction="purchase", total=total
     )
@@ -336,6 +349,13 @@ def build_express_payload(
     if item_mode == ITEM_MODE_STOCK and stock_acccod:
         # 与销项同键同义:账套一件库存品都没有时,小助手靠它建 STKTYP=0(见 sales_mapper 同处)。
         payload["stock_acccod"] = stock_acccod
+    if choices.get("account"):
+        # 选定了费用科目:照会计的记法写直接科目行(STKCOD=科目),不按行建服务存货
+        # (2026-09-28 压测:85 张服务票按行建出 44 个服务存货、全落兜底科目)。
+        for item in payload["items"]:
+            if item.get("item_mode") == ITEM_MODE_NONSTOCK:
+                item["item_mode"] = ITEM_MODE_DIRECT
+    apply_to_payload(payload, choices)
     return ExpressMapResult(
         True, finalize_payload(attach_prior_docnum(payload, prior_docnum)), "ok"
     )

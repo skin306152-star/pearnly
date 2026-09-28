@@ -77,6 +77,31 @@ def find_rows(account_dir, name: str, types: Iterable[str]) -> List[Dict]:
         t.close()
 
 
+def find_rows_by_code(account_dir, code: str, types: Iterable[str]) -> List[Dict]:
+    """按存货编码找 STMAS 行(复核时选定了 Express 存货 · 云端下发 `code`)。编码原样比(去首尾空白)。"""
+    wanted = (code or "").strip()
+    if not wanted:
+        return []
+    allow = tuple(str(t) for t in types)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_ONLY)
+    try:
+        return [
+            {
+                "stkcod": _gv(r, "STKCOD"),
+                "mrembal": float(_gv(r, "MREMBAL") or 0),
+                "mremval": float(_gv(r, "MREMVAL") or 0),
+                "acccod": _gv(r, "ACCCOD"),
+            }
+            for r in t
+            if not dbf.is_deleted(r)
+            and str(_gv(r, "STKTYP")) in allow
+            and str(_gv(r, "STKCOD")) == wanted
+        ]
+    finally:
+        t.close()
+
+
 def first_code(account_dir, name: str, types: Iterable[str]) -> Optional[str]:
     """同名主档的首个非空 STKCOD;无匹配返 None。建档幂等查重用。"""
     for row in find_rows(account_dir, name, types):

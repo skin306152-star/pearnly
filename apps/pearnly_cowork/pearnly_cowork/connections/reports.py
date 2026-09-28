@@ -152,6 +152,11 @@ _PRODUCT_KEYS = ("code", "name", "kind")
 
 _CUSTOMER_KEYS = ("code", "name", "tax_id", "kind", "branch")
 
+# 供应商档（APMAS）与部门（ISTAB 50）：复核时让会计选一次（2026-09-28 Express 压测，小助手 1.3 起上报）。
+_SUPPLIER_KEYS = ("code", "name", "tax_id", "branch")
+
+_DEPARTMENT_KEYS = ("code", "name")
+
 _FINGERPRINT_INT_KEYS = ("stock_master_count", "stcrd_lines", "stcrd_lines_moving_stock")
 
 _MAX_CATALOG = 20000
@@ -447,7 +452,8 @@ SELECTED_KEYS = frozenset(_SELECTED_ACCOUNT_KEYS)
 MAPPING_KEYS = frozenset(_MAPPING_KEYS)
 CACHE_KEYS = frozenset((
     "reported_account_sets", "account_sets_seen_at", "reported_accounts", "accounts_seen_at",
-    "reported_products", "reported_customers", "catalog_seen_at", "catalog_fingerprint",
+    "reported_products", "reported_customers", "reported_suppliers", "reported_departments",
+    "catalog_seen_at", "catalog_fingerprint",
     "reported_stock_acc_groups", "stock_acc_groups_seen_at", "max_payload_version",
     "companion_version", "agent_device_name", "agent_last_seen_at",
 ))
@@ -515,6 +521,10 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
         patch.update(reported_products=_sanitize_catalog(catalog.get("products") or [], _PRODUCT_KEYS),
                      reported_customers=_sanitize_catalog(catalog.get("customers") or [], _CUSTOMER_KEYS),
                      catalog_seen_at=timestamp)
+        # 旧版小助手不报这两份：不写空表冒充「这份账套没有供应商 / 部门」。
+        for key, keys in (("suppliers", _SUPPLIER_KEYS), ("departments", _DEPARTMENT_KEYS)):
+            if catalog.get(key) is not None:
+                patch[f"reported_{key}"] = _sanitize_catalog(catalog.get(key) or [], keys)
         fingerprint = _sanitize_fingerprint(catalog.get("fingerprint"))
         if fingerprint:
             patch["catalog_fingerprint"] = fingerprint

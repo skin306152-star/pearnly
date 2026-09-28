@@ -120,7 +120,7 @@ def test_catalog_payload_shape(acct):
     _add(acct, "STMAS", STKCOD="0001", STKDES="x", STKTYP="0")
     _add(acct, "STCRD", STKCOD="0001", MREMBAL=1.0)
     pay = CP.catalog_payload(acct)
-    assert set(pay) == {"products", "customers", "fingerprint", "isacc_candidates"}
+    assert set(pay) == {"products", "customers", "suppliers", "departments", "fingerprint", "isacc_candidates"}
     assert pay["fingerprint"] == {
         "stock_master_count": 1,
         "stcrd_lines": 1,
@@ -136,6 +136,18 @@ def test_missing_tables_returns_empty(tmp_path):
     assert CP.probe_customers(empty) == []
     assert CP.probe_stcrd_fingerprint(empty) == (0, 0)
     assert CP.probe_isacc_candidates(empty) == []
+    assert CP.probe_suppliers(empty) == []
+    assert CP.probe_departments(empty) == []
+
+
+def test_suppliers_and_departments_are_reported(acct):
+    # 2026-09-28 压测:同税号多个供应商档要让会计选一次;部门(ISTAB TABTYP=50)账套设置里选一次
+    _add(acct, "APMAS", SUPCOD="B004", SUPNAM="BANGCHAK", TAXID="0105536080112", ORGNUM=0)
+    _add(acct, "ISTAB", TABTYP="50", TYPCOD="SUTI", TYPDES="สาขาที่ 1")
+    _add(acct, "ISTAB", TABTYP="20", TYPCOD="ชด", TYPDES="ชุด")
+    assert CP.probe_suppliers(acct) == [{"code": "B004", "name": "BANGCHAK", "tax_id": "0105536080112",
+                                          "branch": "00000"}]
+    assert CP.probe_departments(acct) == [{"code": "SUTI", "name": "สาขาที่ 1"}]
 
 
 def test_isacc_candidates_fit_matches_real_chart_facts(chart):

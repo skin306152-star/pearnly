@@ -81,6 +81,7 @@ def write_detail(
             depcod=depcod,
             userid=userid,
             ref_no=entry.ref_no,
+            posopr=S.STCRD_POSOPR_PURCHASE,
         )
         return line_modes, []
     if len(stock_items) != len(entry.items):

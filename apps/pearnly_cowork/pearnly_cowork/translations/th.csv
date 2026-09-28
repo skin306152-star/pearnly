@@ -142,6 +142,7 @@ Card name (alphabetically),ชื่อการ์ด (ตามตัวอั
 Card restored,กู้คืนแล้ว
 Card templates,เทมเพลตการ์ด
 Cash,เงินสด
+Cash purchase,ซื้อเงินสด
 Cash sales,ขายเงินสด
 Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 Change cover,เปลี่ยนปก
@@ -162,8 +163,10 @@ Choose an image attached to this card,กรุณาเลือกรูปภ
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
 Choose file,เลือกไฟล์
+Choose once for this account set,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นซื้อหรือขาย แล้วส่งใหม่
 Choose service or stock for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงคลัง แล้วส่งใหม่
+"Choose the Express records for this invoice first, then submit again",กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่
 Choose the company,เลือกบริษัท
 Choose the destination for these documents,เลือกปลายทางสำหรับเอกสารชุดนี้
 Choose the inventory account group for this account set. Tap the number:,เลือกกลุ่มบัญชีสินค้าคงคลังของชุดบัญชีนี้ แตะหมายเลขเพื่อเลือก:
@@ -173,6 +176,7 @@ Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
+Claim as input VAT,ขอคืนภาษีซื้อ
 Client,ลูกค้า
 Close count,ปิดการตรวจนับ
 Closed,ปิดแล้ว
@@ -216,6 +220,7 @@ Could not read the MR.ERP menus. Try again later.,อ่านเมนู MR.ER
 Could not read this document. Please send it again.,อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Could not store this document,บันทึกเอกสารไม่สำเร็จ
 Count Mode,วิธีตรวจนับ
+Count as expense,ไม่ขอคืน นับเป็นค่าใช้จ่าย
 Count closed,ปิดการตรวจนับแล้ว
 Count saved,บันทึกแล้ว
 Count sheet,ไฟล์ตรวจนับ
@@ -268,6 +273,7 @@ Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
 Credit Note,ใบลดหนี้
 Credit notes need a person to post them in Express,ใบลดหนี้ต้องให้คนบันทึกใน Express
+Credit purchase,ซื้อเชื่อ
 Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
@@ -295,6 +301,7 @@ Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายก
 Delete {0} stock counts? Posted ones cannot be deleted.,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
 Deleted {0},ลบแล้ว {0} รายการ
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
+Department,แผนก
 Deposit,ฝาก
 Description,คำอธิบาย
 Details,รายละเอียด
@@ -368,6 +375,7 @@ Event Key,รหัสเหตุการณ์
 Evidence Fingerprint,ลายนิ้วมือหลักฐาน
 Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
+Expense account,บัญชีค่าใช้จ่าย
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
@@ -376,6 +384,7 @@ Export records from the same company and client together.,การส่งอ�
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ตรวจสอบหลังเขียนไม่ตรง จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+Express record,ข้อมูลคู่ค้าใน Express
 External Docnum,เลขที่เอกสาร ERP
 Failed,ล้มเหลว
 Failure Count,จำนวนครั้งที่ล้มเหลว
@@ -518,6 +527,7 @@ New code,ขอรหัสใหม่
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
+"New, as on the invoice",สร้างใหม่ตามเอกสาร
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
@@ -579,6 +589,7 @@ Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Paste a link,วางลิงก์
 Payload Json,ข้อมูลส่งที่ตรึงไว้ JSON
+Payment,การชำระเงิน
 Payment Evidence,หลักฐานการชำระเงิน
 Payment Method,วิธีชำระเงิน
 Payment method,วิธีชำระเงิน
@@ -771,6 +782,7 @@ Stock count closed,ปิดการตรวจนับแล้ว
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
 Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
+Stock item,สินค้าคงคลัง
 Stop watching,เลิกติดตาม
 Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
@@ -783,6 +795,7 @@ Task Management,จัดการงาน
 Task name,ชื่องาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 Tax Invoice,ใบกำกับภาษี
+Tax on this receipt,ภาษีในใบเสร็จนี้
 Taxes and Charges,ภาษีและค่าธรรมเนียม
 Template,เทมเพลต
 Text,ข้อความ
@@ -831,7 +844,9 @@ The billing receipt cannot be reverted.,ไม่สามารถย้อน�
 The camera could not start,ไม่สามารถเปิดกล้องได้
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่มีการ์ดนี้แล้ว
+The chosen Express stock item no longer exists. Choose again,สินค้าคงคลังที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่
 The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
+The chosen value is not in this account set. Choose again,สิ่งที่เลือกไม่อยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง
@@ -1108,6 +1123,19 @@ connection.snapshot_invalid,ข้อมูลไดเรกทอรีไม�
 connection.snapshot_too_large,ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB
 connection.stock_acc_group_invalid,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
 connection.url_invalid,ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต
+cowork.choice.account,บัญชีค่าใช้จ่าย
+cowork.choice.cash,ซื้อเงินสด
+cowork.choice.claim,ขอคืนภาษีซื้อ
+cowork.choice.credit,ซื้อเชื่อ
+cowork.choice.department,แผนก
+cowork.choice.expense,ไม่ขอคืน นับเป็นค่าใช้จ่าย
+cowork.choice.invalid,สิ่งที่เลือกไม่อยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่
+cowork.choice.item,สินค้าคงคลัง
+cowork.choice.new,สร้างใหม่ตามเอกสาร
+cowork.choice.party,ข้อมูลคู่ค้าใน Express
+cowork.choice.payment,การชำระเงิน
+cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
+cowork.choice.vat,ภาษีในใบเสร็จนี้
 cowork.line.boundAt,เชื่อมต่อเมื่อ
 cowork.line.code,รหัสเชื่อมต่อ
 cowork.line.expired,รหัสหมดอายุแล้ว
@@ -1701,6 +1729,7 @@ intake.error.PAYLOAD_INVALID,ผู้ช่วยอ่านเอกสาร
 intake.error.PRIOR_DOC_STILL_IN_ERP,เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express หรือเลือก ส่งต่อไป
 intake.error.READBACK_VERIFY_FAILED,ตรวจสอบหลังเขียนไม่ตรง จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 intake.error.STOCK_IN_FAILED,บันทึกรายการสินค้าคงคลังไม่ได้ กรุณาตรวจชื่อสินค้า จำนวน และราคา
+intake.error.STOCK_ITEM_NOT_FOUND,สินค้าคงคลังที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 intake.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 intake.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
@@ -1710,6 +1739,7 @@ intake.error.agent_failed,ผู้ช่วยเขียนเอกสาร
 intake.error.already_success,เอกสารนี้ส่งสำเร็จแล้ว
 intake.error.amounts_not_consistent,ยอดเงินไม่สมดุล กรุณาแก้แล้วส่งใหม่
 intake.error.bad_or_missing_date,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+intake.error.choice_needed,กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่
 intake.error.confirmed_push_unacked,ยังไม่ทราบผลการส่ง กรุณาตรวจใน Express ก่อนส่งใหม่
 intake.error.credit_note,ใบลดหนี้ต้องให้คนบันทึกใน Express
 intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท

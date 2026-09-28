@@ -142,6 +142,7 @@ Card name (alphabetically),Card name (alphabetically)
 Card restored,Card restored
 Card templates,Card templates
 Cash,Cash
+Cash purchase,Cash purchase
 Cash sales,Cash sales
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
@@ -162,8 +163,10 @@ Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
 Choose file,Choose file
+Choose once for this account set,Choose once for this account set
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
 Choose service or stock for this invoice and submit again,Choose service or stock for this invoice and submit again
+"Choose the Express records for this invoice first, then submit again","Choose the Express records for this invoice first, then submit again"
 Choose the company,Choose the company
 Choose the destination for these documents,Choose the destination for these documents
 Choose the inventory account group for this account set. Tap the number:,Choose the inventory account group for this account set. Tap the number:
@@ -173,6 +176,7 @@ Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
+Claim as input VAT,Claim as input VAT
 Client,Client
 Close count,Close count
 Closed,Closed
@@ -216,6 +220,7 @@ Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menu
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
 Could not store this document,Could not store this document
 Count Mode,Count Mode
+Count as expense,Count as expense
 Count closed,Count closed
 Count saved,Count saved
 Count sheet,Count sheet
@@ -268,6 +273,7 @@ Credential ID,Credential ID
 Credit,Credit
 Credit Note,Credit Note
 Credit notes need a person to post them in Express,Credit notes need a person to post them in Express
+Credit purchase,Credit purchase
 Credit sales,Credit sales
 Currency,Currency
 Current Directory Heads,Current Directory Heads
@@ -295,6 +301,7 @@ Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
+Department,Department
 Deposit,Deposit
 Description,Description
 Details,Details
@@ -368,6 +375,7 @@ Event Key,Event Key
 Evidence Fingerprint,Evidence Fingerprint
 Evidence Owner,Evidence Owner
 Examples Json,Examples Json
+Expense account,Expense account
 Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
@@ -376,6 +384,7 @@ Export records from the same company and client together.,Export records from th
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
 Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
+Express record,Express record
 External Docnum,External Docnum
 Failed,Failed
 Failure Count,Failure Count
@@ -518,6 +527,7 @@ New code,New code
 New records must start as drafts.,New records must start as drafts.
 New stock count,New stock count
 New task,New task
+"New, as on the invoice","New, as on the invoice"
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
 No account set matches “{0}”,No account set matches “{0}”
@@ -579,6 +589,7 @@ Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Paste a link,Paste a link
 Payload Json,Payload Json
+Payment,Payment
 Payment Evidence,Payment Evidence
 Payment Method,Payment Method
 Payment method,Payment method
@@ -771,6 +782,7 @@ Stock count closed,Stock count closed
 Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
+Stock item,Stock item
 Stop watching,Stop watching
 Submit,Submit
 Summary table import,Summary table import
@@ -783,6 +795,7 @@ Task Management,Task Management
 Task name,Task name
 Tax ID,Tax ID
 Tax Invoice,Tax Invoice
+Tax on this receipt,Tax on this receipt
 Taxes and Charges,Taxes and Charges
 Template,Template
 Text,Text
@@ -831,7 +844,9 @@ The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The camera could not start,The camera could not start
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
+The chosen Express stock item no longer exists. Choose again,The chosen Express stock item no longer exists. Choose again
 The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
+The chosen value is not in this account set. Choose again,The chosen value is not in this account set. Choose again
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
@@ -1108,6 +1123,19 @@ connection.snapshot_invalid,The directory snapshot does not match this connectio
 connection.snapshot_too_large,The directory snapshot exceeds the 16 MiB limit.
 connection.stock_acc_group_invalid,This inventory account group cannot be chosen for this account set.
 connection.url_invalid,The ERP address is invalid or not allowed.
+cowork.choice.account,Expense account
+cowork.choice.cash,Cash purchase
+cowork.choice.claim,Claim as input VAT
+cowork.choice.credit,Credit purchase
+cowork.choice.department,Department
+cowork.choice.expense,Count as expense
+cowork.choice.invalid,The chosen value is not in this account set. Choose again
+cowork.choice.item,Stock item
+cowork.choice.new,"New, as on the invoice"
+cowork.choice.party,Express record
+cowork.choice.payment,Payment
+cowork.choice.title,Choose once for this account set
+cowork.choice.vat,Tax on this receipt
 cowork.line.boundAt,Bound at
 cowork.line.code,Binding code
 cowork.line.expired,Code expired
@@ -1701,6 +1729,7 @@ intake.error.PAYLOAD_INVALID,The helper could not read this invoice. Check the f
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
 intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
+intake.error.STOCK_ITEM_NOT_FOUND,The chosen Express stock item no longer exists. Choose again
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
 intake.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 intake.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
@@ -1710,6 +1739,7 @@ intake.error.agent_failed,The helper could not write this invoice. It is retried
 intake.error.already_success,This invoice was already sent successfully
 intake.error.amounts_not_consistent,The amounts do not add up. Correct them and submit again
 intake.error.bad_or_missing_date,The invoice date is missing or unreadable. Fill it in and submit again
+intake.error.choice_needed,"Choose the Express records for this invoice first, then submit again"
 intake.error.confirmed_push_unacked,The result is not confirmed. Check in Express before sending again
 intake.error.credit_note,Credit notes need a person to post them in Express
 intake.error.currency_not_thb,Only invoices in Thai baht can be sent to Express

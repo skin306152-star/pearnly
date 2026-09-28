@@ -75,7 +75,7 @@ def _gv(rec, field: str, default=""):
     return v.strip() if isinstance(v, str) else v
 
 
-def find_stock_item(account_dir: Path, name: str) -> Optional[Dict]:
+def find_stock_item(account_dir: Path, name: str, code: str = "") -> Optional[Dict]:
     """按品名匹配客户既有库存商品(STKTYP=0)。返回 {stkcod,mrembal,mremval,acccod} 或 None。
 
     **单次读取、返回真实结存**(不在此按 bal 过滤 —— 那会与建档侧的 find_stock_item_code 形成
@@ -85,6 +85,13 @@ def find_stock_item(account_dir: Path, name: str) -> Optional[Dict]:
 
     扫描与比对键都走 stock_lookup:与建档侧共用一份口径,长名不会一边截一边不截。
     """
+    if (code or "").strip():
+        # 复核时选定了 Express 存货:只认这个码,码不在(被删 / 改成非库存)就停下交人重选,
+        # 不回头按品名找、更不新建(2026-09-28 压测:按名找不到就建了重复存货)。
+        rows = stock_lookup.find_rows_by_code(account_dir, code, (stock_lookup.STOCK_TYPE,))
+        if not rows:
+            raise StockItemNotFound(f"所选存货 {code} 在 Express 里已不存在或不是库存品,请重新选择")
+        return rows[0]
     rows = stock_lookup.find_rows(account_dir, name, (stock_lookup.STOCK_TYPE,))
     for info in rows:
         if info["mrembal"] > 0:
@@ -247,7 +254,7 @@ def write_stock_lines(
             unit_price = float(Decimal(str(it.get("unit_price") or "0")))
             amount = float(Decimal(str(it.get("amount") or "0")))
             unit = str(it.get("unit") or "")
-            item = find_stock_item(account_dir, name)
+            item = find_stock_item(account_dir, name, str(it.get("code") or ""))
             if item and item["mrembal"] > 0:
                 # ① 复用(有正库存):真扣库存 + 移动均价结转 COGS
                 avg = item["mremval"] / item["mrembal"]

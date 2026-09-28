@@ -255,18 +255,22 @@ def write_sale(
         return _open(account_dir, "ARTRN", dbf.READ_ONLY)
 
     try:
-        existing_code = entry.customer_code or master_create.find_customer_code(
-            account_dir,
-            entry.customer_tax_id,
-            entry.customer_name,
-            branch=entry.customer_branch,
+        existing_code = entry.customer_code or (
+            ""
+            if entry.customer_confirmed_new
+            else master_create.find_customer_code(
+                account_dir,
+                entry.customer_tax_id,
+                entry.customer_name,
+                branch=entry.customer_branch,
+            )
         )
     except master_create.AmbiguousPartyMatch as exc:
         # 连锁同税号多档且分店号/名字定不出唯一 → 转人工,绝不静默记到总店头上。
         return DbfWriteResult(False, error_code=ERR_CUSTOMER_AMBIGUOUS, error=str(exc))
     if existing_code:
         entry.customer_code = existing_code
-    elif master_create.suspected_customer_dup(account_dir, entry):
+    elif not entry.customer_confirmed_new and master_create.suspected_customer_dup(account_dir, entry):
         # 新客户疑似重复(核心名相似·税号不同)→ 不静默建重复户,转人工确认(镜像采购)。
         return DbfWriteResult(False, error_code=ERR_CUSTOMER_DUP, error="dup")
 

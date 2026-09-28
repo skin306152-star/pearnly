@@ -142,6 +142,7 @@ Card name (alphabetically),カード名（アルファベット順）
 Card restored,復元しました
 Card templates,カードテンプレート
 Cash,現金
+Cash purchase,現金仕入
 Cash sales,現金売上
 Change cards on the work board,作業ボードでカードを変更してください
 Change cover,カバーを変更
@@ -162,8 +163,10 @@ Choose an image attached to this card,このカードに添付した画像を選
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
 Choose file,ファイルを選択
+Choose once for this account set,この帳簿で一度だけ選択
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
 Choose service or stock for this invoice and submit again,この伝票がサービスか在庫かを選んで再送信してください
+"Choose the Express records for this invoice first, then submit again",先にこの伝票の Express 側の項目を選んでから再送信してください
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
 Choose the inventory account group for this account set. Tap the number:,この会計データの在庫勘定グループを選択してください。番号をタップ：
@@ -173,6 +176,7 @@ Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
+Claim as input VAT,仕入税額控除する
 Client,顧客
 Close count,棚卸を終了
 Closed,終了
@@ -216,6 +220,7 @@ Could not read the MR.ERP menus. Try again later.,MR.ERP のメニューを読�
 Could not read this document. Please send it again.,書類を読み取れませんでした。もう一度送信してください。
 Could not store this document,書類を保存できませんでした
 Count Mode,棚卸方式
+Count as expense,控除せず費用に含める
 Count closed,棚卸を終了しました
 Count saved,保存しました
 Count sheet,棚卸表
@@ -268,6 +273,7 @@ Credential ID,認証情報 ID
 Credit,掛け
 Credit Note,返品・値引伝票
 Credit notes need a person to post them in Express,返品・値引伝票は Express で手動で処理してください
+Credit purchase,掛仕入
 Credit sales,掛売上
 Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
@@ -295,6 +301,7 @@ Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
+Department,部門
 Deposit,入金
 Description,摘要
 Details,詳細
@@ -368,6 +375,7 @@ Event Key,イベント識別子
 Evidence Fingerprint,証跡フィンガープリント
 Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
+Expense account,費用勘定
 Export,エクスポート
 Export Excel,Excel に出力
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
@@ -376,6 +384,7 @@ Export records from the same company and client together.,同じ会社・顧客�
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
 Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+Express record,Express の取引先
 External Docnum,ERP伝票番号
 Failed,失敗
 Failure Count,失敗回数
@@ -518,6 +527,7 @@ New code,新しいコード
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 New stock count,棚卸を作成
 New task,新規タスク
+"New, as on the invoice",伝票どおり新規作成
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
@@ -579,6 +589,7 @@ Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Paste a link,リンクを貼り付け
 Payload Json,固定ペイロードJSON
+Payment,支払方法
 Payment Evidence,支払証跡
 Payment Method,支払方法
 Payment method,支払方法
@@ -771,6 +782,7 @@ Stock count closed,棚卸を終了しました
 Stock count photos are not yet supported. Remove the photos before saving.,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
 Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
+Stock item,在庫品目
 Stop watching,ウォッチをやめる
 Submit,確定
 Summary table import,集計表の取り込み
@@ -783,6 +795,7 @@ Task Management,タスク管理
 Task name,タスク名
 Tax ID,納税者番号
 Tax Invoice,税務請求書
+Tax on this receipt,この領収書の税額
 Taxes and Charges,税金および諸費用
 Template,テンプレート
 Text,テキスト
@@ -831,7 +844,9 @@ The billing receipt cannot be reverted.,課金処理結果は元に戻せませ�
 The camera could not start,カメラを起動できません
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
+The chosen Express stock item no longer exists. Choose again,選んだ Express の在庫品目はもうありません。選び直してください
 The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
+The chosen value is not in this account set. Choose again,選んだ値はこの帳簿にありません。選び直してください
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
@@ -1108,6 +1123,19 @@ connection.snapshot_invalid,ディレクトリのスナップショットが接�
 connection.snapshot_too_large,ディレクトリのスナップショットが16 MiBの上限を超えています。
 connection.stock_acc_group_invalid,この会計データではこの在庫勘定グループを選択できません。
 connection.url_invalid,ERPのアドレスが無効か、許可されていません。
+cowork.choice.account,費用勘定
+cowork.choice.cash,現金仕入
+cowork.choice.claim,仕入税額控除する
+cowork.choice.credit,掛仕入
+cowork.choice.department,部門
+cowork.choice.expense,控除せず費用に含める
+cowork.choice.invalid,選んだ値はこの帳簿にありません。選び直してください
+cowork.choice.item,在庫品目
+cowork.choice.new,伝票どおり新規作成
+cowork.choice.party,Express の取引先
+cowork.choice.payment,支払方法
+cowork.choice.title,この帳簿で一度だけ選択
+cowork.choice.vat,この領収書の税額
 cowork.line.boundAt,連携日時
 cowork.line.code,連携コード
 cowork.line.expired,コードの有効期限が切れました
@@ -1701,6 +1729,7 @@ intake.error.PAYLOAD_INVALID,アシスタントがこの伝票を読み取れま
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
+intake.error.STOCK_ITEM_NOT_FOUND,選んだ Express の在庫品目はもうありません。選び直してください
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -1710,6 +1739,7 @@ intake.error.agent_failed,アシスタントが書き込めませんでした。
 intake.error.already_success,この伝票は送信済みです
 intake.error.amounts_not_consistent,金額が合いません。直して再送信してください
 intake.error.bad_or_missing_date,伝票日付がないか読み取れません。入力して再送信してください
+intake.error.choice_needed,先にこの伝票の Express 側の項目を選んでから再送信してください
 intake.error.confirmed_push_unacked,結果が確認できません。Express で確認してから再送信してください
 intake.error.credit_note,返品・値引伝票は Express で手動で処理してください
 intake.error.currency_not_thb,Express に送れるのはタイバーツの伝票だけです

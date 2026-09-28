@@ -108,8 +108,15 @@ def write_stock_in_lines(
                     f"入库会造负库存或负成本 · 交会计核对"
                 )
             # 「新建」还是「复用」由建档自己回报(它本来就先查了一遍),不再多扫一遍 STMAS
+            # 复核时选定了 Express 存货(`code`)就按码落,码不在就报错,不回头按品名找 / 新建
+            # (2026-09-28 压测:票面品名与会计的存货名不同,按名找不到就新建了重复存货)。
             made = product_master.ensure_stock_item(
-                account_dir, name, userid=userid, unit=unit, acccod=acccod
+                account_dir,
+                name,
+                userid=userid,
+                unit=unit,
+                acccod=acccod,
+                code=str(it.get("code") or ""),
             )
             stkcod = made.stkcod
             # 别写回 acccod:那是「建新档用哪个科目组」的入参,逐行循环里覆盖它会让第二行
@@ -134,6 +141,7 @@ def write_stock_in_lines(
                     unit=unit,
                     depcod=depcod,
                     ref_no=ref_no,
+                    posopr=S.STCRD_POSOPR_PURCHASE,
                 )
             )
             stock_sale.write_stmas_fields(

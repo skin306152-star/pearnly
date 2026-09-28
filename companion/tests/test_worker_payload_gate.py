@@ -50,7 +50,7 @@ def _cfg():
 
 def test_unsupported_version_fails_honestly_zero_writes():
     qc = _FakeQC()
-    task = _task({"payload_version": 2, "direction": "purchase"})
+    task = _task({"payload_version": 3, "direction": "purchase"})
     with (
         mock.patch(
             "src.companion.secret_store.load_express_settings",
@@ -70,7 +70,7 @@ def test_unsupported_version_fails_honestly_zero_writes():
     assert len(qc.failures) == 1
     fail = qc.failures[0]
     assert fail["error_code"] == "ERR_PAYLOAD_VERSION"
-    assert fail["meta"] == {"got": 2, "supported": [1]}
+    assert fail["meta"] == {"got": 3, "supported": [1, 2]}
     assert qc.successes == []
 
 
@@ -113,7 +113,7 @@ def test_heartbeat_reports_max_payload_version_and_companion_version():
 
     assert len(qc.health_calls) == 1
     call = qc.health_calls[0]
-    assert call["max_payload_version"] == 1
+    assert call["max_payload_version"] == 2
     assert call["companion_version"] == VERSION
 
 

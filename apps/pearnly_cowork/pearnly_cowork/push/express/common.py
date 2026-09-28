@@ -224,8 +224,10 @@ PAYLOAD_VERSION = 1
 
 
 def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """进项/销项两个 mapper 共用的写盘前收口:盖版本号 + CP874 净化,单一落点不两处复制。"""
-    payload["payload_version"] = PAYLOAD_VERSION
+    """进项/销项两个 mapper 共用的写盘前收口:盖版本号 + CP874 净化,单一落点不两处复制。
+
+    带了选定存货码 / 部门码的载荷已被 `choices.apply_to_payload` 升到 2,这里不往回盖。"""
+    payload["payload_version"] = max(PAYLOAD_VERSION, int(payload.get("payload_version") or 0))
     return sanitize_payload_cp874(payload)
 
 

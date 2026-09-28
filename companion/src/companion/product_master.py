@@ -345,6 +345,10 @@ def _verify_stock_item_row(account_dir: Path, stkcod: str) -> Optional[str]:
         t.close()
 
 
+class StockCodeMissing(ValueError):
+    """云端下发的存货编码在账套里找不到(或不是库存品)· 交人重选,不回落按名找 / 新建。"""
+
+
 class StockItem(NamedTuple):
     """find-or-create 库存主档的结果 —— 单返 STKCOD 说不出「这次替客户猜了什么」。
 
@@ -385,6 +389,7 @@ def ensure_stock_item(
     userid: str = "BIT9",
     unit: str = "",
     acccod: str = "",
+    code: str = "",
 ) -> StockItem:
     """find-or-create 真库存商品主档(STKTYP=0),返回 StockItem。已在备份-回滚事务内调用。
 
@@ -394,6 +399,11 @@ def ensure_stock_item(
     `acccod`=账套配置的存货科目组,只在账里一条库存品都没有、要抄服务品档时用得上。
     禁硬编码:结构字段全从模板克隆,单位/类别取账套众数,仅覆写品名/编码/余额/审计。
     """
+    if (code or "").strip():
+        # 复核时选定了 Express 存货:只认这个码,不在就报错交人重选(不按名找、不新建)。
+        if stock_lookup.find_rows_by_code(account_dir, code, (stock_lookup.STOCK_TYPE,)):
+            return StockItem(code.strip())
+        raise StockCodeMissing(f"所选存货 {code} 在 Express 里已不存在或不是库存品,请重新选择")
     nm = (name or "").strip()
     if not nm:
         raise ValueError("ensure_stock_item: 空品名")

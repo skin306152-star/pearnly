@@ -68,6 +68,9 @@ class SalesEntry:
     # 存货科目组(ISACC ACCCOD)· 账套一件库存品都没有时,建 STKTYP=0 全靠它定存货/COGS 科目。
     # 云端端点配了才带;空=没配,建档路会抛 StockAccGroupRequired 让会计选一次。
     stock_acccod: str = ""
+    # 会计在复核时选了「新建客户档」(载荷 customer.confirmed_new):不再按税号 / 名称找旧档、
+    # 不按「疑似重复」拦,照票面新建(同税号几个档里没有这一家时由人拍板 · 2026-09-28 压测)。
+    customer_confirmed_new: bool = False
 
 
 def validate_sales_payload(
@@ -165,6 +168,7 @@ def build_sales_entry(payload: Dict[str, Any]) -> SalesEntry:
         customer_prename=str(cust.get("prename") or "").strip(),
         customer_address=str(cust.get("address") or "").strip(),
         customer_branch=str(cust.get("branch") or "").strip(),
+        customer_confirmed_new=cust.get("confirmed_new") is True,
         ref_no=str(payload.get("ref_no") or "").strip(),
         doc_date=be_date_to_express(payload.get("docdate_be")),
         vat_period=be_period_to_express(payload.get("vat_period_be")),

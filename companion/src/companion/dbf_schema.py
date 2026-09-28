@@ -89,7 +89,10 @@ MASTER_EXTRA_TABLES = ("STCRD", "STMAS", "ISACC")
 # ARTRN.NXTSEQ 必须=明细行数(否则 Express 视作 0 行,清掉孤儿明细)。**无成本签名**:
 # XUNITPR=0 / XTRNVAL=0 / MREM*/PHYBAL/LOT*=0 → Express 不推 COGS、不动库存余额。
 # STKCOD 放收入/采购**科目码**(直接科目行,非真实存货码)→ 贷/借该科目,零库存影响。
-STCRD_POSOPR = "9"  # gold 实写值(过账操作位)
+STCRD_POSOPR = "9"  # gold 实写值(过账操作位)· 销货 IV 行
+# 进货入库 / 采购明细行:Express 原生写 "0"。真账 69SINCER(2026-09-28 压测回读):RR 行 2247/2247 为 "0"、
+# IV 行 2645/2645 为 "9"。此前采购也写 "9"(只照一张销货样本定的)。期初行未核实,照旧 "9"。
+STCRD_POSOPR_PURCHASE = "0"
 STCRD_DEFAULT_LOCCOD = "01"
 
 # OCR 自由文本单位 → Express 2 字符单位码。命中才填,未命中留空(单位列空=诚实·非乱填无效码)。
@@ -139,6 +142,7 @@ def stcrd_detail_row(
     loccod: str = STCRD_DEFAULT_LOCCOD,
     depcod: str = "",
     ref_no: str = "",
+    posopr: str = STCRD_POSOPR,
 ) -> dict:
     """一条 STCRD 直接科目明细行(gold IV0000004 模板·无成本/无库存)。amount=行净额。
 
@@ -156,7 +160,7 @@ def stcrd_detail_row(
         "DOCDAT": docdat,
         "REFNUM": (ref_no or "")[:15],
         "DEPCOD": depcod,
-        "POSOPR": STCRD_POSOPR,
+        "POSOPR": posopr,
         "PEOPLE": party_code,
         "TRNQTY": float(qty),
         "TQUCOD": unit_to_tqucod(unit),
@@ -188,6 +192,7 @@ def stcrd_nonstock_row(
     loccod: str = STCRD_DEFAULT_LOCCOD,
     depcod: str = "",
     ref_no: str = "",
+    posopr: str = STCRD_POSOPR,
 ) -> dict:
     """一条 STCRD 非库存商品明细行(V2·STKCOD=非库存主档码·不动库存/无 COGS)。
 
@@ -209,6 +214,7 @@ def stcrd_nonstock_row(
         loccod=loccod,
         depcod=depcod,
         ref_no=ref_no,
+        posopr=posopr,
     )
     row["XUNITPR"] = float(unit_price)
     row["XTRNVAL"] = float(amount)
@@ -280,6 +286,7 @@ def stcrd_stock_in_row(
     loccod: str = STCRD_DEFAULT_LOCCOD,
     depcod: str = "",
     ref_no: str = "",
+    posopr: str = STCRD_POSOPR,
 ) -> dict:
     """一条 STCRD 入库行(库存签名·镜像 stcrd_stock_out_row 但方向为「进」)。
 
@@ -304,6 +311,7 @@ def stcrd_stock_in_row(
         loccod=loccod,
         depcod=depcod,
         ref_no=ref_no,
+        posopr=posopr,
     )
     row["XUNITPR"] = float(unit_cost)  # 单位成本(≠0 → 带成本基础)
     row["XTRNVAL"] = float(val)

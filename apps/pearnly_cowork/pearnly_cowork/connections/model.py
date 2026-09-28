@@ -13,6 +13,7 @@ CONFIG_KEYS = frozenset((
     "method", "posting_profile", "stock_acccod", "seed_customer_code", "seed_product_code", "generic_product_code",
 ))
 REPORTED_KEYS = frozenset(("reported_accounts", "reported_products", "reported_customers",
+    "reported_suppliers", "reported_departments",
     "reported_stock_acc_groups", "catalog_fingerprint", "max_payload_version", "companion_version"))
 SECRET_FIELDS = ("credential_username", "credential_password", "credential_token")
 

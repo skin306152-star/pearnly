@@ -7,8 +7,9 @@ import unittest
 
 PURE_ROOT = {"__init__.py", "export_actions.py", "lifecycle.py", "receipts.py", "retry.py"}
 # Root modules with explicit framework/IO duties are acknowledged, not scanned
-# for purity. export_facts reads the native ledger through Frappe.
-NON_PURE_ROOT = {"export_facts.py"}
+# for purity. export_facts reads the native ledger through Frappe; choices stores the
+# accountant's per-account-set decisions (the rules are pure: push/express/choices.py).
+NON_PURE_ROOT = {"export_facts.py", "choices.py"}
 
 
 def pure_paths(root):
@@ -26,8 +27,10 @@ class PurePushBoundary(unittest.TestCase):
     def test_imports_stay_within_explicit_pure_dependencies(self):
         root = Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
         # html：只用 html.unescape（纯函数，读 MR.ERP 导入页菜单名，targets/mrerp_menus.py）。
+        # unicodedata：只用 NFC 正规化比名称（`push/express/choices.norm_name`）。
         allowed = {"__future__", "collections", "copy", "dataclasses", "datetime", "decimal",
-                   "difflib", "enum", "hashlib", "html", "json", "math", "ntpath", "re", "typing", "uuid"}
+                   "difflib", "enum", "hashlib", "html", "json", "math", "ntpath", "re", "typing",
+                   "unicodedata", "uuid"}
         for path in pure_paths(root):
             for node in ast.walk(ast.parse(path.read_text())):
                 if isinstance(node, ast.Import):

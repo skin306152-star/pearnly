@@ -145,6 +145,7 @@ def write_stcrd_detail(
     depcod: str = "",
     userid: str = "BIT9",
     ref_no: str = "",
+    posopr: str = S.STCRD_POSOPR,
 ) -> List[dict]:
     """逐行 OCR 商品写 STCRD,按 item_mode 分发。返回逐行 mode 结果(供状态诚实化)。
     NETVAL 逐行求和已在云端对账闸 ≈ 税前额;此处只忠实落行。
@@ -183,6 +184,7 @@ def write_stcrd_detail(
                     unit=unit,
                     depcod=depcod,
                     ref_no=ref_no,
+                    posopr=posopr,
                 )
             )
             line_modes.append(

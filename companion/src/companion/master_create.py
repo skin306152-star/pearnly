@@ -449,7 +449,7 @@ def ensure_supplier(
     core = _strip_prename(entry.supplier_name)
     # entry 是 duck-typed 接口(测试桩/旧调用方可能没有 branch 字段),getattr 不是防御过度。
     branch = _branch_no(getattr(entry, "supplier_branch", ""))
-    found = _find_code(
+    found = None if getattr(entry, "supplier_confirmed_new", False) else _find_code(
         account_dir, "APMAS", "SUPCOD", "SUPNAM", entry.supplier_tax_id, core, branch
     )
     if found:
@@ -507,7 +507,7 @@ def ensure_customer(
     core = _strip_prename(entry.customer_name)
     # 同 ensure_supplier:entry 是 duck-typed 接口,getattr 兼容无 branch 字段的调用方。
     branch = _branch_no(getattr(entry, "customer_branch", ""))
-    found = _find_code(
+    found = None if getattr(entry, "customer_confirmed_new", False) else _find_code(
         account_dir, "ARMAS", "CUSCOD", "CUSNAM", entry.customer_tax_id, core, branch
     )
     if found:

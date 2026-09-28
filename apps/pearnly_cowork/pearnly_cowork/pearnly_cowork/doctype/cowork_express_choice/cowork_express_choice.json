@@ -1,0 +1,117 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Express Choice",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-28 12:00:00.000000",
+ "modified": "2026-09-28 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "One accountant decision per Express account set: party record, stock item, expense account, payment, VAT claim or department.",
+ "field_order": [
+  "input_key",
+  "connection",
+  "account_set",
+  "kind",
+  "subject",
+  "label",
+  "value",
+  "chosen_by",
+  "chosen_at",
+  "record_revision"
+ ],
+ "fields": [
+  {
+   "fieldname": "input_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "options": "Cowork ERP Connection",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "account_set",
+   "label": "Account Set",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "kind",
+   "label": "Kind",
+   "fieldtype": "Select",
+   "options": "party\nitem\naccount\npayment\nvat\ndepartment",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "subject",
+   "label": "Subject",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "label",
+   "label": "Label",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "value",
+   "label": "Value",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "chosen_by",
+   "label": "Chosen By",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chosen_at",
+   "label": "Chosen At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "record_revision",
+   "label": "Record Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

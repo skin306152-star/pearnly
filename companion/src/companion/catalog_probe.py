@@ -109,6 +109,50 @@ def probe_customers(account_dir) -> List[Dict[str, str]]:
     return out
 
 
+def probe_suppliers(account_dir) -> List[Dict[str, str]]:
+    """APMAS → [{code,name,tax_id,branch}](同 probe_customers 口径)。
+
+    云端复核时让会计从这里选供应商档(同税号多分店 / 名称对不上时),选一次记住;不报就只能靠小助手按名猜。
+    """
+    out: List[Dict[str, str]] = []
+    for r in _iter_records(account_dir, "APMAS"):
+        code = _gv(r, "SUPCOD")
+        name = _gv(r, "SUPNAM")
+        if not code and not name:
+            continue
+        out.append(
+            {
+                "code": code,
+                "name": name,
+                "tax_id": _gv(r, "TAXID"),
+                "branch": S.orgnum_to_branch5(_gv(r, "ORGNUM")),
+            }
+        )
+        if len(out) >= _MAX_CATALOG:
+            break
+    return out
+
+
+# Express 部门表:ISTAB 里 TABTYP='50' 的行(真账 69SINCER:原账部门码 SUTI 在这里,单头 DEPCOD 4 位)。
+_DEPARTMENT_TABTYP = "50"
+_MAX_DEPARTMENTS = 500
+
+
+def probe_departments(account_dir) -> List[Dict[str, str]]:
+    """ISTAB(TABTYP=50)→ [{code,name}]:账套设置里选一次部门,随载荷下发(`depcod`)。"""
+    out: List[Dict[str, str]] = []
+    for r in _iter_records(account_dir, "ISTAB"):
+        if _gv(r, "TABTYP") != _DEPARTMENT_TABTYP:
+            continue
+        code = _gv(r, "TYPCOD")
+        if not code:
+            continue
+        out.append({"code": code, "name": _gv(r, "TYPDES") or _gv(r, "SHORTNAM")})
+        if len(out) >= _MAX_DEPARTMENTS:
+            break
+    return out
+
+
 def probe_stcrd_fingerprint(account_dir) -> Tuple[int, int]:
     """STCRD → (stcrd_lines, stcrd_lines_moving_stock)。moving = 有真实库存影响的明细行。"""
     lines = 0
@@ -223,10 +267,20 @@ def _catalog_masters(
     return products, customers, stock_n
 
 
+def _optional(probe, account_dir) -> List[Dict[str, str]]:
+    try:
+        return probe(account_dir)
+    except Exception:
+        log.exception("%s failed: %s", probe.__name__, account_dir)
+        return []
+
+
 def master_catalog_payload(account_dir) -> Dict[str, Any]:
     """Read only fields that can change a new-document master selection."""
     products, customers, _ = _catalog_masters(account_dir)
-    return {"products": products, "customers": customers}
+    return {"products": products, "customers": customers,
+            "suppliers": _optional(probe_suppliers, account_dir),
+            "departments": _optional(probe_departments, account_dir)}
 
 
 def catalog_payload(account_dir) -> Dict[str, Any]:
@@ -251,6 +305,8 @@ def catalog_payload(account_dir) -> Dict[str, Any]:
     return {
         "products": products,
         "customers": customers,
+        "suppliers": _optional(probe_suppliers, account_dir),
+        "departments": _optional(probe_departments, account_dir),
         "fingerprint": {
             "stock_master_count": stock_n,
             "stcrd_lines": lines,

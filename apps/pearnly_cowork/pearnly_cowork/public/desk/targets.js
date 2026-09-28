@@ -327,6 +327,56 @@
 		});
 	}
 
+	/* ── Express 账套里系统猜不准的决定：选一次、记住后同类自动套用（用户 2026-09-28）──
+	 * 对方档（同税号几个档 / 分店号对不上）、存货（票面叫法对不上 Express 存货名）、服务类费用科目、
+	 * 现购 / 赊购、小票税额抵不抵进项、部门。判定在服务端（`push/express/choices.py`），这里只把
+	 * 要问的一次问齐。选好存下返回 true；关掉弹窗返回 false（这张票这次先不推）。 */
+	const PUSH_API = "pearnly_cowork.push.application.api.";
+	const NEW_CHOICE = "__new__";
+	const CHOICE_VALUES = {payment: ["cash", "credit"], vat: ["claim", "expense"]};
+
+	function choice_field(item, index, view) {
+		const label = [__(`cowork.choice.${item.kind}`), item.label].filter(Boolean).join(" · ");
+		const base = {fieldname: `c${index}`, label, reqd: 1, default: item.current || undefined};
+		if (item.kind === "party") {
+			return {...base, fieldtype: "Select", options: [...(item.options || []).map(row => ({value: row.code,
+				label: [row.code, row.name, row.branch && row.branch !== "00000" ? row.branch : ""].filter(Boolean).join(" · ")})),
+				{value: NEW_CHOICE, label: __("cowork.choice.new")}]};
+		}
+		if (item.kind === "department") {
+			return {...base, fieldtype: "Select", options: (item.options || []).map(row => ({value: row.code,
+				label: [row.code, row.name].filter(Boolean).join(" · ")}))};
+		}
+		if (CHOICE_VALUES[item.kind]) {
+			return {...base, fieldtype: "Select", options: CHOICE_VALUES[item.kind].map(value => ({value,
+				label: __(`cowork.choice.${value}`)}))};
+		}
+		const rows = item.kind === "item" ? view.options?.products : view.options?.accounts;
+		const options = (rows || []).map(row => ({value: row.code, label: [row.code, row.name].filter(Boolean).join(" · ")}));
+		if (item.kind === "item") options.push({value: NEW_CHOICE, label: __("cowork.choice.new")});
+		// 主档没报上来（科目表空）时只能手填科目码，服务端照样核。
+		return {...base, fieldtype: options.length ? "Autocomplete" : "Data", options};
+	}
+
+	async function express_choices_ready(connection, account_set_key, history, posting_kind) {
+		const args = {history, connection: connection.name, account_set_key, posting_kind: posting_kind || undefined};
+		const view = await p.call(PUSH_API + "choices", args);
+		const needed = view?.needed || [];
+		if (!needed.length) return true;
+		return new Promise(resolve => {
+			const d = p.dialog(__("cowork.choice.title"), needed.map((item, index) => choice_field(item, index, view)),
+				__("Save"), async values => {
+					const items = needed.map((item, index) => ({kind: item.kind, subject: item.subject,
+						value: values[`c${index}`], label: item.label || ""}));
+					await p.call(PUSH_API + "save_choices", {history, connection: connection.name, account_set_key,
+						items: JSON.stringify(items)}, "POST");
+					resolve(true);
+					d.hide();
+				});
+			d.onhide = () => resolve(false);
+		});
+	}
+
 	/** 目录失败的原因：错误码有对应文案就用，没有就给通用那一句（不把原始码摆给商家）。 */
 	function catalog_error(code) {
 		const text = __(`intake.catalog.${code}`);
@@ -338,5 +388,6 @@
 		express_dialog,
 		stock_group, stock_group_needed, stock_group_options, choose_stock_group, ask_stock_group,
 		mrerp_menu, mrerp_menu_needed, mrerp_menu_ready,
+		express_choices_ready,
 		ready, state};
 })();

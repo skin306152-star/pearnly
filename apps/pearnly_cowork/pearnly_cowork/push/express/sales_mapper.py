@@ -25,6 +25,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from pearnly_cowork.push.express.prior_doc import attach_prior_docnum
+from pearnly_cowork.push.express.choices import apply_to_payload
 from datetime import date
 from pearnly_cowork.push.express.posting_kind import (
     POSTING_KIND_SERVICE,
@@ -299,6 +300,9 @@ def build_express_sales_payload(
             "filename": history.get("filename"),
         },
     }
+    # 会计在这份账套里选定的客户档 / 存货码 / 部门码(`choices.resolve`,服务端放进 config)。
+    choices = config.get("choices") if isinstance(config.get("choices"), dict) else {}
+    apply_to_payload(payload, choices)
     if (effective_has_stock or line_item_mode == ITEM_MODE_STOCK_SALE) and stock_acccod:
         # 小助手建新库存主档时拿它填 STMAS.ACCCOD(→ISACC→存货资产 + 销货成本)。
         # 账里已有该品就用不上;定不下来就不发,别给老小助手塞没约定的空键。

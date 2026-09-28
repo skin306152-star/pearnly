@@ -272,3 +272,33 @@ def test_reject_when_account_set_has_no_stock_accounts(acct):
             [_item("ดีเซล", 10, 250)],
             "S001",
         )
+
+
+# ── 复核时选定的 Express 存货(载荷 v2 · 明细 `code`)· 2026-09-28 压测 ──────────────
+def test_a_chosen_stock_code_is_used_even_when_the_printed_name_differs(acct):
+    """票面叫法(供应商的品名)与会计的存货名不同:按选定的码落,不按名新建(压测建出 PN00003)。"""
+    modes, _ = SP.write_stock_in_lines(
+        acct,
+        "RR690601-002",
+        dt.date(2026, 6, 1),
+        [{**_item("R 22 ( 58กก. )", 10, 250), "code": "OIL01"}],
+        "S001",
+    )
+    assert modes[0]["stkcod"] == "OIL01" and modes[0]["created"] is False
+    assert float(_stmas(acct, "OIL01")["MREMBAL"]) == 1010.0
+    assert (_stcrd(acct, "RR690601-002")[0]["POSOPR"] or "").strip() == "0"  # 进货 Express 原生写 0
+
+
+def test_a_chosen_stock_code_that_no_longer_exists_stops_instead_of_creating(acct):
+    from companion import product_master
+
+    with pytest.raises(product_master.StockCodeMissing):
+        SP.write_stock_in_lines(
+            acct, "RR690601-003", dt.date(2026, 6, 1), [{**_item("ดีเซล", 1, 25), "code": "GONE01"}], "S001"
+        )
+
+
+def test_a_sale_uses_the_chosen_stock_code_and_stops_when_it_is_gone(acct):
+    assert SS.find_stock_item(acct, "น้ำแข็งแพ็ค (ลูกค้าเรียก)", "OIL01")["stkcod"] == "OIL01"
+    with pytest.raises(SS.StockItemNotFound):
+        SS.find_stock_item(acct, "ดีเซล", "GONE01")

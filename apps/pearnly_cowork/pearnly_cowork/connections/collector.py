@@ -17,6 +17,7 @@ from .reports import CACHE_KEYS, MAPPING_KEYS, SELECTED_KEYS
 
 # 按单个账套刷新带回来的主档，属于那份账套（用户 2026-09-27：推到非默认账套也要先做库存检查）。
 ACCOUNT_CACHE_KEYS = ('reported_accounts', 'accounts_seen_at', 'reported_products', 'reported_customers',
+                      'reported_suppliers', 'reported_departments',
                       'catalog_seen_at', 'catalog_fingerprint', 'reported_stock_acc_groups', 'stock_acc_groups_seen_at')
 _MAX_ACCOUNT_CACHES = 10
 

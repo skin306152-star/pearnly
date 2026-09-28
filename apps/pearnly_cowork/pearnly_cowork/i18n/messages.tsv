@@ -1152,3 +1152,18 @@ An account needed for this invoice is not set. Check the account settings	缺少
 An account needed for this invoice is not set. Check the account settings	缺少记这张票要用的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_purchase_account
 An account needed for this invoice is not set. Check the account settings	缺少记这张票要用的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_revenue_account
 Send anyway	仍然推送	ส่งต่อไป	このまま送信	cowork.review.send_anyway
+Choose once for this account set	这份账套选一次	เลือกครั้งเดียวสำหรับชุดบัญชีนี้	この帳簿で一度だけ選択	cowork.choice.title
+Express record	对方档	ข้อมูลคู่ค้าใน Express	Express の取引先	cowork.choice.party
+Stock item	存货	สินค้าคงคลัง	在庫品目	cowork.choice.item
+Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	cowork.choice.account
+Payment	付款方式	การชำระเงิน	支払方法	cowork.choice.payment
+Tax on this receipt	票上的税额	ภาษีในใบเสร็จนี้	この領収書の税額	cowork.choice.vat
+Department	部门	แผนก	部門	cowork.choice.department
+New, as on the invoice	新建（照票面）	สร้างใหม่ตามเอกสาร	伝票どおり新規作成	cowork.choice.new
+Cash purchase	现购	ซื้อเงินสด	現金仕入	cowork.choice.cash
+Credit purchase	赊购	ซื้อเชื่อ	掛仕入	cowork.choice.credit
+Claim as input VAT	抵进项	ขอคืนภาษีซื้อ	仕入税額控除する	cowork.choice.claim
+Count as expense	不抵，计入费用	ไม่ขอคืน นับเป็นค่าใช้จ่าย	控除せず費用に含める	cowork.choice.expense
+The chosen value is not in this account set. Choose again	所选的不在这份账套里，请重新选择	สิ่งที่เลือกไม่อยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
+Choose the Express records for this invoice first, then submit again	请先为这张票选定 Express 里的对应项，再提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed
+The chosen Express stock item no longer exists. Choose again	所选的 Express 存货已不存在，请重新选择	สินค้าคงคลังที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่	選んだ Express の在庫品目はもうありません。選び直してください	intake.error.STOCK_ITEM_NOT_FOUND

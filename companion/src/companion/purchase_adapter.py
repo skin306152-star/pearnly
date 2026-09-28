@@ -84,6 +84,9 @@ class PurchaseEntry:
     supplier_branch: str = ""
     # 存货科目组(ISACC ACCCOD)· 与销项同名同义:账套零库存品时建 STKTYP=0 全靠它。
     stock_acccod: str = ""
+    # 会计在复核时选了「新建供应商档」(载荷 supplier.confirmed_new):不再按税号 / 名称找旧档、
+    # 不按「疑似重复」拦,照票面新建(同税号几个档里没有这一家时由人拍板 · 2026-09-28 压测)。
+    supplier_confirmed_new: bool = False
 
 
 def _d(v: Any) -> Optional[Decimal]:
@@ -249,6 +252,7 @@ def build_purchase_entry(payload: Dict[str, Any]) -> PurchaseEntry:
         supplier_prename=str(supplier.get("prename") or "").strip(),
         supplier_address=str(supplier.get("address") or "").strip(),
         supplier_branch=str(supplier.get("branch") or "").strip(),
+        supplier_confirmed_new=supplier.get("confirmed_new") is True,
         ref_no=str(payload.get("ref_no") or "").strip(),
         doc_date=be_date_to_express(payload.get("docdate_be")),
         vat_period=be_period_to_express(payload.get("vat_period_be")),

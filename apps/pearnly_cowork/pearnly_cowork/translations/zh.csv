@@ -142,6 +142,7 @@ Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
 Card templates,卡片模板
 Cash,现金
+Cash purchase,现购
 Cash sales,现金销售
 Change cards on the work board,请在工作看板上修改卡片
 Change cover,更改封面
@@ -162,8 +163,10 @@ Choose an image attached to this card,请选这张卡片上的图片附件
 Choose at least one job role,至少勾一个功能权限
 Choose both files first,请先选好两份文件
 Choose file,选择文件
+Choose once for this account set,这份账套选一次
 Choose purchase or sales for this invoice and submit again,请选这张是进项还是销项，再提交
 Choose service or stock for this invoice and submit again,请选这张票记服务还是存货，再提交
+"Choose the Express records for this invoice first, then submit again",请先为这张票选定 Express 里的对应项，再提交
 Choose the company,选择公司
 Choose the destination for these documents,选择这批单据推送到哪里
 Choose the inventory account group for this account set. Tap the number:,选这份账套的存货科目组，点序号选择：
@@ -173,6 +176,7 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择要做的事
+Claim as input VAT,抵进项
 Client,客户
 Close count,结束盘点
 Closed,已结束
@@ -216,6 +220,7 @@ Could not read the MR.ERP menus. Try again later.,读不到 MR.ERP 菜单，请�
 Could not read this document. Please send it again.,没能识别这份单据，请重新发送。
 Could not store this document,没能保存这份单据
 Count Mode,盘点方式
+Count as expense,不抵，计入费用
 Count closed,盘点已结束
 Count saved,已保存
 Count sheet,盘点表
@@ -268,6 +273,7 @@ Credential ID,凭据 ID
 Credit,赊账
 Credit Note,贷项通知单
 Credit notes need a person to post them in Express,贷项通知单要人工在 Express 里处理
+Credit purchase,赊购
 Credit sales,赊销
 Currency,货币
 Current Directory Heads,当前目录版本索引
@@ -295,6 +301,7 @@ Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,删除选中的 {0} 份盘点？已过账的删不掉。
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
+Department,部门
 Deposit,存款
 Description,摘要
 Details,详细信息
@@ -368,6 +375,7 @@ Event Key,事件标识
 Evidence Fingerprint,证据指纹
 Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
+Expense account,费用科目
 Export,导出
 Export Excel,导出 Excel
 Export records from the same company and client together.,同次导出只能包含同一公司、同一客户的记录。
@@ -376,6 +384,7 @@ Export records from the same company and client together.,同次导出只能包�
 "Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，会自动重试
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后回查对不上，已撤回，会自动重试
 Express has this account set open. It is sent automatically once Express is closed,Express 正开着这份账套，关掉后会自动推送
+Express record,对方档
 External Docnum,ERP凭证号
 Failed,失败
 Failure Count,失败次数
@@ -518,6 +527,7 @@ New code,换一个码
 New records must start as drafts.,新记录必须先保存为草稿。
 New stock count,新建盘点
 New task,新建任务
+"New, as on the invoice",新建（照票面）
 No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
 No ERP is ready to use,还没有可用的 ERP
 No account set matches “{0}”,没有找到包含「{0}」的账套
@@ -579,6 +589,7 @@ Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Paste a link,粘贴链接
 Payload Json,冻结载荷JSON
+Payment,付款方式
 Payment Evidence,付款凭证
 Payment Method,付款方式
 Payment method,支付方式
@@ -771,6 +782,7 @@ Stock count closed,盘点已结束
 Stock count photos are not yet supported. Remove the photos before saving.,盘点照片尚未接入，请先移除照片后保存。
 Stock count template,盘点表模版
 Stock count workbench,盘点工作台
+Stock item,存货
 Stop watching,取消关注
 Submit,提交
 Summary table import,汇总表导入
@@ -783,6 +795,7 @@ Task Management,任务管理
 Task name,任务名称
 Tax ID,纳税人识别号
 Tax Invoice,税务发票
+Tax on this receipt,票上的税额
 Taxes and Charges,税费
 Template,模板
 Text,文本
@@ -831,7 +844,9 @@ The billing receipt cannot be reverted.,计费回执不能撤回。
 The camera could not start,摄像头无法启动
 The card is already in that list,卡片已经在那个列表里
 The card no longer exists,卡片不存在
+The chosen Express stock item no longer exists. Choose again,所选的 Express 存货已不存在，请重新选择
 The chosen account set belongs to another company. Check the account set,所选账套属于别的公司，请核对账套
+The chosen value is not in this account set. Choose again,所选的不在这份账套里，请重新选择
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
 The connection has changed. Reload and try again.,连接已更新，请重新读取后再试。
@@ -1108,6 +1123,19 @@ connection.snapshot_invalid,目录快照与当前连接不一致。
 connection.snapshot_too_large,目录快照超过16MiB限制。
 connection.stock_acc_group_invalid,这份账套不能选这个存货科目组。
 connection.url_invalid,ERP连接地址无效或不允许访问。
+cowork.choice.account,费用科目
+cowork.choice.cash,现购
+cowork.choice.claim,抵进项
+cowork.choice.credit,赊购
+cowork.choice.department,部门
+cowork.choice.expense,不抵，计入费用
+cowork.choice.invalid,所选的不在这份账套里，请重新选择
+cowork.choice.item,存货
+cowork.choice.new,新建（照票面）
+cowork.choice.party,对方档
+cowork.choice.payment,付款方式
+cowork.choice.title,这份账套选一次
+cowork.choice.vat,票上的税额
 cowork.line.boundAt,绑定时间
 cowork.line.code,绑定码
 cowork.line.expired,绑定码已过期
@@ -1701,6 +1729,7 @@ intake.error.PAYLOAD_INVALID,小助手读不了这张票，请核对字段后再
 intake.error.PRIOR_DOC_STILL_IN_ERP,这张票的上一版还在 Express 里，请先在 Express 删掉，或点「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后回查对不上，已撤回，会自动重试
 intake.error.STOCK_IN_FAILED,库存明细记不进去，请核对品名、数量和单价
+intake.error.STOCK_ITEM_NOT_FOUND,所选的 Express 存货已不存在，请重新选择
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 里有几个供应商是这个税号，请选定供应商后再提交
 intake.error.SUPPLIER_DUP_SUSPECTED,Express 里已有相似的供应商，请选定它，或确认这是新供应商
 intake.error.SUPPLIER_NOT_IN_APMAS,Express 里没有这个供应商、也建不了，请核对供应商名称和税号
@@ -1710,6 +1739,7 @@ intake.error.agent_failed,小助手没写进去，会自动重试
 intake.error.already_success,这张票已经推送成功过
 intake.error.amounts_not_consistent,金额算不平，请改正后再提交
 intake.error.bad_or_missing_date,票面日期缺失或认不出，请补上后再提交
+intake.error.choice_needed,请先为这张票选定 Express 里的对应项，再提交
 intake.error.confirmed_push_unacked,结果不明，请先在 Express 里核对再决定是否重推
 intake.error.credit_note,贷项通知单要人工在 Express 里处理
 intake.error.currency_not_thb,只有泰铢的票能推到 Express
