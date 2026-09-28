@@ -44,7 +44,8 @@ Cowork 显示成功的 MR.ERP 单据进了没关联日记账的菜单：没有�
 ## 已知限制
 
 - **结果不明目前没有人工解除入口**（存量缺口，不是本次引入）：回读查不到、旧错单转人工后，同一张票不能重推，
-  这份账套 / 连接的写者锁按「结果不明」保留，后面的 MR.ERP 票会等锁。需要一个「已在 MR.ERP 核对：已入账 / 未入账」的处理入口，另开任务。
+  这份账套 / 连接的写者锁按「结果不明」保留，后面的 MR.ERP 票会等锁。「已在 ERP 核对：已入账 / 未入账」的解除入口
+  **由 Cowork 修复窗口承接**（分支 `codex/cowork-review-reasons`，复核页标记，Express 与 MR.ERP 共用），它合入 main 后这批旧单即可逐张处理。
 - 回读只在所选菜单里按单号查；同一菜单里有人手工录了「别的前缀 + 同号」会认不准 → 结果不明（宁可问人）。
 - 某类单据换菜单（人重选）后，已经转人工的票要人重推；排队中的票用准备时冻结的选择，失效就停下。
 - MR.ERP 上传文件按用户号存 `filesimport/imp*/{idus}.xlsx`：**推送账号不要同时在浏览器人工导入**（会互相覆盖）。
@@ -60,12 +61,13 @@ Cowork 显示成功的 MR.ERP 单据进了没关联日记账的菜单：没有�
   `stock_acc_group_choice` 8、`targets` 39、`push_purity` 2 通过（`push_purity` 允许名单加标准库 `html`，只用 `html.unescape`）。
 - `scripts/check-architecture.py` PASS；Development checks 各步本地跑过（本机 Python 3.9 跑不了的 4 个在镜像 Python 3.14 下通过）；
   `i18n-build.py --check` PASS。
-- 分支 CI、测试环境、真推：见下方进度。
+- 分支 CI：Development checks run 36402939592（`architecture-and-offline` success，提交 `d912918c`）。
+- 测试环境、真推：未做，见下方进度。
 
 ## 进度
 
 - [x] 实现 + 离线测试 + 本地闸门
-- [ ] 分支 CI
-- [ ] 合入 main（用户要求：做完离线测试、架构检查、分支 CI 通过后合入）
+- [x] 分支 CI（run 36402939592 通过）
+- [x] 合入 main：快进到 `d912918c` 并推送，远端回读一致；任务分支本地 / 远端已删
 - [ ] 测试环境 / 真实 MR.ERP 验证（需用户授权）
 - [ ] 生产部署（用户最后统一安排，本窗口不单独部署）
