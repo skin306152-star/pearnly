@@ -70,6 +70,13 @@ class QueueTests(unittest.TestCase):
             waiting = flow.acknowledgement(branch=branch, attempt=1, success=False, outcome="waiting_lock",
                                            error="[CUSTOMER_BRANCH_AMBIGUOUS] x")
             self.assertEqual(waiting.status, "pending")  # 小助手自己给了去向的照它
+            # 这台电脑没有这份账套 → 要人处理；暂时连不上的小助手回报「等账套」，不烧重试次数（2026-09-28 录制）
+            missing = flow.acknowledgement(branch=branch, attempt=1, success=False,
+                                           error="[NO_ACCOUNT_SELECTION] task account is not registered")
+            self.assertEqual((missing.status, missing.stage), ("manual", "needs_review"))
+            unreachable = flow.acknowledgement(branch=branch, attempt=3, success=False, outcome="waiting_lock",
+                                               error="[ACCOUNT_SET_UNREACHABLE] the account set cannot be reached")
+            self.assertEqual((unreachable.status, unreachable.retry), ("pending", True))
         self.assertEqual(flow.error_code("  [FIELD_TOO_LONG] REFNUM"), "FIELD_TOO_LONG")
         self.assertEqual(flow.error_code("items_mismatch"), "")
 

@@ -894,6 +894,7 @@ The helper could not write this invoice. It is retried automatically,ผู้�
 The helper has not been given this account set. Check the helper's account sets,ผู้ช่วยยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจชุดบัญชีในผู้ช่วย
 The helper is not allowed to write to this account set. Check the helper's account set,ผู้ช่วยไม่มีสิทธิ์เขียนชุดบัญชีนี้ กรุณาตรวจชุดบัญชีที่เลือกในผู้ช่วย
 The helper is out of date. Update the helper and submit again,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์เขียน กรุณาตรวจสอบชุดบัญชีที่ผู้ช่วยเลือก
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
 The import columns do not match the stock count template.,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
 The import contains a repeated product code.,ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ
@@ -1740,6 +1741,7 @@ intake.error.ERR_MRERP_MENU_UNREADABLE,อ่านเมนูจากหน�
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก ผลลัพธ์ไม่แน่ชัด กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+intake.error.NO_ACCOUNT_SELECTION,ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์เขียน กรุณาตรวจสอบชุดบัญชีที่ผู้ช่วยเลือก
 intake.error.PAYLOAD_INVALID,ผู้ช่วยอ่านเอกสารนี้ไม่ได้ กรุณาตรวจข้อมูลแล้วส่งใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express หรือเลือก ส่งต่อไป
 intake.error.READBACK_VERIFY_FAILED,ตรวจสอบหลังเขียนไม่ตรง จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ

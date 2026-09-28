@@ -894,6 +894,7 @@ The helper could not write this invoice. It is retried automatically,小助手�
 The helper has not been given this account set. Check the helper's account sets,小助手没有授权这份账套，请检查小助手的账套
 The helper is not allowed to write to this account set. Check the helper's account set,小助手没有这份账套的写入权限，请检查小助手选的账套
 The helper is out of date. Update the helper and submit again,小助手版本太旧，请更新后再提交
+"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",这台电脑的小助手里没有这份账套，或没有写入权限，请检查小助手选的账套
 The image file cannot be read.,无法读取该图像文件。
 The import columns do not match the stock count template.,导入列与盘点模板不匹配。
 The import contains a repeated product code.,导入数据包含重复的产品编码。
@@ -1740,6 +1741,7 @@ intake.error.ERR_MRERP_MENU_UNREADABLE,读不到 MR.ERP 导入页的菜单（设
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 受理了导入，但在所选菜单里查不到这张单，结果不明。请先到 MR.ERP 核对，不要直接重推。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 受理了导入，但所选菜单没有关联日记账、不会入账，请到 MR.ERP 核对。
 intake.error.FIELD_TOO_LONG,有字段超出 Express 允许的长度，请改短后再提交
+intake.error.NO_ACCOUNT_SELECTION,这台电脑的小助手里没有这份账套，或没有写入权限，请检查小助手选的账套
 intake.error.PAYLOAD_INVALID,小助手读不了这张票，请核对字段后再提交
 intake.error.PRIOR_DOC_STILL_IN_ERP,这张票的上一版还在 Express 里，请先在 Express 删掉，或点「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后回查对不上，已撤回，会自动重试

@@ -894,6 +894,7 @@ The helper could not write this invoice. It is retried automatically,アシス�
 The helper has not been given this account set. Check the helper's account sets,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
 The helper is not allowed to write to this account set. Check the helper's account set,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
 The helper is out of date. Update the helper and submit again,アシスタントが古いバージョンです。更新して再送信してください
+"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
 The image file cannot be read.,この画像ファイルを読み取れません。
 The import columns do not match the stock count template.,インポートする列が棚卸テンプレートと一致しません。
 The import contains a repeated product code.,インポートデータに重複する商品コードがあります。
@@ -1740,6 +1741,7 @@ intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニュー�
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
+intake.error.NO_ACCOUNT_SELECTION,このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
 intake.error.PAYLOAD_INVALID,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します

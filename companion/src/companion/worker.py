@@ -27,9 +27,49 @@ def _norm_path(value: object) -> str:
     return ntpath.normcase(ntpath.normpath(path)) if path else ""
 
 
-def _task_settings(cfg: CompanionConfig, payload: dict):
-    """Resolve a task-bound account only from roots and SCCOMP rows visible on this PC."""
+ERR_ACCOUNT_UNREACHABLE = "ACCOUNT_SET_UNREACHABLE"
+# 账套暂时读不到时就地再探的等待（秒）：网络共享抖一下多半几秒内恢复；一直读不到时每轮约 15 秒回报一次，
+# 不对服务端空转（「等账套」不烧重试次数，下一轮马上又会领到这张）。
+UNREACHABLE_RECHECK_SECONDS = (5.0, 5.0, 5.0)
+
+
+class AccountUnreachable(Exception):
+    """账套登记了、也授权了，只是这会儿读不到（登记表打不开 / 账套文件夹连不上）：稍后自动重试，不算失败。
+
+    2026-09-28 录制实测：上一张刚写完、网络共享卡了约 80 秒，下一张被判「账套不可用」直接失败，
+    服务端连着重试 3 次也在这几秒里用完，转了人工。"""
+
+
+def _probe_task_account(root: str, requested_set: str):
+    """在授权根目录里找这份账套：找到且可写 → 账套；没登记 / 文件夹在但不可写 → None（要人处理）；
+    读不到 → AccountUnreachable。"""
+    import os
+
     from .account_probe import probe_account_sets
+
+    try:
+        accounts = probe_account_sets(root)
+    except Exception as exc:
+        raise AccountUnreachable(f"account registry unreadable: {exc}") from exc
+    selected = next(
+        (
+            account
+            for account in accounts
+            if _norm_path(account.path) == _norm_path(requested_set)
+        ),
+        None,
+    )
+    if selected is None or selected.writable:
+        return selected
+    if not os.path.isdir(str(selected.path or "")):
+        raise AccountUnreachable(f"account folder unreachable: {selected.path}")
+    return None
+
+
+def _task_settings(cfg: CompanionConfig, payload: dict):
+    """Resolve a task-bound account only from roots and SCCOMP rows visible on this PC.
+
+    None = 这台电脑上没有这份账套或没有写入权限（要人处理）；AccountUnreachable = 暂时读不到（稍后重试）。"""
     from .secret_store import load_express_settings
 
     current = load_express_settings(cfg)
@@ -52,19 +92,15 @@ def _task_settings(cfg: CompanionConfig, payload: dict):
     )
     if not allowed_root:
         return None
-    try:
-        accounts = probe_account_sets(allowed_root)
-    except Exception:
-        return None
-    selected = next(
-        (
-            account
-            for account in accounts
-            if _norm_path(account.path) == _norm_path(requested_set)
-        ),
-        None,
-    )
-    if selected is None or not selected.writable:
+    for wait in (*UNREACHABLE_RECHECK_SECONDS, None):
+        try:
+            selected = _probe_task_account(allowed_root, requested_set)
+            break
+        except AccountUnreachable:
+            if wait is None:
+                raise
+            time.sleep(wait)
+    if selected is None:
         return None
     return replace(
         current,
@@ -141,18 +177,30 @@ def _handle_dbf_task(
             error_code=version_err,
             meta={"got": got, "supported": supported},
         )
-        return
+        return "failed"
 
     # 方法无关「读设置」seam:DBF 直写只需所选账套整组(不需登录密码)。
-    st = _task_settings(cfg, payload)
+    try:
+        st = _task_settings(cfg, payload)
+    except AccountUnreachable as exc:
+        # 暂时读不到：按「等账套」回报（不烧重试次数），连上后自动再推，不落 DBF 一行。
+        log.warning(f"… dbf task {task.id} account unreachable, retry later: {exc}")
+        qc.ack_failure(
+            task.id,
+            "the account set cannot be reached right now",
+            error_code=ERR_ACCOUNT_UNREACHABLE,
+            outcome="waiting_lock",
+        )
+        return "waiting_lock"
     # fail-safe:所选账套不齐(缺目录或账套名)→ 拒写,绝不瞎写。
     if st is None or not st.has_selection():
+        log.warning(f"✗ dbf task {task.id} account not registered or not writable on this PC")
         qc.ack_failure(
             task.id,
             "task account is not registered, writable, or available on this PC",
             error_code="NO_ACCOUNT_SELECTION",
         )
-        return
+        return "failed"
     # 方向第一类公民(09 铁律):标签定死表族,绝不串。
     direction = str(payload.get("direction") or "purchase").strip().lower()
     # 三重一致性闸期望值全来自客户所选账套(配对锁定):账套名 + 目录 + 公司。

@@ -894,6 +894,7 @@ The helper could not write this invoice. It is retried automatically,The helper 
 The helper has not been given this account set. Check the helper's account sets,The helper has not been given this account set. Check the helper's account sets
 The helper is not allowed to write to this account set. Check the helper's account set,The helper is not allowed to write to this account set. Check the helper's account set
 The helper is out of date. Update the helper and submit again,The helper is out of date. Update the helper and submit again
+"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set","The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set"
 The image file cannot be read.,The image file cannot be read.
 The import columns do not match the stock count template.,The import columns do not match the stock count template.
 The import contains a repeated product code.,The import contains a repeated product code.
@@ -1740,6 +1741,7 @@ intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (set
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
 intake.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
+intake.error.NO_ACCOUNT_SELECTION,"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set"
 intake.error.PAYLOAD_INVALID,The helper could not read this invoice. Check the fields and submit again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"

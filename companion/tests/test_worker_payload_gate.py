@@ -25,7 +25,13 @@ class _FakeQC:
 
     def ack_failure(self, task_id, error, error_code=None, outcome=None, meta=None):
         self.failures.append(
-            {"task_id": task_id, "error": error, "error_code": error_code, "meta": meta}
+            {
+                "task_id": task_id,
+                "error": error,
+                "error_code": error_code,
+                "outcome": outcome,
+                "meta": meta,
+            }
         )
 
     def ack_success(
@@ -547,6 +553,7 @@ def test_task_account_rejects_read_only_account_in_authorized_root():
         mock.patch(
             "src.companion.account_probe.probe_account_sets", return_value=[selected]
         ),
+        mock.patch("os.path.isdir", return_value=True),  # 文件夹在、就是不可写 → 要人处理
     ):
         settings = worker._task_settings(
             cfg,
@@ -557,6 +564,69 @@ def test_task_account_rejects_read_only_account_in_authorized_root():
         )
 
     assert settings is None
+
+
+def _acme_current():
+    return ExpressSettings(
+        method="dbf",
+        express_root=r"S:\\2569\\EXP69",
+        express_exe="",
+        account_dir=r"S:\\2569\\EXP69\\OLD",
+        account_company="Old Co",
+        account_set=r"S:\\2569\\EXP69\\OLD",
+        account_set_row=1,
+    )
+
+
+ACME_TASK = {"account_root": r"S:\\2569\\EXP69", "account_set": r"S:\\2569\\EXP69\\ACME"}
+
+
+def test_a_share_that_hiccups_is_probed_again_instead_of_failing():
+    # 2026-09-28 录制：网络共享卡了一下，下一张被判「账套不可用」直接失败
+    selected = types.SimpleNamespace(
+        path=r"S:\\2569\\EXP69\\ACME", company="ACME Co", row=4, writable=True
+    )
+    probe = mock.Mock(side_effect=[OSError("network name no longer available"), [selected]])
+    with (
+        mock.patch("src.companion.secret_store.load_express_settings", return_value=_acme_current()),
+        mock.patch("src.companion.account_probe.probe_account_sets", probe),
+        mock.patch.object(worker.time, "sleep") as sleep,
+    ):
+        settings = worker._task_settings(types.SimpleNamespace(), ACME_TASK)
+
+    assert settings.account_dir == selected.path
+    assert probe.call_count == 2 and sleep.call_count == 1
+
+
+def test_an_account_set_still_unreachable_waits_instead_of_failing():
+    qc = _FakeQC()
+    unreachable = types.SimpleNamespace(
+        path=r"S:\\2569\\EXP69\\ACME", company="ACME Co", row=4, writable=False
+    )
+    with (
+        mock.patch("src.companion.secret_store.load_express_settings", return_value=_acme_current()),
+        mock.patch("src.companion.account_probe.probe_account_sets", return_value=[unreachable]),
+        mock.patch("os.path.isdir", return_value=False),
+        mock.patch.object(worker.time, "sleep"),
+        mock.patch("src.companion.dbf_writer.write_purchase", side_effect=AssertionError("must not write DBF")),
+    ):
+        outcome = worker._handle_dbf_task(_cfg(), qc, _task({"direction": "purchase", **ACME_TASK}))
+
+    assert outcome == "waiting_lock"
+    assert [(f["error_code"], f["outcome"]) for f in qc.failures] == [("ACCOUNT_SET_UNREACHABLE", "waiting_lock")]
+
+
+def test_an_account_set_missing_on_this_pc_fails_for_a_person_to_fix():
+    qc = _FakeQC()
+    with (
+        mock.patch("src.companion.secret_store.load_express_settings", return_value=_acme_current()),
+        mock.patch("src.companion.account_probe.probe_account_sets", return_value=[]),
+        mock.patch.object(worker.time, "sleep", side_effect=AssertionError("no wait for a missing set")),
+    ):
+        outcome = worker._handle_dbf_task(_cfg(), qc, _task({"direction": "purchase", **ACME_TASK}))
+
+    assert outcome == "failed"
+    assert [(f["error_code"], f["outcome"]) for f in qc.failures] == [("NO_ACCOUNT_SELECTION", None)]
 
 
 def test_newly_found_year_folders_are_remembered_as_authorized(tmp_path):
