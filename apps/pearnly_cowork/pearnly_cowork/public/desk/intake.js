@@ -37,8 +37,21 @@
 		};
 		// 共用列表的 `format` 只出文字，颜色交给 `cell_class`（官方 indicator-pill 的颜色类）。
 		// 还没进推送账本就失败（目标不可用等）的票没有推送状态、只有原因：显示「失败」（用户 2026-09-26）。
+		// 还没推送、但识别后有需复核原因的（`history/review.py`）：橙色「待复核」，悬浮看是哪几条（2026-09-28 压测：
+		// 错的 101 张只标出 16 张，列表上看不出哪些要先看）。
+		const reasons = row => {
+			try {
+				const value = typeof row?.review_reasons === "string" ? JSON.parse(row.review_reasons || "[]") : row?.review_reasons;
+				return Array.isArray(value) ? value : [];
+			} catch (error) {
+				return [];
+			}
+		};
 		const push_status = (status, row) => (status ? PUSH_STATUS[status] || ["red", () => __("connect.records.failed")]
-			: row?.last_push_reason ? ["red", () => __("connect.records.failed")] : null);
+			: row?.last_push_reason ? ["red", () => __("connect.records.failed")]
+			: reasons(row).length ? ["orange", () => __("cowork.quality.pending")] : null);
+		const status_title = (value, row) => (value || row?.last_push_reason ? row?.last_push_reason || ""
+			: reasons(row).map(reason => p.intake_review_text?.(reason, t) || reason.code).join("\n"));
 
 		async function listing(still_current) {
 			page.set_title(t("intake.title"));
@@ -95,7 +108,7 @@
 						format: (value, row) => push_status(value, row)?.[1]() || "",
 						cell_class: (value, row) => (push_status(value, row) ? `indicator-pill ${push_status(value, row)[0]}` : ""),
 						// 失败原因只放在状态图标上，鼠标悬浮看（用户 2026-09-26）。
-						title: (value, row) => row?.last_push_reason || ""},
+						title: status_title},
 				],
 				// 列头点一下排序：服务端分页，所以排序参数回服务端（见 `workbench`）。
 				// 单号是系统随机号，按它排看不出顺序，不给排。

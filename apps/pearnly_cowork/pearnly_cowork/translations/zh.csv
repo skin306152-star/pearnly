@@ -14,6 +14,7 @@ A file is larger than 25 MB.,文件超过 25 MB。
 A name is required.,请填写名称。
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
 A numeric value in the invoice is invalid. Correct it before exporting.,发票中有无效数值，请更正后再导出。
+A page of this file could not be read: an invoice on it may be missing. Check the original,这个文件有一页没读出，那页上的单据可能漏了，请核对原件
 A positive record revision is required.,记录版本必须是正整数。
 A positive source page number is required.,源文件页码必须是正整数。
 A product code or barcode identifies more than one product.,产品编码或条形码对应了多个产品。
@@ -431,6 +432,7 @@ Invoice References Fingerprint,发票关联指纹
 Invoice Total,发票总额
 Invoice detail,发票明细
 Invoice no.,发票号
+Invoice number,单号
 Invoice pages do not match the original page references.,发票页面与原件页码关联不一致。
 Invoice recognition is busy. Try again in a moment.,发票识别繁忙，请稍后再试。
 Invoice recognition took too long. Try again later.,发票识别超时，请稍后再试。
@@ -621,6 +623,7 @@ Recognition Quality,识别质量
 Recognition input and ownership cannot be changed.,识别输入和归属不能修改。
 Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
 Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
+Recognition was unsure about this invoice. Check it against the original,识别对这张票拿不准，请对照原件核对
 Recognized with high confidence,高置信识别
 Reconciliation failed,对账失败
 Record,记录
@@ -719,6 +722,7 @@ Show on card,显示在卡片正面
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
+Some line items have no name or amount,有明细缺品名或金额
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 Some rows were skipped,部分行未导入
 Someone else changed this card. Close it and open it again.,这张卡片刚被别人改过，请关闭后重新打开
@@ -801,6 +805,7 @@ The VAT report content is invalid.,税表内容无效。
 The VAT report has no rows.,税表里没有明细行。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
+The amounts do not add up (before VAT + VAT ≠ total),金额算不平（未税 + 税额 ≠ 合计）
 The bank statement could not be read.,读不出银行账单。
 The billing receipt cannot be reverted.,计费回执不能撤回。
 The camera could not start,摄像头无法启动
@@ -851,9 +856,13 @@ The invoice data is invalid and cannot be exported.,发票数据无效，无法�
 The invoice date is invalid. Correct it before exporting.,发票日期无效，请更正后再导出。
 The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
+The invoice number is written differently from this party's earlier invoices (usually {0}),单号写法与这家以前的票不同（通常是 {0}）
+The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,单号像是会计盖的凭证号，请核对票上印的号码
+The invoice number was read two ways. Pick the one printed on the original:,单号有两种读法，请对照原件选：
 The invoice page data has an invalid format.,发票页面数据格式不正确。
 The ledger file content is invalid.,总账内容无效。
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",这张票的明细金额、未税金额、税额和合计对不上，导出后金额会变。请在编辑页核对这几项。
+The line items do not add up to the invoice amount,明细合计与票面金额对不上
 The opening and closing values are invalid.,期初期末数值无效。
 The original document manifest cannot be changed.,原件内容索引不能修改。
 The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
@@ -926,6 +935,7 @@ This is taking too long. Check the list later.,对账时间较长，请稍后在
 This item is also stocked at:,这件货还在别处：
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
+This may be a duplicate of an invoice entered earlier,可能与之前录入的票重复
 This member cannot be assigned,不能分配给这个成员
 This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
 This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
@@ -1162,6 +1172,20 @@ cowork.recon.task.needs_review,待复核
 cowork.recon.timeout,对账时间较长，请稍后在列表里查看。
 cowork.recon.vat.left,销项税报告
 cowork.recon.vat.right,销售发票
+cowork.review.amount_math,金额算不平（未税 + 税额 ≠ 合计）
+cowork.review.duplicate,可能与之前录入的票重复
+cowork.review.items_incomplete,有明细缺品名或金额
+cowork.review.items_mismatch,明细合计与票面金额对不上
+cowork.review.number_choice,单号有两种读法，请对照原件选：
+cowork.review.number_field,单号
+cowork.review.number_pattern,单号写法与这家以前的票不同（通常是 {0}）
+cowork.review.own_tax,{0}不是本公司税号
+cowork.review.page_unread,这个文件有一页没读出，那页上的单据可能漏了，请核对原件
+cowork.review.tax_checksum,{0}校验位不对
+cowork.review.tax_length,{0}不是 13 位
+cowork.review.tax_suggest,{0}不是 13 位，是不是：
+cowork.review.uncertain,识别对这张票拿不准，请对照原件核对
+cowork.review.voucher_number,单号像是会计盖的凭证号，请核对票上印的号码
 cowork.stock.action.export,导出
 cowork.stock.action.reload,刷新
 cowork.stock.actualLocation,实际仓位
@@ -1775,12 +1799,16 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} commented on {1},{0} 评论了卡片「{1}」
 {0} completed {1},{0} 完成了卡片「{1}」
 {0} files,{0} 个文件
+{0} is not 13 digits,{0}不是 13 位
+{0} is not 13 digits. Did you mean:,{0}不是 13 位，是不是：
+{0} is not your company's tax ID,{0}不是本公司税号
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
 {0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
+{0}: the check digit is wrong,{0}校验位不对
 {1} is due at {2},卡片「{1}」将在 {2} 到期
 {1} is due soon ({2}),卡片「{1}」快到期了（{2}）
 {1} is overdue ({2}),卡片「{1}」已过期（{2}）

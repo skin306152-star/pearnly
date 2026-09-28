@@ -28,6 +28,7 @@ from pearnly_cowork.push.express.payment import (  # noqa: F401,E402
     payment_verdict_for,
 )
 
+from pearnly_cowork.contracts.line_items import TOLERANCE as _ITEMS_TOL, matched_target
 from pearnly_cowork.push.express.primitives import _d, parse_invoice_date
 
 
@@ -154,7 +155,6 @@ ITEMS_EMPTY = "empty"
 ITEMS_INCOMPLETE = "incomplete"
 ITEMS_MISMATCH = "mismatch"
 
-_ITEMS_TOL = Decimal("1.00")  # 行合计 vs 税前额 容差(吸收 OCR 逐行四舍五入)
 
 
 ITEM_MODE_NONSTOCK = "non_stock_item"  # V2 默认:非库存商品主档(不动库存/COGS)
@@ -287,12 +287,14 @@ def extract_line_items(
         }
 
     line_sum = sum((_d(i["amount"]) for i in items), Decimal("0"))
-    if abs(_q(line_sum) - _q(base)) <= _ITEMS_TOL:
+    # 对账判定与识别后的复核提示同一个(`contracts.line_items`,单一来源)。
+    target = matched_target(line_sum, base, total)
+    if target == "base":
         return {"items": items, "status": ITEMS_OK, "line_sum": _s(line_sum)}
     # 含税单价小票(泰国零售通例):逐行含税 · 合计≈含税总额 → 按比例摊回不含税(×base/total),
     # 余数(逐行四舍五入漂移)落末行,摊后逐行合计精确==税前额。这是多认一个【合法】对账目标,
     # 不放松容差、不跳过对账:真读错的明细两个目标都对不上,照旧 mismatch 转人工。
-    if total is not None and _q(total) > _q(base) and abs(_q(line_sum) - _q(total)) <= _ITEMS_TOL:
+    if target == "total":
         ex = _rescale_items_exvat(items, base, total)
         if ex is not None:
             return {"items": ex, "status": ITEMS_OK, "line_sum": _s(base)}

@@ -123,7 +123,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     fields = ["name", "client", "source", "staged", "record_version", "invoice_no",
               "invoice_date", "seller_name", *storage.PARTY_FIELDS, "total_amount", "quality_status", "confidence",
               "filename", "page_count", "modified", "duplicate_check_status", "duplicate_level",
-              *storage.PUSH_FIELDS]
+              "review_reasons", *storage.PUSH_FIELDS]
     if sort_by == "total_amount" and not source_file:
         # 金额存的是 Decimal 文本（合同口径），数据库按文字排会得到 1200 < 13375 < 2140 < 450 这种顺序；
         # 框架的 order_by 又不许写表达式。所以与下面计数同一条权限查询取全部行，按数值排好再分页。

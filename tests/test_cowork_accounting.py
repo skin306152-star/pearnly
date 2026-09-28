@@ -6,7 +6,7 @@ from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.schema import validate_invoice
 from pearnly_cowork.ocr.validation import check_amount_math
 from pearnly_cowork.ocr.validation.accounting import (
-    infer_withholding, normalize_amounts, repair_from_transcript, repair_invoice_number,
+    infer_withholding, invoice_number_alternative, normalize_amounts, number_alternative, repair_from_transcript,
 )
 from test_cowork_engine import CONFIG, GOOD, Model, Source
 
@@ -47,14 +47,21 @@ class Accounting(unittest.TestCase):
         self.assertEqual(repair_from_transcript(value, "0105567178203 0105567178211 207.00 106.99"), [])
         self.assertEqual((value.seller_tax, value.total_amount), ("0105567178204", "108.00"))
 
-    def test_invoice_number_takes_the_transcript_spelling_only_when_unique(self):
+    def test_an_invoice_number_one_character_off_the_transcript_is_offered_not_replaced(self):
+        # 两边各有对错（09-27 原文对、09-28 压测模型对）：不改票面，两种写法都留给复核的人
         value = invoice(invoice_number="IN26-00668")
-        self.assertIn("IN26-00658", repair_invoice_number(value, "เลขที่ IN26-00658 วันที่ 07/05/2569"))
-        self.assertEqual(value.invoice_number, "IN26-00658")
-        self.assertIsNone(repair_invoice_number(invoice(invoice_number="IN26-00658"), "IN26 - 00658"))  # 原文里有
-        ambiguous = invoice(invoice_number="IN26-00668")
-        self.assertIsNone(repair_invoice_number(ambiguous, "IN26-00658 IN26-00678"))
-        self.assertEqual(ambiguous.invoice_number, "IN26-00668")
+        note = invoice_number_alternative(value, "เลขที่ IN26-00658 วันที่ 07/05/2569")
+        self.assertEqual(number_alternative(note), ("IN26-00668", "IN26-00658"))
+        self.assertEqual(value.invoice_number, "IN26-00668")
+        self.assertIsNone(invoice_number_alternative(invoice(invoice_number="IN26-00658"), "IN26 - 00658"))  # 原文里有
+        self.assertIsNone(invoice_number_alternative(invoice(invoice_number="IN26-00668"), "IN26-00658 IN26-00678"))
+        self.assertIsNone(number_alternative("corrected_from_ocr_text: seller_tax 1→2"))
+
+    def test_a_tax_id_is_restored_only_from_a_transcript_id_one_digit_away(self):
+        # 2026-09-28：0105546146823（校验位不过）被换成差两位、能过校验位的 0113546146823，真值是 0105546146825
+        value = invoice(seller_tax="0105546146823")
+        self.assertEqual(repair_from_transcript(value, "เลขประจำตัวผู้เสียภาษี 0113546146823"), [])
+        self.assertEqual(value.seller_tax, "0105546146823")
 
     def test_a_withholding_invoice_passes_the_direct_read_without_a_recheck(self):
         model = Model([{**GOOD, "subtotal": "1946.00", "vat": "136.22", "total_amount": "2023.84"}])

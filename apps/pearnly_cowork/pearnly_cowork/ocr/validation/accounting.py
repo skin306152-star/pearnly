@@ -6,8 +6,9 @@
   白复核一次（语料：贷项通知单）。
 - 预扣税：票面合计是扣了预扣税后的实付额（小计 − 折扣 + VAT − 小计 × 常用税率 = 合计），核对算平，并补上税率
   与税额（语料：3% 服务费税票每张都被判「金额对不上」、白复核一次）。
-- 用 OCR 原文纠正（只在已经调过 Vision 的路线上）：税号校验位不过时取原文里只差两位以内、唯一的合法税号；
-  金额对不上时，原文里只差一位、换上后能对平的那个数。
+- 用 OCR 原文纠正（只在已经调过 Vision 的路线上）：税号校验位不过时取原文里两位以内唯一、且只差一位的合法税号
+  （2026-09-28 压测：放宽到两位时换成了另一个能过校验位的错号）；金额对不上时，原文里只差一位、换上后能对平的那个数。
+- 单号不纠正：原文与模型只差一个字符时两种写法都留给复核的人选（见 `invoice_number_alternative`）。
 
 「本公司是买方」那条不搬：Cowork 同一批可能是采购也可能是销售，客户本来就可能是卖方。
 修正都会留说明（进 validation_warnings），改动票面数字的只采用能让核对通过的那一个。
@@ -24,6 +25,7 @@ from pearnly_cowork.ocr.validation.math import check_amount_math
 AMOUNT_FIELDS = ("subtotal", "vat", "total_amount", "discount", "wht_amount")
 WITHHOLDING_PREFIX = "withholding_inferred:"
 TRANSCRIPT_PREFIX = "corrected_from_ocr_text:"
+NUMBER_ALTERNATIVE_PREFIX = "invoice_number_alternative:"
 
 
 def normalize_amounts(invoice) -> list[str]:
@@ -73,8 +75,9 @@ def repair_from_transcript(invoice, text, *, tolerance=Decimal("0.5")) -> list[s
         read = amounts.digits(getattr(invoice, field, ""))
         if len(read) != 13 or amounts.valid_tax_id(read):
             continue
+        # 两位以内只有它一个、且只差一位才换：差两位的换法在压测里换成了另一个能过校验位的错号。
         near = amounts.nearest_tax_id(read, taxes, exclude={amounts.digits(getattr(invoice, other, ""))})
-        if near:
+        if near and amounts.differing_digits(near, read) == 1:
             setattr(invoice, field, near)
             notes.append(f"{TRANSCRIPT_PREFIX} {field} {read}→{near}")
     if not check_amount_math(invoice, tolerance=tolerance):
@@ -101,11 +104,13 @@ def _norm(value) -> str:
     return re.sub(r"[^0-9A-Z]", "", str(value or "").upper())
 
 
-def repair_invoice_number(invoice, text) -> str | None:
-    """完整税票的单号对照 Vision 原文：原文里有就不动；没有、但原文里恰好一个同长度只差一个字符的 → 换成原文写法。
+def invoice_number_alternative(invoice, text) -> str | None:
+    """完整税票的单号对照 Vision 原文：原文里有就不管；没有、但原文里恰好一个同长度只差一个字符的 → 两种写法都记下，
+    交复核的人选（不改票面值）。
 
-    2026-09-27 大语料 A/B：直读把 IN26-00658 读成 IN26-00668、ORVM6905… 读成 ORVMB905…，金额都对、闸拦不住；
-    旧线上碰巧走了 Vision 路线才读对。只差一个字符且唯一才换，拿不准不动。"""
+    两边各有对错：2026-09-27 大语料里直读把 IN26-00658 读成 IN26-00668（原文对）；2026-09-28 Express 压测里
+    原文把 IV69/06-017 读成 IU69/06-017，按原文替换的 36 处有 35 处把对的改错（模型对）。单号没有校验位，
+    谁对只能看原件或这个对方的历史单号（`history.review`）。返回 `invoice_number_alternative: 模型|原文`。"""
     read = str(getattr(invoice, "invoice_number", "") or "").strip()
     wanted = _norm(read)
     if not wanted or not text or wanted in _norm(text):
@@ -116,6 +121,14 @@ def repair_invoice_number(invoice, text) -> str | None:
             and sum(x != y for x, y in zip(_norm(t), wanted)) == 1}
     if len({_norm(t) for t in near}) != 1:
         return None
-    fixed = min(near, key=len)
-    invoice.invoice_number = fixed
-    return f"{TRANSCRIPT_PREFIX} invoice_number {read}→{fixed}"
+    other = min(near, key=len)
+    return f"{NUMBER_ALTERNATIVE_PREFIX} {read}|{other}"
+
+
+def number_alternative(note) -> tuple[str, str] | None:
+    """`invoice_number_alternative:` 说明 → (模型读数, 原文读数)；不是这种说明回 None。"""
+    text = str(note or "")
+    if not text.startswith(NUMBER_ALTERNATIVE_PREFIX):
+        return None
+    read, _, other = text[len(NUMBER_ALTERNATIVE_PREFIX):].strip().partition("|")
+    return (read, other) if read and other else None

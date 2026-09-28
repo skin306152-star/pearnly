@@ -14,6 +14,7 @@ A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
 A name is required.,กรุณาระบุชื่อ
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,ค่าตัวเลขในใบแจ้งหนี้เกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
 A numeric value in the invoice is invalid. Correct it before exporting.,มีค่าตัวเลขในใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
+A page of this file could not be read: an invoice on it may be missing. Check the original,มีหน้าหนึ่งในไฟล์นี้อ่านไม่ได้ เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจกับต้นฉบับ
 A positive record revision is required.,รุ่นของรายการต้องเป็นจำนวนเต็มบวก
 A positive source page number is required.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 A product code or barcode identifies more than one product.,รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ
@@ -431,6 +432,7 @@ Invoice References Fingerprint,ลายนิ้วมือการเชื�
 Invoice Total,ยอดรวมใบแจ้งหนี้
 Invoice detail,รายละเอียดใบกำกับ
 Invoice no.,เลขที่ใบกำกับ
+Invoice number,เลขที่เอกสาร
 Invoice pages do not match the original page references.,หน้าใบแจ้งหนี้ไม่ตรงกับหน้าต้นฉบับที่อ้างอิง
 Invoice recognition is busy. Try again in a moment.,ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง
 Invoice recognition took too long. Try again later.,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
@@ -621,6 +623,7 @@ Recognition Quality,คุณภาพการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
+Recognition was unsure about this invoice. Check it against the original,ระบบอ่านเอกสารใบนี้ไม่มั่นใจ กรุณาตรวจกับต้นฉบับ
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
 Reconciliation failed,กระทบยอดไม่สำเร็จ
 Record,บันทึก
@@ -719,6 +722,7 @@ Show on card,แสดงบนการ์ด
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
+Some line items have no name or amount,บางรายการไม่มีชื่อหรือจำนวนเงิน
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
 Some rows were skipped,บางแถวไม่ได้นำเข้า
 Someone else changed this card. Close it and open it again.,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
@@ -801,6 +805,7 @@ The VAT report content is invalid.,ข้อมูลรายงานภาษ
 The VAT report has no rows.,รายงานภาษีไม่มีรายการ
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
+The amounts do not add up (before VAT + VAT ≠ total),ยอดเงินไม่สมดุล (ก่อน VAT + VAT ≠ ยอดรวม)
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
 The camera could not start,ไม่สามารถเปิดกล้องได้
@@ -851,9 +856,13 @@ The invoice data is invalid and cannot be exported.,ข้อมูลใบแ�
 The invoice date is invalid. Correct it before exporting.,วันที่ใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
 The invoice fields have an invalid format.,รูปแบบข้อมูลในช่องใบแจ้งหนี้ไม่ถูกต้อง
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่
+The invoice number is written differently from this party's earlier invoices (usually {0}),รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})
+The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,เลขที่เอกสารดูเหมือนเลขที่ใบสำคัญที่ประทับไว้ กรุณาตรวจเลขที่พิมพ์บนเอกสาร
+The invoice number was read two ways. Pick the one printed on the original:,เลขที่เอกสารอ่านได้สองแบบ กรุณาเลือกตามต้นฉบับ:
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง
 The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",ยอดรายการ ยอดก่อน VAT ภาษี และยอดรวมของเอกสารนี้ไม่ตรงกัน หากส่งออกยอดเงินจะเปลี่ยน กรุณาตรวจสอบในหน้าแก้ไข
+The line items do not add up to the invoice amount,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร
 The opening and closing values are invalid.,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
 The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
 The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
@@ -926,6 +935,7 @@ This is taking too long. Check the list later.,ใช้เวลานาน �
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
 This list no longer exists,ไม่มีรายการนี้แล้ว
+This may be a duplicate of an invoice entered earlier,อาจซ้ำกับเอกสารที่บันทึกไว้ก่อนหน้า
 This member cannot be assigned,มอบหมายให้สมาชิกนี้ไม่ได้
 This multi-page invoice has no verified combined record. Review it before exporting.,ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก
 This operation ID has already been used for another request.,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
@@ -1162,6 +1172,20 @@ cowork.recon.task.needs_review,รอตรวจสอบ
 cowork.recon.timeout,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 cowork.recon.vat.left,รายงานภาษีขาย
 cowork.recon.vat.right,ใบกำกับภาษีขาย
+cowork.review.amount_math,ยอดเงินไม่สมดุล (ก่อน VAT + VAT ≠ ยอดรวม)
+cowork.review.duplicate,อาจซ้ำกับเอกสารที่บันทึกไว้ก่อนหน้า
+cowork.review.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน
+cowork.review.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร
+cowork.review.number_choice,เลขที่เอกสารอ่านได้สองแบบ กรุณาเลือกตามต้นฉบับ:
+cowork.review.number_field,เลขที่เอกสาร
+cowork.review.number_pattern,รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})
+cowork.review.own_tax,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
+cowork.review.page_unread,มีหน้าหนึ่งในไฟล์นี้อ่านไม่ได้ เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจกับต้นฉบับ
+cowork.review.tax_checksum,{0}: หลักตรวจสอบไม่ถูกต้อง
+cowork.review.tax_length,{0} ไม่ครบ 13 หลัก
+cowork.review.tax_suggest,{0} ไม่ครบ 13 หลัก ใช่เลขนี้หรือไม่:
+cowork.review.uncertain,ระบบอ่านเอกสารใบนี้ไม่มั่นใจ กรุณาตรวจกับต้นฉบับ
+cowork.review.voucher_number,เลขที่เอกสารดูเหมือนเลขที่ใบสำคัญที่ประทับไว้ กรุณาตรวจเลขที่พิมพ์บนเอกสาร
 cowork.stock.action.export,ส่งออก
 cowork.stock.action.reload,โหลดใหม่
 cowork.stock.actualLocation,ตำแหน่งจริง
@@ -1775,12 +1799,16 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
 {0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
 {0} files,{0} ไฟล์
+{0} is not 13 digits,{0} ไม่ครบ 13 หลัก
+{0} is not 13 digits. Did you mean:,{0} ไม่ครบ 13 หลัก ใช่เลขนี้หรือไม่:
+{0} is not your company's tax ID,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
+{0}: the check digit is wrong,{0}: หลักตรวจสอบไม่ถูกต้อง
 {1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
 {1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
 {1} is overdue ({2}),"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"

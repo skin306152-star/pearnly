@@ -28,7 +28,8 @@ from pearnly_cowork.ocr.validation import (
 )
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
-    infer_withholding, normalize_amounts, repair_from_transcript, repair_invoice_number,
+    NUMBER_ALTERNATIVE_PREFIX, infer_withholding, invoice_number_alternative, normalize_amounts,
+    repair_from_transcript,
 )
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
@@ -232,7 +233,8 @@ class _Run:
 
     def check_tax_invoice(self, page, frame, invoice, warnings):
         """完整税票过了闸也拿 Vision 原文核对一次单号与税号（2026-09-27 大语料 A/B：直读把单号读错一个字符，
-        金额全对、闸拦不住）。只对能抵进项的完整税票做，小票不多花；Vision 明确拒绝就跳过核对，不挡这一页。"""
+        金额全对、闸拦不住）。只对能抵进项的完整税票做，小票不多花；Vision 明确拒绝就跳过核对，不挡这一页。
+        单号与原文差一个字符时不替换，两种写法留给复核的人选、这一页转复核（2026-09-28 Express 压测）。"""
         if invoice.is_not_invoice or invoice.document_type != "tax_invoice" or self.vision_call is None:
             return []
         try:
@@ -245,14 +247,14 @@ class _Run:
                                        elapsed_ms=response.elapsed_ms, checkpoint_key=response.checkpoint_key))
         text = response.page.full_text
         notes = repair_from_transcript(invoice, text, tolerance=self.config.amount_tolerance)
-        fixed = repair_invoice_number(invoice, text)
-        warnings.extend(notes + ([fixed] if fixed else []))
+        alternative = invoice_number_alternative(invoice, text)
+        warnings.extend(notes + ([alternative] if alternative else []))
         return ["L1"]
 
     def direct_result(self, page, invoice, warnings, calls, chain):
         if not invoice.is_not_invoice and not str(invoice.invoice_number or "").strip():
             warnings.append("direct_read: invoice_number missing")
-        force = any(w.startswith(DISCOUNT_INFERRED_PREFIX) for w in warnings)
+        force = any(w.startswith((DISCOUNT_INFERRED_PREFIX, NUMBER_ALTERNATIVE_PREFIX)) for w in warnings)
         credit = credit_note_review_reason(invoice)
         if credit:
             warnings.append(credit)

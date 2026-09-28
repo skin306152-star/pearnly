@@ -136,11 +136,15 @@ class EngineTests(unittest.TestCase):
             self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4500)
 
     def test_a_full_tax_invoice_is_checked_against_the_transcript(self):
-        # 2026-09-27 大语料：直读把单号读错一个字符、金额全对 —— 完整税票过了闸也拿 Vision 原文核对单号
+        # 2026-09-27 大语料：直读把单号读错一个字符、金额全对 —— 完整税票过了闸也拿 Vision 原文核对单号；
+        # 2026-09-28 压测：原文也会读错，差一个字符时不替换，两种写法交复核、这一页转复核
         wrong = {**GOOD, "document_type": "tax_invoice", "invoice_number": "IV69/108"}
         page = run(model=Model([wrong])).pipeline.pages[0]
-        self.assertEqual((page.layer_chain, page.invoice.invoice_number), (["ID", "L1"], "IV69/100"))
-        self.assertTrue(any("invoice_number IV69/108" in w for w in page.validation_warnings))
+        self.assertEqual((page.layer_chain, page.invoice.invoice_number), (["ID", "L1"], "IV69/108"))
+        self.assertIn("invoice_number_alternative: IV69/108|IV69/100", page.validation_warnings)
+        self.assertTrue(page.needs_manual_review)
+        right = run(model=Model([{**GOOD, "document_type": "tax_invoice"}])).pipeline.pages[0]
+        self.assertFalse(any(w.startswith("invoice_number_alternative") for w in right.validation_warnings))
         receipt = run(model=Model([{**GOOD, "invoice_number": "IV69/108"}])).pipeline.pages[0]
         self.assertEqual((receipt.layer_chain, receipt.invoice.invoice_number), (["ID"], "IV69/108"))  # 小票不多花
 

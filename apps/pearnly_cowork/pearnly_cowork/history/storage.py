@@ -9,9 +9,9 @@ import frappe
 from frappe import _
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
-from . import categories, duplicates
+from . import categories, duplicates, review
 from pearnly_cowork.contracts.history import (HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
-    extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind)
+    extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page_fields)
 
 DOCTYPE = "Cowork OCR History"
 _CREATE_TOKEN = object()
@@ -108,6 +108,27 @@ def validate_document(doc):
     for field, value in extract_party_fields(pages).items():
         doc.set(field, value)
     doc.quality_status = list_status(doc.confidence, summary)
+    doc.review_reasons = encode(review_reasons(doc, pages))
+
+
+def review_reasons(doc, pages):
+    """这张票需要人看一眼的原因（规则见 `history/review.py`）；推送成功过的不再提。"""
+    if doc.last_push_status == "success":
+        return []
+    fields = primary_page_fields(pages)
+    party = "buyer" if fields.get("direction") == "sales" else "seller"
+    raw_tax = str(fields.get(f"{party}_tax") or "").strip()
+    digits = re.sub(r"\D", "", raw_tax)
+    numbers = []
+    if len(digits) == 13:
+        # 同一对方、人核过（改过或推送成功）的票号，只取写法，不回显给别人看。
+        numbers = frappe.db.sql_list(f"""SELECT invoice_no FROM `tab{DOCTYPE}`
+            WHERE workspace=%s AND name!=%s AND {party}_tax IN (%s, %s) AND COALESCE(invoice_no, '')!=''
+              AND (last_push_status='success' OR edit_count>0)
+            ORDER BY creation DESC LIMIT 30""", (doc.workspace, doc.name or "", raw_tax, digits))
+    own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id") if doc.workspace else None
+    return review.reasons(pages, own_tax=own_tax, party_numbers=numbers,
+                          duplicate=doc.duplicate_check_status == "matched", edited=int(doc.edit_count or 0) > 0)
 
 
 def guard_write(doc):
@@ -204,6 +225,7 @@ def project(doc):
         "push_connection", "push_account_set", "intake_target")}
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
+    result["review_reasons"] = parse(doc.get("review_reasons") or "[]")
     result["posting_kind"] = normalize_posting_kind(doc.posting_kind)
     result["duplicate_check_status"] = doc.duplicate_check_status or "not_checked"
     result["duplicate_warning"] = duplicates.warning(doc)

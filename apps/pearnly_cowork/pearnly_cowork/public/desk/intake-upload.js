@@ -91,6 +91,21 @@
 	const maybe_missed = record => (record?.pages || []).some(page =>
 		[...(page?._validation_warnings || []), ...(page?._trigger_reasons || [])]
 			.some(text => String(text).startsWith("possible_missed_invoice")));
+	/** 需复核原因的文案（`cowork.review.<码>`）；税号类带上是哪一格。 */
+	const REVIEW_RESOLVED = "review_resolved";
+	// 看过就可以点掉的提醒（识别时留下的、或写法类的）；税号 / 金额 / 明细这类改对了自然消失，不给点掉。
+	const REVIEW_DISMISSABLE = new Set(["missed_invoice", "page_unread", "uncertain", "duplicate",
+		"voucher_number", "number_pattern"]);
+	const TAX_LABELS = {seller_tax: "intake.field.sellerTax", buyer_tax: "intake.field.buyerTax"};
+	p.intake_review_text = (reason, t) => {
+		const label = TAX_LABELS[reason?.field] ? t(TAX_LABELS[reason.field]) : "";
+		if (reason?.code === "missed_invoice") return t("intake.review.missed");
+		if (reason?.code === "tax_length" && reason.suggest) return __("cowork.review.tax_suggest", [label]);
+		if (reason?.code === "number_pattern") {
+			return __("cowork.review.number_pattern", [String(reason.usual || "").replace(/9/g, "#")]);
+		}
+		return __(`cowork.review.${reason?.code}`, [label]);
+	};
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
 	const code_text = code => {
 		if (!code) return "";
@@ -202,6 +217,7 @@
 		// 这一批是 MR.ERP 就不摆「过账类型」（整票与明细行都不摆）；复核已有记录时不知道目标，照常显示。
 		// 「仅识别」（用户 2026-09-26）：识别后导出复核工作簿，不推送；过账类型同样不摆，右上角是「导出」。
 		// 从列表 / LINE 卡片打开已有的票：目标卡片记在票上（`intake_target`，新建时写入），没有弹窗里的选择可用。
+		const review_text = reason => p.intake_review_text(reason, t);
 		const opened = name ? await p.call(HISTORY + "detail", {name}).catch(() => null) : null;
 		const target = choice?.target || opened?.intake_target || "";
 		const recognize_only = target === p.intake_targets?.RECOGNIZE_ONLY;
@@ -457,11 +473,37 @@
 			show_fields({...working, direction: next}, next);
 			show_items(working.items);
 		};
+		/** 需复核原因（服务端 `history/review.py` 算好存在票上）：一条一行，官方表单提示条。
+		 * 单号两种读法、税号补 0 的建议点一下就填进去；识别时留下的提醒看过可以点掉（记进票面，保存后不再提）。 */
 		const show_notice = record => {
 			const wrapper = form.fields_dict.notice.$wrapper.empty();
-			const lines = [];
-			if (maybe_missed(record)) lines.push(t("intake.review.missed"));
-			for (const line of lines) $("<div class='form-message yellow'>").text(line).appendTo(wrapper);
+			const reasons = Array.isArray(record?.review_reasons) ? record.review_reasons : [];
+			const lines = reasons.length ? reasons : maybe_missed(record) ? [{code: "missed_invoice"}] : [];
+			const keys = FIELD_KEYS(shown_direction);
+			const control = field => Object.keys(keys).find(name => keys[name] === field);
+			const resolve = (row, code) => {
+				working[REVIEW_RESOLVED] = [...new Set([...(working[REVIEW_RESOLVED] || []), code])];
+				row.remove();
+				sync_save();
+			};
+			for (const reason of lines) {
+				const row = $("<div class='form-message yellow'>").appendTo(wrapper);
+				$("<span>").text(review_text(reason)).appendTo(row);
+				const offer = (value, apply) => $("<button type='button' class='btn btn-xs btn-default ml-2'>")
+					.text(value).on("click", apply).appendTo(row);
+				if (reason.code === "number_choice") {
+					for (const value of reason.choices || []) {
+						offer(value, () => {form.set_value("invoice_number", value); resolve(row, reason.code);});
+					}
+				}
+				if (reason.code === "tax_length" && reason.suggest && control(reason.field)) {
+					offer(reason.suggest, () => {form.set_value(control(reason.field), reason.suggest); row.remove();});
+				}
+				if (REVIEW_DISMISSABLE.has(reason.code)) {
+					$("<button type='button' class='close ml-2' aria-label='Close'>").html("&times;")
+						.on("click", () => resolve(row, reason.code)).appendTo(row);
+				}
+			}
 		};
 		// 推到 ERP 的两张目标卡片（用户 2026-09-27：账套上传前由用户选定，编辑页不再选）。
 		const PUSH_TARGETS = ["express", "mrerp"];

@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-09-26 12:00:00.000000",
+ "modified": "2026-09-28 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -22,6 +22,7 @@
   "ai_raw",
   "confidence",
   "quality_status",
+  "review_reasons",
   "posting_kind",
   "invoice_no",
   "invoice_date",
@@ -138,6 +139,14 @@
    "label": "Recognition Quality",
    "options": "failed\npending\nconfirmed",
    "read_only": 1
+  },
+  {
+   "fieldname": "review_reasons",
+   "fieldtype": "Code",
+   "label": "Review Reasons",
+   "options": "JSON",
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "posting_kind",
