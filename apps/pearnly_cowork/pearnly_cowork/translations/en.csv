@@ -10,6 +10,7 @@ A client cannot be moved to another company.,A client cannot be moved to another
 A completed record cannot become a draft.,A completed record cannot become a draft.
 "A document section exceeds 30,000 characters. Split the document before recognition.","A document section exceeds 30,000 characters. Split the document before recognition."
 A dropdown field needs at least one option,A dropdown field needs at least one option
+A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A file is larger than 25 MB.,A file is larger than 25 MB.
 A name is required.,A name is required.
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
@@ -23,6 +24,8 @@ A reported ERP action is invalid.,A reported ERP action is invalid.
 A reported ERP field is invalid.,A reported ERP field is invalid.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
 A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 A successful push has no ERP document number. Check its receipt.,A successful push has no ERP document number. Check its receipt.
 A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is required.
 A value in the ERP data report exceeds the allowed length.,A value in the ERP data report exceeds the allowed length.
@@ -61,6 +64,8 @@ All members,All members
 Allowed Users,Allowed Users
 Already exists,Already exists
 Amount,Amount
+An account needed for this invoice is not set. Check the account settings,An account needed for this invoice is not set. Check the account settings
+An account used for this invoice is not in the Express chart of accounts. Check the account settings,An account used for this invoice is not in the Express chart of accounts. Check the account settings
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
@@ -157,12 +162,15 @@ Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
 Choose file,Choose file
+Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
+Choose service or stock for this invoice and submit again,Choose service or stock for this invoice and submit again
 Choose the company,Choose the company
 Choose the destination for these documents,Choose the destination for these documents
 Choose the inventory account group for this account set. Tap the number:,Choose the inventory account group for this account set. Tap the number:
 Choose the payment method,Choose the payment method
 Choose the sheet to import,Choose the sheet to import
 Choose the year,Choose the year
+Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
 Client,Client
@@ -259,6 +267,7 @@ Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
 Credit,Credit
 Credit Note,Credit Note
+Credit notes need a person to post them in Express,Credit notes need a person to post them in Express
 Credit sales,Credit sales
 Currency,Currency
 Current Directory Heads,Current Directory Heads
@@ -363,6 +372,10 @@ Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+"Express already has this invoice number with different content. Check it, or choose Send anyway","Express already has this invoice number with different content. Check it, or choose Send anyway"
+"Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
+"Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
+Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
 External Docnum,External Docnum
 Failed,Failed
 Failure Count,Failure Count
@@ -534,6 +547,7 @@ Number,Number
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Only an active count can be deleted,Only an active count can be deleted
+Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
 Open card,Open card
 Options (one per line),Options (one per line)
@@ -707,6 +721,7 @@ Seller address,Seller address
 Seller branch,Seller branch
 Seller tax ID,Seller tax ID
 Send,Send
+Send anyway,Send anyway
 Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
@@ -714,6 +729,8 @@ Service or stock?,Service or stock?
 Set due date,Set due date
 Set reminder,Set reminder
 Settings Json,Settings Json
+Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
+Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 Sheet,Sheet
 Short,Short
 Show,Show
@@ -722,7 +739,9 @@ Show on card,Show on card
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
+Some fields are uncertain. Check them against the original and submit again,Some fields are uncertain. Check them against the original and submit again
 Some line items have no name or amount,Some line items have no name or amount
+Some line items have no name or amount. Fix the lines and submit again,Some line items have no name or amount. Fix the lines and submit again
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Some rows were skipped,Some rows were skipped
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
@@ -806,11 +825,13 @@ The VAT report has no rows.,The VAT report has no rows.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
 The amounts do not add up (before VAT + VAT ≠ total),The amounts do not add up (before VAT + VAT ≠ total)
+The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The camera could not start,The camera could not start
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
+The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
@@ -836,6 +857,8 @@ The document exceeds the allowed size after decompression.,The document exceeds 
 The document file is damaged or cannot be decompressed.,The document file is damaged or cannot be decompressed.
 The document reader is unavailable. Contact your administrator.,The document reader is unavailable. Contact your administrator.
 The document sections are incomplete or invalid.,The document sections are incomplete or invalid.
+"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway","The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
+The entry does not balance. Check the amounts,The entry does not balance. Check the amounts
 The export contains an invalid or repeated history reference.,The export contains an invalid or repeated history reference.
 The file exceeds the allowed size.,The file exceeds the allowed size.
 The file is larger than 25 MB,The file is larger than 25 MB
@@ -844,6 +867,11 @@ The file size or page metadata is invalid.,The file size or page metadata is inv
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
 The general ledger could not be read.,The general ledger could not be read.
 The general ledger has no revenue account rows.,The general ledger has no revenue account rows.
+The helper could not read this invoice. Check the fields and submit again,The helper could not read this invoice. Check the fields and submit again
+The helper could not write this invoice. It is retried automatically,The helper could not write this invoice. It is retried automatically
+The helper has not been given this account set. Check the helper's account sets,The helper has not been given this account set. Check the helper's account sets
+The helper is not allowed to write to this account set. Check the helper's account set,The helper is not allowed to write to this account set. Check the helper's account set
+The helper is out of date. Update the helper and submit again,The helper is out of date. Update the helper and submit again
 The image file cannot be read.,The image file cannot be read.
 The import columns do not match the stock count template.,The import columns do not match the stock count template.
 The import contains a repeated product code.,The import contains a repeated product code.
@@ -853,7 +881,10 @@ The import row is invalid or has missing required values.,The import row is inva
 The invoice configuration does not match the OCR connection.,The invoice configuration does not match the OCR connection.
 The invoice contains text that Excel cannot store safely. Check its length and characters.,The invoice contains text that Excel cannot store safely. Check its length and characters.
 The invoice data is invalid and cannot be exported.,The invoice data is invalid and cannot be exported.
+The invoice date is in the future. Correct it and submit again,The invoice date is in the future. Correct it and submit again
 The invoice date is invalid. Correct it before exporting.,The invoice date is invalid. Correct it before exporting.
+The invoice date is missing or unreadable. Fill it in and submit again,The invoice date is missing or unreadable. Fill it in and submit again
+The invoice date looks wrong. Correct it and submit again,The invoice date looks wrong. Correct it and submit again
 The invoice fields have an invalid format.,The invoice fields have an invalid format.
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
 The invoice number is written differently from this party's earlier invoices (usually {0}),The invoice number is written differently from this party's earlier invoices (usually {0})
@@ -863,6 +894,7 @@ The invoice page data has an invalid format.,The invoice page data has an invali
 The ledger file content is invalid.,The ledger file content is invalid.
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.","The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
 The line items do not add up to the invoice amount,The line items do not add up to the invoice amount
+The line items do not add up to the invoice amount. Fix the lines and submit again,The line items do not add up to the invoice amount. Fix the lines and submit again
 The opening and closing values are invalid.,The opening and closing values are invalid.
 The original document manifest cannot be changed.,The original document manifest cannot be changed.
 The original document manifest exceeds the 8 MiB limit.,The original document manifest exceeds the 8 MiB limit.
@@ -894,17 +926,21 @@ The reports belong to different sellers ({0}).,The reports belong to different s
 The reports cover different periods ({0}).,The reports cover different periods ({0}).
 The request is invalid. Reload and try again.,The request is invalid. Reload and try again.
 The requested page is not part of this invoice.,The requested page is not part of this invoice.
+The result is not confirmed. Check in Express before sending again,The result is not confirmed. Check in Express before sending again
 The review workbook cannot be read. Check its format and content.,The review workbook cannot be read. Check its format and content.
 The review workbook contains an invalid number.,The review workbook contains an invalid number.
 The review workbook contains no invoice rows to import.,The review workbook contains no invoice rows to import.
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.
 The review worksheet name contains extra spaces. Restore the original name.,The review worksheet name contains extra spaces. Restore the original name.
 The row has no product code or barcode,The row has no product code or barcode
+The seller and buyer have the same tax ID. Correct it and submit again,The seller and buyer have the same tax ID. Correct it and submit again
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
 The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
+"The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The stocktake export snapshot is incomplete. Reload and try again.,The stocktake export snapshot is incomplete. Reload and try again.
+The tax ID is not valid. Correct it and submit again,The tax ID is not valid. Correct it and submit again
 The unsent preparation was cancelled.,The unsent preparation was cancelled.
 The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
 The uploaded file is empty.,The uploaded file is empty.
@@ -924,6 +960,7 @@ This channel is not open yet,This channel is not open yet
 This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
 This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
+This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
 This delivery conflicts with the current task state.,This delivery conflicts with the current task state.
 This document format is not supported.,This document format is not supported.
 This file does not match the review workbook format.,This file does not match the review workbook format.
@@ -931,6 +968,7 @@ This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
+This invoice was already sent successfully,This invoice was already sent successfully
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
 This label no longer exists,This label no longer exists
@@ -952,6 +990,7 @@ This request key was used for different content.,This request key was used for d
 This request key was used for different push content.,This request key was used for different push content.
 This request was already used for different content.,This request was already used for different content.
 This stock count task is closed.,This stock count task is closed.
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 Time left {0},Time left {0}
 Title,Title
@@ -1020,6 +1059,7 @@ Withdrawal,Withdrawal
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workspace,Workspace
+Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Yearly,Yearly
 Yellow,Yellow
 You are watching this card,You are watching this card
@@ -1181,6 +1221,7 @@ cowork.review.number_field,Invoice number
 cowork.review.number_pattern,The invoice number is written differently from this party's earlier invoices (usually {0})
 cowork.review.own_tax,{0} is not your company's tax ID
 cowork.review.page_unread,A page of this file could not be read: an invoice on it may be missing. Check the original
+cowork.review.send_anyway,Send anyway
 cowork.review.tax_checksum,{0}: the check digit is wrong
 cowork.review.tax_length,{0} is not 13 digits
 cowork.review.tax_suggest,{0} is not 13 digits. Did you mean:
@@ -1638,6 +1679,16 @@ history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
 image,image
 intake.catalog.reload,Read again
+intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
+intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,The helper is not allowed to write to this account set. Check the helper's account set
+intake.error.CDX_REINDEX_FAILED,"Express could not index the invoice, so it was undone. It is retried automatically"
+intake.error.CUSTOMER_BRANCH_AMBIGUOUS,Several Express customers have this tax ID. Choose the customer and submit again
+intake.error.CUSTOMER_DUP_SUSPECTED,"A similar customer already exists in Express. Choose it, or confirm this is a new customer"
+intake.error.CUSTOMER_NOT_IN_ARMAS,This customer is not in Express and could not be created. Check the customer name and tax ID
+intake.error.DBF_WRITE_FAILED,Writing to Express failed and was undone. It is retried automatically
+intake.error.DUPLICATE_CONTENT_DIFFERS,"Express already has this invoice number with different content. Check it, or choose Send anyway"
+intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,The result is not confirmed. Check in Express before sending again
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
 intake.error.ERR_MRERP_MENU_CHANGED,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
@@ -1645,6 +1696,41 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a jou
 intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+intake.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
+intake.error.PAYLOAD_INVALID,The helper could not read this invoice. Check the fields and submit again
+intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
+intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
+intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
+intake.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
+intake.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+intake.error.account_not_in_chart,An account used for this invoice is not in the Express chart of accounts. Check the account settings
+intake.error.account_set_not_allowed,The helper has not been given this account set. Check the helper's account sets
+intake.error.agent_failed,The helper could not write this invoice. It is retried automatically
+intake.error.already_success,This invoice was already sent successfully
+intake.error.amounts_not_consistent,The amounts do not add up. Correct them and submit again
+intake.error.bad_or_missing_date,The invoice date is missing or unreadable. Fill it in and submit again
+intake.error.confirmed_push_unacked,The result is not confirmed. Check in Express before sending again
+intake.error.credit_note,Credit notes need a person to post them in Express
+intake.error.currency_not_thb,Only invoices in Thai baht can be sent to Express
+intake.error.date_future,The invoice date is in the future. Correct it and submit again
+intake.error.date_implausible,The invoice date looks wrong. Correct it and submit again
+intake.error.direction_unknown,Choose purchase or sales for this invoice and submit again
+intake.error.entry_not_balanced,The entry does not balance. Check the amounts
+intake.error.items_incomplete,Some line items have no name or amount. Fix the lines and submit again
+intake.error.items_mismatch,The line items do not add up to the invoice amount. Fix the lines and submit again
+intake.error.low_confidence,Some fields are uncertain. Check them against the original and submit again
+intake.error.no_account_set,Choose the year and account set first
+intake.error.no_ap_account,An account needed for this invoice is not set. Check the account settings
+intake.error.no_ar_account,An account needed for this invoice is not set. Check the account settings
+intake.error.no_input_vat_account,An account needed for this invoice is not set. Check the account settings
+intake.error.no_output_vat_account,An account needed for this invoice is not set. Check the account settings
+intake.error.no_purchase_account,An account needed for this invoice is not set. Check the account settings
+intake.error.no_revenue_account,An account needed for this invoice is not set. Check the account settings
+intake.error.payload_version_outdated,The helper is out of date. Update the helper and submit again
+intake.error.posting_kind_needed,Choose service or stock for this invoice and submit again
+intake.error.seller_buyer_same_tax,The seller and buyer have the same tax ID. Correct it and submit again
+intake.error.tax_id_invalid,The tax ID is not valid. Correct it and submit again
 intake.mrerpMenu.purchase,Purchase (goods)
 intake.mrerpMenu.purchase_expense,Purchase (expense)
 intake.mrerpMenu.readFailed,Could not read the MR.ERP menus. Try again later.

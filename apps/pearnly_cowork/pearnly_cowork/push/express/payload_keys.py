@@ -38,6 +38,8 @@ WRITE_PAYLOAD_KEYS = frozenset(
         "stock_acccod",
         "vat_capitalized",
         "prior_docnum",
+        # 复核页「仍然推送」：服务端准备时加（不是映射器出的），小助手查重闸认它。
+        "duplicate_confirmed",
         "opening_stock",
     }
 )

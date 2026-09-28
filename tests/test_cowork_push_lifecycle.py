@@ -58,6 +58,21 @@ class QueueTests(unittest.TestCase):
                     self.assertEqual(state.status, "pending" if attempt < 3 else "manual")
                     self.assertEqual(state.retry, attempt < 3)
 
+    def test_a_rejection_retrying_cannot_change_goes_to_a_person(self):
+        # 2026-09-28 压测：同税号两个客户档先按普通失败重试 3 次，列表一直「录入中」
+        for branch in ("legacy", "managed"):
+            state = flow.acknowledgement(branch=branch, attempt=1, success=False,
+                                         error="[CUSTOMER_BRANCH_AMBIGUOUS] ARMAS tax 0105554131661 matches 2 parties")
+            self.assertEqual((state.status, state.stage, state.retry), ("manual", "needs_review", False))
+            self.assertTrue(state.reason.startswith("[CUSTOMER_BRANCH_AMBIGUOUS]"))
+            ordinary = flow.acknowledgement(branch=branch, attempt=1, success=False, error="[DBF_WRITE_FAILED] io")
+            self.assertEqual((ordinary.status, ordinary.retry), ("pending", True))
+            waiting = flow.acknowledgement(branch=branch, attempt=1, success=False, outcome="waiting_lock",
+                                           error="[CUSTOMER_BRANCH_AMBIGUOUS] x")
+            self.assertEqual(waiting.status, "pending")  # 小助手自己给了去向的照它
+        self.assertEqual(flow.error_code("  [FIELD_TOO_LONG] REFNUM"), "FIELD_TOO_LONG")
+        self.assertEqual(flow.error_code("items_mismatch"), "")
+
     def test_duplicate_confirmation_matches_sql_truthiness(self):
         for value in (None, False, 0, "false", "FALSE", "null", "", "off", "no"):
             self.assertFalse(flow.duplicate_confirmed(value), value)

@@ -197,10 +197,12 @@ def _handle_dbf_task(
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     """DBF 写错误码 → 云端 V3 outcome(细粒度状态)。未映射 → None(走默认 failed)。"""
     from .dbf_writer import ERR_INDEX, ERR_WAITING_LOCK
-    from .dbf_sales import ERR_CUSTOMER_DUP
+    from .dbf_sales import ERR_CUSTOMER_AMBIGUOUS, ERR_CUSTOMER_DUP
     from .dbf_writer import (
         ERR_DUPLICATE_DIFFERS,
+        ERR_FIELD_WIDTH,
         ERR_PRIOR_DOC_EXISTS,
+        ERR_SUPPLIER_AMBIGUOUS,
         ERR_SUPPLIER_DUP,
     )
 
@@ -213,6 +215,10 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         # 重刷,只会把同一个问句反复摔在她脸上,而她看到的是"失败(重试中)"。
         ERR_DUPLICATE_DIFFERS: "needs_review",
         ERR_PRIOR_DOC_EXISTS: "needs_review",
+        # 同税号多档定不出 / 字段超宽:重试结论也一样,要人选档或改票(2026-09-28 压测:先按普通失败重试 3 次)。
+        ERR_CUSTOMER_AMBIGUOUS: "needs_review",
+        ERR_SUPPLIER_AMBIGUOUS: "needs_review",
+        ERR_FIELD_WIDTH: "needs_review",
     }.get(error_code or "")
 
 

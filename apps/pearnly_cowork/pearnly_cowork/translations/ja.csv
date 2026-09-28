@@ -10,6 +10,7 @@ A client cannot be moved to another company.,顧客を別の会社に移動す�
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
 "A document section exceeds 30,000 characters. Split the document before recognition.","文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
 A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
+A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
 A file is larger than 25 MB.,25MBを超えるファイルがあります。
 A name is required.,名前を入力してください。
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
@@ -23,6 +24,8 @@ A reported ERP action is invalid.,報告された ERP の操作が無効です�
 A reported ERP field is invalid.,報告された ERP フィールドが無効です。
 A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
 A review workbook must contain between 1 and 500 invoices.,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 A successful push has no ERP document number. Check its receipt.,成功済みの送信にERP伝票番号がありません。確認応答を確認してください。
 A timezone-aware UTC timestamp is required.,タイムゾーン付きのUTC時刻が必要です。
 A value in the ERP data report exceeds the allowed length.,ERP データレポート内の値が許容される長さを超えています。
@@ -61,6 +64,8 @@ All members,すべてのメンバー
 Allowed Users,許可ユーザー
 Already exists,すでに存在します
 Amount,金額
+An account needed for this invoice is not set. Check the account settings,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+An account used for this invoice is not in the Express chart of accounts. Check the account settings,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
@@ -157,12 +162,15 @@ Choose an image attached to this card,このカードに添付した画像を選
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
 Choose file,ファイルを選択
+Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
+Choose service or stock for this invoice and submit again,この伝票がサービスか在庫かを選んで再送信してください
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
 Choose the inventory account group for this account set. Tap the number:,この会計データの在庫勘定グループを選択してください。番号をタップ：
 Choose the payment method,支払方法を選択
 Choose the sheet to import,取り込むシートを選択してください
 Choose the year,年度を選択
+Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
 Client,顧客
@@ -259,6 +267,7 @@ Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
 Credit Note,返品・値引伝票
+Credit notes need a person to post them in Express,返品・値引伝票は Express で手動で処理してください
 Credit sales,掛売上
 Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
@@ -363,6 +372,10 @@ Export,エクスポート
 Export Excel,Excel に出力
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
+"Express already has this invoice number with different content. Check it, or choose Send anyway",Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
+"Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
+"Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
+Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 External Docnum,ERP伝票番号
 Failed,失敗
 Failure Count,失敗回数
@@ -534,6 +547,7 @@ Number,数値
 OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only an active count can be deleted,進行中の棚卸のみ削除できます
+Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
 Open card,カードを開く
 Options (one per line),選択肢（1行に1つ）
@@ -707,6 +721,7 @@ Seller address,売り手住所
 Seller branch,売り手支店
 Seller tax ID,売り手税番号
 Send,送信
+Send anyway,このまま送信
 Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
@@ -714,6 +729,8 @@ Service or stock?,サービスですか、在庫品ですか？
 Set due date,期日を N 日後に設定
 Set reminder,リマインダー
 Settings Json,設定データ（JSON）
+Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
+Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 Sheet,シート
 Short,不足
 Show,表示
@@ -722,7 +739,9 @@ Show on card,カードに表示
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
+Some fields are uncertain. Check them against the original and submit again,不確かな項目があります。原本と照合して再送信してください
 Some line items have no name or amount,品名または金額のない明細があります
+Some line items have no name or amount. Fix the lines and submit again,品名または金額のない明細があります。直して再送信してください
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Some rows were skipped,一部の行を取り込めませんでした
 Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
@@ -806,11 +825,13 @@ The VAT report has no rows.,税報告に明細行がありません。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up (before VAT + VAT ≠ total),金額が合いません（税抜 + 税額 ≠ 合計）
+The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
 The bank statement could not be read.,銀行明細を読み取れません。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
 The camera could not start,カメラを起動できません
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
+The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
@@ -836,6 +857,8 @@ The document exceeds the allowed size after decompression.,展開後の文書サ
 The document file is damaged or cannot be decompressed.,文書ファイルが破損しているか、展開できません。
 The document reader is unavailable. Contact your administrator.,文書の読み取り機能が利用できません。管理者にお問い合わせください。
 The document sections are incomplete or invalid.,文書の論理単位が不完全または無効です。
+"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway",この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
+The entry does not balance. Check the amounts,仕訳の貸借が合いません。金額を確認してください
 The export contains an invalid or repeated history reference.,エクスポート対象に無効または重複した履歴参照があります。
 The file exceeds the allowed size.,ファイルサイズが上限を超えています。
 The file is larger than 25 MB,ファイルが 25 MB を超えています
@@ -844,6 +867,11 @@ The file size or page metadata is invalid.,ファイルサイズまたはペー�
 The frozen push target does not match the authorized target.,固定された送信先が許可された送信先と一致しません。
 The general ledger could not be read.,総勘定元帳を読み取れません。
 The general ledger has no revenue account rows.,総勘定元帳に収益科目の行がありません。
+The helper could not read this invoice. Check the fields and submit again,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
+The helper could not write this invoice. It is retried automatically,アシスタントが書き込めませんでした。自動で再試行します
+The helper has not been given this account set. Check the helper's account sets,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
+The helper is not allowed to write to this account set. Check the helper's account set,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
+The helper is out of date. Update the helper and submit again,アシスタントが古いバージョンです。更新して再送信してください
 The image file cannot be read.,この画像ファイルを読み取れません。
 The import columns do not match the stock count template.,インポートする列が棚卸テンプレートと一致しません。
 The import contains a repeated product code.,インポートデータに重複する商品コードがあります。
@@ -853,7 +881,10 @@ The import row is invalid or has missing required values.,インポート行が�
 The invoice configuration does not match the OCR connection.,請求書の認識設定とサービスの接続設定が一致しません。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
 The invoice data is invalid and cannot be exported.,請求書データが無効なため、エクスポートできません。
+The invoice date is in the future. Correct it and submit again,伝票日付が未来です。直して再送信してください
 The invoice date is invalid. Correct it before exporting.,請求書の日付が無効です。修正してからエクスポートしてください。
+The invoice date is missing or unreadable. Fill it in and submit again,伝票日付がないか読み取れません。入力して再送信してください
+The invoice date looks wrong. Correct it and submit again,伝票日付がおかしいようです。確認して再送信してください
 The invoice fields have an invalid format.,請求書の項目データの形式が正しくありません。
 The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
 The invoice number is written differently from this party's earlier invoices (usually {0}),この取引先の過去の伝票と番号の書式が違います（通常は {0}）
@@ -863,6 +894,7 @@ The invoice page data has an invalid format.,請求書のページデータの�
 The ledger file content is invalid.,元帳の内容が無効です。
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。
 The line items do not add up to the invoice amount,明細の合計が伝票の金額と合いません
+The line items do not add up to the invoice amount. Fix the lines and submit again,明細の合計が伝票の金額と合いません。明細を直して再送信してください
 The opening and closing values are invalid.,期首・期末の値が無効です。
 The original document manifest cannot be changed.,元文書の内容索引は変更できません。
 The original document manifest exceeds the 8 MiB limit.,元文書の内容索引が上限の 8 MiB を超えています。
@@ -894,17 +926,21 @@ The reports belong to different sellers ({0}).,報告の売り手が異なりま
 The reports cover different periods ({0}).,報告の期間が異なります（{0}）。確認してください。
 The request is invalid. Reload and try again.,リクエストが無効です。再読み込みしてやり直してください。
 The requested page is not part of this invoice.,指定したページはこの請求書に含まれていません。
+The result is not confirmed. Check in Express before sending again,結果が確認できません。Express で確認してから再送信してください
 The review workbook cannot be read. Check its format and content.,確認用ワークブックを読み取れません。形式と内容を確認してください。
 The review workbook contains an invalid number.,確認用ワークブックに無効な数値が含まれています。
 The review workbook contains no invoice rows to import.,確認用ワークブックに再取り込みできる請求書の行がありません。
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,確認用ワークブックに、連続する 50 行の空行より後のデータがあります。空行部分を削除してから再取り込みしてください。
 The review worksheet name contains extra spaces. Restore the original name.,確認用シート名に余分な空白があります。元のシート名に戻してください。
 The row has no product code or barcode,この行に商品コードもバーコードもありません
+The seller and buyer have the same tax ID. Correct it and submit again,売手と買手の納税者番号が同じです。直して再送信してください
 The source page number must be a positive integer.,元ファイルのページ番号には正の整数が必要です。
 The start date is after the due date,開始日が期日より後です
 The stock count record was not found.,棚卸記録が見つかりません。
 The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
+"The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
 The stocktake export snapshot is incomplete. Reload and try again.,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
+The tax ID is not valid. Correct it and submit again,納税者番号が正しくありません。直して再送信してください
 The unsent preparation was cancelled.,未送信の準備を取り消しました。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
 The uploaded file is empty.,アップロードしたファイルは空です。
@@ -924,6 +960,7 @@ This channel is not open yet,このチャンネルはまだ開放していませ
 This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
 This connection is disabled.,この接続は無効です。
 This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
+This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This delivery conflicts with the current task state.,この受領結果はタスクの現在の状態と矛盾しています。
 This document format is not supported.,この文書形式には対応していません。
 This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
@@ -931,6 +968,7 @@ This file type is not supported.,このファイル形式には対応してい�
 "This file type is not supported. Use PDF, Excel or CSV.",このファイル形式は使えません。PDF、Excel、CSV を使ってください。
 This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
 This inventory account group cannot be chosen for this account set.,この会計データではこの在庫勘定グループを選択できません。
+This invoice was already sent successfully,この伝票は送信済みです
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This label no longer exists,このラベルはもうありません
@@ -952,6 +990,7 @@ This request key was used for different content.,この要求キーは別の内�
 This request key was used for different push content.,この要求キーは別の送信内容に使用されています。
 This request was already used for different content.,このリクエストは別の内容で使用済みです。
 This stock count task is closed.,この棚卸タスクはクローズ済みです。
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 Time left {0},残り {0}
 Title,タイトル
@@ -1020,6 +1059,7 @@ Withdrawal,出金
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
+Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Yearly,毎年
 Yellow,黄
 You are watching this card,このカードをウォッチしています
@@ -1181,6 +1221,7 @@ cowork.review.number_field,伝票番号
 cowork.review.number_pattern,この取引先の過去の伝票と番号の書式が違います（通常は {0}）
 cowork.review.own_tax,{0}が自社の納税者番号ではありません
 cowork.review.page_unread,このファイルの1ページを読み取れませんでした。そのページの伝票が漏れている可能性があります。原本を確認してください
+cowork.review.send_anyway,このまま送信
 cowork.review.tax_checksum,{0}：チェックディジットが正しくありません
 cowork.review.tax_length,{0}が13桁ではありません
 cowork.review.tax_suggest,{0}が13桁ではありません。次の番号ですか：
@@ -1638,6 +1679,16 @@ history.source_invalid,このレコードの取得元には対応していませ
 history.source_not_public,この画面からは手入力のレコードのみ作成できます。
 image,画像
 intake.catalog.reload,再読み込み
+intake.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
+intake.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
+intake.error.CUSTOMER_BRANCH_AMBIGUOUS,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
+intake.error.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
+intake.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
+intake.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
+intake.error.DUPLICATE_CONTENT_DIFFERS,Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
+intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。Express で確認してから再送信してください
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
@@ -1645,6 +1696,41 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年�
 intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
+intake.error.PAYLOAD_INVALID,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
+intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
+intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
+intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
+intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
+intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+intake.error.account_not_in_chart,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
+intake.error.account_set_not_allowed,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
+intake.error.agent_failed,アシスタントが書き込めませんでした。自動で再試行します
+intake.error.already_success,この伝票は送信済みです
+intake.error.amounts_not_consistent,金額が合いません。直して再送信してください
+intake.error.bad_or_missing_date,伝票日付がないか読み取れません。入力して再送信してください
+intake.error.confirmed_push_unacked,結果が確認できません。Express で確認してから再送信してください
+intake.error.credit_note,返品・値引伝票は Express で手動で処理してください
+intake.error.currency_not_thb,Express に送れるのはタイバーツの伝票だけです
+intake.error.date_future,伝票日付が未来です。直して再送信してください
+intake.error.date_implausible,伝票日付がおかしいようです。確認して再送信してください
+intake.error.direction_unknown,この伝票が仕入か売上かを選んで再送信してください
+intake.error.entry_not_balanced,仕訳の貸借が合いません。金額を確認してください
+intake.error.items_incomplete,品名または金額のない明細があります。直して再送信してください
+intake.error.items_mismatch,明細の合計が伝票の金額と合いません。明細を直して再送信してください
+intake.error.low_confidence,不確かな項目があります。原本と照合して再送信してください
+intake.error.no_account_set,先に年度と帳簿を選んでください
+intake.error.no_ap_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+intake.error.no_ar_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+intake.error.no_input_vat_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+intake.error.no_output_vat_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+intake.error.no_purchase_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+intake.error.no_revenue_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
+intake.error.payload_version_outdated,アシスタントが古いバージョンです。更新して再送信してください
+intake.error.posting_kind_needed,この伝票がサービスか在庫かを選んで再送信してください
+intake.error.seller_buyer_same_tax,売手と買手の納税者番号が同じです。直して再送信してください
+intake.error.tax_id_invalid,納税者番号が正しくありません。直して再送信してください
 intake.mrerpMenu.purchase,仕入（商品）
 intake.mrerpMenu.purchase_expense,仕入（経費）
 intake.mrerpMenu.readFailed,MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。

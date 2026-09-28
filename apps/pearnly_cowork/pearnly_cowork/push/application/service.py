@@ -55,7 +55,8 @@ def _view(row):
 
 
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
-            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None):
+            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
+            *, confirm_duplicate=False):
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -68,6 +69,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
         "account_set_key": account_set_key or None, "catalog_request_id": catalog_request_id or None,
         "catalog_revision": storage.revision(catalog_revision) if catalog_revision is not None else None,
         "posting_kind": posting_kind or None}
+    if confirm_duplicate:
+        # 只在点了「仍然推送」时写进意图：老的请求键回放时意图照旧对得上。
+        intent["confirm_duplicate"] = True
     if posting_kind not in (None, "", "service", "stock"):
         frappe.throw(_("push.posting_kind_invalid"))
     previous = ledger.lookup_request(context, request_key)
@@ -133,8 +137,12 @@ def prepare(history, connection, request_key, expected_history_version, expected
     frozen.update(request_intent=intent, connection_revision=loaded.revision,
         original_history=prior, preparation_date=today.isoformat(), own_tax_id=own_tax,
         preparation_evidence=evidence)
+    payload = prepared.payload or {}
+    if confirm_duplicate and payload:
+        # 小助手的查重闸认这个键：Express 已有同号不同内容 / 上一版还在时，会计确认过就照写（`duplicate_gate`）。
+        payload["duplicate_confirmed"] = True
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
-        frozen_payload=prepared.payload or {},
+        frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
         reason=prepared.reason or "", checks=prepared.preflight.checks_json())
     return _view(row)
@@ -266,7 +274,8 @@ def confirm_server(name, expected_revision, request_key):
 
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
-           account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None):
+           account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
+           *, confirm_duplicate=False):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
@@ -274,7 +283,7 @@ def submit(history, connection, request_key, expected_history_version, expected_
     """
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
-            account_set_key, catalog_request_id, catalog_revision, posting_kind)
+            account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":

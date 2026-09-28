@@ -10,6 +10,7 @@ A client cannot be moved to another company.,ไม่สามารถย้�
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
 "A document section exceeds 30,000 characters. Split the document before recognition.","มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน"
 A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
+A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
 A name is required.,กรุณาระบุชื่อ
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,ค่าตัวเลขในใบแจ้งหนี้เกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
@@ -23,6 +24,8 @@ A reported ERP action is invalid.,การดำเนินการ ERP ท�
 A reported ERP field is invalid.,ฟิลด์ ERP ที่รายงานไม่ถูกต้อง
 A request key of 1 to 128 characters is required.,รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ
 A review workbook must contain between 1 and 500 invoices.,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer",มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 A successful push has no ERP document number. Check its receipt.,รายการส่งสำเร็จไม่มีเลขที่เอกสาร ERP โปรดตรวจสอบผลตอบรับ
 A timezone-aware UTC timestamp is required.,ต้องระบุเวลา UTC พร้อมเขตเวลา
 A value in the ERP data report exceeds the allowed length.,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
@@ -61,6 +64,8 @@ All members,สมาชิกทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Already exists,มีอยู่แล้ว
 Amount,จำนวนเงิน
+An account needed for this invoice is not set. Check the account settings,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+An account used for this invoice is not in the Express chart of accounts. Check the account settings,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
 An option in the ERP data report is invalid.,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
@@ -157,12 +162,15 @@ Choose an image attached to this card,กรุณาเลือกรูปภ
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose both files first,กรุณาเลือกไฟล์ทั้งสองก่อน
 Choose file,เลือกไฟล์
+Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นซื้อหรือขาย แล้วส่งใหม่
+Choose service or stock for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงคลัง แล้วส่งใหม่
 Choose the company,เลือกบริษัท
 Choose the destination for these documents,เลือกปลายทางสำหรับเอกสารชุดนี้
 Choose the inventory account group for this account set. Tap the number:,เลือกกลุ่มบัญชีสินค้าคงคลังของชุดบัญชีนี้ แตะหมายเลขเพื่อเลือก:
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the year,เลือกปี
+Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
 Client,ลูกค้า
@@ -259,6 +267,7 @@ Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เชื่อ
 Credit Note,ใบลดหนี้
+Credit notes need a person to post them in Express,ใบลดหนี้ต้องให้คนบันทึกใน Express
 Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
@@ -363,6 +372,10 @@ Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
+"Express already has this invoice number with different content. Check it, or choose Send anyway",ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หรือเลือก ส่งต่อไป
+"Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+"Express did not read back what was written, so it was undone. It is retried automatically",ตรวจสอบหลังเขียนไม่ตรง จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 External Docnum,เลขที่เอกสาร ERP
 Failed,ล้มเหลว
 Failure Count,จำนวนครั้งที่ล้มเหลว
@@ -534,6 +547,7 @@ Number,ตัวเลข
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
+Only invoices in Thai baht can be sent to Express,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 Open card,เปิดการ์ด
 Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
@@ -707,6 +721,7 @@ Seller address,ที่อยู่ผู้ขาย
 Seller branch,สาขาผู้ขาย
 Seller tax ID,เลขผู้เสียภาษีผู้ขาย
 Send,ส่ง
+Send anyway,ส่งต่อไป
 Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
@@ -714,6 +729,8 @@ Service or stock?,บริการหรือสินค้า?
 Set due date,ตั้งวันครบกำหนดเป็น N วันถัดไป
 Set reminder,ตั้งการเตือน
 Settings Json,ข้อมูลการตั้งค่า (JSON)
+Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
+Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
@@ -722,7 +739,9 @@ Show on card,แสดงบนการ์ด
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
+Some fields are uncertain. Check them against the original and submit again,บางช่องไม่แน่ใจ กรุณาตรวจกับต้นฉบับแล้วส่งใหม่
 Some line items have no name or amount,บางรายการไม่มีชื่อหรือจำนวนเงิน
+Some line items have no name or amount. Fix the lines and submit again,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
 Some rows were skipped,บางแถวไม่ได้นำเข้า
 Someone else changed this card. Close it and open it again.,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
@@ -806,11 +825,13 @@ The VAT report has no rows.,รายงานภาษีไม่มีรา�
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 The amounts do not add up (before VAT + VAT ≠ total),ยอดเงินไม่สมดุล (ก่อน VAT + VAT ≠ ยอดรวม)
+The amounts do not add up. Correct them and submit again,ยอดเงินไม่สมดุล กรุณาแก้แล้วส่งใหม่
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
 The camera could not start,ไม่สามารถเปิดกล้องได้
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่มีการ์ดนี้แล้ว
+The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง
@@ -836,6 +857,8 @@ The document exceeds the allowed size after decompression.,เอกสารม
 The document file is damaged or cannot be decompressed.,ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้
 The document reader is unavailable. Contact your administrator.,บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
 The document sections are incomplete or invalid.,ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง
+"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway",เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express หรือเลือก ส่งต่อไป
+The entry does not balance. Check the amounts,รายการบัญชีไม่สมดุล กรุณาตรวจยอดเงิน
 The export contains an invalid or repeated history reference.,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน
 The file exceeds the allowed size.,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
 The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
@@ -844,6 +867,11 @@ The file size or page metadata is invalid.,ข้อมูลขนาดไฟ�
 The frozen push target does not match the authorized target.,ปลายทางที่บันทึกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
 The general ledger could not be read.,ไม่สามารถอ่านบัญชีแยกประเภทได้
 The general ledger has no revenue account rows.,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
+The helper could not read this invoice. Check the fields and submit again,ผู้ช่วยอ่านเอกสารนี้ไม่ได้ กรุณาตรวจข้อมูลแล้วส่งใหม่
+The helper could not write this invoice. It is retried automatically,ผู้ช่วยเขียนเอกสารนี้ไม่ได้ ระบบจะลองใหม่อัตโนมัติ
+The helper has not been given this account set. Check the helper's account sets,ผู้ช่วยยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจชุดบัญชีในผู้ช่วย
+The helper is not allowed to write to this account set. Check the helper's account set,ผู้ช่วยไม่มีสิทธิ์เขียนชุดบัญชีนี้ กรุณาตรวจชุดบัญชีที่เลือกในผู้ช่วย
+The helper is out of date. Update the helper and submit again,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
 The import columns do not match the stock count template.,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
 The import contains a repeated product code.,ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ
@@ -853,7 +881,10 @@ The import row is invalid or has missing required values.,แถวนำเข�
 The invoice configuration does not match the OCR connection.,การตั้งค่าการอ่านใบแจ้งหนี้ไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร
 The invoice contains text that Excel cannot store safely. Check its length and characters.,ใบแจ้งหนี้มีข้อความที่ Excel ไม่สามารถจัดเก็บได้ครบถ้วน กรุณาตรวจสอบความยาวและอักขระ
 The invoice data is invalid and cannot be exported.,ข้อมูลใบแจ้งหนี้ไม่ถูกต้อง จึงไม่สามารถส่งออกได้
+The invoice date is in the future. Correct it and submit again,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
 The invoice date is invalid. Correct it before exporting.,วันที่ใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
+The invoice date is missing or unreadable. Fill it in and submit again,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+The invoice date looks wrong. Correct it and submit again,วันที่เอกสารดูไม่ถูกต้อง กรุณาตรวจแล้วส่งใหม่
 The invoice fields have an invalid format.,รูปแบบข้อมูลในช่องใบแจ้งหนี้ไม่ถูกต้อง
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่
 The invoice number is written differently from this party's earlier invoices (usually {0}),รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})
@@ -863,6 +894,7 @@ The invoice page data has an invalid format.,รูปแบบข้อมู�
 The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",ยอดรายการ ยอดก่อน VAT ภาษี และยอดรวมของเอกสารนี้ไม่ตรงกัน หากส่งออกยอดเงินจะเปลี่ยน กรุณาตรวจสอบในหน้าแก้ไข
 The line items do not add up to the invoice amount,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร
+The line items do not add up to the invoice amount. Fix the lines and submit again,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
 The opening and closing values are invalid.,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
 The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
 The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
@@ -894,17 +926,21 @@ The reports belong to different sellers ({0}).,รายงานมาจาก
 The reports cover different periods ({0}).,รายงานคนละงวด ({0}) กรุณาตรวจสอบ
 The request is invalid. Reload and try again.,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 The requested page is not part of this invoice.,หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้
+The result is not confirmed. Check in Express before sending again,ยังไม่ทราบผลการส่ง กรุณาตรวจใน Express ก่อนส่งใหม่
 The review workbook cannot be read. Check its format and content.,ไม่สามารถอ่านสมุดงานตรวจทานได้ กรุณาตรวจสอบรูปแบบและเนื้อหา
 The review workbook contains an invalid number.,สมุดงานตรวจทานมีค่าตัวเลขที่ไม่ถูกต้อง
 The review workbook contains no invoice rows to import.,สมุดงานตรวจทานไม่มีแถวใบแจ้งหนี้ให้นำเข้ากลับ
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,สมุดงานตรวจทานยังมีข้อมูลหลังแถวว่างติดต่อกัน 50 แถว กรุณาลบช่วงแถวว่างก่อนนำเข้ากลับ
 The review worksheet name contains extra spaces. Restore the original name.,ชื่อแผ่นงานตรวจทานมีช่องว่างเกินมา กรุณาคืนชื่อแผ่นงานเดิม
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
+The seller and buyer have the same tax ID. Correct it and submit again,ผู้ขายและผู้ซื้อมีเลขภาษีเดียวกัน กรุณาแก้แล้วส่งใหม่
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 The start date is after the due date,วันเริ่มอยู่หลังวันครบกำหนด
 The stock count record was not found.,ไม่พบรายการตรวจนับสต็อก
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
+"The stock lines could not be posted. Check the items, quantities and prices",บันทึกรายการสินค้าคงคลังไม่ได้ กรุณาตรวจชื่อสินค้า จำนวน และราคา
 The stocktake export snapshot is incomplete. Reload and try again.,ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง
+The tax ID is not valid. Correct it and submit again,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 The unsent preparation was cancelled.,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว
 The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB
 The uploaded file is empty.,ไฟล์ที่อัปโหลดว่างเปล่า
@@ -924,6 +960,7 @@ This channel is not open yet,ช่องทางนี้ยังไม่เ
 This connection does not support an Express Companion credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express
 This connection is disabled.,การเชื่อมต่อนี้ถูกปิดใช้งาน
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
+This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
 This delivery conflicts with the current task state.,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
@@ -931,6 +968,7 @@ This file type is not supported.,ไม่รองรับไฟล์ปร�
 "This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
+This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
@@ -952,6 +990,7 @@ This request key was used for different content.,รหัสคำขอนี�
 This request key was used for different push content.,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 This request was already used for different content.,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This stock count task is closed.,งานตรวจนับสต็อกนี้ปิดแล้ว
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 Time left {0},เหลือเวลา {0}
 Title,ชื่อเรื่อง
@@ -1020,6 +1059,7 @@ Withdrawal,ถอน
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
+Writing to Express failed and was undone. It is retried automatically,เขียนลง Express ไม่สำเร็จและยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 Yearly,ทุกปี
 Yellow,เหลือง
 You are watching this card,คุณกำลังติดตามการ์ดนี้
@@ -1181,6 +1221,7 @@ cowork.review.number_field,เลขที่เอกสาร
 cowork.review.number_pattern,รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})
 cowork.review.own_tax,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
 cowork.review.page_unread,มีหน้าหนึ่งในไฟล์นี้อ่านไม่ได้ เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจกับต้นฉบับ
+cowork.review.send_anyway,ส่งต่อไป
 cowork.review.tax_checksum,{0}: หลักตรวจสอบไม่ถูกต้อง
 cowork.review.tax_length,{0} ไม่ครบ 13 หลัก
 cowork.review.tax_suggest,{0} ไม่ครบ 13 หลัก ใช่เลขนี้หรือไม่:
@@ -1638,6 +1679,16 @@ history.source_invalid,ไม่รองรับแหล่งที่มา
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 image,รูปภาพ
 intake.catalog.reload,อ่านใหม่
+intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,ผู้ช่วยไม่มีสิทธิ์เขียนชุดบัญชีนี้ กรุณาตรวจชุดบัญชีที่เลือกในผู้ช่วย
+intake.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+intake.error.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
+intake.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
+intake.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
+intake.error.DBF_WRITE_FAILED,เขียนลง Express ไม่สำเร็จและยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+intake.error.DUPLICATE_CONTENT_DIFFERS,ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หรือเลือก ส่งต่อไป
+intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ทราบผลการส่ง กรุณาตรวจใน Express ก่อนส่งใหม่
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
 intake.error.ERR_MRERP_MENU_CHANGED,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
@@ -1645,6 +1696,41 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมน�
 intake.error.ERR_MRERP_MENU_UNREADABLE,อ่านเมนูจากหน้านำเข้าของ MR.ERP ไม่ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก ผลลัพธ์ไม่แน่ชัด กรุณาตรวจสอบใน MR.ERP ก่อนส่งอีกครั้ง
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+intake.error.PAYLOAD_INVALID,ผู้ช่วยอ่านเอกสารนี้ไม่ได้ กรุณาตรวจข้อมูลแล้วส่งใหม่
+intake.error.PRIOR_DOC_STILL_IN_ERP,เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express หรือเลือก ส่งต่อไป
+intake.error.READBACK_VERIFY_FAILED,ตรวจสอบหลังเขียนไม่ตรง จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+intake.error.STOCK_IN_FAILED,บันทึกรายการสินค้าคงคลังไม่ได้ กรุณาตรวจชื่อสินค้า จำนวน และราคา
+intake.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
+intake.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
+intake.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
+intake.error.account_not_in_chart,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
+intake.error.account_set_not_allowed,ผู้ช่วยยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจชุดบัญชีในผู้ช่วย
+intake.error.agent_failed,ผู้ช่วยเขียนเอกสารนี้ไม่ได้ ระบบจะลองใหม่อัตโนมัติ
+intake.error.already_success,เอกสารนี้ส่งสำเร็จแล้ว
+intake.error.amounts_not_consistent,ยอดเงินไม่สมดุล กรุณาแก้แล้วส่งใหม่
+intake.error.bad_or_missing_date,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+intake.error.confirmed_push_unacked,ยังไม่ทราบผลการส่ง กรุณาตรวจใน Express ก่อนส่งใหม่
+intake.error.credit_note,ใบลดหนี้ต้องให้คนบันทึกใน Express
+intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
+intake.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
+intake.error.date_implausible,วันที่เอกสารดูไม่ถูกต้อง กรุณาตรวจแล้วส่งใหม่
+intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นซื้อหรือขาย แล้วส่งใหม่
+intake.error.entry_not_balanced,รายการบัญชีไม่สมดุล กรุณาตรวจยอดเงิน
+intake.error.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
+intake.error.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
+intake.error.low_confidence,บางช่องไม่แน่ใจ กรุณาตรวจกับต้นฉบับแล้วส่งใหม่
+intake.error.no_account_set,กรุณาเลือกปีและชุดบัญชีก่อน
+intake.error.no_ap_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+intake.error.no_ar_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+intake.error.no_input_vat_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+intake.error.no_output_vat_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+intake.error.no_purchase_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+intake.error.no_revenue_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
+intake.error.payload_version_outdated,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงคลัง แล้วส่งใหม่
+intake.error.seller_buyer_same_tax,ผู้ขายและผู้ซื้อมีเลขภาษีเดียวกัน กรุณาแก้แล้วส่งใหม่
+intake.error.tax_id_invalid,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 intake.mrerpMenu.purchase,ซื้อ (สินค้า)
 intake.mrerpMenu.purchase_expense,ซื้อ (ค่าใช้จ่าย)
 intake.mrerpMenu.readFailed,อ่านเมนู MR.ERP ไม่ได้ กรุณาลองใหม่ภายหลัง

@@ -8,6 +8,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
+import re
 
 from pearnly_cowork.contracts.push import INTERNAL_SOURCES
 from pearnly_cowork.push.express import common
@@ -17,6 +18,21 @@ LEASE_SECONDS = 120
 MAX_ATTEMPTS = 3
 CONFIRMED_OWNER = "confirmed:legacy"
 UNKNOWN_RESULT = "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"
+# 小助手回报的这些拒绝，重试多少次结论都一样（要人改票面、选对方档或核对账套）：直接转人工，不烧重试。
+# 有意变化（旧线上按普通失败重试 3 次；2026-09-28 压测：同税号两个客户档的票在列表上一直是「录入中」）。
+# 回报格式 `[错误码] 原始信息`（小助手 `queue_client._ack`）；老版本小助手没登记 outcome 的也按码认。
+NEEDS_PERSON_CODES = frozenset({
+    "CUSTOMER_BRANCH_AMBIGUOUS", "SUPPLIER_BRANCH_AMBIGUOUS", "CUSTOMER_DUP_SUSPECTED", "SUPPLIER_DUP_SUSPECTED",
+    "FIELD_TOO_LONG", "PAYLOAD_INVALID", "ACCOUNT_DIR_NOT_ALLOWED", "ACCOUNT_COMPANY_MISMATCH",
+    "DUPLICATE_CONTENT_DIFFERS", "PRIOR_DOC_STILL_IN_ERP",
+})
+_ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
+
+
+def error_code(error):
+    """小助手回报原因里的错误码（`[CODE] …`）；没有就是空串。"""
+    match = _ERROR_CODE.match(str(error or "").strip())
+    return match.group(1) if match else ""
 CONFIRMED_UNACKED = "confirmed_push_unacked"
 
 
@@ -98,6 +114,8 @@ def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
         return Transition("pending", attempt + int(branch == "managed"), stage, retry=True)
     if stage in {common.STAGE_NEEDS_MAPPING, common.STAGE_NEEDS_REVIEW}:
         return Transition("manual", attempt, stage, str(error or "")[:500] or stage)
+    if stage == common.STAGE_FAILED and error_code(error) in NEEDS_PERSON_CODES:
+        return Transition("manual", attempt, common.STAGE_NEEDS_REVIEW, str(error)[:500])
     # Legacy applies `int(log.attempt or 1)` only on the failure branch;
     # success/waiting/manual leave the stored attempt unchanged, including zero.
     attempt = (attempt or 1) if branch == "legacy" else attempt

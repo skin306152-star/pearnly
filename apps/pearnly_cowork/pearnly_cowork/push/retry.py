@@ -39,6 +39,9 @@ USER_DATA_ERROR_THAI_PATTERNS = (
     "ไม่พบข้อมูลรหัสลูกค้า",  # customer mapping missing
     "ลูกค้าไม่ระบุ",  # client missing
     "เลขที่ต้องไม่เกิน",  # length limit
+    # MR.ERP 税务库查重「已存在于进项 / 销项税数据库」（`importpc.php:179`）：重推还是同一个号（2026-09-28）。
+    "มีอยู่ในฐานข้อมูลภาษีซื้อแล้ว",
+    "มีอยู่ในฐานข้อมูลภาษีขายแล้ว",
 )
 
 _ALREADY_PUSHED_THAI_PATTERNS = (

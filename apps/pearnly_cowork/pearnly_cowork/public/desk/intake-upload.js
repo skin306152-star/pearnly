@@ -106,6 +106,19 @@
 		}
 		return __(`cowork.review.${reason?.code}`, [label]);
 	};
+	/** 推送失败 / 退回原因 → 一句人话（`intake.error.<码>`）：小助手回报是 `[码] 原文`，服务端预检是 `码` 或 `码:细节`；
+	 * 认不出码、或这个码没有词条的，原样显示（服务端直接给的已翻译句子就是这种）。 */
+	p.intake_push_reason = reason => {
+		const text = String(reason || "").trim();
+		const code = text.match(/^\[([A-Z0-9_]+)\]/)?.[1] || text.match(/^EXPRESS_MANUAL:\s*([a-z_]+)/)?.[1]
+			|| text.match(/^([A-Za-z][A-Za-z0-9_]*)(?=$|:)/)?.[1];
+		if (!code) return text;
+		const key = `intake.error.${code}`;
+		const translated = __(key);
+		return translated === key ? text : translated;
+	};
+	/** 这两种退回是「Express 已有 / 上一版还在」：会计核对后可以「仍然推送」（小助手认 `duplicate_confirmed`）。 */
+	const SEND_ANYWAY = /^\[(DUPLICATE_CONTENT_DIFFERS|PRIOR_DOC_STILL_IN_ERP)\]/;
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
 	const code_text = code => {
 		if (!code) return "";
@@ -289,9 +302,14 @@
 			{fieldtype: "Small Text", fieldname: "notes", label: __("Remarks")},
 		]);
 		// 明细照 ERP 采购页的物料行：每行一个可折叠的原生小节（第一行展开），手机上不挤表格。
+		// 明细能增删行（2026-09-28 压测：漏读的行补不上，明细合计对不上的票只能退回）。
 		const items_form = p.layout(items_region, [
 			{fieldtype: "Section Break", label: t("intake.nav.items"), fieldname: "items_section"},
 			{fieldtype: "HTML", fieldname: "lines"},
+			{fieldtype: "Button", fieldname: "add_line", label: __("Add Row"), click: () => {
+				lines.push(add_line({name: "", qty: "", price: "", subtotal: "", posting_kind: ""}, lines.length, null));
+				sync_save();
+			}},
 		]);
 		// 税费金额与备注放在明细下面（ERP `purchase-layout.js` 同法：定义在一张表单里，按分段挪到各自区域）。
 		let moving = false;
@@ -341,7 +359,10 @@
 			for (const field of EDITABLE) form.set_df_property(field, "read_only", !editable);
 			for (const line of lines) {
 				for (const column of ITEM_COLUMNS) line.form.set_df_property(column, "read_only", !editable);
+				line.form.set_df_property("remove", "hidden", !editable);
 			}
+			items_form.set_df_property("add_line", "hidden", !editable);
+			items_region.toggle(Boolean(lines.length) || editable);
 		};
 		set_reviewable(false);
 		items_region.hide();
@@ -375,7 +396,7 @@
 		 * 表单一次摆一张，上面的「发票」下拉与右边翻页都能换票。没有前端缓存层，所以换票前
 		 * 先把改动存好（旧版是编辑留在内存、最后一步统一存）。 */
 		/** 一行物料＝一个可折叠小节（ERP 采购页 `state.add_line` 同一组合：外层小节 + 里层字段组）。 */
-		const add_line = (row, index) => {
+		const add_line = (row, index, source = index) => {
 			const wrapper = $("<div>").appendTo(items_form.fields_dict.lines.$wrapper);
 			const outer = p.layout(wrapper, [
 				{fieldtype: "Section Break", label: `${__("Item")} ${index + 1}`, collapsible: 1},
@@ -392,13 +413,19 @@
 				{fieldtype: "Data", fieldname: "subtotal", label: __("Amount"), read_only: !reviewable},
 				{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
 					hidden: no_kind, read_only: !reviewable},
+				{fieldtype: "Button", fieldname: "remove", label: __("Delete"), hidden: !reviewable, click: () => {
+					line.removed = true;
+					wrapper.hide();
+					sync_save();
+				}},
 			]);
 			line_form.sections.forEach(section => section.wrapper.addClass("px-0"));
 			line_form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));
 			line_form.sections[0].body.addClass("mt-0 pt-0");
 			line_form.set_values(row);
-			outer.sections[0].collapse(index > 0);
-			return {wrapper, form: line_form};
+			outer.sections[0].collapse(index > 0 && source !== null);
+			const line = {wrapper, form: line_form, source, removed: false};
+			return line;
 		};
 		const show_items = items => {
 			const list = Array.isArray(items) ? items : [];
@@ -407,7 +434,7 @@
 				subtotal: row?.subtotal ?? row?.amount ?? "", posting_kind: row?.posting_kind || ""}));
 			items_form.fields_dict.lines.$wrapper.empty();
 			lines = shown_items.map((row, index) => add_line({...row}, index));
-			items_region.toggle(Boolean(lines.length));
+			items_region.toggle(Boolean(lines.length) || reviewable);
 			nav.refresh();
 		};
 		/** 把表单上**改过的**格子写进 `target`（没动的不写：显示用的回落值不能倒灌进记录）。 */
@@ -419,17 +446,26 @@
 				if (value === "") delete target[keys[field]];
 				else target[keys[field]] = value;
 			}
-			if (Array.isArray(target.items) && lines.length === shown_items.length) {
-				target.items = target.items.map((item, index) => {
-					const next = {...item};
-					for (const column of ITEM_COLUMNS) {
-						const value = lines[index]?.form.get_value(column) ?? "";
-						if (String(value) === String(shown_items[index][column] ?? "")) continue;
-						if (value === "" && column === "posting_kind") delete next[column];
-						else next[column] = value;
-					}
-					return next;
-				});
+			// 明细：原有的行只写改过的格子；新加的行写填了的格子；删掉的行去掉。一行都没动就不碰 `items`。
+			const original_items = Array.isArray(target.items) ? target.items : [];
+			const merge = (item, line, shown_row) => {
+				const next = {...item};
+				for (const column of ITEM_COLUMNS) {
+					const value = line.form.get_value(column) ?? "";
+					if (String(value) === String(shown_row[column] ?? "")) continue;
+					if (value === "" && column === "posting_kind") delete next[column];
+					else next[column] = value;
+				}
+				return next;
+			};
+			const kept = lines.filter(line => !line.removed);
+			const untouched = kept.length === original_items.length && kept.every((line, index) => line.source === index);
+			if (untouched && (original_items.length || Array.isArray(target.items))) {
+				target.items = original_items.map((item, index) => merge(item, kept[index], shown_items[index] || {}));
+			} else if (!untouched) {
+				target.items = kept.map(line => (line.source === null ? merge({}, line, {})
+					: merge(original_items[line.source] || {}, line, shown_items[line.source] || {})))
+					.filter(item => Object.keys(item).length);
 			}
 			return target;
 		};
@@ -486,6 +522,16 @@
 				row.remove();
 				sync_save();
 			};
+			const pushed = record?.last_push_status;
+			if (record?.last_push_reason && (pushed === "manual" || !pushed)) {
+				const row = $("<div class='form-message red'>").appendTo(wrapper);
+				$("<span>").text(p.intake_push_reason(record.last_push_reason)).appendTo(row);
+				if (SEND_ANYWAY.test(String(record.last_push_reason)) && !recognize_only) {
+					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.review.send_anyway"))
+						.on("click", () => void submit({names: [record.name], extra: {confirm_duplicate: 1}}))
+						.appendTo(row);
+				}
+			}
 			for (const reason of lines) {
 				const row = $("<div class='form-message yellow'>").appendTo(wrapper);
 				$("<span>").text(review_text(reason)).appendTo(row);
@@ -703,15 +749,15 @@
 		/** 提交＝推送（用户 2026-09-26）：右上角点一次，把这一批的票按顺序全部推出去（一张推完再下一张），
 		 *  没有「确认」这一步。推完回列表，状态在列表上看（录入中 / 成功 / 待人工核对）；推不了的原因由服务端
 		 *  记在票上，列表状态图标悬浮可看，这里不弹窗。已经推过或正在推的跳过。 */
-		const submit = async () => {
-			if (!batch.length) return;
+		const submit = async ({names = batch, extra = {}} = {}) => {
+			if (!names.length) return;
 			if (dirty()) await save_review({quiet: true});
 			const rows = (await p.call(CONNECTIONS + "records", {limit: 100})) || [];
 			const broken = [];  // 只有请求本身出错（网络 / 服务器异常）才会到这里；业务失败都记在票上
 			const asked = new Map();  // 连接 + 账套 → 存货科目组是否已定
 			frappe.dom.freeze(t("intake.action.queue"));
 			try {
-				for (const record_name of batch) {
+				for (const record_name of names) {
 					const record = await detail(record_name);  // 最新版本（刚保存过的也要按新版本推）
 					if (["success", "pending"].includes(record.last_push_status)) continue;
 					const pages = Array.isArray(record.pages) ? record.pages : [];
@@ -734,13 +780,18 @@
 					if (target.connection?.adapter === "mrerp" && target.args.account_set_key
 						&& !(await mrerp_menu_ready(target, fields.direction, asked))) continue;
 					// 键里带上一次推送记录：失败后再点提交是新的一次（会重推），连点两下仍是同一次。
-					const submitted = await push_call(PUSH + "submit", {...intent,
-						request_key: await stable_key("prepare", intent, record.last_push_record || "")});
+					const submitted = await push_call(PUSH + "submit", {...intent, ...extra,
+						request_key: await stable_key("prepare", {...intent, ...extra}, record.last_push_record || "")});
 					if (!submitted.ok) {
 						broken.push([record, submitted.reason]);
 						continue;
 					}
 					const result = submitted.message || {};
+					// 服务端没新建推送、回了已经成功的那条（同一张票别处已推成功）：告诉人，不再静默没反应。
+					// 退回的原因照旧只记在票上（列表状态、复核页顶部），不弹窗（用户 2026-09-26）。
+					if (result.status === "success" && result.name !== record.last_push_record) {
+						broken.push([record, p.intake_push_reason("already_success")]);
+					}
 					if (result.status === "prepared" && target.connection?.adapter === "express") {
 						const confirmed = await push_call(EXPRESS_CONFIRM, {name: result.name, expected_revision: result.revision,
 							request_key: await stable_key("confirm", result.name, result.revision)});

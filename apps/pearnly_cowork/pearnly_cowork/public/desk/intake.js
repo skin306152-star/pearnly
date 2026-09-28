@@ -50,7 +50,8 @@
 		const push_status = (status, row) => (status ? PUSH_STATUS[status] || ["red", () => __("connect.records.failed")]
 			: row?.last_push_reason ? ["red", () => __("connect.records.failed")]
 			: reasons(row).length ? ["orange", () => __("cowork.quality.pending")] : null);
-		const status_title = (value, row) => (value || row?.last_push_reason ? row?.last_push_reason || ""
+		const status_title = (value, row) => (value || row?.last_push_reason
+			? (p.intake_push_reason ? p.intake_push_reason(row?.last_push_reason) : row?.last_push_reason || "")
 			: reasons(row).map(reason => p.intake_review_text?.(reason, t) || reason.code).join("\n"));
 
 		async function listing(still_current) {
