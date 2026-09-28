@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Any, Optional
 
@@ -52,6 +53,41 @@ def merge_account_sets(previous: list[dict], incoming: list[dict]) -> list[dict]
         old = previous_by_path.get(_norm_path(item.get("path"))) or {}
         merged.append({**old, **item})
     return merged
+
+
+def _sets_cache_file(profile_id: str):
+    from .config import APPDATA_DIR
+
+    name = "".join(ch for ch in str(profile_id or "default") if ch.isalnum() or ch in "-_") or "default"
+    return APPDATA_DIR / f"account_sets_{name}.json"
+
+
+def load_account_sets(state: dict, profile_id: str) -> None:
+    """这次启动还没扫完账套时，先用上次扫到的清单（大数据根一次要扫几分钟）。
+
+    2026-09-28 真机复测：刚启动那几分钟心跳没有账套清单，服务端认不出按账套刷新带回的主档，
+    刷新一直停在「处理中」；这期间推的票也准备不出小助手凭据。扫完后照常换成新清单。"""
+    if "reported_account_sets" in state or state.get("_sets_cache_tried"):
+        return
+    state["_sets_cache_tried"] = True
+    try:
+        rows = json.loads(_sets_cache_file(profile_id).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if isinstance(rows, list) and rows:
+        state["reported_account_sets"] = rows
+        log.info("[heartbeat] 先用上次扫到的账套清单 %d 个（这次还在扫）", len(rows))
+
+
+def save_account_sets(state: dict, profile_id: str) -> None:
+    rows = state.get("reported_account_sets")
+    if not rows or rows is state.get("_sets_cache_saved"):
+        return
+    try:
+        _sets_cache_file(profile_id).write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+        state["_sets_cache_saved"] = rows
+    except OSError:
+        log.warning("[heartbeat] 账套清单存不进本机缓存", exc_info=True)
 
 
 def apply_endpoint_snapshot(state: dict, master: dict, version: float) -> None:

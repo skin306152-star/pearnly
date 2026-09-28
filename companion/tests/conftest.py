@@ -28,3 +28,18 @@ def _disable_cdx_runner(monkeypatch):
 def _write_backups_in_tmp(tmp_path, monkeypatch):
     """写前快照放本机(dbf_writer._local_backup_root):测试里放进本次的临时目录,不落到机器的公共临时目录。"""
     monkeypatch.setenv("PEARNLY_WRITE_BACKUP_DIR", str(tmp_path / "write-backups"))
+
+
+@pytest.fixture(autouse=True)
+def _account_set_cache_in_tmp(tmp_path, monkeypatch):
+    """上次扫到的账套清单(projection_refresh 本机缓存):测试里放进本次的临时目录。"""
+    import importlib
+
+    for name in ("companion.projection_refresh", "src.companion.projection_refresh"):
+        try:
+            module = importlib.import_module(name)
+        except ImportError:
+            continue
+        monkeypatch.setattr(
+            module, "_sets_cache_file", lambda profile_id: tmp_path / f"account_sets_{profile_id or 'default'}.json"
+        )

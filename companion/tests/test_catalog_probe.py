@@ -238,3 +238,17 @@ def test_an_empty_rescan_keeps_the_last_account_sets():
     assert state["reported_accounts"] == [{"code": "1"}]
     projection_refresh.apply_endpoint_snapshot(state, {"account_sets": [{"path": "B"}], "accounts": []}, 3.0)
     assert state["reported_account_sets"] == [{"path": "B"}]
+
+
+def test_the_last_scanned_account_sets_are_used_until_this_start_finishes_scanning():
+    # 2026-09-28 真机复测：刚启动几分钟没有清单，按账套刷新带回的主档服务端认不出
+    from src.companion import projection_refresh
+
+    scanned = {"reported_account_sets": [{"path": "A", "writable": True}]}
+    projection_refresh.save_account_sets(scanned, "p1")
+    started = {}
+    projection_refresh.load_account_sets(started, "p1")
+    assert started["reported_account_sets"] == [{"path": "A", "writable": True}]
+    fresh = {}
+    projection_refresh.load_account_sets(fresh, "other")
+    assert "reported_account_sets" not in fresh

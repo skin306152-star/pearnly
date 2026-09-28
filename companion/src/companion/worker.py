@@ -404,6 +404,8 @@ def _run_periodic(
 
             root = cfg.resolved_express_root()
             authorized = list(getattr(cfg, "authorized_roots", None) or ())
+            profile_id = str(getattr(cfg, "profile_id", "") or "")
+            projection_refresh.load_account_sets(state, profile_id)
             master, master_version, refresh_error = projection_refresh.collect_endpoint(
                 state,
                 root or "",
@@ -419,9 +421,11 @@ def _run_periodic(
                 projection_refresh.apply_endpoint_snapshot(
                     state, master, master_version
                 )
-            # 这次启动还没扫完（大数据根要几分钟）：不报账套 / 科目，而不是报「0 个」——服务端会拿空清单
-            # 盖掉上一份，这期间推送的票准备不出小助手凭据、按账套刷新也被判空（2026-09-28 真机复测）。
-            known_sets = state.get("reported_account_sets")
+                projection_refresh.save_account_sets(state, profile_id)
+            # 这次启动还没扫完（大数据根要几分钟）：账套先用本机存的上次清单（load_account_sets），科目不报
+            # （报「0 个」服务端会盖掉上一份，这期间要人选的科目没有选项，2026-09-28 真机复测）。
+            # 头一次启动、本机也没有清单时账套照旧报空：不报的话服务端会把目录换成只剩所选的那一个。
+            known_sets = state.get("reported_account_sets") or []
             known_accts = state.get("reported_accounts")
             sets = known_sets or []
             accts = known_accts or []
