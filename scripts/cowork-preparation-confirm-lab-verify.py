@@ -129,6 +129,10 @@ class PreparationConfirmation(unittest.TestCase):
 
     def test_a_preparation_that_can_no_longer_be_confirmed_is_replaced_on_push_again(self):
         # 2026-09-28 录制：小助手重扫账套的两分钟里推的票，恢复后重推一直「推送目标已变更」
+        # 付款 / 科目这类「选一次」与本用例无关：当作都已选过。
+        chosen = patch('pearnly_cowork.push.application.service._decisions',
+                       return_value={'needed': [], 'applied': {}})
+        chosen.start(); self.addCleanup(chosen.stop)
         frappe.db.set_value('Cowork ERP Connection', self.connection['name'], 'report_json', '{}')
         self.report(account_set=None, account_sets=None, catalog=None, accounts=None, max_payload_version=None)
         stale = self.prepare()
