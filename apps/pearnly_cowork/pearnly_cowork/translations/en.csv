@@ -895,6 +895,7 @@ The helper has not been given this account set. Check the helper's account sets,
 The helper is not allowed to write to this account set. Check the helper's account set,The helper is not allowed to write to this account set. Check the helper's account set
 The helper is out of date. Update the helper and submit again,The helper is out of date. Update the helper and submit again
 "The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set","The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set"
+"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again","The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again"
 The image file cannot be read.,The image file cannot be read.
 The import columns do not match the stock count template.,The import columns do not match the stock count template.
 The import contains a repeated product code.,The import contains a repeated product code.
@@ -1829,6 +1830,7 @@ pending,Pending
 physical_page,physical_page
 push.adapter_not_connected,This ERP adapter is not connected yet.
 push.branch_invalid,Invalid push execution mode.
+push.companion_account_unreported,"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again"
 push.disabled,"Pushing is not enabled for this site, so nothing was sent."
 push.native_ack_conflict,The acknowledgement conflicts with the recorded result.
 push.native_history_changed,The invoice has changed. Prepare it again.

@@ -127,6 +127,23 @@ class PreparationConfirmation(unittest.TestCase):
         self.assertFalse(prepared['has_reported_credential'])
         with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
 
+    def test_a_preparation_that_can_no_longer_be_confirmed_is_replaced_on_push_again(self):
+        # 2026-09-28 录制：小助手重扫账套的两分钟里推的票，恢复后重推一直「推送目标已变更」
+        frappe.db.set_value('Cowork ERP Connection', self.connection['name'], 'report_json', '{}')
+        self.report(account_set=None, account_sets=None, catalog=None, accounts=None, max_payload_version=None)
+        stale = self.prepare()
+        self.assertFalse(stale['has_reported_credential'])
+        self.report()  # 小助手又报上了这份账套
+        fresh = self.prepare(request_key=uuid4().hex)
+        self.assertNotEqual(fresh['name'], stale['name'])
+        self.assertEqual((fresh['status'], fresh['has_reported_credential']), ('prepared', True))
+        self.assertEqual((self.row(stale).status, self.row(stale).reason), ('cancelled', 'push.preparation_superseded'))
+        self.assertEqual(frappe.db.count('Cowork Push Attempt', {'push_record': stale['name']}), 0)
+        # 还能确认的准备照旧挡住重复准备，不被替换
+        again = self.prepare(request_key=uuid4().hex)
+        self.assertEqual((again['name'], again.get('blocked_reason')), (fresh['name'], 'active'))
+        self.assertEqual(self.row(fresh).status, 'prepared')
+
     def test_other_actor_and_revoked_scope_cannot_confirm(self):
         prepared = self.prepare()
         frappe.set_user(self.manager)

@@ -895,6 +895,7 @@ The helper has not been given this account set. Check the helper's account sets,
 The helper is not allowed to write to this account set. Check the helper's account set,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
 The helper is out of date. Update the helper and submit again,アシスタントが古いバージョンです。更新して再送信してください
 "The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
+"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
 The image file cannot be read.,この画像ファイルを読み取れません。
 The import columns do not match the stock count template.,インポートする列が棚卸テンプレートと一致しません。
 The import contains a repeated product code.,インポートデータに重複する商品コードがあります。
@@ -1829,6 +1830,7 @@ pending,処理待ち
 physical_page,物理ページ
 push.adapter_not_connected,このERPアダプターはまだ接続されていません。
 push.branch_invalid,送信実行モードが無効です。
+push.companion_account_unreported,送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
 push.disabled,このサイトでは送信が有効になっていないため、何も送信されていません。
 push.native_ack_conflict,確認応答が記録済みの結果と矛盾しています。
 push.native_history_changed,伝票が変更されました。再度準備してください。

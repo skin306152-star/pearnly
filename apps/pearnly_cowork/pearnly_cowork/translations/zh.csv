@@ -895,6 +895,7 @@ The helper has not been given this account set. Check the helper's account sets,
 The helper is not allowed to write to this account set. Check the helper's account set,小助手没有这份账套的写入权限，请检查小助手选的账套
 The helper is out of date. Update the helper and submit again,小助手版本太旧，请更新后再提交
 "The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",这台电脑的小助手里没有这份账套，或没有写入权限，请检查小助手选的账套
+"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",准备推送时小助手不在线，或还没报上这份账套。请确认小助手在运行后再推一次
 The image file cannot be read.,无法读取该图像文件。
 The import columns do not match the stock count template.,导入列与盘点模板不匹配。
 The import contains a repeated product code.,导入数据包含重复的产品编码。
@@ -1829,6 +1830,7 @@ pending,待处理
 physical_page,物理页
 push.adapter_not_connected,此ERP适配器尚未接通。
 push.branch_invalid,推送执行模式无效。
+push.companion_account_unreported,准备推送时小助手不在线，或还没报上这份账套。请确认小助手在运行后再推一次
 push.disabled,本站点未开启推送，没有发送任何内容。
 push.native_ack_conflict,回执与已记录结果冲突。
 push.native_history_changed,票据已修改，请重新准备。

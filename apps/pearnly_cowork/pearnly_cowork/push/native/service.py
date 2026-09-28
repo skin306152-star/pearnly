@@ -276,6 +276,25 @@ def reserve(*, context, request_key, frozen_target, frozen_payload,
         return {**project(row), 'replayed': False}
 
 
+def _still_confirmable(row, context, loaded):
+    """这份没发出过的准备现在还能不能确认发送（与 `confirm` 同一套核对）。
+
+    准备时小助手不在线 / 这会儿没报上这份账套（没有凭据）、准备过了一天、凭据换过、账套资料变了，确认一律被拒；
+    这时再点推送若还返回这份旧准备，就永远卡在「推送目标已变更」（2026-09-28 录制：小助手重扫账套的两分钟里
+    推的一张票，恢复后重推两次都被拒）。确认不了的就当过期，由新的准备替换——它没领过、没写过，不碰写者锁。"""
+    target = json.loads(row.target_json or '{}')
+    if target.get('adapter') == 'express' and not (target.get('preparation_evidence') or {}).get('credential'):
+        return False
+    messages = len(frappe.local.message_log or [])
+    try:
+        _dispatch_target(context, loaded, target)
+    except DispatchRejected:
+        # 只是核对：拒绝的提示不带给这次推送的页面。
+        del frappe.local.message_log[messages:]
+        return False
+    return True
+
+
 def _supersede_pristine(row, context, loaded):
     # Current target authorization has already passed under the connection lock.
     # A changed allow-list increments connection revision; this lets its newly
@@ -293,6 +312,8 @@ def _supersede_pristine(row, context, loaded):
             connection_access.require_connection(loaded.doc, actor=row.actor)
         except frappe.PermissionError:
             stale = True  # Only a definite current revocation, never a DB failure.
+    if not stale:
+        stale = not _still_confirmable(row, context, loaded)
     if not stale:
         return False
     row.status, row.reason = 'cancelled', 'push.preparation_superseded'
@@ -429,7 +450,10 @@ def confirm(name, *, context, credential, expected_revision, request_key):
         _dispatch_record(row, context)
         if target.get('adapter') == 'express':
             evidence = target.get('preparation_evidence') or {}
-            if not evidence.get('credential') or evidence['credential'] != credential:
+            if not evidence.get('credential'):
+                # 准备时小助手不在线或没报上这份账套：说清楚，重推会换一份新的准备（`_still_confirmable`）。
+                fail('push.companion_account_unreported')
+            if evidence['credential'] != credential:
                 fail('push.native_target_changed')
         elif credential is not None:
             # MR.ERP 由服务端直连执行，不存在小助手凭据；带了就是调用方搞错了通道。
