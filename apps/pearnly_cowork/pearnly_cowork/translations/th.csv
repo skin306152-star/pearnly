@@ -653,6 +653,7 @@ Recognition Quality,คุณภาพการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
+Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
 Recognition was unsure about this invoice. Check it against the original,ระบบอ่านเอกสารใบนี้ไม่มั่นใจ กรุณาตรวจกับต้นฉบับ
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
 Reconciliation failed,กระทบยอดไม่สำเร็จ
@@ -1143,6 +1144,7 @@ cowork.choice.party,ข้อมูลคู่ค้าใน Express
 cowork.choice.payment,การชำระเงิน
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,ภาษีในใบเสร็จนี้
+cowork.intake.interrupted,การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
 cowork.line.boundAt,เชื่อมต่อเมื่อ
 cowork.line.code,รหัสเชื่อมต่อ
 cowork.line.expired,รหัสหมดอายุแล้ว

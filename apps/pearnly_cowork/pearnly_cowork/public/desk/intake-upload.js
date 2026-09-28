@@ -931,7 +931,9 @@
 			if (!batch) return;  // 页面已切走
 			row.records = batch.history_records || [];
 			row.state = batch.state === "saved" ? "recognized" : batch.state === "not_invoice" ? "not_invoice" : "failed";
-			row.message = code_text(batch.last_code);
+			// 结果不明＝中途断了、服务端不会自己重跑（不重复付费调用），也没扣费：直说重新上传，不叫人「稍后刷新」
+			// （2026-09-28 复测：识别服务连接中断，15 页 PDF 整份停在这里）。
+			row.message = batch.state === "uncertain" ? __("cowork.intake.interrupted") : code_text(batch.last_code);
 		};
 
 		const send = async row => {

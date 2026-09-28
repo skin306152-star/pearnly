@@ -653,6 +653,7 @@ Recognition Quality,認識品質
 Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
+Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
 Recognition was unsure about this invoice. Check it against the original,この伝票の読み取りに確信がありません。原本と照合してください
 Recognized with high confidence,高い信頼度で認識
 Reconciliation failed,照合に失敗しました
@@ -1143,6 +1144,7 @@ cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
+cowork.intake.interrupted,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
 cowork.line.boundAt,連携日時
 cowork.line.code,連携コード
 cowork.line.expired,コードの有効期限が切れました

@@ -653,6 +653,7 @@ Recognition Quality,Recognition Quality
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
+Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
 Recognition was unsure about this invoice. Check it against the original,Recognition was unsure about this invoice. Check it against the original
 Recognized with high confidence,Recognized with high confidence
 Reconciliation failed,Reconciliation failed
@@ -1143,6 +1144,7 @@ cowork.choice.party,Express record
 cowork.choice.payment,Payment
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
+cowork.intake.interrupted,Recognition was interrupted (not charged). Upload this file again
 cowork.line.boundAt,Bound at
 cowork.line.code,Binding code
 cowork.line.expired,Code expired

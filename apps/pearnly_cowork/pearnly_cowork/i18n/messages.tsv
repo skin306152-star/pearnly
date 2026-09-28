@@ -1173,3 +1173,4 @@ It was not entered	未入账，可以重推	ยังไม่ได้บัน
 ERP document number	ERP 单号	เลขที่เอกสารใน ERP	ERP の伝票番号	cowork.unknown.docnum
 Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入账，可以重推	ตรวจใน ERP แล้ว: ยังไม่ได้บันทึก ส่งใหม่ได้	ERP で確認済み：未計上。再送信できます	intake.error.confirmed_not_entered
 The invoice number was not found in the text of the original. Check it against the original	单号在原件文字里没找到，请对照原件核对	ไม่พบเลขที่เอกสารในข้อความของต้นฉบับ กรุณาตรวจกับต้นฉบับ	伝票番号が原本の文字に見つかりません。原本と照合してください	cowork.review.number_unseen
+Recognition was interrupted (not charged). Upload this file again	识别中断了（未扣费），请重新上传这一份	การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted

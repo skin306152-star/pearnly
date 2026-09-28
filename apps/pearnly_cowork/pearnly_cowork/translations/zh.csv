@@ -653,6 +653,7 @@ Recognition Quality,识别质量
 Recognition input and ownership cannot be changed.,识别输入和归属不能修改。
 Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
 Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
+Recognition was interrupted (not charged). Upload this file again,识别中断了（未扣费），请重新上传这一份
 Recognition was unsure about this invoice. Check it against the original,识别对这张票拿不准，请对照原件核对
 Recognized with high confidence,高置信识别
 Reconciliation failed,对账失败
@@ -1143,6 +1144,7 @@ cowork.choice.party,对方档
 cowork.choice.payment,付款方式
 cowork.choice.title,这份账套选一次
 cowork.choice.vat,票上的税额
+cowork.intake.interrupted,识别中断了（未扣费），请重新上传这一份
 cowork.line.boundAt,绑定时间
 cowork.line.code,绑定码
 cowork.line.expired,绑定码已过期
