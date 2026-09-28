@@ -124,7 +124,11 @@ class CredentialContracts(unittest.TestCase):
         tree = ast.parse((DOMAIN / 'api.py').read_text())
         exposed = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.decorator_list}
         # installer 只回安装包地址（部署配置），同样是登录用户的 GET、先过 require_actor。
-        self.assertEqual(exposed, {'issue', 'revoke', 'status', 'installer'})
+        self.assertEqual(exposed, {'issue', 'revoke', 'status', 'online', 'installer'})
+        # online 只回在不在线（录入角色也要能选 Express），走连接的使用授权、不要求管理权限
+        online = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'online')
+        self.assertIn("methods=['GET']", ast.unparse(online.decorator_list[0]))
+        self.assertIn('credentials.online(connection)', ast.unparse(online))
         installer = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'installer')
         self.assertIn("methods=['GET']", ast.unparse(installer.decorator_list[0]))
         self.assertIn('access.require_actor()', ast.unparse(installer))

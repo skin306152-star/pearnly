@@ -2,7 +2,7 @@
  *
  * 状态一律取自服务端合同，前端不推断"连没连上"：
  *   · 连接：`pearnly_cowork.connections.api.records`（给出 adapter / enabled / 凭据有无）；
- *   · 助手：`pearnly_cowork.companion.api.status`（只有 Express 通道有"绑定"这回事）；
+ *   · 助手：`pearnly_cowork.companion.api.online`（在不在线，录入角色可用）/ `status`（配对管理）；
  *   · 安装包：`pearnly_cowork.companion.api.installer`（程序本体不在本仓，地址是部署配置）。
  *
  * **界面上不出现 Cowork 自己的公司资料**（用户 2026-09-25：Cowork 不记账、只留记录）：
@@ -36,9 +36,9 @@
 		for (const target of TARGETS) {
 			connections[target.adapter] = rows.find(row => row.adapter === target.adapter) || null;
 		}
-		// 没有 Express 通道时不去问绑定状态：那种问法只会换来一个权限错。
+		// 助手在不在线走不要求管理权限的 `online`：只有录入角色的员工也要能选 Express（`status` 是管理用）。
 		const express = connections.express;
-		const agent = express ? await p.call(API.companion + "status", {connection: express.name}) : null;
+		const agent = express ? await p.call(API.companion + "online", {connection: express.name}) : null;
 		return {connections, agent};
 	}
 

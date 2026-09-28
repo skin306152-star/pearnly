@@ -40,6 +40,14 @@ def status(connection):
 
 
 @frappe.whitelist(methods=['GET'])
+def online(connection):
+    """录入入口看 Express 能不能选：本人能用这条连接、助手当前在线。不要求管理权限（与 LINE 同一判据）。
+
+    只有「录入」角色的员工原来走 `status`（管理用）被拒，进不了上传（2026-09-28 录制发现）。"""
+    return {'connection': connection, 'online': bool(credentials.online(connection))}
+
+
+@frappe.whitelist(methods=['GET'])
 def installer():
     """助手的安装包在哪里。
 
