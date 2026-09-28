@@ -17,6 +17,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.reconciliation import (
+	naming,
 	income_recon_access,
 	income_recon_contracts,
 	income_parse,
@@ -222,8 +223,8 @@ def export(task_id, lang="th"):
 		order_by="row_index asc", limit_page_length=0)
 	content = income_workbook.export_gl_vat_excel([_export_row(row) for row in rows],
 		_stored_summary(doc), lang=lang)
-	return {"filename": f"GL_VAT_recon_{doc.name}_{file_stem(doc.vat_filename)}.xlsx",
-		"content": content}
+	return {"filename": naming.export_filename(doc.title,
+		f"GL_VAT_recon_{doc.name}_{file_stem(doc.vat_filename)}"), "content": content}
 
 
 def file_stem(name):

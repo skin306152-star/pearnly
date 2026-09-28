@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import runpy
 import unittest
+from urllib.parse import unquote
 from uuid import uuid4
 
 import frappe
@@ -37,7 +38,7 @@ class NativeBankReconExport(unittest.TestCase):
     def test_export_renders_the_stored_rows_summary_and_file_diagnostics(self):
         task = self.parsed_task()
         exported = self.service.export(task["name"], "th")
-        self.assertEqual(exported["filename"], f"BankRecon_v2_{task['name']}_KBANK.xlsx")
+        self.assertEqual(exported["filename"], "June 2569 parsed.xlsx")  # 任务名称（2026-09-28 起）
         book = load_workbook(BytesIO(exported["content"]))
         self.assertEqual(len(book.sheetnames), 4)
         summary_sheet, match_sheet = book.worksheets[0], book.worksheets[1]
@@ -145,8 +146,7 @@ class NativeBankReconExport(unittest.TestCase):
             self.assertEqual(response.status_code, 200,
                              response.get_data(as_text=True) if response.status_code != 200 else "")
             self.assertIn("attachment", response.headers["Content-Disposition"])
-            self.assertIn(f"BankRecon_v2_{task['name']}_KBANK.xlsx",
-                          response.headers["Content-Disposition"])
+            self.assertIn("June 2569 parsed.xlsx", unquote(response.headers["Content-Disposition"]))
             self.assertIn("no-store", response.headers["Cache-Control"])
             self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
             self.assertIn("spreadsheetml.sheet", response.headers["Content-Type"])

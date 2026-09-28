@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from pearnly_cowork.reconciliation import vat_check_access
+from pearnly_cowork.reconciliation import naming, vat_check_access
 from pearnly_cowork.reconciliation.export.vat_check_workbook import build_excel
 from pearnly_cowork.reconciliation.vat_check_documents import persist
 
@@ -135,4 +135,4 @@ def delete_many(task_ids):
 def export(task_id, lang=None):
 	doc = task(task_id)
 	content, _summary = compute(stored_inputs(doc), lang or doc.lang)
-	return {"filename": f"VAT_check_{doc.name}.xlsx", "content": content}
+	return {"filename": naming.export_filename(doc.get("title"), f"VAT_check_{doc.name}"), "content": content}

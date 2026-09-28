@@ -4,6 +4,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.reconciliation import (
+	naming,
 	bank_intake,
 	bank_matching,
 	bank_parse,
@@ -449,8 +450,8 @@ def export(task_id, lang="th"):
 	content = export_workbook([_export_row(row) for row in rows], _stored_summary(doc), lang=lang,
 		parse_info=bank_recon_contracts.json_loads(doc.parse_info_json) or None,
 		**_stored_run_records(doc))
-	return {"filename": f"BankRecon_v2_{doc.name}_{(doc.bank_code or 'bank').upper()}.xlsx",
-		"content": content}
+	return {"filename": naming.export_filename(doc.title,
+		f"BankRecon_v2_{doc.name}_{(doc.bank_code or 'bank').upper()}"), "content": content}
 
 
 def _stored_run_records(doc):
