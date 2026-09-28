@@ -16,10 +16,10 @@
   7. 卡片不单独设权限。
   8. 看板管理员可设：谁能评论（成员 / 成员和观察者 / 关闭）、谁能加减成员（仅管理员 / 所有成员）。其余 Trello 细项不做。
 - 本次不做：公开链接、卡片级权限、跨看板的「我的任务」汇总、看板背景 / 星标 / 模板看板 / 看板彻底删除、列表跨看板移动。
-- 本次范围状态：进行中
-- 收尾状态：施工中
+- 本次范围状态：已完成（已上线）
+- 收尾状态：已合并、已部署，工作树与分支在收尾时删除
 - 分支 / 基线 SHA / 工作树 / 集成目标：`codex/cowork-work-boards` / 开工 `43dcf12f`，已变基到 `413bb5bb`（对账修复，无冲突）/ `.claude/worktrees/eager-williamson-e6a07a` / `main`
-- 合并 / 推送 / 远端回读状态：任务分支已推送（CI Development checks 通过），未合并到 main
+- 合并 / 推送 / 远端回读状态：main 快进到 `0937d68d` 并推送，远端回读一致（见「合并与部署」）
 - 允许修改的路径：`apps/pearnly_cowork/pearnly_cowork/work/`、新 DocType `cowork_work_board` / `cowork_work_board_member`、
   已有 `cowork_work_*` DocType 加 `board` 字段、`patches/`、`patches.txt`、`hooks.py`（权限登记）、`public/desk/work.js` / `work.css`、
   `i18n/messages.tsv` 与生成的翻译包、`scripts/test-cowork-work-native.py`、新脚本 `scripts/test-cowork-work-boards-native.py`、`tests/`、
@@ -132,6 +132,22 @@
 - 四语词条 32 条（`cowork.work.board.*`、`cowork.work.archived.boards`、5 条错误），不加说明文字。
 - `features.json`、侧栏菜单与角色不变（任务管理不单独售卖；能建看板 = 已有的「任务管理」角色）。
 
+## 合并与部署（2026-09-29，用户："合并到 main 然后部署生产"）
+
+- 合入：任务分支变基到 `origin/main` `b069f31f`（只多两个 Cowork 文档提交，无冲突）→ 本地 CI 同名闸门全过 → 分支 Development checks
+  `36469905863` 通过 → 主目录 `main` 快进到 `0937d68d` 并推送，远端回读 `0937d68d`。
+- 镜像：build-production `36470114834`（`0937d68d`）→ `ghcr.io/skin306152-star/pearnly/frappe@sha256:3c7be35695c8993958492dafe807c5b634780d13c4b53267e06c4882effe5722`；
+  stage-production `36470848088` 成功（第一次 `36470787300` 是我把整段镜像名当成 digest 传入，被输入校验拒绝，未改服务器）。
+- 激活前：`testcowork` 先 `lab-stop cowork` 切回线上（线上那份的定时任务恢复）；推送记录无排队 / 发送中（manual 12、prepared 1、success 175），
+  识别任务无 queued / running / deferred；`check-deploy-image.py` 一致（本次没改部署工具目录）；可用内存 26 GB；
+  已通知 Express 压测窗口（回复无进行中的批次）。
+- 激活：`activate-product.sh … cowork` 208 秒，`Product cowork activated with verified image.`，日志 `/opt/pearnly/state/activate-cowork-0937d68d.log`；
+  激活前备份 `20260929_021545-testcowork_pearnly_com-*`。上一版 `93264218`（main `413bb5bb`），回退用它与该备份。只动 Cowork，ERP / DMS 未动。
+- 线上回读：7 个 Cowork 容器均为 `3c7be356`；补丁 `v0_0_9_work_boards` 已记；默认看板 1 块（团队可见、名字为空 = 按界面语言显示）；
+  卡片 12、列表 9、标签 7 全部挂上（空值 0）、规则 0；切换后 10 分钟 Error Log 0；调度开着、维护模式关；`work.js` / `boards.py` 与 main 字节一致；
+  公网 ping 200。
+- 录制用的演示数据与 somchai / nida 两个账号只在测试机副本里，线上没有。
+
 ## 验证
 
 | 时间 | 代码 | 环境与数据归属 | 命令或场景 | 结果 |
@@ -169,10 +185,10 @@
 
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
-| 实现 | 完成（待测试机与用户试用） | |
+| 实现 | 完成 | |
 | 本地验证 | 通过 | 见上表；实时刷新只验了接收人名单（替身），没在两个真会话里看 |
-| 测试机 | 进行中（等用户试用） | `testcowork.pearnly.com` 当前切在测试机上（线上那份测试租户的定时任务已暂停）；试用完 `lab-stop cowork` 切回 |
-| CI | 未执行 | |
-| 部署 | 未执行 | 需用户同意 |
+| 测试机 | 通过（脚本）；第 6 集已在测试机录完 | 已 `lab-stop cowork` 切回线上，测试栈停、卷保留（内有录制演示数据与两个录制账号） |
+| CI | 通过 | 分支 Development checks `36469905863`、build `36470114834`、stage `36470848088` |
+| 部署 | 已执行 | 生产 Cowork `0937d68d`（`sha256:3c7be356…`），见「合并与部署」 |
 | 外部业务结果 | 不适用 | 无外部写入 |
-| 用户 / 真机验收 | 未执行 | |
+| 用户 / 真机验收 | 未执行 | 录制窗口在测试机上按主管 + 员工视角实操过（非用户验收）；线上尚无用户试用 |
