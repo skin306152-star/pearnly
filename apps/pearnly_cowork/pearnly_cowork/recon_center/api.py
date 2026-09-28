@@ -47,6 +47,9 @@ def detail(kind, task_id, start=0, limit=200):
 
 @frappe.whitelist(methods=["POST"])
 def delete(kind, task_ids):
+    # 页面把勾选的编号以 JSON 字符串发来（表单参数），服务层只收列表：这里先解开（2026-09-28 录制发现批量删除会失败）。
+    if isinstance(task_ids, str):
+        task_ids = frappe.parse_json(task_ids) if task_ids.strip().startswith("[") else task_ids
     result = vat_check_service.delete_many(task_ids) if kind == "vat" else _tasks(kind).delete_many(task_ids)
     frappe.db.commit()
     return result
