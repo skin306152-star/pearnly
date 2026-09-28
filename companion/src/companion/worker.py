@@ -419,8 +419,12 @@ def _run_periodic(
                 projection_refresh.apply_endpoint_snapshot(
                     state, master, master_version
                 )
-            sets = state.get("reported_account_sets") or []
-            accts = state.get("reported_accounts") or []
+            # 这次启动还没扫完（大数据根要几分钟）：不报账套 / 科目，而不是报「0 个」——服务端会拿空清单
+            # 盖掉上一份，这期间推送的票准备不出小助手凭据、按账套刷新也被判空（2026-09-28 真机复测）。
+            known_sets = state.get("reported_account_sets")
+            known_accts = state.get("reported_accounts")
+            sets = known_sets or []
+            accts = known_accts or []
             # 随心跳上报客户所选账套整组(顶层 4 键·对齐云端契约)。account_set 唯一键 = 账套 PATH。
             selected = {
                 "account_set": cfg.account_set or "",
@@ -465,7 +469,7 @@ def _run_periodic(
                     newer_than=float(state.get("last_catalog", 0.0) or 0.0),
                 )
             if refreshed_accounts is not None:
-                accts = refreshed_accounts
+                accts = known_accts = refreshed_accounts
             refresh_fields, acknowledged_refresh = projection_refresh.heartbeat_ack(
                 refresh_request_id,
                 refresh_scope,
@@ -475,8 +479,8 @@ def _run_periodic(
                 error=refresh_error,
             )
             hb = qc.health(
-                account_sets=sets,
-                accounts=accts,
+                account_sets=known_sets,
+                accounts=known_accts,
                 method=cfg.method,
                 selected=selected,
                 mapping=mapping,

@@ -121,6 +121,13 @@ def test_heartbeat_reports_max_payload_version_and_companion_version():
     call = qc.health_calls[0]
     assert call["max_payload_version"] == 2
     assert call["companion_version"] == VERSION
+    # 这次启动还没扫完账套：不报账套 / 科目（报「0 个」服务端会盖掉上一份）
+    assert call["account_sets"] is None and call["accounts"] is None
+
+    state.update(last_heartbeat=0.0, reported_account_sets=[{"path": "A"}], reported_accounts=[{"code": "1"}])
+    worker._run_periodic(cfg, qc, state, on_update_available=None)
+    assert qc.health_calls[-1]["account_sets"] == [{"path": "A"}]
+    assert qc.health_calls[-1]["accounts"] == [{"code": "1"}]
 
 
 def test_heartbeat_updates_safe_connection_identity():
