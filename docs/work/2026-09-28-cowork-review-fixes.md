@@ -15,7 +15,7 @@ MR.ERP 假成功另开窗口（[交接](2026-09-28-mrerp-push-verify-handoff.md)
 | 2 | 推送失败 / 退回：原因码 → 人话（列表、复核页、手机），按原因修改后重推，已成功过的再点有反馈（#16 #17） | 本地完成（选对方档的入口在第 3 批） |
 | 3 | 账套决策表：对方档 / 存货 / 费用科目 / 记账方式 / 付款 / 抵进项 / 部门，选一次记住，推送带码，小助手按码落账（#6 #7 #8 #9 与回读新增项） | 本地完成，待测试环境 |
 | 4 | 识别侧：印章号提示词、重复识别、单页失控不拖垮整份、排队过期（#3 #5 #10 #11） | 本地完成，待测试环境 |
-| 5 | 推送吞吐：分步计时、按单据类型备份（#13）；ERP 网页进程内存（#14，ERP 侧，另议） | 待做 |
+| 5 | 推送吞吐：分步计时、按单据类型备份（#13）；结果不明的人工解除入口（接 MR.ERP 窗口）；ERP 网页进程内存（#14，ERP 侧，未做） | 本地完成，待测试环境 |
 
 ## 第 1 批
 
@@ -87,6 +87,16 @@ Cowork 全部非对照测试 99 个文件通过；对照 `test_cowork_engine_sou
 
 验证（本机）：`test_cowork_engine` 43（新增一页读不出）、`test_cowork_invoice_results` 17（新增挂页 / 第 1 页 / 全部读不出）、
 `test_cowork_duplicates` 7；对照 engine / invoice_group / ocr / invoice_validation / duplicates PASS；Cowork 非对照测试 101 个文件通过。
+
+## 第 5 批
+
+- #13 小助手：每张单写盘日志一行 `[timing] <方向> <单号> <结果> total=… checks= backup= write= reindex= verify= index_check= cleanup=`
+  （失败时 `failed_step= rollback=`）；备份按方向只备这张单会写的表（进项不备 ARTRN/ARBAL/ARMAS，销项不备 APTRN/APBAL/APMAS）。
+  备份改放本机、批量写：等分步耗时数据出来再定（同一共享盘内复制可能由服务器端完成，改本机未必更快）。
+- 结果不明的人工解除（与 MR.ERP 窗口约定由这边做，Express / MR.ERP 共用）：`ledger.resolve_unknown`，只接受「转人工 + 结果不明」；
+  已入账 → 成功（可填 ERP 单号），走正常成功收尾；未入账 → 原因 `confirmed_not_entered`，可重推；这条记录占着的写者锁一并放掉。
+  复核页「结果不明」那一行有「已在 ERP 核对」。
+- #14 ERP 网页进程内存属 ERP 产品，本任务不改。
 
 ## 临时资源
 

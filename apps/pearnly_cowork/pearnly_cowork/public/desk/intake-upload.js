@@ -118,6 +118,8 @@
 		const translated = __(key);
 		return translated === key ? text : translated;
 	};
+	/** 结果不明（写入已发出、没拿到结果）的原因码：会计去 ERP 核对后在复核页解除。 */
+	const RESULT_UNKNOWN = /^(ERP_CONFIRMED_PUSH_RESULT_UNKNOWN|EXPRESS_MANUAL:\s*confirmed_push_unacked|confirmed_push_unacked|ERR_MRERP_READBACK_NOT_FOUND|ERR_MRERP_READBACK_NOT_LINKED|ERR_MRERP_LEGACY_MENU_UNVERIFIED)/;
 	/** 这两种退回是「Express 已有 / 上一版还在」：会计核对后可以「仍然推送」（小助手认 `duplicate_confirmed`）。 */
 	const SEND_ANYWAY = /^\[(DUPLICATE_CONTENT_DIFFERS|PRIOR_DOC_STILL_IN_ERP)\]/;
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
@@ -527,6 +529,10 @@
 			if (record?.last_push_reason && (pushed === "manual" || !pushed)) {
 				const row = $("<div class='form-message red'>").appendTo(wrapper);
 				$("<span>").text(p.intake_push_reason(record.last_push_reason)).appendTo(row);
+				if (RESULT_UNKNOWN.test(String(record.last_push_reason)) && record.last_push_record) {
+					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.unknown.check"))
+						.on("click", () => void resolve_unknown(record)).appendTo(row);
+				}
 				if (/^choice_needed/.test(String(record.last_push_reason)) && !recognize_only) {
 					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.choice.title"))
 						.on("click", () => void submit({names: [record.name]})).appendTo(row);
@@ -750,6 +756,26 @@
 			}
 			return asked.get(key);
 		};
+
+		/** 结果不明：会计在 ERP 里核对后标「已入账」（可填 ERP 单号）或「未入账」（之后可重推）。 */
+		const resolve_unknown = record => new Promise(resolve => {
+			const d = p.dialog(__("cowork.unknown.check"), [
+				{fieldtype: "Select", fieldname: "outcome", label: __("cowork.unknown.outcome"), reqd: 1,
+					options: [{value: "entered", label: __("cowork.unknown.entered")},
+						{value: "not_entered", label: __("cowork.unknown.not_entered")}]},
+				{fieldtype: "Data", fieldname: "docnum", label: __("cowork.unknown.docnum"),
+					depends_on: "eval:doc.outcome=='entered'"},
+			], __("Save"), async values => {
+				await p.call(PUSH + "resolve_unknown", {name: record.last_push_record,
+					entered: values.outcome === "entered" ? 1 : 0, docnum: values.docnum || ""}, "POST");
+				d.hide();
+				current = await detail(record.name);
+				fill(current);
+				sync_save();
+				resolve(true);
+			});
+			d.onhide = () => resolve(false);
+		});
 
 		/** 推 Express 前，这张票在这份账套里要人选一次的（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）先问齐。 */
 		const express_choices_ready = async (target, record, posting_kind) => {

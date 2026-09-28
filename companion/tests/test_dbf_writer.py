@@ -346,6 +346,22 @@ def test_selective_backup_skips_unrelated_files(datat):
     assert len(names) < len(list(datat.iterdir()))  # 严格少于整目录
 
 
+def test_backup_is_limited_to_the_side_the_invoice_writes(datat, caplog):
+    # 2026-09-28 压测:每张单整套备份 14 张表 → 进项不备销项三表,销项不备进项三表;写完日志留一行分步耗时
+    assert not {"ARTRN", "ARBAL", "ARMAS"} & set(S.PURCHASE_BACKUP_TABLES)
+    assert not {"APTRN", "APBAL", "APMAS"} & set(S.SALES_BACKUP_TABLES)
+    assert {"ISRUN", "ISVAT", "GLJNL", "GLJNLIT", "STCRD", "STMAS"} <= set(S.PURCHASE_BACKUP_TABLES) & set(
+        S.SALES_BACKUP_TABLES
+    )
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        res = W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=True)
+    assert res.ok, res.error
+    timing = [r.getMessage() for r in caplog.records if r.getMessage().startswith("[timing] purchase")]
+    assert timing and "backup=" in timing[0] and "reindex=" in timing[0] and " ok " in timing[0]
+
+
 def test_selective_backup_default_full_copy(datat):
     # tables=None 维持整目录复制(向后兼容)
     (datat / "UNRELATED.DBF").write_bytes(b"x")

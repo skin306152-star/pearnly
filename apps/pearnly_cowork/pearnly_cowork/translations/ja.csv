@@ -154,6 +154,8 @@ Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checkbox,チェックボックス
+Checked in the ERP,ERP で確認済み
+Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
 Checking,照合中
 Checklist,チェックリスト
 Checks Json,検証結果JSON
@@ -343,6 +345,7 @@ ERP Connection,ERP接続
 ERP Password,ERPパスワード
 ERP Token,ERPトークン
 ERP Username,ERPユーザー名
+ERP document number,ERP の伝票番号
 ERP records cannot be saved in Cowork.,ERPのレコードはCoworkに保存できません。
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
@@ -462,6 +465,8 @@ Invoices,請求書数
 Issued At (UTC),発行日時 (UTC)
 Issued By,発行者
 Issued Request Digest,発行リクエストのダイジェスト
+It was entered,計上されている
+It was not entered,計上されていない（再送信可）
 Item,項目
 Items,品目
 Job Roles,機能権限
@@ -698,6 +703,7 @@ Result,結果
 Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
+Result in the ERP,ERP での結果
 Review,レビュー
 Review JSON,確認記録 JSON
 Review differences,差異を確認
@@ -1438,6 +1444,11 @@ cowork.team.password,初期パスワード
 cowork.team.resetPassword,パスワードを再設定
 cowork.team.roles,機能権限
 cowork.team.status,状態
+cowork.unknown.check,ERP で確認済み
+cowork.unknown.docnum,ERP の伝票番号
+cowork.unknown.entered,計上されている
+cowork.unknown.not_entered,計上されていない（再送信可）
+cowork.unknown.outcome,ERP での結果
 cowork.work.activity.archive,{who} がこのカードをアーカイブしました
 cowork.work.activity.assign,{who} がこのカードに {0} を追加しました
 cowork.work.activity.attach,{who} が {0} を添付しました
@@ -1740,6 +1751,7 @@ intake.error.already_success,この伝票は送信済みです
 intake.error.amounts_not_consistent,金額が合いません。直して再送信してください
 intake.error.bad_or_missing_date,伝票日付がないか読み取れません。入力して再送信してください
 intake.error.choice_needed,先にこの伝票の Express 側の項目を選んでから再送信してください
+intake.error.confirmed_not_entered,ERP で確認済み：未計上。再送信できます
 intake.error.confirmed_push_unacked,結果が確認できません。Express で確認してから再送信してください
 intake.error.credit_note,返品・値引伝票は Express で手動で処理してください
 intake.error.currency_not_thb,Express に送れるのはタイバーツの伝票だけです

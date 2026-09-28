@@ -74,3 +74,9 @@ def choices(history, connection, account_set_key=None, posting_kind=None):
 def save_choices(history, connection, account_set_key, items):
     """记下会计选的，这份账套里同类以后自动套用。"""
     return _local_transaction(service.save_choices, history, connection, account_set_key, items)
+
+
+@frappe.whitelist(methods=["POST"])
+def resolve_unknown(name, entered, docnum=None):
+    """结果不明的推送：会计在 ERP 里核对后标「已入账」（可填 ERP 单号）或「未入账」（之后可重推）。"""
+    return _local_transaction(service.resolve_unknown, name, _flag(entered), docnum or None)

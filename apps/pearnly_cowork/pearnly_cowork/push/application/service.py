@@ -347,6 +347,20 @@ def detail(name):
     return _view(ledger.project(doc))
 
 
+def resolve_unknown(name, entered, docnum=None):
+    """复核页「已在 ERP 核对」：结果不明的推送由人判定已入账 / 未入账（规则见 `ledger.resolve_unknown`）。"""
+    scope.require("intake")
+    row = frappe.db.get_value("Cowork Push Record", name,
+        ["connection", "workspace", "client", "history"], as_dict=True)
+    if not row:
+        frappe.throw(_("push.record_not_found"), frappe.DoesNotExistError)
+    loaded = connections.read_for_push(row.connection, row.workspace, row.client)
+    history = storage.read(row.history, for_update=True)
+    doc = frappe.get_doc("Cowork Push Record", name, for_update=True)
+    context = _context(history, loaded, doc.account_key)
+    return _view(ledger.resolve_unknown(name, context=context, entered=entered, docnum=docnum))
+
+
 def cancel_prepared(name, expected_revision):
     scope.require("intake")
     row = frappe.db.get_value("Cowork Push Record", name,

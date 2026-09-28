@@ -154,6 +154,8 @@ Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checkbox,勾选
+Checked in the ERP,已在 ERP 核对
+Checked in the ERP: not entered. It can be sent again,已在 ERP 核对：未入账，可以重推
 Checking,核对中
 Checklist,清单
 Checks Json,检查结果JSON
@@ -343,6 +345,7 @@ ERP Connection,ERP连接
 ERP Password,ERP密码
 ERP Token,ERP令牌
 ERP Username,ERP用户名
+ERP document number,ERP 单号
 ERP records cannot be saved in Cowork.,ERP 记录不能保存到 Cowork。
 Each record must have a name and revision.,每条记录都必须提供标识和版本。
 Each record must have a valid name.,每条记录都必须提供有效标识。
@@ -462,6 +465,8 @@ Invoices,发票数
 Issued At (UTC),签发时间（UTC）
 Issued By,签发人
 Issued Request Digest,签发请求摘要
+It was entered,已入账
+It was not entered,未入账，可以重推
 Item,项目
 Items,物料
 Job Roles,功能权限
@@ -698,6 +703,7 @@ Result,结果
 Result Directory Revision,结果目录版本
 Result Json,识别结果（JSON）
 Result Unknown,结果未知
+Result in the ERP,ERP 里的结果
 Review,复核
 Review JSON,复核记录 JSON
 Review differences,查看差异
@@ -1438,6 +1444,11 @@ cowork.team.password,初始密码
 cowork.team.resetPassword,重置密码
 cowork.team.roles,功能权限
 cowork.team.status,状态
+cowork.unknown.check,已在 ERP 核对
+cowork.unknown.docnum,ERP 单号
+cowork.unknown.entered,已入账
+cowork.unknown.not_entered,未入账，可以重推
+cowork.unknown.outcome,ERP 里的结果
 cowork.work.activity.archive,{who} 归档了这张卡片
 cowork.work.activity.assign,{who} 把 {0} 加入了这张卡片
 cowork.work.activity.attach,{who} 添加了附件 {0}
@@ -1740,6 +1751,7 @@ intake.error.already_success,这张票已经推送成功过
 intake.error.amounts_not_consistent,金额算不平，请改正后再提交
 intake.error.bad_or_missing_date,票面日期缺失或认不出，请补上后再提交
 intake.error.choice_needed,请先为这张票选定 Express 里的对应项，再提交
+intake.error.confirmed_not_entered,已在 ERP 核对：未入账，可以重推
 intake.error.confirmed_push_unacked,结果不明，请先在 Express 里核对再决定是否重推
 intake.error.credit_note,贷项通知单要人工在 Express 里处理
 intake.error.currency_not_thb,只有泰铢的票能推到 Express

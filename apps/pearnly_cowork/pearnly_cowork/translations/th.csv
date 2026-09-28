@@ -154,6 +154,8 @@ Check the ERP connection settings.,โปรดตรวจสอบการต
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checkbox,ช่องทำเครื่องหมาย
+Checked in the ERP,ตรวจใน ERP แล้ว
+Checked in the ERP: not entered. It can be sent again,ตรวจใน ERP แล้ว: ยังไม่ได้บันทึก ส่งใหม่ได้
 Checking,กำลังตรวจสอบ
 Checklist,รายการตรวจสอบ
 Checks Json,ผลตรวจสอบ JSON
@@ -343,6 +345,7 @@ ERP Connection,การเชื่อมต่อ ERP
 ERP Password,รหัสผ่าน ERP
 ERP Token,โทเค็น ERP
 ERP Username,ชื่อผู้ใช้ ERP
+ERP document number,เลขที่เอกสารใน ERP
 ERP records cannot be saved in Cowork.,ไม่สามารถบันทึกรายการ ERP ใน Cowork ได้
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและรุ่นของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
@@ -462,6 +465,8 @@ Invoices,จำนวนใบกำกับ
 Issued At (UTC),เวลาออก (UTC)
 Issued By,ผู้ออก
 Issued Request Digest,แฮชคำขอออกข้อมูลรับรอง
+It was entered,บันทึกเข้าแล้ว
+It was not entered,ยังไม่ได้บันทึก ส่งใหม่ได้
 Item,รายการ
 Items,รายการ
 Job Roles,สิทธิ์การใช้งาน
@@ -698,6 +703,7 @@ Result,ผลการนับ
 Result Directory Revision,รุ่นไดเรกทอรีผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
+Result in the ERP,ผลใน ERP
 Review,ตรวจทาน
 Review JSON,ข้อมูลการตรวจทาน JSON
 Review differences,ตรวจสอบผลต่าง
@@ -1438,6 +1444,11 @@ cowork.team.password,รหัสผ่านเริ่มต้น
 cowork.team.resetPassword,ตั้งรหัสผ่านใหม่
 cowork.team.roles,สิทธิ์การใช้งาน
 cowork.team.status,สถานะ
+cowork.unknown.check,ตรวจใน ERP แล้ว
+cowork.unknown.docnum,เลขที่เอกสารใน ERP
+cowork.unknown.entered,บันทึกเข้าแล้ว
+cowork.unknown.not_entered,ยังไม่ได้บันทึก ส่งใหม่ได้
+cowork.unknown.outcome,ผลใน ERP
 cowork.work.activity.archive,{who} เก็บถาวรการ์ดนี้
 cowork.work.activity.assign,{who} เพิ่ม {0} ในการ์ดนี้
 cowork.work.activity.attach,{who} แนบไฟล์ {0}
@@ -1740,6 +1751,7 @@ intake.error.already_success,เอกสารนี้ส่งสำเร็
 intake.error.amounts_not_consistent,ยอดเงินไม่สมดุล กรุณาแก้แล้วส่งใหม่
 intake.error.bad_or_missing_date,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
 intake.error.choice_needed,กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่
+intake.error.confirmed_not_entered,ตรวจใน ERP แล้ว: ยังไม่ได้บันทึก ส่งใหม่ได้
 intake.error.confirmed_push_unacked,ยังไม่ทราบผลการส่ง กรุณาตรวจใน Express ก่อนส่งใหม่
 intake.error.credit_note,ใบลดหนี้ต้องให้คนบันทึกใน Express
 intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท

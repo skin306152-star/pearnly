@@ -696,6 +696,46 @@ def mark_unknown(name, *, context, adapter, fence, attempt_token, reason='ERP_CO
         return {**project(row), 'replayed': False}
 
 
+def resolve_unknown(name, *, context, entered, docnum=None, now=None):
+    """结果不明（写入已发出、没拿到结果；或修复前推进了没关联日记账的 MR.ERP 菜单）由人去 ERP 核对后解除。
+
+    已入账 → 记成功（可填 ERP 实际单号），走与正常成功同一个收尾；未入账 → 放开，这张票可以重推。
+    这条记录还占着的写者锁一并放掉。只接受「转人工 + 结果不明」的记录，别的状态一律拒绝。"""
+    _context(context)
+    if type(entered) is not bool:
+        fail('push.native_request_invalid')
+    with atomic():
+        _authorize(context)
+        _history(context)
+        raw = frappe.db.get_value(RECORD, name, 'target_json')
+        if not raw:
+            fail('push.native_record_not_found')
+        target = json.loads(raw)
+        locks = _locks(context, target)
+        row = _record(name, context)
+        if row.status != 'manual' or not row.result_unknown:
+            fail('push.native_state_invalid')
+        timestamp = now_utc(now)
+        _release(row, [lock for lock in locks if lock.holder == row.name])
+        if row.active_attempt:
+            attempt = _current(ATTEMPT, row.active_attempt)
+            if attempt.status in {'leased', 'unknown'}:
+                attempt.status, attempt.completed_at = 'finished', timestamp
+                attempt.outcome = common.STAGE_SUCCESS if entered else 'confirmed_not_entered'
+                persist(attempt)
+        docnum = call(text, docnum, length=140, optional=True) or None
+        row.result_unknown, row.lease_expires_at, row.completed_at = 0, None, timestamp
+        if entered:
+            row.status, row.reason, row.external_docnum = 'success', '', docnum
+            row.response_json = call(encode, _response(row.branch, common.STAGE_SUCCESS, docnum, None,
+                {'resolution': 'checked_in_erp'}, target.get('adapter') or 'express'))
+            completion.success(row, timestamp)
+        else:
+            row.status, row.reason = 'manual', 'confirmed_not_entered'
+        _save_record(row, timestamp)
+        return project(row)
+
+
 def cancel_prepared(name, *, context, expected_revision):
     """Withdraw only a never-leased preparation, preserving all frozen evidence."""
     _context(context)

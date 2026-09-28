@@ -206,6 +206,32 @@ def _restore(account_dir: Path, backup_dir: Path) -> None:
             shutil.copy2(src, account_dir / src.name)
 
 
+class StepClock:
+    """一张单写盘各步耗时(秒),写进日志一行 `[timing]`,用来找推送慢在哪(2026-09-28 压测:约 10 秒一张、
+    每第三张 30–35 秒,现有日志看不出卡在哪一步)。只计时,不改任何写盘行为。"""
+
+    def __init__(self, direction: str):
+        self.direction = direction
+        self.started = self.last = time.monotonic()
+        self.steps: Dict[str, float] = {}
+
+    def lap(self, name: str) -> None:
+        now = time.monotonic()
+        self.steps[name] = round(now - self.last, 2)
+        self.last = now
+
+    def log(self, docnum: str, outcome: str) -> None:
+        total = round(time.monotonic() - self.started, 2)
+        log.info(
+            "[timing] %s %s %s total=%.2fs %s",
+            self.direction,
+            docnum or "-",
+            outcome,
+            total,
+            " ".join(f"{k}={v:.2f}" for k, v in self.steps.items()),
+        )
+
+
 def _discard_backup(backup_dir: Optional[Path]) -> None:
     """事务收尾 → 删 per-write 快照。安全网只在写盘事务窗口内有用:校验通过(已提交)或
     已 _restore(已回滚)后,快照即死重;不删则每张票在账套盘留一份,日积月累吃满磁盘。
@@ -231,6 +257,7 @@ def write_purchase(
     三重一致性闸(客户所选账套·缺所选 fail-safe 拒):allowed_sets=账套名(C3)+
     selected_dir=写盘目录(C2)+ expected_company=目标 ISINFO 公司(防同尾目录串账套)。
     """
+    clock = StepClock("purchase")
     v = validate_purchase_payload(payload, allowed=allowed_sets)
     if not v.ok:
         return DbfWriteResult(
@@ -324,7 +351,10 @@ def write_purchase(
     if blocked_prior is not None:
         return blocked_prior
 
-    backup_dir = _backup(account_dir, S.BACKUP_TABLES) if make_backup else None
+    clock.lap("checks")
+    backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES) if make_backup else None
+    clock.lap("backup")
+    docnum = ""
     try:
         # 新供应商 → 先在 APMAS 建档(在备份-回滚事务内)拿到码
         entry.supplier_code = master_create.ensure_supplier(
@@ -345,6 +375,7 @@ def write_purchase(
             userid,
             depcod,
         )
+        clock.lap("write")
         detail_n = (
             len(entry.items) if (entry.items_status == "ok" and entry.items) else 0
         )
@@ -355,6 +386,7 @@ def write_purchase(
             "APMAS" if created_supplier else "",
             index_batch,
         )
+        clock.lap("reindex")
         _verify(
             account_dir,
             docnum,
@@ -364,8 +396,12 @@ def write_purchase(
             detail_n=detail_n,
             has_stock=has_stock,
         )
+        clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AP_DOCNUM, docnum)
+        clock.lap("index_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
+        clock.lap("cleanup")
+        clock.log(docnum, "ok")
         return DbfWriteResult(
             True,
             docnum=docnum,
@@ -376,11 +412,14 @@ def write_purchase(
             notes={**notes, **D.confirmed_note(dup or waved_prior)},
         )
     except Exception as e:  # 任何失败 → 回滚还原
+        clock.lap("failed_step")
         if backup_dir:
             _restore(account_dir, backup_dir)
             _discard_backup(
                 backup_dir
             )  # 已回滚 → 删快照(保留路径串作 rolled_back 标记)
+        clock.lap("rollback")
+        clock.log(docnum, "rolled_back")
         code = _error_code(e)
         log.exception("dbf write failed, rolled back")
         return DbfWriteResult(

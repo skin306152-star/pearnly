@@ -447,6 +447,11 @@ BACKUP_TABLES = (
     "ISACC",
 )
 
+# 按方向只备份这张单会写的表(2026-09-28 压测:每张单整套备份 14 张表是推送慢的一处)。
+# 进项不写 ARTRN/ARBAL/ARMAS,销项不写 APTRN/APBAL/APMAS;其余(流水号/税/分录/库存/主档)两边都可能写。
+PURCHASE_BACKUP_TABLES = tuple(t for t in BACKUP_TABLES if t not in ("ARTRN", "ARBAL", "ARMAS"))
+SALES_BACKUP_TABLES = tuple(t for t in BACKUP_TABLES if t not in ("APTRN", "APBAL", "APMAS"))
+
 # 合成表规格搬去 table_specs(本模块只留真机写盘要用的口径);import 路径不变。
 TABLE_SPECS = _TABLE_SPECS
 

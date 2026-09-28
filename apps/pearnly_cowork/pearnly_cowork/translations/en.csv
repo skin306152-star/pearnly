@@ -154,6 +154,8 @@ Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checkbox,Checkbox
+Checked in the ERP,Checked in the ERP
+Checked in the ERP: not entered. It can be sent again,Checked in the ERP: not entered. It can be sent again
 Checking,Checking
 Checklist,Checklist
 Checks Json,Checks Json
@@ -343,6 +345,7 @@ ERP Connection,ERP Connection
 ERP Password,ERP Password
 ERP Token,ERP Token
 ERP Username,ERP Username
+ERP document number,ERP document number
 ERP records cannot be saved in Cowork.,ERP records cannot be saved in Cowork.
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
@@ -462,6 +465,8 @@ Invoices,Invoices
 Issued At (UTC),Issued At (UTC)
 Issued By,Issued By
 Issued Request Digest,Issued Request Digest
+It was entered,It was entered
+It was not entered,It was not entered
 Item,Item
 Items,Items
 Job Roles,Job Roles
@@ -698,6 +703,7 @@ Result,Result
 Result Directory Revision,Result Directory Revision
 Result Json,Result Json
 Result Unknown,Result Unknown
+Result in the ERP,Result in the ERP
 Review,Review
 Review JSON,Review JSON
 Review differences,Review differences
@@ -1438,6 +1444,11 @@ cowork.team.password,Initial Password
 cowork.team.resetPassword,Reset Password
 cowork.team.roles,Job Roles
 cowork.team.status,Status
+cowork.unknown.check,Checked in the ERP
+cowork.unknown.docnum,ERP document number
+cowork.unknown.entered,It was entered
+cowork.unknown.not_entered,It was not entered
+cowork.unknown.outcome,Result in the ERP
 cowork.work.activity.archive,{who} archived this card
 cowork.work.activity.assign,{who} added {0} to this card
 cowork.work.activity.attach,{who} attached {0}
@@ -1740,6 +1751,7 @@ intake.error.already_success,This invoice was already sent successfully
 intake.error.amounts_not_consistent,The amounts do not add up. Correct them and submit again
 intake.error.bad_or_missing_date,The invoice date is missing or unreadable. Fill it in and submit again
 intake.error.choice_needed,"Choose the Express records for this invoice first, then submit again"
+intake.error.confirmed_not_entered,Checked in the ERP: not entered. It can be sent again
 intake.error.confirmed_push_unacked,The result is not confirmed. Check in Express before sending again
 intake.error.credit_note,Credit notes need a person to post them in Express
 intake.error.currency_not_thb,Only invoices in Thai baht can be sent to Express

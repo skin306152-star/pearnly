@@ -38,6 +38,7 @@ from .dbf_writer import (
     ERR_VERIFY,
     ERR_WRITE,
     DbfWriteResult,
+    StepClock,
     _backup,
     _bump_isrun,
     _discard_backup,
@@ -204,6 +205,7 @@ def write_sale(
     三重一致性闸(镜像采购 · 缺所选 → fail-safe 拒):account_set 名(allowed_sets)+
     写盘目录(selected_dir)+ 目标 ISINFO 公司(expected_company)三证齐过才落盘。
     """
+    clock = StepClock("sales")
     v = validate_sales_payload(payload, allowed=allowed_sets)
     if not v.ok:
         return DbfWriteResult(
@@ -294,7 +296,10 @@ def write_sale(
     if blocked_prior is not None:
         return blocked_prior
 
-    backup_dir = _backup(account_dir, S.BACKUP_TABLES) if make_backup else None
+    clock.lap("checks")
+    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES) if make_backup else None
+    clock.lap("backup")
+    docnum = ""
     try:
         # 新客户 → 先在 ARMAS 建档(备份-回滚事务内)拿到码
         entry.customer_code = master_create.ensure_customer(
@@ -318,6 +323,7 @@ def write_sale(
             userid,
             depcod,
         )
+        clock.lap("write")
         detail_n = (
             len(entry.items) if (entry.items_status == "ok" and entry.items) else 0
         )
@@ -328,6 +334,7 @@ def write_sale(
             "ARMAS" if created_customer else "",
             index_batch,
         )
+        clock.lap("reindex")
         _verify(
             account_dir,
             docnum,
@@ -337,8 +344,12 @@ def write_sale(
             detail_n=detail_n,
             has_stock=has_stock,
         )
+        clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AR_DOCNUM, docnum)
+        clock.lap("index_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
+        clock.lap("cleanup")
+        clock.log(docnum, "ok")
         return DbfWriteResult(
             True,
             docnum=docnum,
@@ -349,11 +360,14 @@ def write_sale(
             notes={**notes, **D.confirmed_note(dup or waved_prior)},
         )
     except Exception as e:
+        clock.lap("failed_step")
         if backup_dir:
             _restore(account_dir, backup_dir)
             _discard_backup(
                 backup_dir
             )  # 已回滚 → 删快照(保留路径串作 rolled_back 标记)
+        clock.lap("rollback")
+        clock.log(docnum, "rolled_back")
         code = (
             ERR_STOCK_NOT_FOUND
             if isinstance(e, stock_sale.StockItemNotFound)
