@@ -1,6 +1,9 @@
-/* 工作协调：团队看板（用户 2026-09-27，照 Trello）。
+/* 任务管理：团队看板（用户 2026-09-27，照 Trello）。
  *
- * 一个团队一块板；列表由大家自己增删、改名、拖动排序、复制（第四批）。拖进「完成列表」就算完成，没有审核；
+ * 多块看板（用户 2026-09-29）：页面筛选区第一格切换看板；每块看板有自己的成员、可见范围、标签、字段与自动化。
+ * 能做什么由服务端按看板算好（`board.rights`：view / edit / comment / members / manage），页面只按它显示入口：
+ * 只读（观察者）时不出现任何写入口，标签 / 字段 / 自动化 / 看板设置只给能管这块板的人。
+ * 列表由大家自己增删、改名、拖动排序、复制（第四批）。拖进「完成列表」就算完成，没有审核；
  * 卡片上的完成圆圈照 Trello 只改完成与否、不挪列表。卡片的样子与交互照 Trello（完成圆圈、悬停出归档 / 编辑、
  * 快捷菜单、封面、标签、徽标、头像、模板、镜像），底色用我们自己的（"底色还是用我们自己的"）：白底、原生灰列，
  * 列表颜色由大家在列表菜单里点色块选。
@@ -24,6 +27,11 @@
 	const DETAILS = "pearnly-work-activity-details";
 	const VIEWS = ["board", "mine", "calendar", "table"];
 	const RULE_ACTIONS = ["assign", "label", "due_days", "complete", "watch"];
+	const BOARD_KEY = "pearnly-work-board";  // 每人上次看的看板，记在浏览器本地
+	const VISIBILITIES = ["team", "private"];
+	const COMMENTING = ["members", "observers", "disabled"];
+	const MEMBER_MANAGEMENT = ["admins", "members"];
+	const BOARD_ROLES = ["admin", "member", "observer"];
 	// 拖动的样子（照 Trello，用户 2026-09-27）：浏览器原生拖动只给一张半透明截图、样式改不了，改用 Sortable 的
 	// 模拟拖动，拖着的是实物（不透明、微斜、带阴影，见 work.css）；移动 3 像素以上才算拖，单击照旧打开卡片。
 	const DRAG_LOOK = {forceFallback: true, fallbackTolerance: 3};
@@ -92,12 +100,14 @@
 	if (frappe.app) listen();
 
 	p.coworkWork = async (page, t, wrapper) => {
-		const state = {lists: [], cards: [], mirrors: [], members: [], labels: [], fields: [], me: frappe.session.user,
-			admin: false, loaded_at: 0, unread: 0};
+		const state = {board: null, boards: [], lists: [], cards: [], foreign: [], mirrors: [], members: [], labels: [],
+			fields: [], me: frappe.session.user, admin: false, loaded_at: 0, unread: 0};
+		const can = right => Boolean(state.board?.rights?.includes(right));
 		const member = user => state.members.find(row => row.user === user);
 		const member_name = user => member(user)?.name || user || "";
 		const label_of = name => state.labels.find(row => row.name === name);
-		const card_of = name => state.cards.find(row => row.name === name);
+		// 别的看板镜像过来的卡在 `foreign` 里：能画、能点开，但不算进本板的视图与表格。
+		const card_of = name => state.cards.find(row => row.name === name) || state.foreign.find(row => row.name === name);
 		const list_of = name => state.lists.find(row => row.name === name);
 		const color_text = color => t(`cowork.work.color.${color}`);
 		const list_options = () => state.lists.map(row => ({value: row.name, label: row.title}));
@@ -121,7 +131,10 @@
 			return parts.join(" - ");
 		};
 
-		// ── 筛选（页面原生筛选区） ────────────────────────────────────────────
+		// ── 看板切换（页面原生筛选区第一格）与筛选 ─────────────────────────────
+		const stored_board = () => { try { return localStorage.getItem(BOARD_KEY) || ""; } catch (error) { return ""; } };
+		const board_field = page.add_field({fieldname: "board", fieldtype: "Select", label: t("cowork.work.board.label"),
+			change: () => void switch_board(board_field.get_value())});
 		const filters = {
 			keyword: page.add_field({fieldname: "keyword", fieldtype: "Data", label: t("cowork.work.filter.keyword"),
 				change: () => apply()}),
@@ -143,7 +156,7 @@
 			if (keyword.length < 2) {
 				state.search_hits = null;
 			} else {
-				const names = await p.call(`${API}search`, {keyword});
+				const names = await p.call(`${API}search`, {keyword, board: state.board?.name});
 				if (request !== searching) return;
 				state.search_hits = new Set(names);
 			}
@@ -160,6 +173,13 @@
 			field.set_input(options.some(option => option.value === value) ? value : "");
 		};
 		const refresh_filter_options = () => {
+			const boards = state.boards.map(row => ({value: row.name, label: row.title}));
+			if (state.board && !boards.some(row => row.value === state.board.name)) {
+				boards.push({value: state.board.name, label: state.board.title});
+			}
+			board_field.df.options = boards;
+			board_field.refresh();
+			board_field.set_input(state.board?.name || "");
 			set_options(filters.member, [{value: "", label: t("cowork.work.filter.anyMember")},
 				{value: "__me", label: t("cowork.work.filter.mine")},
 				{value: "__none", label: t("cowork.work.filter.noMember")},
@@ -195,10 +215,23 @@
 		p.work_unread = delta => { state.unread += delta; show_unread(); };
 		// 手机上右上角图标收起来了，菜单里也放一个入口。
 		page.add_menu_item(t("cowork.work.notify.title"), () => void open_notifications());
-		page.add_menu_item(t("cowork.work.labels.manage"), () => open_labels());
-		page.add_menu_item(t("cowork.work.fields.manage"), () => open_fields());
-		page.add_menu_item(t("cowork.work.rules.manage"), () => void open_rules());
+		page.add_menu_item(t("cowork.work.board.create"), () => create_board());
+		// 只给能管这块板的人：看板设置、标签、自定义字段、自动化（服务端同样拒绝）。
+		const managed = [
+			page.add_menu_item(t("cowork.work.board.settings"), () => open_board_settings()),
+			page.add_menu_item(t("cowork.work.labels.manage"), () => open_labels()),
+			page.add_menu_item(t("cowork.work.fields.manage"), () => open_fields()),
+			page.add_menu_item(t("cowork.work.rules.manage"), () => void open_rules()),
+		];
+		page.add_menu_item(t("cowork.work.board.members"), () => void open_members());
 		page.add_menu_item(t("cowork.work.archived.title"), () => open_archived());
+		const show_rights = () => {
+			for (const link of managed) link.closest("li").toggleClass("hide", !can("manage"));
+			root.toggleClass("pearnly-work-readonly", !can("edit"));
+			for (const parts of Object.values(columns)) parts.sortable.option("disabled", !can("edit"));
+			list_sortable.option("disabled", !can("edit"));
+			calendar?.setOption("editable", can("edit"));
+		};
 
 		// ── 看板骨架 ─────────────────────────────────────────────────────────────
 		const root = $('<div class="pearnly-work">').appendTo(page.main);
@@ -308,7 +341,7 @@
 			title.on("click", event => {
 				event.stopPropagation();
 				if (column.hasClass("collapsed")) return toggle_collapse(row.name);
-				rename_list(list_of(row.name), title);
+				if (can("edit")) rename_list(list_of(row.name), title);
 			});
 			const list = $(`<div class="kanban-cards" data-list="${p.escape(row.name)}">`).appendTo(column);
 			const footer = $('<div class="pearnly-work-column-footer">').appendTo(column);
@@ -324,7 +357,7 @@
 			const link = $('<button type="button" class="nav-link">')
 				.on("click", () => column[0].scrollIntoView({behavior: "smooth", block: "start"}));
 			const nav_item = $('<li class="nav-item">').append(link);
-			new Sortable(list[0], {
+			const sortable = new Sortable(list[0], {
 				group: "pearnly-work-cards", animation: 150, draggable: ".pearnly-work-card-wrap",
 				// 拖到空列表上方附近就算放进去（照 Trello，整列都能接）。
 				emptyInsertThreshold: 60,
@@ -334,7 +367,7 @@
 				delay: 200, delayOnTouchOnly: true,
 				onEnd: event => void dropped(event),
 			});
-			return {column, title, list, count, footer, add, compose, link, nav_item};
+			return {column, title, list, count, footer, add, compose, link, nav_item, sortable};
 		};
 		// 列表本身也能拖着排（拖列表头），照 Trello。
 		// 鼠标在列表下方的空白处时，Sortable 会当成「放到最后」让空槽跳到末尾；照 Trello 改成只看左右位置。
@@ -586,11 +619,15 @@
 			if (loading) return loading;
 			loading = (async () => {
 				try {
-					const data = await p.call(`${API}board`);
-					Object.assign(state, {lists: data.lists, cards: data.cards, mirrors: data.mirrors || [],
+					// 上次看的看板没了 / 没权限了：服务端退回默认看板（`fallback`），不弹错。
+					const data = await p.call(`${API}board`, {board: state.board?.name || stored_board(), fallback: 1});
+					Object.assign(state, {board: data.board, boards: data.boards, lists: data.lists, cards: data.cards,
+						foreign: data.foreign || [], mirrors: data.mirrors || [],
 						members: data.members, labels: data.labels, fields: data.fields || [], me: data.me,
 						admin: data.admin, unread: data.unread, loaded_at: Date.now()});
+					try { localStorage.setItem(BOARD_KEY, data.board.name); } catch (error) { /* 无痕窗口 */ }
 					refresh_filter_options();
+					show_rights();
 					render();
 					show_unread();
 				} finally {
@@ -668,11 +705,12 @@
 			const d = small_dialog(t("cowork.work.quick.labels"), [
 				{fieldname: "labels", fieldtype: "MultiCheck", columns: "10rem", sort_options: false,
 					options: label_options(chosen)},
-				{fieldname: "add_label", fieldtype: "Button", label: t("cowork.work.labels.add"), click: () => {
+				// 新建标签只给看板管理员（用户 2026-09-29）；成员照常勾选已有标签。
+				...(can("manage") ? [{fieldname: "add_label", fieldtype: "Button", label: t("cowork.work.labels.add"), click: () => {
 					const picked = d.get_value("labels");
 					d.hide();
 					open_labels({add: true, after: () => edit_labels(card_of(card.name) || card, picked)});
-				}}],
+				}}] : [])],
 				(_, dialog) => quick_update(card, {labels: dialog.get_value("labels")}));
 		};
 		const quick_update = async (card, values) => {
@@ -722,6 +760,28 @@
 		];
 		const date_values = values => ({start_date: values.start_date || "", due_date: values.due_date || "",
 			due_time: values.due_time || "", reminder: values.reminder || "1d", recurrence: values.recurrence || "never"});
+		// 移动 / 复制 / 镜像的去处（照 Trello）：先选看板（只列能改的）、再选列表；换看板时列表跟着换。
+		const editable_boards = () => state.boards.filter(row => row.rights.includes("edit"))
+			.map(row => ({value: row.name, label: row.title}));
+		const target_fields = (list, lists = null, label = t("cowork.work.field.list")) => [
+			{fieldname: "target_board", fieldtype: "Select", reqd: 1, label: t("cowork.work.board.label"),
+				options: editable_boards(), default: state.board.name},
+			{fieldname: "board_list", fieldtype: "Select", reqd: 1, label, default: list, options: lists || list_options()},
+		];
+		const wire_targets = (d, exclude = null) => {
+			const field = d.fields_dict.target_board;
+			field.df.onchange = async () => {
+				const board = d.get_value("target_board");
+				const rows = board === state.board.name ? state.lists
+					: await p.call(`${API}board_lists`, {board});
+				const options = rows.filter(row => board !== state.board.name || row.name !== exclude)
+					.map(row => ({value: row.name, label: row.title}));
+				const list = d.fields_dict.board_list;
+				list.df.options = options;
+				list.refresh();
+				list.set_input(options[0]?.value || "");
+			};
+		};
 		const card_action = async (action, card, mirror) => {
 			if (action === "done") {
 				upsert(await p.call(`${API}toggle_done`, {name: card.name}, "POST"));
@@ -764,27 +824,27 @@
 				return;
 			}
 			if (action === "move") {
-				small_dialog(t("cowork.work.quick.move"), [{fieldname: "board_list", fieldtype: "Select", reqd: 1,
-					label: t("cowork.work.field.list"), default: card.board_list, options: list_options()}],
+				const d = small_dialog(t("cowork.work.quick.move"), target_fields(card.board_list),
 					async values => {
 						if (values.board_list === card.board_list) return;
-						upsert(await p.call(`${API}move`, {name: card.name, board_list: values.board_list}, "POST"));
-						render();
+						await p.call(`${API}move`, {name: card.name, board_list: values.board_list}, "POST");
+						await reload();
 					}, t("cowork.work.quick.move"));
+				wire_targets(d);
 				return;
 			}
 			if (action === "mirror") {
 				const targets = list_options().filter(option => option.value !== card.board_list);
-				small_dialog(t("cowork.work.mirror.add"), [{fieldname: "board_list", fieldtype: "Select", reqd: 1,
-					label: t("cowork.work.field.list"), options: targets, default: targets[0]?.value}],
+				const d = small_dialog(t("cowork.work.mirror.add"), target_fields(targets[0]?.value || "", targets),
 					async values => {
 						await p.call(`${API}mirror`, {name: card.name, board_list: values.board_list}, "POST");
 						await reload();
 					}, t("cowork.work.mirror.add"));
+				wire_targets(d, card.board_list);
 				return;
 			}
 			if (action === "copy") {
-				small_dialog(t("cowork.work.quick.copy"), [
+				const copy_dialog = small_dialog(t("cowork.work.quick.copy"), [
 					{fieldname: "title", fieldtype: "Data", label: t("cowork.work.field.title"), reqd: 1, default: card.title},
 					{fieldname: "keep", fieldtype: "MultiCheck", label: t("cowork.work.copy.keep"), columns: 2,
 						sort_options: false, options: [
@@ -792,15 +852,16 @@
 							{value: "labels", label: p.escape(t("cowork.work.field.labels")), checked: 1},
 							{value: "members", label: p.escape(t("cowork.work.field.members")), checked: 1},
 							{value: "fields", label: p.escape(t("cowork.work.fields.manage")), checked: 1}]},
-					{fieldname: "board_list", fieldtype: "Select", reqd: 1, label: t("cowork.work.copy.to"),
-						default: card.board_list, options: list_options()},
+					...target_fields(card.board_list, null, t("cowork.work.copy.to")),
 				], async (values, d) => {
 					const copied = await p.call(`${API}copy`, {name: card.name, title: values.title, board_list: values.board_list,
 						keep: JSON.stringify(d.get_value("keep") || [])}, "POST");
+					if (copied.board !== state.board.name) return;
 					upsert(copied);
 					reveal(copied);
 					render();
 				}, t("cowork.work.copy.create"));
+				wire_targets(copy_dialog);
 			}
 		};
 
@@ -1056,6 +1117,9 @@
 
 		const open_card = async name => {
 			const data = await p.call(`${API}card`, {name});
+			// 卡片在别的看板（提醒、卡片链接、别的看板镜像过来的卡）：先切到那块板（照 Trello），列表 / 标签 / 字段才对得上。
+			if (data.board !== state.board?.name) await switch_board(data.board);
+			const editable = data.rights.includes("edit");
 			let details = (() => { try { return localStorage.getItem(DETAILS) !== "0"; } catch (error) { return true; } })();
 			let modified = data.modified;
 			let watching = data.watching;
@@ -1108,6 +1172,22 @@
 				primary_action: () => void save(),
 			});
 			d.$wrapper.addClass("pearnly-dialog pearnly-work-dialog");
+			if (!data.rights.includes("comment")) {
+				for (const fieldname of ["comment", "send"]) d.set_df_property(fieldname, "hidden", 1);
+			}
+			if (!editable) {
+				// 只读（观察者）：字段都只读，没有保存、上传、加链接、归档；清单、附件也不能改。
+				for (const field of d.fields) {
+					if (!d.fields_dict[field.fieldname] || ["activity", "details", "comment", "send", "cover_preview",
+						"files", "checklists"].includes(field.fieldname)) continue;
+					if (["upload", "add_link"].includes(field.fieldname)) d.set_df_property(field.fieldname, "hidden", 1);
+					// 下拉只读时框架显示的是代码（列表号、1d），改成禁用输入，照常显示名字。
+					else if (field.fieldtype === "Select") d.fields_dict[field.fieldname].$input?.prop("disabled", true);
+					else d.set_df_property(field.fieldname, "read_only", 1);
+				}
+				d.$wrapper.addClass("pearnly-work-readonly");
+				d.$body.find('[data-fieldname="assignees"] input, [data-fieldname="labels"] input').prop("disabled", true);
+			}
 			const draw_cover = () => {
 				const {cover_color, cover_file} = cover_values(d.get_value("cover") || "");
 				const file = attachments.find(row => row.name === cover_file);
@@ -1177,13 +1257,16 @@
 			};
 			const watch = frappe.utils.debounce(refresh_dirty, 120);
 			checklist_editor(d.fields_dict.checklists.$wrapper, groups, watch);
+			if (!editable) d.fields_dict.checklists.$wrapper.find("input, button").prop("disabled", true);
 			d.$body.on("input change click keyup", watch);
 			d.get_primary_btn().addClass("hide");
 			if (!data.archived) {
-				d.add_custom_action(t("cowork.work.card.archive"), async () => {
-					await archive({name});
-					d.hide();
-				}, "btn-default");
+				if (editable) {
+					d.add_custom_action(t("cowork.work.card.archive"), async () => {
+						await archive({name});
+						d.hide();
+					}, "btn-default");
+				}
 				d.add_custom_action(t(watching ? "cowork.work.quick.unwatch" : "cowork.work.quick.watch"),
 					async () => {
 						const result = await p.call(`${API}watch`, {name, on: watching ? 0 : 1}, "POST");
@@ -1324,7 +1407,7 @@
 				primary_action: async () => {
 					d.disable_primary_action();
 					try {
-						state.labels = await p.call(`${API}save_labels`, {rows: JSON.stringify(rows.map(row => ({
+						state.labels = await p.call(`${API}save_labels`, {board: state.board.name, rows: JSON.stringify(rows.map(row => ({
 							name: row.name, title: row.title.trim(), color: row.color})))}, "POST");
 						d.hide();
 						p.success(t("cowork.work.labels.saved"));
@@ -1384,7 +1467,7 @@
 				primary_action: async () => {
 					d.disable_primary_action();
 					try {
-						state.fields = await p.call(`${API}save_fields`, {rows: JSON.stringify(rows.map(row => ({
+						state.fields = await p.call(`${API}save_fields`, {board: state.board.name, rows: JSON.stringify(rows.map(row => ({
 							name: row.name, title: row.title.trim(), fieldtype: row.fieldtype, show_on_card: row.show_on_card ? 1 : 0,
 							options: row.options.split("\n").map(value => value.trim()).filter(Boolean)})))}, "POST");
 						d.hide();
@@ -1439,18 +1522,23 @@
 			const d = new frappe.ui.Dialog({title: t("cowork.work.archived.title"), size: "large",
 				fields: [{fieldname: "cards", fieldtype: "HTML"},
 					{fieldtype: "Section Break", label: t("cowork.work.archived.lists")},
-					{fieldname: "lists", fieldtype: "HTML"}]});
+					{fieldname: "lists", fieldtype: "HTML"},
+					{fieldtype: "Section Break", label: t("cowork.work.archived.boards")},
+					{fieldname: "boards", fieldtype: "HTML"}]});
 			d.$wrapper.addClass("pearnly-dialog");
 			const card_host = d.fields_dict.cards.$wrapper;
 			const list_host = d.fields_dict.lists.$wrapper;
+			const board_host = d.fields_dict.boards.$wrapper;
 			const tables = [];
-			const buttons = (value, restore, remove) => `<button type="button" class="btn btn-default btn-xs"
-				${restore}="${p.escape(value)}">${p.escape(t("cowork.work.archived.restore"))}</button>
-				${state.admin ? `<button type="button" class="btn btn-danger btn-xs" ${remove}="${p.escape(value)}">
+			// 恢复要能改这块板，彻底删除要能管这块板（看板管理员 / Cowork 管理员）。
+			const buttons = (value, restore, remove) => `${can("edit") ? `<button type="button" class="btn btn-default btn-xs"
+				${restore}="${p.escape(value)}">${p.escape(t("cowork.work.archived.restore"))}</button>` : ""}
+				${can("manage") && remove ? `<button type="button" class="btn btn-danger btn-xs" ${remove}="${p.escape(value)}">
 				${p.escape(__("Delete"))}</button>` : ""}`;
 			// 表格要在弹窗显示出来之后再画（宽度才算得出来），同盘点记录弹窗。
 			const draw = async () => {
-				const data = await p.call(`${API}archived`);
+				const data = await p.call(`${API}archived`, {board: state.board.name});
+				board_host.closest(".form-section").toggle(Boolean(data.boards.length));
 				while (tables.length) tables.pop()?.destroy?.();
 				tables.push(await p.table(card_host, [
 					{name: t("cowork.work.field.title"), format: p.escape},
@@ -1463,6 +1551,14 @@
 					{name: t("cowork.work.archived.at"), format: value => p.escape(p.datetime_text(value))},
 					{name: "", sortable: false, format: value => buttons(value, "data-restore-list", "data-delete-list")},
 				], data.lists.map(row => [row.title, row.archived_at, row.name])));
+				if (data.boards.length) {
+					tables.push(await p.table(board_host, [
+						{name: t("cowork.work.board.name"), format: p.escape},
+						{name: t("cowork.work.archived.at"), format: value => p.escape(p.datetime_text(value))},
+						{name: "", sortable: false, format: value => `<button type="button" class="btn btn-default btn-xs"
+							data-restore-board="${p.escape(value)}">${p.escape(t("cowork.work.archived.restore"))}</button>`},
+					], data.boards.map(row => [row.title, row.archived_at, row.name])));
+				}
 			};
 			const act = async (method, name, message, sound) => {
 				await p.call(`${API}${method}`, {name}, "POST");
@@ -1473,6 +1569,13 @@
 				"cowork.work.archived.restored"));
 			d.$body.on("click", "[data-restore-list]", event => void act("restore_list",
 				$(event.currentTarget).attr("data-restore-list"), "cowork.work.archived.restored"));
+			d.$body.on("click", "[data-restore-board]", async event => {
+				const board = $(event.currentTarget).attr("data-restore-board");
+				await p.call(`${API}restore_board`, {board}, "POST");
+				p.success(t("cowork.work.archived.restored"));
+				d.hide();
+				await switch_board(board);
+			});
 			// 彻底删除不可恢复，按原生确认框走一次。
 			d.$body.on("click", "[data-delete]", event => {
 				const target = $(event.currentTarget).attr("data-delete");
@@ -1595,7 +1698,7 @@
 					.append($("<span>").text(t("cowork.work.table.export"))).appendTo(bar)
 					.on("click", () => {
 						const names = shown_cards().map(card => card.name).join(",");
-						window.open(`/api/method/${API}export?names=${encodeURIComponent(names)}`);
+						window.open(`/api/method/${API}export?board=${encodeURIComponent(state.board.name)}&names=${encodeURIComponent(names)}`);
 					});
 				$('<div class="pearnly-work-table">').appendTo(pane);
 				pane.on("click", "[data-open]", event => {
@@ -1632,7 +1735,7 @@
 
 		// ── 自动化（照 Trello「卡片被添加到列表中时」）：进入某列表时自动分派 / 加标签 / 设到期日 / 完成 / 加关注 ──
 		const open_rules = async () => {
-			const rows = (await p.call(`${API}rules`)).map(row => ({...row}));
+			const rows = (await p.call(`${API}rules`, {board: state.board.name})).map(row => ({...row}));
 			const d = new frappe.ui.Dialog({
 				title: t("cowork.work.rules.manage"), size: "large",
 				fields: [{fieldname: "rows", fieldtype: "HTML"},
@@ -1645,7 +1748,7 @@
 				primary_action: async () => {
 					d.disable_primary_action();
 					try {
-						await p.call(`${API}save_rules`, {rows: JSON.stringify(rows)}, "POST");
+						await p.call(`${API}save_rules`, {board: state.board.name, rows: JSON.stringify(rows)}, "POST");
 						d.hide();
 						p.success(t("cowork.work.rules.saved"));
 					} finally {
@@ -1700,12 +1803,138 @@
 			d.show();
 		};
 
+		// ── 看板：切换、新建、设置、成员（照 Trello；原生 Dialog） ───────────────
+		const switch_board = async name => {
+			if (!name || name === state.board?.name) return;
+			state.board = {name, rights: []};
+			try { localStorage.setItem(BOARD_KEY, name); } catch (error) { /* 无痕窗口 */ }
+			// 换板时筛选清空（成员、标签都是那块板的）。
+			searching++;
+			state.search_hits = null;
+			for (const field of Object.values(filters)) field.set_input("");
+			await reload();
+		};
+		const board_fields = (row = {}) => [
+			{fieldname: "title", fieldtype: "Data", reqd: 1, label: t("cowork.work.board.name"), default: row.title || ""},
+			{fieldname: "visibility", fieldtype: "Select", reqd: 1, label: t("cowork.work.board.visibility"),
+				default: row.visibility || "team",
+				options: VISIBILITIES.map(value => ({value, label: t(`cowork.work.board.visibility_${value}`)}))},
+		];
+		const create_board = () => {
+			small_dialog(t("cowork.work.board.create"), board_fields(), async values => {
+				const created = await p.call(`${API}create_board`, {values: JSON.stringify(values)}, "POST");
+				await switch_board(created.name);
+			}, t("cowork.work.board.create"));
+		};
+		const open_board_settings = () => {
+			const row = state.board;
+			const d = small_dialog(t("cowork.work.board.settings"), [
+				...board_fields(row),
+				{fieldname: "commenting", fieldtype: "Select", reqd: 1, label: t("cowork.work.board.commenting"),
+					default: row.commenting,
+					options: COMMENTING.map(value => ({value, label: t(`cowork.work.board.commenting_${value}`)}))},
+				{fieldname: "member_management", fieldtype: "Select", reqd: 1, label: t("cowork.work.board.memberManagement"),
+					default: row.member_management,
+					options: MEMBER_MANAGEMENT.map(value => ({value, label: t(`cowork.work.board.memberManagement_${value}`)}))},
+			], async values => {
+				await p.call(`${API}update_board`, {board: row.name, values: JSON.stringify(values)}, "POST");
+				await reload();
+			});
+			// 默认看板不能归档；归档可以在「已归档」里恢复，所以不另外确认。
+			if (!row.is_default) {
+				d.add_custom_action(t("cowork.work.board.archive"), async () => {
+					await p.call(`${API}archive_board`, {board: row.name}, "POST");
+					d.hide();
+					p.success(t("cowork.work.board.archived"));
+					state.board = null;
+					try { localStorage.removeItem(BOARD_KEY); } catch (error) { /* 无痕窗口 */ }
+					await reload();
+				}, "btn-default");
+			}
+		};
+		// 成员（照 Trello「共享」）：谁在这块板上、什么角色；能加减成员的人才看得到添加和移除，
+		// 改角色 / 动管理员只给看板管理员；自己随时可以离开。改了立即保存。
+		const open_members = async () => {
+			const d = new frappe.ui.Dialog({title: t("cowork.work.board.members"), size: "large",
+				fields: [{fieldname: "rows", fieldtype: "HTML"},
+					{fieldtype: "Section Break"},
+					{fieldname: "user", fieldtype: "Select", label: t("cowork.work.board.addMember")},
+					{fieldtype: "Column Break"},
+					{fieldname: "role", fieldtype: "Select", label: t("cowork.work.board.role"), default: "member"},
+					{fieldtype: "Column Break"},
+					{fieldname: "add", fieldtype: "Button", label: t("cowork.work.board.add"), click: () => void add()}]});
+			d.$wrapper.addClass("pearnly-dialog pearnly-work-dialog");
+			let data = null;
+			const host = d.fields_dict.rows.$wrapper;
+			const role_options = manage => BOARD_ROLES.filter(role => manage || role !== "admin")
+				.map(value => ({value, label: t(`cowork.work.board.role_${value}`)}));
+			const save = async rows => {
+				data = await p.call(`${API}save_board_members`, {board: state.board.name,
+					rows: JSON.stringify(rows.map(row => ({user: row.user, role: row.role})))}, "POST");
+				if (!data.board) {
+					// 自己离开了一块看不到的私有板：回到默认看板。
+					d.hide();
+					state.board = null;
+					try { localStorage.removeItem(BOARD_KEY); } catch (error) { /* 无痕窗口 */ }
+				}
+				await reload();
+				if (data.board) draw();
+			};
+			const draw = () => {
+				const rights = data.board.rights;
+				const manage = rights.includes("manage");
+				const members_right = rights.includes("members");
+				host.empty();
+				for (const row of data.members) {
+					const line = $('<div class="pearnly-work-member">').appendTo(host);
+					$(avatar(row.user)).appendTo(line);
+					$('<span class="pearnly-work-member-name ellipsis">').text(row.name).appendTo(line);
+					if (manage) {
+						const control = frappe.ui.form.make_control({parent: $('<div class="pearnly-work-member-role">').appendTo(line),
+							render_input: true, only_input: true,
+							df: {fieldtype: "Select", fieldname: `role_${row.user}`, options: role_options(true)}});
+						control.set_input(row.role);
+						control.$input.on("change", () => void save(data.members.map(item =>
+							(item.user === row.user ? {...item, role: control.get_input_value()} : item))));
+					} else {
+						$('<span class="text-muted">').text(t(`cowork.work.board.role_${row.role}`)).appendTo(line);
+					}
+					const removable = row.user === state.me || manage || (members_right && row.role !== "admin");
+					if (removable) {
+						$('<button type="button" class="btn btn-xs btn-default">')
+							.text(t(row.user === state.me ? "cowork.work.board.leave" : "cowork.work.board.remove")).appendTo(line)
+							.on("click", () => void save(data.members.filter(item => item.user !== row.user)));
+					}
+				}
+				const can_add = members_right && data.candidates.length;
+				for (const fieldname of ["user", "role", "add"]) d.set_df_property(fieldname, "hidden", can_add ? 0 : 1);
+				d.fields_dict.add.$wrapper.closest(".form-section").toggle(Boolean(can_add));
+				if (can_add) {
+					d.set_df_property("user", "options", data.candidates.map(row => ({value: row.user, label: row.name})));
+					d.set_df_property("role", "options", role_options(manage));
+					d.set_value("user", "");
+					d.set_value("role", "member");
+				}
+			};
+			const add = async () => {
+				const user = d.get_value("user");
+				if (!user) return;
+				await save([...data.members, {user, role: d.get_value("role") || "member"}]);
+			};
+			data = await p.call(`${API}board_members`, {board: state.board.name});
+			d.show();
+			draw();
+		};
+
 		// ── 多人同时在看：别人改了就刷新（原生 socket.io；连不上时手动刷新照常可用） ──
+		// 服务端只推给能看那块板的人；这里再只认当前这块板（别的看板上的改动不用刷）。
 		const on_change = frappe.utils.debounce(() => {
 			if (frappe.get_route()[0] === ROOT) void reload();
 		}, 500);
 		frappe.realtime.off(EVENT);
-		frappe.realtime.on(EVENT, on_change);
+		frappe.realtime.on(EVENT, data => {
+			if (!data?.board || data.board === state.board?.name) on_change();
+		});
 		// 卡片链接 `/desk/pearnly-work/<卡片>`（复制链接、提醒点进来、LINE 菜单进来）：打开那张卡。
 		const open_from_route = () => {
 			const [root_route, name] = frappe.get_route();

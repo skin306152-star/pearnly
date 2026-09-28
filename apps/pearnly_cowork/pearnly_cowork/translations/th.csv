@@ -5,6 +5,7 @@
 2 days before,2 วันก่อน
 2 hours before,2 ชั่วโมงก่อน
 5 minutes before,5 นาทีก่อน
+A board needs at least one admin,บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน
 A board needs at least one list,บอร์ดต้องมีอย่างน้อยหนึ่งรายการ
 A client cannot be moved to another company.,ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
@@ -49,6 +50,7 @@ Actual location,ตำแหน่งจริง
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
+Add,เพิ่ม
 Add Row,เพิ่มรายการ
 Add User,เพิ่มผู้ใช้
 Add a card,เพิ่มการ์ด
@@ -58,11 +60,13 @@ Add a link,เพิ่มลิงก์
 Add an item,เพิ่มรายการ
 Add another list,เพิ่มรายการอื่น
 Add label,เพิ่มป้ายกำกับ
+Add member,เพิ่มสมาชิก
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
 Add watcher,เพิ่มผู้ติดตาม
 Added {0},เพิ่มแล้ว {0}
 Address,ที่อยู่
+Admins only,เฉพาะผู้ดูแล
 All,ทั้งหมด
 All labels,ป้ายกำกับทั้งหมด
 All members,สมาชิกทั้งหมด
@@ -81,8 +85,10 @@ Another push holds the writer lock.,การส่งอื่นกำลั�
 Any due date,ทุกกำหนดส่ง
 Archive,เก็บถาวร
 Archive all cards in this list,เก็บถาวรการ์ดทั้งหมดในรายการนี้
+Archive board,เก็บบอร์ดถาวร
 Archive this list,เก็บถาวรรายการนี้
 Archived at,เวลาที่เก็บถาวร
+Archived boards,บอร์ดที่เก็บถาวร
 Archived cards,การ์ดที่เก็บถาวร
 Archived items,รายการที่เก็บถาวร
 Archived lists,รายการที่เก็บถาวร
@@ -121,6 +127,11 @@ Binding code,รหัสเชื่อมต่อ
 Blocked By,รายการที่ขัดขวาง
 Blue,น้ำเงิน
 Board,บอร์ด
+Board admin,ผู้ดูแลบอร์ด
+Board archived,เก็บบอร์ดถาวรแล้ว
+Board members,สมาชิกบอร์ด
+Board name,ชื่อบอร์ด
+Board settings,ตั้งค่าบอร์ด
 Book,ตามบัญชี
 Book Qty,จำนวนตามบัญชี
 Book location,ตำแหน่งตามบัญชี
@@ -272,6 +283,7 @@ Cowork Workspace,Cowork บริษัทที่จัดทำบัญช�
 Cowork menu,เมนู Cowork
 Create a new label,สร้างป้ายกำกับใหม่
 Create a rule,สร้างกฎ
+Create board,สร้างบอร์ด
 Create card,สร้างการ์ด
 Create from template,สร้างจากเทมเพลต
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
@@ -326,6 +338,7 @@ Directory Scope Kind,ประเภทขอบเขตไดเรกทอ�
 Directory Snapshot,ภาพข้อมูลไดเรกทอรี
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
+Disabled,ปิด
 Discount,ส่วนลด
 Discount Amount,จำนวนส่วนลด
 Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
@@ -366,6 +379,7 @@ Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
 Enabled,เปิดใช้
+Enter a board name,กรอกชื่อบอร์ด
 Enter a comment,กรุณาใส่ความคิดเห็น
 Enter a field name,กรุณาใส่ชื่อช่อง
 Enter a link that starts with http:// or https://,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
@@ -493,6 +507,7 @@ Last Request Hash,แฮชคำขอล่าสุด
 Last Request Key,คีย์คำขอล่าสุด
 Last used,ที่ใช้ล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
+Leave board,ออกจากบอร์ด
 Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
@@ -525,6 +540,7 @@ Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
 Member,สมาชิก
 Members,สมาชิก
+Members and observers,สมาชิกและผู้สังเกตการณ์
 Mirror,มิเรอร์
 Monthly,ทุกเดือน
 Move,ย้าย
@@ -568,7 +584,9 @@ Notifications,การแจ้งเตือน
 Number,ตัวเลข
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
+Observer,ผู้สังเกตการณ์
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
+Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ทำได้
 Only invoices in Thai baht can be sent to Express,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 Open card,เปิดการ์ด
@@ -620,6 +638,7 @@ Preparation Evidence,หลักฐานข้อมูลเตรียม�
 Preparation data does not match the connection or account set.,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
 Preparation data for this account set is incomplete.,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
+Private,ส่วนตัว
 Private File,ไฟล์ส่วนตัว
 Private Storage URL,URL ที่จัดเก็บส่วนตัว
 Product,สินค้า
@@ -721,6 +740,7 @@ Revision,รุ่น
 Revocation Reason,เหตุผลที่ยกเลิก
 Revoked At (UTC),เวลายกเลิก (UTC)
 Revoked By,ผู้ยกเลิก
+Role,บทบาท
 Row {0}: {1},แถว {0}: {1}
 Rows,จำนวนแถว
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,ใช้รายการและจำนวนนับจริงจากไฟล์ เว้นจำนวนนับจริงว่างไว้เพื่อตรวจนับออนไลน์ภายหลังได้
@@ -813,6 +833,8 @@ Tax ID,เลขประจำตัวผู้เสียภาษี
 Tax Invoice,ใบกำกับภาษี
 Tax on this receipt,ภาษีในใบเสร็จนี้
 Taxes and Charges,ภาษีและค่าธรรมเนียม
+Team board,บอร์ดทีม
+Team visible,ทีมมองเห็นได้
 Template,เทมเพลต
 Text,ข้อความ
 Text is too long,ข้อความยาวเกินไป
@@ -872,6 +894,7 @@ The credential request is invalid.,คำขอข้อมูลรับรอ
 The credential request receipt limit has been reached.,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว
 The date reference year is invalid. Reload and try again.,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The date reference year is missing. Reload and try again.,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
+The default board cannot be archived,เก็บบอร์ดเริ่มต้นถาวรไม่ได้
 The directory evidence is invalid. Refresh and select again.,หลักฐานไดเรกทอรีไม่ถูกต้อง โปรดรีเฟรชแล้วเลือกใหม่
 The directory refresh is still pending.,กำลังรอการรีเฟรชไดเรกทอรี
 The directory snapshot does not match this connection.,ข้อมูลไดเรกทอรีไม่ตรงกับการเชื่อมต่อนี้
@@ -995,6 +1018,7 @@ This MR.ERP menu cannot be chosen for this account set.,ไม่สามาร
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
 This account set is unavailable.,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 This action is not allowed in the current push state.,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
+This board no longer exists,บอร์ดนี้ไม่มีอยู่แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This connection does not support an Express Companion credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express
 This connection is disabled.,การเชื่อมต่อนี้ถูกปิดใช้งาน
@@ -1080,6 +1104,7 @@ VAT report detail,รายละเอียดรายงาน VAT
 Valid,ใช้งาน
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
+Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ
 Void this count of {0}?,ยกเลิกรายการนับ {0} นี้?
@@ -1092,6 +1117,8 @@ Warehouse,คลังสินค้า
 Watch,ติดตาม
 Weekly,ทุกสัปดาห์
 When a card enters,เมื่อการ์ดเข้ารายการ
+Who can add and remove members,ใครเพิ่มหรือนำสมาชิกออกได้
+Who can comment,ใครแสดงความคิดเห็นได้
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
 Withdrawal,ถอน
@@ -1490,12 +1517,39 @@ cowork.work.activity.rule,ระบบอัตโนมัติ ({who}): {0} {
 cowork.work.activity.showDetails,แสดงรายละเอียด
 cowork.work.activity.uncomplete,{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ
 cowork.work.archived.at,เวลาที่เก็บถาวร
+cowork.work.archived.boards,บอร์ดที่เก็บถาวร
 cowork.work.archived.confirmDelete,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
 cowork.work.archived.deleted,ลบแล้ว
 cowork.work.archived.lists,รายการที่เก็บถาวร
 cowork.work.archived.restore,กู้คืน
 cowork.work.archived.restored,กู้คืนแล้ว
 cowork.work.archived.title,รายการที่เก็บถาวร
+cowork.work.board.add,เพิ่ม
+cowork.work.board.addMember,เพิ่มสมาชิก
+cowork.work.board.archive,เก็บบอร์ดถาวร
+cowork.work.board.archived,เก็บบอร์ดถาวรแล้ว
+cowork.work.board.commenting,ใครแสดงความคิดเห็นได้
+cowork.work.board.commenting_disabled,ปิด
+cowork.work.board.commenting_members,สมาชิก
+cowork.work.board.commenting_observers,สมาชิกและผู้สังเกตการณ์
+cowork.work.board.create,สร้างบอร์ด
+cowork.work.board.default,บอร์ดทีม
+cowork.work.board.label,บอร์ด
+cowork.work.board.leave,ออกจากบอร์ด
+cowork.work.board.memberManagement,ใครเพิ่มหรือนำสมาชิกออกได้
+cowork.work.board.memberManagement_admins,เฉพาะผู้ดูแล
+cowork.work.board.memberManagement_members,สมาชิกทุกคน
+cowork.work.board.members,สมาชิกบอร์ด
+cowork.work.board.name,ชื่อบอร์ด
+cowork.work.board.remove,นำออก
+cowork.work.board.role,บทบาท
+cowork.work.board.role_admin,ผู้ดูแลบอร์ด
+cowork.work.board.role_member,สมาชิก
+cowork.work.board.role_observer,ผู้สังเกตการณ์
+cowork.work.board.settings,ตั้งค่าบอร์ด
+cowork.work.board.visibility,การมองเห็น
+cowork.work.board.visibility_private,ส่วนตัว
+cowork.work.board.visibility_team,ทีมมองเห็นได้
 cowork.work.card.add,เพิ่มการ์ด
 cowork.work.card.archive,เก็บถาวร
 cowork.work.card.archived,เก็บถาวรแล้ว
@@ -1532,6 +1586,9 @@ cowork.work.copy.create,สร้างการ์ด
 cowork.work.copy.keep,คงไว้
 cowork.work.copy.to,คัดลอกไปที่
 cowork.work.cover.none,ไม่มี
+cowork.work.error.board,บอร์ดนี้ไม่มีอยู่แล้ว
+cowork.work.error.board_rights,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ทำได้
+cowork.work.error.board_title,กรอกชื่อบอร์ด
 cowork.work.error.checklist,รายการตรวจสอบไม่ถูกต้อง
 cowork.work.error.color,สีไม่ถูกต้อง
 cowork.work.error.comment,กรุณาใส่ความคิดเห็น
@@ -1539,12 +1596,14 @@ cowork.work.error.conflict,มีคนแก้ไขการ์ดนี้�
 cowork.work.error.cover,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 cowork.work.error.date,วันที่ไม่ถูกต้อง
 cowork.work.error.dedicated_api,กรุณาแก้ไขการ์ดบนบอร์ดงาน
+cowork.work.error.default_board,เก็บบอร์ดเริ่มต้นถาวรไม่ได้
 cowork.work.error.field_options,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 cowork.work.error.field_title,กรุณาใส่ชื่อช่อง
 cowork.work.error.field_value,ค่าของช่องไม่ถูกต้อง
 cowork.work.error.file,กรุณาเลือกไฟล์
 cowork.work.error.file_size,ไฟล์ใหญ่เกิน 25 MB
 cowork.work.error.label,ไม่มีป้ายกำกับนี้แล้ว
+cowork.work.error.last_admin,บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน
 cowork.work.error.last_list,บอร์ดต้องมีอย่างน้อยหนึ่งรายการ
 cowork.work.error.link,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
 cowork.work.error.list,ไม่มีรายการนี้แล้ว

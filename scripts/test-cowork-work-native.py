@@ -1,4 +1,7 @@
-"""Cowork 工作协调看板：在真实 Frappe Site 上走一遍服务端（整段在一个事务里，最后回滚）。
+"""Cowork 任务管理（默认看板）：在真实 Frappe Site 上走一遍服务端（整段在一个事务里，最后回滚）。
+
+多块看板与看板权限另见 `test-cowork-work-boards-native.py`；这里的标签 / 字段 / 自动化设置用 Cowork 管理员做
+（2026-09-29 起只有看板管理员与 Cowork 管理员能改），普通成员照常贴标签、填字段值。
 
 副作用：只写指定的本地 / 测试 Site；建几个临时用户、若干列表 / 卡片 / 标签 / 字段 / 活动 / 提醒和附件，
 结束时 `frappe.db.rollback()` 全部撤掉（附件的磁盘文件由原生 File 的回滚清理）。不连外部、不发消息。
@@ -117,7 +120,11 @@ def run():
     service.update(a["name"], detail["modified"], {"recurrence": "never", "due_date": ""})
 
     # ── 详情：日期、提醒、成员、标签、多个清单、自定义字段、封面、模板 ──
-    labels = service.save_labels([{"title": "Urgent", "color": "red"}, {"title": "", "color": "blue"}])
+    expect_error("member saves labels", service.save_labels, [], error=frappe.PermissionError)
+    frappe.set_user(admin)
+    labels = service.save_labels([*[{"name": row.name, "title": row.title, "color": row.color}
+                                    for row in service.labels(service.board()["board"]["name"])],
+                                  {"title": "Urgent", "color": "red"}, {"title": "", "color": "blue"}])
     red = next(row for row in labels if row.color == "red")
     fields = service.save_fields([
         {"title": "Amount", "fieldtype": "number", "show_on_card": 1},
@@ -127,6 +134,7 @@ def run():
                               for title in ("Amount", "Priority", "Paid"))
     expect_error("select without options", service.save_fields,
                  [{"title": "X", "fieldtype": "select", "options": []}], error=Invalid)
+    frappe.set_user(worker)
 
     detail = service.card(a["name"])
     updated = service.update(a["name"], detail["modified"], {
@@ -149,8 +157,10 @@ def run():
     expect_error("conflict", service.update, a["name"], detail["modified"], {"title": "stale"}, error=Invalid)
     expect_error("bad member", service.update, a["name"], updated["modified"], {"assignees": [outsider]}, error=Invalid)
     # 下拉少了的选项：卡片上的值一起清掉；删字段：值也清掉。
+    frappe.set_user(admin)
     service.save_fields([{"name": amount, "title": "Amount", "fieldtype": "number", "show_on_card": 1},
                          {"name": priority, "title": "Priority", "fieldtype": "select", "options": ["Low"]}])
+    frappe.set_user(worker)
     assert service.card(a["name"])["values"] == {amount: "12.5"}, service.card(a["name"])["values"]
 
     # 模板：设为模板 → 照模板建卡（带清单、标签、成员、字段；清单项不带完成状态）。
@@ -245,6 +255,8 @@ def run():
 
     # ── 自动化：卡片进入列表（拖入 / 新建）时分派、加标签、到期日、关注、完成 ──
     ruled = service.create_list("T-ruled")["name"]
+    expect_error("member reads rules", service.rules, error=frappe.PermissionError)
+    frappe.set_user(admin)
     saved = service.save_rules([
         {"board_list": ruled, "action": "assign", "user": other},
         {"board_list": ruled, "action": "label", "label": red.name},
@@ -255,6 +267,7 @@ def run():
                  error=Invalid)
     expect_error("rule days", service.save_rules, [{"board_list": ruled, "action": "due_days", "days": 999}],
                  error=Invalid)
+    frappe.set_user(worker)
     auto = service.create("Auto card", todo)
     service.move(auto["name"], ruled)
     card = service.card(auto["name"])
@@ -263,9 +276,11 @@ def run():
     assert any(row.action == "rule" for row in card["activity"])
     created = service.card(service.create("Born here", ruled)["name"])
     assert other in created["assignees"], "rules must run on create too"
+    frappe.set_user(admin)
     service.save_rules([*[{"name": row.name, "board_list": row.board_list, "action": row.action, "user": row.user,
                            "label": row.label, "days": row.days, "enabled": 0} for row in saved],
                         {"board_list": ruled, "action": "complete"}])
+    frappe.set_user(worker)
     completed = service.create("Completes", ruled)
     assert completed["completed"] and not completed["assignees"], completed
 

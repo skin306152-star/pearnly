@@ -1071,6 +1071,38 @@ Hide details	隐藏详情	ซ่อนรายละเอียด	詳細を�
 Show details	显示详情	แสดงรายละเอียด	詳細を表示	cowork.work.activity.showDetails
 {who}'s automation: {0} {1}	自动化（{who}）：{0} {1}	ระบบอัตโนมัติ ({who}): {0} {1}	自動化（{who}）：{0} {1}	cowork.work.activity.rule
 Enter a number of days from 0 to 365	天数请填 0 到 365	กรุณาใส่จำนวนวัน 0 ถึง 365	日数は 0〜365 で入力してください	cowork.work.error.rule_days
+Board	看板	บอร์ด	ボード	cowork.work.board.label
+Create board	新建看板	สร้างบอร์ด	ボードを作成	cowork.work.board.create
+Board settings	看板设置	ตั้งค่าบอร์ด	ボード設定	cowork.work.board.settings
+Board members	看板成员	สมาชิกบอร์ด	ボードメンバー	cowork.work.board.members
+Board name	看板名称	ชื่อบอร์ด	ボード名	cowork.work.board.name
+Visibility	可见范围	การมองเห็น	公開範囲	cowork.work.board.visibility
+Team visible	团队可见	ทีมมองเห็นได้	チームに公開	cowork.work.board.visibility_team
+Private	私有	ส่วนตัว	非公開	cowork.work.board.visibility_private
+Who can comment	谁能评论	ใครแสดงความคิดเห็นได้	コメントできる人	cowork.work.board.commenting
+Members	成员	สมาชิก	メンバー	cowork.work.board.commenting_members
+Members and observers	成员和观察者	สมาชิกและผู้สังเกตการณ์	メンバーとオブザーバー	cowork.work.board.commenting_observers
+Disabled	关闭	ปิด	無効	cowork.work.board.commenting_disabled
+Who can add and remove members	谁能加减成员	ใครเพิ่มหรือนำสมาชิกออกได้	メンバーを追加・削除できる人	cowork.work.board.memberManagement
+Admins only	仅管理员	เฉพาะผู้ดูแล	管理者のみ	cowork.work.board.memberManagement_admins
+All members	所有成员	สมาชิกทุกคน	すべてのメンバー	cowork.work.board.memberManagement_members
+Archive board	归档看板	เก็บบอร์ดถาวร	ボードをアーカイブ	cowork.work.board.archive
+Board archived	看板已归档	เก็บบอร์ดถาวรแล้ว	ボードをアーカイブしました	cowork.work.board.archived
+Add member	添加成员	เพิ่มสมาชิก	メンバーを追加	cowork.work.board.addMember
+Role	角色	บทบาท	役割	cowork.work.board.role
+Board admin	看板管理员	ผู้ดูแลบอร์ด	ボード管理者	cowork.work.board.role_admin
+Member	成员	สมาชิก	メンバー	cowork.work.board.role_member
+Observer	观察者	ผู้สังเกตการณ์	オブザーバー	cowork.work.board.role_observer
+Add	添加	เพิ่ม	追加	cowork.work.board.add
+Leave board	离开看板	ออกจากบอร์ด	ボードから退出	cowork.work.board.leave
+Remove	移除	นำออก	外す	cowork.work.board.remove
+Team board	团队看板	บอร์ดทีม	チームボード	cowork.work.board.default
+Archived boards	已归档的看板	บอร์ดที่เก็บถาวร	アーカイブ済みボード	cowork.work.archived.boards
+This board no longer exists	这个看板已不存在	บอร์ดนี้ไม่มีอยู่แล้ว	このボードはもう存在しません	cowork.work.error.board
+Enter a board name	请输入看板名称	กรอกชื่อบอร์ด	ボード名を入力してください	cowork.work.error.board_title
+Only board admins can do this	只有看板管理员能这样做	เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ทำได้	ボード管理者のみ実行できます	cowork.work.error.board_rights
+A board needs at least one admin	看板至少要有一位管理员	บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน	ボードには管理者が少なくとも1人必要です	cowork.work.error.last_admin
+The default board cannot be archived	默认看板不能归档	เก็บบอร์ดเริ่มต้นถาวรไม่ได้	既定のボードはアーカイブできません	cowork.work.error.default_board
 MR.ERP purchases can only be entered on credit.	MR.ERP 的进项只能按赊账录入。	รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบเงินเชื่อ	MR.ERP の仕入は掛けでのみ登録できます。
 Inventory account group	存货科目组	กลุ่มบัญชีสินค้าคงคลัง	在庫勘定グループ
 used by {0} items	{0} 个商品在用	มีสินค้าใช้อยู่ {0} รายการ	{0} 品目が使用中

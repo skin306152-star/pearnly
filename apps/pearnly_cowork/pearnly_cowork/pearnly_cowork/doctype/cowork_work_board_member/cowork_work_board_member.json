@@ -1,0 +1,38 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Work Board Member",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-29 00:00:00.000000",
+ "modified": "2026-09-29 00:00:00.000000",
+ "istable": 1,
+ "editable_grid": 1,
+ "field_order": [
+  "user",
+  "role"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "label": "Role",
+   "options": "admin\nmember\nobserver",
+   "default": "member",
+   "reqd": 1,
+   "in_list_view": 1
+  }
+ ]
+}

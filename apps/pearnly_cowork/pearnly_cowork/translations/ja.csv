@@ -5,6 +5,7 @@
 2 days before,2日前
 2 hours before,2時間前
 5 minutes before,5分前
+A board needs at least one admin,ボードには管理者が少なくとも1人必要です
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
 A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
@@ -49,6 +50,7 @@ Actual location,実際の棚番
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
+Add,追加
 Add Row,行を追加
 Add User,ユーザーを追加
 Add a card,カードを追加
@@ -58,11 +60,13 @@ Add a link,リンクを追加
 Add an item,項目を追加
 Add another list,リストを追加
 Add label,ラベルを追加
+Add member,メンバーを追加
 Add photo,写真を追加
 Add photos,写真を追加
 Add watcher,ウォッチャーを追加
 Added {0},{0}を追加しました
 Address,住所
+Admins only,管理者のみ
 All,すべて
 All labels,すべてのラベル
 All members,すべてのメンバー
@@ -81,8 +85,10 @@ Another push holds the writer lock.,別の送信が書き込みロックを保�
 Any due date,すべての期日
 Archive,アーカイブ
 Archive all cards in this list,このリストのカードをすべてアーカイブ
+Archive board,ボードをアーカイブ
 Archive this list,このリストをアーカイブ
 Archived at,アーカイブ日時
+Archived boards,アーカイブ済みボード
 Archived cards,アーカイブ済みカード
 Archived items,アーカイブ済みアイテム
 Archived lists,アーカイブ済みリスト
@@ -121,6 +127,11 @@ Binding code,連携コード
 Blocked By,ブロック元の記録
 Blue,青
 Board,ボード
+Board admin,ボード管理者
+Board archived,ボードをアーカイブしました
+Board members,ボードメンバー
+Board name,ボード名
+Board settings,ボード設定
 Book,帳簿
 Book Qty,帳簿数量
 Book location,帳簿上の棚番
@@ -272,6 +283,7 @@ Cowork Workspace,Cowork 会計対象会社
 Cowork menu,Coworkメニュー
 Create a new label,新しいラベルを作成
 Create a rule,ルールを作成
+Create board,ボードを作成
 Create card,カードを作成
 Create from template,テンプレートから作成
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
@@ -326,6 +338,7 @@ Directory Scope Kind,ディレクトリ範囲タイプ
 Directory Snapshot,ディレクトリスナップショット
 Disable,無効化
 Disable {0},{0}件を無効化
+Disabled,無効
 Discount,割引額
 Discount Amount,割引額
 Display text (optional),表示テキスト（任意）
@@ -366,6 +379,7 @@ Email,メール
 Enable,有効化
 Enable {0},{0}件を有効化
 Enabled,有効
+Enter a board name,ボード名を入力してください
 Enter a comment,コメントを入力してください
 Enter a field name,フィールド名を入力してください
 Enter a link that starts with http:// or https://,http:// または https:// で始まるリンクを入力してください
@@ -493,6 +507,7 @@ Last Request Hash,最終要求ハッシュ
 Last Request Key,最終要求キー
 Last used,前回使用
 Lease Expires At,リース有効期限
+Leave board,ボードから退出
 Ledger amount,元帳金額
 Ledger credit only,元帳貸方のみ
 Ledger debit only,元帳借方のみ
@@ -525,6 +540,7 @@ Matches,一致
 Matching and saving,照合して保存中
 Member,メンバー
 Members,メンバー
+Members and observers,メンバーとオブザーバー
 Mirror,ミラー
 Monthly,毎月
 Move,移動
@@ -568,7 +584,9 @@ Notifications,通知
 Number,数値
 OUT,出金
 Observed At (UTC),観測日時（UTC）
+Observer,オブザーバー
 Only an active count can be deleted,進行中の棚卸のみ削除できます
+Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
 Open card,カードを開く
@@ -620,6 +638,7 @@ Preparation Evidence,準備情報の証拠
 Preparation data does not match the connection or account set.,準備情報が接続または会計データと一致しません。
 Preparation data for this account set is incomplete.,この会計データの送信準備情報が不足しています。
 Previous Json,変更前のデータ（JSON）
+Private,非公開
 Private File,非公開ファイル
 Private Storage URL,非公開ストレージ URL
 Product,商品
@@ -721,6 +740,7 @@ Revision,リビジョン
 Revocation Reason,失効理由
 Revoked At (UTC),失効日時 (UTC)
 Revoked By,失効者
+Role,役割
 Row {0}: {1},{0} 行目：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,表の行と実数を登録します。実数を空欄にすると、後でオンラインで棚卸できます。
@@ -813,6 +833,8 @@ Tax ID,納税者番号
 Tax Invoice,税務請求書
 Tax on this receipt,この領収書の税額
 Taxes and Charges,税金および諸費用
+Team board,チームボード
+Team visible,チームに公開
 Template,テンプレート
 Text,テキスト
 Text is too long,テキストが長すぎます
@@ -872,6 +894,7 @@ The credential request is invalid.,認証情報のリクエストが無効です
 The credential request receipt limit has been reached.,認証情報リクエストの受領記録が上限に達しました。
 The date reference year is invalid. Reload and try again.,日付の基準年が無効です。再読み込みしてから再試行してください。
 The date reference year is missing. Reload and try again.,日付の基準年がありません。再読み込みしてから再試行してください。
+The default board cannot be archived,既定のボードはアーカイブできません
 The directory evidence is invalid. Refresh and select again.,ディレクトリの情報が無効です。更新して選択し直してください。
 The directory refresh is still pending.,ディレクトリの更新を待機しています。
 The directory snapshot does not match this connection.,ディレクトリのスナップショットが接続と一致しません。
@@ -995,6 +1018,7 @@ This MR.ERP menu cannot be chosen for this account set.,この会計データで
 This account cannot send documents,このアカウントは書類を送信できません
 This account set is unavailable.,この会計データは利用できません。
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
+This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
 This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
 This connection is disabled.,この接続は無効です。
@@ -1080,6 +1104,7 @@ VAT report detail,VAT 報告明細
 Valid,有効
 Version,バージョン
 View differences,差異を見る
+Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 Void this count of {0}?,この {0} の記録を取り消しますか？
@@ -1092,6 +1117,8 @@ Warehouse,倉庫
 Watch,ウォッチ
 Weekly,毎週
 When a card enters,カードがリストに入ったとき
+Who can add and remove members,メンバーを追加・削除できる人
+Who can comment,コメントできる人
 Wire Attempt,送信試行回数
 With differences,差異あり
 Withdrawal,出金
@@ -1490,12 +1517,39 @@ cowork.work.activity.rule,自動化（{who}）：{0} {1}
 cowork.work.activity.showDetails,詳細を表示
 cowork.work.activity.uncomplete,{who} がこのカードを未完了にしました
 cowork.work.archived.at,アーカイブ日時
+cowork.work.archived.boards,アーカイブ済みボード
 cowork.work.archived.confirmDelete,このカードを完全に削除しますか？元に戻せません。
 cowork.work.archived.deleted,削除しました
 cowork.work.archived.lists,アーカイブ済みリスト
 cowork.work.archived.restore,復元
 cowork.work.archived.restored,復元しました
 cowork.work.archived.title,アーカイブ済みアイテム
+cowork.work.board.add,追加
+cowork.work.board.addMember,メンバーを追加
+cowork.work.board.archive,ボードをアーカイブ
+cowork.work.board.archived,ボードをアーカイブしました
+cowork.work.board.commenting,コメントできる人
+cowork.work.board.commenting_disabled,無効
+cowork.work.board.commenting_members,メンバー
+cowork.work.board.commenting_observers,メンバーとオブザーバー
+cowork.work.board.create,ボードを作成
+cowork.work.board.default,チームボード
+cowork.work.board.label,ボード
+cowork.work.board.leave,ボードから退出
+cowork.work.board.memberManagement,メンバーを追加・削除できる人
+cowork.work.board.memberManagement_admins,管理者のみ
+cowork.work.board.memberManagement_members,すべてのメンバー
+cowork.work.board.members,ボードメンバー
+cowork.work.board.name,ボード名
+cowork.work.board.remove,外す
+cowork.work.board.role,役割
+cowork.work.board.role_admin,ボード管理者
+cowork.work.board.role_member,メンバー
+cowork.work.board.role_observer,オブザーバー
+cowork.work.board.settings,ボード設定
+cowork.work.board.visibility,公開範囲
+cowork.work.board.visibility_private,非公開
+cowork.work.board.visibility_team,チームに公開
 cowork.work.card.add,カードを追加
 cowork.work.card.archive,アーカイブ
 cowork.work.card.archived,アーカイブしました
@@ -1532,6 +1586,9 @@ cowork.work.copy.create,カードを作成
 cowork.work.copy.keep,引き継ぐ
 cowork.work.copy.to,コピー先
 cowork.work.cover.none,なし
+cowork.work.error.board,このボードはもう存在しません
+cowork.work.error.board_rights,ボード管理者のみ実行できます
+cowork.work.error.board_title,ボード名を入力してください
 cowork.work.error.checklist,チェックリストが無効です
 cowork.work.error.color,色が無効です
 cowork.work.error.comment,コメントを入力してください
@@ -1539,12 +1596,14 @@ cowork.work.error.conflict,このカードは他の人が変更しました。�
 cowork.work.error.cover,このカードに添付した画像を選んでください
 cowork.work.error.date,日付が無効です
 cowork.work.error.dedicated_api,作業ボードでカードを変更してください
+cowork.work.error.default_board,既定のボードはアーカイブできません
 cowork.work.error.field_options,ドロップダウンには選択肢が1つ以上必要です
 cowork.work.error.field_title,フィールド名を入力してください
 cowork.work.error.field_value,フィールドの値が無効です
 cowork.work.error.file,ファイルを選択してください
 cowork.work.error.file_size,ファイルが 25 MB を超えています
 cowork.work.error.label,このラベルはもうありません
+cowork.work.error.last_admin,ボードには管理者が少なくとも1人必要です
 cowork.work.error.last_list,ボードには少なくとも1つのリストが必要です
 cowork.work.error.link,http:// または https:// で始まるリンクを入力してください
 cowork.work.error.list,このリストはもうありません

@@ -36,6 +36,15 @@
    "search_index": 1
   },
   {
+   "fieldname": "board",
+   "fieldtype": "Link",
+   "label": "Board",
+   "options": "Cowork Work Board",
+   "read_only": 1,
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Title",
@@ -70,9 +79,10 @@
    "hidden": 1
   }
  ],
- "modified": "2026-09-28 00:00:00.000000",
+ "modified": "2026-09-29 00:00:00.000000",
  "field_order": [
   "workspace",
+  "board",
   "title",
   "fieldtype",
   "options",

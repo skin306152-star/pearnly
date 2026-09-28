@@ -12,3 +12,4 @@ pearnly_cowork.patches.v0_0_5_split_recon_roles
 pearnly_cowork.patches.v0_0_6_default_work_labels
 pearnly_cowork.patches.v0_0_7_mrerp_legacy_menu_review
 pearnly_cowork.patches.v0_0_8_backfill_review_reasons
+pearnly_cowork.patches.v0_0_9_work_boards

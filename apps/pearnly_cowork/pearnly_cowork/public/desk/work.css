@@ -774,6 +774,43 @@
 }
 
 /* 标签编辑：一行一个标签，名字 + 色块。 */
+/* 只读（观察者 / 已归档的看板，用户 2026-09-29）：不出现任何写入口；服务端同样拒绝。 */
+.pearnly-work-readonly .pearnly-work-column-footer,
+.pearnly-work-readonly .pearnly-work-compose,
+.pearnly-work-readonly .pearnly-work-add-list,
+.pearnly-work-readonly .pearnly-work-card .pearnly-work-done,
+.pearnly-work-readonly .pearnly-work-card .pearnly-work-card-tools,
+.pearnly-work-readonly .pearnly-work-column-tools [data-popup],
+.pearnly-work-readonly .pearnly-work-file [data-file] {
+	display: none;
+}
+
+/* 看板成员：头像、名字、角色、移除 / 离开一行。 */
+.pearnly-work-member {
+	display: flex;
+	align-items: center;
+	gap: var(--padding-sm);
+	padding: var(--padding-xs) 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pearnly-work-member-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-member-role {
+	width: 10rem;
+}
+
+.pearnly-work-member-role .frappe-control {
+	margin-bottom: 0;
+}
+
+.pearnly-work-member .btn {
+	min-width: 7rem;
+}
+
 .pearnly-work-label-edit {
 	padding: 8px 0;
 	border-bottom: 1px solid var(--border-color);

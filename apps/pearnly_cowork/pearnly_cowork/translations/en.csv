@@ -5,6 +5,7 @@
 2 days before,2 days before
 2 hours before,2 hours before
 5 minutes before,5 minutes before
+A board needs at least one admin,A board needs at least one admin
 A board needs at least one list,A board needs at least one list
 A client cannot be moved to another company.,A client cannot be moved to another company.
 A completed record cannot become a draft.,A completed record cannot become a draft.
@@ -49,6 +50,7 @@ Actual location,Actual location
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
+Add,Add
 Add Row,Add Row
 Add User,Add User
 Add a card,Add a card
@@ -58,11 +60,13 @@ Add a link,Add a link
 Add an item,Add an item
 Add another list,Add another list
 Add label,Add label
+Add member,Add member
 Add photo,Add photo
 Add photos,Add photos
 Add watcher,Add watcher
 Added {0},Added {0}
 Address,Address
+Admins only,Admins only
 All,All
 All labels,All labels
 All members,All members
@@ -81,8 +85,10 @@ Another push holds the writer lock.,Another push holds the writer lock.
 Any due date,Any due date
 Archive,Archive
 Archive all cards in this list,Archive all cards in this list
+Archive board,Archive board
 Archive this list,Archive this list
 Archived at,Archived at
+Archived boards,Archived boards
 Archived cards,Archived cards
 Archived items,Archived items
 Archived lists,Archived lists
@@ -121,6 +127,11 @@ Binding code,Binding code
 Blocked By,Blocked By
 Blue,Blue
 Board,Board
+Board admin,Board admin
+Board archived,Board archived
+Board members,Board members
+Board name,Board name
+Board settings,Board settings
 Book,Book
 Book Qty,Book Qty
 Book location,Book location
@@ -272,6 +283,7 @@ Cowork Workspace,Cowork Workspace
 Cowork menu,Cowork menu
 Create a new label,Create a new label
 Create a rule,Create a rule
+Create board,Create board
 Create card,Create card
 Create from template,Create from template
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
@@ -326,6 +338,7 @@ Directory Scope Kind,Directory Scope Kind
 Directory Snapshot,Directory Snapshot
 Disable,Disable
 Disable {0},Disable {0}
+Disabled,Disabled
 Discount,Discount
 Discount Amount,Discount Amount
 Display text (optional),Display text (optional)
@@ -366,6 +379,7 @@ Email,Email
 Enable,Enable
 Enable {0},Enable {0}
 Enabled,Enabled
+Enter a board name,Enter a board name
 Enter a comment,Enter a comment
 Enter a field name,Enter a field name
 Enter a link that starts with http:// or https://,Enter a link that starts with http:// or https://
@@ -493,6 +507,7 @@ Last Request Hash,Last Request Hash
 Last Request Key,Last Request Key
 Last used,Last used
 Lease Expires At,Lease Expires At
+Leave board,Leave board
 Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
@@ -525,6 +540,7 @@ Matches,Matches
 Matching and saving,Matching and saving
 Member,Member
 Members,Members
+Members and observers,Members and observers
 Mirror,Mirror
 Monthly,Monthly
 Move,Move
@@ -568,7 +584,9 @@ Notifications,Notifications
 Number,Number
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
+Observer,Observer
 Only an active count can be deleted,Only an active count can be deleted
+Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
 Open card,Open card
@@ -620,6 +638,7 @@ Preparation Evidence,Preparation Evidence
 Preparation data does not match the connection or account set.,Preparation data does not match the connection or account set.
 Preparation data for this account set is incomplete.,Preparation data for this account set is incomplete.
 Previous Json,Previous Json
+Private,Private
 Private File,Private File
 Private Storage URL,Private Storage URL
 Product,Product
@@ -721,6 +740,7 @@ Revision,Revision
 Revocation Reason,Revocation Reason
 Revoked At (UTC),Revoked At (UTC)
 Revoked By,Revoked By
+Role,Role
 Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
@@ -813,6 +833,8 @@ Tax ID,Tax ID
 Tax Invoice,Tax Invoice
 Tax on this receipt,Tax on this receipt
 Taxes and Charges,Taxes and Charges
+Team board,Team board
+Team visible,Team visible
 Template,Template
 Text,Text
 Text is too long,Text is too long
@@ -872,6 +894,7 @@ The credential request is invalid.,The credential request is invalid.
 The credential request receipt limit has been reached.,The credential request receipt limit has been reached.
 The date reference year is invalid. Reload and try again.,The date reference year is invalid. Reload and try again.
 The date reference year is missing. Reload and try again.,The date reference year is missing. Reload and try again.
+The default board cannot be archived,The default board cannot be archived
 The directory evidence is invalid. Refresh and select again.,The directory evidence is invalid. Refresh and select again.
 The directory refresh is still pending.,The directory refresh is still pending.
 The directory snapshot does not match this connection.,The directory snapshot does not match this connection.
@@ -995,6 +1018,7 @@ This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot 
 This account cannot send documents,This account cannot send documents
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
+This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
 This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
 This connection is disabled.,This connection is disabled.
@@ -1080,6 +1104,7 @@ VAT report detail,VAT report detail
 Valid,Valid
 Version,Version
 View differences,View differences
+Visibility,Visibility
 Void,Void
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
 Void this count of {0}?,Void this count of {0}?
@@ -1092,6 +1117,8 @@ Warehouse,Warehouse
 Watch,Watch
 Weekly,Weekly
 When a card enters,When a card enters
+Who can add and remove members,Who can add and remove members
+Who can comment,Who can comment
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
@@ -1490,12 +1517,39 @@ cowork.work.activity.rule,{who}'s automation: {0} {1}
 cowork.work.activity.showDetails,Show details
 cowork.work.activity.uncomplete,{who} marked this card incomplete
 cowork.work.archived.at,Archived at
+cowork.work.archived.boards,Archived boards
 cowork.work.archived.confirmDelete,Delete this card permanently? This cannot be undone.
 cowork.work.archived.deleted,Card deleted
 cowork.work.archived.lists,Archived lists
 cowork.work.archived.restore,Restore
 cowork.work.archived.restored,Card restored
 cowork.work.archived.title,Archived items
+cowork.work.board.add,Add
+cowork.work.board.addMember,Add member
+cowork.work.board.archive,Archive board
+cowork.work.board.archived,Board archived
+cowork.work.board.commenting,Who can comment
+cowork.work.board.commenting_disabled,Disabled
+cowork.work.board.commenting_members,Members
+cowork.work.board.commenting_observers,Members and observers
+cowork.work.board.create,Create board
+cowork.work.board.default,Team board
+cowork.work.board.label,Board
+cowork.work.board.leave,Leave board
+cowork.work.board.memberManagement,Who can add and remove members
+cowork.work.board.memberManagement_admins,Admins only
+cowork.work.board.memberManagement_members,All members
+cowork.work.board.members,Board members
+cowork.work.board.name,Board name
+cowork.work.board.remove,Remove
+cowork.work.board.role,Role
+cowork.work.board.role_admin,Board admin
+cowork.work.board.role_member,Member
+cowork.work.board.role_observer,Observer
+cowork.work.board.settings,Board settings
+cowork.work.board.visibility,Visibility
+cowork.work.board.visibility_private,Private
+cowork.work.board.visibility_team,Team visible
 cowork.work.card.add,Add a card
 cowork.work.card.archive,Archive
 cowork.work.card.archived,Card archived
@@ -1532,6 +1586,9 @@ cowork.work.copy.create,Create card
 cowork.work.copy.keep,Keep
 cowork.work.copy.to,Copy to
 cowork.work.cover.none,None
+cowork.work.error.board,This board no longer exists
+cowork.work.error.board_rights,Only board admins can do this
+cowork.work.error.board_title,Enter a board name
 cowork.work.error.checklist,Invalid checklist
 cowork.work.error.color,Invalid color
 cowork.work.error.comment,Enter a comment
@@ -1539,12 +1596,14 @@ cowork.work.error.conflict,Someone else changed this card. Close it and open it 
 cowork.work.error.cover,Choose an image attached to this card
 cowork.work.error.date,Invalid date
 cowork.work.error.dedicated_api,Change cards on the work board
+cowork.work.error.default_board,The default board cannot be archived
 cowork.work.error.field_options,A dropdown field needs at least one option
 cowork.work.error.field_title,Enter a field name
 cowork.work.error.field_value,Invalid field value
 cowork.work.error.file,Choose a file
 cowork.work.error.file_size,The file is larger than 25 MB
 cowork.work.error.label,This label no longer exists
+cowork.work.error.last_admin,A board needs at least one admin
 cowork.work.error.last_list,A board needs at least one list
 cowork.work.error.link,Enter a link that starts with http:// or https://
 cowork.work.error.list,This list no longer exists

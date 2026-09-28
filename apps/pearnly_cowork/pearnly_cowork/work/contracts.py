@@ -1,7 +1,8 @@
-"""工作协调看板的纯规则：顺序、字段清洗、提醒 / 重复、清单、自定义字段、链接（不依赖框架与 IO）。
+"""工作协调看板的纯规则：看板权限、顺序、字段清洗、提醒 / 重复、清单、自定义字段、链接（不依赖框架与 IO）。
 
-一个团队一块板（用户 2026-09-27）；列表由用户自己增删、改名、排序、复制（2026-09-27 第四批）。
-新站点默认三列：待办 / 进行中 / 已完成，「已完成」带"完成列表"标记——拖进去就算完成，没有审核。
+多块看板（用户 2026-09-29，照 Trello）：每块看板有自己的成员与可见范围，权限矩阵见 `board_rights`。
+列表由用户自己增删、改名、排序、复制（2026-09-27 第四批）。
+新看板默认三列：待办 / 进行中 / 已完成，「已完成」带"完成列表"标记——拖进去就算完成，没有审核。
 """
 import calendar
 from datetime import date, datetime, time, timedelta
@@ -49,6 +50,71 @@ MIN_GAP = 1e-6
 
 class Invalid(ValueError):
     """前端能改掉的输入错误；`args[0]` 是术语键。"""
+
+
+# ── 看板权限（用户 2026-09-29） ─────────────────────────────────────────────
+# 可见性：团队可见 = 有「任务管理」权限的人都能看、能改（Trello 工作区可见的口径）；私有 = 只有看板成员。
+VISIBILITIES = ("team", "private")
+# 看板角色：管理员、成员（增改卡片 / 列表）、观察者（只读，评论看看板设置）。
+ROLES = ("admin", "member", "observer")
+# 谁能评论：成员（含管理员与团队可见时的非成员）/ 成员和观察者 / 关闭。
+COMMENTING = ("members", "observers", "disabled")
+# 谁能加减成员：仅管理员 / 所有成员。
+MEMBER_MANAGEMENT = ("admins", "members")
+# 权利：看、增改卡片与列表、评论、加减成员、管理（设置 / 标签 / 字段 / 自动化 / 归档 / 彻底删除）。
+RIGHTS = ("view", "edit", "comment", "members", "manage")
+BOARD_TITLE_MAX = 100
+BOARDS_MAX = 200
+BOARD_MEMBERS_MAX = 500
+
+
+def board_rights(*, role=None, visibility="private", team_user=False, cowork_admin=False,
+                 commenting="members", member_management="admins") -> frozenset:
+    """一个人在一块看板上的权利。`role` 是他在这块板上的角色（不是成员为 None），
+    `team_user` = 有「任务管理」权限（进得了页面），`cowork_admin` = Cowork 管理员（看得到、管得了所有看板）。"""
+    if cowork_admin or role == "admin":
+        return frozenset(RIGHTS)
+    if role == "observer":
+        return frozenset({"view", "comment"} if commenting == "observers" else {"view"})
+    if role == "member" or (role is None and team_user and visibility == "team"):
+        rights = {"view", "edit"}
+        if commenting in ("members", "observers"):
+            rights.add("comment")
+        if role == "member" and member_management == "members":
+            rights.add("members")
+        return frozenset(rights)
+    return frozenset()
+
+
+def member_changes(current: dict, wanted: dict, *, actor: str, manage: bool, can_members: bool) -> dict:
+    """成员名单一次保存：`current` / `wanted` 是 {用户: 角色}。返回 {"add", "remove", "change"}。
+
+    - 看板管理员（`manage`）什么都能改；
+    - 有「加减成员」权利的普通成员只能加 / 减成员和观察者，不能改角色、不能动管理员；
+    - 任何人都可以把自己移出（离开看板）；
+    - 原来有管理员的看板不能被改成一个管理员都没有。
+    """
+    if not isinstance(wanted, dict) or len(wanted) > BOARD_MEMBERS_MAX:
+        raise Invalid("cowork.work.error.request")
+    for user, role in wanted.items():
+        if not isinstance(user, str) or not user or role not in ROLES:
+            raise Invalid("cowork.work.error.request")
+    add = {user: role for user, role in wanted.items() if user not in current}
+    remove = [user for user in current if user not in wanted]
+    change = {user: role for user, role in wanted.items() if user in current and current[user] != role}
+    if not manage:
+        leaving_only = remove == [actor] and not add and not change
+        if not leaving_only:
+            if not can_members or change:
+                raise Invalid("cowork.work.error.board_rights")
+            if any(role == "admin" for role in add.values()):
+                raise Invalid("cowork.work.error.board_rights")
+            if any(current[user] == "admin" for user in remove if user != actor):
+                raise Invalid("cowork.work.error.board_rights")
+    had_admin = any(role == "admin" for role in current.values())
+    if had_admin and not any(role == "admin" for role in wanted.values()):
+        raise Invalid("cowork.work.error.last_admin")
+    return {"add": add, "remove": remove, "change": change}
 
 
 def text(value, limit: int, *, required: bool = False, key: str = "cowork.work.error.title") -> str:

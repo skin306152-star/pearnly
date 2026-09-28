@@ -5,6 +5,7 @@
 2 days before,2 天前
 2 hours before,2 小时前
 5 minutes before,5 分钟前
+A board needs at least one admin,看板至少要有一位管理员
 A board needs at least one list,看板至少要留一个列表
 A client cannot be moved to another company.,客户不能转移到另一家公司。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
@@ -49,6 +50,7 @@ Actual location,实际仓位
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
+Add,添加
 Add Row,添加一行
 Add User,添加用户
 Add a card,添加卡片
@@ -58,11 +60,13 @@ Add a link,添加链接
 Add an item,添加项目
 Add another list,添加另一个列表
 Add label,加标签
+Add member,添加成员
 Add photo,添加照片
 Add photos,添加照片
 Add watcher,加关注人
 Added {0},已添加 {0}
 Address,地址
+Admins only,仅管理员
 All,全部
 All labels,全部标签
 All members,全部成员
@@ -81,8 +85,10 @@ Another push holds the writer lock.,另一笔推送正在占用写入锁。
 Any due date,全部到期
 Archive,归档
 Archive all cards in this list,将此列表中的所有卡片归档
+Archive board,归档看板
 Archive this list,将此列表进行归档
 Archived at,归档时间
+Archived boards,已归档的看板
 Archived cards,已归档的卡片
 Archived items,已归档的项目
 Archived lists,已归档的列表
@@ -121,6 +127,11 @@ Binding code,绑定码
 Blocked By,阻塞记录
 Blue,蓝
 Board,看板
+Board admin,看板管理员
+Board archived,看板已归档
+Board members,看板成员
+Board name,看板名称
+Board settings,看板设置
 Book,账面
 Book Qty,账面数量
 Book location,账面仓位
@@ -272,6 +283,7 @@ Cowork Workspace,Cowork 公司账套
 Cowork menu,Cowork 菜单
 Create a new label,新建标签
 Create a rule,新建规则
+Create board,新建看板
 Create card,创建卡片
 Create from template,从模板创建
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
@@ -326,6 +338,7 @@ Directory Scope Kind,目录范围类型
 Directory Snapshot,目录快照
 Disable,停用
 Disable {0},停用 {0}
+Disabled,关闭
 Discount,折扣金额
 Discount Amount,折扣金额
 Display text (optional),显示文本（可选）
@@ -366,6 +379,7 @@ Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
 Enabled,启用
+Enter a board name,请输入看板名称
 Enter a comment,请输入评论
 Enter a field name,请输入字段名称
 Enter a link that starts with http:// or https://,请输入以 http:// 或 https:// 开头的链接
@@ -493,6 +507,7 @@ Last Request Hash,最近请求摘要
 Last Request Key,最近请求编号
 Last used,上次用的
 Lease Expires At,租约到期时间
+Leave board,离开看板
 Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
@@ -525,6 +540,7 @@ Matches,一致
 Matching and saving,逐笔核对并保存
 Member,成员
 Members,成员
+Members and observers,成员和观察者
 Mirror,镜像
 Monthly,每月
 Move,移动
@@ -568,7 +584,9 @@ Notifications,提醒
 Number,数字
 OUT,出账
 Observed At (UTC),观测时间（UTC）
+Observer,观察者
 Only an active count can be deleted,只有进行中的盘点能删除
+Only board admins can do this,只有看板管理员能这样做
 Only invoices in Thai baht can be sent to Express,只有泰铢的票能推到 Express
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
 Open card,打开卡片
@@ -620,6 +638,7 @@ Preparation Evidence,准备资料证据
 Preparation data does not match the connection or account set.,推送准备资料与当前连接或账套不一致。
 Preparation data for this account set is incomplete.,此账套的推送准备资料尚未完整获取。
 Previous Json,更改前数据（JSON）
+Private,私有
 Private File,私有文件
 Private Storage URL,私有存储地址
 Product,商品
@@ -721,6 +740,7 @@ Revision,版本
 Revocation Reason,撤销原因
 Revoked At (UTC),撤销时间（UTC）
 Revoked By,撤销人
+Role,角色
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格登记行与实盘数；实盘数可以留空，之后在线盘点。
@@ -813,6 +833,8 @@ Tax ID,纳税人识别号
 Tax Invoice,税务发票
 Tax on this receipt,票上的税额
 Taxes and Charges,税费
+Team board,团队看板
+Team visible,团队可见
 Template,模板
 Text,文本
 Text is too long,内容太长
@@ -872,6 +894,7 @@ The credential request is invalid.,凭据请求无效。
 The credential request receipt limit has been reached.,凭据请求回执数量已达到上限。
 The date reference year is invalid. Reload and try again.,日期参考年份无效，请重新加载后重试。
 The date reference year is missing. Reload and try again.,缺少日期参考年份，请重新加载后重试。
+The default board cannot be archived,默认看板不能归档
 The directory evidence is invalid. Refresh and select again.,目录证据无效，请刷新后重新选择。
 The directory refresh is still pending.,目录正在等待刷新。
 The directory snapshot does not match this connection.,目录快照与当前连接不一致。
@@ -995,6 +1018,7 @@ This MR.ERP menu cannot be chosen for this account set.,这份账套不能选这
 This account cannot send documents,这个账号不能发单据
 This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
+This board no longer exists,这个看板已不存在
 This channel is not open yet,这个通道还没开放
 This connection does not support an Express Companion credential.,此连接不支持 Express 助手凭据。
 This connection is disabled.,此连接已停用。
@@ -1080,6 +1104,7 @@ VAT report detail,VAT 报告明细
 Valid,有效
 Version,版本
 View differences,查看差异
+Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
 Void this count of {0}?,撤销这条 {0} 的记录？
@@ -1092,6 +1117,8 @@ Warehouse,仓库
 Watch,关注
 Weekly,每周
 When a card enters,卡片进入列表时
+Who can add and remove members,谁能加减成员
+Who can comment,谁能评论
 Wire Attempt,发送尝试次数
 With differences,有差异
 Withdrawal,提款
@@ -1490,12 +1517,39 @@ cowork.work.activity.rule,自动化（{who}）：{0} {1}
 cowork.work.activity.showDetails,显示详情
 cowork.work.activity.uncomplete,{who} 把这张卡片标记为未完成
 cowork.work.archived.at,归档时间
+cowork.work.archived.boards,已归档的看板
 cowork.work.archived.confirmDelete,彻底删除这张卡片？删除后无法恢复。
 cowork.work.archived.deleted,已删除
 cowork.work.archived.lists,已归档的列表
 cowork.work.archived.restore,恢复
 cowork.work.archived.restored,已恢复
 cowork.work.archived.title,已归档的项目
+cowork.work.board.add,添加
+cowork.work.board.addMember,添加成员
+cowork.work.board.archive,归档看板
+cowork.work.board.archived,看板已归档
+cowork.work.board.commenting,谁能评论
+cowork.work.board.commenting_disabled,关闭
+cowork.work.board.commenting_members,成员
+cowork.work.board.commenting_observers,成员和观察者
+cowork.work.board.create,新建看板
+cowork.work.board.default,团队看板
+cowork.work.board.label,看板
+cowork.work.board.leave,离开看板
+cowork.work.board.memberManagement,谁能加减成员
+cowork.work.board.memberManagement_admins,仅管理员
+cowork.work.board.memberManagement_members,所有成员
+cowork.work.board.members,看板成员
+cowork.work.board.name,看板名称
+cowork.work.board.remove,移除
+cowork.work.board.role,角色
+cowork.work.board.role_admin,看板管理员
+cowork.work.board.role_member,成员
+cowork.work.board.role_observer,观察者
+cowork.work.board.settings,看板设置
+cowork.work.board.visibility,可见范围
+cowork.work.board.visibility_private,私有
+cowork.work.board.visibility_team,团队可见
 cowork.work.card.add,添加卡片
 cowork.work.card.archive,归档
 cowork.work.card.archived,已归档
@@ -1532,6 +1586,9 @@ cowork.work.copy.create,创建卡片
 cowork.work.copy.keep,保留
 cowork.work.copy.to,复制到
 cowork.work.cover.none,无
+cowork.work.error.board,这个看板已不存在
+cowork.work.error.board_rights,只有看板管理员能这样做
+cowork.work.error.board_title,请输入看板名称
 cowork.work.error.checklist,清单无效
 cowork.work.error.color,颜色无效
 cowork.work.error.comment,请输入评论
@@ -1539,12 +1596,14 @@ cowork.work.error.conflict,这张卡片刚被别人改过，请关闭后重新�
 cowork.work.error.cover,请选这张卡片上的图片附件
 cowork.work.error.date,日期无效
 cowork.work.error.dedicated_api,请在工作看板上修改卡片
+cowork.work.error.default_board,默认看板不能归档
 cowork.work.error.field_options,下拉字段至少要有一个选项
 cowork.work.error.field_title,请输入字段名称
 cowork.work.error.field_value,字段的值无效
 cowork.work.error.file,请选择文件
 cowork.work.error.file_size,文件超过 25 MB
 cowork.work.error.label,标签不存在
+cowork.work.error.last_admin,看板至少要有一位管理员
 cowork.work.error.last_list,看板至少要留一个列表
 cowork.work.error.link,请输入以 http:// 或 https:// 开头的链接
 cowork.work.error.list,列表不存在

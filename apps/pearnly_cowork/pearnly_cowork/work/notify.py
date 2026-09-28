@@ -1,7 +1,8 @@
 """看板提醒：谁在什么时候收到一条（被分派、被 @、关注 / 负责的卡有评论或换列、快到期 / 已过期）。
 
-只在工作协调页面里提示（页面右上角的铃铛 + 在线时弹一条），不开全站原生通知（ADR-007 产品站关着）；
-LINE 以后再接。收件人必须仍能用看板；自己做的事不提醒自己。
+只在任务管理页面里提示（页面右上角的铃铛 + 在线时弹一条），不开全站原生通知（ADR-007 产品站关着）；
+LINE 以后再接。收件人必须仍能看这张卡所在的看板；自己做的事不提醒自己。
+看板有改动时的实时刷新（`changed`）也只推给能看那块板的人（私有看板不能靠广播泄露卡片号）。
 """
 import json
 
@@ -12,16 +13,8 @@ from pearnly_cowork.work.documents import persist
 
 NOTIFICATION = access.NOTIFICATION
 EVENT = "cowork_work_notify"
+CHANGED = "cowork_work_changed"
 KINDS = ("assign", "mention", "comment", "move", "due_soon", "overdue")
-
-
-def members():
-    users = frappe.get_all("Has Role", filters={"parenttype": "User", "role": ["in", [access.ROLE, access.ADMIN_ROLE]]},
-                           pluck="parent", distinct=True)
-    users = [user for user in users if user not in ("Administrator", "Guest")]
-    if not users:
-        return set()
-    return set(frappe.get_all("User", filters={"name": ["in", users], "enabled": 1}, pluck="name"))
 
 
 def audience(doc):
@@ -29,10 +22,17 @@ def audience(doc):
     return {row.user for row in doc.assignees} | {row.user for row in doc.get("watchers") or []}
 
 
+def changed(board, card=None, action=None):
+    """通知正在看这块板的人刷新（只带看板号与卡片号）。"""
+    for user in sorted(access.viewers(board)):
+        frappe.publish_realtime(CHANGED, {"board": board, "card": card, "action": action}, user=user,
+                                after_commit=True)
+
+
 def send(users, doc, kind, detail=None, *, actor=None, dedupe=None):
     """给 `users` 各发一条；`dedupe(user)` 给出去重键（到期提醒用），已发过的跳过。返回实际发出的人。"""
     actor = frappe.session.user if actor is None else actor
-    targets = (set(users) & members()) - {actor, "Administrator", "Guest"}
+    targets = (set(users) & access.viewers(doc.board)) - {actor, "Administrator", "Guest"}
     sent = []
     for user in sorted(targets):
         key = dedupe(user) if dedupe else None
@@ -50,17 +50,34 @@ def send(users, doc, kind, detail=None, *, actor=None, dedupe=None):
     return sent
 
 
+def _visible_cards(workspace):
+    # 只列还能看的看板上的卡（被移出私有看板后，那块板上的旧提醒不再出现）。
+    boards = access.visible_boards()
+    return frappe.get_all(access.CARD, filters={"workspace": workspace, "board": ["in", boards or [""]]},
+                          pluck="name", limit_page_length=0)
+
+
+def _filters(workspace):
+    return {"workspace": workspace, "user": frappe.session.user, "card": ["in", _visible_cards(workspace) or [""]]}
+
+
+def unread(workspace):
+    return frappe.db.count(NOTIFICATION, {**_filters(workspace), "is_read": 0})
+
+
 def mine(workspace, limit=50):
-    rows = frappe.get_all(NOTIFICATION, filters={"workspace": workspace, "user": frappe.session.user},
+    filters = _filters(workspace)
+    rows = frappe.get_all(NOTIFICATION, filters=filters,
                           fields=["name", "card", "kind", "actor", "detail", "is_read", "creation"],
                           order_by="creation desc", limit_page_length=limit)
-    titles = dict(frappe.get_all(access.CARD, filters={"name": ["in", [row.card for row in rows] or [""]]},
-                                 fields=["name", "title"], as_list=True))
+    cards = {row.name: row for row in frappe.get_all(
+        access.CARD, filters={"name": ["in", [row.card for row in rows] or [""]]}, fields=["name", "title", "board"])}
     for row in rows:
         row.detail = json.loads(row.detail) if row.detail else {}
-        row.title = titles.get(row.card, "")
+        row.title = cards[row.card].title if row.card in cards else ""
+        row.board = cards[row.card].board if row.card in cards else ""
         row.actor_name = frappe.utils.get_fullname(row.actor) if row.actor else ""
-    unread = frappe.db.count(NOTIFICATION, {"workspace": workspace, "user": frappe.session.user, "is_read": 0})
+    unread = frappe.db.count(NOTIFICATION, {**filters, "is_read": 0})
     return {"rows": rows, "unread": unread}
 
 

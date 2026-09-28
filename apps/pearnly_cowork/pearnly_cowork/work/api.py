@@ -1,10 +1,13 @@
-"""工作协调看板的专用 RPC：读用 GET，写用 POST；判据与写入都在 `service`。"""
+"""任务管理看板的专用 RPC：读用 GET，写用 POST；判据与写入都在 `service` / `boards`。
+
+看板级的接口带 `board`（看板号，不给就是默认看板）；卡片、列表的接口按对象自己所在的看板核对权限。
+"""
 import json
 
 import frappe
 from frappe import _
 
-from pearnly_cowork.work import service
+from pearnly_cowork.work import boards, service
 from pearnly_cowork.work.contracts import Invalid
 
 
@@ -40,8 +43,8 @@ def _flag(value):
 # ── 读 ──
 
 @frappe.whitelist(methods=["GET"])
-def board():
-    return _run(service.board)
+def board(board=None, fallback=None):
+    return _run(service.board, board or None, _flag(fallback))
 
 
 @frappe.whitelist(methods=["GET"])
@@ -50,8 +53,8 @@ def card(name):
 
 
 @frappe.whitelist(methods=["GET"])
-def archived():
-    return _run(service.archived)
+def archived(board=None):
+    return _run(service.archived, board or None)
 
 
 @frappe.whitelist(methods=["GET"])
@@ -150,8 +153,8 @@ def detach(name, file):
 # ── 列表 ──
 
 @frappe.whitelist(methods=["POST"])
-def create_list(title):
-    return _run(service.create_list, title)
+def create_list(title, board=None):
+    return _run(service.create_list, title, board or None)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -199,16 +202,58 @@ def archive_all(name):
     return _run(service.archive_all, name)
 
 
+# ── 看板 ──
+
+@frappe.whitelist(methods=["GET"])
+def boards_list():
+    return _run(boards.boards)
+
+
+@frappe.whitelist(methods=["GET"])
+def board_lists(board):
+    return _run(boards.lists, board)
+
+
+@frappe.whitelist(methods=["POST"])
+def create_board(values):
+    return _run(boards.create, _json(values, {}))
+
+
+@frappe.whitelist(methods=["POST"])
+def update_board(board, values):
+    return _run(boards.update, board, _json(values, {}))
+
+
+@frappe.whitelist(methods=["POST"])
+def archive_board(board):
+    return _run(boards.archive, board)
+
+
+@frappe.whitelist(methods=["POST"])
+def restore_board(board):
+    return _run(boards.restore, board)
+
+
+@frappe.whitelist(methods=["GET"])
+def board_members(board):
+    return _run(boards.members, board)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_board_members(board, rows):
+    return _run(boards.save_members, board, _json(rows, []))
+
+
 # ── 全板设置与提醒 ──
 
 @frappe.whitelist(methods=["POST"])
-def save_labels(rows):
-    return _run(service.save_labels, _json(rows, []))
+def save_labels(rows, board=None):
+    return _run(service.save_labels, _json(rows, []), board or None)
 
 
 @frappe.whitelist(methods=["POST"])
-def save_fields(rows):
-    return _run(service.save_fields, _json(rows, []))
+def save_fields(rows, board=None):
+    return _run(service.save_fields, _json(rows, []), board or None)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -217,24 +262,24 @@ def read_notifications(names=None):
 
 
 @frappe.whitelist(methods=["GET"])
-def rules():
-    return _run(service.rules)
+def rules(board=None):
+    return _run(service.rules, board or None)
 
 
 @frappe.whitelist(methods=["POST"])
-def save_rules(rows):
-    return _run(service.save_rules, _json(rows, []))
+def save_rules(rows, board=None):
+    return _run(service.save_rules, _json(rows, []), board or None)
 
 
 @frappe.whitelist(methods=["GET"])
-def search(keyword):
-    return _run(service.search, keyword)
+def search(keyword, board=None):
+    return _run(service.search, keyword, board or None)
 
 
 @frappe.whitelist(methods=["GET"])
-def export(names=None):
+def export(names=None, board=None):
     """下载工作簿（原生二进制响应）；`names` 是逗号分隔的卡片号。"""
-    content = _run(service.export, [name for name in (names or "").split(",") if name] or None)
+    content = _run(service.export, [name for name in (names or "").split(",") if name] or None, board or None)
     frappe.response["filename"] = f"{_('cowork.nav.work')}-{frappe.utils.today()}.xlsx"
     frappe.response["filecontent"] = content
     frappe.response["type"] = "binary"
