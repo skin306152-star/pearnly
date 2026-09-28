@@ -177,31 +177,60 @@ def filter_garbage_rows(rows) -> List[Dict[str, Any]]:
 	return kept
 
 
+# 表头判定按「越具体越先判」（2026-09-28 录制读代码发现、复现）：税务局标准表头「วัน เดือน ปี」带空格认不出日期；
+# 「ภาษีมูลค่าเพิ่ม」含「มูลค่า」被当成未税；「Amount before VAT」被当成 VAT；「Customer Tax ID」可能被当成名称；
+# 序号列「No.」抢走发票号。
+_DATE_COMPACT = frozenset(("วันเดือนปี",))
+_SEQUENCE = frozenset(("no", "no.", "#", "ลำดับ", "ลำดับที่", "序号", "序號", "番号"))
+_VAT_SPECIFIC = ("ภาษีมูลค่าเพิ่ม", "vat amount", "amount of vat", "จำนวนเงินภาษี", "税额", "消費税額")
+_NET_SPECIFIC = ("before vat", "excluding vat", "excl. vat", "excl vat", "ex vat", "ex. vat", "มูลค่าสินค้า")
+_BRANCH_MORE = ("สถานประกอบการ",)
+
+
+def _field(header) -> Optional[str]:
+	text = str(header or "").strip().lower()
+	compact = re.sub(r"[\s/.\-]+", "", text)
+	if hit(text, DATE_HINTS) or compact in _DATE_COMPACT or any(item in compact for item in _DATE_COMPACT):
+		return "date"
+	if text in _SEQUENCE:
+		return "sequence"
+	if hit(text, TAX_HINTS) or "ประจำตัวผู้เสียภาษี" in text:
+		return "buyer_tax_id"
+	if hit(text, REF_HINTS):
+		return "ref_no"
+	if hit(text, NO_HINTS):
+		return "invoice_no"
+	if hit(text, BRANCH_HINTS) or any(item in text for item in _BRANCH_MORE):
+		return "buyer_branch"
+	if any(item in text for item in _NET_SPECIFIC):
+		return "amount_pre_vat"
+	if any(item in text for item in _VAT_SPECIFIC):
+		return "vat_amount"
+	if hit(text, NET_HINTS):
+		return "amount_pre_vat"
+	if hit(text, VAT_HINTS):
+		return "vat_amount"
+	if hit(text, TOTAL_HINTS):
+		return "total_amount"
+	if hit(text, NAME_HINTS):
+		return "buyer_name"
+	return None
+
+
 def map_columns(headers) -> Dict[str, int]:
-	"""Printed header row to {field: column index}; the reference wins over the number."""
+	"""Printed header row to {field: column index}; the reference wins over the number.
+
+	A bare sequence header ("No." / "ลำดับ") is the invoice number only when no column names one."""
 	col_map: Dict[str, int] = {}
+	sequence = None
 	for index, header in enumerate(headers):
-		header = (str(header) or "").strip()
-		if not header:
-			continue
-		if hit(header, DATE_HINTS) and "date" not in col_map:
-			col_map["date"] = index
-		elif hit(header, REF_HINTS) and "ref_no" not in col_map:
-			col_map["ref_no"] = index
-		elif hit(header, NO_HINTS) and "invoice_no" not in col_map:
-			col_map["invoice_no"] = index
-		elif hit(header, NAME_HINTS) and "buyer_name" not in col_map:
-			col_map["buyer_name"] = index
-		elif hit(header, TAX_HINTS) and "buyer_tax_id" not in col_map:
-			col_map["buyer_tax_id"] = index
-		elif hit(header, BRANCH_HINTS) and "buyer_branch" not in col_map:
-			col_map["buyer_branch"] = index
-		elif hit(header, NET_HINTS) and "amount_pre_vat" not in col_map:
-			col_map["amount_pre_vat"] = index
-		elif hit(header, VAT_HINTS) and "vat_amount" not in col_map:
-			col_map["vat_amount"] = index
-		elif hit(header, TOTAL_HINTS) and "total_amount" not in col_map:
-			col_map["total_amount"] = index
+		field = _field(header) if str(header or "").strip() else None
+		if field == "sequence":
+			sequence = index if sequence is None else sequence
+		elif field and field not in col_map:
+			col_map[field] = index
+	if "invoice_no" not in col_map and "ref_no" not in col_map and sequence is not None:
+		col_map["invoice_no"] = sequence
 	return col_map
 
 

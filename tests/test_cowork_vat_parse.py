@@ -330,5 +330,37 @@ class SourceDispatch(unittest.TestCase):
 			contracts.Decimal(0))
 
 
+
+class HeaderVariants(unittest.TestCase):
+	"""2026-09-28 录制读代码发现：税务局标准表头与英文表头认错列。"""
+
+	def fields(self, headers):
+		return {field: headers[index] for field, index in parse.map_columns(headers).items()}
+
+	def test_the_revenue_department_layout(self):
+		headers = ["ลำดับ", "วัน เดือน ปี", "เลขที่", "ชื่อผู้ซื้อสินค้า/ผู้รับบริการ",
+			"เลขประจำตัวผู้เสียภาษีอากรของผู้ซื้อ", "สถานประกอบการ", "มูลค่าสินค้าหรือบริการ", "จำนวนเงินภาษีมูลค่าเพิ่ม"]
+		got = self.fields(headers)
+		self.assertEqual((got["date"], got["invoice_no"], got["buyer_branch"], got["amount_pre_vat"], got["vat_amount"]),
+			("วัน เดือน ปี", "เลขที่", "สถานประกอบการ", "มูลค่าสินค้าหรือบริการ", "จำนวนเงินภาษีมูลค่าเพิ่ม"))
+
+	def test_english_headers_and_a_sequence_column(self):
+		got = self.fields(["No.", "Customer Tax ID", "Customer Name", "Invoice No.", "Date", "Amount before VAT", "VAT"])
+		self.assertEqual((got["invoice_no"], got["buyer_tax_id"], got["buyer_name"], got["amount_pre_vat"], got["vat_amount"]),
+			("Invoice No.", "Customer Tax ID", "Customer Name", "Amount before VAT", "VAT"))
+		# 没有别的发票号列时，序号列才当发票号
+		self.assertEqual(self.fields(["No.", "Date", "VAT"])["invoice_no"], "No.")
+
+	def test_vat_before_amount_does_not_take_the_net_column(self):
+		got = self.fields(["วันที่", "เลขที่ใบกำกับ", "ภาษีมูลค่าเพิ่ม", "มูลค่า"])
+		self.assertEqual((got["vat_amount"], got["amount_pre_vat"]), ("ภาษีมูลค่าเพิ่ม", "มูลค่า"))
+
+	def test_spreadsheet_date_cells(self):
+		from datetime import datetime
+		row = parse.build_row(1, [datetime(2026, 1, 5), "IV-1"], {"date": 0, "invoice_no": 1})
+		self.assertEqual(row["report_date"], "2026-01-05")
+		row = parse.build_row(1, [46027.0, "IV-1"], {"date": 0, "invoice_no": 1})
+		self.assertEqual(row["report_date"], "2026-01-05")
+
 if __name__ == "__main__":
 	unittest.main()
