@@ -111,5 +111,13 @@
 - 保留：测试机计划任务 `PearnlyRestoreCompanionConfig`（还原点日期 2026-09-02，非本任务所建，归属不明不动）；
   本地后端 lab `pearnly-cowork-backend-lab` 已停、卷保留（该 lab 惯例）；测试环境栈与数据卷交给看板权限窗口使用；
   测试环境库里的复测 / 端到端记录（`retest*`、`E2E-0928/0929-*`、`CBR/CIR/CVC` 测试任务）只在测试环境。
-- 测试账套 SINCTEST 里本任务写入的测试单：RR690928-002、RR690929-001、RR690929-002、HP690929-001，
-  以及复核页「提交」误推的 IV69/06-004、005、007、008、009（整批提交，新写入、未建主档），由用户决定是否在 Express 删除。
+- 测试账套 SINCTEST（2026-09-29 用户：「把用于测试时在 exp 那边复制的一个套账删了恢复，先查清楚」）已删除并恢复登录清单：
+  - 查清：`\\Accserver\d$\ACCOUNT\70EXP\SINCTEST`（09-28 02:46 由 69SINCER 复制，165 个文件）；`secure\SCCOMP.DBF` 逐字节比对 =
+    原 107 行一字不差 + 末尾追加的「S.ทดสอบ ซินเซียร์ไอซ์ (สำเนา 69SINCER) → SINCTEST」一行，别无改动；小助手默认账套 6902ASC 不受影响。
+  - 失误说明：原表备份原在测试机 `C:\ProgramData\PearnlyVerify\sinc\backup_sccomp\`，被本任务 09-29 收尾时连文件夹删除；
+    改用压测窗口留在本机的同一份备份（09-28 02:44，追加前，107 行已核对一致）。
+  - 执行：先把当时的 SCCOMP 与整个 SINCTEST 备份到本机 `~/Documents/pearnly-backups/SINCTEST_and_SCCOMP_before_delete_20260929.zip`
+    （167 个文件，字节数与源一致）；原表另存 `~/Documents/pearnly-backups/SCCOMP_original_20260928_0244/`；写回 `SCCOMP.DBF` / `SCCOMP.CDX`
+    后 md5 与原表一致（`d4a27fd9…` / `a0f3572e…`），再删 SINCTEST 文件夹；70EXP 现只剩原有文件夹。
+  - 未动：`test`（录制窗口在用）、`test_pearnly_precleanup_20260624-093218`、`secure\ISLOG` / `SCUSER`（Express 登录自动写）、TEST 里的演示单。
+  - 随账套一起删掉的：本任务与压测写进 SINCTEST 的全部测试单与自建主档。testcowork 测试租户里指向 SINCTEST 的旧记录保留（不再使用）。
