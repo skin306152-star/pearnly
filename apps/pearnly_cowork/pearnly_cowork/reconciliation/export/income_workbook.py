@@ -14,6 +14,14 @@ import io
 from typing import List
 
 from pearnly_cowork.reconciliation.income_vat import GlVatSummary, ReconRow
+from pearnly_cowork.reconciliation.normalization import parse_date
+
+
+def show_date(value) -> str:
+	"""日期一律 日/月/年（公历，与银行复核表同一写法）；认不出的原样（2026-09-28 录制：总账是「30/09/2569」、
+	税表是「2026-09-18」混在一张表里）。"""
+	parsed = parse_date(str(value or "")[:10]) if value else None
+	return parsed.strftime("%d/%m/%Y") if parsed else str(value or "")
 
 # ─────────────────────────────────────────────────────────────────────
 # i18n 表头字典
@@ -47,6 +55,7 @@ _I18N = {
 		"s_plus_gl_dr": "บวก : รายการเดบิตที่ไม่มีในรายงานภาษีขาย",
 		"s_plus_vat_p": "บวก : รายการยอดขายที่ไม่มีในบัญชีแยกประเภท",
 		"s_minus_vat_n": "หัก : รายการลดหนี้ที่ไม่มีในบัญชีแยกประเภท",
+		"s_amount_diff": "ปรับปรุงผลต่างยอด (รายงานภาษีขาย − GL)",
 		"s_vat_total": "ยอดรวมตามรายงานภาษีขาย",
 	},
 	"zh": {
@@ -77,6 +86,7 @@ _I18N = {
 		"s_plus_gl_dr": "加：销项税报告中未列的借方记录",
 		"s_plus_vat_p": "加：总账中未列的销售记录",
 		"s_minus_vat_n": "减：总账中未列的贷项凭单(credit note)记录",
+		"s_amount_diff": "调整：两边金额不同的单据（税表 − GL）",
 		"s_vat_total": "销项税报告金额合计",
 	},
 	"en": {
@@ -107,6 +117,7 @@ _I18N = {
 		"s_plus_gl_dr": "Add: GL debits not in VAT Report",
 		"s_plus_vat_p": "Add: Sales in VAT Report not in GL",
 		"s_minus_vat_n": "Less: Credit notes in VAT Report not in GL",
+		"s_amount_diff": "Adjust: amount differences (VAT report − GL)",
 		"s_vat_total": "Total per VAT Sales Report",
 	},
 	"ja": {
@@ -137,6 +148,7 @@ _I18N = {
 		"s_plus_gl_dr": "加：VAT報告にないGL借方記録",
 		"s_plus_vat_p": "加：GLにない売上記録",
 		"s_minus_vat_n": "減：GLにない赤伝記録",
+		"s_amount_diff": "調整：金額差異（VAT報告 − GL）",
 		"s_vat_total": "VAT売上報告合計",
 	},
 }
@@ -233,7 +245,7 @@ def export_gl_vat_excel(
 			[
 				status,
 				row.doc_no,
-				row.date,
+				show_date(row.date),
 				row.customer_name,
 				row.vat_amount,
 				gl_disp,
@@ -272,6 +284,8 @@ def export_gl_vat_excel(
 		c = ws2.cell(1, i)
 		c.fill, c.font, c.alignment = H_FILL, H_FONT, CENTER
 
+	diff_items = [{"doc_no": row.doc_no, "date": row.date, "name": row.customer_name, "amount": row.diff}
+		for row in detail if row.diff]
 	# v118.32.5.5.11 · 每个调整项后展开列出单据明细(Korn 反馈)
 	# negate=True 表示 items 的 amount 在 Sheet 显示时取负(对应 减 GL 贷方 / 减 VAT 红字)
 	summary_rows = [
@@ -310,6 +324,15 @@ def export_gl_vat_excel(
 			"items": summary.vat_only_negative_items,
 			"negate": False,
 		},
+		# 两边都有、金额不同的单据：差额（税表 − GL）逐张列出，调节表才从 GL 合计走得到税表合计
+		# （2026-09-28 录制：IV6909-003 税表 12,000 / GL 12,800，表上直接跳到税表合计、看着算不平）。
+		*([{
+			"label": _t(lang, "s_amount_diff"),
+			"amount": sum(item["amount"] for item in diff_items),
+			"emphasize": False,
+			"items": diff_items,
+			"negate": False,
+		}] if diff_items else []),
 		{
 			"label": _t(lang, "s_vat_total"),
 			"amount": summary.vat_total,
@@ -341,7 +364,7 @@ def export_gl_vat_excel(
 		# 展开明细行(若有)
 		for it in entry.get("items") or []:
 			doc_no = it.get("doc_no") or ""
-			date = it.get("date") or ""
+			date = show_date(it.get("date"))
 			name = (it.get("name") or "").strip()
 			if len(name) > 55:
 				name = name[:53] + "…"

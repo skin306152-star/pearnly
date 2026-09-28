@@ -124,8 +124,22 @@ class SummarySheet(unittest.TestCase):
 		self.assertEqual([(ws.cell(row, 1).value, ws.cell(row, 2).value)
 			for row in (3, 4, 7)],
 			[("Less: GL credits not in VAT Report", None),
-				("    · GL-3  ·  03/06/2569  ·  no vat row", -500.0),
-				("    · INV-9  ·  05/06/2569  ·  BETA", 250.0)])
+				("    · GL-3  ·  03/06/2026  ·  no vat row", -500.0),
+				("    · INV-9  ·  05/06/2026  ·  BETA", 250.0)])
+
+	def test_amount_differences_get_their_own_adjustment_so_the_ladder_adds_up(self):
+		# 2026-09-28 录制：IV6909-003 税表 12,000 / GL 12,800，调节表直接跳到税表合计、看着算不平
+		detail = [detail_row("IV6909-003", date="2026-09-18", customer_name="ACME", vat_amount=12000.0,
+			gl_amount=12800.0, diff=-800.0), detail_row("IV6909-004")]
+		ws = sheets(income_workbook.export_gl_vat_excel(detail, summary(gl_total=2293.0), lang="en"))["Reconciliation"]
+		labels = [ws.cell(row, 1).value for row in range(1, ws.max_row + 1)]
+		at = labels.index("Adjust: amount differences (VAT report − GL)")
+		self.assertEqual((labels[at + 1], ws.cell(at + 2, 2).value), ("    · IV6909-003  ·  18/09/2026  ·  ACME", -800.0))
+		self.assertEqual(labels[at + 2], "Total per VAT Sales Report")
+		# 没有差额的任务版面不变
+		plain = sheets(income_workbook.export_gl_vat_excel([detail_row()], summary(), lang="en"))["Reconciliation"]
+		self.assertNotIn("Adjust: amount differences (VAT report − GL)",
+			[plain.cell(row, 1).value for row in range(1, plain.max_row + 1)])
 
 	def test_the_emphasized_rows_and_the_item_rows_share_the_common_look(self):
 		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))[
@@ -134,7 +148,7 @@ class SummarySheet(unittest.TestCase):
 		self.assertEqual((ws.cell(2, 2).fill.fgColor.rgb, ws.cell(2, 2).font.b), (EMPHASIS, True))
 		self.assertEqual(ws.cell(2, 2).number_format, MONEY)
 		self.assertEqual(ws.cell(3, 1).fill.fgColor.rgb, EMPHASIS)
-		self.assertEqual(ws.cell(4, 1).value, "    · GL-3  ·  03/06/2569  ·  no vat row")
+		self.assertEqual(ws.cell(4, 1).value, "    · GL-3  ·  03/06/2026  ·  no vat row")
 		# A credit row is shown negated.
 		self.assertEqual(ws.cell(4, 2).value, -500.0)
 		self.assertIsNone(ws.cell(4, 1).fill.fill_type)
@@ -148,13 +162,13 @@ class SummarySheet(unittest.TestCase):
 		value = summary(gl_only_credit_items=[{"doc_no": "GL-9", "date": "01/06/2569",
 			"name": "x" * 80, "amount": 1.0}])
 		ws = sheets(income_workbook.export_gl_vat_excel([], value, lang="en"))["Reconciliation"]
-		self.assertEqual(ws.cell(4, 1).value, f"    · GL-9  ·  01/06/2569  ·  {'x' * 53}…")
+		self.assertEqual(ws.cell(4, 1).value, f"    · GL-9  ·  01/06/2026  ·  {'x' * 53}…")
 
 	def test_a_positive_item_is_not_negated(self):
 		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))[
 			"Reconciliation"]
 		rows = {ws.cell(row, 1).value: ws.cell(row, 2).value for row in range(2, ws.max_row + 1)}
-		self.assertEqual(rows["    · INV-9  ·  05/06/2569  ·  BETA"], 250.0)
+		self.assertEqual(rows["    · INV-9  ·  05/06/2026  ·  BETA"], 250.0)
 
 	def test_every_row_of_the_ladder_is_ruled_alike(self):
 		ws = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="en"))[

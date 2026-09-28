@@ -205,11 +205,19 @@ def _bank_edits(book, inputs):
 
 
 def _income_edits(book, inputs):
+    """明细页按日期、单号重排过：按内容认回输入行（原来按位置对应，改了日期 / 单号行一挪，
+    下一次改的就落到别的行上 —— 2026-09-28 录制发现），与银行两页同一做法。"""
+    from pearnly_cowork.reconciliation.export.income_workbook import show_date
+
     sheet = book.worksheets[0]
     first = sheet.freeze_panes and int(re.sub(r"\D", "", sheet.freeze_panes) or 0) or 5
     fields = {2: "doc_no", 3: "date", 4: "customer_name", 5: "vat_amount", 6: "gl_amount", 8: "account_code"}
-    return {(0, first + index, column): ["vat", index, field]
-            for index in range(len(inputs.get("vat") or [])) for column, field in fields.items()}
+    row_key = lambda row: (str(row.get("doc_no") or ""), show_date(row.get("date")),  # noqa: E731
+        str(row.get("customer_name") or ""), _num(row.get("vat_amount")))
+    cell_key = lambda v: (str(v[1] or ""), str(v[2] or ""), str(v[3] or ""), _num(v[4]))  # noqa: E731
+    return {(0, sheet_row, column): ["vat", index, field]
+            for sheet_row, index in _by_content(sheet, first, inputs.get("vat") or [], row_key, cell_key, 5)
+            for column, field in fields.items()}
 
 
 def _vat_edits(_book, inputs):
@@ -348,8 +356,8 @@ def _normalize(kind, inputs):
             for field in fields:
                 if field in row:
                     row[field] = _amount(row[field], None if (key, field) in BLANK_IS_NONE else 0.0)
-            if kind == "bank":
-                row["date"] = _bank_date(row.get("date"))
+            if kind in ("bank", "income") and "date" in row:
+                row["date"] = _bank_date(row.get("date"))  # 两边同一规则：打的日/月/年换成存的年-月-日（佛历减 543）
             if kind == "income":
                 row["has_gl"] = int(row.get("gl_amount") is not None)
             if key == "report_rows" and row.get("report_amount_pre_vat") not in (None, ""):

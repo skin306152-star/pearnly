@@ -463,7 +463,11 @@
 			if (data.task.status !== "completed") page.set_indicator(t(`cowork.recon.task.${data.task.status}`), "orange");
 			// 为什么要人看一眼：一句话写在标题下（用户 2026-09-28：只在页面写，导出的 Excel 不加）。
 			page.set_title_sub((data.task.notes || []).length ? p.escape(data.task.notes.join(" · ")) : "", "orange");
-			const export_now = () => window.location.assign(`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${lang()}`);
+			// 导出取服务端存着的版本：有没保存的改动就先保存再导出，导出的与页面上看到的一致（2026-09-28 录制发现）。
+			const export_now = async () => {
+				if (dirty) await save();
+				window.location.assign(`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${lang()}`);
+			};
 			const buttons = () => {
 				page.clear_primary_action(); page.clear_secondary_action();
 				if (dirty) {

@@ -8,7 +8,7 @@ reconciliation match. No amount comparison is migrated in this module.
 
 import re
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from difflib import SequenceMatcher
 from typing import Optional
 
@@ -72,10 +72,29 @@ def _thai_to_gregorian(year: int) -> int:
     return year - 543 if year > 2400 else year
 
 
+_EXCEL_EPOCH = date(1899, 12, 30)
+_WITH_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2})[ T]\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?$")
+_SERIAL = re.compile(r"^\d{5}(\.0+)?$")
+
+
+def _excel_serial(number) -> Optional[date]:
+    """Excel 日期格子的序列号（.xls 读出来是数）：只认 1954–2119 这一段，别的数不当日期。"""
+    return _EXCEL_EPOCH + timedelta(days=int(number)) if 20000 <= number < 80000 else None
+
+
 def parse_date(s) -> Optional[date]:
     """解析日期字符串,支持多种格式 + 佛历自动转换。
     2 位年份按泰国财税惯例视作佛历缩写(25xx),不套用 Python %y 的西历假设。
+
+    表格里真正的日期格子也认（2026-09-28 录制发现税表日期显示成「2026-01-05 00:00:00」）：
+    日期对象、带时间的 年-月-日、.xls 的日期序列号。
     """
+    if isinstance(s, datetime):
+        return s.date()
+    if isinstance(s, date):
+        return s
+    if isinstance(s, (int, float)) and not isinstance(s, bool):
+        return _excel_serial(s)
     if not s:
         return None
     s = str(s).strip()
@@ -87,6 +106,11 @@ def parse_date(s) -> Optional[date]:
         # %y 已被 strptime 扩成 4 位西历(69→1969),取回 2 位交佛历折算
         year = d.year % 100 if "%y" in fmt else d.year
         return d.replace(year=_thai_to_gregorian(year))
+    with_time = _WITH_TIME.match(s)
+    if with_time:
+        return parse_date(with_time.group(1))
+    if _SERIAL.match(s):
+        return _excel_serial(float(s))
     return None
 
 
