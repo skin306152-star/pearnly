@@ -160,6 +160,15 @@
 
 同时：共用 OCR 限额按用户同意调为每分钟 120 次、全平台同时 8 张、单租户 3 张 —— 线上 DMS/ERP/Cowork 三个站点配置已手工改好并核对（Redis 策略键一致、无 policy_mismatch），开户脚本 `infrastructure/production/site-step.py` 同步写入。修复 `check-dms-offline` 的 retry 项：连接页账号试用的登录改走 `adapter/push.logged_in_probe`（带共用第一档预算）。
 
+## 内存上限与账号锁（2026-09-28，用户："在这个窗口继续查 2、3 问题"）
+
+- **DMS 后台同步进程 8g → 2g**：生产 cgroup `memory.peak` 738MB（09-26 启动至今，含 ris 15,155 个客户整组读完、发布一次，浏览器也算在内），`oom_kill` 0。容量预算腾出 6GB。
+- **DMS 识别进程 512m → 1g**：识别完紧接着按证号查客户，要把整份客户快照读进内存。在线上同版镜像的一次性容器里实测 ris 15,162 个客户：单进程峰值 75MB → 221MB，读一次 1.6 秒。两个进程同时查、再加上照片解码，会贴近 512m。该进程自 09-26 以来 `oom_kill` 2 次，都是 09-27 我在里面跑评测造成的，线上识别没受影响。
+- **账号锁心跳续期**（`pearnly_core.session_lock`，DMS 与 Cowork MR.ERP 推送共用）：TTL 600 秒不续期 → 120 秒、持锁期间每 30 秒续期，总时长上限 30 分钟。进程被杀时锁最多 2 分钟放开，原来是 10 分钟。
+  - 更正：09-27 我读取时等的那把锁，并不是 ris 线上任务占着，而是我那个被 OOM 杀掉的评测进程留下的死锁。剩余时间 261 秒 → 38 秒 → 13 秒是同一把锁在倒计时。
+  - 验证：离线假锁测试 `scripts/test-session-lock.py`（已接入 CI），另在线上 Redis 上用测试专用键实测。TTL 8 秒时持锁 20 秒不过期；持锁进程被 SIGKILL 后 7.1 秒释放。
+  - Cowork 相关测试 `test_cowork_mrerp_push` 和 `test_cowork_mrerp_collector` 都通过。
+
 ## 上线前要做 / 限制
 
 - 部署后需要**重新发布图文菜单**（`rich_menu.publish()`，写 LINE 官方号，需用户同意）才会出现多语言菜单；不发布时一切照旧挂泰文菜单。

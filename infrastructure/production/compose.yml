@@ -150,7 +150,10 @@ services:
   dms-ocr-worker:
     profiles: [dms]
     <<: *worker
-    mem_limit: 512m
+    # 1g：识别完紧接着按证号查客户，要把整份客户快照读进内存（2026-09-28 实测 ris 15,162 个
+    # 客户：每个进程峰值从 75MB 涨到 221MB）。两个进程同时各查一次、再加上解码的照片，
+    # 就会贴近 512m；1g 留出一倍余量。
+    mem_limit: 1g
     command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
     volumes: *dms-volumes
     environment:
