@@ -81,7 +81,7 @@
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
 			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
-			page.hide_form(); page.clear_primary_action(); page.clear_secondary_action(); page.clear_indicator(); page.set_title_sub("");
+			page.hide_form(); page.clear_primary_action(); page.clear_secondary_action(); page.clear_indicator();
 		}
 
 		// ── 列表 ──────────────────────────────────────────────────────────────
@@ -463,9 +463,14 @@
 			let modified = data.task.modified, dirty = false, pending = null, active = 0, view = data, waiting = null;
 			let inputs = clone(data.inputs), good = clone(data.inputs);
 			page.set_title(data.task.title || name); breadcrumbs([{ label: data.task.title || name }]);
-			if (data.task.status !== "completed") page.set_indicator(t(`cowork.recon.task.${data.task.status}`), "orange");
-			// 为什么要人看一眼：一句话写在标题下（用户 2026-09-28：只在页面写，导出的 Excel 不加）。
-			page.set_title_sub((data.task.notes || []).length ? p.escape(data.task.notes.join(" · ")) : "", "orange");
+			// 为什么要人看一眼：跟在标题旁的原生指示器里（用户 2026-09-28：只在页面写，导出的 Excel 不加）。
+			// 这一版 Desk 的页面模板没有副标题位（set_title_sub 等于白写），与 ERP 库存页同一做法；悬停看全文。
+			const notice = [data.task.status !== "completed" ? t(`cowork.recon.task.${data.task.status}`) : "",
+				...(data.task.notes || [])].filter(Boolean).join(" · ");
+			if (notice) {
+				page.set_indicator(notice, "orange");
+				page.indicator?.attr("title", notice);
+			}
 			// 导出取服务端存着的版本：有没保存的改动就先保存再导出，导出的与页面上看到的一致（2026-09-28 录制发现）。
 			const export_now = async () => {
 				if (dirty) await save();
