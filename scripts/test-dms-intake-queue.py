@@ -594,10 +594,11 @@ class IntakeQueue(unittest.TestCase):
                 log = logs[-1]
                 self.assertEqual((log["actor"], log["endpoint"], log["status"], log["business_key"]),
                                  (USER, "offline-endpoint", "success", "offline-customer"))
-                # Receipt and completion notice leave in one free reply (no paid push).
+                # Only the receipt leaves, in one free reply (no paid push); the extra
+                # completion notice after a successful save was dropped (user 2026-09-27).
                 self.assertEqual(self.messages()[-1][0], "reply")
                 self.assertEqual(self.messages()[-1][1]["replyToken"], "reply-confirm")
-                self.assertEqual(len(self.messages()[-1][1]["messages"]), 2)
+                self.assertEqual(len(self.messages()[-1][1]["messages"]), 1)
                 self.assertNotIn("push", [kind for kind, _ in self.messages()])
                 self.event(action=self.cards.ACT_CREATE if kind == "create" else self.cards.ACT_UPDATE,
                            nonce=nonce, token="reply-repeated-confirm")
@@ -623,7 +624,7 @@ class IntakeQueue(unittest.TestCase):
                 self.assertIsNone(self.store.get_session(LINE_USER))
                 self.assertEqual([call.kwargs["attempt"] for call in self.push_fields.call_args_list], [1, 2])
                 self.assertEqual(self.messages()[-1][1]["replyToken"], "reply-write-retry")
-                self.assertEqual(len(self.messages()[-1][1]["messages"]), 2)
+                self.assertEqual(len(self.messages()[-1][1]["messages"]), 1)
 
     def test_create_and_update_admin_auth_failure_keeps_free_reply_without_retry(self):
         for kind in ("create", "update"):
