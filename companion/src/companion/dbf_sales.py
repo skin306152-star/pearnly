@@ -41,8 +41,10 @@ from .dbf_writer import (
     StepClock,
     _backup,
     _bump_isrun,
+    _department_accounts,
     _discard_backup,
     _f,
+    _gl_line,
     _next_docnum,
     _open,
     _reindex_or_defer,
@@ -516,19 +518,12 @@ def _write_all(
     finally:
         gj.close()
 
+    departmental = _department_accounts(account_dir) if depcod else frozenset()
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
         for seqit, accnum, trntyp, amt in _gl_rows(entry) + cogs_rows:
             gi.append(
-                {
-                    "VOUCHER": docnum,
-                    "SEQIT": seqit,
-                    "VOUDAT": docdat,
-                    "ACCNUM": accnum,
-                    "DESCRP": descrp,
-                    "TRNTYP": trntyp,
-                    "AMOUNT": float(amt),
-                }
+                _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
             )
     finally:
         gi.close()

@@ -96,6 +96,42 @@ def _open(account_dir: Path, name: str, mode):
     return t
 
 
+def _department_accounts(account_dir: Path) -> frozenset:
+    """科目表里「使用部门」= Y 的科目:Express 在这些科目的分录行上记单据的部门码,其余科目不记。
+
+    真账(69SINCER)进项 1702/1702 行照此规律(52-01 进货成本、11-01 现金带部门,53 费用不带);
+    2026-09-28 真机复测推送的分录一律没带部门。读不到科目表 / 没有这一列 → 空集(照旧不带)。"""
+    try:
+        t = _open(account_dir, "GLACC", dbf.READ_ONLY)
+    except Exception:
+        return frozenset()
+    try:
+        if "USEDEP" not in t.field_names:
+            return frozenset()
+        return frozenset(
+            (r.ACCNUM or "").strip()
+            for r in S.live_rows(t)
+            if (r.USEDEP or "").strip().upper() == "Y"
+        )
+    finally:
+        t.close()
+
+
+def _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental) -> dict:
+    row = {
+        "VOUCHER": docnum,
+        "SEQIT": seqit,
+        "VOUDAT": docdat,
+        "ACCNUM": accnum,
+        "DESCRP": descrp,
+        "TRNTYP": trntyp,
+        "AMOUNT": float(amt),
+    }
+    if depcod and str(accnum).strip() in departmental:
+        row["DEPCOD"] = depcod
+    return row
+
+
 def _next_docnum(aptrn, prefix: str, docdate_be: str) -> str:
     """DOCNUM = PREFIX + 佛历YYMMDD + '-' + 当日序号(3位)。扫 APTRN 取当日最大 +1。
 
@@ -592,19 +628,12 @@ def _write_all(
     if unbalanced:  # 宁可整单失败,也不写出一张不平的凭证
         raise _WriteError(unbalanced, ERR_ENTRY_NOT_BALANCED)
 
+    departmental = _department_accounts(account_dir) if depcod else frozenset()
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
         for seqit, accnum, trntyp, amt in gl_rows:
             gi.append(
-                {
-                    "VOUCHER": docnum,
-                    "SEQIT": seqit,
-                    "VOUDAT": docdat,
-                    "ACCNUM": accnum,
-                    "DESCRP": descrp,
-                    "TRNTYP": trntyp,
-                    "AMOUNT": float(amt),
-                }
+                _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
             )
     finally:
         gi.close()

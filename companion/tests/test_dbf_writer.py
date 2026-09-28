@@ -271,6 +271,25 @@ def test_gl_balanced(datat):
     assert dr == cr == Decimal("416021.14")
 
 
+def test_journal_lines_carry_the_department_only_on_departmental_accounts(datat):
+    # 真账:科目表「使用部门」= Y 的科目分录行带单据部门码,其余不带(69SINCER 进项 1702/1702 行)
+    t = dbf.Table(str(datat / "GLACC.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    t.append({"ACCNUM": "11-04-02-00", "ACCTYP": "0", "USEDEP": "Y", "STATUS": "A"})
+    t.append({"ACCNUM": "11-05-04-01", "ACCTYP": "0", "USEDEP": "N", "STATUS": "A"})
+    t.close()
+    res = W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat),
+                           make_backup=False, depcod="0008")
+    assert res.ok
+    deps = {(r.ACCNUM or "").strip(): (r.DEPCOD or "").strip() for r in _rows(datat, "GLJNLIT", VOUCHER="RR581231-001")}
+    assert deps == {"11-04-02-00": "0008", "11-05-04-01": "", "21-02-01-00": ""}
+    # 没选部门:分录一律不带
+    res = W.write_purchase(_payload(ref_no="RR-NO-DEP"), datat, allowed_sets=("DATAT",), selected_dir=str(datat),
+                           make_backup=False)
+    assert res.ok
+    assert all(not (r.DEPCOD or "").strip() for r in _rows(datat, "GLJNLIT", VOUCHER=res.docnum))
+
+
 def test_apbal_accumulates_month_bucket(datat):
     W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
     ab = _rows(datat, "APBAL", SUPCOD="S001")[0]

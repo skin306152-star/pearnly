@@ -34,7 +34,7 @@ TABLE_SPECS = {
         "RECTYP C(1); DOCNUM C(12); DOCDAT D; REFNUM C(15); VATPRD D; VATDAT D; "
         "SUPCOD C(10); VATRAT N(5,2); FLGVAT C(1); AMOUNT B; AFTDISC B; TOTAL B; "
         "NETVAL B; VATAMT B; NETAMT B; REMAMT B; PAYAMT B; CSHPAY B; DOCSTAT C(1); "
-        "ORGNUM N(5,0); USERID C(8); DEPCOD C(2); DUEDAT D; BILNUM C(15); "
+        "ORGNUM N(5,0); USERID C(8); DEPCOD C(4); DUEDAT D; BILNUM C(15); "
         "NXTSEQ C(3); SRV_VATTYP C(1); CMPLAPP C(1); CMPLDAT D; PVATPRORAT C(1)"
     ),
     "ISVAT": (
@@ -48,7 +48,7 @@ TABLE_SPECS = {
     ),
     "GLJNLIT": (
         "VOUCHER C(12); SEQIT C(2); VOUDAT D; ACCNUM C(15); DESCRP C(50); "
-        "TRNTYP C(1); AMOUNT N(13,2)"
+        "TRNTYP C(1); AMOUNT N(13,2); DEPCOD C(4)"
     ),
     # 真表 122 列,按单别分桶:HP 现购 / RR 赊购 / CP 付款 / GR 退货 / PS 折让。写错组=月报
     # 错位(BANKREC 真账反证:Express 原生 HP 单精确落 HP 桶、RR 桶为 0)。
@@ -59,7 +59,7 @@ TABLE_SPECS = {
         "RECTYP C(1); DOCNUM C(12); DOCDAT D; YOUREF C(30); VATPRD D; VATDAT D; "
         "FLGVAT C(1); CUSCOD C(10); VATRAT N(5,2); AMOUNT B; AFTDISC B; TOTAL B; "
         "NETVAL B; VATAMT B; NETAMT B; RCVAMT B; REMAMT B; CSHRCV B; IVCAMT B; "
-        "DOCSTAT C(1); ORGNUM N(5,0); USERID C(8); DEPCOD C(2); DUEDAT D; "
+        "DOCSTAT C(1); ORGNUM N(5,0); USERID C(8); DEPCOD C(4); DUEDAT D; "
         "BILNUM C(15); NXTSEQ C(3); SRV_VATTYP C(1); CMPLAPP C(1); CMPLDAT D"
     ),
     # 真表 122 列:HS 现销 / IV 赊销 / DR 借项 / SR 退货 / RE 收款。
@@ -113,7 +113,7 @@ TABLE_SPECS = {
     # 判「选中的存货科目是不是真存货科目」,不合格就 escalate(见 stock_template)。
     "GLACC": (
         "ACCNUM C(15); ACCNAM C(50); ACCNAM2 C(50); LEVEL N(1,0); PARENT C(15); "
-        "GROUP C(1); ACCTYP C(1); NATURE C(1); STATUS C(1)"
+        "GROUP C(1); ACCTYP C(1); USEDEP C(1); NATURE C(1); STATUS C(1)"
     ),
     # 代码表。TABTYP='20' 段是单位码(TYPCOD)—— 主档 QUCOD 只能写这里面的码。
     "ISTAB": (
