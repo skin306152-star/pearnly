@@ -25,10 +25,11 @@ for product in ('dms', 'erp', 'cowork'):
     assert int(services[product + '-ocr-dispatch']['mem_limit']) >= 256 * M
 checks.append('All OCR dispatchers retain measured cold-start memory headroom')
 assert services['dms-sync-worker']['command'] == ['bench', 'worker', '--queue', 'dms_sync']
-# 8g 是实测出来的下限，不是随手填的数：整组客户快照要一次性持在内存里再落库，
-# rayong 租户 15,135 个客户的 Python 对象会膨胀到 3.5GB 左右。1g 被 OOM 杀过
-# （oom=true / anon-rss 835MB），4g 太贴边。故意改这个值时必须同时改这一行。
-assert int(services['dms-sync-worker']['mem_limit']) == 8192 * M
+# 2g 按实测定：整组客户快照要一次性持在内存里再落库。1g 被 OOM 杀过（2026-09-25，
+# anon-rss 835MB）；2026-09-28 生产 cgroup memory.peak 738MB，期间完整读完并发布了
+# ris 15,155 个客户（含无头浏览器）。原 8g 按"膨胀到 3.5GB"估算，实测从未用到。
+# 故意改这个值时必须同时改这一行。
+assert int(services['dms-sync-worker']['mem_limit']) == 2048 * M
 assert not services['dms-sync-worker'].get('ports')
 assert services['dms-sync-worker']['profiles'] == ['dms']
 assert services['dms-worker']['command'][3] == 'short,default,long'
@@ -64,8 +65,9 @@ test('DMS plus ERP exceeds the pre-migration 12 GiB host', running('dms'), 'erp'
 test('DMS dedicated sync lane plus ERP fits the current host', running('dms'), 'erp', total=HOST_MIB)
 test('All three exceed the pre-migration 12 GiB host before starting',
      running('dms')+running('erp'), 'cowork', reject=True)
-# 含 8g 同步道的候选上限：DMS 15616、加上 ERP 18496、再加上 Cowork 21376 MiB，
-# 连同宿主保留 3209 MiB 共 24585 MiB，仍然装得下 32095 MiB 的现机器（余量约 7.5 GiB）。
+# 候选上限（2026-09-28，含 2g 同步道、各识别进程 1g/2g）：公共 4032 + DMS 5952 = 9984、
+# 加上 ERP 14400、再加上 Cowork 18816 MiB，连同宿主保留 3209 MiB 共 22025 MiB，
+# 装得下 32095 MiB 的现机器（余量约 9.8 GiB）。
 test('All three products fit the current host', running('dms')+running('erp'), 'cowork',
      total=HOST_MIB)
 test('Idle products still reserve full candidate limits', running('dms'), 'erp', total=9000, reject=True)
