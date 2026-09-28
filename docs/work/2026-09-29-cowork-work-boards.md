@@ -18,11 +18,12 @@
 - 本次不做：公开链接、卡片级权限、跨看板的「我的任务」汇总、看板背景 / 星标 / 模板看板 / 看板彻底删除、列表跨看板移动。
 - 本次范围状态：进行中
 - 收尾状态：施工中
-- 分支 / 基线 SHA / 工作树 / 集成目标：`codex/cowork-work-boards` / `43dcf12f` / `.claude/worktrees/eager-williamson-e6a07a` / `main`
+- 分支 / 基线 SHA / 工作树 / 集成目标：`codex/cowork-work-boards` / 开工 `43dcf12f`，已变基到 `413bb5bb`（对账修复，无冲突）/ `.claude/worktrees/eager-williamson-e6a07a` / `main`
 - 合并 / 推送 / 远端回读状态：未合并、未推送
 - 允许修改的路径：`apps/pearnly_cowork/pearnly_cowork/work/`、新 DocType `cowork_work_board` / `cowork_work_board_member`、
   已有 `cowork_work_*` DocType 加 `board` 字段、`patches/`、`patches.txt`、`hooks.py`（权限登记）、`public/desk/work.js` / `work.css`、
-  `i18n/messages.tsv` 与生成的翻译包、`scripts/test-cowork-work-native.py`、`tests/`、本记录。不动共用层（`pearnly_core`）。
+  `i18n/messages.tsv` 与生成的翻译包、`scripts/test-cowork-work-native.py`、新脚本 `scripts/test-cowork-work-boards-native.py`、`tests/`、
+  `docs/development/architecture.md`（`work` 域一行）、本记录。不动共用层（`pearnly_core`），所以不需要与 DMS 窗口约共用层改动。
 - 运行资源：测试机 Cowork 栈（`testcowork.pearnly.com`，需与占用窗口约时间）；本机只用一次性容器 + 临时站点，不接管共享样板。
 - 必要外部操作：无外部写入。合并、生产部署各需用户同意。
 
@@ -105,16 +106,44 @@
 
 ## 变更与决定
 
-（施工中）
+- 纯规则 `contracts.board_rights` / `member_changes`：权限矩阵与成员名单改动的限制（普通成员只能加减成员 / 观察者、只有看板管理员改角色、
+  任何人可离开、已有管理员的板不能减到零个管理员）。
+- `access`：`rights(board)`（一次请求内缓存，看板设置 / 成员改了清掉）、`viewers(board)`、原生查询条件按可见看板（活动 / 提醒经卡片所在看板；
+  自动化只给看板管理员）；已归档的看板只读（只剩看与管理）。
+- 新模块 `boards`：默认看板（兜底建完当场提交，同默认列表）、看板列表（默认看板在前）、新建（建的人是管理员，带默认三列与六个颜色标签）、
+  设置、归档 / 恢复（默认看板不能归档）、成员名单读 / 存、可分派的人。
+- `service` 每个入口改为先取对象、再按所在看板核对权利；看板级接口加 `board`（缺省 = 默认看板）；页面 `board(fallback=1)` 在记着的看板
+  没了 / 看不了 / 归档时退回默认看板，不弹错。跨看板移动：标签、字段值只留目标看板有的，负责人 / 关注人只留能看目标看板的人；
+  复制：源卡能看 + 目标能改；镜像：源卡能看 + 目标能改，看不到源卡看板的人在目标看板上看不到这条镜像（`foreign` 只给能看的人）。
+- 彻底删除已归档卡片 / 列表从「只给 Cowork 管理员」放宽为「能管这块板的人」（看板管理员 + Cowork 管理员）。
+- `notify`：实时刷新 `cowork_work_changed` 逐人推给能看该看板的人（不再全站广播，带看板号）；站内提醒收件人按看板过滤；
+  提醒列表 / 未读数只算还能看的看板上的卡。`reminders` 跳过已归档看板上的卡。
+- 页面：筛选区第一格「看板」切换（每人记在浏览器本地）；右上菜单「新建看板」「看板设置」「看板成员」，标签 / 自定义字段 / 自动化 /
+  看板设置只对能管的人出现；只读（观察者、已归档的看板）时没有任何写入口（加卡、加列表、列表菜单、卡片悬停按钮、完成圆圈、拖动、日历拖动），
+  卡片详情字段只读、没有保存 / 上传 / 归档，评论框按「谁能评论」；快捷菜单的移动 / 复制 / 镜像先选看板（只列能改的）再选列表；
+  从提醒、卡片链接打开别的看板上的卡时先切到那块板；已归档里多一节「已归档的看板」（只列自己能管的，可恢复）。
+- 四语词条 32 条（`cowork.work.board.*`、`cowork.work.archived.boards`、5 条错误），不加说明文字。
+- `features.json`、侧栏菜单与角色不变（任务管理不单独售卖；能建看板 = 已有的「任务管理」角色）。
 
 ## 验证
 
-（施工中）
+| 时间 | 代码 | 环境与数据归属 | 命令或场景 | 结果 |
+| --- | --- | --- | --- | --- |
+| 2026-09-29 | 未提交差异（基于 `43dcf12f`） | 本机离线 | `tests/test_cowork_work_boards.py`（12 条：矩阵各身份、成员改动限制、最后一个管理员、坏输入）、`tests/test_cowork_work_contracts.py`（17 条） | 通过 |
+| 2026-09-29 | 同上 | 本机一次性容器 `pearnly-boards-test`（样板同一镜像 `pearnly/frappe-sample:16.34.1`，自己的站点卷；连样板 MariaDB 新建独立库 `boards-test.localhost`；不碰共享样板站点） | **升级**：先挂 `43dcf12f` 旧代码建站并造旧数据（3 列表、2 卡、7 标签、1 字段、1 规则、1 镜像、1 评论）→ 换本工作树 `migrate` | 补丁执行；1 块默认看板（团队可见、评论=成员、成员管理=所有成员、无显式成员）；六类记录 `board` 空值 0；再 `migrate` 与直接重跑补丁均不多建 |
+| 2026-09-29 | 同上 | 同上 + 新建站 `boards-fresh.localhost`（本工作树直接装） | **新装**：`after_install` 建默认看板、三列、六标签 | 通过 |
+| 2026-09-29 | 同上 | 两个临时站点 | `scripts/test-cowork-work-boards-native.py`：每个接口按「成功 / 没有任务管理权限 / 观察者 / 私有看板非成员 / Cowork 管理员」走；另测评论三档、成员加减限制与离开、规则只给管理员（原生列表也读不到）、原生列表与行权限、附件下载、实时刷新接收人、离开看板后提醒消失、到期提醒不发给看不到的人、跨看板移动 / 复制 / 镜像、归档看板只读、默认看板照常可改；整段一个事务，过程中禁止提交，最后回滚 | 通过；回滚后看板 1、临时用户 0、附件 0 |
+| 2026-09-29 | 同上 | 两个临时站点 | `scripts/test-cowork-work-native.py`（原有全套；标签 / 字段 / 自动化改由 Cowork 管理员设置，并加测成员保存标签、读规则被拒） | 通过 |
+| 2026-09-29 | 同上 | 临时站点 + 内置浏览器（`bench serve` 只绑本机 127.0.0.1:8199，测试账号为本次生成） | 默认看板原样显示旧数据；切换看板；看板管理员的菜单、成员弹窗添加成员、看板设置；观察者：菜单只有提醒 / 新建看板 / 成员 / 已归档，看板上没有写入口，卡片详情只读、无评论框；新建看板后切到新板可编辑；快捷菜单「移动」选另一块看板后卡片移过去 | 通过；过程中修掉：观察者悬停仍出按钮（CSS 优先级）、只读详情报错（给不存在的字段设属性）、只读下拉显示代码、成员弹窗加人后选择框没清空、成员行按钮不齐 |
+| 2026-09-29 | `1ba042ad`（变基到 `413bb5bb` 后） | 本机离线（CI 同名闸门，Python 3.12 / Node） | architecture guard、native desk contract、feature catalog、LIFF、queue targets、DMS call/identity、`check-architecture`、`check-dms-offline`、provision agent、capacity、activate product、companion contract/receiver、welcome email、purchase amounts、tax documents、Node 各 Desk 测试、`i18n-build --check`、`git diff --check` | 通过（本机默认 python3 是 3.9，三项因 `X \| None` 语法报错，用 3.12 复跑通过；CI 用 3.12） |
+| 2026-09-29 | 同上 | 临时站点 | 变基后 `migrate` + 两个脚本在两个站点复跑 | 通过 |
+
+`python3 scripts/check-i18n.py --strict` 的失败是存量（其他模块硬编码文案），本任务文件不在报告里。
 
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
-| 实现 | 施工中 | |
-| 本地验证 | 未执行 | |
+| 实现 | 完成（待测试机与用户试用） | |
+| 本地验证 | 通过 | 见上表；实时刷新只验了接收人名单（替身），没在两个真会话里看 |
 | 测试机 | 未执行 | 测试机当前被「Take over Express stress test findings」窗口占用，需约时间 |
 | CI | 未执行 | |
 | 部署 | 未执行 | 需用户同意 |
