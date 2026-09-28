@@ -43,5 +43,16 @@ class DuplicateRules(unittest.TestCase):
             self.assertFalse(rules.matches(rules.terms(self.row), dict(self.row, **{key: value}), "likely"))
 
 
+    def test_same_party_date_and_amount_is_a_duplicate_whatever_the_number_reads(self):
+        # 2026-09-28：同一张油票在两三张照片里，单号每次读得不一样 → 第三道按对方税号 + 日期 + 金额
+        current = rules.party_terms({"invoice_date": "2026-06-09", "total_amount": "1,104.00"}, "0105536080112")
+        self.assertTrue(rules.party_matches(current, "0105536080112", {"invoice_date": "2026-06-09",
+                                                                       "total_amount": "1104"}))
+        self.assertFalse(rules.party_matches(current, "0105536080112", {"invoice_date": "2026-06-10",
+                                                                        "total_amount": "1104"}))
+        self.assertFalse(rules.party_matches(rules.party_terms({"invoice_date": "2026-06-09", "total_amount": "1"},
+                                                               "105536080112"), "105536080112",
+                                             {"invoice_date": "2026-06-09", "total_amount": "1"}))  # 税号不全不比
+
 if __name__ == "__main__":
     unittest.main()

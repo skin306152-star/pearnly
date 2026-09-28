@@ -10,6 +10,7 @@ from pearnly_cowork.ocr.engine import (
 )
 from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
 from pearnly_cowork.ocr.engine.contracts import ProviderFailure
+from pearnly_cowork.ocr.engine.errors import ContentError as ContentErrorBase
 from pearnly_cowork.ocr.engine.config import config_from_environment
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.engine.patterns import InvoicePatternMemory
@@ -98,6 +99,18 @@ class EngineTests(unittest.TestCase):
         run(model=model)
         self.assertEqual([r.attempt for r in model.requests][:2], [0, 1])  # 不是对象的数组仍按格式错误重试
 
+    def test_one_unreadable_page_does_not_fail_a_multi_page_file(self):
+        # 2026-09-28 压测：15 页 PDF 其中一页模型写满上限，直读、复核、带原文再读都没结果 → 以前整份失败
+        garbage = "{\"invoice_number\": \"IV69/0" + "0" * 50
+        model = Model([GOOD, garbage, garbage, garbage, garbage, GOOD])
+        pages = run(source=Source(3), model=model).pipeline.pages
+        self.assertEqual([p.layer_chain[-1] for p in pages][1], "PAGE_UNREAD")
+        self.assertTrue(pages[1].needs_manual_review)
+        self.assertTrue(pages[1].validation_warnings[0].startswith("page_unread: page 2"))
+        self.assertEqual((pages[0].invoice.invoice_number, pages[2].invoice.invoice_number), ("IV69/100", "IV69/100"))
+        with self.assertRaises(ContentErrorBase):  # 只有一页的文件照旧报错
+            run(source=Source(1), model=Model([garbage] * 6))
+
     def test_only_the_failed_page_is_rechecked_and_all_usage_is_kept(self):
         # ADR-013：一页没过闸只复核那一页，不再把整份文件改走 Vision 重读
         model, source = Model([GOOD, {"total_amount": ""}, GOOD]), Source(2)
@@ -133,7 +146,8 @@ class EngineTests(unittest.TestCase):
         run(model=model)
         for request in model.requests:
             self.assertNotIn("source_refs", request.prompt.split("A first reading")[0])
-            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4500)
+            # 上限随 2026-09-28 加的第 14 条（会计盖的凭证号章不是票号）放宽到 4800：仍远小于 L2 的 1.2 万。
+            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4800)
 
     def test_a_full_tax_invoice_is_checked_against_the_transcript(self):
         # 2026-09-27 大语料：直读把单号读错一个字符、金额全对 —— 完整税票过了闸也拿 Vision 原文核对单号；

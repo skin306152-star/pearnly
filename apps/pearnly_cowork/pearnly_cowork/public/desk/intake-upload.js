@@ -28,8 +28,9 @@
 		submitting: "Submitting", recognizing: "intake.status.recognizing",
 		recognized: "intake.status.recognized", not_invoice: "not_invoice", failed: "Failed"};
 	// 识别是后台排队做的：受理后按旧线上 `ocr-job-poll.ts` 的节奏轮询批次，直到有结论。
-	//   每 1.5 秒一次、最长 20 分钟；连续 10 次读不到状态（约 15 秒）才算失联。
-	const POLL = {every_ms: 1500, max_ms: 20 * 60 * 1000, soft_fails: 10};
+	//   每 1.5 秒一次、最长 60 分钟（服务端排队 30 分钟没开始才过期、开始处理后不再按提交时间过期；
+	//   原来 20 分钟就在页面上判超时，服务端其实还在做 · 2026-09-28 压测）；连续 10 次读不到状态（约 15 秒）才算失联。
+	const POLL = {every_ms: 1500, max_ms: 60 * 60 * 1000, soft_fails: 10};
 	// 批次状态：`saved` 有记录、`not_invoice` 没有发票；任务 `failed/uncertain/cancelled` 是失败；
 	// 其余（受理、排队、运行、延后、识别中）都还在做。
 	const FINISHED = new Set(["saved", "not_invoice"]);

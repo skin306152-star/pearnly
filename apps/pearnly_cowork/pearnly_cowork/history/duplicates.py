@@ -79,7 +79,31 @@ def _find(workspace, client, summary):
             if len(rows) < 100:
                 break
             offset += len(rows)
-    return {"duplicate_check_status": "clear"}
+    return _find_party(workspace, client, summary) or {"duplicate_check_status": "clear"}
+
+
+def _find_party(workspace, client, summary):
+    """第三道（有意新增，见 `contracts/duplicates.MATCH_FIELDS["party"]`）：同一对方税号 + 同日期 + 同金额。
+
+    在当前用户看得见的本公司记录里查（同一批别人上传的照片也算），仍走原生可见性条件。"""
+    from pearnly_cowork.contracts.history import primary_page_fields
+
+    fields = primary_page_fields(summary.get("pages") or [])
+    column = "buyer_tax" if fields.get("direction") == "sales" else "seller_tax"
+    current = rules.party_terms(summary, fields.get(column))
+    if not (current["party_tax"] and current["invoice_date"] and current["total_amount"] is not None):
+        return None
+    where = f"({scope.history_query()}) AND workspace=%s AND invoice_date=%s AND {column} IS NOT NULL"
+    params = [workspace, current["invoice_date"]]
+    if client:
+        where += " AND (client=%s OR COALESCE(client, '')='')"
+        params.append(client)
+    rows = frappe.db.sql(f"""SELECT name, invoice_date, total_amount, {column} AS party_tax FROM {TABLE}
+        WHERE {where} ORDER BY creation DESC, name DESC LIMIT 200""", params, as_dict=True)
+    for row in rows:
+        if rules.party_matches(current, row.party_tax, row):
+            return {"duplicate_check_status": "matched", "duplicate_level": "party", "duplicate_match": row.name}
+    return None
 
 
 def check(workspace, client, summary):

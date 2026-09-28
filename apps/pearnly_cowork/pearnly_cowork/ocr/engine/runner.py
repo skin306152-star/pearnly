@@ -35,7 +35,7 @@ from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
     PageSource, ProviderFailure, VisionCall,
 )
-from pearnly_cowork.ocr.engine.errors import ContentError, EngineError
+from pearnly_cowork.ocr.engine.errors import ContentError, DirectFallback, EngineError
 from pearnly_cowork.ocr.engine.parsing import _parse_json
 from pearnly_cowork.ocr.engine.prompts import (
     L2_RETRY_HINT, L2_SYSTEM, L2_USER_PREFIX,
@@ -51,6 +51,10 @@ OCR_READ_TOKENS = 8192
 # 复核读数里空着、第一次读到了的字段沿用第一次（实测复核把金额改对的同时丢了买方）。
 KEEP_FROM_FIRST = frozenset({"additional_invoices", "source_refs", "is_not_invoice", "is_copy_or_duplicate"})
 IMAGE_READS = ("direct", "recheck", "ocr_read")
+
+
+UNREAD_STAGE = "PAGE_UNREAD"
+UNREAD_PREFIX = "page_unread:"
 
 
 def is_auth_failure(failure: ProviderFailure) -> bool:
@@ -275,6 +279,13 @@ class _Run:
             final_confidence=confidence, validation_warnings=warnings,
         )
 
+    def unread_page(self, page, exc):
+        """一页读不出：空票面 + 标记，交结果准备挂到相邻单据上（不计成一张票）。"""
+        return PipelinePageResult(
+            page_number=page, invoice=self.parse_invoice({}, "unread", page), document_type=self.config.document_type,
+            layer_chain=[UNREAD_STAGE], needs_manual_review=True, confidence_band="needs_review",
+            validation_warnings=[f"{UNREAD_PREFIX} page {page} ({exc.code})"], error=exc.code)
+
     def bucket(self, confidence, force):
         return bucket_confidence(confidence, force, auto_threshold=self.config.auto_threshold,
                                  review_threshold=self.config.review_threshold)
@@ -488,13 +499,27 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
             raise EngineError("ocr.page_association_invalid")
     run = _Run(source, model_call, vision_call, config, anchor_year, today,
                fewshot_selector, pattern_memory)
+
+    def read(page, reader):
+        # 多页文件里一页读不出（模型输出失控写满上限、格式坏，直读与带原文再读都没结果）不再拖垮整份：
+        # 这一页记成没读出，其余页照常入库，由结果准备挂到前一张单据上标红（2026-09-28 压测：15 页 PDF
+        # 三次都因同一页失败）。只有一页的文件照旧报错；换 Vision 的信号（DirectFallback）照旧往外抛。
+        try:
+            return reader(page)
+        except ContentError as exc:
+            if source.page_count == 1 or isinstance(exc, DirectFallback):
+                raise
+            return run.unread_page(page, exc)
+
     if text_pages is None and config.direct_enabled and source.page_count <= config.max_direct_pages:
-        pages = [run.image_page(i) for i in range(1, source.page_count + 1)]
+        pages = [read(i, run.image_page) for i in range(1, source.page_count + 1)]
         engine = "image_direct" if all(p.layer_chain == ["ID"] for p in pages) else "image_checked"
     else:
         engine = "pipeline_v1"
-        pages = [run.pipeline_page(i, text_pages[i - 1] if text_pages is not None else None)
+        pages = [read(i, lambda i: run.pipeline_page(i, text_pages[i - 1] if text_pages is not None else None))
                  for i in range(1, source.page_count + 1)]
+    if all(UNREAD_STAGE in p.layer_chain for p in pages):
+        raise EngineError("ocr.all_pages_unread")
     # Adapters must supply a stable key. Empty keys (pure callers) represent unique calls.
     seen, calls = set(), []
     for call in run.calls:

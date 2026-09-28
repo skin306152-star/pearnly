@@ -68,7 +68,8 @@ Rules:
 10. document_type: "tax_invoice" = full ใบกำกับภาษี with a legal เลขที่ and the seller's 13-digit tax ID (fuel receipts included when they have both). "simplified_tax_invoice" = ใบกำกับภาษีอย่างย่อ / ABB / shop POS slip: keep the receipt running number as printed; on "R#0000970791P2 :0302013" the invoice number is the R# part, the ":0302013" is the store code. "payment_evidence" = bank transfer / PromptPay slip. "order_evidence" = online-shop order screenshot (order no. as invoice_number). Otherwise "receipt".
 11. is_not_invoice = true only for a letter, contract, blank page, purchase order, quotation, a bare delivery note (no ใบกำกับภาษี in the title) or a bare card-approval slip with no goods and no seller tax ID. "ใบส่งของ/ใบกำกับภาษี" is a tax invoice. is_copy_or_duplicate = true when marked สำเนา / COPY / DUPLICATE.
 12. Several invoices on one image (more than one invoice number / header / grand total): the first goes in the top-level fields, each other one as a complete object in additional_invoices. Never merge or drop one.
-13. Branch (สาขา): seller_branch / buyer_branch = that party's branch as printed next to its name or tax ID, as 5 digits: "สำนักงานใหญ่" / "Head Office" / "HQ" -> "00000"; "สาขาที่ 18" / "สาขา 00018" / "Branch 18" -> "00018". Empty when not printed. Never copy one party's branch to the other."""
+13. Branch (สาขา): seller_branch / buyer_branch = that party's branch as printed next to its name or tax ID, as 5 digits: "สำนักงานใหญ่" / "Head Office" / "HQ" -> "00000"; "สาขาที่ 18" / "สาขา 00018" / "Branch 18" -> "00018". Empty when not printed. Never copy one party's branch to the other.
+14. invoice_number is the number the issuer printed (เลขที่ / No.), never one stamped or handwritten later by the buyer (accounting voucher stamps such as RR690609-001, PV / JV numbers)."""
 
 
 def build_recheck_prompt(previous, reason):

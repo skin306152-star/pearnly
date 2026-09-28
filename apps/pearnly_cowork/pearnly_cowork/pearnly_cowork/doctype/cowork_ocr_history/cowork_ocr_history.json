@@ -70,7 +70,7 @@
    "fieldname": "duplicate_level",
    "fieldtype": "Select",
    "label": "Duplicate Match Level",
-   "options": "\nexact\nlikely",
+   "options": "\nexact\nlikely\nparty",
    "read_only": 1,
    "hidden": 1
   },

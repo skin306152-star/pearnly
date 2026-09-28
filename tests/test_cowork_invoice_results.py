@@ -55,6 +55,26 @@ class InvoiceResultPreparation(unittest.TestCase):
         self.assertEqual(result.model_dump(mode="json"), original)
         self.assertNotIn("direction", plan["raw_pages"][0]["fields"])
 
+    def test_an_unread_page_joins_the_invoice_before_it_and_flags_it(self):
+        unread = PipelinePageResult(page_number=2, invoice=invoice(), layer_chain=["PAGE_UNREAD"],
+            needs_manual_review=True, confidence_band="needs_review",
+            validation_warnings=["page_unread: page 2 (ocr.response_json_invalid)"], error="ocr.response_json_invalid")
+        result = batch(page(1, invoice(invoice_number="A", total_amount="107")), unread,
+                       page(3, invoice(invoice_number="B", total_amount="214")))
+        plan = prepare(result)
+        self.assertEqual(plan["state"], "review_required")
+        self.assertEqual([group["source_page_indices"] for group in plan["groups"]], [[1, 2], [3]])
+        first = plan["groups"][0]["pages"][0]
+        self.assertTrue(first["_needs_manual_review"])
+        self.assertIn("page_unread: page 2 (ocr.response_json_invalid)", first["_validation_warnings"])
+        # 第 1 页就读不出：挂到第一张
+        plan = prepare(batch(unread.model_copy(update={"page_number": 1}), page(2, invoice(invoice_number="B",
+                                                                                          total_amount="1"))))
+        self.assertEqual(plan["groups"][0]["source_page_indices"], [1, 2])
+        # 全部读不出：整份失败
+        with self.assertRaises(OcrResultError):
+            prepare(batch(unread.model_copy(update={"page_number": 1})))
+
     def test_same_page_multiple_invoices_do_not_double_physical_page_count(self):
         main = invoice(invoice_number="A", total_amount="107", additional_invoices=[
             {"invoice_number": "B", "total_amount": "214"}])

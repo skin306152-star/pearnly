@@ -18,6 +18,8 @@ from pearnly_cowork.ocr.pages import (
 )
 from pearnly_cowork.ocr.schema.results import PipelineResult
 
+UNREAD_STAGE = "PAGE_UNREAD"  # 与 `ocr.engine.runner.UNREAD_STAGE` 同一标记（结果准备不反向依赖引擎）
+
 
 class OcrResultError(ValueError):
     def __init__(self, code, **details):
@@ -52,7 +54,15 @@ def _require_complete(result, expected_page_count):
     missing, unexpected = sorted(expected - set(physical)), sorted(set(physical) - expected)
     duplicates = sorted(number for number, count in counts.items() if count > 1)
     failed, review_pages = [], set()
+    # 多页文件里读不出的页（`runner.unread_page`）：不算整份失败，挂到相邻单据上标红（见 `_attach_unread`）；
+    # 全部页都读不出仍是失败（引擎那边已拦）。
+    unread = {page.page_number for page in result.pages if UNREAD_STAGE in page.layer_chain}
+    if unread and len(unread) == len(result.pages):
+        failed.extend(sorted(unread))
     for page in result.pages:
+        if page.page_number in unread:
+            review_pages.add(page.page_number)
+            continue
         chain = {str(stage).upper() for stage in page.layer_chain}
         hard_failure = any(stage == "FAILED" or (stage.endswith("_FAILED") and stage not in _L2_REVIEW_FALLBACKS)
                            for stage in chain)
@@ -72,6 +82,26 @@ def _require_complete(result, expected_page_count):
             reported_page_count=result.page_count, missing_pages=missing, unexpected_pages=unexpected,
             duplicate_pages=duplicates, failed_pages=sorted(failed))
     return review_pages
+
+
+def _attach_unread(groups, unread):
+    """读不出的页挂到前一张单据上（从第 1 页起读不出的挂第一张），并在那张票上标红「有一页没读出」。
+
+    与 ERP `recognition.policy.read_all` 同一做法：不进分组算法（空白页会被当成续页并进上一张，
+    按金额分界时又进下一张，两种方向不一致），分完再挂。"""
+    if not unread or not groups:
+        return groups
+    for page in sorted(unread, key=lambda item: item["page_index"]):
+        before = [group for group in groups if min(group["page_indices"]) < page["page_index"]]
+        group = max(before, key=lambda item: min(item["page_indices"])) if before else groups[0]
+        group["source_pages"].append(deepcopy(page))
+        group["page_indices"] = sorted([*group["page_indices"], page["page_index"]])
+        first = group["source_pages"][0]
+        first["_validation_warnings"] = [*(first.get("_validation_warnings") or []),
+                                         *(page.get("_validation_warnings") or [])]
+        first["_needs_manual_review"] = True
+        first["_confidence_band"] = "needs_review"
+    return groups
 
 
 def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, workspace: str,
@@ -126,8 +156,10 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
         return {"state": "not_invoice", "groups": [], "raw_pages": raw, "invoice_count": 0,
                 **references, "confidence": None,
                 "confidence_band": band, "requires_review": bool(review_pages), "has_billable_result": False}
-    assessed = assess_confidence(raw)
-    groups = group_invoices(assessed["pages"])
+    unread = [page for page in raw if UNREAD_STAGE in (page.get("_layer_chain") or [])]
+    raw_read = [page for page in raw if UNREAD_STAGE not in (page.get("_layer_chain") or [])]
+    assessed = assess_confidence(raw_read)
+    groups = _attach_unread(group_invoices(assessed["pages"]), unread)
     prepared = []
     declared_direction = normalize_direction(direction)
     # 入口勾的付款方式（现金/赊账）：先归一，再逐张写成人工裁决。

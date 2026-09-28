@@ -19,6 +19,8 @@ DT = "Pearnly OCR Work"
 ACTIVE = ("queued", "running", "deferred")
 JOB_TIMEOUT = 600
 PRUNE_BATCH = 500
+# 付过费的任务在排队时限之后还能续跑多久（续跑只补剩下的页，已付的部分不会重复扣）。
+PAID_GRACE = timedelta(hours=3)
 
 
 def utcnow():
@@ -193,7 +195,11 @@ def run(name):
     if any(value.get("state") == "started" for value in stages.values()):
         _finish(name, "uncertain", "provider_outcome_unknown")
         return
-    if doc.expires_at <= now:
+    # 排队时限：已经付过费（有完成的检查点）的任务续跑时不按提交时间判过期，否则已付费的调用作废、用户只能重传
+    # （2026-09-28 Cowork 压测：66 份一起提交，处理中途续跑被判排队超时）。还没付费的照旧按时限过期（开跑后在准入 /
+    # 限流上一直被推迟的也算，免得几小时后才真正扣费）；付过费的也有绝对上限，不无限期拖（DMS 窗口 2026-09-28 意见）。
+    paid = any(value.get("state") == "done" for value in stages.values())
+    if (not paid and doc.expires_at <= now) or doc.expires_at + PAID_GRACE <= now:
         _finish(name, "failed", "queue_expired")
         return
     frappe.db.set_value(DT, name, {"status": "running", "attempts": (doc.attempts or 0) + 1,
