@@ -8,6 +8,7 @@
 A board needs at least one list,บอร์ดต้องมีอย่างน้อยหนึ่งรายการ
 A client cannot be moved to another company.,ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
+A date could not be read. Check the date format in the file,มีวันที่ที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบวันที่ในไฟล์
 "A document section exceeds 30,000 characters. Split the document before recognition.","มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน"
 A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
@@ -23,12 +24,15 @@ A referenced history record is unavailable in the selected company and client.,�
 A reported ERP action is invalid.,การดำเนินการ ERP ที่รายงานไม่ถูกต้อง
 A reported ERP field is invalid.,ฟิลด์ ERP ที่รายงานไม่ถูกต้อง
 A request key of 1 to 128 characters is required.,รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ
+A required text field is empty. Fill it in and try again,มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่
 A review workbook must contain between 1 and 500 invoices.,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 A successful push has no ERP document number. Check its receipt.,รายการส่งสำเร็จไม่มีเลขที่เอกสาร ERP โปรดตรวจสอบผลตอบรับ
+A text field is too long. Shorten it and try again,มีข้อความยาวเกินไป กรุณาทำให้สั้นลงแล้วลองใหม่
 A timezone-aware UTC timestamp is required.,ต้องระบุเวลา UTC พร้อมเขตเวลา
 A value in the ERP data report exceeds the allowed length.,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
+A withdrawal or deposit is negative. Check the withdrawal and deposit columns,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Access to the Companion queue has been revoked.,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
 Account Key,คีย์ชุดบัญชี
@@ -67,6 +71,8 @@ Already exists,มีอยู่แล้ว
 Amount,จำนวนเงิน
 An account needed for this invoice is not set. Check the account settings,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
+An amount could not be read. Check the amount format in the file,มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์
+An amount has too many decimal places. Check the file,มีจำนวนเงินที่มีทศนิยมมากเกินไป กรุณาตรวจสอบไฟล์
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
 An option in the ERP data report is invalid.,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
@@ -763,6 +769,7 @@ Some fields are uncertain. Check them against the original and submit again,บ�
 Some line items have no name or amount,บางรายการไม่มีชื่อหรือจำนวนเงิน
 Some line items have no name or amount. Fix the lines and submit again,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
+Some rows in the file could not be understood. Check the file format,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
 Some rows were skipped,บางแถวไม่ได้นำเข้า
 Someone else changed this card. Close it and open it again.,มีคนแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
 Someone else changed this reconciliation. Reload it before saving.,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
@@ -885,6 +892,7 @@ The document sections are incomplete or invalid.,ส่วนข้อมูล�
 The entry does not balance. Check the amounts,รายการบัญชีไม่สมดุล กรุณาตรวจยอดเงิน
 The export contains an invalid or repeated history reference.,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน
 The file exceeds the allowed size.,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
+The file has too many rows. Split it and reconcile each part,ไฟล์มีจำนวนแถวมากเกินไป กรุณาแบ่งไฟล์แล้วกระทบยอดทีละส่วน
 The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The file is larger than 5 MB.,ไฟล์มีขนาดเกิน 5 MB
 The file size or page metadata is invalid.,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
@@ -942,6 +950,7 @@ The quantity is not a valid number,จำนวนไม่ถูกต้อง
 The recognized content does not match the original references.,เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ
 The recognized invoice manifest cannot be replaced.,ไม่สามารถแทนที่รายการเชื่อมโยงใบแจ้งหนี้ที่อ่านแล้วได้
 The reconciliation could not be completed.,การกระทบยอดไม่สำเร็จ
+The reconciliation data is not in the expected format. Upload the files again,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 The reconciliation task was not found.,ไม่พบงานกระทบยอดนี้
 The record changed. Reload it before saving.,รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก
 The record data is not valid JSON.,ข้อมูลรายการไม่ใช่ JSON ที่ถูกต้อง
@@ -1857,6 +1866,13 @@ push.request_invalid,คำขอส่งไม่ถูกต้อง
 push.utc_required,ต้องระบุเวลา UTC พร้อมเขตเวลา
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
+reconciliation.amount_invalid,มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์
+reconciliation.amount_negative,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
+reconciliation.amount_precision,มีจำนวนเงินที่มีทศนิยมมากเกินไป กรุณาตรวจสอบไฟล์
+reconciliation.amount_tolerance_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.balance_state_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.confidence_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.date_invalid,มีวันที่ที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบวันที่ในไฟล์
 reconciliation.dedicated_api_required,กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด
 reconciliation.edit_conflict,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
 reconciliation.failed,การกระทบยอดไม่สำเร็จ
@@ -1868,6 +1884,9 @@ reconciliation.gl_parse_failed,ไม่สามารถอ่านบัญ�
 reconciliation.gl_source_invalid,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 reconciliation.header_invalid,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
 reconciliation.ledger_unparsed,ไม่สามารถอ่านบัญชีแยกประเภทได้
+reconciliation.parse_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.parse_info_too_many,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 reconciliation.review_amount_invalid,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม
@@ -1875,8 +1894,15 @@ reconciliation.review_balance_mismatch,กรุณาแก้ไขส่ว�
 reconciliation.review_required,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
 reconciliation.review_rows_invalid,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
 reconciliation.review_unavailable,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
+reconciliation.row_invalid,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
+reconciliation.row_unknown_field,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
+reconciliation.rows_invalid,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
+reconciliation.rows_too_many,ไฟล์มีจำนวนแถวมากเกินไป กรุณาแบ่งไฟล์แล้วกระทบยอดทีละส่วน
+reconciliation.run_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้
 reconciliation.task_not_found,ไม่พบงานกระทบยอดนี้
+reconciliation.text_required,มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่
+reconciliation.text_too_long,มีข้อความยาวเกินไป กรุณาทำให้สั้นลงแล้วลองใหม่
 reconciliation.type_invalid,ประเภทการกระทบยอดไม่ถูกต้อง
 reconciliation.vat_no_rows,รายงานภาษีไม่มีรายการ
 reconciliation.vat_report_unparsed,"ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ"

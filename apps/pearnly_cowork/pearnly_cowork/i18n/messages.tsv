@@ -1178,3 +1178,20 @@ The helper on this PC does not have this account set, or cannot write to it. Che
 The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again	准备推送时小助手不在线，或还没报上这份账套。请确认小助手在运行后再推一次	ตอนเตรียมส่ง ผู้ช่วยออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่าผู้ช่วยทำงานอยู่ แล้วส่งอีกครั้ง	送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
 Add Row	添加一行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจสอบเอกสาร	書類を確認	
+An amount could not be read. Check the amount format in the file	有金额读不出来，请检查文件里的金额格式	มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์	読み取れない金額があります。ファイルの金額の書式を確認してください	reconciliation.amount_invalid
+A withdrawal or deposit is negative. Check the withdrawal and deposit columns	有支出或存入金额是负数，请检查支出 / 存入两列	มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก	出金または入金にマイナスの金額があります。出金・入金の列を確認してください	reconciliation.amount_negative
+An amount has too many decimal places. Check the file	有金额小数位太多，请检查文件	มีจำนวนเงินที่มีทศนิยมมากเกินไป กรุณาตรวจสอบไฟล์	小数点以下の桁が多すぎる金額があります。ファイルを確認してください	reconciliation.amount_precision
+A date could not be read. Check the date format in the file	有日期读不出来，请检查文件里的日期格式	มีวันที่ที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบวันที่ในไฟล์	読み取れない日付があります。ファイルの日付の書式を確認してください	reconciliation.date_invalid
+A required text field is empty. Fill it in and try again	有必填的文字是空的，请补上后再试	มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่	必須の文字項目が空です。入力してからもう一度お試しください	reconciliation.text_required
+A text field is too long. Shorten it and try again	有文字太长，请缩短后再试	มีข้อความยาวเกินไป กรุณาทำให้สั้นลงแล้วลองใหม่	文字が長すぎる項目があります。短くしてからもう一度お試しください	reconciliation.text_too_long
+Some rows in the file could not be understood. Check the file format	文件里有读不懂的行，请检查文件格式	มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์	ファイルに読み取れない行があります。ファイルの形式を確認してください	reconciliation.row_invalid
+Some rows in the file could not be understood. Check the file format	文件里有读不懂的行，请检查文件格式	มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์	ファイルに読み取れない行があります。ファイルの形式を確認してください	reconciliation.rows_invalid
+Some rows in the file could not be understood. Check the file format	文件里有读不懂的行，请检查文件格式	มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์	ファイルに読み取れない行があります。ファイルの形式を確認してください	reconciliation.row_unknown_field
+The file has too many rows. Split it and reconcile each part	行数超过上限，请分成几份再对账	ไฟล์มีจำนวนแถวมากเกินไป กรุณาแบ่งไฟล์แล้วกระทบยอดทีละส่วน	行数が多すぎます。ファイルを分けて照合してください	reconciliation.rows_too_many
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.confidence_invalid
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.balance_state_invalid
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.parse_info_invalid
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.parse_info_rows
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.parse_info_too_many
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.run_info_invalid
+The reconciliation data is not in the expected format. Upload the files again	对账数据格式不对，请重新上传文件	ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่	照合データの形式が正しくありません。ファイルをもう一度アップロードしてください	reconciliation.amount_tolerance_invalid

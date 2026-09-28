@@ -17,8 +17,9 @@ a clock, HTTP or a model.
 Registered intentional differences against the deployed admission path:
 
 * these rows reach native storage through ``bank_recon_contracts``, so a row with
-  no description, a negative movement amount or a batch over ``MAX_ROWS`` is
-  refused instead of matched; and
+  a negative movement amount or a batch over ``MAX_ROWS`` is refused instead of
+  matched (a row without a description is kept with an empty one, as deployed —
+  2026-09-28, a blank memo line used to fail the whole reconciliation); and
 * a parsed row whose balance column was never read arrives as ``0.0`` (the
   deployed ``_to_float`` default) and is stored as a known zero, while the
   decoded-row contract can express the same row as an unknown balance.

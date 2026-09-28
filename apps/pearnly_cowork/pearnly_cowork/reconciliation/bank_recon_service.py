@@ -120,7 +120,6 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 	values = {"stmt_opening": statement["opening"], "stmt_closing": statement["closing"],
 		"bank_code": statement["bank_code"]}
 	values.update(overrides)
-	stage("matching")
 	result = create(workspace, title, request_id,
 		bank_parse.decoded_statement_rows(statement["rows"]),
 		bank_parse.decoded_gl_rows(gl["rows"]), values, reconciliation_type,

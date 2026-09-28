@@ -20,7 +20,7 @@ from datetime import date, datetime
 import frappe
 from frappe import _
 
-from pearnly_cowork.reconciliation import revision, vat_check_service
+from pearnly_cowork.reconciliation import normalization, revision, vat_check_service
 
 MAX_CELLS = 400000
 _SUM = re.compile(r"^=SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)$")
@@ -333,13 +333,11 @@ def _bank_date(value):
     match = re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$", text)
     if not match:
         return text
-    day, month, year = (int(part) for part in match.groups())
-    year = year + 2000 if year < 100 else year
-    year = year - 543 if year > 2400 else year
-    try:
-        return date(year, month, day).isoformat()
-    except ValueError:
-        return text
+    # 年份与识别同一规则（`normalization.parse_date`）：两位年是佛历缩写（69 → 2569 → 2026），
+    # 不是 2069（2026-09-28 录制发现）；四位佛历减 543。
+    day, month, year = match.groups()
+    parsed = normalization.parse_date(f"{int(day):02d}/{int(month):02d}/{year}")
+    return parsed.isoformat() if parsed else text
 
 
 def _normalize(kind, inputs):

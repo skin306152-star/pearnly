@@ -8,6 +8,7 @@
 A board needs at least one list,看板至少要留一个列表
 A client cannot be moved to another company.,客户不能转移到另一家公司。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
+A date could not be read. Check the date format in the file,有日期读不出来，请检查文件里的日期格式
 "A document section exceeds 30,000 characters. Split the document before recognition.","文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
 A dropdown field needs at least one option,下拉字段至少要有一个选项
 A field is longer than Express allows. Shorten it and submit again,有字段超出 Express 允许的长度，请改短后再提交
@@ -23,12 +24,15 @@ A referenced history record is unavailable in the selected company and client.,�
 A reported ERP action is invalid.,上报的 ERP 操作无效。
 A reported ERP field is invalid.,上报的 ERP 字段无效。
 A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 个字符。
+A required text field is empty. Fill it in and try again,有必填的文字是空的，请补上后再试
 A review workbook must contain between 1 and 500 invoices.,复核工作簿须包含 1 至 500 张发票。
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express 里已有相似的客户，请选定它，或确认这是新客户
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express 里已有相似的供应商，请选定它，或确认这是新供应商
 A successful push has no ERP document number. Check its receipt.,已有成功推送缺少ERP凭证号，请核对回执。
+A text field is too long. Shorten it and try again,有文字太长，请缩短后再试
 A timezone-aware UTC timestamp is required.,必须提供带时区的UTC时间。
 A value in the ERP data report exceeds the allowed length.,ERP 数据报告中的值超过允许长度。
+A withdrawal or deposit is negative. Check the withdrawal and deposit columns,有支出或存入金额是负数，请检查支出 / 存入两列
 Abbreviated Tax Invoice,简式税务发票
 Access to the Companion queue has been revoked.,助手队列的访问权限已撤销。
 Account Key,账套键
@@ -67,6 +71,8 @@ Already exists,已存在
 Amount,金额
 An account needed for this invoice is not set. Check the account settings,缺少记这张票要用的科目，请检查科目设置
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,用到的科目不在 Express 科目表里，请检查科目设置
+An amount could not be read. Check the amount format in the file,有金额读不出来，请检查文件里的金额格式
+An amount has too many decimal places. Check the file,有金额小数位太多，请检查文件
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
 An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
 An original file is already stored for this source.,此来源已保存原始文件。
@@ -763,6 +769,7 @@ Some fields are uncertain. Check them against the original and submit again,有�
 Some line items have no name or amount,有明细缺品名或金额
 Some line items have no name or amount. Fix the lines and submit again,有明细缺品名或金额，请补好后再提交
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
+Some rows in the file could not be understood. Check the file format,文件里有读不懂的行，请检查文件格式
 Some rows were skipped,部分行未导入
 Someone else changed this card. Close it and open it again.,这张卡片刚被别人改过，请关闭后重新打开
 Someone else changed this reconciliation. Reload it before saving.,这个对账刚被别人改过，请刷新后再保存。
@@ -885,6 +892,7 @@ The document sections are incomplete or invalid.,文档逻辑单元不完整或�
 The entry does not balance. Check the amounts,分录借贷不平，请核对金额
 The export contains an invalid or repeated history reference.,导出包含无效或重复的历史记录引用。
 The file exceeds the allowed size.,文件超过允许的大小上限。
+The file has too many rows. Split it and reconcile each part,行数超过上限，请分成几份再对账
 The file is larger than 25 MB,文件超过 25 MB
 The file is larger than 5 MB.,文件超过 5 MB。
 The file size or page metadata is invalid.,文件大小或页数信息无效。
@@ -942,6 +950,7 @@ The quantity is not a valid number,数量不是有效数字
 The recognized content does not match the original references.,识别内容与原件关联不一致。
 The recognized invoice manifest cannot be replaced.,已识别的发票关联清单不能替换。
 The reconciliation could not be completed.,对账没有完成。
+The reconciliation data is not in the expected format. Upload the files again,对账数据格式不对，请重新上传文件
 The reconciliation task was not found.,找不到这个对账任务。
 The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
 The record data is not valid JSON.,记录数据不是有效的 JSON。
@@ -1857,6 +1866,13 @@ push.request_invalid,推送请求无效。
 push.utc_required,必须提供带时区的UTC时间。
 recognized,已识别
 recognizing,识别中
+reconciliation.amount_invalid,有金额读不出来，请检查文件里的金额格式
+reconciliation.amount_negative,有支出或存入金额是负数，请检查支出 / 存入两列
+reconciliation.amount_precision,有金额小数位太多，请检查文件
+reconciliation.amount_tolerance_invalid,对账数据格式不对，请重新上传文件
+reconciliation.balance_state_invalid,对账数据格式不对，请重新上传文件
+reconciliation.confidence_invalid,对账数据格式不对，请重新上传文件
+reconciliation.date_invalid,有日期读不出来，请检查文件里的日期格式
 reconciliation.dedicated_api_required,请通过对账流程更改这些记录。
 reconciliation.edit_conflict,这个对账刚被别人改过，请刷新后再保存。
 reconciliation.failed,对账没有完成。
@@ -1868,6 +1884,9 @@ reconciliation.gl_parse_failed,读不出总账。
 reconciliation.gl_source_invalid,总账内容无效。
 reconciliation.header_invalid,期初期末数值无效。
 reconciliation.ledger_unparsed,读不出总账。
+reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文件
+reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件
+reconciliation.parse_info_too_many,对账数据格式不对，请重新上传文件
 reconciliation.request_conflict,这个请求已用于不同内容。
 reconciliation.request_invalid,请求无效，请刷新后重试。
 reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。
@@ -1875,8 +1894,15 @@ reconciliation.review_balance_mismatch,请先修正账单余额差异，再确�
 reconciliation.review_required,请先完成账单复核，再导出对账结果。
 reconciliation.review_rows_invalid,复核行内容或原始行编号无效。
 reconciliation.review_unavailable,此任务没有逐行复核记录。
+reconciliation.row_invalid,文件里有读不懂的行，请检查文件格式
+reconciliation.row_unknown_field,文件里有读不懂的行，请检查文件格式
+reconciliation.rows_invalid,文件里有读不懂的行，请检查文件格式
+reconciliation.rows_too_many,行数超过上限，请分成几份再对账
+reconciliation.run_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.statement_unparsed,读不出银行账单。
 reconciliation.task_not_found,找不到这个对账任务。
+reconciliation.text_required,有必填的文字是空的，请补上后再试
+reconciliation.text_too_long,有文字太长，请缩短后再试
 reconciliation.type_invalid,未知的对账类型。
 reconciliation.vat_no_rows,税表里没有明细行。
 reconciliation.vat_report_unparsed,读不出税表。请用 Excel、CSV 或带文字层的 PDF。

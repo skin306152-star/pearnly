@@ -118,7 +118,9 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         _state(recon_job, state="done", stage="done", task=result["name"])
     except Exception as error:
         frappe.db.rollback()
-        message = _(str(error)) if str(error) else _("reconciliation.failed")
+        from pearnly_cowork.reconciliation.messages import error_text
+
+        message = error_text(error)
         if not isinstance(error, (frappe.ValidationError, ValueError)):
             frappe.log_error(title="cowork reconciliation job", message=frappe.get_traceback())
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])

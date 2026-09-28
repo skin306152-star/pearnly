@@ -8,6 +8,7 @@
 A board needs at least one list,A board needs at least one list
 A client cannot be moved to another company.,A client cannot be moved to another company.
 A completed record cannot become a draft.,A completed record cannot become a draft.
+A date could not be read. Check the date format in the file,A date could not be read. Check the date format in the file
 "A document section exceeds 30,000 characters. Split the document before recognition.","A document section exceeds 30,000 characters. Split the document before recognition."
 A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
@@ -23,12 +24,15 @@ A referenced history record is unavailable in the selected company and client.,A
 A reported ERP action is invalid.,A reported ERP action is invalid.
 A reported ERP field is invalid.,A reported ERP field is invalid.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
+A required text field is empty. Fill it in and try again,A required text field is empty. Fill it in and try again
 A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 A successful push has no ERP document number. Check its receipt.,A successful push has no ERP document number. Check its receipt.
+A text field is too long. Shorten it and try again,A text field is too long. Shorten it and try again
 A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is required.
 A value in the ERP data report exceeds the allowed length.,A value in the ERP data report exceeds the allowed length.
+A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
 Account Key,Account Key
@@ -67,6 +71,8 @@ Already exists,Already exists
 Amount,Amount
 An account needed for this invoice is not set. Check the account settings,An account needed for this invoice is not set. Check the account settings
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,An account used for this invoice is not in the Express chart of accounts. Check the account settings
+An amount could not be read. Check the amount format in the file,An amount could not be read. Check the amount format in the file
+An amount has too many decimal places. Check the file,An amount has too many decimal places. Check the file
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
@@ -763,6 +769,7 @@ Some fields are uncertain. Check them against the original and submit again,Some
 Some line items have no name or amount,Some line items have no name or amount
 Some line items have no name or amount. Fix the lines and submit again,Some line items have no name or amount. Fix the lines and submit again
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
+Some rows in the file could not be understood. Check the file format,Some rows in the file could not be understood. Check the file format
 Some rows were skipped,Some rows were skipped
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Someone else changed this reconciliation. Reload it before saving.,Someone else changed this reconciliation. Reload it before saving.
@@ -885,6 +892,7 @@ The document sections are incomplete or invalid.,The document sections are incom
 The entry does not balance. Check the amounts,The entry does not balance. Check the amounts
 The export contains an invalid or repeated history reference.,The export contains an invalid or repeated history reference.
 The file exceeds the allowed size.,The file exceeds the allowed size.
+The file has too many rows. Split it and reconcile each part,The file has too many rows. Split it and reconcile each part
 The file is larger than 25 MB,The file is larger than 25 MB
 The file is larger than 5 MB.,The file is larger than 5 MB.
 The file size or page metadata is invalid.,The file size or page metadata is invalid.
@@ -942,6 +950,7 @@ The quantity is not a valid number,The quantity is not a valid number
 The recognized content does not match the original references.,The recognized content does not match the original references.
 The recognized invoice manifest cannot be replaced.,The recognized invoice manifest cannot be replaced.
 The reconciliation could not be completed.,The reconciliation could not be completed.
+The reconciliation data is not in the expected format. Upload the files again,The reconciliation data is not in the expected format. Upload the files again
 The reconciliation task was not found.,The reconciliation task was not found.
 The record changed. Reload it before saving.,The record changed. Reload it before saving.
 The record data is not valid JSON.,The record data is not valid JSON.
@@ -1857,6 +1866,13 @@ push.request_invalid,Invalid push request.
 push.utc_required,A timezone-aware UTC timestamp is required.
 recognized,recognized
 recognizing,recognizing
+reconciliation.amount_invalid,An amount could not be read. Check the amount format in the file
+reconciliation.amount_negative,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
+reconciliation.amount_precision,An amount has too many decimal places. Check the file
+reconciliation.amount_tolerance_invalid,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.balance_state_invalid,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.confidence_invalid,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.date_invalid,A date could not be read. Check the date format in the file
 reconciliation.dedicated_api_required,Use the reconciliation workflow to change these records.
 reconciliation.edit_conflict,Someone else changed this reconciliation. Reload it before saving.
 reconciliation.failed,The reconciliation could not be completed.
@@ -1868,6 +1884,9 @@ reconciliation.gl_parse_failed,The general ledger could not be read.
 reconciliation.gl_source_invalid,The ledger file content is invalid.
 reconciliation.header_invalid,The opening and closing values are invalid.
 reconciliation.ledger_unparsed,The general ledger could not be read.
+reconciliation.parse_info_invalid,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.request_conflict,This request was already used for different content.
 reconciliation.request_invalid,The request is invalid. Reload and try again.
 reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
@@ -1875,8 +1894,15 @@ reconciliation.review_balance_mismatch,Check the statement balance differences b
 reconciliation.review_required,Complete statement review before exporting the result.
 reconciliation.review_rows_invalid,Invalid statement review rows or row references.
 reconciliation.review_unavailable,Statement review is not available for this task.
+reconciliation.row_invalid,Some rows in the file could not be understood. Check the file format
+reconciliation.row_unknown_field,Some rows in the file could not be understood. Check the file format
+reconciliation.rows_invalid,Some rows in the file could not be understood. Check the file format
+reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
+reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.statement_unparsed,The bank statement could not be read.
 reconciliation.task_not_found,The reconciliation task was not found.
+reconciliation.text_required,A required text field is empty. Fill it in and try again
+reconciliation.text_too_long,A text field is too long. Shorten it and try again
 reconciliation.type_invalid,Unknown reconciliation type.
 reconciliation.vat_no_rows,The VAT report has no rows.
 reconciliation.vat_report_unparsed,"The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."

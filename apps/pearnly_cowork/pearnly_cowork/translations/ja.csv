@@ -8,6 +8,7 @@
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
 A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
+A date could not be read. Check the date format in the file,読み取れない日付があります。ファイルの日付の書式を確認してください
 "A document section exceeds 30,000 characters. Split the document before recognition.","文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
 A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
@@ -23,12 +24,15 @@ A referenced history record is unavailable in the selected company and client.,�
 A reported ERP action is invalid.,報告された ERP の操作が無効です。
 A reported ERP field is invalid.,報告された ERP フィールドが無効です。
 A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
+A required text field is empty. Fill it in and try again,必須の文字項目が空です。入力してからもう一度お試しください
 A review workbook must contain between 1 and 500 invoices.,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 A successful push has no ERP document number. Check its receipt.,成功済みの送信にERP伝票番号がありません。確認応答を確認してください。
+A text field is too long. Shorten it and try again,文字が長すぎる項目があります。短くしてからもう一度お試しください
 A timezone-aware UTC timestamp is required.,タイムゾーン付きのUTC時刻が必要です。
 A value in the ERP data report exceeds the allowed length.,ERP データレポート内の値が許容される長さを超えています。
+A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
 Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
 Account Key,会計データキー
@@ -67,6 +71,8 @@ Already exists,すでに存在します
 Amount,金額
 An account needed for this invoice is not set. Check the account settings,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
+An amount could not be read. Check the amount format in the file,読み取れない金額があります。ファイルの金額の書式を確認してください
+An amount has too many decimal places. Check the file,小数点以下の桁が多すぎる金額があります。ファイルを確認してください
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
@@ -763,6 +769,7 @@ Some fields are uncertain. Check them against the original and submit again,不�
 Some line items have no name or amount,品名または金額のない明細があります
 Some line items have no name or amount. Fix the lines and submit again,品名または金額のない明細があります。直して再送信してください
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
+Some rows in the file could not be understood. Check the file format,ファイルに読み取れない行があります。ファイルの形式を確認してください
 Some rows were skipped,一部の行を取り込めませんでした
 Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
 Someone else changed this reconciliation. Reload it before saving.,この照合は他の人が変更しました。再読み込みしてから保存してください。
@@ -885,6 +892,7 @@ The document sections are incomplete or invalid.,文書の論理単位が不完�
 The entry does not balance. Check the amounts,仕訳の貸借が合いません。金額を確認してください
 The export contains an invalid or repeated history reference.,エクスポート対象に無効または重複した履歴参照があります。
 The file exceeds the allowed size.,ファイルサイズが上限を超えています。
+The file has too many rows. Split it and reconcile each part,行数が多すぎます。ファイルを分けて照合してください
 The file is larger than 25 MB,ファイルが 25 MB を超えています
 The file is larger than 5 MB.,ファイルが5MBを超えています。
 The file size or page metadata is invalid.,ファイルサイズまたはページ情報が無効です。
@@ -942,6 +950,7 @@ The quantity is not a valid number,数量が正しい数値ではありません
 The recognized content does not match the original references.,認識した内容が元ファイルの参照項目と一致しません。
 The recognized invoice manifest cannot be replaced.,認識済みの請求書関連付け一覧は置き換えられません。
 The reconciliation could not be completed.,照合を完了できませんでした。
+The reconciliation data is not in the expected format. Upload the files again,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 The reconciliation task was not found.,照合タスクが見つかりません。
 The record changed. Reload it before saving.,レコードが変更されました。再読み込みしてから保存してください。
 The record data is not valid JSON.,レコードデータが有効なJSONではありません。
@@ -1857,6 +1866,13 @@ push.request_invalid,送信要求が無効です。
 push.utc_required,タイムゾーン付きのUTC時刻が必要です。
 recognized,認識済み
 recognizing,認識中
+reconciliation.amount_invalid,読み取れない金額があります。ファイルの金額の書式を確認してください
+reconciliation.amount_negative,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
+reconciliation.amount_precision,小数点以下の桁が多すぎる金額があります。ファイルを確認してください
+reconciliation.amount_tolerance_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.balance_state_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.confidence_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.date_invalid,読み取れない日付があります。ファイルの日付の書式を確認してください
 reconciliation.dedicated_api_required,照合の手順で変更してください。
 reconciliation.edit_conflict,この照合は他の人が変更しました。再読み込みしてから保存してください。
 reconciliation.failed,照合を完了できませんでした。
@@ -1868,6 +1884,9 @@ reconciliation.gl_parse_failed,総勘定元帳を読み取れません。
 reconciliation.gl_source_invalid,元帳の内容が無効です。
 reconciliation.header_invalid,期首・期末の値が無効です。
 reconciliation.ledger_unparsed,総勘定元帳を読み取れません。
+reconciliation.parse_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.parse_info_rows,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.parse_info_too_many,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.request_conflict,このリクエストは別の内容で使用済みです。
 reconciliation.request_invalid,リクエストが無効です。再読み込みしてやり直してください。
 reconciliation.review_amount_invalid,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
@@ -1875,8 +1894,15 @@ reconciliation.review_balance_mismatch,明細の残高差異を修正してか�
 reconciliation.review_required,明細確認を完了してから照合結果を出力してください。
 reconciliation.review_rows_invalid,確認明細または元の行番号が無効です。
 reconciliation.review_unavailable,このタスクには明細確認記録がありません。
+reconciliation.row_invalid,ファイルに読み取れない行があります。ファイルの形式を確認してください
+reconciliation.row_unknown_field,ファイルに読み取れない行があります。ファイルの形式を確認してください
+reconciliation.rows_invalid,ファイルに読み取れない行があります。ファイルの形式を確認してください
+reconciliation.rows_too_many,行数が多すぎます。ファイルを分けて照合してください
+reconciliation.run_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.statement_unparsed,銀行明細を読み取れません。
 reconciliation.task_not_found,照合タスクが見つかりません。
+reconciliation.text_required,必須の文字項目が空です。入力してからもう一度お試しください
+reconciliation.text_too_long,文字が長すぎる項目があります。短くしてからもう一度お試しください
 reconciliation.type_invalid,不明な照合種別です。
 reconciliation.vat_no_rows,税報告に明細行がありません。
 reconciliation.vat_report_unparsed,税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。

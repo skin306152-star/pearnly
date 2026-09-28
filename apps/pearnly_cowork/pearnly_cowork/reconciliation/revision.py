@@ -23,6 +23,7 @@ from pearnly_cowork.reconciliation import (
 	income_recon_contracts,
 	income_recon_service,
 	income_vat,
+	messages,
 )
 from pearnly_cowork.reconciliation.export import income_workbook
 from pearnly_cowork.reconciliation.export import workbook as bank_workbook
@@ -36,7 +37,7 @@ def _contract(function, *args):
 	try:
 		return function(*args)
 	except bank_recon_contracts.ReconciliationContractError as error:
-		frappe.throw(_(str(error)))
+		frappe.throw(messages.error_text(error))
 
 
 def _text(value):

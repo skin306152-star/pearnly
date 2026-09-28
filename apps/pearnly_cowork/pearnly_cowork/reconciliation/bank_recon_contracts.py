@@ -66,7 +66,8 @@ def statement_row(raw):
 	balance = _amount(raw.get("balance"), "statement.balance", nonnegative=False)
 	return {
 		"date": _date(raw.get("date"), "statement.date"),
-		"description": _text(raw.get("description"), "statement.description", required=True),
+		# 摘要可以空（利息、手续费行常没有；旧版同样按空串收）：一行没摘要不该让整份对账失败（2026-09-28）。
+		"description": _text(raw.get("description"), "statement.description"),
 		"withdrawal": _amount(raw.get("withdrawal"), "statement.withdrawal"),
 		"deposit": _amount(raw.get("deposit"), "statement.deposit"),
 		"balance": balance,

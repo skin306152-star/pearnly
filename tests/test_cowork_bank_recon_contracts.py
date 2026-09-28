@@ -17,6 +17,8 @@ class StatementRowContract(unittest.TestCase):
 			("high", "", False))
 
 	def test_negative_balance_is_allowed_but_negative_movement_is_not(self):
+		# 摘要可以空（利息 / 手续费行），不让整份对账失败
+		self.assertEqual(contracts.statement_row({"description": "", "deposit": "1"})["description"], "")
 		row = contracts.statement_row({"description": "overdraft", "balance": "-150.25"})
 		self.assertEqual(row["balance"], Decimal("-150.25"))
 		with self.assertRaises(contracts.ReconciliationContractError):
@@ -27,7 +29,6 @@ class StatementRowContract(unittest.TestCase):
 			({"description": "x", "deposit": "1.1234567"}, "reconciliation.amount_precision:statement.deposit"),
 			({"description": "x", "deposit": "1e400"}, "reconciliation.amount_invalid:statement.deposit"),
 			({"description": "x", "extra": 1}, "reconciliation.row_unknown_field:statement"),
-			({"description": ""}, "reconciliation.text_required:statement.description"),
 			({"description": "x" * 301}, "reconciliation.text_too_long:statement.description"),
 			({"description": "x", "date": "01/06/2026"}, "reconciliation.date_invalid:statement.date"),
 			({"description": "x", "confidence": "certain"}, "reconciliation.confidence_invalid"),

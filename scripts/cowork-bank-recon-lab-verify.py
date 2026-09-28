@@ -221,11 +221,11 @@ class NativeBankReconciliation(unittest.TestCase):
 		self.assertEqual(str(caught.exception), "reconciliation.header_invalid")
 		# A parsed row the decoded-row contract refuses is an error, not a drop.
 		described = {"pages": [{"document": {"entries": [
-			{"description": "", "deposit": "10.00", "balance": "1,010.00"}]}}]}
+			{"description": "x" * 301, "deposit": "10.00", "balance": "1,010.00"}]}}]}
 		with self.assertRaises(bank_recon_contracts.ReconciliationContractError) as caught:
-			self.api.create_from_parsed(workspace=self.workspace, title="no description",
+			self.api.create_from_parsed(workspace=self.workspace, title="description too long",
 				request_id=self.request_id, statement_pages=described, gl_pages={})
-		self.assertEqual(str(caught.exception), "reconciliation.text_required:statement.description")
+		self.assertEqual(str(caught.exception), "reconciliation.text_too_long:statement.description")
 		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), 0)
 
 	def test_scope_and_entitlement_are_enforced(self):

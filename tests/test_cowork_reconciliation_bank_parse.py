@@ -247,12 +247,12 @@ class NativeRowContract(unittest.TestCase):
 			(Decimal("400"), Decimal(0), Decimal(0)))
 
 	def test_a_row_the_native_contract_refuses_is_an_error_not_a_silent_drop(self):
+		# 没有摘要的行照收（旧版同样按空串）；被合同拒的行仍是错误，不悄悄丢（见下面负数金额）
 		descriptions = parsing.statement_from_pipeline(statement_document(
 			[{"withdrawal": "10", "balance": "990", "description": "",
 				"transaction_date_raw": "01/06/2569"}]), "stmt.pdf")
-		with self.assertRaises(contracts.ReconciliationContractError) as caught:
-			contracts.statement_row(parsing.decoded_statement_rows(descriptions["rows"])[0])
-		self.assertEqual(str(caught.exception), "reconciliation.text_required:statement.description")
+		row = contracts.statement_row(parsing.decoded_statement_rows(descriptions["rows"])[0])
+		self.assertEqual(row["description"], "")
 		negative = parsing.statement_from_pipeline(statement_document(
 			[{"withdrawal": "(10)", "deposit": "0", "balance": "990", "description": "fee"}],
 			opening="1,000.00"), "stmt.pdf")
