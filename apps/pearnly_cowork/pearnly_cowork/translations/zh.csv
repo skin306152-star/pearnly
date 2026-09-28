@@ -709,6 +709,7 @@ Result in the ERP,ERP 里的结果
 Review,复核
 Review JSON,复核记录 JSON
 Review differences,查看差异
+Review document,复核单据
 Reviewed amounts need a balance and at most two decimal places.,复核行必须填写余额，金额最多保留两位小数。
 Revision,版本
 Revocation Reason,撤销原因
