@@ -147,6 +147,18 @@ publish_import() {
   echo "published $(ls -1 "$stage" | wc -l | tr -d ' ') files for $site"
 }
 
+# WSL 保活（2026-09-28）：测试机重启后没有常驻的 wsl 会话，WSL 空闲一会儿就整体关掉、测试栈跟着停。
+# 用 WMI 起一个独立的 `wsl … sleep infinity`（不随 SSH 会话结束），lab-stop 时结束它。已在跑就不重复起。
+keepalive() {
+  local action=$1 script
+  if [[ "$action" == start ]]; then
+    script="if (-not (Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -match 'pearnly-keepalive' })) { \$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='powershell.exe -NoProfile -WindowStyle Hidden -c \"wsl -d $distro -u root -- sleep infinity # pearnly-keepalive\"'}; 'keepalive started ' + \$r.ProcessId } else { 'keepalive already running' }"
+  else
+    script="Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -match 'pearnly-keepalive|-u root -- sleep infinity' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }; 'keepalive stopped'"
+  fi
+  ssh -o BatchMode=yes "$host" "powershell -NoProfile -EncodedCommand $(printf '%s' "$script" | iconv -f UTF-8 -t UTF-16LE | base64 | tr -d '\n')"
+}
+
 lab_start() {
   # 一键开始测试（一个产品一套栈，一次只跑一个）。**默认复用**：栈、站点卷与导入过的租户
   # 数据都留在测试机上，再跑只做「必要时拉镜像 → 起栈（自动升级库、清缓存）→ 切域名」。
@@ -170,6 +182,7 @@ lab_start() {
   echo "== 1/4 镜像：测试机上没有这个 digest 才拉"
   if has_image; then echo "· 已在测试机：$(image_from_env)"; else bash "$0" pull | tail -2; fi
 
+  keepalive start
   echo "== 2/4 起本栈（先停别的测试栈；自动升级站点库、清缓存、写运行配置）"
   bash "$0" up "$first" | tail -8
 
@@ -266,6 +279,7 @@ lab_stop() {
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
   for one in $apps; do prod_scheduler resume "$one"; done
   for one in $apps; do bash "$0" down "$one"; done
+  keepalive stop || true
   echo '本栈已停，数据卷保留；重新开始测试用 lab-start。'
 }
 

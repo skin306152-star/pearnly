@@ -14,7 +14,9 @@ REFNUM+SUPCOD 幂等 · reindex 重建 CDX。金额用 decimal 算、写库转 d
 
 from __future__ import annotations
 
+import os
 import shutil
+import tempfile
 import time
 from decimal import Decimal
 from pathlib import Path
@@ -169,22 +171,41 @@ def _bump_isrun(
 _BACKUP_EXTS = (".DBF", ".CDX", ".FPT")
 
 
+# 选择性备份放本机(2026-09-28 实测:放在账套旁的共享盘上,一张单备份 5.6–7.4 秒、删快照 1.3 秒,
+# 占整张单 10–12 秒的大半;放本机只从共享盘读一遍,删快照也不走网络)。快照只在写盘事务窗口内有用,
+# 成功或回滚后即删;进程中途被杀留下的,下次备份时清掉 7 天前的。
+_LOCAL_BACKUP_KEEP_S = 7 * 24 * 3600
+
+
+def _local_backup_root() -> Path:
+    base = os.environ.get("PEARNLY_WRITE_BACKUP_DIR") or (
+        os.path.join(os.environ["LOCALAPPDATA"], "Pearnly", "write-backups")
+        if os.environ.get("LOCALAPPDATA")
+        else os.path.join(tempfile.gettempdir(), "pearnly-write-backups")
+    )
+    root = Path(base)
+    root.mkdir(parents=True, exist_ok=True)
+    cutoff = time.time() - _LOCAL_BACKUP_KEEP_S
+    for old in root.iterdir():
+        try:
+            if old.is_dir() and old.stat().st_mtime < cutoff:
+                shutil.rmtree(old, ignore_errors=True)
+        except OSError:
+            continue
+    return root
+
+
 def _backup(account_dir: Path, tables: Optional[tuple] = None) -> Path:
-    """写前备份。`tables` 非空 → 只复制这些表的数据/索引/备注文件(选择性备份,远快于
-    整账套 copytree);为 None → 整目录复制(向后兼容其它调用方)。
+    """写前备份。`tables` 非空 → 只复制这些表的数据/索引/备注文件到本机(选择性备份,远快于
+    整账套 copytree);为 None → 整目录复制到账套旁(向后兼容其它调用方)。
     `_restore` 遍历备份目录里的文件还原,天然兼容选择性备份(只还原备过的表)。
     """
-    dest = (
-        account_dir.parent
-        / f"{account_dir.name}_pearnly_bak_{time.strftime('%Y%m%d-%H%M%S')}"
-    )
+    parent = account_dir.parent if tables is None else _local_backup_root()
+    dest = parent / f"{account_dir.name}_pearnly_bak_{time.strftime('%Y%m%d-%H%M%S')}"
     n = 0
     while dest.exists():
         n += 1
-        dest = (
-            account_dir.parent
-            / f"{account_dir.name}_pearnly_bak_{time.strftime('%Y%m%d-%H%M%S')}_{n}"
-        )
+        dest = parent / f"{account_dir.name}_pearnly_bak_{time.strftime('%Y%m%d-%H%M%S')}_{n}"
     if tables is None:
         shutil.copytree(account_dir, dest)
         return dest

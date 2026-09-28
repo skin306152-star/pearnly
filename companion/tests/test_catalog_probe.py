@@ -205,3 +205,24 @@ def test_payload_reports_only_fit_candidates_capped(chart):
 
 def _stock(acct, stkcod, acccod):
     _add(acct, "STMAS", STKCOD=stkcod, STKDES=stkcod, STKTYP="0", ACCCOD=acccod)
+
+
+def test_account_refresh_finds_an_account_missing_from_the_cached_list(monkeypatch):
+    # 2026-09-28:推送能写的 SINCTEST,按账套刷新却报「账套不可用」—— 缓存清单里没有它,改为直接读登录清单
+    from types import SimpleNamespace
+
+    from companion import account_probe, catalog_refresh, projection_refresh
+
+    seen = {}
+    monkeypatch.setattr(account_probe, "probe_account_sets", lambda root: [
+        SimpleNamespace(path=r"\\Accserver\d$\ACCOUNT\70EXP\SINCTEST", writable=True)])
+    monkeypatch.setattr(catalog_refresh, "request_target_catalog",
+                        lambda path, newer_than: (seen.setdefault("path", path) and None, 0.0))
+    monkeypatch.setattr(catalog_refresh, "target_refresh_error", lambda key, newer_than: "")
+    state = {"master_refresh_received_at": 100.0}
+    result = projection_refresh.collect_account(state, [], r"\\accserver\d$\account\70exp\sinctest", 101.0,
+                                                roots=[r"\\Accserver\d$\ACCOUNT\70EXP"])
+    assert seen["path"] == r"\\Accserver\d$\ACCOUNT\70EXP\SINCTEST"
+    assert result[3] != "ERR_ACCOUNT_SET_UNAVAILABLE"
+    missing = projection_refresh.collect_account(state, [], r"\\x\none", 101.0, roots=[r"\\Accserver\d$\ACCOUNT\70EXP"])
+    assert missing[3] == "ERR_ACCOUNT_SET_UNAVAILABLE"

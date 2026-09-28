@@ -404,7 +404,7 @@ def _run_periodic(
                     refresh_error,
                     refresh_ready,
                 ) = projection_refresh.collect_account(
-                    state, sets, refresh_account_set, now
+                    state, sets, refresh_account_set, now, roots=[root or "", *authorized]
                 )
             elif (
                 cfg.account_dir

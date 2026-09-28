@@ -5,6 +5,10 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
+from .logger import get_logger
+
+log = get_logger(__name__)
+
 # 网页「重新读取」:首次带公司名全扫近千份账套在共享盘上要一两分钟,放足余量。
 _REFRESH_TIMEOUT_S = 300.0
 
@@ -129,11 +133,30 @@ def collect_endpoint(
     return None, version, error
 
 
+def _probe_account(account_set_key: str, roots: list[str]) -> Optional[dict]:
+    """缓存的账套清单里没有时,照推送时的做法直接读一次各数据根的登录清单(worker._task_settings 同一口径)。"""
+    from .account_probe import probe_account_sets
+
+    for root in roots:
+        if not str(root or "").strip():
+            continue
+        try:
+            accounts = probe_account_sets(root)
+        except Exception:
+            log.warning("[refresh] 读不了数据根的登录清单: %s", root, exc_info=True)
+            continue
+        for account in accounts:
+            if _norm_path(account.path) == _norm_path(account_set_key):
+                return {"path": str(account.path), "writable": bool(account.writable)}
+    return None
+
+
 def collect_account(
     state: dict,
     account_sets: list[dict],
     account_set_key: str,
     now: float,
+    roots: Optional[list[str]] = None,
 ) -> tuple[Optional[dict], Optional[list], float, str, bool]:
     from .catalog_refresh import request_target_catalog, target_refresh_error
 
@@ -149,6 +172,17 @@ def collect_account(
         ),
         None,
     )
+    if target is None and roots:
+        # 2026-09-28:推送能写的账套(SINCTEST),按账套刷新却报「账套不可用」—— 缓存清单里没有它。
+        probed = _probe_account(account_set_key, list(roots))
+        if probed is not None and probed["writable"]:
+            target = probed
+        log.info(
+            "[refresh] 账套 %s 不在缓存清单(%d 个)里,直接读登录清单:%s",
+            account_set_key,
+            len(account_sets),
+            "找到" if probed else "没有",
+        )
     if target is None:
         return None, None, 0.0, "ERR_ACCOUNT_SET_UNAVAILABLE", False
     refreshed, version = request_target_catalog(

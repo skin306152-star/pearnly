@@ -22,3 +22,9 @@ from _lab_target import lab_acct  # noqa: E402,F401
 @pytest.fixture(autouse=True)
 def _disable_cdx_runner(monkeypatch):
     monkeypatch.setattr(cdx_reindex, "runner_available", lambda: False)
+
+
+@pytest.fixture(autouse=True)
+def _write_backups_in_tmp(tmp_path, monkeypatch):
+    """写前快照放本机(dbf_writer._local_backup_root):测试里放进本次的临时目录,不落到机器的公共临时目录。"""
+    monkeypatch.setenv("PEARNLY_WRITE_BACKUP_DIR", str(tmp_path / "write-backups"))
