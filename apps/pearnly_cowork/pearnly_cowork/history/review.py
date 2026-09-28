@@ -148,8 +148,8 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
                 break
             found.append({"code": "number_choice", "field": "invoice_number", "choices": list(choice)})
             break
-    unseen = next((note.split(":", 1)[1].strip() for note in notes if note.startswith("invoice_number_unseen:")), None)
-    if unseen and str(fields.get("invoice_number") or "").strip() == unseen and not found:
+    unseen = {note.split(":", 1)[1].strip() for note in notes if note.startswith("invoice_number_unseen:")}
+    if str(fields.get("invoice_number") or "").strip() in unseen - {""} and not found:
         found.append({"code": "number_unseen", "field": "invoice_number"})
     if any(note.startswith("possible_missed_invoice") for note in notes):
         found.append({"code": "missed_invoice"})

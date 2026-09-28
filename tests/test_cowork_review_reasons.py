@@ -76,6 +76,12 @@ class ReviewReasons(unittest.TestCase):
         self.assertEqual(codes(pages), ["number_unseen"])
         pages[0]["fields"]["invoice_number"] = "138051304940"   # 人改了
         self.assertEqual(codes(pages), [])
+        # 同图多票共用一页的说明：只标单号对得上的那一张
+        pages[0]["_validation_warnings"] = ["invoice_number_unseen: 000122", "invoice_number_unseen: 000096"]
+        pages[0]["fields"]["invoice_number"] = "000096"
+        self.assertEqual(codes(pages), ["number_unseen"])
+        pages[0]["fields"]["invoice_number"] = "000120"
+        self.assertEqual(codes(pages), [])
 
     def test_uncertain_only_when_nothing_more_specific_and_nobody_edited(self):
         pages = [page()]

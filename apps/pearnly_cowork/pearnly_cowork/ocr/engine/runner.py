@@ -278,8 +278,11 @@ class _Run:
                                        elapsed_ms=response.elapsed_ms, checkpoint_key=response.checkpoint_key))
         text = response.page.full_text
         notes = repair_from_transcript(invoice, text, tolerance=self.config.amount_tolerance)
-        alternative = invoice_number_alternative(invoice, text) or invoice_number_unseen(invoice, text)
-        warnings.extend(notes + ([alternative] if alternative else []))
+        # 同一张图上的其他票也逐张核单号（2026-09-28 复测：第 4 张 000098 读成 000096，只核第一张时漏标）
+        siblings = [child for child in invoice.additional_invoices or [] if not child.is_not_invoice]
+        numbers = [invoice_number_alternative(each, text) or invoice_number_unseen(each, text)
+                   for each in [invoice, *siblings]]
+        warnings.extend(notes + [note for note in numbers if note])
         return ["L1"]
 
     def direct_result(self, page, invoice, warnings, calls, chain):

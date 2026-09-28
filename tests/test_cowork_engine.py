@@ -162,6 +162,16 @@ class EngineTests(unittest.TestCase):
         receipt = run(model=Model([{**GOOD, "invoice_number": "IV69/108"}])).pipeline.pages[0]
         self.assertEqual((receipt.layer_chain, receipt.invoice.invoice_number), (["ID"], "IV69/108"))  # 小票不多花
 
+    def test_every_invoice_on_one_image_is_checked_against_the_transcript(self):
+        # 2026-09-28 复测：一张图四张票，第四张 000098 读成 000096，只核第一张时漏标
+        full = {**GOOD, "document_type": "tax_invoice", "invoice_number": "IV69/100"}
+        seen = {**full, "additional_invoices": []}
+        unseen = {**full, "invoice_number": "ZZ-777", "additional_invoices": []}
+        page = run(model=Model([{**full, "additional_invoices": [seen, unseen]}])).pipeline.pages[0]
+        self.assertEqual([w for w in page.validation_warnings if w.startswith("invoice_number_")],
+                         ["invoice_number_unseen: ZZ-777"])
+        self.assertTrue(page.needs_manual_review)
+
     def test_a_failed_recheck_reads_image_and_transcript_together(self):
         wrong = {**GOOD, "total_amount": "170"}
         model = Model([wrong, wrong, GOOD])
