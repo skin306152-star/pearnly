@@ -1,4 +1,4 @@
-"""ADR-013 regression tests in the pinned Frappe runtime; no Site, Redis, browser or network.
+"""ADR-014 regression tests in the pinned Frappe runtime; no Site, Redis, browser or network.
 
 Session reuse, lazy admin locking, the system account pool, daytime change sync
 deferral and the busy error. Run: docker run ... <image> /candidate/scripts/test-dms-session-reuse.py
@@ -339,7 +339,7 @@ class LiveSyncTests(unittest.TestCase):
 
 
 class LocalPreflightTests(unittest.TestCase):
-    """ADR-013: the pre-submit master check reads the local snapshot only."""
+    """ADR-014: the pre-submit master check reads the local snapshot only."""
 
     def directory(self, cars, paints=None):
         from pearnly_dms.contracts.client_base import DmsClientError

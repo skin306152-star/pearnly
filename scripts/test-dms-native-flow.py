@@ -255,7 +255,7 @@ class NativeFlow(unittest.TestCase):
         return len(jobs)
 
     def local_snapshots(self):
-        """Operator identity plus complete local snapshots; bookings check masters against them (ADR-013)."""
+        """Operator identity plus complete local snapshots; bookings check masters against them (ADR-014)."""
         from pearnly_dms.snapshots import store as snapshots
         if self.snapshot_template:
             return
@@ -279,7 +279,7 @@ class NativeFlow(unittest.TestCase):
             "paints": {"car": [["paint", "PAINT", "Paint"]]},
             "customers": {"customer": {"customer_id": "customer", **self.dms.read_customer("customer")}}},
             time.time() - 1, expected_scope=authority)
-        # ADR-013: the pre-submit master check reads the per-group local snapshot, not a live admin read.
+        # ADR-014: the pre-submit master check reads the per-group local snapshot, not a live admin read.
         vehicle_keys = ("cars",)
         snapshots.publish(self.endpoint, "vehicles", {
             "masters": {key: masters[key] for key in vehicle_keys},
@@ -467,7 +467,7 @@ class NativeFlow(unittest.TestCase):
     def test_master_rename_returns_one_updated_card_without_submitting(self):
         from pearnly_dms.booking.conversation import qa_cards
         nonce = self.review()
-        # The daytime change sync brings the DMS rename into the local snapshot (ADR-013).
+        # The daytime change sync brings the DMS rename into the local snapshot (ADR-014).
         self.dms.masters["place_books"][0][2] = "Renamed Place"
         self.republish_company()
         self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=nonce)

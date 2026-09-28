@@ -42,7 +42,7 @@
 
 ### DMS 后台读快照（2026-09-24）
 
-读取架构见 [ADR-010](../adr/0010-dms-background-read-snapshots.md)、替代触发策略的 [ADR-011](../adr/0011-dms-manual-read-snapshots.md) 与会话复用/白天增量/账号池的 [ADR-013](../adr/0013-dms-session-reuse-live-sync.md)：手动建立完整快照，交互只读本地，客户写入和最终订车实时复核。采集器在 DMS hooks 声明，手动请求域通过框架钩子派发；不反向导入业务。contracts 的 html/unicodedata 仅纯字符串正规化，无 IO；不扩大违规基线。
+读取架构见 [ADR-010](../adr/0010-dms-background-read-snapshots.md)、替代触发策略的 [ADR-011](../adr/0011-dms-manual-read-snapshots.md) 与会话复用/白天增量/账号池的 [ADR-014](../adr/0014-dms-session-reuse-live-sync.md)：手动建立完整快照，交互只读本地，客户写入和最终订车实时复核。采集器在 DMS hooks 声明，手动请求域通过框架钩子派发；不反向导入业务。contracts 的 html/unicodedata 仅纯字符串正规化，无 IO；不扩大违规基线。
 
 手动请求直接进入原生 `dms_sync` 队列，不再注册 Scheduled Job Type 的队列 mixin，也不修改 scheduler tick。旧读档入口无请求 token 时无副作用返回；业务恢复任务继续使用原生调度和既有队列，不修改 Frappe 源码。
 

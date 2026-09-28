@@ -128,7 +128,7 @@ def book_in_session(
     def _do(cl, adapter):
         nonlocal qa
         validate_payment_completeness(qa.get("payments") or [])
-        # 提交前复核主档**对照本地完整快照**，不再借管理员去 DMS 实时读（ADR-013；用户
+        # 提交前复核主档**对照本地完整快照**，不再借管理员去 DMS 实时读（ADR-014；用户
         # 2026-09-27："主档信息一般不会经常变来变去"）。快照由白天每分钟增量 + 凌晨全量
         # 保持新鲜。客户资料卡、顾问组织仍是销售会话实时读、读不到才借管理员（各自的回退）。
         directory = Directory(str(qa.get("endpoint_id") or endpoint))

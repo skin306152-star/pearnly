@@ -499,7 +499,7 @@ class BookingService(unittest.TestCase):
         self.masters = {key: [[rid, rid, "Live " + rid]] for key, rid in (
             ("cars", "car"), ("advisors", "a"), ("place_books", "place"),
             ("term_sales", "term"), ("regis_behalfs", "regis"))}
-        # ADR-013: pre-submit master check reads the local complete snapshot, never an admin session.
+        # ADR-014: pre-submit master check reads the local complete snapshot, never an admin session.
         self.preflight = self.enterContext(patch("pearnly_dms.booking.booking_preflight.local_preflight"))
         self.preflight.side_effect = self.read_preflight
         ref = DMSMasterRef("org", "ORG", "Organization")

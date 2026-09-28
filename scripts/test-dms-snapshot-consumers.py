@@ -286,7 +286,7 @@ class SnapshotConsumers(unittest.TestCase):
         enqueue.assert_not_called(); hooks.assert_not_called()
 
     def test_booking_checks_masters_against_local_snapshot_without_sales_refresh(self):
-        """ADR-013：提交前主档复核读本地完整快照，不再借管理员去 DMS 实时读主档。"""
+        """ADR-014：提交前主档复核读本地完整快照，不再借管理员去 DMS 实时读主档。"""
         from pearnly_dms.booking import service as booking_service
         client = booking_fixture.DmsFixture("SNAPSHOT-ONLY")
         self.replace(self.operations, "run_logged_in", side_effect=client.session)

@@ -1,6 +1,6 @@
 # DMS 会话复用、白天增量同步与账号并发（2026-09-27）
 
-决策见 [ADR-013](../adr/0013-dms-session-reuse-live-sync.md)。
+决策见 [ADR-014](../adr/0014-dms-session-reuse-live-sync.md)。
 
 ## 授权与范围
 

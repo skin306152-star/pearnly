@@ -66,7 +66,7 @@ def readonly_preflight(
 
 
 def local_preflight(qa: dict, directory: Any) -> Dict[str, Any]:
-    """提交前对照**本地完整快照**复核主档（ADR-013，用户 2026-09-27：主档不常变，不再为此
+    """提交前对照**本地完整快照**复核主档（ADR-014，用户 2026-09-27：主档不常变，不再为此
     借管理员去 DMS 实时读）。返回形状与 `readonly_preflight` 相同。
 
     快照由白天每分钟的增量同步与凌晨全量保持新鲜；这里不访问 DMS、不占任何账号。
