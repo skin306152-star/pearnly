@@ -10,7 +10,8 @@
 表达同一件事，而且更贴合这套框架：
 
 · 锁在整个栈里共享（同一站点的 web/worker/scheduler 容器看到的是同一把锁）；
-· 进程崩了锁会按 TTL 自动过期，不会永久卡死（等同于老产品说的"断连自动释放"）。
+· 进程崩了锁会按 TTL 自动过期，不会永久卡死（等同于老产品说的"断连自动释放"）；
+  持锁期间后台线程按心跳续期，所以 TTL 可以取短：进程被杀，心跳随之停止，锁最多一个 TTL 就放开。
 
 **拿不到锁怎么办**：默认**直接报错**，不放行。
 老产品在云上是"拒绝执行"、只在本机降级放行 —— 我们现在整个栈都跑在容器里，
@@ -23,20 +24,25 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import threading
+import time
 from contextlib import contextmanager
 from typing import Optional
 from frappe import _
 
 logger = logging.getLogger(__name__)
 
-# 锁的自动过期时间（秒）。两个方向都要照顾：
+# 锁的自动过期时间（秒）。持锁期间每 TTL/4 续一次期（心跳线程），所以正常会话再长也不会过期；
+# 进程被 OOM / 任务超时杀掉时心跳一起停，锁最多 TTL 秒后放开。
 #
-# · **太长**：进程被 OOM 杀掉时锁不会释放（`finally` 没机会跑），后面 15 分钟谁都进不来；
-# · **太短**：一次正常的会话（登录 + 建档 + 传附件）还没干完锁就过期了，等于没锁。
-#
-# 取 10 分钟：正常会话远用不到，被杀的代价也还能忍（而且报错里会告诉你还剩多久）。
+# 2026-09-27 实测：原先固定 600 秒、不续期，一个被 OOM 杀掉的评测进程让同账号的读取排了近 10 分钟。
+# 取 120 秒：心跳 30 秒一次，可以连丢三次；被杀后两分钟内恢复。
 # 真要调，设 `PEARNLY_SESSION_LOCK_TTL`（秒）。
-DEFAULT_LOCK_TTL_SEC = 600
+DEFAULT_LOCK_TTL_SEC = 120
+
+# 心跳续期的总时长上限：进程没死但卡住时，不能靠心跳永远占着账号。
+# 远长于任何一步正常会话（DMS 单步读取租约 120 秒，最长的队列任务超时 10 分钟）。
+MAX_HOLD_SEC = 1800
 
 
 def lock_ttl_sec() -> int:
@@ -84,6 +90,29 @@ def _mask(account_key: str) -> str:
     return f"{url}|{shown}"
 
 
+class _Heartbeat(threading.Thread):
+    """持锁期间定时把锁的剩余时间重置为 TTL；锁丢了、到了总时长上限或被叫停就结束。"""
+
+    def __init__(self, lock, ttl: int, max_hold: float = MAX_HOLD_SEC):
+        super().__init__(name="pearnly-session-lock-heartbeat", daemon=True)
+        self.lock, self.ttl, self.max_hold = lock, ttl, max_hold
+        self.stopped = threading.Event()
+
+    def run(self):
+        deadline = time.monotonic() + self.max_hold
+        while not self.stopped.wait(max(1.0, self.ttl / 4)):
+            if time.monotonic() > deadline:
+                logger.warning("[session-lock] 持锁超过 %ss，停止续期（锁将按 TTL 过期）", self.max_hold)
+                return
+            try:
+                if not self.lock.extend(self.ttl, replace_ttl=True):
+                    logger.warning("[session-lock] 续期失败：锁已不属于本进程")
+                    return
+            except Exception as exc:  # noqa: BLE001 — 续不上就交给 TTL，不能把业务打断
+                logger.warning("[session-lock] 续期异常（锁将按 TTL 过期）: %s", exc)
+                return
+
+
 @contextmanager
 def account_lock(account_key: str, timeout_sec: float = 180.0):
     """对同一个外部账号的浏览器会话加互斥锁。
@@ -102,10 +131,13 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
     ttl = lock_ttl_sec()
     lock = None
     acquired = False
+    heartbeat = None
     try:
         try:
-            # blocking_timeout：最多等多久；timeout：锁自己的自动过期兜底
-            lock = frappe.cache().lock(name, timeout=ttl, blocking_timeout=timeout_sec)
+            # blocking_timeout：最多等多久；timeout：锁自己的自动过期兜底。
+            # thread_local=False：心跳线程要用同一个令牌续期。
+            lock = frappe.cache().lock(name, timeout=ttl, blocking_timeout=timeout_sec,
+                                       thread_local=False)
             acquired = bool(lock.acquire(blocking=True, blocking_timeout=timeout_sec))
         except Exception as exc:  # noqa: BLE001 — 锁基础设施坏了要如实处理，不能装作没事
             if not _allow_lockless():
@@ -137,8 +169,13 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
             return
 
         logger.info("[session-lock] 已持锁 %s", _mask(account_key))
+        heartbeat = _Heartbeat(lock, ttl)
+        heartbeat.start()
         yield True
     finally:
+        if heartbeat is not None:
+            heartbeat.stopped.set()
+            heartbeat.join(timeout=5)
         if acquired and lock is not None:
             try:
                 lock.release()
