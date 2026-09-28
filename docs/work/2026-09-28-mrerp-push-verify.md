@@ -79,4 +79,24 @@ Cowork 显示成功的 MR.ERP 单据进了没关联日记账的菜单：没有�
 - [x] 合入 main：快进到 `d912918c` 并推送，远端回读一致；任务分支本地 / 远端已删
 - [x] 真实 MR.ERP 只读核对（导入页菜单、列表页未关联提示、showdata 回读判定）
 - [ ] 端到端真推（用户选择不做，上线后第一张真票核对）
-- [ ] 生产部署（用户最后统一安排，本窗口不单独部署）
+- [x] 生产部署（用户 2026-09-28 改为「DMS 先、MR.ERP 修复单独部署 Cowork、Cowork 修复窗口最后」，见下）
+
+## 部署（2026-09-28，用户：「DMS 上线后你就部署 Cowork」）
+
+- 与 DMS 共用同一镜像：main `f0f0178f`（含本修复 `8e2c3b70` 与 DMS、共用层账号锁心跳 `3248924a`）→ Build `36404639778`
+  （候选并行检查全过）→ `ghcr.io/skin306152-star/pearnly/frappe@sha256:ad7beb3f6fdaab4f25d09e514a8274049198b2245f7bc51866ebf30d7e3c24e1`，
+  Stage `36405354839`（DMS 窗口执行，DMS 先激活并回读）。
+- 激活前只读核对：主机可用内存约 27 GB；账本无排队 / 推送中的记录；MR.ERP 成功记录 5 张（即交接里今天那 5 张）；
+  压测 `/tmp/stress0928/` 宿主已有全部文件（容器重建不丢）。
+- `check-deploy-image.py` → Deploy tooling matches this image；`activate-product.sh … cowork` 2 分 5 秒 →
+  `Product cowork activated with verified image.`；激活前备份 `20260928_170614-testcowork_pearnly_com-*`（站点时区）；
+  上一版 Cowork `1386e61e`（回退用它与该备份）。
+- 线上回读（服务器内部，不经 testcowork 域名——该域名此时指向 Cowork 修复窗口的测试环境）：7 个 Cowork 容器 `ad7beb3f`；
+  补丁 `v0_0_7` 已记 Patch Log；`mrerp_menus` / `mrerp_menu_options` 列已建；5 张旧 MR.ERP 单全部 manual + 结果不明
+  + `ERR_MRERP_LEGACY_MENU_UNVERIFIED`，占活动键，票据列表状态同步；维护模式 0、调度未暂停；https ping 200；
+  切换后约 5 分钟 web / worker / scheduler / ocr-worker 日志 0 错误、Error Log 0。
+- 未验：线上真推（第一张真票时核对：进已关联菜单、单号带前缀、回读到才成功）；网页选菜单弹窗的真机点选。
+
+线上转人工的 5 张（Cowork 记录 → 我方单号）：`CWP-2f86cd77…` 690922-524602、`CWP-c4e30378…` 690923-960576、
+`CWP-1de3f3e6…` 690925-863020、`CWP-d8980b57…` 690926-424358、`CWP-e4ec514b…` 690927-534899。
+交接里 09-26 的几张与销项 SI 两张在线上账本里没有（当时推送走的是别的环境 / 旧记录），MR.ERP 里清不清理由用户定。
