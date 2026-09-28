@@ -120,6 +120,39 @@ class Readback(unittest.TestCase):
         self.assertEqual(readback.find(rows, "690922-524602").docno, "690922-524602")
 
 
+class RawServerResponses(unittest.TestCase):
+    """2026-09-28 test01 · TEST2019 服务器原样响应（只读抓取、已打码，fixtures/mrerp/raw-0928.json）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = json.loads((FIXTURES / "raw-0928.json").read_text(encoding="utf-8"))
+
+    def test_import_pages_offer_only_the_linked_menus(self):
+        self.assertEqual([(o["idmenu"], o["linked"]) for o in menus.parse_options(self.raw["impaptran_formupload"])],
+                         [("68", True), ("454", True)])
+        self.assertEqual([o["idmenu"] for o in menus.parse_options(self.raw["impartran_formupload"])], ["119"])
+        self.assertEqual([o["idmenu"] for o in menus.parse_options(self.raw["imparse_formupload"])], ["126"])
+
+    def test_listing_pages(self):
+        problems = {key: readback.listing_problem(self.raw[key]) for key in
+                    ("aptran_allview_68", "aptran_allview_67", "artran_allview_118", "arse_allview_125",
+                     "arse_allview_126")}
+        # 118 关联了日记账却不在赊销导入页的可选菜单里（也没有单号前缀）：新逻辑不会选它，旧单由补丁转人工。
+        self.assertEqual(problems, {"aptran_allview_68": None, "aptran_allview_67": "not_linked",
+                                    "artran_allview_118": None, "arse_allview_125": "not_linked",
+                                    "arse_allview_126": None})
+
+    def test_showdata_rows(self):
+        self.assertEqual(readback.find(readback.parse_rows(self.raw["aptran_showdata_68_PG09"]), "09").docno, "PG09")
+        self.assertIsNone(readback.find(readback.parse_rows(self.raw["aptran_showdata_68_690922"]), "690922-524602"))
+        self.assertEqual(readback.parse_rows(self.raw["arse_showdata_126_69"]), [])
+        # 旧版推进 67 / 118 的单：进去了，但没有前缀。
+        self.assertEqual(readback.find(readback.parse_rows(self.raw["aptran_showdata_67_690922"]),
+                                       "690922-524602").docno, "690922-524602")
+        self.assertEqual(readback.find(readback.parse_rows(self.raw["artran_showdata_118_SI690923"]),
+                                       "690923-841904").docno, "690923-841904")
+
+
 class LegacyPatch(unittest.TestCase):
     """修复前的 MR.ERP 成功单改成待人工核对 + 结果不明；Express 与其它状态不动。"""
 
