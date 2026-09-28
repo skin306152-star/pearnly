@@ -50,20 +50,15 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Filename: "{app}\companion.exe"; Flags: nowait postinstall runasoriginaluser
 
 [Code]
-{ 托盘程序无顶层窗口,CloseApplications 的重启管理器可能关不掉它 → 装前/写文件前都强制 taskkill,
-  保证覆盖安装能替换正在运行的 companion.exe / cdx_reindex_runner.exe。 }
+{ 托盘程序无顶层窗口,CloseApplications 的重启管理器可能关不掉它 → 真正开始安装时强制 taskkill,
+  保证覆盖安装能替换正在运行的 companion.exe / cdx_reindex_runner.exe。
+  不在向导一打开(InitializeSetup)就关:点「取消」时小助手已被关掉又不会重启(2026-09-28 录制实测)。 }
 procedure KillRunning;
 var
   ResultCode: Integer;
 begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM companion.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM cdx_reindex_runner.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-end;
-
-function InitializeSetup(): Boolean;
-begin
-  KillRunning;
-  Result := True;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
