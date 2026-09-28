@@ -26,9 +26,16 @@ class GlRowContract(unittest.TestCase):
 		self.assertEqual((row["date"], row["account_code"], row["description"]),
 			("01/06/2569", "4110-01", "sale"))
 
-	def test_rejections_cover_negative_amounts_precision_and_unknown_fields(self):
+	def test_negative_ledger_amounts_are_reversals_on_the_other_side(self):
+		# 2026-09-28 录制：总账写成 (1,000.00) / -1,000.00 整份对账失败
+		from decimal import Decimal
+		row = contracts.gl_row({"doc_no": "GL1", "credit": "-1000.00"})
+		self.assertEqual((row["debit"], row["credit"]), (Decimal("1000.00"), Decimal(0)))
+		row = contracts.gl_row({"doc_no": "GL1", "debit": "-5", "credit": "20"})
+		self.assertEqual((row["debit"], row["credit"]), (Decimal(0), Decimal("25")))
+
+	def test_rejections_cover_precision_and_unknown_fields(self):
 		cases = [
-			({"doc_no": "GL1", "debit": "-1"}, "reconciliation.amount_negative:income_gl.debit"),
 			({"doc_no": "GL1", "credit": "1.1234567"},
 				"reconciliation.amount_precision:income_gl.credit"),
 			({"doc_no": "GL1", "credit": "1e400"}, "reconciliation.amount_invalid:income_gl.credit"),

@@ -58,6 +58,11 @@ def gl_row(raw):
 	raw = _exact_keys(raw, GL_KEYS, "income_gl")
 	doc_no = _text(raw.get("doc_no"), "income_gl.doc_no")
 	given = _text(raw.get("norm_doc_no"), "income_gl.norm_doc_no")
+	# 总账里写成负数（「(1,000.00)」「-1,000.00」）的是冲销 / 红字：负的贷方记成借方、负的借方记成贷方，
+	# 借贷净额不变。原来整份对账因此失败（2026-09-28 录制发现）。
+	debit = _amount(raw.get("debit"), "income_gl.debit", nonnegative=False) or Decimal(0)
+	credit = _amount(raw.get("credit"), "income_gl.credit", nonnegative=False) or Decimal(0)
+	debit, credit = max(debit, Decimal(0)) + max(-credit, Decimal(0)), max(credit, Decimal(0)) + max(-debit, Decimal(0))
 	return {
 		"doc_no": doc_no,
 		# The deployed parser derived the normalized number from the printed one.
@@ -65,8 +70,8 @@ def gl_row(raw):
 		"date": _text(raw.get("date"), "income_gl.date", limit=40),
 		"account_code": _text(raw.get("account_code"), "income_gl.account_code"),
 		"description": _text(raw.get("description"), "income_gl.description"),
-		"debit": _amount(raw.get("debit"), "income_gl.debit"),
-		"credit": _amount(raw.get("credit"), "income_gl.credit"),
+		"debit": debit,
+		"credit": credit,
 	}
 
 
