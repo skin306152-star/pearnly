@@ -2,6 +2,7 @@
 
 - 所有看板挂在站点内部那一份归属（`scope.default_workspace`）上；归属仍是防重 / 写锁的锚，看板是它下面的一层。
 - 默认看板（`is_default`）= 原来那一块板：团队可见、没有显式成员，升级补丁把旧数据挂上去；不能归档。
+  名字不存（空），按各人的界面语言显示「团队看板」，有人改名后才是存下的名字（录制实测：泰语用户看到中文名）。
 - 新建看板的人是该看板管理员；新看板带默认三列和六个颜色标签。
 - 权限判据在 `access`，矩阵在 `contracts.board_rights`；这里每个入口先核对权利再写。
 """
@@ -43,7 +44,7 @@ def default_board(workspace):
                           order_by="creation asc", limit_page_length=1)
     if rows:
         return rows[0]
-    doc = persist(frappe.get_doc({"doctype": BOARD, "workspace": workspace, "title": _(DEFAULT_TITLE),
+    doc = persist(frappe.get_doc({"doctype": BOARD, "workspace": workspace, "title": "",
                                   "visibility": "team", "commenting": "members", "member_management": "members",
                                   "is_default": 1}))
     frappe.db.commit()
@@ -98,7 +99,8 @@ def open_board(board=None, right="view"):
 
 def _info(row, user=None):
     rights = access.rights(row.name, user)
-    return {"name": row.name, "title": row.title, "visibility": row.visibility, "commenting": row.commenting,
+    return {"name": row.name, "title": row.title or _(DEFAULT_TITLE), "visibility": row.visibility,
+            "commenting": row.commenting,
             "member_management": row.member_management, "is_default": row.is_default, "archived": row.archived,
             "archived_at": row.get("archived_at"), "role": access.members_of(row.name).get(user or frappe.session.user),
             "rights": [right for right in contracts.RIGHTS if right in rights]}

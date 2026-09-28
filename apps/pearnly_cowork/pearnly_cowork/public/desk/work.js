@@ -1259,7 +1259,11 @@
 			};
 			const watch = frappe.utils.debounce(refresh_dirty, 120);
 			checklist_editor(d.fields_dict.checklists.$wrapper, groups, watch);
-			if (!editable) d.fields_dict.checklists.$wrapper.find("input, button").prop("disabled", true);
+			if (!editable) {
+				// 只读：清单只看，不出「添加清单 / 添加项目 / 删除」这些按钮（录制实测观察者还看得到「添加清单」）。
+				d.fields_dict.checklists.$wrapper.find("input").prop("disabled", true);
+				d.fields_dict.checklists.$wrapper.find("button").remove();
+			}
 			d.$body.on("input change click keyup", watch);
 			d.get_primary_btn().addClass("hide");
 			if (!data.archived) {
@@ -1839,7 +1843,11 @@
 					default: row.member_management,
 					options: MEMBER_MANAGEMENT.map(value => ({value, label: t(`cowork.work.board.memberManagement_${value}`)}))},
 			], async values => {
-				await p.call(`${API}update_board`, {board: row.name, values: JSON.stringify(values)}, "POST");
+				// 只交改过的项：默认看板没改名时按各人的界面语言显示，不能因为改了别的设置就把名字存成当前语言。
+				const changed = Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== row[key]));
+				if (Object.keys(changed).length) {
+					await p.call(`${API}update_board`, {board: row.name, values: JSON.stringify(changed)}, "POST");
+				}
 				await reload();
 			});
 			// 默认看板不能归档；归档可以在「已归档」里恢复，所以不另外确认。

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-29 00:00:00.000000",
- "modified": "2026-09-29 00:00:00.000000",
+ "modified": "2026-09-29 12:00:00.000000",
  "autoname": "hash",
  "sort_field": "creation",
  "sort_order": "ASC",
@@ -41,7 +41,6 @@
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Title",
-   "reqd": 1,
    "in_list_view": 1,
    "length": 140
   },

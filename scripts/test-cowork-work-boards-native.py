@@ -95,6 +95,12 @@ def run():
                                                   order_by="creation asc", limit_page_length=1)[0])
     v0_0_9_work_boards.execute()
     assert frappe.db.count(access.BOARD, {"is_default": 1}) == 1
+    # 默认看板没改名时不存名字，按各人的界面语言显示；改别的设置不会把名字存成某一种语言。
+    frappe.db.set_value(access.BOARD, default, "title", "")
+    access.forget()
+    assert as_user(stranger, boards.info, default)["title"] == frappe._("cowork.work.board.default")
+    as_user(cadmin, boards.update, default, {"commenting": "members"})
+    assert not frappe.db.get_value(access.BOARD, default, "title")
 
     # ── 看板：新建、列表、设置 ──
     denied("boards", outsider, boards.boards)
