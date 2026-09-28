@@ -102,6 +102,9 @@ VAT_TAIL_2_RE = re.compile(
 	r"((?:\(\s*[\d,]+\.\d{2}\s*\)|-?[\d,]+\.\d{2}))"
 	r"\s*$"
 )
+# 行尾是 未税 · VAT · 合计 三个数（2026-09-28 录制读代码发现：原来只取最后两个，取成了 VAT 与合计）。
+_AMOUNT = r"((?:\(\s*[\d,]+\.\d{2}\s*\)|-?[\d,]+\.\d{2}))"
+VAT_TAIL_3_RE = re.compile(_AMOUNT + r"\s+" + _AMOUNT + r"\s+" + _AMOUNT + r"\s*$")
 TAX_ID_RE = re.compile(r"\b(\d{13})\b")
 BRANCH_CODE_RE = re.compile(r"\b(0\d{4})\b")
 # A reference number starts with a letter and carries a digit, so a bare customer
@@ -334,6 +337,11 @@ def text_lines(lines) -> List[Dict[str, Any]]:
 		tail = VAT_TAIL_2_RE.search(line)
 		if not tail:
 			continue
+		three = VAT_TAIL_3_RE.search(line)
+		if three:
+			net, vat, total = (to_float(three.group(index)) for index in (1, 2, 3))
+			if None not in (net, vat, total) and abs(net + vat - total) <= 0.02:
+				tail = VAT_TAIL_2_RE.search(line[:three.start(3)].rstrip())
 		match_date = VAT_DATE_RE.search(line)
 		if not match_date:
 			continue

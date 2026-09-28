@@ -362,5 +362,17 @@ class HeaderVariants(unittest.TestCase):
 		row = parse.build_row(1, [46027.0, "IV-1"], {"date": 0, "invoice_no": 1})
 		self.assertEqual(row["report_date"], "2026-01-05")
 
+
+class TextLineTails(unittest.TestCase):
+	def test_a_line_ending_in_net_vat_and_total_takes_the_first_two(self):
+		# 2026-09-28 录制读代码发现：行尾三个数时取成了 VAT 与合计
+		rows = parse.text_lines(["1 02/09/2569 IV6909-001 บริษัท เอ จำกัด 0105547051615 00000 1,000.00 70.00 1,070.00"])
+		self.assertEqual((rows[0]["report_amount_pre_vat"], rows[0]["report_vat_amount"]), (1000.0, 70.0))
+		self.assertEqual(rows[0]["report_invoice_no"], "IV6909-001")
+
+	def test_two_trailing_amounts_read_as_before(self):
+		rows = parse.text_lines(["02/09/2569 IV6909-002 บริษัท บี จำกัด 0105547051615 00000 2,000.00 140.00"])
+		self.assertEqual((rows[0]["report_amount_pre_vat"], rows[0]["report_vat_amount"]), (2000.0, 140.0))
+
 if __name__ == "__main__":
 	unittest.main()
