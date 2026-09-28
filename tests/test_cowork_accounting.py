@@ -6,7 +6,8 @@ from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.schema import validate_invoice
 from pearnly_cowork.ocr.validation import check_amount_math
 from pearnly_cowork.ocr.validation.accounting import (
-    infer_withholding, invoice_number_alternative, normalize_amounts, number_alternative, repair_from_transcript,
+    infer_withholding, invoice_number_alternative, invoice_number_unseen, normalize_amounts, number_alternative,
+    number_seen, repair_from_transcript,
 )
 from test_cowork_engine import CONFIG, GOOD, Model, Source
 
@@ -56,6 +57,16 @@ class Accounting(unittest.TestCase):
         self.assertIsNone(invoice_number_alternative(invoice(invoice_number="IN26-00658"), "IN26 - 00658"))  # 原文里有
         self.assertIsNone(invoice_number_alternative(invoice(invoice_number="IN26-00668"), "IN26-00658 IN26-00678"))
         self.assertIsNone(number_alternative("corrected_from_ocr_text: seller_tax 1→2"))
+
+    def test_a_number_counts_as_seen_only_as_a_whole_number(self):
+        # 2026-09-28 压测：138051304940 读成 38051304940、922/46079 读成 46079，按子串比会被放过
+        self.assertFalse(number_seen("38051304940", "เลขที่ 138051304940"))
+        self.assertFalse(number_seen("46079", "เลขที่ 922/46079"))
+        self.assertTrue(number_seen("922/46079", "เลขที่ 922/46079"))
+        self.assertTrue(number_seen("IN26-00658", "IN26 - 00658"))
+        self.assertEqual(invoice_number_unseen(invoice(invoice_number="38051304940"), "เลขที่ 138051304940"),
+                         "invoice_number_unseen: 38051304940")
+        self.assertIsNone(invoice_number_unseen(invoice(invoice_number="138051304940"), "เลขที่ 138051304940"))
 
     def test_a_tax_id_is_restored_only_from_a_transcript_id_one_digit_away(self):
         # 2026-09-28：0105546146823（校验位不过）被换成差两位、能过校验位的 0113546146823，真值是 0105546146825

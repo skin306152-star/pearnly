@@ -1,8 +1,9 @@
 """Cowork history contract, traced to deployed legacy ec2e5c957e6b.
 
 Sources: services/ocr_history/{mutations,list_status}.py, core/thai_date.py,
-routes/history_routes.py, services/erp/express_push/posting_kind.py and
-services/summary_import/commit.py. No storage, permission or external actions.
+routes/history_routes.py and services/erp/express_push/posting_kind.py. No storage, permission or
+external actions. The legacy summary-table import (services/summary_import) is not part of the new platform
+(user 2026-09-28: only purchase and sales invoices are processed; its remnants were removed).
 
 Summary money intentionally uses a finite Decimal string instead of the old
 float. Complete page data stays separate from this lossy list projection.
@@ -19,7 +20,7 @@ import re
 from pearnly_cowork.contracts.push import normalize_posting_kind
 
 
-SOURCES = frozenset({"manual", "cowork_line", "summary_table_batch"})
+SOURCES = frozenset({"manual", "cowork_line"})
 _INTERNAL_ERP_SOURCES = frozenset({"erp_web", "line_erp"})
 _ISO_DATE = re.compile(r"^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$")
 # 票面也常见空格分隔（「28 05 2026」），与斜杠 / 点 / 横线同样按日 月 年读（有意变化，旧线上不认）。
@@ -234,18 +235,6 @@ def source_page_indices(pages: list[dict]) -> list[int]:
 			raise HistoryContractError("history.page_index_invalid")
 		indices.append(value)
 	return sorted(indices)
-
-
-def clean_summary_fields(fields: dict) -> dict:
-	"""Only summary-import rows drop internal root keys; ordinary pages never do."""
-	if not isinstance(fields, dict):
-		raise HistoryContractError("history.fields_invalid")
-	fields = _json_copy(fields)
-	declared = str(fields.get("_direction") or "").strip()
-	cleaned = {key: value for key, value in fields.items() if not key.startswith("_")}
-	if declared and not cleaned.get("direction"):
-		cleaned["direction"] = declared
-	return cleaned
 
 
 def initial_history(

@@ -184,11 +184,22 @@ class EngineTests(unittest.TestCase):
         self.assertEqual([r.stage for r in model.requests], ["direct", "direct", "ocr_read"])
         self.assertEqual(page.layer_chain, ["ID", "L1", "L2"])
 
-    def test_truncated_image_read_is_not_repeated(self):
-        runaway = ModelResponse('{"invoice_number": "1', {}, 4, 8192, "lite", finish_reason="MAX_TOKENS")
+    def test_a_runaway_image_read_is_retried_once_with_other_settings(self):
+        # 2026-09-28 压测：模型在单号后复读一长串 0 写满上限 —— 原样重读照样写满，换参数原地重读一次
+        runaway = ModelResponse('{"invoice_number": "IV69/0' + "0" * 40, {}, 4, 8192, "lite", finish_reason="MAX_TOKENS")
         model = Model([runaway, GOOD])
         page = run(model=model).pipeline.pages[0]
-        self.assertEqual([r.stage for r in model.requests], ["direct", "ocr_read"])
+        self.assertEqual([r.stage for r in model.requests], ["direct", "direct"])
+        retry = model.requests[1]
+        self.assertEqual((retry.temperature, retry.max_output_tokens), (0.4, 4096))
+        self.assertIn("never repeat a digit sequence", retry.prompt)
+        self.assertEqual((page.layer_chain, page.invoice.invoice_number), (["ID"], "IV69/100"))
+
+    def test_a_runaway_that_repeats_goes_on_to_the_transcript_read(self):
+        runaway = ModelResponse('{"invoice_number": "1', {}, 4, 8192, "lite", finish_reason="MAX_TOKENS")
+        model = Model([runaway, runaway, GOOD])
+        page = run(model=model).pipeline.pages[0]
+        self.assertEqual([r.stage for r in model.requests], ["direct", "direct", "ocr_read"])
         self.assertEqual(page.extraction_audit["direct_fallback"]["detail"], "output hit the token limit")
 
     def test_unreadable_transcript_read_keeps_the_image_read_for_review(self):

@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 
 # facade re-export(体积闸拆分 · 付款判据簇下沉 payment.py · common.X 单一对象不变)
 from pearnly_cowork.push.express.payment import (  # noqa: F401,E402
-    DOC_TYPE_SOURCE_SYNTHETIC,
     SRC_BANK,
     SRC_DOC_TYPE,
     SRC_EXPLICIT,

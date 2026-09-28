@@ -20,9 +20,6 @@ SRC_PROFILE = "profile"  # F4 · 供应商过账档案默认(default_payment · 
 SRC_BANK = "bank"  # F6 · 银行流水命中同金额/方向/±7天交易(只加固已付,不反证未付)
 SRC_NONE = ""  # 全无信号 · 留给各 mapper 的固定默认
 
-# 合成票种来源标记 · producer=services/summary_import/mapping.py(批次「含VAT」勾选框合成
-# document_type,非票面 OCR 证据)。payment_verdict 见此标记跳过票种判据层,防误摊现/赊。
-DOC_TYPE_SOURCE_SYNTHETIC = "vat_checkbox"
 
 
 def payment_verdict(
@@ -61,16 +58,13 @@ def payment_verdict(
     if method and any(tok in method for tok in _PAID_TOKENS):
         return True, SRC_EXPLICIT
 
-    # document_type_source == DOC_TYPE_SOURCE_SYNTHETIC:汇总表批量建单场景下 document_type
-    # 是用户「含VAT」勾选框合成的代理值(见 services/summary_import/mapping.py),不是票面
-    # OCR 读出的真实票种证据 —— 不能当付款判据摊派现/赊,跳过本层落到档案/银行/默认层。真
-    # OCR 票(无此标记)照旧吃票种语义。
-    if fields.get("document_type_source") != DOC_TYPE_SOURCE_SYNTHETIC:
-        from pearnly_cowork.push.express.field_rules import doc_type_payment_hint
+    # 票种语义(收据=已付 / 税票=赊)。旧线上汇总表批量建单的「合成票种跳过本层」分支随该功能一起删掉
+    # (新平台只处理采购票与销售票,用户 2026-09-28)。
+    from pearnly_cowork.push.express.field_rules import doc_type_payment_hint
 
-        hint = doc_type_payment_hint(fields.get("document_type"))
-        if hint is not None:
-            return hint, SRC_DOC_TYPE
+    hint = doc_type_payment_hint(fields.get("document_type"))
+    if hint is not None:
+        return hint, SRC_DOC_TYPE
 
     if profile:
         default_payment = str(profile.get("default_payment") or "").strip().lower()

@@ -31,6 +31,13 @@ L3_NEW_TYPES = ('"document_type": "tax_invoice" | "simplified_tax_invoice" | "re
 L2_CHANGES = (
     ("invent or require a legal เลขที่.\n",
      "invent or require a legal เลขที่. On a slip printed as \"R#0000970791P2 :0302013\" the\n     invoice number is the R# part; the \":0302013\" after it is the store / POS code, never\n     the invoice number.\n"),
+    # 用户 2026-09-28：只处理采购票与销售票，列多张发票的汇总清单 / 登记表 / 对账单不是发票。
+    ("   note + tax invoice) IS a real tax invoice — never reject those.\n7b.",
+     "   note + tax invoice) IS a real tax invoice — never reject those.\n"
+     "7d. LISTS OF SEVERAL INVOICES are not invoices: a sales / purchase register or summary\n"
+     "   (รายงานภาษีขาย / ภาษีซื้อ, รายละเอียดใบกำกับภาษี, a monthly sales or delivery summary, a customer\n"
+     "   statement) — a table with one row per invoice number and no single issuer invoice header — set\n"
+     "   is_not_invoice = true and do NOT turn its rows into additional_invoices.\n7b."),
     ("Copy the printed VAT as-is; do not recompute it.\n",
      "Copy the printed VAT as-is; do not recompute it. Shops mark VAT-exempt items (N / E),\n   so a printed VAT can be far below 7/107 of the total — keep the printed figure.\n"),
 )

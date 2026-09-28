@@ -25,7 +25,7 @@ from pearnly_cowork.ocr.validation.accounting import number_alternative
 
 RESOLVED = "review_resolved"
 # 人看过才算数的原因（点选 / 点掉后记进 `review_resolved`）。
-ACKNOWLEDGED = frozenset({"number_choice", "missed_invoice", "page_unread", "uncertain", "duplicate"})
+ACKNOWLEDGED = frozenset({"number_choice", "number_unseen", "missed_invoice", "page_unread", "uncertain", "duplicate"})
 _AMOUNT_TOLERANCE = Decimal("1.00")
 # Express 凭证号：两位单别 + 佛历年月日 + '-' + 三位序号（小助手 `dbf_writer._next_docnum` 同一格式），
 # 会计记账后盖在原件上，识别常把它当成票号。
@@ -148,6 +148,9 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
                 break
             found.append({"code": "number_choice", "field": "invoice_number", "choices": list(choice)})
             break
+    unseen = next((note.split(":", 1)[1].strip() for note in notes if note.startswith("invoice_number_unseen:")), None)
+    if unseen and str(fields.get("invoice_number") or "").strip() == unseen and not found:
+        found.append({"code": "number_unseen", "field": "invoice_number"})
     if any(note.startswith("possible_missed_invoice") for note in notes):
         found.append({"code": "missed_invoice"})
     if any(note.startswith("page_unread") for note in notes):

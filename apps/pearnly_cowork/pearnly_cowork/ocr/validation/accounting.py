@@ -26,6 +26,7 @@ AMOUNT_FIELDS = ("subtotal", "vat", "total_amount", "discount", "wht_amount")
 WITHHOLDING_PREFIX = "withholding_inferred:"
 TRANSCRIPT_PREFIX = "corrected_from_ocr_text:"
 NUMBER_ALTERNATIVE_PREFIX = "invoice_number_alternative:"
+NUMBER_UNSEEN_PREFIX = "invoice_number_unseen:"
 
 
 def normalize_amounts(invoice) -> list[str]:
@@ -113,7 +114,7 @@ def invoice_number_alternative(invoice, text) -> str | None:
     谁对只能看原件或这个对方的历史单号（`history.review`）。返回 `invoice_number_alternative: 模型|原文`。"""
     read = str(getattr(invoice, "invoice_number", "") or "").strip()
     wanted = _norm(read)
-    if not wanted or not text or wanted in _norm(text):
+    if not wanted or not text or number_seen(read, text):
         return None
     tokens = _TOKEN.findall(str(text))
     pool = set(tokens) | {a + b for a, b in zip(tokens, tokens[1:])}
@@ -123,6 +124,27 @@ def invoice_number_alternative(invoice, text) -> str | None:
         return None
     other = min(near, key=len)
     return f"{NUMBER_ALTERNATIVE_PREFIX} {read}|{other}"
+
+
+def number_seen(read, text) -> bool:
+    """单号在原文里作为完整的号码出现（一个词，或被空格 / 符号拆开的相邻两段）。
+
+    不按「原文里某串字符的一部分」算：2026-09-28 压测里 `138051304940` 读成 `38051304940`、`922/46079`
+    读成 `46079`，按子串比会被当成原文里有、放过去。"""
+    wanted = _norm(read)
+    if not wanted or not text:
+        return False
+    tokens = [_norm(token) for token in _TOKEN.findall(str(text))]
+    pool = set(tokens) | {a + b for a, b in zip(tokens, tokens[1:])}
+    return wanted in pool
+
+
+def invoice_number_unseen(invoice, text) -> str | None:
+    """完整税票的单号在原文里既找不到、也没有只差一个字符的写法 → 记下交复核（不改票面）。"""
+    read = str(getattr(invoice, "invoice_number", "") or "").strip()
+    if not read or not text or number_seen(read, text):
+        return None
+    return f"{NUMBER_UNSEEN_PREFIX} {read}"
 
 
 def number_alternative(note) -> tuple[str, str] | None:

@@ -204,7 +204,8 @@ def run(source=None, source_texts=None):
         'payment_status':['paid','unpaid','cash','credit',None],
         'posting_payment_manual':['cash','credit','bad'],
         'posting_item_type_manual':['expense','goods',''],
-        'document_type_source':['vat_checkbox','document'],
+        # 旧线上汇总表批量建单的合成票种标记（vat_checkbox）随该功能删除，不再对照（有意变化，2026-09-28）。
+        'document_type_source':['document'],
         'items':[[],[{'name':'A','amount':'100'}],[{'name':'A','amount':'101.01'}],
                  [{'name':'A','amount':'99'}],[{'amount':'100'}],
                  [{'name':'A','amount':'107','quantity':'0'}],

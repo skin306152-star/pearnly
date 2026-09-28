@@ -910,6 +910,7 @@ The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
 The invoice number is written differently from this party's earlier invoices (usually {0}),单号写法与这家以前的票不同（通常是 {0}）
 The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,单号像是会计盖的凭证号，请核对票上印的号码
+The invoice number was not found in the text of the original. Check it against the original,单号在原件文字里没找到，请对照原件核对
 The invoice number was read two ways. Pick the one printed on the original:,单号有两种读法，请对照原件选：
 The invoice page data has an invalid format.,发票页面数据格式不正确。
 The ledger file content is invalid.,总账内容无效。
@@ -1253,6 +1254,7 @@ cowork.review.items_mismatch,明细合计与票面金额对不上
 cowork.review.number_choice,单号有两种读法，请对照原件选：
 cowork.review.number_field,单号
 cowork.review.number_pattern,单号写法与这家以前的票不同（通常是 {0}）
+cowork.review.number_unseen,单号在原件文字里没找到，请对照原件核对
 cowork.review.own_tax,{0}不是本公司税号
 cowork.review.page_unread,这个文件有一页没读出，那页上的单据可能漏了，请核对原件
 cowork.review.send_anyway,仍然推送

@@ -910,6 +910,7 @@ The invoice fields have an invalid format.,รูปแบบข้อมูล�
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่
 The invoice number is written differently from this party's earlier invoices (usually {0}),รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})
 The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,เลขที่เอกสารดูเหมือนเลขที่ใบสำคัญที่ประทับไว้ กรุณาตรวจเลขที่พิมพ์บนเอกสาร
+The invoice number was not found in the text of the original. Check it against the original,ไม่พบเลขที่เอกสารในข้อความของต้นฉบับ กรุณาตรวจกับต้นฉบับ
 The invoice number was read two ways. Pick the one printed on the original:,เลขที่เอกสารอ่านได้สองแบบ กรุณาเลือกตามต้นฉบับ:
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง
 The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
@@ -1253,6 +1254,7 @@ cowork.review.items_mismatch,ยอดรวมรายการไม่ตร
 cowork.review.number_choice,เลขที่เอกสารอ่านได้สองแบบ กรุณาเลือกตามต้นฉบับ:
 cowork.review.number_field,เลขที่เอกสาร
 cowork.review.number_pattern,รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})
+cowork.review.number_unseen,ไม่พบเลขที่เอกสารในข้อความของต้นฉบับ กรุณาตรวจกับต้นฉบับ
 cowork.review.own_tax,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
 cowork.review.page_unread,มีหน้าหนึ่งในไฟล์นี้อ่านไม่ได้ เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจกับต้นฉบับ
 cowork.review.send_anyway,ส่งต่อไป

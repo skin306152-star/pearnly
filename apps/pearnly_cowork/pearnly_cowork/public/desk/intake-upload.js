@@ -95,7 +95,7 @@
 	/** 需复核原因的文案（`cowork.review.<码>`）；税号类带上是哪一格。 */
 	const REVIEW_RESOLVED = "review_resolved";
 	// 看过就可以点掉的提醒（识别时留下的、或写法类的）；税号 / 金额 / 明细这类改对了自然消失，不给点掉。
-	const REVIEW_DISMISSABLE = new Set(["missed_invoice", "page_unread", "uncertain", "duplicate",
+	const REVIEW_DISMISSABLE = new Set(["missed_invoice", "page_unread", "uncertain", "duplicate", "number_unseen",
 		"voucher_number", "number_pattern"]);
 	const TAX_LABELS = {seller_tax: "intake.field.sellerTax", buyer_tax: "intake.field.buyerTax"};
 	p.intake_review_text = (reason, t) => {

@@ -910,6 +910,7 @@ The invoice fields have an invalid format.,請求書の項目データの形式�
 The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
 The invoice number is written differently from this party's earlier invoices (usually {0}),この取引先の過去の伝票と番号の書式が違います（通常は {0}）
 The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,伝票番号が会計の伝票番号スタンプのようです。伝票に印字された番号を確認してください
+The invoice number was not found in the text of the original. Check it against the original,伝票番号が原本の文字に見つかりません。原本と照合してください
 The invoice number was read two ways. Pick the one printed on the original:,伝票番号が2通りに読み取られました。原本と同じ方を選んでください：
 The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
 The ledger file content is invalid.,元帳の内容が無効です。
@@ -1253,6 +1254,7 @@ cowork.review.items_mismatch,明細の合計が伝票の金額と合いません
 cowork.review.number_choice,伝票番号が2通りに読み取られました。原本と同じ方を選んでください：
 cowork.review.number_field,伝票番号
 cowork.review.number_pattern,この取引先の過去の伝票と番号の書式が違います（通常は {0}）
+cowork.review.number_unseen,伝票番号が原本の文字に見つかりません。原本と照合してください
 cowork.review.own_tax,{0}が自社の納税者番号ではありません
 cowork.review.page_unread,このファイルの1ページを読み取れませんでした。そのページの伝票が漏れている可能性があります。原本を確認してください
 cowork.review.send_anyway,このまま送信

@@ -28,8 +28,8 @@ from pearnly_cowork.ocr.validation import (
 )
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
-    NUMBER_ALTERNATIVE_PREFIX, infer_withholding, invoice_number_alternative, normalize_amounts,
-    repair_from_transcript,
+    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, infer_withholding, invoice_number_alternative,
+    invoice_number_unseen, normalize_amounts, repair_from_transcript,
 )
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
@@ -53,6 +53,11 @@ KEEP_FROM_FIRST = frozenset({"additional_invoices", "source_refs", "is_not_invoi
 IMAGE_READS = ("direct", "recheck", "ocr_read")
 
 
+# 看图读写满输出上限（复读失控）时原地换参数重读一次用的提示与温度。
+RUNAWAY_HINT = ("\n\nYour previous answer ran away repeating characters and was cut off at the output limit. "
+                "Output each field once, copy every number exactly as printed and never repeat a digit sequence; "
+                "leave a value empty if you cannot read it.")
+RUNAWAY_TEMPERATURE = 0.4
 UNREAD_STAGE = "PAGE_UNREAD"
 UNREAD_PREFIX = "page_unread:"
 
@@ -149,7 +154,13 @@ class _Run:
                 response.finish_reason, response.checkpoint_key,
             ))
             if "MAX_TOKENS" in response.finish_reason and stage in IMAGE_READS:
-                # 看图读写满了输出上限：同一张图重读多半照样写满（语料实测一次 16k token、90 秒），交下一步。
+                # 看图读写满了输出上限：多半是模型复读失控（2026-09-28 压测：单号后一长串 0 写满 8192）。
+                # 原样重读照样写满，先换参数原地重读一次（温度调高打破复读、上限减半、提示别复读），
+                # 读出来就用；仍写满或读不出再交下一步。
+                data = self.runaway_retry(stage, page, model, prompt, images, tokens, timeout, thinking,
+                                          attempt + 1)
+                if data is not None:
+                    return data, self.calls[first:]
                 truncated = True
                 break
             try:
@@ -162,6 +173,22 @@ class _Run:
         raise ContentError("ocr.response_json_invalid", stage=stage, page_number=page,
                            detail="output hit the token limit" if truncated
                            else f"no valid JSON after {retries + 1} attempts (parse)")
+
+    def runaway_retry(self, stage, page, model, prompt, images, tokens, timeout, thinking, attempt):
+        request = ModelRequest(stage, page, attempt, model, prompt + RUNAWAY_HINT, images,
+                               max(1024, tokens // 2), timeout, temperature=RUNAWAY_TEMPERATURE, thinking=thinking)
+        response = self.model_call(request)
+        self.calls.append(CallEvidence(
+            stage, page, attempt, response.model, deepcopy(response.raw), response.text,
+            response.input_tokens, response.output_tokens, response.elapsed_ms,
+            response.finish_reason, response.checkpoint_key,
+        ))
+        if not response.text or "MAX_TOKENS" in response.finish_reason:
+            return None
+        try:
+            return _parse_json(response.text, stacked="additional_invoices")
+        except json.JSONDecodeError:
+            return None
 
     def read_image(self, stage, page, frame, prompt, *, thinking="", retries=None):
         data, calls = self.model_json(
@@ -251,14 +278,15 @@ class _Run:
                                        elapsed_ms=response.elapsed_ms, checkpoint_key=response.checkpoint_key))
         text = response.page.full_text
         notes = repair_from_transcript(invoice, text, tolerance=self.config.amount_tolerance)
-        alternative = invoice_number_alternative(invoice, text)
+        alternative = invoice_number_alternative(invoice, text) or invoice_number_unseen(invoice, text)
         warnings.extend(notes + ([alternative] if alternative else []))
         return ["L1"]
 
     def direct_result(self, page, invoice, warnings, calls, chain):
         if not invoice.is_not_invoice and not str(invoice.invoice_number or "").strip():
             warnings.append("direct_read: invoice_number missing")
-        force = any(w.startswith((DISCOUNT_INFERRED_PREFIX, NUMBER_ALTERNATIVE_PREFIX)) for w in warnings)
+        force = any(w.startswith((DISCOUNT_INFERRED_PREFIX, NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX))
+                    for w in warnings)
         credit = credit_note_review_reason(invoice)
         if credit:
             warnings.append(credit)

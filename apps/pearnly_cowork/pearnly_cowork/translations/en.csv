@@ -910,6 +910,7 @@ The invoice fields have an invalid format.,The invoice fields have an invalid fo
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
 The invoice number is written differently from this party's earlier invoices (usually {0}),The invoice number is written differently from this party's earlier invoices (usually {0})
 The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice
+The invoice number was not found in the text of the original. Check it against the original,The invoice number was not found in the text of the original. Check it against the original
 The invoice number was read two ways. Pick the one printed on the original:,The invoice number was read two ways. Pick the one printed on the original:
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
 The ledger file content is invalid.,The ledger file content is invalid.
@@ -1253,6 +1254,7 @@ cowork.review.items_mismatch,The line items do not add up to the invoice amount
 cowork.review.number_choice,The invoice number was read two ways. Pick the one printed on the original:
 cowork.review.number_field,Invoice number
 cowork.review.number_pattern,The invoice number is written differently from this party's earlier invoices (usually {0})
+cowork.review.number_unseen,The invoice number was not found in the text of the original. Check it against the original
 cowork.review.own_tax,{0} is not your company's tax ID
 cowork.review.page_unread,A page of this file could not be read: an invoice on it may be missing. Check the original
 cowork.review.send_anyway,Send anyway

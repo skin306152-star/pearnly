@@ -70,6 +70,13 @@ class ReviewReasons(unittest.TestCase):
         pages[0]["fields"].update(invoice_number="IV69/06-017", review_resolved=["number_choice"])  # 选了模型那种
         self.assertEqual(codes(pages), [])
 
+    def test_a_number_missing_from_the_transcript_is_flagged_until_edited(self):
+        pages = [page(invoice_number="38051304940")]
+        pages[0]["_validation_warnings"] = ["invoice_number_unseen: 38051304940"]
+        self.assertEqual(codes(pages), ["number_unseen"])
+        pages[0]["fields"]["invoice_number"] = "138051304940"   # 人改了
+        self.assertEqual(codes(pages), [])
+
     def test_uncertain_only_when_nothing_more_specific_and_nobody_edited(self):
         pages = [page()]
         pages[0]["_needs_manual_review"] = True

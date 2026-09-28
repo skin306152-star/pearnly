@@ -89,7 +89,7 @@ class InternalBoundaryContract(unittest.TestCase):
 		for source in ("erp_web", "line_erp"):
 			with self.subTest(source=source), self.assertRaisesRegex(push.PushContractError, "^erp.internal_only$"):
 				push.require_external_history({"source": source})
-		for source in ("manual", "cowork_line", "summary_table_batch", None):
+		for source in ("manual", "cowork_line", None):
 			self.assertIsNone(push.require_external_history({"source": source}))
 
 	def test_internal_user_cannot_trigger_external_push_with_external_history(self):
@@ -223,7 +223,7 @@ def verify_source(root):
 	guard = {"HTTPException": SourceHttpError}
 	source_definitions(root, "services/erp/internal_push_guard.py", guard,
 		{"require_external_history", "require_external_user"}, {"INTERNAL_SOURCES"})
-	for source in ["erp_web", "line_erp", "manual", "cowork_line", "summary_table_batch", None, "ERP_WEB", "erp_web "]:
+	for source in ["erp_web", "line_erp", "manual", "cowork_line", None, "ERP_WEB", "erp_web "]:
 		try:
 			guard["require_external_history"]({"source": source})
 			old = None

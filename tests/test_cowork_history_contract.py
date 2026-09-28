@@ -257,19 +257,6 @@ class FirstSaveAndCommit(unittest.TestCase):
 		result["custom"]["keep"].append(2)
 		self.assertEqual(draft["custom"]["keep"], [1])
 
-	def test_summary_import_cleanup_is_source_specific_and_preserves_explicit_direction(self):
-		for explicit, expected in ((None, "sales"), ("", "sales"), ("purchase", "purchase")):
-			fields = {"_direction": " sales ", "direction": explicit, "_walkin": True, "_product_code": "1", "items": [{"_product_code": "2"}], "total_amount": "5"}
-			result = history.clean_summary_fields(fields)
-			self.assertEqual(result["direction"], expected)
-			self.assertNotIn("_direction", result)
-			self.assertNotIn("_walkin", result)
-			self.assertNotIn("_product_code", result)
-			self.assertEqual(result["items"], [{"_product_code": "2"}])
-			self.assertEqual(history.prepare_pages([{"fields": fields}])[0]["fields"], fields)
-			result["items"][0]["_product_code"] = "changed"
-			self.assertEqual(fields["items"][0]["_product_code"], "2")
-
 
 if __name__ == "__main__":
 	unittest.main()

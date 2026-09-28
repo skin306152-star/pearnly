@@ -53,7 +53,6 @@ Assign Cowork access through company and client permissions.	请通过公司和�
 Remove legacy document shares before accessing Cowork records.	请先移除旧的文档共享授权，再访问 Cowork 记录。	กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork	旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。	
 Manual	手工	กรอกเอง	手入力	manual
 Cowork LINE	Cowork LINE	Cowork LINE	Cowork LINE	cowork_line
-Summary table import	汇总表导入	นำเข้าตารางสรุป	集計表の取り込み	summary_table_batch
 Failed	失败	ล้มเหลว	失敗	failed
 Pending	待处理	รอดำเนินการ	処理待ち	pending
 Confirmed	已确认	ยืนยันแล้ว	確認済み	confirmed
@@ -1173,3 +1172,4 @@ It was entered	已入账	บันทึกเข้าแล้ว	計上され
 It was not entered	未入账，可以重推	ยังไม่ได้บันทึก ส่งใหม่ได้	計上されていない（再送信可）	cowork.unknown.not_entered
 ERP document number	ERP 单号	เลขที่เอกสารใน ERP	ERP の伝票番号	cowork.unknown.docnum
 Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入账，可以重推	ตรวจใน ERP แล้ว: ยังไม่ได้บันทึก ส่งใหม่ได้	ERP で確認済み：未計上。再送信できます	intake.error.confirmed_not_entered
+The invoice number was not found in the text of the original. Check it against the original	单号在原件文字里没找到，请对照原件核对	ไม่พบเลขที่เอกสารในข้อความของต้นฉบับ กรุณาตรวจกับต้นฉบับ	伝票番号が原本の文字に見つかりません。原本と照合してください	cowork.review.number_unseen

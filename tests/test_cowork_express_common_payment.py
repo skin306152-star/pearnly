@@ -9,7 +9,7 @@ from __future__ import annotations
 import unittest
 import contextlib
 from datetime import date
-from pearnly_cowork.push.express.common import DOC_TYPE_SOURCE_SYNTHETIC, SRC_BANK, SRC_DOC_TYPE, SRC_EXPLICIT, SRC_MANUAL, SRC_NONE, SRC_PROFILE, payment_is_paid, payment_verdict
+from pearnly_cowork.push.express.common import SRC_BANK, SRC_DOC_TYPE, SRC_EXPLICIT, SRC_MANUAL, SRC_NONE, SRC_PROFILE, payment_is_paid, payment_verdict
 
 class PaymentIsPaidTests(unittest.TestCase):
 
@@ -119,29 +119,5 @@ class PriorityChainTests(unittest.TestCase):
         f = {'document_type': 'tax_invoice', 'total_amount': '107.00', 'date': '2026-07-03'}
         self.assertEqual(payment_verdict(f, profile={'default_payment': 'cash'}, bank_index=bank_index), (False, SRC_DOC_TYPE))
 
-class VatCheckboxSyntheticDocTypeTests(unittest.TestCase):
-    """document_type_source=="vat_checkbox"(汇总表批量建单合成票种·见 mapping.py)不是票面
-    OCR 证据,票种付款判据层(doc_type_payment_hint)必须跳过,落到档案/银行/默认层
-    ——只有真实票面 OCR 读出的 document_type(无此标记)才吃票种语义。"""
-
-    def test_synthetic_tax_invoice_no_signal_falls_to_none_not_credit(self):
-        f = {'document_type': 'tax_invoice', 'document_type_source': DOC_TYPE_SOURCE_SYNTHETIC}
-        self.assertEqual(payment_verdict(f), (None, SRC_NONE))
-
-    def test_synthetic_receipt_no_signal_falls_to_none_not_auto_paid(self):
-        f = {'document_type': 'receipt', 'document_type_source': DOC_TYPE_SOURCE_SYNTHETIC}
-        self.assertEqual(payment_verdict(f), (None, SRC_NONE))
-
-    def test_marker_does_not_block_explicit_signal(self):
-        f = {'document_type': 'tax_invoice', 'document_type_source': DOC_TYPE_SOURCE_SYNTHETIC, 'payment_method': 'transfer'}
-        self.assertEqual(payment_verdict(f), (True, SRC_EXPLICIT))
-
-    def test_marker_falls_through_to_profile(self):
-        f = {'document_type': 'receipt', 'document_type_source': DOC_TYPE_SOURCE_SYNTHETIC}
-        self.assertEqual(payment_verdict(f, profile={'default_payment': 'credit'}), (False, SRC_PROFILE))
-
-    def test_real_ocr_doc_type_without_marker_unaffected(self):
-        f = {'document_type': 'receipt'}
-        self.assertEqual(payment_verdict(f), (True, SRC_DOC_TYPE))
 if __name__ == '__main__':
     unittest.main(verbosity=2)
