@@ -29,7 +29,7 @@ from pearnly_cowork.ocr.validation import (
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
     NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, infer_withholding, invoice_number_alternative,
-    invoice_number_unseen, normalize_amounts, repair_from_transcript,
+    invoice_number_range, invoice_number_unseen, normalize_amounts, repair_from_transcript,
 )
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
@@ -551,6 +551,11 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
                  for i in range(1, source.page_count + 1)]
     if all(UNREAD_STAGE in p.layer_chain for p in pages):
         raise EngineError("ocr.all_pages_unread")
+    for page in pages:  # 单号是一段范围＝清单 / 汇总表的页，汇总票不处理（用户 2026-09-28）
+        summary = None if page.invoice.is_not_invoice else invoice_number_range(page.invoice)
+        if summary:
+            page.invoice = page.invoice.model_copy(update={"is_not_invoice": True, "additional_invoices": []})
+            page.validation_warnings.append(summary)
     # Adapters must supply a stable key. Empty keys (pure callers) represent unique calls.
     seen, calls = set(), []
     for call in run.calls:

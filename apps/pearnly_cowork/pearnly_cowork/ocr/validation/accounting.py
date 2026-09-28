@@ -27,6 +27,7 @@ WITHHOLDING_PREFIX = "withholding_inferred:"
 TRANSCRIPT_PREFIX = "corrected_from_ocr_text:"
 NUMBER_ALTERNATIVE_PREFIX = "invoice_number_alternative:"
 NUMBER_UNSEEN_PREFIX = "invoice_number_unseen:"
+NUMBER_RANGE_PREFIX = "invoice_number_range:"
 
 
 def normalize_amounts(invoice) -> list[str]:
@@ -145,6 +146,25 @@ def invoice_number_unseen(invoice, text) -> str | None:
     if not read or not text or number_seen(read, text):
         return None
     return f"{NUMBER_UNSEEN_PREFIX} {read}"
+
+
+_RANGE = re.compile(r"\s*(?:\bto\b|ถึง|~|–|—|\s-\s)\s*", re.IGNORECASE)
+
+
+def _shape(value) -> str:
+    return re.sub(r"[0-9]", "9", re.sub(r"[A-Za-z]", "A", str(value)))
+
+
+def invoice_number_range(invoice) -> str | None:
+    """单号写成一段号码范围（「IV69/06-026 to IV69/06-050」）：一张票不会这样写，这一页是清单 / 汇总表的续页。
+
+    2026-09-28 复测：汇总表第 1 页认成非发票，第 2 页（第 26–50 行 + 合计）却被当成一张税票、单号写成范围。
+    按用户口径汇总票不处理：两头是同一种写法的号码才算，返回 `invoice_number_range: 单号`，由引擎改判非发票。"""
+    read = str(getattr(invoice, "invoice_number", "") or "").strip()
+    parts = [part for part in _RANGE.split(read) if part.strip()]
+    if len(parts) != 2 or not all(re.search(r"\d", part) for part in parts) or _shape(parts[0]) != _shape(parts[1]):
+        return None
+    return f"{NUMBER_RANGE_PREFIX} {read}"
 
 
 def number_alternative(note) -> tuple[str, str] | None:

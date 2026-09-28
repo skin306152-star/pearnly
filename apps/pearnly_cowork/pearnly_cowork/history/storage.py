@@ -118,9 +118,9 @@ def review_reasons(doc, pages):
     fields = primary_page_fields(pages)
     # 票号格式由开票方定：进项看供应商、销项看本公司自己开过的票，所以一律按卖方税号取历史。
     raw_tax = str(fields.get("seller_tax") or "").strip()
-    digits = re.sub(r"\D", "", raw_tax)
+    digits = review.history_tax(raw_tax)
     numbers = []
-    if len(digits) == 13:
+    if digits:
         # 同一开票方、人核过（改过或推送成功）的票号，只取写法，不回显给别人看。一家可能同时用几套票号
         # （压测：本公司给 Big C 与给别家的是两套），取近 500 张统计各种写法，只取最近几十张会漏掉另一套。
         numbers = frappe.db.sql_list(f"""SELECT invoice_no FROM `tab{DOCTYPE}`

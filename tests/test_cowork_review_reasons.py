@@ -30,6 +30,12 @@ class ReviewReasons(unittest.TestCase):
         short = review.reasons([page(direction="sales", buyer_tax="105536080112", seller_tax=OWN)])
         self.assertEqual(short, [{"code": "tax_length", "field": "buyer_tax", "suggest": SUPPLIER}])
 
+    def test_number_history_is_looked_up_by_the_repaired_tax_id(self):
+        # 掉了开头 0 的税号按复核建议补上再取这家的票号历史；补了校验位也不对、或长度不对就不取
+        self.assertEqual(review.history_tax(OWN[1:]), OWN)
+        self.assertEqual(review.history_tax(OWN), OWN)
+        self.assertEqual((review.history_tax("105546015063"), review.history_tax("12345")), ("", ""))
+
     def test_the_own_tax_id_must_be_the_chosen_company(self):
         self.assertEqual(codes([page()], own_tax="0105553045044"), ["own_tax"])
         self.assertEqual(codes([page()], own_tax=None), [])

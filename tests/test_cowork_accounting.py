@@ -6,7 +6,7 @@ from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.schema import validate_invoice
 from pearnly_cowork.ocr.validation import check_amount_math
 from pearnly_cowork.ocr.validation.accounting import (
-    infer_withholding, invoice_number_alternative, invoice_number_unseen, normalize_amounts, number_alternative,
+    infer_withholding, invoice_number_alternative, invoice_number_range, invoice_number_unseen, normalize_amounts, number_alternative,
     number_seen, repair_from_transcript,
 )
 from test_cowork_engine import CONFIG, GOOD, Model, Source
@@ -67,6 +67,19 @@ class Accounting(unittest.TestCase):
         self.assertEqual(invoice_number_unseen(invoice(invoice_number="38051304940"), "เลขที่ 138051304940"),
                          "invoice_number_unseen: 38051304940")
         self.assertIsNone(invoice_number_unseen(invoice(invoice_number="138051304940"), "เลขที่ 138051304940"))
+
+    def test_a_number_range_marks_a_list_page(self):
+        # 汇总表续页被当成一张票、单号写成范围（2026-09-28 复测）；普通带连字符的单号不算
+        for read in ("IV69/06-026 to IV69/06-050", "A001 ถึง A025", "INV-0101 - INV-0125"):
+            self.assertEqual(invoice_number_range(invoice(invoice_number=read)), f"invoice_number_range: {read}")
+        for read in ("IV69/06-026", "IV 69 - 001", "RR690617-001", "", None):
+            self.assertIsNone(invoice_number_range(invoice(invoice_number=read)))
+
+    def test_a_list_page_numbered_as_a_range_is_not_an_invoice(self):
+        page = run_invoice(Source(), Model([{**GOOD, "invoice_number": "IV69/06-026 to IV69/06-050"}]),
+                           None, config=CONFIG, anchor_year=2026, today=date(2026, 9, 28)).pipeline.pages[0]
+        self.assertTrue(page.invoice.is_not_invoice)
+        self.assertIn("invoice_number_range: IV69/06-026 to IV69/06-050", page.validation_warnings)
 
     def test_a_tax_id_is_restored_only_from_a_transcript_id_one_digit_away(self):
         # 2026-09-28：0105546146823（校验位不过）被换成差两位、能过校验位的 0113546146823，真值是 0105546146825

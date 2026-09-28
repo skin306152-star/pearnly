@@ -64,6 +64,16 @@ def _tax_reason(field, value):
     return reason
 
 
+def history_tax(value) -> str:
+    """取这家票号历史用的税号：13 位原样；掉了开头 0 的 12 位按复核建议补上（校验位对才补），其余不取（回空）。
+
+    2026-09-28 复测：15 页销售 PDF 有 6 页本公司税号读成 12 位，查不到历史写法，单号两种读法只好都问人。"""
+    digits = _digits(value)
+    if len(digits) == 12 and valid_tax_id("0" + digits):
+        return "0" + digits
+    return digits if len(digits) == 13 else ""
+
+
 def _amount_reason(fields):
     sub, vat, total = (_money(fields.get(key)) for key in ("subtotal", "vat", "total_amount"))
     if sub is None or total is None:
@@ -183,4 +193,4 @@ def codes(found) -> str:
     return ",".join(dict.fromkeys(reason["code"] for reason in found or []))
 
 
-__all__ = ["ACKNOWLEDGED", "RESOLVED", "codes", "reasons", "shape"]
+__all__ = ["ACKNOWLEDGED", "RESOLVED", "codes", "history_tax", "reasons", "shape"]
