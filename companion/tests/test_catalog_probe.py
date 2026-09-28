@@ -226,3 +226,15 @@ def test_account_refresh_finds_an_account_missing_from_the_cached_list(monkeypat
     assert result[3] != "ERR_ACCOUNT_SET_UNAVAILABLE"
     missing = projection_refresh.collect_account(state, [], r"\\x\none", 101.0, roots=[r"\\Accserver\d$\ACCOUNT\70EXP"])
     assert missing[3] == "ERR_ACCOUNT_SET_UNAVAILABLE"
+
+
+def test_an_empty_rescan_keeps_the_last_account_sets():
+    # 2026-09-28 录制：登记表一时打不开，心跳连续报 0 个账套
+    from src.companion import projection_refresh
+
+    state = {"reported_account_sets": [{"path": r"S:\\EXP\\ACME", "writable": True}]}
+    projection_refresh.apply_endpoint_snapshot(state, {"account_sets": [], "accounts": [{"code": "1"}]}, 2.0)
+    assert state["reported_account_sets"] == [{"path": r"S:\\EXP\\ACME", "writable": True}]
+    assert state["reported_accounts"] == [{"code": "1"}]
+    projection_refresh.apply_endpoint_snapshot(state, {"account_sets": [{"path": "B"}], "accounts": []}, 3.0)
+    assert state["reported_account_sets"] == [{"path": "B"}]

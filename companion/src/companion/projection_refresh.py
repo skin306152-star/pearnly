@@ -56,10 +56,16 @@ def merge_account_sets(previous: list[dict], incoming: list[dict]) -> list[dict]
 
 def apply_endpoint_snapshot(state: dict, master: dict, version: float) -> None:
     incoming_sets = master.get("account_sets") or []
+    previous = state.get("reported_account_sets") or []
+    if not incoming_sets and previous:
+        # 重扫一个账套都没读到（登记表这会儿打不开，如 Express 正在打开账套）：保留上一份，
+        # 不让网页和服务端看到「0 个账套」（2026-09-28 录制：心跳连续 2 分钟报 0 个，之后自行恢复）。
+        log.warning("[heartbeat] 重扫没读到账套，沿用上一份 %d 个", len(previous))
+        incoming_sets = previous
     state["reported_account_sets"] = (
         incoming_sets
         if "accounts" in master
-        else merge_account_sets(state.get("reported_account_sets") or [], incoming_sets)
+        else merge_account_sets(previous, incoming_sets)
     )
     if "accounts" in master:
         state["reported_accounts"] = master.get("accounts") or []
