@@ -161,13 +161,18 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 			if document_type == "bank_statement":
 				if not any(bank_parse.to_float(entry.get(field)) for field in ("deposit", "withdrawal", "balance")):
 					continue  # 存、取、余额全是 0 的噪声行（B05 KBank8229-02 第一行「TRN」）；文字路径同样跳过
-				rows.append(StatementRow(date=_entry_date(entry),
+				row = StatementRow(date=_entry_date(entry),
 					description=entry.get("description") or "", deposit=bank_parse.to_float(entry.get("deposit")),
 					withdrawal=bank_parse.to_float(entry.get("withdrawal")),
 					balance=bank_parse.to_float(entry.get("balance")), source_file=filename,
 					confidence="low" if review else "medium",
 					amount_autocorrected=bool(entry.get("chain_amount_imputed")),
-					direction_autocorrected=bool(entry.get("chain_repaired"))))
+					direction_autocorrected=bool(entry.get("chain_repaired")))
+				if entry.get("balance") is None or not str(entry.get("balance")).strip():
+					# 没印余额的行（网银查询截图）余额留空，不当成 0 去核链（2026-09-30 压测 GIZE BBL-SA-01/03）。
+					# 行指纹按余额算，所以建好之后再置空（与存储读回的做法一致）。
+					row.balance = None
+				rows.append(row)
 			elif not account_code or _account(entry.get("account_code")) == account_code:
 				rows.append(GlRow(date=_entry_date(entry), doc_no=entry.get("voucher_no") or "",
 					account_code=_account(entry.get("account_code")), description=entry.get("description") or "",
@@ -191,6 +196,9 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		# 读出了余额（哪怕是 0）：没有流水的账单按 0 行对账要靠它（2026-09-30 压测 GIZE BBL-SA-04）。
 		"balances_read": any(str(value).strip() for value in (first.get("opening_balance"),
 			last.get("closing_balance")) if value is not None),
+		# 原文印着“无流水”、且认出了是哪个账户 / 哪个期间：没有余额也按 0 行对账（2026-09-30 压测 SCB 网银）。
+		"no_data_printed": any((page.get("extraction_audit") or {}).get("no_data_printed") for page in pages),
+		"recognised": bool(bank_name or digits or any(item.get("period_start") for item in documents)),
 		"accounts": sorted({row.account_code for row in rows}) if document_type == "general_ledger" else [],
 		"parser_version": legacy.get("engine"), "needs_review": bool(legacy.get("_needs_review")),
 		"validation_warnings": [warning for page in pages for warning in page.get("validation_warnings") or []]}

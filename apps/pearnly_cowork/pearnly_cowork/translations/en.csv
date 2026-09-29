@@ -1007,6 +1007,7 @@ The seller and buyer have the same tax ID. Correct it and submit again,The selle
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
 The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
+The statement's balances are missing or do not add up; the opening and closing balances follow the general ledger.,The statement's balances are missing or do not add up; the opening and closing balances follow the general ledger.
 The statement's count or totals do not match what it prints. A row may be missing or misread,The statement's count or totals do not match what it prints. A row may be missing or misread
 The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
@@ -1071,6 +1072,7 @@ This request key was used for different content.,This request key was used for d
 This request key was used for different push content.,This request key was used for different push content.
 This request was already used for different content.,This request was already used for different content.
 This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
+"This statement shows no running balance, so balances cannot be checked line by line.","This statement shows no running balance, so balances cannot be checked line by line."
 This stock count task is closed.,This stock count task is closed.
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
@@ -1998,7 +2000,9 @@ reconciliation.rows_invalid,Some rows in the file could not be understood. Check
 reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.statement_all_outside,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
+reconciliation.statement_balances_from_ledger,The statement's balances are missing or do not add up; the opening and closing balances follow the general ledger.
 reconciliation.statement_no_movement,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
+reconciliation.statement_no_running_balance,"This statement shows no running balance, so balances cannot be checked line by line."
 reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.

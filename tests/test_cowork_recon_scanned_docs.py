@@ -3,6 +3,7 @@
 Document AI 与模型都是假的，不连服务商、不付费；页面来源用假对象，不渲染真 PDF。
 """
 import json
+from decimal import Decimal
 import unittest
 from datetime import date
 from unittest import mock
@@ -489,7 +490,7 @@ class SeveralFilesPerSide(unittest.TestCase):
 			(True, [], 5010180.78, 5010180.78, False))
 		moved = bank_intake.read_statement_file(b"img", "sa.jpg", model_rows=lambda *a: {
 			"ok": False, "rows": [], "enterprise": True, "balances_read": True, "opening": 100.0, "closing": 90.0})
-		self.assertTrue(moved["needs_review"])  # 期初期末不等：少了流水
+		self.assertFalse(moved["ok"])  # 期初期末不等：少了流水明细，不按 0 行对
 
 	def test_a_balance_only_page_beside_pages_with_transactions_is_skipped(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
@@ -513,6 +514,72 @@ class SeveralFilesPerSide(unittest.TestCase):
 				bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
 					statement_files=[(b"1", "p2.pdf")], gl_files=[(b"g", "gl.xlsx")])
 		self.assertEqual(refused.call_args.args[0], "reconciliation.statement_no_movement")
+
+	def test_a_statement_without_running_balances_keeps_them_blank_and_takes_the_ledger_opening(self):
+		# GIZE BBL-SA-01 / 03（2026-09-30）：网银查询截图没有逐笔余额、倒序；读出的「期初」其实是期末。
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
+			enterprise_rows,
+		)
+		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service, bank_review
+
+		legacy = {"engine": "enterprise-2026-09-03-v1", "pages": [{"document": {
+			"opening_balance": "4984593.78", "closing_balance": "4987068.78", "account_number": "1274983111",
+			"entries": [
+				{"transaction_date": "2026-03-19", "description": "TRF", "deposit": "11556.00", "withdrawal": "", "balance": ""},
+				{"transaction_date": "2026-03-12", "description": "TRF", "deposit": "11556.00", "withdrawal": "", "balance": None}]}}]}
+		read = bank_intake.read_statement_file(b"img", "sa.jpg",
+			model_rows=lambda *a: enterprise_rows(legacy, "bank_statement", "sa.jpg"))
+		self.assertTrue(read["ok"])
+		self.assertEqual([(row.date.isoformat(), row.balance) for row in read["rows"]],
+			[("2026-03-12", None), ("2026-03-19", None)])
+		self.assertTrue(read["balances_missing"])
+		statement, notes = bank_recon_service.without_running_balance(read, {"opening": 4961455.78})
+		self.assertEqual((statement["opening"], statement["closing"]), (4961455.78, 4984567.78))
+		self.assertEqual(notes, ["reconciliation.statement_no_running_balance",
+			"reconciliation.statement_balances_from_ledger"])
+		self.assertFalse(statement["needs_review"])
+		rows = [{"deposit": Decimal("11556.00"), "withdrawal": Decimal(0), "balance": None}] * 2
+		self.assertTrue(all(check["ok"] for check in bank_review.balance_chain(rows, Decimal(0))))
+
+	def test_balances_that_add_up_are_kept_for_a_statement_without_running_balances(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		row = StatementRow(date=date(2026, 1, 30), description="TRF", withdrawal=0.0, deposit=3226.0, balance=0.0)
+		row.balance = None
+		statement = {"rows": [row], "opening": 4981367.78, "closing": 4984593.78}
+		kept, notes = bank_recon_service.without_running_balance(statement, {"opening": 1.0})
+		self.assertIs(kept, statement)
+		self.assertEqual(notes, ["reconciliation.statement_no_running_balance"])
+
+	def test_a_page_printing_no_data_for_a_known_account_is_a_quiet_month(self):
+		# SCB 网银「No Data Available」（2026-09-30）：没有流水、也没印余额。
+		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service
+
+		quiet = bank_intake.read_statement_file(b"img", "scb.pdf", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "balances_read": False, "no_data_printed": True,
+			"recognised": True})
+		self.assertEqual((quiet["ok"], quiet["rows"], quiet["balances_missing"]), (True, [], True))
+		statement, notes = bank_recon_service.without_running_balance(quiet, {"opening": 1023552.37})
+		self.assertEqual((statement["opening"], statement["closing"]), (1023552.37, 1023552.37))
+		self.assertEqual(notes, ["reconciliation.statement_balances_from_ledger"])
+		unknown = bank_intake.read_statement_file(b"img", "x.pdf", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "balances_read": False, "no_data_printed": True,
+			"recognised": False})
+		self.assertEqual(unknown["error_code"], bank_intake.NO_MOVEMENT)
+
+	def test_a_summary_page_whose_balances_differ_is_not_a_quiet_month(self):
+		# BBL-CA-01（2026-09-30）：只传了第 2/2 页汇总，期初期末不等说明有流水没读到。
+		from pearnly_cowork.reconciliation import bank_intake
+
+		summary = bank_intake.read_statement_file(b"img", "p2.pdf", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "balances_read": True, "opening": 100.0, "closing": 90.0})
+		self.assertEqual(summary["error_code"], bank_intake.NO_MOVEMENT)
+
+	def test_no_data_printed_is_recognised_in_the_transcript(self):
+		for text in ("No Data Available", "ไม่พบรายการในช่วงเวลาที่ค้นหา", "no transactions found"):
+			self.assertTrue(pipeline.NO_DATA_RE.search(text), text)
+		self.assertFalse(pipeline.NO_DATA_RE.search("Total No. of Credits 35 852,386.58"))
 
 	def test_a_cover_page_that_was_read_is_skipped_not_called_unread(self):
 		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service

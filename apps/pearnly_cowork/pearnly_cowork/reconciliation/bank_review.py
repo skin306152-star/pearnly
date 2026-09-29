@@ -74,6 +74,10 @@ def validate_rows(value, original, gl_rows):
 def balance_chain(rows, opening):
 	"""Use the actual preceding balance, so one bad row does not poison the rest."""
 	checks = []
+	if rows and all(row["balance"] is None for row in rows):
+		# 整份账单没有逐笔余额（网银查询截图）：没有可核的链，不逐行报断点（2026-09-30 压测 GIZE BBL-SA-01/03）；
+		# 期初 + 发生额 = 期末由建任务时核过，并在结果里提示。
+		return [{"idx": index, "expected": "", "actual": "", "diff": "", "ok": True} for index in range(len(rows))]
 	with localcontext() as context:
 		context.prec = 40
 		previous = Decimal(str(opening)).quantize(CENT, rounding=ROUND_HALF_EVEN)

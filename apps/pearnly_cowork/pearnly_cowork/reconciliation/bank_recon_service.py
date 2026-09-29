@@ -219,6 +219,8 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	ledger, period = within_statement_period(statement["rows"], ledger)
 	if period:
 		warnings = list(warnings or []) + [_("reconciliation.gl_period_trimmed", lang=_warning_lang(lang)).format(*period)]
+	statement, notes = without_running_balance(statement, ledger)
+	warnings = list(warnings or []) + [_(key, lang=_warning_lang(lang)) for key in notes]
 	statement_names = "; ".join(name for name, _result in statements)
 	overrides = {} if header in (None, "") else header
 	if not isinstance(overrides, dict):
@@ -358,6 +360,26 @@ def _mend_last_line(merged, following):
 	last.deposit, last.withdrawal = (amount, 0.0) if amount > 0 else (0.0, -amount)
 
 
+def without_running_balance(statement, ledger):
+	"""账单没有逐笔余额（网银查询截图、SCB「No Data Available」）：没有余额链可核。读出的期初 + 发生额 = 期末就照用；
+	对不上或没印余额 —— 截图上的「ยอดเงินคงเหลือ」是查询当时的余额，不一定是期初 —— 就按总账期初计，期末 = 期初 + 发生额
+	（2026-09-30 压测 GIZE BBL-SA-01：读出的「期初」其实是期末）。返回 ``(账单, 提示词条)``。"""
+	rows = statement.get("rows") or []
+	if any(row.balance is not None for row in rows) or not (rows or statement.get("balances_missing")):
+		return statement, []
+	notes = ["reconciliation.statement_no_running_balance"] if rows else []
+	movement = round(sum((row.deposit or 0) - (row.withdrawal or 0) for row in rows), 2)
+	opening, closing = float(statement.get("opening") or 0), float(statement.get("closing") or 0)
+	if opening and closing and abs(opening + movement - closing) <= 0.01 and not statement.get("balances_missing"):
+		return statement, notes
+	opening = float(ledger.get("opening") or 0)
+	closing = round(opening + movement, 2)
+	completeness = bank_statement.audit_completeness(rows, opening, closing, None)
+	return {**statement, "opening": opening, "closing": closing, "completeness": completeness,
+		"needs_review": bool(statement.get("low_conf_count") or statement.get("amount_fixed_count"))
+			or not completeness["ok"]}, notes + ["reconciliation.statement_balances_from_ledger"]
+
+
 def _quiet_pages_skipped(statements):
 	"""只有余额、没有流水的那几份：同一侧还有带流水的文件时不参与合并，按“没有流水，已跳过”列出；全都没有流水时
 	只留第一份按 0 行对账（几份余额页没有日期，排不出先后）。"""
@@ -485,6 +507,10 @@ def within_ledger_period(statement, ledger):
 	# 账单跨过期间、期间里一笔都没有（B05-02：存折有 1/5 也有 3/5，2 月 0 笔）：就是这个月没有流水，
 	# 筛成 0 行，期初期末都是期间开始前最后一行的余额。
 	kept = [row for row in kept if row.date]
+	if all(row.balance is None for row in rows):
+		# 没有逐笔余额：期初期末由 without_running_balance 定。
+		return {**statement, "rows": kept, "row_count": len(kept)}, (len(rows) - len(kept), start.isoformat(),
+			end.isoformat())
 	if before and before[-1].balance:
 		opening = before[-1].balance
 	elif kept:

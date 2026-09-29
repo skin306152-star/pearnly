@@ -740,6 +740,8 @@ Ledger debit only	仅总账借方	มีเฉพาะเดบิตในบ�
 Ledger credit only	仅总账贷方	มีเฉพาะเครดิตในบัญชีแยกประเภท	元帳貸方のみ	cowork.recon.bank.gl_credit_only
 The bank statement could not be read.	读不出银行账单。	ไม่สามารถอ่านรายการเดินบัญชีได้	銀行明細を読み取れません。	reconciliation.statement_unparsed
 The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.	账单读到了，但没有逐笔流水（只有封面或汇总页），请上传有流水明细的页。	อ่านรายการเดินบัญชีได้ แต่ไม่มีรายการเคลื่อนไหว (มีแค่หน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายการเดินบัญชี	明細書は読み取れましたが、取引明細がありません（表紙や集計ページのみ）。取引明細のあるページをアップロードしてください。	reconciliation.statement_no_movement
+This statement shows no running balance, so balances cannot be checked line by line.	这份账单没有逐笔余额，无法逐行核对余额。	รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงตรวจยอดคงเหลือทีละรายการไม่ได้	この明細書には各行の残高がないため、残高を1行ずつ確認できません。	reconciliation.statement_no_running_balance
+The statement's balances are missing or do not add up; the opening and closing balances follow the general ledger.	账单没有印余额或余额前后对不上，期初、期末按总账计。	รายการเดินบัญชีไม่มียอดคงเหลือหรือยอดไม่สอดคล้องกัน ยอดยกมาและยอดยกไปจึงใช้ตามบัญชีแยกประเภท	明細書に残高がないか前後が合わないため、期首・期末残高は総勘定元帳に合わせています。	reconciliation.statement_balances_from_ledger
 The general ledger could not be read.	读不出总账。	ไม่สามารถอ่านบัญชีแยกประเภทได้	総勘定元帳を読み取れません。	reconciliation.ledger_unparsed
 The general ledger could not be read.	读不出总账。	ไม่สามารถอ่านบัญชีแยกประเภทได้	総勘定元帳を読み取れません。	reconciliation.gl_parse_failed
 The general ledger has no revenue account rows.	总账里没有收入科目的行。	ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท	総勘定元帳に収益科目の行がありません。	reconciliation.gl_no_revenue_rows

@@ -69,14 +69,20 @@ def _quiet_statement(model: Dict[str, Any], bank_code: str, filename: str) -> Di
 	"""读出了余额、没有一笔流水的账单（当月无发生额的储蓄 / 定期户、查不到流水的网银截图）：按 0 行对账，
 	期初取读出的期初（没有就取期末），期末取读出的期末（没有就取期初）；两者不等说明少了流水，交人复核
 	（2026-09-30 压测 GIZE BBL-SA-04 / KBANK-SA-01：原来整套报“读不出账单”）。"""
-	opening = float(model.get("opening") or 0) or float(model.get("closing") or 0)
-	closing = float(model.get("closing") or 0) or opening
+	read_opening, read_closing = float(model.get("opening") or 0), float(model.get("closing") or 0)
+	if read_opening and read_closing and abs(read_opening - read_closing) > 0.01:
+		# 期初期末都印了、却不相等：这期有流水，只是没读到明细（只传了汇总页，BBL-CA-01）—— 不按 0 行对。
+		return None
+	opening = read_opening or read_closing
+	closing = read_closing or opening
 	completeness = bank_statement.audit_completeness([], opening, closing, None)
 	result = {"ok": True, "rows": [], "row_count": 0, "opening": opening, "closing": closing,
+		# 没印余额（SCB「No Data Available」）：期初期末由对账按总账补（bank_recon_service）。
+		"balances_missing": not model.get("balances_read"),
 		"bank_code": _adopted(model.get("bank_code") or bank_code, filename), "source": "enterprise",
 		"parser_version": model.get("parser_version") or "", "balance_warn_count": 0, "low_conf_count": 0,
 		"amount_fixed_count": 0, "printed_totals": None, "completeness": completeness,
-		"needs_review": abs(opening - closing) > 0.01 or not completeness["ok"], "no_movement": True}
+		"needs_review": not completeness["ok"], "no_movement": True}
 	if model.get("identity"):
 		result["identity"] = model["identity"]
 	return result
@@ -139,6 +145,9 @@ def chronological(rows, opening, closing):
 	dated = [row.date for row in rows if row.date]
 	if len(rows) < 2 or len(dated) < 2 or dated[0] <= dated[-1]:
 		return rows, opening, closing
+	if all(row.balance is None for row in rows):
+		# 没有逐笔余额（网银查询截图）：没有余额链可比，日期倒着排就翻过来，期初期末不动（2026-09-30 压测 BBL-SA-03）。
+		return list(reversed(rows)), opening, closing
 
 	def breaks(sequence):
 		count, previous = 0, None
@@ -213,7 +222,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		model_row_list = model.get("rows") or []
 		# 企业档读成功了、只是没有流水（存折封面、账户信息页）：不算“没读出来”（2026-09-29 压测 B05）。
 		read_empty = bool(model.get("enterprise")) and not model_row_list
-		if read_empty and model.get("balances_read"):
+		if read_empty and (model.get("balances_read") or (model.get("no_data_printed") and model.get("recognised"))):
 			quiet = model
 		if model.get("ok") and model_row_list:
 			model_opening = float(model.get("opening", opening) or 0)
@@ -236,7 +245,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	if not rows:
 		if free_error is not None:
 			return _failure(free_error[0], free_error[1])
-		if quiet is not None:
+		if quiet is not None and _quiet_statement(quiet, bank_code, filename) is not None:
 			return _quiet_statement(quiet, bank_code, filename)
 		if read_empty:
 			return _failure(NO_MOVEMENT, "The document was read but has no statement rows")
@@ -297,6 +306,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 
 	result: Dict[str, Any] = {
 		"ok": True,
+		# 整份没有逐笔余额：期初期末靠「期初 + 发生额 = 期末」核，对不上由对账按总账期初算（bank_recon_service）。
+		"balances_missing": all(row.balance is None for row in rows),
 		"rows": rows,
 		"row_count": len(rows),
 		"opening": opening,

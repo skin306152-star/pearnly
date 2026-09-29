@@ -20,6 +20,7 @@ the Document AI pages plus each extraction's tokens at the deployed ``services/o
 from __future__ import annotations
 
 import json
+import re
 import time
 from copy import deepcopy
 from typing import Callable, Iterable, List, Tuple
@@ -166,6 +167,10 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             if not document.get("entries"):
                 issues.append("no_transaction_rows")
             page = make_page(document, category, number, issues=issues)
+            if not document.get("entries") and NO_DATA_RE.search(transcript or ""):
+                # 原文明确印着“无流水”（SCB「No Data Available」、BBL「ไม่พบรายการในช่วงเวลาที่ค้นหา」）：对账据此
+                # 按 0 行完成，而不是报读不出（2026-09-30 压测 GIZE SCB-FIXED / BBL-SA-05）。
+                page.extraction_audit["no_data_printed"] = True
             page.layer2_model = response.model
             page.layer2_ms = response.elapsed_ms
             page.layer2_input_tokens = response.input_tokens
@@ -187,6 +192,10 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
     elapsed = int((time.monotonic() - started) * 1000)
     return PipelineResult(pages=pages, page_count=page_count, elapsed_ms=elapsed, engine=ENGINE,
         estimated_cost_thb=cost, read_ms=read_ms)
+
+
+NO_DATA_RE = re.compile(r"no\s+data\s+available|no\s+transactions?\s+(?:found|available)|no\s+records?\s+found"
+                        r"|ไม่พบรายการ|ไม่มีรายการ(?:เคลื่อนไหว|เดินบัญชี)?", re.IGNORECASE)
 
 
 def to_legacy(result: PipelineResult) -> dict:
