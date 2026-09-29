@@ -101,6 +101,37 @@ def gl_diagnostic(diagnostics, rows, filename):
 	return record
 
 
+def within_report_period(gl_rows, vat_rows):
+	"""总账期间比税报长（全年导出）：只留税报所在整月的总账行，其余不参加核对（2026-09-30 压测 I01：1–12 月的总账
+	配 5 月的税报，其他月份 2,890 行全列成「只在总账」；银行对账同样按期间截）。没有日期的行照留；税报日期跨度超过
+	一年（日期读错）不截。返回 ``(总账行, (截掉的行数, 起, 止))``，不需要截返回 ``(总账行, None)``。"""
+	import calendar
+	from datetime import date as date_type
+
+	from pearnly_cowork.reconciliation.normalization import parse_date
+
+	def day(value):
+		try:
+			return parse_date(value)
+		except Exception:
+			return None
+
+	days = sorted(filter(None, (day(row.get("report_date")) for row in vat_rows)))
+	if not days:
+		return gl_rows, None
+	middle = days[len(days) // 2]
+	days = [value for value in days if abs((value - middle).days) <= 366]
+	first, last = days[0], days[-1]
+	if (last - first).days > 400:
+		return gl_rows, None
+	start = first.replace(day=1)
+	end = date_type(last.year, last.month, calendar.monthrange(last.year, last.month)[1])
+	kept = [row for row in gl_rows if not day(row.date) or start <= day(row.date) <= end]
+	if len(kept) == len(gl_rows) or not kept:
+		return gl_rows, None
+	return kept, (len(gl_rows) - len(kept), start.isoformat(), end.isoformat())
+
+
 def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
 		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename=""):
 	"""Store one reconciliation from the extracted content of the two report files.
@@ -137,12 +168,15 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 	if not parsed["rows"]:
 		frappe.throw(_("reconciliation.gl_trial_balance") if income_parse.is_trial_balance(gl_source)
 			else _("reconciliation.gl_no_revenue_rows"))
+	gl_rows, trimmed = within_report_period(parsed["rows"], vat_rows)
+	if trimmed:
+		report_warnings = list(report_warnings) + [_("reconciliation.gl_rows_outside_report").format(*trimmed)]
 	# The stored diagnostics keep the file each side came from and the reader that
 	# served it, so a later export or review can say what a task was read from.
 	parse_values = {"gl": [gl_diagnostic(parsed["diag"], parsed["row_count"], gl_filename)],
 		"vat": [{"file": vat_filename, "method": report_method, "rows": report_rows,
 			"parser_version": report_version, "warnings": report_warnings}]}
-	result = create(workspace, title, request_id, income_parse.decoded_rows(parsed["rows"]),
+	result = create(workspace, title, request_id, income_parse.decoded_rows(gl_rows),
 		vat_rows, header, parse_values, gl_filename, vat_filename)
 	payload = {**result, "parsed": {
 		"rows": parsed["row_count"],

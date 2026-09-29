@@ -1977,6 +1977,7 @@ reconciliation.gl_account_auto,总账里有多个科目，已按与银行流水�
 reconciliation.gl_no_revenue_rows,总账里没有收入科目的行。
 reconciliation.gl_parse_failed,读不出总账。
 reconciliation.gl_period_trimmed,总账期间比银行流水长，只取 {0} 至 {1} 的记录，之前的发生额已滚入期初（{2}）。
+reconciliation.gl_rows_outside_report,总账里有 {0} 行不在税报期间（{1} 至 {2}），没有参加核对。
 reconciliation.gl_source_invalid,总账内容无效。
 reconciliation.gl_trial_balance,这是试算表，只有科目合计，请上传带逐笔凭证的总账。
 reconciliation.header_invalid,期初期末数值无效。
@@ -2078,6 +2079,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} is not 13 digits,{0}不是 13 位
 {0} is not 13 digits. Did you mean:,{0}不是 13 位，是不是：
 {0} is not your company's tax ID,{0}不是本公司税号
+{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,总账里有 {0} 行不在税报期间（{1} 至 {2}），没有参加核对。
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
 {0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}

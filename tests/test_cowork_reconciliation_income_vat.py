@@ -144,6 +144,59 @@ class UnnumberedLines(unittest.TestCase):
         self.assertEqual(summary.gl_only_credit, 200.0)
 
 
+class PrefixedNumbers(unittest.TestCase):
+    """税报单号不印总账凭证的字母前缀（I01，2026-09-30）。"""
+
+    def test_a_number_without_the_voucher_prefix_pairs_and_keeps_its_difference(self):
+        ledger = [gl("SI690502-001", "si690502001", "2026-05-02", credit=420.56),
+                  gl("SW02000074", "sw02000074", "2026-05-03", credit=2448.60)]
+        rows = [vat("690502-001", "2026-05-02", "A", 420.56), vat("02000074", "2026-05-03", "B", 2168.23)]
+        detail, summary = income.reconcile_gl_vat(ledger, rows)
+        by_doc = {row.doc_no: row for row in detail}
+        self.assertEqual(by_doc["SI690502-001"].diff, 0.0)
+        self.assertEqual(by_doc["SW02000074"].diff, round(2168.23 - 2448.60, 2))
+        self.assertEqual((summary.gl_only_credit, summary.vat_only_positive), (0.0, 0.0))
+
+    def test_two_candidate_vouchers_or_a_short_number_stay_unpaired(self):
+        ledger = [gl("SI0001234", "si0001234", credit=10.0), gl("SW0001234", "sw0001234", credit=10.0),
+                  gl("SI12", "si12", credit=5.0)]
+        detail, summary = income.reconcile_gl_vat(ledger, [vat("0001234", amount=10.0), vat("12", amount=5.0)])
+        self.assertEqual(summary.vat_only_positive, 15.0)
+
+    def test_a_number_with_its_own_prefix_or_another_date_is_another_document(self):
+        # I03 .xls：「IV-69-04-01-001」按单的发票 ≠ 总账「SV690401-001」当日汇总凭证。
+        ledger = [gl("SV690401-001", "sv690401001", "01/04/69", credit=228594.49),
+                  gl("SI690502-001", "si690502001", "2026-05-03", credit=420.56)]
+        rows = [vat("IV-69-04-01-001", "2026-04-01", "A", 3840.0), vat("690502-001", "2026-05-02", "B", 420.56)]
+        detail, summary = income.reconcile_gl_vat(ledger, rows)
+        self.assertTrue(all(row.gl_amount is None for row in detail))
+
+
+class UnrelatedDebits(unittest.TestCase):
+    def test_a_vat_amount_equal_to_the_credits_ignores_an_unrelated_debit(self):
+        # I01（2026-09-30）：凭证另挂 4210-99 借方 117.59，税报 420.56 = 4110-02 贷方。
+        ledger = [gl("SI1", "si1", credit=420.56, account_code="4110-02"),
+                  gl("SI1", "si1", debit=117.59, credit=0.0, account_code="4210-99"),
+                  gl("SI2", "si2", credit=1000.0), gl("SI2", "si2", debit=50.0, credit=0.0)]
+        detail, _summary = income.reconcile_gl_vat(ledger, [vat("SI1", amount=420.56), vat("SI2", amount=950.0)])
+        self.assertEqual([(row.doc_no, row.gl_amount, row.diff) for row in detail],
+                         [("SI1", 420.56, 0.0), ("SI2", 950.0, 0.0)])
+
+
+class DailyTotals(unittest.TestCase):
+    """总账按日汇总、税报按单逐张（I03 .xls，2026-09-30）。"""
+
+    def test_the_day_s_invoices_pair_with_the_day_s_summary_voucher(self):
+        ledger = [gl("SV690401-001", "sv690401001", "01/04/69", credit=5000.14),
+                  gl("SV690402-001", "sv690402001", "02/04/69", credit=900.0)]
+        rows = [vat("IV-001", "2026-04-01", "A", 3840.0), vat("IV-002", "2026-04-01", "B", 1160.0),
+                vat("IV-003", "2026-04-02", "C", 400.0), vat("IV-004", "2026-04-02", "D", 400.0)]
+        detail, summary = income.reconcile_gl_vat(ledger, rows)
+        self.assertEqual(sorted((row.date, row.doc_no, row.diff) for row in detail if row.gl_amount is not None),
+                         [("2026-04-01", "SV690401-001", -0.14), ("2026-04-01", "SV690401-001", 0.0)])
+        self.assertEqual((summary.gl_only_credit, summary.vat_only_positive), (900.0, 800.0))
+
+
 class Summary(unittest.TestCase):
     def test_totals_and_the_four_adjustment_buckets(self):
         rows = [gl(doc_no="GL-1", norm_doc_no="gl1", credit=1070.0),

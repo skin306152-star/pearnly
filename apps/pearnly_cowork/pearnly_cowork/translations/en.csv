@@ -1977,6 +1977,7 @@ reconciliation.gl_account_auto,The general ledger has several accounts; account 
 reconciliation.gl_no_revenue_rows,The general ledger has no revenue account rows.
 reconciliation.gl_parse_failed,The general ledger could not be read.
 reconciliation.gl_period_trimmed,"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
+reconciliation.gl_rows_outside_report,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 reconciliation.gl_source_invalid,The ledger file content is invalid.
 reconciliation.gl_trial_balance,This is a trial balance with account totals only. Upload the general ledger with each voucher.
 reconciliation.header_invalid,The opening and closing values are invalid.
@@ -2078,6 +2079,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} is not 13 digits,{0} is not 13 digits
 {0} is not 13 digits. Did you mean:,{0} is not 13 digits. Did you mean:
 {0} is not your company's tax ID,{0} is not your company's tax ID
+{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
 {0} moved {1} to {2},{0} moved {1} to {2}

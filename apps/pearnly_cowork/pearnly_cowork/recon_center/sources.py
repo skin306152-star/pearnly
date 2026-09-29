@@ -17,7 +17,7 @@
 import frappe
 
 from pearnly_cowork.ocr.engine import document_tier
-from pearnly_cowork.reconciliation import vat_parse
+from pearnly_cowork.reconciliation import income_parse, vat_parse
 from pearnly_cowork.tabular import readers
 
 EXCEL = ("xlsx", "xls", "xlsm")
@@ -67,12 +67,19 @@ def ledger_source(content, filename, read=None):
         return {"kind": "excel", "sheets": [rows for _name, rows in loaded]}
     if ext == "pdf":
         pages = _pdf_text(content)
+        text = {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
+        # 有文字层、免费解析就读得出收入行的，不再送付费识别（旧线上先走识别；2026-09-30 压测 I03：同一份 Express 总账
+        # 识别两次超时读空，整套报“总账里没有收入科目的行”，而文字解析 30 行全对）。
+        if any(page.strip() for page in pages):
+            parsed = income_parse.decode(text)
+            if parsed.get("ok") and len(parsed.get("rows") or []) >= vat_parse.MIN_DETERMINISTIC_ROWS:
+                return text
         model = _pipeline(read, "general_ledger", content, filename)
         if model:
             return model
         if not any(page.strip() for page in pages):
             frappe.throw(frappe._("reconciliation.gl_parse_failed"))
-        return {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
+        return text
     if ext in IMAGES and read is not None:
         model = _pipeline(read, "general_ledger", content, filename)
         if model:

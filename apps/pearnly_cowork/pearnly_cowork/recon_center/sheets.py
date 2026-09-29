@@ -468,7 +468,7 @@ def load(kind, task_id, lang=None):
     else:
         inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
         version = revision.revision(doc)
-    notes = revision.bank_notes(doc) if kind == "bank" else []
+    notes = revision.bank_notes(doc) if kind == "bank" else revision.income_notes(doc) if kind == "income" else []
     if kind == "vat" and inputs.get("failed_files"):
         # 读不出的发票文件原来存着却不显示（2026-09-28 录制读代码发现）：与银行同样写在标题下一句。
         notes.append(_("vat_check.note.unread").format(", ".join(str(name) for name in inputs["failed_files"])))

@@ -1977,6 +1977,7 @@ reconciliation.gl_account_auto,บัญชีแยกประเภทมี�
 reconciliation.gl_no_revenue_rows,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
 reconciliation.gl_parse_failed,ไม่สามารถอ่านบัญชีแยกประเภทได้
 reconciliation.gl_period_trimmed,บัญชีแยกประเภทครอบคลุมช่วงเวลายาวกว่ารายการเดินบัญชี ใช้เฉพาะ {0} ถึง {1} และยกรายการก่อนหน้าเป็นยอดยกมา {2}
+reconciliation.gl_rows_outside_report,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 reconciliation.gl_source_invalid,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 reconciliation.gl_trial_balance,ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ
 reconciliation.header_invalid,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
@@ -2078,6 +2079,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} is not 13 digits,{0} ไม่ครบ 13 หลัก
 {0} is not 13 digits. Did you mean:,{0} ไม่ครบ 13 หลัก ใช่เลขนี้หรือไม่:
 {0} is not your company's tax ID,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
+{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"

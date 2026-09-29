@@ -817,6 +817,8 @@ def decode(source) -> Optional[Dict[str, Any]]:
 			shaped = shaped_rows(source["cells"])
 			if shaped is not None:
 				result = shaped
+		if result.get("ok"):
+			result["rows"] = pre_vat_from_total(result.get("rows") or [])
 	elif kind == "pdf":
 		result = pdf_rows(source["pages"], source["lines"])
 	elif kind == "text":
@@ -851,6 +853,23 @@ def is_sales_listing(heads) -> bool:
 	text = " ".join(str(line or "") for line in list(heads or [])[:15]).lower()
 	return (any(title in text for title in SALES_LISTING_TITLES)
 		and not any(title in text for title in TAX_REPORT_TITLES))
+
+
+def pre_vat_from_total(rows):
+	"""没有未税列、「合计」列却正好是税额的 1/7%：那一列其实是未税（Express 按单列冰块数量的税报：
+	「ราคารวม / vat. / เป็นเงิน」，ราคารวม 3,840、vat 268.8、เป็นเงิน 4,108.8；2026-09-30 压测 I03 .xls 读成未税 0）。
+	八成以上有金额的行都满足才改；改成未税 = 该列、含税 = 未税 + 税额。"""
+	if any(row.get("report_amount_pre_vat") for row in rows):
+		return rows
+	priced = [row for row in rows if row.get("report_amount") and row.get("report_vat_amount")]
+	if not priced:
+		return rows
+	fits = sum(1 for row in priced if abs(float(row["report_amount"]) * 0.07 - float(row["report_vat_amount"])) <= 0.05)
+	if fits * 5 < len(priced) * 4:
+		return rows
+	return [dict(row, report_amount_pre_vat=row["report_amount"],
+		report_amount=round(float(row["report_amount"]) + float(row.get("report_vat_amount") or 0), 2))
+		if row.get("report_amount") else row for row in rows]
 
 
 def decoded_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:

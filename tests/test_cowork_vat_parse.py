@@ -113,6 +113,18 @@ class ExcelDecode(unittest.TestCase):
 		self.assertEqual(row["report_vat_amount"], 18.76)
 		self.assertEqual(row["report_amount_pre_vat"], 268.0)
 
+	def test_a_total_column_that_is_the_pre_vat_amount_is_read_as_such(self):
+		# I03 .xls（2026-09-30）：「ราคารวม / vat. / เป็นเงิน」按单列冰块数量，ราคารวม 其实是未税。
+		cells = [["วันที่", "เลขที่ใบกำกับภาษี", "รหัส", "ชื่อลูกค้า", "C001", "P002", "ราคารวม", "vat.", "เป็นเงิน"],
+			[46113.0, "IV-69-04-01-001", 501.0, "ซีพีเอฟ", 80.0, None, 3840.0, 268.8, 4108.8],
+			[46113.0, "IV-69-04-01-002", 546.0, "เดลี่ฟู้ดส์", 50.0, None, 1400.0, 98.0, 1498.0],
+			[46113.0, "IV-69-04-01-003", 504.0, "สยามพาร์ค", 1.0, None, 160.0, 11.2, 171.2]]
+		rows = parse.decode({"kind": "excel", "cells": cells})["rows"]
+		self.assertEqual([(row["report_amount_pre_vat"], row["report_vat_amount"]) for row in rows],
+			[(3840.0, 268.8), (1400.0, 98.0), (160.0, 11.2)])
+		self.assertEqual(parse.pre_vat_from_total([{"report_amount": 1070.0, "report_vat_amount": 70.0}]),
+			[{"report_amount": 1070.0, "report_vat_amount": 70.0}])  # 含税合计不动
+
 	def test_a_sheet_without_a_header_is_refused_the_deployed_way(self):
 		result = parse.excel_rows([["01/06/2569", "IV001", "ACME"]])
 		self.assertEqual(result, {"ok": False, "error": "找不到表头行", "rows": []})

@@ -17,7 +17,9 @@ Intentional changes (2026-09-29, found reproducing wrong results offline):
   debits for a negative one), so a discount debited on the same voucher showed as a
   difference and the reconciliation ladder could not add up (VAT 950 against GL
   1,000 credit and 50 debit read as −50). For a voucher with one side only both
-  rules give the same number;
+  rules give the same number. When the VAT amount equals the credits alone (the
+  voucher also carries an unrelated debit, MR.ERP's 4210-99 allocation, 2026-09-30 I01)
+  the credits are compared, as deployed;
 * a document number printed on several VAT lines is compared once: every line but
   the last takes its own VAT amount from the voucher, the last takes the rest. The
   deployed rule compared every line with the whole voucher, so lines 600 + 400
@@ -27,13 +29,22 @@ Intentional changes (2026-09-29, found reproducing wrong results offline):
   date and the same net amount that no numbered VAT line claims, and then counts as
   that voucher. The deployed rule could never pair such a line, so a month of daily
   summaries showed every day twice, once as VAT-only and once as GL-only (2026-09-29,
-  I03). A line with several candidate vouchers stays unpaired.
+  I03). A line with several candidate vouchers stays unpaired;
+* a VAT number printed without a letter prefix that differs from a ledger voucher only
+  by the voucher's prefix («690502-001» against «SI690502-001») pairs with that voucher
+  when it is the only one of the same date and no other VAT line names it (2026-09-30,
+  I01). A VAT number with its own prefix («IV-…» against «SV…») is another document;
+* a day the ledger books as one summary voucher while the report lists every invoice
+  pairs as a whole: all the day's unpaired VAT lines go to the day's only unpaired
+  voucher when their sum is within ฿1 of it (2026-09-30, I03 .xls). The per-line
+  rounding shows as the difference on the last line.
 
 Pure logic: no Frappe, database, file, clock, HTTP, model or export access. Reading
 the GL and VAT files, persisting tasks and building the workbook stay in the legacy
 project and are the following slices of this family.
 """
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -156,6 +167,96 @@ def pair_unnumbered_lines(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]],
 	return paired
 
 
+def _digits_key(norm: str) -> str:
+	"""单号去掉开头的字母前缀：「SI690502-001」→「690502001」。少于 4 位数字的不算（太短会误配）。"""
+	key = re.sub(r"^[a-z]+", "", norm or "")
+	return key if sum(char.isdigit() for char in key) >= 4 else ""
+
+
+def pair_prefixed_numbers(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+	"""税报单号与总账凭证只差前面的字母前缀（税报印「690502-001」，总账「SI690502-001」；2026-09-30 压测 I01）：
+	去掉前缀后只对上一张、且没被别的税报行点名的凭证，就按那张凭证配（金额不同照常列为差异）。"""
+	gl_numbers = {row.norm_doc_no for row in gl_rows if row.norm_doc_no}
+	named = {normalize_doc_no(vat_doc_no(vat)) for vat in vat_rows} - {""}
+	by_key: Dict[str, List[GlRow]] = defaultdict(list)
+	for row in gl_rows:
+		if row.norm_doc_no and row.norm_doc_no not in named:
+			key = _digits_key(row.norm_doc_no)
+			if key and row not in by_key[key]:
+				by_key[key].append(row)
+	def same_day(vat, row):
+		# 两边日期都认得出就必须同一天。
+		try:
+			first, second = parse_date(vat.get("report_date")), parse_date(row.date)
+		except Exception:
+			return True
+		return not (first and second) or first == second
+
+	used, paired = set(), list(vat_rows)
+	for index, vat in enumerate(vat_rows):
+		norm = normalize_doc_no(vat_doc_no(vat))
+		# 只补税报上没印的前缀：税报单号自带字母前缀（「IV-69-04-01-001」对总账「SV690401-001」当日汇总）是另一张单据
+		# （2026-09-30 离线复核 I03 .xls 时发现会误配）。
+		if not norm or norm in gl_numbers or not norm[0].isdigit():
+			continue
+		vouchers = {row.norm_doc_no: row for row in by_key.get(_digits_key(norm), []) if same_day(vat, row)}
+		if len(vouchers) == 1:
+			number, row = next(iter(vouchers.items()))
+			if number not in used:
+				used.add(number)
+				paired[index] = dict(vat, report_ref_no=row.doc_no)
+	return paired
+
+
+DAILY_TOLERANCE = 1.0  # 当日几百张发票逐张四舍五入，合计与汇总凭证差几毛
+
+
+def pair_daily_totals(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+	"""总账每天记一张汇总凭证、税报按单逐张列（Express「บันทึกขายวันที่ …」对当日几百张发票；2026-09-30 压测 I03
+	.xls：30 天逐日合计与凭证都只差 0.13–0.16）：某一天总账只有一张没配上的凭证，当天没配上的税报行（两行以上）合计
+	与它相差不超过 DAILY_TOLERANCE，就把这些行都按那张凭证配（同号多行按旧规则：最后一行认余下的，舍入差照常显示）。"""
+	def day_of(value):
+		try:
+			return parse_date(value)
+		except Exception:
+			return None
+
+	def number(value):
+		try:
+			return float(value or 0.0)
+		except (TypeError, ValueError):
+			return 0.0
+
+	gl_numbers = {row.norm_doc_no for row in gl_rows if row.norm_doc_no}
+	named = {normalize_doc_no(vat_doc_no(vat)) for vat in vat_rows} - {""}
+	vouchers: Dict[str, List[GlRow]] = defaultdict(list)
+	for row in gl_rows:
+		if row.norm_doc_no and row.norm_doc_no not in named:
+			vouchers[row.norm_doc_no].append(row)
+	free_by_day: Dict[Any, List[str]] = defaultdict(list)
+	for norm, rows in vouchers.items():
+		day = day_of(rows[0].date)
+		if day is not None:
+			free_by_day[day].append(norm)
+	loose: Dict[Any, List[int]] = defaultdict(list)
+	for index, vat in enumerate(vat_rows):
+		if normalize_doc_no(vat_doc_no(vat)) not in gl_numbers:
+			day = day_of(vat.get("report_date"))
+			if day is not None:
+				loose[day].append(index)
+	paired = list(vat_rows)
+	for day, indexes in loose.items():
+		if len(indexes) < 2 or len(free_by_day.get(day, [])) != 1:
+			continue
+		norm = free_by_day[day][0]
+		net = sum(number(row.credit) - number(row.debit) for row in vouchers[norm])
+		total = sum(number(vat_rows[index].get("report_amount_pre_vat")) for index in indexes)
+		if abs(total - net) <= DAILY_TOLERANCE:
+			for index in indexes:
+				paired[index] = dict(vat_rows[index], report_ref_no=vouchers[norm][0].doc_no)
+	return paired
+
+
 def reconcile_gl_vat(
 	gl_rows: List[GlRow],
 	vat_rows: List[Dict[str, Any]],
@@ -166,7 +267,8 @@ def reconcile_gl_vat(
 	The VAT side is the driver of the detail list; a difference within
 	``amount_tolerance`` is reported as a zero difference.
 	"""
-	vat_rows = pair_unnumbered_lines(gl_rows, vat_rows, amount_tolerance)
+	vat_rows = pair_daily_totals(gl_rows, pair_prefixed_numbers(gl_rows,
+		pair_unnumbered_lines(gl_rows, vat_rows, amount_tolerance)))
 	gl_idx: Dict[str, List[GlRow]] = defaultdict(list)
 	for row in gl_rows:
 		if row.norm_doc_no:
@@ -210,6 +312,11 @@ def reconcile_gl_vat(
 			)
 		else:
 			gl_amt = round(sum(row.credit for row in gl_matches) - sum(row.debit for row in gl_matches), 2)
+			# 凭证上另挂着借方（MR.ERP 的 4210-99 收款分摊，比销售额还大）而税报金额正好等于贷方：按贷方比（旧线上的
+			# 口径）；等于贷方减借方（同一张凭证记了折扣）就按净额。两种都不等照旧按净额列差异（2026-09-30 压测 I01）。
+			credits = round(sum(row.credit for row in gl_matches), 2)
+			if abs(vat_amt - gl_amt) > amount_tolerance and abs(vat_amt - credits) <= amount_tolerance:
+				gl_amt = credits
 			siblings = lines_of[norm_no]
 			if len(siblings) > 1:
 				if index != siblings[-1]:

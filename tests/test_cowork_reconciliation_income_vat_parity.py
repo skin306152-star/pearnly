@@ -34,7 +34,8 @@ HASHES = {
 # everything else is still compared as printed): the VAT amount is compared with the voucher's net
 # credit (credit − debit) instead of credits only / negated debits only, and a document number on
 # several VAT lines is compared once — every line but the last takes its own VAT amount, the last
-# takes the rest of the voucher.
+# takes the rest of the voucher. 2026-09-30 (I01): when the VAT amount equals the credits alone
+# (an unrelated debit on the voucher) the credits are compared, as deployed.
 INTENTIONAL = {
     "services/recon/gl_vat_reconcile.py": (
         ("""    for vat in vat_rows:
@@ -57,6 +58,9 @@ INTENTIONAL = {
             else:
                 gl_amt = round(sum(r.credit for r in gl_matches), 2)""",
          """            gl_amt = round(sum(r.credit for r in gl_matches) - sum(r.debit for r in gl_matches), 2)
+            _credits = round(sum(r.credit for r in gl_matches), 2)
+            if abs(vat_amt - gl_amt) > amount_tolerance and abs(vat_amt - _credits) <= amount_tolerance:
+                gl_amt = _credits
             siblings = _lines_of[norm_no]
             if len(siblings) > 1:
                 if index != siblings[-1]:
@@ -207,10 +211,17 @@ def run(root):
     counts = {"batches": 0, "detail_rows": 0, "matched": 0, "credit_notes": 0,
               "tolerance_suppressed": 0, "gl_only_credit_items": 0, "gl_only_debit_items": 0,
               "vat_only_positive_items": 0, "vat_only_negative_items": 0, "empty": 0,
-              "raised": 0}
+              "raised": 0, "paired_before_matching": 0}
     for case in fixtures(rng):
+        # 有意变化（2026-09-29 / 30）：配对前先按规则改写税报行（无单号的当日汇总行、只差字母前缀的单号、按日汇总），
+        # 改写本身有单元测试；这里让旧线上的核心吃同样改写过的行，核对其余逻辑逐字不变。
+        paired = outcome(lambda gl, rows, tolerance: income.pair_daily_totals(gl, income.pair_prefixed_numbers(
+            gl, income.pair_unnumbered_lines(gl, rows, tolerance))),
+            [native_gl_row(spec) for spec in case["gl_rows"]], case["vat_rows"], case["amount_tolerance"])
+        vat_rows = paired[1] if paired[0] == "ok" else case["vat_rows"]
+        counts["paired_before_matching"] += int(paired[0] == "ok" and vat_rows != case["vat_rows"])
         old = outcome(legacy["reconcile_gl_vat"],
-                      [gl_row(legacy, spec) for spec in case["gl_rows"]], case["vat_rows"],
+                      [gl_row(legacy, spec) for spec in case["gl_rows"]], vat_rows,
                       case["amount_tolerance"])
         new = outcome(income.reconcile_gl_vat,
                       [native_gl_row(spec) for spec in case["gl_rows"]], case["vat_rows"],

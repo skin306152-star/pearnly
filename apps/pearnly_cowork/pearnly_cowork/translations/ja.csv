@@ -1977,6 +1977,7 @@ reconciliation.gl_account_auto,総勘定元帳に複数の科目があるため�
 reconciliation.gl_no_revenue_rows,総勘定元帳に収益科目の行がありません。
 reconciliation.gl_parse_failed,総勘定元帳を読み取れません。
 reconciliation.gl_period_trimmed,総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。
+reconciliation.gl_rows_outside_report,総勘定元帳の {0} 行は売上税報告の期間（{1}〜{2}）外のため、照合に含めていません。
 reconciliation.gl_source_invalid,元帳の内容が無効です。
 reconciliation.gl_trial_balance,これは科目合計だけの試算表です。伝票ごとの明細がある総勘定元帳をアップロードしてください。
 reconciliation.header_invalid,期首・期末の値が無効です。
@@ -2078,6 +2079,7 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} is not 13 digits,{0}が13桁ではありません
 {0} is not 13 digits. Did you mean:,{0}が13桁ではありません。次の番号ですか：
 {0} is not your company's tax ID,{0}が自社の納税者番号ではありません
+{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,総勘定元帳の {0} 行は売上税報告の期間（{1}〜{2}）外のため、照合に含めていません。
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました

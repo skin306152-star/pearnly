@@ -401,6 +401,31 @@ class SourcesRouteToTheReader(unittest.TestCase):
 		self.assertEqual(calls, [])
 		self.assertFalse(sources.vat_parse.is_sales_listing(["รายงานภาษีขาย", "รายงานแสดงข้อมูลการขาย"]))
 
+	def test_a_ledger_pdf_that_reads_free_is_not_sent_to_the_reader(self):
+		# I03（2026-09-30）：Express 总账有文字层，免费解析 30 行全对；原来先送识别，识别超时读空整套失败。
+		read, calls = self.reader({"pages": []})
+		lines = "\n".join(["41-01-00-00     รายได้จากการขาย          (113,336,751.03)"] + [
+			f" 0{day}/04/69 ขาย    SV69040{day}-001 บันทึกขาย       1,000.00      (113,33{day},751.03)" for day in range(1, 5)])
+		with mock.patch.object(sources, "_pdf_text", return_value=[lines]):
+			source = sources.ledger_source(b"%PDF", "gl.pdf", read)
+		self.assertEqual((source["kind"], calls), ("pdf", []))
+
+	def test_the_ledger_is_cut_to_the_report_months_and_the_page_says_so(self):
+		# I01（2026-09-30）：1–12 月的总账配 5 月的税报。
+		from pearnly_cowork.reconciliation import income_recon_service, revision
+		from pearnly_cowork.reconciliation.income_vat import GlRow
+
+		def row(day):
+			return GlRow(doc_no="x", norm_doc_no="x", date=day, account_code="4110", description="", debit=0.0, credit=1.0)
+
+		kept, trimmed = income_recon_service.within_report_period(
+			[row("2026-01-10"), row("05/05/69"), row("2026-05-31"), row(""), row("2026-06-01")],
+			[{"report_date": "2026-05-02"}, {"report_date": "2026-05-20"}])
+		self.assertEqual([item.date for item in kept], ["05/05/69", "2026-05-31", ""])
+		self.assertEqual(trimmed, (2, "2026-05-01", "2026-05-31"))
+		doc = mock.Mock(parse_info_json=json.dumps({"gl": [], "vat": [{"file": "r.jpg", "warnings": ["cut 2"]}]}))
+		self.assertEqual(revision.income_notes(doc), ["cut 2"])
+
 	def test_without_a_reader_a_photo_is_still_refused(self):
 		with mock.patch.object(sources.frappe, "_", side_effect=lambda text: text), \
 				mock.patch.object(sources.frappe, "throw", side_effect=frappe.ValidationError) as refused:

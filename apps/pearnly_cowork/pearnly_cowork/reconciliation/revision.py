@@ -86,6 +86,14 @@ def bank_inputs(doc):
 		"gl": bank_recon_contracts.json_loads(bank_recon_contracts.json_dumps(ledger))}
 
 
+def income_notes(doc):
+	"""收入对账标题旁的提示：建任务时记下的（总账按税报期间截取等；2026-09-30 压测 I01）。"""
+	from pearnly_cowork.reconciliation import income_recon_contracts
+
+	parse_info = income_recon_contracts.json_loads(doc.parse_info_json) or {}
+	return [warning for item in parse_info.get("vat") or [] for warning in item.get("warnings") or []]
+
+
 def bank_notes(doc):
 	"""这份对账为什么要人看一眼：一句话，页面标题下显示（用户 2026-09-28：只在页面写，Excel 不加）。
 
