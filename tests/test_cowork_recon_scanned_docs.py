@@ -498,6 +498,17 @@ class SeveralFilesPerSide(unittest.TestCase):
 		kept = bank_recon_service._merged_statement([plain, second])
 		self.assertEqual(kept["rows"][1].balance, 562264.36)
 
+	def test_a_photo_first_line_is_corrected_even_when_merged_by_date(self):
+		# B05-02：一张照片末行没有余额，接链退回按日期合并；CMN 685 仍要按前一行余额纠正成支出。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		first = self.statement([(date(2026, 1, 5), "TRN", 743728.0, 0.0, 2851314.24)], opening=3595042.24)
+		second = self.statement([(date(2026, 1, 5), "CMN", 0.0, 685.0, 2850629.24), (date(2026, 3, 5), "TRN", 727299.0, 0.0, 0.0)])
+		self.assertEqual(bank_recon_service.chain_files([first["rows"], second["rows"]]), [])
+		merged = bank_recon_service._merged_statement([first, second])
+		cmn = next(row for row in merged["rows"] if row.description == "CMN")
+		self.assertEqual((cmn.withdrawal, cmn.deposit, cmn.direction_autocorrected), (685.0, 0.0, True))
+
 	def test_statements_of_another_account_are_named(self):
 		# B05-02：KBank 存折里混进两张 BBL 存折。
 		from pearnly_cowork.reconciliation.bank_recon_service import other_accounts
@@ -559,6 +570,19 @@ class StatementOrderAndDates(unittest.TestCase):
 		self.assertEqual(_entry_date({"transaction_date": "", "transaction_date_raw": "23/03/26"}), date(2026, 3, 23))
 		self.assertEqual(_entry_date({"transaction_date": "1982-05-19", "transaction_date_raw": ""}), date(2025, 5, 19))
 		self.assertEqual(_entry_date({"transaction_date": "2026-04-05", "transaction_date_raw": "05/04/69"}), date(2026, 4, 5))
+
+	def test_an_offsetting_pair_of_imputed_amounts_is_undone_for_review(self):
+		# B01 行 357 / 358：余额 534,708.53 读成 708.53，两行金额都是补的（支出 533,940 / 存入 534,390）。
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import enterprise_rows
+
+		entries = [{"transaction_date_raw": "10/05/26", "deposit": "100", "balance": "534648.53"},
+			{"transaction_date_raw": "10/05/26", "withdrawal": "533940.00", "balance": "708.53", "chain_amount_imputed": True},
+			{"transaction_date_raw": "10/05/26", "deposit": "534390.00", "balance": "535098.53", "chain_amount_imputed": True},
+			{"transaction_date_raw": "10/05/26", "deposit": "50", "balance": "535148.53", "chain_amount_imputed": True}]
+		rows = enterprise_rows({"pages": [{"document": {"entries": entries}}]}, "bank_statement", "p.jpg")["rows"]
+		self.assertEqual([(row.deposit, row.withdrawal) for row in rows[1:3]], [(0.0, 0.0), (0.0, 0.0)])
+		self.assertEqual([row.confidence for row in rows[1:3]], ["low", "low"])
+		self.assertEqual(rows[3].deposit, 50.0)  # an imputed amount without an offsetting partner stays
 
 	def test_a_misread_year_in_the_statement_month_takes_the_statement_year(self):
 		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import enterprise_rows

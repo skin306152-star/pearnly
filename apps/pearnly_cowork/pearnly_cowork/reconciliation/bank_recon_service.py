@@ -364,15 +364,18 @@ def _merged_statement(results):
 		rows, first = chained, chained[0]
 		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
 		closing = rows[-1].balance or closing
-		# 接好之后整条再定案一次：每张照片的第一行单独定案时没有前一行可比（B05 KBank8229：手续费 685 读成存入）。
+	if len(read) > 1 and rows:
+		# 接好（或按日期合并）之后整条再定案一次：每张照片的第一行单独定案时没有前一行可比（B05 KBank8229：
+		# 手续费 685 读成存入；有一张首末行没余额、接链退回按日期合并时也要做）。
 		from pearnly_cowork.reconciliation.bank_intake import repair_balance_from_neighbours
 
 		# 接不上的交界行（前后两张照片之间缺了东西，或混进了别的账户）不按跨照片的余额差补金额：金额反推允许 30%
-		# 的差，B05-02 把 BBL 存折首行补成了 2,678,117.31（接的是 KBank 的余额）。定案后还原它们印出的金额。
+		# 的差，B05-02 把 BBL 存折首行补成了 2,678,117.31（接的是 KBank 的余额）。定案后金额数值变了的还原成印出的；
+		# 只翻方向（数值不变）的保留纠正。
 		printed = [(row, row.deposit, row.withdrawal, row.direction_autocorrected) for row in boundaries]
 		rows = bank_statement.finalize_rows(rows, opening)
 		for row, deposit, withdrawal, flipped in printed:
-			if (row.deposit, row.withdrawal) != (deposit, withdrawal) and getattr(row, "amount_autocorrected", False):
+			if abs((row.deposit or 0) + (row.withdrawal or 0) - (deposit or 0) - (withdrawal or 0)) > 0.01:
 				row.deposit, row.withdrawal, row.amount_autocorrected = deposit, withdrawal, False
 				row.direction_autocorrected = flipped
 		repair_balance_from_neighbours(rows, opening)

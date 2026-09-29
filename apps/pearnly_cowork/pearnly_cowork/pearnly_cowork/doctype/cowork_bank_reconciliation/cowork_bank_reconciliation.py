@@ -119,6 +119,23 @@ def _same_month_years(rows):
 				row.date = row.date.replace(year=year, day=28)
 
 
+def _undo_offsetting_imputations(rows):
+	"""相邻两行的金额都是按余额差补出来的、方向相反、数额几乎相等：多半是中间那个余额读错了（B01 印的 534,708.53
+	读成 708.53，两行金额都没读到，补成「支出 533,940 / 存入 534,390」互相抵消，余额链显示全通过 —— 2026-09-29
+	压测）。只凭账单反推不出真实金额，撤掉这一对补出来的金额（记 0、低可信），让余额链在这里断开交人复核。"""
+	for index in range(len(rows) - 1):
+		first, second = rows[index], rows[index + 1]
+		if not (getattr(first, "amount_autocorrected", False) and getattr(second, "amount_autocorrected", False)):
+			continue
+		a = (first.deposit or 0) - (first.withdrawal or 0)
+		b = (second.deposit or 0) - (second.withdrawal or 0)
+		largest = max(abs(a), abs(b))
+		if a * b < 0 and largest and abs(a + b) <= max(1.0, largest * 0.02):
+			for row in (first, second):
+				row.deposit, row.withdrawal, row.amount_autocorrected = 0.0, 0.0, False
+				row.confidence = "low"
+
+
 def _account(value):
 	"""科目必须带数字：3.8 读 Express 打印的总账时把「สมุด」栏（จ่าย / รับ）当成科目（B04 BBL6764）。"""
 	text = str(value or "").strip()
@@ -157,6 +174,8 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 					debit=bank_parse.to_float(entry.get("debit")), credit=bank_parse.to_float(entry.get("credit")),
 					balance=bank_parse.to_float(entry.get("balance")), source_file=filename))
 	_same_month_years(rows)
+	if document_type == "bank_statement":
+		_undo_offsetting_imputations(rows)
 	first = (pages[0].get("document") or {}) if pages else {}
 	last = (pages[-1].get("document") or {}) if pages else {}
 	documents = [page.get("document") or {} for page in pages]
