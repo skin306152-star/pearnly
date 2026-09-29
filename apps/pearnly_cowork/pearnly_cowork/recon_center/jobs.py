@@ -38,9 +38,10 @@ def _state(job_id, **values):
 
 
 def _save(content, filename):
-    from frappe.utils.file_manager import save_file
-
-    return save_file(filename, content, None, None, is_private=1).name
+    # 原生 File 插入，按站点上限（默认 25MB，与 MAX_BYTES 一致）；旧的 file_manager.save_file 另有 10MB 默认上限，
+    # 10.7MB / 14.8MB 的发票扫描件整单被拒（2026-09-29 压测 V03）。
+    return frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
+                           "content": content}).insert(ignore_permissions=True).name
 
 
 def start(kind, title, sides, options=None):
@@ -99,7 +100,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
                 document_model_rows,
             )
-            from pearnly_cowork.recon_center import document_ocr
+            from pearnly_cowork.recon_center import document_ocr, sources
 
             account = str(options.get("gl_account_code") or "")
             # 扫描件 / 照片 / 要模型兜底的 PDF：每份文件一个持久识别任务（按读到的是哪一份文件找它存的 File）。
@@ -112,6 +113,15 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 return document_ocr.reader(recon_job, f"{side}{index}", file_name, frappe.session.user)(
                     document_type, content, filename)
 
+            # 照片先全部提交识别，识别进程并行读，再按顺序取结果（旧线上一侧多份 4 份并行；一张一张提交再等，18 张
+            # 存折照片要排很久，2026-09-29 压测）。同一参考号、同样参数的提交返回同一个识别任务，读取层再提交不会重复付费；
+            # PDF 不预先提交：带文字层的银行 PDF 先走免费解析。
+            names = [name for loaded in (lefts, rights) for name, _content in loaded]
+            for index, ((content, file_name, side), name) in enumerate(zip(stored, names)):
+                if name.rsplit(".", 1)[-1].lower() in sources.IMAGES:
+                    document_ocr.submit(recon_job, f"{side}{index}", file_name, name, content,
+                                        "bank_statement" if side == "left" else "general_ledger", frappe.session.user)
+            frappe.db.commit()
             (left_name, left), (right_name, right) = lefts[0], rights[0]
             result = bank_recon_service.create_from_documents(workspace, title, request_id, left, left_name,
                 right, right_name, gl_account_code=account, model_rows=document_model_rows(account, read=read),
@@ -137,9 +147,12 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         frappe.db.rollback()
         from pearnly_cowork.reconciliation.messages import error_text
 
-        message = error_text(error)
-        if not isinstance(error, (frappe.ValidationError, ValueError)):
-            frappe.log_error(title="cowork reconciliation job", message=frappe.get_traceback())
+        # 每次失败都记日志：共用一句提示的校验错误原来不记，压测时查不到真正原因（B01，2026-09-29）。数据库锁 / 超时
+        # 这类系统问题单独提示稍后重试，不说成文件格式不对。
+        frappe.log_error(title="cowork reconciliation job", message=frappe.get_traceback())
+        system = isinstance(error, (frappe.QueryTimeoutError, frappe.QueryDeadlockError)) or not isinstance(
+            error, (frappe.ValidationError, ValueError))
+        message = frappe._("reconciliation.system_busy") if system else error_text(error)
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
     finally:
         # 一份一提交：删除时的文件保护检查会锁住查到的来源行，二十张照片放在一个事务里删，并发的另一个对账

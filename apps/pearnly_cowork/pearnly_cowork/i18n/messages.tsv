@@ -501,6 +501,7 @@ There is not enough balance to read the scanned or photographed document. Top up
 Reading the scanned or photographed document took too long. Try again later.	扫描件或照片读取超时，请稍后再试。	การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง	スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。	reconciliation.recognition_timeout
 This scanned or photographed document could not be read. Check the file and try again.	这份扫描件或照片没有读出内容，请检查文件后再试。	อ่านเอกสารสแกนหรือรูปถ่ายนี้ไม่ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่	このスキャンや写真の書類は読み取れませんでした。ファイルを確認してもう一度お試しください。	reconciliation.document_unreadable
 Recognition is busy. Try again in a moment.	识别繁忙，请稍后再试。	ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง	読み取りが混み合っています。しばらくしてからもう一度お試しください。	reconciliation.recognition_busy
+The system is busy and the reconciliation was not finished. Please try again shortly.	系统繁忙，这次对账没有完成，请稍后重试。	ระบบกำลังยุ่ง การกระทบยอดครั้งนี้ยังไม่เสร็จ กรุณาลองใหม่ภายหลัง	システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。	reconciliation.system_busy
 Check the statement balance differences before confirming.	请先修正账单余额差异，再确认。	กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน	明細の残高差異を修正してから確定してください。	reconciliation.review_balance_mismatch
 Complete statement review before exporting the result.	请先完成账单复核，再导出对账结果。	กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล	明細確認を完了してから照合結果を出力してください。	reconciliation.review_required
 Invalid statement review rows or row references.	复核行内容或原始行编号无效。	ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง	確認明細または元の行番号が無効です。	reconciliation.review_rows_invalid

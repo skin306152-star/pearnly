@@ -1003,6 +1003,7 @@ The stock count record was not found.,棚卸記録が見つかりません。
 The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
 "The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
 The stocktake export snapshot is incomplete. Reload and try again.,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
+The system is busy and the reconciliation was not finished. Please try again shortly.,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 The tax ID is not valid. Correct it and submit again,納税者番号が正しくありません。直して再送信してください
 The unsent preparation was cancelled.,未送信の準備を取り消しました。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
@@ -1973,6 +1974,7 @@ reconciliation.rows_invalid,ファイルに読み取れない行があります�
 reconciliation.rows_too_many,行数が多すぎます。ファイルを分けて照合してください
 reconciliation.run_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.statement_unparsed,銀行明細を読み取れません。
+reconciliation.system_busy,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 reconciliation.task_not_found,照合タスクが見つかりません。
 reconciliation.text_required,必須の文字項目が空です。入力してからもう一度お試しください
 reconciliation.text_too_long,文字が長すぎる項目があります。短くしてからもう一度お試しください

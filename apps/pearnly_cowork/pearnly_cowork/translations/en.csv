@@ -1003,6 +1003,7 @@ The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The stocktake export snapshot is incomplete. Reload and try again.,The stocktake export snapshot is incomplete. Reload and try again.
+The system is busy and the reconciliation was not finished. Please try again shortly.,The system is busy and the reconciliation was not finished. Please try again shortly.
 The tax ID is not valid. Correct it and submit again,The tax ID is not valid. Correct it and submit again
 The unsent preparation was cancelled.,The unsent preparation was cancelled.
 The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
@@ -1973,6 +1974,7 @@ reconciliation.rows_invalid,Some rows in the file could not be understood. Check
 reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.statement_unparsed,The bank statement could not be read.
+reconciliation.system_busy,The system is busy and the reconciliation was not finished. Please try again shortly.
 reconciliation.task_not_found,The reconciliation task was not found.
 reconciliation.text_required,A required text field is empty. Fill it in and try again
 reconciliation.text_too_long,A text field is too long. Shorten it and try again

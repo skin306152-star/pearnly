@@ -1003,6 +1003,7 @@ The stock count record was not found.,ไม่พบรายการตรว
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",บันทึกรายการสินค้าคงคลังไม่ได้ กรุณาตรวจชื่อสินค้า จำนวน และราคา
 The stocktake export snapshot is incomplete. Reload and try again.,ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง
+The system is busy and the reconciliation was not finished. Please try again shortly.,ระบบกำลังยุ่ง การกระทบยอดครั้งนี้ยังไม่เสร็จ กรุณาลองใหม่ภายหลัง
 The tax ID is not valid. Correct it and submit again,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 The unsent preparation was cancelled.,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว
 The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB
@@ -1973,6 +1974,7 @@ reconciliation.rows_invalid,มีบางแถวในไฟล์ที่�
 reconciliation.rows_too_many,ไฟล์มีจำนวนแถวมากเกินไป กรุณาแบ่งไฟล์แล้วกระทบยอดทีละส่วน
 reconciliation.run_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้
+reconciliation.system_busy,ระบบกำลังยุ่ง การกระทบยอดครั้งนี้ยังไม่เสร็จ กรุณาลองใหม่ภายหลัง
 reconciliation.task_not_found,ไม่พบงานกระทบยอดนี้
 reconciliation.text_required,มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่
 reconciliation.text_too_long,มีข้อความยาวเกินไป กรุณาทำให้สั้นลงแล้วลองใหม่

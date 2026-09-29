@@ -375,6 +375,58 @@ class ReconJobCleanup(unittest.TestCase):
 		self.assertEqual(delete.call_count, 2)  # the second file is still removed after the first one failed
 		log_error.assert_called_once()
 
+	def run_job(self, kind, left, right, create_error=None):
+		from pearnly_cowork.recon_center import jobs
+
+		states, db, loaded = {}, mock.MagicMock(), {"left": left, "right": right}
+		db.exists.return_value = False
+		side_of = lambda names: "left" if names == ["L%d" % i for i in range(len(left))] else "right"  # noqa: E731
+		with mock.patch.object(jobs, "_state", side_effect=lambda job, **values: states.update(values)), \
+				mock.patch.object(jobs, "_read", side_effect=lambda names: loaded[side_of(names)]), \
+				mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+				mock.patch.object(jobs.frappe, "db", db), \
+				mock.patch.object(jobs.frappe, "log_error") as log_error, \
+				mock.patch.object(jobs.frappe, "_", side_effect=lambda text: text), \
+				mock.patch("pearnly_cowork.reconciliation.messages._", side_effect=lambda text: text), \
+				mock.patch("pearnly_cowork.recon_center.document_ocr.submit") as submit, \
+				mock.patch.object(jobs.bank_recon_service, "create_from_documents",
+								  side_effect=create_error, return_value={"name": "T1"}):
+			jobs.run("job", kind, "ws", "t", {"left": ["L%d" % i for i in range(len(left))],
+											  "right": ["R%d" % i for i in range(len(right))]})
+		return states, submit, log_error
+
+	def test_passbook_photos_are_all_submitted_before_the_first_is_awaited(self):
+		states, submit, _log = self.run_job("bank", [("1.jpg", b"a"), ("2.JPG", b"b"), ("stmt.pdf", b"%PDF")],
+			[("gl.xlsx", b"x"), ("gl.png", b"y")])
+		self.assertEqual(states["state"], "done")
+		self.assertEqual([(call.args[1], call.args[3], call.args[5]) for call in submit.call_args_list], [
+			("left0", "1.jpg", "bank_statement"), ("left1", "2.JPG", "bank_statement"),
+			("right4", "gl.png", "general_ledger")])  # the PDF may still read free, the workbook needs no OCR
+
+	def test_a_database_lock_is_not_reported_as_a_bad_file(self):
+		states, _submit, log_error = self.run_job("bank", [("s.xlsx", b"a")], [("g.xlsx", b"b")],
+			create_error=frappe.QueryTimeoutError("lock"))
+		self.assertEqual(states["state"], "failed")
+		self.assertEqual(states["error"], "reconciliation.system_busy")
+		log_error.assert_called_once()
+
+	def test_a_contract_error_is_logged_and_keeps_its_own_text(self):
+		from pearnly_cowork.reconciliation.recon_contracts import ReconciliationContractError
+
+		states, _submit, log_error = self.run_job("bank", [("s.xlsx", b"a")], [("g.xlsx", b"b")],
+			create_error=ReconciliationContractError("reconciliation.parse_info_invalid:stmt_files"))
+		self.assertNotEqual(states["error"], "reconciliation.system_busy")  # the contract text, as before
+		log_error.assert_called_once()
+
+	def test_uploads_are_saved_as_native_files_under_the_site_limit(self):
+		from pearnly_cowork.recon_center import jobs
+
+		with mock.patch.object(jobs.frappe, "get_doc") as get_doc:
+			get_doc.return_value.insert.return_value.name = "F1"
+			self.assertEqual(jobs._save(b"x" * 11 * 1024 * 1024, "big.pdf"), "F1")
+		self.assertEqual(get_doc.call_args.args[0]["is_private"], 1)
+		get_doc.return_value.insert.assert_called_once_with(ignore_permissions=True)
+
 
 if __name__ == "__main__":
 	unittest.main()
