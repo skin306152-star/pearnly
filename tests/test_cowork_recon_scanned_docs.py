@@ -1128,6 +1128,25 @@ class PurchaseInvoicesInTheSalesCheck(unittest.TestCase):
 			self.assertEqual(sheets.purchase_invoice_notes({**inputs, "seller_tax_id": ""}), [])
 
 
+class TenfoldAtABreak(unittest.TestCase):
+	def test_an_amount_read_with_one_zero_too_many_is_suggested_not_changed(self):
+		# BAY-CA-03（2026-09-30）：存入 1,500 读成 15,000；前后余额都对。
+		from pearnly_cowork.reconciliation import revision
+
+		def row(deposit, withdrawal, balance):
+			return {"deposit": Decimal(deposit), "withdrawal": Decimal(withdrawal),
+				"balance": None if balance is None else Decimal(balance)}
+
+		statement = [row("0", "0", "1000.00"), row("15000.00", "0", "2500.00"), row("100.00", "0", "2600.00")]
+		self.assertEqual(revision._tenfold(statement, 1, Decimal("1000.00")), "1,500.00")
+		self.assertEqual(revision._tenfold([row("150.00", "0", "2500.00")], 0, Decimal("1000.00")), "1,500.00")
+		# 下一行接不上（余额本身可疑）、倍数不是 10、方向相反：都不提示
+		self.assertEqual(revision._tenfold([row("0", "0", "1000.00"), row("15000.00", "0", "2500.00"),
+			row("100.00", "0", "9999.00")], 1, Decimal("1000.00")), "")
+		self.assertEqual(revision._tenfold([row("3000.00", "0", "2500.00")], 0, Decimal("1000.00")), "")
+		self.assertEqual(revision._tenfold([row("0", "15000.00", "2500.00")], 0, Decimal("1000.00")), "")
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 

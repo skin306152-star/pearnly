@@ -228,8 +228,30 @@ def _balance_breaks(rows, header):
 
 	statement = rows[0]
 	return [{"idx": check["idx"], "date": str(statement[check["idx"]].get("date") or ""),
-		"expected": check["expected"], "actual": check["actual"], "diff": check["diff"]}
+		"expected": check["expected"], "actual": check["actual"], "diff": check["diff"],
+		"suggest": _tenfold(statement, check["idx"], header["stmt_opening"])}
 		for check in bank_review.balance_chain(statement, header["stmt_opening"]) if not check["ok"]]
+
+
+def _tenfold(statement, index, opening):
+	"""断点处的金额疑似多读 / 少读了一个 0：前后余额推出的金额正好是读出金额的 10 倍或 1/10，且这一行余额和下一行接得上
+	（错的是金额不是余额）。只给提示「疑似应为 X」，不改（用户 2026-09-30 定；BAY-CA-03 把 1,500 读成 15,000）。"""
+	row = statement[index]
+	previous = statement[index - 1]["balance"] if index else opening
+	if row["balance"] is None or previous is None:
+		return ""
+	implied = row["balance"] - previous
+	amount = (row["deposit"] or 0) - (row["withdrawal"] or 0)
+	if not implied or not amount or (implied > 0) != (amount > 0):
+		return ""
+	if abs(abs(implied) - abs(amount) * 10) > Decimal("0.01") and abs(abs(implied) * 10 - abs(amount)) > Decimal("0.01"):
+		return ""
+	if index + 1 < len(statement):
+		following = statement[index + 1]
+		if following["balance"] is None or abs(row["balance"] + (following["deposit"] or 0)
+				- (following["withdrawal"] or 0) - following["balance"]) > Decimal("0.01"):
+			return ""
+	return f"{abs(implied):,.2f}"
 
 
 def bank_breaks(doc, inputs):

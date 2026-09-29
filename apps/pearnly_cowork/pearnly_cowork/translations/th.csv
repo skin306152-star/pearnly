@@ -1241,6 +1241,7 @@ cowork.recon.bank.stmt_withdrawal_only,มีเฉพาะรายการ�
 cowork.recon.bothFiles,กรุณาเลือกไฟล์ทั้งสองก่อน
 cowork.recon.break.known_difference,ผลต่างที่ทราบแล้ว
 cowork.recon.break.missing_page,หน้าขาดหาย
+cowork.recon.break.suggest,น่าจะเป็น {0}
 cowork.recon.breaks,จุดที่ยอดคงเหลือไม่ต่อเนื่อง
 cowork.recon.checking,กำลังตรวจสอบ
 cowork.recon.col.account,รหัสบัญชี
@@ -1933,6 +1934,7 @@ ocr.unsupported_format,ไม่รองรับไฟล์ประเภท
 pdf,PDF
 pending,รอดำเนินการ
 physical_page,หน้าจริงของเอกสาร
+probably {0},น่าจะเป็น {0}
 push.adapter_not_connected,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 push.branch_invalid,โหมดการส่งไม่ถูกต้อง
 push.companion_account_unreported,ตอนเตรียมส่ง ผู้ช่วยออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่าผู้ช่วยทำงานอยู่ แล้วส่งอีกครั้ง

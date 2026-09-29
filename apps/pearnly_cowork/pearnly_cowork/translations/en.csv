@@ -1241,6 +1241,7 @@ cowork.recon.bank.stmt_withdrawal_only,Bank withdrawal only
 cowork.recon.bothFiles,Choose both files first
 cowork.recon.break.known_difference,Known difference
 cowork.recon.break.missing_page,Missing page
+cowork.recon.break.suggest,probably {0}
 cowork.recon.breaks,Balance breaks
 cowork.recon.checking,Checking
 cowork.recon.col.account,Account code
@@ -1933,6 +1934,7 @@ ocr.unsupported_format,This file type is not supported.
 pdf,pdf
 pending,Pending
 physical_page,physical_page
+probably {0},probably {0}
 push.adapter_not_connected,This ERP adapter is not connected yet.
 push.branch_invalid,Invalid push execution mode.
 push.companion_account_unreported,"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again"

@@ -1241,6 +1241,7 @@ cowork.recon.bank.stmt_withdrawal_only,仅银行支出
 cowork.recon.bothFiles,请先选好两份文件
 cowork.recon.break.known_difference,已知差异
 cowork.recon.break.missing_page,此处缺页
+cowork.recon.break.suggest,疑似应为 {0}
 cowork.recon.breaks,余额对不上的地方
 cowork.recon.checking,核对中
 cowork.recon.col.account,科目代码
@@ -1933,6 +1934,7 @@ ocr.unsupported_format,不支持此文件类型。
 pdf,PDF
 pending,待处理
 physical_page,物理页
+probably {0},疑似应为 {0}
 push.adapter_not_connected,此ERP适配器尚未接通。
 push.branch_invalid,推送执行模式无效。
 push.companion_account_unreported,准备推送时小助手不在线，或还没报上这份账套。请确认小助手在运行后再推一次

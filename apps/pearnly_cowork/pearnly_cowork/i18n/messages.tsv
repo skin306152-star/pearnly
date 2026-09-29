@@ -516,6 +516,7 @@ None of the statement lines fall in the ledger period ({1} to {2}); all of them 
 Balance breaks	余额对不上的地方	จุดที่ยอดคงเหลือไม่ต่อเนื่อง	残高が合わない箇所	cowork.recon.breaks
 Missing page	此处缺页	หน้าขาดหาย	ページ欠落	cowork.recon.break.missing_page
 Known difference	已知差异	ผลต่างที่ทราบแล้ว	既知の差異	cowork.recon.break.known_difference
+probably {0}	疑似应为 {0}	น่าจะเป็น {0}	おそらく {0}	cowork.recon.break.suggest
 Mark each balance break as a missing page or a known difference before saving.	请先把每处余额对不上的地方标成「此处缺页」或「已知差异」再保存。	กรุณาระบุทุกจุดที่ยอดคงเหลือไม่ต่อเนื่องว่าเป็น "หน้าขาดหาย" หรือ "ผลต่างที่ทราบแล้ว" ก่อนบันทึก	残高が合わない各箇所を「ページ欠落」または「既知の差異」にしてから保存してください。	reconciliation.review_breaks_unacknowledged
 Line {0} ({1}): balance off by {2} — {3}	第 {0} 行（{1}）余额差 {2}：{3}	รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}	{0} 行目（{1}）残高差 {2}：{3}	reconciliation.review_break
 The system is busy and the reconciliation was not finished. Please try again shortly.	系统繁忙，这次对账没有完成，请稍后重试。	ระบบกำลังยุ่ง การกระทบยอดครั้งนี้ยังไม่เสร็จ กรุณาลองใหม่ภายหลัง	システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。	reconciliation.system_busy

@@ -1241,6 +1241,7 @@ cowork.recon.bank.stmt_withdrawal_only,銀行出金のみ
 cowork.recon.bothFiles,先に2つのファイルを選択してください
 cowork.recon.break.known_difference,既知の差異
 cowork.recon.break.missing_page,ページ欠落
+cowork.recon.break.suggest,おそらく {0}
 cowork.recon.breaks,残高が合わない箇所
 cowork.recon.checking,照合中
 cowork.recon.col.account,勘定科目コード
@@ -1933,6 +1934,7 @@ ocr.unsupported_format,このファイル形式には対応していません。
 pdf,PDF
 pending,処理待ち
 physical_page,物理ページ
+probably {0},おそらく {0}
 push.adapter_not_connected,このERPアダプターはまだ接続されていません。
 push.branch_invalid,送信実行モードが無効です。
 push.companion_account_unreported,送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください

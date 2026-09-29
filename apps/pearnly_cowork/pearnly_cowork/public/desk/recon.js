@@ -578,7 +578,9 @@
 				const dialog = new frappe.ui.Dialog({
 					title: t("cowork.recon.breaks"),
 					fields: found.map(item => ({ fieldtype: "Select", fieldname: `b${item.idx}`, reqd: 1,
-						label: [item.idx + 1, item.date, item.diff].filter(Boolean).join(" · "), options: ["", ...labels] })),
+						// 多读 / 少读一个 0 的只提示「疑似应为 X」，不自动改（用户 2026-09-30 定）。
+						label: [item.idx + 1, item.date, item.diff, item.suggest && t("cowork.recon.break.suggest", item.suggest)]
+							.filter(Boolean).join(" · "), options: ["", ...labels] })),
 					primary_action_label: __("Save"),
 					primary_action(values) {
 						resolve(Object.fromEntries(found.map(item => [item.idx, choices[labels.indexOf(values[`b${item.idx}`])]])));
