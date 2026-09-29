@@ -1053,6 +1053,23 @@ class InvoiceReadsInTheVatCheck(unittest.TestCase):
 		self.assertEqual(captured["timeout"], invoice_ocr.MODEL_TIMEOUT_SECONDS)
 
 
+class ReportPhotosAreSubmittedTogether(unittest.TestCase):
+	def test_vat_report_photos_are_submitted_before_reading_in_order(self):
+		# 第 17 轮 V01（2026-09-30）：21 张税报照片一张读完才提交下一张。
+		from pearnly_cowork.recon_center import document_ocr, vat_check
+
+		with mock.patch.object(document_ocr, "submit") as submit, mock.patch.object(document_ocr, "reader"), \
+				mock.patch.object(vat_check, "_report", side_effect=RuntimeError("stop")), \
+				mock.patch.object(vat_check.frappe, "db", mock.MagicMock()), \
+				mock.patch.object(vat_check.frappe, "session", mock.Mock(user="u@example.com")):
+			with self.assertRaises(RuntimeError):
+				vat_check.run("ws", "t", "r", [("1.JPG", b"a"), ("r.pdf", b"b"), ("2.jpg", b"c")], [], "zh",
+					recon_job="job", report_files=["F1", "F2", "F3"])
+		self.assertEqual([call.args for call in submit.call_args_list], [
+			("job", "report0", "F1", "1.JPG", b"a", "vat_report", "u@example.com"),
+			("job", "report2", "F3", "2.jpg", b"c", "vat_report", "u@example.com")])
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 

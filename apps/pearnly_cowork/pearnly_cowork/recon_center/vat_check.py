@@ -60,6 +60,14 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
 
         readers = [document_ocr.reader(recon_job, f"report{index}", report_files[index], frappe.session.user)
                    for index in range(len(reports))]
+        # 税报照片先全部提交识别、识别进程并行读，再按顺序取结果（与银行对账同一做法）：原来一份读完才提交下一份，
+        # 21 张照片要十几分钟（2026-09-30 压测第 17 轮 V01）。同一参考号、同样参数的提交返回同一个识别任务，读取层
+        # 再提交不会重复付费；PDF 不预先提交（带文字层的先走免费解析）。
+        for index, (name, content) in enumerate(reports):
+            if sources.extension(name) in sources.IMAGES:
+                document_ocr.submit(recon_job, f"report{index}", report_files[index], name, content, "vat_report",
+                                    frappe.session.user)
+        frappe.db.commit()
     merged = vat_check_core.merge_parsed_reports([_report(content, name, readers[index])
                                                   for index, (name, content) in enumerate(reports)],
                                                  [name for name, _content in reports])
