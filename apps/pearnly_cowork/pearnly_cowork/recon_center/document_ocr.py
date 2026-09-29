@@ -189,6 +189,12 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
                 legacy = None
             saved = core_work.checkpoint(RESULT, "done", {"legacy": legacy})
         if _rows_found(saved["body"]["legacy"]) and not core_work.checkpoint(BILLED):
+            # 扣费前再看一次对账：已经失败（等满 25 分钟判失败）或已经结束，这份结果不会再被用到 —— 不扣客户的钱，
+            # 任务记成取消（2026-09-29 压测：BAY 12 页读了 46 分钟，对账早已判失败，识别读完照样扣费）。用到结果的
+            # 识别一定在对账结束前扣费（对账等它成功才往下走）。已发出的供应商调用费由平台承担。
+            job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
+            if job.get("state") in ("failed", "done"):
+                return {"cancelled": "recon_job_closed"}
             _charge(name, pages, frozen)
             core_work.checkpoint(BILLED, "done", {"units": int(pages)})
         return {}

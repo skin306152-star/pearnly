@@ -483,6 +483,33 @@ class StatementOrderAndDates(unittest.TestCase):
 			date(2026, 5, 4), date(2026, 4, 28)])
 
 
+class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
+	def run_work(self, job_state):
+		saved = {"body": {"legacy": {"pages": [{"document": {"entries": [{"deposit": "1"}]}}]}}}
+		cache = mock.MagicMock()
+		cache.get_value.return_value = {"state": job_state} if job_state else None
+		checkpoints = {document_ocr.RESULT: saved}
+		with mock.patch.object(document_ocr.frappe, "flags", mock.MagicMock(get=lambda key: "W1")), \
+				mock.patch.object(document_ocr.frappe, "db", mock.MagicMock(get_value=lambda *a, **k: frappe._dict(
+					kind=document_ocr.KIND, user="u@example.com", status="running"))), \
+				mock.patch.object(document_ocr.frappe, "session", mock.Mock(user="Administrator")), \
+				mock.patch.object(document_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), \
+				mock.patch.object(document_ocr.core_work, "checkpoint", side_effect=lambda key, *a: checkpoints.get(key)), \
+				mock.patch.object(document_ocr, "_charge") as charge:
+			outcome = document_ocr.run("job", "F1", "p.jpg", 1, "sha", "bank_statement", {"billing_tier": "t"})
+		return outcome, charge
+
+	def test_a_read_that_finishes_after_the_reconciliation_failed_is_not_charged(self):
+		outcome, charge = self.run_work("failed")
+		self.assertEqual(outcome, {"cancelled": "recon_job_closed"})
+		charge.assert_not_called()
+
+	def test_a_read_the_reconciliation_is_waiting_for_is_charged(self):
+		outcome, charge = self.run_work("running")
+		self.assertEqual(outcome, {})
+		charge.assert_called_once()
+
+
 class ReviewWithBalanceBreaks(unittest.TestCase):
 	"""用户 2026-09-29 选 B：需复核的银行对账有断点时，逐个确认成「此处缺页 / 已知差异」才可保存。"""
 
