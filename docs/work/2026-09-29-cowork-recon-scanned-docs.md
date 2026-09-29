@@ -282,3 +282,7 @@
   - 续跑时发现第一次是“结果不明、已重发过”，直接取重发那次（`checkpoint_read`，由 Cowork 的 `providers/core.py` 传入），不再重复付费。
 - **3.8 抽取时限按旧线上恢复为 180 秒。** 共用层 `provider._post` 的上限从 120 改为 180；DMS / ERP 传的都不超过 120，行为不变。**改了共用层，合入前要在生产镜像跑 `scripts/ci-candidate-checks.sh` 完整离线检查。** 对账识别每跑满 200 秒让出一次（原 420 秒）：一次调用最长 180 秒，重发一次最坏 360 秒，200 + 360 仍在识别任务 600 秒的硬上限内。
 - **检查点不记录调用耗时**，没法拉出历史分布。识别结果从现在起带 `timings`（每次读字、每页抽取的毫秒数），下一轮可以统计。今晚成功的 104 次抽取，输出最多约 5,800 token。
+
+**测试机压测提速（用户要求，2026-09-29 晚，只改测试机）：**
+- `infrastructure/testenv/finish-start.py`：补上缺的 `pearnly_ocr_budget`，值与线上 site-step.py 一致（8 / 3 / 120）。原来缺这一项时走共用层默认 4 / 2 / 30，识别一直在等名额。补值时顺手删掉 Redis 里的限额记录，避免 policy_mismatch；只补缺，手动调过的值不覆盖。
+- `infrastructure/testenv/override.yml`：测试机上 `cowork-ocr-worker`、`cowork-long-worker` 各 4 个进程（内存上限 4g / 3g），线上 compose 仍然各 2 个。只改并行度，不改读法和结果。

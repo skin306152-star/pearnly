@@ -38,6 +38,7 @@ def log(message: str) -> None:
 
 COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
               "pearnly_cowork_ocr_policy": {"mode": "economy"}}
+OCR_BUDGET = {"concurrency": 8, "tenant_concurrency": 3, "rpm": 120}
 
 
 def configure() -> None:
@@ -48,6 +49,12 @@ def configure() -> None:
     if not data.get("pearnly_ocr_budget_redis"):
         data["pearnly_ocr_budget_redis"] = "redis://redis-queue:6379/6"
         changed.append("pearnly_ocr_budget_redis")
+    # 识别限额与线上开户一致（`infrastructure/production/site-step.py`）。缺了就用共用层默认 4 / 2 / 30，
+    # 比线上严，压测时识别一直等名额（2026-09-29 压测窗口发现）。只补缺，手动调过的值不覆盖。
+    budget_added = not data.get("pearnly_ocr_budget")
+    if budget_added:
+        data["pearnly_ocr_budget"] = dict(OCR_BUDGET)
+        changed.append("pearnly_ocr_budget")
     # 与线上开户同一份 Cowork 发票识别配置（`infrastructure/production/site-step.py` 的 `COWORK_OCR`）。
     if os.environ.get("TESTENV_GROUP", "dms") == "cowork":
         for key, value in COWORK_OCR.items():
@@ -74,6 +81,12 @@ def configure() -> None:
         log("· 运行配置：" + "、".join(changed) + " 已写入")
     else:
         log("· 运行配置：已是当前值")
+    if budget_added:
+        # Redis 里记着第一次用到时的限额（`budget.permit` 按它比对），与新配置不一致就全部延后
+        # （policy_mismatch）：删掉让下一次按新值重建。
+        import redis
+
+        redis.from_url(data["pearnly_ocr_budget_redis"]).delete("pearnly:ocr:v1:policy")
 
 
 def sites_to_finish() -> list:

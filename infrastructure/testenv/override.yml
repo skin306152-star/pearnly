@@ -44,3 +44,11 @@ services:
     volumes:
       - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
       - /opt/pearnly-testenv/import:/workspace/import:ro
+  # Cowork 识别与对账进程：测试机上各 4 个（线上 compose 各 2 个），压测十几套对账时不必排队等进程
+  # （2026-09-29 用户要求压测提速；只改并行度，不改读法与结果）。测试机 10G 内存、6 核。
+  cowork-ocr-worker:
+    mem_limit: 4g
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '4']
+  cowork-long-worker:
+    mem_limit: 3g
+    command: [bench, worker-pool, --queue, long, --num-workers, '4']
