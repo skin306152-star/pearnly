@@ -189,7 +189,10 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		model_rows=model_rows)) for content, name in gl_files]
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
-	statement = _merged_statement([result for _name, result in statements])
+	# 总账期间（整月）：几份账单怎么接，按期间里的余额链断得少来选（B08-01 的存折还带着前几个月的行）。
+	statement = _merged_statement([result for _name, result in statements],
+		_months(row.date for result in (result for _name, result in ledgers if result.get("ok"))
+			for row in result.get("rows") or []))
 	mixed = other_accounts(statements)
 	if mixed:
 		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
@@ -268,6 +271,30 @@ def _line_key(row):
 	return (row.date, round(row.deposit or 0, 2), round(row.withdrawal or 0, 2), round(row.balance or 0, 2))
 
 
+SAME_LINE_DAYS = 3
+
+
+class _Lines:
+	"""已收下的行：存、取、余额都相同、日期相差不超过 SAME_LINE_DAYS 天的算同一笔（同一页读成 03-26 / 03-27，
+	余额相同已足够证明；B09-03，2026-09-30）。没有余额的行不算证据。"""
+
+	def __init__(self):
+		self.by_amount = {}
+
+	def seen(self, row, other_than=None):
+		if not row.balance:
+			return False
+		for day, source in self.by_amount.get(_line_key(row)[1:], ()):
+			if other_than is not None and source == other_than:
+				continue
+			if day is None or row.date is None or abs((row.date - day).days) <= SAME_LINE_DAYS:
+				return True
+		return False
+
+	def add(self, row):
+		self.by_amount.setdefault(_line_key(row)[1:], []).append((row.date, getattr(row, "source_file", "")))
+
+
 def _warning_lang(lang):
 	"""提示按提交时选的语言写（后台任务里的默认语言是站点语言；2026-09-29 压测：lang=zh 提交，新加的提示是泰文）。"""
 	return lang if lang in ("th", "zh", "en", "ja") else None
@@ -307,16 +334,114 @@ def same_lines_once(rows):
 	同一份文件里的相同行照旧保留（同日同额的两笔）；没有余额的行不算证据。
 
 	接不成余额链时退回旧线上的合并，它的去重键带着描述，B09-01 的 jpg 与 pdf 每笔都出现两次（2026-09-30 压测）。"""
-	owner = {}
-	kept = []
+	lines, kept = _Lines(), []
 	for row in rows:
-		key = _line_key(row)
-		source = getattr(row, "source_file", "")
-		if row.balance and key in owner and owner[key] != source:
+		if lines.seen(row, other_than=getattr(row, "source_file", "")):
 			continue
-		owner.setdefault(key, source)
+		lines.add(row)
 		kept.append(row)
 	return kept
+
+
+def chain_breaks(rows, period=None):
+	"""余额链断几处（有余额的相邻两行对不上）；给了期间（起、止）就只数期间里的行（没有日期的也算）。"""
+	if period:
+		rows = [row for row in rows if not row.date or period[0] <= row.date <= period[1]]
+	count, previous = 0, None
+	for row in rows:
+		if row.balance is None:
+			continue
+		if previous is not None and abs(previous + (row.deposit or 0) - (row.withdrawal or 0) - row.balance) > 0.01:
+			count += 1
+		previous = row.balance
+	return count
+
+
+def primary_merge(files, period=None):
+	"""每一份都试着当主份，取余额链断得最少的（同样少取行多的）：行数最多的不一定最可信（B08-01 覆盖四个月的存折
+	读错多，整月 PDF 才该当主份）。"""
+	files = [list(rows) for rows in files if rows]
+	if len(files) < 2:
+		return []
+	tried = [_merge_on(files[index], files[:index] + files[index + 1:]) for index in range(len(files))]
+	tried = [rows for rows in tried if rows]
+	return min(tried, key=lambda rows: (chain_breaks(rows, period), -len(rows))) if tried else []
+
+
+def _merge_on(primary, others):
+	"""以 ``primary`` 为主，别的份里的行：同一笔（_Lines）不要；前后都接得上的插进余额链的缺口；接不上的落在主份的
+	日期范围内时，主链已经完整就当读错的重复不要（存折照片把 3,472.15 读成 30,472.15），主链还断着就按日期留下交人看；
+	范围外的按日期放。两份以上才做；主份没有余额返回空。"""
+	if not any(row.balance for row in primary):
+		return []
+	merged, lines = list(primary), _Lines()
+	for row in merged:
+		lines.add(row)
+	days = [row.date for row in merged if row.date]
+	span = (min(days), max(days)) if days else None
+
+	def step(first, second):
+		# 与 chain_files 同一口径：方向可能读反（手续费读成存入，B05 KBank8229），两个方向都试，合并后再统一定案。
+		amount = (second.deposit or 0) + (second.withdrawal or 0)
+		return first.balance is not None and abs(abs(second.balance - first.balance) - amount) <= 0.01
+
+	def fits(before, row, after):
+		ok_before = before is None or step(before, row)
+		ok_after = after is None or (after.balance is not None and step(row, after))
+		return ok_before and ok_after and not (before is None and after is None)
+
+	leftovers = []
+	for rows in others:
+		for row in rows:
+			if lines.seen(row):
+				continue
+			spot = None
+			if row.balance is not None:
+				for index in range(len(merged) + 1):
+					before = merged[index - 1] if index else None
+					after = merged[index] if index < len(merged) else None
+					# 只插进断开的地方或两端：已经接好的两行之间不再插。
+					if before is not None and after is not None and before.balance is not None and fits(
+							before, after, None):
+						continue
+					if fits(before, row, after):
+						spot = index
+						break
+			if spot is None:
+				leftovers.append(row)
+				continue
+			merged.insert(spot, row)
+			lines.add(row)
+	whole = chain_breaks(merged) == 0
+
+	def one_digit_apart(first, second):
+		# 读错一位：同样位数只差一位（4,612,513.06 / 4,612,713.06），或多读出一位（30,472.15 / 3,472.15）。
+		a, b = f"{abs(first):.2f}", f"{abs(second):.2f}"
+		if len(a) == len(b):
+			return sum(x != y for x, y in zip(a, b)) == 1
+		longer, shorter = (a, b) if len(a) > len(b) else (b, a)
+		return len(longer) == len(shorter) + 1 and any(longer[:i] + longer[i + 1:] == shorter for i in range(len(longer)))
+
+	def echoed(row):
+		# 读错的重复：主链完整、日期在主份范围内，而且附近几天有一行余额或金额与它相同、或只差一位数字（存折把 1,326
+		# 读成 1,328、3,472.15 读成 30,472.15）。没有这种证据的行不丢，按日期留下交人看。
+		for other in merged:
+			if not (other.date and row.date and abs((other.date - row.date).days) <= SAME_LINE_DAYS):
+				continue
+			amounts = ((other.deposit or 0) + (other.withdrawal or 0), (row.deposit or 0) + (row.withdrawal or 0))
+			balances = (other.balance, row.balance) if other.balance is not None and row.balance is not None else None
+			if (balances and (abs(balances[0] - balances[1]) <= 0.01 or one_digit_apart(*balances))) or (
+					abs(amounts[0] - amounts[1]) <= 0.05 or one_digit_apart(*amounts)):
+				return True
+		return False
+
+	for row in leftovers:
+		if span and row.date and span[0] <= row.date <= span[1] and whole and echoed(row):
+			continue
+		index = next((i for i, other in enumerate(merged) if other.date and row.date and other.date > row.date),
+			len(merged))
+		merged.insert(index, row)
+	return merged
 
 
 def chain_files(files, boundaries=None):
@@ -341,14 +466,13 @@ def chain_files(files, boundaries=None):
 	remaining = sorted(files, key=lambda rows: (
 		any(joins(rows[0], other[-1].balance) for other in files if other is not rows),
 		min((row.date for row in rows if row.date), default=date_type.max)))
-	merged, seen = [], set()
+	merged, seen = [], _Lines()
 
 	def append(rows):
 		for row in rows:
-			key = _line_key(row)
-			if row.balance and key in seen:
+			if seen.seen(row):
 				continue
-			seen.add(key)
+			seen.add(row)
 			merged.append(row)
 
 	append(remaining.pop(0))
@@ -356,12 +480,12 @@ def chain_files(files, boundaries=None):
 		end = merged[-1].balance
 		chosen, joined = remaining[0], False
 		for rows in remaining:
-			fresh = [row for row in rows if not (row.balance and _line_key(row) in seen)]
+			fresh = [row for row in rows if not seen.seen(row)]
 			if fresh and joins(fresh[0], end):
 				chosen, joined = rows, True
 				break
 		if not joined:
-			fresh = [row for row in chosen if not (row.balance and _line_key(row) in seen)]
+			fresh = [row for row in chosen if not seen.seen(row)]
 			_mend_last_line(merged, fresh)
 			if boundaries is not None and fresh:
 				boundaries.append(fresh[0])
@@ -419,7 +543,7 @@ def _quiet_pages_skipped(statements):
 		for index, (name, result) in enumerate(statements)]
 
 
-def _merged_statement(results):
+def _merged_statement(results, period=None):
 	"""One file stays exactly as read; several are merged by the deployed ``merge_statements``."""
 	read = [result for result in results if result.get("ok")]
 	if len(results) == 1:
@@ -428,11 +552,18 @@ def _merged_statement(results):
 	boundaries = []
 	chained = chain_files([result.get("rows") or [] for result in read], boundaries)
 	if chained:
-		rows, first = chained, chained[0]
-		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
-		closing = rows[-1].balance or closing
+		rows = chained
 	else:
 		rows = same_lines_once(rows)
+	# 期间重叠的几份（整月 PDF + 覆盖几个月的存折 + 照片）：首尾接不上，改以最全的一份为主、别的行按余额链插进缺口；
+	# 两种接法取余额链断得少的（2026-09-30 压测 B08-01）。
+	primary = primary_merge([result.get("rows") or [] for result in read], period)
+	if primary and chain_breaks(primary, period) < chain_breaks(rows, period):
+		rows, boundaries = primary, []
+	if rows and (chained or rows is primary) and rows[0].balance is not None:
+		first = rows[0]
+		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
+		closing = rows[-1].balance or closing
 	if len(read) > 1 and rows:
 		# 接好（或按日期合并）之后整条再定案一次：每张照片的第一行单独定案时没有前一行可比（B05 KBank8229：
 		# 手续费 685 读成存入；有一张首末行没余额、接链退回按日期合并时也要做）。
@@ -542,11 +673,14 @@ def within_ledger_period(statement, ledger):
 		# 没有逐笔余额：期初期末由 without_running_balance 定。
 		return {**statement, "rows": kept, "row_count": len(kept)}, (len(rows) - len(kept), start.isoformat(),
 			end.isoformat())
-	if before and before[-1].balance:
+	# 期初按期间内第一行倒推（它在余额链上的前一行就是期初）；期间前的行里可能混着旧存折页、年份读错的行（B08-01 的
+	# 2016 年旧页、B08-02 读成 2025 年的 3 月行，2026-09-30 压测），按日期挑「期间前最后一行」会挑错。期间里一行都没有
+	# 时才用期间前最后一行。
+	first = next((row for row in kept if row.balance), None)
+	if first is not None:
+		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
+	elif before and before[-1].balance:
 		opening = before[-1].balance
-	elif kept:
-		first = kept[0]
-		opening = round((first.balance or 0) - (first.deposit or 0) + (first.withdrawal or 0), 2)
 	else:
 		opening = statement.get("opening")
 	closing = next((row.balance for row in reversed(kept) if row.balance), opening)

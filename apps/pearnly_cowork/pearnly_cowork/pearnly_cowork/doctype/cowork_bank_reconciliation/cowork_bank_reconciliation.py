@@ -119,6 +119,35 @@ def _same_month_years(rows):
 				row.date = row.date.replace(year=year, day=28)
 
 
+def _neighbour_years(rows):
+	"""夹在前后两行之间、日期却不在两者之间的行，日期读错了：
+
+	- 前后两行同一年、换成那一年后正好落在两者之间：只是年份读错（02.69.pdf 把「04/03/26」读成「04/03/25」，排到期间
+	  之前被当成期初；2026-09-30 压测 B08-02）；
+	- 换年份也放不进去、但余额链前后都接得上（01_69.pdf 把 01-01 的一笔读成「30/12」；B09-01）：按余额链上的位置取
+	  前一行的日期，标低可信交人看。
+	"""
+	def chains(first, second):
+		return (first.balance is not None and second.balance is not None and abs(
+			first.balance + (second.deposit or 0) - (second.withdrawal or 0) - second.balance) <= 0.01)
+
+	for index in range(1, len(rows) - 1):
+		before, row, after = rows[index - 1].date, rows[index].date, rows[index + 1].date
+		if not (before and row and after) or before > after or before <= row <= after:
+			continue
+		if before.year == after.year and row.year != before.year:
+			try:
+				fixed = row.replace(year=before.year)
+			except ValueError:
+				fixed = None
+			if fixed and before <= fixed <= after:
+				rows[index].date = fixed
+				continue
+		if chains(rows[index - 1], rows[index]) and chains(rows[index], rows[index + 1]):
+			rows[index].date = before
+			rows[index].confidence = "low"
+
+
 def _undo_offsetting_imputations(rows):
 	"""相邻两行的金额都是按余额差补出来的、方向相反、数额几乎相等：多半是中间那个余额读错了（B01 印的 534,708.53
 	读成 708.53，两行金额都没读到，补成「支出 533,940 / 存入 534,390」互相抵消，余额链显示全通过 —— 2026-09-29
@@ -179,6 +208,7 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 					debit=bank_parse.to_float(entry.get("debit")), credit=bank_parse.to_float(entry.get("credit")),
 					balance=bank_parse.to_float(entry.get("balance")), source_file=filename))
 	_same_month_years(rows)
+	_neighbour_years(rows)
 	if document_type == "bank_statement":
 		_undo_offsetting_imputations(rows)
 	first = (pages[0].get("document") or {}) if pages else {}

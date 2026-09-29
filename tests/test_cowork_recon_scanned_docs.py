@@ -748,6 +748,64 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual(other_accounts([("a.jpg", {**read("", "8229"), "rows": [line]}),
 			("b.jpg", {**read("", "8229"), "rows": [line]}), ("c.pdf", {**read("", "0555"), "rows": [line]})]), [])
 
+	def test_overlapping_files_merge_on_the_best_chain(self):
+		# B08-01（2026-09-30）：整月 PDF 漏了一行；覆盖几个月的存折有这一行，但把别的行读错（3,472.15 → 30,472.15）。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		def line(day, deposit, balance, source):
+			return StatementRow(date=date(2026, 1, day), description="x", withdrawal=0.0, deposit=deposit, balance=balance,
+				source_file=source)
+
+		pdf = [line(2, 100.0, 1100.0, "01.pdf"), line(5, 200.0, 1300.0, "01.pdf"), line(6, 50.0, 1400.0, "01.pdf"),
+			line(7, 10.0, 1410.0, "01.pdf")]
+		book = [StatementRow(date=date(2025, 12, 30), description="old", withdrawal=0.0, deposit=5.0, balance=900.0,
+			source_file="book.pdf"), line(5, 50.0, 1350.0, "book.pdf"), line(6, 500.0, 1850.0, "book.pdf")]
+		merged = bank_recon_service.primary_merge([book, pdf], (date(2026, 1, 1), date(2026, 1, 31)))
+		inside = [(row.date.day, row.deposit) for row in merged if row.date.year == 2026]
+		self.assertEqual(inside, [(2, 100.0), (5, 200.0), (5, 50.0), (6, 50.0), (7, 10.0)])
+		self.assertEqual(bank_recon_service.chain_breaks(merged, (date(2026, 1, 1), date(2026, 1, 31))), 0)
+
+	def test_a_line_read_with_a_neighbouring_date_is_the_same_line(self):
+		# B09-03：同一页，一份读成 03-27、一份读成 03-26，存取与余额都一样。
+		from pearnly_cowork.reconciliation.bank_recon_service import same_lines_once
+
+		first = StatementRow(date=date(2026, 3, 26), description="a", withdrawal=37700.0, deposit=0.0, balance=1420163.16,
+			source_file="03.pdf")
+		second = StatementRow(date=date(2026, 3, 27), description="b", withdrawal=37700.0, deposit=0.0, balance=1420163.16,
+			source_file="03.jpg")
+		far = StatementRow(date=date(2026, 3, 5), description="c", withdrawal=37700.0, deposit=0.0, balance=1420163.16,
+			source_file="03.jpg")
+		self.assertEqual([row.description for row in same_lines_once([first, second, far])], ["a", "c"])
+
+	def test_a_misdated_line_that_chains_takes_its_place_in_the_chain(self):
+		# B08-02「04/03/25」夹在 26 年的行之间；B09-01 一笔读成「30/12」夹在 01-03 与 01-06 之间。
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
+			_neighbour_years,
+		)
+
+		rows = [StatementRow(date=date(2026, 3, 3), description="a", withdrawal=0.0, deposit=0.0, balance=100.0),
+			StatementRow(date=date(2025, 3, 4), description="b", withdrawal=0.0, deposit=10.0, balance=110.0),
+			StatementRow(date=date(2026, 3, 5), description="c", withdrawal=0.0, deposit=10.0, balance=120.0)]
+		_neighbour_years(rows)
+		self.assertEqual(rows[1].date, date(2026, 3, 4))
+		rows = [StatementRow(date=date(2026, 1, 3), description="a", withdrawal=0.0, deposit=0.0, balance=1000000.0),
+			StatementRow(date=date(2025, 12, 30), description="b", withdrawal=48065.0, deposit=0.0, balance=951935.0),
+			StatementRow(date=date(2026, 1, 6), description="c", withdrawal=15600.0, deposit=0.0, balance=936335.0)]
+		_neighbour_years(rows)
+		self.assertEqual((rows[1].date, rows[1].confidence), (date(2026, 1, 3), "low"))
+
+	def test_the_opening_comes_from_the_first_line_of_the_period(self):
+		# B08-01：期间前混着 2016 年的旧存折页，不能拿「期间前最后一行」当期初。
+		from pearnly_cowork.reconciliation.bank_recon_service import within_ledger_period
+		from pearnly_cowork.reconciliation.bank_matching import GlRow
+
+		old = StatementRow(date=date(2016, 11, 14), description="old", withdrawal=0.0, deposit=0.0, balance=7113353.69)
+		first = StatementRow(date=date(2026, 1, 2), description="a", withdrawal=0.0, deposit=882.75, balance=3051849.57)
+		ledger = {"rows": [GlRow(date=date(2026, 1, 2), doc_no="x", account_code="", description="", debit=882.75,
+			credit=0.0, balance=0.0)]}
+		trimmed, _hint = within_ledger_period({"rows": [first, old], "opening": 0.0, "closing": 0.0}, ledger)
+		self.assertEqual(trimmed["opening"], 3050966.82)
+
 	def test_the_same_line_read_from_a_photo_and_a_pdf_is_kept_once(self):
 		# B09-01（2026-09-30）：jpg 与 pdf 是同一页，描述一份「TRANSFER Telfax BBL X0…」一份「TRANSFER」。
 		from pearnly_cowork.reconciliation.bank_recon_service import same_lines_once
