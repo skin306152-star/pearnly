@@ -814,6 +814,28 @@ class SeveralFilesPerSide(unittest.TestCase):
 		led = bank_recon_service.primary_merge([pdf, other], excluded=("bbl.jpg",))
 		self.assertEqual(led[0].source_file, "01.pdf")
 
+	def test_a_page_read_twice_in_one_file_keeps_the_copy_that_chains(self):
+		# B08-01 第 15 轮（2026-09-30）：同一份 PDF 把 01-12 两笔读了两遍，一遍在最前面、一遍在正确位置。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		def line(day, deposit, withdrawal, balance):
+			return StatementRow(date=date(2026, 1, day), description="x", withdrawal=withdrawal, deposit=deposit,
+				balance=balance, source_file="book.pdf")
+
+		rows = [line(12, 7200.0, 0.0, 4641277.86), line(12, 0.0, 2000000.0, 2641277.86),
+			line(10, 100.0, 0.0, 4634077.86), line(12, 7200.0, 0.0, 4641277.86), line(12, 0.0, 2000000.0, 2641277.86),
+			line(13, 192.6, 0.0, 2641470.46)]
+		self.assertEqual(sorted(bank_recon_service._chained_copy(rows)), [2, 3, 4, 5])
+		# 另一个账户的那份不当链头
+		kbank = [line(2, 10.0, 0.0, 110.0), line(3, 10.0, 0.0, 120.0)]
+		for row in kbank:
+			row.source_file = "k.jpg"
+		bbl = [line(1, 5.0, 0.0, 905.0), line(2, 5.0, 0.0, 910.0)]
+		for row in bbl:
+			row.source_file = "b.jpg"
+		chained = bank_recon_service.chain_files([bbl, kbank], excluded=("b.jpg",))
+		self.assertEqual(chained[0].source_file, "k.jpg")
+
 	def test_a_line_read_with_a_neighbouring_date_is_the_same_line(self):
 		# B09-03：同一页，一份读成 03-27、一份读成 03-26，存取与余额都一样。
 		from pearnly_cowork.reconciliation.bank_recon_service import same_lines_once

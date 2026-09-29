@@ -376,6 +376,28 @@ def primary_merge(files, period=None, excluded=()):
 	return min(tried, key=lambda rows: (chain_breaks(rows, period), -len(rows))) if tried else []
 
 
+def _chained_copy(rows):
+	"""同一份里同一笔出现几次（存、取、余额相同、日期差 ≤SAME_LINE_DAYS 天；一页读了两遍）：整体二选一 —— 各笔都留第一次
+	出现的、或都留最后一次出现的，取余额链断得少的（一样少留第一次的）。逐笔各自挑会前后不一致（B08-01 第 15 轮：7,200 留
+	了后一份、-2,000,000 留了前一份）。返回要留的下标。"""
+	groups = []
+	for index, row in enumerate(rows):
+		for group in groups:
+			first = rows[group[0]]
+			if (row.balance and _line_key(row)[1:] == _line_key(first)[1:] and (not row.date or not first.date
+					or abs((row.date - first.date).days) <= SAME_LINE_DAYS)):
+				group.append(index)
+				break
+		else:
+			groups.append([index])
+	if all(len(group) == 1 for group in groups):
+		return set(range(len(rows)))
+	first = {group[0] for group in groups}
+	last = {group[-1] for group in groups}
+	breaks = lambda keep: chain_breaks([row for index, row in enumerate(rows) if index in keep])  # noqa: E731
+	return last if breaks(last) < breaks(first) else first
+
+
 class _Merged(list):
 	"""合并好的行，另记下当作读错的重复去掉的行（结果里逐条列出，不悄悄丢数据）。"""
 
@@ -402,9 +424,16 @@ def _merge_on(primary, others):
 	范围外的按日期放。两份以上才做；主份没有余额返回空。"""
 	if not any(row.balance for row in primary):
 		return []
-	merged, lines = _Merged(primary), _Lines()
-	for row in merged:
+	merged, lines = _Merged(), _Lines()
+	# 主份自己把同一段读了两遍（B08-01 的 11.68-2.2.69.pdf：01-12 那两笔一遍排在最前、一遍在正确位置，2026-09-30
+	# 压测第 15 轮）：同一笔留在余额链上接得上前一行的那一份，别的当重复去掉、同样列出。
+	keep = _chained_copy(primary)
+	for index, row in enumerate(primary):
+		if index not in keep:
+			merged.dropped.append(row)
+			continue
 		lines.add(row)
+		merged.append(row)
 	days = [row.date for row in merged if row.date]
 	span = (min(days), max(days)) if days else None
 
@@ -477,7 +506,7 @@ def _merge_on(primary, others):
 	return merged
 
 
-def chain_files(files, boundaries=None):
+def chain_files(files, boundaries=None, excluded=()):
 	"""几张照片 / 几份账单接成一条余额链：每份内部保持原顺序，份与份按「这份（去掉已有的重叠行后）第一行
 	倒推的期初 = 已接好的最后一行余额」衔接，从日期最早的一份开始；接不上的按日期接在后面。
 
@@ -497,6 +526,7 @@ def chain_files(files, boundaries=None):
 
 	# 链头：第一行接不到别的任何一份末尾的那份；同样的按最早日期。
 	remaining = sorted(files, key=lambda rows: (
+		bool({getattr(row, "source_file", "") for row in rows} & set(excluded)),
 		any(joins(rows[0], other[-1].balance) for other in files if other is not rows),
 		min((row.date for row in rows if row.date), default=date_type.max)))
 	merged, seen = [], _Lines()
@@ -583,7 +613,7 @@ def _merged_statement(results, period=None, excluded=()):
 		return read[0]
 	rows, opening, closing, bank_code = bank_recon_merge.merge_statements(list(results))
 	boundaries = []
-	chained = chain_files([result.get("rows") or [] for result in read], boundaries)
+	chained = chain_files([result.get("rows") or [] for result in read], boundaries, excluded)
 	if chained:
 		rows = chained
 	else:
