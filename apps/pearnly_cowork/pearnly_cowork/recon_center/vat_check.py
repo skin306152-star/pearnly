@@ -22,6 +22,52 @@ def _report(content, filename, read=None):
     return parsed
 
 
+def merged_report_rows(recon_job, reports, report_files):
+    """收入对账的税报分几份（一页一张照片、分段的 PDF；用户 2026-09-30 定可多份）：逐份读、按上传顺序合并成一份。
+
+    照片先全部提交识别再按顺序取结果（与银行存折照片同一做法）；一份读不出不整单失败、结果里点名；几份里重复的同一行
+    （单号 / 日期 / 未税 / 税额都相同，重复拍的页）只留第一份的；卖方或期间不一致照旧报错（与销项核查同一口径）。
+    返回 ``(income 存储要的税报行, 提示)``。"""
+    from pearnly_cowork.recon_center import document_ocr
+    from pearnly_cowork.reconciliation.normalization import normalize_invoice_no
+
+    user = frappe.session.user
+    for index, (name, content) in enumerate(reports):
+        if sources.extension(name) in sources.IMAGES:
+            document_ocr.submit(recon_job, f"right{index}", report_files[index], name, content, "vat_report", user)
+    frappe.db.commit()
+    parsed, names, unread = [], [], []
+    for index, (name, content) in enumerate(reports):
+        try:
+            parsed.append(_report(content, name, document_ocr.reader(recon_job, f"right{index}", report_files[index],
+                                                                   user)))
+            names.append(name)
+        except frappe.ValidationError:
+            frappe.clear_last_message()
+            unread.append(name)
+    if not parsed:
+        frappe.throw(_("reconciliation.vat_report_unparsed"))
+    merged = vat_check_core.merge_parsed_reports(parsed, names)
+    if not merged.get("ok"):
+        frappe.throw(_(merged["error_code"]).format(*merged.get("error_args", [])))
+    seen, rows, repeated = {}, [], 0
+    for row in merged["rows"]:
+        key = (normalize_invoice_no(row.get("report_invoice_no") or row.get("report_ref_no") or ""),
+               str(row.get("report_date") or ""), round(float(row.get("report_amount_pre_vat") or 0), 2),
+               round(float(row.get("report_vat_amount") or 0), 2))
+        if key in seen and seen[key] != row.get("source_filename"):
+            repeated += 1
+            continue
+        seen.setdefault(key, row.get("source_filename"))
+        rows.append(row)
+    warnings = []
+    if unread:
+        warnings.append(_("reconciliation.files_unread").format("、".join(unread)))
+    if repeated:
+        warnings.append(_("reconciliation.report_rows_repeated").format(repeated))
+    return vat_parse.decoded_rows(rows), warnings
+
+
 def swapped_dates(records, report_rows):
     """发票日期不在税报的月份里、日和月对调后正好在：是 dd/mm 读反了（Big C 发票「07/01」读成 1 月 7 日；2026-09-30
     压测第 17 轮 V03 出现「差 +175 天 / 01/2026 ≠ 07/2026」），按对调后的日期比。"""

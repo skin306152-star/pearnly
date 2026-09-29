@@ -20,7 +20,9 @@ from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 KINDS = {"bank": bank_recon_access, "income": income_recon_access, "vat": vat_check_access}
 # 每个上传口可以放几份：收入各一份；销项税核查的报告可多份（同卖方同期间合并）、发票可很多张；
 # 银行对账两边都可多份（旧线上 `bank_v2_submit` 收多个账单 / 总账文件逐份读再合并，存折一页一张照片就靠它）。
-MULTIPLE = {"vat", "bank"}
+MULTIPLE = {"vat": ("left", "right"), "bank": ("left", "right"),
+            # 收入对账的税报可多份（一页一张照片；用户 2026-09-30 定），总账一份。
+            "income": ("right",)}
 MAX_FILES = 200
 MAX_BYTES = 25 * 1024 * 1024
 TTL = 24 * 3600
@@ -55,7 +57,7 @@ def start(kind, title, sides, options=None):
     KINDS[kind].require(workspace)
     everything = [item for side in ("left", "right") for item in sides.get(side) or []]
     if (any(not sides.get(side) for side in ("left", "right")) or any(not content for _name, content in everything)
-            or (kind not in MULTIPLE and any(len(sides[side]) != 1 for side in ("left", "right")))
+            or any(len(sides[side]) != 1 for side in ("left", "right") if side not in MULTIPLE.get(kind, ()))
             or len(everything) > MAX_FILES):
         frappe.throw(_("reconciliation.files_required"))
     if any(len(content) > MAX_BYTES for _name, content in everything):
@@ -197,11 +199,20 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             gl_source = sources.ledger_source(left, left_name,
                 document_ocr.reader(recon_job, "left", files["left"][0], frappe.session.user))
             stage("report")
-            vat_source = sources.report_source(right, right_name,
-                document_ocr.reader(recon_job, "right", files["right"][0], frappe.session.user))
-            stage("matching")
-            result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
-                vat_source=vat_source, gl_filename=left_name, vat_filename=right_name)
+            if len(rights) == 1:
+                vat_source = sources.report_source(right, right_name,
+                    document_ocr.reader(recon_job, "right", files["right"][0], frappe.session.user))
+                stage("matching")
+                result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
+                    vat_source=vat_source, gl_filename=left_name, vat_filename=right_name)
+            else:
+                from pearnly_cowork.recon_center import vat_check
+
+                vat_rows, warnings = vat_check.merged_report_rows(recon_job, rights, files["right"])
+                stage("matching")
+                result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
+                    vat_rows=vat_rows, gl_filename=left_name, vat_filename="、".join(name for name, _c in rights),
+                    report_warnings=warnings)
         frappe.db.commit()
         _state(recon_job, state="done", stage="done", task=result["name"])
     except Exception as error:

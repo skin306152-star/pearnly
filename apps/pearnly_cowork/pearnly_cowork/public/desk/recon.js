@@ -13,7 +13,8 @@
 	const p = frappe.pearnly;
 	const api = "pearnly_cowork.recon_center.api.";
 	// 页面等到后台任务的上限之后（任务 30 分钟、其中识别最多等 25 分钟）：原来页面 20 分钟先报超时，后台其实还在做。
-	const POLL_MS = 1500, POLL_LIMIT_MS = 32 * 60 * 1000;
+	// 销项核查的发票可能上百张、按识别名额分批读，后台任务给到 60 分钟（jobs.TIMEOUTS）：页面等 62 分钟。
+	const POLL_MS = 1500, POLL_LIMIT_MS = 62 * 60 * 1000;
 
 	// 每种对账的差异：上传口与列表列。结果页（复核表）的数据见服务端 `recon_center/sheets.py`。
 	// 三个对账功能的上传口都收：表格、PDF（含扫描件）、照片（识别任务支持的图片类型）。
@@ -38,6 +39,8 @@
 		income: {
 			root: "pearnly-recon-income", title: "cowork.nav.reconIncome", doctype: "Cowork Income Reconciliation",
 			export: "pearnly_cowork.reconciliation.income_recon_api.export",
+			// 税报可多份（一页一张照片、分几段的 PDF；用户 2026-09-30 定），总账一份。
+			multiple: { right: true },
 			left: "cowork.recon.income.left", right: "cowork.recon.income.right",
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },
@@ -126,9 +129,10 @@
 			const slot = side => [
 				{ fieldtype: "Heading", fieldname: `${side}_heading`, label: t(spec[side]) },
 				{ fieldtype: "Button", fieldname: `${side}_pick`, label: t("cowork.recon.pick"), click: async () => {
-					const files = await p.pick_files(spec.accept?.[side] || DOCUMENTS, Boolean(spec.multiple));
+					const many = spec.multiple === true || Boolean(spec.multiple?.[side]);
+					const files = await p.pick_files(spec.accept?.[side] || DOCUMENTS, many);
 					if (!files.length) return;
-					chosen[side] = spec.multiple ? files : files[0];
+					chosen[side] = many ? files : files[0];
 					await form.set_value(`${side}_file`, files.length > 1
 						? t("cowork.recon.files", files.length) : files[0].name);
 				} },

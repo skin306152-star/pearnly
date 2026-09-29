@@ -1070,6 +1070,51 @@ class ReportPhotosAreSubmittedTogether(unittest.TestCase):
 			("job", "report2", "F3", "2.jpg", b"c", "vat_report", "u@example.com")])
 
 
+class SeveralIncomeReportFiles(unittest.TestCase):
+	"""用户 2026-09-30 定：收入对账的税报可多份（I01 的 21 张税报照片）。"""
+
+	def test_only_the_report_side_of_an_income_reconciliation_takes_several_files(self):
+		from pearnly_cowork.recon_center import jobs
+
+		with mock.patch.object(jobs.scope, "default_workspace", return_value="ws"), \
+				mock.patch.object(jobs.KINDS["income"], "require"), mock.patch.object(jobs, "_save", return_value="F"), \
+				mock.patch.object(jobs, "_state"), mock.patch.object(jobs.frappe, "enqueue"), \
+				mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+				mock.patch.object(jobs, "_", side_effect=lambda text: text), \
+				mock.patch.object(jobs.frappe, "throw", side_effect=frappe.ValidationError):
+			jobs.start("income", "t", {"left": [("gl.xlsx", b"g")], "right": [("1.jpg", b"a"), ("2.jpg", b"b")]})
+			with self.assertRaises(frappe.ValidationError):
+				jobs.start("income", "t", {"left": [("a.xlsx", b"g"), ("b.xlsx", b"h")], "right": [("1.jpg", b"a")]})
+
+	def test_several_report_files_merge_in_order_counting_a_repeated_page_once(self):
+		from pearnly_cowork.recon_center import document_ocr, vat_check
+
+		def row(no, day, net):
+			return {"report_invoice_no": no, "report_date": day, "report_amount_pre_vat": net,
+				"report_vat_amount": round(net * 0.07, 2), "report_buyer_name": "A"}
+
+		reads = {"1.jpg": {"ok": True, "rows": [row("IV1", "2026-05-01", 100.0), row("IV2", "2026-05-02", 200.0)],
+			"meta": {}}, "2.jpg": {"ok": True, "rows": [row("IV2", "2026-05-02", 200.0), row("IV3", "2026-05-03", 300.0)],
+			"meta": {}}}
+
+		def report(content, name, read=None):
+			if name == "3.jpg":
+				raise frappe.ValidationError("unread")
+			return reads[name]
+
+		with mock.patch.object(document_ocr, "submit") as submit, mock.patch.object(document_ocr, "reader"), \
+				mock.patch.object(vat_check, "_report", side_effect=report), \
+				mock.patch.object(vat_check.frappe, "db", mock.MagicMock()), \
+				mock.patch.object(vat_check.frappe, "clear_last_message"), \
+				mock.patch.object(vat_check.frappe, "session", mock.Mock(user="u@example.com")), \
+				mock.patch.object(vat_check, "_", side_effect=lambda text: text + " {0}"):
+			rows, warnings = vat_check.merged_report_rows("job", [("1.jpg", b"a"), ("2.jpg", b"b"), ("3.jpg", b"c")],
+				["F1", "F2", "F3"])
+		self.assertEqual([row["report_invoice_no"] for row in rows], ["IV1", "IV2", "IV3"])
+		self.assertEqual(warnings, ["reconciliation.files_unread 3.jpg", "reconciliation.report_rows_repeated 1"])
+		self.assertEqual(submit.call_count, 3)
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 
@@ -1121,6 +1166,12 @@ class SameBytesAsAnOriginal(unittest.TestCase):
 			self.assertNotEqual(inserted["content"], b"%PDF-1.4 invoice")
 			self.assertTrue(inserted["file_name"].endswith(".bin"))  # 不按 PDF 处理加了前缀的字节
 			self.assertEqual(storage.read("F1"), ("Big C Jun.pdf", b"%PDF-1.4 invoice"))
+		# 守住两点（用户 2026-09-30 定保持另存）：副本内容哈希与原件不同 —— 原件改公开 / 私有时 Frappe 按同哈希连带改，
+		# 改不到副本；副本名字固定 .bin、存自己的路径 —— 删副本不会删到原件的文件。
+		from frappe.core.doctype.file.utils import get_content_hash
+
+		self.assertNotEqual(get_content_hash(inserted["content"]), get_content_hash(b"%PDF-1.4 invoice"))
+		self.assertEqual(inserted["file_name"], storage.COPY_NAME)
 		with mock.patch.object(storage.access, "protected_sources", return_value=[]), \
 				mock.patch.object(storage.frappe, "get_doc", side_effect=get_doc):
 			storage.save(b"%PDF-1.4 other", "other.pdf")

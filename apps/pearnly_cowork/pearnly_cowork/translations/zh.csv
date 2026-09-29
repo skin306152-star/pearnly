@@ -1988,6 +1988,7 @@ reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_too_many,对账数据格式不对，请重新上传文件
 reconciliation.recognition_busy,识别繁忙，请稍后再试。
 reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
+reconciliation.report_rows_repeated,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
 reconciliation.request_conflict,这个请求已用于不同内容。
 reconciliation.request_invalid,请求无效，请刷新后重试。
 reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。
@@ -2085,6 +2086,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
 {0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}
+{0} report lines repeated in another file (the same page uploaded twice) were counted once.,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
 {0} rows were not imported,{0} 行没有导入
 {0} statement amounts were corrected from the running balance. Check them,对账单有 {0} 行金额按余额推算改过，请核对
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。

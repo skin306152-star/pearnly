@@ -1988,6 +1988,7 @@ reconciliation.parse_info_rows,The reconciliation data is not in the expected fo
 reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
 reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
+reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 reconciliation.request_conflict,This request was already used for different content.
 reconciliation.request_invalid,The request is invalid. Reload and try again.
 reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
@@ -2085,6 +2086,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
 {0} moved {1} to {2},{0} moved {1} to {2}
+{0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 {0} rows were not imported,{0} rows were not imported
 {0} statement amounts were corrected from the running balance. Check them,{0} statement amounts were corrected from the running balance. Check them
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.

@@ -133,7 +133,7 @@ def within_report_period(gl_rows, vat_rows):
 
 
 def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
-		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename=""):
+		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename="", report_warnings=None):
 	"""Store one reconciliation from the extracted content of the two report files.
 
 	Opening the ledger workbook or PDF, opening the output-VAT report, running OCR
@@ -146,7 +146,9 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 	"""
 	income_recon_access.require(workspace)
 	vat_parsed = None
-	report_method, report_rows, report_version, report_warnings = "", 0, "", []
+	# 多份税报由调用方合并好传 vat_rows，读不出的文件、重复行的提示随 report_warnings 带进来（2026-09-30）。
+	report_method, report_rows, report_version = "", 0, ""
+	report_warnings = list(report_warnings or [])
 	if vat_source is not None:
 		report = vat_parse.decode(vat_source)
 		if not report or not report.get("ok"):
@@ -159,7 +161,7 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 		report_method = report.get("method") or ""
 		report_rows = report["row_count"]
 		report_version = report.get("parser_version") or ""
-		report_warnings = report.get("warnings") or []
+		report_warnings += report.get("warnings") or []
 	elif vat_rows is None:
 		frappe.throw(_("reconciliation.request_invalid"))
 	parsed = income_parse.decode(gl_source, revenue_prefix)
