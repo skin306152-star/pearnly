@@ -38,7 +38,8 @@ def log(message: str) -> None:
 
 COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
               "pearnly_cowork_ocr_policy": {"mode": "economy"}}
-OCR_BUDGET = {"concurrency": 8, "tenant_concurrency": 3, "rpm": 120}
+# 测试机每租户 4 个识别名额（2026-09-29 压测：用户要测试这边加快、只核对结果）；生产 site-step.py 仍是 3。
+OCR_BUDGET = {"concurrency": 8, "tenant_concurrency": 4, "rpm": 120}
 
 
 def configure() -> None:
