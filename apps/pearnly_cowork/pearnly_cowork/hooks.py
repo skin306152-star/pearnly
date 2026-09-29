@@ -422,6 +422,9 @@ pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow
 # LINE 发来的单据：识别落成票后推卡、最终失败时回一句（不是从 LINE 来的原件什么都不做）。
 cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}
+# 续跑时遇到上一个进程留下的「结果不明」调用，由对账的识别任务自己处理：账单 / 总账 / 税报按有限次重发，发票当成这一页
+# 读不出交引擎按页兜底；不整份作废（2026-09-30 压测第 18 轮）。
+pearnly_ocr_resume_unknown = ["cowork.vat_check", "cowork.recon_document"]
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。

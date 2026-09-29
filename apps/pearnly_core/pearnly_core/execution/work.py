@@ -192,7 +192,12 @@ def run(name):
         frappe.db.rollback()
         return
     stages = json.loads(doc.checkpoints or "{}")
-    if any(value.get("state") == "started" for value in stages.values()):
+    # 残留「started」（上一个进程在调用中途死了，租约已过）：默认整份判结果不明、不再付费重放。声明了自己能按调用
+    # 处理结果不明的类别（hooks `pearnly_ocr_resume_unknown`）照常续跑：已完成的调用从检查点取回，那一次调用由
+    # 处理函数自己决定（有限次重发 / 当成这一页读不出）—— Cowork 对账：25 页扫描件在调用中途被硬时限杀掉，
+    # 续跑时整份作废（2026-09-30 压测第 18 轮）。
+    if (any(value.get("state") == "started" for value in stages.values())
+            and doc.kind not in (frappe.get_hooks("pearnly_ocr_resume_unknown") or [])):
         _finish(name, "uncertain", "provider_outcome_unknown")
         return
     # 排队时限：已经付过费（有完成的检查点）的任务续跑时不按提交时间判过期，否则已付费的调用作废、用户只能重传

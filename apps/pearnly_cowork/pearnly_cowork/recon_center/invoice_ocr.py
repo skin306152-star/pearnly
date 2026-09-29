@@ -38,9 +38,9 @@ KIND = "cowork.vat_check"
 RESULT = KIND + ":result"
 BILLED = KIND + ":billed"
 TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
-# 让出前最多跑的时间：发票读图在这里至少等 MODEL_TIMEOUT_SECONDS、结果不明再重发一次，最坏 200 + 120 × 2 = 440 秒，
-# 仍在识别任务 600 秒的硬上限内（原 420 秒配 60 秒、不重发）。
-YIELD_SECONDS = 200
+# 让出前最多跑的时间：发票读图在这里至少等 MODEL_TIMEOUT_SECONDS、等名额最多 60 秒、结果不明再重发一次，最坏
+# 120 + 2 ×（60 + 120）= 480 秒，在识别任务 600 秒的硬上限内（原 200 秒在忙时被硬时限杀在调用中途，2026-09-30 压测第 18 轮）。
+YIELD_SECONDS = 120
 # 多页扫描发票读一页要 60 秒以上（2026-09-30 压测 V04：5 份 PDF 读超时、结果不明后整份丢了），与账单路径一样放宽。
 MODEL_TIMEOUT_SECONDS = 120
 # 发票可能上百张、按名额分批读：等得比账单久（对账后台任务的时限相应放宽，jobs.TIMEOUTS）。
