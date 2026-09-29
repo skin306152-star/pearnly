@@ -146,6 +146,11 @@ def bank_notes(doc):
 	skipped = [item["file"] for item in failed if item.get("error_code") == "no_movement"]
 	if skipped:
 		notes.append(_("reconciliation.files_no_movement").format("、".join(skipped)))
+	for item in parse_info.get("stmt_files") or []:
+		if item.get("unread_pages"):
+			# 识别时这几页抽取超时没读出：只丢这几页，余额链在这里断开，保存前逐处确认（2026-09-30 压测第 23 轮）。
+			notes.append(_("reconciliation.statement_pages_unread").format(item.get("file") or "",
+				"、".join(str(page) for page in item["unread_pages"])))
 	others = [item["file"] for item in failed if item.get("error_code") == "other_account"]
 	if others:
 		notes.append(_("reconciliation.statement_other_account_left_out").format("、".join(others)))
@@ -165,6 +170,10 @@ def bank_notes(doc):
 		# 照片 / 扫描件读出的账单有断点：有电子版就改传电子版（用户 2026-09-30：电子版优先，照片扫描件是后备）。
 		notes.append(_("reconciliation.prefer_electronic"))
 	matched = int((bank_recon_contracts.json_loads(doc.summary_json) or {}).get("matched_count") or 0)
+	if doc.status == "needs_review":
+		# 需复核的任务确认前还没存匹配结果（存的是 0）：按页面上现算的匹配说，不误报「没有任何记录匹配成功」
+		# （2026-09-30 压测第 23 轮 B01 / B02 / KBANK-CA-04）。
+		matched = int(bank_compute(doc, inputs)[3].get("matched_count") or 0)
 	lang = (frappe.local.lang or "th")[:2]
 	notes += [text.replace("⚠️", "").strip() for text in bank_warnings.detect_recon_mismatch(
 		bank_recon_contracts.matching_statement_rows(statement), bank_recon_contracts.matching_gl_rows(ledger),

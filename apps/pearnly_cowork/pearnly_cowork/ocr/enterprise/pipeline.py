@@ -165,9 +165,25 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         if len(transcripts) != page_count:
             raise ContentError("ocr.enterprise_transcript_count_mismatch")
         pages = []
+        unread = 0
         for number, transcript in enumerate(transcripts, 1):
             image, mime = render(number)
-            data, response = _extract(model_call, image, mime, category, transcript, number)
+            try:
+                data, response = _extract(model_call, image, mime, category, transcript, number)
+            except ContentError as error:
+                # 只有银行账单这样兜底：余额链一定在缺的那页断开、交人确认；总账、税报没有逐笔余额，丢一页看不出来，
+                # 照旧整份读不出（结果里点名那份文件）。
+                if error.code != UNREAD_PAGE or category != "bank":
+                    raise
+                # 这一页的抽取重发后仍结果不明（模型读超时）：只丢这一页，其余页照常（2026-09-30 压测第 23 轮
+                # BAY-CA-03 / CamScanner 12 页：一页 180 秒读超时，整份作废、整套对账失败）。银行的余额链会在这里断开，
+                # 交人确认；这一页记在页上，结果里点名。
+                del image
+                unread += 1
+                page = make_page({"entries": []}, category, number, issues=["page_unreadable"])
+                page.extraction_audit["page_unreadable"] = True
+                pages.append(page)
+                continue
             del image  # one rendered page at a time, not the whole scan in memory
             document = data
             for row in document.get("entries") or []:
@@ -187,6 +203,8 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             page.layer2_output_tokens = response.output_tokens
             cost += model_cost_thb(response.model, response.input_tokens, response.output_tokens)
             pages.append(page)
+        if unread == len(pages):
+            raise ContentError("ocr.enterprise_schema_failed", detail="every page unreadable")
         if category in ("bank", "gl"):
             aggregate = {
                 "opening_balance": pages[0].document.opening_balance,
@@ -203,6 +221,9 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
     return PipelineResult(pages=pages, page_count=page_count, elapsed_ms=elapsed, engine=ENGINE,
         estimated_cost_thb=cost, read_ms=read_ms)
 
+
+# 调用方（对账的识别任务）把「这一页的抽取重发后仍结果不明」换成这个码交进来，流程只丢这一页。
+UNREAD_PAGE = "ocr.provider_outcome_unknown"
 
 NO_DATA_RE = re.compile(r"no\s+data\s+available|no\s+transactions?\s+(?:found|available)|no\s+records?\s+found"
                         r"|ไม่พบรายการ|ไม่มีรายการ(?:เคลื่อนไหว|เดินบัญชี)?", re.IGNORECASE)

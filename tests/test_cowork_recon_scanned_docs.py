@@ -1690,6 +1690,98 @@ class ElectronicPdfReadFromItsTextLayer(unittest.TestCase):
 		self.assertEqual(bank_recon_service._read_by_recognition({"ok": True, "source": "enterprise", "text_layer": True}), {})
 
 
+
+class OneUnreadPageDoesNotLoseTheStatement(unittest.TestCase):
+	"""2026-09-30 压测第 23 轮 BAY-CA-03 / CamScanner 12 页：一页抽取 180 秒读超时、重发后仍结果不明，整份作废、整套失败。
+	银行账单只丢这一页（余额链在这里断开，交人确认），总账、税报照旧整份读不出。"""
+
+	PAGE = {"bank_name": "", "account_number": "", "period_start": "", "period_end": "", "opening_balance": "1000",
+		"closing_balance": "900", "total_deposit": "", "total_withdrawal": "", "entries": [
+			{"transaction_date": "2026-06-01", "description": "fee", "reference": "", "deposit": "", "withdrawal": "100",
+			 "balance": "900"}]}
+
+	def model(self, lost):
+		inner = FakeModel(self.PAGE)
+
+		def call(request):
+			if request.page_number in lost:
+				raise ContentError(pipeline.UNREAD_PAGE, page_number=request.page_number)
+			return inner(request)
+		return call
+
+	def test_the_other_pages_are_kept_and_the_lost_page_is_named(self):
+		result = pipeline.run("bank", page_count=3, reads=[(b"%PDF", "application/pdf", 3)], render=Rendered(),
+			document_ai_call=FakeDocumentAi(payload("a", "b", "c")), model_call=self.model({2}))
+		self.assertEqual([len(page.document.entries) for page in result.pages], [1, 0, 1])
+		legacy = pipeline.to_legacy(result)
+		self.assertTrue(legacy["pages"][1]["extraction_audit"]["page_unreadable"])
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
+			enterprise_rows,
+		)
+		self.assertEqual(enterprise_rows(legacy, "bank_statement", "s.pdf")["unread_pages"], [2])
+
+	def test_every_page_lost_is_still_unreadable(self):
+		with self.assertRaises(ContentError):
+			pipeline.run("bank", page_count=2, reads=[(b"%PDF", "application/pdf", 2)], render=Rendered(),
+				document_ai_call=FakeDocumentAi(payload("a", "b")), model_call=self.model({1, 2}))
+
+	def test_ledgers_and_reports_still_fail_whole(self):
+		with self.assertRaises(ContentError):
+			pipeline.run("vat", page_count=2, reads=[(b"%PDF", "application/pdf", 2)], render=Rendered(),
+				document_ai_call=FakeDocumentAi(payload("a", "b")), model_call=self.model({2}))
+
+	def test_an_unknown_outcome_becomes_an_unread_page(self):
+		from pearnly_core.execution.errors import Uncertain
+
+		def timed_out(request):
+			raise Uncertain("read timeout")
+		request = mock.Mock(stage="enterprise_schema", page_number=7)
+		with self.assertRaises(ContentError) as caught:
+			document_ocr.page_failure(timed_out)(request)
+		self.assertEqual((caught.exception.code, caught.exception.page_number), (pipeline.UNREAD_PAGE, 7))
+
+
+class TextLayerRowsAreTrusted(unittest.TestCase):
+	def test_rows_from_an_electronic_pdf_are_high_confidence_and_need_no_review(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
+			enterprise_rows,
+		)
+
+		content = ElectronicPdfReadFromItsTextLayer().statement([(2, "Transfer In", 0, 500.0, 1500.0),
+			(3, "Payment", 200.0, 0, 1300.0)])
+		legacy = __import__("pearnly_cowork.ocr.enterprise.text_layer", fromlist=["read"]).read(content, "bank_statement")
+		self.assertFalse(legacy["_needs_review"])
+		rows = enterprise_rows(legacy, "bank_statement", "s.pdf")
+		self.assertEqual({row.confidence for row in rows["rows"]}, {"high"})
+		self.assertFalse(rows["needs_review"])
+
+
+
+class ReviewTaskIsNotCalledUnmatched(unittest.TestCase):
+	def test_a_review_task_counts_the_matches_shown_on_the_page(self):
+		# 2026-09-30 压测第 23 轮：需复核的任务确认前存的匹配数是 0，标题旁原来写「没有任何记录匹配成功」。
+		from pearnly_cowork.reconciliation import bank_recon_contracts, revision
+
+		days = [f"2026-06-{day:02d}" for day in range(1, 7)]
+		statement = [{"date": day, "description": "t", "withdrawal": "0", "deposit": "100",
+			"balance": str(1000 + 100 * (index + 1))} for index, day in enumerate(days)]
+		ledger = [{"date": day, "doc_no": f"RV{index}", "account_code": "1112", "description": "", "debit": "100",
+			"credit": "0", "balance": None} for index, day in enumerate(days)]
+		header = {"stmt_opening": 1000, "stmt_closing": 1600, "gl_opening": 1000, "gl_closing": 1600,
+			"bank_code": "kbank", "gl_account_code": "1112"}
+		review = {"statement_rows": statement, "gl_rows": ledger, "header": header, "diagnostics": {}}
+
+		class Doc(dict):
+			__getattr__ = dict.get
+		doc = Doc(name="CBR-R", status="needs_review", review_json=bank_recon_contracts.json_dumps(review),
+			parse_info_json="{}", summary_json="{}", run_info_json="{}", inputs_json="", workspace="",
+			bank_code="kbank", gl_account_code="1112")
+		with mock.patch.object(revision.frappe, "local", mock.Mock(lang="zh")), \
+				mock.patch.object(revision, "_", side_effect=lambda text: text):
+			notes = revision.bank_notes(doc)
+		self.assertFalse(any("匹配" in note or "match" in note.lower() for note in notes), notes)
+
+
 if __name__ == "__main__":
 	unittest.main()
 

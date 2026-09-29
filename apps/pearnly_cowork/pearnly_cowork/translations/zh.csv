@@ -2023,6 +2023,7 @@ reconciliation.statement_no_running_balance,这份账单没有逐笔余额，无
 reconciliation.statement_not_a_statement,这份表格不是网银导出的账单（没有余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。
 reconciliation.statement_other_account,这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 reconciliation.statement_other_account_left_out,以下账单看起来是其他账户的，没有计入本次对账：{0}
+reconciliation.statement_pages_unread,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。
 reconciliation.suspected_group_gl,疑似合计匹配，请确认：总账 {0} {1} 的 {2} 等于银行 {3} 笔（{4} 至 {5}）的合计
@@ -2111,6 +2112,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} statement rows were read with low confidence. Check them against the original,对账单有 {0} 行读得不确定，请对照原件核对
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
+{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
 {0}: the check digit is wrong,{0}校验位不对
 {1} is due at {2},卡片「{1}」将在 {2} 到期
 {1} is due soon ({2}),卡片「{1}」快到期了（{2}）

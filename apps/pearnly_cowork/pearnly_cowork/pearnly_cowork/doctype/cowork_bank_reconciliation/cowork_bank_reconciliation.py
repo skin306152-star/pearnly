@@ -194,7 +194,8 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 					description=entry.get("description") or "", deposit=bank_parse.to_float(entry.get("deposit")),
 					withdrawal=bank_parse.to_float(entry.get("withdrawal")),
 					balance=bank_parse.to_float(entry.get("balance")), source_file=filename,
-					confidence="low" if review else "medium",
+					# 电子 PDF 文字层拼的行是原字、余额链已平：高可信（2026-09-30 压测第 23 轮 B02：原来 368 行都标「读得不确定」）。
+					confidence="high" if legacy.get("text_layer") else "low" if review else "medium",
 					amount_autocorrected=bool(entry.get("chain_amount_imputed")),
 					direction_autocorrected=bool(entry.get("chain_repaired")))
 				if entry.get("balance") is None or not str(entry.get("balance")).strip():
@@ -233,6 +234,9 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		"parser_version": legacy.get("engine"), "needs_review": bool(legacy.get("_needs_review")),
 		# 电子 PDF 按文字层坐标拼的（没识别、没花钱）：结果页不当成照片 / 扫描件（不建议改传电子版）。
 		"text_layer": bool(legacy.get("text_layer")),
+		# 抽取超时没读出的页（只丢这一页，余额链在这里断开，交人确认）：结果里点名。
+		"unread_pages": [int(page.get("page_number") or 0) for page in pages
+			if (page.get("extraction_audit") or {}).get("page_unreadable")],
 		"validation_warnings": [warning for page in pages for warning in page.get("validation_warnings") or []]}
 
 

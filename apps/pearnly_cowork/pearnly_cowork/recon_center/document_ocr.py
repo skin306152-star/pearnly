@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from pearnly_core import billing_client, ocr
 from pearnly_core.execution import work as core_work
-from pearnly_core.execution.errors import Deferred, QueueFull
+from pearnly_core.execution.errors import Deferred, QueueFull, Uncertain
 
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.ocr.engine.errors import ContentError
@@ -200,7 +200,20 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
         # 不重发的话整份文件读空、整套对账失败，用户只能整份重传（2026-09-29 压测 45 个识别任务里 7 个）。
         return read_file(source, content, is_pdf, None if is_pdf else _mime(content), document_type,
             guarded(functools.partial(client.document_ai_call, retry_unknown=True)),
-            guarded(functools.partial(client.model_call, retry_unknown=True)))
+            page_failure(guarded(functools.partial(client.model_call, retry_unknown=True))))
+
+
+def page_failure(call):
+    """一页的抽取重发后仍结果不明（模型读超时、连接中断；续跑时遇到上次没收尾的调用也一样）：换成「这一页读不出」，
+    流程只丢这一页、其余页照常（``pipeline.UNREAD_PAGE``；2026-09-30 压测第 23 轮 BAY-CA-03：一页 180 秒读超时，
+    12 页整份作废、整套对账失败）。读字（Document AI）结果不明照旧整份作废：没有字就没有页可抽。"""
+    def invoke(request, *args, **kwargs):
+        try:
+            return call(request, *args, **kwargs)
+        except Uncertain as error:
+            raise ContentError(enterprise.UNREAD_PAGE, stage=str(getattr(request, "stage", "")),
+                               page_number=int(getattr(request, "page_number", 0) or 0)) from error
+    return invoke
 
 
 def _charge(work_name, pages, frozen):

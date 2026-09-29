@@ -84,4 +84,9 @@ def read(content: bytes, document_type: str) -> Optional[dict]:
     result.elapsed_ms = int((time.monotonic() - started) * 1000)
     legacy = pipeline.to_legacy(result)
     legacy["text_layer"] = True
+    # 本地拼行的页默认标「要人看」（识别出来的字可能读错）；文字层是原字、余额链又已算平，不用人逐行核对
+    # （2026-09-30 压测第 23 轮 B02：原来 368 行都标「读得不确定」、整份需复核）。
+    legacy["_needs_review"] = False
+    for page in legacy["pages"]:
+        page["needs_manual_review"] = False
     return legacy
