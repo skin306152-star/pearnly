@@ -103,6 +103,7 @@ At time of due date,เมื่อถึงกำหนด
 Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
 Automation,ระบบอัตโนมัติ
+Back to list,กลับไปที่รายการ
 Balance,ยอดคงเหลือ
 Balance breaks,จุดที่ยอดคงเหลือไม่ต่อเนื่อง
 Bank,ธนาคาร
@@ -387,6 +388,7 @@ Edit card,แก้ไขการ์ด
 Edit dates,แก้ไขวันที่
 Edit in Full Page,แก้ไขแบบเต็มหน้า
 Edit labels,แก้ไขป้ายกำกับ
+Electronic,อิเล็กทรอนิกส์
 Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
@@ -509,6 +511,7 @@ It was not entered,ยังไม่ได้บันทึก ส่งให
 Item,รายการ
 Items,รายการ
 Job Roles,สิทธิ์การใช้งาน
+Just read,เพิ่งอ่านได้
 Keep,คงไว้
 Known difference,ผลต่างที่ทราบแล้ว
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
@@ -698,6 +701,8 @@ Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
 Questions,คำถาม
+"Queued, {0} ahead",กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
+Read,อ่านแล้ว
 Read again,อ่านใหม่
 Reading files,กำลังอ่านไฟล์
 Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
@@ -1179,6 +1184,7 @@ Voided,ยกเลิกแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Voucher no.,เลขที่ใบสำคัญ
 WHT amount,ภาษีหัก ณ ที่จ่าย
+Waiting,รอ
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Watch,ติดตาม
@@ -1202,6 +1208,8 @@ You do not have access to this ERP target.,คุณไม่มีสิทธ�
 account,บัญชี
 active,ใช้งานอยู่
 admitted,รับงานแล้ว
+amount,จำนวนเงิน
+before VAT,ก่อนภาษี
 catalog_refresh_invalid,หลักฐานไดเรกทอรีไม่ถูกต้อง โปรดรีเฟรชแล้วเลือกใหม่
 catalog_refresh_pending,กำลังรอการรีเฟรชไดเรกทอรี
 catalog_refresh_required,โปรดรีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
@@ -1340,6 +1348,23 @@ cowork.recon.kpi.matched,จับคู่แล้ว
 cowork.recon.kpi.pending,ผลต่างที่ต้องตรวจสอบ
 cowork.recon.kpi.rate,อัตราการจับคู่
 cowork.recon.kpi.unmatched,ไม่พบคู่
+cowork.recon.live.ahead,กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
+cowork.recon.live.back,กลับไปที่รายการ
+cowork.recon.live.electronic,อิเล็กทรอนิกส์
+cowork.recon.live.files,{0}/{1} ไฟล์
+cowork.recon.live.kind.amount,จำนวนเงิน
+cowork.recon.live.kind.credit,เครดิต
+cowork.recon.live.kind.debit,เดบิต
+cowork.recon.live.kind.deposit,ฝาก
+cowork.recon.live.kind.subtotal,ก่อนภาษี
+cowork.recon.live.kind.total,รวมภาษี
+cowork.recon.live.kind.withdrawal,ถอน
+cowork.recon.live.latest,เพิ่งอ่านได้
+cowork.recon.live.page,หน้า {0}
+cowork.recon.live.pages,{0}/{1} หน้า
+cowork.recon.live.read,อ่านแล้ว
+cowork.recon.live.rows,{0} รายการ
+cowork.recon.live.waiting,รอ
 cowork.recon.new,สร้างงานใหม่
 cowork.recon.note.amount_fixed,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ
 cowork.recon.note.completeness,จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด
@@ -1842,6 +1867,8 @@ cowork.work.view.calendar,ปฏิทิน
 cowork.work.view.mine,งานของฉัน
 cowork.work.view.table,ตาราง
 cowork_line,Cowork LINE
+credit,เครดิต
+debit,เดบิต
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 erp.endpoint_disabled,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
@@ -1885,6 +1912,7 @@ history.pages_invalid,รูปแบบข้อมูลหน้าใบแ�
 history.source_invalid,ไม่รองรับแหล่งที่มาของรายการนี้
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 image,รูปภาพ
+in,ฝาก
 intake.catalog.reload,อ่านใหม่
 intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
@@ -1987,6 +2015,8 @@ ocr.table_units_invalid,ส่วนข้อมูลของเอกสา�
 ocr.table_xml_declaration_not_allowed,เอกสารมีการประกาศ XML ที่ไม่รองรับ
 ocr.too_many_pages,ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต
 ocr.unsupported_format,ไม่รองรับไฟล์ประเภทนี้
+out,ถอน
+page {0},หน้า {0}
 pdf,PDF
 pending,รอดำเนินการ
 physical_page,หน้าจริงของเอกสาร
@@ -2153,6 +2183,7 @@ stocktake.row_invalid,แถวนำเข้าไม่ถูกต้อง�
 stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว"
 stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 summary_table_batch,นำเข้าตารางสรุป
+total,รวมภาษี
 used by {0} items,มีสินค้าใช้อยู่ {0} รายการ
 vat_check.balance_insufficient,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 vat_check.balance_unavailable,ตรวจสอบยอดเงินในบัญชีไม่ได้ชั่วคราว กรุณาลองใหม่ภายหลัง
@@ -2175,6 +2206,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} ledger lines add up to it ({1} to {2}),บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 "{0} ledger lines, {1} in total, none of them in the tax report",ในบัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีในรายงานภาษีเลย
+{0} lines,{0} รายการ
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
 {0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
@@ -2187,6 +2219,8 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} such groups this period,งวดนี้มี {0} กลุ่มแบบนี้
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
+{0}/{1} files,{0}/{1} ไฟล์
+{0}/{1} pages,{0}/{1} หน้า
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: อ่านหน้า {1} ไม่ได้ (การอ่านหมดเวลา) ยอดคงเหลือขาดช่วงตรงนี้ กรุณาตรวจกับต้นฉบับ
 {0}: the check digit is wrong,{0}: หลักตรวจสอบไม่ถูกต้อง
 {0}: which ledger account is it?,{0} ตรงกับบัญชีใดในบัญชีแยกประเภท

@@ -329,3 +329,150 @@
 .pearnly-recon-preset .text-muted {
 	margin-top: var(--margin-xs);
 }
+
+/* ── 识别看板（用户 2026-09-30：不要整屏白屏，要看得到在干嘛）：格子只跟着真实进度变，变化时轻轻过渡 ─────── */
+.pearnly-recon-board {
+	padding: var(--padding-md);
+	display: flex;
+	flex-direction: column;
+	gap: var(--margin-lg);
+}
+
+.pearnly-recon-steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--margin-xs);
+}
+
+.pearnly-recon-step {
+	font-size: var(--text-sm);
+	padding: 4px 10px;
+	border-radius: var(--border-radius-full);
+	background: var(--subtle-fg);
+	color: var(--text-muted);
+	transition: background 0.3s, color 0.3s;
+}
+
+.pearnly-recon-step.is-done {
+	background: var(--bg-green);
+	color: var(--text-on-green);
+}
+
+.pearnly-recon-step.is-on {
+	background: var(--primary);
+	color: var(--white);
+}
+
+.pearnly-recon-sides {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: var(--margin-lg);
+}
+
+.pearnly-recon-side-title {
+	font-weight: 500;
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-recon-file {
+	margin-bottom: var(--margin-md);
+}
+
+.pearnly-recon-file-head {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--margin-sm);
+	font-size: var(--text-sm);
+	margin-bottom: var(--margin-xs);
+}
+
+.pearnly-recon-via {
+	margin-left: var(--margin-xs);
+}
+
+.pearnly-recon-tiles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.pearnly-recon-tile {
+	width: 16px;
+	height: 22px;
+	border-radius: 3px;
+	border: 1px solid var(--border-color);
+	background: var(--fg-color);
+	transition: background 0.35s, border-color 0.35s, transform 0.35s;
+}
+
+.pearnly-recon-tile.is-read {
+	background: var(--bg-blue);
+	border-color: var(--blue-300, var(--border-color));
+}
+
+.pearnly-recon-tile.is-done {
+	background: var(--bg-green);
+	border-color: var(--green-400, var(--border-color));
+	transform: scale(1.04);
+}
+
+.pearnly-recon-tile.is-unread {
+	background: var(--bg-red);
+	border-color: var(--red-400, var(--border-color));
+}
+
+/* 正在读的那一格：边框呼吸，表示还在做（不是进度）。 */
+.pearnly-recon-tile.is-current {
+	animation: pearnly-recon-breath 1.4s ease-in-out infinite;
+}
+
+@keyframes pearnly-recon-breath {
+	0%, 100% { border-color: var(--border-color); }
+	50% { border-color: var(--primary); }
+}
+
+.pearnly-recon-live-title {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin-bottom: var(--margin-xs);
+}
+
+.pearnly-recon-live-item {
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+	padding: 4px 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+/* 刚读出的新一条：从上面滑进来。 */
+.pearnly-recon-live-item.is-new {
+	animation: pearnly-recon-slide 0.45s ease-out;
+}
+
+@keyframes pearnly-recon-slide {
+	from { opacity: 0; transform: translateY(-6px); background: var(--bg-blue); }
+	to { opacity: 1; transform: none; background: transparent; }
+}
+
+.pearnly-recon-actives {
+	display: flex;
+	flex-direction: column;
+	gap: var(--margin-xs);
+	padding: 0 var(--padding-md);
+}
+
+.pearnly-recon-actives:empty {
+	display: none;
+}
+
+.pearnly-recon-active {
+	display: flex;
+	align-items: center;
+	gap: var(--margin-sm);
+	text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pearnly-recon-tile, .pearnly-recon-step { transition: none; }
+	.pearnly-recon-tile.is-current, .pearnly-recon-live-item.is-new { animation: none; }
+}

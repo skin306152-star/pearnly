@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.recon_center import jobs, rerun
+from pearnly_cowork.recon_center import jobs, progress, rerun
 from pearnly_cowork.reconciliation import bank_recon_service, income_recon_service, vat_check_service
 
 TASKS = {"bank": bank_recon_service.TASKS, "income": income_recon_service.TASKS}
@@ -31,6 +31,27 @@ def start(kind, title="", gl_account_code="", lang="th"):
 @frappe.whitelist()
 def status(job):
     return jobs.status(job)
+
+
+@frappe.whitelist()
+def active(kind):
+    """本人进行中的对账（列表页顶上显示，点进去接着看进度）：标题、阶段、总页数、已读完页数。"""
+    found = []
+    for item in progress.active(frappe.session.user, kind):
+        try:
+            state = jobs.status(item["job"])
+        except frappe.DoesNotExistError:
+            frappe.clear_last_message()
+            progress.active_remove(frappe.session.user, item["job"])
+            continue
+        if state.get("state") not in ("queued", "running"):
+            progress.active_remove(frappe.session.user, item["job"])
+            continue
+        files = state.get("files") or []
+        found.append({"job": item["job"], "title": item.get("title") or "", "stage": state.get("stage"),
+                      "pages": sum(entry["pages"] for entry in files),
+                      "done": sum(min(entry["done"] + len(entry["unread"]), entry["pages"]) for entry in files)})
+    return found
 
 
 @frappe.whitelist()

@@ -103,6 +103,7 @@ At time of due date,At time of due date
 Attachments,Attachments
 Attempt Secret,Attempt Secret
 Automation,Automation
+Back to list,Back to list
 Balance,Balance
 Balance breaks,Balance breaks
 Bank,Bank
@@ -387,6 +388,7 @@ Edit card,Edit card
 Edit dates,Edit dates
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
+Electronic,Electronic
 Email,Email
 Enable,Enable
 Enable {0},Enable {0}
@@ -509,6 +511,7 @@ It was not entered,It was not entered
 Item,Item
 Items,Items
 Job Roles,Job Roles
+Just read,Just read
 Keep,Keep
 Known difference,Known difference
 LINE is not enabled for this account,LINE is not enabled for this account
@@ -698,6 +701,8 @@ Quantity,Quantity
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Questions,Questions
+"Queued, {0} ahead","Queued, {0} ahead"
+Read,Read
 Read again,Read again
 Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
@@ -1179,6 +1184,7 @@ Voided,Voided
 "Voided, not in the total","Voided, not in the total"
 Voucher no.,Voucher no.
 WHT amount,WHT amount
+Waiting,Waiting
 Waiting to start,Waiting to start
 Warehouse,Warehouse
 Watch,Watch
@@ -1202,6 +1208,8 @@ You do not have access to this ERP target.,You do not have access to this ERP ta
 account,account
 active,active
 admitted,admitted
+amount,amount
+before VAT,before VAT
 catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
 catalog_refresh_pending,The directory refresh is still pending.
 catalog_refresh_required,Refresh the account directory before continuing.
@@ -1340,6 +1348,23 @@ cowork.recon.kpi.matched,Matched
 cowork.recon.kpi.pending,Differences to review
 cowork.recon.kpi.rate,Match rate
 cowork.recon.kpi.unmatched,Unmatched
+cowork.recon.live.ahead,"Queued, {0} ahead"
+cowork.recon.live.back,Back to list
+cowork.recon.live.electronic,Electronic
+cowork.recon.live.files,{0}/{1} files
+cowork.recon.live.kind.amount,amount
+cowork.recon.live.kind.credit,credit
+cowork.recon.live.kind.debit,debit
+cowork.recon.live.kind.deposit,in
+cowork.recon.live.kind.subtotal,before VAT
+cowork.recon.live.kind.total,total
+cowork.recon.live.kind.withdrawal,out
+cowork.recon.live.latest,Just read
+cowork.recon.live.page,page {0}
+cowork.recon.live.pages,{0}/{1} pages
+cowork.recon.live.read,Read
+cowork.recon.live.rows,{0} lines
+cowork.recon.live.waiting,Waiting
 cowork.recon.new,New task
 cowork.recon.note.amount_fixed,{0} statement amounts were corrected from the running balance. Check them
 cowork.recon.note.completeness,The statement's count or totals do not match what it prints. A row may be missing or misread
@@ -1842,6 +1867,8 @@ cowork.work.view.calendar,Calendar
 cowork.work.view.mine,My cards
 cowork.work.view.table,Table
 cowork_line,Cowork LINE
+credit,credit
+debit,debit
 document,document
 erp.account_set_unavailable,This account set is unavailable.
 erp.endpoint_disabled,This ERP connection is disabled.
@@ -1885,6 +1912,7 @@ history.pages_invalid,The invoice page data has an invalid format.
 history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
 image,image
+in,in
 intake.catalog.reload,Read again
 intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
@@ -1987,6 +2015,8 @@ ocr.table_units_invalid,The document sections are incomplete or invalid.
 ocr.table_xml_declaration_not_allowed,The document contains unsupported XML declarations.
 ocr.too_many_pages,The PDF exceeds the allowed page count.
 ocr.unsupported_format,This file type is not supported.
+out,out
+page {0},page {0}
 pdf,pdf
 pending,Pending
 physical_page,physical_page
@@ -2153,6 +2183,7 @@ stocktake.row_invalid,The import row is invalid or has missing required values.
 stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
 stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
 summary_table_batch,Summary table import
+total,total
 used by {0} items,used by {0} items
 vat_check.balance_insufficient,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 vat_check.balance_unavailable,The account balance could not be checked right now. Try again in a moment.
@@ -2175,6 +2206,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} ledger lines add up to it ({1} to {2}),{0} ledger lines add up to it ({1} to {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 "{0} ledger lines, {1} in total, none of them in the tax report","{0} ledger lines, {1} in total, none of them in the tax report"
+{0} lines,{0} lines
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
 {0} more possible combined matches are not listed,{0} more possible combined matches are not listed
@@ -2187,6 +2219,8 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} such groups this period,{0} such groups this period
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
+{0}/{1} files,{0}/{1} files
+{0}/{1} pages,{0}/{1} pages
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 {0}: the check digit is wrong,{0}: the check digit is wrong
 {0}: which ledger account is it?,{0}: which ledger account is it?

@@ -22,6 +22,7 @@ from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, Uncertain
 
 from pearnly_cowork.files.service import inspect_content
+from pearnly_cowork.recon_center import progress
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
 from pearnly_cowork.ocr.engine.contracts import ModelRequest, ProviderFailure
@@ -113,9 +114,26 @@ def submit(recon_job, files, user):
     for index, (file_name, filename, info) in enumerate(inspected):
         arguments = {"recon_job": recon_job, "file": file_name, "filename": filename, "pages": info["page_count"],
                      "sha256": info["sha256"], "settings": frozen}
-        works.append((admission.when_room(lambda index=index, arguments=arguments: _create(
-            f"{recon_job}:{index}", arguments, user)), filename))
+        work = admission.when_room(lambda index=index, arguments=arguments: _create(
+            f"{recon_job}:{index}", arguments, user))
+        works.append((work, filename))
+        progress.update(file_name, work=work)
+    for file_name, filename, _content in files:
+        if filename in rejected:
+            progress.update(file_name, state="failed")
     return works, rejected
+
+
+def _finished(recon_job, file, filename, pages, invoices):
+    """看板：这份发票读完了；每张读出的发票进「刚读出」（发票号、日期、含税金额）。只作展示，失败不影响识别。"""
+    try:
+        progress.update(file, state="done" if invoices else "failed", read=int(pages), done=int(pages))
+        for invoice in invoices[-progress.LATEST:]:
+            progress.latest(recon_job, {"name": invoice.get("invoice_no") or filename, "page": 0, "rows": 0,
+                                        "date": str(invoice.get("invoice_date") or "")[:10], "kind": "total",
+                                        "amount": f"{float(invoice.get('total_amount') or 0):,.2f}"})
+    except Exception:
+        frappe.log_error(title="cowork recon progress", message=frappe.get_traceback())
 
 
 def _create(reference, arguments, user):
@@ -257,6 +275,7 @@ def run(recon_job, file, filename, pages, sha256, settings):
                 frappe.log_error(title="cowork vat check invoice", message=f"{filename}: {error}")
                 invoices = []
             saved = core_work.checkpoint(RESULT, "done", {"invoices": invoices})
+            _finished(recon_job, file, filename, pages, invoices)
         if saved["body"]["invoices"] and not core_work.checkpoint(BILLED):
             # 扣费前再看一次核查：已经结束（失败或完成）就用不到这份结果，不扣客户的钱（与账单路径 document_ocr 同一
             # 口径；2026-09-30 压测 V01：核查因识别繁忙失败后，读完的小票照样扣费）。

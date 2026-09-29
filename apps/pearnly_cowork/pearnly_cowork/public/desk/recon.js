@@ -124,6 +124,9 @@
 			});
 			page.set_primary_action(t("cowork.recon.new"), open_new);
 			if (spec.presets) page.add_inner_button(t("cowork.recon.presets"), open_presets);
+			const actives = element("div", "pearnly-recon-actives");
+			page.main.prepend(actives);
+			void show_active(actives);
 		}
 		const open_new = () => frappe.set_route(root, "new");
 
@@ -211,46 +214,156 @@
 			page.set_secondary_action(__("Cancel"), () => frappe.set_route(root));
 		}
 
-		// 核对中：整屏遮罩，只写阶段文字；结论出来才收起。
+		// 开始对账：上传时短暂遮罩（文件还在路上），拿到任务号就进识别看板（不再整屏白屏等）。
 		async function run(chosen, task_title) {
-			await follow(async say => {
-				say("upload");
-				return p.post_files(api + "start", { kind, title: task_title, left: chosen.left,
-					right: chosen.right, lang: (frappe.boot.lang || "th").slice(0, 2) });
-			});
+			await follow(() => p.post_files(api + "start", { kind, title: task_title, left: chosen.left,
+				right: chosen.right, lang: (frappe.boot.lang || "th").slice(0, 2) }));
 		}
 
-		// 等后台任务：整屏遮罩写阶段，完成跳到结果页。新建对账、答了要重跑的预设问题（用原文件重跑）都走这里。
+		// 新建对账、答了要重跑的预设问题（用原文件重跑）：拿到后台任务号就进看板；看板的网址带着任务号，离开再回来能接上。
 		async function follow(begin) {
-			frappe.dom.freeze(p.escape(t("cowork.recon.checking")));
-			const lead = () => document.querySelector("#freeze .freeze-message p.lead");
-			const say = stage => { const node = lead(); if (node) node.innerText = `${t("cowork.recon.checking")}\n${t(`cowork.recon.stage.${stage}`)}`; };
-			try {
-				const started = await begin(say);
-				const began = Date.now();
-				for (;;) {
-					await new Promise(resolve => setTimeout(resolve, POLL_MS));
-					let state;
-					try { state = await frappe.xcall(api + "status", { job: started.job }); } catch (error) { continue; }
-					if (state.state === "done") {
-						frappe.dom.unfreeze();
-						// 重跑的结果可能与原来同名（同一个人重跑）：路由不变时自己重画。
-						if (frappe.get_route()[1] === state.task) await show_result(state.task);
-						else frappe.set_route(root, state.task);
-						return;
-					}
+			frappe.dom.freeze(p.escape(t("cowork.recon.stage.upload")));
+			let started;
+			try { started = await begin(); } finally { frappe.dom.unfreeze(); }
+			if (started?.job) frappe.set_route(root, "run", started.job);
+		}
+
+		// ── 识别看板（用户 2026-09-30：「不想看这个大白屏，起码要知道他在干嘛，有点动态好玩的东西展示」）────────
+		// 只画真实发生的事：阶段条；每份文件一排格子、一格一页（读字整块变蓝、整理完变绿、没读出变红，电子版一下全绿）；
+		// 排队时写前面还有几份；「刚读出」滚出每页真读出的最后一笔。数字都来自服务端（recon_center/progress.py），不估算。
+		const STAGES = {
+			bank: ["upload", "queued", "reading", "statement", "ledger", "matching", "done"],
+			income: ["upload", "queued", "reading", "ledger", "report", "matching", "done"],
+			vat: ["upload", "queued", "reading", "report", "invoice", "matching", "done"],
+		};
+		const element = (tag, className, text) => {
+			const node = document.createElement(tag);
+			if (className) node.className = className;
+			if (text !== undefined) node.textContent = text;
+			return node;
+		};
+		function tiles(file) {
+			const grid = element("div", "pearnly-recon-tiles");
+			const pages = Math.max(file.pages, 1);
+			const unread = new Set(file.unread || []);
+			let done = file.done;
+			for (let page = 1; page <= pages; page++) {
+				const tile = element("span", "pearnly-recon-tile");
+				if (unread.has(page)) tile.classList.add("is-unread");
+				else if (file.state === "done" || done > 0) { tile.classList.add("is-done"); if (file.state !== "done") done -= 1; }
+				else if (page <= file.read) tile.classList.add("is-read");
+				grid.append(tile);
+			}
+			const next = [...grid.children].find(tile => !tile.classList.length || tile.classList.length === 1
+				|| tile.classList.contains("is-read"));
+			if (next && ["reading", "queued", "waiting"].includes(file.state)) next.classList.add("is-current");
+			return grid;
+		}
+		function file_row(file) {
+			const row = element("div", "pearnly-recon-file");
+			const head = element("div", "pearnly-recon-file-head");
+			const name = element("span", "", file.name || "");
+			if (file.via === "text") name.append(element("span", "indicator-pill green pearnly-recon-via", t("cowork.recon.live.electronic")));
+			const count = element("span", "text-muted", file.state === "queued" && file.ahead
+				? t("cowork.recon.live.ahead", file.ahead)
+				: file.pages ? t("cowork.recon.live.pages", Math.min(file.done + (file.unread || []).length, file.pages), file.pages)
+				: t(`cowork.recon.live.${file.state === "done" ? "read" : "waiting"}`));
+			head.append(name, count);
+			row.append(head, tiles(file));
+			return row;
+		}
+		function many_files(files) {
+			// 发票几十张：一份一格，放在一排里（一格一页太长）。
+			const row = element("div", "pearnly-recon-file");
+			const finished = files.filter(file => ["done", "failed"].includes(file.state)).length;
+			row.append(element("div", "pearnly-recon-file-head text-muted", t("cowork.recon.live.files", finished, files.length)));
+			const grid = element("div", "pearnly-recon-tiles");
+			for (const file of files) {
+				const tile = element("span", "pearnly-recon-tile");
+				tile.title = file.name || "";
+				tile.classList.add(file.state === "done" ? "is-done" : file.state === "failed" ? "is-unread"
+					: file.state === "reading" ? "is-read" : "is-waiting");
+				grid.append(tile);
+			}
+			const next = grid.querySelector(".is-read, .is-waiting");
+			if (next) next.classList.add("is-current");
+			row.append(grid);
+			return row;
+		}
+		function ticker_line(item) {
+			const kind = item.kind ? t(`cowork.recon.live.kind.${item.kind}`) : "";
+			const parts = [item.name, item.page ? t("cowork.recon.live.page", item.page) : "",
+				item.rows ? t("cowork.recon.live.rows", item.rows) : "",
+				[item.date, kind, item.amount].filter(Boolean).join(" ")];
+			return parts.filter(Boolean).join(" · ");
+		}
+		async function show_progress(job) {
+			const request = ++sequence;
+			page.set_title(t("cowork.recon.checking")); breadcrumbs([{ label: t("cowork.recon.checking") }]);
+			const board = element("div", "pearnly-recon-board");
+			const steps = element("div", "pearnly-recon-steps");
+			const sides = element("div", "pearnly-recon-sides");
+			const live = element("div", "pearnly-recon-live");
+			board.append(steps, sides, live);
+			page.main.append(board);
+			const seen = new Set();
+			const began = Date.now();
+			const draw = state => {
+				if (state.title) page.set_title(state.title);
+				const order = STAGES[kind];
+				const at = Math.max(order.indexOf(state.stage || "queued"), 1);
+				steps.replaceChildren(...order.map((stage, index) => element("span",
+					`pearnly-recon-step${index < at ? " is-done" : index === at ? " is-on" : ""}`, t(`cowork.recon.stage.${stage}`))));
+				const bySide = { left: [], right: [] };
+				for (const file of state.files || []) (bySide[file.side] || bySide.left).push(file);
+				sides.replaceChildren(...["left", "right"].filter(side => bySide[side].length).map(side => {
+					const box = element("div", "pearnly-recon-side");
+					box.append(element("div", "pearnly-recon-side-title", t(spec[side])));
+					if (bySide[side].length > 6) box.append(many_files(bySide[side]));
+					else box.append(...bySide[side].map(file_row));
+					return box;
+				}));
+				const items = state.latest || [];
+				live.replaceChildren(...(items.length ? [element("div", "pearnly-recon-live-title", t("cowork.recon.live.latest"))] : []),
+					...items.map(item => {
+						const key = JSON.stringify(item);
+						const line = element("div", `pearnly-recon-live-item${seen.has(key) ? "" : " is-new"}`, ticker_line(item));
+						seen.add(key);
+						return line;
+					}));
+			};
+			page.set_secondary_action(t("cowork.recon.live.back"), () => frappe.set_route(root));
+			for (;;) {
+				let state;
+				try { state = await frappe.xcall(api + "status", { job }); } catch (error) { state = null; }
+				if (request !== sequence) return;
+				if (state) {
+					if (state.state === "done" && state.task) { frappe.set_route(root, state.task); return; }
 					if (state.state === "failed") {
-						frappe.dom.unfreeze();
+						draw(state);
 						frappe.msgprint({ title: t("cowork.recon.failed"), message: p.escape(state.error || ""), indicator: "red" });
 						return;
 					}
-					say(state.stage || "queued");
-					if (Date.now() - began > POLL_LIMIT_MS) throw new Error("timeout");
+					draw(state);
 				}
-			} catch (error) {
-				frappe.dom.unfreeze();
-				if (error?.message === "timeout") frappe.msgprint(t("cowork.recon.timeout"));
+				if (Date.now() - began > POLL_LIMIT_MS) { frappe.msgprint(t("cowork.recon.timeout")); return; }
+				await new Promise(resolve => setTimeout(resolve, POLL_MS));
+				if (request !== sequence) return;
 			}
+		}
+
+		// 列表页顶上：本人进行中的对账（标题 · 阶段 · 已读完 / 共几页），点进去接着看看板。
+		async function show_active(host) {
+			const items = await p.call(api + "active", { kind });
+			host.replaceChildren(...items.map(item => {
+				const row = element("button", "btn btn-default btn-sm pearnly-recon-active");
+				row.type = "button";
+				row.append(element("span", "indicator-pill blue", t(`cowork.recon.stage.${item.stage || "queued"}`)),
+					element("span", "", item.title),
+					element("span", "text-muted", item.pages ? t("cowork.recon.live.pages", item.done, item.pages) : ""));
+				row.addEventListener("click", () => frappe.set_route(root, "run", item.job));
+				return row;
+			}));
 		}
 
 		// ── 结果页 ────────────────────────────────────────────────────────────────
@@ -746,6 +859,7 @@
 			current = null;
 			if (!route[1]) show_list();
 			else if (route[1] === "new") show_new();
+			else if (route[1] === "run" && route[2]) await show_progress(route[2]);
 			else { current = route[1]; await show_result(current); }
 		}
 

@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.recon_center import rerun
+from pearnly_cowork.recon_center import progress, rerun
 from pearnly_cowork.reconciliation import bank_recon_access, bank_recon_service, income_recon_access
 from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 
@@ -68,13 +68,20 @@ def start(kind, title, sides, options=None):
     title = str(title or "").strip() or " / ".join(name for name, _content in everything[:2])
     job_id = uuid.uuid4().hex
     saved = {side: [_save(content, name) for name, content in sides[side]] for side in ("left", "right")}
+    for side in ("left", "right"):
+        for (name, content), file in zip(sides[side], saved[side]):
+            # 看板要的页数与原文件名（原文件名显示给人看；页数是真数：PDF 数页、照片 1 页、表格不按页）
+            progress.update(file, name=name, pages=progress.page_count(name, content), state="waiting")
     enqueue(job_id, kind, workspace, title, saved, options)
     return {"job": job_id}
 
 
 def enqueue(job_id, kind, workspace, title, files, options):
     """排一个对账后台任务（新建，或答了预设问题后用原文件重跑：``rerun.start``）。"""
-    _state(job_id, user=frappe.session.user, kind=kind, state="queued", stage="queued", task=None, error=None)
+    _state(job_id, user=frappe.session.user, kind=kind, state="queued", stage="queued", task=None, error=None,
+           title=str(title)[:140], files=[{"file": file, "side": side} for side in ("left", "right")
+                                          for file in files.get(side) or []])
+    progress.active_add(frappe.session.user, job_id, kind, title)
     frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long", timeout=TIMEOUTS.get(kind, 1800),
                    job_id=f"cowork-recon-{job_id}",
                    enqueue_after_commit=True, recon_job=job_id, kind=kind, workspace=workspace, title=str(title)[:140],
@@ -95,7 +102,8 @@ def status(job_id):
             # （2026-09-29 测试机同步后 5 套对账一直显示 running）。结果落了库就算完成，否则报失败。
             return _recovered(job_id) or {"kind": current.get("kind"), "state": "failed", "stage": "failed",
                                           "task": None, "error": _("reconciliation.system_busy")}
-        return {key: current.get(key) for key in ("kind", "state", "stage", "task", "error")}
+        return {**{key: current.get(key) for key in ("kind", "state", "stage", "task", "error", "title")},
+                **progress.job_view(job_id, current)}
     recovered = _recovered(job_id)
     if not recovered:
         frappe.throw(_("reconciliation.task_not_found"), frappe.DoesNotExistError)
@@ -199,6 +207,11 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 # （2026-09-30 压测 B02 TTB：29 页电子账单每次都付费识别，负载下读超时）。
                 free = text_layer.read(content, document_type)
                 if free is not None:
+                    file = next((item[1] for item in stored if item[0] is content), "")
+                    progress.update(file, via="text", state="done", read=progress.get(file).get("pages") or 0,
+                                    done=progress.get(file).get("pages") or 0)
+                    for item in progress.legacy_summaries(free, filename)[-progress.LATEST:]:
+                        progress.latest(recon_job, item)
                     return free
                 index, (_content, file_name, side) = next((index, item) for index, item in enumerate(stored)
                                                           if item[0] is content)
@@ -264,6 +277,10 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         message = frappe._("reconciliation.system_busy") if system else error_text(error)
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
     finally:
+        try:
+            progress.active_remove(frappe.session.user, recon_job)
+        except Exception:
+            pass  # 看板用的「进行中」清单只作展示
         # 一份一提交：删除时的文件保护检查会锁住查到的来源行，二十张照片放在一个事务里删，并发的另一个对账
         # 就会等锁超时（2026-09-29 压测）。结果已提交，清理失败只记日志、不把任务改成失败；没删掉的临时文件
         # 是本人私有、不挂单据，按日志里的文件名处理。

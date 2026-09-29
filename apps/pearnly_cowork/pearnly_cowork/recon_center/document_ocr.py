@@ -16,6 +16,7 @@ Google Document AI 读字（每页约 0.05 泰铢），银行与总账先按版�
 import functools
 import hashlib
 import io
+import json
 import time
 
 import frappe
@@ -25,6 +26,7 @@ from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, QueueFull, Uncertain
 
 from pearnly_cowork.files.service import inspect_content
+from pearnly_cowork.recon_center import progress
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import pipeline as enterprise
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
@@ -75,7 +77,9 @@ def submit(recon_job, side, file_name, filename, content, document_type, user):
         def create():
             with work_guard.work_creation():
                 return core_work.submit(KIND, f"{recon_job}:{side}:{document_type}", arguments, user)
-        return admission.when_room(create)
+        name = admission.when_room(create)
+        _progress(file_name, work=name)
+        return name
     except (Deferred, QueueFull) as error:
         # 与销项税核查读发票同一口径：余额不足、查不到余额、识别繁忙分开说。
         reason = getattr(error, "reason", "")
@@ -123,6 +127,30 @@ def wait(name):
     return (saved.get("body") or {}).get("legacy")
 
 
+def _progress(file, **values):
+    """看板进度只作展示：缓存写失败不影响识别本身。"""
+    try:
+        current = progress.get(file)
+        progress.update(file, **{key: max(int(current.get(key) or 0), value) if isinstance(value, int) else value
+                                 for key, value in values.items()})
+    except Exception:
+        frappe.log_error(title="cowork recon progress", message=frappe.get_traceback())
+
+
+def _finished(recon_job, file, filename, pages, legacy):
+    """整份读完：本地拼行一次出来的（没逐页抽取）这里补上每页的「刚读出」。"""
+    if legacy is None:
+        _progress(file, state="failed")
+        return
+    _progress(file, read=int(pages), done=int(pages), state="done")
+    try:
+        if not any(item.get("name") == filename for item in progress.latest_items(recon_job)):
+            for item in progress.legacy_summaries(legacy, filename)[-progress.LATEST:]:
+                progress.latest(recon_job, item)
+    except Exception:
+        frappe.log_error(title="cowork recon progress", message=frappe.get_traceback())
+
+
 def completed_calls(name):
     """这份识别已经做完了几次调用（读字的块、抽取的页）：检查点里记成 done 的个数。"""
     values = frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}") or {}
@@ -135,8 +163,11 @@ def reader(recon_job, side, file_name, user):
     这份文件在这个对账号下已经有识别任务（照片预先提交过，或答了预设问题后用原文件重跑）就直接等它、取它存的结果，
     不再提交：重跑的人可能不是当初上传的人，按原参数再提交会被当成「同一参考号换了内容」拒掉，也不该再过一次余额与名额。"""
     def read(document_type, content, filename):
-        name = (frappe.db.get_value(WORK, {"kind": KIND, "reference": f"{recon_job}:{side}:{document_type}"}, "name")
-                or submit(recon_job, side, file_name, filename, content, document_type, user))
+        name = frappe.db.get_value(WORK, {"kind": KIND, "reference": f"{recon_job}:{side}:{document_type}"}, "name")
+        if name:
+            _progress(file_name, work=name)
+        else:
+            name = submit(recon_job, side, file_name, filename, content, document_type, user)
         return wait(name) if name else None
     return read
 
@@ -196,6 +227,35 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
             return callback(*args, **kwargs)
         return invoke
 
+    # 看板进度（``progress``）：这次运行里从 0 数起（续跑时已完成的调用从检查点取回、照样经过这里），写进去取较大的。
+    counted = {"read": 0, "done": 0}
+
+    def reading(callback):
+        def invoke(*args, **kwargs):
+            result = callback(*args, **kwargs)
+            counted["read"] += int(kwargs.get("expected_pages") or 1)
+            _progress(file, read=counted["read"], state="reading")
+            return result
+        return invoke
+
+    def extracting(callback):
+        def invoke(request, *args, **kwargs):
+            try:
+                response = callback(request, *args, **kwargs)
+            except ContentError as error:
+                if error.code == enterprise.UNREAD_PAGE:
+                    progress.unread(file, getattr(request, "page_number", 0))
+                raise
+            counted["done"] += 1
+            _progress(file, done=counted["done"])
+            try:
+                document = json.loads(response.text or "{}")
+            except (TypeError, ValueError):
+                document = None
+            progress.latest(recon_job, progress.page_summary(document, filename, getattr(request, "page_number", 0)))
+            return response
+        return invoke
+
     is_pdf = filename.lower().endswith(".pdf")
     with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=False,
                     image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
@@ -203,8 +263,8 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
         # 结果不明（上传超时、连接中断）时重发一次：读字每页约 0.05 泰铢、抽取每页约 0.5 泰铢，只在出事时多花；
         # 不重发的话整份文件读空、整套对账失败，用户只能整份重传（2026-09-29 压测 45 个识别任务里 7 个）。
         return read_file(source, content, is_pdf, None if is_pdf else _mime(content), document_type,
-            guarded(functools.partial(client.document_ai_call, retry_unknown=True)),
-            page_failure(guarded(functools.partial(client.model_call, retry_unknown=True))))
+            reading(guarded(functools.partial(client.document_ai_call, retry_unknown=True))),
+            extracting(page_failure(guarded(functools.partial(client.model_call, retry_unknown=True)))))
 
 
 def page_failure(call):
@@ -259,6 +319,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
                 frappe.log_error(title="cowork recon document", message=f"{filename}: {error}")
                 legacy = None
             saved = core_work.checkpoint(RESULT, "done", {"legacy": legacy})
+            _finished(recon_job, file, filename, pages, legacy)
         if _rows_found(saved["body"]["legacy"]) and not core_work.checkpoint(BILLED):
             # 扣费前再看一次对账：已经失败（等满 25 分钟判失败）或已经结束，这份结果不会再被用到 —— 不扣客户的钱，
             # 任务记成取消（2026-09-29 压测：BAY 12 页读了 46 分钟，对账早已判失败，识别读完照样扣费）。用到结果的

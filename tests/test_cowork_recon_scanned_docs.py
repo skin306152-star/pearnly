@@ -1366,7 +1366,8 @@ class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 	def test_the_next_paid_call_is_not_made_once_the_reconciliation_failed(self):
 		states = iter([{"state": "running"}, {"state": "failed"}])
 		cache = mock.MagicMock()
-		cache.get_value.side_effect = lambda key: next(states)
+		# 只有对账状态按顺序给；看板进度的缓存（recon-file / recon-latest）另算。
+		cache.get_value.side_effect = lambda key: next(states) if key.startswith("cowork:recon-job:") else None
 		calls = []
 
 		client = mock.Mock()

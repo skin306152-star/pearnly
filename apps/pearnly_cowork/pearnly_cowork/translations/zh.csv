@@ -103,6 +103,7 @@ At time of due date,到期时
 Attachments,附件
 Attempt Secret,尝试密钥
 Automation,自动化
+Back to list,回到列表
 Balance,余额
 Balance breaks,余额对不上的地方
 Bank,银行
@@ -387,6 +388,7 @@ Edit card,编辑卡片
 Edit dates,编辑日期
 Edit in Full Page,全屏编辑
 Edit labels,修改标签
+Electronic,电子版
 Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
@@ -509,6 +511,7 @@ It was not entered,未入账，可以重推
 Item,项目
 Items,物料
 Job Roles,功能权限
+Just read,刚读出
 Keep,保留
 Known difference,已知差异
 LINE is not enabled for this account,这个账号没有开通 LINE
@@ -698,6 +701,8 @@ Quantity,数量
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
 Questions,问题
+"Queued, {0} ahead",排队中 · 前面还有 {0} 份
+Read,已读完
 Read again,重新读取
 Reading files,读取文件
 Reading the MR.ERP menus…,正在读取 MR.ERP 菜单…
@@ -1179,6 +1184,7 @@ Voided,已作废
 "Voided, not in the total",已撤销，不计入合计
 Voucher no.,凭证号
 WHT amount,预扣税额
+Waiting,等待中
 Waiting to start,排队中
 Warehouse,仓库
 Watch,关注
@@ -1202,6 +1208,8 @@ You do not have access to this ERP target.,无权访问此ERP目标。
 account,科目
 active,有效
 admitted,已受理
+amount,金额
+before VAT,未税
 catalog_refresh_invalid,目录证据无效，请刷新后重新选择。
 catalog_refresh_pending,目录正在等待刷新。
 catalog_refresh_required,请先刷新账套目录。
@@ -1340,6 +1348,23 @@ cowork.recon.kpi.matched,已匹配
 cowork.recon.kpi.pending,待处理差异
 cowork.recon.kpi.rate,匹配率
 cowork.recon.kpi.unmatched,未匹配
+cowork.recon.live.ahead,排队中 · 前面还有 {0} 份
+cowork.recon.live.back,回到列表
+cowork.recon.live.electronic,电子版
+cowork.recon.live.files,{0}/{1} 份
+cowork.recon.live.kind.amount,金额
+cowork.recon.live.kind.credit,贷方
+cowork.recon.live.kind.debit,借方
+cowork.recon.live.kind.deposit,存入
+cowork.recon.live.kind.subtotal,未税
+cowork.recon.live.kind.total,含税
+cowork.recon.live.kind.withdrawal,支出
+cowork.recon.live.latest,刚读出
+cowork.recon.live.page,第 {0} 页
+cowork.recon.live.pages,{0}/{1} 页
+cowork.recon.live.read,已读完
+cowork.recon.live.rows,{0} 笔
+cowork.recon.live.waiting,等待中
 cowork.recon.new,新建任务
 cowork.recon.note.amount_fixed,对账单有 {0} 行金额按余额推算改过，请核对
 cowork.recon.note.completeness,对账单的笔数或合计与账单上印的对不上，可能漏行或读错
@@ -1842,6 +1867,8 @@ cowork.work.view.calendar,日历
 cowork.work.view.mine,我的任务
 cowork.work.view.table,表格
 cowork_line,Cowork LINE
+credit,贷方
+debit,借方
 document,文档
 erp.account_set_unavailable,此账套不可用。
 erp.endpoint_disabled,此ERP连接已停用。
@@ -1885,6 +1912,7 @@ history.pages_invalid,发票页面数据格式不正确。
 history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
 image,图像
+in,存入
 intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正开着这份账套，关掉后会自动推送
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于别的公司，请核对账套
@@ -1987,6 +2015,8 @@ ocr.table_units_invalid,文档逻辑单元不完整或无效。
 ocr.table_xml_declaration_not_allowed,文档包含不支持的 XML 声明。
 ocr.too_many_pages,PDF 超过允许的页数上限。
 ocr.unsupported_format,不支持此文件类型。
+out,支出
+page {0},第 {0} 页
 pdf,PDF
 pending,待处理
 physical_page,物理页
@@ -2153,6 +2183,7 @@ stocktake.row_invalid,导入行无效或缺少必填值。
 stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
 stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入
+total,含税
 used by {0} items,{0} 个商品在用
 vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 vat_check.balance_unavailable,暂时查不到账户余额，请稍后再试。
@@ -2175,6 +2206,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} ledger lines add up to it ({1} to {2}),总账 {0} 笔合计相等（{1} 至 {2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,总账里有 {0} 行不在税报期间（{1} 至 {2}），没有参加核对。
 "{0} ledger lines, {1} in total, none of them in the tax report",总账 {0} 笔、合计 {1}，税报里一笔都没有
+{0} lines,{0} 笔
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
 {0} more possible combined matches are not listed,另有 {0} 组疑似合计匹配未列出
@@ -2187,6 +2219,8 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} such groups this period,本期共 {0} 组这样凑得上
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
+{0}/{1} files,{0}/{1} 份
+{0}/{1} pages,{0}/{1} 页
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
 {0}: the check digit is wrong,{0}校验位不对
 {0}: which ledger account is it?,{0} 对总账哪个科目

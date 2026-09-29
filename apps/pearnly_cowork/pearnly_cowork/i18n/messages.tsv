@@ -1314,3 +1314,20 @@ Files	文件	ไฟล์	ファイル
 Options	选项	ตัวเลือก	オプション	
 Questions	问题	คำถาม	質問	
 Expires At	到期时间	หมดอายุเมื่อ	有効期限	
+Electronic	电子版	อิเล็กทรอนิกส์	電子版	cowork.recon.live.electronic
+Queued, {0} ahead	排队中 · 前面还有 {0} 份	กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์	順番待ち · 前に {0} 件	cowork.recon.live.ahead
+{0}/{1} pages	{0}/{1} 页	{0}/{1} หน้า	{0}/{1} ページ	cowork.recon.live.pages
+Read	已读完	อ่านแล้ว	読み取り済み	cowork.recon.live.read
+Waiting	等待中	รอ	待機中	cowork.recon.live.waiting
+{0}/{1} files	{0}/{1} 份	{0}/{1} ไฟล์	{0}/{1} 件	cowork.recon.live.files
+page {0}	第 {0} 页	หน้า {0}	{0} ページ目	cowork.recon.live.page
+{0} lines	{0} 笔	{0} รายการ	{0} 件	cowork.recon.live.rows
+Just read	刚读出	เพิ่งอ่านได้	読み取ったばかり	cowork.recon.live.latest
+Back to list	回到列表	กลับไปที่รายการ	一覧に戻る	cowork.recon.live.back
+in	存入	ฝาก	入金	cowork.recon.live.kind.deposit
+out	支出	ถอน	出金	cowork.recon.live.kind.withdrawal
+debit	借方	เดบิต	借方	cowork.recon.live.kind.debit
+credit	贷方	เครดิต	貸方	cowork.recon.live.kind.credit
+total	含税	รวมภาษี	税込	cowork.recon.live.kind.total
+before VAT	未税	ก่อนภาษี	税抜	cowork.recon.live.kind.subtotal
+amount	金额	จำนวนเงิน	金額	cowork.recon.live.kind.amount
