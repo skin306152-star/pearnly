@@ -581,6 +581,31 @@ class SeveralFilesPerSide(unittest.TestCase):
 			self.assertTrue(pipeline.NO_DATA_RE.search(text), text)
 		self.assertFalse(pipeline.NO_DATA_RE.search("Total No. of Credits 35 852,386.58"))
 
+	def test_free_text_rows_that_are_clearly_wrong_go_to_the_reader(self):
+		# B03 bank17.pdf（2026-09-30）：KBank 往来户电子对账单的文字层乱序分块，拼出 6 行表头 / 地址、金额余额全 0。
+		from pearnly_cowork.reconciliation import bank_intake
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		junk = [StatementRow(date=date(2025, 6, day), description="รับโอนเงิน / ฝากเงิน", withdrawal=0.0, deposit=0.0,
+			balance=0.0) for day in (9, 10, 15, 24, 25)] + [StatementRow(date=date(2025, 6, 24), description="x",
+			withdrawal=133058.06, deposit=0.0, balance=0.0)]
+		self.assertTrue(bank_intake.implausible_free_rows(junk, ""))
+		good = [StatementRow(date=date(2025, 6, 2), description="a", withdrawal=0.0, deposit=136458.0, balance=323186.06),
+			StatementRow(date=date(2025, 6, 5), description="b", withdrawal=300000.0, deposit=0.0, balance=23186.06)]
+		self.assertFalse(bank_intake.implausible_free_rows(good, "รวมฝากเงิน 1 รายการ\nรวมถอนเงิน 1 รายการ"))
+		self.assertTrue(bank_intake.implausible_free_rows(good, "รวมฝากเงิน 8 รายการ\nรวมถอนเงิน 3 รายการ"))
+		self.assertFalse(bank_intake.implausible_free_rows(good, "Total No. of Credits 1\nTotal No. of Debits 1"))
+		model = self.statement([(date(2025, 6, 2), "a", 0.0, 136458.0, 323186.06)], opening=186728.06, closing=323186.06)
+		model["enterprise"] = True
+		with mock.patch.object(bank_intake.table_io, "extract_pdf_text_pages", return_value=["KBank"]), \
+				mock.patch.object(bank_intake.bank_parse, "detect_bank", return_value="kbank"), \
+				mock.patch.object(bank_intake, "_statement_text_rows", return_value=(junk, 0.0, 0.0, "kbank_columns")):
+			read = bank_intake.read_statement_file(b"%PDF", "bank17.pdf", model_rows=lambda *a: model)
+			self.assertEqual((read["source"], read["opening"]), ("enterprise", 186728.06))
+			alone = bank_intake.read_statement_file(b"%PDF", "bank17.pdf")
+		self.assertTrue(all(row.confidence == "low" for row in alone["rows"]))
+		self.assertTrue(alone["needs_review"])
+
 	def test_a_cover_page_that_was_read_is_skipped_not_called_unread(self):
 		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service
 

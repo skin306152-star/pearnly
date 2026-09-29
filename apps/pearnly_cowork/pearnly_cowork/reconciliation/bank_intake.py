@@ -29,6 +29,7 @@ legacy 形状 → 本包的 `statement_from_pipeline`/`gl_from_pipeline` 出行�
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from pearnly_cowork.reconciliation import (
@@ -120,6 +121,31 @@ def _statement_text_rows(file_bytes: bytes, bank_code: str
 	return rows, opening, closing, source
 
 
+PRINTED_COUNT_RES = (
+	("deposit", re.compile(r"(?:รวมฝากเงิน|total\s+(?:no\.?\s+of\s+)?(?:deposits?|credits?))\D{0,12}?(\d{1,5})\s*(?:รายการ|items?|txns?)?", re.I)),
+	("withdrawal", re.compile(r"(?:รวมถอนเงิน|total\s+(?:no\.?\s+of\s+)?(?:withdrawals?|debits?))\D{0,12}?(\d{1,5})\s*(?:รายการ|items?|txns?)?", re.I)),
+)
+
+
+def implausible_free_rows(rows, text) -> bool:
+	"""免费文字解析的行明显不可信：一半以上的行没有金额，或页上印的存入 / 支出笔数与读出的对不上。
+
+	文字层乱序分块的版式（KBank 往来户电子对账单：日期、金额、余额分块输出，金额「115.586.50」）按行拼出来全是
+	表头、地址文字，金额余额全 0，却不算余额链坏（2026-09-30 压测 B03 bank17.pdf）。这时改走识别。
+	"""
+	if not rows:
+		return False
+	if sum(1 for row in rows if not (row.deposit or row.withdrawal)) * 2 > len(rows):
+		return True
+	counted = {"deposit": sum(1 for row in rows if row.deposit), "withdrawal": sum(1 for row in rows if row.withdrawal)}
+	for side, pattern in PRINTED_COUNT_RES:
+		# 多页的账单可能每页印一次小计、最后印总数：与最后一个或各页之和相等都算对得上。
+		printed = [int(match.group(1)) for match in pattern.finditer(text or "")]
+		if printed and counted[side] not in (printed[-1], sum(printed)):
+			return True
+	return False
+
+
 def repair_balance_from_neighbours(rows, opening):
 	"""某一行余额与前后都对不上，而「前一行余额 + 本行发生额 + 下一行发生额 = 下一行余额」成立：是这一行余额
 	读错了（B01 印的 451,134.86 读成 451,134.99）。前后两边同时印证才改，标成已自动更正，再重新核对一遍。"""
@@ -188,6 +214,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	parser_version = bank_parse.PARSER_VERSION
 	accounts: Optional[Dict[str, Any]] = None
 	free_error: Optional[Tuple[str, str]] = None
+	implausible = False
 
 	if ext in WORKBOOK_EXTENSIONS:
 		direct = bank_sheets.read_statement_workbook(file_bytes, filename)
@@ -206,6 +233,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		text = "\n".join(table_io.extract_pdf_text_pages(file_bytes))
 		bank_code = _adopted(bank_parse.detect_bank(text) if text.strip() else "", filename)
 		rows, opening, closing, source = _statement_text_rows(file_bytes, bank_code)
+		implausible = implausible_free_rows(rows, text)
 	elif model_rows is None:
 		return _failure("unsupported_format",
 			f"unsupported format .{ext}" if ext else "unsupported format")
@@ -215,7 +243,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	method_divergence: List[str] = []
 	read_empty = False
 	quiet: Optional[Dict[str, Any]] = None
-	if model_rows is not None and (not rows or len(rows) < MIN_TABLE_ROWS
+	if model_rows is not None and (not rows or len(rows) < MIN_TABLE_ROWS or implausible
 			or bank_statement.statement_row_bad_ratio(rows, opening) > BAD_RATIO_LIMIT):
 		free_bad = bank_statement.statement_row_bad_ratio(rows, opening)
 		model = model_rows("bank_statement", file_bytes, filename) or {}
@@ -232,7 +260,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 				opening, closing, len(rows), model_opening,
 				model.get("closing", closing), len(model_row_list))
 			# 免费行数不足 → 直接用模型；否则谁的余额链更可信用谁。
-			if len(rows) < MIN_TABLE_ROWS or model_bad < free_bad:
+			if len(rows) < MIN_TABLE_ROWS or implausible or model_bad < free_bad:
 				rows = model_row_list
 				opening = model_opening
 				closing = model.get("closing", closing)
@@ -257,6 +285,9 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 
 	for row in rows:
 		row.source_file = filename
+		if implausible and source not in ("enterprise", "model"):
+			# 文字解析明显不可信、又没能改走识别：不以高可信输出，交人复核。
+			row.confidence = "low"
 	rows, opening, closing = chronological(rows, opening, closing)
 
 	# 定案序列（跳汇总行 → 方向纠正 → 逐行核对 → 金额反推修复），顺序是正确性不变式。
