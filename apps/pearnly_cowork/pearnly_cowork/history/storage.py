@@ -98,8 +98,10 @@ def validate_document(doc):
             frappe.throw(_("New records must start as drafts."))
     # 新建前各入口已按自己的口径（手工严格、识别宽松）过了合约；页面没变的保存（确认、推送状态）
     # 只复算，不因识别时留下的认不出的票面日期拦住。改页面的只有复核编辑，仍严格。
+    # 改了页面时，日期写法没动的页仍按入库口径（复核页只改一页；别的页有认不出的日期不能拦住整条保存，2026-09-29）。
     edited = bool(previous) and doc.pages != previous.pages
-    pages = contract(prepare_pages, parse(doc.pages), anchor_year=anchor_year(), recognized=not edited)
+    pages = contract(prepare_pages, parse(doc.pages), anchor_year=anchor_year(), recognized=not edited,
+                     previous=parse(previous.pages or "[]") if edited else None)
     doc.pages = encode(pages)
     summary = extract_summary_fields(pages)
     for field in SUMMARY_FIELDS:
