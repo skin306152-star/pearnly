@@ -307,6 +307,38 @@ class SourceDispatch(unittest.TestCase):
 		self.assertEqual([row["report_invoice_no"] for row in result["rows"]], ["IV001"])
 		self.assertEqual(result["row_count"], 1)
 
+	def test_a_sheet_whose_header_is_cut_up_is_read_by_the_shape_of_its_rows(self):
+		# Express 的文字导出（2026-09-29 压测 I02）：表头切成两行、词拆进相邻格子，日期是 Excel 当成 1969 的「69」。
+		import datetime
+
+		cells = [["", "", "เดือ", "น/ปีภาษี พฤ"], ["_x001B_E_x001B_W_x0001_รายงานภ", "าษีขาย"], ["----", "------"],
+			["<----ใบกำ", "กับภาษี----", "->  ชื่อผู้ซื้อ", "เลขประจำตัว", "สถานประกอบการ", "มูลค่าสินค้า", "จำนวนเงิน"],
+			["ลำดั", "บ วัน/เดือน", "/ปี\xa0เลขที่", "ผู้เสียภาษี", "สนญ.   สาขาที่", "หรือบริการ", "ภาษีมูลค่าเพิ", "่ม"],
+			[1, datetime.datetime(1969, 5, 1), "IV6900773", "บริษัท•ซีพีเอฟ\xa0จำกัด", "0107555000023•", 97, 37000, 2590],
+			[2, datetime.datetime(1969, 5, 1), "IV6900774", "บริษัท•บางคล้า\xa0จำกัด", "0245550000332•", "X", 7740, 541.8],
+			[3, datetime.datetime(1969, 5, 5), "C-6900879", "ร้าน•เพ็ทเตอร์", "3412000154396•", "X", 4205.61, 294.39],
+			["", "", "", "รวม", "", "", 48945.61, 3426.19]]
+		result = parse.decode({"kind": "excel", "cells": cells})
+		self.assertEqual((result["method"], result["row_count"]), ("excel_shape", 3))
+		first = result["rows"][0]
+		self.assertEqual((first["report_date"], first["report_invoice_no"], first["report_buyer_tax_id"],
+			first["report_buyer_branch"], first["report_amount_pre_vat"], first["report_vat_amount"]),
+			("2026-05-01", "IV6900773", "0107555000023", "00097", 37000.0, 2590.0))
+		self.assertEqual(first["report_buyer_name"], "บริษัท ซีพีเอฟ จำกัด")
+		self.assertEqual(result["rows"][1]["report_buyer_branch"], "00000")
+
+	def test_printed_lines_keep_daily_summaries_and_split_numbers(self):
+		# Express 打印的税报（I03 / V03）：当日汇总行没有单号；「MB 69-04-002」被空格拆开；分支不从单号里取。
+		result = parse.decode({"kind": "text", "lines": [
+			"1  01/04/69               บันทึกขายวันที่ 1/4/2569        228,594.49      16,001.61",
+			"2  01/04/69  MB 69-04-002 เอเซียมีนบุรี จํากัด               150,000.00      10,500.00",
+			"3  01/07/69  IV69/00564 บิ๊กซี ซูเปอรเซ็นเตอร 0107536000633 00000      268.00          18.76",
+			"   รวมทั้งสิ้น   งวด 01/04/69 ถึง  30/04/69                   378,862.49      26,520.37"]})
+		rows = result["rows"]
+		self.assertEqual([row["report_invoice_no"] for row in rows], ["", "MB 69-04-002", "IV69/00564"])
+		self.assertEqual(rows[1]["report_buyer_name"], "เอเซียมีนบุรี จํากัด")
+		self.assertEqual((rows[2]["report_buyer_branch"], rows[2]["report_buyer_name"]), ("00000", "บิ๊กซี ซูเปอรเซ็นเตอร"))
+
 	def test_an_unknown_or_incomplete_source_is_refused(self):
 		with self.assertRaises(ValueError):
 			parse.decode({"kind": "scan"})
