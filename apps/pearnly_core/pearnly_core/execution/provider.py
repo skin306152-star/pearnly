@@ -70,7 +70,9 @@ def _post(url, headers, payload, timeout_s, model, bucket):
     # Keep the permit beyond native RQ's hard job deadline even if an upstream
     # trickles bytes. Completed responses release immediately; unknown outcomes
     # retain the conservative lease instead of creating another active request.
-    timeout = max(1, min(120, float(timeout_s)))
+    # 上限 180 秒：旧线上 Cowork 对账抽取就是 180 秒，密的账单页 3.8 要 120 秒以上（2026-09-29 压测：
+    # 等回复超时反复重试、整套失败）。其余调用方传的都不超过 120，行为不变。
+    timeout = max(1, min(180, float(timeout_s)))
     with budget.permit(bucket, work.JOB_TIMEOUT):
         work.checkpoint(key, "started")
         deadline = time.monotonic() + timeout

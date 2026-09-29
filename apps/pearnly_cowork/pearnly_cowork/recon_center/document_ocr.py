@@ -36,7 +36,9 @@ KIND = "cowork.recon_document"
 RESULT = KIND + ":result"
 BILLED = KIND + ":billed"
 TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
-YIELD_SECONDS = 420
+# 让出前最多跑的时间：一次抽取最长 180 秒、结果不明再重发一次，最坏 360 秒；200 + 360 仍在识别任务 600 秒的
+# 硬上限内（原 420 秒配 120 秒的调用，改成 180 秒后会越过上限、被强行结束成结果不明）。
+YIELD_SECONDS = 200
 WAIT_SECONDS = 25 * 60
 POLL_SECONDS = 3
 IDENTITY = ("backend", "project", "location", "credentials_path")

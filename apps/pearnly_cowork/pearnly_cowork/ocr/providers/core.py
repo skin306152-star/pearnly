@@ -60,4 +60,4 @@ def build_client(environment, *, core_identity):
         terminal_read=terminal_read,
         terminal_write=lambda key, body: work.checkpoint("cowork.terminal:" + key, "terminal", body),
         feedback=budget.feedback, scope=budget.scope, access_token=ocr.access_token,
-        require_context=require_context)
+        require_context=require_context, checkpoint_read=work.checkpoint)

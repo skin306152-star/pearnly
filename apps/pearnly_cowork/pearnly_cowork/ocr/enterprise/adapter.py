@@ -51,6 +51,7 @@ class PipelineResult(BaseModel):
     elapsed_ms: int = 0
     engine: str = ""
     estimated_cost_thb: float = 0.0
+    read_ms: List[int] = Field(default_factory=list)  # per Document AI read (added 2026-09-29, time-limit tuning)
 
 
 def _not_invoice():

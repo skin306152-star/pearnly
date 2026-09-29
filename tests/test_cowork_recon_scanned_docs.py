@@ -101,6 +101,7 @@ class EnterprisePipeline(unittest.TestCase):
 		self.assertEqual((first.model, first.thinking, first.max_output_tokens),
 			(contract.MODEL, contract.THINKING_LEVEL, contract.MAX_OUTPUT_TOKENS))
 		self.assertEqual(first.response_schema, contract.SCHEMAS["vat"])
+		self.assertEqual(first.timeout_s, 180)  # 旧线上的抽取时限（120 秒时密的账单页等回复超时）
 		self.assertEqual(first.images, ((b"png-1", "image/png"),))
 		self.assertIn("page one text", first.prompt)
 		self.assertIn("page two text", model.requests[1].prompt)
@@ -163,11 +164,52 @@ class EnterprisePipeline(unittest.TestCase):
 		with mock.patch("pearnly_cowork.ocr.providers.client._record_unknown") as record:
 			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
 			self.assertEqual(sent, [0, 1])  # a fresh attempt, a fresh checkpoint
-			self.assertEqual(rejected, [{"outcome_unknown": True, "retried": True}])
+			self.assertEqual(rejected, [{"outcome_unknown": True, "retried": True, "deferred": True}])
 			with self.assertRaises(Uncertain):  # without the opt-in (the invoice path) nothing is resent
 				client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
 		self.assertEqual(sent, [0, 1, 0])
 		self.assertEqual(record.call_count, 2)
+
+	def test_a_resumed_read_takes_the_resent_call_instead_of_paying_again(self):
+		# 2026-09-29 压测：续跑时第一次调用的「已拒」被当成终局拒绝，整份失败（IMG_2487 / IMG_2500 / BAY）。
+		from pearnly_core.execution.errors import Uncertain
+		from pearnly_cowork.ocr.providers.client import ProviderClient
+
+		checkpoints, sent = {}, []
+
+		class Response:
+			status_code = 200
+
+			def json(self):
+				return payload("page")
+
+		def post(**values):
+			attempt = json.loads(values["model"])[-1]
+			sent.append(attempt)
+			if attempt == 0:
+				checkpoints[values["model"]] = {"state": "started"}
+				raise Uncertain("Provider transport outcome unknown")
+			checkpoints[values["model"]] = {"state": "done", "body": payload("page")}
+			return Response()
+
+		def terminal_read(key):
+			saved = checkpoints.get(key) or {}
+			body = saved.get("body") or {}
+			if saved.get("state") == "rejected" and not body.get("deferred"):
+				return {"refusal": {"code": "ocr.provider_http_error", "http_status": None, "provider_code": None}}
+			return None
+
+		client = ProviderClient({}, project="synthetic-project", post=post, checkpoint_key=lambda payload, identity: identity,
+			reject_checkpoint=lambda key, body: checkpoints.__setitem__(key, {"state": "rejected", "body": body}),
+			terminal_read=terminal_read, terminal_write=None, feedback=None, scope=lambda *args: args,
+			access_token=lambda: "FAKE_TOKEN_NOT_A_CREDENTIAL", require_context=lambda: None,
+			checkpoint_read=checkpoints.get)
+		with mock.patch("pearnly_cowork.ocr.providers.client._record_unknown"):
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
+			self.assertEqual(sent, [0, 1])
+			# 续跑（让出后从头再调）：不被当成拒绝，也不再发第一次，直接走重发那次
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
+		self.assertEqual(sent, [0, 1, 1])
 
 	def test_a_server_error_on_a_reconciliation_read_is_retried_later(self):
 		from pearnly_core.execution.errors import Deferred

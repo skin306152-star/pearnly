@@ -97,13 +97,14 @@ class ProviderClient:
     """
     def __init__(self, environment, *, project, post, checkpoint_key, reject_checkpoint,
                  terminal_read, terminal_write, feedback, scope, access_token, require_context,
-                 clock=time.monotonic):
+                 clock=time.monotonic, checkpoint_read=None):
         self.environment = MappingProxyType(dict(environment))
         self.project = _identity(project, "ocr.project_not_configured")
         self._post, self._key, self._reject = post, checkpoint_key, reject_checkpoint
         self._terminal_read, self._terminal_write = terminal_read, terminal_write
         self._feedback, self._scope = feedback, scope
         self._token, self._require_context, self._clock = access_token, require_context, clock
+        self._checkpoint_read = checkpoint_read or (lambda key: None)
 
     def _refuse(self, key, response, code):
         """Freeze an explicit completed refusal separately from Core's retryable rejection.
@@ -127,13 +128,20 @@ class ProviderClient:
         # 对账读取（retry_unknown）另把 500 / 502 / 504 当临时故障稍后重试；录入发票照旧当终局拒绝。
         defer_5xx = retry_unknown if defer_5xx is None else defer_5xx
         _reference(stage, page_number, attempt)
-        if not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool) or not 0 < timeout_s <= 120:
+        if not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool) or not 0 < timeout_s <= 180:
             raise ProviderConfigurationError("ocr.invalid_provider_timeout")
         self._require_context()
         # Core's model argument participates only in its checkpoint identity.
         # Budget uses the real model. Nothing private is added to provider JSON.
         identity = json.dumps(["cowork", provider, self.project, location, model, stage, page_number, attempt])
         key = self._key(payload, identity)
+        if retry_unknown:
+            saved = self._checkpoint_read(key) or {}
+            if saved.get("state") == "rejected" and (saved.get("body") or {}).get("outcome_unknown"):
+                # 续跑：这次上回结果不明、已经重发过 —— 直接取重发那次（完成的从检查点取回，不再付费）。
+                return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
+                    stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
+                    defer_5xx=defer_5xx)
         terminal = self._terminal_read(key)
         if terminal is not None:
             raise ProviderError(**terminal["refusal"])
@@ -152,7 +160,8 @@ class ProviderClient:
                 raise
             # 调用方选了「结果不明重发一次」（对账读字 / 抽取，2026-09-29 用户同意）：这次记成已拒（识别任务续跑时
             # 不会因为它判结果不明），换一个 attempt 重发，得到新的检查点；再不明就照旧交出去。
-            self._reject(key, {"outcome_unknown": True, "retried": True})
+            # 「deferred」让它不被当成对方明确拒绝的终局结果（Cowork 的 terminal_read 只把非暂缓的拒绝当终局）。
+            self._reject(key, {"outcome_unknown": True, "retried": True, "deferred": True})
             return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
                 stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s, defer_5xx=defer_5xx)
         elapsed = max(0, int((self._clock() - started) * 1000))

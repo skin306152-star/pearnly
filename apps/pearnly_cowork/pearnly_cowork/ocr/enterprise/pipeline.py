@@ -12,7 +12,7 @@ that way are checked as one document afterwards.
 Changed for this platform: provider calls are injected (``document_ai_call``, ``model_call``) so they
 run inside the durable OCR Work (checkpoints, shared budget, deferral); pages are rendered only when
 the schema extraction needs them, one at a time (the deployed code rendered every page up front);
-the model timeout is 120 s (the provider client's ceiling; deployed 180 s). The cost estimate counts
+the model timeout is 180 s as deployed (120 s until 2026-09-29, the provider ceiling then). The cost estimate counts
 the Document AI pages plus each extraction's tokens at the deployed ``services/ocr/cost.py`` prices
 (internal observation only, never billing; until 2026-09-29 the model tokens were left out).
 """
@@ -44,7 +44,7 @@ def model_cost_thb(model, input_tokens, output_tokens):
                  max(MODEL_PRICES_PER_M_USD.values()))
     usd = max(0, int(input_tokens or 0)) / 1e6 * price[0] + max(0, int(output_tokens or 0)) / 1e6 * price[1]
     return round(usd * THB_PER_USD, 6)
-MODEL_TIMEOUT_SECONDS = 120
+MODEL_TIMEOUT_SECONDS = 180
 CATEGORIES = {"bank_statement": "bank", "general_ledger": "gl", "vat_report": "vat"}
 
 
@@ -135,9 +135,10 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
     if category not in ("bank", "gl", "vat") or page_count < 1:
         raise ContentError("ocr.enterprise_category_invalid", detail=str(category))
     started = time.monotonic()
-    payloads, billed = [], 0
+    payloads, billed, read_ms = [], 0, []
     for index, (content, mime, expected) in enumerate(reads, 1):
-        body, _elapsed, _key = document_ai_call(content, mime, expected_pages=expected, page_number=index)
+        body, elapsed_read, _key = document_ai_call(content, mime, expected_pages=expected, page_number=index)
+        read_ms.append(elapsed_read)
         payloads.append(body)
         billed += expected
     cost = billed * enterprise_pages.USD_PER_PAGE * THB_PER_USD
@@ -183,7 +184,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
                 page.validation_warnings.extend(check_document(aggregate, category, page_count))
     elapsed = int((time.monotonic() - started) * 1000)
     return PipelineResult(pages=pages, page_count=page_count, elapsed_ms=elapsed, engine=ENGINE,
-        estimated_cost_thb=cost)
+        estimated_cost_thb=cost, read_ms=read_ms)
 
 
 def to_legacy(result: PipelineResult) -> dict:
@@ -200,4 +201,7 @@ def to_legacy(result: PipelineResult) -> dict:
         "page_count": result.page_count,
         "estimated_cost_thb": result.estimated_cost_thb,
         "elapsed_ms": result.elapsed_ms,
+        # Provider timings for tuning the time limits (2026-09-29): Document AI per read, extraction per page.
+        "timings": {"read_ms": list(result.read_ms),
+                    "extract_ms": [page.layer2_ms for page in result.pages if getattr(page, "layer2_ms", None)]},
     }
