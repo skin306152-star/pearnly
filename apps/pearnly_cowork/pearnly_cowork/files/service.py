@@ -216,6 +216,12 @@ def page(history_name, physical_page):
             png = selected.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
     elif source.kind == "image" and number == 1:
         with Image.open(io.BytesIO(data)) as image:
+            if image.format in ("JPEG", "MPO"):
+                # 手机照片（iPhone 2400 万 / 4800 万像素）：JPEG 按 1/2–1/8 直接缩小解码，内存跟着缩小后的尺寸走，
+                # 预览本来就只要 2048 边长（2026-09-30 测试站点 IMG_3134.JPG 5712×4284 原来被拒，页面显示无法加载预览）。
+                # 按原图比例要（长边 2048）：要正方形的话横拍照片短边不够缩一半，照样按原尺寸解码。
+                longest = max(image.width, image.height)
+                image.draft("RGB", (max(1, image.width * 2048 // longest), max(1, image.height * 2048 // longest)))
             if image.width * image.height > MAX_PREVIEW_PIXELS:
                 frappe.throw(_("This page is too large to preview safely."))
             image = ImageOps.exif_transpose(image).convert("RGB")
