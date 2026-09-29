@@ -1006,6 +1006,7 @@ The row has no product code or barcode,The row has no product code or barcode
 The seller and buyer have the same tax ID. Correct it and submit again,The seller and buyer have the same tax ID. Correct it and submit again
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
+The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
 The statement's count or totals do not match what it prints. A row may be missing or misread,The statement's count or totals do not match what it prints. A row may be missing or misread
 The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
@@ -1997,6 +1998,7 @@ reconciliation.rows_invalid,Some rows in the file could not be understood. Check
 reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.statement_all_outside,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
+reconciliation.statement_no_movement,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
 reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.

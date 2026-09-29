@@ -65,6 +65,23 @@ def _adopted(bank_code: str, filename: str) -> str:
 NO_MOVEMENT = "no_movement"
 
 
+def _quiet_statement(model: Dict[str, Any], bank_code: str, filename: str) -> Dict[str, Any]:
+	"""读出了余额、没有一笔流水的账单（当月无发生额的储蓄 / 定期户、查不到流水的网银截图）：按 0 行对账，
+	期初取读出的期初（没有就取期末），期末取读出的期末（没有就取期初）；两者不等说明少了流水，交人复核
+	（2026-09-30 压测 GIZE BBL-SA-04 / KBANK-SA-01：原来整套报“读不出账单”）。"""
+	opening = float(model.get("opening") or 0) or float(model.get("closing") or 0)
+	closing = float(model.get("closing") or 0) or opening
+	completeness = bank_statement.audit_completeness([], opening, closing, None)
+	result = {"ok": True, "rows": [], "row_count": 0, "opening": opening, "closing": closing,
+		"bank_code": _adopted(model.get("bank_code") or bank_code, filename), "source": "enterprise",
+		"parser_version": model.get("parser_version") or "", "balance_warn_count": 0, "low_conf_count": 0,
+		"amount_fixed_count": 0, "printed_totals": None, "completeness": completeness,
+		"needs_review": abs(opening - closing) > 0.01 or not completeness["ok"], "no_movement": True}
+	if model.get("identity"):
+		result["identity"] = model["identity"]
+	return result
+
+
 def _failure(error_code: str, error: str, **extra) -> Dict[str, Any]:
 	return {"ok": False, "error_code": error_code, "error": error, "rows": [], **extra}
 
@@ -188,6 +205,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	printed_totals = None
 	method_divergence: List[str] = []
 	read_empty = False
+	quiet: Optional[Dict[str, Any]] = None
 	if model_rows is not None and (not rows or len(rows) < MIN_TABLE_ROWS
 			or bank_statement.statement_row_bad_ratio(rows, opening) > BAD_RATIO_LIMIT):
 		free_bad = bank_statement.statement_row_bad_ratio(rows, opening)
@@ -195,6 +213,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		model_row_list = model.get("rows") or []
 		# 企业档读成功了、只是没有流水（存折封面、账户信息页）：不算“没读出来”（2026-09-29 压测 B05）。
 		read_empty = bool(model.get("enterprise")) and not model_row_list
+		if read_empty and model.get("balances_read"):
+			quiet = model
 		if model.get("ok") and model_row_list:
 			model_opening = float(model.get("opening", opening) or 0)
 			model_bad = bank_statement.statement_row_bad_ratio(model_row_list, model_opening)
@@ -216,6 +236,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	if not rows:
 		if free_error is not None:
 			return _failure(free_error[0], free_error[1])
+		if quiet is not None:
+			return _quiet_statement(quiet, bank_code, filename)
 		if read_empty:
 			return _failure(NO_MOVEMENT, "The document was read but has no statement rows")
 		if ext == "pdf":

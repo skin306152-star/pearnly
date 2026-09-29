@@ -178,10 +178,12 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	# 对账中心的后台任务据此显示走到哪一步（读账单 / 读总账 / 核对）；不传就是原来的行为。
 	stage = on_stage or (lambda _name: None)
 	stage("statement")
-	statements = [(name, bank_intake.read_statement_file(content, name, model_rows=model_rows,
-		read_page=read_page, page_count=page_count)) for content, name in statement_files]
+	statements = _quiet_pages_skipped([(name, bank_intake.read_statement_file(content, name, model_rows=model_rows,
+		read_page=read_page, page_count=page_count)) for content, name in statement_files])
 	if not any(result.get("ok") for _name, result in statements):
-		frappe.throw(_("reconciliation.statement_unparsed"))
+		# 都读成功了、只是没有流水也没有余额（封面、只有汇总页）：说清楚缺的是明细页（2026-09-30 压测 BBL-CA-01）。
+		quiet = all(result.get("error_code") == bank_intake.NO_MOVEMENT for _name, result in statements)
+		frappe.throw(_("reconciliation.statement_no_movement" if quiet else "reconciliation.statement_unparsed"))
 	stage("ledger")
 	ledgers = [(name, bank_intake.read_ledger_file(content, name, account_code=gl_account_code,
 		model_rows=model_rows)) for content, name in gl_files]
@@ -354,6 +356,16 @@ def _mend_last_line(merged, following):
 		return
 	last.balance = opening
 	last.deposit, last.withdrawal = (amount, 0.0) if amount > 0 else (0.0, -amount)
+
+
+def _quiet_pages_skipped(statements):
+	"""只有余额、没有流水的那几份：同一侧还有带流水的文件时不参与合并，按“没有流水，已跳过”列出；全都没有流水时
+	只留第一份按 0 行对账（几份余额页没有日期，排不出先后）。"""
+	quiet = [index for index, (_name, result) in enumerate(statements) if result.get("no_movement")]
+	moving = any(result.get("ok") and result.get("rows") for _name, result in statements)
+	skip = set(quiet if moving else quiet[1:])
+	return [(name, {**result, "ok": False, "error_code": bank_intake.NO_MOVEMENT} if index in skip else result)
+		for index, (name, result) in enumerate(statements)]
 
 
 def _merged_statement(results):

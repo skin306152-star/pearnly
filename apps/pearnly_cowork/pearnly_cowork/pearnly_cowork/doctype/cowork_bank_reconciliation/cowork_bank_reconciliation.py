@@ -188,6 +188,9 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		"identity": {"bank": bank_name, "last4": digits[-4:]},
 		"opening": bank_parse.to_float(first.get("opening_balance")),
 		"closing": bank_parse.to_float(last.get("closing_balance")), "bank_code": "",
+		# 读出了余额（哪怕是 0）：没有流水的账单按 0 行对账要靠它（2026-09-30 压测 GIZE BBL-SA-04）。
+		"balances_read": any(str(value).strip() for value in (first.get("opening_balance"),
+			last.get("closing_balance")) if value is not None),
 		"accounts": sorted({row.account_code for row in rows}) if document_type == "general_ledger" else [],
 		"parser_version": legacy.get("engine"), "needs_review": bool(legacy.get("_needs_review")),
 		"validation_warnings": [warning for page in pages for warning in page.get("validation_warnings") or []]}

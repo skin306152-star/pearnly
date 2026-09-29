@@ -1006,6 +1006,7 @@ The row has no product code or barcode,这一行没有物料编号或条码
 The seller and buyer have the same tax ID. Correct it and submit again,卖方和买方税号相同，请改正后再提交
 The source page number must be a positive integer.,源文件页码必须是正整数。
 The start date is after the due date,开始日期晚于到期日
+The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.,账单读到了，但没有逐笔流水（只有封面或汇总页），请上传有流水明细的页。
 The statement's count or totals do not match what it prints. A row may be missing or misread,对账单的笔数或合计与账单上印的对不上，可能漏行或读错
 The stock count record was not found.,找不到盘点记录。
 The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
@@ -1997,6 +1998,7 @@ reconciliation.rows_invalid,文件里有读不懂的行，请检查文件格式
 reconciliation.rows_too_many,行数超过上限，请分成几份再对账
 reconciliation.run_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.statement_all_outside,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
+reconciliation.statement_no_movement,账单读到了，但没有逐笔流水（只有封面或汇总页），请上传有流水明细的页。
 reconciliation.statement_other_account,这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。

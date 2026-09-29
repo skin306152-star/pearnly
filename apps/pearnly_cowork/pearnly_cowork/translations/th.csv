@@ -1006,6 +1006,7 @@ The row has no product code or barcode,แถวนี้ไม่มีรห�
 The seller and buyer have the same tax ID. Correct it and submit again,ผู้ขายและผู้ซื้อมีเลขภาษีเดียวกัน กรุณาแก้แล้วส่งใหม่
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 The start date is after the due date,วันเริ่มอยู่หลังวันครบกำหนด
+The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.,อ่านรายการเดินบัญชีได้ แต่ไม่มีรายการเคลื่อนไหว (มีแค่หน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายการเดินบัญชี
 The statement's count or totals do not match what it prints. A row may be missing or misread,จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด
 The stock count record was not found.,ไม่พบรายการตรวจนับสต็อก
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -1997,6 +1998,7 @@ reconciliation.rows_invalid,มีบางแถวในไฟล์ที่�
 reconciliation.rows_too_many,ไฟล์มีจำนวนแถวมากเกินไป กรุณาแบ่งไฟล์แล้วกระทบยอดทีละส่วน
 reconciliation.run_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.statement_all_outside,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
+reconciliation.statement_no_movement,อ่านรายการเดินบัญชีได้ แต่ไม่มีรายการเคลื่อนไหว (มีแค่หน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายการเดินบัญชี
 reconciliation.statement_other_account,รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
 reconciliation.statement_rows_outside,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออก {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}
 reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้

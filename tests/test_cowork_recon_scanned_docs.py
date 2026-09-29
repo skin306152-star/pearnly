@@ -478,6 +478,42 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertIn("2.jpg", " ".join(create.call_args.kwargs["warnings"]))
 		self.assertNotIn("1.jpg", " ".join(create.call_args.kwargs["warnings"]))
 
+	def test_a_statement_with_a_balance_and_no_transactions_is_reconciled_as_zero_rows(self):
+		# GIZE BBL-SA-04 / KBANK-SA-01（2026-09-30）：当月没有流水的储蓄户，读出了余额，原来整套报“读不出账单”。
+		from pearnly_cowork.reconciliation import bank_intake
+
+		quiet = bank_intake.read_statement_file(b"img", "sa.jpg", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "balances_read": True, "opening": 0.0, "closing": 5010180.78,
+			"parser_version": "enterprise-2026-09-03-v1", "identity": {"bank": "BBL", "last4": "3111"}})
+		self.assertEqual((quiet["ok"], quiet["rows"], quiet["opening"], quiet["closing"], quiet["needs_review"]),
+			(True, [], 5010180.78, 5010180.78, False))
+		moved = bank_intake.read_statement_file(b"img", "sa.jpg", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "balances_read": True, "opening": 100.0, "closing": 90.0})
+		self.assertTrue(moved["needs_review"])  # 期初期末不等：少了流水
+
+	def test_a_balance_only_page_beside_pages_with_transactions_is_skipped(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		good = self.statement([(date(2026, 6, 1), "a", 100.0, 0.0, 900.0)], opening=1000.0, closing=900.0)
+		quiet = {"ok": True, "rows": [], "no_movement": True, "opening": 5.0, "closing": 5.0}
+		kept = bank_recon_service._quiet_pages_skipped([("a.jpg", good), ("b.jpg", quiet)])
+		self.assertEqual([(name, result["ok"]) for name, result in kept], [("a.jpg", True), ("b.jpg", False)])
+		self.assertEqual(bank_recon_service._quiet_pages_skipped([("b.jpg", quiet), ("c.jpg", quiet)])[0][1]["ok"], True)
+
+	def test_pages_with_neither_transactions_nor_a_balance_say_what_is_missing(self):
+		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service
+
+		summary = bank_intake.read_statement_file(b"img", "p2.pdf", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "balances_read": False})
+		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", return_value=summary), \
+				mock.patch.object(bank_recon_service, "_", side_effect=lambda text, **_kw: text), \
+				mock.patch.object(bank_recon_service.frappe, "throw", side_effect=frappe.ValidationError) as refused:
+			with self.assertRaises(frappe.ValidationError):
+				bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
+					statement_files=[(b"1", "p2.pdf")], gl_files=[(b"g", "gl.xlsx")])
+		self.assertEqual(refused.call_args.args[0], "reconciliation.statement_no_movement")
+
 	def test_a_cover_page_that_was_read_is_skipped_not_called_unread(self):
 		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service
 

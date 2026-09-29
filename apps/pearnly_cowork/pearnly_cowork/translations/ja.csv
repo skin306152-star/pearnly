@@ -1006,6 +1006,7 @@ The row has no product code or barcode,この行に商品コードもバーコ�
 The seller and buyer have the same tax ID. Correct it and submit again,売手と買手の納税者番号が同じです。直して再送信してください
 The source page number must be a positive integer.,元ファイルのページ番号には正の整数が必要です。
 The start date is after the due date,開始日が期日より後です
+The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.,明細書は読み取れましたが、取引明細がありません（表紙や集計ページのみ）。取引明細のあるページをアップロードしてください。
 The statement's count or totals do not match what it prints. A row may be missing or misread,明細の件数または合計が印字と一致しません。行の漏れや読み違いの可能性があります
 The stock count record was not found.,棚卸記録が見つかりません。
 The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
@@ -1997,6 +1998,7 @@ reconciliation.rows_invalid,ファイルに読み取れない行があります�
 reconciliation.rows_too_many,行数が多すぎます。ファイルを分けて照合してください
 reconciliation.run_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.statement_all_outside,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
+reconciliation.statement_no_movement,明細書は読み取れましたが、取引明細がありません（表紙や集計ページのみ）。取引明細のあるページをアップロードしてください。
 reconciliation.statement_other_account,これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
 reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
