@@ -15,10 +15,12 @@
 · 表头必须**同时**有日期列和钱列（借或贷）才算真表头 —— 只有日期+科目+余额不算
   （否则单列净额 GL 会解析出 0 行还一路跑到"完成"）；
 · 期初单独识别，且**扫该行前四格**而不是只看描述列：固定模板把"期初"标签放在日期列；
-· 期初优先读余额列（模板与 Mr.erp 把期初放在余额列），没有余额列才退回"贷 − 借"；
+· 期初优先读余额列（模板与 Mr.erp 把期初放在余额列），没有余额列才退回"借 − 贷"（旧线上是"贷 − 借"，
+  与逐行余额方向相反，2026-09-29 有意改正，见下）；
 · 空日期沿用上一行的日期（Mr.erp 一天只印一次日期）；
-· 期末优先用**表内余额列最后一笔**（老公式 `期初+贷−借` 对收入科目正确、对资产科目方向
-  相反），没有余额列才退回老公式；`closing_printed` 如实说明期末是读来的还是算出来的；
+· 期末优先用**表内余额列最后一笔**，没有余额列才按 `期初+借−贷` 算（银行科目借增贷减，与逐行余额同一方向；
+  旧线上老公式 `期初+贷−借` 对资产科目方向相反，2026-09-29 有意改正）；`closing_printed` 如实说明期末是读来的还是算出来的；
+· 借或贷写成负数的是冲销，记到另一边（旧线上取绝对值，2026-09-29 有意改正，与收入对账同一口径）；
 · 借贷两列都是 0 的行不是交易，跳过；`account_code` 给了就按前缀过滤。
 
 只读传入的 bytes：没有凭据、数据库、网络或模型调用。公开入口是 `parse_gl_workbook`；
@@ -189,7 +191,8 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 				opening = to_float(row_list[balance_idx])
 				gl_opening_found = True
 			else:
-				# 期初填在借贷列的格式：净额 = 贷 − 借
+				# 期初填在借贷列的格式：净额 = 借 − 贷（银行科目借增贷减，与下面逐行余额同一方向；
+				# 旧线上写成贷 − 借，逐行余额却是借 − 贷，没有余额列时期初期末整个反号 —— 2026-09-29 排查）
 				credit_idx = col_map.get("credit", -1)
 				debit_idx = col_map.get("debit", -1)
 				if 0 <= credit_idx < len(row_list):
@@ -198,7 +201,7 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 						row_list[debit_idx]
 						if 0 <= debit_idx < len(row_list) else 0
 					)
-					opening = credit - debit
+					opening = debit - credit
 					gl_opening_found = True
 			continue
 		if is_gl_skip_row(row_list):
@@ -270,8 +273,9 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 				doc_no=doc_no,
 				account_code=account,
 				description=description,
-				debit=abs(debit),
-				credit=abs(credit),
+				# 负数是冲销：记到另一边（旧线上取绝对值，冲销被当成同方向再记一笔，2026-09-29 排查）。
+				debit=max(debit, 0.0) + max(-credit, 0.0),
+				credit=max(credit, 0.0) + max(-debit, 0.0),
 			)
 		)
 		if (
@@ -289,7 +293,7 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 	else:
 		total_credit = sum(row.credit for row in rows)
 		total_debit = sum(row.debit for row in rows)
-		closing = round(opening + total_credit - total_debit, 2)
+		closing = round(opening + total_debit - total_credit, 2)
 
 	return {
 		"ok": True,

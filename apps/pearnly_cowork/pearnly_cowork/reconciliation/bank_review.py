@@ -79,6 +79,12 @@ def balance_chain(rows, opening):
 		previous = Decimal(str(opening)).quantize(CENT, rounding=ROUND_HALF_EVEN)
 		for index, row in enumerate(rows):
 			expected = (previous + row["deposit"] - row["withdrawal"]).quantize(CENT)
+			if row["balance"] is None:
+				# 余额格空着（PDF 读出的行常没有）：这一行算没对上、请人补，后面的行接着按推算值核；
+				# 原来直接对空值取整，保存 / 确认弹系统错误（2026-09-29 排查）。
+				checks.append({"idx": index, "expected": str(expected), "actual": "", "diff": "", "ok": False})
+				previous = expected
+				continue
 			actual = row["balance"].quantize(CENT)
 			difference = actual - expected
 			checks.append({"idx": index, "expected": str(expected), "actual": str(actual),

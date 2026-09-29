@@ -12,7 +12,7 @@ import openpyxl
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
-from pearnly_cowork.reconciliation.vat_check_core import _derive_period, _ocr_validate_invoice
+from pearnly_cowork.reconciliation.vat_check_core import _derive_period, _get_rep_total, _ocr_validate_invoice
 from pearnly_cowork.reconciliation.export.vat_check_i18n import _I18N
 from pearnly_cowork.reconciliation.export.vat_check_sheet3 import _build_sheet3
 from pearnly_cowork.reconciliation.export.vat_check_styles import (
@@ -150,12 +150,12 @@ def _build_sheet2(wb, report_rows, period_year, period_month, L):
         period_val = _derive_period(date_str, "")
         if not period_val and period_year and period_month:
             period_val = f"{period_month:02d}/{period_year}"
-        pre = row.get("report_amount_pre_vat") or row.get("report_amount") or 0
+        # 与核查同一口径：报告只有合计列时合计本身含税，未税按「合计 − VAT」显示，不再把合计当未税再加一遍 VAT。
         vat = row.get("report_vat_amount") or 0
-        try:
-            total = round(float(pre or 0) + float(vat or 0), 2)
-        except Exception:
-            total = 0
+        total = _get_rep_total(row)
+        pre = row.get("report_amount_pre_vat")
+        if not pre:
+            pre = round(total - float(vat or 0), 2) if row.get("report_amount") else 0
         ws2.append(
             [
                 i,

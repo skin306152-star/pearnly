@@ -114,16 +114,30 @@ class WholeWorkbook(unittest.TestCase):
 		self.assertEqual(result["row_count"], 2)
 		self.assertEqual([row.balance for row in result["rows"]], [39849.85, 39799.85])
 
-	def test_the_opening_falls_back_to_credit_minus_debit(self):
+	def test_the_opening_falls_back_to_debit_minus_credit(self):
+		# 2026-09-29 有意改正：没有余额列时期初 = 借 − 贷、期末 = 期初 + 借 − 贷（银行科目借增贷减，与逐行余额同向）。
+		# 旧线上是「贷 − 借」，期初借方 1,000 读成 −1,000，与逐行余额差一倍。
 		result = gl_sheets.parse_gl_workbook(workbook([
 			["Date", "Description", "Debit", "Credit"],
-			["01/06/2569", "ยอดยกมา", "", 500.0],
-			["02/06/2569", "ค่าอาหาร", 100.0, ""],
+			["01/06/2569", "ยอดยกมา", 1000.0, ""],
+			["02/06/2569", "ค่าอาหาร", "", 100.0],
+			["03/06/2569", "รับเงิน", 500.0, ""],
 		]), "gl.xlsx")
-		self.assertEqual(result["opening"], 500.0)
-		# No balance column: the closing is the old formula.
-		self.assertEqual(result["closing"], 400.0)
+		self.assertEqual(result["opening"], 1000.0)
+		self.assertEqual(result["closing"], 1400.0)
+		self.assertEqual([row.balance for row in result["rows"]], [900.0, 1400.0])
 		self.assertFalse(result["closing_printed"])
+
+	def test_a_negative_amount_is_a_reversal_on_the_other_side(self):
+		# 2026-09-29：「(500.00)」写在借方是冲销，记成贷方 500（旧线上取绝对值记成借方 500，余额差 1,000）。
+		result = gl_sheets.parse_gl_workbook(workbook([
+			["Date", "Description", "Debit", "Credit", "Balance"],
+			["01/06/2569", "ยอดยกมา", "", "", 1000.0],
+			["02/06/2569", "รับเงิน", 500.0, "", 1500.0],
+			["03/06/2569", "กลับรายการ", "(500.00)", "", 1000.0],
+		]), "gl.xlsx")
+		self.assertEqual([(row.debit, row.credit) for row in result["rows"]], [(500.0, 0.0), (0.0, 500.0)])
+		self.assertEqual([row.balance for row in result["rows"]], [1500.0, 1000.0])
 
 	def test_a_blank_date_inherits_the_previous_one(self):
 		result = gl_sheets.parse_gl_workbook(workbook([

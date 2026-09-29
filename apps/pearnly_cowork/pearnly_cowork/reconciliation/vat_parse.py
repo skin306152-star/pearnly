@@ -237,12 +237,29 @@ def map_columns(headers) -> Dict[str, int]:
 	return col_map
 
 
+def _cell_text(raw) -> str:
+	"""格子 → 文字。表格把整数存成浮点（旧 .xls 一律如此，.xlsx 手打的数字也会）：1001.0 读成「1001」，
+	不能带着「.0」去比发票号 / 分支（2026-09-29 排查：一致的行全判成「疑似匹配」）。"""
+	if raw is None:
+		return ""
+	if isinstance(raw, float) and raw.is_integer():
+		return str(int(raw))
+	return str(raw).strip()
+
+
+def _tax_cell(raw, value: str) -> str:
+	"""税号格子存成数字时开头的 0 会丢（0105556012345 → 105556012345）：数字格子正好少一位就补回。"""
+	if isinstance(raw, (int, float)) and not isinstance(raw, bool) and re.fullmatch(r"\d{12}", value):
+		return "0" + value
+	return value
+
+
 def build_row(row_no: int, cells: list, col_map: Dict[str, int]) -> Dict[str, Any]:
 	"""Turn one printed data row into a report row, with the deployed field names."""
 	parsed: Dict[str, Any] = {"row_no": row_no}
 	for field, index in col_map.items():
 		raw = cells[index] if index < len(cells) else None
-		value = str(raw).strip() if raw is not None else ""
+		value = _cell_text(raw)
 		if field == "date":
 			parsed_date = parse_date(value)
 			parsed["report_date"] = parsed_date.isoformat() if parsed_date else value
@@ -253,7 +270,7 @@ def build_row(row_no: int, cells: list, col_map: Dict[str, int]) -> Dict[str, An
 		elif field == "buyer_name":
 			parsed["report_buyer_name"] = value
 		elif field == "buyer_tax_id":
-			parsed["report_buyer_tax_id"] = normalize_tax_id(value)
+			parsed["report_buyer_tax_id"] = normalize_tax_id(_tax_cell(raw, value))
 		elif field == "buyer_branch":
 			parsed["report_buyer_branch"] = normalize_branch(value)
 		elif field == "amount_pre_vat":
@@ -273,10 +290,32 @@ def _is_header_row(cells) -> bool:
 		"total_amount"} & set(col_map))
 
 
+def _is_total_row(cells, col_map) -> bool:
+	"""合计行：第一格带合计字样（旧线上），或这一行没有日期、某个文字格以合计字样开头。
+
+	2026-09-29 排查：合计写在第二、三格（第一格空着）时被当成一张发票，税表合计翻倍。只认「以合计字样开头」
+	且没有日期，免得把名称里带「รวม」的客户行当成合计。"""
+	first = str(cells[0] or "").strip().lower()
+	if any(keyword in first for keyword in SKIP_HINTS):
+		return True
+	date_index = col_map.get("date")
+	if date_index is not None and date_index < len(cells) and parse_date(_cell_text(cells[date_index])):
+		return False
+	for field in ("invoice_no", "ref_no"):
+		index = col_map.get(field)
+		if index is not None and index < len(cells) and re.search(r"\d", _cell_text(cells[index])):
+			return False  # 有单号的是数据行
+	for cell in cells:
+		if isinstance(cell, str):
+			text = cell.strip().lower()
+			if text and any(text.startswith(keyword) for keyword in SKIP_HINTS):
+				return True
+	return False
+
+
 def _skip_row_meta(cells, col_map, meta):
 	"""A total row fills the meta totals instead of the rows, as deployed."""
-	first = str(cells[0] or "").strip().lower()
-	if not any(keyword in first for keyword in SKIP_HINTS):
+	if not _is_total_row(cells, col_map):
 		return False
 	if "amount_pre_vat" in col_map and col_map["amount_pre_vat"] < len(cells):
 		meta["total_amount_pre_vat"] = to_float(cells[col_map["amount_pre_vat"]])
@@ -515,7 +554,7 @@ def _csv_row(row_no: int, cells, col_map) -> Dict[str, Any]:
 		elif field == "buyer_name":
 			parsed["report_buyer_name"] = value
 		elif field == "buyer_tax_id":
-			parsed["report_buyer_tax_id"] = normalize_tax_id(value)
+			parsed["report_buyer_tax_id"] = normalize_tax_id(_tax_cell(raw, value))
 		elif field == "buyer_branch":
 			parsed["report_buyer_branch"] = normalize_branch(value)
 		elif field == "amount_pre_vat":

@@ -53,9 +53,32 @@ class DetailRows(unittest.TestCase):
         detail, _ = income.reconcile_gl_vat(rows, [vat(ref="CN-1", amount=-107.0)])
         self.assertEqual((detail[0].vat_amount, detail[0].gl_amount, detail[0].diff),
                          (-107.0, -107.0, 0.0))
-        # A positive VAT amount on the same ledger row compares credits, not debits.
+        # 2026-09-29 有意改正：比的是这张凭证的净贷方（贷 − 借）。正数税表对一张只有借方 107 的凭证，
+        # 总账净额是 −107、差额 214，调节表才从总账合计（−107）走得到税表合计（107）；旧口径记 0 / 107 走不平。
         detail, _ = income.reconcile_gl_vat(rows, [vat(ref="CN-1", amount=107.0)])
-        self.assertEqual((detail[0].gl_amount, detail[0].diff), (0.0, 107.0))
+        self.assertEqual((detail[0].gl_amount, detail[0].diff), (-107.0, 214.0))
+
+    def test_a_discount_debited_on_the_same_voucher_is_netted(self):
+        # 2026-09-29：总账 IV001 贷 1,000（4110）+ 借 50（4190 折扣），税表 950 —— 原来报差额 −50、调节表差 50。
+        rows = [gl(doc_no="IV001", norm_doc_no="", account_code="4110", credit=1000.0),
+                gl(doc_no="IV001", norm_doc_no="", account_code="4190", debit=50.0, credit=0.0)]
+        rows = [income.GlRow(**{**row.__dict__, "norm_doc_no": income.normalize_doc_no(row.doc_no)}) for row in rows]
+        detail, summary = income.reconcile_gl_vat(rows, [vat(ref="IV001", amount=950.0)])
+        self.assertEqual((detail[0].gl_amount, detail[0].diff), (950.0, 0.0))
+        self.assertEqual((summary.gl_total, summary.vat_total), (950.0, 950.0))
+
+    def test_one_number_on_several_vat_lines_is_compared_once(self):
+        # 2026-09-29：税表 IV002 两行 600 + 400，总账 IV002 贷 1,000 —— 原来两行各比 1,000，报 −400 / −600。
+        rows = [gl(doc_no="IV002", norm_doc_no=income.normalize_doc_no("IV002"), credit=1000.0)]
+        lines = [vat(ref="IV002", amount=600.0), vat(ref="IV002", amount=400.0)]
+        detail, summary = income.reconcile_gl_vat(rows, lines)
+        self.assertEqual(sorted((row.vat_amount, row.gl_amount, row.diff) for row in detail),
+                         [(400.0, 400.0, 0.0), (600.0, 600.0, 0.0)])
+        detail, summary = income.reconcile_gl_vat(
+            [gl(doc_no="IV002", norm_doc_no=income.normalize_doc_no("IV002"), credit=950.0)], lines)
+        # 差额只记一次：各行差额之和 = 这张凭证的真实差额，调节表走得通
+        self.assertEqual(round(sum(row.diff for row in detail), 2), 50.0)
+        self.assertEqual(round(summary.gl_total + sum(row.diff for row in detail), 2), summary.vat_total)
 
     def test_differences_inside_the_tolerance_are_reported_as_matched(self):
         rows = [gl(credit=1069.99)]

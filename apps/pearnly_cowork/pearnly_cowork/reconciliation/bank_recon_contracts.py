@@ -80,13 +80,18 @@ def statement_row(raw):
 def gl_row(raw):
 	"""Validate one decoded general-ledger row into an exact stored representation."""
 	raw = _exact_keys(raw, GL_KEYS, "gl")
+	# 总账里写成负数的是冲销 / 红字：负的借方记成贷方、负的贷方记成借方，净额不变（与收入对账同一口径，
+	# 2026-09-28 收入先修；2026-09-29 排查银行这边：「(500.00)」被当成借方 500，余额差 1,000）。
+	debit = _amount(raw.get("debit"), "gl.debit", nonnegative=False) or Decimal(0)
+	credit = _amount(raw.get("credit"), "gl.credit", nonnegative=False) or Decimal(0)
+	debit, credit = max(debit, Decimal(0)) + max(-credit, Decimal(0)), max(credit, Decimal(0)) + max(-debit, Decimal(0))
 	return {
 		"date": _date(raw.get("date"), "gl.date"),
 		"doc_no": _text(raw.get("doc_no"), "gl.doc_no"),
 		"account_code": _text(raw.get("account_code"), "gl.account_code"),
 		"description": _text(raw.get("description"), "gl.description"),
-		"debit": _amount(raw.get("debit"), "gl.debit"),
-		"credit": _amount(raw.get("credit"), "gl.credit"),
+		"debit": debit,
+		"credit": credit,
 		"balance": _amount(raw.get("balance"), "gl.balance", nonnegative=False),
 	}
 

@@ -56,10 +56,28 @@ GL_ROW_FIELDS = ("date", "doc_no", "account_code", "description", "debit", "cred
 TEXT_ROW_FIELDS = ("date", "description", "withdrawal", "deposit", "balance")
 
 
+# 有意变化（2026-09-29，离线复现后改正；替换处各只命中一次，其余逐字对照）：
+# · 没有余额列时期初按「借 − 贷」、期末按「期初 + 借 − 贷」—— 与本模块逐行余额同一方向（旧线上期初期末整个反号）；
+# · 借 / 贷写成负数是冲销，记到另一边（旧线上取绝对值）。
+INTENTIONAL = {
+	"services/recon/bank_gl_excel.py": (
+		("opening = cr - dr  # net opening", "opening = dr - cr  # net opening"),
+		("debit=abs(debit),\n                credit=abs(credit),",
+			"debit=max(debit, 0.0) + max(-credit, 0.0),\n                credit=max(credit, 0.0) + max(-debit, 0.0),"),
+		("closing = round(opening + total_credit - total_debit, 2)",
+			"closing = round(opening + total_debit - total_credit, 2)"),
+	),
+}
+
+
 def extract(payload, path, names, constants, namespace):
 	data = payload[path].encode("utf-8")
 	assert hashlib.sha256(data).hexdigest() == HASHES[path], f"Source hash mismatch: {path}"
-	tree = ast.parse(data.decode("utf-8"))
+	text = data.decode("utf-8")
+	for before, after in INTENTIONAL.get(path, ()):
+		assert text.count(before) == 1, (path, before)
+		text = text.replace(before, after)
+	tree = ast.parse(text)
 
 	def assigned(node):
 		if isinstance(node, ast.Assign) and len(node.targets) == 1 \

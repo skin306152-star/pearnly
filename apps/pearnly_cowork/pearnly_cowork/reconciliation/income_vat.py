@@ -6,10 +6,22 @@ with ``normalize_doc_no`` from ``services/recon/gl_vat_parse_common.py``, which
 delegates to the already-migrated invoice-number normalizer.
 
 The deployed rule set, kept as it runs: the VAT reference number pairs with the GL
-voucher number after visual normalization; a positive VAT amount is compared with
-the GL credit column and a negative one with the negated debit column; a difference
-inside the tolerance counts as matched and is stored as zero; the summary also
-carries the itemized GL-only and VAT-only rows the accountant expands in the report.
+voucher number after visual normalization; a difference inside the tolerance counts
+as matched and is stored as zero; the summary also carries the itemized GL-only and
+VAT-only rows the accountant expands in the report.
+
+Intentional changes (2026-09-29, found reproducing wrong results offline):
+
+* the VAT amount is compared with the voucher's net credit (credit − debit). The
+  deployed rule took only the credits for a positive VAT amount (only the negated
+  debits for a negative one), so a discount debited on the same voucher showed as a
+  difference and the reconciliation ladder could not add up (VAT 950 against GL
+  1,000 credit and 50 debit read as −50). For a voucher with one side only both
+  rules give the same number;
+* a document number printed on several VAT lines is compared once: every line but
+  the last takes its own VAT amount from the voucher, the last takes the rest. The
+  deployed rule compared every line with the whole voucher, so lines 600 + 400
+  against a 1,000 voucher showed −400 and −600.
 
 Pure logic: no Frappe, database, file, clock, HTTP, model or export access. Reading
 the GL and VAT files, persisting tasks and building the workbook stay in the legacy
@@ -109,15 +121,22 @@ def reconcile_gl_vat(
 		if normalized:
 			vat_norm_set.add(normalized)
 
+	def amount_of(vat):
+		try:
+			return float(vat.get("report_amount_pre_vat") or 0.0)
+		except Exception:
+			return 0.0
+
+	# 同一单号在税表里有几行：前几行各认自己的税表金额，最后一行认余下的（整张凭证只比一次）。
+	lines_of: Dict[str, List[int]] = defaultdict(list)
+	for index, vat in enumerate(vat_rows):
+		lines_of[normalize_doc_no(vat_doc_no(vat))].append(index)
+
 	detail: List[ReconRow] = []
-	for vat in vat_rows:
+	for index, vat in enumerate(vat_rows):
 		raw_no = vat_doc_no(vat)
 		norm_no = normalize_doc_no(raw_no)
-		vat_amt = vat.get("report_amount_pre_vat") or 0.0
-		try:
-			vat_amt = float(vat_amt)
-		except Exception:
-			vat_amt = 0.0
+		vat_amt = amount_of(vat)
 
 		gl_matches = gl_idx.get(norm_no, [])
 		if not gl_matches:
@@ -133,11 +152,13 @@ def reconcile_gl_vat(
 				)
 			)
 		else:
-			is_credit_note = vat_amt < 0
-			if is_credit_note:
-				gl_amt = round(-sum(row.debit for row in gl_matches), 2)
-			else:
-				gl_amt = round(sum(row.credit for row in gl_matches), 2)
+			gl_amt = round(sum(row.credit for row in gl_matches) - sum(row.debit for row in gl_matches), 2)
+			siblings = lines_of[norm_no]
+			if len(siblings) > 1:
+				if index != siblings[-1]:
+					gl_amt = round(vat_amt, 2)
+				else:
+					gl_amt = round(gl_amt - sum(amount_of(vat_rows[other]) for other in siblings[:-1]), 2)
 			raw_diff = round(vat_amt - gl_amt, 2)
 			# A difference inside the tolerance is reported as an exact match.
 			effective_diff = 0.0 if abs(raw_diff) <= amount_tolerance else raw_diff

@@ -30,12 +30,54 @@ HASHES = {
 }
 
 
+# Intentional changes (2026-09-29, reproduced offline; each replacement must hit exactly once and
+# everything else is still compared as printed): the VAT amount is compared with the voucher's net
+# credit (credit − debit) instead of credits only / negated debits only, and a document number on
+# several VAT lines is compared once — every line but the last takes its own VAT amount, the last
+# takes the rest of the voucher.
+INTENTIONAL = {
+    "services/recon/gl_vat_reconcile.py": (
+        ("""    for vat in vat_rows:
+        raw_no = _vat_doc_no(vat)""",
+         """    def _amount_of(v):
+        try:
+            return float(v.get("report_amount_pre_vat") or 0.0)
+        except Exception:
+            return 0.0
+
+    _lines_of = defaultdict(list)
+    for _index, _vat in enumerate(vat_rows):
+        _lines_of[normalize_doc_no(_vat_doc_no(_vat))].append(_index)
+
+    for index, vat in enumerate(vat_rows):
+        raw_no = _vat_doc_no(vat)"""),
+        ("""            is_credit_note = vat_amt < 0
+            if is_credit_note:
+                gl_amt = round(-sum(r.debit for r in gl_matches), 2)
+            else:
+                gl_amt = round(sum(r.credit for r in gl_matches), 2)""",
+         """            gl_amt = round(sum(r.credit for r in gl_matches) - sum(r.debit for r in gl_matches), 2)
+            siblings = _lines_of[norm_no]
+            if len(siblings) > 1:
+                if index != siblings[-1]:
+                    gl_amt = round(vat_amt, 2)
+                else:
+                    gl_amt = round(gl_amt - sum(_amount_of(vat_rows[other]) for other in siblings[:-1]), 2)"""),
+    ),
+}
+
+
 def extract(root, path, names, namespace, assignments=(), classes=()):
     """Execute only the named top-level definitions of a hash-pinned source file."""
     data = (root / path).read_bytes()
     if hashlib.sha256(data).hexdigest() != HASHES[path]:
         raise AssertionError(f"Source does not match {SOURCE_SHA}: {path}")
-    tree = ast.parse(data)
+    text = data.decode("utf-8")
+    for before, after in INTENTIONAL.get(path, ()):
+        if text.count(before) != 1:
+            raise AssertionError(("intentional change no longer applies", path, before))
+        text = text.replace(before, after)
+    tree = ast.parse(text)
     assignments, classes = set(assignments), set(classes)
     nodes = [node for node in tree.body
         if (isinstance(node, ast.FunctionDef) and node.name in names)

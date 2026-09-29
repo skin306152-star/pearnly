@@ -74,9 +74,13 @@ def _get_inv_total(inv: Dict) -> float:
 
 
 def _get_rep_total(row: Dict) -> float:
-    pre = row.get("report_amount_pre_vat") or row.get("report_amount") or 0
+    """报告行的含税额：有未税列按「未税 + VAT」；没有未税列、只有合计列时合计本身就含税，不再加一遍 VAT
+    （2026-09-29 排查：表头 Amount / VAT / Total 的报告 1,000 + 70 = 1,070 算成 1,140，一致的行判成金额不一致）。"""
+    pre = row.get("report_amount_pre_vat")
     vat = row.get("report_vat_amount") or 0
     try:
+        if not pre and row.get("report_amount"):
+            return round(float(row["report_amount"]), 2)
         return round(float(pre or 0) + float(vat or 0), 2)
     except Exception:
         return 0.0
@@ -525,5 +529,13 @@ def report_row_to_invoice(row: Dict[str, Any], filename: str) -> Dict[str, Any]:
         "invoice_date": row.get("report_date", ""),
         "amount_pre_vat": row.get("report_amount_pre_vat"),
         "vat_amount": row.get("report_vat_amount"),
-        "total_amount": row.get("report_amount"),
+        # 发票表没有合计列时按「未税 + VAT」补上（与 CSV 发票表同一口径）；原来直接取空，按 0 比，一致的票判成金额不一致。
+        "total_amount": row.get("report_amount") if row.get("report_amount") is not None else _pre_plus_vat(row),
     }
+
+
+def _pre_plus_vat(row: Dict[str, Any]) -> Optional[float]:
+    pre, vat = row.get("report_amount_pre_vat"), row.get("report_vat_amount")
+    if pre is None:
+        return None
+    return round(float(pre) + float(vat or 0), 2)
