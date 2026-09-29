@@ -729,6 +729,8 @@ Recognized with high confidence,อ่านข้อมูลด้วยคว
 Reconciled,นำมากระทบยอด
 Reconciliation Type,ประเภทการกระทบยอด
 Reconciliation failed,กระทบยอดไม่สำเร็จ
+Reconciliation failed: {0},กระทบยอดไม่สำเร็จ: {0}
+Reconciliation finished: {0},กระทบยอดเสร็จแล้ว: {0}
 Record,บันทึก
 Record ID,รหัสรายการ
 Record Id,รหัสรายการ
@@ -1342,6 +1344,8 @@ cowork.recon.filter.all,ทั้งหมด
 cowork.recon.filter.matched,จับคู่แล้ว
 cowork.recon.filter.pending,ผลต่าง
 cowork.recon.filter.unmatched,ไม่พบคู่
+cowork.recon.finished,กระทบยอดเสร็จแล้ว: {0}
+cowork.recon.finishedFailed,กระทบยอดไม่สำเร็จ: {0}
 cowork.recon.income.left,บัญชีแยกประเภททั่วไป
 cowork.recon.income.right,รายงานภาษีขาย
 cowork.recon.kpi.matched,จับคู่แล้ว

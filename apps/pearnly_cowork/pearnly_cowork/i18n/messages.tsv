@@ -1331,3 +1331,5 @@ credit	贷方	เครดิต	貸方	cowork.recon.live.kind.credit
 total	含税	รวมภาษี	税込	cowork.recon.live.kind.total
 before VAT	未税	ก่อนภาษี	税抜	cowork.recon.live.kind.subtotal
 amount	金额	จำนวนเงิน	金額	cowork.recon.live.kind.amount
+Reconciliation finished: {0}	对账完成：{0}	กระทบยอดเสร็จแล้ว: {0}	照合が完了しました：{0}	cowork.recon.finished
+Reconciliation failed: {0}	对账失败：{0}	กระทบยอดไม่สำเร็จ: {0}	照合に失敗しました：{0}	cowork.recon.finishedFailed

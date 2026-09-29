@@ -729,6 +729,8 @@ Recognized with high confidence,Recognized with high confidence
 Reconciled,Reconciled
 Reconciliation Type,Reconciliation Type
 Reconciliation failed,Reconciliation failed
+Reconciliation failed: {0},Reconciliation failed: {0}
+Reconciliation finished: {0},Reconciliation finished: {0}
 Record,Record
 Record ID,Record ID
 Record Id,Record Id
@@ -1342,6 +1344,8 @@ cowork.recon.filter.all,All
 cowork.recon.filter.matched,Matched
 cowork.recon.filter.pending,Differences
 cowork.recon.filter.unmatched,Unmatched
+cowork.recon.finished,Reconciliation finished: {0}
+cowork.recon.finishedFailed,Reconciliation failed: {0}
 cowork.recon.income.left,General ledger
 cowork.recon.income.right,Output VAT report
 cowork.recon.kpi.matched,Matched

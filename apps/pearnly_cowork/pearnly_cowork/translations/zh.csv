@@ -729,6 +729,8 @@ Recognized with high confidence,高置信识别
 Reconciled,参与对账
 Reconciliation Type,对账类型
 Reconciliation failed,对账失败
+Reconciliation failed: {0},对账失败：{0}
+Reconciliation finished: {0},对账完成：{0}
 Record,记录
 Record ID,记录 ID
 Record Id,记录 ID
@@ -1342,6 +1344,8 @@ cowork.recon.filter.all,全部
 cowork.recon.filter.matched,已匹配
 cowork.recon.filter.pending,差异
 cowork.recon.filter.unmatched,未匹配
+cowork.recon.finished,对账完成：{0}
+cowork.recon.finishedFailed,对账失败：{0}
 cowork.recon.income.left,总账
 cowork.recon.income.right,销项税报告
 cowork.recon.kpi.matched,已匹配

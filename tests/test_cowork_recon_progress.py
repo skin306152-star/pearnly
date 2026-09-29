@@ -179,5 +179,20 @@ class RecognitionCountsItsPages(unittest.TestCase):
 			self.assertEqual((progress.latest_items("job")[0]["rows"], progress.latest_items("job")[0]["amount"]), (1, ""))
 
 
+class FinishedNotice(unittest.TestCase):
+	def test_the_starter_is_told_when_it_finishes_and_a_failed_push_changes_nothing(self):
+		from pearnly_cowork.recon_center import jobs
+
+		with mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+				mock.patch.object(jobs.frappe, "publish_realtime") as push:
+			jobs._announce("job", "bank", "BAY / GL", task="CBR-1")
+		push.assert_called_once()
+		self.assertEqual(push.call_args.args[0], "cowork_recon_finished")
+		self.assertEqual((push.call_args.args[1]["task"], push.call_args.kwargs["user"]), ("CBR-1", "u@example.com"))
+		with mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+				mock.patch.object(jobs.frappe, "publish_realtime", side_effect=RuntimeError("socket down")):
+			jobs._announce("job", "bank", "BAY / GL", error="failed")  # 不抛
+
+
 if __name__ == "__main__":
 	unittest.main()

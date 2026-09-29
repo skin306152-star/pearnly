@@ -147,6 +147,17 @@ def _recovered(job_id):
     return {"kind": kind, "state": "failed", "stage": "failed", "task": None, "error": _("reconciliation.failed")}
 
 
+def _announce(recon_job, kind, title, task=None, error=None):
+    """对账结束推给发起人（原生实时推送）：页面在哪都弹原生提示并响一声（用户 2026-09-30：「结果完成时用原生带声音的
+    通知」）。只作提醒，推送失败不影响结果。"""
+    try:
+        frappe.publish_realtime("cowork_recon_finished", {"job": recon_job, "kind": kind, "title": str(title or "")[:140],
+                                                           "task": task, "error": error},
+                                user=frappe.session.user, after_commit=False)
+    except Exception:
+        pass  # 只是提醒：推送不可用时结果照常，页面仍按状态接口走
+
+
 def _names(files, limit=140):
     """几份文件存一个名字：放得下就全列，放不下写「第一份 +其余份数」（21 张税报照片的名字连起来超过 140 字，
     识别费都付了、最后存档时整单失败；2026-09-30 压测第 19 轮 I01）。"""
@@ -265,6 +276,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         frappe.db.commit()
         keep_files = bool(pending)
         _state(recon_job, state="done", stage="done", task=result["name"])
+        _announce(recon_job, kind, title, task=result["name"])
     except Exception as error:
         frappe.db.rollback()
         from pearnly_cowork.reconciliation.messages import error_text
@@ -276,6 +288,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             error, (frappe.ValidationError, ValueError))
         message = frappe._("reconciliation.system_busy") if system else error_text(error)
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
+        _announce(recon_job, kind, title, error=frappe.utils.strip_html(message)[:500])
     finally:
         try:
             progress.active_remove(frappe.session.user, recon_job)
