@@ -6,7 +6,8 @@
 
 .pearnly-product-desk .pearnly-purchase-form .purchase-body {
 	display: grid;
-	grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+	/* 原件与字段各占一半（用户 2026-09-30：原件预览框放大，ERP 与 Cowork 录入一起；原来字段 3 份、原件 2 份）。 */
+	grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
 	align-items: start;
 }
 
@@ -64,7 +65,17 @@
 	min-height: 0;
 }
 
+/* 原件预览框加高：铺满窗口余下的高度（减去页头、工具条与下面的附件表），最少 360、最多 760。共用组件默认
+ * min(360px, 48vh) 不动，只在这一页放大。 */
+.pearnly-product-desk .pearnly-purchase-form .purchase-evidence .pearnly-document-viewer .pearnly-document-canvas {
+	height: clamp(360px, calc(100vh - 330px), 760px);
+}
+
 @media (max-width: 767px) {
+	.pearnly-product-desk .pearnly-purchase-form .purchase-evidence .pearnly-document-viewer .pearnly-document-canvas {
+		height: min(420px, 60vh);
+	}
+
 	.pearnly-product-desk .pearnly-purchase-form .purchase-section-nav {
 		display: block;
 	}
