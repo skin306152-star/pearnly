@@ -178,9 +178,12 @@ def _next(line_user_id, user, payload, reply_token):
     numbered = step in ("company", "party", "warehouse")
     if step == "entry":
         # 手动录入是链接按钮：点了直接打开网页端原生空白新建页，不回 webhook、不多发消息。
+        # 与卡片「编辑」、菜单「盘点」同一个入口：LINE 里未登录时用绑定的 LINE 免密登录。
+        from pearnly_core.account import line_login
+
         root = "pearnly-purchase" if payload["direction"] == "purchase" else "pearnly-sales"
         manual = {"type": "action", "action": {"type": "uri", "label": str(_("Enter manually"))[:20],
-                  "uri": f"{frappe.utils.get_url().rstrip('/')}/desk/{root}/new"}}
+                  "uri": line_login.entry_url(f"/desk/{root}/new")}}
         return _ask(reply_token, _QUESTIONS[step](payload),
                     [_button(label, urlencode({"a": "erp", "s": step, "v": key})) for key, label in options]
                     + [manual])

@@ -135,13 +135,20 @@ class Flow(Base):
         self.assertTrue(line_flow.ready(payload))
 
     def test_manual_entry_is_a_link_to_the_blank_native_page(self):
+        """与卡片「编辑」、菜单「盘点」一样经 LINE 入口：LINE 里未登录时走绑定的 LINE 免密登录。"""
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.tap({"data": "a=mode:purchase"})
         upload, manual, cancel = self.buttons()
         self.assertEqual((upload["label"], upload["data"]), ("Upload and recognise", "a=erp&s=entry&v=upload"))
         self.assertEqual(manual, {"type": "uri", "label": "Enter manually",
-                                  "uri": "https://testerp.pearnly.com/desk/pearnly-purchase/new"})
+                                  "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter"
+                                         "?to=%2Fdesk%2Fpearnly-purchase%2Fnew"})
         self.assertEqual(cancel["data"], "a=erp&s=cancel")
+        with patch("pearnly_core.line_binding.user_of", return_value="seller"):
+            self.roles["seller"] = {"sales.write", "integration.read"}
+            self.tap({"data": "a=mode:sales"})
+        self.assertEqual(self.buttons()[1]["uri"], "https://testerp.pearnly.com/api/method/"
+                         "pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-sales%2Fnew")
 
     def test_role_and_binding_are_checked_before_any_step(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
