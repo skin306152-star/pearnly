@@ -33,7 +33,8 @@
 
 .pearnly-intake-body {
 	display: grid;
-	grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+	/* 原件与字段各占一半（用户 2026-09-30：「这个框我觉得还可以做大一点」；原来字段 3 份、原件 2 份）。 */
+	grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
 	align-items: start;
 	gap: 16px;
 }
@@ -54,7 +55,17 @@
 	border-left: 1px solid var(--border-color, #d1d8dd);
 }
 
+/* 原件预览框加高：铺满窗口余下的高度（减去页头、工具条与下面的文件表），最少 360、最多 760。共用组件默认
+ * min(360px, 48vh) 不动（ERP 采购也用它），只在录入页这里放大。 */
+.pearnly-intake-evidence .pearnly-document-viewer .pearnly-document-canvas {
+	height: clamp(360px, calc(100vh - 330px), 760px);
+}
+
 @media (max-width: 767px) {
+	.pearnly-intake-evidence .pearnly-document-viewer .pearnly-document-canvas {
+		height: min(420px, 60vh);
+	}
+
 	.pearnly-intake-nav {
 		display: block;
 	}
