@@ -103,6 +103,16 @@ class ExcelDecode(unittest.TestCase):
 		self.assertEqual(result["row_count"], 1)
 		self.assertEqual(result["meta"], {"total_amount_pre_vat": 1000.0, "total_vat": 70.0})
 
+	def test_a_split_taxpayer_header_is_the_tax_id_column_not_the_vat(self):
+		# V03（2026-09-29）：「เลขประจำตัวผู้เสียภาษี สนญ.」拆成两格，税号存成数字丢了开头的 0。
+		cells = [["ลำดับ", "วันที่", "เลขที่", "ชื่อผู้ซื้อสินค้า/ผู้รับบริการ", "ผู้เสียภาษี สน", "ญ.", "มูลค่าสินค้า",
+			"ภาษีมูลค่าเพิ่ม"],
+			[1, "01/07/2569", "IV69/00564", "บิ๊กซี", 107536000633, "X", 268, 18.76]]
+		row = parse.excel_rows(cells)["rows"][0]
+		self.assertEqual(row["report_buyer_tax_id"], "0107536000633")
+		self.assertEqual(row["report_vat_amount"], 18.76)
+		self.assertEqual(row["report_amount_pre_vat"], 268.0)
+
 	def test_a_sheet_without_a_header_is_refused_the_deployed_way(self):
 		result = parse.excel_rows([["01/06/2569", "IV001", "ACME"]])
 		self.assertEqual(result, {"ok": False, "error": "找不到表头行", "rows": []})

@@ -201,7 +201,9 @@ def _field(header) -> Optional[str]:
 		return "date"
 	if text in _SEQUENCE:
 		return "sequence"
-	if hit(text, TAX_HINTS) or "ประจำตัวผู้เสียภาษี" in text:
+	# 「ผู้เสียภาษี」（纳税人）单独做表头也是税号列：V03 的 Express 导出把「เลขประจำตัวผู้เสียภาษี สนญ.」拆成
+	# 「ผู้เสียภาษี สน」「ญ.」两格，旧线上按「ภาษี」认成税额列，12 位税号当了税额（2026-09-29 压测）。
+	if hit(text, TAX_HINTS) or any(item in text for item in ("ผู้เสียภาษี", "ผูเสียภาษี")):
 		return "buyer_tax_id"
 	if hit(text, REF_HINTS):
 		return "ref_no"
