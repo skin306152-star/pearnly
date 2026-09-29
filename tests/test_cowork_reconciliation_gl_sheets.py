@@ -133,10 +133,12 @@ class WholeWorkbook(unittest.TestCase):
 		# 现在只要印了期初就照样对账，银行那边每一笔都显示为总账未记。
 		from pearnly_cowork.reconciliation import bank_intake
 
-		quiet = workbook([DATE_H, ["01/02/2569", "ยอดยกมา", "", "", "", 1000.0, ""], ["", "รวม", 0, 0, "", "", ""]])
+		quiet = workbook([["วันที่จาก", "1\xa0ม.ค.\xa02026 ถึง 31\xa0ม.ค.\xa02026"], DATE_H,
+			["01/02/2569", "ยอดยกมา", "", "", "", 1000.0, ""], ["", "รวม", 0, 0, "", "", ""]])
 		result = bank_intake.read_ledger_file(quiet, "gl.xlsx", model_rows=lambda *_a: self.fail("no model for a workbook"))
 		self.assertTrue(result["ok"])
 		self.assertEqual((result["row_count"], result["opening"], result["closing"]), (0, 1000.0, 1000.0))
+		self.assertEqual(result["period_start"], "2026-01-01")  # 表头分两格、NBSP、公历年（GIZE 6901GLLEDGER）
 		# 连期初都没有的空表不是“本月无发生额”，照旧读不出。
 		empty = bank_intake.read_ledger_file(workbook([DATE_H]), "gl.xlsx", model_rows=lambda *_a: None)
 		self.assertFalse(empty["ok"])

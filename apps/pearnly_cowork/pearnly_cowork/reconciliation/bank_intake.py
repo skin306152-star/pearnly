@@ -300,6 +300,7 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 	source = ""
 	free_error: Optional[Tuple[Optional[str], str]] = None
 	no_movement = False
+	period_start = ""
 
 	if ext in WORKBOOK_EXTENSIONS:
 		direct = gl_sheets.parse_gl_workbook(file_bytes, filename, account_code)
@@ -311,6 +312,7 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 			# 印了期初、当月一笔也没有：这个户本月无发生额（Express 的储蓄 / 定期户多数月份如此），照样对账，
 			# 银行那边的每一笔都显示为总账未记。旧线上整单判失败（no_rows）；2026-09-29 用户：对产品有利的直接做。
 			no_movement = not rows and bool(direct.get("opening_found"))
+			period_start = direct.get("period_start") or ""
 		else:
 			free_error = (direct.get("error_code"), direct["error"])
 	elif ext == "pdf":
@@ -352,6 +354,7 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 		"opening": opening,
 		"closing": closing,
 		"closing_printed": closing_printed,
+		"period_start": period_start,
 		"source": source,
 		"parser_version": bank_parse.PARSER_VERSION,
 		"needs_review": False,

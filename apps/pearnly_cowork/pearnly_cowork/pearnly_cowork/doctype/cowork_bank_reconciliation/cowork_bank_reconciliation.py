@@ -142,6 +142,8 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		review = bool(page.get("needs_manual_review"))
 		for entry in (page.get("document") or {}).get("entries") or []:
 			if document_type == "bank_statement":
+				if not any(bank_parse.to_float(entry.get(field)) for field in ("deposit", "withdrawal", "balance")):
+					continue  # 存、取、余额全是 0 的噪声行（B05 KBank8229-02 第一行「TRN」）；文字路径同样跳过
 				rows.append(StatementRow(date=_entry_date(entry),
 					description=entry.get("description") or "", deposit=bank_parse.to_float(entry.get("deposit")),
 					withdrawal=bank_parse.to_float(entry.get("withdrawal")),

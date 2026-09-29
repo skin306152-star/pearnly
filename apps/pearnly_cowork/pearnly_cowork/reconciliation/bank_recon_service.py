@@ -4,6 +4,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.reconciliation import (
+	bank_statement,
 	naming,
 	bank_intake,
 	bank_matching,
@@ -269,7 +270,15 @@ def chain_files(files):
 	files = [list(rows) for rows in files if rows]
 	if len(files) < 2 or any(not rows[0].balance or not rows[-1].balance for rows in files):
 		return []
-	remaining = sorted(files, key=lambda rows: min((row.date for row in rows if row.date), default=date_type.max))
+	def joins(first_row, end):
+		# 第一行的方向可能读反（手续费读成存入）：存入、支出两个方向都试。
+		amount = (first_row.deposit or 0) + (first_row.withdrawal or 0)
+		return bool(first_row.balance) and abs(abs(first_row.balance - end) - amount) <= 0.01
+
+	# 链头：第一行接不到别的任何一份末尾的那份；同样的按最早日期。
+	remaining = sorted(files, key=lambda rows: (
+		any(joins(rows[0], other[-1].balance) for other in files if other is not rows),
+		min((row.date for row in rows if row.date), default=date_type.max)))
 	merged, seen = [], set()
 
 	def append(rows):
@@ -286,8 +295,7 @@ def chain_files(files):
 		chosen = remaining[0]
 		for rows in remaining:
 			fresh = [row for row in rows if not (row.balance and _line_key(row) in seen)]
-			if fresh and fresh[0].balance and abs(
-					fresh[0].balance - (fresh[0].deposit or 0) + (fresh[0].withdrawal or 0) - end) <= 0.01:
+			if fresh and joins(fresh[0], end):
 				chosen = rows
 				break
 		remaining.remove(chosen)
@@ -306,6 +314,11 @@ def _merged_statement(results):
 		rows, first = chained, chained[0]
 		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
 		closing = rows[-1].balance or closing
+		# 接好之后整条再定案一次：每张照片的第一行单独定案时没有前一行可比（B05 KBank8229：手续费 685 读成存入）。
+		from pearnly_cowork.reconciliation.bank_intake import repair_balance_from_neighbours
+
+		rows = bank_statement.finalize_rows(rows, opening)
+		repair_balance_from_neighbours(rows, opening)
 	completeness = [result.get("completeness") or {} for result in read]
 	return {"ok": True, "rows": rows, "row_count": len(rows), "opening": opening, "closing": closing,
 		"bank_code": bank_code if bank_code != "generic" else (read[0].get("bank_code") or ""),

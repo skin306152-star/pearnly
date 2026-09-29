@@ -415,6 +415,26 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual(result["rows"][1].deposit, 3646561.49)
 		self.assertTrue(result["rows"][1].amount_autocorrected)
 
+	def test_a_photo_whose_first_line_is_read_the_wrong_way_still_joins_and_is_corrected(self):
+		# B05 KBank8229-01：照片第一行手续费 685 读成存入；余额本身都对。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		first = self.statement([(date(2026, 1, 5), "TRN", 743728.0, 0.0, 2851314.24)], opening=3595042.24)
+		second = self.statement([(date(2026, 1, 5), "CMN", 0.0, 685.0, 2850629.24), (date(2026, 1, 9), "x", 0.0, 10.0, 2850639.24)])
+		merged = bank_recon_service._merged_statement([second, first])
+		self.assertEqual([row.description for row in merged["rows"]], ["TRN", "CMN", "x"])
+		cmn = merged["rows"][1]
+		self.assertEqual((cmn.withdrawal, cmn.deposit, cmn.direction_autocorrected), (685.0, 0.0, True))
+		self.assertEqual(merged["opening"], 3595042.24)
+
+	def test_a_line_with_nothing_on_it_is_dropped(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import enterprise_rows
+
+		entries = [{"transaction_date_raw": "01/02/26", "description": "TRN", "deposit": "0", "withdrawal": "", "balance": "0"},
+			{"transaction_date_raw": "02/02/26", "deposit": "5", "balance": "105"}]
+		read = enterprise_rows({"pages": [{"document": {"entries": entries}}]}, "bank_statement", "p.jpg")
+		self.assertEqual(read["row_count"], 1)
+
 	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
 
