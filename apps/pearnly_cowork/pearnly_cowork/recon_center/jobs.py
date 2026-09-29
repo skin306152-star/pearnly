@@ -67,11 +67,49 @@ def start(kind, title, sides, options=None):
     return {"job": job_id}
 
 
+# 三种对账任务的任务名都由「站点 | 用户 | 请求号」算出（请求号就是本任务号），前缀各自不同。
+TASK_NAMES = {"bank": ("Cowork Bank Reconciliation", "CBR"), "income": ("Cowork Income Reconciliation", "CIR"),
+              "vat": ("Cowork VAT Check", "CVC")}
+
+
 def status(job_id):
-    current = frappe.cache.get_value(_key(str(job_id or "")))
-    if not current or current.get("user") != frappe.session.user:
+    job_id = str(job_id or "")
+    current = frappe.cache.get_value(_key(job_id))
+    if current and current.get("user") == frappe.session.user:
+        return {key: current.get(key) for key in ("kind", "state", "stage", "task", "error")}
+    recovered = _recovered(job_id)
+    if not recovered:
         frappe.throw(_("reconciliation.task_not_found"), frappe.DoesNotExistError)
-    return {key: current.get(key) for key in ("kind", "state", "stage", "task", "error")}
+    return recovered
+
+
+def _recovered(job_id):
+    """缓存里的状态没了（部署迁移、clear-cache 会清掉；2026-09-29 压测：页面显示任务不存在，后台照跑、结果照落库）。
+
+    结果已落库：按同一规则算出任务名直接找到。还在队列里：看后台任务本身（只认本人发起的）。都没有就是不存在。
+    """
+    if not job_id or len(job_id) > 64:
+        return None
+    import hashlib
+
+    key = hashlib.sha256(f"{frappe.local.site}|{frappe.session.user}|{job_id}".encode()).hexdigest()
+    for kind, (doctype, prefix) in TASK_NAMES.items():
+        name = f"{prefix}-{key[:40]}"
+        if frappe.db.exists(doctype, name):
+            return {"kind": kind, "state": "done", "stage": "done", "task": name, "error": None}
+    from frappe.utils.background_jobs import get_job
+
+    job = get_job(f"cowork-recon-{job_id}")
+    arguments = (job.kwargs or {}) if job else {}
+    if not job or arguments.get("user") != frappe.session.user:
+        return None
+    kind = (arguments.get("kwargs") or {}).get("kind")
+    state = job.get_status(refresh=False)
+    if state in ("queued", "deferred", "scheduled"):
+        return {"kind": kind, "state": "queued", "stage": "queued", "task": None, "error": None}
+    if state == "started":
+        return {"kind": kind, "state": "running", "stage": "reading", "task": None, "error": None}
+    return {"kind": kind, "state": "failed", "stage": "failed", "task": None, "error": _("reconciliation.failed")}
 
 
 def _read(names):

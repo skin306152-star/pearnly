@@ -418,6 +418,38 @@ class ReconJobCleanup(unittest.TestCase):
 		self.assertNotEqual(states["error"], "reconciliation.system_busy")  # the contract text, as before
 		log_error.assert_called_once()
 
+	def status_after_cache_loss(self, stored=None, job=None, user="u@example.com"):
+		import hashlib
+
+		from pearnly_cowork.recon_center import jobs
+
+		db, cache = mock.MagicMock(), mock.MagicMock()
+		cache.get_value.return_value = None  # the deploy's clear-cache dropped the state
+		key = hashlib.sha256(f"site.test|{user}|abc123".encode()).hexdigest()
+		db.exists.side_effect = lambda doctype, name: (doctype, name) == stored(key) if stored else False
+		with mock.patch.object(jobs.frappe, "cache", cache), mock.patch.object(jobs.frappe, "db", db), \
+				mock.patch.object(jobs.frappe, "local", mock.Mock(site="site.test")), \
+				mock.patch.object(jobs.frappe, "session", mock.Mock(user=user)), \
+				mock.patch.object(jobs, "_", side_effect=lambda text: text), \
+				mock.patch("frappe.utils.background_jobs.get_job", return_value=job):
+			return jobs._recovered("abc123")
+
+	def test_a_finished_job_is_found_by_its_task_after_the_cache_is_cleared(self):
+		found = self.status_after_cache_loss(stored=lambda key: ("Cowork Income Reconciliation", "CIR-" + key[:40]))
+		self.assertEqual((found["kind"], found["state"]), ("income", "done"))
+		self.assertTrue(found["task"].startswith("CIR-"))
+
+	def test_a_queued_job_is_found_in_the_queue_only_for_its_owner(self):
+		job = mock.Mock(kwargs={"user": "u@example.com", "kwargs": {"kind": "bank"}})
+		job.get_status.return_value = "queued"
+		self.assertEqual(self.status_after_cache_loss(job=job)["state"], "queued")
+		job.get_status.return_value = "started"
+		self.assertEqual(self.status_after_cache_loss(job=job)["state"], "running")
+		job.get_status.return_value = "finished"  # ended without a stored result: it failed
+		self.assertEqual(self.status_after_cache_loss(job=job)["state"], "failed")
+		self.assertIsNone(self.status_after_cache_loss(job=job, user="other@example.com"))
+		self.assertIsNone(self.status_after_cache_loss())
+
 	def test_uploads_are_saved_as_native_files_under_the_site_limit(self):
 		from pearnly_cowork.recon_center import jobs
 

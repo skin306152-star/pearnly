@@ -146,6 +146,9 @@ live_sync() {
     dc up -d --no-deps $(app_services)
   else
     echo "· 重启本产品容器（新代码生效）"
+    # 先按被测树的 compose 补建新服务、重建定义变了的容器（只 restart 不会：2026-09-29 新加的
+    # cowork-long-worker 没建出来，cowork-worker 还是旧命令）；没变的容器 up 不动它，再统一 restart。
+    dc up -d --no-deps $(app_services) >/dev/null
     dc restart $(app_services) >/dev/null
     # 一起重启时 web 可能换了 IP，而前端 nginx 在自己启动那一刻解析 upstream：若它先起，会一直连旧 IP、
     # 整站 502（2026-09-27 测试机实测）。等其他容器都起来后再单独重启一次前端，让它解析到当前地址。
