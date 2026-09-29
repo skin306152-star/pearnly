@@ -9,8 +9,8 @@
 
 2026-09-29 排查修正：原来已完成的任务不存原始输入，打开页面时从排好序的结果行倒推 —— 同一天的流水被重排、
 期末取错行，什么都不改页面就和导出不一致；税表同一单号几行时总账被算几遍；同一凭证另一边的行（折扣借方）丢了；
-多个收入科目只剩第一个。2026-09-29 之前建的任务没有 `inputs_json`，仍按结果行还原（同一单号只还原一次、科目全留），
-并且没改过的就不动期末与余额。
+多个收入科目只剩第一个。2026-09-29 之前建的任务没有 `inputs_json`：没改过就直接用存档（收入）或不动期末与余额（银行），与导出一致；
+改了才按结果行还原（同一单号只还原一次、科目全留）—— 结果行里没有的总账行（如只有冲销的凭证）还原不回来。
 
 重算走的是建任务时同一个比对函数，保存则整份替换结果行与汇总，并记一笔修订（谁、何时、第几版）。
 """
@@ -276,7 +276,34 @@ def _income_rows(doc, inputs):
 	return _contract(income_recon_contracts.decode_rows, gl_rows, vat_rows)
 
 
+def _view_key(rows):
+	return [(_text(row.get("doc_no")).strip(), _text(row.get("date")), _text(row.get("customer_name")),
+		_number(row.get("vat_amount")), int(bool(row.get("has_gl"))), _number(row.get("gl_amount")),
+		_text(row.get("account_code")).strip()) for row in rows or []]
+
+
+def _stored_income(doc):
+	"""旧任务没改过：页面就用存档的结果行与汇总（与导出同一份）。
+
+	旧任务没存原始总账，按结果行倒推会丢掉结果行里没有的总账行（例如一张只有冲销的凭证），
+	测试机实测一张旧任务页面总账比导出多 50,000（2026-09-29）；没改过就不倒推。"""
+	rows = frappe.get_all(income_recon_service.ROW, filters={"task": doc.name},
+		fields=["doc_no", "vat_date", "customer_name", "vat_amount", "has_gl_match", "gl_amount", "diff",
+			"account_codes"], order_by="row_index asc", limit_page_length=0)
+	results = [income_vat.ReconRow(doc_no=row.doc_no or "", date=row.vat_date or "",
+		customer_name=row.customer_name or "", vat_amount=float(row.vat_amount or 0),
+		gl_amount=float(row.gl_amount or 0) if row.has_gl_match else None,
+		diff=float(row.diff or 0) if row.has_gl_match else None, account_codes=row.account_codes or "")
+		for row in rows]
+	stored = income_recon_contracts.json_loads(doc.summary_json) or {}
+	summary = income_vat.GlVatSummary(**{field: stored.get(field, [] if field.endswith("_items") else 0.0)
+		for field in income_vat.GlVatSummary.__dataclass_fields__})
+	return None, results, summary
+
+
 def income_compute(doc, inputs):
+	if stored_inputs(doc) is None and _view_key(inputs.get("vat")) == _view_key(income_inputs(doc)["vat"]):
+		return _stored_income(doc)
 	rows = _income_rows(doc, inputs)
 	results, summary = income_vat.reconcile_gl_vat(
 		income_recon_contracts.matching_gl_rows(rows[0]), income_recon_contracts.matching_vat_rows(rows[1]),
@@ -290,6 +317,8 @@ def income_workbook_bytes(results, summary, lang):
 
 def income_save(doc, inputs):
 	rows, results, summary = income_compute(doc, inputs)
+	if rows is None:
+		return results, summary  # 旧任务什么都没改：存档原样，不写倒推出来的总账
 	summary_value = {field: getattr(summary, field) for field in summary.__dataclass_fields__}
 	matched, findings, unmatched = income_recon_service.result_counts(results)
 	frappe.db.delete(income_recon_service.ROW, {"task": doc.name})

@@ -2,6 +2,7 @@
 
 每条用例对应一个复现过的现象；只调纯函数或给假任务对象，不连数据库、网络或模型。
 """
+import json
 import unittest
 from datetime import date
 from decimal import Decimal
@@ -218,10 +219,26 @@ class IncomeResultPage(unittest.TestCase):
 		self.assertEqual(summary.gl_total, 900.0)
 		self.assertEqual(round(sum(row.diff for row in results), 2), 100.0)
 
-	def test_an_old_task_with_one_number_on_two_lines_counts_the_ledger_once(self):
-		# 旧任务（没存原始输入）：两行都带着整张凭证 1,000，原来还原成两张 1,000，页面总账 2,000
+	def test_an_old_task_opened_unchanged_shows_its_stored_result(self):
+		# 旧任务没存原始总账：一张只有冲销的凭证在结果行里只剩「总账 0」，倒推会丢掉冲销那一笔
+		# （测试机旧任务页面比导出多 50,000）。没改过就用存档，与导出一致。
+		stored = {"gl_total": 44500.0, "gl_only_credit": 1500.0, "gl_only_debit": 0.0, "vat_only_positive": 0.0,
+			"vat_only_negative": 0.0, "vat_total": 93000.0}
+		doc = FakeDoc(name="CIR-3", gl_account_code="4", amount_tolerance=0.01, summary_json=json.dumps(stored),
+			inputs_json="")
+		row = income_row("IV001", 50000, 0)
+		row["diff"] = 50000
+		results, summary = self.compute(doc, [row])
+		self.assertEqual(summary.gl_total, 44500.0)
+		self.assertEqual((results[0].gl_amount, results[0].diff), (0.0, 50000.0))
+
+	def test_an_edited_old_task_with_one_number_on_two_lines_counts_the_ledger_once(self):
+		# 旧任务（没存原始输入）改过之后按结果行还原：两行都带着整张凭证 1,000，原来还原成两张 1,000，页面总账 2,000
 		doc = FakeDoc(name="CIR-2", gl_account_code="4", amount_tolerance=0.01, summary_json="{}", inputs_json="")
-		results, summary = self.compute(doc, [income_row("IV002", 600, 1000), income_row("IV002", 400, 1000)])
+
+		def edit(inputs):
+			inputs["vat"][0]["customer_name"] = "ACME CO"
+		results, summary = self.compute(doc, [income_row("IV002", 600, 1000), income_row("IV002", 400, 1000)], edit)
 		self.assertEqual(summary.gl_total, 1000.0)
 		self.assertEqual([row.diff for row in results], [0.0, 0.0])
 
