@@ -22,6 +22,34 @@ def _report(content, filename, read=None):
     return parsed
 
 
+def swapped_dates(records, report_rows):
+    """发票日期不在税报的月份里、日和月对调后正好在：是 dd/mm 读反了（Big C 发票「07/01」读成 1 月 7 日；2026-09-30
+    压测第 17 轮 V03 出现「差 +175 天 / 01/2026 ≠ 07/2026」），按对调后的日期比。"""
+    from datetime import date as date_type
+
+    from pearnly_cowork.reconciliation.normalization import parse_date
+
+    def day(value):
+        try:
+            return parse_date(value)
+        except Exception:
+            return None
+
+    months = {(value.year, value.month) for value in map(day, (row.get("report_date") for row in report_rows)) if value}
+    if not months:
+        return records
+    fixed = []
+    for record in records:
+        value = day(record.get("invoice_date"))
+        if value and (value.year, value.month) not in months and value.day <= 12 and (value.year, value.day) in months:
+            try:
+                record = {**record, "invoice_date": date_type(value.year, value.day, value.month).isoformat()}
+            except ValueError:
+                pass
+        fixed.append(record)
+    return fixed
+
+
 def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, invoice_files=None, recon_job=None,
         report_files=None):
     stage = on_stage or (lambda _name: None)
@@ -64,6 +92,7 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
         failed.extend(rejected + unread)
     if not records:
         frappe.throw(_("vat_check.no_invoices"))
+    records = swapped_dates(records, merged["rows"])
     stage("matching")
     return vat_check_service.create(workspace, title, request_id, {**merged, "invoices": records,
         "report_rows": merged["rows"], "failed_files": failed}, lang)

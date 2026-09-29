@@ -19,11 +19,12 @@ import frappe
 from frappe import _
 from pearnly_core import billing_client, ocr
 from pearnly_core.execution import work as core_work
-from pearnly_core.execution.errors import Deferred
+from pearnly_core.execution.errors import Deferred, Uncertain
 
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
+from pearnly_cowork.ocr.engine.contracts import ProviderFailure
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
 from pearnly_cowork.ocr.execution.access import WORK
 from pearnly_cowork.ocr.grouping import group_invoices
@@ -58,9 +59,17 @@ def _money(value):
         return None
 
 
+def _tax(value):
+    """泰国税号固定 13 位：读出 12 位数字的是开头的 0 丢了，补回（与税报表格同一规则；2026-09-30 压测第 17 轮 V03：
+    「105541034263 ≈ 0105541034263」只算疑似匹配）。"""
+    text = _text(value)
+    digits = "".join(char for char in text if char.isdigit())
+    return "0" + digits if len(digits) == 12 and len(text) == len(digits) else text
+
+
 def record(fields, filename):
     """识别出的一张发票 → 核查用的发票记录（旧线上 `_extract_invoice_via_pipeline` 的同一套映射）。"""
-    return {"filename": filename, "buyer_tax_id": _text(fields.get("buyer_tax")),
+    return {"filename": filename, "buyer_tax_id": _tax(fields.get("buyer_tax")),
             "buyer_name": _text(fields.get("buyer_name")), "buyer_branch": _text(fields.get("buyer_branch")),
             "invoice_no": _text(fields.get("invoice_number")), "invoice_date": _text(fields.get("date")),
             "period": "", "amount_pre_vat": _money(fields.get("subtotal")),
@@ -163,6 +172,17 @@ def _recognize(content, filename, pages, frozen):
             return callback(*args, **kwargs)
         return invoke
 
+    def page_failure(call):
+        # 重发后仍结果不明的那一页交给引擎的按页兜底（明确失败），不让整份作废：25 页的扫描件一页不明，25 张发票
+        # 全丢了（2026-09-30 压测第 17 轮 V03）。已发出的那次调用续跑时从检查点认出、同样处理，不重付。
+        def invoke(*args, **kwargs):
+            try:
+                return call(*args, **kwargs)
+            except Uncertain as error:
+                raise ProviderFailure("ocr.provider_outcome_unknown") from error
+        return invoke
+
+    @page_failure
     def model_call(request):
         # 结果不明（读超时、连接中断）重发一次、等得更久：与账单路径同一口径（document_ocr）；发票录入照旧。
         return client.model_call(dataclasses.replace(request, timeout_s=max(request.timeout_s, MODEL_TIMEOUT_SECONDS)),
@@ -171,7 +191,7 @@ def _recognize(content, filename, pages, frozen):
     anchor = date.fromisoformat(frozen["anchor_date"])
     with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=selected.text_fast_path,
                     image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as source:
-        result = run_invoice(source, guarded(model_call), guarded(client.vision_call), config=config,
+        result = run_invoice(source, guarded(model_call), guarded(page_failure(client.vision_call)), config=config,
                              anchor_year=anchor.year, today=anchor)
     return records(result.pipeline.pages, filename)
 

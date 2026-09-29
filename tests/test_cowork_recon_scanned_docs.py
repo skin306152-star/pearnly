@@ -1005,6 +1005,54 @@ class NoInvoiceChargeAfterTheCheckClosed(unittest.TestCase):
 		charge.assert_not_called()
 
 
+class InvoiceReadsInTheVatCheck(unittest.TestCase):
+	"""第 17 轮 V03（2026-09-30）。"""
+
+	def test_a_twelve_digit_tax_id_gets_its_leading_zero_back(self):
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		self.assertEqual(invoice_ocr._tax("105541034263"), "0105541034263")
+		self.assertEqual(invoice_ocr._tax("0105541034263"), "0105541034263")
+		self.assertEqual(invoice_ocr._tax("0-1055-41034-26-3"), "0-1055-41034-26-3")  # 印了分隔符的原样
+		self.assertEqual(invoice_ocr._tax(""), "")
+
+	def test_a_day_and_month_read_the_wrong_way_round_are_swapped_into_the_report_month(self):
+		from pearnly_cowork.recon_center import vat_check
+
+		rows = [{"report_date": "2026-07-01"}, {"report_date": "2026-07-31"}]
+		records = [{"invoice_date": "2026-01-07"}, {"invoice_date": "2026-07-15"}, {"invoice_date": "2026-09-20"},
+			{"invoice_date": "2026-09-07"}]
+		self.assertEqual([record["invoice_date"] for record in vat_check.swapped_dates(records, rows)],
+			["2026-07-01", "2026-07-15", "2026-09-20", "2026-07-09"])
+
+	def test_an_unknown_page_becomes_a_page_failure_not_a_lost_file(self):
+		from pearnly_core.execution.errors import Uncertain
+		from pearnly_cowork.ocr.engine.contracts import ModelRequest, ProviderFailure
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		client = mock.Mock()
+		client.model_call.side_effect = Uncertain("read timeout")
+		captured = {}
+
+		def run_invoice(source, model_call, vision_call, **kwargs):
+			with self.assertRaises(ProviderFailure):
+				model_call(ModelRequest(stage="direct", page_number=3, attempt=0, model="m", prompt="p"))
+			captured["timeout"] = client.model_call.call_args.args[0].timeout_s
+			return mock.Mock(pipeline=mock.Mock(pages=[]))
+
+		frozen = {"environment": {}, "policy": {}, "target": dict.fromkeys(("backend", "project", "location",
+			"credentials_path")), "anchor_date": "2026-07-01"}
+		with mock.patch.object(invoice_ocr, "build_client", return_value=client), \
+				mock.patch.object(invoice_ocr, "invoice_policy", return_value=mock.Mock(text_fast_path=False)), \
+				mock.patch.object(invoice_ocr, "config_from_environment"), \
+				mock.patch.object(invoice_ocr, "PageSource", mock.MagicMock()), \
+				mock.patch.object(invoice_ocr, "run_invoice", side_effect=run_invoice), \
+				mock.patch.object(invoice_ocr, "records", return_value=[]), \
+				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock()):
+			invoice_ocr._recognize(b"x", "a.pdf", 25, frozen)
+		self.assertEqual(captured["timeout"], invoice_ocr.MODEL_TIMEOUT_SECONDS)
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 
