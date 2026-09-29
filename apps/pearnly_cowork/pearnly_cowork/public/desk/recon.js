@@ -142,12 +142,11 @@
 				...slot("left"),
 				{ fieldtype: "Column Break" },
 				...slot("right"),
-				{ fieldtype: "Section Break" },
-				{ fieldtype: "Data", fieldname: "title", label: t("cowork.recon.col.title") },
 			]);
+			// 不另填任务名称（用户 2026-09-30：只用于显示、没用）：后台用上传的前两个文件名作任务名称。
 			page.set_primary_action(t("cowork.recon.start"), async () => {
 				if (!chosen.left || !chosen.right) { frappe.msgprint(t("cowork.recon.bothFiles")); return; }
-				await run(chosen, form.get_value("title") || "");
+				await run(chosen, "");
 			});
 			page.set_secondary_action(__("Cancel"), () => frappe.set_route(root));
 		}
