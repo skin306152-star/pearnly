@@ -159,7 +159,14 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 	_same_month_years(rows)
 	first = (pages[0].get("document") or {}) if pages else {}
 	last = (pages[-1].get("document") or {}) if pages else {}
+	documents = [page.get("document") or {} for page in pages]
+	bank_name = next((str(item.get("bank_name") or "").strip() for item in documents if item.get("bank_name")), "")
+	number = next((str(item.get("account_last4") or item.get("account_number") or "") for item in documents
+		if item.get("account_last4") or item.get("account_number")), "")
+	digits = "".join(char for char in number if char.isdigit())
 	return {"ok": bool(rows), "rows": rows, "row_count": len(rows), "enterprise": True,
+		# 读出的是哪家银行、账号尾号：同一侧几份账单不一致时提示混入了别的账户（2026-09-29 压测 B05-02）。
+		"identity": {"bank": bank_name, "last4": digits[-4:]},
 		"opening": bank_parse.to_float(first.get("opening_balance")),
 		"closing": bank_parse.to_float(last.get("closing_balance")), "bank_code": "",
 		"accounts": sorted({row.account_code for row in rows}) if document_type == "general_ledger" else [],

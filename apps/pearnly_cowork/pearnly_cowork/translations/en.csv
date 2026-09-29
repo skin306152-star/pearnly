@@ -1024,6 +1024,7 @@ There is not enough balance to recognize the image and PDF invoices. Top up and 
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
+These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
@@ -1991,6 +1992,7 @@ reconciliation.rows_invalid,Some rows in the file could not be understood. Check
 reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.statement_all_outside,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
+reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.
 reconciliation.system_busy,The system is busy and the reconciliation was not finished. Please try again shortly.

@@ -188,6 +188,9 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	statement = _merged_statement([result for _name, result in statements])
+	mixed = other_accounts(statements)
+	if mixed:
+		warnings = list(warnings or []) + [_("reconciliation.statement_other_account").format("、".join(mixed))]
 	unread = [name for name, result in statements + ledgers if not result.get("ok")]
 	if unread:
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
@@ -257,7 +260,24 @@ def _line_key(row):
 	return (row.date, round(row.deposit or 0, 2), round(row.withdrawal or 0, 2), round(row.balance or 0, 2))
 
 
-def chain_files(files):
+def other_accounts(statements):
+	"""同一侧几份账单读出的银行（或账号尾号）不一致：少数那几份多半是混进来的别的账户，点名给用户。"""
+	from collections import Counter
+
+	keys = {}
+	for name, result in statements:
+		identity = result.get("identity") or {} if result.get("ok") else {}
+		bank = bank_parse.detect_bank(identity.get("bank") or "")
+		keys[name] = (bank if bank != "generic" else "", identity.get("last4") or "")
+	for index in (0, 1):
+		values = Counter(key[index] for key in keys.values() if key[index])
+		if len(values) > 1:
+			common = values.most_common(1)[0][0]
+			return [name for name, key in keys.items() if key[index] and key[index] != common]
+	return []
+
+
+def chain_files(files, boundaries=None):
 	"""几张照片 / 几份账单接成一条余额链：每份内部保持原顺序，份与份按「这份（去掉已有的重叠行后）第一行
 	倒推的期初 = 已接好的最后一行余额」衔接，从日期最早的一份开始；接不上的按日期接在后面。
 
@@ -299,7 +319,10 @@ def chain_files(files):
 				chosen, joined = rows, True
 				break
 		if not joined:
-			_mend_last_line(merged, [row for row in chosen if not (row.balance and _line_key(row) in seen)])
+			fresh = [row for row in chosen if not (row.balance and _line_key(row) in seen)]
+			_mend_last_line(merged, fresh)
+			if boundaries is not None and fresh:
+				boundaries.append(fresh[0])
 		remaining.remove(chosen)
 		append(chosen)
 	return merged
@@ -330,7 +353,8 @@ def _merged_statement(results):
 	if len(results) == 1:
 		return read[0]
 	rows, opening, closing, bank_code = bank_recon_merge.merge_statements(list(results))
-	chained = chain_files([result.get("rows") or [] for result in read])
+	boundaries = []
+	chained = chain_files([result.get("rows") or [] for result in read], boundaries)
 	if chained:
 		rows, first = chained, chained[0]
 		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
@@ -338,7 +362,14 @@ def _merged_statement(results):
 		# 接好之后整条再定案一次：每张照片的第一行单独定案时没有前一行可比（B05 KBank8229：手续费 685 读成存入）。
 		from pearnly_cowork.reconciliation.bank_intake import repair_balance_from_neighbours
 
+		# 接不上的交界行（前后两张照片之间缺了东西，或混进了别的账户）不按跨照片的余额差补金额：金额反推允许 30%
+		# 的差，B05-02 把 BBL 存折首行补成了 2,678,117.31（接的是 KBank 的余额）。定案后还原它们印出的金额。
+		printed = [(row, row.deposit, row.withdrawal, row.direction_autocorrected) for row in boundaries]
 		rows = bank_statement.finalize_rows(rows, opening)
+		for row, deposit, withdrawal, flipped in printed:
+			if (row.deposit, row.withdrawal) != (deposit, withdrawal) and getattr(row, "amount_autocorrected", False):
+				row.deposit, row.withdrawal, row.amount_autocorrected = deposit, withdrawal, False
+				row.direction_autocorrected = flipped
 		repair_balance_from_neighbours(rows, opening)
 	completeness = [result.get("completeness") or {} for result in read]
 	return {"ok": True, "rows": rows, "row_count": len(rows), "opening": opening, "closing": closing,

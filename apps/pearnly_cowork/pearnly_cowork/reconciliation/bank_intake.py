@@ -149,6 +149,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	"""
 	ext = extension(filename)
 	bank_code = _adopted("", filename)
+	identity = None
 	rows: List[StatementRow] = []
 	opening = 0.0
 	closing = 0.0
@@ -202,6 +203,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 				bank_code = model.get("bank_code") or bank_code
 				printed_totals = model.get("printed_totals")
 				source = "enterprise" if model.get("enterprise") else "model"
+				identity = model.get("identity")
 				completeness = None  # 模型路的完整性用下面的交叉校验重算
 
 	if not rows:
@@ -279,6 +281,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		"needs_review": bool(balance_warn_count or low_conf_count or amount_fixed_count
 			or not completeness["ok"]),
 	}
+	if identity:
+		result["identity"] = identity
 	if method_divergence:
 		result["method_divergence"] = method_divergence
 	if escalations:

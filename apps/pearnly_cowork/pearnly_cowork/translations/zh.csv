@@ -1024,6 +1024,7 @@ There is not enough balance to recognize the image and PDF invoices. Top up and 
 There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
+These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
@@ -1991,6 +1992,7 @@ reconciliation.rows_invalid,文件里有读不懂的行，请检查文件格式
 reconciliation.rows_too_many,行数超过上限，请分成几份再对账
 reconciliation.run_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.statement_all_outside,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
+reconciliation.statement_other_account,这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。
 reconciliation.system_busy,系统繁忙，这次对账没有完成，请稍后重试。

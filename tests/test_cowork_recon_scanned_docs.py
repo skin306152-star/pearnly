@@ -496,6 +496,30 @@ class SeveralFilesPerSide(unittest.TestCase):
 		kept = bank_recon_service._merged_statement([plain, second])
 		self.assertEqual(kept["rows"][1].balance, 562264.36)
 
+	def test_statements_of_another_account_are_named(self):
+		# B05-02：KBank 存折里混进两张 BBL 存折。
+		from pearnly_cowork.reconciliation.bank_recon_service import other_accounts
+
+		def read(bank, last4=""):
+			return {"ok": True, "identity": {"bank": bank, "last4": last4}}
+
+		statements = [("1.jpg", read("KASIKORNBANK")), ("2.jpg", read("ธนาคารกสิกรไทย")), ("3.jpg", read("KASIKORNBANK")),
+			("148266.jpg", read("ธนาคารกรุงเทพ")), ("148267.jpg", read("ธนาคารกรุงเทพ")), ("x.jpg", {"ok": False})]
+		self.assertEqual(other_accounts(statements), ["148266.jpg", "148267.jpg"])
+		self.assertEqual(other_accounts([("a.jpg", read("", "8229")), ("b.jpg", read("", "8229")), ("c.jpg", read("", "0555"))]),
+			["c.jpg"])
+		self.assertEqual(other_accounts(statements[:3]), [])
+
+	def test_an_unjoined_photo_keeps_its_printed_first_amount(self):
+		# 接不上的交界行不按跨照片的余额差补金额（B05-02 把 BBL 首行补成了 2,678,117.31）。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		kbank = self.statement([(date(2026, 2, 1), "a", 0.0, 10.0, 2122630.24), (date(2026, 2, 2), "b", 5.0, 0.0, 2122625.24)])
+		bbl = self.statement([(date(2026, 2, 3), "c", 0.0, 2821224.30, 4800747.55), (date(2026, 2, 4), "d", 0.0, 11652.30, 4812399.85)])
+		merged = bank_recon_service._merged_statement([kbank, bbl])
+		self.assertEqual(merged["rows"][2].deposit, 2821224.30)
+		self.assertFalse(merged["rows"][2].amount_autocorrected)
+
 	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
 
