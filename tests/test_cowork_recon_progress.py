@@ -60,6 +60,24 @@ class Progress(unittest.TestCase):
 				"s.pdf", 1)["date"], "")
 		self.assertIsNone(progress.page_summary({"entries": []}, "stmt.pdf", 6))
 
+	def test_a_page_with_imputed_lines_shows_no_amount(self):
+		# 压测第 26 轮 B01 IMG_2485：本地拼行「算平」了，但最后一笔是为接上读错的余额补出来的
+		document = {"entries": [{"transaction_date": "2026-05-06", "deposit": "200449.37", "chain_amount_imputed": True},
+			{"transaction_date": "2026-05-06", "deposit": "450.00"}]}
+		item = progress.page_summary(document, "IMG_2485.JPG", 1)
+		self.assertEqual((item["rows"], item["amount"], item["date"]), (2, "", ""))
+
+	def test_a_read_that_reached_reading_never_shows_queued_again(self):
+		# 压测第 26 轮 B01 IMG_2492：还没读到字就让出，read/done 都是 0，原来退回「排队中」
+		progress.update("F1", name="IMG_2492.JPG", pages=1, state="waiting", work="W1")
+		db = mock.MagicMock()
+		with mock.patch.object(progress.frappe, "db", db):
+			db.get_value.return_value = mock.Mock(status="running", creation="2026-09-30 06:00:00")
+			first = progress.job_view("job", {"stage": "statement", "files": [{"file": "F1", "side": "left"}]})
+			db.get_value.return_value = mock.Mock(status="queued", creation="2026-09-30 06:00:00")
+			second = progress.job_view("job", {"stage": "statement", "files": [{"file": "F1", "side": "left"}]})
+		self.assertEqual((first["files"][0]["state"], second["files"][0]["state"]), ("reading", "reading"))
+
 	def test_progress_never_goes_backwards(self):
 		# 压测第 25 轮 B01：两个进程同时写，(done,1,1) 被旧的 (waiting,0,0) 盖回去
 		progress.update("F1", name="a.jpg", pages=1, state="waiting")

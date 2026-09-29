@@ -115,6 +115,10 @@ def latest_items(job):
     return _read(_latest_key(job), [])
 
 
+# 本地拼行给行打的「这一笔是补算 / 纠正出来的」标记。
+ADJUSTED = ("chain_amount_imputed", "chain_repaired", "review_required")
+
+
 def _plain_date(value):
     """规范成 年-月-日；读出来的年份不像（两位年没换算成 1983 之类、差出一年以上）就不显示。"""
     import datetime
@@ -135,6 +139,10 @@ def page_summary(document, name, page, amounts=True):
     entries = (document or {}).get("entries") or []
     if not entries:
         return None
+    if any(entry.get(flag) for entry in entries for flag in ADJUSTED):
+        # 这一页有余额链补算 / 自动更正的行：链「算平」是补出来的，金额不一定是原件上的（2026-09-30 压测第 26 轮 B01
+        # IMG_2485：200,449.37 是为接上读错的余额补出来的），只说读出几笔。
+        amounts = False
     last = entries[-1]
     kind, amount = "", ""
     for field in ("deposit", "withdrawal", "debit", "credit", "total", "subtotal", "amount") if amounts else ():
@@ -173,7 +181,9 @@ def view(job, files):
         work = current.get("work")
         if work and entry["state"] not in ("done", "failed"):
             row = frappe.db.get_value(WORK, work, ["status", "creation"], as_dict=True)
-            started = entry["read"] or entry["done"] or entry["state"] == "reading"
+            started = entry["read"] or entry["done"] or entry["state"] == "reading" or (row and row.status == "running")
+            if row and row.status == "running" and entry["state"] != "reading":
+                advance(item.get("file"), state="reading")  # 到过「读取中」就记下，让出续跑时不退回排队
             # 已经开始读的，识别任务到点让出续跑时照旧算「读取中」，不闪回「排队中」（2026-09-30 压测第 25 轮 BAY）。
             if row and row.status in ("queued", "deferred") and not started:
                 entry["state"] = "queued"

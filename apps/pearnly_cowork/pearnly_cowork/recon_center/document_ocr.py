@@ -224,6 +224,7 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
             return callback(*args, **kwargs)
         return invoke
 
+    _progress(file, state="reading")  # 识别一开始就算读取中（状态只往前走，让出续跑时不退回排队）
     # 看板进度（``progress``）：这次运行里从 0 数起（续跑时已完成的调用从检查点取回、照样经过这里），写进去取较大的。
     counted = {"read": 0, "done": 0}
 
