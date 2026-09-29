@@ -1,6 +1,6 @@
-"""对账三类文档的扫描件与照片（2026-09-29）：逐页取字 → 文档识别 → 同一套行与校验。
+"""对账三类文档的扫描件与照片（2026-09-29）：企业档 Document AI 读字 → 本地拼行 / 3.8 契约抽取 → 同一套行。
 
-模型与 Vision 都是假的，不连服务商、不付费；页面来源用假对象，不渲染真 PDF。
+Document AI 与模型都是假的，不连服务商、不付费；页面来源用假对象，不渲染真 PDF。
 """
 import json
 import unittest
@@ -8,27 +8,30 @@ from unittest import mock
 
 import frappe
 
-from pearnly_cowork.ocr.engine import document_tier
-from pearnly_cowork.ocr.engine.contracts import Frame, ModelResponse, VisionResponse
+from pearnly_cowork.ocr.engine.contracts import Frame, ModelResponse
 from pearnly_cowork.ocr.engine.errors import ContentError
-from pearnly_cowork.ocr.schema.evidence import Page
+from pearnly_cowork.ocr.enterprise import contract, pages as enterprise_pages, pipeline
 from pearnly_cowork.recon_center import document_ocr, sources
 
 
-def bank_page(opening, entries, closing=""):
-	return {"document_type": "bank_statement", "bank_name": "Bangkok Bank", "opening_balance": opening,
-		"closing_balance": closing, "entries": [
-			{"transaction_date": date, "description": text, "deposit": deposit, "withdrawal": withdrawal,
-			 "balance": balance} for date, text, deposit, withdrawal, balance in entries]}
+def payload(*texts):
+	"""A Document AI answer for one read: one page per text, anchored into the document text."""
+	full, page_list, start = "", [], 0
+	for number, text in enumerate(texts, 1):
+		full += text
+		page_list.append({"pageNumber": number, "layout": {"textAnchor": {"textSegments": [
+			{"startIndex": str(start), "endIndex": str(start + len(text))}]}}})
+		start += len(text)
+	return {"document": {"text": full, "pages": page_list}}
 
 
-VAT_PAGE = {"document_type": "vat_report", "seller_name": "ACME", "entries": [
-	{"seq_no": "1", "transaction_date": "2026-06-01", "invoice_no": "IV001", "customer_name": "B Co",
-	 "customer_tax": "0105556012345", "customer_branch": "00000", "subtotal": "1000.00", "vat": "70.00",
-	 "total": "1070.00"}]}
-GL_PAGE = {"document_type": "general_ledger", "entries": [
-	{"transaction_date": "2026-06-01", "voucher_no": "IV001", "account_code": "4110", "description": "sale",
-	 "credit": "1000.00", "balance": "1000.00"}]}
+class FakeDocumentAi:
+	def __init__(self, *answers):
+		self.answers, self.calls = list(answers), []
+
+	def __call__(self, content, mime, *, expected_pages, page_number=1):
+		self.calls.append((mime, expected_pages))
+		return self.answers[len(self.calls) - 1], 1, "key"
 
 
 class FakeModel:
@@ -37,87 +40,93 @@ class FakeModel:
 
 	def __call__(self, request):
 		self.requests.append(request)
-		payload = self.payloads[min(len(self.requests) - 1, len(self.payloads) - 1)]
-		return ModelResponse(text=json.dumps(payload), raw={}, input_tokens=1, output_tokens=1, model=request.model)
+		data = self.payloads[min(len(self.requests) - 1, len(self.payloads) - 1)]
+		return ModelResponse(text=json.dumps(data), raw={}, input_tokens=10, output_tokens=5, model=request.model)
 
 
-class FakeSource:
-	"""页面来源：``texts`` 为 None 表示没有文字层（整份扫描件）。"""
-
-	def __init__(self, count, texts=None):
-		self.page_count, self.rendered = count, []
-		self.text_pages = None if texts is None else tuple(
-			Page(page_number=index, width=0, height=0, full_text=text, avg_confidence=1.0, blocks=[])
-			for index, text in enumerate(texts, 1))
-
-	def frame(self, number):
-		self.rendered.append(number)
-		return Frame(image_bytes=b"png-%d" % number, mime_type="image/png")
+VAT_PAGE = {"seller_name": "ACME", "seller_tax": "", "period_year": "2026", "period_month": "06", "total_subtotal": "",
+	"total_vat": "", "total_total": "", "entries": [
+		{"seq_no": "1", "transaction_date": "2026-06-01", "invoice_no": "IV001", "customer_name": "B Co",
+		 "customer_tax": "0105556012345", "customer_branch": "00000", "subtotal": "1000.00", "vat": "70.00",
+		 "total": "1070.00"}]}
 
 
-def vision(frame, *, stage, page_number):
-	return VisionResponse(page=Page(page_number=page_number, width=1, height=1,
-		full_text=f"vision text of page {page_number}", avg_confidence=0.9, blocks=[]), raw={})
+class Rendered:
+	def __init__(self):
+		self.pages = []
+
+	def __call__(self, number):
+		self.pages.append(number)
+		return b"png-%d" % number, "image/png"
 
 
-class ReadPages(unittest.TestCase):
-	def test_a_multi_page_statement_is_merged_into_one_document(self):
-		model = FakeModel(bank_page("1000.00", [("2026-06-01", "fee", "", "100.00", "900.00")]),
-			bank_page("", [("2026-06-02", "deposit", "500.00", "", "1400.00")], closing="1400.00"))
-		legacy, warnings = document_tier.read_pages("bank_statement",
-			[(1, "page one", ()), (2, "page two", ())], model, model="strong")
-		document = legacy["pages"][0]["document"]
-		self.assertEqual(len(legacy["pages"]), 1)
-		self.assertEqual([entry["balance"] for entry in document["entries"]], ["900.00", "1400.00"])
-		self.assertEqual((document["opening_balance"], document["closing_balance"]), ("1000.00", "1400.00"))
-		# 续页没印期初：接上一页最后余额，余额链不断，不付钱升级重读
-		self.assertEqual(len(model.requests), 2)
-		self.assertEqual({request.model for request in model.requests}, {"strong"})
-
-	def test_ledger_and_vat_pages_stay_one_per_page(self):
-		legacy, _ = document_tier.read_pages("vat_report", [(1, "a", ()), (2, "b", ())], FakeModel(VAT_PAGE))
-		self.assertEqual([page["page_number"] for page in legacy["pages"]], [1, 2])
+class EnterprisePipeline(unittest.TestCase):
+	def test_a_vat_report_goes_page_by_page_through_the_frozen_contract(self):
+		docai, model, render = FakeDocumentAi(payload("page one text", "page two text")), FakeModel(VAT_PAGE), Rendered()
+		result = pipeline.run("vat", page_count=2, reads=[(b"%PDF", "application/pdf", 2)], render=render,
+			document_ai_call=docai, model_call=model)
+		self.assertEqual(docai.calls, [("application/pdf", 2)])
+		self.assertEqual(render.pages, [1, 2])
+		first = model.requests[0]
+		self.assertEqual((first.model, first.thinking, first.max_output_tokens),
+			(contract.MODEL, contract.THINKING_LEVEL, contract.MAX_OUTPUT_TOKENS))
+		self.assertEqual(first.response_schema, contract.SCHEMAS["vat"])
+		self.assertEqual(first.images, ((b"png-1", "image/png"),))
+		self.assertIn("page one text", first.prompt)
+		self.assertIn("page two text", model.requests[1].prompt)
+		legacy = pipeline.to_legacy(result)
+		self.assertEqual(legacy["engine"], "enterprise-2026-09-03-v1")
+		self.assertEqual([page["document_type"] for page in legacy["pages"]], ["vat_report", "vat_report"])
 		self.assertEqual(legacy["pages"][0]["document"]["entries"][0]["invoice_no"], "IV001")
+		# Document AI 按页计：0.0015 美元 × 35
+		self.assertAlmostEqual(result.estimated_cost_thb, 2 * 0.0015 * 35)
 
-	def test_a_blank_page_is_skipped_and_an_all_blank_file_is_unreadable(self):
-		model = FakeModel(GL_PAGE)
-		legacy, _ = document_tier.read_pages("general_ledger", [(1, " ", ()), (2, "text", ())], model)
-		self.assertEqual([page["page_number"] for page in legacy["pages"]], [2])
+	def test_a_statement_the_geometry_cannot_balance_is_extracted_on_every_page(self):
+		bank_page = {"bank_name": "", "account_number": "", "period_start": "", "period_end": "", "opening_balance": "1000",
+			"closing_balance": "900", "total_deposit": "", "total_withdrawal": "", "entries": [
+				{"transaction_date": "2026-06-01", "description": "fee", "reference": "", "deposit": "", "withdrawal": "100",
+				 "balance": "900"}]}
+		model, render = FakeModel(bank_page), Rendered()
+		result = pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=render,
+			document_ai_call=FakeDocumentAi(payload("no geometry here")), model_call=model)
+		self.assertEqual(render.pages, [1])
 		self.assertEqual(len(model.requests), 1)
+		self.assertEqual(result.pages[0].document.entries[0].withdrawal, "100")
+
+	def test_an_unreadable_extraction_fails_the_file(self):
 		with self.assertRaises(ContentError):
-			document_tier.read_pages("general_ledger", [(1, "", ())], FakeModel(GL_PAGE))
+			pipeline.run("vat", page_count=1, reads=[(b"img", "image/png", 1)], render=Rendered(),
+				document_ai_call=FakeDocumentAi(payload("x")), model_call=FakeModel([]))
 
-	def test_the_page_picture_goes_with_the_text_when_given(self):
-		model = FakeModel(VAT_PAGE)
-		document_tier.read_pages("vat_report", [(1, "text", ((b"img", "image/png"),))], model)
-		self.assertEqual(model.requests[0].images, ((b"img", "image/png"),))
+	def test_pdf_chunks_are_at_most_fifteen_pages(self):
+		import pymupdf
+
+		with pymupdf.open() as document:
+			for _ in range(32):
+				document.new_page()
+			content = document.tobytes()
+		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 32)], [15, 15, 2])
+
+	def test_page_texts_follow_the_anchors(self):
+		self.assertEqual([page.text for page in enterprise_pages.page_texts(payload("aa", "bbb"))], ["aa", "bbb"])
+		with self.assertRaises(ContentError):
+			enterprise_pages.page_texts({"document": {"text": "", "pages": []}})
 
 
-class DocumentOcrPages(unittest.TestCase):
-	def test_a_scan_is_rendered_page_by_page_and_read_from_vision_text(self):
-		source, model = FakeSource(3), FakeModel(GL_PAGE)
-		legacy = document_ocr.read_pages(source, "general_ledger", model, vision, model="m", escalated_model="m")
-		self.assertEqual(source.rendered, [1, 2, 3])
-		self.assertEqual(len(legacy["pages"]), 3)
-		self.assertIn("vision text of page 2", model.requests[1].prompt)
-		# 多页扫描件只送文字（旧线上 Vision 路），不把每页图都塞给模型
-		self.assertTrue(all(request.images == () for request in model.requests))
+class DocumentOcrReadFile(unittest.TestCase):
+	def test_an_image_is_read_once_and_rendered_only_for_extraction(self):
+		class Source:
+			page_count = 1
 
-	def test_a_single_photo_is_read_with_its_picture(self):
-		source, model = FakeSource(1), FakeModel(VAT_PAGE)
-		document_ocr.read_pages(source, "vat_report", model, vision, model="m", escalated_model="m")
-		self.assertEqual(model.requests[0].images, ((b"png-1", "image/png"),))
+			def frame(self, number):
+				return Frame(image_bytes=b"oriented", mime_type="image/jpeg")
 
-	def test_an_electronic_pdf_uses_its_text_layer_without_vision(self):
-		source, model = FakeSource(2, texts=["page one text", "page two text"]), FakeModel(GL_PAGE)
-		document_ocr.read_pages(source, "general_ledger", model, vision, model="m", escalated_model="m")
-		self.assertEqual(source.rendered, [])
-		self.assertIn("page one text", model.requests[0].prompt)
-
-	def test_rows_found_decides_billing(self):
-		self.assertTrue(document_ocr._rows_found({"pages": [{"document": {"entries": [{}]}}]}))
+		docai, model = FakeDocumentAi(payload("vat text")), FakeModel(VAT_PAGE)
+		legacy = document_ocr.read_file(Source(), b"raw", False, "image/jpeg", "vat_report", docai, model)
+		self.assertEqual(docai.calls, [("image/jpeg", 1)])
+		self.assertEqual(model.requests[0].images, ((b"oriented", "image/jpeg"),))
+		self.assertTrue(document_ocr._rows_found(legacy))
 		self.assertFalse(document_ocr._rows_found({"pages": [{"document": {"entries": []}}]}))
-		self.assertFalse(document_ocr._rows_found(None))
 
 
 class SourcesRouteToTheReader(unittest.TestCase):
@@ -129,21 +138,17 @@ class SourcesRouteToTheReader(unittest.TestCase):
 			return legacy
 		return read, calls
 
-	def test_a_photo_of_a_ledger_and_of_a_vat_report_go_to_the_reader(self):
-		read, calls = self.reader({"pages": [{"document": GL_PAGE}]})
-		self.assertEqual(sources.ledger_source(b"img", "gl.jpg", read)["kind"], "pipeline")
-		read, calls2 = self.reader({"pages": [{"document": VAT_PAGE}]})
-		self.assertEqual(sources.report_source(b"img", "vat.png", read)["kind"], "pipeline")
-		self.assertEqual((calls[0][0], calls2[0][0]), ("general_ledger", "vat_report"))
-
-	def test_a_scanned_pdf_goes_to_the_reader(self):
-		read, calls = self.reader({"pages": [{"document": VAT_PAGE}]})
+	def test_photos_and_scans_go_to_the_reader_with_the_engine(self):
+		legacy = {"pages": [{"document": VAT_PAGE}], "engine": "enterprise-2026-09-03-v1"}
+		read, calls = self.reader(legacy)
+		source = sources.report_source(b"img", "vat.png", read)
+		self.assertEqual((source["kind"], source["engine"]), ("pipeline", "enterprise-2026-09-03-v1"))
 		with mock.patch.object(sources.document_tier, "text_pages", return_value=["", ""]):
-			self.assertEqual(sources.report_source(b"%PDF", "vat.pdf", read)["kind"], "pipeline")
-		self.assertEqual(calls, [("vat_report", "vat.pdf")])
+			self.assertEqual(sources.ledger_source(b"%PDF", "gl.pdf", read)["kind"], "pipeline")
+		self.assertEqual([call[0] for call in calls], ["vat_report", "general_ledger"])
 
 	def test_an_electronic_vat_report_with_enough_rows_is_read_for_free(self):
-		read, calls = self.reader({"pages": [{"document": VAT_PAGE}]})
+		read, calls = self.reader({"pages": []})
 		lines = "รายงานภาษีขาย บริษัท ทดสอบ จำกัด เดือน มิถุนายน 2569 " * 8 + "\n" + "\n".join(
 			f"0{day}/06/2569 IV00{day} OHANAHAN 1,000.00 70.00" for day in range(1, 5))
 		with mock.patch.object(sources.document_tier, "text_pages", return_value=[lines]):
@@ -159,20 +164,38 @@ class SourcesRouteToTheReader(unittest.TestCase):
 
 
 class BankSeam(unittest.TestCase):
-	def test_the_bank_seam_uses_the_durable_reader(self):
+	def test_enterprise_rows_are_final_and_keep_every_page(self):
 		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
 			document_model_rows,
 		)
-		legacy = document_tier.document_to_legacy(document_tier.decode_document("bank_statement", bank_page(
-			"1000.00", [("2026-06-01", "fee", "", "100.00", "900.00"), ("2026-06-02", "in", "500.00", "", "1400.00"),
-			("2026-06-03", "out", "", "400.00", "1000.00")], closing="1000.00")), "bank_statement")
-		seen = []
-		rows = document_model_rows(read=lambda document_type, content, filename: seen.append(document_type) or legacy)
-		result = rows("bank_statement", b"img", "stmt.jpg")
-		self.assertEqual(seen, ["bank_statement"])
-		self.assertTrue(result["ok"])
-		self.assertEqual(len(result["rows"]), 3)
+		legacy = {"engine": "enterprise-2026-09-03-v1", "_needs_review": False, "pages": [
+			{"needs_manual_review": False, "document": {"opening_balance": "1000", "closing_balance": "900", "entries": [
+				{"transaction_date": "2026-06-01", "description": "fee", "withdrawal": "100", "deposit": "",
+				 "balance": "900", "chain_amount_imputed": True}]}},
+			{"needs_manual_review": True, "document": {"opening_balance": "900", "closing_balance": "1400", "entries": [
+				{"transaction_date": "2026-06-02", "description": "in", "withdrawal": "", "deposit": "500",
+				 "balance": "1400"}]}}]}
+		result = document_model_rows(read=lambda *_args: legacy)("bank_statement", b"img", "stmt.jpg")
+		self.assertTrue(result["enterprise"])
+		self.assertEqual((result["opening"], result["closing"], result["row_count"]), (1000.0, 1400.0, 2))
+		self.assertEqual([row.confidence for row in result["rows"]], ["medium", "low"])
+		self.assertTrue(result["rows"][0].amount_autocorrected)
 		self.assertIsNone(document_model_rows()("bank_statement", b"img", "stmt.jpg"))
+
+	def test_the_intake_does_not_repair_enterprise_rows_again(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
+			enterprise_rows,
+		)
+		from pearnly_cowork.reconciliation import bank_intake
+
+		legacy = {"engine": "enterprise-2026-09-03-v1", "pages": [{"document": {"opening_balance": "1000",
+			"closing_balance": "900", "entries": [{"transaction_date": "2026-06-01", "description": "x",
+			"withdrawal": "100", "deposit": "", "balance": "900"}]}}]}
+		model = enterprise_rows(legacy, "bank_statement", "stmt.jpg")
+		with mock.patch.object(bank_intake.bank_statement, "finalize_rows", side_effect=AssertionError("repaired twice")):
+			result = bank_intake.read_statement_file(b"img", "stmt.jpg", model_rows=lambda *_a: model)
+		self.assertTrue(result["ok"])
+		self.assertEqual(result["source"], "enterprise")
 
 
 if __name__ == "__main__":

@@ -9,8 +9,8 @@
   才走识别管线（vat_report）；扫描 PDF 与照片直接走识别管线。
 
 识别管线（`read`）由对账后台任务注入：每份文件一个持久识别任务（`recon_center.document_ocr`），
-扫描件逐页渲染取字、照片看原图（2026-09-29 迁入；原来扫描件与照片一律报“读不出来”，
-带文字层的总账 PDF 调模型又不在识别任务里，整单失败）。没注入（不在后台任务里）就只有免费读取。
+走旧线上的企业档（Document AI 读字 + 本地拼行，算不平 / 税报才 3.8 看图抽取；2026-09-29 迁入；原来扫描件与照片一律报
+“读不出来”，带文字层的总账 PDF 调模型又不在识别任务里，整单失败）。没注入（不在后台任务里）就只有免费读取。
 
 与旧线上的差别（如实记录）：新平台只有 pypdf，没有 pdfplumber 的表格抽取，PDF 只走文字层。
 """
@@ -37,7 +37,10 @@ IMAGES = ("png", "jpg", "jpeg", "webp", "tiff", "tif", "bmp", "gif")
 
 def _pipeline(read, document_type, content, filename):
     decoded = read(document_type, content, filename) if read is not None else None
-    return {"kind": "pipeline", "decoded": decoded} if decoded else None
+    if not decoded:
+        return None
+    # 企业档结果带引擎名：税表解码按旧线上口径保留没有字母数字单号的行（`vat_parse.pipeline_rows`）。
+    return {"kind": "pipeline", "decoded": decoded, "engine": decoded.get("engine") or ""}
 
 
 def ledger_source(content, filename, read=None):

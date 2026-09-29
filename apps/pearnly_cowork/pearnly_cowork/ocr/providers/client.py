@@ -176,6 +176,10 @@ class ProviderClient:
                 config["thinkingConfig"] = {"thinkingLevel": "LOW" if model.lower().startswith("gemini-3.8") else "MINIMAL"}
         if request.thinking and not model.lower().startswith("gemini-2.5"):
             config["thinkingConfig"] = {"thinkingLevel": request.thinking}
+        if request.response_schema is not None:
+            if not isinstance(request.response_schema, dict) or not request.response_mime:
+                raise ProviderConfigurationError("ocr.invalid_model_request")
+            config["responseJsonSchema"] = deepcopy(request.response_schema)
         payload = {"contents": [{"role": "user", "parts": parts}], "generationConfig": config}
         host = "aiplatform.googleapis.com" if location == "global" else location + "-aiplatform.googleapis.com"
         url = f"https://{host}/v1/projects/{quote(self.project, safe='')}/locations/{quote(location, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent"
@@ -190,6 +194,32 @@ class ProviderClient:
         return ModelResponse(text=text, raw=body, input_tokens=int(usage.get("promptTokenCount", 0) or 0),
             output_tokens=int(usage.get("candidatesTokenCount", 0) or 0) + int(usage.get("thoughtsTokenCount", 0) or 0),
             model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
+
+    def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1):
+        """Pinned Document AI OCR of one PDF chunk (1–15 pages) or one image, inside the durable Work.
+
+        Source ``services/ai_gateway/providers/enterprise.process_raw`` + ``services/ocr/enterprise_reader.read``:
+        the pinned processor version, the deployed request body, the page-count check. The deployed
+        database request spacing (9 per minute) is replaced by Core's shared budget, which also defers
+        on 429 (a per-process fallback would multiply the quota, as the deployed comment warns).
+        """
+        from pearnly_cowork.ocr.enterprise import pages as enterprise_pages
+
+        if not isinstance(content, bytes) or not content or not isinstance(mime, str) or not mime:
+            raise ProviderConfigurationError("ocr.invalid_enterprise_input")
+        if type(expected_pages) is not int or not 1 <= expected_pages <= enterprise_pages.MAX_PAGES_PER_READ:
+            raise ProviderConfigurationError("ocr.invalid_enterprise_input")
+        location = (self.environment.get("ENTERPRISE_OCR_LOCATION") or enterprise_pages.LOCATION).strip()
+        processor = (self.environment.get("ENTERPRISE_OCR_PROCESSOR_ID") or enterprise_pages.PROCESSOR_ID).strip()
+        name = enterprise_pages.processor_name(self.project, processor, location)
+        body, elapsed, key, _ = self._send(url=f"https://{location}-documentai.googleapis.com/v1/{name}:process",
+            payload=enterprise_pages.request_body(content, mime), model=enterprise_pages.PROCESSOR_VERSION,
+            provider="documentai", location=location, stage=stage, page_number=page_number, attempt=0,
+            timeout_s=90)
+        texts = enterprise_pages.page_texts(body)  # validate before exposing geometry to reconstruction
+        if len(texts) != expected_pages:
+            raise ProviderError("ocr.enterprise_page_count_mismatch")
+        return body, elapsed, key
 
     def vision_call(self, frame, *, stage, page_number):
         content = frame.vision_bytes if frame.vision_bytes is not None else frame.image_bytes

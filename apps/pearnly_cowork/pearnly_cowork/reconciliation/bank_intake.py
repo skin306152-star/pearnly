@@ -159,7 +159,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 				closing = model.get("closing", closing)
 				bank_code = model.get("bank_code") or bank_code
 				printed_totals = model.get("printed_totals")
-				source = "model"
+				source = "enterprise" if model.get("enterprise") else "model"
 				completeness = None  # 模型路的完整性用下面的交叉校验重算
 
 	if not rows:
@@ -175,7 +175,9 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		row.source_file = filename
 
 	# 定案序列（跳汇总行 → 方向纠正 → 逐行核对 → 金额反推修复），顺序是正确性不变式。
-	rows = bank_statement.finalize_rows(rows, opening)
+	# 企业档的行已由本地拼行 / 契约抽取与余额链闸门定案（旧线上直接返回，不再修第二遍）。
+	if source != "enterprise":
+		rows = bank_statement.finalize_rows(rows, opening)
 
 	# 换眼重读：只有调用方给了"读一页"和页数（也就是有渲染/直读器件）才做。
 	escalations: List[Dict[str, Any]] = []

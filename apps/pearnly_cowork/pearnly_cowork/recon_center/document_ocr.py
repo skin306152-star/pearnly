@@ -2,22 +2,19 @@
 
 用户 2026-09-29（经「语料盘点与压测准备」窗口转达）：「旧项目能用，这里就要能用」—— 扫描 PDF 与手机照片原来一律读不出。
 
-旧线上（ec2e5c957e6b ``services/ocr/pipeline.py``）读长表文档的非企业档路：PDF 先试文字层（平均每页 ≥ 200 字才算），
-不够就按 200 DPI 逐页渲染、Google Vision 取字，再用文档提示词逐页读成行；只有一页的扫描件 / 照片由模型直接看图读。
-这里照同一路走：文字层 / Vision 文字 → ``document_tier.read_pages``（同一份提示词、列来源校验、余额链闸门与一次升级重读），
-一页的扫描件 / 照片把页面图一起给模型。旧线上另有企业档（Document AI 版面重建），三类文档当时是否走它取决于已删除的旧库配置，
-无法核实，这里不迁（见 docs/work/2026-09-29-cowork-recon-scanned-docs.md）。
+按旧线上实际在跑的路迁：2026-09-05 22:19 起旧线上把银行 / 总账 / 税报切到**企业档**（旧仓 ``docs/deployment/MIGRATION_STATUS.md``）：
+Google Document AI 读字（每页约 0.05 泰铢），银行与总账先按版面坐标在本地拼行，余额链算得平就直接用、不调大模型；
+算不平（以及税报，它没有本地拼行器）才逐页让 3.8 LOW 看原图 + 识别原文按冻结契约抽取。见 ``ocr.enterprise``。
+用户 2026-09-29 选定「迁企业档 Document AI」。
 
 执行：每份文件一个持久识别任务（Pearnly OCR Work，kind ``cowork.recon_document``），在识别工作进程里跑，与录入 / 销项税核查
 相同的冻结配置、限流、超时让出；服务商调用记在 Work 的检查点，重跑不重复付费。原来这条模型路直接在对账后台任务里调，
 服务商层要求在 Work 里（``ocr.durable_work_required``），需要模型的文件整单失败（2026-09-29 读代码发现，带文字层的收入总账 PDF 也中）。
 
-模型：三类文档都用识别配置里的升级档（旧线上把银行 / 总账 / 税报钉在强模型档：轻量档读长表余额链断点 40 处、强模型 2 处，
-``engine_policy.py`` 2026-07-22 真料记录）。
-
-计费：读出行的文件按页扣（与录入发票同价、同档位），参考号固定为 Work 名，重试只补记账不重复扣；读不出不扣。
+计费：读出行的文件按页扣（与录入发票同价、同档位；旧线上对账同样按页扣），参考号固定为 Work 名，重试只补记账不重复扣；读不出不扣。
 """
 import hashlib
+import io
 import time
 
 import frappe
@@ -27,13 +24,11 @@ from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, QueueFull
 
 from pearnly_cowork.files.service import inspect_content
-from pearnly_cowork.ocr.engine import document_tier
 from pearnly_cowork.ocr.engine.errors import ContentError
-from pearnly_cowork.ocr.engine.runner import page_text
+from pearnly_cowork.ocr.enterprise import pipeline as enterprise
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
 from pearnly_cowork.ocr.execution.access import WORK
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
-from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
 
 KIND = "cowork.recon_document"
@@ -43,7 +38,6 @@ TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 YIELD_SECONDS = 420
 WAIT_SECONDS = 25 * 60
 POLL_SECONDS = 3
-PAGE_TIMEOUT_SECONDS = 110
 IDENTITY = ("backend", "project", "location", "credentials_path")
 
 
@@ -52,7 +46,7 @@ IDENTITY = ("backend", "project", "location", "credentials_path")
 
 def submit(recon_job, side, file_name, filename, content, document_type, user):
     """建一个识别任务；文件不是 PDF / 图片返回 None。余额不足直接提示（不排一个注定顺延的任务）。"""
-    if not document_tier.admitted(document_type):
+    if document_type not in enterprise.CATEGORIES:
         return None
     try:
         info = inspect_content(filename, content)
@@ -110,28 +104,28 @@ def _rows_found(legacy):
     return any((page.get("document") or {}).get("entries") for page in (legacy or {}).get("pages") or [])
 
 
-def read_pages(source, document_type, model_call, vision_call, *, model, escalated_model):
-    """逐页：文字层有字就用，没有就渲染这一页送 Vision 取字；只有一页时把页面图一起给模型。"""
-    texts = source.text_pages
-    pages = []
-    for number in range(1, source.page_count + 1):
-        text = page_text(texts[number - 1]) if texts else ""
-        images = ()
-        if not str(text or "").strip():
-            frame = source.frame(number)
-            text = page_text(vision_call(frame, stage="layer1", page_number=number).page)
-            if source.page_count == 1:
-                images = ((frame.image_bytes, frame.mime_type),)
-            del frame  # 多页扫描件逐页释放渲染图，不攒在内存里
-        pages.append((number, text, images))
-    legacy, _warnings = document_tier.read_pages(document_type, pages, model_call, model=model,
-        escalated_model=escalated_model, timeout_s=PAGE_TIMEOUT_SECONDS)
-    return legacy
+def read_file(source, content, is_pdf, mime, document_type, document_ai_call, model_call):
+    """企业档读一份文件 → 旧线上管线结果形状（多页、带 engine）。页面图只在要 3.8 抽取时逐页渲染。"""
+    reads = enterprise.pdf_chunks(content, source.page_count) if is_pdf else [(content, mime, 1)]
+
+    def render(number):
+        frame = source.frame(number)
+        return frame.image_bytes, frame.mime_type
+
+    result = enterprise.run(enterprise.CATEGORIES[document_type], page_count=source.page_count, reads=reads,
+        render=render, document_ai_call=document_ai_call, model_call=model_call)
+    return enterprise.to_legacy(result)
+
+
+def _mime(content):
+    from PIL import Image
+
+    with Image.open(io.BytesIO(content)) as image:
+        return Image.MIME[image.format]
 
 
 def _read(content, filename, pages, frozen, document_type):
     environment = frozen["environment"]
-    selected = invoice_policy(environment, frozen["policy"])
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY})
     started = time.monotonic()
 
@@ -144,12 +138,12 @@ def _read(content, filename, pages, frozen, document_type):
             return callback(*args, **kwargs)
         return invoke
 
-    strong = selected.l3_model or selected.first_model
-    with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=True,
+    is_pdf = filename.lower().endswith(".pdf")
+    with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=False,
                     image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
                     orient=ocr.orient) as source:
-        return read_pages(source, document_type, guarded(client.model_call), guarded(client.vision_call),
-            model=strong, escalated_model=strong)
+        return read_file(source, content, is_pdf, None if is_pdf else _mime(content), document_type,
+            guarded(client.document_ai_call), guarded(client.model_call))
 
 
 def _charge(work_name, pages, frozen):

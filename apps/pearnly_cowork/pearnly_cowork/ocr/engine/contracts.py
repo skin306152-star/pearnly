@@ -39,6 +39,8 @@ class ModelRequest:
     response_mime: bool = True
     tier: str = ""
     thinking: str = ""  # 空＝按模型的默认档；复核 / 带原文再读用 "LOW"（ADR-013）
+    # 企业档抽取契约的 JSON Schema（旧线上 ``response_json_schema``）；空＝只要 JSON，不约束形状。
+    response_schema: dict | None = None
 
 
 @dataclass(frozen=True)

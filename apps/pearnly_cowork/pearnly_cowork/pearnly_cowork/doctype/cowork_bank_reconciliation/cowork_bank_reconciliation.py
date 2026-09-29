@@ -15,6 +15,8 @@ every provider call sits inside the Work the provider layer requires. A file no
 reader can decode is refused with a clear error instead of being stored as an
 empty task.
 """
+from datetime import date
+
 import frappe
 
 from pearnly_cowork.files import service as files_service
@@ -63,11 +65,59 @@ def document_model_rows(gl_account_code="", *, model_call=None, model="", read=N
 			return None
 		if not legacy:
 			return None
+		if str(legacy.get("engine") or "").startswith("enterprise-"):
+			return enterprise_rows(legacy, document_type, filename, gl_account_code)
 		if document_type == "bank_statement":
 			return bank_parse.statement_from_pipeline(legacy, filename)
 		return bank_parse.gl_from_pipeline(legacy, gl_account_code)
 
 	return rows
+
+
+def _date(value):
+	try:
+		return date.fromisoformat(value)
+	except (TypeError, ValueError):
+		return None
+
+
+def enterprise_rows(legacy, document_type, filename, account_code=""):
+	"""Enterprise pipeline pages → the intake's rows; consumes every page and never repairs twice.
+
+	Source: ec2e5c957e6b ``services/recon/enterprise_adapter.try_parse`` (the row mapping after the
+	pipeline). ``enterprise`` tells the intake these rows are final: the deployed bank adapter returned
+	them as they were, without the statement finalisation the text parsers get. ``bank_code`` stays
+	empty so the intake keeps the code it took from the file name (deployed: file name, else "generic").
+	"""
+	from pearnly_cowork.reconciliation.bank_matching import GlRow
+	from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+	pages = legacy.get("pages") or []
+	rows = []
+	for page in pages:
+		review = bool(page.get("needs_manual_review"))
+		for entry in (page.get("document") or {}).get("entries") or []:
+			if document_type == "bank_statement":
+				rows.append(StatementRow(date=_date(entry.get("transaction_date")),
+					description=entry.get("description") or "", deposit=bank_parse.to_float(entry.get("deposit")),
+					withdrawal=bank_parse.to_float(entry.get("withdrawal")),
+					balance=bank_parse.to_float(entry.get("balance")), source_file=filename,
+					confidence="low" if review else "medium",
+					amount_autocorrected=bool(entry.get("chain_amount_imputed")),
+					direction_autocorrected=bool(entry.get("chain_repaired"))))
+			elif not account_code or entry.get("account_code") == account_code:
+				rows.append(GlRow(date=_date(entry.get("transaction_date")), doc_no=entry.get("voucher_no") or "",
+					account_code=entry.get("account_code") or "", description=entry.get("description") or "",
+					debit=bank_parse.to_float(entry.get("debit")), credit=bank_parse.to_float(entry.get("credit")),
+					balance=bank_parse.to_float(entry.get("balance")), source_file=filename))
+	first = (pages[0].get("document") or {}) if pages else {}
+	last = (pages[-1].get("document") or {}) if pages else {}
+	return {"ok": bool(rows), "rows": rows, "row_count": len(rows), "enterprise": True,
+		"opening": bank_parse.to_float(first.get("opening_balance")),
+		"closing": bank_parse.to_float(last.get("closing_balance")), "bank_code": "",
+		"accounts": sorted({row.account_code for row in rows}) if document_type == "general_ledger" else [],
+		"parser_version": legacy.get("engine"), "needs_review": bool(legacy.get("_needs_review")),
+		"validation_warnings": [warning for page in pages for warning in page.get("validation_warnings") or []]}
 
 
 @frappe.whitelist(methods=["POST"])

@@ -83,12 +83,10 @@ def pdf_with_text(text):
 
 
 class PromptsAndSchemas(unittest.TestCase):
-	def test_only_the_three_document_types_are_admitted(self):
-		# vat_report joined 2026-09-29 with the scanned / photographed report path.
+	def test_only_the_two_document_types_are_admitted(self):
 		self.assertTrue(document_tier.admitted("bank_statement"))
 		self.assertTrue(document_tier.admitted("general_ledger"))
-		self.assertTrue(document_tier.admitted("vat_report"))
-		for other in ("invoice", "auto", "generic_table", ""):
+		for other in ("invoice", "auto", "vat_report", "generic_table", ""):
 			self.assertFalse(document_tier.admitted(other))
 			with self.assertRaises(ContentError):
 				document_tier.document_prompt(other)
@@ -97,7 +95,7 @@ class PromptsAndSchemas(unittest.TestCase):
 		self.assertIn("*_ref", document_tier.document_prompt("bank_statement"))
 		self.assertIn("source_column", document_tier.document_prompt("general_ledger"))
 		self.assertEqual(set(document_tier.DOCUMENT_SCHEMAS),
-			{"bank_statement", "general_ledger", "vat_report"})
+			{"bank_statement", "general_ledger"})
 		self.assertIs(document_tier.DOCUMENT_SCHEMAS["bank_statement"], BankStatementDocument)
 		self.assertIs(document_tier.DOCUMENT_SCHEMAS["general_ledger"], GeneralLedgerDocument)
 
@@ -370,7 +368,7 @@ class ReadDocument(unittest.TestCase):
 	def test_an_unsupported_type_is_refused_before_the_model(self):
 		model = FakeModel({})
 		with self.assertRaises(ContentError):
-			document_tier.read_document("generic_table", "text", model)
+			document_tier.read_document("vat_report", "text", model)
 		self.assertEqual(model.requests, [])
 
 
