@@ -1,7 +1,8 @@
 # 销项税报告核查（Cowork，用户 2026-09-26 定迁）：配对与维度差异（services/recon/vat_recon_core.py）；另含 services/vat/vat_ocr_extract.py::_ocr_validate_invoice
 # 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径；
 # 有意改动：发票一侧分公司为空时不比分公司（见 `_diff_dims`，用户 2026-09-26 定）；客户名按 `company_name` 比
-# （忽略空格、公司前后缀、总公司 / 分公司标注，用户 2026-09-30 定），税号不同照样报。
+# （忽略空格、公司前后缀、总公司 / 分公司标注，用户 2026-09-30 定），税号不同照样报；全 0 税号当作没有税号、一边空一边
+# 是零售通称不算客户名不同（2026-09-30 压测 V01 小票）。
 """VAT 对账核心:金额/期间归一化 + 一对一配对 + 维度差异计算 · vat_excel_export 拆分 leaf。"""
 
 from typing import List, Dict, Any, Optional
@@ -66,6 +67,22 @@ def _eq_amount(a, b, tol: float = 0.01) -> bool:
         return abs(float(a or 0) - float(b or 0)) <= tol
     except Exception:
         return False
+
+
+# 零售 / 现金 / 一般客户的通称（2026-09-30 压测第 19 轮 V01：小票不印买方，税报记「ขายสินค้ารายย่อย」、税号 13 个 0）。
+_WALK_IN = ("ขายสินค้ารายย่อย", "ขายปลีก", "ลูกค้าทั่วไป", "ลูกค้าเงินสด", "เงินสด", "cash", "walk-in", "walk in",
+            "general customer", "retail", "散客", "零售")
+
+
+def _walk_in(name) -> bool:
+    value = normalize_str(name or "")
+    return bool(value) and any(normalize_str(word) in value for word in _WALK_IN)
+
+
+def _real_tax(value) -> str:
+    """全是 0 的税号是「没有税号」的占位（税报零售行印 0000000000000），当作空。"""
+    digits = normalize_tax_id(value or "")
+    return "" if digits and not digits.strip("0") else digits
 
 
 def _get_inv_total(inv: Dict) -> float:
@@ -133,7 +150,7 @@ def _build_recon_pairs(
         if ii in used_inv:
             continue
         inv = invoices[ii]
-        t1 = normalize_tax_id(inv.get("buyer_tax_id") or "")
+        t1 = _real_tax(inv.get("buyer_tax_id"))
         if not t1:
             continue
         a1 = _get_inv_total(inv)
@@ -141,7 +158,7 @@ def _build_recon_pairs(
             if ri in used_rep:
                 continue
             rep = report_rows[ri]
-            t2 = normalize_tax_id(rep.get("report_buyer_tax_id") or "")
+            t2 = _real_tax(rep.get("report_buyer_tax_id"))
             if t1 != t2:
                 continue
             if _eq_amount(a1, _get_rep_total(rep)):
@@ -155,7 +172,7 @@ def _build_recon_pairs(
         if ii in used_inv:
             continue
         inv = invoices[ii]
-        if normalize_tax_id(inv.get("buyer_tax_id") or ""):
+        if _real_tax(inv.get("buyer_tax_id")):
             continue  # 不是散客
         inv_name = company_name(inv.get("buyer_name") or "")
         inv_no = normalize_invoice_no(inv.get("invoice_no") or "")
@@ -164,7 +181,7 @@ def _build_recon_pairs(
             if ri in used_rep:
                 continue
             rep = report_rows[ri]
-            if normalize_tax_id(rep.get("report_buyer_tax_id") or ""):
+            if _real_tax(rep.get("report_buyer_tax_id")):
                 continue  # 报告这行不是散客
             rep_name = company_name(rep.get("report_buyer_name") or "")
             rep_no = normalize_invoice_no(rep.get("report_invoice_no") or "")
@@ -192,7 +209,7 @@ def _build_recon_pairs(
         if ii in used_inv:
             continue
         inv = invoices[ii]
-        t1 = normalize_tax_id(inv.get("buyer_tax_id") or "")
+        t1 = _real_tax(inv.get("buyer_tax_id"))
         if not t1 or len(t1) < 10:  # 太短不参与 fuzzy
             continue
         a1 = _get_inv_total(inv)
@@ -201,7 +218,7 @@ def _build_recon_pairs(
             if ri in used_rep:
                 continue
             rep = report_rows[ri]
-            t2 = normalize_tax_id(rep.get("report_buyer_tax_id") or "")
+            t2 = _real_tax(rep.get("report_buyer_tax_id"))
             if not t2 or len(t2) < 10:
                 continue
             d = tax_id_fuzzy_distance(t1, t2)
@@ -229,7 +246,7 @@ def _build_recon_pairs(
         if ii in used_inv:
             continue
         inv = invoices[ii]
-        if normalize_tax_id(inv.get("buyer_tax_id") or ""):
+        if _real_tax(inv.get("buyer_tax_id")):
             continue  # 有税号 · 不是 OCR 漏抽
         inv_name = company_name(inv.get("buyer_name") or "")
         inv_no = normalize_invoice_no(inv.get("invoice_no") or "")
@@ -238,7 +255,7 @@ def _build_recon_pairs(
             if ri in used_rep:
                 continue
             rep = report_rows[ri]
-            rep_tax = normalize_tax_id(rep.get("report_buyer_tax_id") or "")
+            rep_tax = _real_tax(rep.get("report_buyer_tax_id"))
             if not rep_tax:
                 continue  # 报告这行也没税号 → 第 3 轮已处理
             rep_name = company_name(rep.get("report_buyer_name") or "")
@@ -267,8 +284,8 @@ def _build_recon_pairs(
             continue
         inv = invoices[p["inv_idx"]]
         rep = report_rows[p["rep_idx"]]
-        inv_tax = normalize_tax_id(inv.get("buyer_tax_id") or "")
-        rep_tax = normalize_tax_id(rep.get("report_buyer_tax_id") or "")
+        inv_tax = _real_tax(inv.get("buyer_tax_id"))
+        rep_tax = _real_tax(rep.get("report_buyer_tax_id"))
         # 双方都无税号 · 实为散客匹配
         if not inv_tax and not rep_tax:
             p["kind"] = "matched_cash"
@@ -389,8 +406,8 @@ def _diff_dims(inv: Dict, rep: Dict, lang: str = "th") -> Dict[str, str]:
     if p1 and p2 and p1 != p2:
         out["period"] = f"{p1} ≠ {p2}"
     # 税号差异 (Bug 3 · v118.32.4.9.6.1)
-    inv_tax = normalize_tax_id(inv.get("buyer_tax_id") or "")
-    rep_tax = normalize_tax_id(rep.get("report_buyer_tax_id") or "")
+    inv_tax = _real_tax(inv.get("buyer_tax_id"))
+    rep_tax = _real_tax(rep.get("report_buyer_tax_id"))
     if (inv_tax or rep_tax) and inv_tax != rep_tax:
         raw1 = inv.get("buyer_tax_id") or inv_tax
         raw2 = rep.get("report_buyer_tax_id") or rep_tax
@@ -429,7 +446,9 @@ def _diff_dims(inv: Dict, rep: Dict, lang: str = "th") -> Dict[str, str]:
     # 客户名
     name1 = (inv.get("buyer_name") or "").strip()
     name2 = (rep.get("report_buyer_name") or "").strip()
-    if company_name(name1) != company_name(name2) and (name1 or name2):
+    # 一边没写买方、另一边是零售 / 现金 / 一般客户这类通称（小票不印买方，税报记「ขายสินค้ารายย่อย」）：不算不同。
+    walk_in = (not name1 and _walk_in(name2)) or (not name2 and _walk_in(name1))
+    if company_name(name1) != company_name(name2) and (name1 or name2) and not walk_in:
         out["name"] = f"{name1 or '—'} ≠ {name2 or '—'}"
     return out
 

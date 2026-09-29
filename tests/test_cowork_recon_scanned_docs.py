@@ -1147,6 +1147,30 @@ class TenfoldAtABreak(unittest.TestCase):
 		self.assertEqual(revision._tenfold([row("0", "15000.00", "2500.00")], 0, Decimal("1000.00")), "")
 
 
+class RetailReceiptsInTheVatCheck(unittest.TestCase):
+	def test_a_walk_in_receipt_matches_the_report_s_retail_line(self):
+		# V01（2026-09-30）：小票不印买方；税报记「ขายสินค้ารายย่อย」、税号 13 个 0。
+		from pearnly_cowork.reconciliation import vat_check_core
+
+		invoice = {"invoice_no": "02000140", "invoice_date": "2026-05-28", "buyer_tax_id": "", "buyer_name": "",
+			"total_amount": 359.0}
+		row = {"report_invoice_no": "02000140", "report_date": "2026-05-28", "report_buyer_tax_id": "0000000000000",
+			"report_buyer_name": "ขายสินค้ารายย่อย", "report_amount_pre_vat": 335.52, "report_vat_amount": 23.48}
+		dims = vat_check_core._diff_dims(invoice, row, "zh")
+		self.assertEqual((dims["tax_id"], dims["name"]), ("", ""))
+		self.assertTrue(vat_check_core._diff_dims({**invoice, "buyer_name": "ACME"}, row, "zh")["name"])
+		self.assertTrue(vat_check_core._diff_dims({**invoice, "buyer_tax_id": "0105536000633"}, row, "zh")["tax_id"])
+
+	def test_many_report_file_names_are_summarised_to_fit(self):
+		from pearnly_cowork.recon_center import jobs
+
+		files = [(f"IMG_25{index:02d}.JPG", b"") for index in range(21)]
+		name = jobs._names(files)
+		self.assertLessEqual(len(name), 140)
+		self.assertEqual(name, "IMG_2500.JPG +20")
+		self.assertEqual(jobs._names(files[:2]), "IMG_2500.JPG、IMG_2501.JPG")
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 

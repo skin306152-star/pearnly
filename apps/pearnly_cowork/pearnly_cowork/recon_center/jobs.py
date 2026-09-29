@@ -131,6 +131,16 @@ def _recovered(job_id):
     return {"kind": kind, "state": "failed", "stage": "failed", "task": None, "error": _("reconciliation.failed")}
 
 
+def _names(files, limit=140):
+    """几份文件存一个名字：放得下就全列，放不下写「第一份 +其余份数」（21 张税报照片的名字连起来超过 140 字，
+    识别费都付了、最后存档时整单失败；2026-09-30 压测第 19 轮 I01）。"""
+    joined = "、".join(name for name, _content in files)
+    if len(joined) <= limit:
+        return joined
+    suffix = f" +{len(files) - 1}"
+    return files[0][0][:limit - len(suffix)] + suffix
+
+
 def _read(names):
     from pearnly_cowork.recon_center import storage
 
@@ -211,7 +221,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 vat_rows, warnings = vat_check.merged_report_rows(recon_job, rights, files["right"])
                 stage("matching")
                 result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
-                    vat_rows=vat_rows, gl_filename=left_name, vat_filename="、".join(name for name, _c in rights),
+                    vat_rows=vat_rows, gl_filename=left_name, vat_filename=_names(rights),
                     report_warnings=warnings)
         frappe.db.commit()
         _state(recon_job, state="done", stage="done", task=result["name"])
