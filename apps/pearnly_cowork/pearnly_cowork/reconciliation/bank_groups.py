@@ -1,4 +1,5 @@
-"""多笔对一笔的疑似合计匹配（用户 2026-09-30 定）：只提示、不当作确定匹配，行的状态和汇总都不动。
+"""多笔对一笔的疑似合计匹配（用户 2026-09-30 定）：默认只提示、不当作确定匹配，行的状态和汇总都不动；
+这个账户预设了「汇总入账」（对账预设，`presets`）才由 `accept` 把唯一解的组当作匹配。
 
 真实场景：总账逐笔记收款、银行一笔合并入账（GIZE BAY-CA-03：169 笔 RE… ↔ 03-20 一笔 2,071,955.81）；银行逐笔信用卡
 扣款、总账记一笔合计（KBANK-CA-04：16 笔 = 107,403.66）；刷卡净额按日入账（B02 TTB）。
@@ -77,3 +78,32 @@ def suspected_groups(results) -> List[dict]:
     first = _one_side(stmt, gl, _stmt_net, lambda row: row.stmt_date, _gl_net, lambda row: row.gl_date, used)
     second = _one_side(gl, stmt, _gl_net, lambda row: row.gl_date, _stmt_net, lambda row: row.stmt_date, used)
     return [{"side": "stmt", **group} for group in first] + [{"side": "gl", **group} for group in second]
+
+
+GROUP_LAYER = 4
+
+
+def accept(results) -> tuple:
+    """这个账户已预设「多笔对一笔是汇总入账」：把唯一解的组当作匹配（第 4 层「合计匹配」），组号从 1 起。
+
+    只收 ``suspected_groups`` 认出的组（窗口内全部单边行、合计正好相等、只有一种凑法），凑不唯一的照旧单边。
+    组里的行排在普通匹配之后、按组放在一起（锚行在前）；其余行保持原顺序。回 ``(行, 组数)``。"""
+    groups = suspected_groups(results)
+    if not groups:
+        return results, 0
+    grouped = []
+    placed = set()
+    for number, group in enumerate(sorted(groups, key=lambda item: _anchor_day(item)), 1):
+        for row in [group["anchor"], *group["members"]]:
+            row.match_status, row.match_layer, row.group_no = "matched", GROUP_LAYER, number
+            row.date_diff_days = None
+            grouped.append(row)
+            placed.add(id(row))
+    matched = [row for row in results if row.match_status == "matched" and id(row) not in placed]
+    rest = [row for row in results if row.match_status != "matched"]
+    return matched + grouped + rest, len(groups)
+
+
+def _anchor_day(group):
+    anchor = group["anchor"]
+    return (anchor.stmt_date if group["side"] == "stmt" else anchor.gl_date), group["side"]

@@ -1268,3 +1268,29 @@ This spreadsheet is not a bank statement export (it has no balance column). Uplo
 If you have the electronic statement, upload it instead	有电子版账单建议改传电子版	หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน	電子版の明細があればそちらをアップロードしてください	reconciliation.prefer_electronic
 Excel/CSV exported from online banking or the electronic PDF is most accurate	网银导出的 Excel/CSV 或电子版 PDF 最准	Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์ แม่นยำที่สุด	ネットバンキングの Excel/CSV か電子版 PDF が最も正確です	cowork.recon.bank.leftHint
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.	{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认	{0}: อ่านหน้า {1} ไม่ได้ (การอ่านหมดเวลา) ยอดคงเหลือขาดช่วงตรงนี้ กรุณาตรวจกับต้นฉบับ	{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください	reconciliation.statement_pages_unread
+Cowork Recon Preset	Cowork 对账预设	ค่าที่ตั้งไว้สำหรับกระทบยอด Cowork	Cowork 照合プリセット	
+Reconciliation Type	对账类型	ประเภทการกระทบยอด	照合の種類	
+Scope	范围	ขอบเขต	範囲	
+Rule	规则	กฎ	ルール	
+Value	值	ค่า	値	
+Source Task	来源任务	งานต้นทาง	元のタスク	
+Set By	设定人	ตั้งโดย	設定者	
+Set At	设定时间	ตั้งเมื่อ	設定日時	
+Group	组	กลุ่ม	グループ	
+Does {0} post in batches?	{0} 是汇总入账吗	{0} บันทึกเป็นยอดรวมหรือไม่	{0} はまとめて入金されますか	reconciliation.preset.grouped_title
+Bank {0}: one line {1}	银行 {0} 一笔 {1}	ธนาคาร {0}: 1 รายการ {1}	銀行 {0}：1 件 {1}	reconciliation.preset.evidence_stmt
+{0} ledger lines add up to it ({1} to {2})	总账 {0} 笔合计相等（{1} 至 {2}）	บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})	総勘定元帳 {0} 件の合計が一致（{1}〜{2}）	reconciliation.preset.evidence_gl_rows
+Ledger {0} {1}: one line {2}	总账 {0} {1} 一笔 {2}	บัญชีแยกประเภท {0} {1}: 1 รายการ {2}	総勘定元帳 {0} {1}：1 件 {2}	reconciliation.preset.evidence_gl
+{0} bank lines add up to it ({1} to {2})	银行 {0} 笔合计相等（{1} 至 {2}）	ธนาคาร {0} รายการรวมเท่ากัน ({1} ถึง {2})	銀行 {0} 件の合計が一致（{1}〜{2}）	reconciliation.preset.evidence_stmt_rows
+{0} such groups this period	本期共 {0} 组这样凑得上	งวดนี้มี {0} กลุ่มแบบนี้	今期このような組が {0} 組	reconciliation.preset.grouped_count
+Yes, match by total	是，按合计对上	ใช่ จับคู่ตามยอดรวม	はい、合計で照合	reconciliation.preset.grouped_yes
+No, check line by line	不是，逐笔核对	ไม่ใช่ ตรวจทีละรายการ	いいえ、1 件ずつ照合	reconciliation.preset.grouped_no
+By preset: {0} groups matched by total	按预设：{0} 组多笔对一笔已按合计对上	ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม	プリセットにより {0} 組を合計で照合済み	reconciliation.preset.grouped_applied
+Decide once ({0})	需要定一次（{0}）	ตัดสินใจครั้งเดียว ({0})	一度だけ決める（{0}）	cowork.recon.questions
+Presets	对账预设	ค่าที่ตั้งไว้	プリセット	cowork.recon.presets
+No presets yet	还没有预设	ยังไม่มีค่าที่ตั้งไว้	プリセットはまだありません	cowork.recon.presets.empty
+Remove	删除	ลบ	削除	cowork.recon.preset.remove
+Set by {0} on {1}	{0} 于 {1} 定	ตั้งโดย {0} เมื่อ {1}	{0}（{1}）が設定	cowork.recon.preset.by
+Many-to-one lines	多笔对一笔	หลายรายการต่อหนึ่งรายการ	複数対 1 件	cowork.recon.rule.grouped
+Batched: match by total	汇总入账，按合计对上	บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม	まとめて入金：合計で照合	cowork.recon.rule.grouped.yes
+Check line by line	逐笔核对	ตรวจทีละรายการ	1 件ずつ照合	cowork.recon.rule.grouped.no

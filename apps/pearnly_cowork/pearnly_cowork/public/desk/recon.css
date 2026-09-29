@@ -298,3 +298,34 @@
 .page-container[data-page-route^="pearnly-recon"] .page-head .page-actions .btn {
 	white-space: nowrap;
 }
+
+/* ── 对账预设：结果页的问题对话框、列表页的预设清单（原生对话框里的内容）──────────────── */
+.pearnly-recon-evidence td {
+	font-variant-numeric: tabular-nums;
+	vertical-align: top;
+}
+
+.pearnly-recon-choices .btn + .btn {
+	margin-top: var(--margin-sm);
+}
+
+.pearnly-recon-preset {
+	padding: var(--padding-sm) 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pearnly-recon-preset:last-child {
+	border-bottom: 0;
+}
+
+.pearnly-recon-preset-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--margin-sm);
+	margin-bottom: var(--margin-xs);
+}
+
+.pearnly-recon-preset .text-muted {
+	margin-top: var(--margin-xs);
+}

@@ -112,9 +112,11 @@ Bank deposit only,仅银行存入
 Bank statement,银行账单
 Bank statement detail,银行对账单明细
 Bank withdrawal only,仅银行支出
+Bank {0}: one line {1},银行 {0} 一笔 {1}
 Barcode,条形码
 Barcode / QR code,条码/二维码
 "Barcode, QR code or product code",条形码、二维码或物料编码
+Batched: match by total,汇总入账，按合计对上
 Before VAT,不含税
 Billing Code,计费代码
 Billing Kind,计费类型
@@ -150,6 +152,7 @@ Buyer Client,买方客户
 Buyer address,买方地址
 Buyer branch,买方分店
 Buyer tax ID,买方税号
+By preset: {0} groups matched by total,按预设：{0} 组多笔对一笔已按合计对上
 Calendar,日历
 Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
@@ -169,6 +172,7 @@ Change list color,更改列表颜色
 Change members,变更成员
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
+Check line by line,逐笔核对
 Check the ERP connection settings.,请检查ERP连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
@@ -273,6 +277,7 @@ Cowork Push Attempt,Cowork推送尝试
 Cowork Push Notification,Cowork 推送通知事件
 Cowork Push Record,Cowork推送记录
 Cowork Push Writer Lock,Cowork推送写入锁
+Cowork Recon Preset,Cowork 对账预设
 Cowork Source File,Cowork 原始文件
 Cowork Stocktake,Cowork 库存盘点
 Cowork Stocktake Entry,Cowork 盘点记录
@@ -311,6 +316,7 @@ Date created (oldest first),创建时间（最早优先）
 Dates,日期
 Days later,天后
 Debit,借方
+Decide once ({0}),需要定一次（{0}）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
@@ -348,6 +354,7 @@ Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
+Does {0} post in batches?,{0} 是汇总入账吗
 Done,已完成
 Done list (cards moved here are complete),完成列表（移入即完成）
 Download template,下载模板
@@ -435,6 +442,7 @@ General ledger detail,总账明细
 Generation Key,凭据版本键
 Gray,灰
 Green,绿
+Group,组
 Hide details,隐藏详情
 History,票据历史
 History Records,识别记录
@@ -515,6 +523,7 @@ Leave board,离开看板
 Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
+Ledger {0} {1}: one line {2},总账 {0} {1} 一笔 {2}
 Left out {0} lines that repeat the main statement and look misread; check them: {1},已去掉 {0} 行与主账单重复、疑似读错的行，请核对：{1}
 Light,灯光
 Line {0} ({1}): balance off by {2} — {3},第 {0} 行（{1}）余额差 {2}：{3}
@@ -535,6 +544,7 @@ MR.ERP import menu,MR.ERP 导入菜单
 MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊账录入。
 Make template,设为模板
 Manual,手工
+Many-to-one lines,多笔对一笔
 Mapping Key,映射键
 Mapping Kind,映射类型
 Mark all as read,全部标为已读
@@ -575,11 +585,13 @@ No invoice was found in this document.,这份单据里没有识别到发票。
 No items were read,未识别到明细
 No members,没有成员
 No notifications,没有提醒
+No presets yet,还没有预设
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,该编号找不到物料
 No rules yet,还没有规则
 No templates yet,还没有模板
 No warehouse matches that name,该仓库名不存在
+"No, check line by line",不是，逐笔核对
 None,无
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
 Not Permitted,没有权限
@@ -648,6 +660,7 @@ Posting Kind,过账类型
 Preparation Evidence,准备资料证据
 Preparation data does not match the connection or account set.,推送准备资料与当前连接或账套不一致。
 Preparation data for this account set is incomplete.,此账套的推送准备资料尚未完整获取。
+Presets,对账预设
 Previous Json,更改前数据（JSON）
 Private,私有
 Private File,私有文件
@@ -695,6 +708,7 @@ Recognition tasks cannot be shared separately from their originals.,识别任务
 Recognition was interrupted (not charged). Upload this file again,识别中断了（未扣费），请重新上传这一份
 Recognition was unsure about this invoice. Check it against the original,识别对这张票拿不准，请对照原件核对
 Recognized with high confidence,高置信识别
+Reconciliation Type,对账类型
 Reconciliation failed,对账失败
 Record,记录
 Record ID,记录 ID
@@ -757,6 +771,7 @@ Role,角色
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格登记行与实盘数；实盘数可以留空，之后在线盘点。
+Rule,规则
 Rules saved,规则已保存
 Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票需要包含税前金额的明细后才能导出。
@@ -767,6 +782,7 @@ Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
 Scan barcodes · Record quantities,扫条码 · 记数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
+Scope,范围
 Scope Key,权限范围标识
 Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
@@ -785,6 +801,9 @@ Send documents to ERP,发单据进 ERP
 Send the code from the Cowork page to bind,请把 Cowork 页面上的绑定码发过来
 Service,服务
 Service or stock?,服务还是存货？
+Set At,设定时间
+Set By,设定人
+Set by {0} on {1},{0} 于 {1} 定
 Set due date,到期日设为 N 天后
 Set reminder,设置提醒
 Settings Json,配置数据（JSON）
@@ -817,6 +836,7 @@ Source Page Indices,源文件页码
 Source Reference Count,原件关联项数
 Source Reference Kind,原件关联类型
 Source Sha256,原始文件 SHA-256
+Source Task,来源任务
 Start counting,开始盘点
 Start date,开始日期
 Start reconciliation,开始对账
@@ -1132,6 +1152,7 @@ VAT Report Check,销项税报告核查
 VAT report amount,税表金额
 VAT report detail,VAT 报告明细
 Valid,有效
+Value,值
 Version,版本
 View differences,查看差异
 Visibility,可见范围
@@ -1158,6 +1179,7 @@ Workspace,公司账套
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，会自动重试
 Yearly,每年
 Yellow,黄
+"Yes, match by total",是，按合计对上
 You are watching this card,你在关注这张卡片
 You do not have access to this ERP target.,无权访问此ERP目标。
 account,科目
@@ -1306,6 +1328,14 @@ cowork.recon.note.amount_fixed,对账单有 {0} 行金额按余额推算改过�
 cowork.recon.note.completeness,对账单的笔数或合计与账单上印的对不上，可能漏行或读错
 cowork.recon.note.low_conf,对账单有 {0} 行读得不确定，请对照原件核对
 cowork.recon.pick,选择文件
+cowork.recon.preset.by,{0} 于 {1} 定
+cowork.recon.preset.remove,删除
+cowork.recon.presets,对账预设
+cowork.recon.presets.empty,还没有预设
+cowork.recon.questions,需要定一次（{0}）
+cowork.recon.rule.grouped,多笔对一笔
+cowork.recon.rule.grouped.no,逐笔核对
+cowork.recon.rule.grouped.yes,汇总入账，按合计对上
 cowork.recon.saved,已保存
 cowork.recon.sheet.difference,差异明细
 cowork.recon.sheet.gl,总账明细
@@ -1998,6 +2028,15 @@ reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文�
 reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_too_many,对账数据格式不对，请重新上传文件
 reconciliation.prefer_electronic,有电子版账单建议改传电子版
+reconciliation.preset.evidence_gl,总账 {0} {1} 一笔 {2}
+reconciliation.preset.evidence_gl_rows,总账 {0} 笔合计相等（{1} 至 {2}）
+reconciliation.preset.evidence_stmt,银行 {0} 一笔 {1}
+reconciliation.preset.evidence_stmt_rows,银行 {0} 笔合计相等（{1} 至 {2}）
+reconciliation.preset.grouped_applied,按预设：{0} 组多笔对一笔已按合计对上
+reconciliation.preset.grouped_count,本期共 {0} 组这样凑得上
+reconciliation.preset.grouped_no,不是，逐笔核对
+reconciliation.preset.grouped_title,{0} 是汇总入账吗
+reconciliation.preset.grouped_yes,是，按合计对上
 reconciliation.recognition_busy,识别繁忙，请稍后再试。
 reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
 reconciliation.report_rows_repeated,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
@@ -2094,12 +2133,14 @@ vat_check.recognition_busy,发票识别繁忙，请稍后再试。
 vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
 {0} added you to {1},{0} 把你加入了卡片「{1}」
+{0} bank lines add up to it ({1} to {2}),银行 {0} 笔合计相等（{1} 至 {2}）
 {0} commented on {1},{0} 评论了卡片「{1}」
 {0} completed {1},{0} 完成了卡片「{1}」
 {0} files,{0} 个文件
 {0} is not 13 digits,{0}不是 13 位
 {0} is not 13 digits. Did you mean:,{0}不是 13 位，是不是：
 {0} is not your company's tax ID,{0}不是本公司税号
+{0} ledger lines add up to it ({1} to {2}),总账 {0} 笔合计相等（{1} 至 {2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,总账里有 {0} 行不在税报期间（{1} 至 {2}），没有参加核对。
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
@@ -2110,6 +2151,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} statement amounts were corrected from the running balance. Check them,对账单有 {0} 行金额按余额推算改过，请核对
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 {0} statement rows were read with low confidence. Check them against the original,对账单有 {0} 行读得不确定，请对照原件核对
+{0} such groups this period,本期共 {0} 组这样凑得上
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认

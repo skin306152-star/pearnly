@@ -15,6 +15,9 @@ from pearnly_cowork.reconciliation import (
 	bank_review,
 	bank_sheets,
 	bank_warnings,
+	bank_groups,
+	preset_store,
+	presets,
 	recon_contracts,
 	recon_tasks,
 )
@@ -26,7 +29,7 @@ EXPORT_LANGUAGES = ("th", "en", "zh", "ja")
 ROW_EXPORT_FIELDS = ("match_status", "match_layer", "date_diff_days", "stmt_date", "stmt_desc",
 	"stmt_withdrawal", "stmt_deposit", "stmt_balance", "stmt_confidence", "stmt_balance_ok",
 	"stmt_autocorrected", "gl_date", "gl_doc_no", "gl_account_code", "gl_desc", "gl_debit",
-	"gl_credit", "gl_balance", "source_stmt_file", "source_gl_file")
+	"gl_credit", "gl_balance", "source_stmt_file", "source_gl_file", "group_no")
 
 
 LIST_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "status", "row_count",
@@ -57,7 +60,9 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		if existing.workspace != workspace:
 			frappe.throw(_("reconciliation.request_conflict"))
 		return {**replayed, "status": existing.status}
-	results, summary_value = ([], {}) if _review is not None else _match(rows, header_values)
+	results, summary_value = ([], {}) if _review is not None else _match(rows, header_values,
+		preset_rules(workspace, preset_scope(header_values["bank_code"], parse_values,
+			header_values["gl_account_code"], rows[1])))
 	run_values = run_info(rows, summary_value.get("matched_count", 0), warnings, anchor_record, lang)
 	review_value = {} if _review is None else bank_review.serializable({
 		"revision": 1, "statement_rows": rows[0], "gl_rows": rows[1], "header": header_values,
@@ -83,13 +88,37 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		"row_count": len(results), "run_info": run_values}
 
 
-def _match(rows, header_values):
-	results, summary = bank_matching.reconcile(
-		bank_recon_contracts.matching_statement_rows(rows[0]),
-		bank_recon_contracts.matching_gl_rows(rows[1]),
-		stmt_opening=float(header_values["stmt_opening"]), gl_opening=float(header_values["gl_opening"]),
+def preset_scope(bank_code, parse_values, gl_account_code, gl_rows):
+	"""这份对账按哪个账户记预设（``presets.bank_scope``）：账号末四位取读成功的几份账单里最常见的，
+	总账科目取任务上的，没有就取总账行里最常见的。"""
+	tail = presets.account_tail(item.get("account") for item in (parse_values or {}).get("stmt_files") or []
+		if item.get("ok"))
+	account = gl_account_code or presets.ledger_account(
+		row.get("account_code") if isinstance(row, dict) else getattr(row, "account_code", "") for row in gl_rows)
+	return presets.bank_scope(bank_code, tail, account)
+
+
+def task_scope(doc, gl_rows):
+	return preset_scope(doc.get("bank_code"), bank_recon_contracts.json_loads(doc.get("parse_info_json")) or {},
+		doc.get("gl_account_code"), gl_rows)
+
+
+def preset_rules(workspace, scope):
+	return preset_store.rules(workspace, "bank", scope)
+
+
+def _match(rows, header_values, rules=None):
+	"""``rules``：这个账户的对账预设（``{规则: 值}``，见 ``presets``）；预设了汇总入账就把唯一解的合计组当作匹配。"""
+	statement = bank_recon_contracts.matching_statement_rows(rows[0])
+	ledger = bank_recon_contracts.matching_gl_rows(rows[1])
+	amounts = dict(stmt_opening=float(header_values["stmt_opening"]), gl_opening=float(header_values["gl_opening"]),
 		stmt_closing=float(header_values["stmt_closing"]), gl_closing=float(header_values["gl_closing"]),
 		bank_code=header_values["bank_code"], gl_account_code=header_values["gl_account_code"])
+	results, summary = bank_matching.reconcile(statement, ledger, **amounts)
+	if (rules or {}).get(presets.GROUPED) == presets.YES:
+		results, count = bank_groups.accept(results)
+		if count:
+			summary = bank_matching.summarize(results, statement, ledger, **amounts)
 	return results, {field: getattr(summary, field) for field in summary.__dataclass_fields__}
 
 
@@ -262,7 +291,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		parse_info={
 			"stmt_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
-				"bank_code": parsed.get("bank_code", ""), **_read_by_recognition(parsed),
+				"bank_code": parsed.get("bank_code", ""), **_read_by_recognition(parsed), **_account_of(parsed),
 				**({"unread_pages": parsed["unread_pages"]} if parsed.get("unread_pages") else {})}
 				for name, parsed in statements],
 			# 诊断里的科目只记前 MAX_ACCOUNTS 个：全科目总账有上千个科目，记全了整单被契约拒掉（B01）。
@@ -323,6 +352,14 @@ def _read_by_recognition(parsed):
 	"""照片 / 扫描件是识别读出的（结果页据此在断点旁建议改传电子版）；电子版（表格、带文字层的 PDF）不记。"""
 	return {"recognized": True} if (parsed.get("ok") and parsed.get("source") in ("enterprise", "model")
 		and not parsed.get("text_layer")) else {}
+
+
+def _account_of(parsed):
+	"""读出的账号末四位（识别读出的账户身份，或表格账单每行的账号）；对账预设按账户记。"""
+	identity = parsed.get("identity") or {}
+	tail = presets.account_tail([identity.get("last4") or identity.get("account") or ""]
+		+ [getattr(row, "account_no", "") for row in parsed.get("rows") or []])
+	return {"account": tail} if tail else {}
 
 
 def _warning_lang(lang):
@@ -910,7 +947,7 @@ def confirm_review(task_id, rows, expected_revision):
 		header["stmt_closing"] = validated[-1]["balance"] if validated[-1]["balance"] is not None else (
 			(header["stmt_opening"] or 0) + sum(row["deposit"] - row["withdrawal"] for row in validated))
 	decoded = (validated, [bank_recon_contracts.gl_row(row) for row in value["gl_rows"]])
-	results, summary = _match(decoded, header)
+	results, summary = _match(decoded, header, preset_rules(doc.workspace, task_scope(doc, decoded[1])))
 	run_values = run_info(decoded, summary["matched_count"], value["warnings"],
 		value["anchor_record"], value["lang"])
 	value.update(revision=2, confirmation={"digest": fingerprint, "rows": canonical,
@@ -1022,6 +1059,7 @@ def row_values(result):
 		"gl_balance": result.gl_balance or 0.0,
 		"source_stmt_file": result.source_stmt_file or "",
 		"source_gl_file": result.source_gl_file or "",
+		"group_no": int(result.group_no or 0),
 	}
 
 
@@ -1053,7 +1091,7 @@ def _export_row(row):
 		source_stmt_file=row.source_stmt_file or "", source_gl_file=row.source_gl_file or "",
 		stmt_confidence=row.stmt_confidence or "high",
 		stmt_balance_ok=None if not row.stmt_balance_ok else row.stmt_balance_ok == "ok",
-		stmt_autocorrected=bool(row.stmt_autocorrected))
+		stmt_autocorrected=bool(row.stmt_autocorrected), group_no=int(getattr(row, "group_no", 0) or 0))
 
 
 def export(task_id, lang="th"):

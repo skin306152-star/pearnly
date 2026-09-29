@@ -16,6 +16,7 @@ COLOR_SUBHEAD = "52B788"  # medium green
 COLOR_MATCHED = "D8F3DC"  # light green
 COLOR_L2 = "FFF3CD"  # amber (date tolerance)
 COLOR_L3 = "FFE0CC"  # orange (amount only)
+COLOR_L4 = "DBEAFE"  # light blue (preset group total)
 COLOR_GL_ONLY = "E8D5F5"  # purple
 COLOR_ST_ONLY = "D4E6F1"  # blue
 COLOR_DIFF = "FFDAD6"  # red for non-zero diff

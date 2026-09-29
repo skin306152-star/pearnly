@@ -21,6 +21,7 @@ from pearnly_cowork.reconciliation.export.styles import (
     COLOR_GL_ONLY,
     COLOR_L2,
     COLOR_L3,
+    COLOR_L4,
     COLOR_MATCHED,
     COLOR_ST_ONLY,
     border_range,
@@ -66,9 +67,10 @@ def build_match_results_sheet(wb, recon_rows: List[BankReconRow], lang: str) -> 
         ws2.column_dimensions[get_column_letter(ci)].width = width
 
     # Group + sort the recon_rows by category
+    # 按预设当作合计匹配的组（第 4 层）排在普通匹配之后、一组放在一起，组内保持结果顺序（锚行在前）。
     matched_rows_for_export = sorted(
         [rr for rr in recon_rows if rr.match_status == "matched"],
-        key=lambda x: (x.stmt_date or date.min, x.gl_date or date.min),
+        key=lambda x: (1, x.group_no) if x.group_no else (0, 0, x.stmt_date or date.min, x.gl_date or date.min),
     )
     gl_only_rows_for_export = sorted(
         [rr for rr in recon_rows if rr.match_status in ("gl_debit_only", "gl_credit_only")],
@@ -91,12 +93,12 @@ def build_match_results_sheet(wb, recon_rows: List[BankReconRow], lang: str) -> 
         layer_fill_color = (
             COLOR_MATCHED
             if row.match_layer == 1
-            else COLOR_L2 if row.match_layer == 2 else COLOR_L3
+            else COLOR_L2 if row.match_layer == 2 else COLOR_L4 if row.match_layer == 4 else COLOR_L3
         )
         fill = PatternFill("solid", fgColor=layer_fill_color)
         vals = [
             t("status_matched", lang),
-            layer_label(row.match_layer, lang),
+            layer_label(row.match_layer, lang) + (f" #{row.group_no}" if row.group_no else ""),
             fmt_date(row.stmt_date),
             row.stmt_desc,
             row.stmt_withdrawal or "",
@@ -189,6 +191,11 @@ def build_match_results_sheet(wb, recon_rows: List[BankReconRow], lang: str) -> 
 
     border_range(ws2, 1, max(1, ri - 1), 1, len(match_cols))
     ws2.freeze_panes = "C2"  # freeze status + match layer cols
+
+
+def _statement_side_only(row: BankReconRow) -> bool:
+    """合计组里银行那一侧的行：没有总账数据（普通匹配行两边都有）。"""
+    return bool(row.group_no) and row.gl_date is None and not row.gl_debit and not row.gl_credit
 
 
 def build_stmt_detail_sheet(wb, recon_rows: List[BankReconRow], lang: str) -> None:
@@ -310,7 +317,8 @@ def build_gl_detail_sheet(
     gl_data_rows = [
         r
         for r in recon_rows
-        if r.match_status == "matched" or r.match_status in ("gl_debit_only", "gl_credit_only")
+        if (r.match_status == "matched" and not _statement_side_only(r))
+        or r.match_status in ("gl_debit_only", "gl_credit_only")
     ]
     gl_data_rows.sort(
         key=lambda x: (x.gl_date or date.min, x.gl_doc_no or "", x.gl_account_code or "")

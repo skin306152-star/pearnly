@@ -248,7 +248,8 @@ def cell_containing(sheet, text):
 
 class LanguageTables(unittest.TestCase):
     def test_every_label_covers_the_four_shipped_languages(self):
-        self.assertEqual(len(labels.I18N_EXPORT), 103)
+        # 旧线上 103 条；有意加 1 条：layer_4「合计匹配（按预设）」（2026-09-30 对账预设）。
+        self.assertEqual(len(labels.I18N_EXPORT), 104)
         for key, table in labels.I18N_EXPORT.items():
             with self.subTest(key=key):
                 self.assertEqual(set(table), {"th", "en", "zh", "ja"})

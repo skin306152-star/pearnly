@@ -112,9 +112,11 @@ Bank deposit only,Bank deposit only
 Bank statement,Bank statement
 Bank statement detail,Bank statement detail
 Bank withdrawal only,Bank withdrawal only
+Bank {0}: one line {1},Bank {0}: one line {1}
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
+Batched: match by total,Batched: match by total
 Before VAT,Before VAT
 Billing Code,Billing Code
 Billing Kind,Billing Kind
@@ -150,6 +152,7 @@ Buyer Client,Buyer Client
 Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
+By preset: {0} groups matched by total,By preset: {0} groups matched by total
 Calendar,Calendar
 Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
@@ -169,6 +172,7 @@ Change list color,Change list color
 Change members,Change members
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
+Check line by line,Check line by line
 Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
@@ -273,6 +277,7 @@ Cowork Push Attempt,Cowork Push Attempt
 Cowork Push Notification,Cowork Push Notification
 Cowork Push Record,Cowork Push Record
 Cowork Push Writer Lock,Cowork Push Writer Lock
+Cowork Recon Preset,Cowork Recon Preset
 Cowork Source File,Cowork Source File
 Cowork Stocktake,Cowork Stocktake
 Cowork Stocktake Entry,Cowork Stocktake Entry
@@ -311,6 +316,7 @@ Date created (oldest first),Date created (oldest first)
 Dates,Dates
 Days later,Days later
 Debit,Debit
+Decide once ({0}),Decide once ({0})
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
 Default Payment,Default Payment
@@ -348,6 +354,7 @@ Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
+Does {0} post in batches?,Does {0} post in batches?
 Done,Done
 Done list (cards moved here are complete),Done list (cards moved here are complete)
 Download template,Download template
@@ -435,6 +442,7 @@ General ledger detail,General ledger detail
 Generation Key,Generation Key
 Gray,Gray
 Green,Green
+Group,Group
 Hide details,Hide details
 History,History
 History Records,History Records
@@ -515,6 +523,7 @@ Leave board,Leave board
 Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
+Ledger {0} {1}: one line {2},Ledger {0} {1}: one line {2}
 Left out {0} lines that repeat the main statement and look misread; check them: {1},Left out {0} lines that repeat the main statement and look misread; check them: {1}
 Light,Light
 Line {0} ({1}): balance off by {2} — {3},Line {0} ({1}): balance off by {2} — {3}
@@ -535,6 +544,7 @@ MR.ERP import menu,MR.ERP import menu
 MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
 Make template,Make template
 Manual,Manual
+Many-to-one lines,Many-to-one lines
 Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
 Mark all as read,Mark all as read
@@ -575,11 +585,13 @@ No invoice was found in this document.,No invoice was found in this document.
 No items were read,No items were read
 No members,No members
 No notifications,No notifications
+No presets yet,No presets yet
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No rules yet,No rules yet
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
+"No, check line by line","No, check line by line"
 None,None
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
@@ -648,6 +660,7 @@ Posting Kind,Posting Kind
 Preparation Evidence,Preparation Evidence
 Preparation data does not match the connection or account set.,Preparation data does not match the connection or account set.
 Preparation data for this account set is incomplete.,Preparation data for this account set is incomplete.
+Presets,Presets
 Previous Json,Previous Json
 Private,Private
 Private File,Private File
@@ -695,6 +708,7 @@ Recognition tasks cannot be shared separately from their originals.,Recognition 
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
 Recognition was unsure about this invoice. Check it against the original,Recognition was unsure about this invoice. Check it against the original
 Recognized with high confidence,Recognized with high confidence
+Reconciliation Type,Reconciliation Type
 Reconciliation failed,Reconciliation failed
 Record,Record
 Record ID,Record ID
@@ -757,6 +771,7 @@ Role,Role
 Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
+Rule,Rule
 Rules saved,Rules saved
 Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
@@ -767,6 +782,7 @@ Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
+Scope,Scope
 Scope Key,Scope Key
 Search cards,Search cards
 Search name or barcode,Search name or barcode
@@ -785,6 +801,9 @@ Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Service,Service
 Service or stock?,Service or stock?
+Set At,Set At
+Set By,Set By
+Set by {0} on {1},Set by {0} on {1}
 Set due date,Set due date
 Set reminder,Set reminder
 Settings Json,Settings Json
@@ -817,6 +836,7 @@ Source Page Indices,Source Page Indices
 Source Reference Count,Source Reference Count
 Source Reference Kind,Source Reference Kind
 Source Sha256,Source Sha256
+Source Task,Source Task
 Start counting,Start counting
 Start date,Start date
 Start reconciliation,Start reconciliation
@@ -1132,6 +1152,7 @@ VAT Report Check,VAT Report Check
 VAT report amount,VAT report amount
 VAT report detail,VAT report detail
 Valid,Valid
+Value,Value
 Version,Version
 View differences,View differences
 Visibility,Visibility
@@ -1158,6 +1179,7 @@ Workspace,Workspace
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Yearly,Yearly
 Yellow,Yellow
+"Yes, match by total","Yes, match by total"
 You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
 account,account
@@ -1306,6 +1328,14 @@ cowork.recon.note.amount_fixed,{0} statement amounts were corrected from the run
 cowork.recon.note.completeness,The statement's count or totals do not match what it prints. A row may be missing or misread
 cowork.recon.note.low_conf,{0} statement rows were read with low confidence. Check them against the original
 cowork.recon.pick,Choose file
+cowork.recon.preset.by,Set by {0} on {1}
+cowork.recon.preset.remove,Remove
+cowork.recon.presets,Presets
+cowork.recon.presets.empty,No presets yet
+cowork.recon.questions,Decide once ({0})
+cowork.recon.rule.grouped,Many-to-one lines
+cowork.recon.rule.grouped.no,Check line by line
+cowork.recon.rule.grouped.yes,Batched: match by total
 cowork.recon.saved,Saved
 cowork.recon.sheet.difference,Difference detail
 cowork.recon.sheet.gl,General ledger detail
@@ -1998,6 +2028,15 @@ reconciliation.parse_info_invalid,The reconciliation data is not in the expected
 reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.prefer_electronic,"If you have the electronic statement, upload it instead"
+reconciliation.preset.evidence_gl,Ledger {0} {1}: one line {2}
+reconciliation.preset.evidence_gl_rows,{0} ledger lines add up to it ({1} to {2})
+reconciliation.preset.evidence_stmt,Bank {0}: one line {1}
+reconciliation.preset.evidence_stmt_rows,{0} bank lines add up to it ({1} to {2})
+reconciliation.preset.grouped_applied,By preset: {0} groups matched by total
+reconciliation.preset.grouped_count,{0} such groups this period
+reconciliation.preset.grouped_no,"No, check line by line"
+reconciliation.preset.grouped_title,Does {0} post in batches?
+reconciliation.preset.grouped_yes,"Yes, match by total"
 reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
 reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
@@ -2094,12 +2133,14 @@ vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
 vat_check.recognition_timeout,Invoice recognition took too long. Try again later.
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} added you to {1},{0} added you to {1}
+{0} bank lines add up to it ({1} to {2}),{0} bank lines add up to it ({1} to {2})
 {0} commented on {1},{0} commented on {1}
 {0} completed {1},{0} completed {1}
 {0} files,{0} files
 {0} is not 13 digits,{0} is not 13 digits
 {0} is not 13 digits. Did you mean:,{0} is not 13 digits. Did you mean:
 {0} is not your company's tax ID,{0} is not your company's tax ID
+{0} ledger lines add up to it ({1} to {2}),{0} ledger lines add up to it ({1} to {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
@@ -2110,6 +2151,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} statement amounts were corrected from the running balance. Check them,{0} statement amounts were corrected from the running balance. Check them
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 {0} statement rows were read with low confidence. Check them against the original,{0} statement rows were read with low confidence. Check them against the original
+{0} such groups this period,{0} such groups this period
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.

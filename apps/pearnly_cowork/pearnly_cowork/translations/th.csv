@@ -112,9 +112,11 @@ Bank deposit only,มีเฉพาะรายการฝากในธน�
 Bank statement,รายการเดินบัญชีธนาคาร
 Bank statement detail,รายละเอียดรายการเดินบัญชี
 Bank withdrawal only,มีเฉพาะรายการถอนในธนาคาร
+Bank {0}: one line {1},ธนาคาร {0}: 1 รายการ {1}
 Barcode,บาร์โค้ด
 Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
 "Barcode, QR code or product code",บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
+Batched: match by total,บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม
 Before VAT,ก่อน VAT
 Billing Code,รหัสค่าบริการ
 Billing Kind,ประเภทการคิดค่าบริการ
@@ -150,6 +152,7 @@ Buyer Client,ลูกค้าผู้ซื้อ
 Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขผู้เสียภาษีผู้ซื้อ
+By preset: {0} groups matched by total,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 Calendar,ปฏิทิน
 Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
@@ -169,6 +172,7 @@ Change list color,เปลี่ยนสีรายการ
 Change members,เปลี่ยนสมาชิก
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
+Check line by line,ตรวจทีละรายการ
 Check the ERP connection settings.,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
@@ -273,6 +277,7 @@ Cowork Push Attempt,ความพยายามส่งของ Cowork
 Cowork Push Notification,เหตุการณ์แจ้งเตือนการส่ง Cowork
 Cowork Push Record,รายการส่งของ Cowork
 Cowork Push Writer Lock,ล็อกการเขียนของ Cowork
+Cowork Recon Preset,ค่าที่ตั้งไว้สำหรับกระทบยอด Cowork
 Cowork Source File,ไฟล์ต้นฉบับ Cowork
 Cowork Stocktake,ตรวจนับสต็อก Cowork
 Cowork Stocktake Entry,รายการตรวจนับสต็อก Cowork
@@ -311,6 +316,7 @@ Date created (oldest first),วันที่สร้าง (เก่าส�
 Dates,วันที่
 Days later,วันถัดไป
 Debit,เดบิต
+Decide once ({0}),ตัดสินใจครั้งเดียว ({0})
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
@@ -348,6 +354,7 @@ Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี
 Document total,ยอดรวม
 Document type,ประเภทเอกสาร
+Does {0} post in batches?,{0} บันทึกเป็นยอดรวมหรือไม่
 Done,เสร็จสิ้น
 Done list (cards moved here are complete),รายการเสร็จ (ย้ายมาแล้วถือว่าเสร็จ)
 Download template,ดาวน์โหลดแม่แบบ
@@ -435,6 +442,7 @@ General ledger detail,รายละเอียดบัญชีแยกป�
 Generation Key,คีย์รุ่นข้อมูลรับรอง
 Gray,เทา
 Green,เขียว
+Group,กลุ่ม
 Hide details,ซ่อนรายละเอียด
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
@@ -515,6 +523,7 @@ Leave board,ออกจากบอร์ด
 Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
+Ledger {0} {1}: one line {2},บัญชีแยกประเภท {0} {1}: 1 รายการ {2}
 Left out {0} lines that repeat the main statement and look misread; check them: {1},ตัด {0} รายการที่ซ้ำกับรายการเดินบัญชีหลักและน่าจะอ่านผิดออก กรุณาตรวจสอบ: {1}
 Light,ไฟ
 Line {0} ({1}): balance off by {2} — {3},รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}
@@ -535,6 +544,7 @@ MR.ERP import menu,เมนูนำเข้า MR.ERP
 MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบเงินเชื่อ
 Make template,ตั้งเป็นเทมเพลต
 Manual,กรอกเอง
+Many-to-one lines,หลายรายการต่อหนึ่งรายการ
 Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
 Mark all as read,ทำเครื่องหมายว่าอ่านทั้งหมด
@@ -575,11 +585,13 @@ No invoice was found in this document.,ไม่พบเอกสารที�
 No items were read,ไม่พบรายการสินค้า
 No members,ไม่มีสมาชิก
 No notifications,ไม่มีการแจ้งเตือน
+No presets yet,ยังไม่มีค่าที่ตั้งไว้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No rules yet,ยังไม่มีกฎ
 No templates yet,ยังไม่มีเทมเพลต
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
+"No, check line by line",ไม่ใช่ ตรวจทีละรายการ
 None,ไม่มี
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
 Not Permitted,ไม่ได้รับอนุญาต
@@ -648,6 +660,7 @@ Posting Kind,ประเภทการผ่านรายการ
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
 Preparation data does not match the connection or account set.,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
 Preparation data for this account set is incomplete.,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
+Presets,ค่าที่ตั้งไว้
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
 Private,ส่วนตัว
 Private File,ไฟล์ส่วนตัว
@@ -695,6 +708,7 @@ Recognition tasks cannot be shared separately from their originals.,ไม่ส
 Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
 Recognition was unsure about this invoice. Check it against the original,ระบบอ่านเอกสารใบนี้ไม่มั่นใจ กรุณาตรวจกับต้นฉบับ
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
+Reconciliation Type,ประเภทการกระทบยอด
 Reconciliation failed,กระทบยอดไม่สำเร็จ
 Record,บันทึก
 Record ID,รหัสรายการ
@@ -757,6 +771,7 @@ Role,บทบาท
 Row {0}: {1},แถว {0}: {1}
 Rows,จำนวนแถว
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,ใช้รายการและจำนวนนับจริงจากไฟล์ เว้นจำนวนนับจริงว่างไว้เพื่อตรวจนับออนไลน์ภายหลังได้
+Rule,กฎ
 Rules saved,บันทึกกฎแล้ว
 Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้
@@ -767,6 +782,7 @@ Saved. Scan the next item.,บันทึกแล้ว สแกนราย�
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
+Scope,ขอบเขต
 Scope Key,รหัสขอบเขตสิทธิ์
 Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
@@ -785,6 +801,9 @@ Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
 Service or stock?,บริการหรือสินค้า?
+Set At,ตั้งเมื่อ
+Set By,ตั้งโดย
+Set by {0} on {1},ตั้งโดย {0} เมื่อ {1}
 Set due date,ตั้งวันครบกำหนดเป็น N วันถัดไป
 Set reminder,ตั้งการเตือน
 Settings Json,ข้อมูลการตั้งค่า (JSON)
@@ -817,6 +836,7 @@ Source Page Indices,หมายเลขหน้าไฟล์ต้นฉบ
 Source Reference Count,จำนวนรายการอ้างอิงต้นฉบับ
 Source Reference Kind,ประเภทการอ้างอิงต้นฉบับ
 Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
+Source Task,งานต้นทาง
 Start counting,เริ่มตรวจนับ
 Start date,วันเริ่ม
 Start reconciliation,เริ่มกระทบยอด
@@ -1132,6 +1152,7 @@ VAT Report Check,ตรวจสอบรายงานภาษีขาย
 VAT report amount,ยอดตามรายงานภาษี
 VAT report detail,รายละเอียดรายงาน VAT
 Valid,ใช้งาน
+Value,ค่า
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
 Visibility,การมองเห็น
@@ -1158,6 +1179,7 @@ Workspace,ชุดบัญชีบริษัท
 Writing to Express failed and was undone. It is retried automatically,เขียนลง Express ไม่สำเร็จและยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 Yearly,ทุกปี
 Yellow,เหลือง
+"Yes, match by total",ใช่ จับคู่ตามยอดรวม
 You are watching this card,คุณกำลังติดตามการ์ดนี้
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
 account,บัญชี
@@ -1306,6 +1328,14 @@ cowork.recon.note.amount_fixed,ใบแจ้งยอดมี {0} ราย�
 cowork.recon.note.completeness,จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด
 cowork.recon.note.low_conf,ใบแจ้งยอดมี {0} รายการที่อ่านได้ไม่แน่ชัด กรุณาตรวจกับต้นฉบับ
 cowork.recon.pick,เลือกไฟล์
+cowork.recon.preset.by,ตั้งโดย {0} เมื่อ {1}
+cowork.recon.preset.remove,ลบ
+cowork.recon.presets,ค่าที่ตั้งไว้
+cowork.recon.presets.empty,ยังไม่มีค่าที่ตั้งไว้
+cowork.recon.questions,ตัดสินใจครั้งเดียว ({0})
+cowork.recon.rule.grouped,หลายรายการต่อหนึ่งรายการ
+cowork.recon.rule.grouped.no,ตรวจทีละรายการ
+cowork.recon.rule.grouped.yes,บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม
 cowork.recon.saved,บันทึกแล้ว
 cowork.recon.sheet.difference,รายละเอียดผลต่าง
 cowork.recon.sheet.gl,รายละเอียดบัญชีแยกประเภท
@@ -1998,6 +2028,15 @@ reconciliation.parse_info_invalid,ข้อมูลกระทบยอดม�
 reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_too_many,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.prefer_electronic,หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
+reconciliation.preset.evidence_gl,บัญชีแยกประเภท {0} {1}: 1 รายการ {2}
+reconciliation.preset.evidence_gl_rows,บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})
+reconciliation.preset.evidence_stmt,ธนาคาร {0}: 1 รายการ {1}
+reconciliation.preset.evidence_stmt_rows,ธนาคาร {0} รายการรวมเท่ากัน ({1} ถึง {2})
+reconciliation.preset.grouped_applied,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
+reconciliation.preset.grouped_count,งวดนี้มี {0} กลุ่มแบบนี้
+reconciliation.preset.grouped_no,ไม่ใช่ ตรวจทีละรายการ
+reconciliation.preset.grouped_title,{0} บันทึกเป็นยอดรวมหรือไม่
+reconciliation.preset.grouped_yes,ใช่ จับคู่ตามยอดรวม
 reconciliation.recognition_busy,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
@@ -2094,12 +2133,14 @@ vat_check.recognition_busy,ระบบอ่านใบกำกับไม�
 vat_check.recognition_timeout,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
+{0} bank lines add up to it ({1} to {2}),ธนาคาร {0} รายการรวมเท่ากัน ({1} ถึง {2})
 {0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
 {0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
 {0} files,{0} ไฟล์
 {0} is not 13 digits,{0} ไม่ครบ 13 หลัก
 {0} is not 13 digits. Did you mean:,{0} ไม่ครบ 13 หลัก ใช่เลขนี้หรือไม่:
 {0} is not your company's tax ID,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
+{0} ledger lines add up to it ({1} to {2}),บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
@@ -2110,6 +2151,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} statement amounts were corrected from the running balance. Check them,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออก {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}
 {0} statement rows were read with low confidence. Check them against the original,ใบแจ้งยอดมี {0} รายการที่อ่านได้ไม่แน่ชัด กรุณาตรวจกับต้นฉบับ
+{0} such groups this period,งวดนี้มี {0} กลุ่มแบบนี้
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: อ่านหน้า {1} ไม่ได้ (การอ่านหมดเวลา) ยอดคงเหลือขาดช่วงตรงนี้ กรุณาตรวจกับต้นฉบับ

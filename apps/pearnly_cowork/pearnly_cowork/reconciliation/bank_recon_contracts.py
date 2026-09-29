@@ -47,9 +47,9 @@ ANCHOR_KEYS = ("stmt_opening", "gl_opening", "gl_closing", "stmt_closing")
 # The deployed run saved `_parse_info` with these two sections and record keys so
 # the workbook's File Info section could show real per-file numbers.
 PARSE_INFO_SECTIONS = {
-	# recognized：这份账单是识别读出的（照片 / 扫描件；2026-09-30 加，旧任务没有）。
-	# unread_pages：识别时抽取超时没读出的页（只丢这些页，2026-09-30 加）。
-	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages"),
+	# recognized：这份账单是识别读出的（照片 / 扫描件）；unread_pages：识别时抽取超时没读出的页；account：读出的
+	# 账号末四位（对账预设按账户记）。都是 2026-09-30 加的，旧任务没有。
+	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "account"),
 	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
 }
 CONFIDENCE_LEVELS = ("high", "medium", "low")
@@ -158,6 +158,8 @@ def parse_info(value):
 							or any(isinstance(page, bool) or not isinstance(page, int) for page in unread)):
 						raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
 					item["unread_pages"] = list(unread)
+				if record.get("account"):
+					item["account"] = _text(record.get("account"), f"{section}.account", limit=4)
 			else:
 				item["accounts"] = [_text(account, f"{section}.accounts") for account in accounts]
 			parsed.append(item)

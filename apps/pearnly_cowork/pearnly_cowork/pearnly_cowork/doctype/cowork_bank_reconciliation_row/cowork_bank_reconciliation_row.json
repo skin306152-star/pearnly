@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-30 00:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -38,7 +38,8 @@
   "gl_credit",
   "gl_balance",
   "source_stmt_file",
-  "source_gl_file"
+  "source_gl_file",
+  "group_no"
  ],
  "fields": [
   {
@@ -218,6 +219,14 @@
    "label": "GL Source",
    "read_only": 1,
    "length": 300
+  },
+  {
+   "fieldname": "group_no",
+   "fieldtype": "Int",
+   "label": "Group",
+   "read_only": 1,
+   "default": "0",
+   "description": "Preset grouped match (layer 4); 0 means not in a group"
   }
  ],
  "permissions": [

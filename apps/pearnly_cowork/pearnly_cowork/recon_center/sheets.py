@@ -20,7 +20,7 @@ from datetime import date, datetime
 import frappe
 from frappe import _
 
-from pearnly_cowork.reconciliation import normalization, revision, vat_check_service
+from pearnly_cowork.reconciliation import normalization, presets, revision, vat_check_service
 
 MAX_CELLS = 400000
 _SUM = re.compile(r"^=SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)$")
@@ -393,7 +393,7 @@ def _hidden(lang):
         "columns": {t("col_confidence"), t("col_source_file"), t("col_source_stmt"), t("col_source_gl"),
                     vat["h_inv"][source]},
         "sections": {t("lbl_ocr_check"), t("sh_fileinfo")},
-        "layers": {t(f"layer_{n}") for n in (1, 2, 3)},
+        "layers": tuple(t(f"layer_{n}") for n in (1, 2, 3, 4)),
         "notes": [vat_check_core.diff_labels(lang)["ocr_incomplete"]],
     }
 
@@ -433,7 +433,7 @@ def _for_page(view, lang):
             for item in row["c"]:
                 if not item or not item[0]:
                     continue
-                if item[0] in hidden["layers"]:
+                if isinstance(item[0], str) and item[0].startswith(hidden["layers"]):  # 合计组后面带组号「 #3」
                     item[0] = _LAYER_CODE.sub("", item[0])
                 for note in hidden["notes"]:
                     if note in item[0]:
@@ -494,16 +494,22 @@ def load(kind, task_id, lang=None):
         inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
         version = revision.revision(doc)
     notes = revision.bank_notes(doc) if kind == "bank" else revision.income_notes(doc) if kind == "income" else []
+    questions = []
     if kind == "bank":
-        # 多笔对一笔的疑似合计匹配：按当前（含复核改动的）结果算，只提示。
-        notes += revision.bank_group_notes(revision.bank_compute(doc, inputs)[2])
+        # 多笔对一笔的疑似合计匹配：按当前（含复核改动的）结果算。这个账户还没定过就问一次（对账预设）；
+        # 定了「是」的已按合计对上（标题旁说明），定了「不是」的不再提示。
+        results = revision.bank_compute(doc, inputs)[2]
+        questions = revision.bank_questions(doc, inputs, results)
+        notes += revision.bank_preset_notes(results)
+        if revision.bank_rules(doc, inputs.get("gl") or []).get(presets.GROUPED) != presets.NO:
+            notes += revision.bank_group_notes(results)
     if kind == "vat" and inputs.get("failed_files"):
         # 读不出的发票文件原来存着却不显示（2026-09-28 录制读代码发现）：与银行同样写在标题下一句。
         notes.append(_("vat_check.note.unread").format(", ".join(str(name) for name in inputs["failed_files"])))
     if kind == "vat":
         notes += purchase_invoice_notes(inputs)
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
-                     "revision": version, "notes": notes}, **_view(kind, doc, inputs, _lang(lang))}
+                     "revision": version, "notes": notes, "questions": questions}, **_view(kind, doc, inputs, _lang(lang))}
 
 
 @frappe.whitelist(methods=["POST"])

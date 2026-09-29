@@ -295,6 +295,7 @@ permission_query_conditions = {
     "Cowork Bank Evidence": "pearnly_cowork.reconciliation.bank_evidence.deny",
     "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
+    "Cowork Recon Preset": "pearnly_cowork.reconciliation.preset_store.deny",
     "Cowork Express Choice": "pearnly_cowork.push.choices.deny_query",
     "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_query",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_query",
@@ -339,6 +340,7 @@ has_permission = {
     "Cowork Bank Evidence": "pearnly_cowork.reconciliation.bank_evidence.deny",
     "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
+    "Cowork Recon Preset": "pearnly_cowork.reconciliation.preset_store.deny",
     "Cowork Express Choice": "pearnly_cowork.push.choices.deny",
     "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_permission",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_permission",
@@ -390,6 +392,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
         "pearnly_cowork.reconciliation.income_recon_access.reject_share",
         "pearnly_cowork.reconciliation.vat_check_access.reject_share",
+        "pearnly_cowork.reconciliation.preset_store.reject_share",
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
@@ -400,6 +403,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
         "pearnly_cowork.reconciliation.income_recon_access.reject_share",
         "pearnly_cowork.reconciliation.vat_check_access.reject_share",
+        "pearnly_cowork.reconciliation.preset_store.reject_share",
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share"],
 }}
 extend_doctype_class = {

@@ -89,6 +89,8 @@ class BankReconRow:
 	stmt_confidence: str = "high"
 	stmt_balance_ok: Optional[bool] = None
 	stmt_autocorrected: bool = False
+	# 按预设当作「多笔对一笔」合计匹配的组号（第 4 层）；0 表示不在组里。
+	group_no: int = 0
 
 
 @dataclass
@@ -256,6 +258,16 @@ def reconcile(stmt_rows: list[StatementRow], gl_rows: list[GlRow], stmt_opening:
 	# rows sharing a date, exactly like the deployed sort.
 	recon_rows.sort(key=_sort_key)
 
+	summary = summarize(recon_rows, stmt_rows, gl_rows, stmt_opening=stmt_opening, gl_opening=gl_opening,
+		stmt_closing=stmt_closing, gl_closing=gl_closing, bank_code=bank_code, gl_account_code=gl_account_code)
+	return recon_rows, summary
+
+
+def summarize(recon_rows: list[BankReconRow], stmt_rows: list[StatementRow], gl_rows: list[GlRow],
+		stmt_opening: float = 0.0, gl_opening: float = 0.0, stmt_closing: float = 0.0, gl_closing: float = 0.0,
+		bank_code: str = "", gl_account_code: str = "") -> BankReconSummary:
+	"""Counts, one-sided amounts and the reconciliation formula of a finished pairing (split out of
+	``reconcile`` unchanged, so a preset that turns grouped rows into matches can recount)."""
 	matched_rows = [row for row in recon_rows if row.match_status == "matched"]
 	gl_debit_only = [row for row in recon_rows if row.match_status == "gl_debit_only"]
 	gl_credit_only = [row for row in recon_rows if row.match_status == "gl_credit_only"]
@@ -296,4 +308,4 @@ def reconcile(stmt_rows: list[StatementRow], gl_rows: list[GlRow], stmt_opening:
 		formula_stmt_closing=formula_closing,
 		formula_diff=formula_diff,
 	)
-	return recon_rows, summary
+	return summary

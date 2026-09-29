@@ -28,6 +28,8 @@
 			left: "cowork.recon.bank.left", right: "cowork.recon.bank.right",
 			// 电子版优先（用户 2026-09-30）：上传口下一句轻提示，照片 / 扫描件只作后备。
 			hint: { left: "cowork.recon.bank.leftHint" },
+			// 对账预设能定的规则与可选的答案（服务端 `reconciliation/presets.py` 的 RULES）。
+			presets: { grouped: ["yes", "no"] },
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },
 				{ fieldname: "bank_code", width: 90, min_width: 70, label: t("cowork.recon.col.bank") },
@@ -120,8 +122,54 @@
 						format: value => p.datetime_text(value) }],
 			});
 			page.set_primary_action(t("cowork.recon.new"), open_new);
+			if (spec.presets) page.add_inner_button(t("cowork.recon.presets"), open_presets);
 		}
 		const open_new = () => frappe.set_route(root, "new");
+
+		// ── 对账预设：看、改、删（结果页问过一次、按账户记住的答案）─────────────────────
+		// 改了只影响以后的对账和重新打开的结果；删了以后同类情况重新问。
+		async function open_presets() {
+			const dialog = new frappe.ui.Dialog({ title: t("cowork.recon.presets"), fields: [{ fieldtype: "HTML", fieldname: "body" }] });
+			const body = dialog.fields_dict.body.$wrapper[0];
+			const call = async (method, args) => draw(await p.call(presets_api + method, { kind, ...args }, "POST"));
+			const draw = items => {
+				if (!items.length) {
+					const empty = document.createElement("p");
+					empty.className = "text-muted";
+					empty.textContent = t("cowork.recon.presets.empty");
+					body.replaceChildren(empty);
+					return;
+				}
+				body.replaceChildren(...items.map(item => {
+					const row = document.createElement("div");
+					row.className = "pearnly-recon-preset";
+					const head = document.createElement("div");
+					head.className = "pearnly-recon-preset-head";
+					const name = document.createElement("span");
+					name.textContent = `${item.scope_label} · ${t(`cowork.recon.rule.${item.rule}`)}`;
+					const remove = document.createElement("button");
+					remove.type = "button";
+					remove.className = "btn btn-xs btn-default";
+					remove.textContent = t("cowork.recon.preset.remove");
+					remove.addEventListener("click", () => call("remove", { scope_key: item.scope, rule: item.rule }));
+					head.append(name, remove);
+					const select = document.createElement("select");
+					select.className = "form-control input-sm";
+					for (const value of spec.presets[item.rule] || []) {
+						const option = new Option(t(`cowork.recon.rule.${item.rule}.${value}`), value, false, value === item.value);
+						select.append(option);
+					}
+					select.addEventListener("change", () => call("change", { scope_key: item.scope, rule: item.rule, value: select.value }));
+					const by = document.createElement("div");
+					by.className = "text-muted small";
+					by.textContent = t("cowork.recon.preset.by", item.set_by_name || item.set_by || "", p.datetime_text(item.set_at));
+					row.append(head, select, by);
+					return row;
+				}));
+			};
+			draw(await p.call(presets_api + "listing", { kind }));
+			dialog.show();
+		}
 
 		// ── 新建：两个上传口 → 开始对账 ────────────────────────────────────────
 		function show_new() {
@@ -190,6 +238,7 @@
 		//   汇总表 = 卡片：调节过程一张主卡，账户信息 / 结果 / 文件信息放右侧，一屏看全；
 		//   工作表切换放在顶部原生页签。排序只改显示顺序；可改的格子带着自己的输入位置，排序后照样能改。
 		const sheets_api = "pearnly_cowork.recon_center.sheets.";
+		const presets_api = "pearnly_cowork.recon_center.presets.";
 		const lang = () => (frappe.boot.lang || "th").slice(0, 2);
 		const clone = value => JSON.parse(JSON.stringify(value));
 		// 工作簿里的底色 / 字色 → 原生色名。
@@ -465,9 +514,9 @@
 			else draw_summary(host, sheet, styles);
 		}
 
-		async function show_result(name) {
+		async function show_result(name, loaded, ask_next) {
 			const request = ++sequence;
-			const data = await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() });
+			const data = loaded || await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() });
 			if (request !== sequence || frappe.get_route()[1] !== name) return;
 			clear();
 			let modified = data.task.modified, dirty = false, pending = null, active = 0, view = data, waiting = null;
@@ -607,6 +656,53 @@
 				view = saved; inputs = clone(saved.inputs); good = clone(saved.inputs);
 				buttons(); paint();
 				p.success(t("cowork.recon.saved"));
+			}
+			// 对账预设：系统定不了、但定一次规矩就能定的地方（如这个账户的多笔对一笔是不是汇总入账），一次问一个，
+			// 选了即记住并按它重算（已识别的数据，不再识别）；以后同一账户不再问（用户 2026-09-30 批准）。
+			const questions = data.task.questions || [];
+			async function answer(item, option, dialog) {
+				if (dirty) {
+					await save();
+					if (dirty) return;
+				}
+				const fresh = await p.call(presets_api + "answer", { kind, task_id: name, rule: item.rule, value: option.value, lang: lang() }, "POST");
+				dialog.hide();
+				if (frappe.get_route()[1] === name) await show_result(name, fresh, true);
+			}
+			function ask() {
+				const item = questions[0];
+				const dialog = new frappe.ui.Dialog({ title: item.title, fields: [{ fieldtype: "HTML", fieldname: "body" }] });
+				const body = dialog.fields_dict.body.$wrapper[0];
+				const evidence = document.createElement("table");
+				evidence.className = "table table-sm pearnly-recon-evidence";
+				for (const cells of item.evidence) {
+					const line = evidence.insertRow();
+					for (const text of cells) line.insertCell().textContent = text;
+				}
+				const count = document.createElement("p");
+				count.className = "text-muted small";
+				count.textContent = item.count || "";
+				const choices = document.createElement("div");
+				choices.className = "pearnly-recon-choices";
+				for (const option of item.options) {
+					const button = document.createElement("button");
+					button.type = "button";
+					button.className = "btn btn-default btn-block";
+					button.textContent = option.label;
+					button.addEventListener("click", async () => {
+						choices.querySelectorAll("button").forEach(node => { node.disabled = true; });
+						try { await answer(item, option, dialog); }
+						finally { choices.querySelectorAll("button").forEach(node => { node.disabled = false; }); }
+					});
+					choices.append(button);
+				}
+				body.replaceChildren(evidence, count, choices);
+				dialog.show();
+			}
+			if (questions.length) {
+				page.add_inner_button(t("cowork.recon.questions", questions.length), ask);
+				// 刚答完一个、还有下一个：接着问，不用再点。
+				if (ask_next) ask();
 			}
 			buttons();
 			paint();

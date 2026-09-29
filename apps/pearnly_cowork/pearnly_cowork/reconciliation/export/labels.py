@@ -157,6 +157,13 @@ I18N_EXPORT: Dict[str, Dict[str, str]] = {
         "zh": "L3-仅金额",
         "ja": "L3-金額のみ",
     },
+    # 按预设当作合计匹配的「多笔对一笔」（2026-09-30 对账预设）。
+    "layer_4": {
+        "th": "L4-ยอดรวมตรงกัน (ตามค่าที่ตั้งไว้)",
+        "en": "L4 - Group Total (Preset)",
+        "zh": "L4-合计匹配（按预设）",
+        "ja": "L4-合計一致（プリセット）",
+    },
     # Status labels
     "st_gl_debit_only": {
         "th": "GL เดบิตเท่านั้น",
@@ -397,6 +404,8 @@ def layer_label(layer: Optional[int], lang: str) -> str:
         return t("layer_2", lang)
     if layer == 3:
         return t("layer_3", lang)
+    if layer == 4:
+        return t("layer_4", lang)
     return ""
 
 

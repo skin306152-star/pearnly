@@ -232,8 +232,59 @@ def bank_compute(doc, inputs):
 	if changed and rows[0] and rows[0][-1].get("balance") is not None:
 		header["stmt_closing"] = rows[0][-1]["balance"]
 	_follow_ledger_edits(header, rows[1], before[1])
-	results, summary = bank_recon_service._match(rows, header)
+	results, summary = bank_recon_service._match(rows, header, bank_rules(doc, rows[1]))
 	return rows, header, results, summary
+
+
+def bank_rules(doc, gl_rows):
+	"""这份对账所在账户已定的预设（建任务、复核确认、页面重算同一口径）。"""
+	return bank_recon_service.preset_rules(doc.get("workspace"), bank_recon_service.task_scope(doc, gl_rows))
+
+
+EVIDENCE_GROUPS = 2
+
+
+def bank_questions(doc, inputs, results):
+	"""结果页要人定一次的问题（对账预设，见 ``presets``）。现在银行只有一类：多笔对一笔是不是汇总入账。
+
+	认不出账户（没有尾号也没有科目号）不问：答了也记不住，照旧只在标题旁提示。"""
+	from pearnly_cowork.reconciliation import presets
+	from pearnly_cowork.reconciliation.bank_groups import suspected_groups
+
+	scope = bank_recon_service.task_scope(doc, inputs.get("gl") or [])
+	if not scope or presets.GROUPED in bank_recon_service.preset_rules(doc.get("workspace"), scope):
+		return []
+	groups = suspected_groups(results)
+	if not groups:
+		return []
+	evidence = []
+	for group in groups[:EVIDENCE_GROUPS]:
+		anchor, members = group["anchor"], group["members"]
+		days = (group["start"].isoformat(), group["end"].isoformat())
+		if group["side"] == "stmt":
+			evidence.append([_("reconciliation.preset.evidence_stmt").format(anchor.stmt_date.isoformat(),
+				_money((anchor.stmt_deposit or 0) - (anchor.stmt_withdrawal or 0))),
+				_("reconciliation.preset.evidence_gl_rows").format(len(members), *days)])
+		else:
+			evidence.append([_("reconciliation.preset.evidence_gl").format(anchor.gl_date.isoformat(),
+				anchor.gl_doc_no or "", _money((anchor.gl_debit or 0) - (anchor.gl_credit or 0))),
+				_("reconciliation.preset.evidence_stmt_rows").format(len(members), *days)])
+	return [{"rule": presets.GROUPED, "scope_label": presets.scope_label(scope),
+		"title": _("reconciliation.preset.grouped_title").format(presets.scope_label(scope)),
+		"evidence": evidence,
+		"count": _("reconciliation.preset.grouped_count").format(len(groups)),
+		"options": [{"value": presets.YES, "label": _("reconciliation.preset.grouped_yes")},
+			{"value": presets.NO, "label": _("reconciliation.preset.grouped_no")}]}]
+
+
+def bank_preset_notes(results):
+	"""按预设处理了哪些：标题旁一句（结果里的第 4 层「合计匹配」行就是这些组）。"""
+	groups = max((row.group_no or 0 for row in results), default=0)
+	return [_("reconciliation.preset.grouped_applied").format(groups)] if groups else []
+
+
+def _money(value):
+	return f"{abs(value):,.2f}"
 
 
 def bank_workbook_bytes(doc, results, summary, lang):
