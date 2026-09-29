@@ -324,3 +324,21 @@
 
 - 对账后台任务按提交时的 lang 运行（`jobs.run` 设置 `frappe.local.lang`）：收入 / 销项失败时，状态提示原来是英文（后台任务的默认语言），现在按用户选的语言显示。
 - **换令牌时连不上谷歌，被当成程序错误整张读空**（压测第 8 轮 B05-01 的 1.jpg：oauth2.googleapis.com 读超时 120 秒，识别任务以 workflow_error 失败，没有重试）：Cowork 客户端取令牌时，原始异常是传输类的（TransportError / Timeout / Connection）就稍后重试（`Deferred("token_unavailable")`）。这时还没发出任何付费调用。凭据缺失、格式不对照旧报错。
+
+## 收入 / 销项预扫与第 8 轮后续（d6ccf5de … 2e14b0ba，测试机已同步 2e14b0ba）
+
+- 税报 PDF：pymupdf 与 pypdf 两种取字都试，取读出行数多的（Express 打印版 pymupdf 好，I04 95 页冰块明细 pypdf 好）。
+- 收入总账：续行沿用上一行日期；「เดบิท」算借方；Excel 1940–1999 年按佛历修正；Express 科目号「41-01-00-00」
+  （至少三段两位数）；三数尾的第一个数紧贴日期 / 单号（「1/4/2569」「SBT10/2025」）不当借方。
+- 税报：「ผู้เสียภาษี」单独做表头认作税号列（V03）；日期「01-02-69」「01.02.2569」转标准日期（共用 `parse_date`）。
+- 收入配对：税报无单号行（当日汇总）按同日同额配唯一的、没被有单号行点名的总账凭证（`income_vat.pair_unnumbered_lines`）。
+- 试算表（งบทดลอง / trial balance）当总账上传：提示 `reconciliation.gl_trial_balance`，不再说“没有收入行”。
+  是否支持“按合计对账”待用户定（I04 的答案就是人工按合计对：试算表 5,799,764.44 = 税报未税合计）。
+- 对照测试登记的有意差异：vat_parse（summary_line 标记、泰文汇总行、单号合并、税号 / 分支在单号之后找、短横日期）、
+  income_parse（续行日期、日期碎片尾数）。均在对应 parity 测试里按类别计数。
+- **重复读字付费（BAY-CA-03）**：pymupdf 写出页块每次带随机 /ID，检查点键每次不同，续跑重读、重付（12 页读 5 遍）。
+  改 `tobytes(no_new_id=True)`，页块逐字节稳定。
+- **对账结束后不再调用 / 扣费**：每次付费调用前查对账是否结束；对账等到时限时识别已读完就再等 120 秒；状态缓存被清
+  （部署、clear-cache）时以对账源文件是否已删判断结束。ed91a2fd 在修复前因竞态扣了测试租户 12 页（16:14 UTC）。
+- 未处理：V05 POS 明细（字体乱码）、I03 .xls 数量矩阵。
+- 与本任务无关、main 上同样失败：`tests/test_cowork_income_recon_export_source_parity.py`（标签表与旧线上不一致），另行登记。
