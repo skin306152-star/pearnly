@@ -1035,9 +1035,22 @@ class InvoiceReadsInTheVatCheck(unittest.TestCase):
 		captured = {}
 
 		def run_invoice(source, model_call, vision_call, **kwargs):
+			from pearnly_cowork.ocr.engine.errors import ContentError
+
 			with self.assertRaises(ProviderFailure):
 				model_call(ModelRequest(stage="direct", page_number=3, attempt=0, model="m", prompt="p"))
 			captured["timeout"] = client.model_call.call_args.args[0].timeout_s
+			# 读原文兜底那一步给「这一页读不出」，引擎按页接得住（第 21 轮 V04 复核之后整份作废）
+			with self.assertRaises(ContentError):
+				model_call(ModelRequest(stage="ocr_read", page_number=3, attempt=0, model="m", prompt="p"))
+			client.vision_call.side_effect = Uncertain("read timeout")
+			with self.assertRaises(ContentError):
+				vision_call(mock.Mock(), stage="layer1", page_number=3)
+			# 直读刚成功时的读图是「完整税票核对」：给明确失败，引擎跳过核对、保留直读
+			client.model_call.side_effect = None
+			model_call(ModelRequest(stage="direct", page_number=4, attempt=0, model="m", prompt="p"))
+			with self.assertRaises(ProviderFailure):
+				vision_call(mock.Mock(), stage="layer1", page_number=4)
 			return mock.Mock(pipeline=mock.Mock(pages=[]))
 
 		frozen = {"environment": {}, "policy": {}, "target": dict.fromkeys(("backend", "project", "location",
@@ -1122,9 +1135,11 @@ class PurchaseInvoicesInTheSalesCheck(unittest.TestCase):
 
 		inputs = {"seller_tax_id": "0105559093717", "invoices": [
 			{"filename": "RN1.pdf", "buyer_tax_id": "0-1055-59093-71-7"}, {"filename": "RN1.pdf", "buyer_tax_id": "0105559093717"},
-			{"filename": "IV2.pdf", "buyer_tax_id": "0105536000633"}]}
+			{"filename": "IV2.pdf", "buyer_tax_id": "0105536000633"},
+			{"filename": "RN1.pdf", "buyer_tax_id": "0105559093717", "buyer_name": "GIZE COMPANY LIMITED"},
+			{"filename": "RN5.pdf", "buyer_tax_id": "3320900400929", "buyer_name": "GIZE Co., Ltd."}]}
 		with mock.patch.object(sheets, "_", side_effect=lambda text: text + " {0}"):
-			self.assertEqual(sheets.purchase_invoice_notes(inputs), ["vat_check.note.purchase_invoices RN1.pdf"])
+			self.assertEqual(sheets.purchase_invoice_notes(inputs), ["vat_check.note.purchase_invoices RN1.pdf, RN5.pdf"])
 			self.assertEqual(sheets.purchase_invoice_notes({**inputs, "seller_tax_id": ""}), [])
 
 

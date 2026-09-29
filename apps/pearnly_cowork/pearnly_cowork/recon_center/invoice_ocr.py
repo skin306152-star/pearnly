@@ -24,7 +24,8 @@ from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
-from pearnly_cowork.ocr.engine.contracts import ProviderFailure
+from pearnly_cowork.ocr.engine.contracts import ModelRequest, ProviderFailure
+from pearnly_cowork.ocr.engine.errors import ContentError, EngineError
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
 from pearnly_cowork.ocr.execution.access import WORK
 from pearnly_cowork.ocr.grouping import group_invoices
@@ -173,14 +174,32 @@ def _recognize(content, filename, pages, frozen):
         return invoke
 
     def page_failure(call):
-        # 重发后仍结果不明的那一页交给引擎的按页兜底（明确失败），不让整份作废：25 页的扫描件一页不明，25 张发票
-        # 全丢了（2026-09-30 压测第 17 轮 V03）。已发出的那次调用续跑时从检查点认出、同样处理，不重付。
+        # 重发后仍结果不明的那一页交给引擎的按页兜底，不让整份作废（25 页的扫描件一页不明，25 张发票全丢了，
+        # 2026-09-30 压测第 17 轮 V03）。按引擎每一步接得住的失败给：直读 / 复核给明确失败（引擎转下一步兜底）；
+        # 读原文、带原文再读给「这一页读不出」（有直读结果就沿用并标红，没有就记成这一页没读出）—— 第 21 轮 V04：
+        # 复核之后的一步给了明确失败，引擎没接住，整份当程序错误作废。已发出的那次调用续跑时从检查点认出、同样处理。
         def invoke(*args, **kwargs):
+            request = args[0] if args and isinstance(args[0], ModelRequest) else None
+            stage = request.stage if request else kwargs.get("stage", "")
+            page = request.page_number if request else kwargs.get("page_number", 0)
             try:
-                return call(*args, **kwargs)
+                result = call(*args, **kwargs)
             except Uncertain as error:
-                raise ProviderFailure("ocr.provider_outcome_unknown") from error
+                if request:
+                    last[page] = (stage, False)
+                if stage in ("direct", "recheck"):
+                    raise ProviderFailure("ocr.provider_outcome_unknown") from error
+                # 读图（Vision）两处用：直读刚成功、中间没复核 → 是「完整税票核对」，给明确失败引擎就跳过核对、保留直读；
+                # 其余是读原文兜底，给「这一页读不出」。
+                if not request and last.get(page) == ("direct", True):
+                    raise ProviderFailure("ocr.provider_outcome_unknown") from error
+                raise ContentError("ocr.provider_outcome_unknown", stage=str(stage), page_number=page) from error
+            if request:
+                last[page] = (stage, True)
+            return result
         return invoke
+
+    last = {}  # 每页最近一次模型调用：(步骤, 是否拿到结果)
 
     @page_failure
     def model_call(request):
@@ -230,7 +249,13 @@ def run(recon_job, file, filename, pages, sha256, settings):
             ocr_settings.revalidate(frozen)
             intake.balance(int(pages), frozen["billing_tier"])
             # 用上传时的原文件名（核查表“原文件”一栏显示它；存成临时 File 时名字可能被加了后缀）。
-            invoices = _recognize(content, filename, pages, frozen)
+            try:
+                invoices = _recognize(content, filename, pages, frozen)
+            except (EngineError, ProviderFailure) as error:
+                # 整份读不出（每页都没结果、不是发票）：记成没读出，不扣费、不重跑付费调用；核查结果里点名这份文件
+                # （原来冒到共用层被当成程序错误，2026-09-30 压测第 21 轮 V04）。
+                frappe.log_error(title="cowork vat check invoice", message=f"{filename}: {error}")
+                invoices = []
             saved = core_work.checkpoint(RESULT, "done", {"invoices": invoices})
         if saved["body"]["invoices"] and not core_work.checkpoint(BILLED):
             # 扣费前再看一次核查：已经结束（失败或完成）就用不到这份结果，不扣客户的钱（与账单路径 document_ocr 同一

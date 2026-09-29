@@ -465,13 +465,22 @@ def purchase_invoice_notes(inputs):
     12 份全是 GIZE 收到的发票）。点名是哪几份文件。"""
     from pearnly_cowork.reconciliation.normalization import normalize_tax_id
 
+    from pearnly_cowork.reconciliation.normalization import company_name
+
     own = normalize_tax_id(inputs.get("seller_tax_id") or "")
     if not own:
         return []
+    invoices = inputs.get("invoices") or []
+    # 税号对上的那几张里本公司的写法；税号没读出 / 读错的发票，买方名称是同一写法也算（V04 的 RN3062065：税号读成
+    # 别的号码，买方写「GIZE COMPANY LIMITED」）。
+    names = {company_name(invoice.get("buyer_name")) for invoice in invoices
+             if normalize_tax_id(invoice.get("buyer_tax_id") or "") == own} - {""}
     files = []
-    for invoice in inputs.get("invoices") or []:
+    for invoice in invoices:
         name = str(invoice.get("filename") or invoice.get("source_filename") or "")
-        if normalize_tax_id(invoice.get("buyer_tax_id") or "") == own and name and name not in files:
+        ours = (normalize_tax_id(invoice.get("buyer_tax_id") or "") == own
+                or company_name(invoice.get("buyer_name")) in names)
+        if ours and name and name not in files:
             files.append(name)
     return [_("vat_check.note.purchase_invoices").format(", ".join(files))] if files else []
 
