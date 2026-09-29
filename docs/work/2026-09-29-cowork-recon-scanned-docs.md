@@ -120,3 +120,4 @@
    - 新平台生产：Cowork 的 short / default / long 共用 1 个 `bench worker`（`infrastructure/production/compose.yml` 的 `cowork-worker`），识别用 `worker-pool` 2 个进程。一个对账任务在等识别的这段时间（最长 25 分钟），会占住 Cowork 全部普通后台任务。
    - 已改（应用内）：银行对账先把所有照片一次提交识别，再逐个取结果。2 个识别进程可以并行读；同一参考号的提交复用同一个识别任务，不会重复收费；PDF 不预先提交，因为带文字层的先免费解析。
    - 未改（运行定义，需用户同意部署）：给 Cowork 的 long 队列单独起 `worker-pool --num-workers 2`，让对账之间、对账与其他后台任务不再互相等待。在此之前，这一条记为已知限制。
+   - 实际影响（压测第二轮观察）：一个对账任务占着这唯一的 `bench worker` 时，default 队列里堆了 12 个 `run_scheduled_job`，也就是 Cowork 站点自己的定时任务，全都排在对账后面没有执行。所以受影响的不只是其他对账，还有 Cowork 的定时任务。
