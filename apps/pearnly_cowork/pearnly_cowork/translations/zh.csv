@@ -1024,6 +1024,7 @@ There is not enough balance to recognize the image and PDF invoices. Top up and 
 There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
+These files have no transactions (a cover or account page) and were skipped: {0},以下文件没有流水（封面或账户信息页），已跳过：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
@@ -1965,6 +1966,7 @@ reconciliation.edit_conflict,这个对账刚被别人改过，请刷新后再保
 reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
 reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。
+reconciliation.files_no_movement,以下文件没有流水（封面或账户信息页），已跳过：{0}
 reconciliation.files_required,请上传两份文件。
 reconciliation.files_unread,以下文件没读出来，本次对账没有包含，请重新上传：{0}
 reconciliation.gl_account_auto,总账里有多个科目，已按与银行流水的吻合程度选用科目 {0}。

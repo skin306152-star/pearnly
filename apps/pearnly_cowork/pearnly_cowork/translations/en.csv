@@ -1024,6 +1024,7 @@ There is not enough balance to recognize the image and PDF invoices. Top up and 
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
+These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
@@ -1965,6 +1966,7 @@ reconciliation.edit_conflict,Someone else changed this reconciliation. Reload it
 reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
 reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."
+reconciliation.files_no_movement,These files have no transactions (a cover or account page) and were skipped: {0}
 reconciliation.files_required,Upload both files.
 reconciliation.files_unread,These files could not be read and were left out; upload them again to include them: {0}
 reconciliation.gl_account_auto,The general ledger has several accounts; account {0} was used because it matches the bank statement best.

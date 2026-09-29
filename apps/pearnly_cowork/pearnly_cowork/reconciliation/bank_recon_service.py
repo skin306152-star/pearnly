@@ -191,7 +191,11 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	mixed = other_accounts(statements)
 	if mixed:
 		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
-	unread = [name for name, result in statements + ledgers if not result.get("ok")]
+	skipped = [name for name, result in statements if result.get("error_code") == bank_intake.NO_MOVEMENT]
+	if skipped:
+		warnings = list(warnings or []) + [_("reconciliation.files_no_movement", lang=_warning_lang(lang)).format("、".join(skipped))]
+	unread = [name for name, result in statements + ledgers
+		if not result.get("ok") and result.get("error_code") != bank_intake.NO_MOVEMENT]
 	if unread:
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
 		# 识别结果不明，用户看不出少了哪一页）。

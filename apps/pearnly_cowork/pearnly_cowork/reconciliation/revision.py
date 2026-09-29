@@ -95,10 +95,15 @@ def bank_notes(doc):
 	# 多份文件里有没读出的：标题旁点名（结果照常出，但少了这几份；2026-09-29 压测 B01 一张照片结果不明被略过，
 	# 只写在工作簿警告条里不够显眼）。
 	parse_info = bank_recon_contracts.json_loads(doc.parse_info_json) or {}
-	unread = [item.get("file") for section in ("stmt_files", "gl_files")
-		for item in parse_info.get(section) or [] if not item.get("ok") and item.get("file")]
+	failed = [item for section in ("stmt_files", "gl_files") for item in parse_info.get(section) or []
+		if not item.get("ok") and item.get("file")]
+	unread = [item["file"] for item in failed if item.get("error_code") != "no_movement"]
 	if unread:
 		notes.append(_("reconciliation.files_unread").format("、".join(unread)))
+	# 读成功、没有流水的（存折封面）只说已跳过，不叫用户重传（2026-09-29 压测 B05）。
+	skipped = [item["file"] for item in failed if item.get("error_code") == "no_movement"]
+	if skipped:
+		notes.append(_("reconciliation.files_no_movement").format("、".join(skipped)))
 	if doc.status == "needs_review":
 		diagnostics = (bank_recon_contracts.json_loads(doc.review_json) or {}).get("diagnostics") or {}
 		if int(diagnostics.get("low_conf_count") or 0):

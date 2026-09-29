@@ -1024,6 +1024,7 @@ There is not enough balance to recognize the image and PDF invoices. Top up and 
 There is not enough recognition balance. Top up and send the document again.,ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่
 These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 These files could not be read and were left out; upload them again to include them: {0},อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
+These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
@@ -1965,6 +1966,7 @@ reconciliation.edit_conflict,งานกระทบยอดนี้ถูก
 reconciliation.failed,การกระทบยอดไม่สำเร็จ
 reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
 reconciliation.file_type_unsupported,"ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
+reconciliation.files_no_movement,ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
 reconciliation.files_required,กรุณาอัปโหลดไฟล์ทั้งสอง
 reconciliation.files_unread,อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 reconciliation.gl_account_auto,บัญชีแยกประเภทมีหลายบัญชี ระบบเลือกบัญชี {0} ซึ่งตรงกับรายการเดินบัญชีมากที่สุด

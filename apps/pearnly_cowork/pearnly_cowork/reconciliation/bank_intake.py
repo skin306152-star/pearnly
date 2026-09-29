@@ -61,6 +61,10 @@ def _adopted(bank_code: str, filename: str) -> str:
 	return bank_parse.bank_code_from_filename(filename) or bank_code or "generic"
 
 
+# 读成功、没有流水的文件（封面、账户信息页）的失败码：结果里说“已跳过”，不叫用户重新上传。
+NO_MOVEMENT = "no_movement"
+
+
 def _failure(error_code: str, error: str, **extra) -> Dict[str, Any]:
 	return {"ok": False, "error_code": error_code, "error": error, "rows": [], **extra}
 
@@ -183,11 +187,14 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	# 要不要轮到模型：行数不够，或免费解析的余额链太坏（部署版 `_need_gemini`）。
 	printed_totals = None
 	method_divergence: List[str] = []
+	read_empty = False
 	if model_rows is not None and (not rows or len(rows) < MIN_TABLE_ROWS
 			or bank_statement.statement_row_bad_ratio(rows, opening) > BAD_RATIO_LIMIT):
 		free_bad = bank_statement.statement_row_bad_ratio(rows, opening)
 		model = model_rows("bank_statement", file_bytes, filename) or {}
 		model_row_list = model.get("rows") or []
+		# 企业档读成功了、只是没有流水（存折封面、账户信息页）：不算“没读出来”（2026-09-29 压测 B05）。
+		read_empty = bool(model.get("enterprise")) and not model_row_list
 		if model.get("ok") and model_row_list:
 			model_opening = float(model.get("opening", opening) or 0)
 			model_bad = bank_statement.statement_row_bad_ratio(model_row_list, model_opening)
@@ -209,6 +216,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	if not rows:
 		if free_error is not None:
 			return _failure(free_error[0], free_error[1])
+		if read_empty:
+			return _failure(NO_MOVEMENT, "The document was read but has no statement rows")
 		if ext == "pdf":
 			text = "\n".join(table_io.extract_pdf_text_pages(file_bytes))
 			hint = "" if text.strip() else " (PDF has no extractable text)"

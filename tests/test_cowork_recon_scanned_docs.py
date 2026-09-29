@@ -478,6 +478,29 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertIn("2.jpg", " ".join(create.call_args.kwargs["warnings"]))
 		self.assertNotIn("1.jpg", " ".join(create.call_args.kwargs["warnings"]))
 
+	def test_a_cover_page_that_was_read_is_skipped_not_called_unread(self):
+		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service
+
+		cover = bank_intake.read_statement_file(b"img", "cover.jpg", model_rows=lambda *a: {
+			"ok": False, "rows": [], "enterprise": True, "identity": {"bank": "KBANK", "last4": "2298"}})
+		self.assertEqual(cover["error_code"], bank_intake.NO_MOVEMENT)
+		failed = bank_intake.read_statement_file(b"img", "lost.jpg", model_rows=lambda *a: None)
+		self.assertNotEqual(failed["error_code"], bank_intake.NO_MOVEMENT)
+		good = self.statement([(date(2026, 6, 1), "a", 100.0, 0.0, 900.0)], opening=1000.0, closing=900.0)
+		ledger = {"ok": True, "rows": [], "row_count": 0, "accounts": [], "opening": 1000.0, "closing": 1000.0,
+			"source": "workbook"}
+		reads = iter([good, cover])
+		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", side_effect=lambda *a, **k: next(reads)), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", return_value=ledger), \
+				mock.patch.object(bank_recon_service, "_", side_effect=lambda text, **_kw: text + " {0}"), \
+				mock.patch.object(bank_recon_service, "create", return_value={"name": "T1"}) as create:
+			bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
+				statement_files=[(b"1", "1.jpg"), (b"2", "cover.jpg")], gl_files=[(b"g", "gl.xlsx")], lang="zh")
+		warnings = create.call_args.kwargs["warnings"]
+		self.assertIn("reconciliation.files_no_movement cover.jpg", warnings)
+		self.assertFalse(any("files_unread" in warning for warning in warnings))
+
 	def test_the_same_line_on_two_overlapping_photos_counts_once(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
 
@@ -784,7 +807,8 @@ class ReviewWithBalanceBreaks(unittest.TestCase):
 		from pearnly_cowork.reconciliation import revision
 
 		doc = mock.MagicMock(status="completed", summary_json="{}", parse_info_json=json.dumps({"stmt_files": [
-			{"file": "IMG_2500.JPG", "rows": 44, "ok": True}, {"file": "IMG_2501.JPG", "rows": 0, "ok": False}],
+			{"file": "IMG_2500.JPG", "rows": 44, "ok": True}, {"file": "IMG_2501.JPG", "rows": 0, "ok": False},
+			{"file": "cover.jpg", "rows": 0, "ok": False, "error_code": "no_movement"}],
 			"gl_files": [{"file": "gl.xlsx", "rows": 9, "ok": True}]}))
 		with mock.patch.object(revision, "bank_inputs", return_value={"statement": [], "gl": []}), \
 				mock.patch.object(revision, "_contract", return_value=([], [])), \
@@ -792,7 +816,8 @@ class ReviewWithBalanceBreaks(unittest.TestCase):
 				mock.patch.object(revision, "_", side_effect=lambda text: text + " {0}"), \
 				mock.patch.object(revision.frappe, "local", mock.Mock(lang="zh")):
 			notes = revision.bank_notes(doc)
-		self.assertEqual(notes, ["reconciliation.files_unread IMG_2501.JPG"])
+		# 读成功、没有流水的封面只说已跳过（B05，2026-09-29）。
+		self.assertEqual(notes, ["reconciliation.files_unread IMG_2501.JPG", "reconciliation.files_no_movement cover.jpg"])
 
 	@staticmethod
 	def refuse(message):
