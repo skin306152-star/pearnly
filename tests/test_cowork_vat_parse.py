@@ -374,6 +374,18 @@ class SourceDispatch(unittest.TestCase):
 		self.assertEqual(thai_text("จ\u0e4d\u0e32กัด"), "จำกัด")
 		self.assertEqual(thai_text(None), "")
 
+	def test_company_names_compare_without_spacing_suffixes_or_head_office_notes(self):
+		# 用户 2026-09-30 定放宽（V03：32 行「客户名差异」金额都一致）。
+		from pearnly_cowork.reconciliation.normalization import company_name
+
+		same = [("บริษัท\xa0\xa0ที่แท้ทรู\xa0กรุ๊ป\xa0จำกัด", "บจก. ที่แท้ทรู กรุ๊ป"),
+			("บริษัท ซีพีเอฟ (ประเทศไทย) จำกัด (มหาชน)", "บมจ. ซีพีเอฟ (ประเทศไทย)"),
+			("บริษัท อีซิลี่ (สำนักงานใหญ่)", "บริษัท อีซิลี่"), ("ACME Co., Ltd.", "acme company limited"),
+			("บริษัท อีซิลี่ (สาขา00002)", "บริษัท อีซิลี่")]
+		for first, second in same:
+			self.assertEqual(company_name(first), company_name(second), (first, second))
+		self.assertNotEqual(company_name("บริษัท เน็ทเวิร์ค จำกัด"), company_name("บริษัท เน็ทเวิร์ดล์ จำกัด"))
+
 	def test_an_unknown_or_incomplete_source_is_refused(self):
 		with self.assertRaises(ValueError):
 			parse.decode({"kind": "scan"})

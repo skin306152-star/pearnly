@@ -50,6 +50,26 @@ def normalize_name(s) -> str:
     return re.sub(r"\s+", "", v)
 
 
+# 公司名的写法差异（用户 2026-09-30 定放宽）：前后缀、总公司 / 分公司标注不算不同。按 NFKC 之后的写法去掉（NFKC 把
+# 「ำ」拆成「ํ + า」，词条同样先归一）；长的先去，免得「บริษัท…จำกัด (มหาชน)」只去掉一半。
+_BRANCH_NOTE = re.compile(r"\((?:\s*(?:สํานักงานใหญ่|สนญ\.?|head\s*office|hq|สาขา[^)]*|branch[^)]*))\)")
+_COMPANY_WORDS = sorted({unicodedata.normalize("NFKC", word).lower() for word in (
+    "บริษัท", "จำกัด", "(มหาชน)", "มหาชน", "บจก.", "บจก", "บจ.", "บมจ.", "บมจ", "ห้างหุ้นส่วนจำกัด", "หจก.", "หจก",
+    "สำนักงานใหญ่", "co.,ltd.", "co., ltd.", "co.,ltd", "company limited", "public company limited", "limited",
+    "ltd.", "ltd", "co.", "pcl.", "pcl", "head office")}, key=len, reverse=True)
+
+
+def company_name(s) -> str:
+    """比较用的公司 / 客户名：NFKC + 小写 + 去空格（含不换行空格），去掉公司前后缀和总公司 / 分公司标注。"""
+    if not s:
+        return ""
+    value = unicodedata.normalize("NFKC", str(s)).lower()
+    value = _BRANCH_NOTE.sub(" ", value)
+    for word in _COMPANY_WORDS:
+        value = value.replace(word, " ")
+    return re.sub(r"[\s.,()\-]+", "", value)
+
+
 def normalize_invoice_no(s) -> str:
     """v118.32.4.9 · 改"逐字段对照"模式 · 只做纯视觉归一化(空格/连字符/斜杠/大小写)
     不再剥离 INV/IV/TAX 前缀 —— 那是替用户判定"INV 和 IV 是同一笔"违反新铁律

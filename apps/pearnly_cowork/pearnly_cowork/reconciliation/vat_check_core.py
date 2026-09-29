@@ -1,11 +1,13 @@
 # 销项税报告核查（Cowork，用户 2026-09-26 定迁）：配对与维度差异（services/recon/vat_recon_core.py）；另含 services/vat/vat_ocr_extract.py::_ocr_validate_invoice
 # 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径；
-# 唯一有意改动：发票一侧分公司为空时不比分公司（见 `_diff_dims`，用户 2026-09-26 定）。
+# 有意改动：发票一侧分公司为空时不比分公司（见 `_diff_dims`，用户 2026-09-26 定）；客户名按 `company_name` 比
+# （忽略空格、公司前后缀、总公司 / 分公司标注，用户 2026-09-30 定），税号不同照样报。
 """VAT 对账核心:金额/期间归一化 + 一对一配对 + 维度差异计算 · vat_excel_export 拆分 leaf。"""
 
 from typing import List, Dict, Any, Optional
 
 from pearnly_cowork.reconciliation.normalization import (
+    company_name,
     normalize_invoice_no,
     normalize_tax_id,
     normalize_str,
@@ -155,7 +157,7 @@ def _build_recon_pairs(
         inv = invoices[ii]
         if normalize_tax_id(inv.get("buyer_tax_id") or ""):
             continue  # 不是散客
-        inv_name = normalize_str(inv.get("buyer_name") or "")
+        inv_name = company_name(inv.get("buyer_name") or "")
         inv_no = normalize_invoice_no(inv.get("invoice_no") or "")
         inv_amt = _get_inv_total(inv)
         for ri in range(n_rep):
@@ -164,7 +166,7 @@ def _build_recon_pairs(
             rep = report_rows[ri]
             if normalize_tax_id(rep.get("report_buyer_tax_id") or ""):
                 continue  # 报告这行不是散客
-            rep_name = normalize_str(rep.get("report_buyer_name") or "")
+            rep_name = company_name(rep.get("report_buyer_name") or "")
             rep_no = normalize_invoice_no(rep.get("report_invoice_no") or "")
             rep_amt = _get_rep_total(rep)
             # 名 + 号 + 金 三重 · 金最严 · 名/号至少一个非空且一致
@@ -229,7 +231,7 @@ def _build_recon_pairs(
         inv = invoices[ii]
         if normalize_tax_id(inv.get("buyer_tax_id") or ""):
             continue  # 有税号 · 不是 OCR 漏抽
-        inv_name = normalize_str(inv.get("buyer_name") or "")
+        inv_name = company_name(inv.get("buyer_name") or "")
         inv_no = normalize_invoice_no(inv.get("invoice_no") or "")
         inv_amt = _get_inv_total(inv)
         for ri in range(n_rep):
@@ -239,7 +241,7 @@ def _build_recon_pairs(
             rep_tax = normalize_tax_id(rep.get("report_buyer_tax_id") or "")
             if not rep_tax:
                 continue  # 报告这行也没税号 → 第 3 轮已处理
-            rep_name = normalize_str(rep.get("report_buyer_name") or "")
+            rep_name = company_name(rep.get("report_buyer_name") or "")
             rep_no = normalize_invoice_no(rep.get("report_invoice_no") or "")
             rep_amt = _get_rep_total(rep)
             if not _eq_amount(inv_amt, rep_amt):
@@ -427,7 +429,7 @@ def _diff_dims(inv: Dict, rep: Dict, lang: str = "th") -> Dict[str, str]:
     # 客户名
     name1 = (inv.get("buyer_name") or "").strip()
     name2 = (rep.get("report_buyer_name") or "").strip()
-    if normalize_str(name1) != normalize_str(name2) and (name1 or name2):
+    if company_name(name1) != company_name(name2) and (name1 or name2):
         out["name"] = f"{name1 or '—'} ≠ {name2 or '—'}"
     return out
 
