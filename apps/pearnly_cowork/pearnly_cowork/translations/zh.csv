@@ -1029,6 +1029,7 @@ These files could not be read and were left out: {0},这些文件读不出来，
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},以下文件没有流水（封面或账户信息页），已跳过：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
+These statements look like another account and were left out of this reconciliation: {0},以下账单看起来是其他账户的，没有计入本次对账：{0}
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
@@ -2007,6 +2008,7 @@ reconciliation.statement_lines_dropped,已去掉 {0} 行与主账单重复、疑
 reconciliation.statement_no_movement,账单读到了，但没有逐笔流水（只有封面或汇总页），请上传有流水明细的页。
 reconciliation.statement_no_running_balance,这份账单没有逐笔余额，无法逐行核对余额。
 reconciliation.statement_other_account,这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
+reconciliation.statement_other_account_left_out,以下账单看起来是其他账户的，没有计入本次对账：{0}
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。
 reconciliation.system_busy,系统繁忙，这次对账没有完成，请稍后重试。

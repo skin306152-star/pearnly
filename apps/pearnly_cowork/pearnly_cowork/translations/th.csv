@@ -1029,6 +1029,7 @@ These files could not be read and were left out: {0},ไฟล์เหล่า
 These files could not be read and were left out; upload them again to include them: {0},อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
+These statements look like another account and were left out of this reconciliation: {0},รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
@@ -2007,6 +2008,7 @@ reconciliation.statement_lines_dropped,ตัด {0} รายการที่
 reconciliation.statement_no_movement,อ่านรายการเดินบัญชีได้ แต่ไม่มีรายการเคลื่อนไหว (มีแค่หน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายการเดินบัญชี
 reconciliation.statement_no_running_balance,รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงตรวจยอดคงเหลือทีละรายการไม่ได้
 reconciliation.statement_other_account,รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
+reconciliation.statement_other_account_left_out,รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 reconciliation.statement_rows_outside,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออก {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}
 reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้
 reconciliation.system_busy,ระบบกำลังยุ่ง การกระทบยอดครั้งนี้ยังไม่เสร็จ กรุณาลองใหม่ภายหลัง

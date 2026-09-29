@@ -1029,6 +1029,7 @@ These files could not be read and were left out: {0},次のファイルは読み
 These files could not be read and were left out; upload them again to include them: {0},次のファイルは読み取れなかったため今回の照合に含まれていません。再度アップロードしてください：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},次のファイルには取引がないため（表紙や口座情報のページ）スキップしました：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
+These statements look like another account and were left out of this reconciliation: {0},次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
 This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
@@ -2007,6 +2008,7 @@ reconciliation.statement_lines_dropped,メインの明細と重複し読み誤�
 reconciliation.statement_no_movement,明細書は読み取れましたが、取引明細がありません（表紙や集計ページのみ）。取引明細のあるページをアップロードしてください。
 reconciliation.statement_no_running_balance,この明細書には各行の残高がないため、残高を1行ずつ確認できません。
 reconciliation.statement_other_account,これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
+reconciliation.statement_other_account_left_out,次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
 reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
 reconciliation.system_busy,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。

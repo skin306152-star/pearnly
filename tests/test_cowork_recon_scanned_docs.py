@@ -632,6 +632,28 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertTrue(all(row.confidence == "low" for row in alone["rows"]))
 		self.assertTrue(alone["needs_review"])
 
+	def test_another_account_s_statements_are_left_out_when_the_rest_reads(self):
+		# B05-02（2026-09-30）：KBank 存折 2 月没有流水，两张 BBL 照片成了整条账单。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		kbank = self.statement([(date(2025, 8, 5), "a", 0.0, 10.0, 110.0)], opening=100.0, closing=110.0)
+		kbank["identity"] = {"bank": "KASIKORNBANK", "last4": "8229"}
+		bbl = self.statement([(date(2026, 2, 2), "b", 0.0, 5.0, 905.0)], opening=900.0, closing=905.0)
+		bbl["identity"] = {"bank": "ธนาคารกรุงเทพ", "last4": "0555"}
+		ledger = {"ok": True, "rows": [], "row_count": 0, "accounts": [], "opening": 110.0, "closing": 110.0,
+			"source": "workbook"}
+		reads = iter([kbank, dict(kbank), bbl])
+		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", side_effect=lambda *a, **k: next(reads)), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", return_value=ledger), \
+				mock.patch.object(bank_recon_service, "_", side_effect=lambda text, **_kw: text + " {0}"), \
+				mock.patch.object(bank_recon_service, "create", return_value={"name": "T1"}) as create:
+			bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
+				statement_files=[(b"1", "1.jpg"), (b"2", "2.jpg"), (b"3", "148266.jpg")], gl_files=[(b"g", "gl.xlsx")])
+		warnings = create.call_args.kwargs["warnings"]
+		self.assertIn("reconciliation.statement_other_account_left_out 148266.jpg", warnings)
+		self.assertFalse(any(row["description"] == "b" for row in create.call_args.args[3]))
+
 	def test_a_cover_page_that_was_read_is_skipped_not_called_unread(self):
 		from pearnly_cowork.reconciliation import bank_intake, bank_recon_service
 

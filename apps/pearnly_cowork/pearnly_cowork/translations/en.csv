@@ -1029,6 +1029,7 @@ These files could not be read and were left out: {0},These files could not be re
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
+These statements look like another account and were left out of this reconciliation: {0},These statements look like another account and were left out of this reconciliation: {0}
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
@@ -2007,6 +2008,7 @@ reconciliation.statement_lines_dropped,Left out {0} lines that repeat the main s
 reconciliation.statement_no_movement,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
 reconciliation.statement_no_running_balance,"This statement shows no running balance, so balances cannot be checked line by line."
 reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
+reconciliation.statement_other_account_left_out,These statements look like another account and were left out of this reconciliation: {0}
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.
 reconciliation.system_busy,The system is busy and the reconciliation was not finished. Please try again shortly.

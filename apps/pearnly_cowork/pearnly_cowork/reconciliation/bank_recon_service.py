@@ -191,11 +191,18 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	# 总账期间（整月）：几份账单怎么接，按期间里的余额链断得少来选（B08-01 的存折还带着前几个月的行）。
 	mixed = other_accounts(statements)
+	if mixed and any(result.get("ok") for name, result in statements if name not in mixed):
+		# 判成别的账户的那几份不计入本次对账、结果里点名（2026-09-30 压测 B05-02：KBank 存折 2 月没有流水，两张 BBL
+		# 存折照片成了整条账单，期初是 BBL 的数、还显示全通过）。其余文件都读不出时照旧全部保留。
+		statements = [(name, {**result, "ok": False, "error_code": OTHER_ACCOUNT} if name in mixed else result)
+			for name, result in statements]
+		warnings = list(warnings or []) + [_("reconciliation.statement_other_account_left_out",
+			lang=_warning_lang(lang)).format("、".join(mixed))]
+	elif mixed:
+		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
 	period = _months(row.date for result in (result for _name, result in ledgers if result.get("ok"))
 		for row in result.get("rows") or [])
 	statement = _merged_statement([result for _name, result in statements], period, mixed)
-	if mixed:
-		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
 	# 当作读错的重复去掉的行逐条列出，方便核对（压测窗口 2026-09-30：不悄悄丢数据）；期间外的行本来就筛掉、另有提示。
 	dropped = [row for row in statement.get("dropped") or []
 		if not period or not row.date or period[0] <= row.date <= period[1]]
@@ -206,7 +213,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if skipped:
 		warnings = list(warnings or []) + [_("reconciliation.files_no_movement", lang=_warning_lang(lang)).format("、".join(skipped))]
 	unread = [name for name, result in statements + ledgers
-		if not result.get("ok") and result.get("error_code") != bank_intake.NO_MOVEMENT]
+		if not result.get("ok") and result.get("error_code") not in (bank_intake.NO_MOVEMENT, OTHER_ACCOUNT)]
 	if unread:
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
 		# 识别结果不明，用户看不出少了哪一页）。
@@ -594,6 +601,9 @@ def without_running_balance(statement, ledger):
 	return {**statement, "opening": opening, "closing": closing, "completeness": completeness,
 		"needs_review": bool(statement.get("low_conf_count") or statement.get("amount_fixed_count"))
 			or not completeness["ok"]}, notes + ["reconciliation.statement_balances_from_ledger"]
+
+
+OTHER_ACCOUNT = "other_account"
 
 
 def _quiet_pages_skipped(statements):

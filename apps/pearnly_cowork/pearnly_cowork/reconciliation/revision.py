@@ -105,13 +105,16 @@ def bank_notes(doc):
 	parse_info = bank_recon_contracts.json_loads(doc.parse_info_json) or {}
 	failed = [item for section in ("stmt_files", "gl_files") for item in parse_info.get(section) or []
 		if not item.get("ok") and item.get("file")]
-	unread = [item["file"] for item in failed if item.get("error_code") != "no_movement"]
+	unread = [item["file"] for item in failed if item.get("error_code") not in ("no_movement", "other_account")]
 	if unread:
 		notes.append(_("reconciliation.files_unread").format("、".join(unread)))
 	# 读成功、没有流水的（存折封面）只说已跳过，不叫用户重传（2026-09-29 压测 B05）。
 	skipped = [item["file"] for item in failed if item.get("error_code") == "no_movement"]
 	if skipped:
 		notes.append(_("reconciliation.files_no_movement").format("、".join(skipped)))
+	others = [item["file"] for item in failed if item.get("error_code") == "other_account"]
+	if others:
+		notes.append(_("reconciliation.statement_other_account_left_out").format("、".join(others)))
 	if doc.status == "needs_review":
 		diagnostics = (bank_recon_contracts.json_loads(doc.review_json) or {}).get("diagnostics") or {}
 		if int(diagnostics.get("low_conf_count") or 0):
