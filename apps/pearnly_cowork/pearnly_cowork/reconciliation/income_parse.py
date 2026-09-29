@@ -245,7 +245,7 @@ def excel_rows(sheets, revenue_prefix: str = "4") -> Dict[str, Any]:
 							# 打印文本导入的表按固定宽度切格，段首科目号被切开（「4100-0」「1」，2026-09-29 I02）：
 							# 各格直接相连能认出同一科目号的完整写法就用完整的。
 							if any(CUT_ACCOUNT_RE.search(str(cell or "").strip()) for cell in cells):
-								glued = extract_account_code("".join(str(cell or "") for cell in cells))
+								glued = extract_account_code("".join("" if cell is None else str(cell) for cell in cells))
 								if glued and glued != account and glued.startswith(account):
 									account = glued
 							current_account = account
