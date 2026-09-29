@@ -344,25 +344,6 @@
 	gap: var(--margin-xs);
 }
 
-.pearnly-recon-step {
-	font-size: var(--text-sm);
-	padding: 4px 10px;
-	border-radius: var(--border-radius-full);
-	background: var(--subtle-fg);
-	color: var(--text-muted);
-	transition: background 0.3s, color 0.3s;
-}
-
-.pearnly-recon-step.is-done {
-	background: var(--bg-green);
-	color: var(--text-on-green);
-}
-
-.pearnly-recon-step.is-on {
-	background: var(--primary);
-	color: var(--white);
-}
-
 .pearnly-recon-sides {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -421,14 +402,10 @@
 	border-color: var(--red-400, var(--border-color));
 }
 
-/* 正在读的那一格：边框呼吸，表示还在做（不是进度）。 */
+/* 正在读的那一格：实心灰，不闪（用户 2026-09-30：呼吸灯改为实心；不用主题色）。 */
 .pearnly-recon-tile.is-current {
-	animation: pearnly-recon-breath 1.4s ease-in-out infinite;
-}
-
-@keyframes pearnly-recon-breath {
-	0%, 100% { border-color: var(--border-color); }
-	50% { border-color: var(--primary); }
+	background: var(--gray-300);
+	border-color: var(--gray-500);
 }
 
 .pearnly-recon-live-title {
@@ -473,6 +450,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.pearnly-recon-tile, .pearnly-recon-step { transition: none; }
-	.pearnly-recon-tile.is-current, .pearnly-recon-live-item.is-new { animation: none; }
+	.pearnly-recon-tile { transition: none; }
+	.pearnly-recon-live-item.is-new { animation: none; }
 }
