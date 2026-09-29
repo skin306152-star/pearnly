@@ -279,17 +279,20 @@
 }
 
 /* 标题旁的原生指示器装着「为什么要看一眼」这一句（2026-09-28）：太长时截断、悬停看全文，
- * 不挤掉标题、不把右上角按钮挤成两行。 */
+ * 不挤掉标题、不把右上角按钮挤成两行。空间不够时指示器先收（收缩系数远大于面包屑）。 */
 .page-container[data-page-route^="pearnly-recon"] .page-head .title-area .indicator-pill {
 	min-width: 0;
 	max-width: 45%;
+	flex: 0 100 auto;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
+/* 面包屑不设百分比上限：标题区按内容定宽，「最多 40%」等于把面包屑压成自己的四成 ——
+ * 三个对账列表页只剩「…」「销...」（2026-09-29 用户截图）。只在真的放不下时按原生规则截断末级。 */
 .page-container[data-page-route^="pearnly-recon"] .page-head .title-area .navbar-breadcrumbs {
-	flex-shrink: 0;
-	max-width: 40%;
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
 .page-container[data-page-route^="pearnly-recon"] .page-head .page-actions .btn {
