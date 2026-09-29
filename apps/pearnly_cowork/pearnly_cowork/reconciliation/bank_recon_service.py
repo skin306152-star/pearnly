@@ -650,7 +650,9 @@ def confirm_review(task_id, rows, expected_revision):
 	for row in validated:
 		row["balance_ok"] = "ok"
 	if "stmt_closing" not in (value["anchor_record"].get("anchor_overrides") or {}):
-		header["stmt_closing"] = validated[-1]["balance"]
+		# 没有逐笔余额的账单：期末 = 期初 + 发生额（BBL-SA-01/06）。
+		header["stmt_closing"] = validated[-1]["balance"] if validated[-1]["balance"] is not None else (
+			(header["stmt_opening"] or 0) + sum(row["deposit"] - row["withdrawal"] for row in validated))
 	decoded = (validated, [bank_recon_contracts.gl_row(row) for row in value["gl_rows"]])
 	results, summary = _match(decoded, header)
 	run_values = run_info(decoded, summary["matched_count"], value["warnings"],

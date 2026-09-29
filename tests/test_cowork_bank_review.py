@@ -59,6 +59,18 @@ class BankReview(unittest.TestCase):
 		with self.assertRaises(contracts.ReconciliationContractError):
 			review.validate_rows([incomplete], ORIGINAL, [])
 
+	def test_a_statement_read_without_any_balance_can_be_confirmed_blank(self):
+		# 网银查询截图（BBL-SA-01/06，2026-09-30）：读出来每行都没有余额，复核保存不能卡住。
+		original = [{**ORIGINAL[0], "balance": None}, {**ORIGINAL[0], "balance": None, "withdrawal": "0.00",
+			"deposit": "4986.23"}]
+		rows = review.editable_rows(original)
+		validated, _canonical = review.validate_rows(rows, original, [])
+		self.assertEqual([row["balance"] for row in validated], [None, None])
+		self.assertTrue(all(check["ok"] for check in review.balance_chain(validated, 0)))
+		# 只空一部分仍要补
+		with self.assertRaises(contracts.ReconciliationContractError):
+			review.validate_rows([rows[0], {**rows[1], "balance": "5000.00"}], original, [])
+
 	def test_chain_uses_actual_predecessor_and_exact_two_cent_tolerance(self):
 		row = review.editable_rows(ORIGINAL)[0]
 		rows, _ = review.validate_rows([row, {**row, "idx": None, "balance": "20.02"},

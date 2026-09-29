@@ -47,6 +47,10 @@ def validate_rows(value, original, gl_rows):
 	if (not isinstance(value, list) or not value
 			or len(value) + len(gl_rows) > contracts.MAX_ROWS):
 		raise contracts.ReconciliationContractError("reconciliation.review_rows_invalid")
+	# 整份账单没有逐笔余额（网银查询截图）：每行余额都空着也能确认；只空几行的仍要补（2026-09-30 压测 BBL-SA-01/06）。
+	# 以读出的原始行为准：原始行全都没有余额才算这类账单。
+	blank = (bool(original) and all(row.get("balance") in (None, "") for row in original)
+		and all(isinstance(raw, dict) and raw.get("balance") in (None, "") for raw in value))
 	seen, result, canonical = set(), [], []
 	for raw in value:
 		if not isinstance(raw, dict) or set(raw) != {"idx", *EDITABLE_FIELDS}:
@@ -60,11 +64,10 @@ def validate_rows(value, original, gl_rows):
 			for key in ("confidence", "autocorrected")} if index is not None else {})
 		row = contracts.statement_row({**metadata,
 			**{key: raw[key] for key in EDITABLE_FIELDS}})
-		if row["balance"] is None or any(
-			row[key] != row[key].quantize(CENT)
-			for key in ("withdrawal", "deposit", "balance")):
+		amounts = ("withdrawal", "deposit") if blank else ("withdrawal", "deposit", "balance")
+		if (row["balance"] is None and not blank) or any(row[key] != row[key].quantize(CENT) for key in amounts):
 			raise contracts.ReconciliationContractError("reconciliation.review_amount_invalid")
-		for key in ("withdrawal", "deposit", "balance"):
+		for key in amounts:
 			row[key] = row[key].quantize(CENT)
 		result.append(row)
 		canonical.append({"idx": index, **{key: row[key] for key in EDITABLE_FIELDS}})
