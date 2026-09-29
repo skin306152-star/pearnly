@@ -7,6 +7,7 @@ from pearnly_cowork.reconciliation import (
 	naming,
 	bank_intake,
 	bank_matching,
+	bank_recon_merge,
 	bank_parse,
 	bank_recon_access,
 	bank_recon_contracts,
@@ -151,7 +152,7 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 def create_from_documents(workspace, title, request_id, statement_bytes, statement_filename,
 		gl_bytes, gl_filename, header=None, gl_account_code="", reconciliation_type="bank",
 		model_rows=None, read_page=None, page_count=None, warnings=None, anchors=None, lang="th",
-		on_stage=None):
+		on_stage=None, statement_files=None, gl_files=None):
 	"""Store one reconciliation from **files**, through the native readers.
 
 	The bytes are handed in by the caller (the file store stays with the caller's
@@ -161,22 +162,33 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	file the readers and the model both refuse is an error, not an empty run;
 	per-file diagnostics are stored so the workbook's File Info section shows the
 	same numbers the deployed run recorded.
+
+	``statement_files`` / ``gl_files`` (``[(bytes, filename), ...]``) take several files per side, as the
+	deployed ``bank_v2_submit`` did (a passbook photographed page by page, a ledger split in parts): each
+	file is read on its own, a side fails only when none of its files reads, and the sides are merged by
+	the deployed ``merge_statements`` / ``merge_gl_files`` (2026-09-29, found preparing the scan stress run).
 	"""
 	bank_recon_access.require(workspace)
-	if not isinstance(statement_bytes, bytes) or not isinstance(gl_bytes, bytes):
+	statement_files = list(statement_files or [(statement_bytes, statement_filename)])
+	gl_files = list(gl_files or [(gl_bytes, gl_filename)])
+	if (not statement_files or not gl_files
+			or any(not isinstance(content, bytes) for content, _name in statement_files + gl_files)):
 		frappe.throw(_("reconciliation.request_invalid"))
 	# 对账中心的后台任务据此显示走到哪一步（读账单 / 读总账 / 核对）；不传就是原来的行为。
 	stage = on_stage or (lambda _name: None)
 	stage("statement")
-	statement = bank_intake.read_statement_file(statement_bytes, statement_filename,
-		model_rows=model_rows, read_page=read_page, page_count=page_count)
-	if not statement.get("ok"):
+	statements = [(name, bank_intake.read_statement_file(content, name, model_rows=model_rows,
+		read_page=read_page, page_count=page_count)) for content, name in statement_files]
+	if not any(result.get("ok") for _name, result in statements):
 		frappe.throw(_("reconciliation.statement_unparsed"))
 	stage("ledger")
-	ledger = bank_intake.read_ledger_file(gl_bytes, gl_filename,
-		account_code=gl_account_code, model_rows=model_rows)
-	if not ledger.get("ok"):
+	ledgers = [(name, bank_intake.read_ledger_file(content, name, account_code=gl_account_code,
+		model_rows=model_rows)) for content, name in gl_files]
+	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
+	statement = _merged_statement([result for _name, result in statements])
+	ledger = _merged_ledger([result for _name, result in ledgers], gl_account_code)
+	statement_names = "; ".join(name for name, _result in statements)
 	overrides = {} if header in (None, "") else header
 	if not isinstance(overrides, dict):
 		frappe.throw(_("reconciliation.header_invalid"))
@@ -190,13 +202,14 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		bank_parse.decoded_gl_rows(ledger["rows"]), values, reconciliation_type,
 		source_format=bank_parse.SOURCE_FORMAT,
 		parse_info={
-			"stmt_files": [{"file": statement_filename, "rows": statement["row_count"],
-				"ok": True, "error": None, "error_code": None,
-				"bank_code": statement["bank_code"]}],
-			"gl_files": [{"file": gl_filename, "rows": ledger["row_count"], "ok": True,
-				"error": None, "error_code": None, "accounts": ledger["accounts"]}],
+			"stmt_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
+				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
+				"bank_code": parsed.get("bank_code", "")} for name, parsed in statements],
+			"gl_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
+				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
+				"accounts": parsed.get("accounts") or []} for name, parsed in ledgers],
 		}, warnings=warnings, anchors=anchors, lang=lang,
-		_review=_review_diagnostics(statement, statement_filename))
+		_review=_review_diagnostics(statement, statement_names, [name for name, _r in statements]))
 	return {**result, "parsed": {
 		"statement_rows": statement["row_count"],
 		"gl_rows": ledger["row_count"],
@@ -216,8 +229,43 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	}}
 
 
-def _review_diagnostics(statement, filename):
-	if not filename.lower().endswith(".pdf") or not bank_review.needs_review(statement):
+def _merged_statement(results):
+	"""One file stays exactly as read; several are merged by the deployed ``merge_statements``."""
+	read = [result for result in results if result.get("ok")]
+	if len(results) == 1:
+		return read[0]
+	rows, opening, closing, bank_code = bank_recon_merge.merge_statements(list(results))
+	completeness = [result.get("completeness") or {} for result in read]
+	return {"ok": True, "rows": rows, "row_count": len(rows), "opening": opening, "closing": closing,
+		"bank_code": bank_code if bank_code != "generic" else (read[0].get("bank_code") or ""),
+		"source": read[0].get("source") or "", "parser_version": read[0].get("parser_version") or "",
+		"balance_warn_count": sum(int(result.get("balance_warn_count") or 0) for result in read),
+		"amount_fixed_count": sum(int(result.get("amount_fixed_count") or 0) for result in read),
+		"low_conf_count": sum(int(result.get("low_conf_count") or 0) for result in read),
+		"completeness": {**(completeness[0] if completeness else {}),
+			"ok": all(item.get("ok", True) is not False for item in completeness)},
+		"escalations": [item for result in read for item in result.get("escalations") or []],
+		"needs_review": any(result.get("needs_review") for result in read)
+			or len(read) != len(results)}
+
+
+def _merged_ledger(results, account_code):
+	read = [result for result in results if result.get("ok")]
+	if len(results) == 1:
+		return read[0]
+	rows, accounts, opening, closing = bank_recon_merge.merge_gl_files(list(results), account_code)
+	return {"ok": True, "rows": rows, "row_count": len(rows), "accounts": accounts, "opening": opening,
+		"closing": closing, "source": read[0].get("source") or "",
+		"needs_review": any(result.get("needs_review") for result in read) or len(read) != len(results)}
+
+
+REVIEWABLE = (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
+
+
+def _review_diagnostics(statement, filename, names=None):
+	# PDF 与照片读出的账单（旧线上 S8：「PDF / 图片账单 OCR 低信心或完整性不过 → 暂停等用户逐行核对」）。
+	if (not any(name.lower().endswith(REVIEWABLE) for name in (names or [filename]))
+			or not bank_review.needs_review(statement)):
 		return None
 	return {"file": filename, "low_conf_count": statement.get("low_conf_count", 0),
 		"amount_fixed_count": statement.get("amount_fixed_count", 0),

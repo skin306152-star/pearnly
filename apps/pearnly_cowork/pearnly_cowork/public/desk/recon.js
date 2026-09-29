@@ -22,6 +22,8 @@
 		bank: {
 			root: "pearnly-recon-bank", title: "cowork.nav.reconBank", doctype: "Cowork Bank Reconciliation",
 			export: "pearnly_cowork.reconciliation.bank_recon_api.export",
+			// 两边都可多份：存折一页一张照片、总账分几段（旧线上同样逐份读再合并）。
+			multiple: true,
 			left: "cowork.recon.bank.left", right: "cowork.recon.bank.right",
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },

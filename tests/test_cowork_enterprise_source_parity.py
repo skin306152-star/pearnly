@@ -87,6 +87,14 @@ def run(root):
                 if old != new:
                     raise AssertionError(("request drifted", category, transcript, image_only))
                 counts["requests"] += 1
+    # 2026-09-29: several statement / ledger files per side, merged as deployed.
+    from pearnly_cowork.reconciliation import bank_recon_merge
+
+    merge_path = Path(bank_recon_merge.__file__)
+    for name in ("_reconcile_gl_opening", "merge_statements", "merge_gl_files"):
+        if ast.dump(_function(root / "services/recon/bank_recon_merge.py", name)) != ast.dump(_function(merge_path, name)):
+            raise AssertionError(("merge function drifted", name))
+        counts["functions"] += 1
     assert pipeline.ENGINE == "enterprise-2026-09-03-v1"
     assert adapter.DOCUMENT_TYPES == {"bank": "bank_statement", "gl": "general_ledger", "vat": "vat_report"}
     return {"source": SOURCE_SHA, "counts": counts, "differences": 0}

@@ -18,8 +18,9 @@ from pearnly_cowork.reconciliation import bank_recon_access, bank_recon_service,
 from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 
 KINDS = {"bank": bank_recon_access, "income": income_recon_access, "vat": vat_check_access}
-# 每个上传口可以放几份：银行 / 收入各一份；销项税核查的报告可多份（同卖方同期间合并）、发票可很多张。
-MULTIPLE = {"vat"}
+# 每个上传口可以放几份：收入各一份；销项税核查的报告可多份（同卖方同期间合并）、发票可很多张；
+# 银行对账两边都可多份（旧线上 `bank_v2_submit` 收多个账单 / 总账文件逐份读再合并，存折一页一张照片就靠它）。
+MULTIPLE = {"vat", "bank"}
 MAX_FILES = 200
 MAX_BYTES = 25 * 1024 * 1024
 TTL = 24 * 3600
@@ -95,21 +96,28 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                                    on_stage=stage, invoice_files=files["right"], recon_job=recon_job,
                                    report_files=files["left"])
         elif kind == "bank":
-            (left_name, left), (right_name, right) = lefts[0], rights[0]
             from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
                 document_model_rows,
             )
-
             from pearnly_cowork.recon_center import document_ocr
 
             account = str(options.get("gl_account_code") or "")
-            # 扫描件 / 照片 / 要模型兜底的 PDF：每份一个持久识别任务（账单读左边那份，总账读右边那份）。
-            by_type = {"bank_statement": document_ocr.reader(recon_job, "left", files["left"][0], frappe.session.user),
-                       "general_ledger": document_ocr.reader(recon_job, "right", files["right"][0], frappe.session.user)}
-            read = lambda document_type, content, filename: by_type[document_type](document_type, content, filename)  # noqa: E731
+            # 扫描件 / 照片 / 要模型兜底的 PDF：每份文件一个持久识别任务（按读到的是哪一份文件找它存的 File）。
+            stored = [(content, file_name, side) for side, loaded in (("left", lefts), ("right", rights))
+                      for (_name, content), file_name in zip(loaded, files[side])]
+
+            def read(document_type, content, filename):
+                index, (_content, file_name, side) = next((index, item) for index, item in enumerate(stored)
+                                                          if item[0] is content)
+                return document_ocr.reader(recon_job, f"{side}{index}", file_name, frappe.session.user)(
+                    document_type, content, filename)
+
+            (left_name, left), (right_name, right) = lefts[0], rights[0]
             result = bank_recon_service.create_from_documents(workspace, title, request_id, left, left_name,
                 right, right_name, gl_account_code=account, model_rows=document_model_rows(account, read=read),
-                lang=options.get("lang") or "th", on_stage=stage)
+                lang=options.get("lang") or "th", on_stage=stage,
+                statement_files=[(content, name) for name, content in lefts],
+                gl_files=[(content, name) for name, content in rights])
         else:
             from pearnly_cowork.recon_center import document_ocr, sources
 

@@ -4,6 +4,7 @@ Document AI 与模型都是假的，不连服务商、不付费；页面来源�
 """
 import json
 import unittest
+from datetime import date
 from unittest import mock
 
 import frappe
@@ -196,6 +197,36 @@ class BankSeam(unittest.TestCase):
 			result = bank_intake.read_statement_file(b"img", "stmt.jpg", model_rows=lambda *_a: model)
 		self.assertTrue(result["ok"])
 		self.assertEqual(result["source"], "enterprise")
+
+
+class SeveralFilesPerSide(unittest.TestCase):
+	def statement(self, rows, ok=True, opening=0.0, closing=0.0):
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		return {"ok": ok, "rows": [StatementRow(date=date, description=text, withdrawal=out, deposit=into, balance=balance)
+			for date, text, out, into, balance in rows], "opening": opening, "closing": closing, "bank_code": "kbank",
+			"source": "enterprise", "parser_version": "enterprise-2026-09-03-v1", "balance_warn_count": 0,
+			"amount_fixed_count": 0, "low_conf_count": len(rows), "completeness": {"ok": True}, "needs_review": False}
+
+	def test_one_file_is_kept_exactly_as_read(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		one = self.statement([(date(2026, 6, 1), "a", 100.0, 0.0, 900.0)], opening=1000.0, closing=900.0)
+		self.assertIs(bank_recon_service._merged_statement([one]), one)
+
+	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		first = self.statement([(date(2026, 6, 1), "a", 100.0, 0.0, 900.0), (date(2026, 6, 3), "b", 0.0, 500.0, 1400.0)],
+			opening=1000.0, closing=1400.0)
+		second = self.statement([(date(2026, 6, 3), "b", 0.0, 500.0, 1400.0), (date(2026, 6, 5), "c", 200.0, 0.0, 1200.0)],
+			opening=1400.0, closing=1200.0)
+		failed = {"ok": False, "rows": [], "error": "no rows"}
+		merged = bank_recon_service._merged_statement([second, failed, first])
+		self.assertEqual([row.description for row in merged["rows"]], ["a", "b", "c"])
+		self.assertEqual((merged["opening"], merged["closing"]), (1000.0, 1200.0))
+		self.assertTrue(merged["needs_review"])  # one of three photos did not read
+		self.assertEqual(merged["low_conf_count"], 4)
 
 
 if __name__ == "__main__":
