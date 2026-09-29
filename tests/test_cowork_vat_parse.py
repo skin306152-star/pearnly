@@ -386,6 +386,14 @@ class SourceDispatch(unittest.TestCase):
 			self.assertEqual(company_name(first), company_name(second), (first, second))
 		self.assertNotEqual(company_name("บริษัท เน็ทเวิร์ค จำกัด"), company_name("บริษัท เน็ทเวิร์ดล์ จำกัด"))
 
+	def test_the_reporting_company_s_tax_id_is_read_from_the_header(self):
+		lines = ["รายงานภาษีขาย", "เลขประจำตัวผู้เสียภาษี 0105534113625 สำนักงานใหญ่",
+			"วันที่ เลขที่ใบกำกับ ชื่อผู้ซื้อ เลขประจำตัวผู้เสียภาษี มูลค่า ภาษี",
+			"01/07/69 IV1 ACME 0107536000633 1,000.00 70.00"]
+		self.assertEqual(parse.issuer_tax_id({"kind": "pdf", "pages": [], "lines": lines}), "0105534113625")
+		self.assertEqual(parse.issuer_tax_id({"kind": "pdf", "pages": [], "lines": lines[2:]}), "")
+		self.assertEqual(parse.decode({"kind": "text", "lines": lines}).get("issuer_hint"), "0105534113625")
+
 	def test_an_unknown_or_incomplete_source_is_refused(self):
 		with self.assertRaises(ValueError):
 			parse.decode({"kind": "scan"})

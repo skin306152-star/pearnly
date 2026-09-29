@@ -891,6 +891,7 @@ The amounts do not add up (before VAT + VAT ≠ total),金额算不平（未税 
 The amounts do not add up. Correct them and submit again,金额算不平，请改正后再提交
 The bank statement could not be read.,读不出银行账单。
 The billing receipt cannot be reverted.,计费回执不能撤回。
+The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},这几张发票的买方是本公司，看起来是进项发票，请确认是否放错：{0}
 The camera could not start,摄像头无法启动
 The card is already in that list,卡片已经在那个列表里
 The card no longer exists,卡片不存在
@@ -2075,6 +2076,7 @@ used by {0} items,{0} 个商品在用
 vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 vat_check.balance_unavailable,暂时查不到账户余额，请稍后再试。
 vat_check.no_invoices,没有读出任何发票。
+vat_check.note.purchase_invoices,这几张发票的买方是本公司，看起来是进项发票，请确认是否放错：{0}
 vat_check.note.unread,这些文件读不出来，没有计入核查：{0}
 vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
 vat_check.recognition_busy,发票识别繁忙，请稍后再试。

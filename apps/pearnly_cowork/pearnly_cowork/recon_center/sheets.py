@@ -460,6 +460,22 @@ def _parse(kind, inputs):
     return _normalize(kind, value)
 
 
+def purchase_invoice_notes(inputs):
+    """发票的买方就是本公司（税报上的卖方税号）：多半是进项发票放进了销项核查（用户 2026-09-30 定只提示；V04 的
+    12 份全是 GIZE 收到的发票）。点名是哪几份文件。"""
+    from pearnly_cowork.reconciliation.normalization import normalize_tax_id
+
+    own = normalize_tax_id(inputs.get("seller_tax_id") or "")
+    if not own:
+        return []
+    files = []
+    for invoice in inputs.get("invoices") or []:
+        name = str(invoice.get("filename") or invoice.get("source_filename") or "")
+        if normalize_tax_id(invoice.get("buyer_tax_id") or "") == own and name and name not in files:
+            files.append(name)
+    return [_("vat_check.note.purchase_invoices").format(", ".join(files))] if files else []
+
+
 @frappe.whitelist()
 def load(kind, task_id, lang=None):
     doc = _task(kind, task_id)
@@ -475,6 +491,8 @@ def load(kind, task_id, lang=None):
     if kind == "vat" and inputs.get("failed_files"):
         # 读不出的发票文件原来存着却不显示（2026-09-28 录制读代码发现）：与银行同样写在标题下一句。
         notes.append(_("vat_check.note.unread").format(", ".join(str(name) for name in inputs["failed_files"])))
+    if kind == "vat":
+        notes += purchase_invoice_notes(inputs)
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
                      "revision": version, "notes": notes}, **_view(kind, doc, inputs, _lang(lang))}
 

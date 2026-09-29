@@ -836,6 +836,10 @@ def decode(source) -> Optional[Dict[str, Any]]:
 			"method": source.get("engine") or "pipeline"}
 	if result is None:
 		return None
+	hint = issuer_tax_id(source)
+	if hint:
+		# 税报表头印的本公司税号（只作提示用，不进 meta：多份合并时按 meta 比卖方，读错会误报「卖方不一致」）。
+		result["issuer_hint"] = hint
 	# Every deployed path filters its rows once before reconciliation reads them.
 	if result.get("ok") and result.get("rows"):
 		result["rows"] = filter_garbage_rows(result["rows"])
@@ -872,6 +876,31 @@ def pre_vat_from_total(rows):
 	return [dict(row, report_amount_pre_vat=row["report_amount"],
 		report_amount=round(float(row["report_amount"]) + float(row.get("report_vat_amount") or 0), 2))
 		if row.get("report_amount") else row for row in rows]
+
+
+ISSUER_TAX_RE = re.compile(r"(?:เลขประจำตัวผู้เสียภาษี|เลขประจําตัวผู้เสียภาษี|tax\s*(?:payer\s*)?id)[^0-9]{0,20}"
+	r"(\d[\d\s\-]{11,20}\d)", re.IGNORECASE)
+
+
+def issuer_tax_id(source) -> str:
+	"""税报开头（前 12 行）印的本公司税号：「เลขประจำตัวผู้เสียภาษี 0105534113625 สำนักงานใหญ่」。只认标签后面跟着
+	13 位数字的；表格的列标题同样写这几个字但后面没有号码，不会被当成。"""
+	kind = (source or {}).get("kind") if isinstance(source, dict) else None
+	if kind == "excel":
+		# 打印文本导入的表按固定宽度切格，标签被切开（「เลขป / ระจำตัวผู้เ / สียภาษีอากร」，V04）：各格直接相连也认一遍。
+		rows = list(source.get("cells") or [])[:12]
+		heads = [joiner.join("" if cell is None else str(cell) for cell in row) for row in rows for joiner in (" ", "")]
+	elif kind in ("pdf", "text"):
+		heads = list(source.get("lines") or [])[:12]
+	else:
+		return ""
+	for line in heads:
+		match = ISSUER_TAX_RE.search(str(line))
+		if match:
+			digits = re.sub(r"\D", "", match.group(1))
+			if len(digits) == 13:
+				return digits
+	return ""
 
 
 def decoded_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:

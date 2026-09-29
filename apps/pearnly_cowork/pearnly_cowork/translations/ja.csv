@@ -891,6 +891,7 @@ The amounts do not add up (before VAT + VAT ≠ total),金額が合いません�
 The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
 The bank statement could not be read.,銀行明細を読み取れません。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
+The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}
 The camera could not start,カメラを起動できません
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
@@ -2075,6 +2076,7 @@ used by {0} items,{0} 品目が使用中
 vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 vat_check.balance_unavailable,現在、残高を確認できません。しばらくしてからもう一度お試しください。
 vat_check.no_invoices,請求書を1件も読み取れませんでした。
+vat_check.note.purchase_invoices,これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}
 vat_check.note.unread,次のファイルは読み取れず、照合に含めていません：{0}
 vat_check.periods_differ,報告の期間が異なります（{0}）。確認してください。
 vat_check.recognition_busy,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。

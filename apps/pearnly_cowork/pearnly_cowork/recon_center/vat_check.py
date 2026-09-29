@@ -114,11 +114,13 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
                 document_ocr.submit(recon_job, f"report{index}", report_files[index], name, content, "vat_report",
                                     frappe.session.user)
         frappe.db.commit()
-    merged = vat_check_core.merge_parsed_reports([_report(content, name, readers[index])
-                                                  for index, (name, content) in enumerate(reports)],
-                                                 [name for name, _content in reports])
+    parsed_reports = [_report(content, name, readers[index]) for index, (name, content) in enumerate(reports)]
+    merged = vat_check_core.merge_parsed_reports(parsed_reports, [name for name, _content in reports])
     if not merged.get("ok"):
         frappe.throw(_(merged["error_code"]).format(*merged.get("error_args", [])))
+    if not merged.get("seller_tax_id"):
+        # 税报没带卖方信息时取表头印的本公司税号（结果页据此提示进项发票放错口；2026-09-30）。
+        merged["seller_tax_id"] = next((item.get("issuer_hint") for item in parsed_reports if item.get("issuer_hint")), "")
     stage("invoice")
     records, failed, scanned = [], [], []
     for index, (name, content) in enumerate(invoices):

@@ -1115,6 +1115,19 @@ class SeveralIncomeReportFiles(unittest.TestCase):
 		self.assertEqual(submit.call_count, 3)
 
 
+class PurchaseInvoicesInTheSalesCheck(unittest.TestCase):
+	def test_invoices_bought_by_the_reporting_company_are_named(self):
+		# V04（2026-09-30）：放进来的全是 GIZE 自己收到的进项发票。
+		from pearnly_cowork.recon_center import sheets
+
+		inputs = {"seller_tax_id": "0105559093717", "invoices": [
+			{"filename": "RN1.pdf", "buyer_tax_id": "0-1055-59093-71-7"}, {"filename": "RN1.pdf", "buyer_tax_id": "0105559093717"},
+			{"filename": "IV2.pdf", "buyer_tax_id": "0105536000633"}]}
+		with mock.patch.object(sheets, "_", side_effect=lambda text: text + " {0}"):
+			self.assertEqual(sheets.purchase_invoice_notes(inputs), ["vat_check.note.purchase_invoices RN1.pdf"])
+			self.assertEqual(sheets.purchase_invoice_notes({**inputs, "seller_tax_id": ""}), [])
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 

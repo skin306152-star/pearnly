@@ -891,6 +891,7 @@ The amounts do not add up (before VAT + VAT ≠ total),The amounts do not add up
 The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
+The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}
 The camera could not start,The camera could not start
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
@@ -2075,6 +2076,7 @@ used by {0} items,used by {0} items
 vat_check.balance_insufficient,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 vat_check.balance_unavailable,The account balance could not be checked right now. Try again in a moment.
 vat_check.no_invoices,No invoice could be read.
+vat_check.note.purchase_invoices,The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}
 vat_check.note.unread,These files could not be read and were left out: {0}
 vat_check.periods_differ,The reports cover different periods ({0}).
 vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.

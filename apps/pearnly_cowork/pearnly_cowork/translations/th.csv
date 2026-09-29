@@ -891,6 +891,7 @@ The amounts do not add up (before VAT + VAT ≠ total),ยอดเงินไ�
 The amounts do not add up. Correct them and submit again,ยอดเงินไม่สมดุล กรุณาแก้แล้วส่งใหม่
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
+The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},ผู้ซื้อในใบกำกับภาษีเหล่านี้คือบริษัทของคุณเอง น่าจะเป็นใบกำกับภาษีซื้อ กรุณาตรวจสอบว่าใส่ผิดช่องหรือไม่: {0}
 The camera could not start,ไม่สามารถเปิดกล้องได้
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่มีการ์ดนี้แล้ว
@@ -2075,6 +2076,7 @@ used by {0} items,มีสินค้าใช้อยู่ {0} รายก
 vat_check.balance_insufficient,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 vat_check.balance_unavailable,ตรวจสอบยอดเงินในบัญชีไม่ได้ชั่วคราว กรุณาลองใหม่ภายหลัง
 vat_check.no_invoices,ไม่สามารถอ่านใบกำกับได้เลย
+vat_check.note.purchase_invoices,ผู้ซื้อในใบกำกับภาษีเหล่านี้คือบริษัทของคุณเอง น่าจะเป็นใบกำกับภาษีซื้อ กรุณาตรวจสอบว่าใส่ผิดช่องหรือไม่: {0}
 vat_check.note.unread,ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 vat_check.periods_differ,รายงานคนละงวด ({0}) กรุณาตรวจสอบ
 vat_check.recognition_busy,ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง
