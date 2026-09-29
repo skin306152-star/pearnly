@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import ValidationError
 
 from pearnly_cowork.ocr.engine import document_prompts, document_tier
-from pearnly_cowork.ocr.schema.documents import BankStatementDocument, GeneralLedgerDocument
+from pearnly_cowork.ocr.schema.documents import BankStatementDocument, GeneralLedgerDocument, VatReportDocument
 from pearnly_cowork.ocr.validation import chains, sources
 
 SOURCE_SHA = "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188"
@@ -183,11 +183,13 @@ def run(root=None, source_text=None):
     # The two document prompts must be identical to the pinned literals.
     assert legacy["prompts"]["_BANK_STATEMENT_SYSTEM_PROMPT"] == document_prompts.BANK_STATEMENT_SYSTEM_PROMPT
     assert legacy["prompts"]["_GL_SYSTEM_PROMPT"] == document_prompts.GENERAL_LEDGER_SYSTEM_PROMPT
+    # 2026-09-29: the VAT report prompt moved with the scanned / photographed report path.
+    assert legacy["prompts"]["_VAT_REPORT_SYSTEM_PROMPT"] == document_prompts.VAT_REPORT_SYSTEM_PROMPT
     assert document_prompts.BANK_STATEMENT_SYSTEM_PROMPT != document_prompts.GENERAL_LEDGER_SYSTEM_PROMPT
     # The tier runs the validators in the deployed order: the ledger validates and
     # then repairs, the bank statement validates only.
     assert document_tier.DOCUMENT_SCHEMAS == {"bank_statement": BankStatementDocument,
-        "general_ledger": GeneralLedgerDocument}
+        "general_ledger": GeneralLedgerDocument, "vat_report": VatReportDocument}
     assert document_tier.validate_document is not None
 
     rng = random.Random(20260922)

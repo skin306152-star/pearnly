@@ -670,6 +670,7 @@ Reading the bank statement,Reading the bank statement
 Reading the company list from the ERP. Tap the menu again in a moment.,Reading the company list from the ERP. Tap the menu again in a moment.
 Reading the general ledger,Reading the general ledger
 Reading the invoices,Reading the invoices
+Reading the scanned or photographed document took too long. Try again later.,Reading the scanned or photographed document took too long. Try again later.
 Ready for the next product,Ready for the next product
 Reason,Reason
 Receipt,Receipt
@@ -677,6 +678,7 @@ Recognised {0} documents,Recognised {0} documents
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
+Recognition is busy. Try again in a moment.,Recognition is busy. Try again in a moment.
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
@@ -1008,6 +1010,7 @@ The uploaded file is empty.,The uploaded file is empty.
 The verified ERP export details are invalid.,The verified ERP export details are invalid.
 The worksheet row or column information is invalid.,The worksheet row or column information is invalid.
 Then,Then
+There is not enough balance to read the scanned or photographed document. Top up and try again.,There is not enough balance to read the scanned or photographed document. Top up and try again.
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
@@ -1052,6 +1055,7 @@ This request key was used for another credential operation.,This request key was
 This request key was used for different content.,This request key was used for different content.
 This request key was used for different push content.,This request key was used for different push content.
 This request was already used for different content.,This request was already used for different content.
+This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
 This stock count task is closed.,This stock count task is closed.
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
@@ -1935,10 +1939,12 @@ reconciliation.amount_invalid,An amount could not be read. Check the amount form
 reconciliation.amount_negative,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 reconciliation.amount_precision,An amount has too many decimal places. Check the file
 reconciliation.amount_tolerance_invalid,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.balance_insufficient,There is not enough balance to read the scanned or photographed document. Top up and try again.
 reconciliation.balance_state_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.confidence_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.date_invalid,A date could not be read. Check the date format in the file
 reconciliation.dedicated_api_required,Use the reconciliation workflow to change these records.
+reconciliation.document_unreadable,This scanned or photographed document could not be read. Check the file and try again.
 reconciliation.edit_conflict,Someone else changed this reconciliation. Reload it before saving.
 reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
@@ -1952,6 +1958,8 @@ reconciliation.ledger_unparsed,The general ledger could not be read.
 reconciliation.parse_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
+reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
 reconciliation.request_conflict,This request was already used for different content.
 reconciliation.request_invalid,The request is invalid. Reload and try again.
 reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.

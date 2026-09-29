@@ -38,11 +38,11 @@ from pydantic import ValidationError
 
 from pearnly_cowork.ocr.engine.contracts import ModelCall, ModelRequest
 from pearnly_cowork.ocr.engine.document_prompts import (
-	BANK_STATEMENT_SYSTEM_PROMPT, GENERAL_LEDGER_SYSTEM_PROMPT,
+	BANK_STATEMENT_SYSTEM_PROMPT, GENERAL_LEDGER_SYSTEM_PROMPT, VAT_REPORT_SYSTEM_PROMPT,
 )
 from pearnly_cowork.ocr.engine.errors import ContentError, DirectFallback
 from pearnly_cowork.ocr.engine.parsing import _parse_json
-from pearnly_cowork.ocr.schema.documents import BankStatementDocument, GeneralLedgerDocument
+from pearnly_cowork.ocr.schema.documents import BankStatementDocument, GeneralLedgerDocument, VatReportDocument
 from pearnly_cowork.ocr.validation.chains import (
 	bank_chain_warnings, repair_bank_chain, repair_gl_document,
 )
@@ -51,13 +51,16 @@ from pearnly_cowork.ocr.validation.sources import validate_bank_document, valida
 DOCUMENT_SCHEMAS = {
 	"bank_statement": BankStatementDocument,
 	"general_ledger": GeneralLedgerDocument,
+	"vat_report": VatReportDocument,
 }
 DOCUMENT_PROMPTS = {
 	"bank_statement": BANK_STATEMENT_SYSTEM_PROMPT,
 	"general_ledger": GENERAL_LEDGER_SYSTEM_PROMPT,
+	"vat_report": VAT_REPORT_SYSTEM_PROMPT,
 }
-# The types this tier admits. ``vat_report`` / ``generic_table`` have no native
-# document model yet, so admitting them would only produce a shape nobody reads.
+# The types this tier admits. ``vat_report`` joined on 2026-09-29 with the scanned /
+# photographed report path (the deployed page runner has no validator for it);
+# ``generic_table`` has no reading path, so admitting it would produce a shape nobody reads.
 DOCUMENT_TYPES = tuple(DOCUMENT_SCHEMAS)
 
 
@@ -82,7 +85,7 @@ def text_pages(content: bytes) -> List[str]:
 
 
 def admitted(document_type: str) -> bool:
-	"""Only the two document types with a native model may enter this tier."""
+	"""Only the document types with a native model may enter this tier."""
 	return document_type in DOCUMENT_TYPES
 
 
@@ -109,15 +112,22 @@ def decode_document(document_type: str, data: Dict[str, Any]):
 
 
 def request_document(prompt: str, text: str, *, page_number: int = 1, model: str = "",
-		attempt: int = 1, max_output_tokens: int = 8192, timeout_s: float = 60) -> ModelRequest:
-	"""The deployed call shape: the document prompt, then the page text."""
+		attempt: int = 1, max_output_tokens: int = 8192, timeout_s: float = 60,
+		images: Tuple[Tuple[bytes, str], ...] = ()) -> ModelRequest:
+	"""The deployed call shape: the document prompt, then the page text.
+
+	``images`` carries the page picture for a one-page scan or photo: the deployed
+	single-page direct read showed the model the page itself, because text alone
+	cannot correct a character-recognition slip (2026-07-20, Buddhist year 2569
+	read as 2559). Multi-page documents stay text-only, as the deployed Vision path."""
 	return ModelRequest(stage="document", page_number=page_number, attempt=attempt, model=model,
-		prompt=prompt + "\n\n" + text, max_output_tokens=max_output_tokens, timeout_s=timeout_s)
+		prompt=prompt + "\n\n" + text, max_output_tokens=max_output_tokens, timeout_s=timeout_s,
+		images=tuple(images))
 
 
 def model_document(document_type: str, text: str, model_call: ModelCall, *, page_number: int = 1,
 		model: str = "", retries: int = 0, max_output_tokens: int = 8192,
-		timeout_s: float = 60):
+		timeout_s: float = 60, images: Tuple[Tuple[bytes, str], ...] = ()):
 	"""Text → model → document model. A retry re-sends the same request (attempt index moves)."""
 	if not admitted(document_type):
 		raise ContentError("ocr.document_type_not_supported", detail=str(document_type))
@@ -125,7 +135,7 @@ def model_document(document_type: str, text: str, model_call: ModelCall, *, page
 	last: Optional[ContentError] = None
 	for attempt in range(retries + 1):
 		request = request_document(prompt, text, page_number=page_number, model=model,
-			attempt=attempt, max_output_tokens=max_output_tokens, timeout_s=timeout_s)
+			attempt=attempt, max_output_tokens=max_output_tokens, timeout_s=timeout_s, images=images)
 		response = model_call(request)
 		try:
 			if not response.text or "MAX_TOKENS" in response.finish_reason:
@@ -237,7 +247,8 @@ def escalated_reader(text: str, model_call: ModelCall, *, model: str, page_numbe
 
 def read_document(document_type: str, text: str, model_call: ModelCall, *, page_number: int = 1,
 		model: str = "", retries: int = 0, read_again: Optional[Callable[[], Optional[Dict[str, Any]]]] = None,
-		escalated_model: str = "") -> Tuple[Any, Dict[str, Any], List[str]]:
+		escalated_model: str = "", images: Tuple[Tuple[bytes, str], ...] = (),
+		opening_fallback: str = "", timeout_s: float = 60) -> Tuple[Any, Dict[str, Any], List[str]]:
 	"""One page of text → validated document → legacy shape.
 
 	This is the whole tier in one call: model, decode, validate, and (for bank
@@ -246,16 +257,85 @@ def read_document(document_type: str, text: str, model_call: ModelCall, *, page_
 	the validator warnings and the bank audit warnings.
 	"""
 	document = model_document(document_type, text, model_call, page_number=page_number, model=model,
-		retries=retries)
+		retries=retries, images=images, timeout_s=timeout_s)
 	warnings = validate_document(document, document_type)
 	if document_type == "bank_statement":
+		# A continuation page often prints no opening of its own: chain it from the previous
+		# page's last balance, or the gate sees a break on the first row and pays to re-read.
+		if opening_fallback and not str(document.opening_balance or "").strip():
+			document.opening_balance = opening_fallback
 		reader = read_again
 		if reader is None and escalated_model:
 			reader = escalated_reader(text, model_call, model=escalated_model,
-				page_number=page_number)
+				page_number=page_number, timeout_s=timeout_s)
 		document, _escalated, audit = reread_bank_page(document, page_number=page_number,
 			read_again=reader)
 		warnings.extend(audit)
 	legacy = document_to_legacy(document, document_type, page_number=page_number,
 		warnings=warnings, needs_review=needs_manual_review(document_type, warnings))
 	return document, legacy, warnings
+
+
+def _unescalated(document_type, text, model_call, page_number, model, images, opening, timeout_s):
+	"""One page read without the escalation: validators and the arithmetic chain repair still run."""
+	document = model_document(document_type, text, model_call, page_number=page_number, model=model,
+		images=tuple(images), timeout_s=timeout_s)
+	if opening and not str(document.opening_balance or "").strip():
+		document.opening_balance = opening
+	warnings = validate_document(document, document_type)
+	entries, reasons = repair_bank_chain(document.entries, document.opening_balance)
+	document.entries = entries
+	warnings.extend(bank_chain_warnings(entries, reasons))
+	return document, None, warnings
+
+
+def _last_balance(document) -> str:
+	for entry in reversed(document.entries or []):
+		if str(entry.balance or "").strip():
+			return str(entry.balance)
+	return str(document.closing_balance or "")
+
+
+def read_pages(document_type: str, pages: Sequence[Tuple[int, str, Tuple[Tuple[bytes, str], ...]]],
+		model_call: ModelCall, *, model: str = "", escalated_model: str = "",
+		timeout_s: float = 60) -> Tuple[Dict[str, Any], List[str]]:
+	"""Page by page, as the deployed Vision path read a scan: ``(page_number, text, images)`` → one legacy dict.
+
+	Each page goes through ``read_document`` (model, validators, the bank chain gate). A bank
+	statement is merged into one document — the reconciliation adapter reads the first page's
+	document only — with the entries of every page, the first page's opening and the last
+	page's closing; ledgers and VAT reports keep one legacy page per page, which their adapters
+	already iterate. A blank page (no text and no picture) is skipped, not paid for.
+	"""
+	if not admitted(document_type):
+		raise ContentError("ocr.document_type_not_supported", detail=str(document_type))
+	read: List[Tuple[int, Any, List[str]]] = []
+	warnings: List[str] = []
+	for page_number, text, images in pages:
+		if not str(text or "").strip() and not images:
+			continue
+		opening = _last_balance(read[-1][1]) if read and document_type == "bank_statement" else ""
+		try:
+			document, _legacy, page_warnings = read_document(document_type, text or "", model_call,
+				page_number=page_number, model=model, escalated_model=escalated_model, images=tuple(images),
+				opening_fallback=opening, timeout_s=timeout_s)
+		except DirectFallback as error:
+			# The escalated re-read of a broken balance chain gave nothing usable: keep this page's own
+			# reading with the break flagged for review, instead of losing the whole document.
+			document, _legacy, page_warnings = _unescalated(document_type, text or "", model_call,
+				page_number, model, images, opening, timeout_s)
+			page_warnings = [*page_warnings, error.code]
+		read.append((page_number, document, page_warnings))
+		warnings.extend(f"p{page_number}:{warning}" for warning in page_warnings)
+	if not read:
+		raise ContentError("ocr.document_no_pages")
+	review = needs_manual_review(document_type, warnings)
+	if document_type == "bank_statement":
+		first = read[0][1]
+		merged = first.model_copy(update={"entries": [entry for _n, document, _w in read for entry in document.entries],
+			"closing_balance": read[-1][1].closing_balance or _last_balance(read[-1][1])})
+		return document_to_legacy(merged, document_type, page_number=read[0][0], warnings=warnings,
+			needs_review=review), warnings
+	return {"pages": [{"page_number": page_number, "document": document.model_dump(mode="json"),
+		"document_type": document_type, "validation_warnings": list(page_warnings)}
+		for page_number, document, page_warnings in read], "_needs_review": review}, warnings

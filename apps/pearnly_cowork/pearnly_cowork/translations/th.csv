@@ -670,6 +670,7 @@ Reading the bank statement,กำลังอ่านรายการเด�
 Reading the company list from the ERP. Tap the menu again in a moment.,กำลังอ่านรายชื่อบริษัทจาก ERP กรุณากดเมนูอีกครั้งในอีกสักครู่
 Reading the general ledger,กำลังอ่านบัญชีแยกประเภท
 Reading the invoices,กำลังอ่านใบกำกับ
+Reading the scanned or photographed document took too long. Try again later.,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
 Receipt,ใบเสร็จ
@@ -677,6 +678,7 @@ Recognised {0} documents,อ่านเอกสารแล้ว {0} ใบ
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
+Recognition is busy. Try again in a moment.,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
 Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
@@ -1008,6 +1010,7 @@ The uploaded file is empty.,ไฟล์ที่อัปโหลดว่า�
 The verified ERP export details are invalid.,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
 The worksheet row or column information is invalid.,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
 Then,ให้ทำ
+There is not enough balance to read the scanned or photographed document. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านเอกสารสแกนหรือรูปถ่าย กรุณาเติมเงินแล้วลองใหม่
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 There is not enough recognition balance. Top up and send the document again.,ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่
 These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
@@ -1052,6 +1055,7 @@ This request key was used for another credential operation.,คีย์คำ�
 This request key was used for different content.,รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This request key was used for different push content.,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 This request was already used for different content.,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
+This scanned or photographed document could not be read. Check the file and try again.,อ่านเอกสารสแกนหรือรูปถ่ายนี้ไม่ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
 This stock count task is closed.,งานตรวจนับสต็อกนี้ปิดแล้ว
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
@@ -1935,10 +1939,12 @@ reconciliation.amount_invalid,มีจำนวนเงินที่อ่�
 reconciliation.amount_negative,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
 reconciliation.amount_precision,มีจำนวนเงินที่มีทศนิยมมากเกินไป กรุณาตรวจสอบไฟล์
 reconciliation.amount_tolerance_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.balance_insufficient,ยอดเงินไม่พอสำหรับอ่านเอกสารสแกนหรือรูปถ่าย กรุณาเติมเงินแล้วลองใหม่
 reconciliation.balance_state_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.confidence_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.date_invalid,มีวันที่ที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบวันที่ในไฟล์
 reconciliation.dedicated_api_required,กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด
+reconciliation.document_unreadable,อ่านเอกสารสแกนหรือรูปถ่ายนี้ไม่ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
 reconciliation.edit_conflict,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
 reconciliation.failed,การกระทบยอดไม่สำเร็จ
 reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
@@ -1952,6 +1958,8 @@ reconciliation.ledger_unparsed,ไม่สามารถอ่านบัญ�
 reconciliation.parse_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_too_many,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.recognition_busy,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
+reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 reconciliation.review_amount_invalid,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม

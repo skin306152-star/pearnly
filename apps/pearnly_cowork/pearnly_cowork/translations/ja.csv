@@ -670,6 +670,7 @@ Reading the bank statement,銀行明細を読み込み中
 Reading the company list from the ERP. Tap the menu again in a moment.,ERPから会社一覧を読み込んでいます。少ししてからもう一度メニューを押してください。
 Reading the general ledger,総勘定元帳を読み込み中
 Reading the invoices,請求書を読み込み中
+Reading the scanned or photographed document took too long. Try again later.,スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 Ready for the next product,次の商品を棚卸できます
 Reason,理由
 Receipt,領収書
@@ -677,6 +678,7 @@ Recognised {0} documents,{0} 件の書類を読み取りました
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
 Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
+Recognition is busy. Try again in a moment.,読み取りが混み合っています。しばらくしてからもう一度お試しください。
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
@@ -1008,6 +1010,7 @@ The uploaded file is empty.,アップロードしたファイルは空です。
 The verified ERP export details are invalid.,確認済みの ERP エクスポート情報が無効です。
 The worksheet row or column information is invalid.,ワークシートの行または列の情報が無効です。
 Then,実行
+There is not enough balance to read the scanned or photographed document. Top up and try again.,残高が不足しているため、スキャンや写真の書類を読み取れません。チャージしてからもう一度お試しください。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 There is not enough recognition balance. Top up and send the document again.,読み取り残高が不足しています。チャージしてからもう一度送信してください。
 These files could not be read and were left out: {0},次のファイルは読み取れず、照合に含めていません：{0}
@@ -1052,6 +1055,7 @@ This request key was used for another credential operation.,このリクエス�
 This request key was used for different content.,この要求キーは別の内容に使用されています。
 This request key was used for different push content.,この要求キーは別の送信内容に使用されています。
 This request was already used for different content.,このリクエストは別の内容で使用済みです。
+This scanned or photographed document could not be read. Check the file and try again.,このスキャンや写真の書類は読み取れませんでした。ファイルを確認してもう一度お試しください。
 This stock count task is closed.,この棚卸タスクはクローズ済みです。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
@@ -1935,10 +1939,12 @@ reconciliation.amount_invalid,読み取れない金額があります。ファ�
 reconciliation.amount_negative,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 reconciliation.amount_precision,小数点以下の桁が多すぎる金額があります。ファイルを確認してください
 reconciliation.amount_tolerance_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.balance_insufficient,残高が不足しているため、スキャンや写真の書類を読み取れません。チャージしてからもう一度お試しください。
 reconciliation.balance_state_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.confidence_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.date_invalid,読み取れない日付があります。ファイルの日付の書式を確認してください
 reconciliation.dedicated_api_required,照合の手順で変更してください。
+reconciliation.document_unreadable,このスキャンや写真の書類は読み取れませんでした。ファイルを確認してもう一度お試しください。
 reconciliation.edit_conflict,この照合は他の人が変更しました。再読み込みしてから保存してください。
 reconciliation.failed,照合を完了できませんでした。
 reconciliation.file_too_large,25MBを超えるファイルがあります。
@@ -1952,6 +1958,8 @@ reconciliation.ledger_unparsed,総勘定元帳を読み取れません。
 reconciliation.parse_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.parse_info_rows,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
 reconciliation.parse_info_too_many,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.recognition_busy,読み取りが混み合っています。しばらくしてからもう一度お試しください。
+reconciliation.recognition_timeout,スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 reconciliation.request_conflict,このリクエストは別の内容で使用済みです。
 reconciliation.request_invalid,リクエストが無効です。再読み込みしてやり直してください。
 reconciliation.review_amount_invalid,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。

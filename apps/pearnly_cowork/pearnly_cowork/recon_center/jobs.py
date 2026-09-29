@@ -92,25 +92,34 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             from pearnly_cowork.recon_center import vat_check
 
             result = vat_check.run(workspace, title, request_id, lefts, rights, options.get("lang") or "th",
-                                   on_stage=stage, invoice_files=files["right"], recon_job=recon_job)
+                                   on_stage=stage, invoice_files=files["right"], recon_job=recon_job,
+                                   report_files=files["left"])
         elif kind == "bank":
             (left_name, left), (right_name, right) = lefts[0], rights[0]
             from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
                 document_model_rows,
             )
 
+            from pearnly_cowork.recon_center import document_ocr
+
             account = str(options.get("gl_account_code") or "")
+            # 扫描件 / 照片 / 要模型兜底的 PDF：每份一个持久识别任务（账单读左边那份，总账读右边那份）。
+            by_type = {"bank_statement": document_ocr.reader(recon_job, "left", files["left"][0], frappe.session.user),
+                       "general_ledger": document_ocr.reader(recon_job, "right", files["right"][0], frappe.session.user)}
+            read = lambda document_type, content, filename: by_type[document_type](document_type, content, filename)  # noqa: E731
             result = bank_recon_service.create_from_documents(workspace, title, request_id, left, left_name,
-                right, right_name, gl_account_code=account, model_rows=document_model_rows(account),
+                right, right_name, gl_account_code=account, model_rows=document_model_rows(account, read=read),
                 lang=options.get("lang") or "th", on_stage=stage)
         else:
-            from pearnly_cowork.recon_center import sources
+            from pearnly_cowork.recon_center import document_ocr, sources
 
             (left_name, left), (right_name, right) = lefts[0], rights[0]
             stage("ledger")
-            gl_source = sources.ledger_source(left, left_name)
+            gl_source = sources.ledger_source(left, left_name,
+                document_ocr.reader(recon_job, "left", files["left"][0], frappe.session.user))
             stage("report")
-            vat_source = sources.report_source(right, right_name)
+            vat_source = sources.report_source(right, right_name,
+                document_ocr.reader(recon_job, "right", files["right"][0], frappe.session.user))
             stage("matching")
             result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
                 vat_source=vat_source, gl_filename=left_name, vat_filename=right_name)

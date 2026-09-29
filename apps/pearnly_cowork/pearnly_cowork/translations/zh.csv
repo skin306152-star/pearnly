@@ -670,6 +670,7 @@ Reading the bank statement,读取银行账单
 Reading the company list from the ERP. Tap the menu again in a moment.,正在从 ERP 读取公司列表，请稍后再点一次菜单。
 Reading the general ledger,读取总账
 Reading the invoices,读取发票
+Reading the scanned or photographed document took too long. Try again later.,扫描件或照片读取超时，请稍后再试。
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Receipt,收据
@@ -677,6 +678,7 @@ Recognised {0} documents,已识别 {0} 张单据
 Recognition Confidence,识别置信度
 Recognition Quality,识别质量
 Recognition input and ownership cannot be changed.,识别输入和归属不能修改。
+Recognition is busy. Try again in a moment.,识别繁忙，请稍后再试。
 Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
 Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
 Recognition was interrupted (not charged). Upload this file again,识别中断了（未扣费），请重新上传这一份
@@ -1008,6 +1010,7 @@ The uploaded file is empty.,上传文件为空。
 The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
 The worksheet row or column information is invalid.,工作表行列信息无效。
 Then,自动
+There is not enough balance to read the scanned or photographed document. Top up and try again.,余额不足，无法读取扫描件或照片，请充值后再试。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
@@ -1052,6 +1055,7 @@ This request key was used for another credential operation.,此请求键已用�
 This request key was used for different content.,此请求编号已用于其他内容。
 This request key was used for different push content.,此请求编号已用于其他推送内容。
 This request was already used for different content.,这个请求已用于不同内容。
+This scanned or photographed document could not be read. Check the file and try again.,这份扫描件或照片没有读出内容，请检查文件后再试。
 This stock count task is closed.,此盘点任务已关闭。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 里没有这个供应商、也建不了，请核对供应商名称和税号
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
@@ -1935,10 +1939,12 @@ reconciliation.amount_invalid,有金额读不出来，请检查文件里的金�
 reconciliation.amount_negative,有支出或存入金额是负数，请检查支出 / 存入两列
 reconciliation.amount_precision,有金额小数位太多，请检查文件
 reconciliation.amount_tolerance_invalid,对账数据格式不对，请重新上传文件
+reconciliation.balance_insufficient,余额不足，无法读取扫描件或照片，请充值后再试。
 reconciliation.balance_state_invalid,对账数据格式不对，请重新上传文件
 reconciliation.confidence_invalid,对账数据格式不对，请重新上传文件
 reconciliation.date_invalid,有日期读不出来，请检查文件里的日期格式
 reconciliation.dedicated_api_required,请通过对账流程更改这些记录。
+reconciliation.document_unreadable,这份扫描件或照片没有读出内容，请检查文件后再试。
 reconciliation.edit_conflict,这个对账刚被别人改过，请刷新后再保存。
 reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
@@ -1952,6 +1958,8 @@ reconciliation.ledger_unparsed,读不出总账。
 reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_too_many,对账数据格式不对，请重新上传文件
+reconciliation.recognition_busy,识别繁忙，请稍后再试。
+reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
 reconciliation.request_conflict,这个请求已用于不同内容。
 reconciliation.request_invalid,请求无效，请刷新后重试。
 reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。

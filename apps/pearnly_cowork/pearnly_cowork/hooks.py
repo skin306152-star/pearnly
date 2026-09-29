@@ -416,7 +416,9 @@ override_whitelisted_methods = {
 
 pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run",
                         # 销项税报告核查的图片 / PDF 发票（同一个识别引擎，结果不进识别记录）
-                        "cowork.vat_check": "pearnly_cowork.recon_center.invoice_ocr.run"}
+                        "cowork.vat_check": "pearnly_cowork.recon_center.invoice_ocr.run",
+                        # 对账三类文档（银行账单 / 总账 / 销项税报告）要模型读的：扫描件、照片、要模型兜底的 PDF
+                        "cowork.recon_document": "pearnly_cowork.recon_center.document_ocr.run"}
 # LINE 发来的单据：识别落成票后推卡、最终失败时回一句（不是从 LINE 来的原件什么都不做）。
 cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}

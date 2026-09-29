@@ -1,9 +1,9 @@
-"""Bank-statement and general-ledger document shapes from deployed ec2e5c957e6b.
+"""Bank-statement, general-ledger and VAT-report document shapes from deployed ec2e5c957e6b.
 
-Source: ``services/ocr/schemas_documents.py`` (the two non-invoice document types
-this slice reads). The deployed file also declares ``VatReportDocument`` and
-``GenericTableDocument``; those shapes move with their own reading paths and are
-not declared here yet, so nothing pretends to accept them.
+Source: ``services/ocr/schemas_documents.py`` (the non-invoice document types the
+reconciliation reads). ``VatReportDocument`` moved with the scanned / photographed
+VAT report path on 2026-09-29; ``GenericTableDocument`` has no reading path and is
+not declared here, so nothing pretends to accept it.
 
 Every amount is a string exactly as printed (the deployed contract): the model
 reads columns, the deterministic converters and repairs do the arithmetic in
@@ -257,6 +257,74 @@ class BankStatementDocument(BaseModel):
         if isinstance(v, (int, float)):
             return str(v)
         return v
+
+    @field_validator("entries", mode="before")
+    @classmethod
+    def _coerce_entries(cls, v):
+        return [] if v is None else v
+
+
+# 销项 / 进项税报告：ec2e5c957e6b ``services/ocr/schemas_documents.py`` 逐字照搬（2026-09-29，扫描件与照片的税报读取）。
+class VatReportEntry(BaseModel):
+    """One row of a VAT report (销项/进项税报告)."""
+
+    seq_no: str = Field(default="", description="row sequence number on report")
+    transaction_date: str = Field(default="")
+    transaction_date_raw: str = Field(default="")
+    invoice_no: str = Field(default="")
+    customer_name: str = Field(default="")
+    customer_tax: str = Field(default="", description="13-digit Thai tax ID")
+    customer_branch: str = Field(default="", description="买方分公司 / สำนักงานใหญ่ etc.")
+    subtotal: str = Field(default="", description="净额, number-as-string")
+    vat: str = Field(default="")
+    total: str = Field(default="")
+
+    invoice_no_ref: Optional[FieldRef] = Field(default=None)
+    subtotal_ref: Optional[FieldRef] = Field(default=None)
+    vat_ref: Optional[FieldRef] = Field(default=None)
+    total_ref: Optional[FieldRef] = Field(default=None)
+
+    raw_row_data: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator(
+        "seq_no",
+        "transaction_date",
+        "transaction_date_raw",
+        "invoice_no",
+        "customer_name",
+        "customer_tax",
+        "customer_branch",
+        "subtotal",
+        "vat",
+        "total",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_vat_str(cls, v):
+        if v is None:
+            return ""
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, (int, float)):
+            return str(v)
+        return v
+
+    @field_validator("raw_row_data", mode="before")
+    @classmethod
+    def _coerce_raw_row(cls, v):
+        return {} if v is None else v
+
+
+class VatReportDocument(BaseModel):
+    document_type: Literal["vat_report"] = "vat_report"
+    seller_name: str = Field(default="", description="申报方公司名 (报告主体)")
+    seller_tax: str = Field(default="")
+    period_year: str = Field(default="", description="public year, e.g. '2026'")
+    period_month: str = Field(default="", description="'01'..'12'")
+    total_subtotal: str = Field(default="")
+    total_vat: str = Field(default="")
+    total_total: str = Field(default="")
+    entries: List[VatReportEntry] = Field(default_factory=list)
 
     @field_validator("entries", mode="before")
     @classmethod

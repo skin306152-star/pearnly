@@ -1,18 +1,23 @@
-"""收入对账的两份文件 → 解析器要的“已抽取内容”（照旧线上 ec2e5c95 的分派）。
+"""收入对账与销项税核查的文件 → 解析器要的“已抽取内容”（照旧线上 ec2e5c95 的分派）。
 
 旧线上 `gl_vat_parse_excel.parse_gl` / `vat_report_parser.parse_vat_report` 先按扩展名读文件，
 再把抽出来的内容交给解析；新平台已迁的是后一半（`income_parse.decode`、`vat_parse.decode`），
 这里补前一半：
-- 总账：Excel / CSV 直读单元格；PDF 旧线上先走识别管线（general_ledger），读不出再退到文字行。
-- 税表：Excel / CSV 直读；PDF 先读表、再读文字行（`vat_parse` 内部判定），都不行就是扫描件。
+- 总账：Excel / CSV 直读单元格；PDF 旧线上先走识别管线（general_ledger），读不出再退到文字行；
+  扫描 PDF 与照片只能走识别管线。
+- 税表：Excel / CSV 直读；带文字层的 PDF 先读表、再读文字行，读出不足 3 行（旧线上 `MIN_DETERMINISTIC_ROWS`）
+  才走识别管线（vat_report）；扫描 PDF 与照片直接走识别管线。
 
-与旧线上的差别（如实记录）：新平台只有 pypdf，没有 pdfplumber 的表格抽取，PDF 只走文字层；
-税表的模型读取（扫描件 / 图片）还没迁（识别层只有 bank_statement / general_ledger 两种文档模型），
-这类文件会明确报“读不出来”，不会存一份空结果。
+识别管线（`read`）由对账后台任务注入：每份文件一个持久识别任务（`recon_center.document_ocr`），
+扫描件逐页渲染取字、照片看原图（2026-09-29 迁入；原来扫描件与照片一律报“读不出来”，
+带文字层的总账 PDF 调模型又不在识别任务里，整单失败）。没注入（不在后台任务里）就只有免费读取。
+
+与旧线上的差别（如实记录）：新平台只有 pypdf，没有 pdfplumber 的表格抽取，PDF 只走文字层。
 """
 import frappe
 
 from pearnly_cowork.ocr.engine import document_tier
+from pearnly_cowork.reconciliation import vat_parse
 from pearnly_cowork.tabular import readers
 
 EXCEL = ("xlsx", "xls", "xlsm")
@@ -27,28 +32,15 @@ def _lines(pages):
     return [line for page in pages for line in page.splitlines() if line.strip()]
 
 
-def _model_ledger(text):
-    """总账 PDF 的识别管线读（旧线上的首选路）。站点没配识别就返回 None，退回文字行。"""
-    from pearnly_cowork.ocr.engine.errors import ContentError
-    from pearnly_cowork.ocr.providers.client import ProviderFailure
-    from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
-        configured_model_call,
-    )
-
-    try:
-        call, model, escalated = configured_model_call()
-    except Exception:
-        return None
-    try:
-        _document, legacy, _warnings = document_tier.read_document("general_ledger", text, call,
-            model=model, escalated_model=escalated)
-    except (ContentError, ProviderFailure) as error:
-        frappe.log_error(title="cowork income ledger model", message=f"{type(error).__name__}: {error}")
-        return None
-    return legacy
+IMAGES = ("png", "jpg", "jpeg", "webp", "tiff", "tif", "bmp", "gif")
 
 
-def ledger_source(content, filename):
+def _pipeline(read, document_type, content, filename):
+    decoded = read(document_type, content, filename) if read is not None else None
+    return {"kind": "pipeline", "decoded": decoded} if decoded else None
+
+
+def ledger_source(content, filename, read=None):
     ext = extension(filename)
     if ext in EXCEL or ext in CSV:
         loaded = readers.load_workbook_sheets(content) if ext in EXCEL else readers.load_csv_sheets(content)
@@ -57,16 +49,21 @@ def ledger_source(content, filename):
         return {"kind": "excel", "sheets": [rows for _name, rows in loaded]}
     if ext == "pdf":
         pages = document_tier.text_pages(content)
+        model = _pipeline(read, "general_ledger", content, filename)
+        if model:
+            return model
         if not any(page.strip() for page in pages):
             frappe.throw(frappe._("reconciliation.gl_parse_failed"))
-        decoded = _model_ledger("\n".join(pages))
-        if decoded:
-            return {"kind": "pipeline", "decoded": decoded}
         return {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
+    if ext in IMAGES and read is not None:
+        model = _pipeline(read, "general_ledger", content, filename)
+        if model:
+            return model
+        frappe.throw(frappe._("reconciliation.gl_parse_failed"))
     frappe.throw(frappe._("reconciliation.file_type_unsupported"))
 
 
-def report_source(content, filename):
+def report_source(content, filename, read=None):
     ext = extension(filename)
     if ext in EXCEL:
         sheets = readers.load_workbook_sheets(content)
@@ -81,7 +78,19 @@ def report_source(content, filename):
                 continue
     if ext == "pdf":
         pages = document_tier.text_pages(content)
-        if not any(page.strip() for page in pages):
-            frappe.throw(frappe._("reconciliation.vat_report_unparsed"))
-        return {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
+        if any(page.strip() for page in pages):
+            source = {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
+            parsed = vat_parse.decode(source)
+            if parsed and len(parsed.get("rows") or []) >= vat_parse.MIN_DETERMINISTIC_ROWS:
+                return source
+            return _pipeline(read, "vat_report", content, filename) or source
+        model = _pipeline(read, "vat_report", content, filename)
+        if model:
+            return model
+        frappe.throw(frappe._("reconciliation.vat_report_unparsed"))
+    if ext in IMAGES and read is not None:
+        model = _pipeline(read, "vat_report", content, filename)
+        if model:
+            return model
+        frappe.throw(frappe._("reconciliation.vat_report_unparsed"))
     frappe.throw(frappe._("reconciliation.file_type_unsupported"))

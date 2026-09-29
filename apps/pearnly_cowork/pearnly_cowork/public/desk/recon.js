@@ -16,6 +16,8 @@
 	const POLL_MS = 1500, POLL_LIMIT_MS = 32 * 60 * 1000;
 
 	// 每种对账的差异：上传口与列表列。结果页（复核表）的数据见服务端 `recon_center/sheets.py`。
+	// 三个对账功能的上传口都收：表格、PDF（含扫描件）、照片（识别任务支持的图片类型）。
+	const DOCUMENTS = ".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.xlsx,.xls,.xlsm,.csv,.tsv";
 	const KINDS = {
 		bank: {
 			root: "pearnly-recon-bank", title: "cowork.nav.reconBank", doctype: "Cowork Bank Reconciliation",
@@ -49,8 +51,8 @@
 		vat: {
 			root: "pearnly-recon-vat", title: "cowork.nav.reconVat", doctype: "Cowork VAT Check",
 			export: "pearnly_cowork.recon_center.api.export_vat", multiple: true,
-			// 报告只收表格 / PDF（服务端也只认这些，原来选了图片到服务端才拒）；发票还可以是图片。
-			accept: { left: ".pdf,.xlsx,.xls,.csv,.tsv", right: ".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,.tsv" },
+			// 报告与发票都收表格 / PDF / 照片（2026-09-29 起扫描件与照片由识别任务读，旧线上同样收图片）。
+			accept: { left: DOCUMENTS, right: DOCUMENTS },
 			left: "cowork.recon.vat.left", right: "cowork.recon.vat.right",
 			list: t => [
 				{ fieldname: "title", width: 220, min_width: 160, label: t("cowork.recon.col.title") },
@@ -122,7 +124,7 @@
 			const slot = side => [
 				{ fieldtype: "Heading", fieldname: `${side}_heading`, label: t(spec[side]) },
 				{ fieldtype: "Button", fieldname: `${side}_pick`, label: t("cowork.recon.pick"), click: async () => {
-					const files = await p.pick_files(spec.accept?.[side] || ".pdf,.xlsx,.xls,.csv,.tsv", Boolean(spec.multiple));
+					const files = await p.pick_files(spec.accept?.[side] || DOCUMENTS, Boolean(spec.multiple));
 					if (!files.length) return;
 					chosen[side] = spec.multiple ? files : files[0];
 					await form.set_value(`${side}_file`, files.length > 1
