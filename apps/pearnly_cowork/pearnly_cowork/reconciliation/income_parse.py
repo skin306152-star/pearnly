@@ -49,7 +49,8 @@ DOC_NO_HINTS = frozenset(("ใบสำคัญ", "เลขที่เอก�
 	"凭证", "单据"))
 DESCRIPTION_HINTS = frozenset(("คำอธิบาย", "รายการ", "description", "detail", "รายละเอียด",
 	"摘要", "说明"))
-DEBIT_HINTS = frozenset(("เดบิต", "debit", "dr", "借方", "借"))
+# 「เดบิท」是 Express 导出的写法（2026-09-29 压测 I02：表头认不出，收入总账读出 0 行）。
+DEBIT_HINTS = frozenset(("เดบิต", "เดบิท", "debit", "dr", "借方", "借"))
 CREDIT_HINTS = frozenset(("เครดิต", "credit", "cr", "贷方", "贷"))
 ACCOUNT_HINTS = frozenset(("รหัสบัญชี", "account code", "gl account", "เลขที่บัญชี", "รหัส",
 	"账号", "科目"))
@@ -194,6 +195,9 @@ def _excel_row_text(cell) -> str:
 		year = cell.year
 		if year >= 2500:
 			year -= 543
+		elif 1940 <= year <= 1999:
+			# Express 印两位佛历年（01/05/69），Excel 存成 1969 年：按 25xx 读（2026-09-29 压测 I02）。
+			year += 57
 		try:
 			return date(year, cell.month, cell.day).isoformat()
 		except (ValueError, AttributeError):
@@ -213,7 +217,7 @@ def excel_rows(sheets, revenue_prefix: str = "4") -> Dict[str, Any]:
 	rows: List[GlRow] = []
 	try:
 		for sheet in sheets:
-			current_account = ""
+			current_account, last_date = "", ""
 			col_map: Dict[str, int] = {}
 			has_account_col = False
 			for raw_row in sheet:
@@ -257,8 +261,11 @@ def excel_rows(sheets, revenue_prefix: str = "4") -> Dict[str, Any]:
 				credit = to_float(_get("credit"))
 				if debit == 0.0 and credit == 0.0:
 					continue
+				# 同一天只在第一行印日期的续行沿用上一行的日期（Express；银行总账的读法同样如此）。
+				day = _get("date") or last_date
+				last_date = day
 				rows.append(GlRow(doc_no=doc_no, norm_doc_no=normalize_doc_no(doc_no),
-					date=_get("date"), account_code=current_account,
+					date=day, account_code=current_account,
 					description=_get("description"), debit=debit, credit=credit))
 	except ReconciliationContractError:
 		raise

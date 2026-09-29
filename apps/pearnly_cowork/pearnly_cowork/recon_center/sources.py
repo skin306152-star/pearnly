@@ -95,13 +95,22 @@ def report_source(content, filename, read=None):
             except UnicodeDecodeError:
                 continue
     if ext == "pdf":
-        pages = document_tier.text_pages(content)
-        if any(page.strip() for page in pages):
+        # 两种取字各有擅长的版式（2026-09-29 压测：pymupdf 读 Express 打印的税报逐行正常，pypdf 整页一行；
+        # I04 95 页的税报、V05 则反过来）：两种都试，用读出行数多的那种。
+        best, best_rows, texts = None, -1, False
+        for pages in (_pdf_text(content), document_tier.text_pages(content)):
+            if not any(page.strip() for page in pages):
+                continue
+            texts = True
             source = {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
             parsed = vat_parse.decode(source)
-            if parsed and len(parsed.get("rows") or []) >= vat_parse.MIN_DETERMINISTIC_ROWS:
-                return source
-            return _pipeline(read, "vat_report", content, filename) or source
+            rows = len((parsed or {}).get("rows") or [])
+            if rows > best_rows:
+                best, best_rows = source, rows
+        if texts:
+            if best_rows >= vat_parse.MIN_DETERMINISTIC_ROWS:
+                return best
+            return _pipeline(read, "vat_report", content, filename) or best
         model = _pipeline(read, "vat_report", content, filename)
         if model:
             return model

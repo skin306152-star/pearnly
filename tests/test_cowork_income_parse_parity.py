@@ -169,6 +169,25 @@ def rows_of(value):
 	return [describe(row) for row in value["rows"]]
 
 
+def carried_dates(deployed, produced):
+	"""有意变化（2026-09-29 I02 收入总账）：同一凭证的续行不写日期，沿用上一行日期 —— 旧线上留空，这些行在按日期
+	配对时落空。只认「旧线上为空、本模块等于上一行日期」这一处不同，其余字段逐字相同；返回沿用的行数，不属于
+	这类变化返回 None。"""
+	old, new = rows_of(deployed), rows_of(produced)
+	if (deployed["ok"], deployed["row_count"], deployed["error"], len(old)) != (
+			produced["ok"], produced["row_count"], produced["error"], len(new)):
+		return None
+	carried = 0
+	for index, (before, after) in enumerate(zip(old, new)):
+		if before == after:
+			continue
+		if (before[:2] + before[3:] != after[:2] + after[3:] or before[2] != "" or index == 0
+				or after[2] != new[index - 1][2]):
+			return None
+		carried += 1
+	return carried
+
+
 def page_lines(pages):
 	"""The lines a caller reads off the pages, in the order the reader prints them."""
 	return [line for page in pages for line in str(page.get("text") or "").split("\n")]
@@ -323,7 +342,7 @@ def main():
 	rng = random.Random(20260921)
 	differences = []
 	counts = {"batches": 0, "excel_rows": 0, "table_rows": 0, "text_rows": 0, "pipeline_rows": 0}
-	branches = {"excel_date_cells": 0, "text_credit": 0, "text_debit": 0, "text_tail_three": 0}
+	branches = {"excel_date_cells": 0, "excel_carried_dates": 0, "text_credit": 0, "text_debit": 0, "text_tail_three": 0}
 	helper_cases = {"to_float": 0, "extract_account_code": 0, "is_skip_row": 0,
 		"map_gl_columns": 0, "row_has_amount": 0, "is_debit_line": 0}
 	helper_values = [None, "", "-", "–", "0.00", "1,070.00", "(250.00)", " 12 ", "1 234.50",
@@ -371,9 +390,11 @@ def main():
 		counts["excel_rows"] += len(produced["rows"])
 		branches["excel_date_cells"] += sum(1 for row in produced["rows"]
 			if row.date and row.date[4:5] == "-" and row.date.count("-") == 2)
-		if (deployed["ok"], deployed["row_count"], deployed["error"], rows_of(deployed)) != (
-				produced["ok"], produced["row_count"], produced["error"], rows_of(produced)):
+		carried = carried_dates(deployed, produced)
+		if carried is None:
 			differences.append(("excel", batch, deployed, produced))
+		else:
+			branches["excel_carried_dates"] += carried
 
 		deployed = pdf["parse_gl_pdf"](b"", prefix)
 		produced = parse.pdf_rows(batch["pages"], page_lines(batch["pages"]), prefix)

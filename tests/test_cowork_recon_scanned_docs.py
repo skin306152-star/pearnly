@@ -362,6 +362,14 @@ class SourcesRouteToTheReader(unittest.TestCase):
 			source = sources.report_source(b"%PDF", "vat.pdf", read)
 		self.assertEqual((source["kind"], calls), ("pdf", []))
 
+	def test_a_vat_report_pdf_is_read_line_by_line_with_pymupdf(self):
+		# pypdf 读 Express 打印的税报整页只给一行（2026-09-29）；税报与总账都走 _pdf_text。
+		read, calls = self.reader({"pages": []})
+		lines = "\n".join(f"0{day}/06/2569 IV00{day} OHANAHAN 1,000.00 70.00" for day in range(1, 5))
+		with mock.patch.object(sources, "_pdf_text", return_value=[lines]) as text:
+			source = sources.report_source(b"%PDF", "vat.pdf", read)
+		text.assert_called_once()
+
 	def test_without_a_reader_a_photo_is_still_refused(self):
 		with mock.patch.object(sources.frappe, "_", side_effect=lambda text: text), \
 				mock.patch.object(sources.frappe, "throw", side_effect=frappe.ValidationError) as refused:

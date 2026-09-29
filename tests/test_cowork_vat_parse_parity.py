@@ -221,6 +221,37 @@ def describe(row):
 	return tuple(sorted((key, value) for key, value in row.items()))
 
 
+IDENTITY = ("report_invoice_no", "report_buyer_name", "report_buyer_tax_id", "report_buyer_branch", "report_ref_no",
+	"is_individual")
+
+
+def intentional_text_row(deployed, produced):
+	"""打字版税报的有意变化（2026-09-29，Express 打印的税报），返回类别名；不属于任何一类返回 None。
+
+	- 每行多带「是否当日汇总行」标记，旧线上没有这一栏；
+	- thai_summary：第一个词是泰文描述（零售当日汇总行）时不当单号，单号留空、词留在名称里；
+	- spaced_number：「MB 69-04-002」被空格拆开的单号合回一个；
+	- after_number：税号、分支在单号之后找，名称先去单号（旧线上从整段找，「SI000001」里的数字被当成分支，
+	  名称剩下「SI0」这类碎片；单号本身是 13 位数字时也不再当税号，是否个人随税号变）。
+	金额、日期、行号等其余字段必须逐字相同。
+	"""
+	produced = {key: value for key, value in produced.items() if key != "summary_line"}
+	if produced == deployed:
+		return "same"
+	if any(deployed.get(key) != produced.get(key) for key in set(deployed) | set(produced) if key not in IDENTITY):
+		return None
+	old, new = deployed["report_invoice_no"], produced["report_invoice_no"]
+	if re.match(r"[\u0e00-\u0e7f]", old) and new == "" and old in produced["report_buyer_name"]:
+		return "thai_summary"
+	if re.fullmatch(r"[A-Za-z]{1,4}", old) and new.startswith(old + " "):
+		return "spaced_number"
+	if old == new and new and (
+			deployed["report_buyer_branch"] in new or deployed["report_buyer_tax_id"] and deployed["report_buyer_tax_id"] in new
+			or any(word != new and new.startswith(word) for word in deployed["report_buyer_name"].split())):
+		return "after_number"
+	return None
+
+
 def outcome(function, *arguments):
 	"""Compare success payloads and exception identity, never a partial outcome."""
 	try:
@@ -230,7 +261,9 @@ def outcome(function, *arguments):
 
 
 def rows_of(result):
-	return None if result is None else [describe(row) for row in result["rows"]]
+	# 「是否当日汇总行」标记是有意新增的一栏（见 intentional_text_row），旧线上没有，比对时不算。
+	return None if result is None else [describe({key: value for key, value in row.items() if key != "summary_line"})
+		for row in result["rows"]]
 
 
 def page_lines(pages):
@@ -462,8 +495,11 @@ def main():
 		deployed = pdf["_parse_vat_pdf_text_lines"](b"")
 		produced = parse.text_lines(batch["lines"])
 		counts["text_rows"] += len(produced)
-		if [describe(row) for row in deployed] != [describe(row) for row in produced]:
+		kinds = [intentional_text_row(old, new) for old, new in zip(deployed, produced)]
+		if len(deployed) != len(produced) or None in kinds:
 			differences.append(("text", batch, deployed, produced))
+		for kind in kinds:
+			branches[f"text_{kind}"] = branches.get(f"text_{kind}", 0) + 1
 
 		csv_text = "\n".join(batch["csv"])
 		deployed = csv_namespace["parse_csv_direct"](csv_text.encode("utf-8"), "report.csv")
