@@ -108,8 +108,8 @@ class EnterprisePipeline(unittest.TestCase):
 		self.assertEqual(legacy["engine"], "enterprise-2026-09-03-v1")
 		self.assertEqual([page["document_type"] for page in legacy["pages"]], ["vat_report", "vat_report"])
 		self.assertEqual(legacy["pages"][0]["document"]["entries"][0]["invoice_no"], "IV001")
-		# Document AI 按页计：0.0015 美元 × 35
-		self.assertAlmostEqual(result.estimated_cost_thb, 2 * 0.0015 * 35)
+		# Document AI 按页计（0.0015 美元 × 35）加每页抽取的 token 费（3.8：输入 0.75、输出 3.75 美元 / 百万）
+		self.assertAlmostEqual(result.estimated_cost_thb, 2 * 0.0015 * 35 + 2 * (10 * 0.75 + 5 * 3.75) / 1e6 * 35, places=5)
 
 	def test_a_statement_the_geometry_cannot_balance_is_extracted_on_every_page(self):
 		bank_page = {"bank_name": "", "account_number": "", "period_start": "", "period_end": "", "opening_balance": "1000",

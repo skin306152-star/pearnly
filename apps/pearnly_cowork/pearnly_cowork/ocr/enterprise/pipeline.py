@@ -13,7 +13,8 @@ Changed for this platform: provider calls are injected (``document_ai_call``, ``
 run inside the durable OCR Work (checkpoints, shared budget, deferral); pages are rendered only when
 the schema extraction needs them, one at a time (the deployed code rendered every page up front);
 the model timeout is 120 s (the provider client's ceiling; deployed 180 s). The cost estimate counts
-the Document AI pages only.
+the Document AI pages plus each extraction's tokens at the deployed ``services/ocr/cost.py`` prices
+(internal observation only, never billing; until 2026-09-29 the model tokens were left out).
 """
 
 from __future__ import annotations
@@ -33,6 +34,16 @@ from pearnly_cowork.ocr.enterprise.request import build_request
 
 ENGINE = contract.CONTRACT_VERSION  # "enterprise-2026-09-03-v1", the deployed engine label
 THB_PER_USD = 35.0
+# USD per million input / output tokens: deployed services/ocr/cost.py MODEL_PRICES_PER_M_USD (2026-07 price
+# list). An unknown model is priced as the most expensive one listed, as deployed (observation errs high).
+MODEL_PRICES_PER_M_USD = {"gemini-3.8-flash": (0.75, 3.75), "gemini-3.1-flash-lite": (0.25, 1.50)}
+
+
+def model_cost_thb(model, input_tokens, output_tokens):
+    price = next((value for prefix, value in MODEL_PRICES_PER_M_USD.items() if str(model or "").startswith(prefix)),
+                 max(MODEL_PRICES_PER_M_USD.values()))
+    usd = max(0, int(input_tokens or 0)) / 1e6 * price[0] + max(0, int(output_tokens or 0)) / 1e6 * price[1]
+    return round(usd * THB_PER_USD, 6)
 MODEL_TIMEOUT_SECONDS = 120
 CATEGORIES = {"bank_statement": "bank", "general_ledger": "gl", "vat_report": "vat"}
 
@@ -156,6 +167,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             page.layer2_ms = response.elapsed_ms
             page.layer2_input_tokens = response.input_tokens
             page.layer2_output_tokens = response.output_tokens
+            cost += model_cost_thb(response.model, response.input_tokens, response.output_tokens)
             pages.append(page)
         if category in ("bank", "gl"):
             aggregate = {
