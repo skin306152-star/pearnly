@@ -313,7 +313,8 @@ class BankSeam(unittest.TestCase):
 		self.assertTrue(result["rows"][0].amount_autocorrected)
 		self.assertIsNone(document_model_rows()("bank_statement", b"img", "stmt.jpg"))
 
-	def test_the_intake_does_not_repair_enterprise_rows_again(self):
+	def test_enterprise_rows_go_through_the_deployed_finalisation_too(self):
+		# 2026-09-29 有意变化：旧线上企业档的行不走定案；3.8 抽取的行多读的金额没被纠正（B08 BBL0555）。
 		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
 			enterprise_rows,
 		)
@@ -323,8 +324,9 @@ class BankSeam(unittest.TestCase):
 			"closing_balance": "900", "entries": [{"transaction_date": "2026-06-01", "description": "x",
 			"withdrawal": "100", "deposit": "", "balance": "900"}]}}]}
 		model = enterprise_rows(legacy, "bank_statement", "stmt.jpg")
-		with mock.patch.object(bank_intake.bank_statement, "finalize_rows", side_effect=AssertionError("repaired twice")):
+		with mock.patch.object(bank_intake.bank_statement, "finalize_rows", wraps=bank_intake.bank_statement.finalize_rows) as final:
 			result = bank_intake.read_statement_file(b"img", "stmt.jpg", model_rows=lambda *_a: model)
+		final.assert_called_once()
 		self.assertTrue(result["ok"])
 		self.assertEqual(result["source"], "enterprise")
 
@@ -371,6 +373,47 @@ class SeveralFilesPerSide(unittest.TestCase):
 		merged = bank_recon_service._merged_statement([first, second])
 		self.assertEqual([row.balance for row in merged["rows"]], [1450.0, 1440.0, 1500.0])
 		self.assertEqual((merged["opening"], merged["closing"]), (1000.0, 1500.0))
+
+	def test_photos_are_joined_by_the_balance_chain_not_just_the_date(self):
+		# B01：同一天的行分在两张照片上，按日期排序会打乱；按「下一张倒推的期初 = 上一张最后余额」接。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		early = self.statement([(date(2026, 5, 6), "a", 0.0, 100.0, 1100.0), (date(2026, 5, 7), "b", 50.0, 0.0, 1050.0)])
+		late = self.statement([(date(2026, 5, 7), "c", 0.0, 200.0, 1250.0), (date(2026, 5, 7), "d", 25.0, 0.0, 1225.0)])
+		middle = self.statement([(date(2026, 5, 6), "x", 0.0, 1.0, 1226.0), (date(2026, 5, 7), "y", 1.0, 0.0, 1225.0)])
+		# 故意把接在中间的那张放最后、日期还更早：只看日期会排错
+		merged = bank_recon_service._merged_statement([early, late, middle])
+		self.assertEqual([row.description for row in merged["rows"]], ["a", "b", "c", "d", "x", "y"])
+		fixed = bank_recon_service.chain_files([early["rows"], late["rows"]])
+		self.assertEqual([row.balance for row in fixed], [1100.0, 1050.0, 1250.0, 1225.0])
+		self.assertEqual(merged["opening"], 1000.0)
+
+	def test_a_misread_balance_is_repaired_only_when_both_neighbours_agree(self):
+		from pearnly_cowork.reconciliation import bank_statement
+		from pearnly_cowork.reconciliation.bank_intake import repair_balance_from_neighbours
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		rows = [StatementRow(date=date(2026, 5, 6), description="", withdrawal=0.0, deposit=450.0, balance=451134.99),
+			StatementRow(date=date(2026, 5, 6), description="", withdrawal=0.0, deposit=450.0, balance=451584.86)]
+		bank_statement.verify_row_balances(rows, 450684.86)
+		repair_balance_from_neighbours(rows, 450684.86)
+		self.assertEqual(rows[0].balance, 451134.86)
+		self.assertTrue(rows[0].amount_autocorrected)
+		self.assertTrue(all(row.balance_ok for row in rows))
+
+	def test_an_enterprise_amount_is_repaired_from_the_balances_as_the_text_path_is(self):
+		# B08 BBL0555：存入 3,646,861.49 应是 3,646,561.49（余额前后都对，只有金额冲突）。
+		from pearnly_cowork.reconciliation import bank_intake
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		rows = [StatementRow(date=date(2026, 4, 4), description="", withdrawal=0.0, deposit=100.0, balance=2818893.63),
+			StatementRow(date=date(2026, 4, 5), description="", withdrawal=0.0, deposit=3646861.49, balance=6465455.12),
+			StatementRow(date=date(2026, 4, 6), description="", withdrawal=300.0, deposit=0.0, balance=6465155.12),
+			StatementRow(date=date(2026, 4, 7), description="", withdrawal=0.0, deposit=10.0, balance=6465165.12)]
+		model = {"ok": True, "rows": rows, "enterprise": True, "opening": 2818793.63, "closing": 6465165.12}
+		result = bank_intake.read_statement_file(b"img", "p.jpg", model_rows=lambda *_a: model)
+		self.assertEqual(result["rows"][1].deposit, 3646561.49)
+		self.assertTrue(result["rows"][1].amount_autocorrected)
 
 	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
 		from pearnly_cowork.reconciliation import bank_recon_service

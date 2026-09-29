@@ -252,23 +252,58 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	}}
 
 
+def _line_key(row):
+	return (row.date, round(row.deposit or 0, 2), round(row.withdrawal or 0, 2), round(row.balance or 0, 2))
+
+
+def chain_files(files):
+	"""几张照片 / 几份账单接成一条余额链：每份内部保持原顺序，份与份按「这份（去掉已有的重叠行后）第一行
+	倒推的期初 = 已接好的最后一行余额」衔接，从日期最早的一份开始；接不上的按日期接在后面。
+
+	2026-09-29 压测 B01（18 张 KBank 照片）：旧线上按日期稳定排序，同一天分在几张照片上的行被打乱（余额
+	287,574.99 → 562,264.36 → 451,134.99 → 290,074.99），期初也推错。重叠拍到的同一笔（日期、存、取、余额都相同）
+	只留一次。少于两份、或有一份首末行没有余额，返回空（照旧线上）。
+	"""
+	from datetime import date as date_type
+
+	files = [list(rows) for rows in files if rows]
+	if len(files) < 2 or any(not rows[0].balance or not rows[-1].balance for rows in files):
+		return []
+	remaining = sorted(files, key=lambda rows: min((row.date for row in rows if row.date), default=date_type.max))
+	merged, seen = [], set()
+
+	def append(rows):
+		for row in rows:
+			key = _line_key(row)
+			if row.balance and key in seen:
+				continue
+			seen.add(key)
+			merged.append(row)
+
+	append(remaining.pop(0))
+	while remaining:
+		end = merged[-1].balance
+		chosen = remaining[0]
+		for rows in remaining:
+			fresh = [row for row in rows if not (row.balance and _line_key(row) in seen)]
+			if fresh and fresh[0].balance and abs(
+					fresh[0].balance - (fresh[0].deposit or 0) + (fresh[0].withdrawal or 0) - end) <= 0.01:
+				chosen = rows
+				break
+		remaining.remove(chosen)
+		append(chosen)
+	return merged
+
+
 def _merged_statement(results):
 	"""One file stays exactly as read; several are merged by the deployed ``merge_statements``."""
 	read = [result for result in results if result.get("ok")]
 	if len(results) == 1:
 		return read[0]
 	rows, opening, closing, bank_code = bank_recon_merge.merge_statements(list(results))
-	# 相邻照片拍重叠的同一笔：摘要读得不一样，按整行指纹去不掉（旧线上），重复计入把期初推错（2026-09-29 压测
-	# B01：18 张照片期初推成 -118,792.85）。日期、存、取、余额四样都相同就是同一笔（真的重复交易余额不同）。
-	seen, unique = set(), []
-	for row in rows:
-		key = (row.date, round(row.deposit or 0, 2), round(row.withdrawal or 0, 2), round(row.balance or 0, 2))
-		if row.balance and key in seen:
-			continue
-		seen.add(key)
-		unique.append(row)
-	if len(unique) != len(rows) and unique and unique[0].balance:
-		rows, first = unique, unique[0]
+	chained = chain_files([result.get("rows") or [] for result in read])
+	if chained:
+		rows, first = chained, chained[0]
 		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
 		closing = rows[-1].balance or closing
 	completeness = [result.get("completeness") or {} for result in read]

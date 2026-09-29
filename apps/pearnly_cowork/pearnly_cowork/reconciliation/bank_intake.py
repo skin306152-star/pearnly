@@ -93,6 +93,22 @@ def _statement_text_rows(file_bytes: bytes, bank_code: str
 	return rows, opening, closing, source
 
 
+def repair_balance_from_neighbours(rows, opening):
+	"""某一行余额与前后都对不上，而「前一行余额 + 本行发生额 + 下一行发生额 = 下一行余额」成立：是这一行余额
+	读错了（B01 印的 451,134.86 读成 451,134.99）。前后两边同时印证才改，标成已自动更正，再重新核对一遍。"""
+	previous = opening
+	for index, row in enumerate(rows):
+		if index + 1 < len(rows) and previous is not None:
+			following = rows[index + 1]
+			expected = round(previous + (row.deposit or 0) - (row.withdrawal or 0), 2)
+			if (following.balance and abs(expected - (row.balance or 0)) >= 0.01
+					and abs(expected + (following.deposit or 0) - (following.withdrawal or 0) - following.balance) <= 0.01):
+				row.balance = expected
+				row.amount_autocorrected = True
+		previous = row.balance
+	bank_statement.verify_row_balances(rows, opening)
+
+
 def chronological(rows, opening, closing):
 	"""新日期在前的账单（BBL 网银：第一行就是月底）翻成从旧到新，期初按翻过来的第一行重算、期末取最后一行。
 
@@ -202,9 +218,12 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	rows, opening, closing = chronological(rows, opening, closing)
 
 	# 定案序列（跳汇总行 → 方向纠正 → 逐行核对 → 金额反推修复），顺序是正确性不变式。
-	# 企业档的行已由本地拼行 / 契约抽取与余额链闸门定案（旧线上直接返回，不再修第二遍）。
-	if source != "enterprise":
-		rows = bank_statement.finalize_rows(rows, opening)
+	# 2026-09-29 有意变化：企业档的行也走（旧线上直接返回）。本地拼行的行余额链已平，走一遍不变；3.8 抽取的行
+	# 没修过 —— B08 BBL0555 一笔存入多读 300（下一行 +300 / -300 抵消）没被纠正。另补一步余额反推（本地拼行的
+	# 部署修正有，文字路径没有）：前后两行都印证时，改读错的那一行余额。
+	rows = bank_statement.finalize_rows(rows, opening)
+	if source == "enterprise":
+		repair_balance_from_neighbours(rows, opening)
 
 	# 换眼重读：只有调用方给了"读一页"和页数（也就是有渲染/直读器件）才做。
 	escalations: List[Dict[str, Any]] = []
