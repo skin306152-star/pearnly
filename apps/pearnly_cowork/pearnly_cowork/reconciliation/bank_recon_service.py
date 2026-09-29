@@ -190,10 +190,10 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	# 总账期间（整月）：几份账单怎么接，按期间里的余额链断得少来选（B08-01 的存折还带着前几个月的行）。
+	mixed = other_accounts(statements)
 	statement = _merged_statement([result for _name, result in statements],
 		_months(row.date for result in (result for _name, result in ledgers if result.get("ok"))
-			for row in result.get("rows") or []))
-	mixed = other_accounts(statements)
+			for row in result.get("rows") or []), mixed)
 	if mixed:
 		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
 	skipped = [name for name, result in statements if result.get("error_code") == bank_intake.NO_MOVEMENT]
@@ -357,13 +357,15 @@ def chain_breaks(rows, period=None):
 	return count
 
 
-def primary_merge(files, period=None):
+def primary_merge(files, period=None, excluded=()):
 	"""每一份都试着当主份，取余额链断得最少的（同样少取行多的）：行数最多的不一定最可信（B08-01 覆盖四个月的存折
 	读错多，整月 PDF 才该当主份）。"""
 	files = [list(rows) for rows in files if rows]
 	if len(files) < 2:
 		return []
-	tried = [_merge_on(files[index], files[:index] + files[index + 1:]) for index in range(len(files))]
+	# 判成混入别的账户的那几份不当主份（B05-02 含他行：BBL 两张被选成主链，结果显示全通过，2026-09-30）。
+	tried = [_merge_on(files[index], files[:index] + files[index + 1:]) for index in range(len(files))
+		if not {getattr(row, "source_file", "") for row in files[index]} & set(excluded)]
 	tried = [rows for rows in tried if rows]
 	return min(tried, key=lambda rows: (chain_breaks(rows, period), -len(rows))) if tried else []
 
@@ -436,7 +438,11 @@ def _merge_on(primary, others):
 		return False
 
 	for row in leftovers:
-		if span and row.date and span[0] <= row.date <= span[1] and whole and echoed(row):
+		# 主链从头到尾都接得上时，首尾两天之间不可能漏掉真实的交易（漏了余额就对不上）：严格落在这中间、又接不进链的
+		# 行只能是读错的重复（B08-01 的 6.jpg 把 01-06 / 01-07 几笔读成 01-02、金额余额也对不上，2026-09-30 压测）。
+		# 首尾当天的行可能排在主链前后，仍要证据。
+		if span and row.date and whole and (span[0] < row.date < span[1] or (
+				span[0] <= row.date <= span[1] and echoed(row))):
 			continue
 		index = next((i for i, other in enumerate(merged) if other.date and row.date and other.date > row.date),
 			len(merged))
@@ -543,7 +549,7 @@ def _quiet_pages_skipped(statements):
 		for index, (name, result) in enumerate(statements)]
 
 
-def _merged_statement(results, period=None):
+def _merged_statement(results, period=None, excluded=()):
 	"""One file stays exactly as read; several are merged by the deployed ``merge_statements``."""
 	read = [result for result in results if result.get("ok")]
 	if len(results) == 1:
@@ -557,7 +563,7 @@ def _merged_statement(results, period=None):
 		rows = same_lines_once(rows)
 	# 期间重叠的几份（整月 PDF + 覆盖几个月的存折 + 照片）：首尾接不上，改以最全的一份为主、别的行按余额链插进缺口；
 	# 两种接法取余额链断得少的（2026-09-30 压测 B08-01）。
-	primary = primary_merge([result.get("rows") or [] for result in read], period)
+	primary = primary_merge([result.get("rows") or [] for result in read], period, excluded)
 	if primary and chain_breaks(primary, period) < chain_breaks(rows, period):
 		rows, boundaries = primary, []
 	if rows and (chained or rows is primary) and rows[0].balance is not None:

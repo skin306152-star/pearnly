@@ -765,6 +765,24 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual(inside, [(2, 100.0), (5, 200.0), (5, 50.0), (6, 50.0), (7, 10.0)])
 		self.assertEqual(bank_recon_service.chain_breaks(merged, (date(2026, 1, 1), date(2026, 1, 31))), 0)
 
+	def test_a_misread_line_inside_a_whole_chain_is_dropped_and_other_accounts_never_lead(self):
+		# B08-01 6.jpg（2026-09-30）：01-06 那笔读成 01-02、金额余额都不对；主链首尾之间一笔不漏，这行只能是读错的重复。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		def line(day, deposit, balance, source):
+			return StatementRow(date=date(2026, 1, day), description="x", withdrawal=0.0, deposit=deposit, balance=balance,
+				source_file=source)
+
+		pdf = [line(2, 100.0, 1100.0, "01.pdf"), line(3, 100.0, 1200.0, "01.pdf"), line(7, 10.0, 1210.0, "01.pdf")]
+		photo = [line(5, 21588.5, 4613308.36, "6.jpg"), line(9, 5.0, 1215.0, "6.jpg")]
+		merged = bank_recon_service.primary_merge([pdf, photo])
+		self.assertEqual([(row.date.day, row.deposit) for row in merged], [(2, 100.0), (3, 100.0), (7, 10.0), (9, 5.0)])
+		# 判成别的账户的那份不当主份
+		other = [line(2, 1.0, 50.0, "bbl.jpg"), line(3, 1.0, 51.0, "bbl.jpg"), line(4, 1.0, 52.0, "bbl.jpg"),
+			line(5, 1.0, 53.0, "bbl.jpg")]
+		led = bank_recon_service.primary_merge([pdf, other], excluded=("bbl.jpg",))
+		self.assertEqual(led[0].source_file, "01.pdf")
+
 	def test_a_line_read_with_a_neighbouring_date_is_the_same_line(self):
 		# B09-03：同一页，一份读成 03-27、一份读成 03-26，存取与余额都一样。
 		from pearnly_cowork.reconciliation.bank_recon_service import same_lines_once
