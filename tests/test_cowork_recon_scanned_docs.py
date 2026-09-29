@@ -1054,6 +1054,7 @@ class SameBytesAsAnOriginal(unittest.TestCase):
 				mock.patch.object(storage.frappe, "get_doc", side_effect=get_doc):
 			storage.save(b"%PDF-1.4 invoice", "Big C Jun.pdf")
 			self.assertNotEqual(inserted["content"], b"%PDF-1.4 invoice")
+			self.assertTrue(inserted["file_name"].endswith(".bin"))  # 不按 PDF 处理加了前缀的字节
 			self.assertEqual(storage.read("F1"), ("Big C Jun.pdf", b"%PDF-1.4 invoice"))
 		with mock.patch.object(storage.access, "protected_sources", return_value=[]), \
 				mock.patch.object(storage.frappe, "get_doc", side_effect=get_doc):
