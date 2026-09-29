@@ -166,6 +166,10 @@ def filter_garbage_rows(rows) -> List[Dict[str, Any]]:
 		invoice_no = str(row.get("report_invoice_no") or "").strip()
 		ref_no = str(row.get("report_ref_no") or "").strip()
 		key = ref_no or invoice_no
+		if (not key and row.get("summary_line") and row.get("report_amount_pre_vat") is not None
+				and not any(keyword in str(row.get("report_buyer_name") or "") for keyword in VAT_HEADER_KEYWORDS)):
+			kept.append(row)  # 打印版的当日汇总行：有日期、有两个金额，只是没有单号（text_lines）
+			continue
 		if not key or len(key) < 3 or len(key) > 30:
 			continue
 		if ORNAMENT_RE.match(key):
@@ -261,7 +265,7 @@ def build_row(row_no: int, cells: list, col_map: Dict[str, int]) -> Dict[str, An
 		raw = cells[index] if index < len(cells) else None
 		value = _cell_text(raw)
 		if field == "date":
-			parsed_date = parse_date(value)
+			parsed_date = excel_date(raw) or parse_date(value)
 			parsed["report_date"] = parsed_date.isoformat() if parsed_date else value
 		elif field == "invoice_no":
 			parsed["report_invoice_no"] = value
@@ -322,6 +326,122 @@ def _skip_row_meta(cells, col_map, meta):
 	if "vat_amount" in col_map and col_map["vat_amount"] < len(cells):
 		meta["total_vat"] = to_float(cells[col_map["vat_amount"]])
 	return True
+
+
+def excel_date(raw):
+	"""A date cell as a date. Express prints a two-digit Buddhist year (01/05/69) that Excel stores as
+	1969-05-01; no output-VAT report is from before 1940, so 1940–1999 is read as 25xx (+57 years)."""
+	import datetime as _dt
+
+	if isinstance(raw, _dt.datetime):
+		raw = raw.date()
+	if not isinstance(raw, _dt.date):
+		return None
+	if 1940 <= raw.year <= 1999:
+		try:
+			return raw.replace(year=raw.year + 57)
+		except ValueError:  # 29 February
+			return raw.replace(year=raw.year + 57, day=28)
+	return raw
+
+
+def _cell_date(raw):
+	date = excel_date(raw)
+	if date is None and isinstance(raw, str) and VAT_DATE_RE.search(raw) and len(raw.strip()) <= 12:
+		date = parse_date(raw.strip())
+	return date
+
+
+def _cell_number(raw) -> Optional[float]:
+	if isinstance(raw, bool):
+		return None
+	if isinstance(raw, (int, float)):
+		return float(raw)
+	text = str(raw or "").strip().replace(",", "")
+	return float(text) if re.fullmatch(r"-?\d+(?:\.\d+)?", text) else None
+
+
+def shaped_rows(cells) -> Optional[Dict[str, Any]]:
+	"""Rows of a sheet whose header cannot be read, by the shape of the data (added 2026-09-29).
+
+	Express's text export splits the header over two rows and cuts its words across cells
+	("บ วัน/เดือน" | "/ปี เลขที่"), with control codes and ---- rules in between, so the keyword header
+	finds a title line and every row is garbage. The data rows themselves are regular: a date, a
+	document number, a buyer, a 13-digit tax id, a branch, the amount and its VAT. Columns are told
+	apart by what they hold: the date column, the pair of number columns where one is about 7% of the
+	other (VAT and amount), 13 digits (tax id), a mostly unique token with a digit (document number),
+	the longest text (buyer). ``None`` when the sheet does not have that shape either.
+	"""
+	if not isinstance(cells, (list, tuple)):
+		return None
+	data = [list(raw) for raw in cells if any(_cell_date(cell) for cell in raw)
+		and sum(_cell_number(cell) is not None for cell in raw) >= 2]
+	if len(data) < MIN_DETERMINISTIC_ROWS:
+		return None
+	width = max(len(raw) for raw in data)
+	column = lambda index: [raw[index] if index < len(raw) else None for raw in data]  # noqa: E731
+	share = lambda values, test: sum(1 for value in values if test(value)) / len(values)  # noqa: E731
+	date_col = max(range(width), key=lambda index: share(column(index), lambda value: bool(_cell_date(value))))
+	numbers = [index for index in range(width) if index != date_col
+		and share(column(index), lambda value: _cell_number(value) is not None) >= 0.6]
+	best = None
+	for amount_col in numbers:
+		for vat_col in numbers:
+			if amount_col == vat_col:
+				continue
+			pairs = [(_cell_number(a), _cell_number(v)) for a, v in zip(column(amount_col), column(vat_col))]
+			pairs = [(a, v) for a, v in pairs if a is not None and v is not None and a > 0]
+			if not pairs:
+				continue
+			fit = sum(1 for a, v in pairs if abs(v - a * 0.07) <= max(0.05, a * 0.001)) / len(data)
+			if best is None or fit > best[0]:
+				best = (fit, amount_col, vat_col)
+	if best is None or best[0] < 0.6:
+		return None
+	_fit, amount_col, vat_col = best
+	digits = lambda value: re.sub(r"\D", "", str(value or ""))  # noqa: E731
+	used = {date_col, amount_col, vat_col}
+	tax_col = next((index for index in range(width) if index not in used
+		and share(column(index), lambda value: len(digits(value)) == 13) >= 0.5), None)
+	used.add(tax_col)
+	text_cols = [index for index in range(width) if index not in used
+		and share(column(index), lambda value: isinstance(value, str) and value.strip() != "") >= 0.6]
+	invoice_col = max((index for index in text_cols
+		if share(column(index), lambda value: bool(re.search(r"\d", str(value or "")))) >= 0.6),
+		key=lambda index: len(set(map(str, column(index)))), default=None)
+	name_col = max((index for index in text_cols if index != invoice_col),
+		key=lambda index: sum(len(str(value or "")) for value in column(index)), default=None)
+	branch_col = next((index for index in range(width) if index not in used | {invoice_col, name_col}
+		and tax_col is not None and tax_col < index < amount_col), None)
+	rows: List[Dict[str, Any]] = []
+	for raw in data:
+		cell = lambda index: raw[index] if index is not None and index < len(raw) else None  # noqa: E731
+		amount, vat = _cell_number(cell(amount_col)), _cell_number(cell(vat_col))
+		if amount is None and vat is None:
+			continue
+		tax_id = digits(cell(tax_col))
+		tax_id = tax_id if len(tax_id) == 13 else ""
+		branch = _cell_text(cell(branch_col)).upper()
+		branch = "00000" if branch in ("X", "สนญ", "สนญ.") or (tax_id and not branch) else branch
+		name = re.sub(r"\s+", " ", _cell_text(cell(name_col)).replace("•", " ").replace("\xa0", " ")).strip()
+		date = _cell_date(cell(date_col))
+		rows.append({
+			"row_no": len(rows) + 1,
+			"report_date": date.isoformat() if date else "",
+			"report_invoice_no": _cell_text(cell(invoice_col)),
+			"report_ref_no": "",
+			"report_buyer_name": name,
+			"report_buyer_tax_id": normalize_tax_id(tax_id),
+			"report_buyer_branch": normalize_branch(branch) if branch else "",
+			"report_amount_pre_vat": amount,
+			"report_vat_amount": vat,
+			"report_amount": (amount or 0) + (vat or 0),
+			"is_individual": not bool(tax_id),
+		})
+	if len(rows) < MIN_DETERMINISTIC_ROWS:
+		return None
+	return {"ok": True, "rows": rows, "meta": {}, "warnings": [], "parser_version": PARSER_VERSION,
+		"row_count": len(rows), "method": "excel_shape"}
 
 
 def excel_rows(cells) -> Dict[str, Any]:
@@ -402,6 +522,15 @@ def text_lines(lines) -> List[Dict[str, Any]]:
 			# A WNF export starts its line with a sequence number.
 			if index < len(tokens) and re.fullmatch(r"\d{1,3}", tokens[index]):
 				index += 1
+			if index < len(tokens) and not re.search(r"\d", tokens[index]):
+				# 2026-09-29（Express 打印的税报）：「MB 69-04-002」单号被空格拆开，合回一个；第一个词是泰文描述
+				# （「บันทึกขายวันที่ 1/4/2569」零售的当日汇总行）就没有单号，记成汇总行留着（旧线上把泰文词当单号，
+				# 又被垃圾行过滤掉：I03 一个月 32 行只剩 3 行，合计差 700 多万）。
+				if (re.fullmatch(r"[A-Za-z]{1,4}", tokens[index]) and index + 1 < len(tokens)
+						and re.fullmatch(r"\d[A-Za-z0-9\-/.]*", tokens[index + 1])):
+					tokens[index:index + 2] = [tokens[index] + " " + tokens[index + 1]]
+				elif re.match(r"[\u0e00-\u0e7f]", tokens[index]):
+					tokens.insert(index, "")
 			if index < len(tokens):
 				invoice_no = tokens[index]
 				glued = GLUED_TAIL_RE.match(invoice_no)
@@ -410,12 +539,14 @@ def text_lines(lines) -> List[Dict[str, Any]]:
 				if (index + 1 < len(tokens) and REF_TOKEN_RE.match(tokens[index + 1])
 						and not TAX_ID_RE.match(tokens[index + 1])):
 					ref_no = tokens[index + 1]
-		match_tax = TAX_ID_RE.search(middle)
+		# 税号、分支在单号之后找：「IV69/00564」里的 00564 不是分支（2026-09-29，旧线上从整段里找）。
+		rest = middle.replace(invoice_no, " ", 1) if invoice_no else middle
+		match_tax = TAX_ID_RE.search(rest)
 		tax_id = match_tax.group(1) if match_tax else ""
-		match_branch = BRANCH_CODE_RE.search(middle)
+		match_branch = BRANCH_CODE_RE.search(rest)
 		branch = match_branch.group(1) if match_branch else ("00000" if tax_id else "")
 		name = middle
-		for cut in (tax_id, branch, invoice_no, ref_no):
+		for cut in (invoice_no, tax_id, branch, ref_no):
 			if cut and cut in name:
 				name = name.replace(cut, " ", 1)
 		# Letter spacing leaves branch codes, a spaced-out sequence number and
@@ -428,6 +559,7 @@ def text_lines(lines) -> List[Dict[str, Any]]:
 		row_no += 1
 		rows.append({
 			"row_no": row_no,
+			"summary_line": not invoice_no and bool(parsed_date),
 			"report_date": parsed_date.isoformat() if parsed_date else match_date.group(1),
 			"report_invoice_no": invoice_no,
 			"report_ref_no": ref_no,
@@ -678,6 +810,11 @@ def decode(source) -> Optional[Dict[str, Any]]:
 		raise ReconciliationContractError("reconciliation.vat_source_invalid")
 	if kind == "excel":
 		result = excel_rows(source["cells"])
+		usable = filter_garbage_rows(result.get("rows") or []) if result.get("ok") else []
+		if len(usable) < MIN_DETERMINISTIC_ROWS:
+			shaped = shaped_rows(source["cells"])
+			if shaped is not None:
+				result = shaped
 	elif kind == "pdf":
 		result = pdf_rows(source["pages"], source["lines"])
 	elif kind == "text":

@@ -125,6 +125,19 @@ def load_legacy(payload):
 	return {"gl": gl, "text": text, "pdf": pdf, "common": common}
 
 
+def zero_balances_not_printed(expected, produced):
+	"""有意变化（2026-09-29，Mr.erp 导出每行余额都是 0）：余额列全是 0 不算印了期末 —— 旧线上读成「印了期末 0」，
+	本模块按期初 + 借 − 贷算、不算印出。只认这一处不同，其余字段必须逐字相同。"""
+	if not (expected.get("ok") and produced.get("ok") and expected["closing_printed"]
+			and expected["closing"] == 0.0 and not produced["closing_printed"]):
+		return False
+	movement = sum(float(row[4]) - float(row[5]) for row in produced["rows"])
+	if abs(produced["closing"] - round(produced["opening"] + movement, 2)) > 0.01:
+		return False
+	strip = lambda value: {key: item for key, item in value.items() if key not in ("closing", "closing_printed")}  # noqa: E731
+	return strip(expected) == strip(produced)
+
+
 def gl_state(row):
 	return tuple(str(getattr(row, field, None)) for field in GL_ROW_FIELDS)
 
@@ -246,13 +259,16 @@ def run(root=None, source_text=None):
 
 	rng = random.Random(20260922)
 	counts = {"gl_batches": 0, "gl_rows": 0, "gl_opening": 0, "gl_closing_printed": 0,
-		"gl_header_missing": 0, "gl_unreadable": 0, "gl_filtered": 0, "gl_csv": 0}
+		"gl_header_missing": 0, "gl_unreadable": 0, "gl_filtered": 0, "gl_csv": 0, "gl_zero_balances": 0}
 	for _ in range(220):
 		content = gl_workbook(rng)
 		filter_code = "5301" if rng.random() < 0.3 else ""
 		expected = normalized_gl(legacy["gl"]["parse_gl_excel"](content, "gl.xlsx", filter_code))
 		produced = normalized_gl(gl_sheets.parse_gl_workbook(content, "gl.xlsx", filter_code))
-		assert expected == produced, (expected, produced)
+		if zero_balances_not_printed(expected, produced):
+			counts["gl_zero_balances"] += 1
+		else:
+			assert expected == produced, (expected, produced)
 		counts["gl_batches"] += 1
 		if not produced["ok"]:
 			counts["gl_header_missing"] += 1 if produced["error_code"] == "gl_headers_not_found" else 0

@@ -28,6 +28,21 @@ def extension(filename):
     return (filename or "").lower().rsplit(".", 1)[-1]
 
 
+def _pdf_text(content):
+    """税报 PDF 的文字层，一页一段、保留换行。旧线上用 pdfplumber；pypdf 读 Express 打印的税报整页只给一行
+    （2026-09-29 压测 I03 / V03：文字解析一行都没读出，转去识别又结果不明），所以先用 pymupdf，读不了再退回 pypdf。"""
+    try:
+        import pymupdf
+
+        with pymupdf.open(stream=content, filetype="pdf") as document:
+            pages = [page.get_text() or "" for page in document]
+        if any(page.strip() for page in pages):
+            return pages
+    except Exception:
+        pass
+    return document_tier.text_pages(content)
+
+
 def _lines(pages):
     return [line for page in pages for line in page.splitlines() if line.strip()]
 
@@ -51,7 +66,7 @@ def ledger_source(content, filename, read=None):
             frappe.throw(frappe._("reconciliation.gl_parse_failed"))
         return {"kind": "excel", "sheets": [rows for _name, rows in loaded]}
     if ext == "pdf":
-        pages = document_tier.text_pages(content)
+        pages = _pdf_text(content)
         model = _pipeline(read, "general_ledger", content, filename)
         if model:
             return model
