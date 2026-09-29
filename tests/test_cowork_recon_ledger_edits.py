@@ -1,7 +1,6 @@
 """银行对账复核里改总账金额：GL 期末与各行余额跟着走（`reconciliation.revision._follow_ledger_edits`）。"""
 import unittest
 from decimal import Decimal
-from unittest import mock
 
 from pearnly_cowork.reconciliation import bank_recon_contracts, revision
 
@@ -18,8 +17,8 @@ STORED = [
 def run(edited):
     header = {"gl_closing": Decimal("252716.14")}
     _, ledger = bank_recon_contracts.decode_rows([], edited)
-    with mock.patch.object(revision, "bank_inputs", return_value={"gl": STORED}):
-        revision._follow_ledger_edits(object(), header, ledger)
+    _, stored = bank_recon_contracts.decode_rows([], STORED)
+    revision._follow_ledger_edits(header, ledger, stored)
     return header["gl_closing"], [row["balance"] for row in ledger]
 
 
@@ -34,6 +33,15 @@ class LedgerEdits(unittest.TestCase):
 
     def test_untouched_amounts_keep_the_file_values(self):
         closing, balances = run([dict(row) for row in STORED])
+        self.assertEqual(closing, Decimal("252716.14"))
+        self.assertEqual(balances, [Decimal("241000"), Decimal("253480"), Decimal("252716.14")])
+
+    def test_changing_only_a_number_or_a_date_keeps_the_file_values(self):
+        # 2026-09-29 排查：原来连日期、单号一起比，只把 PV1 改成 PV01 整列余额就被倒推重算。
+        edited = [dict(row) for row in STORED]
+        edited[2]["doc_no"] = "PV6909-0002"
+        edited[0]["date"] = "2026-09-02"
+        closing, balances = run(edited)
         self.assertEqual(closing, Decimal("252716.14"))
         self.assertEqual(balances, [Decimal("241000"), Decimal("253480"), Decimal("252716.14")])
 

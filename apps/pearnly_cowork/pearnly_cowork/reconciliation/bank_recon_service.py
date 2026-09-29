@@ -12,6 +12,7 @@ from pearnly_cowork.reconciliation import (
 	bank_recon_contracts,
 	bank_review,
 	bank_warnings,
+	recon_contracts,
 	recon_tasks,
 )
 from pearnly_cowork.reconciliation.bank_recon_access import ROW, TASK
@@ -66,6 +67,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		"source_format": source_format, "source_digest": request_digest,
 		"request_key": request_key, "request_digest": request_digest,
 		"review_json": bank_recon_contracts.json_dumps(review_value),
+		"inputs_json": recon_contracts.inputs_json(statement=rows[0], gl=rows[1]),
 		"row_count": len(results),
 		"summary_json": bank_recon_contracts.json_dumps(summary_value),
 		"parse_info_json": bank_recon_contracts.json_dumps(parse_values),
@@ -295,6 +297,7 @@ def confirm_review(task_id, rows, expected_revision):
 		"summary_json": bank_recon_contracts.json_dumps(summary),
 		"run_info_json": bank_recon_contracts.json_dumps(run_values),
 		"review_json": bank_recon_contracts.json_dumps(value),
+		"inputs_json": recon_contracts.inputs_json(statement=decoded[0], gl=decoded[1]),
 		"source_digest": bank_recon_contracts.digest(header, *decoded),
 		**{field: summary[field] for field in TASK_SUMMARY_FIELDS}})
 	persist(doc)

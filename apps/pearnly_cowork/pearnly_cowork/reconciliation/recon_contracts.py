@@ -83,6 +83,25 @@ def json_loads(value):
 	return json.loads(value or "{}")
 
 
+def _plain(value):
+	if isinstance(value, Decimal):
+		return str(value)
+	if isinstance(value, date_type):
+		return value.isoformat()
+	if isinstance(value, dict):
+		return {key: _plain(item) for key, item in value.items()}
+	if isinstance(value, (list, tuple)):
+		return [_plain(item) for item in value]
+	return value
+
+
+def inputs_json(**sides):
+	"""对账任务的原始输入（按文件原顺序的解码行，含 Decimal / 日期）→ 存进 `inputs_json` 的 JSON。
+
+	结果页打开与重算从它出发，不再从排好序的结果行倒推（2026-09-29 排查）。没给的一侧不存。"""
+	return json_dumps({key: _plain(rows) for key, rows in sides.items() if rows is not None})
+
+
 def title_text(value):
 	"""Validate a caller-supplied task title."""
 	return text(value, "title", required=True, limit=140)

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-26 20:00:00.000000",
+ "modified": "2026-09-29 18:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -52,7 +52,8 @@
   "review_json",
   "created_by",
   "created_at",
-  "edit_json"
+  "edit_json",
+  "inputs_json"
  ],
  "fields": [
   {
@@ -324,6 +325,13 @@
    "fieldname": "edit_json",
    "fieldtype": "Long Text",
    "label": "Edit History",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "inputs_json",
+   "fieldtype": "Long Text",
+   "label": "Original Inputs",
    "hidden": 1,
    "read_only": 1
   }

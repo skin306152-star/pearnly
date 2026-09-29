@@ -2,10 +2,16 @@
 
 “结果页就是导出的那张复核表，可以在线修改，改字段后自动在线计算，改完可以保存。”
 
-已完成的任务不单独存原始输入，但结果里带着两边的全部内容：
-- 银行：每条结果行都有对账单一侧和 / 或总账一侧，按侧拆回两张明细（需复核的任务直接用冻结的输入）；
-- 收入：每条结果行就是一条税表行，匹配到的总账金额按符号还原成贷方 / 借方
-  （旧线上口径：税表正数取总账贷方、负数取总账借方转负）；总账有、税表没有的那几笔在汇总里逐条保存，一并还原。
+两边的原始输入按文件原顺序存在任务的 `inputs_json`（建任务、确认复核、每次保存时写），页面打开与重算都从它出发：
+- 银行：对账单与总账两张明细原样给页面改；需复核的任务仍用复核冻结的输入；
+- 收入：页面改的是税表一侧（每条结果行就是一条税表行）；总账原样取存的行，页面上改了某张的总账金额，
+  就按改动差额给这张凭证补一行，改了科目就把这张凭证的行改成新科目。
+
+2026-09-29 排查修正：原来已完成的任务不存原始输入，打开页面时从排好序的结果行倒推 —— 同一天的流水被重排、
+期末取错行，什么都不改页面就和导出不一致；税表同一单号几行时总账被算几遍；同一凭证另一边的行（折扣借方）丢了；
+多个收入科目只剩第一个。2026-09-29 之前建的任务没有 `inputs_json`，仍按结果行还原（同一单号只还原一次、科目全留），
+并且没改过的就不动期末与余额。
+
 重算走的是建任务时同一个比对函数，保存则整份替换结果行与汇总，并记一笔修订（谁、何时、第几版）。
 """
 import json
@@ -26,6 +32,7 @@ from pearnly_cowork.reconciliation import (
 	income_recon_service,
 	income_vat,
 	messages,
+	recon_contracts,
 )
 from pearnly_cowork.reconciliation.export import income_workbook
 from pearnly_cowork.reconciliation.export import workbook as bank_workbook
@@ -49,10 +56,19 @@ def _text(value):
 # ── 银行 ──────────────────────────────────────────────────────────────────
 
 
+def stored_inputs(doc):
+	"""任务里按文件原顺序存的两边输入；2026-09-29 之前建的任务没有，回 None。"""
+	value = bank_recon_contracts.json_loads(doc.get("inputs_json")) if doc.get("inputs_json") else None
+	return value if isinstance(value, dict) and value else None
+
+
 def bank_inputs(doc):
 	review = bank_recon_contracts.json_loads(doc.review_json) or {}
 	if review.get("statement_rows") is not None and doc.status == "needs_review":
 		return {"statement": review["statement_rows"], "gl": review["gl_rows"]}
+	stored = stored_inputs(doc)
+	if stored is not None:
+		return {"statement": stored.get("statement") or [], "gl": stored.get("gl") or []}
 	rows = frappe.get_all(bank_recon_service.ROW, filters={"task": doc.name}, fields=list(BANK_ROW_FIELDS),
 		order_by="row_index asc", limit_page_length=0)
 	statement = [{"date": _text(row.stmt_date), "description": row.stmt_desc or "",
@@ -102,20 +118,25 @@ def bank_header(doc):
 
 
 def _ledger_amounts(rows):
-	return sorted((str(row.get("date") or ""), str(row.get("doc_no") or ""), row.get("debit") or Decimal(0),
-		row.get("credit") or Decimal(0)) for row in rows)
+	"""按行位置比借贷金额（页面按行改输入，位置不变）：只改单号 / 日期 / 摘要不算改了金额（2026-09-29 排查：
+	原来连日期单号一起比，改个单号整列余额就被重算）。"""
+	return [(row.get("debit") or Decimal(0), row.get("credit") or Decimal(0)) for row in rows]
+
+
+def _statement_values(rows):
+	return [(str(row.get("date") or ""), str(row.get("description") or ""), row.get("withdrawal") or Decimal(0),
+		row.get("deposit") or Decimal(0), row.get("balance")) for row in rows]
 
 
 def _ledger_net(rows):
 	return sum(((row.get("debit") or Decimal(0)) - (row.get("credit") or Decimal(0)) for row in rows), Decimal(0))
 
 
-def _follow_ledger_edits(doc, header, ledger):
+def _follow_ledger_edits(header, ledger, stored):
 	"""总账金额改过：期末按改动的借贷差跟着走，各行余额从期末倒推（银行科目借增贷减）；没改金额一律不动。
 
 	2026-09-28 录制：把一笔借方 12,480 改成 12,840，匹配重算了，GL 期末 / 余额列仍是文件里的 252,716.14，
 	「差额（应为 0）」变成 360.00。对账单那边早已「期末跟着最后一行余额走」，这里补上总账这边。"""
-	_, stored = _contract(bank_recon_contracts.decode_rows, [], bank_inputs(doc).get("gl") or [])
 	if _ledger_amounts(stored) == _ledger_amounts(ledger):
 		return
 	header["gl_closing"] = header["gl_closing"] + _ledger_net(ledger) - _ledger_net(stored)
@@ -127,11 +148,15 @@ def _follow_ledger_edits(doc, header, ledger):
 
 def bank_compute(doc, inputs):
 	rows = _contract(bank_recon_contracts.decode_rows, inputs.get("statement") or [], inputs.get("gl") or [])
+	given = bank_inputs(doc)
+	before = _contract(bank_recon_contracts.decode_rows, given.get("statement") or [], given.get("gl") or [])
 	header = bank_header(doc)
-	# 对账单期末跟着改过的最后一行余额走（与复核确认同一口径），期初与总账两端不动。
-	if rows[0] and rows[0][-1].get("balance") is not None:
+	# 对账单期末跟着改过的最后一行余额走（与复核确认同一口径），期初与总账两端不动；
+	# 对账单一行没改（只是打开页面、或只改了总账）就沿用存的期末，不取最后一行（2026-09-29 排查）。
+	changed = doc.status == "needs_review" or _statement_values(rows[0]) != _statement_values(before[0])
+	if changed and rows[0] and rows[0][-1].get("balance") is not None:
 		header["stmt_closing"] = rows[0][-1]["balance"]
-	_follow_ledger_edits(doc, header, rows[1])
+	_follow_ledger_edits(header, rows[1], before[1])
 	results, summary = bank_recon_service._match(rows, header)
 	return rows, header, results, summary
 
@@ -153,6 +178,7 @@ def bank_save(doc, inputs):
 			frappe.throw(_("reconciliation.review_balance_mismatch"))
 	frappe.db.delete(bank_recon_service.ROW, {"task": doc.name})
 	doc.update({"status": "completed", "row_count": len(results),
+		"inputs_json": recon_contracts.inputs_json(statement=rows[0], gl=rows[1]),
 		"summary_json": bank_recon_contracts.json_dumps(summary),
 		**{field: summary.get(field, 0) for field in bank_recon_service.TASK_SUMMARY_FIELDS}})
 	_record(doc)
@@ -168,38 +194,85 @@ def income_inputs(doc):
 	rows = frappe.get_all(income_recon_service.ROW, filters={"task": doc.name},
 		fields=["doc_no", "vat_date", "customer_name", "vat_amount", "has_gl_match", "gl_amount", "account_codes"],
 		order_by="row_index asc", limit_page_length=0)
+	# 科目全留（一张凭证分几个收入科目时原来只剩第一个，页面与导出对不上 —— 2026-09-29 排查）
 	vat = [{"doc_no": row.doc_no or "", "date": row.vat_date or "", "customer_name": row.customer_name or "",
 		"vat_amount": row.vat_amount or 0, "has_gl": int(bool(row.has_gl_match)),
 		"gl_amount": row.gl_amount if row.has_gl_match else None,
-		"account_code": (row.account_codes or "").split(",")[0].strip()} for row in rows]
+		"account_code": (row.account_codes or "").strip()} for row in rows]
 	summary = income_recon_contracts.json_loads(doc.summary_json) or {}
 	extra = ([{**item, "side": "credit"} for item in summary.get("gl_only_credit_items") or []]
 		+ [{**item, "side": "debit"} for item in summary.get("gl_only_debit_items") or []])
 	return {"vat": vat, "gl_only": extra}
 
 
+def _number(value):
+	if value in (None, ""):
+		return None
+	try:
+		return round(float(value), 2)
+	except (TypeError, ValueError):
+		return None
+
+
+def _gl_line(doc_no, date, account_code, amount, description=""):
+	"""一行总账：净额为正记贷方、为负记借方（收入科目贷增借减）。"""
+	return {"doc_no": doc_no, "norm_doc_no": "", "date": date, "account_code": account_code,
+		"description": description, "debit": max(-amount, 0.0), "credit": max(amount, 0.0)}
+
+
+def _stored_gl(doc, edited, before, account):
+	"""存的原始总账 + 页面上的改动：改了某张的总账金额按差额补一行，改了科目把这张凭证的行改成新科目。"""
+	gl_rows = [dict(row) for row in (stored_inputs(doc) or {}).get("gl") or []]
+	for index, row in enumerate(edited):
+		old = before[index] if index < len(before) else {}
+		doc_no = _text(row.get("doc_no")).strip()
+		new_amount, old_amount = _number(row.get("gl_amount")), _number(old.get("gl_amount"))
+		if row.get("has_gl") and new_amount is not None and new_amount != old_amount:
+			gl_rows.append(_gl_line(doc_no, _text(row.get("date")), _text(row.get("account_code")).split(",")[0].strip()
+				or account, round(new_amount - (old_amount or 0.0), 2)))
+		new_account, old_account = _text(row.get("account_code")).strip(), _text(old.get("account_code")).strip()
+		if new_account and new_account != old_account:
+			key = income_vat.normalize_doc_no(doc_no)
+			for line in gl_rows:
+				if income_vat.normalize_doc_no(_text(line.get("doc_no"))) == key:
+					line["account_code"] = new_account
+	return gl_rows
+
+
+def _rebuilt_gl(edited, before, gl_only, account):
+	"""2026-09-29 之前建的任务：按结果行还原总账。同一单号几行只还原一次（原来几行就算几遍），
+	哪一行改过总账金额就用那一行的；科目按存的全部科目。"""
+	gl_rows, groups = [], {}
+	for index, row in enumerate(edited):
+		if row.get("has_gl") and _number(row.get("gl_amount")) is not None:
+			groups.setdefault(income_vat.normalize_doc_no(_text(row.get("doc_no")).strip()), []).append(index)
+	for indices in groups.values():
+		pick = next((index for index in indices if index < len(before)
+			and _number(edited[index].get("gl_amount")) != _number(before[index].get("gl_amount"))), indices[0])
+		row = edited[pick]
+		gl_rows.append(_gl_line(_text(row.get("doc_no")).strip(), _text(row.get("date")),
+			_text(row.get("account_code")).strip() or account, _number(row.get("gl_amount"))))
+	for item in gl_only or []:
+		amount = abs(float(item.get("amount") or 0))
+		gl_rows.append(_gl_line(_text(item.get("doc_no")), _text(item.get("date")), account,
+			-amount if item.get("side") == "debit" else amount, _text(item.get("name"))))
+	return gl_rows
+
+
 def _income_rows(doc, inputs):
 	account = doc.gl_account_code or "4"
-	vat_rows, gl_rows = [], []
-	for row in inputs.get("vat") or []:
+	edited = inputs.get("vat") or []
+	vat_rows = []
+	for row in edited:
 		doc_no = _text(row.get("doc_no")).strip()
-		amount = float(row.get("vat_amount") or 0)
 		vat_rows.append({"report_ref_no": doc_no, "report_reference_no": doc_no, "report_invoice_no": doc_no,
 			"report_date": _text(row.get("date")), "report_buyer_name": _text(row.get("customer_name")),
-			"report_amount_pre_vat": amount})
-		if row.get("has_gl") and row.get("gl_amount") not in (None, ""):
-			gl_amount = float(row["gl_amount"])
-			# 旧线上口径：税表正数对总账贷方，负数（贷项凭单）对总账借方并转负。
-			credit, debit = (gl_amount, 0.0) if amount >= 0 else (0.0, -gl_amount)
-			gl_rows.append({"doc_no": doc_no, "norm_doc_no": "", "date": _text(row.get("date")),
-				"account_code": _text(row.get("account_code")) or account, "description": "",
-				"debit": max(debit, 0.0), "credit": max(credit, 0.0)})
-	for item in inputs.get("gl_only") or []:
-		amount = abs(float(item.get("amount") or 0))
-		gl_rows.append({"doc_no": _text(item.get("doc_no")), "norm_doc_no": "", "date": _text(item.get("date")),
-			"account_code": account, "description": _text(item.get("name")),
-			"debit": amount if item.get("side") == "debit" else 0.0,
-			"credit": amount if item.get("side") != "debit" else 0.0})
+			"report_amount_pre_vat": float(row.get("vat_amount") or 0)})
+	before = income_inputs(doc)
+	if stored_inputs(doc) is not None:
+		gl_rows = _stored_gl(doc, edited, before["vat"], account)
+	else:
+		gl_rows = _rebuilt_gl(edited, before["vat"], before["gl_only"], account)
 	return _contract(income_recon_contracts.decode_rows, gl_rows, vat_rows)
 
 
@@ -221,6 +294,7 @@ def income_save(doc, inputs):
 	matched, findings, unmatched = income_recon_service.result_counts(results)
 	frappe.db.delete(income_recon_service.ROW, {"task": doc.name})
 	doc.update({"row_count": len(results), "gl_row_count": len(rows[0]), "matched_count": matched,
+		"inputs_json": recon_contracts.inputs_json(gl=rows[0]),
 		"diff_count": findings, "unmatched_count": unmatched,
 		"summary_json": income_recon_contracts.json_dumps(summary_value),
 		**{field: summary_value[field] for field in income_recon_service.TASK_SUMMARY_FIELDS}})

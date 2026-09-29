@@ -22,6 +22,7 @@ from pearnly_cowork.reconciliation import (
 	income_recon_contracts,
 	income_parse,
 	income_vat,
+	recon_contracts,
 	recon_tasks,
 	vat_parse,
 )
@@ -75,6 +76,7 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_i
 		"amount_tolerance": float(header_values["amount_tolerance"]),
 		"summary_json": income_recon_contracts.json_dumps(summary_value),
 		"parse_info_json": income_recon_contracts.json_dumps(parse_values),
+		"inputs_json": recon_contracts.inputs_json(gl=rows[0]),
 		"created_by": frappe.session.user, "created_at": now_datetime(), **{
 			field: summary_value[field] for field in TASK_SUMMARY_FIELDS}})
 	persist(task)
