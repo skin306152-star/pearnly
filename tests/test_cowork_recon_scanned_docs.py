@@ -1143,6 +1143,20 @@ class PurchaseInvoicesInTheSalesCheck(unittest.TestCase):
 			self.assertEqual(sheets.purchase_invoice_notes({**inputs, "seller_tax_id": ""}), [])
 
 
+class ReviewHeader(unittest.TestCase):
+	def test_a_task_under_review_takes_its_balances_from_the_review(self):
+		# 第 21 轮（2026-09-30）：需复核的任务上期初期末字段是 0，保存前多出一处第 1 行假断点。
+		from pearnly_cowork.reconciliation import revision
+
+		review = {"header": {"stmt_opening": "23497409.56", "stmt_closing": "20971440.69", "gl_opening": "23497409.56",
+			"gl_closing": "20971440.69", "bank_code": "bay", "gl_account_code": "1112-02"}}
+		doc = mock.Mock(status="needs_review", review_json=json.dumps(review), stmt_opening=0, stmt_closing=0,
+			gl_opening=0, gl_closing=0, bank_code="bay", gl_account_code="1112-02")
+		self.assertEqual(str(revision.bank_header(doc)["stmt_opening"]), "23497409.56")
+		doc.status = "completed"
+		self.assertEqual(revision.bank_header(doc)["stmt_opening"], 0)
+
+
 class TenfoldAtABreak(unittest.TestCase):
 	def test_an_amount_read_with_one_zero_too_many_is_suggested_not_changed(self):
 		# BAY-CA-03（2026-09-30）：存入 1,500 读成 15,000；前后余额都对。

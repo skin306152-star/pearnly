@@ -163,6 +163,11 @@ def bank_notes(doc):
 
 
 def bank_header(doc):
+	# 需复核的任务建任务时还没匹配，任务上的期初 / 期末字段都是 0，真实值在复核数据里：从那里取（2026-09-30 压测第 21 轮：
+	# 保存前逐处确认多出一处第 1 行「期初 0 → 23,504,409.56」的假断点，页面的期初期末也是 0）。
+	review = (bank_recon_contracts.json_loads(doc.review_json) or {}) if doc.status == "needs_review" else {}
+	if review.get("header"):
+		return bank_recon_contracts.header(review["header"])
 	return bank_recon_contracts.header({"stmt_opening": doc.stmt_opening, "stmt_closing": doc.stmt_closing,
 		"gl_opening": doc.gl_opening, "gl_closing": doc.gl_closing, "bank_code": doc.bank_code or "",
 		"gl_account_code": doc.gl_account_code or ""})
