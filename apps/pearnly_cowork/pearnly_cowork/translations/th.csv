@@ -400,6 +400,7 @@ Event Key,รหัสเหตุการณ์
 Evidence Fingerprint,ลายนิ้วมือหลักฐาน
 Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
+Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์ แม่นยำที่สุด
 Expense account,บัญชีค่าใช้จ่าย
 Export,ส่งออก
 Export Excel,ส่งออก Excel
@@ -441,6 +442,7 @@ History Version,รุ่นประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับผู้ถือล็อก
 IN,เงินเข้า
+"If you have the electronic statement, upload it instead",หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน
 Import result,ผลการนำเข้า
 "Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
@@ -1031,6 +1033,7 @@ There is not enough recognition balance. Top up and send the document again.,ย
 These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 These files could not be read and were left out; upload them again to include them: {0},อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
+These spreadsheets are not bank statement exports (no balance column) and were left out: {0},ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
 These statements look like another account and were left out of this reconciliation: {0},รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
@@ -1077,6 +1080,7 @@ This request key was used for different content.,รหัสคำขอนี�
 This request key was used for different push content.,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 This request was already used for different content.,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This scanned or photographed document could not be read. Check the file and try again.,อ่านเอกสารสแกนหรือรูปถ่ายนี้ไม่ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
+"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",ตารางนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
 "This statement shows no running balance, so balances cannot be checked line by line.",รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงตรวจยอดคงเหลือทีละรายการไม่ได้
 This stock count task is closed.,งานตรวจนับสต็อกนี้ปิดแล้ว
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และสร้างไม่ได้ กรุณาตรวจชื่อและเลขภาษี
@@ -1234,6 +1238,7 @@ cowork.quality.pending,รอตรวจสอบ
 cowork.recon.bank.gl_credit_only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 cowork.recon.bank.gl_debit_only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 cowork.recon.bank.left,รายการเดินบัญชีธนาคาร
+cowork.recon.bank.leftHint,Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์ แม่นยำที่สุด
 cowork.recon.bank.matched,จับคู่แล้ว
 cowork.recon.bank.right,บัญชีแยกประเภททั่วไป
 cowork.recon.bank.stmt_deposit_only,มีเฉพาะรายการฝากในธนาคาร
@@ -1977,6 +1982,7 @@ reconciliation.failed,การกระทบยอดไม่สำเร็�
 reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
 reconciliation.file_type_unsupported,"ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
 reconciliation.files_no_movement,ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
+reconciliation.files_not_a_statement,ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 reconciliation.files_required,กรุณาอัปโหลดไฟล์ทั้งสอง
 reconciliation.files_unread,อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 reconciliation.gl_account_auto,บัญชีแยกประเภทมีหลายบัญชี ระบบเลือกบัญชี {0} ซึ่งตรงกับรายการเดินบัญชีมากที่สุด
@@ -1991,6 +1997,7 @@ reconciliation.ledger_unparsed,ไม่สามารถอ่านบัญ�
 reconciliation.parse_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_too_many,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
+reconciliation.prefer_electronic,หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
 reconciliation.recognition_busy,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
@@ -2013,6 +2020,7 @@ reconciliation.statement_balances_from_ledger,รายการเดินบ�
 reconciliation.statement_lines_dropped,ตัด {0} รายการที่ซ้ำกับรายการเดินบัญชีหลักและน่าจะอ่านผิดออก กรุณาตรวจสอบ: {1}
 reconciliation.statement_no_movement,อ่านรายการเดินบัญชีได้ แต่ไม่มีรายการเคลื่อนไหว (มีแค่หน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายการเดินบัญชี
 reconciliation.statement_no_running_balance,รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงตรวจยอดคงเหลือทีละรายการไม่ได้
+reconciliation.statement_not_a_statement,ตารางนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
 reconciliation.statement_other_account,รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
 reconciliation.statement_other_account_left_out,รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 reconciliation.statement_rows_outside,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออก {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}

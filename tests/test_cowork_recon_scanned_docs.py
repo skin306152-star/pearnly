@@ -1607,3 +1607,51 @@ class ReconJobCleanup(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class NotABankExport(unittest.TestCase):
+	"""2026-09-30 压测 B08-06：左口里一份「สอบถามรายการ BBL」待查询清单（序号 / 日期 / 收款 / 备注，没有余额列）。"""
+
+	def book(self, rows):
+		import io as _io
+
+		import openpyxl
+
+		book = openpyxl.Workbook()
+		sheet = book.active
+		for row in rows:
+			sheet.append(list(row))
+		stream = _io.BytesIO()
+		book.save(stream)
+		return stream.getvalue()
+
+	def test_a_query_list_is_named_as_not_a_statement(self):
+		from pearnly_cowork.reconciliation import bank_sheets
+
+		content = self.book([["บริษัท ตัวอย่าง จำกัด"], ["สอบถามรายการ BBL 123-4"], [],
+			["ลำดับที่", "วันที่", "ด้านรับ", "หมายเหตุ"], [1, "02/06/2569", 1500, "ไม่ทราบชื่อลูกค้า"]])
+		result = bank_sheets.read_statement_workbook(content, "BBL.xlsx")
+		self.assertEqual((result["ok"], result["error_code"]), (False, bank_sheets.NOT_A_STATEMENT))
+
+	def test_a_sheet_without_any_table_keeps_the_old_code(self):
+		from pearnly_cowork.reconciliation import bank_sheets
+
+		result = bank_sheets.read_statement_workbook(self.book([["hello"], ["world"]]), "x.xlsx")
+		self.assertEqual(result["error_code"], "stmt_headers_not_found")
+
+	def test_a_real_export_still_reads(self):
+		from pearnly_cowork.reconciliation import bank_sheets
+
+		content = self.book([["Date", "Description", "Withdrawal", "Deposit", "Balance"],
+			["01/06/2569", "TR", "100.00", "", "900.00"]])
+		self.assertTrue(bank_sheets.read_statement_workbook(content, "x.xlsx")["ok"])
+
+	def test_the_file_is_recorded_and_only_recognised_statements_are_marked(self):
+		from pearnly_cowork.reconciliation import bank_recon_contracts, bank_recon_service
+
+		self.assertEqual(bank_recon_service._read_by_recognition({"ok": True, "source": "enterprise"}),
+			{"recognized": True})
+		self.assertEqual(bank_recon_service._read_by_recognition({"ok": True, "source": "workbook"}), {})
+		stored = bank_recon_contracts.parse_info({"stmt_files": [{"file": "a.jpg", "rows": 3, "ok": True,
+			"recognized": True}, {"file": "b.xlsx", "rows": 0, "ok": False, "error_code": "not_a_statement"}]})
+		self.assertEqual([item.get("recognized") for item in stored["stmt_files"]], [True, None])

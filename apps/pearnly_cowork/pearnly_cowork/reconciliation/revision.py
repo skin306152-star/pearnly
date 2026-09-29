@@ -26,6 +26,7 @@ from pearnly_cowork.reconciliation import (
 	bank_recon_access,
 	bank_recon_contracts,
 	bank_recon_service,
+	bank_sheets,
 	bank_warnings,
 	income_recon_access,
 	income_recon_contracts,
@@ -133,9 +134,14 @@ def bank_notes(doc):
 	parse_info = bank_recon_contracts.json_loads(doc.parse_info_json) or {}
 	failed = [item for section in ("stmt_files", "gl_files") for item in parse_info.get(section) or []
 		if not item.get("ok") and item.get("file")]
-	unread = [item["file"] for item in failed if item.get("error_code") not in ("no_movement", "other_account")]
+	unread = [item["file"] for item in failed
+		if item.get("error_code") not in ("no_movement", "other_account", bank_sheets.NOT_A_STATEMENT)]
 	if unread:
 		notes.append(_("reconciliation.files_unread").format("、".join(unread)))
+	# 不是网银导出的表格（没有余额列，如待查询清单）：说清楚，不叫重传同一份（2026-09-30 压测 B08-06）。
+	listed = [item["file"] for item in failed if item.get("error_code") == bank_sheets.NOT_A_STATEMENT]
+	if listed:
+		notes.append(_("reconciliation.files_not_a_statement").format("、".join(listed)))
 	# 读成功、没有流水的（存折封面）只说已跳过，不叫用户重传（2026-09-29 压测 B05）。
 	skipped = [item["file"] for item in failed if item.get("error_code") == "no_movement"]
 	if skipped:
@@ -154,6 +160,10 @@ def bank_notes(doc):
 	# 期间 / 行数 / 零匹配按当前的行、用看的人的语言现算（改过行也跟着准；存的是建任务时那种语言的原文）。
 	inputs = bank_inputs(doc)
 	statement, ledger = _contract(bank_recon_contracts.decode_rows, inputs["statement"], inputs["gl"])
+	if doc.status == "needs_review" and any(item.get("recognized") for item in parse_info.get("stmt_files") or []) \
+			and _balance_breaks((statement, ledger), bank_header(doc)):
+		# 照片 / 扫描件读出的账单有断点：有电子版就改传电子版（用户 2026-09-30：电子版优先，照片扫描件是后备）。
+		notes.append(_("reconciliation.prefer_electronic"))
 	matched = int((bank_recon_contracts.json_loads(doc.summary_json) or {}).get("matched_count") or 0)
 	lang = (frappe.local.lang or "th")[:2]
 	notes += [text.replace("⚠️", "").strip() for text in bank_warnings.detect_recon_mismatch(

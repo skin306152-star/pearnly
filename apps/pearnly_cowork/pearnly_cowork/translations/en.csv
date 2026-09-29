@@ -400,6 +400,7 @@ Event Key,Event Key
 Evidence Fingerprint,Evidence Fingerprint
 Evidence Owner,Evidence Owner
 Examples Json,Examples Json
+Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV exported from online banking or the electronic PDF is most accurate
 Expense account,Expense account
 Export,Export
 Export Excel,Export Excel
@@ -441,6 +442,7 @@ History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
 IN,IN
+"If you have the electronic statement, upload it instead","If you have the electronic statement, upload it instead"
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
 Import result,Import result
 "Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
@@ -1031,6 +1033,7 @@ There is not enough recognition balance. Top up and send the document again.,The
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
+These spreadsheets are not bank statement exports (no balance column) and were left out: {0},These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 These statements look like another account and were left out of this reconciliation: {0},These statements look like another account and were left out of this reconciliation: {0}
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
@@ -1077,6 +1080,7 @@ This request key was used for different content.,This request key was used for d
 This request key was used for different push content.,This request key was used for different push content.
 This request was already used for different content.,This request was already used for different content.
 This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
+"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.","This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF."
 "This statement shows no running balance, so balances cannot be checked line by line.","This statement shows no running balance, so balances cannot be checked line by line."
 This stock count task is closed.,This stock count task is closed.
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
@@ -1234,6 +1238,7 @@ cowork.quality.pending,Needs review
 cowork.recon.bank.gl_credit_only,Ledger credit only
 cowork.recon.bank.gl_debit_only,Ledger debit only
 cowork.recon.bank.left,Bank statement
+cowork.recon.bank.leftHint,Excel/CSV exported from online banking or the electronic PDF is most accurate
 cowork.recon.bank.matched,Matched
 cowork.recon.bank.right,General ledger
 cowork.recon.bank.stmt_deposit_only,Bank deposit only
@@ -1977,6 +1982,7 @@ reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
 reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."
 reconciliation.files_no_movement,These files have no transactions (a cover or account page) and were skipped: {0}
+reconciliation.files_not_a_statement,These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 reconciliation.files_required,Upload both files.
 reconciliation.files_unread,These files could not be read and were left out; upload them again to include them: {0}
 reconciliation.gl_account_auto,The general ledger has several accounts; account {0} was used because it matches the bank statement best.
@@ -1991,6 +1997,7 @@ reconciliation.ledger_unparsed,The general ledger could not be read.
 reconciliation.parse_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.prefer_electronic,"If you have the electronic statement, upload it instead"
 reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
 reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
@@ -2013,6 +2020,7 @@ reconciliation.statement_balances_from_ledger,The statement's balances are missi
 reconciliation.statement_lines_dropped,Left out {0} lines that repeat the main statement and look misread; check them: {1}
 reconciliation.statement_no_movement,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
 reconciliation.statement_no_running_balance,"This statement shows no running balance, so balances cannot be checked line by line."
+reconciliation.statement_not_a_statement,"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF."
 reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 reconciliation.statement_other_account_left_out,These statements look like another account and were left out of this reconciliation: {0}
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.

@@ -108,7 +108,10 @@ def row_state(rows):
 def normalized(result):
     """The comparable projection of one reader result."""
     if not result.get("ok"):
-        return {"ok": False, "error_code": result.get("error_code")}
+        # 有意差异（2026-09-30 压测 B08-06）：有日期表头、没有余额列的表格单独报 not_a_statement，旧线上同样读不出、
+        # 报 stmt_headers_not_found；比较时按旧线上的码。
+        code = result.get("error_code")
+        return {"ok": False, "error_code": "stmt_headers_not_found" if code == "not_a_statement" else code}
     out = {field: result.get(field) for field in RESULT_FIELDS}
     out["rows"] = row_state(result["rows"])
     out["accounts"] = [dict({field: account.get(field) for field in ACCOUNT_FIELDS},

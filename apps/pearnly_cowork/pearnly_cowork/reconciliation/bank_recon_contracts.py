@@ -47,7 +47,8 @@ ANCHOR_KEYS = ("stmt_opening", "gl_opening", "gl_closing", "stmt_closing")
 # The deployed run saved `_parse_info` with these two sections and record keys so
 # the workbook's File Info section could show real per-file numbers.
 PARSE_INFO_SECTIONS = {
-	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code"),
+	# recognized：这份账单是识别读出的（照片 / 扫描件；2026-09-30 加，旧任务没有）。
+	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized"),
 	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
 }
 CONFIDENCE_LEVELS = ("high", "medium", "low")
@@ -148,6 +149,8 @@ def parse_info(value):
 			}
 			if section == "stmt_files":
 				item["bank_code"] = _text(record.get("bank_code"), f"{section}.bank_code", limit=40)
+				if record.get("recognized"):
+					item["recognized"] = True
 			else:
 				item["accounts"] = [_text(account, f"{section}.accounts") for account in accounts]
 			parsed.append(item)

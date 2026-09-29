@@ -26,6 +26,8 @@
 			// 两边都可多份：存折一页一张照片、总账分几段（旧线上同样逐份读再合并）。
 			multiple: true,
 			left: "cowork.recon.bank.left", right: "cowork.recon.bank.right",
+			// 电子版优先（用户 2026-09-30）：上传口下一句轻提示，照片 / 扫描件只作后备。
+			hint: { left: "cowork.recon.bank.leftHint" },
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },
 				{ fieldname: "bank_code", width: 90, min_width: 70, label: t("cowork.recon.col.bank") },
@@ -136,7 +138,8 @@
 					await form.set_value(`${side}_file`, files.length > 1
 						? t("cowork.recon.files", files.length) : files[0].name);
 				} },
-				{ fieldtype: "Data", fieldname: `${side}_file`, label: t("cowork.recon.file"), read_only: 1 },
+				{ fieldtype: "Data", fieldname: `${side}_file`, label: t("cowork.recon.file"), read_only: 1,
+					description: spec.hint?.[side] ? t(spec.hint[side]) : "" },
 			];
 			const form = p.layout(page.main, [
 				...slot("left"),

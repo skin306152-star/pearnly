@@ -13,6 +13,7 @@ from pearnly_cowork.reconciliation import (
 	bank_recon_access,
 	bank_recon_contracts,
 	bank_review,
+	bank_sheets,
 	bank_warnings,
 	recon_contracts,
 	recon_tasks,
@@ -182,8 +183,10 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		read_page=read_page, page_count=page_count)) for content, name in statement_files])
 	if not any(result.get("ok") for _name, result in statements):
 		# 都读成功了、只是没有流水也没有余额（封面、只有汇总页）：说清楚缺的是明细页（2026-09-30 压测 BBL-CA-01）。
-		quiet = all(result.get("error_code") == bank_intake.NO_MOVEMENT for _name, result in statements)
-		frappe.throw(_("reconciliation.statement_no_movement" if quiet else "reconciliation.statement_unparsed"))
+		codes = {result.get("error_code") for _name, result in statements}
+		frappe.throw(_("reconciliation.statement_no_movement" if codes == {bank_intake.NO_MOVEMENT}
+			else "reconciliation.statement_not_a_statement" if codes == {bank_sheets.NOT_A_STATEMENT}
+			else "reconciliation.statement_unparsed"))
 	stage("ledger")
 	ledgers = [(name, bank_intake.read_ledger_file(content, name, account_code=gl_account_code,
 		model_rows=model_rows)) for content, name in gl_files]
@@ -212,8 +215,14 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	skipped = [name for name, result in statements if result.get("error_code") == bank_intake.NO_MOVEMENT]
 	if skipped:
 		warnings = list(warnings or []) + [_("reconciliation.files_no_movement", lang=_warning_lang(lang)).format("、".join(skipped))]
+	# 不是网银导出的表格（没有余额列）单独说，不叫用户「重新上传」同一份（2026-09-30 压测 B08-06）。
+	listed = [name for name, result in statements if result.get("error_code") == bank_sheets.NOT_A_STATEMENT]
+	if listed:
+		warnings = list(warnings or []) + [_("reconciliation.files_not_a_statement", lang=_warning_lang(lang)).format(
+			"、".join(listed))]
 	unread = [name for name, result in statements + ledgers
-		if not result.get("ok") and result.get("error_code") not in (bank_intake.NO_MOVEMENT, OTHER_ACCOUNT)]
+		if not result.get("ok") and result.get("error_code") not in (bank_intake.NO_MOVEMENT, OTHER_ACCOUNT,
+			bank_sheets.NOT_A_STATEMENT)]
 	if unread:
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
 		# 识别结果不明，用户看不出少了哪一页）。
@@ -253,7 +262,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		parse_info={
 			"stmt_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
-				"bank_code": parsed.get("bank_code", "")} for name, parsed in statements],
+				"bank_code": parsed.get("bank_code", ""), **_read_by_recognition(parsed)} for name, parsed in statements],
 			# 诊断里的科目只记前 MAX_ACCOUNTS 个：全科目总账有上千个科目，记全了整单被契约拒掉（B01）。
 			"gl_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
@@ -306,6 +315,11 @@ class _Lines:
 
 	def add(self, row):
 		self.by_amount.setdefault(_line_key(row)[1:], []).append((row.date, getattr(row, "source_file", "")))
+
+
+def _read_by_recognition(parsed):
+	"""照片 / 扫描件是识别读出的（结果页据此在断点旁建议改传电子版）；电子版（表格、带文字层的 PDF）不记。"""
+	return {"recognized": True} if parsed.get("ok") and parsed.get("source") in ("enterprise", "model") else {}
 
 
 def _warning_lang(lang):

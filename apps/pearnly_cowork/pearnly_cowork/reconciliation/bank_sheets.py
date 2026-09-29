@@ -60,6 +60,9 @@ _STMT_OPEN_ROW_KW = ("ยอดยกมา", "ยกยอด", "ยกมา",
 
 PARSER_VERSION = "bank_recon_v2+xlsx_direct_v3"
 
+# 表格有日期列的表头、却没有余额列：不是银行导出的账单（待查询清单、收款明细之类）。
+NOT_A_STATEMENT = "not_a_statement"
+
 
 def map_statement_columns(header_row: List) -> Dict[str, int]:
 	"""识别流水表头各列的位置（zh/th/en/ja/vi）；同一列只认第一次出现。"""
@@ -91,6 +94,17 @@ def find_statement_header(raw_rows) -> Tuple[int, Dict[str, int]]:
 				and ("withdrawal" in col_map or "deposit" in col_map or "amount" in col_map):
 			return index, col_map
 	return -1, {}
+
+
+def _table_without_balance(raw_rows) -> bool:
+	"""前 16 行里有一行像表头（至少 3 个文字格、其中一个是日期列），但整张表找不到余额列。"""
+	for row in raw_rows[:16]:
+		cells = [str(cell or "").strip() for cell in row]
+		texts = [cell for cell in cells if cell and not to_float(cell)]
+		col_map = map_statement_columns(cells)
+		if len(texts) >= 3 and "date" in col_map and "balance" not in col_map:
+			return True
+	return False
 
 
 def extract_sheet_account(raw_rows, header_idx: int, sheet_name: str = "") -> str:
@@ -257,6 +271,14 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 		sheets_with_data += 1
 
 	if not accounts:
+		if any(_table_without_balance(raw_rows) for _name, raw_rows in sheets):
+			# 有表头、有日期列，就是没有余额列：不是网银导出的账单（2026-09-30 压测 B08-06：事务所自己做的
+			# 「สอบถามรายการ」待查询清单，只有序号 / 日期 / 收款 / 备注）。说清楚，不笼统说读不出。
+			return {
+				"ok": False,
+				"error_code": NOT_A_STATEMENT,
+				"error": "The sheet has a table with dates but no balance column; it is not a bank statement export",
+			}
 		return {
 			"ok": False,
 			"error_code": "stmt_headers_not_found",

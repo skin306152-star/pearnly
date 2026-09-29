@@ -400,6 +400,7 @@ Event Key,事件标识
 Evidence Fingerprint,证据指纹
 Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
+Excel/CSV exported from online banking or the electronic PDF is most accurate,网银导出的 Excel/CSV 或电子版 PDF 最准
 Expense account,费用科目
 Export,导出
 Export Excel,导出 Excel
@@ -441,6 +442,7 @@ History Version,票据历史版本
 Holder,锁持有者
 Holder Fence,持锁尝试序号
 IN,入账
+"If you have the electronic statement, upload it instead",有电子版账单建议改传电子版
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。
 Import result,导入结果
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
@@ -1031,6 +1033,7 @@ There is not enough recognition balance. Top up and send the document again.,识
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},以下文件没有流水（封面或账户信息页），已跳过：{0}
+These spreadsheets are not bank statement exports (no balance column) and were left out: {0},以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 These statements look like another account and were left out of this reconciliation: {0},以下账单看起来是其他账户的，没有计入本次对账：{0}
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
@@ -1077,6 +1080,7 @@ This request key was used for different content.,此请求编号已用于其他�
 This request key was used for different push content.,此请求编号已用于其他推送内容。
 This request was already used for different content.,这个请求已用于不同内容。
 This scanned or photographed document could not be read. Check the file and try again.,这份扫描件或照片没有读出内容，请检查文件后再试。
+"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",这份表格不是网银导出的账单（没有余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。
 "This statement shows no running balance, so balances cannot be checked line by line.",这份账单没有逐笔余额，无法逐行核对余额。
 This stock count task is closed.,此盘点任务已关闭。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 里没有这个供应商、也建不了，请核对供应商名称和税号
@@ -1234,6 +1238,7 @@ cowork.quality.pending,待复核
 cowork.recon.bank.gl_credit_only,仅总账贷方
 cowork.recon.bank.gl_debit_only,仅总账借方
 cowork.recon.bank.left,银行账单
+cowork.recon.bank.leftHint,网银导出的 Excel/CSV 或电子版 PDF 最准
 cowork.recon.bank.matched,已匹配
 cowork.recon.bank.right,总账
 cowork.recon.bank.stmt_deposit_only,仅银行存入
@@ -1977,6 +1982,7 @@ reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
 reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。
 reconciliation.files_no_movement,以下文件没有流水（封面或账户信息页），已跳过：{0}
+reconciliation.files_not_a_statement,以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}
 reconciliation.files_required,请上传两份文件。
 reconciliation.files_unread,以下文件没读出来，本次对账没有包含，请重新上传：{0}
 reconciliation.gl_account_auto,总账里有多个科目，已按与银行流水的吻合程度选用科目 {0}。
@@ -1991,6 +1997,7 @@ reconciliation.ledger_unparsed,读不出总账。
 reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_too_many,对账数据格式不对，请重新上传文件
+reconciliation.prefer_electronic,有电子版账单建议改传电子版
 reconciliation.recognition_busy,识别繁忙，请稍后再试。
 reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
 reconciliation.report_rows_repeated,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
@@ -2013,6 +2020,7 @@ reconciliation.statement_balances_from_ledger,账单没有印余额或余额前�
 reconciliation.statement_lines_dropped,已去掉 {0} 行与主账单重复、疑似读错的行，请核对：{1}
 reconciliation.statement_no_movement,账单读到了，但没有逐笔流水（只有封面或汇总页），请上传有流水明细的页。
 reconciliation.statement_no_running_balance,这份账单没有逐笔余额，无法逐行核对余额。
+reconciliation.statement_not_a_statement,这份表格不是网银导出的账单（没有余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。
 reconciliation.statement_other_account,这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 reconciliation.statement_other_account_left_out,以下账单看起来是其他账户的，没有计入本次对账：{0}
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
