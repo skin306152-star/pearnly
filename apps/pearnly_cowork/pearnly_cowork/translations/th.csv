@@ -639,6 +639,8 @@ Pink,ชมพู
 Please upload a PDF or image,กรุณาส่งรูปภาพหรือ PDF
 Position,ตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
+"Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})",อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: ธนาคาร {0} ยอด {1} เท่ากับผลรวม {2} รายการในบัญชีแยกประเภท ({3} ถึง {4})
+"Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})",อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: บัญชีแยกประเภท {0} {1} ยอด {2} เท่ากับผลรวม {3} รายการของธนาคาร ({4} ถึง {5})
 Posting,วิธีลงบัญชี
 Posting Kind,ประเภทการผ่านรายการ
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
@@ -2012,6 +2014,9 @@ reconciliation.statement_other_account,รายการเดินบัญ�
 reconciliation.statement_other_account_left_out,รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 reconciliation.statement_rows_outside,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออก {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}
 reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้
+reconciliation.suspected_group_gl,อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: บัญชีแยกประเภท {0} {1} ยอด {2} เท่ากับผลรวม {3} รายการของธนาคาร ({4} ถึง {5})
+reconciliation.suspected_group_more,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
+reconciliation.suspected_group_stmt,อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: ธนาคาร {0} ยอด {1} เท่ากับผลรวม {2} รายการในบัญชีแยกประเภท ({3} ถึง {4})
 reconciliation.system_busy,ระบบกำลังยุ่ง การกระทบยอดครั้งนี้ยังไม่เสร็จ กรุณาลองใหม่ภายหลัง
 reconciliation.task_not_found,ไม่พบงานกระทบยอดนี้
 reconciliation.text_required,มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่
@@ -2085,6 +2090,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
+{0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว

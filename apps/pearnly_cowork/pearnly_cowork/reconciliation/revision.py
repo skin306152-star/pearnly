@@ -86,6 +86,34 @@ def bank_inputs(doc):
 		"gl": bank_recon_contracts.json_loads(bank_recon_contracts.json_dumps(ledger))}
 
 
+GROUP_NOTES = 10
+
+
+def bank_group_notes(results):
+	"""疑似「多笔对一笔」的合计匹配，写在标题旁请人确认（用户 2026-09-30 定：只提示，不当作确定匹配）。"""
+	from pearnly_cowork.reconciliation.bank_groups import suspected_groups
+
+	def money(value):
+		return f"{abs(value):,.2f}"
+
+	notes = []
+	groups = suspected_groups(results)
+	for group in groups[:GROUP_NOTES]:
+		anchor, members = group["anchor"], group["members"]
+		span = (group["start"].isoformat(), group["end"].isoformat())
+		if group["side"] == "stmt":
+			notes.append(_("reconciliation.suspected_group_stmt").format(
+				anchor.stmt_date.isoformat(), money((anchor.stmt_deposit or 0) - (anchor.stmt_withdrawal or 0)),
+				len(members), *span))
+		else:
+			notes.append(_("reconciliation.suspected_group_gl").format(
+				anchor.gl_date.isoformat(), anchor.gl_doc_no or "", money((anchor.gl_debit or 0) - (anchor.gl_credit or 0)),
+				len(members), *span))
+	if len(groups) > GROUP_NOTES:
+		notes.append(_("reconciliation.suspected_group_more").format(len(groups) - GROUP_NOTES))
+	return notes
+
+
 def income_notes(doc):
 	"""收入对账标题旁的提示：建任务时记下的（总账按税报期间截取等；2026-09-30 压测 I01）。"""
 	from pearnly_cowork.reconciliation import income_recon_contracts

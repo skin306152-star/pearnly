@@ -639,6 +639,8 @@ Pink,ピンク
 Please upload a PDF or image,PDFまたは画像を送信してください
 Position,位置
 Position differences,棚番の差異
+"Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})",合計一致の可能性があります。確認してください：銀行 {0} の {1} が総勘定元帳 {2} 件（{3}〜{4}）の合計と一致
+"Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})",合計一致の可能性があります。確認してください：総勘定元帳 {0} {1} の {2} が銀行 {3} 件（{4}〜{5}）の合計と一致
 Posting,計上方法
 Posting Kind,記帳区分
 Preparation Evidence,準備情報の証拠
@@ -2012,6 +2014,9 @@ reconciliation.statement_other_account,これらの明細は他と銀行また�
 reconciliation.statement_other_account_left_out,次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
 reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
+reconciliation.suspected_group_gl,合計一致の可能性があります。確認してください：総勘定元帳 {0} {1} の {2} が銀行 {3} 件（{4}〜{5}）の合計と一致
+reconciliation.suspected_group_more,ほかに合計一致の可能性がある {0} 組は表示していません
+reconciliation.suspected_group_stmt,合計一致の可能性があります。確認してください：銀行 {0} の {1} が総勘定元帳 {2} 件（{3}〜{4}）の合計と一致
 reconciliation.system_busy,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 reconciliation.task_not_found,照合タスクが見つかりません。
 reconciliation.text_required,必須の文字項目が空です。入力してからもう一度お試しください
@@ -2085,6 +2090,7 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,総勘定元帳の {0} 行は売上税報告の期間（{1}〜{2}）外のため、照合に含めていません。
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
+{0} more possible combined matches are not listed,ほかに合計一致の可能性がある {0} 組は表示していません
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} 行の売上税報告が複数のファイルで重複していたため（同じページを 2 回アップロード）、1 回だけ数えました。
 {0} rows were not imported,{0} 行は取り込めませんでした
