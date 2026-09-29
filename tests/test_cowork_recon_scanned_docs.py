@@ -401,10 +401,12 @@ class SeveralFilesPerSide(unittest.TestCase):
 		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
 				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", side_effect=lambda *a, **k: next(reads)), \
 				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", return_value=ledger), \
-				mock.patch.object(bank_recon_service, "_", side_effect=lambda text: text + " {0}"), \
+				mock.patch.object(bank_recon_service, "_", side_effect=lambda text, **_kw: text + " {0}") as translate, \
 				mock.patch.object(bank_recon_service, "create", return_value={"name": "T1"}) as create:
 			bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
-				statement_files=[(b"1", "1.jpg"), (b"2", "2.jpg")], gl_files=[(b"g", "gl.xlsx")])
+				statement_files=[(b"1", "1.jpg"), (b"2", "2.jpg")], gl_files=[(b"g", "gl.xlsx")], lang="zh")
+		# 提示按提交时选的语言写（后台任务的默认语言是站点语言；2026-09-29 压测 lang=zh 出了泰文）
+		self.assertIn(mock.call("reconciliation.files_unread", lang="zh"), translate.call_args_list)
 		self.assertIn("2.jpg", " ".join(create.call_args.kwargs["warnings"]))
 		self.assertNotIn("1.jpg", " ".join(create.call_args.kwargs["warnings"]))
 

@@ -190,12 +190,12 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	statement = _merged_statement([result for _name, result in statements])
 	mixed = other_accounts(statements)
 	if mixed:
-		warnings = list(warnings or []) + [_("reconciliation.statement_other_account").format("、".join(mixed))]
+		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
 	unread = [name for name, result in statements + ledgers if not result.get("ok")]
 	if unread:
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
 		# 识别结果不明，用户看不出少了哪一页）。
-		warnings = list(warnings or []) + [_("reconciliation.files_unread").format("、".join(unread))]
+		warnings = list(warnings or []) + [_("reconciliation.files_unread", lang=_warning_lang(lang)).format("、".join(unread))]
 	chosen = "" if gl_account_code else likely_account(statement["rows"], [result for _n, result in ledgers])
 	if chosen:
 		# 全科目总账、没指定科目：用与银行流水最吻合的那个科目（旧线上把所有科目的行都拿来对，Mr.erp 全科目
@@ -203,16 +203,16 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		gl_account_code = chosen
 		ledgers = [(name, _only_account(bank_intake.read_ledger_file(content, name, account_code=chosen,
 			model_rows=model_rows), chosen)) for content, name in gl_files]
-		warnings = list(warnings or []) + [_("reconciliation.gl_account_auto").format(chosen)]
+		warnings = list(warnings or []) + [_("reconciliation.gl_account_auto", lang=_warning_lang(lang)).format(chosen)]
 	ledger = _merged_ledger([result for _name, result in ledgers], gl_account_code)
 	statement, outside = within_ledger_period(statement, ledger)
 	if outside:
 		warnings = list(warnings or []) + [_(
-			"reconciliation.statement_rows_outside" if outside[0] else "reconciliation.statement_all_outside"
-		).format(*outside)]
+			"reconciliation.statement_rows_outside" if outside[0] else "reconciliation.statement_all_outside",
+			lang=_warning_lang(lang)).format(*outside)]
 	ledger, period = within_statement_period(statement["rows"], ledger)
 	if period:
-		warnings = list(warnings or []) + [_("reconciliation.gl_period_trimmed").format(*period)]
+		warnings = list(warnings or []) + [_("reconciliation.gl_period_trimmed", lang=_warning_lang(lang)).format(*period)]
 	statement_names = "; ".join(name for name, _result in statements)
 	overrides = {} if header in (None, "") else header
 	if not isinstance(overrides, dict):
@@ -258,6 +258,11 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 
 def _line_key(row):
 	return (row.date, round(row.deposit or 0, 2), round(row.withdrawal or 0, 2), round(row.balance or 0, 2))
+
+
+def _warning_lang(lang):
+	"""提示按提交时选的语言写（后台任务里的默认语言是站点语言；2026-09-29 压测：lang=zh 提交，新加的提示是泰文）。"""
+	return lang if lang in ("th", "zh", "en", "ja") else None
 
 
 def other_accounts(statements):
@@ -453,15 +458,22 @@ def within_ledger_period(statement, ledger):
 	kept = [row for row in rows if not row.date or start <= row.date <= end]
 	if len(kept) == len(rows):
 		return statement, None
-	if not any(row.date for row in kept):
-		return statement, (0, start.isoformat(), end.isoformat())
 	before = [row for row in rows if row.date and row.date < start]
-	first = kept[0]
+	after = [row for row in rows if row.date and row.date > end]
+	if not any(row.date for row in kept) and not (before and after):
+		# 账单全在期间的一侧（全早于或全晚于）：多半传错了期间，照旧全部对账并提示。
+		return statement, (0, start.isoformat(), end.isoformat())
+	# 账单跨过期间、期间里一笔都没有（B05-02：存折有 1/5 也有 3/5，2 月 0 笔）：就是这个月没有流水，
+	# 筛成 0 行，期初期末都是期间开始前最后一行的余额。
+	kept = [row for row in kept if row.date]
 	if before and before[-1].balance:
 		opening = before[-1].balance
-	else:
+	elif kept:
+		first = kept[0]
 		opening = round((first.balance or 0) - (first.deposit or 0) + (first.withdrawal or 0), 2)
-	closing = next((row.balance for row in reversed(kept) if row.balance), statement.get("closing"))
+	else:
+		opening = statement.get("opening")
+	closing = next((row.balance for row in reversed(kept) if row.balance), opening)
 	trimmed = {**statement, "rows": kept, "row_count": len(kept), "opening": opening, "closing": closing}
 	return trimmed, (len(rows) - len(kept), start.isoformat(), end.isoformat())
 

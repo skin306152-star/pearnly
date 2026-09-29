@@ -252,6 +252,12 @@ class WholeWorkbook(unittest.TestCase):
 		self.assertEqual(within_ledger_period(statement, {"rows": []}), (statement, None))  # 期间读不出：不筛
 		elsewhere = {"rows": [gl_row(date=date(2026, 6, 3), credit=30.0)]}
 		self.assertEqual(within_ledger_period(statement, elsewhere), (statement, (0, "2026-06-01", "2026-06-30")))
+		# 账单跨过期间、期间里一笔都没有（B05-02：存折有 1/5 也有 3/5，2 月 0 笔）：筛成 0 行，期初期末 = 期间前最后余额
+		spanned = {**statement, "rows": statement["rows"] + [line(date(2026, 3, 5), 0.0, 5.0, 995.0)]}
+		quiet_feb = {"rows": [], "period_start": "2026-02-01"}
+		kept, notice = within_ledger_period(spanned, quiet_feb)
+		self.assertEqual(notice, (5, "2026-02-01", "2026-02-28"))
+		self.assertEqual((kept["row_count"], kept["opening"], kept["closing"]), (0, 1000.0, 1000.0))
 
 	def test_a_negative_amount_is_a_reversal_on_the_other_side(self):
 		# 2026-09-29：「(500.00)」写在借方是冲销，记成贷方 500（旧线上取绝对值记成借方 500，余额差 1,000）。
