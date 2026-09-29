@@ -777,6 +777,12 @@ class SeveralFilesPerSide(unittest.TestCase):
 		photo = [line(5, 21588.5, 4613308.36, "6.jpg"), line(9, 5.0, 1215.0, "6.jpg")]
 		merged = bank_recon_service.primary_merge([pdf, photo])
 		self.assertEqual([(row.date.day, row.deposit) for row in merged], [(2, 100.0), (3, 100.0), (7, 10.0), (9, 5.0)])
+		# 去掉的行在结果里逐条列出（不悄悄丢数据）
+		self.assertEqual(bank_recon_service.dropped_note(merged.dropped), "6.jpg 2026-01-05 +21,588.50")
+		self.assertLessEqual(len(bank_recon_service.dropped_note(merged.dropped * 40)), 361)
+		merged_statement = bank_recon_service._merged_statement([
+			{"ok": True, "rows": pdf, "completeness": {"ok": True}}, {"ok": True, "rows": photo, "completeness": {"ok": True}}])
+		self.assertEqual(len(merged_statement["dropped"]), 1)
 		# 判成别的账户的那份不当主份
 		other = [line(2, 1.0, 50.0, "bbl.jpg"), line(3, 1.0, 51.0, "bbl.jpg"), line(4, 1.0, 52.0, "bbl.jpg"),
 			line(5, 1.0, 53.0, "bbl.jpg")]

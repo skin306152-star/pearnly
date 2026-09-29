@@ -191,11 +191,17 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	# 总账期间（整月）：几份账单怎么接，按期间里的余额链断得少来选（B08-01 的存折还带着前几个月的行）。
 	mixed = other_accounts(statements)
-	statement = _merged_statement([result for _name, result in statements],
-		_months(row.date for result in (result for _name, result in ledgers if result.get("ok"))
-			for row in result.get("rows") or []), mixed)
+	period = _months(row.date for result in (result for _name, result in ledgers if result.get("ok"))
+		for row in result.get("rows") or [])
+	statement = _merged_statement([result for _name, result in statements], period, mixed)
 	if mixed:
 		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
+	# 当作读错的重复去掉的行逐条列出，方便核对（压测窗口 2026-09-30：不悄悄丢数据）；期间外的行本来就筛掉、另有提示。
+	dropped = [row for row in statement.get("dropped") or []
+		if not period or not row.date or period[0] <= row.date <= period[1]]
+	if dropped:
+		warnings = list(warnings or []) + [_("reconciliation.statement_lines_dropped", lang=_warning_lang(lang)).format(
+			len(dropped), dropped_note(dropped))]
 	skipped = [name for name, result in statements if result.get("error_code") == bank_intake.NO_MOVEMENT]
 	if skipped:
 		warnings = list(warnings or []) + [_("reconciliation.files_no_movement", lang=_warning_lang(lang)).format("、".join(skipped))]
@@ -370,13 +376,33 @@ def primary_merge(files, period=None, excluded=()):
 	return min(tried, key=lambda rows: (chain_breaks(rows, period), -len(rows))) if tried else []
 
 
+class _Merged(list):
+	"""合并好的行，另记下当作读错的重复去掉的行（结果里逐条列出，不悄悄丢数据）。"""
+
+	def __init__(self, rows=()):
+		super().__init__(rows)
+		self.dropped = []
+
+
+def dropped_note(rows, room=360):
+	"""去掉的行：「6.jpg 2026-01-02 +21,588.50」这样一条条列，总长不超过 ``room``（单条警告最长 500 字）。"""
+	parts = []
+	for row in rows:
+		amount = f"+{row.deposit:,.2f}" if row.deposit else f"-{row.withdrawal or 0:,.2f}"
+		part = f"{getattr(row, 'source_file', '')} {row.date or ''} {amount}".strip()
+		if len("；".join(parts + [part])) > room:
+			return "；".join(parts) + "…"
+		parts.append(part)
+	return "；".join(parts)
+
+
 def _merge_on(primary, others):
 	"""以 ``primary`` 为主，别的份里的行：同一笔（_Lines）不要；前后都接得上的插进余额链的缺口；接不上的落在主份的
 	日期范围内时，主链已经完整就当读错的重复不要（存折照片把 3,472.15 读成 30,472.15），主链还断着就按日期留下交人看；
 	范围外的按日期放。两份以上才做；主份没有余额返回空。"""
 	if not any(row.balance for row in primary):
 		return []
-	merged, lines = list(primary), _Lines()
+	merged, lines = _Merged(primary), _Lines()
 	for row in merged:
 		lines.add(row)
 	days = [row.date for row in merged if row.date]
@@ -443,6 +469,7 @@ def _merge_on(primary, others):
 		# 首尾当天的行可能排在主链前后，仍要证据。
 		if span and row.date and whole and (span[0] < row.date < span[1] or (
 				span[0] <= row.date <= span[1] and echoed(row))):
+			merged.dropped.append(row)
 			continue
 		index = next((i for i, other in enumerate(merged) if other.date and row.date and other.date > row.date),
 			len(merged))
@@ -564,8 +591,9 @@ def _merged_statement(results, period=None, excluded=()):
 	# 期间重叠的几份（整月 PDF + 覆盖几个月的存折 + 照片）：首尾接不上，改以最全的一份为主、别的行按余额链插进缺口；
 	# 两种接法取余额链断得少的（2026-09-30 压测 B08-01）。
 	primary = primary_merge([result.get("rows") or [] for result in read], period, excluded)
+	dropped = []
 	if primary and chain_breaks(primary, period) < chain_breaks(rows, period):
-		rows, boundaries = primary, []
+		rows, boundaries, dropped = primary, [], list(primary.dropped)
 	if rows and (chained or rows is primary) and rows[0].balance is not None:
 		first = rows[0]
 		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
@@ -586,7 +614,7 @@ def _merged_statement(results, period=None, excluded=()):
 				row.direction_autocorrected = flipped
 		repair_balance_from_neighbours(rows, opening)
 	completeness = [result.get("completeness") or {} for result in read]
-	return {"ok": True, "rows": rows, "row_count": len(rows), "opening": opening, "closing": closing,
+	return {"ok": True, "rows": list(rows), "row_count": len(rows), "opening": opening, "closing": closing, "dropped": dropped,
 		"bank_code": bank_code if bank_code != "generic" else (read[0].get("bank_code") or ""),
 		"source": read[0].get("source") or "", "parser_version": read[0].get("parser_version") or "",
 		"balance_warn_count": sum(int(result.get("balance_warn_count") or 0) for result in read),
