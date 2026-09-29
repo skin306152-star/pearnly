@@ -402,10 +402,17 @@
 	border-color: var(--red-400, var(--border-color));
 }
 
-/* 正在读的那一格：实心灰，不闪（用户 2026-09-30：呼吸灯改为实心；不用主题色）。 */
+/* 正在读的那一格：整格实心灰，像呼吸灯一样慢慢变深变浅（用户 2026-09-30：「要闪，但是闪实心，呼吸灯一样的闪」；
+ * 不用主题色）。只表示还在做，不是进度。 */
 .pearnly-recon-tile.is-current {
 	background: var(--gray-300);
-	border-color: var(--gray-500);
+	border-color: var(--gray-400);
+	animation: pearnly-recon-breath 1.6s ease-in-out infinite;
+}
+
+@keyframes pearnly-recon-breath {
+	0%, 100% { background: var(--gray-200); border-color: var(--gray-300); }
+	50% { background: var(--gray-500); border-color: var(--gray-600); }
 }
 
 .pearnly-recon-live-title {
@@ -451,5 +458,5 @@
 
 @media (prefers-reduced-motion: reduce) {
 	.pearnly-recon-tile { transition: none; }
-	.pearnly-recon-live-item.is-new { animation: none; }
+	.pearnly-recon-tile.is-current, .pearnly-recon-live-item.is-new { animation: none; }
 }
