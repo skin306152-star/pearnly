@@ -39,9 +39,10 @@ def _state(job_id, **values):
 
 def _save(content, filename):
     # 原生 File 插入，按站点上限（默认 25MB，与 MAX_BYTES 一致）；旧的 file_manager.save_file 另有 10MB 默认上限，
-    # 10.7MB / 14.8MB 的发票扫描件整单被拒（2026-09-29 压测 V03）。
-    return frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
-                           "content": content}).insert(ignore_permissions=True).name
+    # 10.7MB / 14.8MB 的发票扫描件整单被拒（2026-09-29 压测 V03）。与发票原件同内容的另存（storage）。
+    from pearnly_cowork.recon_center import storage
+
+    return storage.save(content, filename)
 
 
 def start(kind, title, sides, options=None):
@@ -126,12 +127,9 @@ def _recovered(job_id):
 
 
 def _read(names):
-    out = []
-    for name in names:
-        doc = frappe.get_doc("File", name)
-        content = doc.get_content()
-        out.append((doc.file_name, content if isinstance(content, bytes) else content.encode()))
-    return out
+    from pearnly_cowork.recon_center import storage
+
+    return [storage.read(name) for name in names]
 
 
 def run(recon_job, kind, workspace, title, files, options="{}"):

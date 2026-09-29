@@ -984,6 +984,32 @@ class StatementOrderAndDates(unittest.TestCase):
 			date(2026, 5, 4), date(2026, 4, 28)])
 
 
+class SameBytesAsAnOriginal(unittest.TestCase):
+	"""V02（2026-09-30）：销项核查上传的 PDF 与发票录入时的原件内容相同，原件保护按哈希把它当成改原件拒绝。"""
+
+	def test_a_copy_of_an_original_is_stored_apart_and_read_back_unchanged(self):
+		from pearnly_cowork.recon_center import storage
+
+		inserted = {}
+
+		def get_doc(value, name=None):
+			if isinstance(value, dict):
+				inserted.update(value)
+				return mock.Mock(insert=mock.Mock(return_value=mock.Mock(name="F1")))
+			return mock.Mock(file_name=inserted["file_name"], get_content=lambda: inserted["content"])
+
+		with mock.patch.object(storage.access, "protected_sources", return_value=["S1"]), \
+				mock.patch.object(storage.frappe, "get_doc", side_effect=get_doc):
+			storage.save(b"%PDF-1.4 invoice", "Big C Jun.pdf")
+			self.assertNotEqual(inserted["content"], b"%PDF-1.4 invoice")
+			self.assertEqual(storage.read("F1"), ("Big C Jun.pdf", b"%PDF-1.4 invoice"))
+		with mock.patch.object(storage.access, "protected_sources", return_value=[]), \
+				mock.patch.object(storage.frappe, "get_doc", side_effect=get_doc):
+			storage.save(b"%PDF-1.4 other", "other.pdf")
+			self.assertEqual((inserted["file_name"], inserted["content"]), ("other.pdf", b"%PDF-1.4 other"))
+			self.assertEqual(storage.read("F2"), ("other.pdf", b"%PDF-1.4 other"))
+
+
 class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 	def run_work(self, job_state):
 		saved = {"body": {"legacy": {"pages": [{"document": {"entries": [{"deposit": "1"}]}}]}}}
@@ -1315,7 +1341,10 @@ class ReconJobCleanup(unittest.TestCase):
 	def test_uploads_are_saved_as_native_files_under_the_site_limit(self):
 		from pearnly_cowork.recon_center import jobs
 
-		with mock.patch.object(jobs.frappe, "get_doc") as get_doc:
+		from pearnly_cowork.recon_center import storage
+
+		with mock.patch.object(jobs.frappe, "get_doc") as get_doc, \
+				mock.patch.object(storage.access, "protected_sources", return_value=[]):
 			get_doc.return_value.insert.return_value.name = "F1"
 			self.assertEqual(jobs._save(b"x" * 11 * 1024 * 1024, "big.pdf"), "F1")
 		self.assertEqual(get_doc.call_args.args[0]["is_private"], 1)

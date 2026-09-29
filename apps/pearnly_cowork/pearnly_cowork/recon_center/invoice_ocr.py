@@ -10,6 +10,7 @@
 
 结果存在 Work 自己的检查点里（`cowork.vat_check:result`），对账后台任务等全部 Work 结束后取回。
 """
+import dataclasses
 import hashlib
 import time
 from datetime import date
@@ -35,7 +36,11 @@ KIND = "cowork.vat_check"
 RESULT = KIND + ":result"
 BILLED = KIND + ":billed"
 TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
-YIELD_SECONDS = 420
+# 让出前最多跑的时间：发票读图在这里至少等 MODEL_TIMEOUT_SECONDS、结果不明再重发一次，最坏 200 + 120 × 2 = 440 秒，
+# 仍在识别任务 600 秒的硬上限内（原 420 秒配 60 秒、不重发）。
+YIELD_SECONDS = 200
+# 多页扫描发票读一页要 60 秒以上（2026-09-30 压测 V04：5 份 PDF 读超时、结果不明后整份丢了），与账单路径一样放宽。
+MODEL_TIMEOUT_SECONDS = 120
 WAIT_SECONDS = 25 * 60
 POLL_SECONDS = 3
 
@@ -151,10 +156,15 @@ def _recognize(content, filename, pages, frozen):
             return callback(*args, **kwargs)
         return invoke
 
+    def model_call(request):
+        # 结果不明（读超时、连接中断）重发一次、等得更久：与账单路径同一口径（document_ocr）；发票录入照旧。
+        return client.model_call(dataclasses.replace(request, timeout_s=max(request.timeout_s, MODEL_TIMEOUT_SECONDS)),
+                                 retry_unknown=True)
+
     anchor = date.fromisoformat(frozen["anchor_date"])
     with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=selected.text_fast_path,
                     image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as source:
-        result = run_invoice(source, guarded(client.model_call), guarded(client.vision_call), config=config,
+        result = run_invoice(source, guarded(model_call), guarded(client.vision_call), config=config,
                              anchor_year=anchor.year, today=anchor)
     return records(result.pipeline.pages, filename)
 
@@ -183,9 +193,9 @@ def run(recon_job, file, filename, pages, sha256, settings):
             job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
             if job.get("state") in ("failed", "done") or not frappe.db.exists("File", file):
                 return {"cancelled": "recon_job_closed"}
-            doc = frappe.get_doc("File", file)
-            content = doc.get_content()
-            content = content if isinstance(content, bytes) else content.encode()
+            from pearnly_cowork.recon_center import storage
+
+            _stored_name, content = storage.read(file)
             if hashlib.sha256(content).hexdigest() != sha256:
                 return {"failed": "source_changed"}
             # 识别连接在发起后变了（换了服务商 / 项目）就不跑，与录入同一个判据。

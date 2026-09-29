@@ -199,9 +199,9 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
         if not saved:
             if _recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
-            doc = frappe.get_doc("File", file)
-            content = doc.get_content()
-            content = content if isinstance(content, bytes) else content.encode()
+            from pearnly_cowork.recon_center import storage
+
+            _stored_name, content = storage.read(file)
             if hashlib.sha256(content).hexdigest() != sha256:
                 return {"failed": "source_changed"}
             ocr_settings.revalidate(frozen)
