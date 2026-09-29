@@ -33,6 +33,8 @@ from pearnly_cowork.reconciliation import (
 	income_recon_service,
 	income_vat,
 	messages,
+	preset_store,
+	presets,
 	recon_contracts,
 )
 from pearnly_cowork.reconciliation.export import income_workbook
@@ -248,7 +250,6 @@ def bank_questions(doc, inputs, results):
 	"""结果页要人定一次的问题（对账预设，见 ``presets``）。现在银行只有一类：多笔对一笔是不是汇总入账。
 
 	认不出账户（没有尾号也没有科目号）不问：答了也记不住，照旧只在标题旁提示。"""
-	from pearnly_cowork.reconciliation import presets
 	from pearnly_cowork.reconciliation.bank_groups import suspected_groups
 
 	scope = bank_recon_service.task_scope(doc, inputs.get("gl") or [])
@@ -483,10 +484,65 @@ def income_compute(doc, inputs):
 	if stored_inputs(doc) is None and _view_key(inputs.get("vat")) == _view_key(income_inputs(doc)["vat"]):
 		return _stored_income(doc)
 	rows = _income_rows(doc, inputs)
+	# 总账行全留（存回 inputs_json），预设了「不参与对账」的收入科目只在核对时去掉。
+	ledger = income_recon_service.without_excluded(rows[0], income_excluded(doc))
 	results, summary = income_vat.reconcile_gl_vat(
-		income_recon_contracts.matching_gl_rows(rows[0]), income_recon_contracts.matching_vat_rows(rows[1]),
+		income_recon_contracts.matching_gl_rows(ledger), income_recon_contracts.matching_vat_rows(rows[1]),
 		amount_tolerance=float(doc.amount_tolerance or income_recon_contracts.AMOUNT_TOLERANCE))
 	return rows, results, summary
+
+
+def income_tax_id(doc):
+	return income_recon_service.report_tax_id(income_recon_contracts.json_loads(doc.get("parse_info_json")) or {})
+
+
+def income_excluded(doc):
+	tax_id = income_tax_id(doc)
+	return income_recon_service.excluded_accounts(doc.get("workspace"), tax_id) if tax_id else set()
+
+
+INCOME_EVIDENCE = 3
+
+
+def income_questions(doc, rows, results):
+	"""收入结果页要人定一次的问题：总账里有、税报里一笔都对不上的收入科目（利息、其他收入等不开增值税发票的），
+	以后参不参与对账。一个科目一问，按「本公司税号 + 科目」记；税号读不出、或一个科目都没对上（多半是别的问题）不问。"""
+	tax_id = income_tax_id(doc)
+	if rows is None or not presets.income_prefix(tax_id):
+		return []
+	decided = preset_store.under(doc.get("workspace"), "income", presets.income_prefix(tax_id))
+	by_account = {}
+	for row in rows[0]:
+		account = _text(row.get("account_code")).strip()
+		if account:
+			by_account.setdefault(account, []).append(row)
+	# 对上了的科目按核对结果算（单号配、前缀配、按日汇总配都算），不自己另比单号。
+	matched = {code.strip() for result in results if result.gl_amount is not None
+		for code in _text(result.account_codes).split(",") if code.strip()}
+	if not matched:
+		return []
+	questions = []
+	for account in sorted(set(by_account) - matched):
+		scope = presets.income_scope(tax_id, account)
+		lines = [line for line in by_account[account] if (line.get("credit") or 0) > (line.get("debit") or 0)]
+		if not scope or presets.EXCLUDED in decided.get(scope, {}) or not lines:
+			continue
+		total = sum(float(line.get("credit") or 0) - float(line.get("debit") or 0) for line in by_account[account])
+		questions.append({"rule": presets.EXCLUDED, "subject": account, "scope_label": presets.scope_label(scope),
+			"title": _("reconciliation.preset.excluded_title").format(account),
+			"evidence": [[_text(line.get("date")), _text(line.get("doc_no")), _text(line.get("description"))[:60],
+				_money(float(line.get("credit") or 0) - float(line.get("debit") or 0))] for line in lines[:INCOME_EVIDENCE]],
+			"count": _("reconciliation.preset.excluded_count").format(len(by_account[account]), _money(total)),
+			"options": [{"value": presets.YES, "label": _("reconciliation.preset.excluded_yes")},
+				{"value": presets.NO, "label": _("reconciliation.preset.excluded_no")}]})
+	return questions
+
+
+def income_preset_notes(doc, rows):
+	"""按预设没参与对账的收入科目：标题旁一句。"""
+	excluded = income_excluded(doc)
+	present = sorted({_text(row.get("account_code")).strip() for row in (rows or [[]])[0]} & excluded)
+	return [_("reconciliation.preset.excluded_applied").format("、".join(present))] if present else []
 
 
 def income_workbook_bytes(results, summary, lang):

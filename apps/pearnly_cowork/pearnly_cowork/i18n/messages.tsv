@@ -1294,3 +1294,11 @@ Set by {0} on {1}	{0} 于 {1} 定	ตั้งโดย {0} เมื่อ {1}	
 Many-to-one lines	多笔对一笔	หลายรายการต่อหนึ่งรายการ	複数対 1 件	cowork.recon.rule.grouped
 Batched: match by total	汇总入账，按合计对上	บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม	まとめて入金：合計で照合	cowork.recon.rule.grouped.yes
 Check line by line	逐笔核对	ตรวจทีละรายการ	1 件ずつ照合	cowork.recon.rule.grouped.no
+Does account {0} belong in this reconciliation?	科目 {0} 要参与对账吗	บัญชี {0} ต้องนำมากระทบยอดหรือไม่	科目 {0} を照合に含めますか	reconciliation.preset.excluded_title
+{0} ledger lines, {1} in total, none of them in the tax report	总账 {0} 笔、合计 {1}，税报里一笔都没有	ในบัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีในรายงานภาษีเลย	総勘定元帳 {0} 件・合計 {1}、税報告には 1 件もありません	reconciliation.preset.excluded_count
+No, not in the tax report (interest, other income)	不参与（不开税票的收入，如利息）	ไม่ต้อง (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)	含めない（利息など税票を出さない収入）	reconciliation.preset.excluded_yes
+Yes, keep reconciling it	参与对账	นำมากระทบยอด	照合に含める	reconciliation.preset.excluded_no
+By preset, these accounts are left out: {0}	按预设，这些科目不参与对账：{0}	ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}	プリセットにより次の科目は照合に含めていません：{0}	reconciliation.preset.excluded_applied
+Income account	收入科目	บัญชีรายได้	収入科目	cowork.recon.rule.excluded
+Left out (not in the tax report)	不参与对账（不在税报里）	ไม่นำมากระทบยอด (ไม่มีในรายงานภาษี)	照合に含めない（税報告にない）	cowork.recon.rule.excluded.yes
+Reconciled	参与对账	นำมากระทบยอด	照合に含める	cowork.recon.rule.excluded.no

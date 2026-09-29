@@ -152,6 +152,7 @@ Buyer Client,ลูกค้าผู้ซื้อ
 Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขผู้เสียภาษีผู้ซื้อ
+"By preset, these accounts are left out: {0}",ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}
 By preset: {0} groups matched by total,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 Calendar,ปฏิทิน
 Camera,กล้อง
@@ -354,6 +355,7 @@ Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี
 Document total,ยอดรวม
 Document type,ประเภทเอกสาร
+Does account {0} belong in this reconciliation?,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
 Does {0} post in batches?,{0} บันทึกเป็นยอดรวมหรือไม่
 Done,เสร็จสิ้น
 Done list (cards moved here are complete),รายการเสร็จ (ย้ายมาแล้วถือว่าเสร็จ)
@@ -458,6 +460,7 @@ In progress,กำลังดำเนินการ
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
 Income Reconciliation,กระทบยอดรายได้
+Income account,บัญชีรายได้
 Initial Password,รหัสผ่านเริ่มต้น
 Insert,แทรก
 Installed At (UTC),เวลาติดตั้ง (UTC)
@@ -524,6 +527,7 @@ Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 Ledger {0} {1}: one line {2},บัญชีแยกประเภท {0} {1}: 1 รายการ {2}
+Left out (not in the tax report),ไม่นำมากระทบยอด (ไม่มีในรายงานภาษี)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},ตัด {0} รายการที่ซ้ำกับรายการเดินบัญชีหลักและน่าจะอ่านผิดออก กรุณาตรวจสอบ: {1}
 Light,ไฟ
 Line {0} ({1}): balance off by {2} — {3},รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}
@@ -592,6 +596,7 @@ No rules yet,ยังไม่มีกฎ
 No templates yet,ยังไม่มีเทมเพลต
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 "No, check line by line",ไม่ใช่ ตรวจทีละรายการ
+"No, not in the tax report (interest, other income)",ไม่ต้อง (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)
 None,ไม่มี
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
 Not Permitted,ไม่ได้รับอนุญาต
@@ -708,6 +713,7 @@ Recognition tasks cannot be shared separately from their originals.,ไม่ส
 Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
 Recognition was unsure about this invoice. Check it against the original,ระบบอ่านเอกสารใบนี้ไม่มั่นใจ กรุณาตรวจกับต้นฉบับ
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
+Reconciled,นำมากระทบยอด
 Reconciliation Type,ประเภทการกระทบยอด
 Reconciliation failed,กระทบยอดไม่สำเร็จ
 Record,บันทึก
@@ -1179,6 +1185,7 @@ Workspace,ชุดบัญชีบริษัท
 Writing to Express failed and was undone. It is retried automatically,เขียนลง Express ไม่สำเร็จและยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 Yearly,ทุกปี
 Yellow,เหลือง
+"Yes, keep reconciling it",นำมากระทบยอด
 "Yes, match by total",ใช่ จับคู่ตามยอดรวม
 You are watching this card,คุณกำลังติดตามการ์ดนี้
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
@@ -1333,6 +1340,9 @@ cowork.recon.preset.remove,ลบ
 cowork.recon.presets,ค่าที่ตั้งไว้
 cowork.recon.presets.empty,ยังไม่มีค่าที่ตั้งไว้
 cowork.recon.questions,ตัดสินใจครั้งเดียว ({0})
+cowork.recon.rule.excluded,บัญชีรายได้
+cowork.recon.rule.excluded.no,นำมากระทบยอด
+cowork.recon.rule.excluded.yes,ไม่นำมากระทบยอด (ไม่มีในรายงานภาษี)
 cowork.recon.rule.grouped,หลายรายการต่อหนึ่งรายการ
 cowork.recon.rule.grouped.no,ตรวจทีละรายการ
 cowork.recon.rule.grouped.yes,บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม
@@ -2032,6 +2042,11 @@ reconciliation.preset.evidence_gl,บัญชีแยกประเภท {0}
 reconciliation.preset.evidence_gl_rows,บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})
 reconciliation.preset.evidence_stmt,ธนาคาร {0}: 1 รายการ {1}
 reconciliation.preset.evidence_stmt_rows,ธนาคาร {0} รายการรวมเท่ากัน ({1} ถึง {2})
+reconciliation.preset.excluded_applied,ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}
+reconciliation.preset.excluded_count,ในบัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีในรายงานภาษีเลย
+reconciliation.preset.excluded_no,นำมากระทบยอด
+reconciliation.preset.excluded_title,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
+reconciliation.preset.excluded_yes,ไม่ต้อง (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)
 reconciliation.preset.grouped_applied,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 reconciliation.preset.grouped_count,งวดนี้มี {0} กลุ่มแบบนี้
 reconciliation.preset.grouped_no,ไม่ใช่ ตรวจทีละรายการ
@@ -2142,6 +2157,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} is not your company's tax ID,{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ
 {0} ledger lines add up to it ({1} to {2}),บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
+"{0} ledger lines, {1} in total, none of them in the tax report",ในบัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีในรายงานภาษีเลย
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
 {0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง

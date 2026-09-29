@@ -226,11 +226,11 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             else:
                 from pearnly_cowork.recon_center import vat_check
 
-                vat_rows, warnings = vat_check.merged_report_rows(recon_job, rights, files["right"])
+                vat_rows, warnings, tax_id = vat_check.merged_report_rows(recon_job, rights, files["right"])
                 stage("matching")
                 result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
                     vat_rows=vat_rows, gl_filename=left_name, vat_filename=_names(rights),
-                    report_warnings=warnings)
+                    report_warnings=warnings, tax_id=tax_id)
         frappe.db.commit()
         _state(recon_job, state="done", stage="done", task=result["name"])
     except Exception as error:

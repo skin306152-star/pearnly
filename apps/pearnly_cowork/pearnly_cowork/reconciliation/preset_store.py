@@ -47,6 +47,19 @@ def rules(workspace, kind, scope):
     return {row.rule: row.value for row in rows if presets.valid(kind, row.rule, row.value)}
 
 
+def under(workspace, kind, prefix):
+    """某个前缀下全部范围已定的规则：``{范围: {规则: 值}}``（收入按公司税号取这家公司各科目的预设）。"""
+    if not prefix:
+        return {}
+    rows = frappe.get_all(DOCTYPE, filters={"workspace": workspace, "recon_kind": kind, "scope": ["like", prefix + "%"]},
+                          fields=["scope", "rule", "value"], ignore_permissions=True, limit_page_length=0)
+    found = {}
+    for row in rows:
+        if row.scope.startswith(prefix) and presets.valid(kind, row.rule, row.value):
+            found.setdefault(row.scope, {})[row.rule] = row.value
+    return found
+
+
 def remember(workspace, kind, scope, rule, value, task=""):
     """记下 / 改掉一条预设（同一范围同一规则只有一条）。"""
     _require(workspace, kind)

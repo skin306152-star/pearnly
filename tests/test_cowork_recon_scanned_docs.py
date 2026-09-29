@@ -1121,7 +1121,7 @@ class SeveralIncomeReportFiles(unittest.TestCase):
 				mock.patch.object(vat_check.frappe, "clear_last_message"), \
 				mock.patch.object(vat_check.frappe, "session", mock.Mock(user="u@example.com")), \
 				mock.patch.object(vat_check, "_", side_effect=lambda text: text + " {0}"):
-			rows, warnings = vat_check.merged_report_rows("job", [("1.jpg", b"a"), ("2.jpg", b"b"), ("3.jpg", b"c")],
+			rows, warnings, _tax = vat_check.merged_report_rows("job", [("1.jpg", b"a"), ("2.jpg", b"b"), ("3.jpg", b"c")],
 				["F1", "F2", "F3"])
 		self.assertEqual([row["report_invoice_no"] for row in rows], ["IV1", "IV2", "IV3"])
 		self.assertEqual(warnings, ["reconciliation.files_unread 3.jpg", "reconciliation.report_rows_repeated 1"])

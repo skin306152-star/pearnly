@@ -46,6 +46,7 @@
 			// 税报可多份（一页一张照片、分几段的 PDF；用户 2026-09-30 定），总账一份。
 			multiple: { right: true },
 			left: "cowork.recon.income.left", right: "cowork.recon.income.right",
+			presets: { excluded: ["yes", "no"] },
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },
 				{ fieldname: "row_count", width: 80, min_width: 64, label: t("cowork.recon.col.rows") },
@@ -665,7 +666,8 @@
 					await save();
 					if (dirty) return;
 				}
-				const fresh = await p.call(presets_api + "answer", { kind, task_id: name, rule: item.rule, value: option.value, lang: lang() }, "POST");
+				const fresh = await p.call(presets_api + "answer", { kind, task_id: name, rule: item.rule, value: option.value,
+					subject: item.subject || "", lang: lang() }, "POST");
 				dialog.hide();
 				if (frappe.get_route()[1] === name) await show_result(name, fresh, true);
 			}

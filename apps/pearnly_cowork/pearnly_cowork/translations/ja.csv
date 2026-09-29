@@ -152,6 +152,7 @@ Buyer Client,買い手顧客
 Buyer address,買い手住所
 Buyer branch,買い手支店
 Buyer tax ID,買い手税番号
+"By preset, these accounts are left out: {0}",プリセットにより次の科目は照合に含めていません：{0}
 By preset: {0} groups matched by total,プリセットにより {0} 組を合計で照合済み
 Calendar,カレンダー
 Camera,カメラ
@@ -354,6 +355,7 @@ Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
 Document type,書類種類
+Does account {0} belong in this reconciliation?,科目 {0} を照合に含めますか
 Does {0} post in batches?,{0} はまとめて入金されますか
 Done,完了
 Done list (cards moved here are complete),完了リスト（移動すると完了）
@@ -458,6 +460,7 @@ In progress,進行中
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
 Inactive,無効
 Income Reconciliation,収益照合
+Income account,収入科目
 Initial Password,初期パスワード
 Insert,挿入
 Installed At (UTC),インストール日時（UTC）
@@ -524,6 +527,7 @@ Ledger amount,元帳金額
 Ledger credit only,元帳貸方のみ
 Ledger debit only,元帳借方のみ
 Ledger {0} {1}: one line {2},総勘定元帳 {0} {1}：1 件 {2}
+Left out (not in the tax report),照合に含めない（税報告にない）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},メインの明細と重複し読み誤りと思われる {0} 行を除外しました。確認してください：{1}
 Light,ライト
 Line {0} ({1}): balance off by {2} — {3},{0} 行目（{1}）残高差 {2}：{3}
@@ -592,6 +596,7 @@ No rules yet,ルールはまだありません
 No templates yet,テンプレートはまだありません
 No warehouse matches that name,その倉庫名は存在しません
 "No, check line by line",いいえ、1 件ずつ照合
+"No, not in the tax report (interest, other income)",含めない（利息など税票を出さない収入）
 None,なし
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
 Not Permitted,適切な権限がありません
@@ -708,6 +713,7 @@ Recognition tasks cannot be shared separately from their originals.,認識タス
 Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
 Recognition was unsure about this invoice. Check it against the original,この伝票の読み取りに確信がありません。原本と照合してください
 Recognized with high confidence,高い信頼度で認識
+Reconciled,照合に含める
 Reconciliation Type,照合の種類
 Reconciliation failed,照合に失敗しました
 Record,記録
@@ -1179,6 +1185,7 @@ Workspace,会社帳簿
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Yearly,毎年
 Yellow,黄
+"Yes, keep reconciling it",照合に含める
 "Yes, match by total",はい、合計で照合
 You are watching this card,このカードをウォッチしています
 You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
@@ -1333,6 +1340,9 @@ cowork.recon.preset.remove,削除
 cowork.recon.presets,プリセット
 cowork.recon.presets.empty,プリセットはまだありません
 cowork.recon.questions,一度だけ決める（{0}）
+cowork.recon.rule.excluded,収入科目
+cowork.recon.rule.excluded.no,照合に含める
+cowork.recon.rule.excluded.yes,照合に含めない（税報告にない）
 cowork.recon.rule.grouped,複数対 1 件
 cowork.recon.rule.grouped.no,1 件ずつ照合
 cowork.recon.rule.grouped.yes,まとめて入金：合計で照合
@@ -2032,6 +2042,11 @@ reconciliation.preset.evidence_gl,総勘定元帳 {0} {1}：1 件 {2}
 reconciliation.preset.evidence_gl_rows,総勘定元帳 {0} 件の合計が一致（{1}〜{2}）
 reconciliation.preset.evidence_stmt,銀行 {0}：1 件 {1}
 reconciliation.preset.evidence_stmt_rows,銀行 {0} 件の合計が一致（{1}〜{2}）
+reconciliation.preset.excluded_applied,プリセットにより次の科目は照合に含めていません：{0}
+reconciliation.preset.excluded_count,総勘定元帳 {0} 件・合計 {1}、税報告には 1 件もありません
+reconciliation.preset.excluded_no,照合に含める
+reconciliation.preset.excluded_title,科目 {0} を照合に含めますか
+reconciliation.preset.excluded_yes,含めない（利息など税票を出さない収入）
 reconciliation.preset.grouped_applied,プリセットにより {0} 組を合計で照合済み
 reconciliation.preset.grouped_count,今期このような組が {0} 組
 reconciliation.preset.grouped_no,いいえ、1 件ずつ照合
@@ -2142,6 +2157,7 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} is not your company's tax ID,{0}が自社の納税者番号ではありません
 {0} ledger lines add up to it ({1} to {2}),総勘定元帳 {0} 件の合計が一致（{1}〜{2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,総勘定元帳の {0} 行は売上税報告の期間（{1}〜{2}）外のため、照合に含めていません。
+"{0} ledger lines, {1} in total, none of them in the tax report",総勘定元帳 {0} 件・合計 {1}、税報告には 1 件もありません
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
 {0} more possible combined matches are not listed,ほかに合計一致の可能性がある {0} 組は表示していません

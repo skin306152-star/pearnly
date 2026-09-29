@@ -152,6 +152,7 @@ Buyer Client,Buyer Client
 Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
+"By preset, these accounts are left out: {0}","By preset, these accounts are left out: {0}"
 By preset: {0} groups matched by total,By preset: {0} groups matched by total
 Calendar,Calendar
 Camera,Camera
@@ -354,6 +355,7 @@ Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
+Does account {0} belong in this reconciliation?,Does account {0} belong in this reconciliation?
 Does {0} post in batches?,Does {0} post in batches?
 Done,Done
 Done list (cards moved here are complete),Done list (cards moved here are complete)
@@ -458,6 +460,7 @@ In progress,In progress
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
 Income Reconciliation,Income Reconciliation
+Income account,Income account
 Initial Password,Initial Password
 Insert,Insert
 Installed At (UTC),Installed At (UTC)
@@ -524,6 +527,7 @@ Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
 Ledger {0} {1}: one line {2},Ledger {0} {1}: one line {2}
+Left out (not in the tax report),Left out (not in the tax report)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},Left out {0} lines that repeat the main statement and look misread; check them: {1}
 Light,Light
 Line {0} ({1}): balance off by {2} — {3},Line {0} ({1}): balance off by {2} — {3}
@@ -592,6 +596,7 @@ No rules yet,No rules yet
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 "No, check line by line","No, check line by line"
+"No, not in the tax report (interest, other income)","No, not in the tax report (interest, other income)"
 None,None
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
@@ -708,6 +713,7 @@ Recognition tasks cannot be shared separately from their originals.,Recognition 
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
 Recognition was unsure about this invoice. Check it against the original,Recognition was unsure about this invoice. Check it against the original
 Recognized with high confidence,Recognized with high confidence
+Reconciled,Reconciled
 Reconciliation Type,Reconciliation Type
 Reconciliation failed,Reconciliation failed
 Record,Record
@@ -1179,6 +1185,7 @@ Workspace,Workspace
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Yearly,Yearly
 Yellow,Yellow
+"Yes, keep reconciling it","Yes, keep reconciling it"
 "Yes, match by total","Yes, match by total"
 You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
@@ -1333,6 +1340,9 @@ cowork.recon.preset.remove,Remove
 cowork.recon.presets,Presets
 cowork.recon.presets.empty,No presets yet
 cowork.recon.questions,Decide once ({0})
+cowork.recon.rule.excluded,Income account
+cowork.recon.rule.excluded.no,Reconciled
+cowork.recon.rule.excluded.yes,Left out (not in the tax report)
 cowork.recon.rule.grouped,Many-to-one lines
 cowork.recon.rule.grouped.no,Check line by line
 cowork.recon.rule.grouped.yes,Batched: match by total
@@ -2032,6 +2042,11 @@ reconciliation.preset.evidence_gl,Ledger {0} {1}: one line {2}
 reconciliation.preset.evidence_gl_rows,{0} ledger lines add up to it ({1} to {2})
 reconciliation.preset.evidence_stmt,Bank {0}: one line {1}
 reconciliation.preset.evidence_stmt_rows,{0} bank lines add up to it ({1} to {2})
+reconciliation.preset.excluded_applied,"By preset, these accounts are left out: {0}"
+reconciliation.preset.excluded_count,"{0} ledger lines, {1} in total, none of them in the tax report"
+reconciliation.preset.excluded_no,"Yes, keep reconciling it"
+reconciliation.preset.excluded_title,Does account {0} belong in this reconciliation?
+reconciliation.preset.excluded_yes,"No, not in the tax report (interest, other income)"
 reconciliation.preset.grouped_applied,By preset: {0} groups matched by total
 reconciliation.preset.grouped_count,{0} such groups this period
 reconciliation.preset.grouped_no,"No, check line by line"
@@ -2142,6 +2157,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} is not your company's tax ID,{0} is not your company's tax ID
 {0} ledger lines add up to it ({1} to {2}),{0} ledger lines add up to it ({1} to {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
+"{0} ledger lines, {1} in total, none of them in the tax report","{0} ledger lines, {1} in total, none of them in the tax report"
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
 {0} more possible combined matches are not listed,{0} more possible combined matches are not listed

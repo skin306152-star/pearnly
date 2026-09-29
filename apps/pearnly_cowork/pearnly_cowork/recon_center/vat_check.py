@@ -27,7 +27,7 @@ def merged_report_rows(recon_job, reports, report_files):
 
     照片先全部提交识别再按顺序取结果（与银行存折照片同一做法）；一份读不出不整单失败、结果里点名；几份里重复的同一行
     （单号 / 日期 / 未税 / 税额都相同，重复拍的页）只留第一份的；卖方或期间不一致照旧报错（与销项核查同一口径）。
-    返回 ``(income 存储要的税报行, 提示)``。"""
+    返回 ``(income 存储要的税报行, 提示, 税报表头的本公司税号)``。"""
     from pearnly_cowork.recon_center import document_ocr
     from pearnly_cowork.reconciliation.normalization import normalize_invoice_no
 
@@ -65,7 +65,8 @@ def merged_report_rows(recon_job, reports, report_files):
         warnings.append(_("reconciliation.files_unread").format("、".join(unread)))
     if repeated:
         warnings.append(_("reconciliation.report_rows_repeated").format(repeated))
-    return vat_parse.decoded_rows(rows), warnings
+    tax_id = next((item.get("issuer_hint") for item in parsed if item.get("issuer_hint")), "")
+    return vat_parse.decoded_rows(rows), warnings, tax_id
 
 
 def swapped_dates(records, report_rows):

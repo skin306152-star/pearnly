@@ -17,9 +17,12 @@ YES, NO = "yes", "no"
 # 银行：这个账户的「多笔对一笔」是汇总入账（总账逐笔、银行一笔合并入账；或反过来信用卡逐笔、总账一笔合计）。
 GROUPED = "grouped"
 
+# 收入：总账里这个收入科目不在税报里（利息、其他收入等不开增值税发票的），不参与对账。按「公司税号 + 科目」记。
+EXCLUDED = "excluded"
+
 RULES = {
     "bank": {GROUPED: (YES, NO)},
-    "income": {},
+    "income": {EXCLUDED: (YES, NO)},
     "vat": {},
 }
 
@@ -54,9 +57,24 @@ def bank_scope(bank_code, tail, gl_account_code):
     return "|".join(("bank", bank, tail or "-", account or "-"))
 
 
+def income_scope(tax_id, account):
+    """收入预设按「本公司税号（税报表头）+ 总账科目」记；税号读不出不记（不问）。"""
+    tax, account = _digits(tax_id), str(account or "").strip()
+    if len(tax) != 13 or not account or len(account) > 40:
+        return ""
+    return "|".join(("income", tax, account))
+
+
+def income_prefix(tax_id):
+    tax = _digits(tax_id)
+    return f"income|{tax}|" if len(tax) == 13 else ""
+
+
 def scope_label(scope):
-    """给人看的范围：``KBANK ···4821 · 1112-01``。"""
+    """给人看的范围：``KBANK ···4821 · 1112-01``、``0105556012345 · 4201``。"""
     parts = str(scope or "").split("|")
+    if len(parts) == 3 and parts[0] == "income":
+        return f"{parts[1]} · {parts[2]}"
     if len(parts) == 4 and parts[0] == "bank":
         _kind, bank, tail, account = parts
         return " · ".join(item for item in (bank + (f" ···{tail}" if tail != "-" else ""),

@@ -49,7 +49,8 @@ MAX_FILE_NAME = 140
 PARSE_INFO_SECTIONS = {
 	"gl": ("file", "method", "rows", "parser_version", "accounts_seen", "candidate_data_lines",
 		"tables_seen", "header_found", "sheets_seen", "rows_kept"),
-	"vat": ("file", "method", "rows", "parser_version", "warnings"),
+	# tax_id：税报表头印的本公司税号（对账预设按公司记，2026-09-30 加；旧任务没有）。
+	"vat": ("file", "method", "rows", "parser_version", "warnings", "tax_id"),
 }
 
 
@@ -172,6 +173,8 @@ def parse_info(value):
 						f"reconciliation.parse_info_invalid:{section}")
 				item["warnings"] = [_text(warning, f"{section}.warnings")
 					for warning in warnings]
+				if record.get("tax_id"):
+					item["tax_id"] = _text(record.get("tax_id"), f"{section}.tax_id", limit=13)
 			parsed.append(item)
 		result[section] = parsed
 	return result

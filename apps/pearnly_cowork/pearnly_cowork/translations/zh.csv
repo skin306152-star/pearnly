@@ -152,6 +152,7 @@ Buyer Client,买方客户
 Buyer address,买方地址
 Buyer branch,买方分店
 Buyer tax ID,买方税号
+"By preset, these accounts are left out: {0}",按预设，这些科目不参与对账：{0}
 By preset: {0} groups matched by total,按预设：{0} 组多笔对一笔已按合计对上
 Calendar,日历
 Camera,摄像头
@@ -354,6 +355,7 @@ Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
+Does account {0} belong in this reconciliation?,科目 {0} 要参与对账吗
 Does {0} post in batches?,{0} 是汇总入账吗
 Done,已完成
 Done list (cards moved here are complete),完成列表（移入即完成）
@@ -458,6 +460,7 @@ In progress,进行中
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
 Income Reconciliation,收入对账
+Income account,收入科目
 Initial Password,初始密码
 Insert,插入
 Installed At (UTC),安装时间（UTC）
@@ -524,6 +527,7 @@ Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
 Ledger {0} {1}: one line {2},总账 {0} {1} 一笔 {2}
+Left out (not in the tax report),不参与对账（不在税报里）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},已去掉 {0} 行与主账单重复、疑似读错的行，请核对：{1}
 Light,灯光
 Line {0} ({1}): balance off by {2} — {3},第 {0} 行（{1}）余额差 {2}：{3}
@@ -592,6 +596,7 @@ No rules yet,还没有规则
 No templates yet,还没有模板
 No warehouse matches that name,该仓库名不存在
 "No, check line by line",不是，逐笔核对
+"No, not in the tax report (interest, other income)",不参与（不开税票的收入，如利息）
 None,无
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
 Not Permitted,没有权限
@@ -708,6 +713,7 @@ Recognition tasks cannot be shared separately from their originals.,识别任务
 Recognition was interrupted (not charged). Upload this file again,识别中断了（未扣费），请重新上传这一份
 Recognition was unsure about this invoice. Check it against the original,识别对这张票拿不准，请对照原件核对
 Recognized with high confidence,高置信识别
+Reconciled,参与对账
 Reconciliation Type,对账类型
 Reconciliation failed,对账失败
 Record,记录
@@ -1179,6 +1185,7 @@ Workspace,公司账套
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，会自动重试
 Yearly,每年
 Yellow,黄
+"Yes, keep reconciling it",参与对账
 "Yes, match by total",是，按合计对上
 You are watching this card,你在关注这张卡片
 You do not have access to this ERP target.,无权访问此ERP目标。
@@ -1333,6 +1340,9 @@ cowork.recon.preset.remove,删除
 cowork.recon.presets,对账预设
 cowork.recon.presets.empty,还没有预设
 cowork.recon.questions,需要定一次（{0}）
+cowork.recon.rule.excluded,收入科目
+cowork.recon.rule.excluded.no,参与对账
+cowork.recon.rule.excluded.yes,不参与对账（不在税报里）
 cowork.recon.rule.grouped,多笔对一笔
 cowork.recon.rule.grouped.no,逐笔核对
 cowork.recon.rule.grouped.yes,汇总入账，按合计对上
@@ -2032,6 +2042,11 @@ reconciliation.preset.evidence_gl,总账 {0} {1} 一笔 {2}
 reconciliation.preset.evidence_gl_rows,总账 {0} 笔合计相等（{1} 至 {2}）
 reconciliation.preset.evidence_stmt,银行 {0} 一笔 {1}
 reconciliation.preset.evidence_stmt_rows,银行 {0} 笔合计相等（{1} 至 {2}）
+reconciliation.preset.excluded_applied,按预设，这些科目不参与对账：{0}
+reconciliation.preset.excluded_count,总账 {0} 笔、合计 {1}，税报里一笔都没有
+reconciliation.preset.excluded_no,参与对账
+reconciliation.preset.excluded_title,科目 {0} 要参与对账吗
+reconciliation.preset.excluded_yes,不参与（不开税票的收入，如利息）
 reconciliation.preset.grouped_applied,按预设：{0} 组多笔对一笔已按合计对上
 reconciliation.preset.grouped_count,本期共 {0} 组这样凑得上
 reconciliation.preset.grouped_no,不是，逐笔核对
@@ -2142,6 +2157,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} is not your company's tax ID,{0}不是本公司税号
 {0} ledger lines add up to it ({1} to {2}),总账 {0} 笔合计相等（{1} 至 {2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,总账里有 {0} 行不在税报期间（{1} 至 {2}），没有参加核对。
+"{0} ledger lines, {1} in total, none of them in the tax report",总账 {0} 笔、合计 {1}，税报里一笔都没有
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} more items,另有 {0} 项
 {0} more possible combined matches are not listed,另有 {0} 组疑似合计匹配未列出

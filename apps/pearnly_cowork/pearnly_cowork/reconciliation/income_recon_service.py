@@ -22,6 +22,8 @@ from pearnly_cowork.reconciliation import (
 	income_recon_contracts,
 	income_parse,
 	income_vat,
+	preset_store,
+	presets,
 	recon_contracts,
 	recon_tasks,
 	vat_parse,
@@ -47,7 +49,9 @@ TASKS = recon_tasks.ReconTasks(TASK, ROW, income_recon_access, "CIR", LIST_FIELD
 
 def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_info=None,
 		gl_filename="", vat_filename=""):
-	"""Validate, pair and store one reconciliation inside a single transaction."""
+	"""Validate, pair and store one reconciliation inside a single transaction.
+
+	总账行全部存进 ``inputs_json``；本公司预设了「不参与对账」的收入科目（对账预设）只在核对时去掉，改了预设重算能拿回来。"""
 	income_recon_access.require(workspace)
 	name, request_key = TASKS.identity(request_id)
 	title = income_recon_contracts.title_text(title)
@@ -59,7 +63,8 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_i
 	if replayed:
 		return replayed
 	results, summary = income_vat.reconcile_gl_vat(
-		income_recon_contracts.matching_gl_rows(rows[0]),
+		income_recon_contracts.matching_gl_rows(without_excluded(rows[0],
+			excluded_accounts(workspace, report_tax_id(parse_values)))),
 		income_recon_contracts.matching_vat_rows(rows[1]),
 		amount_tolerance=float(header_values["amount_tolerance"]))
 	summary_value = {field: getattr(summary, field) for field in summary.__dataclass_fields__}
@@ -86,6 +91,27 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_i
 			**row_values(result)}))
 	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results),
 		"parse_info": parse_values}
+
+
+def _tax_field(tax_id):
+	digits = "".join(char for char in str(tax_id or "") if char.isdigit())
+	return {"tax_id": digits} if len(digits) == 13 else {}
+
+
+def report_tax_id(parse_values):
+	"""税报表头印的本公司税号（建任务时记在诊断里）。"""
+	return next((item.get("tax_id") for item in (parse_values or {}).get("vat") or [] if item.get("tax_id")), "")
+
+
+def excluded_accounts(workspace, tax_id):
+	"""这家公司预设了「不参与对账」的收入科目。"""
+	prefix = presets.income_prefix(tax_id)
+	return {scope[len(prefix):] for scope, rules in preset_store.under(workspace, "income", prefix).items()
+		if rules.get(presets.EXCLUDED) == presets.YES}
+
+
+def without_excluded(gl_rows, excluded):
+	return [row for row in gl_rows if str(row.get("account_code") or "").strip() not in excluded] if excluded else gl_rows
 
 
 def gl_diagnostic(diagnostics, rows, filename):
@@ -133,7 +159,7 @@ def within_report_period(gl_rows, vat_rows):
 
 
 def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
-		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename="", report_warnings=None):
+		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename="", report_warnings=None, tax_id=""):
 	"""Store one reconciliation from the extracted content of the two report files.
 
 	Opening the ledger workbook or PDF, opening the output-VAT report, running OCR
@@ -162,6 +188,7 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 		report_rows = report["row_count"]
 		report_version = report.get("parser_version") or ""
 		report_warnings += report.get("warnings") or []
+		tax_id = tax_id or report.get("issuer_hint") or ""
 	elif vat_rows is None:
 		frappe.throw(_("reconciliation.request_invalid"))
 	parsed = income_parse.decode(gl_source, revenue_prefix)
@@ -177,7 +204,8 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 	# served it, so a later export or review can say what a task was read from.
 	parse_values = {"gl": [gl_diagnostic(parsed["diag"], parsed["row_count"], gl_filename)],
 		"vat": [{"file": vat_filename, "method": report_method, "rows": report_rows,
-			"parser_version": report_version, "warnings": report_warnings}]}
+			"parser_version": report_version, "warnings": report_warnings,
+			**_tax_field(tax_id)}]}
 	result = create(workspace, title, request_id, income_parse.decoded_rows(gl_rows),
 		vat_rows, header, parse_values, gl_filename, vat_filename)
 	payload = {**result, "parsed": {

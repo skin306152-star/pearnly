@@ -182,5 +182,85 @@ class Questions(unittest.TestCase):
 		self.assertFalse(any(row.group_no for row in results))
 
 
+# ── 收入：税报里一笔都对不上的收入科目参不参与对账 ─────────────────────────────
+
+TAX = "0105556012345"
+
+
+def income_gl(number, account, credit, debit="0"):
+	return {"doc_no": number, "norm_doc_no": "", "date": "2026-06-01", "account_code": account,
+		"description": "", "debit": debit, "credit": credit}
+
+
+def income_result(number, amount, accounts="4110"):
+	import frappe
+
+	return frappe._dict(doc_no=number, vat_date="2026-06-01", customer_name="ACME", vat_amount=amount,
+		has_gl_match=1, gl_amount=amount, account_codes=accounts)
+
+
+class IncomeScope(unittest.TestCase):
+	def test_a_company_is_known_by_the_tax_id_on_the_report(self):
+		self.assertEqual(presets.income_scope("0-1055-56012-34-5", "4201"), f"income|{TAX}|4201")
+		self.assertEqual(presets.income_scope("12345", "4201"), "")
+		self.assertEqual(presets.income_prefix(TAX), f"income|{TAX}|")
+		self.assertEqual(presets.scope_label(f"income|{TAX}|4201"), f"{TAX} · 4201")
+
+	def test_only_a_thirteen_digit_tax_id_is_stored(self):
+		from pearnly_cowork.reconciliation import income_recon_contracts, income_recon_service
+
+		self.assertEqual(income_recon_service._tax_field("0105556012345"), {"tax_id": TAX})
+		self.assertEqual(income_recon_service._tax_field("01055560123456"), {})
+		stored = income_recon_contracts.parse_info({"vat": [{"file": "r.pdf", "rows": 1, "tax_id": TAX}]})
+		self.assertEqual(income_recon_service.report_tax_id(stored), TAX)
+
+
+class IncomeQuestions(unittest.TestCase):
+	def doc(self):
+		from pearnly_cowork.reconciliation import income_recon_contracts
+
+		gl = income_recon_contracts.decode_rows([income_gl("IV001", "4110", "1000"),
+			income_gl("INT06", "4201", "35.50"), income_gl("INT06B", "4201", "12.00")], [])[0]
+		return FakeDoc(name="CIR-9", workspace="W", gl_account_code="4", amount_tolerance=0.01, summary_json="{}",
+			inputs_json=recon_contracts.inputs_json(gl=gl),
+			parse_info_json=json.dumps({"vat": [{"file": "r.pdf", "rows": 1, "tax_id": TAX}]}))
+
+	def run_page(self, decided):
+		from pearnly_cowork.reconciliation import preset_store
+
+		doc = self.doc()
+		with mock.patch.object(revision.frappe, "get_all", return_value=[income_result("IV001", 1000)]), \
+				mock.patch.object(preset_store, "under", return_value=decided), \
+				mock.patch.object(revision, "_", side_effect=lambda text: text):
+			inputs = revision.income_inputs(doc)
+			rows, results, summary = revision.income_compute(doc, inputs)
+			return (revision.income_questions(doc, rows, results), summary, revision.income_preset_notes(doc, rows),
+				rows)
+
+	def test_an_account_the_report_never_mentions_is_asked_about_once(self):
+		questions, summary, notes, _rows = self.run_page({})
+		self.assertEqual([(item["rule"], item["subject"]) for item in questions], [(presets.EXCLUDED, "4201")])
+		self.assertEqual(len(questions[0]["evidence"]), 2)
+		self.assertEqual(summary.gl_only_credit, 47.5)
+		self.assertEqual(notes, [])
+
+	def test_a_left_out_account_leaves_the_result_but_stays_in_the_inputs(self):
+		questions, summary, notes, rows = self.run_page({f"income|{TAX}|4201": {presets.EXCLUDED: presets.YES}})
+		self.assertEqual(questions, [])
+		self.assertEqual(summary.gl_only_credit, 0.0)
+		self.assertEqual(notes, ["reconciliation.preset.excluded_applied"])
+		self.assertEqual(len(rows[0]), 3)  # 存回去的总账行不少：改了预设能拿回来
+
+	def test_kept_accounts_are_not_asked_again(self):
+		questions, summary, _notes, _rows = self.run_page({f"income|{TAX}|4201": {presets.EXCLUDED: presets.NO}})
+		self.assertEqual(questions, [])
+		self.assertEqual(summary.gl_only_credit, 47.5)
+
+	def test_nothing_is_asked_without_a_tax_id(self):
+		doc = self.doc()
+		doc.parse_info_json = "{}"
+		self.assertEqual(revision.income_questions(doc, ([income_gl("A", "4201", "1")], []), []), [])
+
+
 if __name__ == "__main__":
 	unittest.main()
