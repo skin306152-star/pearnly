@@ -14,6 +14,7 @@ from pearnly_cowork.ocr.engine.contracts import Frame, ModelResponse
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import contract, pages as enterprise_pages, pipeline
 from pearnly_cowork.recon_center import document_ocr, sources
+from pearnly_cowork.reconciliation.bank_statement import StatementRow
 
 
 def payload(*texts):
@@ -741,6 +742,25 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual(other_accounts([("a.jpg", read("", "8229")), ("b.jpg", read("", "8229")), ("c.jpg", read("", "0555"))]),
 			["c.jpg"])
 		self.assertEqual(other_accounts(statements[:3]), [])
+		# B09-03（2026-09-30）：尾号只差一位是读错；与别的文件有相同的行就是同一账户。
+		self.assertEqual(other_accounts([("a.jpg", read("", "8229")), ("b.pdf", read("", "8228"))]), [])
+		line = StatementRow(date=date(2026, 3, 2), description="TRANSFER", withdrawal=0.0, deposit=10.0, balance=110.0)
+		self.assertEqual(other_accounts([("a.jpg", {**read("", "8229"), "rows": [line]}),
+			("b.jpg", {**read("", "8229"), "rows": [line]}), ("c.pdf", {**read("", "0555"), "rows": [line]})]), [])
+
+	def test_the_same_line_read_from_a_photo_and_a_pdf_is_kept_once(self):
+		# B09-01（2026-09-30）：jpg 与 pdf 是同一页，描述一份「TRANSFER Telfax BBL X0…」一份「TRANSFER」。
+		from pearnly_cowork.reconciliation.bank_recon_service import same_lines_once
+
+		def line(text, source, balance=110.0):
+			return StatementRow(date=date(2026, 1, 5), description=text, withdrawal=0.0, deposit=10.0, balance=balance,
+				source_file=source)
+
+		rows = [line("TRANSFER Telfax BBL X0", "01.jpg"), line("TRANSFER", "01.pdf"), line("TRANSFER", "01.jpg"),
+			line("a", "01.jpg"), line("b", "01.pdf")]
+		rows[3].balance = rows[4].balance = None
+		self.assertEqual([(row.description, row.source_file) for row in same_lines_once(rows)],
+			[("TRANSFER Telfax BBL X0", "01.jpg"), ("TRANSFER", "01.jpg"), ("a", "01.jpg"), ("b", "01.pdf")])
 
 	def test_an_unjoined_photo_keeps_its_printed_first_amount(self):
 		# 接不上的交界行不按跨照片的余额差补金额（B05-02 把 BBL 首行补成了 2,678,117.31）。

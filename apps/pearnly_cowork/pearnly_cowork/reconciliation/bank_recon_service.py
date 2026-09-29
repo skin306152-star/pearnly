@@ -282,12 +282,41 @@ def other_accounts(statements):
 		identity = result.get("identity") or {} if result.get("ok") else {}
 		bank = bank_parse.detect_bank(identity.get("bank") or "")
 		keys[name] = (bank if bank != "generic" else "", identity.get("last4") or "")
+	lines = {name: {_line_key(row) for row in (result.get("rows") or []) if row.balance}
+		for name, result in statements if result.get("ok")}
+
+	def overlaps(name):
+		# 与别的文件有相同的行（日期、存、取、余额都一样）：同一账户，只是账号读法不同（B09-03，2026-09-30）。
+		return any(lines.get(name, set()) & keys_ for other, keys_ in lines.items() if other != name)
+
+	def near(first, second):
+		# 尾号只差一位是读错，不是别的账户。
+		return len(first) == len(second) == 4 and sum(a != b for a, b in zip(first, second)) <= 1
+
 	for index in (0, 1):
 		values = Counter(key[index] for key in keys.values() if key[index])
 		if len(values) > 1:
 			common = values.most_common(1)[0][0]
-			return [name for name, key in keys.items() if key[index] and key[index] != common]
+			return [name for name, key in keys.items() if key[index] and key[index] != common
+				and not overlaps(name) and not (index == 1 and near(key[index], common))]
 	return []
+
+
+def same_lines_once(rows):
+	"""不同文件里日期、存、取、余额都相同的行是同一笔（照片和 PDF 拍的是同一页，描述读法不同）：只留第一次出现的。
+	同一份文件里的相同行照旧保留（同日同额的两笔）；没有余额的行不算证据。
+
+	接不成余额链时退回旧线上的合并，它的去重键带着描述，B09-01 的 jpg 与 pdf 每笔都出现两次（2026-09-30 压测）。"""
+	owner = {}
+	kept = []
+	for row in rows:
+		key = _line_key(row)
+		source = getattr(row, "source_file", "")
+		if row.balance and key in owner and owner[key] != source:
+			continue
+		owner.setdefault(key, source)
+		kept.append(row)
+	return kept
 
 
 def chain_files(files, boundaries=None):
@@ -402,6 +431,8 @@ def _merged_statement(results):
 		rows, first = chained, chained[0]
 		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
 		closing = rows[-1].balance or closing
+	else:
+		rows = same_lines_once(rows)
 	if len(read) > 1 and rows:
 		# 接好（或按日期合并）之后整条再定案一次：每张照片的第一行单独定案时没有前一行可比（B05 KBank8229：
 		# 手续费 685 读成存入；有一张首末行没余额、接链退回按日期合并时也要做）。
