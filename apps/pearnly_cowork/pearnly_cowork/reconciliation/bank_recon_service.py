@@ -187,6 +187,11 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	statement = _merged_statement([result for _name, result in statements])
+	unread = [name for name, result in statements + ledgers if not result.get("ok")]
+	if unread:
+		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
+		# 识别结果不明，用户看不出少了哪一页）。
+		warnings = list(warnings or []) + [_("reconciliation.files_unread").format("、".join(unread))]
 	chosen = "" if gl_account_code else likely_account(statement["rows"], [result for _n, result in ledgers])
 	if chosen:
 		# 全科目总账、没指定科目：用与银行流水最吻合的那个科目（旧线上把所有科目的行都拿来对，Mr.erp 全科目

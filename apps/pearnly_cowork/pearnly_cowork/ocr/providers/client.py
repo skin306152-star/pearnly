@@ -12,7 +12,7 @@ import time
 from types import MappingProxyType
 from urllib.parse import quote
 
-from pearnly_core.execution.errors import Deferred
+from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine.contracts import ModelRequest, ModelResponse, ProviderFailure, VisionResponse
 from pearnly_cowork.ocr.policy import vertex_location
 from pearnly_cowork.ocr.schema.evidence import Block, BoundingBox, Page, Paragraph, Word
@@ -39,6 +39,20 @@ def _reference(stage, page_number, attempt):
     _identity(stage, "ocr.invalid_stage")
     if type(page_number) is not int or page_number < 1 or type(attempt) is not int or attempt < 0:
         raise ProviderConfigurationError("ocr.invalid_provider_reference")
+
+
+def _record_unknown(provider, stage, page_number, attempt, error):
+    """结果不明的原因写进错误日志（共用层只留下「started」检查点，原因丢了；2026-09-29 压测查不出是上传超时
+    还是回复太大）。记日志失败不影响调用本身。"""
+    cause = getattr(error, "__cause__", None)
+    try:
+        import frappe
+
+        frappe.log_error(title="cowork provider outcome unknown",
+                         message=f"{provider} {stage} page {page_number} attempt {attempt}: {error}"
+                                 + (f" ({type(cause).__name__}: {cause})" if cause else ""))
+    except Exception:
+        pass
 
 
 def _bbox(value):
@@ -108,7 +122,8 @@ class ProviderClient:
         self._terminal_write(key, {"refusal": refusal, "raw": raw})
         raise ProviderError(**refusal)
 
-    def _send(self, *, url, payload, model, provider, location, stage, page_number, attempt, timeout_s):
+    def _send(self, *, url, payload, model, provider, location, stage, page_number, attempt, timeout_s,
+              retry_unknown=False):
         _reference(stage, page_number, attempt)
         if not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool) or not 0 < timeout_s <= 120:
             raise ProviderConfigurationError("ocr.invalid_provider_timeout")
@@ -125,9 +140,19 @@ class ProviderClient:
             raise ProviderConfigurationError("ocr.credentials_not_configured")
         bucket = self._scope(provider, self.project, location, model)
         started = self._clock()
-        response = self._post(url=url, headers={"Authorization": "Bearer " + token,
-            "Content-Type": "application/json"}, payload=payload, timeout_s=timeout_s,
-            model=identity, bucket=bucket)
+        try:
+            response = self._post(url=url, headers={"Authorization": "Bearer " + token,
+                "Content-Type": "application/json"}, payload=payload, timeout_s=timeout_s,
+                model=identity, bucket=bucket)
+        except Uncertain as error:
+            _record_unknown(provider, stage, page_number, attempt, error)
+            if not retry_unknown:
+                raise
+            # 调用方选了「结果不明重发一次」（对账读字 / 抽取，2026-09-29 用户同意）：这次记成已拒（识别任务续跑时
+            # 不会因为它判结果不明），换一个 attempt 重发，得到新的检查点；再不明就照旧交出去。
+            self._reject(key, {"outcome_unknown": True, "retried": True})
+            return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
+                stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s)
         elapsed = max(0, int((self._clock() - started) * 1000))
         status = response.status_code
         if status != 200:
@@ -151,7 +176,7 @@ class ProviderClient:
             self._refuse(key, response, "ocr.provider_invalid_response")
         return deepcopy(body), elapsed, key, bucket
 
-    def model_call(self, request: ModelRequest):
+    def model_call(self, request: ModelRequest, *, retry_unknown=False):
         if not isinstance(request, ModelRequest):
             raise ProviderConfigurationError("ocr.invalid_model_request")
         model = _identity(request.model, "ocr.invalid_model")
@@ -185,7 +210,7 @@ class ProviderClient:
         url = f"https://{host}/v1/projects/{quote(self.project, safe='')}/locations/{quote(location, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent"
         body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
             location=location, stage=request.stage, page_number=request.page_number, attempt=request.attempt,
-            timeout_s=request.timeout_s)
+            timeout_s=request.timeout_s, retry_unknown=retry_unknown)
         candidates = body.get("candidates") or []
         candidate = candidates[0] if candidates else {}
         text = "".join(part.get("text", "") for part in (candidate.get("content") or {}).get("parts", [])
@@ -195,7 +220,8 @@ class ProviderClient:
             output_tokens=int(usage.get("candidatesTokenCount", 0) or 0) + int(usage.get("thoughtsTokenCount", 0) or 0),
             model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
 
-    def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1):
+    def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1,
+                         retry_unknown=False):
         """Pinned Document AI OCR of one PDF chunk (≤ ``MAX_PAGES_PER_READ`` pages) or one image, in the durable Work.
 
         Source ``services/ai_gateway/providers/enterprise.process_raw`` + ``services/ocr/enterprise_reader.read``:
@@ -214,7 +240,7 @@ class ProviderClient:
         name = enterprise_pages.processor_name(self.project, processor, location)
         body, elapsed, key, _ = self._send(url=f"https://{location}-documentai.googleapis.com/v1/{name}:process",
             payload={**enterprise_pages.request_body(content, mime), "fieldMask": enterprise_pages.FIELD_MASK},
-            model=enterprise_pages.PROCESSOR_VERSION,
+            model=enterprise_pages.PROCESSOR_VERSION, retry_unknown=retry_unknown,
             provider="documentai", location=location, stage=stage, page_number=page_number, attempt=0,
             timeout_s=90)
         texts = enterprise_pages.page_texts(body)  # validate before exposing geometry to reconstruction

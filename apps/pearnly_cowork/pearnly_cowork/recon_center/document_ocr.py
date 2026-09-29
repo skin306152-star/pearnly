@@ -13,6 +13,7 @@ Google Document AI 读字（每页约 0.05 泰铢），银行与总账先按版�
 
 计费：读出行的文件按页扣（与录入发票同价、同档位；旧线上对账同样按页扣），参考号固定为 Work 名，重试只补记账不重复扣；读不出不扣。
 """
+import functools
 import hashlib
 import io
 import time
@@ -142,8 +143,11 @@ def _read(content, filename, pages, frozen, document_type):
     with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=False,
                     image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
                     orient=ocr.orient) as source:
+        # 结果不明（上传超时、连接中断）时重发一次：读字每页约 0.05 泰铢、抽取每页约 0.5 泰铢，只在出事时多花；
+        # 不重发的话整份文件读空、整套对账失败，用户只能整份重传（2026-09-29 压测 45 个识别任务里 7 个）。
         return read_file(source, content, is_pdf, None if is_pdf else _mime(content), document_type,
-            guarded(client.document_ai_call), guarded(client.model_call))
+            guarded(functools.partial(client.document_ai_call, retry_unknown=True)),
+            guarded(functools.partial(client.model_call, retry_unknown=True)))
 
 
 def _charge(work_name, pages, frozen):

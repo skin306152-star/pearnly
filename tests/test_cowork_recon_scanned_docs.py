@@ -138,6 +138,37 @@ class EnterprisePipeline(unittest.TestCase):
 			content = document.tobytes()
 		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 12)], [5, 5, 2])
 
+	def test_an_unknown_outcome_is_sent_once_more_only_when_asked(self):
+		from pearnly_core.execution.errors import Uncertain
+		from pearnly_cowork.ocr.providers.client import ProviderClient
+
+		sent, rejected = [], []
+
+		class Response:
+			status_code = 200
+
+			def json(self):
+				return payload("page")
+
+		def post(**values):
+			sent.append(json.loads(values["model"])[-1])  # the attempt in the checkpoint identity
+			if len(sent) in (1, 3):
+				raise Uncertain("Provider transport outcome unknown")
+			return Response()
+
+		client = ProviderClient({}, project="synthetic-project", post=post, checkpoint_key=lambda payload, identity: identity,
+			reject_checkpoint=lambda key, body: rejected.append(body), terminal_read=lambda _k: None, terminal_write=None,
+			feedback=None, scope=lambda *args: args, access_token=lambda: "FAKE_TOKEN_NOT_A_CREDENTIAL",
+			require_context=lambda: None)
+		with mock.patch("pearnly_cowork.ocr.providers.client._record_unknown") as record:
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
+			self.assertEqual(sent, [0, 1])  # a fresh attempt, a fresh checkpoint
+			self.assertEqual(rejected, [{"outcome_unknown": True, "retried": True}])
+			with self.assertRaises(Uncertain):  # without the opt-in (the invoice path) nothing is resent
+				client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
+		self.assertEqual(sent, [0, 1, 0])
+		self.assertEqual(record.call_count, 2)
+
 	def test_a_local_reconstruction_that_raises_goes_on_to_the_extraction(self):
 		# 旧线上一页没有日期行时 statistics 取不到中位数，报成页数不符、整份失败（BBL 网银账单，2026-09-29）。
 		import statistics
@@ -291,6 +322,23 @@ class SeveralFilesPerSide(unittest.TestCase):
 
 		one = self.statement([(date(2026, 6, 1), "a", 100.0, 0.0, 900.0)], opening=1000.0, closing=900.0)
 		self.assertIs(bank_recon_service._merged_statement([one]), one)
+
+	def test_an_unread_photo_is_named_and_the_rest_are_reconciled(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		good = self.statement([(date(2026, 6, 1), "a", 100.0, 0.0, 900.0)], opening=1000.0, closing=900.0)
+		ledger = {"ok": True, "rows": [], "row_count": 0, "accounts": [], "opening": 1000.0, "closing": 1000.0,
+			"source": "workbook"}
+		reads = iter([good, {"ok": False, "rows": [], "error": "outcome unknown"}])
+		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", side_effect=lambda *a, **k: next(reads)), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", return_value=ledger), \
+				mock.patch.object(bank_recon_service, "_", side_effect=lambda text: text + " {0}"), \
+				mock.patch.object(bank_recon_service, "create", return_value={"name": "T1"}) as create:
+			bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
+				statement_files=[(b"1", "1.jpg"), (b"2", "2.jpg")], gl_files=[(b"g", "gl.xlsx")])
+		self.assertIn("2.jpg", " ".join(create.call_args.kwargs["warnings"]))
+		self.assertNotIn("1.jpg", " ".join(create.call_args.kwargs["warnings"]))
 
 	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
