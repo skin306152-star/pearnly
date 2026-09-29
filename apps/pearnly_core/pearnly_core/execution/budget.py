@@ -96,6 +96,17 @@ return {1, 0}
 """
 
 
+SHORTEN = """
+local stamp = redis.call('TIME')
+local until_at = tonumber(stamp[1]) + tonumber(stamp[2]) / 1000000 + tonumber(ARGV[3])
+for index, member in ipairs({ARGV[1], ARGV[2]}) do
+  local score = redis.call('ZSCORE', KEYS[index], member)
+  if score and tonumber(score) > until_at then redis.call('ZADD', KEYS[index], until_at, member) end
+end
+return 1
+"""
+
+
 def _keys(bucket, who):
     return [PREFIX + "active", PREFIX + "active:" + who, PREFIX + bucket + ":waiting",
             PREFIX + bucket + ":seen", PREFIX + bucket + ":sequence", PREFIX + bucket + ":pause",
@@ -119,20 +130,25 @@ def permit(bucket, timeout):
         raise Deferred("capacity_unavailable", 15) from exc
     if not result[0]:
         raise Deferred("capacity", min(10, result[1] / 1000))
-    uncertain = False
+    uncertain, hold = False, None
     try:
         yield
     except Deferred:
         # An explicit provider rejection is safe to retry after its cooldown.
         raise
-    except BaseException:
+    except BaseException as error:
         # Includes native RQ's job timeout and process termination. We cannot
         # assume that an interrupted caller also stopped the upstream request.
         uncertain = True
+        # The transport itself gave up (read timeout, reset, our own stop): hold only briefly.
+        hold = getattr(error, "lease_seconds", None)
         raise
     finally:
         try:
-            if uncertain:
+            if uncertain and hold:
+                client.eval(SHORTEN, 2, keys[0], keys[1], who + ":" + token, token, hold)
+                pipe = None
+            elif uncertain and hold is None:
                 # An upstream request may still run; retain its conservative lease.
                 pipe = None
             else:

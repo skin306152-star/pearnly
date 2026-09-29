@@ -55,6 +55,16 @@ def post(url, headers, payload, timeout_s, model, bucket):
             waited += delay
 
 
+# 结果不明后名额还留多久（2026-09-29 Cowork 压测）：原来一律留到任务时限（630 秒），每租户 3 个名额被几次
+# 读超时 / 连接重置占满，整个租户的识别停摆。我们这边已经放弃、连接已关：被对方重置或没连上的马上还；
+# 读超时对方可能还在算，留 60 秒。看不到结束的中断（任务超时、进程被杀）仍按原来的保守租期。
+READ_TIMEOUT_LEASE_SECONDS = 60
+
+
+def _lease_after(exc):
+    return READ_TIMEOUT_LEASE_SECONDS if isinstance(exc, requests.exceptions.ReadTimeout) else 0
+
+
 def _post(url, headers, payload, timeout_s, model, bucket):
     key = work.checkpoint_key(payload, model)
     saved = work.checkpoint(key)
@@ -80,7 +90,7 @@ def _post(url, headers, payload, timeout_s, model, bucket):
             response = requests.post(url, headers=headers, json=payload, timeout=(10, timeout), stream=True)
         except requests.RequestException as exc:
             # It may have reached the provider. Persist started; no automatic paid replay.
-            raise Uncertain("Provider transport outcome unknown") from exc
+            raise Uncertain("Provider transport outcome unknown", lease_seconds=_lease_after(exc)) from exc
         delay = retry_delay(response)
         budget.feedback(bucket, response.status_code, delay)
         if response.status_code in (429, 503):
@@ -91,14 +101,14 @@ def _post(url, headers, payload, timeout_s, model, bucket):
             raw = bytearray()
             for chunk in response.iter_content(65536):
                 if time.monotonic() > deadline:
-                    raise Uncertain("Provider response exceeded elapsed time limit")
+                    raise Uncertain("Provider response exceeded elapsed time limit", lease_seconds=0)
                 if len(raw) + len(chunk) > 8 * 1024 * 1024:
-                    raise Uncertain("Provider response exceeded safe memory limit")
+                    raise Uncertain("Provider response exceeded safe memory limit", lease_seconds=0)
                 raw.extend(chunk)
             response._content = bytes(raw)
             response._content_consumed = True
         except requests.RequestException as exc:
-            raise Uncertain("Provider response was interrupted") from exc
+            raise Uncertain("Provider response was interrupted", lease_seconds=_lease_after(exc)) from exc
         finally:
             response.close()
         if response.status_code == 200:
