@@ -140,6 +140,11 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
     # 泰文）。
     if options.get("lang") in ("th", "zh", "en", "ja"):
         frappe.local.lang = options["lang"]
+        # Frappe 16 在后台任务里第一次翻译时按任务用户的语言重设 frappe.local.lang（`lang_resolved` 标记），会把上面
+        # 这句盖掉：失败提示照样是泰文（2026-09-30 压测 BBL-CA-01，lang=zh）。标成已定，不再重设。
+        job = getattr(frappe.local, "job", None)
+        if job is not None and hasattr(job, "lang_resolved"):
+            job.lang_resolved = True
     stage = lambda name: _state(recon_job, state="running", stage=name)  # noqa: E731
     try:
         stage("reading")

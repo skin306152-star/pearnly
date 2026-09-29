@@ -936,13 +936,15 @@ class ReconJobCleanup(unittest.TestCase):
 	def test_the_job_speaks_the_submitted_language(self):
 		from pearnly_cowork.recon_center import jobs
 
-		local = mock.Mock(lang="th")
+		# Frappe 16 在任务里第一次翻译时按用户语言重设（lang_resolved 没标就重设）：要标成已定（BBL-CA-01，2026-09-30）。
+		local = mock.Mock(lang="th", job=mock.Mock(lang_resolved=False))
 		with mock.patch.object(jobs.frappe, "local", local), mock.patch.object(jobs, "_state"), \
 				mock.patch.object(jobs, "_read", side_effect=RuntimeError("stop")), \
 				mock.patch.object(jobs.frappe, "db", mock.MagicMock()), mock.patch.object(jobs.frappe, "log_error"), \
 				mock.patch.object(jobs.frappe, "_", side_effect=lambda text, **_kw: text):
 			jobs.run("job", "income", "ws", "t", {"left": [], "right": []}, json.dumps({"lang": "zh"}))
 		self.assertEqual(local.lang, "zh")
+		self.assertTrue(local.job.lang_resolved)
 
 	def test_a_database_lock_is_not_reported_as_a_bad_file(self):
 		states, _submit, log_error = self.run_job("bank", [("s.xlsx", b"a")], [("g.xlsx", b"b")],
