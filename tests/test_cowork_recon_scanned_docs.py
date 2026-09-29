@@ -1777,6 +1777,7 @@ class ReviewTaskIsNotCalledUnmatched(unittest.TestCase):
 			parse_info_json="{}", summary_json="{}", run_info_json="{}", inputs_json="", workspace="",
 			bank_code="kbank", gl_account_code="1112")
 		with mock.patch.object(revision.frappe, "local", mock.Mock(lang="zh")), \
+				mock.patch.object(revision.bank_recon_service, "preset_rules", return_value={}), \
 				mock.patch.object(revision, "_", side_effect=lambda text: text):
 			notes = revision.bank_notes(doc)
 		self.assertFalse(any("匹配" in note or "match" in note.lower() for note in notes), notes)
