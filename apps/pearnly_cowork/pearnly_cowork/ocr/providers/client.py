@@ -148,7 +148,15 @@ class ProviderClient:
         terminal = self._terminal_read(key)
         if terminal is not None:
             raise ProviderError(**terminal["refusal"])
-        token = self._token()
+        try:
+            token = self._token()
+        except Exception as error:
+            # 换令牌时连不上 / 超时（2026-09-29 压测：oauth2.googleapis.com 读超时 120 秒，被当成程序错误整张读空）：
+            # 还没发出任何付费调用，稍后重试即可。凭据缺失、格式不对照旧报错。
+            cause = getattr(error, "__cause__", None)
+            if cause is not None and any(word in type(cause).__name__ for word in ("Transport", "Timeout", "Connection")):
+                raise Deferred("token_unavailable", 15) from error
+            raise
         if not isinstance(token, str) or not token:
             raise ProviderConfigurationError("ocr.credentials_not_configured")
         bucket = self._scope(provider, self.project, location, model)

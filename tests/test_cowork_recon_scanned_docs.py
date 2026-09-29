@@ -214,6 +214,37 @@ class EnterprisePipeline(unittest.TestCase):
 			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
 		self.assertEqual(sent, [0, 1, 1])
 
+	def test_a_token_exchange_that_times_out_is_retried_later(self):
+		from pearnly_core.execution.errors import Deferred
+		from pearnly_cowork.ocr.providers.client import ProviderClient
+
+		class TransportError(Exception):
+			pass
+
+		def token():
+			try:
+				raise TransportError("oauth2.googleapis.com read timed out")
+			except TransportError as cause:
+				raise RuntimeError("The service account could not exchange its token") from cause
+
+		sent = []
+		client = ProviderClient({}, project="synthetic-project", post=lambda **values: sent.append(values),
+			checkpoint_key=lambda payload, identity: identity, reject_checkpoint=None, terminal_read=lambda _k: None,
+			terminal_write=None, feedback=None, scope=lambda *args: args, access_token=token, require_context=lambda: None)
+		with self.assertRaises(Deferred):
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
+		self.assertEqual(sent, [])  # nothing paid was sent
+
+		def missing():
+			try:
+				raise FileNotFoundError("ocr.json")
+			except FileNotFoundError as cause:
+				raise RuntimeError("no service account") from cause
+
+		client._token = missing
+		with self.assertRaises(RuntimeError):  # a configuration problem still fails
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
+
 	def test_a_server_error_on_a_reconciliation_read_is_retried_later(self):
 		from pearnly_core.execution.errors import Deferred
 		from pearnly_cowork.ocr.providers.client import ProviderClient, ProviderError
