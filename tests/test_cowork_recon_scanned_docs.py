@@ -984,6 +984,37 @@ class StatementOrderAndDates(unittest.TestCase):
 			date(2026, 5, 4), date(2026, 4, 28)])
 
 
+class WaitingForRoomInTheQueue(unittest.TestCase):
+	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
+
+	def test_a_full_queue_is_waited_out_not_failed(self):
+		from pearnly_core.execution.errors import QueueFull
+		from pearnly_cowork.recon_center import admission
+
+		tries = iter([QueueFull("full"), QueueFull("full"), "W1"])
+
+		def create():
+			value = next(tries)
+			if isinstance(value, Exception):
+				raise value
+			return value
+
+		with mock.patch.object(admission.frappe, "db", mock.MagicMock()), mock.patch.object(admission.time, "sleep") as sleep:
+			self.assertEqual(admission.when_room(create), "W1")
+		self.assertEqual(sleep.call_count, 2)
+
+	def test_a_queue_still_full_at_the_deadline_is_reported(self):
+		from pearnly_core.execution.errors import QueueFull
+		from pearnly_cowork.recon_center import admission
+
+		def create():
+			raise QueueFull("full")
+
+		with mock.patch.object(admission.frappe, "db", mock.MagicMock()), mock.patch.object(admission.time, "sleep"):
+			with self.assertRaises(QueueFull):
+				admission.when_room(create, deadline=0)
+
+
 class SameBytesAsAnOriginal(unittest.TestCase):
 	"""V02（2026-09-30）：销项核查上传的 PDF 与发票录入时的原件内容相同，原件保护按哈希把它当成改原件拒绝。"""
 

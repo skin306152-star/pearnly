@@ -63,8 +63,12 @@ def submit(recon_job, side, file_name, filename, content, document_type, user):
                  "sha256": info["sha256"], "document_type": document_type, "settings": frozen}
     try:
         intake.balance(int(info["page_count"]), frozen["billing_tier"])
-        with work_guard.work_creation():
-            return core_work.submit(KIND, f"{recon_job}:{side}:{document_type}", arguments, user)
+        from pearnly_cowork.recon_center import admission
+
+        def create():
+            with work_guard.work_creation():
+                return core_work.submit(KIND, f"{recon_job}:{side}:{document_type}", arguments, user)
+        return admission.when_room(create)
     except (Deferred, QueueFull) as error:
         # 与销项税核查读发票同一口径：余额不足、查不到余额、识别繁忙分开说。
         reason = getattr(error, "reason", "")

@@ -24,6 +24,8 @@ MULTIPLE = {"vat", "bank"}
 MAX_FILES = 200
 MAX_BYTES = 25 * 1024 * 1024
 TTL = 24 * 3600
+# 后台任务时限：销项核查的发票可能上百张、按识别名额分批读（2026-09-30 压测 V01 72 张小票），给到一小时。
+TIMEOUTS = {"vat": 3600}
 
 
 def _key(job_id):
@@ -62,7 +64,8 @@ def start(kind, title, sides, options=None):
     job_id = uuid.uuid4().hex
     saved = {side: [_save(content, name) for name, content in sides[side]] for side in ("left", "right")}
     _state(job_id, user=frappe.session.user, kind=kind, state="queued", stage="queued", task=None, error=None)
-    frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long", timeout=1800, job_id=f"cowork-recon-{job_id}",
+    frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long", timeout=TIMEOUTS.get(kind, 1800),
+                   job_id=f"cowork-recon-{job_id}",
                    enqueue_after_commit=True, recon_job=job_id, kind=kind, workspace=workspace, title=title[:140],
                    files=saved, options=json.dumps(options or {}))
     return {"job": job_id}

@@ -31,6 +31,7 @@ from pearnly_cowork.ocr.inputs_runtime.source import PageSource
 from pearnly_cowork.ocr.pages import all_pages_not_invoice, assess_confidence, flatten_pipeline_pages
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
+from pearnly_cowork.recon_center import admission
 
 KIND = "cowork.vat_check"
 RESULT = KIND + ":result"
@@ -41,7 +42,8 @@ TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 YIELD_SECONDS = 200
 # 多页扫描发票读一页要 60 秒以上（2026-09-30 压测 V04：5 份 PDF 读超时、结果不明后整份丢了），与账单路径一样放宽。
 MODEL_TIMEOUT_SECONDS = 120
-WAIT_SECONDS = 25 * 60
+# 发票可能上百张、按名额分批读：等得比账单久（对账后台任务的时限相应放宽，jobs.TIMEOUTS）。
+WAIT_SECONDS = 50 * 60
 POLL_SECONDS = 3
 
 
@@ -101,9 +103,14 @@ def submit(recon_job, files, user):
     for index, (file_name, filename, info) in enumerate(inspected):
         arguments = {"recon_job": recon_job, "file": file_name, "filename": filename, "pages": info["page_count"],
                      "sha256": info["sha256"], "settings": frozen}
-        with work_guard.work_creation():
-            works.append((core_work.submit(KIND, f"{recon_job}:{index}", arguments, user), filename))
+        works.append((admission.when_room(lambda index=index, arguments=arguments: _create(
+            f"{recon_job}:{index}", arguments, user)), filename))
     return works, rejected
+
+
+def _create(reference, arguments, user):
+    with work_guard.work_creation():
+        return core_work.submit(KIND, reference, arguments, user)
 
 
 def wait(works, on_stage=None):
