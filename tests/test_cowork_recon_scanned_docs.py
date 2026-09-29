@@ -153,7 +153,7 @@ class EnterprisePipeline(unittest.TestCase):
 
 		def post(**values):
 			sent.append(json.loads(values["model"])[-1])  # the attempt in the checkpoint identity
-			if len(sent) in (1, 3):
+			if len(sent) in (1, 3, 4, 5, 6):
 				raise Uncertain("Provider transport outcome unknown")
 			return Response()
 
@@ -167,8 +167,11 @@ class EnterprisePipeline(unittest.TestCase):
 			self.assertEqual(rejected, [{"outcome_unknown": True, "retried": True, "deferred": True}])
 			with self.assertRaises(Uncertain):  # without the opt-in (the invoice path) nothing is resent
 				client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
-		self.assertEqual(sent, [0, 1, 0])
-		self.assertEqual(record.call_count, 2)
+			self.assertEqual(sent, [0, 1, 0])
+			with self.assertRaises(Uncertain):  # a reading is resent at most twice, then it stays unknown
+				client.document_ai_call(b"img2", "image/jpeg", expected_pages=1, retry_unknown=True)
+		self.assertEqual(sent, [0, 1, 0, 0, 1, 2])
+		self.assertEqual(record.call_count, 5)
 
 	def test_a_resumed_read_takes_the_resent_call_instead_of_paying_again(self):
 		# 2026-09-29 压测：续跑时第一次调用的「已拒」被当成终局拒绝，整份失败（IMG_2487 / IMG_2500 / BAY）。
@@ -477,6 +480,22 @@ class SeveralFilesPerSide(unittest.TestCase):
 		read = enterprise_rows({"pages": [{"document": {"entries": entries}}]}, "bank_statement", "p.jpg")
 		self.assertEqual(read["row_count"], 1)
 
+	def test_a_misread_last_balance_is_mended_from_the_next_photo(self):
+		# B01 IMG_2485：最后一行印 362,264.99 读成 562,264.36，读取时按它把存入「补」成 200,449.37。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		first = self.statement([(date(2026, 5, 8), "a", 0.0, 450.0, 361814.99), (date(2026, 5, 8), "b", 0.0, 200449.37, 562264.36)])
+		first["rows"][1].amount_autocorrected = True
+		second = self.statement([(date(2026, 5, 8), "c", 0.0, 840.0, 363104.99), (date(2026, 5, 9), "d", 10.0, 0.0, 363094.99)])
+		merged = bank_recon_service._merged_statement([first, second])
+		mended = merged["rows"][1]
+		self.assertEqual((mended.balance, mended.deposit, mended.withdrawal), (362264.99, 450.0, 0.0))
+		self.assertEqual([row.description for row in merged["rows"]], ["a", "b", "c", "d"])
+		# 金额是印出来的（没标自动更正）就不动
+		plain = self.statement([(date(2026, 5, 8), "a", 0.0, 450.0, 361814.99), (date(2026, 5, 8), "b", 0.0, 200449.37, 562264.36)])
+		kept = bank_recon_service._merged_statement([plain, second])
+		self.assertEqual(kept["rows"][1].balance, 562264.36)
+
 	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
 
@@ -573,6 +592,20 @@ class ReviewWithBalanceBreaks(unittest.TestCase):
 			self.assertEqual([item["idx"] for item in revision.bank_breaks(doc, {})], [1])
 			revision.bank_save(doc, {}, acknowledged)
 		return doc
+
+	def test_a_file_left_unread_is_named_beside_the_title(self):
+		from pearnly_cowork.reconciliation import revision
+
+		doc = mock.MagicMock(status="completed", summary_json="{}", parse_info_json=json.dumps({"stmt_files": [
+			{"file": "IMG_2500.JPG", "rows": 44, "ok": True}, {"file": "IMG_2501.JPG", "rows": 0, "ok": False}],
+			"gl_files": [{"file": "gl.xlsx", "rows": 9, "ok": True}]}))
+		with mock.patch.object(revision, "bank_inputs", return_value={"statement": [], "gl": []}), \
+				mock.patch.object(revision, "_contract", return_value=([], [])), \
+				mock.patch.object(revision.bank_warnings, "detect_recon_mismatch", return_value=[]), \
+				mock.patch.object(revision, "_", side_effect=lambda text: text + " {0}"), \
+				mock.patch.object(revision.frappe, "local", mock.Mock(lang="zh")):
+			notes = revision.bank_notes(doc)
+		self.assertEqual(notes, ["reconciliation.files_unread IMG_2501.JPG"])
 
 	@staticmethod
 	def refuse(message):

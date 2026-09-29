@@ -92,6 +92,13 @@ def bank_notes(doc):
 	「待检查」来自 PDF 对账单的复核诊断（读得不确定的行、按余额推算改过的金额、笔数 / 合计对不上）；
 	期间不重叠、GL 行数太少、一笔都没匹配上等警告建任务时已算好存在运行记录里。"""
 	notes = []
+	# 多份文件里有没读出的：标题旁点名（结果照常出，但少了这几份；2026-09-29 压测 B01 一张照片结果不明被略过，
+	# 只写在工作簿警告条里不够显眼）。
+	parse_info = bank_recon_contracts.json_loads(doc.parse_info_json) or {}
+	unread = [item.get("file") for section in ("stmt_files", "gl_files")
+		for item in parse_info.get(section) or [] if not item.get("ok") and item.get("file")]
+	if unread:
+		notes.append(_("reconciliation.files_unread").format("、".join(unread)))
 	if doc.status == "needs_review":
 		diagnostics = (bank_recon_contracts.json_loads(doc.review_json) or {}).get("diagnostics") or {}
 		if int(diagnostics.get("low_conf_count") or 0):

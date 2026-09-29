@@ -292,15 +292,36 @@ def chain_files(files):
 	append(remaining.pop(0))
 	while remaining:
 		end = merged[-1].balance
-		chosen = remaining[0]
+		chosen, joined = remaining[0], False
 		for rows in remaining:
 			fresh = [row for row in rows if not (row.balance and _line_key(row) in seen)]
 			if fresh and joins(fresh[0], end):
-				chosen = rows
+				chosen, joined = rows, True
 				break
+		if not joined:
+			_mend_last_line(merged, [row for row in chosen if not (row.balance and _line_key(row) in seen)])
 		remaining.remove(chosen)
 		append(chosen)
 	return merged
+
+
+def _mend_last_line(merged, following):
+	"""接不上时，照片最后一行的余额可能读错了（「362,264.99」读成 562,264.36）：它后面没有下一行可比，读取时的
+	余额链修正按错的余额把金额「补」成了 20 万。金额是补出来的（标了已自动更正）、且下一张照片倒推的期初能用一笔
+	比它小的金额接上倒数第二行时，改这一行的余额与金额（2026-09-29 压测 B01 IMG_2485 / IMG_2497）。"""
+	if len(merged) < 2 or not following or not following[0].balance:
+		return
+	last, before = merged[-1], merged[-2]
+	if not getattr(last, "amount_autocorrected", False) or not before.balance:
+		return
+	first = following[0]
+	opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
+	amount = round(opening - before.balance, 2)
+	imputed = (last.deposit or 0) + (last.withdrawal or 0)
+	if not amount or abs(amount) >= imputed:
+		return
+	last.balance = opening
+	last.deposit, last.withdrawal = (amount, 0.0) if amount > 0 else (0.0, -amount)
 
 
 def _merged_statement(results):
