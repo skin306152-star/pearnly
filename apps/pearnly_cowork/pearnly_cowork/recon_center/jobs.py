@@ -142,7 +142,14 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             frappe.log_error(title="cowork reconciliation job", message=frappe.get_traceback())
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
     finally:
+        # 一份一提交：删除时的文件保护检查会锁住查到的来源行，二十张照片放在一个事务里删，并发的另一个对账
+        # 就会等锁超时（2026-09-29 压测）。结果已提交，清理失败只记日志、不把任务改成失败；没删掉的临时文件
+        # 是本人私有、不挂单据，按日志里的文件名处理。
         for name in files["left"] + files["right"]:
-            if frappe.db.exists("File", name):
-                frappe.delete_doc("File", name, ignore_permissions=True, force=True)
-        frappe.db.commit()
+            try:
+                if frappe.db.exists("File", name):
+                    frappe.delete_doc("File", name, ignore_permissions=True, force=True)
+                frappe.db.commit()
+            except Exception:
+                frappe.db.rollback()
+                frappe.log_error(title="cowork reconciliation cleanup", message=frappe.get_traceback())

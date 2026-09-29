@@ -196,7 +196,7 @@ class ProviderClient:
             model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
 
     def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1):
-        """Pinned Document AI OCR of one PDF chunk (1–15 pages) or one image, inside the durable Work.
+        """Pinned Document AI OCR of one PDF chunk (≤ ``MAX_PAGES_PER_READ`` pages) or one image, in the durable Work.
 
         Source ``services/ai_gateway/providers/enterprise.process_raw`` + ``services/ocr/enterprise_reader.read``:
         the pinned processor version, the deployed request body, the page-count check. The deployed
@@ -213,7 +213,8 @@ class ProviderClient:
         processor = (self.environment.get("ENTERPRISE_OCR_PROCESSOR_ID") or enterprise_pages.PROCESSOR_ID).strip()
         name = enterprise_pages.processor_name(self.project, processor, location)
         body, elapsed, key, _ = self._send(url=f"https://{location}-documentai.googleapis.com/v1/{name}:process",
-            payload=enterprise_pages.request_body(content, mime), model=enterprise_pages.PROCESSOR_VERSION,
+            payload={**enterprise_pages.request_body(content, mime), "fieldMask": enterprise_pages.FIELD_MASK},
+            model=enterprise_pages.PROCESSOR_VERSION,
             provider="documentai", location=location, stage=stage, page_number=page_number, attempt=0,
             timeout_s=90)
         texts = enterprise_pages.page_texts(body)  # validate before exposing geometry to reconstruction

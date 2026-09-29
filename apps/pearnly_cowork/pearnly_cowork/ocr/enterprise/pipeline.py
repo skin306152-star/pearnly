@@ -1,8 +1,8 @@
 """Enterprise pipeline: pinned OCR -> local schema, or pinned image + schema on every page.
 
 Source: ec2e5c957e6b ``services/ocr/enterprise_pipeline.py`` (``read_pdf``, ``_local_pages``, ``run``).
-Kept as deployed: Document AI reads a PDF in chunks of at most 15 pages (an image once); bank
-statements and ledgers are first reconstructed locally from the page geometry and used as they are
+Kept as deployed: Document AI reads a PDF in chunks (deployed 15 pages, now ``MAX_PAGES_PER_READ``; an
+image once); bank statements and ledgers are first reconstructed locally from the page geometry and used as they are
 when the arithmetic passes; otherwise — and always for a VAT report, which has no local parser —
 every page is extracted by the frozen contract (the page image, the Enterprise transcript, 3.8 LOW,
 the contract's JSON schema); a page whose extraction does not come back as an object fails the file
@@ -25,8 +25,9 @@ from typing import Callable, Iterable, List, Tuple
 
 from pearnly_cowork.ocr.engine.contracts import ModelRequest
 from pearnly_cowork.ocr.engine.errors import ContentError
-from pearnly_cowork.ocr.enterprise import contract, pages as enterprise_pages
+from pearnly_cowork.ocr.enterprise import contract, header_bank, pages as enterprise_pages
 from pearnly_cowork.ocr.enterprise.adapter import PipelineResult, make_page
+from pearnly_cowork.ocr.enterprise.local.geometry import rows_from_payloads
 from pearnly_cowork.ocr.enterprise.local.result import check_document, reconstruct
 from pearnly_cowork.ocr.enterprise.request import build_request
 
@@ -37,7 +38,7 @@ CATEGORIES = {"bank_statement": "bank", "general_ledger": "gl", "vat_report": "v
 
 
 def pdf_chunks(pdf: bytes, page_count: int) -> List[Tuple[bytes, str, int]]:
-    """The deployed ``read_pdf`` split: ``(chunk bytes, mime, pages)`` of at most 15 pages each."""
+    """The deployed ``read_pdf`` split: ``(chunk bytes, mime, pages)`` of at most ``MAX_PAGES_PER_READ`` pages each."""
     import pymupdf
 
     chunks = []
@@ -78,6 +79,26 @@ def _local_pages(result, category):
     return pages
 
 
+def _local(payloads, category, page_count):
+    """A balanced local reconstruction or None.
+
+    Added 2026-09-29: the deployed reconstruction raised on a page without date rows (``statistics``
+    has no median to take), which the deployed pipeline reported as a page-count mismatch and failed
+    the whole file; now only a real page-count mismatch fails it, anything else goes on to the schema
+    extraction. A bank statement the deployed reconstruction cannot balance gets one more, stricter
+    attempt anchored on the printed column headers (``header_bank``).
+    """
+    if rows_from_payloads(payloads)[3]["pages"] != page_count:
+        raise ContentError("ocr.enterprise_page_count_mismatch")
+    try:
+        local = reconstruct(payloads, category, expected_pages=page_count)
+    except (ValueError, ArithmeticError, LookupError):
+        local = None
+    if (local is None or not local.arithmetic_passed) and category == "bank":
+        local = header_bank.from_payloads(payloads, page_count) or local
+    return local if local is not None and local.arithmetic_passed else None
+
+
 def _extract(model_call, image, mime, category, transcript, number):
     request = build_request(category, transcript)
     config = request["config"]
@@ -111,11 +132,8 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
     cost = billed * enterprise_pages.USD_PER_PAGE * THB_PER_USD
     pages = None
     if category in ("bank", "gl"):
-        try:
-            local = reconstruct(payloads, category, expected_pages=page_count)
-        except ValueError as error:
-            raise ContentError("ocr.enterprise_page_count_mismatch", detail=str(error)) from error
-        if local.arithmetic_passed:
+        local = _local(payloads, category, page_count)
+        if local is not None:
             pages = _local_pages(local, category)
     if pages is None:
         transcripts = [page.text for payload in payloads for page in enterprise_pages.page_texts(payload)]

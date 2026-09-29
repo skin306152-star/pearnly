@@ -52,6 +52,35 @@ VAT_PAGE = {"seller_name": "ACME", "seller_tax": "", "period_year": "2026", "per
 		 "total": "1070.00"}]}
 
 
+# 合成账单（按表头定列）：表头、承前余额、一笔支出、一笔存入、余额归零（“0.00”旧读法当成时间）、再一笔存入。
+STATEMENT = [
+	[("Date", .05, .10), ("Withdrawal", .36, .42), ("Deposit", .48, .53), ("Balance", .63, .68)],
+	[("Balance", .40, .45), ("Forward", .46, .52), ("1,000.00", .61, .67)],
+	[("01/06/2026", .05, .12), ("200.00", .39, .44), ("800.00", .62, .67)],
+	[("02/06/2026", .05, .12), ("500.00", .50, .55), ("1,300.00", .61, .67)],
+	[("03/06/2026", .05, .12), ("1,300.00", .38, .44), ("0.00", .64, .67)],
+	[("05/06/2026", .05, .12), ("50.00", .51, .55), ("50.00", .63, .67)],
+]
+
+
+def statement_payload(rows, top=.20, pitch=.03):
+	"""A one-page Document AI answer: each row one line of tokens at its own height."""
+	text, lines, tokens = "", [], []
+	for number, row in enumerate(rows):
+		y0 = top + number * pitch
+		line_start = len(text)
+		for word, x0, x1 in row:
+			start = len(text)
+			text += word + " "
+			tokens.append({"layout": {"textAnchor": {"textSegments": [{"startIndex": str(start), "endIndex": str(start + len(word))}]},
+				"boundingPoly": {"normalizedVertices": [{"x": x0, "y": y0}, {"x": x1, "y": y0}, {"x": x1, "y": y0 + .01},
+					{"x": x0, "y": y0 + .01}]}}})
+		lines.append({"layout": {"textAnchor": {"textSegments": [{"startIndex": str(line_start), "endIndex": str(len(text) - 1)}]}}})
+		text = text[:-1] + "\n"
+	return {"document": {"text": text, "pages": [{"pageNumber": 1, "layout": {"textAnchor": {"textSegments": [
+		{"startIndex": "0", "endIndex": str(len(text))}]}}, "lines": lines, "tokens": tokens}]}}
+
+
 class Rendered:
 	def __init__(self):
 		self.pages = []
@@ -99,14 +128,63 @@ class EnterprisePipeline(unittest.TestCase):
 			pipeline.run("vat", page_count=1, reads=[(b"img", "image/png", 1)], render=Rendered(),
 				document_ai_call=FakeDocumentAi(payload("x")), model_call=FakeModel([]))
 
-	def test_pdf_chunks_are_at_most_fifteen_pages(self):
+	def test_pdf_chunks_are_at_most_five_pages(self):
+		# 旧线上 15 页一块；密的扫描页连全部字段约 3MB 一页，超过共用层 8MB 回复上限就成“结果不明”（2026-09-29）。
 		import pymupdf
 
 		with pymupdf.open() as document:
-			for _ in range(32):
+			for _ in range(12):
 				document.new_page()
 			content = document.tobytes()
-		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 32)], [15, 15, 2])
+		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 12)], [5, 5, 2])
+
+	def test_a_local_reconstruction_that_raises_goes_on_to_the_extraction(self):
+		# 旧线上一页没有日期行时 statistics 取不到中位数，报成页数不符、整份失败（BBL 网银账单，2026-09-29）。
+		import statistics
+
+		bank_page = {"opening_balance": "1000", "closing_balance": "900", "entries": [
+			{"transaction_date": "2026-06-01", "description": "fee", "withdrawal": "100", "balance": "900"}]}
+		model = FakeModel(bank_page)
+		with mock.patch.object(pipeline, "reconstruct", side_effect=statistics.StatisticsError("no median")):
+			result = pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=Rendered(),
+				document_ai_call=FakeDocumentAi(payload("x")), model_call=model)
+		self.assertEqual(len(model.requests), 1)
+		self.assertEqual(result.pages[0].document.entries[0].withdrawal, "100")
+		with self.assertRaises(ContentError):  # a real page-count mismatch still fails the file
+			pipeline.run("bank", page_count=2, reads=[(b"img", "image/jpeg", 1)], render=Rendered(),
+				document_ai_call=FakeDocumentAi(payload("x")), model_call=model)
+
+	def test_a_statement_the_header_parser_balances_needs_no_model(self):
+		model = FakeModel({})
+		result = pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=Rendered(),
+			document_ai_call=FakeDocumentAi(statement_payload(STATEMENT)), model_call=model)
+		self.assertEqual(model.requests, [])
+		self.assertEqual([entry.balance for entry in result.pages[0].document.entries], ["800.00", "1300.00", "0.00", "50.00"])
+		self.assertEqual(result.pages[0].layer_chain, ["enterprise", "local_schema"])
+
+	def test_document_ai_asks_only_for_the_fields_it_reads(self):
+		from pearnly_cowork.ocr.providers.client import ProviderClient
+
+		sent = []
+
+		class Response:
+			status_code = 200
+
+			def json(self):
+				return payload("page")
+
+		def post(**values):
+			sent.append(values)
+			return Response()
+
+		client = ProviderClient({}, project="synthetic-project", post=post, checkpoint_key=lambda *_a: "k",
+			reject_checkpoint=None, terminal_read=lambda _k: None, terminal_write=None, feedback=None,
+			scope=lambda *args: args, access_token=lambda: "FAKE_TOKEN_NOT_A_CREDENTIAL", require_context=lambda: None)
+		client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
+		self.assertEqual(sent[0]["payload"]["fieldMask"], enterprise_pages.FIELD_MASK)
+		self.assertTrue(sent[0]["payload"]["imagelessMode"])  # the deployed body is otherwise unchanged
+		with self.assertRaises(Exception):
+			client.document_ai_call(b"%PDF", "application/pdf", expected_pages=enterprise_pages.MAX_PAGES_PER_READ + 1)
 
 	def test_page_texts_follow_the_anchors(self):
 		self.assertEqual([page.text for page in enterprise_pages.page_texts(payload("aa", "bbb"))], ["aa", "bbb"])
@@ -227,6 +305,75 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual((merged["opening"], merged["closing"]), (1000.0, 1200.0))
 		self.assertTrue(merged["needs_review"])  # one of three photos did not read
 		self.assertEqual(merged["low_conf_count"], 4)
+
+
+class HeaderAnchoredStatement(unittest.TestCase):
+	def read(self, rows):
+		from pearnly_cowork.ocr.enterprise import header_bank
+
+		trace = []
+		return header_bank.from_payloads([statement_payload(rows)], 1, reference_year=2026, trace=trace), trace
+
+	def test_columns_come_from_the_printed_header(self):
+		result, _trace = self.read(STATEMENT)
+		self.assertTrue(result.arithmetic_passed, result.issues)
+		document = result.document
+		self.assertEqual(document["opening_balance"], "1000.00")
+		self.assertEqual([(entry["transaction_date"], entry["direction"], entry["amount"]) for entry in document["entries"]], [
+			("2026-06-01", "withdrawal", "200.00"), ("2026-06-02", "deposit", "500.00"),
+			("2026-06-03", "withdrawal", "1300.00"), ("2026-06-05", "deposit", "50.00")])
+		self.assertEqual(document["closing_balance"], "50.00")
+
+	def test_a_row_whose_balance_was_not_read_does_not_pass(self):
+		rows = [list(row) for row in STATEMENT]
+		rows[3] = [cell for cell in rows[3] if cell[0] != "1,300.00"]  # 02/06 row: date and amount, no balance
+		result, _trace = self.read(rows)
+		self.assertFalse(result is not None and result.arithmetic_passed)
+
+	def test_a_newest_first_statement_is_left_to_the_extraction(self):
+		rows = [STATEMENT[0], [("05/06/2026", .05, .12), ("50.00", .51, .55), ("1,050.00", .61, .67)],
+			[("01/06/2026", .05, .12), ("200.00", .39, .44), ("1,000.00", .61, .67)]]
+		result, trace = self.read(rows)
+		self.assertIsNone(result)
+		self.assertEqual(trace[-1]["reason"], "date_missing_or_out_of_order")
+
+	def test_no_header_no_local_result(self):
+		result, trace = self.read(STATEMENT[1:])
+		self.assertIsNone(result)
+		self.assertEqual(trace[-1]["reason"], "no_header")
+
+	def test_printed_dates(self):
+		from pearnly_cowork.ocr.enterprise.header_bank import parse_date, resolve_year
+
+		self.assertEqual([resolve_year(year, 2026) for year in (25, 68, 69, 2569, 2026)], [2025, 2025, 2026, 2026, 2026])
+		self.assertEqual(parse_date("30 เม.ย. 2569", 2026), "2026-04-30")
+		self.assertEqual(parse_date("15 ม.ค. 69", 2026), "2026-01-15")
+		self.assertEqual(parse_date("15 มี.ค. 69", 2026), "2026-03-15")
+		self.assertEqual(parse_date("8 05/07/25 CMN", 2026), "2025-07-05")  # row 8, not 8 May 2007
+		self.assertEqual(parse_date("705 / 07 / 25TRN", 2026), "2025-07-05")  # row number printed on the date
+		self.assertEqual(parse_date("31/02/2026", 2026), "")
+
+
+class ReconJobCleanup(unittest.TestCase):
+	def test_a_cleanup_failure_does_not_fail_the_finished_job(self):
+		from pearnly_cowork.recon_center import jobs
+
+		states, db = {}, mock.MagicMock()
+		db.exists.return_value = True
+		with mock.patch.object(jobs, "_state", side_effect=lambda job, **values: states.update(values)), \
+				mock.patch.object(jobs, "_read", return_value=[("a.xlsx", b"x")]), \
+				mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+				mock.patch.object(jobs.frappe, "db", db), \
+				mock.patch.object(jobs.frappe, "delete_doc", side_effect=[frappe.QueryTimeoutError("lock"), None]) as delete, \
+				mock.patch.object(jobs.frappe, "log_error") as log_error, \
+				mock.patch("pearnly_cowork.recon_center.sources.ledger_source", return_value={}), \
+				mock.patch("pearnly_cowork.recon_center.sources.report_source", return_value={}), \
+				mock.patch("pearnly_cowork.recon_center.document_ocr.reader"), \
+				mock.patch.object(jobs.income_recon_service, "create_from_parsed", return_value={"name": "T1"}):
+			jobs.run("job", "income", "ws", "t", {"left": ["F1"], "right": ["F2"]})
+		self.assertEqual((states["state"], states["task"]), ("done", "T1"))
+		self.assertEqual(delete.call_count, 2)  # the second file is still removed after the first one failed
+		log_error.assert_called_once()
 
 
 if __name__ == "__main__":
