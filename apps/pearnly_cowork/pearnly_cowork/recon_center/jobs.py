@@ -208,8 +208,8 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 free = text_layer.read(content, document_type)
                 if free is not None:
                     file = next((item[1] for item in stored if item[0] is content), "")
-                    progress.update(file, via="text", state="done", read=progress.get(file).get("pages") or 0,
-                                    done=progress.get(file).get("pages") or 0)
+                    pages = int(progress.get(file).get("pages") or 0)
+                    progress.advance(file, via="text", state="done", read=pages, done=pages)
                     for item in progress.legacy_summaries(free, filename)[-progress.LATEST:]:
                         progress.latest(recon_job, item)
                     return free

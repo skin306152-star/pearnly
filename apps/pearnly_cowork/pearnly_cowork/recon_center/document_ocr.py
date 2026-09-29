@@ -128,11 +128,9 @@ def wait(name):
 
 
 def _progress(file, **values):
-    """看板进度只作展示：缓存写失败不影响识别本身。"""
+    """看板进度只作展示（只往前走，见 ``progress.advance``）：缓存写失败不影响识别本身。"""
     try:
-        current = progress.get(file)
-        progress.update(file, **{key: max(int(current.get(key) or 0), value) if isinstance(value, int) else value
-                                 for key, value in values.items()})
+        progress.advance(file, **values)
     except Exception:
         frappe.log_error(title="cowork recon progress", message=frappe.get_traceback())
 
@@ -144,9 +142,8 @@ def _finished(recon_job, file, filename, pages, legacy):
         return
     _progress(file, read=int(pages), done=int(pages), state="done")
     try:
-        if not any(item.get("name") == filename for item in progress.latest_items(recon_job)):
-            for item in progress.legacy_summaries(legacy, filename)[-progress.LATEST:]:
-                progress.latest(recon_job, item)
+        for item in progress.legacy_summaries(legacy, filename)[-progress.LATEST:]:
+            progress.latest(recon_job, item)
     except Exception:
         frappe.log_error(title="cowork recon progress", message=frappe.get_traceback())
 
@@ -252,7 +249,8 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
                 document = json.loads(response.text or "{}")
             except (TypeError, ValueError):
                 document = None
-            progress.latest(recon_job, progress.page_summary(document, filename, getattr(request, "page_number", 0)))
+            progress.latest(recon_job, progress.page_summary(document, filename, getattr(request, "page_number", 0),
+                                                             amounts=False))
             return response
         return invoke
 

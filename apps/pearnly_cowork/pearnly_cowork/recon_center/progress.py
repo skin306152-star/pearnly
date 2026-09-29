@@ -55,29 +55,52 @@ def page_count(filename, content):
     return 1
 
 
+# 每份文件的进度按字段分开存（缓存里的哈希）：识别任务与对账后台任务在不同进程里同时写，整份读改写会把别人刚写的
+# 新状态盖回旧的（2026-09-30 压测第 25 轮 B01：格子从绿变回灰再变绿）。
+STATES = {"waiting": 0, "queued": 1, "reading": 2, "done": 3, "failed": 3}
+
+
 def get(file):
-    return _read(_key(file), {}) or {}
+    try:
+        raw = frappe.cache.hgetall(_key(file)) or {}
+    except Exception:
+        return {}
+    return {(key.decode() if isinstance(key, bytes) else key): value for key, value in raw.items()}
 
 
 def update(file, **values):
+    """直接写这些字段（上传时的初值）。"""
     if not file:
-        return {}
-    current = get(file)
-    current.update(values)
-    _write(_key(file), current)
-    return current
+        return
+    try:
+        for field, value in values.items():
+            frappe.cache.hset(_key(file), field, value)
+        frappe.cache.expire(frappe.cache.make_key(_key(file)), TTL)
+    except Exception:
+        pass
 
 
-def add(file, field, count=1):
-    """读字 / 整理的页数往上加（只加不减：续跑时从检查点取回的调用照样算一遍，所以取较大的）。"""
+def advance(file, **values):
+    """只往前走：页数取较大的（续跑时从检查点取回的调用照样算一遍，不翻倍、不倒退），状态只升不降，其余照写。"""
+    if not file:
+        return
     current = get(file)
-    return update(file, **{field: int(current.get(field) or 0) + int(count)})
+    changed = {}
+    for field, value in values.items():
+        if isinstance(value, int) and not isinstance(value, bool):
+            if value > int(current.get(field) or 0):
+                changed[field] = value
+        elif field == "state":
+            if STATES.get(value, 0) >= STATES.get(current.get("state"), 0) and value != current.get("state"):
+                changed[field] = value
+        elif value != current.get(field):
+            changed[field] = value
+    update(file, **changed)
 
 
 def unread(file, page):
     current = get(file)
-    pages = sorted(set(current.get("unread") or []) | {int(page)})
-    return update(file, unread=pages)
+    update(file, unread=sorted(set(current.get("unread") or []) | {int(page)}))
 
 
 def latest(job, item):
@@ -92,26 +115,44 @@ def latest_items(job):
     return _read(_latest_key(job), [])
 
 
-def page_summary(document, name, page):
-    """一页抽取 / 拼行的结果 → 滚动条的一条：``{name, page, rows, date, kind, amount}``；没有流水回 None。"""
+def _plain_date(value):
+    """规范成 年-月-日；读出来的年份不像（两位年没换算成 1983 之类、差出一年以上）就不显示。"""
+    import datetime
+
+    text = str(value or "").strip()[:10]
+    try:
+        day = datetime.date.fromisoformat(text)
+    except ValueError:
+        return ""
+    return text if abs(day.year - datetime.date.today().year) <= 1 else ""
+
+
+def page_summary(document, name, page, amounts=True):
+    """一页的结果 → 滚动条的一条：``{name, page, rows, date, kind, amount}``；没有流水回 None。
+
+    ``amounts``：金额只在余额链已经算平的页上给（文字层、本地拼行）；3.8 逐页抽取的金额还没经余额链校正，
+    可能是后来被纠正掉的读错值（2026-09-30 压测第 25 轮 B01：「存入 200,449.37」其实是 450），只说这一页读出几笔。"""
     entries = (document or {}).get("entries") or []
     if not entries:
         return None
     last = entries[-1]
     kind, amount = "", ""
-    for field in ("deposit", "withdrawal", "debit", "credit", "total", "subtotal", "amount"):
+    for field in ("deposit", "withdrawal", "debit", "credit", "total", "subtotal", "amount") if amounts else ():
         value = str(last.get(field) or "").strip()
         if value and value not in ("0", "0.00"):
             kind, amount = field, value
             break
     return {"name": name, "page": int(page or 0), "rows": len(entries),
-            "date": str(last.get("transaction_date") or last.get("date") or "")[:10], "kind": kind, "amount": amount}
+            "date": _plain_date(last.get("transaction_date") or last.get("date")) if amounts else "",
+            "kind": kind, "amount": amount}
 
 
 def legacy_summaries(legacy, name):
-    """整份结果（本地拼行 / 文字层一次出来的）→ 每页一条。"""
+    """整份结果里余额链已平的页（文字层、本地拼行）→ 每页一条带金额；逐页抽取的页不在这里（抽取时已按页给过）。"""
     found = []
     for page in (legacy or {}).get("pages") or []:
+        if not ((legacy or {}).get("text_layer") or (page.get("extraction_audit") or {}).get("local")):
+            continue
         item = page_summary(page.get("document"), name, page.get("page_number"))
         if item:
             found.append(item)
@@ -132,12 +173,14 @@ def view(job, files):
         work = current.get("work")
         if work and entry["state"] not in ("done", "failed"):
             row = frappe.db.get_value(WORK, work, ["status", "creation"], as_dict=True)
-            if row and row.status in ("queued", "deferred"):
+            started = entry["read"] or entry["done"] or entry["state"] == "reading"
+            # 已经开始读的，识别任务到点让出续跑时照旧算「读取中」，不闪回「排队中」（2026-09-30 压测第 25 轮 BAY）。
+            if row and row.status in ("queued", "deferred") and not started:
                 entry["state"] = "queued"
                 # 前面还有几份：本站点比它早建、还没做完的识别任务（真数，不估算）。
                 entry["ahead"] = frappe.db.count(WORK, {"status": ["in", ("queued", "deferred", "running")],
                                                         "creation": ["<", row.creation]})
-            elif row and row.status == "running":
+            elif row and (row.status == "running" or started):
                 entry["state"] = "reading"
         shown.append(entry)
     return {"files": shown, "latest": latest_items(job)}

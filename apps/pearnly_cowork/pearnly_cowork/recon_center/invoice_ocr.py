@@ -117,21 +117,22 @@ def submit(recon_job, files, user):
         work = admission.when_room(lambda index=index, arguments=arguments: _create(
             f"{recon_job}:{index}", arguments, user))
         works.append((work, filename))
-        progress.update(file_name, work=work)
+        progress.advance(file_name, work=work)
     for file_name, filename, _content in files:
         if filename in rejected:
-            progress.update(file_name, state="failed")
+            progress.advance(file_name, state="failed")
     return works, rejected
 
 
 def _finished(recon_job, file, filename, pages, invoices):
     """看板：这份发票读完了；每张读出的发票进「刚读出」（发票号、日期、含税金额）。只作展示，失败不影响识别。"""
     try:
-        progress.update(file, state="done" if invoices else "failed", read=int(pages), done=int(pages))
+        progress.advance(file, state="done" if invoices else "failed", read=int(pages), done=int(pages))
         for invoice in invoices[-progress.LATEST:]:
+            # 发票读出的金额没有余额链可校，只说读出了哪张（发票号、日期）。
             progress.latest(recon_job, {"name": invoice.get("invoice_no") or filename, "page": 0, "rows": 0,
-                                        "date": str(invoice.get("invoice_date") or "")[:10], "kind": "total",
-                                        "amount": f"{float(invoice.get('total_amount') or 0):,.2f}"})
+                                        "date": progress._plain_date(invoice.get("invoice_date")), "kind": "",
+                                        "amount": ""})
     except Exception:
         frappe.log_error(title="cowork recon progress", message=frappe.get_traceback())
 
