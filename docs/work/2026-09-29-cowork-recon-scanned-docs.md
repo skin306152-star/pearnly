@@ -255,3 +255,9 @@
 - 旧线上：复核面板只提示“N 行对不上”，确认按钮照常可按，服务端也不检查（`routes/recon_jobs_routes.py: bank_v2_confirm_rows`、`static/recon-review.js`）。
 - 新平台：迁移时有意改严，已在 `docs/work/cowork-backend/bank-review.md` 登记（“有意不复制旧路由未执行服务端余额检查……的弱行为”），余额链不全通过就不能确认，`revision.bank_save` 同样拦。
 - 缺页的存折（SM 18 张照片，答案清单只列了其中 13 张）会一直卡在复核页。方案交给用户选，本轮不改。
+
+**用户 2026-09-29 选 B（经压测窗口转达）：余额链有断点时逐个确认后可保存。** 有意偏离旧线上，也改了迁移时登记的“必须连上”。做法见 `docs/work/cowork-backend/bank-review.md`：
+- `revision.bank_breaks` / `bank_save(acknowledged)`，`sheets.breaks`；
+- `recon.js` 用原生 Dialog，每处一个必选 Select；
+- 确认过的断点写入运行记录提示；
+- 需复核的任务没有改动也能点保存。

@@ -167,15 +167,45 @@ def bank_workbook_bytes(doc, results, summary, lang):
 		**bank_recon_service._stored_run_records(doc))
 
 
-def bank_save(doc, inputs):
-	rows, header, results, summary = bank_compute(doc, inputs)
-	if doc.status == "needs_review":
-		# 需复核的任务照原复核口径：余额链要连得上才可保存。
-		from pearnly_cowork.reconciliation import bank_review
+# 余额链断点的两种确认（用户 2026-09-29 选 B，有意偏离旧线上：旧线上只提示不拦，迁移时改成必须连上才可保存，
+# 缺页的存折就永远存不了）。
+BREAK_KINDS = ("missing_page", "known_difference")
 
-		checks = bank_review.balance_chain(rows[0], header["stmt_opening"])
-		if not all(check["ok"] for check in checks):
-			frappe.throw(_("reconciliation.review_balance_mismatch"))
+
+def _balance_breaks(rows, header):
+	from pearnly_cowork.reconciliation import bank_review
+
+	statement = rows[0]
+	return [{"idx": check["idx"], "date": str(statement[check["idx"]].get("date") or ""),
+		"expected": check["expected"], "actual": check["actual"], "diff": check["diff"]}
+		for check in bank_review.balance_chain(statement, header["stmt_opening"]) if not check["ok"]]
+
+
+def bank_breaks(doc, inputs):
+	"""需复核的任务保存前：对账单余额链还有哪几处连不上（页面据此让人逐个确认）。"""
+	if doc.status != "needs_review":
+		return []
+	rows, header, _results, _summary = bank_compute(doc, inputs)
+	return _balance_breaks(rows, header)
+
+
+def bank_save(doc, inputs, acknowledged=None):
+	rows, header, results, summary = bank_compute(doc, inputs)
+	noted = []
+	if doc.status == "needs_review":
+		# 需复核的任务：余额链连得上直接保存；连不上的每一处都要确认成「此处缺页」或「已知差异」，
+		# 结果的提示里逐条列出。
+		marks = acknowledged if isinstance(acknowledged, dict) else {}
+		for item in _balance_breaks(rows, header):
+			kind = marks.get(str(item["idx"]))
+			if kind not in BREAK_KINDS:
+				frappe.throw(_("reconciliation.review_breaks_unacknowledged"))
+			noted.append(_("reconciliation.review_break").format(item["idx"] + 1, item["date"] or "-",
+				item["diff"] or "-", _(f"cowork.recon.break.{kind}")))
+	if noted:
+		stored = bank_recon_contracts.json_loads(doc.run_info_json) or {}
+		stored["warnings"] = list(stored.get("warnings") or []) + noted
+		doc.run_info_json = bank_recon_contracts.json_dumps(bank_recon_contracts.run_info(stored))
 	frappe.db.delete(bank_recon_service.ROW, {"task": doc.name})
 	doc.update({"status": "completed", "row_count": len(results),
 		"inputs_json": recon_contracts.inputs_json(statement=rows[0], gl=rows[1]),

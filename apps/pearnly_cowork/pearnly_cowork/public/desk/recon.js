@@ -465,6 +465,7 @@
 			if (request !== sequence || frappe.get_route()[1] !== name) return;
 			clear();
 			let modified = data.task.modified, dirty = false, pending = null, active = 0, view = data, waiting = null;
+			let status = data.task.status;
 			let inputs = clone(data.inputs), good = clone(data.inputs);
 			page.set_title(data.task.title || name); breadcrumbs([{ label: data.task.title || name }]);
 			// 为什么要人看一眼：跟在标题旁的原生指示器里（用户 2026-09-28：只在页面写，导出的 Excel 不加）。
@@ -482,7 +483,8 @@
 			};
 			const buttons = () => {
 				page.clear_primary_action(); page.clear_secondary_action();
-				if (dirty) {
+				// 需复核的银行对账没改也要能保存（确认），否则只有导出（用户 2026-09-29 选 B：有断点逐个确认后保存）。
+				if (dirty || (kind === "bank" && status === "needs_review")) {
 					page.set_primary_action(__("Save"), save);
 					page.set_secondary_action(t("cowork.recon.export"), export_now);
 				} else {
@@ -565,10 +567,35 @@
 				if (!dirty) { dirty = true; buttons(); }
 				void recalc();
 			}
+			// 余额链还连不上的每一处：原生对话框逐个选「此处缺页 / 已知差异」，都选了才保存（用户 2026-09-29 选 B）。
+			const confirm_breaks = found => new Promise(resolve => {
+				const choices = ["missing_page", "known_difference"];
+				const labels = choices.map(choice => t(`cowork.recon.break.${choice}`));
+				const dialog = new frappe.ui.Dialog({
+					title: t("cowork.recon.breaks"),
+					fields: found.map(item => ({ fieldtype: "Select", fieldname: `b${item.idx}`, reqd: 1,
+						label: [item.idx + 1, item.date, item.diff].filter(Boolean).join(" · "), options: ["", ...labels] })),
+					primary_action_label: __("Save"),
+					primary_action(values) {
+						resolve(Object.fromEntries(found.map(item => [item.idx, choices[labels.indexOf(values[`b${item.idx}`])]])));
+						dialog.hide();
+					},
+				});
+				dialog.onhide = () => resolve(null);
+				dialog.show();
+			});
 			async function save() {
+				let acknowledged;
+				if (kind === "bank" && status === "needs_review") {
+					const found = await p.call(sheets_api + "breaks", { kind, task_id: name, inputs: JSON.stringify(inputs) }, "POST");
+					if (found.length) {
+						acknowledged = await confirm_breaks(found);
+						if (!acknowledged) return;
+					}
+				}
 				const saved = await p.call(sheets_api + "save", { kind, task_id: name, inputs: JSON.stringify(inputs),
-					modified, lang: lang() }, "POST");
-				modified = saved.task.modified; dirty = false;
+					modified, lang: lang(), acknowledged: acknowledged ? JSON.stringify(acknowledged) : undefined }, "POST");
+				modified = saved.task.modified; dirty = false; status = saved.task.status;
 				view = saved; inputs = clone(saved.inputs); good = clone(saved.inputs);
 				buttons(); paint();
 				p.success(t("cowork.recon.saved"));

@@ -104,6 +104,7 @@ Attachments,添付ファイル
 Attempt Secret,試行用シークレット
 Automation,自動化
 Balance,残高
+Balance breaks,残高が合わない箇所
 Bank,銀行
 Bank Reconciliation,銀行照合
 Bank amount,銀行金額
@@ -492,6 +493,7 @@ Item,項目
 Items,品目
 Job Roles,機能権限
 Keep,引き継ぐ
+Known difference,既知の差異
 LINE is not enabled for this account,このアカウントは LINE が有効になっていません
 LINE name,LINE の名前
 LINE unbound,LINE の連携を解除しました
@@ -512,6 +514,7 @@ Ledger amount,元帳金額
 Ledger credit only,元帳貸方のみ
 Ledger debit only,元帳借方のみ
 Light,ライト
+Line {0} ({1}): balance off by {2} — {3},{0} 行目（{1}）残高差 {2}：{3}
 List,リスト
 List actions,リストの操作
 List archived,リストをアーカイブしました
@@ -533,6 +536,7 @@ Mapping Key,マッピングキー
 Mapping Kind,マッピング種類
 Mark all as read,すべて既読にする
 Mark complete,完了にする
+Mark each balance break as a missing page or a known difference before saving.,残高が合わない各箇所を「ページ欠落」または「既知の差異」にしてから保存してください。
 Mark incomplete,未完了に戻す
 Match rate,一致率
 Matched,一致
@@ -542,6 +546,7 @@ Member,メンバー
 Members,メンバー
 Members and observers,メンバーとオブザーバー
 Mirror,ミラー
+Missing page,ページ欠落
 Monthly,毎月
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
@@ -1222,6 +1227,9 @@ cowork.recon.bank.right,総勘定元帳
 cowork.recon.bank.stmt_deposit_only,銀行入金のみ
 cowork.recon.bank.stmt_withdrawal_only,銀行出金のみ
 cowork.recon.bothFiles,先に2つのファイルを選択してください
+cowork.recon.break.known_difference,既知の差異
+cowork.recon.break.missing_page,ページ欠落
+cowork.recon.breaks,残高が合わない箇所
 cowork.recon.checking,照合中
 cowork.recon.col.account,勘定科目コード
 cowork.recon.col.amount,金額
@@ -1972,6 +1980,8 @@ reconciliation.request_conflict,このリクエストは別の内容で使用済
 reconciliation.request_invalid,リクエストが無効です。再読み込みしてやり直してください。
 reconciliation.review_amount_invalid,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
 reconciliation.review_balance_mismatch,明細の残高差異を修正してから確定してください。
+reconciliation.review_break,{0} 行目（{1}）残高差 {2}：{3}
+reconciliation.review_breaks_unacknowledged,残高が合わない各箇所を「ページ欠落」または「既知の差異」にしてから保存してください。
 reconciliation.review_required,明細確認を完了してから照合結果を出力してください。
 reconciliation.review_rows_invalid,確認明細または元の行番号が無効です。
 reconciliation.review_unavailable,このタスクには明細確認記録がありません。

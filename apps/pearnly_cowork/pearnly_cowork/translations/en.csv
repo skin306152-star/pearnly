@@ -104,6 +104,7 @@ Attachments,Attachments
 Attempt Secret,Attempt Secret
 Automation,Automation
 Balance,Balance
+Balance breaks,Balance breaks
 Bank,Bank
 Bank Reconciliation,Bank Reconciliation
 Bank amount,Bank amount
@@ -492,6 +493,7 @@ Item,Item
 Items,Items
 Job Roles,Job Roles
 Keep,Keep
+Known difference,Known difference
 LINE is not enabled for this account,LINE is not enabled for this account
 LINE name,LINE name
 LINE unbound,LINE unbound
@@ -512,6 +514,7 @@ Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
 Light,Light
+Line {0} ({1}): balance off by {2} — {3},Line {0} ({1}): balance off by {2} — {3}
 List,List
 List actions,List actions
 List archived,List archived
@@ -533,6 +536,7 @@ Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
 Mark all as read,Mark all as read
 Mark complete,Mark complete
+Mark each balance break as a missing page or a known difference before saving.,Mark each balance break as a missing page or a known difference before saving.
 Mark incomplete,Mark incomplete
 Match rate,Match rate
 Matched,Matched
@@ -542,6 +546,7 @@ Member,Member
 Members,Members
 Members and observers,Members and observers
 Mirror,Mirror
+Missing page,Missing page
 Monthly,Monthly
 Move,Move
 Move all cards in this list,Move all cards in this list
@@ -1222,6 +1227,9 @@ cowork.recon.bank.right,General ledger
 cowork.recon.bank.stmt_deposit_only,Bank deposit only
 cowork.recon.bank.stmt_withdrawal_only,Bank withdrawal only
 cowork.recon.bothFiles,Choose both files first
+cowork.recon.break.known_difference,Known difference
+cowork.recon.break.missing_page,Missing page
+cowork.recon.breaks,Balance breaks
 cowork.recon.checking,Checking
 cowork.recon.col.account,Account code
 cowork.recon.col.amount,Amount
@@ -1972,6 +1980,8 @@ reconciliation.request_conflict,This request was already used for different cont
 reconciliation.request_invalid,The request is invalid. Reload and try again.
 reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
 reconciliation.review_balance_mismatch,Check the statement balance differences before confirming.
+reconciliation.review_break,Line {0} ({1}): balance off by {2} — {3}
+reconciliation.review_breaks_unacknowledged,Mark each balance break as a missing page or a known difference before saving.
 reconciliation.review_required,Complete statement review before exporting the result.
 reconciliation.review_rows_invalid,Invalid statement review rows or row references.
 reconciliation.review_unavailable,Statement review is not available for this task.

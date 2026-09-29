@@ -483,7 +483,14 @@ def recalc(kind, task_id, inputs, lang=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def save(kind, task_id, inputs, modified, lang=None):
+def breaks(kind, task_id, inputs):
+    """需复核的银行对账保存前：余额链还连不上的几处（逐个确认成「此处缺页 / 已知差异」才可保存）。"""
+    doc = _task(kind, task_id)
+    return revision.bank_breaks(doc, _parse(kind, inputs)) if kind == "bank" else []
+
+
+@frappe.whitelist(methods=["POST"])
+def save(kind, task_id, inputs, modified, lang=None, acknowledged=None):
     doc = _task(kind, task_id, for_update=True)
     if str(doc.modified) != str(modified):
         frappe.throw(_("reconciliation.edit_conflict"))
@@ -491,7 +498,8 @@ def save(kind, task_id, inputs, modified, lang=None):
     if kind == "vat":
         vat_check_service.save(doc, inputs, _lang(lang))
     elif kind == "bank":
-        revision.bank_save(doc, inputs)
+        marks = frappe.parse_json(acknowledged) if isinstance(acknowledged, str) else acknowledged
+        revision.bank_save(doc, inputs, marks if isinstance(marks, dict) else None)
     else:
         revision.income_save(doc, inputs)
     frappe.db.commit()

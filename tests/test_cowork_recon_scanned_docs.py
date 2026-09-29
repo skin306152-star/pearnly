@@ -483,6 +483,46 @@ class StatementOrderAndDates(unittest.TestCase):
 			date(2026, 5, 4), date(2026, 4, 28)])
 
 
+class ReviewWithBalanceBreaks(unittest.TestCase):
+	"""用户 2026-09-29 选 B：需复核的银行对账有断点时，逐个确认成「此处缺页 / 已知差异」才可保存。"""
+
+	def save(self, acknowledged):
+		from decimal import Decimal
+
+		from pearnly_cowork.reconciliation import revision
+
+		statement = [{"date": date(2026, 5, 1), "deposit": Decimal("100"), "withdrawal": Decimal("0"), "balance": Decimal("1100")},
+			{"date": date(2026, 5, 3), "deposit": Decimal("50"), "withdrawal": Decimal("0"), "balance": Decimal("1300")}]
+		doc = mock.MagicMock(status="needs_review", run_info_json="{}")
+		doc.name = "CBR-1"
+		with mock.patch.object(revision, "bank_compute", return_value=((statement, []), {"stmt_opening": Decimal("1000")}, [], {})), \
+				mock.patch.object(revision, "_", side_effect=lambda text: text + " {0} {1} {2} {3}"), \
+				mock.patch.object(revision.frappe, "db", mock.MagicMock()), mock.patch.object(revision, "_record"), \
+				mock.patch.object(revision.frappe, "throw", side_effect=lambda message, *a, **k: self.refuse(message)), \
+				mock.patch.object(revision.bank_recon_service, "persist"), \
+				mock.patch.object(revision.bank_recon_service, "_persist_rows"):
+			self.assertEqual([item["idx"] for item in revision.bank_breaks(doc, {})], [1])
+			revision.bank_save(doc, {}, acknowledged)
+		return doc
+
+	@staticmethod
+	def refuse(message):
+		raise frappe.ValidationError(message)
+
+	def test_a_break_left_unmarked_is_not_saved(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.save(None)
+		with self.assertRaises(frappe.ValidationError):
+			self.save({"1": "whatever"})
+
+	def test_marked_breaks_are_saved_and_listed_in_the_result(self):
+		doc = self.save({"1": "missing_page"})
+		warnings = json.loads(doc.run_info_json)["warnings"]
+		self.assertEqual(len(warnings), 1)
+		self.assertIn("cowork.recon.break.missing_page", warnings[0])
+		self.assertIn("2026-05-03", warnings[0])
+
+
 class HeaderAnchoredStatement(unittest.TestCase):
 	def read(self, rows):
 		from pearnly_cowork.ocr.enterprise import header_bank

@@ -104,6 +104,7 @@ Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
 Automation,ระบบอัตโนมัติ
 Balance,ยอดคงเหลือ
+Balance breaks,จุดที่ยอดคงเหลือไม่ต่อเนื่อง
 Bank,ธนาคาร
 Bank Reconciliation,กระทบยอดธนาคาร
 Bank amount,ยอดธนาคาร
@@ -492,6 +493,7 @@ Item,รายการ
 Items,รายการ
 Job Roles,สิทธิ์การใช้งาน
 Keep,คงไว้
+Known difference,ผลต่างที่ทราบแล้ว
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
 LINE name,ชื่อ LINE
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
@@ -512,6 +514,7 @@ Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 Light,ไฟ
+Line {0} ({1}): balance off by {2} — {3},รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}
 List,รายการ
 List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
@@ -533,6 +536,7 @@ Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
 Mark all as read,ทำเครื่องหมายว่าอ่านทั้งหมด
 Mark complete,ทำเครื่องหมายว่าเสร็จ
+Mark each balance break as a missing page or a known difference before saving.,"กรุณาระบุทุกจุดที่ยอดคงเหลือไม่ต่อเนื่องว่าเป็น ""หน้าขาดหาย"" หรือ ""ผลต่างที่ทราบแล้ว"" ก่อนบันทึก"
 Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
 Match rate,อัตราการจับคู่
 Matched,จับคู่แล้ว
@@ -542,6 +546,7 @@ Member,สมาชิก
 Members,สมาชิก
 Members and observers,สมาชิกและผู้สังเกตการณ์
 Mirror,มิเรอร์
+Missing page,หน้าขาดหาย
 Monthly,ทุกเดือน
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
@@ -1222,6 +1227,9 @@ cowork.recon.bank.right,บัญชีแยกประเภททั่ว�
 cowork.recon.bank.stmt_deposit_only,มีเฉพาะรายการฝากในธนาคาร
 cowork.recon.bank.stmt_withdrawal_only,มีเฉพาะรายการถอนในธนาคาร
 cowork.recon.bothFiles,กรุณาเลือกไฟล์ทั้งสองก่อน
+cowork.recon.break.known_difference,ผลต่างที่ทราบแล้ว
+cowork.recon.break.missing_page,หน้าขาดหาย
+cowork.recon.breaks,จุดที่ยอดคงเหลือไม่ต่อเนื่อง
 cowork.recon.checking,กำลังตรวจสอบ
 cowork.recon.col.account,รหัสบัญชี
 cowork.recon.col.amount,จำนวนเงิน
@@ -1972,6 +1980,8 @@ reconciliation.request_conflict,คำขอนี้ถูกใช้กับ
 reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 reconciliation.review_amount_invalid,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม
 reconciliation.review_balance_mismatch,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
+reconciliation.review_break,รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}
+reconciliation.review_breaks_unacknowledged,"กรุณาระบุทุกจุดที่ยอดคงเหลือไม่ต่อเนื่องว่าเป็น ""หน้าขาดหาย"" หรือ ""ผลต่างที่ทราบแล้ว"" ก่อนบันทึก"
 reconciliation.review_required,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
 reconciliation.review_rows_invalid,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
 reconciliation.review_unavailable,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี

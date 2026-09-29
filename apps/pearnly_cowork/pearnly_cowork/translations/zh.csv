@@ -104,6 +104,7 @@ Attachments,附件
 Attempt Secret,尝试密钥
 Automation,自动化
 Balance,余额
+Balance breaks,余额对不上的地方
 Bank,银行
 Bank Reconciliation,银行对账
 Bank amount,银行金额
@@ -492,6 +493,7 @@ Item,项目
 Items,物料
 Job Roles,功能权限
 Keep,保留
+Known difference,已知差异
 LINE is not enabled for this account,这个账号没有开通 LINE
 LINE name,LINE 名称
 LINE unbound,LINE 已解绑
@@ -512,6 +514,7 @@ Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
 Light,灯光
+Line {0} ({1}): balance off by {2} — {3},第 {0} 行（{1}）余额差 {2}：{3}
 List,列表
 List actions,列表操作
 List archived,列表已归档
@@ -533,6 +536,7 @@ Mapping Key,映射键
 Mapping Kind,映射类型
 Mark all as read,全部标为已读
 Mark complete,标记完成
+Mark each balance break as a missing page or a known difference before saving.,请先把每处余额对不上的地方标成「此处缺页」或「已知差异」再保存。
 Mark incomplete,标记未完成
 Match rate,匹配率
 Matched,已匹配
@@ -542,6 +546,7 @@ Member,成员
 Members,成员
 Members and observers,成员和观察者
 Mirror,镜像
+Missing page,此处缺页
 Monthly,每月
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
@@ -1222,6 +1227,9 @@ cowork.recon.bank.right,总账
 cowork.recon.bank.stmt_deposit_only,仅银行存入
 cowork.recon.bank.stmt_withdrawal_only,仅银行支出
 cowork.recon.bothFiles,请先选好两份文件
+cowork.recon.break.known_difference,已知差异
+cowork.recon.break.missing_page,此处缺页
+cowork.recon.breaks,余额对不上的地方
 cowork.recon.checking,核对中
 cowork.recon.col.account,科目代码
 cowork.recon.col.amount,金额
@@ -1972,6 +1980,8 @@ reconciliation.request_conflict,这个请求已用于不同内容。
 reconciliation.request_invalid,请求无效，请刷新后重试。
 reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。
 reconciliation.review_balance_mismatch,请先修正账单余额差异，再确认。
+reconciliation.review_break,第 {0} 行（{1}）余额差 {2}：{3}
+reconciliation.review_breaks_unacknowledged,请先把每处余额对不上的地方标成「此处缺页」或「已知差异」再保存。
 reconciliation.review_required,请先完成账单复核，再导出对账结果。
 reconciliation.review_rows_invalid,复核行内容或原始行编号无效。
 reconciliation.review_unavailable,此任务没有逐行复核记录。
