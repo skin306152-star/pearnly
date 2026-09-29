@@ -26,6 +26,7 @@ trap '[[ -z "$image_record_temp" ]] || rm -f "$image_record_temp"; printf "Activ
 "${compose[@]}" stop -t 130 "$product-web" "$product-socketio"
 workers=("$product-worker" "$product-ocr-worker")
 if [[ "$product" == dms ]]; then workers+=(dms-sync-worker); fi
+if [[ "$product" == cowork ]]; then workers+=(cowork-long-worker); fi
 "${compose[@]}" stop -t 660 "${workers[@]}"
 PEARNLY_IMAGE="$previous_image" "${compose[@]}" run --rm --no-deps "$product-web" bench --site all backup --with-files
 "${compose[@]}" run --rm --no-deps "$product-web" env/bin/python -m pearnly_core.execution.configuration --redis-url redis://redis-queue:6379/6

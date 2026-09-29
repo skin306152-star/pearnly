@@ -128,6 +128,38 @@ class WholeWorkbook(unittest.TestCase):
 		self.assertEqual([row.balance for row in result["rows"]], [900.0, 1400.0])
 		self.assertFalse(result["closing_printed"])
 
+	def test_a_month_without_movement_reads_as_the_printed_opening(self):
+		# 2026-09-29 有意改变：Express 的储蓄 / 定期户多数月份 0 笔，只印期初和合计。旧线上整单判失败（no_rows）；
+		# 现在只要印了期初就照样对账，银行那边每一笔都显示为总账未记。
+		from pearnly_cowork.reconciliation import bank_intake
+
+		quiet = workbook([DATE_H, ["01/02/2569", "ยอดยกมา", "", "", "", 1000.0, ""], ["", "รวม", 0, 0, "", "", ""]])
+		result = bank_intake.read_ledger_file(quiet, "gl.xlsx", model_rows=lambda *_a: self.fail("no model for a workbook"))
+		self.assertTrue(result["ok"])
+		self.assertEqual((result["row_count"], result["opening"], result["closing"]), (0, 1000.0, 1000.0))
+		# 连期初都没有的空表不是“本月无发生额”，照旧读不出。
+		empty = bank_intake.read_ledger_file(workbook([DATE_H]), "gl.xlsx", model_rows=lambda *_a: None)
+		self.assertFalse(empty["ok"])
+
+	def test_the_opening_printed_on_the_account_line(self):
+		# Express 版式：科目标题行（代码 + 名称）余额列就是期初，没有「ยอดยกมา」字样。有发生额时与印出的期末核对。
+		header = ["วันที่", "สมุด", "ใบสำคัญ", "คำอธิบาย", "เดบิท", "เครดิต", "สถานะ", "ยอดคงเหลือ"]
+		result = gl_sheets.parse_gl_workbook(workbook([header,
+			["11-01-03-06 SAVING-K Bank", "", "", "", "", "", "", 1000.0],
+			["05/02/2569", "RV", "RV001", "รับเงิน", 500.0, "", "", 1500.0],
+			["06/02/2569", "PV", "PV001", "จ่าย", "", 200.0, "", 1300.0],
+			["", "", "", "รวม", 500.0, 200.0, "", 1300.0]]), "gl.xlsx")
+		self.assertEqual(result["row_count"], 2)  # the printed total line is not a transaction
+		self.assertEqual((result["opening"], result["closing"], result["opening_found"]), (1000.0, 1300.0, True))
+		self.assertEqual([row.balance for row in result["rows"]], [1500.0, 1300.0])
+		quiet = gl_sheets.parse_gl_workbook(workbook([header, ["11-01-03-06 SAVING-K Bank", "", "", "", "", "", "", 1000.0],
+			["", "", "", "รวม", 0, 0, "", 1000.0]]), "gl.xlsx")
+		self.assertEqual((quiet["row_count"], quiet["opening"], quiet["closing"]), (0, 1000.0, 1000.0))
+		# 对不上印出的期末就不采信，照旧期初 0（交给对账的期初差提示）。
+		wrong = gl_sheets.parse_gl_workbook(workbook([header, ["11-01-03-06 SAVING-K Bank", "", "", "", "", "", "", 999.0],
+			["05/02/2569", "RV", "RV001", "รับเงิน", 500.0, "", "", 1500.0]]), "gl.xlsx")
+		self.assertEqual((wrong["opening"], wrong["opening_found"]), (0.0, False))
+
 	def test_a_negative_amount_is_a_reversal_on_the_other_side(self):
 		# 2026-09-29：「(500.00)」写在借方是冲销，记成贷方 500（旧线上取绝对值记成借方 500，余额差 1,000）。
 		result = gl_sheets.parse_gl_workbook(workbook([

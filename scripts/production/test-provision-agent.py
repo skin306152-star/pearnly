@@ -208,20 +208,26 @@ class ProductImages(unittest.TestCase):
                 # DMS additionally runs the manual snapshot synchronization queue.
                 if group == "dms":
                     expected_containers.append("dms-sync-worker")
+                # Cowork runs reconciliation jobs (long queue) in their own worker pool.
+                if group == "cowork":
+                    expected_containers.append("cowork-long-worker")
                 self.assertEqual(args[args.index("up") + 2:], expected_containers)
 
 
 class Contracts(unittest.TestCase):
-    def test_sync_lane_is_in_every_dms_worker_lifecycle_and_not_other_products(self):
+    def test_product_lanes_follow_every_worker_lifecycle(self):
         for suffixes in (("web", "worker", "scheduler"),
                          ("scheduler", "worker", "ocr-worker", "ocr-dispatch"),
                          ("worker", "ocr-worker", "ocr-dispatch", "scheduler")):
             self.assertIn("dms-sync-worker", agent.services("dms", suffixes))
-            for group in ("erp", "cowork"):
-                self.assertEqual(agent.services(group, suffixes), [group + "-" + item for item in suffixes])
-        with patch.object(agent, "compose") as compose:
-            agent.restart_group("dms")
-            self.assertIn("dms-sync-worker", compose.call_args.args)
+            self.assertIn("cowork-long-worker", agent.services("cowork", suffixes))
+            self.assertNotIn("dms-sync-worker", agent.services("cowork", suffixes))
+            self.assertEqual(agent.services("erp", suffixes), ["erp-" + item for item in suffixes])
+        self.assertEqual(agent.services("cowork", ("web", "frontend")), ["cowork-web", "cowork-frontend"])
+        for group, lane in (("dms", "dms-sync-worker"), ("cowork", "cowork-long-worker")):
+            with patch.object(agent, "compose") as compose:
+                agent.restart_group(group)
+                self.assertIn(lane, compose.call_args.args)
 
     def test_forced_ssh_entry_is_executable_and_rejects_invalid_job(self):
         self.assertTrue(os.access(path, os.X_OK), "Forced SSH command must retain its Git executable bit")

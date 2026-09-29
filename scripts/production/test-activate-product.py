@@ -18,11 +18,14 @@ def activated_services(product):
     """Containers `activate-product.sh` recreates for one product, in order.
 
     DMS runs an extra queue worker for the manual snapshot synchronization; the
-    other products must not get it.
+    other products must not get it. Cowork runs its long queue (reconciliation jobs
+    that wait on recognition) in a separate worker pool.
     """
     suffixes = ['web', 'worker', 'ocr-worker', 'ocr-dispatch', 'scheduler', 'socketio', 'frontend']
     if product == 'dms':
         suffixes.insert(3, 'sync-worker')
+    if product == 'cowork':
+        suffixes.insert(3, 'long-worker')
     return [f'{product}-{suffix}' for suffix in suffixes]
 
 
@@ -171,6 +174,15 @@ elif 'ps' in args:
         self.assertLess(drain, configure)
         self.assertLess(configure, migrate)
         self.assertLess(migrate, start)
+
+    def test_cowork_reconciliation_lane_is_drained_and_recreated(self):
+        result, trace = self.run_activation(product='cowork')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        drain = next(i for i, args in enumerate(calls) if '660' in args and 'stop' in args)
+        start = next(i for i, args in enumerate(calls) if 'up' in args)
+        self.assertIn('cowork-long-worker', calls[drain])
+        self.assertIn('cowork-long-worker', calls[start])
 
     def test_other_products_do_not_get_dms_queue_or_tick_changes(self):
         for product in ('erp', 'cowork'):

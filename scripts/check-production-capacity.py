@@ -36,6 +36,14 @@ assert services['dms-worker']['command'][3] == 'short,default,long'
 assert services['dms-ocr-worker']['command'][3] == 'ocr'
 assert not any(name in services for name in ('erp-sync-worker', 'cowork-sync-worker'))
 checks.append('Dedicated DMS sync lane never consumes interactive or OCR queues')
+# Cowork 对账任务在 long 队列里等识别（最长 25 分钟）：单独两个进程，short / default（含定时任务）不再排在它后面。
+assert services['cowork-worker']['command'] == ['bench', 'worker', '--queue', 'short,default']
+assert services['cowork-long-worker']['command'] == ['bench', 'worker-pool', '--queue', 'long', '--num-workers', '2']
+assert int(services['cowork-long-worker']['mem_limit']) == 1536 * M
+assert services['cowork-long-worker']['profiles'] == ['cowork']
+assert not services['cowork-long-worker'].get('ports')
+assert services['cowork-ocr-worker']['command'][3] == 'ocr'
+checks.append('Cowork reconciliation lane never holds scheduled or interactive jobs')
 
 
 # 真实的"当前宿主"是 SSD Nodes 迁移后那台：8 vCPU / 32095 MiB

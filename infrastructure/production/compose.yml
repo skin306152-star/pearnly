@@ -261,6 +261,20 @@ services:
   cowork-worker:
     profiles: [cowork]
     <<: *worker
+    # long 队列归下面的 cowork-long-worker：对账任务在 long 里等识别，最长 25 分钟；和定时任务共用一个进程时，
+    # default 里的 run_scheduled_job 全排在对账后面（2026-09-29 压测，一次堆了 12 个）。
+    command: [bench, worker, --queue, 'short,default']
+    volumes: *cowork-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  cowork-long-worker:
+    profiles: [cowork]
+    <<: *worker
+    # 对账后台任务：两个同时跑（旧线上 RECON_WORKER_CONCURRENCY 默认 2），互不排队，也不挡定时任务。
+    # 两个进程共用 1.5g：每个进程与原来单个 worker 的 768m 相同。
+    mem_limit: 1536m
+    command: [bench, worker-pool, --queue, long, --num-workers, '2']
     volumes: *cowork-volumes
     environment:
       <<: *frappe-env

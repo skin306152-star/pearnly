@@ -212,12 +212,16 @@ GL_SKIP_KEYWORDS = frozenset((
 	"รวมทั้งสิ้น",
 	"รวมแต่ละหน้า",
 ))
+# 整格就是这一个词的合计行（Express 总账最后一行只印「รวม」和借贷合计）：原来当成一笔借贷同行的交易，
+# 当月发生额被再记一遍（2026-09-29 压测）。只认整格相等，摘要里带「รวม」的真交易（รวมบิล）不受影响。
+GL_TOTAL_LABELS = frozenset(("รวม", "total", "grand total", "合计", "合計", "総計"))
 
 
 def is_gl_skip_row(cells) -> bool:
 	"""总账里的汇总/结转行：只看该行**前四格**（旧口径，别的列里出现"subtotal"不算）。"""
-	joined = " ".join(str(cell or "").strip().lower() for cell in cells[:4])
-	return any(keyword in joined for keyword in GL_SKIP_KEYWORDS)
+	leading = [str(cell or "").strip().lower() for cell in cells[:4]]
+	joined = " ".join(leading)
+	return any(keyword in joined for keyword in GL_SKIP_KEYWORDS) or any(cell in GL_TOTAL_LABELS for cell in leading)
 
 
 def statement_rows_from_entries(entries: List[Dict[str, Any]], filename: str) -> List[StatementRow]:

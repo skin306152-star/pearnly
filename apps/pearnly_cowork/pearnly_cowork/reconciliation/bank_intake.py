@@ -253,6 +253,7 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 	closing_printed = False
 	source = ""
 	free_error: Optional[Tuple[Optional[str], str]] = None
+	no_movement = False
 
 	if ext in WORKBOOK_EXTENSIONS:
 		direct = gl_sheets.parse_gl_workbook(file_bytes, filename, account_code)
@@ -261,6 +262,9 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 			opening, closing = direct["opening"], direct["closing"]
 			closing_printed = direct["closing_printed"]
 			source = "workbook"
+			# 印了期初、当月一笔也没有：这个户本月无发生额（Express 的储蓄 / 定期户多数月份如此），照样对账，
+			# 银行那边的每一笔都显示为总账未记。旧线上整单判失败（no_rows）；2026-09-29 用户：对产品有利的直接做。
+			no_movement = not rows and bool(direct.get("opening_found"))
 		else:
 			free_error = (direct.get("error_code"), direct["error"])
 	elif ext == "pdf":
@@ -272,7 +276,7 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 		return _failure("unsupported_format",
 			f"unsupported format .{ext}" if ext else "unsupported format", accounts=[])
 
-	if not rows and model_rows is not None:
+	if not rows and model_rows is not None and not no_movement:
 		model = model_rows("general_ledger", file_bytes, filename) or {}
 		if model.get("ok") and model.get("rows"):
 			rows = model["rows"]
@@ -284,7 +288,7 @@ def read_ledger_file(file_bytes: bytes, filename: str, *, account_code: str = ""
 		elif model.get("error"):
 			return _failure(model.get("error_code") or "model_failed", model["error"], accounts=[])
 
-	if not rows:
+	if not rows and not no_movement:
 		if free_error is not None and free_error[0]:
 			return _failure(free_error[0], free_error[1], accounts=[])
 		if model_rows is None:

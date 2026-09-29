@@ -179,6 +179,7 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 	gl_opening_found = False
 	last_row_date = None  # 空日期沿用上一行（Mr.erp 一天只印一次日期）
 	last_balance_seen = None  # 给期末兜底用最后一笔交易的余额
+	preceding_balance = None  # 第一笔交易前、没有借贷只有余额的一行（Express 把期初印在科目标题行）
 
 	for row in all_rows_raw[header_idx + 1:]:
 		if not any(row):
@@ -206,6 +207,10 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 			continue
 		if is_gl_skip_row(row_list):
 			continue  # 其余汇总/结转行（ยอดยกไป/subtotal/总计）不是交易
+		if not rows and preceding_balance is None:
+			cell = lambda key: row_list[col_map[key]] if key in col_map and col_map[key] < len(row_list) else ""  # noqa: E731
+			if cell("balance") and not to_float(cell("debit") or 0) and not to_float(cell("credit") or 0):
+				preceding_balance = to_float(cell("balance"))
 
 		date_text = (
 			row_list[col_map["date"]]
@@ -285,6 +290,14 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 		):
 			last_balance_seen = to_float(row_list[col_map["balance"]])
 
+	if not gl_opening_found and preceding_balance is not None:
+		# 没有「ยอดยกมา / 期初」字样时，第一笔前那行的余额就是期初：有发生额时要与印出的期末对得上才采信
+		# （期初 + 借 − 贷 = 期末），当月 0 笔就是它本身。2026-09-29 压测：Express 版式总账期初全读成 0，
+		# 旧线上同样（它的期初反推用的是按 0 推出来的余额，不起作用）。
+		movement = sum(row.debit for row in rows) - sum(row.credit for row in rows)
+		if not rows or (last_balance_seen is not None
+				and abs(preceding_balance + movement - last_balance_seen) <= 0.01):
+			opening, gl_opening_found = preceding_balance, True
 	if not gl_opening_found:
 		opening = 0.0
 	attach_running_balance(rows, opening)
@@ -303,4 +316,6 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 		"closing": closing,
 		"closing_printed": last_balance_seen is not None,
 		"row_count": len(rows),
+		# 表里印了期初行：0 行时据此区分“本月没有发生额”和“读错了表”（bank_intake.read_ledger_file）。
+		"opening_found": gl_opening_found,
 	}

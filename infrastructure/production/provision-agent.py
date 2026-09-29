@@ -87,6 +87,8 @@ def services(group, suffixes):
     names = [group + "-" + suffix for suffix in suffixes]
     if group == "dms" and "worker" in suffixes:
         names.append("dms-sync-worker")
+    if group == "cowork" and "worker" in suffixes:
+        names.append("cowork-long-worker")
     return names
 
 
