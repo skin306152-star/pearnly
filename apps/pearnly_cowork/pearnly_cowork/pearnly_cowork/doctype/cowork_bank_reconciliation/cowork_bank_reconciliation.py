@@ -231,6 +231,8 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		"recognised": bool(bank_name or digits or any(item.get("period_start") for item in documents)),
 		"accounts": sorted({row.account_code for row in rows}) if document_type == "general_ledger" else [],
 		"parser_version": legacy.get("engine"), "needs_review": bool(legacy.get("_needs_review")),
+		# 电子 PDF 按文字层坐标拼的（没识别、没花钱）：结果页不当成照片 / 扫描件（不建议改传电子版）。
+		"text_layer": bool(legacy.get("text_layer")),
 		"validation_warnings": [warning for page in pages for warning in page.get("validation_warnings") or []]}
 
 

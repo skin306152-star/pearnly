@@ -113,6 +113,16 @@ def _local(payloads, category, page_count):
     return local if local is not None and local.arithmetic_passed else None
 
 
+def local_only(payloads, category, page_count):
+    """只做本地拼行（不调模型、不花钱）：余额链算得平回 ``PipelineResult``，否则 None。带文字层的电子 PDF 用
+    （``text_layer``）；页数对不上抛 ``ContentError``（与识别路同一判据）。"""
+    local = _local(payloads, category, page_count)
+    if local is None:
+        return None
+    return PipelineResult(pages=_local_pages(local, category), page_count=page_count, elapsed_ms=0, engine=ENGINE,
+        estimated_cost_thb=0.0, read_ms=[])
+
+
 def _extract(model_call, image, mime, category, transcript, number):
     request = build_request(category, transcript)
     config = request["config"]

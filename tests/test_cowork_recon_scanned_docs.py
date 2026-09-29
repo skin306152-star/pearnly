@@ -1311,29 +1311,53 @@ class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 
 
 class WaitingForARead(unittest.TestCase):
-	def run_wait(self, rows, checkpoints):
-		clock = iter(range(0, 100000, 100))
-		rows, checkpoints = iter(rows), iter(checkpoints)
+	def run_wait(self, status_at, checkpoints_at):
+		"""``status_at(秒)`` / ``checkpoints_at(秒)``：那一刻识别任务的状态 / 检查点；时钟随每次 sleep 前进。"""
+		clock = [0.0]
 
 		def get_value(doctype, name, fields, as_dict=False):
-			return next(rows) if isinstance(fields, list) else next(checkpoints)
+			return status_at(clock[0]) if isinstance(fields, list) else json.dumps(checkpoints_at(clock[0]))
+
+		def sleep(seconds):
+			clock[0] += seconds
 
 		with mock.patch.object(document_ocr.frappe, "db", mock.MagicMock(get_value=get_value)), \
-				mock.patch.object(document_ocr.time, "monotonic", side_effect=lambda: next(clock)), \
-				mock.patch.object(document_ocr.time, "sleep"), mock.patch.object(document_ocr, "_", lambda text: text), \
+				mock.patch.object(document_ocr.time, "monotonic", side_effect=lambda: clock[0]), \
+				mock.patch.object(document_ocr.time, "sleep", side_effect=sleep), \
+				mock.patch.object(document_ocr, "_", lambda text: text), \
 				mock.patch.object(document_ocr.frappe, "throw", side_effect=RuntimeError):
-			return document_ocr.wait("W1")
+			return document_ocr.wait("W1"), clock[0]
+
+	@staticmethod
+	def pages(count):
+		return {f"page{number}": {"state": "done", "body": {}} for number in range(count)}
 
 	def test_a_read_that_finished_reading_at_the_deadline_is_waited_for(self):
-		running = frappe._dict(status="running", last_code="")
-		result = json.dumps({document_ocr.RESULT: {"state": "done", "body": {"legacy": {"pages": []}}}})
-		legacy = self.run_wait([running] * 17 + [frappe._dict(status="succeeded", last_code="")], [result, result])
+		running, done = frappe._dict(status="running", last_code=""), frappe._dict(status="succeeded", last_code="")
+		finish = document_ocr.WAIT_SECONDS + 30
+		result = {document_ocr.RESULT: {"state": "done", "body": {"legacy": {"pages": []}}}}
+		legacy, _seconds = self.run_wait(lambda now: done if now >= finish else running, lambda now: result)
 		self.assertEqual(legacy, {"pages": []})
 
-	def test_a_read_still_reading_at_the_deadline_times_out(self):
+	def test_a_read_that_stopped_moving_times_out_at_the_deadline(self):
 		running = frappe._dict(status="running", last_code="")
 		with self.assertRaises(RuntimeError):
-			self.run_wait([running] * 40, ["{}"])
+			self.run_wait(lambda now: running, lambda now: self.pages(3))
+
+	def test_a_read_still_finishing_pages_under_load_is_waited_for(self):
+		# B02（2026-09-30）：29 页读到 23 页时 25 分钟到了，原来整套失败、已付的钱白付。每 2 分钟读完一页就接着等。
+		running, done = frappe._dict(status="running", last_code=""), frappe._dict(status="succeeded", last_code="")
+		finish = document_ocr.WAIT_SECONDS + 12 * 60
+		result = {document_ocr.RESULT: {"state": "done", "body": {"legacy": {"pages": [1]}}}}
+		legacy, seconds = self.run_wait(lambda now: done if now >= finish else running,
+			lambda now: {**self.pages(int(now // 120)), **(result if now >= finish else {})})
+		self.assertEqual(legacy, {"pages": [1]})
+		self.assertGreater(seconds, document_ocr.WAIT_SECONDS)
+
+	def test_progress_does_not_extend_the_wait_forever(self):
+		running = frappe._dict(status="running", last_code="")
+		with self.assertRaises(RuntimeError):
+			self.run_wait(lambda now: running, lambda now: self.pages(int(now // 120)))
 
 
 class NoCallAfterTheReconciliationClosed(unittest.TestCase):
@@ -1603,6 +1627,67 @@ class ReconJobCleanup(unittest.TestCase):
 			self.assertEqual(jobs._save(b"x" * 11 * 1024 * 1024, "big.pdf"), "F1")
 		self.assertEqual(get_doc.call_args.args[0]["is_private"], 1)
 		get_doc.return_value.insert.assert_called_once_with(ignore_permissions=True)
+
+
+
+class ElectronicPdfReadFromItsTextLayer(unittest.TestCase):
+	"""2026-09-30 压测 B02 TTB：电子账单文字层按列分块，按行解析一行都拼不出，29 页每次都付费识别、负载下超时。
+	按文字层的坐标拼行（企业档同一套本地拼行），余额链算得平就用，不花钱。"""
+
+	def statement(self, rows, balances_right=True):
+		import pymupdf
+
+		document = pymupdf.open()
+		page = document.new_page(width=600, height=800)
+		for text, x in (("Date", 40), ("Description", 120), ("Withdrawal", 330), ("Deposit", 410), ("Balance", 500)):
+			page.insert_text((x, 100), text, fontsize=9)
+		page.insert_text((40, 120), "Balance brought forward", fontsize=9)
+		page.insert_text((500, 120), "1,000.00", fontsize=9)
+		y = 140
+		for day, text, out, into, balance in rows:
+			page.insert_text((40, y), f"{day:02d}/05/2026", fontsize=9)
+			page.insert_text((120, y), text, fontsize=9)
+			if out:
+				page.insert_text((330, y), f"{out:,.2f}", fontsize=9)
+			if into:
+				page.insert_text((410, y), f"{into:,.2f}", fontsize=9)
+			page.insert_text((500, y), f"{balance:,.2f}", fontsize=9)
+			y += 20
+		page.insert_text((40, 760), "31/05/2026 10:15:00", fontsize=8)  # 页脚打印时间：不是流水
+		content = document.tobytes()
+		document.close()
+		return content
+
+	def test_a_balanced_text_layer_is_read_without_recognition(self):
+		from pearnly_cowork.ocr.enterprise import text_layer
+
+		content = self.statement([(2, "Transfer In", 0, 500.0, 1500.0), (3, "Payment", 200.0, 0, 1300.0),
+			(5, "Transfer In", 0, 50.25, 1350.25)])
+		legacy = text_layer.read(content, "bank_statement")
+		self.assertIsNotNone(legacy)
+		self.assertTrue(legacy["text_layer"])
+		entries = [entry for page in legacy["pages"] for entry in page["document"]["entries"]]
+		self.assertEqual([(entry["transaction_date"], entry["deposit"], entry["withdrawal"], entry["balance"])
+			for entry in entries], [("2026-05-02", "500.00", "", "1500.00"), ("2026-05-03", "", "200.00", "1300.00"),
+			("2026-05-05", "50.25", "", "1350.25")])
+
+	def test_a_text_layer_that_does_not_balance_goes_to_recognition(self):
+		from pearnly_cowork.ocr.enterprise import text_layer
+
+		content = self.statement([(2, "Transfer In", 0, 500.0, 1500.0), (3, "Payment", 200.0, 0, 1900.0)])
+		self.assertIsNone(text_layer.read(content, "bank_statement"))
+
+	def test_photos_and_scans_are_not_opened(self):
+		from pearnly_cowork.ocr.enterprise import text_layer
+
+		self.assertIsNone(text_layer.read(b"\xff\xd8\xff\xe0 jpeg", "bank_statement"))
+		self.assertIsNone(text_layer.read(b"%PDF-1.4 broken", "bank_statement"))
+		self.assertIsNone(text_layer.read(self.statement([]), "vat_report"))
+
+	def test_rows_read_from_the_text_layer_are_not_called_photos(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		self.assertEqual(bank_recon_service._read_by_recognition({"ok": True, "source": "enterprise", "text_layer": True}), {})
 
 
 if __name__ == "__main__":

@@ -41,6 +41,12 @@ TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 # 「started」，续跑整份作废（2026-09-30 压测第 18 轮）。
 YIELD_SECONDS = 90
 WAIT_SECONDS = 25 * 60
+# 到了 WAIT_SECONDS 还在读、但最近 PROGRESS_WINDOW 内还有页读完（名额挤、排着队，不是卡住）：接着等，最多
+# WAIT_LIMIT（2026-09-30 压测 B02：29 页读到 23 页时 25 分钟到了，整套失败、已付的钱白付）。后台任务时限
+# （jobs.TIMEOUTS）与页面等待（62 分钟）都在它之上。
+PROGRESS_WINDOW = 5 * 60
+PROGRESS_CHECK_SECONDS = 60
+WAIT_LIMIT = 50 * 60
 POLL_SECONDS = 3
 IDENTITY = ("backend", "project", "location", "credentials_path")
 
@@ -85,8 +91,10 @@ FINISHING_GRACE_SECONDS = 120
 
 def wait(name):
     """等这一份读完：成功回旧线上管线的结果形状（``pages`` + ``_needs_review``），读不出回 None。"""
-    deadline = time.monotonic() + WAIT_SECONDS
+    started = time.monotonic()
+    deadline = started + WAIT_SECONDS
     extended = False
+    done, progressed, checked = -1, started, 0.0
     while True:
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
         row = frappe.db.get_value(WORK, name, ["status", "last_code"], as_dict=True)
@@ -94,10 +102,18 @@ def wait(name):
             break
         if row and row.status == "deferred" and row.last_code == "insufficient_balance":
             frappe.throw(_("reconciliation.balance_insufficient"))
-        if time.monotonic() > deadline:
+        now = time.monotonic()
+        if now - checked >= PROGRESS_CHECK_SECONDS or now > deadline:
+            checked = now
+            count = completed_calls(name)
+            if count > done:
+                done, progressed = count, now
+        if now > deadline:
             if not extended and RESULT in frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}"):
                 extended = True
-                deadline = time.monotonic() + FINISHING_GRACE_SECONDS
+                deadline = now + FINISHING_GRACE_SECONDS
+            elif now - progressed <= PROGRESS_WINDOW and now - started < WAIT_LIMIT:
+                deadline = now + PROGRESS_CHECK_SECONDS  # 还在一页一页读完：再看一分钟
             else:
                 frappe.throw(_("reconciliation.recognition_timeout"))
         time.sleep(POLL_SECONDS)
@@ -105,6 +121,12 @@ def wait(name):
         return None
     saved = frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}").get(RESULT) or {}
     return (saved.get("body") or {}).get("legacy")
+
+
+def completed_calls(name):
+    """这份识别已经做完了几次调用（读字的块、抽取的页）：检查点里记成 done 的个数。"""
+    values = frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}") or {}
+    return sum(1 for value in values.values() if isinstance(value, dict) and value.get("state") == "done")
 
 
 def reader(recon_job, side, file_name, user):

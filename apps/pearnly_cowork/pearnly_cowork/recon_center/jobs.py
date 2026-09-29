@@ -27,7 +27,9 @@ MAX_FILES = 200
 MAX_BYTES = 25 * 1024 * 1024
 TTL = 24 * 3600
 # 后台任务时限：销项核查的发票可能上百张、按识别名额分批读（2026-09-30 压测 V01 72 张小票），给到一小时。
-TIMEOUTS = {"vat": 3600}
+# 银行、收入同样给到一小时：识别名额挤的时候一份还在一页一页读完就接着等（document_ocr.WAIT_LIMIT 50 分钟），
+# 不能先被后台任务时限杀掉（2026-09-30 压测 B02）。
+TIMEOUTS = {"vat": 3600, "bank": 3600, "income": 3600}
 
 
 def _key(job_id):
@@ -173,6 +175,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import (
                 document_model_rows,
             )
+            from pearnly_cowork.ocr.enterprise import text_layer
             from pearnly_cowork.recon_center import document_ocr, sources
 
             account = str(options.get("gl_account_code") or "")
@@ -181,6 +184,11 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                       for (_name, content), file_name in zip(loaded, files[side])]
 
             def read(document_type, content, filename):
+                # 带文字层的电子 PDF 先按文字层的坐标拼行（不花钱）；余额链算得平就用，否则才付费识别
+                # （2026-09-30 压测 B02 TTB：29 页电子账单每次都付费识别，负载下读超时）。
+                free = text_layer.read(content, document_type)
+                if free is not None:
+                    return free
                 index, (_content, file_name, side) = next((index, item) for index, item in enumerate(stored)
                                                           if item[0] is content)
                 return document_ocr.reader(recon_job, f"{side}{index}", file_name, frappe.session.user)(

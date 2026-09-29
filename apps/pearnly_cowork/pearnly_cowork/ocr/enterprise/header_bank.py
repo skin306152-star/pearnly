@@ -176,6 +176,10 @@ def _page_rows(page, tokens, lines, zones, top, reference_year):
         value = parse_date(text, reference_year)
         if value:
             dated.append(((group["first"] + group["last"]) / 2, value, text))
+    # 另数一遍「同一高度上有钱数的日期行」：TTB 电子账单每页页脚印的打印日期时间、表头上方的「截至某日」不是流水
+    # （2026-09-30 压测 B02），全数进去整份永远对不上、只能付费抽取。流水行漏读了金额也还有余额，照样数得到。
+    moneyed = [pair[0].yc - beta * pair[0].xc for pair in _money(tokens, (zones["amount"][0], zones["balance"][1]), top)]
+    money_dated = sum(1 for middle, _value, _text in dated if any(abs(level - middle) <= tolerance for level in moneyed))
     rows = []
     for index, (token, value) in enumerate(balances):
         level = token.yc - beta * token.xc
@@ -187,7 +191,7 @@ def _page_rows(page, tokens, lines, zones, top, reference_year):
                      "date": date[1] if date else "", "date_raw": date[2] if date else "",
                      "text": " ".join(line.text for line in sorted(row_lines, key=lambda line: line.x0))})
     date_rows = len(dated)
-    return {"rows": rows, "date_rows": date_rows, "beta": beta, "tolerance": tolerance}
+    return {"rows": rows, "date_rows": date_rows, "money_date_rows": money_dated, "beta": beta, "tolerance": tolerance}
 
 
 def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, trace=None):
@@ -200,7 +204,7 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
         return None
 
     zones, audit, provenance, entries = None, [], [], []
-    opening, previous, date_rows, last_columns = None, None, 0, None
+    opening, previous, date_rows, money_date_rows, last_columns = None, None, 0, 0, None
     for page in range(1, pages + 1):
         tokens, lines = tokens_by_page.get(page) or [], lines_by_page.get(page) or []
         header = _header(tokens, lines)
@@ -214,6 +218,7 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
         if found is None:
             continue
         date_rows += found["date_rows"]
+        money_date_rows += found["money_date_rows"]
         audit.append({"page": page, "field": "header_alignment", "value": {
             "beta": found["beta"], "tolerance": round(found["tolerance"], 6), "zones": {
                 key: [round(edge, 4) for edge in value] for key, value in zones.items()}},
@@ -258,7 +263,8 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
     document, repair_audit = _repair_bank(document)
     audit.extend(repair_audit)
     issues = check_document(document, "bank", pages)
-    if date_rows != len(entries):
+    # 两种数法有一种与行数相等即可（原来的数法照旧有效，只多认一种），见 ``_page_rows``。
+    if len(entries) not in (date_rows, money_date_rows):
         issues.append("date_anchor_row_count_mismatch")
     return Reconstruction(document, audit, provenance, issues, pages)
 

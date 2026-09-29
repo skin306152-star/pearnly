@@ -319,7 +319,8 @@ class _Lines:
 
 def _read_by_recognition(parsed):
 	"""照片 / 扫描件是识别读出的（结果页据此在断点旁建议改传电子版）；电子版（表格、带文字层的 PDF）不记。"""
-	return {"recognized": True} if parsed.get("ok") and parsed.get("source") in ("enterprise", "model") else {}
+	return {"recognized": True} if (parsed.get("ok") and parsed.get("source") in ("enterprise", "model")
+		and not parsed.get("text_layer")) else {}
 
 
 def _warning_lang(lang):
