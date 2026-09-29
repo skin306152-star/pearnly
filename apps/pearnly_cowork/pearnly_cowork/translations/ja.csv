@@ -573,6 +573,7 @@ No rules yet,ルールはまだありません
 No templates yet,テンプレートはまだありません
 No warehouse matches that name,その倉庫名は存在しません
 None,なし
+None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
 Not Permitted,適切な権限がありません
 Not bound,未連携
 Not counted,未棚卸
@@ -1979,6 +1980,8 @@ reconciliation.row_unknown_field,ファイルに読み取れない行があり�
 reconciliation.rows_invalid,ファイルに読み取れない行があります。ファイルの形式を確認してください
 reconciliation.rows_too_many,行数が多すぎます。ファイルを分けて照合してください
 reconciliation.run_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
+reconciliation.statement_all_outside,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
+reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
 reconciliation.system_busy,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 reconciliation.task_not_found,照合タスクが見つかりません。
@@ -2054,6 +2057,7 @@ vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認�
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} statement amounts were corrected from the running balance. Check them,明細で残高から金額を補正した行が {0} 行あります。確認してください
+{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 {0} statement rows were read with low confidence. Check them against the original,明細に読み取りが不確かな行が {0} 行あります。原本と照合してください
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 棚卸済み {1}/{2} · 差異 {3}

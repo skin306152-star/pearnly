@@ -201,6 +201,11 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 			model_rows=model_rows), chosen)) for content, name in gl_files]
 		warnings = list(warnings or []) + [_("reconciliation.gl_account_auto").format(chosen)]
 	ledger = _merged_ledger([result for _name, result in ledgers], gl_account_code)
+	statement, outside = within_ledger_period(statement, ledger)
+	if outside:
+		warnings = list(warnings or []) + [_(
+			"reconciliation.statement_rows_outside" if outside[0] else "reconciliation.statement_all_outside"
+		).format(*outside)]
 	ledger, period = within_statement_period(statement["rows"], ledger)
 	if period:
 		warnings = list(warnings or []) + [_("reconciliation.gl_period_trimmed").format(*period)]
@@ -311,6 +316,54 @@ def likely_account(statement_rows, ledgers):
 	if best < max(2, len(statement_rows) / 5) or (len(scores) > 1 and scores[1][0] == best):
 		return ""
 	return code
+
+
+def _months(days):
+	"""日期所在的整月（起、止）；离中位日期一年以上的是读错的日期，不参与。"""
+	import calendar
+	from datetime import date as date_type
+
+	days = sorted(day for day in days if day)
+	if not days:
+		return None
+	middle = days[len(days) // 2]
+	days = [day for day in days if abs((day - middle).days) <= 366]
+	first, last = days[0], days[-1]
+	return first.replace(day=1), date_type(last.year, last.month, calendar.monthrange(last.year, last.month)[1])
+
+
+def within_ledger_period(statement, ledger):
+	"""账单只留总账期间（总账行所在的整月）内的行：存折一页带着前几个月的旧行，旧线上全部列成「账单独有」。
+
+	用户 2026-09-29 定：「旧行按总账期间筛掉吧」（有意偏离旧线上）。期初取期间开始前最后一行的余额，没有这一行
+	就用留下的第一行倒推；期末取留下的最后一行。总账期间读不出（当月无发生额、没有带日期的行）不筛；账单全部落在
+	期间外也不筛，照旧全部对账并提示。返回 ``(账单, 提示参数)``：筛了是 ``(行数, 起, 止)``，全在期间外是
+	``(0, 起, 止)``，没筛是 ``None``。
+	"""
+	from datetime import date as date_type
+
+	period = _months(row.date for row in ledger.get("rows") or [])
+	if not period and ledger.get("period_start"):
+		start = date_type.fromisoformat(ledger["period_start"])
+		period = _months([start])  # 当月无发生额：表头印的起始日期所在的月
+	rows = statement.get("rows") or []
+	if not period or not rows:
+		return statement, None
+	start, end = period
+	kept = [row for row in rows if not row.date or start <= row.date <= end]
+	if len(kept) == len(rows):
+		return statement, None
+	if not any(row.date for row in kept):
+		return statement, (0, start.isoformat(), end.isoformat())
+	before = [row for row in rows if row.date and row.date < start]
+	first = kept[0]
+	if before and before[-1].balance:
+		opening = before[-1].balance
+	else:
+		opening = round((first.balance or 0) - (first.deposit or 0) + (first.withdrawal or 0), 2)
+	closing = next((row.balance for row in reversed(kept) if row.balance), statement.get("closing"))
+	trimmed = {**statement, "rows": kept, "row_count": len(kept), "opening": opening, "closing": closing}
+	return trimmed, (len(rows) - len(kept), start.isoformat(), end.isoformat())
 
 
 def within_statement_period(statement_rows, ledger):

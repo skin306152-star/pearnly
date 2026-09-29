@@ -147,6 +147,26 @@ def _load_gl_rows(file_bytes: bytes, filename: str):
 ACCOUNT_HEAD = re.compile(r"^\s*(\d{2,}(?:[-.]\d+)+|\d{4,})\s+\S")
 
 
+PERIOD_FROM = ("วันที่จาก", "ตั้งแต่วันที่", "from", "period")
+PRINTED_DATE_RE = re.compile(r"\d{1,2}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*\d{2,4}|\d{1,2}\s+[\u0e00-\u0e7f.]+\s*\d{2,4}")
+
+
+def _printed_start(rows) -> str:
+	"""表头里「วันที่จาก / from」后面的第一个日期（ISO），没有返回空。"""
+	for row in rows:
+		text = " ".join(str(cell).strip() for cell in row if cell not in (None, ""))
+		lowered = text.lower()
+		label = next((word for word in PERIOD_FROM if word in lowered), None)
+		if not label:
+			continue
+		match = PRINTED_DATE_RE.search(text[lowered.index(label) + len(label):])
+		# 去掉空格再读：部署版 parse_date 遇到空格只留第一段（为了去掉「日期 时间」的时间），「1 ก.พ. 2569」读成「1」。
+		value = parse_date(re.sub(r"\s+", "", match.group(0))) if match else None
+		if value:
+			return value.isoformat()
+	return ""
+
+
 def find_gl_header(all_rows_raw) -> Tuple[int, Dict[str, int]]:
 	"""前 10 行里找总账表头：**必须有日期列，且借或贷至少有一列**；找不到返回 ``(-1, {})``。"""
 	for index, row in enumerate(all_rows_raw[:10]):
@@ -345,4 +365,6 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 		"row_count": len(rows),
 		# 表里印了期初行：0 行时据此区分“本月没有发生额”和“读错了表”（bank_intake.read_ledger_file）。
 		"opening_found": gl_opening_found,
+		# 表头印的起始日期（「วันที่จาก 1 ก.พ. 2569」）：当月无发生额时用它定总账期间（对账按期间筛账单行）。
+		"period_start": _printed_start(all_rows_raw[:header_idx]),
 	}

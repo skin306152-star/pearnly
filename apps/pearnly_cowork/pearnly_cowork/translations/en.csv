@@ -573,6 +573,7 @@ No rules yet,No rules yet
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 None,None
+None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
 Not bound,Not bound
 Not counted,Not counted
@@ -1979,6 +1980,8 @@ reconciliation.row_unknown_field,Some rows in the file could not be understood. 
 reconciliation.rows_invalid,Some rows in the file could not be understood. Check the file format
 reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
+reconciliation.statement_all_outside,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
+reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.
 reconciliation.system_busy,The system is busy and the reconciliation was not finished. Please try again shortly.
 reconciliation.task_not_found,The reconciliation task was not found.
@@ -2054,6 +2057,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} moved {1} to {2},{0} moved {1} to {2}
 {0} rows were not imported,{0} rows were not imported
 {0} statement amounts were corrected from the running balance. Check them,{0} statement amounts were corrected from the running balance. Check them
+{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 {0} statement rows were read with low confidence. Check them against the original,{0} statement rows were read with low confidence. Check them against the original
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}

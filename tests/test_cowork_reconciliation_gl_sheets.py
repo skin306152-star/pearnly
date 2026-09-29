@@ -221,6 +221,36 @@ class WholeWorkbook(unittest.TestCase):
 		same, none = within_statement_period(statement, {**ledger, "rows": rows[1:3]})
 		self.assertIsNone(none)
 
+	def test_the_printed_period_start_is_kept_for_a_quiet_month(self):
+		result = gl_sheets.parse_gl_workbook(workbook([["บริษัท ซินเซียร์ไอซ์ จำกัด"], ["วันที่จาก", "1 ก.พ. 2569      ถึง  28 ก.พ"],
+			DATE_H, ["", "", "", "", "", 1000.0, ""]]), "gl.xlsx")
+		self.assertEqual(result["period_start"], "2026-02-01")
+		self.assertEqual(gl_sheets._printed_start([["(วันที่จาก  01/05/69  ถึง 31/05/69)"]]), "2026-05-01")
+		self.assertEqual(gl_sheets._printed_start([["รายงานแยกประเภท"]]), "")
+
+	def test_statement_lines_outside_the_ledger_period_are_left_out(self):
+		# 用户 2026-09-29：「旧行按总账期间筛掉吧」—— 存折一页带着前几个月的旧行。
+		from datetime import date
+
+		from pearnly_cowork.reconciliation.bank_recon_service import within_ledger_period
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		def line(day, into, out, balance):
+			return StatementRow(date=day, description="", withdrawal=out, deposit=into, balance=balance)
+
+		statement = {"rows": [line(date(2025, 12, 5), 0.0, 100.0, 900.0), line(date(2025, 12, 20), 50.0, 0.0, 950.0),
+			line(date(2026, 1, 3), 0.0, 30.0, 920.0), line(date(2026, 1, 9), 80.0, 0.0, 1000.0)],
+			"opening": 1000.0, "closing": 1000.0, "row_count": 4}
+		ledger = {"rows": [gl_row(date=date(2026, 1, 3), credit=30.0), gl_row(date=date(2026, 1, 9), debit=80.0)]}
+		kept, notice = within_ledger_period(statement, ledger)
+		self.assertEqual(notice, (2, "2026-01-01", "2026-01-31"))
+		self.assertEqual((kept["opening"], kept["closing"], kept["row_count"]), (950.0, 1000.0, 2))
+		quiet = {"rows": [], "period_start": "2026-01-01"}  # 当月无发生额：按表头的起始日期
+		self.assertEqual(within_ledger_period(statement, quiet)[1], (2, "2026-01-01", "2026-01-31"))
+		self.assertEqual(within_ledger_period(statement, {"rows": []}), (statement, None))  # 期间读不出：不筛
+		elsewhere = {"rows": [gl_row(date=date(2026, 6, 3), credit=30.0)]}
+		self.assertEqual(within_ledger_period(statement, elsewhere), (statement, (0, "2026-06-01", "2026-06-30")))
+
 	def test_a_negative_amount_is_a_reversal_on_the_other_side(self):
 		# 2026-09-29：「(500.00)」写在借方是冲销，记成贷方 500（旧线上取绝对值记成借方 500，余额差 1,000）。
 		result = gl_sheets.parse_gl_workbook(workbook([

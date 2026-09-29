@@ -573,6 +573,7 @@ No rules yet,还没有规则
 No templates yet,还没有模板
 No warehouse matches that name,该仓库名不存在
 None,无
+None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
 Not Permitted,没有权限
 Not bound,未绑定
 Not counted,未盘点
@@ -1979,6 +1980,8 @@ reconciliation.row_unknown_field,文件里有读不懂的行，请检查文件�
 reconciliation.rows_invalid,文件里有读不懂的行，请检查文件格式
 reconciliation.rows_too_many,行数超过上限，请分成几份再对账
 reconciliation.run_info_invalid,对账数据格式不对，请重新上传文件
+reconciliation.statement_all_outside,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
+reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。
 reconciliation.system_busy,系统繁忙，这次对账没有完成，请稍后重试。
 reconciliation.task_not_found,找不到这个对账任务。
@@ -2054,6 +2057,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}
 {0} rows were not imported,{0} 行没有导入
 {0} statement amounts were corrected from the running balance. Check them,对账单有 {0} 行金额按余额推算改过，请核对
+{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 {0} statement rows were read with low confidence. Check them against the original,对账单有 {0} 行读得不确定，请对照原件核对
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
