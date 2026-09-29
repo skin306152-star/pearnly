@@ -69,3 +69,18 @@
 - 只读对照：测试机上 1 张旧银行任务、3 张旧收入任务，打开不改时页面数字与存档一致（修正 2 之后）。
 - 面包屑：测试租户登录走线上身份服务，未代为登录，真实页面未看；已核对测试机下发的 `recon.css` 是新规则（带内容版本号，刷新即生效）。
 - 限制：旧任务（09-29 以前建）改过格子后按结果行倒推，结果行里没有的总账行（如只有冲销的凭证）还原不回来；新任务不受影响。
+
+## 合并与部署（2026-09-29，用户：「合并推送吧，然后部署生产」）
+
+- 合入：`origin/main` 仍是基线 `82a16197`，无需变基 → 本地 CI 同名闸门全过（本机默认 python3.9 不认新式类型写法的 4 项用 python3.12 重跑通过；
+  DMS 编辑器快照需装前端依赖，本次未动前端 / DMS，由 CI 跑）→ 分支 Development checks `36556428400` 通过 → 主目录 `main` 快进到 `47148fd0` 并推送，远端回读 `47148fd0`。
+- 镜像：build-production `36556626781`（`47148fd0`）→ `ghcr.io/skin306152-star/pearnly/frappe@sha256:4ff689c12b4abe18ca236684b45584df859d2525ede59f5f2e09921e32eb651c`；
+  stage-production `36557318073` 成功。
+- 激活前：测试机 `lab-stop cowork`（testcowork 切回线上、线上那份定时任务恢复，测试栈停、卷保留）；线上推送无 pending / leased
+  （prepared 1、manual 12、success 175），识别执行任务 0；另有 54 个识别批次停在「已接收 / 识别中」但没有执行任务（历史残留，未动）；
+  可用内存 26 GB；`check-deploy-image.py` 一致（本次没改部署工具目录）。
+- 激活：`activate-product.sh … cowork` 130 秒，`Product cowork activated with verified image.`，日志 `/opt/pearnly/state/activate-cowork-47148fd0.log`；
+  激活前备份随脚本完成。上一版 `3c7be356`（main `0937d68d`），回退用它与该备份。只动 Cowork，ERP / DMS 未动。
+- 线上回读：7 个 Cowork 容器均为 `4ff689c1`；`revision.py`、`recon.css` 与 main 字节一致；两张对账表 `inputs_json` 列已建；维护模式 0、调度开；
+  线上 2 张银行、2 张收入对账任务打开不改时页面数字与存档一致；激活后约 6 分钟 Error Log 0；公网 ping 200，线上下发的 `recon.css` 为新规则。
+- 未做：用户在线上页面的实际试用（面包屑、对账结果页、多页票保存）。
