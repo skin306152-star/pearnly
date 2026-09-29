@@ -73,22 +73,32 @@ def submit(recon_job, side, file_name, filename, content, document_type, user):
                      else _("reconciliation.recognition_busy"))
 
 
+# 等到时限时识别已经读完（结果已存、只差扣费收尾）就再等这么久，不在这时判超时：否则识别刚扣完费、对账却判了失败，
+# 客户付了钱拿不到结果（2026-09-29 压测 BAY-CA-03：对账 25 分钟判超时的同一分钟，识别读完扣了 12 页）。
+FINISHING_GRACE_SECONDS = 120
+
+
 def wait(name):
     """等这一份读完：成功回旧线上管线的结果形状（``pages`` + ``_needs_review``），读不出回 None。"""
     deadline = time.monotonic() + WAIT_SECONDS
+    extended = False
     while True:
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
-        row = frappe.db.get_value(WORK, name, ["status", "last_code", "checkpoints"], as_dict=True)
+        row = frappe.db.get_value(WORK, name, ["status", "last_code"], as_dict=True)
         if row and row.status in TERMINAL:
             break
         if row and row.status == "deferred" and row.last_code == "insufficient_balance":
             frappe.throw(_("reconciliation.balance_insufficient"))
         if time.monotonic() > deadline:
-            frappe.throw(_("reconciliation.recognition_timeout"))
+            if not extended and RESULT in frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}"):
+                extended = True
+                deadline = time.monotonic() + FINISHING_GRACE_SECONDS
+            else:
+                frappe.throw(_("reconciliation.recognition_timeout"))
         time.sleep(POLL_SECONDS)
     if row.status != "succeeded":
         return None
-    saved = frappe.parse_json(row.checkpoints or "{}").get(RESULT) or {}
+    saved = frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}").get(RESULT) or {}
     return (saved.get("body") or {}).get("legacy")
 
 
@@ -131,12 +141,14 @@ class ReconClosed(Exception):
     """对账已经结束（失败或完成），这份识别结果不会再被用到。"""
 
 
-def _recon_closed(recon_job):
+def _recon_closed(recon_job, file=None):
+    """对账已结束：状态缓存写着失败 / 完成，或者它存的源文件已经删了（对账结束时一定删；部署、清缓存会清掉状态缓存，
+    只看缓存会把已结束的对账当成还在等）。"""
     job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
-    return job.get("state") in ("failed", "done")
+    return job.get("state") in ("failed", "done") or bool(file and not frappe.db.exists("File", file))
 
 
-def _read(content, filename, pages, frozen, document_type, recon_job=None):
+def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None):
     environment = frozen["environment"]
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY})
     started = time.monotonic()
@@ -146,7 +158,7 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None):
             # 每次付费调用前结束读快照；超过时限就让出，重跑时已完成的调用从检查点取回。对账已经结束就不再调用
             # （2026-09-29 压测 BAY-CA-03：对账判失败后识别任务还在读、占名额）。
             frappe.db.commit()
-            if recon_job and _recon_closed(recon_job):
+            if recon_job and _recon_closed(recon_job, file):
                 raise ReconClosed()
             if time.monotonic() - started > YIELD_SECONDS:
                 raise Deferred("progress_yield", 1)
@@ -185,7 +197,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
     try:
         saved = core_work.checkpoint(RESULT)
         if not saved:
-            if _recon_closed(recon_job) or not frappe.db.exists("File", file):
+            if _recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
             doc = frappe.get_doc("File", file)
             content = doc.get_content()
@@ -195,7 +207,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             ocr_settings.revalidate(frozen)
             intake.balance(int(pages), frozen["billing_tier"])
             try:
-                legacy = _read(content, filename, pages, frozen, document_type, recon_job)
+                legacy = _read(content, filename, pages, frozen, document_type, recon_job, file)
             except ReconClosed:
                 return {"cancelled": "recon_job_closed"}
             except ContentError as error:
@@ -207,7 +219,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             # 扣费前再看一次对账：已经失败（等满 25 分钟判失败）或已经结束，这份结果不会再被用到 —— 不扣客户的钱，
             # 任务记成取消（2026-09-29 压测：BAY 12 页读了 46 分钟，对账早已判失败，识别读完照样扣费）。用到结果的
             # 识别一定在对账结束前扣费（对账等它成功才往下走）。已发出的供应商调用费由平台承担。
-            if _recon_closed(recon_job):
+            if _recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
             _charge(name, pages, frozen)
             core_work.checkpoint(BILLED, "done", {"units": int(pages)})

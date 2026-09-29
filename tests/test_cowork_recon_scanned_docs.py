@@ -673,6 +673,51 @@ class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 		self.assertEqual(outcome, {})
 		charge.assert_called_once()
 
+	def test_a_read_whose_reconciliation_state_was_cleared_but_whose_file_is_gone_is_not_charged(self):
+		# 部署 / 清缓存会清掉对账状态；对账结束时一定删掉它存的源文件。
+		with mock.patch.object(document_ocr, "_recon_closed", wraps=document_ocr._recon_closed):
+			db = mock.MagicMock(get_value=lambda *a, **k: frappe._dict(kind=document_ocr.KIND, user="u@example.com",
+				status="running"), exists=lambda *a, **k: False)
+			saved = {"body": {"legacy": {"pages": [{"document": {"entries": [{"deposit": "1"}]}}]}}}
+			cache = mock.MagicMock()
+			cache.get_value.return_value = None
+			with mock.patch.object(document_ocr.frappe, "flags", mock.MagicMock(get=lambda key: "W1")), \
+					mock.patch.object(document_ocr.frappe, "db", db), \
+					mock.patch.object(document_ocr.frappe, "session", mock.Mock(user="Administrator")), \
+					mock.patch.object(document_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), \
+					mock.patch.object(document_ocr.core_work, "checkpoint",
+						side_effect=lambda key, *a: {document_ocr.RESULT: saved}.get(key)), \
+					mock.patch.object(document_ocr, "_charge") as charge:
+				outcome = document_ocr.run("job", "F1", "p.jpg", 1, "sha", "bank_statement", {"billing_tier": "t"})
+		self.assertEqual(outcome, {"cancelled": "recon_job_closed"})
+		charge.assert_not_called()
+
+
+class WaitingForARead(unittest.TestCase):
+	def run_wait(self, rows, checkpoints):
+		clock = iter(range(0, 100000, 100))
+		rows, checkpoints = iter(rows), iter(checkpoints)
+
+		def get_value(doctype, name, fields, as_dict=False):
+			return next(rows) if isinstance(fields, list) else next(checkpoints)
+
+		with mock.patch.object(document_ocr.frappe, "db", mock.MagicMock(get_value=get_value)), \
+				mock.patch.object(document_ocr.time, "monotonic", side_effect=lambda: next(clock)), \
+				mock.patch.object(document_ocr.time, "sleep"), mock.patch.object(document_ocr, "_", lambda text: text), \
+				mock.patch.object(document_ocr.frappe, "throw", side_effect=RuntimeError):
+			return document_ocr.wait("W1")
+
+	def test_a_read_that_finished_reading_at_the_deadline_is_waited_for(self):
+		running = frappe._dict(status="running", last_code="")
+		result = json.dumps({document_ocr.RESULT: {"state": "done", "body": {"legacy": {"pages": []}}}})
+		legacy = self.run_wait([running] * 17 + [frappe._dict(status="succeeded", last_code="")], [result, result])
+		self.assertEqual(legacy, {"pages": []})
+
+	def test_a_read_still_reading_at_the_deadline_times_out(self):
+		running = frappe._dict(status="running", last_code="")
+		with self.assertRaises(RuntimeError):
+			self.run_wait([running] * 40, ["{}"])
+
 
 class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 	"""对账判失败后，识别任务下一个付费调用前就停（BAY-CA-03，2026-09-29：对账失败了识别还在读、占名额）。"""
