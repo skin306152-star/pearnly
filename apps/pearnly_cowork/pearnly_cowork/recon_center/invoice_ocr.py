@@ -197,8 +197,9 @@ def run(recon_job, file, filename, pages, sha256, settings):
     try:
         saved = core_work.checkpoint(RESULT)
         if not saved:
-            job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
-            if job.get("state") in ("failed", "done") or not frappe.db.exists("File", file):
+            from pearnly_cowork.recon_center import document_ocr
+
+            if document_ocr._recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
             from pearnly_cowork.recon_center import storage
 
@@ -212,6 +213,12 @@ def run(recon_job, file, filename, pages, sha256, settings):
             invoices = _recognize(content, filename, pages, frozen)
             saved = core_work.checkpoint(RESULT, "done", {"invoices": invoices})
         if saved["body"]["invoices"] and not core_work.checkpoint(BILLED):
+            # 扣费前再看一次核查：已经结束（失败或完成）就用不到这份结果，不扣客户的钱（与账单路径 document_ocr 同一
+            # 口径；2026-09-30 压测 V01：核查因识别繁忙失败后，读完的小票照样扣费）。
+            from pearnly_cowork.recon_center import document_ocr
+
+            if document_ocr._recon_closed(recon_job, file):
+                return {"cancelled": "recon_job_closed"}
             _charge(name, pages, frozen)
             core_work.checkpoint(BILLED, "done", {"units": int(pages)})
         return {}

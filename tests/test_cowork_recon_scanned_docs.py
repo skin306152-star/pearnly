@@ -984,6 +984,27 @@ class StatementOrderAndDates(unittest.TestCase):
 			date(2026, 5, 4), date(2026, 4, 28)])
 
 
+class NoInvoiceChargeAfterTheCheckClosed(unittest.TestCase):
+	def test_invoices_read_after_the_vat_check_failed_are_not_charged(self):
+		# V01（2026-09-30）：核查失败后读完的小票照样扣费。
+		from pearnly_cowork.recon_center import document_ocr, invoice_ocr
+
+		saved = {"body": {"invoices": [{"invoice_no": "1"}]}}
+		cache = mock.MagicMock()
+		cache.get_value.return_value = {"state": "failed"}
+		with mock.patch.object(invoice_ocr.frappe, "flags", mock.MagicMock(get=lambda key: "W1")), \
+				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock(get_value=lambda *a, **k: frappe._dict(
+					kind=invoice_ocr.KIND, user="u@example.com", status="running"))), \
+				mock.patch.object(invoice_ocr.frappe, "session", mock.Mock(user="Administrator")), \
+				mock.patch.object(invoice_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), \
+				mock.patch.object(invoice_ocr.core_work, "checkpoint",
+					side_effect=lambda key, *a: {invoice_ocr.RESULT: saved}.get(key)), \
+				mock.patch.object(invoice_ocr, "_charge") as charge:
+			outcome = invoice_ocr.run("job", "F1", "p.jpg", 1, "sha", {"billing_tier": "t"})
+		self.assertEqual(outcome, {"cancelled": "recon_job_closed"})
+		charge.assert_not_called()
+
+
 class WaitingForRoomInTheQueue(unittest.TestCase):
 	"""V01（2026-09-30）：72 张小票一次提交，超出每租户待处理上限，整单报「识别繁忙」。"""
 
