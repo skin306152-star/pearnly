@@ -20,15 +20,27 @@ GROUPED = "grouped"
 # 收入：总账里这个收入科目不在税报里（利息、其他收入等不开增值税发票的），不参与对账。按「公司税号 + 科目」记。
 EXCLUDED = "excluded"
 
+# 银行：这个账户（银行 + 账号尾号）对总账哪个科目。全科目总账里几个科目都像、分不出时问；答案是科目号（不是选项）。
+GL_ACCOUNT = "gl_account"
+# 答案是自由文字（科目号）的规则，不是固定选项。
+FREE = None
+# 答了要用原文件重跑一遍的规则（读总账时就按科目筛了，存下的数据里没有别的科目）；识别结果复用，不再识别。
+RERUN = {("bank", GL_ACCOUNT)}
+
 RULES = {
-    "bank": {GROUPED: (YES, NO)},
+    "bank": {GROUPED: (YES, NO), GL_ACCOUNT: FREE},
     "income": {EXCLUDED: (YES, NO)},
     "vat": {},
 }
 
 
 def valid(kind, rule, value):
-    return value in RULES.get(kind, {}).get(rule, ())
+    rules = RULES.get(kind, {})
+    if rule not in rules:
+        return False
+    if rules[rule] is FREE:
+        return isinstance(value, str) and 0 < len(value.strip()) <= 40
+    return value in rules[rule]
 
 
 def _digits(value):
@@ -68,6 +80,11 @@ def income_scope(tax_id, account):
 def income_prefix(tax_id):
     tax = _digits(tax_id)
     return f"income|{tax}|" if len(tax) == 13 else ""
+
+
+def account_scope(bank_code, tail):
+    """科目对应按「银行 + 账号尾号」记（科目号正是要问的，不能拿来当范围）；没有尾号不记。"""
+    return bank_scope(bank_code, tail, "") if _digits(tail) else ""
 
 
 def scope_label(scope):

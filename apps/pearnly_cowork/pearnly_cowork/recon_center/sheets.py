@@ -20,6 +20,7 @@ from datetime import date, datetime
 import frappe
 from frappe import _
 
+from pearnly_cowork.recon_center import rerun
 from pearnly_cowork.reconciliation import normalization, presets, revision, vat_check_service
 
 MAX_CELLS = 400000
@@ -485,6 +486,21 @@ def purchase_invoice_notes(inputs):
     return [_("vat_check.note.purchase_invoices").format(", ".join(files))] if files else []
 
 
+def rerun_questions(doc):
+    """建任务时记下的、答了要用原文件重跑的问题（``recon_center/rerun.py``）：这个账户对总账哪个科目。"""
+    found = []
+    for item in rerun.questions(doc.name):
+        if item.get("rule") != presets.GL_ACCOUNT:
+            continue
+        label = presets.scope_label(item.get("scope"))
+        found.append({"rule": presets.GL_ACCOUNT, "scope_label": label, "rerun": True,
+                      "title": _("reconciliation.preset.gl_account_title").format(label), "evidence": [],
+                      "count": _("reconciliation.preset.gl_account_count"),
+                      "options": [{"value": candidate["code"], "label": _("reconciliation.preset.gl_account_option").format(
+                          candidate["code"], candidate["hits"])} for candidate in item.get("candidates") or []]})
+    return found
+
+
 @frappe.whitelist()
 def load(kind, task_id, lang=None):
     doc = _task(kind, task_id)
@@ -499,7 +515,7 @@ def load(kind, task_id, lang=None):
         # 多笔对一笔的疑似合计匹配：按当前（含复核改动的）结果算。这个账户还没定过就问一次（对账预设）；
         # 定了「是」的已按合计对上（标题旁说明），定了「不是」的不再提示。
         results = revision.bank_compute(doc, inputs)[2]
-        questions = revision.bank_questions(doc, inputs, results)
+        questions = rerun_questions(doc) + revision.bank_questions(doc, inputs, results)
         notes += revision.bank_preset_notes(results)
         if revision.bank_rules(doc, inputs.get("gl") or []).get(presets.GROUPED) != presets.NO:
             notes += revision.bank_group_notes(results)

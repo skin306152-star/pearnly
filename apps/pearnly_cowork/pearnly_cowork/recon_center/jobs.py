@@ -14,6 +14,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.recon_center import rerun
 from pearnly_cowork.reconciliation import bank_recon_access, bank_recon_service, income_recon_access
 from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 
@@ -67,12 +68,17 @@ def start(kind, title, sides, options=None):
     title = str(title or "").strip() or " / ".join(name for name, _content in everything[:2])
     job_id = uuid.uuid4().hex
     saved = {side: [_save(content, name) for name, content in sides[side]] for side in ("left", "right")}
+    enqueue(job_id, kind, workspace, title, saved, options)
+    return {"job": job_id}
+
+
+def enqueue(job_id, kind, workspace, title, files, options):
+    """排一个对账后台任务（新建，或答了预设问题后用原文件重跑：``rerun.start``）。"""
     _state(job_id, user=frappe.session.user, kind=kind, state="queued", stage="queued", task=None, error=None)
     frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long", timeout=TIMEOUTS.get(kind, 1800),
                    job_id=f"cowork-recon-{job_id}",
-                   enqueue_after_commit=True, recon_job=job_id, kind=kind, workspace=workspace, title=title[:140],
-                   files=saved, options=json.dumps(options or {}))
-    return {"job": job_id}
+                   enqueue_after_commit=True, recon_job=job_id, kind=kind, workspace=workspace, title=str(title)[:140],
+                   files=files, options=json.dumps(options or {}))
 
 
 # 三种对账任务的任务名都由「站点 | 用户 | 请求号」算出（请求号就是本任务号），前缀各自不同。
@@ -161,6 +167,11 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         if job is not None and hasattr(job, "lang_resolved"):
             job.lang_resolved = True
     stage = lambda name: _state(recon_job, state="running", stage=name)  # noqa: E731
+    # 答了预设问题后的重跑（``rerun.start``）：识别结果按原对账号取（不再识别、不再扣费），结果替换原来那份；
+    # 重跑失败时原文件留着（原来那份结果也还在），可以再答一次。
+    ocr_job = options.get("ocr_job") or recon_job
+    replace_task = str(options.get("replace_task") or "")
+    keep_files = bool(replace_task)
     try:
         stage("reading")
         lefts, rights = _read(files["left"]), _read(files["right"])
@@ -191,7 +202,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                     return free
                 index, (_content, file_name, side) = next((index, item) for index, item in enumerate(stored)
                                                           if item[0] is content)
-                return document_ocr.reader(recon_job, f"{side}{index}", file_name, frappe.session.user)(
+                return document_ocr.reader(ocr_job, f"{side}{index}", file_name, frappe.session.user)(
                     document_type, content, filename)
 
             # 照片先全部提交识别，识别进程并行读，再按顺序取结果（旧线上一侧多份 4 份并行；一张一张提交再等，18 张
@@ -199,8 +210,8 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             # PDF 不预先提交：带文字层的银行 PDF 先走免费解析。
             names = [name for loaded in (lefts, rights) for name, _content in loaded]
             for index, ((content, file_name, side), name) in enumerate(zip(stored, names)):
-                if name.rsplit(".", 1)[-1].lower() in sources.IMAGES:
-                    document_ocr.submit(recon_job, f"{side}{index}", file_name, name, content,
+                if name.rsplit(".", 1)[-1].lower() in sources.IMAGES and not replace_task:
+                    document_ocr.submit(ocr_job, f"{side}{index}", file_name, name, content,
                                         "bank_statement" if side == "left" else "general_ledger", frappe.session.user)
             frappe.db.commit()
             (left_name, left), (right_name, right) = lefts[0], rights[0]
@@ -208,30 +219,38 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 right, right_name, gl_account_code=account, model_rows=document_model_rows(account, read=read),
                 lang=options.get("lang") or "th", on_stage=stage,
                 statement_files=[(content, name) for name, content in lefts],
-                gl_files=[(content, name) for name, content in rights])
+                gl_files=[(content, name) for name, content in rights], replace_task=replace_task)
         else:
             from pearnly_cowork.recon_center import document_ocr, sources
 
             (left_name, left), (right_name, right) = lefts[0], rights[0]
             stage("ledger")
             gl_source = sources.ledger_source(left, left_name,
-                document_ocr.reader(recon_job, "left", files["left"][0], frappe.session.user))
+                document_ocr.reader(ocr_job, "left", files["left"][0], frappe.session.user))
             stage("report")
             if len(rights) == 1:
                 vat_source = sources.report_source(right, right_name,
-                    document_ocr.reader(recon_job, "right", files["right"][0], frappe.session.user))
+                    document_ocr.reader(ocr_job, "right", files["right"][0], frappe.session.user))
                 stage("matching")
                 result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
                     vat_source=vat_source, gl_filename=left_name, vat_filename=right_name)
             else:
                 from pearnly_cowork.recon_center import vat_check
 
-                vat_rows, warnings, tax_id = vat_check.merged_report_rows(recon_job, rights, files["right"])
+                vat_rows, warnings, tax_id = vat_check.merged_report_rows(ocr_job, rights, files["right"])
                 stage("matching")
                 result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
                     vat_rows=vat_rows, gl_filename=left_name, vat_filename=_names(rights),
                     report_warnings=warnings, tax_id=tax_id)
+        if replace_task:
+            rerun.drop(replace_task, files=False)
+        pending = result.get("questions") or []
+        if pending:
+            # 结果页要问、答了要用原文件重跑的问题：原文件先留着（KEEP_DAYS 天没人答由每日清理删）。
+            rerun.keep(workspace, kind, result["name"], ocr_job, title, files,
+                       {key: value for key, value in options.items() if key not in ("ocr_job", "replace_task")}, pending)
         frappe.db.commit()
+        keep_files = bool(pending)
         _state(recon_job, state="done", stage="done", task=result["name"])
     except Exception as error:
         frappe.db.rollback()
@@ -248,7 +267,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         # 一份一提交：删除时的文件保护检查会锁住查到的来源行，二十张照片放在一个事务里删，并发的另一个对账
         # 就会等锁超时（2026-09-29 压测）。结果已提交，清理失败只记日志、不把任务改成失败；没删掉的临时文件
         # 是本人私有、不挂单据，按日志里的文件名处理。
-        for name in files["left"] + files["right"]:
+        for name in [] if keep_files else files["left"] + files["right"]:
             try:
                 if frappe.db.exists("File", name):
                     frappe.delete_doc("File", name, ignore_permissions=True, force=True)

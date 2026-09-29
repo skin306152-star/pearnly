@@ -1,0 +1,105 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Recon Rerun",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-30 00:00:00.000000",
+ "modified": "2026-09-30 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "task",
+  "workspace",
+  "recon_kind",
+  "recon_job",
+  "title",
+  "files_json",
+  "options_json",
+  "questions_json",
+  "expires_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "task",
+   "label": "Task",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "unique": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "recon_kind",
+   "label": "Reconciliation Type",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "bank\nincome\nvat",
+   "reqd": 1
+  },
+  {
+   "fieldname": "recon_job",
+   "label": "Recognition Reference",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "label": "Title",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "files_json",
+   "label": "Files",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "options_json",
+   "label": "Options",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "questions_json",
+   "label": "Questions",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "label": "Expires At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

@@ -29,7 +29,7 @@
 			// 电子版优先（用户 2026-09-30）：上传口下一句轻提示，照片 / 扫描件只作后备。
 			hint: { left: "cowork.recon.bank.leftHint" },
 			// 对账预设能定的规则与可选的答案（服务端 `reconciliation/presets.py` 的 RULES）。
-			presets: { grouped: ["yes", "no"] },
+			presets: { grouped: ["yes", "no"], gl_account: null },
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },
 				{ fieldname: "bank_code", width: 90, min_width: 70, label: t("cowork.recon.col.bank") },
@@ -154,13 +154,21 @@
 					remove.textContent = t("cowork.recon.preset.remove");
 					remove.addEventListener("click", () => call("remove", { scope_key: item.scope, rule: item.rule }));
 					head.append(name, remove);
-					const select = document.createElement("select");
-					select.className = "form-control input-sm";
-					for (const value of spec.presets[item.rule] || []) {
-						const option = new Option(t(`cowork.recon.rule.${item.rule}.${value}`), value, false, value === item.value);
-						select.append(option);
+					// 固定选项的规则可直接改；答案是科目号的（对哪个总账科目）只显示，要改就删了让它下次重新问。
+					const values = spec.presets[item.rule];
+					let select;
+					if (values) {
+						select = document.createElement("select");
+						select.className = "form-control input-sm";
+						for (const value of values) {
+							const option = new Option(t(`cowork.recon.rule.${item.rule}.${value}`), value, false, value === item.value);
+							select.append(option);
+						}
+						select.addEventListener("change", () => call("change", { scope_key: item.scope, rule: item.rule, value: select.value }));
+					} else {
+						select = document.createElement("div");
+						select.textContent = item.value;
 					}
-					select.addEventListener("change", () => call("change", { scope_key: item.scope, rule: item.rule, value: select.value }));
 					const by = document.createElement("div");
 					by.className = "text-muted small";
 					by.textContent = t("cowork.recon.preset.by", item.set_by_name || item.set_by || "", p.datetime_text(item.set_at));
@@ -205,19 +213,32 @@
 
 		// 核对中：整屏遮罩，只写阶段文字；结论出来才收起。
 		async function run(chosen, task_title) {
+			await follow(async say => {
+				say("upload");
+				return p.post_files(api + "start", { kind, title: task_title, left: chosen.left,
+					right: chosen.right, lang: (frappe.boot.lang || "th").slice(0, 2) });
+			});
+		}
+
+		// 等后台任务：整屏遮罩写阶段，完成跳到结果页。新建对账、答了要重跑的预设问题（用原文件重跑）都走这里。
+		async function follow(begin) {
 			frappe.dom.freeze(p.escape(t("cowork.recon.checking")));
 			const lead = () => document.querySelector("#freeze .freeze-message p.lead");
 			const say = stage => { const node = lead(); if (node) node.innerText = `${t("cowork.recon.checking")}\n${t(`cowork.recon.stage.${stage}`)}`; };
 			try {
-				say("upload");
-				const started = await p.post_files(api + "start", { kind, title: task_title, left: chosen.left,
-					right: chosen.right, lang: (frappe.boot.lang || "th").slice(0, 2) });
+				const started = await begin(say);
 				const began = Date.now();
 				for (;;) {
 					await new Promise(resolve => setTimeout(resolve, POLL_MS));
 					let state;
 					try { state = await frappe.xcall(api + "status", { job: started.job }); } catch (error) { continue; }
-					if (state.state === "done") { frappe.dom.unfreeze(); frappe.set_route(root, state.task); return; }
+					if (state.state === "done") {
+						frappe.dom.unfreeze();
+						// 重跑的结果可能与原来同名（同一个人重跑）：路由不变时自己重画。
+						if (frappe.get_route()[1] === state.task) await show_result(state.task);
+						else frappe.set_route(root, state.task);
+						return;
+					}
 					if (state.state === "failed") {
 						frappe.dom.unfreeze();
 						frappe.msgprint({ title: t("cowork.recon.failed"), message: p.escape(state.error || ""), indicator: "red" });
@@ -666,6 +687,13 @@
 					await save();
 					if (dirty) return;
 				}
+				if (item.rerun) {
+					// 答案要用原文件重跑（读总账时就按科目筛了）：跟着后台任务走，完成后打开新结果（识别结果复用，不再扣费）。
+					dialog.hide();
+					await follow(() => p.call(presets_api + "answer", { kind, task_id: name, rule: item.rule, value: option.value,
+						lang: lang() }, "POST"));
+					return;
+				}
 				const fresh = await p.call(presets_api + "answer", { kind, task_id: name, rule: item.rule, value: option.value,
 					subject: item.subject || "", lang: lang() }, "POST");
 				dialog.hide();
@@ -698,7 +726,7 @@
 					});
 					choices.append(button);
 				}
-				body.replaceChildren(evidence, count, choices);
+				body.replaceChildren(...(item.evidence.length ? [evidence] : []), count, choices);
 				dialog.show();
 			}
 			if (questions.length) {

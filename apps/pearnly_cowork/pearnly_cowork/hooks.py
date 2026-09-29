@@ -296,6 +296,7 @@ permission_query_conditions = {
     "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork Recon Preset": "pearnly_cowork.reconciliation.preset_store.deny",
+    "Cowork Recon Rerun": "pearnly_cowork.recon_center.rerun.deny",
     "Cowork Express Choice": "pearnly_cowork.push.choices.deny_query",
     "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_query",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_query",
@@ -341,6 +342,7 @@ has_permission = {
     "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork Recon Preset": "pearnly_cowork.reconciliation.preset_store.deny",
+    "Cowork Recon Rerun": "pearnly_cowork.recon_center.rerun.deny",
     "Cowork Express Choice": "pearnly_cowork.push.choices.deny",
     "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_permission",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_permission",
@@ -393,6 +395,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.income_recon_access.reject_share",
         "pearnly_cowork.reconciliation.vat_check_access.reject_share",
         "pearnly_cowork.reconciliation.preset_store.reject_share",
+        "pearnly_cowork.recon_center.rerun.reject_share",
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
@@ -404,6 +407,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.income_recon_access.reject_share",
         "pearnly_cowork.reconciliation.vat_check_access.reject_share",
         "pearnly_cowork.reconciliation.preset_store.reject_share",
+        "pearnly_cowork.recon_center.rerun.reject_share",
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share"],
 }}
 extend_doctype_class = {
@@ -478,4 +482,6 @@ pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 # MR.ERP 推送的兜底巡检：丢失的排队任务重新排上、过期的执行转结果不明（见 push.mrerp.runner.sweep）。
 # 工作协调看板：每 5 分钟按卡片的"提醒时间"发到期提醒、到期后发一次过期提醒（同一到期时刻每人各一次）。
 scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep",
-                                             "pearnly_cowork.work.reminders.run"]}}
+                                             "pearnly_cowork.work.reminders.run"]},
+                    # 对账预设问题留着的原文件：过期没人答的删掉（recon_center/rerun.py）。
+                    "daily": ["pearnly_cowork.recon_center.rerun.expire"]}

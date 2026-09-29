@@ -152,6 +152,7 @@ Buyer Client,Buyer Client
 Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
+"By preset, ledger account {0} is used for this bank account","By preset, ledger account {0} is used for this bank account"
 "By preset, these accounts are left out: {0}","By preset, these accounts are left out: {0}"
 By preset: {0} groups matched by total,By preset: {0} groups matched by total
 Calendar,Calendar
@@ -279,6 +280,7 @@ Cowork Push Notification,Cowork Push Notification
 Cowork Push Record,Cowork Push Record
 Cowork Push Writer Lock,Cowork Push Writer Lock
 Cowork Recon Preset,Cowork Recon Preset
+Cowork Recon Rerun,Cowork Recon Rerun
 Cowork Source File,Cowork Source File
 Cowork Stocktake,Cowork Stocktake
 Cowork Stocktake Entry,Cowork Stocktake Entry
@@ -411,6 +413,7 @@ Evidence Owner,Evidence Owner
 Examples Json,Examples Json
 Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV exported from online banking or the electronic PDF is most accurate
 Expense account,Expense account
+Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
@@ -428,6 +431,7 @@ Field,Field
 Field name,Field name
 File,File
 File Hash,File Hash
+Files,Files
 Filter,Filter
 Find,Find
 Find product,Find product
@@ -523,6 +527,7 @@ Last Request Key,Last Request Key
 Last used,Last used
 Lease Expires At,Lease Expires At
 Leave board,Leave board
+Ledger account,Ledger account
 Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
@@ -616,6 +621,7 @@ Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
 Open card,Open card
+Options,Options
 Options (one per line),Options (one per line)
 Orange,Orange
 Order Evidence,Order Evidence
@@ -691,6 +697,7 @@ Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and
 Quantity,Quantity
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
+Questions,Questions
 Read again,Read again
 Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
@@ -706,6 +713,7 @@ Receipt,Receipt
 Recognised {0} documents,Recognised {0} documents
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
+Recognition Reference,Recognition Reference
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
 Recognition is busy. Try again in a moment.,Recognition is busy. Try again in a moment.
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
@@ -815,6 +823,7 @@ Set reminder,Set reminder
 Settings Json,Settings Json
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
+"Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.","Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
 Sheet,Sheet
 Short,Short
 Show,Show
@@ -1004,6 +1013,7 @@ The original file already has a completed invoice manifest.,The original file al
 The original file checksum does not match.,The original file checksum does not match.
 The original file is not ready for page preview.,The original file is not ready for page preview.
 The original file reference has changed.,The original file reference has changed.
+"The original files are no longer kept, so this cannot be rerun. Start a new reconciliation.","The original files are no longer kept, so this cannot be rerun. Start a new reconciliation."
 The original invoice manifest is incomplete.,The original invoice manifest is incomplete.
 The original invoice reference is invalid or unavailable.,The original invoice reference is invalid or unavailable.
 The outdated unsent preparation was replaced.,The outdated unsent preparation was replaced.
@@ -1343,6 +1353,7 @@ cowork.recon.questions,Decide once ({0})
 cowork.recon.rule.excluded,Income account
 cowork.recon.rule.excluded.no,Reconciled
 cowork.recon.rule.excluded.yes,Left out (not in the tax report)
+cowork.recon.rule.gl_account,Ledger account
 cowork.recon.rule.grouped,Many-to-one lines
 cowork.recon.rule.grouped.no,Check line by line
 cowork.recon.rule.grouped.yes,Batched: match by total
@@ -2047,6 +2058,10 @@ reconciliation.preset.excluded_count,"{0} ledger lines, {1} in total, none of th
 reconciliation.preset.excluded_no,"Yes, keep reconciling it"
 reconciliation.preset.excluded_title,Does account {0} belong in this reconciliation?
 reconciliation.preset.excluded_yes,"No, not in the tax report (interest, other income)"
+reconciliation.preset.gl_account_applied,"By preset, ledger account {0} is used for this bank account"
+reconciliation.preset.gl_account_count,"Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
+reconciliation.preset.gl_account_option,{0} ({1} matching lines)
+reconciliation.preset.gl_account_title,{0}: which ledger account is it?
 reconciliation.preset.grouped_applied,By preset: {0} groups matched by total
 reconciliation.preset.grouped_count,{0} such groups this period
 reconciliation.preset.grouped_no,"No, check line by line"
@@ -2057,6 +2072,7 @@ reconciliation.recognition_timeout,Reading the scanned or photographed document 
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 reconciliation.request_conflict,This request was already used for different content.
 reconciliation.request_invalid,The request is invalid. Reload and try again.
+reconciliation.rerun_files_gone,"The original files are no longer kept, so this cannot be rerun. Start a new reconciliation."
 reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
 reconciliation.review_balance_mismatch,Check the statement balance differences before confirming.
 reconciliation.review_break,Line {0} ({1}): balance off by {2} — {3}
@@ -2147,6 +2163,7 @@ vat_check.periods_differ,The reports cover different periods ({0}).
 vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
 vat_check.recognition_timeout,Invoice recognition took too long. Try again later.
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
+{0} ({1} matching lines),{0} ({1} matching lines)
 {0} added you to {1},{0} added you to {1}
 {0} bank lines add up to it ({1} to {2}),{0} bank lines add up to it ({1} to {2})
 {0} commented on {1},{0} commented on {1}
@@ -2172,6 +2189,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 {0}: the check digit is wrong,{0}: the check digit is wrong
+{0}: which ledger account is it?,{0}: which ledger account is it?
 {1} is due at {2},{1} is due at {2}
 {1} is due soon ({2}),{1} is due soon ({2})
 {1} is overdue ({2}),{1} is overdue ({2})

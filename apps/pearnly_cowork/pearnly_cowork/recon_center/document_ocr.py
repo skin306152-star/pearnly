@@ -130,9 +130,13 @@ def completed_calls(name):
 
 
 def reader(recon_job, side, file_name, user):
-    """给对账读取层的模型接缝：``(document_type, content, filename) → 管线结果 / None``。"""
+    """给对账读取层的模型接缝：``(document_type, content, filename) → 管线结果 / None``。
+
+    这份文件在这个对账号下已经有识别任务（照片预先提交过，或答了预设问题后用原文件重跑）就直接等它、取它存的结果，
+    不再提交：重跑的人可能不是当初上传的人，按原参数再提交会被当成「同一参考号换了内容」拒掉，也不该再过一次余额与名额。"""
     def read(document_type, content, filename):
-        name = submit(recon_job, side, file_name, filename, content, document_type, user)
+        name = (frappe.db.get_value(WORK, {"kind": KIND, "reference": f"{recon_job}:{side}:{document_type}"}, "name")
+                or submit(recon_job, side, file_name, filename, content, document_type, user))
         return wait(name) if name else None
     return read
 

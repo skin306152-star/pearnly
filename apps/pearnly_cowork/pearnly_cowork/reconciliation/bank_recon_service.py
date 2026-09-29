@@ -41,10 +41,17 @@ TASKS = recon_tasks.ReconTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS,
 
 def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		reconciliation_type="bank", source_format=bank_recon_contracts.SOURCE_FORMAT,
-		parse_info=None, warnings=None, anchors=None, lang="th", *, _review=None):
-	"""Validate, match and store one reconciliation inside a single transaction."""
+		parse_info=None, warnings=None, anchors=None, lang="th", *, _review=None, replace_task=""):
+	"""Validate, match and store one reconciliation inside a single transaction.
+
+	``replace_task``：答了要重跑的预设问题后，用原文件重跑的新结果替换原来那份（同一事务里先删后建，建失败原来的还在）。"""
 	bank_recon_access.require(workspace)
 	name, request_key = TASKS.identity(request_id)
+	if replace_task and frappe.db.exists(TASK, replace_task):
+		previous = frappe.get_doc(TASK, replace_task, for_update=True)
+		if previous.workspace != workspace:
+			frappe.throw(_("reconciliation.request_conflict"))
+		TASKS._remove(previous)
 	title = bank_recon_contracts.title_text(title)
 	if reconciliation_type not in ("bank", "income"):
 		frappe.throw(_("reconciliation.type_invalid"))
@@ -183,7 +190,7 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 def create_from_documents(workspace, title, request_id, statement_bytes, statement_filename,
 		gl_bytes, gl_filename, header=None, gl_account_code="", reconciliation_type="bank",
 		model_rows=None, read_page=None, page_count=None, warnings=None, anchors=None, lang="th",
-		on_stage=None, statement_files=None, gl_files=None):
+		on_stage=None, statement_files=None, gl_files=None, replace_task=""):
 	"""Store one reconciliation from **files**, through the native readers.
 
 	The bytes are handed in by the caller (the file store stays with the caller's
@@ -256,14 +263,31 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
 		# 识别结果不明，用户看不出少了哪一页）。
 		warnings = list(warnings or []) + [_("reconciliation.files_unread", lang=_warning_lang(lang)).format("、".join(unread))]
-	chosen = "" if gl_account_code else likely_account(statement["rows"], [result for _n, result in ledgers])
+	# 这个账户（银行 + 账号尾号）定过对总账哪个科目（对账预设）：总账里真有这个科目就按它，不再猜；没有这个科目
+	# （换了总账 / 预设不适用）照旧自己挑，挑不出再问。
+	account_scope = presets.account_scope(statement["bank_code"], presets.account_tail(
+		_account_of(result).get("account", "") for _name, result in statements if result.get("ok")))
+	codes = {row.account_code for _name, result in ledgers if result.get("ok") for row in result.get("rows") or []
+		if row.account_code}
+	# 只有一个科目的总账不用选（也就不查预设）。
+	preset = ("" if gl_account_code or not account_scope or len(codes) < 2
+		else preset_rules(workspace, account_scope).get(presets.GL_ACCOUNT, ""))
+	preset = preset if preset and any(code == preset or code.startswith(preset) for code in codes) else ""
+	scores = [] if gl_account_code or preset else account_scores(statement["rows"], [result for _n, result in ledgers])
+	chosen = preset or ("" if gl_account_code else likely_account(statement["rows"], [result for _n, result in ledgers]))
+	questions = []
 	if chosen:
 		# 全科目总账、没指定科目：用与银行流水最吻合的那个科目（旧线上把所有科目的行都拿来对，Mr.erp 全科目
 		# 总账 1 万多行，结果没法看；2026-09-29 压测 B01）。按这个科目重读：期初按它的科目标题行。
 		gl_account_code = chosen
 		ledgers = [(name, _only_account(bank_intake.read_ledger_file(content, name, account_code=chosen,
 			model_rows=model_rows), chosen)) for content, name in gl_files]
-		warnings = list(warnings or []) + [_("reconciliation.gl_account_auto", lang=_warning_lang(lang)).format(chosen)]
+		warnings = list(warnings or []) + [_("reconciliation.preset.gl_account_applied" if preset
+			else "reconciliation.gl_account_auto", lang=_warning_lang(lang)).format(chosen)]
+	elif account_scope and len([hits for hits, _code in scores if hits]) >= 2:
+		# 几个科目都像、分不出：照旧全部拿来对，结果页问一次这个账户对哪个科目，答了用原文件重跑（识别结果复用）。
+		questions.append({"rule": presets.GL_ACCOUNT, "scope": account_scope,
+			"candidates": [{"code": code, "hits": hits} for hits, code in scores[:QUESTION_ACCOUNTS] if hits]})
 	ledger = _merged_ledger([result for _name, result in ledgers], gl_account_code)
 	statement, outside = within_ledger_period(statement, ledger)
 	if outside:
@@ -300,8 +324,9 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 				"accounts": (parsed.get("accounts") or [])[:bank_recon_contracts.MAX_ACCOUNTS]}
 				for name, parsed in ledgers],
 		}, warnings=warnings, anchors=anchors, lang=lang,
-		_review=_review_diagnostics(statement, statement_names, [name for name, _r in statements]))
-	return {**result, "parsed": {
+		_review=_review_diagnostics(statement, statement_names, [name for name, _r in statements]),
+		replace_task=replace_task)
+	return {**result, "questions": questions, "parsed": {
 		"statement_rows": statement["row_count"],
 		"gl_rows": ledger["row_count"],
 		"opening": statement["opening"],
@@ -727,13 +752,24 @@ MATCH_DAYS = 5
 def likely_account(statement_rows, ledgers):
 	"""几个科目里与银行流水最吻合的那个：同金额（存入对借方、支出对贷方）、日期相差不超过 MATCH_DAYS 天的笔数最多，
 	且至少吻合流水的五分之一（最少 2 笔）；只有一个科目或都对不上返回空（照旧全部拿来对）。"""
+	scores = account_scores(statement_rows, ledgers)
+	if len(scores) < 2:
+		return ""
+	best, code = scores[0]
+	if best < max(2, len(statement_rows) / 5) or (len(scores) > 1 and scores[1][0] == best):
+		return ""
+	return code
+
+
+def account_scores(statement_rows, ledgers):
+	"""每个科目与银行流水吻合的笔数，多的在前：``[(笔数, 科目)]``；不到两个科目或没有流水回空。"""
 	by_account = {}
 	for result in ledgers:
 		for row in (result.get("rows") or []) if result.get("ok") else []:
 			if row.account_code and any(char.isdigit() for char in row.account_code):
 				by_account.setdefault(row.account_code, []).append(row)
 	if len(by_account) < 2 or not statement_rows:
-		return ""
+		return []
 	def hits(rows):
 		index = {}
 		for row in rows:
@@ -747,11 +783,10 @@ def likely_account(statement_rows, ledgers):
 			if any(row.date and day and abs((row.date - day).days) <= MATCH_DAYS for day in dates):
 				count += 1
 		return count
-	scores = sorted(((hits(rows), code) for code, rows in by_account.items()), reverse=True)
-	best, code = scores[0]
-	if best < max(2, len(statement_rows) / 5) or (len(scores) > 1 and scores[1][0] == best):
-		return ""
-	return code
+	return sorted(((hits(rows), code) for code, rows in by_account.items()), reverse=True)
+
+
+QUESTION_ACCOUNTS = 6
 
 
 def _months(days):

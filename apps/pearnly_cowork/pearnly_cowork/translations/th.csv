@@ -152,6 +152,7 @@ Buyer Client,ลูกค้าผู้ซื้อ
 Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขผู้เสียภาษีผู้ซื้อ
+"By preset, ledger account {0} is used for this bank account",ตามค่าที่ตั้งไว้ บัญชีนี้ใช้บัญชีแยกประเภท {0}
 "By preset, these accounts are left out: {0}",ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}
 By preset: {0} groups matched by total,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 Calendar,ปฏิทิน
@@ -279,6 +280,7 @@ Cowork Push Notification,เหตุการณ์แจ้งเตือน�
 Cowork Push Record,รายการส่งของ Cowork
 Cowork Push Writer Lock,ล็อกการเขียนของ Cowork
 Cowork Recon Preset,ค่าที่ตั้งไว้สำหรับกระทบยอด Cowork
+Cowork Recon Rerun,การกระทบยอดซ้ำ Cowork
 Cowork Source File,ไฟล์ต้นฉบับ Cowork
 Cowork Stocktake,ตรวจนับสต็อก Cowork
 Cowork Stocktake Entry,รายการตรวจนับสต็อก Cowork
@@ -411,6 +413,7 @@ Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
 Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์ แม่นยำที่สุด
 Expense account,บัญชีค่าใช้จ่าย
+Expires At,หมดอายุเมื่อ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
@@ -428,6 +431,7 @@ Field,ฟิลด์
 Field name,ชื่อช่อง
 File,ไฟล์
 File Hash,ค่าแฮชของไฟล์
+Files,ไฟล์
 Filter,ตัวกรอง
 Find,ค้นหา
 Find product,ค้นหาสินค้า
@@ -523,6 +527,7 @@ Last Request Key,คีย์คำขอล่าสุด
 Last used,ที่ใช้ล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
 Leave board,ออกจากบอร์ด
+Ledger account,บัญชีแยกประเภท
 Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
@@ -616,6 +621,7 @@ Only board admins can do this,เฉพาะผู้ดูแลบอร์�
 Only invoices in Thai baht can be sent to Express,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 Open card,เปิดการ์ด
+Options,ตัวเลือก
 Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
 Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
@@ -691,6 +697,7 @@ Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and
 Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
+Questions,คำถาม
 Read again,อ่านใหม่
 Reading files,กำลังอ่านไฟล์
 Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
@@ -706,6 +713,7 @@ Receipt,ใบเสร็จ
 Recognised {0} documents,อ่านเอกสารแล้ว {0} ใบ
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
+Recognition Reference,เลขอ้างอิงการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
 Recognition is busy. Try again in a moment.,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
@@ -815,6 +823,7 @@ Set reminder,ตั้งการเตือน
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
+"Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",มีหลายบัญชีที่มีรายการตรงกับรายการเดินบัญชีนี้ เลือกครั้งเดียว ระบบจะกระทบยอดใหม่จากไฟล์เดิม (ไม่อ่านไฟล์ซ้ำ)
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
@@ -1004,6 +1013,7 @@ The original file already has a completed invoice manifest.,ไฟล์ต้�
 The original file checksum does not match.,ค่าแฮชตรวจสอบของไฟล์ต้นฉบับไม่ตรงกัน
 The original file is not ready for page preview.,ไฟล์ต้นฉบับยังไม่พร้อมสำหรับการดูตัวอย่างหน้า
 The original file reference has changed.,การเชื่อมโยงไฟล์ต้นฉบับเปลี่ยนไปแล้ว
+"The original files are no longer kept, so this cannot be rerun. Start a new reconciliation.",ไฟล์ต้นฉบับไม่มีแล้ว จึงกระทบยอดใหม่ไม่ได้ กรุณาสร้างการกระทบยอดใหม่
 The original invoice manifest is incomplete.,รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน
 The original invoice reference is invalid or unavailable.,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 The outdated unsent preparation was replaced.,แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว
@@ -1343,6 +1353,7 @@ cowork.recon.questions,ตัดสินใจครั้งเดียว ({
 cowork.recon.rule.excluded,บัญชีรายได้
 cowork.recon.rule.excluded.no,นำมากระทบยอด
 cowork.recon.rule.excluded.yes,ไม่นำมากระทบยอด (ไม่มีในรายงานภาษี)
+cowork.recon.rule.gl_account,บัญชีแยกประเภท
 cowork.recon.rule.grouped,หลายรายการต่อหนึ่งรายการ
 cowork.recon.rule.grouped.no,ตรวจทีละรายการ
 cowork.recon.rule.grouped.yes,บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม
@@ -2047,6 +2058,10 @@ reconciliation.preset.excluded_count,ในบัญชีแยกประเ�
 reconciliation.preset.excluded_no,นำมากระทบยอด
 reconciliation.preset.excluded_title,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
 reconciliation.preset.excluded_yes,ไม่ต้อง (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)
+reconciliation.preset.gl_account_applied,ตามค่าที่ตั้งไว้ บัญชีนี้ใช้บัญชีแยกประเภท {0}
+reconciliation.preset.gl_account_count,มีหลายบัญชีที่มีรายการตรงกับรายการเดินบัญชีนี้ เลือกครั้งเดียว ระบบจะกระทบยอดใหม่จากไฟล์เดิม (ไม่อ่านไฟล์ซ้ำ)
+reconciliation.preset.gl_account_option,{0} (ตรงกัน {1} รายการ)
+reconciliation.preset.gl_account_title,{0} ตรงกับบัญชีใดในบัญชีแยกประเภท
 reconciliation.preset.grouped_applied,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 reconciliation.preset.grouped_count,งวดนี้มี {0} กลุ่มแบบนี้
 reconciliation.preset.grouped_no,ไม่ใช่ ตรวจทีละรายการ
@@ -2057,6 +2072,7 @@ reconciliation.recognition_timeout,การอ่านเอกสารสแ
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
+reconciliation.rerun_files_gone,ไฟล์ต้นฉบับไม่มีแล้ว จึงกระทบยอดใหม่ไม่ได้ กรุณาสร้างการกระทบยอดใหม่
 reconciliation.review_amount_invalid,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม
 reconciliation.review_balance_mismatch,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 reconciliation.review_break,รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}
@@ -2147,6 +2163,7 @@ vat_check.periods_differ,รายงานคนละงวด ({0}) กรุ
 vat_check.recognition_busy,ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง
 vat_check.recognition_timeout,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
+{0} ({1} matching lines),{0} (ตรงกัน {1} รายการ)
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
 {0} bank lines add up to it ({1} to {2}),ธนาคาร {0} รายการรวมเท่ากัน ({1} ถึง {2})
 {0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
@@ -2172,6 +2189,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: อ่านหน้า {1} ไม่ได้ (การอ่านหมดเวลา) ยอดคงเหลือขาดช่วงตรงนี้ กรุณาตรวจกับต้นฉบับ
 {0}: the check digit is wrong,{0}: หลักตรวจสอบไม่ถูกต้อง
+{0}: which ledger account is it?,{0} ตรงกับบัญชีใดในบัญชีแยกประเภท
 {1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
 {1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
 {1} is overdue ({2}),"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"

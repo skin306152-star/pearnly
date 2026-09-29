@@ -262,5 +262,113 @@ class IncomeQuestions(unittest.TestCase):
 		self.assertEqual(revision.income_questions(doc, ([income_gl("A", "4201", "1")], []), []), [])
 
 
+# ── 银行：这个账户对总账哪个科目（答了用原文件重跑） ─────────────────────────────
+
+
+class LedgerAccount(unittest.TestCase):
+	def statement(self):
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		rows = [StatementRow(date=date(2026, 5, 3), description="", withdrawal=100.0, deposit=0.0, balance=900.0),
+			StatementRow(date=date(2026, 5, 5), description="", withdrawal=0.0, deposit=300.0, balance=1200.0)]
+		return {"ok": True, "rows": rows, "row_count": len(rows), "opening": 1000.0, "closing": 1200.0, "bank_code": "kbank",
+			"source": "workbook", "parser_version": "x", "balance_warn_count": 0, "amount_fixed_count": 0,
+			"low_conf_count": 0, "completeness": {"ok": True}, "needs_review": False,
+			"identity": {"bank": "KBANK", "last4": "4821"}}
+
+	def ledger(self, only=None):
+		def gl(code, day, debit=0.0, credit=0.0):
+			return bank_matching.GlRow(date=date(2026, 5, day), doc_no=f"{code}-{day}", account_code=code,
+				description="", debit=debit, credit=credit)
+		rows = [gl("1112-01", 3, credit=100.0), gl("1112-01", 20, debit=5.0),
+			gl("1112-02", 5, debit=300.0), gl("1112-02", 21, credit=7.0)]
+		rows = [row for row in rows if not only or row.account_code == only]
+		return {"ok": True, "rows": rows, "row_count": len(rows), "accounts": sorted({row.account_code for row in rows}),
+			"opening": 1000.0, "closing": 1200.0, "source": "workbook", "needs_review": False}
+
+	def create(self, preset):
+		reads = []
+
+		def read_ledger(content, name, account_code="", model_rows=None):
+			reads.append(account_code)
+			return self.ledger(account_code or None)
+		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", return_value=self.statement()), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", side_effect=read_ledger), \
+				mock.patch.object(bank_recon_service, "preset_rules", return_value=preset), \
+				mock.patch.object(bank_recon_service, "_", side_effect=lambda text, **_kw: text + " {0}"), \
+				mock.patch.object(bank_recon_service, "create", return_value={"name": "T1"}) as create:
+			result = bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
+				statement_files=[(b"1", "kbank.xlsx")], gl_files=[(b"g", "gl.xlsx")])
+		return result, create.call_args, reads
+
+	def test_two_equally_likely_accounts_are_asked_about_with_the_files_kept(self):
+		result, call, _reads = self.create({})
+		self.assertEqual([item["rule"] for item in result["questions"]], [presets.GL_ACCOUNT])
+		question = result["questions"][0]
+		self.assertEqual(question["scope"], "bank|KBANK|4821|-")
+		self.assertEqual({item["code"] for item in question["candidates"]}, {"1112-01", "1112-02"})
+		self.assertEqual(call.args[5]["gl_account_code"], "")  # 照旧全部科目一起对
+
+	def test_the_remembered_account_is_used_without_asking(self):
+		result, call, reads = self.create({presets.GL_ACCOUNT: "1112-02"})
+		self.assertEqual(result["questions"], [])
+		self.assertEqual(call.args[5]["gl_account_code"], "1112-02")
+		self.assertEqual(reads[-1], "1112-02")  # 按这个科目重读（期初按它的科目标题行）
+		self.assertIn("reconciliation.preset.gl_account_applied 1112-02", call.kwargs["warnings"])
+
+	def test_a_remembered_account_missing_from_this_ledger_is_not_forced(self):
+		result, call, _reads = self.create({presets.GL_ACCOUNT: "9999"})
+		self.assertEqual([item["rule"] for item in result["questions"]], [presets.GL_ACCOUNT])
+		self.assertEqual(call.args[5]["gl_account_code"], "")
+
+	def test_free_answers_are_account_codes(self):
+		self.assertTrue(presets.valid("bank", presets.GL_ACCOUNT, "1112-01"))
+		self.assertFalse(presets.valid("bank", presets.GL_ACCOUNT, ""))
+		self.assertFalse(presets.valid("bank", presets.GL_ACCOUNT, "x" * 41))
+		self.assertEqual(presets.account_scope("KBANK", ""), "")
+
+
+class Rerun(unittest.TestCase):
+	def test_a_rerun_reuses_what_the_first_run_recognised(self):
+		from pearnly_cowork.recon_center import document_ocr
+
+		db = mock.MagicMock()
+		with mock.patch.object(document_ocr.frappe, "db", db), mock.patch.object(document_ocr, "submit") as submit, \
+				mock.patch.object(document_ocr, "wait", return_value={"pages": []}) as wait:
+			db.get_value.return_value = "WORK-1"
+			self.assertEqual(document_ocr.reader("job-1", "left0", "F1", "other@example.com")(
+				"bank_statement", b"x", "a.jpg"), {"pages": []})
+		submit.assert_not_called()
+		wait.assert_called_once_with("WORK-1")
+		self.assertEqual(db.get_value.call_args.args[1]["reference"], "job-1:left0:bank_statement")
+
+	def test_the_job_keeps_the_files_for_a_question_and_drops_them_after_the_rerun(self):
+		from pearnly_cowork.recon_center import jobs
+
+		def run(options, result):
+			db = mock.MagicMock()
+			db.exists.return_value = True
+			with mock.patch.object(jobs, "_state"), mock.patch.object(jobs, "_read", return_value=[("a.xlsx", b"a")]), \
+					mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+					mock.patch.object(jobs.frappe, "db", db), mock.patch.object(jobs.frappe, "delete_doc") as delete, \
+					mock.patch.object(jobs.rerun, "keep") as keep, mock.patch.object(jobs.rerun, "drop") as drop, \
+					mock.patch.object(jobs.bank_recon_service, "create_from_documents", return_value=result) as create:
+				jobs.run("job-2", "bank", "ws", "t", {"left": ["L0"], "right": ["R0"]}, json.dumps(options))
+			return keep, drop, delete, create
+
+		keep, drop, delete, create = run({}, {"name": "T1", "questions": [{"rule": "gl_account"}]})
+		keep.assert_called_once()
+		self.assertEqual(keep.call_args.args[3], "job-2")  # 识别结果以后按这个对账号取
+		delete.assert_not_called()
+		drop.assert_not_called()
+
+		keep, drop, delete, create = run({"ocr_job": "job-1", "replace_task": "T1"}, {"name": "T2", "questions": []})
+		keep.assert_not_called()
+		drop.assert_called_once_with("T1", files=False)
+		self.assertEqual(create.call_args.kwargs["replace_task"], "T1")
+		self.assertEqual(delete.call_count, 2)  # 重跑完原文件删掉
+
+
 if __name__ == "__main__":
 	unittest.main()
