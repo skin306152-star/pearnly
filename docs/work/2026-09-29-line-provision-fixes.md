@@ -1,6 +1,6 @@
 # 2026-09-29 开户 LINE 凭据与 ERP 手动录入入口
 
-状态：本次范围完成（代码 + 本地/真实控制面库验证）；待用户真机验收；未部署。
+状态：本次范围完成，已合入 main 并部署 ERP 生产（见文末）；LINE 里真机点按钮待用户验收。收尾：完成清理。
 
 - 分支 `codex/line-provision-fixes`，基线 `26e852e2`（= 当时 `origin/main`），工作树 `.claude/worktrees/peaceful-gauss-545f01`。
 - 起因：用户在本机管理后台（control.localhost:8104）给 MRERP 开户时遇到三件事；租户已手工修好
@@ -69,3 +69,20 @@
 ## CI 登记
 
 `scripts/ci-candidate-checks.sh offline` 增加 `tests/test_line_channel_setup.py`（需要 Frappe，走候选镜像）。
+
+## 合并与部署（2026-09-29，用户：「直接部署后去线上验证采购销售盘点会进入网页的按钮，没问题后收工」）
+
+- 合入：`origin/main` 仍是基线 `26e852e2`，分支 Development checks `36587910695` 通过 → 主目录 `main` 快进到 `5461e333` 并推送，远端回读一致。
+- 本机管理后台：控制面容器挂主目录源码，清缓存并重启 control web / worker（当时无进行中的开通请求），Desk 已加载新的发号单脚本。
+- 镜像：build-production `36588364031`（`5461e333`，候选并行检查全过）→
+  `ghcr.io/skin306152-star/pearnly/frappe@sha256:4c2c12edeaeaf6b7013ce9bdb673bb38ab26414ee687d452443e81d6d5aecc30`；stage-production `36589146245` 成功。
+- 激活前只读核对：线上 ERP 上一版 `93264218`（revision `413bb5bb`）；`413bb5bb..5461e333` 在 ERP 与共用层只有本次 `line_flow.py` 一处，无补丁 / 迁移；
+  可用内存 26 GB；无其他激活在跑；`testerp` 解析到生产（未切测试机）。
+- 激活：第一次被 `check-deploy-image.py` 在进入维护前拦下（本次改了 `scripts/production/test-issue-actions.cjs`，服务器部署工具目录不同步），
+  按提示从新镜像同步 `/opt/pearnly/deploy/` 后重跑：`activate-product.sh … erp` 124 秒，`Product erp activated with verified image.`，
+  日志 `/opt/pearnly/state/activate-erp-5461e333.log`，激活前两个站点均已备份（`20260929_222000-*`，站点时区）。回退用上一版 `93264218` 与该备份。只动 ERP。
+- 线上回读：7 个 ERP 容器均为 `4c2c12ed`；维护模式 0、调度开；激活后两站 Error Log 0，web / worker / scheduler 10 分钟日志 0 错误。
+- 按钮验证（mrerp / testerp 两站，已部署代码生成链接，不写会话、不调 LINE）：采购「手动录入」、销售「手动录入」、菜单「盘点」
+  三个链接均为 `…/api/method/pearnly_core.account.line_login.enter?to=/desk/…`；公网以 LINE 内置浏览器 UA 打开均 302 到
+  `auth.pearnly.com`，带 `kc_idp_hint=line-2010411313`，再 303 进 LINE 登录代理；非 LINE 浏览器直接 302 到对应网页页面。
+- 未验：真机在 LINE 里点按钮、LINE 授权后落到新建页 / 盘点页（需用户手机）。
