@@ -244,7 +244,7 @@ def update_pages(name, pages, expected_version):
     doc = read(name, for_update=True)
     if revision(expected_version) != int(doc.record_version):
         conflict()
-    pages = contract(prepare_pages, parse(pages), anchor_year=anchor_year())
+    pages = contract(prepare_pages, parse(pages), anchor_year=anchor_year(), previous=parse(doc.pages or "[]"))
     if not pages:
         frappe.throw(_("At least one invoice page is required when editing."))
     changed = doc.pages != encode(pages)

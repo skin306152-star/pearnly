@@ -116,7 +116,8 @@ def _recognized_date(value) -> str | None:
 		return None
 
 
-def prepare_pages(pages, *, anchor_year: int | None = None, recognized: bool = False) -> list[dict]:
+def prepare_pages(pages, *, anchor_year: int | None = None, recognized: bool = False,
+		previous: list | None = None) -> list[dict]:
 	"""Copy complete pages and derive AD dates; incomplete invoices remain valid.
 
 	Empty pages can represent failed recognition, as in legacy insert. An update
@@ -124,11 +125,17 @@ def prepare_pages(pages, *, anchor_year: int | None = None, recognized: bool = F
 	``recognized`` is the OCR ingest path: as in legacy insert, a printed date the
 	rules cannot read keeps the model's valid AD date (or none) for review instead
 	of failing the whole batch. Manual creation and review edits stay strict.
+
+	``previous`` is the stored pages of a review edit: a page whose printed date is
+	the same as stored keeps the ingest rule. The review page edits one page only, so
+	an unreadable date on another page used to block every save of the record
+	(2026-09-29: a second page printed "28-Sep-26").
 	"""
 	if not isinstance(pages, list):
 		raise HistoryContractError("history.pages_invalid")
 	prepared = _json_copy(pages)
-	for page in prepared:
+	stored = previous if isinstance(previous, list) else []
+	for index, page in enumerate(prepared):
 		if not isinstance(page, dict):
 			raise HistoryContractError("history.pages_invalid")
 		fields = page.get("fields")
@@ -144,7 +151,9 @@ def prepare_pages(pages, *, anchor_year: int | None = None, recognized: bool = F
 			continue
 		derived = _printed_date(printed, anchor_year=anchor_year)
 		if derived is None:
-			if not recognized:
+			before = stored[index] if index < len(stored) and isinstance(stored[index], dict) else {}
+			untouched = isinstance(before.get("fields"), dict) and before["fields"].get("date_raw") == printed
+			if not (recognized or untouched):
 				raise HistoryContractError("history.date_unreadable")
 			derived = _recognized_date(fields.get("date"))
 		fields["date"] = derived
@@ -172,24 +181,42 @@ def _summary_amount(value) -> str | None:
 PARTY_FIELDS = ("seller_tax", "buyer_name", "buyer_tax")
 
 
-def primary_page_fields(pages: list[dict]) -> dict:
-	"""The page the summary, push and learning read: legacy first original page, then best-filled page."""
+def _selected_page(pages: list[dict]) -> dict | None:
 	def score(page):
 		fields = page.get("fields") or {}
 		return sum(bool(fields.get(key)) for key in ("invoice_number", "total_amount", "seller_name", "date"))
 
-	selected = None
+	pages = [page for page in pages or [] if isinstance(page, dict)]
 	for page in pages:
 		fields = page.get("fields") or {}
 		if not page.get("is_copy") and not page.get("is_duplicate"):
 			if fields.get("invoice_number") or fields.get("total_amount") or fields.get("seller_name"):
-				selected = page
-				break
-	if selected is None and pages:
+				return page
+	if pages:
 		best = max(pages, key=score)
 		if score(best) > 0:
-			selected = best
-	return (selected or {}).get("fields") or {}
+			return best
+	return None
+
+
+def primary_page_fields(pages: list[dict]) -> dict:
+	"""The page the summary, push and learning read: legacy first original page, then best-filled page."""
+	return (_selected_page(pages) or {}).get("fields") or {}
+
+
+def primary_page(pages: list[dict]) -> dict:
+	"""The whole page behind `primary_page_fields`, for the push.
+
+	The push used to take the first page that is not a copy even when it was empty, while the list and the
+	review page read the best-filled page: the review edited one page and the push sent another (2026-09-29:
+	a copy page with the invoice and an unread second page came back as "choose purchase or sales").
+	With nothing readable it keeps the legacy pick: first original page, else the first page."""
+	selected = _selected_page(pages)
+	if selected is not None:
+		return selected
+	pages = [page for page in pages or [] if isinstance(page, dict)]
+	return next((page for page in pages if not page.get("is_duplicate") and not page.get("is_copy")),
+		pages[0] if pages else {})
 
 
 def extract_summary_fields(pages: list[dict]) -> dict:

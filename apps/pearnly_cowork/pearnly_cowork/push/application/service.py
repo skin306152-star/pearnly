@@ -12,7 +12,7 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.targets import stock_groups
-from pearnly_cowork.contracts.history import primary_page_fields
+from pearnly_cowork.contracts.history import primary_page, primary_page_fields
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax, resolve_posting_kind
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push import choices as choice_store
@@ -117,7 +117,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
         if not prior_docnum:
             frappe.throw(_("push.prior_document_number_missing"))
     pages = history_value.get("pages") or []
-    primary = next((p for p in pages if not p.get("is_duplicate") and not p.get("is_copy")), pages[0] if pages else {})
+    primary = primary_page(pages)
     fields = primary.get("fields") or {}
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
     flat = flatten_history_for_mrerp(history_value)
@@ -283,7 +283,7 @@ def _express_facts(doc, loaded, account_set_key):
     history_value.update(id=doc.name, client_id=doc.client or None,
         tenant_id=loaded.access.tenant_id, workspace_client_id=doc.workspace)
     pages = history_value.get("pages") or []
-    primary = next((p for p in pages if not p.get("is_duplicate") and not p.get("is_copy")), pages[0] if pages else {})
+    primary = primary_page(pages)
     fields = primary.get("fields") or {}
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
