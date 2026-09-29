@@ -924,7 +924,9 @@ The file is larger than 5 MB.,The file is larger than 5 MB.
 The file size or page metadata is invalid.,The file size or page metadata is invalid.
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
 The general ledger could not be read.,The general ledger could not be read.
+"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.","The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
 The general ledger has no revenue account rows.,The general ledger has no revenue account rows.
+The general ledger has several accounts; account {0} was used because it matches the bank statement best.,The general ledger has several accounts; account {0} was used because it matches the bank statement best.
 The helper could not read this invoice. Check the fields and submit again,The helper could not read this invoice. Check the fields and submit again
 The helper could not write this invoice. It is retried automatically,The helper could not write this invoice. It is retried automatically
 The helper has not been given this account set. Check the helper's account sets,The helper has not been given this account set. Check the helper's account sets
@@ -1951,8 +1953,10 @@ reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
 reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."
 reconciliation.files_required,Upload both files.
+reconciliation.gl_account_auto,The general ledger has several accounts; account {0} was used because it matches the bank statement best.
 reconciliation.gl_no_revenue_rows,The general ledger has no revenue account rows.
 reconciliation.gl_parse_failed,The general ledger could not be read.
+reconciliation.gl_period_trimmed,"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
 reconciliation.gl_source_invalid,The ledger file content is invalid.
 reconciliation.header_invalid,The opening and closing values are invalid.
 reconciliation.ledger_unparsed,The general ledger could not be read.

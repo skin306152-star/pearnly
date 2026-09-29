@@ -924,7 +924,9 @@ The file is larger than 5 MB.,ファイルが5MBを超えています。
 The file size or page metadata is invalid.,ファイルサイズまたはページ情報が無効です。
 The frozen push target does not match the authorized target.,固定された送信先が許可された送信先と一致しません。
 The general ledger could not be read.,総勘定元帳を読み取れません。
+"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.",総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。
 The general ledger has no revenue account rows.,総勘定元帳に収益科目の行がありません。
+The general ledger has several accounts; account {0} was used because it matches the bank statement best.,総勘定元帳に複数の科目があるため、銀行明細と最も一致する科目 {0} を使用しました。
 The helper could not read this invoice. Check the fields and submit again,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
 The helper could not write this invoice. It is retried automatically,アシスタントが書き込めませんでした。自動で再試行します
 The helper has not been given this account set. Check the helper's account sets,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
@@ -1951,8 +1953,10 @@ reconciliation.failed,照合を完了できませんでした。
 reconciliation.file_too_large,25MBを超えるファイルがあります。
 reconciliation.file_type_unsupported,このファイル形式は使えません。PDF、Excel、CSV を使ってください。
 reconciliation.files_required,両方のファイルをアップロードしてください。
+reconciliation.gl_account_auto,総勘定元帳に複数の科目があるため、銀行明細と最も一致する科目 {0} を使用しました。
 reconciliation.gl_no_revenue_rows,総勘定元帳に収益科目の行がありません。
 reconciliation.gl_parse_failed,総勘定元帳を読み取れません。
+reconciliation.gl_period_trimmed,総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。
 reconciliation.gl_source_invalid,元帳の内容が無効です。
 reconciliation.header_invalid,期首・期末の値が無効です。
 reconciliation.ledger_unparsed,総勘定元帳を読み取れません。

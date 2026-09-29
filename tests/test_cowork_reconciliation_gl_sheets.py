@@ -160,6 +160,67 @@ class WholeWorkbook(unittest.TestCase):
 			["05/02/2569", "RV", "RV001", "รับเงิน", 500.0, "", "", 1500.0]]), "gl.xlsx")
 		self.assertEqual((wrong["opening"], wrong["opening_found"]), (0.0, False))
 
+	def test_a_ledger_of_every_account_is_read_by_section(self):
+		# Mr.erp 全科目总账：科目标题行「1111-01  เงินสด」后面的行都归这个科目；单号「690531-001」不是科目（B01）。
+		header = ["วันที่", "สมุด", "ใบสำคัญ", "คำอธิบาย", "เดบิต", "เครดิต", "ยอดคงเหลือ"]
+		book = workbook([header,
+			["1111-01  เงินสด", "", "", "", "", "", 50.0],
+			["2569-05-02 00:00:00", "รับ", "690531-001", "ขายสด", 10.0, "", 60.0],
+			["รวม", "", "", "", 10.0, 0, ""],
+			["1112-02  ธนาคารกสิกร", "", "", "", "", "", 1000.0],
+			["2569-05-03 00:00:00", "จ่าย", "690531-002", "ค่าไฟ", "", 100.0, 900.0],
+			["2569-05-04 00:00:00", "รับ", "690531-003", "รับชำระ", 300.0, "", 1200.0],
+			["รวม", "", "", "", 300.0, 100.0, ""]])
+		everything = gl_sheets.parse_gl_workbook(book, "gl.xlsx")
+		self.assertEqual(everything["accounts"], ["1111-01", "1112-02"])
+		self.assertEqual(everything["row_count"], 3)
+		bank = gl_sheets.parse_gl_workbook(book, "gl.xlsx", "1112-02")
+		self.assertEqual((bank["row_count"], bank["opening"], bank["closing"]), (2, 1000.0, 1200.0))
+		self.assertEqual([row.balance for row in bank["rows"]], [900.0, 1200.0])
+
+	def test_the_bank_account_is_chosen_by_its_match_with_the_statement(self):
+		from datetime import date
+
+		from pearnly_cowork.reconciliation.bank_recon_service import likely_account
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		def gl(code, day, debit=0.0, credit=0.0):
+			return gl_row(date=date(2026, 5, day), account_code=code, debit=debit, credit=credit)
+
+		cash = {"ok": True, "rows": [gl("1111-01", 2, debit=10.0), gl("1111-01", 3, credit=100.0)]}
+		bank = {"ok": True, "rows": [gl("1112-02", 3, credit=100.0), gl("1112-02", 4, debit=300.0)]}
+		statement = [StatementRow(date=date(2026, 5, 3), description="", withdrawal=100.0, deposit=0.0, balance=900.0),
+			StatementRow(date=date(2026, 5, 5), description="", withdrawal=0.0, deposit=300.0, balance=1200.0)]
+		self.assertEqual(likely_account(statement, [cash, bank]), "1112-02")
+		self.assertEqual(likely_account(statement, [bank]), "")  # one account: nothing to choose
+		self.assertEqual(likely_account(statement[:1], [cash, bank]), "")  # a tie is not a choice
+
+	def test_zero_balances_on_every_row_are_not_printed_balances(self):
+		# Mr.erp 导出每行余额都是 0：期末按期初 + 借 − 贷，科目期初照用（B01）。
+		header = ["วันที่", "สมุด", "ใบสำคัญ", "คำอธิบาย", "เดบิต", "เครดิต", "ยอดคงเหลือ"]
+		result = gl_sheets.parse_gl_workbook(workbook([header, ["1113-01  เงินฝาก", "", "", "", "", "", 1000.0],
+			["2569-05-03 00:00:00", "จ่าย", "V1", "ค่าไฟ", "", 100.0, 0],
+			["2569-05-04 00:00:00", "รับ", "V2", "รับชำระ", 300.0, "", 0]]), "gl.xlsx", "1113-01")
+		self.assertEqual((result["opening"], result["closing"], result["closing_printed"]), (1000.0, 1200.0, False))
+
+	def test_a_year_to_date_ledger_is_cut_to_the_statement_months(self):
+		from datetime import date
+
+		from pearnly_cowork.reconciliation.bank_recon_service import within_statement_period
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		rows = [gl_row(date=date(2026, 1, 5), debit=500.0), gl_row(date=date(2026, 5, 3), credit=100.0),
+			gl_row(date=date(2026, 5, 31), debit=50.0), gl_row(date=date(2026, 6, 2), debit=9.0)]
+		ledger = {"ok": True, "rows": rows, "row_count": 4, "opening": 1000.0, "closing": 1459.0}
+		statement = [StatementRow(date=date(2026, 5, 3), description="", withdrawal=100.0, deposit=0.0, balance=0.0),
+			StatementRow(date=date(2026, 5, 20), description="", withdrawal=0.0, deposit=1.0, balance=0.0)]
+		cut, period = within_statement_period(statement, ledger)
+		self.assertEqual(period, ("2026-05-01", "2026-05-31", "1,500.00"))
+		self.assertEqual((cut["opening"], cut["closing"], cut["row_count"]), (1500.0, 1450.0, 2))
+		self.assertEqual([row.balance for row in cut["rows"]], [1400.0, 1450.0])
+		same, none = within_statement_period(statement, {**ledger, "rows": rows[1:3]})
+		self.assertIsNone(none)
+
 	def test_a_negative_amount_is_a_reversal_on_the_other_side(self):
 		# 2026-09-29：「(500.00)」写在借方是冲销，记成贷方 500（旧线上取绝对值记成借方 500，余额差 1,000）。
 		result = gl_sheets.parse_gl_workbook(workbook([

@@ -924,7 +924,9 @@ The file is larger than 5 MB.,文件超过 5 MB。
 The file size or page metadata is invalid.,文件大小或页数信息无效。
 The frozen push target does not match the authorized target.,已冻结的推送目标与授权目标不一致。
 The general ledger could not be read.,读不出总账。
+"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.",总账期间比银行流水长，只取 {0} 至 {1} 的记录，之前的发生额已滚入期初（{2}）。
 The general ledger has no revenue account rows.,总账里没有收入科目的行。
+The general ledger has several accounts; account {0} was used because it matches the bank statement best.,总账里有多个科目，已按与银行流水的吻合程度选用科目 {0}。
 The helper could not read this invoice. Check the fields and submit again,小助手读不了这张票，请核对字段后再提交
 The helper could not write this invoice. It is retried automatically,小助手没写进去，会自动重试
 The helper has not been given this account set. Check the helper's account sets,小助手没有授权这份账套，请检查小助手的账套
@@ -1951,8 +1953,10 @@ reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
 reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。
 reconciliation.files_required,请上传两份文件。
+reconciliation.gl_account_auto,总账里有多个科目，已按与银行流水的吻合程度选用科目 {0}。
 reconciliation.gl_no_revenue_rows,总账里没有收入科目的行。
 reconciliation.gl_parse_failed,读不出总账。
+reconciliation.gl_period_trimmed,总账期间比银行流水长，只取 {0} 至 {1} 的记录，之前的发生额已滚入期初（{2}）。
 reconciliation.gl_source_invalid,总账内容无效。
 reconciliation.header_invalid,期初期末数值无效。
 reconciliation.ledger_unparsed,读不出总账。

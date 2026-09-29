@@ -143,6 +143,10 @@ def _load_gl_rows(file_bytes: bytes, filename: str):
 	return all_rows_raw, None
 
 
+# 科目代码 + 名称（「11-01-03-06 SAVING」「1111-01  เงินสด」「1112.01 ธนาคาร」「111201 ธนาคาร」）。
+ACCOUNT_HEAD = re.compile(r"^\s*(\d{2,}(?:[-.]\d+)+|\d{4,})\s+\S")
+
+
 def find_gl_header(all_rows_raw) -> Tuple[int, Dict[str, int]]:
 	"""前 10 行里找总账表头：**必须有日期列，且借或贷至少有一列**；找不到返回 ``(-1, {})``。"""
 	for index, row in enumerate(all_rows_raw[:10]):
@@ -179,7 +183,12 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 	gl_opening_found = False
 	last_row_date = None  # 空日期沿用上一行（Mr.erp 一天只印一次日期）
 	last_balance_seen = None  # 给期末兜底用最后一笔交易的余额
-	preceding_balance = None  # 第一笔交易前、没有借贷只有余额的一行（Express 把期初印在科目标题行）
+	# 科目标题行（Express「11-01-03-06 SAVING-K Bank」、Mr.erp「1111-01  เงินสด」）：第一格是科目代码 + 名称，
+	# 没有日期、没有借贷，余额列是这个科目的期初；下面的交易都归这个科目，直到下一个标题行。
+	section = ""
+	section_openings: Dict[str, Any] = {}
+	section_last: Dict[str, float] = {}
+	printed_balances = False  # 逐笔余额是否真的印了（Mr.erp 导出每行余额都是 0）
 
 	for row in all_rows_raw[header_idx + 1:]:
 		if not any(row):
@@ -207,10 +216,13 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 			continue
 		if is_gl_skip_row(row_list):
 			continue  # 其余汇总/结转行（ยอดยกไป/subtotal/总计）不是交易
-		if not rows and preceding_balance is None:
-			cell = lambda key: row_list[col_map[key]] if key in col_map and col_map[key] < len(row_list) else ""  # noqa: E731
-			if cell("balance") and not to_float(cell("debit") or 0) and not to_float(cell("credit") or 0):
-				preceding_balance = to_float(cell("balance"))
+		cell = lambda key: row_list[col_map[key]] if key in col_map and col_map[key] < len(row_list) else ""  # noqa: E731
+		head = ACCOUNT_HEAD.match(row_list[0]) if row_list else None
+		if (head and parse_date(cell("date")) is None and not to_float(cell("debit") or 0)
+				and not to_float(cell("credit") or 0)):
+			section = head.group(1)
+			section_openings.setdefault(section, to_float(cell("balance")) if cell("balance") else None)
+			continue
 
 		date_text = (
 			row_list[col_map["date"]]
@@ -263,7 +275,9 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 		if "account" in col_map and col_map["account"] < len(row_list):
 			account = str(row_list[col_map["account"]]).strip()
 		if not account:
-			account = extract_account_code(doc_no) or extract_account_code(description)
+			# 分段总账的行归所在科目段；从单号里抠科目（旧线上）只在没有分段时用 —— Mr.erp 全科目总账的单号
+			# 「690531-001」被当成科目，读出 1,468 个“科目”（2026-09-29 压测 B01）。
+			account = section or extract_account_code(doc_no) or extract_account_code(description)
 
 		if debit == 0.0 and credit == 0.0:
 			continue
@@ -289,15 +303,28 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 			and row_list[col_map["balance"]]
 		):
 			last_balance_seen = to_float(row_list[col_map["balance"]])
+			printed_balances = printed_balances or last_balance_seen != 0
+			if section:
+				section_last[section] = last_balance_seen
 
-	if not gl_opening_found and preceding_balance is not None:
-		# 没有「ยอดยกมา / 期初」字样时，第一笔前那行的余额就是期初：有发生额时要与印出的期末对得上才采信
-		# （期初 + 借 − 贷 = 期末），当月 0 笔就是它本身。2026-09-29 压测：Express 版式总账期初全读成 0，
+	if rows and not printed_balances:
+		# 每行余额都是 0 = 没印逐笔余额，不是余额真为 0：期末按期初 + 借 − 贷算，科目期初不拿它核对。
+		last_balance_seen = None
+		section_last = {}
+
+	relevant = [code for code in section_openings if not account_code or code.startswith(account_code)]
+	if not gl_opening_found and len(relevant) == 1 and section_openings[relevant[0]] is not None:
+		# 没有「ยอดยกมา / 期初」字样时，（选中的）科目标题行余额就是期初：有发生额时要与这个科目印出的期末对得上
+		# 才采信（期初 + 借 − 贷 = 期末），当月 0 笔就是它本身。2026-09-29 压测：Express 版式总账期初全读成 0，
 		# 旧线上同样（它的期初反推用的是按 0 推出来的余额，不起作用）。
-		movement = sum(row.debit for row in rows) - sum(row.credit for row in rows)
-		if not rows or (last_balance_seen is not None
-				and abs(preceding_balance + movement - last_balance_seen) <= 0.01):
-			opening, gl_opening_found = preceding_balance, True
+		code, printed = relevant[0], section_openings[relevant[0]]
+		mine = [row for row in rows if row.account_code == code]
+		movement = sum(row.debit for row in mine) - sum(row.credit for row in mine)
+		if (not mine or not printed_balances
+				or (code in section_last and abs(printed + movement - section_last[code]) <= 0.01)):
+			opening, gl_opening_found = printed, True
+			if code in section_last:
+				last_balance_seen = section_last[code]
 	if not gl_opening_found:
 		opening = 0.0
 	attach_running_balance(rows, opening)

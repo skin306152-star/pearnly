@@ -187,7 +187,18 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	statement = _merged_statement([result for _name, result in statements])
+	chosen = "" if gl_account_code else likely_account(statement["rows"], [result for _n, result in ledgers])
+	if chosen:
+		# 全科目总账、没指定科目：用与银行流水最吻合的那个科目（旧线上把所有科目的行都拿来对，Mr.erp 全科目
+		# 总账 1 万多行，结果没法看；2026-09-29 压测 B01）。按这个科目重读：期初按它的科目标题行。
+		gl_account_code = chosen
+		ledgers = [(name, _only_account(bank_intake.read_ledger_file(content, name, account_code=chosen,
+			model_rows=model_rows), chosen)) for content, name in gl_files]
+		warnings = list(warnings or []) + [_("reconciliation.gl_account_auto").format(chosen)]
 	ledger = _merged_ledger([result for _name, result in ledgers], gl_account_code)
+	ledger, period = within_statement_period(statement["rows"], ledger)
+	if period:
+		warnings = list(warnings or []) + [_("reconciliation.gl_period_trimmed").format(*period)]
 	statement_names = "; ".join(name for name, _result in statements)
 	overrides = {} if header in (None, "") else header
 	if not isinstance(overrides, dict):
@@ -205,9 +216,11 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 			"stmt_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
 				"bank_code": parsed.get("bank_code", "")} for name, parsed in statements],
+			# 诊断里的科目只记前 MAX_ACCOUNTS 个：全科目总账有上千个科目，记全了整单被契约拒掉（B01）。
 			"gl_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
-				"accounts": parsed.get("accounts") or []} for name, parsed in ledgers],
+				"accounts": (parsed.get("accounts") or [])[:bank_recon_contracts.MAX_ACCOUNTS]}
+				for name, parsed in ledgers],
 		}, warnings=warnings, anchors=anchors, lang=lang,
 		_review=_review_diagnostics(statement, statement_names, [name for name, _r in statements]))
 	return {**result, "parsed": {
@@ -247,6 +260,76 @@ def _merged_statement(results):
 		"escalations": [item for result in read for item in result.get("escalations") or []],
 		"needs_review": any(result.get("needs_review") for result in read)
 			or len(read) != len(results)}
+
+
+MATCH_DAYS = 5
+
+
+def likely_account(statement_rows, ledgers):
+	"""几个科目里与银行流水最吻合的那个：同金额（存入对借方、支出对贷方）、日期相差不超过 MATCH_DAYS 天的笔数最多，
+	且至少吻合流水的五分之一（最少 2 笔）；只有一个科目或都对不上返回空（照旧全部拿来对）。"""
+	by_account = {}
+	for result in ledgers:
+		for row in (result.get("rows") or []) if result.get("ok") else []:
+			if row.account_code:
+				by_account.setdefault(row.account_code, []).append(row)
+	if len(by_account) < 2 or not statement_rows:
+		return ""
+	def hits(rows):
+		index = {}
+		for row in rows:
+			for side, amount in (("in", row.debit), ("out", row.credit)):
+				if amount:
+					index.setdefault((side, round(amount, 2)), []).append(row.date)
+		count = 0
+		for row in statement_rows:
+			side, amount = ("in", row.deposit) if row.deposit else ("out", row.withdrawal)
+			dates = index.get((side, round(amount or 0, 2))) or []
+			if any(row.date and day and abs((row.date - day).days) <= MATCH_DAYS for day in dates):
+				count += 1
+		return count
+	scores = sorted(((hits(rows), code) for code, rows in by_account.items()), reverse=True)
+	best, code = scores[0]
+	if best < max(2, len(statement_rows) / 5) or (len(scores) > 1 and scores[1][0] == best):
+		return ""
+	return code
+
+
+def within_statement_period(statement_rows, ledger):
+	"""总账期间比银行流水长（年初至今导出）：只留流水所在整月的行，之前的发生额滚进期初，之后的不要。
+
+	返回 ``(总账, (起, 止, 新期初))``；不需要截取返回 ``(总账, None)``。流水没有日期或跨度超过一年（日期读错）不截。
+	"""
+	import calendar
+	from datetime import date as date_type
+
+	from pearnly_cowork.reconciliation.gl_sheets import attach_running_balance
+
+	days = [row.date for row in statement_rows if row.date]
+	rows = ledger.get("rows") or []
+	if not days or not rows or (max(days) - min(days)).days > 400:
+		return ledger, None
+	first, last = min(days), max(days)
+	start = first.replace(day=1)
+	end = date_type(last.year, last.month, calendar.monthrange(last.year, last.month)[1])
+	before = [row for row in rows if row.date and row.date < start]
+	after = [row for row in rows if row.date and row.date > end]
+	if not before and not after:
+		return ledger, None
+	kept = [row for row in rows if not row.date or start <= row.date <= end]
+	opening = round(float(ledger.get("opening") or 0) + sum(row.debit - row.credit for row in before), 2)
+	attach_running_balance(kept, opening)
+	closing = round(opening + sum(row.debit - row.credit for row in kept), 2)
+	trimmed = {**ledger, "rows": kept, "row_count": len(kept), "opening": opening, "closing": closing}
+	return trimmed, (start.isoformat(), end.isoformat(), f"{opening:,.2f}")
+
+
+def _only_account(result, code):
+	"""模型读出的总账行不经科目过滤（读取层只认表格的科目列），这里补上。"""
+	if result.get("ok") and result.get("rows"):
+		kept = [row for row in result["rows"] if not row.account_code or row.account_code.startswith(code)]
+		result = {**result, "rows": kept, "row_count": len(kept), "accounts": [code]}
+	return result
 
 
 def _merged_ledger(results, account_code):
