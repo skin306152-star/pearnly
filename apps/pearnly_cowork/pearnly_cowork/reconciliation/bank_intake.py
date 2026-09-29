@@ -93,6 +93,32 @@ def _statement_text_rows(file_bytes: bytes, bank_code: str
 	return rows, opening, closing, source
 
 
+def chronological(rows, opening, closing):
+	"""新日期在前的账单（BBL 网银：第一行就是月底）翻成从旧到新，期初按翻过来的第一行重算、期末取最后一行。
+
+	只在日期整体倒着排、且倒过来余额链断得更少时才翻（2026-09-29 压测 B04 BBL6764：48 行里 47 行断链，期初推成
+	月底余额）。旧线上没有这一步。余额为负（透支户）照常算。
+	"""
+	dated = [row.date for row in rows if row.date]
+	if len(rows) < 2 or len(dated) < 2 or dated[0] <= dated[-1]:
+		return rows, opening, closing
+
+	def breaks(sequence):
+		count, previous = 0, None
+		for row in sequence:
+			if previous is not None and abs(previous + (row.deposit or 0) - (row.withdrawal or 0) - (row.balance or 0)) > 0.01:
+				count += 1
+			previous = row.balance
+		return count
+
+	if breaks(list(reversed(rows))) >= breaks(rows):
+		return rows, opening, closing
+	rows = list(reversed(rows))
+	first = rows[0]
+	opening = round((first.balance or 0) - (first.deposit or 0) + (first.withdrawal or 0), 2)
+	return rows, opening, rows[-1].balance or closing
+
+
 def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optional[ModelRows] = None,
 		read_page: Optional[Callable[[int], List[StatementRow]]] = None,
 		page_count: Optional[int] = None,
@@ -173,6 +199,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 
 	for row in rows:
 		row.source_file = filename
+	rows, opening, closing = chronological(rows, opening, closing)
 
 	# 定案序列（跳汇总行 → 方向纠正 → 逐行核对 → 金额反推修复），顺序是正确性不变式。
 	# 企业档的行已由本地拼行 / 契约抽取与余额链闸门定案（旧线上直接返回，不再修第二遍）。

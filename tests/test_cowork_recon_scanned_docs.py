@@ -128,7 +128,7 @@ class EnterprisePipeline(unittest.TestCase):
 			pipeline.run("vat", page_count=1, reads=[(b"img", "image/png", 1)], render=Rendered(),
 				document_ai_call=FakeDocumentAi(payload("x")), model_call=FakeModel([]))
 
-	def test_pdf_chunks_are_at_most_five_pages(self):
+	def test_pdf_chunks_are_at_most_two_pages(self):
 		# 旧线上 15 页一块；密的扫描页连全部字段约 3MB 一页，超过共用层 8MB 回复上限就成“结果不明”（2026-09-29）。
 		import pymupdf
 
@@ -136,7 +136,7 @@ class EnterprisePipeline(unittest.TestCase):
 			for _ in range(12):
 				document.new_page()
 			content = document.tobytes()
-		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 12)], [5, 5, 2])
+		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 12)], [2] * 6)
 
 	def test_an_unknown_outcome_is_sent_once_more_only_when_asked(self):
 		from pearnly_core.execution.errors import Uncertain
@@ -168,6 +168,27 @@ class EnterprisePipeline(unittest.TestCase):
 				client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
 		self.assertEqual(sent, [0, 1, 0])
 		self.assertEqual(record.call_count, 2)
+
+	def test_a_server_error_on_a_reconciliation_read_is_retried_later(self):
+		from pearnly_core.execution.errors import Deferred
+		from pearnly_cowork.ocr.providers.client import ProviderClient, ProviderError
+
+		class Response:
+			status_code = 504
+
+			def json(self):
+				return {"error": {"status": "DEADLINE_EXCEEDED", "message": "timeout"}}
+
+		rejected = []
+		client = ProviderClient({}, project="synthetic-project", post=lambda **values: Response(),
+			checkpoint_key=lambda payload, identity: identity, reject_checkpoint=lambda key, body: rejected.append(body),
+			terminal_read=lambda _k: None, terminal_write=lambda *_a: None, feedback=lambda *_a: None,
+			scope=lambda *args: args, access_token=lambda: "FAKE_TOKEN_NOT_A_CREDENTIAL", require_context=lambda: None)
+		with self.assertRaises(Deferred):
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
+		self.assertEqual(rejected, [{"http": 504, "deferred": True}])
+		with self.assertRaises(ProviderError):  # the invoice path keeps a 5xx as a completed refusal
+			client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
 
 	def test_a_local_reconstruction_that_raises_goes_on_to_the_extraction(self):
 		# 旧线上一页没有日期行时 statistics 取不到中位数，报成页数不符、整份失败（BBL 网银账单，2026-09-29）。
@@ -340,6 +361,17 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertIn("2.jpg", " ".join(create.call_args.kwargs["warnings"]))
 		self.assertNotIn("1.jpg", " ".join(create.call_args.kwargs["warnings"]))
 
+	def test_the_same_line_on_two_overlapping_photos_counts_once(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		first = self.statement([(date(2026, 5, 1), "TRF x1", 0.0, 450.0, 1450.0), (date(2026, 5, 2), "fee", 10.0, 0.0, 1440.0)],
+			opening=1000.0, closing=1440.0)
+		second = self.statement([(date(2026, 5, 2), "FEE", 10.0, 0.0, 1440.0), (date(2026, 5, 3), "in", 0.0, 60.0, 1500.0)],
+			opening=1450.0, closing=1500.0)
+		merged = bank_recon_service._merged_statement([first, second])
+		self.assertEqual([row.balance for row in merged["rows"]], [1450.0, 1440.0, 1500.0])
+		self.assertEqual((merged["opening"], merged["closing"]), (1000.0, 1500.0))
+
 	def test_passbook_photos_are_merged_by_date_and_deduplicated(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
 
@@ -353,6 +385,39 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual((merged["opening"], merged["closing"]), (1000.0, 1200.0))
 		self.assertTrue(merged["needs_review"])  # one of three photos did not read
 		self.assertEqual(merged["low_conf_count"], 4)
+
+
+class StatementOrderAndDates(unittest.TestCase):
+	def test_a_newest_first_statement_is_turned_around(self):
+		# BBL 网银（B04 BBL6764）：第一行是月底，透支户余额为负。
+		from pearnly_cowork.reconciliation.bank_intake import chronological
+		from pearnly_cowork.reconciliation.bank_statement import StatementRow
+
+		rows = [StatementRow(date=date(2026, 4, 30), description="fee", withdrawal=1019.69, deposit=0.0, balance=-423347.30),
+			StatementRow(date=date(2026, 4, 30), description="fee", withdrawal=120.0, deposit=0.0, balance=-422327.61),
+			StatementRow(date=date(2026, 4, 2), description="in", withdrawal=0.0, deposit=500.0, balance=-422207.61)]
+		ordered, opening, closing = chronological(rows, -422327.61, 0.0)
+		self.assertEqual([row.balance for row in ordered], [-422207.61, -422327.61, -423347.30])
+		self.assertEqual((opening, closing), (-422707.61, -423347.30))
+		same = [rows[2], rows[1]]
+		self.assertIs(chronological(same, 0.0, 0.0)[0], same)  # oldest first already: untouched
+
+	def test_the_printed_two_digit_year_wins_over_the_model(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import _entry_date
+
+		self.assertEqual(_entry_date({"transaction_date": "1983-03-23", "transaction_date_raw": "23/03/26"}), date(2026, 3, 23))
+		self.assertEqual(_entry_date({"transaction_date": "", "transaction_date_raw": "23/03/26"}), date(2026, 3, 23))
+		self.assertEqual(_entry_date({"transaction_date": "1982-05-19", "transaction_date_raw": ""}), date(2025, 5, 19))
+		self.assertEqual(_entry_date({"transaction_date": "2026-04-05", "transaction_date_raw": "05/04/69"}), date(2026, 4, 5))
+
+	def test_a_misread_year_in_the_statement_month_takes_the_statement_year(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation import enterprise_rows
+
+		entries = [{"transaction_date_raw": raw, "deposit": "1", "balance": "1"} for raw in
+			("01/05/26", "02/05/26", "03/05/20", "04/05/25", "28/04/26")]
+		read = enterprise_rows({"pages": [{"document": {"entries": entries}}]}, "bank_statement", "p.jpg")
+		self.assertEqual([row.date for row in read["rows"]], [date(2026, 5, 1), date(2026, 5, 2), date(2026, 5, 3),
+			date(2026, 5, 4), date(2026, 4, 28)])
 
 
 class HeaderAnchoredStatement(unittest.TestCase):

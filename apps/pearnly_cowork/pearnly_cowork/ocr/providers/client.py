@@ -123,7 +123,9 @@ class ProviderClient:
         raise ProviderError(**refusal)
 
     def _send(self, *, url, payload, model, provider, location, stage, page_number, attempt, timeout_s,
-              retry_unknown=False):
+              retry_unknown=False, defer_5xx=None):
+        # 对账读取（retry_unknown）另把 500 / 502 / 504 当临时故障稍后重试；录入发票照旧当终局拒绝。
+        defer_5xx = retry_unknown if defer_5xx is None else defer_5xx
         _reference(stage, page_number, attempt)
         if not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool) or not 0 < timeout_s <= 120:
             raise ProviderConfigurationError("ocr.invalid_provider_timeout")
@@ -152,7 +154,7 @@ class ProviderClient:
             # 不会因为它判结果不明），换一个 attempt 重发，得到新的检查点；再不明就照旧交出去。
             self._reject(key, {"outcome_unknown": True, "retried": True})
             return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
-                stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s)
+                stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s, defer_5xx=defer_5xx)
         elapsed = max(0, int((self._clock() - started) * 1000))
         status = response.status_code
         if status != 200:
@@ -163,7 +165,10 @@ class ProviderClient:
                 reason = str(error.get("status", "")) + " " + str(error.get("message", ""))
             except (ValueError, TypeError, AttributeError):
                 reason = ""
-            if status in (429, 503) or "RESOURCE_EXHAUSTED" in reason.upper() or "quota" in reason.lower():
+            # 500 / 502 / 504 是服务端临时故障（2026-09-29 压测：Document AI 读一张照片 90 秒没回，重发又回 5xx，
+            # 被当成终局失败、整张照片读空）：对账读取与 429 / 503 一样稍后重试。失败的请求不计费。
+            if (status in (429, 503) or (defer_5xx and status in (500, 502, 504))
+                    or "RESOURCE_EXHAUSTED" in reason.upper() or "quota" in reason.lower()):
                 self._reject(key, {"http": status, "deferred": True})
                 self._feedback(bucket, 503 if status == 503 else 429, 5)
                 raise Deferred("provider_quota", 5)

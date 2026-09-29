@@ -22,9 +22,10 @@ LOCATION = "asia-southeast1"
 USD_PER_PAGE = 0.0015
 # Deployed 15. Core reads at most 8 MB of a provider response (anything larger ends "outcome unknown"
 # with the page paid), and a dense scanned statement page returns about 3 MB with every field or about
-# 0.9 MB with ``FIELD_MASK`` (SCB 3-page scan, 2026-09-29: 9.6 MB → 2.8 MB), so five pages stay well under
-# the limit; Document AI bills per page, so the smaller reads cost the same.
-MAX_PAGES_PER_READ = 5
+# 0.9 MB with ``FIELD_MASK`` (SCB 3-page scan, 2026-09-29: 9.6 MB → 2.8 MB). Denser scans (GIZE BAY, 40
+# rows a page) still passed 8 MB at five pages, so two; Document AI bills per page, so smaller reads cost
+# the same.
+MAX_PAGES_PER_READ = 2
 # Only what page_texts and the local reconstruction read; symbols, paragraphs and blocks (enableSymbol in
 # the deployed body) made up two thirds of the response. Document AI's own output varies slightly between
 # identical calls, with or without the mask.

@@ -81,6 +81,50 @@ def _date(value):
 		return None
 
 
+def _entry_date(entry):
+	"""读出的一行的日期：以印出的原文为准。2026-09-29 压测：存折 / BAY 账单印两位公历年「26」，3.8 读成佛历
+	2525 / 2526（→ 1982 / 1983），490 行里 132 行干脆没给日期，原文「23/03/26」却每行都在。原文按「两位年不晚于
+	明年是公历，否则佛历」读；没有原文才用模型的日期，早于 1990 的按两位公历年纠正（+43 年）。"""
+	from pearnly_cowork.ocr.enterprise.header_bank import parse_date
+
+	printed = parse_date(entry.get("transaction_date_raw") or "", date.today().year)
+	if printed:
+		return date.fromisoformat(printed)
+	value = _date(entry.get("transaction_date"))
+	if value and value.year < 1990 and value.year + 43 <= date.today().year + 1:
+		try:
+			return value.replace(year=value.year + 43)
+		except ValueError:
+			return value.replace(year=value.year + 43, day=28)
+	return value
+
+
+def _same_month_years(rows):
+	"""同一份文件里，月份与多数行相同、年份却不同（相差 6 年内）的行，年份读错了：改成多数行的年份。
+
+	2026-09-29 压测 B01（KBank 2026-05 账单照片）：印的「26」被读成「20」「25」，29 行落到 2020 / 2025 年 5 月。
+	跨月的存折不受影响（只改与多数行同月的行）。
+	"""
+	from collections import Counter
+
+	months = Counter((row.date.year, row.date.month) for row in rows if row.date)
+	if not months:
+		return
+	(year, month), _count = months.most_common(1)[0]
+	for row in rows:
+		if row.date and row.date.month == month and row.date.year != year and abs(row.date.year - year) <= 6:
+			try:
+				row.date = row.date.replace(year=year)
+			except ValueError:
+				row.date = row.date.replace(year=year, day=28)
+
+
+def _account(value):
+	"""科目必须带数字：3.8 读 Express 打印的总账时把「สมุด」栏（จ่าย / รับ）当成科目（B04 BBL6764）。"""
+	text = str(value or "").strip()
+	return text if any(char.isdigit() for char in text) else ""
+
+
 def enterprise_rows(legacy, document_type, filename, account_code=""):
 	"""Enterprise pipeline pages → the intake's rows; consumes every page and never repairs twice.
 
@@ -98,18 +142,19 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		review = bool(page.get("needs_manual_review"))
 		for entry in (page.get("document") or {}).get("entries") or []:
 			if document_type == "bank_statement":
-				rows.append(StatementRow(date=_date(entry.get("transaction_date")),
+				rows.append(StatementRow(date=_entry_date(entry),
 					description=entry.get("description") or "", deposit=bank_parse.to_float(entry.get("deposit")),
 					withdrawal=bank_parse.to_float(entry.get("withdrawal")),
 					balance=bank_parse.to_float(entry.get("balance")), source_file=filename,
 					confidence="low" if review else "medium",
 					amount_autocorrected=bool(entry.get("chain_amount_imputed")),
 					direction_autocorrected=bool(entry.get("chain_repaired"))))
-			elif not account_code or entry.get("account_code") == account_code:
-				rows.append(GlRow(date=_date(entry.get("transaction_date")), doc_no=entry.get("voucher_no") or "",
-					account_code=entry.get("account_code") or "", description=entry.get("description") or "",
+			elif not account_code or _account(entry.get("account_code")) == account_code:
+				rows.append(GlRow(date=_entry_date(entry), doc_no=entry.get("voucher_no") or "",
+					account_code=_account(entry.get("account_code")), description=entry.get("description") or "",
 					debit=bank_parse.to_float(entry.get("debit")), credit=bank_parse.to_float(entry.get("credit")),
 					balance=bank_parse.to_float(entry.get("balance")), source_file=filename))
+	_same_month_years(rows)
 	first = (pages[0].get("document") or {}) if pages else {}
 	last = (pages[-1].get("document") or {}) if pages else {}
 	return {"ok": bool(rows), "rows": rows, "row_count": len(rows), "enterprise": True,

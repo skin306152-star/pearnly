@@ -253,6 +253,19 @@ def _merged_statement(results):
 	if len(results) == 1:
 		return read[0]
 	rows, opening, closing, bank_code = bank_recon_merge.merge_statements(list(results))
+	# 相邻照片拍重叠的同一笔：摘要读得不一样，按整行指纹去不掉（旧线上），重复计入把期初推错（2026-09-29 压测
+	# B01：18 张照片期初推成 -118,792.85）。日期、存、取、余额四样都相同就是同一笔（真的重复交易余额不同）。
+	seen, unique = set(), []
+	for row in rows:
+		key = (row.date, round(row.deposit or 0, 2), round(row.withdrawal or 0, 2), round(row.balance or 0, 2))
+		if row.balance and key in seen:
+			continue
+		seen.add(key)
+		unique.append(row)
+	if len(unique) != len(rows) and unique and unique[0].balance:
+		rows, first = unique, unique[0]
+		opening = round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
+		closing = rows[-1].balance or closing
 	completeness = [result.get("completeness") or {} for result in read]
 	return {"ok": True, "rows": rows, "row_count": len(rows), "opening": opening, "closing": closing,
 		"bank_code": bank_code if bank_code != "generic" else (read[0].get("bank_code") or ""),
@@ -276,7 +289,7 @@ def likely_account(statement_rows, ledgers):
 	by_account = {}
 	for result in ledgers:
 		for row in (result.get("rows") or []) if result.get("ok") else []:
-			if row.account_code:
+			if row.account_code and any(char.isdigit() for char in row.account_code):
 				by_account.setdefault(row.account_code, []).append(row)
 	if len(by_account) < 2 or not statement_rows:
 		return ""
@@ -310,11 +323,16 @@ def within_statement_period(statement_rows, ledger):
 
 	from pearnly_cowork.reconciliation.gl_sheets import attach_running_balance
 
-	days = [row.date for row in statement_rows if row.date]
+	days = sorted(row.date for row in statement_rows if row.date)
 	rows = ledger.get("rows") or []
-	if not days or not rows or (max(days) - min(days)).days > 400:
+	if not days or not rows:
 		return ledger, None
-	first, last = min(days), max(days)
+	# 离中位日期一年以上的是读错的日期（1982 年这种），不参与定期间。
+	middle = days[len(days) // 2]
+	days = [day for day in days if abs((day - middle).days) <= 366]
+	first, last = days[0], days[-1]
+	if (last - first).days > 400:
+		return ledger, None
 	start = first.replace(day=1)
 	end = date_type(last.year, last.month, calendar.monthrange(last.year, last.month)[1])
 	before = [row for row in rows if row.date and row.date < start]
