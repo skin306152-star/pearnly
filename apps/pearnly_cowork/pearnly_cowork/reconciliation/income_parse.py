@@ -133,6 +133,10 @@ def header_hit(header, hints) -> bool:
 DASHED_ACCOUNT_RE = re.compile(r"(?<![\d.\-/])([4-9]\d(?:[\-–]\d{2}){2,4})(?![\d.\-/])")
 
 
+# 科目号在格子末尾被切断（「4100-0」「4100-」）。
+CUT_ACCOUNT_RE = re.compile(r"(?<![\d.])[4-9]\d{3,6}[\-–]\d?$")
+
+
 def extract_account_code(text) -> Optional[str]:
 	match = ACCOUNT_RE.search(str(text or "")) or DASHED_ACCOUNT_RE.search(str(text or ""))
 	return match.group(1) if match else None
@@ -238,6 +242,12 @@ def excel_rows(sheets, revenue_prefix: str = "4") -> Dict[str, Any]:
 					account = extract_account_code(row_text)
 					if account and is_revenue_account(account, revenue_prefix):
 						if not row_has_amount(cells, col_map or {}):
+							# 打印文本导入的表按固定宽度切格，段首科目号被切开（「4100-0」「1」，2026-09-29 I02）：
+							# 各格直接相连能认出同一科目号的完整写法就用完整的。
+							if any(CUT_ACCOUNT_RE.search(str(cell or "").strip()) for cell in cells):
+								glued = extract_account_code("".join(str(cell or "") for cell in cells))
+								if glued and glued != account and glued.startswith(account):
+									account = glued
 							current_account = account
 							continue
 				if is_skip_row(cells):

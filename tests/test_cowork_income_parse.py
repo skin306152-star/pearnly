@@ -238,6 +238,17 @@ class TextLineDecode(unittest.TestCase):
 		with self.assertRaises(ReconciliationContractError):
 			parse.text_rows("4110-01 รายได้")
 
+	def test_a_section_code_cut_across_cells_is_read_whole(self):
+		# I02（2026-09-29）：打印文本导入 Excel，段首「4100-01」被切成「_x001B_E4100-0」「1」两格。
+		sheet = [["วันที่", "สมุด", "ใบสำคัญ", "คำอธิบาย", "เดบิท", "เครดิต  สถานะ", "ยอดคงเหลือ"],
+			["_x001B_E4100-0", "1", "รายไ", "ด้จากการขาย", None, "_x001B_F", "-131449711.36"],
+			[datetime(1969, 5, 1), "ขาย", "IV6900773", "ขายเชื่อให้", None, "37000", "-131486711.36"],
+			["4110-02", "5,000.00", None, None, None, None, None],
+			[datetime(1969, 5, 2), "ขาย", "IV6900774", "ขาย", None, "100", "5,100.00"]]
+		rows = parse.excel_rows([sheet])["rows"]
+		self.assertEqual([(row.account_code, row.date, row.credit) for row in rows],
+			[("4100-01", "2026-05-01", 37000.0), ("4110-02", "2026-05-02", 100.0)])
+
 	def test_an_express_ledger_with_dashed_account_codes_is_read(self):
 		# I03（2026-09-29）：Express 打印的分类账，科目号「41-01-00-00」，每行只有一个金额加括号余额。
 		lines = ["เลขที่บัญชี      41-01-00-00      ถึง   41-01-00-00       เลือกแผนก   *",
