@@ -1046,6 +1046,7 @@ This file type is not supported.,This file type is not supported.
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
 This invoice was already sent successfully,This invoice was already sent successfully
+"This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).","This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย)."
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,This is a trial balance with account totals only. Upload the general ledger with each voucher.
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
@@ -2003,6 +2004,7 @@ reconciliation.text_required,A required text field is empty. Fill it in and try 
 reconciliation.text_too_long,A text field is too long. Shorten it and try again
 reconciliation.type_invalid,Unknown reconciliation type.
 reconciliation.vat_no_rows,The VAT report has no rows.
+reconciliation.vat_report_is_sales_listing,"This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย)."
 reconciliation.vat_report_unparsed,"The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."
 reconciliation.vat_source_invalid,The VAT report content is invalid.
 roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.

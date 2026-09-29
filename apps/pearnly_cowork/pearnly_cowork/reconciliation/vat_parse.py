@@ -524,15 +524,15 @@ def text_lines(lines) -> List[Dict[str, Any]]:
 			# A WNF export starts its line with a sequence number.
 			if index < len(tokens) and re.fullmatch(r"\d{1,3}", tokens[index]):
 				index += 1
-			if index < len(tokens) and not re.search(r"\d", tokens[index]):
-				# 2026-09-29（Express 打印的税报）：「MB 69-04-002」单号被空格拆开，合回一个；第一个词是泰文描述
-				# （「บันทึกขายวันที่ 1/4/2569」零售的当日汇总行）就没有单号，记成汇总行留着（旧线上把泰文词当单号，
+			if index < len(tokens) and re.match(r"[\u0e00-\u0e7f]", tokens[index]):
+				# 2026-09-29（Express 打印的税报）：第一个词是泰文描述（「บันทึกขายวันที่ 1/4/2569」零售的当日汇总行，
+				# 日期也可能连在字上「บันทึกขายวันที่14/3/2569」）就没有单号，记成汇总行留着（旧线上把泰文词当单号，
 				# 又被垃圾行过滤掉：I03 一个月 32 行只剩 3 行，合计差 700 多万）。
-				if (re.fullmatch(r"[A-Za-z]{1,4}", tokens[index]) and index + 1 < len(tokens)
-						and re.fullmatch(r"\d[A-Za-z0-9\-/.]*", tokens[index + 1])):
-					tokens[index:index + 2] = [tokens[index] + " " + tokens[index + 1]]
-				elif re.match(r"[\u0e00-\u0e7f]", tokens[index]):
-					tokens.insert(index, "")
+				tokens.insert(index, "")
+			elif (index + 1 < len(tokens) and re.fullmatch(r"[A-Za-z]{1,4}", tokens[index])
+					and re.fullmatch(r"\d[A-Za-z0-9\-/.]*", tokens[index + 1])):
+				# 「MB 69-04-002」单号被空格拆开，合回一个。
+				tokens[index:index + 2] = [tokens[index] + " " + tokens[index + 1]]
 			if index < len(tokens):
 				invoice_no = tokens[index]
 				glued = GLUED_TAIL_RE.match(invoice_no)
@@ -837,6 +837,20 @@ def decode(source) -> Optional[Dict[str, Any]]:
 		result["rows"] = filter_garbage_rows(result["rows"])
 		result["row_count"] = len(result["rows"])
 	return result
+
+
+# 销售明细（POS 按单列商品）不是销项税报告：没有未税 / 税额两列，硬读出的每行都是错的（2026-09-29 压测 V05：
+# 「รายงานแสดงข้อมูลการขายสินค้าและบริการ」读出 98 行，单号是「(11:49)」、税额等于含税总额）。只看开头的标题行。
+SALES_LISTING_TITLES = ("รายงานแสดงข้อมูลการขาย", "รายงานการขายสินค้า", "sales detail report", "销售明细")
+TAX_REPORT_TITLES = ("ภาษีขาย", "ภาษีมูลค่าเพิ่ม", "ใบกำกับภาษี", "ใบกํากับภาษี", "output tax", "output vat",
+	"sales tax report", "vat report", "销项税", "增值税", "売上税")
+
+
+def is_sales_listing(heads) -> bool:
+	"""The first lines of a report name a sales listing and no tax report."""
+	text = " ".join(str(line or "") for line in list(heads or [])[:15]).lower()
+	return (any(title in text for title in SALES_LISTING_TITLES)
+		and not any(title in text for title in TAX_REPORT_TITLES))
 
 
 def decoded_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:

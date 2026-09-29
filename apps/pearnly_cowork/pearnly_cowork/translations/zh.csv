@@ -1046,6 +1046,7 @@ This file type is not supported.,不支持此文件类型。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This inventory account group cannot be chosen for this account set.,这份账套不能选这个存货科目组。
 This invoice was already sent successfully,这张票已经推送成功过
+"This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",这是销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,这是试算表，只有科目合计，请上传带逐笔凭证的总账。
 This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
 This item is also stocked at:,这件货还在别处：
@@ -2003,6 +2004,7 @@ reconciliation.text_required,有必填的文字是空的，请补上后再试
 reconciliation.text_too_long,有文字太长，请缩短后再试
 reconciliation.type_invalid,未知的对账类型。
 reconciliation.vat_no_rows,税表里没有明细行。
+reconciliation.vat_report_is_sales_listing,这是销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
 reconciliation.vat_report_unparsed,读不出税表。请用 Excel、CSV 或带文字层的 PDF。
 reconciliation.vat_source_invalid,税表内容无效。
 roundtrip.document_limit,复核工作簿须包含 1 至 500 张发票。

@@ -384,6 +384,21 @@ class SourcesRouteToTheReader(unittest.TestCase):
 			source = sources.report_source(b"%PDF", "vat.pdf", read)
 		text.assert_called_once()
 
+	def test_a_sales_listing_is_refused_with_its_own_explanation(self):
+		# V05（2026-09-29）：POS 销售明细不是销项税报告，不硬读出错行，也不转去付费识别。
+		read, calls = self.reader({"pages": []})
+		listing = "\n".join(["หน้า 1 / 12", "รายงานแสดงข้อมูลการขายสินค้าและบริการ", "ราคาขายทั้งบิลรวมภาษีแล้ว",
+			"01/03/2026 (11:49) เซียร์รังสิต DocNo. 48473 ลูกค้า-เงินสดหน้าร้าน 0.00 3,850.00"])
+		with mock.patch.object(sources, "_pdf_text", return_value=[listing]), \
+				mock.patch.object(sources.document_tier, "text_pages", return_value=[listing]), \
+				mock.patch.object(sources.frappe, "_", side_effect=lambda text: text), \
+				mock.patch.object(sources.frappe, "throw", side_effect=frappe.ValidationError) as refused:
+			with self.assertRaises(frappe.ValidationError):
+				sources.report_source(b"%PDF", "sales.pdf", read)
+		self.assertIn("vat_report_is_sales_listing", str(refused.call_args))
+		self.assertEqual(calls, [])
+		self.assertFalse(sources.vat_parse.is_sales_listing(["รายงานภาษีขาย", "รายงานแสดงข้อมูลการขาย"]))
+
 	def test_without_a_reader_a_photo_is_still_refused(self):
 		with mock.patch.object(sources.frappe, "_", side_effect=lambda text: text), \
 				mock.patch.object(sources.frappe, "throw", side_effect=frappe.ValidationError) as refused:

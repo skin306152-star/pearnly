@@ -342,12 +342,13 @@ class SourceDispatch(unittest.TestCase):
 		result = parse.decode({"kind": "text", "lines": [
 			"1  01/04/69               บันทึกขายวันที่ 1/4/2569        228,594.49      16,001.61",
 			"2  01/04/69  MB 69-04-002 เอเซียมีนบุรี จํากัด               150,000.00      10,500.00",
+			"4  14/04/69               บันทึกขายวันที่14/3/2569        218,664.49      15,306.51",
 			"3  01/07/69  IV69/00564 บิ๊กซี ซูเปอรเซ็นเตอร 0107536000633 00000      268.00          18.76",
 			"   รวมทั้งสิ้น   งวด 01/04/69 ถึง  30/04/69                   378,862.49      26,520.37"]})
 		rows = result["rows"]
-		self.assertEqual([row["report_invoice_no"] for row in rows], ["", "MB 69-04-002", "IV69/00564"])
+		self.assertEqual([row["report_invoice_no"] for row in rows], ["", "MB 69-04-002", "", "IV69/00564"])
 		self.assertEqual(rows[1]["report_buyer_name"], "เอเซียมีนบุรี จํากัด")
-		self.assertEqual((rows[2]["report_buyer_branch"], rows[2]["report_buyer_name"]), ("00000", "บิ๊กซี ซูเปอรเซ็นเตอร"))
+		self.assertEqual((rows[3]["report_buyer_branch"], rows[3]["report_buyer_name"]), ("00000", "บิ๊กซี ซูเปอรเซ็นเตอร"))
 
 	def test_an_unknown_or_incomplete_source_is_refused(self):
 		with self.assertRaises(ValueError):

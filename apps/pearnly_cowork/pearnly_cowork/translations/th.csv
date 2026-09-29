@@ -1046,6 +1046,7 @@ This file type is not supported.,ไม่รองรับไฟล์ปร�
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
+"This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
@@ -2003,6 +2004,7 @@ reconciliation.text_required,มีช่องข้อความที่จ
 reconciliation.text_too_long,มีข้อความยาวเกินไป กรุณาทำให้สั้นลงแล้วลองใหม่
 reconciliation.type_invalid,ประเภทการกระทบยอดไม่ถูกต้อง
 reconciliation.vat_no_rows,รายงานภาษีไม่มีรายการ
+reconciliation.vat_report_is_sales_listing,ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
 reconciliation.vat_report_unparsed,"ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ"
 reconciliation.vat_source_invalid,ข้อมูลรายงานภาษีไม่ถูกต้อง
 roundtrip.document_limit,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ

@@ -81,12 +81,18 @@ def ledger_source(content, filename, read=None):
     frappe.throw(frappe._("reconciliation.file_type_unsupported"))
 
 
+def _not_a_sales_listing(heads):
+    if vat_parse.is_sales_listing(heads):
+        frappe.throw(frappe._("reconciliation.vat_report_is_sales_listing"))
+
+
 def report_source(content, filename, read=None):
     ext = extension(filename)
     if ext in EXCEL:
         sheets = readers.load_workbook_sheets(content)
         if not sheets or not sheets[0][1]:
             frappe.throw(frappe._("reconciliation.vat_report_unparsed"))
+        _not_a_sales_listing([" ".join(str(cell or "") for cell in row) for row in sheets[0][1][:15]])
         return {"kind": "excel", "cells": sheets[0][1]}
     if ext in CSV:
         for encoding in ("utf-8-sig", "cp874", "gbk", "latin-1"):
@@ -101,6 +107,7 @@ def report_source(content, filename, read=None):
         for pages in (_pdf_text(content), document_tier.text_pages(content)):
             if not any(page.strip() for page in pages):
                 continue
+            _not_a_sales_listing(_lines(pages))
             texts = True
             source = {"kind": "pdf", "pages": [{"tables": [], "text": page} for page in pages], "lines": _lines(pages)}
             parsed = vat_parse.decode(source)

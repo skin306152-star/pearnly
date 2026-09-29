@@ -1046,6 +1046,7 @@ This file type is not supported.,このファイル形式には対応してい�
 This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
 This inventory account group cannot be chosen for this account set.,この会計データではこの在庫勘定グループを選択できません。
 This invoice was already sent successfully,この伝票は送信済みです
+"This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",これは売上明細で、売上税報告ではありません。売上税報告（รายงานภาษีขาย）をアップロードしてください。
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,これは科目合計だけの試算表です。伝票ごとの明細がある総勘定元帳をアップロードしてください。
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
@@ -2003,6 +2004,7 @@ reconciliation.text_required,必須の文字項目が空です。入力してか
 reconciliation.text_too_long,文字が長すぎる項目があります。短くしてからもう一度お試しください
 reconciliation.type_invalid,不明な照合種別です。
 reconciliation.vat_no_rows,税報告に明細行がありません。
+reconciliation.vat_report_is_sales_listing,これは売上明細で、売上税報告ではありません。売上税報告（รายงานภาษีขาย）をアップロードしてください。
 reconciliation.vat_report_unparsed,税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。
 reconciliation.vat_source_invalid,税報告の内容が無効です。
 roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
