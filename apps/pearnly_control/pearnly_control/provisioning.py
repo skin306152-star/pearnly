@@ -33,6 +33,7 @@ from frappe.utils import now
 from pearnly_control import features as features_mod
 from pearnly_control import infra
 from pearnly_control.account import identity_pools
+from pearnly_control.onboarding.line_ids import clean_credential, half_filled
 from pearnly_core import keycloak_admin as kc
 
 REQUEST = "Pearnly Provisioning Request"
@@ -75,6 +76,9 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     if not license_ok:
         frappe.throw(_("Issue {0} is {1}; only an issued one can be provisioned").format(
             issue.name, issue.status))
+    # LINE 凭据先全部核对完再建任何东西：建部署时 `_ensure_oidc_client` 会提交事务，
+    # 之后再报错就留下一张没有步骤的请求，再点一次走 `_sync_steps`，LINE 被静默跳过（PR-2026-0296）。
+    line_credentials = {row.name: _line_credentials_of(row) for row in issue.apps}
 
     request = frappe.get_doc({
         "doctype": REQUEST,
@@ -90,7 +94,7 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     for row in issue.apps:
         dep = _ensure_deployment(issue, row)
         # 必须在 `_steps_for` **之前**：那一步会把渠道的当前状态算进 `set_line` 的载荷。
-        _ensure_line_channel(issue, row, dep)
+        _ensure_line_channel(issue, row, dep, line_credentials[row.name])
         deployments.append(dep.name)
         steps.extend(_steps_for(issue, dep, row))
 
@@ -117,11 +121,18 @@ def _sync_steps(req) -> int:
     issue = frappe.get_doc(ISSUE, req.issue)
     have = {s.step_key: s for s in req.steps}
     changed = 0
+    late_channels = []
     for row in issue.apps:
         dep = frappe.db.get_value(DEPLOYMENT, {"site_name": (row.domain or "").lower()}, "name")
         if not dep:
             continue
         dep_doc = frappe.get_doc(DEPLOYMENT, dep)
+        # 首次规划半路失败时渠道还没建：开户单上带了凭据就在这里补上（已有的渠道不动，
+        # 那可能是之后在「LINE 渠道」里改过的）。
+        if not frappe.db.exists(LINE_CHANNEL, {"deployment": dep}):
+            channel = _ensure_line_channel(issue, row, dep_doc, _line_credentials_of(row))
+            if channel:
+                late_channels.append((dep, channel))
         for step in _steps_for(issue, dep_doc, row):
             existing = have.get(step["step_key"])
             if existing is None:
@@ -136,6 +147,12 @@ def _sync_steps(req) -> int:
         # 关键：补了步骤就要重算请求状态，否则它还停在 done，
         # 而 next_steps 只挑 pending/running/partial，新步骤永远没人执行
         _refresh_request_status(req)
+    for dep, channel in late_channels:
+        # 待执行 / 失败的 set_line 上面已按新渠道刷新；已跑过（跳过或完成）的得重排，站点才拿得到凭据。
+        if have.get(f"{dep}:set_line") is not None and have[f"{dep}:set_line"].status in ("done", "skipped"):
+            queue_cloud_line_config(frappe.get_doc(LINE_CHANNEL, channel))
+            frappe.db.commit()
+            changed += 1
     return changed
 
 
@@ -174,7 +191,17 @@ def _ensure_deployment(issue, row):
     return dep
 
 
-def _ensure_line_channel(issue, row, dep):
+def _line_credentials_of(row) -> tuple[str, str]:
+    """开户单产品行上的 LINE 密钥与访问令牌（明文）。只填了一个就拒绝。"""
+    secret = row.get_password("line_channel_secret", raise_exception=False) if row.line_channel_secret else ""
+    token = row.get_password("line_channel_access_token", raise_exception=False) if row.line_channel_access_token else ""
+    secret, token = clean_credential(secret), clean_credential(token)
+    if half_filled(secret, token):
+        frappe.throw(_("Row {0}: a LINE channel needs both the channel secret and the access token").format(row.app))
+    return secret, token
+
+
+def _ensure_line_channel(issue, row, dep, credentials):
     """开户单上填了 LINE 就顺手把渠道建好 —— 这样**同一次开通**就把渠道下发到站点。
 
     为什么要有它（用户 2026-09-19 问的）：渠道必须挂在部署上，而部署是点「发号并开通」
@@ -185,12 +212,9 @@ def _ensure_line_channel(issue, row, dep):
     只在产品行**带了凭据**时才动渠道（幂等）：没填就完全保持现状——离线开户、之后再配。
     反过来，如果渠道已经存在而开户单上又填了新的，以开户单为准（那是运维的显式修改）。
     """
-    secret = row.get_password("line_channel_secret", raise_exception=False) if row.line_channel_secret else ""
-    token = row.get_password("line_channel_access_token", raise_exception=False) if row.line_channel_access_token else ""
-    if not (secret or token):
-        return None
+    secret, token = credentials
     if not (secret and token):
-        frappe.throw(_("Row {0}: a LINE channel needs both the channel secret and the access token").format(row.app))
+        return None
 
     existing = frappe.db.get_value(LINE_CHANNEL, {"deployment": dep.name}, "name")
     channel = frappe.get_doc(LINE_CHANNEL, existing) if existing else frappe.new_doc(LINE_CHANNEL)

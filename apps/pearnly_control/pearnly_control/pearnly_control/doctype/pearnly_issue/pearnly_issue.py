@@ -30,7 +30,7 @@ from frappe.model.document import Document
 
 from pearnly_control import features as features_mod
 from pearnly_control.domains import base_domain
-from pearnly_control.onboarding.line_ids import normalize_liff_id
+from pearnly_control.onboarding.line_ids import clean_credential, half_filled, normalize_liff_id
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -126,6 +126,20 @@ class PearnlyIssue(Document):
                 row.line_liff_id = normalize_liff_id(row.line_liff_id)
             except ValueError:
                 frappe.throw(_("Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234").format(row.line_liff_id))
+            self._validate_line_credentials(row)
+
+    def _validate_line_credentials(self, row):
+        """LINE 凭据存之前去空白；没发号的单子只填了一半就当场拒绝。
+
+        ISS-2026-0294（2026-09-29）：访问令牌没进保存请求，单子照样存下、照样发号，
+        开通时渠道被静默跳过。在保存这一步拦住，开户人当场就知道要补哪一格。
+        已发号的历史单只去空白：LINE 渠道此后在「LINE 渠道」里维护，不让旧单挡住别的修改。
+        """
+        row.line_channel_id = (row.line_channel_id or "").strip()
+        row.line_channel_secret = clean_credential(row.line_channel_secret)
+        row.line_channel_access_token = clean_credential(row.line_channel_access_token)
+        if self.status != "issued" and half_filled(row.line_channel_secret, row.line_channel_access_token):
+            frappe.throw(_("Row {0}: a LINE channel needs both the channel secret and the access token").format(row.app))
 
     # ── 已开通功能 ────────────────────────────────────────────
     def _summarize_features(self):

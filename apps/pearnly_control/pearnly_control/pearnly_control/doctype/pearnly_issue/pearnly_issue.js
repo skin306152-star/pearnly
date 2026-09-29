@@ -84,10 +84,22 @@ function pcall(method, args) {
 // 单子是不是还新/还脏：没存上就停，不能拿临时单号（new-pearnly-issue-…）去调后端。
 const NOT_SAVED = "pearnly:not-saved";
 
+// 还在输入的那一格先落进表单：子表格子只在失焦（change）时才写进 frm.doc，没落进去的值
+// 不会随保存发出（ISS-2026-0294 的访问令牌就没进保存请求）。做法同 Frappe 自己的主按钮
+// （frappe.app.trigger_primary_action）：先 blur，等 change 回调跑完再存。
+function commit_active_input() {
+	const el = document.activeElement;
+	if (!el || !["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return Promise.resolve();
+	el.blur();
+	return new Promise((resolve) => setTimeout(resolve, 100));
+}
+
 function save_first(frm) {
-	if (!frm.is_dirty() && !frm.is_new()) return Promise.resolve();
-	return frm.save().then(() => {
-		if (frm.is_new() || frm.is_dirty()) throw NOT_SAVED;
+	return commit_active_input().then(() => {
+		if (!frm.is_dirty() && !frm.is_new()) return;
+		return frm.save().then(() => {
+			if (frm.is_new() || frm.is_dirty()) throw NOT_SAVED;
+		});
 	});
 }
 
