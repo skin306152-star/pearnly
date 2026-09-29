@@ -83,10 +83,14 @@ def configure() -> None:
         log("· 运行配置：已是当前值")
     if budget_added:
         # Redis 里记着第一次用到时的限额（`budget.permit` 按它比对），与新配置不一致就全部延后
-        # （policy_mismatch）：删掉让下一次按新值重建。
+        # （policy_mismatch）。直接写成新配置对应的记录，不要删：删掉后、重启前，还拿着旧配置的进程会按旧值
+        # 抢先重建（2026-09-29 测试机同步后 5 分钟识别一份都没完成）。写法与 `budget.permit` 一致。
         import redis
 
-        redis.from_url(data["pearnly_ocr_budget_redis"]).delete("pearnly:ocr:v1:policy")
+        from pearnly_core.execution.budget import DEFAULTS, PREFIX
+
+        policy = json.dumps({**DEFAULTS, **data["pearnly_ocr_budget"]}, sort_keys=True)
+        redis.from_url(data["pearnly_ocr_budget_redis"]).set(PREFIX + "policy", policy)
 
 
 def sites_to_finish() -> list:

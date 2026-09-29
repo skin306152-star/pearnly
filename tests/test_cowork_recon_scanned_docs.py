@@ -792,6 +792,26 @@ class ReconJobCleanup(unittest.TestCase):
 		self.assertIsNone(self.status_after_cache_loss(job=job, user="other@example.com"))
 		self.assertIsNone(self.status_after_cache_loss())
 
+	def test_a_job_abandoned_by_a_restart_stops_showing_as_running(self):
+		# 测试机同步重启后，后台任务被判弃置移进失败队列，缓存还停在「进行中」，页面一直转圈（2026-09-29）。
+		from pearnly_cowork.recon_center import jobs
+
+		def status(job_state):
+			cache, db = mock.MagicMock(), mock.MagicMock()
+			cache.get_value.return_value = {"user": "u@example.com", "kind": "bank", "state": "running", "stage": "reading"}
+			db.exists.return_value = False
+			job = mock.Mock(kwargs={"user": "u@example.com", "kwargs": {"kind": "bank"}})
+			job.get_status.return_value = job_state
+			with mock.patch.object(jobs.frappe, "cache", cache), mock.patch.object(jobs.frappe, "db", db), \
+					mock.patch.object(jobs.frappe, "local", mock.Mock(site="site.test")), \
+					mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
+					mock.patch.object(jobs, "_", side_effect=lambda text: text), \
+					mock.patch("frappe.utils.background_jobs.get_job", return_value=job):
+				return jobs.status("abc123")
+
+		self.assertEqual(status("failed")["state"], "failed")
+		self.assertEqual(status("started")["state"], "running")
+
 	def test_uploads_are_saved_as_native_files_under_the_site_limit(self):
 		from pearnly_cowork.recon_center import jobs
 

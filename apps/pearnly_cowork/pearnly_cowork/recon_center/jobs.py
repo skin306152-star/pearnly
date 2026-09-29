@@ -76,11 +76,24 @@ def status(job_id):
     job_id = str(job_id or "")
     current = frappe.cache.get_value(_key(job_id))
     if current and current.get("user") == frappe.session.user:
+        if current.get("state") in ("queued", "running") and _job_ended(job_id):
+            # 后台任务已经没了（部署 / 重启时被判弃置、移进失败队列），缓存还停在「进行中」：页面会一直转圈
+            # （2026-09-29 测试机同步后 5 套对账一直显示 running）。结果落了库就算完成，否则报失败。
+            return _recovered(job_id) or {"kind": current.get("kind"), "state": "failed", "stage": "failed",
+                                          "task": None, "error": _("reconciliation.system_busy")}
         return {key: current.get(key) for key in ("kind", "state", "stage", "task", "error")}
     recovered = _recovered(job_id)
     if not recovered:
         frappe.throw(_("reconciliation.task_not_found"), frappe.DoesNotExistError)
     return recovered
+
+
+def _job_ended(job_id):
+    """后台任务已结束或已被弃置（失败、停止、取消）；查不到任务时不下结论。"""
+    from frappe.utils.background_jobs import get_job
+
+    job = get_job(f"cowork-recon-{job_id}")
+    return bool(job) and job.get_status(refresh=False) in ("failed", "stopped", "canceled")
 
 
 def _recovered(job_id):
