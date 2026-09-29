@@ -127,15 +127,27 @@ def _mime(content):
         return Image.MIME[image.format]
 
 
-def _read(content, filename, pages, frozen, document_type):
+class ReconClosed(Exception):
+    """对账已经结束（失败或完成），这份识别结果不会再被用到。"""
+
+
+def _recon_closed(recon_job):
+    job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
+    return job.get("state") in ("failed", "done")
+
+
+def _read(content, filename, pages, frozen, document_type, recon_job=None):
     environment = frozen["environment"]
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY})
     started = time.monotonic()
 
     def guarded(callback):
         def invoke(*args, **kwargs):
-            # 每次付费调用前结束读快照；超过时限就让出，重跑时已完成的调用从检查点取回。
+            # 每次付费调用前结束读快照；超过时限就让出，重跑时已完成的调用从检查点取回。对账已经结束就不再调用
+            # （2026-09-29 压测 BAY-CA-03：对账判失败后识别任务还在读、占名额）。
             frappe.db.commit()
+            if recon_job and _recon_closed(recon_job):
+                raise ReconClosed()
             if time.monotonic() - started > YIELD_SECONDS:
                 raise Deferred("progress_yield", 1)
             return callback(*args, **kwargs)
@@ -173,8 +185,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
     try:
         saved = core_work.checkpoint(RESULT)
         if not saved:
-            job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
-            if job.get("state") in ("failed", "done") or not frappe.db.exists("File", file):
+            if _recon_closed(recon_job) or not frappe.db.exists("File", file):
                 return {"cancelled": "recon_job_closed"}
             doc = frappe.get_doc("File", file)
             content = doc.get_content()
@@ -184,7 +195,9 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             ocr_settings.revalidate(frozen)
             intake.balance(int(pages), frozen["billing_tier"])
             try:
-                legacy = _read(content, filename, pages, frozen, document_type)
+                legacy = _read(content, filename, pages, frozen, document_type, recon_job)
+            except ReconClosed:
+                return {"cancelled": "recon_job_closed"}
             except ContentError as error:
                 # 读不出（模型回的不是这类文档、整份没有字）：记成读不出，不扣费、不重跑付费调用。
                 frappe.log_error(title="cowork recon document", message=f"{filename}: {error}")
@@ -194,8 +207,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             # 扣费前再看一次对账：已经失败（等满 25 分钟判失败）或已经结束，这份结果不会再被用到 —— 不扣客户的钱，
             # 任务记成取消（2026-09-29 压测：BAY 12 页读了 46 分钟，对账早已判失败，识别读完照样扣费）。用到结果的
             # 识别一定在对账结束前扣费（对账等它成功才往下走）。已发出的供应商调用费由平台承担。
-            job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
-            if job.get("state") in ("failed", "done"):
+            if _recon_closed(recon_job):
                 return {"cancelled": "recon_job_closed"}
             _charge(name, pages, frozen)
             core_work.checkpoint(BILLED, "done", {"units": int(pages)})

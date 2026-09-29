@@ -139,6 +139,20 @@ class EnterprisePipeline(unittest.TestCase):
 			content = document.tobytes()
 		self.assertEqual([pages for _c, _m, pages in pipeline.pdf_chunks(content, 12)], [2] * 6)
 
+	def test_pdf_chunks_are_the_same_bytes_every_time(self):
+		# 检查点键按请求字节算：续跑再拆一次必须逐字节相同，否则已读完的块重读、重复付费（BAY-CA-03，2026-09-29）。
+		import time
+
+		import pymupdf
+
+		with pymupdf.open() as document:
+			for _ in range(4):
+				document.new_page()
+			content = document.tobytes()
+		first = pipeline.pdf_chunks(content, 4)
+		time.sleep(1.1)
+		self.assertEqual(pipeline.pdf_chunks(content, 4), first)
+
 	def test_an_unknown_outcome_is_sent_once_more_only_when_asked(self):
 		from pearnly_core.execution.errors import Uncertain
 		from pearnly_cowork.ocr.providers.client import ProviderClient
@@ -658,6 +672,30 @@ class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 		outcome, charge = self.run_work("running")
 		self.assertEqual(outcome, {})
 		charge.assert_called_once()
+
+
+class NoCallAfterTheReconciliationClosed(unittest.TestCase):
+	"""对账判失败后，识别任务下一个付费调用前就停（BAY-CA-03，2026-09-29：对账失败了识别还在读、占名额）。"""
+
+	def test_the_next_paid_call_is_not_made_once_the_reconciliation_failed(self):
+		states = iter([{"state": "running"}, {"state": "failed"}])
+		cache = mock.MagicMock()
+		cache.get_value.side_effect = lambda key: next(states)
+		calls = []
+
+		client = mock.Mock()
+		client.document_ai_call.side_effect = lambda *a, **k: calls.append("docai") or {}
+		with mock.patch.object(document_ocr, "build_client", return_value=client), \
+				mock.patch.object(document_ocr.frappe, "cache", cache), \
+				mock.patch.object(document_ocr.frappe, "db", mock.MagicMock()), \
+				mock.patch.object(document_ocr, "PageSource", mock.MagicMock()), \
+				mock.patch.object(document_ocr, "_mime", return_value="image/png"), \
+				mock.patch.object(document_ocr, "read_file", side_effect=lambda source, content, is_pdf, mime, kind,
+					docai, model: (docai("a"), docai("b"))):
+			with self.assertRaises(document_ocr.ReconClosed):
+				document_ocr._read(b"img", "p.png", 1, {"environment": {}, "target": dict.fromkeys(document_ocr.IDENTITY)},
+					"bank_statement", "job")
+		self.assertEqual(calls, ["docai"])
 
 
 class ReviewWithBalanceBreaks(unittest.TestCase):

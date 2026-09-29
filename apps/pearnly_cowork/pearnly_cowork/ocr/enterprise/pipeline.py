@@ -60,7 +60,9 @@ def pdf_chunks(pdf: bytes, page_count: int) -> List[Tuple[bytes, str, int]]:
             end = min(start + enterprise_pages.MAX_PAGES_PER_READ, page_count)
             with pymupdf.open() as chunk:
                 chunk.insert_pdf(document, from_page=start, to_page=end - 1)
-                chunks.append((chunk.tobytes(), "application/pdf", end - start))
+                # 不写新的 /ID：pymupdf 默认每次写出都给一个随机文件 ID，同一页块字节不同、检查点键跟着变，
+                # 续跑时已读完的块又调一次、又付一次费（2026-09-29 压测 BAY-CA-03：12 页读了 5 遍，最后超时）。
+                chunks.append((chunk.tobytes(no_new_id=True), "application/pdf", end - start))
     return chunks
 
 
