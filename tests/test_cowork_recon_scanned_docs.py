@@ -771,6 +771,17 @@ class ReconJobCleanup(unittest.TestCase):
 			("left0", "1.jpg", "bank_statement"), ("left1", "2.JPG", "bank_statement"),
 			("right4", "gl.png", "general_ledger")])  # the PDF may still read free, the workbook needs no OCR
 
+	def test_the_job_speaks_the_submitted_language(self):
+		from pearnly_cowork.recon_center import jobs
+
+		local = mock.Mock(lang="th")
+		with mock.patch.object(jobs.frappe, "local", local), mock.patch.object(jobs, "_state"), \
+				mock.patch.object(jobs, "_read", side_effect=RuntimeError("stop")), \
+				mock.patch.object(jobs.frappe, "db", mock.MagicMock()), mock.patch.object(jobs.frappe, "log_error"), \
+				mock.patch.object(jobs.frappe, "_", side_effect=lambda text, **_kw: text):
+			jobs.run("job", "income", "ws", "t", {"left": [], "right": []}, json.dumps({"lang": "zh"}))
+		self.assertEqual(local.lang, "zh")
+
 	def test_a_database_lock_is_not_reported_as_a_bad_file(self):
 		states, _submit, log_error = self.run_job("bank", [("s.xlsx", b"a")], [("g.xlsx", b"b")],
 			create_error=frappe.QueryTimeoutError("lock"))

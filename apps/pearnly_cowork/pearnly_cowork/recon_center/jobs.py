@@ -136,6 +136,10 @@ def _read(names):
 
 def run(recon_job, kind, workspace, title, files, options="{}"):
     options = json.loads(options or "{}")
+    # 后台任务按提交时选的语言写错误与提示（默认是站点语言：2026-09-29 压测 lang=zh 提交，失败提示是英文 /
+    # 泰文）。
+    if options.get("lang") in ("th", "zh", "en", "ja"):
+        frappe.local.lang = options["lang"]
     stage = lambda name: _state(recon_job, state="running", stage=name)  # noqa: E731
     try:
         stage("reading")
