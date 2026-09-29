@@ -238,6 +238,35 @@ class TextLineDecode(unittest.TestCase):
 		with self.assertRaises(ReconciliationContractError):
 			parse.text_rows("4110-01 รายได้")
 
+	def test_an_express_ledger_with_dashed_account_codes_is_read(self):
+		# I03（2026-09-29）：Express 打印的分类账，科目号「41-01-00-00」，每行只有一个金额加括号余额。
+		lines = ["เลขที่บัญชี      41-01-00-00      ถึง   41-01-00-00       เลือกแผนก   *",
+			"41-01-00-00     รายได้จากการขาย          (113,336,751.03)",
+			" 01/04/69 ขาย    SV690401-001 บันทึกขายวันที่ 1/4/2569       228,594.49      (113,565,345.52)",
+			" 02/04/69 ขาย    SV690402-001 บันทึกขายวันที่ 2/4/2569       228,719.49      (113,794,065.01)",
+			"                         รวม                      0.00      457,313.98",
+			"      รวมทั้งสิ้น         2 รายการ    1  บัญชี                      0.00      457,313.98"]
+		rows = parse.text_rows(lines)["rows"]
+		self.assertEqual([(row.doc_no, row.date, row.account_code, row.debit, row.credit) for row in rows],
+			[("SV690401-001", "01/04/69", "41-01-00-00", 0.0, 228594.49),
+				("SV690402-001", "02/04/69", "41-01-00-00", 0.0, 228719.49)])
+
+	def test_a_dashed_document_number_or_date_is_not_an_account(self):
+		for text in ("MB 69-04-002", "01-02-69", "30-04-2569", "SV690401-001"):
+			with self.subTest(text=text):
+				self.assertNotEqual(parse.extract_account_code(text), text)
+		self.assertIsNone(parse.extract_account_code("MB 69-04-002"))
+
+	def test_a_trial_balance_is_told_apart_from_a_ledger(self):
+		trial = {"kind": "excel", "sheets": [[["บริษัท น้ำแข็ง จำกัด"], ["  งบทดลอง     ณ วันที่ 28 ก.พ."],
+			["41-01-00-00", "รายได้จากการขาย", 0, 101255846.08, 0.1, 5629764.54, 0, 106885610.52]]]}
+		self.assertTrue(parse.is_trial_balance(trial))
+		self.assertEqual(parse.decode(trial)["rows"], [])
+		self.assertTrue(parse.is_trial_balance({"kind": "pdf", "pages": [], "lines": ["Trial Balance"]}))
+		self.assertFalse(parse.is_trial_balance({"kind": "pdf", "pages": [],
+			"lines": ["รายงานแยกประเภททั่วไป", "41-01-00-00 รายได้"]}))
+		self.assertFalse(parse.is_trial_balance({"kind": "pipeline", "decoded": {}}))
+
 
 class SourceDispatch(unittest.TestCase):
 	def test_tables_win_and_the_printed_lines_are_the_fallback(self):

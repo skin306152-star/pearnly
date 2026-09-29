@@ -169,6 +169,12 @@ def rows_of(value):
 	return [describe(row) for row in value["rows"]]
 
 
+def date_fragment_tail(line):
+	stripped = str(line or "").strip()
+	tail = parse.TAIL_NUMBERS_3_RE.search(stripped)
+	return bool(tail) and parse._inside_date(stripped, tail.start(1))
+
+
 def carried_dates(deployed, produced):
 	"""有意变化（2026-09-29 I02 收入总账）：同一凭证的续行不写日期，沿用上一行日期 —— 旧线上留空，这些行在按日期
 	配对时落空。只认「旧线上为空、本模块等于上一行日期」这一处不同，其余字段逐字相同；返回沿用的行数，不属于
@@ -342,7 +348,7 @@ def main():
 	rng = random.Random(20260921)
 	differences = []
 	counts = {"batches": 0, "excel_rows": 0, "table_rows": 0, "text_rows": 0, "pipeline_rows": 0}
-	branches = {"excel_date_cells": 0, "excel_carried_dates": 0, "text_credit": 0, "text_debit": 0, "text_tail_three": 0}
+	branches = {"excel_date_cells": 0, "excel_carried_dates": 0, "text_date_fragment_tail": 0, "text_credit": 0, "text_debit": 0, "text_tail_three": 0}
 	helper_cases = {"to_float": 0, "extract_account_code": 0, "is_skip_row": 0,
 		"map_gl_columns": 0, "row_has_amount": 0, "is_debit_line": 0}
 	helper_values = [None, "", "-", "–", "0.00", "1,070.00", "(250.00)", " 12 ", "1 234.50",
@@ -406,9 +412,15 @@ def main():
 			if produced["diag"].get(key) != value:
 				differences.append(("pdf_diag", key, value, produced["diag"].get(key)))
 
-		readers.pages = [{"text": "\n".join(batch["lines"]), "tables": []}]
+		# 有意变化（2026-09-29 I03）：三数尾的第一个数紧贴在日期 / 单号里（「วันที่ 1/4/2569 228,594.49 (…)」
+		# 「SBT10/2025 1,500.00 2,070.00」）时不是借方，旧线上把年份读成借方。这类行由单元测试覆盖，这里去掉后
+		# 两边逐字比对其余行。
+		fragments = [line for line in batch["lines"] if date_fragment_tail(line)]
+		lines = [line for line in batch["lines"] if not date_fragment_tail(line)]
+		branches["text_date_fragment_tail"] += len(fragments)
+		readers.pages = [{"text": "\n".join(lines), "tables": []}]
 		deployed = pdf["_parse_gl_text_lines"](b"", prefix)
-		produced = parse.text_rows(batch["lines"], prefix)
+		produced = parse.text_rows(lines, prefix)
 		counts["text_rows"] += len(produced["rows"])
 		branches["text_credit"] += sum(1 for row in produced["rows"] if row.credit)
 		branches["text_debit"] += sum(1 for row in produced["rows"] if row.debit)

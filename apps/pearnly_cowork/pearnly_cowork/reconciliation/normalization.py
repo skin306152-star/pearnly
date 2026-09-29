@@ -98,7 +98,10 @@ def parse_date(s) -> Optional[date]:
     if not s:
         return None
     s = str(s).strip()
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y", "%Y/%m/%d", "%d %b %Y", "%d %B %Y"):
+    # 「01-02-69」「01.02.2569」也认（2026-09-29 压测 I04：Express 打印的 95 页税报日期是 日-月-2 位年，原样留着
+    # 「01-02-69」，按日期排序、配对都落空）。
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y", "%Y/%m/%d", "%d %b %Y", "%d %B %Y",
+                "%d-%m-%y", "%d.%m.%Y", "%d.%m.%y"):
         try:
             d = datetime.strptime(s, fmt).date()
         except ValueError:

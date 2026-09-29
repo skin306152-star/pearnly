@@ -21,7 +21,13 @@ Intentional changes (2026-09-29, found reproducing wrong results offline):
 * a document number printed on several VAT lines is compared once: every line but
   the last takes its own VAT amount from the voucher, the last takes the rest. The
   deployed rule compared every line with the whole voucher, so lines 600 + 400
-  against a 1,000 voucher showed −400 and −600.
+  against a 1,000 voucher showed −400 and −600;
+* a VAT line without a document number (the daily retail summary an Express report
+  prints as «บันทึกขายวันที่ 1/4/2569») pairs with the one ledger voucher of the same
+  date and the same net amount that no numbered VAT line claims, and then counts as
+  that voucher. The deployed rule could never pair such a line, so a month of daily
+  summaries showed every day twice, once as VAT-only and once as GL-only (2026-09-29,
+  I03). A line with several candidate vouchers stays unpaired.
 
 Pure logic: no Frappe, database, file, clock, HTTP, model or export access. Reading
 the GL and VAT files, persisting tasks and building the workbook stay in the legacy
@@ -32,7 +38,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from pearnly_cowork.reconciliation.normalization import normalize_invoice_no
+from pearnly_cowork.reconciliation.normalization import normalize_invoice_no, parse_date
 
 AMOUNT_TOLERANCE = 0.01  # deployed default: differences within ฿0.01 count as matched
 
@@ -100,6 +106,56 @@ def vat_doc_no(vat_row: Dict[str, Any]) -> str:
 	return str(raw).strip()
 
 
+def pair_unnumbered_lines(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]],
+		amount_tolerance: float = AMOUNT_TOLERANCE) -> List[Dict[str, Any]]:
+	"""VAT lines without a document number, paired by date and net amount with a free voucher.
+
+	A voucher is free when no numbered VAT line names it. A paired line is returned as a
+	copy carrying the voucher number as its reference; every other line is returned as is.
+	"""
+	def number(value):
+		try:
+			return float(value or 0.0)
+		except (TypeError, ValueError):
+			return None
+
+	def day_of(value):
+		try:
+			return parse_date(value)
+		except Exception:
+			return None
+
+	unnumbered = [index for index, vat in enumerate(vat_rows) if not normalize_doc_no(vat_doc_no(vat))]
+	if not unnumbered:
+		return vat_rows
+	numbered = {normalize_doc_no(vat_doc_no(vat)) for vat in vat_rows} - {""}
+	vouchers: Dict[str, List[GlRow]] = defaultdict(list)
+	for row in gl_rows:
+		if row.norm_doc_no and row.norm_doc_no not in numbered:
+			vouchers[row.norm_doc_no].append(row)
+	candidates: Dict[Any, List[Tuple[str, float]]] = defaultdict(list)
+	for norm, rows in vouchers.items():
+		day = day_of(rows[0].date)
+		amounts = [(number(row.credit), number(row.debit)) for row in rows]
+		if day is not None and all(None not in pair for pair in amounts):
+			candidates[day].append((norm, sum(credit - debit for credit, debit in amounts)))
+	if not candidates:
+		return vat_rows
+	used = set()
+	paired = list(vat_rows)
+	for index in unnumbered:
+		vat = vat_rows[index]
+		day, amount = day_of(vat.get("report_date")), number(vat.get("report_amount_pre_vat"))
+		if day is None or not amount:
+			continue
+		hits = [norm for norm, net in candidates.get(day, []) if norm not in used
+			and abs(net - amount) <= amount_tolerance]
+		if len(hits) == 1:
+			used.add(hits[0])
+			paired[index] = dict(vat, report_ref_no=vouchers[hits[0]][0].doc_no)
+	return paired
+
+
 def reconcile_gl_vat(
 	gl_rows: List[GlRow],
 	vat_rows: List[Dict[str, Any]],
@@ -110,6 +166,7 @@ def reconcile_gl_vat(
 	The VAT side is the driver of the detail list; a difference within
 	``amount_tolerance`` is reported as a zero difference.
 	"""
+	vat_rows = pair_unnumbered_lines(gl_rows, vat_rows, amount_tolerance)
 	gl_idx: Dict[str, List[GlRow]] = defaultdict(list)
 	for row in gl_rows:
 		if row.norm_doc_no:

@@ -1046,6 +1046,7 @@ This file type is not supported.,This file type is not supported.
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
 This invoice was already sent successfully,This invoice was already sent successfully
+This is a trial balance with account totals only. Upload the general ledger with each voucher.,This is a trial balance with account totals only. Upload the general ledger with each voucher.
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
 This label no longer exists,This label no longer exists
@@ -1970,6 +1971,7 @@ reconciliation.gl_no_revenue_rows,The general ledger has no revenue account rows
 reconciliation.gl_parse_failed,The general ledger could not be read.
 reconciliation.gl_period_trimmed,"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
 reconciliation.gl_source_invalid,The ledger file content is invalid.
+reconciliation.gl_trial_balance,This is a trial balance with account totals only. Upload the general ledger with each voucher.
 reconciliation.header_invalid,The opening and closing values are invalid.
 reconciliation.ledger_unparsed,The general ledger could not be read.
 reconciliation.parse_info_invalid,The reconciliation data is not in the expected format. Upload the files again

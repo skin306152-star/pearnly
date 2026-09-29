@@ -1046,6 +1046,7 @@ This file type is not supported.,不支持此文件类型。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This inventory account group cannot be chosen for this account set.,这份账套不能选这个存货科目组。
 This invoice was already sent successfully,这张票已经推送成功过
+This is a trial balance with account totals only. Upload the general ledger with each voucher.,这是试算表，只有科目合计，请上传带逐笔凭证的总账。
 This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
 This item is also stocked at:,这件货还在别处：
 This label no longer exists,标签不存在
@@ -1970,6 +1971,7 @@ reconciliation.gl_no_revenue_rows,总账里没有收入科目的行。
 reconciliation.gl_parse_failed,读不出总账。
 reconciliation.gl_period_trimmed,总账期间比银行流水长，只取 {0} 至 {1} 的记录，之前的发生额已滚入期初（{2}）。
 reconciliation.gl_source_invalid,总账内容无效。
+reconciliation.gl_trial_balance,这是试算表，只有科目合计，请上传带逐笔凭证的总账。
 reconciliation.header_invalid,期初期末数值无效。
 reconciliation.ledger_unparsed,读不出总账。
 reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文件

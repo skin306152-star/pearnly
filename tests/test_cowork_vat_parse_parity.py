@@ -221,6 +221,16 @@ def describe(row):
 	return tuple(sorted((key, value) for key, value in row.items()))
 
 
+SHORT_DASH_DATE = re.compile(r"\d{1,2}[\-.]\d{1,2}[\-.]\d{2}(?:\d{2})?")
+
+
+def legacy_date(value):
+	"""有意变化（2026-09-29 I04）：「01-02-69」「01.02.2569」旧线上认不出、原样留着，本模块转成标准日期。"""
+	if isinstance(value, str) and SHORT_DASH_DATE.fullmatch(value) and parse.parse_date(value):
+		return parse.parse_date(value).isoformat()
+	return value
+
+
 IDENTITY = ("report_invoice_no", "report_buyer_name", "report_buyer_tax_id", "report_buyer_branch", "report_ref_no",
 	"is_individual")
 
@@ -231,6 +241,7 @@ def intentional_text_row(deployed, produced):
 	- 每行多带「是否当日汇总行」标记，旧线上没有这一栏；
 	- thai_summary：第一个词是泰文描述（零售当日汇总行）时不当单号，单号留空、词留在名称里；
 	- spaced_number：「MB 69-04-002」被空格拆开的单号合回一个；
+	- dash_date：「01-02-69」这类日期旧线上原样留着，本模块转成标准日期（见 legacy_date）；
 	- after_number：税号、分支在单号之后找，名称先去单号（旧线上从整段找，「SI000001」里的数字被当成分支，
 	  名称剩下「SI0」这类碎片；单号本身是 13 位数字时也不再当税号，是否个人随税号变）。
 	金额、日期、行号等其余字段必须逐字相同。
@@ -238,6 +249,9 @@ def intentional_text_row(deployed, produced):
 	produced = {key: value for key, value in produced.items() if key != "summary_line"}
 	if produced == deployed:
 		return "same"
+	deployed = dict(deployed, report_date=legacy_date(deployed.get("report_date")))
+	if produced == deployed:
+		return "dash_date"
 	if any(deployed.get(key) != produced.get(key) for key in set(deployed) | set(produced) if key not in IDENTITY):
 		return None
 	old, new = deployed["report_invoice_no"], produced["report_invoice_no"]
@@ -262,8 +276,9 @@ def outcome(function, *arguments):
 
 def rows_of(result):
 	# 「是否当日汇总行」标记是有意新增的一栏（见 intentional_text_row），旧线上没有，比对时不算。
-	return None if result is None else [describe({key: value for key, value in row.items() if key != "summary_line"})
-		for row in result["rows"]]
+	# 「01-02-69」这类日期的转换同样是有意变化（见 legacy_date），两边都过一遍。
+	return None if result is None else [describe({key: legacy_date(value) if key == "report_date" else value
+		for key, value in row.items() if key != "summary_line"}) for row in result["rows"]]
 
 
 def page_lines(pages):

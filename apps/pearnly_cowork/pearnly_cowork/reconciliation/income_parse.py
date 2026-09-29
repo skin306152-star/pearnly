@@ -128,8 +128,13 @@ def header_hit(header, hints) -> bool:
 	return any(hint.lower() in value for hint in hints)
 
 
+# Express 的科目号按两位一段用横杠隔开（41-01-00-00）：上面的形状要四位连着的数字，认不出，整本分类账一行都读不出
+# （2026-09-29 压测 I03）。至少三段，免得把「69-04-002」这类单号、日期当科目。
+DASHED_ACCOUNT_RE = re.compile(r"(?<![\d.\-/])([4-9]\d(?:[\-–]\d{2}){2,4})(?![\d.\-/])")
+
+
 def extract_account_code(text) -> Optional[str]:
-	match = ACCOUNT_RE.search(str(text or ""))
+	match = ACCOUNT_RE.search(str(text or "")) or DASHED_ACCOUNT_RE.search(str(text or ""))
 	return match.group(1) if match else None
 
 
@@ -366,6 +371,12 @@ def table_rows(pages, revenue_prefix: str = "4") -> Dict[str, Any]:
 			"accounts_seen": accounts_seen[:10], "rows_kept": 0}}
 
 
+def _inside_date(line, start) -> bool:
+	"""The number starting at ``start`` is the tail of a printed date (1/4/2569, 1-4-2569)."""
+	before = line[start - 1] if start > 0 else " "
+	return before in "/.-" or (line[start:start + 1] == "-" and before.isdigit())
+
+
 def text_rows(lines, revenue_prefix: str = "4") -> Dict[str, Any]:
 	"""Decode the printed text lines of a ledger PDF into revenue rows.
 
@@ -407,6 +418,9 @@ def text_rows(lines, revenue_prefix: str = "4") -> Dict[str, Any]:
 			if line.startswith("รวม") and not VOUCHER_RE.search(line):
 				continue
 			tail_3 = TAIL_NUMBERS_3_RE.search(line)
+			if tail_3 and _inside_date(line, tail_3.start(1)):
+				# 「บันทึกขายวันที่ 1/4/2569  228,594.49 (113,565,345.52)」：年份不是借方（2026-09-29 I03）。
+				tail_3 = None
 			tail_2 = None if tail_3 else TAIL_NUMBERS_2_RE.search(line)
 			if not (tail_3 or tail_2):
 				continue
@@ -532,6 +546,27 @@ def pipeline_rows(decoded, revenue_prefix: str = "4") -> List[GlRow]:
 				date=entry.get("transaction_date") or "", account_code=account_code,
 				description=entry.get("description") or "", debit=debit, credit=credit))
 	return rows
+
+
+TRIAL_BALANCE_TITLES = ("งบทดลอง", "trial balance", "试算表", "試算表")
+
+
+def is_trial_balance(source) -> bool:
+	"""The file is a trial balance (account totals, no vouchers) rather than a ledger.
+
+	Read only from the title lines at the top, so the explanation is given instead of
+	"no revenue rows" (2026-09-29 I04: an Express «งบทดลอง» was uploaded as the ledger).
+	"""
+	kind = (source or {}).get("kind") if isinstance(source, dict) else None
+	if kind == "excel":
+		heads = [" ".join(str(cell or "") for cell in row) for sheet in source.get("sheets") or []
+			for row in list(sheet or [])[:12]]
+	elif kind in ("pdf", "text"):
+		heads = list(source.get("lines") or [])[:12]
+	else:
+		return False
+	text = " ".join(heads).lower()
+	return any(title in text for title in TRIAL_BALANCE_TITLES)
 
 
 def decode(source, revenue_prefix: str = "4") -> Dict[str, Any]:

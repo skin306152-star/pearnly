@@ -741,6 +741,7 @@ The bank statement could not be read.	读不出银行账单。	ไม่สา�
 The general ledger could not be read.	读不出总账。	ไม่สามารถอ่านบัญชีแยกประเภทได้	総勘定元帳を読み取れません。	reconciliation.ledger_unparsed
 The general ledger could not be read.	读不出总账。	ไม่สามารถอ่านบัญชีแยกประเภทได้	総勘定元帳を読み取れません。	reconciliation.gl_parse_failed
 The general ledger has no revenue account rows.	总账里没有收入科目的行。	ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท	総勘定元帳に収益科目の行がありません。	reconciliation.gl_no_revenue_rows
+This is a trial balance with account totals only. Upload the general ledger with each voucher.	这是试算表，只有科目合计，请上传带逐笔凭证的总账。	ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ	これは科目合計だけの試算表です。伝票ごとの明細がある総勘定元帳をアップロードしてください。	reconciliation.gl_trial_balance
 The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.	读不出税表。请用 Excel、CSV 或带文字层的 PDF。	ไม่สามารถอ่านรายงานภาษีได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีข้อความ	税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。	reconciliation.vat_report_unparsed
 The VAT report has no rows.	税表里没有明细行。	รายงานภาษีไม่มีรายการ	税報告に明細行がありません。	reconciliation.vat_no_rows
 Unknown reconciliation type.	未知的对账类型。	ประเภทการกระทบยอดไม่ถูกต้อง	不明な照合種別です。	reconciliation.type_invalid

@@ -112,6 +112,38 @@ class DetailRows(unittest.TestCase):
         self.assertEqual([row.vat_amount for row in detail], [0.0, 0.0, 0.0, 1070.0])
 
 
+class UnnumberedLines(unittest.TestCase):
+    """税报里没有单号的当日汇总行（I03，2026-09-29）按同日同额配总账凭证。"""
+
+    def daily(self):
+        return [gl("SV690401-001", "sv690401001", "01/04/69", "41-01-00-00", "บันทึกขาย", 0.0, 228594.49),
+                gl("SV690402-001", "sv690402001", "02/04/69", "41-01-00-00", "บันทึกขาย", 0.0, 228719.49),
+                gl("IV-9", "iv9", "02/04/69", "41-01-00-00", "sale", 0.0, 500.0)]
+
+    def test_a_daily_summary_line_pairs_with_the_voucher_of_that_day(self):
+        rows = [vat("", "2026-04-01", "บันทึกขายวันที่ 1/4/2569", 228594.49),
+                vat("", "2026-04-02", "บันทึกขายวันที่ 2/4/2569", 228719.49),
+                vat("IV-9", "2026-04-02", "ACME", 500.0)]
+        detail, summary = income.reconcile_gl_vat(self.daily(), rows)
+        self.assertEqual([(row.doc_no, row.gl_amount, row.diff) for row in detail],
+                         [("SV690401-001", 228594.49, 0.0), ("IV-9", 500.0, 0.0), ("SV690402-001", 228719.49, 0.0)])
+        self.assertEqual((summary.gl_only_credit, summary.vat_only_positive), (0.0, 0.0))
+        self.assertEqual(rows[0]["report_ref_no"], "")  # 调用方的行不改
+
+    def test_a_voucher_named_by_a_numbered_line_or_a_different_amount_is_not_taken(self):
+        rows = [vat("", "2026-04-02", "summary", 500.0), vat("IV-9", "2026-04-02", "ACME", 500.0),
+                vat("", "2026-04-01", "summary", 228594.00)]
+        detail, summary = income.reconcile_gl_vat(self.daily(), rows)
+        self.assertEqual(summary.vat_only_positive, round(500.0 + 228594.00, 2))
+        self.assertEqual(summary.gl_only_credit, round(228594.49 + 228719.49, 2))
+
+    def test_two_candidate_vouchers_leave_the_line_unpaired(self):
+        ledger = [gl("A-1", "a1", "2026-04-01", credit=100.0), gl("A-2", "a2", "2026-04-01", credit=100.0)]
+        detail, summary = income.reconcile_gl_vat(ledger, [vat("", "2026-04-01", "summary", 100.0)])
+        self.assertEqual(summary.vat_only_positive, 100.0)
+        self.assertEqual(summary.gl_only_credit, 200.0)
+
+
 class Summary(unittest.TestCase):
     def test_totals_and_the_four_adjustment_buckets(self):
         rows = [gl(doc_no="GL-1", norm_doc_no="gl1", credit=1070.0),

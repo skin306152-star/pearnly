@@ -135,7 +135,8 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 	if not parsed["ok"]:
 		frappe.throw(_("reconciliation.gl_parse_failed"))
 	if not parsed["rows"]:
-		frappe.throw(_("reconciliation.gl_no_revenue_rows"))
+		frappe.throw(_("reconciliation.gl_trial_balance") if income_parse.is_trial_balance(gl_source)
+			else _("reconciliation.gl_no_revenue_rows"))
 	# The stored diagnostics keep the file each side came from and the reader that
 	# served it, so a later export or review can say what a task was read from.
 	parse_values = {"gl": [gl_diagnostic(parsed["diag"], parsed["row_count"], gl_filename)],

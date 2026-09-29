@@ -1046,6 +1046,7 @@ This file type is not supported.,ไม่รองรับไฟล์ปร�
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
+This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
@@ -1970,6 +1971,7 @@ reconciliation.gl_no_revenue_rows,ไม่พบรายการบัญช�
 reconciliation.gl_parse_failed,ไม่สามารถอ่านบัญชีแยกประเภทได้
 reconciliation.gl_period_trimmed,บัญชีแยกประเภทครอบคลุมช่วงเวลายาวกว่ารายการเดินบัญชี ใช้เฉพาะ {0} ถึง {1} และยกรายการก่อนหน้าเป็นยอดยกมา {2}
 reconciliation.gl_source_invalid,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
+reconciliation.gl_trial_balance,ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ
 reconciliation.header_invalid,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
 reconciliation.ledger_unparsed,ไม่สามารถอ่านบัญชีแยกประเภทได้
 reconciliation.parse_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
