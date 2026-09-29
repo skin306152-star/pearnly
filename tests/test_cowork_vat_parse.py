@@ -362,6 +362,18 @@ class SourceDispatch(unittest.TestCase):
 		self.assertEqual(rows[1]["report_buyer_name"], "เอเซียมีนบุรี จํากัด")
 		self.assertEqual((rows[3]["report_buyer_branch"], rows[3]["report_buyer_name"]), ("00000", "บิ๊กซี ซูเปอรเซ็นเตอร"))
 
+	def test_a_head_office_tick_is_not_part_of_the_buyer_name(self):
+		rows = parse.text_lines(["01/07/69 IV69/00564 บจก เฟงราน เทรดดิ้ง X 1,000.00 70.00"])
+		self.assertEqual(rows[0]["report_buyer_name"], "บจก เฟงราน เทรดดิ้ง")
+
+	def test_thai_text_from_an_old_font_is_normalised(self):
+		from pearnly_cowork.reconciliation.normalization import thai_text
+
+		self.assertEqual(thai_text("หน\uf70bา"), "หน้า")
+		self.assertEqual(thai_text("เป\uf712น"), "เป็น")
+		self.assertEqual(thai_text("จ\u0e4d\u0e32กัด"), "จำกัด")
+		self.assertEqual(thai_text(None), "")
+
 	def test_an_unknown_or_incomplete_source_is_refused(self):
 		with self.assertRaises(ValueError):
 			parse.decode({"kind": "scan"})

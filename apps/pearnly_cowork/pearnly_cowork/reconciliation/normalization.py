@@ -23,6 +23,25 @@ def normalize_str(s) -> str:
     return unicodedata.normalize("NFKC", str(s)).strip().lower()
 
 
+# 旧泰文字体（Microsoft / Adobe）把移位的声调符、上下元音、去尾的 ญ ฐ 放在私用区 U+F700–U+F71A；PDF 文字层原样
+# 吐出来，「หน\uf70bา」「เป\uf712น」和标准写法比永远不同（2026-09-30 压测第 17 轮 V03：税报 PDF 客户名全判成差异）。
+THAI_PUA = str.maketrans({
+    0xF700: "\u0E10", 0xF701: "\u0E34", 0xF702: "\u0E35", 0xF703: "\u0E36", 0xF704: "\u0E37",
+    0xF705: "\u0E48", 0xF706: "\u0E49", 0xF707: "\u0E4A", 0xF708: "\u0E4B", 0xF709: "\u0E4C",
+    0xF70A: "\u0E48", 0xF70B: "\u0E49", 0xF70C: "\u0E4A", 0xF70D: "\u0E4B", 0xF70E: "\u0E4C",
+    0xF70F: "\u0E0D", 0xF710: "\u0E31", 0xF711: "\u0E4D", 0xF712: "\u0E47", 0xF713: "\u0E48",
+    0xF714: "\u0E49", 0xF715: "\u0E4A", 0xF716: "\u0E4B", 0xF717: "\u0E4C", 0xF718: "\u0E38",
+    0xF719: "\u0E39", 0xF71A: "\u0E3A",
+})
+
+
+def thai_text(text) -> str:
+    """PDF 文字层的泰文规范化：私用区字形映射回标准泰文；「ํ + า」（NIKHAHIT + SARA AA）合成「ำ」。"""
+    if not text:
+        return text or ""
+    return str(text).translate(THAI_PUA).replace("\u0E4D\u0E32", "\u0E33")
+
+
 def normalize_name(s) -> str:
     """v118.32.2.5 · 姓名/公司名标准化:去所有空格(适合泰文/中文/日文 OCR 排版差) + 全角半角 + 大小写"""
     if not s:

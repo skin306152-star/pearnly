@@ -37,10 +37,17 @@ def _pdf_text(content):
         with pymupdf.open(stream=content, filetype="pdf") as document:
             pages = [page.get_text() or "" for page in document]
         if any(page.strip() for page in pages):
-            return pages
+            return _thai(pages)
     except Exception:
         pass
-    return document_tier.text_pages(content)
+    return _thai(document_tier.text_pages(content))
+
+
+def _thai(pages):
+    """取出来的每页文字做泰文规范化（旧字体私用区字形、ํ + า）。"""
+    from pearnly_cowork.reconciliation.normalization import thai_text
+
+    return [thai_text(page) for page in pages]
 
 
 def _lines(pages):
@@ -111,7 +118,7 @@ def report_source(content, filename, read=None):
         # 两种取字各有擅长的版式（2026-09-29 压测：pymupdf 读 Express 打印的税报逐行正常，pypdf 整页一行；
         # I04 95 页的税报、V05 则反过来）：两种都试，用读出行数多的那种。
         best, best_rows, texts = None, -1, False
-        for pages in (_pdf_text(content), document_tier.text_pages(content)):
+        for pages in (_pdf_text(content), _thai(document_tier.text_pages(content))):
             if not any(page.strip() for page in pages):
                 continue
             _not_a_sales_listing(_lines(pages))

@@ -556,6 +556,8 @@ def text_lines(lines) -> List[Dict[str, Any]]:
 		name = re.sub(r"\b0\d{4}\b", " ", name)
 		name = re.sub(r"^\s*(?:[A-Za-z]{1,4}\s+\d+\s+){1,3}", " ", name)
 		name = re.sub(r"\s+\d{1,5}\s*$", "", name)
+		# 行尾孤立的「X」是总公司 / 分公司勾选栏串进来的（2026-09-30 压测第 17 轮 V03 税报 PDF：「บจก เฟงราน เทรดดิ้ง X」）。
+		name = re.sub(r"\s+[Xx]\s*$", "", name)
 		name = re.sub(r"\s+", " ", name).strip()
 		parsed_date = parse_date(match_date.group(1))
 		row_no += 1
