@@ -16,6 +16,7 @@ from pearnly_cowork.reconciliation import (
 	bank_sheets,
 	bank_warnings,
 	bank_groups,
+	bank_card_fee,
 	preset_store,
 	presets,
 	recon_contracts,
@@ -124,6 +125,12 @@ def _match(rows, header_values, rules=None):
 	results, summary = bank_matching.reconcile(statement, ledger, **amounts)
 	if (rules or {}).get(presets.GROUPED) == presets.YES:
 		results, count = bank_groups.accept(results)
+		if count:
+			summary = bank_matching.summarize(results, statement, ledger, **amounts)
+	rate = (rules or {}).get(presets.CARD_FEE)
+	if rate and rate != presets.NO:
+		# 刷卡净额（预设了手续费率）：到账净额配刷卡毛额，手续费单列一行「银行已扣、总账未记」，公式照样平
+		results, count = bank_card_fee.accept(results, rate, _("reconciliation.preset.card_fee_row").format(rate))
 		if count:
 			summary = bank_matching.summarize(results, statement, ledger, **amounts)
 	return results, {field: getattr(summary, field) for field in summary.__dataclass_fields__}

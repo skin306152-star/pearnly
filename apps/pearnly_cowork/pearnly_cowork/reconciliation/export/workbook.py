@@ -93,7 +93,7 @@ def build_match_results_sheet(wb, recon_rows: List[BankReconRow], lang: str) -> 
         layer_fill_color = (
             COLOR_MATCHED
             if row.match_layer == 1
-            else COLOR_L2 if row.match_layer == 2 else COLOR_L4 if row.match_layer == 4 else COLOR_L3
+            else COLOR_L2 if row.match_layer == 2 else COLOR_L4 if row.match_layer in (4, 5) else COLOR_L3
         )
         fill = PatternFill("solid", fgColor=layer_fill_color)
         vals = [

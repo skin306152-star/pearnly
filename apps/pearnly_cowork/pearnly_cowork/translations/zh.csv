@@ -96,6 +96,7 @@ Assign Cowork access through company and client permissions.,请通过公司和�
 Assign to,分派给成员
 Assign · Track · Discuss,分派 · 跟进 · 讨论
 Assigned to me,分配给我的
+"At a {1}% card fee, {0} deposits match",按手续费率 {1}% 能对上 {0} 笔到账
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每条记录最多 {0} 张照片
@@ -114,6 +115,7 @@ Bank statement,银行账单
 Bank statement detail,银行对账单明细
 Bank withdrawal only,仅银行支出
 Bank {0}: one line {1},银行 {0} 一笔 {1}
+Bank {0}: received {1},银行 {0} 到账 {1}
 Barcode,条形码
 Barcode / QR code,条码/二维码
 "Barcode, QR code or product code",条形码、二维码或物料编码
@@ -163,6 +165,8 @@ Cancelled,已取消
 Card,刷卡
 Card archived,已归档
 Card deleted,已删除
+"Card fee ({0}% preset): deducted by the bank, not in the ledger",刷卡手续费（按预设 {0}%）：银行已扣、总账未记
+Card fee rate,刷卡手续费率
 Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
 Card templates,卡片模板
@@ -536,6 +540,7 @@ Ledger amount,总账金额
 Ledger credit only,仅总账贷方
 Ledger debit only,仅总账借方
 Ledger {0} {1}: one line {2},总账 {0} {1} 一笔 {2}
+"Ledger: {0} card slip(s) on {1}, total {2}",总账 {1} 刷卡 {0} 笔，合计 {2}
 Left out (not in the tax report),不参与对账（不在税报里）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},已去掉 {0} 行与主账单重复、疑似读错的行，请核对：{1}
 Light,灯光
@@ -567,6 +572,7 @@ Mark incomplete,标记未完成
 Match and save,核对并保存
 Match rate,匹配率
 Matched,已匹配
+"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",已按预设的刷卡手续费率配上 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记
 Matches,一致
 Matching and saving,逐笔核对并保存
 Member,成员
@@ -611,6 +617,7 @@ None,无
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
 Not Permitted,没有权限
 Not bound,未绑定
+Not card deposits net of fee,不是刷卡净额
 Not counted,未盘点
 Not permitted,没有权限
 Not set,未填
@@ -1225,6 +1232,7 @@ Yearly,每年
 Yellow,黄
 "Yes, keep reconciling it",参与对账
 "Yes, match by total",是，按合计对上
+"Yes, the card fee is {0}% (with or without 7% VAT on the fee)",是，刷卡手续费率 {0}%（手续费另加 7% 增值税或已含税都认）
 You are watching this card,你在关注这张卡片
 You do not have access to this ERP target.,无权访问此ERP目标。
 account,科目
@@ -1399,6 +1407,8 @@ cowork.recon.preset.remove,删除
 cowork.recon.presets,对账预设
 cowork.recon.presets.empty,还没有预设
 cowork.recon.questions,需要定一次（{0}）
+cowork.recon.rule.card_fee,刷卡手续费率
+cowork.recon.rule.card_fee.no,不是刷卡净额
 cowork.recon.rule.excluded,收入科目
 cowork.recon.rule.excluded.no,参与对账
 cowork.recon.rule.excluded.yes,不参与对账（不在税报里）
@@ -2106,6 +2116,14 @@ reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文�
 reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_too_many,对账数据格式不对，请重新上传文件
 reconciliation.prefer_electronic,有电子版账单建议改传电子版
+reconciliation.preset.card_fee_applied,已按预设的刷卡手续费率配上 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记
+reconciliation.preset.card_fee_count,按手续费率 {1}% 能对上 {0} 笔到账
+reconciliation.preset.card_fee_evidence_gl,总账 {1} 刷卡 {0} 笔，合计 {2}
+reconciliation.preset.card_fee_evidence_stmt,银行 {0} 到账 {1}
+reconciliation.preset.card_fee_no,不是，逐笔核对
+reconciliation.preset.card_fee_row,刷卡手续费（按预设 {0}%）：银行已扣、总账未记
+reconciliation.preset.card_fee_title,{0}：银行的刷卡入账是扣了手续费的净额吗？
+reconciliation.preset.card_fee_yes,是，刷卡手续费率 {0}%（手续费另加 7% 增值税或已含税都认）
 reconciliation.preset.evidence_gl,总账 {0} {1} 一笔 {2}
 reconciliation.preset.evidence_gl_rows,总账 {0} 笔合计相等（{1} 至 {2}）
 reconciliation.preset.evidence_stmt,银行 {0} 一笔 {1}
@@ -2254,6 +2272,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} · counted {1}/{2} · differences {3},{0} · 已盘 {1}/{2} · 差异 {3}
 {0}/{1} files,{0}/{1} 份
 {0}/{1} pages,{0}/{1} 页
+{0}: are the card deposits paid in net of a card fee?,{0}：银行的刷卡入账是扣了手续费的净额吗？
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
 {0}: the check digit is wrong,{0}校验位不对
 {0}: which ledger account is it?,{0} 对总账哪个科目

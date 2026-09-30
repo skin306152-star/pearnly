@@ -22,13 +22,15 @@ EXCLUDED = "excluded"
 
 # 银行：这个账户（银行 + 账号尾号）对总账哪个科目。全科目总账里几个科目都像、分不出时问；答案是科目号（不是选项）。
 GL_ACCOUNT = "gl_account"
+# 银行：这个账户的刷卡入账是扣了手续费的净额，按这个费率（百分数文字，如 "1.95"）配总账刷卡毛额；答 "no" 表示不是。
+CARD_FEE = "card_fee"
 # 答案是自由文字（科目号）的规则，不是固定选项。
 FREE = None
 # 答了要用原文件重跑一遍的规则（读总账时就按科目筛了，存下的数据里没有别的科目）；识别结果复用，不再识别。
 RERUN = {("bank", GL_ACCOUNT)}
 
 RULES = {
-    "bank": {GROUPED: (YES, NO), GL_ACCOUNT: FREE},
+    "bank": {GROUPED: (YES, NO), GL_ACCOUNT: FREE, CARD_FEE: FREE},
     "income": {EXCLUDED: (YES, NO)},
     "vat": {},
 }
@@ -38,6 +40,10 @@ def valid(kind, rule, value):
     rules = RULES.get(kind, {})
     if rule not in rules:
         return False
+    if rule == CARD_FEE:
+        from pearnly_cowork.reconciliation.bank_card_fee import parse_rate
+
+        return value == NO or parse_rate(value) is not None
     if rules[rule] is FREE:
         return isinstance(value, str) and 0 < len(value.strip()) <= 40
     return value in rules[rule]

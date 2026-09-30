@@ -96,6 +96,7 @@ Assign Cowork access through company and client permissions.,กรุณาก�
 Assign to,มอบหมายให้
 Assign · Track · Discuss,มอบหมาย · ติดตาม · พูดคุย
 Assigned to me,มอบหมายให้ฉัน
+"At a {1}% card fee, {0} deposits match",ที่อัตราค่าธรรมเนียม {1}% จับคู่ได้ {0} รายการ
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
@@ -114,6 +115,7 @@ Bank statement,รายการเดินบัญชีธนาคาร
 Bank statement detail,รายละเอียดรายการเดินบัญชี
 Bank withdrawal only,มีเฉพาะรายการถอนในธนาคาร
 Bank {0}: one line {1},ธนาคาร {0}: 1 รายการ {1}
+Bank {0}: received {1},ธนาคาร {0}: รับเงิน {1}
 Barcode,บาร์โค้ด
 Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
 "Barcode, QR code or product code",บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
@@ -163,6 +165,8 @@ Cancelled,ยกเลิกแล้ว
 Card,บัตร
 Card archived,เก็บถาวรแล้ว
 Card deleted,ลบแล้ว
+"Card fee ({0}% preset): deducted by the bank, not in the ledger",ค่าธรรมเนียมบัตร (ตามค่าที่ตั้งไว้ {0}%): ธนาคารหักแล้ว ยังไม่บันทึกในบัญชีแยกประเภท
+Card fee rate,อัตราค่าธรรมเนียมบัตร
 Card name (alphabetically),ชื่อการ์ด (ตามตัวอักษร)
 Card restored,กู้คืนแล้ว
 Card templates,เทมเพลตการ์ด
@@ -536,6 +540,7 @@ Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 Ledger {0} {1}: one line {2},บัญชีแยกประเภท {0} {1}: 1 รายการ {2}
+"Ledger: {0} card slip(s) on {1}, total {2}",บัญชีแยกประเภท: รายการบัตร {0} รายการ วันที่ {1} รวม {2}
 Left out (not in the tax report),ไม่นำมากระทบยอด (ไม่มีในรายงานภาษี)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},ตัด {0} รายการที่ซ้ำกับรายการเดินบัญชีหลักและน่าจะอ่านผิดออก กรุณาตรวจสอบ: {1}
 Light,ไฟ
@@ -567,6 +572,7 @@ Mark incomplete,ทำเครื่องหมายว่ายังไม�
 Match and save,จับคู่และบันทึก
 Match rate,อัตราการจับคู่
 Matched,จับคู่แล้ว
+"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกบัญชี
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
 Member,สมาชิก
@@ -611,6 +617,7 @@ None,ไม่มี
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
 Not Permitted,ไม่ได้รับอนุญาต
 Not bound,ยังไม่เชื่อมต่อ
+Not card deposits net of fee,ไม่ใช่ยอดสุทธิจากบัตร
 Not counted,ยังไม่นับ
 Not permitted,ไม่ได้รับอนุญาต
 Not set,ยังไม่กรอก
@@ -1225,6 +1232,7 @@ Yearly,ทุกปี
 Yellow,เหลือง
 "Yes, keep reconciling it",นำมากระทบยอด
 "Yes, match by total",ใช่ จับคู่ตามยอดรวม
+"Yes, the card fee is {0}% (with or without 7% VAT on the fee)",ใช่ อัตราค่าธรรมเนียมบัตร {0}% (คิด VAT 7% เพิ่มหรือรวมแล้วก็ได้)
 You are watching this card,คุณกำลังติดตามการ์ดนี้
 You do not have access to this ERP target.,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
 account,บัญชี
@@ -1399,6 +1407,8 @@ cowork.recon.preset.remove,ลบ
 cowork.recon.presets,ค่าที่ตั้งไว้
 cowork.recon.presets.empty,ยังไม่มีค่าที่ตั้งไว้
 cowork.recon.questions,ตัดสินใจครั้งเดียว ({0})
+cowork.recon.rule.card_fee,อัตราค่าธรรมเนียมบัตร
+cowork.recon.rule.card_fee.no,ไม่ใช่ยอดสุทธิจากบัตร
 cowork.recon.rule.excluded,บัญชีรายได้
 cowork.recon.rule.excluded.no,นำมากระทบยอด
 cowork.recon.rule.excluded.yes,ไม่นำมากระทบยอด (ไม่มีในรายงานภาษี)
@@ -2106,6 +2116,14 @@ reconciliation.parse_info_invalid,ข้อมูลกระทบยอดม�
 reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_too_many,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.prefer_electronic,หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
+reconciliation.preset.card_fee_applied,จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกบัญชี
+reconciliation.preset.card_fee_count,ที่อัตราค่าธรรมเนียม {1}% จับคู่ได้ {0} รายการ
+reconciliation.preset.card_fee_evidence_gl,บัญชีแยกประเภท: รายการบัตร {0} รายการ วันที่ {1} รวม {2}
+reconciliation.preset.card_fee_evidence_stmt,ธนาคาร {0}: รับเงิน {1}
+reconciliation.preset.card_fee_no,ไม่ใช่ ตรวจทีละรายการ
+reconciliation.preset.card_fee_row,ค่าธรรมเนียมบัตร (ตามค่าที่ตั้งไว้ {0}%): ธนาคารหักแล้ว ยังไม่บันทึกในบัญชีแยกประเภท
+reconciliation.preset.card_fee_title,{0}: ยอดเข้าบัญชีจากบัตรเป็นยอดสุทธิหลังหักค่าธรรมเนียมหรือไม่?
+reconciliation.preset.card_fee_yes,ใช่ อัตราค่าธรรมเนียมบัตร {0}% (คิด VAT 7% เพิ่มหรือรวมแล้วก็ได้)
 reconciliation.preset.evidence_gl,บัญชีแยกประเภท {0} {1}: 1 รายการ {2}
 reconciliation.preset.evidence_gl_rows,บัญชีแยกประเภท {0} รายการรวมเท่ากัน ({1} ถึง {2})
 reconciliation.preset.evidence_stmt,ธนาคาร {0}: 1 รายการ {1}
@@ -2254,6 +2272,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
 {0}/{1} files,{0}/{1} ไฟล์
 {0}/{1} pages,{0}/{1} หน้า
+{0}: are the card deposits paid in net of a card fee?,{0}: ยอดเข้าบัญชีจากบัตรเป็นยอดสุทธิหลังหักค่าธรรมเนียมหรือไม่?
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: อ่านหน้า {1} ไม่ได้ (การอ่านหมดเวลา) ยอดคงเหลือขาดช่วงตรงนี้ กรุณาตรวจกับต้นฉบับ
 {0}: the check digit is wrong,{0}: หลักตรวจสอบไม่ถูกต้อง
 {0}: which ledger account is it?,{0} ตรงกับบัญชีใดในบัญชีแยกประเภท

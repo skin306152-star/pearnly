@@ -339,11 +339,15 @@ def bank_questions(doc, inputs, results):
 	from pearnly_cowork.reconciliation.bank_groups import suspected_groups
 
 	scope = bank_recon_service.task_scope(doc, inputs.get("gl") or [])
-	if not scope or presets.GROUPED in bank_recon_service.preset_rules(doc.get("workspace"), scope):
+	if not scope:
 		return []
+	rules = bank_recon_service.preset_rules(doc.get("workspace"), scope)
+	asked = _card_fee_question(scope, results) if presets.CARD_FEE not in rules else []
+	if presets.GROUPED in rules:
+		return asked
 	groups = suspected_groups(results)
 	if not groups:
-		return []
+		return asked
 	evidence = []
 	for group in groups[:EVIDENCE_GROUPS]:
 		anchor, members = group["anchor"], group["members"]
@@ -361,13 +365,46 @@ def bank_questions(doc, inputs, results):
 		"evidence": evidence,
 		"count": _("reconciliation.preset.grouped_count").format(len(groups)),
 		"options": [{"value": presets.YES, "label": _("reconciliation.preset.grouped_yes")},
-			{"value": presets.NO, "label": _("reconciliation.preset.grouped_no")}]}]
+			{"value": presets.NO, "label": _("reconciliation.preset.grouped_no")}]}] + asked
+
+
+def _card_fee_question(scope, results):
+	"""银行到账像是扣了刷卡手续费的净额（按数据推出一个费率、至少配上两笔）：问一次这个账户的手续费率。
+	推出的费率当作一个答案给人确认；不是就答「不是」，以后不再问（用户 2026-09-30：B02 刷卡净额做成问一次的预设）。"""
+	from pearnly_cowork.reconciliation import bank_card_fee
+
+	found = bank_card_fee.suggest(results)
+	if not found:
+		return []
+	rate, count, pairs = found
+	label = f"{rate:g}"
+	evidence = []
+	for stmt, combo, vat in pairs[:EVIDENCE_GROUPS]:
+		evidence.append([_("reconciliation.preset.card_fee_evidence_stmt").format(stmt.stmt_date.isoformat(),
+			_money(stmt.stmt_deposit)),
+			_("reconciliation.preset.card_fee_evidence_gl").format(len(combo), combo[0].gl_date.isoformat(),
+				_money(sum(slip.gl_debit for slip in combo)))])
+	return [{"rule": presets.CARD_FEE, "scope_label": presets.scope_label(scope),
+		"title": _("reconciliation.preset.card_fee_title").format(presets.scope_label(scope)),
+		"evidence": evidence,
+		"count": _("reconciliation.preset.card_fee_count").format(count, label),
+		"options": [{"value": label, "label": _("reconciliation.preset.card_fee_yes").format(label)},
+			{"value": presets.NO, "label": _("reconciliation.preset.card_fee_no")}]}]
 
 
 def bank_preset_notes(results):
-	"""按预设处理了哪些：标题旁一句（结果里的第 4 层「合计匹配」行就是这些组）。"""
-	groups = max((row.group_no or 0 for row in results), default=0)
-	return [_("reconciliation.preset.grouped_applied").format(groups)] if groups else []
+	"""按预设处理了哪些：标题旁一句（第 4 层「合计匹配」、第 5 层「刷卡净额」各自的组）。"""
+	from pearnly_cowork.reconciliation import bank_card_fee
+
+	notes = []
+	grouped = {row.group_no for row in results if row.group_no and row.match_layer == 4}
+	if grouped:
+		notes.append(_("reconciliation.preset.grouped_applied").format(len(grouped)))
+	card = {row.group_no for row in results if row.group_no and row.match_layer == bank_card_fee.CARD_FEE_LAYER}
+	if card:
+		fees = sum(row.stmt_withdrawal for row in results if row.group_no in card and row.match_status == "stmt_withdrawal_only")
+		notes.append(_("reconciliation.preset.card_fee_applied").format(len(card), _money(fees)))
+	return notes
 
 
 def _money(value):

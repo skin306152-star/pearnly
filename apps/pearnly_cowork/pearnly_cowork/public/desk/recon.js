@@ -51,7 +51,7 @@
 			// 电子版优先（用户 2026-09-30）：上传口下一句轻提示，照片 / 扫描件只作后备。
 			hint: { left: "cowork.recon.bank.leftHint" },
 			// 对账预设能定的规则与可选的答案（服务端 `reconciliation/presets.py` 的 RULES）。
-			presets: { grouped: ["yes", "no"], gl_account: null },
+			presets: { grouped: ["yes", "no"], gl_account: null, card_fee: null },
 			list: t => [
 				{ fieldname: "title", width: 240, min_width: 160, label: t("cowork.recon.col.title") },
 				{ fieldname: "bank_code", width: 90, min_width: 70, label: t("cowork.recon.col.bank") },
@@ -191,8 +191,10 @@
 						}
 						select.addEventListener("change", () => call("change", { scope_key: item.scope, rule: item.rule, value: select.value }));
 					} else {
+						// 答案是文字的：科目号照原样；刷卡手续费率写成「1.95%」，「不是」写成文字。要改就删了让它下次重新问。
 						select = document.createElement("div");
-						select.textContent = item.value;
+						select.textContent = item.rule !== "card_fee" ? item.value
+							: item.value === "no" ? t("cowork.recon.rule.card_fee.no") : `${item.value}%`;
 					}
 					const by = document.createElement("div");
 					by.className = "text-muted small";

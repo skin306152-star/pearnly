@@ -164,6 +164,13 @@ I18N_EXPORT: Dict[str, Dict[str, str]] = {
         "zh": "L4-合计匹配（按预设）",
         "ja": "L4-合計一致（プリセット）",
     },
+    # 按预设把刷卡净额配上刷卡毛额（2026-09-30 对账预设：刷卡手续费率）。
+    "layer_5": {
+        "th": "L5-ยอดสุทธิบัตร (ตามค่าที่ตั้งไว้)",
+        "en": "L5 - Card Net of Fee (Preset)",
+        "zh": "L5-刷卡净额（按预设）",
+        "ja": "L5-カード手数料控除後（プリセット）",
+    },
     # Status labels
     "st_gl_debit_only": {
         "th": "GL เดบิตเท่านั้น",
@@ -406,6 +413,8 @@ def layer_label(layer: Optional[int], lang: str) -> str:
         return t("layer_3", lang)
     if layer == 4:
         return t("layer_4", lang)
+    if layer == 5:
+        return t("layer_5", lang)
     return ""
 
 

@@ -96,6 +96,7 @@ Assign Cowork access through company and client permissions.,Assign Cowork acces
 Assign to,Assign to
 Assign · Track · Discuss,Assign · Track · Discuss
 Assigned to me,Assigned to me
+"At a {1}% card fee, {0} deposits match","At a {1}% card fee, {0} deposits match"
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
@@ -114,6 +115,7 @@ Bank statement,Bank statement
 Bank statement detail,Bank statement detail
 Bank withdrawal only,Bank withdrawal only
 Bank {0}: one line {1},Bank {0}: one line {1}
+Bank {0}: received {1},Bank {0}: received {1}
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
@@ -163,6 +165,8 @@ Cancelled,Cancelled
 Card,Card
 Card archived,Card archived
 Card deleted,Card deleted
+"Card fee ({0}% preset): deducted by the bank, not in the ledger","Card fee ({0}% preset): deducted by the bank, not in the ledger"
+Card fee rate,Card fee rate
 Card name (alphabetically),Card name (alphabetically)
 Card restored,Card restored
 Card templates,Card templates
@@ -536,6 +540,7 @@ Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
 Ledger {0} {1}: one line {2},Ledger {0} {1}: one line {2}
+"Ledger: {0} card slip(s) on {1}, total {2}","Ledger: {0} card slip(s) on {1}, total {2}"
 Left out (not in the tax report),Left out (not in the tax report)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},Left out {0} lines that repeat the main statement and look misread; check them: {1}
 Light,Light
@@ -567,6 +572,7 @@ Mark incomplete,Mark incomplete
 Match and save,Match and save
 Match rate,Match rate
 Matched,Matched
+"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger","Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
 Matches,Matches
 Matching and saving,Matching and saving
 Member,Member
@@ -611,6 +617,7 @@ None,None
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
 Not bound,Not bound
+Not card deposits net of fee,Not card deposits net of fee
 Not counted,Not counted
 Not permitted,Not permitted
 Not set,Not set
@@ -1225,6 +1232,7 @@ Yearly,Yearly
 Yellow,Yellow
 "Yes, keep reconciling it","Yes, keep reconciling it"
 "Yes, match by total","Yes, match by total"
+"Yes, the card fee is {0}% (with or without 7% VAT on the fee)","Yes, the card fee is {0}% (with or without 7% VAT on the fee)"
 You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
 account,account
@@ -1399,6 +1407,8 @@ cowork.recon.preset.remove,Remove
 cowork.recon.presets,Presets
 cowork.recon.presets.empty,No presets yet
 cowork.recon.questions,Decide once ({0})
+cowork.recon.rule.card_fee,Card fee rate
+cowork.recon.rule.card_fee.no,Not card deposits net of fee
 cowork.recon.rule.excluded,Income account
 cowork.recon.rule.excluded.no,Reconciled
 cowork.recon.rule.excluded.yes,Left out (not in the tax report)
@@ -2106,6 +2116,14 @@ reconciliation.parse_info_invalid,The reconciliation data is not in the expected
 reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.prefer_electronic,"If you have the electronic statement, upload it instead"
+reconciliation.preset.card_fee_applied,"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
+reconciliation.preset.card_fee_count,"At a {1}% card fee, {0} deposits match"
+reconciliation.preset.card_fee_evidence_gl,"Ledger: {0} card slip(s) on {1}, total {2}"
+reconciliation.preset.card_fee_evidence_stmt,Bank {0}: received {1}
+reconciliation.preset.card_fee_no,"No, check line by line"
+reconciliation.preset.card_fee_row,"Card fee ({0}% preset): deducted by the bank, not in the ledger"
+reconciliation.preset.card_fee_title,{0}: are the card deposits paid in net of a card fee?
+reconciliation.preset.card_fee_yes,"Yes, the card fee is {0}% (with or without 7% VAT on the fee)"
 reconciliation.preset.evidence_gl,Ledger {0} {1}: one line {2}
 reconciliation.preset.evidence_gl_rows,{0} ledger lines add up to it ({1} to {2})
 reconciliation.preset.evidence_stmt,Bank {0}: one line {1}
@@ -2254,6 +2272,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
 {0}/{1} files,{0}/{1} files
 {0}/{1} pages,{0}/{1} pages
+{0}: are the card deposits paid in net of a card fee?,{0}: are the card deposits paid in net of a card fee?
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 {0}: the check digit is wrong,{0}: the check digit is wrong
 {0}: which ledger account is it?,{0}: which ledger account is it?
