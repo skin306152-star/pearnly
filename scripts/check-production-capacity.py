@@ -85,7 +85,7 @@ def test(label, containers, product, total=11960, available=9000, transient=0, r
         assert reject, label
     else:
         assert not reject, label
-        assert report['container_budget_mib'] + report['host_reserve_mib'] <= total
+        assert report['container_budget_mib'] + report['host_reserve_mib'] <= total * capacity.OVERCOMMIT
     checks.append(label)
 
 
@@ -118,7 +118,8 @@ assert capacity.processes(tuned['cowork-web']) == ('web', 4)
 assert capacity.processes(tuned['erp-ocr-worker']) == ('ocr', 2)
 capacity.calculate(tuned, [], 'cowork', HOST_MIB * M, 20000 * M)
 checks.append('Raised process counts with matching memory are admitted')
-for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '6'}, {'PEARNLY_ERP_WEB_WORKERS': '6'},
+# 识别 7 × 320 > 2048、网页 6 × 256 > 1024、对账 4 × 512 > 1536。
+for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '7'}, {'PEARNLY_ERP_WEB_WORKERS': '6'},
               {'PEARNLY_COWORK_LONG_WORKERS': '4'}, {'PEARNLY_DMS_OCR_WORKERS': '0'}):
     product = next(iter(knobs)).split('_')[1].lower()
     try:
@@ -128,8 +129,8 @@ for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '6'}, {'PEARNLY_ERP_WEB_WORKERS': '
     else:
         raise AssertionError(knobs)
 checks.append('More processes without more memory are refused before start')
-huge = rendered(PEARNLY_DMS_OCR_WORKERS='12', PEARNLY_DMS_OCR_MEM='12g',
-                PEARNLY_ERP_OCR_WORKERS='12', PEARNLY_ERP_OCR_MEM='12g')
+huge = rendered(PEARNLY_DMS_OCR_WORKERS='12', PEARNLY_DMS_OCR_MEM='20g',
+                PEARNLY_ERP_OCR_WORKERS='12', PEARNLY_ERP_OCR_MEM='20g')
 try:
     capacity.calculate(huge, [{'project': 'pearnly-production', 'service': name,
                                'memory': int(huge[name]['mem_limit'])}
@@ -138,6 +139,42 @@ try:
 except ValueError:
     pass
 else:
-    raise AssertionError('24 GiB of OCR workers must not fit the current host')
+    raise AssertionError('40 GiB of OCR workers must not fit the current host even at 1.3x')
 checks.append('Raised limits still have to fit the host budget')
+
+# 2026-10-01 压测后的目标值（用户选「放宽容量检查」）：上限之和超过物理内存、但在 1.3 倍以内，
+# 且整机可用内存充足时放行；可用内存跌破 max(8 GiB, 25%) 时拒绝。
+target = rendered(PEARNLY_COWORK_OCR_WORKERS='12', PEARNLY_COWORK_OCR_MEM='4g',
+                  PEARNLY_ERP_OCR_WORKERS='12', PEARNLY_ERP_OCR_MEM='4g',
+                  PEARNLY_DMS_OCR_WORKERS='4', PEARNLY_DMS_OCR_MEM='2g',
+                  PEARNLY_COWORK_LONG_WORKERS='4', PEARNLY_COWORK_LONG_MEM='3g',
+                  PEARNLY_COWORK_WEB_WORKERS='6', PEARNLY_COWORK_WEB_MEM='1536m',
+                  PEARNLY_ERP_WEB_WORKERS='4', PEARNLY_ERP_WEB_MEM='1536m',
+                  PEARNLY_DMS_WEB_WORKERS='4', PEARNLY_DMS_WEB_MEM='1g')
+live = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['mem_limit'])}
+        for name, row in target.items() if set(row.get('profiles', [])) & {'dms', 'erp'}]
+report = capacity.calculate(target, live, 'cowork', HOST_MIB * M, 24000 * M, 1024 * M)
+# 这组目标值本身还在 1 倍以内（28544 + 3209 ≤ 32095）：真正拦它的是旧的每进程 512MiB 下限。
+assert report['container_budget_mib'] + report['host_reserve_mib'] <= HOST_MIB, report
+checks.append('Tested target limits fit the current host once the no-fork OCR floor applies')
+# 1.3 倍之内的超配：再加一个 8 GiB 上限的非生产容器（总和约 1.3 倍以内）放行，再多就拒绝。
+capacity.calculate(target, live + [{'project': 'other', 'service': 'x', 'memory': 8192 * M}], 'cowork',
+                   HOST_MIB * M, 24000 * M)
+try:
+    capacity.calculate(target, live + [{'project': 'other', 'service': 'x', 'memory': 11000 * M}], 'cowork',
+                       HOST_MIB * M, 24000 * M)
+except ValueError:
+    pass
+else:
+    raise AssertionError('Limits above 1.3x of the host must be refused')
+checks.append('Limits may overcommit the host up to 1.3x and no further')
+try:
+    capacity.calculate(target, live, 'cowork', HOST_MIB * M, 8500 * M, 1024 * M)
+except ValueError:
+    pass
+else:
+    raise AssertionError('Less than 8 GiB plus the transient step must refuse to start')
+assert capacity.available_floor(HOST_MIB * M) == 8192 * M
+assert capacity.available_floor(64 * 1024 * M) == 16 * 1024 * M
+checks.append('Overcommit is only admitted while the host has max(8 GiB, 25%) available')
 print(json.dumps({'passed': len(checks), 'checks': checks}))

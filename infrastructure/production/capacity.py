@@ -2,6 +2,12 @@
 
 Use candidate Compose hard limits, not idle RSS, to reserve memory for existing
 products. No tenant contents, environment variables or credentials are printed.
+
+两道关（用户 2026-10-01 定，压测后放宽）：
+- 上限之和：所有容器的内存上限加上宿主保留，不超过物理内存的 1.3 倍。上限是每个容器的"封顶"，
+  不是常驻用量 —— 压测时 30 GiB 上限的整机实际只用约 7.4 GiB，按 1 倍算会把进程数卡在远低于机器能力的地方。
+- 现在的余量：执行时整机 MemAvailable 至少 max(8 GiB, 物理内存 25%)，再加上这一步临时要的内存；
+  超配靠这一条兜底 —— 真实用量涨上来时，开户 / 激活在启动前就被拒，而不是启动后被内核杀进程。
 """
 import argparse
 import json
@@ -17,10 +23,21 @@ def output(args):
     return subprocess.check_output(args, text=True, stderr=subprocess.PIPE)
 
 
-# 每个进程至少要分到的内存（按现有实测定的原值折算）：进程数可在 runtime.env 里调，
-# 只加进程不加内存会让每个进程分到的变少、被内核杀掉，所以在启动前拒绝。
-# 识别：DMS 原 1g / 2 个；对账：原 1536m / 2 个；网页：计费后台原 512m / 2 个（最小的一处）。
-PROCESS_FLOOR = {'ocr': 512 * MIB, 'long': 768 * MIB, 'web': 256 * MIB}
+# 每个进程至少要分到的内存：进程数可在 runtime.env 里调，只加进程不加内存会让每个进程分到的变少、
+# 被内核杀掉，所以在启动前拒绝。
+# 识别 320：不 fork 运行（FRAPPE_BACKGROUND_WORKERS_NOFORK）后生产压测实测约 210MB / 进程（2026-09-30，
+#   64 份合成发票，cowork 6 进程峰值 1302MiB），取 1.5 倍。原 512 是按 fork 模式的历史 OOM 定的。
+# 对账 512：生产压测时 4 进程峰值 303MiB。网页 256：计费后台原 512m / 2 个（最小的一处）。
+PROCESS_FLOOR = {'ocr': 320 * MIB, 'long': 512 * MIB, 'web': 256 * MIB}
+# 上限之和最多到物理内存的这么多倍（见模块头）。
+OVERCOMMIT = 1.3
+# 执行时整机至少要空出的内存：8 GiB 与物理内存 25% 取大。
+AVAILABLE_FLOOR = 8192 * MIB
+AVAILABLE_SHARE = 4
+
+
+def available_floor(total_bytes):
+    return max(AVAILABLE_FLOOR, total_bytes // AVAILABLE_SHARE)
 
 
 def processes(row):
@@ -69,11 +86,13 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
     report = {'product': product, 'services': sorted(wanted),
               'host_mib': total_bytes // MIB, 'container_budget_mib': reserved // MIB,
               'host_reserve_mib': host_reserve // MIB,
+              'budget_limit_mib': int(total_bytes * OVERCOMMIT) // MIB,
               'available_mib': available_bytes // MIB,
+              'available_floor_mib': available_floor(total_bytes) // MIB,
               'transient_mib': transient_bytes // MIB}
-    if reserved + host_reserve > total_bytes:
+    if reserved + host_reserve > total_bytes * OVERCOMMIT:
         raise ValueError('Product memory budgets exceed this host: ' + json.dumps(report))
-    if available_bytes < host_reserve + transient_bytes:
+    if available_bytes < available_floor(total_bytes) + transient_bytes:
         raise ValueError('Insufficient current memory headroom: ' + json.dumps(report))
     return report
 
