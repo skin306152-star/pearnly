@@ -333,9 +333,9 @@
 				if (state.title) page.set_title(state.title);
 				const order = STAGES[kind];
 				const at = Math.max(order.indexOf(state.stage || "queued"), 1);
-				// 阶段用原生状态标签：做完绿、当前蓝、没到灰（用户 2026-09-30：写官方点，主题色不用于这些地方）。
+				// 阶段用原生状态标签：完成绿、进行中黄、待完成灰（用户 2026-09-30 定；主题色不用于这些地方）。
 				steps.replaceChildren(...order.map((stage, index) => element("span",
-					`indicator-pill ${index < at ? "green" : index === at ? "blue" : "gray"}`, t(`cowork.recon.stage.${stage}`))));
+					`indicator-pill ${index < at ? "green" : index === at ? "yellow" : "gray"}`, t(`cowork.recon.stage.${stage}`))));
 				const bySide = { left: [], right: [] };
 				for (const file of state.files || []) (bySide[file.side] || bySide.left).push(file);
 				sides.replaceChildren(...["left", "right"].filter(side => bySide[side].length).map(side => {
@@ -380,7 +380,7 @@
 			host.replaceChildren(...items.map(item => {
 				const row = element("button", "btn btn-default btn-sm pearnly-recon-active");
 				row.type = "button";
-				row.append(element("span", "indicator-pill blue", t(`cowork.recon.stage.${item.stage || "queued"}`)),
+				row.append(element("span", "indicator-pill yellow", t(`cowork.recon.stage.${item.stage || "queued"}`)),
 					element("span", "", item.title),
 					element("span", "text-muted", item.pages ? t("cowork.recon.live.pages", item.done, item.pages) : ""));
 				row.addEventListener("click", () => frappe.set_route(root, "run", item.job));

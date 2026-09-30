@@ -103,7 +103,7 @@ At time of due date,เมื่อถึงกำหนด
 Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
 Automation,ระบบอัตโนมัติ
-Back to list,กลับไปที่รายการ
+Back to list,กลับไปยังรายการ
 Balance,ยอดคงเหลือ
 Balance breaks,จุดที่ยอดคงเหลือไม่ต่อเนื่อง
 Bank,ธนาคาร
@@ -389,6 +389,7 @@ Edit dates,แก้ไขวันที่
 Edit in Full Page,แก้ไขแบบเต็มหน้า
 Edit labels,แก้ไขป้ายกำกับ
 Electronic,อิเล็กทรอนิกส์
+Electronic file,ไฟล์อิเล็กทรอนิกส์
 Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
@@ -563,6 +564,7 @@ Mark all as read,ทำเครื่องหมายว่าอ่านท
 Mark complete,ทำเครื่องหมายว่าเสร็จ
 Mark each balance break as a missing page or a known difference before saving.,"กรุณาระบุทุกจุดที่ยอดคงเหลือไม่ต่อเนื่องว่าเป็น ""หน้าขาดหาย"" หรือ ""ผลต่างที่ทราบแล้ว"" ก่อนบันทึก"
 Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
+Match and save,จับคู่และบันทึก
 Match rate,อัตราการจับคู่
 Matched,จับคู่แล้ว
 Matches,ตรงกัน
@@ -701,9 +703,16 @@ Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
 Questions,คำถาม
+Queued,รอคิว
 "Queued, {0} ahead",กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
+"Queued, {0} tasks ahead",อยู่ในคิว มีงานก่อนหน้า {0} งาน
 Read,อ่านแล้ว
+Read VAT report,อ่านรายงานภาษีขาย
 Read again,อ่านใหม่
+Read bank statement,อ่านรายการเดินบัญชี
+Read files,อ่านไฟล์
+Read general ledger,อ่านบัญชีแยกประเภท
+Read tax invoices,อ่านใบกำกับภาษี
 Reading files,กำลังอ่านไฟล์
 Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
 Reading the VAT report,กำลังอ่านรายงานภาษี
@@ -715,6 +724,7 @@ Reading the scanned or photographed document took too long. Try again later.,ก
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
 Receipt,ใบเสร็จ
+Recently read,รายการที่อ่านล่าสุด
 Recognised {0} documents,อ่านเอกสารแล้ว {0} ใบ
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
@@ -728,6 +738,7 @@ Recognition was unsure about this invoice. Check it against the original,ระ�
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
 Reconciled,นำมากระทบยอด
 Reconciliation Type,ประเภทการกระทบยอด
+Reconciliation completed: {0},กระทบยอดเสร็จสิ้น: {0}
 Reconciliation failed,กระทบยอดไม่สำเร็จ
 Reconciliation failed: {0},กระทบยอดไม่สำเร็จ: {0}
 Reconciliation finished: {0},กระทบยอดเสร็จแล้ว: {0}
@@ -1157,6 +1168,7 @@ Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 Upload,อัปโหลด
 Upload a sheet,อัปโหลดไฟล์
 Upload both files.,กรุณาอัปโหลดไฟล์ทั้งสอง
+Upload files,อัปโหลดไฟล์
 Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
 Upload · Review · Choose destination,อัปโหลด · ตรวจสอบ · เลือกปลายทาง
 Uploaded By,ผู้อัปโหลด
@@ -1344,7 +1356,7 @@ cowork.recon.filter.all,ทั้งหมด
 cowork.recon.filter.matched,จับคู่แล้ว
 cowork.recon.filter.pending,ผลต่าง
 cowork.recon.filter.unmatched,ไม่พบคู่
-cowork.recon.finished,กระทบยอดเสร็จแล้ว: {0}
+cowork.recon.finished,กระทบยอดเสร็จสิ้น: {0}
 cowork.recon.finishedFailed,กระทบยอดไม่สำเร็จ: {0}
 cowork.recon.income.left,บัญชีแยกประเภททั่วไป
 cowork.recon.income.right,รายงานภาษีขาย
@@ -1352,10 +1364,10 @@ cowork.recon.kpi.matched,จับคู่แล้ว
 cowork.recon.kpi.pending,ผลต่างที่ต้องตรวจสอบ
 cowork.recon.kpi.rate,อัตราการจับคู่
 cowork.recon.kpi.unmatched,ไม่พบคู่
-cowork.recon.live.ahead,กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
-cowork.recon.live.back,กลับไปที่รายการ
-cowork.recon.live.electronic,อิเล็กทรอนิกส์
-cowork.recon.live.files,{0}/{1} ไฟล์
+cowork.recon.live.ahead,อยู่ในคิว มีงานก่อนหน้า {0} งาน
+cowork.recon.live.back,กลับไปยังรายการ
+cowork.recon.live.electronic,ไฟล์อิเล็กทรอนิกส์
+cowork.recon.live.files,ดำเนินการแล้ว {0}/{1} ไฟล์
 cowork.recon.live.kind.amount,จำนวนเงิน
 cowork.recon.live.kind.credit,เครดิต
 cowork.recon.live.kind.debit,เดบิต
@@ -1363,12 +1375,12 @@ cowork.recon.live.kind.deposit,ฝาก
 cowork.recon.live.kind.subtotal,ก่อนภาษี
 cowork.recon.live.kind.total,รวมภาษี
 cowork.recon.live.kind.withdrawal,ถอน
-cowork.recon.live.latest,เพิ่งอ่านได้
+cowork.recon.live.latest,รายการที่อ่านล่าสุด
 cowork.recon.live.page,หน้า {0}
 cowork.recon.live.pages,{0}/{1} หน้า
 cowork.recon.live.read,อ่านแล้ว
 cowork.recon.live.rows,{0} รายการ
-cowork.recon.live.waiting,รอ
+cowork.recon.live.waiting,รอดำเนินการ
 cowork.recon.new,สร้างงานใหม่
 cowork.recon.note.amount_fixed,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ
 cowork.recon.note.completeness,จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด
@@ -1393,14 +1405,14 @@ cowork.recon.sheet.invoices,รายละเอียดใบกำกับ
 cowork.recon.sheet.report,รายละเอียดรายงาน VAT
 cowork.recon.sheet.statement,รายละเอียดรายการเดินบัญชี
 cowork.recon.stage.done,เสร็จสิ้น
-cowork.recon.stage.invoice,กำลังอ่านใบกำกับ
-cowork.recon.stage.ledger,กำลังอ่านบัญชีแยกประเภท
-cowork.recon.stage.matching,กำลังจับคู่และบันทึก
-cowork.recon.stage.queued,รอเริ่ม
-cowork.recon.stage.reading,กำลังอ่านไฟล์
-cowork.recon.stage.report,กำลังอ่านรายงานภาษี
-cowork.recon.stage.statement,กำลังอ่านรายการเดินบัญชี
-cowork.recon.stage.upload,กำลังอัปโหลดไฟล์
+cowork.recon.stage.invoice,อ่านใบกำกับภาษี
+cowork.recon.stage.ledger,อ่านบัญชีแยกประเภท
+cowork.recon.stage.matching,จับคู่และบันทึก
+cowork.recon.stage.queued,รอคิว
+cowork.recon.stage.reading,อ่านไฟล์
+cowork.recon.stage.report,อ่านรายงานภาษีขาย
+cowork.recon.stage.statement,อ่านรายการเดินบัญชี
+cowork.recon.stage.upload,อัปโหลดไฟล์
 cowork.recon.start,เริ่มกระทบยอด
 cowork.recon.status.matched,จับคู่แล้ว
 cowork.recon.status.pending,ผลต่าง
@@ -2215,6 +2227,7 @@ vat_check.sellers_differ,รายงานมาจากผู้ขายต�
 {0} more items,และอีก {0} รายการ
 {0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่{2}"
+{0} of {1} files processed,ดำเนินการแล้ว {0}/{1} ไฟล์
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} statement amounts were corrected from the running balance. Check them,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ

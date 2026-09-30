@@ -377,24 +377,24 @@
 	gap: 4px;
 }
 
+/* 格子颜色（用户 2026-09-30 定）：完成绿、进行中黄、待完成灰；没读出红。主题色不用于这里。 */
 .pearnly-recon-tile {
 	width: 16px;
 	height: 22px;
 	border-radius: 3px;
-	border: 1px solid var(--border-color);
-	background: var(--fg-color);
-	transition: background 0.35s, border-color 0.35s, transform 0.35s;
+	border: 1px solid var(--gray-300);
+	background: var(--gray-100);
+	transition: background 0.35s, border-color 0.35s;
 }
 
 .pearnly-recon-tile.is-read {
-	background: var(--bg-blue);
-	border-color: var(--blue-300, var(--border-color));
+	background: var(--bg-yellow);
+	border-color: var(--yellow-300, var(--border-color));
 }
 
 .pearnly-recon-tile.is-done {
 	background: var(--bg-green);
 	border-color: var(--green-400, var(--border-color));
-	transform: scale(1.04);
 }
 
 .pearnly-recon-tile.is-unread {
@@ -402,17 +402,17 @@
 	border-color: var(--red-400, var(--border-color));
 }
 
-/* 正在读的那一格：整格实心灰，像呼吸灯一样慢慢变深变浅（用户 2026-09-30：「要闪，但是闪实心，呼吸灯一样的闪」；
- * 不用主题色）。只表示还在做，不是进度。 */
+/* 正在读的那一格：整格实心黄，呼吸灯一样深浅变化（用户 2026-09-30：「闪实心，呼吸灯一样的闪」「进行中黄色」）。
+ * 只表示还在做，不是进度。 */
 .pearnly-recon-tile.is-current {
-	background: var(--gray-300);
-	border-color: var(--gray-400);
+	background: var(--yellow-300, var(--bg-yellow));
+	border-color: var(--yellow-400, var(--border-color));
 	animation: pearnly-recon-breath 1.6s ease-in-out infinite;
 }
 
 @keyframes pearnly-recon-breath {
-	0%, 100% { background: var(--gray-200); border-color: var(--gray-300); }
-	50% { background: var(--gray-500); border-color: var(--gray-600); }
+	0%, 100% { background: var(--yellow-100, var(--bg-yellow)); border-color: var(--yellow-200, var(--border-color)); }
+	50% { background: var(--yellow-400, var(--bg-yellow)); border-color: var(--yellow-500, var(--border-color)); }
 }
 
 .pearnly-recon-live-title {
@@ -434,7 +434,7 @@
 }
 
 @keyframes pearnly-recon-slide {
-	from { opacity: 0; transform: translateY(-6px); background: var(--bg-blue); }
+	from { opacity: 0; transform: translateY(-6px); background: var(--bg-yellow); }
 	to { opacity: 1; transform: none; background: transparent; }
 }
 

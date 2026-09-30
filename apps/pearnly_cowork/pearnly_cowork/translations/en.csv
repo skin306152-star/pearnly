@@ -389,6 +389,7 @@ Edit dates,Edit dates
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
 Electronic,Electronic
+Electronic file,Electronic file
 Email,Email
 Enable,Enable
 Enable {0},Enable {0}
@@ -563,6 +564,7 @@ Mark all as read,Mark all as read
 Mark complete,Mark complete
 Mark each balance break as a missing page or a known difference before saving.,Mark each balance break as a missing page or a known difference before saving.
 Mark incomplete,Mark incomplete
+Match and save,Match and save
 Match rate,Match rate
 Matched,Matched
 Matches,Matches
@@ -701,9 +703,16 @@ Quantity,Quantity
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Questions,Questions
+Queued,Queued
 "Queued, {0} ahead","Queued, {0} ahead"
+"Queued, {0} tasks ahead","Queued, {0} tasks ahead"
 Read,Read
+Read VAT report,Read VAT report
 Read again,Read again
+Read bank statement,Read bank statement
+Read files,Read files
+Read general ledger,Read general ledger
+Read tax invoices,Read tax invoices
 Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
 Reading the VAT report,Reading the VAT report
@@ -715,6 +724,7 @@ Reading the scanned or photographed document took too long. Try again later.,Rea
 Ready for the next product,Ready for the next product
 Reason,Reason
 Receipt,Receipt
+Recently read,Recently read
 Recognised {0} documents,Recognised {0} documents
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
@@ -728,6 +738,7 @@ Recognition was unsure about this invoice. Check it against the original,Recogni
 Recognized with high confidence,Recognized with high confidence
 Reconciled,Reconciled
 Reconciliation Type,Reconciliation Type
+Reconciliation completed: {0},Reconciliation completed: {0}
 Reconciliation failed,Reconciliation failed
 Reconciliation failed: {0},Reconciliation failed: {0}
 Reconciliation finished: {0},Reconciliation finished: {0}
@@ -1157,6 +1168,7 @@ Updated {0} user(s),Updated {0} user(s)
 Upload,Upload
 Upload a sheet,Upload a sheet
 Upload both files.,Upload both files.
+Upload files,Upload files
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
 Upload · Review · Choose destination,Upload · Review · Choose destination
 Uploaded By,Uploaded By
@@ -1344,7 +1356,7 @@ cowork.recon.filter.all,All
 cowork.recon.filter.matched,Matched
 cowork.recon.filter.pending,Differences
 cowork.recon.filter.unmatched,Unmatched
-cowork.recon.finished,Reconciliation finished: {0}
+cowork.recon.finished,Reconciliation completed: {0}
 cowork.recon.finishedFailed,Reconciliation failed: {0}
 cowork.recon.income.left,General ledger
 cowork.recon.income.right,Output VAT report
@@ -1352,10 +1364,10 @@ cowork.recon.kpi.matched,Matched
 cowork.recon.kpi.pending,Differences to review
 cowork.recon.kpi.rate,Match rate
 cowork.recon.kpi.unmatched,Unmatched
-cowork.recon.live.ahead,"Queued, {0} ahead"
+cowork.recon.live.ahead,"Queued, {0} tasks ahead"
 cowork.recon.live.back,Back to list
-cowork.recon.live.electronic,Electronic
-cowork.recon.live.files,{0}/{1} files
+cowork.recon.live.electronic,Electronic file
+cowork.recon.live.files,{0} of {1} files processed
 cowork.recon.live.kind.amount,amount
 cowork.recon.live.kind.credit,credit
 cowork.recon.live.kind.debit,debit
@@ -1363,12 +1375,12 @@ cowork.recon.live.kind.deposit,in
 cowork.recon.live.kind.subtotal,before VAT
 cowork.recon.live.kind.total,total
 cowork.recon.live.kind.withdrawal,out
-cowork.recon.live.latest,Just read
+cowork.recon.live.latest,Recently read
 cowork.recon.live.page,page {0}
 cowork.recon.live.pages,{0}/{1} pages
 cowork.recon.live.read,Read
 cowork.recon.live.rows,{0} lines
-cowork.recon.live.waiting,Waiting
+cowork.recon.live.waiting,Pending
 cowork.recon.new,New task
 cowork.recon.note.amount_fixed,{0} statement amounts were corrected from the running balance. Check them
 cowork.recon.note.completeness,The statement's count or totals do not match what it prints. A row may be missing or misread
@@ -1392,15 +1404,15 @@ cowork.recon.sheet.gl,General ledger detail
 cowork.recon.sheet.invoices,Invoice detail
 cowork.recon.sheet.report,VAT report detail
 cowork.recon.sheet.statement,Bank statement detail
-cowork.recon.stage.done,Done
-cowork.recon.stage.invoice,Reading the invoices
-cowork.recon.stage.ledger,Reading the general ledger
-cowork.recon.stage.matching,Matching and saving
-cowork.recon.stage.queued,Waiting to start
-cowork.recon.stage.reading,Reading files
-cowork.recon.stage.report,Reading the VAT report
-cowork.recon.stage.statement,Reading the bank statement
-cowork.recon.stage.upload,Uploading files
+cowork.recon.stage.done,Completed
+cowork.recon.stage.invoice,Read tax invoices
+cowork.recon.stage.ledger,Read general ledger
+cowork.recon.stage.matching,Match and save
+cowork.recon.stage.queued,Queued
+cowork.recon.stage.reading,Read files
+cowork.recon.stage.report,Read VAT report
+cowork.recon.stage.statement,Read bank statement
+cowork.recon.stage.upload,Upload files
 cowork.recon.start,Start reconciliation
 cowork.recon.status.matched,Matched
 cowork.recon.status.pending,Difference
@@ -2215,6 +2227,7 @@ vat_check.sellers_differ,The reports belong to different sellers ({0}).
 {0} more items,{0} more items
 {0} more possible combined matches are not listed,{0} more possible combined matches are not listed
 {0} moved {1} to {2},{0} moved {1} to {2}
+{0} of {1} files processed,{0} of {1} files processed
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 {0} rows were not imported,{0} rows were not imported
 {0} statement amounts were corrected from the running balance. Check them,{0} statement amounts were corrected from the running balance. Check them

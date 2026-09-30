@@ -103,7 +103,7 @@ At time of due date,到期时
 Attachments,附件
 Attempt Secret,尝试密钥
 Automation,自动化
-Back to list,回到列表
+Back to list,返回列表
 Balance,余额
 Balance breaks,余额对不上的地方
 Bank,银行
@@ -389,6 +389,7 @@ Edit dates,编辑日期
 Edit in Full Page,全屏编辑
 Edit labels,修改标签
 Electronic,电子版
+Electronic file,电子文件
 Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
@@ -563,6 +564,7 @@ Mark all as read,全部标为已读
 Mark complete,标记完成
 Mark each balance break as a missing page or a known difference before saving.,请先把每处余额对不上的地方标成「此处缺页」或「已知差异」再保存。
 Mark incomplete,标记未完成
+Match and save,核对并保存
 Match rate,匹配率
 Matched,已匹配
 Matches,一致
@@ -701,9 +703,16 @@ Quantity,数量
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
 Questions,问题
+Queued,排队等待
 "Queued, {0} ahead",排队中 · 前面还有 {0} 份
-Read,已读完
+"Queued, {0} tasks ahead",排队中，前面还有 {0} 个任务
+Read,已读取
+Read VAT report,读取销项税报告
 Read again,重新读取
+Read bank statement,读取银行对账单
+Read files,读取文件
+Read general ledger,读取总账
+Read tax invoices,读取发票
 Reading files,读取文件
 Reading the MR.ERP menus…,正在读取 MR.ERP 菜单…
 Reading the VAT report,读取税表
@@ -715,6 +724,7 @@ Reading the scanned or photographed document took too long. Try again later.,扫
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Receipt,收据
+Recently read,最近读取
 Recognised {0} documents,已识别 {0} 张单据
 Recognition Confidence,识别置信度
 Recognition Quality,识别质量
@@ -728,8 +738,9 @@ Recognition was unsure about this invoice. Check it against the original,识别�
 Recognized with high confidence,高置信识别
 Reconciled,参与对账
 Reconciliation Type,对账类型
+Reconciliation completed: {0},对账已完成：{0}
 Reconciliation failed,对账失败
-Reconciliation failed: {0},对账失败：{0}
+Reconciliation failed: {0},对账未完成：{0}
 Reconciliation finished: {0},对账完成：{0}
 Record,记录
 Record ID,记录 ID
@@ -1157,6 +1168,7 @@ Updated {0} user(s),已更新 {0} 位用户
 Upload,上传
 Upload a sheet,上传导入
 Upload both files.,请上传两份文件。
+Upload files,上传文件
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
 Upload · Review · Choose destination,上传 · 复核 · 选目标
 Uploaded By,上传人
@@ -1344,18 +1356,18 @@ cowork.recon.filter.all,全部
 cowork.recon.filter.matched,已匹配
 cowork.recon.filter.pending,差异
 cowork.recon.filter.unmatched,未匹配
-cowork.recon.finished,对账完成：{0}
-cowork.recon.finishedFailed,对账失败：{0}
+cowork.recon.finished,对账已完成：{0}
+cowork.recon.finishedFailed,对账未完成：{0}
 cowork.recon.income.left,总账
 cowork.recon.income.right,销项税报告
 cowork.recon.kpi.matched,已匹配
 cowork.recon.kpi.pending,待处理差异
 cowork.recon.kpi.rate,匹配率
 cowork.recon.kpi.unmatched,未匹配
-cowork.recon.live.ahead,排队中 · 前面还有 {0} 份
-cowork.recon.live.back,回到列表
-cowork.recon.live.electronic,电子版
-cowork.recon.live.files,{0}/{1} 份
+cowork.recon.live.ahead,排队中，前面还有 {0} 个任务
+cowork.recon.live.back,返回列表
+cowork.recon.live.electronic,电子文件
+cowork.recon.live.files,已处理 {0}/{1} 个文件
 cowork.recon.live.kind.amount,金额
 cowork.recon.live.kind.credit,贷方
 cowork.recon.live.kind.debit,借方
@@ -1363,12 +1375,12 @@ cowork.recon.live.kind.deposit,存入
 cowork.recon.live.kind.subtotal,未税
 cowork.recon.live.kind.total,含税
 cowork.recon.live.kind.withdrawal,支出
-cowork.recon.live.latest,刚读出
+cowork.recon.live.latest,最近读取
 cowork.recon.live.page,第 {0} 页
 cowork.recon.live.pages,{0}/{1} 页
-cowork.recon.live.read,已读完
+cowork.recon.live.read,已读取
 cowork.recon.live.rows,{0} 笔
-cowork.recon.live.waiting,等待中
+cowork.recon.live.waiting,待处理
 cowork.recon.new,新建任务
 cowork.recon.note.amount_fixed,对账单有 {0} 行金额按余额推算改过，请核对
 cowork.recon.note.completeness,对账单的笔数或合计与账单上印的对不上，可能漏行或读错
@@ -1395,11 +1407,11 @@ cowork.recon.sheet.statement,银行对账单明细
 cowork.recon.stage.done,已完成
 cowork.recon.stage.invoice,读取发票
 cowork.recon.stage.ledger,读取总账
-cowork.recon.stage.matching,逐笔核对并保存
-cowork.recon.stage.queued,排队中
+cowork.recon.stage.matching,核对并保存
+cowork.recon.stage.queued,排队等待
 cowork.recon.stage.reading,读取文件
-cowork.recon.stage.report,读取税表
-cowork.recon.stage.statement,读取银行账单
+cowork.recon.stage.report,读取销项税报告
+cowork.recon.stage.statement,读取银行对账单
 cowork.recon.stage.upload,上传文件
 cowork.recon.start,开始对账
 cowork.recon.status.matched,已匹配
@@ -2215,6 +2227,7 @@ vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检�
 {0} more items,另有 {0} 项
 {0} more possible combined matches are not listed,另有 {0} 组疑似合计匹配未列出
 {0} moved {1} to {2},{0} 把卡片「{1}」移到了{2}
+{0} of {1} files processed,已处理 {0}/{1} 个文件
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
 {0} rows were not imported,{0} 行没有导入
 {0} statement amounts were corrected from the running balance. Check them,对账单有 {0} 行金额按余额推算改过，请核对
