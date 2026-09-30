@@ -249,11 +249,13 @@
 				...slot("left"),
 				{ fieldtype: "Column Break" },
 				...slot("right"),
+				// 任务名称放回来（用户 2026-09-30 晚）：不填就用上传的前两个文件名。
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "Data", fieldname: "title", label: t("cowork.recon.col.title") },
 			]);
-			// 不另填任务名称（用户 2026-09-30：只用于显示、没用）：后台用上传的前两个文件名作任务名称。
 			page.set_primary_action(t("cowork.recon.start"), async () => {
 				if (!chosen.left || !chosen.right) { frappe.msgprint(t("cowork.recon.bothFiles")); return; }
-				await run(chosen, "");
+				await run(chosen, (form.get_value("title") || "").trim());
 			});
 			page.set_secondary_action(__("Cancel"), () => frappe.set_route(root));
 		}
@@ -273,13 +275,8 @@
 		}
 
 		// ── 识别看板（用户 2026-09-30：「不想看这个大白屏，起码要知道他在干嘛，有点动态好玩的东西展示」）────────
-		// 只画真实发生的事：阶段条；每份文件一排格子、一格一页（读字整块变蓝、整理完变绿、没读出变红，电子版一下全绿）；
+		// 只画真实发生的事：每份文件一排格子、一格一页（读字整块变蓝、整理完变绿、没读出变红，电子版一下全绿）；
 		// 排队时写前面还有几份；「刚读出」滚出每页真读出的最后一笔。数字都来自服务端（recon_center/progress.py），不估算。
-		const STAGES = {
-			bank: ["upload", "queued", "reading", "statement", "ledger", "matching", "done"],
-			income: ["upload", "queued", "reading", "ledger", "report", "matching", "done"],
-			vat: ["upload", "queued", "reading", "report", "invoice", "matching", "done"],
-		};
 		const element = (tag, className, text) => {
 			const node = document.createElement(tag);
 			if (className) node.className = className;
@@ -349,20 +346,15 @@
 			let titled = "";
 			page.set_title(t("cowork.recon.checking")); trail();
 			const board = element("div", "pearnly-recon-board");
-			const steps = element("div", "pearnly-recon-steps");
+			// 看板顶上那排阶段标签去掉（用户 2026-09-30 晚：「上面这排状态字不要」）：进行中列表里的状态、下面的文件格子保留。
 			const sides = element("div", "pearnly-recon-sides");
 			const live = element("div", "pearnly-recon-live");
-			board.append(steps, sides, live);
+			board.append(sides, live);
 			page.main.append(board);
 			const seen = new Set();
 			const began = Date.now();
 			const draw = state => {
 				if (state.title && state.title !== titled) { titled = state.title; page.set_title(titled); trail(titled); }
-				const order = STAGES[kind];
-				const at = Math.max(order.indexOf(state.stage || "queued"), 1);
-				// 阶段用原生状态标签：完成绿、进行中黄、待完成灰（用户 2026-09-30 定；主题色不用于这些地方）。
-				steps.replaceChildren(...order.map((stage, index) => element("span",
-					`indicator-pill ${index < at ? "green" : index === at ? "yellow" : "gray"}`, t(`cowork.recon.stage.${stage}`))));
 				const bySide = { left: [], right: [] };
 				for (const file of state.files || []) (bySide[file.side] || bySide.left).push(file);
 				sides.replaceChildren(...["left", "right"].filter(side => bySide[side].length).map(side => {
