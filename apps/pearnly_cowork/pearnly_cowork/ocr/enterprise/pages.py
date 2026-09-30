@@ -18,6 +18,16 @@ PROCESSOR_VERSION = "pretrained-ocr-v2.1.1-2025-01-31"
 # The deployed processor (project ``pearnly``, Singapore); the environment may override both.
 PROCESSOR_ID = "6c7dfffac937fcd9"
 LOCATION = "asia-southeast1"
+# 三个区域按顺序用（用户 2026-09-30：「遇到限流马上转区域，不要原地重试，三个区域灵活调用」）：同一项目、同一份凭据。
+# 每个区域一个额度桶，``rpm`` 按控制台当前配额（新加坡、孟买已申请提额）；美国没有 v2.1.1，只有 v2.1。
+# 站点配置 ``pearnly_document_ai_regions``（common_site_config，同样格式的列表）可整体替换，提额后改配置不用发版。
+REGIONS = (
+    {"location": "asia-southeast1", "processor": "6c7dfffac937fcd9", "version": PROCESSOR_VERSION, "rpm": 10},
+    {"location": "asia-south1", "processor": "51ea584b4184e9d7", "version": PROCESSOR_VERSION, "rpm": 10},
+    {"location": "us", "processor": "2a5bdf2779fcc187", "version": "pretrained-ocr-v2.1-2024-08-07", "rpm": 120},
+)
+_REGION_TEXT = __import__("re").compile(r"^[a-z0-9-]{1,40}$")
+_VERSION_TEXT = __import__("re").compile(r"^[a-z0-9.-]{1,80}$")
 # Paid basic OCR rate, deliberately no free-tier/credit deduction (deployed enterprise_reader).
 USD_PER_PAGE = 0.0015
 # Deployed 15. Core reads at most 8 MB of a provider response (anything larger ends "outcome unknown"
@@ -60,10 +70,36 @@ def request_body(content: bytes, mime: str) -> dict:
     }
 
 
-def processor_name(project: str, processor: str = PROCESSOR_ID, location: str = LOCATION) -> str:
-    if not project or not processor or not location:
+def processor_name(project: str, processor: str = PROCESSOR_ID, location: str = LOCATION,
+                   version: str = PROCESSOR_VERSION) -> str:
+    if not project or not processor or not location or not version:
         raise ContentError("ocr.enterprise_not_configured")
-    return f"projects/{project}/locations/{location}/processors/{processor}/processorVersions/{PROCESSOR_VERSION}"
+    return f"projects/{project}/locations/{location}/processors/{processor}/processorVersions/{version}"
+
+
+def regions(configured=None, environment=None) -> tuple:
+    """要用的区域（按优先顺序）。站点配置的列表格式不对就整体不用、回到默认三个区域（不能因为配置写错就读不了字）。
+    没有站点列表、但环境变量单独指定了处理器（旧的单区域覆盖 ``ENTERPRISE_OCR_LOCATION`` / ``_PROCESSOR_ID``）：只用那一个。"""
+    if isinstance(configured, (list, tuple)) and configured:
+        chosen, seen = [], set()
+        for item in configured:
+            if not isinstance(item, dict):
+                return REGIONS
+            location, processor = str(item.get("location") or ""), str(item.get("processor") or "")
+            version, rpm = str(item.get("version") or PROCESSOR_VERSION), item.get("rpm", 10)
+            if (not _REGION_TEXT.match(location) or not _REGION_TEXT.match(processor) or not _VERSION_TEXT.match(version)
+                    or type(rpm) is not int or rpm < 1 or location in seen):
+                return REGIONS
+            seen.add(location)
+            chosen.append({"location": location, "processor": processor, "version": version, "rpm": rpm})
+        return tuple(chosen)
+    environment = environment or {}
+    location = str(environment.get("ENTERPRISE_OCR_LOCATION") or "").strip()
+    processor = str(environment.get("ENTERPRISE_OCR_PROCESSOR_ID") or "").strip()
+    if location or processor:
+        return ({"location": location or LOCATION, "processor": processor or PROCESSOR_ID,
+                 "version": PROCESSOR_VERSION, "rpm": 10},)
+    return REGIONS
 
 
 def page_texts(payload: dict) -> list[OcrPage]:

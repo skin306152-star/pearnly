@@ -97,7 +97,7 @@ class ProviderClient:
     """
     def __init__(self, environment, *, project, post, checkpoint_key, reject_checkpoint,
                  terminal_read, terminal_write, feedback, scope, access_token, require_context,
-                 clock=time.monotonic, checkpoint_read=None):
+                 clock=time.monotonic, checkpoint_read=None, regions=None, sleep=time.sleep, in_queue_job=None):
         self.environment = MappingProxyType(dict(environment))
         self.project = _identity(project, "ocr.project_not_configured")
         self._post, self._key, self._reject = post, checkpoint_key, reject_checkpoint
@@ -105,6 +105,10 @@ class ProviderClient:
         self._feedback, self._scope = feedback, scope
         self._token, self._require_context, self._clock = access_token, require_context, clock
         self._checkpoint_read = checkpoint_read or (lambda key: None)
+        from pearnly_cowork.ocr.enterprise import pages as enterprise_pages
+
+        self._regions = enterprise_pages.regions(regions, self.environment)
+        self._sleep, self._in_queue_job = sleep, in_queue_job or (lambda: False)
 
     def _refuse(self, key, response, code):
         """Freeze an explicit completed refusal separately from Core's retryable rejection.
@@ -124,7 +128,7 @@ class ProviderClient:
         raise ProviderError(**refusal)
 
     def _send(self, *, url, payload, model, provider, location, stage, page_number, attempt, timeout_s,
-              retry_unknown=False, defer_5xx=None):
+              retry_unknown=False, defer_5xx=None, rpm=None, wait=True):
         # 对账读取（retry_unknown）另把 500 / 502 / 504 当临时故障稍后重试；录入发票照旧当终局拒绝。
         defer_5xx = bool(retry_unknown) if defer_5xx is None else defer_5xx
         # 结果不明时还能重发几次：读字最多 2 次（每页约 0.05 泰铢，90 秒 × 3 仍在识别任务时限内；2026-09-29 压测
@@ -144,7 +148,7 @@ class ProviderClient:
                 # 续跑：这次上回结果不明、已经重发过 —— 直接取重发那次（完成的从检查点取回，不再付费）。
                 return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
                     stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
-                    retry_unknown=resends - 1, defer_5xx=defer_5xx)
+                    retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait)
         terminal = self._terminal_read(key)
         if terminal is not None:
             raise ProviderError(**terminal["refusal"])
@@ -161,10 +165,14 @@ class ProviderClient:
             raise ProviderConfigurationError("ocr.credentials_not_configured")
         bucket = self._scope(provider, self.project, location, model)
         started = self._clock()
+        # Document AI 按区域分桶、限流不原地等（换下一个区域）；其余调用照旧。
+        routing = {"label": f"{provider}:{location}"}
+        if provider == "documentai":
+            routing.update(rpm=rpm, wait=wait)
         try:
             response = self._post(url=url, headers={"Authorization": "Bearer " + token,
                 "Content-Type": "application/json"}, payload=payload, timeout_s=timeout_s,
-                model=identity, bucket=bucket)
+                model=identity, bucket=bucket, **routing)
         except Uncertain as error:
             _record_unknown(provider, stage, page_number, attempt, error)
             if not resends:
@@ -175,7 +183,7 @@ class ProviderClient:
             self._reject(key, {"outcome_unknown": True, "retried": True, "deferred": True})
             return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
                 stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
-                retry_unknown=resends - 1, defer_5xx=defer_5xx)
+                retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait)
         elapsed = max(0, int((self._clock() - started) * 1000))
         status = response.status_code
         if status != 200:
@@ -261,18 +269,61 @@ class ProviderClient:
             raise ProviderConfigurationError("ocr.invalid_enterprise_input")
         if type(expected_pages) is not int or not 1 <= expected_pages <= enterprise_pages.MAX_PAGES_PER_READ:
             raise ProviderConfigurationError("ocr.invalid_enterprise_input")
-        location = (self.environment.get("ENTERPRISE_OCR_LOCATION") or enterprise_pages.LOCATION).strip()
-        processor = (self.environment.get("ENTERPRISE_OCR_PROCESSOR_ID") or enterprise_pages.PROCESSOR_ID).strip()
-        name = enterprise_pages.processor_name(self.project, processor, location)
-        body, elapsed, key, _ = self._send(url=f"https://{location}-documentai.googleapis.com/v1/{name}:process",
-            payload={**enterprise_pages.request_body(content, mime), "fieldMask": enterprise_pages.FIELD_MASK},
-            model=enterprise_pages.PROCESSOR_VERSION, retry_unknown=retry_unknown,
-            provider="documentai", location=location, stage=stage, page_number=page_number, attempt=0,
-            timeout_s=90)
+        payload = {**enterprise_pages.request_body(content, mime), "fieldMask": enterprise_pages.FIELD_MASK}
+        body, elapsed, key = self._document_ai_regions(payload, stage, page_number, retry_unknown)
         texts = enterprise_pages.page_texts(body)  # validate before exposing geometry to reconstruction
         if len(texts) != expected_pages:
             raise ProviderError("ocr.enterprise_page_count_mismatch")
         return body, elapsed, key
+
+    # 三个区域都被限流时原地等的上限：与共用层 ``provider.post`` 同一口径（单次最多等 20 秒、一次调用累计 60 秒）。
+    REGION_WAIT_STEP, REGION_WAIT_TOTAL = 20, 60
+    # 这些暂缓换个区域有用：对方 429 / 503 / 额度用完（``provider_*``），或这个区域的每分钟额度（桶）还没轮到、并发已满
+    # （``capacity``）。额度服务连不上、配置不一致（``capacity_unavailable`` / ``capacity_policy_mismatch``）换区域也没用。
+    @staticmethod
+    def _switchable(reason):
+        return str(reason).startswith("provider_") or str(reason) == "capacity"
+
+    def _document_ai_regions(self, payload, stage, page_number, retry_unknown):
+        """按顺序试各区域：被限流立刻换下一个，不原地等；都被限流才短等一轮（或交给识别任务稍后续跑）。
+        换区域后续跑时，已经在别的区域读完的这一块直接取回，不再付费（先查各区域的检查点）。"""
+        from pearnly_cowork.ocr.enterprise import pages as enterprise_pages
+
+        def request(region, attempt=0, wait=False):
+            name = enterprise_pages.processor_name(self.project, region["processor"], region["location"],
+                                                   region["version"])
+            return self._send(url=f"https://{region['location']}-documentai.googleapis.com/v1/{name}:process",
+                payload=payload, model=region["version"], retry_unknown=retry_unknown, provider="documentai",
+                location=region["location"], stage=stage, page_number=page_number, attempt=attempt, timeout_s=90,
+                rpm=region["rpm"], wait=wait)
+
+        for region in self._regions:
+            for attempt in range(3):
+                identity = json.dumps(["cowork", "documentai", self.project, region["location"], region["version"],
+                                       stage, page_number, attempt])
+                saved = self._checkpoint_read(self._key(payload, identity)) or {}
+                if saved.get("state") == "done":
+                    body, elapsed, key, _ = request(region, attempt)
+                    return body, elapsed, key
+        waited = 0.0
+        while True:
+            delays, last = [], None
+            for index, region in enumerate(self._regions):
+                try:
+                    # 只剩一个区域时照旧让共用层按原规则处理（原地短等）
+                    body, elapsed, key, _ = request(region, wait=len(self._regions) == 1)
+                    return body, elapsed, key
+                except Deferred as error:
+                    if not self._switchable(error.reason):
+                        raise
+                    delays.append(float(error.delay or 1))
+                    last = error
+            delay = min(delays)
+            if (not self._in_queue_job() or delay > self.REGION_WAIT_STEP
+                    or waited + delay > self.REGION_WAIT_TOTAL):
+                raise Deferred(last.reason, delay)
+            self._sleep(delay)
+            waited += delay
 
     def vision_call(self, frame, *, stage, page_number):
         content = frame.vision_bytes if frame.vision_bytes is not None else frame.image_bytes

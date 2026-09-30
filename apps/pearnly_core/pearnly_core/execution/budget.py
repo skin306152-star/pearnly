@@ -114,8 +114,11 @@ def _keys(bucket, who):
 
 
 @contextmanager
-def permit(bucket, timeout):
+def permit(bucket, timeout, rpm=None):
+    """``rpm``：这个桶自己的每分钟上限（Document AI 各区域配额不同，用户 2026-09-30「每个地区一个桶」）；
+    不给就用共用配置的 ``rpm``。并发上限照旧是全局的。"""
     cfg, who, token = config(), tenant(), secrets.token_hex(16)
+    pace = rpm if type(rpm) is int and rpm >= 1 else cfg["rpm"]
     keys = _keys(bucket, who)
     try:
         client = redis()
@@ -125,7 +128,7 @@ def permit(bucket, timeout):
         if client.get(PREFIX + "policy") != policy:
             raise Deferred("capacity_policy_mismatch", 60)
         result = client.eval(ACQUIRE, len(keys), *keys, who, token,
-                             cfg["concurrency"], cfg["tenant_concurrency"], cfg["rpm"], timeout + 30)
+                             cfg["concurrency"], cfg["tenant_concurrency"], pace, timeout + 30)
     except RedisError as exc:
         raise Deferred("capacity_unavailable", 15) from exc
     if not result[0]:
@@ -185,3 +188,32 @@ return factor
                             PREFIX + bucket + ":success", status, max(1, min(300, delay)))
     except RedisError:
         frappe.logger("pearnly.capacity").warning("OCR provider feedback unavailable")
+
+
+# ── 限流看得见（用户 2026-09-30：压测时 429 不进 Error Log，看不到被限流了多少）──────────────────────────────
+# 每分钟一张计数表：{事件}|{标签} → 次数；标签由调用方给（如 ``documentai:asia-southeast1``）。只作观察，写不进就算了。
+STATS_KEEP_SECONDS = 2 * 24 * 3600
+
+
+def note(event, label, amount=1):
+    try:
+        client = redis()
+        stamp = client.time()[0]
+        key = PREFIX + "stats:" + str(int(stamp) // 60)
+        pipe = client.pipeline()
+        pipe.hincrbyfloat(key, f"{event}|{label or 'other'}", amount)
+        pipe.expire(key, STATS_KEEP_SECONDS)
+        pipe.execute()
+    except Exception:
+        pass
+
+
+def stats(minutes=60):
+    """最近 ``minutes`` 分钟的限流计数，按事件和标签合计（``bench --site <站点> execute pearnly_core.execution.budget.stats``）。"""
+    client = redis()
+    now = int(client.time()[0]) // 60
+    total = {}
+    for minute in range(now - max(1, int(minutes)) + 1, now + 1):
+        for field, value in (client.hgetall(PREFIX + "stats:" + str(minute)) or {}).items():
+            total[field] = round(total.get(field, 0) + float(value), 3)
+    return dict(sorted(total.items()))

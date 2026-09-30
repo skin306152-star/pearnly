@@ -40,19 +40,24 @@ def _in_queue_job() -> bool:
         return False
 
 
-def post(url, headers, payload, timeout_s, model, bucket):
+def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True, label=None):
+    """``rpm``：这个桶自己的每分钟上限（见 ``budget.permit``）。``wait=False``：拿不到额度 / 被 429 时不原地等，
+    直接把 Deferred 交给调用方（Document AI 换下一个区域，用户 2026-09-30「遇到限流马上转区域，不要原地重试」）。
+    ``label``：限流计数的标签（``budget.note``）。"""
     waited = 0.0
     while True:
         try:
-            return _post(url, headers, payload, timeout_s, model, bucket)
+            return _post(url, headers, payload, timeout_s, model, bucket, rpm=rpm, label=label)
         except Deferred as exc:
             # 只有明确可重试的（额度 / 429 / 503）才会走到这里；结果不明（Uncertain）照旧往上抛。
             delay = float(exc.delay or 1)
-            if not _in_queue_job() or delay > WAIT_STEP_LIMIT \
+            budget.note("deferred:" + str(exc.reason), label)
+            if not wait or not _in_queue_job() or delay > WAIT_STEP_LIMIT \
                     or waited + delay > WAIT_PER_CALL:
                 raise
             time.sleep(delay)
             waited += delay
+            budget.note("waited_seconds", label, delay)
 
 
 # 结果不明后名额还留多久（2026-09-29 Cowork 压测）：原来一律留到任务时限（630 秒），每租户 3 个名额被几次
@@ -65,7 +70,7 @@ def _lease_after(exc):
     return READ_TIMEOUT_LEASE_SECONDS if isinstance(exc, requests.exceptions.ReadTimeout) else 0
 
 
-def _post(url, headers, payload, timeout_s, model, bucket):
+def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None):
     key = work.checkpoint_key(payload, model)
     saved = work.checkpoint(key)
     if saved and saved["state"] == "done":
@@ -83,7 +88,7 @@ def _post(url, headers, payload, timeout_s, model, bucket):
     # 上限 180 秒：旧线上 Cowork 对账抽取就是 180 秒，密的账单页 3.8 要 120 秒以上（2026-09-29 压测：
     # 等回复超时反复重试、整套失败）。其余调用方传的都不超过 120，行为不变。
     timeout = max(1, min(180, float(timeout_s)))
-    with budget.permit(bucket, work.JOB_TIMEOUT):
+    with budget.permit(bucket, work.JOB_TIMEOUT, **({"rpm": rpm} if rpm else {})):
         work.checkpoint(key, "started")
         deadline = time.monotonic() + timeout
         try:
@@ -94,6 +99,7 @@ def _post(url, headers, payload, timeout_s, model, bucket):
         delay = retry_delay(response)
         budget.feedback(bucket, response.status_code, delay)
         if response.status_code in (429, 503):
+            budget.note("http_" + str(response.status_code), label)
             work.checkpoint(key, "rejected", {"http": response.status_code})
             response.close()
             raise Deferred("provider_" + str(response.status_code), delay)

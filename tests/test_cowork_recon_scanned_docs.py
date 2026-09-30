@@ -283,7 +283,8 @@ class EnterprisePipeline(unittest.TestCase):
 			scope=lambda *args: args, access_token=lambda: "FAKE_TOKEN_NOT_A_CREDENTIAL", require_context=lambda: None)
 		with self.assertRaises(Deferred):
 			client.document_ai_call(b"img", "image/jpeg", expected_pages=1, retry_unknown=True)
-		self.assertEqual(rejected, [{"http": 504, "deferred": True}])
+		# 三个区域各试一次（服务端临时故障也换区域，用户 2026-09-30 三区域切换），都不行才交给识别任务稍后续跑
+		self.assertEqual(rejected, [{"http": 504, "deferred": True}] * 3)
 		with self.assertRaises(ProviderError):  # the invoice path keeps a 5xx as a completed refusal
 			client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
 
