@@ -167,6 +167,9 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+      # 识别任务不 fork（Frappe 官方开关）：每个任务 fork 子进程要重新导入识别模块、重新换谷歌令牌，推迟后反复重派时
+      # 这些重复准备吃满 CPU（2026-10-01 生产压测 6 进程 556%；测试机同负载对比 CPU 平均 46% → 3%）。
+      FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"
   dms-sync-worker:
     profiles: [dms]
     <<: *worker
@@ -234,6 +237,7 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+      FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"  # 同 dms-ocr-worker：识别任务不 fork
   erp-ocr-dispatch:
     profiles: [erp]
     <<: *runtime
@@ -299,6 +303,7 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+      FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"  # 同 dms-ocr-worker：识别任务不 fork
   cowork-ocr-dispatch:
     profiles: [cowork]
     <<: *runtime

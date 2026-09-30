@@ -16,7 +16,9 @@
 	// 销项核查的发票可能上百张、按识别名额分批读，后台任务给到 60 分钟（jobs.TIMEOUTS）：页面等 62 分钟。
 	// 识别排队的时间另算（`document_ocr.QUEUE_LIMIT`），后台任务给到三小时；销项核查五小时（发票读得慢，
 	// `invoice_ocr.READ_LIMIT`）：页面等到后台任务上限之后再 2 分钟。
-	const POLL_MS = 1500, POLL_LIMITS_MS = { bank: 3 * 3600e3, income: 3 * 3600e3, vat: 5 * 3600e3 };
+	// 进行中的看板每 5 秒读一次进度（原 1.5 秒；2026-10-01 生产压测：页面轮询占了网页 CPU 的一大块），对账一结束服务端推的
+	// 「cowork_recon_finished」会立刻叫醒它去读结果。
+	const POLL_MS = 5000, POLL_LIMITS_MS = { bank: 3 * 3600e3, income: 3 * 3600e3, vat: 5 * 3600e3 };
 	const POLL_LIMIT_MS = kind => (POLL_LIMITS_MS[kind] || 3 * 3600e3) + 2 * 60e3;
 
 	// 对账结束的原生通知（用户 2026-09-30：「结果完成时用原生带声音的通知」）：服务端结束时推给发起人，
@@ -28,6 +30,7 @@
 		if (p.recon_listening || !frappe.realtime?.socket) return;
 		p.recon_listening = true;
 		frappe.realtime.on("cowork_recon_finished", async data => {
+			p.recon_wake?.(data?.job);
 			const t = await p.texts("cowork.recon.");
 			const root = ROOTS[data?.kind];
 			if (!root) return;
@@ -396,7 +399,10 @@
 					draw(state);
 				}
 				if (Date.now() - began > POLL_LIMIT_MS(kind)) { frappe.msgprint(t("cowork.recon.timeout")); return; }
-				await new Promise(resolve => setTimeout(resolve, POLL_MS));
+				await new Promise(resolve => {
+					const timer = setTimeout(resolve, POLL_MS);
+					p.recon_wake = finished => { if (finished === job) { clearTimeout(timer); resolve(); } };
+				});
 				if (request !== sequence) return;
 			}
 		}

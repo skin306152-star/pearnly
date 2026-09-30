@@ -60,6 +60,17 @@ assert not services['cowork-long-worker'].get('ports')
 assert services['cowork-ocr-worker']['command'][3] == 'ocr'
 checks.append('Cowork reconciliation lane never holds scheduled or interactive jobs')
 
+# 识别任务不 fork 只开在三个识别容器上（2026-10-01）：改锚点时既不能漏掉，也不能扩散到别的 worker。
+NOFORK = 'FRAPPE_BACKGROUND_WORKERS_NOFORK'
+for name, service in services.items():
+    value = (service.get('environment') or {}).get(NOFORK)
+    if name in ('dms-ocr-worker', 'erp-ocr-worker', 'cowork-ocr-worker'):
+        assert value == '1', name
+        assert service['command'][:2] == ['bench', 'worker-pool'], name
+    else:
+        assert value is None, name
+checks.append('Only the three OCR worker pools run jobs without forking')
+
 
 # 真实的"当前宿主"是 SSD Nodes 迁移后那台：8 vCPU / 32095 MiB
 # （docs/work/2026-09-20-ssdnodes-migration.md）。`total` 的默认值 11960 是**迁移前的

@@ -137,6 +137,15 @@ def _finish(name, status, code="", delay=0, notify=True):
         except RedisError:
             pass  # Native scheduler repairs the delivery hint.
     if status not in ACTIVE:
+        # 有结论就推给提交人（原生实时推送）：等候页收到立刻读结果，不用每一两秒轮询一次（2026-10-01 生产压测：几十份
+        # 同时识别，页面轮询占了网页 CPU 的一大块）。只作提醒，推送不了页面照样按兜底轮询拿到结果。
+        try:
+            owner = frappe.db.get_value(DT, name, ["user", "kind", "reference"], as_dict=True)
+            if owner and owner.user:
+                frappe.publish_realtime("pearnly_ocr_work", {"kind": owner.kind, "reference": owner.reference,
+                                                             "status": status}, user=owner.user, after_commit=False)
+        except Exception:
+            pass
         from .inputs import remove
         remove(name)
         try:
