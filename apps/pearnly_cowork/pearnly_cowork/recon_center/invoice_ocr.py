@@ -45,8 +45,13 @@ TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 YIELD_SECONDS = 120
 # 多页扫描发票读一页要 60 秒以上（2026-09-30 压测 V04：5 份 PDF 读超时、结果不明后整份丢了），与账单路径一样放宽。
 MODEL_TIMEOUT_SECONDS = 120
-# 发票可能上百张、按名额分批读：等得比账单久（对账后台任务的时限相应放宽，jobs.TIMEOUTS）。
-WAIT_SECONDS = 50 * 60
+# 等发票的时限（2026-09-30 压测 rO：V02、V03 税报 PDF 等满 50 分钟整份判「发票识别超时」，排队的时间也算了进去，
+# 同一轮读不出的发票在别处是点名跳过的）。与账单同一口径：排队不算读取时限；开始读了以后只要还在往前读就等，
+# 很久没进展或读了太久，就用已经读出的发票核对，没读完的文件点名请重新上传。
+QUEUE_LIMIT = 90 * 60           # 一份都还没开始读：排队最多等这么久
+STALL_SECONDS = 5 * 60          # 开始读了以后：这么久没有任何一份多做完一次调用或结束，就不再等
+READ_LIMIT = 75 * 60            # 从开始读起最多等这么久（加上排队仍在对账后台任务 3 小时的时限内，jobs.TIMEOUTS）
+PROGRESS_CHECK_SECONDS = 60
 POLL_SECONDS = 3
 
 
@@ -142,40 +147,72 @@ def _create(reference, arguments, user):
         return core_work.submit(KIND, reference, arguments, user)
 
 
+def _calls(checkpoints):
+    """这份识别已经做完了几次调用：检查点里记成 done 的个数。"""
+    values = frappe.parse_json(checkpoints or "{}") or {}
+    return sum(1 for value in values.values() if isinstance(value, dict) and value.get("state") == "done")
+
+
 def wait(works, on_stage=None):
-    """等全部 Work 结束，取回每份的发票。返回 (发票记录, 没读出的文件名)。
+    """等 Work 结束，取回每份的发票。返回 (发票记录, 没读出的文件名)。
 
     余额不足时 Work 会一直顺延：所有没结束的都卡在余额上就直接报余额不足（这些 Work 随后自行取消）。
+    排队不算读取时限；开始读了以后很久没进展或读了太久，没读完的文件算没读出（核查照常出结果、点名这些文件），
+    它们在核查结束后下一次付费调用前自行取消、不扣费（``_recon_closed``）。一张发票都没读出才整份报超时。
     """
-    deadline = time.monotonic() + WAIT_SECONDS
+    names = [name for name, _f in works]
+    entered = now = time.monotonic()
+    reading_since, done, progressed, checked = None, -1, entered, 0.0
+    stopped = set()
     while True:
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
-        rows = {row.name: row for row in frappe.get_all(WORK, filters={"name": ["in", [name for name, _f in works]]},
-                                                         fields=["name", "status", "last_code", "checkpoints"])}
-        open_rows = [rows.get(name) for name, _f in works if not rows.get(name) or rows[name].status not in TERMINAL]
-        if not open_rows:
+        rows = {row.name: row for row in frappe.get_all(WORK, filters={"name": ["in", names]},
+                                                         fields=["name", "status", "last_code"])}
+        open_names = [name for name in names if not rows.get(name) or rows[name].status not in TERMINAL]
+        if not open_names:
             break
+        open_rows = [rows.get(name) for name in open_names]
         if all(row and row.status == "deferred" and row.last_code == "insufficient_balance" for row in open_rows):
             frappe.throw(_("vat_check.balance_insufficient"))
-        if time.monotonic() > deadline:
-            frappe.throw(_("vat_check.recognition_timeout"))
+        now = time.monotonic()
+        if now - checked >= PROGRESS_CHECK_SECONDS:
+            checked = now
+            count = len(names) - len(open_names) + sum(
+                _calls(value) for value in frappe.get_all(WORK, filters={"name": ["in", open_names]}, pluck="checkpoints"))
+            if count > done:
+                done, progressed = count, now
+            if reading_since is None and (count > 0 or any(row and row.status not in ("queued", "deferred")
+                                                             for row in open_rows)):
+                reading_since = progressed = now  # 开始读了：从这一刻起算读取时限
+        if reading_since is None:
+            if now - entered > QUEUE_LIMIT:
+                frappe.throw(_("vat_check.recognition_busy"))
+        elif now - progressed > STALL_SECONDS or now - reading_since > READ_LIMIT:
+            stopped = set(open_names)
+            break
         time.sleep(POLL_SECONDS)
+    finished = [name for name in names if name not in stopped]
+    saved_by_name = {row.name: row.checkpoints for row in frappe.get_all(
+        WORK, filters={"name": ["in", finished], "status": "succeeded"}, fields=["name", "checkpoints"])} if finished else {}
     invoices, failed = [], []
     for name, filename in works:
-        row = rows[name]
-        saved = frappe.parse_json(row.checkpoints or "{}").get(RESULT) if row.status == "succeeded" else None
+        saved = frappe.parse_json(saved_by_name.get(name) or "{}").get(RESULT)
         found = (saved or {}).get("body", {}).get("invoices") if saved else None
         if found:
             invoices.extend(found)
         else:
             failed.append(filename)
+    if stopped and not invoices:
+        frappe.throw(_("vat_check.recognition_timeout"))
     return invoices, failed
 
 
 # ── Work 里跑：识别 → 存结果 → 扣费 ─────────────────────────────────────────
 
 
-def _recognize(content, filename, pages, frozen):
+def _recognize(content, filename, pages, frozen, recon_job=None, file=None):
+    from pearnly_cowork.recon_center import document_ocr
+
     environment = frozen["environment"]
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
@@ -185,8 +222,11 @@ def _recognize(content, filename, pages, frozen):
 
     def guarded(callback):
         def invoke(*args, **kwargs):
-            # 每次付费调用前结束读快照；超过时限就让出，重跑时已完成的调用从检查点取回。
+            # 每次付费调用前结束读快照；核查已经结束（没等这份就出了结果）就不再调用；超过时限就让出，
+            # 重跑时已完成的调用从检查点取回。
             frappe.db.commit()
+            if recon_job and document_ocr._recon_closed(recon_job, file):
+                raise document_ocr.ReconClosed()
             if time.monotonic() - started > YIELD_SECONDS:
                 raise Deferred("progress_yield", 1)
             return callback(*args, **kwargs)
@@ -269,7 +309,9 @@ def run(recon_job, file, filename, pages, sha256, settings):
             intake.balance(int(pages), frozen["billing_tier"])
             # 用上传时的原文件名（核查表“原文件”一栏显示它；存成临时 File 时名字可能被加了后缀）。
             try:
-                invoices = _recognize(content, filename, pages, frozen)
+                invoices = _recognize(content, filename, pages, frozen, recon_job, file)
+            except document_ocr.ReconClosed:
+                return {"cancelled": "recon_job_closed"}
             except (EngineError, ProviderFailure) as error:
                 # 整份读不出（每页都没结果、不是发票）：记成没读出，不扣费、不重跑付费调用；核查结果里点名这份文件
                 # （原来冒到共用层被当成程序错误，2026-09-30 压测第 21 轮 V04）。

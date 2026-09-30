@@ -1408,6 +1408,107 @@ class WaitingForARead(unittest.TestCase):
 			self.run_wait(lambda now: running, lambda now: self.pages(int(now // 120)))
 
 
+class WaitingForInvoices(unittest.TestCase):
+	"""销项核查等发票（2026-09-30 压测 rO：V02、V03 税报 PDF 等满 50 分钟整份失败，排队也算进了时限）。"""
+
+	def run_wait(self, states):
+		"""``states(秒)`` → {Work 名: (状态, 做完的调用数, 读出的发票)}；时钟随每次 sleep 前进。"""
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		clock = [0.0]
+
+		def get_all(doctype, filters=None, fields=None, pluck=None):
+			names = filters["name"][1]
+			now = states(clock[0])
+			if pluck:
+				return [json.dumps({f"c{n}": {"state": "done"} for n in range(now[name][1])}) for name in names]
+			rows = [frappe._dict(name=name, status=now[name][0], last_code="") for name in names
+				if filters.get("status") in (None, now[name][0])]
+			if "checkpoints" in fields:
+				for row in rows:
+					found = now[row.name][2]
+					row.checkpoints = json.dumps({invoice_ocr.RESULT: {"state": "done", "body": {"invoices": found}}})
+			return rows
+
+		def sleep(seconds):
+			clock[0] += seconds
+
+		with mock.patch.object(invoice_ocr.frappe, "get_all", side_effect=get_all), \
+				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock()), \
+				mock.patch.object(invoice_ocr.time, "monotonic", side_effect=lambda: clock[0]), \
+				mock.patch.object(invoice_ocr.time, "sleep", side_effect=sleep), \
+				mock.patch.object(invoice_ocr, "_", lambda text: text), \
+				mock.patch.object(invoice_ocr.frappe, "throw", side_effect=RuntimeError):
+			return invoice_ocr.wait([("W1", "a.pdf"), ("W2", "b.pdf")]), clock[0]
+
+	def test_time_in_the_queue_does_not_count(self):
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		begin = 70 * 60  # 排了 70 分钟才开始读（原来 50 分钟就整份失败）
+		def states(now):
+			if now < begin:
+				return {"W1": ("queued", 0, None), "W2": ("queued", 0, None)}
+			step = int((now - begin) // 120)
+			if step >= 4:
+				return {"W1": ("succeeded", 2, [{"invoice_no": "1"}]), "W2": ("succeeded", 2, [{"invoice_no": "2"}])}
+			return {"W1": ("running", step, None), "W2": ("queued", 0, None)}
+		(invoices, failed), seconds = self.run_wait(states)
+		self.assertEqual([item["invoice_no"] for item in invoices], ["1", "2"])
+		self.assertEqual(failed, [])
+		self.assertGreater(seconds, invoice_ocr.QUEUE_LIMIT - 30 * 60)
+
+	def test_a_file_that_stops_moving_is_named_and_the_rest_is_checked(self):
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		def states(now):
+			return {"W1": ("succeeded", 1, [{"invoice_no": "1"}]), "W2": ("running", 1, None)}
+		(invoices, failed), seconds = self.run_wait(states)
+		self.assertEqual((len(invoices), failed), (1, ["b.pdf"]))
+		self.assertLess(seconds, invoice_ocr.STALL_SECONDS + 2 * invoice_ocr.PROGRESS_CHECK_SECONDS)
+
+	def test_reading_that_keeps_moving_is_waited_for_but_not_forever(self):
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		def states(now):
+			return {"W1": ("succeeded", 1, [{"invoice_no": "1"}]), "W2": ("running", int(now // 120), None)}
+		(invoices, failed), seconds = self.run_wait(states)
+		self.assertEqual(failed, ["b.pdf"])
+		self.assertGreater(seconds, invoice_ocr.READ_LIMIT)
+
+	def test_nothing_read_at_all_still_reports_the_timeout(self):
+		with self.assertRaises(RuntimeError):
+			self.run_wait(lambda now: {"W1": ("running", 1, None), "W2": ("running", 1, None)})
+
+	def test_never_leaving_the_queue_is_reported_busy(self):
+		with self.assertRaises(RuntimeError):
+			self.run_wait(lambda now: {"W1": ("queued", 0, None), "W2": ("deferred", 0, None)})
+
+	def test_a_read_left_behind_stops_before_its_next_paid_call(self):
+		from pearnly_cowork.recon_center import invoice_ocr
+
+		with mock.patch.object(invoice_ocr.frappe, "flags", mock.MagicMock(get=lambda key: "W1")), \
+				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock(get_value=lambda *a, **k: frappe._dict(
+					kind=invoice_ocr.KIND, user="u@example.com", status="running"))), \
+				mock.patch.object(invoice_ocr.frappe, "session", mock.Mock(user="Administrator")), \
+				mock.patch.object(invoice_ocr.frappe, "set_user"), \
+				mock.patch.object(invoice_ocr.core_work, "checkpoint", return_value=None), \
+				mock.patch.object(document_ocr, "_recon_closed", side_effect=[False, True]), \
+				mock.patch("pearnly_cowork.recon_center.storage.read", return_value=("f", b"x")), \
+				mock.patch.object(invoice_ocr.hashlib, "sha256", return_value=mock.Mock(hexdigest=lambda: "sha")), \
+				mock.patch.object(invoice_ocr.ocr_settings, "revalidate"), mock.patch.object(invoice_ocr.intake, "balance"), \
+				mock.patch.object(invoice_ocr, "invoice_policy", return_value=mock.Mock(text_fast_path=False)), \
+				mock.patch.object(invoice_ocr, "config_from_environment"), \
+				mock.patch.object(invoice_ocr, "build_client", return_value=mock.Mock()), \
+				mock.patch.object(invoice_ocr, "PageSource", mock.MagicMock()), \
+				mock.patch.object(invoice_ocr, "run_invoice", side_effect=lambda source, model, vision, **k: model(None)), \
+				mock.patch.object(invoice_ocr, "_charge") as charge:
+			outcome = invoice_ocr.run("job", "F1", "p.pdf", 1, "sha", {"billing_tier": "t", "environment": {},
+				"policy": {}, "target": dict.fromkeys(("backend", "project", "location", "credentials_path")),
+				"anchor_date": "2026-09-30"})
+		self.assertEqual(outcome, {"cancelled": "recon_job_closed"})
+		charge.assert_not_called()
+
+
 class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 	"""对账判失败后，识别任务下一个付费调用前就停（BAY-CA-03，2026-09-29：对账失败了识别还在读、占名额）。"""
 
