@@ -388,3 +388,25 @@ body.pearnly-product-desk .dt-cell--header {
 .pearnly-preview-dialog .pearnly-document-canvas {
 	height: calc(100dvh - 160px);
 }
+
+/* 识别等候（`p.waiting`）：白底盖住这一页的内容区，官方转圈居中，下面一行真实进度。 */
+.pearnly-waiting-host {
+	position: relative;
+}
+.pearnly-waiting {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	min-height: calc(100vh - 160px);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--margin-md);
+	background: var(--bg-color);
+}
+.pearnly-waiting-text {
+	white-space: pre-line;
+	text-align: center;
+	line-height: 1.6;
+}

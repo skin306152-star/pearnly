@@ -152,7 +152,7 @@ def for_web(call):
         frappe.throw(_("The recognition service did not answer in time. Please try again."))
 
 
-def read_all(prompt, images, *, structured, review, label, fields, finish=None):
+def read_all(prompt, images, *, structured, review, label, fields, finish=None, progress=None):
     """一个文件里的**全部**单据：[(结果, 检查代码, 模型), …]，第一张在前。
 
     照旧线上（`direct_read.py` 按页直读、`layer2_prompts.py` 第 9 条 `additional_invoices`、
@@ -162,17 +162,28 @@ def read_all(prompt, images, *, structured, review, label, fields, finish=None):
     - 一页 / 一张图里有几张单：模型把第二张起放在 `additional_documents`，各算一张。
     - 相邻几页单号相同（或后一页没有单号）归成一张：明细接起来，票面合计取后面印了的那页。
     续页上没有合计是正常的，所以逐页读时「合计缺失」不触发升级；归组后整张再检查一次。
+    ``progress(已读页数, 总页数)``：网页等候时按页显示进度（见 `recognition.progress`），每读完一个单元回报一次。
     """
     from pearnly_erp_portal.recognition import inputs
 
     pages = inputs.pdf_pages(images[0][0]) if len(images) == 1 and images[0][1] == "application/pdf" else []
     units = [[(page, "application/pdf")] for page in pages] or [images]
     page_review = (lambda result: [code for code in review(result) if code != "total_missing"]) if pages else review
+    if pages:
+        total, step = len(pages), 1
+    else:
+        from pearnly_erp_portal.recognition import billing
+
+        total = step = billing.pages(images)  # 几张图 / 单份非拆页文件一起读：读完一起算
+    if progress:
+        progress(0, total)
     found = []
     unread = []  # 还没有前一张可挂的读不出页（第 1 页起连着读不出），挂到下一张读出的单据上
     for index, unit in enumerate(units, 1):
         result, issues, model = read(prompt, unit, structured=structured, review=page_review,
                                      label=f"{label} page {index}" if pages else label)
+        if progress:
+            progress(min(total, index * step), total)
         if result is None:
             # 这一页几次都读不出（多半是输出失控写满上限）：不再静默跳过——那页上的单据会悄悄漏掉。
             # 记在它前一页读出的单据上（续页多半属于它），归组后那张单据标红「有页没读出」。

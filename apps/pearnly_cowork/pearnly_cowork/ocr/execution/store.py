@@ -77,6 +77,31 @@ def actor(user):
         frappe.set_user(previous)
 
 
+# 录入识别按页的进度（用户 2026-09-30：「录入工作台按页分进度，不要按份」）：引擎一页一页按顺序读，开始读第 N 页时
+# 前 N−1 页已读完。只作展示，存在缓存里；读完（已存 / 不是发票）就是全部页数。
+PAGES_KEY = "cowork:ocr-pages:"
+
+
+def pages_reached(name, page):
+    if not page:
+        return
+    try:
+        key = PAGES_KEY + name
+        if page - 1 > int(frappe.cache.get_value(key) or 0):
+            frappe.cache.set_value(key, page - 1, expires_in_sec=6 * 3600)
+    except Exception:
+        pass  # 进度只作展示：缓存一时写不了不影响识别
+
+
+def pages_done(doc, state):
+    if state in {"saved", "not_invoice"}:
+        return int(doc.page_count or 0)
+    try:
+        return min(int(frappe.cache.get_value(PAGES_KEY + doc.name) or 0), int(doc.page_count or 0))
+    except Exception:
+        return 0
+
+
 def project(doc):
     """Return safe lifecycle fields, never provider/raw prompt/credential data."""
     access.require_batch(doc)
@@ -89,7 +114,7 @@ def project(doc):
             "reference_kind": doc.get("reference_kind") or "physical_page",
             "billing_kind": doc.get("billing_kind") or "pdf",
             "billing_units": int(doc.billing_units) if doc.get("billing_kind") else int(doc.page_count),
-            "state": state, "billing_state": doc.billing_state, "billing_code": doc.billing_code or "",
+            "state": state, "pages_done": pages_done(doc, state), "billing_state": doc.billing_state, "billing_code": doc.billing_code or "",
             "requires_review": bool(doc.requires_review),
             "history_records": json.loads(doc.history_records or "[]"),
             "attempts": work.attempts if work else 0,

@@ -495,6 +495,7 @@ Recognition took too long. Please try again later.,识别超时，请稍后重�
 Recognition waited too long in the queue. Please upload again.,识别排队超时，请重新上传。
 Recognize and export,识别后导出
 Recognized,已识别
+Recognized {0}/{1} pages · {2}%,已识别 {0}/{1} 页 · {2}%
 Recognizing,识别中
 Reconcile documents against the ledger,单据与账套的对账
 Reconciliation,对账中心
@@ -1185,6 +1186,8 @@ shell.needLogin,这一页需要登录站点之后才能打开。请从站点域�
 shell.notBuilt,页面暂不可用
 shell.notBuilt.body,请返回首页继续操作。
 shell.notBuilt.title,页面暂不可用
+shell.wait.elapsed,已用 {0} 秒
+shell.wait.pages,已识别 {0}/{1} 页 · {2}%
 state is invalid or has expired,state 无效或已过期
 system_url is required,system_url 必填
 username / password are required,username / password 必填
@@ -1193,6 +1196,7 @@ username / password are required,username / password 必填
 {0} possible duplicate invoice(s) detected,检测到 {0} 张可能重复的发票
 {0} record(s) deleted.,已删除 {0} 条记录。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
+{0} seconds so far,已用 {0} 秒
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} 需要 {1} 个参数，但入队传了 {2} 个
 {0} top-up request(s) pending review.,{0} 笔充值申请待审核。
 {0} → {1},{0} → {1}

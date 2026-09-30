@@ -159,9 +159,14 @@
 			}));
 			state.recognise = () => act(async () => {
 				state.ocr_failed = false;
-				frappe.dom.freeze(__("Recognizing..."));
+				// 白底 + 官方转圈 + 按页进度 + 已用秒数（用户 2026-09-30「白屏加动画」「按页分进度，不要按份」）：
+				// 带一个随机进度号发起，识别每读完一页服务端记一次，等候期间按这个号问（`recognition.progress`）。
+				const progress_key = frappe.utils.get_random(24);
+				const waiting = p.waiting(state.page, __("Recognizing..."), {elapsed: true,
+					pages: async () => (await frappe.call({method: u.api + "api_recognise_progress", args: {progress_key},
+						type: "GET", silent: true})).message});
 				try {
-					const result = await u.call("api_recognise_sales", {attachments: state.attachments, document_name: doc.name}, true);
+					const result = await u.call("api_recognise_sales", {attachments: state.attachments, document_name: doc.name, progress_key}, true);
 					if (!still_current() || state.disposed) return;
 					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break", "Table"].includes(form.fields_dict[key].df.fieldtype));
@@ -182,7 +187,7 @@
 					// frappe.call already presents server failures in the native message dialog.
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				}
-				finally {frappe.dom.unfreeze();}
+				finally {waiting.done();}
 			});
 			state.merge = async () => {
 				const rows = u.clean_lines(state.values(true).lines); if (rows.length < 2 && !state.split_lines) return;

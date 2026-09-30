@@ -3,6 +3,7 @@ import mimetypes
 
 import frappe
 from frappe import _
+from pearnly_core.tax_documents.amounts import repaired_tax_id
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.recognition import billing, checks, dates, policy
@@ -30,7 +31,7 @@ the document.'''.replace("POS_RULES", checks.POS_RULES)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"}
 
 
-def recognise(attachments, document_name=None, billing_reference=None):
+def recognise(attachments, document_name=None, billing_reference=None, progress=None):
     guard.require("sales.write")
     from pearnly_core import ocr
 
@@ -60,7 +61,7 @@ def recognise(attachments, document_name=None, billing_reference=None):
     units = billing.pages(images)
     billing.gate(units)
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="sales",
-                                fields=_HEAD, finish=_finish)
+                                fields=_HEAD, finish=_finish, progress=progress)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
     result, issues, model = documents[0]
@@ -84,7 +85,9 @@ def _structured(raw):
     result = contracts.map_recognised(raw)
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
-    result.update(seller_tax_id=raw.get("seller_tax_id"), buyer_tax_id=raw.get("buyer_tax_id"))
+    # 读成 12 位的税号：开头的 0 丢了，补回后过得了校验位才补（全平台同一规则，用户 2026-09-30）。
+    result.update(seller_tax_id=repaired_tax_id(raw.get("seller_tax_id")),
+                  buyer_tax_id=repaired_tax_id(raw.get("buyer_tax_id")))
     # 票面日期由代码换算佛历（旧线上口径），换算不出才用模型给的。
     result["doc_date"] = dates.printed(raw.get("doc_date_raw")) or result.get("doc_date")
     result["additional_documents"] = raw.get("additional_documents")

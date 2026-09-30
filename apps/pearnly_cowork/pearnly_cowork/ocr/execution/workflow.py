@@ -73,6 +73,14 @@ def _evidence(calls):
     return result
 
 
+def _call_page(args, kwargs):
+    """这次模型 / 读原文调用是第几页（引擎按页顺序读：读到第 N 页，前 N−1 页已读完）。"""
+    page = kwargs.get("page_number")
+    if page is None and args:
+        page = getattr(args[0], "page_number", None)
+    return page if isinstance(page, int) and not isinstance(page, bool) else None
+
+
 def _recognize(doc, frozen, examples):
     source = _check(doc, frozen, examples)
     kind, units = service.billing_basis(doc)
@@ -103,6 +111,7 @@ def _recognize(doc, frozen, examples):
             _check(doc, frozen, examples)
             if time.monotonic() - started > 420:
                 raise Deferred("progress_yield", 1)
+            store.pages_reached(doc.name, _call_page(args, kwargs))
             return callback(*args, **kwargs)
         return invoke
 
