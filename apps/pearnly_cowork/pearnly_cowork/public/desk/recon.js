@@ -22,23 +22,31 @@
 	// 对账结束的原生通知（用户 2026-09-30：「结果完成时用原生带声音的通知」）：服务端结束时推给发起人，
 	// 不管人在哪个页面都弹原生提示并响原生提示音（`p.success` / `play_sound`，跟账户静音走）；点一下打开结果。
 	const ROOTS = { bank: "pearnly-recon-bank", income: "pearnly-recon-income", vat: "pearnly-recon-vat" };
-	frappe.realtime?.on("cowork_recon_finished", async data => {
-		const t = await p.texts("cowork.recon.");
-		const root = ROOTS[data?.kind];
-		if (!root) return;
-		if (data.task) {
-			const alert = frappe.show_alert({ message: `${p.escape(t("cowork.recon.finished", data.title || ""))}`, indicator: "green" }, 8);
-			alert?.css?.("cursor", "pointer").on?.("click", () => frappe.set_route(root, data.task));
-			frappe.utils.play_sound("submit");
-		} else {
-			// 人正看着这份的看板：看板自己弹失败原因，这里只响一声，不重复提示。
-			const route = frappe.get_route();
-			if (!(route[0] === root && route[1] === "run" && route[2] === data.job)) {
-				frappe.show_alert({ message: p.escape(t("cowork.recon.finishedFailed", data.title || "")), indicator: "red" }, 8);
+	// 框架启动完（`app_ready`，实时连接此时才建好）再挂监听：脚本加载时 `frappe.realtime.on` 还没有连接，调用会被
+	// 悄悄丢掉，提示从来没挂上（2026-09-30 测试机上推了三次都没弹）。看板页的「@了你」提示同一做法（work.js）。
+	const listen = () => {
+		if (p.recon_listening || !frappe.realtime?.socket) return;
+		p.recon_listening = true;
+		frappe.realtime.on("cowork_recon_finished", async data => {
+			const t = await p.texts("cowork.recon.");
+			const root = ROOTS[data?.kind];
+			if (!root) return;
+			if (data.task) {
+				const alert = frappe.show_alert({ message: `${p.escape(t("cowork.recon.finished", data.title || ""))}`, indicator: "green" }, 8);
+				alert?.css?.("cursor", "pointer").on?.("click", () => frappe.set_route(root, data.task));
+				frappe.utils.play_sound("submit");
+			} else {
+				// 人正看着这份的看板：看板自己弹失败原因，这里只响一声，不重复提示。
+				const route = frappe.get_route();
+				if (!(route[0] === root && route[1] === "run" && route[2] === data.job)) {
+					frappe.show_alert({ message: p.escape(t("cowork.recon.finishedFailed", data.title || "")), indicator: "red" }, 8);
+				}
+				frappe.utils.play_sound("error");
 			}
-			frappe.utils.play_sound("error");
-		}
-	});
+		});
+	};
+	$(document).on("app_ready", listen);
+	if (frappe.app) listen();
 
 	// 每种对账的差异：上传口与列表列。结果页（复核表）的数据见服务端 `recon_center/sheets.py`。
 	// 三个对账功能的上传口都收：表格、PDF（含扫描件）、照片（识别任务支持的图片类型）。
