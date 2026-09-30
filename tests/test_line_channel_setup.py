@@ -157,5 +157,25 @@ class Plan(Base):
         ensure.assert_not_called(); queue.assert_not_called()
 
 
+
+class LineLoginSecret(unittest.TestCase):
+    """全平台一个 LINE Login 频道：ERP 与 Cowork 的租户都拿到密钥（Cowork 2026-09-30 接入），DMS 不接。"""
+
+    def secret_for(self, product, liff="2010411313-abc"):
+        values = {("Pearnly Target", "T1", "line_login_channel_id"): "2010411313"}
+        db = Mock(get_value=lambda dt, name, field: values.get((dt, name, field)))
+        with patch.object(frappe, "db", db, create=True), \
+                patch("frappe.utils.password.get_decrypted_password", return_value="login-secret"):
+            return provisioning.line_login_secret("T1", product, liff)
+
+    def test_erp_and_cowork_get_the_platform_login_secret(self):
+        self.assertEqual(self.secret_for("erp"), "login-secret")
+        self.assertEqual(self.secret_for("cowork"), "login-secret")
+
+    def test_dms_and_foreign_liff_get_nothing(self):
+        self.assertEqual(self.secret_for("dms"), "")
+        self.assertEqual(self.secret_for("cowork", liff="1999999999-abc"), "")
+
+
 if __name__ == "__main__":
     unittest.main()

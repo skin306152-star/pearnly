@@ -31,6 +31,9 @@ def line_login(p, group, runtime):
     keycloak = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-line-login.py")
     api = keycloak["Keycloak"]("http://keycloak:8080", keycloak["REALMS"][group], "pearnly-bootstrap",
                                runtime["KEYCLOAK_ADMIN_PASSWORD"])
+    # 账号池级设置（拒绝未关联的首次登录、登录来源作用域）幂等，每次都对齐：以前靠运维手跑脚本，
+    # Cowork 拆出自己的账号池后从没跑过，LINE 登录在那边根本不成立（2026-09-30 回读）。
+    keycloak["configure_realm"](api)
     keycloak["configure_site"](api, alias=alias, login_channel_id=channel, login_channel_secret=secret)
     return alias
 

@@ -381,8 +381,8 @@ def _line_payload(dep, site: str, group: str) -> dict:
     return payload
 
 
-# 目前接 LINE 登录的产品（用户 2026-09-26：DMS 不接，已有 LIFF 票据门户；Cowork 接入后加上）。
-LINE_LOGIN_PRODUCTS = ("erp",)
+# 接 LINE 登录的产品（用户 2026-09-26：DMS 不接，已有 LIFF 票据门户；Cowork 2026-09-30 接入）。
+LINE_LOGIN_PRODUCTS = ("erp", "cowork")
 
 
 def line_login_secret(target, product, liff_id) -> str:

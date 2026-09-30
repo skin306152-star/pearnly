@@ -22,6 +22,7 @@ import requests
 from frappe import _
 
 from pearnly_core import line, line_binding
+from pearnly_core.account import line_login
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.line import binding, flow
@@ -74,10 +75,10 @@ def payload(variant, language) -> dict:
             continue
         if name == "stocktake":
             action = {"type": "uri", "label": _("Stock count", lang=language)[:20],
-                      "uri": frappe.utils.get_url().rstrip("/") + STOCKTAKE_ROUTE}
+                      "uri": line_login.entry_url(STOCKTAKE_ROUTE)}
         elif name == "work":
             action = {"type": "uri", "label": _("Task Management", lang=language)[:20],
-                      "uri": frappe.utils.get_url().rstrip("/") + WORK_ROUTE}
+                      "uri": line_login.entry_url(WORK_ROUTE)}
         else:
             label = _("Send documents to ERP", lang=language)
             action = {"type": "postback", "data": flow.START, "displayText": label, "label": label[:20]}

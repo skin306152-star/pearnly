@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 import frappe
 from frappe import _
 
+from pearnly_core.account import line_login
 from pearnly_core.tax_documents import codes as tax_codes
 
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
@@ -138,7 +139,8 @@ def _card(record, pending, shown, labels=None):
         _kv(_("Payment method"), _(PAYMENTS[payment]) if payment in PAYMENTS else "-"),
     ]
     title = f"{_('Review document')} · {head}"
-    uri = frappe.utils.get_url().rstrip("/") + "/desk/pearnly-intake/new/" + record.name
+    # 经免密入口：LINE 里未登录直接走 LINE 登录（与 ERP 卡片同一入口）。
+    uri = line_login.entry_url("/desk/pearnly-intake/new/" + record.name)
     grand = fields.get("total_amount") or record.total_amount
     alt = f"{title} · {_money(grand)}" if grand not in (None, "") else title
     return {"type": "flex", "altText": alt[:400],

@@ -323,7 +323,20 @@ class LineCardTest(unittest.TestCase):
         self.assertIn("Tax Invoice", texts)
         buttons = bubble["footer"]["contents"]
         self.assertEqual(len(buttons), 1)
-        self.assertEqual(buttons[0]["action"]["uri"], "https://t.example/desk/pearnly-intake/new/CWH-1")
+        # 经免密入口：LINE 里未登录直接走 LINE 登录（2026-09-30 Cowork 接入）。
+        self.assertEqual(buttons[0]["action"]["uri"],
+                         "https://t.example/api/method/pearnly_core.account.line_login.enter"
+                         "?to=%2Fdesk%2Fpearnly-intake%2Fnew%2FCWH-1")
+
+    def test_menu_web_pages_open_through_the_line_sign_in_entry(self):
+        from pearnly_cowork.line import menu
+
+        with mock.patch.object(menu, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(menu.frappe.utils, "get_url", return_value="https://t.example"):
+            areas = menu.payload("intake+stocktake+work", "th")["areas"]
+        uris = [area["action"].get("uri") for area in areas if area["action"]["type"] == "uri"]
+        entry = "https://t.example/api/method/pearnly_core.account.line_login.enter?to="
+        self.assertEqual(uris, [entry + "%2Fdesk%2Fpearnly-stocktake", entry + "%2Fdesk%2Fpearnly-work"])
 
     def test_sales_card_lists_the_buyer(self):
         texts = self.texts(self.card("sales"))
