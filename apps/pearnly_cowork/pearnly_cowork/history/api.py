@@ -93,7 +93,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
 
     回 `{items, total}`：原生列表要总数才画得出"加载更多"。计数与列表走**同一条**
     权限判据 —— 再查一次只要主键（与 ERP 列表页的 overview 同一做法），
-    不用 `frappe.db.count`（那一条不过 DocType 的权限条件，会数出看不见的行）。
+    不用 `frappe.db.count`（那一条不过 DocType 的权限条件，会数出看不见的行），计数在数据库里做。
 
     筛选与排序都在这条 SQL 上做（列表是服务端分页的）：`sort_by` 只认白名单里的
     字段，认不出的退回默认排序，不把前端传来的字符串直接拼进 SQL。
@@ -137,8 +137,11 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
         return {"items": [found[name] for name in page if name in found], "total": len(rows)}
     items = frappe.get_list(storage.DOCTYPE, filters=filters, fields=fields,
         order_by=order_by, limit_start=start, limit_page_length=limit)
-    total = len(frappe.get_list(storage.DOCTYPE, filters=filters, fields=["name"],
-        order_by=order_by, limit_page_length=0))
+    # 总数在数据库里数（同一条权限查询条件），不把全部行的主键取回来再数：记录多了逐条取回会随行数线性变慢
+    # （2026-10-01 性能排查）。框架的 SELECT 不许写函数字符串，用字典写法。
+    counted = frappe.get_list(storage.DOCTYPE, filters=filters, fields=[{"COUNT": "name", "as": "total"}],
+        order_by="", limit_page_length=0)
+    total = int((counted[0].get("total") if counted else 0) or 0)
     return {"items": items, "total": total}
 
 
