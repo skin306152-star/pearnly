@@ -48,6 +48,7 @@ Contact Phone,เบอร์ติดต่อ
 Contact us,ติดต่อเรา
 Control API URL,ที่อยู่ Control API
 Control-plane records,บันทึกฝั่งคอนโซล
+Copy,คัดลอก
 Could not credit,บันทึกเข้าบัญชีไม่สำเร็จ
 Could not queue provisioning,เข้าคิวการเปิดใช้งานไม่ได้
 Could not queue the deletion,เข้าคิวการลบไม่สำเร็จ
@@ -139,6 +140,7 @@ LINE Login,เข้าสู่ระบบด้วย LINE
 LINE Login Callback URL,Callback URL ของ LINE Login
 LINE Login Channel ID,Channel ID ของ LINE Login
 LINE Login Channel Secret,Channel secret ของ LINE Login
+LINE Setup Guide,คู่มือเปิดใช้ LINE
 LINE channel (optional),ช่องทาง LINE (ไม่บังคับ)
 LINE configuration is being applied. Try again shortly.,กำลังใช้การตั้งค่า LINE กรุณาลองใหม่ภายหลัง
 LINE credentials are required before activation.,ต้องกรอกข้อมูลรับรอง LINE ก่อนเปิดใช้งาน

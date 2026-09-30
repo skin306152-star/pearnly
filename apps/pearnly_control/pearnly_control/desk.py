@@ -60,6 +60,8 @@ SIDEBAR_ITEMS = [
     {"label": "Provisioning Progress", "link_type": "DocType", "link_to": "Pearnly Provisioning Request"},
     # 计费底座：余额与台账在控制面，三套产品共用一份（表归属见 P0.05）
     {"label": "Top-up Review", "link_type": "DocType", "link_to": "Pearnly Topup Request"},
+    # 新租户 LINE 开通的图文步骤（用户 2026-09-30）
+    {"label": "LINE Setup Guide", "link_type": "Page", "link_to": "pearnly-line-guide"},
 ]
 
 

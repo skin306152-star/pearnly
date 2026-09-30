@@ -48,6 +48,7 @@ Contact Phone,Contact Phone
 Contact us,Contact us
 Control API URL,Control API URL
 Control-plane records,Control-plane records
+Copy,Copy
 Could not credit,Could not credit
 Could not queue provisioning,Could not queue provisioning
 Could not queue the deletion,Could not queue the deletion
@@ -139,6 +140,7 @@ LINE Login,LINE Login
 LINE Login Callback URL,LINE Login Callback URL
 LINE Login Channel ID,LINE Login Channel ID
 LINE Login Channel Secret,LINE Login Channel Secret
+LINE Setup Guide,LINE Setup Guide
 LINE channel (optional),LINE channel (optional)
 LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
 LINE credentials are required before activation.,LINE credentials are required before activation.

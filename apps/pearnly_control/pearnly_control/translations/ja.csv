@@ -48,6 +48,7 @@ Contact Phone,連絡先電話
 Contact us,お問い合わせ
 Control API URL,制御APIのURL
 Control-plane records,コントロールプレーンの記録
+Copy,コピー
 Could not credit,入金に失敗しました
 Could not queue provisioning,開通キューに入れられませんでした
 Could not queue the deletion,削除をキューに入れられませんでした
@@ -139,6 +140,7 @@ LINE Login,LINEログイン
 LINE Login Callback URL,LINE LoginコールバックURL
 LINE Login Channel ID,LINE LoginチャネルID
 LINE Login Channel Secret,LINE Loginチャネルシークレット
+LINE Setup Guide,LINE 開通ガイド
 LINE channel (optional),LINEチャネル（任意）
 LINE configuration is being applied. Try again shortly.,LINE 設定を適用中です。しばらくしてから再試行してください。
 LINE credentials are required before activation.,有効化の前に LINE の認証情報が必要です。

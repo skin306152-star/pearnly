@@ -48,6 +48,7 @@ Contact Phone,联系电话
 Contact us,联系我们
 Control API URL,控制接口地址
 Control-plane records,控制面记录
+Copy,复制
 Could not credit,入账失败
 Could not queue provisioning,排不进开通队列
 Could not queue the deletion,排队删除失败
@@ -139,6 +140,7 @@ LINE Login,LINE 登录
 LINE Login Callback URL,LINE Login 回调地址
 LINE Login Channel ID,LINE Login 频道 ID
 LINE Login Channel Secret,LINE Login 频道密钥
+LINE Setup Guide,LINE 开通手册
 LINE channel (optional),LINE 渠道（可选）
 LINE configuration is being applied. Try again shortly.,LINE 配置正在应用，请稍后再试。
 LINE credentials are required before activation.,启用前必须先填 LINE 凭据。

@@ -21,6 +21,8 @@ jobs:
         run: python3 tests/test_native_desk_contract.py
       - name: Keep each ERP boot item independent of the others
         run: python3 tests/test_erp_boot_items.py
+      - name: Render the control-plane LINE setup guide with its screenshots
+        run: python3 tests/test_control_line_guide.py
       - name: Verify each product declares its own feature catalog
         run: python3 tests/test_product_feature_catalog.py
       - name: Verify LIFF IDs are stored as IDs, not URLs

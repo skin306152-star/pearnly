@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-line-guide",
+ "page_name": "pearnly-line-guide",
+ "title": "LINE Setup Guide",
+ "module": "Pearnly Control",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ]
+}

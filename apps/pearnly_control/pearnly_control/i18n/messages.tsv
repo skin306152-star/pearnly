@@ -297,3 +297,5 @@ LINE Login Channel ID	LINE Login 频道 ID	Channel ID ของ LINE Login	LINE 
 LINE Login Channel Secret	LINE Login 频道密钥	Channel secret ของ LINE Login	LINE Loginチャネルシークレット
 LINE Login Callback URL	LINE Login 回调地址	Callback URL ของ LINE Login	LINE LoginコールバックURL
 Invalid LINE Login channel ID	LINE Login 频道 ID 不正确	Channel ID ของ LINE Login ไม่ถูกต้อง	LINE LoginチャネルIDが正しくありません
+LINE Setup Guide	LINE 开通手册	คู่มือเปิดใช้ LINE	LINE 開通ガイド	
+Copy	复制	คัดลอก	コピー	
