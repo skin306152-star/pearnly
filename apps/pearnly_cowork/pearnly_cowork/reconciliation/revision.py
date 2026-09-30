@@ -130,22 +130,35 @@ PAGE_MISREAD_ROWS = 2
 
 
 def income_photo_notes(doc, results, summary):
-	"""照片 / 扫描件识别出的税报：同一页有 ≥2 行和总账对不上（金额不同或总账里没有），多半是这页读错了（错位、漏行），
-	先对照原件，别当成真实差异（压测窗口 2026-09-30：IMG_2535 一页 8 行税基税额整体下移一行）。按当前核对结果现算。"""
+	"""照片 / 扫描件识别出的税报，按页看和总账对不上的行（压测窗口 2026-09-30：IMG_2535 一页 10 行金额在单号之间整体错开）：
+	- 这一页对不上的几行，税报金额和总账金额是同一组数、只是配错了单号 → 点名「金额错行」，是读错不是差异；
+	- 否则同一页有 ≥2 行对不上（金额不同或总账里没有）→ 提示多半是这页读错，先对照原件。
+	单号按配对同一套写法归页（去字母前缀）。按当前核对结果现算。"""
 	parse_info = income_recon_contracts.json_loads(doc.parse_info_json) or {}
 	pages = [page for item in parse_info.get("vat") or [] for page in item.get("photo_pages") or []]
 	if not pages:
 		return []
-	off = {income_vat.normalize_doc_no(row.doc_no) for row in results
+	off = {income_vat.number_key(row.doc_no): row for row in results
 		if row.gl_amount is None or abs(row.diff or 0) > 0.01}
-	off |= {income_vat.normalize_doc_no(item.get("doc_no") or "")
+	missing = {income_vat.number_key(item.get("doc_no") or "")
 		for item in (summary.vat_only_positive_items or []) + (summary.vat_only_negative_items or [])}
-	flagged = []
+	shifted, flagged = [], []
 	for label, refs in pages:
-		count = sum(1 for ref in dict.fromkeys(refs) if income_vat.normalize_doc_no(ref) in off)
-		if count >= PAGE_MISREAD_ROWS:
+		keys = [key for key in dict.fromkeys(income_vat.number_key(ref) for ref in refs) if key]
+		rows = [off[key] for key in keys if key in off]
+		count = len({key for key in keys if key in off or key in missing})
+		paired = [row for row in rows if row.gl_amount is not None]
+		if len(paired) >= PAGE_MISREAD_ROWS and sorted(round(row.vat_amount, 2) for row in paired) \
+				== sorted(round(row.gl_amount, 2) for row in paired):
+			shifted.append(f"{label} ({len(paired)})")
+		elif count >= PAGE_MISREAD_ROWS:
 			flagged.append(f"{label} ({count})")
-	return [_("reconciliation.report_page_likely_misread").format("、".join(flagged))] if flagged else []
+	notes = []
+	if shifted:
+		notes.append(_("reconciliation.report_page_shifted").format("、".join(shifted)))
+	if flagged:
+		notes.append(_("reconciliation.report_page_likely_misread").format("、".join(flagged)))
+	return notes
 
 
 def bank_notes(doc):

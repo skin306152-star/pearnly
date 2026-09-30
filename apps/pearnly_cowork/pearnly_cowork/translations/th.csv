@@ -621,6 +621,7 @@ Number,ตัวเลข
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Observer,ผู้สังเกตการณ์
+"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูป จับคู่ยอดเงินกับเลขที่เอกสารผิดแถว (ยอดทุกบรรทัดมีในบัญชีแยกประเภท เพียงแต่เลื่อนไปจับกับเลขที่ข้างเคียง) เป็นการอ่านผิด ไม่ใช่ผลต่างจริง กรุณาแก้ตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ทำได้
 Only invoices in Thai baht can be sent to Express,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
@@ -2123,6 +2124,7 @@ reconciliation.preset.grouped_yes,ใช่ จับคู่ตามยอด
 reconciliation.recognition_busy,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 reconciliation.report_page_likely_misread,หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูปถ่าย / สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท น่าจะอ่านหน้านั้นผิด กรุณาตรวจกับต้นฉบับก่อนถือเป็นผลต่างจริง (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}
+reconciliation.report_page_shifted,หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูป จับคู่ยอดเงินกับเลขที่เอกสารผิดแถว (ยอดทุกบรรทัดมีในบัญชีแยกประเภท เพียงแต่เลื่อนไปจับกับเลขที่ข้างเคียง) เป็นการอ่านผิด ไม่ใช่ผลต่างจริง กรุณาแก้ตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 reconciliation.report_pages_unverified,หน้าต่อไปนี้ของรายงานภาษีตรวจทานกับยอดรวมท้ายหน้าไม่ได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้ แม้อ่านซ้ำแล้ว) กรุณาตรวจกับต้นฉบับ: {0}
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว

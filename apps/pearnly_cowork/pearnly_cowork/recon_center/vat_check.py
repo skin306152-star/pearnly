@@ -151,8 +151,21 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
                 document_ocr.submit(recon_job, f"report{index}", report_files[index], name, content, "vat_report",
                                     frappe.session.user)
         frappe.db.commit()
-    parsed_reports = [_report(content, name, readers[index]) for index, (name, content) in enumerate(reports)]
-    merged = vat_check_core.merge_parsed_reports(parsed_reports, [name for name, _content in reports])
+    # 几份税报里一份读不出（照片识别超时）：点名跳过，其余照常核对（与收入对账同一做法；2026-09-30 压测 rH V01
+    # IMG_2543 超时，原来整份报「读不出税表」）。一份都读不出才报错。
+    parsed_reports, report_names, unread_reports = [], [], []
+    for index, (name, content) in enumerate(reports):
+        try:
+            parsed_reports.append(_report(content, name, readers[index]))
+            report_names.append(name)
+        except frappe.ValidationError:
+            if len(reports) == 1:
+                raise
+            frappe.clear_last_message()
+            unread_reports.append(name)
+    if not parsed_reports:
+        frappe.throw(_("reconciliation.vat_report_unparsed"))
+    merged = vat_check_core.merge_parsed_reports(parsed_reports, report_names)
     if not merged.get("ok"):
         frappe.throw(_(merged["error_code"]).format(*merged.get("error_args", [])))
     if not merged.get("seller_tax_id"):
@@ -188,6 +201,8 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
     records = swapped_dates(records, merged["rows"])
     stage("matching")
     notes, _by_page = report_reading([(name, item.get("pages") or [])
-                                      for (name, _content), item in zip(reports, parsed_reports)])
+                                      for name, item in zip(report_names, parsed_reports)])
+    if unread_reports:
+        notes.insert(0, _("reconciliation.files_unread").format("、".join(unread_reports)))
     return vat_check_service.create(workspace, title, request_id, {**merged, "invoices": records,
         "report_rows": merged["rows"], "failed_files": failed, "report_notes": notes}, lang)

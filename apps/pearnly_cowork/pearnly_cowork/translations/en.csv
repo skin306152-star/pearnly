@@ -621,6 +621,7 @@ Number,Number
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Observer,Observer
+"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 Only an active count can be deleted,Only an active count can be deleted
 Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
@@ -2123,6 +2124,7 @@ reconciliation.preset.grouped_yes,"Yes, match by total"
 reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
 reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
 reconciliation.report_page_likely_misread,"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
+reconciliation.report_page_shifted,"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 reconciliation.report_pages_unverified,"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 reconciliation.request_conflict,This request was already used for different content.

@@ -621,6 +621,7 @@ Number,数値
 OUT,出金
 Observed At (UTC),観測日時（UTC）
 Observer,オブザーバー
+"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
@@ -2123,6 +2124,7 @@ reconciliation.preset.grouped_yes,はい、合計で照合
 reconciliation.recognition_busy,読み取りが混み合っています。しばらくしてからもう一度お試しください。
 reconciliation.recognition_timeout,スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 reconciliation.report_page_likely_misread,写真・スキャンから読み取った次の税務報告のページで複数の行が元帳と一致しません。読み取り誤りの可能性が高いため、実際の差異と判断する前に原本と照合してください（括弧内は不一致の行数）：{0}
+reconciliation.report_page_shifted,読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
 reconciliation.report_pages_unverified,次の税務報告のページはページ合計で自己検証できませんでした（行の合計がページ合計と一致しない、またはページ合計が読み取れない。再読込済み）。原本と照合してください：{0}
 reconciliation.report_rows_repeated,{0} 行の売上税報告が複数のファイルで重複していたため（同じページを 2 回アップロード）、1 回だけ数えました。
 reconciliation.request_conflict,このリクエストは別の内容で使用済みです。

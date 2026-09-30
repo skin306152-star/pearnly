@@ -175,17 +175,24 @@ class PhotoPages(unittest.TestCase):
 
 		from pearnly_cowork.reconciliation import income_vat, revision
 
+		# 结果行的单号是总账的写法（带字母前缀），页上记的是税报读出的写法：按配对同一套归页（rH I01）。
 		doc = SimpleNamespace(parse_info_json=json.dumps({"vat": [{"file": "f", "photo_pages": [
-			["IMG_1.jpg", ["A-1", "A-2", "A-3"]], ["IMG_2.jpg", ["B-1", "B-2"]]]}]}))
-		results = [income_vat.ReconRow("A-1", "", "", 100.0, 90.0, 10.0, ""),
-			income_vat.ReconRow("A-2", "", "", 100.0, None, None, ""),
-			income_vat.ReconRow("A-3", "", "", 100.0, 100.0, 0.0, ""),
-			income_vat.ReconRow("B-1", "", "", 100.0, 80.0, 20.0, ""),
-			income_vat.ReconRow("B-2", "", "", 100.0, 100.0, 0.0, "")]
+			["IMG_1.jpg", ["690501-001", "690501-002", "690501-003"]], ["IMG_2.jpg", ["690502-001", "690502-002"]],
+			["IMG_3.jpg", ["690503-001", "690503-002", "690503-003"]]]}]}))
+		results = [income_vat.ReconRow("SI690501-001", "", "", 100.0, 90.0, 10.0, ""),
+			income_vat.ReconRow("690501-002", "", "", 100.0, None, None, ""),
+			income_vat.ReconRow("SI690501-003", "", "", 100.0, 100.0, 0.0, ""),
+			income_vat.ReconRow("SI690502-001", "", "", 100.0, 80.0, 20.0, ""),
+			income_vat.ReconRow("SI690502-002", "", "", 100.0, 100.0, 0.0, ""),
+			# 金额整体错行：785.05 与 420.56 配错了单号
+			income_vat.ReconRow("SI690503-001", "", "", 785.05, 420.56, 364.49, ""),
+			income_vat.ReconRow("SI690503-002", "", "", 420.56, 785.05, -364.49, ""),
+			income_vat.ReconRow("SI690503-003", "", "", 50.0, 50.0, 0.0, "")]
 		summary = income_vat.GlVatSummary(0, 0, 0, 0, 0, 0)
 		with mock.patch.object(revision, "_", side_effect=lambda text: text + ":{0}"):
 			self.assertEqual(revision.income_photo_notes(doc, results, summary),
-				["reconciliation.report_page_likely_misread:IMG_1.jpg (2)"])
+				["reconciliation.report_page_shifted:IMG_3.jpg (2)",
+				 "reconciliation.report_page_likely_misread:IMG_1.jpg (2)"])
 
 
 if __name__ == "__main__":

@@ -49,6 +49,9 @@ WAIT_SECONDS = 25 * 60
 PROGRESS_WINDOW = 5 * 60
 PROGRESS_CHECK_SECONDS = 60
 WAIT_LIMIT = 50 * 60
+# 还在排队、一次调用都没做（前面排着别家的大批照片）的时间不算进上面两个时限，另算：最多排这么久
+# （2026-09-30 压测 rH B08-01：2 页的 PDF 排在近 100 张照片后面，25 分钟到了还没开始读，整套失败）。
+QUEUE_LIMIT = 90 * 60
 POLL_SECONDS = 3
 IDENTITY = ("backend", "project", "location", "credentials_path")
 
@@ -95,10 +98,11 @@ FINISHING_GRACE_SECONDS = 120
 
 def wait(name):
     """等这一份读完：成功回旧线上管线的结果形状（``pages`` + ``_needs_review``），读不出回 None。"""
-    started = time.monotonic()
+    entered = started = time.monotonic()
     deadline = started + WAIT_SECONDS
     extended = False
     done, progressed, checked = -1, started, 0.0
+    waiting_in_queue = True
     while True:
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
         row = frappe.db.get_value(WORK, name, ["status", "last_code"], as_dict=True)
@@ -112,6 +116,13 @@ def wait(name):
             count = completed_calls(name)
             if count > done:
                 done, progressed = count, now
+        if waiting_in_queue:
+            if row and (row.status not in ("queued", "deferred") or done > 0):
+                waiting_in_queue = False  # 开始读了：从这一刻起算读取时限
+            elif now - entered > QUEUE_LIMIT:
+                frappe.throw(_("reconciliation.recognition_busy"))
+            else:
+                started, progressed, deadline = now, now, now + WAIT_SECONDS
         if now > deadline:
             if not extended and RESULT in frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}"):
                 extended = True

@@ -1083,6 +1083,31 @@ class ReportPhotosAreSubmittedTogether(unittest.TestCase):
 			("job", "report2", "F3", "2.jpg", b"c", "vat_report", "u@example.com")])
 
 
+class AnUnreadReportPhotoInTheVatCheck(unittest.TestCase):
+	def test_the_other_report_files_are_still_checked_and_the_unread_one_named(self):
+		# rH V01（2026-09-30）：21 张税报照片里 IMG_2543 识别超时，原来整份报「读不出税表」。
+		from pearnly_cowork.recon_center import vat_check
+
+		def report(content, name, read=None):
+			if name == "2.jpg":
+				raise frappe.ValidationError("unread")
+			return {"ok": True, "rows": [{"report_invoice_no": name}], "pages": []}
+
+		merged = {"ok": True, "rows": [], "seller_name": "", "seller_tax_id": "1", "period_year": 2026, "period_month": 5}
+		with mock.patch.object(vat_check, "_report", side_effect=report), \
+				mock.patch.object(vat_check.vat_check_core, "merge_parsed_reports", return_value=merged) as merge, \
+				mock.patch.object(vat_check.vat_check_service, "create", return_value={"name": "CVC-1"}) as create, \
+				mock.patch.object(vat_check.frappe, "clear_last_message"), \
+				mock.patch.object(vat_check.sources, "report_source", return_value={}), \
+				mock.patch.object(vat_check.vat_parse, "decode", return_value={"rows": [{"report_invoice_no": "A"}]}), \
+				mock.patch.object(vat_check.vat_check_core, "report_row_to_invoice", return_value={"invoice_no": "A"}), \
+				mock.patch.object(vat_check, "swapped_dates", side_effect=lambda records, rows: records), \
+				mock.patch.object(vat_check, "_", side_effect=lambda text: text + ":{0}"):
+			vat_check.run("ws", "t", "r", [("1.jpg", b"a"), ("2.jpg", b"b"), ("3.jpg", b"c")], [("inv.xlsx", b"x")], "zh")
+		self.assertEqual(merge.call_args.args[1], ["1.jpg", "3.jpg"])
+		self.assertEqual(create.call_args.args[3]["report_notes"], ["reconciliation.files_unread:2.jpg"])
+
+
 class SeveralIncomeReportFiles(unittest.TestCase):
 	"""用户 2026-09-30 定：收入对账的税报可多份（I01 的 21 张税报照片）。"""
 
@@ -1353,6 +1378,24 @@ class WaitingForARead(unittest.TestCase):
 			lambda now: {**self.pages(int(now // 120)), **(result if now >= finish else {})})
 		self.assertEqual(legacy, {"pages": [1]})
 		self.assertGreater(seconds, document_ocr.WAIT_SECONDS)
+
+	def test_time_spent_in_the_queue_does_not_count(self):
+		# rH B08-01（2026-09-30）：2 页的 PDF 排在近 100 张照片后面，25 分钟到了还没开始读，整套失败。
+		queued, running = frappe._dict(status="queued", last_code=""), frappe._dict(status="running", last_code="")
+		done = frappe._dict(status="succeeded", last_code="")
+		begin = document_ocr.WAIT_SECONDS + 20 * 60
+		result = {document_ocr.RESULT: {"state": "done", "body": {"legacy": {"pages": [1]}}}}
+		legacy, _seconds = self.run_wait(
+			lambda now: queued if now < begin else done if now >= begin + 300 else running,
+			lambda now: {**(self.pages(1) if now >= begin + 60 else {}), **(result if now >= begin + 300 else {})})
+		self.assertEqual(legacy, {"pages": [1]})
+
+	def test_a_read_that_never_leaves_the_queue_gives_up_at_the_queue_limit(self):
+		queued = frappe._dict(status="queued", last_code="")
+		clock = []
+		with self.assertRaises(RuntimeError):
+			self.run_wait(lambda now: clock.append(now) or queued, lambda now: {})
+		self.assertGreater(clock[-1], document_ocr.QUEUE_LIMIT)
 
 	def test_progress_does_not_extend_the_wait_forever(self):
 		running = frappe._dict(status="running", last_code="")

@@ -173,6 +173,13 @@ def _digits_key(norm: str) -> str:
 	return key if sum(char.isdigit() for char in key) >= 4 else ""
 
 
+def number_key(value: str) -> str:
+	"""把一张单号归到哪一行用的写法：与配对同一套（规范化后去掉开头的字母前缀，太短的就用规范化写法）。
+	结果行的单号可能是总账的「SI690512-011」，税报读出的是「690512-011」（2026-09-30 压测 rH I01）。"""
+	norm = normalize_doc_no(value)
+	return _digits_key(norm) or norm
+
+
 def pair_prefixed_numbers(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 	"""税报单号与总账凭证只差前面的字母前缀（税报印「690502-001」，总账「SI690502-001」；2026-09-30 压测 I01）：
 	去掉前缀后只对上一张、且没被别的税报行点名的凭证，就按那张凭证配（金额不同照常列为差异）。"""

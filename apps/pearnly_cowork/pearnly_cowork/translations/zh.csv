@@ -621,6 +621,7 @@ Number,数字
 OUT,出账
 Observed At (UTC),观测时间（UTC）
 Observer,观察者
+"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",以下识别出的税报页金额和单号配错了行（这几行的金额总账里都有，只是对应的单号错开了），是读错，不是真实差异，请对照原件改（括号里是行数）：{0}
 Only an active count can be deleted,只有进行中的盘点能删除
 Only board admins can do this,只有看板管理员能这样做
 Only invoices in Thai baht can be sent to Express,只有泰铢的票能推到 Express
@@ -2123,6 +2124,7 @@ reconciliation.preset.grouped_yes,是，按合计对上
 reconciliation.recognition_busy,识别繁忙，请稍后再试。
 reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
 reconciliation.report_page_likely_misread,以下照片 / 扫描件识别出的税报页有好几行和总账对不上，多半是这页读错了（错位或漏行），请先对照原件，别当成真实差异（括号里是对不上的行数）：{0}
+reconciliation.report_page_shifted,以下识别出的税报页金额和单号配错了行（这几行的金额总账里都有，只是对应的单号错开了），是读错，不是真实差异，请对照原件改（括号里是行数）：{0}
 reconciliation.report_pages_unverified,以下税报页没法自核（行合计与页合计对不上，或没读到页合计；已自动再读过一次），请对照原件核对：{0}
 reconciliation.report_rows_repeated,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
 reconciliation.request_conflict,这个请求已用于不同内容。
