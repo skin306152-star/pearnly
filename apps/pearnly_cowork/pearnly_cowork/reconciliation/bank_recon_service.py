@@ -328,7 +328,8 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 			"stmt_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
 				"bank_code": parsed.get("bank_code", ""), **_read_by_recognition(parsed), **_account_of(parsed),
-				**({"unread_pages": parsed["unread_pages"]} if parsed.get("unread_pages") else {})}
+				**({"unread_pages": parsed["unread_pages"]} if parsed.get("unread_pages") else {}),
+				**({"duplicate_sheets": parsed["duplicate_sheets"]} if parsed.get("duplicate_sheets") else {})}
 				for name, parsed in statements],
 			# 诊断里的科目只记前 MAX_ACCOUNTS 个：全科目总账有上千个科目，记全了整单被契约拒掉（B01）。
 			"gl_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),

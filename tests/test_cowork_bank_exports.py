@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import openpyxl
 
-from pearnly_cowork.reconciliation import bank_intake, bank_sheets
+from pearnly_cowork.reconciliation import bank_intake, bank_recon_contracts, bank_sheets
 from pearnly_cowork.tabular import readers
 
 
@@ -221,6 +221,15 @@ class DuplicateSheets(unittest.TestCase):
 		self.assertEqual(result["duplicate_sheets"], [["Statement (2)", "Statement"]])
 		self.assertEqual(bank_intake.read_statement_file(content, "stm.xlsx")["duplicate_sheets"],
 			[["Statement (2)", "Statement"]])
+
+
+	def test_the_copied_worksheet_is_kept_in_the_stored_file_record(self):
+		stored = bank_recon_contracts.parse_info({"stmt_files": [{"file": "stm.xlsx", "rows": 12, "ok": True,
+			"duplicate_sheets": [["Statement (2)", "Statement"]]}]})
+		self.assertEqual(stored["stmt_files"][0]["duplicate_sheets"], [["Statement (2)", "Statement"]])
+		with self.assertRaises(bank_recon_contracts.ReconciliationContractError):
+			bank_recon_contracts.parse_info({"stmt_files": [{"file": "stm.xlsx", "ok": True,
+				"duplicate_sheets": ["Statement (2)"]}]})
 
 
 class HeaderlessAndCsv(unittest.TestCase):

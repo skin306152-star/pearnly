@@ -157,6 +157,11 @@ def bank_notes(doc):
 			# 识别时这几页抽取超时没读出：只丢这几页，余额链在这里断开，保存前逐处确认（2026-09-30 压测第 23 轮）。
 			notes.append(_("reconciliation.statement_pages_unread").format(item.get("file") or "",
 				"、".join(str(page) for page in item["unread_pages"])))
+	duplicated = [f"{item.get('file') or ''} [{copy} = {original}]" for item in parse_info.get("stmt_files") or []
+		for copy, original in item.get("duplicate_sheets") or []]
+	if duplicated:
+		# 复制出来的工作表只算了一次：页面上点名（2026-09-30 压测 SISTER 6.69，原来只写在导出的警告条里）。
+		notes.append(_("reconciliation.files_duplicate_sheets").format("、".join(duplicated)))
 	others = [item["file"] for item in failed if item.get("error_code") == "other_account"]
 	if others:
 		notes.append(_("reconciliation.statement_other_account_left_out").format("、".join(others)))

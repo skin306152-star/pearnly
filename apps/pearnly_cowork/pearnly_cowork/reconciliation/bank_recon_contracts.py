@@ -48,8 +48,9 @@ ANCHOR_KEYS = ("stmt_opening", "gl_opening", "gl_closing", "stmt_closing")
 # the workbook's File Info section could show real per-file numbers.
 PARSE_INFO_SECTIONS = {
 	# recognized：这份账单是识别读出的（照片 / 扫描件）；unread_pages：识别时抽取超时没读出的页；account：读出的
-	# 账号末四位（对账预设按账户记）。都是 2026-09-30 加的，旧任务没有。
-	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "account"),
+	# 账号末四位（对账预设按账户记）；duplicate_sheets：逐行相同、只算一次的工作表 [复制的, 原来的]。都是 2026-09-30 加的，旧任务没有。
+	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "account",
+		"duplicate_sheets"),
 	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
 }
 CONFIDENCE_LEVELS = ("high", "medium", "low")
@@ -160,6 +161,13 @@ def parse_info(value):
 					item["unread_pages"] = list(unread)
 				if record.get("account"):
 					item["account"] = _text(record.get("account"), f"{section}.account", limit=4)
+				duplicates = record.get("duplicate_sheets") or []
+				if duplicates:
+					if (not isinstance(duplicates, list) or len(duplicates) > MAX_ACCOUNTS
+							or any(not isinstance(pair, list) or len(pair) != 2 for pair in duplicates)):
+						raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
+					item["duplicate_sheets"] = [[_text(name, f"{section}.duplicate_sheets") for name in pair]
+						for pair in duplicates]
 			else:
 				item["accounts"] = [_text(account, f"{section}.accounts") for account in accounts]
 			parsed.append(item)
