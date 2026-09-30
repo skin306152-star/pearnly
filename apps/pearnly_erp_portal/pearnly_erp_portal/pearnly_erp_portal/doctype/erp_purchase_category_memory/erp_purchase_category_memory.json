@@ -1,0 +1,66 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Purchase Category Memory",
+ "module": "Pearnly ERP Portal",
+ "istable": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "supplier",
+  "item_key",
+  "item_name",
+  "category",
+  "subcategory"
+ ],
+ "fields": [
+  {
+   "fieldname": "supplier",
+   "label": "Supplier",
+   "fieldtype": "Link",
+   "options": "ERP Supplier",
+   "reqd": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "item_key",
+   "label": "Item Key",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_name",
+   "label": "Item Name",
+   "fieldtype": "Data",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "category",
+   "label": "Category",
+   "fieldtype": "Link",
+   "options": "ERP Purchase Category",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "subcategory",
+   "label": "Subcategory",
+   "fieldtype": "Link",
+   "options": "ERP Purchase Category"
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "track_changes": 0,
+ "modified": "2026-09-30 00:00:00",
+ "owner": "Administrator",
+ "creation": "2026-09-30 00:00:00",
+ "modified_by": "Administrator",
+ "allow_rename": 0
+}

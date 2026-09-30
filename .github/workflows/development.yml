@@ -21,6 +21,8 @@ jobs:
         run: python3 tests/test_native_desk_contract.py
       - name: Keep each ERP boot item independent of the others
         run: python3 tests/test_erp_boot_items.py
+      - name: Verify ERP purchase lines remember their category by supplier and item
+        run: python3 tests/test_erp_category_memory.py
       - name: Render the control-plane LINE setup guide with its screenshots
         run: python3 tests/test_control_line_guide.py
       - name: Verify each product declares its own feature catalog

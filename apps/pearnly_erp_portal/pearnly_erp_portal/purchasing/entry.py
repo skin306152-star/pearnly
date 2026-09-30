@@ -11,7 +11,7 @@ from pearnly_erp_portal.inventory import positions, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.products import purchase as purchase_items
-from pearnly_erp_portal.purchasing import access, amounts, contracts, files, settings
+from pearnly_erp_portal.purchasing import access, amounts, category_memory, contracts, files, settings
 
 KINDS = {"purchase_invoice", "purchase_order", "expense", "goods", "service"}
 METHODS = {"cash", "transfer", "promptpay", "bank", "cheque", "other"}
@@ -172,6 +172,9 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
         if any(key not in (name, amended_from) for key in duplicates):
             frappe.throw(_("Document already exists"))
     supplier, supplier_name = _supplier(payload)
+    if payload.get("source") == "line":
+        # LINE 录单没有选分类的地方：按这个供应商记住的分类补上空着的行（网页在识别时已预填，人可以改）。
+        category_memory.fill(supplier, totals["lines"])
     reference = contracts.duplicate_key(supplier, payload.get("doc_no"))
     if reference and settings.read_settings()["dedupe_block"] and not allow_duplicate:
         duplicates = frappe.get_all("Purchase Document", filters={"dedupe_ref": reference,
@@ -213,6 +216,7 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
         doc.append("payments", {"payment_date": day, "amount": doc.paid_amount, "method": doc.payment_method})
     doc.flags.purchase_action = True
     doc.save()
+    category_memory.learn(supplier, doc.lines)
     if doc.update_stock:
         goods = [{"product": row.product, "qty": row.qty, "unit": row.unit,
                   "unit_cost": amounts.decimal(row.line_total) / amounts.decimal(row.qty) * rate,
