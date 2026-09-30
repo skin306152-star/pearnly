@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Private one-shot maintenance container; secrets arrive on stdin, not argv."""
+import importlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,9 @@ import urllib.request
 
 
 LINE_WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/"
+# ERP / Cowork 的按权限富菜单（DMS 走自己的 `rich_menu`）。发布后站点配置里才有菜单表，
+# 没发布过绑定的人就只看到空白官方号（mrerp / erpcowork 开户后都没有，2026-09-30）。
+LINE_MENUS = {"erp": "pearnly_erp_portal.integrations.line_menu", "cowork": "pearnly_cowork.line.menu"}
 COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
               "pearnly_cowork_ocr_policy": {"mode": "economy"}}
 
@@ -201,6 +205,8 @@ def main():
                 from pearnly_dms.menu import rich_menu
 
                 rich_menu.publish()
+            if group in LINE_MENUS:
+                importlib.import_module(LINE_MENUS[group]).publish()
             # LINE 绑定即登录：渠道带了 LINE Login 频道密钥才开；没带就关（站点侧回落密码登录）。
             config(pearnly_line_login_idp=line_login(p, group, runtime))
     elif action == "finalize_site":
@@ -210,6 +216,10 @@ def main():
         # Finalization is an explicit activation step, after apps are installed.
         from frappe.utils.scheduler import enable_scheduler
         enable_scheduler()
+        if group == "cowork":
+            # ERP 推送总闸：推送到 MR.ERP / Express、给小助手发配对码都要它。开户从没写过，
+            # 新租户点 Express「连接」一律"没有权限"（testcowork 09-27 手工打开，erpcowork 09-30 又踩）。
+            config(pearnly_cowork_erp_push_enabled=1)
     elif action == "bind_user":
         from pearnly_core.provisioning import ensure_local_user
         ensure_local_user(p["email"], p["full_name"], p["subject"], p["deployment"])
@@ -247,6 +257,10 @@ def main():
             state = rich_menu.published_state()
             assert state["basic"] and state["query"], "This tenant's DMS rich menus are not published"
             assert state["default"] == state["basic"], "The OA default rich menu is not this tenant's menu"
+        if group == "cowork":
+            assert frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1), "Cowork ERP push is not enabled"
+        if group in LINE_MENUS and frappe.conf.get("pearnly_line_channel_access_token"):
+            assert importlib.import_module(LINE_MENUS[group])._published(), "This tenant's LINE menus are not published"
         if frappe.conf.get("pearnly_line_channel_access_token"):
             check_webhook(site, frappe.conf.pearnly_line_channel_access_token)
     else:
