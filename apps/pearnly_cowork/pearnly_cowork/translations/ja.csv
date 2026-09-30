@@ -1223,6 +1223,7 @@ Voided,無効化済み
 Voucher no.,伝票番号
 WHT amount,源泉税額
 Waiting,待機中
+"Waiting in line, will submit automatically",順番待ち・自動で送信します
 Waiting to start,開始待ち
 Warehouse,倉庫
 Watch,ウォッチ
@@ -1304,6 +1305,7 @@ cowork.choice.payment,支払方法
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
 cowork.intake.interrupted,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
+cowork.intake.waitingRoom,順番待ち・自動で送信します
 cowork.line.boundAt,連携日時
 cowork.line.code,連携コード
 cowork.line.expired,コードの有効期限が切れました

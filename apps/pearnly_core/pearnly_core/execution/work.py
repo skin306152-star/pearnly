@@ -56,7 +56,9 @@ def _submit(kind, reference, arguments, user):
     tenant_pending = admission + ":" + budget.tenant()
     member = hashlib.sha256((frappe.local.site + ":" + name).encode()).hexdigest()
     # This short shared lock only allocates durable slots. Never held during OCR.
-    with client.lock(budget.PREFIX + "admission", timeout=15, blocking_timeout=3):
+    # 等锁最多 15 秒（原 3 秒）：持锁时要查库、写库、提交，数据库忙时（2026-09-30 生产压测，数据库约 90%）
+    # 同时交 16 张就有 2 张 3 秒内排不上锁、被当成 capacity_unavailable 拒收。页面遇到这类暂时满会自动重交。
+    with client.lock(budget.PREFIX + "admission", timeout=15, blocking_timeout=15):
         existing = frappe.db.get_value(DT, name, ["arguments", "user", "status"], as_dict=True)
         if existing:
             if existing.arguments != encoded or existing.user != user:

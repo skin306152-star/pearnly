@@ -1223,6 +1223,7 @@ Voided,Voided
 Voucher no.,Voucher no.
 WHT amount,WHT amount
 Waiting,Waiting
+"Waiting in line, will submit automatically","Waiting in line, will submit automatically"
 Waiting to start,Waiting to start
 Warehouse,Warehouse
 Watch,Watch
@@ -1304,6 +1305,7 @@ cowork.choice.payment,Payment
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
 cowork.intake.interrupted,Recognition was interrupted (not charged). Upload this file again
+cowork.intake.waitingRoom,"Waiting in line, will submit automatically"
 cowork.line.boundAt,Bound at
 cowork.line.code,Binding code
 cowork.line.expired,Code expired

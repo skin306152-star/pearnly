@@ -1223,6 +1223,7 @@ Voided,ยกเลิกแล้ว
 Voucher no.,เลขที่ใบสำคัญ
 WHT amount,ภาษีหัก ณ ที่จ่าย
 Waiting,รอ
+"Waiting in line, will submit automatically",รอคิว จะส่งให้อัตโนมัติ
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Watch,ติดตาม
@@ -1304,6 +1305,7 @@ cowork.choice.payment,การชำระเงิน
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,ภาษีในใบเสร็จนี้
 cowork.intake.interrupted,การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
+cowork.intake.waitingRoom,รอคิว จะส่งให้อัตโนมัติ
 cowork.line.boundAt,เชื่อมต่อเมื่อ
 cowork.line.code,รหัสเชื่อมต่อ
 cowork.line.expired,รหัสหมดอายุแล้ว

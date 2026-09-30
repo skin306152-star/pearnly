@@ -1223,6 +1223,7 @@ Voided,已作废
 Voucher no.,凭证号
 WHT amount,预扣税额
 Waiting,等待中
+"Waiting in line, will submit automatically",排队中，稍后自动提交
 Waiting to start,排队中
 Warehouse,仓库
 Watch,关注
@@ -1304,6 +1305,7 @@ cowork.choice.payment,付款方式
 cowork.choice.title,这份账套选一次
 cowork.choice.vat,票上的税额
 cowork.intake.interrupted,识别中断了（未扣费），请重新上传这一份
+cowork.intake.waitingRoom,排队中，稍后自动提交
 cowork.line.boundAt,绑定时间
 cowork.line.code,绑定码
 cowork.line.expired,绑定码已过期

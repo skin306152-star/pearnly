@@ -1363,3 +1363,4 @@ In progress	进行中	กำลังดำเนินการ	進行中	cowor
 In progress ({0})	进行中（{0}）	กำลังดำเนินการ ({0})	進行中（{0}）	cowork.recon.runningCount
 Progress	进度	ความคืบหน้า	進捗	cowork.recon.col.progress
 Started at	开始时间	เริ่มเมื่อ	開始日時	cowork.recon.col.startedAt
+Waiting in line, will submit automatically	排队中，稍后自动提交	รอคิว จะส่งให้อัตโนมัติ	順番待ち・自動で送信します	cowork.intake.waitingRoom

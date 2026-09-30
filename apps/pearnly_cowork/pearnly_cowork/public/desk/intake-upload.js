@@ -25,12 +25,16 @@
 	const uuid = () => (crypto?.randomUUID ? crypto.randomUUID()
 		: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 	const STATES = {new: "Pending", uploading: "Uploading", uploaded: "Uploaded",
-		submitting: "Submitting", recognizing: "intake.status.recognizing",
+		submitting: "Submitting", waiting: "cowork.intake.waitingRoom", recognizing: "intake.status.recognizing",
 		recognized: "intake.status.recognized", not_invoice: "not_invoice", failed: "Failed"};
 	// 识别是后台排队做的：受理后按旧线上 `ocr-job-poll.ts` 的节奏轮询批次，直到有结论。
 	//   每 1.5 秒一次、最长 60 分钟（服务端排队 30 分钟没开始才过期、开始处理后不再按提交时间过期；
 	//   原来 20 分钟就在页面上判超时，服务端其实还在做 · 2026-09-28 压测）；连续 10 次读不到状态（约 15 秒）才算失联。
 	const POLL = {every_ms: 1500, max_ms: 60 * 60 * 1000, soft_fails: 10};
+	// 提交时识别暂时满（等不到名额锁、本租户排队已满、识别暂停）：不当失败，排着自动重交（2026-09-30 生产压测：
+	// 同时交 16 张就有被拒的）。每次隔 5 秒起、逐次加长到 30 秒，最多等 60 分钟；服务端拒收时整笔回滚，重交安全。
+	const BUSY = new Set(["capacity_unavailable", "queue_full", "ocr_paused"]);
+	const RESUBMIT = {first_ms: 5000, max_step_ms: 30000, max_ms: 60 * 60 * 1000};
 	// 批次状态：`saved` 有记录、`not_invoice` 没有发票；任务 `failed/uncertain/cancelled` 是失败；
 	// 其余（受理、排队、运行、延后、识别中）都还在做。
 	const FINISHED = new Set(["saved", "not_invoice"]);
@@ -911,12 +915,22 @@
 					payment: form.get_value("posting_payment_manual") || undefined};
 			let batch = null;
 			try {
-				const result = await p.call(OCR + "submit", {
+				const submit = () => p.call(OCR + "submit", {
 					source_file: row.source,
 					// 同一份原件重试识别沿用同一个键：服务端认得出"这不是新任务"。
 					request_key: `${row.key}-ocr`,
 					...params,
 				}, "POST");
+				let result = await submit();
+				const began = Date.now();
+				let step = RESUBMIT.first_ms;
+				while (live && !result?.accepted && BUSY.has(result?.code) && Date.now() - began < RESUBMIT.max_ms) {
+					row.state = "waiting"; row.message = ""; render_batch();
+					await sleep(step);
+					step = Math.min(RESUBMIT.max_step_ms, step * 2);
+					if (!live) return;
+					result = await submit();
+				}
 				if (!result?.accepted) {
 					row.state = "failed";
 					row.message = code_text(result?.code);
