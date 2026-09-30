@@ -58,3 +58,13 @@
   同时 runtime.env 写 `PEARNLY_MARIADB_MEM=3g`，保证以后重建仍是 3g。max_connections 300 已于 10-01 用 SET GLOBAL 生效。
 - cowork-ocr-worker 12 → 18 进程，上限保持 8g（18 × 450 = 8100）；erp 12 / 8g、dms 4 / 2g 不变。
 - 合计（上限 + 宿主保留）40969 / 41724。单租户上限按「≤ 进程数 − 4」取 12–16，等压测窗口的 24/40 结果定。
+
+## 2026-10-01 事故：mariadb 在 2g 上限被 OOM 杀
+
+- 22:36:10 UTC（曼谷 05:36）mariadbd anon-rss 约 2.0GB，在自己容器的 2g 上限里被内核杀，22:36:18 自动重启，全平台数据库断约 8 秒；
+  pA 在跑的 10 个对账后台任务失败（Server has gone away）。诱因：当天早些时候 max_connections SET GLOBAL 到 300，加上真实大文件回归
+  （max_allowed_packet 64M，单连接缓冲可涨到几十 MB）。
+- 处置（用户已批准的方案 A 提前止血）：`docker update --memory 3g --memory-swap 3g`，不重启生效；runtime.env 写
+  `PEARNLY_MARIADB_MEM=3g`（备份 `.bak-20261001-mariadb3g`）。重启后 max_connections 回到 151，保持不再上调：
+  方案 A 下识别 18+12+4、网页 14 进程 × 4 线程、对账、调度等高峰估约 110。
+- compose 的 `--max-connections` 改为 `PEARNLY_MARIADB_MAX_CONNECTIONS`，默认 151（原写死 300，只在 foundation 重建 mariadb 时才会生效）。
