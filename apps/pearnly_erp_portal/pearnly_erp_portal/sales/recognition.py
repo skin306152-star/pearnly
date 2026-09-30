@@ -3,6 +3,7 @@ import mimetypes
 
 import frappe
 from frappe import _
+from pearnly_core.tax_documents.amounts import repaired_tax_id
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.recognition import billing, checks, dates, policy
@@ -84,7 +85,9 @@ def _structured(raw):
     result = contracts.map_recognised(raw)
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
-    result.update(seller_tax_id=raw.get("seller_tax_id"), buyer_tax_id=raw.get("buyer_tax_id"))
+    # 读成 12 位的税号：开头的 0 丢了，补回后过得了校验位才补（全平台同一规则，用户 2026-09-30）。
+    result.update(seller_tax_id=repaired_tax_id(raw.get("seller_tax_id")),
+                  buyer_tax_id=repaired_tax_id(raw.get("buyer_tax_id")))
     # 票面日期由代码换算佛历（旧线上口径），换算不出才用模型给的。
     result["doc_date"] = dates.printed(raw.get("doc_date_raw")) or result.get("doc_date")
     result["additional_documents"] = raw.get("additional_documents")

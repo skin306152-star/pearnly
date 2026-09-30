@@ -581,6 +581,17 @@ class Checks(unittest.TestCase):
         self.assertEqual((result["has_vat"], result["price_mode"]), (True, "inclusive"))
         self.assertEqual(recognition.review(result), [])
 
+    def test_tax_ids_that_lost_the_leading_zero_are_restored_only_when_the_check_digit_agrees(self):
+        # 用户 2026-09-30：识别出 12 位税号补回开头的 0，补完要过 MOD-11 校验位才补（与 Cowork 同一个共用函数）。
+        from pearnly_erp_portal.purchasing import recognition as purchase
+        from pearnly_erp_portal.sales import recognition as sales
+
+        lines = [{"description": "Tyre", "qty": 1, "unit_price": 100}]
+        bought = purchase._structured({"lines": lines, "supplier_tax_id": "105546015062", "buyer_tax_id": "105546015063"})
+        self.assertEqual((bought["supplier_tax_id"], bought["buyer_tax_id"]), ("0105546015062", "105546015063"))
+        sold = sales._structured({"lines": lines, "seller_tax_id": "105546015062", "buyer_tax_id": "0105546015062"})
+        self.assertEqual((sold["seller_tax_id"], sold["buyer_tax_id"]), ("0105546015062", "0105546015062"))
+
     def test_abbreviated_tax_invoices_do_not_claim_input_vat(self):
         from pearnly_erp_portal.purchasing import entry, recognition
 

@@ -181,6 +181,9 @@ def _structured(raw):
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
     result["buyer_tax_id"] = raw.get("buyer_tax_id")
+    # 读成 12 位的税号：开头的 0 丢了，补回后过得了校验位才补（全平台同一规则，用户 2026-09-30）。
+    for key in ("supplier_tax_id", "buyer_tax_id"):
+        result[key] = doc_amounts.repaired_tax_id(result.get(key))
     result["buyer_name"] = raw.get("buyer_name")
     # 票种：票面标题认得出就以标题为准，其次模型给的，都没有就是「其他」（共用码表，ADR-0012）。
     result["document_title"] = raw.get("document_title")
