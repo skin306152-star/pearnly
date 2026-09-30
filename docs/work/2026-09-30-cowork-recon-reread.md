@@ -110,6 +110,17 @@
 - 验证：`WaitingForInvoices` 6 条（排队 70 分钟后读完、停滞点名、持续进展但封顶、全没读出仍报超时、一直排队报繁忙、被留下的识别不再付费）；
   test_cowork_* 离线 1921 条除两条缺 `docx` 的导入错误外全过；架构检查通过。
 
+## 统一部署时要做（与「LINE 绑定无反应」窗口约定，2026-09-30）
+
+- 由本窗口在各分支合入后从最新 main 一次构建，按 ERP → Cowork → DMS 逐个激活；凌晨、先进维护，每步等用户点头。
+  合入前变基到 main `e8d101d6` 或更新（那边今天不再合入）。
+- `infrastructure/production/site-step.py` 有改动：部署工具目录要随镜像同步（`check-deploy-image` 会提示）。
+- ERP 激活会跑补丁 `v1_11_default_company`（mrerp 的 CO-00001 设为默认公司），属正常。
+- Cowork 激活后：erpcowork 要在控制面对它的 LINE 渠道重排一次 `set_line`（`provisioning.queue_cloud_line_config`），补 pearnly-cowork
+  账号池设置、建 `line-2010411313` 入口、写 `pearnly_line_login_idp`、按新链接重新发布菜单。做法与回读项见
+  `docs/work/2026-09-30-cowork-line-login.md`「部署后要做」；本窗口做或交还那边做，都要用户点头。
+- 本窗口的共用层改动（`pearnly_core/public/desk`、i18n）合入前在生产镜像跑候选离线检查。
+
 ## 未做 / 限制
 
 ### 对账收尾待办（部署前要定下来做不做）
