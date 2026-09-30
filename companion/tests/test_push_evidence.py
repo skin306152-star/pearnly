@@ -239,11 +239,22 @@ def test_push_meta_omits_evidence_when_absent():
 # ── ⑤ 端到端:明细读回不符 → DbfWriteResult.evidence 带上现场 ─────────────────
 
 
-def test_detail_mismatch_evidence_reaches_write_result(datat):
-    """整条失败路径兜底:同号多出 2 条活明细 → 读回行数 4≠2 → write_sale 回 DbfWriteResult
-    且 evidence 已装好(proof:证据不是只存在异常里,是进了对外返回的结果)。"""
+def test_existing_same_number_rows_do_not_block_the_push(datat):
+    """账套里已有同号的活明细(会计手录的同一张票)→ 照推,读回只核对本次写入的 2 行(用户 2026-09-30:不查重、不拦)。"""
     _stcrd(datat, "IV690531-002", "1", 60.0)
     _stcrd(datat, "IV690531-002", "2", 40.0)
+
+    res = _push_sale(datat, _sale_items(ref_no="IV690531-002"))
+    assert res.ok, res.error
+
+
+def test_detail_mismatch_evidence_reaches_write_result(datat, monkeypatch):
+    """整条失败路径兜底:本次写入的明细读回行数不符 → write_sale 回 DbfWriteResult
+    且 evidence 已装好(proof:证据不是只存在异常里,是进了对外返回的结果)。
+    这里把"写入前行数"压成 0,让预置的 2 条也算进本次,造出 4≠2。"""
+    _stcrd(datat, "IV690531-002", "1", 60.0)
+    _stcrd(datat, "IV690531-002", "2", 40.0)
+    monkeypatch.setattr(WS, "_table_sizes", lambda account_dir: {})
 
     res = _push_sale(datat, _sale_items(ref_no="IV690531-002"))
     assert not res.ok

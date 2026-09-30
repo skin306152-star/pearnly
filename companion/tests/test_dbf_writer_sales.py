@@ -658,3 +658,32 @@ def test_branch_customer_number_lands_on_voucher_and_vat_record(datat):
     assert res.ok, res.error
     assert int(_rows(datat, "ARTRN", DOCNUM=res.docnum)[0].ORGNUM) == 18
     assert int(_rows(datat, "ISVAT", DOCNUM=res.docnum)[0].ORGNUM) == 18
+
+
+def _hand_entered(d, docnum, *, netamt=None):
+    """把已写进去的那张单改成会计手录的样子:YOUREF 为空(幂等闸认不出),金额可改。"""
+    t = dbf.Table(str(d / "ARTRN.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    try:
+        for r in t:
+            if (r.DOCNUM or "").strip() == docnum:
+                with r:
+                    r.YOUREF = ""
+                    if netamt is not None:
+                        r.NETAMT = netamt
+    finally:
+        t.close()
+
+
+@pytest.mark.parametrize("old_total", [None, 1234.0])
+def test_push_goes_through_when_express_already_has_the_same_invoice_no(datat, old_total):
+    # erpcowork 2026-09-30:IV69/08-xxx 会计早已手录进 Express,推送时读回把旧单的明细/分录
+    # 一起数进来 → 行数翻倍 → 整单回滚。用户定:要推就推,不查重、不拦,只核对本次写入的行。
+    first = WS.write_sale(_sale_items(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert first.ok, first.error
+    _hand_entered(datat, first.docnum, netamt=old_total)
+    again = WS.write_sale(_sale_items(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert again.ok and not again.skipped, again.error
+    assert again.docnum == first.docnum  # 凭证号仍是票面发票号
+    assert len(_rows(datat, "ARTRN", DOCNUM=first.docnum)) == 2
+    assert len(_rows(datat, "STCRD", DOCNUM=first.docnum)) == 4

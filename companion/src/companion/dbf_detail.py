@@ -204,6 +204,7 @@ def verify_detail(
     detail_n: int,
     *,
     allow_stock_impact: bool = False,
+    since_recno: int = 0,
 ) -> Optional[str]:
     """读回明细:行数==detail_n、行合计≈税前额。非库存/直接科目行必须零库存影响
     (LOT/余额全 0);V2-b 卖库存品(allow_stock_impact=True)本就动库存,跳过该闸。
@@ -214,7 +215,11 @@ def verify_detail(
         # 只数还算数的行:删单后旧明细软删仍在表里,连它一起数则行数与合计都翻倍,
         # 重推同一张票必被判「行数对不上」而整单回滚(单据永远进不去的第三堵墙)。
         # S.live_rows 是软删过滤的判据 seam(变异测试打它的补丁验证这道闸),必须走它。
-        rows = [r for r in S.live_rows(st) if (r.DOCNUM or "").strip() == docnum]
+        # since_recno:只看本次追加的行。销项凭证号就是票面发票号,账套里可能已有会计手录的同号单
+        # (erpcowork 2026-09-30:IV69/08-001… 已在 Express 里),连它们一起数行数就翻倍、整单回滚。
+        # 用户要推就推,不在这里拦(用户 2026-09-30)。
+        rows = [r for r in S.live_rows(st)
+                if (r.DOCNUM or "").strip() == docnum and dbf.recno(r) >= since_recno]
         # 同 DOCNUM 的软删行数(evidence 用)。live_rows 会把软删行藏起来,证据里数不到
         # 它们 —— 这里按 DOCNUM 过滤一遍原始表,不多扫别的表。
         deleted_count = sum(

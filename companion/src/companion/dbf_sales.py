@@ -303,6 +303,7 @@ def write_sale(
     clock.lap("backup")
     docnum = ""
     try:
+        since = _table_sizes(account_dir)  # 读回只核对这之后追加的行(见 _VERIFY_TABLES)
         # 新客户 → 先在 ARMAS 建档(备份-回滚事务内)拿到码
         entry.customer_code = master_create.ensure_customer(
             account_dir, entry, created_date=docdat, userid=userid
@@ -345,6 +346,7 @@ def write_sale(
             base=base,
             detail_n=detail_n,
             has_stock=has_stock,
+            since=since,
         )
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AR_DOCNUM, docnum)
@@ -576,6 +578,25 @@ def _update_arbal(
     return {}
 
 
+# 写后读回只核对**本次追加**的行:写入前记下这几张表的行数,之后追加的行记录号都 >= 它。
+_VERIFY_TABLES = ("ARTRN", "STCRD", "GLJNLIT", "ISVAT")
+
+
+def _table_sizes(account_dir: Path) -> Dict[str, int]:
+    sizes = {}
+    for name in _VERIFY_TABLES:
+        t = _open(account_dir, name, dbf.READ_ONLY)
+        try:
+            sizes[name] = len(t)
+        finally:
+            t.close()
+    return sizes
+
+
+def _appended(table, since: int):
+    return (r for r in S.live_rows(table) if dbf.recno(r) >= since)
+
+
 def _verify(
     account_dir: Path,
     docnum: str,
@@ -585,14 +606,17 @@ def _verify(
     base: Optional[Decimal] = None,
     detail_n: int = 0,
     has_stock: bool = False,
+    since: Optional[Dict[str, int]] = None,
 ) -> None:
+    since = since or {}
     # 读回一律只看还算数的行。销项 DOCNUM 就是票面发票号,删单重推时新单与那条软删的旧单
     # 同号:连软删行一起读,ARTRN 会先命中旧行(拿旧 NETAMT/NXTSEQ 判新单),GLJNLIT 会把
     # 旧分录金额一起累加而判成借贷不平 —— 幂等闸放行之后,单据就改在这里被判失败回滚。
     ar = _open(account_dir, "ARTRN", dbf.READ_ONLY)
     try:
         hit = next(
-            (r for r in S.live_rows(ar) if (r.DOCNUM or "").strip() == docnum), None
+            (r for r in _appended(ar, since.get("ARTRN", 0))
+             if (r.DOCNUM or "").strip() == docnum), None
         )
         if hit is None or abs(Decimal(str(hit.NETAMT)) - total) > Decimal("0.02"):
             ev = {
@@ -621,13 +645,14 @@ def _verify(
         ar.close()
 
     if detail_n:
-        _verify_detail(account_dir, docnum, base, detail_n, has_stock=has_stock)
+        _verify_detail(account_dir, docnum, base, detail_n, has_stock=has_stock,
+                       since_recno=since.get("STCRD", 0))
 
     gi = _open(account_dir, "GLJNLIT", dbf.READ_ONLY)
     try:
         dr = cr = asset_dr = Decimal("0")
         rows = 0
-        for r in S.live_rows(gi):
+        for r in _appended(gi, since.get("GLJNLIT", 0)):
             if (r.VOUCHER or "").strip() == docnum:
                 rows += 1
                 amt = Decimal(str(r.AMOUNT))
@@ -663,7 +688,7 @@ def _verify(
             if not any(
                 (r.DOCNUM or "").strip() == docnum
                 and (r.VATREC or "").strip() == S.ISVAT_VATREC_OUTPUT
-                for r in S.live_rows(iv)
+                for r in _appended(iv, since.get("ISVAT", 0))
             ):
                 raise _WriteError(
                     "ISVAT('S') row missing",
@@ -681,11 +706,13 @@ def _verify_detail(
     detail_n: int,
     *,
     has_stock: bool = False,
+    since_recno: int = 0,
 ) -> None:
     """读回明细(委托共用 dbf_detail);不符 → 抛错触发回滚。V2-b 卖库存放行库存影响行。"""
     try:
         err = dbf_detail.verify_detail(
-            account_dir, docnum, base, detail_n, allow_stock_impact=has_stock
+            account_dir, docnum, base, detail_n, allow_stock_impact=has_stock,
+            since_recno=since_recno,
         )
     except dbf_detail.DetailVerifyError as e:
         # 明细读回不符:message 一字不改(既有按文本 match 的断言依赖),证据随第三参带走。
