@@ -10,6 +10,8 @@ from copy import deepcopy
 import re
 from typing import Any
 
+from pearnly_core.tax_documents.amounts import repaired_tax_id
+
 INTERNAL_SOURCES = frozenset({"erp_web", "line_erp"})
 VALID_POSTING_KINDS = ("service", "stock")
 _SALES_TOKENS = ("sales", "income")
@@ -27,8 +29,11 @@ class PushContractError(ValueError):
 
 
 def clean_tax_id(raw) -> str:
-	"""Retain the source's exact 13-digit length rule, not a checksum decision."""
-	digits = re.sub(r"\D", "", str(raw or ""))
+	"""Retain the source's exact 13-digit length rule, not a checksum decision.
+
+	A 12-digit read gets its dropped leading zero back only when the check digit
+	then agrees (shared rule, erpcowork IV69/08-011 was held back by it on 2026-09-30)."""
+	digits = repaired_tax_id(re.sub(r"\D", "", str(raw or "")))
 	return digits if len(digits) == 13 else ""
 
 

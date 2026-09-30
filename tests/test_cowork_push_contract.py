@@ -43,6 +43,9 @@ class DirectionContract(unittest.TestCase):
 		self.assertEqual(push.clean_tax_id("0107536000189 Company"), "0107536000189")
 		self.assertEqual(push.detect_by_tax({"fields": {"buyer_tax_id": "0107536000189"}}, "0107536000189"), "purchase")
 		self.assertEqual(push.clean_tax_id("13/06/26"), "")
+		# A dropped leading zero comes back only when the check digit then agrees.
+		self.assertEqual(push.clean_tax_id("105557139761"), "0105557139761")
+		self.assertEqual(push.clean_tax_id("123456789012"), "")
 
 	def test_explicit_direction_wins_and_unknown_declaration_uses_tax_anchor(self):
 		flat = {"direction": "purchase", "fields": {"seller_tax": "0107536000188"}}

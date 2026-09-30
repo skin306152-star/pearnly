@@ -17,10 +17,13 @@
 import re
 from typing import Any
 
+from pearnly_core.tax_documents.amounts import repaired_tax_id
+
 
 def clean_tax_id(raw: Any) -> str:
-    """泰国税号：剥掉所有非数字后**恰好 13 位**才算合法，否则空串。"""
-    digits = re.sub(r"\D", "", str(raw or ""))
+    """泰国税号：剥掉所有非数字后**恰好 13 位**才算合法，否则空串。
+    读成 12 位的先补回开头的 0（校验位通过才补，共用规则）。"""
+    digits = repaired_tax_id(re.sub(r"\D", "", str(raw or "")))
     return digits if len(digits) == 13 else ""
 
 

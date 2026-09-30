@@ -101,5 +101,22 @@ class NoDrift(unittest.TestCase):
                         self.assertTrue(name.startswith("pearnly_core.tax_documents"), f"{path.name}: {name}")
 
 
+class RepairedTaxId(unittest.TestCase):
+    """12 位税号补回开头的 0：只有补完通过校验位才补（erpcowork 2026-09-30 的真实读错）。"""
+
+    def test_dropped_leading_zero_is_restored_when_the_check_digit_agrees(self):
+        from pearnly_core.tax_documents.amounts import repaired_tax_id
+        for read, printed in (("105546015062", "0105546015062"), ("105541034263", "0105541034263"),
+                              ("105568182913", "0105568182913"), ("105557139761", "0105557139761")):
+            self.assertEqual(repaired_tax_id(read), printed)
+
+    def test_anything_else_is_left_as_read(self):
+        from pearnly_core.tax_documents.amounts import repaired_tax_id
+        for value in ("0105546015062", "123456789012", "10554601506", "", None, "1055-4601-5062"):
+            self.assertEqual(repaired_tax_id(value), value)
+        # A number cannot keep a leading zero at all; it comes back as the printed 13-digit text.
+        self.assertEqual(repaired_tax_id(105546015062), "0105546015062")
+
+
 if __name__ == "__main__":
     unittest.main()

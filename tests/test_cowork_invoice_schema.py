@@ -136,5 +136,12 @@ class InvoiceSchemaTests(unittest.TestCase):
             Page(page_number=0, width=0, height=0, full_text="", avg_confidence=0, blocks=[])
 
 
+class TaxIdRepair(unittest.TestCase):
+    def test_twelve_digit_tax_ids_get_their_leading_zero_when_the_check_digit_agrees(self):
+        parsed = invoice(seller_tax="105546015062", buyer_tax="105557139761")
+        self.assertEqual((parsed.seller_tax, parsed.buyer_tax), ("0105546015062", "0105557139761"))
+        self.assertEqual(invoice(seller_tax="123456789012").seller_tax, "123456789012")
+
+
 if __name__ == "__main__":
     unittest.main()

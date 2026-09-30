@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-22 00:00:00.000000",
- "modified": "2026-09-22 00:00:00.000000",
+ "modified": "2026-09-30 21:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -18,6 +18,7 @@
   "workspace",
   "client",
   "seller_name",
+  "item_name",
   "category",
   "use_count"
  ],
@@ -55,6 +56,12 @@
    "fieldtype": "Data",
    "length": 200,
    "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item",
    "read_only": 1
   },
   {

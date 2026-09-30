@@ -10,6 +10,7 @@ from typing import Dict, List, Literal, Optional, get_args
 from pydantic import BaseModel, Field, PrivateAttr, ValidationInfo, field_validator, model_validator
 from pearnly_cowork.ocr.schema.evidence import FieldRef
 from pearnly_core.tax_documents import codes as tax_codes
+from pearnly_core.tax_documents.amounts import repaired_tax_id
 
 # 泰式 2 位年(DD/MM/YY)正则:两个分隔符 + 结尾 2 位年。
 _TWO_DIGIT_DATE = re.compile(r"^\s*\d{1,2}[/\-.]\d{1,2}[/\-.](\d{2})\s*$")
@@ -264,6 +265,12 @@ class ThaiInvoice(BaseModel):
         "total_amount",
         mode="before",
     )(_coerce_to_optional_str)
+
+    @field_validator("seller_tax", "buyer_tax", mode="after")
+    @classmethod
+    def _repair_tax_id(cls, v):
+        """读成 12 位的税号补回开头的 0（校验位通过才补，共用规则见 pearnly_core.tax_documents.amounts）。"""
+        return repaired_tax_id(v)
 
     @field_validator("is_not_invoice", "is_copy_or_duplicate", mode="before")
     @classmethod

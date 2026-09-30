@@ -6,6 +6,8 @@ category_api; native CRUD/sharing is refused even when a caller supplies flags.
 import copy
 import hashlib
 import json
+import re
+import unicodedata
 
 import frappe
 from frappe import _
@@ -229,12 +231,38 @@ def _seller(value):
     return str(value or "").strip()[:200]
 
 
-def _memory(workspace, client, seller):
+def _item(fields):
+    """这张票的第一行品名（记忆按"卖方 + 品名"细分用）。"""
+    for item in fields.get("items") or []:
+        name = str(item.get("name") or "").strip() if isinstance(item, dict) else ""
+        if name:
+            return name[:200]
+    return ""
+
+
+def _item_key(name):
+    # 只为比对：大小写、空白、标点不算区别；泰文声调符保留。
+    return re.sub(r"[\s.,()\-_/\\'\"&*#:;]+", "", unicodedata.normalize("NFC", str(name or "")).lower())
+
+
+def _memory_keys(workspace, client, seller, item=""):
+    """先"同一卖方 + 同一品名"，再退回"同一卖方"（用户 2026-09-30：同一卖方卖不同东西时按品名记才准；
+    只按卖方记时，销项票卖方永远是自己，所有销项都会被套成同一个分类）。"""
+    seller_key = _seller(seller).lower()
+    item = _item_key(item)
+    keys = [_key(workspace, client or "", seller_key, "item", item)] if item else []
+    return keys + [_key(workspace, client or "", seller_key)]
+
+
+def _memory(workspace, client, seller, item=""):
     if not seller:
         return None
-    rows = frappe.db.sql("""SELECT category FROM `tabCowork Supplier Category Memory`
-        WHERE name=%s LOCK IN SHARE MODE""", (_key(workspace, client or "", _seller(seller).lower()),))
-    return rows[0][0] if rows else None
+    for key in _memory_keys(workspace, client, seller, item):
+        rows = frappe.db.sql("""SELECT category FROM `tabCowork Supplier Category Memory`
+            WHERE name=%s LOCK IN SHARE MODE""", (key,))
+        if rows:
+            return rows[0][0]
+    return None
 
 
 def _optional(function, fallback, label):
@@ -265,7 +293,7 @@ def prepare(workspace, client, pages):
     categories = _optional(load, None, "tree")
     if categories is not None:
         fields["category"] = rules.resolve_tag(fields, categories) or ""
-    learned = _optional(lambda: _memory(workspace, client, fields.get("seller_name")), None, "memory")
+    learned = _optional(lambda: _memory(workspace, client, fields.get("seller_name"), _item(fields)), None, "memory")
     # Empty active tree means intentionally disabled; do not reintroduce its old names.
     if categories != []:
         learned = rules.sanitize_learned(learned, categories)
@@ -283,13 +311,16 @@ def learn(workspace, client, pages):
     category = str(fields.get("category") or "").strip()[:80]
     if not seller or not category:
         return
+    item = _item(fields)
     def write():
         _lock(workspace)
-        key = _key(workspace, client or "", seller.lower())
-        exists = frappe.db.get_value(MEMORY, key, "name", for_update=True)
-        row = frappe.get_doc(MEMORY, key, for_update=True) if exists else frappe.get_doc({
-            "doctype": MEMORY, "record_key": key, "workspace": workspace, "client": client or "",
-            "seller_name": seller, "use_count": 0})
-        row.category, row.use_count = category, int(row.use_count or 0) + 1
-        _persist(row)
+        # 两条都记：品名那条优先套用，卖方那条兜底（没见过的品名）。
+        keys = _memory_keys(workspace, client, seller, item)
+        for key, item_name in zip(keys, [item, ""] if len(keys) == 2 else [""]):
+            exists = frappe.db.get_value(MEMORY, key, "name", for_update=True)
+            row = frappe.get_doc(MEMORY, key, for_update=True) if exists else frappe.get_doc({
+                "doctype": MEMORY, "record_key": key, "workspace": workspace, "client": client or "",
+                "seller_name": seller, "item_name": item_name, "use_count": 0})
+            row.category, row.use_count = category, int(row.use_count or 0) + 1
+            _persist(row)
     _optional(write, None, "learn")

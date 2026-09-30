@@ -65,6 +65,21 @@ def digits(value) -> str:
     return "".join(ch for ch in str(value or "") if ch.isdigit())
 
 
+def repaired_tax_id(value):
+    """读出 12 位数字的税号：开头的 0 丢了（票面 0105546015062 → 读成 105546015062，识别里很常见）。
+    只在"前面补一个 0 后恰好通过 MOD-11 校验位"时补回，否则原样返回 —— 校验位把关，不会补出别人的号。
+    全平台共用（Cowork 录入、推送，ERP 识别）；以前只在对账中心单独补过一次，录入这条路没有（2026-09-30）。"""
+    if value is None:
+        return value
+    text = str(value).strip()
+    raw = digits(text)
+    if len(raw) != 12 or len(raw) != len(text):
+        return value
+    padded = "0" + raw
+    total = sum(int(padded[i]) * (13 - i) for i in range(12))
+    return padded if (11 - total % 11) % 10 == int(padded[12]) else value
+
+
 def valid_tax_id(value) -> bool:
     """泰国 13 位税号的 MOD-11 校验位。"""
     raw = digits(value)
