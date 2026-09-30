@@ -41,3 +41,13 @@
   27520MiB，这组目标值（28544 + 3209 ≤ 32095）在 1 倍规则下也装得下，真正拦它的是旧的每进程 512MiB 下限。
 - 风险：合成发票比真实大图 / 多页 PDF 小；NOFORK 下每进程内存停在处理过的最大一单。上线后用真实大图在 12 进程下复压，
   识别容器超过上限 70% 就回调 runtime.env。
+
+## 2026-10-01 真实大文件 OOM：识别下限 320 → 450，cowork / erp 识别 8g
+
+- pA 真实大文件回归时 cowork-ocr-worker 顶到 3.975 / 4GiB，`memory.events` oom_kill 2：NOFORK 下每个进程停在处理过的最大那一单，
+  真实大文件每进程 330–390MB（合成发票只有约 210MB）。
+- 生产（用户点头）：`PEARNLY_COWORK_OCR_MEM` / `PEARNLY_ERP_OCR_MEM` 4g → 8g，进程数 12 不变；备份 `runtime.env.bak-20261001-ocr8g`。
+  上限合计 + 宿主保留 39945 / 41724（1.3 倍）。
+- `capacity.py` 识别每进程下限 320 → 450。按 450 算，cowork 32 进程要约 14g，在 1.3 倍规则下放不下，今晚的进程数要重定。
+- 定期释放高水位：Frappe v16 `RQ_MAX_JOBS = 5000` 是模块常量，没有配置能改；建议由共用层 after_job 按进程 RSS 超阈值自发 SIGTERM
+  （rq 收尾后退出、WorkerPool 补起），已交修复窗口评估。
