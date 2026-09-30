@@ -343,8 +343,8 @@
 		}
 		async function show_progress(job) {
 			const request = ++sequence;
-			// 面包屑：对账 / 进行中 / 这一份（点「进行中」回到进行中那一页）
-			const trail = name => breadcrumbs([{ label: t("cowork.recon.running"), route: `${root}/running` },
+			// 面包屑：对账 / 进行中 / 这一份（点「进行中」回到进行中那一页；地址要写全，写成相对的会接在当前地址后面）
+			const trail = name => breadcrumbs([{ label: t("cowork.recon.running"), route: p.subroute(root, "running") },
 				{ label: name || t("cowork.recon.checking") }]);
 			let titled = "";
 			page.set_title(t("cowork.recon.checking")); trail();
