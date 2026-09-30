@@ -68,6 +68,16 @@ class Accounting(unittest.TestCase):
                          "invoice_number_unseen: 38051304940")
         self.assertIsNone(invoice_number_unseen(invoice(invoice_number="138051304940"), "เลขที่ 138051304940"))
 
+    def test_look_alike_letters_in_the_vision_text_do_not_hold_the_invoice_for_review(self):
+        # erpcowork 2026-09-30: the model read IV69/08-002, Vision read IU69/08-002 (and IU69/O8-004).
+        for text in ("เลขที่ IU69/08-002", "IU69/O8-002", "1V69/08-002", "IV69/08-OO2"):
+            self.assertTrue(number_seen("IV69/08-002", text), text)
+            self.assertIsNone(invoice_number_alternative(invoice(invoice_number="IV69/08-002"), text), text)
+            self.assertIsNone(invoice_number_unseen(invoice(invoice_number="IV69/08-002"), text), text)
+        # A genuinely different digit is still handed to the reviewer.
+        note = invoice_number_alternative(invoice(invoice_number="IV69/08-006"), "เลขที่ IV69/08-005")
+        self.assertEqual(number_alternative(note), ("IV69/08-006", "IV69/08-005"))
+
     def test_a_number_range_marks_a_list_page(self):
         # 汇总表续页被当成一张票、单号写成范围（2026-09-28 复测）；普通带连字符的单号不算
         for read in ("IV69/06-026 to IV69/06-050", "A001 ถึง A025", "INV-0101 - INV-0125"):

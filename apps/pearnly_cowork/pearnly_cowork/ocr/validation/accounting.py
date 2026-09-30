@@ -8,7 +8,8 @@
   与税额（语料：3% 服务费税票每张都被判「金额对不上」、白复核一次）。
 - 用 OCR 原文纠正（只在已经调过 Vision 的路线上）：税号校验位不过时取原文里两位以内唯一、且只差一位的合法税号
   （2026-09-28 压测：放宽到两位时换成了另一个能过校验位的错号）；金额对不上时，原文里只差一位、换上后能对平的那个数。
-- 单号不纠正：原文与模型只差一个字符时两种写法都留给复核的人选（见 `invoice_number_alternative`）。
+- 单号不纠正：原文与模型只差一个字符时两种写法都留给复核的人选（见 `invoice_number_alternative`）；
+  只差 V/U、O/0、I/1 这类形近字时当作原文里有，保留模型读法、不交人选（见 `_CONFUSABLE`）。
 
 「本公司是买方」那条不搬：Cowork 同一批可能是采购也可能是销售，客户本来就可能是卖方。
 修正都会留说明（进 validation_warnings），改动票面数字的只采用能让核对通过的那一个。
@@ -106,6 +107,17 @@ def _norm(value) -> str:
     return re.sub(r"[^0-9A-Z]", "", str(value or "").upper())
 
 
+# 字形相近、Vision 原文常互相读错的字符（用户 2026-09-30：「IV / IU 这么清楚都看不明白吗」—— 其实是模型读对、
+# 原文读错：erpcowork 13 张里 10 张被 V↔U 误报；9-28 压测按原文替换的 36 处有 35 处把对的改错）。
+# 只差这类字符时不算"原文里没有"，保留模型的读法、不再交人选；5↔6 这种真读错的数字不在里面，照样交人选。
+_CONFUSABLE = str.maketrans({"V": "U", "O": "0", "D": "0", "Q": "0", "I": "1", "L": "1", "S": "5",
+                             "B": "8", "Z": "2"})
+
+
+def _fold(value) -> str:
+    return _norm(value).translate(_CONFUSABLE)
+
+
 def invoice_number_alternative(invoice, text) -> str | None:
     """完整税票的单号对照 Vision 原文：原文里有就不管；没有、但原文里恰好一个同长度只差一个字符的 → 两种写法都记下，
     交复核的人选（不改票面值）。
@@ -132,10 +144,10 @@ def number_seen(read, text) -> bool:
 
     不按「原文里某串字符的一部分」算：2026-09-28 压测里 `138051304940` 读成 `38051304940`、`922/46079`
     读成 `46079`，按子串比会被当成原文里有、放过去。"""
-    wanted = _norm(read)
+    wanted = _fold(read)
     if not wanted or not text:
         return False
-    tokens = [_norm(token) for token in _TOKEN.findall(str(text))]
+    tokens = [_fold(token) for token in _TOKEN.findall(str(text))]
     pool = set(tokens) | {a + b for a, b in zip(tokens, tokens[1:])}
     return wanted in pool
 
