@@ -771,6 +771,7 @@ Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Remove mirror,Remove mirror
 Remove template,Remove template
+Replaced by your later submission of the same files.,Replaced by your later submission of the same files.
 Report Credential,Report Credential
 Report Credential Generation,Report Credential Generation
 Report Received At (UTC),Report Received At (UTC)
@@ -2156,6 +2157,7 @@ reconciliation.statement_other_account_left_out,These statements look like anoth
 reconciliation.statement_pages_unread,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.
+reconciliation.superseded,Replaced by your later submission of the same files.
 reconciliation.suspected_group_gl,"Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})"
 reconciliation.suspected_group_more,{0} more possible combined matches are not listed
 reconciliation.suspected_group_stmt,"Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})"

@@ -21,7 +21,7 @@ class FakeJob:
 
 
 class Resume(unittest.TestCase):
-	def run_resume(self, job, *, files_exist=True, locked=False, finished=False, owner=None):
+	def run_resume(self, job, *, files_exist=True, locked=False, finished=False, owner=None, newer=False):
 		conn = mock.Mock()
 		conn.set.return_value = not locked
 		state = {}
@@ -32,6 +32,7 @@ class Resume(unittest.TestCase):
 				mock.patch.object(jobs.frappe, "local", mock.Mock(site="s")), \
 				mock.patch.object(jobs.frappe, "db", mock.Mock(exists=lambda doctype, name: files_exist)), \
 				mock.patch.object(jobs, "_recovered", return_value={"state": "done"} if finished else None), \
+				mock.patch.object(jobs, "_superseded", return_value=newer), \
 				mock.patch.object(jobs, "_state", side_effect=lambda job_id, **values: state.update(values)), \
 				mock.patch.object(jobs.progress, "active_remove"), \
 				mock.patch.object(jobs, "_", side_effect=lambda text: text), \
@@ -72,8 +73,39 @@ class Resume(unittest.TestCase):
 		self.assertIsNone(self.run_resume(FakeJob(), owner="other@x")[0])
 		self.assertEqual(self.run_resume(FakeJob(), owner="u@x")[0], jobs.RESUMED)
 
+	def test_a_later_submission_of_the_same_files_replaces_the_killed_one(self):
+		outcome, enqueue, state = self.run_resume(FakeJob(), newer=True)
+		self.assertEqual(outcome, jobs.SUPERSEDED)
+		enqueue.assert_not_called()
+		self.assertEqual((state["state"], state["error"]), ("failed", "reconciliation.superseded"))
+
 	def test_a_running_job_is_not_touched(self):
 		self.assertIsNone(self.run_resume(FakeJob(status="started"))[0])
+
+
+class LatestSubmission(unittest.TestCase):
+	"""同一个人、同一种对账、同样的源文件（按内容哈希，不看标题）只让最新一次提交出结果。"""
+
+	def run_with(self, hashes):
+		store = {}
+		conn = mock.Mock()
+		conn.set.side_effect = lambda key, value, ex=None: store.__setitem__(key, value)
+		conn.get.side_effect = lambda key: store.get(key)
+		values = {"L1": hashes[0], "R1": hashes[1], "L2": hashes[0], "R2": hashes[1]}
+		return mock.patch("frappe.utils.background_jobs.get_redis_conn", return_value=conn), \
+			mock.patch.object(jobs.frappe, "db", mock.Mock(get_value=lambda doctype, name, field: values.get(name))), \
+			mock.patch.object(jobs.frappe, "local", mock.Mock(site="s")), \
+			mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@x"))
+
+	def test_the_older_of_two_same_submissions_is_superseded(self):
+		patches = self.run_with(("a", "b"))
+		with patches[0], patches[1], patches[2], patches[3]:
+			jobs._mark_latest("bank", {"left": ["L1"], "right": ["R1"]}, "J1")
+			jobs._mark_latest("bank", {"left": ["L2"], "right": ["R2"]}, "J2")
+			self.assertTrue(jobs._superseded("bank", {"left": ["L1"], "right": ["R1"]}, "J1"))
+			self.assertFalse(jobs._superseded("bank", {"left": ["L2"], "right": ["R2"]}, "J2"))
+			# 另一种对账、同样的文件不算
+			self.assertFalse(jobs._superseded("income", {"left": ["L1"], "right": ["R1"]}, "J1"))
 
 
 if __name__ == "__main__":

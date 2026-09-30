@@ -771,6 +771,7 @@ Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Remove mirror,移除镜像
 Remove template,取消模板
+Replaced by your later submission of the same files.,已由你后来的提交取代（同样的文件）。
 Report Credential,上报凭证
 Report Credential Generation,上报凭证版本
 Report Received At (UTC),上报接收时间（UTC）
@@ -2156,6 +2157,7 @@ reconciliation.statement_other_account_left_out,以下账单看起来是其他�
 reconciliation.statement_pages_unread,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。
+reconciliation.superseded,已由你后来的提交取代（同样的文件）。
 reconciliation.suspected_group_gl,疑似合计匹配，请确认：总账 {0} {1} 的 {2} 等于银行 {3} 笔（{4} 至 {5}）的合计
 reconciliation.suspected_group_more,另有 {0} 组疑似合计匹配未列出
 reconciliation.suspected_group_stmt,疑似合计匹配，请确认：银行 {0} 的 {1} 等于总账 {2} 笔（{3} 至 {4}）的合计

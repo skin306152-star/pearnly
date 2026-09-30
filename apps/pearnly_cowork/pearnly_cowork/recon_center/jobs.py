@@ -83,6 +83,7 @@ def enqueue(job_id, kind, workspace, title, files, options):
            title=str(title)[:140], files=[{"file": file, "side": side} for side in ("left", "right")
                                           for file in files.get(side) or []])
     progress.active_add(frappe.session.user, job_id, kind, title)
+    _mark_latest(kind, files, job_id)
     frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long", timeout=TIMEOUTS.get(kind, 1800),
                    job_id=f"cowork-recon-{job_id}",
                    enqueue_after_commit=True, recon_job=job_id, kind=kind, workspace=workspace, title=str(title)[:140],
@@ -127,7 +128,54 @@ def _job_ended(job_id):
 # 后台任务被判弃置（AbandonedJobError：跑它的 worker 没了）、结果还没落库：用原来那几份源文件按原参数重新入队。识别任务
 # 按「对账号:口:类型」认领，读过的页有检查点、不再付费，所以续跑基本不花钱；状态缓存（文件列表、标题）由重新入队重建。
 # 只续一次；源文件没了或又被杀，标「中途中断，请重新提交」。真失败（抛了错、超时）不续。
-RESUMED, INTERRUPTED = "resumed", "interrupted"
+RESUMED, INTERRUPTED, SUPERSEDED = "resumed", "interrupted", "superseded"
+
+
+class Superseded(frappe.ValidationError):
+    """本人后来交了同内容的对账：这一份不出结果。"""
+
+
+def _digest(kind, files):
+    """这次对账交的内容：对账种类 + 左右两边源文件的内容哈希（不看标题、文件名）。有文件查不到哈希回 None。"""
+    import hashlib
+
+    sides = []
+    for side in ("left", "right"):
+        hashes = [frappe.db.get_value("File", name, "content_hash") for name in (files or {}).get(side) or []]
+        if not hashes or not all(hashes):
+            return None
+        sides.append(",".join(sorted(hashes)))
+    return hashlib.sha256(f"{kind}|{'|'.join(sides)}".encode()).hexdigest()
+
+
+def _latest_key(kind, files):
+    digest = _digest(kind, files)
+    return f"cowork-recon-latest:{frappe.local.site}:{frappe.session.user}:{digest}" if digest else None
+
+
+def _mark_latest(kind, files, job_id):
+    """记下本人这份内容最新一次提交的任务号（队列 Redis，清缓存不丢；24 小时）。"""
+    from frappe.utils.background_jobs import get_redis_conn
+
+    try:
+        key = _latest_key(kind, files)
+        if key:
+            get_redis_conn().set(key, job_id, ex=24 * 3600)
+    except Exception:
+        pass  # 只用于判断被取代；记不下就当没有后来的提交
+
+
+def _superseded(kind, files, job_id):
+    """本人后来交过同内容的对账（最新一次提交不是这一份）。查不到就当没有。"""
+    from frappe.utils.background_jobs import get_redis_conn
+
+    try:
+        key = _latest_key(kind, files)
+        latest = get_redis_conn().get(key) if key else None
+    except Exception:
+        return False
+    latest = latest.decode() if isinstance(latest, bytes) else latest
+    return bool(latest) and latest != job_id
 MAX_RESUMES = 1
 RESUME_WINDOW_HOURS = 6
 # 跑它的进程没了才算被杀：worker 没了被判弃置（部署、重启），或者干活的子进程被系统杀掉（OOM）。
@@ -157,6 +205,12 @@ def resume_if_abandoned(job_id, owner=None):
             return None
         options = json.loads(values.get("options") or "{}")
         files = values.get("files") or {}
+        if _superseded(values.get("kind"), files, job_id):
+            # 本人后来交过同内容的对账：旧的这份不续，说清楚被取代了（比「中途中断」准确）
+            _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
+                   state="failed", stage="failed", task=None, error=_("reconciliation.superseded"))
+            progress.active_remove(user, job_id)
+            return SUPERSEDED
         present = all(frappe.db.exists("File", file) for side in ("left", "right") for file in files.get(side) or [])
         if int(options.get("resumed") or 0) >= MAX_RESUMES or not present:
             _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
@@ -263,7 +317,11 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         job = getattr(frappe.local, "job", None)
         if job is not None and hasattr(job, "lang_resolved"):
             job.lang_resolved = True
-    stage = lambda name: _state(recon_job, state="running", stage=name)  # noqa: E731
+    def stage(name):
+        # 核对前看一眼：同一个人又交了同内容的对账（续跑与重交同时在跑），只让最新那份出结果（压测窗口 2026-09-30）
+        if name == "matching" and _superseded(kind, files, recon_job):
+            raise Superseded(frappe._("reconciliation.superseded"))
+        _state(recon_job, state="running", stage=name)
     # 答了预设问题后的重跑（``rerun.start``）：识别结果按原对账号取（不再识别、不再扣费），结果替换原来那份；
     # 重跑失败时原文件留着（原来那份结果也还在），可以再答一次。
     ocr_job = options.get("ocr_job") or recon_job
@@ -360,6 +418,10 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
         keep_files = bool(pending)
         _state(recon_job, state="done", stage="done", task=result["name"])
         _announce(recon_job, kind, title, task=result["name"])
+    except Superseded as error:
+        # 已由本人后来的同内容提交取代：不出结果、不弹「对账未完成」（那一份会自己弹完成）
+        frappe.db.rollback()
+        _state(recon_job, state="failed", stage="failed", error=str(error)[:500])
     except Exception as error:
         frappe.db.rollback()
         from pearnly_cowork.reconciliation.messages import error_text

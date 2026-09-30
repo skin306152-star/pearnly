@@ -771,6 +771,7 @@ Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Replaced by your later submission of the same files.,同じファイルの後からの送信に置き換えられました。
 Report Credential,レポート認証情報
 Report Credential Generation,レポート認証情報の世代
 Report Received At (UTC),レポート受信日時（UTC）
@@ -2156,6 +2157,7 @@ reconciliation.statement_other_account_left_out,次の明細書は別の口座�
 reconciliation.statement_pages_unread,{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください
 reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
+reconciliation.superseded,同じファイルの後からの送信に置き換えられました。
 reconciliation.suspected_group_gl,合計一致の可能性があります。確認してください：総勘定元帳 {0} {1} の {2} が銀行 {3} 件（{4}〜{5}）の合計と一致
 reconciliation.suspected_group_more,ほかに合計一致の可能性がある {0} 組は表示していません
 reconciliation.suspected_group_stmt,合計一致の可能性があります。確認してください：銀行 {0} の {1} が総勘定元帳 {2} 件（{3}〜{4}）の合計と一致
