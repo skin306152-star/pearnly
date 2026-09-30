@@ -1,6 +1,6 @@
 # 2026-09-30 新租户 LINE 收不到消息、Express 连接没有权限
 
-状态：开户修复已提交到任务分支；线上两个租户已手工补齐（见下），剩"Use webhook"开关要用户在 LINE 后台打开。
+状态：开户修复已合入 main（未部署，随「旧项目迁移后的用户体验问题」窗口统一部署）；线上两个租户已补齐，Use webhook 已打开。收尾：完成清理，交接项见文末。
 
 - 分支 `codex/line-webhook-auto`，基线 `c97eac21`（= 当时 `origin/main`），工作树 `.claude/worktrees/line-webhook-auto`。
 - 起因（用户）：erpcowork 在 LINE 发绑定码毫无反应；随后录入工作台点 Express「连接」报"没有权限"。
@@ -39,7 +39,8 @@
 - erpcowork：LINE Webhook 地址已设（测试推送 200）；`set-config pearnly_cowork_erp_push_enabled 1`；Cowork 菜单发布 28 套。
 - mrerp：ERP 菜单发布 28 套（不改默认菜单，当时没有已绑定用户）。
 - 回读：新增的 verify 检查在两个租户上都通过；erpcowork 的 Webhook 检查按预期停在"Use webhook 未打开"。
-- **待用户**：LINE Developers → 渠道 `2011793651`（erpcowork）与 mrerp 渠道 → Messaging API → 打开 Use webhook（并开 Webhook redelivery）。
+- 2026-09-30 用户授权在其 Chrome 里代点：erpcowork（`2011793651`）与 MRERP（`2011793822`）两个渠道的 Use webhook、Webhook redelivery 均已打开；
+  服务器回读两者 `active=True`、LINE 测试推送 200。
 
 ## 验证
 
@@ -51,3 +52,20 @@
 | 线上代码的 `publish()` / `_published()` | 生产 erpcowork、mrerp | 发布与回读 | PASS |
 
 未覆盖：完整跑一遍新租户开通（需要真实新单）；`site-step.py` 需随下一次产品激活同步到服务器部署目录后才生效。
+
+## 同日后续（本窗口，均已合入 main）
+
+| 提交 | 内容 | 部署 |
+| --- | --- | --- |
+| `95c6c2c9` | ERP 新租户默认公司、侧栏 POS、boot 各项独立（见 `2026-09-30-erp-new-tenant-company.md`） | 随统一部署；ERP 激活时补丁 `v1_11_default_company` 会跑 |
+| `2c7f9a6e` | 小助手 1.3.6：销项读回只核对本次写入的行（Express 已有同号单不再回滚，用户定：不查重、不拦） | 已发 staging（run `36717415433`） |
+| `e8d101d6` | Cowork 接入 LINE 免密登录（见 `2026-09-30-cowork-line-login.md`） | 随统一部署 |
+| `bd50517b` | 管理后台侧栏「LINE 开通手册」页 | 本机控制面已 migrate 生效 |
+
+## 交接保留项
+
+| 项 | 归属 | 解除条件 / 下次复核 |
+| --- | --- | --- |
+| 产品镜像统一部署（ERP → Cowork → DMS） | 「旧项目迁移后的用户体验问题」窗口（2026-09-30 约定，已记入其 `2026-09-30-cowork-recon-reread.md`） | 该窗口回归通过并合入后；每步需用户点头 |
+| erpcowork 重排 `set_line`（Cowork 免密登录、新菜单） | 同上，做完通知本窗口回读 | Cowork 激活后 |
+| 小助手 1.3.6 发 prod | 本任务 | 用户在客户电脑装 staging 1.3.6、把 erpcowork 转人工的 12 张 IV69/08-xxx 重推成功后；`08-011` 税号需人工改 |
