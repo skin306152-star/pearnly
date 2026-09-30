@@ -163,8 +163,6 @@ class RunInfoContract(unittest.TestCase):
 			({"surprise": 1}, "reconciliation.run_info_invalid"),
 			({"warnings": "one"}, "reconciliation.run_info_invalid:warnings"),
 			({"warnings": [1]}, "reconciliation.run_info_invalid:warnings"),
-			({"warnings": ["x" * (contracts.MAX_WARNING_TEXT + 1)]},
-				"reconciliation.run_info_invalid:warnings"),
 			({"anchor_ocr": {"stmt_opening": "x"}},
 				"reconciliation.run_info_invalid:anchor_ocr.stmt_opening"),
 			({"anchor_ocr": {"mystery": 1}}, "reconciliation.run_info_invalid:anchor_ocr"),
@@ -181,9 +179,14 @@ class RunInfoContract(unittest.TestCase):
 					contracts.run_info(payload)
 				self.assertEqual(str(caught.exception), expected)
 
-	def test_a_warning_batch_over_the_cap_is_refused(self):
-		with self.assertRaises(contracts.ReconciliationContractError):
-			contracts.run_info({"warnings": ["x"] * (contracts.MAX_WARNINGS + 1)})
+	def test_too_many_or_too_long_warnings_are_folded_not_refused(self):
+		# 2026-09-30 有意变化：提示只是说明，超出上限收拢（末尾「…(+N)」），不让整份对账失败（压测 rK I01）。
+		folded = contracts.run_info({"warnings": ["x"] * (contracts.MAX_WARNINGS + 1)})["warnings"]
+		self.assertEqual(len(folded), contracts.MAX_WARNINGS)
+		self.assertEqual(folded[-1], "…(+2)")
+		long = contracts.run_info({"warnings": ["x" * (contracts.MAX_WARNING_TEXT + 1)]})["warnings"][0]
+		self.assertLessEqual(len(long), contracts.MAX_WARNING_TEXT)
+		self.assertTrue(long.endswith("…(+1)"))
 
 
 if __name__ == "__main__":

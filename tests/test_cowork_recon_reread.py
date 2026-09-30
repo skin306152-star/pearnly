@@ -199,5 +199,24 @@ class PhotoPages(unittest.TestCase):
 				 "reconciliation.report_page_likely_misread:DIGITS.jpg (2)、NEAR.jpg (2)"])
 
 
+class LongNotes(unittest.TestCase):
+	"""提示再长也不让整份对账失败（2026-09-30 压测 rK I01：30 行自检 + 超时文件拼成一条，超长抛错）。"""
+
+	def test_long_and_many_notes_are_folded_not_refused(self):
+		from pearnly_cowork.reconciliation import bank_recon_contracts, income_recon_contracts, recon_contracts
+
+		rows = "以下识别出的税报行自己对不上：" + "、".join(f"IMG_{2500 + i}.JPG 69052{i % 10}-0{i:02d}（单号重复）" for i in range(30))
+		files = "以下文件没读出来：" + "、".join(f"IMG_{2600 + i}.JPG" for i in range(20))
+		pages = "以下税报页没法自核：" + "；".join(f"IMG_{2700 + i}.JPG: 1" for i in range(20))
+		stored = income_recon_contracts.parse_info({"vat": [{"file": "f", "rows": 1, "warnings": [rows, files, pages] * 20}]})
+		warnings = stored["vat"][0]["warnings"]
+		self.assertLessEqual(len(warnings), income_recon_contracts.MAX_WARNINGS)
+		self.assertTrue(all(len(note) <= recon_contracts.MAX_TEXT for note in warnings))
+		self.assertTrue(warnings[0].startswith("以下识别出的税报行自己对不上：") and "…(+" in warnings[0])
+		run = bank_recon_contracts.run_info({"warnings": [rows, files, pages] * 10})
+		self.assertLessEqual(len(run["warnings"]), bank_recon_contracts.MAX_WARNINGS)
+		self.assertTrue(all(len(note) <= bank_recon_contracts.MAX_WARNING_TEXT for note in run["warnings"]))
+
+
 if __name__ == "__main__":
 	unittest.main()

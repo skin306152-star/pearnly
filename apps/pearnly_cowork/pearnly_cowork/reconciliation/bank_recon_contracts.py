@@ -24,6 +24,7 @@ from pearnly_cowork.reconciliation.recon_contracts import (
 	json_dumps,
 	json_loads,
 	only_keys as _exact_keys,
+	fit_notes,
 	text as _text,
 	title_text,
 )
@@ -200,10 +201,10 @@ def run_info(value):
 	result = {}
 	warnings = value.get("warnings")
 	if warnings not in (None, ""):
-		if (not isinstance(warnings, list) or len(warnings) > MAX_WARNINGS
-				or any(not isinstance(warning, str) or len(warning) > MAX_WARNING_TEXT
-					for warning in warnings)):
+		if not isinstance(warnings, list) or any(not isinstance(warning, str) for warning in warnings):
 			raise ReconciliationContractError("reconciliation.run_info_invalid:warnings")
+		# 提示太长 / 太多就收拢，不让整份对账失败（`recon_contracts.fit_notes`，2026-09-30 压测 rK）。
+		warnings = fit_notes(warnings, count=MAX_WARNINGS, length=MAX_WARNING_TEXT)
 		# A run with nothing to warn about stores no section at all.
 		if warnings:
 			result["warnings"] = list(warnings)

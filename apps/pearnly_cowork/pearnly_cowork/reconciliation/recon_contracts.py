@@ -54,6 +54,32 @@ def text(value, field, *, required=False, limit=MAX_TEXT):
 	return text_value
 
 
+NOTE_SEPARATORS = ("；", "、", "; ", ", ")
+
+
+def fit_notes(values, *, count, length):
+	"""提示清单（读不出的文件、没法自核的页、可疑的行……）按上限收拢：一条太长就在分隔处截断、末尾写「…(+N)」
+	（N 是没列出的项数），条数太多就把多出的合成最后一条「…(+N)」。提示只是说明，再长也不能让整份对账失败
+	（2026-09-30 压测 rK I01：30 行自检 + 超时文件拼成一条，超长抛错，整份对账失败）。"""
+	notes = [str(value).strip() for value in values or [] if str(value or "").strip()]
+	fitted = []
+	for note in notes:
+		if len(note) > length:
+			cut = note[:max(length - 12, 1)]
+			for separator in NOTE_SEPARATORS:
+				position = cut.rfind(separator)
+				if position > length // 2:
+					cut = cut[:position]
+					break
+			rest = note[len(cut):]
+			remaining = max(1, sum(rest.count(separator) for separator in NOTE_SEPARATORS))
+			note = f"{cut} …(+{remaining})"
+		fitted.append(note)
+	if len(fitted) > count:
+		fitted = fitted[:count - 1] + [f"…(+{len(fitted) - count + 1})"]
+	return fitted
+
+
 def date_value(value, field):
 	"""Validate one ISO date into a ``date``; an empty value stays unknown."""
 	text_value = text(value, field, limit=10)

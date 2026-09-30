@@ -26,6 +26,7 @@ from pearnly_cowork.reconciliation.recon_contracts import (
 	json_dumps,
 	json_loads,
 	only_keys as _exact_keys,
+	fit_notes,
 	text as _text,
 	title_text,
 )
@@ -170,12 +171,11 @@ def parse_info(value):
 					item["header_found"] = bool(record.get("header_found"))
 			else:
 				warnings = record.get("warnings") or []
-				if (not isinstance(warnings, list) or len(warnings) > MAX_WARNINGS
-						or any(not isinstance(warning, str) for warning in warnings)):
+				if not isinstance(warnings, list) or any(not isinstance(warning, str) for warning in warnings):
 					raise ReconciliationContractError(
 						f"reconciliation.parse_info_invalid:{section}")
-				item["warnings"] = [_text(warning, f"{section}.warnings")
-					for warning in warnings]
+				# 提示太长 / 太多就收拢，不让整份对账失败（`recon_contracts.fit_notes`）
+				item["warnings"] = fit_notes(warnings, count=MAX_WARNINGS, length=MAX_TEXT)
 				if record.get("tax_id"):
 					item["tax_id"] = _text(record.get("tax_id"), f"{section}.tax_id", limit=13)
 				pages = record.get("photo_pages") or []

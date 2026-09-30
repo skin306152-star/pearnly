@@ -70,6 +70,16 @@
   （队列 Redis，24 小时，清缓存不丢；不看标题、文件名）。被杀的对账续跑前，若本人后来交过同内容的就不续，标「已由你后来的提交取代」
   （`reconciliation.superseded` 四语）；任何对账走到核对前再看一次，不是最新那份就不出结果、不弹「未完成」，两边同时在跑也只出一份。
 
+## 提示太长让整份对账失败（压测 rK I01，2026-09-30）
+
+- 现象：重交的 I01 整份失败「有文字太长，请缩短后再试」——税报行自检（最多 30 行）加超时文件的提示拼成一条，超过收入存档契约
+  每条 300 字的上限（`recon_contracts.text` 抛 `text_too_long:vat.warnings`）。银行存档的警告（每条 500 字、最多 20 条）同样会整份失败。
+- 改（有意变化）：`recon_contracts.fit_notes`——提示太长就在分隔处截断、末尾「…(+N)」，太多就把多出的合成最后一条；收入 parse_info 与
+  银行 run_info 的警告都走它，不再拒收。`test_cowork_bank_warnings` 里「超长 / 超条数拒收」两条按新规则改成「收拢」。销项核查的
+  `report_notes` 存在 inputs_json、没有长度契约，本来就不会失败。
+- `test_cowork_income_recon_export_source_parity`、`test_cowork_bank_recon_export_source_parity` 在 main（c97eac21）上本来就不过（导出标签
+  早先有意改过），与本改动无关。
+
 ## 未做 / 限制
 
 ### 对账收尾待办（部署前要定下来做不做）
