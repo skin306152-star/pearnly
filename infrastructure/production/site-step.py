@@ -235,7 +235,8 @@ def main():
             config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
                    pearnly_line_channel_access_token=p["channel_access_token"],
                    pearnly_line_liff_id=p.get("liff_id", ""), pearnly_line_product=group)
-            set_webhook(site, p["webhook_url"], p["channel_access_token"])
+            # 控制面没带地址（09-30 前重排 set_line 的载荷）就按站点名算，和 verify_site 核对的是同一个地址。
+            set_webhook(site, p.get("webhook_url") or webhook_url(site), p["channel_access_token"])
             # 持久菜单：凭据写进去**不等于交付**。用户看到的是 OA 上那条真实菜单，
             # 而 2026-09-20 现场正是"新平台动作已切换、OA 默认菜单还指着旧 pearnly.com
             # 公共路径与旧 Purchase LIFF"。发布是幂等的（按内容散列命名），所以每次

@@ -158,6 +158,26 @@ class Plan(Base):
 
 
 
+class Requeue(Base):
+    def test_requeued_set_line_carries_the_tenant_webhook_url(self):
+        """09-30 erpcowork：开通后重排 set_line 的载荷没带 webhook_url，站点步骤 KeyError。"""
+        step = SimpleNamespace(deployment="DEP-1", action="set_line", status="done")
+        req = SimpleNamespace(steps=[step], save=Mock())
+        dep = SimpleNamespace(name="DEP-1", issue="ISS-1", site_name="erpcowork.pearnly.com", bench_group="cowork",
+                              product="cowork", url="https://erpcowork.pearnly.com/")
+        channel = SimpleNamespace(status="active", deployment="DEP-1", channel_id="200", liff_id="",
+                                  get_password=lambda field, raise_exception=False: field)
+        frappe.db.exists.return_value = True
+        frappe.db.get_value.side_effect = ["cloud", "TEN-1", "active", "REQ-1"]
+        with patch.object(frappe, "get_doc", side_effect=lambda doctype, name, **kw: dep if doctype == provisioning.DEPLOYMENT else req), \
+             patch.object(provisioning.infra, "is_cloud", return_value=True), \
+             patch.object(provisioning, "line_login_secret", return_value=""):
+            provisioning.queue_cloud_line_config(channel)
+        payload = __import__("json").loads(step.payload)
+        self.assertEqual(payload["webhook_url"], "https://erpcowork.pearnly.com/api/method/pearnly_core.line.webhook")
+        self.assertEqual(step.status, "pending")
+
+
 class LineLoginSecret(unittest.TestCase):
     """全平台一个 LINE Login 频道：ERP 与 Cowork 的租户都拿到密钥（Cowork 2026-09-30 接入），DMS 不接。"""
 

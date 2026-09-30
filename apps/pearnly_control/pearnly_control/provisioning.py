@@ -349,7 +349,7 @@ def _line_payload(dep, site: str, group: str) -> dict:
         "site": site,
         "group": group,
         "product": dep.product,
-        "webhook_url": f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.line.webhook",
+        "webhook_url": line_webhook_url(dep),
     }
     if not channel:
         payload["configured"] = False
@@ -412,6 +412,11 @@ def requeue_line_login(target) -> int:
     return count
 
 
+def line_webhook_url(dep) -> str:
+    """租户 LINE OA 的 Webhook 地址。开户和开通后重排 set_line 都用这一个（09-30 重排漏了它，站点步骤 KeyError）。"""
+    return f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.line.webhook"
+
+
 def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     """把"这条渠道现在长什么样"重排成云端的 set_line 步骤。**开通之后再配渠道就走这里。**
 
@@ -455,7 +460,7 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
                "configured": enabled, "clear_credentials": not enabled, "restart": True,
                "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
                "channel_secret": secret, "channel_access_token": token,
-               "login_channel_secret": login_secret}
+               "login_channel_secret": login_secret, "webhook_url": line_webhook_url(dep)}
     step.payload = json.dumps(payload)
     step.status, step.output, step.finished_at = "pending", "", None
     req.status, req.error, req.finished_at = "pending", "", None
