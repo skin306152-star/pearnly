@@ -581,6 +581,7 @@ Members and observers,成员和观察者
 Mirror,镜像
 Missing page,此处缺页
 Monthly,每月
+"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",大部分发票到时限还没读完（{1} 份里有 {0} 份），下面的差异很多只是发票没读出，请稍后重新提交。
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
@@ -2237,6 +2238,7 @@ total,含税
 used by {0} items,{0} 个商品在用
 vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 vat_check.balance_unavailable,暂时查不到账户余额，请稍后再试。
+vat_check.mostly_unread,大部分发票到时限还没读完（{1} 份里有 {0} 份），下面的差异很多只是发票没读出，请稍后重新提交。
 vat_check.no_invoices,没有读出任何发票。
 vat_check.note.purchase_invoices,这几张发票的买方是本公司，看起来是进项发票，请确认是否放错：{0}
 vat_check.note.unread,这些文件读不出来，没有计入核查：{0}

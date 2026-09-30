@@ -1455,28 +1455,30 @@ class WaitingForInvoices(unittest.TestCase):
 			if step >= 4:
 				return {"W1": ("succeeded", 2, [{"invoice_no": "1"}]), "W2": ("succeeded", 2, [{"invoice_no": "2"}])}
 			return {"W1": ("running", step, None), "W2": ("queued", 0, None)}
-		(invoices, failed), seconds = self.run_wait(states)
+		(invoices, failed, stopped), seconds = self.run_wait(states)
 		self.assertEqual([item["invoice_no"] for item in invoices], ["1", "2"])
-		self.assertEqual(failed, [])
+		self.assertEqual((failed, stopped), ([], 0))
 		self.assertGreater(seconds, invoice_ocr.QUEUE_LIMIT - 30 * 60)
 
-	def test_a_file_that_stops_moving_is_named_and_the_rest_is_checked(self):
-		from pearnly_cowork.recon_center import invoice_ocr
-
+	def test_a_slow_read_without_progress_for_a_while_is_still_waited_for(self):
+		# rQ（2026-09-30）：网络差时一次调用结果不明要等租约十来分钟，原来 5 分钟没进展就取消，V02 只剩 4 张发票。
+		finish = 40 * 60
 		def states(now):
-			return {"W1": ("succeeded", 1, [{"invoice_no": "1"}]), "W2": ("running", 1, None)}
-		(invoices, failed), seconds = self.run_wait(states)
-		self.assertEqual((len(invoices), failed), (1, ["b.pdf"]))
-		self.assertLess(seconds, invoice_ocr.STALL_SECONDS + 2 * invoice_ocr.PROGRESS_CHECK_SECONDS)
+			if now >= finish:
+				return {"W1": ("succeeded", 1, [{"invoice_no": "1"}]), "W2": ("succeeded", 9, [{"invoice_no": "2"}])}
+			return {"W1": ("succeeded", 1, [{"invoice_no": "1"}]), "W2": ("deferred" if now > 600 else "running", 1, None)}
+		(invoices, failed, stopped), _seconds = self.run_wait(states)
+		self.assertEqual((len(invoices), failed, stopped), (2, [], 0))
 
-	def test_reading_that_keeps_moving_is_waited_for_but_not_forever(self):
+	def test_reading_past_the_limit_uses_what_was_read_and_names_the_rest(self):
 		from pearnly_cowork.recon_center import invoice_ocr
 
 		def states(now):
 			return {"W1": ("succeeded", 1, [{"invoice_no": "1"}]), "W2": ("running", int(now // 120), None)}
-		(invoices, failed), seconds = self.run_wait(states)
-		self.assertEqual(failed, ["b.pdf"])
+		(invoices, failed, stopped), seconds = self.run_wait(states)
+		self.assertEqual((len(invoices), failed, stopped), (1, ["b.pdf"], 1))
 		self.assertGreater(seconds, invoice_ocr.READ_LIMIT)
+		self.assertLess(seconds, invoice_ocr.READ_LIMIT + 2 * invoice_ocr.PROGRESS_CHECK_SECONDS)
 
 	def test_nothing_read_at_all_still_reports_the_timeout(self):
 		with self.assertRaises(RuntimeError):

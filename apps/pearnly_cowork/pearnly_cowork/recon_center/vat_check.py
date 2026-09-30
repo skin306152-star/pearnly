@@ -172,7 +172,7 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
         # 税报没带卖方信息时取表头印的本公司税号（结果页据此提示进项发票放错口；2026-09-30）。
         merged["seller_tax_id"] = next((item.get("issuer_hint") for item in parsed_reports if item.get("issuer_hint")), "")
     stage("invoice")
-    records, failed, scanned = [], [], []
+    records, failed, scanned, stopped = [], [], [], 0
     for index, (name, content) in enumerate(invoices):
         if sources.extension(name) in STRUCTURED:
             parsed = vat_parse.decode(sources.report_source(content, name))
@@ -193,7 +193,7 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
             frappe.throw(_("vat_check.balance_insufficient") if reason == "insufficient_balance"
                          else _("vat_check.balance_unavailable") if reason == "lookup_error"
                          else _("vat_check.recognition_busy"))
-        found, unread = invoice_ocr.wait(works) if works else ([], [])
+        found, unread, stopped = invoice_ocr.wait(works) if works else ([], [], 0)
         records.extend(found)
         failed.extend(rejected + unread)
     if not records:
@@ -204,5 +204,9 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
                                       for name, item in zip(report_names, parsed_reports)])
     if unread_reports:
         notes.insert(0, _("reconciliation.files_unread").format("、".join(unread_reports)))
+    if scanned and stopped * 2 > len(scanned):
+        # 读到时限还没读完的发票过半（网络差、文件大）：差异大多是「报告有 · 发票无」，不能当正常结果看，放在最前面说清楚
+        # （2026-09-30 压测 rQ）。已读出的照常核对、没读完的照常点名。
+        notes.insert(0, _("vat_check.mostly_unread").format(stopped, len(scanned)))
     return vat_check_service.create(workspace, title, request_id, {**merged, "invoices": records,
         "report_rows": merged["rows"], "failed_files": failed, "report_notes": notes}, lang)

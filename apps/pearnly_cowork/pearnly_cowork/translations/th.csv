@@ -581,6 +581,7 @@ Members and observers,สมาชิกและผู้สังเกตก�
 Mirror,มิเรอร์
 Missing page,หน้าขาดหาย
 Monthly,ทุกเดือน
+"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",ใบกำกับส่วนใหญ่ยังอ่านไม่เสร็จเมื่อหมดเวลา ({0} จาก {1} ไฟล์) ความแตกต่างด้านล่างหลายรายการเป็นเพียงใบกำกับที่ยังอ่านไม่ได้ กรุณาส่งใหม่ภายหลัง
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
@@ -2237,6 +2238,7 @@ total,รวมภาษี
 used by {0} items,มีสินค้าใช้อยู่ {0} รายการ
 vat_check.balance_insufficient,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 vat_check.balance_unavailable,ตรวจสอบยอดเงินในบัญชีไม่ได้ชั่วคราว กรุณาลองใหม่ภายหลัง
+vat_check.mostly_unread,ใบกำกับส่วนใหญ่ยังอ่านไม่เสร็จเมื่อหมดเวลา ({0} จาก {1} ไฟล์) ความแตกต่างด้านล่างหลายรายการเป็นเพียงใบกำกับที่ยังอ่านไม่ได้ กรุณาส่งใหม่ภายหลัง
 vat_check.no_invoices,ไม่สามารถอ่านใบกำกับได้เลย
 vat_check.note.purchase_invoices,ผู้ซื้อในใบกำกับภาษีเหล่านี้คือบริษัทของคุณเอง น่าจะเป็นใบกำกับภาษีซื้อ กรุณาตรวจสอบว่าใส่ผิดช่องหรือไม่: {0}
 vat_check.note.unread,ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}

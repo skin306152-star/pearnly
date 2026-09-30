@@ -581,6 +581,7 @@ Members and observers,Members and observers
 Mirror,Mirror
 Missing page,Missing page
 Monthly,Monthly
+"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.","Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
 Move,Move
 Move all cards in this list,Move all cards in this list
 Move list,Move list
@@ -2237,6 +2238,7 @@ total,total
 used by {0} items,used by {0} items
 vat_check.balance_insufficient,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 vat_check.balance_unavailable,The account balance could not be checked right now. Try again in a moment.
+vat_check.mostly_unread,"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
 vat_check.no_invoices,No invoice could be read.
 vat_check.note.purchase_invoices,The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}
 vat_check.note.unread,These files could not be read and were left out: {0}

@@ -14,8 +14,10 @@
 	const api = "pearnly_cowork.recon_center.api.";
 	// 页面等到后台任务的上限之后（任务 30 分钟、其中识别最多等 25 分钟）：原来页面 20 分钟先报超时，后台其实还在做。
 	// 销项核查的发票可能上百张、按识别名额分批读，后台任务给到 60 分钟（jobs.TIMEOUTS）：页面等 62 分钟。
-	// 识别排队的时间另算（`document_ocr.QUEUE_LIMIT`），后台任务给到三小时：页面等到 3 小时零 2 分钟。
-	const POLL_MS = 1500, POLL_LIMIT_MS = (3 * 60 + 2) * 60 * 1000;
+	// 识别排队的时间另算（`document_ocr.QUEUE_LIMIT`），后台任务给到三小时；销项核查五小时（发票读得慢，
+	// `invoice_ocr.READ_LIMIT`）：页面等到后台任务上限之后再 2 分钟。
+	const POLL_MS = 1500, POLL_LIMITS_MS = { bank: 3 * 3600e3, income: 3 * 3600e3, vat: 5 * 3600e3 };
+	const POLL_LIMIT_MS = kind => (POLL_LIMITS_MS[kind] || 3 * 3600e3) + 2 * 60e3;
 
 	// 对账结束的原生通知（用户 2026-09-30：「结果完成时用原生带声音的通知」）：服务端结束时推给发起人，
 	// 不管人在哪个页面都弹原生提示并响原生提示音（`p.success` / `play_sound`，跟账户静音走）；点一下打开结果。
@@ -371,7 +373,7 @@
 					}
 					draw(state);
 				}
-				if (Date.now() - began > POLL_LIMIT_MS) { frappe.msgprint(t("cowork.recon.timeout")); return; }
+				if (Date.now() - began > POLL_LIMIT_MS(kind)) { frappe.msgprint(t("cowork.recon.timeout")); return; }
 				await new Promise(resolve => setTimeout(resolve, POLL_MS));
 				if (request !== sequence) return;
 			}

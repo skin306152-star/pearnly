@@ -46,12 +46,12 @@ TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 YIELD_SECONDS = 120
 # 多页扫描发票读一页要 60 秒以上（2026-09-30 压测 V04：5 份 PDF 读超时、结果不明后整份丢了），与账单路径一样放宽。
 MODEL_TIMEOUT_SECONDS = 120
-# 等发票的时限（2026-09-30 压测 rO：V02、V03 税报 PDF 等满 50 分钟整份判「发票识别超时」，排队的时间也算了进去，
-# 同一轮读不出的发票在别处是点名跳过的）。与账单同一口径：排队不算读取时限；开始读了以后只要还在往前读就等，
-# 很久没进展或读了太久，就用已经读出的发票核对，没读完的文件点名请重新上传。
+# 等发票的时限（2026-09-30 压测 rO：V02、V03 税报 PDF 等满 50 分钟整份判「发票识别超时」，排队的时间也算了进去）。
+# 排队不算读取时限；开始读了以后只按总时限判，读满了就用已经读出的发票核对，没读完的文件点名请重新上传。
+# 不按「几分钟没进展」放弃（rQ 2026-09-30：网络差时一次调用结果不明要等租约或退避十来分钟，5 分钟没进展是常态；
+# V02 五份大文件都读了大半、付了费，被这条规则取消，核查只剩 4 张发票）。27 页的发票 PDF 网络差时要 60–90 分钟。
 QUEUE_LIMIT = 90 * 60           # 一份都还没开始读：排队最多等这么久
-STALL_SECONDS = 5 * 60          # 开始读了以后：这么久没有任何一份多做完一次调用或结束，就不再等
-READ_LIMIT = 75 * 60            # 从开始读起最多等这么久（加上排队仍在对账后台任务 3 小时的时限内，jobs.TIMEOUTS）
+READ_LIMIT = 150 * 60           # 从开始读起最多等这么久（排队 + 读取 + 前后步骤在销项核查后台任务 5 小时内，jobs.TIMEOUTS）
 PROGRESS_CHECK_SECONDS = 60
 POLL_SECONDS = 3
 
@@ -156,12 +156,13 @@ def wait(works, on_stage=None):
     """等 Work 结束，取回每份的发票。返回 (发票记录, 没读出的文件名)。
 
     余额不足时 Work 会一直顺延：所有没结束的都卡在余额上就直接报余额不足（这些 Work 随后自行取消）。
-    排队不算读取时限；开始读了以后很久没进展或读了太久，没读完的文件算没读出（核查照常出结果、点名这些文件），
+    排队不算读取时限；开始读了以后读满 ``READ_LIMIT``，没读完的文件算没读出（核查照常出结果、点名这些文件），
     它们在核查结束后下一次付费调用前自行取消、不扣费（``_recon_closed``）。一张发票都没读出才整份报超时。
+    返回 ``(发票, 没读出的文件名, 读到时限还没读完的份数)``。
     """
     names = [name for name, _f in works]
     entered = now = time.monotonic()
-    reading_since, done, progressed, checked = None, -1, entered, 0.0
+    reading_since, checked = None, 0.0
     stopped = set()
     while True:
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
@@ -174,19 +175,17 @@ def wait(works, on_stage=None):
         if all(row and row.status == "deferred" and row.last_code == "insufficient_balance" for row in open_rows):
             frappe.throw(_("vat_check.balance_insufficient"))
         now = time.monotonic()
-        if now - checked >= PROGRESS_CHECK_SECONDS:
+        if reading_since is None and now - checked >= PROGRESS_CHECK_SECONDS:
             checked = now
-            count = len(names) - len(open_names) + sum(
+            started = len(names) > len(open_names) or any(row and row.status not in ("queued", "deferred")
+                                                            for row in open_rows) or any(
                 _calls(value) for value in frappe.get_all(WORK, filters={"name": ["in", open_names]}, pluck="checkpoints"))
-            if count > done:
-                done, progressed = count, now
-            if reading_since is None and (count > 0 or any(row and row.status not in ("queued", "deferred")
-                                                             for row in open_rows)):
-                reading_since = progressed = now  # 开始读了：从这一刻起算读取时限
+            if started:
+                reading_since = now  # 开始读了：从这一刻起算读取时限
         if reading_since is None:
             if now - entered > QUEUE_LIMIT:
                 frappe.throw(_("vat_check.recognition_busy"))
-        elif now - progressed > STALL_SECONDS or now - reading_since > READ_LIMIT:
+        elif now - reading_since > READ_LIMIT:
             stopped = set(open_names)
             break
         time.sleep(POLL_SECONDS)
@@ -203,7 +202,7 @@ def wait(works, on_stage=None):
             failed.append(filename)
     if stopped and not invoices:
         frappe.throw(_("vat_check.recognition_timeout"))
-    return invoices, failed
+    return invoices, failed, len(stopped)
 
 
 # ── Work 里跑：识别 → 存结果 → 扣费 ─────────────────────────────────────────

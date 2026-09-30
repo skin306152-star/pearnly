@@ -581,6 +581,7 @@ Members and observers,メンバーとオブザーバー
 Mirror,ミラー
 Missing page,ページ欠落
 Monthly,毎月
+"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
@@ -2237,6 +2238,7 @@ total,税込
 used by {0} items,{0} 品目が使用中
 vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 vat_check.balance_unavailable,現在、残高を確認できません。しばらくしてからもう一度お試しください。
+vat_check.mostly_unread,請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
 vat_check.no_invoices,請求書を1件も読み取れませんでした。
 vat_check.note.purchase_invoices,これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}
 vat_check.note.unread,次のファイルは読み取れず、照合に含めていません：{0}
