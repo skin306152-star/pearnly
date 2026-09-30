@@ -1421,6 +1421,10 @@ class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 					self.assertTrue(document_ocr._recon_closed("job", "F1"))
 				with mock.patch.object(jobs, "resume_if_abandoned", return_value=jobs.RESUMED):
 					self.assertFalse(document_ocr._recon_closed("job", "F1"))
+			# 别的识别抢到了续跑的锁（这一份拿到 None），但后台任务已被续上：照读，不取消自己
+			with mock.patch.object(jobs, "_job_ended", side_effect=[True, False]), \
+					mock.patch.object(jobs, "resume_if_abandoned", return_value=None):
+				self.assertFalse(document_ocr._recon_closed("job", "F1"))
 			with mock.patch.object(jobs, "_job_ended", return_value=False):
 				self.assertFalse(document_ocr._recon_closed("job", "F1"))
 			with mock.patch.object(jobs, "_job_ended", side_effect=ConnectionError):
