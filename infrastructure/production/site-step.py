@@ -7,8 +7,10 @@ import secrets
 import shutil
 import sys
 import runpy
+import urllib.request
 
 
+LINE_WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/"
 COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
               "pearnly_cowork_ocr_policy": {"mode": "economy"}}
 
@@ -27,6 +29,43 @@ def line_login(p, group, runtime):
                                runtime["KEYCLOAK_ADMIN_PASSWORD"])
     keycloak["configure_site"](api, alias=alias, login_channel_id=channel, login_channel_secret=secret)
     return alias
+
+
+def webhook_url(site):
+    return "https://" + site + "/api/method/pearnly_core.line.webhook"
+
+
+def line_webhook(token, method, path="endpoint", body=None):
+    request = urllib.request.Request(
+        LINE_WEBHOOK_API + path, method=method,
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={"Authorization": "Bearer " + token.strip(), "Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read() or b"{}")
+
+
+def set_webhook(site, url, token):
+    """把租户 OA 的 Webhook 地址指到本站点。
+
+    凭据写进站点不等于 LINE 会把消息投过来：地址以前全靠人去 LINE 后台手填，
+    erpcowork 漏填后发绑定码毫无反应（2026-09-30）。这一步在上线之前跑，只设地址不发测试。
+    """
+    assert url == webhook_url(site), "LINE webhook URL must be this tenant's own endpoint"
+    line_webhook(token, "PUT", body={"endpoint": url})
+    assert line_webhook(token, "GET").get("endpoint") == url, "LINE did not keep the webhook URL"
+
+
+def check_webhook(site, token):
+    """上线后回读：地址是本站、"Use webhook" 已打开、LINE 的测试推送能拿到 200。
+
+    "Use webhook" 开关 LINE 没有开放接口，只能在 LINE Developers → Messaging API 手动打开。
+    """
+    url = webhook_url(site)
+    info = line_webhook(token, "GET")
+    assert info.get("endpoint") == url, "LINE webhook URL does not point to this tenant"
+    assert info.get("active"), "Turn on 'Use webhook' in LINE Developers (Messaging API) for this channel"
+    result = line_webhook(token, "POST", "test", {"endpoint": url})
+    assert result.get("success"), "LINE webhook test failed: %s %s" % (result.get("statusCode"), result.get("reason"))
 
 
 def main():
@@ -153,6 +192,7 @@ def main():
             config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
                    pearnly_line_channel_access_token=p["channel_access_token"],
                    pearnly_line_liff_id=p.get("liff_id", ""), pearnly_line_product=group)
+            set_webhook(site, p["webhook_url"], p["channel_access_token"])
             # 持久菜单：凭据写进去**不等于交付**。用户看到的是 OA 上那条真实菜单，
             # 而 2026-09-20 现场正是"新平台动作已切换、OA 默认菜单还指着旧 pearnly.com
             # 公共路径与旧 Purchase LIFF"。发布是幂等的（按内容散列命名），所以每次
@@ -207,6 +247,8 @@ def main():
             state = rich_menu.published_state()
             assert state["basic"] and state["query"], "This tenant's DMS rich menus are not published"
             assert state["default"] == state["basic"], "The OA default rich menu is not this tenant's menu"
+        if frappe.conf.get("pearnly_line_channel_access_token"):
+            check_webhook(site, frappe.conf.pearnly_line_channel_access_token)
     else:
         raise ValueError("Unsupported Site action")
     frappe.db.commit()
