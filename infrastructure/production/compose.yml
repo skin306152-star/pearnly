@@ -3,7 +3,7 @@ name: pearnly-production
 # 可调容量（2026-09-30）：三产品的识别进程、Cowork 对账进程、网页进程数和各自内存上限
 # 从 /opt/pearnly/secrets/runtime.env 读，没写就是下面各处 `:-` 后的原值：
 #   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
-#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM。
+#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_MARIADB_MEM。
 # 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
 
 x-runtime: &runtime
@@ -58,7 +58,9 @@ services:
   mariadb:
     image: mariadb:11.8@sha256:79d59758afc91b89b120b0a8904d637f5a3b3e1c4900f29b740d6d46c72fef68
     restart: unless-stopped
-    mem_limit: 2g
+    # 可在 runtime.env 调（PEARNLY_MARIADB_MEM）：连接上限 300 后每个连接还要一份缓冲，2026-10-01 压测时已到 1.65 / 2GiB。
+    # 线上可先 `docker update --memory` 不重启生效，这里保证重建后仍是同一值。
+    mem_limit: ${PEARNLY_MARIADB_MEM:-2g}
     # --max-allowed-packet: 大数据量租户的单份快照可达 20MB 以上（rayong 15,135 个客户），
     # 默认 16MB 会让写入在读取中途被数据库拒绝。必须覆盖 store.MAX_BYTES。
     # --max-connections=300：默认 151。识别不 fork 运行后进程数翻倍（2026-10-01 压测：识别 12+12+4、网页 14×4 线程、

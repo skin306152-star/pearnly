@@ -179,5 +179,7 @@ assert capacity.available_floor(HOST_MIB * M) == 8192 * M
 assert capacity.available_floor(64 * 1024 * M) == 16 * 1024 * M
 checks.append('Overcommit is only admitted while the host has max(8 GiB, 25%) available')
 assert '--max-connections=300' in services['mariadb']['command']
+assert int(services['mariadb']['mem_limit']) == 2048 * M
+assert int(rendered(PEARNLY_MARIADB_MEM='3g')['mariadb']['mem_limit']) == 3072 * M
 checks.append('MariaDB accepts 300 connections for the no-fork worker pools')
 print(json.dumps({'passed': len(checks), 'checks': checks}))

@@ -51,3 +51,10 @@
 - `capacity.py` 识别每进程下限 320 → 450。按 450 算，cowork 32 进程要约 14g，在 1.3 倍规则下放不下，今晚的进程数要重定。
 - 定期释放高水位：Frappe v16 `RQ_MAX_JOBS = 5000` 是模块常量，没有配置能改；建议由共用层 after_job 按进程 RSS 超阈值自发 SIGTERM
   （rq 收尾后退出、WorkerPool 补起），已交修复窗口评估。
+
+## 2026-10-01 用户选 A，今晚执行（待做）
+
+- mariadb 上限 2g → 3g：compose 改为 `PEARNLY_MARIADB_MEM`（默认 2g）；线上用 `docker update --memory 3g --memory-swap 3g` 不重启生效，
+  同时 runtime.env 写 `PEARNLY_MARIADB_MEM=3g`，保证以后重建仍是 3g。max_connections 300 已于 10-01 用 SET GLOBAL 生效。
+- cowork-ocr-worker 12 → 18 进程，上限保持 8g（18 × 450 = 8100）；erp 12 / 8g、dms 4 / 2g 不变。
+- 合计（上限 + 宿主保留）40969 / 41724。单租户上限按「≤ 进程数 − 4」取 12–16，等压测窗口的 24/40 结果定。
