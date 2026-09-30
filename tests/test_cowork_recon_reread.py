@@ -169,30 +169,34 @@ class PhotoPages(unittest.TestCase):
 		with self.assertRaises(Exception):
 			income_recon_contracts.parse_info({"vat": [{"file": "p.jpg", "photo_pages": [["p.jpg"]]}]})
 
-	def test_a_page_with_several_lines_off_the_ledger_is_named(self):
+	def test_only_lines_that_look_misread_are_counted(self):
 		from types import SimpleNamespace
 		from unittest import mock
 
 		from pearnly_cowork.reconciliation import income_vat, revision
 
-		# 结果行的单号是总账的写法（带字母前缀），页上记的是税报读出的写法：按配对同一套归页（rH I01）。
+		row = lambda number, vat, gl: income_vat.ReconRow(number, "2026-05-20", "", vat, gl,
+			None if gl is None else round(vat - gl, 2), "")
 		doc = SimpleNamespace(parse_info_json=json.dumps({"vat": [{"file": "f", "photo_pages": [
-			["IMG_1.jpg", ["690501-001", "690501-002", "690501-003"]], ["IMG_2.jpg", ["690502-001", "690502-002"]],
-			["IMG_3.jpg", ["690503-001", "690503-002", "690503-003"]]]}]}))
-		results = [income_vat.ReconRow("SI690501-001", "", "", 100.0, 90.0, 10.0, ""),
-			income_vat.ReconRow("690501-002", "", "", 100.0, None, None, ""),
-			income_vat.ReconRow("SI690501-003", "", "", 100.0, 100.0, 0.0, ""),
-			income_vat.ReconRow("SI690502-001", "", "", 100.0, 80.0, 20.0, ""),
-			income_vat.ReconRow("SI690502-002", "", "", 100.0, 100.0, 0.0, ""),
-			# 金额整体错行：785.05 与 420.56 配错了单号
-			income_vat.ReconRow("SI690503-001", "", "", 785.05, 420.56, 364.49, ""),
-			income_vat.ReconRow("SI690503-002", "", "", 420.56, 785.05, -364.49, ""),
-			income_vat.ReconRow("SI690503-003", "", "", 50.0, 50.0, 0.0, "")]
-		summary = income_vat.GlVatSummary(0, 0, 0, 0, 0, 0)
+			["SHIFT.jpg", ["690512-011", "690512-012", "690512-013"]],
+			["DIGITS.jpg", ["690513-001", "690513-002"]],
+			["REAL.jpg", ["690520-004", "690523-017", "SW02000131"]],
+			["NEAR.jpg", ["690521-001", "690521-002"]]]}]}))
+		results = [
+			# 金额在单号之间错开（结果行单号是总账写法，带字母前缀）
+			row("SI690512-011", 785.05, 420.56), row("SI690512-012", 420.56, 785.05), row("SI690512-013", 50.0, 50.0),
+			# 只差一两位数字
+			row("SI690513-001", 785.05, 785.65), row("SI690513-002", 1284.0, 1234.0),
+			# 真实差异：总账里没有、也没有近似的；金额差得不像读错（rJ IMG_2545 / 2546）
+			row("690520-004", 420.56, None), row("690523-017", 56.07, None), row("SW02000131", 3557.02, 2339.36),
+			# 总账里没有，但总账同一天有同金额、单号只差一个字符的 → 像读错；另一行是金额差一位
+			row("690521-001", 300.0, None), row("SI690521-002", 500.0, 580.0)]
+		summary = income_vat.GlVatSummary(0, 0, 0, 0, 0, 0, gl_only_credit_items=[
+			{"doc_no": "SI690527-001", "date": "2026-05-20", "name": "", "amount": 300.0}])
 		with mock.patch.object(revision, "_", side_effect=lambda text: text + ":{0}"):
 			self.assertEqual(revision.income_photo_notes(doc, results, summary),
-				["reconciliation.report_page_shifted:IMG_3.jpg (2)",
-				 "reconciliation.report_page_likely_misread:IMG_1.jpg (2)"])
+				["reconciliation.report_page_shifted:SHIFT.jpg (2)",
+				 "reconciliation.report_page_likely_misread:DIGITS.jpg (2)、NEAR.jpg (2)"])
 
 
 if __name__ == "__main__":

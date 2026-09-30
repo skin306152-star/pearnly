@@ -129,30 +129,71 @@ def income_notes(doc):
 PAGE_MISREAD_ROWS = 2
 
 
+def _near_digits(left, right, limit=2):
+	"""两个金额只差一两位数字（按分对齐逐位比）：像读错，不像真账差额。"""
+	a, b = str(int(round(abs(left) * 100))), str(int(round(abs(right) * 100)))
+	width = max(len(a), len(b))
+	return 0 < sum(x != y for x, y in zip(a.zfill(width), b.zfill(width))) <= limit
+
+
+def _near_number(left, right, limit=2):
+	"""两个单号（配对写法）只差一两个字符（编辑距离）。"""
+	if not left or not right or abs(len(left) - len(right)) > limit:
+		return False
+	previous = list(range(len(right) + 1))
+	for i, char in enumerate(left, 1):
+		current = [i]
+		for k, other in enumerate(right, 1):
+			current.append(min(previous[k] + 1, current[k - 1] + 1, previous[k - 1] + (char != other)))
+		previous = current
+	return 0 < previous[-1] <= limit
+
+
+def _same_day(left, right):
+	from pearnly_cowork.reconciliation.normalization import parse_date
+
+	first, second = parse_date(left), parse_date(right)
+	return bool(first and second and first == second)
+
+
 def income_photo_notes(doc, results, summary):
-	"""照片 / 扫描件识别出的税报，按页看和总账对不上的行（压测窗口 2026-09-30：IMG_2535 一页 10 行金额在单号之间整体错开）：
-	- 这一页对不上的几行，税报金额和总账金额是同一组数、只是配错了单号 → 点名「金额错行」，是读错不是差异；
-	- 否则同一页有 ≥2 行对不上（金额不同或总账里没有）→ 提示多半是这页读错，先对照原件。
-	单号按配对同一套写法归页（去字母前缀）。按当前核对结果现算。"""
+	"""照片 / 扫描件识别出的税报，按页看和总账对不上、而且**有读错迹象**的行（压测窗口 2026-09-30：IMG_2535 一页 10 行
+	金额在单号之间整体错开；rJ 又指出「同一页 ≥2 行对不上就说读错」会把真实差异说成读错，比漏报更伤人）。算读错迹象的只有：
+	- 单号在总账里有、金额不同，且差得像读错：只差一两位数字，或这一行的金额正好是同页另一行在总账里的金额（配错了行）；
+	- 单号在总账里没有，但总账同一天有一笔金额相同、单号只差一两个字符的。
+	总账里没有、也没有近似对应的，按真实差异，不算进来。同一页有 ≥2 行这样的才提示；这几行的税报金额与总账金额正好是同一组数的，
+	点名「金额错行」。单号按配对同一套写法归页（去字母前缀）。按当前核对结果现算。"""
 	parse_info = income_recon_contracts.json_loads(doc.parse_info_json) or {}
 	pages = [page for item in parse_info.get("vat") or [] for page in item.get("photo_pages") or []]
 	if not pages:
 		return []
-	off = {income_vat.number_key(row.doc_no): row for row in results
-		if row.gl_amount is None or abs(row.diff or 0) > 0.01}
-	missing = {income_vat.number_key(item.get("doc_no") or "")
-		for item in (summary.vat_only_positive_items or []) + (summary.vat_only_negative_items or [])}
+	rows = {income_vat.number_key(row.doc_no): row for row in results}
+	unclaimed = [item for item in (summary.gl_only_credit_items or []) + (summary.gl_only_debit_items or [])]
 	shifted, flagged = [], []
 	for label, refs in pages:
 		keys = [key for key in dict.fromkeys(income_vat.number_key(ref) for ref in refs) if key]
-		rows = [off[key] for key in keys if key in off]
-		count = len({key for key in keys if key in off or key in missing})
-		paired = [row for row in rows if row.gl_amount is not None]
-		if len(paired) >= PAGE_MISREAD_ROWS and sorted(round(row.vat_amount, 2) for row in paired) \
+		page = [rows[key] for key in keys if key in rows]
+		suspects = []
+		for key, row in ((key, rows[key]) for key in keys if key in rows):
+			if row.gl_amount is not None:
+				if abs(row.diff or 0) <= 0.01:
+					continue
+				swapped = any(other is not row and other.gl_amount is not None
+					and abs(row.vat_amount - other.gl_amount) <= 0.01 for other in page)
+				if swapped or _near_digits(row.vat_amount, row.gl_amount):
+					suspects.append(row)
+			elif any(_same_day(item.get("date"), row.date)
+					and abs(float(item.get("amount") or 0) - abs(row.vat_amount)) <= 0.01
+					and _near_number(key, income_vat.number_key(item.get("doc_no") or "")) for item in unclaimed):
+				suspects.append(row)
+		if len(suspects) < PAGE_MISREAD_ROWS:
+			continue
+		paired = [row for row in suspects if row.gl_amount is not None]
+		if len(paired) == len(suspects) and sorted(round(row.vat_amount, 2) for row in paired) \
 				== sorted(round(row.gl_amount, 2) for row in paired):
 			shifted.append(f"{label} ({len(paired)})")
-		elif count >= PAGE_MISREAD_ROWS:
-			flagged.append(f"{label} ({count})")
+		else:
+			flagged.append(f"{label} ({len(suspects)})")
 	notes = []
 	if shifted:
 		notes.append(_("reconciliation.report_page_shifted").format("、".join(shifted)))
