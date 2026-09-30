@@ -1416,7 +1416,11 @@ class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 		db.exists.return_value = True
 		with mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch.object(document_ocr.frappe, "db", db):
 			with mock.patch.object(jobs, "_job_ended", return_value=True):
-				self.assertTrue(document_ocr._recon_closed("job", "F1"))
+				# 续不了（已标中途中断）→ 算结束；续上了 → 照读，结果留给续跑的那个对账
+				with mock.patch.object(jobs, "resume_if_abandoned", return_value=jobs.INTERRUPTED):
+					self.assertTrue(document_ocr._recon_closed("job", "F1"))
+				with mock.patch.object(jobs, "resume_if_abandoned", return_value=jobs.RESUMED):
+					self.assertFalse(document_ocr._recon_closed("job", "F1"))
 			with mock.patch.object(jobs, "_job_ended", return_value=False):
 				self.assertFalse(document_ocr._recon_closed("job", "F1"))
 			with mock.patch.object(jobs, "_job_ended", side_effect=ConnectionError):

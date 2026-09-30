@@ -1048,6 +1048,7 @@ The recognized invoice manifest cannot be replaced.,ไม่สามารถ�
 The reconciliation could not be completed.,การกระทบยอดไม่สำเร็จ
 The reconciliation data is not in the expected format. Upload the files again,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 The reconciliation task was not found.,ไม่พบงานกระทบยอดนี้
+The reconciliation was interrupted part way (the system restarted). Please submit it again.,การกระทบยอดถูกขัดจังหวะกลางคัน (ระบบรีสตาร์ต) กรุณาส่งใหม่อีกครั้ง
 The record changed. Reload it before saving.,รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก
 The record data is not valid JSON.,ข้อมูลรายการไม่ใช่ JSON ที่ถูกต้อง
 The record metadata has an invalid format.,รูปแบบข้อมูลประกอบรายการไม่ถูกต้อง
@@ -2098,6 +2099,7 @@ reconciliation.gl_rows_outside_report,มี {0} รายการในบั�
 reconciliation.gl_source_invalid,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 reconciliation.gl_trial_balance,ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ
 reconciliation.header_invalid,ยอดยกมาและยอดคงเหลือไม่ถูกต้อง
+reconciliation.interrupted,การกระทบยอดถูกขัดจังหวะกลางคัน (ระบบรีสตาร์ต) กรุณาส่งใหม่อีกครั้ง
 reconciliation.ledger_unparsed,ไม่สามารถอ่านบัญชีแยกประเภทได้
 reconciliation.parse_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่

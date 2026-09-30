@@ -1048,6 +1048,7 @@ The recognized invoice manifest cannot be replaced.,已识别的发票关联清�
 The reconciliation could not be completed.,对账没有完成。
 The reconciliation data is not in the expected format. Upload the files again,对账数据格式不对，请重新上传文件
 The reconciliation task was not found.,找不到这个对账任务。
+The reconciliation was interrupted part way (the system restarted). Please submit it again.,对账中途被中断（系统重启），请重新提交。
 The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
 The record data is not valid JSON.,记录数据不是有效的 JSON。
 The record metadata has an invalid format.,记录附加信息格式不正确。
@@ -2098,6 +2099,7 @@ reconciliation.gl_rows_outside_report,总账里有 {0} 行不在税报期间（{
 reconciliation.gl_source_invalid,总账内容无效。
 reconciliation.gl_trial_balance,这是试算表，只有科目合计，请上传带逐笔凭证的总账。
 reconciliation.header_invalid,期初期末数值无效。
+reconciliation.interrupted,对账中途被中断（系统重启），请重新提交。
 reconciliation.ledger_unparsed,读不出总账。
 reconciliation.parse_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.parse_info_rows,对账数据格式不对，请重新上传文件

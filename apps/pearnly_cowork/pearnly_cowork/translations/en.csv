@@ -1048,6 +1048,7 @@ The recognized invoice manifest cannot be replaced.,The recognized invoice manif
 The reconciliation could not be completed.,The reconciliation could not be completed.
 The reconciliation data is not in the expected format. Upload the files again,The reconciliation data is not in the expected format. Upload the files again
 The reconciliation task was not found.,The reconciliation task was not found.
+The reconciliation was interrupted part way (the system restarted). Please submit it again.,The reconciliation was interrupted part way (the system restarted). Please submit it again.
 The record changed. Reload it before saving.,The record changed. Reload it before saving.
 The record data is not valid JSON.,The record data is not valid JSON.
 The record metadata has an invalid format.,The record metadata has an invalid format.
@@ -2098,6 +2099,7 @@ reconciliation.gl_rows_outside_report,{0} ledger lines fall outside the VAT repo
 reconciliation.gl_source_invalid,The ledger file content is invalid.
 reconciliation.gl_trial_balance,This is a trial balance with account totals only. Upload the general ledger with each voucher.
 reconciliation.header_invalid,The opening and closing values are invalid.
+reconciliation.interrupted,The reconciliation was interrupted part way (the system restarted). Please submit it again.
 reconciliation.ledger_unparsed,The general ledger could not be read.
 reconciliation.parse_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again

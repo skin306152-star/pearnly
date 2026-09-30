@@ -100,11 +100,15 @@ def status(job_id):
     if current and current.get("user") == frappe.session.user:
         if current.get("state") in ("queued", "running") and _job_ended(job_id):
             # 后台任务已经没了（部署 / 重启时被判弃置、移进失败队列），缓存还停在「进行中」：页面会一直转圈
-            # （2026-09-29 测试机同步后 5 套对账一直显示 running）。结果落了库就算完成，否则报失败。
+            # （2026-09-29 测试机同步后 5 套对账一直显示 running）。被中途杀掉的先续跑；结果落了库就算完成，否则报失败。
+            if resume_if_abandoned(job_id, owner=frappe.session.user) == RESUMED:
+                return status(job_id)
             return _recovered(job_id) or {"kind": current.get("kind"), "state": "failed", "stage": "failed",
                                           "task": None, "error": _("reconciliation.system_busy")}
         return {**{key: current.get(key) for key in ("kind", "state", "stage", "task", "error", "title")},
                 **progress.job_view(job_id, current)}
+    if _job_ended(job_id) and resume_if_abandoned(job_id, owner=frappe.session.user) == RESUMED:
+        return status(job_id)
     recovered = _recovered(job_id)
     if not recovered:
         frappe.throw(_("reconciliation.task_not_found"), frappe.DoesNotExistError)
@@ -119,7 +123,78 @@ def _job_ended(job_id):
     return bool(job) and job.get_status(refresh=False) in ("failed", "stopped", "canceled")
 
 
-def _recovered(job_id):
+# ── 中途被杀的对账续跑（2026-09-30 测试机重载打断压测 rI：部署、OOM、worker 重启都会让正在跑的对账整份失败）─────
+# 后台任务被判弃置（AbandonedJobError：跑它的 worker 没了）、结果还没落库：用原来那几份源文件按原参数重新入队。识别任务
+# 按「对账号:口:类型」认领，读过的页有检查点、不再付费，所以续跑基本不花钱；状态缓存（文件列表、标题）由重新入队重建。
+# 只续一次；源文件没了或又被杀，标「中途中断，请重新提交」。真失败（抛了错、超时）不续。
+RESUMED, INTERRUPTED = "resumed", "interrupted"
+MAX_RESUMES = 1
+RESUME_WINDOW_HOURS = 6
+# 跑它的进程没了才算被杀：worker 没了被判弃置（部署、重启），或者干活的子进程被系统杀掉（OOM）。
+KILLED = ("AbandonedJobError", "Work-horse terminated unexpectedly")
+
+
+def resume_if_abandoned(job_id, owner=None):
+    """被杀的对账续跑：``RESUMED`` / ``INTERRUPTED``（续不了，已标失败）/ ``None``（不是被杀的，或已有结果）。
+    ``owner``：页面问状态时只续本人发起的。"""
+    from frappe.utils.background_jobs import get_job, get_redis_conn
+
+    job = get_job(f"cowork-recon-{job_id}")
+    if not job or job.get_status(refresh=False) != "failed" or not any(mark in str(job.exc_info or "") for mark in KILLED):
+        return None
+    arguments = job.kwargs or {}
+    values = arguments.get("kwargs") or {}
+    user = arguments.get("user") or ""
+    if not user or values.get("recon_job") != job_id or (owner is not None and owner != user):
+        return None
+    # 同一份只让一个人续（页面问状态、识别任务、定时扫描可能同时发现）
+    if not get_redis_conn().set(f"cowork-recon-resume:{frappe.local.site}:{job_id}", 1, nx=True, ex=3600):
+        return None
+    previous = frappe.session.user
+    try:
+        frappe.set_user(user)
+        if _recovered(job_id, finished_only=True):
+            return None
+        options = json.loads(values.get("options") or "{}")
+        files = values.get("files") or {}
+        present = all(frappe.db.exists("File", file) for side in ("left", "right") for file in files.get(side) or [])
+        if int(options.get("resumed") or 0) >= MAX_RESUMES or not present:
+            _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
+                   state="failed", stage="failed", task=None, error=_("reconciliation.interrupted"))
+            progress.active_remove(user, job_id)
+            return INTERRUPTED
+        job.delete()  # 失败队列里那一份删掉，同一个任务号重新入队
+        enqueue(job_id, values.get("kind"), values.get("workspace"), values.get("title") or "", files,
+                {**options, "resumed": int(options.get("resumed") or 0) + 1})
+        frappe.db.commit()
+        return RESUMED
+    finally:
+        frappe.set_user(previous)
+
+
+def resume_abandoned():
+    """定时（每 5 分钟）：本站点被杀的对账续跑（没人开着页面、也没有识别任务在等的，例如只有表格的对账）。"""
+    from datetime import datetime, timedelta, timezone
+
+    from frappe.utils.background_jobs import get_queue
+    from rq.job import Job
+    from rq.registry import FailedJobRegistry, StartedJobRegistry
+
+    queue = get_queue("long")
+    StartedJobRegistry(queue=queue).cleanup()  # 跑它的 worker 没了的，此时才判为弃置
+    prefix = f"{frappe.local.site}||cowork-recon-"
+    for rq_id in FailedJobRegistry(queue=queue).get_job_ids():
+        # 只看今天之内的：更早的早已标过「中途中断」，不再每 5 分钟翻一遍
+        job = Job.fetch(rq_id, connection=queue.connection) if rq_id.startswith(prefix) else None
+        if job and job.enqueued_at and (datetime.now(timezone.utc) - job.enqueued_at.replace(tzinfo=timezone.utc)) \
+                < timedelta(hours=RESUME_WINDOW_HOURS):
+            try:
+                resume_if_abandoned(rq_id[len(prefix):])
+            except Exception:
+                frappe.log_error(title="cowork recon resume", message=frappe.get_traceback())
+
+
+def _recovered(job_id, finished_only=False):
     """缓存里的状态没了（部署迁移、clear-cache 会清掉；2026-09-29 压测：页面显示任务不存在，后台照跑、结果照落库）。
 
     结果已落库：按同一规则算出任务名直接找到。还在队列里：看后台任务本身（只认本人发起的）。都没有就是不存在。
@@ -133,6 +208,8 @@ def _recovered(job_id):
         name = f"{prefix}-{key[:40]}"
         if frappe.db.exists(doctype, name):
             return {"kind": kind, "state": "done", "stage": "done", "task": name, "error": None}
+    if finished_only:
+        return None
     from frappe.utils.background_jobs import get_job
 
     job = get_job(f"cowork-recon-{job_id}")

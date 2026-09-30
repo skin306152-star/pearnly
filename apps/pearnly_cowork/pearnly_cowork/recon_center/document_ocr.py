@@ -221,7 +221,8 @@ def _recon_closed(recon_job, file=None):
     from pearnly_cowork.recon_center import jobs
 
     try:
-        return jobs._job_ended(recon_job)
+        # 被杀的对账先续跑（续上了这份识别照读，结果留给续跑的那个对账）；续不了才算结束。
+        return jobs._job_ended(recon_job) and jobs.resume_if_abandoned(recon_job) != jobs.RESUMED
     except Exception:
         return False  # 队列一时查不到：不下结论，照常读
 
