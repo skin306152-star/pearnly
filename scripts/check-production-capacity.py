@@ -12,12 +12,27 @@ spec.loader.exec_module(capacity)
 env = {**os.environ, 'PEARNLY_IMAGE': 'example.invalid/local-check:never-pulled',
        'DB_ROOT_PASSWORD': 'unused', 'KEYCLOAK_DB_PASSWORD': 'unused',
        'KEYCLOAK_ADMIN_PASSWORD': 'unused', 'AUTH_HOST': 'example.invalid'}
-config = json.loads(subprocess.check_output(['docker', 'compose', '-f',
-    str(ROOT / 'infrastructure/production/compose.yml'), '--profile', '*',
-    'config', '--format', 'json'], env=env, text=True))
-services = config['services']
+
+
+def rendered(**knobs):
+    """Compose services as production renders them with these runtime.env capacity knobs."""
+    return json.loads(subprocess.check_output(['docker', 'compose', '-f',
+        str(ROOT / 'infrastructure/production/compose.yml'), '--profile', '*',
+        'config', '--format', 'json'], env={**env, **knobs}, text=True))['services']
+
+
+services = rendered()
 M = capacity.MIB
 checks = []
+
+# 可调容量默认即原值：runtime.env 里什么都不写时，上线不改任何进程数和内存上限。
+DEFAULTS = {'dms-ocr-worker': (2, 1024), 'erp-ocr-worker': (2, 2048), 'cowork-ocr-worker': (2, 2048),
+            'cowork-long-worker': (2, 1536), 'dms-web': (2, 1024), 'erp-web': (2, 1024),
+            'cowork-web': (2, 768), 'billing-web': (2, 512)}
+for name, (count, mib) in DEFAULTS.items():
+    assert capacity.processes(services[name])[1] == count, name
+    assert int(services[name]['mem_limit']) == mib * M, name
+checks.append('Capacity knobs default to the previous process counts and memory limits')
 
 # The dispatcher initializes native Frappe and each Site even without OCR work.
 # Production cold-start evidence: 128 MiB caused OOM/137, not a business failure.
@@ -83,4 +98,35 @@ test('Current pressure defers even one product', [], 'dms', available=1000, reje
 test('Transient site process needs additional headroom', [], 'dms', available=2000, transient=1024, reject=True)
 test('Unbounded unrelated container requires accounting', [{'project':'other','service':'other','memory':0}], 'dms', reject=True)
 test('Unrelated bounded container is included', [{'project':'other','service':'other','memory':5000*M}], 'dms', reject=True)
+
+# runtime.env 调大：进程数和内存一起改才放行；只加进程不加内存在启动前拒绝。
+tuned = rendered(PEARNLY_COWORK_OCR_WORKERS='6', PEARNLY_COWORK_OCR_MEM='4g',
+                 PEARNLY_COWORK_WEB_WORKERS='4', PEARNLY_COWORK_WEB_MEM='1536m')
+assert capacity.processes(tuned['cowork-ocr-worker']) == ('ocr', 6)
+assert capacity.processes(tuned['cowork-web']) == ('web', 4)
+assert capacity.processes(tuned['erp-ocr-worker']) == ('ocr', 2)
+capacity.calculate(tuned, [], 'cowork', HOST_MIB * M, 20000 * M)
+checks.append('Raised process counts with matching memory are admitted')
+for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '6'}, {'PEARNLY_ERP_WEB_WORKERS': '6'},
+              {'PEARNLY_COWORK_LONG_WORKERS': '4'}, {'PEARNLY_DMS_OCR_WORKERS': '0'}):
+    product = next(iter(knobs)).split('_')[1].lower()
+    try:
+        capacity.calculate(rendered(**knobs), [], product, HOST_MIB * M, 20000 * M)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(knobs)
+checks.append('More processes without more memory are refused before start')
+huge = rendered(PEARNLY_DMS_OCR_WORKERS='12', PEARNLY_DMS_OCR_MEM='12g',
+                PEARNLY_ERP_OCR_WORKERS='12', PEARNLY_ERP_OCR_MEM='12g')
+try:
+    capacity.calculate(huge, [{'project': 'pearnly-production', 'service': name,
+                               'memory': int(huge[name]['mem_limit'])}
+                              for name, row in huge.items() if 'dms' in row.get('profiles', [])],
+                       'erp', HOST_MIB * M, 30000 * M)
+except ValueError:
+    pass
+else:
+    raise AssertionError('24 GiB of OCR workers must not fit the current host')
+checks.append('Raised limits still have to fit the host budget')
 print(json.dumps({'passed': len(checks), 'checks': checks}))

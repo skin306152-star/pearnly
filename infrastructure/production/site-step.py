@@ -75,6 +75,41 @@ def check_webhook(site, token):
     assert result.get("success"), "LINE webhook test failed: %s %s" % (result.get("statusCode"), result.get("reason"))
 
 
+# 共用 OCR 限额：各产品必须一字不差，否则 budget.permit 报 policy_mismatch 全部延后。
+# 2026-09-27 用户定每分钟 120 次。压测后要调就在 runtime.env 写 PEARNLY_OCR_BUDGET（JSON），
+# 三个产品读同一份 runtime.env，下发的值自然一致。
+OCR_BUDGET = {"concurrency": 8, "tenant_concurrency": 3, "rpm": 120}
+OCR_BUDGET_KEYS = ("concurrency", "tenant_concurrency", "rpm", "pending", "tenant_pending", "max_age")
+
+
+def ocr_budget(runtime):
+    raw = (runtime.get("PEARNLY_OCR_BUDGET") or "").strip()
+    if not raw:
+        return dict(OCR_BUDGET)
+    value = json.loads(raw)
+    assert isinstance(value, dict) and value, "PEARNLY_OCR_BUDGET must be a JSON object"
+    assert set(value) <= set(OCR_BUDGET_KEYS), "PEARNLY_OCR_BUDGET has unknown keys: %s" % sorted(set(value) - set(OCR_BUDGET_KEYS))
+    assert all(type(v) is int and v >= 1 for v in value.values()), "PEARNLY_OCR_BUDGET values must be positive integers"
+    budget = {**OCR_BUDGET, **value}
+    assert budget["tenant_concurrency"] <= budget["concurrency"], "PEARNLY_OCR_BUDGET tenant_concurrency exceeds concurrency"
+    return budget
+
+
+def document_ai_regions(runtime):
+    """Document AI 区域顺序与各区处理器（pearnly_document_ai_regions）：runtime.env 有值才下发，没值用代码默认。"""
+    raw = (runtime.get("PEARNLY_DOCUMENT_AI_REGIONS") or "").strip()
+    if not raw:
+        return None
+    value = json.loads(raw)
+    assert isinstance(value, list) and value, "PEARNLY_DOCUMENT_AI_REGIONS must be a non-empty JSON list"
+    for row in value:
+        assert isinstance(row, dict) and all(isinstance(row.get(k), str) and row[k] for k in ("location", "processor", "version")), \
+            "Each Document AI region needs location, processor and version"
+        assert type(row.get("rpm")) is int and row["rpm"] >= 1, "Each Document AI region needs a positive rpm"
+    assert len({row["location"] for row in value}) == len(value), "Document AI regions must not repeat"
+    return value
+
+
 def main():
     job = json.load(sys.stdin)
     action, p = job["action"], job["payload"]
@@ -90,10 +125,11 @@ def main():
                   redis_queue=f"redis://redis-queue:6379/{queue_db}", redis_socketio=f"redis://redis-queue:6379/{queue_db}",
                   socketio_port=9000, serve_default_site=False,
                   pearnly_ocr_budget_redis="redis://redis-queue:6379/6",
-                  # 共用 OCR 限额：各产品必须一字不差，否则 budget.permit 报 policy_mismatch 全部延后。
-                  # 2026-09-27 用户定每分钟 120 次（线上三个产品已手工改成同值）。
-                  pearnly_ocr_budget={"concurrency": 8, "tenant_concurrency": 3, "rpm": 120},
+                  pearnly_ocr_budget=ocr_budget(runtime),
                   workers={**values.get("workers", {}), "ocr": {"timeout": 600}})
+    regions = document_ai_regions(runtime)
+    if regions:
+        values["pearnly_document_ai_regions"] = regions
     if group == "dms":
         configure = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py")
         values = configure["configured"](values)

@@ -17,6 +17,39 @@ def output(args):
     return subprocess.check_output(args, text=True, stderr=subprocess.PIPE)
 
 
+# 每个进程至少要分到的内存（按现有实测定的原值折算）：进程数可在 runtime.env 里调，
+# 只加进程不加内存会让每个进程分到的变少、被内核杀掉，所以在启动前拒绝。
+# 识别：DMS 原 1g / 2 个；对账：原 1536m / 2 个；网页：计费后台原 512m / 2 个（最小的一处）。
+PROCESS_FLOOR = {'ocr': 512 * MIB, 'long': 768 * MIB, 'web': 256 * MIB}
+
+
+def processes(row):
+    """(lane, count) for a multi-process service, or None."""
+    command = [str(part) for part in row.get('command') or []]
+    for part in command:
+        if part.startswith('--workers='):
+            return 'web', int(part.split('=', 1)[1])
+    if 'worker-pool' in command and '--num-workers' in command:
+        queue = command[command.index('--queue') + 1]
+        return ('ocr' if queue == 'ocr' else 'long' if queue == 'long' else 'pool',
+                int(command[command.index('--num-workers') + 1]))
+    return None
+
+
+def check_processes(services, names):
+    for name in sorted(names):
+        found = processes(services[name])
+        if not found:
+            continue
+        lane, count = found
+        if count < 1:
+            raise ValueError('%s needs at least one process' % name)
+        floor = PROCESS_FLOOR.get(lane, 0)
+        if int(services[name]['mem_limit']) < floor * count:
+            raise ValueError('%s: %d processes need at least %d MiB, limit is %d MiB'
+                             % (name, count, floor * count // MIB, int(services[name]['mem_limit']) // MIB))
+
+
 def calculate(services, containers, product, total_bytes, available_bytes, transient_bytes=0):
     wanted = {name for name, row in services.items()
               if not row.get('profiles') or product in row['profiles']}
@@ -30,6 +63,7 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
             other_bytes += row['memory']
     if any(not services[name].get('mem_limit') for name in wanted):
         raise ValueError('Every enabled production service needs a memory limit')
+    check_processes(services, wanted)
     reserved = sum(int(services[name]['mem_limit']) for name in wanted) + other_bytes
     host_reserve = max(1536 * MIB, total_bytes // 10)
     report = {'product': product, 'services': sorted(wanted),

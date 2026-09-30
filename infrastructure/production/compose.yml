@@ -1,5 +1,11 @@
 name: pearnly-production
 
+# 可调容量（2026-09-30）：三产品的识别进程、Cowork 对账进程、网页进程数和各自内存上限
+# 从 /opt/pearnly/secrets/runtime.env 读，没写就是下面各处 `:-` 后的原值：
+#   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
+#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM。
+# 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
+
 x-runtime: &runtime
   image: ${PEARNLY_IMAGE:?Set the verified image digest}
   restart: unless-stopped
@@ -130,7 +136,9 @@ services:
   dms-web:
     profiles: [dms]
     <<: *web
-    mem_limit: 1g
+    # 进程数与内存上限可在 runtime.env 调（压测后按实测定），默认即原值；见文件头「可调容量」。
+    mem_limit: ${PEARNLY_DMS_WEB_MEM:-1g}
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, '--workers=${PEARNLY_DMS_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
     volumes: &dms-volumes
       - sites-dms:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -153,8 +161,8 @@ services:
     # 1g：识别完紧接着按证号查客户，要把整份客户快照读进内存（2026-09-28 实测 ris 15,162 个
     # 客户：每个进程峰值从 75MB 涨到 221MB）。两个进程同时各查一次、再加上解码的照片，
     # 就会贴近 512m；1g 留出一倍余量。
-    mem_limit: 1g
-    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
+    mem_limit: ${PEARNLY_DMS_OCR_MEM:-1g}
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '${PEARNLY_DMS_OCR_WORKERS:-2}']
     volumes: *dms-volumes
     environment:
       <<: *frappe-env
@@ -200,8 +208,8 @@ services:
     <<: *web
     # ERP 网页进程 2026-09-27 激活期间被内核杀过一次（768m）：上限提到 1g，并让 gunicorn 每个进程处理约 2000 个
     # 请求后换新（带抖动，不同时换），防止内存慢慢涨。只改 ERP；DMS / Cowork 网页照旧用 x-web。
-    mem_limit: 1g
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
+    mem_limit: ${PEARNLY_ERP_WEB_MEM:-1g}
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, '--workers=${PEARNLY_ERP_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
     volumes: &erp-volumes
       - sites-erp:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -220,8 +228,8 @@ services:
     profiles: [erp]
     <<: *worker
     # 两个识别进程共用这一份上限：512m 时手机大图 / 多页 PDF 同时进来就被内核杀掉（2026-09-28 Cowork 压测约 80 次）。
-    mem_limit: 2g
-    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
+    mem_limit: ${PEARNLY_ERP_OCR_MEM:-2g}
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '${PEARNLY_ERP_OCR_WORKERS:-2}']
     volumes: *erp-volumes
     environment:
       <<: *frappe-env
@@ -251,6 +259,8 @@ services:
   cowork-web:
     profiles: [cowork]
     <<: *web
+    mem_limit: ${PEARNLY_COWORK_WEB_MEM:-768m}
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
     volumes: &cowork-volumes
       - sites-cowork:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -273,8 +283,8 @@ services:
     <<: *worker
     # 对账后台任务：两个同时跑（旧线上 RECON_WORKER_CONCURRENCY 默认 2），互不排队，也不挡定时任务。
     # 两个进程共用 1.5g：每个进程与原来单个 worker 的 768m 相同。
-    mem_limit: 1536m
-    command: [bench, worker-pool, --queue, long, --num-workers, '2']
+    mem_limit: ${PEARNLY_COWORK_LONG_MEM:-1536m}
+    command: [bench, worker-pool, --queue, long, --num-workers, '${PEARNLY_COWORK_LONG_WORKERS:-2}']
     volumes: *cowork-volumes
     environment:
       <<: *frappe-env
@@ -283,8 +293,8 @@ services:
     profiles: [cowork]
     <<: *worker
     # 两个识别进程共用这一份上限：512m 时手机大图 / 多页 PDF 同时进来就被内核杀掉（2026-09-28 Cowork 压测约 80 次）。
-    mem_limit: 2g
-    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
+    mem_limit: ${PEARNLY_COWORK_OCR_MEM:-2g}
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '${PEARNLY_COWORK_OCR_WORKERS:-2}']
     volumes: *cowork-volumes
     environment:
       <<: *frappe-env
