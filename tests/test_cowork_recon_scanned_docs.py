@@ -1020,6 +1020,9 @@ class InvoiceReadsInTheVatCheck(unittest.TestCase):
 		self.assertEqual(invoice_ocr._tax("0105541034263"), "0105541034263")
 		self.assertEqual(invoice_ocr._tax("0-1055-41034-26-3"), "0-1055-41034-26-3")  # 印了分隔符的原样
 		self.assertEqual(invoice_ocr._tax(""), "")
+		self.assertEqual(invoice_ocr._tax(None), "")
+		# 补了 0 也过不了校验位的不补（全平台共用 `repaired_tax_id`，用户 2026-09-30）
+		self.assertEqual(invoice_ocr._tax("105541034264"), "105541034264")
 
 	def test_a_day_and_month_read_the_wrong_way_round_are_swapped_into_the_report_month(self):
 		from pearnly_cowork.recon_center import vat_check

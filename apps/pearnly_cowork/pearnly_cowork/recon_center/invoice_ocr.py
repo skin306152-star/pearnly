@@ -20,6 +20,7 @@ from frappe import _
 from pearnly_core import billing_client, ocr
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, Uncertain
+from pearnly_core.tax_documents.amounts import repaired_tax_id
 
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.recon_center import progress
@@ -67,11 +68,9 @@ def _money(value):
 
 
 def _tax(value):
-    """泰国税号固定 13 位：读出 12 位数字的是开头的 0 丢了，补回（与税报表格同一规则；2026-09-30 压测第 17 轮 V03：
-    「105541034263 ≈ 0105541034263」只算疑似匹配）。"""
-    text = _text(value)
-    digits = "".join(char for char in text if char.isdigit())
-    return "0" + digits if len(digits) == 12 and len(text) == len(digits) else text
+    """泰国税号固定 13 位：读出 12 位数字的是开头的 0 丢了，补回（2026-09-30 压测第 17 轮 V03：「105541034263 ≈
+    0105541034263」只算疑似匹配）。用全平台共用的 `repaired_tax_id`：补完过得了 MOD-11 校验位才补（用户 2026-09-30）。"""
+    return _text(repaired_tax_id(_text(value)))
 
 
 def record(fields, filename):
