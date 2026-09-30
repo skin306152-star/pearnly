@@ -61,7 +61,9 @@ services:
     mem_limit: 2g
     # --max-allowed-packet: 大数据量租户的单份快照可达 20MB 以上（rayong 15,135 个客户），
     # 默认 16MB 会让写入在读取中途被数据库拒绝。必须覆盖 store.MAX_BYTES。
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-buffer-pool-size=1G, --max-allowed-packet=64M]
+    # --max-connections=300：默认 151。识别不 fork 运行后进程数翻倍（2026-10-01 压测：识别 12+12+4、网页 14×4 线程、
+    # 对账、调度…），高峰会逼近 151，超了直接报 Too many connections。线上已先用 SET GLOBAL 生效（不重启），这里保证重启后仍是 300。
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-buffer-pool-size=1G, --max-allowed-packet=64M, --max-connections=300]
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
       MARIADB_DATABASE: keycloak
