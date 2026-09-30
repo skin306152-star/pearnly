@@ -1100,6 +1100,7 @@ There is not enough recognition balance. Top up and send the document again.,読
 These files could not be read and were left out: {0},次のファイルは読み取れず、照合に含めていません：{0}
 These files could not be read and were left out; upload them again to include them: {0},次のファイルは読み取れなかったため今回の照合に含まれていません。再度アップロードしてください：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},次のファイルには取引がないため（表紙や口座情報のページ）スキップしました：{0}
+These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},読み取った次の税務報告の行はそれ自体で整合せず、読み取り誤りの可能性があります。原本と照合してください：{0}
 "These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",次の税務報告のページはページ合計で自己検証できませんでした（行の合計がページ合計と一致しない、またはページ合計が読み取れない。再読込済み）。原本と照合してください：{0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},次の表は銀行からエクスポートした明細ではない（残高列がない）ため、含めていません：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
@@ -1200,8 +1201,10 @@ User Settings,ユーザーメニュー
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
 VAT,VAT
 VAT Report Check,売上税報告チェック
+VAT is not 7% of the base,税額が課税標準の7%でない
 VAT report amount,税報告金額
 VAT report detail,VAT 報告明細
+VAT without a base amount,課税標準がなく税額のみ
 Valid,有効
 Value,値
 Version,バージョン
@@ -1905,6 +1908,7 @@ cowork.work.view.mine,自分のカード
 cowork.work.view.table,テーブル
 cowork_line,Cowork LINE
 credit,貸方
+date differs from the date in the number,日付が番号内の日付と異なる
 debit,借方
 document,文書
 erp.account_set_unavailable,この会計データは利用できません。
@@ -2023,6 +2027,7 @@ none,なし
 not_billable,課金対象外
 not_due,課金処理前
 not_invoice,請求書以外
+number appears twice,番号が重複
 ocr.empty_file,アップロードしたファイルは空です。
 ocr.file_too_large,ファイルサイズが上限を超えています。
 ocr.invalid_input_metadata,ファイルサイズまたはページ情報が無効です。
@@ -2151,6 +2156,7 @@ reconciliation.report_page_likely_misread,写真・スキャンから読み取�
 reconciliation.report_page_shifted,読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
 reconciliation.report_pages_unverified,次の税務報告のページはページ合計で自己検証できませんでした（行の合計がページ合計と一致しない、またはページ合計が読み取れない。再読込済み）。原本と照合してください：{0}
 reconciliation.report_rows_repeated,{0} 行の売上税報告が複数のファイルで重複していたため（同じページを 2 回アップロード）、1 回だけ数えました。
+reconciliation.report_rows_suspect,読み取った次の税務報告の行はそれ自体で整合せず、読み取り誤りの可能性があります。原本と照合してください：{0}
 reconciliation.request_conflict,このリクエストは別の内容で使用済みです。
 reconciliation.request_invalid,リクエストが無効です。再読み込みしてやり直してください。
 reconciliation.rerun_files_gone,元のファイルが残っていないため照合し直せません。新しく照合を作成してください。
@@ -2161,6 +2167,10 @@ reconciliation.review_breaks_unacknowledged,残高が合わない各箇所を「
 reconciliation.review_required,明細確認を完了してから照合結果を出力してください。
 reconciliation.review_rows_invalid,確認明細または元の行番号が無効です。
 reconciliation.review_unavailable,このタスクには明細確認記録がありません。
+reconciliation.row_check.date,日付が番号内の日付と異なる
+reconciliation.row_check.duplicate,番号が重複
+reconciliation.row_check.vatOnly,課税標準がなく税額のみ
+reconciliation.row_check.vatRate,税額が課税標準の7%でない
 reconciliation.row_invalid,ファイルに読み取れない行があります。ファイルの形式を確認してください
 reconciliation.row_unknown_field,ファイルに読み取れない行があります。ファイルの形式を確認してください
 reconciliation.rows_invalid,ファイルに読み取れない行があります。ファイルの形式を確認してください

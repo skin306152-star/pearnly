@@ -48,10 +48,28 @@ def photo_pages(named_pages):
     return out
 
 
+ROW_REASONS = {self_check.ROW_VAT_RATE: "reconciliation.row_check.vatRate",
+               self_check.ROW_VAT_ONLY: "reconciliation.row_check.vatOnly",
+               self_check.ROW_DUPLICATE: "reconciliation.row_check.duplicate",
+               self_check.ROW_DATE: "reconciliation.row_check.date"}
+ROW_NOTE_LIMIT = 30
+
+
+def suspect_rows_note(named_pages):
+    """税报逐行自检没过的行（税额≠税基×7%、只有税额、单号重复、日期与单号上的日期不符）：点名单号和原因，
+    请核对原件（压测窗口 2026-09-30：IMG_2547 单号读重、IMG_2534 日期读成别的日子）。"""
+    rows = self_check.suspect_report_rows(named_pages)
+    if not rows:
+        return ""
+    shown = [f"{name} {invoice or '?'}（{_(ROW_REASONS[reason])}）" for name, invoice, reason in rows[:ROW_NOTE_LIMIT]]
+    more = len(rows) - ROW_NOTE_LIMIT
+    return _("reconciliation.report_rows_suspect").format("、".join(shown) + (f" …(+{more})" if more > 0 else ""))
+
+
 def report_reading(named_pages):
     """识别读出的税报的两样附带信息：``(提示列表, 每页单号)``；表格 / 文字层 PDF 没有页，两样都空。"""
-    note = unverified_note(named_pages)
-    return ([note] if note else []), photo_pages(named_pages)
+    notes = [note for note in (unverified_note(named_pages), suspect_rows_note(named_pages)) if note]
+    return notes, photo_pages(named_pages)
 
 
 def merged_report_rows(recon_job, reports, report_files, pages=None):

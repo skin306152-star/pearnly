@@ -763,6 +763,13 @@ def csv_rows(text, delimiter: str = ",") -> Optional[Dict[str, Any]]:
 		"needs_review": False}
 
 
+def _printed_date(entry) -> str:
+	"""税报行的日期：先按印出来的原文（``transaction_date_raw``，佛历 / 日-月-年）换算，换算不出再用模型给的
+	``transaction_date``（2026-09-30 压测 rG I01 IMG_2540：原文 17/05/2569、模型换成了 05-16）。"""
+	printed = parse_date(str(entry.get("transaction_date_raw") or "").strip())
+	return printed.isoformat() if printed else (entry.get("transaction_date") or "")
+
+
 def pipeline_rows(decoded, engine: str = "") -> List[Dict[str, Any]]:
 	"""Decode the normalized JSON of the OCR pipeline into report rows.
 
@@ -786,7 +793,7 @@ def pipeline_rows(decoded, engine: str = "") -> List[Dict[str, Any]]:
 			seq_no = entry.get("seq_no")
 			parsed = {
 				"row_no": (int(seq_no) if str(seq_no or "").isdigit() else row_no),
-				"report_date": entry.get("transaction_date") or "",
+				"report_date": _printed_date(entry),
 				"report_invoice_no": invoice_no,
 				"report_ref_no": invoice_no,
 				"report_buyer_name": str(entry.get("customer_name") or "").strip(),

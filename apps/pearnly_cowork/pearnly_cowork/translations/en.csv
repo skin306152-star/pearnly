@@ -1100,6 +1100,7 @@ There is not enough recognition balance. Top up and send the document again.,The
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
+These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0}
 "These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}","These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
@@ -1200,8 +1201,10 @@ User Settings,User Settings
 Username can only have letters and numbers,Username can only have letters and numbers
 VAT,VAT
 VAT Report Check,VAT Report Check
+VAT is not 7% of the base,VAT is not 7% of the base
 VAT report amount,VAT report amount
 VAT report detail,VAT report detail
+VAT without a base amount,VAT without a base amount
 Valid,Valid
 Value,Value
 Version,Version
@@ -1905,6 +1908,7 @@ cowork.work.view.mine,My cards
 cowork.work.view.table,Table
 cowork_line,Cowork LINE
 credit,credit
+date differs from the date in the number,date differs from the date in the number
 debit,debit
 document,document
 erp.account_set_unavailable,This account set is unavailable.
@@ -2023,6 +2027,7 @@ none,none
 not_billable,not_billable
 not_due,not_due
 not_invoice,not_invoice
+number appears twice,number appears twice
 ocr.empty_file,The uploaded file is empty.
 ocr.file_too_large,The file exceeds the allowed size.
 ocr.invalid_input_metadata,The file size or page metadata is invalid.
@@ -2151,6 +2156,7 @@ reconciliation.report_page_likely_misread,"Several lines on these recognised VAT
 reconciliation.report_page_shifted,"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 reconciliation.report_pages_unverified,"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
+reconciliation.report_rows_suspect,These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0}
 reconciliation.request_conflict,This request was already used for different content.
 reconciliation.request_invalid,The request is invalid. Reload and try again.
 reconciliation.rerun_files_gone,"The original files are no longer kept, so this cannot be rerun. Start a new reconciliation."
@@ -2161,6 +2167,10 @@ reconciliation.review_breaks_unacknowledged,Mark each balance break as a missing
 reconciliation.review_required,Complete statement review before exporting the result.
 reconciliation.review_rows_invalid,Invalid statement review rows or row references.
 reconciliation.review_unavailable,Statement review is not available for this task.
+reconciliation.row_check.date,date differs from the date in the number
+reconciliation.row_check.duplicate,number appears twice
+reconciliation.row_check.vatOnly,VAT without a base amount
+reconciliation.row_check.vatRate,VAT is not 7% of the base
 reconciliation.row_invalid,Some rows in the file could not be understood. Check the file format
 reconciliation.row_unknown_field,Some rows in the file could not be understood. Check the file format
 reconciliation.rows_invalid,Some rows in the file could not be understood. Check the file format

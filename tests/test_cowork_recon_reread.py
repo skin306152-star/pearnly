@@ -164,6 +164,36 @@ class UnverifiedReportPages(unittest.TestCase):
 		self.assertEqual(self_check.unverified_report_pages(reports), [("a.jpg", [2]), ("b.jpg", [1])])
 
 
+class ReportRowChecks(unittest.TestCase):
+	@staticmethod
+	def page(*entries):
+		return {"entries": [dict(zip(("invoice_no", "subtotal", "vat", "transaction_date_raw"), entry)) for entry in entries]}
+
+	def test_lines_that_do_not_agree_with_themselves_are_named(self):
+		reports = [("IMG_1.jpg", [(1, self.page(
+			("690525-001", "1000.00", "70.00", "25/05/2569"),     # 对
+			("690525-001", "500.00", "35.00", "25/05/2569"),      # 单号重复
+			("690525-003", "1000.00", "7.00", "25/05/2569"),      # 税额≠税基×7%
+			("690525-004", "", "70.00", "25/05/2569"),            # 只有税额
+			("690526-011", "100.00", "7.00", "11/05/2569"),       # 单号上的日子是 26 号
+			("EXP-1", "5000.00", "0.00", "25/05/2569"),           # 零税率不算
+		))])]
+		self.assertEqual(self_check.suspect_report_rows(reports), [
+			("IMG_1.jpg", "690525-001", self_check.ROW_DUPLICATE),
+			("IMG_1.jpg", "690525-003", self_check.ROW_VAT_RATE),
+			("IMG_1.jpg", "690525-004", self_check.ROW_VAT_ONLY),
+			("IMG_1.jpg", "690526-011", self_check.ROW_DATE)])
+
+	def test_the_printed_date_wins_over_the_converted_one(self):
+		from pearnly_cowork.reconciliation import vat_parse
+
+		rows = vat_parse.pipeline_rows({"pages": [{"document": {"entries": [
+			{"invoice_no": "02000126", "transaction_date": "2026-05-16", "transaction_date_raw": "17/05/2569"},
+			{"invoice_no": "02000127", "transaction_date": "2026-05-18", "transaction_date_raw": ""}]}}]},
+			"enterprise-2026-09-03-v1")
+		self.assertEqual([row["report_date"] for row in rows], ["2026-05-17", "2026-05-18"])
+
+
 class PhotoPages(unittest.TestCase):
 	def test_each_recognised_page_lists_its_invoice_numbers(self):
 		from pearnly_cowork.recon_center import vat_check

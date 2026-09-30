@@ -117,3 +117,75 @@ def unverified_report_pages(reports) -> list:
         flagged.setdefault(name, []).append(number)
     order = [name for name, _pages in reports]
     return [(name, sorted(set(flagged[name]))) for name in order if name in flagged]
+
+
+# 税报逐行自检（压测窗口 2026-09-30：照片税报行错误 3–4%，要做到「错的都被点名」）：只看读出来的这一行自己对不对得上。
+VAT_RATE = Decimal("0.07")
+ROW_VAT_RATE, ROW_VAT_ONLY, ROW_DUPLICATE, ROW_DATE = "vat_rate", "vat_without_base", "duplicate", "date"
+
+
+def _number_date(invoice_no: str):
+    """单号开头印着佛历 年月日（「690526-011」= 2569-05-26）时的那个日期；不是这种写法回 None。"""
+    import re
+    from datetime import date
+
+    found = re.match(r"^\D{0,4}(\d{2})(\d{2})(\d{2})\D", str(invoice_no or "") + "-")
+    if not found:
+        return None
+    year, month, day = (int(part) for part in found.groups())
+    try:
+        return date(2500 + year - 543, month, day)
+    except ValueError:
+        return None
+
+
+def _row_date(value):
+    """「17/05/2569」「17/05/69」「2026-05-17」→ 日期（佛历换公历）；认不出回 None。"""
+    import re
+    from datetime import date
+
+    text = str(value or "").strip()
+    iso = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})", text)
+    printed = re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$", text)
+    try:
+        if iso:
+            year, month, day = (int(part) for part in iso.groups())
+        elif printed:
+            day, month, year = (int(part) for part in printed.groups())
+            year = 2500 + year if year < 100 else year
+        else:
+            return None
+        return date(year - 543 if year >= 2400 else year, month, day)
+    except ValueError:
+        return None
+
+
+def suspect_report_rows(reports) -> list:
+    """识别读出的税报里自己对不上的行：``[(文件名, 单号, 原因), …]``。``reports`` 同 ``unverified_report_pages``。
+
+    - 税额与税基 × 7% 差超过 0.01（税额为 0 的零税率 / 免税行不算）；
+    - 只有税额、没有税基；
+    - 同一份报告里单号重复（整份都读一遍）；
+    - 单号开头印着年月日（「690526-011」）而这一行的日期是别的日子（差一年以内才比）。
+    """
+    out, seen = [], {}
+    for name, pages in reports:
+        for _number, document in pages:
+            for entry in document.get("entries") or []:
+                invoice = str(entry.get("invoice_no") or "").strip()
+                base, tax = dec(entry.get("subtotal")), dec(entry.get("vat"))
+                if tax and not base:
+                    out.append((name, invoice, ROW_VAT_ONLY))
+                elif tax and base and abs(tax - (base * VAT_RATE).quantize(TOLERANCE)) > TOLERANCE:
+                    out.append((name, invoice, ROW_VAT_RATE))
+                key = invoice.upper().replace(" ", "")
+                if key:
+                    if key in seen and seen[key] == name:
+                        out.append((name, invoice, ROW_DUPLICATE))
+                    seen.setdefault(key, name)
+                printed = _number_date(invoice)
+                row_date = _row_date(entry.get("transaction_date_raw")) or _row_date(entry.get("transaction_date"))
+                if printed and row_date and printed != row_date \
+                        and abs((printed - row_date).days) <= 366:
+                    out.append((name, invoice, ROW_DATE))
+    return out

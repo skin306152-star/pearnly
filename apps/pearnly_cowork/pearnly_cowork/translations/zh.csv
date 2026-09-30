@@ -1100,6 +1100,7 @@ There is not enough recognition balance. Top up and send the document again.,识
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},以下文件没有流水（封面或账户信息页），已跳过：{0}
+These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},以下识别出的税报行自己对不上，多半是读错了，请核对原件：{0}
 "These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",以下税报页没法自核（行合计与页合计对不上，或没读到页合计；已自动再读过一次），请对照原件核对：{0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
@@ -1200,8 +1201,10 @@ User Settings,用户菜单
 Username can only have letters and numbers,用户名只能用英文字母和数字
 VAT,VAT
 VAT Report Check,销项税报告核查
+VAT is not 7% of the base,税额≠税基×7%
 VAT report amount,税表金额
 VAT report detail,VAT 报告明细
+VAT without a base amount,只有税额没有税基
 Valid,有效
 Value,值
 Version,版本
@@ -1905,6 +1908,7 @@ cowork.work.view.mine,我的任务
 cowork.work.view.table,表格
 cowork_line,Cowork LINE
 credit,贷方
+date differs from the date in the number,日期与单号上的日期不符
 debit,借方
 document,文档
 erp.account_set_unavailable,此账套不可用。
@@ -2023,6 +2027,7 @@ none,无
 not_billable,无需计费
 not_due,尚无需计费
 not_invoice,非发票
+number appears twice,单号重复
 ocr.empty_file,上传文件为空。
 ocr.file_too_large,文件超过允许的大小上限。
 ocr.invalid_input_metadata,文件大小或页数信息无效。
@@ -2151,6 +2156,7 @@ reconciliation.report_page_likely_misread,以下照片 / 扫描件识别出的�
 reconciliation.report_page_shifted,以下识别出的税报页金额和单号配错了行（这几行的金额总账里都有，只是对应的单号错开了），是读错，不是真实差异，请对照原件改（括号里是行数）：{0}
 reconciliation.report_pages_unverified,以下税报页没法自核（行合计与页合计对不上，或没读到页合计；已自动再读过一次），请对照原件核对：{0}
 reconciliation.report_rows_repeated,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
+reconciliation.report_rows_suspect,以下识别出的税报行自己对不上，多半是读错了，请核对原件：{0}
 reconciliation.request_conflict,这个请求已用于不同内容。
 reconciliation.request_invalid,请求无效，请刷新后重试。
 reconciliation.rerun_files_gone,原文件已不在，无法重新核对，请新建对账。
@@ -2161,6 +2167,10 @@ reconciliation.review_breaks_unacknowledged,请先把每处余额对不上的地
 reconciliation.review_required,请先完成账单复核，再导出对账结果。
 reconciliation.review_rows_invalid,复核行内容或原始行编号无效。
 reconciliation.review_unavailable,此任务没有逐行复核记录。
+reconciliation.row_check.date,日期与单号上的日期不符
+reconciliation.row_check.duplicate,单号重复
+reconciliation.row_check.vatOnly,只有税额没有税基
+reconciliation.row_check.vatRate,税额≠税基×7%
 reconciliation.row_invalid,文件里有读不懂的行，请检查文件格式
 reconciliation.row_unknown_field,文件里有读不懂的行，请检查文件格式
 reconciliation.rows_invalid,文件里有读不懂的行，请检查文件格式

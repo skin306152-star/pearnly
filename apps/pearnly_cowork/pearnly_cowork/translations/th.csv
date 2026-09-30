@@ -1100,6 +1100,7 @@ There is not enough recognition balance. Top up and send the document again.,ย
 These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 These files could not be read and were left out; upload them again to include them: {0},อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
+These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},รายการต่อไปนี้ในรายงานภาษีที่อ่านได้ไม่สอดคล้องกันเอง น่าจะอ่านผิด กรุณาตรวจกับต้นฉบับ: {0}
 "These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",หน้าต่อไปนี้ของรายงานภาษีตรวจทานกับยอดรวมท้ายหน้าไม่ได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้ แม้อ่านซ้ำแล้ว) กรุณาตรวจกับต้นฉบับ: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
@@ -1200,8 +1201,10 @@ User Settings,เมนูผู้ใช้
 Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
 VAT,VAT
 VAT Report Check,ตรวจสอบรายงานภาษีขาย
+VAT is not 7% of the base,ภาษีไม่เท่ากับ 7% ของฐาน
 VAT report amount,ยอดตามรายงานภาษี
 VAT report detail,รายละเอียดรายงาน VAT
+VAT without a base amount,มีภาษีแต่ไม่มีฐานภาษี
 Valid,ใช้งาน
 Value,ค่า
 Version,เวอร์ชัน
@@ -1905,6 +1908,7 @@ cowork.work.view.mine,งานของฉัน
 cowork.work.view.table,ตาราง
 cowork_line,Cowork LINE
 credit,เครดิต
+date differs from the date in the number,วันที่ไม่ตรงกับวันที่ในเลขที่เอกสาร
 debit,เดบิต
 document,เอกสาร
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
@@ -2023,6 +2027,7 @@ none,ไม่มี
 not_billable,ไม่ต้องเรียกเก็บเงิน
 not_due,ยังไม่ถึงขั้นตอนเรียกเก็บเงิน
 not_invoice,ไม่ใช่ใบแจ้งหนี้
+number appears twice,เลขที่ซ้ำ
 ocr.empty_file,ไฟล์ที่อัปโหลดว่างเปล่า
 ocr.file_too_large,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
 ocr.invalid_input_metadata,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
@@ -2151,6 +2156,7 @@ reconciliation.report_page_likely_misread,หน้าต่อไปนี้�
 reconciliation.report_page_shifted,หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูป จับคู่ยอดเงินกับเลขที่เอกสารผิดแถว (ยอดทุกบรรทัดมีในบัญชีแยกประเภท เพียงแต่เลื่อนไปจับกับเลขที่ข้างเคียง) เป็นการอ่านผิด ไม่ใช่ผลต่างจริง กรุณาแก้ตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 reconciliation.report_pages_unverified,หน้าต่อไปนี้ของรายงานภาษีตรวจทานกับยอดรวมท้ายหน้าไม่ได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้ แม้อ่านซ้ำแล้ว) กรุณาตรวจกับต้นฉบับ: {0}
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
+reconciliation.report_rows_suspect,รายการต่อไปนี้ในรายงานภาษีที่อ่านได้ไม่สอดคล้องกันเอง น่าจะอ่านผิด กรุณาตรวจกับต้นฉบับ: {0}
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่
 reconciliation.rerun_files_gone,ไฟล์ต้นฉบับไม่มีแล้ว จึงกระทบยอดใหม่ไม่ได้ กรุณาสร้างการกระทบยอดใหม่
@@ -2161,6 +2167,10 @@ reconciliation.review_breaks_unacknowledged,"กรุณาระบุทุ�
 reconciliation.review_required,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
 reconciliation.review_rows_invalid,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
 reconciliation.review_unavailable,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
+reconciliation.row_check.date,วันที่ไม่ตรงกับวันที่ในเลขที่เอกสาร
+reconciliation.row_check.duplicate,เลขที่ซ้ำ
+reconciliation.row_check.vatOnly,มีภาษีแต่ไม่มีฐานภาษี
+reconciliation.row_check.vatRate,ภาษีไม่เท่ากับ 7% ของฐาน
 reconciliation.row_invalid,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
 reconciliation.row_unknown_field,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
 reconciliation.rows_invalid,มีบางแถวในไฟล์ที่อ่านไม่เข้าใจ กรุณาตรวจสอบรูปแบบไฟล์
