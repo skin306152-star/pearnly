@@ -978,7 +978,9 @@
 				// 不传归属：服务端按站点解析（见 `files.api.upload`）。
 				const query = new URLSearchParams({request_key: row.key});
 				const body = new FormData();
-				body.append("file", row.file);
+				// 站点开关打开时照片先在浏览器里缩到识别用得上的大小（`p.shrink_photo`，默认原样）。
+				const file = await p.shrink_photo(row.file);
+				body.append("file", file, file.name);
 				const response = await fetch(`/api/method/${FILES}upload?${query}`, {
 					method: "POST", body, credentials: "same-origin",
 					headers: {"X-Frappe-CSRF-Token": frappe.csrf_token},

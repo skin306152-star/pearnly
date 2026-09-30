@@ -89,7 +89,17 @@
 			},
 		});
 		const upload = uploader.upload_files.bind(uploader);
-		uploader.upload_files = () => {started = true; return upload();};
+		uploader.upload_files = async () => {
+			started = true;
+			// 站点开关打开时照片先在浏览器里缩到识别用得上的大小（`p.shrink_photo`，默认原样）。
+			for (const item of uploader.uploader.files) {
+				if (!item.file_obj || item.shrunk) continue;
+				const smaller = await p.shrink_photo(item.file_obj);
+				if (smaller !== item.file_obj) Object.assign(item, {file_obj: smaller, name: smaller.name});
+				item.shrunk = true;
+			}
+			return upload();
+		};
 		const check = () => {
 			const files = uploader.uploader.files;
 			if (started && files.length && files.every(file => file.request_succeeded || file.failed)) {

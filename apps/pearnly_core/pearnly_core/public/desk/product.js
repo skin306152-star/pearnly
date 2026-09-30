@@ -205,6 +205,36 @@ frappe.provide("frappe.pearnly");
 	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
 	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），
 	// 所以第二个参数留给"这不是提交、是删除"这类场合；默认仍是 submit。
+	// ── 上传前缩照片（站点开关 `pearnly_shrink_photos`，默认关；见 `pearnly_core/desk/upload.py`）─────────────
+	// 按 EXIF 转正，只缩不放大：长边大于 2400 才缩到 2400（高质量缩放），存成 JPEG 0.92；其余（长边不超过 2400、PDF、
+	// 表格、SVG / GIF、浏览器解不开的 HEIC）原样返回。录入工作台与 ERP 采购 / 销售录入的照片上传口用。
+	p.shrink_photo = async file => {
+		const rule = frappe.boot.pearnly_shrink_photos;
+		if (!rule || !(file instanceof Blob) || !/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type || "")) return file;
+		let bitmap = null;
+		try {
+			bitmap = await createImageBitmap(file, {imageOrientation: "from-image"});
+			const long = Math.max(bitmap.width, bitmap.height);
+			if (long <= rule.max_long_edge) return file;
+			const scale = rule.max_long_edge / long;
+			const width = Math.round(bitmap.width * scale), height = Math.round(bitmap.height * scale);
+			const canvas = document.createElement("canvas");
+			canvas.width = width; canvas.height = height;
+			const context = canvas.getContext("2d");
+			context.imageSmoothingEnabled = true;
+			context.imageSmoothingQuality = "high";
+			context.drawImage(bitmap, 0, 0, width, height);
+			const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", rule.quality));
+			if (!blob) return file;
+			const name = String(file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
+			return new File([blob], name, {type: "image/jpeg", lastModified: file.lastModified || Date.now()});
+		} catch (error) {
+			return file;  // 解不开（如桌面浏览器的 HEIC）：原样上传，服务端照旧处理
+		} finally {
+			bitmap?.close?.();
+		}
+	};
+
 	p.success = (message, sound = "submit") => {
 		frappe.show_alert({ message: p.escape(message), indicator: "green" });
 		frappe.utils.play_sound(sound);

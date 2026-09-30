@@ -296,6 +296,8 @@ boot_session = [
     "pearnly_core.desk.navigation.extend_boot",
     # 站点货币：符号从服务端给（前端自己去读 `Currency` 表会撞权限弹窗，见该文件抬头）。
     "pearnly_core.desk.currency.boot_session",
+    # 上传前缩照片的站点开关（`pearnly_shrink_photos`，默认关）。
+    "pearnly_core.desk.upload.boot_session",
 ]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
