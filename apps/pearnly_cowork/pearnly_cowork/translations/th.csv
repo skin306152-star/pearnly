@@ -1209,7 +1209,9 @@ View differences,ดูผลต่าง
 Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ
+Void match,ยกเลิก · ตรงกัน
 Void this count of {0}?,ยกเลิกรายการนับ {0} นี้?
+Void · no invoice needed,ยกเลิก · ไม่ต้องมีใบกำกับ
 Voided,ยกเลิกแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Voucher no.,เลขที่ใบสำคัญ
@@ -2246,6 +2248,8 @@ vat_check.periods_differ,รายงานคนละงวด ({0}) กรุ
 vat_check.recognition_busy,ระบบอ่านใบกำกับไม่ว่าง กรุณาลองใหม่อีกครั้งในภายหลัง
 vat_check.recognition_timeout,การอ่านใบกำกับใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 vat_check.sellers_differ,รายงานมาจากผู้ขายต่างกัน ({0}) กรุณาตรวจสอบ
+vat_check.status.void_match,ยกเลิก · ตรงกัน
+vat_check.status.void_no_invoice,ยกเลิก · ไม่ต้องมีใบกำกับ
 {0} ({1} matching lines),{0} (ตรงกัน {1} รายการ)
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
 {0} bank lines add up to it ({1} to {2}),ธนาคาร {0} รายการรวมเท่ากัน ({1} ถึง {2})

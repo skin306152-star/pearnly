@@ -1,5 +1,6 @@
 # 销项税报告核查（Cowork，用户 2026-09-26 定迁）：生成核查工作簿（services/vat/vat_excel_build.py::build_excel）
-# 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径。
+# 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径；
+# 有意改动：汇总多一个 n_void（作废行的计数，用户 2026-09-30 定）。
 """VAT 对账 4-sheet Excel 生成 · 编排器 + Sheet1/2/4 builder · vat_excel_export 拆分。
 
 样式 → vat_excel_styles · Sheet3(一对一对账)→ vat_excel_sheet3 · sheet body 0 逻辑改。"""
@@ -221,7 +222,7 @@ def build_excel(
     wb = openpyxl.Workbook()
     _build_sheet1(wb, invoices, L)
     _build_sheet2(wb, report_rows, period_year, period_month, L)
-    n_total, n_ok, n_diff, diff_amount_total, task_rows = _build_sheet3(
+    n_total, n_ok, n_diff, diff_amount_total, task_rows, n_void = _build_sheet3(
         wb, invoices, report_rows, client_name, period_year, period_month, L, lang
     )
     from pearnly_cowork.reconciliation.export import theme
@@ -233,6 +234,7 @@ def build_excel(
         "n_total": n_total,
         "n_ok": n_ok,
         "n_diff": n_diff,
+        "n_void": n_void,  # 作废一致 + 作废（无需发票），不在 n_ok / n_diff 里（Cowork 有意改动，2026-09-30）
         "diff_amount_total": round(diff_amount_total, 2),
         "rows": task_rows,
     }

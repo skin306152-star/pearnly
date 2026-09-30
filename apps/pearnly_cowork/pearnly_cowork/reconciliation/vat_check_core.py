@@ -2,9 +2,11 @@
 # 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径；
 # 有意改动：发票一侧分公司为空时不比分公司（见 `_diff_dims`，用户 2026-09-26 定）；客户名按 `company_name` 比
 # （忽略空格、公司前后缀、总公司 / 分公司标注，用户 2026-09-30 定），税号不同照样报；全 0 税号当作没有税号、一边空一边
-# 是零售通称不算客户名不同（2026-09-30 压测 V01 小票）。
+# 是零售通称不算客户名不同（2026-09-30 压测 V01 小票）；作废行（税报金额全 0、标「*」或写着作废）与同一张发票配成
+# 「作废一致」，单号只差开头字母且两边都唯一也配，没有发票的作废行不算缺失（见 `_void_pair`，用户 2026-09-30 定）。
 """VAT 对账核心:金额/期间归一化 + 一对一配对 + 维度差异计算 · vat_excel_export 拆分 leaf。"""
 
+import re
 from typing import List, Dict, Any, Optional
 
 from pearnly_cowork.reconciliation.normalization import (
@@ -14,6 +16,7 @@ from pearnly_cowork.reconciliation.normalization import (
     normalize_str,
     parse_date,
     tax_id_fuzzy_distance,
+    thai_text,
 )
 
 
@@ -105,6 +108,49 @@ def _get_rep_total(row: Dict) -> float:
         return 0.0
 
 
+# ── 作废（Cowork 有意改动，用户 2026-09-30 定）──────────────────────────────────────────────
+# 税报上作废的发票一行金额全是 0，单号前后标「*」或客户名 / 备注写着 ยกเลิก；发票那边是同一张单号的发票（可能盖作废章、
+# 金额不为 0）。原来两边判成金额差异或各自缺失，每次要人去查。
+_VOID_WORDS = ("ยกเลิก", "作废", "作廢", "取消", "無効", "cancel", "void")
+
+
+def _void_marked(*values) -> bool:
+    """几格文字里有「*」标记或作废字样（大小写、全角半角、PDF 私用区泰文都先规范化）。"""
+    text = " ".join(normalize_str(thai_text(value or "")) for value in values)
+    return "*" in text or any(word in text for word in _VOID_WORDS)
+
+
+def _zero_row(rep: Dict) -> bool:
+    """税报行的未税、税额、含税全是 0 或空。"""
+    return not any(_to_float(rep.get(key)) for key in ("report_amount_pre_vat", "report_vat_amount", "report_amount"))
+
+
+def _void_report(rep: Dict) -> bool:
+    """税报本身就能看出是作废行：金额全 0，且单号 / 参考号 / 客户名里有「*」或作废字样。"""
+    return _zero_row(rep) and _void_marked(
+        rep.get("report_invoice_no"), rep.get("report_ref_no"), rep.get("report_buyer_name"))
+
+
+def _void_pair(inv: Dict, rep: Dict) -> bool:
+    """配上的一对是作废：税报行金额全 0，且税报行或发票（单号 / 客户名，发票表里的作废行常这样写）有作废标记。"""
+    return _zero_row(rep) and (_void_report(rep) or _void_marked(inv.get("invoice_no"), inv.get("buyer_name")))
+
+
+def _number_parts(value):
+    """单号按 normalize_invoice_no 规范化、只留字母数字后，拆成（开头的字母, 从第一个数字起的其余部分）。"""
+    key = "".join(char for char in normalize_invoice_no(value or "") if char.isalnum())
+    match = re.match(r"(\D*)(\d.*)$", key)
+    return (match.group(1), match.group(2)) if match else (key, "")
+
+
+def _same_but_leading_letters(a, b) -> bool:
+    """两个单号只差开头掉了的字母（识别把 IV69/00581 读成 V69/00581、V6900585、V69.00572）：数字起的部分相同，
+    一边开头的字母是另一边的结尾（掉的是最前面几个字母；IV ↔ CN 这种换了字母的不算）。"""
+    head_a, tail_a = _number_parts(a)
+    head_b, tail_b = _number_parts(b)
+    return bool(tail_a) and tail_a == tail_b and (head_a.endswith(head_b) or head_b.endswith(head_a))
+
+
 def _build_recon_pairs(
     invoices: List[Dict], report_rows: List[Dict], lang: str = "th"
 ) -> Dict[str, Any]:
@@ -116,7 +162,9 @@ def _build_recon_pairs(
       4) 税号编辑距离 ≤2 + 金额一致 → fuzzy(Bug 4 · 疑似 · 标 "请确认")
       5) 发票税号空 + 报告里能查到(客户名+发票号+金额一致)→ ocr_missing(Bug 5 · OCR 漏抽)
       剩余:invoice_orphan / report_orphan
-    返回: {pairs:[{inv_idx, rep_idx, kind, note}], unmatched_inv:[idx], unmatched_rep:[idx]}
+    Cowork 有意改动（用户 2026-09-30 定）：第 1 轮同号先配正常行，配上的作废行记 kind=void；第 1 轮后作废行再按「单号只差开头的字母、
+      两边候选都唯一」配 void；剩下没有发票的作废行放进 void_rep，不算报告孤儿。
+    返回: {pairs:[{inv_idx, rep_idx, kind, note}], unmatched_inv:[idx], unmatched_rep:[idx], void_rep:[idx]}
     """
     lab = diff_labels(lang)  # 配对备注本地化(散客匹配 / 税号疑似 · 跟用户语言)
     n_inv = len(invoices)
@@ -136,14 +184,34 @@ def _build_recon_pairs(
         key = normalize_invoice_no(invoices[ii].get("invoice_no") or "")
         if not key:
             continue
-        candidates = rep_no_idx.get(key, [])
+        # 同号既有作废行又有正常行（作废后重开同号）：先配正常行，作废行留下不需要发票（Cowork 有意改动）
+        candidates = sorted(rep_no_idx.get(key, []), key=lambda r: _void_report(report_rows[r]))
         for ri in candidates:
             if ri in used_rep:
                 continue
             used_inv.add(ii)
             used_rep.add(ri)
-            pairs.append({"inv_idx": ii, "rep_idx": ri, "kind": "matched", "note": ""})
+            kind = "void" if _void_pair(invoices[ii], report_rows[ri]) else "matched"
+            pairs.append({"inv_idx": ii, "rep_idx": ri, "kind": kind, "note": ""})
             break
+
+    # ── 第 1 轮之后 · 作废行：单号只差开头的字母（Cowork 有意改动）。这张发票只像这一行、这一行也只像这张发票才配。
+    def _alike(ii, ri):
+        return _same_but_leading_letters(invoices[ii].get("invoice_no"), report_rows[ri].get("report_invoice_no"))
+
+    for ri in range(n_rep):
+        if ri in used_rep or not _zero_row(report_rows[ri]):
+            continue
+        found = [ii for ii in range(n_inv) if ii not in used_inv and _alike(ii, ri)]
+        if len(found) != 1:
+            continue
+        ii = found[0]
+        rivals = [rj for rj in range(n_rep) if rj not in used_rep and _zero_row(report_rows[rj]) and _alike(ii, rj)]
+        if rivals != [ri] or not _void_pair(invoices[ii], report_rows[ri]):
+            continue
+        used_inv.add(ii)
+        used_rep.add(ri)
+        pairs.append({"inv_idx": ii, "rep_idx": ri, "kind": "void", "note": ""})
 
     # ── 第 2 轮 · 税号 + 含税金额 一致
     for ii in range(n_inv):
@@ -297,8 +365,10 @@ def _build_recon_pairs(
             p["note"] = lab["ocr_missing_tax"].format(tax=rep_tax)
 
     unmatched_inv = [i for i in range(n_inv) if i not in used_inv]
-    unmatched_rep = [i for i in range(n_rep) if i not in used_rep]
-    return {"pairs": pairs, "unmatched_inv": unmatched_inv, "unmatched_rep": unmatched_rep}
+    # 作废行本来就不需要发票：没配上发票也不算缺失（Cowork 有意改动）。
+    void_rep = [i for i in range(n_rep) if i not in used_rep and _void_report(report_rows[i])]
+    unmatched_rep = [i for i in range(n_rep) if i not in used_rep and i not in void_rep]
+    return {"pairs": pairs, "unmatched_inv": unmatched_inv, "unmatched_rep": unmatched_rep, "void_rep": void_rep}
 
 
 # 逐行差异文案 4 语标签(导出 Excel 跟用户语言走 · 泰语报告别冒中文)。

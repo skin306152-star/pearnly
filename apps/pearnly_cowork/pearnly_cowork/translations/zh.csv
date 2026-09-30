@@ -1209,7 +1209,9 @@ View differences,查看差异
 Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+Void match,作废一致
 Void this count of {0}?,撤销这条 {0} 的记录？
+Void · no invoice needed,作废（无需发票）
 Voided,已作废
 "Voided, not in the total",已撤销，不计入合计
 Voucher no.,凭证号
@@ -2246,6 +2248,8 @@ vat_check.periods_differ,多份报告期间不一致（{0}），请检查。
 vat_check.recognition_busy,发票识别繁忙，请稍后再试。
 vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
+vat_check.status.void_match,作废一致
+vat_check.status.void_no_invoice,作废（无需发票）
 {0} ({1} matching lines),{0}（对上 {1} 笔）
 {0} added you to {1},{0} 把你加入了卡片「{1}」
 {0} bank lines add up to it ({1} to {2}),银行 {0} 笔合计相等（{1} 至 {2}）

@@ -1,9 +1,12 @@
 # 销项税报告核查（Cowork，用户 2026-09-26 定迁）：核查工作簿第 3 页：逐张对照（services/vat/vat_excel_sheet3.py）
 # 来源：旧线上 ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188 的同名逻辑，逐字移植，只改导入路径。
+# 有意改动：作废行（配对 kind=void、没有发票的作废行 void_rep）显示「作废一致」/「作废（无需发票）」、绿底，不计入差异与缺失，
+# 汇总另记 n_void（用户 2026-09-30 定；判定见 vat_check_core `_void_pair`，词条在 i18n/messages.tsv）。
 """Sheet 3 · 一对一对账结果(配对引擎 + 状态判定)· vat_excel_build 拆分；Cowork 去掉了标题与 KPI 卡。"""
 
 from typing import List, Dict
 
+from frappe import _
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -37,6 +40,11 @@ from pearnly_cowork.reconciliation.export.vat_check_styles import (
 )
 
 
+def _void_status(key, lang) -> str:
+    """作废两种状态的文字：词条在术语表（``vat_check.status.*``），前面照其它「一致」状态加「✓ 」。"""
+    return "✓ " + _(key, lang=lang)
+
+
 def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_month, L, lang="th"):
     # ════════════ Sheet 3 · 对账结果(一对一 15 列 · 后端预算结果)════════════
     _lab = diff_labels(lang)  # 逐行差异/金额备注本地化标签(跟用户语言)
@@ -48,9 +56,11 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
     pairs = match_result["pairs"]
     unmatched_inv = match_result["unmatched_inv"]
     unmatched_rep = match_result["unmatched_rep"]
+    void_rep = match_result["void_rep"]
 
-    # 计算 KPI
-    n_total = len(pairs) + len(unmatched_inv) + len(unmatched_rep)
+    # 计算 KPI（作废的单独计数，不算差异也不算缺失）
+    n_total = len(pairs) + len(unmatched_inv) + len(unmatched_rep) + len(void_rep)
+    n_void = sum(1 for _p in pairs if _p["kind"] == "void") + len(void_rep)
     n_ok = 0
     for _p in pairs:
         _inv = invoices[_p["inv_idx"]]
@@ -63,7 +73,7 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
             _d = _diff_dims(_inv, _rep, lang)
             if not any(_d.values()):
                 n_ok += 1
-    n_diff = n_total - n_ok
+    n_diff = n_total - n_ok - n_void
     diff_amount_total = 0.0
     for p in pairs:
         if p["kind"] in ("matched", "matched_cash"):
@@ -93,6 +103,8 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
     def _status_for(pair, dims) -> tuple:
         """v118.32.4.10.0 · 维度感知状态判定 · 返回 (status_key, text, fill)"""
         kind = pair["kind"]
+        if kind == "void":
+            return "st_void", _void_status("vat_check.status.void_match", lang), FILL_OK
         if kind == "fuzzy":
             return "st_fuzzy", L["st_fuzzy"], FILL_FUZZY
         if kind == "ocr_missing":
@@ -145,6 +157,9 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
         if pair["kind"] == "matched_cash":
             dims["branch"] = ""
             dims["tax_id"] = ""
+        # 作废一致：单号掉字母、金额不同都是作废造成的，不列差异
+        if pair["kind"] == "void":
+            dims = {k: "" for k in dims}
         # tax_id fuzzy ~ 前缀处理(显示时去掉 · 用蓝色替换红色)
         tax_id_raw = dims.get("tax_id", "")
         tax_id_is_fuzzy = tax_id_raw.startswith("~")
@@ -152,7 +167,7 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
         status_key, status_text, row_fill = _status_for(pair, dims)
         amt_inv = _get_inv_total(inv)
         amt_rep = _get_rep_total(rep)
-        amt_diff = round(amt_inv - amt_rep, 2)
+        amt_diff = 0 if pair["kind"] == "void" else round(amt_inv - amt_rep, 2)
         period_inv = _derive_period(inv.get("invoice_date") or "", inv.get("period") or "")
 
         # v4.10.13 · 净额/VAT 分字段差异备注
@@ -162,7 +177,7 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
         amt_vat_rep = float(rep.get("report_vat_amount") or 0)
         pre_diff = round(amt_pre_inv - amt_pre_rep, 2)
         vat_diff_ = round(amt_vat_inv - amt_vat_rep, 2)
-        if not _eq_amount(amt_inv, amt_rep):
+        if not _eq_amount(amt_inv, amt_rep) and pair["kind"] != "void":
             if not _eq_amount(pre_diff, 0) and not _eq_amount(vat_diff_, 0):
                 _amt_note = (
                     f"{_lab['amt_pre_diff']} {pre_diff:+,.2f} · "
@@ -337,9 +352,46 @@ def _build_sheet3(wb, invoices, report_rows, client_name, period_year, period_mo
         ws3.row_dimensions[row_cursor].height = ROW_HEIGHT
         row_cursor += 1
 
+    # 作废行没有发票（Cowork 有意改动）：作废本来就不需要发票，绿底、不算缺失
+    for ri in void_rep:
+        seq_no += 1
+        rep = report_rows[ri]
+        amt_rep = _get_rep_total(rep)
+        d = parse_date(rep.get("report_date") or "")
+        period_rep = f"{d.month:02d}/{d.year}" if d else ""
+        status_text = _void_status("vat_check.status.void_no_invoice", lang)
+        values = [seq_no, status_text, rep.get("report_buyer_name") or "", rep.get("report_invoice_no") or "",
+                  period_rep, 0, amt_rep, 0, "", "", "", "", "", "", ""]
+        for c, v in enumerate(values, 1):
+            cell = ws3.cell(row=row_cursor, column=c, value=v)
+            cell.font = F_NORM
+            cell.border = BORDER_TH
+            cell.fill = FILL_OK
+            if c in (6, 7, 8):
+                cell.alignment = AL_R
+                cell.number_format = "#,##0.00"
+            elif c == 1:
+                cell.alignment = AL_C
+            else:
+                cell.alignment = AL_L
+        task_rows.append(
+            {
+                "status_key": "st_void_no_inv",
+                "status": status_text,
+                "customer": rep.get("report_buyer_name") or "",
+                "invoice_no": rep.get("report_invoice_no") or "",
+                "amount_inv": 0,
+                "amount_rep": amt_rep,
+                "dims": {},
+                "kind": "report_void",
+            }
+        )
+        ws3.row_dimensions[row_cursor].height = ROW_HEIGHT
+        row_cursor += 1
+
     # 列宽
     widths3 = [5, 22, 26, 16, 10, 14, 14, 13, 22, 14, 16, 22, 18, 26, 22]
     for i, w in enumerate(widths3, 1):
         ws3.column_dimensions[get_column_letter(i)].width = w
     ws3.freeze_panes = f"A{DATA_START}"
-    return n_total, n_ok, n_diff, diff_amount_total, task_rows
+    return n_total, n_ok, n_diff, diff_amount_total, task_rows, n_void

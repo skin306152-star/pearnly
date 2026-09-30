@@ -1209,7 +1209,9 @@ View differences,差異を見る
 Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
+Void match,取消 · 一致
 Void this count of {0}?,この {0} の記録を取り消しますか？
+Void · no invoice needed,取消 · 請求書不要
 Voided,無効化済み
 "Voided, not in the total",取消済み（合計に含まない）
 Voucher no.,伝票番号
@@ -2246,6 +2248,8 @@ vat_check.periods_differ,報告の期間が異なります（{0}）。確認し�
 vat_check.recognition_busy,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。
 vat_check.recognition_timeout,請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認してください。
+vat_check.status.void_match,取消 · 一致
+vat_check.status.void_no_invoice,取消 · 請求書不要
 {0} ({1} matching lines),{0}（一致 {1} 件）
 {0} added you to {1},{0} があなたを「{1}」に追加しました
 {0} bank lines add up to it ({1} to {2}),銀行 {0} 件の合計が一致（{1}〜{2}）

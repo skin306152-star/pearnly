@@ -1209,7 +1209,9 @@ View differences,View differences
 Visibility,Visibility
 Void,Void
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
+Void match,Void match
 Void this count of {0}?,Void this count of {0}?
+Void · no invoice needed,Void · no invoice needed
 Voided,Voided
 "Voided, not in the total","Voided, not in the total"
 Voucher no.,Voucher no.
@@ -2246,6 +2248,8 @@ vat_check.periods_differ,The reports cover different periods ({0}).
 vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
 vat_check.recognition_timeout,Invoice recognition took too long. Try again later.
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
+vat_check.status.void_match,Void match
+vat_check.status.void_no_invoice,Void · no invoice needed
 {0} ({1} matching lines),{0} ({1} matching lines)
 {0} added you to {1},{0} added you to {1}
 {0} bank lines add up to it ({1} to {2}),{0} bank lines add up to it ({1} to {2})
