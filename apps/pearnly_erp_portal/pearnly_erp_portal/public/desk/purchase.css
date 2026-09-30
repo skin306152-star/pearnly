@@ -65,10 +65,10 @@
 	min-height: 0;
 }
 
-/* 原件预览框加高：铺满窗口余下的高度（减去页头、工具条与下面的附件表），最少 360、最多 760。共用组件默认
- * min(360px, 48vh) 不动，只在这一页放大。 */
+/* 原件预览框往下铺满整栏：窗口高度减去顶栏、页头（`--purchase-head-height`）、上传按钮与工具条，最少 360，不再封顶
+ * （用户 2026-09-30，与 Cowork 录入 `intake.css` 同一口径）。附件表在它下面，往下滚能看到。共用组件默认不动。 */
 .pearnly-product-desk .pearnly-purchase-form .purchase-evidence .pearnly-document-viewer .pearnly-document-canvas {
-	height: clamp(360px, calc(100vh - 330px), 760px);
+	height: max(360px, calc(100vh - var(--purchase-head-height, 50px) - 180px));
 }
 
 @media (max-width: 767px) {

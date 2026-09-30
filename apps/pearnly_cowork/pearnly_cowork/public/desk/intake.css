@@ -55,10 +55,11 @@
 	border-left: 1px solid var(--border-color, #d1d8dd);
 }
 
-/* 原件预览框加高：铺满窗口余下的高度（减去页头、工具条与下面的文件表），最少 360、最多 760。共用组件默认
- * min(360px, 48vh) 不动（ERP 采购也用它），只在录入页这里放大。 */
+/* 原件预览框往下铺满整栏：窗口高度减去顶栏、页头（`--pearnly-intake-head-height`）、上传按钮与工具条，最少 360，
+ * 不再封顶（用户 2026-09-30：「这一边都能显示原件，便于核对」；原来最多 760）。文件表在它下面，往下滚能看到。
+ * 共用组件默认 min(360px, 48vh) 不动；ERP 采购 / 销售同一口径（`purchase.css`、`sales.css`）。 */
 .pearnly-intake-evidence .pearnly-document-viewer .pearnly-document-canvas {
-	height: clamp(360px, calc(100vh - 330px), 760px);
+	height: max(360px, calc(100vh - var(--pearnly-intake-head-height, 50px) - 180px));
 }
 
 @media (max-width: 767px) {
