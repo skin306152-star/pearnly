@@ -133,11 +133,17 @@ REREAD_REASONS = {
 }
 
 
-def _extract(model_call, image, mime, category, transcript, number, *, reread=False):
-    request = build_request(category, transcript)
+# 税报照片第一遍只看图（不给 Document AI 转写稿）；自核对不上或没读到页合计时，用原读法（带转写稿）重读这一页。
+# 用户 2026-09-30 定（压测：密集税报照片整页错位，两种读法错在不同的页上，组合后没被点名的读错行为 0；每页平均
+# 约 0.41 泰铢，比原来的 0.44 省）。有意改变旧线上读法（旧线上第一遍就带转写稿）；银行、总账不变。
+IMAGE_FIRST = ("vat",)
+
+
+def _extract(model_call, image, mime, category, transcript, number, *, reread=False, image_only=False, note=True):
+    request = build_request(category, transcript, image_only=image_only)
     config = request["config"]
     prompt = request["prompt"]
-    if reread:
+    if reread and note:
         prompt += ("\nA first reading of this page did not pass its arithmetic check (" + REREAD_REASONS[category]
                    + "). Read the page again directly from the image: every printed table row exactly once, in "
                      "printed order, with each amount from its own column.")
@@ -170,11 +176,15 @@ def _checked(model_call, image, mime, category, transcript, number, data, respon
         audit = {"state": state, "reread": False, "printed": self_check.printed_totals(data)}
     else:
         return data, response, None, 0.0
-    if audit["state"] != self_check.MISMATCH or not may_reread:
+    # 税报第一遍只看图：没读到页合计也换原读法重读一次（没有合计就没法自核）。
+    retry = (self_check.MISMATCH, self_check.NO_TOTAL) if category in IMAGE_FIRST else (self_check.MISMATCH,)
+    if audit["state"] not in retry or not may_reread:
         return data, response, audit, 0.0
     audit["reread"] = True
     try:
-        second, again = _extract(model_call, image, mime, category, transcript, number, reread=True)
+        # 税报重读用原读法原样（带转写稿、不加「上次没对上」那句），与压测模拟的读法一致
+        second, again = _extract(model_call, image, mime, category, transcript, number, reread=True,
+                                 note=category not in IMAGE_FIRST)
     except ContentError:
         audit["reread_failed"] = True
         return data, response, audit, 0.0
@@ -222,7 +232,8 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         for number, transcript in enumerate(transcripts, 1):
             image, mime = render(number)
             try:
-                data, response = _extract(model_call, image, mime, category, transcript, number)
+                data, response = _extract(model_call, image, mime, category, transcript, number,
+                                          image_only=category in IMAGE_FIRST)
             except ContentError as error:
                 # 只有银行账单这样兜底：余额链一定在缺的那页断开、交人确认；总账、税报没有逐笔余额，丢一页看不出来，
                 # 照旧整份读不出（结果里点名那份文件）。

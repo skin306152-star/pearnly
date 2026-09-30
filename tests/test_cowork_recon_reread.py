@@ -127,18 +127,30 @@ class VatPage(unittest.TestCase):
 		self.assertEqual(len(result.pages[0].document.entries), 2)
 		self.assertEqual(result.pages[0].extraction_audit["self_check"]["adopted"], "reread")
 
-	def test_a_page_without_a_printed_total_is_not_read_again(self):
+	def test_a_report_page_is_read_from_the_image_first_and_again_with_the_transcript_when_it_has_no_total(self):
+		# 税报第一遍只看图；没读到页合计就用原读法（带转写稿、不加提示句）再读，仍没有合计就用第一遍、照旧点名
 		model = Model(vat([("100", "7")]))
 		result = pipeline.run("vat", page_count=1, reads=[(b"img", "image/png", 1)], render=render,
-			document_ai_call=docai("x"), model_call=model)
-		self.assertEqual(len(model.requests), 1)
+			document_ai_call=docai("transcript words"), model_call=model)
+		self.assertEqual([request.stage for request in model.requests], ["enterprise_schema", pipeline.REREAD_STAGE])
+		self.assertNotIn("transcript words", model.requests[0].prompt)
+		self.assertIn("transcript words", model.requests[1].prompt)
+		self.assertNotIn("did not pass its arithmetic check", model.requests[1].prompt)
 		self.assertEqual(result.pages[0].extraction_audit["self_check"]["state"], self_check.NO_TOTAL)
 
+	def test_a_bank_page_is_still_read_with_the_transcript(self):
+		model = Model(GOOD)
+		pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=render,
+			document_ai_call=docai("bank words"), model_call=model)
+		self.assertIn("bank words", model.requests[0].prompt)
+
 	def test_a_grand_total_on_the_last_page_is_checked_against_every_page_before_it(self):
-		model = Model(vat([("100", "7")]), vat([("200", "14")], "300", "21"))
+		# 第 1 页没印合计（重读一次仍没有），第 2 页的全表总计按累计核得上，不再读
+		model = Model(vat([("100", "7")]), vat([("100", "7")]), vat([("200", "14")], "300", "21"))
 		pipeline.run("vat", page_count=2, reads=[(b"%PDF", "application/pdf", 2)], render=render,
 			document_ai_call=docai("a", "b"), model_call=model)
-		self.assertEqual(len(model.requests), 2)
+		self.assertEqual([request.stage for request in model.requests],
+			["enterprise_schema", pipeline.REREAD_STAGE, "enterprise_schema"])
 
 
 class UnverifiedReportPages(unittest.TestCase):
