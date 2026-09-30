@@ -191,6 +191,27 @@ class ProductNavigationAccess(unittest.TestCase):
         self.assertNotIn(('ERP Sale', 'read'), [call.args for call in self.frappe.has_permission.call_args_list])
         self.frappe.log_error.assert_not_called()
 
+    def test_shared_sidebar_keeps_filtered_pages_and_each_boot_filters_them(self):
+        # The shared document is the pool every boot picks from; a data-dependent filter
+        # (no company with a cashier yet) must not strip POS from it for good.
+        self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
+        self.frappe.conf['pearnly_product'] = 'erp'
+        self.shell.entitlements.return_value = ['sales', 'cashier']
+        self.page_filter.side_effect = lambda offered: {
+            route: value for route, value in offered.items() if value[3] != 'cashier'}
+        shared = [row['link_to'] for row in self.namespace['_sidebar_items']('erp', {'sales', 'cashier'})
+                  if row.get('link_to')]
+        self.assertTrue({'pearnly-cashier', 'pearnly-pos-receipts', 'pearnly-pos-shifts'}.issubset(shared))
+        self.page_filter.assert_not_called()
+        self.frappe.get_roles.return_value = ['ERP Admin']
+        self.frappe.has_permission.side_effect = lambda doctype, perm: doctype == 'ERP Sales Document'
+        boot = self.boot()
+        boot.workspace_sidebar_item = {'pearnly erp': {'items': [{'link_to': route} for route in shared]}}
+        self.namespace['extend_boot'](boot)
+        links = [r['link_to'] for r in boot.workspace_sidebar_item['pearnly erp']['items'] if r.get('link_to')]
+        self.assertNotIn('pearnly-cashier', links)
+        self.assertIn('pearnly-sales', links)
+
     def test_page_filter_import_or_execution_failure_is_closed(self):
         self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
         self.shell.entitlements.return_value = ['products', 'warehouses']

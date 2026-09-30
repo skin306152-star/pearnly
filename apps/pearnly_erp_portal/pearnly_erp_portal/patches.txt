@@ -22,3 +22,5 @@ pearnly_erp_portal.patches.v1_8_drop_product_default_warehouse
 pearnly_erp_portal.patches.v1_9_username_login
 
 pearnly_erp_portal.patches.v1_10_menu_permissions
+# 已开通站点补默认公司（开通流程以前不建，mrerp 2026-09-30）。
+pearnly_erp_portal.patches.v1_11_default_company

@@ -470,6 +470,12 @@ def ensure_product_workspace(spec_json: str) -> dict:
 
     update_site_config("pearnly_workspace", doc.name)
     update_site_config("pearnly_company_name", title)
+    frappe.conf["pearnly_company_name"] = title
+
+    # 产品自己的"租户就绪"动作（ERP：用上面这个公司名建默认公司）。共用层只负责调，
+    # 不认识产品的数据。mrerp 开通后一直没有公司，取当前公司报错把 LINE 与 POS 入口都带没了（2026-09-30）。
+    for path in frappe.get_hooks("pearnly_tenant_ready") or []:
+        frappe.get_attr(path)()
 
     # 让租户登录后**直接落到这个工作台**，不要先过一屏"桌面"再点一次。
     #

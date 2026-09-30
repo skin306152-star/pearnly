@@ -259,6 +259,9 @@ def main():
             assert state["default"] == state["basic"], "The OA default rich menu is not this tenant's menu"
         if group == "cowork":
             assert frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1), "Cowork ERP push is not enabled"
+        if group == "erp":
+            assert frappe.db.exists("ERP Company", {"is_default": 1, "is_active": 1}), \
+                "The ERP tenant has no default company"
         if group in LINE_MENUS and frappe.conf.get("pearnly_line_channel_access_token"):
             assert importlib.import_module(LINE_MENUS[group])._published(), "This tenant's LINE menus are not published"
         if frappe.conf.get("pearnly_line_channel_access_token"):

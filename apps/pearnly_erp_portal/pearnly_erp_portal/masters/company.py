@@ -50,6 +50,7 @@ def ensure_default() -> str:
     any_company = frappe.db.get_value(DOCTYPE, {}, "name", order_by="creation asc")
     if any_company:
         frappe.db.set_value(DOCTYPE, any_company, "is_default", 1)
+        frappe.cache.delete_key("bootinfo")  # set_value 不走 on_change，公司清单缓存要自己清
         return any_company
     doc = frappe.get_doc({"doctype": DOCTYPE, "company_name": frappe.conf.get("pearnly_company_name")
                           or "My Company", "is_default": 1, "is_active": 1})

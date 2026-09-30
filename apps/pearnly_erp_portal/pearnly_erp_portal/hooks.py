@@ -331,6 +331,8 @@ app_include_css = [
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # 绑定、菜单与录单前的选择、收单据 → 识别 → 预览卡 → 入账，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
+# 开通时（`pearnly_core.provisioning.ensure_product_workspace`）建好默认公司：没有公司，取当前公司会报错。
+pearnly_tenant_ready = ["pearnly_erp_portal.masters.company.ensure_default"]
 # LINE 收单的识别走共用 OCR 队列（容量、计费与不重复扣费都在共用层）。
 pearnly_ocr_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.run"}
 pearnly_ocr_failure_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.ocr_failed"}

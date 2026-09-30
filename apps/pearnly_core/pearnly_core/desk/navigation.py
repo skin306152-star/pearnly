@@ -203,11 +203,16 @@ def ensure_navigation():
     frappe.clear_cache()
 
 
-def _offered(product, features) -> dict:
+def _offered(product, features, *, page_filter=True) -> dict:
     """这次真正放进侧栏的页面：**做好的**（available_pages）+ 买了的 + 有权限的。
 
     没做好的页面不进侧栏 —— "不具备的功能不放出来"这条只能在这里守，
     因为侧栏是用户唯一能点到它们的地方。
+
+    `page_filter=False` 只给全站那份 Workspace Sidebar 文档用：产品过滤器看的是**当前数据**
+    （例如 ERP"这家公司开没开收银"），而那份文档是每个人启动时挑条目的底子，只能减不能加。
+    9-29 mrerp 部署重建时还没有公司，收银三页被滤掉写进了文档，之后建了公司、开了收银，
+    谁的侧栏都再也出不来 POS（2026-09-30）。按当前数据过滤只在每个人的启动投影里做。
     """
     offered = {}
     for label, route, icon, feature in pages(product):
@@ -216,7 +221,7 @@ def _offered(product, features) -> dict:
         if feature and feature not in features:
             continue
         offered[route] = (label, route, icon, feature)
-    return _product_page_filter(product, offered)
+    return _product_page_filter(product, offered) if page_filter else offered
 
 
 def _product_page_filter(product, offered) -> dict:
@@ -245,7 +250,7 @@ def _product_page_filter(product, offered) -> dict:
 def _sidebar_items(product, features) -> list:
     """侧栏条目：有分组定义就出「分组标题 + 缩进的子项」，否则平铺。"""
     hidden = _user_menu_routes(product)
-    offered = {route: value for route, value in _offered(product, features).items()
+    offered = {route: value for route, value in _offered(product, features, page_filter=False).items()
                if route not in hidden}
     groups = navigation_groups(product)
     if not groups:
