@@ -61,9 +61,13 @@ def suspect_rows_note(named_pages):
     rows = self_check.suspect_report_rows(named_pages)
     if not rows:
         return ""
-    shown = [f"{name} {invoice or '?'}（{_(ROW_REASONS[reason])}）" for name, invoice, reason in rows[:ROW_NOTE_LIMIT]]
+    # 按文件归在一起写（文件名只写一次），提示短一些，少被截断（压测 rM 末尾出现「…(+2)」）
+    grouped = {}
+    for name, invoice, reason in rows[:ROW_NOTE_LIMIT]:
+        grouped.setdefault(name, []).append(f"{invoice or '?'}（{_(ROW_REASONS[reason])}）")
     more = len(rows) - ROW_NOTE_LIMIT
-    return _("reconciliation.report_rows_suspect").format("、".join(shown) + (f" …(+{more})" if more > 0 else ""))
+    text = "；".join(f"{name}: {'、'.join(items)}" for name, items in grouped.items())
+    return _("reconciliation.report_rows_suspect").format(text + (f" …(+{more})" if more > 0 else ""))
 
 
 def report_reading(named_pages):

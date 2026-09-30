@@ -160,13 +160,26 @@ def _row_date(value):
         return None
 
 
+RATE_SLACK = Decimal("0.05")
+DATE_SLACK_DAYS = 3
+
+
+def _vat_fits(base, tax, total):
+    """税额对得上税基：按税基 × 7%，或按含税价 × 7/107 倒算（含税价没读到就用税基 + 税额），差 0.05 以内都算对。"""
+    gross = total if total else base + tax
+    return (abs(tax - base * VAT_RATE) <= RATE_SLACK
+            or abs(tax - gross * VAT_RATE / (1 + VAT_RATE)) <= RATE_SLACK)
+
+
 def suspect_report_rows(reports) -> list:
     """识别读出的税报里自己对不上的行：``[(文件名, 单号, 原因), …]``。``reports`` 同 ``unverified_report_pages``。
 
-    - 税额与税基 × 7% 差超过 0.01（税额为 0 的零税率 / 免税行不算）；
+    - 税额按税基 × 7% 和按含税价 × 7/107 倒算都差超过 0.05（含税价倒算的正常尾差 0.02 不算；税额为 0 的零税率 /
+      免税行不算；压测 rM：02000076 / 077 是尾差、不是读错）；
     - 只有税额、没有税基；
     - 同一份报告里单号重复（整份都读一遍）；
-    - 单号开头印着年月日（「690526-011」）而这一行的日期是别的日子（差一年以内才比）。
+    - 单号开头印着年月日（「690526-011」）而这一行的日期差了 3 天以上（一年以内才比）。先编号后开票、补录会差 1–3 天，
+      不算（压测 rM：690519-007 等差 1–3 天是原单据本来如此；真读错的 690526-011 差 15 天）。
     """
     out, seen = [], {}
     for name, pages in reports:
@@ -176,7 +189,7 @@ def suspect_report_rows(reports) -> list:
                 base, tax = dec(entry.get("subtotal")), dec(entry.get("vat"))
                 if tax and not base:
                     out.append((name, invoice, ROW_VAT_ONLY))
-                elif tax and base and abs(tax - (base * VAT_RATE).quantize(TOLERANCE)) > TOLERANCE:
+                elif tax and base and not _vat_fits(base, tax, dec(entry.get("total"))):
                     out.append((name, invoice, ROW_VAT_RATE))
                 key = invoice.upper().replace(" ", "")
                 if key:
@@ -185,7 +198,6 @@ def suspect_report_rows(reports) -> list:
                     seen.setdefault(key, name)
                 printed = _number_date(invoice)
                 row_date = _row_date(entry.get("transaction_date_raw")) or _row_date(entry.get("transaction_date"))
-                if printed and row_date and printed != row_date \
-                        and abs((printed - row_date).days) <= 366:
+                if printed and row_date and DATE_SLACK_DAYS < abs((printed - row_date).days) <= 366:
                     out.append((name, invoice, ROW_DATE))
     return out
