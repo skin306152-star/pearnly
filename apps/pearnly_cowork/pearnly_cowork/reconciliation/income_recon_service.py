@@ -159,7 +159,8 @@ def within_report_period(gl_rows, vat_rows):
 
 
 def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
-		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename="", report_warnings=None, tax_id=""):
+		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename="", report_warnings=None, tax_id="",
+		photo_pages=None):
 	"""Store one reconciliation from the extracted content of the two report files.
 
 	Opening the ledger workbook or PDF, opening the output-VAT report, running OCR
@@ -205,7 +206,8 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 	parse_values = {"gl": [gl_diagnostic(parsed["diag"], parsed["row_count"], gl_filename)],
 		"vat": [{"file": vat_filename, "method": report_method, "rows": report_rows,
 			"parser_version": report_version, "warnings": report_warnings,
-			**_tax_field(tax_id)}]}
+			**_tax_field(tax_id), **({"photo_pages": [[label, list(refs)[:income_recon_contracts.MAX_PAGE_REFS]]
+				for label, refs in photo_pages[:income_recon_contracts.MAX_PHOTO_PAGES]]} if photo_pages else {})}]}
 	result = create(workspace, title, request_id, income_parse.decoded_rows(gl_rows),
 		vat_rows, header, parse_values, gl_filename, vat_filename)
 	payload = {**result, "parsed": {

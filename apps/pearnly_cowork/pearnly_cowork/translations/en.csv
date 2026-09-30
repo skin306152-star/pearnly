@@ -842,6 +842,7 @@ Settings Json,Settings Json
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.","Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
+"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}","Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
 Sheet,Sheet
 Short,Short
 Show,Show
@@ -1088,6 +1089,7 @@ There is not enough recognition balance. Top up and send the document again.,The
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
+"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}","These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 These statements look like another account and were left out of this reconciliation: {0},These statements look like another account and were left out of this reconciliation: {0}
@@ -2120,6 +2122,8 @@ reconciliation.preset.grouped_title,Does {0} post in batches?
 reconciliation.preset.grouped_yes,"Yes, match by total"
 reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
 reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
+reconciliation.report_page_likely_misread,"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
+reconciliation.report_pages_unverified,"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 reconciliation.request_conflict,This request was already used for different content.
 reconciliation.request_invalid,The request is invalid. Reload and try again.

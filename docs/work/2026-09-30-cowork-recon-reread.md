@@ -1,0 +1,36 @@
+# Cowork 对账识别：逐页自核、没过的页自动再读一次（2026-09-30）
+
+来源：用户 2026-09-30「都同意」第 2 项——余额链断开、对不上的页自动再抽一次（每次约 0.5 泰铢，成本已同意）；压测窗口补充
+（收入 / 销项 OCR 修复第 3 条）：税报页合计对不上也再读一次，再读仍不符或没读到页合计的页标「无法自核」；收入对账里同一页
+多行和总账对不上的，提示「多半是照片读错」，别当成真实差异。
+
+- 分支 `codex/cowork-recon-reread`，工作树 `.claude/worktrees/cowork-recon-reread`，基线 main `c97eac21`。
+- 只改 `pearnly_cowork`（共用层未动）。只作用于企业档逐页抽取（照片、扫描件）；本地按版面拼平的、电子表格、带文字层的 PDF 不涉及、不多花钱。
+
+## 做法
+
+| 位置 | 改动 |
+|---|---|
+| `ocr/enterprise/self_check.py`（新，纯函数） | 银行：页内余额链断点数（页上承前余额 → 逐笔 → 页上结转余额）；税报：行合计对页合计（未税 / 税额 / 含税，印了哪个核哪个），累计到本页的合计（结转、最后一页的全表总计）也算对上；几份税报按上传顺序合起来判哪些页无法自核 |
+| `ocr/enterprise/pipeline.py` | 每页抽取后自核；没过就这一页再抽一次（阶段 `enterprise_schema_reread`，检查点与第一次分开；提示里只说「上次没对上、逐行重读」，**不给页上的任何数**，免得模型凑数）。银行取断点严格更少的那次；税报只有再读对上了才用再读的；再读读不出照旧用第一次，不丢页。一份文件最多再读 10 页。自核结果记在页的留痕 `self_check` |
+| `recon_center/document_ocr.py` | 再读那次不重复计看板页数、不再报「刚读出」 |
+| `recon_center/vat_check.py`、`sources.py`、`jobs.py` | 识别读出的税报：无法自核的页点名（收入对账进标题下提示；销项核查存进 `report_notes` 显示在标题下）；每页单号记下来给收入结果页用 |
+| `reconciliation/income_recon_*`、`revision.py`、`recon_center/sheets.py` | 收入读取记录新增 `photo_pages`（每页单号）；结果页按当前核对结果现算：同一页 ≥2 行和总账对不上（金额不同或总账里没有）就提示多半是这页读错 |
+| 词条 | `reconciliation.report_pages_unverified`、`reconciliation.report_page_likely_misread` 四语 |
+
+银行账单的契约没有笔数栏，自核只看余额链（页内断点、页末结转余额）。总账不核。
+
+## 成本
+
+每次再读约 0.5 泰铢（一次 3.8 抽取），只在自核没过时发生，一份文件最多 10 次；再读的钱记进识别成本观测，不向用户多扣页费。
+
+## 验证
+
+- 离线：`tests/test_cowork_recon_reread.py` 16 条；`test_cowork_rec*` / `bank*` / `income*` / `vat*` / `ocr*` 共 800+ 条通过；
+  企业档旧线上对照 `test_cowork_enterprise_source_parity` 0 差异（第一次抽取的请求不变），税表 / 总账解析对照通过。
+- `test_cowork_reconciliation_source_parity` 在 main（c97eac21）上本来就报「reconcile rows drifted」，与本分支无关，另开待办。
+- 真实语料复测：待压测窗口（需付费识别，按它的批次安排）。
+
+## 未做 / 限制
+
+- 未合并、未部署。

@@ -244,6 +244,8 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
                 if error.code == enterprise.UNREAD_PAGE:
                     progress.unread(file, getattr(request, "page_number", 0))
                 raise
+            if getattr(request, "stage", "") == enterprise.REREAD_STAGE:
+                return response  # 自核没过、这页再读一次：看板不重复记页数、不再报一次「刚读出」
             counted["done"] += 1
             _progress(file, done=counted["done"])
             try:

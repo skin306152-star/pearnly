@@ -521,14 +521,15 @@ def load(kind, task_id, lang=None):
             notes += revision.bank_group_notes(results)
     if kind == "income":
         # 税报里一笔都对不上的收入科目：这家公司还没定过就问一次参不参与对账（对账预设）；定了不参与的标题旁说明。
-        rows, results, _summary = revision.income_compute(doc, inputs)
+        rows, results, summary = revision.income_compute(doc, inputs)
         questions = revision.income_questions(doc, rows, results)
+        notes += revision.income_photo_notes(doc, results, summary)
         notes += revision.income_preset_notes(doc, rows)
     if kind == "vat" and inputs.get("failed_files"):
         # 读不出的发票文件原来存着却不显示（2026-09-28 录制读代码发现）：与银行同样写在标题下一句。
         notes.append(_("vat_check.note.unread").format(", ".join(str(name) for name in inputs["failed_files"])))
     if kind == "vat":
-        notes += purchase_invoice_notes(inputs)
+        notes += list(inputs.get("report_notes") or []) + purchase_invoice_notes(inputs)
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
                      "revision": version, "notes": notes, "questions": questions}, **_view(kind, doc, inputs, _lang(lang))}
 

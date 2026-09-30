@@ -842,6 +842,7 @@ Settings Json,ข้อมูลการตั้งค่า (JSON)
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",มีหลายบัญชีที่มีรายการตรงกับรายการเดินบัญชีนี้ เลือกครั้งเดียว ระบบจะกระทบยอดใหม่จากไฟล์เดิม (ไม่อ่านไฟล์ซ้ำ)
+"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูปถ่าย / สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท น่าจะอ่านหน้านั้นผิด กรุณาตรวจกับต้นฉบับก่อนถือเป็นผลต่างจริง (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}
 Sheet,ไฟล์
 Short,ขาด
 Show,แสดง
@@ -1088,6 +1089,7 @@ There is not enough recognition balance. Top up and send the document again.,ย
 These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 These files could not be read and were left out; upload them again to include them: {0},อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
+"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",หน้าต่อไปนี้ของรายงานภาษีตรวจทานกับยอดรวมท้ายหน้าไม่ได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้ แม้อ่านซ้ำแล้ว) กรุณาตรวจกับต้นฉบับ: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
 These statements look like another account and were left out of this reconciliation: {0},รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
@@ -2120,6 +2122,8 @@ reconciliation.preset.grouped_title,{0} บันทึกเป็นยอด�
 reconciliation.preset.grouped_yes,ใช่ จับคู่ตามยอดรวม
 reconciliation.recognition_busy,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
+reconciliation.report_page_likely_misread,หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูปถ่าย / สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท น่าจะอ่านหน้านั้นผิด กรุณาตรวจกับต้นฉบับก่อนถือเป็นผลต่างจริง (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}
+reconciliation.report_pages_unverified,หน้าต่อไปนี้ของรายงานภาษีตรวจทานกับยอดรวมท้ายหน้าไม่ได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้ แม้อ่านซ้ำแล้ว) กรุณาตรวจกับต้นฉบับ: {0}
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันสองครั้ง) จึงนับเพียงครั้งเดียว
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 reconciliation.request_invalid,คำขอไม่ถูกต้อง กรุณารีเฟรชแล้วลองใหม่

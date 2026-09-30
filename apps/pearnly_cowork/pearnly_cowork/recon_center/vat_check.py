@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from pearnly_core.execution.errors import Deferred, QueueFull
 
+from pearnly_cowork.ocr.enterprise import self_check
 from pearnly_cowork.recon_center import sources
 from pearnly_cowork.reconciliation import vat_check_core, vat_check_service, vat_parse
 
@@ -16,18 +17,49 @@ STRUCTURED = sources.EXCEL + sources.CSV
 
 
 def _report(content, filename, read=None):
-    parsed = vat_parse.decode(sources.report_source(content, filename, read))
+    source = sources.report_source(content, filename, read)
+    parsed = vat_parse.decode(source)
     if not parsed or not parsed.get("ok") or not parsed.get("rows"):
         frappe.throw(_("reconciliation.vat_report_unparsed"))
-    return parsed
+    return {**parsed, "pages": sources.report_pages(source)}
 
 
-def merged_report_rows(recon_job, reports, report_files):
+def unverified_note(named_pages):
+    """识别读出的税报里行合计对不上页合计、或没读到页合计的页（逐页自核，自核没过的已自动再读过一次）：
+    点名文件和页，请对照原件核对（压测窗口 2026-09-30：照片税报一页 8 行金额错位，没读到页合计，没法自核）。
+    ``named_pages``：``[(文件名, [(页号, document), …]), …]``，按上传顺序。"""
+    pages = self_check.unverified_report_pages(named_pages)
+    if not pages:
+        return ""
+    return _("reconciliation.report_pages_unverified").format(
+        "；".join(f"{name}: {'、'.join(str(number) for number in numbers)}" for name, numbers in pages))
+
+
+def photo_pages(named_pages):
+    """识别读出的税报每页有哪些单号：``[[页的名字, [单号…]], …]``。收入结果页据此提示「同一页好几行和总账对不上，
+    多半是照片读错」（压测窗口 2026-09-30：一页 8 行税基税额整体下移一行）。"""
+    out = []
+    for name, pages in named_pages:
+        for number, document in pages:
+            refs = [str(entry.get("invoice_no") or "").strip() for entry in document.get("entries") or []]
+            refs = [ref for ref in refs if ref]
+            if refs:
+                out.append([name if len(pages) == 1 else f"{name} p.{number}", refs])
+    return out
+
+
+def report_reading(named_pages):
+    """识别读出的税报的两样附带信息：``(提示列表, 每页单号)``；表格 / 文字层 PDF 没有页，两样都空。"""
+    note = unverified_note(named_pages)
+    return ([note] if note else []), photo_pages(named_pages)
+
+
+def merged_report_rows(recon_job, reports, report_files, pages=None):
     """收入对账的税报分几份（一页一张照片、分段的 PDF；用户 2026-09-30 定可多份）：逐份读、按上传顺序合并成一份。
 
     照片先全部提交识别再按顺序取结果（与银行存折照片同一做法）；一份读不出不整单失败、结果里点名；几份里重复的同一行
     （单号 / 日期 / 未税 / 税额都相同，重复拍的页）只留第一份的；卖方或期间不一致照旧报错（与销项核查同一口径）。
-    返回 ``(income 存储要的税报行, 提示, 税报表头的本公司税号)``。"""
+    返回 ``(income 存储要的税报行, 提示, 税报表头的本公司税号)``；给了 ``pages``（列表）就把识别读出的每页单号追加进去。"""
     from pearnly_cowork.recon_center import document_ocr
     from pearnly_cowork.reconciliation.normalization import normalize_invoice_no
 
@@ -65,6 +97,10 @@ def merged_report_rows(recon_job, reports, report_files):
         warnings.append(_("reconciliation.files_unread").format("、".join(unread)))
     if repeated:
         warnings.append(_("reconciliation.report_rows_repeated").format(repeated))
+    notes, by_page = report_reading([(name, item.get("pages") or []) for name, item in zip(names, parsed)])
+    warnings += notes
+    if pages is not None:
+        pages.extend(by_page)
     tax_id = next((item.get("issuer_hint") for item in parsed if item.get("issuer_hint")), "")
     return vat_parse.decoded_rows(rows), warnings, tax_id
 
@@ -151,5 +187,7 @@ def run(workspace, title, request_id, reports, invoices, lang, on_stage=None, in
         frappe.throw(_("vat_check.no_invoices"))
     records = swapped_dates(records, merged["rows"])
     stage("matching")
+    notes, _by_page = report_reading([(name, item.get("pages") or [])
+                                      for (name, _content), item in zip(reports, parsed_reports)])
     return vat_check_service.create(workspace, title, request_id, {**merged, "invoices": records,
-        "report_rows": merged["rows"], "failed_files": failed}, lang)
+        "report_rows": merged["rows"], "failed_files": failed, "report_notes": notes}, lang)

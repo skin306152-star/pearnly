@@ -39,7 +39,9 @@ def _inputs(value):
 	return {"invoices": invoices, "report_rows": rows, "seller_name": str(value.get("seller_name") or ""),
 		"seller_tax_id": str(value.get("seller_tax_id") or ""),
 		"period_year": value.get("period_year"), "period_month": value.get("period_month"),
-		"failed_files": list(value.get("failed_files") or [])}
+		"failed_files": list(value.get("failed_files") or []),
+		# 标题下的提示（识别出的税报哪几页没法自核；2026-09-30 加，旧任务没有）
+		"report_notes": [str(note) for note in value.get("report_notes") or []][:10]}
 
 
 def compute(inputs, lang):

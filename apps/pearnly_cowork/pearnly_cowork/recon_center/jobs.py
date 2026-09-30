@@ -253,19 +253,24 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 document_ocr.reader(ocr_job, "left", files["left"][0], frappe.session.user))
             stage("report")
             if len(rights) == 1:
+                from pearnly_cowork.recon_center import vat_check
+
                 vat_source = sources.report_source(right, right_name,
                     document_ocr.reader(ocr_job, "right", files["right"][0], frappe.session.user))
+                notes, by_page = vat_check.report_reading([(right_name, sources.report_pages(vat_source))])
                 stage("matching")
                 result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
-                    vat_source=vat_source, gl_filename=left_name, vat_filename=right_name)
+                    vat_source=vat_source, gl_filename=left_name, vat_filename=right_name,
+                    report_warnings=notes, photo_pages=by_page)
             else:
                 from pearnly_cowork.recon_center import vat_check
 
-                vat_rows, warnings, tax_id = vat_check.merged_report_rows(ocr_job, rights, files["right"])
+                by_page = []
+                vat_rows, warnings, tax_id = vat_check.merged_report_rows(ocr_job, rights, files["right"], by_page)
                 stage("matching")
                 result = income_recon_service.create_from_parsed(workspace, title, request_id, gl_source,
                     vat_rows=vat_rows, gl_filename=left_name, vat_filename=_names(rights),
-                    report_warnings=warnings, tax_id=tax_id)
+                    report_warnings=warnings, tax_id=tax_id, photo_pages=by_page)
         if replace_task:
             rerun.drop(replace_task, files=False)
         pending = result.get("questions") or []

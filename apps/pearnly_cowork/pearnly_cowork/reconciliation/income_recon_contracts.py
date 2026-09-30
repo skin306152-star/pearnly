@@ -45,12 +45,15 @@ HEADER_KEYS = ("amount_tolerance", "gl_account_code")
 MAX_PARSE_FILES = 20
 MAX_ACCOUNTS = 100
 MAX_WARNINGS = 50
+MAX_PHOTO_PAGES = 300
+MAX_PAGE_REFS = 200
 MAX_FILE_NAME = 140
 PARSE_INFO_SECTIONS = {
 	"gl": ("file", "method", "rows", "parser_version", "accounts_seen", "candidate_data_lines",
 		"tables_seen", "header_found", "sheets_seen", "rows_kept"),
 	# tax_id：税报表头印的本公司税号（对账预设按公司记，2026-09-30 加；旧任务没有）。
-	"vat": ("file", "method", "rows", "parser_version", "warnings", "tax_id"),
+	# photo_pages：照片 / 扫描件识别出的税报每页有哪些单号（结果页提示同一页多行对不上多半是读错；2026-09-30 加）。
+	"vat": ("file", "method", "rows", "parser_version", "warnings", "tax_id", "photo_pages"),
 }
 
 
@@ -175,6 +178,14 @@ def parse_info(value):
 					for warning in warnings]
 				if record.get("tax_id"):
 					item["tax_id"] = _text(record.get("tax_id"), f"{section}.tax_id", limit=13)
+				pages = record.get("photo_pages") or []
+				if pages:
+					if (not isinstance(pages, list) or len(pages) > MAX_PHOTO_PAGES
+							or any(not isinstance(page, list) or len(page) != 2 or not isinstance(page[1], list)
+								or len(page[1]) > MAX_PAGE_REFS for page in pages)):
+						raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
+					item["photo_pages"] = [[_text(label, f"{section}.photo_pages"),
+						[_text(ref, f"{section}.photo_pages") for ref in refs]] for label, refs in pages]
 			parsed.append(item)
 		result[section] = parsed
 	return result

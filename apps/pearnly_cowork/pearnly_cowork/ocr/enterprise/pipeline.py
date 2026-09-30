@@ -27,7 +27,7 @@ from typing import Callable, Iterable, List, Tuple
 
 from pearnly_cowork.ocr.engine.contracts import ModelRequest
 from pearnly_cowork.ocr.engine.errors import ContentError
-from pearnly_cowork.ocr.enterprise import contract, header_bank, pages as enterprise_pages
+from pearnly_cowork.ocr.enterprise import contract, header_bank, pages as enterprise_pages, self_check
 from pearnly_cowork.ocr.enterprise.adapter import PipelineResult, make_page
 from pearnly_cowork.ocr.enterprise.local.geometry import rows_from_payloads
 from pearnly_cowork.ocr.enterprise.local.result import check_document, reconstruct
@@ -123,11 +123,27 @@ def local_only(payloads, category, page_count):
         estimated_cost_thb=0.0, read_ms=[])
 
 
-def _extract(model_call, image, mime, category, transcript, number):
+# 自核没过的页再抽一次（用户 2026-09-30 同意，每次约 0.5 泰铢）：换一个阶段名，检查点与第一次分开记；提示里只说
+# 「上次没对上、逐行重读」，不给任何页上的数，免得模型凑数。一份文件最多再读这么多页，防成本跑飞。
+REREAD_STAGE = "enterprise_schema_reread"
+MAX_REREAD_PAGES = 10
+REREAD_REASONS = {
+    "bank": "the running balance of the rows did not follow row by row",
+    "vat": "the rows did not add up to the totals printed on the page",
+}
+
+
+def _extract(model_call, image, mime, category, transcript, number, *, reread=False):
     request = build_request(category, transcript)
     config = request["config"]
-    response = model_call(ModelRequest(stage="enterprise_schema", page_number=number, attempt=0,
-        model=request["model"], prompt=request["prompt"], images=((image, mime),),
+    prompt = request["prompt"]
+    if reread:
+        prompt += ("\nA first reading of this page did not pass its arithmetic check (" + REREAD_REASONS[category]
+                   + "). Read the page again directly from the image: every printed table row exactly once, in "
+                     "printed order, with each amount from its own column.")
+    response = model_call(ModelRequest(stage=REREAD_STAGE if reread else "enterprise_schema", page_number=number,
+        attempt=0,
+        model=request["model"], prompt=prompt, images=((image, mime),),
         max_output_tokens=config["max_output_tokens"], timeout_s=MODEL_TIMEOUT_SECONDS,
         temperature=config["temperature"], response_mime=True,
         thinking=config["thinking_config"]["thinking_level"], response_schema=config["response_json_schema"]))
@@ -140,6 +156,41 @@ def _extract(model_call, image, mime, category, transcript, number):
     if not isinstance(data, dict):
         raise ContentError("ocr.enterprise_schema_failed", page_number=number, detail="parse")
     return data, response
+
+
+def _checked(model_call, image, mime, category, transcript, number, data, response, running, may_reread):
+    """一页抽取完先自核（``self_check``）；银行页内余额链有断点、税报行合计对不上页合计，就这页再抽一次：
+    银行取断点严格更少的那次，税报只有再读对上了才用再读的；再读失败（读不出、结果不明）照旧用第一次，不丢页。
+    返回 ``(document, response, 留痕 or None, 再读花的钱)``；总账不核（``None``）。"""
+    if category == "bank":
+        first = self_check.bank_breaks(data)
+        audit = {"state": self_check.PASSED if not first else self_check.MISMATCH, "reread": False, "breaks": [first]}
+    elif category == "vat":
+        state, _sums = self_check.vat_state(data, running)
+        audit = {"state": state, "reread": False, "printed": self_check.printed_totals(data)}
+    else:
+        return data, response, None, 0.0
+    if audit["state"] != self_check.MISMATCH or not may_reread:
+        return data, response, audit, 0.0
+    audit["reread"] = True
+    try:
+        second, again = _extract(model_call, image, mime, category, transcript, number, reread=True)
+    except ContentError:
+        audit["reread_failed"] = True
+        return data, response, audit, 0.0
+    extra = model_cost_thb(again.model, again.input_tokens, again.output_tokens)
+    if category == "bank":
+        breaks = self_check.bank_breaks(second)
+        audit["breaks"].append(breaks)
+        if second.get("entries") and breaks < first:
+            audit.update(state=self_check.PASSED if not breaks else self_check.MISMATCH, adopted="reread")
+            return second, again, audit, extra
+        return data, response, audit, extra
+    state, _sums = self_check.vat_state(second, running)
+    if state == self_check.PASSED:
+        audit.update(state=state, adopted="reread", printed=self_check.printed_totals(second))
+        return second, again, audit, extra
+    return data, response, audit, extra
 
 
 def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
@@ -166,6 +217,8 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             raise ContentError("ocr.enterprise_transcript_count_mismatch")
         pages = []
         unread = 0
+        rereads = 0
+        running = {}  # 税报：本页之前各页的累计（结转、全表总计按累计核）
         for number, transcript in enumerate(transcripts, 1):
             image, mime = render(number)
             try:
@@ -184,6 +237,10 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
                 page.extraction_audit["page_unreadable"] = True
                 pages.append(page)
                 continue
+            data, response, checked, extra = _checked(model_call, image, mime, category, transcript, number,
+                                                      data, response, running, rereads < MAX_REREAD_PAGES)
+            rereads += bool(checked and checked["reread"])
+            cost += extra
             del image  # one rendered page at a time, not the whole scan in memory
             document = data
             for row in document.get("entries") or []:
@@ -197,6 +254,11 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
                 # 原文明确印着“无流水”（SCB「No Data Available」、BBL「ไม่พบรายการในช่วงเวลาที่ค้นหา」）：对账据此
                 # 按 0 行完成，而不是报读不出（2026-09-30 压测 GIZE SCB-FIXED / BBL-SA-05）。
                 page.extraction_audit["no_data_printed"] = True
+            if checked:
+                page.extraction_audit["self_check"] = checked
+                if category == "vat":
+                    for field, value in self_check.vat_sums(data).items():
+                        running[field] = running.get(field, 0) + value
             page.layer2_model = response.model
             page.layer2_ms = response.elapsed_ms
             page.layer2_input_tokens = response.input_tokens

@@ -65,6 +65,14 @@ def _pipeline(read, document_type, content, filename):
     return {"kind": "pipeline", "decoded": decoded, "engine": decoded.get("engine") or ""}
 
 
+def report_pages(source):
+    """识别读出的税报（照片 / 扫描件）每页的 ``(页号, document)``，给页合计自核用；表格和带文字层的 PDF 没有，回空。"""
+    if (source or {}).get("kind") != "pipeline":
+        return []
+    return [(int(page.get("page_number") or index), page.get("document") or {})
+            for index, page in enumerate((source.get("decoded") or {}).get("pages") or [], 1)]
+
+
 def ledger_source(content, filename, read=None):
     ext = extension(filename)
     if ext in EXCEL or ext in CSV:

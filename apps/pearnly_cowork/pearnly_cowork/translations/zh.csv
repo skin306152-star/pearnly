@@ -842,6 +842,7 @@ Settings Json,配置数据（JSON）
 Several Express customers have this tax ID. Choose the customer and submit again,Express 里有几个客户是这个税号，请选定客户后再提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 里有几个供应商是这个税号，请选定供应商后再提交
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",几个科目都有对得上的流水。选一次，用原文件重新核对（不再识别）。
+"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",以下照片 / 扫描件识别出的税报页有好几行和总账对不上，多半是这页读错了（错位或漏行），请先对照原件，别当成真实差异（括号里是对不上的行数）：{0}
 Sheet,表格文件
 Short,盘亏
 Show,显示
@@ -1088,6 +1089,7 @@ There is not enough recognition balance. Top up and send the document again.,识
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},以下文件没有流水（封面或账户信息页），已跳过：{0}
+"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",以下税报页没法自核（行合计与页合计对不上，或没读到页合计；已自动再读过一次），请对照原件核对：{0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 These statements look like another account and were left out of this reconciliation: {0},以下账单看起来是其他账户的，没有计入本次对账：{0}
@@ -2120,6 +2122,8 @@ reconciliation.preset.grouped_title,{0} 是汇总入账吗
 reconciliation.preset.grouped_yes,是，按合计对上
 reconciliation.recognition_busy,识别繁忙，请稍后再试。
 reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
+reconciliation.report_page_likely_misread,以下照片 / 扫描件识别出的税报页有好几行和总账对不上，多半是这页读错了（错位或漏行），请先对照原件，别当成真实差异（括号里是对不上的行数）：{0}
+reconciliation.report_pages_unverified,以下税报页没法自核（行合计与页合计对不上，或没读到页合计；已自动再读过一次），请对照原件核对：{0}
 reconciliation.report_rows_repeated,有 {0} 行税报在多份文件里重复（同一页传了两次），只算一次。
 reconciliation.request_conflict,这个请求已用于不同内容。
 reconciliation.request_invalid,请求无效，请刷新后重试。

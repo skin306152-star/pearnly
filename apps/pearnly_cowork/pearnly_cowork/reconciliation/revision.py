@@ -125,6 +125,29 @@ def income_notes(doc):
 	return [warning for item in parse_info.get("vat") or [] for warning in item.get("warnings") or []]
 
 
+# 同一页税报有这么多行和总账对不上，就提示多半是照片读错（整页错位时一次错好几行）。
+PAGE_MISREAD_ROWS = 2
+
+
+def income_photo_notes(doc, results, summary):
+	"""照片 / 扫描件识别出的税报：同一页有 ≥2 行和总账对不上（金额不同或总账里没有），多半是这页读错了（错位、漏行），
+	先对照原件，别当成真实差异（压测窗口 2026-09-30：IMG_2535 一页 8 行税基税额整体下移一行）。按当前核对结果现算。"""
+	parse_info = income_recon_contracts.json_loads(doc.parse_info_json) or {}
+	pages = [page for item in parse_info.get("vat") or [] for page in item.get("photo_pages") or []]
+	if not pages:
+		return []
+	off = {income_vat.normalize_doc_no(row.doc_no) for row in results
+		if row.gl_amount is None or abs(row.diff or 0) > 0.01}
+	off |= {income_vat.normalize_doc_no(item.get("doc_no") or "")
+		for item in (summary.vat_only_positive_items or []) + (summary.vat_only_negative_items or [])}
+	flagged = []
+	for label, refs in pages:
+		count = sum(1 for ref in dict.fromkeys(refs) if income_vat.normalize_doc_no(ref) in off)
+		if count >= PAGE_MISREAD_ROWS:
+			flagged.append(f"{label} ({count})")
+	return [_("reconciliation.report_page_likely_misread").format("、".join(flagged))] if flagged else []
+
+
 def bank_notes(doc):
 	"""这份对账为什么要人看一眼：一句话，页面标题下显示（用户 2026-09-28：只在页面写，Excel 不加）。
 
