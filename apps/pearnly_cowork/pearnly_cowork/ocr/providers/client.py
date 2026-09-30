@@ -6,7 +6,6 @@ retry, model fallback, sleep or transport exception handler.
 """
 import base64
 from copy import deepcopy
-from dataclasses import replace
 import json
 import re
 import time
@@ -170,8 +169,6 @@ class ProviderClient:
         routing = {"label": f"{provider}:{location}"}
         if provider == "documentai":
             routing.update(rpm=rpm, wait=wait)
-        elif not wait:
-            routing["wait"] = False
         try:
             response = self._post(url=url, headers={"Authorization": "Bearer " + token,
                 "Content-Type": "application/json"}, payload=payload, timeout_s=timeout_s,
@@ -213,50 +210,7 @@ class ProviderClient:
             self._refuse(key, response, "ocr.provider_invalid_response")
         return deepcopy(body), elapsed, key, bucket
 
-    # 3.1-flash-lite 被谷歌限流（429 / 503）时这一页立刻改用 3.8-flash 读，不原地冷却（用户 2026-10-01：几百人同时用、
-    # 识别不排队不失败；3.8 在 global 余量大得多，只在限流时多花钱）。3.8 也被限流才走共用层原有的退让。
-    LITE, LITE_FALLBACK = "gemini-3.1-flash-lite", "gemini-3.8-flash"
-
     def model_call(self, request: ModelRequest, *, retry_unknown=False):
-        if not isinstance(request, ModelRequest) or request.model != self.LITE:
-            return self._model_call(request, retry_unknown=retry_unknown)
-        # 3.8 按自己的默认思考档；调用方要求的更高档（复核 LOW 等）照旧。
-        fallback = replace(request, model=self.LITE_FALLBACK,
-                           thinking="" if request.thinking in ("", "MINIMAL") else request.thinking)
-        if self._model_done(fallback):  # 上回已被限流转 3.8 读完（续跑）：直接取回，不再调 3.1
-            return self._model_call(fallback, retry_unknown=retry_unknown)
-        try:
-            return self._model_call(request, retry_unknown=retry_unknown, wait=False)
-        except Deferred as error:
-            if str(error.reason).startswith("provider_"):
-                return self._model_call(fallback, retry_unknown=retry_unknown)
-            # 自家额度一时拿不到（不是谷歌限流）：照旧按共用层规则原地等
-            return self._model_call(request, retry_unknown=retry_unknown)
-
-    def _model_done(self, request):
-        url, payload, model, location = self._model_payload(request)
-        for attempt in range(request.attempt, request.attempt + 3):
-            identity = json.dumps(["cowork", "vertex", self.project, location, model, request.stage,
-                                   request.page_number, attempt])
-            if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
-                return True
-        return False
-
-    def _model_call(self, request: ModelRequest, *, retry_unknown=False, wait=True):
-        url, payload, model, location = self._model_payload(request)
-        body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
-            location=location, stage=request.stage, page_number=request.page_number, attempt=request.attempt,
-            timeout_s=request.timeout_s, retry_unknown=retry_unknown, wait=wait)
-        candidates = body.get("candidates") or []
-        candidate = candidates[0] if candidates else {}
-        text = "".join(part.get("text", "") for part in (candidate.get("content") or {}).get("parts", [])
-                       if not part.get("thought")).strip()
-        usage = body.get("usageMetadata") or {}
-        return ModelResponse(text=text, raw=body, input_tokens=int(usage.get("promptTokenCount", 0) or 0),
-            output_tokens=int(usage.get("candidatesTokenCount", 0) or 0) + int(usage.get("thoughtsTokenCount", 0) or 0),
-            model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
-
-    def _model_payload(self, request):
         if not isinstance(request, ModelRequest):
             raise ProviderConfigurationError("ocr.invalid_model_request")
         model = _identity(request.model, "ocr.invalid_model")
@@ -288,7 +242,17 @@ class ProviderClient:
         payload = {"contents": [{"role": "user", "parts": parts}], "generationConfig": config}
         host = "aiplatform.googleapis.com" if location == "global" else location + "-aiplatform.googleapis.com"
         url = f"https://{host}/v1/projects/{quote(self.project, safe='')}/locations/{quote(location, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent"
-        return url, payload, model, location
+        body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
+            location=location, stage=request.stage, page_number=request.page_number, attempt=request.attempt,
+            timeout_s=request.timeout_s, retry_unknown=retry_unknown)
+        candidates = body.get("candidates") or []
+        candidate = candidates[0] if candidates else {}
+        text = "".join(part.get("text", "") for part in (candidate.get("content") or {}).get("parts", [])
+                       if not part.get("thought")).strip()
+        usage = body.get("usageMetadata") or {}
+        return ModelResponse(text=text, raw=body, input_tokens=int(usage.get("promptTokenCount", 0) or 0),
+            output_tokens=int(usage.get("candidatesTokenCount", 0) or 0) + int(usage.get("thoughtsTokenCount", 0) or 0),
+            model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
 
     def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1,
                          retry_unknown=False):

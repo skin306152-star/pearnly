@@ -308,7 +308,7 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
         payload["labels"] = labels(**(request_labels or {}))
 
     try:
-        resp = _post_with_lite_fallback(url, headers, payload, timeout_s, model)
+        resp = _post_with_backoff(url, headers, payload, timeout_s, model)
     except requests.RequestException as exc:
         frappe.logger("pearnly.ocr").warning(f"ocr request failed model={model}: {exc}")
         raise OcrUnavailable(_("Cannot reach the OCR service: {0}").format(str(exc)[:200])) from exc
@@ -518,47 +518,12 @@ def orient(data: bytes, mime: str) -> tuple[bytes, str]:
         return data, mime
 
 
-def _post_with_backoff(url, headers, payload, timeout_s, model, *, wait=True):
+def _post_with_backoff(url, headers, payload, timeout_s, model):
     """Shared cross-App admission; deferred work resumes outside the worker."""
     from pearnly_core.execution import budget, provider
 
     bucket = budget.scope(backend(), project(), location_for_model(model), model)
-    if not wait:
-        return provider.post(url, headers, payload, timeout_s, model, bucket, wait=False, label="vertex:" + model)
     return provider.post(url, headers, payload, timeout_s, model, bucket)
-
-
-# 3.1-flash-lite 被谷歌限流（429 / 503）时这一次立刻改用 3.8-flash，不原地冷却（用户 2026-10-01：几百人同时用、
-# 识别不排队不失败；3.8 在 global 余量大得多，只在限流时多花钱）。3.8 也被限流才走原有退让。ERP、DMS 都经这里。
-LITE_FALLBACK = {"gemini-3.1-flash-lite": "gemini-3.8-flash"}
-
-
-def _post_with_lite_fallback(url, headers, payload, timeout_s, model):
-    from pearnly_core.execution import work
-    from pearnly_core.execution.errors import Deferred
-
-    fallback = LITE_FALLBACK.get(model) if backend() == "vertex" else None
-    if not fallback:
-        return _post_with_backoff(url, headers, payload, timeout_s, model)
-    config = dict(payload.get("generationConfig") or {})
-    if "thinkingConfig" in config:
-        config["thinkingConfig"] = thinking_for(fallback)
-    fallback_payload = {**payload, "generationConfig": config}
-    fallback_url = vertex_url(fallback)
-    try:
-        saved = work.checkpoint(work.checkpoint_key(fallback_payload, fallback)) or {}
-    except RuntimeError:  # 没有站点上下文（离线脚本 / 测试）：没有检查点可查
-        saved = {}
-    if saved.get("state") == "done":  # 上回已被限流转 3.8 读完（续跑）：直接取回，不再调 3.1
-        return _post_with_backoff(fallback_url, headers, fallback_payload, timeout_s, fallback)
-    try:
-        return _post_with_backoff(url, headers, payload, timeout_s, model, wait=False)
-    except Deferred as error:
-        if str(error.reason).startswith("provider_"):
-            frappe.logger("pearnly.ocr").info(f"ocr {model} rate limited; reading with {fallback}")
-            return _post_with_backoff(fallback_url, headers, fallback_payload, timeout_s, fallback)
-        # 自家额度一时拿不到（不是谷歌限流）：照旧按共用层规则原地等
-        return _post_with_backoff(url, headers, payload, timeout_s, model)
 
 
 @frappe.whitelist()
