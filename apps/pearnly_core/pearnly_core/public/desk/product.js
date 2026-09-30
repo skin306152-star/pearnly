@@ -214,7 +214,9 @@ frappe.provide("frappe.pearnly");
 	// 用户 2026-09-30：识别时「白屏加动画」，不再用整屏灰遮罩。盖住这一页的内容区，顶栏与侧栏照常；页头按钮
 	// 等候期间停用（识别结果回来前不让提交 / 保存），结束后按原样恢复。文字只写真实的数（份数、已用秒数），不估算。
 	// Cowork 录入、ERP 采购 / 销售共用。`elapsed: true` 时下面多一行「已用 N 秒」。
-	p.waiting = (page, text, {elapsed = false} = {}) => {
+	// `pages: async () => ({done, total})`：每 1.5 秒问一次服务端读了几页，多一行「已识别 N/总 页 · 百分比」
+	// （用户 2026-09-30「按页分进度，不要按份」）；问不到或还没开始读就不显示这一行。
+	p.waiting = (page, text, {elapsed = false, pages = null} = {}) => {
 		const host = $(page.wrapper).find(".page-body").first();
 		host.addClass("pearnly-waiting-host");
 		const layer = $(`<div class="pearnly-waiting" role="status" aria-live="polite">
@@ -223,16 +225,36 @@ frappe.provide("frappe.pearnly");
 		const buttons = $(page.wrapper).find(".page-head button:not([disabled])").prop("disabled", true);
 		const started = Date.now();
 		let lines = String(text ?? "");
+		let read = "";
 		const paint = () => {
 			const seconds = Math.round((Date.now() - started) / 1000);
-			layer.find(".pearnly-waiting-text").text(elapsed ? `${lines}\n${__("shell.wait.elapsed", [seconds])}` : lines);
+			const shown = [lines, read, elapsed ? __("shell.wait.elapsed", [seconds]) : ""].filter(Boolean);
+			layer.find(".pearnly-waiting-text").text(shown.join("\n"));
 		};
 		const timer = elapsed ? setInterval(paint, 1000) : 0;
+		let asking = false;
+		const poll = pages ? setInterval(async () => {
+			if (asking) return;
+			asking = true;
+			try {
+				const now = await pages();
+				const done = Number(now?.done) || 0, total = Number(now?.total) || 0;
+				if (total) {
+					read = __("shell.wait.pages", [Math.min(done, total), total, Math.round(Math.min(done, total) * 100 / total)]);
+					paint();
+				}
+			} catch (error) {
+				// 进度只作展示：一时问不到就下次再问
+			} finally {
+				asking = false;
+			}
+		}, 1500) : 0;
 		paint();
 		return {
 			update: value => { lines = String(value ?? ""); paint(); },
 			done: () => {
 				clearInterval(timer);
+				clearInterval(poll);
 				layer.remove();
 				if (!host.children(".pearnly-waiting").length) host.removeClass("pearnly-waiting-host");
 				buttons.prop("disabled", false);

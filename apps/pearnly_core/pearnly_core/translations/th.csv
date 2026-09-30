@@ -495,6 +495,7 @@ Recognition took too long. Please try again later.,การอ่านใช�
 Recognition waited too long in the queue. Please upload again.,รอคิวการอ่านนานเกินไป กรุณาอัปโหลดใหม่
 Recognize and export,อ่านแล้วส่งออก
 Recognized,อ่านแล้ว
+Recognized {0}/{1} pages · {2}%,อ่านแล้ว {0}/{1} หน้า · {2}%
 Recognizing,กำลังอ่าน
 Reconcile documents against the ledger,กระทบยอดเอกสารกับบัญชี
 Reconciliation,ศูนย์กระทบยอด
@@ -1184,6 +1185,7 @@ shell.notBuilt,ไม่สามารถใช้งานหน้านี�
 shell.notBuilt.body,กรุณากลับหน้าหลักเพื่อดำเนินการต่อ
 shell.notBuilt.title,ไม่สามารถใช้งานหน้านี้ได้
 shell.wait.elapsed,ผ่านไป {0} วินาที
+shell.wait.pages,อ่านแล้ว {0}/{1} หน้า · {2}%
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password

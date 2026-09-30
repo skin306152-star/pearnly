@@ -859,3 +859,4 @@ Delete {0} selected records? Pushed ones cannot be deleted.	删除选中的 {0} 
 Entering	录入中	กำลังบันทึก	入力中	intake.push.pending
 Entry status	录入状态	สถานะการบันทึก	登録ステータス	intake.col.entryStatus
 {0} seconds so far	已用 {0} 秒	ผ่านไป {0} วินาที	経過 {0} 秒	shell.wait.elapsed
+Recognized {0}/{1} pages · {2}%	已识别 {0}/{1} 页 · {2}%	อ่านแล้ว {0}/{1} หน้า · {2}%	{0}/{1} ページ読み取り済み · {2}%	shell.wait.pages

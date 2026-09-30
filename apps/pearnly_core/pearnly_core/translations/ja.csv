@@ -495,6 +495,7 @@ Recognition took too long. Please try again later.,読み取りに時間がか�
 Recognition waited too long in the queue. Please upload again.,読み取り待ちが長すぎました。再アップロードしてください。
 Recognize and export,読み取り後にエクスポート
 Recognized,読み取り済み
+Recognized {0}/{1} pages · {2}%,{0}/{1} ページ読み取り済み · {2}%
 Recognizing,読み取り中
 Reconcile documents against the ledger,伝票と帳簿の照合
 Reconciliation,照合センター
@@ -1184,6 +1185,7 @@ shell.notBuilt,このページは利用できません
 shell.notBuilt.body,ホームに戻って操作を続けてください。
 shell.notBuilt.title,このページは利用できません
 shell.wait.elapsed,経過 {0} 秒
+shell.wait.pages,{0}/{1} ページ読み取り済み · {2}%
 state is invalid or has expired,state が無効か期限切れです
 system_url is required,system_url は必須です
 username / password are required,username / password は必須です

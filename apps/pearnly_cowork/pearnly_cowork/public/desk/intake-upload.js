@@ -852,15 +852,21 @@
 			}
 		};
 
-		/* ── 识别进度：白底 + 官方转圈（`p.waiting`，用户 2026-09-30「白屏加动画」，原来是整屏灰遮罩），
-		 * 文字照旧线上「已完成/总数 · 百分比」。百分比按**份数**算（完成几份 ÷ 这一批共几份，旧版
-		 * `renderProcessing` 同法），不按页估。 */
-		const progress = {total: 0, done: 0, frozen: null};
+		/* ── 识别进度：白底 + 官方转圈（`p.waiting`，用户 2026-09-30「白屏加动画」，原来是整屏灰遮罩）。
+		 * 按**页**算（用户 2026-09-30「按页分进度，不要按份」）：总页数是这一批上传后服务端数出的页数之和，
+		 * 已识别页数是每份识别任务回报的真实页数（`pages_done`：引擎按页顺序读，读到第 N 页前 N−1 页已读完），
+		 * 有结论的份按全部页数算。 */
+		const progress = {rows: [], frozen: null};
+		const row_pages = row => Math.max(1, Number(row.pages) || 1);
 		const progress_lines = () => {
-			const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
-			return [t("intake.proc.title"), t("intake.proc.sub"), `${progress.done}/${progress.total} · ${percent}%`];
+			const total = progress.rows.reduce((sum, row) => sum + row_pages(row), 0);
+			const done = progress.rows.reduce((sum, row) => sum + (row.finished ? row_pages(row)
+				: Math.min(row_pages(row), Number(row.pages_done) || 0)), 0);
+			const percent = total ? Math.round((done / total) * 100) : 0;
+			return [t("intake.proc.title"), t("intake.proc.sub"), __("shell.wait.pages", [done, total, percent])];
 		};
 		const paint_progress = () => {
+			if (!live) return;
 			if (!progress.frozen) progress.frozen = p.waiting(page, "");
 			progress.frozen.update(progress_lines().join("\n"));
 		};
@@ -870,7 +876,7 @@
 		};
 
 		/** 等一个识别批次出结论；读状态失败不弹窗（静默重试），连续读不到才算失联。 */
-		const wait_batch = async name => {
+		const wait_batch = async (name, on_progress = null) => {
 			const started = Date.now();
 			let misses = 0;
 			while (live) {
@@ -882,6 +888,7 @@
 					if (++misses >= POLL.soft_fails) return {state: "failed", last_code: "poll_unreachable"};
 				}
 				if (batch && (FINISHED.has(batch.state) || BROKEN.has(batch.state))) return batch;
+				if (batch && on_progress) on_progress(batch);
 				if (Date.now() - started > POLL.max_ms) return {state: "failed", last_code: "timeout"};
 				await sleep(POLL.every_ms);
 			}
@@ -916,7 +923,14 @@
 					return;
 				}
 				row.state = "recognizing"; render_batch();
-				batch = FINISHED.has(result.state) || BROKEN.has(result.state) ? result : await wait_batch(result.name);
+				if (result.page_count) row.pages = result.page_count;
+				batch = FINISHED.has(result.state) || BROKEN.has(result.state) ? result : await wait_batch(result.name,
+					latest => {
+						if ((Number(latest.pages_done) || 0) > (Number(row.pages_done) || 0)) {
+							row.pages_done = latest.pages_done;
+							paint_progress();
+						}
+					});
 			} catch (error) {
 				if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				row.state = "failed";
@@ -947,6 +961,7 @@
 					row.state = "failed"; row.message = failure(payload, response.status);
 				} else {
 					row.source = payload.message.name;
+					row.pages = payload.message.page_count;
 					row.state = "uploaded";
 				}
 			} catch (error) {
@@ -955,25 +970,32 @@
 			}
 			if (!live) return;
 			render_batch();
-			if (row.state === "uploaded") await recognize(row);
 		};
 
-		/** 一批原件：最多 6 份同时上传 + 识别，遮罩上走「已完成/总数 · 百分比」，全部有结论才收起。 */
+		/** 一批原件：先全部上传（最多 6 份同时，上传后才知道每份几页），再最多 6 份同时识别；
+		 * 等候页上走「已识别 N/总 页 · 百分比」，全部有结论才收起。 */
 		const run_batch = async waiting => {
 			if (!waiting.length) return;
-			progress.total = waiting.length;
-			progress.done = 0;
+			progress.rows = waiting;
 			paint_progress();
-			const queue = waiting.slice();
-			const worker = async () => {
-				while (queue.length && live) {
-					await send(queue.shift());
-					progress.done += 1;
-					if (live) paint_progress();
-				}
+			const pool = async (items, job) => {
+				const queue = items.slice();
+				const worker = async () => {
+					while (queue.length && live) await job(queue.shift());
+				};
+				await Promise.all(Array.from({length: Math.min(PARALLEL, queue.length)}, worker));
 			};
 			try {
-				await Promise.all(Array.from({length: Math.min(PARALLEL, queue.length)}, worker));
+				await pool(waiting, async row => {
+					await send(row);
+					if (row.state !== "uploaded") row.finished = true;
+					paint_progress();
+				});
+				await pool(waiting.filter(row => row.state === "uploaded"), async row => {
+					await recognize(row);
+					row.finished = true;
+					paint_progress();
+				});
 			} finally {
 				end_progress();
 			}

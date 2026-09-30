@@ -938,7 +938,7 @@ class Escalation(unittest.TestCase):
             with self.assertRaises(frappe.ValidationError):
                 inputs.pdf_text(b"%PDF")
 
-    def read_all(self, pages, answers, review=lambda result: []):
+    def read_all(self, pages, answers, review=lambda result: [], progress=None):
         from pearnly_core import ocr
 
         from pearnly_erp_portal.recognition import inputs, policy
@@ -954,8 +954,33 @@ class Escalation(unittest.TestCase):
                 patch.object(inputs, "pdf_pages", return_value=pages), \
                 patch.object(inputs, "text_path", return_value=None):
             documents = policy.read_all("P", [(b"%PDF", "application/pdf")], structured=lambda raw: dict(raw),
-                                        review=review, label="t", fields=("doc_no", "supplier_name"))
+                                        review=review, label="t", fields=("doc_no", "supplier_name"), progress=progress)
         return documents, calls
+
+    def test_web_wait_screen_hears_each_page_as_it_is_read(self):
+        # 用户 2026-09-30「按页分进度，不要按份」：多页 PDF 逐页读，每读完一页回报一次（含读不出的页）。
+        heard = []
+        a1 = {"doc_no": "A1", "lines": [{"n": 1}], "printed": {"total": 30}}
+        self.read_all([b"p1", b"p2", b"p3"], [dict(a1), None, None, dict(a1)],
+                      progress=lambda done, total: heard.append((done, total)))
+        self.assertEqual(heard, [(0, 3), (1, 3), (2, 3), (3, 3)])
+
+    def test_progress_is_kept_per_user_and_a_bad_key_reports_nothing(self):
+        from pearnly_erp_portal.recognition import progress
+
+        store = {}
+        cache = Mock(set_value=lambda key, value, expires_in_sec=None: store.__setitem__(key, value),
+                     get_value=lambda key: store.get(key))
+        with patch.object(frappe, "cache", cache, create=True), \
+                patch.object(frappe, "session", Mock(user="a@example.com"), create=True):
+            self.assertIsNone(progress.reporter("x"))
+            self.assertIsNone(progress.reporter(None))
+            progress.reporter("k" * 24)(2, 5)
+            self.assertEqual(progress.read("k" * 24), {"done": 2, "total": 5})
+            self.assertEqual(progress.read("../other"), {})
+        with patch.object(frappe, "cache", cache, create=True), \
+                patch.object(frappe, "session", Mock(user="b@example.com"), create=True):
+            self.assertEqual(progress.read("k" * 24), {})
 
     def test_pages_are_read_one_by_one_and_grouped_by_document_number(self):
         # 旧线上 13 页撞限流：逐页读、按单号归组；续页没合计不触发升级。

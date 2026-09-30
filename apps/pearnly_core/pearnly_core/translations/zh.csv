@@ -495,6 +495,7 @@ Recognition took too long. Please try again later.,识别超时，请稍后重�
 Recognition waited too long in the queue. Please upload again.,识别排队超时，请重新上传。
 Recognize and export,识别后导出
 Recognized,已识别
+Recognized {0}/{1} pages · {2}%,已识别 {0}/{1} 页 · {2}%
 Recognizing,识别中
 Reconcile documents against the ledger,单据与账套的对账
 Reconciliation,对账中心
@@ -1184,6 +1185,7 @@ shell.notBuilt,页面暂不可用
 shell.notBuilt.body,请返回首页继续操作。
 shell.notBuilt.title,页面暂不可用
 shell.wait.elapsed,已用 {0} 秒
+shell.wait.pages,已识别 {0}/{1} 页 · {2}%
 state is invalid or has expired,state 无效或已过期
 system_url is required,system_url 必填
 username / password are required,username / password 必填

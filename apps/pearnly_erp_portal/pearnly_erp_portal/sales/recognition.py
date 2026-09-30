@@ -30,7 +30,7 @@ the document.'''.replace("POS_RULES", checks.POS_RULES)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"}
 
 
-def recognise(attachments, document_name=None, billing_reference=None):
+def recognise(attachments, document_name=None, billing_reference=None, progress=None):
     guard.require("sales.write")
     from pearnly_core import ocr
 
@@ -60,7 +60,7 @@ def recognise(attachments, document_name=None, billing_reference=None):
     units = billing.pages(images)
     billing.gate(units)
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="sales",
-                                fields=_HEAD, finish=_finish)
+                                fields=_HEAD, finish=_finish, progress=progress)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
     result, issues, model = documents[0]

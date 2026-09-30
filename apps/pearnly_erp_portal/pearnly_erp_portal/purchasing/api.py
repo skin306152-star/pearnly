@@ -111,14 +111,23 @@ def api_purchase_voucher(name, kind):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_recognise_purchase(attachments=None, document_name=None):
+def api_recognise_purchase(attachments=None, document_name=None, progress_key=None):
     from pearnly_erp_portal.purchasing import recognition
-    from pearnly_erp_portal.recognition import policy
+    from pearnly_erp_portal.recognition import policy, progress
 
     from pearnly_erp_portal.masters import company
 
     return policy.for_web(lambda: recognition.recognise(frappe.parse_json(attachments), document_name=document_name,
-                                                        company=company.active_company()))
+                                                        company=company.active_company(),
+                                                        progress=progress.reporter(progress_key)))
+
+
+@frappe.whitelist()
+def api_recognise_progress(progress_key=None):
+    """识别等候页按页的进度（本人发起的那次识别）：``{done, total}``，还没开始读是空。"""
+    from pearnly_erp_portal.recognition import progress
+
+    return progress.read(progress_key)
 
 
 @frappe.whitelist()

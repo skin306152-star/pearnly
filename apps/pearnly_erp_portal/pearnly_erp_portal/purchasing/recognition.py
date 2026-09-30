@@ -118,7 +118,7 @@ def clean_result(raw):
     return result
 
 
-def recognise(attachments, document_name=None, billing_reference=None, company=None):
+def recognise(attachments, document_name=None, billing_reference=None, company=None, progress=None):
     guard.require("purchase.write")
     from pearnly_core import ocr
 
@@ -150,7 +150,7 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
     units = billing.pages(images)
     billing.gate(units)
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="purchase",
-                                fields=HEADER_FIELDS, finish=_finish)
+                                fields=HEADER_FIELDS, finish=_finish, progress=progress)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
     documents = _anchor_with_ocr(documents, images, company)
