@@ -55,6 +55,10 @@ def load_workbook_sheets(file_bytes: bytes, *, max_cells=None) -> List[Tuple[str
 			remaining = [max_cells]
 			out = []
 			for sheet in workbook.worksheets:
+				# 只读模式按文件里记的范围读；有的网银导出把范围写成 A1（SCB / Krungsri 实测只读出第一行，
+				# 2026-09-30 压测 05-银行导出样本）。openpyxl 的做法：先把范围清掉，按实际内容读到底。
+				if hasattr(sheet, "reset_dimensions"):
+					sheet.reset_dimensions()
 				if max_cells is not None and ((sheet.max_column or 0) > 256 or (sheet.max_row or 0) > 100_000):
 					raise ValueError("table dimensions exceed import limit")
 				out.append((sheet.title, _limited_rows(sheet.iter_rows(values_only=True), remaining)))
@@ -103,7 +107,9 @@ def load_csv_sheets(file_bytes: bytes, *, max_cells=None) -> List[Tuple[str, lis
 	import csv as _csv
 
 	text = None
-	for encoding in ("utf-8-sig", "utf-8", "cp874", "gbk", "latin-1"):
+	# 带 BOM 的 UTF-16（ICBC 等网银导出实测 FF FE 开头）：按 UTF-16 读，否则 latin-1 会把它读成一堆乱码单格。
+	encodings = ("utf-16",) if file_bytes[:2] in (b"\xff\xfe", b"\xfe\xff") else ()
+	for encoding in encodings + ("utf-8-sig", "utf-8", "cp874", "gbk", "latin-1"):
 		try:
 			text = file_bytes.decode(encoding)
 			break

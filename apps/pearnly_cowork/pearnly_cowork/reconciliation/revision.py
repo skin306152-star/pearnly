@@ -137,13 +137,17 @@ def bank_notes(doc):
 	failed = [item for section in ("stmt_files", "gl_files") for item in parse_info.get(section) or []
 		if not item.get("ok") and item.get("file")]
 	unread = [item["file"] for item in failed
-		if item.get("error_code") not in ("no_movement", "other_account", bank_sheets.NOT_A_STATEMENT)]
+		if item.get("error_code") not in ("no_movement", "other_account", bank_sheets.NOT_A_STATEMENT,
+			bank_sheets.LEDGER_NOT_STATEMENT)]
 	if unread:
 		notes.append(_("reconciliation.files_unread").format("、".join(unread)))
 	# 不是网银导出的表格（没有余额列，如待查询清单）：说清楚，不叫重传同一份（2026-09-30 压测 B08-06）。
 	listed = [item["file"] for item in failed if item.get("error_code") == bank_sheets.NOT_A_STATEMENT]
 	if listed:
 		notes.append(_("reconciliation.files_not_a_statement").format("、".join(listed)))
+	ledgers_left = [item["file"] for item in failed if item.get("error_code") == bank_sheets.LEDGER_NOT_STATEMENT]
+	if ledgers_left:
+		notes.append(_("reconciliation.files_ledger_not_statement").format("、".join(ledgers_left)))
 	# 读成功、没有流水的（存折封面）只说已跳过，不叫用户重传（2026-09-29 压测 B05）。
 	skipped = [item["file"] for item in failed if item.get("error_code") == "no_movement"]
 	if skipped:

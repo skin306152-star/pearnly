@@ -292,13 +292,16 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		if implausible and source not in ("enterprise", "model"):
 			# 文字解析明显不可信、又没能改走识别：不以高可信输出，交人复核。
 			row.confidence = "low"
-	rows, opening, closing = chronological(rows, opening, closing)
+	if not (source == "workbook" and accounts and accounts["multi_account"]):
+		# 一份表格里几个账户：读取器已按各账户自己的期初逐个定案；合起来按合计期初再跑一遍，
+		# 会把每个账户的第一行判成断链（2026-09-30 压测 INSPUR 工银两账户、KTB 8258+8606）。
+		rows, opening, closing = chronological(rows, opening, closing)
 
-	# 定案序列（跳汇总行 → 方向纠正 → 逐行核对 → 金额反推修复），顺序是正确性不变式。
-	# 2026-09-29 有意变化：企业档的行也走（旧线上直接返回）。本地拼行的行余额链已平，走一遍不变；3.8 抽取的行
-	# 没修过 —— B08 BBL0555 一笔存入多读 300（下一行 +300 / -300 抵消）没被纠正。另补一步余额反推（本地拼行的
-	# 部署修正有，文字路径没有）：前后两行都印证时，改读错的那一行余额。
-	rows = bank_statement.finalize_rows(rows, opening)
+		# 定案序列（跳汇总行 → 方向纠正 → 逐行核对 → 金额反推修复），顺序是正确性不变式。
+		# 2026-09-29 有意变化：企业档的行也走（旧线上直接返回）。本地拼行的行余额链已平，走一遍不变；3.8 抽取的行
+		# 没修过 —— B08 BBL0555 一笔存入多读 300（下一行 +300 / -300 抵消）没被纠正。另补一步余额反推（本地拼行的
+		# 部署修正有，文字路径没有）：前后两行都印证时，改读错的那一行余额。
+		rows = bank_statement.finalize_rows(rows, opening)
 	if source == "enterprise":
 		repair_balance_from_neighbours(rows, opening)
 
@@ -314,8 +317,10 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	# 金额被余额链反推改写过的行：它们 balance_ok 已翻 True，单独计数供人工看。
 	amount_fixed_count = sum(1 for row in rows if getattr(row, "amount_autocorrected", False))
 
-	# 期初/期末兜底回填：模型有时不回传它俩（行里已有 B/F 与末行余额时用算术补回）。
-	if not opening:
+	# 期初/期末兜底回填：模型有时不回传它俩（行里已有 B/F 与末行余额时用算术补回）。表格直读的期初期末由读取器定好，
+	# 0 也是真值（KTB 归集户每天扫到 0，期末就是 0；原来被当成没读到、换成最后一个不为 0 的余额，整份对不上——2026-09-30
+	# 压测 05-银行导出样本 Asia Bangna KTB 8258）。
+	if not opening and source != "workbook":
 		first = rows[0]
 		description = (first.description or "").lower()
 		if ((first.deposit or 0) == 0 and (first.withdrawal or 0) == 0 and first.balance
@@ -327,7 +332,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 			if movement and movement.balance:
 				opening = round(movement.balance
 					- ((movement.deposit or 0) - (movement.withdrawal or 0)), 2)
-	if not closing:
+	if not closing and source != "workbook":
 		closing = next((row.balance for row in reversed(rows) if row.balance), closing)
 
 	# 打印合计/笔数 + 期末平衡的交叉校验；直读路自带它自己那份，别覆盖。

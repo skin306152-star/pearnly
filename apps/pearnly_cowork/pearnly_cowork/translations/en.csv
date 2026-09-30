@@ -1084,6 +1084,7 @@ Then,Then
 There is not enough balance to read the scanned or photographed document. Top up and try again.,There is not enough balance to read the scanned or photographed document. Top up and try again.
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
+"These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}","These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}"
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
@@ -1106,6 +1107,7 @@ This customer is not in Express and could not be created. Check the customer nam
 This delivery conflicts with the current task state.,This delivery conflicts with the current task state.
 This document format is not supported.,This document format is not supported.
 This file does not match the review workbook format.,This file does not match the review workbook format.
+"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.","This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
 This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
@@ -2078,6 +2080,7 @@ reconciliation.edit_conflict,Someone else changed this reconciliation. Reload it
 reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
 reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."
+reconciliation.files_ledger_not_statement,"These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}"
 reconciliation.files_no_movement,These files have no transactions (a cover or account page) and were skipped: {0}
 reconciliation.files_not_a_statement,These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 reconciliation.files_required,Upload both files.
@@ -2133,6 +2136,7 @@ reconciliation.rows_too_many,The file has too many rows. Split it and reconcile 
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.statement_all_outside,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 reconciliation.statement_balances_from_ledger,The statement's balances are missing or do not add up; the opening and closing balances follow the general ledger.
+reconciliation.statement_is_ledger,"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
 reconciliation.statement_lines_dropped,Left out {0} lines that repeat the main statement and look misread; check them: {1}
 reconciliation.statement_no_movement,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
 reconciliation.statement_no_running_balance,"This statement shows no running balance, so balances cannot be checked line by line."

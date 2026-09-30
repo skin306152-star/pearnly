@@ -1084,6 +1084,7 @@ Then,ให้ทำ
 There is not enough balance to read the scanned or photographed document. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านเอกสารสแกนหรือรูปถ่าย กรุณาเติมเงินแล้วลองใหม่
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดเงินไม่พอสำหรับอ่านใบกำกับแบบรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 There is not enough recognition balance. Top up and send the document again.,ยอดเครดิตสำหรับอ่านเอกสารไม่พอ กรุณาเติมเงินแล้วส่งใหม่
+"These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}",ไฟล์ต่อไปนี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี จึงไม่ได้รวมไว้ (บัญชีแยกประเภทให้วางด้านขวา): {0}
 These files could not be read and were left out: {0},ไฟล์เหล่านี้อ่านไม่ได้และไม่ได้นำมาตรวจ: {0}
 These files could not be read and were left out; upload them again to include them: {0},อ่านไฟล์ต่อไปนี้ไม่ได้และไม่ได้รวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
@@ -1106,6 +1107,7 @@ This customer is not in Express and could not be created. Check the customer nam
 This delivery conflicts with the current task state.,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
+"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
 "This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
@@ -2078,6 +2080,7 @@ reconciliation.edit_conflict,งานกระทบยอดนี้ถูก
 reconciliation.failed,การกระทบยอดไม่สำเร็จ
 reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
 reconciliation.file_type_unsupported,"ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
+reconciliation.files_ledger_not_statement,ไฟล์ต่อไปนี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี จึงไม่ได้รวมไว้ (บัญชีแยกประเภทให้วางด้านขวา): {0}
 reconciliation.files_no_movement,ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
 reconciliation.files_not_a_statement,ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 reconciliation.files_required,กรุณาอัปโหลดไฟล์ทั้งสอง
@@ -2133,6 +2136,7 @@ reconciliation.rows_too_many,ไฟล์มีจำนวนแถวมาก
 reconciliation.run_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.statement_all_outside,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
 reconciliation.statement_balances_from_ledger,รายการเดินบัญชีไม่มียอดคงเหลือหรือยอดไม่สอดคล้องกัน ยอดยกมาและยอดยกไปจึงใช้ตามบัญชีแยกประเภท
+reconciliation.statement_is_ledger,ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย
 reconciliation.statement_lines_dropped,ตัด {0} รายการที่ซ้ำกับรายการเดินบัญชีหลักและน่าจะอ่านผิดออก กรุณาตรวจสอบ: {1}
 reconciliation.statement_no_movement,อ่านรายการเดินบัญชีได้ แต่ไม่มีรายการเคลื่อนไหว (มีแค่หน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายการเดินบัญชี
 reconciliation.statement_no_running_balance,รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงตรวจยอดคงเหลือทีละรายการไม่ได้

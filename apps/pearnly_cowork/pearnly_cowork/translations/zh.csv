@@ -1084,6 +1084,7 @@ Then,自动
 There is not enough balance to read the scanned or photographed document. Top up and try again.,余额不足，无法读取扫描件或照片，请充值后再试。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
 There is not enough recognition balance. Top up and send the document again.,识别余额不足，请充值后重新发送。
+"These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}",以下文件是总账，不是银行账单，本次没有包含（总账请放到右边）：{0}
 These files could not be read and were left out: {0},这些文件读不出来，没有计入核查：{0}
 These files could not be read and were left out; upload them again to include them: {0},以下文件没读出来，本次对账没有包含，请重新上传：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},以下文件没有流水（封面或账户信息页），已跳过：{0}
@@ -1106,6 +1107,7 @@ This customer is not in Express and could not be created. Check the customer nam
 This delivery conflicts with the current task state.,此回执与任务当前状态冲突。
 This document format is not supported.,不支持此文档格式。
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
+"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",这份文件是总账，不是银行账单。请把它放到总账那一边，左边放银行账单或网银导出。
 This file type is not supported.,不支持此文件类型。
 "This file type is not supported. Use PDF, Excel or CSV.",不支持这种文件，请用 PDF、Excel 或 CSV。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
@@ -2078,6 +2080,7 @@ reconciliation.edit_conflict,这个对账刚被别人改过，请刷新后再保
 reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
 reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。
+reconciliation.files_ledger_not_statement,以下文件是总账，不是银行账单，本次没有包含（总账请放到右边）：{0}
 reconciliation.files_no_movement,以下文件没有流水（封面或账户信息页），已跳过：{0}
 reconciliation.files_not_a_statement,以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}
 reconciliation.files_required,请上传两份文件。
@@ -2133,6 +2136,7 @@ reconciliation.rows_too_many,行数超过上限，请分成几份再对账
 reconciliation.run_info_invalid,对账数据格式不对，请重新上传文件
 reconciliation.statement_all_outside,账单行都不在总账期间（{1} 至 {2}）内，已全部拿来对账，请核对两边是否同一期间。
 reconciliation.statement_balances_from_ledger,账单没有印余额或余额前后对不上，期初、期末按总账计。
+reconciliation.statement_is_ledger,这份文件是总账，不是银行账单。请把它放到总账那一边，左边放银行账单或网银导出。
 reconciliation.statement_lines_dropped,已去掉 {0} 行与主账单重复、疑似读错的行，请核对：{1}
 reconciliation.statement_no_movement,账单读到了，但没有逐笔流水（只有封面或汇总页），请上传有流水明细的页。
 reconciliation.statement_no_running_balance,这份账单没有逐笔余额，无法逐行核对余额。

@@ -1333,3 +1333,5 @@ before VAT	未税	ก่อนภาษี	税抜	cowork.recon.live.kind.subtota
 amount	金额	จำนวนเงิน	金額	cowork.recon.live.kind.amount
 Reconciliation completed: {0}	对账已完成：{0}	กระทบยอดเสร็จสิ้น: {0}	照合が完了しました：{0}	cowork.recon.finished
 Reconciliation failed: {0}	对账未完成：{0}	กระทบยอดไม่สำเร็จ: {0}	照合に失敗しました：{0}	cowork.recon.finishedFailed
+These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}	以下文件是总账，不是银行账单，本次没有包含（总账请放到右边）：{0}	ไฟล์ต่อไปนี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี จึงไม่ได้รวมไว้ (บัญชีแยกประเภทให้วางด้านขวา): {0}	次のファイルは総勘定元帳で銀行明細ではないため含めていません（元帳は右側へ）：{0}	reconciliation.files_ledger_not_statement
+This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.	这份文件是总账，不是银行账单。请把它放到总账那一边，左边放银行账单或网银导出。	ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย	このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置き、左側には銀行明細またはネットバンキングの出力をアップロードしてください。	reconciliation.statement_is_ledger

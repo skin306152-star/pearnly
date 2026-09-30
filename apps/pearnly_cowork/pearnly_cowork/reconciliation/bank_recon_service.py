@@ -222,6 +222,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		codes = {result.get("error_code") for _name, result in statements}
 		frappe.throw(_("reconciliation.statement_no_movement" if codes == {bank_intake.NO_MOVEMENT}
 			else "reconciliation.statement_not_a_statement" if codes == {bank_sheets.NOT_A_STATEMENT}
+			else "reconciliation.statement_is_ledger" if codes == {bank_sheets.LEDGER_NOT_STATEMENT}
 			else "reconciliation.statement_unparsed"))
 	stage("ledger")
 	ledgers = [(name, bank_intake.read_ledger_file(content, name, account_code=gl_account_code,
@@ -256,9 +257,14 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if listed:
 		warnings = list(warnings or []) + [_("reconciliation.files_not_a_statement", lang=_warning_lang(lang)).format(
 			"、".join(listed))]
+	# 总账放进了账单口：说是总账、该放右边（2026-09-30 压测 05-银行导出样本）。
+	ledgers_left = [name for name, result in statements if result.get("error_code") == bank_sheets.LEDGER_NOT_STATEMENT]
+	if ledgers_left:
+		warnings = list(warnings or []) + [_("reconciliation.files_ledger_not_statement", lang=_warning_lang(lang)).format(
+			"、".join(ledgers_left))]
 	unread = [name for name, result in statements + ledgers
 		if not result.get("ok") and result.get("error_code") not in (bank_intake.NO_MOVEMENT, OTHER_ACCOUNT,
-			bank_sheets.NOT_A_STATEMENT)]
+			bank_sheets.NOT_A_STATEMENT, bank_sheets.LEDGER_NOT_STATEMENT)]
 	if unread:
 		# 多份里有读不出的照旧对账（整侧全读不出才失败），结果里点名是哪几份（2026-09-29 压测：一张存折照片
 		# 识别结果不明，用户看不出少了哪一页）。
