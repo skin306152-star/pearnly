@@ -247,6 +247,8 @@ doc_events = {
 # ----------
 # before_job = ["pearnly_core.utils.before_job"]
 # after_job = ["pearnly_core.utils.after_job"]
+# 不 fork 的识别进程按内存高水位温和重启（见 `execution/recycle.py`）。
+after_job = ["pearnly_core.execution.recycle.after_job"]
 
 # User Data Protection
 # --------------------
