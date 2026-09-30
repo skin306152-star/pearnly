@@ -22,6 +22,7 @@ class FakeJob:
 
 class Resume(unittest.TestCase):
 	def run_resume(self, job, *, files_exist=True, locked=False, finished=False, owner=None, newer=False):
+		self.local = mock.Mock(site="s", lang="en")
 		conn = mock.Mock()
 		conn.set.return_value = not locked
 		state = {}
@@ -29,7 +30,7 @@ class Resume(unittest.TestCase):
 				mock.patch("frappe.utils.background_jobs.get_redis_conn", return_value=conn), \
 				mock.patch.object(jobs.frappe, "set_user"), \
 				mock.patch.object(jobs.frappe, "session", mock.Mock(user="Administrator")), \
-				mock.patch.object(jobs.frappe, "local", mock.Mock(site="s")), \
+				mock.patch.object(jobs.frappe, "local", self.local), \
 				mock.patch.object(jobs.frappe, "db", mock.Mock(exists=lambda doctype, name: files_exist)), \
 				mock.patch.object(jobs, "_recovered", return_value={"state": "done"} if finished else None), \
 				mock.patch.object(jobs, "_superseded", return_value=newer), \
@@ -57,6 +58,11 @@ class Resume(unittest.TestCase):
 			outcome, enqueue, _state = self.run_resume(FakeJob(exc=exc))
 			self.assertIsNone(outcome)
 			enqueue.assert_not_called()
+
+	def test_the_reason_is_written_in_the_submitted_language_and_the_request_keeps_its_own(self):
+		outcome, _enqueue, _state = self.run_resume(FakeJob(options={"lang": "zh", "resumed": 1}))
+		self.assertEqual(outcome, jobs.INTERRUPTED)
+		self.assertEqual(self.local.lang, "en")
 
 	def test_a_second_kill_or_missing_files_says_interrupted(self):
 		for job, present in ((FakeJob(options={"resumed": 1}), True), (FakeJob(), False)):

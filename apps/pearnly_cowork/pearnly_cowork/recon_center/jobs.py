@@ -102,14 +102,15 @@ def status(job_id):
         if current.get("state") in ("queued", "running") and _job_ended(job_id):
             # 后台任务已经没了（部署 / 重启时被判弃置、移进失败队列），缓存还停在「进行中」：页面会一直转圈
             # （2026-09-29 测试机同步后 5 套对账一直显示 running）。被中途杀掉的先续跑；结果落了库就算完成，否则报失败。
-            if resume_if_abandoned(job_id, owner=frappe.session.user) == RESUMED:
-                return status(job_id)
+            if resume_if_abandoned(job_id, owner=frappe.session.user) in (RESUMED, INTERRUPTED, SUPERSEDED):
+                return status(job_id)  # 续上了，或已写明「中途中断 / 被取代」：按写好的状态回，不说成笼统的失败
             return _recovered(job_id) or {"kind": current.get("kind"), "state": "failed", "stage": "failed",
                                           "task": None, "error": _("reconciliation.system_busy")}
         return {**{key: current.get(key) for key in ("kind", "state", "stage", "task", "error", "title")},
                 **progress.job_view(job_id, current)}
-    if _job_ended(job_id) and resume_if_abandoned(job_id, owner=frappe.session.user) == RESUMED:
-        return status(job_id)
+    if _job_ended(job_id) and resume_if_abandoned(job_id, owner=frappe.session.user) in (RESUMED, INTERRUPTED,
+                                                                                          SUPERSEDED):
+        return status(job_id)  # 状态缓存被清过：续上了或已写明原因，都已重建缓存
     recovered = _recovered(job_id)
     if not recovered:
         frappe.throw(_("reconciliation.task_not_found"), frappe.DoesNotExistError)
@@ -198,13 +199,15 @@ def resume_if_abandoned(job_id, owner=None):
     # 同一份只让一个人续（页面问状态、识别任务、定时扫描可能同时发现）
     if not get_redis_conn().set(f"cowork-recon-resume:{frappe.local.site}:{job_id}", 1, nx=True, ex=3600):
         return None
-    previous = frappe.session.user
+    previous, language = frappe.session.user, getattr(frappe.local, "lang", None)
     try:
         frappe.set_user(user)
         if _recovered(job_id, finished_only=True):
             return None
         options = json.loads(values.get("options") or "{}")
         files = values.get("files") or {}
+        if options.get("lang") in ("th", "zh", "en", "ja"):
+            frappe.local.lang = options["lang"]  # 「中途中断 / 被取代」按提交时的语言写（压测 rK：写成了英文）
         if _superseded(values.get("kind"), files, job_id):
             # 本人后来交过同内容的对账：旧的这份不续，说清楚被取代了（比「中途中断」准确）
             _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
@@ -224,6 +227,7 @@ def resume_if_abandoned(job_id, owner=None):
         return RESUMED
     finally:
         frappe.set_user(previous)
+        frappe.local.lang = language
 
 
 def resume_abandoned():
@@ -327,6 +331,15 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
     ocr_job = options.get("ocr_job") or recon_job
     replace_task = str(options.get("replace_task") or "")
     keep_files = bool(replace_task)
+    try:
+        if not (frappe.cache.get_value(_key(recon_job)) or {}).get("files"):
+            # 排队时状态缓存被清掉了（部署 / 重载清缓存）：开跑时按任务参数补回来，看板和「进行中」才看得到文件与标题
+            # （压测 rK V01）。只作展示，补不上不影响对账。
+            _state(recon_job, user=frappe.session.user, kind=kind, title=str(title)[:140], task=None, error=None,
+                   files=[{"file": file, "side": side} for side in ("left", "right") for file in files.get(side) or []])
+            progress.active_add(frappe.session.user, recon_job, kind, title)
+    except Exception:
+        pass
     try:
         stage("reading")
         lefts, rights = _read(files["left"]), _read(files["right"])
