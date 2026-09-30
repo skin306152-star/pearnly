@@ -468,6 +468,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,取り込み結果
 "Imported {0} rows, {1} counted",{0}行を取り込み、{1}行に実数あり
 In progress,進行中
+In progress ({0}),進行中（{0}）
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
 Inactive,無効
 Income Reconciliation,収益照合
@@ -697,6 +698,7 @@ Product code,商品コード
 Product codes and barcodes must be stored as text.,商品コードとバーコードは文字列として保存してください。
 Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
+Progress,進捗
 PromptPay,PromptPay
 Provider Evidence,プロバイダー呼び出し証跡
 Purchase (expense),仕入（経費）
@@ -885,6 +887,7 @@ Start counting,棚卸を開始
 Start date,開始日
 Start reconciliation,照合を開始
 Started At,開始日時
+Started at,開始日時
 Statement review is not available for this task.,このタスクには明細確認記録がありません。
 Status,状態
 Stock,在庫
@@ -1354,8 +1357,10 @@ cowork.recon.col.kind,種別
 cowork.recon.col.matched,一致
 cowork.recon.col.period,期間
 cowork.recon.col.preVat,税抜
+cowork.recon.col.progress,進捗
 cowork.recon.col.reference,参照番号
 cowork.recon.col.rows,行数
+cowork.recon.col.startedAt,開始日時
 cowork.recon.col.status,状態
 cowork.recon.col.stmtAmount,銀行金額
 cowork.recon.col.taxId,納税者番号
@@ -1422,6 +1427,8 @@ cowork.recon.rule.gl_account,総勘定元帳の科目
 cowork.recon.rule.grouped,複数対 1 件
 cowork.recon.rule.grouped.no,1 件ずつ照合
 cowork.recon.rule.grouped.yes,まとめて入金：合計で照合
+cowork.recon.running,進行中
+cowork.recon.runningCount,進行中（{0}）
 cowork.recon.saved,保存しました
 cowork.recon.sheet.difference,差異明細
 cowork.recon.sheet.gl,総勘定元帳明細

@@ -35,7 +35,7 @@ def status(job):
 
 @frappe.whitelist()
 def active(kind):
-    """本人进行中的对账（列表页顶上显示，点进去接着看进度）：标题、阶段、总页数、已读完页数。"""
+    """本人进行中的对账（列表页「进行中」那一页，点进去接着看进度）：标题、阶段、开始时间、总页数、已读完页数。"""
     found = []
     for item in progress.active(frappe.session.user, kind):
         try:
@@ -49,6 +49,7 @@ def active(kind):
             continue
         files = state.get("files") or []
         found.append({"job": item["job"], "title": item.get("title") or "", "stage": state.get("stage"),
+                      "started": item.get("started") or "",
                       "pages": sum(entry["pages"] for entry in files),
                       "done": sum(min(entry["done"] + len(entry["unread"]), entry["pages"]) for entry in files)})
     return found

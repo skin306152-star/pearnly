@@ -1359,3 +1359,7 @@ VAT is not 7% of the base	税额≠税基×7%	ภาษีไม่เท่า�
 VAT without a base amount	只有税额没有税基	มีภาษีแต่ไม่มีฐานภาษี	課税標準がなく税額のみ	reconciliation.row_check.vatOnly
 number appears twice	单号重复	เลขที่ซ้ำ	番号が重複	reconciliation.row_check.duplicate
 date differs from the date in the number	日期与单号上的日期不符	วันที่ไม่ตรงกับวันที่ในเลขที่เอกสาร	日付が番号内の日付と異なる	reconciliation.row_check.date
+In progress	进行中	กำลังดำเนินการ	進行中	cowork.recon.running
+In progress ({0})	进行中（{0}）	กำลังดำเนินการ ({0})	進行中（{0}）	cowork.recon.runningCount
+Progress	进度	ความคืบหน้า	進捗	cowork.recon.col.progress
+Started at	开始时间	เริ่มเมื่อ	開始日時	cowork.recon.col.startedAt

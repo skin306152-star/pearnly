@@ -468,6 +468,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,ผลการนำเข้า
 "Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
 In progress,กำลังดำเนินการ
+In progress ({0}),กำลังดำเนินการ ({0})
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
 Income Reconciliation,กระทบยอดรายได้
@@ -697,6 +698,7 @@ Product code,รหัสสินค้า
 Product codes and barcodes must be stored as text.,รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ
 Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
+Progress,ความคืบหน้า
 PromptPay,พร้อมเพย์
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
 Purchase (expense),ซื้อ (ค่าใช้จ่าย)
@@ -885,6 +887,7 @@ Start counting,เริ่มตรวจนับ
 Start date,วันเริ่ม
 Start reconciliation,เริ่มกระทบยอด
 Started At,เริ่มเมื่อ
+Started at,เริ่มเมื่อ
 Statement review is not available for this task.,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
 Status,สถานะ
 Stock,สต็อก
@@ -1354,8 +1357,10 @@ cowork.recon.col.kind,ประเภท
 cowork.recon.col.matched,จับคู่แล้ว
 cowork.recon.col.period,งวด
 cowork.recon.col.preVat,ก่อน VAT
+cowork.recon.col.progress,ความคืบหน้า
 cowork.recon.col.reference,เลขที่อ้างอิง
 cowork.recon.col.rows,จำนวนรายการ
+cowork.recon.col.startedAt,เริ่มเมื่อ
 cowork.recon.col.status,สถานะ
 cowork.recon.col.stmtAmount,ยอดธนาคาร
 cowork.recon.col.taxId,เลขประจำตัวผู้เสียภาษี
@@ -1422,6 +1427,8 @@ cowork.recon.rule.gl_account,บัญชีแยกประเภท
 cowork.recon.rule.grouped,หลายรายการต่อหนึ่งรายการ
 cowork.recon.rule.grouped.no,ตรวจทีละรายการ
 cowork.recon.rule.grouped.yes,บันทึกเป็นยอดรวม: จับคู่ตามยอดรวม
+cowork.recon.running,กำลังดำเนินการ
+cowork.recon.runningCount,กำลังดำเนินการ ({0})
 cowork.recon.saved,บันทึกแล้ว
 cowork.recon.sheet.difference,รายละเอียดผลต่าง
 cowork.recon.sheet.gl,รายละเอียดบัญชีแยกประเภท

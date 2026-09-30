@@ -438,22 +438,11 @@
 	to { opacity: 1; transform: none; background: transparent; }
 }
 
-.pearnly-recon-actives {
-	display: flex;
-	flex-direction: column;
-	gap: var(--margin-xs);
-	padding: 0 var(--padding-md);
-}
-
-.pearnly-recon-actives:empty {
-	display: none;
-}
-
-.pearnly-recon-active {
-	display: flex;
-	align-items: center;
-	gap: var(--margin-sm);
-	text-align: left;
+/* 「进行中」一页（官方列表）：状态那一列靠右对齐，表头同样靠右（用户 2026-09-30）。 */
+.pearnly-recon-running .list-row-col[data-fieldname="stage"] {
+	justify-content: flex-end;
+	text-align: right;
+	margin-right: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

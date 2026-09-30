@@ -9,6 +9,7 @@
 存在缓存里（24 小时），键按上传后存成的私有 File 名；识别任务（Work）与对账后台任务都往里写，页面经 ``jobs.status`` 读。
 """
 import frappe
+from frappe.utils import now
 
 TTL = 24 * 3600
 
@@ -203,9 +204,18 @@ def _active_key(user):
     return f"cowork:recon-active:{user}"
 
 
+def _started():
+    """开始时间（站点时区，与列表的创建时间同一种写法）；没有站点上下文（离线调用）时不记。"""
+    try:
+        return str(now())
+    except RuntimeError:
+        return ""
+
+
 def active_add(user, job, kind, title):
     items = [item for item in _read(_active_key(user), []) if item.get("job") != job]
-    items.insert(0, {"job": job, "kind": kind, "title": str(title or "")[:140]})
+    # started：进行中那一页的「开始时间」列（与列表的创建时间同一种写法）
+    items.insert(0, {"job": job, "kind": kind, "title": str(title or "")[:140], "started": _started()})
     _write(_active_key(user), items[:20])
 
 

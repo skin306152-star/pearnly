@@ -468,6 +468,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,导入结果
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
 In progress,进行中
+In progress ({0}),进行中（{0}）
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
 Income Reconciliation,收入对账
@@ -697,6 +698,7 @@ Product code,商品编码
 Product codes and barcodes must be stored as text.,产品编码和条形码必须以文本格式保存。
 Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
+Progress,进度
 PromptPay,PromptPay
 Provider Evidence,服务商调用证据
 Purchase (expense),采购（费用）
@@ -885,6 +887,7 @@ Start counting,开始盘点
 Start date,开始日期
 Start reconciliation,开始对账
 Started At,开始时间
+Started at,开始时间
 Statement review is not available for this task.,此任务没有逐行复核记录。
 Status,状态
 Stock,库存
@@ -1354,8 +1357,10 @@ cowork.recon.col.kind,类型
 cowork.recon.col.matched,已匹配
 cowork.recon.col.period,期间
 cowork.recon.col.preVat,不含税
+cowork.recon.col.progress,进度
 cowork.recon.col.reference,参考编号
 cowork.recon.col.rows,行数
+cowork.recon.col.startedAt,开始时间
 cowork.recon.col.status,状态
 cowork.recon.col.stmtAmount,银行金额
 cowork.recon.col.taxId,税号
@@ -1422,6 +1427,8 @@ cowork.recon.rule.gl_account,总账科目
 cowork.recon.rule.grouped,多笔对一笔
 cowork.recon.rule.grouped.no,逐笔核对
 cowork.recon.rule.grouped.yes,汇总入账，按合计对上
+cowork.recon.running,进行中
+cowork.recon.runningCount,进行中（{0}）
 cowork.recon.saved,已保存
 cowork.recon.sheet.difference,差异明细
 cowork.recon.sheet.gl,总账明细

@@ -148,9 +148,27 @@
 			});
 			page.set_primary_action(t("cowork.recon.new"), open_new);
 			if (spec.presets) page.add_inner_button(t("cowork.recon.presets"), open_presets);
-			const actives = element("div", "pearnly-recon-actives");
-			page.main.prepend(actives);
-			void show_active(actives);
+			// 进行中的对账不再摆在列表上方（用户 2026-09-30）：一颗官方按钮「进行中 · N」通往单独一页；
+			// 有对账做完（件数变少）就刷新列表，结果自动落进来。
+			const running = page.add_inner_button(t("cowork.recon.running"), () => frappe.set_route(root, "running")).hide();
+			let before = null;
+			watch(async () => {
+				const items = await p.call(api + "active", { kind });
+				running.text(t("cowork.recon.runningCount", items.length)).toggle(items.length > 0);
+				if (before !== null && items.length < before) await list?.reload();
+				before = items.length;
+			});
+		}
+		// 列表 / 进行中两页的定时刷新：切走（换路由）就停。
+		let ticker = 0;
+		function watch(tick, every = 5000) {
+			const request = sequence;
+			const run = async () => {
+				if (request !== sequence) return;
+				try { await tick(); } catch (error) { /* 下一轮再试 */ }
+				if (request === sequence) ticker = setTimeout(run, every);
+			};
+			void run();
 		}
 		const open_new = () => frappe.set_route(root, "new");
 
@@ -325,7 +343,11 @@
 		}
 		async function show_progress(job) {
 			const request = ++sequence;
-			page.set_title(t("cowork.recon.checking")); breadcrumbs([{ label: t("cowork.recon.checking") }]);
+			// 面包屑：对账 / 进行中 / 这一份（点「进行中」回到进行中那一页）
+			const trail = name => breadcrumbs([{ label: t("cowork.recon.running"), route: `${root}/running` },
+				{ label: name || t("cowork.recon.checking") }]);
+			let titled = "";
+			page.set_title(t("cowork.recon.checking")); trail();
 			const board = element("div", "pearnly-recon-board");
 			const steps = element("div", "pearnly-recon-steps");
 			const sides = element("div", "pearnly-recon-sides");
@@ -335,7 +357,7 @@
 			const seen = new Set();
 			const began = Date.now();
 			const draw = state => {
-				if (state.title) page.set_title(state.title);
+				if (state.title && state.title !== titled) { titled = state.title; page.set_title(titled); trail(titled); }
 				const order = STAGES[kind];
 				const at = Math.max(order.indexOf(state.stage || "queued"), 1);
 				// 阶段用原生状态标签：完成绿、进行中黄、待完成灰（用户 2026-09-30 定；主题色不用于这些地方）。
@@ -379,18 +401,40 @@
 			}
 		}
 
-		// 列表页顶上：本人进行中的对账（标题 · 阶段 · 已读完 / 共几页），点进去接着看看板。
-		async function show_active(host) {
-			const items = await p.call(api + "active", { kind });
-			host.replaceChildren(...items.map(item => {
-				const row = element("button", "btn btn-default btn-sm pearnly-recon-active");
-				row.type = "button";
-				row.append(element("span", "indicator-pill yellow", t(`cowork.recon.stage.${item.stage || "queued"}`)),
-					element("span", "", item.title),
-					element("span", "text-muted", item.pages ? t("cowork.recon.live.pages", item.done, item.pages) : ""));
-				row.addEventListener("click", () => frappe.set_route(root, "run", item.job));
-				return row;
-			}));
+		// 「进行中」一页：本人还在做的对账，与列表同一个官方列表（任务名称 · 进度 · 开始时间 · 状态靠右）。
+		// 点一行进看板；做完的自动从这页消失、落进列表，全部做完就回到列表。
+		function show_running() {
+			const label = t("cowork.recon.running");
+			page.set_title(label); breadcrumbs([{ label }]);
+			list = p.list({ page, doctype: spec.doctype, selectable: false, compact_columns: true,
+				on_open: row => frappe.set_route(root, "run", row.name),
+				load: async () => {
+					const items = await p.call(api + "active", { kind });
+					return { items: items.map(item => ({ ...item, name: item.job })), total: items.length };
+				},
+				columns: [
+					{ fieldname: "title", width: 320, min_width: 180, label: t("cowork.recon.col.title") },
+					{ fieldname: "done", width: 110, min_width: 90, label: t("cowork.recon.col.progress"),
+						format: (value, row) => row.pages ? t("cowork.recon.live.pages", value, row.pages) : "" },
+					{ fieldname: "started", width: 160, min_width: 148, label: t("cowork.recon.col.startedAt"),
+						format: value => value ? p.datetime_text(value) : "" },
+					// 状态用原生彩色标签：排队灰、进行中黄（与看板同一套颜色）。
+					{ fieldname: "stage", width: 170, min_width: 140, label: t("cowork.recon.col.status"),
+						format: value => t(`cowork.recon.stage.${value || "queued"}`),
+						cell_class: value => `indicator-pill ${!value || value === "queued" ? "gray" : "yellow"}` },
+				],
+			});
+			page.set_secondary_action(t("cowork.recon.live.back"), () => frappe.set_route(root));
+			let shown = null;
+			watch(async () => {
+				if (shown === null) {
+					await list?.ready;  // 第一次由列表自己加载
+					list?.$frappe_list?.addClass("pearnly-recon-running");
+					shown = 0;
+				} else await list?.refresh();
+				if (shown && !list?.total) { frappe.set_route(root); return; }
+				shown = list?.total || shown;
+			}, 3000);
 		}
 
 		// ── 结果页 ────────────────────────────────────────────────────────────────
@@ -882,16 +926,18 @@
 			const route = frappe.get_route();
 			if (route[0] !== root) return;
 			++sequence;
+			clearTimeout(ticker);
 			clear();
 			current = null;
 			if (!route[1]) show_list();
 			else if (route[1] === "new") show_new();
+			else if (route[1] === "running") show_running();
 			else if (route[1] === "run" && route[2]) await show_progress(route[2]);
 			else { current = route[1]; await show_result(current); }
 		}
 
 		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
-		$(wrapper).on("hide", () => { ++sequence; });
+		$(wrapper).on("hide", () => { ++sequence; clearTimeout(ticker); });
 		await show_route();
 	};
 })();

@@ -468,6 +468,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,Import result
 "Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
 In progress,In progress
+In progress ({0}),In progress ({0})
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
 Income Reconciliation,Income Reconciliation
@@ -697,6 +698,7 @@ Product code,Product code
 Product codes and barcodes must be stored as text.,Product codes and barcodes must be stored as text.
 Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
+Progress,Progress
 PromptPay,PromptPay
 Provider Evidence,Provider Evidence
 Purchase (expense),Purchase (expense)
@@ -885,6 +887,7 @@ Start counting,Start counting
 Start date,Start date
 Start reconciliation,Start reconciliation
 Started At,Started At
+Started at,Started at
 Statement review is not available for this task.,Statement review is not available for this task.
 Status,Status
 Stock,Stock
@@ -1354,8 +1357,10 @@ cowork.recon.col.kind,Type
 cowork.recon.col.matched,Matched
 cowork.recon.col.period,Period
 cowork.recon.col.preVat,Before VAT
+cowork.recon.col.progress,Progress
 cowork.recon.col.reference,Reference
 cowork.recon.col.rows,Rows
+cowork.recon.col.startedAt,Started at
 cowork.recon.col.status,Status
 cowork.recon.col.stmtAmount,Bank amount
 cowork.recon.col.taxId,Tax ID
@@ -1422,6 +1427,8 @@ cowork.recon.rule.gl_account,Ledger account
 cowork.recon.rule.grouped,Many-to-one lines
 cowork.recon.rule.grouped.no,Check line by line
 cowork.recon.rule.grouped.yes,Batched: match by total
+cowork.recon.running,In progress
+cowork.recon.runningCount,In progress ({0})
 cowork.recon.saved,Saved
 cowork.recon.sheet.difference,Difference detail
 cowork.recon.sheet.gl,General ledger detail

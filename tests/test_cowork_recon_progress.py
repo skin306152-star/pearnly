@@ -119,6 +119,17 @@ class Progress(unittest.TestCase):
 			view = progress.job_view("job", {"stage": "statement", "files": [{"file": "F1", "side": "left"}]})
 		self.assertEqual((view["files"][0]["state"], view["files"][0]["ahead"]), ("queued", 2))
 
+	def test_an_active_reconciliation_keeps_when_it_started(self):
+		# 「进行中」一页的开始时间列（2026-09-30）：同一份再登记只留一条、最新的在前。
+		with mock.patch.object(progress, "now", return_value="2026-09-30 15:04:05"):
+			progress.active_add("u@x", "job-1", "bank", "B01")
+			progress.active_add("u@x", "job-2", "bank", "B02")
+			progress.active_add("u@x", "job-1", "bank", "B01")
+		self.assertEqual([(item["job"], item["started"]) for item in progress.active("u@x", "bank")],
+			[("job-1", "2026-09-30 15:04:05"), ("job-2", "2026-09-30 15:04:05")])
+		progress.active_remove("u@x", "job-1")
+		self.assertEqual([item["job"] for item in progress.active("u@x", "bank")], ["job-2"])
+
 	def test_an_unavailable_cache_never_breaks_the_reconciliation(self):
 		with mock.patch.object(progress.frappe, "cache", None):
 			self.assertEqual(progress.get("F1"), {})
