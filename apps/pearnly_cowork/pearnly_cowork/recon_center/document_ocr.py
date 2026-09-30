@@ -213,9 +213,17 @@ class ReconClosed(Exception):
 
 def _recon_closed(recon_job, file=None):
     """对账已结束：状态缓存写着失败 / 完成，或者它存的源文件已经删了（对账结束时一定删；部署、清缓存会清掉状态缓存，
-    只看缓存会把已结束的对账当成还在等）。"""
+    只看缓存会把已结束的对账当成还在等），或者对账后台任务本身已经没了（部署 / 重启时被杀、判为弃置：源文件还在、
+    状态缓存也被清了，识别却还在一页页付费读，没人用；2026-09-30 测试机重载打断压测 rI）。"""
     job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
-    return job.get("state") in ("failed", "done") or bool(file and not frappe.db.exists("File", file))
+    if job.get("state") in ("failed", "done") or bool(file and not frappe.db.exists("File", file)):
+        return True
+    from pearnly_cowork.recon_center import jobs
+
+    try:
+        return jobs._job_ended(recon_job)
+    except Exception:
+        return False  # 队列一时查不到：不下结论，照常读
 
 
 def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None):

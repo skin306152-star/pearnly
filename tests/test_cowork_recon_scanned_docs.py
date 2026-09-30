@@ -1406,6 +1406,22 @@ class WaitingForARead(unittest.TestCase):
 class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 	"""对账判失败后，识别任务下一个付费调用前就停（BAY-CA-03，2026-09-29：对账失败了识别还在读、占名额）。"""
 
+	def test_a_reconciliation_killed_by_a_restart_counts_as_closed(self):
+		# 2026-09-30 测试机重载：对账后台任务被杀（判为弃置），状态缓存也清了、源文件还在，识别不该再付费读。
+		from pearnly_cowork.recon_center import jobs
+
+		cache = mock.MagicMock()
+		cache.get_value.return_value = None
+		db = mock.MagicMock()
+		db.exists.return_value = True
+		with mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch.object(document_ocr.frappe, "db", db):
+			with mock.patch.object(jobs, "_job_ended", return_value=True):
+				self.assertTrue(document_ocr._recon_closed("job", "F1"))
+			with mock.patch.object(jobs, "_job_ended", return_value=False):
+				self.assertFalse(document_ocr._recon_closed("job", "F1"))
+			with mock.patch.object(jobs, "_job_ended", side_effect=ConnectionError):
+				self.assertFalse(document_ocr._recon_closed("job", "F1"))
+
 	def test_the_next_paid_call_is_not_made_once_the_reconciliation_failed(self):
 		states = iter([{"state": "running"}, {"state": "failed"}])
 		cache = mock.MagicMock()
