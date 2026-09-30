@@ -218,12 +218,23 @@ frappe.provide("frappe.pearnly");
 			if (long <= rule.max_long_edge) return file;
 			const scale = rule.max_long_edge / long;
 			const width = Math.round(bitmap.width * scale), height = Math.round(bitmap.height * scale);
-			const canvas = document.createElement("canvas");
-			canvas.width = width; canvas.height = height;
-			const context = canvas.getContext("2d");
-			context.imageSmoothingEnabled = true;
-			context.imageSmoothingQuality = "high";
-			context.drawImage(bitmap, 0, 0, width, height);
+			// 大于目标两倍时先逐次减半，最后一步再缩到目标：一步从 8000 缩到 2400 各浏览器的插值质量不一，容易出锯齿、
+			// 糊掉细字（压测窗口 2026-10-01 提醒）。
+			const draw = (source, w, h) => {
+				const canvas = document.createElement("canvas");
+				canvas.width = w; canvas.height = h;
+				const context = canvas.getContext("2d");
+				context.imageSmoothingEnabled = true;
+				context.imageSmoothingQuality = "high";
+				context.drawImage(source, 0, 0, w, h);
+				return canvas;
+			};
+			let source = bitmap, w = bitmap.width, h = bitmap.height;
+			while (w / 2 >= width && h / 2 >= height) {
+				w = Math.round(w / 2); h = Math.round(h / 2);
+				source = draw(source, w, h);
+			}
+			const canvas = draw(source, width, height);
 			const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", rule.quality));
 			if (!blob) return file;
 			const name = String(file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
