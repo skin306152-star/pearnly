@@ -1,13 +1,9 @@
 (() => {
 	const p = frappe.pearnly;
 	p.home = async (page, t, wrapper) => {
-		let home,
-			form,
-			table,
-			timer,
-			busy = false;
+		let home, list, timer;
 		let tab = "usage", period = "all", pageLength = 20;
-		let deleting = false, confirming = false;
+		let deleting = false, confirming = false, sequence = 0;
 		const money = (value) => p.money(Number(value || 0));
 		const read = (name, label, value, fieldtype = "Data") => ({
 			fieldname: name,
@@ -17,94 +13,58 @@
 			default: value,
 			options: fieldtype === "Currency" ? "THB" : undefined,
 		});
-		// 两层（用户 2026-09-30）：第一屏只放记录明细，右上角「导出明细」「订阅与充值」；「订阅与充值」是二级页
-		// （面包屑 首页 / 订阅与充值），放账户余额与选择套餐，右上角「充值」「选择套餐」。
+		// 两层（用户 2026-09-30）：第一屏只放记录明细（与其它列表同一布局：页头下原生筛选条 + 整页官方列表），右上角
+		// 「导出明细」「订阅与充值」；「订阅与充值」是二级页（面包屑 首页 / 订阅与充值），放账户余额与选择套餐，右上角
+		// 「充值」「选择套餐」。同一个 Desk 页面按路由切换，照共用的路由写法：每次按当前路由重画、慢请求的旧结果丢掉
+		// （原来用「正在刷新就跳过」的开关，快速点击 / 返回时界面慢一拍、点几次才进得去）。
 		const title = page.title || __("Home");
-		let again = false;
 		const on_billing = () => frappe.get_route()[1] === "billing";
 		async function refresh() {
-			if (busy) { again = true; return; }  // 正在刷新时切了页（首页 ↔ 订阅与充值）：刷完再按新路由刷一次
-			if (deleting || confirming || !$(wrapper).is(":visible")) return;
-			busy = true;
-			try {
-				home = await p.call("pearnly_core.billing_www.home");
-				pageLength = table?.selected_page_count || pageLength;
-				table?.destroy();
-				table = null;
-				page.main.empty();
-				page.clear_inner_toolbar();
-				page.clear_primary_action();
-				page.set_title_sub(
-					home.pending_topups.length
-						? p.escape(
-								t("home.pending.count", home.pending_topups.length) +
-									" " +
-									t("home.pending.hint"),
-							)
-						: "",
-					"orange",
-				);
-				if (on_billing()) await billing();
-				else await ledger();
-			} finally {
-				busy = false;
-				if (again) { again = false; void refresh(); }
-			}
+			const request = ++sequence;
+			const loaded = await p.call("pearnly_core.billing_www.home");
+			if (request !== sequence || frappe.get_route()[0] !== "pearnly-home") return;
+			home = loaded;
+			pageLength = list?.selected_page_count || pageLength;
+			list?.destroy();
+			list = null;
+			p.clear_page(page);
+			p.add_refresh(page, refresh);
+			page.set_title_sub(
+				home.pending_topups.length
+					? p.escape(t("home.pending.count", home.pending_topups.length) + " " + t("home.pending.hint"))
+					: "",
+				"orange",
+			);
+			if (on_billing()) billing();
+			else ledger();
 		}
-		async function ledger() {
+		function ledger() {
 			page.set_title(title);
 			p.breadcrumbs({ label: title, route: p.subroute("pearnly-home") });
 			page.add_inner_button(t("home.ledger.export"), () =>
 				location.assign("/api/method/pearnly_core.billing_www.export_records"),
 			);
-			updateAction([]);
-			form = p.layout(page.main, [
-				{ fieldtype: "Section Break", label: t("home.ledger.title") },
-				{
-					fieldtype: "Select",
-					fieldname: "tab",
-					label: __("Type"),
-					default: tab,
-					options: [
-						{ value: "usage", label: t("home.ledger.usage") },
-						...(home.can_manage
-							? [{ value: "topup", label: t("home.topup") }]
-							: []),
-						{ value: "ocr", label: t("home.ledger.ocr") },
-					],
-					change: () => {
-						tab = form.get_value("tab");
-						void records();
-					},
-				},
-				{ fieldtype: "Column Break" },
-				{
-					fieldtype: "Select",
-					fieldname: "period",
-					label: __("Period"),
-					default: period,
-					options: ["all", "day", "month", "year"].map((value, i) => ({
-						value,
-						label: t(
-							[
-								"home.period.all",
-								"home.period.today",
-								"home.period.month",
-								"home.period.year",
-							][i],
-						),
-					})),
-					change: () => {
-						period = form.get_value("period");
-						void records();
-					},
-				},
-				{ fieldtype: "Section Break" },
-				{ fieldtype: "HTML", fieldname: "records" },
-			]);
-			await records();
+			// 筛选放在页头下的原生筛选条（与客户、库存等列表一致），不再是表单里的两个下拉框。
+			page.add_field({
+				fieldtype: "Select", fieldname: "tab", label: __("Type"), default: tab,
+				options: [
+					{ value: "usage", label: t("home.ledger.usage") },
+					...(home.can_manage ? [{ value: "topup", label: t("home.topup") }] : []),
+					{ value: "ocr", label: t("home.ledger.ocr") },
+				],
+				change: () => { tab = page.fields_dict.tab.get_value() || "usage"; records(); },
+			});
+			page.add_field({
+				fieldtype: "Select", fieldname: "period", label: __("Period"), default: period,
+				options: ["all", "day", "month", "year"].map((value, i) => ({
+					value,
+					label: t(["home.period.all", "home.period.today", "home.period.month", "home.period.year"][i]),
+				})),
+				change: () => { period = page.fields_dict.period.get_value() || "all"; records(); },
+			});
+			records();
 		}
-		async function billing() {
+		function billing() {
 			const label = t("home.billing");
 			page.set_title(label);
 			p.breadcrumbs({ label: title, route: p.subroute("pearnly-home"), trail: [{ label }] });
@@ -113,7 +73,7 @@
 				page.add_inner_button(t("home.plans.title"), subscription);
 			}
 			const sub = home.subscription;
-			form = p.layout(page.main, [
+			const form = p.layout(page.main, [
 				{ fieldtype: "Section Break", label: t("home.balance.title") },
 				read("balance", "home.balance.title", money(home.balance_thb)),
 				{ fieldtype: "Column Break" },
@@ -151,10 +111,7 @@
 				if (home.can_manage)
 					fields.push({
 						fieldtype: "Button",
-						label:
-							sub?.plan_code === plan.code
-								? t("home.plan.current")
-								: t("home.plan.subscribe"),
+						label: sub?.plan_code === plan.code ? t("home.plan.current") : t("home.plan.subscribe"),
 						click: () => subscription(plan.code),
 					});
 			}
@@ -173,14 +130,14 @@
 		}
 		function removeSelected() {
 			if (deleting || confirming) return;
-			const selectedTable = table, selectedTab = tab;
+			const selectedTable = list, selectedTab = tab;
 			const names = [...new Set(selectedTable.get_checked_items().map(row => row.name))];
 			if (!names.length) return;
 			confirming = true;
 			updateAction(selectedTable.get_checked_items());
 			const reset = () => {
 				confirming = deleting = false;
-				updateAction(table?.get_checked_items() || []);
+				updateAction(list?.get_checked_items() || []);
 			};
 			const dialog = frappe.confirm(p.escape(t("home.ledger.confirmDelete", names.length)), async () => {
 				if (deleting) return;
@@ -189,17 +146,16 @@
 					const result = await p.call("pearnly_core.billing_www.delete_records",
 						{tab: selectedTab, names}, "POST");
 					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted), "delete");
-					if (table === selectedTable) await table.reload();
+					if (list === selectedTable) await list.reload();
 				} catch (error) {
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				} finally { reset(); }
 			}, reset);
 			dialog.onhide = () => { if (!deleting) reset(); };
 		}
-		async function records() {
-			if (!form?.fields_dict.records) return;
-			pageLength = table?.selected_page_count || pageLength;
-			table?.destroy();
+		function records() {
+			pageLength = list?.selected_page_count || pageLength;
+			list?.destroy();
 			updateAction([]);
 			const activeTab = tab, activePeriod = period;
 			const status = code => t({pending: "home.status.pending", approved: "home.status.credited",
@@ -216,7 +172,8 @@
 					: [["creation", "time"], ["product", "product"], ["pages", "pages"],
 						["amount_thb", "amount", money], ["balance_after", "balanceAfter", money],
 						["description", "description", value => __(value || "")]];
-			table = p.list({page, page_length: pageLength, container: form.fields_dict.records.$wrapper,
+			// 整页官方列表（与其它列表同一布局），不再嵌在表单里。
+			list = p.list({page, page_length: pageLength, compact_columns: true,
 				doctype: "Pearnly OCR Record", selectable: home.can_manage,
 				on_selection: updateAction,
 				columns: columns.map(([fieldname, label, format]) => ({fieldname,
@@ -229,7 +186,6 @@
 					return {items: result.rows, total: result.total};
 				},
 			});
-			await table.ready;
 		}
 
 		function subscription(code) {
@@ -335,16 +291,15 @@
 				},
 			);
 		}
-		p.add_refresh(page, refresh);
-		// 首页与二级页同一个 Desk 页面，按路由切换（`pearnly-home` / `pearnly-home/billing`）。
 		wrapper.on_page_show = () => { p.restore_sidebar(); void refresh(); };
+		$(wrapper).on("hide", () => { ++sequence; });
 		await refresh();
+		// 30 秒刷新一次：明细页只刷列表（勾选、弹窗、正在改筛选时不刷），订阅与充值页重画余额。
 		timer = setInterval(() => {
-			const editingFilter = $(document.activeElement).closest(page.main).length &&
-				$(document.activeElement).is("input,select,textarea,[role=combobox]");
-			if (!document.hidden && !cur_dialog && !editingFilter &&
-				!table?.get_checked_items().length && $(wrapper).is(":visible"))
-				void refresh().catch(() => {});
+			const editing = $(document.activeElement).is("input,select,textarea,[role=combobox]");
+			if (document.hidden || cur_dialog || editing || deleting || confirming || !$(wrapper).is(":visible")) return;
+			if (on_billing()) void refresh().catch(() => {});
+			else if (!list?.get_checked_items().length) void list?.refresh().catch(() => {});
 		}, 30000);
 		$(wrapper).one("remove", () => clearInterval(timer));
 	};
