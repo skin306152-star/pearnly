@@ -714,7 +714,14 @@
 
 		async function show_result(name, loaded, ask_next) {
 			const request = ++sequence;
-			const data = loaded || await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() });
+			if (!loaded) {
+				// 数据还没回来先摆官方列表打开时那套占位骨架（用户 2026-09-30：点进结果 / 复核页整屏白着）。
+				page.main.children(".list-skeleton").remove();
+				// 结果页没有侧栏，只摆内容那一块。
+				page.main.append($(`<div class="row list-skeleton"><div class="col"><div class="list-skeleton-box"></div></div></div>`));
+			}
+			const data = loaded || await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() })
+				.finally(() => page.main.children(".list-skeleton").remove());
 			if (request !== sequence || frappe.get_route()[1] !== name) return;
 			clear();
 			let modified = data.task.modified, dirty = false, pending = null, active = 0, view = data, waiting = null;
