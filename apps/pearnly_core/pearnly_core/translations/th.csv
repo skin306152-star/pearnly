@@ -578,6 +578,7 @@ Submitting…,กำลังส่ง…
 Subscribe to this plan,สมัครแพ็กเกจนี้
 Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}
 Subscribing…,กำลังสมัคร…
+Subscription and top-up,สมัครแพ็กเกจและเติมเงิน
 Subtotal,ยอดรวมย่อย
 Succeeded,สำเร็จ
 Success / failure,สำเร็จ / ล้มเหลว
@@ -849,6 +850,7 @@ home.balance.usedNoPlan,ใช้ไปเดือนนี้ {0} หน้า
 home.bank.account,เลขที่บัญชี
 home.bank.holder,ชื่อบัญชี
 home.bank.name,ธนาคาร
+home.billing,สมัครแพ็กเกจและเติมเงิน
 home.cancel,ยกเลิก
 home.col.amount,จำนวนเงิน
 home.col.balanceAfter,ยอดคงเหลือหลังเปลี่ยนแปลง

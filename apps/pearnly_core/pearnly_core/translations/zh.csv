@@ -578,6 +578,7 @@ Submitting…,提交中…
 Subscribe to this plan,订阅此套餐
 Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。
 Subscribing…,订阅中…
+Subscription and top-up,订阅与充值
 Subtotal,小计
 Succeeded,成功
 Success / failure,成功 / 失败
@@ -849,6 +850,7 @@ home.balance.usedNoPlan,本月已用 {0} 张 · 未订阅按量计费
 home.bank.account,收款账号
 home.bank.holder,收款户名
 home.bank.name,收款银行
+home.billing,订阅与充值
 home.cancel,取消
 home.col.amount,金额
 home.col.balanceAfter,变动后余额

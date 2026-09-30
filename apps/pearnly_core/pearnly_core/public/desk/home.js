@@ -17,21 +17,23 @@
 			default: value,
 			options: fieldtype === "Currency" ? "THB" : undefined,
 		});
+		// 两层（用户 2026-09-30）：第一屏只放记录明细，右上角「导出明细」「订阅与充值」；「订阅与充值」是二级页
+		// （面包屑 首页 / 订阅与充值），放账户余额与选择套餐，右上角「充值」「选择套餐」。
+		const title = page.title || __("Home");
+		let again = false;
+		const on_billing = () => frappe.get_route()[1] === "billing";
 		async function refresh() {
-			if (busy || deleting || confirming || !$(wrapper).is(":visible")) return;
+			if (busy) { again = true; return; }  // 正在刷新时切了页（首页 ↔ 订阅与充值）：刷完再按新路由刷一次
+			if (deleting || confirming || !$(wrapper).is(":visible")) return;
 			busy = true;
 			try {
 				home = await p.call("pearnly_core.billing_www.home");
 				pageLength = table?.selected_page_count || pageLength;
 				table?.destroy();
+				table = null;
 				page.main.empty();
-				const sub = home.subscription;
-				updateAction([]);
 				page.clear_inner_toolbar();
-				if (home.can_manage) page.add_inner_button(t("home.plans.title"), subscription);
-				page.add_inner_button(t("home.ledger.export"), () =>
-					location.assign("/api/method/pearnly_core.billing_www.export_records"),
-				);
+				page.clear_primary_action();
 				page.set_title_sub(
 					home.pending_topups.length
 						? p.escape(
@@ -42,108 +44,132 @@
 						: "",
 					"orange",
 				);
-				form = p.layout(page.main, [
-					{ fieldtype: "Section Break", label: t("home.balance.title") },
-					read("balance", "home.balance.title", money(home.balance_thb)),
-					{ fieldtype: "Column Break" },
-					read(
-						"plan",
-						"home.plan.current",
-						sub ? t("home.plan.code") + " " + sub.plan_code : t("home.plan.none"),
-					),
-					{ fieldtype: "Column Break" },
-					read("used", "home.col.pages", home.pages_used_this_month, "Int"),
-					{ fieldtype: "Section Break" },
-					{
-						fieldtype: "HTML",
-						options: sub
-							? `<p>${p.escape(t("home.plan.usage", sub.pages_used_this_cycle, sub.quota, sub.remaining))}</p><p class="text-muted">${p.escape(t("home.plan.over", money(sub.over_rate), frappe.datetime.str_to_user(sub.cycle_end)))}</p><p class="text-muted">${p.escape(t("home.plan.cycleNote"))}</p>`
-							: `<p class="text-muted">${p.escape(t("home.plan.noneHint"))}</p>`,
-					},
-					{
-						fieldtype: "HTML",
-						options: home.pricing ? `<p class="text-muted">${p.escape(t("home.pricing.pages",
-							home.pricing.pdf_first_pages, money(home.pricing.pdf_first_rate), money(home.pricing.pdf_after_rate)))}</p>
-							<p class="text-muted">${p.escape(t("home.pricing.chars", home.pricing.chars_per_unit,
-							money(home.pricing.char_rate)))}</p>` : "",
-					},
-					{ fieldtype: "Section Break", label: t("home.plans.title") },
-					{ fieldtype: "HTML", fieldname: "plans" },
-					{ fieldtype: "Section Break", label: t("home.ledger.title") },
-					{
-						fieldtype: "Select",
-						fieldname: "tab",
-						label: __("Type"),
-						default: tab,
-						options: [
-							{ value: "usage", label: t("home.ledger.usage") },
-							...(home.can_manage
-								? [{ value: "topup", label: t("home.topup") }]
-								: []),
-							{ value: "ocr", label: t("home.ledger.ocr") },
-						],
-						change: () => {
-							tab = form.get_value("tab");
-							void records();
-						},
-					},
-					{ fieldtype: "Column Break" },
-					{
-						fieldtype: "Select",
-						fieldname: "period",
-						label: __("Period"),
-						default: period,
-						options: ["all", "day", "month", "year"].map((value, i) => ({
-							value,
-							label: t(
-								[
-									"home.period.all",
-									"home.period.today",
-									"home.period.month",
-									"home.period.year",
-								][i],
-							),
-						})),
-						change: () => {
-							period = form.get_value("period");
-							void records();
-						},
-					},
-					{ fieldtype: "Section Break" },
-					{ fieldtype: "HTML", fieldname: "records" },
-				]);
-				const fields = [];
-				for (const [i, plan] of home.plans.entries()) {
-					if (i) fields.push({ fieldtype: "Column Break" });
-					fields.push({
-						fieldtype: "HTML",
-						options: `<h5>${p.escape(t("home.plan.code"))} ${p.escape(plan.code)}</h5><p>${p.escape(money(plan.fee))} · ${p.escape(t("home.plans.perCycle", plan.cycle_days))}</p><p class="text-muted">${p.escape(t("home.plans.quota", plan.quota))}<br>${p.escape(t("home.plans.over", money(plan.over_rate)))}</p>`,
-					});
-					if (home.can_manage)
-						fields.push({
-							fieldtype: "Button",
-							label:
-								sub?.plan_code === plan.code
-									? t("home.plan.current")
-									: t("home.plan.subscribe"),
-							click: () => subscription(plan.code),
-						});
-				}
-				const plans = p.layout(form.fields_dict.plans.$wrapper, fields);
-				plans.wrapper.find(".form-column").wrapInner('<div class="pearnly-plan"></div>');
-				await records();
+				if (on_billing()) await billing();
+				else await ledger();
 			} finally {
 				busy = false;
+				if (again) { again = false; void refresh(); }
 			}
 		}
+		async function ledger() {
+			page.set_title(title);
+			p.breadcrumbs({ label: title, route: p.subroute("pearnly-home") });
+			page.add_inner_button(t("home.ledger.export"), () =>
+				location.assign("/api/method/pearnly_core.billing_www.export_records"),
+			);
+			updateAction([]);
+			form = p.layout(page.main, [
+				{ fieldtype: "Section Break", label: t("home.ledger.title") },
+				{
+					fieldtype: "Select",
+					fieldname: "tab",
+					label: __("Type"),
+					default: tab,
+					options: [
+						{ value: "usage", label: t("home.ledger.usage") },
+						...(home.can_manage
+							? [{ value: "topup", label: t("home.topup") }]
+							: []),
+						{ value: "ocr", label: t("home.ledger.ocr") },
+					],
+					change: () => {
+						tab = form.get_value("tab");
+						void records();
+					},
+				},
+				{ fieldtype: "Column Break" },
+				{
+					fieldtype: "Select",
+					fieldname: "period",
+					label: __("Period"),
+					default: period,
+					options: ["all", "day", "month", "year"].map((value, i) => ({
+						value,
+						label: t(
+							[
+								"home.period.all",
+								"home.period.today",
+								"home.period.month",
+								"home.period.year",
+							][i],
+						),
+					})),
+					change: () => {
+						period = form.get_value("period");
+						void records();
+					},
+				},
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "HTML", fieldname: "records" },
+			]);
+			await records();
+		}
+		async function billing() {
+			const label = t("home.billing");
+			page.set_title(label);
+			p.breadcrumbs({ label: title, route: p.subroute("pearnly-home"), trail: [{ label }] });
+			if (home.can_manage) {
+				page.set_primary_action(t("home.topup"), topup);
+				page.add_inner_button(t("home.plans.title"), subscription);
+			}
+			const sub = home.subscription;
+			form = p.layout(page.main, [
+				{ fieldtype: "Section Break", label: t("home.balance.title") },
+				read("balance", "home.balance.title", money(home.balance_thb)),
+				{ fieldtype: "Column Break" },
+				read(
+					"plan",
+					"home.plan.current",
+					sub ? t("home.plan.code") + " " + sub.plan_code : t("home.plan.none"),
+				),
+				{ fieldtype: "Column Break" },
+				read("used", "home.col.pages", home.pages_used_this_month, "Int"),
+				{ fieldtype: "Section Break" },
+				{
+					fieldtype: "HTML",
+					options: sub
+						? `<p>${p.escape(t("home.plan.usage", sub.pages_used_this_cycle, sub.quota, sub.remaining))}</p><p class="text-muted">${p.escape(t("home.plan.over", money(sub.over_rate), frappe.datetime.str_to_user(sub.cycle_end)))}</p><p class="text-muted">${p.escape(t("home.plan.cycleNote"))}</p>`
+						: `<p class="text-muted">${p.escape(t("home.plan.noneHint"))}</p>`,
+				},
+				{
+					fieldtype: "HTML",
+					options: home.pricing ? `<p class="text-muted">${p.escape(t("home.pricing.pages",
+						home.pricing.pdf_first_pages, money(home.pricing.pdf_first_rate), money(home.pricing.pdf_after_rate)))}</p>
+						<p class="text-muted">${p.escape(t("home.pricing.chars", home.pricing.chars_per_unit,
+						money(home.pricing.char_rate)))}</p>` : "",
+				},
+				{ fieldtype: "Section Break", label: t("home.plans.title") },
+				{ fieldtype: "HTML", fieldname: "plans" },
+			]);
+			const fields = [];
+			for (const [i, plan] of home.plans.entries()) {
+				if (i) fields.push({ fieldtype: "Column Break" });
+				fields.push({
+					fieldtype: "HTML",
+					options: `<h5>${p.escape(t("home.plan.code"))} ${p.escape(plan.code)}</h5><p>${p.escape(money(plan.fee))} · ${p.escape(t("home.plans.perCycle", plan.cycle_days))}</p><p class="text-muted">${p.escape(t("home.plans.quota", plan.quota))}<br>${p.escape(t("home.plans.over", money(plan.over_rate)))}</p>`,
+				});
+				if (home.can_manage)
+					fields.push({
+						fieldtype: "Button",
+						label:
+							sub?.plan_code === plan.code
+								? t("home.plan.current")
+								: t("home.plan.subscribe"),
+						click: () => subscription(plan.code),
+					});
+			}
+			const plans = p.layout(form.fields_dict.plans.$wrapper, fields);
+			plans.wrapper.find(".form-column").wrapInner('<div class="pearnly-plan"></div>');
+		}
 		function updateAction(rows) {
+			if (on_billing()) return;  // 二级页的右上角是「充值」，不跟着明细勾选变
 			if (home?.can_manage && rows.length) {
 				page.set_primary_action(__("Delete"), removeSelected);
 				page.btn_primary.prop("disabled", deleting || confirming);
-			} else if (home?.can_manage) {
-				page.set_primary_action(t("home.topup"), topup);
+			} else {
+				page.set_primary_action(t("home.billing"), () => frappe.set_route("pearnly-home", "billing"));
 				page.btn_primary.prop("disabled", false);
-			} else page.clear_primary_action();
+			}
 		}
 		function removeSelected() {
 			if (deleting || confirming) return;
@@ -310,6 +336,8 @@
 			);
 		}
 		p.add_refresh(page, refresh);
+		// 首页与二级页同一个 Desk 页面，按路由切换（`pearnly-home` / `pearnly-home/billing`）。
+		wrapper.on_page_show = () => { p.restore_sidebar(); void refresh(); };
 		await refresh();
 		timer = setInterval(() => {
 			const editingFilter = $(document.activeElement).closest(page.main).length &&

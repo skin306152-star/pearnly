@@ -578,6 +578,7 @@ Submitting…,送信中…
 Subscribe to this plan,このプランに登録
 Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。
 Subscribing…,登録中…
+Subscription and top-up,プランとチャージ
 Subtotal,小計
 Succeeded,成功
 Success / failure,成功・失敗
@@ -849,6 +850,7 @@ home.balance.usedNoPlan,今月 {0} 枚使用 · 未登録の従量課金
 home.bank.account,口座番号
 home.bank.holder,口座名義
 home.bank.name,銀行
+home.billing,プランとチャージ
 home.cancel,キャンセル
 home.col.amount,金額
 home.col.balanceAfter,変動後の残高

@@ -576,6 +576,7 @@ Submitting…,Submitting…
 Subscribe to this plan,Subscribe to this plan
 Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.
 Subscribing…,Subscribing…
+Subscription and top-up,Subscription and top-up
 Subtotal,Subtotal
 Succeeded,Succeeded
 Success / failure,Success / failure
@@ -847,6 +848,7 @@ home.balance.usedNoPlan,Used {0} pages this month · pay-as-you-go
 home.bank.account,Account number
 home.bank.holder,Account name
 home.bank.name,Bank
+home.billing,Subscription and top-up
 home.cancel,Cancel
 home.col.amount,Amount
 home.col.balanceAfter,Balance after
