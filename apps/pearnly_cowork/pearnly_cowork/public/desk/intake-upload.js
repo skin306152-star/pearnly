@@ -852,26 +852,21 @@
 			}
 		};
 
-		/* ── 识别进度：官方整屏遮罩（`frappe.dom.freeze`），文字照旧线上「已完成/总数 · 百分比」 ──
-		 * 百分比按**份数**算（完成几份 ÷ 这一批共几份，旧版 `renderProcessing` 同法），不按页估。
-		 * 遮罩的正文是 `#freeze .freeze-message p.lead`：重复调 freeze 只加计数不换字，所以冻结后
-		 * 直接改这一段（DMS 连接页同一写法）。 */
-		const progress = {total: 0, done: 0, frozen: false};
+		/* ── 识别进度：白底 + 官方转圈（`p.waiting`，用户 2026-09-30「白屏加动画」，原来是整屏灰遮罩），
+		 * 文字照旧线上「已完成/总数 · 百分比」。百分比按**份数**算（完成几份 ÷ 这一批共几份，旧版
+		 * `renderProcessing` 同法），不按页估。 */
+		const progress = {total: 0, done: 0, frozen: null};
 		const progress_lines = () => {
 			const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 			return [t("intake.proc.title"), t("intake.proc.sub"), `${progress.done}/${progress.total} · ${percent}%`];
 		};
 		const paint_progress = () => {
-			if (!progress.frozen) {
-				frappe.dom.freeze(p.escape(progress_lines().join(" · ")));
-				progress.frozen = true;
-			}
-			const lead = document.querySelector("#freeze .freeze-message p.lead");
-			if (lead) lead.innerText = progress_lines().join("\n");
+			if (!progress.frozen) progress.frozen = p.waiting(page, "");
+			progress.frozen.update(progress_lines().join("\n"));
 		};
 		const end_progress = () => {
-			if (progress.frozen) frappe.dom.unfreeze();
-			progress.frozen = false;
+			progress.frozen?.done();
+			progress.frozen = null;
 		};
 
 		/** 等一个识别批次出结论；读状态失败不弹窗（静默重试），连续读不到才算失联。 */

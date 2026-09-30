@@ -1181,6 +1181,7 @@ shell.needLogin,You need to sign in to the site before opening this page. Enter 
 shell.notBuilt,Page unavailable
 shell.notBuilt.body,Return to the home page to continue.
 shell.notBuilt.title,Page unavailable
+shell.wait.elapsed,{0} seconds so far
 state is invalid or has expired,state is invalid or has expired
 system_url is required,system_url is required
 username / password are required,username / password are required
@@ -1189,6 +1190,7 @@ username / password are required,username / password are required
 {0} possible duplicate invoice(s) detected,{0} possible duplicate invoice(s) detected
 {0} record(s) deleted.,{0} record(s) deleted.
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} records · grand total {1} · payable {2} · outstanding {3}
+{0} seconds so far,{0} seconds so far
 "{0} takes {1} arguments, but {2} were passed to the queue","{0} takes {1} arguments, but {2} were passed to the queue"
 {0} top-up request(s) pending review.,{0} top-up request(s) pending review.
 {0} → {1},{0} → {1}

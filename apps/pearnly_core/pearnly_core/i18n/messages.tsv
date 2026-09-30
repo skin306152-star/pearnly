@@ -858,3 +858,4 @@ Recognize and export	识别后导出	อ่านแล้วส่งออก	
 Delete {0} selected records? Pushed ones cannot be deleted.	删除选中的 {0} 条记录？已推送的删不掉。	ลบ {0} รายการที่เลือก? รายการที่ส่งแล้วลบไม่ได้	選択した {0} 件を削除しますか？送信済みは削除できません。	intake.confirm.delete
 Entering	录入中	กำลังบันทึก	入力中	intake.push.pending
 Entry status	录入状态	สถานะการบันทึก	登録ステータス	intake.col.entryStatus
+{0} seconds so far	已用 {0} 秒	ผ่านไป {0} วินาที	経過 {0} 秒	shell.wait.elapsed

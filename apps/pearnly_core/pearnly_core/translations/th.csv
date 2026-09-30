@@ -1183,6 +1183,7 @@ shell.needLogin,หน้านี้ต้องเข้าสู่ระบ�
 shell.notBuilt,ไม่สามารถใช้งานหน้านี้ได้
 shell.notBuilt.body,กรุณากลับหน้าหลักเพื่อดำเนินการต่อ
 shell.notBuilt.title,ไม่สามารถใช้งานหน้านี้ได้
+shell.wait.elapsed,ผ่านไป {0} วินาที
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password
@@ -1191,6 +1192,7 @@ username / password are required,ต้องระบุ username / password
 {0} possible duplicate invoice(s) detected,พบใบกำกับที่อาจซ้ำ {0} รายการ
 {0} record(s) deleted.,ลบแล้ว {0} รายการ
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}
+{0} seconds so far,ผ่านไป {0} วินาที
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว
 {0} top-up request(s) pending review.,มีคำขอเติมเงิน {0} รายการรอตรวจสอบ
 {0} → {1},{0} → {1}

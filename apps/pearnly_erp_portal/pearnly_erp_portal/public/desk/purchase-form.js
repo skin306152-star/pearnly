@@ -184,7 +184,8 @@
 			}));
 			state.recognise = () => act(async () => {
 				state.ocr_failed = false;
-				frappe.dom.freeze(__("Recognizing..."));
+				// 白底 + 官方转圈 + 已用秒数（用户 2026-09-30「白屏加动画」，原来是整屏灰遮罩「Recognizing...」）
+				const waiting = p.waiting(state.page, __("Recognizing..."), {elapsed: true});
 				try {
 					const result = await u.call("api_recognise_purchase", {attachments: state.attachments.filter(row => !row.generated), document_name: doc.name}, true);
 					if (!still_current() || state.disposed) return;
@@ -207,7 +208,7 @@
 					// frappe.call already presents server failures in the native message dialog.
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				}
-				finally {frappe.dom.unfreeze();}
+				finally {waiting.done();}
 			});
 			state.merge = async () => {
 				const rows = u.clean_lines(state.values(true).lines); if (rows.length < 2 && !state.split_lines) return;

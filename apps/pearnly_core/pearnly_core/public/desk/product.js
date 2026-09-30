@@ -209,6 +209,36 @@ frappe.provide("frappe.pearnly");
 		frappe.show_alert({ message: p.escape(message), indicator: "green" });
 		frappe.utils.play_sound(sound);
 	};
+
+	// ── 识别等候：白底 + 官方转圈（框架样式表自带的 `spinner-border`）+ 一行真实进度 ──────────────
+	// 用户 2026-09-30：识别时「白屏加动画」，不再用整屏灰遮罩。盖住这一页的内容区，顶栏与侧栏照常；页头按钮
+	// 等候期间停用（识别结果回来前不让提交 / 保存），结束后按原样恢复。文字只写真实的数（份数、已用秒数），不估算。
+	// Cowork 录入、ERP 采购 / 销售共用。`elapsed: true` 时下面多一行「已用 N 秒」。
+	p.waiting = (page, text, {elapsed = false} = {}) => {
+		const host = $(page.wrapper).find(".page-body").first();
+		host.addClass("pearnly-waiting-host");
+		const layer = $(`<div class="pearnly-waiting" role="status" aria-live="polite">
+			<div class="spinner-border text-muted" aria-hidden="true"></div>
+			<div class="pearnly-waiting-text text-muted"></div></div>`).appendTo(host);
+		const buttons = $(page.wrapper).find(".page-head button:not([disabled])").prop("disabled", true);
+		const started = Date.now();
+		let lines = String(text ?? "");
+		const paint = () => {
+			const seconds = Math.round((Date.now() - started) / 1000);
+			layer.find(".pearnly-waiting-text").text(elapsed ? `${lines}\n${__("shell.wait.elapsed", [seconds])}` : lines);
+		};
+		const timer = elapsed ? setInterval(paint, 1000) : 0;
+		paint();
+		return {
+			update: value => { lines = String(value ?? ""); paint(); },
+			done: () => {
+				clearInterval(timer);
+				layer.remove();
+				if (!host.children(".pearnly-waiting").length) host.removeClass("pearnly-waiting-host");
+				buttons.prop("disabled", false);
+			},
+		};
+	};
 	p.dialog = (title, fields, label, action) => {
 		const d = new frappe.ui.Dialog({
 			title,
