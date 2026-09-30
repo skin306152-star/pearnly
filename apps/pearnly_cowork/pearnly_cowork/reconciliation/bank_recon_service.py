@@ -262,6 +262,12 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if ledgers_left:
 		warnings = list(warnings or []) + [_("reconciliation.files_ledger_not_statement", lang=_warning_lang(lang)).format(
 			"、".join(ledgers_left))]
+	# 同一份表格里复制出来的工作表（逐行相同）只算了一次：点名，免得用户以为少读了（2026-09-30 压测 SISTER 6.69）。
+	duplicated = [f"{name} [{copy} = {original}]" for name, result in statements if result.get("ok")
+		for copy, original in result.get("duplicate_sheets") or []]
+	if duplicated:
+		warnings = list(warnings or []) + [_("reconciliation.files_duplicate_sheets", lang=_warning_lang(lang)).format(
+			"、".join(duplicated))]
 	unread = [name for name, result in statements + ledgers
 		if not result.get("ok") and result.get("error_code") not in (bank_intake.NO_MOVEMENT, OTHER_ACCOUNT,
 			bank_sheets.NOT_A_STATEMENT, bank_sheets.LEDGER_NOT_STATEMENT)]

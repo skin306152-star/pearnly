@@ -1091,6 +1091,7 @@ These files have no transactions (a cover or account page) and were skipped: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีเหล่านี้อ่านได้ธนาคารหรือเลขบัญชีต่างจากไฟล์อื่น อาจปนบัญชีอื่นมา: {0}
 These statements look like another account and were left out of this reconciliation: {0},รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
+These worksheets repeat another worksheet in the same file line for line and were counted once: {0},แผ่นงานต่อไปนี้ซ้ำกับแผ่นงานอื่นในไฟล์เดียวกันทุกบรรทัด จึงนับเพียงครั้งเดียว: {0}
 This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This ERP adapter is not connected yet.,ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
@@ -2080,6 +2081,7 @@ reconciliation.edit_conflict,งานกระทบยอดนี้ถูก
 reconciliation.failed,การกระทบยอดไม่สำเร็จ
 reconciliation.file_too_large,มีไฟล์ขนาดเกิน 25 MB
 reconciliation.file_type_unsupported,"ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
+reconciliation.files_duplicate_sheets,แผ่นงานต่อไปนี้ซ้ำกับแผ่นงานอื่นในไฟล์เดียวกันทุกบรรทัด จึงนับเพียงครั้งเดียว: {0}
 reconciliation.files_ledger_not_statement,ไฟล์ต่อไปนี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี จึงไม่ได้รวมไว้ (บัญชีแยกประเภทให้วางด้านขวา): {0}
 reconciliation.files_no_movement,ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามไป: {0}
 reconciliation.files_not_a_statement,ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}

@@ -1091,6 +1091,7 @@ These files have no transactions (a cover or account page) and were skipped: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},次の表は銀行からエクスポートした明細ではない（残高列がない）ため、含めていません：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
 These statements look like another account and were left out of this reconciliation: {0},次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
+These worksheets repeat another worksheet in the same file line for line and were counted once: {0},次のワークシートは同じファイル内の別のワークシートと行ごとに同一のため、1 回だけ数えました：{0}
 This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
@@ -2080,6 +2081,7 @@ reconciliation.edit_conflict,この照合は他の人が変更しました。再
 reconciliation.failed,照合を完了できませんでした。
 reconciliation.file_too_large,25MBを超えるファイルがあります。
 reconciliation.file_type_unsupported,このファイル形式は使えません。PDF、Excel、CSV を使ってください。
+reconciliation.files_duplicate_sheets,次のワークシートは同じファイル内の別のワークシートと行ごとに同一のため、1 回だけ数えました：{0}
 reconciliation.files_ledger_not_statement,次のファイルは総勘定元帳で銀行明細ではないため含めていません（元帳は右側へ）：{0}
 reconciliation.files_no_movement,次のファイルには取引がないため（表紙や口座情報のページ）スキップしました：{0}
 reconciliation.files_not_a_statement,次の表は銀行からエクスポートした明細ではない（残高列がない）ため、含めていません：{0}

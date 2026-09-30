@@ -210,6 +210,19 @@ class Sections(unittest.TestCase):
 		self.assertTrue(all(chain_ok(account["rows"]) for account in result["accounts"]))
 
 
+class DuplicateSheets(unittest.TestCase):
+	def test_a_worksheet_copied_line_for_line_is_counted_once(self):
+		body = [["วันที่", "รายการ", "ถอนเงิน", "ฝากเงิน", "ยอดคงเหลือ"]] + [
+			[day, "x", withdrawal or "", deposit or "", balance] for day, deposit, withdrawal, balance in moves(12, 1000.0)]
+		content = workbook([("Statement", body), ("Statement (2)", body)])
+		result = bank_sheets.read_statement_workbook(content, "stm.xlsx")
+		self.assertEqual(result["row_count"], 12)
+		self.assertEqual(result["opening"], 1000.0)
+		self.assertEqual(result["duplicate_sheets"], [["Statement (2)", "Statement"]])
+		self.assertEqual(bank_intake.read_statement_file(content, "stm.xlsx")["duplicate_sheets"],
+			[["Statement (2)", "Statement"]])
+
+
 class HeaderlessAndCsv(unittest.TestCase):
 	def test_a_headerless_inquiry_csv_with_an_amount_in_the_spare_column(self):
 		lines, balance = [',,,"1,000.00",B/F,Balance Forward,,'], 1000.0
@@ -237,6 +250,12 @@ class NotAStatement(unittest.TestCase):
 		result = read([["สมุดรายวัน", "เลขที่เอกสาร", "วันที่", "เดบิต", "เครดิต"],
 			["JV", "JV-001", "01/06/2026", 100.0, ""]])
 		self.assertEqual(result["error_code"], bank_sheets.LEDGER_NOT_STATEMENT)
+
+	def test_a_monthly_tracking_list_is_not_a_statement_even_with_a_no_movement_note(self):
+		result = read([["ติดตามสเตทเม้นท์ 2569"],
+			["บัญชี", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค."],
+			["KBank 1234", "✓", "✓", "ไม่มีรายการเคลื่อนไหว", "✓", "", "", "", ""]])
+		self.assertEqual(result["error_code"], bank_sheets.NOT_A_STATEMENT)
 
 	def test_a_statement_that_prints_no_records_has_no_movement(self):
 		result = read([["账户：", "123"], ["没有满足条件的记录"]])

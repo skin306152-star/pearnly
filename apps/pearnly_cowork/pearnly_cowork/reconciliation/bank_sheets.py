@@ -580,6 +580,42 @@ def _sheet_blocks(sheets):
 			yield sheet_name, raw_rows[start:end]
 
 
+def _drop_duplicate_sheets(accounts: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[List[str]]]:
+	"""同一份表格里两个工作表的流水逐行相同（Excel 复制出来的「… (2)」）：只算一次，返回 ``(账户, [[重复的, 原来的]])``。
+	不去重会把期初期末都算成两倍、还不报错（2026-09-30 压测 SISTER 6.69）。至少 3 行才比，部分重叠的不在这里管。"""
+	def signature(account):
+		return tuple((row.date, round(row.withdrawal or 0, 2), round(row.deposit or 0, 2),
+			None if row.balance is None else round(row.balance, 2)) for row in account["rows"])
+
+	kept: List[Dict[str, Any]] = []
+	seen: Dict[tuple, str] = {}
+	duplicates: List[List[str]] = []
+	for account in accounts:
+		key = signature(account)
+		if len(key) >= 3 and key in seen:
+			duplicates.append([str(account.get("sheet") or ""), seen[key]])
+			continue
+		seen.setdefault(key, str(account.get("sheet") or ""))
+		kept.append(account)
+	return kept, duplicates
+
+
+_MONTH_CELLS = {"มค", "กพ", "มีค", "เมย", "พค", "มิย", "กค", "สค", "กย", "ตค", "พย", "ธค",
+	"มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม",
+	"พฤศจิกายน", "ธันวาคม", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+	"january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
+	*(f"{month}月" for month in range(1, 13))}
+
+
+def progress_table(raw_rows) -> bool:
+	"""前 16 行里有一行是 ≥6 个月份名（ม.ค. … ธ.ค. / Jan … Dec / 1月 …）：每月一列、每个账户一行的进度表或清单。"""
+	for row in raw_rows[:16]:
+		months = {re.sub(r"[\s.]", "", str(cell_value or "")).lower() for cell_value in row} & _MONTH_CELLS
+		if len(months) >= 6:
+			return True
+	return False
+
+
 def _join_periods(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 	"""同一账户按月分 sheet（sheet 名是月份 / 年份，不是账号）：前一个 sheet 的期末就是后一个的期初、日期接得上，
 	合成一个账户——期初取第一个、期末取最后一个，不按多账户把几十个月的期初期末加总
@@ -668,6 +704,7 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 		# 每账户用自己的期初：方向纠正 + 逐行核对 + 按余额修复，绝不跨账户
 		sheet_rows = finalize_rows(sheet_rows, opening)
 		accounts.append({
+			"sheet": sheet_name,
 			"account_no": account_no,
 			"rows": sheet_rows,
 			"opening": opening,
@@ -677,6 +714,7 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 		})
 		sheets_with_data += 1
 
+	accounts, duplicates = _drop_duplicate_sheets(accounts)
 	accounts = _join_periods(accounts)
 	if not accounts:
 		if any(looks_like_ledger(raw_rows) for _name, raw_rows in sheets):
@@ -685,6 +723,14 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 				"ok": False,
 				"error_code": LEDGER_NOT_STATEMENT,
 				"error": "The file is a general ledger export, not a bank statement",
+			}
+		if any(progress_table(raw_rows) for _name, raw_rows in sheets):
+			# 按月勾「收没收到账单」的进度表 / 账户清单：不是账单。格子里写的「ไม่มีรายการเคลื่อนไหว」是某个月的备注，
+			# 不能当成整份没有流水（2026-09-30 压测 PAKORN、19EXC、NIPA、SINCERE、MANACHAI）。
+			return {
+				"ok": False,
+				"error_code": NOT_A_STATEMENT,
+				"error": "The sheet is a month-by-month tracking list, not a bank statement",
 			}
 		if any(printed_no_data(raw_rows) for _name, raw_rows in sheets):
 			# 账单上印着「没有记录」：这个期间没有流水（ICBC 网银实测），按没有流水处理，不说读不出。
@@ -744,6 +790,7 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 		"accounts": accounts,
 		"account_codes": [account["account_no"] for account in accounts if account["account_no"]],
 		"multi_account": multi_account,
+		"duplicate_sheets": duplicates,
 		"completeness": {"ok": len(issues) == 0, "issues": issues},
 		"needs_review": False,
 	}

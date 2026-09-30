@@ -1091,6 +1091,7 @@ These files have no transactions (a cover or account page) and were skipped: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 These statements look like another account and were left out of this reconciliation: {0},以下账单看起来是其他账户的，没有计入本次对账：{0}
+These worksheets repeat another worksheet in the same file line for line and were counted once: {0},以下工作表和同一文件里的另一个工作表逐行相同，只算了一次：{0}
 This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This ERP adapter is not connected yet.,此ERP适配器尚未接通。
 This ERP connection is disabled.,此ERP连接已停用。
@@ -2080,6 +2081,7 @@ reconciliation.edit_conflict,这个对账刚被别人改过，请刷新后再保
 reconciliation.failed,对账没有完成。
 reconciliation.file_too_large,文件超过 25 MB。
 reconciliation.file_type_unsupported,不支持这种文件，请用 PDF、Excel 或 CSV。
+reconciliation.files_duplicate_sheets,以下工作表和同一文件里的另一个工作表逐行相同，只算了一次：{0}
 reconciliation.files_ledger_not_statement,以下文件是总账，不是银行账单，本次没有包含（总账请放到右边）：{0}
 reconciliation.files_no_movement,以下文件没有流水（封面或账户信息页），已跳过：{0}
 reconciliation.files_not_a_statement,以下表格不是网银导出的账单（没有余额列），本次没有包含：{0}

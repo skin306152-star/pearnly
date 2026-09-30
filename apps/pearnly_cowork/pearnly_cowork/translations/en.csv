@@ -1091,6 +1091,7 @@ These files have no transactions (a cover or account page) and were skipped: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 These statements look like another account and were left out of this reconciliation: {0},These statements look like another account and were left out of this reconciliation: {0}
+These worksheets repeat another worksheet in the same file line for line and were counted once: {0},These worksheets repeat another worksheet in the same file line for line and were counted once: {0}
 This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
@@ -2080,6 +2081,7 @@ reconciliation.edit_conflict,Someone else changed this reconciliation. Reload it
 reconciliation.failed,The reconciliation could not be completed.
 reconciliation.file_too_large,A file is larger than 25 MB.
 reconciliation.file_type_unsupported,"This file type is not supported. Use PDF, Excel or CSV."
+reconciliation.files_duplicate_sheets,These worksheets repeat another worksheet in the same file line for line and were counted once: {0}
 reconciliation.files_ledger_not_statement,"These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}"
 reconciliation.files_no_movement,These files have no transactions (a cover or account page) and were skipped: {0}
 reconciliation.files_not_a_statement,These spreadsheets are not bank statement exports (no balance column) and were left out: {0}

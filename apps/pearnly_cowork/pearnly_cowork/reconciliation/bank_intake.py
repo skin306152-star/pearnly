@@ -229,6 +229,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 			parser_version = direct["parser_version"]
 			accounts = {"sheets_parsed": direct["sheets_parsed"],
 				"account_codes": direct["account_codes"], "multi_account": direct["multi_account"]}
+			if direct.get("duplicate_sheets"):
+				accounts["duplicate_sheets"] = direct["duplicate_sheets"]
 		else:
 			free_error = (direct["error_code"], direct["error"])
 	elif ext == "pdf":
