@@ -224,7 +224,30 @@ class ProviderRuntime(unittest.TestCase):
         self.assertEqual((posted[0]["hand_back"], posted[0]["shared_quota"]), (("provider_",), True))
         self.assertIn("https://aiplatform.us.rep.googleapis.com/v1/projects/synthetic-project/locations/us/", posted[1]["url"])
         self.assertEqual(posted[1]["bucket"], ("vertex", "synthetic-project", "us", "gemini-3.8-flash"))
-        self.assertEqual(posted[1]["hand_back"], ())
+        self.assertEqual(posted[1]["hand_back"], ("provider_",))   # 美国入口被拒再转欧洲
+        self.assertEqual(len(posted), 2)
+
+    def test_us_rejected_too_goes_to_the_eu_entry_last(self):
+        # 用户 2026-10-01 同意加欧洲：全球 → 美国 → 欧洲；欧洲是最后一个，再被拒就照原规则原地短等。
+        posted = []
+        original = self.core.post
+
+        def post(**values):
+            posted.append(values)
+            if len(posted) <= 2:
+                raise Deferred("provider_429", 6)
+            return original(**values)
+        self.core.post = post
+        result = self.core.client().model_call(self.request)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        self.assertIn("https://aiplatform.eu.rep.googleapis.com/v1/projects/synthetic-project/locations/eu/", posted[2]["url"])
+        self.assertEqual(posted[2]["bucket"], ("vertex", "synthetic-project", "eu", "gemini-3.8-flash"))
+        self.assertEqual(posted[2]["hand_back"], ())
+        core = FakeCore()
+        core.error = Deferred("provider_429", 6)
+        with self.assertRaises(Deferred):
+            core.client(environment={"VERTEX_OVERFLOW": "us"}).model_call(self.request)
+        self.assertEqual(len(core.calls), 2)
 
     def test_an_unknown_outcome_on_the_us_entry_is_resent_once(self):
         posted = []
@@ -241,6 +264,7 @@ class ProviderRuntime(unittest.TestCase):
         result = self.core.client().model_call(self.request)
         self.assertEqual(result.text, '{"invoice_number": "A"}')
         self.assertEqual(len(posted), 3)
+        self.assertEqual(posted[2]["hand_back"], ("provider_",))
         self.assertTrue(all("/locations/us/" in values["url"] for values in posted[1:]))
         self.assertNotEqual(posted[1]["model"], posted[2]["model"])   # 重发是新的检查点身份
         self.assertTrue(self.core.rejections[-1][1]["outcome_unknown"])
@@ -262,6 +286,13 @@ class ProviderRuntime(unittest.TestCase):
         client.model_call(self.request)
         self.assertIn("/locations/us/", self.core.calls[0]["url"])
         self.assertEqual(len(self.core.calls), 1)       # 不先去全球入口再付一次
+        eu = json.dumps(["cowork", "vertex", "synthetic-project", "eu", "gemini-3.8-flash", "L2", 1, 1])
+        core = FakeCore()
+        client = core.client(checkpoint_read=lambda identity: {"state": "done"} if identity == eu else None)
+        client._key = lambda payload, identity: identity
+        client.model_call(self.request)
+        self.assertIn("/locations/eu/", core.calls[0]["url"])
+        self.assertEqual(len(core.calls), 1)
 
     def test_vision_keeps_word_geometry_and_uses_only_l1_downscale(self):
         self.core.response = Response({"responses": [{"fullTextAnnotation": {

@@ -1,4 +1,4 @@
-"""DMS / ERP 的 Gemini 调用：全球入口被谷歌拒绝时这一次改发美国多区域入口（用户 2026-10-01 同意）。离线：不连站点、不调 API。"""
+"""DMS / ERP 的 Gemini 调用：全球入口被谷歌拒绝时这一次依次改发美国、欧洲多区域入口（用户 2026-10-01 同意）。离线：不连站点、不调 API。"""
 import unittest
 from unittest.mock import patch
 
@@ -48,7 +48,30 @@ class Overflow(unittest.TestCase):
         self.assertTrue(calls[0][2]["shared_quota"])
         self.assertIn("//aiplatform.us.rep.googleapis.com/", calls[1][0])
         self.assertEqual(calls[1][1], "vertex|p|us|gemini-3.1-flash-lite")
-        self.assertNotIn("hand_back", calls[1][2])     # 美国入口再被拒就照原规则退避，不再转
+        self.assertEqual(calls[1][2]["hand_back"], ("provider_",))   # 美国入口被拒再转欧洲
+        self.assertEqual(len(calls), 2)
+
+    def test_us_rejected_too_goes_to_the_eu_entry_which_waits_in_place(self):
+        result, calls = self.post(Deferred("provider_429", 6), Deferred("provider_503", 6), "ok")
+        self.assertEqual(result, "ok")
+        self.assertIn("//aiplatform.eu.rep.googleapis.com/", calls[2][0])
+        self.assertIn("/locations/eu/", calls[2][0])
+        self.assertEqual(calls[2][1], "vertex|p|eu|gemini-3.1-flash-lite")
+        self.assertNotIn("hand_back", calls[2][2])     # 欧洲是最后一个：再被拒就照原规则原地短等，不再转
+        result, calls = self.post(Deferred("provider_429", 6), Deferred("provider_429", 6), Deferred("provider_429", 9))
+        self.assertIsInstance(result, Deferred)
+        self.assertEqual(len(calls), 3)
+        result, calls = self.post(Deferred("provider_429", 6), Deferred("capacity", 2))   # 自家额度：不转欧洲
+        self.assertIsInstance(result, Deferred)
+        self.assertEqual(len(calls), 2)
+
+    def test_the_chain_can_be_limited_to_the_us_entry(self):
+        frappe.local.conf.pearnly_ocr_vertex_overflow = "us"
+        result, calls = self.post(Deferred("provider_429", 6), Deferred("provider_429", 6))
+        self.assertIsInstance(result, Deferred)
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn("hand_back", calls[1][2])
+        self.assertEqual(ocr.overflow_location("gemini-3.1-flash-lite"), "us")
 
     def test_an_unknown_outcome_on_the_us_entry_is_resent_once_under_a_new_checkpoint(self):
         from pearnly_core.execution import work

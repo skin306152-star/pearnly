@@ -70,3 +70,9 @@ URL：`https://cowork-ocr-h6qxkkwz4a-as.a.run.app`。更新用 `scripts/cloud-ru
 | ERP 网页线程 | 8（4 进程 → 同时 32 个请求） | 网页识别是同步请求 |
 | 识别名额 | 全站 160、单租户 120、rpm 500、排队 2000 / 500 | 160 = Cloud Run 20 实例 × 8 |
 | Cowork 开关 | 所有 Cowork 站点 `pearnly_cowork_ocr_remote` 打开 | 关掉即回本机识别 |
+
+## 第五批：Gemini 欧洲备用入口（分支 `codex/ocr-eu-entry`）
+
+- 用户同意（「可以加」）：全球 → 美国 → 欧洲；只有前两个都被谷歌拒绝才转欧洲，那一次贵 10%、数据在欧洲处理。
+- Cowork `client._vertex` / `policy.vertex_overflows`，共用层 `ocr._post_with_backoff` / `overflow_locations`；默认 `us,eu`。
+- 测试：共用层 6 条、Cowork 运行时 21 条、Cloud Run 对照 24 条（全球、美国 429 → 欧洲不等；三个都 429 → 欧洲原地短等）。

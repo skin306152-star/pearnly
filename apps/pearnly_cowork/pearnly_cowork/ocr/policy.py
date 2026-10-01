@@ -59,15 +59,31 @@ def vertex_location(model: str, environment: Mapping[str, str]):
     return environment.get("VERTEX_LOCATION", "asia-southeast1").strip() or "asia-southeast1"
 
 
-def vertex_overflow(location: str, environment: Mapping[str, str]):
-    """全球入口被谷歌拒绝（429 / 503 / 额度）时这一次请求改发哪个入口；``None`` = 不转。
+OVERFLOW_ENTRIES = ("us", "eu")
+DEFAULT_OVERFLOW = "us,eu"
 
-    Gemini 3.x 只在 global 与 us / eu 两个多区域入口（2026-10-01 生产实测：14 个单区域全部 404）。转美国多区域入口
-    多付 10%、数据在美国处理（用户 2026-10-01 同意）；只有被拒的那一次转，不是全部改走。``VERTEX_OVERFLOW=off`` 关掉。"""
+
+def overflow_chain(value):
+    """``"us,eu"`` → ("us", "eu")；``off`` / 空 / 认不出的入口去掉。"""
+    raw = str(value if value is not None else DEFAULT_OVERFLOW).strip().lower()
+    return tuple(dict.fromkeys(part.strip() for part in raw.split(",") if part.strip() in OVERFLOW_ENTRIES))
+
+
+def vertex_overflows(location: str, environment: Mapping[str, str]):
+    """全球入口被谷歌拒绝（429 / 503 / 额度）时依次改发的备用入口；空 = 不转。
+
+    Gemini 3.x 只在 global 与 us / eu 两个多区域入口（2026-10-01 生产实测：14 个单区域全部 404）。备用入口多付 10%，
+    被转过去的那一次数据在美国 / 欧洲处理（用户 2026-10-01 同意美国，同日同意加欧洲）；只有被拒的那一次转，不是全部改走。
+    ``VERTEX_OVERFLOW``：默认 ``us,eu``（全球 → 美国 → 欧洲），``us`` 只转美国，``off`` 关掉。"""
     if location != "global":
-        return None
-    value = str(environment.get("VERTEX_OVERFLOW", "us")).strip().lower()
-    return value if value in ("us", "eu") else None
+        return ()
+    return overflow_chain(environment.get("VERTEX_OVERFLOW"))
+
+
+def vertex_overflow(location: str, environment: Mapping[str, str]):
+    """第一个备用入口（旧调用方用）；``None`` = 不转。"""
+    chain = vertex_overflows(location, environment)
+    return chain[0] if chain else None
 
 
 def vertex_host(location: str) -> str:

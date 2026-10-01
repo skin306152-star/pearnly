@@ -141,16 +141,22 @@ def vertex_url(model: str, loc: str | None = None) -> str:
     )
 
 
-def overflow_location(model: str) -> str | None:
-    """全球入口被谷歌拒绝（429 / 503）时这一次请求改发哪个入口；``None`` = 不转。
+def overflow_locations(model: str) -> tuple:
+    """全球入口被谷歌拒绝（429 / 503）时依次改发的备用入口；空 = 不转。
 
-    Gemini 3.x 只在 global 与 us / eu 两个多区域入口（2026-10-01 生产实测：14 个单区域全部 404）。转美国多区域入口
-    多付 10%、数据在美国处理（用户 2026-10-01 同意）；只有被拒的那一次转。站点配置 ``pearnly_ocr_vertex_overflow``
-    设成 ``off`` 关掉。"""
+    Gemini 3.x 只在 global 与 us / eu 两个多区域入口（2026-10-01 生产实测：14 个单区域全部 404）。备用入口多付 10%，
+    被转过去的那一次数据在美国 / 欧洲处理（用户 2026-10-01 同意美国，同日同意加欧洲）；只有被拒的那一次转。
+    站点配置 ``pearnly_ocr_vertex_overflow``：默认 ``us,eu``（全球 → 美国 → 欧洲），``us`` 只转美国，``off`` 关掉。"""
     if backend() != "vertex" or location_for_model(model) != "global":
-        return None
-    value = str(frappe.conf.get("pearnly_ocr_vertex_overflow") or "us").strip().lower()
-    return value if value in ("us", "eu") else None
+        return ()
+    raw = str(frappe.conf.get("pearnly_ocr_vertex_overflow") or "us,eu").strip().lower()
+    return tuple(dict.fromkeys(part.strip() for part in raw.split(",") if part.strip() in ("us", "eu")))
+
+
+def overflow_location(model: str) -> str | None:
+    """第一个备用入口（旧调用方用）；``None`` = 不转。"""
+    chain = overflow_locations(model)
+    return chain[0] if chain else None
 
 
 _token_cache: dict = {}
@@ -478,14 +484,14 @@ def _post_with_backoff(url, headers, payload, timeout_s, model):
     """Shared cross-App admission; deferred work resumes outside the worker.
 
     Gemini（Vertex）是共享额度：零星拒绝只让这次请求自己退避，不让整个模型停下；全球入口被谷歌拒绝时这一次改发
-    ``overflow_location`` 的入口（检查点按请求内容与模型记，换入口不会重复付费）。"""
+    ``overflow_locations`` 的入口（默认美国 → 欧洲，检查点按请求内容与模型记，换入口不会重复付费）。"""
     from pearnly_core.execution import budget, provider
     from pearnly_core.execution.errors import Deferred, Uncertain
 
     loc, vertex = location_for_model(model), backend() == "vertex"
     bucket = budget.scope(backend(), project(), loc, model)
-    spare = overflow_location(model) if url == vertex_url(model) else None
-    if not spare:
+    spares = overflow_locations(model) if url == vertex_url(model) else ()
+    if not spares:
         return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=vertex)
     try:
         return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=True,
@@ -493,16 +499,24 @@ def _post_with_backoff(url, headers, payload, timeout_s, model):
     except Deferred as exc:
         if not str(exc.reason).startswith("provider_"):
             raise
-    url, bucket = vertex_url(model, spare), budget.scope(backend(), project(), spare, model)
-    try:
-        return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=True, label=f"vertex:{spare}")
-    except Uncertain:
-        # 转到备用入口的这一次结果不明时重发一次（用户 2026-10-01 同意，极少数情况下多付一遍）：先把这次记成「已放弃、
-        # 结果不明」，免得续跑时被残留的「已发出」判成整份结果不明；重发用新的检查点身份。
-        from pearnly_core.execution import work
-        work.checkpoint(work.checkpoint_key(payload, model), "rejected", {"outcome_unknown": True, "retried": True})
-        return provider.post(url, headers, payload, timeout_s, model + "#resend", bucket, shared_quota=True,
-                             label=f"vertex:{spare}")
+    for index, spare in enumerate(spares):
+        last = index == len(spares) - 1
+        url, bucket = vertex_url(model, spare), budget.scope(backend(), project(), spare, model)
+        # 不是最后一个备用入口：被谷歌拒绝就交回、转下一个（不原地等）；最后一个照原规则原地短等。
+        extra = {} if last else {"hand_back": ("provider_",)}
+        try:
+            return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=True,
+                                 label=f"vertex:{spare}", **extra)
+        except Deferred as exc:
+            if last or not str(exc.reason).startswith("provider_"):
+                raise
+        except Uncertain:
+            # 转到备用入口的这一次结果不明时重发一次（用户 2026-10-01 同意，极少数情况下多付一遍）：先把这次记成「已放弃、
+            # 结果不明」，免得续跑时被残留的「已发出」判成整份结果不明；重发用新的检查点身份。
+            from pearnly_core.execution import work
+            work.checkpoint(work.checkpoint_key(payload, model), "rejected", {"outcome_unknown": True, "retried": True})
+            return provider.post(url, headers, payload, timeout_s, model + "#resend", bucket, shared_quota=True,
+                                 label=f"vertex:{spare}")
 
 
 @frappe.whitelist()

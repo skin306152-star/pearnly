@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine.contracts import ModelRequest, ModelResponse, ProviderFailure, VisionResponse
-from pearnly_cowork.ocr.policy import vertex_host, vertex_location, vertex_overflow
+from pearnly_cowork.ocr.policy import vertex_host, vertex_location, vertex_overflows
 from pearnly_cowork.ocr.schema.evidence import Block, BoundingBox, Page, Paragraph, Word
 
 
@@ -254,8 +254,9 @@ class ProviderClient:
             model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
 
     def _vertex(self, payload, model, location, request, retry_unknown):
-        """Gemini：全球入口被谷歌拒绝（429 / 503 / 额度，``provider_*``）时这一次请求立刻改发备用多区域入口
-        （``policy.vertex_overflow``），不原地等；自家额度的等待照旧原地等。续跑时已在备用入口读完的直接取回，不再付费。"""
+        """Gemini：全球入口被谷歌拒绝（429 / 503 / 额度，``provider_*``）时这一次请求立刻依次改发备用多区域入口
+        （``policy.vertex_overflows``，默认美国 → 欧洲），不原地等；最后一个备用入口再被拒才按原规则原地短等。
+        自家额度的等待照旧原地等。续跑时已在任一备用入口读完的直接取回，不再付费。"""
         def send(where, attempt=request.attempt, hand_back=(), resend=retry_unknown):
             url = (f"https://{vertex_host(where)}/v1/projects/{quote(self.project, safe='')}/locations/"
                    f"{quote(where, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent")
@@ -264,15 +265,16 @@ class ProviderClient:
                 timeout_s=request.timeout_s, retry_unknown=resend, hand_back=hand_back)
             return body, elapsed, key
 
-        spare = vertex_overflow(location, self.environment)
-        if not spare:
+        spares = vertex_overflows(location, self.environment)
+        if not spares:
             return send(location)
         self._require_context()  # 先确认识别任务仍有效，再读任何检查点（与 _send 同一顺序）
-        for attempt in range(request.attempt, request.attempt + 3):
-            identity = json.dumps(["cowork", "vertex", self.project, spare, model, request.stage, request.page_number,
-                                   attempt])
-            if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
-                return send(spare, attempt)
+        for spare in spares:
+            for attempt in range(request.attempt, request.attempt + 3):
+                identity = json.dumps(["cowork", "vertex", self.project, spare, model, request.stage,
+                                       request.page_number, attempt])
+                if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
+                    return send(spare, attempt)
         try:
             return send(location, hand_back=("provider_",))
         except Deferred as error:
@@ -280,7 +282,13 @@ class ProviderClient:
                 raise
         # 转到备用入口的这一次结果不明（读超时、连接断）时重发一次，不让整张作废（用户 2026-10-01 同意；部署后 128 张复压
         # 有 1 张转美国入口后 60 秒没回、整张判结果不明）。重发是新的检查点，极少数情况下这一次多付一遍。
-        return send(spare, resend=retry_unknown or 1)
+        for spare in spares[:-1]:
+            try:
+                return send(spare, hand_back=("provider_",), resend=retry_unknown or 1)
+            except Deferred as error:
+                if not str(error.reason).startswith("provider_"):
+                    raise
+        return send(spares[-1], resend=retry_unknown or 1)
 
     def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1,
                          retry_unknown=False):

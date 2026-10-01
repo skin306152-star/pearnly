@@ -310,14 +310,23 @@ class PaidCallGuard(unittest.TestCase):
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
 
-    def test_both_entries_rate_limited_wait_in_place_like_the_server(self):
-        # 与本机 provider.post 同一规则：全球入口被拒立刻转美国入口（不等），美国入口被拒才原地短等再发
+    def test_global_and_us_rate_limited_go_on_to_the_eu_entry_without_waiting(self):
         google = Google(["429", "429"])
         with patch.object(runner.time, "sleep") as sleep:
             final = remote(Bucket(), google)[-1]
         self.assertEqual(final["status"], "done", final)
+        self.assertEqual(sleep.call_count, 0)
+        self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
+        self.assertIn("aiplatform.eu.rep.googleapis.com", google.sent[2])
+
+    def test_all_entries_rate_limited_wait_in_place_like_the_server(self):
+        # 与本机 provider.post 同一规则：全球、美国被拒立刻转下一个（不等），最后的欧洲入口被拒才原地短等再发
+        google = Google(["429", "429", "429"])
+        with patch.object(runner.time, "sleep") as sleep:
+            final = remote(Bucket(), google)[-1]
+        self.assertEqual(final["status"], "done", final)
         self.assertEqual(sleep.call_count, 1)
-        self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[2])
+        self.assertIn("aiplatform.eu.rep.googleapis.com", google.sent[3])
 
     def test_a_long_rate_limit_is_handed_back_after_the_wait_budget(self):
         bucket, google = Bucket(), Google(["429"] * 40)
