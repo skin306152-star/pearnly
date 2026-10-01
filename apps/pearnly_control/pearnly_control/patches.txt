@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 pearnly_control.payments.usage
 pearnly_control.patches.v0_0_1_line_login_secret_to_target
+pearnly_control.patches.v0_0_2_ledger_indexes

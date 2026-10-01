@@ -29,6 +29,15 @@ def pages_used(tenant, month, *, lock=True):
     return sum(int(row[0] or 0) for row in rows)
 
 
+def ensure_indexes():
+    """台账的两个带锁查询要的索引（幂等）：按月算阶梯价的已用页数（``pages_used``）、扣费前按参考号查是否扣过
+    （``billing.charge``）。两者都在扣费的租户锁里加锁读；没有索引就扫全表、把所有租户的台账行一起锁住，所有租户
+    的扣费互相排队（2026-10-01 生产：补丁记为已执行，表上却只剩主键和 creation 索引；128 张同时识别时扣费排队
+    合计 28 秒）。DocType 每次同步时也会补上（``on_doctype_update``），不只靠一次性补丁。"""
+    frappe.db.add_index(TRANSACTION, ["tenant", "type", "billing_mode", "billing_month"], "payg_month")
+    frappe.db.add_index(TRANSACTION, ["tenant", "reference"], "tenant_reference")
+
+
 def execute():
     """Native migration: classify old rows without changing any money or timestamps.
 
@@ -36,8 +45,7 @@ def execute():
     30-day cycle. Process that immutable ledger in order. Never guess from the
     translated description or charge amount (S overage and payg have equal rates).
     """
-    frappe.db.add_index(TRANSACTION, ["tenant", "type", "billing_mode", "billing_month"],
-                        "payg_month")
+    ensure_indexes()
     subscriptions = set(frappe.get_all("Pearnly Subscription", pluck="name"))
     rows = frappe.get_all(
         TRANSACTION, filters={"type": "usage"},

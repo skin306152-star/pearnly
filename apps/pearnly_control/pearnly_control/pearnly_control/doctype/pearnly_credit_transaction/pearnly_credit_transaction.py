@@ -13,3 +13,10 @@ from frappe.model.document import Document
 
 class PearnlyCreditTransaction(Document):
     pass
+
+
+def on_doctype_update():
+    """每次同步本 DocType 都确认台账的查询索引在（见 ``payments.usage.ensure_indexes``）。"""
+    from pearnly_control.payments.usage import ensure_indexes
+
+    ensure_indexes()
