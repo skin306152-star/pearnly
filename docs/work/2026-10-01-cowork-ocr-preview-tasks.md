@@ -181,6 +181,20 @@
 共用层的 Redis ETA 续跑（`dispatch.later`）与每分钟修复（`sweep`）对等回调的任务只作兜底；对账的 `waiting` / `slots` 每分钟唤醒照旧
 （它们管的是对账任务等识别，与识别如何派发无关）。ERP / DMS 的识别仍走共用层原路。
 
+## 谷歌前置配置：已完成（2026-10-01，用户在本窗口确认「可以」后执行；gcloud，项目 pearnly）
+
+清单第 1–3 项已做并回读；第 4–5 项（Cloud Run 新镜像、Workflows）属于统一部署，修复窗口完成服务器部署并通知后由本窗口执行。
+开关没开之前服务器不会建任务，线上行为不变；以下全部空闲 0 花费。
+
+| 项 | 回读 |
+|---|---|
+| 接口 | `cloudtasks.googleapis.com`、`workflows.googleapis.com`、`workflowexecutions.googleapis.com` 均为已启用 |
+| 队列 | `projects/pearnly/locations/asia-southeast1/queues/cowork-ocr`，`RUNNING`；每秒最多 20、同时最多 150（突发 10）；重试最多 8 次、退避 10–300 秒、翻倍 4 次、最长 7200 秒 |
+| 队列 IAM | `roles/cloudtasks.enqueuer` → `pearnly-ocr-sa` |
+| 服务账号 IAM | `pearnly-ocr-sa` 自身上 `roles/iam.serviceAccountUser` → `pearnly-ocr-sa` |
+| 项目 IAM（`pearnly-ocr-sa`） | 新增 `roles/workflows.invoker`、`roles/logging.logWriter`（原有 `aiplatform.user`、`documentai.apiUser`、`visionai.serviceAgent` 不变），均无条件 |
+| 已有，未改 | Cloud Run `cowork-ocr` 服务上 `roles/run.invoker` → `pearnly-ocr-sa`；Cloud Tasks 服务代理 `service-112074003592@gcp-sa-cloudtasks` 已有 `roles/cloudtasks.serviceAgent` |
+
 ## 上线手册（统一部署时由修复窗口执行，每一步先找用户确认；用户要求「不上半成品」：测试租户端到端全过才全开）
 
 前提：「要开通的外部配置」1–5 已做完（接口、队列、授权、Cloud Run 新镜像、Workflows），站点已迁移（`preview_objects` 字段）。
