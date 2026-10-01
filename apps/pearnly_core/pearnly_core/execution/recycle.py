@@ -15,7 +15,8 @@ import signal
 from . import pool
 
 DEFAULT_LIMIT_MB = 300
-# 开了多线程时每多一个线程多留的内存（一份手机大图 / 多页 PDF 在跑时约 100MB 上下，留些余量）。
+# 开了多线程时每多一个线程多留的内存：默认 150MB（一份手机大图 / 多页 PDF 在跑时约 100MB 上下），
+# 识别交给 Cloud Run 的产品用 PEARNLY_OCR_THREAD_MB 调小（见 pool.thread_mb）。
 PER_THREAD_MB = 150
 _requested = False
 
@@ -46,7 +47,7 @@ def after_job(method=None, kwargs=None, result=None):
         if not pool.ocr_queue_job():
             return
         rss = _rss_mb()
-        if rss < _limit_mb() + PER_THREAD_MB * (pool.threads() - 1):
+        if rss < _limit_mb() + pool.thread_mb() * (pool.threads() - 1):
             return
         _requested = True
         import frappe

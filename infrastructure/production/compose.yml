@@ -2,7 +2,7 @@ name: pearnly-production
 
 # 可调容量（2026-09-30）：三产品的识别进程、Cowork 对账进程、网页进程数和各自内存上限
 # 从 /opt/pearnly/secrets/runtime.env 读，没写就是下面各处 `:-` 后的原值：
-#   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM / _OCR_THREADS、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
+#   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM / _OCR_THREADS / _OCR_THREAD_MB、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
 #   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS。
 # 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
 
@@ -178,6 +178,7 @@ services:
       # 每个识别进程同时跑几份（pearnly_core/execution/pool.py）：一份识别大部分时间在等谷歌回复，进程开几个线程
       # 各跑一份，同时在识别的份数就不再被进程数（内存）卡住。1 = 照旧一份一进程。
       PEARNLY_OCR_THREADS: '${PEARNLY_DMS_OCR_THREADS:-1}'
+      PEARNLY_OCR_THREAD_MB: '${PEARNLY_DMS_OCR_THREAD_MB:-150}'
   dms-sync-worker:
     profiles: [dms]
     <<: *worker
@@ -247,6 +248,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
       FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"  # 同 dms-ocr-worker：识别任务不 fork
       PEARNLY_OCR_THREADS: '${PEARNLY_ERP_OCR_THREADS:-1}'  # 同 dms-ocr-worker
+      PEARNLY_OCR_THREAD_MB: '${PEARNLY_ERP_OCR_THREAD_MB:-150}'
   erp-ocr-dispatch:
     profiles: [erp]
     <<: *runtime
@@ -314,6 +316,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
       FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"  # 同 dms-ocr-worker：识别任务不 fork
       PEARNLY_OCR_THREADS: '${PEARNLY_COWORK_OCR_THREADS:-1}'  # 同 dms-ocr-worker
+      PEARNLY_OCR_THREAD_MB: '${PEARNLY_COWORK_OCR_THREAD_MB:-150}'
       # 一份多页文件同时读几页（pearnly_core/execution/pages.py）：每页线程各占一个数据库连接，开之前按 max_connections 核算。1 = 一页一页读。
       PEARNLY_OCR_PAGE_THREADS: '${PEARNLY_COWORK_OCR_PAGE_THREADS:-1}'
   cowork-ocr-dispatch:

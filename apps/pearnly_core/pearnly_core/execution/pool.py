@@ -13,6 +13,7 @@
   线程真卡住时租约（JOB_TIMEOUT + 60 秒）过期由调度补投，和进程被杀时一样，检查点防止重复付费。
 - 进程收到停止信号（发版、按内存回收）时不再取新任务，已在跑的线程跑完再退出（非守护线程，进程退出时等它们）。
 """
+from contextlib import contextmanager
 import contextvars
 import os
 import threading
@@ -22,6 +23,7 @@ MAX_THREADS = 32
 SLOT_WAIT_SECONDS = 300
 
 _slots = None
+_local = None
 _slots_lock = threading.Lock()
 _running = 0
 _worker = threading.local()
@@ -55,6 +57,56 @@ def in_thread():
 def busy():
     """正在跑的线程数。"""
     return _running
+
+
+def thread_mb():
+    """开多线程时每多一个线程预留的内存（容器环境变量 ``PEARNLY_OCR_THREAD_MB``，默认 150）。
+
+    识别交给 Cloud Run 的线程只是带着原件等回复（几 MB），可以设得很小；本机识别靠 :func:`local_slot` 限住同时几份。"""
+    try:
+        value = int(os.environ.get("PEARNLY_OCR_THREAD_MB") or 150)
+    except ValueError:
+        return 150
+    return max(10, min(1024, value))
+
+
+def local_slots():
+    """一个进程同时最多跑几份本机识别（容器环境变量 ``PEARNLY_OCR_LOCAL_SLOTS``，默认 1）。"""
+    try:
+        value = int(os.environ.get("PEARNLY_OCR_LOCAL_SLOTS") or 1)
+    except ValueError:
+        return 1
+    return max(1, min(MAX_THREADS, value))
+
+
+def release_db():
+    """要长时间等外部（Cloud Run 回复、本机识别名额）之前：提交并断开本线程的数据库连接，回来后第一条查询自动重连。
+    等待中的线程不占连接（MariaDB ``max_connections``），也不占着事务。"""
+    import frappe
+
+    frappe.db.commit()
+    frappe.db.close()
+
+
+@contextmanager
+def local_slot():
+    """本机跑一份识别（渲染、模型、整理都在本进程）：开了多线程时每个进程同时最多 ``local_slots()`` 份，
+    交给 Cloud Run 的不受限（ADR-015）。没开多线程时什么都不做。等名额前先放开数据库连接。"""
+    global _local
+    if threads() <= 1:
+        yield
+        return
+    with _slots_lock:
+        if _local is None:
+            _local = threading.BoundedSemaphore(local_slots())
+        slots = _local
+    if not slots.acquire(blocking=False):
+        release_db()
+        slots.acquire()
+    try:
+        yield
+    finally:
+        slots.release()
 
 
 def _semaphore():

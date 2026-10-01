@@ -48,6 +48,9 @@ def load():
         budget.permits.append((bucket, rpm, "out"))
 
     budget.permit, budget.scope = permit, lambda *a: "bucket:" + ":".join(a)
+    pool = types.ModuleType("pearnly_core.execution.pool")
+    pool.released = []
+    pool.release_db = lambda: pool.released.append(len(budget.permits))
     work = types.ModuleType("pearnly_core.execution.work")
     work.JOB_TIMEOUT = 600
     ocr = types.ModuleType("pearnly_core.ocr")
@@ -55,7 +58,7 @@ def load():
     core = types.ModuleType("pearnly_core")
     core.ocr = ocr
     execution = types.ModuleType("pearnly_core.execution")
-    execution.budget, execution.work = budget, work
+    execution.budget, execution.work, execution.pool = budget, work, pool
     client = types.ModuleType("pearnly_cowork.ocr.providers.client")
 
     class ProviderError(Exception):
@@ -66,13 +69,15 @@ def load():
     client.ProviderError = ProviderError
     modules = {"frappe": frappe, "pearnly_core": core, "pearnly_core.ocr": ocr, "pearnly_core.execution": execution,
                "pearnly_core.execution.errors": errors, "pearnly_core.execution.budget": budget,
-               "pearnly_core.execution.work": work, "pearnly_cowork.ocr.providers.client": client}
+               "pearnly_core.execution.work": work, "pearnly_core.execution.pool": pool,
+               "pearnly_cowork.ocr.providers.client": client}
     sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
     with patch.dict(sys.modules, modules):
         from pearnly_cowork.ocr.remote import contract
         namespace = {"__name__": "forward"}
         source = ROOT / "apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py"
         exec(compile(source.read_text(), str(source), "exec"), namespace)
+    namespace["_pool"] = pool
     return namespace, frappe, budget, contract, ProviderError
 
 
@@ -119,6 +124,8 @@ class Forward(unittest.TestCase):
         self.assertEqual(result, ("{}", [{"k": 1}]))
         self.assertEqual(self.pages, [1, 2])
         self.assertEqual([p[2] for p in self.budget.permits], ["in", "out"])
+        # 拿到名额后、发请求等回复前先放开数据库连接（等待中不占连接）
+        self.assertEqual(self.ns["_pool"].released, [1])
         url, body, headers = self.sent[0]
         self.assertEqual(url, ON["url"] + "/v1/cowork/invoice")
         self.assertEqual(headers["Authorization"], "Bearer ID_TOKEN")

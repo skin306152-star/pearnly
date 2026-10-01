@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 from pearnly_core import ocr
 from pearnly_core.execution import pages as core_pages
+from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest
 from pearnly_cowork.files.access import reference_count, reference_kind
@@ -130,22 +131,24 @@ def _recognize(doc, frozen, examples):
             return callback(*args, **kwargs)
         return invoke
 
-    if source.kind == "document":
-        document = extract_table(read_bytes(source), source.filename)
-        validate_document(document)
-        freeze_doc_manifest(source, document)  # unchanged input/manifest required on every replay
-        if kind != "excel" or units != document.billing_characters:
-            frappe.throw(_("Recognition input and ownership cannot be changed."))
-        result = run_table(document, guarded(client.model_call), config=config,
-            anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
-            today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
-    else:
-        with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
-                        enable_text_path=selected.text_fast_path,
-                        image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as pages:
-            result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
+    # 本机读：开了多线程时每个进程同时最多 local_slots() 份（渲染与整理吃内存）；交给 Cloud Run 的不占这个名额（ADR-015）。
+    with core_pool.local_slot():
+        if source.kind == "document":
+            document = extract_table(read_bytes(source), source.filename)
+            validate_document(document)
+            freeze_doc_manifest(source, document)  # unchanged input/manifest required on every replay
+            if kind != "excel" or units != document.billing_characters:
+                frappe.throw(_("Recognition input and ownership cannot be changed."))
+            result = run_table(document, guarded(client.model_call), config=config,
                 anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
-                today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector, map_pages=page_map)
+                today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
+        else:
+            with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
+                            enable_text_path=selected.text_fast_path,
+                            image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as pages:
+                result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
+                    anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
+                    today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector, map_pages=page_map)
     return _freeze_result(doc, result, frozen, examples)
 
 

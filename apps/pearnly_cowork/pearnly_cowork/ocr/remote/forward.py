@@ -14,7 +14,7 @@ import frappe
 import requests
 
 from pearnly_core import ocr
-from pearnly_core.execution import budget, work
+from pearnly_core.execution import budget, pool, work
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.providers.client import ProviderError
 from pearnly_cowork.ocr.remote import contract
@@ -68,6 +68,8 @@ def recognize(doc, frozen, examples, content, filename, progress, *, post=None, 
     url = config["url"] + PATH
     bucket = budget.scope("cloudrun", frozen["environment"].get("GCP_PROJECT", ""), "cowork", "invoice")
     with budget.permit(bucket, work.JOB_TIMEOUT, **({"rpm": config["rpm"]} if config["rpm"] else {})):
+        # 等 Cloud Run 回复的十几秒里不占数据库连接（几十份同时在等时连接数不涨）；回来后第一条查询自动重连。
+        pool.release_db()
         try:
             token = (id_token or _id_token)(config["url"])
         except Exception as exc:  # 还没发出任何付费调用：稍后重试

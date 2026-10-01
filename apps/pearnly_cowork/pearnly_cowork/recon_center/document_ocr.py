@@ -22,6 +22,7 @@ import time
 import frappe
 from frappe import _
 from pearnly_core import billing_client, ocr
+from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, QueueFull, Uncertain
 
@@ -333,7 +334,9 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             ocr_settings.revalidate(frozen)
             intake.balance(int(pages), frozen["billing_tier"])
             try:
-                legacy = _read(content, filename, pages, frozen, document_type, recon_job, file)
+                # 本机读：开了多线程时每个进程同时最多 local_slots() 份（见 pearnly_core.execution.pool.local_slot）。
+                with core_pool.local_slot():
+                    legacy = _read(content, filename, pages, frozen, document_type, recon_job, file)
             except ReconClosed:
                 return {"cancelled": "recon_job_closed"}
             except ContentError as error:

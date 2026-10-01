@@ -201,4 +201,25 @@ for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '12', 'PEARNLY_COWORK_OCR_MEM': '8g
 assert services['cowork-ocr-worker']['environment']['PEARNLY_OCR_PAGE_THREADS'] == '1'
 assert rendered(PEARNLY_COWORK_OCR_PAGE_THREADS='4')['cowork-ocr-worker']['environment']['PEARNLY_OCR_PAGE_THREADS'] == '4'
 checks.append('OCR threads default to 1 and each extra thread needs 150 MiB per process')
+
+# 识别交给 Cloud Run（ADR-015）：Cowork 4 进程 × 24 线程、每线程 30MB，8g 放得下；同样的线程数按默认 150MB 放不下。
+remote = rendered(PEARNLY_COWORK_OCR_WORKERS='4', PEARNLY_COWORK_OCR_THREADS='24', PEARNLY_COWORK_OCR_THREAD_MB='30',
+                  PEARNLY_COWORK_OCR_MEM='8g')
+capacity.check_processes(remote, ['cowork-ocr-worker'])
+try:
+    capacity.check_processes(rendered(PEARNLY_COWORK_OCR_WORKERS='4', PEARNLY_COWORK_OCR_THREADS='24',
+                                      PEARNLY_COWORK_OCR_MEM='8g'), ['cowork-ocr-worker'])
+except ValueError:
+    pass
+else:
+    raise AssertionError('24 local threads at 150MB must not fit 8g')
+for bad in ('5', '2000', 'x'):
+    try:
+        capacity.check_processes(rendered(PEARNLY_COWORK_OCR_THREADS='4', PEARNLY_COWORK_OCR_THREAD_MB=bad),
+                                 ['cowork-ocr-worker'])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+checks.append('Remote-waiting OCR threads are sized by PEARNLY_OCR_THREAD_MB')
 print(json.dumps({'passed': len(checks), 'checks': checks}))

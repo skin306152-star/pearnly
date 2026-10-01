@@ -31,7 +31,9 @@ def output(args):
 # 对账 512：生产压测时 4 进程峰值 303MiB。网页 256：计费后台原 512m / 2 个（最小的一处）。
 PROCESS_FLOOR = {'ocr': 450 * MIB, 'long': 512 * MIB, 'web': 256 * MIB}
 # 识别进程开多线程（PEARNLY_OCR_THREADS，见 pearnly_core/execution/pool.py）时每多一个线程多要的内存：
-# 一份手机大图 / 多页 PDF 在跑时约 100MB 上下，与按内存回收的每线程余量（recycle.PER_THREAD_MB）一致。
+# 默认 150MB（一份手机大图 / 多页 PDF 在本机跑时约 100MB 上下，与按内存回收的每线程余量一致）。识别交给 Cloud Run 的
+# 产品（ADR-015）线程只带着原件等回复，用 PEARNLY_OCR_THREAD_MB 调小；本机识别由 pool.local_slot 限成每进程 1 份，
+# 那一份由进程底线（PROCESS_FLOOR['ocr']）兜住。
 OCR_THREAD_FLOOR = 150 * MIB
 # 上限之和最多到物理内存的这么多倍（见模块头）。
 OVERCOMMIT = 1.3
@@ -67,6 +69,18 @@ def ocr_threads(row):
     return int(value)
 
 
+def ocr_thread_floor(row):
+    environment = row.get('environment') or {}
+    if isinstance(environment, list):
+        environment = dict(item.split('=', 1) for item in environment if '=' in item)
+    value = str(environment.get('PEARNLY_OCR_THREAD_MB') or '').strip()
+    if not value:
+        return OCR_THREAD_FLOOR
+    if not value.isdigit() or not 10 <= int(value) <= 1024:
+        raise ValueError('PEARNLY_OCR_THREAD_MB must be a whole number from 10 to 1024')
+    return int(value) * MIB
+
+
 def check_processes(services, names):
     for name in sorted(names):
         found = processes(services[name])
@@ -77,7 +91,7 @@ def check_processes(services, names):
             raise ValueError('%s needs at least one process' % name)
         floor = PROCESS_FLOOR.get(lane, 0)
         if lane == 'ocr':
-            floor += OCR_THREAD_FLOOR * (ocr_threads(services[name]) - 1)
+            floor += ocr_thread_floor(services[name]) * (ocr_threads(services[name]) - 1)
         if int(services[name]['mem_limit']) < floor * count:
             raise ValueError('%s: %d processes need at least %d MiB, limit is %d MiB'
                              % (name, count, floor * count // MIB, int(services[name]['mem_limit']) // MIB))

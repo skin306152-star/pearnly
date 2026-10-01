@@ -38,3 +38,12 @@ URL：`https://cowork-ocr-h6qxkkwz4a-as.a.run.app`。更新用 `scripts/cloud-ru
 2. 服务器名额：搬到云上后每份只占一个名额（服务器几乎不占 CPU），`pearnly_ocr_budget` 的全站 / 租户并发需按谷歌额度重定。
 3. 对账文档（Document AI 区域额度在转发时拿名额）、ERP / DMS（`pearnly_core.ocr.json_from_images`）后续阶段。
 4. 每租户 / 全站每日页数上限（花费封顶）随对账阶段加。
+
+## 第二批：服务器等回复不占进程 / 连接（分支 `codex/ocr-remote-wait`）
+
+用户（2026-10-01）：「全部开所有 app，所有 ocr 入口」「一次授权」（每批做完夜间部署并开开关，出问题关开关回退）。
+
+- `pool.release_db()`：转发等 Cloud Run 回复前提交并断开连接；`pool.local_slot()`：本机识别每进程同时最多 `PEARNLY_OCR_LOCAL_SLOTS`
+  份（默认 1），Cowork 发票本机分支、对账销项税核查、对账文档的本机读都套上；没开多线程时不起作用。
+- `PEARNLY_OCR_THREAD_MB`（compose 三个识别容器，默认 150）：容量检查与按内存回收的每线程余量都读它。
+- 上线目标值（Cowork）：识别 4 进程 × 24 线程、每线程 30MB、上限 8g（容量检查已验证放得下）；同时最多 96 份在等 Cloud Run。

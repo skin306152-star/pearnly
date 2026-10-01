@@ -132,3 +132,52 @@ class Pool(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LocalSlot(unittest.TestCase):
+    """识别交给 Cloud Run 后（ADR-015）：本机识别每进程同时最多 local_slots() 份；等名额前放开数据库连接。"""
+
+    def setUp(self):
+        pool._local = None
+
+    def test_no_threads_means_no_limit(self):
+        with patch.dict(pool.os.environ, {}, clear=True), patch.object(pool, "release_db") as release:
+            with pool.local_slot(), pool.local_slot():
+                pass
+        release.assert_not_called()
+
+    def test_at_most_local_slots_run_and_waiters_release_the_database(self):
+        inside, peak, lock, started = [0], [0], threading.Lock(), threading.Event()
+
+        def work():
+            with pool.local_slot():
+                with lock:
+                    inside[0] += 1
+                    peak[0] = max(peak[0], inside[0])
+                started.set()
+                time.sleep(0.05)
+                with lock:
+                    inside[0] -= 1
+
+        with patch.dict(pool.os.environ, {"PEARNLY_OCR_THREADS": "8", "PEARNLY_OCR_LOCAL_SLOTS": "1"}, clear=True), \
+                patch.object(pool, "release_db") as release:
+            threads = [threading.Thread(target=work) for _ in range(4)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+        self.assertEqual(peak[0], 1)
+        self.assertGreaterEqual(release.call_count, 1)  # 拿不到名额的先放开连接再等
+
+    def test_thread_memory_and_local_slots_are_bounded_settings(self):
+        with patch.dict(pool.os.environ, {"PEARNLY_OCR_THREAD_MB": "30", "PEARNLY_OCR_LOCAL_SLOTS": "2"}, clear=True):
+            self.assertEqual((pool.thread_mb(), pool.local_slots()), (30, 2))
+        with patch.dict(pool.os.environ, {"PEARNLY_OCR_THREAD_MB": "bad", "PEARNLY_OCR_LOCAL_SLOTS": "0"}, clear=True):
+            self.assertEqual((pool.thread_mb(), pool.local_slots()), (150, 1))
+
+    def test_release_db_commits_then_closes(self):
+        calls = []
+        db = SimpleNamespace(commit=lambda: calls.append("commit"), close=lambda: calls.append("close"))
+        with patch.object(frappe, "db", db, create=True):
+            pool.release_db()
+        self.assertEqual(calls, ["commit", "close"])

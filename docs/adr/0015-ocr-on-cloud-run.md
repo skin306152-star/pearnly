@@ -24,6 +24,14 @@
    不用 Scheduler、Cloud NAT、VPC 连接器或常驻实例 —— 空闲零花费。
 5. **开关**：站点配置 `pearnly_cowork_ocr_remote = {"enabled": 1, "url": "https://…run.app"}`；不配、关掉或地址不合规就照旧在本机识别。
 
+## 服务器这边等回复时不占进程、不占连接（2026-10-01 补）
+
+识别交给 Cloud Run 后，服务器上的识别任务只是带着原件等回复。识别进程开多线程（`PEARNLY_OCR_THREADS`），每个线程等
+回复前先提交并断开数据库连接（`pool.release_db`），回来后第一条查询自动重连：几十份同时在等，连接数不涨。
+本机识别（表格、复核表回导、尚未搬上云的对账文档 / 销项税核查）用 `pool.local_slot` 限成每进程同时 1 份
+（`PEARNLY_OCR_LOCAL_SLOTS`），等名额前同样先放开连接。等回复的线程省内存，容量按 `PEARNLY_OCR_THREAD_MB`（每线程）核算，
+本机那一份由进程底线 450MB 兜住。
+
 ## 保护在云上的形式（与本机不同的地方）
 
 | 保护 | 本机 | Cloud Run |

@@ -18,7 +18,7 @@ from datetime import date
 import frappe
 from frappe import _
 from pearnly_core import billing_client, ocr
-from pearnly_core.execution import pages as core_pages, work as core_work
+from pearnly_core.execution import pages as core_pages, pool as core_pool, work as core_work
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_core.tax_documents.amounts import repaired_tax_id
 
@@ -303,7 +303,9 @@ def run(recon_job, file, filename, pages, sha256, settings):
             intake.balance(int(pages), frozen["billing_tier"])
             # 用上传时的原文件名（核查表“原文件”一栏显示它；存成临时 File 时名字可能被加了后缀）。
             try:
-                invoices = _recognize(content, filename, pages, frozen, recon_job, file)
+                # 本机读：开了多线程时每个进程同时最多 local_slots() 份（见 pearnly_core.execution.pool.local_slot）。
+                with core_pool.local_slot():
+                    invoices = _recognize(content, filename, pages, frozen, recon_job, file)
             except document_ocr.ReconClosed:
                 return {"cancelled": "recon_job_closed"}
             except (EngineError, ProviderFailure) as error:
