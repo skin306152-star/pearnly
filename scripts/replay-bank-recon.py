@@ -131,7 +131,16 @@ def replay(doc, works, index, variant, details=False):
         work, status = works.get((filename, document_type), (None, None))
         if not work or status != "succeeded":
             return None
-        return ((core_work.saved_checkpoint(work, document_ocr.RESULT) or {}).get("body") or {}).get("legacy")
+        legacy = ((core_work.saved_checkpoint(work, document_ocr.RESULT) or {}).get("body") or {}).get("legacy")
+        if details and legacy:
+            # 每页读出几笔、是否本地拼平、自检是否重读、重读后还剩几处断点（密集账单分档用）
+            captured.setdefault("page_diag", {})[filename] = [
+                {"rows": len((page.get("document") or {}).get("entries") or []),
+                 "local": bool((page.get("extraction_audit") or {}).get("local")),
+                 "reread": bool(((page.get("extraction_audit") or {}).get("self_check") or {}).get("reread")),
+                 "breaks_left": (((page.get("extraction_audit") or {}).get("self_check") or {}).get("breaks") or [0])[-1]}
+                for page in legacy.get("pages") or []]
+        return legacy
 
     captured = {}
 

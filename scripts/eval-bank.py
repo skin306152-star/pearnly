@@ -93,6 +93,43 @@ def pair_score(result, case):
     return out
 
 
+TIERS = ((0, 20, "≤20"), (21, 40, "21–40"), (41, 10 ** 6, ">40"))
+
+
+def tier_of(rows):
+    return next(label for low, high, label in TIERS if low <= rows <= high)
+
+
+def against_ledger(statement, ledger):
+    """账单逐笔对总账（总账是准确数据）：同方向同金额配掉，剩下的分漏行（总账有、账单没有）、多行（账单有、总账没有）、
+    拆行（一笔总账被读成两行，两行相加等于它）、并行（两笔总账被读成一行）、金额错一位（同方向、只差一位数字）。"""
+    def side_amount(row, deposit_index, withdrawal_index):
+        deposit, withdrawal = num(row[deposit_index]) or Decimal(0), num(row[withdrawal_index]) or Decimal(0)
+        return ("in", deposit.quantize(Decimal("0.01"))) if deposit else ("out", withdrawal.quantize(Decimal("0.01")))
+    read = collections.Counter(side_amount(row, 1, 2) for row in statement)
+    truth = collections.Counter(side_amount(row, 1, 2) for row in ledger)
+    extra, missing = read - truth, truth - read
+    extra_list, missing_list = list(extra.elements()), list(missing.elements())
+    split = merged = digit = 0
+    for side, amount in list(missing_list):
+        parts = [value for s_, value in extra_list if s_ == side]
+        if any(a + b == amount for i, a in enumerate(parts) for b in parts[i + 1:]):
+            split += 1
+    for side, amount in list(extra_list):
+        parts = [value for s_, value in missing_list if s_ == side]
+        if any(a + b == amount for i, a in enumerate(parts) for b in parts[i + 1:]):
+            merged += 1
+
+    def one_digit(a, b):
+        a, b = f"{a:.2f}", f"{b:.2f}"
+        return len(a) == len(b) and sum(x != y for x, y in zip(a, b)) == 1
+    for side, amount in extra_list:
+        if any(s_ == side and one_digit(amount, value) for s_, value in missing_list):
+            digit += 1
+    return {"ledger_rows": sum(truth.values()), "read_rows": sum(read.values()), "missing": len(missing_list),
+            "extra": len(extra_list), "split": split, "merged": merged, "amount_one_digit": digit}
+
+
 def metrics(result, case):
     if "error" in result or "missing" in result:
         return {"failed": result.get("error") or f"missing {result.get('missing')}"}
@@ -111,6 +148,12 @@ def metrics(result, case):
            "totals_agree": abs(deposit - debit) <= Decimal("0.01") and abs(withdrawal - credit) <= Decimal("0.01")}
     if case in PAIRS:
         out["pair"] = pair_score(result, case)
+    if case.startswith(("B04", "B05", "B06", "B07", "B08", "B09")):
+        out["vs_ledger"] = against_ledger(statement, ledger)
+    pages = [page for diag in (result.get("page_diag") or {}).values() for page in diag]
+    if pages:
+        out["pages"] = [{**page, "tier": tier_of(page["rows"])} for page in pages]
+        out["tier"] = tier_of(max(page["rows"] for page in pages))
     return out
 
 
@@ -133,7 +176,32 @@ def summarize(runs):
     for run in runs:
         for scan, value in (run["m"].get("pair") or {}).items():
             pairs[f"{run['case']} {scan}"].append(value)
+    tiers = collections.defaultdict(lambda: collections.Counter())
+    for run in scored:
+        for page in run["m"].get("pages") or []:
+            tier = tiers[page["tier"]]
+            tier["pages"] += 1
+            tier["rows"] += page["rows"]
+            tier["local"] += page["local"]
+            tier["reread"] += page["reread"]
+            tier["still_broken"] += page["breaks_left"] > 0
+    ledger_by_tier = collections.defaultdict(lambda: collections.Counter())
+    for run in scored:
+        if run["m"].get("vs_ledger") and run["m"].get("tier"):
+            ledger_by_tier[run["m"]["tier"]].update({**run["m"]["vs_ledger"], "runs": 1,
+                                                     "breaks": run["m"]["breaks"], "balance_rows": run["m"]["balance_rows"]})
+    dense = {key: block(value) for key, value in {
+        "B07-GIZE-BAY-CA": [run for run in scored if run["case"].startswith("B07-GIZE-BAY-CA")],
+        "B07-GIZE-SCB-CA": [run for run in scored if run["case"].startswith("B07-GIZE-SCB-CA")]}.items() if value}
     return {"overall": block(scored), "by_series": {key: block(value) for key, value in sorted(series.items())},
+            "page_tiers": {label: {**dict(tiers[label]),
+                                   "local_share": round(tiers[label]["local"] / tiers[label]["pages"], 4) if tiers[label]["pages"] else None,
+                                   "reread_share": round(tiers[label]["reread"] / tiers[label]["pages"], 4) if tiers[label]["pages"] else None,
+                                   "still_broken_share": round(tiers[label]["still_broken"] / tiers[label]["pages"], 4) if tiers[label]["pages"] else None}
+                           for _low, _high, label in TIERS},
+            "vs_ledger_by_tier": {label: {**dict(value), "break_row_ratio": round(value["breaks"] / value["balance_rows"], 4)
+                                          if value["balance_rows"] else None} for label, value in ledger_by_tier.items()},
+            "dense_sets": dense,
             "known_corpus_issues": {case: KNOWN[case] for case in {run["case"] for run in runs} if case in KNOWN},
             "electronic_vs_scan": {key: {"runs": len(values),
                                          "recall": round(sum(v["recall"] or 0 for v in values) / len(values), 4),
@@ -153,6 +221,14 @@ def render(report):
     lines += ["", "电子对扫描（扫描 / 照片读出的行对电子版）："]
     lines += [f"- {key}：{value['runs']} 次，召回 {value['recall']}，准确 {value['precision']}"
               for key, value in report["electronic_vs_scan"].items()]
+    lines += ["", "按每页笔数分档（页数、本地拼平、重读、重读后仍断的页占比）："]
+    lines += [f"- {label}：{value.get('pages', 0)} 页 {value.get('rows', 0)} 笔，本地拼平 {value['local_share']}，重读 {value['reread_share']}，"
+              f"重读后仍断 {value['still_broken_share']}" for label, value in report["page_tiers"].items()]
+    lines += ["", "逐笔对总账（按文件最密一页分档）："]
+    lines += [f"- {label}：{value.get('runs')} 次，总账 {value.get('ledger_rows')} 笔、读出 {value.get('read_rows')}，漏 {value.get('missing')}、"
+              f"多 {value.get('extra')}、拆 {value.get('split')}、并 {value.get('merged')}、金额错一位 {value.get('amount_one_digit')}，"
+              f"断点行比 {value.get('break_row_ratio')}" for label, value in report["vs_ledger_by_tier"].items()]
+    lines += ["", "密集套：" + json.dumps(report["dense_sets"], ensure_ascii=False)]
     lines += ["", "已知语料问题（未计入）：" + json.dumps(report["known_corpus_issues"], ensure_ascii=False)]
     return "\n".join(lines) + "\n"
 
