@@ -298,7 +298,7 @@ class DocumentManifestTests(unittest.TestCase):
     def recognition(self):
         self.created = []
         self.contracted = []
-        def create(workspace, body, key, client, *, attachment, check_duplicates=False):
+        def create(workspace, body, key, client, *, attachment, check_duplicates=False, name_plan=None):
             self.created.append(attachment)
             self.events.append(("create", attachment["source_page_indices"]))
             return {"name": "H-" + str(len(self.created)), **attachment}
@@ -309,7 +309,7 @@ class DocumentManifestTests(unittest.TestCase):
         env = dict(frappe=self.frappe, scope=self.scope, access=self.access, guard=self.guard,
             # 原件在服务器上：登记前的核对照旧读一遍原件（``files.verify_stored`` → ``read_bytes``）。
             files=SimpleNamespace(read_bytes=self.service["read_bytes"], verify_stored=self.service["read_bytes"]),
-            storage=storage,
+            storage=storage, name_memory=SimpleNamespace(plan=lambda pages: {}),
             hashlib=hashlib, initial_history=object(), _=lambda text: text)
         load_functions("history/recognition.py", ["persist_batch"], env)
         return env, storage

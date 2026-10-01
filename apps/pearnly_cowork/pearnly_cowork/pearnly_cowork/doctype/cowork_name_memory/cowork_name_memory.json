@@ -1,0 +1,95 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Name Memory",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-02 00:00:00.000000",
+ "modified": "2026-10-02 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_key",
+  "workspace",
+  "kind",
+  "tax_id",
+  "price",
+  "value",
+  "use_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "kind",
+   "label": "Kind",
+   "fieldtype": "Select",
+   "options": "party\nitem",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_id",
+   "label": "Tax ID",
+   "fieldtype": "Data",
+   "length": 13,
+   "reqd": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "price",
+   "label": "Unit Price",
+   "fieldtype": "Data",
+   "length": 32,
+   "read_only": 1
+  },
+  {
+   "fieldname": "value",
+   "label": "Name",
+   "fieldtype": "Data",
+   "length": 200,
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "use_count",
+   "label": "Use Count",
+   "fieldtype": "Int",
+   "default": "1",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

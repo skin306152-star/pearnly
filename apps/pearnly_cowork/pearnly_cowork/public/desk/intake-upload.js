@@ -660,6 +660,12 @@
 			const saved = await p.call(HISTORY + "save",
 				{name: current.name, pages, expected_version: current.record_version}, "POST");
 			details.set(saved.name, saved);
+			// 人改了名称，同一原件的其他草稿在服务端跟着改了（版本号变了）：丢掉旧的，后台重读。
+			const followed = (saved.followed || []).filter(record_name => details.delete(record_name));
+			if (followed.length) {
+				void Promise.all(followed.map(record_name => detail(record_name).catch(() => null)))
+					.then(() => form.set_df_property("invoice", "options", invoice_options()));
+			}
 			form.set_df_property("invoice", "options", invoice_options());
 			if (current.name !== saved.name) return;
 			current = saved;

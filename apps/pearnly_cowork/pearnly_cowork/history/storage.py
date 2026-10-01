@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
-from . import categories, duplicates, review
+from . import categories, duplicates, names, review
 from pearnly_cowork.contracts.history import (HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
     extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page_fields)
 
@@ -75,7 +75,8 @@ def validate_document(doc):
         if not previous.staged and doc.staged:
             frappe.throw(_("A completed record cannot become a draft."))
         doc.record_version = int(previous.record_version) + 1
-        changed = doc.pages != previous.pages
+        # 同一原件里人刚改了名称、跟着改的草稿不算人改过（edit_count 是"人核过"的依据）。
+        changed = doc.pages != previous.pages and not doc.flags.cowork_name_follow
         doc.edit_count = int(previous.edit_count or 0) + int(changed)
         doc.fields_edited_at = now_utc() if changed else previous.fields_edited_at
         if previous.staged and not doc.staged:
@@ -163,7 +164,8 @@ def create_recognized(workspace, pages, request_key, *, source, confidence, ai_r
     return _create(workspace, body, request_key, client, check_duplicates=True)
 
 
-def _create(workspace, body, request_key, client=None, *, attachment=None, check_duplicates=False):
+def _create(workspace, body, request_key, client=None, *, attachment=None, check_duplicates=False,
+            name_plan=None):
     scope.require("intake")
     scope.require_scope(workspace, client)
     if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
@@ -176,7 +178,9 @@ def _create(workspace, body, request_key, client=None, *, attachment=None, check
     name = "CWH-" + key[:48]
     if frappe.db.exists(DOCTYPE, name):
         return _existing(name, fingerprint)
-    pages = categories.prepare(workspace, client, body["pages"]) if check_duplicates else body["pages"]
+    # 识别入库：先按税号统一名称、清掉不是品名的品名（分类记忆按卖方名称取，要用统一后的名称）。
+    pages = (categories.prepare(workspace, client, names.prepare(workspace, body["pages"], batch_plan=name_plan))
+             if check_duplicates else body["pages"])
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client or "",
                           "source": body["source"], "pages": encode(pages),
                           "ai_raw": encode(body["ai_raw"]), "confidence": body["confidence"], "staged": 1,
@@ -250,14 +254,42 @@ def update_pages(name, pages, expected_version):
     if not pages:
         frappe.throw(_("At least one invoice page is required when editing."))
     changed = doc.pages != encode(pages)
+    previous = parse(doc.pages or "[]")
     doc.pages = encode(pages)
     doc.flags.cowork_history_update = _UPDATE_TOKEN
     doc.save()
     from pearnly_cowork.ocr.feedback.service import capture_saved_edit
     capture_saved_edit(doc)
+    followed = []
     if changed:
+        decided = names.learn(doc.workspace, previous, pages)
+        followed = _follow_names(doc, decided)
         categories.learn(doc.workspace, doc.client, pages)
-    return project(doc)
+    result = project(doc)
+    # 跟着改了名称的草稿版本号变了：复核页按这份清单重读它们，免得拿旧版本保存或推送。
+    result["followed"] = followed
+    return result
+
+
+def _follow_names(doc, decided):
+    """同一原件识别出来、还没人动过也没推过的草稿：同一税号的名称换成人刚改定的（改一张，整批都对）。"""
+    if not decided or not doc.source_file:
+        return []
+    followed = []
+    for name in frappe.get_all(DOCTYPE, filters={"source_file": doc.source_file, "name": ["!=", doc.name],
+                                                 "staged": 1, "edit_count": 0}, pluck="name", order_by="name asc"):
+        row = read(name, for_update=True)
+        if row.last_push_status or not row.staged or int(row.edit_count or 0):
+            continue
+        pages = names.renamed(parse(row.pages or "[]"), decided)
+        if pages is None:
+            continue
+        row.pages = encode(pages)
+        row.flags.cowork_history_update = _UPDATE_TOKEN
+        row.flags.cowork_name_follow = True
+        row.save()
+        followed.append(row.name)
+    return followed
 
 
 def complete(records):
