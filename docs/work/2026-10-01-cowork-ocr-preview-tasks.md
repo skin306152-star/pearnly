@@ -381,5 +381,8 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 - 2026-10-02 已删：本地与远端 `codex/cowork-lite-timeouts`、`codex/cowork-adaptive-dispatch`、`codex/cowork-adaptive-pools`、
   `codex/cowork-capacity-wait`（都是 main 的祖先）；本地 `codex/cowork-callback-writes`、`codex/cowork-ocr-preview-tasks`（无远端；
   `git cherry` 核对每个提交在 main 上都有等价补丁，变基后 SHA 不同才用了 -D）。
+- Cloud Run 评测修订版 `cowork-ocr-00020-miy`（标签 `eval`，0% 流量，2026-10-01 22:49Z，修复窗口分支 `codex/invoice-read-rules` fd46ca38 的提示词）：
+  **交接保留**，修复窗口在 testcowork 上跑完 eval2、把站点地址改回主地址后通知本窗口删标签。之后发 Cloud Run 时流量按修订版名固定着，
+  发布后要 `gcloud run services update-traffic cowork-ocr --to-latest` 并回读 100%。
 - 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-run-timing`：**交接保留**（计时日志未合入，
   等下一批；下一轮 100 人拆分完成后复核）。
