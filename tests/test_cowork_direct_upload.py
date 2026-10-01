@@ -201,17 +201,17 @@ class Direct(unittest.TestCase):
             self.assertEqual(logged.records[0].args[1], reason)
             self.assertNotIn("scan.pdf", logged.output[0])
 
-    def test_finish_asks_the_page_to_retry_when_this_process_already_waits_on_two_checks(self):
+    def test_finish_asks_the_page_to_retry_when_this_process_already_waits_on_four_checks(self):
         from pearnly_cowork.ocr.remote import forward
 
-        for _slot in range(2):
+        for _slot in range(4):
             service.INSPECT_SLOTS.acquire()
         try:
             with mock.patch.object(forward, "inspect_original") as inspect:
-                self.assertEqual(service.finish_direct("WS1", "scan.pdf", 1234, "k1"), {"retry": 3})
+                self.assertEqual(service.finish_direct("WS1", "scan.pdf", 1234, "k1"), {"retry": 2})
             inspect.assert_not_called()
         finally:
-            for _slot in range(2):
+            for _slot in range(4):
                 service.INSPECT_SLOTS.release()
         result, _inspect = self.finish(self.inspected())        # 名额空出来就照常核对登记
         self.assertEqual(result["page_count"], 3)

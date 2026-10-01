@@ -484,6 +484,7 @@ class Receive(Base):
         self.assertEqual(self.send(self.reply_body(), token()), {"ok": 1})
         self.assertEqual(self.checkpoints.values[tasks.REPLY_KEY + self.dispatch]["body"]["generation"], 4)
         self.wake.assert_called_once_with(WORK)
+        self.assertEqual(self.released, [WORK])       # 云上已读完：在途名额回调一到就还
         self.assertEqual(self.send(self.reply_body(), token()), {"ok": 1})   # 重复回调：同一行、同样内容
 
     def test_a_bad_token_is_401_records_nothing_and_is_logged_once(self):

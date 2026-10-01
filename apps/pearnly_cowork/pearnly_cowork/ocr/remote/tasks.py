@@ -62,7 +62,18 @@ PROJECT = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
 BUCKET = re.compile(r"[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]")
 _lock = threading.Lock()
 _credentials = {}
+_sessions = threading.local()
 logger = logging.getLogger(__name__)
+
+
+def _http():
+    """每个识别线程一个长连接会话：存请求、建任务、读结果都复用连接，不再每次新建 TLS 连接（2026-10-01 半量压测：
+    识别进程 14% 的 CPU 花在 TLS 握手上，来源就是这里的三处）。"""
+    session = getattr(_sessions, "session", None)
+    if session is None:
+        session = requests.Session()
+        _sessions.session = session
+    return session
 
 
 def settings():
@@ -214,7 +225,8 @@ def _dispatched_ok():
 # ── 名额：任务派发时服务器不再按次拿名额（不等），改为按「在途派发」计数 ─────────────────────────────────────────
 # 与按行等回复同一份配置（``budget.config()`` 的 concurrency / tenant_concurrency），同一个非淘汰 Redis：全站、每租户在途
 # 派发数到上限就像拿不到名额一样暂缓；另记同时交给 Workflows 的文件数，满了这份不预热（2026-10-01 复查：派发路径跳过了名额，
-# Workflows 不受队列并发约束）。在途记录随结果取回释放，最长 ``LOST_SECONDS`` 自动过期。
+# Workflows 不受队列并发约束）。在途记录在结果回调到达时释放（云上已读完；不等服务器读回，服务器忙时读回会晚几分钟，
+# 2026-10-01 半量压测），取回时再释放一次兜底，最长 ``LOST_SECONDS`` 自动过期。
 OUTSTANDING_KEY = "cowork-tasks"
 WORKFLOWS_KEY = "cowork-workflows"
 RESERVE = """
@@ -274,7 +286,7 @@ def _reserve(config, work, path, body, bucket=None):
         raise Deferred("provider_cooldown", min(60, -int(granted) - 1000))
     if int(granted) < 0:
         budget.note("deferred:capacity", "cloudtasks")
-        raise Deferred("capacity", 5)
+        raise Deferred("capacity", 3)
     return int(granted) == 2
 
 
@@ -282,6 +294,11 @@ def _cool_down(bucket, delay):
     from pearnly_core.execution import budget
 
     budget.feedback(bucket, 429, max(5, min(60, float(delay or 15))), True)
+
+
+def release(work):
+    """回调到了：这份在云上已读完，在途名额先还回去（``callback.receive``）。"""
+    _release(work)
 
 
 def _release(work):
@@ -344,7 +361,7 @@ def _storage(method, url, *, http=None, sleep=time.sleep, **kwargs):
         if attempt:
             sleep(0.5 * attempt)
         try:
-            response = getattr(http or requests, method)(url, **kwargs)
+            response = getattr(http or _http(), method)(url, **kwargs)
         except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError):
             unsure = True
             if attempt == STORAGE_ATTEMPTS - 1:
@@ -418,7 +435,7 @@ def _create_task(config, remote, envelope, body, *, http=None, workflow=False):
                    "body": base64.b64encode(json.dumps(envelope).encode()).decode(),
                    "oidcToken": {"serviceAccountEmail": account, "audience": remote["url"]}}
     name = f"{parent}/tasks/{envelope['work'][:32]}-{envelope['dispatch']}"
-    response = (http or requests).post(f"{TASKS}/{parent}/tasks",
+    response = (http or _http()).post(f"{TASKS}/{parent}/tasks",
         json={"task": {"name": name, "dispatchDeadline": DISPATCH_DEADLINE, "httpRequest": request}},
         headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
     if response.status_code == 409:

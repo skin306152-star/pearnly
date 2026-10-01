@@ -157,7 +157,7 @@ def begin_direct(workspace, filename, byte_size, request_key, client=None):
 # 网页进程里同时等 Cloud Run 核对原件 / 现画页图的上限（每进程）：超出的直传确认让页面过几秒再来（页面本来就认 ``retry``），
 # 页图稍等片刻、还轮不到就回「稍后再试」（页面会自动再要几次）。不让这两件事占满网页线程（2026-10-01 复查：4 个人同时批量
 # 上传就能占满 24 个网页线程，连只做 302 的请求都要排队）。
-INSPECT_SLOTS = threading.BoundedSemaphore(2)
+INSPECT_SLOTS = threading.BoundedSemaphore(4)
 RENDER_SLOTS = threading.BoundedSemaphore(2)
 RENDER_WAIT_SECONDS = 10
 
@@ -175,7 +175,7 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
         return project(_existing(name, None, filename=filename, byte_size=byte_size))
     object_name = cloud.object_name(frappe.local.site, name, suffix)
     if not INSPECT_SLOTS.acquire(blocking=False):
-        return {"retry": 3}  # 这个进程已有两份在等核对：页面过几秒再来（核对内容一点不放宽）
+        return {"retry": 2}  # 这个进程已有 4 份在等核对：页面过两秒再来（核对内容一点不放宽）
     try:
         result = forward.inspect_original(object_name, filename)
     except Deferred as error:

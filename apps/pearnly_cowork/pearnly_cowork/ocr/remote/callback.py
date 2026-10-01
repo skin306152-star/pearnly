@@ -103,6 +103,7 @@ def receive():
                        body["reply"] if body["type"] == "reply" else {"failed": True}, attempts=3):
             raise frappe.QueryDeadlockError("callback reply not recorded")
         _progressed(body["work"])
+        tasks.release(body["work"])  # 云上已读完：在途名额先还回去，不等服务器读回
         core_work.wake(body["work"])
         return {"ok": 1}
     if body["type"] == "progress":
