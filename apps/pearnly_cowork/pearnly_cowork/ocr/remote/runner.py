@@ -65,6 +65,7 @@ class Store:
     def __init__(self, backend, site, work):
         self._backend, self._prefix = backend, f"{site}/{work}/"
         self._cache, self._generation, self._lease = {}, {}, None
+        self.throttled = 0  # 这次读取挨了谷歌几次 429 / 503（交回服务器，按它调全站在途派发数，见 ``tasks``）
         self._lock = threading.Lock()  # 引擎可能多页同时读：缓存的读写要线程安全（每个调用各自一个对象）
 
     def _name(self, key):
@@ -189,6 +190,8 @@ class Provider:
             raise Uncertain("Provider transport outcome unknown") from exc
         log(event="provider_call", host=host, status=response.status_code, seconds=round(time.monotonic() - sent, 2))
         if response.status_code in (429, 503):
+            with self._store._lock:
+                self._store.throttled += 1
             self._store.put(key, "rejected", {"http": response.status_code})
             response.close()
             raise Deferred("provider_" + str(response.status_code), _retry_after(response))
@@ -480,10 +483,10 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         log(event="invoice_done", pages=body["page_count"], seconds=round(clock() - started, 2), calls=len(result.calls),
             **({"cpu_seconds": round(time.thread_time() - cpu, 2)} if page_map is None else {"page_threads": limit}))
         stored = previews.collect() if previews else None
-        emit(contract.result("done", pipeline=result.pipeline.model_dump_json(),
+        emit(contract.result("done", throttled=store.throttled, pipeline=result.pipeline.model_dump_json(),
                              evidence=contract.evidence(result.calls), **({"previews": stored} if stored else {})))
     except Deferred as exc:
-        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay))
+        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay, throttled=store.throttled))
     except Uncertain as exc:
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:
@@ -559,9 +562,9 @@ def _document(body, content, store, access_token, emit, *, orient, page_source, 
                 map_pages=page_map)
         log(event="document_done", pages=body["page_count"], seconds=round(clock() - started, 2),
             page_threads=limit if page_map else 1)
-        emit(contract.result("done", legacy=legacy))
+        emit(contract.result("done", legacy=legacy, throttled=store.throttled))
     except Deferred as exc:
-        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay))
+        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay, throttled=store.throttled))
     except Uncertain as exc:
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:

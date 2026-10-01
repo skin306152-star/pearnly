@@ -188,6 +188,7 @@ class SameReading(unittest.TestCase):
         events = remote(Bucket(), there)
         final = events[-1]
         self.assertEqual(final["status"], "done", final)
+        self.assertEqual(final["throttled"], 0)
         self.assertEqual(reading(final["pipeline"]), reading(pipeline))
         self.assertEqual(final["evidence"], evidence)
         self.assertEqual(here.sent, there.sent)
@@ -783,6 +784,7 @@ class PaidCallGuard(unittest.TestCase):
         google = Google(["429"])
         final = remote(Bucket(), google)[-1]
         self.assertEqual(final["status"], "done")
+        self.assertEqual(final["throttled"], 1)          # 挨了几次 429 随结果交回（服务器据此调全站派发上限）
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
 

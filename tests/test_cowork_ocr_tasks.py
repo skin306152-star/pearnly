@@ -355,6 +355,20 @@ class Collect(Base):
                                 now=lambda: 1010.0)
         self.assertEqual(result["status"], "done")
 
+    def test_each_result_adjusts_the_adaptive_dispatch_limit(self):
+        self.reply({"event": "result", "status": "done", "legacy": {}, "throttled": 3})
+        with mock.patch.object(tasks, "_adapt") as adapt, mock.patch.object(tasks, "progress_applied", return_value=0):
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google, now=lambda: 1010.0)
+        adapt.assert_called_once()
+        self.assertEqual(adapt.call_args.args[1], 3)
+
+    def test_the_adaptive_limit_starts_low_and_can_be_switched_off(self):
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 160}), tasks.ADAPTIVE_START)
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}), 10)
+        self.assertEqual(tasks._adaptive_start({"adaptive": False}, {"concurrency": 160}), 0)
+        frappe.local.conf[tasks.CONFIG] = {**CONFIG, "adaptive": 0}
+        self.assertFalse(tasks.settings()["adaptive"])
+
     def test_a_throttled_result_cools_the_shared_budget_down(self):
         self.reply({"event": "result", "status": "deferred", "reason": "provider_429", "delay": 20})
         with mock.patch.object(tasks, "_cool_down") as cool, mock.patch.object(tasks, "progress_applied", return_value=0):

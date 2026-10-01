@@ -99,6 +99,7 @@ def settings():
             "bucket": value["bucket"], "workflow": workflow, "callback_host": host,
             "workflow_min_pages": minimum if type(minimum) is int and minimum >= 2 else WORKFLOW_MIN_PAGES,
             "workflow_max": value.get("workflow_max") if type(value.get("workflow_max")) is int else WORKFLOW_MAX,
+            "adaptive": bool(value.get("adaptive", True)),
             "invoker": value.get("invoker") or None}
 
 
@@ -150,6 +151,8 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         found = _read_json(config, reference, http=http, missing_ok=reply is None)
         if found is not None:
             final, events = contract.parse_reply(found)
+            if "throttled" in final:
+                _adapt(config, final.get("throttled"))
             applied = progress_applied(work, dispatch)
             for event in events:
                 if event["seq"] >= applied:
@@ -235,8 +238,12 @@ local pause = tonumber(redis.call('GET', KEYS[3]) or '0')
 if pause > now then return -1000 - math.ceil(pause - now) end
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
 redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', now)
+local limit = tonumber(ARGV[4])
+if tonumber(ARGV[9]) > 0 then
+  limit = math.min(limit, math.floor(tonumber(redis.call('GET', KEYS[4]) or ARGV[9])))
+end
 if not redis.call('ZSCORE', KEYS[1], member) then
-  if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[4]) then return -1 end
+  if redis.call('ZCARD', KEYS[1]) >= limit then return -1 end
   local prefix, mine = ARGV[5], 0
   for _, other in ipairs(redis.call('ZRANGE', KEYS[1], 0, -1)) do
     if string.sub(other, 1, string.len(prefix)) == prefix then mine = mine + 1 end
@@ -276,9 +283,10 @@ def _reserve(config, work, path, body, bucket=None):
         stamp = client.time()
         now = int(stamp[0]) + int(stamp[1]) / 1_000_000
         pause = budget.PREFIX + (bucket or "cowork-tasks-none") + ":pause"
-        granted = client.eval(RESERVE, 3, budget.PREFIX + OUTSTANDING_KEY, budget.PREFIX + WORKFLOWS_KEY, pause, now,
-            _member(work), now + LOST_SECONDS, cfg["concurrency"], budget.tenant() + ":", cfg["tenant_concurrency"],
-            1 if _wants_workflow(config, path, body) else 0, config.get("workflow_max") or WORKFLOW_MAX)
+        granted = client.eval(RESERVE, 4, budget.PREFIX + OUTSTANDING_KEY, budget.PREFIX + WORKFLOWS_KEY, pause,
+            budget.PREFIX + ADAPTIVE_KEY, now, _member(work), now + LOST_SECONDS, cfg["concurrency"],
+            budget.tenant() + ":", cfg["tenant_concurrency"], 1 if _wants_workflow(config, path, body) else 0,
+            config.get("workflow_max") or WORKFLOW_MAX, _adaptive_start(config, cfg))
     except RedisError as exc:
         raise Deferred("capacity_unavailable", 15) from exc
     if int(granted) <= -1000:
@@ -288,6 +296,57 @@ def _reserve(config, work, path, body, bucket=None):
         budget.note("deferred:capacity", "cloudtasks")
         raise Deferred("capacity", 3)
     return int(granted) == 2
+
+
+# ── 按谷歌 429 自适应的全站在途派发上限（加性增、乘性减；2026-10-01 半量压测）───────────────────────────────────
+# 谷歌共享额度大约稳定承受每分钟 150–250 次 Gemini 调用、同时 30–40 个；开局一次涌入几百份会冲过去，429 后的重试再放大
+# （第二轮一分钟 902 次调用、62% 是 429）。每份结果带回这次挨了几次 429（``runner`` 的 ``throttled``）：挨了就把上限乘 0.8
+# （每 5 秒最多缩一次，同一波 429 不连着缩），干净的每份加 1/上限（大约每「上限」份加 1）；从保守值起步，介于下限与现有
+# 名额配置之间。站点配置 ``pearnly_cowork_ocr_tasks.adaptive`` 写 0 关掉（只按名额配置）。
+ADAPTIVE_KEY = "cowork-tasks-adaptive"
+ADAPTIVE_START, ADAPTIVE_MIN, ADAPTIVE_SHRINK, ADAPTIVE_HOLD = 32, 8, 0.8, 5
+ADAPT = """
+local start, throttled, maximum, now, minimum = tonumber(ARGV[1]), tonumber(ARGV[2]), tonumber(ARGV[3]), tonumber(ARGV[4]), tonumber(ARGV[5])
+local cap = tonumber(redis.call('GET', KEYS[1]) or start)
+if throttled > 0 then
+  local last = tonumber(redis.call('GET', KEYS[2]) or '0')
+  if now - last >= tonumber(ARGV[7]) then
+    cap = cap * tonumber(ARGV[6])
+    redis.call('SET', KEYS[2], now, 'EX', 3600)
+  end
+else
+  cap = cap + 1 / cap
+end
+cap = math.max(minimum, math.min(maximum, cap))
+redis.call('SET', KEYS[1], cap, 'EX', 86400)
+return tostring(cap)
+"""
+
+
+def _adaptive_start(config, cfg):
+    """起步上限（0 = 关掉自适应）。"""
+    if not config.get("adaptive", True):
+        return 0
+    return max(ADAPTIVE_MIN, min(int(cfg["concurrency"]), ADAPTIVE_START))
+
+
+def _adapt(config, throttled):
+    """一份结果回来：按它挨了几次 429 调全站上限。记不住就算了（下一份再调）。返回调整后的上限。"""
+    from pearnly_core.execution import budget
+
+    try:
+        cfg = budget.config()
+        start = _adaptive_start(config, cfg)
+        if not start:
+            return None
+        client = budget.redis()
+        stamp = client.time()
+        now = int(stamp[0]) + int(stamp[1]) / 1_000_000
+        cap = client.eval(ADAPT, 2, budget.PREFIX + ADAPTIVE_KEY, budget.PREFIX + ADAPTIVE_KEY + ":shrunk", start,
+                          int(throttled or 0), int(cfg["concurrency"]), now, ADAPTIVE_MIN, ADAPTIVE_SHRINK, ADAPTIVE_HOLD)
+        return float(cap)
+    except Exception:
+        return None
 
 
 def _cool_down(bucket, delay):
