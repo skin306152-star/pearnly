@@ -347,9 +347,39 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 遗留：历史单据的预览后台补画（下一批）；小助手 lease 在站点维护期间不退避（小助手侧）；回调写检查点撞 1020 的重试（分支
 `codex/cowork-callback-writes`，随下一小批）。
 
+| 2026-10-01 21:24–21:35 | 统一批（用户：修完一起部署）：main 10a4f07d（待复核提示 7d197c66 → flash-lite 40 秒与全球入口再试 d571a39c → 对账无余额行崩溃修复 10a4f07d），修复窗口只激活 Cowork；Cloud Run cowork-ocr-00019-l2j（21:34:37Z 接全部流量） | 四站开关与自适应开、自检全过、队列 RUNNING、新版本无错误日志；开关未动。之后修复窗口跑准确率评测，压测窗口再跑 100 人 |
+
+## 发票识别以外的时间拆分（压测窗口 2026-10-02 要求；m1 = 2026-10-01 20:55–21:06 UTC 的 100 人压测，383 份）
+
+按派发号逐份拼服务器时间戳：原件建立 → 识别单建立 → `request.json` 建立（拿到名额后）→ 派发检查点 `at` → `reply.json` 建立
+（Cloud Run 读完）→ 回复检查点建立（回调落库）→ 历史记录建立（结果入库）→ 识别单最后修改（扣费收尾，推送紧随）。
+脚本在本窗口草稿区（只读：web 容器里只读会话取库，本机取谷歌存储对象时间），下一轮复用。
+
+| 段（秒） | p50 | p95 | 平均 |
+|---|---|---|---|
+| 上传受理 → 提交识别 | 0.5 | 2.4 | 0.8 |
+| 提交 → 拿到名额写好请求 | 6.8 | 25.8 | 9.4 |
+| 写请求 → 建好任务 | 0.3 | 1.8 | 0.5 |
+| 建任务 → Cloud Run 读完 | 19.9 | 37.3 | 21.9 |
+| Cloud Run 读完 → 回调落库 | 0.2 | 2.3 | 0.5 |
+| 回调落库 → 结果入库 | 10.8 | 36.1 | 12.6 |
+| 结果入库 → 扣费收尾 | 2.9 | 18.3 | 4.7 |
+| 合计 上传受理 → 扣费收尾 | 51.0 | 102.0 | 52.8 |
+
+- 云上不是问题：Cloud Run 任务请求 p50 20.2 / p95 42.3，invoice_done p50 19.3 / p95 35.0，投递 + 冷启动 + 回调约 1 秒，只起了 2 个新实例。
+- 服务器侧三段在低负载时都约 1 秒（第 0–1、7 分钟），高峰第 3–6 分钟（每分钟 59–77 份）三段同时变慢（名额前 p50 15–21、回调到入库
+  10–25、扣费 4–5），同时云上在途只有 23–49 份：是服务器整体忙，不是名额。另 19 份（5%）派发两次，多 p50 42 秒。
+- 现有数据分不开「进程排队 / 处理 / 等解释器锁」：分支 `codex/cowork-run-timing` 给每次识别运行加一行计时（`ready` 可开跑到开跑、
+  `wall`、`cpu` 本线程 CPU 秒、各步 `check / mark / balance / remote / capacity / request / task / reply_read / validate / freeze /
+  persist / settle`），容器标准输出，随下一批上。下一轮 100 人：本窗口开 Cloud Tasks 投递日志（测完关）+ 服务器每 2 秒采样识别进程 CPU，
+  压测窗口做 py-spy。
+
 ## 收尾登记
 
 - 分支 `codex/cowork-ocr-preview-tasks`、`codex/cowork-provider-retries`：内容已经由发布分支 / 快进合入 main（e7cca8a2、5f97938c、
   d937e3b0），可清理（远端与本地分支删除待本任务收尾时核对后执行）。
-- 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-callback-writes`：**交接保留**
-  （回调写入重试未合入；压测「半量的半量」期间可能还要改，压测结束后合入并清理）。
+- 2026-10-02 已删：本地与远端 `codex/cowork-lite-timeouts`、`codex/cowork-adaptive-dispatch`、`codex/cowork-adaptive-pools`、
+  `codex/cowork-capacity-wait`（都是 main 的祖先）；本地 `codex/cowork-callback-writes`、`codex/cowork-ocr-preview-tasks`（无远端；
+  `git cherry` 核对每个提交在 main 上都有等价补丁，变基后 SHA 不同才用了 -D）。
+- 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-run-timing`：**交接保留**（计时日志未合入，
+  等下一批；下一轮 100 人拆分完成后复核）。
