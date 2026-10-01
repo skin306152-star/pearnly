@@ -336,12 +336,14 @@ class Rerun(unittest.TestCase):
 		db = mock.MagicMock()
 		with mock.patch.object(document_ocr.frappe, "db", db), mock.patch.object(document_ocr, "submit") as submit, \
 				mock.patch.object(document_ocr, "wait", return_value={"pages": []}) as wait:
-			db.get_value.return_value = "WORK-1"
+			db.exists.return_value = True
 			self.assertEqual(document_ocr.reader("job-1", "left0", "F1", "other@example.com")(
 				"bank_statement", b"x", "a.jpg"), {"pages": []})
 		submit.assert_not_called()
-		wait.assert_called_once_with("WORK-1")
-		self.assertEqual(db.get_value.call_args.args[1]["reference"], "job-1:left0:bank_statement")
+		# 按原对账号的参考号找到那一份（名字由类别 + 参考号算出，与共用层建任务时同一个算法）
+		work = document_ocr.core_work.name_for(document_ocr.KIND, "job-1:left0:bank_statement")
+		wait.assert_called_once_with(work)
+		self.assertEqual(db.exists.call_args.args[1], work)
 
 	def test_the_job_keeps_the_files_for_a_question_and_drops_them_after_the_rerun(self):
 		from pearnly_cowork.recon_center import jobs

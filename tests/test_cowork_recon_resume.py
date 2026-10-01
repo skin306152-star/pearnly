@@ -23,8 +23,9 @@ class FakeJob:
 class Resume(unittest.TestCase):
 	def run_resume(self, job, *, files_exist=True, locked=False, finished=False, owner=None, newer=False):
 		self.local = mock.Mock(site="s", lang="en")
-		conn = mock.Mock()
+		conn = self.conn = mock.MagicMock()  # 续跑在「等识别的对账放回队列」同一把锁里做（waiting.lock）
 		conn.set.return_value = not locked
+		conn.get.return_value = None
 		state = {}
 		with mock.patch("frappe.utils.background_jobs.get_job", return_value=job), \
 				mock.patch("frappe.utils.background_jobs.get_redis_conn", return_value=conn), \
@@ -52,6 +53,30 @@ class Resume(unittest.TestCase):
 	def test_a_worker_killed_by_the_system_is_resumed_too(self):
 		outcome, _enqueue, _state = self.run_resume(FakeJob(exc="Work-horse terminated unexpectedly; waitpid returned 9"))
 		self.assertEqual(outcome, jobs.RESUMED)
+
+	def test_a_job_taken_off_the_queue_by_a_worker_killed_before_it_started_is_resumed_too(self):
+		outcome, _enqueue, _state = self.run_resume(FakeJob(exc="Job was stuck in intermediate queue."))
+		self.assertEqual(outcome, jobs.RESUMED)
+
+	def test_a_killed_job_whose_execution_record_is_gone_is_still_replaced(self):
+		# RQ 2.6：被强杀的任务执行记录已不在，job.delete() 报 ValueError（2026-10-01 测试机强杀 long worker 实测）。
+		job = FakeJob()
+		job.connection, job.key, job.dependents_key, job.dependencies_key = mock.Mock(), "k", "d", "p"
+
+		def delete():
+			raise ValueError("Execution e1 not found in Redis")
+		job.delete = delete
+		outcome, enqueue, _state = self.run_resume(job)
+		self.assertEqual(outcome, jobs.RESUMED)
+		job.connection.delete.assert_called_once_with("k", "d", "p")
+		enqueue.assert_called_once()
+
+	def test_a_resume_that_fails_lets_the_next_scan_try_again(self):
+		job = FakeJob()
+		with mock.patch.object(jobs, "_delete_job", side_effect=RuntimeError("redis hiccup")):
+			with self.assertRaises(RuntimeError):
+				self.run_resume(job)
+		self.conn.delete.assert_called_with("cowork-recon-resume:s:J1")
 
 	def test_a_real_failure_or_a_timeout_is_not_resumed(self):
 		for exc in ("Traceback ... ValidationError", "JobTimeoutException: Task exceeded maximum timeout value"):

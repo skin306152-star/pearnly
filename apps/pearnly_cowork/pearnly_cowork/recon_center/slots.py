@@ -5,6 +5,9 @@
 记进本站点的排队表、原样存好参数就结束，页面照旧显示「排队中」。任何一套结束（成功、失败都算）就按先来后到放下一套进来；
 定时任务再补一次位，并把占着名额却已经不在跑的（被杀、超时）清掉。识别本身另有按租户的公平名额（共用层 budget）。
 
+名额只管「在跑」：对账等识别时交还进程（``waiting``），也让出名额；识别有结论、放回队列接着跑时再拿名额。先来后到按这套对账
+第一次拿名额的时间排，接着跑的不排到后来交的后面。
+
 名额与排队表放在队列 Redis 里（和续跑锁同一处），按站点分开；只作调度，丢了最多是排队的对账晚一点被放进来
 （定时任务补位、页面照旧显示排队中）。
 """
@@ -28,6 +31,43 @@ def _keys():
     site = frappe.local.site
     return (f"cowork-recon-running:{site}", f"cowork-recon-waiting:{site}", f"cowork-recon-args:{site}:",
             f"cowork-recon-slots-lock:{site}")
+
+
+def _since_key(recon_job):
+    return f"cowork-recon-since:{frappe.local.site}:{recon_job}"
+
+
+def _since(conn, recon_job):
+    """这套对账第一次来拿名额的时间（排队先后按它）。"""
+    conn.set(_since_key(recon_job), time.time(), nx=True, ex=ARGS_TTL)
+    value = conn.get(_since_key(recon_job))
+    try:
+        return float(value.decode() if isinstance(value, bytes) else value)
+    except (TypeError, ValueError):
+        return time.time()
+
+
+def _saved(raw):
+    """排队表里存的：``{"arguments", "user"}``；部署前存的只有参数（发起人不知道，按原来的做法排）。"""
+    value = json.loads(raw)
+    return value if isinstance(value, dict) and "arguments" in value else {"arguments": value, "user": None}
+
+
+def held(recon_job):
+    """排在本站点排队表里的这套对账（参数、发起人）；没有回 None。"""
+    try:
+        raw = _conn().get(_keys()[2] + recon_job)
+    except Exception:
+        return None
+    return _saved(raw) if raw else None
+
+
+def forget(recon_job):
+    """这套对账结束了：先后顺序的记录不要了（只作清理，两天后自行过期）。"""
+    try:
+        _conn().delete(_since_key(recon_job))
+    except Exception:
+        pass
 
 
 def max_running():
@@ -56,11 +96,12 @@ def acquire(recon_job, arguments):
         if conn.zscore(running, recon_job) is not None:
             return True
         if conn.zcard(running) < max_running():
+            _since(conn, recon_job)
             conn.zadd(running, {recon_job: time.time()})
             conn.zrem(waiting, recon_job)
             return True
-        conn.set(args + recon_job, json.dumps(arguments), ex=ARGS_TTL)
-        conn.zadd(waiting, {recon_job: time.time()}, nx=True)  # 先来后到：重复排队不改位置
+        conn.set(args + recon_job, json.dumps({"arguments": arguments, "user": frappe.session.user}), ex=ARGS_TTL)
+        conn.zadd(waiting, {recon_job: _since(conn, recon_job)}, nx=True)  # 先来后到：重复排队不改位置
         return False
     except Exception:
         return True
@@ -100,19 +141,23 @@ def promote():
             if not saved:
                 continue  # 参数过期了：没人在等了，跳过
             conn.zadd(running, {recon_job: time.time()})
-            started.append((recon_job, json.loads(saved)))
-    for recon_job, arguments in started:
+            started.append((recon_job, _saved(saved)))
+    for recon_job, saved in started:
         try:
-            jobs.requeue(recon_job, arguments)
-            conn.delete(args + recon_job)
+            # 刚排进队的那一轮可能还没结束（排进队与这里放行几乎同时）：同一个任务号不能在它还在跑时重排，下一次补位再放。
+            alive = jobs.job_alive(recon_job)
+            if not alive:
+                jobs.requeue(recon_job, saved["arguments"], user=saved["user"])
+                conn.delete(args + recon_job)
+                continue
         except Exception:
-            conn.zrem(running, recon_job)
-            conn.zadd(waiting, {recon_job: time.time()}, nx=True)
             frappe.log_error(title="cowork recon slots", message=frappe.get_traceback())
+        conn.zrem(running, recon_job)
+        conn.zadd(waiting, {recon_job: _since(conn, recon_job)}, nx=True)
 
 
 def tick():
-    """定时（每 5 分钟）：占着名额却已经不在跑的（被杀、超时、结束时没来得及让出）清掉，再补位。"""
+    """定时（每分钟）：占着名额却已经不在跑的（被杀、超时、结束时没来得及让出）清掉，再补位。"""
     from frappe.utils.background_jobs import get_job
 
     running, _waiting, _args, lock = _keys()

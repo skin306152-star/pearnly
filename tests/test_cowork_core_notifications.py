@@ -27,8 +27,8 @@ class CoreNotificationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         tree = ast.parse(WORK.read_text())
-        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in ("_notify", "_finish")]
-        if len(nodes) != 2:
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in ("_notify", "_finish", "_finished")]
+        if len(nodes) != 3:
             raise AssertionError("Expected real Core notification and terminal functions")
         cls.code = compile(ast.Module(body=nodes, type_ignores=[]), str(WORK), "exec")
         hooks = ast.parse((DMS / "hooks.py").read_text())
@@ -116,6 +116,31 @@ class CoreNotificationTests(unittest.TestCase):
 
     def test_uncertain_without_hook_still_removes_inputs_and_both_slots(self):
         self.assert_terminal_cleanup("uncertain")
+
+    def test_products_hear_every_outcome_last_after_the_slot_is_back(self):
+        # 产品登记的「有结论」钩子（Cowork 对账等识别时不占进程，2026-10-01）：状态落库、名额交还之后才调，按类别。
+        row = self.frappe.db.get_value
+        self.frappe.db.get_value = lambda *a, **kw: "cowork.vat_check" if a[2] == "kind" else row(*a, **kw)
+        self.hooks = {"cowork.vat_check": ["product.finished"]}
+        self.frappe.get_attr = lambda path: lambda **kw: self.calls.append(("finished", path, kw))
+        for status in ("succeeded", "cancelled"):
+            self.calls.clear()
+            self.env["_finish"]("work", status, "code")
+            self.assertEqual(self.calls[-1], ("finished", "product.finished",
+                                              {"name": "work", "kind": "cowork.vat_check", "status": status,
+                                               "code": "code"}))
+        self.assertLess(max(i for i, call in enumerate(self.calls) if call[0] == "status"), len(self.calls) - 1)
+
+    def test_a_failing_product_hook_does_not_escape(self):
+        row = self.frappe.db.get_value
+        self.frappe.db.get_value = lambda *a, **kw: "cowork.vat_check" if a[2] == "kind" else row(*a, **kw)
+        self.hooks = {"cowork.vat_check": ["product.finished"]}
+
+        def fail(**kwargs):
+            raise FakeError("synthetic")
+        self.frappe.get_attr = lambda path: fail
+        self.env["_finish"]("work", "succeeded", "")
+        self.assertEqual(self.calls[-1], ("diagnostic", "OCR finished hook failed"))
 
 
 if __name__ == "__main__":

@@ -31,12 +31,15 @@ offline() {
     pearnly_control.account.test_member_service pearnly_core.account.test_line_login pearnly_core.ocr_models.test_orient pearnly_core.execution.test_job_language \
     pearnly_core.execution.test_pool pearnly_core.execution.test_recycle pearnly_core.execution.test_provider_wait \
     pearnly_core.execution.test_vertex_overflow pearnly_core.execution.test_admission pearnly_core.execution.test_pages \
+    pearnly_core.execution.test_call_progress \
     pearnly_core.account.test_native_account_password
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-session-reuse.py scripts/test-dms-first-read.py scripts/test-dms-id-card-reads.py scripts/test-session-lock.py scripts/test-dms-line-language.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \
                 tests/test_cowork_no_company_scope.py tests/test_cowork_line_intake.py \
                 tests/test_cowork_remote_ocr.py tests/test_cowork_remote_forward.py \
-                tests/test_cowork_recon_scanned_docs.py tests/test_cowork_recon_progress.py; do
+                tests/test_cowork_recon_scanned_docs.py tests/test_cowork_recon_progress.py \
+                tests/test_cowork_recon_waiting.py tests/test_cowork_recon_slots.py tests/test_cowork_recon_resume.py \
+                tests/test_cowork_core_notifications.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }

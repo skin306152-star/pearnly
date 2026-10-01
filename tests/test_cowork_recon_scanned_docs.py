@@ -1250,7 +1250,9 @@ class WaitingForRoomInTheQueue(unittest.TestCase):
 				raise value
 			return value
 
-		with mock.patch.object(admission.frappe, "db", mock.MagicMock()), mock.patch.object(admission.time, "sleep") as sleep:
+		from pearnly_cowork.recon_center import waiting
+
+		with mock.patch.object(admission.frappe, "db", mock.MagicMock()), mock.patch.object(waiting.time, "sleep") as sleep:
 			self.assertEqual(admission.when_room(create), "W1")
 		self.assertEqual(sleep.call_count, 2)
 
@@ -1261,7 +1263,9 @@ class WaitingForRoomInTheQueue(unittest.TestCase):
 		def create():
 			raise QueueFull("full")
 
-		with mock.patch.object(admission.frappe, "db", mock.MagicMock()), mock.patch.object(admission.time, "sleep"):
+		from pearnly_cowork.recon_center import waiting
+
+		with mock.patch.object(admission.frappe, "db", mock.MagicMock()), mock.patch.object(waiting.time, "sleep"):
 			with self.assertRaises(QueueFull):
 				admission.when_room(create, deadline=0)
 
@@ -1345,27 +1349,46 @@ class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 		charge.assert_not_called()
 
 
+def checkpoint_clock(clock, checkpoints_at, per_work=False):
+	"""替身 ``work.call_progress``：按假时钟记下每个检查点第一次出现的时刻（共用层按检查点行的建立 / 修改时间算）。
+	``per_work``：检查点键是 ``Work 名:序号``，按 Work 分开算。"""
+	seen = {}
+
+	def calls(names):
+		now = clock[0]
+		for key, value in checkpoints_at(now).items():
+			if (value or {}).get("state") == "done":
+				seen.setdefault(key, now)
+		out = {}
+		for name in names:
+			times = [at for key, at in seen.items() if not per_work or key.split(":")[0] == name]
+			out[name] = {"done": len(times), "since_first": now - min(times) if times else None,
+						 "since_done": now - max(times) if times else None}
+		return out
+	return calls
+
+
 class WaitingForARead(unittest.TestCase):
 	def run_wait(self, status_at, checkpoints_at):
-		"""``status_at(秒)`` / ``checkpoints_at(秒)``：那一刻识别任务的状态 / 检查点；时钟随每次 sleep 前进。"""
+		"""``status_at(秒)`` / ``checkpoints_at(秒)``：那一刻识别任务的状态 / 检查点；时钟随每次 sleep 前进。
+		不在对账后台任务里（没有 ``waiting.parking``）：原地每 3 秒看一次，与原来同一套时限。"""
+		from pearnly_cowork.recon_center import waiting
+
 		clock = [0.0]
+		calls = checkpoint_clock(clock, checkpoints_at)
 
 		def get_value(doctype, name, fields, as_dict=False):
 			return status_at(clock[0])
-
-		def done(names):  # 检查点按行存：共用层按行计数（work.done_calls）
-			return {name: sum(1 for value in checkpoints_at(clock[0]).values() if value.get("state") == "done")
-				for name in names}
 
 		def sleep(seconds):
 			clock[0] += seconds
 
 		with mock.patch.object(document_ocr.frappe, "db", mock.MagicMock(get_value=get_value)), \
-				mock.patch.object(document_ocr.core_work, "done_calls", side_effect=done), \
+				mock.patch.object(document_ocr.core_work, "call_progress", side_effect=calls), \
 				mock.patch.object(document_ocr.core_work, "saved_checkpoint",
 					side_effect=lambda name, key: checkpoints_at(clock[0]).get(key)), \
-				mock.patch.object(document_ocr.time, "monotonic", side_effect=lambda: clock[0]), \
-				mock.patch.object(document_ocr.time, "sleep", side_effect=sleep), \
+				mock.patch.object(waiting.time, "time", side_effect=lambda: clock[0]), \
+				mock.patch.object(waiting.time, "sleep", side_effect=sleep), \
 				mock.patch.object(document_ocr, "_", lambda text: text), \
 				mock.patch.object(document_ocr.frappe, "throw", side_effect=RuntimeError):
 			return document_ocr.wait("W1"), clock[0]
@@ -1443,13 +1466,18 @@ class WaitingForInvoices(unittest.TestCase):
 		def sleep(seconds):
 			clock[0] += seconds
 
+		from pearnly_cowork.recon_center import waiting
+
+		# 做完的调用数 → 第几次调用何时开始 / 做完（检查点行的时间）
+		calls = checkpoint_clock(clock, lambda now: {f"{name}:{index}": {"state": "done"}
+			for name, (_status, done, _found) in states(now).items() for index in range(done)}, per_work=True)
+
 		with mock.patch.object(invoice_ocr.frappe, "get_all", side_effect=get_all), \
-				mock.patch.object(invoice_ocr.core_work, "done_calls",
-					side_effect=lambda names: {name: states(clock[0])[name][1] for name in names}), \
+				mock.patch.object(invoice_ocr.core_work, "call_progress", side_effect=calls), \
 				mock.patch.object(invoice_ocr.core_work, "saved_checkpoint", side_effect=saved), \
 				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock()), \
-				mock.patch.object(invoice_ocr.time, "monotonic", side_effect=lambda: clock[0]), \
-				mock.patch.object(invoice_ocr.time, "sleep", side_effect=sleep), \
+				mock.patch.object(waiting.time, "time", side_effect=lambda: clock[0]), \
+				mock.patch.object(waiting.time, "sleep", side_effect=sleep), \
 				mock.patch.object(invoice_ocr, "_", lambda text: text), \
 				mock.patch.object(invoice_ocr.frappe, "throw", side_effect=RuntimeError):
 			return invoice_ocr.wait([("W1", "a.pdf"), ("W2", "b.pdf")]), clock[0]
@@ -1488,7 +1516,7 @@ class WaitingForInvoices(unittest.TestCase):
 		(invoices, failed, stopped), seconds = self.run_wait(states)
 		self.assertEqual((len(invoices), failed, stopped), (1, ["b.pdf"], 1))
 		self.assertGreater(seconds, invoice_ocr.READ_LIMIT)
-		self.assertLess(seconds, invoice_ocr.READ_LIMIT + 2 * invoice_ocr.PROGRESS_CHECK_SECONDS)
+		self.assertLess(seconds, invoice_ocr.READ_LIMIT + 2 * invoice_ocr.PROGRESS_CHECK_SECONDS)  # 到时限就停，不多等
 
 	def test_nothing_read_at_all_still_reports_the_timeout(self):
 		with self.assertRaises(RuntimeError):

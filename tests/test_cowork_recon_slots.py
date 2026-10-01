@@ -53,8 +53,11 @@ class FakeRedis:
         members = [member.encode() for member, _score in ordered]
         return members[start:] if end == -1 else members[start:end + 1]
 
-    def set(self, key, value, ex=None):
+    def set(self, key, value, ex=None, nx=False):
+        if nx and key in self.values:
+            return False
         self.values[key] = value
+        return True
 
     def get(self, key):
         return self.values.get(key)
@@ -71,9 +74,11 @@ class Slots(unittest.TestCase):
         patches = [
             mock.patch.object(slots, "_conn", return_value=self.redis),
             mock.patch.object(slots.frappe, "local", SimpleNamespace(site="t.example"), create=True),
+            mock.patch.object(slots.frappe, "session", SimpleNamespace(user="u@example.com"), create=True),
             mock.patch.object(slots.frappe, "conf", {"pearnly_recon_max_running": 2}, create=True),
             mock.patch.object(slots.time, "time", side_effect=lambda: next(clock)),
-            mock.patch.object(jobs, "requeue", side_effect=lambda job, args: self.requeued.append((job, args))),
+            mock.patch.object(jobs, "requeue",
+                              side_effect=lambda job, args, user=None: self.requeued.append((job, args))),
             mock.patch("frappe.utils.background_jobs.get_job",
                        side_effect=lambda job_id: SimpleNamespace(get_status=lambda refresh=False: self.statuses[job_id])
                        if job_id in self.statuses else None),

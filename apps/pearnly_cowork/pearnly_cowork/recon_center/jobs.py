@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.recon_center import progress, rerun, slots
+from pearnly_cowork.recon_center import progress, rerun, slots, waiting
 from pearnly_cowork.reconciliation import bank_recon_access, bank_recon_service, income_recon_access
 from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 
@@ -33,6 +33,9 @@ TTL = 24 * 3600
 # 排队时间另算（document_ocr.QUEUE_LIMIT 90 分钟，之后才起算读取的 50 分钟）：后台任务时限给到三小时。
 # 销项核查多给两小时：发票排队最多 90 分钟、开始读后最多 150 分钟（invoice_ocr，2026-09-30 压测 rQ）。
 TIMEOUTS = {"vat": 5 * 3600, "bank": 3 * 3600, "income": 3 * 3600}
+# 页面上的阶段先后（三种对账各走其中几步）：等识别的对账每轮从头跑，阶段只往前走。
+STAGES = {"queued": 0, "reading": 1, "statement": 2, "ledger": 3, "report": 4, "invoice": 5, "matching": 6,
+          "saving": 7, "done": 8}
 
 
 def _key(job_id):
@@ -180,8 +183,9 @@ def _superseded(kind, files, job_id):
     return bool(latest) and latest != job_id
 MAX_RESUMES = 1
 RESUME_WINDOW_HOURS = 6
-# 跑它的进程没了才算被杀：worker 没了被判弃置（部署、重启），或者干活的子进程被系统杀掉（OOM）。
-KILLED = ("AbandonedJobError", "Work-horse terminated unexpectedly")
+# 跑它的进程没了才算被杀：worker 没了被判弃置（部署、重启），或者干活的子进程被系统杀掉（OOM），或者 worker 刚从队列
+# 取出、还没登记开跑就被杀（RQ 2.6 维护时判「卡在中间队列」；2026-10-01 测试机强杀 long worker 实测）。
+KILLED = ("AbandonedJobError", "Work-horse terminated unexpectedly", "stuck in intermediate queue")
 
 
 def resume_if_abandoned(job_id, owner=None):
@@ -198,37 +202,76 @@ def resume_if_abandoned(job_id, owner=None):
     if not user or values.get("recon_job") != job_id or (owner is not None and owner != user):
         return None
     # 同一份只让一个人续（页面问状态、识别任务、定时扫描可能同时发现）
-    if not get_redis_conn().set(f"cowork-recon-resume:{frappe.local.site}:{job_id}", 1, nx=True, ex=3600):
+    claim = f"cowork-recon-resume:{frappe.local.site}:{job_id}"
+    if not get_redis_conn().set(claim, 1, nx=True, ex=3600):
         return None
     previous, language = frappe.session.user, getattr(frappe.local, "lang", None)
     try:
-        frappe.set_user(user)
-        if _recovered(job_id, finished_only=True):
-            return None
-        options = json.loads(values.get("options") or "{}")
-        files = values.get("files") or {}
-        if options.get("lang") in ("th", "zh", "en", "ja"):
-            frappe.local.lang = options["lang"]  # 「中途中断 / 被取代」按提交时的语言写（压测 rK：写成了英文）
-        if _superseded(values.get("kind"), files, job_id):
-            # 本人后来交过同内容的对账：旧的这份不续，说清楚被取代了（比「中途中断」准确）
-            _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
-                   state="failed", stage="failed", task=None, error=_("reconciliation.superseded"))
-            progress.active_remove(user, job_id)
-            return SUPERSEDED
-        present = all(frappe.db.exists("File", file) for side in ("left", "right") for file in files.get(side) or [])
-        if int(options.get("resumed") or 0) >= MAX_RESUMES or not present:
-            _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
-                   state="failed", stage="failed", task=None, error=_("reconciliation.interrupted"))
-            progress.active_remove(user, job_id)
-            return INTERRUPTED
-        job.delete()  # 失败队列里那一份删掉，同一个任务号重新入队
-        enqueue(job_id, values.get("kind"), values.get("workspace"), values.get("title") or "", files,
-                {**options, "resumed": int(options.get("resumed") or 0) + 1})
-        frappe.db.commit()
-        return RESUMED
+        return _resume(job, job_id, values, user)
+    except Exception:
+        get_redis_conn().delete(claim)  # 这次没续上：放开，下一次扫描再试（不能占着一小时让对账一直卡在进行中）
+        raise
     finally:
         frappe.set_user(previous)
         frappe.local.lang = language
+
+
+def _resume(job, job_id, values, user):
+    """续跑本身（已认领、已切到发起人身份）。"""
+    frappe.set_user(user)
+    if _recovered(job_id, finished_only=True):
+        return None
+    options = json.loads(values.get("options") or "{}")
+    files = values.get("files") or {}
+    if options.get("lang") in ("th", "zh", "en", "ja"):
+        frappe.local.lang = options["lang"]  # 「中途中断 / 被取代」按提交时的语言写（压测 rK：写成了英文）
+    if _superseded(values.get("kind"), files, job_id):
+        # 本人后来交过同内容的对账：旧的这份不续，说清楚被取代了（比「中途中断」准确）
+        _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
+               state="failed", stage="failed", task=None, error=_("reconciliation.superseded"))
+        progress.active_remove(user, job_id)
+        return SUPERSEDED
+    present = all(frappe.db.exists("File", file) for side in ("left", "right") for file in files.get(side) or [])
+    if int(options.get("resumed") or 0) >= MAX_RESUMES or not present:
+        _state(job_id, user=user, kind=values.get("kind"), title=str(values.get("title") or "")[:140],
+               state="failed", stage="failed", task=None, error=_("reconciliation.interrupted"))
+        progress.active_remove(user, job_id)
+        return INTERRUPTED
+    # 与「等识别的对账放回队列」（waiting.wake）同一把锁、锁里再看一次：只有一方把它放回队列。
+    with waiting.lock(job_id):
+        if not _job_failed(job_id):
+            return None
+        waiting.drop(job_id)  # 被杀的那一轮刚记下的等待不要了：续跑从头来，到时再记
+        _delete_job(job)  # 失败队列里那一份删掉，同一个任务号重新入队
+        enqueue(job_id, values.get("kind"), values.get("workspace"), values.get("title") or "", files,
+                {**options, "resumed": int(options.get("resumed") or 0) + 1})
+    frappe.db.commit()
+    return RESUMED
+
+
+def _delete_job(job):
+    """删掉上一份后台任务（同一个任务号要重新排）。RQ 2.6：被强杀的任务执行记录已不在，``delete`` 清执行记录时报
+    「Execution … not found」——它已先把任务移出各登记表，这里把任务本身删掉即可（2026-10-01 测试机强杀 long worker：
+    原来续跑在这一步出错，续跑锁又占着一小时，对账一直卡在进行中）。"""
+    try:
+        job.delete()
+    except ValueError:
+        job.connection.delete(job.key, job.dependents_key, job.dependencies_key)
+
+
+def _job_failed(job_id):
+    from frappe.utils.background_jobs import get_job
+
+    job = get_job(f"cowork-recon-{job_id}")
+    return bool(job) and job.get_status(refresh=False) == "failed"
+
+
+def job_alive(recon_job):
+    """这套对账有排着队 / 在跑的后台任务。"""
+    from frappe.utils.background_jobs import get_job
+
+    job = get_job(f"cowork-recon-{recon_job}")
+    return bool(job) and job.get_status(refresh=False) in waiting.ALIVE
 
 
 def resume_abandoned():
@@ -269,6 +312,15 @@ def _recovered(job_id, finished_only=False):
             return {"kind": kind, "state": "done", "stage": "done", "task": name, "error": None}
     if finished_only:
         return None
+    # 在等识别（后台任务这一轮已结束、交还了进程）或在本站点的排队表里：照旧是进行中 / 排队中（只认本人发起的）。
+    parked = waiting.record(job_id)
+    if parked and parked.get("user") == frappe.session.user:
+        return {"kind": (parked.get("arguments") or {}).get("kind"), "state": "running", "stage": "reading",
+                "task": None, "error": None}
+    held = slots.held(job_id)
+    if held and held.get("user") == frappe.session.user:
+        return {"kind": (held.get("arguments") or {}).get("kind"), "state": "queued", "stage": "queued", "task": None,
+                "error": None}
     from frappe.utils.background_jobs import get_job
 
     job = get_job(f"cowork-recon-{job_id}")
@@ -311,27 +363,58 @@ def _read(names):
     return [storage.read(name) for name in names]
 
 
-def requeue(recon_job, arguments):
-    """排队的对账被放进来（``slots.promote``）：同一个任务号原参数重新排后台任务（上一次只是排进队就结束了）。"""
+def requeue(recon_job, arguments, user=None):
+    """排队的对账被放进来（``slots.promote``）、等的识别有了结论（``waiting.wake``）：同一个任务号原参数重新排后台任务
+    （上一次排进队或交出识别就结束了）。按发起人排（后台任务以排队时的会话用户运行）：放它进来的可能是同站点别人的对账
+    结束时、或者定时任务，不能让它以别人的身份跑——结果、文件、任务名都按发起人。"""
     from frappe.utils.background_jobs import get_job
 
     previous = get_job(f"cowork-recon-{recon_job}")
     if previous:
-        previous.delete()
-    frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long",
-                   timeout=TIMEOUTS.get(arguments.get("kind"), 1800), job_id=f"cowork-recon-{recon_job}",
-                   enqueue_after_commit=False, **arguments)
+        _delete_job(previous)
+    current = frappe.session.user
+    if user and user != current:
+        frappe.set_user(user)
+    try:
+        frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long",
+                       timeout=TIMEOUTS.get(arguments.get("kind"), 1800), job_id=f"cowork-recon-{recon_job}",
+                       enqueue_after_commit=False, **arguments)
+    finally:
+        if user and user != current:
+            frappe.set_user(current)
 
 
 def run(recon_job, kind, workspace, title, files, options="{}"):
     # 按租户限流（``slots``）：本站点在跑的对账满了就排进队、这次不占进程，前面的一结束就放进来（页面照旧显示排队中）。
-    if not slots.acquire(recon_job, {"recon_job": recon_job, "kind": kind, "workspace": workspace, "title": title,
-                                     "files": files, "options": options}):
+    arguments = {"recon_job": recon_job, "kind": kind, "workspace": workspace, "title": title, "files": files,
+                 "options": options}
+    if not slots.acquire(recon_job, arguments):
         return
     try:
-        _run(recon_job, kind, workspace, title, files, options)
+        while True:
+            try:
+                # 等识别时不占进程（``waiting``）：要等就记下、结束这一轮、让出名额；识别有结论再按原参数放回队列接着跑。
+                with waiting.parking(recon_job):
+                    _run(recon_job, kind, workspace, title, files, options)
+            except waiting.Pending as pending:
+                outcome = waiting.park(recon_job, arguments, pending)
+                if outcome == "parked":
+                    return
+                if outcome == "failed":
+                    waiting.pause()
+                continue  # 等的识别刚好有了结论（或记不下等待）：同一个进程接着跑下一轮
+            waiting.finish(recon_job)
+            return
     finally:
         slots.release(recon_job)
+
+
+def _shown_stage(recon_job):
+    """页面现在显示的阶段；状态缓存读不到就当没有（只作展示）。"""
+    try:
+        return (frappe.cache.get_value(_key(recon_job)) or {}).get("stage")
+    except Exception:
+        return None
 
 
 def _run(recon_job, kind, workspace, title, files, options="{}"):
@@ -349,12 +432,15 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
         # 核对前看一眼：同一个人又交了同内容的对账（续跑与重交同时在跑），只让最新那份出结果（压测窗口 2026-09-30）
         if name == "matching" and _superseded(kind, files, recon_job):
             raise Superseded(frappe._("reconciliation.superseded"))
-        _state(recon_job, state="running", stage=name)
+        # 等识别的对账每轮从头跑：页面上的阶段只往前走，不在接着跑时闪回「读取中」。
+        shown = _shown_stage(recon_job)
+        _state(recon_job, state="running", stage=name if STAGES.get(name, 0) >= STAGES.get(shown, 0) else shown)
     # 答了预设问题后的重跑（``rerun.start``）：识别结果按原对账号取（不再识别、不再扣费），结果替换原来那份；
     # 重跑失败时原文件留着（原来那份结果也还在），可以再答一次。
     ocr_job = options.get("ocr_job") or recon_job
     replace_task = str(options.get("replace_task") or "")
     keep_files = bool(replace_task)
+    parked = False
     try:
         if not (frappe.cache.get_value(_key(recon_job)) or {}).get("files"):
             # 排队时状态缓存被清掉了（部署 / 重载清缓存）：开跑时按任务参数补回来，看板和「进行中」才看得到文件与标题
@@ -455,6 +541,11 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
         keep_files = bool(pending)
         _state(recon_job, state="done", stage="done", task=result["name"])
         _announce(recon_job, kind, title, task=result["name"])
+    except waiting.Pending:
+        # 要等识别：这一轮到此为止。交出的识别已各自落库；进行中清单、源文件都留着，下一轮接着用。
+        parked = True
+        frappe.db.commit()
+        raise
     except Superseded as error:
         # 已由本人后来的同内容提交取代：不出结果、不弹「对账未完成」（那一份会自己弹完成）
         frappe.db.rollback()
@@ -472,18 +563,24 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
         _announce(recon_job, kind, title, error=frappe.utils.strip_html(message)[:500])
     finally:
+        if not parked:
+            _cleanup(recon_job, files, keep_files)
+
+
+def _cleanup(recon_job, files, keep_files):
+    """这套对账结束了：从「进行中」清单拿掉，删掉它存的源文件（答预设问题要用的留着）。"""
+    try:
+        progress.active_remove(frappe.session.user, recon_job)
+    except Exception:
+        pass  # 看板用的「进行中」清单只作展示
+    # 一份一提交：删除时的文件保护检查会锁住查到的来源行，二十张照片放在一个事务里删，并发的另一个对账
+    # 就会等锁超时（2026-09-29 压测）。结果已提交，清理失败只记日志、不把任务改成失败；没删掉的临时文件
+    # 是本人私有、不挂单据，按日志里的文件名处理。
+    for name in [] if keep_files else files["left"] + files["right"]:
         try:
-            progress.active_remove(frappe.session.user, recon_job)
+            if frappe.db.exists("File", name):
+                frappe.delete_doc("File", name, ignore_permissions=True, force=True)
+            frappe.db.commit()
         except Exception:
-            pass  # 看板用的「进行中」清单只作展示
-        # 一份一提交：删除时的文件保护检查会锁住查到的来源行，二十张照片放在一个事务里删，并发的另一个对账
-        # 就会等锁超时（2026-09-29 压测）。结果已提交，清理失败只记日志、不把任务改成失败；没删掉的临时文件
-        # 是本人私有、不挂单据，按日志里的文件名处理。
-        for name in [] if keep_files else files["left"] + files["right"]:
-            try:
-                if frappe.db.exists("File", name):
-                    frappe.delete_doc("File", name, ignore_permissions=True, force=True)
-                frappe.db.commit()
-            except Exception:
-                frappe.db.rollback()
-                frappe.log_error(title="cowork reconciliation cleanup", message=frappe.get_traceback())
+            frappe.db.rollback()
+            frappe.log_error(title="cowork reconciliation cleanup", message=frappe.get_traceback())

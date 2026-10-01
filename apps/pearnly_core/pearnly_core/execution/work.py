@@ -37,6 +37,11 @@ def handler(kind):
     return paths[-1] if isinstance(paths, list) else paths
 
 
+def name_for(kind, reference):
+    """一份识别任务的名字：由类别和参考号算出（同一参考号就是同一份）。产品据此直接查有没有，不必按参考号扫表。"""
+    return hashlib.sha256((kind + "\0" + reference).encode()).hexdigest()
+
+
 def submit(kind, reference, arguments, user):
     try:
         return _submit(kind, reference, arguments, user)
@@ -53,7 +58,7 @@ def _submit(kind, reference, arguments, user):
     encoded = json.dumps(arguments, sort_keys=True, ensure_ascii=False)
     if len(encoded.encode()) > 32768:
         raise ValueError("Queue payload must contain references, not document bytes")
-    name = hashlib.sha256((kind + "\0" + reference).encode()).hexdigest()
+    name = name_for(kind, reference)
     cfg, client = budget.config(), budget.redis()
     admission = budget.PREFIX + "pending"
     tenant_pending = admission + ":" + budget.tenant()
@@ -191,6 +196,8 @@ def _finish(name, status, code="", delay=0, notify=True):
             client.zrem(budget.PREFIX + "pending:" + budget.tenant(), member)
         except (RedisError, Deferred):
             pass  # Admission reservation expires conservatively.
+    # 最后才告诉产品：名额已还、状态已落库，产品接着排的事看得到腾出来的名额。
+    _finished(name, status, code)
 
 
 def job_language(user):
@@ -377,6 +384,41 @@ def _notify(name, code):
             frappe.get_attr(path)(arguments=json.loads(row.arguments), code=code)
         except Exception:
             frappe.logger("pearnly.capacity").exception("OCR terminal notification failed")
+
+
+def _finished(name, status, code):
+    """状态已落库：告诉登记了这一类的产品（hooks ``pearnly_ocr_finished_handlers``，按类别）。产品据此接着做等这份结果的事
+    （Cowork 对账等识别时不占进程，识别有结论就把对账放回队列；2026-10-01）。只作提醒：产品出错只记日志，不影响状态。"""
+    try:
+        # 没有任何产品登记时 Frappe 给的是 []，不是 {}。
+        handlers = frappe.get_hooks("pearnly_ocr_finished_handlers") or {}
+        kind = frappe.db.get_value(DT, name, "kind") if handlers else None
+        paths = (handlers.get(kind) or []) if kind else []
+    except Exception:
+        frappe.logger("pearnly.capacity").exception("OCR finished hook lookup failed")
+        return
+    for path in paths:
+        try:
+            frappe.get_attr(path)(name=name, kind=kind, status=status, code=code)
+        except Exception:
+            frappe.logger("pearnly.capacity").exception("OCR finished hook failed")
+
+
+def call_progress(names):
+    """每份 Work 调用的进度 ``{name: {"done": 完成的调用数, "since_first": 第一次调用开始至今几秒, "since_done": 最近一次
+    调用完成至今几秒}}``（没有就是 None）。按检查点行的建立 / 修改时间算，在数据库里算差值（与写入同一个时钟、同一时区）：
+    等结果的一方不必守在旁边每分钟数一次，隔多久来看都知道「开始读了多久、多久没有新进展」。部署前的旧格式只计数。"""
+    names = tuple(dict.fromkeys(names or ()))
+    if not names:
+        return {}
+    counts = done_calls(names)
+    out = {name: {"done": counts.get(name, 0), "since_first": None, "since_done": None} for name in names}
+    for work, first, last in frappe.db.sql(f"""SELECT work, TIMESTAMPDIFF(SECOND, MIN(creation), %(now)s),
+            TIMESTAMPDIFF(SECOND, MAX(CASE WHEN state='done' THEN modified END), %(now)s)
+            FROM `tab{CP}` WHERE work IN %(names)s GROUP BY work""", {"names": names, "now": frappe.utils.now()}):
+        out[work].update(since_first=None if first is None else max(0, int(first)),
+                         since_done=None if last is None else max(0, int(last)))
+    return out
 
 
 def prune_checkpoints():

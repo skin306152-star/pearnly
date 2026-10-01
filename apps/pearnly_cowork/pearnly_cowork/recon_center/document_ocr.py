@@ -26,7 +26,7 @@ from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, QueueFull
 
 from pearnly_cowork.files.service import inspect_content
-from pearnly_cowork.recon_center import progress
+from pearnly_cowork.recon_center import progress, waiting
 from pearnly_cowork.ocr import recon_reading
 from pearnly_cowork.ocr.remote import forward
 from pearnly_cowork.ocr.engine.errors import ContentError
@@ -54,7 +54,6 @@ WAIT_LIMIT = 50 * 60
 # 还在排队、一次调用都没做（前面排着别家的大批照片）的时间不算进上面两个时限，另算：最多排这么久
 # （2026-09-30 压测 rH B08-01：2 页的 PDF 排在近 100 张照片后面，25 分钟到了还没开始读，整套失败）。
 QUEUE_LIMIT = 90 * 60
-POLL_SECONDS = 3
 IDENTITY = ("backend", "project", "location", "credentials_path")
 
 
@@ -62,9 +61,17 @@ IDENTITY = ("backend", "project", "location", "credentials_path")
 
 
 def submit(recon_job, side, file_name, filename, content, document_type, user):
-    """建一个识别任务；文件不是 PDF / 图片返回 None。余额不足直接提示（不排一个注定顺延的任务）。"""
+    """建一个识别任务；文件不是 PDF / 图片返回 None。余额不足直接提示（不排一个注定顺延的任务）。
+
+    这份已经交过（等识别的对账每轮从头跑、被杀续跑、预先提交过的照片）就直接用那一份：不再查余额（读完扣过费的余额
+    不能拿来再判一次）、不再按当前设置重新冻结（设置变了会被当成「同一参考号换了内容」拒掉）。"""
     if document_type not in enterprise.CATEGORIES:
         return None
+    reference = f"{recon_job}:{side}:{document_type}"
+    existing = core_work.name_for(KIND, reference)
+    if frappe.db.exists(WORK, existing):
+        _progress(file_name, work=existing)
+        return existing
     try:
         info = inspect_content(filename, content)
     except frappe.ValidationError:
@@ -81,8 +88,8 @@ def submit(recon_job, side, file_name, filename, content, document_type, user):
 
         def create():
             with work_guard.work_creation():
-                return core_work.submit(KIND, f"{recon_job}:{side}:{document_type}", arguments, user)
-        name = admission.when_room(create)
+                return core_work.submit(KIND, reference, arguments, user)
+        name = admission.when_room(create, key=reference)
         _progress(file_name, work=name)
         return name
     except (Deferred, QueueFull) as error:
@@ -99,41 +106,44 @@ FINISHING_GRACE_SECONDS = 120
 
 
 def wait(name):
-    """等这一份读完：成功回旧线上管线的结果形状（``pages`` + ``_needs_review``），读不出回 None。"""
-    entered = started = time.monotonic()
-    deadline = started + WAIT_SECONDS
-    extended = False
-    done, progressed, checked = -1, started, 0.0
-    waiting_in_queue = True
-    while True:
+    """等这一份读完：成功回旧线上管线的结果形状（``pages`` + ``_needs_review``），读不出回 None。
+
+    还没读完时不在这里守着（``waiting``）：对账后台任务这一轮先结束、交还进程，识别有结论或到了时限再接着跑；时限照旧：
+    排队的时间不算（最多 ``QUEUE_LIMIT``），开始读后 ``WAIT_SECONDS``，到时已读完只差收尾再给 ``FINISHING_GRACE_SECONDS``，
+    最近 ``PROGRESS_WINDOW`` 内还有页读完就一分钟一分钟地延，最多 ``WAIT_LIMIT``。"""
+    def evaluate(clock, now):
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
         row = frappe.db.get_value(WORK, name, ["status", "last_code"], as_dict=True)
         if row and row.status in TERMINAL:
-            break
+            return row
         if row and row.status == "deferred" and row.last_code == "insufficient_balance":
             frappe.throw(_("reconciliation.balance_insufficient"))
-        now = time.monotonic()
-        if now - checked >= PROGRESS_CHECK_SECONDS or now > deadline:
-            checked = now
-            count = completed_calls(name)
-            if count > done:
-                done, progressed = count, now
-        if waiting_in_queue:
-            if row and (row.status not in ("queued", "deferred") or done > 0):
-                waiting_in_queue = False  # 开始读了：从这一刻起算读取时限
+        calls = core_work.call_progress([name]).get(name) or {}
+        entered = clock.setdefault("entered", now)
+        if clock.get("started") is None:
+            if calls.get("since_first") is not None:
+                # 开始读了：从这一刻起算读取时限（在这之前就开始读的——预先提交的照片——从开始等它算起）
+                clock["started"] = max(entered, now - calls["since_first"])
+            elif row and row.status not in ("queued", "deferred"):
+                clock["started"] = now
             elif now - entered > QUEUE_LIMIT:
                 frappe.throw(_("reconciliation.recognition_busy"))
             else:
-                started, progressed, deadline = now, now, now + WAIT_SECONDS
-        if now > deadline:
-            if not extended and core_work.saved_checkpoint(name, RESULT) is not None:
-                extended = True
-                deadline = now + FINISHING_GRACE_SECONDS
-            elif now - progressed <= PROGRESS_WINDOW and now - started < WAIT_LIMIT:
-                deadline = now + PROGRESS_CHECK_SECONDS  # 还在一页一页读完：再看一分钟
+                raise waiting.Pending([name], due=entered + QUEUE_LIMIT, start=True)
+            clock["deadline"] = clock["started"] + WAIT_SECONDS
+        if now > clock["deadline"]:
+            last = clock["started"] if calls.get("since_done") is None else max(clock["started"],
+                                                                                  now - calls["since_done"])
+            if not clock.get("extended") and core_work.saved_checkpoint(name, RESULT) is not None:
+                clock["extended"] = True
+                clock["deadline"] = now + FINISHING_GRACE_SECONDS
+            elif now - last <= PROGRESS_WINDOW and now - clock["started"] < WAIT_LIMIT:
+                clock["deadline"] = now + PROGRESS_CHECK_SECONDS  # 还在一页一页读完：再看一分钟
             else:
                 frappe.throw(_("reconciliation.recognition_timeout"))
-        time.sleep(POLL_SECONDS)
+        raise waiting.Pending([name], due=clock["deadline"])
+
+    row = waiting.settle(f"document:{name}", evaluate)
     if row.status != "succeeded":
         return None
     saved = core_work.saved_checkpoint(name, RESULT) or {}
@@ -172,8 +182,8 @@ def reader(recon_job, side, file_name, user):
     这份文件在这个对账号下已经有识别任务（照片预先提交过，或答了预设问题后用原文件重跑）就直接等它、取它存的结果，
     不再提交：重跑的人可能不是当初上传的人，按原参数再提交会被当成「同一参考号换了内容」拒掉，也不该再过一次余额与名额。"""
     def read(document_type, content, filename):
-        name = frappe.db.get_value(WORK, {"kind": KIND, "reference": f"{recon_job}:{side}:{document_type}"}, "name")
-        if name:
+        name = core_work.name_for(KIND, f"{recon_job}:{side}:{document_type}")
+        if frappe.db.exists(WORK, name):
             _progress(file_name, work=name)
         else:
             name = submit(recon_job, side, file_name, filename, content, document_type, user)

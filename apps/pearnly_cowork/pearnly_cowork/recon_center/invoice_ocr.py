@@ -34,7 +34,7 @@ from pearnly_cowork.ocr.inputs_runtime.source import PageSource
 from pearnly_cowork.ocr.pages import all_pages_not_invoice, assess_confidence, flatten_pipeline_pages
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
-from pearnly_cowork.recon_center import admission
+from pearnly_cowork.recon_center import admission, waiting
 from pearnly_cowork.ocr import recon_reading
 from pearnly_cowork.ocr.remote import forward
 from pearnly_cowork.ocr.schema import PipelineResult
@@ -55,7 +55,6 @@ MODEL_TIMEOUT_SECONDS = recon_reading.VAT_MODEL_TIMEOUT_SECONDS
 QUEUE_LIMIT = 90 * 60           # 一份都还没开始读：排队最多等这么久
 READ_LIMIT = 150 * 60           # 从开始读起最多等这么久（排队 + 读取 + 前后步骤在销项核查后台任务 5 小时内，jobs.TIMEOUTS）
 PROGRESS_CHECK_SECONDS = 60
-POLL_SECONDS = 3
 
 
 def _text(value):
@@ -115,13 +114,19 @@ def submit(recon_job, files, user):
         inspected.append((file_name, filename, info))
     if not inspected:
         return [], rejected
-    intake.balance(sum(info["page_count"] for _f, _n, info in inspected), frozen["billing_tier"])
+    # 已经交过的（等识别的对账每轮从头跑、被杀续跑）直接用：余额只在第一次交时查一次（与原来一样），读完扣过费的余额
+    # 不能拿来再判一次；也不按当前设置重新冻结（设置变了会被当成「同一参考号换了内容」拒掉）。
+    references = [f"{recon_job}:{index}" for index in range(len(inspected))]
+    names = [core_work.name_for(KIND, reference) for reference in references]
+    existing = set(frappe.get_all(WORK, filters={"name": ["in", names]}, pluck="name"))
+    if not existing:
+        intake.balance(sum(info["page_count"] for _f, _n, info in inspected), frozen["billing_tier"])
     works = []
     for index, (file_name, filename, info) in enumerate(inspected):
         arguments = {"recon_job": recon_job, "file": file_name, "filename": filename, "pages": info["page_count"],
                      "sha256": info["sha256"], "settings": frozen}
-        work = admission.when_room(lambda index=index, arguments=arguments: _create(
-            f"{recon_job}:{index}", arguments, user))
+        work = names[index] if names[index] in existing else admission.when_room(
+            lambda index=index, arguments=arguments: _create(references[index], arguments, user), key=references[index])
         works.append((work, filename))
         progress.advance(file_name, work=work)
     for file_name, filename, _content in files:
@@ -154,37 +159,40 @@ def wait(works, on_stage=None):
     余额不足时 Work 会一直顺延：所有没结束的都卡在余额上就直接报余额不足（这些 Work 随后自行取消）。
     排队不算读取时限；开始读了以后读满 ``READ_LIMIT``，没读完的文件算没读出（核查照常出结果、点名这些文件），
     它们在核查结束后下一次付费调用前自行取消、不扣费（``_recon_closed``）。一张发票都没读出才整份报超时。
+    还没读完时不在这里守着（``waiting``）：对账后台任务这一轮先结束、交还进程，都有结论或到了时限再接着跑。
     返回 ``(发票, 没读出的文件名, 读到时限还没读完的份数)``。
     """
     names = [name for name, _f in works]
-    entered = now = time.monotonic()
-    reading_since, checked = None, 0.0
-    stopped = set()
-    while True:
+
+    def evaluate(clock, now):
         frappe.db.commit()  # 结束读快照，读到 Work 的最新状态
         rows = {row.name: row for row in frappe.get_all(WORK, filters={"name": ["in", names]},
                                                          fields=["name", "status", "last_code"])}
         open_names = [name for name in names if not rows.get(name) or rows[name].status not in TERMINAL]
         if not open_names:
-            break
+            return set()
         open_rows = [rows.get(name) for name in open_names]
         if all(row and row.status == "deferred" and row.last_code == "insufficient_balance" for row in open_rows):
             frappe.throw(_("vat_check.balance_insufficient"))
-        now = time.monotonic()
-        if reading_since is None and now - checked >= PROGRESS_CHECK_SECONDS:
-            checked = now
-            started = len(names) > len(open_names) or any(row and row.status not in ("queued", "deferred")
-                                                            for row in open_rows) or any(
-                core_work.done_calls(open_names).values())
-            if started:
-                reading_since = now  # 开始读了：从这一刻起算读取时限
-        if reading_since is None:
+        entered = clock.setdefault("entered", now)
+        if clock.get("reading") is None:
+            # 开始读了：从最早开始读的那一份起算读取时限（不早于开始等的时候）
+            firsts = [calls["since_first"] for calls in core_work.call_progress(names).values()
+                      if calls.get("since_first") is not None]
+            if firsts:
+                clock["reading"] = max(entered, now - max(firsts))
+            elif len(names) > len(open_names) or any(row and row.status not in ("queued", "deferred")
+                                                     for row in open_rows):
+                clock["reading"] = now
+        if clock.get("reading") is None:
             if now - entered > QUEUE_LIMIT:
                 frappe.throw(_("vat_check.recognition_busy"))
-        elif now - reading_since > READ_LIMIT:
-            stopped = set(open_names)
-            break
-        time.sleep(POLL_SECONDS)
+            raise waiting.Pending(open_names, due=entered + QUEUE_LIMIT, start=True)
+        if now - clock["reading"] > READ_LIMIT:
+            return set(open_names)
+        raise waiting.Pending(open_names, due=clock["reading"] + READ_LIMIT)
+
+    stopped = waiting.settle("invoices", evaluate) if names else set()
     finished = [name for name in names if name not in stopped]
     succeeded = set(frappe.get_all(WORK, filters={"name": ["in", finished], "status": "succeeded"},
                                    pluck="name")) if finished else set()

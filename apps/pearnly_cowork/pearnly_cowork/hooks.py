@@ -433,6 +433,10 @@ pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.oc
 # 续跑时遇到上一个进程留下的「结果不明」调用，由对账的识别任务自己处理：账单 / 总账 / 税报按有限次重发，发票当成这一页
 # 读不出交引擎按页兜底；不整份作废（2026-09-30 压测第 18 轮）。
 pearnly_ocr_resume_unknown = ["cowork.vat_check", "cowork.recon_document"]
+# 识别有了结论：等它的对账放回队列接着跑（对账等识别时不占进程）；任何一份结束都腾出识别名额，放等名额的对账
+# （recon_center/waiting.py，2026-10-01）。
+pearnly_ocr_finished_handlers = {kind: "pearnly_cowork.recon_center.waiting.work_finished"
+                                 for kind in ("cowork.invoice", "cowork.vat_check", "cowork.recon_document")}
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
@@ -484,8 +488,11 @@ pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep",
                                              "pearnly_cowork.work.reminders.run",
                                              # 部署 / 重启时被杀的对账续跑（recon_center/jobs.py）
-                                             "pearnly_cowork.recon_center.jobs.resume_abandoned",
-                                             # 对账按租户限流：清掉不在跑却占着名额的，补位（recon_center/slots.py）
-                                             "pearnly_cowork.recon_center.slots.tick"]},
+                                             "pearnly_cowork.recon_center.jobs.resume_abandoned"],
+                             "* * * * *": [
+                                 # 等识别的对账：提醒万一没送到、时限到了、开始读了、名额腾出来了，放回队列（recon_center/waiting.py）
+                                 "pearnly_cowork.recon_center.waiting.tick",
+                                 # 对账按租户限流：清掉不在跑却占着名额的，补位（recon_center/slots.py）
+                                 "pearnly_cowork.recon_center.slots.tick"]},
                     # 对账预设问题留着的原文件：过期没人答的删掉（recon_center/rerun.py）。
                     "daily": ["pearnly_cowork.recon_center.rerun.expire"]}
