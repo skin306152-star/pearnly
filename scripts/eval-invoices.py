@@ -93,6 +93,24 @@ def run(args):
             frappe.db.rollback()
             record.update(state="rejected", error=f"{type(error).__name__}: {frappe.utils.strip_html(str(error))[:300]}")
             done.append(record)
+    for source_name in [name for name in (args.resubmit or "").split(",") if name]:
+        # 站点上已有的原件（如压测回归用的 Big C 27 页）按新请求号重读一遍：编号记成原件名
+        record = {"编号": source_name, "file": source_name, "submitted": time.time(), "source": source_name}
+        try:
+            # 同一份原件只能有一个识别任务：取出原字节，按新请求号另建一份原件再交
+            from pearnly_cowork.files import access as file_access
+
+            original = frappe.get_doc(file_access.SOURCE, source_name)
+            key = f"{args.tag}-{source_name[-12:]}"
+            copy = files.create(workspace, original.filename, files.read_bytes(original), key, None)
+            batch = ocr.submit(copy["name"], key)
+            frappe.db.commit()
+            record["batch"] = batch["name"]
+            pending[batch["name"]] = record
+        except Exception as error:
+            frappe.db.rollback()
+            record.update(state="rejected", error=f"{type(error).__name__}: {frappe.utils.strip_html(str(error))[:300]}")
+            done.append(record)
     print(f"submitted {len(pending)}, rejected {len(done)}", flush=True)
     deadline = time.time() + args.timeout
     while pending and time.time() < deadline:
@@ -699,6 +717,8 @@ def gold_score(results, gold_rows):
         docs["invoice_docs"] += 1
         if not invoices:
             docs["missed_document"] += 1
+            details.append({"编号": record["编号"], "field": "*", "kind": "missed_document", "state": record["state"],
+                            "types": sorted({row["票据类型"] for row in expected})})
             continue
         matched, missed, extra = gold_align(expected, invoices)
         docs["gold_invoices"] += len(expected)
@@ -729,8 +749,10 @@ def gold_score(results, gold_rows):
         n = sum(v for k, v in cells.items() if selector(k))
         w = sum(v for k, v in wrong.items() if selector(k))
         return {"n": n, "wrong": w, "rate": round(w / n, 4) if n else None}
-    report = {"documents": dict(docs), "overall": rate(lambda k: True),
-              "printed": rate(lambda k: k[3] == "printed"), "not_printed_filled": rate(lambda k: k[3] == "not_printed"),
+    core = lambda k: k[0] != "wht"  # 预扣税额早几轮没记：总口径不含它，单列
+    report = {"documents": dict(docs), "overall": rate(core),
+              "printed": rate(lambda k: core(k) and k[3] == "printed"),
+              "not_printed_filled": rate(lambda k: core(k) and k[3] == "not_printed"),
               "by_field": {field: rate(lambda k, f=field: k[0] == f) for field, _c, _k in GOLD_FIELDS},
               "by_direction_form": {f"{d}/{f}": rate(lambda k, d=d, f=f: (k[1], k[2]) == (d, f))
                                     for d, f in sorted({(k[1], k[2]) for k in cells})},
@@ -778,6 +800,7 @@ def main():
     runner.add_argument("--out", required=True)
     runner.add_argument("--tag", required=True, help="请求号前缀，同一前缀重跑会认成同一份、不重复识别")
     runner.add_argument("--only", help="只跑这几个编号（逗号分隔）")
+    runner.add_argument("--resubmit", help="站点上已有的原件名（逗号分隔），按新请求号重读")
     runner.add_argument("--timeout", type=int, default=3600)
     scorer = sub.add_parser("score")
     scorer.add_argument("--sample", required=True)
