@@ -194,8 +194,8 @@
   ```bash
   bench --site <站点> set-config -p pearnly_cowork_ocr_tasks '{"enabled": 1, "project": "pearnly", "location": "asia-southeast1", "queue": "cowork-ocr", "bucket": "pearnly-ocr-checkpoints-sg", "workflow": "cowork-document"}'
   ```
-  回读：`bench --site <站点> execute frappe.get_conf` 里能看到这一项；或 `bench --site <站点> console` 里
-  `from pearnly_cowork.ocr.remote import tasks; tasks.settings()` 不是 None。站点配置改了不用重启（每次请求 / 任务都重新读）。
+  回读：`bench --site <站点> show-config` 里能看到这一项；`bench --site <站点> console` 里
+  `from pearnly_cowork.ocr.remote import tasks; tasks.settings()` 不是 None（配置不合规时是 None，即仍走原路）。
 
 ### 端到端验证（测试租户；全部通过才全开）
 
