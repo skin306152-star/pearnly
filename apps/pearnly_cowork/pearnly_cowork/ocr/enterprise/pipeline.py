@@ -28,6 +28,7 @@ from functools import partial
 from typing import Callable, Iterable, List, Tuple
 
 from pearnly_cowork.ocr.engine.contracts import ModelRequest
+from pearnly_cowork.ocr.engine.cost import THB_PER_USD, model_cost_thb  # 价目与发票识别共用一处
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import contract, header_bank, pages as enterprise_pages, self_check
 from pearnly_cowork.ocr.enterprise.adapter import PipelineResult, make_page
@@ -36,17 +37,6 @@ from pearnly_cowork.ocr.enterprise.local.result import check_document, reconstru
 from pearnly_cowork.ocr.enterprise.request import build_request
 
 ENGINE = contract.CONTRACT_VERSION  # "enterprise-2026-09-03-v1", the deployed engine label
-THB_PER_USD = 35.0
-# USD per million input / output tokens: deployed services/ocr/cost.py MODEL_PRICES_PER_M_USD (2026-07 price
-# list). An unknown model is priced as the most expensive one listed, as deployed (observation errs high).
-MODEL_PRICES_PER_M_USD = {"gemini-3.8-flash": (0.75, 3.75), "gemini-3.1-flash-lite": (0.25, 1.50)}
-
-
-def model_cost_thb(model, input_tokens, output_tokens):
-    price = next((value for prefix, value in MODEL_PRICES_PER_M_USD.items() if str(model or "").startswith(prefix)),
-                 max(MODEL_PRICES_PER_M_USD.values()))
-    usd = max(0, int(input_tokens or 0)) / 1e6 * price[0] + max(0, int(output_tokens or 0)) / 1e6 * price[1]
-    return round(usd * THB_PER_USD, 6)
 MODEL_TIMEOUT_SECONDS = 180
 CATEGORIES = {"bank_statement": "bank", "general_ledger": "gl", "vat_report": "vat"}
 

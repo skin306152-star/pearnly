@@ -36,6 +36,7 @@ from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
     PageSource, ProviderFailure, VisionCall,
 )
+from pearnly_cowork.ocr.engine.cost import calls_cost_thb
 from pearnly_cowork.ocr.engine.errors import ContentError, DirectFallback, EngineError
 from pearnly_cowork.ocr.engine.parsing import _parse_json
 from pearnly_cowork.ocr.engine.prompts import (
@@ -597,7 +598,8 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
             seen.add(call.checkpoint_key)
         calls.append(call)
     return EngineResult(PipelineResult(pages=pages, page_count=source.page_count,
-                                       elapsed_ms=sum(c.elapsed_ms for c in calls), engine=engine),
+                                       elapsed_ms=sum(c.elapsed_ms for c in calls), engine=engine,
+                                       estimated_cost_thb=Decimal(str(calls_cost_thb(calls)))),
                         tuple(calls))
 
 
@@ -638,4 +640,5 @@ def run_text_pages(pages: list[Page] | tuple[Page, ...], model_call: ModelCall, 
         calls.append(call)
     return EngineResult(PipelineResult(pages=results, page_count=len(results),
                                        elapsed_ms=sum(c.elapsed_ms for c in calls),
-                                       engine="pipeline_v1_table"), tuple(calls))
+                                       engine="pipeline_v1_table",
+                                       estimated_cost_thb=Decimal(str(calls_cost_thb(calls)))), tuple(calls))

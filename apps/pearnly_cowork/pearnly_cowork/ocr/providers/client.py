@@ -89,6 +89,9 @@ def vision_page(annotation, page_number):
 
 
 VISION_FIRST_TIMEOUT = 15
+# 大图第一次多给的时间（每 MB 原图多少秒）：扫描 PDF 一页渲染成约 3.3MB 的 PNG，全球入口要 6–8 秒、转到美国入口要 25–31 秒
+# （主要是上传），15 秒一刀切会把正在上传的那次当成不明、再付费重发一次（2026-10-02 testcowork 27 页扫描件，两次 15 秒断开重发）。
+VISION_SECONDS_PER_MB = 10
 # flash-lite 第一次最多等多久（秒）；备用入口都结果不明时退回全球入口那次用的尝试号偏移（与全球入口本身、它的重发区分开）。
 LITE_FIRST_TIMEOUT, GLOBAL_FALLBACK_ATTEMPT = 40, 2
 VISION_5XX_RETRIES, VISION_5XX_PAUSE = 2, 2
@@ -406,11 +409,12 @@ class ProviderClient:
                                        page_number, attempt])
                 if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
                     return self._vision_once(payload, stage, page_number, timeout, spare)
+        first = min(timeout, VISION_FIRST_TIMEOUT + VISION_SECONDS_PER_MB * len(content) // 1_000_000)
         last = None
         for where in ("global",) + spares:
             for retry in range(VISION_5XX_RETRIES + 1 if where == "global" else 1):
                 try:
-                    return self._vision_once(payload, stage, page_number, timeout, where)
+                    return self._vision_once(payload, stage, page_number, timeout, where, first=first)
                 except Deferred as error:
                     if error.reason not in ("provider_5xx", "vision_8", "vision_14"):
                         raise
@@ -419,11 +423,11 @@ class ProviderClient:
                         self._sleep(VISION_5XX_PAUSE)
         raise last
 
-    def _vision_once(self, payload, stage, page_number, timeout, where="global"):
+    def _vision_once(self, payload, stage, page_number, timeout, where="global", first=VISION_FIRST_TIMEOUT):
         host = "vision.googleapis.com" if where == "global" else f"{where}-vision.googleapis.com"
         body, elapsed, key, bucket = self._send(url=f"https://{host}/v1/images:annotate",
             payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location=where, stage=stage,
-            page_number=page_number, attempt=0, timeout_s=min(timeout, VISION_FIRST_TIMEOUT),
+            page_number=page_number, attempt=0, timeout_s=min(timeout, first),
             retry_unknown=1, resend_timeout_s=timeout)
         responses = body.get("responses")
         if not isinstance(responses, list) or len(responses) != 1 or not isinstance(responses[0], dict):

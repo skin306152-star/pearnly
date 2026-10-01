@@ -9,6 +9,7 @@
 from copy import deepcopy
 from datetime import date
 import io
+from decimal import Decimal
 import json
 import threading
 import unittest
@@ -794,6 +795,13 @@ class PaidCallGuard(unittest.TestCase):
         self.assertEqual(final["calls"], 2)              # 发给谷歌几次（窗口内算 429 比例）
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
+
+    def test_the_result_records_its_estimated_cost(self):
+        # 原来发票识别的结果里成本一直是 0（只有对账那条路算了；2026-10-02 压测窗口发现）
+        final = remote(Bucket(), Google())[-1]
+        pipeline = json.loads(final["pipeline"])
+        # 一次 flash-lite：120 输入 + 40 输出 token，(120×0.25 + 40×1.5) / 1e6 美元 × 35
+        self.assertEqual(Decimal(str(pipeline["estimated_cost_thb"])), Decimal("0.00315"))
 
     def test_a_vision_resource_exhausted_reply_counts_as_throttled(self):
         from pearnly_cowork.ocr.providers import client as provider_client

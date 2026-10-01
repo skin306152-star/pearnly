@@ -301,6 +301,14 @@ class ProviderRuntime(unittest.TestCase):
         self.assertEqual(self.vision(self.core.client()).page.full_text, "IV-1")
         self.assertEqual([c["timeout_s"] for c in self.core.calls], [15])
 
+    def test_a_large_page_image_gets_more_time_before_it_is_resent(self):
+        # 扫描 PDF 一页约 3.3MB：上传要几秒到三十秒，第一次按大小多给时间，不在上传途中断开再付费重发（2026-10-02）
+        client = self.core.client(environment={"OCR_L1_TIMEOUT_SECONDS": "60"})
+        self.core.plan = [Response(self.vision_body())]
+        frame = Frame(image_bytes=b"x" * 3_300_000, mime_type="image/png")
+        self.assertEqual(client.vision_call(frame, stage="L1", page_number=1).page.full_text, "IV-1")
+        self.assertEqual([c["timeout_s"] for c in self.core.calls], [48])
+
     def test_deferrals_and_unknown_outcomes_are_never_terminal_refusals(self):
         for error in (Deferred("provider_429", 10), Uncertain("unknown")):
             self.core.error = error
