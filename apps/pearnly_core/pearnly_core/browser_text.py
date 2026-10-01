@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from typing import Any, Dict, List
@@ -67,6 +68,7 @@ LANGUAGES = ("th", "en", "zh", "ja")
 FALLBACK_LANG = "th"
 
 _cache: dict = {}
+_version: str = ""
 
 
 def app_of(key: str) -> str:
@@ -114,7 +116,39 @@ def all_languages(key: str) -> Dict[str, str]:
 
 def clear_cache() -> None:
     """换语言包之后清一次（开发/发布用；正常读走上面的缓存）。"""
+    global _version
     _cache.clear()
+    _version = ""
+
+
+def text_version() -> str:
+    """所有语言包内容的指纹。前端按它把整包存在浏览器里（`p.texts`）：同一版本不再重复下载，
+    语言包一变（新镜像 / 实时源码重载后进程重开）指纹跟着变，旧的自然作废。进程内只算一次，
+    与上面 `pack` 的进程内缓存同一个生命周期。"""
+    global _version
+    if not _version:
+        digest = hashlib.sha256()
+        for app in sorted(set(APP_BY_PREFIX.values())):
+            for lang in LANGUAGES:
+                try:
+                    path = frappe.get_app_path(app, "translations", f"{lang}.csv")
+                    with open(path, "rb") as handle:
+                        content = handle.read()
+                except Exception:
+                    content = b""
+                digest.update(f"{app}/{lang}:{len(content)}:".encode())
+                digest.update(content)
+        _version = digest.hexdigest()[:16]
+    return _version
+
+
+def extend_bootinfo(bootinfo) -> None:
+    """官方的 `extend_bootinfo`：每次给启动信息都调（不进按用户缓存的那份），所以指纹永远是
+    当前进程读到的语言包。失败只记日志，不让 Desk 打不开；前端拿不到指纹就照旧每次去取。"""
+    try:
+        bootinfo.pearnly_text_version = text_version()
+    except Exception:
+        frappe.log_error(title="pearnly_core.browser_text.extend_bootinfo failed")
 
 
 def label(key: str, lang: str = "") -> str:

@@ -64,6 +64,8 @@ jobs:
           node --test scripts/test-dms-editor-snapshot.cjs
       - name: Verify native Desk lifecycle
         run: node tests/test-native-desk.cjs
+      - name: Verify the Desk text cache
+        run: node --test tests/test-desk-texts.cjs
       - name: Verify the DMS connection page (read and write accounts)
         run: node tests/test-dms-connect-page.cjs
       - name: Verify native POS entry and lifecycle

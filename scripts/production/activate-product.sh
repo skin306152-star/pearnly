@@ -46,4 +46,9 @@ printf '["%s"]\n' "$image" > "$image_record_temp"
 mv -f "$image_record_temp" "/opt/pearnly/deploy/active-image-$product.json"
 image_record_temp=
 trap - ERR
+# migrate 清空了缓存：替最近活跃的用户把启动信息、本产品表结构先算好，免得每人第一次打开都
+# 多等几秒（pearnly_core/desk/warmup.py）。已经切回正常服务、版本记录也已写好，这一步失败
+# 只告警，不算激活失败；它有总时长上限，是一次性的，不是定时任务。
+"${compose[@]}" run --rm --no-deps "$product-web" bench --site all execute pearnly_core.desk.warmup.run \
+  || printf 'Desk warm-up failed; each user computes their own first boot as before.\n' >&2
 printf 'Product %s activated with verified image.\n' "$product"

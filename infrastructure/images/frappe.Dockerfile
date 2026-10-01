@@ -103,6 +103,21 @@ RUN cd /home/frappe/frappe-bench && \
       ln -s "/home/frappe/frappe-bench/apps/$app/$app/public" "/home/frappe/frappe-bench/assets/$app"; \
     done
 
+# 产品 Desk 脚本 / 样式按 Frappe 官方做法打包（2026-10-01：ERP 首次打开原要拉 68 个零散文件）：先按各 App hooks 里的
+# DESK_JS / DESK_CSS 清单生成官方入口（*.bundle.js / *.bundle.scss），再 `bench build --production` 用 esbuild 打成
+# 带内容哈希的压缩文件、登记进 assets.json。`bench build` 只认 sites/apps.txt 里的 App：构建时临时写上，打完恢复原样
+# （运行时 sites 是数据卷，里面的 apps.txt 不受影响）；assets.json 要写进镜像里那份（/home/frappe/frappe-bench/assets，
+# 运行时入口把 sites/assets 链到它），所以构建时也先这样链上、打完拿掉。不联网（esbuild 在 frappe 的 node_modules 里）。
+# 见 pearnly_core.desk.assets。
+COPY --chown=frappe:frappe scripts/build-desk-bundles.py /tmp/build-desk-bundles.py
+RUN cd /home/frappe/frappe-bench && cp sites/apps.txt /tmp/apps.txt && \
+    printf 'frappe\nerpnext\npearnly_core\npearnly_cowork\npearnly_erp_portal\npearnly_dms\npearnly_control\n' > sites/apps.txt && \
+    rm -rf sites/assets && ln -s /home/frappe/frappe-bench/assets sites/assets && \
+    for app in $(env/bin/python /tmp/build-desk-bundles.py apps); do \
+      bench build --app "$app" --production || exit 1; \
+    done && \
+    rm -f sites/assets && cp /tmp/apps.txt sites/apps.txt && rm -f /tmp/apps.txt /tmp/build-desk-bundles.py
+
 # ── 宿主侧部署工具的副本（激活时用来核对服务器上那份是不是同一版） ─────────────
 #
 # 为什么不省这一步：镜像和 `/opt/pearnly/deploy` 是**两份拷贝**，发布时两半都要换。

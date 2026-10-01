@@ -157,8 +157,41 @@ frappe.provide("frappe.pearnly");
 		page.add_action_icon("es-line-reload", refresh, "", label)
 			.removeClass("btn-default")
 			.attr({type: "button", "aria-label": label});
+	// 页面文案按前缀整包取。以前每进一页都重新请求一次（同一前缀一个页面里还会取两三次），
+	// 而且排在表结构、列表之前，首开多一次来回。现在：同一会话里每个前缀只取一次；启动信息里
+	// 有语言包指纹（`pearnly_text_version`，见 `browser_text.py`）时再存进浏览器，刷新、
+	// 下次登录都不用再取，语言包一变指纹就变、旧的随即清掉。浏览器存储不可用（隐私模式等）时照旧去取。
+	const text_packs = {};
+	const TEXT_STORE = "pearnly_text:";
+	const stored_pack = (key) => {
+		try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (error) { return null; }
+	};
+	const store_pack = (version, key, pack) => {
+		try {
+			for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+				const name = localStorage.key(i);
+				if (name?.startsWith(TEXT_STORE) && !name.startsWith(`${TEXT_STORE}${version}:`)) {
+					localStorage.removeItem(name);
+				}
+			}
+			localStorage.setItem(key, JSON.stringify(pack));
+		} catch (error) { /* 存不下就算了，下次再取 */ }
+	};
+	p.text_pack = (prefix) => {
+		if (!text_packs[prefix]) {
+			const version = frappe.boot.pearnly_text_version;
+			const key = `${TEXT_STORE}${version}:${prefix}`;
+			const stored = version ? stored_pack(key) : null;
+			text_packs[prefix] = stored ? Promise.resolve(stored)
+				: p.call("pearnly_core.browser_text.browser_text", { prefix }).then(pack => {
+					if (version && pack && Object.keys(pack).length) store_pack(version, key, pack);
+					return pack;
+				}, error => { delete text_packs[prefix]; throw error; });
+		}
+		return text_packs[prefix];
+	};
 	p.texts = async (prefix) => {
-		const pack = await p.call("pearnly_core.browser_text.browser_text", { prefix });
+		const pack = await p.text_pack(prefix);
 		const lang = (frappe.boot.lang || frappe.boot.user.language || "th").slice(0, 2);
 		return (key, ...args) => {
 			const text = pack[key]?.[lang] || pack[key]?.th || key;

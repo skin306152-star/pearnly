@@ -148,6 +148,18 @@ elif 'ps' in args:
         self.assertLess(find('enable-scheduler'), find('up -d'))
         self.assertLess(find('up -d'), find('set-maintenance-mode off'))
 
+    def test_warmup_runs_after_reopening_and_cannot_fail_activation(self):
+        result, trace = self.run_activation(product='cowork')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        find = lambda text: next(i for i, call in enumerate(calls) if text in call)
+        self.assertLess(find('set-maintenance-mode off'), find('pearnly_core.desk.warmup.run'))
+        self.assertIn('run --rm --no-deps cowork-web bench --site all execute', calls[find('warmup.run')])
+        result, _ = self.run_activation('pearnly_core.desk.warmup.run', product='cowork')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Desk warm-up failed', result.stderr)
+        self.assertEqual(json.loads(self.records_after['active-image-cowork.json']), [IMAGE])
+
     def test_migration_failure_keeps_maintenance_and_workers_stopped(self):
         result, trace = self.run_activation('migrate')
         self.assertNotEqual(result.returncode, 0)

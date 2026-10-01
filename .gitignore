@@ -22,3 +22,8 @@ frontend/components.d.ts
 # Windows 小助手（companion/）的本机构建产物
 /companion/build/
 /companion/dist/
+
+# 生产镜像构建时生成的 Desk 打包入口与产物（scripts/build-desk-bundles.py + bench build），不进仓库
+apps/*/*/public/js/*_desk.bundle.js
+apps/*/*/public/scss/*_desk.bundle.scss
+apps/*/*/public/dist/

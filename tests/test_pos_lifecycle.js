@@ -183,14 +183,16 @@ test('an unrelated scanner is not detached by this page', async () => {
 });
 
 test('hooks load versioned upstream assets once before adapter and official CSS before extensions', () => {
+  // 清单在 DESK_JS（按顺序打成一个官方包；没打包时逐个带版本号加载，顺序同此）。
   const hooks = fs.readFileSync(path.join(desk, '../../hooks.py'), 'utf8');
+  assert.ok(hooks.includes('app_include_js = desk_bundle("pearnly_erp_portal", "pearnly_erp_portal_desk.bundle.js", DESK_JS)'));
   const js = ['cashier.js', 'pos/onscan.js', 'pos/official-pos_number_pad.js', 'pos/official-pos_item_selector.js',
     'pos/official-pos_item_details.js', 'pos/official-pos_item_cart.js', 'pos/official-pos_payment.js',
     'pos/official-pos_past_order_list.js', 'pos/official-pos_past_order_summary.js', 'pos/official-pos_controller.js',
     'pos/pearnly-pos-shift.js', 'pos/pearnly-pos-receipt.js', 'pos/pearnly-pos-adapter.js'];
   let last = -1;
   for (const file of js) {
-    const asset = `versioned_asset("pearnly_erp_portal", "desk/${file}")`;
+    const asset = `"desk/${file}"`;
     assert.equal(hooks.split(asset).length - 1, 1, file);
     const index = hooks.indexOf(asset); assert.ok(index > last, file); last = index;
   }

@@ -1,4 +1,4 @@
-from pearnly_core.desk.assets import versioned_asset
+from pearnly_core.desk.assets import desk_bundle, versioned_asset
 
 app_name = "pearnly_cowork"
 app_title = "Pearnly Cowork"
@@ -269,22 +269,24 @@ doctype_js = {"User": "public/desk/user-line.js"}
 
 # 录入工作台这一条链的页面脚本：工作台（列表 + 目标弹窗）、目标/连接状态、
 # 上传识别二级页。按内容版本号加载，改完刷新即生效。
-app_include_js = [
-    versioned_asset("pearnly_cowork", "desk/choice.js"),
-    versioned_asset("pearnly_cowork", "desk/targets.js"),
-    versioned_asset("pearnly_cowork", "desk/intake.js"),
-    versioned_asset("pearnly_cowork", "desk/intake-choices.js"),
-    versioned_asset("pearnly_cowork", "desk/intake-upload.js"),
-    versioned_asset("pearnly_cowork", "desk/team.js"),
-    versioned_asset("pearnly_cowork", "desk/post-file.js"),
-    versioned_asset("pearnly_cowork", "desk/stocktake-entry.js"),
-    versioned_asset("pearnly_cowork", "desk/stocktake.js"),
-    versioned_asset("pearnly_cowork", "desk/recon.js"),
-    versioned_asset("pearnly_cowork", "desk/line-binding.js"),
-    versioned_asset("pearnly_cowork", "desk/work.js"),
+DESK_JS = [
+    "desk/choice.js",
+    "desk/targets.js",
+    "desk/intake.js",
+    "desk/intake-choices.js",
+    "desk/intake-upload.js",
+    "desk/team.js",
+    "desk/post-file.js",
+    "desk/stocktake-entry.js",
+    "desk/stocktake.js",
+    "desk/recon.js",
+    "desk/line-binding.js",
+    "desk/work.js",
 ]
-app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css"), versioned_asset("pearnly_cowork", "desk/recon.css"),
-                   versioned_asset("pearnly_cowork", "desk/work.css")]
+app_include_js = desk_bundle("pearnly_cowork", "pearnly_cowork_desk.bundle.js", DESK_JS)
+DESK_CSS = ["desk/intake.css", "desk/recon.css",
+                   "desk/work.css"]
+app_include_css = desk_bundle("pearnly_cowork", "pearnly_cowork_desk.bundle.css", DESK_CSS)
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
