@@ -114,6 +114,7 @@ def dispatch(action: str, payload=None):
     if action == "adjust":
         actor = _reviewer(payload)
         tenant = billing_api._tenant_or_throw(payload.get("tenant"))
-        balance = billing.adjust(tenant, payload.get("amount"), note=payload.get("note") or "", actor=actor)
+        balance = billing_api.retry_service(billing.adjust)(tenant, payload.get("amount"),
+                                                            note=payload.get("note") or "", actor=actor)
         return {"ok": True, "tenant": tenant, "new_balance": float(balance)}
     frappe.throw(_("Not permitted"), frappe.PermissionError)

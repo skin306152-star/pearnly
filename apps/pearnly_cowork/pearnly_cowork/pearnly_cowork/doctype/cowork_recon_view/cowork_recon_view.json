@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-01 00:00:00.000000",
- "modified": "2026-10-01 00:00:00.000000",
+ "modified": "2026-10-01 20:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -51,7 +51,7 @@
    "label": "Fingerprint",
    "fieldtype": "Data",
    "read_only": 1,
-   "length": 64,
+   "length": 140,
    "reqd": 1
   },
   {

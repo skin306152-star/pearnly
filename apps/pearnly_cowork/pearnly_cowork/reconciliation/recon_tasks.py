@@ -128,4 +128,15 @@ class ReconTasks:
 		removed = frappe.db.count(self.row, {"task": doc.name})
 		frappe.db.delete(self.row, {"task": doc.name})
 		frappe.db.delete(self.task, {"name": doc.name})
+		drop_views(doc.name)
 		return {"ok": True, "rows_deleted": removed}
+
+
+VIEW = "Cowork Recon View"
+
+
+def drop_views(task):
+	"""任务删掉（删除、重跑替换）时连结果页存档一起删：存档里有整份流水和账目，不能留孤儿（独立复查 2026-10-01）。
+	所有删除 / 替换路径都走 ``_remove``（销项税走 ``vat_check_service.delete_many``，也调这里）。"""
+	if frappe.db.table_exists(VIEW):
+		frappe.db.delete(VIEW, {"task": task})

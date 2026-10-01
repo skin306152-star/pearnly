@@ -157,13 +157,15 @@ checks.append('Raised limits still have to fit the host budget')
 
 # 2026-10-01 生产现值（用户选「放宽容量检查」；真实大文件 OOM 后 cowork / erp 识别提到 8g）：上限之和超过物理内存、
 # 但在 1.3 倍以内，且整机可用内存充足时放行；可用内存跌破 max(8 GiB, 25%) 时拒绝。
-target = rendered(PEARNLY_COWORK_OCR_WORKERS='12', PEARNLY_COWORK_OCR_MEM='8g',
-                  PEARNLY_ERP_OCR_WORKERS='12', PEARNLY_ERP_OCR_MEM='8g',
-                  PEARNLY_DMS_OCR_WORKERS='4', PEARNLY_DMS_OCR_MEM='2g',
-                  PEARNLY_COWORK_LONG_WORKERS='4', PEARNLY_COWORK_LONG_MEM='3g',
-                  PEARNLY_COWORK_WEB_WORKERS='6', PEARNLY_COWORK_WEB_MEM='1536m',
-                  PEARNLY_ERP_WEB_WORKERS='4', PEARNLY_ERP_WEB_MEM='1536m',
-                  PEARNLY_DMS_WEB_WORKERS='4', PEARNLY_DMS_WEB_MEM='1g')
+# 生产现值（runtime.env，2026-10-01 晚：识别改成少进程多线程、MariaDB 4G）：
+REAL = dict(PEARNLY_COWORK_OCR_WORKERS='4', PEARNLY_COWORK_OCR_THREADS='24', PEARNLY_ERP_OCR_WORKERS='4',
+            PEARNLY_ERP_OCR_THREADS='16', PEARNLY_DMS_OCR_WORKERS='2', PEARNLY_DMS_OCR_THREADS='8',
+            PEARNLY_COWORK_LONG_WORKERS='4', PEARNLY_COWORK_WEB_WORKERS='6', PEARNLY_ERP_WEB_WORKERS='4',
+            PEARNLY_ERP_WEB_THREADS='8', PEARNLY_DMS_WEB_WORKERS='4', PEARNLY_COWORK_OCR_MEM='7g',
+            PEARNLY_ERP_OCR_MEM='8g', PEARNLY_DMS_OCR_MEM='2g', PEARNLY_COWORK_LONG_MEM='2g', PEARNLY_COWORK_WEB_MEM='1536m',
+            PEARNLY_ERP_WEB_MEM='1536m', PEARNLY_DMS_WEB_MEM='1g', PEARNLY_COWORK_OCR_THREAD_MB='30',
+            PEARNLY_ERP_OCR_THREAD_MB='80', PEARNLY_DMS_OCR_THREAD_MB='60', PEARNLY_MARIADB_MEM='4g')
+target = rendered(**REAL, PEARNLY_MARIADB_MAX_CONNECTIONS='210')
 live = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['mem_limit'])}
         for name, row in target.items() if set(row.get('profiles', [])) & {'dms', 'erp'}]
 report = capacity.calculate(target, live, 'cowork', HOST_MIB * M, 24000 * M, 1024 * M)
@@ -234,4 +236,27 @@ for bad in ('5', '2000', 'x'):
     else:
         raise AssertionError(bad)
 checks.append('Remote-waiting OCR threads are sized by PEARNLY_OCR_THREAD_MB')
+# 数据库连接核算（独立复查 2026-10-01）：生产实际的进程 / 线程数（runtime.env）在默认 151 个连接下必须被拒，
+# 210 时放行；识别线程等云端回复时放掉连接，按 0.2 算。上限也要过 MariaDB 内存（固定 + 每连接 5M ≤ 4G × 0.7）。
+narrow = rendered(**REAL)
+running = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['mem_limit'])}
+           for name, row in narrow.items() if set(row.get('profiles', [])) & {'dms', 'erp'}]
+try:
+    capacity.calculate(narrow, running, 'cowork', 64 * 1024 * M, 64 * 1024 * M)
+    raise AssertionError('production thread counts must not fit 151 database connections')
+except ValueError as error:
+    assert 'max_connections' in str(error), error
+wide = rendered(**REAL, PEARNLY_MARIADB_MAX_CONNECTIONS='210')
+estimate = capacity.connections(wide, set(wide))
+assert estimate <= 210 * capacity.CONNECTION_SHARE, estimate
+assert capacity.connections(wide, {'billing-web'}) == 16  # 计费 2 × 8
+capacity.calculate(wide, running, 'cowork', 64 * 1024 * M, 64 * 1024 * M)
+try:
+    capacity.calculate(rendered(**REAL, PEARNLY_MARIADB_MAX_CONNECTIONS='400'), running, 'cowork', 64 * 1024 * M, 64 * 1024 * M)
+    raise AssertionError('400 connections must not fit a 4G MariaDB')
+except ValueError as error:
+    assert 'memory limit' in str(error), error
+assert capacity.connections(wide, {'cowork-ocr-worker'}) == 4 + round(4 * 23 * capacity.OCR_THREAD_CONNECTION_WEIGHT)
+checks.append('Database connections stay within 85% of max_connections and max_connections fits MariaDB memory (production 210)')
+
 print(json.dumps({'passed': len(checks), 'checks': checks}))

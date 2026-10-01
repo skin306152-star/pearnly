@@ -304,7 +304,9 @@
 				else if (!list?.get_checked_items().length) await list?.refresh();
 			},
 			events: ["pearnly_ocr_work", "cowork_recon_finished"],
-			accept: data => !data?.status || !["queued", "running", "deferred"].includes(data.status),
+			// 只认有结论的（识别结束、对账结束）；每读完一页的进度推送（只带 pages_done）不刷
+			accept: data => data?.job !== undefined
+				|| (Boolean(data?.status) && !["queued", "running", "deferred"].includes(data.status)),
 		});
 		$(wrapper).one("remove", () => live.stop());
 	};

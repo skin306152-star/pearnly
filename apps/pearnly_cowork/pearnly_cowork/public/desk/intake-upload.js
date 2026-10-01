@@ -49,9 +49,11 @@
 	const poll_ms = () => (frappe.realtime?.socket?.connected ? POLL.pushed_ms : POLL.every_ms);
 	$(document).on("app_ready", listen);
 	if (frappe.app) listen();
-	// 提交时识别暂时满（等不到名额锁、本租户排队已满、识别暂停）：不当失败，排着自动重交（2026-09-30 生产压测：
-	// 同时交 16 张就有被拒的）。每次隔 5 秒起、逐次加长到 30 秒，最多等 60 分钟；服务端拒收时整笔回滚，重交安全。
-	const BUSY = new Set(["capacity_unavailable", "queue_full", "ocr_paused"]);
+	// 提交时识别暂时满（等不到名额锁、本租户排队已满、识别暂停）或一时查不到余额（计费服务排队、超时）：不当失败，
+	// 排着自动重交（2026-09-30 生产压测：同时交 16 张就有被拒的；2026-10-01 独立复查：查不到余额原来不在里面，
+	// 计费一抖发票就成片判失败）。每次隔 5 秒起、逐次加长到 30 秒，最多等 60 分钟；服务端拒收时整笔回滚，重交安全。
+	// 余额不足（insufficient_balance）不在这里：那要用户充值，重交没用。
+	const BUSY = new Set(["capacity_unavailable", "queue_full", "ocr_paused", "lookup_error"]);
 	const RESUBMIT = {first_ms: 5000, max_step_ms: 30000, max_ms: 60 * 60 * 1000};
 	// 批次状态：`saved` 有记录、`not_invoice` 没有发票；任务 `failed/uncertain/cancelled` 是失败；
 	// 其余（受理、排队、运行、延后、识别中）都还在做。

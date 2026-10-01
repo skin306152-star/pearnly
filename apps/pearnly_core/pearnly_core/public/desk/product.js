@@ -159,16 +159,20 @@ frappe.provide("frappe.pearnly");
 	// 自己在跑的任务（`busy()`）时 `busy_ms`（默认 5 秒），否则 `idle_ms`（默认 60 秒）；页面看不见时不刷，重新看得见 /
 	// 窗口拿回焦点时马上刷一次（与 react-query 的 refetchOnWindowFocus 同一做法）。别人做的改动没有推给本人的，最晚 60 秒出现。
 	// `still_current()` 为假（切走了）或调了返回的 `stop()` 就停，事件监听一并摘掉。`refresh` 抛错不影响下一次。
+	// 限频：两次刷新至少隔 `min_ms`（默认 3 秒）——事件只"去抖"不够，小助手逐张推 50 张、事件间隔都过了去抖时间，就会
+	// 整表重拉 50 次（独立复查 2026-10-01）。实时连接断了再连上（部署时 socketio 重启）马上刷一次，补上断线期间漏掉的事件。
 	p.live = ({ refresh, events = [], accept = () => true, busy = () => false, still_current = () => true,
-		busy_ms = 5000, idle_ms = 60000, settle_ms = 800 }) => {
-		let timer = 0, soon = 0, running = false, again = false, stopped = false;
+		busy_ms = 5000, idle_ms = 60000, settle_ms = 800, min_ms = 3000 }) => {
+		let timer = 0, soon = 0, running = false, again = false, stopped = false, last = 0;
 		const handlers = [];
+		const socket = frappe.realtime?.socket;
 		const stop = () => {
 			if (stopped) return;
 			stopped = true;
 			clearTimeout(timer);
 			clearTimeout(soon);
 			for (const [event, handler] of handlers) frappe.realtime?.off?.(event, handler);
+			socket?.off?.("connect", on_visible);
 			document.removeEventListener("visibilitychange", on_visible);
 			window.removeEventListener("focus", on_visible);
 		};
@@ -183,7 +187,10 @@ frappe.provide("frappe.pearnly");
 			if (!still_current()) { stop(); return; }
 			if (document.hidden) return;  // 回到页面时再刷
 			if (running) { again = true; return; }
+			const wait = last + min_ms - Date.now();
+			if (wait > 0) { clearTimeout(soon); soon = setTimeout(run, wait); return; }
 			running = true;
+			last = Date.now();
 			try { await refresh(); } catch (error) { /* 下一次再刷 */ }
 			running = false;
 			if (again) { again = false; return run(); }
@@ -198,6 +205,7 @@ frappe.provide("frappe.pearnly");
 		}
 		document.addEventListener("visibilitychange", on_visible);
 		window.addEventListener("focus", on_visible);
+		socket?.on?.("connect", on_visible);
 		schedule();
 		return { stop, now: run };
 	};

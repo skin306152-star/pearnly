@@ -32,6 +32,13 @@ from frappe import _
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 10
+# 开工前问余额是用户在等的那一下（提交识别、开始对账），三个产品的网页线程都同步等它：计费服务一慢，整站跟着慢
+# （独立复查 2026-10-01：原来连接、读各 10 秒，最坏 20 秒）。问不到就按 lookup_error 让调用方稍后重试 / 浏览器自动重交。
+# 扣费照旧 TIMEOUT：那是做完活以后的记账，有幂等参考号，慢一点无妨。
+STATUS_TIMEOUT = (2, 4)
+# 「余额够」的结论按「租户 + 类型 + 份数 + 档位」短缓存：一批几十张同时交时不必每张都问一遍。只缓存放行；
+# 余额不足、查不到不缓存（充值后要马上能用）。
+STATUS_CACHE_SECONDS = 5
 
 
 class BillingUnavailable(Exception):
@@ -53,7 +60,7 @@ def configured() -> bool:
     return bool(c["tenant"] and c["api"] and c["token"])
 
 
-def _call(method: str, params: dict | None = None) -> dict:
+def _call(method: str, params: dict | None = None, timeout=TIMEOUT) -> dict:
     c = _conf()
     if not configured():
         raise BillingUnavailable(_("Billing is not configured on this site (pearnly_billing_*)"))
@@ -68,7 +75,7 @@ def _call(method: str, params: dict | None = None) -> dict:
         headers["Host"] = c["host"]
     url = f"{c['api']}/api/method/pearnly_control.billing_api.{method}"
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT)
+        resp = requests.post(url, json=payload, headers=headers, timeout=timeout)
     except Exception as exc:  # noqa: BLE001
         raise BillingUnavailable(_("Cannot reach the billing service: {0}").format(exc)) from exc
     if resp.status_code != 200:
@@ -85,8 +92,21 @@ def _call(method: str, params: dict | None = None) -> dict:
 def status(kind: str, units: int, tier: str = "B") -> dict:
     """开工前问一句。异常一律转成 `lookup_error`，不往上抛 ——
     调用方只需要分"钱够 / 没钱 / 查不出来"三种，不需要认识网络异常。"""
+    key = f"pearnly-billing-status:{_conf()['tenant']}:{kind}:{int(units or 0)}:{tier}"
     try:
-        return _call("service_status", {"kind": kind, "units": int(units or 0), "tier": tier})
+        cached = frappe.cache.get_value(key)
+    except Exception:
+        cached = None
+    if cached:
+        return cached
+    try:
+        result = _call("service_status", {"kind": kind, "units": int(units or 0), "tier": tier}, timeout=STATUS_TIMEOUT)
+        if isinstance(result, dict) and result.get("allowed") is True:
+            try:
+                frappe.cache.set_value(key, result, expires_in_sec=STATUS_CACHE_SECONDS)
+            except Exception:
+                pass
+        return result
     except BillingUnavailable as exc:
         logger.warning("billing.status 查不到：%s", exc)
         return {"allowed": False, "error_code": "lookup_error", "reason": str(exc)}

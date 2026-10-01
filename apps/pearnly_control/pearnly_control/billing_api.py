@@ -88,8 +88,13 @@ def service_charge(tenant: str, product: str, kind: str, units: int, tier: str =
                    reference: str = "", description: str = "") -> dict:
     """干完活后扣费。调用方必须是"确实识别成功了"的那一刻。"""
     _require_service(tenant, product)
+    tenant = _tenant_or_throw(tenant)
+    # 排队拿租户锁之前先结束这次请求的读快照（上面查租户存在已经开始了一个）：MariaDB 11.8 开着快照隔离，快照早于排队
+    # 的话，拿到锁时前一笔已经改过的钱包一读就是 1020，整笔回滚、在计费线程里睡着重试、再排一次队；同一租户集中扣费时
+    # 计费线程被这些重试占满，各租户问余额都超时（独立复查 2026-10-01，本机 MariaDB 11.8.9 复现）。到这里还没写过东西。
+    frappe.db.commit()
     return billing.charge(
-        _tenant_or_throw(tenant), product=product, kind=kind, units=int(units or 0),
+        tenant, product=product, kind=kind, units=int(units or 0),
         tier=tier, reference=reference, description=description,
     )
 
@@ -261,6 +266,7 @@ def admin_approve(request: str, actual_amount_thb: float | None = None, note: st
     return approve_local(request, admin, actual_amount_thb, note)
 
 
+@retry_service  # 大批扣费时钱包一直在变，同意充值读钱包会撞 1020：整笔回滚重试；已提交过的不重试（独立复查 2026-10-01）
 def approve_local(request, admin, actual_amount_thb=None, note=""):
     frappe.db.sql("select name from `tabPearnly Topup Request` where name=%s for update", (request,))
     doc = frappe.get_doc(billing.TOPUP, request, for_update=True)
@@ -321,7 +327,7 @@ def admin_adjust(tenant: str, amount_thb: float, note: str) -> dict:
     if billing_remote.enabled():
         return billing_remote.call("adjust", tenant=tenant, amount=amount_thb, note=note, actor=admin)
     tenant = _tenant_or_throw(tenant)
-    new_balance = billing.adjust(tenant, float(amount_thb or 0), note=note, actor=admin)
+    new_balance = retry_service(billing.adjust)(tenant, float(amount_thb or 0), note=note, actor=admin)
     return {"ok": True, "tenant": tenant, "new_balance": float(new_balance)}
 
 

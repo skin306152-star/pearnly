@@ -38,6 +38,7 @@ LIST_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "status", "r
 DETAIL_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "gl_account_code", "status",
 	"row_count", "source_format", "source_digest", "created_by", "created_at")
 TASKS = recon_tasks.ReconTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS, DETAIL_FIELDS)
+MOVED = "cowork-recon-moved:"
 
 
 def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
@@ -53,6 +54,8 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		if previous.workspace != workspace:
 			frappe.throw(_("reconciliation.request_conflict"))
 		TASKS._remove(previous)
+		# 旧地址（停在旧标签页、后退、刷新、列表旧数据）打开时转到新的这份，不报「找不到」（独立复查 2026-10-01）。
+		frappe.cache.set_value(f"{MOVED}{replace_task}", name, expires_in_sec=7 * 24 * 3600)
 	title = bank_recon_contracts.title_text(title)
 	if reconciliation_type not in ("bank", "income"):
 		frappe.throw(_("reconciliation.type_invalid"))

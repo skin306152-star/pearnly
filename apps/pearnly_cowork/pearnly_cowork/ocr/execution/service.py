@@ -62,7 +62,9 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
     target = str(target or "").strip() or None
     if target and target not in TARGETS:
         frappe.throw(_("Invalid push target."))
-    source = frappe.get_doc(files.SOURCE, source_file, for_update=True)
+    # 先不锁原件：要问计费服务的余额（走网络），锁着原件等它，计费一慢原件行锁和连接就一直占着（独立复查 2026-10-01）。
+    # 余额问完再锁、再核一次（下面 `_admitted`），同一份同时交两次照旧只建一个。
+    source = frappe.get_doc(files.SOURCE, source_file)
     scope.require_scope(source.workspace, source.client)
     files.require_full(source)
     name = store.digest([KIND, source.name])
@@ -70,14 +72,9 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
     fingerprint = store.digest([source.name, source.sha256, frappe.session.user, request_key,
                                 direction, posting_kind, payment, *([connection, account_set_key] if connection else []),
                                 *([target] if target else [])])
-    if frappe.db.exists(access.DOCTYPE, name):
-        doc = store.read(name, write=True)
-        if doc.request_fingerprint != fingerprint:
-            frappe.throw(_("This original already has a recognition task with different parameters."))
-        # Never reset a failed/uncertain work item or buy another recognition.
-        return store.project(doc)
-    if source.binding_complete:
-        frappe.throw(_("The original file already has a completed invoice manifest."))
+    admitted = _admitted(name, fingerprint, source)
+    if admitted is not None:
+        return admitted
     count, billing_kind, billing_units = int(source.page_count), "pdf", int(source.page_count)
     frozen = None
     if source.kind == "document":
@@ -90,13 +87,19 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
             require_links(result, source.workspace, source.client)
         else:
             validate_document(document)
-        originals.freeze_doc_manifest(source, document)
         count, billing_kind, billing_units = document.page_count, "excel", document.billing_characters
     elif source.kind not in {"image", "pdf"}:
         frappe.throw(_("This file type is not supported."))
     frozen = frozen or settings.snapshot()
     examples = feedback.snapshot_for_scope(source.workspace, source.client) if frozen["fewshot"] else None
     balance(billing_units, frozen["billing_tier"], kind=billing_kind)
+    frappe.db.commit()  # 结束读快照再锁（到这里只读没写）：锁后的「交过没有」要看到别人刚提交的那份
+    source = frappe.get_doc(files.SOURCE, source_file, for_update=True)
+    admitted = _admitted(name, fingerprint, source)  # 问余额期间别人（同一份的重复提交）可能已经建好
+    if admitted is not None:
+        return admitted
+    if source.kind == "document":
+        originals.freeze_doc_manifest(source, document)
     work_name = hashlib.sha256((KIND + "\0" + name).encode()).hexdigest()
     doc = store.create({"source_file": source.name, "workspace": source.workspace, "client": source.client or "",
         "actor": frappe.session.user, "request_key": request_key, "request_fingerprint": fingerprint,
@@ -118,6 +121,19 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
     return store.project(doc)
 
 
+def _admitted(name, fingerprint, source):
+    """这一份已经交过：同样参数回原来那份（不重置失败 / 结果不明的，也不再买一次识别），参数不同就拒；还没交过回 None。"""
+    if frappe.db.exists(access.DOCTYPE, name):
+        doc = store.read(name, write=True)
+        if doc.request_fingerprint != fingerprint:
+            frappe.throw(_("This original already has a recognition task with different parameters."))
+        # Never reset a failed/uncertain work item or buy another recognition.
+        return store.project(doc)
+    if source.binding_complete:
+        frappe.throw(_("The original file already has a completed invoice manifest."))
+    return None
+
+
 def detail(name):
     return store.project(store.read(name))
 
@@ -126,11 +142,14 @@ def settle(name, *, authorized=False):
     """Receipt-only retry. A saved result is never sent back through OCR.
 
     ``authorized``：识别任务里存完结果紧接着扣费，刚复核过，不再重复同一刻的复核；用户点「重试记账」照旧复核。"""
-    doc = store.read(name, lock=True, write=True, authorize=not authorized)
+    doc = store.read(name, write=True, authorize=not authorized)
     if doc.phase != "saved" or doc.billing_state == "charged":
         return doc
     frozen = json.loads(doc.settings_json)
     kind, units = billing_basis(doc)
+    # 计费要走网络（排队时可能几秒）：不锁着识别单、不占着事务等它（独立复查 2026-10-01：计费一慢，整台数据库的连接
+    # 都被这些等着的请求推高）。扣费按参考号幂等，同一张同时记两次也只扣一次；回来后再锁住写结果。
+    frappe.db.commit()
     try:
         result = billing_client.charge("cowork", kind, units,
             tier=frozen["billing_tier"], reference=doc.billing_reference,
@@ -139,6 +158,9 @@ def settle(name, *, authorized=False):
         # An unparseable/lost response is also unknown accounting outcome.
         # Stable reference makes a receipt retry safe; never log raw responses.
         result = {"ok": False}
+    doc = store.read(name, lock=True, write=True, authorize=False)
+    if doc.phase != "saved" or doc.billing_state == "charged":
+        return doc
     if isinstance(result, dict) and result.get("ok") is True:
         doc.billing_state, doc.billing_code = "charged", ""
         # Only explicitly allowed receipt fields, no remote response body leaks.

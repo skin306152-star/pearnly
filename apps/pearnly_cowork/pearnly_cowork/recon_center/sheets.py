@@ -21,7 +21,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.recon_center import rerun
-from pearnly_cowork.reconciliation import normalization, presets, revision, vat_check_service
+from pearnly_cowork.reconciliation import bank_recon_service, normalization, presets, revision, vat_check_service
 
 MAX_CELLS = 400000
 _SUM = re.compile(r"^=SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)$")
@@ -510,17 +510,58 @@ def load(kind, task_id, lang=None):
     """结果页数据：有对得上的存档就直接回（``view_store``），否则现算一次并存起来。"""
     from pearnly_cowork.recon_center import view_store
 
+    try:
+        doc = _task(kind, task_id)
+    except frappe.DoesNotExistError:
+        # 答了预设、用原文件重跑后，旧的那份换成了新名字：告诉页面转过去
+        moved = frappe.cache.get_value(f"{bank_recon_service.MOVED}{task_id}") if kind == "bank" else None
+        if moved and frappe.db.exists(bank_recon_service.TASK, moved):
+            frappe.clear_last_message()
+            return {"moved": moved}
+        raise
+    lang = _lang(lang)
+    version = vat_check_service.revision(doc) if kind == "vat" else revision.revision(doc)
+    key = view_store.key(lang)
+    found = view_store.fingerprint(kind, doc, key, version)
+    saved, fresh = view_store.get(kind, doc.name, key, found)
+    if saved is not None:
+        if not fresh:
+            view_store.refresh_later(kind, doc.name, lang)
+        return saved
+    with view_store.building(kind, doc.name, key):
+        saved, fresh = view_store.get(kind, doc.name, key, found)  # 等锁期间别人可能已经算好了
+        if saved is not None and fresh:
+            return saved
+        return _store_view(kind, doc, lang, version, key, found)
+
+
+def _store_view(kind, doc, lang, version, key, found):
+    from pearnly_cowork.recon_center import view_store
+
+    view = _build(kind, doc, lang, version)
+    view_store.put(kind, doc.name, key, found, view)
+    return view
+
+
+def rebuild_view(kind, task_id, lang, ui=None, user=None):
+    """按当前代码把一套对账的结果页存档重建（已是最新就不动），回是否新生成了一份。后台（``refresh_later``）与部署时的
+    补算（``view_store.backfill``）用；``ui`` / ``user`` 是排进后台时那个请求的界面语言与用户。"""
+    from pearnly_cowork.recon_center import view_store
+
+    if user:
+        frappe.set_user(user)
+    if ui:
+        frappe.local.lang = ui
     doc = _task(kind, task_id)
     lang = _lang(lang)
     version = vat_check_service.revision(doc) if kind == "vat" else revision.revision(doc)
     key = view_store.key(lang)
     found = view_store.fingerprint(kind, doc, key, version)
-    saved = view_store.get(kind, doc.name, key, found)
-    if saved is not None:
-        return saved
-    view = _build(kind, doc, lang, version)
-    view_store.put(kind, doc.name, key, found, view)
-    return view
+    with view_store.building(kind, doc.name, key):
+        if view_store.get(kind, doc.name, key, found)[1]:
+            return False
+        _store_view(kind, doc, lang, version, key, found)
+        return True
 
 
 def _build(kind, doc, lang, version):

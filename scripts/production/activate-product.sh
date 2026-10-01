@@ -51,4 +51,10 @@ trap - ERR
 # 只告警，不算激活失败；它有总时长上限，是一次性的，不是定时任务。
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all execute pearnly_core.desk.warmup.run \
   || printf 'Desk warm-up failed; each user computes their own first boot as before.\n' >&2
+# Cowork：对账结果页的存档按新代码补一遍（pearnly_cowork/recon_center/view_store.py backfill）。后台低权重进程、分离运行，
+# 不让激活等它；没补到的那几套打开时先给旧存档、后台再重建一份，不会让人等现算。一次性，不是定时任务。
+if [[ "$product" == cowork ]]; then
+  "${compose[@]}" run -d --rm --no-deps cowork-worker bench --site all execute pearnly_cowork.recon_center.view_store.backfill \
+    || printf 'Reconciliation view backfill did not start; stale views refresh in the background on open.\n' >&2
+fi
 printf 'Product %s activated with verified image.\n' "$product"

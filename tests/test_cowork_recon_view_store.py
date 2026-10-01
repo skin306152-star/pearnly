@@ -1,5 +1,6 @@
 """对账结果页存档：指纹对得上直接回存档，对不上（结果 / 预设 / 语言 / 代码变了）现算一次再存。镜像里跑，不连站点。
 真实数据上「存档 = 现算」逐套比对见 docs/work/2026-10-01-billing-throughput.md。"""
+import contextlib
 import sys
 import unittest
 from pathlib import Path
@@ -21,10 +22,11 @@ assert Path(view_store.__file__).is_relative_to(ROOT)
 
 class FakeDb:
     def __init__(self):
-        self.rows, self.presets, self.rerun_modified = {}, (0, None), None
+        self.rows, self.presets, self.rerun_modified, self.preset_scopes = {}, (0, None), None, []
 
     def sql(self, query, values=None):
         if "COUNT(*)" in query:
+            self.preset_scopes.append(values[2])
             return [self.presets]
         if query.startswith("SELECT fingerprint"):
             row = self.rows.get(values[0])
@@ -63,7 +65,10 @@ class ViewStoreTest(unittest.TestCase):
                          else frappe._dict(self.doc, name=task)),
             patch.object(sheets.revision, "revision", side_effect=lambda doc: 3),
             patch.object(sheets, "_build", side_effect=self.build),
+            patch.object(view_store, "building", side_effect=lambda *a: contextlib.nullcontext()),
+            patch.object(view_store, "refresh_later", side_effect=lambda *a: self.refreshes.append(a)),
         ]
+        self.refreshes = []
         for item in self.patches:
             item.start()
         frappe.local.lang = "zh"
@@ -82,20 +87,44 @@ class ViewStoreTest(unittest.TestCase):
         self.assertEqual(len(self.built), 1)
         self.assertEqual(second, first)
 
-    def test_any_change_that_affects_the_page_rebuilds_once(self):
+    def test_any_data_change_rebuilds_once(self):
         sheets.load("bank", "CBR-1", "zh")
         changes = [
             lambda: self.doc.update(modified="2026-10-01 10:05:00.000000"),  # 保存修改 / 回答预设后任务变了
-            lambda: setattr(self.db, "presets", (1, "2026-10-01 11:00:00")),  # 改 / 删预设
+            lambda: setattr(self.db, "presets", (1, "2026-10-01 11:00:00")),  # 这家银行的预设改 / 删了
             lambda: setattr(self.db, "rerun_modified", "2026-10-01 12:00:00"),  # 重跑问题记录变了
-            lambda: setattr(view_store, "_code", "another-version"),  # 换了版本的代码
         ]
         for count, change in enumerate(changes, start=2):
             change()
             sheets.load("bank", "CBR-1", "zh")
             sheets.load("bank", "CBR-1", "zh")
             self.assertEqual(len(self.built), count)
-        view_store._code = None
+        self.assertEqual(self.refreshes, [])
+
+    def test_a_new_code_version_serves_the_old_archive_and_rebuilds_it_in_the_background(self):
+        first = sheets.load("bank", "CBR-1", "zh")
+        view_store._code = "another-version"
+        try:
+            self.assertEqual(sheets.load("bank", "CBR-1", "zh"), first)  # 部署后第一次打开：先给旧的，不让人等
+            self.assertEqual(len(self.built), 1)
+            self.assertEqual(self.refreshes, [("bank", "CBR-1", "zh")])
+            self.assertTrue(sheets.rebuild_view("bank", "CBR-1", "zh"))  # 后台那一份按新代码重建
+            self.assertEqual(len(self.built), 2)
+            self.assertFalse(sheets.rebuild_view("bank", "CBR-1", "zh"))  # 已是最新就不动
+            sheets.load("bank", "CBR-1", "zh")
+            self.assertEqual((len(self.built), len(self.refreshes)), (2, 1))
+        finally:
+            view_store._code = None
+
+    def test_presets_in_the_fingerprint_are_only_those_that_can_touch_this_task(self):
+        self.doc.bank_code = "kbank"
+        sheets.load("bank", "CBR-1", "zh")
+        self.assertEqual(self.db.preset_scopes, ["bank|KBANK|%"])
+        self.assertIsNone(view_store._preset_scope("vat", self.doc))
+        with patch.object(sheets.revision, "income_tax_id", return_value="0105556012345"):
+            self.assertEqual(view_store._preset_scope("income", self.doc), "income|0105556012345|%")
+        with patch.object(sheets.revision, "income_tax_id", return_value=""):
+            self.assertEqual(view_store._preset_scope("income", self.doc), "%")
 
     def test_each_page_and_interface_language_has_its_own_archive(self):
         sheets.load("bank", "CBR-1", "zh")

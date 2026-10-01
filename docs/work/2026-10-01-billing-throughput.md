@@ -28,7 +28,7 @@
    每线程最多一个数据库连接（MariaDB 151）。容量检查 24 项通过。
 4. **对账查不到余额不再直接失败**：`recon_center.waiting.balance`——`lookup_error` 时交还进程、30 秒后再跑一轮查，最多等 10 分钟；
    余额不足照旧马上报。对账文档（`document_ocr.submit`）与销项税核查发票（`invoice_ocr`）都走它。录入发票提交被拒 `lookup_error`
-   时浏览器本来就会隔几秒重交（`intake-upload.js` RESUBMIT），不改。
+   时浏览器**原来并不会**重交（`BUSY` 里没有它，独立复查 2026-10-01 指出），批次 A 已补上（见 `2026-10-01-batch-a-review-fixes.md`）。
 
 ## 同批：抢 CPU 时网页与数据库先跑
 

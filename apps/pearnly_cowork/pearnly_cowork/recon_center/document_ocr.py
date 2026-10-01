@@ -40,6 +40,7 @@ from pearnly_cowork.ocr.providers.core import build_client
 KIND = "cowork.recon_document"
 RESULT = KIND + ":result"
 BILLED = KIND + ":billed"
+BILLING_SENT = KIND + ":billing_sent"
 TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 # 让出前最多跑的时间：一次抽取最长 180 秒、等名额最多 60 秒、结果不明再重发一次，最坏 2 ×（60 + 180）= 480 秒；读字
 # 3 ×（60 + 90）= 450 秒。90 + 480 = 570 仍在识别任务 600 秒的硬上限内 —— 原来 200 秒会越过上限，调用中途被杀、留下
@@ -396,8 +397,11 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             # 扣费前再看一次对账：已经失败（等满 25 分钟判失败）或已经结束，这份结果不会再被用到 —— 不扣客户的钱，
             # 任务记成取消（2026-09-29 压测：BAY 12 页读了 46 分钟，对账早已判失败，识别读完照样扣费）。用到结果的
             # 识别一定在对账结束前扣费（对账等它成功才往下走）。已发出的供应商调用费由平台承担。
-            if _recon_closed(recon_job, file):
+            # 已经发过一次扣费（结果可能不明：产品端等计费超时、计费那边其实扣了）就照同一参考号把它记完，不再因对账已结束而
+            # 取消——否则会「扣了钱、对账却失败、这份结果也不记账」（独立复查 2026-10-01）。同一参考号重复扣计费会认出来、不多扣。
+            if not core_work.checkpoint(BILLING_SENT) and _recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
+            core_work.checkpoint(BILLING_SENT, "done", {})
             _charge(name, pages, frozen)
             core_work.checkpoint(BILLED, "done", {"units": int(pages)})
         return {}

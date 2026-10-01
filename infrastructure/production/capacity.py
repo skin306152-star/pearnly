@@ -97,6 +97,58 @@ def check_processes(services, names):
                              % (name, count, floor * count // MIB, int(services[name]['mem_limit']) // MIB))
 
 
+# 数据库连接核算（独立复查 2026-10-01：半量压测时 Max_used_connections 110 / 151，计费改成 2×16 线程后全量会顶到上限、网页直接 500）。
+# 每个能连库的进程 / 线程按一个连接算：网页 workers × threads；识别进程 workers × 线程数，但线程等 Cloud Run 回复时先放掉连接
+# （pearnly_core.execution.pool.release_db），按一半算；其余后台进程各一个；Keycloak 连接池按需开，留 KEYCLOAK_CONNECTIONS。
+# 合计不得超过 max_connections 的 CONNECTION_SHARE。
+CONNECTION_SHARE = 0.85
+# 识别线程大部分时间在等 Cloud Run / 名额 / 模型，等的时候已经放掉连接，按"同时真正持有"算（半量压测实测：识别 176 个线程、
+# 网页 72、计费 8 时 Max_used_connections 110）。
+OCR_THREAD_CONNECTION_WEIGHT = 0.2
+KEYCLOAK_CONNECTIONS = 20
+# MariaDB 内存（压测窗口只读核算 2026-10-01，容器 4G、当天 00:49 OOM 过一次）：固定占用约 1.28G（buffer pool 1G + key buffer
+# 128M + aria 128M + log 16M）；每个连接平均约 5M（sort 2M、join / read / stack 等），最坏带内存临时表约 19M。上限按平均算，
+# 「固定 + max_connections × 每连接」不超过容器上限的 MARIADB_SHARE（4G × 0.7 ≈ 2.8G，压测窗口的警戒线）。
+MARIADB_FIXED_MIB = 1310
+MARIADB_CONNECTION_MIB = 5
+MARIADB_SHARE = 0.7
+
+
+def _flag(command, name, default):
+    for part in command:
+        if part.startswith(f'--{name}='):
+            return int(part.split('=', 1)[1])
+    if f'--{name}' in command:
+        return int(command[command.index(f'--{name}') + 1])
+    return default
+
+
+def connections(services, names):
+    """这些服务高峰时最多同时占的数据库连接（估算，见上）。"""
+    total = 0.0
+    for name in names:
+        row = services[name]
+        command = [str(part) for part in row.get('command') or []]
+        if name == 'mariadb' or name.startswith('redis') or name.endswith(('-frontend', '-socketio')):
+            continue
+        if name == 'keycloak':
+            total += KEYCLOAK_CONNECTIONS
+        elif any(part.startswith('--workers=') for part in command):
+            total += _flag(command, 'workers', 1) * _flag(command, 'threads', 1)
+        elif 'worker-pool' in command:
+            count = _flag(command, 'num-workers', 1)
+            queue = command[command.index('--queue') + 1] if '--queue' in command else ''
+            total += count * (1 + (ocr_threads(row) - 1) * OCR_THREAD_CONNECTION_WEIGHT if queue == 'ocr' else 1)
+        else:
+            total += 1
+    return int(round(total))
+
+
+def max_connections(services):
+    command = [str(part) for part in services['mariadb'].get('command') or []]
+    return _flag(command, 'max-connections', 151)
+
+
 def calculate(services, containers, product, total_bytes, available_bytes, transient_bytes=0):
     wanted = {name for name, row in services.items()
               if not row.get('profiles') or product in row['profiles']}
@@ -120,6 +172,20 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
               'available_mib': available_bytes // MIB,
               'available_floor_mib': available_floor(total_bytes) // MIB,
               'transient_mib': transient_bytes // MIB}
+    every = {name for name, row in services.items() if not row.get('profiles')} | {
+        row['service'] for row in containers if row['project'] == 'pearnly-production' and row['service'] in services} | wanted
+    report['db_connections'] = connections(services, every)
+    report['db_max_connections'] = max_connections(services)
+    mariadb_limit = int(services['mariadb'].get('mem_limit') or 0)
+    report['db_memory_mib'] = MARIADB_FIXED_MIB + report['db_max_connections'] * MARIADB_CONNECTION_MIB
+    # 只在把上限提到默认（151）以上时把关：提连接数必须先有内存（生产已把 MariaDB 提到 4G）。
+    if (mariadb_limit and report['db_max_connections'] > 151
+            and report['db_memory_mib'] * MIB > mariadb_limit * MARIADB_SHARE):
+        raise ValueError('max_connections would push MariaDB past %d%% of its memory limit: %s'
+                         % (MARIADB_SHARE * 100, json.dumps(report)))
+    if report['db_connections'] > report['db_max_connections'] * CONNECTION_SHARE:
+        raise ValueError('Database connections would exceed %d%% of max_connections: %s'
+                         % (CONNECTION_SHARE * 100, json.dumps(report)))
     if reserved + host_reserve > total_bytes * OVERCOMMIT:
         raise ValueError('Product memory budgets exceed this host: ' + json.dumps(report))
     if available_bytes < available_floor(total_bytes) + transient_bytes:

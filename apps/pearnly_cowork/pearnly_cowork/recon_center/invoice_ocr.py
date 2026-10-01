@@ -42,6 +42,7 @@ from pearnly_cowork.ocr.schema import PipelineResult
 KIND = "cowork.vat_check"
 RESULT = KIND + ":result"
 BILLED = KIND + ":billed"
+BILLING_SENT = KIND + ":billing_sent"
 TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 # 让出前最多跑的时间：发票读图在这里至少等 MODEL_TIMEOUT_SECONDS、等名额最多 60 秒、结果不明再重发一次，最坏
 # 120 + 2 ×（60 + 120）= 480 秒，在识别任务 600 秒的硬上限内（原 200 秒在忙时被硬时限杀在调用中途，2026-09-30 压测第 18 轮）。
@@ -311,8 +312,10 @@ def run(recon_job, file, filename, pages, sha256, settings):
             # 口径；2026-09-30 压测 V01：核查因识别繁忙失败后，读完的小票照样扣费）。
             from pearnly_cowork.recon_center import document_ocr
 
-            if document_ocr._recon_closed(recon_job, file):
+            # 发过一次扣费就照同一参考号记完，不因核查已结束而取消（同 document_ocr.run，独立复查 2026-10-01）。
+            if not core_work.checkpoint(BILLING_SENT) and document_ocr._recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
+            core_work.checkpoint(BILLING_SENT, "done", {})
             _charge(name, pages, frozen)
             core_work.checkpoint(BILLED, "done", {"units": int(pages)})
         return {}

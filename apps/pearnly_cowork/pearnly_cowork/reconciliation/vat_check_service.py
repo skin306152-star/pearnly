@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from pearnly_cowork.reconciliation import naming, vat_check_access
+from pearnly_cowork.reconciliation import naming, recon_tasks, vat_check_access
 from pearnly_cowork.reconciliation.export.vat_check_workbook import build_excel
 from pearnly_cowork.reconciliation.vat_check_documents import persist
 
@@ -131,6 +131,7 @@ def delete_many(task_ids):
 	docs = [task(name) for name in names]
 	for doc in docs:
 		frappe.db.delete(TASK, {"name": doc.name})
+		recon_tasks.drop_views(doc.name)  # 结果页存档一起删
 	return {"deleted": len(docs), "ids": [doc.name for doc in docs]}
 
 

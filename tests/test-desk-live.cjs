@@ -1,5 +1,5 @@
 // 列表刷新 `p.live`：实时事件为主（同一阵子的合成一次）、有任务在跑时短间隔兜底、否则 60 秒、看不见不刷、回到页面马上刷、
-// 切走 / stop 后不再刷并摘掉监听。走真实 product.js，假 frappe.realtime / document / window，不连站点。
+// 切走 / stop 后不再刷并摘掉监听、两次刷新至少隔 min_ms。走真实 product.js，假 frappe.realtime / document / window，不连站点。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -39,7 +39,7 @@ test('事件合并成一次刷新，不相干的事件不刷', async () => {
   const {p, emit} = load();
   let count = 0;
   const live = p.live({refresh: async () => { count++; }, events: ['changed'], accept: d => d.kind === 'mine',
-    settle_ms: 20, idle_ms: 10000});
+    settle_ms: 20, idle_ms: 10000, min_ms: 0});
   emit('changed', {kind: 'mine'}); emit('changed', {kind: 'mine'}); emit('changed', {kind: 'other'});
   await sleep(60);
   assert.equal(count, 1);
@@ -52,7 +52,7 @@ test('事件合并成一次刷新，不相干的事件不刷', async () => {
 test('有任务在跑时按短间隔兜底，没有就等长间隔', async () => {
   const {p} = load();
   let count = 0, busy = true;
-  const live = p.live({refresh: async () => { count++; }, busy: () => busy, busy_ms: 20, idle_ms: 10000});
+  const live = p.live({refresh: async () => { count++; }, busy: () => busy, busy_ms: 20, idle_ms: 10000, min_ms: 0});
   await sleep(75);
   assert.ok(count >= 2, `busy refreshes: ${count}`);
   busy = false;
@@ -65,7 +65,7 @@ test('有任务在跑时按短间隔兜底，没有就等长间隔', async () =>
 test('看不见时不刷，回到页面 / 窗口拿回焦点马上刷一次', async () => {
   const {p, fire, document} = load();
   let count = 0;
-  const live = p.live({refresh: async () => { count++; }, busy: () => true, busy_ms: 20, settle_ms: 5});
+  const live = p.live({refresh: async () => { count++; }, busy: () => true, busy_ms: 20, settle_ms: 5, min_ms: 0});
   document.hidden = true;
   await sleep(60);
   const hidden = count;
@@ -85,7 +85,7 @@ test('切走或 stop 后不再刷，监听全部摘掉', async () => {
   const {p, emit, handlers, listeners} = load();
   let count = 0, current = true;
   const live = p.live({refresh: async () => { count++; }, events: ['a', 'b'], busy: () => true, busy_ms: 10,
-    settle_ms: 5, still_current: () => current});
+    settle_ms: 5, min_ms: 0, still_current: () => current});
   await sleep(35);
   current = false;
   await sleep(30);
@@ -102,11 +102,26 @@ test('刷新抛错不影响下一次；正在刷时来的事件等这次完了�
   const {p, emit} = load();
   let count = 0;
   const live = p.live({refresh: async () => { count++; await sleep(30); if (count === 1) throw new Error('x'); },
-    events: ['e'], settle_ms: 1, idle_ms: 10000});
+    events: ['e'], settle_ms: 1, idle_ms: 10000, min_ms: 0});
   void live.now();
   await sleep(5);
   emit('e', {});
   await sleep(100);
   assert.equal(count, 2);
+  live.stop();
+});
+
+test('两次刷新至少隔 min_ms，事件来得太密就推到间隔满了再刷一次', async () => {
+  const {p, emit} = load();
+  let count = 0;
+  const live = p.live({refresh: async () => { count++; }, events: ['e'], settle_ms: 1, idle_ms: 10000, min_ms: 60});
+  void live.now();
+  await sleep(5);
+  assert.equal(count, 1);
+  emit('e', {}); await sleep(10); emit('e', {});
+  await sleep(20);
+  assert.equal(count, 1, 'too soon after the last refresh');
+  await sleep(60);
+  assert.equal(count, 2, 'one refresh once the spacing passed');
   live.stop();
 });

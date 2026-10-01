@@ -160,6 +160,19 @@ elif 'ps' in args:
         self.assertIn('Desk warm-up failed', result.stderr)
         self.assertEqual(json.loads(self.records_after['active-image-cowork.json']), [IMAGE])
 
+    def test_cowork_backfills_result_views_detached_after_reopening(self):
+        result, trace = self.run_activation(product='cowork')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        backfill = next(i for i, call in enumerate(calls) if 'view_store.backfill' in call)
+        self.assertLess(next(i for i, call in enumerate(calls) if 'set-maintenance-mode off' in call), backfill)
+        self.assertIn('run -d --rm --no-deps cowork-worker', calls[backfill])
+        result, trace = self.run_activation(product='erp')
+        self.assertFalse(any('view_store.backfill' in ' '.join(row['args']) for row in trace))
+        result, _ = self.run_activation('pearnly_cowork.recon_center.view_store.backfill', product='cowork')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('stale views refresh in the background', result.stderr)
+
     def test_migration_failure_keeps_maintenance_and_workers_stopped(self):
         result, trace = self.run_activation('migrate')
         self.assertNotEqual(result.returncode, 0)

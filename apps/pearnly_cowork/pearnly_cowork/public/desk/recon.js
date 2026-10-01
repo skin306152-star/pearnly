@@ -737,6 +737,8 @@
 			const data = loaded || await p.call(sheets_api + "load", { kind, task_id: name, lang: lang() })
 				.finally(() => page.main.children(".list-skeleton").remove());
 			if (request !== sequence || frappe.get_route()[1] !== name) return;
+			// 答了预设、用原文件重跑后这一份换了新名字：旧地址直接转到新的（不报「找不到」）
+			if (data?.moved) { frappe.set_route(root, data.moved); return; }
 			clear();
 			let modified = data.task.modified, dirty = false, pending = null, active = 0, view = data, waiting = null;
 			let status = data.task.status;

@@ -142,8 +142,9 @@ services:
     mem_limit: 512m
     # 计费服务（账本）是所有租户、所有产品共用的一个服务，扣费按租户排队（租户行锁）。原来只有 2 × 4 = 8 个处理位：
     # 一家集中扣费时等锁的请求把 8 个位全占住，各租户各产品问余额都超时（2026-10-01 三租户半量压测）。等锁的线程几乎不占
-    # 内存，默认改成 2 × 16；每个线程最多占一个数据库连接（MariaDB 默认 151）。
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_BILLING_WEB_THREADS:-16}', '--workers=${PEARNLY_BILLING_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+    # 内存。2026-10-01 先改 2 × 16；扣费拿锁前结束读快照、台账不再抢同一行之后扣费事务很短，按压测窗口核算的数据库
+    # 内存收回到 2 × 8（每个线程最多占一个数据库连接，见 capacity.py 的连接核算）。
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_BILLING_WEB_THREADS:-8}', '--workers=${PEARNLY_BILLING_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
     ports: ['127.0.0.1:8184:8000']
     volumes:
       - sites-billing:/home/frappe/frappe-bench/sites

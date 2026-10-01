@@ -133,8 +133,12 @@
 					await list.reload();
 				},
 				events: ["cowork_intake_changed", "pearnly_ocr_work"],
-				accept: data => !data?.kind || data.kind === "cowork.invoice",
-				busy: () => (list.data || []).some(row => row.last_push_status === "pending"),
+				// 推送状态变了（带 history）、识别有了结论（带 status）才重拉；每读完一页的进度推送（只带 pages_done）不刷
+				accept: data => data?.history !== undefined || (data?.kind === "cowork.invoice" && Boolean(data?.status)),
+				// 快刷（5 秒）只为本人刚推的：同事的、等离线小助手挂了很久的「录入中」不让所有打开列表的人每 5 秒刷一次
+				// （独立复查 2026-10-01），它们照样随实时事件 / 60 秒兜底更新。
+				busy: () => (list.data || []).some(row => row.last_push_status === "pending" && row.owner === frappe.session.user
+					&& (!row.last_pushed_at || Date.now() - new Date(String(row.last_pushed_at).replace(" ", "T")).getTime() < 15 * 60e3)),
 				still_current,
 			});
 			cleanup = () => {live.stop(); list.destroy(); cleanup = () => {};};

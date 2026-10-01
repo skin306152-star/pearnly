@@ -5,10 +5,10 @@
 
 - 对账出结果时（后台任务里，`jobs`）按发起时选的语言生成一次存起来；保存修改、回答预设问题后（它们都回 `sheets.load`）
   按新结果重新生成、存回；
-- 打开结果页先按指纹找存档，对得上就直接回；对不上（结果变了、预设变了、代码换了）现算一次再存。没有存档的旧任务第一次打开时
-  现算并补存。
+- 打开结果页先按指纹找存档，对得上就直接回；只是代码换了（部署）先回旧存档、后台重建一份；结果或预设变了现算一次再存（同一套
+  同一时间只算一份）。没有存档的旧任务第一次打开时现算并补存。每次激活 Cowork 后补算一遍（`activate-product.sh`）。
 
-指纹包括：对账类型、任务、语言、任务的修改时间与修订号、这个工作空间这类对账的预设（条数与最后修改时间）、要用原文件重跑的
+指纹包括：对账类型、任务、语言、任务的修改时间与修订号、可能影响这一套的预设（同一家银行 / 同一个本公司税号，条数与最后修改时间）、要用原文件重跑的
 问题记录的修改时间、生成结果页的代码本身（这些源文件的内容摘要）。所以存档只会在内容确实一样时被用上，与现算逐格一致。
 
 导出 Excel 不走这里：导出读的是任务完成时存下的结果行（各自的 `export`），本来就不重算对账。
@@ -17,6 +17,7 @@
 """
 import hashlib
 import json
+from contextlib import contextmanager
 from pathlib import Path
 
 import frappe
@@ -42,13 +43,37 @@ def _code_fingerprint():
     return _code
 
 
+def _preset_scope(kind, doc):
+    """指纹里只算可能影响这一套的预设（``LIKE`` 模式）：银行按同一家银行（``bank|<银行>|…``，账户、科目对应都在下面），收入按
+    同一个本公司税号（``income|<税号>|…``）；销项税没有预设（回 ``None``）。认不出银行 / 税号时退回本工作区这类对账的全部预设。
+    原来是整个工作区同类预设：同事答一次别的账户的预设，同类全部存档失效（独立复查 2026-10-01）。"""
+    if kind == "vat":
+        return None
+    if kind == "bank":
+        bank = str(doc.get("bank_code") or "").strip().upper().replace("\\", "").replace("%", "").replace("_", "\\_")
+        return f"bank|{bank}|%" if bank else "%"
+    from pearnly_cowork.reconciliation import presets, revision
+
+    try:
+        prefix = presets.income_prefix(revision.income_tax_id(doc))
+    except Exception:
+        prefix = ""
+    return f"{prefix}%" if prefix else "%"
+
+
 def fingerprint(kind, doc, lang, version):
-    presets = frappe.db.sql(f"SELECT COUNT(*), MAX(modified) FROM `tab{PRESET}` WHERE workspace=%s AND recon_kind=%s",
-                            (doc.workspace, kind))[0]
+    """「数据:代码」两段：数据段是任务、语言、修订、预设、重跑记录；代码段是生成结果页的代码与文案。"""
+    scope = _preset_scope(kind, doc)
+    if scope is None:
+        presets = (0, "")
+    else:
+        presets = frappe.db.sql(f"""SELECT COUNT(*), MAX(modified) FROM `tab{PRESET}`
+            WHERE workspace=%s AND recon_kind=%s AND scope LIKE %s""", (doc.workspace, kind, scope))[0]
     rerun = frappe.db.get_value(RERUN, doc.name, "modified") if frappe.db.table_exists(RERUN) else None
-    return hashlib.sha256(json.dumps(
+    data = hashlib.sha256(json.dumps(
         [kind, doc.name, lang, str(doc.modified), str(version), int(presets[0] or 0), str(presets[1] or ""),
-         str(rerun or ""), _code_fingerprint()], separators=(",", ":")).encode()).hexdigest()
+         str(rerun or "")], separators=(",", ":")).encode()).hexdigest()
+    return f"{data}:{_code_fingerprint()[:16]}"
 
 
 def key(lang):
@@ -61,14 +86,50 @@ def _name(kind, task, lang):
 
 
 def get(kind, task, lang, print_):
-    """存档的结果页数据；没有或指纹对不上回 None。"""
+    """``(结果页数据, 是否最新)``：指纹整段对得上是最新；只有代码段不同（部署换了代码、数据没变）回旧存档、标成不是最新，
+    由调用方先给用户、后台重建一份（每次部署都让全部存档失效、早上第一次打开又要现算——独立复查 2026-10-01）；数据段
+    也不同（改过、预设变了、重跑过）或没有存档回 ``(None, False)``。"""
     rows = frappe.db.sql(f"SELECT fingerprint, payload FROM `tab{DOCTYPE}` WHERE name=%s", (_name(kind, task, lang),))
-    if not rows or rows[0][0] != print_ or not rows[0][1]:
-        return None
+    if not rows or not rows[0][1] or rows[0][0].split(":")[0] != print_.split(":")[0]:
+        return None, False
     try:
-        return json.loads(rows[0][1])
+        return json.loads(rows[0][1]), rows[0][0] == print_
     except ValueError:
-        return None
+        return None, False
+
+
+@contextmanager
+def building(kind, task, lang):
+    """同一套同一语言同一时间只算一份：几个人同时打开一套没有存档的对账，后来的等前面那份算完直接读，不各算各的。
+    等不到锁（队列 Redis 一时不可用、前面那份太久）就自己算。"""
+    from frappe.utils.background_jobs import get_redis_conn
+
+    lock = None
+    try:
+        lock = get_redis_conn().lock(f"cowork-recon-view:{frappe.local.site}:{_name(kind, task, lang)}",
+                                     timeout=300, blocking_timeout=120)
+        if not lock.acquire():
+            lock = None
+    except Exception:
+        lock = None
+    try:
+        yield
+    finally:
+        if lock is not None:
+            try:
+                lock.release()
+            except Exception:
+                pass
+
+
+def refresh_later(kind, task, lang):
+    """后台按当前代码重建一份（同一套同一语言只排一个）。排不进去不要紧：下次打开再排，或部署时的补算会做。"""
+    try:
+        frappe.enqueue("pearnly_cowork.recon_center.sheets.rebuild_view", queue="short", kind=kind, task_id=task,
+                       lang=lang, ui=str(frappe.local.lang or "th"), user=frappe.session.user, deduplicate=True,
+                       job_id=f"cowork-recon-view-{frappe.local.site}-{_name(kind, task, key(lang))}")
+    except Exception:
+        pass
 
 
 def put(kind, task, lang, print_, view):
@@ -118,9 +179,7 @@ def backfill(langs=("th", "zh", "en")):
                     try:
                         frappe.set_user(row.owner or "Administrator")
                         frappe.local.lang = lang
-                        before = frappe.db.count(DOCTYPE, {"name": _name(kind, row.name, key(lang))})
-                        sheets.load(kind, row.name, lang)
-                        built += 0 if before else 1
+                        built += 1 if sheets.rebuild_view(kind, row.name, lang) else 0
                     except Exception:
                         failed += 1
                         frappe.db.rollback()
