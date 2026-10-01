@@ -333,11 +333,39 @@ def _token():
         return credentials.token
 
 
+STORAGE_ATTEMPTS = 3
+
+
+def _storage(method, url, *, http=None, sleep=time.sleep, **kwargs):
+    """一次存储请求，与 Cloud Run 上 ``gcs.Bucket._call`` 同一套规则：连接被重置 / 超时 / 谷歌回 429、5xx 时原地再试
+    （最多 3 次，间隔 0.5、1 秒）。返回 ``(回复, 前面是否有一次结果不明)``。"""
+    unsure = False
+    for attempt in range(STORAGE_ATTEMPTS):
+        if attempt:
+            sleep(0.5 * attempt)
+        try:
+            response = getattr(http or requests, method)(url, **kwargs)
+        except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError):
+            unsure = True
+            if attempt == STORAGE_ATTEMPTS - 1:
+                raise
+            continue
+        if response.status_code in (429, 500, 502, 503, 504) and attempt < STORAGE_ATTEMPTS - 1:
+            continue
+        return response, unsure
+
+
 def _create_object(config, name, value, *, http=None):
-    response = (http or requests).post(f"{STORAGE}/upload/storage/v1/b/{config['bucket']}/o",
-        params={"uploadType": "media", "name": name, "ifGenerationMatch": "0"},
-        data=json.dumps(value, ensure_ascii=False).encode(),
+    """存请求（只新建）：重试时回 412 而前面断过连接，说明前一次其实写进去了——同一派发号的对象名唯一，取它的版本号。"""
+    data = json.dumps(value, ensure_ascii=False).encode()
+    response, unsure = _storage("post", f"{STORAGE}/upload/storage/v1/b/{config['bucket']}/o", http=http,
+        params={"uploadType": "media", "name": name, "ifGenerationMatch": "0"}, data=data,
         headers={"Authorization": "Bearer " + _token(), "Content-Type": "application/json"}, timeout=(10, 120))
+    if response.status_code == 412 and unsure:
+        found, _unsure = _storage("get", f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(name, safe='')}",
+            http=http, params={"fields": "generation"}, headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
+        found.raise_for_status()
+        return int(found.json()["generation"])
     response.raise_for_status()
     return int(response.json()["generation"])
 
@@ -350,9 +378,8 @@ def _read_json(config, reference, *, http=None, missing_ok=False):
     if reference.get("generation") is not None:
         params["generation"] = str(int(reference["generation"]))
     try:
-        response = (http or requests).get(
-            f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(reference['object'], safe='')}",
-            params=params, headers={"Authorization": "Bearer " + _token()}, timeout=(10, 120))
+        response, _unsure = _storage("get", f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(reference['object'], safe='')}",
+            http=http, params=params, headers={"Authorization": "Bearer " + _token()}, timeout=(10, 120))
     except Exception as exc:  # requests 的传输错误、google-auth 换令牌失败
         raise Deferred("remote_reply_unavailable", 15) from exc
     if response.status_code == 404 and missing_ok:

@@ -488,6 +488,10 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:
         emit(contract.result("refused", code=exc.code, http_status=exc.http_status, provider_code=exc.provider_code))
+    except requests.RequestException as exc:
+        # 检查点桶 / 原件桶重试后仍连不上（谷歌存储一时故障）：交回稍后续跑，不判程序错误（2026-10-01 半量压测）
+        emit(contract.result("deferred", reason="remote_store_unavailable", delay=15))
+        log(event="store_unavailable", detail=type(exc).__name__)
     except EngineError as exc:
         # 引擎的内容错误（整份读不出、不是发票……）：照原类型交回，服务器照本机执行同样处理（不是程序错误）
         emit(contract.result("error", code=type(exc).__name__, error_code=exc.code, stage=exc.stage,
@@ -562,6 +566,9 @@ def _document(body, content, store, access_token, emit, *, orient, page_source, 
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:
         emit(contract.result("refused", code=exc.code, http_status=exc.http_status, provider_code=exc.provider_code))
+    except requests.RequestException as exc:
+        emit(contract.result("deferred", reason="remote_store_unavailable", delay=15))
+        log(event="store_unavailable", detail=type(exc).__name__)
     except EngineError as exc:
         emit(contract.result("error", code=type(exc).__name__, error_code=exc.code, stage=exc.stage,
                              page_number=exc.page_number, detail=exc.detail[:500]))

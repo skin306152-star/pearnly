@@ -702,6 +702,82 @@ class WarmThenWhole(unittest.TestCase):
                          "invalid")
 
 
+class StorageRetries(unittest.TestCase):
+    """谷歌存储读写遇连接重置 / 超时 / 429、5xx 原地再试（2026-10-01 半量压测：写「已完成」检查点时连接被重置）。"""
+
+    class Session:
+        def __init__(self, plan):
+            self.plan, self.calls = list(plan), []
+
+        def _next(self, method, url, **kwargs):
+            self.calls.append((method, kwargs.get("params", {}).get("ifGenerationMatch")))
+            step = self.plan.pop(0)
+            if isinstance(step, Exception):
+                raise step
+            return step
+
+        def get(self, url, **kwargs):
+            return self._next("get", url, **kwargs)
+
+        def post(self, url, **kwargs):
+            return self._next("post", url, **kwargs)
+
+        def delete(self, url, **kwargs):
+            return self._next("delete", url, **kwargs)
+
+    @staticmethod
+    def reply(status, body=None, generation=None):
+        result = requests.Response()
+        result.status_code = status
+        result._content = json.dumps(body if body is not None else {}).encode()
+        result.headers = CaseInsensitiveDict({"x-goog-generation": str(generation)} if generation else {})
+        return result
+
+    def bucket(self, plan):
+        from pearnly_cowork.ocr.remote import gcs
+
+        session = self.Session(plan)
+        return gcs.Bucket("b", lambda: "token", http=session, sleep=lambda s: None), session
+
+    def test_a_reset_write_is_written_again(self):
+        bucket, session = self.bucket([requests.ConnectionError("reset by peer"), self.reply(200, {"generation": "7"})])
+        self.assertEqual(bucket.put("k", {"state": "done"}), 7)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_a_conditional_write_that_landed_before_the_reset_is_recognised(self):
+        value = {"state": "started"}
+        bucket, _session = self.bucket([requests.ConnectionError("reset"), self.reply(412),
+                                        self.reply(200, value, generation=9)])
+        self.assertEqual(bucket.create("k", value), 9)            # 前一次其实写进去了：读回一致
+        bucket, _session = self.bucket([requests.ConnectionError("reset"), self.reply(412),
+                                        self.reply(200, {"state": "other"}, generation=9)])
+        self.assertIsNone(bucket.create("k", value))              # 别人写的：照旧当已存在
+        bucket, _session = self.bucket([self.reply(412)])
+        self.assertIsNone(bucket.create("k", value))              # 没断过：412 就是已存在，不读回
+
+    def test_reads_ride_out_resets_and_server_errors_but_not_forever(self):
+        bucket, _session = self.bucket([requests.Timeout("slow"), self.reply(503), self.reply(200, {"a": 1}, 3)])
+        self.assertEqual(bucket.get("k"), ({"a": 1}, 3))
+        bucket, _session = self.bucket([requests.ConnectionError("reset")] * 3)
+        with self.assertRaises(requests.ConnectionError):
+            bucket.get("k")
+
+    def test_a_store_that_stays_down_defers_the_reading_instead_of_failing_it(self):
+        class Down(Bucket):
+            def put(self, name, value, if_generation=None):
+                if "/cp/" in name:
+                    raise requests.ConnectionError("reset by peer")
+                return super().put(name, value, if_generation)
+
+            def create(self, name, value):
+                if "/cp/" in name:
+                    raise requests.ConnectionError("reset by peer")
+                return super().create(name, value)
+
+        final = remote(Down(), Google())[-1]
+        self.assertEqual((final["status"], final["reason"]), ("deferred", "remote_store_unavailable"))
+
+
 class PaidCallGuard(unittest.TestCase):
     def test_a_rate_limited_global_entry_switches_to_the_us_entry_at_once(self):
         google = Google(["429"])

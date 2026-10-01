@@ -32,11 +32,17 @@ class Token:
             return self._credentials.token
 
 
+ATTEMPTS = 3
+
+
 class Bucket:
-    def __init__(self, name, token, http=None):
+    def __init__(self, name, token, http=None, sleep=None):
+        import time
+
         self._name, self._token = name, token
         self._local = threading.local()
         self._http = http
+        self._sleep = sleep or time.sleep
 
     @property
     def name(self):
@@ -52,9 +58,34 @@ class Bucket:
     def _headers(self):
         return {"Authorization": "Bearer " + self._token()}
 
+    def _call(self, method, url, **kwargs):
+        """一次存储请求：连接被重置 / 超时 / 谷歌回 429、5xx 时换一条新连接原地再试（最多 ``ATTEMPTS`` 次，间隔
+        0.5、1 秒）。2026-10-01 半量压测：抽取付费返回后写「已完成」检查点时连接被对方重置，整份对账文档判了程序错误。
+        返回 ``(回复, 前面是否有一次结果不明)``：带条件的写入重试时回 412，可能是前一次其实写进去了（见 ``_upload``）。"""
+        unsure = False
+        for attempt in range(ATTEMPTS):
+            if attempt:
+                self._sleep(0.5 * attempt)
+                if self._http is None:
+                    self._local.session = requests.Session()  # 被重置的那条连接不再用
+            options = dict(kwargs)
+            headers = self._headers()
+            if "content_type" in options:
+                headers["Content-Type"] = options.pop("content_type")
+            try:
+                response = getattr(self._session(), method)(url, headers=headers, **options)
+            except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError):
+                unsure = True
+                if attempt == ATTEMPTS - 1:
+                    raise
+                continue
+            if response.status_code in (429, 500, 502, 503, 504) and attempt < ATTEMPTS - 1:
+                continue
+            return response, unsure
+
     def get(self, name):
-        response = self._session().get(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
-                                       params={"alt": "media"}, headers=self._headers(), timeout=(10, 30))
+        response, _unsure = self._call("get", f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       params={"alt": "media"}, timeout=(10, 30))
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -63,8 +94,8 @@ class Bucket:
     def read_bytes(self, name, generation=None):
         """读一个对象的原始字节和版本号（原件桶，ADR-016）；给了版本号就只读那个版本。不存在返回 ``None``。"""
         params = {"alt": "media", **({"generation": str(generation)} if generation is not None else {})}
-        response = self._session().get(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
-                                       params=params, headers=self._headers(), timeout=(10, 120))
+        response, _unsure = self._call("get", f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       params=params, timeout=(10, 120))
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -72,17 +103,15 @@ class Bucket:
 
     def delete_generation(self, name, generation):
         """只删这个版本（核对不通过的直传原件）；已经没有了也算删掉。"""
-        response = self._session().delete(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
-                                          params={"generation": str(generation)},
-                                          headers=self._headers(), timeout=(10, 30))
+        response, _unsure = self._call("delete", f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       params={"generation": str(generation)}, timeout=(10, 30))
         if response.status_code not in (204, 404):
             response.raise_for_status()
 
     def metadata(self, name):
         """对象的版本号与类型（识别时存的预览图，看是不是已经存过）；不存在返回 ``None``。"""
-        response = self._session().get(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
-                                       params={"fields": "generation,contentType"}, headers=self._headers(),
-                                       timeout=(10, 30))
+        response, _unsure = self._call("get", f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       params={"fields": "generation,contentType"}, timeout=(10, 30))
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -91,12 +120,11 @@ class Bucket:
 
     def create_bytes(self, name, data, content_type):
         """写一个新对象（预览图）：已经有了就不写，返回 ``None``；写成返回版本号。"""
-        response = self._session().post(f"{API}/upload/storage/v1/b/{self._name}/o",
-                                        params={"uploadType": "media", "name": name, "ifGenerationMatch": "0"},
-                                        data=data, headers={**self._headers(), "Content-Type": content_type},
-                                        timeout=(10, 60))
+        response, _unsure = self._call("post", f"{API}/upload/storage/v1/b/{self._name}/o",
+                                       params={"uploadType": "media", "name": name, "ifGenerationMatch": "0"},
+                                       data=data, content_type=content_type, timeout=(10, 60))
         if response.status_code == 412:
-            return None
+            return None  # 已经有了（或前一次其实写进去了）：调用方再查一次版本号
         response.raise_for_status()
         return int(response.json()["generation"])
 
@@ -104,11 +132,15 @@ class Bucket:
         params = {"uploadType": "media", "name": name}
         if precondition is not None:
             params["ifGenerationMatch"] = str(precondition)
-        response = self._session().post(f"{API}/upload/storage/v1/b/{self._name}/o", params=params,
-                                        data=json.dumps(value, ensure_ascii=False).encode(),
-                                        headers={**self._headers(), "Content-Type": "application/json"},
-                                        timeout=(10, 60))
+        response, unsure = self._call("post", f"{API}/upload/storage/v1/b/{self._name}/o", params=params,
+                                      data=json.dumps(value, ensure_ascii=False).encode(),
+                                      content_type="application/json", timeout=(10, 60))
         if response.status_code == 412:
+            if unsure:
+                # 前一次连接断在半路、重试时说「已被改过」：读回来看，内容正是这次要写的就是前一次写进去了
+                found = self.get(name)
+                if found and found[0] == value:
+                    return found[1]
             return None
         response.raise_for_status()
         return int(response.json()["generation"])
@@ -120,8 +152,8 @@ class Bucket:
         return self._upload(name, value, if_generation)
 
     def delete(self, name):
-        response = self._session().delete(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
-                                          headers=self._headers(), timeout=(10, 30))
+        response, _unsure = self._call("delete", f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       timeout=(10, 30))
         if response.status_code not in (204, 404):
             response.raise_for_status()
 

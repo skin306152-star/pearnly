@@ -336,6 +336,25 @@ class Collect(Base):
             self.assertEqual(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["rounds"], round_)
         self.assertEqual(delays, [15, 30, 60, 120, 240])
 
+    def test_server_storage_reads_ride_out_a_reset(self):
+        import requests
+
+        self.reply({"event": "result", "status": "done", "legacy": {}})
+        real_get = self.google.get
+        failures = {"left": 1}
+
+        def flaky(url, **kwargs):
+            if failures["left"]:
+                failures["left"] -= 1
+                raise requests.ConnectionError("reset by peer")
+            return real_get(url, **kwargs)
+
+        self.google.get = flaky
+        with mock.patch.object(tasks.time, "sleep"), mock.patch.object(tasks, "progress_applied", return_value=0):
+            result = tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google,
+                                now=lambda: 1010.0)
+        self.assertEqual(result["status"], "done")
+
     def test_a_throttled_result_cools_the_shared_budget_down(self):
         self.reply({"event": "result", "status": "deferred", "reason": "provider_429", "delay": 20})
         with mock.patch.object(tasks, "_cool_down") as cool, mock.patch.object(tasks, "progress_applied", return_value=0):
