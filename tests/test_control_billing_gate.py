@@ -11,7 +11,7 @@ from pearnly_control import billing
 
 
 class Gate(unittest.TestCase):
-    def run_gate(self, wallet=SimpleNamespace(balance_thb=100), subscription=None, kind="pdf", units=2):
+    def run_gate(self, wallet=frappe._dict(balance_thb=100), subscription=None, kind="pdf", units=2):
         db = mock.MagicMock()
         db.get_value.return_value = "SUB-1" if subscription else None
         calls = {}
@@ -45,7 +45,7 @@ class Gate(unittest.TestCase):
 
     def test_the_three_answers_are_unchanged(self):
         self.assertEqual(self.run_gate()[0]["error_code"], "")
-        poor = self.run_gate(wallet=SimpleNamespace(balance_thb=1))[0]
+        poor = self.run_gate(wallet=frappe._dict(balance_thb=1))[0]
         self.assertEqual((poor["allowed"], poor["error_code"]), (False, "insufficient_balance"))
         # 还没有钱包的租户：余额 0，不在问余额时建钱包
         new = self.run_gate(wallet=None)[0]

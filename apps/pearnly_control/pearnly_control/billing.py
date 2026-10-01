@@ -217,7 +217,7 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
                                          reference=reference, request_hash=fingerprint)
 
     ym = _bkk_year_month()
-    used = _pages_used_this_month(tenant, ym) if kind == "pdf" else 0
+    used = _payg_pages_used(tenant, wallet, ym, lock=True) if kind == "pdf" else 0
     cost = estimate_cost_thb(used, kind, units, tier)
     if cost <= 0:
         return {"ok": True, "charged_thb": 0.0,
@@ -227,14 +227,16 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
     wallet.balance_thb = new_balance
     wallet.updated_at = now()
     if kind == "pdf":
+        # 本月按量已用页数的计数与这一行台账同一个事务、同在租户锁里：计数恒等于台账里本月 payg 行的页数之和。
         wallet.pages_used_this_month = int(used) + units
+        wallet.usage_month = ym
     wallet.save(ignore_permissions=True)
 
     _write_txn(
         tenant, "usage", -cost, new_balance,
         description or f"{product} OCR {kind} units={units} tier={(tier or 'B').upper()}",
         reference, product=product, units=units, pages=units if kind == "pdf" else 0,
-        request_hash=fingerprint, billing_mode="payg",
+        request_hash=fingerprint, billing_mode="payg", month=ym,
     )
     frappe.db.commit()
     return {
@@ -294,7 +296,7 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
 
 
 def _write_txn(tenant, txn_type, amount, balance_after, description, reference,
-               *, product=None, units=0, pages=0, request_hash="", billing_mode="") -> None:
+               *, product=None, units=0, pages=0, request_hash="", billing_mode="", month=None) -> None:
     """落一行台账。**只由本模块调** —— 别处写台账等于绕过钱的一致性。"""
     from pearnly_control.payments.usage import billing_month
 
@@ -311,7 +313,8 @@ def _write_txn(tenant, txn_type, amount, balance_after, description, reference,
         "reference": (reference or "")[:140],
         "request_hash": request_hash,
         "billing_mode": billing_mode,
-        "billing_month": billing_month(now()) if billing_mode else "",
+        # 按量扣费给出与钱包计数同一个月份（跨月那一刻也不会一边算上月、一边记本月）。
+        "billing_month": (month or billing_month(now())) if billing_mode else "",
     }).insert(ignore_permissions=True)
 
 
@@ -354,6 +357,30 @@ def _pages_used_this_month(tenant: str, ym: str, *, lock: bool = True) -> int:
     return pages_used(tenant, ym, lock=lock)
 
 
+def _bkk_today() -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y-%m-%d")
+
+
+def _payg_pages_used(tenant: str, wallet, ym: str, *, lock: bool) -> int:
+    """本月（曼谷）按量已用页数：阶梯价按它算（用户 2026-10-01 同意改为读钱包计数）。
+
+    原来每扣一笔都在租户锁里锁住、加一遍本月全部用量行（2026-10-01 生产压测：同一租户的扣费排成一队，等锁平均 0.57 秒、
+    月内用得越多越慢）。现在钱包记着计数（``usage_month`` 是本月）就直接用；每个租户每月第一笔、每天第一笔（``lock=True``，
+    扣费已持租户锁）从台账算一次——计数对不上就记错误日志、以台账为准。问余额（``lock=False``）只读，不改钱包。"""
+    counted = wallet is not None and wallet.get("usage_month") == ym
+    if not lock:
+        return int(wallet.pages_used_this_month or 0) if counted else _pages_used_this_month(tenant, ym, lock=False)
+    today = _bkk_today()
+    if counted and str(wallet.get("usage_checked") or "") == today:
+        return int(wallet.pages_used_this_month or 0)
+    ledger = _pages_used_this_month(tenant, ym)
+    if counted and int(wallet.pages_used_this_month or 0) != ledger:
+        frappe.log_error(f"tenant={tenant} month={ym} counter={int(wallet.pages_used_this_month or 0)} ledger={ledger}",
+                         "billing usage counter drift")
+    wallet.pages_used_this_month, wallet.usage_month, wallet.usage_checked = ledger, ym, today
+    return ledger
+
+
 # ── 余额闸（产品站点用）─────────────────────────────────────────────────────
 
 
@@ -376,7 +403,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
         wallet = wallet_of(tenant, create=False)
         balance = _money((wallet.balance_thb if wallet else 0) or 0)
         ym = _bkk_year_month()
-        used = _pages_used_this_month(tenant, ym, lock=False) if kind == "pdf" else 0
+        used = _payg_pages_used(tenant, wallet, ym, lock=False) if kind == "pdf" else 0
         est = estimate_cost_thb(used, kind, units, tier)
     except frappe.QueryDeadlockError:
         raise  # The complete DB-only service transaction owns bounded retries.
