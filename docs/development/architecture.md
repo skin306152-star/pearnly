@@ -154,6 +154,8 @@ Cowork第六批 `roundtrip` 域提供固定复核工作簿契约、字节解析�
 
 Cowork第七批 `targets` 是无IO的目录/目标证据合同；`push.express` 是显式输入的进销项准备闭包，单向依赖 `contracts.push`、`targets.identity` 与 `push.receipts` 的纯解包；`push.lifecycle/retry/receipts` 定义状态、恢复判据和回执投影。两种置信规则分别服务OCR字段证据与费用过账门槛，不能互换。以上不依赖Frappe、HTTP、环境变量、数据库或工作队列；日期和授权目录由后续服务端注入，不反向依赖识别执行或页面。没有注册ERP写入消费者，不能用共享OCR Work装载外部订单。第八批已装配原生连接、推送准备和持久账本；真实目录收集及外部消费者仍未接通，纯 `ready` 不是外部成功证明。见[运行证据与执行缺口](../work/cowork-backend/push-runtime-baseline.md)。
 
+Cowork 发票（图片 / PDF）可在 Cloud Run 上执行（[ADR-015](../adr/0015-ocr-on-cloud-run.md)）：`ocr.remote.forward` 在识别工作单里按份拿名额、把冻结配置与原件发给不公开的 Cloud Run 服务，按行读回进度与结果；`ocr.remote.runner/gcs/app` 只在不含 Frappe 的镜像里运行同一份引擎，检查点与租约存新加坡存储桶（7 天删除）。`contract` 为两边共用的纯约定；`runner` 不导入 Frappe、不连数据库或额度 Redis；开关是站点配置 `pearnly_cowork_ocr_remote`，关掉即回本机执行。
+
 MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。各产品 bench 的原生队列保持隔离，容量使用同一个非淘汰 Redis DB6，按租户统一核算、按供应商项目/区域/模型调速。等待不占 OCR worker，网络结果未知不自动重做付费识别。此队列不得接入外部订单写入；DMS 写者锁与订单恢复仍由 booking/adapter 负责。
 
 `infrastructure/production/capacity.py` 在正式开户或激活前按候选 Compose 的内存硬限额计入所有现有产品及宿主预留，拒绝超额，不以空闲 RSS 推断容量。上线预算与证据见 [共享 OCR 容量](../operations/shared-ocr-capacity.md)。

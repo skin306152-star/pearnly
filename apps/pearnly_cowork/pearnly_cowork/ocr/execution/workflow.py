@@ -25,6 +25,7 @@ from pearnly_cowork.ocr.feedback import service as feedback
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
+from pearnly_cowork.ocr.remote import forward
 from pearnly_cowork.ocr.results import prepare_history_batch
 from pearnly_cowork.ocr.schema import PipelineResult
 from pearnly_cowork.ocr.table_inputs import extract_table
@@ -96,6 +97,14 @@ def _recognize(doc, frozen, examples):
             frappe.throw(_("Recognition input and ownership cannot be changed."))
         return _freeze_result(doc, EngineResult(pipeline, ()), frozen, examples)
     environment = frozen["environment"]
+    if source.kind != "document" and forward.settings():
+        # 在 Cloud Run 上读（ADR-0015）：同一份引擎、同样冻结的配置；发出前已复核（上面的 _check），存结果前再复核一次。
+        body = feedback.validate_snapshot(examples) if examples else None
+        pipeline, evidence = forward.recognize(doc, frozen, body, read_bytes(source), source.filename,
+                                               lambda page: store.pages_reached(doc.name, page))
+        anchor = date.fromisoformat(str(doc.anchor_date)).year
+        PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor})  # 收到的必须是合规结果
+        return _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
     client = build_client(environment, core_identity={k: frozen["target"][k] for k in
@@ -140,13 +149,17 @@ def _recognize(doc, frozen, examples):
     return _freeze_result(doc, result, frozen, examples)
 
 
-def _freeze_result(doc, result, frozen, examples):
+def _freeze_result(doc, result, frozen, examples, remote=None):
     frappe.db.commit()
     _check(doc, frozen, examples)
     doc = store.read(doc.name, lock=True, write=True)
     if not doc.result_json:
-        doc.result_json = result.pipeline.model_dump_json()
-        doc.provider_evidence = store.encode(_evidence(result.calls))
+        if remote:
+            doc.result_json, evidence = remote
+            doc.provider_evidence = store.encode(evidence)
+        else:
+            doc.result_json = result.pipeline.model_dump_json()
+            doc.provider_evidence = store.encode(_evidence(result.calls))
         doc.phase = "recognized"
         store.save(doc)
     frappe.db.commit()

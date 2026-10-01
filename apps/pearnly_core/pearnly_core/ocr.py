@@ -446,69 +446,22 @@ def try_with_fallback(call, *, ok, label: str = "ocr"):
 # 转正再送；没有方向信息（LINE 转发的图会去掉 EXIF）就原样送，靠上传前的拍摄提示让人拍正。
 
 
-def upright(data: bytes, mime: str) -> tuple[bytes, str]:
-    """按 EXIF 方向把照片转正；PDF、方向本来就对、没有方向信息或打不开的图原样返回。"""
-    if not mime.startswith("image/"):
-        return data, mime
-    try:
-        import io
-
-        from PIL import Image, ImageOps
-
-        image = Image.open(io.BytesIO(data))
-        if (image.getexif().get(0x0112) or 1) == 1:
-            return data, mime
-        out = io.BytesIO()
-        ImageOps.exif_transpose(image).convert("RGB").save(out, "JPEG", quality=92)
-        return out.getvalue(), "image/jpeg"
-    except Exception:
-        return data, mime
-
+# 实现在 `ocr_models.orient`（不依赖 Frappe，Cloud Run 上的识别执行用同一份，ADR-0015）；这里保留原入口与日志。
+from pearnly_core.ocr_models import orient as _orient  # noqa: E402
 
 ORIENT_MODEL = "ocr_models/doc_ori.onnx"
-ORIENT_LABELS = (0, 90, 180, 270)
-ORIENT_MIN_PROBABILITY = 0.9
-_orient_session = None
+ORIENT_LABELS = _orient.ORIENT_LABELS
+ORIENT_MIN_PROBABILITY = _orient.ORIENT_MIN_PROBABILITY
+
+
+def upright(data: bytes, mime: str) -> tuple[bytes, str]:
+    """按 EXIF 方向把照片转正；PDF、方向本来就对、没有方向信息或打不开的图原样返回。"""
+    return _orient.upright(data, mime)
 
 
 def _orientation(image):
-    """PaddleOCR 方向分类（`ocr_models/README.md`）：短边缩到 224，沿长边取上 / 中 / 下三块，三块都判成同一方向、
-    且平均概率 ≥ 0.9 才算数。返回 (要逆时针转的角度, 概率)；不确定返回 (0, 概率)。"""
-    import os
-
-    import numpy
-    import onnxruntime
-
-    global _orient_session
-    if _orient_session is None:
-        options = onnxruntime.SessionOptions()
-        options.intra_op_num_threads = 1  # 每个 worker 一个线程，不和别的任务抢 CPU
-        options.inter_op_num_threads = 1
-        _orient_session = onnxruntime.InferenceSession(os.path.join(os.path.dirname(__file__), ORIENT_MODEL),
-                                                       options, providers=["CPUExecutionProvider"])
-    from PIL import Image
-
-    width, height = image.size
-    scale = 224 / min(width, height)
-    image = image.resize((max(224, round(width * scale)), max(224, round(height * scale))), Image.BILINEAR)
-    width, height = image.size
-    mean = numpy.array([0.485, 0.456, 0.406], numpy.float32)
-    std = numpy.array([0.229, 0.224, 0.225], numpy.float32)
-    crops = []
-    for fraction in (0.2, 0.5, 0.8):
-        left = int((width - 224) * (fraction if width > height else 0.5))
-        top = int((height - 224) * (fraction if height >= width else 0.5))
-        crop = numpy.asarray(image.crop((left, top, left + 224, top + 224)), numpy.float32) / 255.0
-        crops.append(((crop - mean) / std).transpose(2, 0, 1))
-    session = _orient_session
-    probabilities = session.run(None, {session.get_inputs()[0].name: numpy.stack(crops)})[0]
-    agreed = {int(row.argmax()) for row in probabilities}
-    average = probabilities.mean(axis=0)
-    best = int(average.argmax())
-    probability = float(average[best])
-    if len(agreed) != 1 or probability < ORIENT_MIN_PROBABILITY:
-        return 0, probability
-    return ORIENT_LABELS[best], probability
+    """方向分类（见 `ocr_models.orient.orientation`）。返回 (要逆时针转的角度, 概率)；不确定返回 (0, 概率)。"""
+    return _orient.orientation(image)
 
 
 def orient(data: bytes, mime: str) -> tuple[bytes, str]:
@@ -517,24 +470,8 @@ def orient(data: bytes, mime: str) -> tuple[bytes, str]:
     语料实测（37 张真实照片 × 4 个方向）：正常照片误转 0/37；歪的小票转对 67/96、转错 0；A4 整页照片把握低、
     多半不动（歪的 A4 有 3/15 被转成另一个错的方向，不会把拍正的转坏）。模型或 onnxruntime 不可用、图打不开时
     只做 EXIF 转正。"""
-    data, mime = upright(data, mime)
-    if not mime.startswith("image/"):
-        return data, mime
-    try:
-        import io
-
-        from PIL import Image
-
-        image = Image.open(io.BytesIO(data)).convert("RGB")
-        angle, _probability = _orientation(image)
-        if not angle:
-            return data, mime
-        out = io.BytesIO()
-        image.rotate(angle, expand=True).save(out, "JPEG", quality=92)
-        return out.getvalue(), "image/jpeg"
-    except Exception:  # noqa: BLE001 - 转正失败绝不挡识别
-        frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True)
-        return data, mime
+    return _orient.orient(data, mime, classify=lambda image: _orientation(image),
+                          skipped=lambda: frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True))
 
 
 def _post_with_backoff(url, headers, payload, timeout_s, model):
