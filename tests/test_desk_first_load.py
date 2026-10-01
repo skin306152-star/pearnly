@@ -1,13 +1,10 @@
-"""网页首次打开：打包、部署后预热、页面文案指纹。在生产镜像里跑（用镜像里的 frappe），不连站点、数据库、redis。
+"""网页首次打开：部署后预热、页面文案指纹，以及 Desk 脚本逐个加载（不打包）。在生产镜像里跑（用镜像里的 frappe），不连站点、数据库、redis。
 
 被测代码取检出的源码（/candidate），不取镜像里那份。
 """
-import importlib
-import json
 import sys
 import tempfile
 import unittest
-from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -20,100 +17,21 @@ for name in [name for name in sys.modules if name == "pearnly_core" or name.star
 import frappe  # noqa: E402
 
 from pearnly_core import browser_text  # noqa: E402
-from pearnly_core.desk import assets, warmup  # noqa: E402
+from pearnly_core.desk import warmup  # noqa: E402
 
-assert Path(assets.__file__).is_relative_to(ROOT), assets.__file__
-build = importlib.util.spec_from_file_location("build_desk_bundles", ROOT / "scripts" / "build-desk-bundles.py")
-builder = importlib.util.module_from_spec(build)
-build.loader.exec_module(builder)
+assert Path(warmup.__file__).is_relative_to(ROOT), warmup.__file__
 
 
-class DeskBundleTest(unittest.TestCase):
-    """构建脚本写下的源文件摘要与运行时的判断必须对得上；对不上一律退回逐个加载。"""
+class NoBundleTest(unittest.TestCase):
+    """Desk 脚本逐个加载、不打包（2026-10-01：打包后 POS 的扫码库 onScan 没挂到全局，收银台初始化报错；各产品脚本按
+    「单独加载、共用全局」写的不止这一处，不能逐页证明打包无害，撤回）。"""
 
-    def setUp(self):
-        self.folder = tempfile.TemporaryDirectory()
-        root = Path(self.folder.name)
-        self.apps, self.sites_assets = root / "apps", root / "assets"
-        self.public = self.apps / "demo_app" / "demo_app" / "public"
-        (self.public / "desk").mkdir(parents=True)
-        (self.public / "desk" / "a.js").write_text("window.a = 1;\n")
-        (self.public / "desk" / "b.js").write_text("window.b = 2;\n")
-        (self.public / "desk" / "skin.css").write_text(".x{color:red}\n")
-        (self.apps / "demo_app" / "demo_app" / "hooks.py").write_text(
-            'DESK_JS = ["desk/a.js", "desk/b.js"]\nDESK_CSS = ["desk/skin.css"]\n')
-        self.sites_assets.mkdir()
-        self.patches = [patch.object(assets, "_public", lambda app: self.public),
-                        patch.object(assets, "_assets_dir", lambda: self.sites_assets)]
-        for item in self.patches:
-            item.start()
-
-    def tearDown(self):
-        for item in self.patches:
-            item.stop()
-        self.folder.cleanup()
-
-    def publish(self, bundle, built_path):
-        (self.sites_assets / built_path).parent.mkdir(parents=True, exist_ok=True)
-        (self.sites_assets / built_path).write_text("built")
-        index = self.sites_assets / "assets.json"
-        data = json.loads(index.read_text()) if index.exists() else {}
-        data[bundle] = f"/assets/{built_path}"
-        index.write_text(json.dumps(data))
-
-    def test_build_entry_keeps_order_and_runtime_accepts_it(self):
-        self.assertTrue(builder.prepare(self.apps, "demo_app"))
-        self.assertEqual((self.public / "js" / "demo_app_desk.bundle.js").read_text(),
-                         'import "../desk/a.js";\nimport "../desk/b.js";\n')
-        # 样式按 Frappe 的搜索路径引用、不带 .css（带了 Sass 会原样留成普通 CSS 引用）
-        self.assertEqual((self.public / "scss" / "demo_app_desk.bundle.scss").read_text(),
-                         '@import "demo_app/public/desk/skin";\n')
-        files = ["desk/a.js", "desk/b.js"]
-        self.publish("demo_app_desk.bundle.js", "demo_app/dist/js/demo_app_desk.bundle.ABC.js")
-        self.publish("demo_app_desk.bundle.css", "demo_app/dist/css/demo_app_desk.bundle.DEF.css")
-        self.assertEqual(assets.desk_bundle("demo_app", "demo_app_desk.bundle.js", files), ["demo_app_desk.bundle.js"])
-        self.assertEqual(assets.desk_bundle("demo_app", "demo_app_desk.bundle.css", ["desk/skin.css"]),
-                         ["demo_app_desk.bundle.css"])
-
-    def individual(self, files):
-        return [f"/assets/demo_app/{relative}?v={sha256((self.public / relative).read_bytes()).hexdigest()[:16]}"
-                for relative in files]
-
-    def test_falls_back_to_individual_files_whenever_the_bundle_is_not_this_source(self):
-        files = ["desk/a.js", "desk/b.js"]
-        bundle = "demo_app_desk.bundle.js"
-        # 没构建过
-        self.assertEqual(assets.desk_bundle("demo_app", bundle, files), self.individual(files))
-        builder.prepare(self.apps, "demo_app")
-        # 构建了入口、但 assets.json 里没有登记
-        self.assertEqual(assets.desk_bundle("demo_app", bundle, files), self.individual(files))
-        self.publish(bundle, "demo_app/dist/js/demo_app_desk.bundle.ABC.js")
-        self.assertEqual(assets.desk_bundle("demo_app", bundle, files), [bundle])
-        # 实时源码改了一个文件（测试机挂源码）：摘要对不上
-        (self.public / "desk" / "b.js").write_text("window.b = 3;\n")
-        self.assertEqual(assets.desk_bundle("demo_app", bundle, files), self.individual(files))
-        builder.prepare(self.apps, "demo_app")
-        self.assertEqual(assets.desk_bundle("demo_app", bundle, files), [bundle])
-        # 清单变了（加文件、换顺序）
-        self.assertNotEqual(assets.desk_bundle("demo_app", bundle, list(reversed(files))), [bundle])
-        # 登记了但包文件不在
-        (self.sites_assets / "demo_app/dist/js/demo_app_desk.bundle.ABC.js").unlink()
-        self.assertEqual(assets.desk_bundle("demo_app", bundle, files), self.individual(files))
-
-    def test_real_product_lists_exist_and_have_no_duplicates(self):
-        apps = ROOT / "apps"
-        found = 0
-        for app in builder.APPS:
-            hooks = apps / app / app / "hooks.py"
-            if not hooks.is_file():
-                continue
-            for name, files in builder.lists(hooks).items():
-                found += 1
-                self.assertEqual(len(files), len(set(files)), (app, name))
-                for relative in files:
-                    self.assertTrue((apps / app / app / "public" / relative).is_file(), (app, relative))
-                    self.assertEqual(Path(relative).suffix, ".js" if name == "DESK_JS" else ".css", (app, relative))
-        self.assertGreaterEqual(found, 6)
+    def test_hooks_load_each_desk_file(self):
+        for app in ("pearnly_core", "pearnly_cowork", "pearnly_dms", "pearnly_erp_portal"):
+            source = (ROOT / "apps" / app / app / "hooks.py").read_text()
+            self.assertNotIn(".bundle.js", source, app)
+            self.assertNotIn("desk_bundle", source, app)
+        self.assertNotIn("build-desk-bundles", (ROOT / "infrastructure/images/frappe.Dockerfile").read_text())
 
 
 class TextVersionTest(unittest.TestCase):

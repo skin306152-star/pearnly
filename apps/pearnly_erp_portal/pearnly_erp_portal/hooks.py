@@ -1,4 +1,4 @@
-from pearnly_core.desk.assets import desk_bundle, versioned_asset
+from pearnly_core.desk.assets import versioned_asset
 
 app_name = "pearnly_erp_portal"
 app_title = "Pearnly ERP Portal"
@@ -273,62 +273,60 @@ permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasi
 # 个人信息页（原生 User 表单）里 ERP 自己那一块（LINE 绑定）；页面本身归共用层。
 doctype_js = {"User": "public/desk/user-line.js"}
 
-DESK_JS = [
-    "desk/transactions.js",
-    "desk/line-binding.js",
-    "desk/company-menu.js",
-    "desk/entry-choice.js",
-    "desk/purchase-fields.js",
-    "desk/purchase-layout.js",
-    "desk/purchase-entry.js",
-    "desk/purchase-viewer.js",
-    "desk/purchase-form.js",
-    "desk/purchase.js",
-    "desk/products.js",
-    "desk/stock-opening.js",
-    "desk/inventory.js",
-    "desk/stock-entry.js",
-    "desk/stock-card.js",
-    "desk/sales-fields.js",
-    "desk/sales-layout.js",
-    "desk/sales-entry.js",
-    "desk/sales-viewer.js",
-    "desk/sales-form.js",
-    "desk/sales.js",
-    "desk/suppliers.js",
-    "desk/clients.js",
-    "desk/cashier.js",
+app_include_js = [
+    versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/line-binding.js"),
+    versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
+    versioned_asset("pearnly_erp_portal", "desk/entry-choice.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-viewer.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-form.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
+    versioned_asset("pearnly_erp_portal", "desk/products.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-opening.js"),
+    versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-layout.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-viewer.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-form.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales.js"),
+    versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
+    versioned_asset("pearnly_erp_portal", "desk/clients.js"),
+    versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
     # Pinned upstream components precede our adapter. Versioned Desk assets load once.
-    "desk/pos/onscan.js",
-    "desk/pos/official-pos_number_pad.js",
-    "desk/pos/official-pos_item_selector.js",
-    "desk/pos/official-pos_item_details.js",
-    "desk/pos/official-pos_item_cart.js",
-    "desk/pos/official-pos_payment.js",
-    "desk/pos/official-pos_past_order_list.js",
-    "desk/pos/official-pos_past_order_summary.js",
-    "desk/pos/official-pos_controller.js",
-    "desk/pos/pearnly-pos-shift.js",
-    "desk/pos/pearnly-pos-receipt.js",
-    "desk/pos/pearnly-pos-adapter.js",
-    "desk/pos-receipts.js",
-    "desk/pos-shifts.js",
-    "desk/stocktake-entry.js",
-    "desk/stocktake.js",
-    "desk/scan.js",
-    "desk/team.js",
-    "desk/company.js",
-    "desk/warehouses.js",
+    versioned_asset("pearnly_erp_portal", "desk/pos/onscan.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_number_pad.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_item_selector.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_item_details.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_item_cart.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_payment.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_past_order_list.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_past_order_summary.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_controller.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-shift.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-receipt.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-adapter.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos-receipts.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos-shifts.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
+    versioned_asset("pearnly_erp_portal", "desk/scan.js"),
+    versioned_asset("pearnly_erp_portal", "desk/team.js"),
+    versioned_asset("pearnly_erp_portal", "desk/company.js"),
+    versioned_asset("pearnly_erp_portal", "desk/warehouses.js"),
 ]
-app_include_js = desk_bundle("pearnly_erp_portal", "pearnly_erp_portal_desk.bundle.js", DESK_JS)
 
-DESK_CSS = [
-    "desk/purchase.css",
-    "desk/sales.css",
-    "desk/pos/official-pos.css",
-    "desk/cashier.css",
+app_include_css = [
+    versioned_asset("pearnly_erp_portal", "desk/purchase.css"),
+    versioned_asset("pearnly_erp_portal", "desk/sales.css"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos.css"),
+    versioned_asset("pearnly_erp_portal", "desk/cashier.css"),
 ]
-app_include_css = desk_bundle("pearnly_erp_portal", "pearnly_erp_portal_desk.bundle.css", DESK_CSS)
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # 绑定、菜单与录单前的选择、收单据 → 识别 → 预览卡 → 入账，见 integrations/handlers.py。

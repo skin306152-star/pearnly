@@ -1,4 +1,4 @@
-from pearnly_core.desk.assets import desk_bundle, versioned_asset
+from pearnly_core.desk.assets import versioned_asset
 
 app_name = "pearnly_core"
 app_title = "Pearnly Core"
@@ -303,11 +303,9 @@ boot_session = [
 ]
 # 页面文案的版本指纹：每次启动都给（不进按用户缓存的启动信息），前端据此把文案包存在浏览器里。
 extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo"]
-DESK_CSS = ["desk/product.css", "desk/scan.css"]
-app_include_css = desk_bundle("pearnly_core", "pearnly_core_desk.bundle.css", DESK_CSS)
+app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
-DESK_JS = ["desk/product.js", "desk/select.js", "desk/link.js", "desk/list.js", "desk/viewer.js", "desk/home.js", "desk/sidebar.js", "desk/scan.js"]
-app_include_js = desk_bundle("pearnly_core", "pearnly_core_desk.bundle.js", DESK_JS)
+app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "desk/scan.js")]
 
 # 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
 # （`frappe/www/desk.html` 遍历 `hooks["sounds"]`），`frappe.utils.play_sound(name)` 取的就是

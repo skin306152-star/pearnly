@@ -19,9 +19,16 @@
 - ERP / DMS：只有共用首页这一处固定轮询，同样改成 `p.live`（识别结束会扣费、出明细）。LINE 绑定弹窗里等扫码的 4 秒轮询只在
   弹窗开着的一两分钟里，不改。
 
-## 2. 识别 / 对账完成发 LINE 通知（待用户定费用）
+## 2. 识别 / 对账完成发 LINE 通知（不做）
 
-LINE 官方账号的主动推送（push）按条计入月度额度，免费额度很小，超出要升级方案或按条付费。先算量、报给用户，用户同意再做。
+用户 2026-10-01：不做（主动推送按条计费、免费额度很小，对产品没有带来优势还增加成本）。
+
+## 同批：撤回 Desk 脚本打包（修收银台）
+
+2821e5c1 上线的「每个产品 Desk 脚本打成一个包」把 testerp 收银台弄坏了（扫码库 onScan 是 UMD，打包后不再挂全局，`ItemSelector`
+初始化报错）。改回逐个加载（hooks、`pearnly_core/desk/assets.py`、`frappe.Dockerfile` 回到 12ab7a05 的写法），删掉
+`scripts/build-desk-bundles.py`；`tests/test_desk_first_load.py::NoBundleTest` 钉住不再打包。详见 `2026-10-01-desk-first-load.md`。
+用户定"下次有东西部署时一起搞"，所以随本分支一起部署，不单独回退。
 
 ## 3. 少量上传马上出结果（已具备，不改）
 

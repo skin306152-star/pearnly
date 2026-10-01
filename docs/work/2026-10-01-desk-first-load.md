@@ -3,7 +3,13 @@
 压测窗口转来用户同意的四项（DMS / ERP / Cowork），生产实测数据见压测窗口的消息（main `2bbcb4ee` 部署后、只读测量）。
 分支 `codex/desk-first-load`，基线 main `2bbcb4ee`。用户另要求"看官方怎么做，官方好还是我们的好"，逐项对照写在每项里。
 
-## 1. 每个产品的 Desk 脚本 / 样式打包（做）
+## 1. 每个产品的 Desk 脚本 / 样式打包（2026-10-01 上线后撤回）
+
+> **撤回**：2821e5c1 上线后 testerp 收银台打不开——POS 的扫码库 `pos/onscan.js` 是 UMD 写法，单独加载时挂到 `window.onScan`，
+> 打进 esbuild 包后变成模块内变量，`ItemSelector.bind_events` 设 `onScan.decodeKeyEvent` 报 `Cannot set properties of undefined`，
+> 收银台整页初始化中断（用户截图，浏览器控制台核实）。各产品脚本按「单独加载、共用全局」写的不止这一处，没法逐页证明打包无害，
+> 用户定"下次有东西部署时一起搞"：分支 `codex/live-refresh` 改回逐个加载（hooks、`desk/assets.py`、镜像构建步骤都回到 12ab7a05），
+> 打包脚本删掉；预热、文案缓存保留。下面是当时的做法，留作记录。
 
 - 现状：`app_include_js` / `app_include_css` 是一个文件一个请求（ERP 68 个、Cowork 35 个、DMS 23 个），带 `?v=内容摘要`。
 - 官方做法：App 在 `public/` 下放 `*.bundle.js` / `*.bundle.css` 入口，`bench build --production` 用 esbuild 打包、压缩、文件名带哈希，

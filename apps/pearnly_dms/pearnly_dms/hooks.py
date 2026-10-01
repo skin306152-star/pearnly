@@ -1,4 +1,4 @@
-from pearnly_core.desk.assets import desk_bundle, versioned_asset
+from pearnly_core.desk.assets import versioned_asset
 
 app_name = "pearnly_dms"
 app_title = "Pearnly DMS"
@@ -310,8 +310,7 @@ scheduler_events = {"cron": {
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
-DESK_JS = ["desk/connect.js", "desk/roster.js", "desk/records.js"]
-app_include_js = desk_bundle("pearnly_dms", "pearnly_dms_desk.bundle.js", DESK_JS)
+app_include_js = [versioned_asset("pearnly_dms", "desk/connect.js"), versioned_asset("pearnly_dms", "desk/roster.js"), versioned_asset("pearnly_dms", "desk/records.js")]
 
 # Only OCR is resumable here; external order writers retain their own ledger.
 pearnly_ocr_handlers = {"dms.id_card": "pearnly_dms.line.out.run_image"}
