@@ -200,11 +200,8 @@ def main():
             if args.name and not any(row.name.startswith(prefix) for prefix in args.name):
                 continue
             doc = frappe.get_doc("Cowork Bank Reconciliation", row.name)
-            found = jobs.get(doc.request_key)
-            if not found:
-                print(json.dumps({"site": site, "task": doc.name, "skip": "no recognition job"}, ensure_ascii=False))
-                continue
-            _job, user, works = found
+            # 全是表格 / 电子版 PDF 的对账没有识别任务：只用原件免费解析重放（发起人取任务的所有者）。
+            _job, user, works = jobs.get(doc.request_key) or (None, doc.owner, {})
             frappe.set_user(user)
             results = {variant: replay(doc, works, index, variant) for variant in variants}
             frappe.set_user("Administrator")
