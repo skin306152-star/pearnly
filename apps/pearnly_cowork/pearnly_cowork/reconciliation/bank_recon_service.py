@@ -240,8 +240,8 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	# 总账期间（整月）：几份账单怎么接，按期间里的余额链断得少来选（B08-01 的存折还带着前几个月的行）。
-	mixed = other_accounts(statements)
-	if mixed and any(result.get("ok") for name, result in statements if name not in mixed):
+	mixed, sure = account_conflict(statements)
+	if mixed and sure and any(result.get("ok") for name, result in statements if name not in mixed):
 		# 判成别的账户的那几份不计入本次对账、结果里点名（2026-09-30 压测 B05-02：KBank 存折 2 月没有流水，两张 BBL
 		# 存折照片成了整条账单，期初是 BBL 的数、还显示全通过）。其余文件都读不出时照旧全部保留。
 		statements = [(name, {**result, "ok": False, "error_code": OTHER_ACCOUNT} if name in mixed else result)
@@ -252,7 +252,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		warnings = list(warnings or []) + [_("reconciliation.statement_other_account", lang=_warning_lang(lang)).format("、".join(mixed))]
 	period = _months(row.date for result in (result for _name, result in ledgers if result.get("ok"))
 		for row in result.get("rows") or [])
-	statement = _merged_statement([result for _name, result in statements], period, mixed)
+	statement = _merged_statement([result for _name, result in statements], period, mixed if sure else ())
 	# 当作读错的重复去掉的行逐条列出，方便核对（压测窗口 2026-09-30：不悄悄丢数据）；期间外的行本来就筛掉、另有提示。
 	dropped = [row for row in statement.get("dropped") or []
 		if not period or not row.date or period[0] <= row.date <= period[1]]
@@ -417,7 +417,16 @@ def _warning_lang(lang):
 
 
 def other_accounts(statements):
-	"""同一侧几份账单读出的银行（或账号尾号）不一致：少数那几份多半是混进来的别的账户，点名给用户。"""
+	"""同一侧几份账单读出的银行（或账号尾号）不一致：少数那几份多半是混进来的别的账户，点名给用户（这几份不计入）。"""
+	return account_conflict(statements)[0]
+
+
+def account_conflict(statements):
+	"""``(读出的银行 / 账号与多数不同的文件, 是否确定是别的账户)``。
+
+	只有「多数」站得住才判成别的账户、不计入：份数打平（一份照片对一份 PDF）时谁是多数说不清，以前按文件先后取第一份，
+	B08-05（2026-10-02 第二轮压测）照片上凭空读出 2300，把真正的 0555 主 PDF 整份排除，46 行剩 19 行、余额链照样通。
+	打平时一份都不排除，只提示「账号不一致、可能混入了别的账户」，由用户看。"""
 	from collections import Counter
 
 	keys = {}
@@ -425,12 +434,18 @@ def other_accounts(statements):
 		identity = result.get("identity") or {} if result.get("ok") else {}
 		bank = bank_parse.detect_bank(identity.get("bank") or "")
 		keys[name] = (bank if bank != "generic" else "", identity.get("last4") or "")
-	lines = {name: {_line_key(row) for row in (result.get("rows") or []) if row.balance}
-		for name, result in statements if result.get("ok")}
+	lines = {}
+	for name, result in statements:
+		if result.get("ok"):
+			lines[name] = _Lines()
+			for row in result.get("rows") or []:
+				lines[name].add(row)
 
 	def overlaps(name):
-		# 与别的文件有相同的行（日期、存、取、余额都一样）：同一账户，只是账号读法不同（B09-03，2026-09-30）。
-		return any(lines.get(name, set()) & keys_ for other, keys_ in lines.items() if other != name)
+		# 与别的文件有同一笔（存、取、余额都一样，日期差不超过 SAME_LINE_DAYS 天，与合并去重同一口径）：同一账户，
+		# 只是账号读法不同（B09-03，2026-09-30；B08-05 照片 19 行与 PDF 末 19 行一模一样）。
+		rows = next((result.get("rows") or [] for other, result in statements if other == name), [])
+		return any(lines[other].seen(row) for other in lines if other != name for row in rows)
 
 	def near(first, second):
 		# 尾号只差一位是读错，不是别的账户。
@@ -439,10 +454,14 @@ def other_accounts(statements):
 	for index in (0, 1):
 		values = Counter(key[index] for key in keys.values() if key[index])
 		if len(values) > 1:
-			common = values.most_common(1)[0][0]
-			return [name for name, key in keys.items() if key[index] and key[index] != common
+			(common, top), (_second, runner_up) = values.most_common(2)
+			names = [name for name, key in keys.items() if key[index] and key[index] != common
 				and not overlaps(name) and not (index == 1 and near(key[index], common))]
-	return []
+			if names and top == runner_up:
+				# 打平：不知道哪边是对的账户，冲突两边都点名、都保留（同一笔的、尾号只差一位的上面已放过）。
+				return [name for name, key in keys.items() if key[index] and not overlaps(name)], False
+			return names, True
+	return [], True
 
 
 def same_lines_once(rows):

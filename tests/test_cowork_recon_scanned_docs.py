@@ -803,6 +803,33 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertEqual(other_accounts([("a.jpg", {**read("", "8229"), "rows": [line]}),
 			("b.jpg", {**read("", "8229"), "rows": [line]}), ("c.pdf", {**read("", "0555"), "rows": [line]})]), [])
 
+	def test_a_tie_between_two_accounts_excludes_nothing_and_does_not_depend_on_file_order(self):
+		# B08-05（2026-10-02 第二轮压测）：补充照片上凭空读出 2300，以前份数打平取第一份当「多数」，把 0555 的主 PDF
+		# 整份排除，46 行剩 19 行、余额链照样通。
+		from pearnly_cowork.reconciliation.bank_recon_service import account_conflict, other_accounts
+
+		def row(day, deposit, balance):
+			return StatementRow(date=date(2026, 5, day), description="x", withdrawal=0.0, deposit=deposit, balance=balance)
+
+		pdf = [row(day, 10.0, 1000.0 + 10 * day) for day in range(1, 31)]
+		photo = {"ok": True, "identity": {"last4": "2300"}, "rows": pdf[-19:]}
+		main = {"ok": True, "identity": {"last4": "0555"}, "rows": pdf}
+		for order in ([("photo.jpg", photo), ("main.pdf", main)], [("main.pdf", main), ("photo.jpg", photo)]):
+			self.assertEqual(account_conflict(order), ([], True))  # 同一笔：同一账户
+		# 照片的日期读偏一天也是同一笔（与合并去重同一口径）
+		shifted = {**photo, "rows": [StatementRow(date=date(2026, 5, r.date.day + 1) if r.date.day < 30 else r.date,
+			description="y", withdrawal=0.0, deposit=r.deposit, balance=r.balance) for r in photo["rows"]]}
+		self.assertEqual(account_conflict([("photo.jpg", shifted), ("main.pdf", main)]), ([], True))
+		# 没有同一笔、一份对一份：说不清谁对，两份都点名、都保留，与先后无关
+		other = {"ok": True, "identity": {"last4": "2300"}, "rows": [row(3, 77.0, 5.0)]}
+		for order in ([("photo.jpg", other), ("main.pdf", main)], [("main.pdf", main), ("photo.jpg", other)]):
+			names, sure = account_conflict(order)
+			self.assertEqual((sorted(names), sure), (["main.pdf", "photo.jpg"], False))
+			self.assertEqual(other_accounts(order), names)
+		# 多数站得住才确定：两份 0555 对一份 2300
+		self.assertEqual(account_conflict([("photo.jpg", other), ("a.pdf", main), ("b.pdf", {**main, "rows": []})]),
+			(["photo.jpg"], True))
+
 	def test_overlapping_files_merge_on_the_best_chain(self):
 		# B08-01（2026-09-30）：整月 PDF 漏了一行；覆盖几个月的存折有这一行，但把别的行读错（3,472.15 → 30,472.15）。
 		from pearnly_cowork.reconciliation import bank_recon_service
