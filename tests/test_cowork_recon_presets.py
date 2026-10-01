@@ -355,6 +355,7 @@ class Rerun(unittest.TestCase):
 					mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
 					mock.patch.object(jobs.frappe, "db", db), mock.patch.object(jobs.frappe, "delete_doc") as delete, \
 					mock.patch.object(jobs.rerun, "keep") as keep, mock.patch.object(jobs.rerun, "drop") as drop, \
+					mock.patch.object(jobs, "_prepare_view"), \
 					mock.patch.object(jobs.bank_recon_service, "create_from_documents", return_value=result) as create:
 				jobs.run("job-2", "bank", "ws", "t", {"left": ["L0"], "right": ["R0"]}, json.dumps(options))
 			return keep, drop, delete, create
