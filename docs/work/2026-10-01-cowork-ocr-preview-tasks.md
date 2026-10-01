@@ -196,6 +196,14 @@
 | 资源管理接口 | 第一次以 pearnly 名义加项目级权限时因 pearnly 未开 `cloudresourcemanager.googleapis.com` 被拒，当时改用本机默认项目名义调用（权限照样加在 pearnly、不收费）；之后用户同意，已在 pearnly 开通该接口（免费、不影响线上），以 pearnly 名义回读项目权限一致 |
 | 已有，未改 | Cloud Run `cowork-ocr` 服务上 `roles/run.invoker` → `pearnly-ocr-sa`；Cloud Tasks 服务代理 `service-112074003592@gcp-sa-cloudtasks` 已有 `roles/cloudtasks.serviceAgent` |
 
+## 顺带的谷歌账户整理（2026-10-01，用户逐项同意）
+
+- 本机 gcloud 默认项目由旧「pearnly erp」（`project-d0fbd530-1ee3-436d-b58`，早已申请删除、无付款账户）改为 `pearnly`（只改本机命令行配置）。
+- 删除三个无付款账户、无存储桶 / 服务账号的空项目：`project-3933c6ec-c1cd-498c-b86`、`project-40c21e2c-4975-4027-944`（My First Project）、
+  `gen-lang-client-0397119443`（Default Gemini Project，AI Studio 自动建；用户确认没在用其中的密钥）。回读状态均为 `DELETE_REQUESTED`，
+  30 天内可恢复（`gcloud projects undelete <项目>`）。它们曾在 `2026-09-24-legacy-cloud-retirement.md` 中因用途不明保留，本次按用户决定清理。
+- 现在账户下只剩 `pearnly` 一个在用项目。
+
 ## 上线手册（统一部署时由修复窗口执行，每一步先找用户确认；用户要求「不上半成品」：测试租户端到端全过才全开）
 
 前提：「要开通的外部配置」1–5 已做完（接口、队列、授权、Cloud Run 新镜像、Workflows），站点已迁移（`preview_objects` 字段）。
