@@ -320,7 +320,7 @@ class OcrBackoff(unittest.TestCase):
     def setUp(self):
         from pearnly_core.execution import provider
         self.provider = provider
-        self.post = self.enterContext(patch.object(provider.requests, "post"))
+        self.post = self.enterContext(patch.object(provider, "_http_post"))  # 识别调用的 HTTPS 出口（共用 TLS 上下文）
         self.enterContext(patch.object(provider.budget, "permit", return_value=nullcontext()))
         self.feedback = self.enterContext(patch.object(provider.budget, "feedback"))
         self.checkpoint = self.enterContext(patch.object(provider.work, "checkpoint", return_value=None))

@@ -55,6 +55,10 @@
   `test_cowork_recon_scanned_docs` 118 条通过（生产镜像一次性容器、断网）。
 - 生产多线程实测（独立进程、新代码、12 张合成发票同时跑）：见下方结果。
 
+- 生产镜像（当前线上 digest）挂载本分支跑完整 `ci-candidate-checks.sh offline`：通过（exit 0）。第一次跑时
+  `scripts/test-dms-line-runtime.py` 的 OcrBackoff 仍在替换 `provider.requests.post`，新出口 `_http_post` 不经过它、去连了
+  example.test；已改为替换 `provider._http_post`。
+
 ## 待办
 
 - 生产多线程实测结果与进程 / 线程 / 名额（budget concurrency / tenant_concurrency / tenant_pending）目标值。
