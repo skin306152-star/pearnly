@@ -13,7 +13,8 @@
 做法（每份文件只付一遍费）：
 1. 新路径：各块读字、各页第一遍抽取并行预热（与 Workflows 同一函数：``recon_reading.warm_document`` →
    ``enterprise.first_pass``，最多 8 路同时），再原封不动读整份（``recon_reading.read_document``，与 Cloud Run 同一读法）。
-   记下整份那一遍真正发出的付费调用数：应只剩按页序的再读（第一遍全部从检查点取回）。
+   记下整份那一遍真正发出的付费调用数：应只剩按页序的再读（第一遍全部从检查点取回），外加整份那一遍里连接中断 / 超时后
+   读法自带的那一次重发（报告 ``unknown_outcomes.whole``）；预热里中断的，重发结果在检查点里，整份那一遍不再付费。
 2. 旧路径：一次读完（``recon_reading.read_document``）在第 1 步的检查点上**重放**：不连谷歌；检查点里没有的请求一律回 429
    （模拟被限流，让读法照原路换区域 / 换入口），并记下来——出现第 1 步从没发过的请求，就说明整份读法的输入变了。
 3. 逐页逐行比两份结果（每页 document 全部字段、extraction_audit、validation_warnings、needs_manual_review）。
@@ -79,13 +80,20 @@ class Recording:
 
     def __init__(self):
         self.sent, self.lock, self.local, self.phase = [], threading.Lock(), threading.local(), "warm"
+        self.unknown = []  # (阶段, 主机)：连接中断 / 超时（结果不明，读法会重发一次，重发也算一次付费）
 
     def post(self, url, headers=None, json=None, timeout=None, stream=False):
+        phase = self.phase
         with self.lock:
-            self.sent.append((self.phase,) + digest(url, json))
+            self.sent.append((phase,) + digest(url, json))
         if not hasattr(self.local, "session"):
             self.local.session = requests.Session()
-        return self.local.session.post(url, headers=headers, json=json, timeout=timeout, stream=stream)
+        try:
+            return self.local.session.post(url, headers=headers, json=json, timeout=timeout, stream=stream)
+        except requests.RequestException:
+            with self.lock:
+                self.unknown.append((phase, url.split("/")[2]))
+            raise
 
 
 class Replay:
@@ -238,6 +246,8 @@ def run_file(path, document_type, frozen, regions, token, orient):
     return {"file": filename, "pages": pages, "type": document_type, "seconds": warm_seconds,
             "warm": {f"{stage}:{index}": value for (stage, index), value in sorted(warmed.items())},
             "paid_calls": len(google.sent), "whole_pass_paid_calls": whole_paid, "rereads_in_result": rereads,
+            # 整份那一遍应付 = 再读页数 + 整份那一遍里结果不明后的重发；预热里结果不明的，重发结果整份那一遍从检查点取回
+            "unknown_outcomes": {phase: sum(1 for p, _host in google.unknown if p == phase) for phase in ("warm", "whole")},
             "replay_requests_never_sent_before": len(unseen), "rows_new": sum(len((p.get("document") or {}).get("entries")
                                                                                    or []) for p in new.get("pages") or []),
             "identical": not differences and not unseen, "differences": differences}
