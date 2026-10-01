@@ -143,6 +143,20 @@ class Direct(unittest.TestCase):
                 service.begin_direct("WS1", filename, size, key)
             self.assertEqual(str(caught.exception), message)
 
+    def test_the_same_key_with_another_file_is_refused_like_the_server_upload(self):
+        name = "CWS-" + hashlib.sha256(b'["WS1", "a@acme.test", "k1"]').hexdigest()[:48]
+        self.existing.add(name)
+        stored = frappe._dict(name=name, filename="scan.pdf", byte_size=1234, page_count=3)
+        with mock.patch.object(service.frappe, "get_doc", return_value=stored), \
+                mock.patch.object(service.access, "require_full"):
+            self.assertEqual(service.begin_direct("WS1", "scan.pdf", 1234, "k1")["done"]["name"], name)
+            self.assertEqual(service.finish_direct("WS1", "scan.pdf", 1234, "k1")["name"], name)
+            for filename, size in (("other.pdf", 1234), ("scan.pdf", 999)):
+                for step in (service.begin_direct, service.finish_direct):
+                    with self.assertRaises(Thrown) as caught:
+                        step("WS1", filename, size, "k1")
+                    self.assertEqual(str(caught.exception), "This request key has already been used for different content.")
+
     def inspected(self, **overrides):
         meta = {"filename": "scan.pdf", "suffix": ".pdf", "kind": "pdf", "page_count": 3, "byte_size": 1234,
                 "sha256": "e" * 64, **overrides}

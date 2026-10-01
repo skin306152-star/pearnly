@@ -57,10 +57,14 @@ def _fingerprint(client, meta):
     return hashlib.sha256(json.dumps([client or None, meta], sort_keys=True).encode()).hexdigest()
 
 
-def _existing(name, fingerprint):
+def _existing(name, fingerprint, *, filename=None, byte_size=None):
+    """同一个幂等键已经登记过：内容相同才给出原记录。直传在登记前只知道文件名和大小（``fingerprint`` 为 ``None``），
+    就按这两项核对，换了文件照样拒绝。"""
     doc = frappe.get_doc(access.SOURCE, name, for_update=True)
     access.require_full(doc)
     if fingerprint is not None and doc.request_fingerprint != fingerprint:
+        frappe.throw(_("This request key has already been used for different content."))
+    if fingerprint is None and (doc.filename != filename or int(doc.byte_size or 0) != int(byte_size)):
         frappe.throw(_("This request key has already been used for different content."))
     return doc
 
@@ -140,7 +144,7 @@ def begin_direct(workspace, filename, byte_size, request_key, client=None):
     if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
         return {"direct": 0}
     if frappe.db.exists(access.SOURCE, name):
-        return {"direct": 1, "done": project(_existing(name, None))}
+        return {"direct": 1, "done": project(_existing(name, None, filename=filename, byte_size=byte_size))}
     target = cloud.upload_target(bucket_name, cloud.object_name(frappe.local.site, name, suffix), int(byte_size))
     return {"direct": 1, **target}
 
@@ -155,7 +159,7 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
     if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
         frappe.throw(_("Direct upload is not available. Please upload again."))
     if frappe.db.exists(access.SOURCE, name):
-        return project(_existing(name, None))
+        return project(_existing(name, None, filename=filename, byte_size=byte_size))
     object_name = cloud.object_name(frappe.local.site, name, suffix)
     try:
         result = forward.inspect_original(object_name, filename)
