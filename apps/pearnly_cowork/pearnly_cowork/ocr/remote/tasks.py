@@ -62,17 +62,23 @@ PROJECT = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
 BUCKET = re.compile(r"[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]")
 _lock = threading.Lock()
 _credentials = {}
-_sessions = threading.local()
+_shared = {}
 logger = logging.getLogger(__name__)
 
 
 def _http():
-    """每个识别线程一个长连接会话：存请求、建任务、读结果都复用连接，不再每次新建 TLS 连接（2026-10-01 半量压测：
-    识别进程 14% 的 CPU 花在 TLS 握手上，来源就是这里的三处）。"""
-    session = getattr(_sessions, "session", None)
+    """全进程共用一个带连接池的会话：存请求、建任务、读结果都复用连接，不再每次新建 TLS 连接（2026-10-01 半量压测：
+    识别进程 9–14% 的 CPU 花在 TLS 握手上；原来按线程各一个，识别线程是一份一份新起的，复用不上）。"""
+    session = _shared.get("session")
     if session is None:
-        session = requests.Session()
-        _sessions.session = session
+        with _lock:
+            session = _shared.get("session")
+            if session is None:
+                from requests.adapters import HTTPAdapter
+
+                session = requests.Session()
+                session.mount("https://", HTTPAdapter(pool_connections=8, pool_maxsize=64))
+                _shared["session"] = session
     return session
 
 
@@ -152,7 +158,7 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         if found is not None:
             final, events = contract.parse_reply(found)
             if "throttled" in final:
-                _adapt(config, final.get("throttled"), pool_of(path))
+                _adapt(config, final.get("throttled"), pool_of(path), final.get("calls") or 0)
             applied = progress_applied(work, dispatch)
             for event in events:
                 if event["seq"] >= applied:
@@ -172,7 +178,7 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         waited = now() - at
         if waited < LOST_SECONDS:
             raise Deferred("remote_waiting", max(1, int(min(WAIT_SECONDS, LOST_SECONDS - waited))))
-    workflow = _reserve(config, work, path, body, bucket)
+    workflow = _reserve_waiting(config, work, path, body, bucket)
     dispatch = secrets.token_hex(16)
     pool.release_db()  # 存请求、建任务要几百毫秒到几秒（大原件）：不占数据库连接
     try:
@@ -289,7 +295,7 @@ def _reserve(config, work, path, body, bucket=None):
             budget.PREFIX + ADAPTIVE_KEY + ":" + pool, budget.PREFIX + OUTSTANDING_KEY + ":" + pool,
             now, _member(work), now + LOST_SECONDS, cfg["concurrency"],
             budget.tenant() + ":", cfg["tenant_concurrency"], 1 if _wants_workflow(config, path, body) else 0,
-            config.get("workflow_max") or WORKFLOW_MAX, _adaptive_start(config, cfg))
+            config.get("workflow_max") or WORKFLOW_MAX, _adaptive_start(config, cfg, pool))
     except RedisError as exc:
         raise Deferred("capacity_unavailable", 15) from exc
     if int(granted) <= -1000:
@@ -301,63 +307,109 @@ def _reserve(config, work, path, body, bucket=None):
     return int(granted) == 2
 
 
-# ── 按谷歌 429 自适应的全站在途派发上限（加性增、乘性减；2026-10-01 半量压测）───────────────────────────────────
+# ── 按谷歌 429 自适应的在途派发上限（按额度池分开、按 30 秒窗口内的 429 比例；2026-10-01 / 02 半量压测）───────────
 # 谷歌共享额度大约稳定承受每分钟 150–250 次 Gemini 调用、同时 30–40 个；开局一次涌入几百份会冲过去，429 后的重试再放大
-# （第二轮一分钟 902 次调用、62% 是 429）。每份结果带回这次挨了几次 429（``runner`` 的 ``throttled``）：挨了就把上限乘 0.8
-# （每 5 秒最多缩一次，同一波 429 不连着缩），干净的每份加 1/上限（大约每「上限」份加 1）；从保守值起步，介于下限与现有
-# 名额配置之间。站点配置 ``pearnly_cowork_ocr_tasks.adaptive`` 写 0 关掉（只按名额配置）。
-# 按额度池分开调（压测窗口 2026-10-02）：发票（gemini-3.1-flash-lite + Vision）与对账文档（Document AI + gemini-3.8-flash）
-# 用的是谷歌不同的额度，各一个上限、各按自己结果里的 429 收缩——高峰时对账被限流不会连带压住发票。全站名额与租户上限照旧跨池。
+# （第二轮一分钟 902 次调用、62% 是 429）。每份结果带回这次发给谷歌几次、其中几次 429 / 503（``runner`` 的 ``calls`` /
+# ``throttled``），服务器按窗口内的比例调各池上限（见 ``ADAPT``）。发票（gemini-3.1-flash-lite + Vision）与对账文档
+# （Document AI + gemini-3.8-flash）是谷歌不同的额度，各一个上限、各按自己的 429 收缩；全站名额与租户上限照旧跨池。
+# 站点配置 ``pearnly_cowork_ocr_tasks.adaptive`` 写 0 关掉（只按名额配置）。
 ADAPTIVE_KEY = "cowork-tasks-adaptive"
 POOLS = {"/v1/cowork/invoice": "invoice", "/v1/cowork/document": "document"}
 
 
 def pool_of(path):
     return POOLS.get(path, "invoice")
-ADAPTIVE_START, ADAPTIVE_MIN, ADAPTIVE_SHRINK, ADAPTIVE_HOLD = 32, 8, 0.8, 5
+ADAPTIVE_START, ADAPTIVE_SHRINK = 32, 0.8
+# 各池下限：发票用 flash-lite（额度独立，拐点是全站同时 30–40 个调用），不低于 24；对账文档每份同时调用多，下限 8。
+ADAPTIVE_FLOOR = {"invoice": 24, "document": 8}
+# 30 秒一个窗口（一份读取的典型耗时）：窗口里 429 / 503 占谷歌调用超过 15% 才收缩，一个窗口最多缩一次；没超就放开——
+# 没碰过收缩线前慢启动（翻倍），之后每窗口加 2。上限存在 Redis 里（30 天），下次接着用，不每次从 32 冷启动。
+# 2026-10-02 第三轮：原来「一份结果带 429 就乘 0.8、每份加 1/上限」，429 只占 2–10% 也几乎每 5 秒缩一次，发票池长期压在下限 8，
+# 吞吐降了近一半。
+ADAPTIVE_WINDOW, ADAPTIVE_RATIO = 30, 0.15
 ADAPT = """
-local start, throttled, maximum, now, minimum = tonumber(ARGV[1]), tonumber(ARGV[2]), tonumber(ARGV[3]), tonumber(ARGV[4]), tonumber(ARGV[5])
+local start, throttled, calls, maximum, now, minimum = tonumber(ARGV[1]), tonumber(ARGV[2]), tonumber(ARGV[3]), tonumber(ARGV[4]), tonumber(ARGV[5]), tonumber(ARGV[6])
+local window, ratio, shrink = tonumber(ARGV[7]), tonumber(ARGV[8]), tonumber(ARGV[9])
 local cap = tonumber(redis.call('GET', KEYS[1]) or start)
-if throttled > 0 then
-  local last = tonumber(redis.call('GET', KEYS[2]) or '0')
-  if now - last >= tonumber(ARGV[7]) then
-    cap = cap * tonumber(ARGV[6])
-    redis.call('SET', KEYS[2], now, 'EX', 3600)
+local id = math.floor(now / window)
+local current = tonumber(redis.call('HGET', KEYS[2], 'id') or '-1')
+if current ~= id then
+  local seen = tonumber(redis.call('HGET', KEYS[2], 'calls') or '0')
+  local hit = tonumber(redis.call('HGET', KEYS[2], 'throttled') or '0')
+  if current >= 0 and seen > 0 then
+    if hit / seen > ratio then
+      cap = cap * shrink
+      redis.call('SET', KEYS[3], cap, 'EX', 2592000)
+    else
+      local threshold = tonumber(redis.call('GET', KEYS[3]) or maximum)
+      if cap < threshold then cap = math.min(threshold, cap * 2) else cap = cap + 2 end
+    end
   end
-else
-  cap = cap + 1 / cap
+  redis.call('HSET', KEYS[2], 'id', id, 'calls', 0, 'throttled', 0)
+  redis.call('EXPIRE', KEYS[2], 3600)
 end
+redis.call('HINCRBY', KEYS[2], 'calls', calls)
+redis.call('HINCRBY', KEYS[2], 'throttled', throttled)
 cap = math.max(minimum, math.min(maximum, cap))
-redis.call('SET', KEYS[1], cap, 'EX', 86400)
+redis.call('SET', KEYS[1], cap, 'EX', 2592000)
 return tostring(cap)
 """
 
 
-def _adaptive_start(config, cfg):
+def _adaptive_start(config, cfg, pool="invoice"):
     """起步上限（0 = 关掉自适应）。"""
     if not config.get("adaptive", True):
         return 0
-    return max(ADAPTIVE_MIN, min(int(cfg["concurrency"]), ADAPTIVE_START))
+    return max(ADAPTIVE_FLOOR.get(pool, 8), min(int(cfg["concurrency"]), ADAPTIVE_START))
 
 
-def _adapt(config, throttled, pool="invoice"):
+def _adapt(config, throttled, pool="invoice", calls=0):
     """一份结果回来：按它挨了几次 429 调全站上限。记不住就算了（下一份再调）。返回调整后的上限。"""
     from pearnly_core.execution import budget
 
     try:
         cfg = budget.config()
-        start = _adaptive_start(config, cfg)
+        start = _adaptive_start(config, cfg, pool)
         if not start:
             return None
         client = budget.redis()
         stamp = client.time()
         now = int(stamp[0]) + int(stamp[1]) / 1_000_000
         key = budget.PREFIX + ADAPTIVE_KEY + ":" + pool
-        cap = client.eval(ADAPT, 2, key, key + ":shrunk", start,
-                          int(throttled or 0), int(cfg["concurrency"]), now, ADAPTIVE_MIN, ADAPTIVE_SHRINK, ADAPTIVE_HOLD)
+        floor = min(int(cfg["concurrency"]), ADAPTIVE_FLOOR.get(pool, 8))
+        cap = client.eval(ADAPT, 3, key, key + ":window", key + ":threshold", start, int(throttled or 0),
+                          max(int(calls or 0), int(throttled or 0)), int(cfg["concurrency"]), now, floor,
+                          ADAPTIVE_WINDOW, ADAPTIVE_RATIO, ADAPTIVE_SHRINK)
         return float(cap)
     except Exception:
         return None
+
+
+# 名额满时在识别线程里原地等（每秒看一次、最多 ``CAPACITY_WAIT`` 秒，等的时候不占数据库连接），名额一空出来（回调到达即释放）
+# 就派发；不再「暂缓 → 写库 → 3 秒后重新入队 → 再跑一遍」（2026-10-02 第三轮：每分钟 277–590 次这样空转，ocr-worker 多花
+# 约 600 CPU 秒、吞吐反降）。每进程最多 ``CAPACITY_WAITERS`` 个线程这样等，其余照旧暂缓（留线程给取回结果的任务）。
+CAPACITY_WAIT, CAPACITY_STEP, CAPACITY_WAITERS = 60, 1.0, 4
+_waiters = threading.BoundedSemaphore(CAPACITY_WAITERS)
+
+
+def _reserve_waiting(config, work, path, body, bucket=None, *, sleep=time.sleep, clock=time.monotonic):
+    try:
+        return _reserve(config, work, path, body, bucket)
+    except Deferred as first:
+        if first.reason not in ("capacity", "provider_cooldown") or not _waiters.acquire(blocking=False):
+            raise Deferred(first.reason, max(float(first.delay or 3), 10 if first.reason == "capacity" else 0))
+    try:
+        started = clock()
+        while True:
+            pool.release_db()
+            sleep(CAPACITY_STEP)
+            try:
+                return _reserve(config, work, path, body, bucket)
+            except Deferred as again:
+                if again.reason not in ("capacity", "provider_cooldown") or clock() - started >= CAPACITY_WAIT:
+                    raise
+    finally:
+        _waiters.release()
 
 
 def _cool_down(bucket, delay):

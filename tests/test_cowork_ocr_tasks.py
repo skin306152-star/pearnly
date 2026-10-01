@@ -360,16 +360,47 @@ class Collect(Base):
         with mock.patch.object(tasks, "_adapt") as adapt, mock.patch.object(tasks, "progress_applied", return_value=0):
             tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google, now=lambda: 1010.0)
         adapt.assert_called_once()
-        self.assertEqual(adapt.call_args.args[1:], (3, "document"))      # 对账文档的 429 只调对账池
+        self.assertEqual(adapt.call_args.args[1:3], (3, "document"))     # 对账文档的 429 只调对账池
         self.assertEqual((tasks.pool_of("/v1/cowork/invoice"), tasks.pool_of("/v1/cowork/document")),
                          ("invoice", "document"))
 
     def test_the_adaptive_limit_starts_low_and_can_be_switched_off(self):
         self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 160}), tasks.ADAPTIVE_START)
-        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}), 10)
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, "document"), 10)
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, "invoice"), 24)  # 发票下限 24
         self.assertEqual(tasks._adaptive_start({"adaptive": False}, {"concurrency": 160}), 0)
         frappe.local.conf[tasks.CONFIG] = {**CONFIG, "adaptive": 0}
         self.assertFalse(tasks.settings()["adaptive"])
+
+    def test_a_full_capacity_waits_in_place_instead_of_requeueing(self):
+        answers = [Deferred("capacity", 3), Deferred("capacity", 3), True]
+        slept = []
+
+        def reserve(*args, **kwargs):
+            value = answers.pop(0)
+            if isinstance(value, Exception):
+                raise value
+            return value
+
+        with mock.patch.object(tasks, "_reserve", side_effect=reserve):
+            self.assertTrue(tasks._reserve_waiting(CONFIG, WORK, "/v1/cowork/invoice", {}, sleep=slept.append))
+        self.assertEqual(slept, [tasks.CAPACITY_STEP, tasks.CAPACITY_STEP])   # 原地等两秒就派出去，没写库、没重新入队
+
+    def test_waiting_for_capacity_gives_up_after_a_minute_and_is_limited_per_process(self):
+        clock = [0.0]
+        with mock.patch.object(tasks, "_reserve", side_effect=Deferred("capacity", 3)), self.assertRaises(Deferred):
+            tasks._reserve_waiting(CONFIG, WORK, "/v1/cowork/invoice", {},
+                                   sleep=lambda s: clock.__setitem__(0, clock[0] + s), clock=lambda: clock[0])
+        self.assertGreaterEqual(clock[0], tasks.CAPACITY_WAIT)
+        for _waiter in range(tasks.CAPACITY_WAITERS):
+            tasks._waiters.acquire()
+        try:
+            with mock.patch.object(tasks, "_reserve", side_effect=Deferred("capacity", 3)), self.assertRaises(Deferred) as caught:
+                tasks._reserve_waiting(CONFIG, WORK, "/v1/cowork/invoice", {}, sleep=lambda s: self.fail("should not wait"))
+            self.assertEqual(caught.exception.delay, 10)      # 这个进程已有 4 个在等：照旧暂缓，间隔放长
+        finally:
+            for _waiter in range(tasks.CAPACITY_WAITERS):
+                tasks._waiters.release()
 
     def test_a_throttled_result_cools_the_shared_budget_down(self):
         self.reply({"event": "result", "status": "deferred", "reason": "provider_429", "delay": 20})

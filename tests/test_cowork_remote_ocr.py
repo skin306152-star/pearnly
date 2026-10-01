@@ -784,7 +784,8 @@ class PaidCallGuard(unittest.TestCase):
         google = Google(["429"])
         final = remote(Bucket(), google)[-1]
         self.assertEqual(final["status"], "done")
-        self.assertEqual(final["throttled"], 1)          # 挨了几次 429 随结果交回（服务器据此调全站派发上限）
+        self.assertEqual(final["throttled"], 1)          # 挨了几次 429 随结果交回（服务器据此调各池派发上限）
+        self.assertEqual(final["calls"], 2)              # 发给谷歌几次（窗口内算 429 比例）
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
 
