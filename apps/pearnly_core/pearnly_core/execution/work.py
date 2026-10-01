@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import time
 
 import frappe
 from redis.exceptions import RedisError, LockError
@@ -312,6 +313,9 @@ def run(name):
     frappe.db.set_value(DT, name, {"status": "running", "attempts": (doc.attempts or 0) + 1,
                                  "lease_until": now + timedelta(seconds=JOB_TIMEOUT + 60)}, update_modified=False)
     frappe.db.commit()
+    timing = {"ready": (now - doc.next_run).total_seconds() if doc.next_run else None, "attempt": (doc.attempts or 0) + 1,
+              "wall": time.monotonic(), "cpu": time.thread_time(), "outcome": "failed:workflow_error"}
+    frappe.flags.pearnly_ocr_timing = {}
     try:
         from .resources import check_memory
         check_memory()
@@ -320,15 +324,20 @@ def run(name):
             result = frappe.get_attr(handler(doc.kind))(**json.loads(doc.arguments))
         outcome = result or {}
         if outcome.get("cancelled"):
+            timing["outcome"] = "cancelled:" + str(outcome["cancelled"])
             _finish(name, "cancelled", outcome["cancelled"])
         elif outcome.get("failed"):
+            timing["outcome"] = "failed:" + str(outcome["failed"])
             _finish(name, "failed", outcome["failed"], notify=not outcome.get("notified"))
         else:
+            timing["outcome"] = "succeeded"
             _finish(name, "succeeded")
     except Deferred as exc:
+        timing["outcome"] = "deferred:" + str(exc.reason)
         frappe.db.rollback()
         _finish(name, "deferred", exc.reason, exc.delay)
     except Uncertain:
+        timing["outcome"] = "uncertain"
         frappe.db.rollback()
         _finish(name, "uncertain", "provider_outcome_unknown")
     except Exception:
@@ -337,6 +346,45 @@ def run(name):
         _finish(name, "failed", "workflow_error")
         frappe.log_error(title="OCR workflow failed")
         raise
+    finally:
+        _log_timing(name, doc.kind, timing)
+
+
+def _log_timing(name, kind, timing):
+    """每次运行一行计时（容器标准输出，``docker logs`` 可取）：``ready`` 可以开跑到真正开跑等了几秒（进程排队）、``wall`` 实际耗时、
+    ``cpu`` 本线程 CPU 秒（``wall`` 远大于 ``cpu`` 即在等外部 / 数据库 / 解释器锁），``steps`` 产品报的各步耗时
+    （``frappe.flags.pearnly_ocr_timing``，见 :func:`step`）。只有计量，没有单据内容；写不出不影响识别。"""
+    try:
+        steps = frappe.flags.get("pearnly_ocr_timing")
+        steps = steps if isinstance(steps, dict) else {}
+        frappe.flags.pearnly_ocr_timing = None
+        from .pool import busy
+        print(json.dumps({"event": "ocr_run", "site": getattr(frappe.local, "site", ""), "kind": kind,
+                          "work": name[:16], "attempt": timing["attempt"],
+                          "ready": None if timing["ready"] is None else round(timing["ready"], 2),
+                          "wall": round(time.monotonic() - timing["wall"], 3),
+                          "cpu": round(time.thread_time() - timing["cpu"], 3), "threads": busy(),
+                          "outcome": timing["outcome"], "steps": steps}, separators=(",", ":")), flush=True)
+    except Exception:
+        pass
+
+
+@contextmanager
+def step(label):
+    """产品在识别处理函数里给一步计时（实际耗时与本线程 CPU 秒），随本次运行的计时行一起输出。不在识别运行里就什么都不做。"""
+    try:
+        steps = frappe.flags.get("pearnly_ocr_timing")
+    except RuntimeError:  # 没有站点上下文（离线调用）
+        steps = None
+    if not isinstance(steps, dict):
+        yield
+        return
+    wall, cpu = time.monotonic(), time.thread_time()
+    try:
+        yield
+    finally:
+        previous = steps.get(label) or [0, 0]
+        steps[label] = [round(previous[0] + time.monotonic() - wall, 3), round(previous[1] + time.thread_time() - cpu, 3)]
 
 
 def checkpoint_key(payload, model):

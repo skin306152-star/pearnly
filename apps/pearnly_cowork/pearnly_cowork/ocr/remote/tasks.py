@@ -154,7 +154,8 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         if reference is None:
             # 回调丢了（站点维护 / 部署、开关刚改还在缓存里、验签一时对不上）：结果的对象名是确定的，直接去桶里看一眼
             reference = {"object": contract.task_object(frappe.local.site, work, dispatch, "reply.json"), "generation": None}
-        found = _read_json(config, reference, http=http, missing_ok=reply is None)
+        with core_work.step("reply_read"):
+            found = _read_json(config, reference, http=http, missing_ok=reply is None)
         if found is not None:
             final, events = contract.parse_reply(found)
             if "throttled" in final:
@@ -178,16 +179,19 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         waited = now() - at
         if waited < LOST_SECONDS:
             raise Deferred("remote_waiting", max(1, int(min(WAIT_SECONDS, LOST_SECONDS - waited))))
-    workflow = _reserve_waiting(config, work, path, body, bucket)
+    with core_work.step("capacity"):
+        workflow = _reserve_waiting(config, work, path, body, bucket)
     dispatch = secrets.token_hex(16)
     pool.release_db()  # 存请求、建任务要几百毫秒到几秒（大原件）：不占数据库连接
     try:
-        generation = _create_object(config, contract.task_object(frappe.local.site, work, dispatch, "request.json"),
-                                    body, http=http)
+        with core_work.step("request"):
+            generation = _create_object(config, contract.task_object(frappe.local.site, work, dispatch, "request.json"),
+                                        body, http=http)
         envelope = contract.task(site=frappe.local.site, work=work, dispatch=dispatch, path=path, generation=generation,
                                  callback=callback_url(config),
                                  progress=path == "/v1/cowork/document" or int(body.get("page_count") or 1) > 1)
-        _create_task(config, remote, envelope, body, http=http, workflow=workflow)
+        with core_work.step("task"):
+            _create_task(config, remote, envelope, body, http=http, workflow=workflow)
     except Exception as exc:  # 连不上、没权限、令牌换不出来：还没派出去（不付费、不判失败）
         logger.warning("Cowork OCR task dispatch deferred: %s", type(exc).__name__)
         _release(work)

@@ -14,6 +14,7 @@ from frappe import _
 from pearnly_core import ocr
 from pearnly_core.execution import pages as core_pages
 from pearnly_core.execution import pool as core_pool
+from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, preview_record, preview_spec, stored_original
 from pearnly_cowork.files.access import reference_count, reference_kind
@@ -88,7 +89,8 @@ def _call_page(args, kwargs):
 def _recognize(doc, frozen, examples, source):
     """``source``：调用方（``run``）刚做完的完整复核（含冻结配置与样例）回的原件；之后每次付费调用前照旧再复核。"""
     kind, units = service.billing_basis(doc)
-    service.balance(units, frozen["billing_tier"], kind=kind)
+    with core_work.step("balance"):
+        service.balance(units, frozen["billing_tier"], kind=kind)
     if frozen.get("input_engine") == roundtrip.ENGINE:
         content = read_bytes(source)
         document, pipeline = roundtrip.decode(content, extract_table(content, source.filename),
@@ -109,13 +111,16 @@ def _recognize(doc, frozen, examples, source):
         original = contract.original(object=stored[1], generation=stored[2], sha256=source.sha256) if stored else None
         # 识别时顺手把各页预览图存进原件桶：页面看原件直接从桶取，不再占服务器线程等 Cloud Run 现画。
         previews = []
-        pipeline, evidence = forward.recognize(doc, frozen, body, content, source.filename,
-                                               lambda page: store.pages_reached(doc.name, page), original=original,
-                                               previews=preview_spec(source),
-                                               on_previews=lambda items: previews.append(preview_record(source, items)))
+        with core_work.step("remote"):
+            pipeline, evidence = forward.recognize(doc, frozen, body, content, source.filename,
+                                                   lambda page: store.pages_reached(doc.name, page), original=original,
+                                                   previews=preview_spec(source),
+                                                   on_previews=lambda items: previews.append(preview_record(source, items)))
         anchor = date.fromisoformat(str(doc.anchor_date)).year
-        PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor})  # 收到的必须是合规结果
-        doc = _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
+        with core_work.step("validate"):
+            PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor})  # 收到的必须是合规结果
+        with core_work.step("freeze"):
+            doc = _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
         # 只放在内存里交给紧接着的落库（``_persist``），随绑定原件那一次保存写进原件记录，不额外写原件表；
         # 中途断掉没记上也没关系：预览照旧现画。
         flags = getattr(doc, "flags", None)
@@ -250,12 +255,14 @@ def run(batch_name):
         recognizing = doc.phase not in {"saved", "not_invoice"} and not doc.result_json
         frozen = json.loads(doc.settings_json) if recognizing else None
         examples = json.loads(doc.examples_json) if recognizing else None
-        source = _check(doc, frozen, examples)
+        with core_work.step("check"):
+            source = _check(doc, frozen, examples)
         if doc.phase not in {"saved", "not_invoice"}:
             if not doc.result_json:
-                doc.phase = "recognizing"
-                store.save(doc)
-                frappe.db.commit()
+                with core_work.step("mark"):
+                    doc.phase = "recognizing"
+                    store.save(doc)
+                    frappe.db.commit()
                 try:
                     doc = _recognize(doc, frozen, examples, source)
                 except ProviderError as error:
@@ -264,14 +271,16 @@ def run(batch_name):
                     frappe.db.rollback()
                     return {"failed": error.code or "ocr.provider_http_error"}
             try:
-                doc = _persist(doc)
+                with core_work.step("persist"):
+                    doc = _persist(doc)
             except frappe.QueryDeadlockError as exc:
                 # Only the local transaction is retried. The immutable result
                 # and independently committed provider checkpoints survive.
                 frappe.db.rollback()
                 raise Deferred("database_busy", 5) from exc
         if doc.phase == "saved":
-            doc = service.settle(doc.name, authorized=True)
+            with core_work.step("settle"):
+                doc = service.settle(doc.name, authorized=True)
             if doc.billing_state != "charged":
                 raise Deferred("billing_pending", 60)
         return {"batch_name": doc.name, "state": doc.phase}
