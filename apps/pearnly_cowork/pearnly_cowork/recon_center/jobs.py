@@ -384,6 +384,18 @@ def requeue(recon_job, arguments, user=None):
             frappe.set_user(current)
 
 
+def _prepare_view(kind, task, lang):
+    """出结果时把结果页数据生成一次存起来（``view_store``），用户点开就是现成的；放在「完成」通知之前。
+    生成失败不影响对账结果：用户打开时现算一次。"""
+    from pearnly_cowork.recon_center import sheets
+
+    try:
+        sheets.load(kind, task, lang)
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="cowork recon view prepare")
+
+
 def run(recon_job, kind, workspace, title, files, options="{}"):
     # 按租户限流（``slots``）：本站点在跑的对账满了就排进队、这次不占进程，前面的一结束就放进来（页面照旧显示排队中）。
     arguments = {"recon_job": recon_job, "kind": kind, "workspace": workspace, "title": title, "files": files,
@@ -539,6 +551,7 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
                        {key: value for key, value in options.items() if key not in ("ocr_job", "replace_task")}, pending)
         frappe.db.commit()
         keep_files = bool(pending)
+        _prepare_view(kind, result["name"], options.get("lang"))
         _state(recon_job, state="done", stage="done", task=result["name"])
         _announce(recon_job, kind, title, task=result["name"])
     except waiting.Pending:

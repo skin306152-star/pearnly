@@ -507,12 +507,27 @@ def rerun_questions(doc):
 
 @frappe.whitelist()
 def load(kind, task_id, lang=None):
+    """结果页数据：有对得上的存档就直接回（``view_store``），否则现算一次并存起来。"""
+    from pearnly_cowork.recon_center import view_store
+
     doc = _task(kind, task_id)
+    lang = _lang(lang)
+    version = vat_check_service.revision(doc) if kind == "vat" else revision.revision(doc)
+    key = view_store.key(lang)
+    found = view_store.fingerprint(kind, doc, key, version)
+    saved = view_store.get(kind, doc.name, key, found)
+    if saved is not None:
+        return saved
+    view = _build(kind, doc, lang, version)
+    view_store.put(kind, doc.name, key, found, view)
+    return view
+
+
+def _build(kind, doc, lang, version):
     if kind == "vat":
-        inputs, version = vat_check_service.stored_inputs(doc), vat_check_service.revision(doc)
+        inputs = vat_check_service.stored_inputs(doc)
     else:
         inputs = revision.bank_inputs(doc) if kind == "bank" else revision.income_inputs(doc)
-        version = revision.revision(doc)
     notes = revision.bank_notes(doc) if kind == "bank" else revision.income_notes(doc) if kind == "income" else []
     questions = []
     if kind == "bank":
@@ -535,7 +550,7 @@ def load(kind, task_id, lang=None):
     if kind == "vat":
         notes += list(inputs.get("report_notes") or []) + purchase_invoice_notes(inputs)
     return {"task": {"name": doc.name, "title": doc.title, "status": doc.status, "modified": str(doc.modified),
-                     "revision": version, "notes": notes, "questions": questions}, **_view(kind, doc, inputs, _lang(lang))}
+                     "revision": version, "notes": notes, "questions": questions}, **_view(kind, doc, inputs, lang)}
 
 
 @frappe.whitelist(methods=["POST"])

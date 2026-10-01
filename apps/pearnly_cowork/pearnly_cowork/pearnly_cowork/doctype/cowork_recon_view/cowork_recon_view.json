@@ -1,0 +1,65 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Recon View",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-01 00:00:00.000000",
+ "modified": "2026-10-01 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "task",
+  "recon_kind",
+  "lang",
+  "fingerprint",
+  "payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "task",
+   "label": "Task",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "recon_kind",
+   "label": "Reconciliation Type",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "bank\nincome\nvat",
+   "reqd": 1
+  },
+  {
+   "fieldname": "lang",
+   "label": "Language",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 16,
+   "reqd": 1
+  },
+  {
+   "fieldname": "fingerprint",
+   "label": "Fingerprint",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1
+  },
+  {
+   "fieldname": "payload",
+   "label": "Payload",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  }
+ ],
+ "permissions": []
+}

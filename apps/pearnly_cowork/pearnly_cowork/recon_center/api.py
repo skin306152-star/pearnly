@@ -80,8 +80,11 @@ def delete(kind, task_ids):
     if isinstance(task_ids, str):
         task_ids = frappe.parse_json(task_ids) if task_ids.strip().startswith("[") else task_ids
     result = vat_check_service.delete_many(task_ids) if kind == "vat" else _tasks(kind).delete_many(task_ids)
+    from pearnly_cowork.recon_center import view_store
+
     for task in result.get("ids") or []:
         rerun.drop(task)  # 等着答预设问题而留着的原文件一起删
+        view_store.drop(task)  # 结果页存档一起删
     frappe.db.commit()
     return result
 
