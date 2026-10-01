@@ -107,3 +107,11 @@ long 进程原地轮询（`document_ocr.wait`、`invoice_ocr.wait`、`admission.
 - 2026-10-01：实现与本地测试完成；已告知 LINE 窗口（共用层钩子与 submit / wait 改法，回复不冲突）与压测窗口（进度、测试机使用顺序）。
 - 2026-10-01：测试机候选镜像离线检查通过；测试机本地并发与强杀实测通过（见上表），修了实测发现的两处续跑缺口。
   测试机 Cowork 栈保持开着（实时源码 = 本分支），testcowork 域名在线上。
+- 2026-10-01：用户在本窗口确认「现在合入并部署」。与余额闸修复（`docs/work/2026-10-01-billing-gate-no-lock.md`）排成一条线：
+  1a432fed → 2568bf5d（本项）→ 7bfe2165（余额闸）；两个提交分支 CI 通过；对 7bfe2165 用生产镜像 a97f92a7（按 digest、测试机、
+  只读挂载、无网络、2g）跑完整 `ci-candidate-checks.sh offline` 通过。main 快进到 7bfe2165 并推送（远端回读一致）。
+  LINE 窗口统一部署 7bfe2165（镜像 9ea7e2dc）：Cowork 每分钟两条定时任务（`waiting.tick`、`slots.tick`）与识别结束钩子三类均已登记，
+  6 个站点部署后 Error Log 0。生产压测（同租户 30 套以上、强杀 long worker 续跑）由压测窗口进行，结果待回填。
+- 收尾：`codex/recon-wait-no-worker` 本地与远端已删（远端按 2568bf5d 租约删除）；本会话工作树由桌面应用管理，已切到 main 7bfe2165。
+  测试机：候选检查目录、临时脚本、环境文件里临时加的 long 进程数已清；Cowork 测试栈仍开着（实时源码与 main 相同），压测窗口与用户可能
+  还要用，且它的 Redis 在本任务之前就在跑，不属于本任务独有，下次谁用完谁 `lab-stop` / `down`。
