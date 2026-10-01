@@ -1719,11 +1719,14 @@ class ReconJobCleanup(unittest.TestCase):
 				mock.patch("pearnly_cowork.recon_center.sources.ledger_source", return_value={}), \
 				mock.patch("pearnly_cowork.recon_center.sources.report_source", return_value={}), \
 				mock.patch("pearnly_cowork.recon_center.document_ocr.reader"), \
-				mock.patch.object(jobs.income_recon_service, "create_from_parsed", return_value={"name": "T1"}):
+				mock.patch.object(jobs.income_recon_service, "create_from_parsed", return_value={"name": "T1"}), \
+				mock.patch.object(jobs, "_prepare_view") as prepare:
 			jobs.run("job", "income", "ws", "t", {"left": ["F1"], "right": ["F2"]})
 		self.assertEqual((states["state"], states["task"]), ("done", "T1"))
 		self.assertEqual(delete.call_count, 2)  # the second file is still removed after the first one failed
 		log_error.assert_called_once()
+		prepare.assert_called_once()  # 出结果时先把结果页存档生成好（失败只记日志，见 jobs._prepare_view）
+		self.assertEqual(prepare.call_args.args[:2], ("income", "T1"))
 
 	def run_job(self, kind, left, right, create_error=None):
 		from pearnly_cowork.recon_center import jobs
@@ -1736,6 +1739,7 @@ class ReconJobCleanup(unittest.TestCase):
 				mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
 				mock.patch.object(jobs.frappe, "db", db), \
 				mock.patch.object(jobs.frappe, "log_error") as log_error, \
+				mock.patch.object(jobs, "_prepare_view"), \
 				mock.patch.object(jobs.frappe, "_", side_effect=lambda text: text), \
 				mock.patch("pearnly_cowork.reconciliation.messages._", side_effect=lambda text: text), \
 				mock.patch("pearnly_cowork.recon_center.document_ocr.submit") as submit, \
