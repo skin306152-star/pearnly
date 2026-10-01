@@ -7,3 +7,8 @@
 
 改法：建单时需复核就把匹配数按「还没匹配」传 `None`，`detect_recon_mismatch` 只在 0 时写这句；其余警告（期间不重叠、GL 行数太少）照旧。
 测试：`test_cowork_bank_warnings` 加一条（None 不报、源码按需复核传 None），并加进 `ci-candidate-checks.sh`。已存的待复核任务在确认时重算，不另迁移。
+
+## 进度与下一步（2026-10-02 用户指示三窗口原地待命）
+
+- 分支 `codex/review-no-match` 已提交保存，**未合入、未部署**；闸门 30 项与架构检查已过。
+- 下一步（解除待命后）：与 `codex/account-tie` 一起变基到当时的 main、随下一批合入，只激活 Cowork。
