@@ -7,8 +7,6 @@ A confirmed document cannot be edited,確定済みの伝票は編集できませ
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
 A customer needs a name,顧客には名前が必要です
-A negative amount was read,マイナスの金額が読み取られました
-A page of this file could not be read: a document on it may be missing. Check the original,このファイルの1ページを読み取れませんでした。そのページの書類が漏れている可能性があります。原本を確認してください
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
 A product needs a name,品目には名前が必要です
 A refund cannot be more than the original sale,返品は元の売上を超えられません
@@ -661,7 +659,6 @@ Pick a warehouse,倉庫を選択してください
 "Pick quantity, discount or price first",先に数量・割引・単価を選んでください
 Place,保管場所
 Please add Mode of payments and opening balance details.,支払方法と開始残高の明細を追加してください
-Please check this document before submitting,提出前に確認してください
 Please select a field to edit from numpad,テンキーから編集する項目を選択してください
 Please select an Item,品目を選択してください
 Please upload a PDF or image,PDF または画像をアップロードしてください
@@ -836,7 +833,6 @@ Select the original sale line,元の販売明細を選択してください
 Sell,売上
 Seller,売り手
 Seller address,売り手住所
-Seller and buyer have the same tax ID,売り手と買い手の税番号が同じです
 Seller branch,売り手支店
 Seller tax ID,売り手税番号
 Selling Units,販売単位
@@ -913,7 +909,6 @@ Submitted At,提出日時
 Submitted {0},{0} を提出しました
 Substitute Receipt,代替領収書
 Subtotal,小計
-"Subtotal, discount and VAT do not add up to the printed total",小計・割引・VAT が書類の合計と一致しません
 Summary,摘要
 Supplier,仕入先
 Supplier Doc Reference,仕入先伝票参照番号
@@ -957,7 +952,6 @@ That submission was already used for a different entry,この送信は別の明�
 That warehouse belongs to another company,この倉庫は別会社のものです
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
-The VAT worked out from the items does not match the printed VAT,明細から計算した VAT が書類の VAT と一致しません
 The account you give customers for transfers,入金時に相手へ伝える口座
 The amount received is less than the total,受取額が合計に足りません
 The balance could not be checked right now. Please try again in a minute.,現在残高を確認できません。1 分後にもう一度お試しください。
@@ -966,13 +960,8 @@ The cashier assets did not load (official-*.js).,レジのファイルが読み�
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
-The document date is in the future,書類の日付が未来です。年を確認してください
-The document date is more than 5 years old,書類の日付が5年以上前です。年を確認してください
-"The document type was not recognised, so input VAT is not claimed",書類の種類が判別できないため仕入税額を計上していません
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
-The items add up to more than the subtotal,明細の合計が小計を超えています
-The items do not add up to the printed total,明細の合計が書類の合計と一致しません
 The opening stock amount is too large,期首在庫金額が大きすぎます
 The opening stock file is too large,期首在庫ファイルが大きすぎます
 The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
@@ -987,8 +976,6 @@ The recognition service did not answer in time. Please try again.,読み取り�
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
-The total is less than one of the items,合計が明細の1行より少ないです
-The total printed on the document was not found,書類に合計が見つかりません
 The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
 There is nothing to save,保存する行がありません
@@ -1022,7 +1009,6 @@ This draft was already confirmed or discarded,この下書きは確認済みか�
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This file holds {0} documents; only the first is filled in. Upload the others separately.,このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
-This is a credit note: check the amounts and the original invoice,これは返品・値引伝票です。金額と元の請求書を確認してください
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This option is no longer current,この選択肢は現在の手順ではありません
@@ -1038,8 +1024,6 @@ This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
-"This tax invoice does not name the buyer, so input VAT is not claimed",この税務請求書に買い手の記載がないため仕入税額を計上していません
-"This tax invoice shows no VAT, so input VAT is not claimed",この税務請求書に消費税額がないため仕入税額を計上していません
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit is not defined on the product,この単位はこの商品に定義されていません
@@ -1111,7 +1095,6 @@ VAT Applies,課税対象
 VAT Rate,付加価値税率
 VAT Rate %,税率%
 VAT applies,VAT 対象
-VAT is not 7% of the amount before VAT,VAT が税抜金額の 7% ではありません
 Value,金額
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

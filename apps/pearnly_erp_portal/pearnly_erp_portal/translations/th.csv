@@ -7,8 +7,6 @@ A confirmed document cannot be edited,เอกสารที่ยืนยั
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น
 A customer needs a name,ลูกค้าต้องมีชื่อ
-A negative amount was read,อ่านได้ยอดเงินติดลบ
-A page of this file could not be read: a document on it may be missing. Check the original,มีหน้าหนึ่งในไฟล์นี้อ่านไม่ออก เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจสอบต้นฉบับ
 A payment has to be approved before it counts as paid,การจ่ายต้องได้รับการอนุมัติก่อนจึงนับว่าจ่ายแล้ว
 A product needs a name,สินค้าต้องมีชื่อ
 A refund cannot be more than the original sale,คืนเงินได้ไม่เกินบิลขายต้นทาง
@@ -661,7 +659,6 @@ Pick a warehouse,กรุณาเลือกคลัง
 "Pick quantity, discount or price first",เลือกจำนวน ส่วนลด หรือราคาก่อน
 Place,ตำแหน่ง
 Please add Mode of payments and opening balance details.,กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดยกมา
-Please check this document before submitting,กรุณาตรวจสอบก่อนบันทึก
 Please select a field to edit from numpad,กรุณาเลือกช่องที่ต้องการแก้ไขจากแป้นตัวเลข
 Please select an Item,กรุณาเลือกสินค้า
 Please upload a PDF or image,กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ
@@ -836,7 +833,6 @@ Select the original sale line,เลือกรายการจากบิ�
 Sell,ขาย
 Seller,ชื่อผู้ขาย
 Seller address,ที่อยู่ผู้ขาย
-Seller and buyer have the same tax ID,ผู้ขายและผู้ซื้อมีเลขผู้เสียภาษีเดียวกัน
 Seller branch,สาขาผู้ขาย
 Seller tax ID,เลขผู้เสียภาษีผู้ขาย
 Selling Units,หน่วยขาย
@@ -913,7 +909,6 @@ Submitted At,เวลาส่ง
 Submitted {0},ยืนยันแล้ว {0}
 Substitute Receipt,ใบสำคัญรับเงิน
 Subtotal,ยอดก่อนภาษี
-"Subtotal, discount and VAT do not add up to the printed total",ยอดก่อนภาษี ส่วนลด และ VAT ไม่ตรงกับยอดรวมบนเอกสาร
 Summary,สรุป
 Supplier,ผู้จัดจำหน่าย
 Supplier Doc Reference,เลขอ้างอิงเอกสารผู้จำหน่าย
@@ -957,7 +952,6 @@ That submission was already used for a different entry,การส่งนี�
 That warehouse belongs to another company,คลังนี้เป็นของบริษัทอื่น
 The LINE account that sent the document,บัญชี LINE ที่ส่งเอกสารนี้
 The Revenue Department replied in an unreadable format,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
-The VAT worked out from the items does not match the printed VAT,VAT ที่คำนวณจากรายการไม่ตรงกับ VAT บนเอกสาร
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The balance could not be checked right now. Please try again in a minute.,ยังตรวจสอบยอดเงินไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที
@@ -966,13 +960,8 @@ The cashier assets did not load (official-*.js).,ไฟล์ของหน้�
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่
-The document date is in the future,วันที่เอกสารอยู่ในอนาคต กรุณาตรวจสอบปี
-The document date is more than 5 years old,วันที่เอกสารเก่ากว่า 5 ปี กรุณาตรวจสอบปี
-"The document type was not recognised, so input VAT is not claimed",ไม่ทราบประเภทเอกสาร จึงไม่บันทึกภาษีซื้อ
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
-The items add up to more than the subtotal,ผลรวมรายการมากกว่ายอดก่อนภาษี
-The items do not add up to the printed total,ยอดรวมจากรายการไม่ตรงกับยอดรวมบนเอกสาร
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
 The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
 The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามากเกินกว่าจะรักษาความละเอียดทศนิยม
@@ -987,8 +976,6 @@ The recognition service did not answer in time. Please try again.,ระบบ�
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง
-The total is less than one of the items,ยอดรวมน้อยกว่ารายการใดรายการหนึ่ง
-The total printed on the document was not found,ไม่พบยอดรวมบนเอกสาร
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
@@ -1022,7 +1009,6 @@ This draft was already confirmed or discarded,รายการนี้ยื�
 This entry changed underneath you; reload and try again,รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังบันทึกเป็นใบซื้อไม่ได้
-This is a credit note: check the amounts and the original invoice,เอกสารนี้เป็นใบลดหนี้ กรุณาตรวจสอบยอดเงินและใบกำกับภาษีเดิม
 This is not a purchase or sales document,เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This option is no longer current,ตัวเลือกนี้ไม่ใช่ขั้นตอนปัจจุบันแล้ว
@@ -1038,8 +1024,6 @@ This stock count is already posted,เอกสารตรวจนับนี
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This stock position already has stock movements; use a stock adjustment,สินค้าตำแหน่งนี้มีการเคลื่อนไหวแล้ว กรุณาใช้การปรับสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้าตำแหน่งนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับสต็อก
-"This tax invoice does not name the buyer, so input VAT is not claimed",ใบกำกับภาษีนี้ไม่ระบุผู้ซื้อ จึงไม่บันทึกภาษีซื้อ
-"This tax invoice shows no VAT, so input VAT is not claimed",ใบกำกับภาษีนี้ไม่พบยอดภาษีมูลค่าเพิ่ม จึงไม่บันทึกภาษีซื้อ
 This terminal already has an open shift,เครื่องขายนี้มีกะที่เปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
@@ -1111,7 +1095,6 @@ VAT Applies,คิด VAT
 VAT Rate,อัตราภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
 VAT applies,คิด VAT
-VAT is not 7% of the amount before VAT,VAT ไม่ใช่ 7% ของยอดก่อนภาษี
 Value,มูลค่า
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ

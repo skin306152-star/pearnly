@@ -165,14 +165,14 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
     billing.charge(units, billing_reference or f"erp.purchase:{frappe.generate_hash(length=20)}",
                    "ERP purchase recognition")
     # 同一文件里的其余单据（多页 / 一张图几张票）：LINE 各出一张卡；网页一次只填第一张。
-    extras = [{**doc, "review": codes, "review_text": policy.describe(codes), "ocr_model": used}
+    extras = [{**doc, "review": codes, "ocr_model": used}
               for doc, codes, used in documents[1:]]
     # 分类：按「供应商 + 品名」记住的预填到空着的行（认得出供应商才填；网页上人可以改，入账时再记下）。
     from pearnly_erp_portal.purchasing import category_memory
 
     category_memory.fill(category_memory.matched_supplier(result), result.get("lines"))
     result.update(source="ocr", image_sha256=files.combined_hash(hashes), review=issues,
-                  review_text=policy.describe(issues), ocr_model=model, additional=extras)
+                  ocr_model=model, additional=extras)
     return result
 
 

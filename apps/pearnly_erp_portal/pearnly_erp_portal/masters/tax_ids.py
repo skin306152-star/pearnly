@@ -7,7 +7,7 @@ from frappe import _
 
 from pearnly_erp_portal.masters import contracts
 
-# 与采购识别提示同一句（识别查到校验位不对时也是这句）。
+# 保存主数据时的报错（识别检查用同样的英文原因写复核提示词，但不给用户看）。
 CHECKSUM = "A tax ID failed its check digit"
 
 

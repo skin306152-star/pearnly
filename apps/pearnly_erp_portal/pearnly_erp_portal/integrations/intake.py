@@ -345,11 +345,8 @@ def open_for_edit(name) -> dict:
     if doc.direction == "sales" and form.get("customer"):
         form["buyer_name"] = frappe.db.get_value("ERP Customer", form["customer"], "customer_name")
     form.pop("company", None)
-    from pearnly_erp_portal.recognition import policy
-
-    review = policy.describe(json.loads(doc.result or "{}").get("review") or [])
-    return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form,
-            "review": review}
+    # 识别检查没过的原因不给页面（用户 2026-10-02：录入侧不出识别后的错误提示，只靠识别质量）。
+    return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form}
 
 
 def submit(name, payload) -> dict:

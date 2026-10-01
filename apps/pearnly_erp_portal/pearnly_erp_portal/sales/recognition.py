@@ -71,10 +71,10 @@ def recognise(attachments, document_name=None, billing_reference=None, progress=
     billing.charge(units, billing_reference or f"erp.sales:{frappe.generate_hash(length=20)}",
                    "ERP sales recognition")
     # 同一文件里的其余单据（多页 / 一张图几张票）：LINE 各出一张卡；网页一次只填第一张。
-    extras = [{**doc, "review": codes, "review_text": policy.describe(codes), "ocr_model": used}
+    extras = [{**doc, "review": codes, "ocr_model": used}
               for doc, codes, used in documents[1:]]
     return {**result, "source": contracts.SOURCE_OCR, "image_sha256": files.combined_hash(hashes),
-            "review": issues, "review_text": policy.describe(issues), "ocr_model": model, "additional": extras}
+            "review": issues, "ocr_model": model, "additional": extras}
 
 
 def _structured(raw):

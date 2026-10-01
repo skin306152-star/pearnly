@@ -25,10 +25,11 @@ from pearnly_core.tax_documents.amounts import (  # noqa: F401 - ERP 各处按 c
 MAX_BACKDATE_YEARS = 5
 MAX_FUTURE_DAYS = 1
 
-# 多页 PDF 里有页几次都读不出：标在前一张单据上，只标红、不重读（ERP 旧版静默跳过那页）。
+# 多页 PDF 里有页几次都读不出：标在前一张单据上，只标注、不重读（ERP 旧版静默跳过那页）。
 PAGE_UNREAD = "page_unread"
 
-# 代码 → 给人看的话（翻译在 i18n/messages.tsv）。
+# 代码 → 原因（英文）：只写进复核提示词告诉模型要核对什么（`policy`），不给用户看 ——
+# 用户 2026-10-02：录入侧不出识别后的错误提示，只靠提升识别质量把结果显示出来。
 MESSAGES = {
     PAGE_UNREAD: "A page of this file could not be read: a document on it may be missing. Check the original",
     "total_missing": "The total printed on the document was not found",

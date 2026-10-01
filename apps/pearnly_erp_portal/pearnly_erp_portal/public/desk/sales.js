@@ -116,7 +116,6 @@
 			page.set_title(is_new ? __("trade.newSale") : doc.system_no || doc.name);
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
 			cleanup = await u.editor({page, doc, defaults, editable, intake: opened?.intake, still_current, reload: () => show(), go});
-			if (still_current()) p.recognition_review(opened?.review);
 		}});
 		await show();
 	};

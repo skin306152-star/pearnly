@@ -105,7 +105,6 @@
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
 			if (amended_from) doc = {...doc, system_no: defaults.system_no, attachments: doc.attachments.filter(row => row.kind === "bill")};
 			cleanup = await u.editor({page, doc, defaults, editable, amended_from, intake: opened?.intake, still_current, reload: () => show(), go});
-			if (still_current()) p.recognition_review(opened?.review);
 		}});
 		await show();
 	};

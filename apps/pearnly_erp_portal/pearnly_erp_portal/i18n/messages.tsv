@@ -686,10 +686,6 @@ Discount cannot exceed the amount	折扣不能超过金额	ส่วนลดต
 Net total - discount + VAT must equal the total	金额对不上：净总计 − 折扣 + 增值税 必须等于总计	ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม	金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
 Non-claimable VAT	不可抵扣的增值税	ภาษีซื้อที่ขอคืนไม่ได้	控除できない消費税
 This is a credit note. Credit notes cannot be recorded as a purchase yet.	这是贷项通知单，暂时不能按采购单录入。	เอกสารนี้เป็นใบลดหนี้ ยังบันทึกเป็นใบซื้อไม่ได้	これは返品・値引伝票です。仕入としてはまだ登録できません。
-The document type was not recognised, so input VAT is not claimed	认不出票种，未记进项税	ไม่ทราบประเภทเอกสาร จึงไม่บันทึกภาษีซื้อ	書類の種類が判別できないため仕入税額を計上していません
-This tax invoice shows no VAT, so input VAT is not claimed	这张税票没读到增值税额，未记进项税	ใบกำกับภาษีนี้ไม่พบยอดภาษีมูลค่าเพิ่ม จึงไม่บันทึกภาษีซื้อ	この税務請求書に消費税額がないため仕入税額を計上していません
-This tax invoice does not name the buyer, so input VAT is not claimed	这张税票没写买方，未记进项税	ใบกำกับภาษีนี้ไม่ระบุผู้ซื้อ จึงไม่บันทึกภาษีซื้อ	この税務請求書に買い手の記載がないため仕入税額を計上していません
-This is a credit note: check the amounts and the original invoice	这是贷项通知单，请核对金额和原发票	เอกสารนี้เป็นใบลดหนี้ กรุณาตรวจสอบยอดเงินและใบกำกับภาษีเดิม	これは返品・値引伝票です。金額と元の請求書を確認してください
 Paid amount cannot exceed the total	收款金额不能超过合计	ยอดรับเงินต้องไม่เกินยอดรวม	入金額は合計を超えられません
 Customer is required	必须填写客户	กรุณาระบุลูกค้า	顧客は必須です
 Customer is disabled	客户已停用	ลูกค้าถูกปิดใช้งาน	顧客は無効です
@@ -1292,21 +1288,8 @@ Receive documents and add stock	收单并入库	รับเอกสารแ�
 Issue documents and deduct stock	开单并出库	ออกเอกสารและตัดสินค้าออกจากสต๊อก	伝票を登録して出庫
 Count stock on the web	在网页端清点库存	นับสินค้าคงคลังผ่านหน้าเว็บ	Webで在庫を数える
 ERP menu	ERP 菜单	เมนู ERP	ERPメニュー
-The total printed on the document was not found	没找到票面上的合计	ไม่พบยอดรวมบนเอกสาร	書類に合計が見つかりません
-Subtotal, discount and VAT do not add up to the printed total	小计、折扣、VAT 与票面合计对不上	ยอดก่อนภาษี ส่วนลด และ VAT ไม่ตรงกับยอดรวมบนเอกสาร	小計・割引・VAT が書類の合計と一致しません
-The items do not add up to the printed total	明细算出的合计与票面合计不符	ยอดรวมจากรายการไม่ตรงกับยอดรวมบนเอกสาร	明細の合計が書類の合計と一致しません
-A negative amount was read	读到了负数金额	อ่านได้ยอดเงินติดลบ	マイナスの金額が読み取られました
-Seller and buyer have the same tax ID	卖方与买方税号相同	ผู้ขายและผู้ซื้อมีเลขผู้เสียภาษีเดียวกัน	売り手と買い手の税番号が同じです
 A tax ID failed its check digit	税号校验位不对，可能读错一位	เลขผู้เสียภาษีไม่ผ่านการตรวจสอบหลัก	税番号のチェックディジットが一致しません
-VAT is not 7% of the amount before VAT	VAT 不是税前金额的 7%	VAT ไม่ใช่ 7% ของยอดก่อนภาษี	VAT が税抜金額の 7% ではありません
-The items add up to more than the subtotal	明细之和大于小计	ผลรวมรายการมากกว่ายอดก่อนภาษี	明細の合計が小計を超えています
-The total is less than one of the items	合计小于其中一行明细	ยอดรวมน้อยกว่ารายการใดรายการหนึ่ง	合計が明細の1行より少ないです
-The document date is in the future	单据日期在未来，请核对年份	วันที่เอกสารอยู่ในอนาคต กรุณาตรวจสอบปี	書類の日付が未来です。年を確認してください
-A page of this file could not be read: a document on it may be missing. Check the original	这个文件有一页没读出，那页上的单据可能漏了，请核对原件	มีหน้าหนึ่งในไฟล์นี้อ่านไม่ออก เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจสอบต้นฉบับ	このファイルの1ページを読み取れませんでした。そのページの書類が漏れている可能性があります。原本を確認してください
-The document date is more than 5 years old	单据日期早于 5 年前，请核对年份	วันที่เอกสารเก่ากว่า 5 ปี กรุณาตรวจสอบปี	書類の日付が5年以上前です。年を確認してください
-Please check this document before submitting	提交前请核对	กรุณาตรวจสอบก่อนบันทึก	提出前に確認してください
 This is not a purchase or sales document	这不是采购或销售单据	เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย	これは仕入・売上の書類ではありません
-The VAT worked out from the items does not match the printed VAT	明细算出的 VAT 与票面 VAT 不符	VAT ที่คำนวณจากรายการไม่ตรงกับ VAT บนเอกสาร	明細から計算した VAT が書類の VAT と一致しません
 Recognition is busy right now. Please try again in a minute.	识别服务繁忙，请一分钟后再试。	ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	読み取りが混み合っています。1 分後にもう一度お試しください。
 The recognition service did not answer in time. Please try again.	识别服务没有按时回应，请重试。	ระบบอ่านเอกสารไม่ตอบกลับตามเวลา กรุณาลองใหม่	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 This PDF has more than {0} pages	PDF 超过 {0} 页	PDF มีมากกว่า {0} หน้า	PDF が {0} ページを超えています

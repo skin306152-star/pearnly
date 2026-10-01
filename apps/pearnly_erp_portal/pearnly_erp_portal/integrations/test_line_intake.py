@@ -614,7 +614,7 @@ class Checks(unittest.TestCase):
                                           "document_title": "ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ"})
         self.assertEqual((titled["document_type"], titled["document_type_basis"], titled["has_vat"]),
                          ("simplified_tax_invoice", "title", False))
-        # 完整税票：印了 VAT、写明买方才记进项税；缺买方不记，并在卡上红字说明原因。
+        # 完整税票：印了 VAT、写明买方才记进项税；缺买方不记，原因只留在检查代码里（不在卡上显示）。
         full = recognition._structured({**raw, "document_type": "tax_invoice", "buyer_tax_id": "0105546015062"})
         self.assertIs(full["has_vat"], True)
         self.assertEqual(recognition.review(full), [])
@@ -1246,6 +1246,13 @@ class Web(Base):
         self.assertNotIn("company", form)
         self.switch.assert_not_called()
 
+    def test_open_does_not_hand_recognition_check_reasons_to_the_page(self):
+        # 用户 2026-10-02：录入侧不出识别后的错误提示；检查代码只留在结果里供重读 / 升级用。
+        self.doc = _doc(result=json.dumps({**json.loads(_doc().result), "review": ["computed_total", "date_old"]}))
+        opened = intake.open_for_edit("LI-1")
+        self.assertNotIn("review", opened)
+        self.assertNotIn("review", opened["doc"])
+
     def test_open_switches_to_the_company_chosen_in_line(self):
         self.active.return_value = "CO-2"
         self.assertTrue(intake.open_for_edit("LI-1")["switched_company"])
@@ -1335,6 +1342,20 @@ class CardShape(Base):
         self.assertEqual(len(footer), 1)
         self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",
                          "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-purchase%2Fline%2FLI-1"})
+
+    def test_card_shows_no_recognition_check_box(self):
+        # 用户 2026-10-02：识别没过检查也不在卡上画红框写原因，卡片照常从「公司」开始。
+        doc = _doc()
+        result = {**json.loads(doc.result), "review": ["computed_total", "tax_id_checksum", "date_old"]}
+        card = self.card(doc, result, {"grand_total": "107.00", "vat_amount": "7.00"})
+        text = json.dumps(card, ensure_ascii=False)
+        self.assertNotIn("Please check this document before submitting", text)
+        self.assertNotIn("#D93025", text)
+        for reason in ("The items do not add up to the printed total", "A tax ID failed its check digit",
+                       "The document date is more than 5 years old"):
+            self.assertNotIn(reason, text)
+        first = card["contents"]["body"]["contents"][0]
+        self.assertEqual(first["contents"][0]["text"], "Company")
 
     def test_long_documents_stay_within_the_line_bubble_limit(self):
         doc = _doc()

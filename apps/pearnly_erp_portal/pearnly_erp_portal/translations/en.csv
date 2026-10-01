@@ -7,8 +7,6 @@ A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
 A customer needs a name,A customer needs a name
-A negative amount was read,A negative amount was read
-A page of this file could not be read: a document on it may be missing. Check the original,A page of this file could not be read: a document on it may be missing. Check the original
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
 A product needs a name,A product needs a name
 A refund cannot be more than the original sale,A refund cannot be more than the original sale
@@ -661,7 +659,6 @@ Pick a warehouse,Pick a warehouse
 "Pick quantity, discount or price first","Pick quantity, discount or price first"
 Place,Place
 Please add Mode of payments and opening balance details.,Please add Mode of payments and opening balance details.
-Please check this document before submitting,Please check this document before submitting
 Please select a field to edit from numpad,Please select a field to edit from numpad
 Please select an Item,Please select an Item
 Please upload a PDF or image,Please upload a PDF or image
@@ -836,7 +833,6 @@ Select the original sale line,Select the original sale line
 Sell,Sell
 Seller,Seller
 Seller address,Seller address
-Seller and buyer have the same tax ID,Seller and buyer have the same tax ID
 Seller branch,Seller branch
 Seller tax ID,Seller tax ID
 Selling Units,Selling Units
@@ -913,7 +909,6 @@ Submitted At,Submitted At
 Submitted {0},Submitted {0}
 Substitute Receipt,Substitute Receipt
 Subtotal,Subtotal
-"Subtotal, discount and VAT do not add up to the printed total","Subtotal, discount and VAT do not add up to the printed total"
 Summary,Summary
 Supplier,Supplier
 Supplier Doc Reference,Supplier Doc Reference
@@ -957,7 +952,6 @@ That submission was already used for a different entry,That submission was alrea
 That warehouse belongs to another company,That warehouse belongs to another company
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
-The VAT worked out from the items does not match the printed VAT,The VAT worked out from the items does not match the printed VAT
 The account you give customers for transfers,The account you give customers for transfers
 The amount received is less than the total,The amount received is less than the total
 The balance could not be checked right now. Please try again in a minute.,The balance could not be checked right now. Please try again in a minute.
@@ -966,13 +960,8 @@ The cashier assets did not load (official-*.js).,The cashier assets did not load
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
-The document date is in the future,The document date is in the future
-The document date is more than 5 years old,The document date is more than 5 years old
-"The document type was not recognised, so input VAT is not claimed","The document type was not recognised, so input VAT is not claimed"
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
-The items add up to more than the subtotal,The items add up to more than the subtotal
-The items do not add up to the printed total,The items do not add up to the printed total
 The opening stock amount is too large,The opening stock amount is too large
 The opening stock file is too large,The opening stock file is too large
 The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
@@ -987,8 +976,6 @@ The recognition service did not answer in time. Please try again.,The recognitio
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
-The total is less than one of the items,The total is less than one of the items
-The total printed on the document was not found,The total printed on the document was not found
 The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
 There is nothing to save,There is nothing to save
@@ -1022,7 +1009,6 @@ This draft was already confirmed or discarded,This draft was already confirmed o
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This file holds {0} documents; only the first is filled in. Upload the others separately.,This file holds {0} documents; only the first is filled in. Upload the others separately.
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
-This is a credit note: check the amounts and the original invoice,This is a credit note: check the amounts and the original invoice
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:
 This option is no longer current,This option is no longer current
@@ -1038,8 +1024,6 @@ This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
 This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
 This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
-"This tax invoice does not name the buyer, so input VAT is not claimed","This tax invoice does not name the buyer, so input VAT is not claimed"
-"This tax invoice shows no VAT, so input VAT is not claimed","This tax invoice shows no VAT, so input VAT is not claimed"
 This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product
@@ -1111,7 +1095,6 @@ VAT Applies,VAT Applies
 VAT Rate,VAT Rate
 VAT Rate %,VAT Rate %
 VAT applies,VAT applies
-VAT is not 7% of the amount before VAT,VAT is not 7% of the amount before VAT
 Value,Value
 Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
