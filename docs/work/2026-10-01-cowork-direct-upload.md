@@ -46,3 +46,25 @@
 1. 合入 main，与 46645eee 一起构建、部署（Cloud Run 线上服务带 `PEARNLY_ORIGINALS_BUCKET`）。
 2. 先只给 testcowork 配 `pearnly_cowork_originals_bucket`，在生产 testcowork 跑 HTTP 实测（含失败路径），通过后给全部 Cowork 站点打开。
 3. 测试服务 `cowork-ocr-test` 与其镜像在收尾时删除（`deploy-cowork-ocr.sh` 可随时重建）。
+
+## 上线记录（2026-10-01）
+
+- 生产：main `5c7b2afa`（46645eee 发票号索引 / 扣费计数 + 直传）镜像 `sha256:1a452ff1…`，10:02–10:16 UTC 部署 ERP / Cowork / DMS
+  + 单独更新计费（migrate，钱包加 `usage_month` / `usage_checked`）。回读：23 个容器同一镜像、六站点不在维护、四域名 200、
+  发票号 / 日期索引已建、`_payg_pages_used` 在、`LOWER(invoice_no)` 已去掉、部署后错误日志 0（按站点时区核对）、
+  mariadb 1.84 / 4 GiB。Cloud Run `cowork-ocr-00010`（带 `PEARNLY_ORIGINALS_BUCKET`）。
+- 直传：先只开 testcowork，在生产 testcowork 上服务层自测全过后，`pearnly_cowork_originals_bucket` 写入 Cowork 组
+  common_site_config（全部 Cowork 站点）。
+- 随后 main `2bbcb4ee`（另一窗口的银行账单短页重读 + 本仓测试替身）：只发 Cowork（`sha256:d149a8cf…`，10:25–10:29）
+  与 Cloud Run `cowork-ocr-00011`；回读 `rows_short` / `repair_single_break` / 新词条都在、错误日志 0。
+- 临时压测租户（用户同意）：testcowork2（ISS-2026-0298 / T-2026-0299）、testcowork3（ISS-2026-0302 / T-2026-0303），
+  正式开户流程；各充 1500 泰铢（`admin_adjust`，备注压测、内部记账）；压测账号 stress-t2 / stress-t3@pearnly.local
+  （录入、识别记录、银行 / 收入对账、销项税核查、个人资料），密钥在生产 `/root/pearnly-stress/api-t2.env`、`api-t3.env`
+  （root、600）；识别配置与 testcowork 一致（补了 `pearnly_shrink_photos`）。欢迎邮件发往 skin306152+testcowork2/3@gmail.com。
+  压测后由压测窗口删账号与密钥，租户与站点按下线流程删除（删除前再问用户）。
+- 容量：开户时容量检查拦下（维护容器 1 GiB + 现有额度超 1.3 倍上限 269 MiB）。用户同意把 Cowork 识别进程上限 8g → 7g
+  （runtime.env，备份 `runtime.env.bak-20261001-cowork-ocr-8g`；实际用 347 MiB，识别在 Cloud Run）。
+- 事故：重试开通时 `restart_web` 的 `compose up -d` 没带 `--no-deps`，把 mariadb（与 Cowork 识别进程）重建了
+  （10:36:52–53，数据库断开约数秒；六站点之后错误日志 0）。已修 `provision-agent.py`（`codex/provision-no-deps`），
+  服务器上的开户代理随下一次部署同步后生效；在此之前不要再开户。
+- 清理：测试服务 `cowork-ocr-test` 与镜像包已删；测试机栈已停（卷保留），testcowork 已切回线上。

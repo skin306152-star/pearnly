@@ -283,7 +283,10 @@ def main():
             # 从未被 web 进程加载过，不存在读到旧副本的问题。这里只要保证产品组在跑即可。
             # 曾经这里放的是真重启 —— 那会把**该产品下所有已有租户**一起踢下线，开一个新
             # 租户的代价变成"别人抖一下"（用户 2026-09-19 指出）。
-            compose(p["group"], "up", "-d", *services(p["group"],
+            # `--no-deps`：只确认本产品自己的容器在跑，不顺带重建共用的 mariadb / redis / keycloak。不加时 compose
+            # 发现数据库容器与当前配置不一致（例如内存是 docker update 在线调的）就把它重建，所有产品断一下
+            # （2026-10-01 开 testcowork2 时 10:36:53 mariadb 被重建）。与 activate-product.sh 同一做法。
+            compose(p["group"], "up", "-d", "--no-deps", *services(p["group"],
                     ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")))
         elif action == "drop_site":
             path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{p['site']}.conf")

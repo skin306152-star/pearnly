@@ -211,7 +211,9 @@ class ProductImages(unittest.TestCase):
                 # Cowork runs reconciliation jobs (long queue) in their own worker pool.
                 if group == "cowork":
                     expected_containers.append("cowork-long-worker")
-                self.assertEqual(args[args.index("up") + 2:], expected_containers)
+                # 只动本产品的容器：不加 --no-deps 会顺带重建共用的数据库（2026-10-01）。
+                self.assertEqual(args[args.index("up") + 1:args.index("up") + 3], ["-d", "--no-deps"])
+                self.assertEqual(args[args.index("up") + 3:], expected_containers)
 
 
 class Contracts(unittest.TestCase):
