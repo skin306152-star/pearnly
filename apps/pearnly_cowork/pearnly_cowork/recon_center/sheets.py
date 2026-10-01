@@ -543,9 +543,10 @@ def _store_view(kind, doc, lang, version, key, found):
     return view
 
 
-def rebuild_view(kind, task_id, lang, ui=None, user=None):
+def rebuild_view(kind, task_id, lang, ui=None, user=None, stale_ok=False):
     """按当前代码把一套对账的结果页存档重建（已是最新就不动），回是否新生成了一份。后台（``refresh_later``）与部署时的
-    补算（``view_store.backfill``）用；``ui`` / ``user`` 是排进后台时那个请求的界面语言与用户。"""
+    补算（``view_store.backfill``）用；``ui`` / ``user`` 是排进后台时那个请求的界面语言与用户。``stale_ok``：数据没变、
+    只是代码换了的旧存档也算有（部署补算只补缺的）。"""
     from pearnly_cowork.recon_center import view_store
 
     if user:
@@ -558,7 +559,8 @@ def rebuild_view(kind, task_id, lang, ui=None, user=None):
     key = view_store.key(lang)
     found = view_store.fingerprint(kind, doc, key, version)
     with view_store.building(kind, doc.name, key):
-        if view_store.get(kind, doc.name, key, found)[1]:
+        view, fresh = view_store.get(kind, doc.name, key, found)
+        if fresh or (stale_ok and view is not None):
             return False
         _store_view(kind, doc, lang, version, key, found)
         return True

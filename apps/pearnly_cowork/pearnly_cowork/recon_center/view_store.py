@@ -29,12 +29,14 @@ _code = None
 
 
 def _code_fingerprint():
-    """生成结果页的代码（结果页、对账计算与工作簿、文案）的内容摘要：换了版本的代码不会用旧代码生成的存档。进程内算一次。"""
+    """生成结果页的代码（结果页、对账计算与工作簿、文案）的内容摘要：换了版本的代码不会用旧代码生成的存档。进程内算一次。
+    只算影响页面内容的代码；存档怎么存、怎么补（本文件）不算 —— 以前把本文件也算进去，2026-10-02 本文件加一行提交就让全部存档
+    作废、部署后补算把所有对账重算一遍，和压测重叠吃了约 490 CPU 秒。"""
     global _code
     if _code is None:
         root = Path(__file__).resolve().parents[1]
         files = sorted([*root.joinpath("reconciliation").rglob("*.py"), root / "recon_center" / "sheets.py",
-                        *root.joinpath("translations").glob("*.csv"), Path(__file__)])
+                        *root.joinpath("translations").glob("*.csv")])
         digest = hashlib.sha256()
         for path in files:
             digest.update(str(path.relative_to(root)).encode())
@@ -159,8 +161,9 @@ TASKS = (("bank", "Cowork Bank Reconciliation"), ("income", "Cowork Income Recon
 def backfill(langs=("th", "zh", "en")):
     """一次性：给本站点已有的对账逐套生成结果页存档（部署时跑一次，不是定时任务；用户经压测窗口："不留给用户第一次打开去等"）。
 
-    页面请求的语言就是用户的界面语言（``recon.js`` 的 ``lang()``），所以按「界面语言 = 页面语言」的几种组合各生成一份；已有、指纹对得上
-    的跳过。每套以它的发起人身份算（与本人打开一样过权限）。一套失败只记日志，接着下一套。部署时用后台进程（``cowork-worker``，
+    页面请求的语言就是用户的界面语言（``recon.js`` 的 ``lang()``），所以按「界面语言 = 页面语言」的几种组合各生成一份。只补没有存档的
+    和数据变了的；只是代码换了的旧存档不在部署时重算 —— 打开时先给旧的、后台重建（``sheets.load`` → ``refresh_later``），
+    部署时不再把所有对账重算一遍（2026-10-02 第二轮压测：补算跑了 18 分钟以上、和压测重叠吃了约 490 CPU 秒）。每套以它的发起人身份算（与本人打开一样过权限）。一套失败只记日志，接着下一套。部署时用后台进程（``cowork-worker``，
     CPU 低权重）跑：``bench --site all execute pearnly_cowork.recon_center.view_store.backfill``。``bench execute`` 遇到异常会把方法
     再跑一遍，所以这里绝不往外抛。"""
     import time
@@ -179,7 +182,7 @@ def backfill(langs=("th", "zh", "en")):
                     try:
                         frappe.set_user(row.owner or "Administrator")
                         frappe.local.lang = lang
-                        built += 1 if sheets.rebuild_view(kind, row.name, lang) else 0
+                        built += 1 if sheets.rebuild_view(kind, row.name, lang, stale_ok=True) else 0
                         # 已是最新的跳过时没有写入、也就没有提交：不结束的话整个补算开着同一个读快照（几分钟），
                         # 拖住 purge、MariaDB 内存上涨（2026-10-02 压测锁采样：最长事务 287 秒、无锁等待）。
                         frappe.db.commit()

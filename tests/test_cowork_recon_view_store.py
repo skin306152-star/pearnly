@@ -153,6 +153,16 @@ class ViewStoreTest(unittest.TestCase):
         api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py").read_text()
         self.assertIn("view_store.drop(task)", api)
 
+    def test_only_code_that_shapes_the_page_is_fingerprinted(self):
+        view_store._code = None
+        with patch.object(view_store.Path, "read_bytes", autospec=True, side_effect=lambda path: (
+                self.read.append(path.name) or b"")):
+            self.read = []
+            view_store._code_fingerprint()
+        view_store._code = None
+        self.assertIn("sheets.py", self.read)
+        self.assertNotIn("view_store.py", self.read)  # 存档怎么存不影响页面：改它不让存档作废
+
     def test_backfill_stores_every_task_in_each_interface_language_and_never_raises(self):
         tasks = {"Cowork Bank Reconciliation": [frappe._dict(name="CBR-1", owner="a@x")],
                  "Cowork Income Reconciliation": [frappe._dict(name="CIR-1", owner="b@x")],
@@ -172,8 +182,15 @@ class ViewStoreTest(unittest.TestCase):
             built, commits = len(self.built), self.db.commits
             view_store.backfill(("th", "zh"))  # 第二次全部跳过：不重算
             self.assertEqual(len(self.built), built)
+            # 部署只换了代码：补算不重算（打开时先给旧的、后台重建），不在部署时把所有对账重算一遍
+            view_store._code = "another-version"
+            try:
+                view_store.backfill(("th", "zh"))
+                self.assertEqual(len(self.built), built)
+            finally:
+                view_store._code = None
             # 跳过的也逐套结束读快照：不能整个补算开着一个事务（2026-10-02 压测锁采样：最长事务 287 秒）
-            self.assertEqual(self.db.commits - commits, 6)
+            self.assertEqual(self.db.commits - commits, 12)
             with patch.object(sheets, "_build", side_effect=RuntimeError("broken")):
                 self.db.rows.clear()
                 view_store.backfill(("th",))  # 一套失败只记日志，绝不往外抛
