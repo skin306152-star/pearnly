@@ -240,7 +240,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	if not any(result.get("ok") for _name, result in ledgers):
 		frappe.throw(_("reconciliation.ledger_unparsed"))
 	# 总账期间（整月）：几份账单怎么接，按期间里的余额链断得少来选（B08-01 的存折还带着前几个月的行）。
-	mixed, sure = account_conflict(statements)
+	mixed, sure = account_conflict(statements, [result for _name, result in ledgers])
 	if mixed and sure and any(result.get("ok") for name, result in statements if name not in mixed):
 		# 判成别的账户的那几份不计入本次对账、结果里点名（2026-09-30 压测 B05-02：KBank 存折 2 月没有流水，两张 BBL
 		# 存折照片成了整条账单，期初是 BBL 的数、还显示全通过）。其余文件都读不出时照旧全部保留。
@@ -421,12 +421,14 @@ def other_accounts(statements):
 	return account_conflict(statements)[0]
 
 
-def account_conflict(statements):
-	"""``(读出的银行 / 账号与多数不同的文件, 是否确定是别的账户)``。
+def account_conflict(statements, ledgers=()):
+	"""``(读出的银行 / 账号与这个账户不同、又没有证据是同一账户的文件, 是否确定)``；``ledgers`` 是读好的总账结果。
 
-	只有「多数」站得住才判成别的账户、不计入：份数打平（一份照片对一份 PDF）时谁是多数说不清，以前按文件先后取第一份，
-	B08-05（2026-10-02 第二轮压测）照片上凭空读出 2300，把真正的 0555 主 PDF 整份排除，46 行剩 19 行、余额链照样通。
-	打平时一份都不排除，只提示「账号不一致、可能混入了别的账户」，由用户看。"""
+	读出的账号只是线索：照片上会凭空读出一个号（B08-05，2026-10-02 第二轮压测：补充照片读出 2300，以前份数打平按文件先后
+	取第一份当多数，把真正的 0555 主 PDF 整份排除，46 行剩 19 行、余额链照样通）。所以一份文件只要有「是同一账户」的证据就
+	不排除：与别的文件有同一笔、余额接得上别的文件、大部分流水在总账里找得到、或余额就是总账的期初 / 期末。
+	哪个银行 / 账号是这个账户：份数多的一边；打平时看哪一边有总账的证据（B05-02 两份 KBank 存折 2 月没有流水、余额是总账
+	期初，对两张混进来的 BBL 照片）；还分不出就一份都不排除，提示「账号不一致、可能混入了别的账户」由用户看。"""
 	from collections import Counter
 
 	keys = {}
@@ -434,18 +436,32 @@ def account_conflict(statements):
 		identity = result.get("identity") or {} if result.get("ok") else {}
 		bank = bank_parse.detect_bank(identity.get("bank") or "")
 		keys[name] = (bank if bank != "generic" else "", identity.get("last4") or "")
+	rows = {name: result.get("rows") or [] for name, result in statements if result.get("ok")}
 	lines = {}
-	for name, result in statements:
-		if result.get("ok"):
-			lines[name] = _Lines()
-			for row in result.get("rows") or []:
-				lines[name].add(row)
+	for name, file_rows in rows.items():
+		lines[name] = _Lines()
+		for row in file_rows:
+			lines[name].add(row)
+	evidence = _LedgerEvidence(ledgers)
 
-	def overlaps(name):
-		# 与别的文件有同一笔（存、取、余额都一样，日期差不超过 SAME_LINE_DAYS 天，与合并去重同一口径）：同一账户，
-		# 只是账号读法不同（B09-03，2026-09-30；B08-05 照片 19 行与 PDF 末 19 行一模一样）。
-		rows = next((result.get("rows") or [] for other, result in statements if other == name), [])
-		return any(lines[other].seen(row) for other in lines if other != name for row in rows)
+	def overlaps(name, others):
+		# 与另一边的文件有同一笔（存、取、余额都一样，日期差不超过 SAME_LINE_DAYS 天，与合并去重同一口径）：同一账户，
+		# 只是账号读法不同（B09-03，2026-09-30）。
+		return any(lines[other].seen(row) for other in others if other in lines for row in rows.get(name, []))
+
+	def chains(name, others):
+		# 余额接得上另一边的文件（这份第一笔之前的余额是那边的一个余额，或反过来）：同一账户的前后两段（B08-05）。
+		mine = _balances(rows.get(name, []))
+		return any(_opening_of(rows.get(name, [])) in _balances(rows.get(other, []))
+			or _opening_of(rows.get(other, [])) in mine for other in others)
+
+	def same_account(name, index, common):
+		# 只和「另一边」比：要留下的那个账户的文件和没读出账号的文件；打平分不出时是读出别的号的文件。同一边的几份互相
+		# 接得上不算（B05-02 两张 BBL 照片是同一本 BBL 存折的前后两页，2026-10-02 重放）。
+		own = keys[name][index]
+		others = [other for other, key in keys.items() if other != name and (
+			key[index] != own if common is None else key[index] in (common, ""))]
+		return overlaps(name, others) or chains(name, others) or evidence.anchored(rows.get(name, []))
 
 	def near(first, second):
 		# 尾号只差一位是读错，不是别的账户。
@@ -455,13 +471,54 @@ def account_conflict(statements):
 		values = Counter(key[index] for key in keys.values() if key[index])
 		if len(values) > 1:
 			(common, top), (_second, runner_up) = values.most_common(2)
+			sure = True
+			if top == runner_up:
+				tied = [value for value, count in values.items() if count == top]
+				scores = {value: evidence.score([row for name, key in keys.items() if key[index] == value
+					for row in rows.get(name, [])]) for value in tied}
+				best = max(scores.values())
+				leaders = [value for value, score in scores.items() if score == best]
+				if best > (0, 0) and len(leaders) == 1:
+					common = leaders[0]
+				else:
+					common, sure = None, False
 			names = [name for name, key in keys.items() if key[index] and key[index] != common
-				and not overlaps(name) and not (index == 1 and near(key[index], common))]
-			if names and top == runner_up:
-				# 打平：不知道哪边是对的账户，冲突两边都点名、都保留（同一笔的、尾号只差一位的上面已放过）。
-				return [name for name, key in keys.items() if key[index] and not overlaps(name)], False
+				and not same_account(name, index, common) and not (index == 1 and common and near(key[index], common))]
+			if not sure:
+				# 分不出哪边是这个账户：没有同一账户证据的冲突文件都点名、都保留；都有证据就不算冲突。
+				conflicted = [name for name, key in keys.items() if key[index] and not same_account(name, index, None)
+					and not (index == 1 and any(near(key[index], value) for value in values if value != key[index]))]
+				return (conflicted, False) if len(conflicted) > 1 else ([], True)
 			return names, True
 	return [], True
+
+
+def _balances(rows):
+	return {round(row.balance, 2) for row in rows if row.balance}
+
+
+def _opening_of(rows):
+	"""第一笔之前的余额（第一笔的余额倒推存取）；没有余额回 None。"""
+	first = next((row for row in rows if row.balance), None)
+	return None if first is None else round(first.balance - (first.deposit or 0) + (first.withdrawal or 0), 2)
+
+
+class _LedgerEvidence:
+	"""一组流水是不是总账这个账户的：余额等于总账期初 / 期末，或大部分流水在总账里找得到。"""
+
+	def __init__(self, ledgers):
+		read = [result for result in ledgers or () if result.get("ok")]
+		self.rows = [row for result in read for row in result.get("rows") or []]
+		self.balances = {round(float(result.get(field) or 0), 2) for result in read for field in ("opening", "closing")
+			if result.get(field)}
+
+	def score(self, rows):
+		"""``(余额对上总账期初 / 期末的笔数, 在总账里找得到的笔数)``，大的更像这个账户。"""
+		return (len(_balances(rows) & self.balances), gl_hits(rows, self.rows) if self.rows else 0)
+
+	def anchored(self, rows):
+		balance, hits = self.score(rows)
+		return bool(balance) or (hits >= 2 and hits * 2 >= len(rows))
 
 
 def same_lines_once(rows):
@@ -813,20 +870,23 @@ def account_scores(statement_rows, ledgers):
 				by_account.setdefault(row.account_code, []).append(row)
 	if len(by_account) < 2 or not statement_rows:
 		return []
-	def hits(rows):
-		index = {}
-		for row in rows:
-			for side, amount in (("in", row.debit), ("out", row.credit)):
-				if amount:
-					index.setdefault((side, round(amount, 2)), []).append(row.date)
-		count = 0
-		for row in statement_rows:
-			side, amount = ("in", row.deposit) if row.deposit else ("out", row.withdrawal)
-			dates = index.get((side, round(amount or 0, 2))) or []
-			if any(row.date and day and abs((row.date - day).days) <= MATCH_DAYS for day in dates):
-				count += 1
-		return count
-	return sorted(((hits(rows), code) for code, rows in by_account.items()), reverse=True)
+	return sorted(((gl_hits(statement_rows, rows), code) for code, rows in by_account.items()), reverse=True)
+
+
+def gl_hits(statement_rows, gl_rows):
+	"""银行流水里有几笔在总账里找得到（同方向同金额、日期差不超过 MATCH_DAYS 天）。"""
+	index = {}
+	for row in gl_rows:
+		for side, amount in (("in", row.debit), ("out", row.credit)):
+			if amount:
+				index.setdefault((side, round(amount, 2)), []).append(row.date)
+	count = 0
+	for row in statement_rows:
+		side, amount = ("in", row.deposit) if row.deposit else ("out", row.withdrawal)
+		dates = index.get((side, round(amount or 0, 2))) or []
+		if any(row.date and day and abs((row.date - day).days) <= MATCH_DAYS for day in dates):
+			count += 1
+	return count
 
 
 QUESTION_ACCOUNTS = 6

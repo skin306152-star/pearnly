@@ -829,6 +829,56 @@ class SeveralFilesPerSide(unittest.TestCase):
 		# 多数站得住才确定：两份 0555 对一份 2300
 		self.assertEqual(account_conflict([("photo.jpg", other), ("a.pdf", main), ("b.pdf", {**main, "rows": []})]),
 			(["photo.jpg"], True))
+		# B05-02（打平的另一种）：两份 KBank 对两张混进来的 BBL 照片，看哪边的流水在总账里找得到
+		from types import SimpleNamespace
+
+		def bank(name, rows):
+			return {"ok": True, "identity": {"bank": name}, "rows": rows}
+
+		kbank = [row(day, 10.0 + day, 900.0 + day) for day in range(1, 6)]
+		bbl = [row(day, 500.0 + day, 7000.0 + day) for day in range(1, 6)]
+		files = [("k1.jpg", bank("KASIKORNBANK", kbank[:3])), ("b1.jpg", bank("ธนาคารกรุงเทพ", bbl[:3])),
+			("k2.jpg", bank("KASIKORNBANK", kbank[3:])), ("b2.jpg", bank("ธนาคารกรุงเทพ", bbl[3:]))]
+		gl = [{"ok": True, "rows": [SimpleNamespace(date=r.date, debit=r.deposit, credit=0.0) for r in kbank]}]
+		for order in (files, files[::-1]):
+			names, sure = account_conflict(order, gl)
+			self.assertEqual((sorted(names), sure), (["b1.jpg", "b2.jpg"], True))
+		self.assertEqual(account_conflict(files)[1], False)  # 没有总账可看：都保留、提示
+
+	def test_a_continuation_with_a_misread_account_stays_and_a_quiet_passbook_is_recognised_by_its_balance(self):
+		# 重放（2026-10-02）查明 B08-05 的补充照片不是 PDF 的重复，而是同一账户 5 月 18 日以后的续页：余额接得上就是同一账户。
+		from types import SimpleNamespace
+
+		from pearnly_cowork.reconciliation.bank_recon_service import account_conflict
+
+		def chain(start_day, days, opening):
+			rows, balance = [], opening
+			for day in range(start_day, start_day + days):
+				balance += 100.0 + day
+				rows.append(StatementRow(date=date(2026, 5, day), description="x", withdrawal=0.0, deposit=100.0 + day,
+					balance=balance))
+			return rows
+
+		pdf = chain(1, 17, 5000.0)
+		photo = chain(18, 14, pdf[-1].balance)
+		files = [("photo.jpg", {"ok": True, "identity": {"last4": "2300"}, "rows": photo}),
+			("05.pdf", {"ok": True, "identity": {"last4": "0555"}, "rows": pdf})]
+		for order in (files, files[::-1]):
+			self.assertEqual(account_conflict(order), ([], True))
+		# B05-02：KBank 存折 2 月没有流水（余额就是总账期初），两张 BBL 照片是别的账户
+		kbank = [StatementRow(date=date(2026, 1, 20), description="x", withdrawal=0.0, deposit=50.0, balance=3000.0)]
+		# 两张 BBL 照片是同一本存折的前后两页（余额互相接得上），同一边互相接上不算是这个账户的证据（重放查明）
+		bbl = [StatementRow(date=date(2026, 2, 3), description="y", withdrawal=0.0, deposit=21.0, balance=921.0),
+			StatementRow(date=date(2026, 2, 9), description="y", withdrawal=0.0, deposit=63.0, balance=984.0)]
+		passbooks = [("1.jpg", {"ok": True, "identity": {"bank": "KASIKORNBANK"}, "rows": kbank}),
+			("148266.jpg", {"ok": True, "identity": {"bank": "ธนาคารกรุงเทพ"}, "rows": bbl[:1]}),
+			("148267.jpg", {"ok": True, "identity": {"bank": "ธนาคารกรุงเทพ"}, "rows": bbl[1:]}),
+			("2.jpg", {"ok": True, "identity": {"bank": "KASIKORNBANK"}, "rows": []})]
+		gl = [{"ok": True, "opening": 3000.0, "closing": 3000.0, "rows": [SimpleNamespace(date=date(2026, 2, 1), debit=0.0,
+			credit=0.0)]}]
+		for order in (passbooks, passbooks[::-1]):
+			names, sure = account_conflict(order, gl)
+			self.assertEqual((sorted(names), sure), (["148266.jpg", "148267.jpg"], True))
 
 	def test_overlapping_files_merge_on_the_best_chain(self):
 		# B08-01（2026-09-30）：整月 PDF 漏了一行；覆盖几个月的存折有这一行，但把别的行读错（3,472.15 → 30,472.15）。
