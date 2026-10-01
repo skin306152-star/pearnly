@@ -101,6 +101,16 @@ class MismatchDetection(unittest.TestCase):
 			warnings.detect_recon_mismatch(side([0] * 5), side([0] * 5), 0, "th"))
 		self.assertEqual(warnings.detect_recon_mismatch(side([0] * 9), side([0] * 9), 1, "th"), [])
 
+	def test_a_task_waiting_for_review_is_not_told_nothing_matched(self):
+		# 需复核的任务建单时还没匹配（匹配数传 None）：不写「没有任何记录匹配成功」（2026-10-02 重放：B08-05 能匹配 44 笔）。
+		self.assertNotIn(warnings.brv2_warn("no_match", "th"),
+			warnings.detect_recon_mismatch(side([0] * 5), side([0] * 5), None, "th"))
+		from pathlib import Path
+
+		source = (Path(__file__).resolve().parents[1] /
+			"apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_service.py").read_text()
+		self.assertIn('run_info(rows, None if _review is not None else summary_value.get("matched_count", 0)', source)
+
 	def test_a_side_with_no_dates_still_answers(self):
 		self.assertEqual(warnings.detect_recon_mismatch(side([None, None]), side([None]), 0, "th"), [])
 		self.assertEqual(warnings.detect_recon_mismatch([], [], 0, "th"), [])

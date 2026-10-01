@@ -74,7 +74,10 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 	results, summary_value = ([], {}) if _review is not None else _match(rows, header_values,
 		preset_rules(workspace, preset_scope(header_values["bank_code"], parse_values,
 			header_values["gl_account_code"], rows[1])))
-	run_values = run_info(rows, summary_value.get("matched_count", 0), warnings, anchor_record, lang)
+	# 需复核的任务建单时不跑匹配：匹配数按「还没匹配」传（None），不按 0 写出「没有任何记录匹配成功」——导出工作簿的警告条
+	# 读的是这份记录，确认后按真实匹配数重算（2026-10-02 重放：两次 B08-05 都带着这句，实际能匹配 44 笔）。
+	run_values = run_info(rows, None if _review is not None else summary_value.get("matched_count", 0), warnings,
+		anchor_record, lang)
 	review_value = {} if _review is None else bank_review.serializable({
 		"revision": 1, "statement_rows": rows[0], "gl_rows": rows[1], "header": header_values,
 		"diagnostics": _review, "lang": lang, "anchor_record": anchor_record,
