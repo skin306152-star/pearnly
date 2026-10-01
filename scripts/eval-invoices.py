@@ -493,7 +493,8 @@ def render(report):
     regular = report["regular"]
     lines = ["# 发票识别准确率", "",
              f"样本 {report['samples']} 份；打不开的原件 {report['broken']} 份（不计入）{report.get('broken_detail')}；"
-             f"判成「不是发票」{report.get('not_invoice', {}).get('count')} 份（功能完整度，按类见 score.json）；"
+             f"判成「不是发票」{report.get('not_invoice', {}).get('count')} 份（不计入准确率；要对照原件确认是不是真的非票据，"
+             f"eval1 的 45 份经人工核对全部确实不是票据）；"
              f"配上答案 {report['matched_invoices']} 张、未对上 {report['unmatched_invoices']} 张 {report['unmatched_reasons']}。", "",
              f"普通发票：{regular['invoices']} 张，整张全对 {regular['all_correct_rate']}，字段错误率 {regular['field_error_rate']}。",
              f"海关税单（报关数口径，单列）：{report['customs']['invoices']} 张，字段错误率 {report['customs']['field_error_rate']}。", "",
