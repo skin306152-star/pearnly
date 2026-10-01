@@ -61,7 +61,7 @@ class ProviderWait(unittest.TestCase):
         return provider.post("https://example.invalid", {}, {"x": 1}, 30, "m", "bucket")
 
     def test_short_waits_are_waited_out_inside_the_job(self):
-        with self.permits(1, 2.5, 1), patch.object(provider.requests, "post", return_value=ok_response()) as http:
+        with self.permits(1, 2.5, 1), patch.object(provider, "_http_post", return_value=ok_response()) as http:
             self.call()
         self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [1, 2.5, 1])
         self.assertEqual(http.call_count, 1)
@@ -81,7 +81,7 @@ class ProviderWait(unittest.TestCase):
 
     def test_a_429_is_retried_after_its_cooldown(self):
         busy = MagicMock(status_code=429, headers={"Retry-After": "3"})
-        with self.permits(), patch.object(provider.requests, "post", side_effect=[busy, ok_response()]) as http, \
+        with self.permits(), patch.object(provider, "_http_post", side_effect=[busy, ok_response()]) as http, \
                 patch.object(provider.random, "uniform", return_value=0):
             self.assertEqual(self.call().status_code, 200)
         self.assertEqual(http.call_count, 2)

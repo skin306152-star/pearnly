@@ -30,17 +30,22 @@
 	// 识别是后台排队做的：受理后按旧线上 `ocr-job-poll.ts` 的节奏轮询批次，直到有结论。
 	//   每 1.5 秒一次、最长 60 分钟（服务端排队 30 分钟没开始才过期、开始处理后不再按提交时间过期；
 	//   原来 20 分钟就在页面上判超时，服务端其实还在做 · 2026-09-28 压测）；连续 10 次读不到状态（约 15 秒）才算失联。
-	// 识别有结论时服务端推一条「pearnly_ocr_work」，收到就立刻读结果；轮询放慢到 5 秒一次兜底并刷新按页进度
-	// （2026-10-01 生产压测：原来每 1.5 秒一次，几十份同时识别时页面轮询占了网页 CPU 的一大块）。连续 4 次（约 20 秒）读不到状态才算失联。
-	const POLL = {every_ms: 5000, max_ms: 60 * 60 * 1000, soft_fails: 4};
+	// 识别有结论时服务端推一条「pearnly_ocr_work」，收到就立刻读结果；每读完一页也推一条（带 pages_done），直接更新按页进度。
+	// 轮询只作兜底：实时连接在线时 20 秒一次，连接不在时照旧 5 秒一次（2026-10-01 生产压测：每人同时等 6 份、每份每 5 秒
+	// 读一次状态，上百人同时用时网页进程被这些读状态占满）。连续 4 次读不到状态才算失联。
+	const POLL = {every_ms: 5000, pushed_ms: 20000, max_ms: 60 * 60 * 1000, soft_fails: 4};
 	const woken = new Map();  // 批次名 → 唤醒它的等待
+	const progressed = new Map();  // 批次名 → 收到按页进度时调用
 	const listen = () => {
 		if (p.intake_ocr_listening || !frappe.realtime?.socket) return;
 		p.intake_ocr_listening = true;
 		frappe.realtime.on("pearnly_ocr_work", data => {
-			if (data?.kind === "cowork.invoice") woken.get(data.reference)?.();
+			if (data?.kind !== "cowork.invoice") return;
+			if (data.status === undefined && Number.isFinite(data.pages_done)) progressed.get(data.reference)?.(data.pages_done);
+			else woken.get(data.reference)?.();
 		});
 	};
+	const poll_ms = () => (frappe.realtime?.socket?.connected ? POLL.pushed_ms : POLL.every_ms);
 	$(document).on("app_ready", listen);
 	if (frappe.app) listen();
 	// 提交时识别暂时满（等不到名额锁、本租户排队已满、识别暂停）：不当失败，排着自动重交（2026-09-30 生产压测：
@@ -893,6 +898,14 @@
 
 		/** 等一个识别批次出结论；读状态失败不弹窗（静默重试），连续读不到才算失联。 */
 		const wait_batch = async (name, on_progress = null) => {
+			if (on_progress) progressed.set(name, pages_done => on_progress({pages_done}));
+			try {
+				return await poll_batch(name, on_progress);
+			} finally {
+				progressed.delete(name);
+			}
+		};
+		const poll_batch = async (name, on_progress) => {
 			const started = Date.now();
 			let misses = 0;
 			while (live) {
@@ -906,7 +919,7 @@
 				if (batch && (FINISHED.has(batch.state) || BROKEN.has(batch.state))) return batch;
 				if (batch && on_progress) on_progress(batch);
 				if (Date.now() - started > POLL.max_ms) return {state: "failed", last_code: "timeout"};
-				await Promise.race([sleep(POLL.every_ms), new Promise(resolve => woken.set(name, resolve))]);
+				await Promise.race([sleep(poll_ms()), new Promise(resolve => woken.set(name, resolve))]);
 				woken.delete(name);
 			}
 			return null;

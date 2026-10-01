@@ -12,7 +12,11 @@ Frappe 16 只按任务数（`RQ_MAX_JOBS` 5000，模块常量、没有配置入�
 import os
 import signal
 
+from . import pool
+
 DEFAULT_LIMIT_MB = 300
+# 开了多线程时每多一个线程多留的内存（一份手机大图 / 多页 PDF 在跑时约 100MB 上下，留些余量）。
+PER_THREAD_MB = 150
 _requested = False
 
 
@@ -30,24 +34,19 @@ def _limit_mb():
     return value if value > 0 else DEFAULT_LIMIT_MB
 
 
-def _ocr_queue_job():
-    from rq import get_current_job
-
-    job = get_current_job()
-    # Frappe 的队列名带 bench 前缀（`home-frappe-frappe-bench:ocr`）
-    return bool(job) and str(job.origin or "").rsplit(":", 1)[-1] == "ocr"
-
-
 def after_job(method=None, kwargs=None, result=None):
-    """每个任务收尾时调用（所有队列、所有 App）：先用最便宜的判断把绝大多数任务放过去。只作释放内存，出错一律忽略。"""
+    """每个任务收尾时调用（所有队列、所有 App）：先用最便宜的判断把绝大多数任务放过去。只作释放内存，出错一律忽略。
+
+    开了多线程（pool.py）时只在 RQ 这边判断（线程里没有 RQ 任务，`ocr_queue_job` 为假），阈值按线程数放大：
+    每多一个同时在跑的线程多留 PER_THREAD_MB。收到停止后进程不再取新任务，在跑的线程跑完才退出。"""
     global _requested
-    if _requested or str(os.environ.get("FRAPPE_BACKGROUND_WORKERS_NOFORK") or "").lower() not in ("1", "true", "yes"):
+    if _requested or not pool.no_fork():
         return
     try:
-        if not _ocr_queue_job():
+        if not pool.ocr_queue_job():
             return
         rss = _rss_mb()
-        if rss < _limit_mb():
+        if rss < _limit_mb() + PER_THREAD_MB * (pool.threads() - 1):
             return
         _requested = True
         import frappe

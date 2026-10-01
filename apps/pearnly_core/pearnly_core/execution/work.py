@@ -189,6 +189,10 @@ def context(name):
 def run(name):
     if frappe.conf.get("pearnly_ocr_paused") or frappe.conf.maintenance_mode:
         return  # Durable SQL repair resumes it after maintenance.
+    # 开了多线程的识别进程：交给空闲线程跑这一份，RQ 立即去取下一份（见 pool.py）。
+    from .pool import handoff
+    if handoff("pearnly_core.execution.work.run", {"name": name}):
+        return
     # Independent SQL claim: duplicate RQ delivery cannot run the same item twice.
     frappe.db.begin()
     rows = frappe.db.sql(f"SELECT * FROM `tab{DT}` WHERE name=%s FOR UPDATE", name, as_dict=True)

@@ -1,15 +1,62 @@
 """Bounded provider calls with durable page/model checkpoints and usage evidence."""
 import json
 import random
+import ssl
+import threading
 import time
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 
 import frappe
 import requests
+from requests.adapters import HTTPAdapter
+from requests.utils import DEFAULT_CA_BUNDLE_PATH
 
 from . import budget, work
 from .errors import Deferred, Uncertain
+
+
+# 证书库只解析一次（2026-10-01 生产压测）：requests 2.33 每开一个 HTTPS 连接都把 certifi 整个证书库重新解析一遍，
+# 生产 CPU 上每次约 0.12 秒、每张发票约 0.5 秒，占我们这边识别 CPU 的约五分之一。这里把同一份证书库装进一个共用的
+# TLS 上下文（与 urllib3 自己建的上下文同一个工厂、同样的校验要求），其余照旧：每次调用新建会话和连接、用完关闭，
+# 发出的请求与证书 / 主机名校验都不变。自定义证书库（REQUESTS_CA_BUNDLE 等）不走共用上下文，照 urllib3 原样每次新建。
+_tls = None
+_tls_lock = threading.Lock()
+
+
+def _tls_context():
+    global _tls
+    with _tls_lock:
+        if _tls is None:
+            from urllib3.util.ssl_ import create_urllib3_context
+
+            context = create_urllib3_context(cert_reqs=ssl.CERT_REQUIRED)
+            context.load_verify_locations(cafile=DEFAULT_CA_BUNDLE_PATH)
+            _tls = context
+        return _tls
+
+
+class _SharedTLS(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["ssl_context"] = _tls_context()
+        super().init_poolmanager(*args, **kwargs)
+
+    def cert_verify(self, conn, url, verify, cert):
+        super().cert_verify(conn, url, verify, cert)
+        options = getattr(conn, "conn_kw", None)  # urllib3 2：上下文随连接参数传给每个新连接
+        if not isinstance(options, dict) or options.get("ssl_context") is not _tls_context():
+            return
+        if verify is True and conn.ca_certs == DEFAULT_CA_BUNDLE_PATH and not getattr(conn, "ca_cert_dir", None):
+            conn.ca_certs = None  # 共用上下文里已装好同一份证书库
+        else:
+            options.pop("ssl_context")  # 自定义证书库或不校验：照 urllib3 原样每次新建
+
+
+def _http_post(url, **kwargs):
+    """等同 `requests.post`（每次一个新会话、用完关闭），只是 HTTPS 用共用的 TLS 上下文。"""
+    with requests.Session() as session:
+        session.mount("https://", _SharedTLS())
+        return session.request("post", url, **kwargs)
 
 
 def retry_delay(response):
@@ -92,7 +139,7 @@ def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None)
         work.checkpoint(key, "started")
         deadline = time.monotonic() + timeout
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=(10, timeout), stream=True)
+            response = _http_post(url, headers=headers, json=payload, timeout=(10, timeout), stream=True)
         except requests.RequestException as exc:
             # It may have reached the provider. Persist started; no automatic paid replay.
             raise Uncertain("Provider transport outcome unknown", lease_seconds=_lease_after(exc)) from exc

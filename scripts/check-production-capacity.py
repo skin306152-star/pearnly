@@ -183,4 +183,20 @@ assert '--max-connections=300' in rendered(PEARNLY_MARIADB_MAX_CONNECTIONS='300'
 assert int(services['mariadb']['mem_limit']) == 2048 * M
 assert int(rendered(PEARNLY_MARIADB_MEM='3g')['mariadb']['mem_limit']) == 3072 * M
 checks.append('MariaDB connections and memory are set from runtime.env, default 151 / 2g')
+# 识别进程开多线程（PEARNLY_*_OCR_THREADS，pool.py）：默认 1 不改任何行为；每多一个线程每进程多要 150 MiB。
+for name in ('dms-ocr-worker', 'erp-ocr-worker', 'cowork-ocr-worker'):
+    assert services[name]['environment']['PEARNLY_OCR_THREADS'] == '1', name
+    assert capacity.ocr_threads(services[name]) == 1
+threaded = rendered(PEARNLY_COWORK_OCR_WORKERS='6', PEARNLY_COWORK_OCR_MEM='8g', PEARNLY_COWORK_OCR_THREADS='6')
+assert capacity.ocr_threads(threaded['cowork-ocr-worker']) == 6
+capacity.check_processes(threaded, {'cowork-ocr-worker'})  # 6 × (450 + 5 × 150) = 7200 MiB ≤ 8 GiB
+for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '12', 'PEARNLY_COWORK_OCR_MEM': '8g', 'PEARNLY_COWORK_OCR_THREADS': '6'},
+              {'PEARNLY_COWORK_OCR_THREADS': 'many'}, {'PEARNLY_COWORK_OCR_THREADS': '0'}):
+    try:
+        capacity.check_processes(rendered(**knobs), {'cowork-ocr-worker'})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(knobs)
+checks.append('OCR threads default to 1 and each extra thread needs 150 MiB per process')
 print(json.dumps({'passed': len(checks), 'checks': checks}))

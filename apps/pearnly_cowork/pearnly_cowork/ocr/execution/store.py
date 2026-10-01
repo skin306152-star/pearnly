@@ -89,8 +89,13 @@ def pages_reached(name, page):
         key = PAGES_KEY + name
         if page - 1 > int(frappe.cache.get_value(key) or 0):
             frappe.cache.set_value(key, page - 1, expires_in_sec=6 * 3600)
+            # 读到新的一页就推给提交人（原生实时推送）：等候页收到直接更新按页进度，轮询只作兜底、可以放慢
+            # （2026-10-01 生产压测：每人同时等 6 份、每份每 5 秒读一次状态，上百人同时用时网页进程被这些读状态占满）。
+            frappe.publish_realtime("pearnly_ocr_work", {"kind": "cowork.invoice", "reference": name,
+                                                         "pages_done": page - 1},
+                                    user=frappe.session.user, after_commit=False)
     except Exception:
-        pass  # 进度只作展示：缓存一时写不了不影响识别
+        pass  # 进度只作展示：缓存一时写不了 / 推送不了不影响识别
 
 
 def pages_done(doc, state):
