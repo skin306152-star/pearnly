@@ -46,13 +46,21 @@ def available_floor(total_bytes):
     return max(AVAILABLE_FLOOR, total_bytes // AVAILABLE_SHARE)
 
 
+# 原生 `bench worker-pool` 与先预导入模块再起原生 worker-pool 的入口（pearnly_core/execution/worker.py）一样记账。
+POOL_COMMANDS = ('worker-pool', 'pearnly_core.execution.worker')
+
+
+def is_pool(command):
+    return any(name in command for name in POOL_COMMANDS)
+
+
 def processes(row):
     """(lane, count) for a multi-process service, or None."""
     command = [str(part) for part in row.get('command') or []]
     for part in command:
         if part.startswith('--workers='):
             return 'web', int(part.split('=', 1)[1])
-    if 'worker-pool' in command and '--num-workers' in command:
+    if is_pool(command) and '--num-workers' in command:
         queue = command[command.index('--queue') + 1]
         return ('ocr' if queue == 'ocr' else 'long' if queue == 'long' else 'pool',
                 int(command[command.index('--num-workers') + 1]))
@@ -135,7 +143,7 @@ def connections(services, names):
             total += KEYCLOAK_CONNECTIONS
         elif any(part.startswith('--workers=') for part in command):
             total += _flag(command, 'workers', 1) * _flag(command, 'threads', 1)
-        elif 'worker-pool' in command:
+        elif is_pool(command):
             count = _flag(command, 'num-workers', 1)
             queue = command[command.index('--queue') + 1] if '--queue' in command else ''
             total += count * (1 + (ocr_threads(row) - 1) * OCR_THREAD_CONNECTION_WEIGHT if queue == 'ocr' else 1)

@@ -84,6 +84,11 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "playwright==${
  && chmod -R a+rX /opt/ms-playwright
 USER frappe
 
+# 预编译字节码（2026-10-02 生产压测 q3）：基础镜像里 erpnext 几乎没有 .pyc、frappe 只有一部分，容器里第一次导入
+# 要现编译、写进容器可写层，每次部署重建容器就丢，每个 worker 进程都要再编一遍。frappe / erpnext 不随我们的代码变，
+# 放在源码 COPY 之前，这一层构建缓存一直复用；约 2 秒、多 40MB。
+RUN cd /home/frappe/frappe-bench && env/bin/python -m compileall -q -j 0 apps/frappe apps/erpnext
+
 # Stable runtime dependencies precede source COPY so UI changes reuse these layers.
 # 自有 App。基础镜像里的 frappe/erpnext 都是 editable 安装（指向 apps/<name>），
 # 这里保持一致：拷进 apps/ 并做 editable 安装，否则模块不可导入。
@@ -101,7 +106,8 @@ RUN cd /home/frappe/frappe-bench && \
     for app in pearnly_core pearnly_cowork pearnly_erp_portal pearnly_dms pearnly_control; do \
       env/bin/pip install --no-deps -e "apps/$app" && \
       ln -s "/home/frappe/frappe-bench/apps/$app/$app/public" "/home/frappe/frappe-bench/assets/$app"; \
-    done
+    done && \
+    env/bin/python -m compileall -q -j 0 apps/pearnly_core apps/pearnly_cowork apps/pearnly_erp_portal apps/pearnly_dms apps/pearnly_control
 
 # ── 宿主侧部署工具的副本（激活时用来核对服务器上那份是不是同一版） ─────────────
 #

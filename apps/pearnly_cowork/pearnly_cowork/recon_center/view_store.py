@@ -180,6 +180,9 @@ def backfill(langs=("th", "zh", "en")):
                         frappe.set_user(row.owner or "Administrator")
                         frappe.local.lang = lang
                         built += 1 if sheets.rebuild_view(kind, row.name, lang) else 0
+                        # 已是最新的跳过时没有写入、也就没有提交：不结束的话整个补算开着同一个读快照（几分钟），
+                        # 拖住 purge、MariaDB 内存上涨（2026-10-02 压测锁采样：最长事务 287 秒、无锁等待）。
+                        frappe.db.commit()
                     except Exception:
                         failed += 1
                         frappe.db.rollback()

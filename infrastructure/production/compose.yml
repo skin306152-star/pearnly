@@ -41,7 +41,8 @@ x-worker: &worker
   <<: *runtime
   mem_limit: 768m
   cpu_shares: *background-cpu
-  command: [bench, worker, --queue, 'short,default,long']
+  # 先在父进程预导入常用模块再起原生 worker（pearnly_core/execution/worker.py），任务照旧每次 fork。
+  command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, 'short,default,long']
 
 x-scheduler: &scheduler
   <<: *runtime
@@ -168,7 +169,7 @@ services:
     profiles: [dms]
     <<: *worker
     mem_limit: 1g
-    command: [bench, worker-pool, --queue, 'short,default,long', --num-workers, '2']
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, 'short,default,long', --num-workers, '2']
     volumes: *dms-volumes
     environment:
       <<: *frappe-env
@@ -201,7 +202,7 @@ services:
     # 为 738MB，期间完整读完并发布了 ris 15,155 个客户。2g ≈ 实测峰值 2.7 倍，
     # 客户数到约 4 万前都够用；原 8g 占了容量预算里最大的一块，却从未用到。
     mem_limit: 2g
-    command: [bench, worker, --queue, dms_sync]
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, dms_sync]
     volumes:
       - sites-dms:/home/frappe/frappe-bench/sites
       - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
@@ -303,7 +304,7 @@ services:
     <<: *worker
     # long 队列归下面的 cowork-long-worker：对账任务在 long 里等识别，最长 25 分钟；和定时任务共用一个进程时，
     # default 里的 run_scheduled_job 全排在对账后面（2026-09-29 压测，一次堆了 12 个）。
-    command: [bench, worker, --queue, 'short,default']
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, 'short,default', --preload, pearnly_cowork]
     volumes: *cowork-volumes
     environment:
       <<: *frappe-env
@@ -314,7 +315,7 @@ services:
     # 对账后台任务：两个同时跑（旧线上 RECON_WORKER_CONCURRENCY 默认 2），互不排队，也不挡定时任务。
     # 两个进程共用 1.5g：每个进程与原来单个 worker 的 768m 相同。
     mem_limit: ${PEARNLY_COWORK_LONG_MEM:-1536m}
-    command: [bench, worker-pool, --queue, long, --num-workers, '${PEARNLY_COWORK_LONG_WORKERS:-2}']
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, long, --num-workers, '${PEARNLY_COWORK_LONG_WORKERS:-2}', --preload, pearnly_cowork]
     volumes: *cowork-volumes
     environment:
       <<: *frappe-env

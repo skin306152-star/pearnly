@@ -46,8 +46,10 @@ class FakeDb:
     def table_exists(self, name):
         return True
 
+    commits = 0
+
     def commit(self):
-        pass
+        self.commits += 1
 
     def rollback(self):
         pass
@@ -167,9 +169,11 @@ class ViewStoreTest(unittest.TestCase):
                                                     "income:CIR-1:zh-zh", "vat:CVC-1:th-th", "vat:CVC-1:zh-zh"])
             self.assertEqual(users[-1], "Administrator")  # 以发起人身份算完换回原用户
             self.assertIn("a@x", users)
-            built = len(self.built)
+            built, commits = len(self.built), self.db.commits
             view_store.backfill(("th", "zh"))  # 第二次全部跳过：不重算
             self.assertEqual(len(self.built), built)
+            # 跳过的也逐套结束读快照：不能整个补算开着一个事务（2026-10-02 压测锁采样：最长事务 287 秒）
+            self.assertEqual(self.db.commits - commits, 6)
             with patch.object(sheets, "_build", side_effect=RuntimeError("broken")):
                 self.db.rows.clear()
                 view_store.backfill(("th",))  # 一套失败只记日志，绝不往外抛

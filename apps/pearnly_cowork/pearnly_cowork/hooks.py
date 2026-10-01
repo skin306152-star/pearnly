@@ -500,3 +500,20 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
                                  "pearnly_cowork.recon_center.slots.tick"]},
                     # 对账预设问题留着的原文件：过期没人答的删掉（recon_center/rerun.py）。
                     "daily": ["pearnly_cowork.recon_center.rerun.expire"]}
+
+# 后台 worker 父进程预先导入的模块（`pearnly_core/execution/worker.py`）：对账长任务与每分钟的定时任务。
+# 任务照旧每次 fork，只是不再每个任务重新导入；导入不能开连接、不能依赖 Site。
+pearnly_worker_preload = [
+    "pearnly_cowork.recon_center.jobs",
+    "pearnly_cowork.recon_center.document_ocr",
+    "pearnly_cowork.recon_center.vat_check",
+    "pearnly_cowork.recon_center.sheets",
+    "pearnly_cowork.recon_center.waiting",
+    "pearnly_cowork.recon_center.slots",
+    "pearnly_cowork.recon_center.rerun",
+    "pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation",
+    "pearnly_cowork.ocr.enterprise.text_layer",
+    "pearnly_cowork.push.mrerp.runner",
+    "pearnly_cowork.work.reminders",
+    "pdfminer.high_level",
+]

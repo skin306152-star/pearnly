@@ -39,7 +39,7 @@ checks.append('Capacity knobs default to the previous process counts and memory 
 for product in ('dms', 'erp', 'cowork'):
     assert int(services[product + '-ocr-dispatch']['mem_limit']) >= 256 * M
 checks.append('All OCR dispatchers retain measured cold-start memory headroom')
-assert services['dms-sync-worker']['command'] == ['bench', 'worker', '--queue', 'dms_sync']
+assert services['dms-sync-worker']['command'] == ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker', '--queue', 'dms_sync']
 # 2g 按实测定：整组客户快照要一次性持在内存里再落库。1g 被 OOM 杀过（2026-09-25，
 # anon-rss 835MB）；2026-09-28 生产 cgroup memory.peak 738MB，期间完整读完并发布了
 # ris 15,155 个客户（含无头浏览器）。原 8g 按"膨胀到 3.5GB"估算，实测从未用到。
@@ -47,13 +47,15 @@ assert services['dms-sync-worker']['command'] == ['bench', 'worker', '--queue', 
 assert int(services['dms-sync-worker']['mem_limit']) == 2048 * M
 assert not services['dms-sync-worker'].get('ports')
 assert services['dms-sync-worker']['profiles'] == ['dms']
-assert services['dms-worker']['command'][3] == 'short,default,long'
+assert services['dms-worker']['command'][4] == 'short,default,long'
 assert services['dms-ocr-worker']['command'][3] == 'ocr'
 assert not any(name in services for name in ('erp-sync-worker', 'cowork-sync-worker'))
 checks.append('Dedicated DMS sync lane never consumes interactive or OCR queues')
 # Cowork 对账任务在 long 队列里等识别（最长 25 分钟）：单独两个进程，short / default（含定时任务）不再排在它后面。
-assert services['cowork-worker']['command'] == ['bench', 'worker', '--queue', 'short,default']
-assert services['cowork-long-worker']['command'] == ['bench', 'worker-pool', '--queue', 'long', '--num-workers', '2']
+assert services['cowork-worker']['command'] == ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker', '--queue', 'short,default',
+                                               '--preload', 'pearnly_cowork']
+assert services['cowork-long-worker']['command'] == ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker', '--queue', 'long',
+                                                    '--num-workers', '2', '--preload', 'pearnly_cowork']
 assert int(services['cowork-long-worker']['mem_limit']) == 1536 * M
 assert services['cowork-long-worker']['profiles'] == ['cowork']
 assert not services['cowork-long-worker'].get('ports')
@@ -82,6 +84,19 @@ for name, service in services.items():
     else:
         assert value is None, name
 checks.append('Only the three OCR worker pools run jobs without forking')
+
+# 会 fork 的 worker 都先在父进程预导入常用模块（pearnly_core/execution/worker.py，2026-10-02 压测 q3：
+# short/default 进程 88% 的 CPU 在每个任务重新导入）；Cowork 的两条还导入自己 hooks 里声明的对账模块。
+ENTRY = ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker']
+forking = [name for name, service in services.items()
+           if name.endswith('-worker') and not (service.get('environment') or {}).get(NOFORK)]
+assert sorted(forking) == ['cowork-long-worker', 'cowork-worker', 'dms-sync-worker', 'dms-worker', 'erp-worker'], forking
+for name in forking:
+    command = services[name]['command']
+    assert command[:3] == ENTRY, name
+    assert ('--preload' in command) == name.startswith('cowork-'), name
+assert (ROOT / 'apps/pearnly_core/pearnly_core/execution/worker.py').is_file()
+checks.append('Forking workers preload shared modules once in the parent instead of in every job')
 
 
 # 真实的"当前宿主"是 SSD Nodes 迁移后那台：8 vCPU / 32095 MiB
