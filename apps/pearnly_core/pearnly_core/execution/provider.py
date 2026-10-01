@@ -115,6 +115,7 @@ def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True
 # 读超时 / 连接重置占满，整个租户的识别停摆。我们这边已经放弃、连接已关：被对方重置或没连上的马上还；
 # 读超时对方可能还在算，留 60 秒。看不到结束的中断（任务超时、进程被杀）仍按原来的保守租期。
 READ_TIMEOUT_LEASE_SECONDS = 60
+UPLOAD_STEP_SECONDS = 30
 
 
 def _lease_after(exc):
@@ -143,7 +144,10 @@ def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None,
         work.checkpoint(key, "started")
         deadline = time.monotonic() + timeout
         try:
-            response = _http_post(url, headers=headers, json=payload, timeout=(10, timeout), stream=True)
+            # 第一项在 urllib3 里同时是连接和「发送请求体每一步」的时限：生产高负载时大文件上传 Document AI 卡住超过 10 秒
+            # 就被自己掐断（2026-10-01 pB：连续 3 次 The write operation timed out，一套银行账单整套读不出）。放到 30 秒，
+            # 只让慢的上传能传完；读回复的时限不变。
+            response = _http_post(url, headers=headers, json=payload, timeout=(UPLOAD_STEP_SECONDS, timeout), stream=True)
         except requests.RequestException as exc:
             # It may have reached the provider. Persist started; no automatic paid replay.
             raise Uncertain("Provider transport outcome unknown", lease_seconds=_lease_after(exc)) from exc

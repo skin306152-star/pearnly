@@ -38,6 +38,10 @@
     美国多区域入口；美国入口再被拒按原规则退避。续跑时已在美国入口读完的直接取回（Cowork 先确认任务有效再读检查点）。
     关掉：Cowork 环境 `VERTEX_OVERFLOW=off`，DMS / ERP 站点配置 `pearnly_ocr_vertex_overflow=off`。
 
+- 上传写超时：`provider._post` 的 `timeout=(10, …)` 第一项在 urllib3 里同时是发送请求体每一步的时限；pB 中 06:49 / 07:15
+  （泰国时间）Document AI 连续 3 次 `The write operation timed out`，B04-SCB3061-2026-05 整套读不出、B09 一个文件 0 行。放到 30 秒
+  （`UPLOAD_STEP_SECONDS`），读回复时限不变。
+
 不改：读法、模型、调用顺序、提示词、检查点与付费防重；结果整理里的深拷贝和每次调用前的权限复核（动了有改变结果 / 放宽复核的风险）。
 
 ## 验证
