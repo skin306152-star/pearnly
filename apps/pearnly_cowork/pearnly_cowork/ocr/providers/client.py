@@ -409,12 +409,14 @@ class ProviderClient:
                                        page_number, attempt])
                 if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
                     return self._vision_once(payload, stage, page_number, timeout, spare)
-        first = min(timeout, VISION_FIRST_TIMEOUT + VISION_SECONDS_PER_MB * len(content) // 1_000_000)
+        # 大图两次都按大小多给（上传要时间）：第一次 15 秒 + 每 MB 10 秒，重发用原上限 + 同样的余量，都不超过 180 秒。
+        extra = VISION_SECONDS_PER_MB * len(content) // 1_000_000
+        first, resend = min(180, min(timeout, VISION_FIRST_TIMEOUT) + extra), min(180, timeout + extra)
         last = None
         for where in ("global",) + spares:
             for retry in range(VISION_5XX_RETRIES + 1 if where == "global" else 1):
                 try:
-                    return self._vision_once(payload, stage, page_number, timeout, where, first=first)
+                    return self._vision_once(payload, stage, page_number, resend, where, first=first)
                 except Deferred as error:
                     if error.reason not in ("provider_5xx", "vision_8", "vision_14"):
                         raise
@@ -423,11 +425,11 @@ class ProviderClient:
                         self._sleep(VISION_5XX_PAUSE)
         raise last
 
-    def _vision_once(self, payload, stage, page_number, timeout, where="global", first=VISION_FIRST_TIMEOUT):
+    def _vision_once(self, payload, stage, page_number, timeout, where="global", first=None):
         host = "vision.googleapis.com" if where == "global" else f"{where}-vision.googleapis.com"
         body, elapsed, key, bucket = self._send(url=f"https://{host}/v1/images:annotate",
             payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location=where, stage=stage,
-            page_number=page_number, attempt=0, timeout_s=min(timeout, first),
+            page_number=page_number, attempt=0, timeout_s=first or min(timeout, VISION_FIRST_TIMEOUT),
             retry_unknown=1, resend_timeout_s=timeout)
         responses = body.get("responses")
         if not isinstance(responses, list) or len(responses) != 1 or not isinstance(responses[0], dict):
