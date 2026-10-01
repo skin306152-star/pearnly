@@ -164,8 +164,7 @@ def create_recognized(workspace, pages, request_key, *, source, confidence, ai_r
     return _create(workspace, body, request_key, client, check_duplicates=True)
 
 
-def _create(workspace, body, request_key, client=None, *, attachment=None, check_duplicates=False,
-            name_plan=None):
+def _create(workspace, body, request_key, client=None, *, attachment=None, check_duplicates=False):
     scope.require("intake")
     scope.require_scope(workspace, client)
     if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
@@ -178,8 +177,8 @@ def _create(workspace, body, request_key, client=None, *, attachment=None, check
     name = "CWH-" + key[:48]
     if frappe.db.exists(DOCTYPE, name):
         return _existing(name, fingerprint)
-    # 识别入库：先按税号统一名称、清掉不是品名的品名（分类记忆按卖方名称取，要用统一后的名称）。
-    pages = (categories.prepare(workspace, client, names.prepare(workspace, body["pages"], batch_plan=name_plan))
+    # 识别入库：先按税号换成人定的名称、清掉不是品名的品名（分类记忆按卖方名称取，要用换过的名称）。
+    pages = (categories.prepare(workspace, client, names.prepare(workspace, body["pages"]))
              if check_duplicates else body["pages"])
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client or "",
                           "source": body["source"], "pages": encode(pages),

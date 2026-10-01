@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""识别入库时按税号统一买卖方名称、清掉不是品名的品名、按记忆补空品名（`contracts/recognized_names.py`、
+"""识别入库时按税号换成人改正过的名称、清掉不是品名的品名、按记忆补空品名（`contracts/recognized_names.py`、
 `history/names.py`）。
 
-样本是 2026-10-02 testcowork 上 Big C 27 页销项（同一卖方读出 8 种写法、被章盖住的品名读成编号 / 单位 / 邮编），
-规则按类，不针对这家公司。在产品镜像里跑（要能 import Frappe）；数据库是内存里的字典。
+样本是 2026-10-02 testcowork 上 Big C 27 页销项（同一卖方读出 9 种写法、被章盖住的品名读成编号 / 单位 / 邮编），
+反例取自同日金标 234 份（同一税号下海关与报关行、泰文名与英文名、只印货号的收据、运费单上的 PCS 收费）。
+规则按类，不针对这些公司。在产品镜像里跑（要能 import Frappe）；数据库是内存里的字典。
 """
 from pathlib import Path
 import sys
@@ -72,27 +73,21 @@ class Rules(unittest.TestCase):
         self.assertEqual(rules.tax_key("0107536000632"), "")     # 第 3 页末位读错：不能当身份用
         self.assertEqual(rules.tax_key(""), "")
 
-    def test_one_batch_settles_on_its_most_common_spelling(self):
-        plan = rules.plan_batch([pages[0]["fields"] for pages in big_c()])
-        seller = plan[("seller", SELLER)]
-        # ซินเซียร์ ไอซ์ 与 ชินเชียร์ ไอซ์ 各 7 次：一样多取先出现的；其余 7 种都并进来。
-        self.assertEqual(seller["name"], SINCERE)
-        self.assertEqual(len(seller["variants"]), 9)
-        # 买方只是标点空格不同：同一种写法，取最常见的原文。税号读错的第 3 页不参与。
-        self.assertEqual(plan[("buyer", BUYER)]["name"], BIG_C_NAME)
-        self.assertNotIn(("buyer", "0107536000632"), plan)
-
-    def test_a_consistent_batch_has_nothing_to_settle(self):
-        self.assertEqual(rules.plan_batch([invoice()[0]["fields"], invoice()[0]["fields"]]), {})
-
-    def test_spellings_differ_by_letters_not_by_punctuation(self):
-        self.assertEqual(rules.name_key("บมจ.บิ๊กซี (HQ)"), rules.name_key("บมจ บิ๊กซี HQ"))
-        self.assertNotEqual(rules.name_key("ซินเซียร์ ไอซ์"), rules.name_key("ซินเซียร์ ไลซ์"))
+    def test_only_a_misread_of_the_same_name_counts_as_similar(self):
+        for variant in {seller for seller, *_ in BIG_C}:
+            self.assertTrue(rules.similar(SINCERE, variant), variant)
+        # 金标里同一税号下读出的不同单位 / 不同文字：不能互相替换。
+        self.assertFalse(rules.similar("กรมศุลกากร", "บริษัท อาร์ ที เอ็น โลจิสติคส์ จำกัด"))
+        self.assertFalse(rules.similar("การประปานครหลวง", "METROPOLITAN WATERWORKS AUTHORITY"))
+        self.assertFalse(rules.similar("การประปานครหลวง", "การประปานครหลวง Metropolitan Waterworks Authority"))
+        self.assertFalse(rules.similar("", SINCERE))
 
     def test_a_code_a_number_or_a_bare_unit_is_not_an_item_name(self):
-        for value in ("4", "10500", "ถุง", " แพ็ค ", "PCS", "kg.", "#12-3"):
+        for value in ("4", "10500", "ถุง", " แพ็ค ", "-", "#"):
             self.assertTrue(rules.placeholder_item_name(value), value)
-        for value in ("", "น้ำแข็งหลอด", "น้ำแข็งแพ็ค", "ถุงพลาสติก", "Coke 325ml", "A4 paper"):
+        # 货号、日期、英文缩写（运费单上的 PCS 是一项收费）、真品名都不动。
+        for value in ("", "น้ำแข็งหลอด", "น้ำแข็งแพ็ค", "ถุงพลาสติก", "Coke 325ml", "A4 paper", "740462-0010",
+                      "20/02/2567", "09/2569", "PCS", "kg"):
             self.assertFalse(rules.placeholder_item_name(value), value)
 
     def test_prices_compare_at_two_decimals(self):
@@ -158,14 +153,12 @@ class Memory(unittest.TestCase):
         p = patch.object(names, "_optional", lambda fn, fallback, label: fn()); p.start(); self.addCleanup(p.stop)
 
     def batch(self):
-        records = big_c()
-        plan = names.plan(records)
-        return [names.prepare(WS, pages, batch_plan=plan)[0]["fields"] for pages in records]
+        return [names.prepare(WS, pages)[0]["fields"] for pages in big_c()]
 
-    def test_the_whole_batch_carries_one_seller_name(self):
+    def test_without_a_correction_names_are_shown_as_read(self):
+        # 一批里不按多数自动统一（金标里多数写法有一半是错的）。
         saved = self.batch()
-        self.assertEqual({fields["seller_name"] for fields in saved}, {SINCERE})
-        self.assertEqual({fields["buyer_name"] for fields in saved}, {BIG_C_NAME, "บมจ. บิ๊กซี ซูเปอร์เซ็นเตอร์ (สำนักงานใหญ่)"})
+        self.assertEqual([fields["seller_name"] for fields in saved], [seller for seller, *_ in BIG_C])
 
     def test_codes_units_and_numbers_are_cleared_not_kept_as_item_names(self):
         saved = self.batch()
@@ -176,17 +169,18 @@ class Memory(unittest.TestCase):
 
     def test_the_input_pages_are_never_changed(self):
         records = big_c()
-        names.prepare(WS, records[3], batch_plan=names.plan(records))
+        names.learn(WS, invoice(), invoice(seller=SINCERE + " "))  # 没改实质：不记
+        names.learn(WS, invoice(seller="บริษัท ชินเชียร์ ไลซ์ จำกัด"), invoice())
+        names.prepare(WS, records[3])
         self.assertEqual(records[3][0]["fields"]["seller_name"], "บริษัท ชินเชียร์ไลจ์ จำกัด")
 
-    def test_a_name_a_person_corrected_wins_from_then_on(self):
-        decided = names.learn(WS, invoice(), invoice(seller="บริษัท ซินเซียร์ ไอซ์ จำกัด (สำนักงานใหญ่)"))
-        self.assertEqual(decided, {SELLER: "บริษัท ซินเซียร์ ไอซ์ จำกัด (สำนักงานใหญ่)"})
-        saved = self.batch()
-        self.assertEqual({fields["seller_name"] for fields in saved}, {"บริษัท ซินเซียร์ ไอซ์ จำกัด (สำนักงานใหญ่)"})
-        # 单张进来（LINE 等没有整批的入口）也按记住的名称。
-        single = names.prepare(WS, invoice(seller="บริษัท ชินเชียร์ ไลซ์ จำกัด"))[0]["fields"]
-        self.assertEqual(single["seller_name"], "บริษัท ซินเซียร์ ไอซ์ จำกัด (สำนักงานใหญ่)")
+    def test_a_name_a_person_corrected_wins_for_misreads_of_it(self):
+        decided = names.learn(WS, invoice(seller="บริษัท ชินเชียร์ ไลซ์ จำกัด"), invoice())
+        self.assertEqual(decided, {SELLER: SINCERE})
+        self.assertEqual({fields["seller_name"] for fields in self.batch()}, {SINCERE})
+        # 同一税号读出的是别的单位名 / 英文名：多半是税号读错或套用了，不换（换了就把错藏起来）。
+        other = names.prepare(WS, invoice(seller="บริษัท อาร์ ที เอ็น โลจิสติคส์ จำกัด"))[0]["fields"]
+        self.assertEqual(other["seller_name"], "บริษัท อาร์ ที เอ็น โลจิสติคส์ จำกัด")
 
     def test_an_unchanged_name_or_an_invalid_tax_id_teaches_nothing(self):
         self.assertEqual(names.learn(WS, invoice(), invoice()), {})
@@ -219,6 +213,7 @@ class Memory(unittest.TestCase):
         self.assertEqual(followed[0]["fields"]["seller_name"], SINCERE)
         self.assertIsNone(names.renamed(invoice(), decided))
         self.assertIsNone(names.renamed(invoice(seller="Other", seller_tax="0105536080112"), decided))
+        self.assertIsNone(names.renamed(invoice(seller="กรมศุลกากร"), decided))
 
 
 if __name__ == "__main__":

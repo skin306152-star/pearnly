@@ -1,12 +1,11 @@
 """识别入库时统一买卖方名称与品名，复核时记住人定下的写法（判定口径见 `contracts/recognized_names.py`）。
 
-- 入库（`prepare`）：同一税号以前人改定过名称就直接用；没有、这一批写法又不一致时取最多的那种。
-  只有数字 / 单位的「品名」清空；空品名按「卖方税号 + 单价」以前人补过、而且只补过一种的名称补上，补不出就留空。
+- 入库（`prepare`）：同一税号人改正过名称、这次读出的又是相近写法 → 换成人定的。只有数字 / 泰文单位的「品名」
+  清空；空品名按「卖方税号 + 单价」以前人补过、而且只补过一种的名称补上，补不出就留空。
 - 复核保存（`learn`）：人改过的名称按税号记住；人补的品名按「卖方税号 + 单价」记住。
-  同一原件里还没人动过的草稿跟着改名称（`renamed`，由 `storage` 写回）。
+  同一原件里还没人动过的草稿、相近写法的跟着改（`renamed`，由 `storage` 写回）。
 
 只改值，不加提示、不让人选（用户 2026-10-02：录入口只提升识别质量、把结果显示出来）。
-
 模型原读法保存在记录的 `ai_raw`，这里只改入库后的票面。记忆是工作空间内的私有表，原生接口一律拒绝。
 """
 import copy
@@ -97,12 +96,7 @@ def _item_memory(workspace, tax, price):
     return rows[0][0] if len(rows) == 1 else None
 
 
-def plan(pages_list):
-    """一批识别结果（每张票的 pages，按入库顺序）里同一税号写法不一致的 → `rules.plan_batch`。"""
-    return rules.plan_batch([_fields(pages)[1] for pages in pages_list or ()])
-
-
-def prepare(workspace, pages, *, batch_plan=None):
+def prepare(workspace, pages):
     """可信的识别入库调用方专用；不改调用方冻结的输入（指纹按原样算）。"""
     scope.require("intake")
     scope.require_scope(workspace)
@@ -115,9 +109,8 @@ def prepare(workspace, pages, *, batch_plan=None):
         if not tax or not rules.name_key(fields.get(field)):
             continue
         remembered = _optional(lambda: _party_memory(workspace, tax), None, "party")
-        entry = (batch_plan or {}).get((party, tax))
-        if remembered or entry:
-            fields[field] = remembered or entry["name"]
+        if remembered and rules.similar(remembered, fields.get(field)):
+            fields[field] = remembered
     seller_tax = rules.tax_key(fields.get("seller_tax"))
     for item in fields.get("items") or []:
         if not isinstance(item, dict):
@@ -178,7 +171,7 @@ def learn(workspace, previous_pages, pages):
 
 
 def renamed(pages, decided):
-    """同一原件的另一张草稿：同一税号的名称换成人刚定的 → 新的 pages；没有要换的回 None。"""
+    """同一原件的另一张草稿：同一税号、相近写法的名称换成人刚定的 → 新的 pages；没有要换的回 None。"""
     prepared = copy.deepcopy(pages)
     fields = _fields(prepared)[1]
     if not fields or not decided:
@@ -186,11 +179,12 @@ def renamed(pages, decided):
     changed = False
     for party in rules.PARTIES:
         field, tax = f"{party}_name", rules.tax_key(fields.get(f"{party}_tax"))
-        if tax in decided and rules.clean_name(fields.get(field)) != decided[tax]:
+        if (tax in decided and rules.clean_name(fields.get(field)) != decided[tax]
+                and rules.similar(decided[tax], fields.get(field))):
             fields[field] = decided[tax]
             changed = True
     return prepared if changed else None
 
 
-__all__ = ["MEMORY", "NameMemoryDocument", "deny", "learn", "native_query", "plan", "prepare",
+__all__ = ["MEMORY", "NameMemoryDocument", "deny", "learn", "native_query", "prepare",
            "reject_share", "renamed"]

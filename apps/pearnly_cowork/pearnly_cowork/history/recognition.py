@@ -10,7 +10,7 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts.history import initial_history
 from pearnly_cowork.files import access, guard, service as files
-from pearnly_cowork.history import names as name_memory, storage
+from pearnly_cowork.history import storage
 
 
 def persist_batch(source_file, groups, request_key, *, anchor_year=None, previews=None):
@@ -65,8 +65,6 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None, preview
         return [storage.project(row) for row in rows]
     # Check the stored bytes before admitting any recognized reference.
     files.verify_stored(source)
-    # 同一税号的名称写法在这一批里统一（在指纹之后算：记忆变了，重试仍是同一份清单）。
-    name_plan = name_memory.plan([group["body"].get("pages") for group in prepared])
     rows = []
     frappe.db.savepoint("cowork_bind_original")
     try:
@@ -79,8 +77,7 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None, preview
                 "filename": source.filename}
             group_key = hashlib.sha256(storage.encode([source.name, request_key, index]).encode()).hexdigest()
             rows.append(storage._create(group["workspace"], group["body"], group_key,
-                                         group["client"], attachment=attachment, check_duplicates=True,
-                                         name_plan=name_plan))
+                                         group["client"], attachment=attachment, check_duplicates=True))
         if not source.binding_complete:
             source.binding_complete = 1
             source.binding_fingerprint = fingerprint
