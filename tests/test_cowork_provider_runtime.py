@@ -250,8 +250,8 @@ class ProviderRuntime(unittest.TestCase):
         self.assertEqual(len(self.core.calls), 3)
         self.assertEqual(pauses, [2, 2])
         self.assertEqual(len({json.dumps(c["payload"], sort_keys=True) for c in self.core.calls}), 1)
-        self.core.plan = [Response({"error": {}}, 502)] * 3
-        with self.assertRaises(Deferred) as caught:     # 一直 5xx：交出去稍后续跑，不判失败
+        self.core.plan = [Response({"error": {}}, 502)] * 5
+        with self.assertRaises(Deferred) as caught:     # 三个入口一直 5xx：交出去稍后续跑，不判失败
             self.vision(self.core.client(sleep=pauses.append))
         self.assertEqual(caught.exception.reason, "provider_5xx")
 
@@ -261,10 +261,24 @@ class ProviderRuntime(unittest.TestCase):
         self.core.plan = [Response(unavailable), Response(unavailable), Response(self.vision_body())]
         self.assertEqual(self.vision(self.core.client(sleep=pauses.append)).page.full_text, "IV-1")
         self.assertEqual(pauses, [2, 2])
-        self.core.plan = [Response(unavailable)] * 3
-        with self.assertRaises(Deferred) as caught:
-            self.vision(self.core.client(sleep=pauses.append))
+
+    def test_a_vision_outage_on_the_global_entry_moves_to_the_us_then_eu_entries(self):
+        unavailable = {"responses": [{"error": {"code": 14, "message": "The service is currently unavailable."}}]}
+        self.core.plan = [Response(unavailable)] * 4 + [Response(self.vision_body())]
+        self.assertEqual(self.vision(self.core.client(sleep=lambda s: None)).page.full_text, "IV-1")
+        hosts = [call["url"].split("/")[2] for call in self.core.calls]
+        self.assertEqual(hosts, ["vision.googleapis.com"] * 3 + ["us-vision.googleapis.com", "eu-vision.googleapis.com"])
+        self.assertEqual(len({json.dumps(c["payload"], sort_keys=True) for c in self.core.calls}), 1)
+        self.core.calls.clear()
+        self.core.plan = [Response(unavailable)] * 5
+        with self.assertRaises(Deferred) as caught:     # 三个入口都不行：交回稍后续跑
+            self.vision(self.core.client(sleep=lambda s: None))
         self.assertEqual(caught.exception.reason, "vision_14")
+        self.core.calls.clear()
+        self.core.plan = [Response(unavailable)] * 3
+        with self.assertRaises(Deferred):               # 备用入口开关关掉：只用全球入口
+            self.vision(self.core.client(sleep=lambda s: None, environment={"VERTEX_OVERFLOW": "off"}))
+        self.assertEqual(len(self.core.calls), 3)
 
     def test_a_slow_vision_call_is_given_up_after_15_seconds_and_resent_with_the_full_limit(self):
         client = self.core.client(environment={"OCR_L1_TIMEOUT_SECONDS": "60"})

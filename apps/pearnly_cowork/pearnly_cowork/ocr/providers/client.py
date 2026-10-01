@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine.contracts import ModelRequest, ModelResponse, ProviderFailure, VisionResponse
-from pearnly_cowork.ocr.policy import vertex_host, vertex_location, vertex_overflows
+from pearnly_cowork.ocr.policy import overflow_chain, vertex_host, vertex_location, vertex_overflows
 from pearnly_cowork.ocr.schema.evidence import Block, BoundingBox, Page, Paragraph, Word
 
 
@@ -380,19 +380,34 @@ class ProviderClient:
         # Vision 正常不到 1 秒：第一次最多等 VISION_FIRST_TIMEOUT 秒，没回就按「结果不明重发」再发一次（内容逐字相同、
         # 新的检查点），重发那次用原上限，不误判真的慢的回复。2026-10-01 测试租户：一次 Vision 等了 38 秒、一次 42 秒后 502。
         # 被放弃的那次谷歌可能照样收费（约 0.05 泰铢），只在出现长尾时发生。谷歌临时 5xx 原地隔 2 秒再试（失败不计费）。
-        for retry in range(VISION_5XX_RETRIES + 1):
-            try:
-                return self._vision_once(payload, stage, page_number, timeout)
-            except Deferred as error:
-                # 谷歌临时故障（5xx、回复里带 8 / 14「资源用完 / 服务暂不可用」）：原地隔 2 秒再试两次，再不行交回稍后续跑
-                # （2026-10-01 夜 Vision 整体回 14 时，原来每十几秒整份重派一次）。失败的请求不计费。
-                if error.reason not in ("provider_5xx", "vision_8", "vision_14") or retry == VISION_5XX_RETRIES:
-                    raise
-                self._sleep(VISION_5XX_PAUSE)
+        # 谷歌临时故障（5xx、回复里带 8 / 14「资源用完 / 服务暂不可用」）：全球入口原地隔 2 秒再试两次，还不行依次换美国、欧洲
+        # 区域入口（价格相同；与 Gemini 同一个备用入口开关 ``VERTEX_OVERFLOW``，被转过去的那一次数据在美国 / 欧洲处理），
+        # 都不行交回稍后续跑。2026-10-01 夜 Vision 全球入口短时整体回 14，区域入口照常可用（压测窗口实测）。失败的请求不计费。
+        spares = overflow_chain(self.environment.get("VERTEX_OVERFLOW"))
+        self._require_context()  # 先确认识别任务仍有效，再读任何检查点（与 _send 同一顺序）
+        for spare in spares:  # 续跑：已在备用入口读完的直接取回，不再付费
+            for attempt in (0, 1):
+                identity = json.dumps(["cowork", "vision", self.project, spare, "DOCUMENT_TEXT_DETECTION", stage,
+                                       page_number, attempt])
+                if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
+                    return self._vision_once(payload, stage, page_number, timeout, spare)
+        last = None
+        for where in ("global",) + spares:
+            for retry in range(VISION_5XX_RETRIES + 1 if where == "global" else 1):
+                try:
+                    return self._vision_once(payload, stage, page_number, timeout, where)
+                except Deferred as error:
+                    if error.reason not in ("provider_5xx", "vision_8", "vision_14"):
+                        raise
+                    last = error
+                    if where == "global" and retry < VISION_5XX_RETRIES:
+                        self._sleep(VISION_5XX_PAUSE)
+        raise last
 
-    def _vision_once(self, payload, stage, page_number, timeout):
-        body, elapsed, key, bucket = self._send(url="https://vision.googleapis.com/v1/images:annotate",
-            payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location="global", stage=stage,
+    def _vision_once(self, payload, stage, page_number, timeout, where="global"):
+        host = "vision.googleapis.com" if where == "global" else f"{where}-vision.googleapis.com"
+        body, elapsed, key, bucket = self._send(url=f"https://{host}/v1/images:annotate",
+            payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location=where, stage=stage,
             page_number=page_number, attempt=0, timeout_s=min(timeout, VISION_FIRST_TIMEOUT),
             retry_unknown=1, resend_timeout_s=timeout)
         responses = body.get("responses")
