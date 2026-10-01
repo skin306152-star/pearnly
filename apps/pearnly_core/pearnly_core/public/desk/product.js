@@ -153,6 +153,54 @@ frappe.provide("frappe.pearnly");
 		const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
 		return parts ? `${parts[3]}/${parts[2]}/${Number(parts[1]) + 543}` : String(value || "");
 	};
+	// ── 列表刷新：推送为主，定时兜底（2026-10-01 用户经压测窗口同意）────────────────────────────────
+	// 原来各页固定每几秒问一次（对账列表 5 秒、录入有录入中的 4 秒、首页 30 秒），几百人停在页面上光这些就每秒上百个请求。
+	// 现在：收到服务端的实时事件（`events`，`accept(data)` 过滤）就刷新，同一阵子来的多个事件合成一次；兜底的定时：本页有
+	// 自己在跑的任务（`busy()`）时 `busy_ms`（默认 5 秒），否则 `idle_ms`（默认 60 秒）；页面看不见时不刷，重新看得见 /
+	// 窗口拿回焦点时马上刷一次（与 react-query 的 refetchOnWindowFocus 同一做法）。别人做的改动没有推给本人的，最晚 60 秒出现。
+	// `still_current()` 为假（切走了）或调了返回的 `stop()` 就停，事件监听一并摘掉。`refresh` 抛错不影响下一次。
+	p.live = ({ refresh, events = [], accept = () => true, busy = () => false, still_current = () => true,
+		busy_ms = 5000, idle_ms = 60000, settle_ms = 800 }) => {
+		let timer = 0, soon = 0, running = false, again = false, stopped = false;
+		const handlers = [];
+		const stop = () => {
+			if (stopped) return;
+			stopped = true;
+			clearTimeout(timer);
+			clearTimeout(soon);
+			for (const [event, handler] of handlers) frappe.realtime?.off?.(event, handler);
+			document.removeEventListener("visibilitychange", on_visible);
+			window.removeEventListener("focus", on_visible);
+		};
+		const schedule = () => {
+			clearTimeout(timer);
+			if (!stopped && !document.hidden) timer = setTimeout(run, busy() ? busy_ms : idle_ms);
+		};
+		async function run() {
+			clearTimeout(timer);
+			clearTimeout(soon);
+			if (stopped) return;
+			if (!still_current()) { stop(); return; }
+			if (document.hidden) return;  // 回到页面时再刷
+			if (running) { again = true; return; }
+			running = true;
+			try { await refresh(); } catch (error) { /* 下一次再刷 */ }
+			running = false;
+			if (again) { again = false; return run(); }
+			schedule();
+		}
+		const later = () => { clearTimeout(soon); soon = setTimeout(run, settle_ms); };
+		function on_visible() { if (!document.hidden) later(); }
+		for (const event of events) {
+			const handler = data => { if (!stopped && accept(data)) later(); };
+			handlers.push([event, handler]);
+			frappe.realtime?.on?.(event, handler);
+		}
+		document.addEventListener("visibilitychange", on_visible);
+		window.addEventListener("focus", on_visible);
+		schedule();
+		return { stop, now: run };
+	};
 	p.add_refresh = (page, refresh, label = __("Reload")) =>
 		page.add_action_icon("es-line-reload", refresh, "", label)
 			.removeClass("btn-default")

@@ -168,18 +168,18 @@
 				running.text(t("cowork.recon.runningCount", items.length)).toggle(items.length > 0);
 				if (before !== null && items.length < before) await list?.reload();
 				before = items.length;
-			});
+			}, () => before > 0);
 		}
-		// 列表 / 进行中两页的定时刷新：切走（换路由）就停。
-		let ticker = 0;
-		function watch(tick, every = 5000) {
+		// 列表 / 进行中两页的刷新（`p.live`）：本人的对账结束时服务端推 `cowork_recon_finished`，收到就刷；有进行中的
+		// 每 `busy_ms` 兜底一次，没有就 60 秒一次；页面看不见不刷。原来不管有没有任务都每 5 秒问一次（几百人停在列表页
+		// 光这一项就每秒几十个请求，2026-10-01 压测窗口）。切走（换路由）就停。
+		let live = null;
+		function watch(tick, busy, busy_ms = 5000) {
 			const request = sequence;
-			const run = async () => {
-				if (request !== sequence) return;
-				try { await tick(); } catch (error) { /* 下一轮再试 */ }
-				if (request === sequence) ticker = setTimeout(run, every);
-			};
-			void run();
+			live?.stop();
+			live = p.live({ refresh: tick, busy, busy_ms, still_current: () => request === sequence,
+				events: ["cowork_recon_finished"], accept: data => !data?.kind || data.kind === kind });
+			void live.now();
 		}
 		const open_new = () => frappe.set_route(root, "new");
 
@@ -440,7 +440,7 @@
 				} else await list?.refresh();
 				if (shown && !list?.total) { frappe.set_route(root); return; }
 				shown = list?.total || shown;
-			}, 3000);
+			}, () => (list?.total || 0) > 0, 3000);
 		}
 
 		// ── 结果页 ────────────────────────────────────────────────────────────────
@@ -939,7 +939,7 @@
 			const route = frappe.get_route();
 			if (route[0] !== root) return;
 			++sequence;
-			clearTimeout(ticker);
+			live?.stop();
 			clear();
 			current = null;
 			if (!route[1]) show_list();
@@ -950,7 +950,7 @@
 		}
 
 		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
-		$(wrapper).on("hide", () => { ++sequence; clearTimeout(ticker); });
+		$(wrapper).on("hide", () => { ++sequence; live?.stop(); });
 		await show_route();
 	};
 })();

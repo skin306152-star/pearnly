@@ -7,6 +7,18 @@ import frappe
 from frappe import _
 
 FIELDS = ('last_push_status', 'last_pushed_at', 'last_push_record', 'last_push_reason')
+EVENT = 'cowork_intake_changed'
+
+
+def _changed(history, *users):
+    """录入列表的推送状态变了：推给这张票的上传人和这次推送的发起人（原生实时推送，事务提交后才发，只带票号），
+    他们开着的录入列表收到就重拉（``p.live``）；同事的列表最晚 60 秒兜底刷到。推不出去不影响推送本身。"""
+    try:
+        owner = frappe.db.get_value('Cowork OCR History', history, 'owner')
+        for user in {owner, frappe.session.user, *users} - {None, '', 'Guest'}:
+            frappe.publish_realtime(EVENT, {'history': history}, user=user, after_commit=True)
+    except Exception:
+        pass
 
 
 def mirror(row, timestamp, *, select=False):
@@ -28,6 +40,7 @@ def mirror(row, timestamp, *, select=False):
         'last_push_status': row.status, 'last_pushed_at': timestamp,
         'last_push_record': row.name,
         'last_push_reason': (row.reason or '')[:500] if row.status == 'manual' else ''}, update_modified=False)
+    _changed(row.history, row.get('owner'))
 
 
 def record_failure(history, reason):
@@ -38,3 +51,4 @@ def record_failure(history, reason):
     """
     frappe.db.set_value('Cowork OCR History', history, 'last_push_reason', str(reason or '')[:500],
                         update_modified=False)
+    _changed(history)

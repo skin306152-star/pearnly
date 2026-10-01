@@ -124,19 +124,20 @@
 			selection();
 			p.add_refresh(page, () => list.reload());
 			await list.ready;
-			// 提交后票是「录入中」，推送在后台进行：列表里还有录入中的就隔几秒重拉一次，都落定了就停。
-			let timer = null;
-			const watch = () => {
-				clearTimeout(timer);
-				if (!still_current() || !(list.data || []).some(row => row.last_push_status === "pending")) return;
-				timer = setTimeout(async () => {
-					if (!still_current()) return;
+			// 提交后票是「录入中」，推送在后台进行。推送状态一变、本人的识别一读完，服务端都推实时事件（`cowork_intake_changed`、
+			// `pearnly_ocr_work`），收到就重拉；列表里还有录入中的每 5 秒兜底一次，没有就 60 秒（`p.live`；原来有录入中的就每 4 秒
+			// 问一次，2026-10-01 压测窗口）。勾着行、开着弹窗时不打断，下一次再刷。
+			const live = p.live({
+				refresh: async () => {
+					if (cur_dialog || list.get_checked_items?.().length) return;
 					await list.reload();
-					watch();
-				}, 4000);
-			};
-			watch();
-			cleanup = () => {clearTimeout(timer); list.destroy(); cleanup = () => {};};
+				},
+				events: ["cowork_intake_changed", "pearnly_ocr_work"],
+				accept: data => !data?.kind || data.kind === "cowork.invoice",
+				busy: () => (list.data || []).some(row => row.last_push_status === "pending"),
+				still_current,
+			});
+			cleanup = () => {live.stop(); list.destroy(); cleanup = () => {};};
 		}
 
 		const show = p.routed_page({wrapper, root, render: async (rest, still_current) => {

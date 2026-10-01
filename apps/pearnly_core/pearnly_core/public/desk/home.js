@@ -1,7 +1,7 @@
 (() => {
 	const p = frappe.pearnly;
 	p.home = async (page, t, wrapper) => {
-		let home, list, timer;
+		let home, list;
 		let tab = "usage", period = "all", pageLength = 20;
 		let deleting = false, confirming = false, sequence = 0;
 		const money = (value) => p.money(Number(value || 0));
@@ -294,13 +294,18 @@
 		wrapper.on_page_show = () => { p.restore_sidebar(); void refresh(); };
 		$(wrapper).on("hide", () => { ++sequence; });
 		await refresh();
-		// 30 秒刷新一次：明细页只刷列表（勾选、弹窗、正在改筛选时不刷），订阅与充值页重画余额。
-		timer = setInterval(() => {
-			const editing = $(document.activeElement).is("input,select,textarea,[role=combobox]");
-			if (document.hidden || cur_dialog || editing || deleting || confirming || !$(wrapper).is(":visible")) return;
-			if (on_billing()) void refresh().catch(() => {});
-			else if (!list?.get_checked_items().length) void list?.refresh().catch(() => {});
-		}, 30000);
-		$(wrapper).one("remove", () => clearInterval(timer));
+		// 刷新（`p.live`）：本人的识别 / 对账一结束（会扣费、出明细）服务端就推实时事件，收到就刷；平时 60 秒兜底一次（原来
+		// 固定 30 秒），页面看不见不刷，回到页面马上刷一次。明细页只刷列表（勾选、弹窗、正在改筛选时不刷），订阅与充值页重画余额。
+		const live = p.live({
+			refresh: async () => {
+				const editing = $(document.activeElement).is("input,select,textarea,[role=combobox]");
+				if (cur_dialog || editing || deleting || confirming || !$(wrapper).is(":visible")) return;
+				if (on_billing()) await refresh();
+				else if (!list?.get_checked_items().length) await list?.refresh();
+			},
+			events: ["pearnly_ocr_work", "cowork_recon_finished"],
+			accept: data => !data?.status || !["queued", "running", "deferred"].includes(data.status),
+		});
+		$(wrapper).one("remove", () => live.stop());
 	};
 })();
