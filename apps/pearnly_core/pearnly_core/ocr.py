@@ -125,13 +125,32 @@ def location_for_model(model: str) -> str:
     return location()
 
 
-def vertex_url(model: str) -> str:
-    loc = location_for_model(model)
-    host = "aiplatform.googleapis.com" if loc == "global" else f"{loc}-aiplatform.googleapis.com"
+def vertex_host(loc: str) -> str:
+    if loc == "global":
+        return "aiplatform.googleapis.com"
+    if loc in ("us", "eu"):  # 多区域入口（谷歌 REP 端点）
+        return f"aiplatform.{loc}.rep.googleapis.com"
+    return f"{loc}-aiplatform.googleapis.com"
+
+
+def vertex_url(model: str, loc: str | None = None) -> str:
+    loc = loc or location_for_model(model)
     return (
-        f"https://{host}/v1/projects/{project()}/locations/{loc}"
+        f"https://{vertex_host(loc)}/v1/projects/{project()}/locations/{loc}"
         f"/publishers/google/models/{model}:generateContent"
     )
+
+
+def overflow_location(model: str) -> str | None:
+    """全球入口被谷歌拒绝（429 / 503）时这一次请求改发哪个入口；``None`` = 不转。
+
+    Gemini 3.x 只在 global 与 us / eu 两个多区域入口（2026-10-01 生产实测：14 个单区域全部 404）。转美国多区域入口
+    多付 10%、数据在美国处理（用户 2026-10-01 同意）；只有被拒的那一次转。站点配置 ``pearnly_ocr_vertex_overflow``
+    设成 ``off`` 关掉。"""
+    if backend() != "vertex" or location_for_model(model) != "global":
+        return None
+    value = str(frappe.conf.get("pearnly_ocr_vertex_overflow") or "us").strip().lower()
+    return value if value in ("us", "eu") else None
 
 
 _token_cache: dict = {}
@@ -519,11 +538,26 @@ def orient(data: bytes, mime: str) -> tuple[bytes, str]:
 
 
 def _post_with_backoff(url, headers, payload, timeout_s, model):
-    """Shared cross-App admission; deferred work resumes outside the worker."""
-    from pearnly_core.execution import budget, provider
+    """Shared cross-App admission; deferred work resumes outside the worker.
 
-    bucket = budget.scope(backend(), project(), location_for_model(model), model)
-    return provider.post(url, headers, payload, timeout_s, model, bucket)
+    Gemini（Vertex）是共享额度：零星拒绝只让这次请求自己退避，不让整个模型停下；全球入口被谷歌拒绝时这一次改发
+    ``overflow_location`` 的入口（检查点按请求内容与模型记，换入口不会重复付费）。"""
+    from pearnly_core.execution import budget, provider
+    from pearnly_core.execution.errors import Deferred
+
+    loc, vertex = location_for_model(model), backend() == "vertex"
+    bucket = budget.scope(backend(), project(), loc, model)
+    spare = overflow_location(model) if url == vertex_url(model) else None
+    if not spare:
+        return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=vertex)
+    try:
+        return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=True,
+                             hand_back=("provider_",), label=f"vertex:{loc}")
+    except Deferred as exc:
+        if not str(exc.reason).startswith("provider_"):
+            raise
+    return provider.post(vertex_url(model, spare), headers, payload, timeout_s, model,
+                         budget.scope(backend(), project(), spare, model), shared_quota=True, label=f"vertex:{spare}")
 
 
 @frappe.whitelist()

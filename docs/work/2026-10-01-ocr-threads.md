@@ -28,6 +28,16 @@
 - 部署开关：compose 三个识别容器加 `PEARNLY_OCR_THREADS: ${PEARNLY_{DMS,ERP,COWORK}_OCR_THREADS:-1}`；`capacity.py` 每个识别进程
   最低内存按线程数加 150MB/线程，线程数只接受 1–32。
 
+- Gemini 被谷歌限流（用户 2026-10-01 同意，含「转美国入口多付 10%、数据在美国处理」）：
+  - 生产实测入口（`gregion.py`，每个入口一次极短请求）：`gemini-3.1-flash-lite`、`gemini-3.8-flash` 在 global、`us`、`eu` 多区域入口
+    可用（多区域主机 `aiplatform.{us,eu}.rep.googleapis.com`），14 个单区域全部 404。原注释「只能走 global」只对了一半。
+  - `budget.feedback(..., shared=True)`：共享额度（DSQ）10 秒内被拒不到 3 次，只让被拒的请求自己退避，不整体停顿 / 放慢；
+    到 3 次照原规则。Document AI 等固定额度不变。真实额度 Redis 上用临时测试桶核验：共享 [不停, 不停, 停×2]，固定 [停×2, ×4, ×8]。
+  - `provider.post(hand_back=("provider_",), shared_quota=True)`：被谷歌拒绝的这次直接交回；自家额度的等待照旧原地等。
+  - Cowork `client._vertex` 与共用层 `ocr._post_with_backoff`（DMS / ERP）：全球入口被谷歌拒绝（429 / 503 / 额度）时这一次改发
+    美国多区域入口；美国入口再被拒按原规则退避。续跑时已在美国入口读完的直接取回（Cowork 先确认任务有效再读检查点）。
+    关掉：Cowork 环境 `VERTEX_OVERFLOW=off`，DMS / ERP 站点配置 `pearnly_ocr_vertex_overflow=off`。
+
 不改：读法、模型、调用顺序、提示词、检查点与付费防重；结果整理里的深拷贝和每次调用前的权限复核（动了有改变结果 / 放宽复核的风险）。
 
 ## 验证
@@ -36,6 +46,9 @@
   同时跑且 RQ 那边等、等不到就地跑、出错释放、非守护线程、回收阈值）。
 - `check-production-capacity.py` 23 项、`check-architecture.py`、`test_architecture_guard.py`、`test_queue_targets.py`、
   `node --check intake-upload.js`、`git diff --check` 通过。
+- 加上限流改动后：`pearnly_core` 离线 31 条（含新 `test_vertex_overflow` 3 条、`test_provider_wait` 交回 1 条）、
+  `test_cowork_provider_runtime` 19 条（新增转入口 / 不转 / 续跑取回 3 条）、`test_cowork_document_ai_regions` 9 条、
+  `test_cowork_recon_scanned_docs` 118 条通过（生产镜像一次性容器、断网）。
 - 生产多线程实测（独立进程、新代码、12 张合成发票同时跑）：见下方结果。
 
 ## 待办

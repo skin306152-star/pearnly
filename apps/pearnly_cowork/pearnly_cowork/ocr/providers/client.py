@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine.contracts import ModelRequest, ModelResponse, ProviderFailure, VisionResponse
-from pearnly_cowork.ocr.policy import vertex_location
+from pearnly_cowork.ocr.policy import vertex_host, vertex_location, vertex_overflow
 from pearnly_cowork.ocr.schema.evidence import Block, BoundingBox, Page, Paragraph, Word
 
 
@@ -128,7 +128,7 @@ class ProviderClient:
         raise ProviderError(**refusal)
 
     def _send(self, *, url, payload, model, provider, location, stage, page_number, attempt, timeout_s,
-              retry_unknown=False, defer_5xx=None, rpm=None, wait=True):
+              retry_unknown=False, defer_5xx=None, rpm=None, wait=True, hand_back=()):
         # 对账读取（retry_unknown）另把 500 / 502 / 504 当临时故障稍后重试；录入发票照旧当终局拒绝。
         defer_5xx = bool(retry_unknown) if defer_5xx is None else defer_5xx
         # 结果不明时还能重发几次：读字最多 2 次（每页约 0.05 泰铢，90 秒 × 3 仍在识别任务时限内；2026-09-29 压测
@@ -148,7 +148,7 @@ class ProviderClient:
                 # 续跑：这次上回结果不明、已经重发过 —— 直接取重发那次（完成的从检查点取回，不再付费）。
                 return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
                     stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
-                    retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait)
+                    retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait, hand_back=hand_back)
         terminal = self._terminal_read(key)
         if terminal is not None:
             raise ProviderError(**terminal["refusal"])
@@ -169,6 +169,9 @@ class ProviderClient:
         routing = {"label": f"{provider}:{location}"}
         if provider == "documentai":
             routing.update(rpm=rpm, wait=wait)
+        elif provider == "vertex":
+            # Gemini 是共享额度（DSQ）：零星拒绝不让整个模型停下；``hand_back`` 让被谷歌拒绝的这次交回来转入口（_vertex）。
+            routing.update(shared_quota=True, hand_back=hand_back)
         try:
             response = self._post(url=url, headers={"Authorization": "Bearer " + token,
                 "Content-Type": "application/json"}, payload=payload, timeout_s=timeout_s,
@@ -183,7 +186,7 @@ class ProviderClient:
             self._reject(key, {"outcome_unknown": True, "retried": True, "deferred": True})
             return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
                 stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
-                retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait)
+                retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait, hand_back=hand_back)
         elapsed = max(0, int((self._clock() - started) * 1000))
         status = response.status_code
         if status != 200:
@@ -199,7 +202,7 @@ class ProviderClient:
             if (status in (429, 503) or (defer_5xx and status in (500, 502, 504))
                     or "RESOURCE_EXHAUSTED" in reason.upper() or "quota" in reason.lower()):
                 self._reject(key, {"http": status, "deferred": True})
-                self._feedback(bucket, 503 if status == 503 else 429, 5)
+                self._feedback(bucket, 503 if status == 503 else 429, 5, *((True,) if provider == "vertex" else ()))
                 raise Deferred("provider_quota", 5)
             self._refuse(key, response, "ocr.provider_auth" if status in (401, 403) else "ocr.provider_http_error")
         try:
@@ -240,11 +243,7 @@ class ProviderClient:
                 raise ProviderConfigurationError("ocr.invalid_model_request")
             config["responseJsonSchema"] = deepcopy(request.response_schema)
         payload = {"contents": [{"role": "user", "parts": parts}], "generationConfig": config}
-        host = "aiplatform.googleapis.com" if location == "global" else location + "-aiplatform.googleapis.com"
-        url = f"https://{host}/v1/projects/{quote(self.project, safe='')}/locations/{quote(location, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent"
-        body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
-            location=location, stage=request.stage, page_number=request.page_number, attempt=request.attempt,
-            timeout_s=request.timeout_s, retry_unknown=retry_unknown)
+        body, elapsed, key = self._vertex(payload, model, location, request, retry_unknown)
         candidates = body.get("candidates") or []
         candidate = candidates[0] if candidates else {}
         text = "".join(part.get("text", "") for part in (candidate.get("content") or {}).get("parts", [])
@@ -253,6 +252,33 @@ class ProviderClient:
         return ModelResponse(text=text, raw=body, input_tokens=int(usage.get("promptTokenCount", 0) or 0),
             output_tokens=int(usage.get("candidatesTokenCount", 0) or 0) + int(usage.get("thoughtsTokenCount", 0) or 0),
             model=model, elapsed_ms=elapsed, finish_reason=str(candidate.get("finishReason", "")), checkpoint_key=key)
+
+    def _vertex(self, payload, model, location, request, retry_unknown):
+        """Gemini：全球入口被谷歌拒绝（429 / 503 / 额度，``provider_*``）时这一次请求立刻改发备用多区域入口
+        （``policy.vertex_overflow``），不原地等；自家额度的等待照旧原地等。续跑时已在备用入口读完的直接取回，不再付费。"""
+        def send(where, attempt=request.attempt, hand_back=()):
+            url = (f"https://{vertex_host(where)}/v1/projects/{quote(self.project, safe='')}/locations/"
+                   f"{quote(where, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent")
+            body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
+                location=where, stage=request.stage, page_number=request.page_number, attempt=attempt,
+                timeout_s=request.timeout_s, retry_unknown=retry_unknown, hand_back=hand_back)
+            return body, elapsed, key
+
+        spare = vertex_overflow(location, self.environment)
+        if not spare:
+            return send(location)
+        self._require_context()  # 先确认识别任务仍有效，再读任何检查点（与 _send 同一顺序）
+        for attempt in range(request.attempt, request.attempt + 3):
+            identity = json.dumps(["cowork", "vertex", self.project, spare, model, request.stage, request.page_number,
+                                   attempt])
+            if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
+                return send(spare, attempt)
+        try:
+            return send(location, hand_back=("provider_",))
+        except Deferred as error:
+            if not str(error.reason).startswith("provider_"):
+                raise
+        return send(spare)
 
     def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1,
                          retry_unknown=False):

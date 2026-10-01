@@ -4,6 +4,7 @@
 """
 import json
 import unittest
+import unittest.mock
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
@@ -86,6 +87,20 @@ class ProviderWait(unittest.TestCase):
             self.assertEqual(self.call().status_code, 200)
         self.assertEqual(http.call_count, 2)
         self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [5])
+
+    def test_a_google_rejection_is_handed_back_at_once_when_asked_but_own_waits_stay(self):
+        busy = MagicMock(status_code=429, headers={})
+        with self.permits(), patch.object(provider, "_http_post", return_value=busy) as http, \
+                self.assertRaises(Deferred) as caught:
+            provider.post("https://example.invalid", {}, {"x": 1}, 30, "m", "bucket", hand_back=("provider_",),
+                          shared_quota=True)
+        self.assertEqual(caught.exception.reason, "provider_429")
+        self.assertEqual(http.call_count, 1)
+        self.sleep.assert_not_called()                 # 交回去转入口，不原地等
+        provider.budget.feedback.assert_called_with("bucket", 429, unittest.mock.ANY, shared=True)
+        with self.permits(1.5), patch.object(provider, "_http_post", return_value=ok_response()):
+            provider.post("https://example.invalid", {}, {"x": 2}, 30, "m", "bucket", hand_back=("provider_",))
+        self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [1.5])  # 自家额度的等待照旧原地等
 
 
 class CheckpointCache(unittest.TestCase):

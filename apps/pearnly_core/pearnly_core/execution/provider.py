@@ -87,20 +87,24 @@ def _in_queue_job() -> bool:
         return False
 
 
-def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True, label=None):
+def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True, label=None,
+         hand_back=(), shared_quota=False):
     """``rpm``：这个桶自己的每分钟上限（见 ``budget.permit``）。``wait=False``：拿不到额度 / 被 429 时不原地等，
     直接把 Deferred 交给调用方（Document AI 换下一个区域，用户 2026-09-30「遇到限流马上转区域，不要原地重试」）。
+    ``hand_back``：这些原因前缀的 Deferred 不原地等、直接交给调用方（Gemini 被谷歌拒绝就转美国多区域入口；
+    自家额度的等待照旧原地等）。``shared_quota``：共享额度（Gemini DSQ），零星拒绝不让整个模型停下（``budget.feedback``）。
     ``label``：限流计数的标签（``budget.note``）。"""
     waited = 0.0
     while True:
         try:
-            return _post(url, headers, payload, timeout_s, model, bucket, rpm=rpm, label=label)
+            return _post(url, headers, payload, timeout_s, model, bucket, rpm=rpm, label=label,
+                         shared_quota=shared_quota)
         except Deferred as exc:
             # 只有明确可重试的（额度 / 429 / 503）才会走到这里；结果不明（Uncertain）照旧往上抛。
             delay = float(exc.delay or 1)
             budget.note("deferred:" + str(exc.reason), label)
             if not wait or not _in_queue_job() or delay > WAIT_STEP_LIMIT \
-                    or waited + delay > WAIT_PER_CALL:
+                    or waited + delay > WAIT_PER_CALL or str(exc.reason).startswith(tuple(hand_back)):
                 raise
             time.sleep(delay)
             waited += delay
@@ -117,7 +121,7 @@ def _lease_after(exc):
     return READ_TIMEOUT_LEASE_SECONDS if isinstance(exc, requests.exceptions.ReadTimeout) else 0
 
 
-def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None):
+def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None, shared_quota=False):
     key = work.checkpoint_key(payload, model)
     saved = work.checkpoint(key)
     if saved and saved["state"] == "done":
@@ -144,7 +148,7 @@ def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None)
             # It may have reached the provider. Persist started; no automatic paid replay.
             raise Uncertain("Provider transport outcome unknown", lease_seconds=_lease_after(exc)) from exc
         delay = retry_delay(response)
-        budget.feedback(bucket, response.status_code, delay)
+        budget.feedback(bucket, response.status_code, delay, shared=shared_quota)
         if response.status_code in (429, 503):
             budget.note("http_" + str(response.status_code), label)
             work.checkpoint(key, "rejected", {"http": response.status_code})

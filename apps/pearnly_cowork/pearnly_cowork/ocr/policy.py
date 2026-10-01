@@ -59,6 +59,25 @@ def vertex_location(model: str, environment: Mapping[str, str]):
     return environment.get("VERTEX_LOCATION", "asia-southeast1").strip() or "asia-southeast1"
 
 
+def vertex_overflow(location: str, environment: Mapping[str, str]):
+    """全球入口被谷歌拒绝（429 / 503 / 额度）时这一次请求改发哪个入口；``None`` = 不转。
+
+    Gemini 3.x 只在 global 与 us / eu 两个多区域入口（2026-10-01 生产实测：14 个单区域全部 404）。转美国多区域入口
+    多付 10%、数据在美国处理（用户 2026-10-01 同意）；只有被拒的那一次转，不是全部改走。``VERTEX_OVERFLOW=off`` 关掉。"""
+    if location != "global":
+        return None
+    value = str(environment.get("VERTEX_OVERFLOW", "us")).strip().lower()
+    return value if value in ("us", "eu") else None
+
+
+def vertex_host(location: str) -> str:
+    if location == "global":
+        return "aiplatform.googleapis.com"
+    if location in ("us", "eu"):  # 多区域入口的主机名（谷歌 REP 端点）
+        return f"aiplatform.{location}.rep.googleapis.com"
+    return location + "-aiplatform.googleapis.com"
+
+
 @dataclass(frozen=True)
 class InvoicePolicy:
     mode: str

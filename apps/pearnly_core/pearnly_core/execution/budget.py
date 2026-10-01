@@ -165,13 +165,27 @@ def permit(bucket, timeout, rpm=None):
             frappe.logger("pearnly.capacity").warning("OCR permit release unavailable")
 
 
-def feedback(bucket, status, delay=0):
-    """Explicit rejection cools down all products; successes gradually restore pacing."""
+# 共享额度（Gemini 按量付费的 DSQ）零星的 429 不让整个模型停下来（2026-10-01 生产压测：128 张里谷歌只拒 16 次，原来每次都让
+# 这个模型所有请求停 5–7 秒、再放慢）：谷歌说明 429 是那一刻的资源争用、不是额度用完，建议被拒的请求自己退避重试。
+# 10 秒内被拒到 SHARED_BURST 次才算真的在压流量，照原规则整体停顿、放慢。Document AI 这类固定额度照旧每次都整体冷却。
+SHARED_BURST, SHARED_WINDOW = 3, 10
+
+
+def feedback(bucket, status, delay=0, shared=False):
+    """Explicit rejection cools down all products; successes gradually restore pacing.
+
+    ``shared``：共享额度（DSQ），零星拒绝只让被拒的请求自己退避（调用方抛出的 Deferred 带着它的等待时间）。"""
     script = """
 local stamp = redis.call('TIME')
 local now = tonumber(stamp[1]) + tonumber(stamp[2]) / 1000000
 local factor = tonumber(redis.call('GET', KEYS[1]) or '1')
-if tonumber(ARGV[1]) == 429 or tonumber(ARGV[1]) == 503 then
+local rejected = tonumber(ARGV[1]) == 429 or tonumber(ARGV[1]) == 503
+if rejected and tonumber(ARGV[3]) > 0 then
+  local burst = redis.call('INCR', KEYS[4])
+  if burst == 1 then redis.call('EXPIRE', KEYS[4], tonumber(ARGV[4])) end
+  if burst < tonumber(ARGV[3]) then return factor end
+end
+if rejected then
   factor = math.min(8, factor * 2)
   local until_at = math.max(now + tonumber(ARGV[2]), tonumber(redis.call('GET', KEYS[2]) or '0'))
   redis.call('SET', KEYS[2], until_at, 'EX', 600)
@@ -184,8 +198,9 @@ redis.call('SET', KEYS[1], factor, 'EX', 600)
 return factor
 """
     try:
-        return redis().eval(script, 3, PREFIX + bucket + ":factor", PREFIX + bucket + ":pause",
-                            PREFIX + bucket + ":success", status, max(1, min(300, delay)))
+        return redis().eval(script, 4, PREFIX + bucket + ":factor", PREFIX + bucket + ":pause",
+                            PREFIX + bucket + ":success", PREFIX + bucket + ":burst", status,
+                            max(1, min(300, delay)), SHARED_BURST if shared else 0, SHARED_WINDOW)
     except RedisError:
         frappe.logger("pearnly.capacity").warning("OCR provider feedback unavailable")
 

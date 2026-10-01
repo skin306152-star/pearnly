@@ -30,6 +30,7 @@ offline() {
   offline_py "$IMAGE" -m unittest pearnly_erp_portal.integrations.test_line_intake pearnly_erp_portal.team.test_identity \
     pearnly_control.account.test_member_service pearnly_core.account.test_line_login pearnly_core.ocr_models.test_orient pearnly_core.execution.test_job_language \
     pearnly_core.execution.test_pool pearnly_core.execution.test_recycle pearnly_core.execution.test_provider_wait \
+    pearnly_core.execution.test_vertex_overflow \
     pearnly_core.account.test_native_account_password
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-session-reuse.py scripts/test-dms-first-read.py scripts/test-dms-id-card-reads.py scripts/test-session-lock.py scripts/test-dms-line-language.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \

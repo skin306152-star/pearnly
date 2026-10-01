@@ -206,6 +206,44 @@ class ProviderRuntime(unittest.TestCase):
                 self.client.model_call(self.request)
             self.assertEqual(self.core.terminals, {})
 
+    def test_a_google_rejection_on_global_goes_to_the_us_entry_for_that_call_only(self):
+        # 用户 2026-10-01 同意：全球入口被谷歌拒绝时这一次改发美国多区域入口（多付 10%、数据在美国处理）。
+        posted = []
+        original = self.core.post
+
+        def post(**values):
+            posted.append(values)
+            if len(posted) == 1:
+                raise Deferred("provider_429", 6)
+            return original(**values)
+        self.core.post = post
+        client = self.core.client()
+        result = client.model_call(self.request)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        self.assertIn("https://aiplatform.googleapis.com/v1/projects/synthetic-project/locations/global/", posted[0]["url"])
+        self.assertEqual((posted[0]["hand_back"], posted[0]["shared_quota"]), (("provider_",), True))
+        self.assertIn("https://aiplatform.us.rep.googleapis.com/v1/projects/synthetic-project/locations/us/", posted[1]["url"])
+        self.assertEqual(posted[1]["bucket"], ("vertex", "synthetic-project", "us", "gemini-3.8-flash"))
+        self.assertEqual(posted[1]["hand_back"], ())
+
+    def test_own_capacity_off_switch_and_regional_models_stay_on_their_entry(self):
+        for environment, model, error in (({}, "gemini-3.8-flash", Deferred("capacity", 3)),
+                                          ({"VERTEX_OVERFLOW": "off"}, "gemini-3.8-flash", Deferred("provider_429", 6)),
+                                          ({}, "gemini-3.5-flash", Deferred("provider_429", 6))):
+            core = FakeCore()
+            core.error = error
+            with self.assertRaises(Deferred):
+                core.client(environment=environment).model_call(replace(self.request, model=model))
+            self.assertEqual(len(core.calls), 1, (environment, model, error.reason))
+
+    def test_resume_takes_a_result_already_read_on_the_us_entry_without_paying_again(self):
+        us = json.dumps(["cowork", "vertex", "synthetic-project", "us", "gemini-3.8-flash", "L2", 1, 0])
+        client = self.core.client(checkpoint_read=lambda identity: {"state": "done"} if identity == us else None)
+        client._key = lambda payload, identity: identity
+        client.model_call(self.request)
+        self.assertIn("/locations/us/", self.core.calls[0]["url"])
+        self.assertEqual(len(self.core.calls), 1)       # 不先去全球入口再付一次
+
     def test_vision_keeps_word_geometry_and_uses_only_l1_downscale(self):
         self.core.response = Response({"responses": [{"fullTextAnnotation": {
             "text": "Thai text\n10", "pages": [{"width": 100, "height": 200,
