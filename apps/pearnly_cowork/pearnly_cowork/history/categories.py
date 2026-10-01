@@ -96,6 +96,11 @@ def _new(workspace, label, parent, sort, key):
 
 
 def _seed(workspace):
+    # 树已经建好（绝大多数时候）：不锁工作空间。原来每存一张识别结果都给工作空间这一行加写锁、一直持有到存结果的事务
+    # 结束，同一家的识别结果只能一张一张存（2026-10-01 生产压测：这条锁等待平均 0.6 秒、最长 1.9 秒，还连带挡住
+    # 读工作空间的共享锁）。只有第一次建树才加锁、再确认一次，免得两个进程同时建出两棵。
+    if frappe.db.exists(CATEGORY, {"workspace": workspace}):
+        return
     _lock(workspace)
     # A disabled/custom tree is still a tree: never overwrite user choices.
     if frappe.db.get_value(CATEGORY, {"workspace": workspace}, "name", for_update=True):

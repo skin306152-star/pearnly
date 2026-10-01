@@ -86,5 +86,33 @@ class CategoryMemory(unittest.TestCase):
         self.assertIsNone(self.recall(invoice("", "", "น้ำแข็ง")))
 
 
+
+class SeedLock(unittest.TestCase):
+    """存识别结果时不锁工作空间（2026-10-01 生产压测：同一家的识别结果被这把锁排成一队）。"""
+
+    def run_seed(self, tree_exists):
+        calls = []
+
+        class Db:
+            def exists(self, doctype, filters):
+                calls.append(("exists", doctype))
+                return tree_exists
+
+            def get_value(self, doctype, name, field, for_update=False):
+                calls.append(("get_value", doctype, for_update))
+                return 1 if doctype == "Cowork Workspace" else "existing-root"
+
+        with patch.object(categories.frappe, "db", Db()):
+            categories._seed(WS)
+        return calls
+
+    def test_an_existing_tree_locks_nothing(self):
+        self.assertEqual(self.run_seed(True), [("exists", categories.CATEGORY)])
+
+    def test_the_first_seed_still_locks_and_rechecks(self):
+        calls = self.run_seed(False)
+        self.assertIn(("get_value", "Cowork Workspace", True), calls)
+        self.assertIn(("get_value", categories.CATEGORY, True), calls)
+
 if __name__ == "__main__":
     unittest.main()
