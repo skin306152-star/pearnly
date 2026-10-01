@@ -205,9 +205,9 @@ def protected_sources(file_doc, *, include_hash=False):
     its File) on every File write: five times per new File. Under MariaDB 11.8's
     snapshot isolation that made a reconciliation start fail with 1020 whenever the
     same tenant's invoice uploads changed any source (three-tenant stress test
-    2026-10-01: 24 of 105 starts). Now only matching source rows are locked; the
-    File rows that lead to a source are read without locks, the source they lead to
-    is locked. What counts as protected is unchanged.
+    2026-10-01: 24 of 105 starts). Now every lookup is a plain read and, with
+    ``include_hash``, only the source rows found are then locked by primary key (no
+    gap locks on the secondary indexes). What counts as protected is unchanged.
     """
     if not frappe.db.table_exists(SOURCE):
         return []
@@ -230,13 +230,18 @@ def protected_sources(file_doc, *, include_hash=False):
         if values:
             stored.update(frappe.db.sql(f"SELECT name FROM `tabFile` WHERE `{column}` IN %(values)s",
                                         {"values": tuple(sorted(values))}, pluck=True))
-    lock = " FOR UPDATE" if include_hash else ""
     found = set()
     for column, values in (("stored_file", stored), ("storage_url", urls), ("name", names),
                            ("native_content_hash", hashes)):
         if values:
-            found.update(frappe.db.sql(f"SELECT name FROM `tabCowork Source File` WHERE `{column}` IN %(values)s"
-                                       + lock, {"values": tuple(sorted(values))}, pluck=True))
+            found.update(frappe.db.sql(f"SELECT name FROM `tabCowork Source File` WHERE `{column}` IN %(values)s",
+                                       {"values": tuple(sorted(values))}, pluck=True))
+    if include_hash and found:
+        # 查到了才按主键锁住这几行原件（只锁这几条记录）。查找本身不加锁：在二级索引上按「没有的值」加锁读会锁住
+        # 前后两条记录之间的空档，别的请求往这个空档里插新原件（直传登记）就得等这一整个事务结束——三租户半量压测
+        # 2026-10-01：直传登记 12 次等满 50 秒报 1205。
+        frappe.db.sql("SELECT name FROM `tabCowork Source File` WHERE name IN %(names)s FOR UPDATE",
+                      {"names": tuple(sorted(found))})
     return [frappe.get_doc(SOURCE, name) for name in sorted(found)]
 
 

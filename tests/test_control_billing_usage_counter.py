@@ -63,8 +63,9 @@ class Charge(unittest.TestCase):
         wallet.get.side_effect = lambda key: {"usage_month": "2026-10", "usage_checked": "2026-10-01"}.get(key)
         wallet.pages_used_this_month, wallet.balance_thb = 1200, 500
         rows = []
+        db = mock.MagicMock(**{"get_value.return_value": None})
         with mock.patch.object(billing, "wallet_of", return_value=wallet), \
-                mock.patch.object(billing.frappe, "db", mock.MagicMock(**{"get_value.return_value": None})), \
+                mock.patch.object(billing.frappe, "db", db), \
                 mock.patch.object(billing, "_active_by_cycle", return_value=None), \
                 mock.patch.object(billing, "_bkk_year_month", return_value="2026-10"), \
                 mock.patch.object(billing, "_bkk_today", return_value="2026-10-01"), \
@@ -77,7 +78,13 @@ class Charge(unittest.TestCase):
         self.assertEqual(estimate.call_args.args[:3], (1200, "pdf", 3))  # 阶梯价的输入同原来：本月已用页数
         self.assertEqual((wallet.pages_used_this_month, wallet.usage_month), (1203, "2026-10"))
         self.assertEqual((rows[0]["billing_mode"], rows[0]["month"], rows[0]["pages"]), ("payg", "2026-10", 3))
-        wallet.save.assert_called_once()
+        # 钱包一条 UPDATE 写回（不整份保存、不每笔多写一条修改留痕），与台账行同一个事务
+        wallet.save.assert_not_called()
+        db.set_value.assert_called_once()
+        doctype, name, fields = db.set_value.call_args.args
+        self.assertEqual((doctype, name), (billing.WALLET, wallet.name))
+        self.assertEqual((fields["balance_thb"], fields["pages_used_this_month"], fields["usage_month"]),
+                         (wallet.balance_thb, 1203, "2026-10"))
 
 
 if __name__ == "__main__":

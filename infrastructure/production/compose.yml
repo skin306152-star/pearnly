@@ -3,7 +3,7 @@ name: pearnly-production
 # 可调容量（2026-09-30）：三产品的识别进程、Cowork 对账进程、网页进程数和各自内存上限
 # 从 /opt/pearnly/secrets/runtime.env 读，没写就是下面各处 `:-` 后的原值：
 #   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM / _OCR_THREADS / _OCR_THREAD_MB、PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
-#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS。
+#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_BILLING_WEB_THREADS / _WORKERS、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS。
 # 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
 
 x-runtime: &runtime
@@ -132,6 +132,10 @@ services:
   billing-web:
     <<: *web
     mem_limit: 512m
+    # 计费服务（账本）是所有租户、所有产品共用的一个服务，扣费按租户排队（租户行锁）。原来只有 2 × 4 = 8 个处理位：
+    # 一家集中扣费时等锁的请求把 8 个位全占住，各租户各产品问余额都超时（2026-10-01 三租户半量压测）。等锁的线程几乎不占
+    # 内存，默认改成 2 × 16；每个线程最多占一个数据库连接（MariaDB 默认 151）。
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_BILLING_WEB_THREADS:-16}', '--workers=${PEARNLY_BILLING_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
     ports: ['127.0.0.1:8184:8000']
     volumes:
       - sites-billing:/home/frappe/frappe-bench/sites

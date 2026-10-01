@@ -23,7 +23,7 @@ assert Path(access.__file__).is_relative_to(ROOT), access.__file__
 
 class FakeDb:
     def __init__(self, files=None, sources=None):
-        self.queries = []
+        self.queries, self.locked = [], None
         self.files = files or {}      # (column, value) -> [File names]
         self.sources = sources or {}  # (column, value) -> [source names]
 
@@ -35,6 +35,9 @@ class FakeDb:
 
     def sql(self, query, values=None, pluck=False):
         self.queries.append(query)
+        if "WHERE name IN %(names)s FOR UPDATE" in query:
+            self.locked = sorted(values["names"])
+            return []
         table = "files" if "`tabFile`" in query else "sources"
         column = re.search(r"WHERE `(\w+)` IN", query).group(1)
         found = []
@@ -58,11 +61,24 @@ class SourceLockScopeTest(unittest.TestCase):
         for query in db.queries:
             self.assertNotIn(" OR ", query)
             self.assertNotIn("JOIN", query)
-            self.assertEqual(" FOR UPDATE" in query, "`tabCowork Source File`" in query, query)
+            # 查找一律不加锁（按二级索引加锁读会锁住空档，挡住别人插入新原件：压测 1205）；什么都没查到就什么都不锁
+            self.assertNotIn("FOR UPDATE", query)
         columns = [re.search(r"FROM `([^`]+)` WHERE `(\w+)`", query).groups() for query in db.queries]
         self.assertEqual(columns, [("tabFile", "file_url"), ("tabFile", "content_hash"),
                                    ("tabCowork Source File", "stored_file"), ("tabCowork Source File", "storage_url"),
                                    ("tabCowork Source File", "name"), ("tabCowork Source File", "native_content_hash")])
+
+    def test_found_originals_are_locked_by_primary_key_only(self):
+        db = FakeDb(files={("content_hash", "same"): ["F-COPY"]},
+                    sources={("stored_file", "F-COPY"): ["S2"], ("native_content_hash", "same"): ["S5"]})
+        found = self.run_guard(db, frappe._dict(file_url="/private/files/new.pdf", content_hash="same"), True)
+        self.assertEqual(found, [(access.SOURCE, "S2"), (access.SOURCE, "S5")])
+        self.assertEqual(db.locked, ["S2", "S5"])
+        locking = [query for query in db.queries if "FOR UPDATE" in query]
+        self.assertEqual(locking, ["SELECT name FROM `tabCowork Source File` WHERE name IN %(names)s FOR UPDATE"])
+        db = FakeDb(sources={("native_content_hash", "same"): ["S5"]})
+        self.run_guard(db, frappe._dict(content_hash="same"), False)
+        self.assertFalse(any("FOR UPDATE" in query for query in db.queries))
 
     def test_reads_do_not_lock_and_skip_the_hash(self):
         db = FakeDb()

@@ -84,7 +84,7 @@ def submit(recon_job, side, file_name, filename, content, document_type, user):
     arguments = {"recon_job": recon_job, "file": file_name, "filename": filename, "pages": int(info["page_count"]),
                  "sha256": info["sha256"], "document_type": document_type, "settings": frozen}
     try:
-        intake.balance(int(info["page_count"]), frozen["billing_tier"])
+        waiting.balance(lambda: intake.balance(int(info["page_count"]), frozen["billing_tier"]), reference)
         from pearnly_cowork.recon_center import admission
 
         def create():

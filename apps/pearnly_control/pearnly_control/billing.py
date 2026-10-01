@@ -149,6 +149,19 @@ def wallet_of(tenant: str, *, create: bool = True):
     return doc
 
 
+def _store_wallet(wallet) -> None:
+    """扣费路径上写回钱包：一条 UPDATE（余额、本月用量计数、更新时间），不走整份文档保存。
+
+    钱包开着修改留痕，``wallet.save()`` 每扣一笔都在租户锁里多写一条 Version（一次 JSON 对比 + 一行插入）；同一租户的扣费
+    本来就排着队，锁里多花的时间整队都要等（2026-10-01 三租户半量压测：一家 256 张发票，扣费排成一长队，计费服务 8 个线程
+    全被等锁的扣费占住，各租户各产品问余额都超时）。每一笔扣费在台账（Pearnly Credit Transaction）里都有一行，余额怎么来的
+    看台账；充值、调账这些低频的照旧整份保存。"""
+    frappe.db.set_value(WALLET, wallet.name, {
+        "balance_thb": wallet.balance_thb, "pages_used_this_month": int(wallet.pages_used_this_month or 0),
+        "usage_month": wallet.usage_month, "usage_checked": wallet.get("usage_checked"),
+        "updated_at": wallet.updated_at})
+
+
 def balance_of(tenant: str) -> Decimal:
     return _money(frappe.db.get_value(WALLET, {"tenant": tenant}, "balance_thb") or 0)
 
@@ -230,7 +243,7 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
         # 本月按量已用页数的计数与这一行台账同一个事务、同在租户锁里：计数恒等于台账里本月 payg 行的页数之和。
         wallet.pages_used_this_month = int(used) + units
         wallet.usage_month = ym
-    wallet.save(ignore_permissions=True)
+    _store_wallet(wallet)
 
     _write_txn(
         tenant, "usage", -cost, new_balance,
@@ -263,10 +276,11 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
     new_balance = _money(Decimal(str(wallet.balance_thb or 0)) - cost)
     wallet.balance_thb = new_balance
     wallet.updated_at = now()
-    wallet.save(ignore_permissions=True)
+    _store_wallet(wallet)
 
+    # 套餐的本周期用量同理：一条 UPDATE，不每笔多写一条修改留痕（每笔都有台账行）。
     sub.pages_used_this_cycle = used + quota_need
-    sub.save(ignore_permissions=True)
+    frappe.db.set_value(SUBSCRIPTION, sub.name, "pages_used_this_cycle", sub.pages_used_this_cycle)
 
     if cost > 0:
         _write_txn(tenant, "usage", -cost, new_balance,

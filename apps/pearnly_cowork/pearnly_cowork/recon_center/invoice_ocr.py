@@ -120,7 +120,8 @@ def submit(recon_job, files, user):
     names = [core_work.name_for(KIND, reference) for reference in references]
     existing = set(frappe.get_all(WORK, filters={"name": ["in", names]}, pluck="name"))
     if not existing:
-        intake.balance(sum(info["page_count"] for _f, _n, info in inspected), frozen["billing_tier"])
+        waiting.balance(lambda: intake.balance(sum(info["page_count"] for _f, _n, info in inspected),
+                                               frozen["billing_tier"]), f"{recon_job}:invoices")
     works = []
     for index, (file_name, filename, info) in enumerate(inspected):
         arguments = {"recon_job": recon_job, "file": file_name, "filename": filename, "pages": info["page_count"],

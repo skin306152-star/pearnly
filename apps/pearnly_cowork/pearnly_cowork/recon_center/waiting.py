@@ -85,6 +85,31 @@ def settle(key, evaluate):
     return value
 
 
+# 计费服务一时查不到余额（扣费集中时排队、超时）：对账不直接判失败，隔一会儿再查，最多等这么久。等的时候同样不占进程。
+BALANCE_RETRY_SECONDS = 30
+BALANCE_WAIT_SECONDS = 10 * 60
+
+
+def balance(check, key):
+    """``check()`` 查余额（``ocr.execution.service.balance``）。查不到（``lookup_error``）就交还进程、过一会儿再跑一轮查，
+    到 ``BALANCE_WAIT_SECONDS`` 还查不到才把错误抛出去；余额不足照旧马上抛（2026-10-01 三租户半量压测：计费服务排队时
+    6 套对账因「暂时查不到账户余额」直接失败）。"""
+    from pearnly_core.execution.errors import Deferred
+
+    def evaluate(clock, now):
+        try:
+            return check()
+        except Deferred as error:
+            if getattr(error, "reason", "") != "lookup_error":
+                raise
+            if now - clock.setdefault("entered", now) > BALANCE_WAIT_SECONDS:
+                raise
+            frappe.db.commit()
+            raise Pending(due=now + BALANCE_RETRY_SECONDS)
+
+    return settle(f"balance:{key}", evaluate)
+
+
 # ── 记录 ─────────────────────────────────────────────────────────────────────
 
 
