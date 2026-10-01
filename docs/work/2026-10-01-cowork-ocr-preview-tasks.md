@@ -374,6 +374,15 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
   persist / settle`），容器标准输出，随下一批上。下一轮 100 人：本窗口开 Cloud Tasks 投递日志（测完关）+ 服务器每 2 秒采样识别进程 CPU，
   压测窗口做 py-spy。
 
+## 2026-10-02 追加（压测窗口转来的两项）
+
+- 27 页扫描件（testcowork 577624e5…）单页 9–36 秒：不是 flash-lite（它拿到回复 2–13 秒），是读字。PDF 页按 200 DPI 渲染成无损 PNG
+  约 3.3MB、不走读字缩小，全球入口读字 6–8 秒；全球入口回 8/14 后转美国入口，上传要 25–31 秒，第一次 15 秒截断再付费重发。
+  修：读字首次与重发都按图大小多给时间（每 MB 10 秒）；发票识别补记成本（原来恒为 0，价目挪到 `ocr/engine/cost.py` 共用）。
+  PDF 页改 JPEG 90（约 0.65MB）属读法改动：开关 `OCR_PDF_PAGE_JPEG_QUALITY`（Cloud Run 环境变量，默认关），金标对比不降质才打开。
+- 重复上传照样扣费：现有设计（重复判定只是提醒；扣费按识别单参考号防重）。用户 2026-10-02 定：保持现状。
+- testcowork 等站 99 份识别单停在 recognizing 等：Work 都已终态、页面按 Work 显示、未扣费，均为旧版本或中断留下，不需要改。
+
 ## 收尾登记
 
 - 分支 `codex/cowork-ocr-preview-tasks`、`codex/cowork-provider-retries`：内容已经由发布分支 / 快进合入 main（e7cca8a2、5f97938c、
@@ -381,8 +390,10 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 - 2026-10-02 已删：本地与远端 `codex/cowork-lite-timeouts`、`codex/cowork-adaptive-dispatch`、`codex/cowork-adaptive-pools`、
   `codex/cowork-capacity-wait`（都是 main 的祖先）；本地 `codex/cowork-callback-writes`、`codex/cowork-ocr-preview-tasks`（无远端；
   `git cherry` 核对每个提交在 main 上都有等价补丁，变基后 SHA 不同才用了 -D）。
-- Cloud Run 评测修订版 `cowork-ocr-00020-miy`（标签 `eval`，0% 流量，2026-10-01 22:49Z，修复窗口分支 `codex/invoice-read-rules` fd46ca38 的提示词）：
-  **交接保留**，修复窗口在 testcowork 上跑完 eval2、把站点地址改回主地址后通知本窗口删标签。之后发 Cloud Run 时流量按修订版名固定着，
+- Cloud Run 评测标签 `eval`（0% 流量；修复窗口分支 `codex/invoice-read-rules` 的提示词，依次 00020 fd46ca38、00021 df81e3e4、
+  00023 61e28855、00024 6172790）和服务级自定义受众（标签地址；派发令牌以站点配置的地址为受众，标签地址不加自定义受众回 401，
+  2026-10-01 23:00Z 实测）：**交接保留**，修复窗口跑完 eval3、testcowork 地址改回主地址后通知本窗口，删标签并
+  `--remove-custom-audiences`。加自定义受众后生产主地址照常 200（23:11Z 回读）。之后发 Cloud Run 时流量按修订版名固定着，
   发布后要 `gcloud run services update-traffic cowork-ocr --to-latest` 并回读 100%。
 - 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-run-timing`：**交接保留**（计时日志未合入，
   等下一批；下一轮 100 人拆分完成后复核）。
