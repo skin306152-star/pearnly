@@ -219,6 +219,9 @@
   ```
   回读：`bench --site <站点> show-config` 里能看到这一项；`bench --site <站点> console` 里
   `from pearnly_cowork.ocr.remote import tasks; tasks.settings()` 不是 None（配置不合规时是 None，即仍走原路）。
+  **网页进程按 60 秒缓存站点配置**：改开关后最多 60 秒才在所有进程生效（2026-10-01 测试租户实测）。
+  开之前先自检：`bench --site <站点> execute pearnly_cowork.ocr.remote.tasks.self_check`，`ok` 为 true 才开（真写一个探测对象
+  再删掉、建一个只访问 Cloud Run 健康检查的任务；不 ok 就别开）。
 
 ### 端到端验证（测试租户；全部通过才全开）
 
@@ -258,15 +261,21 @@
 
 ### 回退（任一项不通过，或上线后出问题）
 
+顺序：**先暂停队列、等在途的派发和 Workflows 执行收尾（一般几分钟），再关开关**；要退 Cloud Run 镜像时，必须先关开关、等在途清空
+再切修订（旧镜像不认 `external` 状态、没有回调接口）。直接关开关也能收尾、客户不会被重复扣费，但还在进行的预热和改走按行等回复的
+那次可能同时读同一页，谷歌那边会多付一次（2026-10-01 复查）。
+
 ```bash
+gcloud tasks queues pause cowork-ocr --project pearnly --location asia-southeast1
+gcloud workflows executions list cowork-document --project pearnly --location asia-southeast1 --filter="state=ACTIVE"   # 等到为空
 # 任务派发 / Workflows：回到按行等回复（进行中的照样能收尾：回调到了被拒，识别任务 5 分钟内按原路从云上检查点接着读，不重复付费）
 bench --site <站点> set-config -p pearnly_cowork_ocr_tasks '{"enabled": 0}'
 # 预览预存：不再存、不再用存好的图，回到现画
 bench --site <站点> set-config pearnly_cowork_stored_previews 0
 # 需要连 Cloud Run 一起退：切回上一个修订
 gcloud run services update-traffic cowork-ocr --project pearnly --region asia-southeast1 --to-revisions <上一个修订>=100
-# 队列可暂停（不收费，留着也不收费）
-gcloud tasks queues pause cowork-ocr --project pearnly --location asia-southeast1
+# 重新打开队列（恢复前）
+gcloud tasks queues resume cowork-ocr --project pearnly --location asia-southeast1
 ```
 
 ### 回调能否从谷歌访问到（按仓库配置核对）
@@ -274,6 +283,22 @@ gcloud tasks queues pause cowork-ocr --project pearnly --location asia-southeast
 租户域名直接解析到生产机（压测窗口查过，不经 Cloudflare）；主机 nginx 租户配置（`provision-agent.py::nginx`）对 `location /` 全部
 原样转给前端 nginx，没有按路径 / 来源拦截；前端 nginx（`frappe.conf.template`）同样把 `/api/method/…` 交给网页进程；防火墙放行 443。
 回调体很小（几百字节），远低于 30 MB 上限。生产实际情况以上面第 2 步真实回调一次为准。
+
+## 识别调用的重试规则（批次 A，2026-10-01；修复窗口照此推到其余对外调用）
+
+| 情况 | 规则 | 付费与检查点 |
+|---|---|---|
+| 谷歌 429 / 503 / 额度用完 | 暂缓（`provider_quota`）：Gemini 立刻换备用入口（全球 → 美国 → 欧洲），读字换区域，都不行原地短等（每步 ≤ 20 秒、累计 ≤ 60 秒）后交回识别任务稍后续跑；同时反馈限流冷却（10 秒内 3 次才整体放慢） | 被拒的请求不计费；检查点记「已拒（暂缓）」，续跑可以重发 |
+| 谷歌 500 / 502 / 504 | **一律暂缓（`provider_5xx`）**，录入发票也一样（原来当终局拒绝）：Vision 原地隔 2 秒再试 2 次，Gemini 换入口，读字换区域；不放慢别的请求 | 失败的请求不计费；同上 |
+| 结果不明（读超时、连接断） | **重发一次**（录入发票的模型调用、Vision 原来不重发、整份判结果不明）：同样内容、尝试号 + 1（新检查点）；再不明才判结果不明 | 被放弃的那次谷歌可能已收费（只在长尾时）；续跑时直接取重发那次，不再付费 |
+| 单次等待上限 | Vision 第一次 15 秒（正常不到 1 秒），没回按「结果不明」重发、重发用原上限（60 秒）；Gemini 不收紧（今天 70–180 秒成功的不少，收紧只会多付不会更快），对账抽取 180 秒照旧 | 同上 |
+| 谷歌明确拒绝（4xx、回的不是 JSON） | 终局：按拒绝原因记失败码（不再是 `workflow_error`），记一份拒绝证据，续跑不重付 | 不重发 |
+| 预热（Workflows） | 不重发结果不明的调用、碰上正在进行的同一调用就跳过，留给整份那一遍 | 预热不会多付 |
+
+派发路径（Cloud Tasks / Workflows / 回调）：回调只有 200 / 404 算送达，其余重试；结果已写好的重试只补回调；同一份另一个实例在读时
+不写结果、回 503 稍后再投；桶 / 令牌一时出错回 503；Workflows 整份那一遍按「谷歌默认判据 + 500」重试约 40 分钟，用完由 Cloud Run
+转告站点（`failed`），站点立刻重新派发；站点兜底每 5 分钟去桶里直接看结果（回调丢了最多晚 5 分钟）；建任务连续失败 3 次改走按行等回复
+并记错误日志；在途派发按与按行等回复同一份名额配置计数（全站 / 每租户），同时预热的文件最多 6 份（满了不预热、照常派发）。
 
 ## 验证与合入状态（2026-10-01）
 

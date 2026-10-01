@@ -201,6 +201,21 @@ class Direct(unittest.TestCase):
             self.assertEqual(logged.records[0].args[1], reason)
             self.assertNotIn("scan.pdf", logged.output[0])
 
+    def test_finish_asks_the_page_to_retry_when_this_process_already_waits_on_two_checks(self):
+        from pearnly_cowork.ocr.remote import forward
+
+        for _slot in range(2):
+            service.INSPECT_SLOTS.acquire()
+        try:
+            with mock.patch.object(forward, "inspect_original") as inspect:
+                self.assertEqual(service.finish_direct("WS1", "scan.pdf", 1234, "k1"), {"retry": 3})
+            inspect.assert_not_called()
+        finally:
+            for _slot in range(2):
+                service.INSPECT_SLOTS.release()
+        result, _inspect = self.finish(self.inspected())        # 名额空出来就照常核对登记
+        self.assertEqual(result["page_count"], 3)
+
     def test_finish_asks_the_page_to_retry_when_cloud_run_is_busy(self):
         from pearnly_core.execution.errors import Deferred
         from pearnly_cowork.ocr.remote import forward
@@ -306,6 +321,24 @@ class StoredPreviews(unittest.TestCase):
                         frappe._dict(source, preview_objects=record.replace('"version":1', '"version":0')),
                         frappe._dict(source, preview_objects=None)):
             self.assertIsNone(service.preview_link(changed, 3))
+
+    def test_drawing_a_page_waits_for_a_slot_and_then_says_try_again(self):
+        source = self.source(b"%PDF old")
+        for _slot in range(2):
+            service.RENDER_SLOTS.acquire()
+        try:
+            with mock.patch.object(service, "RENDER_WAIT_SECONDS", 0.05), \
+                    mock.patch.object(service, "_", side_effect=lambda text: text), \
+                    mock.patch.object(service.frappe, "throw", side_effect=lambda message, *a, **k: (_ for _ in ()).throw(Thrown(message))), \
+                    mock.patch.object(service, "_render_page") as draw, self.assertRaises(Thrown) as caught:
+                service.render_page(source, 1)
+            draw.assert_not_called()
+            self.assertEqual(str(caught.exception), "The preview is temporarily unavailable. Please try again.")
+        finally:
+            for _slot in range(2):
+                service.RENDER_SLOTS.release()
+        with mock.patch.object(service, "_render_page", return_value=b"PNG"):
+            self.assertEqual(service.render_page(source, 1), b"PNG")
 
     def test_the_rollback_switch_stops_storing_and_serving(self):
         data = b"%PDF synthetic"

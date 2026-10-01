@@ -100,21 +100,29 @@ class Store:
     def acquire(self, now=time.time, seconds=LEASE_SECONDS):
         """``seconds``：这次最多读多久 + 余量（任务派发时让出得晚，租约跟着长，见 ``recognize``）。"""
         name, value = self._prefix + "lease", {"until": now() + seconds}
-        if self._backend.create(name, value) is not None:
-            self._lease = name
+        generation = self._backend.create(name, value)
+        if generation is not None:
+            self._lease = (name, generation)
             return
         found = self._backend.get(name)
         if found and found[0].get("until", 0) > now():
             raise Busy()
         # 上一个实例没收尾就没了（实例被回收）：租约过期后接手；同时有两个来接手，只有一个写得进。
-        if found is None or self._backend.put(name, value, if_generation=found[1]) is None:
+        generation = None if found is None else self._backend.put(name, value, if_generation=found[1])
+        if generation is None:
             raise Busy()
-        self._lease = name
+        self._lease = (name, generation)
 
     def release(self):
+        """只删自己那一版租约：租约过期后被别的实例接手了，就不去删别人的（2026-10-01 复查）。"""
         if self._lease:
-            self._backend.delete(self._lease)
+            name, generation = self._lease
             self._lease = None
+            remove = getattr(self._backend, "delete_generation", None)
+            if remove:
+                remove(name, generation)
+            else:
+                self._backend.delete(name)
 
 
 class NotWarm(Exception):
@@ -418,7 +426,7 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
             return
     store = Store(backend, body["site"], body["work"])
     try:
-        store.acquire(seconds=max(LEASE_SECONDS, int(body.get("yield_seconds", contract.YIELD_SECONDS)) + 240))
+        store.acquire(seconds=max(LEASE_SECONDS, int(body.get("yield_seconds", contract.YIELD_SECONDS)) + 600))
     except Busy:
         emit(contract.result("deferred", reason="remote_busy", delay=15))
         return
@@ -615,11 +623,12 @@ class ProgressSender:
         body = contract.callback("progress", site=self._envelope["site"], work=self._envelope["work"],
                                  dispatch=self._envelope["dispatch"], events=batch, seq=seq)
         try:
-            self._send(body)
+            delivered = self._send(body) == 200
         except Exception:  # noqa: BLE001 - 进度只作展示
-            pass
-        with self._lock:
-            self._sent = seq + len(batch)
+            delivered = False
+        if delivered:  # 没送到就不往前推，下次连同新事件一起再送（站点按顺序号去重）
+            with self._lock:
+                self._sent = seq + len(batch)
 
     def _run(self):
         while not self._stop.wait(PROGRESS_SECONDS):
@@ -654,6 +663,20 @@ def task(envelope, backend, access_token, *, id_token, post=None, orient, page_s
         log(event="task_invalid", detail=str(exc)[:200])
         return 400
     name = contract.task_object(envelope["site"], envelope["work"], envelope["dispatch"], "reply.json")
+    try:
+        return _task(envelope, name, backend, access_token, id_token=id_token, post=post, orient=orient,
+                     page_source=page_source, originals=originals, http=http, clock=clock)
+    except (requests.RequestException, OSError) as exc:  # 桶 / 元数据服务器一时连不上：让 Cloud Tasks / Workflows 稍后重试
+        log(event="task_retry", detail=type(exc).__name__)
+        return 503
+
+
+# 站点收到回调后，这两种回复算送达：200（已记下）、404（站点已关任务派发，这份它会按原路自己接着读）。
+# 其余（401 验签对不上、403 / 429 / 5xx、连不上）都让 Cloud Tasks / Workflows 稍后重试，不悄悄丢掉结果（2026-10-01 复查）。
+DELIVERED = (200, 404)
+
+
+def _task(envelope, name, backend, access_token, *, id_token, post, orient, page_source, originals, http, clock):
     found = backend.get(name)
     if found is None:
         body, failure = _task_parts(envelope, backend)
@@ -679,6 +702,11 @@ def task(envelope, backend, access_token, *, id_token, post=None, orient, page_s
             if sender:
                 sender.stop()
             final = outcome[-1] if outcome else contract.result("error", code="task_no_result")
+            if final["status"] == "deferred" and final.get("reason") == "remote_busy":
+                # 同一份另一个实例正在读（重复投递、上一次还没收尾）：不写结果（先写的赢，会把正在读的那份的真结果挡在外面），
+                # 让 Cloud Tasks / Workflows 稍后再投；到时结果已写好就只补回调（2026-10-01 复查）。
+                log(event="task_busy")
+                return 503
         generation = backend.create(name, contract.reply(final, events))
         if generation is None:  # 同一份任务被重试、另一次先写好了
             found = backend.get(name)
@@ -691,8 +719,7 @@ def task(envelope, backend, access_token, *, id_token, post=None, orient, page_s
     status = _callback(envelope, contract.callback("reply", site=envelope["site"], work=envelope["work"],
                        dispatch=envelope["dispatch"], reply={"object": name, "generation": generation}), id_token, post)
     log(event="task_callback", status=status)
-    # 站点说这份已经不需要（4xx：任务已结束 / 换了派发号）也算交回，不让 Cloud Tasks 反复重试。
-    return 200 if 200 <= status < 500 else 503
+    return 200 if status in DELIVERED else 503
 
 
 def _callback(envelope, body, id_token, post):
@@ -731,8 +758,10 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
                          orient=orient) as source:
             sent = recon_reading.warm_document(source, content, is_pdf,
                 None if is_pdf else recon_reading.image_mime(content), request["document_type"],
-                partial(client.document_ai_call, retry_unknown=True),
-                recon_reading.document_page_failure(partial(client.model_call, retry_unknown=True)),
+                # 预热不重发结果不明的调用（重发就是新的付费调用）：碰上正在进行的同一调用或结果不明就跳过，留给整份那一遍
+                # 按它自己的规则处理（2026-10-01 复查）。
+                partial(client.document_ai_call, retry_unknown=False),
+                recon_reading.document_page_failure(partial(client.model_call, retry_unknown=0)),
                 body["stage"], body["index"])
         status = "done" if sent else "skipped"
     except NotWarm:
@@ -742,3 +771,25 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
     log(event="warm", stage=body["stage"], index=body["index"], status=status,
         seconds=round(time.monotonic() - started, 2))
     return {"status": status}
+
+
+def report_failed(envelope, backend, *, id_token, post=None):
+    """Workflows 这次执行重试用完也没交回：转告站点（回调 ``failed``），站点立刻重新派发，不再干等兜底。
+    结果已经写好的（最后那次其实读完了、只是回调没送到）就改送结果。返回 200 / 503 / 400。"""
+    try:
+        contract.parse_task(envelope)
+    except ValueError:
+        return 400
+    name = contract.task_object(envelope["site"], envelope["work"], envelope["dispatch"], "reply.json")
+    try:
+        found = backend.get(name)
+    except (requests.RequestException, OSError):
+        return 503
+    if found is not None:
+        body = contract.callback("reply", site=envelope["site"], work=envelope["work"], dispatch=envelope["dispatch"],
+                                 reply={"object": name, "generation": found[1]})
+    else:
+        body = contract.callback("failed", site=envelope["site"], work=envelope["work"], dispatch=envelope["dispatch"])
+    status = _callback(envelope, body, id_token, post)
+    log(event="task_failed_reported", status=status)
+    return 200 if status in DELIVERED else 503

@@ -40,8 +40,14 @@ DISPATCH_KEY = "cowork.remote:dispatch"
 REPLY_KEY = "cowork.remote:reply:"
 # 回调没来时多久回来看一眼（兜底；正常是回调唤醒）。共用层暂缓最长 300 秒（``errors.Deferred``）。
 WAIT_SECONDS = 300
-# 派发后这么久还没有结果：当作丢了（Cloud Tasks 重试用完、Workflows 执行失败），重新派发。检查点在桶里，不重复付费。
-LOST_SECONDS = 3 * 3600
+# 派发后这么久还没有结果：当作丢了，重新派发（检查点在桶里，不重复付费）。= 队列最长重试时间（cowork-ocr 队列
+# maxRetryDuration 7200 秒）+ 一次派发最长 1800 秒 + 余量。兜底每次回来都先去桶里看结果（回调丢了最多晚 WAIT_SECONDS），
+# Workflows 重试用完会回调 ``failed``（立刻重派），所以真正等满这么久的只有队列整个停摆。
+LOST_SECONDS = 7200 + 1800 + 600
+# 连续这么多次建任务失败（配置写错、权限没开、接口停用）：这一次改走按行等回复，并记错误日志（不悄悄失败）。
+FALLBACK_AFTER = 3
+# 同时交给 Workflows 分页预热的对账文件最多几份（全站）；满了这份照样派发，只是不预热（一次请求里各页照旧并行）。
+WORKFLOW_MAX = 6
 # Cloud Tasks 单次派发最长 30 分钟；Cloud Run 读到 ``contract.TASK_YIELD_SECONDS`` 就让出，留出最后一次调用的余量。
 DISPATCH_DEADLINE = "1800s"
 # 多页对账文档至少几页才交给 Workflows 分页预热（页少时预热省不了多少，多一跳反而慢）。
@@ -81,6 +87,7 @@ def settings():
     return {"project": value["project"], "location": value["location"], "queue": value["queue"],
             "bucket": value["bucket"], "workflow": workflow, "callback_host": host,
             "workflow_min_pages": minimum if type(minimum) is int and minimum >= 2 else WORKFLOW_MIN_PAGES,
+            "workflow_max": value.get("workflow_max") if type(value.get("workflow_max")) is int else WORKFLOW_MAX,
             "invoker": value.get("invoker") or None}
 
 
@@ -109,7 +116,11 @@ def callback_url(config):
 # ── 一次识别：派发或取回 ────────────────────────────────────────────────────────────────────────────
 
 
-def call(remote, path, body, on_event, *, now=time.time, http=None):
+class Fallback(Exception):
+    """派发一再失败：这一次改走按行等回复（``forward._call``）。"""
+
+
+def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None):
     """取回这份识别任务当前那次派发的结果行（还没有就派发 / 接着等，抛 ``Deferred``）。``remote``：``forward.settings()``。"""
     config = settings()
     work = frappe.flags.get("pearnly_ocr_work")
@@ -117,19 +128,34 @@ def call(remote, path, body, on_event, *, now=time.time, http=None):
     if marker and marker.get("state") == core_work.EXTERNAL and not marker["body"].get("spent"):
         dispatch, at = marker["body"]["id"], float(marker["body"]["at"])
         reply = core_work.checkpoint(REPLY_KEY + dispatch)
-        if reply:
-            final, events = contract.parse_reply(_read_json(config, reply["body"], http=http))
+        reference = reply["body"] if reply else None
+        if reference and reference.get("failed"):
+            # Workflows 重试用完也没读完：立刻重新派发（已读完的在检查点里，不重复付费）
+            _spend(marker)
+            raise Deferred("remote_failed", 15)
+        if reference is None:
+            # 回调丢了（站点维护 / 部署、开关刚改还在缓存里、验签一时对不上）：结果的对象名是确定的，直接去桶里看一眼
+            reference = {"object": contract.task_object(frappe.local.site, work, dispatch, "reply.json"), "generation": None}
+        found = _read_json(config, reference, http=http, missing_ok=reply is None)
+        if found is not None:
+            final, events = contract.parse_reply(found)
             applied = progress_applied(work, dispatch)
             for event in events:
                 if event["seq"] >= applied:
                     on_event({key: value for key, value in event.items() if key != "seq"})
             if final["status"] == "deferred":
-                # 这次没读完（限流超过原地等的上限、另一个实例在跑）：下次进来重新派发
-                core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, {**marker["body"], "spent": True})
+                # 这次没读完（限流超过原地等的上限）：下次进来重新派发；谷歌限流交回的，反馈进与按行等回复同一个冷却
+                # （零星的不算：10 秒内 3 次才整体放慢），冷却期间新的派发先暂缓（``_reserve``）
+                _spend(marker)
+                if bucket and str(final.get("reason") or "").startswith("provider_"):
+                    _cool_down(bucket, final.get("delay"))
+            else:
+                _release(work)
             return final
         waited = now() - at
         if waited < LOST_SECONDS:
             raise Deferred("remote_waiting", max(1, int(min(WAIT_SECONDS, LOST_SECONDS - waited))))
+    workflow = _reserve(config, work, path, body, bucket)
     dispatch = secrets.token_hex(16)
     pool.release_db()  # 存请求、建任务要几百毫秒到几秒（大原件）：不占数据库连接
     try:
@@ -138,14 +164,128 @@ def call(remote, path, body, on_event, *, now=time.time, http=None):
         envelope = contract.task(site=frappe.local.site, work=work, dispatch=dispatch, path=path, generation=generation,
                                  callback=callback_url(config),
                                  progress=path == "/v1/cowork/document" or int(body.get("page_count") or 1) > 1)
-        _create_task(config, remote, envelope, body, http=http)
-    except Exception as exc:  # 连不上、没权限、令牌换不出来：还没派出去，稍后再试（不付费、不判失败）
+        _create_task(config, remote, envelope, body, http=http, workflow=workflow)
+    except Exception as exc:  # 连不上、没权限、令牌换不出来：还没派出去（不付费、不判失败）
         logger.warning("Cowork OCR task dispatch deferred: %s", type(exc).__name__)
+        _release(work)
+        if _failed_again():
+            frappe.log_error(title="Cowork OCR task dispatch failing", message=f"{type(exc).__name__}: {exc}"[:1500])
+            raise Fallback() from exc
         raise Deferred("tasks_unavailable", 15) from exc
+    _dispatched_ok()
     # 先建任务、后记派发号：回调比这一步还快时，回调照样把结果记在这个派发号下、唤醒本任务（``work.wake`` 记得住正在跑的）。
     # 状态 ``external``：共用层据此知道这份可能已在云上付费，排队时限按付过费的算（``work.run``）。
     core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, {"id": dispatch, "at": now()})
     raise Deferred("remote_dispatched", WAIT_SECONDS)
+
+
+def _spend(marker):
+    core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, {**marker["body"], "spent": True})
+
+
+FAILURES = "cowork:tasks:dispatch-failures"
+
+
+def _failed_again():
+    """记一次建任务失败；连续 ``FALLBACK_AFTER`` 次返回 True（这一次改走按行等回复）。记不住就不退回。"""
+    try:
+        count = int(frappe.cache.get_value(FAILURES) or 0) + 1
+        frappe.cache.set_value(FAILURES, count, expires_in_sec=900)
+        return count >= FALLBACK_AFTER
+    except Exception:
+        return False
+
+
+def _dispatched_ok():
+    try:
+        frappe.cache.delete_value(FAILURES)
+    except Exception:
+        pass
+
+
+# ── 名额：任务派发时服务器不再按次拿名额（不等），改为按「在途派发」计数 ─────────────────────────────────────────
+# 与按行等回复同一份配置（``budget.config()`` 的 concurrency / tenant_concurrency），同一个非淘汰 Redis：全站、每租户在途
+# 派发数到上限就像拿不到名额一样暂缓；另记同时交给 Workflows 的文件数，满了这份不预热（2026-10-01 复查：派发路径跳过了名额，
+# Workflows 不受队列并发约束）。在途记录随结果取回释放，最长 ``LOST_SECONDS`` 自动过期。
+OUTSTANDING_KEY = "cowork-tasks"
+WORKFLOWS_KEY = "cowork-workflows"
+RESERVE = """
+local now, member, expiry = tonumber(ARGV[1]), ARGV[2], tonumber(ARGV[3])
+local pause = tonumber(redis.call('GET', KEYS[3]) or '0')
+if pause > now then return -1000 - math.ceil(pause - now) end
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', now)
+if not redis.call('ZSCORE', KEYS[1], member) then
+  if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[4]) then return -1 end
+  local prefix, mine = ARGV[5], 0
+  for _, other in ipairs(redis.call('ZRANGE', KEYS[1], 0, -1)) do
+    if string.sub(other, 1, string.len(prefix)) == prefix then mine = mine + 1 end
+  end
+  if mine >= tonumber(ARGV[6]) then return -1 end
+end
+redis.call('ZADD', KEYS[1], expiry, member)
+if tonumber(ARGV[7]) == 1 and (redis.call('ZSCORE', KEYS[2], member) or redis.call('ZCARD', KEYS[2]) < tonumber(ARGV[8])) then
+  redis.call('ZADD', KEYS[2], expiry, member)
+  return 2
+end
+redis.call('ZREM', KEYS[2], member)
+return 1
+"""
+
+
+def _member(work):
+    from pearnly_core.execution import budget
+
+    return budget.tenant() + ":" + frappe.local.site + ":" + work
+
+
+def _wants_workflow(config, path, body):
+    return bool(config["workflow"] and path == "/v1/cowork/document"
+                and int(body.get("page_count") or 1) >= config["workflow_min_pages"])
+
+
+def _reserve(config, work, path, body, bucket=None):
+    """占一个在途派发名额；拿不到暂缓（谷歌限流冷却中也暂缓）。返回这份要不要交给 Workflows（想要且全站在预热的不足
+    ``WORKFLOW_MAX``）。"""
+    from pearnly_core.execution import budget
+    from redis.exceptions import RedisError
+
+    cfg = budget.config()
+    try:
+        client = budget.redis()
+        stamp = client.time()
+        now = int(stamp[0]) + int(stamp[1]) / 1_000_000
+        pause = budget.PREFIX + (bucket or "cowork-tasks-none") + ":pause"
+        granted = client.eval(RESERVE, 3, budget.PREFIX + OUTSTANDING_KEY, budget.PREFIX + WORKFLOWS_KEY, pause, now,
+            _member(work), now + LOST_SECONDS, cfg["concurrency"], budget.tenant() + ":", cfg["tenant_concurrency"],
+            1 if _wants_workflow(config, path, body) else 0, config.get("workflow_max") or WORKFLOW_MAX)
+    except RedisError as exc:
+        raise Deferred("capacity_unavailable", 15) from exc
+    if int(granted) <= -1000:
+        budget.note("deferred:provider_cooldown", "cloudtasks")
+        raise Deferred("provider_cooldown", min(60, -int(granted) - 1000))
+    if int(granted) < 0:
+        budget.note("deferred:capacity", "cloudtasks")
+        raise Deferred("capacity", 5)
+    return int(granted) == 2
+
+
+def _cool_down(bucket, delay):
+    from pearnly_core.execution import budget
+
+    budget.feedback(bucket, 429, max(5, min(60, float(delay or 15))), True)
+
+
+def _release(work):
+    from pearnly_core.execution import budget
+
+    try:
+        client = budget.redis()
+        member = _member(work)
+        client.zrem(budget.PREFIX + OUTSTANDING_KEY, member)
+        client.zrem(budget.PREFIX + WORKFLOWS_KEY, member)
+    except Exception:
+        pass  # 记录到期自动释放
 
 
 def progress_key(work, dispatch):
@@ -194,12 +334,21 @@ def _create_object(config, name, value, *, http=None):
     return int(response.json()["generation"])
 
 
-def _read_json(config, reference, *, http=None):
-    """回调告诉我们的 ``reply.json``（对象 + 版本号）：按版本号读回。对象名必须在本站点本任务目录下（回调已核对）。"""
-    response = (http or requests).get(
-        f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(reference['object'], safe='')}",
-        params={"alt": "media", "generation": str(int(reference["generation"]))},
-        headers={"Authorization": "Bearer " + _token()}, timeout=(10, 120))
+def _read_json(config, reference, *, http=None, missing_ok=False):
+    """读回 ``reply.json``：回调给了版本号就按版本号读；兜底去桶里看时不带版本号（同一派发号只写一次）。对象名都在
+    本站点本任务目录下（回调已核对、兜底是自己算的）。``missing_ok``：还没有就返回 ``None``（兜底时）。
+    连不上、令牌一时换不出来：暂缓稍后再读（结果在桶里不会丢；2026-10-01 复查：原来会判程序错误、已付的结果作废）。"""
+    params = {"alt": "media"}
+    if reference.get("generation") is not None:
+        params["generation"] = str(int(reference["generation"]))
+    try:
+        response = (http or requests).get(
+            f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(reference['object'], safe='')}",
+            params=params, headers={"Authorization": "Bearer " + _token()}, timeout=(10, 120))
+    except Exception as exc:  # requests 的传输错误、google-auth 换令牌失败
+        raise Deferred("remote_reply_unavailable", 15) from exc
+    if response.status_code == 404 and missing_ok:
+        return None
     if response.status_code in (404, 429) or response.status_code >= 500:
         raise Deferred("remote_reply_unavailable", 15)
     response.raise_for_status()
@@ -214,13 +363,13 @@ def _pages_to_read(body):
     return -(-pages // MAX_PAGES_PER_READ) if body["filename"].lower().endswith(".pdf") else 1
 
 
-def _create_task(config, remote, envelope, body, *, http=None):
+def _create_task(config, remote, envelope, body, *, http=None, workflow=False):
     """建一个 Cloud Task：直接调 Cloud Run（带识别服务账号的身份令牌），或多页对账文档交给 Workflows 新开一次执行。
     任务名由派发号算出：重复提交同一个只会有一个（409 当作已建好）。"""
     parent = f"projects/{config['project']}/locations/{config['location']}/queues/{config['queue']}"
     account = invoker(config)
     pages = int(body.get("page_count") or 1)
-    if config["workflow"] and envelope["path"] == "/v1/cowork/document" and pages >= config["workflow_min_pages"]:
+    if workflow:
         argument = {"task": envelope, "service": remote["url"], "reads": list(range(1, _pages_to_read(body) + 1)),
                     "pages": list(range(1, pages + 1))}
         request = {"url": (f"{EXECUTIONS}/projects/{config['project']}/locations/{config['location']}"
@@ -241,3 +390,46 @@ def _create_task(config, remote, envelope, body, *, http=None):
         return name
     response.raise_for_status()
     return name
+
+
+def self_check(*, http=None):
+    """开开关前（或开着时）自检，真走一遍要用的外部接口，不碰任何识别任务：检查点桶写一个探测对象再删掉；建一个只访问
+    Cloud Run 健康检查（GET /health）的 Cloud Task（验证建任务权限、代签身份、队列）。返回 ``{"ok": bool, …}``。
+    用法：``bench --site <站点> execute pearnly_cowork.ocr.remote.tasks.self_check``（开关要先写进站点配置；结果不 ok 就关掉）。"""
+    from pearnly_cowork.ocr.remote import forward
+
+    value = (frappe.conf or {}).get(CONFIG)
+    config = settings() or (_lenient(value) if isinstance(value, dict) else None)
+    remote = forward.settings()
+    if config is None or remote is None:
+        return {"ok": False, "reason": "not_configured", "tasks": bool(config), "remote": bool(remote)}
+    result = {"ok": False, "bucket": False, "task": False, "callback": callback_url(config)}
+    client = http or requests
+    probe = f"{frappe.local.site}/selfcheck/{secrets.token_hex(8)}.json"
+    try:
+        _create_object(config, probe, {"probe": True}, http=client)
+        client.delete(f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(probe, safe='')}",
+                      headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
+        result["bucket"] = True
+        parent = f"projects/{config['project']}/locations/{config['location']}/queues/{config['queue']}"
+        response = client.post(f"{TASKS}/{parent}/tasks", json={"task": {"httpRequest": {
+            "url": remote["url"] + "/health", "httpMethod": "GET",
+            "oidcToken": {"serviceAccountEmail": invoker(config), "audience": remote["url"]}}}},
+            headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
+        response.raise_for_status()
+        result["task"] = True
+    except Exception as exc:  # noqa: BLE001 - 自检把原因交回，不抛
+        result["error"] = f"{type(exc).__name__}: {exc}"[:300]
+    result["ok"] = result["bucket"] and result["task"]
+    return result
+
+
+def _lenient(value):
+    """自检时开关可以还没打开（``enabled`` 为 0）：照同样的规则校验其余各项。"""
+    with_switch = dict(value, enabled=1)
+    previous = frappe.conf.get(CONFIG)
+    frappe.conf[CONFIG] = with_switch
+    try:
+        return settings()
+    finally:
+        frappe.conf[CONFIG] = previous

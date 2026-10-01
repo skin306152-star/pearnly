@@ -53,13 +53,39 @@ main:
               audience: ${args.service}
             body: ${args.task}
             timeout: 1800
+        # 重试约 40 分钟（10、20、40、80、160 秒，之后每次 300 秒）：熬过站点部署维护、Cloud Run 一时满载；
+        # 500 也重试（桶 / 令牌一时出错时 Cloud Run 回 500 / 503），默认判据不含 500（2026-10-01 复查）。
         retry:
-          predicate: ${http.default_retry_predicate}
-          max_retries: 5
+          predicate: ${retryable}
+          max_retries: 12
           backoff:
             initial_delay: 10
             max_delay: 300
             multiplier: 2
+        except:
+          as: error
+          steps:
+            # 重试用完也没交回：告诉站点这次没读成，站点立刻重新派发（检查点在桶里，不重复付费），不再干等兜底。
+            # （经 Cloud Run 转告：Workflows 的 OIDC 令牌只能放 Authorization 头，Frappe 会当成它自己的 OAuth 令牌拦下。）
+            - report_failed:
+                try:
+                  call: http.post
+                  args:
+                    url: ${args.service + "/v1/cowork/failed"}
+                    auth:
+                      type: OIDC
+                      audience: ${args.service}
+                    body: ${args.task}
+                    timeout: 60
+                retry:
+                  predicate: ${retryable}
+                  max_retries: 5
+                  backoff:
+                    initial_delay: 10
+                    max_delay: 120
+                    multiplier: 2
+            - give_up:
+                raise: ${error}
     - done:
         return: "ok"
 
@@ -95,3 +121,14 @@ warm:
                 return: "skipped"
     - ok:
         return: "ok"
+
+# 可重试：谷歌默认判据（429、502、503、504、连接断开 / 超时）再加 500。
+retryable:
+  params: [e]
+  steps:
+    - check:
+        switch:
+          - condition: ${"code" in e and e.code == 500}
+            return: true
+    - fallback:
+        return: ${http.default_retry_predicate(e)}

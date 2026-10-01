@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import re
+import threading
 
 import frappe
 from frappe import _
@@ -153,6 +154,14 @@ def begin_direct(workspace, filename, byte_size, request_key, client=None):
     return {"direct": 1, **target}
 
 
+# 网页进程里同时等 Cloud Run 核对原件 / 现画页图的上限（每进程）：超出的直传确认让页面过几秒再来（页面本来就认 ``retry``），
+# 页图稍等片刻、还轮不到就回「稍后再试」（页面会自动再要几次）。不让这两件事占满网页线程（2026-10-01 复查：4 个人同时批量
+# 上传就能占满 24 个网页线程，连只做 302 的请求都要排队）。
+INSPECT_SLOTS = threading.BoundedSemaphore(2)
+RENDER_SLOTS = threading.BoundedSemaphore(2)
+RENDER_WAIT_SECONDS = 10
+
+
 def finish_direct(workspace, filename, byte_size, request_key, client=None):
     """浏览器直传第二步：Cloud Run 读一遍原件（类型、页数、sha256，同 :func:`inspect_content`），通过就登记。"""
     from pearnly_core.execution.errors import Deferred
@@ -165,10 +174,14 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
     if frappe.db.exists(access.SOURCE, name):
         return project(_existing(name, None, filename=filename, byte_size=byte_size))
     object_name = cloud.object_name(frappe.local.site, name, suffix)
+    if not INSPECT_SLOTS.acquire(blocking=False):
+        return {"retry": 3}  # 这个进程已有两份在等核对：页面过几秒再来（核对内容一点不放宽）
     try:
         result = forward.inspect_original(object_name, filename)
     except Deferred as error:
         return {"retry": max(1, int(error.delay or 5))}  # Cloud Run 一时连不上 / 忙：页面过几秒再来确认
+    finally:
+        INSPECT_SLOTS.release()
     if result["status"] != "ok":
         if result.get("code") == "original_missing":
             _not_received(name, "original_missing")
@@ -413,7 +426,16 @@ def page(history_name, physical_page):
 
 
 def render_page(source, number):
-    """现画一页预览（调用方先做完 :func:`page_source` 的权限判定）。"""
+    """现画一页预览（调用方先做完 :func:`page_source` 的权限判定）。每进程同时最多现画 ``RENDER_SLOTS`` 页。"""
+    if not RENDER_SLOTS.acquire(timeout=RENDER_WAIT_SECONDS):
+        frappe.throw(_("The preview is temporarily unavailable. Please try again."))
+    try:
+        return _render_page(source, number)
+    finally:
+        RENDER_SLOTS.release()
+
+
+def _render_page(source, number):
     stored = stored_original(source)
     if stored:
         # 原件在原件桶里：在 Cloud Run 上生成这一页的预览，只把生成好的图传回来（不把整份原件下载到服务器，ADR-016）。

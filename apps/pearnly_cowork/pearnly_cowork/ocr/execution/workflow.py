@@ -118,7 +118,9 @@ def _recognize(doc, frozen, examples, source):
         doc = _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
         # 只放在内存里交给紧接着的落库（``_persist``），随绑定原件那一次保存写进原件记录，不额外写原件表；
         # 中途断掉没记上也没关系：预览照旧现画。
-        doc.flags.cowork_previews = previews[0] if previews else None
+        flags = getattr(doc, "flags", None)
+        if flags is not None:
+            flags.cowork_previews = previews[0] if previews else None
         return doc
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
@@ -194,7 +196,7 @@ def _persist(doc):
         source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
         payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
         reference_kind=doc.get("reference_kind") or "physical_page")
-    previews = doc.flags.get("cowork_previews")
+    previews = (getattr(doc, "flags", None) or {}).get("cowork_previews")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
     doc = store.read(doc.name, lock=True, write=True, authorize=False)

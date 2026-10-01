@@ -128,7 +128,7 @@ def inspect_original(object_name, filename, *, post=None, id_token=None):
     pool.release_db()
     try:
         token = (id_token or _id_token)(config["url"])
-        response = (post or provider.http_post)(config["url"] + PATHS["inspect"], json=body, timeout=(30, 120),
+        response = (post or provider.http_post)(config["url"] + PATHS["inspect"], json=body, timeout=(10, 60),
                                                  headers={"Authorization": "Bearer " + token})
     except (requests.ConnectionError, requests.Timeout) as exc:
         raise Deferred("remote_unreachable", 5) from exc
@@ -222,7 +222,11 @@ def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sle
     开了任务派发（``tasks``，站点配置 ``pearnly_cowork_ocr_tasks``）时改为交给 Cloud Tasks 就返回（抛 ``Deferred``，不占线程
     等），结果回调到了再进来取回；拿到的结果行与这里按行读到的同一形状，之后的处理完全相同。"""
     if tasks.active():
-        return _outcome(tasks.call(config, path, body, on_event))
+        bucket = budget.scope("cloudrun", frozen["environment"].get("GCP_PROJECT", ""), "cowork", path.rsplit("/", 1)[-1])
+        try:
+            return _outcome(tasks.call(config, path, body, on_event, bucket=bucket))
+        except tasks.Fallback:
+            pass  # 派发一再失败（已记错误日志）：这一次照旧按行等回复
     return _outcome(_stream(config, path, body, on_event, frozen, post=post, id_token=id_token, sleep=sleep))
 
 

@@ -528,8 +528,38 @@ class TaskDelivery(unittest.TestCase):
         self.assertEqual(self.task(bucket, envelope, google), 200)
         self.assertEqual(len(google.payloads), paid)
         self.assertEqual([contract.parse_callback(c[1])["type"] for c in self.calls], ["reply", "reply"])
-        # 站点说这份不需要了（4xx）也算交回：不让 Cloud Tasks 反复重试
-        self.assertEqual(self.task(bucket, envelope, google, statuses=[409]), 200)
+        # 只有 200（已记下）、404（站点已关开关）算送达；401 / 403 / 429 / 5xx 都让 Cloud Tasks 稍后重试，不悄悄丢掉结果
+        for status, expected in ((404, 200), (401, 503), (403, 503), (429, 503), (500, 503)):
+            self.assertEqual(self.task(bucket, envelope, google, statuses=[status]), expected, status)
+        self.assertEqual(len(google.payloads), paid)
+
+    def test_a_second_delivery_while_the_first_is_reading_writes_nothing_and_asks_to_retry(self):
+        bucket, google = Bucket(), PagedGoogle()
+        envelope = staged(bucket, document_body(pdf(1), 1))
+        runner.Store(bucket, SITE, WORK).acquire()          # 第一次投递还在读（占着租约）
+        self.assertEqual(self.task(bucket, envelope, google), 503)
+        self.assertNotIn(contract.task_object(SITE, WORK, "d" * 32, "reply.json"), bucket.objects)
+        self.assertEqual(google.payloads, [])
+        self.assertEqual(self.calls, [])
+
+    def test_a_bucket_or_token_hiccup_asks_to_retry_instead_of_failing(self):
+        class Flaky(Bucket):
+            def get(self, name):
+                raise requests.ConnectionError("synthetic")
+
+        self.assertEqual(self.task(Flaky(), staged(Bucket(), document_body(pdf(1), 1)), PagedGoogle()), 503)
+
+    def test_a_workflow_that_gave_up_is_reported_so_the_site_dispatches_again(self):
+        bucket = Bucket()
+        envelope = staged(bucket, document_body(pdf(1), 1))
+        self.assertEqual(runner.report_failed(envelope, bucket, id_token=lambda audience: "T",
+                                              post=self.post([200])), 200)
+        self.assertEqual(contract.parse_callback(self.calls[-1][1])["type"], "failed")
+        reply = contract.task_object(SITE, WORK, "d" * 32, "reply.json")
+        bucket.create(reply, contract.reply(contract.result("done", legacy={}), []))
+        self.assertEqual(runner.report_failed(envelope, bucket, id_token=lambda audience: "T",
+                                              post=self.post([503])), 503)
+        self.assertEqual(contract.parse_callback(self.calls[-1][1])["type"], "reply")   # 其实读完了：改送结果
 
     def test_a_missing_or_foreign_request_comes_back_as_an_error_result(self):
         bucket = Bucket()
@@ -551,9 +581,9 @@ class TaskDelivery(unittest.TestCase):
     def test_task_delivery_may_read_longer_before_yielding_but_streaming_may_not(self):
         body = document_body(pdf(1), 1)
         envelope = staged(Bucket(), body)
-        self.assertEqual(contract.task_request(dict(envelope, yield_seconds=1500), body)["yield_seconds"], 1500)
+        self.assertEqual(contract.task_request(dict(envelope, yield_seconds=1200), body)["yield_seconds"], 1200)
         with self.assertRaises(ValueError):
-            contract.parse_request(dict(body, yield_seconds=1500))
+            contract.parse_request(dict(body, yield_seconds=1200))
         with self.assertRaises(ValueError):
             contract.parse_request(dict(body, delivery="task", yield_seconds=contract.TASK_YIELD_SECONDS + 1))
 
@@ -568,7 +598,7 @@ class TaskDelivery(unittest.TestCase):
     def test_progress_goes_out_in_numbered_batches(self):
         sent = []
         envelope = staged(Bucket(), document_body(pdf(1), 1), progress=True)
-        sender = runner.ProgressSender(envelope, sent.append)
+        sender = runner.ProgressSender(envelope, lambda body: sent.append(body) or 200)
         for page in (1, 2, 3):
             sender.add({"event": "read", "pages": 1})
         sender._flush()
@@ -576,6 +606,16 @@ class TaskDelivery(unittest.TestCase):
         sender._flush()
         sender._flush()   # 没有新事件不发
         self.assertEqual([(b["seq"], len(b["events"])) for b in sent], [(0, 3), (3, 1)])
+
+    def test_progress_that_did_not_get_through_is_sent_again(self):
+        sent, statuses = [], [0, 200]
+        envelope = staged(Bucket(), document_body(pdf(1), 1), progress=True)
+        sender = runner.ProgressSender(envelope, lambda body: sent.append(body) or statuses.pop(0))
+        sender.add({"event": "read", "pages": 1})
+        sender._flush()
+        sender.add({"event": "unread", "page": 1})
+        sender._flush()
+        self.assertEqual([(b["seq"], len(b["events"])) for b in sent], [(0, 1), (0, 2)])
 
 
 class WarmThenWhole(unittest.TestCase):
@@ -627,6 +667,23 @@ class WarmThenWhole(unittest.TestCase):
         bucket, google = Bucket(), PagedGoogle()
         envelope = staged(bucket, document_body(pdf(3), 3))
         self.assertEqual(self.warm(bucket, envelope, google, "extract", 1), {"status": "not_ready"})
+        self.assertEqual(google.payloads, [])
+
+    def test_warming_a_call_that_is_already_in_flight_pays_nothing(self):
+        import hashlib
+
+        bucket, google = Bucket(), PagedGoogle()
+        envelope = staged(bucket, document_body(pdf(2), 2))
+        # 另一路正在读第 1 块（检查点「started」，还没回来）
+        original = runner.Store.put
+
+        def started_elsewhere(store, key, state, body=None):
+            if state == "started":
+                raise Uncertain("Provider call already started elsewhere")
+            return original(store, key, state, body)
+
+        with patch.object(runner.Store, "put", started_elsewhere):
+            self.assertTrue(self.warm(bucket, envelope, google, "read", 1)["status"].startswith("error"))
         self.assertEqual(google.payloads, [])
 
     def test_pages_beyond_the_document_are_skipped(self):
@@ -720,6 +777,23 @@ class Lease(unittest.TestCase):
         runner.Store(bucket, SITE, WORK).acquire()
         final = remote(bucket, Google())[-1]
         self.assertEqual((final["status"], final["reason"]), ("deferred", "remote_busy"))
+
+    def test_a_lease_taken_over_by_another_instance_is_not_released_by_the_old_one(self):
+        class Versioned(Bucket):
+            def delete_generation(self, name, generation):
+                with self.lock:
+                    if name in self.objects and self.objects[name][1] == generation:
+                        self.objects.pop(name)
+
+        bucket = Versioned()
+        old = runner.Store(bucket, SITE, WORK)
+        old.acquire(now=lambda: 1000)
+        new = runner.Store(bucket, SITE, WORK)
+        new.acquire(now=lambda: 1000 + runner.LEASE_SECONDS + 1)   # 过期后被接手
+        old.release()
+        self.assertIn(f"{SITE}/{WORK}/lease", bucket.objects)     # 新实例的租约还在
+        new.release()
+        self.assertNotIn(f"{SITE}/{WORK}/lease", bucket.objects)
 
     def test_the_lease_is_released_after_a_run(self):
         bucket = Bucket()

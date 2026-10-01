@@ -6,6 +6,7 @@ POST /v1/cowork/inspect   浏览器直传到原件桶的一份原件读一遍、
 POST /v1/cowork/preview   原件桶里一份原件的一页预览（PNG，大的照片 / 扫描件 JPEG）；不行时回 422 + {"code": …}
 POST /v1/cowork/task      Cloud Tasks / Workflows 交来的一份（任务派发，默认不用）：读完写结果、回调站点，回 200 / 503
 POST /v1/cowork/warm      Workflows 的预热一步：多页对账文档的一块读字或一页第一遍抽取，回一个 JSON
+POST /v1/cowork/failed    Workflows 重试用完：转告站点这次没读成（站点立刻重新派发）
 GET  /health              存活检查（Cloud Run 保留了以 z 结尾的路径，/healthz 到不了容器）
 """
 import json
@@ -18,7 +19,7 @@ from pearnly_cowork.ocr.remote import gcs, runner
 
 MAX_BODY = 30 * 1024 * 1024
 PATHS = ("/v1/cowork/invoice", "/v1/cowork/document", "/v1/cowork/inspect", "/v1/cowork/preview", "/v1/cowork/task",
-         "/v1/cowork/warm")
+         "/v1/cowork/warm", "/v1/cowork/failed")
 _bucket = None
 _originals = None
 _id_tokens = None
@@ -83,6 +84,11 @@ def application(environ, start_response):
         bucket, token = _backend()
         status = runner.task(body, bucket, token, id_token=_tokens(), orient=orient, page_source=PageSource,
                              originals=_originals_bucket())
+        reasons = {200: "200 OK", 400: "400 Bad Request", 503: "503 Service Unavailable"}
+        start_response(reasons.get(status, "503 Service Unavailable"), [("Content-Type", "text/plain")])
+        return [b"ok" if status == 200 else b"retry"]
+    if path == "/v1/cowork/failed":
+        status = runner.report_failed(body, _backend()[0], id_token=_tokens())
         reasons = {200: "200 OK", 400: "400 Bad Request", 503: "503 Service Unavailable"}
         start_response(reasons.get(status, "503 Service Unavailable"), [("Content-Type", "text/plain")])
         return [b"ok" if status == 200 else b"retry"]

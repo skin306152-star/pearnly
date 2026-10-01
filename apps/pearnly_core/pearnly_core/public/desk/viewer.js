@@ -72,8 +72,18 @@
 				const result = await load(row, number);
 				if (!alive || version !== revision) return;
 				pages = result.pages || 1;
-				image.attr({src: result.image, alt: row.file_name});
-				await image[0].decode();
+				// 页图一时拿不到（服务器正忙着现画别的页、回 503）：隔一会儿再要，最多再试 3 次，不直接显示「无法加载」。
+				for (let attempt = 0; ; attempt++) {
+					const retry = attempt ? `${result.image.includes("?") ? "&" : "?"}retry=${attempt}` : "";
+					image.attr({src: result.image + retry, alt: row.file_name});
+					try {
+						await image[0].decode();
+						break;
+					} catch (error) {
+						if (attempt >= 3 || !alive || version !== revision) throw error;
+						await new Promise(resolve => setTimeout(resolve, 1500 * (attempt + 1)));
+					}
+				}
 				if (!alive || version !== revision) return;
 				loaded = true; status.hide(); image.show(); update();
 				on_page?.(row, page, pages);

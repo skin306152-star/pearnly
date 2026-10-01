@@ -23,8 +23,14 @@ CERTS = "https://www.googleapis.com/oauth2/v1/certs"
 ISSUERS = ("accounts.google.com", "https://accounts.google.com")
 ACTIVE = ("queued", "running", "deferred")
 KINDS = ("cowork.invoice", "cowork.vat_check", "cowork.recon_document")
-_certs = {"value": None, "until": 0.0}
+_certs = {"value": None, "until": 0.0, "refreshed": 0.0}
 _lock = threading.Lock()
+# 遇到不认识的 kid 时最多这么久强制重取一次公钥（伪造的令牌不能让每个请求都去谷歌等公钥、占住网页线程）。
+REFRESH_SECONDS = 60
+# 验签不通过记错误日志，每个进程最多这么久记一次（防刷屏）。
+REFUSED_LOG_SECONDS = 300
+_refused = {"at": 0.0}
+PROGRESS_KEY = "cowork.remote:progress"
 
 
 class Refused(Exception):
@@ -36,7 +42,8 @@ def google_certs(*, refresh=False, http=None, clock=time.time):
     import requests
 
     with _lock:
-        if not refresh and _certs["value"] and _certs["until"] > clock():
+        fresh = _certs["value"] and _certs["until"] > clock()
+        if fresh and (not refresh or clock() - _certs["refreshed"] < REFRESH_SECONDS):
             return _certs["value"]
     response = (http or requests).get(CERTS, timeout=(5, 10))
     response.raise_for_status()
@@ -46,7 +53,7 @@ def google_certs(*, refresh=False, http=None, clock=time.time):
         if name == "max-age" and value.isdigit():
             age = int(value)
     with _lock:
-        _certs.update(value=response.json(), until=clock() + max(60, min(age, 86400)))
+        _certs.update(value=response.json(), until=clock() + max(60, min(age, 86400)), refreshed=clock())
         return _certs["value"]
 
 
@@ -77,8 +84,9 @@ def receive():
         return {"ok": 0}
     try:
         verify(frappe.get_request_header(HEADER), tasks.callback_url(config), tasks.invoker(config))
-    except Refused:
+    except Refused as refused:
         frappe.local.response.http_status_code = 401
+        _log_refused(str(refused))
         return {"ok": 0}
     try:
         body = contract.parse_callback(json.loads(frappe.request.get_data() or b"{}"))
@@ -89,13 +97,34 @@ def receive():
     row = frappe.db.get_value(core_work.DT, body["work"], ["kind", "status", "arguments", "user"], as_dict=True)
     if not row or row.kind not in KINDS or row.status not in ACTIVE:
         return {"ok": 0, "reason": "finished"}
-    if body["type"] == "reply":
+    if body["type"] in ("reply", "failed"):
         with core_work.context(body["work"]):
-            core_work.checkpoint(tasks.REPLY_KEY + body["dispatch"], "reply", body["reply"])
+            core_work.checkpoint(tasks.REPLY_KEY + body["dispatch"], "reply",
+                                 body["reply"] if body["type"] == "reply" else {"failed": True})
+            _progressed()
         core_work.wake(body["work"])
         return {"ok": 1}
     apply_progress(row, body)
+    with core_work.context(body["work"]):
+        _progressed()
     return {"ok": 1}
+
+
+def _progressed():
+    """记下「云上还有进展」的时刻（``work.call_progress`` 的最近一次进展据此算）：付费调用的检查点在云上、库里看不到，
+    否则对账等识别时「还在一页页读完就延长」永远不会触发（2026-10-01 复查）。只更新这一行的时间，不算付费调用。"""
+    core_work.checkpoint(PROGRESS_KEY, core_work.PROGRESS, {"at": time.time()})
+
+
+def _log_refused(reason):
+    now = time.time()
+    if now - _refused["at"] < REFUSED_LOG_SECONDS:
+        return
+    _refused["at"] = now
+    try:
+        frappe.log_error(title="Cowork OCR callback refused", message=reason[:500])
+    except Exception:
+        pass
 
 
 def apply_progress(row, body):

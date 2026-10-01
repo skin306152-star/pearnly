@@ -55,6 +55,18 @@ class Wake(unittest.TestCase):
         later.assert_called_once_with("W1", 0)
         self.assertIsNone(self.cache.get_value(work.WAKE + "W1"))   # 只用一次
 
+    def test_a_wake_does_not_clear_a_delay_the_result_itself_asked_for(self):
+        self.db.sql.return_value = [("running",)]
+        work.wake("W1")
+        with patch("pearnly_core.execution.dispatch.later") as later, patch.object(work, "_finished"):
+            work._finish("W1", "deferred", "provider_429", 60)
+        later.assert_called_once_with("W1", 60)
+
+    def test_a_wake_handled_by_requeueing_leaves_no_mark_behind(self):
+        self.db.sql.return_value = [("deferred",)]
+        work.wake("W1")
+        self.assertIsNone(self.cache.get_value(work.WAKE + "W1"))
+
     def test_without_a_wake_the_delay_is_kept(self):
         self.db.sql.return_value = [("running",)]
         with patch("pearnly_core.execution.dispatch.later") as later, patch.object(work, "_finished"):

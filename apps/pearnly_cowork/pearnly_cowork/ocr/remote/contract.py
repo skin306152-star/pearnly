@@ -24,9 +24,10 @@ VARIANTS = ("intake", "vat_check")
 ENGINE_ERRORS = ("EngineError", "ContentError", "DirectFallback")
 
 
-# 交给 Cloud Tasks 的一次读（``delivery: "task"``，见下面「任务派发」）：服务器不在旁边等，可以一口气读到快到 Cloud Tasks
-# 单次派发时限（1800 秒）才让出；读法不变，只是让出得晚（让出只决定什么时候停下、下次从检查点接着读）。
-TASK_YIELD_SECONDS = 1500
+# 交给 Cloud Tasks 的一次读（``delivery: "task"``，见下面「任务派发」）：服务器不在旁边等，可以读得更久才让出；读法不变，
+# 只是让出得晚（让出只决定什么时候停下、下次从检查点接着读）。1200 秒 + 最坏一串调用（等名额 60 + 抽取 180、结果不明再重发
+# 一次，约 480 秒）仍在 Cloud Tasks 单次派发时限 1800 秒内（2026-10-01 复查：原来 1500 秒会越过）。
+TASK_YIELD_SECONDS = 1200
 
 
 def _yield_seconds(body):
@@ -394,13 +395,14 @@ def task_request(envelope, request):
     return body
 
 
-# 回调：``reply``（结果写好了：对象 + 版本号）或 ``progress``（读的过程中的进度，只作展示，丢了也不影响结果）。
+# 回调：``reply``（结果写好了：对象 + 版本号）、``progress``（读的过程中的进度，只作展示，丢了也不影响结果）、
+# ``failed``（Workflows 这次执行重试用完也没读完：站点立刻重新派发，不等兜底）。
 def callback(kind, *, site, work, dispatch, reply=None, events=None, seq=0):
     body = {"version": VERSION, "kind": "cowork.callback", "type": kind, "site": site, "work": work,
             "dispatch": dispatch}
     if kind == "reply":
         body["reply"] = reply
-    else:
+    elif kind == "progress":
         body.update(events=events, seq=seq)
     parse_callback(body)
     return body
@@ -421,6 +423,8 @@ def parse_callback(body):
                 or reply["object"] != task_object(body["site"], body["work"], body["dispatch"], "reply.json")
                 or type(reply["generation"]) is not int or reply["generation"] < 1):
             raise ValueError("invalid reply")
+        return body
+    if body.get("type") == "failed":
         return body
     if body.get("type") != "progress":
         raise ValueError("invalid type")

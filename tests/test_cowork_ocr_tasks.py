@@ -86,15 +86,34 @@ def document_body(pages=5):
                                      page_count=pages, document_type="bank_statement", environment={"A": "b"})
 
 
+class Cache:
+    def __init__(self):
+        self.values = {}
+
+    def get_value(self, key):
+        return self.values.get(key)
+
+    def set_value(self, key, value, expires_in_sec=None):
+        self.values[key] = value
+
+    def delete_value(self, key):
+        self.values.pop(key, None)
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.google, self.checkpoints = Google(), Checkpoints()
         frappe.local.site = SITE
         frappe.local.conf = frappe._dict({tasks.CONFIG: dict(CONFIG), forward.CONFIG: {"enabled": 1, "url": REMOTE["url"]}})
         frappe.local.flags = frappe._dict(pearnly_ocr_work=WORK)
+        self.reserved, self.released = [], []
         patches = [mock.patch.object(tasks.core_work, "checkpoint", side_effect=self.checkpoints),
                    mock.patch.object(tasks, "_token", return_value="ACCESS"),
-                   mock.patch.object(tasks.pool, "release_db")]
+                   mock.patch.object(tasks.pool, "release_db"),
+                   mock.patch.object(tasks, "_reserve", side_effect=lambda config, work, path, body, bucket=None:
+                                     self.reserved.append((work, path)) or tasks._wants_workflow(config, path, body)),
+                   mock.patch.object(tasks, "_release", side_effect=self.released.append),
+                   mock.patch.object(tasks.frappe, "cache", Cache(), create=True)]
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
@@ -176,10 +195,50 @@ class Dispatch(Base):
         deferred = self.dispatch()
         self.assertEqual(deferred.reason, "tasks_unavailable")
         self.assertNotIn(tasks.DISPATCH_KEY, self.checkpoints.values)
+        self.assertEqual(self.released, [WORK])          # 在途名额还回去
+
+    def test_repeated_dispatch_failures_fall_back_to_streaming_and_are_logged(self):
+        self.google.task_status = 403
+        for _attempt in range(tasks.FALLBACK_AFTER - 1):
+            self.assertEqual(self.dispatch().reason, "tasks_unavailable")
+        with mock.patch.object(tasks.frappe, "log_error") as logged, self.assertRaises(tasks.Fallback):
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda event: None, http=self.google)
+        logged.assert_called_once()
+        final = {"event": "result", "status": "done", "pipeline": "{}", "evidence": []}
+        with mock.patch.object(forward, "_stream", return_value=final) as stream, \
+                mock.patch.object(tasks.frappe, "log_error"):
+            self.assertIs(forward._call(REMOTE, "/v1/cowork/invoice", document_body(), None,
+                                        {"environment": {"GCP_PROJECT": "pearnly"}}), final)
+        stream.assert_called_once()
+        self.google.task_status = 200
+        self.assertEqual(self.dispatch().reason, "remote_dispatched")     # 恢复后照常派发、计数清零
+        self.assertIsNone(tasks.frappe.cache.get_value(tasks.FAILURES))
+
+    def test_too_many_workflows_at_once_dispatch_straight_to_cloud_run(self):
+        with mock.patch.object(tasks, "_reserve", return_value=False):
+            self.dispatch(document_body(pages=5), config={"workflow": "cowork-document"})
+        self.assertIn("/v1/cowork/task", self.google.posts[-1][3]["task"]["httpRequest"]["url"])
 
     def test_an_existing_task_name_counts_as_created(self):
         self.google.task_status = 409
         self.assertEqual(self.dispatch().reason, "remote_dispatched")
+
+
+class SelfCheck(Base):
+    def test_self_check_writes_a_probe_and_creates_a_health_task(self):
+        deleted = []
+        self.google.delete = lambda url, headers=None, timeout=None: deleted.append(url) or Reply(204)
+        result = tasks.self_check(http=self.google)
+        self.assertTrue(result["ok"], result)
+        task = self.google.posts[-1][3]["task"]
+        self.assertEqual(task["httpRequest"]["url"], REMOTE["url"] + "/health")
+        self.assertEqual(task["httpRequest"]["httpMethod"], "GET")
+        self.assertEqual(len(deleted), 1)
+        self.google.task_status = 403
+        result = tasks.self_check(http=self.google)
+        self.assertEqual((result["ok"], result["bucket"], result["task"]), (False, True, False))
+        frappe.local.conf[tasks.CONFIG] = {**CONFIG, "enabled": 0}
+        self.assertTrue(tasks.self_check(http=self.google)["bucket"])   # 开关没开也能先自检
 
 
 class Collect(Base):
@@ -230,6 +289,45 @@ class Collect(Base):
             self.collect(now=1000.0 + tasks.LOST_SECONDS + 1)
         self.assertEqual(caught.exception.reason, "remote_dispatched")
 
+    def test_a_lost_callback_is_found_in_the_bucket_on_the_next_look(self):
+        final = {"event": "result", "status": "done", "legacy": {"pages": []}}
+        name = contract.task_object(SITE, WORK, self.dispatch, "reply.json")
+        self.google.objects[name] = contract.reply(final, [{"event": "read", "pages": 1}])
+        result, seen = self.collect()            # 没有回调那一行：直接去桶里看
+        self.assertEqual(result, final)
+        self.assertEqual(seen, [{"event": "read", "pages": 1}])
+        self.assertEqual(self.released, [WORK])
+
+    def test_a_workflow_failure_report_dispatches_again_at_once(self):
+        self.checkpoints.values[tasks.REPLY_KEY + self.dispatch] = {"state": "reply", "body": {"failed": True}}
+        with self.assertRaises(Deferred) as caught:
+            self.collect()
+        self.assertEqual(caught.exception.reason, "remote_failed")
+        self.assertTrue(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["spent"])
+
+    def test_a_reply_read_hiccup_waits_instead_of_failing(self):
+        import requests
+
+        self.reply({"event": "result", "status": "done", "legacy": {}})
+
+        class Broken:
+            def get(self, *a, **k):
+                raise requests.ConnectionError("synthetic")
+
+        with self.assertRaises(Deferred) as caught:
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=Broken(), now=lambda: 1010.0)
+        self.assertEqual(caught.exception.reason, "remote_reply_unavailable")
+        with mock.patch.object(tasks, "_token", side_effect=RuntimeError("refresh failed")), \
+                self.assertRaises(Deferred):
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=self.google, now=lambda: 1010.0)
+
+    def test_a_throttled_result_cools_the_shared_budget_down(self):
+        self.reply({"event": "result", "status": "deferred", "reason": "provider_429", "delay": 20})
+        with mock.patch.object(tasks, "_cool_down") as cool, mock.patch.object(tasks, "progress_applied", return_value=0):
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google,
+                       now=lambda: 1010.0, bucket="B1")
+        cool.assert_called_once_with("B1", 20)
+
     def test_outcomes_raise_like_the_streaming_path(self):
         from pearnly_core.execution.errors import Uncertain
 
@@ -277,6 +375,27 @@ class Verify(unittest.TestCase):
             with self.assertRaises(callback.Refused):
                 callback.verify(bad, audience, CONFIG["invoker"], certs=CERTS)
 
+    def test_an_unknown_key_id_refreshes_the_certificates_at_most_once_a_minute(self):
+        fetched = []
+
+        class Http:
+            def get(self, url, timeout=None):
+                fetched.append(url)
+                reply = Reply(200, CERTS)
+                reply.headers = {"Cache-Control": "max-age=3600"}
+                return reply
+
+        callback._certs.update(value=None, until=0.0, refreshed=0.0)
+        self.addCleanup(callback._certs.update, value=None, until=0.0, refreshed=0.0)
+        clock = [100.0]
+        callback.google_certs(http=Http(), clock=lambda: clock[0])
+        for _forged in range(5):
+            callback.google_certs(refresh=True, http=Http(), clock=lambda: clock[0])
+        self.assertEqual(len(fetched), 1)
+        clock[0] += callback.REFRESH_SECONDS + 1
+        callback.google_certs(refresh=True, http=Http(), clock=lambda: clock[0])
+        self.assertEqual(len(fetched), 2)
+
     def test_certificates_are_cached_by_max_age(self):
         fetched = []
 
@@ -287,8 +406,8 @@ class Verify(unittest.TestCase):
                 reply.headers = {"Cache-Control": "public, max-age=1000, must-revalidate"}
                 return reply
 
-        callback._certs.update(value=None, until=0.0)
-        self.addCleanup(callback._certs.update, value=None, until=0.0)
+        callback._certs.update(value=None, until=0.0, refreshed=0.0)
+        self.addCleanup(callback._certs.update, value=None, until=0.0, refreshed=0.0)
         clock = [100.0]
         self.assertEqual(callback.google_certs(http=Http(), clock=lambda: clock[0]), CERTS)
         callback.google_certs(http=Http(), clock=lambda: clock[0])
@@ -332,13 +451,23 @@ class Receive(Base):
         self.wake.assert_called_once_with(WORK)
         self.assertEqual(self.send(self.reply_body(), token()), {"ok": 1})   # 重复回调：同一行、同样内容
 
-    def test_a_bad_token_is_401_and_records_nothing(self):
-        for header in (None, token(audience="https://other.pearnly.com" + contract.CALLBACK_PATH), token(email="x@y.z")):
-            frappe.local.response = frappe._dict()
-            self.assertEqual(self.send(self.reply_body(), header), {"ok": 0})
-            self.assertEqual(frappe.local.response.http_status_code, 401)
+    def test_a_bad_token_is_401_records_nothing_and_is_logged_once(self):
+        callback._refused["at"] = 0.0
+        with mock.patch.object(callback.frappe, "log_error") as logged:
+            for header in (None, token(audience="https://other.pearnly.com" + contract.CALLBACK_PATH), token(email="x@y.z")):
+                frappe.local.response = frappe._dict()
+                self.assertEqual(self.send(self.reply_body(), header), {"ok": 0})
+                self.assertEqual(frappe.local.response.http_status_code, 401)
+        logged.assert_called_once()                     # 记错误日志，但不刷屏
         self.assertEqual(self.checkpoints.values, {})
         self.wake.assert_not_called()
+
+    def test_a_failure_report_is_recorded_and_wakes_the_work(self):
+        body = contract.callback("failed", site=SITE, work=WORK, dispatch=self.dispatch)
+        self.assertEqual(self.send(body, token()), {"ok": 1})
+        self.assertEqual(self.checkpoints.values[tasks.REPLY_KEY + self.dispatch]["body"], {"failed": True})
+        self.assertEqual(self.checkpoints.values[callback.PROGRESS_KEY]["state"], "progress")
+        self.wake.assert_called_once_with(WORK)
 
     def test_switched_off_is_404(self):
         frappe.local.conf[tasks.CONFIG] = {**CONFIG, "enabled": 0}

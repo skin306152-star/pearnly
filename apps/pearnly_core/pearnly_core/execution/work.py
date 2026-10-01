@@ -26,6 +26,8 @@ PRUNE_BATCH = 500
 PAID_GRACE = timedelta(hours=3)
 # 检查点状态：这份已交给外部执行（见 ``run`` 的排队时限判断）。
 EXTERNAL = "external"
+# 检查点状态：外部执行报来的进展（只更新时间，``call_progress`` 的「最近一次进展」据此算；不算付费调用）。
+PROGRESS = "progress"
 
 
 def utcnow():
@@ -175,8 +177,14 @@ def wake(name):
         return False
     frappe.db.set_value(DT, name, "next_run", utcnow(), update_modified=False)
     frappe.db.commit()
+    frappe.cache.delete_value(WAKE + name)  # 这次已经放回队列：不留给之后的暂缓
     kick(name)
     return True
+
+
+# 只有「在等外部结果」的暂缓才因唤醒清零延迟（``wake``）；外部结果本身说要稍后再来的（限流、另一个实例在跑）照原延迟，
+# 否则会唤醒 → 立刻重派 → 又被唤醒，退避不起作用（2026-10-01 复查）。
+WAKE_CODES = ("remote_dispatched", "remote_waiting")
 
 
 def _finish(name, status, code="", delay=0, notify=True):
@@ -187,7 +195,7 @@ def _finish(name, status, code="", delay=0, notify=True):
     if not rows or rows[0][0] not in ACTIVE:
         frappe.db.rollback()
         return
-    if status == "deferred" and delay and _woken(name):
+    if status == "deferred" and delay and code in WAKE_CODES and _woken(name):
         delay = 0  # 等的结果已经到了（见 ``wake``）
     values = {"status": status, "last_code": code, "lease_until": None,
               "next_run": utcnow() + timedelta(seconds=delay)}
@@ -450,7 +458,7 @@ def call_progress(names):
     counts = done_calls(names)
     out = {name: {"done": counts.get(name, 0), "since_first": None, "since_done": None} for name in names}
     for work, first, last in frappe.db.sql(f"""SELECT work, TIMESTAMPDIFF(SECOND, MIN(creation), %(now)s),
-            TIMESTAMPDIFF(SECOND, MAX(CASE WHEN state='done' THEN modified END), %(now)s)
+            TIMESTAMPDIFF(SECOND, MAX(CASE WHEN state IN ('done', 'progress') THEN modified END), %(now)s)
             FROM `tab{CP}` WHERE work IN %(names)s GROUP BY work""", {"names": names, "now": frappe.utils.now()}):
         out[work].update(since_first=None if first is None else max(0, int(first)),
                          since_done=None if last is None else max(0, int(last)))
