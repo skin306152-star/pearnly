@@ -2,7 +2,7 @@
 
 - 状态：已采纳（2026-10-01）。用户：搬到 Cloud Run「只改在哪里执行，读法不变」；同意谷歌云按量小额费用；
   同意识别结果（不含原图）在新加坡存储桶保留 7 天自动删除；云上不开定时任务、常驻实例或按小时计费的组件。
-- 范围：Cowork 发票识别（`cowork.invoice` 的图片 / PDF 原件）。Word / Excel 表格、复核表回导仍在本机；对账文档、ERP、DMS 后续阶段。
+- 范围：Cowork 发票识别（`cowork.invoice` 的图片 / PDF 原件）、对账销项税核查的发票（`cowork.vat_check`）、对账三类文档（`cowork.recon_document`，企业档管线含 Document AI）。Word / Excel 表格、复核表回导仍在本机。ERP / DMS 见下文「ERP 与 DMS」。
 - 代码：`pearnly_cowork.ocr.remote`（`contract` 纯约定、`runner` / `gcs` / `app` 只在 Cloud Run 镜像、`forward` 服务器转发）；
   `pearnly_core.ocr_models.orient`（转正实现移出依赖 Frappe 的 `pearnly_core.ocr`，原入口保留）；
   镜像 `infrastructure/cloud-run/cowork-ocr.Dockerfile`；部署 `scripts/cloud-run/deploy-cowork-ocr.sh`。
@@ -31,6 +31,24 @@
 本机识别（表格、复核表回导、尚未搬上云的对账文档 / 销项税核查）用 `pool.local_slot` 限成每进程同时 1 份
 （`PEARNLY_OCR_LOCAL_SLOTS`），等名额前同样先放开连接。等回复的线程省内存，容量按 `PEARNLY_OCR_THREAD_MB`（每线程）核算，
 本机那一份由进程底线 450MB 兜住。
+
+## 对账（2026-10-01 补）
+
+- 销项税核查与对账文档的读法抽成纯模块 `ocr.recon_reading`（核查发票：抽取结果不明重发一次、一页不明不作废整份；对账文档：企业档管线、
+  一页抽取不明记成读不出），服务器本机与 Cloud Run 共用；`recon_center.invoice_ocr` / `document_ocr` 保留原名入口。
+- 请求带 `variant`（`intake` / `vat_check`）与 `yield_seconds`（核查 120 秒、对账文档 90 秒、录入 420 秒，与本机同一让出时限）。
+  对账文档单独一个入口 `/v1/cowork/document`，Cloud Run 逐行回 `read` / `extracted` / `unread` 事件，服务器照本机回调更新对账看板。
+- 对账是否已结束：发出前、收到后各看一次（云上读的过程中不能打断；结束后读完不扣费）。
+- Document AI：区域顺序与处理器取站点配置 `pearnly_document_ai_regions`（不配用代码默认六区，全部 v2.1.1），由同一份 `ProviderClient`
+  按区域试、被限流立刻换下一区、都被限流交回服务器稍后续跑。云上不连额度 Redis，各区每分钟固定额度靠谷歌 429 + 换区 + 交回续跑消化，
+  不引入常驻组件；需要更平滑时再在转发处按区拿名额。
+
+## ERP 与 DMS（2026-10-01 补）
+
+ERP 采购 / 销售识别与 DMS 身份证识别在服务器上的计算很轻（转正约 15 毫秒、其余是等谷歌回复），经 Cloud Run 中转只多一跳；
+用户目标「不排队、只等识别本身」靠服务器等待时不占进程与连接实现：识别线程里共用层 `provider._post` 在发出谷歌请求前、原地等额度前
+放开数据库连接（`pool.release_db`，只在识别线程里，网页请求的事务照旧到请求结束才提交）；ERP 网页识别是同步请求，网页线程数可调
+（`PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS`）。
 
 ## 保护在云上的形式（与本机不同的地方）
 

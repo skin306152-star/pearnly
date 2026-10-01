@@ -47,3 +47,26 @@ URL：`https://cowork-ocr-h6qxkkwz4a-as.a.run.app`。更新用 `scripts/cloud-ru
   份（默认 1），Cowork 发票本机分支、对账销项税核查、对账文档的本机读都套上；没开多线程时不起作用。
 - `PEARNLY_OCR_THREAD_MB`（compose 三个识别容器，默认 150）：容量检查与按内存回收的每线程余量都读它。
 - 上线目标值（Cowork）：识别 4 进程 × 24 线程、每线程 30MB、上限 8g（容量检查已验证放得下）；同时最多 96 份在等 Cloud Run。
+
+## 第三批：对账上 Cloud Run（分支 `codex/ocr-remote-recon`）
+
+- `ocr.recon_reading`（纯）：`vat_callbacks`、`document_page_failure`、`read_document`、`image_mime`；`recon_center` 两个入口改用它、名字保留。
+- 契约：`variant` / `yield_seconds`；`cowork.document` 请求与 `read` / `extracted` / `unread` 事件；引擎内容错误照原类型交回
+  （核查把整份读不出记成没读出、不扣费，与本机相同）。
+- 测试：对照测试 22 条（核查发票、对账文档的结果 / 发出的谷歌请求 / 看板事件与本机一致；续跑不重复付费）；转发 10 条。
+
+## 第四批：ERP / DMS 等待不占连接（分支 `codex/ocr-wait-erp-dms`）
+
+- `provider._post`：识别线程里发谷歌请求前、`provider.post` 原地等额度前 `pool.release_db()`；网页请求不放。
+- compose：`PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS`（默认 4）。
+
+## 今晚上线的配置（用户一次授权）
+
+| 项 | 值 | 说明 |
+|---|---|---|
+| Cowork 识别 | 4 进程 × 24 线程、每线程 30MB、8g | 同时 96 份在等 Cloud Run；本机识别每进程 1 份 |
+| ERP 识别 | 4 进程 × 16 线程、每线程 80MB、8g | 等谷歌时不占连接 |
+| DMS 识别 | 2 进程 × 8 线程、每线程 60MB、2g | 同上 |
+| ERP 网页线程 | 8（4 进程 → 同时 32 个请求） | 网页识别是同步请求 |
+| 识别名额 | 全站 160、单租户 120、rpm 500、排队 2000 / 500 | 160 = Cloud Run 20 实例 × 8 |
+| Cowork 开关 | 所有 Cowork 站点 `pearnly_cowork_ocr_remote` 打开 | 关掉即回本机识别 |
