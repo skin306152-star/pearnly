@@ -347,11 +347,11 @@ def _bkk_year_month() -> str:
     return (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y-%m")
 
 
-def _pages_used_this_month(tenant: str, ym: str) -> int:
+def _pages_used_this_month(tenant: str, ym: str, *, lock: bool = True) -> int:
     """Only payg pages advance the Bangkok calendar-month price threshold."""
     from pearnly_control.payments.usage import pages_used
 
-    return pages_used(tenant, ym)
+    return pages_used(tenant, ym, lock=lock)
 
 
 # ── 余额闸（产品站点用）─────────────────────────────────────────────────────
@@ -367,12 +367,16 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
     - error_code=lookup_error：**我们自己查不出来** → 503 稍后重试。
 
       绝不能把系统故障报成"余额不足"，那会让会计去充一笔本来就够的钱。
+
+    只读、不加锁（2026-10-01 生产压测：开工前问一句也锁租户行、钱包、订阅和本月全部用量行，与同租户每一笔扣费抢同一把锁；
+    计费服务只有 8 个请求位，几十个识别线程同时扣费、问余额时排满，问余额的请求 10 秒读超时，提交被当成「查不到余额」拒收）。
+    这里只是放行判断，钱以扣费时为准：扣费照旧在租户锁里重新读余额、用量与订阅。还没有钱包的租户余额就是 0，不在这里建。
     """
     try:
-        wallet = wallet_of(tenant)
-        balance = _money(wallet.balance_thb or 0)
+        wallet = wallet_of(tenant, create=False)
+        balance = _money((wallet.balance_thb if wallet else 0) or 0)
         ym = _bkk_year_month()
-        used = _pages_used_this_month(tenant, ym) if kind == "pdf" else 0
+        used = _pages_used_this_month(tenant, ym, lock=False) if kind == "pdf" else 0
         est = estimate_cost_thb(used, kind, units, tier)
     except frappe.QueryDeadlockError:
         raise  # The complete DB-only service transaction owns bounded retries.
@@ -386,7 +390,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
                 "estimate_thb": 0.0, "error_code": ""}
 
     # 有订阅且额度吃得下 → 免费放行（不看余额）；吃不下 → 只有超额那部分要钱
-    sub = _active_by_cycle(tenant)
+    sub = _active_by_cycle(tenant, lock=False)
     quota_need = int(units) if kind == "pdf" else doc_quota_pages(units)
     payable = est
     if sub is not None:
@@ -523,16 +527,16 @@ def subscribe(tenant: str, plan_code: str) -> dict:
             "subscription": subscription_view(tenant)}
 
 
-def _active_by_cycle(tenant: str):
-    """本周期还没到期的订阅 —— 扣费走这个。
+def _active_by_cycle(tenant: str, *, lock: bool = True):
+    """本周期还没到期的订阅 —— 扣费走这个（加锁）；开工前的余额闸只读（``lock=False``）。
 
     **不做自动续订**（用户 2026-09-18 定）：套餐就是买 30 天的额度，到期结束，
     要续就重新订阅。所以这里只看周期有没有到点，不看别的状态。
     """
-    name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name", for_update=True)
+    name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name", for_update=lock)
     if not name:
         return None
-    doc = frappe.get_doc(SUBSCRIPTION, name, for_update=True)
+    doc = frappe.get_doc(SUBSCRIPTION, name, for_update=lock)
     if doc.status != "active" or not doc.cycle_end or str(now()) > str(doc.cycle_end):
         return None
     return doc

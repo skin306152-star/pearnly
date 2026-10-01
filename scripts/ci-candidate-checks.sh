@@ -39,7 +39,7 @@ offline() {
                 tests/test_cowork_remote_ocr.py tests/test_cowork_remote_forward.py \
                 tests/test_cowork_recon_scanned_docs.py tests/test_cowork_recon_progress.py \
                 tests/test_cowork_recon_waiting.py tests/test_cowork_recon_slots.py tests/test_cowork_recon_resume.py \
-                tests/test_cowork_core_notifications.py; do
+                tests/test_cowork_core_notifications.py tests/test_control_billing_gate.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }
