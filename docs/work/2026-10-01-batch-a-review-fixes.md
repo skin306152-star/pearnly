@@ -61,3 +61,30 @@
   source_lock_scope、billing_wait、recon_speed、direct_upload、remote_ocr、opening_batch、bank_recon_contracts、intake_live 通过；
   `test_cowork_invoice_checks.py` 在 main 上也失败（预览 `cowork_previews`，不是本分支），已告诉识别派发窗口。
 - `test-activate-product.py` 15 项、`check-production-capacity.py` 26 项（计费 2×8、连接 210）、`check-architecture.py` 通过；Development checks 全过（见提交）。
+- 推送前补跑 `node --test tests/test-desk-live.cjs` 发现 5 项里 3 项失败、进程不退：新加的 `min_ms`（默认 3 秒）让毫秒级测试全被推迟。
+  原有测试显式传 `min_ms: 0`，另加一条「两次刷新至少隔 min_ms」；6 项通过后才提交 `455d8f75`，分支 CI 通过。
+
+## 合入与部署（2026-10-01 夜，泰国时间）
+
+- 识别派发窗口在 `455d8f75` 之上变基 → `5f97938c`（Google 重试、派发、Workflows 预热进展），在生产镜像 cc950252 上跑完整
+  `ci-candidate-checks offline` 36 步全过、`tests/test_cowork_*.py` + `test_control_*.py` 138 个文件全过；分支 CI 通过后本窗口把 main
+  快进到 `5f97938c` 并推送。
+- 构建 `sha256:a88d90a268b390de82df1f768b744edd991ef6c1f0afe72bb748bf15a1e8af79`（构建里的候选检查通过）→ stage → 23:14 起：
+  - `runtime.env` 设 `PEARNLY_MARIADB_MAX_CONNECTIONS=210`（改前副本 `/opt/pearnly/state/runtime.env.before-5f97938c`），
+    运行中的库用一次性客户端容器 `SET GLOBAL max_connections=210`（不 exec 进 mariadb），回读 210；
+  - ERP 23:14–23:17、Cowork 23:17–23:23、DMS 23:23–23:26 激活，billing-web 23:26–23:27 按旧镜像备份 → migrate → 重建。
+- 回读：所有业务容器在新镜像；六个域名 ping 200；各站维护模式 0；部署后各站与 billing 的 Error Log 0；max_connections 210、
+  Max_used_connections 110（部署前同为 110）、MariaDB 1.96 / 4 GiB（Memory_used 约 1.55 GB）；结果页存档补建在后台跑。
+- 计费并发演练（testcowork2，测试租户，每轮 24 个问余额 + 8 个扣费 + 3 个同参考号，参考号前缀 `loadtest:drill-5f97938c`）：
+  1020 为 0、重复扣费 0（27 笔 = 27 个不同参考号，同参考号三发只记一笔）、单号为 hash（`pf4p2ss701` 等）；
+  billing 刚重启 1 分钟时 p95 6.8–8.5 秒（冷启动），预热后两轮 p95 0.26–0.55 秒。
+- 回退：上一镜像 cc950252。两处表结构改动可回退：存档指纹列回退时 Frappe 发现已有更长数据会保留 140 并提示（不报错），旧代码按指纹不符重建；
+  流水单号回退后旧格式编号继续、已生成的 hash 单号保留。
+- 收银台 POS：本批没动 ERP、hooks、脚本加载与打包，ERP / DMS 不用 `p.live`；生产 `product.js` 200、语法检查通过。
+  本窗口浏览器在登录页、不能代输密码，未实际点开 POS，压测窗口压测时复看。
+- 识别派发窗口随后修了 Vision 整体故障时的重派过密（`2bb8956a`、`d937e3b0`，只改 Cowork 识别调用与派发），自行按主线集成快进 main；
+  本窗口构建 `sha256:f75584a711e65bbaed98716971fba637cc4988ef1190c8f18324adcd21f48124`，23:52–23:57 只激活 Cowork，
+  回读容器在新镜像、四站 ping 200、维护模式 0。Cloud Run / Workflows、testcowork 端到端、维护与回退演练、全站开由识别派发窗口负责。
+- 部署后 testcowork Error Log：1 条 1020 在 `tabPearnly OCR Checkpoint`（23:34，Workflows 预热进展回调写检查点撞车）、
+  维护演练期间 3 秒内 241 条 Session Stopped，已转识别派发窗口核实。
+- 清理：`codex/billing-review`、`codex/release-2026-10-01` 的工作树、本地分支、远端分支已删除并回读。
