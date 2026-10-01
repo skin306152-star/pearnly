@@ -57,6 +57,11 @@ def read(name, *, lock=False, authorize=True, write=False):
 def save(doc):
     doc.flags.cowork_ocr_write = WRITE
     doc.flags.notify_update = False
+    # 更新时不再逐个回库核对关联字段（原件 / 归属 / 客户 / 提交人）：它们都在 IMMUTABLE 里，建单时已核对过，``validate``
+    # 保证一字不改；被引用的记录删不掉（Frappe 删除时查引用），归属与客户是否停用由每次的授权复核判断。一次识别要存 4 次，
+    # 这一步每次 4 条查询（2026-10-01 生产压测）。新建照旧核对。
+    if not doc.is_new():
+        doc.flags.ignore_links = True
     return doc.save(ignore_permissions=True)
 
 

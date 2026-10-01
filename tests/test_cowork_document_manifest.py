@@ -82,7 +82,7 @@ class DocumentManifestTests(unittest.TestCase):
             session=Row(user="uploader"), get_doc=self.get_doc,
             db=SimpleNamespace(savepoint=lambda *a: self.events.append(("savepoint", *a)),
                 rollback=lambda **kw: self.events.append(("rollback", kw))))
-        self.scope = SimpleNamespace(READ_FEATURES=("intake",), allowed=lambda *a: True,
+        self.scope = SimpleNamespace(READ_FEATURES=("intake",), allowed=lambda *a: True, allowed_any=lambda *a: True,
             contains=lambda workspace, client, user=None: workspace not in self.denied,
             require=lambda feature: self.events.append(("feature", feature)), require_scope=self.require_scope)
         constants = {}

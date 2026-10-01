@@ -151,7 +151,7 @@ def list_profiles(workspace, limit=None):
     clearing both defaults: such a row has no effect and is not part of this projection
     (the deployed delete dropped the row outright).
     """
-    if not any(scope.allowed(feature) for feature in (*scope.READ_FEATURES, 'master_data')):
+    if not scope.allowed_any((*scope.READ_FEATURES, 'master_data')):
         deny()
     _workspace(workspace)
     scope.require_scope(workspace)

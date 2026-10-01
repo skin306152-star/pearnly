@@ -57,10 +57,13 @@ def _find(workspace, client, summary):
     for level in ("exact", "likely"):
         if not rules.eligible(current, level):
             continue
+        # 不对字段套 LOWER()：两列都是不分大小写的排序规则（utf8mb4_unicode_ci），``x=%s`` 与 ``LOWER(x)=%s`` 取出的候选
+        # 完全相同，却能用上发票号 / 日期索引（2026-10-01 生产压测：套了函数就只能沿创建时间把本公司记录逐行过一遍，
+        # 每存一张票扫一遍全表，记录越多越慢）。最终是否相同仍由下面 Python 逐字核对。
         if level == "exact":
-            clause, values = "LOWER(invoice_no)=%s", [current["invoice_no"]]
+            clause, values = "invoice_no=%s", [current["invoice_no"]]
         else:
-            clause = "invoice_date=%s AND LOWER(seller_name)=%s"
+            clause = "invoice_date=%s AND seller_name=%s"
             values = [current["invoice_date"], current["seller_name"]]
         # SQL narrows candidates; Python verifies case-only text matching and
         # exact Decimal equality. MariaDB's default collation also folds accents,

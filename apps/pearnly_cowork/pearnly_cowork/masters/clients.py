@@ -55,7 +55,7 @@ def require_manager():
 
 def require_reader():
     """读路径：识别记录或主数据任一功能即可（旧侧"同租户成员都能看"的对应物）。"""
-    if not any(scope.allowed(feature) for feature in (*scope.READ_FEATURES, MANAGER_FEATURE)):
+    if not scope.allowed_any((*scope.READ_FEATURES, MANAGER_FEATURE)):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 

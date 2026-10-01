@@ -36,7 +36,7 @@ def require_manager():
 
 
 def require_reader():
-    if not any(scope.allowed(feature) for feature in (*scope.READ_FEATURES, "master_data")):
+    if not scope.allowed_any((*scope.READ_FEATURES, "master_data")):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 

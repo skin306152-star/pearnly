@@ -86,12 +86,13 @@ def validate_manifest(doc):
 
 
 def readable(user=None):
-    return any(scope.allowed(feature, user) for feature in scope.READ_FEATURES)
+    return scope.allowed_any(scope.READ_FEATURES, user)
 
 
 def references(source_name):
-    return frappe.get_all(HISTORY, filters={"source_file": source_name},
-        fields=["name", "workspace", "client", "source_page_indices"], limit_page_length=0)
+    # 每份原件每次核权限都要读：参数化查询，不经查询构建器（与原来的 get_all 同样不套权限、取全部）。
+    return frappe.db.sql(f"""select name, workspace, client, source_page_indices from `tab{HISTORY}`
+        where source_file=%s order by creation desc""", (source_name,), as_dict=True)
 
 
 def page_indices(value):
@@ -109,7 +110,9 @@ def full_allowed(source, user=None):
     if not readable(user) or not scope.contains(source.workspace, source.client, user):
         return False
     rows = references(source.name)
-    if any(not scope.contains(row.workspace, row.client, user) for row in rows):
+    # 同一份原件拆出的几张票归属一般都相同：每种（归属，客户）只核一次，与原件本身那一对相同的不再重核。
+    pairs = {(row.workspace, row.client or None) for row in rows} - {(source.workspace, source.client or None)}
+    if any(not scope.contains(workspace, client, user) for workspace, client in pairs):
         return False
     covered = set().union(*(page_indices(row.source_page_indices) for row in rows))
     count = reference_count(source)

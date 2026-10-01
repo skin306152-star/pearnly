@@ -40,13 +40,31 @@ def _reject_share_fallback(doctype, user=None):
                      frappe.PermissionError)
 
 
-def allowed(feature, user=None):
+def granted(features, user=None):
+    """这个人现在能用其中哪几项功能（站点是 Cowork、买了这项、账号启用、有这项的角色或 Cowork Admin）。
+
+    几项一起判时账号是否启用只查一次（2026-10-01 生产压测：一份发票的识别与存结果里这条查询出现 20 多次，大多是
+    「几项里有没有一项能用」逐项各查一遍）。每项的判据与原来逐项调 ``allowed`` 完全相同。"""
     user = user or frappe.session.user
-    return bool(user and user != "Guest"
-                and frappe.conf.get("pearnly_product") == "cowork"
-                and feature in entitlements()
-                and frappe.db.get_value("User", user, "enabled")
-                and {ROLES[feature], "Cowork Admin"}.intersection(frappe.get_roles(user)))
+    if not (user and user != "Guest" and frappe.conf.get("pearnly_product") == "cowork"):
+        return set()
+    bought = set(entitlements()).intersection(features)
+    if not bought:
+        return set()
+    enabled = frappe.db.sql("select enabled from `tabUser` where name=%s", (user,))
+    if not (enabled and enabled[0][0]):
+        return set()
+    roles = set(frappe.get_roles(user))
+    return {feature for feature in bought if {ROLES[feature], "Cowork Admin"} & roles}
+
+
+def allowed(feature, user=None):
+    return feature in granted((feature,), user)
+
+
+def allowed_any(features, user=None):
+    """``any(allowed(f) for f in features)``，账号只查一次。"""
+    return bool(granted(features, user))
 
 
 def require(feature):
@@ -55,7 +73,7 @@ def require(feature):
 
 
 def require_read():
-    if not any(allowed(f) for f in READ_FEATURES):
+    if not allowed_any(READ_FEATURES):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 
@@ -64,10 +82,13 @@ def administrator(user=None):
 
 
 def contains(workspace, client=None, user=None):
-    # 只核对引用一致（归属存在且启用、客户属于它），不按人分公司 / 客户。
-    if not workspace or not frappe.db.exists("Cowork Workspace", {"name": workspace, "enabled": 1}):
+    # 只核对引用一致（归属存在且启用、客户属于它），不按人分公司 / 客户。热路径上一份发票要核十几次：直接写参数化查询，
+    # 不经查询构建器每次拼一遍 SQL（判据同 frappe.db.exists）。
+    if not workspace or not frappe.db.sql("select 1 from `tabCowork Workspace` where name=%s and enabled=1 limit 1",
+                                          (workspace,)):
         return False
-    if client and not frappe.db.exists("Cowork Client", {"name": client, "workspace": workspace, "enabled": 1}):
+    if client and not frappe.db.sql("""select 1 from `tabCowork Client` where name=%s and workspace=%s and enabled=1
+            limit 1""", (client, workspace)):
         return False
     return True
 
@@ -111,14 +132,14 @@ def ensure_on_migrate():
 
 
 def history_permission(doc, ptype=None, user=None, **kwargs):
-    feature_ok = any(allowed(f, user) for f in READ_FEATURES) if ptype in READ_TYPES else allowed("intake", user)
+    feature_ok = allowed_any(READ_FEATURES, user) if ptype in READ_TYPES else allowed("intake", user)
     return _decision(feature_ok and ptype not in {"delete", "share", "submit", "cancel"}
                 and contains(doc.workspace, doc.client, user))
 
 
 def history_query(user=None):
     _reject_share_fallback("Cowork OCR History", user)
-    if not any(allowed(f, user) for f in READ_FEATURES):
+    if not allowed_any(READ_FEATURES, user):
         return "1=0"
     table = "`tabCowork OCR History`"
     return _scope_query(table, user, client=True)
@@ -126,20 +147,20 @@ def history_query(user=None):
 
 def workspace_permission(doc, ptype=None, user=None, **kwargs):
     if ptype in READ_TYPES:
-        return _decision(any(allowed(f, user) for f in (*READ_FEATURES, "master_data")))
+        return _decision(allowed_any((*READ_FEATURES, "master_data"), user))
     return _decision(ptype not in {"delete", "share"} and allowed("master_data", user) and administrator(user))
 
 
 def workspace_query(user=None):
     _reject_share_fallback("Cowork Workspace", user)
-    if not any(allowed(f, user) for f in (*READ_FEATURES, "master_data")):
+    if not allowed_any((*READ_FEATURES, "master_data"), user):
         return "1=0"
     return ""
 
 
 def client_permission(doc, ptype=None, user=None, **kwargs):
     if ptype in READ_TYPES:
-        return _decision(any(allowed(f, user) for f in (*READ_FEATURES, "master_data"))
+        return _decision(allowed_any((*READ_FEATURES, "master_data"), user)
                     and contains(doc.workspace, doc.name, user))
     return _decision(ptype not in {"delete", "share"} and allowed("master_data", user)
                 and administrator(user) and contains(doc.workspace, user=user))
@@ -147,7 +168,7 @@ def client_permission(doc, ptype=None, user=None, **kwargs):
 
 def client_query(user=None):
     _reject_share_fallback("Cowork Client", user)
-    if not any(allowed(f, user) for f in (*READ_FEATURES, "master_data")):
+    if not allowed_any((*READ_FEATURES, "master_data"), user):
         return "1=0"
     table = "`tabCowork Client`"
     return f"{table}.`enabled`=1 AND " + _scope_query(table, user)

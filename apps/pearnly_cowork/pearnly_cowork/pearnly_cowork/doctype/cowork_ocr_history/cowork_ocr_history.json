@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-09-29 12:00:00.000000",
+ "modified": "2026-10-01 15:30:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -157,6 +157,7 @@
   },
   {
    "fieldname": "invoice_no",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Invoice Number",
    "length": 200,
@@ -165,6 +166,7 @@
   },
   {
    "fieldname": "invoice_date",
+   "search_index": 1,
    "fieldtype": "Date",
    "label": "Invoice Date",
    "read_only": 1,

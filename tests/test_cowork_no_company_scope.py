@@ -31,7 +31,7 @@ class ScopeWithoutCompanyTest(unittest.TestCase):
             self.assertTrue(scope.contains("WS-1", "CL-1", user="staff@example.com"))
 
     def test_contains_rejects_missing_or_disabled_reference(self):
-        with mock.patch.object(scope.frappe, "db", mock.Mock(**{"exists.return_value": False})):
+        with mock.patch.object(scope.frappe, "db", mock.Mock(**{"sql.return_value": ()})):  # 查不到这一行
             self.assertFalse(scope.contains("WS-1"))
         self.assertFalse(scope.contains(""))
 

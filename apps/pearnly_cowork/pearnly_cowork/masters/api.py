@@ -29,7 +29,7 @@ def create_client(workspace, display_name, tax_id=None):
 
 @frappe.whitelist()
 def workspaces(start=0, limit=50):
-    if not any(scope.allowed(f) for f in (*scope.READ_FEATURES, "master_data")):
+    if not scope.allowed_any((*scope.READ_FEATURES, "master_data")):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     return frappe.get_list("Cowork Workspace", filters={"enabled": 1},
                            fields=["name", "display_name", "tax_id"], order_by="display_name, name",
@@ -38,7 +38,7 @@ def workspaces(start=0, limit=50):
 
 @frappe.whitelist()
 def clients(workspace, start=0, limit=50):
-    if not any(scope.allowed(f) for f in (*scope.READ_FEATURES, "master_data")):
+    if not scope.allowed_any((*scope.READ_FEATURES, "master_data")):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     scope.require_scope(workspace)
     return frappe.get_list("Cowork Client", filters={"workspace": workspace, "enabled": 1},

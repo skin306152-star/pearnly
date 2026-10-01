@@ -70,7 +70,7 @@ def _persist(doc):
 
 
 def _reader(workspace):
-    if not any(scope.allowed(f) for f in (*scope.READ_FEATURES, "master_data")):
+    if not scope.allowed_any((*scope.READ_FEATURES, "master_data")):
         deny()
     scope.require_scope(workspace)
 
