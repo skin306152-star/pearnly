@@ -462,6 +462,13 @@ class Receive(Base):
         self.assertEqual(self.checkpoints.values, {})
         self.wake.assert_not_called()
 
+    def test_a_warm_step_heartbeat_only_records_progress(self):
+        body = contract.callback("alive", site=SITE, work=WORK, dispatch=self.dispatch)
+        self.assertEqual(self.send(body, token()), {"ok": 1})
+        self.assertEqual(list(self.checkpoints.values), [callback.PROGRESS_KEY])
+        self.assertEqual(self.checkpoints.values[callback.PROGRESS_KEY]["state"], "progress")
+        self.wake.assert_not_called()
+
     def test_a_failure_report_is_recorded_and_wakes_the_work(self):
         body = contract.callback("failed", site=SITE, work=WORK, dispatch=self.dispatch)
         self.assertEqual(self.send(body, token()), {"ok": 1})
@@ -527,6 +534,39 @@ class RefusalCode(unittest.TestCase):
                 mock.patch.object(workflow, "_recognize",
                                   side_effect=ProviderError("ocr.invalid_vision_image", http_status=400)):
             self.assertEqual(workflow.run("B1"), {"failed": "ocr.invalid_vision_image"})
+
+
+class ReconWaitSeesCloudProgress(unittest.TestCase):
+    """对账等识别：开读 25 分钟后，只要云上最近 5 分钟内还有进展（回调写进库的 progress 行），就接着等、不判超时。"""
+
+    def evaluate(self, since_done):
+        from pearnly_cowork.recon_center import document_ocr
+
+        captured = {}
+        now = 10_000.0
+        clock = {"entered": now - 2000, "started": now - 1600, "deadline": now - 100}
+        progress = {"done": 0, "since_first": 1600, "since_done": since_done}
+        with mock.patch.object(document_ocr.waiting, "settle",
+                               side_effect=lambda key, evaluate: captured.setdefault("result", evaluate(clock, now))), \
+                mock.patch.object(document_ocr.frappe, "db", types.SimpleNamespace(commit=lambda: None,
+                    get_value=lambda *a, **k: frappe._dict(status="deferred", last_code="remote_waiting"))), \
+                mock.patch.object(document_ocr.core_work, "call_progress", return_value={"W1": progress}), \
+                mock.patch.object(document_ocr.core_work, "saved_checkpoint", return_value=None), \
+                mock.patch.object(document_ocr, "_", side_effect=lambda text: text), \
+                mock.patch.object(document_ocr.frappe, "throw", side_effect=lambda message, *a, **k: (_ for _ in ()).throw(RuntimeError(message))):
+            document_ocr.wait("W1")
+        return clock
+
+    def test_recent_cloud_progress_extends_the_wait(self):
+        from pearnly_cowork.recon_center import waiting
+
+        with self.assertRaises(waiting.Pending):
+            self.evaluate(since_done=30)        # 30 秒前云上还有进展（Workflows 预热做完一步 / 进度回调）
+
+    def test_no_cloud_progress_times_out_as_before(self):
+        with self.assertRaises(RuntimeError) as caught:
+            self.evaluate(since_done=None)
+        self.assertEqual(str(caught.exception), "reconciliation.recognition_timeout")
 
 
 class Board(unittest.TestCase):

@@ -396,7 +396,8 @@ def task_request(envelope, request):
 
 
 # 回调：``reply``（结果写好了：对象 + 版本号）、``progress``（读的过程中的进度，只作展示，丢了也不影响结果）、
-# ``failed``（Workflows 这次执行重试用完也没读完：站点立刻重新派发，不等兜底）。
+# ``failed``（Workflows 这次执行重试用完也没读完：站点立刻重新派发，不等兜底）、``alive``（Workflows 预热做完一步：
+# 只告诉站点云上还在读，对账等识别的时限据此延长）。
 def callback(kind, *, site, work, dispatch, reply=None, events=None, seq=0):
     body = {"version": VERSION, "kind": "cowork.callback", "type": kind, "site": site, "work": work,
             "dispatch": dispatch}
@@ -424,7 +425,7 @@ def parse_callback(body):
                 or type(reply["generation"]) is not int or reply["generation"] < 1):
             raise ValueError("invalid reply")
         return body
-    if body.get("type") == "failed":
+    if body.get("type") in ("failed", "alive"):
         return body
     if body.get("type") != "progress":
         raise ValueError("invalid type")

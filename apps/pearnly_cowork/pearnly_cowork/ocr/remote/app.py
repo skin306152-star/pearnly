@@ -94,7 +94,8 @@ def application(environ, start_response):
         return [b"ok" if status == 200 else b"retry"]
     if path == "/v1/cowork/warm":
         bucket, token = _backend()
-        result = runner.warm(body, bucket, token, orient=orient, page_source=PageSource, originals=_originals_bucket())
+        result = runner.warm(body, bucket, token, orient=orient, page_source=PageSource, originals=_originals_bucket(),
+                             id_token=_tokens())
         start_response("200 OK", [("Content-Type", "application/json"), ("Cache-Control", "no-store")])
         return [json.dumps(result).encode()]
     bucket, token = _backend()

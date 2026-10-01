@@ -729,7 +729,7 @@ def _callback(envelope, body, id_token, post):
     return (post or gcs.post_callback)(url, body, id_token(url))
 
 
-def warm(body, backend, access_token, *, orient, page_source, originals=None, http=None):
+def warm(body, backend, access_token, *, orient, page_source, originals=None, http=None, id_token=None, post=None):
     """Workflows 的预热一步：多页对账文档的第 n 块读字或第 n 页第一遍抽取，存进这份任务的检查点（不拿租约：同一份的
     各块 / 各页同时预热；同一个调用两边同时发，只有一边写得进「started」，另一边判结果不明后不付费、留给最后那一遍）。
     不交回结果，出错也只记日志：最后那一遍（``task``）照常把缺的补上。返回 ``{"status": …}``。"""
@@ -770,6 +770,13 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
         status = "error:" + type(exc).__name__
     log(event="warm", stage=body["stage"], index=body["index"], status=status,
         seconds=round(time.monotonic() - started, 2))
+    if id_token and status == "done":
+        # 告诉站点云上还在读（预热期间没有别的回调，对账等识别的时限要认得这段进展）；送不到无所谓
+        try:
+            _callback(envelope, contract.callback("alive", site=envelope["site"], work=envelope["work"],
+                                                  dispatch=envelope["dispatch"]), id_token, post)
+        except Exception:  # noqa: BLE001
+            pass
     return {"status": status}
 
 

@@ -663,6 +663,13 @@ class WarmThenWhole(unittest.TestCase):
         # 总共发出的请求与一次读完逐字相同（同样的内容、同样的次数）
         self.assertEqual(sorted(google.payloads), sorted(direct.payloads))
 
+    def test_each_warm_step_tells_the_site_the_cloud_is_still_reading(self):
+        bucket, google, sent = Bucket(), PagedGoogle(), []
+        envelope = staged(bucket, document_body(pdf(2), 2))
+        runner.warm(contract.warm(envelope, "read", 1), bucket, lambda: "token", orient=orient, page_source=PageSource,
+                    http=google, id_token=lambda audience: "T", post=lambda url, body, token: sent.append(body) or 200)
+        self.assertEqual([contract.parse_callback(body)["type"] for body in sent], ["alive"])
+
     def test_extracting_before_the_reads_are_done_waits_for_the_whole_reading(self):
         bucket, google = Bucket(), PagedGoogle()
         envelope = staged(bucket, document_body(pdf(3), 3))

@@ -104,7 +104,8 @@ def receive():
             _progressed()
         core_work.wake(body["work"])
         return {"ok": 1}
-    apply_progress(row, body)
+    if body["type"] == "progress":
+        apply_progress(row, body)
     with core_work.context(body["work"]):
         _progressed()
     return {"ok": 1}
