@@ -198,34 +198,46 @@ def file_states(file_doc):
 
 
 def protected_sources(file_doc, *, include_hash=False):
+    """Sources whose original this File is, aliases, or (``include_hash``) shares bytes with.
+
+    Each condition is its own indexed exact lookup. They used to be one OR across a
+    LEFT JOIN, which scanned and, with ``include_hash``, row-locked every source (and
+    its File) on every File write: five times per new File. Under MariaDB 11.8's
+    snapshot isolation that made a reconciliation start fail with 1020 whenever the
+    same tenant's invoice uploads changed any source (three-tenant stress test
+    2026-10-01: 24 of 105 starts). Now only matching source rows are locked; the
+    File rows that lead to a source are read without locks, the source they lead to
+    is locked. What counts as protected is unchanged.
+    """
     if not frappe.db.table_exists(SOURCE):
         return []
-    conditions = []
-    values = []
+    stored, urls, names, hashes = set(), set(), set(), set()
     for state in file_states(file_doc):
         if state.get("name"):
-            conditions.append("s.stored_file=%s")
-            values.append(state.name)
-        urls = {state.get("file_url"), state.get("thumbnail_url"), canonical_storage_url(
+            stored.add(state.name)
+        urls |= {state.get("file_url"), state.get("thumbnail_url"), canonical_storage_url(
             state.get("file_url"), state.get("is_private"), state.get("file_name")),
             canonical_storage_url(state.get("thumbnail_url"))} - {None, ""}
-        for url in sorted(urls):
-            conditions.append("(s.storage_url=%s OR stored.file_url=%s)")
-            values.extend((url, url))
         if state.get("attached_to_doctype") == SOURCE and state.get("attached_to_name"):
-            conditions.append("s.name=%s")
-            values.append(state.attached_to_name)
+            names.add(state.attached_to_name)
         if include_hash and state.get("content_hash"):
             # Native privacy changes update every File with this MD5, even if
             # the files have distinct URLs. SHA-256 remains the integrity key.
-            conditions.append("(s.native_content_hash=%s OR stored.content_hash=%s)")
-            values.extend((state.content_hash, state.content_hash))
-    if not conditions:
+            hashes.add(state.content_hash)
+    if not (stored or urls or names or hashes):
         return []
-    return [frappe.get_doc(SOURCE, row.name) for row in frappe.db.sql(
-        "SELECT DISTINCT s.name FROM `tabCowork Source File` s "
-        "LEFT JOIN `tabFile` stored ON stored.name=s.stored_file WHERE "
-        + " OR ".join(conditions) + (" FOR UPDATE" if include_hash else ""), values, as_dict=True)]
+    for column, values in (("file_url", urls), ("content_hash", hashes)):
+        if values:
+            stored.update(frappe.db.sql(f"SELECT name FROM `tabFile` WHERE `{column}` IN %(values)s",
+                                        {"values": tuple(sorted(values))}, pluck=True))
+    lock = " FOR UPDATE" if include_hash else ""
+    found = set()
+    for column, values in (("stored_file", stored), ("storage_url", urls), ("name", names),
+                           ("native_content_hash", hashes)):
+        if values:
+            found.update(frappe.db.sql(f"SELECT name FROM `tabCowork Source File` WHERE `{column}` IN %(values)s"
+                                       + lock, {"values": tuple(sorted(values))}, pluck=True))
+    return [frappe.get_doc(SOURCE, name) for name in sorted(found)]
 
 
 def is_protected(file_doc, *, include_hash=False):

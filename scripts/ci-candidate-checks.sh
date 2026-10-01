@@ -41,7 +41,7 @@ offline() {
                 tests/test_cowork_recon_waiting.py tests/test_cowork_recon_slots.py tests/test_cowork_recon_resume.py \
                 tests/test_cowork_core_notifications.py tests/test_control_billing_gate.py \
                 tests/test_control_billing_usage_counter.py tests/test_cowork_bank_page_checks.py \
-                tests/test_desk_first_load.py; do
+                tests/test_desk_first_load.py tests/test_cowork_source_lock_scope.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }

@@ -25,7 +25,14 @@ def start(kind, title="", gl_account_code="", lang="th"):
     files = frappe.request.files if frappe.request else None
     sides = {field: [(stream.filename, stream.stream.read(jobs.MAX_BYTES + 1))
                      for stream in (files.getlist(field) if files else [])] for field in ("left", "right")}
-    return jobs.start(kind, title, sides, {"gl_account_code": gl_account_code, "lang": lang})
+    # 和发票上传同样：撞上同租户并发写原件表的 1020 / 死锁，回滚整段重来（入队在最后一步，之前失败不会重复排任务）。
+    for attempt in range(3):
+        try:
+            return jobs.start(kind, title, sides, {"gl_account_code": gl_account_code, "lang": lang})
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()
+            if attempt == 2:
+                raise
 
 
 @frappe.whitelist()

@@ -3,6 +3,7 @@
 No OCR or legacy blob import here; Cloud Run only checks / previews bucket originals on request."""
 import hashlib
 import json
+import logging
 import re
 
 import frappe
@@ -12,6 +13,8 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, cloud, guard
 from pearnly_cowork.ocr import originals
 from pearnly_cowork.ocr.inputs import IMAGE_EXTENSIONS, MAX_FILE_BYTES as MAX_BYTES, OcrInputError
+
+logger = logging.getLogger(__name__)
 
 
 # 原件检查的错误代码（``ocr.originals``，服务器与 Cloud Run 共用）→ 原来的提示文字。
@@ -167,12 +170,15 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
         return {"retry": max(1, int(error.delay or 5))}  # Cloud Run 一时连不上 / 忙：页面过几秒再来确认
     if result["status"] != "ok":
         if result.get("code") == "original_missing":
-            frappe.throw(_("The uploaded file was not received. Please upload again."))
+            _not_received(name, "original_missing")
         reject(result.get("code"))
     meta = result["meta"]
-    if (meta.get("filename") != filename or meta.get("suffix") != suffix or meta.get("byte_size") != int(byte_size)
-            or meta.get("kind") not in ("pdf", "image")):
-        frappe.throw(_("The uploaded file was not received. Please upload again."))
+    expected = {"filename": filename, "suffix": suffix, "byte_size": int(byte_size)}
+    differing = sorted(field for field, value in expected.items() if meta.get(field) != value)
+    if meta.get("kind") not in ("pdf", "image"):
+        differing.append("kind")
+    if differing:
+        _not_received(name, "meta_mismatch:" + ",".join(differing))
     fingerprint = _fingerprint(client, meta)
     if frappe.db.exists(access.SOURCE, name):
         return project(_existing(name, fingerprint))
@@ -180,6 +186,13 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
                       storage_url=cloud.url_of(bucket_name, object_name, result["generation"]),
                       native_content_hash=result["md5"])
     return project(doc)
+
+
+def _not_received(name, reason):
+    """两种"没收到"（Cloud Run 读不到对象 / 读到的和声明的对不上）对用户是同一句话，日志里分开记原因与
+    对不上的字段名（不记文件内容、文件名），压测里约 1% 的这类失败才查得出是哪一种（2026-10-01）。"""
+    logger.warning("direct upload not received: %s %s", name, reason)
+    frappe.throw(_("The uploaded file was not received. Please upload again."))
 
 
 def _remote_ready():

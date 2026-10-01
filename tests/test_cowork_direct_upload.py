@@ -190,6 +190,17 @@ class Direct(unittest.TestCase):
             self.assertEqual(str(caught.exception), message)
         self.assertEqual(self.created, [])
 
+    def test_the_two_not_received_cases_are_logged_apart(self):
+        """对用户是同一句话；日志里分开记原因和对不上的字段名，不记文件名。"""
+        for result, reason in (({"status": "rejected", "code": "original_missing"}, "original_missing"),
+                               (self.inspected(byte_size=999), "meta_mismatch:byte_size"),
+                               (self.inspected(kind="document", filename="other.pdf"), "meta_mismatch:filename,kind")):
+            with self.assertLogs("pearnly_cowork.files.service", "WARNING") as logged, self.assertRaises(Thrown):
+                self.finish(result)
+            self.assertEqual(len(logged.records), 1)
+            self.assertEqual(logged.records[0].args[1], reason)
+            self.assertNotIn("scan.pdf", logged.output[0])
+
     def test_finish_asks_the_page_to_retry_when_cloud_run_is_busy(self):
         from pearnly_core.execution.errors import Deferred
         from pearnly_cowork.ocr.remote import forward
