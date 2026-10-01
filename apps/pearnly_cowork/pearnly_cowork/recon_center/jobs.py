@@ -570,14 +570,24 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
         # 每次失败都记日志：共用一句提示的校验错误原来不记，压测时查不到真正原因（B01，2026-09-29）。数据库锁 / 超时
         # 这类系统问题单独提示稍后重试，不说成文件格式不对。
         frappe.log_error(title="cowork reconciliation job", message=frappe.get_traceback())
-        system = isinstance(error, (frappe.QueryTimeoutError, frappe.QueryDeadlockError)) or not isinstance(
-            error, (frappe.ValidationError, ValueError))
-        message = frappe._("reconciliation.system_busy") if system else error_text(error)
+        message = _failure_text(error, error_text)
         _state(recon_job, state="failed", stage="failed", error=frappe.utils.strip_html(message)[:500])
         _announce(recon_job, kind, title, error=frappe.utils.strip_html(message)[:500])
     finally:
         if not parked:
             _cleanup(recon_job, files, keep_files)
+
+
+def _failure_text(error, error_text):
+    """对账失败给用户的一句话：数据库锁 / 超时、连接断了这类一时的问题说「系统繁忙、稍后重试」；文件或数据的校验问题
+    说具体原因；程序本身出错（类型错误、取不到字段……）说是程序错误、已记录，重试也一样——以前一律说「系统繁忙」，
+    用户反复重试照样失败（2026-10-02 多人压测 B08-01 的 TypeError）。"""
+    if isinstance(error, (frappe.QueryTimeoutError, frappe.QueryDeadlockError, ConnectionError, TimeoutError)) or \
+            type(error).__name__ in ("OperationalError", "InterfaceError"):
+        return frappe._("reconciliation.system_busy")
+    if isinstance(error, (frappe.ValidationError, ValueError)):
+        return error_text(error)
+    return frappe._("reconciliation.program_error")
 
 
 def _cleanup(recon_job, files, keep_files):

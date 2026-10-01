@@ -628,8 +628,10 @@ def _merge_on(primary, others):
 
 	def step(first, second):
 		# 与 chain_files 同一口径：方向可能读反（手续费读成存入，B05 KBank8229），两个方向都试，合并后再统一定案。
+		# 任一行没有余额就是接不上（2026-10-02 多人压测 B08-01：后一行余额为空时这里抛 TypeError，整套对账失败）。
 		amount = (second.deposit or 0) + (second.withdrawal or 0)
-		return first.balance is not None and abs(abs(second.balance - first.balance) - amount) <= 0.01
+		return (first.balance is not None and second.balance is not None
+			and abs(abs(second.balance - first.balance) - amount) <= 0.01)
 
 	def fits(before, row, after):
 		ok_before = before is None or step(before, row)

@@ -161,6 +161,36 @@ def replay(doc, works, index, variant):
     return captured
 
 
+def replay_job(site, job, case, index, variants, corpus):
+    """失败的运行没有对账结果可比：按对账号找它的识别任务、按语料目录找原件，照提交时的文件顺序重算一遍。"""
+    import frappe
+    from types import SimpleNamespace
+
+    found = next((value for key, value in recon_jobs(site).items() if value[0] == job), None)
+    if not found:
+        return {"job": job, "skip": "no recognition job"}
+    _job, user, works = found
+    order = {}
+    for row in frappe.db.sql("SELECT reference, arguments FROM `tabPearnly OCR Work` WHERE reference LIKE %s",
+                             (f"{job}:%",), as_dict=True):
+        side = row.reference.split(":")[1]
+        order[int(side[4:]) if side.startswith("left") else 1000 + int(side[5:])] = json.loads(row.arguments)["filename"]
+    left = [order[key] for key in sorted(order) if key < 1000]
+    folder = next((path for path in Path(corpus).rglob(case) if path.is_dir()), None) if case else None
+    right = sorted(path.name for path in folder.rglob("*") if path.is_file() and "右" in str(path)) if folder else []
+    same = frappe.db.get_value("Cowork Bank Reconciliation", {"title": ["like", f"%{case}%"]}, ["workspace", "owner"],
+                               as_dict=True) or frappe._dict(workspace="", owner="Administrator")
+    workspace = same.workspace
+    if not frappe.db.exists("User", user):
+        user = same.owner  # 压测用户测完已删：用同一工作区里跑过同一套的人重放
+    doc = SimpleNamespace(title=f"] {case}", workspace=workspace, parse_info_json=json.dumps(
+        {"stmt_files": [{"file": name} for name in left], "gl_files": [{"file": name} for name in right]}))
+    frappe.set_user(user)
+    results = {variant: replay(doc, works, index, variant) for variant in variants}
+    return {"job": job, "case": case, "left": left, "right": right,
+            **{variant: {k: v for k, v in result.items() if k != "row_keys"} for variant, result in results.items()}}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sites", required=True)
@@ -169,6 +199,8 @@ def main():
     parser.add_argument("--name", action="append", default=[], help="只跑这几套（CBR 名前缀）")
     parser.add_argument("--corpus", required=True)
     parser.add_argument("--variants", default="old,new")
+    parser.add_argument("--job", help="按对账号重放一次没留下结果的运行（失败的）：配 --case 语料里的对账名，只看第一个站点")
+    parser.add_argument("--case", help="--job 用：语料目录名，如 B08-冰厂SINCERE-BBL0555-2026-01")
     parser.add_argument("--sites-from", help="只读挂载的站点卷：只把配置拷进容器自己的 sites（Frappe 要往站点目录写日志）")
     args = parser.parse_args()
     if args.sites_from:
@@ -187,6 +219,14 @@ def main():
         raise SystemExit(f"corpus {args.corpus} is empty or not readable (run the container with --user 0)")
     variants = args.variants.split(",")
     totals = collections.Counter()
+    if args.job:
+        site = args.sites.split(",")[0]
+        frappe.init(site, sites_path=SITES)
+        frappe.connect()
+        frappe.db.sql("SET SESSION TRANSACTION READ ONLY")
+        print(json.dumps(replay_job(site, args.job, args.case, index, variants, args.corpus), ensure_ascii=False, default=str))
+        frappe.destroy()
+        return
     for site in args.sites.split(","):
         frappe.init(site, sites_path=SITES)
         frappe.connect()

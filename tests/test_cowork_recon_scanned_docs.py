@@ -845,6 +845,21 @@ class SeveralFilesPerSide(unittest.TestCase):
 			self.assertEqual((sorted(names), sure), (["b1.jpg", "b2.jpg"], True))
 		self.assertEqual(account_conflict(files)[1], False)  # 没有总账可看：都保留、提示
 
+	def test_a_line_without_a_balance_never_breaks_the_merge(self):
+		# 2026-10-02 多人压测 B08-01：主份里一行余额为空，往缺口里插别的份时算「接不接得上」抛 TypeError，整套对账失败。
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		def line(day, deposit, balance, source):
+			return StatementRow(date=date(2026, 1, day), description="x", withdrawal=0.0, deposit=deposit, balance=balance,
+				source_file=source)
+
+		blank = line(3, 50.0, 0.0, "a.pdf")
+		blank.balance = None  # 读出后没有余额（建行时余额要有值，读取层事后置空）
+		primary = [line(2, 100.0, 1100.0, "a.pdf"), blank, line(6, 30.0, 1180.0, "a.pdf")]
+		other = [line(4, 999.0, 2179.0, "b.jpg")]
+		merged = bank_recon_service._merge_on(primary, [other])
+		self.assertEqual(len([row for row in merged if row.source_file == "a.pdf"]), 3)
+
 	def test_a_continuation_with_a_misread_account_stays_and_a_quiet_passbook_is_recognised_by_its_balance(self):
 		# 重放（2026-10-02）查明 B08-05 的补充照片不是 PDF 的重复，而是同一账户 5 月 18 日以后的续页：余额接得上就是同一账户。
 		from types import SimpleNamespace
