@@ -84,8 +84,8 @@ def _call_page(args, kwargs):
     return page if isinstance(page, int) and not isinstance(page, bool) else None
 
 
-def _recognize(doc, frozen, examples):
-    source = _check(doc, frozen, examples)
+def _recognize(doc, frozen, examples, source):
+    """``source``：调用方（``run``）刚做完的完整复核（含冻结配置与样例）回的原件；之后每次付费调用前照旧再复核。"""
     kind, units = service.billing_basis(doc)
     service.balance(units, frozen["billing_tier"], kind=kind)
     if frozen.get("input_engine") == roundtrip.ENGINE:
@@ -154,8 +154,9 @@ def _recognize(doc, frozen, examples):
 
 def _freeze_result(doc, result, frozen, examples, remote=None):
     frappe.db.commit()
+    # 结果回来、存之前复核一次（读的过程中可能被撤权、停用、改原件）；紧接着加锁读任务单不再重复同一刻的复核。
     _check(doc, frozen, examples)
-    doc = store.read(doc.name, lock=True, write=True)
+    doc = store.read(doc.name, lock=True, write=True, authorize=False)
     if not doc.result_json:
         if remote:
             doc.result_json, evidence = remote
@@ -170,7 +171,7 @@ def _freeze_result(doc, result, frozen, examples, remote=None):
 
 
 def _persist(doc):
-    _check(doc)
+    """调用方（``run``）在这之前刚复核过（开头的复核，或识别后 ``_freeze_result`` 的复核），中间没有等待或外部调用。"""
     anchor = date.fromisoformat(str(doc.anchor_date)).year
     result = PipelineResult.model_validate_json(doc.result_json, context={"anchor_year": anchor})
     if result.engine == roundtrip.ENGINE:
@@ -181,7 +182,7 @@ def _persist(doc):
         reference_kind=doc.get("reference_kind") or "physical_page")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
-    doc = store.read(doc.name, lock=True, write=True)
+    doc = store.read(doc.name, lock=True, write=True, authorize=False)
     if doc.phase in {"saved", "not_invoice"}:
         return doc
     rows = persist_batch(doc.source_file, plan["groups"], doc.name, anchor_year=anchor) if plan["groups"] else []
@@ -214,17 +215,22 @@ def _announce(doc):
 
 
 def run(batch_name):
+    # 授权复核（2026-10-01 用户同意合并）：付费调用前一次（开头这次，要识别时连冻结配置与样例一起复核）、结果回来存之前一次
+    # （``_freeze_result``）；本机读时每次付费调用前照旧再复核。原来同一时刻背靠背的重复复核（开头两次、存结果前三次）去掉，
+    # 被停用、撤权、改原件照旧在这两处拦下。
     doc = store.read(batch_name, authorize=False)
     _require_work(doc)
     with store.actor(doc.actor):
-        _check(doc)
+        recognizing = doc.phase not in {"saved", "not_invoice"} and not doc.result_json
+        frozen = json.loads(doc.settings_json) if recognizing else None
+        examples = json.loads(doc.examples_json) if recognizing else None
+        source = _check(doc, frozen, examples)
         if doc.phase not in {"saved", "not_invoice"}:
             if not doc.result_json:
-                frozen, examples = json.loads(doc.settings_json), json.loads(doc.examples_json)
                 doc.phase = "recognizing"
                 store.save(doc)
                 frappe.db.commit()
-                doc = _recognize(doc, frozen, examples)
+                doc = _recognize(doc, frozen, examples, source)
             try:
                 doc = _persist(doc)
             except frappe.QueryDeadlockError as exc:
@@ -233,7 +239,7 @@ def run(batch_name):
                 frappe.db.rollback()
                 raise Deferred("database_busy", 5) from exc
         if doc.phase == "saved":
-            doc = service.settle(doc.name)
+            doc = service.settle(doc.name, authorized=True)
             if doc.billing_state != "charged":
                 raise Deferred("billing_pending", 60)
         return {"batch_name": doc.name, "state": doc.phase}

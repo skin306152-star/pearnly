@@ -57,6 +57,15 @@ def inspect_content(filename, content):
             "byte_size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
 
 
+def attachments_folder():
+    """挂在单据上的 File 放进的那个文件夹（与 Frappe ``File.set_folder_name`` 取的同一个），按站点查一次后缓存。
+
+    Frappe 每插入一个挂单据的 File 都按创建时间倒序查一遍 ``is_attachments_folder``，tabFile 上没有这个索引
+    （2026-10-01 生产压测：484 次、平均 0.23 秒）。这个文件夹删不掉（``File.on_trash`` 拒绝），缓存不会过期失效。"""
+    return frappe.cache.get_value("cowork:attachments-folder", generator=lambda: frappe.db.get_value(
+        "File", {"is_attachments_folder": 1}))
+
+
 def create(workspace, filename, content, request_key, client=None):
     scope.require("intake")
     scope.require_scope(workspace, client)
@@ -79,7 +88,7 @@ def create(workspace, filename, content, request_key, client=None):
     # Permission was checked above. Native generic creation must remain unavailable.
     doc.insert(ignore_permissions=True)
     file_doc = frappe.get_doc({"doctype": "File", "file_name": name + meta["suffix"],
-        "is_private": 1, "content": content, "owner": "Administrator",
+        "is_private": 1, "content": content, "owner": "Administrator", "folder": attachments_folder(),
         "attached_to_doctype": access.SOURCE, "attached_to_name": doc.name})
     file_doc.flags.cowork_original_write = guard.WRITE_CAPABILITY
     file_doc.insert(ignore_permissions=True)

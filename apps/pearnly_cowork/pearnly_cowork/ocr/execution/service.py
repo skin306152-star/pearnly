@@ -122,9 +122,11 @@ def detail(name):
     return store.project(store.read(name))
 
 
-def settle(name):
-    """Receipt-only retry. A saved result is never sent back through OCR."""
-    doc = store.read(name, lock=True, write=True)
+def settle(name, *, authorized=False):
+    """Receipt-only retry. A saved result is never sent back through OCR.
+
+    ``authorized``：识别任务里存完结果紧接着扣费，刚复核过，不再重复同一刻的复核；用户点「重试记账」照旧复核。"""
+    doc = store.read(name, lock=True, write=True, authorize=not authorized)
     if doc.phase != "saved" or doc.billing_state == "charged":
         return doc
     frozen = json.loads(doc.settings_json)
