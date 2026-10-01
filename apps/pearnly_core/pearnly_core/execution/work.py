@@ -16,6 +16,9 @@ from . import budget
 from .errors import Deferred, QueueFull, Uncertain
 
 DT = "Pearnly OCR Work"
+# 检查点按行存（2026-10-01 生产：每次调用都把整块检查点 JSON 重写进 Work，多页文件几 MB，几十个连接同时写把 MariaDB 的
+# 连接内存撑到 2.5G、被内核杀了两次）。每次调用只写自己那一行；Work 上的 `checkpoints` 是部署前的旧格式，读时作底、新行覆盖。
+CP = "Pearnly OCR Checkpoint"
 ACTIVE = ("queued", "running", "deferred")
 JOB_TIMEOUT = 600
 PRUNE_BATCH = 500
@@ -206,7 +209,7 @@ def run(name):
     if doc.next_run and doc.next_run > now:
         frappe.db.rollback()
         return
-    stages = json.loads(doc.checkpoints or "{}")
+    stages = stored_checkpoints(name)
     # 残留「started」（上一个进程在调用中途死了，租约已过）：默认整份判结果不明、不再付费重放。声明了自己能按调用
     # 处理结果不明的类别（hooks `pearnly_ocr_resume_unknown`）照常续跑：已完成的调用从检查点取回，那一次调用由
     # 处理函数自己决定（有限次重发 / 当成这一页读不出）—— Cowork 对账：25 页扫描件在调用中途被硬时限杀掉，
@@ -256,12 +259,53 @@ def checkpoint_key(payload, model):
     return hashlib.sha256((model + "\0" + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
 
 
+def _row_name(name, key):
+    return hashlib.sha256((name + "\0" + key).encode()).hexdigest()
+
+
+def _legacy(name):
+    """部署前写在 Work 上的整块检查点（新任务是空的）。"""
+    return json.loads(frappe.db.get_value(DT, name, "checkpoints") or "{}") or {}
+
+
+def stored_checkpoints(name):
+    """这份 Work 的全部检查点 ``{key: {"state", "body"}}``：旧格式作底，按行存的覆盖。"""
+    values = _legacy(name)
+    for row in frappe.db.sql(f"SELECT checkpoint_key, state, body FROM `tab{CP}` WHERE work=%s", name, as_dict=True):
+        values[row.checkpoint_key] = {"state": row.state, "body": json.loads(row.body) if row.body else None}
+    return values
+
+
+def saved_checkpoint(name, key):
+    """任一份 Work 的某个检查点（不必在它的运行里）：按主键取一行；没有再看旧格式。"""
+    rows = frappe.db.sql(f"SELECT state, body FROM `tab{CP}` WHERE name=%s", _row_name(name, key), as_dict=True)
+    if rows:
+        return {"state": rows[0].state, "body": json.loads(rows[0].body) if rows[0].body else None}
+    return _legacy(name).get(key)
+
+
+def done_calls(names):
+    """每份 Work 已完成（done）的调用次数 ``{name: n}``：按行计数，不把内容读回来。"""
+    names = tuple(dict.fromkeys(names or ()))
+    if not names:
+        return {}
+    counts = {name: 0 for name in names}
+    for work, count in frappe.db.sql(f"""SELECT work, COUNT(*) FROM `tab{CP}` WHERE work IN %(names)s
+            AND state='done' GROUP BY work""", {"names": names}):
+        counts[work] = count
+    legacy = frappe.db.sql(f"""SELECT name FROM `tab{DT}` WHERE name IN %(names)s
+        AND checkpoints IS NOT NULL AND checkpoints NOT IN ('', '{{}}')""", {"names": names})
+    for (name,) in legacy:  # 部署前开跑的任务：新旧合并后再数，同一个调用不重复算
+        counts[name] = sum(1 for value in stored_checkpoints(name).values()
+                           if isinstance(value, dict) and value.get("state") == "done")
+    return counts
+
+
 def _stages(name):
-    """本次运行的检查点：每次运行只从库里读一次（同一时刻只有持租约的这一个运行在写）。多页压测：50 页的检查点
-    长到 2.6 MB，续跑时每个调用都整块读一遍再解析，取回本身就要 30 多秒。"""
+    """本次运行的检查点：每次运行只从库里读一次（同一时刻只有持租约的这一个运行在写）。"""
     cached = frappe.flags.get("pearnly_ocr_checkpoints")
     if not cached or cached[0] != name:
-        cached = (name, json.loads(frappe.db.get_value(DT, name, "checkpoints") or "{}"))
+        cached = (name, stored_checkpoints(name))
         frappe.flags.pearnly_ocr_checkpoints = cached
     return cached[1]
 
@@ -274,7 +318,12 @@ def checkpoint(key, state=None, body=None):
     if state is None:
         return stages.get(key)
     stages[key] = {"state": state, "body": body}
-    frappe.db.set_value(DT, name, "checkpoints", json.dumps(stages), update_modified=False)
+    now, user = frappe.utils.now(), frappe.session.user
+    # 只写这一个调用的那一行（同一调用再写就覆盖：started → done / rejected）。
+    frappe.db.sql(f"""INSERT INTO `tab{CP}` (name, creation, modified, modified_by, owner, docstatus, idx,
+            work, checkpoint_key, state, body) VALUES (%s, %s, %s, %s, %s, 0, 0, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE state=VALUES(state), body=VALUES(body), modified=VALUES(modified)""",
+        (_row_name(name, key), now, now, user, user, name, key, state, json.dumps(body)))
     frappe.db.commit()
     return stages[key]
 
@@ -283,8 +332,7 @@ def has_completed_call():
     name = frappe.flags.get("pearnly_ocr_work")
     if not name:
         return False
-    values = json.loads(frappe.db.get_value(DT, name, "checkpoints") or "{}")
-    return any(value.get("state") == "done" for value in values.values())
+    return done_calls([name])[name] > 0
 
 
 def _notify(name, code):
@@ -307,6 +355,11 @@ def prune_checkpoints():
         pluck="name", limit_page_length=PRUNE_BATCH)
     for name in rows:
         frappe.db.set_value(DT, name, "checkpoints", "{}", update_modified=False)
+    finished = [work for (work,) in frappe.db.sql(f"""SELECT DISTINCT c.work FROM `tab{CP}` c
+        JOIN `tab{DT}` w ON w.name = c.work WHERE w.status IN ('succeeded', 'cancelled') AND w.next_run < %s
+        LIMIT {PRUNE_BATCH}""", cutoff)]
+    if finished:
+        frappe.db.sql(f"DELETE FROM `tab{CP}` WHERE work IN %(names)s", {"names": tuple(finished)})
     from .inputs import remove
     # Cleanup does not alter the retained receipt, so always selecting the first
     # batch would permanently miss later files after a failed immediate cleanup.

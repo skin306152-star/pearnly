@@ -1,0 +1,49 @@
+{
+ "doctype": "DocType",
+ "name": "Pearnly OCR Checkpoint",
+ "module": "Pearnly Core",
+ "engine": "InnoDB",
+ "autoname": "prompt",
+ "field_order": [
+  "work",
+  "checkpoint_key",
+  "state",
+  "body"
+ ],
+ "fields": [
+  {
+   "fieldname": "work",
+   "fieldtype": "Link",
+   "label": "Work",
+   "options": "Pearnly OCR Work",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "checkpoint_key",
+   "fieldtype": "Data",
+   "label": "Checkpoint Key",
+   "reqd": 1
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "label": "State",
+   "reqd": 1
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Long Text",
+   "label": "Body"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "track_changes": 0,
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

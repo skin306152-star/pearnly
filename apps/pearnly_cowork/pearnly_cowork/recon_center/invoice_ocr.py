@@ -146,12 +146,6 @@ def _create(reference, arguments, user):
         return core_work.submit(KIND, reference, arguments, user)
 
 
-def _calls(checkpoints):
-    """这份识别已经做完了几次调用：检查点里记成 done 的个数。"""
-    values = frappe.parse_json(checkpoints or "{}") or {}
-    return sum(1 for value in values.values() if isinstance(value, dict) and value.get("state") == "done")
-
-
 def wait(works, on_stage=None):
     """等 Work 结束，取回每份的发票。返回 (发票记录, 没读出的文件名)。
 
@@ -179,7 +173,7 @@ def wait(works, on_stage=None):
             checked = now
             started = len(names) > len(open_names) or any(row and row.status not in ("queued", "deferred")
                                                             for row in open_rows) or any(
-                _calls(value) for value in frappe.get_all(WORK, filters={"name": ["in", open_names]}, pluck="checkpoints"))
+                core_work.done_calls(open_names).values())
             if started:
                 reading_since = now  # 开始读了：从这一刻起算读取时限
         if reading_since is None:
@@ -190,11 +184,11 @@ def wait(works, on_stage=None):
             break
         time.sleep(POLL_SECONDS)
     finished = [name for name in names if name not in stopped]
-    saved_by_name = {row.name: row.checkpoints for row in frappe.get_all(
-        WORK, filters={"name": ["in", finished], "status": "succeeded"}, fields=["name", "checkpoints"])} if finished else {}
+    succeeded = set(frappe.get_all(WORK, filters={"name": ["in", finished], "status": "succeeded"},
+                                   pluck="name")) if finished else set()
     invoices, failed = [], []
     for name, filename in works:
-        saved = frappe.parse_json(saved_by_name.get(name) or "{}").get(RESULT)
+        saved = core_work.saved_checkpoint(name, RESULT) if name in succeeded else None
         found = (saved or {}).get("body", {}).get("invoices") if saved else None
         if found:
             invoices.extend(found)

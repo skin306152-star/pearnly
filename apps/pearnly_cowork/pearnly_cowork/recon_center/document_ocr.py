@@ -124,7 +124,7 @@ def wait(name):
             else:
                 started, progressed, deadline = now, now, now + WAIT_SECONDS
         if now > deadline:
-            if not extended and RESULT in frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}"):
+            if not extended and core_work.saved_checkpoint(name, RESULT) is not None:
                 extended = True
                 deadline = now + FINISHING_GRACE_SECONDS
             elif now - progressed <= PROGRESS_WINDOW and now - started < WAIT_LIMIT:
@@ -134,7 +134,7 @@ def wait(name):
         time.sleep(POLL_SECONDS)
     if row.status != "succeeded":
         return None
-    saved = frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}").get(RESULT) or {}
+    saved = core_work.saved_checkpoint(name, RESULT) or {}
     return (saved.get("body") or {}).get("legacy")
 
 
@@ -161,8 +161,7 @@ def _finished(recon_job, file, filename, pages, legacy):
 
 def completed_calls(name):
     """这份识别已经做完了几次调用（读字的块、抽取的页）：检查点里记成 done 的个数。"""
-    values = frappe.parse_json(frappe.db.get_value(WORK, name, "checkpoints") or "{}") or {}
-    return sum(1 for value in values.values() if isinstance(value, dict) and value.get("state") == "done")
+    return core_work.done_calls([name])[name]
 
 
 def reader(recon_job, side, file_name, user):

@@ -107,22 +107,36 @@ class CheckpointCache(unittest.TestCase):
     def setUp(self):
         fresh_flags(self)
 
-    def test_one_read_per_run_and_a_fresh_read_next_run(self):
-        store = {"checkpoints": json.dumps({"a": {"state": "done", "body": 1}})}
+    def test_one_read_per_run_rows_override_the_old_blob_and_a_write_touches_one_row(self):
+        rows = {"a": ("done", json.dumps(1))}
         db = frappe.local.db = MagicMock()
         self.addCleanup(lambda: setattr(frappe.local, "db", None))
-        db.get_value.side_effect = lambda *a, **k: store["checkpoints"]
-        db.set_value.side_effect = lambda dt, name, field, value, **k: store.update(checkpoints=value)
-        with work.context("work-1"):
+        # 部署前的旧格式：整块 JSON 作底；按行存的覆盖它
+        db.get_value.side_effect = lambda *a, **k: json.dumps({"a": {"state": "started"}, "old": {"state": "done", "body": 0}})
+        selects, writes = [], []
+
+        def sql(query, values=None, *args, **kwargs):
+            if query.lstrip().startswith("SELECT"):
+                selects.append(values)
+                return [frappe._dict(checkpoint_key=key, state=state, body=body) for key, (state, body) in rows.items()]
+            writes.append(values)
+            rows[values[6]] = (values[7], values[8])
+            return ()
+        db.sql.side_effect = sql
+        with patch.object(frappe, "session", frappe._dict(user="u@example.com")), \
+                patch.object(frappe.utils, "now", return_value="2026-10-01 08:00:00"), work.context("work-1"):
             for _ in range(5):
                 self.assertEqual(work.checkpoint("a")["body"], 1)
+            self.assertEqual(work.checkpoint("old")["body"], 0)
             work.checkpoint("b", "done", 2)
             self.assertEqual(work.checkpoint("b")["body"], 2)
-        self.assertEqual(db.get_value.call_count, 1)
-        self.assertEqual(json.loads(store["checkpoints"])["b"]["body"], 2)
+        self.assertEqual(len(selects), 1)
+        self.assertEqual(len(writes), 1)               # 只写这一个调用的那一行，不重写整块
+        self.assertEqual(writes[0][5:9], ("work-1", "b", "done", "2"))
+        self.assertEqual(writes[0][0], work._row_name("work-1", "b"))
         with work.context("work-1"):
             work.checkpoint("a")
-        self.assertEqual(db.get_value.call_count, 2)
+        self.assertEqual(len(selects), 2)
 
 
 if __name__ == "__main__":

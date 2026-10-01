@@ -30,6 +30,7 @@ class ResumeUnknown(unittest.TestCase):
                 patch.object(work, "_finish") as finish, patch.object(work, "handler", return_value="x.run"), \
                 patch.object(work.frappe, "get_attr", return_value=handler), patch.object(work, "job_language"), \
                 patch.object(work.frappe, "flags", frappe._dict()), patch.object(work.frappe, "log_error"), \
+                patch.object(work, "stored_checkpoints", return_value=json.loads(_doc(kind).checkpoints)), \
                 patch("pearnly_core.execution.resources.check_memory"):
             work.run("W1")
         return finish, handler

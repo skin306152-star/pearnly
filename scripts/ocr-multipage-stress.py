@@ -115,7 +115,7 @@ def stress(args):
                 frappe.db.rollback()
                 code, outcome = "uncertain", "uncertain"
             elapsed = time.monotonic() - begin
-            blob = frappe.db.get_value(work.DT, name, "checkpoints") or ""
+            blob = json.dumps(work.stored_checkpoints(name))  # 检查点按行存后的总量
             runs.append({"run": len(runs) + 1, "seconds": round(time.monotonic() - run_start, 1),
                          "new_posts": len(posts) - posts_before, "code": code, "delay": delay,
                          "replay_until_first_call": first_new[0] if first_new else None,

@@ -166,11 +166,11 @@ else:
                     connect(site)
                     try:
                         for row in [r for r in accepted if r['site']==site]:
-                            job=frappe.db.get_value(work.DT,row['work'],['status','last_code','attempts','checkpoints'],as_dict=True)
+                            job=frappe.db.get_value(work.DT,row['work'],['status','last_code','attempts'],as_dict=True)
                             if job.status=='succeeded' and row['work'] not in completed:
                                 session=line_session.get_session(row['line'])
                                 assert (session or {}).get('payload',{}).get('id_card',{}).get('people_id')=='1000009200019', json.dumps({'work':row['work'],'site':site,'state':(session or {}).get('state'),'keys':list(((session or {}).get('payload') or {}).keys())})
-                                body=json.loads(job.checkpoints)
+                                body=work.stored_checkpoints(row['work'])
                                 assert any(v.get('body',{}).get('modelVersion')=='cost-free-lab-fixture' for v in body.values())
                                 completed[row['work']]=round(time.monotonic()-start,3)
                             assert job.status not in ('failed','uncertain','cancelled'), json.dumps({'work':row['work'],'site':site,'status':job.status,'code':job.last_code})

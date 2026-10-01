@@ -68,7 +68,7 @@ assert job.status == 'succeeded', (job.status, job.last_code)
 draft = line_session.get_session(identity['line'])
 # Exact printed digits on /lab-private/ocr-load-sample.jpg, visually checked.
 assert draft['payload']['id_card']['people_id'] == '1000000730317'
-checkpoints = json.loads(job.checkpoints)
+checkpoints = work.stored_checkpoints(name)  # 检查点按行存（2026-10-01）
 assert len(checkpoints) == 1 and all(c['state'] == 'done' for c in checkpoints.values())
 assert all(c['body'].get('usageMetadata') for c in checkpoints.values())
 assert not Path(SITE+'/private/files/ocr-work/'+name).exists(), 'Input was not cleaned after completion'
@@ -76,7 +76,7 @@ reference = 'idcard:line:' + job.reference
 records = frappe.get_all('Pearnly OCR Record', filters={'reference':reference}, fields=['charged_thb'])
 assert len(records) == 1 and Decimal(str(records[0].charged_thb)) == Decimal('1.5'), records
 work.run(name)  # Duplicate delivery is a no-op after a completed job.
-assert frappe.db.get_value(work.DT, name, 'checkpoints') == job.checkpoints
+assert work.stored_checkpoints(name) == checkpoints
 assert frappe.db.count('Pearnly OCR Record', {'reference':reference}) == 1
 line_session.clear_session(identity['line'])
 frappe.db.commit()

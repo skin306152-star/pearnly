@@ -41,9 +41,9 @@ pending = list(created)
 while pending and time.monotonic() < deadline:
     for site,name in list(pending):
         connect(site)
-        row = frappe.db.get_value(work.DT,name,['status','last_code','checkpoints'],as_dict=True)
+        row = frappe.db.get_value(work.DT,name,['status','last_code'],as_dict=True)
         if row.status == 'failed':
-            assert row.last_code == 'queue_expired' and not json.loads(row.checkpoints or '{}')
+            assert row.last_code == 'queue_expired' and not work.stored_checkpoints(name)
             pending.remove((site,name))
         else:
             assert row.status in work.ACTIVE

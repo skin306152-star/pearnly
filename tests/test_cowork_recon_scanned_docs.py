@@ -1350,12 +1350,19 @@ class WaitingForARead(unittest.TestCase):
 		clock = [0.0]
 
 		def get_value(doctype, name, fields, as_dict=False):
-			return status_at(clock[0]) if isinstance(fields, list) else json.dumps(checkpoints_at(clock[0]))
+			return status_at(clock[0])
+
+		def done(names):  # 检查点按行存：共用层按行计数（work.done_calls）
+			return {name: sum(1 for value in checkpoints_at(clock[0]).values() if value.get("state") == "done")
+				for name in names}
 
 		def sleep(seconds):
 			clock[0] += seconds
 
 		with mock.patch.object(document_ocr.frappe, "db", mock.MagicMock(get_value=get_value)), \
+				mock.patch.object(document_ocr.core_work, "done_calls", side_effect=done), \
+				mock.patch.object(document_ocr.core_work, "saved_checkpoint",
+					side_effect=lambda name, key: checkpoints_at(clock[0]).get(key)), \
 				mock.patch.object(document_ocr.time, "monotonic", side_effect=lambda: clock[0]), \
 				mock.patch.object(document_ocr.time, "sleep", side_effect=sleep), \
 				mock.patch.object(document_ocr, "_", lambda text: text), \
@@ -1424,20 +1431,21 @@ class WaitingForInvoices(unittest.TestCase):
 		def get_all(doctype, filters=None, fields=None, pluck=None):
 			names = filters["name"][1]
 			now = states(clock[0])
-			if pluck:
-				return [json.dumps({f"c{n}": {"state": "done"} for n in range(now[name][1])}) for name in names]
 			rows = [frappe._dict(name=name, status=now[name][0], last_code="") for name in names
 				if filters.get("status") in (None, now[name][0])]
-			if "checkpoints" in fields:
-				for row in rows:
-					found = now[row.name][2]
-					row.checkpoints = json.dumps({invoice_ocr.RESULT: {"state": "done", "body": {"invoices": found}}})
-			return rows
+			return [row.name for row in rows] if pluck == "name" else rows
+
+		def saved(name, key):  # 检查点按行存：共用层按主键取（work.saved_checkpoint）
+			assert key == invoice_ocr.RESULT
+			return {"state": "done", "body": {"invoices": states(clock[0])[name][2]}}
 
 		def sleep(seconds):
 			clock[0] += seconds
 
 		with mock.patch.object(invoice_ocr.frappe, "get_all", side_effect=get_all), \
+				mock.patch.object(invoice_ocr.core_work, "done_calls",
+					side_effect=lambda names: {name: states(clock[0])[name][1] for name in names}), \
+				mock.patch.object(invoice_ocr.core_work, "saved_checkpoint", side_effect=saved), \
 				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock()), \
 				mock.patch.object(invoice_ocr.time, "monotonic", side_effect=lambda: clock[0]), \
 				mock.patch.object(invoice_ocr.time, "sleep", side_effect=sleep), \
