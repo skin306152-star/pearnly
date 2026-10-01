@@ -136,7 +136,7 @@ def _invoices(names):
                          "pages": len(pages), "fields": {key: fields.get(key) for key in (
                              "invoice_number", "date", "date_raw", "seller_tax", "seller_branch", "seller_name",
                              "buyer_tax", "buyer_branch", "buyer_name", "subtotal", "vat", "total_amount",
-                             "document_type")}})
+                             "document_type", "wht_amount")}, "items": len(fields.get("items") or [])})
     return invoices
 
 
@@ -184,14 +184,30 @@ def name_key(value):
 
 
 def load_answers(corpus, answer_dir):
-    """这家公司所有账套的进项 / 销项税登记行。"""
+    """这家公司所有账套的进项 / 销项税登记行，加进货单 / 销货单（不带增值税的单据不进税登记，只在单据表里）。
+    金额为 0 的行（作废、冲销）不要。"""
     rows = []
+    for register, direction in (("进货单.csv", "purchase"), ("销货单.csv", "sale")):
+        for path in sorted(Path(corpus, answer_dir).glob(f"*/{register}")):
+            with open(path, encoding="utf-8-sig", newline="") as handle:
+                for row in csv.DictReader(handle):
+                    net, vat, gross = money(row.get("合计")), money(row.get("税额")), money(row.get("净额"))
+                    if not gross:
+                        continue
+                    rows.append({"direction": direction, "ledger": path.parent.name, "source": "document",
+                                 "doc_no": row.get("对方单号") or row.get("对方参考") or "", "voucher": row.get("凭证号") or "",
+                                 "date": parse_day(row.get("日期")), "party_name": row.get("对方名称") or "",
+                                 "party_tax": digits(row.get("对方税号")), "party_branch": branch(row.get("对方分店")),
+                                 "net": net or Decimal(0), "vat": vat or Decimal(0), "gross": gross})
     for register, direction in (("进项税登记.csv", "purchase"), ("销项税登记.csv", "sale")):
         for path in sorted(Path(corpus, answer_dir).glob(f"*/{register}")):
             with open(path, encoding="utf-8-sig", newline="") as handle:
                 for row in csv.DictReader(handle):
                     net, vat, zero = money(row.get("未税额")), money(row.get("税额")), money(row.get("零税额"))
-                    rows.append({"direction": direction, "ledger": path.parent.name, "doc_no": row.get("对方单号") or "",
+                    if not ((net or 0) + (zero or 0) + (vat or 0)):
+                        continue
+                    rows.append({"direction": direction, "ledger": path.parent.name, "source": "register",
+                                 "doc_no": row.get("对方单号") or "",
                                  "voucher": row.get("凭证号") or "", "date": parse_day(row.get("单据日期")),
                                  "party_name": row.get("对方名称") or "", "party_tax": digits(row.get("税号")),
                                  "party_branch": branch(row.get("分店")), "net": (net or 0) + (zero or 0),
@@ -222,15 +238,51 @@ def close(a, b):
 def same_number(got, want):
     """单号数字部分相同，或较长的一串里包含较短的（≥ 6 位，原件多印了前后缀）。"""
     got, want = doc_no_key(got)[1], doc_no_key(want)[1]
-    return bool(got and want) and (got == want or (min(len(got), len(want)) >= 6 and (got in want or want in got)))
+    return bool(got and want) and (got == want or (min(len(got), len(want)) >= 8 and (got in want or want in got)))
+
+
+class Answers:
+    """一家公司的答案行，按金额（分）、单号数字、税号建索引：每张票只比可能的那几行，不逐行扫几万行。"""
+
+    def __init__(self, rows):
+        self.rows, self.by_amount, self.by_no, self.by_tax = rows, collections.defaultdict(list), \
+            collections.defaultdict(list), collections.defaultdict(list)
+        for index, row in enumerate(rows):
+            for amount in (row["gross"], row["net"]):
+                if amount:
+                    self.by_amount[cents(amount)].append(index)
+            number = doc_no_key(row["doc_no"])[1]
+            if number:
+                self.by_no[number].append(index)
+            if row["party_tax"]:
+                self.by_tax[row["party_tax"]].append(index)
+        self.years = {row["date"].year for row in rows if row["date"]}
+
+    def candidates(self, item):
+        found = set()
+        for amount in (item["gross"], item["net"]):
+            if amount is not None:
+                for delta in (-1, 0, 1):
+                    found.update(self.by_amount.get(cents(amount) + delta, ()))
+        number = doc_no_key(item["doc_no"])[1]
+        if number:
+            found.update(self.by_no.get(number, ()))
+            if len(number) >= 8:
+                found.update(index for key, indexes in self.by_no.items() if len(key) >= 8 and (key in number or number in key)
+                             for index in indexes)
+        return [self.rows[index] for index in sorted(found)]
+
+
+def cents(amount):
+    return int((amount * 100).to_integral_value())
 
 
 def match(item, answers):
     """配对：单号、对方税号、金额（含税或未税）、日期（同一天，或 45 天内——水电费会计按缴费收据的日期入账）。
     认的组合：单号 + 任一项、税号 + 金额、金额 + 45 天内。打分取最高；并列取日期最近；还并列而且是同一行的重复
     （相邻账套重叠登了同一张）就取第一行，否则算「多个候选」。回 ``(行, 吻合项)`` 或 ``(None, 原因)``。"""
-    pool = [row for row in answers if item["direction"] in (None, row["direction"])]
-    years = {row["date"].year for row in pool if row["date"]}
+    pool = [row for row in answers.candidates(item) if item["direction"] in (None, row["direction"])]
+    years = answers.years
     scored = []
     for row in pool:
         hits = set()
@@ -246,7 +298,8 @@ def match(item, answers):
         elif gap is not None and gap <= 45:
             hits.add("date_near")
         near = bool(hits & {"date", "date_near"})
-        if not (("doc_no" in hits and len(hits) >= 2) or {"party_tax", "amount"} <= hits or ("amount" in hits and near)):
+        # 单号或金额至少一项，再加税号（或单号 / 金额另一项）：同一个税号（电力局）加日期配得上别家的票（压测窗口核对原件）
+        if not (("doc_no" in hits and hits & {"party_tax", "amount"}) or {"party_tax", "amount"} <= hits):
             continue
         score = 3 * ("doc_no" in hits) + 2 * ("party_tax" in hits) + 2 * ("amount" in hits) + ("date" in hits) + 0.5 * (
             "date_near" in hits)
@@ -255,7 +308,7 @@ def match(item, answers):
         return None, "answer_year_missing" if item["date"] and item["date"].year not in years else "no_candidate"
     scored.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
     best = [entry for entry in scored if entry[:2] == scored[0][:2]]
-    rows = {(doc_no_key(entry[3]["doc_no"])[1], str(entry[3]["gross"]), entry[3]["party_tax"]) for entry in best}
+    rows = {(str(entry[3]["gross"]), entry[3]["party_tax"]) for entry in best}  # 税登记与单据表里同一张票算一行
     if len(rows) > 1:
         return None, "ambiguous"
     return scored[0][3], scored[0][2]
@@ -316,6 +369,8 @@ def compare(item, row, category):
             result[field] = ("ok", None)
         elif not got and category in UTILITY:
             result[field] = ("not_printed", None)
+        elif field == "party_branch" and category in UTILITY:
+            result[field] = ("receipt_basis", None)  # 水电账单上没印分店，会计按收据上的供电所 / 水务所分店号入账
         else:
             result[field] = ("wrong", classify(field, got, want, item))
     ratio = difflib.SequenceMatcher(None, name_key(item["party_name"]), name_key(row["party_name"])).ratio()
@@ -380,14 +435,26 @@ def adjudicate(item, row, wrong, path):
     return verdicts
 
 
+def load_verdicts(path):
+    """人工对照原件的裁决：``{(编号, 字段或 *): 裁决}``。裁决：recognition_error 识别错、answer_convention 会计录法
+    与原件不同、not_in_answers 答案里本来没有、non_invoice 不是票据、scorer_mismatch 打分器配错。"""
+    verdicts = {}
+    if path and Path(path).exists():
+        with open(path, encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle, delimiter="\t"):
+                verdicts[(row["编号"].strip(), (row.get("字段") or "*").strip() or "*")] = row["裁决"].strip()
+    return verdicts
+
+
 def score(args):
     sample = read_sample(args.sample)
+    verdicts = load_verdicts(args.verdicts)
     by_id = {row["编号"]: row for row in sample}
     results = [json.loads(line) for line in open(Path(args.out, "results.jsonl"), encoding="utf-8")]
     glm = {row["编号"] for row in read_sample(args.glm)} if args.glm else set()
-    answers_cache = {}
-    per_invoice, broken, unmatched, not_invoice = [], [], [], []
-    for record in results:
+    current = {"dir": None, "answers": None}
+    per_invoice, broken, unmatched, not_invoice, functional = [], [], [], [], []
+    for record in sorted(results, key=lambda record: by_id[record["编号"]]["答案目录"]):  # 一家一家来，答案用完就放
         row = by_id[record["编号"]]
         if record["state"] == "not_invoice":
             not_invoice.append({"编号": row["编号"], "方向": row.get("方向") or "", "分类": row["分类"], "形态": row["形态"]})
@@ -396,7 +463,9 @@ def score(args):
             broken.append({"编号": row["编号"], "方向": row.get("方向") or "", "公司": row["公司"], "形态": row["形态"], "state": record["state"],
                            "message": record.get("error") or record.get("last_code")})
             continue
-        answers = answers_cache.setdefault(row["答案目录"], load_answers(args.corpus, row["答案目录"]))
+        if current["dir"] != row["答案目录"]:
+            current.update(dir=row["答案目录"], answers=Answers(load_answers(args.corpus, row["答案目录"])))
+        answers = current["answers"]
         for invoice in record.get("invoices") or []:
             item = recognized(invoice, row["税号"], {"采购": "purchase", "销售": "sale"}.get(row.get("方向")))
             found, how = match(item, answers)
@@ -409,14 +478,26 @@ def score(args):
                 continue
             fields = compare(item, found, row["分类"])
             errors = {k: v[1] for k, v in fields.items() if v[0] == "wrong"}
-            verdicts = adjudicate(item, found, errors, Path(args.corpus, row["副本"])) if (
+            if verdicts.get((row["编号"], "*")) in ("void_recorded", "non_invoice_recorded"):
+                functional.append({**base, "kind": verdicts[(row["编号"], "*")]})
+            if verdicts.get((row["编号"], "*")) in ("scorer_mismatch", "not_in_answers", "non_invoice", "non_invoice_recorded"):
+                unmatched.append({**base, "reason": verdicts[(row["编号"], "*")]})
+                continue
+            judged = adjudicate(item, found, errors, Path(args.corpus, row["副本"])) if (
                 errors and row["形态"] == "电子PDF") else {}
+            for field in errors:
+                manual = verdicts.get((row["编号"], field))
+                if manual == "recognition_error":
+                    judged[field] = "recognition_error"
+                elif manual == "answer_convention":
+                    judged[field] = "answer_differs_from_document"
             per_invoice.append({**base, "matched_on": how, "answer": {k: str(v) for k, v in found.items()},
-                                "result": {k: v[0] for k, v in fields.items()}, "errors": errors, "adjudicated": verdicts})
+                                "result": {k: v[0] for k, v in fields.items()}, "errors": errors, "adjudicated": judged})
     run_info = json.loads(Path(args.out, "run.json").read_text()) if Path(args.out, "run.json").exists() else {}
     report = summarize(per_invoice, unmatched, broken, results)
     report["not_invoice"] = {"count": len(not_invoice), "by_category": dict(collections.Counter(
         f"{item['方向']}/{item['分类']}/{item['形态']}" for item in not_invoice).most_common())}
+    report["functional_errors"] = dict(collections.Counter(item["kind"] for item in functional))
     report["broken_detail"] = dict(collections.Counter(f"{item['state']}: {item['message']}" for item in broken))
     report["run"] = run_info
     Path(args.out, "score.json").write_text(json.dumps({"summary": report, "invoices": per_invoice,
@@ -454,6 +535,11 @@ def summarize(per_invoice, unmatched, broken, results):
                                 if verdict in ("prefix_only", "not_printed", "receipt_basis"))
     seconds = sorted(record["seconds"] for record in results if record.get("seconds"))
     electronic = [item for item in regular if item["形态"] == "电子PDF"]
+    confirmed_all = collections.Counter(field for item in regular for field, verdict in item["adjudicated"].items()
+                                        if verdict == "recognition_error")
+    unresolved_all = collections.Counter(field for item in regular for field in item["errors"]
+                                         if item["adjudicated"].get(field) not in ("recognition_error", "answer_differs_from_document"))
+    cells_all = collections.Counter(field for item in regular for field, verdict in item["result"].items() if verdict in ("ok", "wrong"))
     judged = collections.Counter(f"{field}:{verdict}" for item in electronic for field, verdict in item["adjudicated"].items())
     confirmed = collections.Counter(field for item in electronic for field, verdict in item["adjudicated"].items()
                                     if verdict == "recognition_error")
@@ -476,6 +562,10 @@ def summarize(per_invoice, unmatched, broken, results):
                         for category in sorted({item["分类"] for item in regular})},
         "error_kinds": dict(categories.most_common()), "error_kinds_by_field": dict(by_field.most_common()),
         "notes": dict(notes),
+        "confirmed": {"field_error_rate": round(sum(confirmed_all.values()) / sum(cells_all.values()), 4) if cells_all else None,
+                      "unresolved_rate": round(sum(unresolved_all.values()) / sum(cells_all.values()), 4) if cells_all else None,
+                      "by_field": {field: {"confirmed": confirmed_all[field], "unresolved": unresolved_all[field], "n": cells_all[field]}
+                                   for field in FIELDS if cells_all[field]}},
         "electronic_adjudicated": {"verdicts": dict(judged.most_common()),
                                    "confirmed_error_rate": {field: round(confirmed[field] / cells[field], 4)
                                                             for field in FIELDS if cells[field]},
@@ -511,6 +601,9 @@ def render(report):
                                      for form, value in report["by_form"].items()),
               "", "错误类别：" + json.dumps(report["error_kinds"], ensure_ascii=False),
               "", "口径单列：" + json.dumps(report["notes"], ensure_ascii=False),
+              "", "功能性错误（人工对照原件：作废单据照常入账、非票据被当成发票入账）：" + json.dumps(report.get("functional_errors"), ensure_ascii=False),
+              "", f"确认错误率（电子 PDF 文字层裁决 + 人工对照原件确认的识别错 ÷ 全部比对字段）：{report['confirmed']['field_error_rate']}；"
+                  f"尚未裁决的不一致 {report['confirmed']['unresolved_rate']}；逐字段 " + json.dumps(report["confirmed"]["by_field"], ensure_ascii=False),
               "", "电子 PDF 用原件文字层裁决（识别错 / 会计录法与原件不同 / 说不清）："
                   + json.dumps(report["electronic_adjudicated"], ensure_ascii=False),
               "", f"需复核：标记率 {report['review']['flag_rate']}，有错的 {report['review']['invoices_with_error']} 张里"
@@ -538,6 +631,142 @@ def export_glm(args, results, glm):
                                  record["state"]])
 
 
+# ── gold：对照金标（压测窗口逐份看原件、记票面印的值）─────────────────────────────
+
+GOLD_FIELDS = (("doc_no", "单号", "invoice_number"), ("date", "日期", "date"), ("seller_tax", "卖方税号", "seller_tax"),
+               ("seller_branch", "卖方分店", "seller_branch"), ("buyer_tax", "买方税号", "buyer_tax"),
+               ("buyer_branch", "买方分店", "buyer_branch"), ("net", "未税额", "subtotal"), ("vat", "税额", "vat"),
+               ("gross", "合计", "total_amount"), ("wht", "预扣税额", "wht_amount"))
+
+
+def gold_value(field, value):
+    if field in ("net", "vat", "gross", "wht"):
+        return money(value) or None
+    if field == "date":
+        return str(value or "").strip()[:10] or None
+    if field in ("seller_branch", "buyer_branch"):
+        text = digits(value) if value not in (None, "") else None
+        return None if text is None and value in (None, "") else (text or "0")
+    if field in ("seller_tax", "buyer_tax"):
+        return digits(value) or None
+    return alnum(value) or None
+
+
+def gold_align(golds, invoices):
+    """一份文件里的金标票与识别出的票对齐：单号相同 3 分、合计相同 2 分、日期相同 1 分，至少 2 分才算同一张，按分高的先配。"""
+    pairs = []
+    for g_index, gold in enumerate(golds):
+        for r_index, invoice in enumerate(invoices):
+            fields = invoice["fields"]
+            score = 3 * (bool(gold_value("doc_no", gold["单号"])) and gold_value("doc_no", gold["单号"]) == gold_value(
+                "doc_no", fields.get("invoice_number"))) + 2 * close(money(gold["合计"]), money(fields.get("total_amount"))) + (
+                bool(gold["日期"]) and gold_value("date", gold["日期"]) == gold_value("date", fields.get("date")))
+            if score >= 2:
+                pairs.append((score, g_index, r_index))
+    used_g, used_r, matched = set(), set(), []
+    for score, g_index, r_index in sorted(pairs, reverse=True):
+        if g_index in used_g or r_index in used_r:
+            continue
+        used_g.add(g_index)
+        used_r.add(r_index)
+        matched.append((golds[g_index], invoices[r_index]))
+    return matched, [g for i, g in enumerate(golds) if i not in used_g], [r for i, r in enumerate(invoices) if i not in used_r]
+
+
+def gold_score(results, gold_rows):
+    by_doc = collections.defaultdict(list)
+    for row in gold_rows:
+        by_doc[row["编号"]].append(row)
+    cells = collections.Counter()
+    wrong = collections.Counter()
+    kinds = collections.Counter()
+    docs = collections.Counter()
+    details = []
+    for record in results:
+        rows = by_doc.get(record["编号"])
+        if not rows:
+            continue
+        head = rows[0]
+        invoices = record.get("invoices") or []
+        expected = [row for row in rows if row["是否票据"] == "是"]
+        if not expected:  # 不是票据 / 作废：应当判成不是发票
+            docs["reject_expected"] += 1
+            docs["reject_correct" if not invoices else "non_invoice_recorded"] += 1
+            continue
+        if record["state"] == "rejected":
+            docs["unopenable"] += 1
+            continue
+        docs["invoice_docs"] += 1
+        if not invoices:
+            docs["missed_document"] += 1
+            continue
+        matched, missed, extra = gold_align(expected, invoices)
+        docs["gold_invoices"] += len(expected)
+        docs["missed_invoices"] += len(missed)
+        docs["extra_invoices"] += len(extra)
+        for gold, invoice in matched:
+            fields = invoice["fields"]
+            for field, column, key in GOLD_FIELDS:
+                if key not in fields:  # 早几轮没记这一栏（预扣税额）：不比，不算错
+                    continue
+                want, got = gold_value(field, gold[column]), gold_value(field, fields.get(key))
+                printed = want is not None
+                if not printed and field in ("seller_tax",) and "IT" in (gold.get("备注") or "") + "DE":
+                    continue
+                group = (field, head["方向"], head["形态"], "printed" if printed else "not_printed")
+                if not printed and got is None:
+                    cells[group] += 1
+                    continue
+                cells[group] += 1
+                ok = (close(got, want) if field in ("net", "vat", "gross", "wht") else got == want)
+                if not ok:
+                    wrong[group] += 1
+                    kind = ("overfilled" if not printed else "missing" if got is None else
+                            classify(field if field in ("date", "net", "vat", "gross", "wht") else "x", got, want, {}))
+                    kinds[f"{field}:{kind}"] += 1
+                    details.append({"编号": record["编号"], "field": field, "kind": kind, "printed": printed})
+    def rate(selector):
+        n = sum(v for k, v in cells.items() if selector(k))
+        w = sum(v for k, v in wrong.items() if selector(k))
+        return {"n": n, "wrong": w, "rate": round(w / n, 4) if n else None}
+    report = {"documents": dict(docs), "overall": rate(lambda k: True),
+              "printed": rate(lambda k: k[3] == "printed"), "not_printed_filled": rate(lambda k: k[3] == "not_printed"),
+              "by_field": {field: rate(lambda k, f=field: k[0] == f) for field, _c, _k in GOLD_FIELDS},
+              "by_direction_form": {f"{d}/{f}": rate(lambda k, d=d, f=f: (k[1], k[2]) == (d, f))
+                                    for d, f in sorted({(k[1], k[2]) for k in cells})},
+              "kinds": dict(kinds.most_common(25))}
+    return report, details
+
+
+def gold(args):
+    gold_rows = []
+    with open(args.gold, encoding="utf-8-sig", newline="") as handle:
+        gold_rows = [{key.strip(): (value or "").strip() for key, value in row.items()} for row in csv.DictReader(handle, delimiter="\t")]
+    reports = {}
+    for out in args.runs:
+        results = [json.loads(line) for line in open(Path(out, "results.jsonl"), encoding="utf-8")]
+        report, details = gold_score(results, gold_rows)
+        Path(out, "gold.json").write_text(json.dumps({"report": report, "details": details}, ensure_ascii=False, indent=1),
+                                          encoding="utf-8")
+        reports[Path(out).name] = report
+    lines = ["# 金标打分（票面印的值）", "", "| 指标 | " + " | ".join(reports) + " |", "| --- |" + " --- |" * len(reports)]
+    def cell(value):
+        return f"{value['rate']} ({value['wrong']}/{value['n']})"
+    for label, key in (("字段总错误率", "overall"), ("印了的读错或漏读", "printed"), ("没印却填了", "not_printed_filled")):
+        lines.append(f"| {label} | " + " | ".join(cell(r[key]) for r in reports.values()) + " |")
+    for field, _c, _k in GOLD_FIELDS:
+        lines.append(f"| {field} | " + " | ".join(cell(r["by_field"][field]) for r in reports.values()) + " |")
+    keys = sorted({key for r in reports.values() for key in r["by_direction_form"]})
+    for key in keys:
+        lines.append(f"| {key} | " + " | ".join(cell(r["by_direction_form"][key]) if key in r["by_direction_form"] else "-"
+                                              for r in reports.values()) + " |")
+    lines += ["", "文件级：" + json.dumps({name: r["documents"] for name, r in reports.items()}, ensure_ascii=False),
+              "", "错误类别：" + json.dumps({name: r["kinds"] for name, r in reports.items()}, ensure_ascii=False)]
+    text = "\n".join(lines) + "\n"
+    Path(args.runs[-1], "gold-compare.md").write_text(text, encoding="utf-8")
+    print(text)
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -555,8 +784,12 @@ def main():
     scorer.add_argument("--corpus", required=True)
     scorer.add_argument("--out", required=True)
     scorer.add_argument("--glm")
+    scorer.add_argument("--verdicts", help="人工裁决表（编号、字段、裁决、说明），见 load_verdicts")
+    golder = sub.add_parser("gold")
+    golder.add_argument("--gold", required=True)
+    golder.add_argument("--runs", nargs="+", required=True, help="一个或几个 run 的输出目录，并排比")
     args = parser.parse_args()
-    (run if args.command == "run" else score)(args)
+    {"run": run, "score": score, "gold": gold}[args.command](args)
 
 
 if __name__ == "__main__":

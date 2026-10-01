@@ -147,7 +147,8 @@ def metrics(result, case):
            "opening_diff": str(opening), "closing_diff": str(closing),
            "totals_agree": abs(deposit - debit) <= Decimal("0.01") and abs(withdrawal - credit) <= Decimal("0.01")}
     if case in PAIRS:
-        out["pair"] = pair_score(result, case)
+        side = PAIRS[case][0]
+        out["pair_rows"] = result.get("per_file" if side == "statement" else "per_ledger") or {}
     if case.startswith(("B04", "B05", "B06", "B07", "B08", "B09")):
         out["vs_ledger"] = against_ledger(statement, ledger)
     pages = [page for diag in (result.get("page_diag") or {}).values() for page in diag]
@@ -157,7 +158,24 @@ def metrics(result, case):
     return out
 
 
-def summarize(runs):
+def electronic_rows(index, case):
+    """电子原件用免费的文字层解析读一遍（不调模型），当作电子对扫描的基准；读不出回 None。"""
+    from pearnly_cowork.reconciliation import bank_intake
+
+    side, electronic, _scans = PAIRS[case]
+    paths = [path for path in index.get(electronic) or [] if case in str(path)]
+    if not paths:
+        return None
+    content = paths[0].read_bytes()
+    result = (bank_intake.read_statement_file(content, electronic) if side == "statement"
+              else bank_intake.read_ledger_file(content, electronic))
+    if not result.get("ok"):
+        return None
+    keys = ("date", "deposit", "withdrawal", "balance") if side == "statement" else ("date", "debit", "credit")
+    return [[str(getattr(row, key, None)) for key in keys] for row in result.get("rows") or []]
+
+
+def summarize(runs, truths=None):
     def block(items):
         done = [item for item in items if "failed" not in item["m"]]
         rows = sum(item["m"]["rows"] for item in done)
@@ -172,10 +190,28 @@ def summarize(runs):
     series = collections.defaultdict(list)
     for run in scored:
         series[run["case"][:3]].append(run)
+    # 电子对扫描跨运行比：同一套里任何一次读出的电子版当基准（多数运行只交了扫描版）
+    truth = dict(truths or {})
+    for run in runs:
+        case = run["case"]
+        if case in PAIRS and PAIRS[case][1] in (run["m"].get("pair_rows") or {}) and case not in truth:
+            truth[case] = run["m"]["pair_rows"][PAIRS[case][1]]
     pairs = collections.defaultdict(list)
     for run in runs:
-        for scan, value in (run["m"].get("pair") or {}).items():
-            pairs[f"{run['case']} {scan}"].append(value)
+        case = run["case"]
+        if case not in PAIRS or case not in truth:
+            continue
+        side, electronic, scans = PAIRS[case]
+        width = 4 if side == "statement" else 3
+        want = line_set(truth[case], width)
+        for scan in scans:
+            if scan not in (run["m"].get("pair_rows") or {}):
+                continue
+            got = line_set(run["m"]["pair_rows"][scan], width)
+            same = sum((want & got).values())
+            pairs[f"{case} {scan}"].append({"recall": same / sum(want.values()) if want else None,
+                                            "precision": same / sum(got.values()) if got else None})
+    missing_truth = sorted(case for case in {run["case"] for run in runs} if case in PAIRS and case not in truth)
     tiers = collections.defaultdict(lambda: collections.Counter())
     for run in scored:
         for page in run["m"].get("pages") or []:
@@ -203,6 +239,7 @@ def summarize(runs):
                                           if value["balance_rows"] else None} for label, value in ledger_by_tier.items()},
             "dense_sets": dense,
             "known_corpus_issues": {case: KNOWN[case] for case in {run["case"] for run in runs} if case in KNOWN},
+            "electronic_missing": missing_truth,
             "electronic_vs_scan": {key: {"runs": len(values),
                                          "recall": round(sum(v["recall"] or 0 for v in values) / len(values), 4),
                                          "precision": round(sum(v["precision"] or 0 for v in values) / len(values), 4)}
@@ -240,6 +277,7 @@ def main():
     parser.add_argument("--corpus", required=True)
     parser.add_argument("--sites-from")
     parser.add_argument("--out", required=True)
+    parser.add_argument("--title-like", action="append", default=[], help="只跑标题含这些字的对账（可重复）")
     args = parser.parse_args()
     replay = _replay_module()
     if args.sites_from:
@@ -263,8 +301,9 @@ def main():
             frappe.connect()
             frappe.db.sql("SET SESSION TRANSACTION READ ONLY")
             jobs = replay.recon_jobs(site)
-            for row in frappe.db.sql("SELECT name FROM `tabCowork Bank Reconciliation` WHERE creation >= %s ORDER BY creation",
-                                     [args.since], as_dict=True):
+            likes = " OR ".join(["title LIKE %s"] * len(args.title_like)) or "1=1"
+            for row in frappe.db.sql(f"SELECT name FROM `tabCowork Bank Reconciliation` WHERE creation >= %s AND ({likes}) "
+                                     "ORDER BY creation", [args.since, *[f"%{t}%" for t in args.title_like]], as_dict=True):
                 doc = frappe.get_doc("Cowork Bank Reconciliation", row.name)
                 _job, user, works = jobs.get(doc.request_key) or (None, doc.owner, {})
                 if not frappe.db.exists("User", user):
@@ -278,7 +317,12 @@ def main():
                 handle.write(json.dumps(run, ensure_ascii=False, default=str) + "\n")
                 handle.flush()
             frappe.destroy()
-    report = summarize(runs)
+    truths = {}
+    for case in {run["case"] for run in runs} & set(PAIRS):
+        rows = electronic_rows(index, case)
+        if rows:
+            truths[case] = rows
+    report = summarize(runs, truths)
     (out / "bank-summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     (out / "bank-report.md").write_text(render(report), encoding="utf-8")
     print(render(report))
