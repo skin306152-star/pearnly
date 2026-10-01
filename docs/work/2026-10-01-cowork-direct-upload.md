@@ -21,15 +21,19 @@
   按对象读与带字节发来结果和计费证据一字不差、内容被换 / 没有时不付费。
 - `tests/test_cowork_remote_forward.py` 新增 4 条（含预览只传回图）：核对不占名额、等待不占连接；忙 / 连不上让页面重试；按引用发不带字节。
 
-## 待做
+## 实测（测试机 testcowork，实时源码 + 测试服务 cowork-ocr-test，2026-10-01）
 
-1. 测试 Cloud Run 服务 `cowork-ocr-test`（从本分支提交部署，最少实例 0）。
-2. 测试环境（Windows）`lab-start cowork`，测试租户 testcowork 配 `pearnly_cowork_originals_bucket` 和指向测试服务的
-   `pearnly_cowork_ocr_remote`；先自测（合成 PDF / 图片：直传 → 登记 → 识别 → 预览 → 下载），再请用户在浏览器试。
-   切测试租户域名前先和压测窗口对好时间（压测可能在用 testcowork）。
-3. 用户试用通过 → 生产镜像候选检查 → 合入 → 夜间部署（Cloud Run 线上服务 + 生产）→ 线上站点配桶名打开 → 回读 → 通知压测窗口。
+- 服务层：签发 → PUT（浏览器预检 200、允许任意来源）→ 再 PUT 412（不能覆盖）→ 大小不符 400 → 登记（2 页、sha256 对）
+  → 同键再签发直接给出已登记 → 读回字节相同 → 下载链接 200、字节相同、附件 → Cloud Run 预览与服务器渲染逐字节相同 → 坏 PDF 拒绝（原提示）。
+- HTTP 层（压测账号 API 密钥，按页面步骤）：语料照片 / 3 页 PDF / Excel 各走直传与原来的上传各一次：
+  页数、sha256、字节数相同；照片识别两边都 saved、各扣 0.75 泰铢（档位 B、1 页）；识别结果只差耗时毫秒、互为疑似重复、
+  请求指纹（预期）；3 页 PDF 两边都 not_invoice、不扣费；Excel 直传回 `direct: 0` 照旧经服务器、扣 0.33；
+  下载 302 到谷歌、字节相同、附件；预览两边逐字节相同（照片 PNG 2.9 MB → 之后改成超过 400 KB 用 JPEG）。
+- 办公室网络断开，第二轮（单页 PDF 与失败路径的 HTTP 版）没跑完；改为部署后在生产 testcowork 上跑完再全站打开。
+- 页面：`tests/test-upload-original.cjs`（node 6 条）；生产镜像（46645eee 底座 + 本分支）完整离线检查 28 组通过。
 
-## 待用户确认
+## 上线
 
-- 存储类别转换（压测窗口转达的建议）：原件现在没有到期删除，所以不删；建议 90 天后转冷线、365 天后转归档
-  （取回时每 GiB 多付 0.02 / 0.05 美元，看旧单极少）。确认后用桶的生命周期规则做，不写代码。
+1. 合入 main，与 46645eee 一起构建、部署（Cloud Run 线上服务带 `PEARNLY_ORIGINALS_BUCKET`）。
+2. 先只给 testcowork 配 `pearnly_cowork_originals_bucket`，在生产 testcowork 跑 HTTP 实测（含失败路径），通过后给全部 Cowork 站点打开。
+3. 测试服务 `cowork-ocr-test` 与其镜像在收尾时删除（`deploy-cowork-ocr.sh` 可随时重建）。
