@@ -17,6 +17,10 @@ WORK = re.compile(r"[0-9a-f]{64}")
 SITE = re.compile(r"[a-z0-9][a-z0-9.-]{0,252}")
 BATCH = re.compile(r"[0-9a-f]{64}")
 STATUSES = ("done", "deferred", "uncertain", "refused", "error")
+# 读法：发票录入；销项税核查的发票（抽取结果不明重发一次、一页读不出不作废整份，见 ocr.recon_reading.vat_callbacks）。
+VARIANTS = ("intake", "vat_check")
+# 引擎的内容错误类名：服务器照原类型重新抛出（本机执行时调用方据此判断「读不出」而不是程序错误）。
+ENGINE_ERRORS = ("EngineError", "ContentError", "DirectFallback")
 
 
 def encode(value):
@@ -44,18 +48,36 @@ def evidence(calls):
 
 
 def request(*, site, work, batch, filename, content, page_count, anchor_date, environment, policy,
-            examples=None):
+            examples=None, variant="intake", yield_seconds=YIELD_SECONDS):
     body = {"version": VERSION, "kind": "cowork.invoice", "site": site, "work": work, "batch": batch,
             "filename": filename, "content": base64.b64encode(content).decode("ascii"),
             "page_count": page_count, "anchor_date": anchor_date, "environment": environment,
-            "policy": policy, "examples": examples}
+            "policy": policy, "examples": examples, "variant": variant, "yield_seconds": yield_seconds}
+    parse_request(body)
+    return body
+
+
+# 对账三类文档（银行账单 / 总账 / 销项税报告）：企业档管线（ocr.recon_reading.read_document）。
+DOCUMENT_TYPES = ("bank_statement", "general_ledger", "vat_report")
+
+
+def document_request(*, site, work, filename, content, page_count, document_type, environment, regions=None,
+                     yield_seconds=YIELD_SECONDS):
+    body = {"version": VERSION, "kind": "cowork.document", "site": site, "work": work, "filename": filename,
+            "content": base64.b64encode(content).decode("ascii"), "page_count": page_count,
+            "document_type": document_type, "environment": environment, "regions": regions,
+            "yield_seconds": yield_seconds}
     parse_request(body)
     return body
 
 
 def parse_request(body):
     """Cloud Run 收到请求先过这一关；服务器发出前也用它自检。不合规就 ValueError。"""
-    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.invoice":
+    if not isinstance(body, dict) or body.get("version") != VERSION:
+        raise ValueError("unsupported request")
+    if body.get("kind") == "cowork.document":
+        return _parse_document(body)
+    if body.get("kind") != "cowork.invoice":
         raise ValueError("unsupported request")
     for key, pattern in (("site", SITE), ("work", WORK), ("batch", BATCH)):
         if not isinstance(body.get(key), str) or not pattern.fullmatch(body[key]):
@@ -74,6 +96,11 @@ def parse_request(body):
         raise ValueError("invalid policy")
     if body.get("examples") is not None and not isinstance(body["examples"], dict):
         raise ValueError("invalid examples")
+    if body.get("variant", "intake") not in VARIANTS:
+        raise ValueError("invalid variant")
+    yield_seconds = body.get("yield_seconds", YIELD_SECONDS)
+    if type(yield_seconds) is not int or not 30 <= yield_seconds <= YIELD_SECONDS:
+        raise ValueError("invalid yield_seconds")
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)
     except (ValueError, TypeError) as exc:
@@ -81,6 +108,49 @@ def parse_request(body):
     if not content or len(content) > MAX_CONTENT_BYTES:
         raise ValueError("invalid content size")
     return content
+
+
+def _parse_document(body):
+    for key, pattern in (("site", SITE), ("work", WORK)):
+        if not isinstance(body.get(key), str) or not pattern.fullmatch(body[key]):
+            raise ValueError("invalid " + key)
+    if not isinstance(body.get("filename"), str) or not 1 <= len(body["filename"]) <= 255:
+        raise ValueError("invalid filename")
+    if type(body.get("page_count")) is not int or not 1 <= body["page_count"] <= 500:
+        raise ValueError("invalid page_count")
+    if body.get("document_type") not in DOCUMENT_TYPES:
+        raise ValueError("invalid document_type")
+    environment = body.get("environment")
+    if not isinstance(environment, dict) or any(not isinstance(k, str) or not isinstance(v, str)
+                                                for k, v in environment.items()):
+        raise ValueError("invalid environment")
+    regions = body.get("regions")
+    if regions is not None and (not isinstance(regions, list) or not all(isinstance(r, dict) for r in regions)):
+        raise ValueError("invalid regions")
+    yield_seconds = body.get("yield_seconds", YIELD_SECONDS)
+    if type(yield_seconds) is not int or not 30 <= yield_seconds <= YIELD_SECONDS:
+        raise ValueError("invalid yield_seconds")
+    try:
+        content = base64.b64decode(body.get("content") or "", validate=True)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("invalid content") from exc
+    if not content or len(content) > MAX_CONTENT_BYTES:
+        raise ValueError("invalid content size")
+    return content
+
+
+def read(pages):
+    """对账文档：读完一块的字（Document AI，一块最多几页）。"""
+    return {"event": "read", "pages": pages}
+
+
+def extracted(page, text, reread=False):
+    """对账文档：一页抽完（模型回的原文，服务器据此更新看板「刚读出」）。"""
+    return {"event": "extracted", "page": page, "text": text, "reread": reread}
+
+
+def unread(page):
+    return {"event": "unread", "page": page}
 
 
 def line(event):
@@ -104,9 +174,9 @@ def result(status, **fields):
 
 def parse_line(raw):
     event = json.loads(raw)
-    if not isinstance(event, dict) or event.get("event") not in ("page", "result", "tick"):
+    if not isinstance(event, dict) or event.get("event") not in ("page", "result", "tick", "read", "extracted", "unread"):
         raise ValueError("unknown event")
-    if event["event"] == "tick":
+    if event["event"] in ("tick", "read", "extracted", "unread"):
         return event
     if event["event"] == "page" and (type(event.get("page")) is not int or event["page"] < 1):
         raise ValueError("invalid page event")

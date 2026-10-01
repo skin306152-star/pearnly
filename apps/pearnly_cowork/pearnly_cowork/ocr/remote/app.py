@@ -1,6 +1,7 @@
 """Cloud Run 的 HTTP 入口（WSGI，gunicorn 多线程跑）。不对外公开：只有带我们服务器身份的请求能进来（Cloud Run IAM）。
 
-POST /v1/cowork/invoice   一份发票识别，回复是按行的 JSON（见 contract）
+POST /v1/cowork/invoice   一份发票识别（录入 / 销项税核查），回复是按行的 JSON（见 contract）
+POST /v1/cowork/document  一份对账文档（银行账单 / 总账 / 销项税报告），同样按行回复
 GET  /health              存活检查（Cloud Run 保留了以 z 结尾的路径，/healthz 到不了容器）
 """
 import json
@@ -27,7 +28,7 @@ def application(environ, start_response):
     if method == "GET" and path == "/health":
         start_response("200 OK", [("Content-Type", "text/plain")])
         return [b"ok"]
-    if method != "POST" or path != "/v1/cowork/invoice":
+    if method != "POST" or path not in ("/v1/cowork/invoice", "/v1/cowork/document"):
         start_response("404 Not Found", [("Content-Type", "text/plain")])
         return [b"not found"]
     try:

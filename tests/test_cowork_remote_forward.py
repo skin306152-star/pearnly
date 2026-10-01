@@ -67,10 +67,23 @@ def load():
             self.code, self.http_status, self.provider_code = code, http_status, provider_code
 
     client.ProviderError = ProviderError
+    errors_module = types.ModuleType("pearnly_cowork.ocr.engine.errors")
+
+    class EngineError(ValueError):
+        def __init__(self, code, *, stage="", page_number=0, detail=""):
+            super().__init__(code)
+            self.code, self.stage, self.page_number, self.detail = code, stage, page_number, detail
+
+    errors_module.EngineError = EngineError
+    errors_module.ContentError = type("ContentError", (EngineError,), {})
+    errors_module.DirectFallback = type("DirectFallback", (errors_module.ContentError,), {})
+    engine = types.ModuleType("pearnly_cowork.ocr.engine")
+    engine.errors = errors_module
     modules = {"frappe": frappe, "pearnly_core": core, "pearnly_core.ocr": ocr, "pearnly_core.execution": execution,
                "pearnly_core.execution.errors": errors, "pearnly_core.execution.budget": budget,
                "pearnly_core.execution.work": work, "pearnly_core.execution.pool": pool,
-               "pearnly_cowork.ocr.providers.client": client}
+               "pearnly_cowork.ocr.providers.client": client, "pearnly_cowork.ocr.engine": engine,
+               "pearnly_cowork.ocr.engine.errors": errors_module}
     sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
     with patch.dict(sys.modules, modules):
         from pearnly_cowork.ocr.remote import contract
@@ -78,6 +91,7 @@ def load():
         source = ROOT / "apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py"
         exec(compile(source.read_text(), str(source), "exec"), namespace)
     namespace["_pool"] = pool
+    namespace["_errors"] = errors_module
     return namespace, frappe, budget, contract, ProviderError
 
 
@@ -141,7 +155,48 @@ class Forward(unittest.TestCase):
             self.call({"event": "result", "status": "refused", "code": "ocr.provider_auth", "http_status": 403})
         self.assertEqual((refused.exception.code, refused.exception.http_status), ("ocr.provider_auth", 403))
         with self.assertRaises(self.ns["RemoteError"]):
-            self.call({"event": "result", "status": "error", "code": "EngineError"})
+            self.call({"event": "result", "status": "error", "code": "KeyError"})
+
+    def test_engine_content_errors_raise_like_local_execution(self):
+        errors = self.ns["_errors"]
+        with self.assertRaises(errors.ContentError) as caught:
+            self.call({"event": "result", "status": "error", "code": "ContentError", "error_code": "ocr.all_pages_unread",
+                       "stage": "L2", "page_number": 3, "detail": "x"})
+        self.assertEqual((caught.exception.code, caught.exception.stage, caught.exception.page_number),
+                         ("ocr.all_pages_unread", "L2", 3))
+
+    def test_send_carries_variant_and_yield(self):
+        def post(url, json=None, **kwargs):
+            self.sent.append(json)
+            return ndjson({"event": "result", "status": "done", "pipeline": "{}", "evidence": []})
+
+        self.ns["send"](work_name=WORK, batch=WORK, filename="a.pdf", content=b"%PDF", page_count=2,
+                        anchor_date="2026-09-21", frozen=FROZEN, variant="vat_check", yield_seconds=120,
+                        post=post, id_token=lambda audience: "T")
+        self.assertEqual((self.sent[-1]["variant"], self.sent[-1]["yield_seconds"], self.sent[-1]["batch"]),
+                         ("vat_check", 120, WORK))
+
+    def test_document_events_drive_the_board_like_local_callbacks(self):
+        seen = []
+
+        def post(url, json=None, **kwargs):
+            self.sent.append((url, json))
+            return ndjson({"event": "read", "pages": 2}, {"event": "tick"},
+                          {"event": "extracted", "page": 1, "text": "{}", "reread": False},
+                          {"event": "extracted", "page": 1, "text": "{}", "reread": True},
+                          {"event": "unread", "page": 2},
+                          {"event": "result", "status": "done", "legacy": {"pages": []}})
+
+        legacy = self.ns["send_document"](work_name=WORK, filename="b.pdf", content=b"%PDF", page_count=2,
+            document_type="bank_statement", frozen=FROZEN, regions=[{"location": "asia-southeast1"}], yield_seconds=90,
+            on_read=lambda n: seen.append(("read", n)), on_extracted=lambda p, t: seen.append(("extracted", p)),
+            on_unread=lambda p: seen.append(("unread", p)), post=post, id_token=lambda audience: "T")
+        self.assertEqual(legacy, {"pages": []})
+        self.assertEqual(seen, [("read", 2), ("extracted", 1), ("unread", 2)])  # 自核重读不重复记
+        url, body = self.sent[-1]
+        self.assertTrue(url.endswith("/v1/cowork/document"))
+        self.assertEqual((body["kind"], body["document_type"], body["regions"]),
+                         ("cowork.document", "bank_statement", [{"location": "asia-southeast1"}]))
 
     def test_lost_transport_is_deferred_never_judged_here(self):
         for kwargs in ({"error": requests.ConnectionError("down")}, {"status": 503}, {"status": 429}):

@@ -10,7 +10,6 @@
 
 结果存在 Work 自己的检查点里（`cowork.vat_check:result`），对账后台任务等全部 Work 结束后取回。
 """
-import dataclasses
 import hashlib
 import time
 from datetime import date
@@ -19,15 +18,15 @@ import frappe
 from frappe import _
 from pearnly_core import billing_client, ocr
 from pearnly_core.execution import pages as core_pages, pool as core_pool, work as core_work
-from pearnly_core.execution.errors import Deferred, Uncertain
+from pearnly_core.execution.errors import Deferred
 from pearnly_core.tax_documents.amounts import repaired_tax_id
 
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.recon_center import progress
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
-from pearnly_cowork.ocr.engine.contracts import ModelRequest, ProviderFailure
-from pearnly_cowork.ocr.engine.errors import ContentError, EngineError
+from pearnly_cowork.ocr.engine.contracts import ProviderFailure
+from pearnly_cowork.ocr.engine.errors import EngineError
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
 from pearnly_cowork.ocr.execution.access import WORK
 from pearnly_cowork.ocr.grouping import group_invoices
@@ -36,6 +35,9 @@ from pearnly_cowork.ocr.pages import all_pages_not_invoice, assess_confidence, f
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
 from pearnly_cowork.recon_center import admission
+from pearnly_cowork.ocr import recon_reading
+from pearnly_cowork.ocr.remote import forward
+from pearnly_cowork.ocr.schema import PipelineResult
 
 KIND = "cowork.vat_check"
 RESULT = KIND + ":result"
@@ -43,9 +45,9 @@ BILLED = KIND + ":billed"
 TERMINAL = ("succeeded", "failed", "cancelled", "uncertain")
 # 让出前最多跑的时间：发票读图在这里至少等 MODEL_TIMEOUT_SECONDS、等名额最多 60 秒、结果不明再重发一次，最坏
 # 120 + 2 ×（60 + 120）= 480 秒，在识别任务 600 秒的硬上限内（原 200 秒在忙时被硬时限杀在调用中途，2026-09-30 压测第 18 轮）。
-YIELD_SECONDS = 120
+YIELD_SECONDS = recon_reading.VAT_YIELD_SECONDS
 # 多页扫描发票读一页要 60 秒以上（2026-09-30 压测 V04：5 份 PDF 读超时、结果不明后整份丢了），与账单路径一样放宽。
-MODEL_TIMEOUT_SECONDS = 120
+MODEL_TIMEOUT_SECONDS = recon_reading.VAT_MODEL_TIMEOUT_SECONDS
 # 等发票的时限（2026-09-30 压测 rO：V02、V03 税报 PDF 等满 50 分钟整份判「发票识别超时」，排队的时间也算了进去）。
 # 排队不算读取时限；开始读了以后只按总时限判，读满了就用已经读出的发票核对，没读完的文件点名请重新上传。
 # 不按「几分钟没进展」放弃（rQ 2026-09-30：网络差时一次调用结果不明要等租约或退避十来分钟，5 分钟没进展是常态；
@@ -206,6 +208,18 @@ def _recognize(content, filename, pages, frozen, recon_job=None, file=None):
     from pearnly_cowork.recon_center import document_ocr
 
     environment = frozen["environment"]
+    if forward.settings():
+        # 在 Cloud Run 上读（ADR-015）：同一个引擎、同一份核查包装（recon_center.reading）；发出前、收到后各看一次核查是否已结束。
+        if recon_job and document_ocr._recon_closed(recon_job, file):
+            raise document_ocr.ReconClosed()
+        work_name = frappe.flags.get("pearnly_ocr_work")
+        pipeline, _evidence = forward.send(work_name=work_name, batch=work_name, filename=filename, content=content,
+            page_count=int(pages), anchor_date=frozen["anchor_date"], frozen=frozen, variant="vat_check",
+            yield_seconds=YIELD_SECONDS)
+        if recon_job and document_ocr._recon_closed(recon_job, file):
+            raise document_ocr.ReconClosed()
+        anchor = date.fromisoformat(frozen["anchor_date"])
+        return records(PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor.year}).pages, filename)
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in
@@ -224,45 +238,13 @@ def _recognize(content, filename, pages, frozen, recon_job=None, file=None):
             return callback(*args, **kwargs)
         return invoke
 
-    def page_failure(call):
-        # 重发后仍结果不明的那一页交给引擎的按页兜底，不让整份作废（25 页的扫描件一页不明，25 张发票全丢了，
-        # 2026-09-30 压测第 17 轮 V03）。按引擎每一步接得住的失败给：直读 / 复核给明确失败（引擎转下一步兜底）；
-        # 读原文、带原文再读给「这一页读不出」（有直读结果就沿用并标红，没有就记成这一页没读出）—— 第 21 轮 V04：
-        # 复核之后的一步给了明确失败，引擎没接住，整份当程序错误作废。已发出的那次调用续跑时从检查点认出、同样处理。
-        def invoke(*args, **kwargs):
-            request = args[0] if args and isinstance(args[0], ModelRequest) else None
-            stage = request.stage if request else kwargs.get("stage", "")
-            page = request.page_number if request else kwargs.get("page_number", 0)
-            try:
-                result = call(*args, **kwargs)
-            except Uncertain as error:
-                if request:
-                    last[page] = (stage, False)
-                if stage in ("direct", "recheck"):
-                    raise ProviderFailure("ocr.provider_outcome_unknown") from error
-                # 读图（Vision）两处用：直读刚成功、中间没复核 → 是「完整税票核对」，给明确失败引擎就跳过核对、保留直读；
-                # 其余是读原文兜底，给「这一页读不出」。
-                if not request and last.get(page) == ("direct", True):
-                    raise ProviderFailure("ocr.provider_outcome_unknown") from error
-                raise ContentError("ocr.provider_outcome_unknown", stage=str(stage), page_number=page) from error
-            if request:
-                last[page] = (stage, True)
-            return result
-        return invoke
-
-    last = {}  # 每页最近一次模型调用：(步骤, 是否拿到结果)
-
-    @page_failure
-    def model_call(request):
-        # 结果不明（读超时、连接中断）重发一次、等得更久：与账单路径同一口径（document_ocr）；发票录入照旧。
-        return client.model_call(dataclasses.replace(request, timeout_s=max(request.timeout_s, MODEL_TIMEOUT_SECONDS)),
-                                 retry_unknown=True)
+    model_call, vision_call = recon_reading.vat_callbacks(client)
 
     anchor = date.fromisoformat(frozen["anchor_date"])
     with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=selected.text_fast_path,
                     image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as source:
         # 多页文件各页同时读（开关 PEARNLY_OCR_PAGE_THREADS）；每页的 last 记录按页码分开，互不干扰。
-        result = run_invoice(source, guarded(model_call), guarded(page_failure(client.vision_call)), config=config,
+        result = run_invoice(source, guarded(model_call), guarded(vision_call), config=config,
                              anchor_year=anchor.year, today=anchor,
                              map_pages=core_pages.mapper() if int(pages) > 1 else None)
     return records(result.pipeline.pages, filename)

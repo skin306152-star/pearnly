@@ -15,7 +15,6 @@ Google Document AI 读字（每页约 0.05 泰铢），银行与总账先按版�
 """
 import functools
 import hashlib
-import io
 import json
 import time
 
@@ -24,10 +23,12 @@ from frappe import _
 from pearnly_core import billing_client, ocr
 from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution import work as core_work
-from pearnly_core.execution.errors import Deferred, QueueFull, Uncertain
+from pearnly_core.execution.errors import Deferred, QueueFull
 
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.recon_center import progress
+from pearnly_cowork.ocr import recon_reading
+from pearnly_cowork.ocr.remote import forward
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import pipeline as enterprise
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
@@ -187,24 +188,39 @@ def _rows_found(legacy):
     return any((page.get("document") or {}).get("entries") for page in (legacy or {}).get("pages") or [])
 
 
-def read_file(source, content, is_pdf, mime, document_type, document_ai_call, model_call):
-    """企业档读一份文件 → 旧线上管线结果形状（多页、带 engine）。页面图只在要 3.8 抽取时逐页渲染。"""
-    reads = enterprise.pdf_chunks(content, source.page_count) if is_pdf else [(content, mime, 1)]
+def _read_remote(content, filename, pages, frozen, document_type, recon_job, file):
+    """在 Cloud Run 上读（ADR-015）：同一份读法（ocr.recon_reading）；看板进度由事件回调，时机与本机执行相同。
+    发出前、收到后各看一次对账是否已结束（云上读的过程中不能打断，读完不扣费）。"""
+    if recon_job and _recon_closed(recon_job, file):
+        raise ReconClosed()
+    _progress(file, state="reading")
+    counted = {"read": 0, "done": 0}
 
-    def render(number):
-        frame = source.frame(number)
-        return frame.image_bytes, frame.mime_type
+    def on_read(pages_read):
+        counted["read"] += pages_read
+        _progress(file, read=counted["read"], state="reading")
 
-    result = enterprise.run(enterprise.CATEGORIES[document_type], page_count=source.page_count, reads=reads,
-        render=render, document_ai_call=document_ai_call, model_call=model_call)
-    return enterprise.to_legacy(result)
+    def on_extracted(page, text):
+        counted["done"] += 1
+        _progress(file, done=counted["done"])
+        try:
+            document = json.loads(text or "{}")
+        except (TypeError, ValueError):
+            document = None
+        progress.latest(recon_job, progress.page_summary(document, filename, page, amounts=False))
+
+    legacy = forward.send_document(work_name=frappe.flags.get("pearnly_ocr_work"), filename=filename, content=content,
+        page_count=int(pages), document_type=document_type, frozen=frozen,
+        regions=frappe.conf.get("pearnly_document_ai_regions"), yield_seconds=YIELD_SECONDS, on_read=on_read,
+        on_extracted=on_extracted, on_unread=lambda page: progress.unread(file, page))
+    if recon_job and _recon_closed(recon_job, file):
+        raise ReconClosed()
+    return legacy
 
 
-def _mime(content):
-    from PIL import Image
-
-    with Image.open(io.BytesIO(content)) as image:
-        return Image.MIME[image.format]
+# 读法在 reading（纯，Cloud Run 上用同一份）；保留原名给本域与测试。
+read_file = recon_reading.read_document
+_mime = recon_reading.image_mime
 
 
 class ReconClosed(Exception):
@@ -231,6 +247,8 @@ def _recon_closed(recon_job, file=None):
 
 def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None):
     environment = frozen["environment"]
+    if forward.settings():
+        return _read_remote(content, filename, pages, frozen, document_type, recon_job, file)
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY})
     started = time.monotonic()
 
@@ -290,17 +308,7 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
             extracting(page_failure(guarded(functools.partial(client.model_call, retry_unknown=True)))))
 
 
-def page_failure(call):
-    """一页的抽取重发后仍结果不明（模型读超时、连接中断；续跑时遇到上次没收尾的调用也一样）：换成「这一页读不出」，
-    流程只丢这一页、其余页照常（``pipeline.UNREAD_PAGE``；2026-09-30 压测第 23 轮 BAY-CA-03：一页 180 秒读超时，
-    12 页整份作废、整套对账失败）。读字（Document AI）结果不明照旧整份作废：没有字就没有页可抽。"""
-    def invoke(request, *args, **kwargs):
-        try:
-            return call(request, *args, **kwargs)
-        except Uncertain as error:
-            raise ContentError(enterprise.UNREAD_PAGE, stage=str(getattr(request, "stage", "")),
-                               page_number=int(getattr(request, "page_number", 0) or 0)) from error
-    return invoke
+page_failure = recon_reading.document_page_failure
 
 
 def _charge(work_name, pages, frozen):

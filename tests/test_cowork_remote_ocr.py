@@ -22,6 +22,7 @@ from pearnly_core.ocr_models.orient import orient
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
+from pearnly_cowork.ocr import recon_reading
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.client import ProviderClient
 from pearnly_cowork.ocr.remote import contract, runner
@@ -58,7 +59,25 @@ def png():
     return out.getvalue()
 
 
+VAT_PAGE = {"seller_name": "ACME", "seller_tax": "", "period_year": "2026", "period_month": "06", "total_subtotal": "",
+            "total_vat": "", "total_total": "", "entries": [
+                {"seq_no": "1", "transaction_date": "2026-06-01", "invoice_no": "IV001", "customer_name": "B Co",
+                 "customer_tax": "0105556012345", "customer_branch": "00000", "subtotal": "1000.00", "vat": "70.00",
+                 "total": "1070.00"}]}
+DOCUMENT_MODE = threading.local()
+
+
+def docai_payload(text):
+    return {"document": {"text": text, "pages": [{"pageNumber": 1, "layout": {"textAnchor": {"textSegments": [
+        {"startIndex": "0", "endIndex": str(len(text))}]}}}]}}
+
+
 def answer(url):
+    if "documentai.googleapis.com" in url:
+        return docai_payload("vat report text")
+    if getattr(DOCUMENT_MODE, "on", False) and "aiplatform" in url:
+        return {"candidates": [{"content": {"parts": [{"text": json.dumps(VAT_PAGE)}]}, "finishReason": "STOP"}],
+                "usageMetadata": {"promptTokenCount": 50, "candidatesTokenCount": 30}}
     if "vision.googleapis.com" in url:
         return {"responses": [{"fullTextAnnotation": {"text": TEXT, "pages": []}}]}
     return {"candidates": [{"content": {"parts": [{"text": json.dumps(GOOD)}]}, "finishReason": "STOP"}],
@@ -133,7 +152,7 @@ def remote(bucket, google, content=None, filename="invoice.png", pages=1, thread
     return events
 
 
-def local(google, content=None, filename="invoice.png", pages=1):
+def local(google, content=None, filename="invoice.png", pages=1, variant="intake"):
     """本机执行同一流程（workflow._recognize 的引擎部分），付费调用走同样的假谷歌。"""
     saved = {}
 
@@ -152,9 +171,11 @@ def local(google, content=None, filename="invoice.png", pages=1):
         access_token=lambda: "token", require_context=lambda: None)
     selected = invoice_policy(ENVIRONMENT, POLICY)
     config = config_from_environment(ENVIRONMENT, selected)
+    model_call, vision_call = (recon_reading.vat_callbacks(client) if variant == "vat_check"
+                               else (client.model_call, client.vision_call))
     with PageSource(content or png(), filename, expected_page_count=pages, enable_text_path=selected.text_fast_path,
                     image_max_long_edge=2400, orient=orient) as pages:
-        result = run_invoice(pages, client.model_call, client.vision_call, config=config, anchor_year=2026,
+        result = run_invoice(pages, model_call, vision_call, config=config, anchor_year=2026,
                              today=date(2026, 9, 21))
     return result.pipeline.model_dump_json(), contract.evidence(result.calls)
 
@@ -181,6 +202,19 @@ class SameReading(unittest.TestCase):
         self.assertEqual(final["evidence"], evidence)
         self.assertEqual(sorted(e["page"] for e in events if e["event"] == "page"), [2, 3, 4, 5])
 
+    def test_vat_check_reads_with_the_same_recon_wrappers_as_the_server(self):
+        here, there = Google(), Google()
+        pipeline, evidence = local(here, variant="vat_check")
+        final = remote(Bucket(), there, variant="vat_check", yield_seconds=120)[-1]
+        self.assertEqual(final["status"], "done", final)
+        self.assertEqual(reading(final["pipeline"]), reading(pipeline))
+        self.assertEqual(final["evidence"], evidence)
+        self.assertEqual(here.sent, there.sent)
+
+    def test_unreadable_input_comes_back_as_an_error_line(self):
+        self.assertEqual(remote(Bucket(), Google(), content=b"not an image at all", filename="x.png")[-1]["status"],
+                         "error")
+
     def test_a_rerun_takes_completed_calls_back_without_paying_again(self):
         bucket, google = Bucket(), Google()
         first = remote(bucket, google)[-1]
@@ -191,6 +225,80 @@ class SameReading(unittest.TestCase):
 
     def test_evidence_matches_the_workflow_digest(self):
         self.assertEqual(contract.encode({"b": 1, "a": "ก"}), '{"a":"ก","b":1}')
+
+
+class DocumentReading(unittest.TestCase):
+    """对账文档（企业档管线）：Cloud Run 与本机同一份读法，看板事件与本机回调同一时机。"""
+
+    def setUp(self):
+        DOCUMENT_MODE.on = True
+        self.addCleanup(setattr, DOCUMENT_MODE, "on", False)
+
+    def local_document(self, google):
+        from functools import partial
+
+        saved = {}
+
+        def post(url, headers, payload, timeout_s, model, bucket, **_):
+            identity = runner.checkpoint_key(payload, model)
+            if identity not in saved:
+                saved[identity] = json.loads(google.post(url, json=payload).raw.getvalue())
+            return response(200, saved[identity])
+
+        client = ProviderClient(dict(ENVIRONMENT), project="synthetic-project", post=post,
+            checkpoint_key=runner.checkpoint_key, reject_checkpoint=lambda *a: None, terminal_read=lambda key: None,
+            terminal_write=lambda *a: None, feedback=lambda *a: None, scope=lambda *a: a,
+            access_token=lambda: "token", require_context=lambda: None)
+        events = []
+        with PageSource(png(), "report.png", expected_page_count=1, enable_text_path=False,
+                        image_max_long_edge=2400, orient=orient) as source:
+            def docai(*args, **kwargs):
+                result = partial(client.document_ai_call, retry_unknown=True)(*args, **kwargs)
+                events.append(("read", int(kwargs.get("expected_pages") or 1)))
+                return result
+
+            def model(request, *args, **kwargs):
+                result = recon_reading.document_page_failure(partial(client.model_call, retry_unknown=True))(request)
+                events.append(("extracted", request.page_number))
+                return result
+
+            legacy = recon_reading.read_document(source, png(), False, recon_reading.image_mime(png()), "vat_report",
+                                                 docai, model)
+        return legacy, events
+
+    def remote_document(self, bucket, google):
+        events = []
+        request = contract.document_request(site=SITE, work=WORK, filename="report.png", content=png(), page_count=1,
+                                            document_type="vat_report", environment=dict(ENVIRONMENT), yield_seconds=90)
+        runner.recognize(request, bucket, lambda: "token", events.append, orient=orient, page_source=PageSource,
+                         http=google)
+        return events
+
+    def test_cloud_run_reads_a_recon_document_exactly_like_the_server(self):
+        here, there = Google(), Google()
+        legacy, local_events = self.local_document(here)
+        events = self.remote_document(Bucket(), there)
+        final = events[-1]
+        self.assertEqual(final["status"], "done", final)
+        strip = lambda value: reading(json.dumps(value))
+        self.assertEqual(strip(final["legacy"]), strip(legacy))
+        self.assertEqual(here.sent, there.sent)
+        self.assertEqual([(e["event"], e.get("pages") or e.get("page")) for e in events if e["event"] in ("read", "extracted")],
+                         local_events)
+        self.assertTrue(any(e["event"] == "extracted" and json.loads(e["text"])["entries"] for e in events))
+
+    def test_a_rerun_of_a_document_pays_nothing_again(self):
+        bucket, google = Bucket(), Google()
+        self.remote_document(bucket, google)
+        paid = len(google.sent)
+        self.assertEqual(self.remote_document(bucket, google)[-1]["status"], "done")
+        self.assertEqual(len(google.sent), paid)
+
+    def test_document_requests_are_checked(self):
+        for extra in ({"document_type": "invoice"}, {"yield_seconds": 5}):
+            with self.assertRaises(ValueError):
+                contract.document_request(**{"site": SITE, "work": WORK, "filename": "r.png", "content": b"x",
+                    "page_count": 1, "document_type": "vat_report", "environment": {}, **extra})
 
 
 class PaidCallGuard(unittest.TestCase):
@@ -264,6 +372,12 @@ class Requests(unittest.TestCase):
         runner.recognize({"version": 99}, Bucket(), lambda: "t", events.append, orient=orient,
                          page_source=PageSource)
         self.assertEqual(events[-1]["status"], "error")
+
+    def test_variant_and_yield_are_checked(self):
+        for extra in ({"variant": "other"}, {"yield_seconds": 5}, {"yield_seconds": 900}):
+            with self.assertRaises(ValueError):
+                contract.request(site=SITE, work=WORK, batch=BATCH, filename="x.png", content=b"x", page_count=1,
+                                 anchor_date="2026-09-21", environment={}, policy={}, **extra)
 
     def test_request_shape_is_checked(self):
         with self.assertRaises(ValueError):

@@ -23,10 +23,12 @@ from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
 from pearnly_cowork.ocr.engine.contracts import ProviderFailure
+from pearnly_cowork.ocr.engine.errors import EngineError
 from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.client import ProviderClient
 from pearnly_cowork.ocr.remote import contract
+from pearnly_cowork.ocr import recon_reading
 
 UPLOAD_STEP_SECONDS = 30  # 与 pearnly_core.execution.provider 同一口径
 LEASE_SECONDS = contract.YIELD_SECONDS + 240
@@ -205,7 +207,7 @@ def terminal_read(store, key):
     return saved["body"]
 
 
-def build_client(environment, store, access_token, *, http=None):
+def build_client(environment, store, access_token, *, http=None, regions=None):
     project = environment.get("GCP_PROJECT")
     provider = Provider(store, http)
 
@@ -218,7 +220,7 @@ def build_client(environment, store, access_token, *, http=None):
         terminal_write=lambda key, body: store.put(TERMINAL + key, "terminal", body),
         feedback=lambda *args: None, scope=lambda provider, project, location, model: f"{provider}:{location}",
         access_token=access_token, require_context=require_context, checkpoint_read=store.get,
-        in_queue_job=lambda: False)
+        regions=regions, in_queue_job=lambda: False)
 
 
 def page_threads():
@@ -268,6 +270,9 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
     except Busy:
         emit(contract.result("deferred", reason="remote_busy", delay=15))
         return
+    if body["kind"] == "cowork.document":
+        return _document(body, content, store, access_token, emit, orient=orient, page_source=page_source, http=http,
+                         clock=clock)
     try:
         environment, anchor = dict(body["environment"]), date.fromisoformat(body["anchor_date"])
         selected = invoice_policy(environment, body["policy"])
@@ -275,7 +280,11 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         examples = body.get("examples")
         selector = partial(fewshot_for_text, examples_by_tax=examples["examples_by_tax"]) if examples else None
         started, cpu = clock(), time.thread_time()
+        yield_seconds = body.get("yield_seconds", contract.YIELD_SECONDS)
         client = build_client(environment, store, access_token, http=http)
+        model_call, vision_call = client.model_call, client.vision_call
+        if body.get("variant") == "vat_check":
+            model_call, vision_call = recon_reading.vat_callbacks(client)  # 与服务器本机执行同一份包装
         reached = [0]
         limit = page_threads() if threads is None else threads
         # 多页同时读时进度按「已读完几页」推（与服务器本机执行同一口径：读完 N 页 = 正在读第 N+1 页）。
@@ -284,7 +293,7 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
 
         def guarded(callback):
             def invoke(*args, **kwargs):
-                if clock() - started > contract.YIELD_SECONDS:
+                if clock() - started > yield_seconds:
                     raise Deferred("progress_yield", 1)
                 page = kwargs.get("page_number")
                 if page is None and args:
@@ -299,7 +308,7 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
                          enable_text_path=selected.text_fast_path,
                          image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
                          orient=orient) as pages:
-            result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
+            result = run_invoice(pages, guarded(model_call), guarded(vision_call), config=config,
                                  anchor_year=anchor.year, today=anchor, fewshot_selector=selector, map_pages=page_map)
         # 线程 CPU 只在一页一页读时准（多页同时读时 CPU 花在页线程里）。
         log(event="invoice_done", pages=body["page_count"], seconds=round(clock() - started, 2), calls=len(result.calls),
@@ -312,6 +321,10 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:
         emit(contract.result("refused", code=exc.code, http_status=exc.http_status, provider_code=exc.provider_code))
+    except EngineError as exc:
+        # 引擎的内容错误（整份读不出、不是发票……）：照原类型交回，服务器照本机执行同样处理（不是程序错误）
+        emit(contract.result("error", code=type(exc).__name__, error_code=exc.code, stage=exc.stage,
+                             page_number=exc.page_number, detail=exc.detail[:500]))
     except Exception as exc:  # noqa: BLE001 - 引擎 / 输入错误照本机的「workflow_error」处理，不重放付费调用
         import traceback
 
@@ -321,6 +334,74 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         try:
             store.release()
         except Exception:  # noqa: BLE001 - 租约到期自然释放
+            pass
+
+
+def _document(body, content, store, access_token, emit, *, orient, page_source, http, clock):
+    """对账文档：与服务器本机 ``recon_center.document_ocr._read`` 同一流程；看板要的进度改成事件交回。"""
+    from pearnly_cowork.ocr.engine.errors import ContentError
+    from pearnly_cowork.ocr.enterprise import pipeline as enterprise
+
+    try:
+        environment, started = dict(body["environment"]), clock()
+        client = build_client(environment, store, access_token, http=http, regions=body.get("regions"))
+        yield_seconds = body.get("yield_seconds", contract.YIELD_SECONDS)
+
+        def guarded(callback):
+            def invoke(*args, **kwargs):
+                if clock() - started > yield_seconds:
+                    raise Deferred("progress_yield", 1)
+                return callback(*args, **kwargs)
+            return invoke
+
+        def reading(callback):
+            def invoke(*args, **kwargs):
+                result = callback(*args, **kwargs)
+                emit(contract.read(int(kwargs.get("expected_pages") or 1)))
+                return result
+            return invoke
+
+        def extracting(callback):
+            def invoke(request, *args, **kwargs):
+                try:
+                    response = callback(request, *args, **kwargs)
+                except ContentError as error:
+                    if error.code == enterprise.UNREAD_PAGE:
+                        emit(contract.unread(int(getattr(request, "page_number", 0) or 0)))
+                    raise
+                emit(contract.extracted(int(getattr(request, "page_number", 0) or 0), response.text or "",
+                                        reread=getattr(request, "stage", "") == enterprise.REREAD_STAGE))
+                return response
+            return invoke
+
+        is_pdf = body["filename"].lower().endswith(".pdf")
+        with page_source(content, body["filename"], expected_page_count=body["page_count"], enable_text_path=False,
+                         image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
+                         orient=orient) as source:
+            legacy = recon_reading.read_document(source, content, is_pdf,
+                None if is_pdf else recon_reading.image_mime(content), body["document_type"],
+                reading(guarded(partial(client.document_ai_call, retry_unknown=True))),
+                extracting(recon_reading.document_page_failure(guarded(partial(client.model_call, retry_unknown=True)))))
+        log(event="document_done", pages=body["page_count"], seconds=round(clock() - started, 2))
+        emit(contract.result("done", legacy=legacy))
+    except Deferred as exc:
+        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay))
+    except Uncertain as exc:
+        emit(contract.result("uncertain", reason=str(exc)[:200]))
+    except ProviderFailure as exc:
+        emit(contract.result("refused", code=exc.code, http_status=exc.http_status, provider_code=exc.provider_code))
+    except EngineError as exc:
+        emit(contract.result("error", code=type(exc).__name__, error_code=exc.code, stage=exc.stage,
+                             page_number=exc.page_number, detail=exc.detail[:500]))
+    except Exception as exc:  # noqa: BLE001
+        import traceback
+
+        traceback.print_exc()
+        emit(contract.result("error", code=type(exc).__name__, detail=str(exc)[:500]))
+    finally:
+        try:
+            store.release()
+        except Exception:  # noqa: BLE001
             pass
 
 
