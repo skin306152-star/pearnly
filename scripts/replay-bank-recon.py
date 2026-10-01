@@ -97,8 +97,10 @@ def recon_jobs(site):
             for job, value in jobs.items()}
 
 
-def replay(doc, works, index, variant):
-    """按变体重算一次：回 ``{rows, matched, files, warnings, row_keys}``；读不全回 ``{"missing": [...]}``。"""
+def replay(doc, works, index, variant, details=False):
+    """按变体重算一次：回 ``{rows, matched, files, warnings, row_keys}``；读不全回 ``{"missing": [...]}``。
+    ``details``：另回每份账单 / 总账文件各自读出的行（``per_file`` / ``per_ledger``）、表头期初期末（``header``）与最后用来
+    核对的账单行、总账行（``statement`` / ``ledger``），给准确率评测（``eval-bank.py``）用。"""
     import frappe
     from pearnly_core.execution import work as core_work
     from pearnly_cowork.ocr.enterprise import text_layer
@@ -139,6 +141,11 @@ def replay(doc, works, index, variant):
         values = bank_recon_contracts.header(header)
         _results, summary = service._match(rows, values, service.preset_rules(workspace, service.preset_scope(
             values["bank_code"], bank_recon_contracts.parse_info(parse_info), values["gl_account_code"], rows[1])))
+        if details:
+            captured.update(header={key: str(values.get(key)) for key in (
+                "stmt_opening", "stmt_closing", "gl_opening", "gl_closing", "bank_code", "gl_account_code")},
+                statement=[[str(row.get(key)) for key in ("date", "deposit", "withdrawal", "balance")] for row in statement_rows],
+                ledger=[[str(row.get(key)) for key in ("date", "debit", "credit")] for row in gl_rows])
         captured.update(rows=len(rows[0]), matched=summary.get("matched_count", 0), warnings=list(warnings or []),
                         files=[(item["file"], item.get("rows"), item.get("error_code")) for item in parse_info["stmt_files"]],
                         row_keys=sorted((str(row.get("date")), str(row.get("deposit")), str(row.get("withdrawal")),
@@ -147,8 +154,20 @@ def replay(doc, works, index, variant):
 
     # 压测提交不指定科目（由程序按流水挑）；原提交参数不入库，按空重放，与库里结果对不上的会在 faithful 里看出来。
     gl_account = ""
+    judge = VARIANTS[variant].get("account_conflict") or service.account_conflict
+
+    def conflict(statements, ledgers=()):
+        def line(row, *keys):
+            return [str(getattr(row, key, None)) for key in keys]
+        captured["per_file"] = {name: [line(row, "date", "deposit", "withdrawal", "balance") for row in
+                                       result.get("rows") or []] if result.get("ok") else None for name, result in statements}
+        captured["per_ledger"] = {name: [line(row, "date", "debit", "credit") for row in result.get("rows") or []]
+                                  if result.get("ok") else None for name, result in zip(sides["right"], ledgers)}
+        return judge(statements, ledgers)
+
+    patches = {"create": create, **VARIANTS[variant], **({"account_conflict": conflict} if details else {})}
     with contextlib.ExitStack() as stack:
-        for attribute, value in {"create": create, **VARIANTS[variant]}.items():
+        for attribute, value in patches.items():
             stack.enter_context(patch.object(service, attribute, value))
         try:
             service.create_from_documents(doc.workspace, doc.title, "replay", files[sides["left"][0]], sides["left"][0],

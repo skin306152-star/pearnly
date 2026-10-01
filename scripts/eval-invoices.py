@@ -219,29 +219,46 @@ def close(a, b):
     return a is not None and b is not None and abs(a - b) <= Decimal("0.01")
 
 
+def same_number(got, want):
+    """单号数字部分相同，或较长的一串里包含较短的（≥ 6 位，原件多印了前后缀）。"""
+    got, want = doc_no_key(got)[1], doc_no_key(want)[1]
+    return bool(got and want) and (got == want or (min(len(got), len(want)) >= 6 and (got in want or want in got)))
+
+
 def match(item, answers):
-    """四项（单号、对方税号、金额、日期）至少两项吻合且候选唯一。回 ``(行, 吻合项)`` 或 ``(None, 原因)``。"""
+    """配对：单号、对方税号、金额（含税或未税）、日期（同一天，或 45 天内——水电费会计按缴费收据的日期入账）。
+    认的组合：单号 + 任一项、税号 + 金额、金额 + 45 天内。打分取最高；并列取日期最近；还并列而且是同一行的重复
+    （相邻账套重叠登了同一张）就取第一行，否则算「多个候选」。回 ``(行, 吻合项)`` 或 ``(None, 原因)``。"""
     pool = [row for row in answers if item["direction"] in (None, row["direction"])]
+    years = {row["date"].year for row in pool if row["date"]}
     scored = []
     for row in pool:
-        hits = []
-        if doc_no_key(item["doc_no"])[1] and doc_no_key(item["doc_no"])[1] == doc_no_key(row["doc_no"])[1]:
-            hits.append("doc_no")
+        hits = set()
+        if same_number(item["doc_no"], row["doc_no"]):
+            hits.add("doc_no")
         if item["party_tax"] and item["party_tax"] == row["party_tax"]:
-            hits.append("party_tax")
+            hits.add("party_tax")
         if close(item["gross"], row["gross"]) or close(item["net"], row["net"]):
-            hits.append("amount")
-        if item["date"] and item["date"] == row["date"]:
-            hits.append("date")
-        if len(hits) >= 2:
-            scored.append((len(hits), hits, row))
+            hits.add("amount")
+        gap = abs((item["date"] - row["date"]).days) if item["date"] and row["date"] else None
+        if gap == 0:
+            hits.add("date")
+        elif gap is not None and gap <= 45:
+            hits.add("date_near")
+        near = bool(hits & {"date", "date_near"})
+        if not (("doc_no" in hits and len(hits) >= 2) or {"party_tax", "amount"} <= hits or ("amount" in hits and near)):
+            continue
+        score = 3 * ("doc_no" in hits) + 2 * ("party_tax" in hits) + 2 * ("amount" in hits) + ("date" in hits) + 0.5 * (
+            "date_near" in hits)
+        scored.append((score, -(gap if gap is not None else 999), sorted(hits), row))
     if not scored:
-        return None, "no_candidate"
-    best = max(score for score, _hits, _row in scored)
-    top = [(hits, row) for score, hits, row in scored if score == best]
-    if len(top) > 1:
+        return None, "answer_year_missing" if item["date"] and item["date"].year not in years else "no_candidate"
+    scored.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+    best = [entry for entry in scored if entry[:2] == scored[0][:2]]
+    rows = {(doc_no_key(entry[3]["doc_no"])[1], str(entry[3]["gross"]), entry[3]["party_tax"]) for entry in best}
+    if len(rows) > 1:
         return None, "ambiguous"
-    return top[0][1], top[0][0]
+    return scored[0][3], scored[0][2]
 
 
 def classify(field, got, want, item):
@@ -280,9 +297,17 @@ def compare(item, row, category):
         result["doc_no"] = ("ok", None)
     elif got_no and got_no == want_no:
         result["doc_no"] = ("prefix_only", None)
+    elif category in UTILITY and got_no:
+        result["doc_no"] = ("receipt_basis", None)  # 账单上有户号、账单号，会计登的是收据号
     else:
         result["doc_no"] = ("wrong", "missing" if not got_no else "doc_no_other")
-    result["date"] = ("ok", None) if item["date"] == row["date"] else ("wrong", classify("date", item["date"], row["date"], item))
+    gap = abs((item["date"] - row["date"]).days) if item["date"] and row["date"] else None
+    if item["date"] == row["date"]:
+        result["date"] = ("ok", None)
+    elif category in UTILITY and gap is not None and gap <= 45:
+        result["date"] = ("receipt_basis", None)  # 账单印的是出账日，会计按缴费收据日入账
+    else:
+        result["date"] = ("wrong", classify("date", item["date"], row["date"], item))
     for field in ("party_tax", "party_branch"):
         want, got = row[field], item[field]
         if not want:
@@ -302,15 +327,71 @@ def compare(item, row, category):
     return result
 
 
+_texts = {}
+
+
+def pdf_text(path):
+    """电子 PDF 的文字层（原件上实际印的内容）：用来裁决「识别错」还是「会计录法不同」。读不出回空串。"""
+    if path not in _texts:
+        try:
+            from pdfminer.high_level import extract_text
+
+            _texts[path] = extract_text(str(path)) or ""
+        except Exception:
+            _texts[path] = ""
+    return _texts[path]
+
+
+def printed(field, value, text):
+    """这个值在原件文字层里有没有：单号、税号、分店按数字找，金额按两位小数（带不带千分位）找，名称按去空白后找。"""
+    if value in (None, "", "None"):
+        return False
+    flat = re.sub(r"\s+", "", text)
+    if field in ("doc_no",):
+        return bool(alnum(value)) and alnum(value) in alnum(text)
+    if field in ("party_tax",):
+        return bool(digits(value)) and digits(value) in re.sub(r"\D", "", text)
+    if field == "party_branch":
+        number = digits(value) or "0"
+        return f"{int(number):05d}" in re.sub(r"\D", "", text) or (number == "0" and ("สำนักงานใหญ่" in flat or "HEADOFFICE" in flat.upper()))
+    if field in ("net", "vat", "gross"):
+        amount = money(value)
+        return amount is not None and (f"{amount:,.2f}" in flat or f"{amount:.2f}" in flat)
+    if field == "party_name":
+        return bool(name_key(value)) and name_key(value) in name_key(text)
+    return False
+
+
+def adjudicate(item, row, wrong, path):
+    """电子 PDF 上逐个错的字段裁决：答案的值印在原件上、识别的没印 → 识别错；识别的值印在原件上、答案的没印 → 会计录法
+    与原件不同（不算识别错）；其余说不清。"""
+    text = pdf_text(path)
+    if not text.strip():
+        return {}
+    got = {"doc_no": item["doc_no"], "party_tax": item["party_tax"], "party_branch": item["party_branch"],
+           "party_name": item["party_name"], "net": item["net"], "vat": item["vat"], "gross": item["gross"]}
+    verdicts = {}
+    for field in wrong:
+        if field not in got:
+            continue
+        want_on, got_on = printed(field, row[field], text), printed(field, got[field], text)
+        verdicts[field] = ("recognition_error" if want_on and not got_on else
+                           "answer_differs_from_document" if got_on and not want_on else "unclear")
+    return verdicts
+
+
 def score(args):
     sample = read_sample(args.sample)
     by_id = {row["编号"]: row for row in sample}
     results = [json.loads(line) for line in open(Path(args.out, "results.jsonl"), encoding="utf-8")]
     glm = {row["编号"] for row in read_sample(args.glm)} if args.glm else set()
     answers_cache = {}
-    per_invoice, broken, unmatched = [], [], []
+    per_invoice, broken, unmatched, not_invoice = [], [], [], []
     for record in results:
         row = by_id[record["编号"]]
+        if record["state"] == "not_invoice":
+            not_invoice.append({"编号": row["编号"], "方向": row.get("方向") or "", "分类": row["分类"], "形态": row["形态"]})
+            continue
         if record["state"] in ("rejected",) or (record["state"] != "saved" and not record.get("invoices")):
             broken.append({"编号": row["编号"], "方向": row.get("方向") or "", "公司": row["公司"], "形态": row["形态"], "state": record["state"],
                            "message": record.get("error") or record.get("last_code")})
@@ -327,14 +408,19 @@ def score(args):
                 unmatched.append({**base, "reason": how})
                 continue
             fields = compare(item, found, row["分类"])
+            errors = {k: v[1] for k, v in fields.items() if v[0] == "wrong"}
+            verdicts = adjudicate(item, found, errors, Path(args.corpus, row["副本"])) if (
+                errors and row["形态"] == "电子PDF") else {}
             per_invoice.append({**base, "matched_on": how, "answer": {k: str(v) for k, v in found.items()},
-                                "result": {k: v[0] for k, v in fields.items()},
-                                "errors": {k: v[1] for k, v in fields.items() if v[0] == "wrong"}})
+                                "result": {k: v[0] for k, v in fields.items()}, "errors": errors, "adjudicated": verdicts})
     run_info = json.loads(Path(args.out, "run.json").read_text()) if Path(args.out, "run.json").exists() else {}
     report = summarize(per_invoice, unmatched, broken, results)
+    report["not_invoice"] = {"count": len(not_invoice), "by_category": dict(collections.Counter(
+        f"{item['方向']}/{item['分类']}/{item['形态']}" for item in not_invoice).most_common())}
+    report["broken_detail"] = dict(collections.Counter(f"{item['state']}: {item['message']}" for item in broken))
     report["run"] = run_info
     Path(args.out, "score.json").write_text(json.dumps({"summary": report, "invoices": per_invoice,
-        "unmatched": unmatched, "broken": broken}, ensure_ascii=False, default=str, indent=1), encoding="utf-8")
+        "unmatched": unmatched, "broken": broken, "not_invoice": not_invoice}, ensure_ascii=False, default=str, indent=1), encoding="utf-8")
     Path(args.out, "report.md").write_text(render(report), encoding="utf-8")
     if glm:
         export_glm(args, results, glm)
@@ -365,8 +451,13 @@ def summarize(per_invoice, unmatched, broken, results):
     flagged = [item for item in regular if item["flagged"]]
     missed = [item for item in with_error if not item["flagged"]]
     notes = collections.Counter(verdict for item in regular for verdict in item["result"].values()
-                                if verdict in ("prefix_only", "not_printed"))
+                                if verdict in ("prefix_only", "not_printed", "receipt_basis"))
     seconds = sorted(record["seconds"] for record in results if record.get("seconds"))
+    electronic = [item for item in regular if item["形态"] == "电子PDF"]
+    judged = collections.Counter(f"{field}:{verdict}" for item in electronic for field, verdict in item["adjudicated"].items())
+    confirmed = collections.Counter(field for item in electronic for field, verdict in item["adjudicated"].items()
+                                    if verdict == "recognition_error")
+    cells = collections.Counter(field for item in electronic for field, verdict in item["result"].items() if verdict in ("ok", "wrong"))
     return {
         "samples": len(results), "broken": len(broken), "matched_invoices": len(per_invoice), "unmatched_invoices": len(unmatched),
         "unmatched_reasons": dict(collections.Counter(item["reason"] for item in unmatched)),
@@ -385,6 +476,11 @@ def summarize(per_invoice, unmatched, broken, results):
                         for category in sorted({item["分类"] for item in regular})},
         "error_kinds": dict(categories.most_common()), "error_kinds_by_field": dict(by_field.most_common()),
         "notes": dict(notes),
+        "electronic_adjudicated": {"verdicts": dict(judged.most_common()),
+                                   "confirmed_error_rate": {field: round(confirmed[field] / cells[field], 4)
+                                                            for field in FIELDS if cells[field]},
+                                   "confirmed_field_error_rate": round(sum(confirmed.values()) / sum(cells.values()), 4)
+                                   if cells else None},
         "review": {"flag_rate": round(len(flagged) / len(regular), 4) if regular else None,
                    "invoices_with_error": len(with_error), "flagged_with_error": len(with_error) - len(missed),
                    "missed_rate": round(len(missed) / len(with_error), 4) if with_error else None},
@@ -396,8 +492,9 @@ def summarize(per_invoice, unmatched, broken, results):
 def render(report):
     regular = report["regular"]
     lines = ["# 发票识别准确率", "",
-             f"样本 {report['samples']} 份；打不开的原件 {report['broken']} 份（不计入）；配上答案 {report['matched_invoices']} 张、"
-             f"未对上 {report['unmatched_invoices']} 张 {report['unmatched_reasons']}。", "",
+             f"样本 {report['samples']} 份；打不开的原件 {report['broken']} 份（不计入）{report.get('broken_detail')}；"
+             f"判成「不是发票」{report.get('not_invoice', {}).get('count')} 份（功能完整度，按类见 score.json）；"
+             f"配上答案 {report['matched_invoices']} 张、未对上 {report['unmatched_invoices']} 张 {report['unmatched_reasons']}。", "",
              f"普通发票：{regular['invoices']} 张，整张全对 {regular['all_correct_rate']}，字段错误率 {regular['field_error_rate']}。",
              f"海关税单（报关数口径，单列）：{report['customs']['invoices']} 张，字段错误率 {report['customs']['field_error_rate']}。", "",
              "| 字段 | 张数 | 错 | 错误率 |", "| --- | --- | --- | --- |"]
@@ -413,6 +510,8 @@ def render(report):
                                      for form, value in report["by_form"].items()),
               "", "错误类别：" + json.dumps(report["error_kinds"], ensure_ascii=False),
               "", "口径单列：" + json.dumps(report["notes"], ensure_ascii=False),
+              "", "电子 PDF 用原件文字层裁决（识别错 / 会计录法与原件不同 / 说不清）："
+                  + json.dumps(report["electronic_adjudicated"], ensure_ascii=False),
               "", f"需复核：标记率 {report['review']['flag_rate']}，有错的 {report['review']['invoices_with_error']} 张里"
                   f"漏标率 {report['review']['missed_rate']}。",
               "", f"耗时：p50 {report['seconds']['p50']} 秒，p95 {report['seconds']['p95']} 秒。",
