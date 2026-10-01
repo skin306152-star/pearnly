@@ -75,7 +75,15 @@ def original(name):
 
 @frappe.whitelist()
 def page(history_name, physical_page):
-    data = service.page(history_name, physical_page)
+    source, number = service.page_source(history_name, physical_page)
+    link = service.preview_link(source, number)
+    if link:
+        # 识别时已把这一页的预览图存进原件桶：记访问日志后转到短时签名地址（同 ``original``），不占服务器现画。
+        make_access_log(doctype="Cowork OCR History", document=history_name, file_type="page_png")
+        frappe.local.response.update(type="redirect", location=link)
+        frappe.local.cowork_private_response = True
+        return
+    data = service.render_page(source, number)
     make_access_log(doctype="Cowork OCR History", document=history_name, file_type="page_png")
     kind = originals.preview_type(data)
     frappe.local.response.update(type="download", filename="invoice-page." + kind.rsplit("/", 1)[1].replace("jpeg", "jpg"),

@@ -335,7 +335,8 @@ def original_link(name):
     return (source.filename, cloud.download_url(stored, source.filename)) if stored else None
 
 
-def page(history_name, physical_page):
+def page_source(history_name, physical_page):
+    """预览一页之前的权限判定（与原来同一套：读权限、这条记录引用这一页、页码在原件范围内）：返回 ``(原件, 页码)``。"""
     scope.require_read()
     if isinstance(physical_page, bool) or not re.fullmatch(r"[1-9][0-9]*", str(physical_page)):
         frappe.throw(_("A positive source page number is required."))
@@ -345,6 +346,66 @@ def page(history_name, physical_page):
     source = frappe.get_doc(access.SOURCE, history.source_file)
     if not 1 <= number <= source.page_count:
         frappe.throw(_("The requested page is not part of this invoice."), frappe.PermissionError)
+    return source, number
+
+
+# 识别时顺手存好的预览图（Cloud Run 在原件桶里，``ocr.remote.runner.Previews``）。
+PREVIEW_KINDS = ("pdf", "image")
+
+
+def preview_spec(source):
+    """交给 Cloud Run 识别时带上的预览规格；没配原件桶、不是 PDF / 图片返回 ``None``（不存，预览照旧现画）。"""
+    from pearnly_cowork.ocr.remote import contract
+
+    if not cloud.bucket() or source.kind not in PREVIEW_KINDS:
+        return None
+    return contract.previews(source=source.name, sha256=source.sha256, kind=source.kind)
+
+
+def preview_record(source, items):
+    """Cloud Run 回来的已存预览 → 记在原件记录上的 JSON（随绑定识别结果那一次保存写入）。核对不过就不记（照旧现画）。"""
+    from pearnly_cowork.ocr.remote import contract
+
+    try:
+        bucket_name, pages = contract.parse_previews(items, site=frappe.local.site, source=source.name,
+                                                     sha256=source.sha256, page_count=int(source.page_count))
+    except ValueError:
+        logger.warning("stored previews refused: %s", source.name)
+        return None
+    if bucket_name != cloud.bucket() or not pages:
+        return None
+    return json.dumps({"version": contract.PREVIEW_VERSION, "bucket": bucket_name, "sha256": source.sha256,
+                       "pages": {str(page): value for page, value in sorted(pages.items())}},
+                      sort_keys=True, separators=(",", ":"))
+
+
+def preview_link(source, number):
+    """这一页有识别时存好的预览图：返回短时签名地址；没有（旧数据、本机识别的、画法版本变了）返回 ``None``。
+    调用方先做完 :func:`page_source` 的权限判定。"""
+    from pearnly_cowork.ocr.remote import contract
+
+    try:
+        record = json.loads(source.get("preview_objects") or "null")
+        if (not isinstance(record, dict) or record.get("version") != contract.PREVIEW_VERSION
+                or record.get("sha256") != source.sha256 or not isinstance(record.get("bucket"), str)):
+            return None
+        value = record["pages"].get(str(int(number)))
+        if (not isinstance(value, dict) or value.get("type") not in contract.PREVIEW_TYPES
+                or value.get("object") != contract.preview_object(frappe.local.site, source.name, source.sha256, number)
+                or type(value.get("generation")) is not int):
+            return None
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return None
+    return cloud.preview_url(record["bucket"], value["object"], value["generation"], value["type"])
+
+
+def page(history_name, physical_page):
+    """一页预览图的字节（现画）。"""
+    return render_page(*page_source(history_name, physical_page))
+
+
+def render_page(source, number):
+    """现画一页预览（调用方先做完 :func:`page_source` 的权限判定）。"""
     stored = stored_original(source)
     if stored:
         # 原件在原件桶里：在 Cloud Run 上生成这一页的预览，只把生成好的图传回来（不把整份原件下载到服务器，ADR-016）。

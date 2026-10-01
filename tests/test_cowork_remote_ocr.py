@@ -228,6 +228,140 @@ class SameReading(unittest.TestCase):
         self.assertEqual(contract.encode({"b": 1, "a": "ก"}), '{"a":"ก","b":1}')
 
 
+class PreviewBucket:
+    """内存版原件桶：预览图只新建不覆盖（与 gcs.Bucket.create_bytes 同样的前置条件）。"""
+
+    name = "pearnly-cowork-originals-sg"
+
+    def __init__(self, fail=()):
+        self.objects, self.lock, self.fail, self.created = {}, threading.Lock(), set(fail), []
+
+    def metadata(self, name):
+        if name in self.fail:
+            raise requests.ConnectionError("synthetic")
+        with self.lock:
+            found = self.objects.get(name)
+            return (found[1], found[2]) if found else None
+
+    def create_bytes(self, name, data, content_type):
+        with self.lock:
+            if name in self.objects:
+                return None
+            self.objects[name] = (data, len(self.objects) + 100, content_type)
+            self.created.append(name)
+            return self.objects[name][1]
+
+
+SOURCE = "CWS-" + "c" * 48
+
+
+def with_previews(originals, content, filename, pages, kind, google=None, **body):
+    import hashlib
+
+    events = []
+    spec = contract.previews(source=SOURCE, sha256=hashlib.sha256(content).hexdigest(), kind=kind)
+    request = contract.request(site=SITE, work=WORK, batch=BATCH, filename=filename, content=content, page_count=pages,
+                               anchor_date="2026-09-21", environment=dict(ENVIRONMENT), policy=dict(POLICY),
+                               previews=spec, **body)
+    runner.recognize(request, Bucket(), lambda: "token", events.append, orient=orient, page_source=PageSource,
+                     http=google or Google(), threads=1, originals=originals)
+    return events, spec
+
+
+class StoredPreviews(unittest.TestCase):
+    """识别时顺手把各页预览图存进原件桶：与服务器现画同一份 render_page（字节一致），识别结果与计费一字不差。"""
+
+    def test_every_page_is_stored_with_the_same_bytes_the_server_would_draw(self):
+        from pearnly_cowork.ocr import originals as original_files
+
+        content = pdf(3)
+        store = PreviewBucket()
+        events, spec = with_previews(store, content, "file.pdf", 3, "pdf")
+        final = events[-1]
+        self.assertEqual(final["status"], "done", final)
+        self.assertEqual(final["previews"]["bucket"], PreviewBucket.name)
+        self.assertEqual([item["page"] for item in final["previews"]["pages"]], [1, 2, 3])
+        for item in final["previews"]["pages"]:
+            data, generation, kind = store.objects[item["object"]]
+            self.assertEqual(item["object"], contract.preview_object(SITE, SOURCE, spec["sha256"], item["page"]))
+            self.assertEqual(data, original_files.render_page("pdf", content, item["page"]))
+            self.assertEqual((item["generation"], item["type"]), (generation, original_files.preview_type(data)))
+        bucket, pages = contract.parse_previews(final["previews"], site=SITE, source=SOURCE, sha256=spec["sha256"],
+                                                page_count=3)
+        self.assertEqual((bucket, sorted(pages)), (PreviewBucket.name, [1, 2, 3]))
+
+    def test_storing_previews_does_not_change_the_reading_or_the_paid_calls(self):
+        here, there = Google(), Google()
+        pipeline, evidence = local(here)
+        events, _spec = with_previews(PreviewBucket(), png(), "invoice.png", 1, "image", google=there)
+        final = events[-1]
+        self.assertEqual(final["status"], "done", final)
+        self.assertEqual(reading(final["pipeline"]), reading(pipeline))
+        self.assertEqual(final["evidence"], evidence)
+        self.assertEqual(here.sent, there.sent)
+
+    def test_a_rerun_after_yielding_does_not_draw_the_pages_again(self):
+        content, store = pdf(2), PreviewBucket()
+        with_previews(store, content, "file.pdf", 2, "pdf")
+        self.assertEqual(len(store.created), 2)
+        events, _spec = with_previews(store, content, "file.pdf", 2, "pdf")
+        self.assertEqual(len(store.created), 2)
+        self.assertEqual([item["page"] for item in events[-1]["previews"]["pages"]], [1, 2])
+
+    def test_a_page_that_cannot_be_stored_is_left_for_the_server_to_draw(self):
+        import hashlib
+
+        content = pdf(2)
+        broken = contract.preview_object(SITE, SOURCE, hashlib.sha256(content).hexdigest(), 2)
+        events, _spec = with_previews(PreviewBucket(fail={broken}), content, "file.pdf", 2, "pdf")
+        self.assertEqual(events[-1]["status"], "done")
+        self.assertEqual([item["page"] for item in events[-1]["previews"]["pages"]], [1])
+
+    def test_a_broken_bucket_never_breaks_the_recognition(self):
+        class Broken:
+            @property
+            def name(self):
+                raise RuntimeError("synthetic")
+
+            def metadata(self, name):
+                raise RuntimeError("synthetic")
+
+        events, _spec = with_previews(Broken(), png(), "invoice.png", 1, "image")
+        self.assertEqual(events[-1]["status"], "done", events[-1])
+        self.assertNotIn("previews", events[-1])
+
+    def test_no_spec_or_no_bucket_stores_nothing(self):
+        store = PreviewBucket()
+        final = remote(Bucket(), Google())[-1]
+        self.assertNotIn("previews", final)
+        events = []
+        request = contract.request(site=SITE, work=WORK, batch=BATCH, filename="invoice.png", content=png(), page_count=1,
+                                   anchor_date="2026-09-21", environment=dict(ENVIRONMENT), policy=dict(POLICY))
+        runner.recognize(request, Bucket(), lambda: "token", events.append, orient=orient, page_source=PageSource,
+                         http=Google(), originals=store)
+        self.assertNotIn("previews", events[-1])
+        self.assertEqual(store.objects, {})
+
+    def test_the_spec_must_match_the_content(self):
+        spec = contract.previews(source=SOURCE, sha256="0" * 64, kind="image")
+        for value in (spec, dict(spec, source="CWS-x"), dict(spec, kind="document"), dict(spec, extra=1)):
+            with self.assertRaises(ValueError):
+                contract.request(site=SITE, work=WORK, batch=BATCH, filename="x.png", content=png(), page_count=1,
+                                 anchor_date="2026-09-21", environment={}, policy={}, previews=value)
+
+    def test_returned_previews_are_checked_page_by_page(self):
+        sha = "d" * 64
+        good = {"page": 1, "object": contract.preview_object(SITE, SOURCE, sha, 1), "generation": 5, "type": "image/png"}
+        check = lambda pages: contract.parse_previews({"bucket": "b", "pages": pages}, site=SITE, source=SOURCE,
+                                                      sha256=sha, page_count=2)
+        self.assertEqual(check([good])[1][1]["generation"], 5)
+        for pages in ([dict(good, page=3)], [good, good], [dict(good, object=good["object"].replace("p1", "p2"))],
+                      [dict(good, generation=0)], [dict(good, type="text/html")],
+                      [dict(good, object=contract.preview_object("other.site", SOURCE, sha, 1))]):
+            with self.assertRaises(ValueError):
+                check(pages)
+
+
 class DocumentReading(unittest.TestCase):
     """对账文档（企业档管线）：Cloud Run 与本机同一份读法，看板事件与本机回调同一时机。"""
 

@@ -37,6 +37,9 @@
 4. **服务器仍然管**：权限、幂等、余额、名额、存结果、扣费、访问日志。**预览**（`files.api.page`）权限与访问日志照旧在服务器；
    原件在桶里时改由 Cloud Run 生成这一页的预览图（`/v1/cowork/preview`，与服务器同一份 `ocr.originals.render_page`，
    按版本号读、核对 sha256），服务器只转回生成好的图（超过 400 KB 的照片 / 扫描件预览改用 JPEG 质量 85，约十分之一大小；文字页照旧 PNG）：不把整份原件下载到服务器（省谷歌出网流量，也省服务器渲染 CPU）。
+   识别时存好的预览（2026-10-01 补，任务记录 `docs/work/2026-10-01-cowork-ocr-preview-tasks.md`）：Cloud Run 识别的同时用同一份
+   `render_page` 把各页预览存进原件桶（`<站点>/previews/<原件名>/v<画法版本>-<哈希>/p<页码>`，只新建），记在原件记录
+   `preview_objects`；`page` 权限判定不变，有存好的就记访问日志后 302 到 5 分钟、钉版本号、inline 的签名地址，没有照旧现画。
    **下载**（`files.api.original`）记访问日志后转到 5 分钟有效、只限这一版本、作为附件下载的签名地址。
    登记识别结果时不再整份下载核对（同一版本内容不变，登记原件时 Cloud Run 已核对 sha256）。
 5. **开关**：站点配置 `pearnly_cowork_originals_bucket`（桶名）+ 已开的 `pearnly_cowork_ocr_remote`。关掉任一个立刻回到

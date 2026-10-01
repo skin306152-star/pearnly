@@ -1,7 +1,7 @@
 """Cloud Run 上的两样外部能力：服务账号令牌、存储桶里的检查点对象（Cloud Storage JSON API，直接走 HTTPS）。
 
 只在 Cloud Run 镜像里用。检查点桶在新加坡，设了 7 天自动删除（ADR-0015）；对象里只有谷歌的回复（读出的文字 / 字段），
-没有原件图片。原件桶（ADR-016）只读：按版本号读出浏览器直传的原件；核对不通过的那个版本删掉。
+没有原件图片。原件桶（ADR-016）：按版本号读出浏览器直传的原件；核对不通过的那个版本删掉；识别时把各页预览图存进去（只新建、不覆盖）。
 """
 import json
 import threading
@@ -36,6 +36,10 @@ class Bucket:
         self._name, self._token = name, token
         self._local = threading.local()
         self._http = http
+
+    @property
+    def name(self):
+        return self._name
 
     def _session(self):
         if self._http is not None:
@@ -72,6 +76,28 @@ class Bucket:
                                           headers=self._headers(), timeout=(10, 30))
         if response.status_code not in (204, 404):
             response.raise_for_status()
+
+    def metadata(self, name):
+        """对象的版本号与类型（识别时存的预览图，看是不是已经存过）；不存在返回 ``None``。"""
+        response = self._session().get(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       params={"fields": "generation,contentType"}, headers=self._headers(),
+                                       timeout=(10, 30))
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        value = response.json()
+        return int(value["generation"]), value.get("contentType")
+
+    def create_bytes(self, name, data, content_type):
+        """写一个新对象（预览图）：已经有了就不写，返回 ``None``；写成返回版本号。"""
+        response = self._session().post(f"{API}/upload/storage/v1/b/{self._name}/o",
+                                        params={"uploadType": "media", "name": name, "ifGenerationMatch": "0"},
+                                        data=data, headers={**self._headers(), "Content-Type": content_type},
+                                        timeout=(10, 60))
+        if response.status_code == 412:
+            return None
+        response.raise_for_status()
+        return int(response.json()["generation"])
 
     def _upload(self, name, value, precondition):
         params = {"uploadType": "media", "name": name}

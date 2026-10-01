@@ -331,6 +331,65 @@ def preview(body, originals):
         return None, error.code
 
 
+# 识别读完后最多再等预览图存好多久（通常早就存完：画一页零点几秒，识别一份十几秒）。没存完的页服务器照旧现画。
+PREVIEW_WAIT_SECONDS = 20
+
+
+class Previews:
+    """识别的同时把各页预览图存进原件桶（与服务器现画同一份 ``render_page``，同一原件同一页字节一致）。
+
+    单独一个线程，只读原件字节，不碰识别用的页面对象和调用：识别结果与计费不受影响；这里出任何错都只是少存几页
+    （服务器照旧现画）。已经存过的页（上一次让出前存的）只查一下版本号，不重画。"""
+
+    def __init__(self, body, content, originals):
+        spec = body["previews"]
+        self._names = [(page, contract.preview_object(body["site"], spec["source"], spec["sha256"], page))
+                       for page in range(1, body["page_count"] + 1)]
+        self._kind, self._content, self._originals = spec["kind"], content, originals
+        self._stored, self._lock = [], threading.Lock()
+        self._thread = threading.Thread(target=self._run, name="ocr-previews", daemon=True)
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def _run(self):
+        started = time.monotonic()
+        try:
+            for page, name in self._names:
+                try:
+                    found = self._originals.metadata(name)
+                    if found is None:
+                        picture = original_files.render_page(self._kind, self._content, page)
+                        kind = original_files.preview_type(picture)
+                        generation = self._originals.create_bytes(name, picture, kind)
+                        found = (generation, kind) if generation is not None else self._originals.metadata(name)
+                except original_files.Rejected:
+                    continue  # 这一页本来就不能预览（太大 / 不支持）：服务器现画时给出同样的提示
+                except requests.RequestException:
+                    continue
+                if found and found[1] in contract.PREVIEW_TYPES:
+                    with self._lock:
+                        self._stored.append({"page": page, "object": name, "generation": int(found[0]),
+                                             "type": found[1]})
+        except Exception:  # noqa: BLE001 - 预览只是省服务器的事，出错不影响识别
+            import traceback
+
+            traceback.print_exc()
+        log(event="previews_stored", pages=len(self._stored), of=len(self._names),
+            seconds=round(time.monotonic() - started, 2))
+
+    def collect(self, wait=PREVIEW_WAIT_SECONDS):
+        """存好的页（没存完的不等）；出错返回 ``None``（不报预览，识别结果照常交回）。"""
+        try:
+            self._thread.join(wait)
+            with self._lock:
+                pages = sorted(self._stored, key=lambda item: item["page"])
+            return {"bucket": str(self._originals.name), "pages": pages}
+        except Exception:  # noqa: BLE001
+            return None
+
+
 def recognize(body, backend, access_token, emit, *, orient, page_source, http=None, clock=time.monotonic,
               threads=None, originals=None):
     """跑一份发票识别，进度和结果都通过 ``emit(event)`` 交出。从不抛出：异常都变成 result 事件。"""
@@ -356,6 +415,12 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
     if body["kind"] == "cowork.document":
         return _document(body, content, store, access_token, emit, orient=orient, page_source=page_source, http=http,
                          clock=clock)
+    previews = None
+    if body.get("previews") and originals:
+        try:
+            previews = Previews(body, content, originals).start()
+        except Exception:  # noqa: BLE001 - 预览出错不影响识别
+            previews = None
     try:
         environment, anchor = dict(body["environment"]), date.fromisoformat(body["anchor_date"])
         selected = invoice_policy(environment, body["policy"])
@@ -396,8 +461,9 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         # 线程 CPU 只在一页一页读时准（多页同时读时 CPU 花在页线程里）。
         log(event="invoice_done", pages=body["page_count"], seconds=round(clock() - started, 2), calls=len(result.calls),
             **({"cpu_seconds": round(time.thread_time() - cpu, 2)} if page_map is None else {"page_threads": limit}))
+        stored = previews.collect() if previews else None
         emit(contract.result("done", pipeline=result.pipeline.model_dump_json(),
-                             evidence=contract.evidence(result.calls)))
+                             evidence=contract.evidence(result.calls), **({"previews": stored} if stored else {})))
     except Deferred as exc:
         emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay))
     except Uncertain as exc:

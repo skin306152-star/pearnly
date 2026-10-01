@@ -13,7 +13,8 @@ from pearnly_cowork.files import access, guard, service as files
 from pearnly_cowork.history import storage
 
 
-def persist_batch(source_file, groups, request_key, *, anchor_year=None):
+def persist_batch(source_file, groups, request_key, *, anchor_year=None, previews=None):
+    """``previews``：识别时存好的预览图记录（``files.service.preview_record``），随原件绑定同一次保存写入。"""
     scope.require("intake")
     if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
         frappe.throw(_("A request key of 1 to 128 characters is required."))
@@ -81,6 +82,8 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
             source.binding_complete = 1
             source.binding_fingerprint = fingerprint
             source.binding_records = storage.encode([row["name"] for row in rows])
+            if previews:
+                source.preview_objects = previews
             source.flags.cowork_original_write = guard.WRITE_CAPABILITY
             source.save(ignore_permissions=True)
     except frappe.QueryDeadlockError:

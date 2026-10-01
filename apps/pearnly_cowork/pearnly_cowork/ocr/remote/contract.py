@@ -51,6 +51,57 @@ def evidence(calls):
 # 原件桶里的对象：``<站点>/originals/<原件名><扩展名>``（``files.cloud.object_name``）。
 ORIGINAL = re.compile(r"originals/CWS-[0-9a-f]{48}\.[a-z0-9]{1,5}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
+SOURCE = re.compile(r"CWS-[0-9a-f]{48}")
+
+# 识别时顺手存好的预览图（与 ``ocr.originals.render_page`` 同一份画法）。画法变了就加 1：旧版本存的图不再用，
+# 服务器回到现画，保证页面上看到的和现画的一模一样。
+PREVIEW_VERSION = 1
+PREVIEW_TYPES = ("image/png", "image/jpeg")
+
+
+def preview_object(site, source, sha256, page):
+    """一页预览在原件桶里的对象名：站点 + 原件 + 内容哈希 + 画法版本 + 页码（同一原件同一页永远是同一个名字，只写一次）。"""
+    return f"{site}/previews/{source}/v{PREVIEW_VERSION}-{sha256[:16]}/p{int(page)}"
+
+
+def previews(*, source, sha256, kind):
+    """识别请求里的预览规格：这份原件是哪条原件记录（``CWS-…``）、内容 sha256、类型（pdf / image）。"""
+    return {"source": source, "sha256": sha256, "kind": kind}
+
+
+def _previews(body):
+    value = body.get("previews")
+    if value is None:
+        return None
+    if (not isinstance(value, dict) or set(value) != {"source", "sha256", "kind"}
+            or not isinstance(value["source"], str) or not SOURCE.fullmatch(value["source"])
+            or not isinstance(value["sha256"], str) or not SHA256.fullmatch(value["sha256"])
+            or value["kind"] not in ("pdf", "image")):
+        raise ValueError("invalid previews")
+    original = body.get("original")
+    if original is not None and original.get("sha256") != value["sha256"]:
+        raise ValueError("invalid previews")
+    return value
+
+
+def parse_previews(items, *, site, source, sha256, page_count):
+    """Cloud Run 回来的已存预览（``done`` 结果里的 ``previews``）逐项核对：页码在范围内、对象名正是这份原件这一页的、
+    版本号与类型合规。不合规的整批不用（服务器照旧现画），返回 ``{页码: {"object", "generation", "type"}}``。"""
+    if not isinstance(items, dict) or not isinstance(items.get("bucket"), str) or not isinstance(items.get("pages"), list):
+        raise ValueError("invalid previews")
+    pages = {}
+    for item in items["pages"]:
+        if not isinstance(item, dict):
+            raise ValueError("invalid previews")
+        page = item.get("page")
+        if type(page) is not int or not 1 <= page <= page_count or page in pages:
+            raise ValueError("invalid previews")
+        if item.get("object") != preview_object(site, source, sha256, page):
+            raise ValueError("invalid previews")
+        if type(item.get("generation")) is not int or item["generation"] < 1 or item.get("type") not in PREVIEW_TYPES:
+            raise ValueError("invalid previews")
+        pages[page] = {"object": item["object"], "generation": item["generation"], "type": item["type"]}
+    return items["bucket"], pages
 
 
 def original(*, object, generation, sha256):
@@ -73,10 +124,12 @@ def _original(body):
 
 
 def request(*, site, work, batch, filename, content=None, page_count, anchor_date, environment, policy,
-            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None):
+            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None, previews=None):
     body = {"version": VERSION, "kind": "cowork.invoice", "site": site, "work": work, "batch": batch,
             "filename": filename, "page_count": page_count, "anchor_date": anchor_date, "environment": environment,
             "policy": policy, "examples": examples, "variant": variant, "yield_seconds": yield_seconds}
+    if previews is not None:
+        body["previews"] = previews
     if original is not None:
         body["original"] = original
     else:
@@ -178,6 +231,7 @@ def parse_request(body):
         if "content" in body:
             raise ValueError("invalid content")
         _original(body)
+        _previews(body)
         return None  # 原件在原件桶里：Cloud Run 读出后再核对（runner.original_bytes）
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)
@@ -185,6 +239,9 @@ def parse_request(body):
         raise ValueError("invalid content") from exc
     if not content or len(content) > MAX_CONTENT_BYTES:
         raise ValueError("invalid content size")
+    spec = _previews(body)
+    if spec is not None and hashlib.sha256(content).hexdigest() != spec["sha256"]:
+        raise ValueError("invalid previews")
     return content
 
 

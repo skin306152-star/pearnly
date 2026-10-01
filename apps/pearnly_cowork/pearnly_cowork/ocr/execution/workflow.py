@@ -15,7 +15,7 @@ from pearnly_core import ocr
 from pearnly_core.execution import pages as core_pages
 from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution.errors import Deferred
-from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, stored_original
+from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, preview_record, preview_spec, stored_original
 from pearnly_cowork.files.access import reference_count, reference_kind
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.engine import run_invoice
@@ -106,11 +106,19 @@ def _recognize(doc, frozen, examples, source):
         # 原件在原件桶里（浏览器直传，ADR-016）就只给对象和版本号，Cloud Run 自己读、核对 sha256。
         body = feedback.validate_snapshot(examples) if examples else None
         original = contract.original(object=stored[1], generation=stored[2], sha256=source.sha256) if stored else None
+        # 识别时顺手把各页预览图存进原件桶：页面看原件直接从桶取，不再占服务器线程等 Cloud Run 现画。
+        previews = []
         pipeline, evidence = forward.recognize(doc, frozen, body, content, source.filename,
-                                               lambda page: store.pages_reached(doc.name, page), original=original)
+                                               lambda page: store.pages_reached(doc.name, page), original=original,
+                                               previews=preview_spec(source),
+                                               on_previews=lambda items: previews.append(preview_record(source, items)))
         anchor = date.fromisoformat(str(doc.anchor_date)).year
         PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor})  # 收到的必须是合规结果
-        return _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
+        doc = _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
+        # 只放在内存里交给紧接着的落库（``_persist``），随绑定原件那一次保存写进原件记录，不额外写原件表；
+        # 中途断掉没记上也没关系：预览照旧现画。
+        doc.flags.cowork_previews = previews[0] if previews else None
+        return doc
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
     client = build_client(environment, core_identity={k: frozen["target"][k] for k in
@@ -185,12 +193,14 @@ def _persist(doc):
         source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
         payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
         reference_kind=doc.get("reference_kind") or "physical_page")
+    previews = doc.flags.get("cowork_previews")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
     doc = store.read(doc.name, lock=True, write=True, authorize=False)
     if doc.phase in {"saved", "not_invoice"}:
         return doc
-    rows = persist_batch(doc.source_file, plan["groups"], doc.name, anchor_year=anchor) if plan["groups"] else []
+    rows = (persist_batch(doc.source_file, plan["groups"], doc.name, anchor_year=anchor, previews=previews)
+            if plan["groups"] else [])
     if doc.get("target_connection") or doc.get("intake_target"):
         # 新建录入选的推送目标抄到每张票上：之后从列表进来提交也按第一次的选择推（用户 2026-09-26）；
         # 选的是哪张目标卡片也抄上（识别后导出的票打开复核页是「导出」，不是「提交」）。

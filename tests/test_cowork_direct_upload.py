@@ -261,5 +261,151 @@ class StoredInBucket(unittest.TestCase):
         read_bytes.assert_called_once_with(local)
 
 
+class StoredPreviews(unittest.TestCase):
+    """识别时存好的预览图：页面看原件时记访问日志后 302 到短时签名地址；没有就照旧现画；权限判定不变。"""
+
+    SOURCE = "CWS-" + "c" * 48
+
+    def setUp(self):
+        frappe.local.site = SITE
+        self.addCleanup(lambda: delattr(frappe.local, "site"))
+
+    def source(self, data, record=None, **values):
+        sha = hashlib.sha256(data).hexdigest()
+        return frappe._dict(name=self.SOURCE, kind="pdf", page_count=3, sha256=sha, stored_file="F1",
+                            storage_url="/private/files/x.pdf", preview_objects=record, **values)
+
+    def stored(self, data, pages=(1, 2, 3), bucket=BUCKET):
+        from pearnly_cowork.ocr.remote import contract
+
+        sha = hashlib.sha256(data).hexdigest()
+        return {"bucket": bucket, "pages": [{"page": page, "object": contract.preview_object(SITE, self.SOURCE, sha, page),
+                                             "generation": 40 + page, "type": "image/png"} for page in pages]}
+
+    def test_spec_only_when_the_bucket_is_on_and_the_original_is_a_pdf_or_image(self):
+        source = self.source(b"x")
+        with mock.patch.object(service.cloud, "bucket", return_value=BUCKET):
+            self.assertEqual(service.preview_spec(source), {"source": self.SOURCE, "sha256": source.sha256, "kind": "pdf"})
+            self.assertIsNone(service.preview_spec(frappe._dict(source, kind="document")))
+        with mock.patch.object(service.cloud, "bucket", return_value=None):
+            self.assertIsNone(service.preview_spec(source))
+
+    def test_a_recorded_page_is_a_short_signed_link_and_others_are_drawn(self):
+        data = b"%PDF synthetic"
+        source = self.source(data)
+        with mock.patch.object(service.cloud, "bucket", return_value=BUCKET):
+            record = service.preview_record(source, self.stored(data, pages=(1, 3)))
+        source.preview_objects = record
+        with mock.patch.object(service.cloud, "preview_url", side_effect=lambda *a: "https://signed/" + repr(a)) as url:
+            link = service.preview_link(source, 3)
+            self.assertIsNone(service.preview_link(source, 2))   # 没存的页：现画
+        from pearnly_cowork.ocr.remote import contract
+        url.assert_called_once_with(BUCKET, contract.preview_object(SITE, self.SOURCE, source.sha256, 3), 43, "image/png")
+        self.assertTrue(link.startswith("https://signed/"))
+        for changed in (frappe._dict(source, sha256="0" * 64), frappe._dict(source, preview_objects="not json"),
+                        frappe._dict(source, preview_objects=record.replace('"version":1', '"version":0')),
+                        frappe._dict(source, preview_objects=None)):
+            self.assertIsNone(service.preview_link(changed, 3))
+
+    def test_wrong_or_foreign_previews_are_not_recorded(self):
+        data = b"%PDF synthetic"
+        source = self.source(data)
+        with mock.patch.object(service.cloud, "bucket", return_value=BUCKET):
+            self.assertIsNone(service.preview_record(source, self.stored(data, bucket="someone-else")))
+            self.assertIsNone(service.preview_record(source, self.stored(b"other bytes")))
+            self.assertIsNone(service.preview_record(source, self.stored(data, pages=(4,))))
+            self.assertIsNone(service.preview_record(source, {"bucket": BUCKET, "pages": []}))
+
+    def test_the_signed_link_pins_the_version_and_shows_inline(self):
+        credentials, _key = signer()
+        with mock.patch.object(service.cloud, "_service_account", return_value=credentials):
+            url = service.cloud.preview_url(BUCKET, SITE + "/previews/x/p1", 43, "image/jpeg")
+        query = parse_qs(urlsplit(url).query)
+        self.assertEqual(query["generation"], ["43"])
+        self.assertEqual(query["response-content-type"], ["image/jpeg"])
+        self.assertEqual(query["response-content-disposition"], ["inline; filename=invoice-page.jpg"])
+        self.assertEqual(query["X-Goog-Expires"], [str(service.cloud.DOWNLOAD_SECONDS)])
+
+    def test_stored_and_drawn_pages_are_byte_identical(self):
+        """Cloud Run 识别时存的图与服务器现画的图：同一原件、同一页码逐字节一致。"""
+        import io
+        from PIL import Image
+        from pearnly_cowork.ocr.remote import contract, runner
+
+        pages = [Image.new("RGB", (1240, 1754), color) for color in ("white", "#f4e9d8", "#203040")]
+        out = io.BytesIO()
+        pages[0].save(out, "PDF", save_all=True, append_images=pages[1:])
+        data = out.getvalue()
+        source = self.source(data)
+
+        class Bucket:
+            name, objects = BUCKET, {}
+
+            def metadata(self, name):
+                found = self.objects.get(name)
+                return (found[1], found[2]) if found else None
+
+            def create_bytes(self, name, picture, kind):
+                self.objects[name] = (picture, 7, kind)
+                return 7
+
+        body = {"site": SITE, "page_count": 3,
+                "previews": contract.previews(source=self.SOURCE, sha256=source.sha256, kind="pdf")}
+        bucket = Bucket()
+        stored = runner.Previews(body, data, bucket).start().collect()
+        self.assertEqual([item["page"] for item in stored["pages"]], [1, 2, 3])
+        with mock.patch.object(service, "read_bytes", return_value=data):
+            for item in stored["pages"]:
+                self.assertEqual(bucket.objects[item["object"]][0], service.render_page(source, item["page"]))
+
+    def call_page(self, source, link=None, deny=False):
+        import logging
+
+        # files.api 引入 Frappe 原生文件模块，它导入时要建日志文件；离线没有日志目录，改成只写内存的日志。
+        with mock.patch.object(frappe, "logger", side_effect=lambda *a, **k: logging.getLogger("offline")):
+            from pearnly_cowork.files import api
+
+        frappe.local.response = frappe._dict()
+        frappe.local.cowork_private_response = False
+        history = types.SimpleNamespace(source_file=self.SOURCE)
+        denied = frappe.PermissionError("denied")
+        with mock.patch.object(service.scope, "require_read"), \
+                mock.patch.object(service.access, "require_page", side_effect=denied if deny else None), \
+                mock.patch.object(service.frappe, "get_doc",
+                                  side_effect=lambda doctype, name: history if doctype == service.access.HISTORY else source), \
+                mock.patch.object(service.cloud, "preview_url", return_value=link) as url, \
+                mock.patch.object(service, "render_page", return_value=b"\x89PNG drawn") as draw, \
+                mock.patch.object(api, "make_access_log") as logged:
+            api.page("H1", "2")
+        return frappe.local.response, logged, draw, url
+
+    def test_the_page_endpoint_redirects_logs_and_keeps_the_private_headers(self):
+        data = b"%PDF synthetic"
+        source = self.source(data)
+        with mock.patch.object(service.cloud, "bucket", return_value=BUCKET):
+            source.preview_objects = service.preview_record(source, self.stored(data))
+        response, logged, draw, _url = self.call_page(source, link="https://signed/p2")
+        self.assertEqual((response.type, response.location), ("redirect", "https://signed/p2"))
+        logged.assert_called_once_with(doctype="Cowork OCR History", document="H1", file_type="page_png")
+        draw.assert_not_called()
+        self.assertTrue(frappe.local.cowork_private_response)
+
+    def test_without_a_stored_preview_the_page_is_drawn_as_before(self):
+        response, logged, draw, url = self.call_page(self.source(b"%PDF old"))
+        self.assertEqual((response.type, response.filecontent, response.content_type),
+                         ("download", b"\x89PNG drawn", "image/png"))
+        url.assert_not_called()
+        draw.assert_called_once()
+        logged.assert_called_once()
+
+    def test_a_denied_page_gets_neither_a_link_nor_a_log(self):
+        data = b"%PDF synthetic"
+        source = self.source(data)
+        with mock.patch.object(service.cloud, "bucket", return_value=BUCKET):
+            source.preview_objects = service.preview_record(source, self.stored(data))
+        with self.assertRaises(frappe.PermissionError):
+            self.call_page(source, link="https://signed/p2", deny=True)
+
+
 if __name__ == "__main__":
     unittest.main()

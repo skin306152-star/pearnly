@@ -109,6 +109,14 @@ def download_url(stored, filename):
                        "response-content-type": "application/octet-stream"})
 
 
+def preview_url(bucket_name, name, generation, content_type):
+    """识别时存好的一页预览图：短时签名 GET 地址（按版本号取、页面里直接显示），同原件下载一样 5 分钟有效。"""
+    filename = "invoice-page." + ("jpg" if content_type == "image/jpeg" else "png")
+    return sign("GET", bucket_name, name, seconds=DOWNLOAD_SECONDS,
+                query={"generation": str(int(generation)), "response-content-type": content_type,
+                       "response-content-disposition": f"inline; filename={filename}"})
+
+
 def read(stored, *, http=None):
     """按版本号读回原件字节（预览、本机识别兜底用）。"""
     import requests

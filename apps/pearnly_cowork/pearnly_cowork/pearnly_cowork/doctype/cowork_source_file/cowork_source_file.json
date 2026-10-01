@@ -164,6 +164,14 @@
    "label": "Bound Invoice Records",
    "hidden": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "preview_objects",
+   "fieldtype": "Code",
+   "options": "JSON",
+   "label": "Stored Page Previews",
+   "hidden": 1,
+   "read_only": 1
   }
  ],
  "field_order": [
@@ -186,6 +194,7 @@
   "native_content_hash",
   "binding_complete",
   "binding_fingerprint",
-  "binding_records"
+  "binding_records",
+  "preview_objects"
  ]
 }

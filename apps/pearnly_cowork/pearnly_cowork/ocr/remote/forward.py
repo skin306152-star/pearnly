@@ -67,28 +67,32 @@ def _id_token(audience):
         return credentials.token
 
 
-def recognize(doc, frozen, examples, content, filename, progress, *, original=None, post=None, id_token=None):
-    """发票录入：返回 ``(pipeline_json, evidence)``（见 :func:`send`）。原件在原件桶里时传 ``original``、不传字节。"""
+def recognize(doc, frozen, examples, content, filename, progress, *, original=None, previews=None, on_previews=None,
+              post=None, id_token=None):
+    """发票录入：返回 ``(pipeline_json, evidence)``（见 :func:`send`）。原件在原件桶里时传 ``original``、不传字节。
+    ``previews``（``contract.previews``）：让 Cloud Run 识别时顺手把各页预览图存进原件桶，读完把存好的交给 ``on_previews``。"""
     return send(work_name=doc.work_name, batch=doc.name, filename=filename, content=content, original=original,
                 page_count=int(doc.page_count), anchor_date=str(doc.anchor_date), frozen=frozen,
                 examples={"examples_by_tax": examples["examples_by_tax"]} if examples else None,
-                progress=progress, post=post, id_token=id_token)
+                progress=progress, post=post, id_token=id_token, previews=previews, on_previews=on_previews)
 
 
 def send(*, work_name, batch, filename, content=None, page_count, anchor_date, frozen, examples=None,
          variant="intake", yield_seconds=contract.YIELD_SECONDS, progress=None, post=None, id_token=None,
-         original=None):
+         original=None, previews=None, on_previews=None):
     """一份发票交给 Cloud Run 读：返回 ``(pipeline_json, evidence)``。"""
     config = _config()
     body = contract.request(site=frappe.local.site, work=work_name, batch=batch, filename=filename, content=content,
         page_count=page_count, anchor_date=anchor_date, environment=frozen["environment"], policy=frozen["policy"],
-        examples=examples, variant=variant, yield_seconds=yield_seconds, original=original)
+        examples=examples, variant=variant, yield_seconds=yield_seconds, original=original, previews=previews)
 
     def on_event(event):
         if event["event"] == "page" and progress:
             progress(event["page"])
 
     final = _call(config, PATHS["invoice"], body, on_event, frozen, post=post, id_token=id_token)
+    if previews and on_previews and final.get("previews") is not None:
+        on_previews(final["previews"])
     return final["pipeline"], final["evidence"]
 
 

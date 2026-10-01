@@ -236,6 +236,32 @@ class Forward(unittest.TestCase):
         self.assertNotIn("content", self.sent[0])
         self.assertEqual(self.sent[0]["original"], original)
 
+    def test_stored_previews_come_back_only_when_asked_for(self):
+        """带了预览规格才让 Cloud Run 存图；读完把存好的交给回调（服务器随绑定原件那一次保存记下）。"""
+        stored = {"bucket": "pearnly-cowork-originals-sg", "pages": []}
+
+        def post(url, json=None, **kwargs):
+            self.sent.append(json)
+            return ndjson({"event": "result", "status": "done", "pipeline": "{}", "evidence": [], "previews": stored})
+
+        spec = self.contract.previews(source="CWS-" + "c" * 48, sha256="d" * 64, kind="pdf")
+        original = self.contract.original(object="acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf",
+                                          generation=9, sha256="d" * 64)
+        got = []
+        result = self.ns["recognize"](DOC, FROZEN, None, None, "a.pdf", self.pages.append, original=original,
+                                      previews=spec, on_previews=got.append, post=post, id_token=lambda audience: "T")
+        self.assertEqual(result, ("{}", []))
+        self.assertEqual(self.sent[0]["previews"], spec)
+        self.assertEqual(got, [stored])
+        got.clear()
+        self.ns["recognize"](DOC, FROZEN, None, None, "a.pdf", self.pages.append, original=original,
+                             on_previews=got.append, post=post, id_token=lambda audience: "T")
+        self.assertNotIn("previews", self.sent[1])
+        self.assertEqual(got, [])
+        with self.assertRaises(ValueError):   # 规格里的哈希必须就是这份原件的
+            self.ns["recognize"](DOC, FROZEN, None, None, "a.pdf", self.pages.append, original=original,
+                                 previews=dict(spec, sha256="e" * 64), post=post, id_token=lambda audience: "T")
+
     def test_switch_needs_explicit_https_run_app_url(self):
         settings = self.ns["settings"]
         self.assertIsNotNone(settings())
