@@ -193,6 +193,7 @@
 | 队列 IAM | `roles/cloudtasks.enqueuer` → `pearnly-ocr-sa` |
 | 服务账号 IAM | `pearnly-ocr-sa` 自身上 `roles/iam.serviceAccountUser` → `pearnly-ocr-sa` |
 | 项目 IAM（`pearnly-ocr-sa`） | 新增 `roles/workflows.invoker`、`roles/logging.logWriter`（原有 `aiplatform.user`、`documentai.apiUser`、`visionai.serviceAgent` 不变），均无条件 |
+| 资源管理接口 | 第一次以 pearnly 名义加项目级权限时因 pearnly 未开 `cloudresourcemanager.googleapis.com` 被拒，当时改用本机默认项目名义调用（权限照样加在 pearnly、不收费）；之后用户同意，已在 pearnly 开通该接口（免费、不影响线上），以 pearnly 名义回读项目权限一致 |
 | 已有，未改 | Cloud Run `cowork-ocr` 服务上 `roles/run.invoker` → `pearnly-ocr-sa`；Cloud Tasks 服务代理 `service-112074003592@gcp-sa-cloudtasks` 已有 `roles/cloudtasks.serviceAgent` |
 
 ## 上线手册（统一部署时由修复窗口执行，每一步先找用户确认；用户要求「不上半成品」：测试租户端到端全过才全开）
