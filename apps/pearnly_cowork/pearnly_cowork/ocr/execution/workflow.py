@@ -218,6 +218,14 @@ def _persist(doc):
     return doc
 
 
+def remote_progress(arguments, events, state, user=None):
+    """任务派发（``ocr.remote.callback``）送来的进度：读到第几页，与按行等回复时同样推给提交人
+    （hooks ``cowork_remote_progress``）。"""
+    for event in events:
+        if event.get("event") == "page" and type(event.get("page")) is int:
+            store.pages_reached(arguments.get("batch_name"), event["page"], user=user)
+
+
 def _announce(doc):
     """识别结果已落成票：告诉登记了 `cowork_ocr_recognized` 的入口（LINE 收单据此推卡）。
 

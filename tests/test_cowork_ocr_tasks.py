@@ -1,0 +1,404 @@
+#!/usr/bin/env python3
+"""识别交给 Cloud Tasks / Cloud Workflows（站点配置 ``pearnly_cowork_ocr_tasks``，默认关）：服务器这边的派发、取回与回调。
+离线：不连站点、不连谷歌（谷歌接口、检查点、缓存都用替身）。
+
+- 关着（或没开 Cloud Run 识别、不在识别任务里）完全走原来的按行等回复。
+- 派发：整份请求存进检查点桶，Cloud Task 只带小信封；直接调 Cloud Run（识别服务账号的身份令牌）或多页对账文档交给
+  Workflows；先建任务后记派发号；建不成就暂缓、不记派发号。
+- 取回：派发号对得上、结果在 → 交回结果行，只补回调时没送到的进度事件；结果是暂缓 → 下次重新派发；
+  还没回来 → 接着等（兜底时间），太久没回来当作丢了重新派发。
+- 回调：只认谷歌签发、受众是本站回调地址、签发对象是识别服务账号的身份令牌；只记「结果在哪」并唤醒任务；
+  已结束的、别的站点的、对不上的不处理；进度按派发号去重、只作展示。
+"""
+from datetime import datetime, timedelta, timezone
+import base64
+import json
+from pathlib import Path
+import sys
+import time
+import types
+import unittest
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[1]
+for app in ("pearnly_core", "pearnly_cowork"):
+    sys.path.insert(0, str(ROOT / "apps" / app))
+
+import frappe  # noqa: E402
+
+from pearnly_core.execution.errors import Deferred  # noqa: E402
+from pearnly_cowork.ocr.remote import callback, contract, forward, tasks  # noqa: E402
+
+SITE, WORK = "acme.pearnly.com", "a" * 64
+REMOTE = {"url": "https://cowork-ocr-abc-as.a.run.app", "rpm": None}
+CONFIG = {"enabled": 1, "project": "pearnly", "location": "asia-southeast1", "queue": "cowork-ocr",
+          "bucket": "pearnly-ocr-checkpoints-sg", "invoker": "pearnly-ocr-sa@pearnly.iam.gserviceaccount.com"}
+
+
+class Reply:
+    def __init__(self, status=200, body=None):
+        self.status_code, self._body, self.headers = status, body or {}, {}
+
+    def json(self):
+        return self._body
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            import requests
+
+            raise requests.HTTPError(str(self.status_code))
+
+
+class Google:
+    """假的谷歌接口：存储桶上传 / 读取、建 Cloud Task。记下每次请求。"""
+
+    def __init__(self):
+        self.objects, self.posts, self.task_status = {}, [], 200
+
+    def post(self, url, params=None, data=None, json=None, headers=None, timeout=None):
+        self.posts.append((url, params, data, json))
+        if "/upload/storage/" in url:
+            self.objects[params["name"]] = data
+            return Reply(200, {"generation": "7"})
+        if "cloudtasks.googleapis.com" in url:
+            return Reply(self.task_status, {})
+        raise AssertionError(url)
+
+    def get(self, url, params=None, headers=None, timeout=None):
+        name = url.rsplit("/o/", 1)[1].replace("%2F", "/")
+        found = self.objects.get(name)
+        return Reply(200, found) if found is not None else Reply(404)
+
+
+class Checkpoints:
+    def __init__(self):
+        self.values = {}
+
+    def __call__(self, key, state=None, body=None):
+        if state is None:
+            return self.values.get(key)
+        self.values[key] = {"state": state, "body": body}
+        return self.values[key]
+
+
+def document_body(pages=5):
+    return contract.document_request(site=SITE, work=WORK, filename="statement.pdf", content=b"%PDF-1.7 x",
+                                     page_count=pages, document_type="bank_statement", environment={"A": "b"})
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.google, self.checkpoints = Google(), Checkpoints()
+        frappe.local.site = SITE
+        frappe.local.conf = frappe._dict({tasks.CONFIG: dict(CONFIG), forward.CONFIG: {"enabled": 1, "url": REMOTE["url"]}})
+        frappe.local.flags = frappe._dict(pearnly_ocr_work=WORK)
+        patches = [mock.patch.object(tasks.core_work, "checkpoint", side_effect=self.checkpoints),
+                   mock.patch.object(tasks, "_token", return_value="ACCESS"),
+                   mock.patch.object(tasks.pool, "release_db")]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.addCleanup(lambda: [delattr(frappe.local, key) for key in ("site", "conf", "flags")])
+
+
+class Switch(Base):
+    def test_only_inside_a_work_with_both_switches_on(self):
+        self.assertTrue(tasks.active())
+        frappe.local.flags = frappe._dict()
+        self.assertFalse(tasks.active())
+        frappe.local.flags = frappe._dict(pearnly_ocr_work=WORK)
+        frappe.local.conf[forward.CONFIG] = {"enabled": 0, "url": REMOTE["url"]}
+        self.assertFalse(tasks.active())
+
+    def test_bad_configuration_is_off(self):
+        for change in ({"enabled": 0}, {"project": "Bad Project"}, {"location": "nowhere"}, {"queue": "Q!"},
+                       {"bucket": ""}, {"workflow": "Bad Name"}, {"callback_host": "https://x"}):
+            frappe.local.conf[tasks.CONFIG] = {**CONFIG, **change}
+            self.assertIsNone(tasks.settings(), change)
+
+    def test_off_means_the_old_streaming_path(self):
+        frappe.local.conf[tasks.CONFIG] = {**CONFIG, "enabled": 0}
+        final = {"event": "result", "status": "done", "pipeline": "{}", "evidence": []}
+        with mock.patch.object(forward, "_stream", return_value=final) as stream, \
+                mock.patch.object(tasks, "call") as call:
+            self.assertIs(forward._call(REMOTE, "/v1/cowork/invoice", {}, None, {}), final)
+        stream.assert_called_once()
+        call.assert_not_called()
+
+
+class Dispatch(Base):
+    def dispatch(self, body=None, path="/v1/cowork/document", config=None):
+        if config:
+            frappe.local.conf[tasks.CONFIG] = {**CONFIG, **config}
+        with self.assertRaises(Deferred) as caught:
+            tasks.call(REMOTE, path, body or document_body(), lambda event: None, http=self.google, now=lambda: 1000.0)
+        return caught.exception
+
+    def test_the_request_goes_to_the_bucket_and_the_task_carries_only_a_reference(self):
+        body = document_body(pages=1)
+        deferred = self.dispatch(body)
+        self.assertEqual((deferred.reason, deferred.delay), ("remote_dispatched", tasks.WAIT_SECONDS))
+        marker = self.checkpoints.values[tasks.DISPATCH_KEY]
+        dispatch = marker["body"]["id"]
+        self.assertEqual((marker["state"], marker["body"]["at"]), ("external", 1000.0))
+        stored = contract.task_object(SITE, WORK, dispatch, "request.json")
+        self.assertEqual(json.loads(self.google.objects[stored]), body)
+        url, _params, _data, payload = self.google.posts[-1]
+        self.assertEqual(url, "https://cloudtasks.googleapis.com/v2/projects/pearnly/locations/asia-southeast1/queues/cowork-ocr/tasks")
+        task = payload["task"]
+        self.assertTrue(task["name"].endswith("/tasks/" + WORK[:32] + "-" + dispatch))
+        request = task["httpRequest"]
+        self.assertEqual(request["url"], REMOTE["url"] + "/v1/cowork/task")
+        self.assertEqual(request["oidcToken"], {"serviceAccountEmail": CONFIG["invoker"], "audience": REMOTE["url"]})
+        envelope = contract.parse_task(json.loads(base64.b64decode(request["body"])))
+        self.assertEqual(envelope["request"], {"object": stored, "generation": 7})
+        self.assertEqual(envelope["callback"], "https://" + SITE + contract.CALLBACK_PATH)
+        self.assertNotIn("content", json.dumps(envelope))
+        self.assertEqual(task["dispatchDeadline"], "1800s")
+
+    def test_a_multi_page_document_goes_to_workflows(self):
+        self.dispatch(document_body(pages=5), config={"workflow": "cowork-document"})
+        request = self.google.posts[-1][3]["task"]["httpRequest"]
+        self.assertEqual(request["url"], "https://workflowexecutions.googleapis.com/v1/projects/pearnly/locations/"
+                                         "asia-southeast1/workflows/cowork-document/executions")
+        self.assertEqual(request["oauthToken"]["serviceAccountEmail"], CONFIG["invoker"])
+        argument = json.loads(json.loads(base64.b64decode(request["body"]))["argument"])
+        self.assertEqual((argument["reads"], argument["pages"], argument["service"]),
+                         ([1, 2, 3], [1, 2, 3, 4, 5], REMOTE["url"]))
+        contract.parse_task(argument["task"])
+
+    def test_short_documents_and_invoices_go_straight_to_cloud_run(self):
+        self.dispatch(document_body(pages=2), config={"workflow": "cowork-document"})
+        self.assertIn("/v1/cowork/task", self.google.posts[-1][3]["task"]["httpRequest"]["url"])
+
+    def test_a_failed_dispatch_is_deferred_without_a_marker(self):
+        self.google.task_status = 403
+        deferred = self.dispatch()
+        self.assertEqual(deferred.reason, "tasks_unavailable")
+        self.assertNotIn(tasks.DISPATCH_KEY, self.checkpoints.values)
+
+    def test_an_existing_task_name_counts_as_created(self):
+        self.google.task_status = 409
+        self.assertEqual(self.dispatch().reason, "remote_dispatched")
+
+
+class Collect(Base):
+    def setUp(self):
+        super().setUp()
+        self.dispatch = "b" * 32
+        self.checkpoints.values[tasks.DISPATCH_KEY] = {"state": "external", "body": {"id": self.dispatch, "at": 1000.0}}
+
+    def reply(self, final, events=()):
+        name = contract.task_object(SITE, WORK, self.dispatch, "reply.json")
+        self.google.objects[name] = contract.reply(final, list(events))
+        self.checkpoints.values[tasks.REPLY_KEY + self.dispatch] = {"state": "reply",
+                                                                    "body": {"object": name, "generation": 3}}
+
+    def collect(self, now=1010.0, applied=0):
+        seen = []
+        with mock.patch.object(tasks, "progress_applied", return_value=applied):
+            result = tasks.call(REMOTE, "/v1/cowork/document", document_body(), seen.append, http=self.google,
+                                now=lambda: now)
+        return result, seen
+
+    def test_the_result_comes_back_with_the_events_the_callbacks_missed(self):
+        events = [{"event": "read", "pages": 2}, {"event": "extracted", "page": 1, "text": "{}"},
+                  {"event": "unread", "page": 2}]
+        final = {"event": "result", "status": "done", "legacy": {"pages": []}}
+        self.reply(final, events)
+        result, seen = self.collect(applied=2)
+        self.assertEqual(result, final)
+        self.assertEqual(seen, [{"event": "unread", "page": 2}])
+
+    def test_a_deferred_result_dispatches_again_next_time(self):
+        self.reply({"event": "result", "status": "deferred", "reason": "provider_429", "delay": 20})
+        with self.assertRaises(Deferred) as caught:
+            forward._outcome(self.collect()[0])
+        self.assertEqual(caught.exception.reason, "provider_429")
+        self.assertTrue(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["spent"])
+        with self.assertRaises(Deferred) as caught:
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=self.google, now=lambda: 2000.0)
+        self.assertEqual(caught.exception.reason, "remote_dispatched")
+        self.assertNotEqual(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["id"], self.dispatch)
+
+    def test_no_result_yet_waits_and_a_lost_dispatch_is_sent_again(self):
+        with self.assertRaises(Deferred) as caught:
+            self.collect(now=1100.0)
+        self.assertEqual((caught.exception.reason, caught.exception.delay), ("remote_waiting", tasks.WAIT_SECONDS))
+        self.assertEqual(self.google.posts, [])
+        with self.assertRaises(Deferred) as caught:
+            self.collect(now=1000.0 + tasks.LOST_SECONDS + 1)
+        self.assertEqual(caught.exception.reason, "remote_dispatched")
+
+    def test_outcomes_raise_like_the_streaming_path(self):
+        from pearnly_core.execution.errors import Uncertain
+
+        self.reply({"event": "result", "status": "uncertain", "reason": "x"})
+        with self.assertRaises(Uncertain):
+            forward._outcome(self.collect()[0])
+
+
+def keypair():
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+    from google.auth import crypt
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "google-test")])
+    now = datetime.now(timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(1).not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
+            .sign(key, hashes.SHA256()))
+    pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                            serialization.NoEncryption()).decode()
+    return crypt.RSASigner.from_string(pem, key_id="k1"), {"k1": cert.public_bytes(serialization.Encoding.PEM).decode()}
+
+
+SIGNER, CERTS = keypair()
+
+
+def token(audience=None, email=CONFIG["invoker"], issuer="https://accounts.google.com", expires=3600, verified=True):
+    from google.auth import jwt
+
+    now = int(time.time())
+    return jwt.encode(SIGNER, {"iss": issuer, "aud": audience or ("https://" + SITE + contract.CALLBACK_PATH),
+                               "email": email, "email_verified": verified, "iat": now - 10, "exp": now + expires},
+                      key_id="k1").decode()
+
+
+class Verify(unittest.TestCase):
+    def test_only_a_google_token_for_this_callback_from_the_ocr_account_passes(self):
+        audience = "https://" + SITE + contract.CALLBACK_PATH
+        self.assertEqual(callback.verify(token(), audience, CONFIG["invoker"], certs=CERTS)["email"], CONFIG["invoker"])
+        for bad in (token(audience="https://other.pearnly.com" + contract.CALLBACK_PATH), token(email="x@evil.test"),
+                    token(issuer="https://evil.test"), token(expires=-120), token(verified=False), "not-a-token", None):
+            with self.assertRaises(callback.Refused):
+                callback.verify(bad, audience, CONFIG["invoker"], certs=CERTS)
+
+    def test_certificates_are_cached_by_max_age(self):
+        fetched = []
+
+        class Http:
+            def get(self, url, timeout=None):
+                fetched.append(url)
+                reply = Reply(200, CERTS)
+                reply.headers = {"Cache-Control": "public, max-age=1000, must-revalidate"}
+                return reply
+
+        callback._certs.update(value=None, until=0.0)
+        self.addCleanup(callback._certs.update, value=None, until=0.0)
+        clock = [100.0]
+        self.assertEqual(callback.google_certs(http=Http(), clock=lambda: clock[0]), CERTS)
+        callback.google_certs(http=Http(), clock=lambda: clock[0])
+        clock[0] += 1001
+        callback.google_certs(http=Http(), clock=lambda: clock[0])
+        self.assertEqual(len(fetched), 2)
+
+
+class Receive(Base):
+    def setUp(self):
+        super().setUp()
+        frappe.local.response = frappe._dict()
+        self.row = frappe._dict(kind="cowork.recon_document", status="deferred", user="a@acme.test",
+                                arguments=json.dumps({"recon_job": "R1", "file": "F1", "filename": "s.pdf"}))
+        self.dispatch = "c" * 32
+        patches = [mock.patch.object(callback, "google_certs", return_value=CERTS),
+                   mock.patch.object(callback.core_work, "checkpoint", side_effect=self.checkpoints),
+                   mock.patch.object(callback.core_work, "wake"),
+                   mock.patch.object(callback.frappe, "db", types.SimpleNamespace(get_value=lambda *a, **k: self.row))]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.wake = callback.core_work.wake
+        self.addCleanup(lambda: delattr(frappe.local, "response"))
+
+    def send(self, body, header=None):
+        request = types.SimpleNamespace(get_data=lambda: json.dumps(body).encode())
+        with mock.patch.object(callback.frappe, "request", request, create=True), \
+                mock.patch.object(callback.frappe, "get_request_header",
+                                  side_effect=lambda name: header if name == callback.HEADER else None):
+            return callback.receive()
+
+    def reply_body(self, **change):
+        return {**contract.callback("reply", site=SITE, work=WORK, dispatch=self.dispatch,
+                                    reply={"object": contract.task_object(SITE, WORK, self.dispatch, "reply.json"),
+                                           "generation": 4}), **change}
+
+    def test_a_reply_is_recorded_under_its_dispatch_and_wakes_the_work(self):
+        self.assertEqual(self.send(self.reply_body(), token()), {"ok": 1})
+        self.assertEqual(self.checkpoints.values[tasks.REPLY_KEY + self.dispatch]["body"]["generation"], 4)
+        self.wake.assert_called_once_with(WORK)
+        self.assertEqual(self.send(self.reply_body(), token()), {"ok": 1})   # 重复回调：同一行、同样内容
+
+    def test_a_bad_token_is_401_and_records_nothing(self):
+        for header in (None, token(audience="https://other.pearnly.com" + contract.CALLBACK_PATH), token(email="x@y.z")):
+            frappe.local.response = frappe._dict()
+            self.assertEqual(self.send(self.reply_body(), header), {"ok": 0})
+            self.assertEqual(frappe.local.response.http_status_code, 401)
+        self.assertEqual(self.checkpoints.values, {})
+        self.wake.assert_not_called()
+
+    def test_switched_off_is_404(self):
+        frappe.local.conf[tasks.CONFIG] = {**CONFIG, "enabled": 0}
+        self.assertEqual(self.send(self.reply_body(), token()), {"ok": 0})
+        self.assertEqual(frappe.local.response.http_status_code, 404)
+
+    def test_finished_foreign_or_malformed_callbacks_are_ignored_with_200(self):
+        self.row = frappe._dict(self.row, status="succeeded")
+        self.assertEqual(self.send(self.reply_body(), token())["reason"], "finished")
+        self.row = frappe._dict(self.row, status="deferred", kind="erp.purchase")
+        self.assertEqual(self.send(self.reply_body(), token())["reason"], "finished")
+        self.row = frappe._dict(self.row, kind="cowork.recon_document")
+        self.assertEqual(self.send(self.reply_body(site="other.pearnly.com"), token())["reason"], "invalid")
+        body = self.reply_body()
+        body["reply"] = {"object": "someone/else/reply.json", "generation": 1}
+        self.assertEqual(self.send(body, token())["reason"], "invalid")
+        self.assertEqual(self.checkpoints.values, {})
+        self.wake.assert_not_called()
+        self.assertNotIn("http_status_code", frappe.local.response)
+
+    def test_progress_is_applied_once_in_order(self):
+        cache, applied = {}, []
+        events = [{"event": "read", "pages": 2}, {"event": "extracted", "page": 1, "text": "{}"},
+                  {"event": "extracted", "page": 2, "text": "{}"}]
+
+        def progress(seq, items):
+            return contract.callback("progress", site=SITE, work=WORK, dispatch=self.dispatch, events=items, seq=seq)
+
+        with mock.patch.object(callback.frappe, "cache", types.SimpleNamespace(
+                    get_value=cache.get, set_value=lambda key, value, expires_in_sec=None: cache.__setitem__(key, value))), \
+                mock.patch.object(callback.frappe, "get_hooks",
+                                  return_value={"cowork.recon_document": ["x.progress"]}), \
+                mock.patch.object(callback.frappe, "get_attr", return_value=lambda arguments, items, state, user=None:
+                                  applied.append((arguments["file"], [e["event"] for e in items], user))):
+            self.send(progress(0, events[:2]), token())
+            self.send(progress(0, events[:2]), token())      # 重复：不再应用
+            self.send(progress(3, events[2:]), token())      # 跳号（第 2 个还没到）：不应用
+            self.send(progress(2, events[2:]), token())
+        self.assertEqual(applied, [("F1", ["read", "extracted"], "a@acme.test"), ("F1", ["extracted"], "a@acme.test")])
+        self.assertEqual(cache[tasks.progress_key(WORK, self.dispatch)]["seq"], 3)
+        self.wake.assert_not_called()
+
+
+class Board(unittest.TestCase):
+    def test_document_progress_drives_the_board_like_streaming(self):
+        from pearnly_cowork.recon_center import document_ocr
+
+        state, calls = {"seq": 0}, []
+        with mock.patch.object(document_ocr, "_progress", side_effect=lambda file, **values: calls.append(("p", values))), \
+                mock.patch.object(document_ocr.progress, "latest", side_effect=lambda job, item: calls.append(("l", job))), \
+                mock.patch.object(document_ocr.progress, "page_summary", return_value={}), \
+                mock.patch.object(document_ocr.progress, "unread", side_effect=lambda file, page: calls.append(("u", page))):
+            document_ocr.remote_progress({"recon_job": "R1", "file": "F1", "filename": "s.pdf"},
+                [{"event": "read", "pages": 2}, {"event": "extracted", "page": 1, "text": "{}"},
+                 {"event": "extracted", "page": 1, "text": "{}", "reread": True}, {"event": "unread", "page": 2}], state)
+            document_ocr.remote_progress({"recon_job": "R1", "file": "F1", "filename": "s.pdf"},
+                [{"event": "read", "pages": 1}], state)
+        self.assertEqual(calls, [("p", {"read": 2, "state": "reading"}), ("p", {"done": 1}), ("l", "R1"), ("u", 2),
+                                 ("p", {"read": 3, "state": "reading"})])
+
+
+if __name__ == "__main__":
+    unittest.main()

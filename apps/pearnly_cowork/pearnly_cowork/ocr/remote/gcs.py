@@ -1,4 +1,5 @@
-"""Cloud Run 上的两样外部能力：服务账号令牌、存储桶里的检查点对象（Cloud Storage JSON API，直接走 HTTPS）。
+"""Cloud Run 上的外部能力：服务账号令牌、存储桶里的检查点对象（Cloud Storage JSON API，直接走 HTTPS）、
+回调站点用的身份令牌（任务派发，见 ``contract`` 的「任务派发」）。
 
 只在 Cloud Run 镜像里用。检查点桶在新加坡，设了 7 天自动删除（ADR-0015）；对象里只有谷歌的回复（读出的文字 / 字段），
 没有原件图片。原件桶（ADR-016）：按版本号读出浏览器直传的原件；核对不通过的那个版本删掉；识别时把各页预览图存进去（只新建、不覆盖）。
@@ -123,3 +124,43 @@ class Bucket:
                                           headers=self._headers(), timeout=(10, 30))
         if response.status_code not in (204, 404):
             response.raise_for_status()
+
+
+CALLBACK_HEADER = "X-Pearnly-Callback"
+METADATA = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity"
+
+
+class IdTokens:
+    """回调站点用的身份令牌：Cloud Run 服务账号经元数据服务器签发，受众 = 回调地址（站点据此核对，见
+    ``ocr.remote.callback``）。按受众缓存，离过期不到 5 分钟才重签。"""
+
+    def __init__(self, http=None, clock=None):
+        import time
+
+        self._http, self._clock = http or requests, clock or time.time
+        self._cache, self._lock = {}, threading.Lock()
+
+    def __call__(self, audience):
+        with self._lock:
+            found = self._cache.get(audience)
+            if found and found[1] - 300 > self._clock():
+                return found[0]
+        response = self._http.get(METADATA, params={"audience": audience, "format": "full"},
+                                  headers={"Metadata-Flavor": "Google"}, timeout=(5, 10))
+        response.raise_for_status()
+        token = response.text.strip()
+        with self._lock:
+            self._cache[audience] = (token, self._clock() + 3000)  # 谷歌签 1 小时；按 50 分钟算
+        return token
+
+
+def post_callback(url, body, token, http=None):
+    """回调站点：返回 HTTP 状态码；连不上返回 0（调用方决定要不要让 Cloud Tasks 重试）。"""
+    try:
+        # 不用 Authorization：Frappe 会把 Bearer 当成自己的 OAuth 令牌去查、查不到直接 401（frappe.auth.validate_oauth）。
+        response = (http or requests).post(url, json=body, headers={CALLBACK_HEADER: token}, timeout=(10, 30))
+    except requests.RequestException:
+        return 0
+    status = response.status_code
+    response.close()
+    return status

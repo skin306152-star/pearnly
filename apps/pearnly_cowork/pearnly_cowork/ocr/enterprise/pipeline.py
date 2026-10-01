@@ -295,9 +295,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         if local is not None:
             pages = _local_pages(local, category)
     if pages is None:
-        transcripts = [page.text for payload in payloads for page in enterprise_pages.page_texts(payload)]
-        if len(transcripts) != page_count:
-            raise ContentError("ocr.enterprise_transcript_count_mismatch")
+        transcripts = _transcripts(payloads, page_count)
         pages = []
         unread = 0
         rereads = 0
@@ -365,6 +363,41 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
     elapsed = int((time.monotonic() - started) * 1000)
     return PipelineResult(pages=pages, page_count=page_count, elapsed_ms=elapsed, engine=ENGINE,
         estimated_cost_thb=cost, read_ms=read_ms)
+
+
+def _transcripts(payloads, page_count):
+    transcripts = [page.text for payload in payloads for page in enterprise_pages.page_texts(payload)]
+    if len(transcripts) != page_count:
+        raise ContentError("ocr.enterprise_transcript_count_mismatch")
+    return transcripts
+
+
+def first_pass(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
+               render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, stage: str, index: int) -> bool:
+    """多页文件的预热（Cloud Workflows，各块 / 各页分开并行）：只做 :func:`run` 第一遍里的一件事——第 ``index`` 块读字
+    （``stage="read"``）或第 ``index`` 页的第一遍抽取（``"extract"``）。用的是与 ``run`` 同一套步骤（``_local`` 判本地拼行、
+    ``_transcripts``、``_first_reading``），发出的请求逐字相同、检查点键相同；不出结果，最后由 ``run`` 原封不动读整份时
+    从检查点取回。返回这次是否该发调用（本地拼行算得平、页号超出时 ``run`` 不会调模型，这里也不调）。"""
+    if category not in ("bank", "gl", "vat") or page_count < 1:
+        raise ContentError("ocr.enterprise_category_invalid", detail=str(category))
+    reads = list(reads)
+    if stage == "read":
+        if not 1 <= index <= len(reads):
+            return False
+        content, mime, expected = reads[index - 1]
+        document_ai_call(content, mime, expected_pages=expected, page_number=index)
+        return True
+    if stage != "extract":
+        raise ValueError("unknown stage")
+    payloads = [document_ai_call(content, mime, expected_pages=expected, page_number=number)[0]
+                for number, (content, mime, expected) in enumerate(reads, 1)]
+    if category in ("bank", "gl") and _local(payloads, category, page_count) is not None:
+        return False
+    transcripts = _transcripts(payloads, page_count)
+    if not 1 <= index <= len(transcripts):
+        return False
+    _first_reading(model_call, render, category, transcripts, keep_image=False)(index)
+    return True
 
 
 # 调用方（对账的识别任务）把「这一页的抽取重发后仍结果不明」换成这个码交进来，流程只丢这一页。

@@ -24,6 +24,8 @@ JOB_TIMEOUT = 600
 PRUNE_BATCH = 500
 # 付过费的任务在排队时限之后还能续跑多久（续跑只补剩下的页，已付的部分不会重复扣）。
 PAID_GRACE = timedelta(hours=3)
+# 检查点状态：这份已交给外部执行（见 ``run`` 的排队时限判断）。
+EXTERNAL = "external"
 
 
 def utcnow():
@@ -157,6 +159,26 @@ def sweep():
     cache.set_value(cursor_key, rows[-1].name if len(rows) == 50 else "", expires_in_sec=600)
 
 
+WAKE = "pearnly:ocr:wake:"
+
+
+def wake(name):
+    """外部结果到了（Cowork 交给 Cloud Tasks 的识别做完回调）：排队 / 暂缓中的这份立刻放回队列，不等原定的兜底时间。
+
+    正在跑的（回调比派发它的那次运行收尾还快）先记一笔，那次运行以「暂缓」收尾时就不按原定延迟等（见 ``_finish``）。
+    先记一笔、后改状态：两步之间无论对方走到哪，都不会漏掉这次唤醒。"""
+    frappe.cache.set_value(WAKE + name, 1, expires_in_sec=3600)
+    frappe.db.commit()
+    rows = frappe.db.sql(f"SELECT status FROM `tab{DT}` WHERE name=%s FOR UPDATE", name)
+    if not rows or rows[0][0] not in ("queued", "deferred"):
+        frappe.db.rollback()
+        return False
+    frappe.db.set_value(DT, name, "next_run", utcnow(), update_modified=False)
+    frappe.db.commit()
+    kick(name)
+    return True
+
+
 def _finish(name, status, code="", delay=0, notify=True):
     # End the workflow snapshot before locking the outcome. Cancellation can win
     # while a worker is in flight, and must not be overwritten by that worker.
@@ -165,6 +187,8 @@ def _finish(name, status, code="", delay=0, notify=True):
     if not rows or rows[0][0] not in ACTIVE:
         frappe.db.rollback()
         return
+    if status == "deferred" and delay and _woken(name):
+        delay = 0  # 等的结果已经到了（见 ``wake``）
     values = {"status": status, "last_code": code, "lease_until": None,
               "next_run": utcnow() + timedelta(seconds=delay)}
     frappe.db.set_value(DT, name, values, update_modified=False)
@@ -198,6 +222,16 @@ def _finish(name, status, code="", delay=0, notify=True):
             pass  # Admission reservation expires conservatively.
     # 最后才告诉产品：名额已还、状态已落库，产品接着排的事看得到腾出来的名额。
     _finished(name, status, code)
+
+
+def _woken(name):
+    try:
+        if frappe.cache.get_value(WAKE + name):
+            frappe.cache.delete_value(WAKE + name)
+            return True
+    except Exception:
+        pass  # 记不住就照原定延迟：兜底照样能接上
+    return False
 
 
 def job_language(user):
@@ -261,7 +295,9 @@ def run(name):
     # 排队时限：已经付过费（有完成的检查点）的任务续跑时不按提交时间判过期，否则已付费的调用作废、用户只能重传
     # （2026-09-28 Cowork 压测：66 份一起提交，处理中途续跑被判排队超时）。还没付费的照旧按时限过期（开跑后在准入 /
     # 限流上一直被推迟的也算，免得几小时后才真正扣费）；付过费的也有绝对上限，不无限期拖（DMS 窗口 2026-09-28 意见）。
-    paid = any(value.get("state") == "done" for value in stages.values())
+    # 「external」：这份已交给外部执行（Cowork 交给 Cloud Tasks / Cloud Run，付费调用的检查点在云上、这里看不到），
+    # 可能已经付费，与有完成的检查点同样对待（否则云上读完回调时被判排队超时，已付的结果作废）。
+    paid = any(value.get("state") in ("done", EXTERNAL) for value in stages.values())
     if (not paid and doc.expires_at <= now) or doc.expires_at + PAID_GRACE <= now:
         _finish(name, "failed", "queue_expired")
         return

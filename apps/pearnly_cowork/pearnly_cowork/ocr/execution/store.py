@@ -87,7 +87,8 @@ def actor(user):
 PAGES_KEY = "cowork:ocr-pages:"
 
 
-def pages_reached(name, page):
+def pages_reached(name, page, user=None):
+    """``user``：推给谁（默认当前用户；任务派发的进度回调里当前用户是访客，由调用方给出提交人）。"""
     if not page:
         return
     try:
@@ -98,7 +99,7 @@ def pages_reached(name, page):
             # （2026-10-01 生产压测：每人同时等 6 份、每份每 5 秒读一次状态，上百人同时用时网页进程被这些读状态占满）。
             frappe.publish_realtime("pearnly_ocr_work", {"kind": "cowork.invoice", "reference": name,
                                                          "pages_done": page - 1},
-                                    user=frappe.session.user, after_commit=False)
+                                    user=user or frappe.session.user, after_commit=False)
     except Exception:
         pass  # 进度只作展示：缓存一时写不了 / 推送不了不影响识别
 

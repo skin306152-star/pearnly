@@ -436,6 +436,208 @@ class DocumentReading(unittest.TestCase):
                     "page_count": 1, "document_type": "vat_report", "environment": {}, **extra})
 
 
+class PagedGoogle(Google):
+    """假的谷歌（对账文档）：Document AI 按送来的那一块有几页就回几页的字；记下每次真正发出的请求内容（摘要）。"""
+
+    def __init__(self, plan=None):
+        super().__init__(plan)
+        self.payloads = []
+
+    def post(self, url, headers=None, json=None, timeout=None, stream=False):
+        import base64
+        import hashlib
+        import json as _json
+
+        import pymupdf
+
+        with self.lock:
+            self.payloads.append((url.split("/")[2], hashlib.sha256(_json.dumps(json, sort_keys=True).encode()).hexdigest()))
+        if "documentai.googleapis.com" in url:
+            with self.lock:
+                self.sent.append(url)
+            raw = json["rawDocument"]
+            count = 1
+            if raw["mimeType"] == "application/pdf":
+                with pymupdf.open(stream=base64.b64decode(raw["content"]), filetype="pdf") as document:
+                    count = len(document)
+            text, pages = "", []
+            for number in range(1, count + 1):
+                start, piece = len(text), f"vat report page text {number} "
+                text += piece
+                pages.append({"pageNumber": number, "layout": {"textAnchor": {"textSegments": [
+                    {"startIndex": str(start), "endIndex": str(len(text))}]}}})
+            return response(200, {"document": {"text": text, "pages": pages}})
+        return super().post(url, headers=headers, json=json, timeout=timeout, stream=stream)
+
+
+def staged(bucket, request, dispatch="d" * 32, path="/v1/cowork/document", progress=False):
+    name = contract.task_object(SITE, WORK, dispatch, "request.json")
+    generation = bucket.create(name, request)
+    return contract.task(site=SITE, work=WORK, dispatch=dispatch, path=path, generation=generation,
+                         callback=contract.callback_url(SITE), progress=progress)
+
+
+def document_body(content, pages, filename="statement.pdf"):
+    return contract.document_request(site=SITE, work=WORK, filename=filename, content=content, page_count=pages,
+                                     document_type="vat_report", environment=dict(ENVIRONMENT), yield_seconds=90)
+
+
+class TaskDelivery(unittest.TestCase):
+    """交给 Cloud Tasks 的一份：读完写结果、回调站点；回调没送到让 Cloud Tasks 重试，重试只补回调、不重读不付费。"""
+
+    def setUp(self):
+        DOCUMENT_MODE.on = True
+        self.addCleanup(setattr, DOCUMENT_MODE, "on", False)
+        self.calls = []
+
+    def post(self, statuses):
+        def send(url, body, token):
+            self.calls.append((url, body, token))
+            return statuses.pop(0) if statuses else 200
+        return send
+
+    def task(self, bucket, envelope, google, statuses=None):
+        return runner.task(envelope, bucket, lambda: "token", id_token=lambda audience: "ID:" + audience,
+                           post=self.post(statuses or []), orient=orient, page_source=PageSource, http=google)
+
+    def test_the_result_is_the_same_as_reading_line_by_line_and_comes_back_by_callback(self):
+        content = pdf(3)
+        streamed = []
+        runner.recognize(document_body(content, 3), Bucket(), lambda: "token", streamed.append, orient=orient,
+                         page_source=PageSource, http=PagedGoogle())
+        bucket = Bucket()
+        envelope = staged(bucket, document_body(content, 3))
+        self.assertEqual(self.task(bucket, envelope, PagedGoogle()), 200)
+        reply_name = contract.task_object(SITE, WORK, "d" * 32, "reply.json")
+        final, events = contract.parse_reply(bucket.objects[reply_name][0])
+        strip = lambda value: reading(json.dumps(value))
+        self.assertEqual(final["status"], "done", final)
+        self.assertEqual(strip(final["legacy"]), strip(streamed[-1]["legacy"]))
+        self.assertEqual([{k: v for k, v in e.items() if k != "seq"} for e in events],
+                         [e for e in streamed if e["event"] not in ("result", "tick")])
+        self.assertEqual([e["seq"] for e in events], list(range(len(events))))
+        url, body, token = self.calls[-1]
+        self.assertEqual((url, token), (contract.callback_url(SITE), "ID:" + contract.callback_url(SITE)))
+        self.assertEqual(contract.parse_callback(body)["reply"], {"object": reply_name, "generation": 1})
+
+    def test_a_lost_callback_is_retried_without_reading_or_paying_again(self):
+        bucket, google = Bucket(), PagedGoogle()
+        envelope = staged(bucket, document_body(pdf(2), 2))
+        self.assertEqual(self.task(bucket, envelope, google, statuses=[0]), 503)
+        paid = len(google.payloads)
+        self.assertEqual(self.task(bucket, envelope, google), 200)
+        self.assertEqual(len(google.payloads), paid)
+        self.assertEqual([contract.parse_callback(c[1])["type"] for c in self.calls], ["reply", "reply"])
+        # 站点说这份不需要了（4xx）也算交回：不让 Cloud Tasks 反复重试
+        self.assertEqual(self.task(bucket, envelope, google, statuses=[409]), 200)
+
+    def test_a_missing_or_foreign_request_comes_back_as_an_error_result(self):
+        bucket = Bucket()
+        envelope = staged(bucket, document_body(pdf(1), 1))
+        bucket.objects.clear()
+        self.assertEqual(self.task(bucket, envelope, PagedGoogle()), 200)
+        reply = bucket.objects[contract.task_object(SITE, WORK, "d" * 32, "reply.json")][0]
+        self.assertEqual(reply["result"]["code"], "task_request_missing")
+        other = Bucket()
+        foreign = dict(document_body(pdf(1), 1), work="f" * 64)
+        envelope = staged(other, foreign)
+        self.assertEqual(self.task(other, envelope, PagedGoogle()), 200)
+        reply = other.objects[contract.task_object(SITE, WORK, "d" * 32, "reply.json")][0]
+        self.assertEqual(reply["result"]["code"], "task_request_invalid")
+
+    def test_an_invalid_envelope_is_refused(self):
+        self.assertEqual(self.task(Bucket(), {"version": 1, "kind": "cowork.task"}, PagedGoogle()), 400)
+
+    def test_task_delivery_may_read_longer_before_yielding_but_streaming_may_not(self):
+        body = document_body(pdf(1), 1)
+        envelope = staged(Bucket(), body)
+        self.assertEqual(contract.task_request(dict(envelope, yield_seconds=1500), body)["yield_seconds"], 1500)
+        with self.assertRaises(ValueError):
+            contract.parse_request(dict(body, yield_seconds=1500))
+        with self.assertRaises(ValueError):
+            contract.parse_request(dict(body, delivery="task", yield_seconds=contract.TASK_YIELD_SECONDS + 1))
+
+    def test_a_long_task_holds_its_lease_for_the_whole_reading(self):
+        bucket = Bucket()
+        envelope = staged(bucket, document_body(pdf(1), 1))
+        runner.Store(bucket, SITE, WORK).acquire(now=lambda: 1000.0, seconds=envelope["yield_seconds"] + 240)
+        with self.assertRaises(runner.Busy):   # 原来的 660 秒租约这时已过期，会被别的实例接手
+            runner.Store(bucket, SITE, WORK).acquire(now=lambda: 1000.0 + runner.LEASE_SECONDS + 1)
+        runner.Store(bucket, SITE, WORK).acquire(now=lambda: 1000.0 + envelope["yield_seconds"] + 241)
+
+    def test_progress_goes_out_in_numbered_batches(self):
+        sent = []
+        envelope = staged(Bucket(), document_body(pdf(1), 1), progress=True)
+        sender = runner.ProgressSender(envelope, sent.append)
+        for page in (1, 2, 3):
+            sender.add({"event": "read", "pages": 1})
+        sender._flush()
+        sender.add({"event": "unread", "page": 3})
+        sender._flush()
+        sender._flush()   # 没有新事件不发
+        self.assertEqual([(b["seq"], len(b["events"])) for b in sent], [(0, 3), (3, 1)])
+
+
+class WarmThenWhole(unittest.TestCase):
+    """多页对账文档（Workflows）：各块读字、各页第一遍抽取分开预热，再原封不动读整份——结果与一次读完逐字相同，
+    整份那一遍的第一遍调用全部从检查点取回（付费调用只剩按页序的再读），总共发出的请求与一次读完完全相同。"""
+
+    def setUp(self):
+        DOCUMENT_MODE.on = True
+        self.addCleanup(setattr, DOCUMENT_MODE, "on", False)
+
+    def warm(self, bucket, envelope, google, stage, index):
+        return runner.warm(contract.warm(envelope, stage, index), bucket, lambda: "token", orient=orient,
+                           page_source=PageSource, http=google)
+
+    def test_warming_then_reading_whole_matches_one_reading_and_pays_nothing_twice(self):
+        from pearnly_cowork.ocr.enterprise.pages import MAX_PAGES_PER_READ
+
+        pages, content = 5, pdf(5)
+        direct = PagedGoogle()
+        streamed = []
+        runner.recognize(document_body(content, pages), Bucket(), lambda: "token", streamed.append, orient=orient,
+                         page_source=PageSource, http=direct)
+        legacy = streamed[-1]["legacy"]
+        rereads = sum(bool((p["extraction_audit"].get("self_check") or {}).get("reread")) for p in legacy["pages"])
+
+        bucket, google = Bucket(), PagedGoogle()
+        envelope = staged(bucket, document_body(content, pages))
+        chunks = -(-pages // MAX_PAGES_PER_READ)
+        for index in range(1, chunks + 1):
+            self.assertEqual(self.warm(bucket, envelope, google, "read", index), {"status": "done"})
+        for index in range(1, pages + 1):
+            self.assertEqual(self.warm(bucket, envelope, google, "extract", index), {"status": "done"})
+        warmed = len(google.payloads)
+        calls = []
+        status = runner.task(envelope, bucket, lambda: "token", id_token=lambda audience: "T",
+                             post=lambda url, body, token: calls.append(body) or 200, orient=orient,
+                             page_source=PageSource, http=google)
+        self.assertEqual(status, 200)
+        final, _events = contract.parse_reply(bucket.objects[contract.task_object(SITE, WORK, "d" * 32, "reply.json")][0])
+        strip = lambda value: reading(json.dumps(value))
+        self.assertEqual(final["status"], "done", final)
+        self.assertEqual(strip(final["legacy"]), strip(legacy))
+        # 整份那一遍：读字与第一遍抽取全部从检查点取回，付费的只有按页序的再读
+        self.assertEqual(len(google.payloads) - warmed, rereads)
+        # 总共发出的请求与一次读完逐字相同（同样的内容、同样的次数）
+        self.assertEqual(sorted(google.payloads), sorted(direct.payloads))
+
+    def test_extracting_before_the_reads_are_done_waits_for_the_whole_reading(self):
+        bucket, google = Bucket(), PagedGoogle()
+        envelope = staged(bucket, document_body(pdf(3), 3))
+        self.assertEqual(self.warm(bucket, envelope, google, "extract", 1), {"status": "not_ready"})
+        self.assertEqual(google.payloads, [])
+
+    def test_pages_beyond_the_document_are_skipped(self):
+        bucket, google = Bucket(), PagedGoogle()
+        envelope = staged(bucket, document_body(pdf(2), 2))
+        self.assertEqual(self.warm(bucket, envelope, google, "read", 9), {"status": "skipped"})
+        self.assertEqual(google.payloads, [])
+        self.assertEqual(runner.warm({"version": 1}, bucket, lambda: "t", orient=orient, page_source=PageSource)["status"],
+                         "invalid")
+
+
 class PaidCallGuard(unittest.TestCase):
     def test_a_rate_limited_global_entry_switches_to_the_us_entry_at_once(self):
         google = Google(["429"])

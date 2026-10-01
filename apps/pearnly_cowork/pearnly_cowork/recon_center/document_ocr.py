@@ -205,14 +205,25 @@ def _read_remote(content, filename, pages, frozen, document_type, recon_job, fil
     if recon_job and _recon_closed(recon_job, file):
         raise ReconClosed()
     _progress(file, state="reading")
-    counted = {"read": 0, "done": 0}
+    on_read, on_extracted, on_unread = _board(recon_job, file, filename, {"read": 0, "done": 0})
+    legacy = forward.send_document(work_name=frappe.flags.get("pearnly_ocr_work"), filename=filename, content=content,
+        page_count=int(pages), document_type=document_type, frozen=frozen,
+        regions=frappe.conf.get("pearnly_document_ai_regions"), yield_seconds=YIELD_SECONDS, on_read=on_read,
+        on_extracted=on_extracted, on_unread=on_unread)
+    if recon_job and _recon_closed(recon_job, file):
+        raise ReconClosed()
+    return legacy
 
+
+def _board(recon_job, file, filename, counted):
+    """Cloud Run 读的过程中的事件 → 看板进度（读完几页 / 一页抽完的「刚读出」/ 一页读不出），与本机执行同一时机。
+    按行等回复时随事件调用；任务派发时由进度回调调用（``remote_progress``），``counted`` 是这次派发累计到的数。"""
     def on_read(pages_read):
-        counted["read"] += pages_read
+        counted["read"] = counted.get("read", 0) + pages_read
         _progress(file, read=counted["read"], state="reading")
 
     def on_extracted(page, text):
-        counted["done"] += 1
+        counted["done"] = counted.get("done", 0) + 1
         _progress(file, done=counted["done"])
         try:
             document = json.loads(text or "{}")
@@ -220,13 +231,22 @@ def _read_remote(content, filename, pages, frozen, document_type, recon_job, fil
             document = None
         progress.latest(recon_job, progress.page_summary(document, filename, page, amounts=False))
 
-    legacy = forward.send_document(work_name=frappe.flags.get("pearnly_ocr_work"), filename=filename, content=content,
-        page_count=int(pages), document_type=document_type, frozen=frozen,
-        regions=frappe.conf.get("pearnly_document_ai_regions"), yield_seconds=YIELD_SECONDS, on_read=on_read,
-        on_extracted=on_extracted, on_unread=lambda page: progress.unread(file, page))
-    if recon_job and _recon_closed(recon_job, file):
-        raise ReconClosed()
-    return legacy
+    return on_read, on_extracted, lambda page: progress.unread(file, page)
+
+
+def remote_progress(arguments, events, state, user=None):
+    """任务派发（``ocr.remote.callback``）送来的进度事件：与按行等回复时同样更新看板（hooks ``cowork_remote_progress``）。
+    ``state`` 由回调按派发号保存，累计读完的页数 / 抽完的页数接着上一批往下数。"""
+    on_read, on_extracted, on_unread = _board(arguments.get("recon_job"), arguments.get("file"),
+                                              arguments.get("filename") or "", state)
+    for event in events:
+        kind = event.get("event")
+        if kind == "read":
+            on_read(int(event.get("pages") or 1))
+        elif kind == "extracted" and not event.get("reread"):
+            on_extracted(int(event.get("page") or 0), event.get("text") or "")
+        elif kind == "unread":
+            on_unread(int(event.get("page") or 0))
 
 
 # 读法在 reading（纯，Cloud Run 上用同一份）；保留原名给本域与测试。

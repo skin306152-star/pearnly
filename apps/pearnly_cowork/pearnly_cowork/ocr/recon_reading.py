@@ -84,6 +84,19 @@ def read_document(source, content, is_pdf, mime, document_type, document_ai_call
     return enterprise.to_legacy(result)
 
 
+def warm_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call, stage, index):
+    """多页文件的预热（Cloud Workflows）：:func:`read_document` 第一遍里的一块读字或一页抽取（``enterprise.first_pass``），
+    分块与渲染与 :func:`read_document` 完全相同。"""
+    reads = enterprise.pdf_chunks(content, source.page_count) if is_pdf else [(content, mime, 1)]
+
+    def render(number):
+        frame = source.frame(number)
+        return frame.image_bytes, frame.mime_type
+
+    return enterprise.first_pass(enterprise.CATEGORIES[document_type], page_count=source.page_count, reads=reads,
+        render=render, document_ai_call=document_ai_call, model_call=model_call, stage=stage, index=index)
+
+
 def image_mime(content):
     import io
 

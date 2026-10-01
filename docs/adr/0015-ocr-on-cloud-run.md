@@ -87,3 +87,13 @@ Document AI 的区域固定额度（发票识别不用；对账文档阶段要�
 不原地等；欧洲是最后一个，再被拒才按原规则原地短等。只有被转过去的那一次贵 10%、数据在欧洲处理。Cowork（`policy.vertex_overflows`，
 Cloud Run 与本机共用）和共用层（`ocr.overflow_locations`，ERP / DMS）同一规则；备用入口结果不明时各重发一次；续跑时任一备用入口
 已读完的直接取回。开关：Cowork 环境变量 `VERTEX_OVERFLOW`、站点配置 `pearnly_ocr_vertex_overflow`，默认 `us,eu`，`us` 只转美国，`off` 关掉。
+
+## 补充（2026-10-01）：任务派发（Cloud Tasks / Cloud Workflows，默认关）
+
+站点配置 `pearnly_cowork_ocr_tasks` 开着时，识别任务不再占线程按行等 Cloud Run：整份请求存进检查点桶、只把小信封交给 Cloud Tasks
+就暂缓；Cloud Run 读完把结果写回桶、用谷歌签发的身份令牌（受众 = 站点回调地址）回调；站点只记「结果在哪」并唤醒识别任务
+（`pearnly_core.execution.work.wake`），之后的复核 / 存结果 / 扣费与按行等回复同一段代码。云上一口气读到 1500 秒才让出
+（Cloud Run 单次时限 1800 秒）。多页对账文档交给 Cloud Workflows：各块读字、各页第一遍抽取并行预热，再原封不动读整份
+（第一遍全部从检查点取回，跨页上下文仍由同一份读法负责）。检查点状态 `external` 让共用层把已交给云上的任务按「可能已付费」对待。
+关掉开关完全回到按行等回复。代码：`ocr.remote.tasks` / `callback`、`runner.task` / `warm`、`enterprise.first_pass`；
+设计、费用、要开通的配置见任务记录 `docs/work/2026-10-01-cowork-ocr-preview-tasks.md`。

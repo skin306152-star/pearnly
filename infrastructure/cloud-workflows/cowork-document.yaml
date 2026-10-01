@@ -1,0 +1,97 @@
+# Cowork 多页对账文档（银行账单 / 总账 / 销项税报告）的分页预热 + 整份读（任务记录 docs/work/2026-10-01-cowork-ocr-preview-tasks.md）。
+#
+# Cloud Run 忙（429）、实例没起来（502 / 503 / 504）、连接断开 / 超时：按谷歌默认判据退避重试（http.default_retry_predicate）。
+#
+# 由服务器经 Cloud Tasks 新开一次执行（apps/pearnly_cowork/pearnly_cowork/ocr/remote/tasks.py），参数：
+#   task     任务信封（ocr.remote.contract.task：站点、识别任务、派发号、存好的请求、回调地址）
+#   service  Cowork 识别 Cloud Run 地址（https://…run.app）
+#   reads    读字分几块（[1..n]，与 enterprise.pdf_chunks 同一分法）
+#   pages    页码（[1..页数]）
+#
+# 三步：① 各块读字并行 ② 各页第一遍抽取并行 ③ 原封不动读整份（/v1/cowork/task：第一遍全部从检查点取回、不再付费，
+# 自核 / 余额链 / 表头沿用 / 再读照旧按页序；写结果、回调站点）。①②只是预热：某块 / 某页失败（重试用完）就跳过，③照常补上，
+# 已经读过的不会再付费（检查点在 Cloud Run 的检查点桶里）。③失败（重试用完）整个执行失败，服务器 3 小时后重新派发。
+# 以识别服务账号运行（pearnly-ocr-sa，已有 Cloud Run 调用权限）；调 Cloud Run 用它签的身份令牌（受众 = 服务地址）。
+main:
+  params: [args]
+  steps:
+    - read:
+        parallel:
+          concurrency_limit: 8
+          for:
+            value: index
+            in: ${args.reads}
+            steps:
+              - warm_read:
+                  call: warm
+                  args:
+                    service: ${args.service}
+                    task: ${args.task}
+                    stage: "read"
+                    index: ${index}
+    - extract:
+        parallel:
+          concurrency_limit: 8
+          for:
+            value: index
+            in: ${args.pages}
+            steps:
+              - warm_extract:
+                  call: warm
+                  args:
+                    service: ${args.service}
+                    task: ${args.task}
+                    stage: "extract"
+                    index: ${index}
+    - whole:
+        try:
+          call: http.post
+          args:
+            url: ${args.service + "/v1/cowork/task"}
+            auth:
+              type: OIDC
+              audience: ${args.service}
+            body: ${args.task}
+            timeout: 1800
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 5
+          backoff:
+            initial_delay: 10
+            max_delay: 300
+            multiplier: 2
+    - done:
+        return: "ok"
+
+warm:
+  params: [service, task, stage, index]
+  steps:
+    - call_warm:
+        try:
+          call: http.post
+          args:
+            url: ${service + "/v1/cowork/warm"}
+            auth:
+              type: OIDC
+              audience: ${service}
+            body:
+              version: 1
+              kind: "cowork.warm"
+              task: ${task}
+              stage: ${stage}
+              index: ${index}
+            timeout: 900
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 4
+          backoff:
+            initial_delay: 5
+            max_delay: 120
+            multiplier: 2
+        except:
+          as: error
+          steps:
+            - skip:
+                return: "skipped"
+    - ok:
+        return: "ok"

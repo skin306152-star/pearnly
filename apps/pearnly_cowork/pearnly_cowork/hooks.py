@@ -437,6 +437,10 @@ pearnly_ocr_resume_unknown = ["cowork.vat_check", "cowork.recon_document"]
 # （recon_center/waiting.py，2026-10-01）。
 pearnly_ocr_finished_handlers = {kind: "pearnly_cowork.recon_center.waiting.work_finished"
                                  for kind in ("cowork.invoice", "cowork.vat_check", "cowork.recon_document")}
+# 识别交给 Cloud Tasks（站点配置 pearnly_cowork_ocr_tasks，默认关）时，读的过程中的进度由 Cloud Run 回调送来，
+# 按类别交给这里登记的函数更新页面 / 看板（ocr/remote/callback.py，2026-10-01）。
+cowork_remote_progress = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.remote_progress",
+                          "cowork.recon_document": "pearnly_cowork.recon_center.document_ocr.remote_progress"}
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。

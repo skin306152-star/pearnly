@@ -2,6 +2,8 @@
 # 构建并部署 Cowork 发票识别的 Cloud Run 服务（ADR-015）。在开发机上跑，需要 gcloud 已登录且对 pearnly 项目有权限。
 # 首次建资源（镜像仓库、存储桶 7 天删除、服务账号的桶权限与调用权限）见 docs/work/2026-10-01-ocr-cloud-run.md。
 # 只做构建、推送、更新服务；不改最少实例数（必须是 0：空闲零花费，用户规矩），不开任何定时任务。
+# 单次时限 1800 秒：交给 Cloud Tasks 的一份（站点开关 pearnly_cowork_ocr_tasks）一口气读到 1500 秒才让出，
+# 与 Cloud Tasks 单次派发上限一致；按行等回复的照旧最多 420 秒就让出，不受影响。时限只是上限，不产生费用。
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 PROJECT=pearnly
@@ -18,7 +20,7 @@ docker buildx build --platform linux/amd64 --load -t "$TAG" -f infrastructure/cl
 docker push "$TAG"
 gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" --image "$TAG" --service-account "$ACCOUNT" \
   --no-allow-unauthenticated --cpu 2 --memory 4Gi --concurrency 8 --min-instances 0 --max-instances 20 \
-  --timeout 600 --cpu-boost --set-env-vars "PEARNLY_OCR_BUCKET=$BUCKET,PEARNLY_ORIGINALS_BUCKET=$ORIGINALS,OCR_THREADS=8,OCR_PAGE_THREADS=8" \
+  --timeout 1800 --cpu-boost --set-env-vars "PEARNLY_OCR_BUCKET=$BUCKET,PEARNLY_ORIGINALS_BUCKET=$ORIGINALS,OCR_THREADS=8,OCR_PAGE_THREADS=8" \
   --labels app=pearnly,role=ocr --quiet
 gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --format="value(status.url,spec.template.metadata.annotations['autoscaling.knative.dev/minScale'])"

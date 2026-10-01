@@ -97,8 +97,9 @@ class Store:
             self._cache[key], self._generation[key] = value, generation
         return value
 
-    def acquire(self, now=time.time):
-        name, value = self._prefix + "lease", {"until": now() + LEASE_SECONDS}
+    def acquire(self, now=time.time, seconds=LEASE_SECONDS):
+        """``seconds``：这次最多读多久 + 余量（任务派发时让出得晚，租约跟着长，见 ``recognize``）。"""
+        name, value = self._prefix + "lease", {"until": now() + seconds}
         if self._backend.create(name, value) is not None:
             self._lease = name
             return
@@ -116,14 +117,19 @@ class Store:
             self._lease = None
 
 
+class NotWarm(Exception):
+    """预热抽取时发现某块读字还没完成（上一步预热没做成）：这一页不预热，留给最后那一遍。"""
+
+
 class Provider:
     """``ProviderClient`` 的 post：与 ``pearnly_core.execution.provider._post`` 同一套检查点与超时规则，去掉额度 Redis。"""
 
-    def __init__(self, store, http=None, sleep=None):
+    def __init__(self, store, http=None, sleep=None, cached_only=None):
         self._store = store
         self._local = threading.local()
         self._http = http
         self._sleep = sleep
+        self._cached_only = cached_only  # 预热：这类调用只取检查点里已完成的，没有就不读（``NotWarm``）
 
     def _session(self):
         if self._http is not None:
@@ -158,6 +164,10 @@ class Provider:
             return response
         if saved and saved["state"] == "started":
             raise Uncertain("Previous provider result is unknown")
+        if self._cached_only and self._cached_only(url):
+            if saved and saved["state"] == "rejected" and (saved.get("body") or {}).get("http") in (429, 503):
+                raise Deferred("provider_" + str(saved["body"]["http"]), 5)  # 这个区域当时被限流：照原路换下一个区域
+            raise NotWarm()
         timeout = max(1, min(180, float(timeout_s)))
         self._store.put(key, "started")
         sent = time.monotonic()
@@ -226,9 +236,9 @@ def terminal_read(store, key):
     return saved["body"]
 
 
-def build_client(environment, store, access_token, *, http=None, regions=None):
+def build_client(environment, store, access_token, *, http=None, regions=None, cached_only=None):
     project = environment.get("GCP_PROJECT")
-    provider = Provider(store, http)
+    provider = Provider(store, http, cached_only=cached_only)
 
     def require_context():
         return None  # 站点权限由服务器在发出前、存结果前复核（ADR-0015）
@@ -408,7 +418,7 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
             return
     store = Store(backend, body["site"], body["work"])
     try:
-        store.acquire()
+        store.acquire(seconds=max(LEASE_SECONDS, int(body.get("yield_seconds", contract.YIELD_SECONDS)) + 240))
     except Busy:
         emit(contract.result("deferred", reason="remote_busy", delay=15))
         return
@@ -574,3 +584,161 @@ def stream(body, backend, access_token, **options):
         yield contract.line(event)
         if event["event"] == "result":
             return
+
+
+# ── 任务派发（Cloud Tasks / Cloud Workflows 交来的一份；见 ``contract`` 的「任务派发」）─────────────────────────────
+PROGRESS_SECONDS = 5
+
+
+class ProgressSender:
+    """读的过程中每隔 ``PROGRESS_SECONDS`` 把新事件回调给站点（只作展示：送不到就算了，结果里带着全部事件）。"""
+
+    def __init__(self, envelope, send, clock=time.monotonic):
+        self._envelope, self._send, self._clock = envelope, send, clock
+        self._events, self._sent, self._lock = [], 0, threading.Lock()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="ocr-progress", daemon=True)
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def add(self, event):
+        with self._lock:
+            self._events.append(event)
+
+    def _flush(self):
+        with self._lock:
+            batch, seq = self._events[self._sent:self._sent + contract.MAX_PROGRESS_EVENTS], self._sent
+        if not batch:
+            return
+        body = contract.callback("progress", site=self._envelope["site"], work=self._envelope["work"],
+                                 dispatch=self._envelope["dispatch"], events=batch, seq=seq)
+        try:
+            self._send(body)
+        except Exception:  # noqa: BLE001 - 进度只作展示
+            pass
+        with self._lock:
+            self._sent = seq + len(batch)
+
+    def _run(self):
+        while not self._stop.wait(PROGRESS_SECONDS):
+            self._flush()
+
+    def stop(self):
+        self._stop.set()
+
+
+def _task_parts(envelope, backend):
+    """读回服务器存好的请求，核对它是这份任务的：``(请求, None)`` 或 ``(None, 错误代码)``。"""
+    found = backend.get(envelope["request"]["object"])
+    if found is None:
+        return None, "task_request_missing"
+    request, generation = found
+    if generation != envelope["request"]["generation"]:
+        return None, "task_request_changed"
+    try:
+        return contract.task_request(envelope, request), None
+    except ValueError:
+        return None, "task_request_invalid"
+
+
+def task(envelope, backend, access_token, *, id_token, post=None, orient, page_source, originals=None, http=None,
+         clock=time.monotonic):
+    """Cloud Tasks（或 Workflows 最后一步）交来的一份：读完把结果写进检查点桶、回调站点。返回 HTTP 状态码：
+    200 = 已交回（结果写好且站点收到了）；503 = 回调没送到（让 Cloud Tasks 稍后重试：结果已写好，重试时只补回调、不重读）；
+    400 = 信封不合规（我们自己的程序错误）。识别本身的暂缓 / 结果不明 / 拒绝 / 出错都写进结果交回，不算失败。"""
+    try:
+        contract.parse_task(envelope)
+    except ValueError as exc:
+        log(event="task_invalid", detail=str(exc)[:200])
+        return 400
+    name = contract.task_object(envelope["site"], envelope["work"], envelope["dispatch"], "reply.json")
+    found = backend.get(name)
+    if found is None:
+        body, failure = _task_parts(envelope, backend)
+        events = []
+        if failure:
+            final = contract.result("error", code=failure)
+        else:
+            sender = None
+            if envelope["progress"]:
+                sender = ProgressSender(envelope, lambda payload: _callback(envelope, payload, id_token, post)).start()
+
+            def emit(event):
+                if event["event"] in ("result", "tick"):
+                    return
+                events.append(event)
+                if sender:
+                    sender.add(event)
+
+            outcome = []
+            recognize(body, backend, access_token, lambda event: outcome.append(event) if event["event"] == "result"
+                      else emit(event), orient=orient, page_source=page_source, http=http, clock=clock,
+                      originals=originals)
+            if sender:
+                sender.stop()
+            final = outcome[-1] if outcome else contract.result("error", code="task_no_result")
+        generation = backend.create(name, contract.reply(final, events))
+        if generation is None:  # 同一份任务被重试、另一次先写好了
+            found = backend.get(name)
+            generation = found[1] if found else None
+        if generation is None:
+            return 503
+        log(event="task_done", status=final["status"], events=len(events))
+    else:
+        generation = found[1]
+    status = _callback(envelope, contract.callback("reply", site=envelope["site"], work=envelope["work"],
+                       dispatch=envelope["dispatch"], reply={"object": name, "generation": generation}), id_token, post)
+    log(event="task_callback", status=status)
+    # 站点说这份已经不需要（4xx：任务已结束 / 换了派发号）也算交回，不让 Cloud Tasks 反复重试。
+    return 200 if 200 <= status < 500 else 503
+
+
+def _callback(envelope, body, id_token, post):
+    from pearnly_cowork.ocr.remote import gcs
+
+    url = envelope["callback"]
+    return (post or gcs.post_callback)(url, body, id_token(url))
+
+
+def warm(body, backend, access_token, *, orient, page_source, originals=None, http=None):
+    """Workflows 的预热一步：多页对账文档的第 n 块读字或第 n 页第一遍抽取，存进这份任务的检查点（不拿租约：同一份的
+    各块 / 各页同时预热；同一个调用两边同时发，只有一边写得进「started」，另一边判结果不明后不付费、留给最后那一遍）。
+    不交回结果，出错也只记日志：最后那一遍（``task``）照常把缺的补上。返回 ``{"status": …}``。"""
+    try:
+        contract.parse_warm(body)
+    except ValueError as exc:
+        return {"status": "invalid", "detail": str(exc)[:200]}
+    envelope = body["task"]
+    request, failure = _task_parts(envelope, backend)
+    if failure:
+        return {"status": "skipped", "reason": failure}
+    content = None
+    try:
+        content = contract.parse_request(request)
+    except ValueError:
+        return {"status": "skipped", "reason": "task_request_invalid"}
+    store = Store(backend, request["site"], request["work"])
+    environment = dict(request["environment"])
+    is_pdf = request["filename"].lower().endswith(".pdf")
+    client = build_client(environment, store, access_token, http=http, regions=request.get("regions"),
+                          cached_only=(lambda url: "documentai" in url) if body["stage"] == "extract" else None)
+    started = time.monotonic()
+    try:
+        with page_source(content, request["filename"], expected_page_count=request["page_count"], enable_text_path=False,
+                         image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
+                         orient=orient) as source:
+            sent = recon_reading.warm_document(source, content, is_pdf,
+                None if is_pdf else recon_reading.image_mime(content), request["document_type"],
+                partial(client.document_ai_call, retry_unknown=True),
+                recon_reading.document_page_failure(partial(client.model_call, retry_unknown=True)),
+                body["stage"], body["index"])
+        status = "done" if sent else "skipped"
+    except NotWarm:
+        status = "not_ready"
+    except Exception as exc:  # noqa: BLE001 - 预热出错不影响最后那一遍
+        status = "error:" + type(exc).__name__
+    log(event="warm", stage=body["stage"], index=body["index"], status=status,
+        seconds=round(time.monotonic() - started, 2))
+    return {"status": status}

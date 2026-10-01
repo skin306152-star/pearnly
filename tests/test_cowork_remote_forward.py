@@ -36,6 +36,7 @@ def load():
     frappe = types.ModuleType("frappe")
     frappe.conf = {}
     frappe.local = types.SimpleNamespace(site="acme.pearnly.com")
+    frappe.flags = {}
     errors = types.ModuleType("pearnly_core.execution.errors")
     errors.Deferred, errors.Uncertain = Deferred, Uncertain
     budget = types.ModuleType("pearnly_core.execution.budget")

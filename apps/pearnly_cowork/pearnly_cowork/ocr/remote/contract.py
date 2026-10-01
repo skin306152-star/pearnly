@@ -24,6 +24,21 @@ VARIANTS = ("intake", "vat_check")
 ENGINE_ERRORS = ("EngineError", "ContentError", "DirectFallback")
 
 
+# 交给 Cloud Tasks 的一次读（``delivery: "task"``，见下面「任务派发」）：服务器不在旁边等，可以一口气读到快到 Cloud Tasks
+# 单次派发时限（1800 秒）才让出；读法不变，只是让出得晚（让出只决定什么时候停下、下次从检查点接着读）。
+TASK_YIELD_SECONDS = 1500
+
+
+def _yield_seconds(body):
+    limit = TASK_YIELD_SECONDS if body.get("delivery") == "task" else YIELD_SECONDS
+    value = body.get("yield_seconds", YIELD_SECONDS)
+    if type(value) is not int or not 30 <= value <= limit:
+        raise ValueError("invalid yield_seconds")
+    if body.get("delivery", "stream") not in ("stream", "task"):
+        raise ValueError("invalid delivery")
+    return value
+
+
 def encode(value):
     """与 ``ocr.execution.store.encode`` 同一写法（摘要要一致）。"""
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
@@ -224,9 +239,7 @@ def parse_request(body):
         raise ValueError("invalid examples")
     if body.get("variant", "intake") not in VARIANTS:
         raise ValueError("invalid variant")
-    yield_seconds = body.get("yield_seconds", YIELD_SECONDS)
-    if type(yield_seconds) is not int or not 30 <= yield_seconds <= YIELD_SECONDS:
-        raise ValueError("invalid yield_seconds")
+    _yield_seconds(body)
     if "original" in body:
         if "content" in body:
             raise ValueError("invalid content")
@@ -262,9 +275,7 @@ def _parse_document(body):
     regions = body.get("regions")
     if regions is not None and (not isinstance(regions, list) or not all(isinstance(r, dict) for r in regions)):
         raise ValueError("invalid regions")
-    yield_seconds = body.get("yield_seconds", YIELD_SECONDS)
-    if type(yield_seconds) is not int or not 30 <= yield_seconds <= YIELD_SECONDS:
-        raise ValueError("invalid yield_seconds")
+    _yield_seconds(body)
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)
     except (ValueError, TypeError) as exc:
@@ -318,3 +329,149 @@ def parse_line(raw):
     if event["event"] == "result" and event.get("status") not in STATUSES:
         raise ValueError("invalid result event")
     return event
+
+
+# ── 任务派发（Cloud Tasks / Cloud Workflows，站点开关 ``pearnly_cowork_ocr_tasks``，默认关）────────────────────────
+# 服务器把整份请求存进检查点桶（``<站点>/<任务>/task/<派发号>/request.json``，7 天自动删），只把一个很小的信封交给
+# Cloud Tasks（单个任务最多 1 MB，原件可能到 20 MB）；Cloud Run 读完把结果写成同目录的 ``reply.json``，再回调站点
+# （谷歌签发、受众是回调地址的身份令牌）。站点只记下结果在哪、唤醒那份识别任务，之后的存结果 / 扣费照旧。
+DISPATCH = re.compile(r"[0-9a-f]{32}")
+TASK_PATHS = ("/v1/cowork/invoice", "/v1/cowork/document")
+CALLBACK_PATH = "/api/method/pearnly_cowork.ocr.remote.callback.receive"
+CALLBACK_HOST = re.compile(r"[a-z0-9][a-z0-9.-]{0,252}")
+
+
+def task_object(site, work, dispatch, leaf):
+    return f"{site}/{work}/task/{dispatch}/{leaf}"
+
+
+def task(*, site, work, dispatch, path, generation, callback, yield_seconds=TASK_YIELD_SECONDS, progress=False):
+    """交给 Cloud Tasks（或 Cloud Workflows 的最后一步）的信封：只有引用，没有单据内容。"""
+    body = {"version": VERSION, "kind": "cowork.task", "site": site, "work": work, "dispatch": dispatch, "path": path,
+            "request": {"object": task_object(site, work, dispatch, "request.json"), "generation": int(generation)},
+            "callback": callback, "yield_seconds": yield_seconds, "progress": bool(progress)}
+    parse_task(body)
+    return body
+
+
+def callback_url(host):
+    return "https://" + host + CALLBACK_PATH
+
+
+def parse_task(body):
+    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.task":
+        raise ValueError("unsupported task")
+    for key, pattern in (("site", SITE), ("work", WORK), ("dispatch", DISPATCH)):
+        if not isinstance(body.get(key), str) or not pattern.fullmatch(body[key]):
+            raise ValueError("invalid " + key)
+    if body.get("path") not in TASK_PATHS:
+        raise ValueError("invalid path")
+    request = body.get("request")
+    if (not isinstance(request, dict) or set(request) != {"object", "generation"}
+            or request["object"] != task_object(body["site"], body["work"], body["dispatch"], "request.json")
+            or type(request["generation"]) is not int or request["generation"] < 1):
+        raise ValueError("invalid request")
+    callback = body.get("callback")
+    host = callback[8:-len(CALLBACK_PATH)] if isinstance(callback, str) and callback.endswith(CALLBACK_PATH) else ""
+    if not isinstance(callback, str) or not callback.startswith("https://") or not CALLBACK_HOST.fullmatch(host):
+        raise ValueError("invalid callback")
+    if type(body.get("yield_seconds")) is not int or not 30 <= body["yield_seconds"] <= TASK_YIELD_SECONDS:
+        raise ValueError("invalid yield_seconds")
+    if type(body.get("progress")) is not bool:
+        raise ValueError("invalid progress")
+    return body
+
+
+def task_request(envelope, request):
+    """Cloud Run 读回存好的请求后：核对它确实是这份任务的，再按信封改成任务派发（让出得晚）。"""
+    if not isinstance(request, dict) or request.get("site") != envelope["site"] or request.get("work") != envelope["work"]:
+        raise ValueError("request does not belong to this task")
+    expected = "cowork.document" if envelope["path"] == "/v1/cowork/document" else "cowork.invoice"
+    if request.get("kind") != expected:
+        raise ValueError("request does not belong to this task")
+    body = dict(request, delivery="task", yield_seconds=envelope["yield_seconds"])
+    parse_request(body)
+    return body
+
+
+# 回调：``reply``（结果写好了：对象 + 版本号）或 ``progress``（读的过程中的进度，只作展示，丢了也不影响结果）。
+def callback(kind, *, site, work, dispatch, reply=None, events=None, seq=0):
+    body = {"version": VERSION, "kind": "cowork.callback", "type": kind, "site": site, "work": work,
+            "dispatch": dispatch}
+    if kind == "reply":
+        body["reply"] = reply
+    else:
+        body.update(events=events, seq=seq)
+    parse_callback(body)
+    return body
+
+
+MAX_PROGRESS_EVENTS = 200
+
+
+def parse_callback(body):
+    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.callback":
+        raise ValueError("unsupported callback")
+    for key, pattern in (("site", SITE), ("work", WORK), ("dispatch", DISPATCH)):
+        if not isinstance(body.get(key), str) or not pattern.fullmatch(body[key]):
+            raise ValueError("invalid " + key)
+    if body.get("type") == "reply":
+        reply = body.get("reply")
+        if (not isinstance(reply, dict) or set(reply) != {"object", "generation"}
+                or reply["object"] != task_object(body["site"], body["work"], body["dispatch"], "reply.json")
+                or type(reply["generation"]) is not int or reply["generation"] < 1):
+            raise ValueError("invalid reply")
+        return body
+    if body.get("type") != "progress":
+        raise ValueError("invalid type")
+    events = body.get("events")
+    if (not isinstance(events, list) or not 1 <= len(events) <= MAX_PROGRESS_EVENTS
+            or type(body.get("seq")) is not int or body["seq"] < 0):
+        raise ValueError("invalid progress")
+    for event in events:
+        if not isinstance(event, dict) or event.get("event") not in ("page", "read", "extracted", "unread"):
+            raise ValueError("invalid progress")
+    return body
+
+
+def reply(final, events):
+    """``reply.json``：最后一行结果 + 读的过程中的全部事件（带顺序号；服务器补上回调时没送到的那些）。"""
+    return {"version": VERSION, "kind": "cowork.reply", "result": final,
+            "events": [dict(event, seq=index) for index, event in enumerate(events)]}
+
+
+def parse_reply(body):
+    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.reply":
+        raise ValueError("unsupported reply")
+    final = body.get("result")
+    if not isinstance(final, dict) or final.get("event") != "result" or final.get("status") not in STATUSES:
+        raise ValueError("invalid reply result")
+    events = body.get("events")
+    if not isinstance(events, list) or any(not isinstance(e, dict) or e.get("event") not in
+                                           ("page", "read", "extracted", "unread") or type(e.get("seq")) is not int
+                                           for e in events):
+        raise ValueError("invalid reply events")
+    return final, events
+
+
+# 多页对账文档的预热（Cloud Workflows，站点配置 ``pearnly_cowork_ocr_tasks.workflow``）：各块读字、各页第一遍抽取分开
+# 并行，各自存进检查点；全部做完再跑一次原封不动的整份读法（``/v1/cowork/task``），第一遍全部从检查点取回、不再付费，
+# 自核 / 余额链 / 表头沿用 / 再读照旧按页序。预热不交回结果、出错也不影响最后那一遍（最后那一遍照常把缺的补上）。
+WARM_STAGES = ("read", "extract")
+
+
+def warm(envelope, stage, index):
+    body = {"version": VERSION, "kind": "cowork.warm", "task": envelope, "stage": stage, "index": index}
+    parse_warm(body)
+    return body
+
+
+def parse_warm(body):
+    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.warm":
+        raise ValueError("unsupported warm")
+    parse_task(body.get("task"))
+    if body["task"]["path"] != "/v1/cowork/document":
+        raise ValueError("invalid warm")
+    if body.get("stage") not in WARM_STAGES or type(body.get("index")) is not int or not 1 <= body["index"] <= 500:
+        raise ValueError("invalid warm")
+    return body

@@ -21,7 +21,7 @@ from pearnly_core.execution import budget, pool, provider, work
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine import errors as engine_errors
 from pearnly_cowork.ocr.providers.client import ProviderError
-from pearnly_cowork.ocr.remote import contract
+from pearnly_cowork.ocr.remote import contract, tasks
 
 CONFIG = "pearnly_cowork_ocr_remote"
 PATHS = {"invoice": "/v1/cowork/invoice", "document": "/v1/cowork/document", "inspect": "/v1/cowork/inspect",
@@ -217,7 +217,16 @@ def _permit(stack, bucket, config, sleep=None):
 
 
 def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sleep=None):
-    """拿名额 → 放开数据库连接 → 发出并按行读回复 → 结果行；非「读完」照本机方式抛出。"""
+    """拿名额 → 放开数据库连接 → 发出并按行读回复 → 结果行；非「读完」照本机方式抛出。
+
+    开了任务派发（``tasks``，站点配置 ``pearnly_cowork_ocr_tasks``）时改为交给 Cloud Tasks 就返回（抛 ``Deferred``，不占线程
+    等），结果回调到了再进来取回；拿到的结果行与这里按行读到的同一形状，之后的处理完全相同。"""
+    if tasks.active():
+        return _outcome(tasks.call(config, path, body, on_event))
+    return _outcome(_stream(config, path, body, on_event, frozen, post=post, id_token=id_token, sleep=sleep))
+
+
+def _stream(config, path, body, on_event, frozen, *, post=None, id_token=None, sleep=None):
     bucket = budget.scope("cloudrun", frozen["environment"].get("GCP_PROJECT", ""), "cowork", path.rsplit("/", 1)[-1])
     with ExitStack() as stack:
         _permit(stack, bucket, config, sleep)
@@ -257,6 +266,11 @@ def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sle
         # 连接正常结束却没有结果行：Cloud Run 实例中途没了。检查点会判断哪些调用已付费 / 结果不明。
         budget.note("remote:interrupted", LABEL)
         raise Deferred("remote_interrupted", 15)
+    return final
+
+
+def _outcome(final):
+    """结果行 → 「读完」原样交回，其余照本机执行同样的方式抛出。"""
     status = final["status"]
     budget.note("remote:" + status + (":" + str(final.get("reason") or "") if status == "deferred" else ""), LABEL)
     if status == "done":
