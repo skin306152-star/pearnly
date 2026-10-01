@@ -12,7 +12,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
 
-from . import budget, work
+from . import budget, pool, work
 from .errors import Deferred, Uncertain
 
 
@@ -106,6 +106,8 @@ def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True
             if not wait or not _in_queue_job() or delay > WAIT_STEP_LIMIT \
                     or waited + delay > WAIT_PER_CALL or str(exc.reason).startswith(tuple(hand_back)):
                 raise
+            if pool.in_thread():
+                pool.release_db()  # 原地等额度时不占数据库连接（识别进程开多线程时几十份同时在等）
             time.sleep(delay)
             waited += delay
             budget.note("waited_seconds", label, delay)
@@ -142,6 +144,10 @@ def _post(url, headers, payload, timeout_s, model, bucket, rpm=None, label=None,
     timeout = max(1, min(180, float(timeout_s)))
     with budget.permit(bucket, work.JOB_TIMEOUT, **({"rpm": rpm} if rpm else {})):
         work.checkpoint(key, "started")
+        if pool.in_thread():
+            # 识别进程开多线程时（pool.py）：等谷歌回复的这十几秒不占数据库连接；回来后第一条查询自动重连。
+            # 只在识别线程里放开 —— 网页请求里（ERP 网页识别）的事务要到请求结束才提交，不能中途提交。
+            pool.release_db()
         deadline = time.monotonic() + timeout
         try:
             # 第一项在 urllib3 里同时是连接和「发送请求体每一步」的时限：生产高负载时大文件上传 Document AI 卡住超过 10 秒

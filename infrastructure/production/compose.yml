@@ -2,7 +2,7 @@ name: pearnly-production
 
 # 可调容量（2026-09-30）：三产品的识别进程、Cowork 对账进程、网页进程数和各自内存上限
 # 从 /opt/pearnly/secrets/runtime.env 读，没写就是下面各处 `:-` 后的原值：
-#   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM / _OCR_THREADS / _OCR_THREAD_MB、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
+#   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM / _OCR_THREADS / _OCR_THREAD_MB、PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
 #   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS。
 # 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
 
@@ -143,7 +143,7 @@ services:
     <<: *web
     # 进程数与内存上限可在 runtime.env 调（压测后按实测定），默认即原值；见文件头「可调容量」。
     mem_limit: ${PEARNLY_DMS_WEB_MEM:-1g}
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, '--workers=${PEARNLY_DMS_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_DMS_WEB_THREADS:-4}', '--workers=${PEARNLY_DMS_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
     volumes: &dms-volumes
       - sites-dms:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -221,7 +221,7 @@ services:
     # ERP 网页进程 2026-09-27 激活期间被内核杀过一次（768m）：上限提到 1g，并让 gunicorn 每个进程处理约 2000 个
     # 请求后换新（带抖动，不同时换），防止内存慢慢涨。只改 ERP；DMS / Cowork 网页照旧用 x-web。
     mem_limit: ${PEARNLY_ERP_WEB_MEM:-1g}
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, '--workers=${PEARNLY_ERP_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_ERP_WEB_THREADS:-4}', '--workers=${PEARNLY_ERP_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
     volumes: &erp-volumes
       - sites-erp:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -275,7 +275,7 @@ services:
     profiles: [cowork]
     <<: *web
     mem_limit: ${PEARNLY_COWORK_WEB_MEM:-768m}
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_COWORK_WEB_THREADS:-4}', '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
     volumes: &cowork-volumes
       - sites-cowork:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro

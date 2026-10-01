@@ -141,3 +141,43 @@ class CheckpointCache(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReleaseWhileWaiting(unittest.TestCase):
+    """识别进程开多线程（pool.py）时：等谷歌回复、原地等额度前放开数据库连接；网页请求里不放（事务到请求结束才提交）。"""
+
+    def setUp(self):
+        fresh_flags(self)
+        self.saved = {}
+        for item in (patch.object(work, "checkpoint", side_effect=self.checkpoint),
+                     patch.object(provider.budget, "feedback"), patch.object(provider.time, "sleep")):
+            item.start()
+            self.addCleanup(item.stop)
+        frappe.flags.pearnly_ocr_work = "work-1"
+
+    def checkpoint(self, key, state=None, body=None):
+        if state is None:
+            return self.saved.get(key)
+        self.saved[key] = {"state": state, "body": body}
+        return self.saved[key]
+
+    @contextmanager
+    def permit(self, bucket, timeout, **kwargs):
+        yield
+
+    def test_a_thread_releases_the_connection_before_the_provider_call(self):
+        order = []
+        with patch.object(provider.budget, "permit", side_effect=self.permit), \
+                patch.object(provider.pool, "in_thread", return_value=True), \
+                patch.object(provider.pool, "release_db", side_effect=lambda: order.append("release")), \
+                patch.object(provider, "_http_post", side_effect=lambda *a, **k: (order.append("send"), ok_response())[1]):
+            provider.post("https://x", {}, {"a": 1}, 30, "m", "bucket")
+        self.assertEqual(order, ["release", "send"])
+
+    def test_a_web_request_keeps_its_transaction(self):
+        with patch.object(provider.budget, "permit", side_effect=self.permit), \
+                patch.object(provider.pool, "in_thread", return_value=False), \
+                patch.object(provider.pool, "release_db") as release, \
+                patch.object(provider, "_http_post", return_value=ok_response()):
+            provider.post("https://x", {}, {"a": 2}, 30, "m", "bucket")
+        release.assert_not_called()
