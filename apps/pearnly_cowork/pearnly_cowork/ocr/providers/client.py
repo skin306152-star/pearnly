@@ -89,6 +89,8 @@ def vision_page(annotation, page_number):
 
 
 VISION_FIRST_TIMEOUT = 15
+# flash-lite 第一次最多等多久（秒）；备用入口都结果不明时退回全球入口那次用的尝试号偏移（与全球入口本身、它的重发区分开）。
+LITE_FIRST_TIMEOUT, GLOBAL_FALLBACK_ATTEMPT = 40, 2
 VISION_5XX_RETRIES, VISION_5XX_PAUSE = 2, 2
 
 
@@ -266,24 +268,32 @@ class ProviderClient:
         """Gemini：全球入口被谷歌拒绝（429 / 503 / 额度，``provider_*``）时这一次请求立刻依次改发备用多区域入口
         （``policy.vertex_overflows``，默认美国 → 欧洲），不原地等；最后一个备用入口再被拒才按原规则原地短等。
         自家额度的等待照旧原地等。续跑时已在任一备用入口读完的直接取回，不再付费。"""
-        def send(where, attempt=request.attempt, hand_back=(), resend=retry_unknown):
+        # flash-lite 正常单次 2–4 秒：第一次最多等 LITE_FIRST_TIMEOUT 秒，没回按「结果不明重发」再发（重发用原上限）；
+        # 3.8-flash 读银行账单页有 70–180 秒才回的，照旧给足（2026-10-02 第三轮：一张发票在备用入口上干等了 183 秒和两次 60 秒）。
+        lite = "flash-lite" in model.lower()
+        first_timeout = min(request.timeout_s, LITE_FIRST_TIMEOUT) if lite else request.timeout_s
+
+        def send(where, attempt=request.attempt, hand_back=(), resend=retry_unknown, timeout=None):
             url = (f"https://{vertex_host(where)}/v1/projects/{quote(self.project, safe='')}/locations/"
                    f"{quote(where, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent")
             body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
                 location=where, stage=request.stage, page_number=request.page_number, attempt=attempt,
-                timeout_s=request.timeout_s, retry_unknown=resend, hand_back=hand_back)
+                timeout_s=timeout or first_timeout, retry_unknown=resend, hand_back=hand_back,
+                resend_timeout_s=request.timeout_s)
             return body, elapsed, key
 
         spares = vertex_overflows(location, self.environment)
         if not spares:
             return send(location)
         self._require_context()  # 先确认识别任务仍有效，再读任何检查点（与 _send 同一顺序）
-        for spare in spares:
-            for attempt in range(request.attempt, request.attempt + 3):
-                identity = json.dumps(["cowork", "vertex", self.project, spare, model, request.stage,
+        fallback = request.attempt + GLOBAL_FALLBACK_ATTEMPT
+        for where, attempts in [(spare, range(request.attempt, request.attempt + 3)) for spare in spares] + [
+                (location, (fallback,))]:
+            for attempt in attempts:  # 续跑：已在备用入口、或退回全球入口那次读完的，直接取回，不再付费
+                identity = json.dumps(["cowork", "vertex", self.project, where, model, request.stage,
                                        request.page_number, attempt])
                 if (self._checkpoint_read(self._key(payload, identity)) or {}).get("state") == "done":
-                    return send(spare, attempt)
+                    return send(where, attempt, resend=0, timeout=request.timeout_s)
         try:
             return send(location, hand_back=("provider_",))
         except Deferred as error:
@@ -291,13 +301,18 @@ class ProviderClient:
                 raise
         # 转到备用入口的这一次结果不明（读超时、连接断）时重发一次，不让整张作废（用户 2026-10-01 同意；部署后 128 张复压
         # 有 1 张转美国入口后 60 秒没回、整张判结果不明）。重发是新的检查点，极少数情况下这一次多付一遍。
-        for spare in spares[:-1]:
-            try:
-                return send(spare, hand_back=("provider_",), resend=retry_unknown or 1)
-            except Deferred as error:
-                if not str(error.reason).startswith("provider_"):
-                    raise
-        return send(spares[-1], resend=retry_unknown or 1)
+        try:
+            for spare in spares[:-1]:
+                try:
+                    return send(spare, hand_back=("provider_",), resend=retry_unknown or 1)
+                except Deferred as error:
+                    if not str(error.reason).startswith("provider_"):
+                        raise
+            return send(spares[-1], resend=retry_unknown or 1)
+        except Uncertain:
+            # 备用入口重发后仍不回（2026-10-02 第三轮：欧洲 183 秒、美国两次 60 秒都没回音，整张判结果不明）：退回全球入口
+            # 再试这一次（新的尝试号、用原上限、不再重发）——只多这一次付费调用，换一张发票不失败（压测窗口同意）。
+            return send(location, attempt=fallback, resend=0, timeout=request.timeout_s)
 
     def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1,
                          retry_unknown=False):

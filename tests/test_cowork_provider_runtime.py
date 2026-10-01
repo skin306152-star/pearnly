@@ -371,6 +371,38 @@ class ProviderRuntime(unittest.TestCase):
         self.assertNotEqual(posted[1]["model"], posted[2]["model"])   # 重发是新的检查点身份
         self.assertTrue(self.core.rejections[-1][1]["outcome_unknown"])
 
+    def test_when_the_spare_entries_stay_silent_the_global_entry_gets_one_more_try(self):
+        posted = []
+        original = self.core.post
+
+        def post(**values):
+            posted.append(values)
+            if len(posted) == 1:
+                raise Deferred("provider_429", 6)          # 全球入口被拒 → 转美国
+            if len(posted) in (2, 3):
+                raise Uncertain("read timed out")          # 美国入口这次、重发都没回音
+            return original(**values)
+        self.core.post = post
+        result = self.core.client().model_call(self.request)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        self.assertEqual(len(posted), 4)                    # 只多这一次：退回全球入口
+        self.assertIn("aiplatform.googleapis.com", posted[3]["url"])
+        identities = [json.loads(values["model"]) for values in posted]
+        self.assertEqual(identities[3][-1], self.request.attempt + 2)   # 新的尝试号，和全球入口本身、它的重发分开
+        self.assertEqual(len({values["model"] for values in posted}), 4)
+
+    def test_a_flash_lite_call_waits_40_seconds_first_then_resends_with_its_full_limit(self):
+        lite = replace(self.request, model="gemini-3.1-flash-lite", timeout_s=120)
+        self.core.plan = [Uncertain("read timed out"), Response(model_body())]
+        result = self.core.client(environment={"VERTEX_OVERFLOW": "off"}).model_call(lite)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        self.assertEqual([c["timeout_s"] for c in self.core.calls], [40, 120])
+        self.core.calls.clear()
+        self.core.plan = [Response(model_body())]
+        heavy = replace(self.request, model="gemini-3.8-flash", timeout_s=180, stage="L9")
+        self.core.client(environment={"VERTEX_OVERFLOW": "off"}).model_call(heavy)
+        self.assertEqual([c["timeout_s"] for c in self.core.calls], [180])   # 3.8-flash 照旧给足
+
     def test_own_capacity_off_switch_and_regional_models_stay_on_their_entry(self):
         for environment, model, error in (({}, "gemini-3.8-flash", Deferred("capacity", 3)),
                                           ({"VERTEX_OVERFLOW": "off"}, "gemini-3.8-flash", Deferred("provider_429", 6)),
