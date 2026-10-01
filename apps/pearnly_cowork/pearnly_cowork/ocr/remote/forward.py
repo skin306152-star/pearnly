@@ -17,7 +17,7 @@ import frappe
 import requests
 
 from pearnly_core import ocr
-from pearnly_core.execution import budget, pool, work
+from pearnly_core.execution import budget, pool, provider, work
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine import errors as engine_errors
 from pearnly_cowork.ocr.providers.client import ProviderError
@@ -149,7 +149,8 @@ def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sle
         except Exception as exc:  # 还没发出任何付费调用：稍后重试
             raise Deferred("remote_token_unavailable", 15) from exc
         try:
-            response = (post or requests.post)(config["url"] + path, json=body, timeout=(30, READ_IDLE_SECONDS),
+            # 与识别调用同一个共用 TLS 上下文（每次仍新建会话、用完关闭）：免得每份都把证书库重新解析一遍（生产约 0.17 CPU 秒 / 份）
+            response = (post or provider.http_post)(config["url"] + path, json=body, timeout=(30, READ_IDLE_SECONDS),
                                                 stream=True, headers={"Authorization": "Bearer " + token})
         except (requests.ConnectionError, requests.Timeout) as exc:
             # 没连上 / 发送中断：Cloud Run 可能已开始读。检查点在存储桶里，下次接着读；不在这里判结果。

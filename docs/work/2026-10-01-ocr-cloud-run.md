@@ -76,3 +76,8 @@ URL：`https://cowork-ocr-h6qxkkwz4a-as.a.run.app`。更新用 `scripts/cloud-ru
 - 用户同意（「可以加」）：全球 → 美国 → 欧洲；只有前两个都被谷歌拒绝才转欧洲，那一次贵 10%、数据在欧洲处理。
 - Cowork `client._vertex` / `policy.vertex_overflows`，共用层 `ocr._post_with_backoff` / `overflow_locations`；默认 `us,eu`。
 - 测试：共用层 6 条、Cowork 运行时 21 条、Cloud Run 对照 24 条（全球、美国 429 → 欧洲不等；三个都 429 → 欧洲原地短等）。
+
+## 第六批：转发复用 TLS（压测窗口实测提出）
+
+- `forward._call` 默认改用 `provider.http_post`（共用 TLS 上下文，每次仍新建会话、用完关闭），不再用 `requests.post` 每份重新解析证书库
+  （生产实测约 0.17 CPU 秒 / 份，占服务器侧约 5%）。发出的请求、证书 / 主机名校验与结果不变。测试：转发 12 条。

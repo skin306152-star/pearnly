@@ -63,12 +63,15 @@ def load():
     pool.release_db = lambda: pool.released.append(len(budget.permits))
     work = types.ModuleType("pearnly_core.execution.work")
     work.JOB_TIMEOUT = 600
+    provider = types.ModuleType("pearnly_core.execution.provider")
+    provider.posted = []
+    provider.http_post = lambda url, **kwargs: provider.posted.append(url) or provider.reply()
     ocr = types.ModuleType("pearnly_core.ocr")
     ocr.credentials_path = lambda: "/run/secrets/ocr.json"
     core = types.ModuleType("pearnly_core")
     core.ocr = ocr
     execution = types.ModuleType("pearnly_core.execution")
-    execution.budget, execution.work, execution.pool = budget, work, pool
+    execution.budget, execution.work, execution.pool, execution.provider = budget, work, pool, provider
     client = types.ModuleType("pearnly_cowork.ocr.providers.client")
 
     class ProviderError(Exception):
@@ -92,6 +95,7 @@ def load():
     modules = {"frappe": frappe, "pearnly_core": core, "pearnly_core.ocr": ocr, "pearnly_core.execution": execution,
                "pearnly_core.execution.errors": errors, "pearnly_core.execution.budget": budget,
                "pearnly_core.execution.work": work, "pearnly_core.execution.pool": pool,
+               "pearnly_core.execution.provider": provider,
                "pearnly_cowork.ocr.providers.client": client, "pearnly_cowork.ocr.engine": engine,
                "pearnly_cowork.ocr.engine.errors": errors_module}
     sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
@@ -101,6 +105,7 @@ def load():
         source = ROOT / "apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py"
         exec(compile(source.read_text(), str(source), "exec"), namespace)
     namespace["_pool"] = pool
+    namespace["_provider"] = provider
     namespace["_errors"] = errors_module
     return namespace, frappe, budget, contract, ProviderError
 
@@ -133,6 +138,17 @@ class Forward(unittest.TestCase):
 
         return self.ns["recognize"](DOC, FROZEN, None, b"%PDF-1.7 synthetic", "a.pdf", self.pages.append,
                                     post=post, id_token=token or (lambda audience: "ID_TOKEN"))
+
+    def test_the_default_transport_is_the_shared_tls_post(self):
+        # 不传 post 时走共用层的 http_post（共用 TLS 上下文），不是 requests.post
+        provider = self.ns["_provider"]
+        provider.reply = lambda: ndjson({"event": "result", "status": "done", "pipeline": {}, "evidence": {}})
+        try:
+            self.ns["recognize"](DOC, FROZEN, None, b"%PDF-1.7 synthetic", "a.pdf", self.pages.append,
+                                 id_token=lambda audience: "ID_TOKEN")
+        except Exception:
+            pass  # 只核对发到哪里；回复内容由其他用例覆盖
+        self.assertEqual(provider.posted, [ON["url"] + "/v1/cowork/invoice"])
 
     def test_switch_needs_explicit_https_run_app_url(self):
         settings = self.ns["settings"]

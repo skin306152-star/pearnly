@@ -59,6 +59,9 @@ def _http_post(url, **kwargs):
         return session.request("post", url, **kwargs)
 
 
+http_post = _http_post  # 其他 App 发 HTTPS 用这个公开名（Cowork 转发到 Cloud Run）
+
+
 def retry_delay(response):
     delay = 5 + random.uniform(0, 2)
     value = response.headers.get("Retry-After", "")
