@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """对账多页文档：「分页预热 → 整份读」（Cloud Workflows 的读法）与「一次读完」逐行对比。真实谷歌，**会付费**（每份文件读一遍）。
 
-只读站点配置（冻结的识别环境、Document AI 区域、识别服务账号），**不写站点、不建识别任务、不扣客户的费**；结果只打印到标准输出。
+只读站点配置文件（冻结的识别环境、Document AI 区域、识别服务账号密钥路径），**不连数据库、不写站点、不建识别任务、不扣客户的费**；
+结果只打印到标准输出（每份文件一行 JSON）。
 
 用法（压测窗口在生产机一次性容器里跑，挂分支代码，测试租户；语料留在原地，不复制）：
 
@@ -251,16 +252,13 @@ def main():
 
     import frappe
 
-    frappe.init(site=args.site)
-    frappe.connect()
-    try:
-        from pearnly_core.ocr_models.orient import orient
-        from pearnly_cowork.ocr.execution import settings as ocr_settings
-        frozen = ocr_settings.snapshot()
-        regions = frappe.conf.get("pearnly_document_ai_regions")
-        token = token_source(frozen["target"]["credentials_path"])
-    finally:
-        frappe.db.rollback()
+    frappe.init(site=args.site)  # 只读站点配置文件，不连数据库、不连 Redis
+    from pearnly_core.ocr_models.orient import orient
+    from pearnly_cowork.ocr.execution import settings as ocr_settings
+
+    frozen = ocr_settings.snapshot()
+    regions = frappe.conf.get("pearnly_document_ai_regions")
+    token = token_source(frozen["target"]["credentials_path"])
     reports = []
     for path in args.files:
         try:
