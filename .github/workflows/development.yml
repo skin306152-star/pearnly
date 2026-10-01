@@ -72,6 +72,8 @@ jobs:
         run: |
           node tests/test-roster-selection.cjs
           node tests/test-records-selection.cjs
+      - name: Verify Cowork original upload (direct to Cloud Storage or through the server)
+        run: node --test tests/test-upload-original.cjs
       - name: Verify Desk retry actions
         run: node scripts/production/test-issue-actions.cjs
       - name: Verify welcome email contracts
