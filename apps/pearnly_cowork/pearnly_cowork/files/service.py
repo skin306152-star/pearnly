@@ -8,6 +8,7 @@ import re
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, cloud, guard
@@ -353,11 +354,16 @@ def page_source(history_name, physical_page):
 PREVIEW_KINDS = ("pdf", "image")
 
 
+def previews_on():
+    """回退开关：站点配置 ``pearnly_cowork_stored_previews`` 写 0 就不再存、也不再用存好的图（照旧现画）；默认开。"""
+    return bool(cint((frappe.conf or {}).get("pearnly_cowork_stored_previews", 1)))
+
+
 def preview_spec(source):
     """交给 Cloud Run 识别时带上的预览规格；没配原件桶、不是 PDF / 图片返回 ``None``（不存，预览照旧现画）。"""
     from pearnly_cowork.ocr.remote import contract
 
-    if not cloud.bucket() or source.kind not in PREVIEW_KINDS:
+    if not previews_on() or not cloud.bucket() or source.kind not in PREVIEW_KINDS:
         return None
     return contract.previews(source=source.name, sha256=source.sha256, kind=source.kind)
 
@@ -384,6 +390,8 @@ def preview_link(source, number):
     调用方先做完 :func:`page_source` 的权限判定。"""
     from pearnly_cowork.ocr.remote import contract
 
+    if not previews_on():
+        return None
     try:
         record = json.loads(source.get("preview_objects") or "null")
         if (not isinstance(record, dict) or record.get("version") != contract.PREVIEW_VERSION

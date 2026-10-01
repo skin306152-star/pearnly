@@ -307,6 +307,20 @@ class StoredPreviews(unittest.TestCase):
                         frappe._dict(source, preview_objects=None)):
             self.assertIsNone(service.preview_link(changed, 3))
 
+    def test_the_rollback_switch_stops_storing_and_serving(self):
+        data = b"%PDF synthetic"
+        source = self.source(data)
+        with mock.patch.object(service.cloud, "bucket", return_value=BUCKET):
+            source.preview_objects = service.preview_record(source, self.stored(data))
+            with mock.patch.object(service.frappe, "conf", frappe._dict(pearnly_cowork_stored_previews=0)):
+                self.assertIsNone(service.preview_spec(source))
+                with mock.patch.object(service.cloud, "preview_url") as url:
+                    self.assertIsNone(service.preview_link(source, 1))
+                url.assert_not_called()
+            with mock.patch.object(service.frappe, "conf", frappe._dict()), \
+                    mock.patch.object(service.cloud, "preview_url", return_value="https://signed"):
+                self.assertEqual(service.preview_link(source, 1), "https://signed")
+
     def test_wrong_or_foreign_previews_are_not_recorded(self):
         data = b"%PDF synthetic"
         source = self.source(data)

@@ -181,6 +181,77 @@
 共用层的 Redis ETA 续跑（`dispatch.later`）与每分钟修复（`sweep`）对等回调的任务只作兜底；对账的 `waiting` / `slots` 每分钟唤醒照旧
 （它们管的是对账任务等识别，与识别如何派发无关）。ERP / DMS 的识别仍走共用层原路。
 
+## 上线手册（统一部署时由修复窗口执行，每一步先找用户确认；用户要求「不上半成品」：测试租户端到端全过才全开）
+
+前提：「要开通的外部配置」1–5 已做完（接口、队列、授权、Cloud Run 新镜像、Workflows），站点已迁移（`preview_objects` 字段）。
+以下 `bench` 命令在对应产品的 backend 容器里、`sites` 目录下执行；`<站点>` 换成实际站点名。
+
+### 打开
+
+- 预览预存：**不需要开关**，新 Cloud Run + 站点迁移后，配了原件桶（`pearnly_cowork_originals_bucket`）且开了 Cloud Run 识别的站点
+  自动生效（默认开）。
+- 任务派发 + Workflows（先只开测试租户）：
+  ```bash
+  bench --site <站点> set-config -p pearnly_cowork_ocr_tasks '{"enabled": 1, "project": "pearnly", "location": "asia-southeast1", "queue": "cowork-ocr", "bucket": "pearnly-ocr-checkpoints-sg", "workflow": "cowork-document"}'
+  ```
+  回读：`bench --site <站点> execute frappe.get_conf` 里能看到这一项；或 `bench --site <站点> console` 里
+  `from pearnly_cowork.ocr.remote import tasks; tasks.settings()` 不是 None。站点配置改了不用重启（每次请求 / 任务都重新读）。
+
+### 端到端验证（测试租户；全部通过才全开）
+
+1. **预览签名地址**：录入台直传一份多页 PDF、等识别完，打开原件预览。
+   - 浏览器开发者工具：`/api/method/pearnly_cowork.files.api.page?...` 回 **302**，`Location` 是
+     `https://storage.googleapis.com/pearnly-cowork-originals-sg/<站点>/previews/CWS-…/v1-…/p<页码>?…generation=…&X-Goog-Signature=…`，
+     跟随后 200、`image/png` 或 `image/jpeg`，页面上显示正常；翻每一页都一样。
+   - `Access Log`（Desk 列表）有这次的记录：`Cowork OCR History`、`page_png`。
+   - `bench console`：`frappe.db.get_value("Cowork Source File", "<原件名>", "preview_objects")` 有每页一项。
+   - Cloud Run 日志有 `previews_stored`，`pages` = `of` = 页数。
+   - 权限：用一个看不到这条记录的账号打开同一个页图地址 → 403，且没有新增访问日志、没有给出签名地址。
+   - 通过标准：上面全对；页图接口在压测下 p50 应接近普通查询（不再等 Cloud Run 现画）。
+2. **任务派发 → Cloud Run → 回调验签 → 入库**：开关打开后录入台再传一张发票。
+   - `Pearnly OCR Checkpoint`（按这份识别任务的 `work` 过滤）：先有 `cowork.remote:dispatch`（状态 `external`），
+     几秒到几十秒后多一行 `cowork.remote:reply:<派发号>`（状态 `reply`）。
+   - `Pearnly OCR Work`：`last_code` 经过 `remote_dispatched`，最后 `succeeded`；识别记录建好、扣费一次（计费记录按参考号只有一条）。
+   - Cloud Run 日志：`task_done status=done`、`task_callback status=200`；`gcloud tasks list --queue cowork-ocr --location asia-southeast1`
+     里这条任务已不在（成功即删除）。
+   - 验签反例：`curl -X POST https://<站点>/api/method/pearnly_cowork.ocr.remote.callback.receive -d '{}'` → 401；
+     带一个随便的 `X-Pearnly-Callback` 头 → 401。
+   - 通过标准：上面全对，识别结果与按行等回复时相同（同一张票关开关各传一次对比字段）。
+3. **12 页以上银行账单走 Workflows**：测试租户建一套对账，银行账单用 12 页以上的那份。
+   - `gcloud workflows executions list cowork-document --location asia-southeast1`：多一次执行，状态 `SUCCEEDED`。
+   - Cloud Run 日志：`warm stage=read` 1…⌈页数/2⌉ 和 `warm stage=extract` 1…页数（`done`），之后 `task_done`；
+     整份那一遍的 `provider_call` 次数 = 结果里再读的页数；全程没有 `progress_yield`。
+   - 对账结果与关开关时一致（同一套文件各跑一次，或以压测窗口的真实语料对比为准）。
+4. **重试不重复付费**：测试租户上让一次回调失败再重试——在 Cloud Run 读的过程中把测试站点设为维护
+   （`bench --site <站点> set-maintenance-mode on`，站点对回调回 503），等 Cloud Run 日志出现 `task_callback status=503`，
+   再关维护（`... set-maintenance-mode off`）。
+   - Cloud Tasks 按退避重试：Cloud Run 日志再出现 `task_callback status=200`，**这次之间没有任何新的 `provider_call`**；
+   - 识别完成、扣费一次（计费参考号只有一条）。
+   - 通过标准：重试那次没有付费调用，结果入库、只扣一次。
+
+### 全开与回读
+
+四项都通过后，对每个 Cowork 站点执行上面的 `set-config`，逐个回读 `tasks.settings()` 不是 None；之后压测按「半量的半量 → 全量」。
+
+### 回退（任一项不通过，或上线后出问题）
+
+```bash
+# 任务派发 / Workflows：回到按行等回复（进行中的照样能收尾：回调到了被拒，识别任务 5 分钟内按原路从云上检查点接着读，不重复付费）
+bench --site <站点> set-config -p pearnly_cowork_ocr_tasks '{"enabled": 0}'
+# 预览预存：不再存、不再用存好的图，回到现画
+bench --site <站点> set-config pearnly_cowork_stored_previews 0
+# 需要连 Cloud Run 一起退：切回上一个修订
+gcloud run services update-traffic cowork-ocr --project pearnly --region asia-southeast1 --to-revisions <上一个修订>=100
+# 队列可暂停（不收费，留着也不收费）
+gcloud tasks queues pause cowork-ocr --project pearnly --location asia-southeast1
+```
+
+### 回调能否从谷歌访问到（按仓库配置核对）
+
+租户域名直接解析到生产机（压测窗口查过，不经 Cloudflare）；主机 nginx 租户配置（`provision-agent.py::nginx`）对 `location /` 全部
+原样转给前端 nginx，没有按路径 / 来源拦截；前端 nginx（`frappe.conf.template`）同样把 `/api/method/…` 交给网页进程；防火墙放行 443。
+回调体很小（几百字节），远低于 30 MB 上限。生产实际情况以上面第 2 步真实回调一次为准。
+
 ## 验证与合入状态（2026-10-01）
 
 - 分支已按用户「统一合入、统一部署」的安排变基到修复窗口的 `codex/billing-throughput`（8a90f849，基于 main 2821e5c1），无冲突；
