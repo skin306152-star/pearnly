@@ -307,7 +307,9 @@ class DocumentManifestTests(unittest.TestCase):
             anchor_year=lambda: 2026, _create=create,
             read=lambda name, **kw: Row(name=name, source_file=self.source.name), project=dict)
         env = dict(frappe=self.frappe, scope=self.scope, access=self.access, guard=self.guard,
-            files=SimpleNamespace(read_bytes=self.service["read_bytes"]), storage=storage,
+            # 原件在服务器上：登记前的核对照旧读一遍原件（``files.verify_stored`` → ``read_bytes``）。
+            files=SimpleNamespace(read_bytes=self.service["read_bytes"], verify_stored=self.service["read_bytes"]),
+            storage=storage,
             hashlib=hashlib, initial_history=object(), _=lambda text: text)
         load_functions("history/recognition.py", ["persist_batch"], env)
         return env, storage
