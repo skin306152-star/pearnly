@@ -255,6 +255,17 @@ class ProviderRuntime(unittest.TestCase):
             self.vision(self.core.client(sleep=pauses.append))
         self.assertEqual(caught.exception.reason, "provider_5xx")
 
+    def test_vision_unavailable_inside_a_200_reply_is_retried_in_place_too(self):
+        pauses = []
+        unavailable = {"responses": [{"error": {"code": 14, "message": "The service is currently unavailable."}}]}
+        self.core.plan = [Response(unavailable), Response(unavailable), Response(self.vision_body())]
+        self.assertEqual(self.vision(self.core.client(sleep=pauses.append)).page.full_text, "IV-1")
+        self.assertEqual(pauses, [2, 2])
+        self.core.plan = [Response(unavailable)] * 3
+        with self.assertRaises(Deferred) as caught:
+            self.vision(self.core.client(sleep=pauses.append))
+        self.assertEqual(caught.exception.reason, "vision_14")
+
     def test_a_slow_vision_call_is_given_up_after_15_seconds_and_resent_with_the_full_limit(self):
         client = self.core.client(environment={"OCR_L1_TIMEOUT_SECONDS": "60"})
         self.core.plan = [Uncertain("read timeout"), Response(self.vision_body())]

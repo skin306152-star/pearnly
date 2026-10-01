@@ -382,15 +382,19 @@ class ProviderClient:
         # 被放弃的那次谷歌可能照样收费（约 0.05 泰铢），只在出现长尾时发生。谷歌临时 5xx 原地隔 2 秒再试（失败不计费）。
         for retry in range(VISION_5XX_RETRIES + 1):
             try:
-                body, elapsed, key, bucket = self._send(url="https://vision.googleapis.com/v1/images:annotate",
-                    payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location="global", stage=stage,
-                    page_number=page_number, attempt=0, timeout_s=min(timeout, VISION_FIRST_TIMEOUT),
-                    retry_unknown=1, resend_timeout_s=timeout)
-                break
+                return self._vision_once(payload, stage, page_number, timeout)
             except Deferred as error:
-                if error.reason != "provider_5xx" or retry == VISION_5XX_RETRIES:
+                # 谷歌临时故障（5xx、回复里带 8 / 14「资源用完 / 服务暂不可用」）：原地隔 2 秒再试两次，再不行交回稍后续跑
+                # （2026-10-01 夜 Vision 整体回 14 时，原来每十几秒整份重派一次）。失败的请求不计费。
+                if error.reason not in ("provider_5xx", "vision_8", "vision_14") or retry == VISION_5XX_RETRIES:
                     raise
                 self._sleep(VISION_5XX_PAUSE)
+
+    def _vision_once(self, payload, stage, page_number, timeout):
+        body, elapsed, key, bucket = self._send(url="https://vision.googleapis.com/v1/images:annotate",
+            payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location="global", stage=stage,
+            page_number=page_number, attempt=0, timeout_s=min(timeout, VISION_FIRST_TIMEOUT),
+            retry_unknown=1, resend_timeout_s=timeout)
         responses = body.get("responses")
         if not isinstance(responses, list) or len(responses) != 1 or not isinstance(responses[0], dict):
             raise ProviderError("ocr.provider_invalid_response")

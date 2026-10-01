@@ -321,6 +321,21 @@ class Collect(Base):
                 self.assertRaises(Deferred):
             tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=self.google, now=lambda: 1010.0)
 
+    def test_repeated_deferred_results_back_off(self):
+        delays = []
+        for round_ in range(1, 6):
+            self.reply({"event": "result", "status": "deferred", "reason": "vision_14", "delay": 5})
+            with mock.patch.object(tasks, "_cool_down"), mock.patch.object(tasks, "progress_applied", return_value=0):
+                final = tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google,
+                                   now=lambda: 1010.0)
+            delays.append(final["delay"])
+            self.assertEqual(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["rounds"], round_)
+            with self.assertRaises(Deferred):        # 下次进来重新派发，带着已暂缓的次数
+                tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=self.google, now=lambda: 2000.0)
+            self.dispatch = self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["id"]
+            self.assertEqual(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["rounds"], round_)
+        self.assertEqual(delays, [15, 30, 60, 120, 240])
+
     def test_a_throttled_result_cools_the_shared_budget_down(self):
         self.reply({"event": "result", "status": "deferred", "reason": "provider_429", "delay": 20})
         with mock.patch.object(tasks, "_cool_down") as cool, mock.patch.object(tasks, "progress_applied", return_value=0):

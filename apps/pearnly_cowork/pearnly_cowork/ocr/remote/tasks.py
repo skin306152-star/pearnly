@@ -144,10 +144,13 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
                 if event["seq"] >= applied:
                     on_event({key: value for key, value in event.items() if key != "seq"})
             if final["status"] == "deferred":
-                # 这次没读完（限流超过原地等的上限）：下次进来重新派发；谷歌限流交回的，反馈进与按行等回复同一个冷却
-                # （零星的不算：10 秒内 3 次才整体放慢），冷却期间新的派发先暂缓（``_reserve``）
-                _spend(marker)
-                if bucket and str(final.get("reason") or "").startswith("provider_"):
+                # 这次没读完（谷歌限流 / 临时故障超过原地重试的上限）：下次进来重新派发；连着暂缓就拉长间隔
+                # （15、30、60…最长 300 秒），谷歌整体故障时不每十几秒整份重派一次（2026-10-01 夜 Vision 整体回 14）。
+                # 谷歌限流交回的，反馈进与按行等回复同一个冷却（10 秒内 3 次才整体放慢），冷却期间新的派发先暂缓。
+                rounds = int(marker["body"].get("rounds") or 0) + 1
+                _spend(marker, rounds=rounds)
+                final = dict(final, delay=max(float(final.get("delay") or 5), min(WAIT_SECONDS, 15 * 2 ** (rounds - 1))))
+                if bucket and str(final.get("reason") or "").startswith(("provider_", "vision_")):
                     _cool_down(bucket, final.get("delay"))
             else:
                 _release(work)
@@ -174,13 +177,18 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         raise Deferred("tasks_unavailable", 15) from exc
     _dispatched_ok()
     # 先建任务、后记派发号：回调比这一步还快时，回调照样把结果记在这个派发号下、唤醒本任务（``work.wake`` 记得住正在跑的）。
-    # 状态 ``external``：共用层据此知道这份可能已在云上付费，排队时限按付过费的算（``work.run``）。
-    core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, {"id": dispatch, "at": now()})
+    # 状态 ``external``：共用层据此知道这份可能已在云上付费，排队时限按付过费的算（``work.run``）。``rounds``：前面连着
+    # 暂缓了几次（退避用，读完就不再带）。
+    rounds = int(marker["body"].get("rounds") or 0) if marker and marker["body"].get("spent") else 0
+    core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, {"id": dispatch, "at": now(), "rounds": rounds})
     raise Deferred("remote_dispatched", WAIT_SECONDS)
 
 
-def _spend(marker):
-    core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, {**marker["body"], "spent": True})
+def _spend(marker, rounds=None):
+    body = {**marker["body"], "spent": True}
+    if rounds is not None:
+        body["rounds"] = rounds
+    core_work.checkpoint(DISPATCH_KEY, core_work.EXTERNAL, body)
 
 
 FAILURES = "cowork:tasks:dispatch-failures"
