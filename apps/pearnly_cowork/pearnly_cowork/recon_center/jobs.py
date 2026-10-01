@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.recon_center import progress, rerun
+from pearnly_cowork.recon_center import progress, rerun, slots
 from pearnly_cowork.reconciliation import bank_recon_access, bank_recon_service, income_recon_access
 from pearnly_cowork.reconciliation import income_recon_service, vat_check_access
 
@@ -311,7 +311,30 @@ def _read(names):
     return [storage.read(name) for name in names]
 
 
+def requeue(recon_job, arguments):
+    """排队的对账被放进来（``slots.promote``）：同一个任务号原参数重新排后台任务（上一次只是排进队就结束了）。"""
+    from frappe.utils.background_jobs import get_job
+
+    previous = get_job(f"cowork-recon-{recon_job}")
+    if previous:
+        previous.delete()
+    frappe.enqueue("pearnly_cowork.recon_center.jobs.run", queue="long",
+                   timeout=TIMEOUTS.get(arguments.get("kind"), 1800), job_id=f"cowork-recon-{recon_job}",
+                   enqueue_after_commit=False, **arguments)
+
+
 def run(recon_job, kind, workspace, title, files, options="{}"):
+    # 按租户限流（``slots``）：本站点在跑的对账满了就排进队、这次不占进程，前面的一结束就放进来（页面照旧显示排队中）。
+    if not slots.acquire(recon_job, {"recon_job": recon_job, "kind": kind, "workspace": workspace, "title": title,
+                                     "files": files, "options": options}):
+        return
+    try:
+        _run(recon_job, kind, workspace, title, files, options)
+    finally:
+        slots.release(recon_job)
+
+
+def _run(recon_job, kind, workspace, title, files, options="{}"):
     options = json.loads(options or "{}")
     # 后台任务按提交时选的语言写错误与提示（默认是站点语言：2026-09-29 压测 lang=zh 提交，失败提示是英文 /
     # 泰文）。

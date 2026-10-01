@@ -484,6 +484,8 @@ pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep",
                                              "pearnly_cowork.work.reminders.run",
                                              # 部署 / 重启时被杀的对账续跑（recon_center/jobs.py）
-                                             "pearnly_cowork.recon_center.jobs.resume_abandoned"]},
+                                             "pearnly_cowork.recon_center.jobs.resume_abandoned",
+                                             # 对账按租户限流：清掉不在跑却占着名额的，补位（recon_center/slots.py）
+                                             "pearnly_cowork.recon_center.slots.tick"]},
                     # 对账预设问题留着的原文件：过期没人答的删掉（recon_center/rerun.py）。
                     "daily": ["pearnly_cowork.recon_center.rerun.expire"]}
