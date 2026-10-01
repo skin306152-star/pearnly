@@ -12,6 +12,7 @@ import io
 import json
 import threading
 import unittest
+from unittest.mock import patch
 
 import requests
 from PIL import Image
@@ -309,14 +310,22 @@ class PaidCallGuard(unittest.TestCase):
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
 
-    def test_google_rate_limit_on_both_entries_is_handed_back_not_waited(self):
-        bucket, google = Bucket(), Google(["429", "429"])
-        final = remote(bucket, google)[-1]
+    def test_both_entries_rate_limited_wait_in_place_like_the_server(self):
+        # 与本机 provider.post 同一规则：全球入口被拒立刻转美国入口（不等），美国入口被拒才原地短等再发
+        google = Google(["429", "429"])
+        with patch.object(runner.time, "sleep") as sleep:
+            final = remote(Bucket(), google)[-1]
+        self.assertEqual(final["status"], "done", final)
+        self.assertEqual(sleep.call_count, 1)
+        self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[2])
+
+    def test_a_long_rate_limit_is_handed_back_after_the_wait_budget(self):
+        bucket, google = Bucket(), Google(["429"] * 40)
+        with patch.object(runner.time, "sleep") as sleep:
+            final = remote(bucket, google)[-1]
         self.assertEqual(final["status"], "deferred")
         self.assertTrue(final["reason"].startswith("provider_"))
-        self.assertEqual(len(google.sent), 2)
-        retry = remote(bucket, google)[-1]
-        self.assertEqual(retry["status"], "done")
+        self.assertLessEqual(sum(call.args[0] for call in sleep.call_args_list), runner.WAIT_PER_CALL)
 
     def test_a_dropped_connection_is_uncertain_and_never_replayed(self):
         bucket, google = Bucket(), Google(["drop"])

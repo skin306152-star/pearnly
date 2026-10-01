@@ -9,7 +9,9 @@
 
 开关：站点配置 ``pearnly_cowork_ocr_remote`` = {"enabled": 1, "url": "https://…run.app"}；不开或关掉就照旧在本机识别。
 """
+from contextlib import ExitStack
 import threading
+import time
 
 import frappe
 import requests
@@ -25,6 +27,11 @@ CONFIG = "pearnly_cowork_ocr_remote"
 PATHS = {"invoice": "/v1/cowork/invoice", "document": "/v1/cowork/document"}
 # 一份最多跑 420 秒就让出（contract.YIELD_SECONDS）；单次调用最长 180 秒；Cloud Run 每 20 秒发一行 tick。
 READ_IDLE_SECONDS = 240
+# 拿不到名额时原地等：与 pearnly_core.execution.provider.post 在识别任务里同一规则（每步最多 20 秒、累计最多 60 秒），
+# 超过才整份让出（原来一拿不到就让出，几百份同时来时被重排到队尾、每份多等几十秒，2026-10-01 压测）。
+WAIT_STEP_LIMIT = 20
+WAIT_TOTAL = 60
+LABEL = "cloudrun"
 _tokens, _lock = {}, threading.Lock()
 
 
@@ -112,10 +119,29 @@ def _config():
     return config
 
 
-def _call(config, path, body, on_event, frozen, *, post=None, id_token=None):
+def _permit(stack, bucket, config, sleep=None):
+    """拿一个名额（租户 / 全站公平轮转）；拿不到按本机规则原地短等，等的时候不占数据库连接。"""
+    waited = 0.0
+    while True:
+        try:
+            stack.enter_context(budget.permit(bucket, work.JOB_TIMEOUT, **({"rpm": config["rpm"]} if config["rpm"] else {})))
+            return
+        except Deferred as exc:
+            delay = float(exc.delay or 1)
+            budget.note("deferred:" + str(exc.reason), LABEL)
+            if delay > WAIT_STEP_LIMIT or waited + delay > WAIT_TOTAL:
+                raise
+            pool.release_db()
+            (sleep or time.sleep)(delay)
+            waited += delay
+            budget.note("waited_seconds", LABEL, delay)
+
+
+def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sleep=None):
     """拿名额 → 放开数据库连接 → 发出并按行读回复 → 结果行；非「读完」照本机方式抛出。"""
     bucket = budget.scope("cloudrun", frozen["environment"].get("GCP_PROJECT", ""), "cowork", path.rsplit("/", 1)[-1])
-    with budget.permit(bucket, work.JOB_TIMEOUT, **({"rpm": config["rpm"]} if config["rpm"] else {})):
+    with ExitStack() as stack:
+        _permit(stack, bucket, config, sleep)
         # 等 Cloud Run 回复的十几秒里不占数据库连接（几十份同时在等时连接数不涨）；回来后第一条查询自动重连。
         pool.release_db()
         try:
@@ -149,8 +175,10 @@ def _call(config, path, body, on_event, frozen, *, post=None, id_token=None):
             response.close()
     if final is None:
         # 连接正常结束却没有结果行：Cloud Run 实例中途没了。检查点会判断哪些调用已付费 / 结果不明。
+        budget.note("remote:interrupted", LABEL)
         raise Deferred("remote_interrupted", 15)
     status = final["status"]
+    budget.note("remote:" + status + (":" + str(final.get("reason") or "") if status == "deferred" else ""), LABEL)
     if status == "done":
         return final
     if status == "deferred":

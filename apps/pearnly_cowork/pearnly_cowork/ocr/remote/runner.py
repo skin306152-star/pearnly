@@ -31,6 +31,10 @@ from pearnly_cowork.ocr.remote import contract
 from pearnly_cowork.ocr import recon_reading
 
 UPLOAD_STEP_SECONDS = 30  # 与 pearnly_core.execution.provider 同一口径
+# 被谷歌限流时原地等：与 pearnly_core.execution.provider.post 在识别任务里同一规则（每步最多 20 秒、每次调用累计最多 60 秒；
+# 调用方要求交回的（Gemini 全球入口被拒 → 转美国入口）不等）。超过就把暂缓交回服务器，整份稍后续跑。
+WAIT_STEP_LIMIT = 20
+WAIT_PER_CALL = 60
 LEASE_SECONDS = contract.YIELD_SECONDS + 240
 TICK_SECONDS = 20
 TERMINAL = "cowork.terminal:"
@@ -115,10 +119,11 @@ class Store:
 class Provider:
     """``ProviderClient`` 的 post：与 ``pearnly_core.execution.provider._post`` 同一套检查点与超时规则，去掉额度 Redis。"""
 
-    def __init__(self, store, http=None):
+    def __init__(self, store, http=None, sleep=None):
         self._store = store
         self._local = threading.local()
         self._http = http
+        self._sleep = sleep
 
     def _session(self):
         if self._http is not None:
@@ -129,6 +134,20 @@ class Provider:
 
     def post(self, url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True, label=None,
              hand_back=(), shared_quota=False):
+        waited = 0.0
+        while True:
+            try:
+                return self._post(url, headers, payload, timeout_s, model)
+            except Deferred as exc:
+                delay = float(exc.delay or 1)
+                if (not wait or delay > WAIT_STEP_LIMIT or waited + delay > WAIT_PER_CALL
+                        or str(exc.reason).startswith(tuple(hand_back))):
+                    raise
+                log(event="provider_wait", reason=str(exc.reason), seconds=delay)
+                (self._sleep or time.sleep)(delay)
+                waited += delay
+
+    def _post(self, url, headers, payload, timeout_s, model):
         key = checkpoint_key(payload, model)
         saved = self._store.get(key)
         if saved and saved["state"] == "done":

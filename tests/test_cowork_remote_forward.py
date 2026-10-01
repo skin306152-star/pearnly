@@ -47,7 +47,17 @@ def load():
         yield
         budget.permits.append((bucket, rpm, "out"))
 
-    budget.permit, budget.scope = permit, lambda *a: "bucket:" + ":".join(a)
+    budget.refusals, budget.notes = [], []
+
+    @contextmanager
+    def gated(bucket, timeout, rpm=None):
+        if budget.refusals:
+            raise Deferred("capacity", budget.refusals.pop(0))
+        with permit(bucket, timeout, rpm):
+            yield
+
+    budget.permit, budget.scope = gated, lambda *a: "bucket:" + ":".join(a)
+    budget.note = lambda event, label, amount=1: budget.notes.append((event, label))
     pool = types.ModuleType("pearnly_core.execution.pool")
     pool.released = []
     pool.release_db = lambda: pool.released.append(len(budget.permits))
@@ -205,6 +215,22 @@ class Forward(unittest.TestCase):
         with self.assertRaises(Deferred) as cut:
             self.call({"event": "page", "page": 1})  # 实例中途没了：没有结果行
         self.assertEqual(cut.exception.reason, "remote_interrupted")
+
+    def test_no_slot_waits_in_place_without_holding_the_database(self):
+        self.budget.refusals[:] = [3, 4]
+        with patch.object(self.ns["time"], "sleep") as sleep:
+            self.call({"event": "result", "status": "done", "pipeline": "{}", "evidence": []})
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [3.0, 4.0])
+        self.assertEqual(self.ns["_pool"].released[:2], [0, 0])  # 每次等之前都放开连接
+        self.assertIn(("deferred:capacity", "cloudrun"), self.budget.notes)
+        self.assertIn(("remote:done", "cloudrun"), self.budget.notes)
+
+    def test_a_long_wait_for_a_slot_still_yields(self):
+        self.budget.refusals[:] = [30]
+        with patch.object(self.ns["time"], "sleep") as sleep, self.assertRaises(Deferred):
+            self.call({"event": "result", "status": "done", "pipeline": "{}", "evidence": []})
+        sleep.assert_not_called()
+        self.assertEqual(self.sent, [])
 
     def test_token_failure_defers_before_any_paid_call(self):
         def broken(audience):
