@@ -672,8 +672,15 @@ class PaidCallGuard(unittest.TestCase):
         self.assertTrue(final["reason"].startswith("provider_"))
         self.assertLessEqual(sum(call.args[0] for call in sleep.call_args_list), runner.WAIT_PER_CALL)
 
-    def test_a_dropped_connection_is_uncertain_and_never_replayed(self):
+    def test_a_dropped_connection_is_resent_once_and_never_replayed(self):
+        # 2026-10-01 用户：传输错误也要重试——结果不明重发一次（新的检查点），续跑时直接取回，不再付费。
         bucket, google = Bucket(), Google(["drop"])
+        self.assertEqual(remote(bucket, google)[-1]["status"], "done")
+        paid = len(google.sent)
+        self.assertEqual(remote(bucket, google)[-1]["status"], "done")
+        self.assertEqual(len(google.sent), paid)
+        # 重发那次又断：判结果不明，之后也不再重放付费调用
+        bucket, google = Bucket(), Google(["drop", "drop"])
         self.assertEqual(remote(bucket, google)[-1]["status"], "uncertain")
         paid = len(google.sent)
         self.assertEqual(remote(bucket, google)[-1]["status"], "uncertain")

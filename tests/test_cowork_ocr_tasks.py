@@ -382,6 +382,24 @@ class Receive(Base):
         self.wake.assert_not_called()
 
 
+class RefusalCode(unittest.TestCase):
+    def test_a_provider_refusal_fails_the_batch_with_its_code_not_as_a_program_error(self):
+        from contextlib import nullcontext
+        from pearnly_cowork.ocr.execution import workflow
+        from pearnly_cowork.ocr.providers.client import ProviderError
+
+        doc = frappe._dict(name="B1", phase="queued", result_json=None, settings_json="{}", examples_json="null",
+                           actor="a@acme.test")
+        with mock.patch.object(workflow.store, "read", return_value=doc), \
+                mock.patch.object(workflow, "_require_work"), mock.patch.object(workflow, "_check"), \
+                mock.patch.object(workflow.store, "actor", side_effect=lambda user: nullcontext()), \
+                mock.patch.object(workflow.store, "save"), \
+                mock.patch.object(workflow.frappe, "db", types.SimpleNamespace(commit=lambda: None, rollback=lambda: None)), \
+                mock.patch.object(workflow, "_recognize",
+                                  side_effect=ProviderError("ocr.invalid_vision_image", http_status=400)):
+            self.assertEqual(workflow.run("B1"), {"failed": "ocr.invalid_vision_image"})
+
+
 class Board(unittest.TestCase):
     def test_document_progress_drives_the_board_like_streaming(self):
         from pearnly_cowork.recon_center import document_ocr

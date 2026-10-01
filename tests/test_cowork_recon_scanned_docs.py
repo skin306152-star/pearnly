@@ -286,7 +286,8 @@ class EnterprisePipeline(unittest.TestCase):
 		# 每个区域各试一次（服务端临时故障也换区域，用户 2026-09-30 区域切换），都不行才交给识别任务稍后续跑
 		from pearnly_cowork.ocr.enterprise import pages
 		self.assertEqual(rejected, [{"http": 504, "deferred": True}] * len(pages.REGIONS))
-		with self.assertRaises(ProviderError):  # the invoice path keeps a 5xx as a completed refusal
+		# 录入发票同样稍后重试（2026-10-01 用户：5xx 都要重试；原来当终局拒绝，一次 Vision 502 让单页发票判失败）
+		with self.assertRaises(Deferred):
 			client.document_ai_call(b"img", "image/jpeg", expected_pages=1)
 
 	def test_a_local_reconstruction_that_raises_goes_on_to_the_extraction(self):

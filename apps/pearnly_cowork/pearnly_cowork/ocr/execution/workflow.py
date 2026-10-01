@@ -25,6 +25,7 @@ from pearnly_cowork.ocr.execution import access, service, settings, store
 from pearnly_cowork.ocr.feedback import service as feedback
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
 from pearnly_cowork.ocr.policy import invoice_policy
+from pearnly_cowork.ocr.providers.client import ProviderError
 from pearnly_cowork.ocr.providers.core import build_client
 from pearnly_cowork.ocr.remote import contract, forward
 from pearnly_cowork.ocr.results import prepare_history_batch
@@ -253,7 +254,13 @@ def run(batch_name):
                 doc.phase = "recognizing"
                 store.save(doc)
                 frappe.db.commit()
-                doc = _recognize(doc, frozen, examples, source)
+                try:
+                    doc = _recognize(doc, frozen, examples, source)
+                except ProviderError as error:
+                    # 谷歌明确拒绝（不是临时故障：那些已在调用层稍后重试）：按拒绝的原因记失败，不当成程序错误
+                    # （原来落成 workflow_error 并写错误日志，2026-10-01 测试租户）。不扣费；LINE 照常收到失败通知。
+                    frappe.db.rollback()
+                    return {"failed": error.code or "ocr.provider_http_error"}
             try:
                 doc = _persist(doc)
             except frappe.QueryDeadlockError as exc:

@@ -88,6 +88,10 @@ def vision_page(annotation, page_number):
         avg_confidence=sum(confidences) / len(confidences) if confidences else 0.0)
 
 
+VISION_FIRST_TIMEOUT = 15
+VISION_5XX_RETRIES, VISION_5XX_PAUSE = 2, 2
+
+
 class ProviderClient:
     """Explicit frozen target plus injectable capabilities, all required.
 
@@ -128,9 +132,10 @@ class ProviderClient:
         raise ProviderError(**refusal)
 
     def _send(self, *, url, payload, model, provider, location, stage, page_number, attempt, timeout_s,
-              retry_unknown=False, defer_5xx=None, rpm=None, wait=True, hand_back=()):
-        # 对账读取（retry_unknown）另把 500 / 502 / 504 当临时故障稍后重试；录入发票照旧当终局拒绝。
-        defer_5xx = bool(retry_unknown) if defer_5xx is None else defer_5xx
+              retry_unknown=False, defer_5xx=True, rpm=None, wait=True, hand_back=(), resend_timeout_s=None):
+        # 500 / 502 / 504 是谷歌服务端临时故障，一律稍后重试（失败的请求不计费）。原来只有对账读取这样，录入发票当终局拒绝：
+        # 2026-10-01 测试租户一次 Vision 502 让单页发票直接判失败（用户：5xx、传输错误都要重试，一次改到位）。
+        # ``resend_timeout_s``：结果不明重发那一次的等待上限（第一次短、重发用原上限，见 ``vision_call``）。
         # 结果不明时还能重发几次：读字最多 2 次（每页约 0.05 泰铢，90 秒 × 3 仍在识别任务时限内；2026-09-29 压测
         # B01 一张照片连续两次不明、整张丢失），抽取 1 次（每页约 0.5 泰铢、单次可长达 180 秒）。
         resends = ((2 if provider == "documentai" else 1) if retry_unknown is True else int(retry_unknown or 0))
@@ -147,7 +152,7 @@ class ProviderClient:
             if saved.get("state") == "rejected" and (saved.get("body") or {}).get("outcome_unknown"):
                 # 续跑：这次上回结果不明、已经重发过 —— 直接取重发那次（完成的从检查点取回，不再付费）。
                 return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
-                    stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
+                    stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=resend_timeout_s or timeout_s,
                     retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait, hand_back=hand_back)
         terminal = self._terminal_read(key)
         if terminal is not None:
@@ -185,7 +190,7 @@ class ProviderClient:
             # 「deferred」让它不被当成对方明确拒绝的终局结果（Cowork 的 terminal_read 只把非暂缓的拒绝当终局）。
             self._reject(key, {"outcome_unknown": True, "retried": True, "deferred": True})
             return self._send(url=url, payload=payload, model=model, provider=provider, location=location,
-                stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=timeout_s,
+                stage=stage, page_number=page_number, attempt=attempt + 1, timeout_s=resend_timeout_s or timeout_s,
                 retry_unknown=resends - 1, defer_5xx=defer_5xx, rpm=rpm, wait=wait, hand_back=hand_back)
         elapsed = max(0, int((self._clock() - started) * 1000))
         status = response.status_code
@@ -198,9 +203,11 @@ class ProviderClient:
             except (ValueError, TypeError, AttributeError):
                 reason = ""
             # 500 / 502 / 504 是服务端临时故障（2026-09-29 压测：Document AI 读一张照片 90 秒没回，重发又回 5xx，
-            # 被当成终局失败、整张照片读空）：对账读取与 429 / 503 一样稍后重试。失败的请求不计费。
-            if (status in (429, 503) or (defer_5xx and status in (500, 502, 504))
-                    or "RESOURCE_EXHAUSTED" in reason.upper() or "quota" in reason.lower()):
+            # 被当成终局失败、整张照片读空）：与 429 / 503 一样稍后重试。失败的请求不计费。
+            if defer_5xx and status in (500, 502, 504):
+                self._reject(key, {"http": status, "deferred": True})
+                raise Deferred("provider_5xx", 5)  # 不放慢别的请求（不是额度问题）；``provider_`` 开头：Gemini 换入口、读字换区域
+            if (status in (429, 503) or "RESOURCE_EXHAUSTED" in reason.upper() or "quota" in reason.lower()):
                 self._reject(key, {"http": status, "deferred": True})
                 self._feedback(bucket, 503 if status == 503 else 429, 5, *((True,) if provider == "vertex" else ()))
                 raise Deferred("provider_quota", 5)
@@ -213,7 +220,9 @@ class ProviderClient:
             self._refuse(key, response, "ocr.provider_invalid_response")
         return deepcopy(body), elapsed, key, bucket
 
-    def model_call(self, request: ModelRequest, *, retry_unknown=False):
+    def model_call(self, request: ModelRequest, *, retry_unknown=1):
+        """``retry_unknown``：结果不明（读超时、连接断）时重发几次，默认 1（录入发票原来不重发、整份判结果不明；
+        2026-10-01 用户：传输错误也要重试）。重发是新的检查点，续跑时直接取重发那次，不重复付费。"""
         if not isinstance(request, ModelRequest):
             raise ProviderConfigurationError("ocr.invalid_model_request")
         model = _identity(request.model, "ocr.invalid_model")
@@ -368,9 +377,20 @@ class ProviderClient:
         payload = {"requests": [{"image": {"content": base64.b64encode(content).decode("ascii")},
             "features": [{"type": "DOCUMENT_TEXT_DETECTION"}], "imageContext": {"languageHints": ["th", "en"]}}]}
         timeout = int(self.environment.get("OCR_L1_TIMEOUT_SECONDS") or "60")
-        body, elapsed, key, bucket = self._send(url="https://vision.googleapis.com/v1/images:annotate",
-            payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location="global", stage=stage,
-            page_number=page_number, attempt=0, timeout_s=timeout)
+        # Vision 正常不到 1 秒：第一次最多等 VISION_FIRST_TIMEOUT 秒，没回就按「结果不明重发」再发一次（内容逐字相同、
+        # 新的检查点），重发那次用原上限，不误判真的慢的回复。2026-10-01 测试租户：一次 Vision 等了 38 秒、一次 42 秒后 502。
+        # 被放弃的那次谷歌可能照样收费（约 0.05 泰铢），只在出现长尾时发生。谷歌临时 5xx 原地隔 2 秒再试（失败不计费）。
+        for retry in range(VISION_5XX_RETRIES + 1):
+            try:
+                body, elapsed, key, bucket = self._send(url="https://vision.googleapis.com/v1/images:annotate",
+                    payload=payload, model="DOCUMENT_TEXT_DETECTION", provider="vision", location="global", stage=stage,
+                    page_number=page_number, attempt=0, timeout_s=min(timeout, VISION_FIRST_TIMEOUT),
+                    retry_unknown=1, resend_timeout_s=timeout)
+                break
+            except Deferred as error:
+                if error.reason != "provider_5xx" or retry == VISION_5XX_RETRIES:
+                    raise
+                self._sleep(VISION_5XX_PAUSE)
         responses = body.get("responses")
         if not isinstance(responses, list) or len(responses) != 1 or not isinstance(responses[0], dict):
             raise ProviderError("ocr.provider_invalid_response")

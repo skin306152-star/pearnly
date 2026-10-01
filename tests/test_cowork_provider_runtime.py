@@ -41,9 +41,19 @@ class FakeCore:
         self.calls, self.sent, self.saved, self.rejections, self.feedback = [], [], {}, [], []
         self.terminals = {}
         self.error = None
+        self.plan = []
 
     def post(self, **values):
         self.calls.append(values)
+        if self.plan:  # 按顺序给出的回复 / 异常（合成的 502、超时、慢响应）
+            step = self.plan.pop(0)
+            if isinstance(step, Exception):
+                raise step
+            identity = key(values["payload"], values["model"])
+            self.sent.append(values)
+            if step.status_code == 200 and isinstance(step.body, dict):
+                self.saved[identity] = deepcopy(step.body)
+            return step
         if self.error:
             raise self.error
         identity = key(values["payload"], values["model"])
@@ -136,13 +146,19 @@ class ProviderRuntime(unittest.TestCase):
             self.assertEqual(result.raw, body)
             self.assertEqual(len(self.core.sent), before + 1)
 
-    def test_core_deferred_and_uncertain_are_same_exception_without_retry(self):
-        for error in (Deferred("capacity", 13), Uncertain("transport result unknown")):
+    def test_core_deferred_passes_through_and_an_unknown_outcome_is_resent_once(self):
+        # 2026-10-01 用户：传输错误也要重试——录入发票的模型调用结果不明时重发一次（新的检查点），再不明才交出去。
+        for error, calls in ((Deferred("capacity", 13), 1), (Uncertain("transport result unknown"), 2)):
+            self.core.calls.clear()
             self.core.error = error
             with self.assertRaises(type(error)) as caught:
                 self.client.model_call(self.request)
             self.assertIs(caught.exception, error)
-        self.assertEqual(len(self.core.calls), 2)
+            self.assertEqual(len(self.core.calls), calls)
+        first, second = self.core.calls
+        self.assertEqual(first["payload"], second["payload"])        # 重发内容逐字相同
+        self.assertNotEqual(first["model"], second["model"])         # 检查点身份按尝试号区分
+        self.assertEqual(self.core.rejections[-1][1]["outcome_unknown"], True)
 
     def test_context_rejection_precedes_token_or_transport(self):
         calls = []
@@ -174,7 +190,6 @@ class ProviderRuntime(unittest.TestCase):
 
     def test_completed_refusal_is_replayed_after_later_stage_deferral_without_token_or_http(self):
         for stage, response in (("direct", Response({"error": {"message": "explicit refusal"}}, 400)),
-                                ("L3", Response({"error": {"message": "explicit refusal"}}, 500)),
                                 ("L3", Response(ValueError("not JSON")))):
             core = FakeCore()
             client = core.client()
@@ -198,6 +213,68 @@ class ProviderRuntime(unittest.TestCase):
             raw = next(iter(core.terminals.values()))["raw"]
             self.assertEqual(raw, {"base64": "aW52YWxpZCBwcm92aWRlciBqc29u"} if isinstance(response.body, Exception)
                              else {"json": response.body})
+
+    def test_google_5xx_is_a_temporary_failure_never_a_terminal_refusal(self):
+        # 2026-10-01 测试租户：一次 Vision 502 让单页发票直接判失败。5xx 一律稍后重试，失败的请求不计费。
+        for status in (500, 502, 504):
+            core = FakeCore()
+            client = core.client(environment={"VERTEX_OVERFLOW": "off"})
+            core.response = Response({"error": {"message": "backend error"}}, status)
+            with self.assertRaises(Deferred) as caught:
+                client.model_call(self.request)
+            self.assertEqual(caught.exception.reason, "provider_5xx")
+            self.assertEqual(core.terminals, {})
+            self.assertEqual(core.feedback, [])          # 不是额度问题：不放慢别的请求
+            core.response = Response(model_body())
+            self.assertEqual(client.model_call(self.request).text, '{"invoice_number": "A"}')
+
+    def test_a_5xx_on_the_global_gemini_entry_goes_to_the_us_entry(self):
+        self.core.plan = [Response({"error": {"message": "backend error"}}, 502), Response(model_body())]
+        result = self.client.model_call(self.request)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        self.assertIn("aiplatform.googleapis.com", self.core.calls[0]["url"])
+        self.assertIn("aiplatform.us.rep.googleapis.com", self.core.calls[1]["url"])
+
+    def vision(self, client):
+        frame = Frame(image_bytes=b"synthetic image", mime_type="image/png")
+        return client.vision_call(frame, stage="L1", page_number=1)
+
+    def vision_body(self):
+        return {"responses": [{"fullTextAnnotation": {"text": "IV-1", "pages": []}}]}
+
+    def test_vision_5xx_is_retried_in_place_and_then_read(self):
+        pauses = []
+        client = self.core.client(sleep=pauses.append)
+        self.core.plan = [Response({"error": {}}, 502), Response({"error": {}}, 500), Response(self.vision_body())]
+        self.assertEqual(self.vision(client).page.full_text, "IV-1")
+        self.assertEqual(len(self.core.calls), 3)
+        self.assertEqual(pauses, [2, 2])
+        self.assertEqual(len({json.dumps(c["payload"], sort_keys=True) for c in self.core.calls}), 1)
+        self.core.plan = [Response({"error": {}}, 502)] * 3
+        with self.assertRaises(Deferred) as caught:     # 一直 5xx：交出去稍后续跑，不判失败
+            self.vision(self.core.client(sleep=pauses.append))
+        self.assertEqual(caught.exception.reason, "provider_5xx")
+
+    def test_a_slow_vision_call_is_given_up_after_15_seconds_and_resent_with_the_full_limit(self):
+        client = self.core.client(environment={"OCR_L1_TIMEOUT_SECONDS": "60"})
+        self.core.plan = [Uncertain("read timeout"), Response(self.vision_body())]
+        self.assertEqual(self.vision(client).page.full_text, "IV-1")
+        first, second = self.core.calls
+        self.assertEqual((first["timeout_s"], second["timeout_s"]), (15, 60))
+        self.assertEqual(first["payload"], second["payload"])
+        # 续跑：上回第一次不明、重发读完 —— 直接取重发那次，不再付费
+        resumed = FakeCore()
+        resumed.saved, resumed.rejections = dict(self.core.saved), list(self.core.rejections)
+        resumed_client = resumed.client(environment={"OCR_L1_TIMEOUT_SECONDS": "60"},
+            checkpoint_read=lambda identity: ({"state": "rejected", "body": {"outcome_unknown": True}}
+                                              if any(r[0] == identity for r in self.core.rejections) else None))
+        self.assertEqual(self.vision(resumed_client).page.full_text, "IV-1")
+        self.assertEqual(resumed.sent, [])
+
+    def test_a_vision_answer_within_the_first_limit_is_used_as_is(self):
+        self.core.plan = [Response(self.vision_body())]
+        self.assertEqual(self.vision(self.core.client()).page.full_text, "IV-1")
+        self.assertEqual([c["timeout_s"] for c in self.core.calls], [15])
 
     def test_deferrals_and_unknown_outcomes_are_never_terminal_refusals(self):
         for error in (Deferred("provider_429", 10), Uncertain("unknown")):
