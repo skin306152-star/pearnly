@@ -52,6 +52,12 @@ scheduler、ocr-dispatch）`cpu_shares: 256`，其余（web、frontend、socketi
   三份逐字一致；读存档 p50 0.005 秒，最大那套收入对账（结果页数据 5 MB）0.16 秒，现算 3.58 秒。挑一套银行对账原样保存一次：修订号
   1 → 2，存档跟着更新、与新的现算一致。`tests/test_cowork_recon_view_store.py`（候选离线道）。
 
+部署时补齐旧对账的存档（用户经压测窗口："不留给用户第一次打开去等"）：`view_store.backfill`——本站点全部对账（银行、收入、销项税）
+按「界面语言 = 页面语言」th / zh / en 各生成一份，已有且指纹对得上的跳过；以发起人身份算；一套失败只记日志、接着下一套，绝不往外抛
+（`bench execute` 遇异常会重跑）。一次性，不是定时任务。部署时在 Cowork 激活之后用后台容器（CPU 低权重）跑：
+`docker compose … run --rm --no-deps cowork-worker bench --site all execute pearnly_cowork.recon_center.view_store.backfill`，
+每个站点打印「对账数 / 存档数 / 新生成 / 失败 / 用时」作回读。
+
 ## 验证
 
 - 镜像里：`test_cowork_source_lock_scope.py`（查找不加锁、查到的按主键锁、判定不变）、`test_control_billing_usage_counter.py`
