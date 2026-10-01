@@ -58,37 +58,70 @@ def _submit(kind, reference, arguments, user):
     admission = budget.PREFIX + "pending"
     tenant_pending = admission + ":" + budget.tenant()
     member = hashlib.sha256((frappe.local.site + ":" + name).encode()).hexdigest()
-    # This short shared lock only allocates durable slots. Never held during OCR.
-    # 等锁最多 15 秒（原 3 秒）：持锁时要查库、写库、提交，数据库忙时（2026-09-30 生产压测，数据库约 90%）
-    # 同时交 16 张就有 2 张 3 秒内排不上锁、被当成 capacity_unavailable 拒收。页面遇到这类暂时满会自动重交。
-    with client.lock(budget.PREFIX + "admission", timeout=15, blocking_timeout=15):
+    # 不再用全站一把受理锁（2026-10-01：所有租户、三个产品每提交一份都排同一把锁，锁里查库写库提交；上百人同时提交就在
+    # 这里排队）。名额用 Redis 一步原子预占；同一份重复提交由主键兜底，撞上就回读已有的那份照原规则核对。
+    existing = frappe.db.get_value(DT, name, ["arguments", "user", "status"], as_dict=True)
+    if existing:
+        return _same_work(name, existing, encoded, user)
+    if frappe.db.count(DT, {"status": ["in", ACTIVE]}) >= cfg["tenant_pending"]:
+        raise QueueFull("OCR queue is full")
+    expiry = utcnow() + timedelta(seconds=cfg["max_age"])
+    if not client.eval(RESERVE, 2, admission, tenant_pending, utcnow().replace(tzinfo=timezone.utc).timestamp(),
+                       member, expiry.replace(tzinfo=timezone.utc).timestamp(), cfg["pending"], cfg["tenant_pending"]):
+        raise QueueFull("OCR queue is full")
+    frappe.db.savepoint("pearnly_ocr_admission")
+    try:
+        frappe.get_doc({"doctype": DT, "name": name, "kind": kind,
+            "product": kind.split(".")[0], "reference": reference, "arguments": encoded,
+            "user": user, "status": "queued", "next_run": utcnow(),
+            "expires_at": expiry, "admission_key": member}).insert(ignore_permissions=True)
+    except frappe.DuplicateEntryError:
+        # 同一份同时提交了两次：另一次先落了库。只退回到本次插入之前（调用方同一事务里的记录不动）。名额标识按工作单
+        # 名算，两次预占的是同一个名额、归先落库的那份，所以这里不交还。
+        frappe.db.rollback(save_point="pearnly_ocr_admission")
         existing = frappe.db.get_value(DT, name, ["arguments", "user", "status"], as_dict=True)
-        if existing:
-            if existing.arguments != encoded or existing.user != user:
-                raise ValueError("OCR reference was reused with different content")
-            return name
-        client.zremrangebyscore(admission, "-inf", utcnow().replace(tzinfo=timezone.utc).timestamp())
-        client.zremrangebyscore(tenant_pending, "-inf", utcnow().replace(tzinfo=timezone.utc).timestamp())
-        local_count = frappe.db.count(DT, {"status": ["in", ACTIVE]})
-        if (local_count >= cfg["tenant_pending"] or client.zcard(tenant_pending) >= cfg["tenant_pending"]
-                or client.zcard(admission) >= cfg["pending"]):
-            raise QueueFull("OCR queue is full")
-        expiry = utcnow() + timedelta(seconds=cfg["max_age"])
-        score = {member: expiry.replace(tzinfo=timezone.utc).timestamp()}
-        client.zadd(admission, score)
-        client.zadd(tenant_pending, score)
-        try:
-            frappe.get_doc({"doctype": DT, "name": name, "kind": kind,
-                "product": kind.split(".")[0], "reference": reference, "arguments": encoded,
-                "user": user, "status": "queued", "next_run": utcnow(),
-                "expires_at": expiry, "admission_key": member}).insert(ignore_permissions=True)
-            frappe.db.commit()
-        except Exception:
-            frappe.db.rollback()
-            client.zrem(admission, member)
-            client.zrem(tenant_pending, member)
-            raise
+        return _same_work(name, existing, encoded, user)
+    except Exception:
+        frappe.db.rollback()
+        _release_unless_admitted(client, admission, tenant_pending, member, name)
+        raise
+    try:
+        frappe.db.commit()
+    except Exception:
+        frappe.db.rollback()
+        _release_unless_admitted(client, admission, tenant_pending, member, name)
+        raise
     kick(name)
+    return name
+
+
+# 原子预占名额：清掉过期的、检查本租户与全站上限、两边一起记上。返回 1 = 预占成功。
+RESERVE = """
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
+if redis.call('ZCARD', KEYS[2]) >= tonumber(ARGV[5]) or redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[4]) then
+  return 0
+end
+redis.call('ZADD', KEYS[1], ARGV[3], ARGV[2])
+redis.call('ZADD', KEYS[2], ARGV[3], ARGV[2])
+return 1
+"""
+
+
+def _release_unless_admitted(client, admission, tenant_pending, member, name):
+    """没落库就交还预占的名额；同名的另一次已经落库时名额归它，不动。"""
+    try:
+        if frappe.db.exists(DT, name):
+            return
+        client.zrem(admission, member)
+        client.zrem(tenant_pending, member)
+    except Exception:
+        pass  # Admission reservation expires conservatively.
+
+
+def _same_work(name, existing, encoded, user):
+    if not existing or existing.arguments != encoded or existing.user != user:
+        raise ValueError("OCR reference was reused with different content")
     return name
 
 
