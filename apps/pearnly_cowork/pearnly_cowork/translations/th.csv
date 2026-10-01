@@ -21,6 +21,7 @@ A page of this file could not be read: an invoice on it may be missing. Check th
 A positive record revision is required.,รุ่นของรายการต้องเป็นจำนวนเต็มบวก
 A positive source page number is required.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 A product code or barcode identifies more than one product.,รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ
+A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,การกระทบยอดครั้งนี้หยุดเพราะโปรแกรมผิดพลาด ระบบบันทึกไว้ให้เราแก้ไขแล้ว การลองใหม่จะได้ผลเหมือนเดิม
 A referenced history record is unavailable in the selected company and client.,ไม่สามารถเข้าถึงประวัติที่อ้างอิงภายใต้บริษัทและลูกค้าที่เลือกได้
 A reported ERP action is invalid.,การดำเนินการ ERP ที่รายงานไม่ถูกต้อง
 A reported ERP field is invalid.,ฟิลด์ ERP ที่รายงานไม่ถูกต้อง
@@ -2162,6 +2163,7 @@ reconciliation.preset.grouped_count,งวดนี้มี {0} กลุ่ม
 reconciliation.preset.grouped_no,ไม่ใช่ ตรวจทีละรายการ
 reconciliation.preset.grouped_title,{0} บันทึกเป็นยอดรวมหรือไม่
 reconciliation.preset.grouped_yes,ใช่ จับคู่ตามยอดรวม
+reconciliation.program_error,การกระทบยอดครั้งนี้หยุดเพราะโปรแกรมผิดพลาด ระบบบันทึกไว้ให้เราแก้ไขแล้ว การลองใหม่จะได้ผลเหมือนเดิม
 reconciliation.recognition_busy,ระบบอ่านเอกสารกำลังยุ่ง กรุณาลองใหม่อีกครั้ง
 reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 reconciliation.report_page_likely_misread,หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูปถ่าย / สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท น่าจะอ่านหน้านั้นผิด กรุณาตรวจกับต้นฉบับก่อนถือเป็นผลต่างจริง (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}

@@ -21,6 +21,7 @@ A page of this file could not be read: an invoice on it may be missing. Check th
 A positive record revision is required.,记录版本必须是正整数。
 A positive source page number is required.,源文件页码必须是正整数。
 A product code or barcode identifies more than one product.,产品编码或条形码对应了多个产品。
+A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,这次对账遇到程序错误没有完成，已自动记录、我们会处理；重试也会得到同样的结果。
 A referenced history record is unavailable in the selected company and client.,所选公司和客户范围内无法访问引用的历史记录。
 A reported ERP action is invalid.,上报的 ERP 操作无效。
 A reported ERP field is invalid.,上报的 ERP 字段无效。
@@ -2162,6 +2163,7 @@ reconciliation.preset.grouped_count,本期共 {0} 组这样凑得上
 reconciliation.preset.grouped_no,不是，逐笔核对
 reconciliation.preset.grouped_title,{0} 是汇总入账吗
 reconciliation.preset.grouped_yes,是，按合计对上
+reconciliation.program_error,这次对账遇到程序错误没有完成，已自动记录、我们会处理；重试也会得到同样的结果。
 reconciliation.recognition_busy,识别繁忙，请稍后再试。
 reconciliation.recognition_timeout,扫描件或照片读取超时，请稍后再试。
 reconciliation.report_page_likely_misread,以下照片 / 扫描件识别出的税报页有好几行和总账对不上，多半是这页读错了（错位或漏行），请先对照原件，别当成真实差异（括号里是对不上的行数）：{0}
