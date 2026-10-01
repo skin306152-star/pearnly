@@ -112,25 +112,6 @@
 			? record.source_page_indices : (record.pages || []).map(page => page?.page_index);
 		return [...new Set(indices.filter(Number.isInteger))].sort((a, b) => a - b);
 	};
-	/** 漏识别信号：流水线在页上留的 `possible_missed_invoice*`（旧版据此出「请复核」）。 */
-	const maybe_missed = record => (record?.pages || []).some(page =>
-		[...(page?._validation_warnings || []), ...(page?._trigger_reasons || [])]
-			.some(text => String(text).startsWith("possible_missed_invoice")));
-	/** 需复核原因的文案（`cowork.review.<码>`）；税号类带上是哪一格。 */
-	const REVIEW_RESOLVED = "review_resolved";
-	// 看过就可以点掉的提醒（识别时留下的、或写法类的）；税号 / 金额 / 明细这类改对了自然消失，不给点掉。
-	const REVIEW_DISMISSABLE = new Set(["missed_invoice", "page_unread", "uncertain", "duplicate", "number_unseen",
-		"voucher_number", "number_pattern"]);
-	const TAX_LABELS = {seller_tax: "intake.field.sellerTax", buyer_tax: "intake.field.buyerTax"};
-	p.intake_review_text = (reason, t) => {
-		const label = TAX_LABELS[reason?.field] ? t(TAX_LABELS[reason.field]) : "";
-		if (reason?.code === "missed_invoice") return t("intake.review.missed");
-		if (reason?.code === "tax_length" && reason.suggest) return __("cowork.review.tax_suggest", [label]);
-		if (reason?.code === "number_pattern") {
-			return __("cowork.review.number_pattern", [String(reason.usual || "").replace(/9/g, "#")]);
-		}
-		return __(`cowork.review.${reason?.code}`, [label]);
-	};
 	/** 推送失败 / 退回原因 → 一句人话（`intake.error.<码>`）：小助手回报是 `[码] 原文`，服务端预检是 `码` 或 `码:细节`；
 	 * 认不出码、或这个码没有词条的，原样显示（服务端直接给的已翻译句子就是这种）。 */
 	p.intake_push_reason = reason => {
@@ -257,7 +238,6 @@
 		// 这一批是 MR.ERP 就不摆「过账类型」（整票与明细行都不摆）；复核已有记录时不知道目标，照常显示。
 		// 「仅识别」（用户 2026-09-26）：识别后导出复核工作簿，不推送；过账类型同样不摆，右上角是「导出」。
 		// 从列表 / LINE 卡片打开已有的票：目标卡片记在票上（`intake_target`，新建时写入），没有弹窗里的选择可用。
-		const review_text = reason => p.intake_review_text(reason, t);
 		const opened = name ? await p.call(HISTORY + "detail", {name}).catch(() => null) : null;
 		const target = choice?.target || opened?.intake_target || "";
 		const recognize_only = target === p.intake_targets?.RECOGNIZE_ONLY;
@@ -536,19 +516,11 @@
 			show_fields({...working, direction: next}, next);
 			show_items(working.items);
 		};
-		/** 需复核原因（服务端 `history/review.py` 算好存在票上）：一条一行，官方表单提示条。
-		 * 单号两种读法、税号补 0 的建议点一下就填进去；识别时留下的提醒看过可以点掉（记进票面，保存后不再提）。 */
+		/** 推送失败 / 退回原因：红色官方表单提示条，带能接着做的按钮（查结果、选择、仍然推送）。
+		 * 识别后的需复核原因不在录入口显示（用户 2026-10-02：容易漏，只提升识别质量、把结果显示出来）；
+		 * 服务端照样算、照样存（`history/review.py`），有确定答案的入库时直接改。 */
 		const show_notice = record => {
 			const wrapper = form.fields_dict.notice.$wrapper.empty();
-			const reasons = Array.isArray(record?.review_reasons) ? record.review_reasons : [];
-			const lines = reasons.length ? reasons : maybe_missed(record) ? [{code: "missed_invoice"}] : [];
-			const keys = FIELD_KEYS(shown_direction);
-			const control = field => Object.keys(keys).find(name => keys[name] === field);
-			const resolve = (row, code) => {
-				working[REVIEW_RESOLVED] = [...new Set([...(working[REVIEW_RESOLVED] || []), code])];
-				row.remove();
-				sync_save();
-			};
 			const pushed = record?.last_push_status;
 			if (record?.last_push_reason && (pushed === "manual" || !pushed)) {
 				const row = $("<div class='form-message red'>").appendTo(wrapper);
@@ -565,24 +537,6 @@
 					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.review.send_anyway"))
 						.on("click", () => void submit({names: [record.name], extra: {confirm_duplicate: 1}}))
 						.appendTo(row);
-				}
-			}
-			for (const reason of lines) {
-				const row = $("<div class='form-message yellow'>").appendTo(wrapper);
-				$("<span>").text(review_text(reason)).appendTo(row);
-				const offer = (value, apply) => $("<button type='button' class='btn btn-xs btn-default ml-2'>")
-					.text(value).on("click", apply).appendTo(row);
-				if (reason.code === "number_choice") {
-					for (const value of reason.choices || []) {
-						offer(value, () => {form.set_value("invoice_number", value); resolve(row, reason.code);});
-					}
-				}
-				if (reason.code === "tax_length" && reason.suggest && control(reason.field)) {
-					offer(reason.suggest, () => {form.set_value(control(reason.field), reason.suggest); row.remove();});
-				}
-				if (REVIEW_DISMISSABLE.has(reason.code)) {
-					$("<button type='button' class='close ml-2' aria-label='Close'>").html("&times;")
-						.on("click", () => resolve(row, reason.code)).appendTo(row);
 				}
 			}
 		};

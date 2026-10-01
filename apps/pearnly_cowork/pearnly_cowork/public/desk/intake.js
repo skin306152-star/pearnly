@@ -5,7 +5,7 @@
  *   · 列头点一下排序（`sort_fields` 声明服务端认的字段，排序回服务端算）；
  *   · 筛选是官方那颗 Filter 按钮 + 弹层里的条件行（`filter_fields` 声明本页支持哪几个
  *     字段，名称与选项都取自 DocType 自己）；
- *   · 点一行进复核页（用户 2026-09-26：不要「复核」按钮与详情弹窗）；列里的录入状态按推送结果着色。
+ *   · 点一行进复核页（用户 2026-09-26：不要「复核」按钮与详情弹窗）；状态列按推送结果着色。
  * 文案不另起一套：列名、状态、动作都取产品已有的术语（`intake.*`、DocType 标签、
  * 与产品已有的术语）。
  */
@@ -26,33 +26,25 @@
 			});
 		};
 
-		// 录入状态＝最近一次推送的结果，颜色照旧线上 `erp-log-card.ts`：录入中（推送未完成）黄、成功绿、失败红
-		// （悬浮看原因）；
-		// 没推送过（含仅识别）不标。用官方的状态药丸。
+		// 状态＝最近一次推送的结果，颜色照旧线上 `erp-log-card.ts`：录入中（推送未完成）黄、成功绿、失败红
+		// （悬浮看原因）。用官方的状态药丸。
 		const PUSH_STATUS = {
 			pending: ["yellow", () => t("intake.push.pending")],
 			success: ["green", () => __("connect.records.success")],
-			// 状态只有三种：录入中 / 成功 / 失败（用户 2026-09-26）；转人工就是失败，原因悬浮看。
+			// 推送只有三种：录入中 / 成功 / 失败（用户 2026-09-26）；转人工就是失败，原因悬浮看。
 			manual: ["red", () => __("connect.records.failed")],
 		};
 		// 共用列表的 `format` 只出文字，颜色交给 `cell_class`（官方 indicator-pill 的颜色类）。
 		// 还没进推送账本就失败（目标不可用等）的票没有推送状态、只有原因：显示「失败」（用户 2026-09-26）。
-		// 还没推送、但识别后有需复核原因的（`history/review.py`）：橙色「待复核」，悬浮看是哪几条（2026-09-28 压测：
-		// 错的 101 张只标出 16 张，列表上看不出哪些要先看）。
-		const reasons = row => {
-			try {
-				const value = typeof row?.review_reasons === "string" ? JSON.parse(row.review_reasons || "[]") : row?.review_reasons;
-				return Array.isArray(value) ? value : [];
-			} catch (error) {
-				return [];
-			}
-		};
+		// 「仅识别」的票（`intake_target` 为 `none`，识别后导出、不推送）：蓝色「已识别」，表示识别完成、可以导出；
+		// 导出不另记状态。识别后的需复核原因不在列表显示（用户 2026-10-02），服务端照样算、作内部质量信号。
 		const push_status = (status, row) => (status ? PUSH_STATUS[status] || ["red", () => __("connect.records.failed")]
 			: row?.last_push_reason ? ["red", () => __("connect.records.failed")]
-			: reasons(row).length ? ["orange", () => __("cowork.quality.pending")] : null);
+			: row?.intake_target === p.intake_targets?.RECOGNIZE_ONLY ? ["blue", () => t("intake.status.recognized")]
+			: null);
 		const status_title = (value, row) => (value || row?.last_push_reason
 			? (p.intake_push_reason ? p.intake_push_reason(row?.last_push_reason) : row?.last_push_reason || "")
-			: reasons(row).map(reason => p.intake_review_text?.(reason, t) || reason.code).join("\n"));
+			: "");
 
 		async function listing(still_current) {
 			page.set_title(t("intake.title"));
@@ -90,7 +82,7 @@
 					{fieldname: "posting_kind", label: __("Posting Kind"), fieldtype: "Select"},
 					{fieldname: "invoice_date", label: __("Invoice Date"), fieldtype: "Date"},
 				],
-				// 列照用户 2026-09-26：单据号、日期、卖方与税号、买方与税号、价税合计、录入状态（不要系统单号）。
+				// 列照用户 2026-09-26：单据号、日期、卖方与税号、买方与税号、价税合计、状态（不要系统单号）。
 				columns: [
 					{fieldname: "invoice_no", width: 130, min_width: 100, label: t("intake.field.docNo"),
 						format: value => p.escape(value || "")},
@@ -105,7 +97,7 @@
 						format: value => p.escape(value || "")},
 					{fieldname: "total_amount", width: 110, min_width: 90, label: t("intake.col.grandTotal"),
 						format: value => p.money(value)},
-					{fieldname: "last_push_status", width: 110, min_width: 90, label: t("intake.col.entryStatus"),
+					{fieldname: "last_push_status", width: 110, min_width: 90, label: t("intake.col.status"),
 						format: (value, row) => push_status(value, row)?.[1]() || "",
 						cell_class: (value, row) => (push_status(value, row) ? `indicator-pill ${push_status(value, row)[0]}` : ""),
 						// 失败原因只放在状态图标上，鼠标悬浮看（用户 2026-09-26）。

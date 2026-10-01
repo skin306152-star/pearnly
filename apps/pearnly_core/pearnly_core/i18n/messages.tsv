@@ -842,7 +842,6 @@ Date as printed	票面日期	วันที่ตามใบกำกับ	�
 WHT deducted	预扣税额	ภาษีหัก ณ ที่จ่าย	源泉徴収税額	intake.field.whtAmount
 Goods / Service	商品 / 服务	สินค้า / บริการ	商品 / サービス	intake.item.name
 Invoice {0}/{1}	发票 {0}/{1}	ใบกำกับ {0}/{1}	請求書 {0}/{1}	intake.review.invoice
-May have missed an invoice — please verify page/invoice count against the original	可能漏识别发票 · 请人工核对原件页数与张数	อาจอ่านใบกำกับตกหล่น โปรดตรวจจำนวนหน้าและจำนวนใบกับต้นฉบับ	請求書の読み取り漏れの可能性 · 原本のページ数・枚数をご確認ください	intake.review.missed
 {0} possible duplicate invoice(s) detected	检测到 {0} 张可能重复的发票	พบใบกำกับที่อาจซ้ำ {0} รายการ	重複の可能性がある請求書 {0} 件を検出	intake.review.dupWarn
 The recognition queue is full. Please try again later.	识别队列已满，请稍后重试。	คิวการอ่านเต็ม กรุณาลองใหม่ภายหลัง	読み取り待ちがいっぱいです。後でもう一度お試しください。	intake.error.queue_full
 Recognition took too long. Please try again later.	识别超时，请稍后重试。	การอ่านใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง	読み取りに時間がかかりすぎました。後でもう一度お試しください。	intake.error.timeout
@@ -857,7 +856,6 @@ Line items	明细	รายการ	明細	intake.nav.items
 Recognize and export	识别后导出	อ่านแล้วส่งออก	読み取り後にエクスポート	intake.target.recognizeOnly
 Delete {0} selected records? Pushed ones cannot be deleted.	删除选中的 {0} 条记录？已推送的删不掉。	ลบ {0} รายการที่เลือก? รายการที่ส่งแล้วลบไม่ได้	選択した {0} 件を削除しますか？送信済みは削除できません。	intake.confirm.delete
 Entering	录入中	กำลังบันทึก	入力中	intake.push.pending
-Entry status	录入状态	สถานะการบันทึก	登録ステータス	intake.col.entryStatus
 Subscription and top-up	订阅与充值	สมัครแพ็กเกจและเติมเงิน	プランとチャージ	home.billing
 {0} seconds so far	已用 {0} 秒	ผ่านไป {0} วินาที	経過 {0} 秒	shell.wait.elapsed
 Recognized {0}/{1} pages · {2}%	已识别 {0}/{1} 页 · {2}%	อ่านแล้ว {0}/{1} หน้า · {2}%	{0}/{1} ページ読み取り済み · {2}%	shell.wait.pages

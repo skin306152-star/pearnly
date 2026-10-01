@@ -15,6 +15,7 @@ from pearnly_cowork.ocr.engine.fewshot import build_prompt_block
 from pearnly_cowork.ocr.engine.parsing import _parse_json
 from pearnly_cowork.ocr.engine.runner import sniff_direct_mime
 from pearnly_cowork.ocr.schema import validate_invoice
+from pearnly_cowork.ocr.validation.dates import year_shift
 from test_cowork_engine import CONFIG, GOOD, Model, Source, TEXT, run
 from test_cowork_invoice_schema_source_parity import SOURCE_SHA, definitions, execute, read_sources
 from test_cowork_invoice_validation_source_parity import legacy_validation, reason_shapes
@@ -157,8 +158,15 @@ def run_parity(sources):
             assert result.pipeline.engine == "image_checked" and page.layer_chain == ["ID", "RC"]
             assert page.extraction_audit["direct_fallback"]["code"] == "ocr.direct_gate_failed"
         else:
-            result = run(model=Model([payload]))
+            # 登记的有意改动（2026-10-02）：年份与识别当年差约 10 年（疑佛历年份读错一位）先带提示复核一次；
+            # 复核读回同样的值时判定与字段同旧线上，只多 `RC` 这一步与 direct_fallback 记录。
+            shifted = bool(year_shift(validate_invoice(payload, anchor_year=2026), anchor_year=2026))
+            result = run(model=Model([payload, payload] if shifted else [payload]))
             page = result.pipeline.pages[0]
+            if shifted:
+                assert page.layer_chain[:2] == ["ID", "RC"], page.layer_chain
+                page = page.model_copy(update={"layer_chain": ["ID", *page.layer_chain[2:]],
+                                               "extraction_audit": legacy.extraction_audit})
             if payload["document_type"] == "tax_invoice" and not page.invoice.is_not_invoice:
                 # 登记的有意改动（2026-09-27 大语料 A/B）：完整税票过了直读闸也拿 Vision 原文核对单号 / 税号（`L1`），
                 # 判定与字段不变（桩原文里有这个单号、不改），只多这一步。

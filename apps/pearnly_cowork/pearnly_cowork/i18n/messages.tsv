@@ -57,7 +57,6 @@ Failed	失败	ล้มเหลว	失敗	failed
 Pending	待处理	รอดำเนินการ	処理待ち	pending
 Confirmed	已确认	ยืนยันแล้ว	確認済み	confirmed
 No invoice summary found	未识别到摘要	ไม่พบข้อมูลสรุปใบแจ้งหนี้	請求書の概要情報なし	cowork.quality.failed
-Needs review	待复核	รอตรวจสอบ	要確認	cowork.quality.pending
 Recognized with high confidence	高置信识别	อ่านข้อมูลด้วยความมั่นใจสูง	高い信頼度で認識	cowork.quality.confirmed
 Service	服务	บริการ	サービス	service
 Stock	库存	สต็อก	在庫	stock
@@ -1154,19 +1153,6 @@ Credit sales	赊销	ขายเชื่อ	掛売上	intake.mrerpMenu.sales_cr
 Cash sales	现金销售	ขายเงินสด	現金売上	intake.mrerpMenu.sales_cash
 Reading the MR.ERP menus…	正在读取 MR.ERP 菜单…	กำลังอ่านเมนู MR.ERP…	MR.ERP のメニューを読み込み中…	intake.mrerpMenu.reading
 Could not read the MR.ERP menus. Try again later.	读不到 MR.ERP 菜单，请稍后再试。	อ่านเมนู MR.ERP ไม่ได้ กรุณาลองใหม่ภายหลัง	MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。	intake.mrerpMenu.readFailed
-The invoice number was read two ways. Pick the one printed on the original:	单号有两种读法，请对照原件选：	เลขที่เอกสารอ่านได้สองแบบ กรุณาเลือกตามต้นฉบับ:	伝票番号が2通りに読み取られました。原本と同じ方を選んでください：	cowork.review.number_choice
-A page of this file could not be read: an invoice on it may be missing. Check the original	这个文件有一页没读出，那页上的单据可能漏了，请核对原件	มีหน้าหนึ่งในไฟล์นี้อ่านไม่ได้ เอกสารในหน้านั้นอาจตกหล่น กรุณาตรวจกับต้นฉบับ	このファイルの1ページを読み取れませんでした。そのページの伝票が漏れている可能性があります。原本を確認してください	cowork.review.page_unread
-Recognition was unsure about this invoice. Check it against the original	识别对这张票拿不准，请对照原件核对	ระบบอ่านเอกสารใบนี้ไม่มั่นใจ กรุณาตรวจกับต้นฉบับ	この伝票の読み取りに確信がありません。原本と照合してください	cowork.review.uncertain
-This may be a duplicate of an invoice entered earlier	可能与之前录入的票重复	อาจซ้ำกับเอกสารที่บันทึกไว้ก่อนหน้า	以前に入力した伝票と重複している可能性があります	cowork.review.duplicate
-{0}: the check digit is wrong	{0}校验位不对	{0}: หลักตรวจสอบไม่ถูกต้อง	{0}：チェックディジットが正しくありません	cowork.review.tax_checksum
-{0} is not 13 digits	{0}不是 13 位	{0} ไม่ครบ 13 หลัก	{0}が13桁ではありません	cowork.review.tax_length
-{0} is not 13 digits. Did you mean:	{0}不是 13 位，是不是：	{0} ไม่ครบ 13 หลัก ใช่เลขนี้หรือไม่:	{0}が13桁ではありません。次の番号ですか：	cowork.review.tax_suggest
-{0} is not your company's tax ID	{0}不是本公司税号	{0} ไม่ใช่เลขประจำตัวผู้เสียภาษีของบริษัทคุณ	{0}が自社の納税者番号ではありません	cowork.review.own_tax
-The amounts do not add up (before VAT + VAT ≠ total)	金额算不平（未税 + 税额 ≠ 合计）	ยอดเงินไม่สมดุล (ก่อน VAT + VAT ≠ ยอดรวม)	金額が合いません（税抜 + 税額 ≠ 合計）	cowork.review.amount_math
-The line items do not add up to the invoice amount	明细合计与票面金额对不上	ยอดรวมรายการไม่ตรงกับยอดในเอกสาร	明細の合計が伝票の金額と合いません	cowork.review.items_mismatch
-Some line items have no name or amount	有明细缺品名或金额	บางรายการไม่มีชื่อหรือจำนวนเงิน	品名または金額のない明細があります	cowork.review.items_incomplete
-The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice	单号像是会计盖的凭证号，请核对票上印的号码	เลขที่เอกสารดูเหมือนเลขที่ใบสำคัญที่ประทับไว้ กรุณาตรวจเลขที่พิมพ์บนเอกสาร	伝票番号が会計の伝票番号スタンプのようです。伝票に印字された番号を確認してください	cowork.review.voucher_number
-The invoice number is written differently from this party's earlier invoices (usually {0})	单号写法与这家以前的票不同（通常是 {0}）	รูปแบบเลขที่เอกสารต่างจากเอกสารก่อนหน้าของคู่ค้ารายนี้ (ปกติเป็น {0})	この取引先の過去の伝票と番号の書式が違います（通常は {0}）	cowork.review.number_pattern
 Invoice number	单号	เลขที่เอกสาร	伝票番号	cowork.review.number_field
 Several Express customers have this tax ID. Choose the customer and submit again	Express 里有几个客户是这个税号，请选定客户后再提交	มีลูกค้าหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่	Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください	intake.error.CUSTOMER_BRANCH_AMBIGUOUS
 Several Express suppliers have this tax ID. Choose the supplier and submit again	Express 里有几个供应商是这个税号，请选定供应商后再提交	มีผู้จำหน่ายหลายรายใน Express ใช้เลขภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่	Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください	intake.error.SUPPLIER_BRANCH_AMBIGUOUS
@@ -1235,7 +1221,6 @@ It was entered	已入账	บันทึกเข้าแล้ว	計上され
 It was not entered	未入账，可以重推	ยังไม่ได้บันทึก ส่งใหม่ได้	計上されていない（再送信可）	cowork.unknown.not_entered
 ERP document number	ERP 单号	เลขที่เอกสารใน ERP	ERP の伝票番号	cowork.unknown.docnum
 Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入账，可以重推	ตรวจใน ERP แล้ว: ยังไม่ได้บันทึก ส่งใหม่ได้	ERP で確認済み：未計上。再送信できます	intake.error.confirmed_not_entered
-The invoice number was not found in the text of the original. Check it against the original	单号在原件文字里没找到，请对照原件核对	ไม่พบเลขที่เอกสารในข้อความของต้นฉบับ กรุณาตรวจกับต้นฉบับ	伝票番号が原本の文字に見つかりません。原本と照合してください	cowork.review.number_unseen
 Recognition was interrupted (not charged). Upload this file again	识别中断了（未扣费），请重新上传这一份	การอ่านถูกขัดจังหวะ (ไม่มีการคิดเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
 The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set	这台电脑的小助手里没有这份账套，或没有写入权限，请检查小助手选的账套	ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์เขียน กรุณาตรวจสอบชุดบัญชีที่ผู้ช่วยเลือก	このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
 The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again	准备推送时小助手不在线，或还没报上这份账套。请确认小助手在运行后再推一次	ตอนเตรียมส่ง ผู้ช่วยออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่าผู้ช่วยทำงานอยู่ แล้วส่งอีกครั้ง	送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください	push.companion_account_unreported

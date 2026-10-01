@@ -336,7 +336,8 @@ class EngineTests(unittest.TestCase):
         self.assertNotIn('"discount"', result.calls[0].text)
 
     def test_credit_note_and_old_date_force_direct_review(self):
-        for extra in ({"document_type": "credit_note"}, {"date": "2016-09-21"}):
+        # 2019：超过 5 年但不是差约 10 年（差约 10 年先带提示复核一次，见 test_cowork_reread_checks）
+        for extra in ({"document_type": "credit_note"}, {"date": "2019-09-21"}):
             self.assertTrue(run(model=Model([{**GOOD, **extra}])).pipeline.pages[0].needs_manual_review)
 
     def test_missing_receipt_number_is_direct_soft_flag_not_vision(self):

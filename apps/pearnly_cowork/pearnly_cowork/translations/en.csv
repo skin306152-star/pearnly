@@ -17,7 +17,6 @@ A file is larger than 25 MB.,A file is larger than 25 MB.
 A name is required.,A name is required.
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
 A numeric value in the invoice is invalid. Correct it before exporting.,A numeric value in the invoice is invalid. Correct it before exporting.
-A page of this file could not be read: an invoice on it may be missing. Check the original,A page of this file could not be read: an invoice on it may be missing. Check the original
 A positive record revision is required.,A positive record revision is required.
 A positive source page number is required.,A positive source page number is required.
 A product code or barcode identifies more than one product.,A product code or barcode identifies more than one product.
@@ -747,7 +746,6 @@ Recognition is busy. Try again in a moment.,Recognition is busy. Try again in a 
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
-Recognition was unsure about this invoice. Check it against the original,Recognition was unsure about this invoice. Check it against the original
 Recognized with high confidence,Recognized with high confidence
 Reconciled,Reconciled
 Reconciliation Type,Reconciliation Type
@@ -866,7 +864,6 @@ Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
 Some fields are uncertain. Check them against the original and submit again,Some fields are uncertain. Check them against the original and submit again
-Some line items have no name or amount,Some line items have no name or amount
 Some line items have no name or amount. Fix the lines and submit again,Some line items have no name or amount. Fix the lines and submit again
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Some rows in the file could not be understood. Check the file format,Some rows in the file could not be understood. Check the file format
@@ -958,7 +955,6 @@ The VAT report has no rows.,The VAT report has no rows.
 The account balance could not be checked right now. Try again in a moment.,The account balance could not be checked right now. Try again in a moment.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
-The amounts do not add up (before VAT + VAT ≠ total),The amounts do not add up (before VAT + VAT ≠ total)
 The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
@@ -1030,14 +1026,9 @@ The invoice date is missing or unreadable. Fill it in and submit again,The invoi
 The invoice date looks wrong. Correct it and submit again,The invoice date looks wrong. Correct it and submit again
 The invoice fields have an invalid format.,The invoice fields have an invalid format.
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
-The invoice number is written differently from this party's earlier invoices (usually {0}),The invoice number is written differently from this party's earlier invoices (usually {0})
-The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice,The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice
-The invoice number was not found in the text of the original. Check it against the original,The invoice number was not found in the text of the original. Check it against the original
-The invoice number was read two ways. Pick the one printed on the original:,The invoice number was read two ways. Pick the one printed on the original:
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
 The ledger file content is invalid.,The ledger file content is invalid.
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.","The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
-The line items do not add up to the invoice amount,The line items do not add up to the invoice amount
 The line items do not add up to the invoice amount. Fix the lines and submit again,The line items do not add up to the invoice amount. Fix the lines and submit again
 The opening and closing values are invalid.,The opening and closing values are invalid.
 The original document manifest cannot be changed.,The original document manifest cannot be changed.
@@ -1141,7 +1132,6 @@ This is taking too long. Check the list later.,This is taking too long. Check th
 This item is also stocked at:,This item is also stocked at:
 This label no longer exists,This label no longer exists
 This list no longer exists,This list no longer exists
-This may be a duplicate of an invoice entered earlier,This may be a duplicate of an invoice entered earlier
 This member cannot be assigned,This member cannot be assigned
 This multi-page invoice has no verified combined record. Review it before exporting.,This multi-page invoice has no verified combined record. Review it before exporting.
 This operation ID has already been used for another request.,This operation ID has already been used for another request.
@@ -1326,7 +1316,6 @@ cowork.nav.reconVat,VAT Report Check
 cowork.nav.work,Task Management
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
-cowork.quality.pending,Needs review
 cowork.recon.bank.gl_credit_only,Ledger credit only
 cowork.recon.bank.gl_debit_only,Ledger debit only
 cowork.recon.bank.left,Bank statement
@@ -1459,22 +1448,8 @@ cowork.recon.task.needs_review,Needs review
 cowork.recon.timeout,This is taking too long. Check the list later.
 cowork.recon.vat.left,Output VAT report
 cowork.recon.vat.right,Sales invoices
-cowork.review.amount_math,The amounts do not add up (before VAT + VAT ≠ total)
-cowork.review.duplicate,This may be a duplicate of an invoice entered earlier
-cowork.review.items_incomplete,Some line items have no name or amount
-cowork.review.items_mismatch,The line items do not add up to the invoice amount
-cowork.review.number_choice,The invoice number was read two ways. Pick the one printed on the original:
 cowork.review.number_field,Invoice number
-cowork.review.number_pattern,The invoice number is written differently from this party's earlier invoices (usually {0})
-cowork.review.number_unseen,The invoice number was not found in the text of the original. Check it against the original
-cowork.review.own_tax,{0} is not your company's tax ID
-cowork.review.page_unread,A page of this file could not be read: an invoice on it may be missing. Check the original
 cowork.review.send_anyway,Send anyway
-cowork.review.tax_checksum,{0}: the check digit is wrong
-cowork.review.tax_length,{0} is not 13 digits
-cowork.review.tax_suggest,{0} is not 13 digits. Did you mean:
-cowork.review.uncertain,Recognition was unsure about this invoice. Check it against the original
-cowork.review.voucher_number,The invoice number looks like an accounting voucher stamp. Check the number printed on the invoice
 cowork.stock.action.export,Export
 cowork.stock.action.reload,Reload
 cowork.stock.actualLocation,Actual location
@@ -2281,9 +2256,6 @@ vat_check.status.void_no_invoice,Void · no invoice needed
 {0} commented on {1},{0} commented on {1}
 {0} completed {1},{0} completed {1}
 {0} files,{0} files
-{0} is not 13 digits,{0} is not 13 digits
-{0} is not 13 digits. Did you mean:,{0} is not 13 digits. Did you mean:
-{0} is not your company's tax ID,{0} is not your company's tax ID
 {0} ledger lines add up to it ({1} to {2}),{0} ledger lines add up to it ({1} to {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 "{0} ledger lines, {1} in total, none of them in the tax report","{0} ledger lines, {1} in total, none of them in the tax report"
@@ -2306,7 +2278,6 @@ vat_check.status.void_no_invoice,Void · no invoice needed
 {0}: are the card deposits paid in net of a card fee?,{0}: are the card deposits paid in net of a card fee?
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 "{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.","{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original."
-{0}: the check digit is wrong,{0}: the check digit is wrong
 {0}: which ledger account is it?,{0}: which ledger account is it?
 {1} is due at {2},{1} is due at {2}
 {1} is due soon ({2}),{1} is due soon ({2})

@@ -241,7 +241,6 @@ Endpoint {0} has no password configured,端点 {0} 没配密码
 Endpoint {0} is disabled,端点 {0} 已停用
 "Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} 的适配器是 {1}，不是 mrerp_dms
 Entering,录入中
-Entry status,录入状态
 Error Message,错误信息
 Event ID,事件 ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。
@@ -355,7 +354,6 @@ Manual handling,人工处理
 Master Data,主数据
 Match result must be unmatched / existing customer / new customer,匹配结果只能是 未匹配/已有客户/新建客户
 Max Retries,最多重试
-May have missed an invoice — please verify page/invoice count against the original,可能漏识别发票 · 请人工核对原件页数与张数
 Missing code or state,缺少 code 或 state
 My Profile,个人信息
 Name,名称
@@ -945,7 +943,6 @@ intake.col.actions,操作
 intake.col.counterparty,对方
 intake.col.date,日期
 intake.col.direction,方向
-intake.col.entryStatus,录入状态
 intake.col.grandTotal,价税合计
 intake.col.name,单号
 intake.col.status,状态
@@ -1002,7 +999,6 @@ intake.push.pending,录入中
 intake.refresh,刷新
 intake.review.dupWarn,检测到 {0} 张可能重复的发票
 intake.review.invoice,发票 {0}/{1}
-intake.review.missed,可能漏识别发票 · 请人工核对原件页数与张数
 intake.save,保存
 intake.saving,提交中…
 intake.source.email,邮件

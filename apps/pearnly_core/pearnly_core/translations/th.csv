@@ -241,7 +241,6 @@ Endpoint {0} has no password configured,ปลายทาง {0} ยังไ�
 Endpoint {0} is disabled,ปลายทาง {0} ถูกปิดใช้งาน
 "Endpoint {0} uses adapter {1}, not mrerp_dms",ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms
 Entering,กำลังบันทึก
-Entry status,สถานะการบันทึก
 Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)
@@ -355,7 +354,6 @@ Manual handling,ดำเนินการด้วยตนเอง
 Master Data,ข้อมูลหลัก
 Match result must be unmatched / existing customer / new customer,ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่
 Max Retries,ลองใหม่สูงสุด
-May have missed an invoice — please verify page/invoice count against the original,อาจอ่านใบกำกับตกหล่น โปรดตรวจจำนวนหน้าและจำนวนใบกับต้นฉบับ
 Missing code or state,ขาด code หรือ state
 My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
@@ -945,7 +943,6 @@ intake.col.actions,การจัดการ
 intake.col.counterparty,คู่ค้า
 intake.col.date,วันที่
 intake.col.direction,ทิศทาง
-intake.col.entryStatus,สถานะการบันทึก
 intake.col.grandTotal,รวมภาษี
 intake.col.name,เลขที่
 intake.col.status,สถานะ
@@ -1002,7 +999,6 @@ intake.push.pending,กำลังบันทึก
 intake.refresh,รีเฟรช
 intake.review.dupWarn,พบใบกำกับที่อาจซ้ำ {0} รายการ
 intake.review.invoice,ใบกำกับ {0}/{1}
-intake.review.missed,อาจอ่านใบกำกับตกหล่น โปรดตรวจจำนวนหน้าและจำนวนใบกับต้นฉบับ
 intake.save,บันทึก
 intake.saving,กำลังบันทึก…
 intake.source.email,อีเมล

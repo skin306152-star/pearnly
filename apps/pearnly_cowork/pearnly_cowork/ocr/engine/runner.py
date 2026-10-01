@@ -29,9 +29,10 @@ from pearnly_cowork.ocr.validation import (
 )
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
-    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, infer_withholding, invoice_number_alternative,
+    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, adopt_from_reads, infer_withholding, invoice_number_alternative,
     invoice_number_range, invoice_number_unseen, normalize_amounts, repair_from_transcript,
 )
+from pearnly_cowork.ocr.validation.dates import year_shift
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
     PageSource, ProviderFailure, VisionCall,
@@ -223,18 +224,29 @@ class _Run:
                  else check_amount_math(invoice, tolerance=self.config.amount_tolerance))
         return issue or "; ".join(evaluate_sanity(invoice)), warnings
 
+    def year_shift(self, invoice):
+        """票面年份与识别当年差约 10 年（疑佛历年份读错一位，含同页其他票）：只用来触发一次带提示复核。"""
+        siblings = [] if invoice.is_not_invoice else invoice.additional_invoices or []
+        return "; ".join(filter(None, (year_shift(each, anchor_year=self.anchor_year) for each in [invoice, *siblings])))
+
     def image_page(self, page):
-        """一页图片（ADR-013）：直读 → 带提示复核 → Vision 原文 + 原图再读；前一步过了闸就不再往下走。"""
+        """一页图片（ADR-013）：直读 → 带提示复核 → Vision 原文 + 原图再读；前一步过了闸就不再往下走。
+
+        年份差约 10 年（`year_shift`）只让同一模型带提示复核一次（2026-10-02），不往 Vision 原文再读升级：
+        那条路读日期更差（`validation.dates`）。复核没读对就保留读数照常出结果，不额外标红。"""
         frame = self.source.frame(page)
         first = len(self.calls)
-        best = None
+        best, passed = None, None
         try:
             invoice, _ = self.read_image("direct", page, frame, IMAGE_SYSTEM)
-            issue, warnings = self.gate(invoice)
+            hard, warnings = self.gate(invoice)
+            issue = "; ".join(filter(None, (hard, self.year_shift(invoice))))
             if not issue:
                 chain = ["ID"] + self.check_tax_invoice(page, frame, invoice, warnings)
                 return self.direct_result(page, invoice, warnings, self.calls[first:], chain)
             best, evidence = invoice, {"code": "ocr.direct_gate_failed", "detail": issue}
+            if not hard:  # 只有年份对不上：直读本身过了闸
+                passed = warnings
         except ProviderFailure as exc:
             if is_auth_failure(exc):
                 raise
@@ -243,24 +255,35 @@ class _Run:
             evidence = {"code": exc.code, "detail": exc.detail}
         evidence = {"page_number": page, **evidence}
         chain = ["ID"]
+        reads = [best]
         if best is not None:  # 直读读出了东西、只是没过闸：先让同一模型带着没过的原因看原图复核
             chain.append("RC")
             try:
                 invoice, _ = self.read_image("recheck", page, frame, build_recheck_prompt(best, evidence["detail"]),
                                              retries=0)
-                invoice = self.fill_missing(invoice, best)
-                issue, warnings = self.gate(invoice)
-                if not issue:
-                    chain += self.check_tax_invoice(page, frame, invoice, warnings)
-                    result = self.direct_result(page, invoice, warnings, self.calls[first:], chain)
-                    result.extraction_audit["direct_fallback"] = evidence
-                    return result
+                if passed is None:
+                    invoice = self.fill_missing(invoice, best)
+                    adopted = adopt_from_reads(invoice, reads, anchor_year=self.anchor_year)
+                    issue, warnings = self.gate(invoice)
+                    warnings.extend(adopted)
+                    if not issue:  # 只剩年份对不上也到此为止：已带提示复核过一次
+                        chain += self.check_tax_invoice(page, frame, invoice, warnings)
+                        result = self.direct_result(page, invoice, warnings, self.calls[first:], chain)
+                        result.extraction_audit["direct_fallback"] = evidence
+                        return result
+                reads.append(invoice)
             except ProviderFailure as exc:
                 if is_auth_failure(exc):
                     raise
             except ContentError:
                 pass
-        result = self.pipeline_page(page, None, frame=frame, prefix=chain, first=first, fallback=best)
+        if passed is not None:  # 只为年份复核：直读过了闸，只从复核读数里取年份正常的日期，其余照直读，不再升级
+            passed.extend(adopt_from_reads(best, reads, anchor_year=self.anchor_year))
+            chain += self.check_tax_invoice(page, frame, best, passed)
+            result = self.direct_result(page, best, passed, self.calls[first:], chain)
+            result.extraction_audit["direct_fallback"] = evidence
+            return result
+        result = self.pipeline_page(page, None, frame=frame, prefix=chain, first=first, fallback=best, reads=reads)
         result.extraction_audit["direct_fallback"] = evidence
         return result
 
@@ -323,9 +346,10 @@ class _Run:
         return bucket_confidence(confidence, force, auto_threshold=self.config.auto_threshold,
                                  review_threshold=self.config.review_threshold)
 
-    def pipeline_page(self, page, text_page, *, frame=None, prefix=None, first=None, fallback=None):
+    def pipeline_page(self, page, text_page, *, frame=None, prefix=None, first=None, fallback=None, reads=()):
         """Vision（或 PDF 文字层）+ 模型。`prefix` 非空＝图片页直读 / 复核没过之后（ADR-013）：模型同时看原图和
-        Vision 原文（`ocr_read`），读不出时保留前面没过闸的那次读数并标红；没有 `prefix` 是原来的纯文字路线。"""
+        Vision 原文（`ocr_read`），读不出时保留前面没过闸的那次读数并标红；没有 `prefix` 是原来的纯文字路线。
+        `reads` 是同一页前几次的读数：最后的读数税号校验位 / 年份仍不对、而前面读到过对的，取对的那个。"""
         first = len(self.calls) if first is None else first
         image_read = prefix is not None
         if text_page is None:
@@ -467,6 +491,8 @@ class _Run:
             repaired = infer_missing_discount(invoice)
             if repaired:
                 warnings.append(repaired)
+        if reads:
+            warnings.extend(adopt_from_reads(invoice, reads, anchor_year=self.anchor_year))
         if not invoice.is_not_invoice:
             sanity = evaluate_sanity(invoice)
             warnings.extend(sanity)

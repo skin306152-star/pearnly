@@ -100,5 +100,75 @@ class ReviewReasons(unittest.TestCase):
         self.assertEqual(codes([page(is_not_invoice=True, seller_tax="1")]), [])
 
 
+class SettledAtIntake(unittest.TestCase):
+    """有确定答案的入库时直接改、不问人（用户 2026-10-02）；不确定的不改。"""
+
+    def test_a_tax_id_that_lost_its_leading_zero_is_restored_when_the_check_digit_agrees(self):
+        pages = [page(direction="sales", seller_tax=OWN, buyer_tax="105536080112"), page(buyer_tax=OWN[1:])]
+        self.assertEqual(review.repair_tax_ids(pages), ["buyer_tax", "buyer_tax"])
+        self.assertEqual([p["fields"]["buyer_tax"] for p in pages], [SUPPLIER, OWN])
+        self.assertEqual(codes(pages[:1]), [])
+        wrong = [page(seller_tax="105536080113"), page(seller_tax="12345")]  # 补了也不对 / 长度不对：不动
+        self.assertEqual(review.repair_tax_ids(wrong), [])
+        self.assertEqual([p["fields"]["seller_tax"] for p in wrong], ["105536080113", "12345"])
+
+    def two_readings(self, number="IV69/06-017", other="IU69/06-017"):
+        pages = [page(invoice_number=number)]
+        pages[0]["_validation_warnings"] = [f"invoice_number_alternative: {number}|{other}"]
+        return pages
+
+    def test_two_readings_follow_this_partys_earlier_numbers(self):
+        pages = self.two_readings(number="IU69/06-017", other="IV69/06-017")
+        self.assertEqual(review.settle_number(pages, party_numbers=["IV69/06-015", "IV69/06-016"]), "IV69/06-017")
+        self.assertEqual(pages[0]["fields"]["invoice_number"], "IV69/06-017")
+        self.assertEqual(codes(pages, party_numbers=["IV69/06-015", "IV69/06-016"]), [])
+        for history in (["IU69/06-015", "IU69/06-016"], [], ["IV69/06-015"]):  # 历史认模型读法 / 没有历史 / 只有一张
+            with self.subTest(history=history):
+                pages = self.two_readings(number="IU69/06-017", other="IV69/06-017")
+                self.assertIsNone(review.settle_number(pages, party_numbers=history))
+                self.assertEqual(pages[0]["fields"]["invoice_number"], "IU69/06-017")  # 保留识别的主值
+
+    def test_a_voucher_stamp_number_takes_the_other_candidate_only_when_there_is_one(self):
+        pages = self.two_readings(number="RR690609-001", other="IV69/06-017")
+        pages[0]["fields"]["date"] = "2026-06-09"
+        self.assertEqual(review.settle_number(pages), "IV69/06-017")
+        alone = [page(invoice_number="RR690609-001", date="2026-06-09")]
+        self.assertIsNone(review.settle_number(alone))
+        self.assertEqual(alone[0]["fields"]["invoice_number"], "RR690609-001")
+        sales = self.two_readings(number="RR690609-001", other="IV69/06-017")  # 销项是本方自己的号：不换
+        sales[0]["fields"].update(date="2026-06-09", direction="sales", seller_tax=OWN, buyer_tax=SUPPLIER)
+        self.assertIsNone(review.settle_number(sales))
+
+    def test_intake_settles_a_copy_using_this_sellers_history(self):
+        # `history.storage.settle` 不依赖站点：只编译这两个函数，数据库换成记下查询参数的替身
+        import ast
+        import json
+        from pathlib import Path
+        from types import SimpleNamespace
+        from pearnly_cowork.contracts.history import primary_page_fields
+        source = Path(review.__file__).with_name("storage.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        wanted = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+                  and node.name in {"party_numbers", "settle", "encode"}]
+        queries = []
+        db = SimpleNamespace(sql_list=lambda sql, values: queries.append(values) or ["IV69/06-015", "IV69/06-016"])
+        env = {"frappe": SimpleNamespace(db=db), "review": review, "primary_page_fields": primary_page_fields,
+               "json": json, "DOCTYPE": "Cowork OCR History"}
+        exec(compile(ast.Module(body=wanted, type_ignores=[]), "storage.py", "exec"), env)
+        pages = self.two_readings(number="IU69/06-017", other="IV69/06-017")
+        pages[0]["fields"]["seller_tax"] = SUPPLIER[1:]
+        settled = env["settle"]("WS-1", "CWH-1", pages)
+        self.assertEqual((settled[0]["fields"]["invoice_number"], settled[0]["fields"]["seller_tax"]),
+                         ("IV69/06-017", SUPPLIER))
+        self.assertEqual(pages[0]["fields"]["invoice_number"], "IU69/06-017")  # 调用方的页不被改
+        self.assertEqual(queries, [("WS-1", "CWH-1", SUPPLIER, SUPPLIER)])  # 补好的税号查这家的历史
+
+    def test_nothing_changes_on_a_clean_or_non_invoice_page(self):
+        clean = [page()]
+        self.assertIsNone(review.settle_number(clean, party_numbers=["IV69/06-015", "IV69/06-016"]))
+        self.assertEqual(clean, [page()])
+        self.assertIsNone(review.settle_number([page(is_not_invoice=True)]))
+
+
 if __name__ == "__main__":
     unittest.main()

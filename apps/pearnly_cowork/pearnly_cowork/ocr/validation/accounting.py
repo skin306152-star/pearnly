@@ -21,11 +21,13 @@ import re
 
 from pearnly_core.tax_documents import amounts
 
+from pearnly_cowork.ocr.validation.dates import year_shift
 from pearnly_cowork.ocr.validation.math import check_amount_math
 
 AMOUNT_FIELDS = ("subtotal", "vat", "total_amount", "discount", "wht_amount")
 WITHHOLDING_PREFIX = "withholding_inferred:"
 TRANSCRIPT_PREFIX = "corrected_from_ocr_text:"
+REREAD_PREFIX = "corrected_from_reread:"
 NUMBER_ALTERNATIVE_PREFIX = "invoice_number_alternative:"
 NUMBER_UNSEEN_PREFIX = "invoice_number_unseen:"
 NUMBER_RANGE_PREFIX = "invoice_number_range:"
@@ -97,6 +99,40 @@ def repair_from_transcript(invoice, text, *, tolerance=Decimal("0.5")) -> list[s
                 notes.append(f"{TRANSCRIPT_PREFIX} {field} {before}→{candidate:.2f}")
                 return notes
             setattr(invoice, field, before)
+    return notes
+
+
+def adopt_from_reads(invoice, reads, *, anchor_year) -> list[str]:
+    """同一页前几次读数（直读、复核）里有过校验的值、最后这次没过 → 取过校验的那个。返回说明（没改返回空）。
+
+    只认确定性的两类（2026-10-02 测试机：复核链 ID-RC-L1-L2 走完，买方税号末位和佛历年份仍是错的）：
+    - 税号校验位不过：前几次读到的合法税号里与它只差两位以内、且唯一的那个（不取对方的号）；
+    - 年份与识别当年差约 10 年（`year_shift`）：前几次读到的、月日相同而年份正常的那个日期（只有一个时）。
+    """
+    if getattr(invoice, "is_not_invoice", False):
+        return []
+    reads = [read for read in reads or () if read is not None and read is not invoice
+             and not getattr(read, "is_not_invoice", False)]
+    notes = []
+    for field, other in (("seller_tax", "buyer_tax"), ("buyer_tax", "seller_tax")):
+        read = amounts.digits(getattr(invoice, field, ""))
+        if len(read) != 13 or amounts.valid_tax_id(read):
+            continue
+        valid = {value for value in (amounts.digits(getattr(each, field, "")) for each in reads)
+                 if len(value) == 13 and amounts.valid_tax_id(value)}
+        near = amounts.nearest_tax_id(read, valid, exclude={amounts.digits(getattr(invoice, other, ""))})
+        if near:
+            setattr(invoice, field, near)
+            notes.append(f"{REREAD_PREFIX} {field} {read}→{near}")
+    if year_shift(invoice, anchor_year=anchor_year):
+        day = str(invoice.date)[4:]
+        found = {each.date: each.date_raw for each in reads
+                 if str(each.date or "")[4:] == day and not year_shift(each, anchor_year=anchor_year)
+                 and re.match(r"^\d{4}-", str(each.date or ""))}
+        if len(found) == 1:
+            (date, raw), = found.items()
+            notes.append(f"{REREAD_PREFIX} date {invoice.date}→{date}")
+            invoice.date, invoice.date_raw = date, raw or ""  # 入库按印出的日期重算，旧写法不能留
     return notes
 
 

@@ -241,7 +241,6 @@ Endpoint {0} has no password configured,Endpoint {0} has no password configured
 Endpoint {0} is disabled,Endpoint {0} is disabled
 "Endpoint {0} uses adapter {1}, not mrerp_dms","Endpoint {0} uses adapter {1}, not mrerp_dms"
 Entering,Entering
-Entry status,Entry status
 Error Message,Error Message
 Event ID,Event ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).
@@ -354,7 +353,6 @@ Manual handling,Manual handling
 Master Data,Master Data
 Match result must be unmatched / existing customer / new customer,Match result must be unmatched / existing customer / new customer
 Max Retries,Max Retries
-May have missed an invoice — please verify page/invoice count against the original,May have missed an invoice — please verify page/invoice count against the original
 Missing code or state,Missing code or state
 My Profile,My Profile
 Name,Name
@@ -943,7 +941,6 @@ intake.col.actions,Actions
 intake.col.counterparty,Counterparty
 intake.col.date,Date
 intake.col.direction,Direction
-intake.col.entryStatus,Entry status
 intake.col.grandTotal,Total incl. VAT
 intake.col.name,No.
 intake.col.status,Status
@@ -1000,7 +997,6 @@ intake.push.pending,Entering
 intake.refresh,Refresh
 intake.review.dupWarn,{0} possible duplicate invoice(s) detected
 intake.review.invoice,Invoice {0}/{1}
-intake.review.missed,May have missed an invoice — please verify page/invoice count against the original
 intake.save,Save
 intake.saving,Saving…
 intake.source.email,Email

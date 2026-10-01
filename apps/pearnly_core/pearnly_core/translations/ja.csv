@@ -241,7 +241,6 @@ Endpoint {0} has no password configured,端点 {0} にパスワードが設定�
 Endpoint {0} is disabled,端点 {0} は無効です
 "Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} のアダプタは {1} で、mrerp_dms ではありません
 Entering,入力中
-Entry status,登録ステータス
 Error Message,エラーメッセージ
 Event ID,イベントID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
@@ -355,7 +354,6 @@ Manual handling,手動処理
 Master Data,マスタデータ
 Match result must be unmatched / existing customer / new customer,照合結果は 不一致／既存顧客／新規顧客 のいずれかです
 Max Retries,最大再試行
-May have missed an invoice — please verify page/invoice count against the original,請求書の読み取り漏れの可能性 · 原本のページ数・枚数をご確認ください
 Missing code or state,code または state がありません
 My Profile,個人プロフィール
 Name,名称
@@ -945,7 +943,6 @@ intake.col.actions,操作
 intake.col.counterparty,取引先
 intake.col.date,日付
 intake.col.direction,区分
-intake.col.entryStatus,登録ステータス
 intake.col.grandTotal,税込合計
 intake.col.name,番号
 intake.col.status,ステータス
@@ -1002,7 +999,6 @@ intake.push.pending,入力中
 intake.refresh,更新
 intake.review.dupWarn,重複の可能性がある請求書 {0} 件を検出
 intake.review.invoice,請求書 {0}/{1}
-intake.review.missed,請求書の読み取り漏れの可能性 · 原本のページ数・枚数をご確認ください
 intake.save,保存
 intake.saving,保存中…
 intake.source.email,メール

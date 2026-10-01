@@ -11,6 +11,9 @@
   复核页上点选（单号选哪一种）或点掉之后记进票面 `review_resolved`，推送成功后也不再算。
 
 只给提示，不拦保存和提交（没有确认步骤，用户 2026-09-26）。规则不针对任何公司、商品或单据。
+
+2026-10-02 起录入口不再显示这些原因（用户：识别后的提示容易漏，只提升识别质量、把结果显示出来）：照样算、照样存，
+作内部质量信号；有确定答案的在入库时直接改（`repair_tax_ids`、`settle_number`），不交人选。
 """
 from __future__ import annotations
 
@@ -145,8 +148,7 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
     found = []
 
     primary = next((page for page in pages if (page or {}).get("fields") is fields), {}) or {}
-    notes = [str(note) for page in pages for note in [*((page or {}).get("_validation_warnings") or []),
-                                                      *((page or {}).get("_trigger_reasons") or [])]]
+    notes = _notes(pages)
     settled = False  # 单号两种读法已由这家历史写法裁决（转复核就是因为它，不再笼统提醒）
     for note in notes:
         choice = number_alternative(note)
@@ -188,9 +190,56 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
     return [reason for reason in found if reason["code"] not in resolved]
 
 
+def _notes(pages) -> list[str]:
+    return [str(note) for page in pages if isinstance(page, dict)
+            for note in [*(page.get("_validation_warnings") or []), *(page.get("_trigger_reasons") or [])]]
+
+
+def repair_tax_ids(pages) -> list[str]:
+    """读成 12 位、补上开头的 0 校验位就对的税号直接补上（原先只给复核建议，用户 2026-10-02：有确定答案的不问人）。
+    就地改 `pages`，返回改过的字段。补了校验位仍不对的不动。"""
+    changed = []
+    for page in pages if isinstance(pages, list) else []:
+        fields = (page or {}).get("fields") if isinstance(page, dict) else None
+        if not isinstance(fields, dict):
+            continue
+        for field in ("seller_tax", "buyer_tax"):
+            digits = _digits(fields.get(field))
+            if len(digits) == 12 and valid_tax_id("0" + digits):
+                fields[field] = "0" + digits
+                changed.append(field)
+    return changed
+
+
+def settle_number(pages, *, direction=None, party_numbers=()) -> str | None:
+    """单号有确定答案时直接定下来（用户 2026-10-02：不再交人选），就地改主页面，返回新单号；没改回 None。
+
+    - 两种读法（`invoice_number_alternative`）：这家以前人核过的票号写法只认原文读法 → 换成原文读法；
+      认模型读法、或没有历史 → 保留识别的主值。
+    - 进项单号像 Express 凭证号（`_voucher_reason`）：识别时另有一个候选号（两种读法里的另一个）就换成它，没有就保留。
+    """
+    pages = pages if isinstance(pages, list) else []
+    fields = primary_page_fields(pages)
+    if not fields or fields.get("is_not_invoice") in (True, "true", "True"):
+        return None
+    current = str(fields.get("invoice_number") or "").strip()
+    choices = [choice for choice in map(number_alternative, _notes(pages)) if choice and choice[0] == current]
+    if choices:
+        usual = _usual_shapes(party_numbers, exclude=choices[0])
+        if usual and shape(choices[0][1]) in usual and shape(choices[0][0]) not in usual:
+            fields["invoice_number"] = choices[0][1]
+            return choices[0][1]
+    if _voucher_reason(fields, fields.get("direction") or direction or "purchase"):
+        others = {other for _, other in choices if other.strip() and not _VOUCHER.match(other.strip().upper())}
+        if len(others) == 1:
+            fields["invoice_number"] = others.pop()
+            return fields["invoice_number"]
+    return None
+
+
 def codes(found) -> str:
     """存进记录的简表：原因码逗号相连（列表只要知道有没有、有哪些）。"""
     return ",".join(dict.fromkeys(reason["code"] for reason in found or []))
 
 
-__all__ = ["ACKNOWLEDGED", "RESOLVED", "codes", "history_tax", "reasons", "shape"]
+__all__ = ["ACKNOWLEDGED", "RESOLVED", "codes", "history_tax", "reasons", "repair_tax_ids", "settle_number", "shape"]

@@ -47,3 +47,23 @@ def validate_invoice_date(inv, *, today: date) -> List[str]:
             "— check the year (Buddhist-era digit misread reads 10 years early)"
         ]
     return []
+
+
+# 佛历年份读错一位（2569 读成 2559）换成公历正好差 10 年；跨年前后的票差 9 或 11 年。
+YEAR_SHIFT = range(9, 12)
+YEAR_SHIFT_PREFIX = "date_year_shift:"
+
+
+def year_shift(inv, *, anchor_year: int) -> Optional[str]:
+    """票面年份与识别当年差约 10 年 → 疑佛历年份读错一位，返回给复核用的原因；否则 None。
+
+    只是内部信号（2026-10-02 测试机 27 页扫描销项第 3 页：3/6/2569 读成 2559）：让同一模型带着原因看原图再读一次，
+    取年份对得上的读数；不标红、不给用户加提示（用户 2026-10-02）。真是十年前的票极少，多一次复核的代价也小。
+    """
+    if type(anchor_year) is not int or getattr(inv, "is_not_invoice", False):
+        return None
+    m = _ISO_DATE_RE.match(str(getattr(inv, "date", "") or ""))
+    if not m or abs(int(m.group(1)) - anchor_year) not in YEAR_SHIFT:
+        return None
+    return (f"{YEAR_SHIFT_PREFIX} date {inv.date} is about 10 years from {anchor_year} — the Buddhist-era year "
+            "is probably misread by one digit; read the year printed on the document again")

@@ -114,22 +114,36 @@ def validate_document(doc):
     doc.review_reasons = encode(review_reasons(doc, pages))
 
 
+def party_numbers(workspace, name, pages):
+    """同一开票方以前人核过（改过或推送成功）的票号，只取写法用，不回显给别人看。"""
+    # 票号格式由开票方定：进项看供应商、销项看本公司自己开过的票，所以一律按卖方税号取历史。
+    raw_tax = str(primary_page_fields(pages).get("seller_tax") or "").strip()
+    digits = review.history_tax(raw_tax)
+    if not digits or not workspace:
+        return []
+    # 一家可能同时用几套票号（压测：本公司给 Big C 与给别家的是两套），取近 500 张统计各种写法，只取最近几十张会漏掉另一套。
+    return frappe.db.sql_list(f"""SELECT invoice_no FROM `tab{DOCTYPE}`
+        WHERE workspace=%s AND name!=%s AND seller_tax IN (%s, %s) AND COALESCE(invoice_no, '')!=''
+          AND (last_push_status='success' OR edit_count>0)
+        ORDER BY creation DESC LIMIT 500""", (workspace, name or "", raw_tax, digits))
+
+
+def settle(workspace, name, pages):
+    """入库时有确定答案的直接改、不问人（用户 2026-10-02，规则见 `history/review.py`）：12 位税号补 0 校验位就对的补上；
+    单号两种读法按这家以前的写法定；进项单号像凭证号、另有候选号的换成候选号。不确定的不改。返回改好的副本。"""
+    pages = json.loads(encode(pages))
+    review.repair_tax_ids(pages)
+    review.settle_number(pages, party_numbers=party_numbers(workspace, name, pages))
+    return pages
+
+
 def review_reasons(doc, pages):
-    """这张票需要人看一眼的原因（规则见 `history/review.py`）；推送成功过的不再提。"""
+    """这张票需要人看一眼的原因（规则见 `history/review.py`）；推送成功过的不再提。
+
+    2026-10-02 起不显示给用户，只作内部质量信号（评测统计、定向重读）。"""
     if doc.last_push_status == "success":
         return []
-    fields = primary_page_fields(pages)
-    # 票号格式由开票方定：进项看供应商、销项看本公司自己开过的票，所以一律按卖方税号取历史。
-    raw_tax = str(fields.get("seller_tax") or "").strip()
-    digits = review.history_tax(raw_tax)
-    numbers = []
-    if digits:
-        # 同一开票方、人核过（改过或推送成功）的票号，只取写法，不回显给别人看。一家可能同时用几套票号
-        # （压测：本公司给 Big C 与给别家的是两套），取近 500 张统计各种写法，只取最近几十张会漏掉另一套。
-        numbers = frappe.db.sql_list(f"""SELECT invoice_no FROM `tab{DOCTYPE}`
-            WHERE workspace=%s AND name!=%s AND seller_tax IN (%s, %s) AND COALESCE(invoice_no, '')!=''
-              AND (last_push_status='success' OR edit_count>0)
-            ORDER BY creation DESC LIMIT 500""", (doc.workspace, doc.name or "", raw_tax, digits))
+    numbers = party_numbers(doc.workspace, doc.name, pages)
     own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id") if doc.workspace else None
     return review.reasons(pages, own_tax=own_tax, party_numbers=numbers,
                           duplicate=doc.duplicate_check_status == "matched", edited=int(doc.edit_count or 0) > 0)
@@ -180,6 +194,9 @@ def _create(workspace, body, request_key, client=None, *, attachment=None, check
     # 识别入库：先按税号换成人定的名称、清掉不是品名的品名（分类记忆按卖方名称取，要用换过的名称）。
     pages = (categories.prepare(workspace, client, names.prepare(workspace, body["pages"]))
              if check_duplicates else body["pages"])
+    # 放在请求指纹之后：重试时这家的票号历史可能已变，指纹只认调用方交来的内容。
+    pages = settle(workspace, name, pages)
+    body = {**body, "pages": pages, **extract_summary_fields(pages)}
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client or "",
                           "source": body["source"], "pages": encode(pages),
                           "ai_raw": encode(body["ai_raw"]), "confidence": body["confidence"], "staged": 1,
