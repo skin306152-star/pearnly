@@ -98,23 +98,38 @@ def receive():
     if not row or row.kind not in KINDS or row.status not in ACTIVE:
         return {"ok": 0, "reason": "finished"}
     if body["type"] in ("reply", "failed"):
-        with core_work.context(body["work"]):
-            core_work.checkpoint(tasks.REPLY_KEY + body["dispatch"], "reply",
-                                 body["reply"] if body["type"] == "reply" else {"failed": True})
-            _progressed()
+        # 结果在哪：写不进就回 500，Cloud Run 当未送达稍后重试（不悄悄丢）
+        if not _record(body["work"], tasks.REPLY_KEY + body["dispatch"], "reply",
+                       body["reply"] if body["type"] == "reply" else {"failed": True}, attempts=3):
+            raise frappe.QueryDeadlockError("callback reply not recorded")
+        _progressed(body["work"])
         core_work.wake(body["work"])
         return {"ok": 1}
     if body["type"] == "progress":
         apply_progress(row, body)
-    with core_work.context(body["work"]):
-        _progressed()
+    _progressed(body["work"])
     return {"ok": 1}
 
 
-def _progressed():
+def _record(work, key, state, value, attempts):
+    """写一行检查点：先结束本请求的读快照，撞上 1020 / 死锁（同一份的几路回调同时写，MariaDB 快照隔离）就回滚重来。
+    2026-10-01 测试租户：预热的几路 alive 回调同时写进展行，一路报 1020。写成返回 True。"""
+    for _attempt in range(attempts):
+        try:
+            frappe.db.commit()
+            with core_work.context(work):
+                core_work.checkpoint(key, state, value)
+            return True
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()
+    return False
+
+
+def _progressed(work):
     """记下「云上还有进展」的时刻（``work.call_progress`` 的最近一次进展据此算）：付费调用的检查点在云上、库里看不到，
-    否则对账等识别时「还在一页页读完就延长」永远不会触发（2026-10-01 复查）。只更新这一行的时间，不算付费调用。"""
-    core_work.checkpoint(PROGRESS_KEY, core_work.PROGRESS, {"at": time.time()})
+    否则对账等识别时「还在一页页读完就延长」永远不会触发（2026-10-01 复查）。只更新这一行的时间，不算付费调用；
+    几路回调同时写撞上了就算了（下一路会再写）。"""
+    _record(work, PROGRESS_KEY, core_work.PROGRESS, {"at": time.time()}, attempts=2)
 
 
 def _log_refused(reason):

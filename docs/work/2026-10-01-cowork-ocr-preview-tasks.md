@@ -314,7 +314,22 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 - 还缺：真实语料对比（压测窗口在生产一次性容器跑 `scripts/cowork-compare-paged-reading.py`，B07 / B08-01 / B08-04）；
   统一部署后测试租户上的端到端（预览签名地址、任务派发、回调、Workflows）；半量 → 全量压测。
 
+## 上线记录（2026-10-01 夜，用户授权三窗口自行协调按批次部署）
+
+| 时间（UTC） | 动作 | 结果 |
+|---|---|---|
+| 14:15–14:36 | 首批：main e7cca8a2 服务器激活（修复窗口）；Cloud Run cowork-ocr-00013-jlm、Workflows 000001 | testcowork 端到端：派发 / 回调 / 预览 / 12 页对账 Workflows 通过；Vision 502 让单页发票判失败 → 批次 A 修 |
+| 16:15–16:30 | 批次 A：main 5f97938c 服务器激活（修复窗口）；Cloud Run cowork-ocr-00014-5bs、Workflows 000002-542 | testcowork：单页 PDF 重跑读完（碰上 Vision 全球入口短时回 14，未判失败）；B07 对账 229 秒（上午顺序读 646 秒）；B08-04 回调连续 503 共 5 分 12 秒后送达、重试期间 0 付费调用 |
+| 16:50–16:53 | 回退演练 | 暂停队列 → 在途清空 → testcowork 关开关 → 照片走按行等回复 29 秒读完 → 开回、恢复队列 |
+| 16:55–17:05 | 小修 main d937e3b0（Vision 8/14 原地重试 + 美 / 欧区域入口、连续暂缓退避）只激活 Cowork；Cloud Run cowork-ocr-00015-7jp | — |
+| 17:10 | 全站打开：erpcowork、testcowork、testcowork2、testcowork3 | 逐站回读 settings 生效、self_check 全部 ok；交压测窗口跑「半量的半量」 |
+
+遗留：历史单据的预览后台补画（下一批）；小助手 lease 在站点维护期间不退避（小助手侧）；回调写检查点撞 1020 的重试（分支
+`codex/cowork-callback-writes`，随下一小批）。
+
 ## 收尾登记
 
-- 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-ocr-preview-tasks`：**交接保留**
-  （未合入，按授权等压测窗口重测数据与用户确认后再定合入 / 部署）。
+- 分支 `codex/cowork-ocr-preview-tasks`、`codex/cowork-provider-retries`：内容已经由发布分支 / 快进合入 main（e7cca8a2、5f97938c、
+  d937e3b0），可清理（远端与本地分支删除待本任务收尾时核对后执行）。
+- 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-callback-writes`：**交接保留**
+  （回调写入重试未合入；压测「半量的半量」期间可能还要改，压测结束后合入并清理）。

@@ -460,7 +460,8 @@ class Receive(Base):
         patches = [mock.patch.object(callback, "google_certs", return_value=CERTS),
                    mock.patch.object(callback.core_work, "checkpoint", side_effect=self.checkpoints),
                    mock.patch.object(callback.core_work, "wake"),
-                   mock.patch.object(callback.frappe, "db", types.SimpleNamespace(get_value=lambda *a, **k: self.row))]
+                   mock.patch.object(callback.frappe, "db", types.SimpleNamespace(get_value=lambda *a, **k: self.row,
+                                                                                   commit=lambda: None, rollback=lambda: None))]
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
@@ -495,6 +496,26 @@ class Receive(Base):
         logged.assert_called_once()                     # 记错误日志，但不刷屏
         self.assertEqual(self.checkpoints.values, {})
         self.wake.assert_not_called()
+
+    def test_a_write_clash_is_retried_and_a_heartbeat_clash_is_skipped(self):
+        clashes = {"left": 1}
+        original = self.checkpoints.__call__
+
+        def clashing(key, state=None, body=None):
+            if state is not None and clashes["left"]:
+                clashes["left"] -= 1
+                raise frappe.QueryDeadlockError("1020 Record has changed since last read")
+            return original(key, state, body)
+
+        with mock.patch.object(callback.core_work, "checkpoint", side_effect=clashing), \
+                mock.patch.object(callback.frappe, "db", types.SimpleNamespace(
+                    get_value=lambda *a, **k: self.row, commit=lambda: None, rollback=lambda: None)):
+            self.assertEqual(self.send(self.reply_body(), token()), {"ok": 1})      # 结果：撞上一次，重来写进
+            self.assertIn(tasks.REPLY_KEY + self.dispatch, self.checkpoints.values)
+            self.wake.assert_called_once_with(WORK)
+            clashes["left"] = 5
+            body = contract.callback("alive", site=SITE, work=WORK, dispatch=self.dispatch)
+            self.assertEqual(self.send(body, token()), {"ok": 1})                   # 心跳：一直撞就跳过，不报错
 
     def test_a_warm_step_heartbeat_only_records_progress(self):
         body = contract.callback("alive", site=SITE, work=WORK, dispatch=self.dispatch)
