@@ -360,7 +360,9 @@ class Collect(Base):
         with mock.patch.object(tasks, "_adapt") as adapt, mock.patch.object(tasks, "progress_applied", return_value=0):
             tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google, now=lambda: 1010.0)
         adapt.assert_called_once()
-        self.assertEqual(adapt.call_args.args[1], 3)
+        self.assertEqual(adapt.call_args.args[1:], (3, "document"))      # 对账文档的 429 只调对账池
+        self.assertEqual((tasks.pool_of("/v1/cowork/invoice"), tasks.pool_of("/v1/cowork/document")),
+                         ("invoice", "document"))
 
     def test_the_adaptive_limit_starts_low_and_can_be_switched_off(self):
         self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 160}), tasks.ADAPTIVE_START)
