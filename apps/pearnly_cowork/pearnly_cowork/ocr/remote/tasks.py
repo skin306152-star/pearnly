@@ -40,6 +40,9 @@ DISPATCH_KEY = "cowork.remote:dispatch"
 REPLY_KEY = "cowork.remote:reply:"
 # 回调没来时多久回来看一眼（兜底；正常是回调唤醒）。共用层暂缓最长 300 秒（``errors.Deferred``）。
 WAIT_SECONDS = 300
+# 读字（Vision）回 8 / 14（谷歌那边短时资源不足 / 不可用，不是我们的配额）交回的整份重派：退避最多等这么久。2026-10-02 100 人复测：
+# 22:21–22:23 一阵 vision_8，66 份按 15→300 秒退避重派，多等 p50 54、最长 323 秒，而谷歌几十秒就恢复了。
+VISION_WAIT_SECONDS = 60
 # 派发后这么久还没有结果：当作丢了，重新派发（检查点在桶里，不重复付费）。= 队列最长重试时间（cowork-ocr 队列
 # maxRetryDuration 7200 秒）+ 一次派发最长 1800 秒 + 余量。兜底每次回来都先去桶里看结果（回调丢了最多晚 WAIT_SECONDS），
 # Workflows 重试用完会回调 ``failed``（立刻重派），所以真正等满这么久的只有队列整个停摆。
@@ -170,7 +173,8 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
                 # 谷歌限流交回的，反馈进与按行等回复同一个冷却（10 秒内 3 次才整体放慢），冷却期间新的派发先暂缓。
                 rounds = int(marker["body"].get("rounds") or 0) + 1
                 _spend(marker, rounds=rounds)
-                final = dict(final, delay=max(float(final.get("delay") or 5), min(WAIT_SECONDS, 15 * 2 ** (rounds - 1))))
+                ceiling = VISION_WAIT_SECONDS if str(final.get("reason") or "").startswith("vision_") else WAIT_SECONDS
+                final = dict(final, delay=max(float(final.get("delay") or 5), min(ceiling, 15 * 2 ** (rounds - 1))))
                 if bucket and str(final.get("reason") or "").startswith(("provider_", "vision_")):
                     _cool_down(bucket, final.get("delay"))
             else:

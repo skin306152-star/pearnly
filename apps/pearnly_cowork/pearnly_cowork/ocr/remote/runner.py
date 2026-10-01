@@ -261,9 +261,18 @@ def build_client(environment, store, access_token, *, http=None, regions=None, c
         reject_checkpoint=lambda key, body: store.put(key, "rejected", body),
         terminal_read=partial(terminal_read, store),
         terminal_write=lambda key, body: store.put(TERMINAL + key, "terminal", body),
-        feedback=lambda *args: None, scope=lambda provider, project, location, model: f"{provider}:{location}",
+        feedback=partial(throttle_feedback, store), scope=lambda provider, project, location, model: f"{provider}:{location}",
         access_token=access_token, require_context=require_context, checkpoint_read=store.get,
         regions=regions, in_queue_job=lambda: False)
+
+
+def throttle_feedback(store, bucket, status, *args):
+    """引擎报的限流（读字回复里的 8 / 14、配额拒绝）也算进这次读取挨的限流次数：服务器按 429 比例调派发数时一并算上
+    （2026-10-02 100 人复测：一阵 vision_8 全记成「没有限流」，派发没有放慢，每份各自退避重派）。HTTP 429 / 503 在
+    ``Provider.post`` 里已经计过，不会走到这里。"""
+    if status in (429, 503):
+        with store._lock:
+            store.throttled += 1
 
 
 def page_threads():

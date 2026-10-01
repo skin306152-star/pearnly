@@ -108,6 +108,12 @@ class Google:
             return response(429, {"error": {"status": "RESOURCE_EXHAUSTED"}})
         if step == "drop":
             raise requests.ConnectionError("synthetic reset")
+        if step == "v8":
+            if "vision.googleapis.com" not in url:  # 只给读字：先到的别的调用照常回答，这一步留给读字
+                with self.lock:
+                    self.plan.insert(0, step)
+                return response(200, answer(url))
+            return response(200, {"responses": [{"error": {"code": 8, "message": "Resource exhausted"}}]})
         return response(200, answer(url))
 
 
@@ -788,6 +794,20 @@ class PaidCallGuard(unittest.TestCase):
         self.assertEqual(final["calls"], 2)              # 发给谷歌几次（窗口内算 429 比例）
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
+
+    def test_a_vision_resource_exhausted_reply_counts_as_throttled(self):
+        from pearnly_cowork.ocr.providers import client as provider_client
+
+        from pearnly_cowork.ocr.engine.contracts import Frame
+
+        google, store = Google(["v8"]), runner.Store(Bucket(), SITE, WORK)
+        client = runner.build_client(dict(ENVIRONMENT), store, lambda: "token", http=google)
+        with patch.object(provider_client, "VISION_5XX_PAUSE", 0):
+            result = client.vision_call(Frame(png(), "image/png", None, None), stage="L1", page_number=1)
+        self.assertEqual(result.page.full_text, TEXT)    # 原地再试一次读到
+        self.assertEqual(store.throttled, 1)             # 读字回复里的 8 也交回服务器算进限流比例（2026-10-02 复测）
+        self.assertEqual(store.calls, 2)
+        self.assertEqual(google.sent, ["https://vision.googleapis.com/v1/images:annotate"] * 2)
 
     def test_global_and_us_rate_limited_go_on_to_the_eu_entry_without_waiting(self):
         google = Google(["429", "429"])

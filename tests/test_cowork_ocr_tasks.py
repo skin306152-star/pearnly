@@ -322,9 +322,16 @@ class Collect(Base):
             tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=self.google, now=lambda: 1010.0)
 
     def test_repeated_deferred_results_back_off(self):
+        self.assertEqual(self.back_off("provider_429"), [15, 30, 60, 120, 240])
+
+    def test_a_vision_shortage_backs_off_at_most_a_minute(self):
+        # 读字 8 / 14 是谷歌那边短时不足：几十秒就恢复，整份重派最多等 60 秒（2026-10-02 100 人复测）
+        self.assertEqual(self.back_off("vision_8"), [15, 30, 60, 60, 60])
+
+    def back_off(self, reason):
         delays = []
         for round_ in range(1, 6):
-            self.reply({"event": "result", "status": "deferred", "reason": "vision_14", "delay": 5})
+            self.reply({"event": "result", "status": "deferred", "reason": reason, "delay": 5})
             with mock.patch.object(tasks, "_cool_down"), mock.patch.object(tasks, "progress_applied", return_value=0):
                 final = tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google,
                                    now=lambda: 1010.0)
@@ -334,7 +341,7 @@ class Collect(Base):
                 tasks.call(REMOTE, "/v1/cowork/document", document_body(), None, http=self.google, now=lambda: 2000.0)
             self.dispatch = self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["id"]
             self.assertEqual(self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["rounds"], round_)
-        self.assertEqual(delays, [15, 30, 60, 120, 240])
+        return delays
 
     def test_server_storage_reads_ride_out_a_reset(self):
         import requests
