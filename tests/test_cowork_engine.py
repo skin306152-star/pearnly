@@ -3,6 +3,7 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 import json
+import threading
 import unittest
 
 from pearnly_cowork.ocr.engine import (
@@ -475,6 +476,95 @@ class EngineTests(unittest.TestCase):
         memory.record("tax", "IV69/2")
         self.assertIn("2 prior invoices", memory.check_anomaly("tax", "IV60/3"))
 
+
+
+class PageModel:
+    """按页给固定的返回（各页同时读时调用先后不定，所以不能按调用顺序给）。"""
+    def __init__(self, delay=0.0):
+        self.delay, self.lock = delay, threading.Lock()
+        self.requests = []
+
+    def __call__(self, request):
+        import time
+        time.sleep(self.delay)
+        with self.lock:
+            self.requests.append((request.page_number, request.stage, request.attempt))
+        page = request.page_number
+        if page == 3:                       # 第 3 页：模型一直回坏格式 → 这一页记成没读出
+            output = "not json"
+        elif page == 2 and request.stage == "direct":
+            output = {**GOOD, "total_amount": ""}   # 第 2 页：直读缺金额 → 走复核
+        else:
+            output = {**GOOD, "invoice_number": f"IV69/{page:03d}"}
+        text = output if isinstance(output, str) else json.dumps(output)
+        return ModelResponse(text, {"original": text, "page": page}, 10, 20, request.model, 3,
+                             checkpoint_key=f"{request.stage}:{page}:{request.attempt}")
+
+
+def threads(fn, numbers):
+    from concurrent.futures import ThreadPoolExecutor
+    numbers = list(numbers)
+    with ThreadPoolExecutor(max_workers=len(numbers)) as pool:
+        futures = [pool.submit(fn, number) for number in numbers]
+    error = next((f.exception() for f in futures if f.exception() is not None), None)
+    if error is not None:
+        raise error
+    return [f.result() for f in futures]
+
+
+class PagesTogether(unittest.TestCase):
+    """多页文件各页同时读（2026-10-01）：结果、计费证据与一页一页读相同，只是不用一页等一页。"""
+
+    def both(self, count=6, **kwargs):
+        one = run(source=Source(count), model=PageModel(), **kwargs)
+        together = run(source=Source(count), model=PageModel(), map_pages=threads, **kwargs)
+        return one, together
+
+    def test_same_pages_and_same_billing_evidence_in_page_order(self):
+        one, together = self.both()
+        self.assertEqual(together.pipeline.model_dump(), one.pipeline.model_dump())
+        self.assertEqual([c.checkpoint_key for c in together.calls], [c.checkpoint_key for c in one.calls])
+        self.assertEqual(together.calls, one.calls)
+        self.assertIn("IV69/006", together.pipeline.model_dump_json())
+
+    def test_text_pages_take_the_same_pipeline_together(self):
+        one = run(source=Source(4, text=True), model=PageModel())
+        together = run(source=Source(4, text=True), model=PageModel(), map_pages=threads)
+        self.assertEqual(together.pipeline.model_dump(), one.pipeline.model_dump())
+        self.assertEqual(together.calls, one.calls)
+
+    def test_pages_are_read_at_the_same_time(self):
+        import time
+        begin = time.monotonic()
+        run(source=Source(6), model=PageModel(delay=0.2), map_pages=threads)
+        together = time.monotonic() - begin
+        begin = time.monotonic()
+        run(source=Source(6), model=PageModel(delay=0.2))
+        self.assertLess(together * 2.5, time.monotonic() - begin)
+
+    def test_a_limited_escalation_budget_or_one_page_keeps_reading_in_order(self):
+        used = []
+        def mapper(fn, numbers):
+            used.append(True)
+            return threads(fn, numbers)
+        run(source=Source(3), model=PageModel(), map_pages=mapper, config=replace(CONFIG, max_escalations=1))
+        run(source=Source(1), model=PageModel(), map_pages=mapper)
+        self.assertEqual(used, [])
+
+    def test_the_lowest_page_error_is_raised_after_the_others_finish(self):
+        class Interrupted(RuntimeError):  # 契约之外的异常（如额度让出、结果不明）照原样往外抛
+            pass
+
+        class Failing(PageModel):
+            def __call__(self, request):
+                if request.page_number in (2, 4):
+                    raise Interrupted(f"page {request.page_number}")
+                return super().__call__(request)
+        model = Failing()
+        with self.assertRaises(Interrupted) as caught:
+            run(source=Source(5), model=model, map_pages=threads)
+        self.assertEqual(str(caught.exception), "page 2")
+        self.assertIn(5, {page for page, *_ in model.requests})  # 其余页照常读完，检查点留着续跑取回
 
 if __name__ == "__main__":
     unittest.main()

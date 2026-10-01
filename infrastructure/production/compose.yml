@@ -314,6 +314,8 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
       FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"  # 同 dms-ocr-worker：识别任务不 fork
       PEARNLY_OCR_THREADS: '${PEARNLY_COWORK_OCR_THREADS:-1}'  # 同 dms-ocr-worker
+      # 一份多页文件同时读几页（pearnly_core/execution/pages.py）：每页线程各占一个数据库连接，开之前按 max_connections 核算。1 = 一页一页读。
+      PEARNLY_OCR_PAGE_THREADS: '${PEARNLY_COWORK_OCR_PAGE_THREADS:-1}'
   cowork-ocr-dispatch:
     profiles: [cowork]
     <<: *runtime

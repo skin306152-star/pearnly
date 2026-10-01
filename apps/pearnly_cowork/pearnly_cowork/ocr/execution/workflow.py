@@ -12,6 +12,7 @@ import time
 import frappe
 from frappe import _
 from pearnly_core import ocr
+from pearnly_core.execution import pages as core_pages
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest
 from pearnly_cowork.files.access import reference_count, reference_kind
@@ -102,6 +103,10 @@ def _recognize(doc, frozen, examples):
     body = feedback.validate_snapshot(examples) if examples else None
     selector = partial(fewshot_for_text, examples_by_tax=body["examples_by_tax"]) if body else None
     started = time.monotonic()
+    # 多页文件各页同时读（开关 PEARNLY_OCR_PAGE_THREADS，见 pearnly_core.execution.pages）：进度改按「已读完几页」推，
+    # 不再按「读到第 N 页」推（各页同时读时第 N 页开始不代表前面都读完了）。
+    page_map = (core_pages.mapper(on_done=lambda count: store.pages_reached(doc.name, count + 1))
+                if int(doc.page_count or 0) > 1 else None)
 
     def guarded(callback):
         def invoke(*args, **kwargs):
@@ -111,7 +116,8 @@ def _recognize(doc, frozen, examples):
             _check(doc, frozen, examples)
             if time.monotonic() - started > 420:
                 raise Deferred("progress_yield", 1)
-            store.pages_reached(doc.name, _call_page(args, kwargs))
+            if page_map is None:
+                store.pages_reached(doc.name, _call_page(args, kwargs))
             return callback(*args, **kwargs)
         return invoke
 
@@ -130,7 +136,7 @@ def _recognize(doc, frozen, examples):
                         image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as pages:
             result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
                 anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
-                today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
+                today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector, map_pages=page_map)
     return _freeze_result(doc, result, frozen, examples)
 
 

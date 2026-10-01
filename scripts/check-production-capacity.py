@@ -198,5 +198,7 @@ for knobs in ({'PEARNLY_COWORK_OCR_WORKERS': '12', 'PEARNLY_COWORK_OCR_MEM': '8g
         pass
     else:
         raise AssertionError(knobs)
+assert services['cowork-ocr-worker']['environment']['PEARNLY_OCR_PAGE_THREADS'] == '1'
+assert rendered(PEARNLY_COWORK_OCR_PAGE_THREADS='4')['cowork-ocr-worker']['environment']['PEARNLY_OCR_PAGE_THREADS'] == '4'
 checks.append('OCR threads default to 1 and each extra thread needs 150 MiB per process')
 print(json.dumps({'passed': len(checks), 'checks': checks}))

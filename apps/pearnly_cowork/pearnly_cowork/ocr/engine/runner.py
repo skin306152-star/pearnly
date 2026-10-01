@@ -14,6 +14,7 @@ from copy import deepcopy
 from datetime import date
 from decimal import Decimal
 import json
+import threading
 from typing import Callable
 
 from pydantic import ValidationError
@@ -498,15 +499,38 @@ class _Run:
         )
 
 
+class _SerialSource:
+    """各页同时读时，取页面图像排队（PDF 渲染库不是线程安全的）；其余属性照原样。"""
+
+    def __init__(self, source):
+        self._source, self._lock = source, threading.Lock()
+
+    def __getattr__(self, name):
+        return getattr(self._source, name)
+
+    def frame(self, page):
+        with self._lock:
+            return self._source.frame(page)
+
+
+def _in_order(fn, numbers):
+    return [fn(number) for number in numbers]
+
+
 def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCall, *,
                 config: EngineConfig, anchor_year: int, today: date,
                 fewshot_selector: Callable[[str], str] | None = None,
-                pattern_memory=None) -> EngineResult:
+                pattern_memory=None, map_pages=None) -> EngineResult:
     """Replayable whole-file run. The caller pins config/date/fewshots and owns checkpoints.
 
     Calls are billing evidence once per actual checkpoint, regardless of sibling
     invoice flattening or an abandoned direct result. No exception from a callback
     outside the explicit ProviderFailure contract authorizes a paid fallback.
+
+    ``map_pages(fn, page_numbers)``：调用方给的按页执行方式，必须按页码顺序返回每页结果，任一页出错时把页码最小的那个
+    异常抛出（2026-10-01：多页文件各页同时读，只等一页的识别时间）。不给就一页一页读。各页读法互不依赖，每页用自己的
+    读取状态、读完按页码合并结果与计费证据，所以与一页一页读的结果相同；回调（模型 / Vision / 检查点）要能被同时调用。
+    设了升级次数上限（``max_escalations``）时哪几页能升级受先后影响，这种情况照旧一页一页读。
     """
     if (config.document_type not in ("invoice", "auto") or config.mode not in ("economy", "enterprise")
             or config.provider != "vertex" or config.double_read or config.image_first):
@@ -528,27 +552,35 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
             text_pages = None  # source drops the whole-file override on count mismatch
         elif any(p.page_number != i for i, p in enumerate(text_pages, 1)):
             raise EngineError("ocr.page_association_invalid")
-    run = _Run(source, model_call, vision_call, config, anchor_year, today,
+    together = map_pages is not None and source.page_count > 1 and config.max_escalations is None
+    shared = _SerialSource(source) if together else source
+    run = _Run(shared, model_call, vision_call, config, anchor_year, today,
                fewshot_selector, pattern_memory)
+    runs = {}
+    direct = text_pages is None and config.direct_enabled and source.page_count <= config.max_direct_pages
 
-    def read(page, reader):
+    def read(page):
         # 多页文件里一页读不出（模型输出失控写满上限、格式坏，直读与带原文再读都没结果）不再拖垮整份：
         # 这一页记成没读出，其余页照常入库，由结果准备挂到前一张单据上标红（2026-09-28 压测：15 页 PDF
         # 三次都因同一页失败）。只有一页的文件照旧报错；换 Vision 的信号（DirectFallback）照旧往外抛。
+        page_run = runs[page] = (_Run(shared, model_call, vision_call, config, anchor_year, today,
+                                      fewshot_selector, pattern_memory) if together else run)
         try:
-            return reader(page)
+            if direct:
+                return page_run.image_page(page)
+            return page_run.pipeline_page(page, text_pages[page - 1] if text_pages is not None else None)
         except ContentError as exc:
             if source.page_count == 1 or isinstance(exc, DirectFallback):
                 raise
-            return run.unread_page(page, exc)
+            return page_run.unread_page(page, exc)
 
-    if text_pages is None and config.direct_enabled and source.page_count <= config.max_direct_pages:
-        pages = [read(i, run.image_page) for i in range(1, source.page_count + 1)]
+    pages = (map_pages if together else _in_order)(read, range(1, source.page_count + 1))
+    if together:  # 按页码顺序合并计费证据，与一页一页读时的顺序相同
+        run.calls = [call for number in range(1, source.page_count + 1) for call in runs[number].calls]
+    if direct:
         engine = "image_direct" if all(p.layer_chain == ["ID"] for p in pages) else "image_checked"
     else:
         engine = "pipeline_v1"
-        pages = [read(i, lambda i: run.pipeline_page(i, text_pages[i - 1] if text_pages is not None else None))
-                 for i in range(1, source.page_count + 1)]
     if all(UNREAD_STAGE in p.layer_chain for p in pages):
         raise EngineError("ocr.all_pages_unread")
     for page in pages:  # 单号是一段范围＝清单 / 汇总表的页，汇总票不处理（用户 2026-09-28）
