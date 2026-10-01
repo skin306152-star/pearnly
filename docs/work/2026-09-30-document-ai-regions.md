@@ -31,3 +31,17 @@
   `test_permit_lease`、Cowork 离线测试全过（除两条镜像缺 `docx` 的导入错误）；`test_a_server_error_on_a_reconciliation_read_is_retried_later`
   改为三个区域各试一次。
 - 未验：真实三区域调用（美国 v2.1 与 v2.1.1 读字差异由压测窗口用银行扫描件对照真账验收）、生产并发压测。
+
+## 只用 v2.1.1 的六个区（2026-10-01）
+
+- 原因：修复窗口按 budget 分钟计数查到，pB 高峰时新加坡、孟买（各 10 次 / 分钟）排满后大量读字落到美国区（只有
+  `pretrained-ocr-v2.1-2024-08-07`），同一份账单高峰和低峰读法不同（B07-GIZE-BBL-SA-2026-01 期初读错一位、B08 少行）。
+- 实测（逐区建 OCR 处理器列版本，没有 v2.1.1 的当场删除）：v2.1.1 在新加坡、孟买、悉尼、法兰克福、伦敦、蒙特利尔；美国、
+  欧洲多区域只有 v2.1；us-east7 本项目不可用。每个单区域额度 10 次 / 分钟（Service Usage 回读）。
+- 新处理器：悉尼 edd296d007f4856c、法兰克福 307623ffb61cf473、伦敦 535bbd3eff7304aa、蒙特利尔 fe5aede8b81c6a04。
+- 用户定读字一致优先（「v2.1.1 还有哪些区域，补上」）：生产 Cowork common_site_config 写入六个区（美国拿掉，备份
+  `common_site_config.json.bak-20261001-docai-regions`），后台任务每次 `frappe.init` 重新读配置、不用重启；代码默认
+  `REGIONS` 同步改成六个区。高峰合计 60 次 / 分钟（原来新版 20 + 旧版 120）；新加坡、孟买提额批下来后改配置的 rpm。
+- 数据处理地：新增澳大利亚、德国、英国、加拿大（原来已有美国）。
+- 测试：`test_cowork_document_ai_regions` 10 条（切换逻辑固定用三区列表，新增默认六区全为 v2.1.1）；
+  `test_cowork_recon_scanned_docs` 118 条（区域数改按默认列表）。

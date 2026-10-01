@@ -12,6 +12,14 @@ def body(count=1):
 		for number in range(1, count + 1)]}}
 
 
+
+# 区域切换的测试固定用这三个区（与默认列表无关）：两个单区域加一个额度大的多区域。
+THREE = (
+	{"location": "asia-southeast1", "processor": "6c7dfffac937fcd9", "version": "pretrained-ocr-v2.1.1-2025-01-31", "rpm": 10},
+	{"location": "asia-south1", "processor": "51ea584b4184e9d7", "version": "pretrained-ocr-v2.1.1-2025-01-31", "rpm": 10},
+	{"location": "us", "processor": "2a5bdf2779fcc187", "version": "pretrained-ocr-v2.1-2024-08-07", "rpm": 120},
+)
+
 class Response:
 	status_code = 200
 
@@ -40,7 +48,8 @@ class Regions(unittest.TestCase):
 		return ProviderClient({}, project="p", post=post, checkpoint_key=lambda payload, identity: identity,
 			reject_checkpoint=lambda *_a: None, terminal_read=lambda _k: None, terminal_write=lambda *_a: None,
 			feedback=lambda *_a: None, scope=lambda *args: "|".join(map(str, args)), access_token=lambda: "FAKE",
-			require_context=lambda: None, checkpoint_read=lambda key: saved.get(key), regions=regions,
+			require_context=lambda: None, checkpoint_read=lambda key: saved.get(key),
+			regions=THREE if regions is None else regions,
 			sleep=self.slept.append, in_queue_job=lambda: in_queue)
 
 	def read(self, client):
@@ -81,7 +90,7 @@ class Regions(unittest.TestCase):
 		self.assertEqual(self.calls, ["asia-southeast1"])
 
 	def test_a_chunk_already_read_in_another_region_is_taken_back_not_paid_again(self):
-		version = pages.REGIONS[1]["version"]
+		version = THREE[1]["version"]
 		identity = json.dumps(["cowork", "documentai", "p", "asia-south1", version, "enterprise", 1, 0])
 		client = self.client({"asia-southeast1": [], "asia-south1": [body()], "us": []},
 			saved={identity: {"state": "done"}})
@@ -101,6 +110,13 @@ class Regions(unittest.TestCase):
 
 
 class RegionConfig(unittest.TestCase):
+	def test_the_default_regions_all_read_with_the_same_v211_engine(self):
+		# 用户 2026-10-01：读字一致优先；只有 v2.1 的美国 / 欧洲多区域不进默认列表。
+		self.assertEqual([item["location"] for item in pages.REGIONS], ["asia-southeast1", "asia-south1",
+			"australia-southeast1", "europe-west3", "europe-west2", "northamerica-northeast1"])
+		self.assertEqual({item["version"] for item in pages.REGIONS}, {"pretrained-ocr-v2.1.1-2025-01-31"})
+		self.assertEqual(pages.regions(None), pages.REGIONS)
+
 	def test_site_list_replaces_the_default_and_a_bad_list_falls_back(self):
 		one = [{"location": "asia-southeast1", "processor": "abc123", "version": "pretrained-ocr-v2.1.1-2025-01-31", "rpm": 60}]
 		self.assertEqual(pages.regions(one), tuple(one))

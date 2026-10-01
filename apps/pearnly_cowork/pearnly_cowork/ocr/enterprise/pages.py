@@ -19,12 +19,18 @@ PROCESSOR_VERSION = "pretrained-ocr-v2.1.1-2025-01-31"
 PROCESSOR_ID = "6c7dfffac937fcd9"
 LOCATION = "asia-southeast1"
 # 三个区域按顺序用（用户 2026-09-30：「遇到限流马上转区域，不要原地重试，三个区域灵活调用」）：同一项目、同一份凭据。
-# 每个区域一个额度桶，``rpm`` 按控制台当前配额（新加坡、孟买已申请提额）；美国没有 v2.1.1，只有 v2.1。
-# 站点配置 ``pearnly_document_ai_regions``（common_site_config，同样格式的列表）可整体替换，提额后改配置不用发版。
+# 每个区域一个额度桶，``rpm`` 按控制台当前配额（每个单区域 10 次 / 分钟；新加坡、孟买已申请提额）。
+# 只用有 v2.1.1 的区域（2026-10-01 实测：新加坡、孟买、悉尼、法兰克福、伦敦、蒙特利尔有；美国 / 欧洲多区域只有 v2.1）：
+# 高峰时转到旧版引擎，同一份账单读出来和低峰时不一样（pB 回归 B07 期初读错一位、B08 少行），用户定读字一致优先。
+# 顺序按离泰国由近到远。站点配置 ``pearnly_document_ai_regions``（common_site_config，同样格式的列表）可整体替换，
+# 提额后改配置不用发版。
 REGIONS = (
     {"location": "asia-southeast1", "processor": "6c7dfffac937fcd9", "version": PROCESSOR_VERSION, "rpm": 10},
     {"location": "asia-south1", "processor": "51ea584b4184e9d7", "version": PROCESSOR_VERSION, "rpm": 10},
-    {"location": "us", "processor": "2a5bdf2779fcc187", "version": "pretrained-ocr-v2.1-2024-08-07", "rpm": 120},
+    {"location": "australia-southeast1", "processor": "edd296d007f4856c", "version": PROCESSOR_VERSION, "rpm": 10},
+    {"location": "europe-west3", "processor": "307623ffb61cf473", "version": PROCESSOR_VERSION, "rpm": 10},
+    {"location": "europe-west2", "processor": "535bbd3eff7304aa", "version": PROCESSOR_VERSION, "rpm": 10},
+    {"location": "northamerica-northeast1", "processor": "fe5aede8b81c6a04", "version": PROCESSOR_VERSION, "rpm": 10},
 )
 _REGION_TEXT = __import__("re").compile(r"^[a-z0-9-]{1,40}$")
 _VERSION_TEXT = __import__("re").compile(r"^[a-z0-9.-]{1,80}$")
