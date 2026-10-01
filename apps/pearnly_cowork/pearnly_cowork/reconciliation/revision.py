@@ -234,6 +234,10 @@ def bank_notes(doc):
 			# 识别时这几页抽取超时没读出：只丢这几页，余额链在这里断开，保存前逐处确认（2026-09-30 压测第 23 轮）。
 			notes.append(_("reconciliation.statement_pages_unread").format(item.get("file") or "",
 				"、".join(str(page) for page in item["unread_pages"])))
+		if item.get("recovered_pages"):
+			# 少读后按原文补读出更多行、余额链却对不上的页（一页两张表常见）：这几页每行都标了待复核（用户 2026-10-01 定）。
+			notes.append(_("reconciliation.statement_pages_recovered").format(item.get("file") or "",
+				"、".join(str(page) for page in item["recovered_pages"])))
 	duplicated = [f"{item.get('file') or ''} [{copy} = {original}]" for item in parse_info.get("stmt_files") or []
 		for copy, original in item.get("duplicate_sheets") or []]
 	if duplicated:

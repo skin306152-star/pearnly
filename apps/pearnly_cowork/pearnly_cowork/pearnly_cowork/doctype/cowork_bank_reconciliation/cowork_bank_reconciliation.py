@@ -237,6 +237,9 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 		# 抽取超时没读出的页（只丢这一页，余额链在这里断开，交人确认）：结果里点名。
 		"unread_pages": [int(page.get("page_number") or 0) for page in pages
 			if (page.get("extraction_audit") or {}).get("page_unreadable")],
+		# 少读后按原文补读、余额链却对不上的页（这页每行都标了待复核）：结果里点名，请对照原件逐行核对。
+		"recovered_pages": [int(page.get("page_number") or 0) for page in pages
+			if ((page.get("extraction_audit") or {}).get("self_check") or {}).get("recovered")],
 		"validation_warnings": [warning for page in pages for warning in page.get("validation_warnings") or []]}
 
 

@@ -50,7 +50,7 @@ ANCHOR_KEYS = ("stmt_opening", "gl_opening", "gl_closing", "stmt_closing")
 PARSE_INFO_SECTIONS = {
 	# recognized：这份账单是识别读出的（照片 / 扫描件）；unread_pages：识别时抽取超时没读出的页；account：读出的
 	# 账号末四位（对账预设按账户记）；duplicate_sheets：逐行相同、只算一次的工作表 [复制的, 原来的]。都是 2026-09-30 加的，旧任务没有。
-	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "account",
+	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "recovered_pages", "account",
 		"duplicate_sheets"),
 	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
 }
@@ -160,6 +160,12 @@ def parse_info(value):
 							or any(isinstance(page, bool) or not isinstance(page, int) for page in unread)):
 						raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
 					item["unread_pages"] = list(unread)
+				recovered = record.get("recovered_pages") or []
+				if recovered:
+					if (not isinstance(recovered, list) or len(recovered) > MAX_ROWS
+							or any(isinstance(page, bool) or not isinstance(page, int) for page in recovered)):
+						raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
+					item["recovered_pages"] = list(recovered)
 				if record.get("account"):
 					item["account"] = _text(record.get("account"), f"{section}.account", limit=4)
 				duplicates = record.get("duplicate_sheets") or []

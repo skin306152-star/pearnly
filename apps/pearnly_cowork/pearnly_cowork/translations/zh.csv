@@ -2197,6 +2197,7 @@ reconciliation.statement_no_running_balance,这份账单没有逐笔余额，无
 reconciliation.statement_not_a_statement,这份表格不是网银导出的账单（没有余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。
 reconciliation.statement_other_account,这几份账单读出的银行或账号与其他几份不同，可能混入了其他账户的账单：{0}
 reconciliation.statement_other_account_left_out,以下账单看起来是其他账户的，没有计入本次对账：{0}
+reconciliation.statement_pages_recovered,{0} 第 {1} 页按原文补读出更多行，但余额链对不上（一页印了两张表时常见），这页每行都标了待复核，请对照原件逐行核对
 reconciliation.statement_pages_unread,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
 reconciliation.statement_rows_outside,已筛掉 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初按 {1} 之前的余额。
 reconciliation.statement_unparsed,读不出银行账单。
@@ -2302,6 +2303,7 @@ vat_check.status.void_no_invoice,作废（无需发票）
 {0}/{1} pages,{0}/{1} 页
 {0}: are the card deposits paid in net of a card fee?,{0}：银行的刷卡入账是扣了手续费的净额吗？
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} 第 {1} 页没读出来（识别超时），余额链在这里断开，请对照原件确认
+"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0} 第 {1} 页按原文补读出更多行，但余额链对不上（一页印了两张表时常见），这页每行都标了待复核，请对照原件逐行核对
 {0}: the check digit is wrong,{0}校验位不对
 {0}: which ledger account is it?,{0} 对总账哪个科目
 {1} is due at {2},卡片「{1}」将在 {2} 到期

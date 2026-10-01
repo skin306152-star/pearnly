@@ -208,6 +208,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	identity = None
 	text_layer = False
 	unread_pages: List[int] = []
+	recovered_pages: List[int] = []
 	rows: List[StatementRow] = []
 	opening = 0.0
 	closing = 0.0
@@ -274,6 +275,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 				identity = model.get("identity")
 				text_layer = bool(model.get("text_layer"))
 				unread_pages = list(model.get("unread_pages") or [])
+				recovered_pages = list(model.get("recovered_pages") or [])
 				completeness = None  # 模型路的完整性用下面的交叉校验重算
 
 	if not rows:
@@ -371,6 +373,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		result["text_layer"] = True
 	if unread_pages:
 		result["unread_pages"] = unread_pages
+	if recovered_pages:
+		result["recovered_pages"] = recovered_pages
 	if method_divergence:
 		result["method_divergence"] = method_divergence
 	if escalations:

@@ -2197,6 +2197,7 @@ reconciliation.statement_no_running_balance,この明細書には各行の残高
 reconciliation.statement_not_a_statement,この表は銀行からエクスポートした明細ではありません（残高列がありません）。ネットバンキングから出力した Excel/CSV または明細 PDF をアップロードしてください。
 reconciliation.statement_other_account,これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
 reconciliation.statement_other_account_left_out,次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
+reconciliation.statement_pages_recovered,{0} の {1} ページは原本から読み直して行を補いましたが、残高がつながりません（1 ページに表が 2 つある場合によくあります）。このページの全行に要確認を付けたので、原本と一行ずつ照合してください
 reconciliation.statement_pages_unread,{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください
 reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
@@ -2302,6 +2303,7 @@ vat_check.status.void_no_invoice,取消 · 請求書不要
 {0}/{1} pages,{0}/{1} ページ
 {0}: are the card deposits paid in net of a card fee?,{0}：カード入金は手数料を差し引いた純額ですか？
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください
+"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0} の {1} ページは原本から読み直して行を補いましたが、残高がつながりません（1 ページに表が 2 つある場合によくあります）。このページの全行に要確認を付けたので、原本と一行ずつ照合してください
 {0}: the check digit is wrong,{0}：チェックディジットが正しくありません
 {0}: which ledger account is it?,{0} は総勘定元帳のどの科目ですか
 {1} is due at {2},「{1}」の期限は {2} です

@@ -131,6 +131,10 @@ REREAD_REASONS = {
     "bank": "the running balance of the rows did not follow row by row",
     "vat": "the rows did not add up to the totals printed on the page",
 }
+# 银行页读出的行明显少于原文里带日期的行（用户 2026-10-01 同意，每次约 0.5 泰铢，与上面共用一份文件最多再读的页数）：
+# 告诉模型这页大约有几笔（只给笔数，不给任何金额），常见于一页印了两张表 / 两栏、模型只读了一张（压测 B08 第 6 页）。
+SHORT_ROWS_REASON = ("it returned {found} rows although the page shows about {expected} dated transaction lines; "
+                     "a page can hold more than one table or column block, read all of them")
 
 
 # 税报照片第一遍只看图（不给 Document AI 转写稿）；自核对不上或没读到页合计时，用原读法（带转写稿）重读这一页。
@@ -139,12 +143,13 @@ REREAD_REASONS = {
 IMAGE_FIRST = ("vat",)
 
 
-def _extract(model_call, image, mime, category, transcript, number, *, reread=False, image_only=False, note=True):
+def _extract(model_call, image, mime, category, transcript, number, *, reread=False, image_only=False, note=True,
+             reason=None):
     request = build_request(category, transcript, image_only=image_only)
     config = request["config"]
     prompt = request["prompt"]
     if reread and note:
-        prompt += ("\nA first reading of this page did not pass its arithmetic check (" + REREAD_REASONS[category]
+        prompt += ("\nA first reading of this page did not pass its arithmetic check (" + (reason or REREAD_REASONS[category])
                    + "). Read the page again directly from the image: every printed table row exactly once, in "
                      "printed order, with each amount from its own column.")
     response = model_call(ModelRequest(stage=REREAD_STAGE if reread else "enterprise_schema", page_number=number,
@@ -168,9 +173,13 @@ def _checked(model_call, image, mime, category, transcript, number, data, respon
     """一页抽取完先自核（``self_check``）；银行页内余额链有断点、税报行合计对不上页合计，就这页再抽一次：
     银行取断点严格更少的那次，税报只有再读对上了才用再读的；再读失败（读不出、结果不明）照旧用第一次，不丢页。
     返回 ``(document, response, 留痕 or None, 再读花的钱)``；总账不核（``None``）。"""
+    short = None
     if category == "bank":
         first = self_check.bank_breaks(data)
         audit = {"state": self_check.PASSED if not first else self_check.MISMATCH, "reread": False, "breaks": [first]}
+        short = self_check.rows_short(data, transcript)
+        if short:
+            audit.update(rows=[len(data.get("entries") or [])], dated_lines=short)
     elif category == "vat":
         state, _sums = self_check.vat_state(data, running)
         audit = {"state": state, "reread": False, "printed": self_check.printed_totals(data)}
@@ -178,29 +187,56 @@ def _checked(model_call, image, mime, category, transcript, number, data, respon
         return data, response, None, 0.0
     # 税报第一遍只看图：没读到页合计也换原读法重读一次（没有合计就没法自核）。
     retry = (self_check.MISMATCH, self_check.NO_TOTAL) if category in IMAGE_FIRST else (self_check.MISMATCH,)
-    if audit["state"] not in retry or not may_reread:
-        return data, response, audit, 0.0
+    if (audit["state"] not in retry and not short) or not may_reread:
+        return _repaired(data, transcript, category, audit), response, audit, 0.0
     audit["reread"] = True
+    reasons = ([REREAD_REASONS[category]] if audit["state"] in retry else []) + (
+        [SHORT_ROWS_REASON.format(found=len(data.get("entries") or []), expected=short)] if short else [])
     try:
         # 税报重读用原读法原样（带转写稿、不加「上次没对上」那句），与压测模拟的读法一致
         second, again = _extract(model_call, image, mime, category, transcript, number, reread=True,
-                                 note=category not in IMAGE_FIRST)
+                                 note=category not in IMAGE_FIRST, reason="; ".join(reasons))
     except ContentError:
         audit["reread_failed"] = True
-        return data, response, audit, 0.0
+        return _repaired(data, transcript, category, audit), response, audit, 0.0
     extra = model_cost_thb(again.model, again.input_tokens, again.output_tokens)
     if category == "bank":
         breaks = self_check.bank_breaks(second)
         audit["breaks"].append(breaks)
-        if second.get("entries") and breaks < first:
+        rows, rows_again = len(data.get("entries") or []), len(second.get("entries") or [])
+        recovered = False
+        if short:
+            audit["rows"].append(rows_again)
+            # 因少读而重读：读出更多行、又没明显超出原文带日期的行数（不凭空多出行）就用（用户 2026-10-01 定）。断点因此变多
+            # 的（一页印两张表，两张表的余额本来不是一条链：B08 第 6 页补回 24 行、断点 3 → 8）照样用，但这一页每行都标
+            # 待复核、结果里点名这一页，请对照原件逐行核对。因断链而重读的那条照旧，但不接受行数更少的。
+            better = rows < rows_again <= self_check.recovered_limit(short) or (rows_again >= rows and breaks < first)
+            recovered = better and breaks > first
+        else:
+            better = bool(second.get("entries")) and breaks < first
+        if better:
             audit.update(state=self_check.PASSED if not breaks else self_check.MISMATCH, adopted="reread")
-            return second, again, audit, extra
-        return data, response, audit, extra
+            if recovered:
+                audit["recovered"] = True
+                for entry in second.get("entries") or []:
+                    entry["review_required"] = True
+            return _repaired(second, transcript, category, audit), again, audit, extra
+        return _repaired(data, transcript, category, audit), response, audit, extra
     state, _sums = self_check.vat_state(second, running)
     if state == self_check.PASSED:
         audit.update(state=state, adopted="reread", printed=self_check.printed_totals(second))
         return second, again, audit, extra
     return data, response, audit, extra
+
+
+def _repaired(data, transcript, category, audit):
+    """银行页只断一处、倒推的金额原样印在本页原文里：按倒推值纠正那一笔、标成已更正（用户 2026-10-01 同意；压测
+    B07-BAY-CA 第 8 页把邻行的金额读到了这一行）。不花钱、不占再读的页数；纠正后链必须完全接上，否则原样不改。"""
+    if category == "bank" and audit.get("state") == self_check.MISMATCH:
+        index = self_check.repair_single_break(data, transcript)
+        if index is not None:
+            audit.update(state=self_check.PASSED, repaired_row=index)
+    return data
 
 
 def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],

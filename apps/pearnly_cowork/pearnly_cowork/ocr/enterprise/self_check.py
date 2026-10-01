@@ -11,8 +11,9 @@
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from pearnly_cowork.ocr.enterprise.local.common import dec
 
@@ -201,3 +202,85 @@ def suspect_report_rows(reports) -> list:
                 if printed and row_date and DATE_SLACK_DAYS < abs((printed - row_date).days) <= 366:
                     out.append((name, invoice, ROW_DATE))
     return out
+
+
+# ── 银行页：行数明显少于原文、只断一处时按余额倒推纠正（用户 2026-10-01 同意）────────────────────────────
+
+_MONTHS = (r"ม\.?\s?ค\.?|ก\.?\s?พ\.?|มี\.?\s?ค\.?|เม\.?\s?ย\.?|พ\.?\s?ค\.?|มิ\.?\s?ย\.?|ก\.?\s?ค\.?|ส\.?\s?ค\.?|ก\.?\s?ย\.?"
+           r"|ต\.?\s?ค\.?|พ\.?\s?ย\.?|ธ\.?\s?ค\.?|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec")
+_DATE = re.compile(r"(?<!\d)\d{1,2}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{2,4}(?!\d)"
+                   r"|(?<!\d)\d{1,2}\s*(?:" + _MONTHS + r")\s*\d{2,4}(?!\d)", re.IGNORECASE)
+# 读出的行比原文里带日期的行少这么多、且不到这个比例，才算「明显少读」（正常页两者几乎相等：2026-10-01 B08 8 页逐页
+# 22/22、11/11、23/22、22/22、37/36、22/22；表头的期间、打印日期最多多出一两行，所以要差 3 行以上）。
+SHORT_ROWS = 3
+SHORT_RATIO = Decimal("0.8")
+# 补读出的行最多可比原文带日期的行多到这个程度（同一天的几笔有时只印一次日期：B08 第 6 页原文 21 行带日期、实有 24 笔），
+# 超出就当成凭空多出来的、不用。
+RECOVER_RATIO = Decimal("1.3")
+
+
+def recovered_limit(expected: int) -> int:
+    return int(expected * RECOVER_RATIO) + 2
+
+
+def dated_lines(transcript: str) -> int:
+    """原文（Document AI 读字）里带日期的行数：银行账单每笔流水一行带日期，用来估这一页大约有几笔。"""
+    return sum(1 for line in (transcript or "").splitlines() if _DATE.search(line))
+
+
+def rows_short(document: dict, transcript: str) -> Optional[int]:
+    """读出的行明显少于原文里带日期的行、而且页内余额链在接缝处断开：回原文的行数（再读时告诉模型），否则 None。
+
+    漏读一张表 / 一栏的样子是：读出的行比原文带日期的行少得多，余额链大体是通的、只在漏掉的那段接缝处断几处
+    （B08 第 6 页：11 / 20 行、断 3 处）。下面几种不算（2026-10-01 套生产近 4 天 222 页扫描账单：不收紧时 27 页会多读，
+    只有 2 页是真的少读）：一行都没读出（无流水月的账单，表头的期间、打印日期也带日期；或根本不是账单）；链完全没断；
+    断点占了一半以上（没有逐笔余额的版式、一行印记账日与起息日两个日期，日期数自然比笔数多，再读也补不出来）。"""
+    expected = dated_lines(transcript)
+    found = len(document.get("entries") or [])
+    if not found or expected - found < SHORT_ROWS or found >= expected * SHORT_RATIO:
+        return None
+    breaks = bank_breaks(document)
+    return expected if 1 <= breaks and breaks * 2 <= found else None
+
+
+def _amount_texts(value: Decimal) -> List[str]:
+    plain = f"{abs(value):.2f}"
+    return [f"{abs(value):,.2f}", plain]
+
+
+def repair_single_break(document: dict, transcript: str) -> Optional[int]:
+    """页内余额链只断一处、断在某一笔上，且按前后余额倒推出的这笔金额原样印在本页原文里：按倒推值改这一笔，
+    标成余额链补算（``chain_amount_imputed``，对账里显示为已自动更正、复核时看得到），回改的是第几笔（从 0 起）。
+    其余情况（不止一处、断在结转余额上、倒推的数原文里没有）一律不改，回 None。只改金额，不动余额与其他行。"""
+    if bank_breaks(document) != 1:
+        return None
+    entries = document.get("entries") or []
+    previous = dec(document.get("opening_balance"))
+    broken = None
+    for index, entry in enumerate(entries):
+        balance, signed = dec(entry.get("balance")), _signed(entry)
+        if previous is not None and balance is not None and signed is not None \
+                and abs(previous + signed - balance) > TOLERANCE:
+            broken = (index, balance - previous)
+            break
+        if balance is not None:
+            previous = balance
+    if broken is None:
+        return None  # 断在页上印的结转余额：不是哪一笔的金额
+    index, implied = broken
+    if abs(implied) < TOLERANCE or not any(text in (transcript or "") for text in _amount_texts(implied)):
+        return None
+    entry = entries[index]
+    original = dict(entry)
+    amount = f"{abs(implied):,.2f}"
+    if entry.get("deposit") not in (None, "") or entry.get("withdrawal") not in (None, "") or not entry.get("amount"):
+        entry["deposit"], entry["withdrawal"] = (amount, "") if implied > 0 else ("", amount)
+    if entry.get("amount") not in (None, ""):
+        entry["amount"], entry["direction"] = amount, "deposit" if implied > 0 else "withdrawal"
+    if bank_breaks(document) != 0:
+        # 改完链没有完全接上：不是这一笔的金额读错（更可能是余额读错），原样还原、不改
+        entry.clear()
+        entry.update(original)
+        return None
+    entry["chain_amount_imputed"] = True
+    return index

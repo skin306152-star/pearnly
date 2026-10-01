@@ -2197,6 +2197,7 @@ reconciliation.statement_no_running_balance,"This statement shows no running bal
 reconciliation.statement_not_a_statement,"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF."
 reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 reconciliation.statement_other_account_left_out,These statements look like another account and were left out of this reconciliation: {0}
+reconciliation.statement_pages_recovered,"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original."
 reconciliation.statement_pages_unread,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.
@@ -2302,6 +2303,7 @@ vat_check.status.void_no_invoice,Void · no invoice needed
 {0}/{1} pages,{0}/{1} pages
 {0}: are the card deposits paid in net of a card fee?,{0}: are the card deposits paid in net of a card fee?
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
+"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.","{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original."
 {0}: the check digit is wrong,{0}: the check digit is wrong
 {0}: which ledger account is it?,{0}: which ledger account is it?
 {1} is due at {2},{1} is due at {2}
