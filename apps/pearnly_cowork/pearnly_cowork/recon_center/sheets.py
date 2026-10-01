@@ -269,12 +269,16 @@ def _sheet(sheet, index, edits, inputs, styles, style_ids):
                 line.append(None)
                 continue
             text, red, numeric = _value(sheet, cell)
-            style = _style(cell, numeric, red)
-            key = repr(sorted(style.items()))
-            if key not in style_ids:
-                style_ids[key] = len(styles)
-                styles.append(style)
-            item = [text, style_ids[key]]
+            # 页面样式只取决于这格的样式下标与这两个判断：同一组合只算一次（逐格读字体 / 底色会新建对象，几千行要几秒）。
+            memo = (tuple(cell._style), numeric, red)
+            if memo not in style_ids:
+                style = _style(cell, numeric, red)
+                key = repr(sorted(style.items()))
+                if key not in style_ids:
+                    style_ids[key] = len(styles)
+                    styles.append(style)
+                style_ids[memo] = style_ids[key]
+            item = [text, style_ids[memo]]
             extra = {}
             if position in spans:
                 extra["rs"], extra["cs"] = spans[position]

@@ -17,11 +17,12 @@ import functools
 import hashlib
 import json
 import time
+from contextlib import nullcontext
 
 import frappe
 from frappe import _
 from pearnly_core import billing_client, ocr
-from pearnly_core.execution import pool as core_pool
+from pearnly_core.execution import pages as core_pages, pool as core_pool
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, QueueFull
 
@@ -255,6 +256,14 @@ def _recon_closed(recon_job, file=None):
         return False  # 队列一时查不到：不下结论，照常读
 
 
+def reading_slot():
+    """本机读：开了多线程时每个进程同时最多 ``local_slots()`` 份（渲染与整理吃内存，见 ``pearnly_core.execution.pool.local_slot``）。
+    交给 Cloud Run 的不占这个名额（ADR-015，与录入发票同一口径）：原来对账文档与销项税核查的发票连发往 Cloud Run 的也占着它，
+    生产 4 个识别进程 × 每个 1 个名额 = 全平台同时只能有 4 份对账文件在云上读，三租户压测时对账识别卡在每分钟约 10 份，
+    Cloud Run 空着 160 个并发（2026-10-01）。"""
+    return nullcontext() if forward.settings() else core_pool.local_slot()
+
+
 def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None):
     environment = frozen["environment"]
     if forward.settings():
@@ -315,7 +324,8 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
         # 不重发的话整份文件读空、整套对账失败，用户只能整份重传（2026-09-29 压测 45 个识别任务里 7 个）。
         return read_file(source, content, is_pdf, None if is_pdf else _mime(content), document_type,
             reading(guarded(functools.partial(client.document_ai_call, retry_unknown=True))),
-            extracting(page_failure(guarded(functools.partial(client.model_call, retry_unknown=True)))))
+            extracting(page_failure(guarded(functools.partial(client.model_call, retry_unknown=True)))),
+            map_pages=core_pages.mapper() if int(pages) > 1 else None)
 
 
 page_failure = recon_reading.document_page_failure
@@ -352,8 +362,7 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
             ocr_settings.revalidate(frozen)
             intake.balance(int(pages), frozen["billing_tier"])
             try:
-                # 本机读：开了多线程时每个进程同时最多 local_slots() 份（见 pearnly_core.execution.pool.local_slot）。
-                with core_pool.local_slot():
+                with reading_slot():
                     legacy = _read(content, filename, pages, frozen, document_type, recon_job, file)
             except ReconClosed:
                 return {"cancelled": "recon_job_closed"}

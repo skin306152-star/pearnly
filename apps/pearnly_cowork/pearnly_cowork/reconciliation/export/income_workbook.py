@@ -162,6 +162,12 @@ def _t(lang: str, key: str) -> str:
 # ─────────────────────────────────────────────────────────────────────
 # Excel 导出
 # ─────────────────────────────────────────────────────────────────────
+def _appended(ws):
+	"""刚 ``append`` 的那一行的行号。``max_row`` 每读一次都把整张表的格子数一遍，逐行读它让几千行的明细
+	变成平方级（7000 行的收入对账光这一项就七秒）；``append`` 写到的就是它记着的当前行，值与 ``max_row`` 相同。"""
+	return ws._current_row
+
+
 def export_gl_vat_excel(
 	detail: List[ReconRow],
 	summary: GlVatSummary,
@@ -253,7 +259,7 @@ def export_gl_vat_excel(
 				row.account_codes,
 			]
 		)
-		r = ws1.max_row
+		r = _appended(ws1)
 		for c in range(1, 9):
 			ws1.cell(r, c).font = NORM
 		# 状态列：左对齐 + 颜色填充
@@ -346,7 +352,7 @@ def export_gl_vat_excel(
 		# 分区标题行(emphasize=False) B 列留空 · 金额只显示在下方明细行 · 避免重复混淆
 		b_val = round(entry["amount"], 2) if entry["emphasize"] else ""
 		ws2.append([entry["label"], b_val])
-		r = ws2.max_row
+		r = _appended(ws2)
 		if entry["emphasize"]:
 			ws2.cell(r, 1).fill, ws2.cell(r, 1).font = H_FILL, BOLD
 			ws2.cell(r, 2).fill, ws2.cell(r, 2).font = H_FILL, BOLD
@@ -373,7 +379,7 @@ def export_gl_vat_excel(
 			if entry.get("negate"):
 				amt = -amt
 			ws2.append([label, round(amt, 2)])
-			rr = ws2.max_row
+			rr = _appended(ws2)
 			ws2.cell(rr, 1).font = ITEM_FONT
 			ws2.cell(rr, 2).font = ITEM_FONT
 			ws2.cell(rr, 1).fill = WHITE_FILL

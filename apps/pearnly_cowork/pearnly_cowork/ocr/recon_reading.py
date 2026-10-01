@@ -70,8 +70,9 @@ def document_page_failure(call):
     return invoke
 
 
-def read_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call):
-    """企业档读一份文件 → 旧线上管线结果形状（多页、带 engine）。页面图只在要 3.8 抽取时逐页渲染。"""
+def read_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call, map_pages=None):
+    """企业档读一份文件 → 旧线上管线结果形状（多页、带 engine）。页面图只在要 3.8 抽取时逐页渲染。
+    ``map_pages``：各页第一遍抽取同时做的方式（``enterprise.run``）；不给就一页一页读。"""
     reads = enterprise.pdf_chunks(content, source.page_count) if is_pdf else [(content, mime, 1)]
 
     def render(number):
@@ -79,7 +80,7 @@ def read_document(source, content, is_pdf, mime, document_type, document_ai_call
         return frame.image_bytes, frame.mime_type
 
     result = enterprise.run(enterprise.CATEGORIES[document_type], page_count=source.page_count, reads=reads,
-        render=render, document_ai_call=document_ai_call, model_call=model_call)
+        render=render, document_ai_call=document_ai_call, model_call=model_call, map_pages=map_pages)
     return enterprise.to_legacy(result)
 
 

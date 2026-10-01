@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 from copy import deepcopy
+from functools import partial
 from typing import Callable, Iterable, List, Tuple
 
 from pearnly_cowork.ocr.engine.contracts import ModelRequest
@@ -169,7 +171,7 @@ def _extract(model_call, image, mime, category, transcript, number, *, reread=Fa
     return data, response
 
 
-def _checked(model_call, image, mime, category, transcript, number, data, response, running, may_reread):
+def _checked(model_call, picture, category, transcript, number, data, response, running, may_reread):
     """一页抽取完先自核（``self_check``）；银行页内余额链有断点、税报行合计对不上页合计，就这页再抽一次：
     银行取断点严格更少的那次，税报只有再读对上了才用再读的；再读失败（读不出、结果不明）照旧用第一次，不丢页。
     返回 ``(document, response, 留痕 or None, 再读花的钱)``；总账不核（``None``）。"""
@@ -194,6 +196,7 @@ def _checked(model_call, image, mime, category, transcript, number, data, respon
         [SHORT_ROWS_REASON.format(found=len(data.get("entries") or []), expected=short)] if short else [])
     try:
         # 税报重读用原读法原样（带转写稿、不加「上次没对上」那句），与压测模拟的读法一致
+        image, mime = picture()
         second, again = _extract(model_call, image, mime, category, transcript, number, reread=True,
                                  note=category not in IMAGE_FIRST, reason="; ".join(reasons))
     except ContentError:
@@ -239,9 +242,43 @@ def _repaired(data, transcript, category, audit):
     return data
 
 
+def _one_at_a_time(render):
+    lock = threading.Lock()
+
+    def invoke(number):
+        with lock:
+            return render(number)
+    return invoke
+
+
+def _first_reading(model_call, render, category, transcripts, keep_image):
+    """第 n 页的第一遍抽取：只用这一页自己的图和转写稿，与别的页无关。回 ``(data, response, 取这页图的办法)``；银行页抽取
+    重发后仍结果不明回 ``None``（这一页读不出，见 ``run``）。一页一页读时留着这页的图给再读用（与原来一样只渲染一次）；
+    各页同时读时不把整份扫描件的图都留在内存里，要再读的页再渲染一次（同一页渲染结果不变，见 ``PageSource.frame``）。"""
+    def read(number):
+        image, mime = render(number)
+        try:
+            data, response = _extract(model_call, image, mime, category, transcripts[number - 1], number,
+                                      image_only=category in IMAGE_FIRST)
+            return data, response, ((lambda: (image, mime)) if keep_image else partial(render, number))
+        except ContentError as error:
+            # 只有银行账单这样兜底：余额链一定在缺的那页断开、交人确认；总账、税报没有逐笔余额，丢一页看不出来，
+            # 照旧整份读不出（结果里点名那份文件）。
+            if error.code != UNREAD_PAGE or category != "bank":
+                raise
+            return None
+    return read
+
+
 def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
-        render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call) -> PipelineResult:
-    """``reads``: the Document AI inputs (PDF chunks or the one image); ``render(n)``: page n's image."""
+        render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, map_pages=None) -> PipelineResult:
+    """``reads``: the Document AI inputs (PDF chunks or the one image); ``render(n)``: page n's image.
+
+    ``map_pages(fn, page_numbers)``（可选，与发票引擎同一约定：按页码顺序交回每页结果，任一页出错等其余页结束后抛页码最小的
+    那个）：各页的**第一遍抽取**同时做。之后的自核、再读、结转累计照旧按页码顺序一页一页来（再读名额先到先得、税报按前面
+    各页的累计核），所以发出去的请求、每一步的判断与一页一页读完全相同；只是第一遍不再排队（2026-10-01 压测：12 页的银行
+    账单在 Cloud Run 上一页一页读要 4–5 分钟，三租户时对账识别卡在每分钟约 10 份）。区别只在出错时：一页一页读遇到整份读不出
+    就停，同时读时其余页的第一遍已经发出。"""
     if category not in ("bank", "gl", "vat") or page_count < 1:
         raise ContentError("ocr.enterprise_category_invalid", detail=str(category))
     started = time.monotonic()
@@ -265,30 +302,29 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         unread = 0
         rereads = 0
         running = {}  # 税报：本页之前各页的累计（结转、全表总计按累计核）
+        numbers = range(1, len(transcripts) + 1)
+        together = map_pages is not None and len(transcripts) > 1
+        if together:
+            render = _one_at_a_time(render)  # PDF 渲染库不是线程安全的（与发票引擎的 _SerialSource 一样）
+        first = _first_reading(model_call, render, category, transcripts, keep_image=not together)
+        firsts = map_pages(first, numbers) if together else None
         for number, transcript in enumerate(transcripts, 1):
-            image, mime = render(number)
-            try:
-                data, response = _extract(model_call, image, mime, category, transcript, number,
-                                          image_only=category in IMAGE_FIRST)
-            except ContentError as error:
-                # 只有银行账单这样兜底：余额链一定在缺的那页断开、交人确认；总账、税报没有逐笔余额，丢一页看不出来，
-                # 照旧整份读不出（结果里点名那份文件）。
-                if error.code != UNREAD_PAGE or category != "bank":
-                    raise
+            reading = firsts[number - 1] if together else first(number)
+            if reading is None:
                 # 这一页的抽取重发后仍结果不明（模型读超时）：只丢这一页，其余页照常（2026-09-30 压测第 23 轮
                 # BAY-CA-03 / CamScanner 12 页：一页 180 秒读超时，整份作废、整套对账失败）。银行的余额链会在这里断开，
                 # 交人确认；这一页记在页上，结果里点名。
-                del image
                 unread += 1
                 page = make_page({"entries": []}, category, number, issues=["page_unreadable"])
                 page.extraction_audit["page_unreadable"] = True
                 pages.append(page)
                 continue
-            data, response, checked, extra = _checked(model_call, image, mime, category, transcript, number,
-                                                      data, response, running, rereads < MAX_REREAD_PAGES)
+            data, response, picture = reading
+            data, response, checked, extra = _checked(model_call, picture, category, transcript,
+                                                      number, data, response, running, rereads < MAX_REREAD_PAGES)
+            del picture, reading  # one rendered page at a time, not the whole scan in memory
             rereads += bool(checked and checked["reread"])
             cost += extra
-            del image  # one rendered page at a time, not the whole scan in memory
             document = data
             for row in document.get("entries") or []:
                 row["page"] = str(number)

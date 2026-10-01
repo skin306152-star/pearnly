@@ -15,6 +15,7 @@
 页面上的复核表由同一本工作簿逐格画出（`recon_center/sheets.py`），所以页面与下载的 Excel 同步变。
 """
 import re
+from copy import copy
 
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
@@ -75,7 +76,8 @@ def _is_title(sheet, row, width):
                             for m in sheet.merged_cells.ranges)
 
 
-def _style_sheet(sheet, roles, status_column=1):
+def _style_sheet(sheet, roles, status_column=1, done=None):
+    done = {} if done is None else done
     width, height = sheet.max_column, sheet.max_row
     line = Side(style="thin", color=LINE)
     border = Border(left=line, right=line, top=line, bottom=line)
@@ -102,15 +104,22 @@ def _style_sheet(sheet, roles, status_column=1):
         tinted = next((r for r in STATUS if row_roles.count(r) >= max(2, 0.6 * width)), None)
         for column in range(1, width + 1):
             cell = sheet.cell(row, column)
-            role = _fill_role(cell, roles)
+            role = row_roles[column - 1]
             if tinted and role == tinted and column != status_column:
                 role = None
-            font, align = cell.font, cell.alignment
             numeric = isinstance(cell.value, (int, float)) and not isinstance(cell.value, bool)
             if isinstance(cell.value, str):
                 match = _ISO_DATE.match(cell.value.strip())
                 if match:
                     cell.value = f"{match.group(3)}/{match.group(2)}/{match.group(1)}"
+            # 下面每一项外观只取决于这格原来的样式和这几个判断，所以同一组合第一次算出的样式下标原样复用，
+            # 结果与逐格新建样式对象完全相同（openpyxl 按值去重，同样的字体 / 底色 / 边框拿到的就是同一个下标）。
+            # 原来每格都新建对象、逐个按值比对，一本几千行的收入对账要几十秒，页面打开就卡在这里（2026-10-01）。
+            key = (tuple(cell._style), title, header, dark, role, numeric) if cell._style is not None else None
+            if key is not None and key in done:
+                cell._style = copy(done[key])
+                continue
+            font, align = cell.font, cell.alignment
             if numeric and "0.00" in (cell.number_format or ""):
                 cell.number_format = MONEY
             if title:
@@ -118,6 +127,8 @@ def _style_sheet(sheet, roles, status_column=1):
                 cell.font = Font(name=FONT, size=12, bold=True, color=TEXT)
                 cell.alignment = Alignment(horizontal="left", vertical="center")
                 cell.border = Border()
+                if key is not None:
+                    done[key] = copy(cell._style)
                 continue
             if header:
                 cell.fill = _solid(HEADER_BG)
@@ -140,6 +151,8 @@ def _style_sheet(sheet, roles, status_column=1):
                 cell.alignment = Alignment(horizontal=horizontal or ("right" if numeric else "left"),
                                            vertical="center", indent=align.indent if align is not None else 0)
             cell.border = border
+            if key is not None:
+                done[key] = copy(cell._style)
     for dimension in sheet.column_dimensions.values():
         if dimension.width and dimension.width > MAX_WIDTH:
             dimension.width = MAX_WIDTH
@@ -149,7 +162,7 @@ def _style_sheet(sheet, roles, status_column=1):
 
 def apply(book, kind):
     """把一本对账工作簿统一成同一套外观。kind：bank / income / vat。"""
-    roles = ROLES[kind]
+    roles, done = ROLES[kind], {}  # 样式下标是整本工作簿共用的，复用表跟着工作簿走
     for index, sheet in enumerate(book.worksheets):
-        _style_sheet(sheet, roles, STATUS_COLUMN.get(kind, {}).get(index, 1))
+        _style_sheet(sheet, roles, STATUS_COLUMN.get(kind, {}).get(index, 1), done)
     return book

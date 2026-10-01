@@ -100,7 +100,7 @@ class Checked(unittest.TestCase):
             calls.append(request)
             return SimpleNamespace(text=json.dumps(second), finish_reason="STOP", model="gemini-3.8-flash",
                                    input_tokens=10, output_tokens=10)
-        data, response, audit, extra = pipeline._checked(model_call, b"img", "image/png", "bank", transcript, 6,
+        data, response, audit, extra = pipeline._checked(model_call, lambda: (b"img", "image/png"), "bank", transcript, 6,
                                                          first, SimpleNamespace(model="m"), {}, may_reread)
         return data, audit, calls
 

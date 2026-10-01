@@ -458,14 +458,19 @@ def _document(body, content, store, access_token, emit, *, orient, page_source, 
             return invoke
 
         is_pdf = body["filename"].lower().endswith(".pdf")
+        # 多页文件各页的第一遍抽取同时做（OCR_PAGE_THREADS，与发票同一个开关；自核与再读照旧按页序，见 enterprise.run）。
+        limit = page_threads()
+        page_map = page_mapper(limit, lambda count: None) if body["page_count"] > 1 and limit > 1 else None
         with page_source(content, body["filename"], expected_page_count=body["page_count"], enable_text_path=False,
                          image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
                          orient=orient) as source:
             legacy = recon_reading.read_document(source, content, is_pdf,
                 None if is_pdf else recon_reading.image_mime(content), body["document_type"],
                 reading(guarded(partial(client.document_ai_call, retry_unknown=True))),
-                extracting(recon_reading.document_page_failure(guarded(partial(client.model_call, retry_unknown=True)))))
-        log(event="document_done", pages=body["page_count"], seconds=round(clock() - started, 2))
+                extracting(recon_reading.document_page_failure(guarded(partial(client.model_call, retry_unknown=True)))),
+                map_pages=page_map)
+        log(event="document_done", pages=body["page_count"], seconds=round(clock() - started, 2),
+            page_threads=limit if page_map else 1)
         emit(contract.result("done", legacy=legacy))
     except Deferred as exc:
         emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay))

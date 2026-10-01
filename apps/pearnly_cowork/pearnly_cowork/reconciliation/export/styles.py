@@ -5,6 +5,7 @@ share these header, border and date helpers; sheet 1 keeps its own palette. Pure
 presentation: no database, clock, file, network or Frappe access.
 """
 
+from copy import copy
 from datetime import date
 from typing import Optional
 
@@ -34,9 +35,20 @@ def hdr_style(ws, row, col, text, color=COLOR_HEADER, bold=True, size=10):
 
 def border_range(ws, min_row, max_row, min_col, max_col):
     thin = Side(style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    # 加边框后的样式下标只取决于格子原来的样式：同一种只算一次，其余直接用算好的下标（结果与逐格赋值相同；
+    # 逐格赋值每次都按值比对一遍样式表，两千多行的银行对账光这一步就几秒）。
+    done = {}
     for r in range(min_row, max_row + 1):
         for c in range(min_col, max_col + 1):
-            ws.cell(r, c).border = Border(left=thin, right=thin, top=thin, bottom=thin)
+            cell = ws.cell(r, c)
+            key = tuple(cell._style) if cell._style is not None else None  # 合并区里的格子可能还没有样式
+            if key is not None and key in done:
+                cell._style = copy(done[key])
+                continue
+            cell.border = border
+            if key is not None:
+                done[key] = copy(cell._style)
 
 
 def fmt_date(d: Optional[date]) -> str:
