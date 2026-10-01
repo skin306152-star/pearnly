@@ -7,7 +7,7 @@
   `recon_center.storage`）。
 - 代码：`pearnly_cowork.files.cloud`（签名、读回）、`files.service.begin_direct / finish_direct / stored_original /
   verify_stored`、`files.api.begin_upload / finish_upload`；纯检查 `pearnly_cowork.ocr.originals`（服务器与 Cloud Run 共用）；
-  Cloud Run `POST /v1/cowork/inspect`、识别请求可带 `original`（对象 + 版本号 + sha256）代替字节（`ocr.remote.contract`）。
+  Cloud Run `POST /v1/cowork/inspect`、`POST /v1/cowork/preview`、识别请求可带 `original`（对象 + 版本号 + sha256）代替字节（`ocr.remote.contract`）。
 
 ## 问题
 
@@ -34,16 +34,28 @@
    没配桶、没开 Cloud Run 识别、表格 / Word 原件：`begin_upload` 回 `{"direct": 0}`，页面照旧走 `upload`。
 3. **识别**：原件在桶里时，服务器只把对象、版本号、sha256 交给 Cloud Run，Cloud Run 自己读、核对 sha256（对不上 /
    没有就报错、不付费）。原件在服务器上且超过 20 MiB 时改在本机识别，不再整份报错。
-4. **服务器仍然管**：权限、幂等、余额、名额、存结果、扣费、访问日志。预览（`files.api.page`）照旧由服务器渲染，按版本号从桶里
-   读回原件、核对 sha256；**下载**（`files.api.original`）记访问日志后转到 5 分钟有效、只限这一版本、作为附件下载的签名地址。
+4. **服务器仍然管**：权限、幂等、余额、名额、存结果、扣费、访问日志。**预览**（`files.api.page`）权限与访问日志照旧在服务器；
+   原件在桶里时改由 Cloud Run 生成这一页的预览图（`/v1/cowork/preview`，与服务器同一份 `ocr.originals.render_page`，
+   按版本号读、核对 sha256），服务器只转回生成好的图：不把整份原件下载到服务器（省谷歌出网流量，也省服务器渲染 CPU）。
+   **下载**（`files.api.original`）记访问日志后转到 5 分钟有效、只限这一版本、作为附件下载的签名地址。
    登记识别结果时不再整份下载核对（同一版本内容不变，登记原件时 Cloud Run 已核对 sha256）。
 5. **开关**：站点配置 `pearnly_cowork_originals_bucket`（桶名）+ 已开的 `pearnly_cowork_ocr_remote`。关掉任一个立刻回到
    经服务器上传；已经存在桶里的原件照常能预览、下载、识别。
 
-## 成本
+## 成本（单价 2026-10-01 从谷歌计费目录 API 读取，美元）
 
-存储约 0.02 美元 / GB / 月；上传免费；每份一次写入、一两次读（同区域 Cloud Run 读免费）。预览和下载从桶读到服务器 / 浏览器
-按谷歌出网流量计（亚太约 0.12 美元 / GB，一份 2 MB 的发票看一次约 0.0003 美元）。没有常驻花费。
+| 项 | 单价 |
+|---|---|
+| 新加坡标准存储 | 0.020 / GiB·月（近线 0.010、冷线 0.005、归档 0.0015） |
+| 取回费（只有转成便宜类别后才有） | 近线 0.01、冷线 0.02、归档 0.05 / GiB |
+| 写入（A 类操作） | 0.005 / 千次（每月前 5000 次免费） |
+| 读取（B 类操作） | 0.0004 / 千次（每月前 5 万次免费） |
+| 出网到亚太 | 0.12 / GiB（计费目录里前 100 GiB 为 0，之后 0.11、0.08 递减） |
+| 同区域 Cloud Run 读桶、浏览器上传 | 免费 |
+
+按每月 1 万份、每份 2 MB（约 19.5 GiB）估：写入约 0.03；存储第一年逐月累加，第 12 个月约 4.7 / 月（全标准）；
+预览只传 Cloud Run 生成的图（每页约 0.2–0.5 MB），每份看一次约 3–5 GiB / 月 ≈ 0.4–0.6（不计免费额度）；
+下载原件按实际下载量计。没有常驻花费。存储类别转换（转成冷线 / 归档）待用户确认后另加（见任务记录）。
 
 ## 不变
 

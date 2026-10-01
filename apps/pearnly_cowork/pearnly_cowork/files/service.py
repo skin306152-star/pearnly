@@ -1,21 +1,17 @@
-"""Native private originals; no OCR, external upload or legacy blob import."""
+"""Private originals: native File storage, or the Singapore originals bucket for browser direct uploads (ADR-016).
+
+No OCR or legacy blob import here; Cloud Run only checks / previews bucket originals on request."""
 import hashlib
-import io
 import json
 import re
 
 import frappe
 from frappe import _
-import pymupdf
-from PIL import Image, ImageOps
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, cloud, guard
 from pearnly_cowork.ocr import originals
-from pearnly_cowork.ocr.inputs import (IMAGE_EXTENSIONS, TABLE_EXTENSIONS as DOCUMENT_EXTENSIONS,
-    MAX_FILE_BYTES as MAX_BYTES, MAX_PDF_PAGES as MAX_PAGES, validate_input_metadata, OcrInputError)
-
-MAX_PREVIEW_PIXELS = 16_000_000
+from pearnly_cowork.ocr.inputs import IMAGE_EXTENSIONS, MAX_FILE_BYTES as MAX_BYTES, OcrInputError
 
 
 # 原件检查的错误代码（``ocr.originals``，服务器与 Cloud Run 共用）→ 原来的提示文字。
@@ -28,6 +24,8 @@ MESSAGES = {
     "pdf_unreadable": lambda: _("The PDF file cannot be read."),
     "pdf_pages": lambda: _("PDF files must contain between 1 and 50 pages."),
     "image_unreadable": lambda: _("The image file cannot be read."),
+    "preview_too_large": lambda: _("This page is too large to preview safely."),
+    "preview_unsupported": lambda: _("Page preview is available only for PDF and image originals."),
 }
 
 
@@ -188,7 +186,9 @@ def _remote_ready():
 
 def stored_original(source):
     """原件存在原件桶里（浏览器直传）返回 ``(桶, 对象, 版本号)``，存在服务器上返回 ``None``。"""
-    return cloud.parse_url(source.get("storage_url")) if not source.get("stored_file") else None
+    if getattr(source, "stored_file", None):
+        return None
+    return cloud.parse_url(getattr(source, "storage_url", None))
 
 
 def verify_stored(source):
@@ -328,29 +328,20 @@ def page(history_name, physical_page):
     source = frappe.get_doc(access.SOURCE, history.source_file)
     if not 1 <= number <= source.page_count:
         frappe.throw(_("The requested page is not part of this invoice."), frappe.PermissionError)
-    data = read_bytes(source)
-    if source.kind == "pdf":
-        with pymupdf.open(stream=data, filetype="pdf") as pdf:
-            selected = pdf[number - 1]
-            scale = 150 / 72
-            if selected.rect.width * selected.rect.height * scale * scale > MAX_PREVIEW_PIXELS:
-                frappe.throw(_("This page is too large to preview safely."))
-            png = selected.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
-    elif source.kind == "image" and number == 1:
-        with Image.open(io.BytesIO(data)) as image:
-            if image.format in ("JPEG", "MPO"):
-                # 手机照片（iPhone 2400 万 / 4800 万像素）：JPEG 按 1/2–1/8 直接缩小解码，内存跟着缩小后的尺寸走，
-                # 预览本来就只要 2048 边长（2026-09-30 测试站点 IMG_3134.JPG 5712×4284 原来被拒，页面显示无法加载预览）。
-                # 按原图比例要（长边 2048）：要正方形的话横拍照片短边不够缩一半，照样按原尺寸解码。
-                longest = max(image.width, image.height)
-                image.draft("RGB", (max(1, image.width * 2048 // longest), max(1, image.height * 2048 // longest)))
-            if image.width * image.height > MAX_PREVIEW_PIXELS:
-                frappe.throw(_("This page is too large to preview safely."))
-            image = ImageOps.exif_transpose(image).convert("RGB")
-            image.thumbnail((2048, 2048))
-            output = io.BytesIO()
-            image.save(output, format="PNG")
-            png = output.getvalue()
-    else:
-        frappe.throw(_("Page preview is available only for PDF and image originals."))
-    return png
+    stored = stored_original(source)
+    if stored:
+        # 原件在原件桶里：在 Cloud Run 上生成这一页的预览，只把生成好的图传回来（不把整份原件下载到服务器，ADR-016）。
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_cowork.ocr.remote import forward
+
+        try:
+            result = forward.preview(stored[1], stored[2], source.sha256, source.kind, number)
+        except Deferred:
+            frappe.throw(_("The preview is temporarily unavailable. Please try again."))
+        if result.get("code"):
+            reject(result["code"])
+        return result["png"]
+    try:
+        return originals.render_page(source.kind, read_bytes(source), number)
+    except originals.Rejected as error:
+        reject(error.code)

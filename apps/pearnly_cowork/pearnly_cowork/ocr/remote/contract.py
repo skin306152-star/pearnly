@@ -94,6 +94,26 @@ def inspect_request(*, site, object, filename):
     return body
 
 
+def preview_request(*, site, object, generation, sha256, kind, page):
+    """原件桶里一份原件的一页预览（ADR-016）：Cloud Run 按版本号读、核对 sha256、生成预览图，只传回图。"""
+    body = {"version": VERSION, "kind": "cowork.preview", "site": site,
+            "original": original(object=object, generation=generation, sha256=sha256), "file_kind": kind, "page": page}
+    parse_preview(body)
+    return body
+
+
+def parse_preview(body):
+    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.preview":
+        raise ValueError("unsupported request")
+    if not isinstance(body.get("site"), str) or not SITE.fullmatch(body["site"]):
+        raise ValueError("invalid site")
+    if body.get("file_kind") not in ("pdf", "image"):
+        raise ValueError("invalid file_kind")
+    if type(body.get("page")) is not int or not 1 <= body["page"] <= 500:
+        raise ValueError("invalid page")
+    return _original(body)
+
+
 def parse_inspect(body):
     if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.inspect":
         raise ValueError("unsupported request")

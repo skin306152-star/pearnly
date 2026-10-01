@@ -489,6 +489,24 @@ class DirectOriginals(unittest.TestCase):
         self.assertEqual(reading(events[-1]["pipeline"]), reading(inline["pipeline"]))
         self.assertEqual(events[-1]["evidence"], inline["evidence"])
 
+    def test_a_preview_on_cloud_run_is_the_same_picture_the_server_draws(self):
+        import hashlib
+        from pearnly_cowork.ocr import originals as checks
+
+        content = pdf(2)
+        name = OBJECT.replace(".png", ".pdf")
+        body = contract.preview_request(site=SITE, object=name, generation=7,
+                                        sha256=hashlib.sha256(content).hexdigest(), kind="pdf", page=2)
+        picture, code = runner.preview(body, Originals(**{name: content}))
+        self.assertIsNone(code)
+        self.assertEqual(picture, checks.render_page("pdf", content, 2))
+        self.assertEqual(runner.preview(dict(body, page=1, original=dict(body["original"], sha256="0" * 64)),
+                                        Originals(**{name: content})), (None, "original_mismatch"))
+        photo = png()
+        body = contract.preview_request(site=SITE, object=OBJECT, generation=7,
+                                        sha256=hashlib.sha256(photo).hexdigest(), kind="image", page=2)
+        self.assertEqual(runner.preview(body, Originals(**{OBJECT: photo})), (None, "preview_unsupported"))
+
     def test_a_changed_or_missing_original_is_never_read(self):
         google = Google()
         original = contract.original(object=OBJECT, generation=7, sha256="0" * 64)

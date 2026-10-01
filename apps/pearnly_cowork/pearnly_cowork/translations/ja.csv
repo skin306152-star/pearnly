@@ -1051,6 +1051,7 @@ The original invoice manifest is incomplete.,元ファイルの請求書関連�
 The original invoice reference is invalid or unavailable.,元の伝票の参照が無効か、アクセスできません。
 The outdated unsent preparation was replaced.,古い未送信の準備を置き換えました。
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
+The preview is temporarily unavailable. Please try again.,プレビューを一時的に表示できません。もう一度お試しください。
 The printed invoice date cannot be read. Check the date shown on the document.,請求書に記載された日付を読み取れません。書類の日付を確認してください。
 The push data exceeds the size limit.,送信データがサイズ制限を超えています。
 The push record has changed. Reload and try again.,送信記録が更新されました。再読み込みしてお試しください。

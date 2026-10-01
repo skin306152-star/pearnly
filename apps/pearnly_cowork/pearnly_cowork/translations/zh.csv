@@ -1051,6 +1051,7 @@ The original invoice manifest is incomplete.,原始文件的发票关联清单�
 The original invoice reference is invalid or unavailable.,原票据引用无效或不可访问。
 The outdated unsent preparation was replaced.,已替换过期且尚未发送的推送准备。
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,票上本方税号与所选账套不一致，请核对账套后重新发送。
+The preview is temporarily unavailable. Please try again.,预览暂时无法显示，请稍后再试。
 The printed invoice date cannot be read. Check the date shown on the document.,无法识别票面日期，请核对单据上的日期。
 The push data exceeds the size limit.,推送数据超过大小限制。
 The push record has changed. Reload and try again.,推送记录已更新，请重新读取后再试。

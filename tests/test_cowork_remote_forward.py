@@ -192,6 +192,38 @@ class Forward(unittest.TestCase):
             with self.assertRaises(self.ns["RemoteError"]):
                 self.inspect(step)
 
+    def preview(self, reply):
+        def post(url, json=None, timeout=None, headers=None):
+            self.sent.append((url, json, headers))
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
+        return self.ns["preview"]("acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf", 9, "d" * 64, "pdf", 2,
+                                  post=post, id_token=lambda audience: "ID_TOKEN")
+
+    def image(self, status=200, body=b"PNG", content_type="image/png"):
+        result = requests.Response()
+        result.status_code = status
+        result.headers = CaseInsensitiveDict({"Content-Type": content_type})
+        result.raw = io.BytesIO(body)
+        return result
+
+    def test_preview_brings_back_only_the_picture(self):
+        self.assertEqual(self.preview(self.image()), {"png": b"PNG"})
+        url, body, _headers = self.sent[0]
+        self.assertEqual(url, ON["url"] + "/v1/cowork/preview")
+        self.assertEqual((body["file_kind"], body["page"], body["original"]["generation"]), ("pdf", 2, 9))
+        self.assertEqual(self.budget.permits, [])
+        self.assertEqual(self.preview(self.reply(422, {"code": "preview_too_large"})), {"code": "preview_too_large"})
+        for reply in (requests.ConnectionError("down"), self.reply(503, {}),
+                      self.reply(422, {"code": "original_unavailable"})):
+            with self.assertRaises(Deferred):
+                self.preview(reply)
+        for reply in (self.reply(422, {"code": "original_mismatch"}), self.image(content_type="text/html"),
+                      self.reply(403, {})):
+            with self.assertRaises(self.ns["RemoteError"]):
+                self.preview(reply)
+
     def test_an_original_in_the_bucket_is_sent_by_reference_not_by_bytes(self):
         def post(url, json=None, **kwargs):
             self.sent.append(json)

@@ -11,13 +11,15 @@
 - 顺带修：原件在服务器上且超过 20 MiB 时，开着 Cloud Run 识别会整份报错（请求体放不下）→ 改为本机识别。
 - 部署脚本：`PEARNLY_OCR_SERVICE=cowork-ocr-test` 部署单独的测试服务；Cloud Run 加 `PEARNLY_ORIGINALS_BUCKET`。
 
+- 预览：原件在桶里时由 Cloud Run 生成（`/v1/cowork/preview`），服务器只转回图；渲染抽成 `ocr.originals.render_page`。
+
 ## 测试
 
-- `tests/test_cowork_direct_upload.py`（11 条，生产镜像）：签名可验、上传锁大小与不可覆盖、下载限版本与附件、
+- `tests/test_cowork_direct_upload.py`（12 条，含预览在 Cloud Run 生成、不下载整份原件，生产镜像）：签名可验、上传锁大小与不可覆盖、下载限版本与附件、
   签发只给 PDF / 图片、拒绝提示与原来相同、只登记 Cloud Run 读出的信息、忙时让页面重试、读回按版本并核对 sha256、登记结果不再整份下载。
-- `tests/test_cowork_remote_ocr.py` 新增 5 条：核对结果与服务器检查一致、坏原件删掉并给原代码、外站点 / 越界对象拒绝、
+- `tests/test_cowork_remote_ocr.py` 新增 6 条（含预览与服务器渲染逐字节相同）：核对结果与服务器检查一致、坏原件删掉并给原代码、外站点 / 越界对象拒绝、
   按对象读与带字节发来结果和计费证据一字不差、内容被换 / 没有时不付费。
-- `tests/test_cowork_remote_forward.py` 新增 3 条：核对不占名额、等待不占连接；忙 / 连不上让页面重试；按引用发不带字节。
+- `tests/test_cowork_remote_forward.py` 新增 4 条（含预览只传回图）：核对不占名额、等待不占连接；忙 / 连不上让页面重试；按引用发不带字节。
 
 ## 待做
 
@@ -26,3 +28,8 @@
    `pearnly_cowork_ocr_remote`；先自测（合成 PDF / 图片：直传 → 登记 → 识别 → 预览 → 下载），再请用户在浏览器试。
    切测试租户域名前先和压测窗口对好时间（压测可能在用 testcowork）。
 3. 用户试用通过 → 生产镜像候选检查 → 合入 → 夜间部署（Cloud Run 线上服务 + 生产）→ 线上站点配桶名打开 → 回读 → 通知压测窗口。
+
+## 待用户确认
+
+- 存储类别转换（压测窗口转达的建议）：原件现在没有到期删除，所以不删；建议 90 天后转冷线、365 天后转归档
+  （取回时每 GiB 多付 0.02 / 0.05 美元，看旧单极少）。确认后用桶的生命周期规则做，不写代码。

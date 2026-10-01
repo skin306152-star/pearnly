@@ -24,7 +24,8 @@ from pearnly_cowork.ocr.providers.client import ProviderError
 from pearnly_cowork.ocr.remote import contract
 
 CONFIG = "pearnly_cowork_ocr_remote"
-PATHS = {"invoice": "/v1/cowork/invoice", "document": "/v1/cowork/document", "inspect": "/v1/cowork/inspect"}
+PATHS = {"invoice": "/v1/cowork/invoice", "document": "/v1/cowork/document", "inspect": "/v1/cowork/inspect",
+         "preview": "/v1/cowork/preview"}
 # 一份最多跑 420 秒就让出（contract.YIELD_SECONDS）；单次调用最长 180 秒；Cloud Run 每 20 秒发一行 tick。
 READ_IDLE_SECONDS = 240
 # 拿不到名额时原地等：与 pearnly_core.execution.provider.post 在识别任务里同一规则（每步最多 20 秒、累计最多 60 秒），
@@ -148,6 +149,42 @@ def inspect_original(object_name, filename, *, post=None, id_token=None):
             raise Deferred("remote_original_unavailable", 5)
         raise RemoteError(str(result.get("code") or "remote_error"))
     return result
+
+
+def preview(object_name, generation, sha256, kind, page, *, post=None, id_token=None):
+    """原件桶里一份原件的一页预览（ADR-016）：``{"png": 字节}`` 或 ``{"code": 原件检查的错误代码}``。
+
+    在 Cloud Run 上生成，只传回生成好的图（不把整份原件下载到服务器）。连不上 / 忙抛 ``Deferred``。"""
+    config = _config()
+    body = contract.preview_request(site=frappe.local.site, object=object_name, generation=generation, sha256=sha256,
+                                    kind=kind, page=page)
+    pool.release_db()
+    try:
+        token = (id_token or _id_token)(config["url"])
+        response = (post or provider.http_post)(config["url"] + PATHS["preview"], json=body, timeout=(30, 60),
+                                                 headers={"Authorization": "Bearer " + token})
+    except (requests.ConnectionError, requests.Timeout) as exc:
+        raise Deferred("remote_unreachable", 5) from exc
+    except Exception as exc:
+        raise Deferred("remote_token_unavailable", 5) from exc
+    try:
+        if response.status_code in (429, 500, 502, 503, 504):
+            raise Deferred("remote_http_" + str(response.status_code), 5)
+        if response.status_code == 422:
+            try:
+                code = response.json().get("code")
+            except (ValueError, AttributeError) as exc:
+                raise RemoteError("remote_bad_reply") from exc
+            if code == "original_unavailable":
+                raise Deferred("remote_original_unavailable", 5)
+            if code in ("preview_too_large", "preview_unsupported"):
+                return {"code": code}
+            raise RemoteError(str(code or "remote_error"))
+        if response.status_code != 200 or response.headers.get("Content-Type") != "image/png":
+            raise RemoteError("remote_http_" + str(response.status_code))
+        return {"png": response.content}
+    finally:
+        response.close()
 
 
 def _config():

@@ -200,6 +200,31 @@ class StoredInBucket(unittest.TestCase):
                 mock.patch.object(service.frappe, "throw", side_effect=Thrown), self.assertRaises(Thrown):
             service.read_bytes(self.source(data))
 
+    def test_preview_of_a_bucket_original_is_drawn_on_cloud_run(self):
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_cowork.ocr.remote import forward
+
+        source = self.source(b"x", kind="pdf", page_count=3)
+        history = types.SimpleNamespace(source_file="S1")
+        with mock.patch.object(service.scope, "require_read"), mock.patch.object(service.access, "require_page"), \
+                mock.patch.object(service.frappe, "get_doc",
+                                  side_effect=lambda doctype, name: history if doctype == service.access.HISTORY else source), \
+                mock.patch.object(service, "_", side_effect=lambda text: text), \
+                mock.patch.object(service.frappe, "throw", side_effect=lambda message, *a, **k: (_ for _ in ()).throw(Thrown(message))), \
+                mock.patch.object(service.cloud, "read") as read:
+            with mock.patch.object(forward, "preview", return_value={"png": b"PNG"}) as preview:
+                self.assertEqual(service.page("H1", 2), b"PNG")
+            preview.assert_called_once_with(SITE + "/originals/CWS-x.pdf", 77, source.sha256, "pdf", 2)
+            with mock.patch.object(forward, "preview", return_value={"code": "preview_too_large"}), \
+                    self.assertRaises(Thrown) as caught:
+                service.page("H1", 2)
+            self.assertEqual(str(caught.exception), "This page is too large to preview safely.")
+            with mock.patch.object(forward, "preview", side_effect=Deferred("remote_http_503", 5)), \
+                    self.assertRaises(Thrown) as caught:
+                service.page("H1", 1)
+            self.assertEqual(str(caught.exception), "The preview is temporarily unavailable. Please try again.")
+        read.assert_not_called()   # 整份原件不下载到服务器
+
     def test_binding_results_does_not_download_the_whole_original_again(self):
         with mock.patch.object(service.cloud, "read") as read:
             service.verify_stored(self.source(b"x"))

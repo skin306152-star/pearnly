@@ -1051,6 +1051,7 @@ The original invoice manifest is incomplete.,รายการเชื่อ�
 The original invoice reference is invalid or unavailable.,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 The outdated unsent preparation was replaced.,แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,เลขผู้เสียภาษีของเราบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่
+The preview is temporarily unavailable. Please try again.,ไม่สามารถแสดงตัวอย่างได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง
 The printed invoice date cannot be read. Check the date shown on the document.,ไม่สามารถอ่านวันที่บนใบแจ้งหนี้ได้ กรุณาตรวจสอบวันที่บนเอกสาร
 The push data exceeds the size limit.,ข้อมูลส่งเกินขีดจำกัดขนาด
 The push record has changed. Reload and try again.,รายการส่งมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง

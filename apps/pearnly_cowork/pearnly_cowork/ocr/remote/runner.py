@@ -316,6 +316,21 @@ def inspect(body, originals):
     return {"status": "ok", "meta": meta, "generation": generation, "md5": hashlib.md5(content).hexdigest()}
 
 
+def preview(body, originals):
+    """原件桶里一份原件的一页预览：``(PNG 字节, None)`` 或 ``(None, 错误代码)``（与服务器渲染同一份 ``render_page``）。"""
+    try:
+        contract.parse_preview(body)
+    except ValueError:
+        return None, "invalid_request"
+    content, failure = original_bytes(body, originals)
+    if failure:
+        return None, failure
+    try:
+        return original_files.render_page(body["file_kind"], content, body["page"]), None
+    except original_files.Rejected as error:
+        return None, error.code
+
+
 def recognize(body, backend, access_token, emit, *, orient, page_source, http=None, clock=time.monotonic,
               threads=None, originals=None):
     """跑一份发票识别，进度和结果都通过 ``emit(event)`` 交出。从不抛出：异常都变成 result 事件。"""
