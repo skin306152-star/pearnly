@@ -226,6 +226,25 @@ class ProviderRuntime(unittest.TestCase):
         self.assertEqual(posted[1]["bucket"], ("vertex", "synthetic-project", "us", "gemini-3.8-flash"))
         self.assertEqual(posted[1]["hand_back"], ())
 
+    def test_an_unknown_outcome_on_the_us_entry_is_resent_once(self):
+        posted = []
+        original = self.core.post
+
+        def post(**values):
+            posted.append(values)
+            if len(posted) == 1:
+                raise Deferred("provider_429", 6)          # 全球入口被拒 → 转美国
+            if len(posted) == 2:
+                raise Uncertain("read timed out")          # 美国入口这次结果不明 → 重发一次
+            return original(**values)
+        self.core.post = post
+        result = self.core.client().model_call(self.request)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        self.assertEqual(len(posted), 3)
+        self.assertTrue(all("/locations/us/" in values["url"] for values in posted[1:]))
+        self.assertNotEqual(posted[1]["model"], posted[2]["model"])   # 重发是新的检查点身份
+        self.assertTrue(self.core.rejections[-1][1]["outcome_unknown"])
+
     def test_own_capacity_off_switch_and_regional_models_stay_on_their_entry(self):
         for environment, model, error in (({}, "gemini-3.8-flash", Deferred("capacity", 3)),
                                           ({"VERTEX_OVERFLOW": "off"}, "gemini-3.8-flash", Deferred("provider_429", 6)),

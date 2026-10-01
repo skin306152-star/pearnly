@@ -50,6 +50,18 @@ class Overflow(unittest.TestCase):
         self.assertEqual(calls[1][1], "vertex|p|us|gemini-3.1-flash-lite")
         self.assertNotIn("hand_back", calls[1][2])     # 美国入口再被拒就照原规则退避，不再转
 
+    def test_an_unknown_outcome_on_the_us_entry_is_resent_once_under_a_new_checkpoint(self):
+        from pearnly_core.execution import work
+        from pearnly_core.execution.errors import Uncertain
+        with patch.object(work, "checkpoint") as checkpoint:
+            result, calls = self.post(Deferred("provider_429", 6), Uncertain("read timed out"), "ok")
+        self.assertEqual(result, "ok")
+        self.assertEqual(len(calls), 3)
+        self.assertIn("//aiplatform.us.rep.googleapis.com/", calls[2][0])
+        checkpoint.assert_called_once()
+        self.assertEqual(checkpoint.call_args.args[1], "rejected")
+        self.assertTrue(checkpoint.call_args.args[2]["outcome_unknown"])
+
     def test_own_capacity_waits_and_off_switch_and_regional_models_do_not_overflow(self):
         result, calls = self.post(Deferred("capacity", 2))
         self.assertIsInstance(result, Deferred)

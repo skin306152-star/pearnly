@@ -256,12 +256,12 @@ class ProviderClient:
     def _vertex(self, payload, model, location, request, retry_unknown):
         """Gemini：全球入口被谷歌拒绝（429 / 503 / 额度，``provider_*``）时这一次请求立刻改发备用多区域入口
         （``policy.vertex_overflow``），不原地等；自家额度的等待照旧原地等。续跑时已在备用入口读完的直接取回，不再付费。"""
-        def send(where, attempt=request.attempt, hand_back=()):
+        def send(where, attempt=request.attempt, hand_back=(), resend=retry_unknown):
             url = (f"https://{vertex_host(where)}/v1/projects/{quote(self.project, safe='')}/locations/"
                    f"{quote(where, safe='')}/publishers/google/models/{quote(model, safe='')}:generateContent")
             body, elapsed, key, _ = self._send(url=url, payload=payload, model=model, provider="vertex",
                 location=where, stage=request.stage, page_number=request.page_number, attempt=attempt,
-                timeout_s=request.timeout_s, retry_unknown=retry_unknown, hand_back=hand_back)
+                timeout_s=request.timeout_s, retry_unknown=resend, hand_back=hand_back)
             return body, elapsed, key
 
         spare = vertex_overflow(location, self.environment)
@@ -278,7 +278,9 @@ class ProviderClient:
         except Deferred as error:
             if not str(error.reason).startswith("provider_"):
                 raise
-        return send(spare)
+        # 转到备用入口的这一次结果不明（读超时、连接断）时重发一次，不让整张作废（用户 2026-10-01 同意；部署后 128 张复压
+        # 有 1 张转美国入口后 60 秒没回、整张判结果不明）。重发是新的检查点，极少数情况下这一次多付一遍。
+        return send(spare, resend=retry_unknown or 1)
 
     def document_ai_call(self, content, mime, *, expected_pages, stage="enterprise", page_number=1,
                          retry_unknown=False):

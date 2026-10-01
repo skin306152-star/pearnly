@@ -543,7 +543,7 @@ def _post_with_backoff(url, headers, payload, timeout_s, model):
     Gemini（Vertex）是共享额度：零星拒绝只让这次请求自己退避，不让整个模型停下；全球入口被谷歌拒绝时这一次改发
     ``overflow_location`` 的入口（检查点按请求内容与模型记，换入口不会重复付费）。"""
     from pearnly_core.execution import budget, provider
-    from pearnly_core.execution.errors import Deferred
+    from pearnly_core.execution.errors import Deferred, Uncertain
 
     loc, vertex = location_for_model(model), backend() == "vertex"
     bucket = budget.scope(backend(), project(), loc, model)
@@ -556,8 +556,16 @@ def _post_with_backoff(url, headers, payload, timeout_s, model):
     except Deferred as exc:
         if not str(exc.reason).startswith("provider_"):
             raise
-    return provider.post(vertex_url(model, spare), headers, payload, timeout_s, model,
-                         budget.scope(backend(), project(), spare, model), shared_quota=True, label=f"vertex:{spare}")
+    url, bucket = vertex_url(model, spare), budget.scope(backend(), project(), spare, model)
+    try:
+        return provider.post(url, headers, payload, timeout_s, model, bucket, shared_quota=True, label=f"vertex:{spare}")
+    except Uncertain:
+        # 转到备用入口的这一次结果不明时重发一次（用户 2026-10-01 同意，极少数情况下多付一遍）：先把这次记成「已放弃、
+        # 结果不明」，免得续跑时被残留的「已发出」判成整份结果不明；重发用新的检查点身份。
+        from pearnly_core.execution import work
+        work.checkpoint(work.checkpoint_key(payload, model), "rejected", {"outcome_unknown": True, "retried": True})
+        return provider.post(url, headers, payload, timeout_s, model + "#resend", bucket, shared_quota=True,
+                             label=f"vertex:{spare}")
 
 
 @frappe.whitelist()

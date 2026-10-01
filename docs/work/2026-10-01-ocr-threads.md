@@ -64,3 +64,11 @@
 - 生产多线程实测结果与进程 / 线程 / 名额（budget concurrency / tenant_concurrency / tenant_pending）目标值。
 - 合入前在生产镜像跑完整 `ci-candidate-checks offline`（改了共用层）；部署在夜间维护窗口、每一步用户同意。
 - 部署后同样 128 张复测，对比中位数 158 秒。
+
+## 转美国入口那次结果不明时重发一次（2026-10-01，用户同意）
+
+- 部署 35f418a8 后 128 张复压：1 张转美国多区域入口后 60 秒读超时，整张判结果不明（`aiplatform.us.rep.googleapis.com`）。
+- Cowork `client._vertex`：转到备用入口的那次用 `retry_unknown or 1`（与对账读取的「结果不明重发一次」同一机制，旧的那次记
+  成 rejected / outcome_unknown，重发换 attempt 得到新检查点）。DMS / ERP `ocr._post_with_backoff`：备用入口抛 `Uncertain`
+  时先把那次检查点记成 rejected（outcome_unknown），再以 `model#resend` 的新检查点重发一次。代价：极少数情况下这一次多付一遍。
+- 测试：`test_cowork_provider_runtime` 20 条（新增 1）、`test_vertex_overflow` 4 条（新增 1）。
