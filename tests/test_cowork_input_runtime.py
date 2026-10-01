@@ -48,6 +48,22 @@ class RuntimeInputs(unittest.TestCase):
         with self.assertRaisesRegex(InputRuntimeError, "source_closed"):
             source.frame(1)
 
+    def test_pdf_pages_can_be_sent_as_jpeg_only_when_switched_on(self):
+        # 评测开关（2026-10-02）：默认照旧 PNG；打开后 PDF 页按给定质量送 JPEG，上传小几倍；图片原件不受影响
+        content = pdf(("Invoice IV-1",))
+        with PageSource(content, "a.pdf", expected_page_count=1) as source:
+            self.assertEqual(source.frame(1).mime_type, "image/png")
+        with PageSource(content, "a.pdf", expected_page_count=1, pdf_jpeg_quality=90) as source:
+            frame = source.frame(1)
+        self.assertEqual(frame.mime_type, "image/jpeg")
+        self.assertEqual(Image.open(io.BytesIO(frame.image_bytes)).format, "JPEG")
+        self.assertIsNone(frame.vision_bytes)            # 读字照旧用同一张
+        with PageSource(image(), "a.png", expected_page_count=1, pdf_jpeg_quality=90) as source:
+            self.assertEqual(source.frame(1).mime_type, "image/png")
+        for bad in (1, 99, "90", True):
+            with self.assertRaises(InputRuntimeError):
+                PageSource(content, "a.pdf", expected_page_count=1, pdf_jpeg_quality=bad)
+
     def test_text_path_is_whole_document_average_and_does_not_render(self):
         text = "\n".join(["synthetic electronic invoice line with words"] * 12)
         content = pdf((text, ""), size=(200, 250))

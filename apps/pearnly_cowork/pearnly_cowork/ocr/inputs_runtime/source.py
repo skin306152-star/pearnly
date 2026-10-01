@@ -89,7 +89,7 @@ class PageSource:
     """
     def __init__(self, content: bytes, filename: str, *, expected_page_count: int,
                  enable_text_path=False, image_max_long_edge=2400,
-                 max_render_pixels=MAX_RENDER_PIXELS, orient=None):
+                 max_render_pixels=MAX_RENDER_PIXELS, orient=None, pdf_jpeg_quality=0):
         if not isinstance(content, bytes) or not isinstance(filename, str):
             raise InputRuntimeError("ocr.invalid_input_metadata")
         if type(expected_page_count) is not int or expected_page_count < 1:
@@ -98,6 +98,11 @@ class PageSource:
             raise InputRuntimeError("ocr.invalid_input_metadata")
         if type(max_render_pixels) is not int or max_render_pixels < 1:
             raise InputRuntimeError("ocr.invalid_input_metadata")
+        if type(pdf_jpeg_quality) is not int or not (pdf_jpeg_quality == 0 or 50 <= pdf_jpeg_quality <= 95):
+            raise InputRuntimeError("ocr.invalid_input_metadata")
+        # PDF 页送识别用 JPEG（质量 50–95；0 = 照旧无损 PNG）。评测开关（2026-10-02）：扫描件一页 PNG 约 3.3MB、JPEG 90 约 0.65MB，
+        # 读字与模型上传快几倍；读字按次、模型按分辨率计价，成本不变。有损压缩可能影响细字，金标对比不降质前不在线上打开。
+        self._pdf_jpeg_quality = pdf_jpeg_quality
         suffix = file_extension(filename)
         if suffix not in IMAGE_EXTENSIONS | {".pdf"}:
             raise InputRuntimeError("ocr.runtime_format_not_supported")
@@ -156,6 +161,11 @@ class PageSource:
             mime = "image/png"
             if self._orient:  # 扫描 / 拍照生成的 PDF 页一样可能是歪的
                 content, mime = self._orient(content, mime)
+            if self._pdf_jpeg_quality:
+                with Image.open(io.BytesIO(content)) as image, image.convert("RGB") as rgb:
+                    output = io.BytesIO()
+                    rgb.save(output, format="JPEG", quality=self._pdf_jpeg_quality)
+                content, mime = output.getvalue(), "image/jpeg"
             return Frame(image_bytes=content, mime_type=mime)
         except InputRuntimeError:
             raise
