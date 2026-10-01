@@ -38,7 +38,7 @@ from pearnly_cowork.reconciliation import (
 )
 from pearnly_cowork.reconciliation.bank_matching import GlRow
 from pearnly_cowork.reconciliation.bank_statement import StatementRow
-from pearnly_cowork.tabular import readers as table_io
+from pearnly_cowork.reconciliation import pdf_text
 
 WORKBOOK_EXTENSIONS = ("xlsx", "xls", "xlsm", "csv", "tsv", "txt")
 
@@ -100,7 +100,7 @@ def _statement_text_rows(file_bytes: bytes, bank_code: str
 	与部署版第 4a/4b 步同序同判：先 KBank 列压行（仅 kbank），**行数仍不足**才再试一行一笔；
 	每一步都只在"行数严格更多"时替换。
 	"""
-	pages = table_io.extract_pdf_text_pages(file_bytes)
+	pages = pdf_text.extract_pdf_text_pages(file_bytes)
 	text = "\n".join(pages)
 	rows: List[StatementRow] = []
 	opening = 0.0
@@ -235,7 +235,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		else:
 			free_error = (direct["error_code"], direct["error"])
 	elif ext == "pdf":
-		text = "\n".join(table_io.extract_pdf_text_pages(file_bytes))
+		text = "\n".join(pdf_text.extract_pdf_text_pages(file_bytes))
 		bank_code = _adopted(bank_parse.detect_bank(text) if text.strip() else "", filename)
 		rows, opening, closing, source = _statement_text_rows(file_bytes, bank_code)
 		implausible = implausible_free_rows(rows, text)
@@ -286,7 +286,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		if read_empty:
 			return _failure(NO_MOVEMENT, "The document was read but has no statement rows")
 		if ext == "pdf":
-			text = "\n".join(table_io.extract_pdf_text_pages(file_bytes))
+			text = "\n".join(pdf_text.extract_pdf_text_pages(file_bytes))
 			hint = "" if text.strip() else " (PDF has no extractable text)"
 			return _failure("no_rows", f"No statement rows found in PDF{hint}")
 		return _failure("no_rows", "No statement rows found")
