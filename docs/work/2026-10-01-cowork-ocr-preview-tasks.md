@@ -181,6 +181,16 @@
 共用层的 Redis ETA 续跑（`dispatch.later`）与每分钟修复（`sweep`）对等回调的任务只作兜底；对账的 `waiting` / `slots` 每分钟唤醒照旧
 （它们管的是对账任务等识别，与识别如何派发无关）。ERP / DMS 的识别仍走共用层原路。
 
+## 验证与合入状态（2026-10-01）
+
+- 分支已按用户「统一合入、统一部署」的安排变基到修复窗口的 `codex/billing-throughput`（8a90f849，基于 main 2821e5c1），无冲突；
+  合入与部署由修复窗口负责，每一步由它找用户确认。本窗口不合入、不部署、没动任何谷歌配置。
+- 变基后在生产镜像 `ca98da7e…`（main 2821e5c1）里、用工作树的 pearnly_cowork / pearnly_core / pearnly_control 覆盖镜像，
+  跑完整候选离线道 `scripts/ci-candidate-checks.sh offline`：35 步全过（含本任务新增 `test_cowork_ocr_tasks.py`、`test_wake`）。
+  `check-architecture.py` 通过。分支 CI（Development checks）首次推送已通过，之后的推送见分支状态。
+- 还缺：真实语料对比（压测窗口在生产一次性容器跑 `scripts/cowork-compare-paged-reading.py`，B07 / B08-01 / B08-04）；
+  统一部署后测试租户上的端到端（预览签名地址、任务派发、回调、Workflows）；半量 → 全量压测。
+
 ## 收尾登记
 
 - 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-ocr-preview-tasks`：**交接保留**
