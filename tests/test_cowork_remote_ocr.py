@@ -415,5 +415,92 @@ class Requests(unittest.TestCase):
         self.assertEqual(lines[-1]["status"], "done")
 
 
+class Originals:
+    """内存版原件桶（ADR-016）：对象 → (字节, 版本号)；与 gcs.Bucket.read_bytes / delete_generation 同样的行为。"""
+
+    def __init__(self, **objects):
+        self.objects = {name: (content, 7) for name, content in objects.items()}
+        self.deleted = []
+
+    def read_bytes(self, name, generation=None):
+        found = self.objects.get(name)
+        if found is None or (generation is not None and found[1] != generation):
+            return None
+        return found
+
+    def delete_generation(self, name, generation):
+        self.deleted.append((name, generation))
+        if self.objects.get(name, (None, None))[1] == generation:
+            del self.objects[name]
+
+
+OBJECT = SITE + "/originals/CWS-" + "c" * 48 + ".png"
+
+
+class DirectOriginals(unittest.TestCase):
+    """浏览器直传到原件桶的原件（ADR-016）：读一遍核对、识别时按对象读，结果与带字节发来一字不差。"""
+
+    def inspect(self, originals, filename="invoice.png", name=OBJECT):
+        return runner.inspect(contract.inspect_request(site=SITE, object=name, filename=filename), originals)
+
+    def test_inspect_gives_the_same_facts_as_the_server_check(self):
+        import hashlib
+        from pearnly_cowork.ocr import originals as checks
+
+        content = pdf(3)
+        name = OBJECT.replace(".png", ".pdf")
+        result = self.inspect(Originals(**{name: content}), "scan.pdf", name)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["meta"], checks.inspect("scan.pdf", content))
+        self.assertEqual(result["meta"]["page_count"], 3)
+        self.assertEqual(result["generation"], 7)
+        self.assertEqual(result["md5"], hashlib.md5(content).hexdigest())
+
+    def test_a_bad_original_is_rejected_with_the_server_code_and_removed(self):
+        for filename, content, code in (("scan.pdf", b"%PDF-1.7 broken", "pdf_unreadable"),
+                                        ("photo.png", b"not an image", "image_unreadable")):
+            name = OBJECT.replace(".png", "." + filename.rsplit(".", 1)[1])
+            originals = Originals(**{name: content})
+            result = self.inspect(originals, filename, name)
+            self.assertEqual((result["status"], result["code"]), ("rejected", code))
+            self.assertEqual(originals.deleted, [(name, 7)])   # 删掉后页面才能用同一个键重传
+            self.assertNotIn(name, originals.objects)
+
+    def test_a_missing_upload_and_foreign_objects_are_refused(self):
+        self.assertEqual(self.inspect(Originals())["code"], "original_missing")
+        for name in ("other.pearnly.com/originals/CWS-" + "c" * 48 + ".png", SITE + "/work/cp/x.json",
+                     SITE + "/originals/../x.png"):
+            with self.assertRaises(ValueError):
+                contract.inspect_request(site=SITE, object=name, filename="invoice.png")
+
+    def test_recognizing_from_the_bucket_reads_exactly_like_sending_the_bytes(self):
+        import hashlib
+
+        content = png()
+        inline = remote(Bucket(), Google(), content)[-1]
+        original = contract.original(object=OBJECT, generation=7, sha256=hashlib.sha256(content).hexdigest())
+        request = contract.request(site=SITE, work=WORK, batch=BATCH, filename="invoice.png", page_count=1,
+            anchor_date="2026-09-21", environment=dict(ENVIRONMENT), policy=dict(POLICY), original=original)
+        self.assertNotIn("content", request)
+        events = []
+        runner.recognize(request, Bucket(), lambda: "token", events.append, orient=orient, page_source=PageSource,
+                         http=Google(), originals=Originals(**{OBJECT: content}))
+        self.assertEqual(events[-1]["status"], "done", events[-1])
+        self.assertEqual(reading(events[-1]["pipeline"]), reading(inline["pipeline"]))
+        self.assertEqual(events[-1]["evidence"], inline["evidence"])
+
+    def test_a_changed_or_missing_original_is_never_read(self):
+        google = Google()
+        original = contract.original(object=OBJECT, generation=7, sha256="0" * 64)
+        request = contract.request(site=SITE, work=WORK, batch=BATCH, filename="invoice.png", page_count=1,
+            anchor_date="2026-09-21", environment=dict(ENVIRONMENT), policy=dict(POLICY), original=original)
+        for originals, code in ((Originals(**{OBJECT: png()}), "original_mismatch"), (Originals(), "original_missing")):
+            events = []
+            runner.recognize(request, Bucket(), lambda: "token", events.append, orient=orient,
+                             page_source=PageSource, http=google, originals=originals)
+            self.assertEqual((events[-1]["status"], events[-1]["code"]), ("error", code))
+        self.assertEqual(google.sent, [])   # 没付费
+
+
 if __name__ == "__main__":
     unittest.main()

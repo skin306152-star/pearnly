@@ -2,6 +2,7 @@
 
 POST /v1/cowork/invoice   一份发票识别（录入 / 销项税核查），回复是按行的 JSON（见 contract）
 POST /v1/cowork/document  一份对账文档（银行账单 / 总账 / 销项税报告），同样按行回复
+POST /v1/cowork/inspect   浏览器直传到原件桶的一份原件读一遍、核对（ADR-016），回复一个 JSON
 GET  /health              存活检查（Cloud Run 保留了以 z 结尾的路径，/healthz 到不了容器）
 """
 import json
@@ -13,6 +14,7 @@ from pearnly_cowork.ocr.remote import gcs, runner
 
 MAX_BODY = 30 * 1024 * 1024
 _bucket = None
+_originals = None
 
 
 def _backend():
@@ -23,12 +25,20 @@ def _backend():
     return _bucket
 
 
+def _originals_bucket():
+    global _originals
+    name = os.environ.get("PEARNLY_ORIGINALS_BUCKET")
+    if _originals is None and name:
+        _originals = gcs.Bucket(name, _backend()[1])
+    return _originals
+
+
 def application(environ, start_response):
     method, path = environ.get("REQUEST_METHOD"), environ.get("PATH_INFO")
     if method == "GET" and path == "/health":
         start_response("200 OK", [("Content-Type", "text/plain")])
         return [b"ok"]
-    if method != "POST" or path not in ("/v1/cowork/invoice", "/v1/cowork/document"):
+    if method != "POST" or path not in ("/v1/cowork/invoice", "/v1/cowork/document", "/v1/cowork/inspect"):
         start_response("404 Not Found", [("Content-Type", "text/plain")])
         return [b"not found"]
     try:
@@ -43,6 +53,11 @@ def application(environ, start_response):
     except ValueError:
         start_response("400 Bad Request", [("Content-Type", "text/plain")])
         return [b"bad json"]
+    if path == "/v1/cowork/inspect":
+        originals = _originals_bucket()
+        result = runner.inspect(body, originals) if originals else {"status": "error", "code": "original_unavailable"}
+        start_response("200 OK", [("Content-Type", "application/json"), ("Cache-Control", "no-store")])
+        return [json.dumps(result).encode()]
     bucket, token = _backend()
     start_response("200 OK", [("Content-Type", "application/x-ndjson"), ("Cache-Control", "no-store")])
-    return runner.stream(body, bucket, token, orient=orient, page_source=PageSource)
+    return runner.stream(body, bucket, token, orient=orient, page_source=PageSource, originals=_originals_bucket())

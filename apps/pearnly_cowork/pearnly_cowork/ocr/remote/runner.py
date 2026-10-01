@@ -28,7 +28,7 @@ from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.client import ProviderClient
 from pearnly_cowork.ocr.remote import contract
-from pearnly_cowork.ocr import recon_reading
+from pearnly_cowork.ocr import originals as original_files, recon_reading
 
 UPLOAD_STEP_SECONDS = 30  # 与 pearnly_core.execution.provider 同一口径
 # 被谷歌限流时原地等：与 pearnly_core.execution.provider.post 在识别任务里同一规则（每步最多 20 秒、每次调用累计最多 60 秒；
@@ -275,14 +275,63 @@ def page_mapper(limit, on_done):
     return run
 
 
+def original_bytes(body, originals):
+    """原件在原件桶里（浏览器直传，ADR-016）：按版本号读出、核对 sha256。读不到 / 对不上返回错误代码。"""
+    value = body["original"]
+    if originals is None:
+        return None, "original_unavailable"
+    try:
+        found = originals.read_bytes(value["object"], value["generation"])
+    except requests.RequestException:
+        return None, "original_unavailable"
+    if found is None:
+        return None, "original_missing"
+    content = found[0]
+    if hashlib.sha256(content).hexdigest() != value["sha256"]:
+        return None, "original_mismatch"
+    return content, None
+
+
+def inspect(body, originals):
+    """浏览器直传的原件读一遍：与服务器收原件同一份检查（``ocr.originals.inspect``）。
+
+    通过返回文件信息、版本号（之后按它读，内容不会变）和 Frappe 用的 MD5（``native_content_hash``）；
+    不通过就删掉这个版本、返回错误代码（同一个对象名只能写一次，删掉后页面才能用同一个键重传）。"""
+    try:
+        value = contract.parse_inspect(body)
+    except ValueError as exc:
+        return {"status": "error", "code": "invalid_request", "detail": str(exc)}
+    try:
+        found = originals.read_bytes(value["object"])
+    except requests.RequestException:
+        return {"status": "error", "code": "original_unavailable"}
+    if found is None:
+        return {"status": "rejected", "code": "original_missing"}
+    content, generation = found
+    try:
+        meta = original_files.inspect(body["filename"], content)
+    except (original_files.Rejected, original_files.OcrInputError) as error:
+        originals.delete_generation(value["object"], generation)
+        return {"status": "rejected", "code": error.code}
+    return {"status": "ok", "meta": meta, "generation": generation, "md5": hashlib.md5(content).hexdigest()}
+
+
 def recognize(body, backend, access_token, emit, *, orient, page_source, http=None, clock=time.monotonic,
-              threads=None):
+              threads=None, originals=None):
     """跑一份发票识别，进度和结果都通过 ``emit(event)`` 交出。从不抛出：异常都变成 result 事件。"""
     try:
         content = contract.parse_request(body)
     except ValueError as exc:
         emit(contract.result("error", code="invalid_request", detail=str(exc)))
         return
+    if content is None:
+        content, failure = original_bytes(body, originals)
+        if failure == "original_unavailable":
+            emit(contract.result("deferred", reason="remote_original_unavailable", delay=15))
+            return
+        if failure:
+            emit(contract.result("error", code=failure))
+            return
     store = Store(backend, body["site"], body["work"])
     try:
         store.acquire()

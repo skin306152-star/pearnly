@@ -1,7 +1,7 @@
 """Cloud Run 上的两样外部能力：服务账号令牌、存储桶里的检查点对象（Cloud Storage JSON API，直接走 HTTPS）。
 
-只在 Cloud Run 镜像里用。存储桶在新加坡，设了 7 天自动删除（ADR-0015）；对象里只有谷歌的回复（读出的文字 / 字段），
-没有原件图片。
+只在 Cloud Run 镜像里用。检查点桶在新加坡，设了 7 天自动删除（ADR-0015）；对象里只有谷歌的回复（读出的文字 / 字段），
+没有原件图片。原件桶（ADR-016）只读：按版本号读出浏览器直传的原件；核对不通过的那个版本删掉。
 """
 import json
 import threading
@@ -54,6 +54,24 @@ class Bucket:
             return None
         response.raise_for_status()
         return json.loads(response.content), int(response.headers["x-goog-generation"])
+
+    def read_bytes(self, name, generation=None):
+        """读一个对象的原始字节和版本号（原件桶，ADR-016）；给了版本号就只读那个版本。不存在返回 ``None``。"""
+        params = {"alt": "media", **({"generation": str(generation)} if generation is not None else {})}
+        response = self._session().get(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                       params=params, headers=self._headers(), timeout=(10, 120))
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.content, int(response.headers["x-goog-generation"])
+
+    def delete_generation(self, name, generation):
+        """只删这个版本（核对不通过的直传原件）；已经没有了也算删掉。"""
+        response = self._session().delete(f"{API}/storage/v1/b/{self._name}/o/{quote(name, safe='')}",
+                                          params={"generation": str(generation)},
+                                          headers=self._headers(), timeout=(10, 30))
+        if response.status_code not in (204, 404):
+            response.raise_for_status()
 
     def _upload(self, name, value, precondition):
         params = {"uploadType": "media", "name": name}

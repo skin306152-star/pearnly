@@ -346,6 +346,7 @@ Difference detail,差異明細
 Difference value,差異金額
 Differences,差異
 Differences to review,要確認の差異
+Direct upload is not available. Please upload again.,現在直接アップロードできません。もう一度アップロードしてください。
 Direction,取引方向
 Directory Revision,ディレクトリリビジョン
 Directory Scope Key,ディレクトリ範囲キー
@@ -1093,6 +1094,7 @@ The tax ID is not valid. Correct it and submit again,納税者番号が正しく
 The unsent preparation was cancelled.,未送信の準備を取り消しました。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
 The uploaded file is empty.,アップロードしたファイルは空です。
+The uploaded file was not received. Please upload again.,アップロードしたファイルを受け取れませんでした。もう一度アップロードしてください。
 The verified ERP export details are invalid.,確認済みの ERP エクスポート情報が無効です。
 The worksheet row or column information is invalid.,ワークシートの行または列の情報が無効です。
 Then,実行

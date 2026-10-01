@@ -346,6 +346,7 @@ Difference detail,รายละเอียดผลต่าง
 Difference value,มูลค่าผลต่าง
 Differences,ผลต่าง
 Differences to review,ผลต่างที่ต้องตรวจสอบ
+Direct upload is not available. Please upload again.,ไม่สามารถอัปโหลดโดยตรงได้ในขณะนี้ กรุณาอัปโหลดใหม่
 Direction,ทิศทางรายการ
 Directory Revision,รุ่นไดเรกทอรี
 Directory Scope Key,คีย์ขอบเขตไดเรกทอรี
@@ -1093,6 +1094,7 @@ The tax ID is not valid. Correct it and submit again,เลขประจำต
 The unsent preparation was cancelled.,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว
 The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB
 The uploaded file is empty.,ไฟล์ที่อัปโหลดว่างเปล่า
+The uploaded file was not received. Please upload again.,ไม่ได้รับไฟล์ที่อัปโหลด กรุณาอัปโหลดใหม่
 The verified ERP export details are invalid.,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
 The worksheet row or column information is invalid.,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
 Then,ให้ทำ

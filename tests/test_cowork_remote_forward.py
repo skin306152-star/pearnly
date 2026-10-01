@@ -150,6 +150,60 @@ class Forward(unittest.TestCase):
             pass  # 只核对发到哪里；回复内容由其他用例覆盖
         self.assertEqual(provider.posted, [ON["url"] + "/v1/cowork/invoice"])
 
+    def reply(self, status=200, body=None):
+        result = requests.Response()
+        result.status_code = status
+        result.headers = CaseInsensitiveDict()
+        result.raw = io.BytesIO(json.dumps(body).encode())
+        return result
+
+    def inspect(self, *replies):
+        queue = list(replies)
+
+        def post(url, json=None, timeout=None, headers=None):
+            self.sent.append((url, json, headers))
+            step = queue.pop(0)
+            if isinstance(step, Exception):
+                raise step
+            return step
+        return self.ns["inspect_original"]("acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf", "scan.pdf",
+                                           post=post, id_token=lambda audience: "ID_TOKEN")
+
+    def test_inspect_asks_cloud_run_without_a_permit_and_without_holding_the_database(self):
+        ok = {"status": "ok", "meta": {"page_count": 2}, "generation": 9, "md5": "m"}
+        self.assertEqual(self.inspect(self.reply(body=ok)), ok)
+        url, body, headers = self.sent[0]
+        self.assertEqual(url, ON["url"] + "/v1/cowork/inspect")
+        self.assertEqual((body["kind"], body["original"], body["filename"]),
+                         ("cowork.inspect", {"object": "acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf"}, "scan.pdf"))
+        self.assertEqual(headers["Authorization"], "Bearer ID_TOKEN")
+        self.assertEqual(self.budget.permits, [])            # 不是付费调用，不占识别名额
+        self.assertEqual(self.ns["_pool"].released, [0])     # 等回复前放开数据库连接
+        rejected = {"status": "rejected", "code": "pdf_password"}
+        self.assertEqual(self.inspect(self.reply(body=rejected)), rejected)
+
+    def test_inspect_busy_or_unreachable_asks_the_page_to_retry(self):
+        for step in (requests.ConnectionError("down"), self.reply(503, {}),
+                     self.reply(body={"status": "error", "code": "original_unavailable"})):
+            with self.assertRaises(Deferred):
+                self.inspect(step)
+        for step in (self.reply(403, {}), self.reply(body={"status": "ok", "meta": {}}),
+                     self.reply(body={"status": "error", "code": "invalid_request"}), self.reply(body=[1])):
+            with self.assertRaises(self.ns["RemoteError"]):
+                self.inspect(step)
+
+    def test_an_original_in_the_bucket_is_sent_by_reference_not_by_bytes(self):
+        def post(url, json=None, **kwargs):
+            self.sent.append(json)
+            return ndjson({"event": "result", "status": "done", "pipeline": "{}", "evidence": []})
+
+        original = self.contract.original(object="acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf",
+                                          generation=9, sha256="d" * 64)
+        self.ns["recognize"](DOC, FROZEN, None, None, "a.pdf", self.pages.append, original=original, post=post,
+                             id_token=lambda audience: "T")
+        self.assertNotIn("content", self.sent[0])
+        self.assertEqual(self.sent[0]["original"], original)
+
     def test_switch_needs_explicit_https_run_app_url(self):
         settings = self.ns["settings"]
         self.assertIsNotNone(settings())

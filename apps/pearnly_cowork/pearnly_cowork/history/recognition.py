@@ -63,7 +63,7 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
             frappe.throw(_("The original invoice manifest is incomplete."))
         return [storage.project(row) for row in rows]
     # Check the stored bytes before admitting any recognized reference.
-    files.read_bytes(source)
+    files.verify_stored(source)
     rows = []
     frappe.db.savepoint("cowork_bind_original")
     try:

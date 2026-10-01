@@ -4,7 +4,8 @@
  *
  * 版面照 ERP 的录入页：左边字段区、右边原件区（窄屏自动上下排，见 `intake.css`）。
  *
- *   · 上传：原件的入口是 `pearnly_cowork.files.api.upload`（multipart + 幂等键），
+ *   · 上传：开了直传时原件直接传到谷歌存储（`files.api.begin_upload` → PUT → `finish_upload`，ADR-016）；
+ *     否则入口是 `pearnly_cowork.files.api.upload`（multipart + 幂等键），
  *     不经过框架的 `/api/method/upload_file`；归哪一份公司资料由服务端解析；
  *   · 回填：识别受理后拿到的记录读进左边字段（原生 FieldGroup）；
  *   · 复核：改完点「保存」，按记录版本写回（`history.api.save`，别人先改过就冲突回来）。
@@ -985,14 +986,52 @@
 			row.message = batch.state === "uncertain" ? __("cowork.intake.interrupted") : code_text(batch.last_code);
 		};
 
+		/** 浏览器直传（ADR-016）：先要一个上传地址，原件直接 PUT 到谷歌存储（新加坡），再让服务端核对登记。
+		 * 没开直传 / 表格类原件时服务端回 `direct: 0`，返回 null，照旧经服务器上传。 */
+		const post = async (method, args) => {
+			// 与原来的上传一样用 fetch：被拒时把原因写在这一行上，不一份弹一个框。
+			const response = await fetch(`/api/method/${FILES}${method}`, {
+				method: "POST", body: new URLSearchParams(args), credentials: "same-origin",
+				headers: {"X-Frappe-CSRF-Token": frappe.csrf_token},
+			});
+			const payload = await response.json().catch(() => null);
+			if (!response.ok || !payload?.message) throw {...(payload || {}), status: response.status, direct: true};
+			return payload.message;
+		};
+
+		const send_direct = async (row, file) => {
+			const meta = {filename: file.name, byte_size: file.size, request_key: row.key};
+			const begun = await post("begin_upload", meta);
+			if (!begun?.direct) return null;
+			if (begun.done) return begun.done;
+			const put = await fetch(begun.url, {method: "PUT", body: file, headers: begun.headers});
+			// 412：这个键的原件之前已经传上去了（重试），直接去确认。
+			if (!put.ok && put.status !== 412) throw {status: put.status, direct: true};
+			for (let attempt = 0; attempt < 6; attempt++) {
+				const finished = await post("finish_upload", meta);
+				if (!finished?.retry) return finished;
+				await sleep(finished.retry * 1000);
+				if (!live) return null;
+			}
+			throw {status: 503, direct: true};
+		};
+
 		const send = async row => {
 			row.state = "uploading"; render_batch();
 			try {
+				// 站点开关打开时照片先在浏览器里缩到识别用得上的大小（`p.shrink_photo`，默认原样）。
+				const file = await p.shrink_photo(row.file);
+				const direct = await send_direct(row, file);
+				if (direct) {
+					row.source = direct.name;
+					row.pages = direct.page_count;
+					row.state = "uploaded";
+					if (live) render_batch();
+					return;
+				}
 				// 不传归属：服务端按站点解析（见 `files.api.upload`）。
 				const query = new URLSearchParams({request_key: row.key});
 				const body = new FormData();
-				// 站点开关打开时照片先在浏览器里缩到识别用得上的大小（`p.shrink_photo`，默认原样）。
-				const file = await p.shrink_photo(row.file);
 				body.append("file", file, file.name);
 				const response = await fetch(`/api/method/${FILES}upload?${query}`, {
 					method: "POST", body, credentials: "same-origin",
@@ -1008,7 +1047,8 @@
 				}
 			} catch (error) {
 				row.state = "failed";
-				row.message = String(error?.message || error);
+				row.message = error?.direct || error?._server_messages || error?.responseJSON
+					? failure(error, error?.status || "") : String(error?.message || error);
 			}
 			if (!live) return;
 			render_batch();

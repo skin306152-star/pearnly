@@ -17,6 +17,7 @@
 - [ADR-013 识别读法：便宜模型读、代码兜底、按需复核，默认不用 3.8](0013-ocr-read-strategy.md)
 - [ADR-014 DMS 会话复用、白天增量同步与账号并发](0014-dms-session-reuse-live-sync.md)
 - [ADR-015 Cowork 发票识别在 Cloud Run 上执行](0015-ocr-on-cloud-run.md)
+- [ADR-016 Cowork 原件由浏览器直传谷歌存储](0016-originals-direct-to-cloud-storage.md)
 
 待定稿：
 

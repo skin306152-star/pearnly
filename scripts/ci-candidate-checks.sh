@@ -36,7 +36,7 @@ offline() {
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-session-reuse.py scripts/test-dms-first-read.py scripts/test-dms-id-card-reads.py scripts/test-session-lock.py scripts/test-dms-line-language.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \
                 tests/test_cowork_no_company_scope.py tests/test_cowork_line_intake.py \
-                tests/test_cowork_remote_ocr.py tests/test_cowork_remote_forward.py \
+                tests/test_cowork_remote_ocr.py tests/test_cowork_remote_forward.py tests/test_cowork_direct_upload.py \
                 tests/test_cowork_recon_scanned_docs.py tests/test_cowork_recon_progress.py \
                 tests/test_cowork_recon_waiting.py tests/test_cowork_recon_slots.py tests/test_cowork_recon_resume.py \
                 tests/test_cowork_core_notifications.py tests/test_control_billing_gate.py \

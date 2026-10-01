@@ -28,6 +28,29 @@ def upload(workspace=None, request_key=None, client=None):
                 raise
 
 
+@frappe.whitelist(methods=["POST"])
+def begin_upload(filename=None, byte_size=None, request_key=None, workspace=None, client=None):
+    """浏览器直传第一步（ADR-016）：``{"direct": 0}`` 照旧走 :func:`upload`；``{"direct": 1, "url", "headers"}``
+    把原件 PUT 到这个地址（头原样带上）；``{"direct": 1, "done": …}`` 这个键已经登记过。"""
+    scope.require("intake")
+    workspace = workspace or scope.default_workspace()
+    return service.begin_direct(workspace, filename, byte_size, request_key, client)
+
+
+@frappe.whitelist(methods=["POST"])
+def finish_upload(filename=None, byte_size=None, request_key=None, workspace=None, client=None):
+    """浏览器直传第二步：原件已 PUT 到原件桶，核对后登记；回复与 :func:`upload` 相同，或 ``{"retry": 秒}``。"""
+    scope.require("intake")
+    workspace = workspace or scope.default_workspace()
+    for attempt in range(3):
+        try:
+            return service.finish_direct(workspace, filename, byte_size, request_key, client)
+        except (frappe.QueryDeadlockError, frappe.DuplicateEntryError):
+            frappe.db.rollback()
+            if attempt == 2:
+                raise
+
+
 @frappe.whitelist()
 def metadata(name):
     return service.project(service.get_source(name))
@@ -35,6 +58,13 @@ def metadata(name):
 
 @frappe.whitelist()
 def original(name):
+    link = service.original_link(name)
+    if link:
+        # 原件在原件桶里：记访问日志后转到短时签名下载地址（5 分钟、只这一版本、作为附件）。
+        make_access_log(doctype="Cowork Source File", document=name, file_type="original")
+        frappe.local.response.update(type="redirect", location=link[1])
+        frappe.local.cowork_private_response = True
+        return
     filename, data = service.original(name)
     make_access_log(doctype="Cowork Source File", document=name, file_type="original")
     frappe.local.response.update(type="download", filename=filename, filecontent=data,

@@ -2,7 +2,6 @@
 import hashlib
 import io
 import json
-from pathlib import PurePath
 import re
 
 import frappe
@@ -11,50 +10,71 @@ import pymupdf
 from PIL import Image, ImageOps
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.files import access, guard
+from pearnly_cowork.files import access, cloud, guard
+from pearnly_cowork.ocr import originals
 from pearnly_cowork.ocr.inputs import (IMAGE_EXTENSIONS, TABLE_EXTENSIONS as DOCUMENT_EXTENSIONS,
     MAX_FILE_BYTES as MAX_BYTES, MAX_PDF_PAGES as MAX_PAGES, validate_input_metadata, OcrInputError)
 
 MAX_PREVIEW_PIXELS = 16_000_000
 
 
+# 原件检查的错误代码（``ocr.originals``，服务器与 Cloud Run 共用）→ 原来的提示文字。
+MESSAGES = {
+    "invalid_filename": lambda: _("Invalid original filename."),
+    "unsupported_type": lambda: _("This file type is not supported."),
+    "empty": lambda: _("The uploaded file is empty."),
+    "too_large": lambda: _("The uploaded file exceeds the 100 MiB limit."),
+    "pdf_password": lambda: _("Password-protected PDF files cannot be read."),
+    "pdf_unreadable": lambda: _("The PDF file cannot be read."),
+    "pdf_pages": lambda: _("PDF files must contain between 1 and 50 pages."),
+    "image_unreadable": lambda: _("The image file cannot be read."),
+}
+
+
+def reject(code):
+    """原件检查不通过：``ocr.originals`` 的代码给原来的提示，``OcrInputError`` 的代码原样翻译。"""
+    message = MESSAGES.get(code)
+    frappe.throw(message() if message else _(code))
+
+
 def inspect_content(filename, content):
-    filename = str(filename or "").replace("\\", "/").rsplit("/", 1)[-1]
-    if not filename or len(filename) > 255 or any(c in filename for c in ("\x00", "\r", "\n")):
-        frappe.throw(_("Invalid original filename."))
-    suffix = PurePath(filename).suffix.lower()
-    if suffix not in IMAGE_EXTENSIONS | DOCUMENT_EXTENSIONS | {".pdf"}:
-        frappe.throw(_("This file type is not supported."))
-    if not isinstance(content, bytes) or not content:
-        frappe.throw(_("The uploaded file is empty."))
-    if len(content) > MAX_BYTES:
-        frappe.throw(_("The uploaded file exceeds the 100 MiB limit."))
-    count = 1
-    kind = "document"
-    if suffix == ".pdf":
-        kind = "pdf"
-        try:
-            with pymupdf.open(stream=content, filetype="pdf") as document:
-                if document.needs_pass:
-                    frappe.throw(_("Password-protected PDF files cannot be read."))
-                count = len(document)
-        except (ValueError, RuntimeError, pymupdf.FileDataError):
-            frappe.throw(_("The PDF file cannot be read."))
-        if not 1 <= count <= MAX_PAGES:
-            frappe.throw(_("PDF files must contain between 1 and 50 pages."))
-    elif suffix in IMAGE_EXTENSIONS:
-        kind = "image"
-        try:
-            with Image.open(io.BytesIO(content)) as image:
-                image.verify()
-        except (OSError, ValueError, Image.DecompressionBombError):
-            frappe.throw(_("The image file cannot be read."))
     try:
-        validate_input_metadata(filename, len(content), pdf_page_count=count if kind == "pdf" else None)
+        return originals.inspect(filename, content)
+    except originals.Rejected as error:
+        reject(error.code)
     except OcrInputError as error:
-        frappe.throw(_(error.code))
-    return {"filename": filename, "suffix": suffix, "kind": kind, "page_count": count,
-            "byte_size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+        reject(error.code)
+
+
+def _require_key(request_key):
+    if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
+        frappe.throw(_("A request key of 1 to 128 characters is required."))
+
+
+def _request_key(workspace, request_key):
+    return hashlib.sha256(json.dumps([workspace, frappe.session.user, request_key]).encode()).hexdigest()
+
+
+def _fingerprint(client, meta):
+    return hashlib.sha256(json.dumps([client or None, meta], sort_keys=True).encode()).hexdigest()
+
+
+def _existing(name, fingerprint):
+    doc = frappe.get_doc(access.SOURCE, name, for_update=True)
+    access.require_full(doc)
+    if fingerprint is not None and doc.request_fingerprint != fingerprint:
+        frappe.throw(_("This request key has already been used for different content."))
+    return doc
+
+
+def _new_source(name, key, workspace, client, fingerprint, meta, **stored):
+    doc = frappe.get_doc({"doctype": access.SOURCE, "name": name, "workspace": workspace, "client": client or "",
+        "uploaded_by": frappe.session.user, "request_key": key, "request_fingerprint": fingerprint,
+        **{field: value for field, value in meta.items() if field != "suffix"}, **stored})
+    doc.flags.cowork_original_write = guard.WRITE_CAPABILITY
+    # Permission was checked above. Native generic creation must remain unavailable.
+    doc.insert(ignore_permissions=True)
+    return doc
 
 
 def attachments_folder():
@@ -69,24 +89,14 @@ def attachments_folder():
 def create(workspace, filename, content, request_key, client=None):
     scope.require("intake")
     scope.require_scope(workspace, client)
-    if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
-        frappe.throw(_("A request key of 1 to 128 characters is required."))
+    _require_key(request_key)
     meta = inspect_content(filename, content)
-    key = hashlib.sha256(json.dumps([workspace, frappe.session.user, request_key]).encode()).hexdigest()
+    key = _request_key(workspace, request_key)
     name = "CWS-" + key[:48]
-    fingerprint = hashlib.sha256(json.dumps([client or None, meta], sort_keys=True).encode()).hexdigest()
+    fingerprint = _fingerprint(client, meta)
     if frappe.db.exists(access.SOURCE, name):
-        doc = frappe.get_doc(access.SOURCE, name, for_update=True)
-        access.require_full(doc)
-        if doc.request_fingerprint != fingerprint:
-            frappe.throw(_("This request key has already been used for different content."))
-        return project(doc)
-    doc = frappe.get_doc({"doctype": access.SOURCE, "name": name, "workspace": workspace, "client": client or "",
-        "uploaded_by": frappe.session.user, "request_key": key, "request_fingerprint": fingerprint,
-        **{key: value for key, value in meta.items() if key != "suffix"}})
-    doc.flags.cowork_original_write = guard.WRITE_CAPABILITY
-    # Permission was checked above. Native generic creation must remain unavailable.
-    doc.insert(ignore_permissions=True)
+        return project(_existing(name, fingerprint))
+    doc = _new_source(name, key, workspace, client, fingerprint, meta)
     file_doc = frappe.get_doc({"doctype": "File", "file_name": name + meta["suffix"],
         "is_private": 1, "content": content, "owner": "Administrator", "folder": attachments_folder(),
         "attached_to_doctype": access.SOURCE, "attached_to_name": doc.name})
@@ -97,6 +107,96 @@ def create(workspace, filename, content, request_key, client=None):
     doc.save(ignore_permissions=True)
     read_bytes(doc)
     return project(doc)
+
+
+# 浏览器直传（ADR-016）：只收 PDF / 图片（表格、Word 要在服务器上解析，照旧经服务器上传）。
+DIRECT_KINDS = IMAGE_EXTENSIONS | {".pdf"}
+
+
+def _direct_target(workspace, filename, byte_size, request_key, client):
+    """直传前的公共检查：权限、幂等键、文件名 / 类型 / 声明的大小。返回 ``(原件名, 幂等键摘要, 文件名, 扩展名)``。"""
+    scope.require("intake")
+    scope.require_scope(workspace, client)
+    _require_key(request_key)
+    try:
+        filename = originals.filename_of(filename)
+        suffix = originals.suffix_of(filename)
+    except originals.Rejected as error:
+        reject(error.code)
+    if isinstance(byte_size, str) and byte_size.isdigit():
+        byte_size = int(byte_size)
+    if type(byte_size) is not int or byte_size < 1:
+        reject("empty")
+    if byte_size > MAX_BYTES:
+        reject("too_large")
+    key = _request_key(workspace, request_key)
+    return "CWS-" + key[:48], key, filename, suffix
+
+
+def begin_direct(workspace, filename, byte_size, request_key, client=None):
+    """浏览器直传第一步：签发上传地址。没开直传或不是 PDF / 图片返回 ``{"direct": 0}``，页面照旧经服务器上传。
+
+    同一个幂等键已经登记过就直接给出原件信息（``done``），页面不用再传。"""
+    name, _key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
+    bucket_name = cloud.bucket()
+    if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
+        return {"direct": 0}
+    if frappe.db.exists(access.SOURCE, name):
+        return {"direct": 1, "done": project(_existing(name, None))}
+    target = cloud.upload_target(bucket_name, cloud.object_name(frappe.local.site, name, suffix), int(byte_size))
+    return {"direct": 1, **target}
+
+
+def finish_direct(workspace, filename, byte_size, request_key, client=None):
+    """浏览器直传第二步：Cloud Run 读一遍原件（类型、页数、sha256，同 :func:`inspect_content`），通过就登记。"""
+    from pearnly_core.execution.errors import Deferred
+    from pearnly_cowork.ocr.remote import forward
+
+    name, key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
+    bucket_name = cloud.bucket()
+    if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
+        frappe.throw(_("Direct upload is not available. Please upload again."))
+    if frappe.db.exists(access.SOURCE, name):
+        return project(_existing(name, None))
+    object_name = cloud.object_name(frappe.local.site, name, suffix)
+    try:
+        result = forward.inspect_original(object_name, filename)
+    except Deferred as error:
+        return {"retry": max(1, int(error.delay or 5))}  # Cloud Run 一时连不上 / 忙：页面过几秒再来确认
+    if result["status"] != "ok":
+        if result.get("code") == "original_missing":
+            frappe.throw(_("The uploaded file was not received. Please upload again."))
+        reject(result.get("code"))
+    meta = result["meta"]
+    if (meta.get("filename") != filename or meta.get("suffix") != suffix or meta.get("byte_size") != int(byte_size)
+            or meta.get("kind") not in ("pdf", "image")):
+        frappe.throw(_("The uploaded file was not received. Please upload again."))
+    fingerprint = _fingerprint(client, meta)
+    if frappe.db.exists(access.SOURCE, name):
+        return project(_existing(name, fingerprint))
+    doc = _new_source(name, key, workspace, client, fingerprint, meta,
+                      storage_url=cloud.url_of(bucket_name, object_name, result["generation"]),
+                      native_content_hash=result["md5"])
+    return project(doc)
+
+
+def _remote_ready():
+    from pearnly_cowork.ocr.remote import forward
+
+    return forward.settings() is not None
+
+
+def stored_original(source):
+    """原件存在原件桶里（浏览器直传）返回 ``(桶, 对象, 版本号)``，存在服务器上返回 ``None``。"""
+    return cloud.parse_url(source.get("storage_url")) if not source.get("stored_file") else None
+
+
+def verify_stored(source):
+    """登记识别结果前核对原件还是那一份。原件桶里的按版本号存（同一版本内容不会变，登记时已由 Cloud Run 核对过
+    sha256），不再整份下载；服务器上的照旧读一遍核对。"""
+    if stored_original(source):
+        return
+    read_bytes(source)
 
 
 def project(doc):
@@ -182,6 +282,12 @@ def freeze_doc_manifest(source, document):
 
 def read_bytes(source):
     """Internal capability, called only after whole-file/page authorization."""
+    stored = stored_original(source)
+    if stored:
+        data = cloud.read(stored)
+        if hashlib.sha256(data).hexdigest() != source.sha256:
+            frappe.throw(_("The original file checksum does not match."))
+        return data
     file_doc = frappe.get_doc("File", source.stored_file)
     if (not file_doc.is_private or file_doc.file_url != source.storage_url
             or file_doc.attached_to_doctype != access.SOURCE or file_doc.attached_to_name != source.name):
@@ -203,6 +309,13 @@ def get_source(name):
 def original(name):
     source = get_source(name)
     return source.filename, read_bytes(source)
+
+
+def original_link(name):
+    """原件在原件桶里：``(文件名, 短时签名下载地址)``；在服务器上返回 ``None``（照旧由接口回字节）。"""
+    source = get_source(name)
+    stored = stored_original(source)
+    return (source.filename, cloud.download_url(stored, source.filename)) if stored else None
 
 
 def page(history_name, physical_page):

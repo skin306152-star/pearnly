@@ -1,6 +1,7 @@
 """服务器 ↔ Cloud Run 的识别请求与回复（纯约定：无 IO、不依赖 Frappe，两边各存一份同样的代码）。
 
-请求是一个 JSON：原件字节（base64）+ 受理时冻结的配置（环境、策略、示例快照、锚定日期）。
+请求是一个 JSON：原件（字节 base64，或浏览器直传后存在原件桶里的对象 + 版本号 + sha256，ADR-016）+ 受理时冻结的配置
+（环境、策略、示例快照、锚定日期）。
 回复是按行的 JSON（NDJSON）：读到新的一页回一行 ``page``，最后一行是 ``result``。
 """
 import base64
@@ -47,14 +48,66 @@ def evidence(calls):
     return result
 
 
-def request(*, site, work, batch, filename, content, page_count, anchor_date, environment, policy,
-            examples=None, variant="intake", yield_seconds=YIELD_SECONDS):
+# 原件桶里的对象：``<站点>/originals/<原件名><扩展名>``（``files.cloud.object_name``）。
+ORIGINAL = re.compile(r"originals/CWS-[0-9a-f]{48}\.[a-z0-9]{1,5}")
+SHA256 = re.compile(r"[0-9a-f]{64}")
+
+
+def original(*, object, generation, sha256):
+    """存在原件桶里的原件：Cloud Run 按版本号读出、核对 sha256 后再读，不经过我们服务器。"""
+    return {"object": object, "generation": int(generation), "sha256": sha256}
+
+
+def _original(body):
+    value = body.get("original")
+    if not isinstance(value, dict) or not isinstance(value.get("object"), str):
+        raise ValueError("invalid original")
+    site, _sep, rest = value["object"].partition("/")
+    if site != body["site"] or not ORIGINAL.fullmatch(rest):
+        raise ValueError("invalid original")
+    if type(value.get("generation")) is not int or value["generation"] < 1:
+        raise ValueError("invalid original")
+    if not isinstance(value.get("sha256"), str) or not SHA256.fullmatch(value["sha256"]):
+        raise ValueError("invalid original")
+    return value
+
+
+def request(*, site, work, batch, filename, content=None, page_count, anchor_date, environment, policy,
+            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None):
     body = {"version": VERSION, "kind": "cowork.invoice", "site": site, "work": work, "batch": batch,
-            "filename": filename, "content": base64.b64encode(content).decode("ascii"),
-            "page_count": page_count, "anchor_date": anchor_date, "environment": environment,
+            "filename": filename, "page_count": page_count, "anchor_date": anchor_date, "environment": environment,
             "policy": policy, "examples": examples, "variant": variant, "yield_seconds": yield_seconds}
+    if original is not None:
+        body["original"] = original
+    else:
+        body["content"] = base64.b64encode(content).decode("ascii")
     parse_request(body)
     return body
+
+
+def inspect_request(*, site, object, filename):
+    """浏览器直传的原件：让 Cloud Run 读一遍，核对类型 / 页数、算 sha256（同 ``ocr.originals.inspect``），并告诉
+    服务器这个对象的版本号（同一个对象名只能写一次，所以只有一个版本）。"""
+    body = {"version": VERSION, "kind": "cowork.inspect", "site": site, "original": {"object": object},
+            "filename": filename}
+    parse_inspect(body)
+    return body
+
+
+def parse_inspect(body):
+    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.inspect":
+        raise ValueError("unsupported request")
+    if not isinstance(body.get("site"), str) or not SITE.fullmatch(body["site"]):
+        raise ValueError("invalid site")
+    if not isinstance(body.get("filename"), str) or not 1 <= len(body["filename"]) <= 255:
+        raise ValueError("invalid filename")
+    value = body.get("original")
+    if not isinstance(value, dict) or not isinstance(value.get("object"), str):
+        raise ValueError("invalid original")
+    site, _sep, rest = value["object"].partition("/")
+    if site != body["site"] or not ORIGINAL.fullmatch(rest) or set(value) != {"object"}:
+        raise ValueError("invalid original")
+    return value
 
 
 # 对账三类文档（银行账单 / 总账 / 销项税报告）：企业档管线（ocr.recon_reading.read_document）。
@@ -101,6 +154,11 @@ def parse_request(body):
     yield_seconds = body.get("yield_seconds", YIELD_SECONDS)
     if type(yield_seconds) is not int or not 30 <= yield_seconds <= YIELD_SECONDS:
         raise ValueError("invalid yield_seconds")
+    if "original" in body:
+        if "content" in body:
+            raise ValueError("invalid content")
+        _original(body)
+        return None  # 原件在原件桶里：Cloud Run 读出后再核对（runner.original_bytes）
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)
     except (ValueError, TypeError) as exc:

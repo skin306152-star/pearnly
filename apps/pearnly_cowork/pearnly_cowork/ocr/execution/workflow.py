@@ -15,7 +15,7 @@ from pearnly_core import ocr
 from pearnly_core.execution import pages as core_pages
 from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution.errors import Deferred
-from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest
+from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, stored_original
 from pearnly_cowork.files.access import reference_count, reference_kind
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.engine import run_invoice
@@ -26,7 +26,7 @@ from pearnly_cowork.ocr.feedback import service as feedback
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
-from pearnly_cowork.ocr.remote import forward
+from pearnly_cowork.ocr.remote import contract, forward
 from pearnly_cowork.ocr.results import prepare_history_batch
 from pearnly_cowork.ocr.schema import PipelineResult
 from pearnly_cowork.ocr.table_inputs import extract_table
@@ -98,11 +98,16 @@ def _recognize(doc, frozen, examples, source):
             frappe.throw(_("Recognition input and ownership cannot be changed."))
         return _freeze_result(doc, EngineResult(pipeline, ()), frozen, examples)
     environment = frozen["environment"]
-    if source.kind != "document" and forward.settings():
+    stored = stored_original(source)
+    content = None if stored or source.kind == "document" or not forward.settings() else read_bytes(source)
+    # 原件在服务器上且超过一次请求能带的大小（20 MiB）：照旧在本机读，不让整份报错（ADR-016）。
+    if source.kind != "document" and forward.settings() and (stored or len(content) <= contract.MAX_CONTENT_BYTES):
         # 在 Cloud Run 上读（ADR-0015）：同一份引擎、同样冻结的配置；发出前已复核（上面的 _check），存结果前再复核一次。
+        # 原件在原件桶里（浏览器直传，ADR-016）就只给对象和版本号，Cloud Run 自己读、核对 sha256。
         body = feedback.validate_snapshot(examples) if examples else None
-        pipeline, evidence = forward.recognize(doc, frozen, body, read_bytes(source), source.filename,
-                                               lambda page: store.pages_reached(doc.name, page))
+        original = contract.original(object=stored[1], generation=stored[2], sha256=source.sha256) if stored else None
+        pipeline, evidence = forward.recognize(doc, frozen, body, content, source.filename,
+                                               lambda page: store.pages_reached(doc.name, page), original=original)
         anchor = date.fromisoformat(str(doc.anchor_date)).year
         PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor})  # 收到的必须是合规结果
         return _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))

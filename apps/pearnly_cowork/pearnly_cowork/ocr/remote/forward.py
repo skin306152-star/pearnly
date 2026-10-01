@@ -24,7 +24,7 @@ from pearnly_cowork.ocr.providers.client import ProviderError
 from pearnly_cowork.ocr.remote import contract
 
 CONFIG = "pearnly_cowork_ocr_remote"
-PATHS = {"invoice": "/v1/cowork/invoice", "document": "/v1/cowork/document"}
+PATHS = {"invoice": "/v1/cowork/invoice", "document": "/v1/cowork/document", "inspect": "/v1/cowork/inspect"}
 # 一份最多跑 420 秒就让出（contract.YIELD_SECONDS）；单次调用最长 180 秒；Cloud Run 每 20 秒发一行 tick。
 READ_IDLE_SECONDS = 240
 # 拿不到名额时原地等：与 pearnly_core.execution.provider.post 在识别任务里同一规则（每步最多 20 秒、累计最多 60 秒），
@@ -66,21 +66,22 @@ def _id_token(audience):
         return credentials.token
 
 
-def recognize(doc, frozen, examples, content, filename, progress, *, post=None, id_token=None):
-    """发票录入：返回 ``(pipeline_json, evidence)``（见 :func:`send`）。"""
-    return send(work_name=doc.work_name, batch=doc.name, filename=filename, content=content,
+def recognize(doc, frozen, examples, content, filename, progress, *, original=None, post=None, id_token=None):
+    """发票录入：返回 ``(pipeline_json, evidence)``（见 :func:`send`）。原件在原件桶里时传 ``original``、不传字节。"""
+    return send(work_name=doc.work_name, batch=doc.name, filename=filename, content=content, original=original,
                 page_count=int(doc.page_count), anchor_date=str(doc.anchor_date), frozen=frozen,
                 examples={"examples_by_tax": examples["examples_by_tax"]} if examples else None,
                 progress=progress, post=post, id_token=id_token)
 
 
-def send(*, work_name, batch, filename, content, page_count, anchor_date, frozen, examples=None, variant="intake",
-         yield_seconds=contract.YIELD_SECONDS, progress=None, post=None, id_token=None):
+def send(*, work_name, batch, filename, content=None, page_count, anchor_date, frozen, examples=None,
+         variant="intake", yield_seconds=contract.YIELD_SECONDS, progress=None, post=None, id_token=None,
+         original=None):
     """一份发票交给 Cloud Run 读：返回 ``(pipeline_json, evidence)``。"""
     config = _config()
     body = contract.request(site=frappe.local.site, work=work_name, batch=batch, filename=filename, content=content,
         page_count=page_count, anchor_date=anchor_date, environment=frozen["environment"], policy=frozen["policy"],
-        examples=examples, variant=variant, yield_seconds=yield_seconds)
+        examples=examples, variant=variant, yield_seconds=yield_seconds, original=original)
 
     def on_event(event):
         if event["event"] == "page" and progress:
@@ -110,6 +111,43 @@ def send_document(*, work_name, filename, content, page_count, document_type, fr
             on_unread(int(event.get("page") or 0))
 
     return _call(config, PATHS["document"], body, on_event, frozen, post=post, id_token=id_token)["legacy"]
+
+
+def inspect_original(object_name, filename, *, post=None, id_token=None):
+    """浏览器直传到原件桶的原件交给 Cloud Run 读一遍（ADR-016）：返回 Cloud Run 的结论
+    （``{"status": "ok", "meta": …, "generation": …, "md5": …}`` 或 ``{"status": "rejected", "code": …}``）。
+
+    不是付费调用，不拿识别名额；等回复时不占数据库连接。连不上 / 对方忙抛 ``Deferred``（调用方让用户重试）。"""
+    config = _config()
+    body = contract.inspect_request(site=frappe.local.site, object=object_name, filename=filename)
+    pool.release_db()
+    try:
+        token = (id_token or _id_token)(config["url"])
+        response = (post or provider.http_post)(config["url"] + PATHS["inspect"], json=body, timeout=(30, 120),
+                                                 headers={"Authorization": "Bearer " + token})
+    except (requests.ConnectionError, requests.Timeout) as exc:
+        raise Deferred("remote_unreachable", 5) from exc
+    except Exception as exc:  # 令牌签不出来：稍后重试
+        raise Deferred("remote_token_unavailable", 5) from exc
+    try:
+        if response.status_code in (429, 500, 502, 503, 504):
+            raise Deferred("remote_http_" + str(response.status_code), 5)
+        if response.status_code != 200:
+            raise RemoteError("remote_http_" + str(response.status_code))
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise RemoteError("remote_bad_reply") from exc
+    finally:
+        response.close()
+    if not isinstance(result, dict) or result.get("status") not in ("ok", "rejected", "error") or (
+            result["status"] == "ok" and (type(result.get("generation")) is not int or not isinstance(result.get("meta"), dict))):
+        raise RemoteError("remote_bad_reply")
+    if result["status"] == "error":
+        if result.get("code") == "original_unavailable":
+            raise Deferred("remote_original_unavailable", 5)
+        raise RemoteError(str(result.get("code") or "remote_error"))
+    return result
 
 
 def _config():

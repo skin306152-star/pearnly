@@ -346,6 +346,7 @@ Difference detail,差异明细
 Difference value,差异金额
 Differences,差异
 Differences to review,待处理差异
+Direct upload is not available. Please upload again.,暂时无法直接上传，请重新上传。
 Direction,业务方向
 Directory Revision,目录版本
 Directory Scope Key,目录范围键
@@ -1093,6 +1094,7 @@ The tax ID is not valid. Correct it and submit again,税号不对，请改正后
 The unsent preparation was cancelled.,尚未发送的推送准备已撤销。
 The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限。
 The uploaded file is empty.,上传文件为空。
+The uploaded file was not received. Please upload again.,没有收到上传的文件，请重新上传。
 The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
 The worksheet row or column information is invalid.,工作表行列信息无效。
 Then,自动
