@@ -5,6 +5,7 @@ from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.core.api.file import zip_files as native_zip_files
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, service
+from pearnly_cowork.ocr import originals
 
 
 @frappe.whitelist(methods=["POST"])
@@ -76,8 +77,9 @@ def original(name):
 def page(history_name, physical_page):
     data = service.page(history_name, physical_page)
     make_access_log(doctype="Cowork OCR History", document=history_name, file_type="page_png")
-    frappe.local.response.update(type="download", filename="invoice-page.png", filecontent=data,
-                                  display_content_as="inline", content_type="image/png")
+    kind = originals.preview_type(data)
+    frappe.local.response.update(type="download", filename="invoice-page." + kind.rsplit("/", 1)[1].replace("jpeg", "jpg"),
+                                  filecontent=data, display_content_as="inline", content_type=kind)
     frappe.local.cowork_private_response = True
 
 

@@ -3,7 +3,7 @@
 POST /v1/cowork/invoice   一份发票识别（录入 / 销项税核查），回复是按行的 JSON（见 contract）
 POST /v1/cowork/document  一份对账文档（银行账单 / 总账 / 销项税报告），同样按行回复
 POST /v1/cowork/inspect   浏览器直传到原件桶的一份原件读一遍、核对（ADR-016），回复一个 JSON
-POST /v1/cowork/preview   原件桶里一份原件的一页预览（PNG）；不行时回 422 + {"code": …}
+POST /v1/cowork/preview   原件桶里一份原件的一页预览（PNG，大的照片 / 扫描件 JPEG）；不行时回 422 + {"code": …}
 GET  /health              存活检查（Cloud Run 保留了以 z 结尾的路径，/healthz 到不了容器）
 """
 import json
@@ -11,6 +11,7 @@ import os
 
 from pearnly_core.ocr_models.orient import orient
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
+from pearnly_cowork.ocr.originals import preview_type
 from pearnly_cowork.ocr.remote import gcs, runner
 
 MAX_BODY = 30 * 1024 * 1024
@@ -65,7 +66,7 @@ def application(environ, start_response):
         if png is None:
             start_response("422 Unprocessable Entity", [("Content-Type", "application/json"), ("Cache-Control", "no-store")])
             return [json.dumps({"code": code}).encode()]
-        start_response("200 OK", [("Content-Type", "image/png"), ("Cache-Control", "no-store")])
+        start_response("200 OK", [("Content-Type", preview_type(png)), ("Cache-Control", "no-store")])
         return [png]
     bucket, token = _backend()
     start_response("200 OK", [("Content-Type", "application/x-ndjson"), ("Cache-Control", "no-store")])

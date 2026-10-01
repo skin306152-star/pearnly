@@ -507,6 +507,20 @@ class DirectOriginals(unittest.TestCase):
                                         sha256=hashlib.sha256(photo).hexdigest(), kind="image", page=2)
         self.assertEqual(runner.preview(body, Originals(**{OBJECT: photo})), (None, "preview_unsupported"))
 
+    def test_a_large_photo_preview_is_sent_as_jpeg_and_text_pages_stay_png(self):
+        import os
+        from pearnly_cowork.ocr import originals as checks
+
+        noisy = Image.frombytes("RGB", (1600, 1200), os.urandom(1600 * 1200 * 3))
+        out = io.BytesIO()
+        noisy.save(out, "JPEG", quality=95)
+        picture = checks.render_page("image", out.getvalue(), 1)
+        self.assertEqual(checks.preview_type(picture), "image/jpeg")
+        self.assertLess(len(picture), len(out.getvalue()))
+        page = checks.render_page("pdf", pdf(1), 1)
+        self.assertEqual(checks.preview_type(page), "image/png")
+        self.assertLessEqual(len(page), checks.PREVIEW_PNG_LIMIT)
+
     def test_a_changed_or_missing_original_is_never_read(self):
         google = Google()
         original = contract.original(object=OBJECT, generation=7, sha256="0" * 64)

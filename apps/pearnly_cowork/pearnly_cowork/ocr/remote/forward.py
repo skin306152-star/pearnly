@@ -180,7 +180,7 @@ def preview(object_name, generation, sha256, kind, page, *, post=None, id_token=
             if code in ("preview_too_large", "preview_unsupported"):
                 return {"code": code}
             raise RemoteError(str(code or "remote_error"))
-        if response.status_code != 200 or response.headers.get("Content-Type") != "image/png":
+        if response.status_code != 200 or response.headers.get("Content-Type") not in ("image/png", "image/jpeg"):
             raise RemoteError("remote_http_" + str(response.status_code))
         return {"png": response.content}
     finally:

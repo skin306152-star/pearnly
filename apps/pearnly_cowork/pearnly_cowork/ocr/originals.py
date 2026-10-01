@@ -14,6 +14,9 @@ from pearnly_cowork.ocr.inputs import (IMAGE_EXTENSIONS, MAX_FILE_BYTES, MAX_PDF
 CODES = ("invalid_filename", "unsupported_type", "empty", "too_large", "pdf_password", "pdf_unreadable",
          "pdf_pages", "image_unreadable", "preview_too_large", "preview_unsupported")
 MAX_PREVIEW_PIXELS = 16_000_000
+# 预览图超过这个大小（照片、扫描件）改用 JPEG（质量 85）：同样清楚，体积约十分之一，省出网流量（ADR-016）；
+# 文字页的 PNG 本来就小，照旧 PNG。只影响页面上的预览，不影响识别。
+PREVIEW_PNG_LIMIT = 400 * 1024
 
 
 class Rejected(ValueError):
@@ -75,8 +78,13 @@ def inspect(filename, content):
             "byte_size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
 
 
+def preview_type(picture):
+    return "image/jpeg" if picture[:3] == b"\xff\xd8\xff" else "image/png"
+
+
 def render_page(kind, data, number):
-    """原件一页的预览 PNG（PDF 150 dpi；照片按原比例长边不超过 2048）。服务器与 Cloud Run 同一份（ADR-016）。"""
+    """原件一页的预览图（PDF 150 dpi；照片按原比例长边不超过 2048）：PNG，超过 ``PREVIEW_PNG_LIMIT`` 时 JPEG。
+    服务器与 Cloud Run 同一份（ADR-016）。"""
     import pymupdf
     from PIL import Image, ImageOps
 
@@ -86,7 +94,9 @@ def render_page(kind, data, number):
             scale = 150 / 72
             if selected.rect.width * selected.rect.height * scale * scale > MAX_PREVIEW_PIXELS:
                 raise Rejected("preview_too_large")
-            return selected.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
+            pixmap = selected.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False)
+            picture = pixmap.tobytes("png")
+            return picture if len(picture) <= PREVIEW_PNG_LIMIT else pixmap.tobytes("jpg", jpg_quality=85)
     if kind == "image" and number == 1:
         with Image.open(io.BytesIO(data)) as image:
             if image.format in ("JPEG", "MPO"):
@@ -101,6 +111,10 @@ def render_page(kind, data, number):
             image.thumbnail((2048, 2048))
             output = io.BytesIO()
             image.save(output, format="PNG")
+            if output.tell() <= PREVIEW_PNG_LIMIT:
+                return output.getvalue()
+            output = io.BytesIO()
+            image.save(output, format="JPEG", quality=85)
             return output.getvalue()
     raise Rejected("preview_unsupported")
 
