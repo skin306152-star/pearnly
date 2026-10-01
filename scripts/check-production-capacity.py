@@ -60,6 +60,18 @@ assert not services['cowork-long-worker'].get('ports')
 assert services['cowork-ocr-worker']['command'][3] == 'ocr'
 checks.append('Cowork reconciliation lane never holds scheduled or interactive jobs')
 
+# 抢 CPU 时网页 / 数据库先跑（2026-10-01 半量压测：后台与网页抢同一台机器，页面跟着变慢）。只给后台降权重，
+# 不限核数；底座服务（数据库、Redis、Keycloak）不改配置，激活产品时不会连带重建。
+BACKGROUND = ('-worker', '-scheduler', '-ocr-dispatch')
+for name, service in services.items():
+    shares = service.get('cpu_shares')
+    if name.endswith(BACKGROUND):
+        assert shares == 256, (name, shares)
+    else:
+        assert shares in (None, 1024), (name, shares)
+        assert not service.get('cpus') and not service.get('cpu_quota'), name
+checks.append('Background services yield CPU to web, realtime and database under contention, without core limits')
+
 # 识别任务不 fork 只开在三个识别容器上（2026-10-01）：改锚点时既不能漏掉，也不能扩散到别的 worker。
 NOFORK = 'FRAPPE_BACKGROUND_WORKERS_NOFORK'
 for name, service in services.items():

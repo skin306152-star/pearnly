@@ -31,14 +31,22 @@ x-web: &web
     redis-cache: {condition: service_healthy}
     redis-queue: {condition: service_healthy}
 
+# 后台（worker、识别、对账、定时任务、识别派发）的 CPU 权重 256，网页 / 前端 / 实时推送 / 数据库 / Redis / Keycloak 保持默认 1024：
+# 只在抢 CPU 时起作用，前台对后台 4:1 先跑；空闲时后台照样能用满整机（不是限死核数）。半量压测（2026-10-01）：
+# long-worker 峰值 454%、ocr-worker 269% 与 cowork-web、mariadb 抢同一台 8 核机器，页面跟着变慢。底座服务的配置不动，
+# 激活产品时不会连带重建数据库。
+x-background-cpu: &background-cpu 256
+
 x-worker: &worker
   <<: *runtime
   mem_limit: 768m
+  cpu_shares: *background-cpu
   command: [bench, worker, --queue, 'short,default,long']
 
 x-scheduler: &scheduler
   <<: *runtime
   mem_limit: 192m
+  cpu_shares: *background-cpu
   stop_grace_period: 5s
   command: [bench, schedule]
 
@@ -199,6 +207,7 @@ services:
   dms-ocr-dispatch:
     profiles: [dms]
     <<: *runtime
+    cpu_shares: *background-cpu
     # Frappe/site bootstrap exceeded 128 MiB during the unified release cold start.
     mem_limit: 256m
     command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
@@ -256,6 +265,7 @@ services:
   erp-ocr-dispatch:
     profiles: [erp]
     <<: *runtime
+    cpu_shares: *background-cpu
     mem_limit: 256m
     command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
     volumes: [sites-erp:/home/frappe/frappe-bench/sites]
@@ -326,6 +336,7 @@ services:
   cowork-ocr-dispatch:
     profiles: [cowork]
     <<: *runtime
+    cpu_shares: *background-cpu
     mem_limit: 256m
     command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
     volumes: [sites-cowork:/home/frappe/frappe-bench/sites]

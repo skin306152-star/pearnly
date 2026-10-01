@@ -30,6 +30,14 @@
    余额不足照旧马上报。对账文档（`document_ocr.submit`）与销项税核查发票（`invoice_ocr`）都走它。录入发票提交被拒 `lookup_error`
    时浏览器本来就会隔几秒重交（`intake-upload.js` RESUBMIT），不改。
 
+## 同批：抢 CPU 时网页与数据库先跑
+
+压测窗口补交（用户问"并发时前端慢怎么解决"）：半量时 long-worker 峰值 454%、ocr-worker 269%，与 cowork-web（324%）、mariadb（224%）抢同一台
+8 核机器，后台一忙页面就慢。`infrastructure/production/compose.yml`：后台（各产品 worker、ocr-worker、long-worker、dms-sync-worker、
+scheduler、ocr-dispatch）`cpu_shares: 256`，其余（web、frontend、socketio、billing-web、mariadb、redis、keycloak）保持默认 1024——只在争抢时
+前台 4:1 先跑，空闲时后台照样用满整机，不限核数。底座服务配置不动，激活产品时不会连带重建数据库；后台容器在激活产品时本来就重建，
+随统一部署生效。`check-production-capacity.py` 新增一项钉住（25 项通过）。
+
 ## 验证
 
 - 镜像里：`test_cowork_source_lock_scope.py`（查找不加锁、查到的按主键锁、判定不变）、`test_control_billing_usage_counter.py`
