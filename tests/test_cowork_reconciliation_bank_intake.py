@@ -215,7 +215,7 @@ class PdfStatement(unittest.TestCase):
 			"\u0e42\u0e2d\u0e19\u0e40\u0e07\u0e34\u0e19\n"
 			"50.00\n"
 			"1,050.00 K PLUS\n")
-		with patch.object(bank_intake.table_io, "extract_pdf_text_pages", return_value=[text]):
+		with patch.object(bank_intake.pdf_text, "extract_pdf_text_pages", return_value=[text]):
 			result = bank_intake.read_statement_file(b"%PDF-1.4 fake", "stm_kbank.pdf")
 		self.assertTrue(result["ok"])
 		self.assertEqual(result["source"], "kbank_columns")

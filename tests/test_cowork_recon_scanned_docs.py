@@ -631,7 +631,7 @@ class SeveralFilesPerSide(unittest.TestCase):
 		self.assertFalse(bank_intake.implausible_free_rows(good, "Total No. of Credits 1\nTotal No. of Debits 1"))
 		model = self.statement([(date(2025, 6, 2), "a", 0.0, 136458.0, 323186.06)], opening=186728.06, closing=323186.06)
 		model["enterprise"] = True
-		with mock.patch.object(bank_intake.table_io, "extract_pdf_text_pages", return_value=["KBank"]), \
+		with mock.patch.object(bank_intake.pdf_text, "extract_pdf_text_pages", return_value=["KBank"]), \
 				mock.patch.object(bank_intake.bank_parse, "detect_bank", return_value="kbank"), \
 				mock.patch.object(bank_intake, "_statement_text_rows", return_value=(junk, 0.0, 0.0, "kbank_columns")):
 			read = bank_intake.read_statement_file(b"%PDF", "bank17.pdf", model_rows=lambda *a: model)
