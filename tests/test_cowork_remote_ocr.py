@@ -821,14 +821,6 @@ class PaidCallGuard(unittest.TestCase):
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
 
-    def test_the_pdf_jpeg_switch_is_read_from_the_revision_environment_only(self):
-        for value, expected in ((None, 0), ("90", 90), ("49", 0), ("96", 0), ("x", 0)):
-            env = {} if value is None else {"OCR_PDF_PAGE_JPEG_QUALITY": value}
-            with patch.dict(runner.os.environ, env, clear=False):
-                if value is None:
-                    runner.os.environ.pop("OCR_PDF_PAGE_JPEG_QUALITY", None)
-                self.assertEqual(runner.pdf_jpeg_quality(), expected, value)
-
     def test_the_result_records_its_estimated_cost(self):
         # 原来发票识别的结果里成本一直是 0（只有对账那条路算了；2026-10-02 压测窗口发现）
         final = remote(Bucket(), Google())[-1]

@@ -275,16 +275,6 @@ def throttle_feedback(store, bucket, status, *args):
             store.throttled += 1
 
 
-def pdf_jpeg_quality():
-    """发票 PDF 页送识别用 JPEG 的质量（Cloud Run 环境变量 ``OCR_PDF_PAGE_JPEG_QUALITY``，默认 0 = 照旧 PNG）。评测开关：只在
-    不接流量的 eval 修订版上设，金标对比不降质才考虑默认打开（2026-10-02）。不合规的值当作没设。"""
-    try:
-        value = int(os.environ.get("OCR_PDF_PAGE_JPEG_QUALITY") or 0)
-    except ValueError:
-        return 0
-    return value if 50 <= value <= 95 else 0
-
-
 def text_path_forced():
     """评测开关：带文字层的 PDF 直接读文字层（不转图、不付费读字），等同站点配置 ``OCR_FAST_PATH_ENABLED=true``。
     Cloud Run 环境变量 ``OCR_TEXT_PATH_EVAL=1``，只在不接流量的评测修订版上设（2026-10-02）；线上要开走站点配置。"""
@@ -516,11 +506,10 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
                 return callback(*args, **kwargs)
             return invoke
 
-        quality = pdf_jpeg_quality()
         with page_source(content, body["filename"], expected_page_count=body["page_count"],
                          enable_text_path=selected.text_fast_path,
                          image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
-                         orient=orient, **({"pdf_jpeg_quality": quality} if quality else {})) as pages:
+                         orient=orient) as pages:
             result = run_invoice(pages, guarded(model_call), guarded(vision_call), config=config,
                                  anchor_year=anchor.year, today=anchor, fewshot_selector=selector, map_pages=page_map)
         # 线程 CPU 只在一页一页读时准（多页同时读时 CPU 花在页线程里）。
