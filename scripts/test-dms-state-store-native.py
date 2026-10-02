@@ -9,6 +9,7 @@
 不连 LINE / DMS；临时 LINE 绑定与键都在收尾按名字删掉。
 """
 import importlib
+import os
 import runpy
 import unittest
 import uuid
@@ -27,6 +28,7 @@ MODULES = (
 class StateStoreNative(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        os.chdir("/home/frappe/frappe-bench/sites")  # 站点按 sites 目录找（与其它流程实验室脚本相同）
         runpy.run_path(str(Path(__file__).with_name("test-dms-native-flow.py")))["connect"]()
 
     @classmethod
