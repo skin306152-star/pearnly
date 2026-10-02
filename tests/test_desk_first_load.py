@@ -142,3 +142,24 @@ class WarmupTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BootMessagesTest(unittest.TestCase):
+    """整份翻译表不进按用户缓存的启动信息、返回前按语言放回（2026-10-02 m7：每人约 1MB，挤满 redis-cache）。"""
+
+    def test_cached_boot_drops_messages_and_reply_restores_them(self):
+        from pearnly_core.desk import boot_messages
+
+        boot = frappe._dict(__messages={"Save": "บันทึก"}, lang="th")
+        boot_messages.boot_session(boot)
+        self.assertNotIn("__messages", boot)
+        with patch("frappe.translate.get_messages_for_boot", return_value={"Save": "บันทึก"}) as load:
+            boot_messages.extend_bootinfo(boot)
+            boot_messages.extend_bootinfo(boot)  # 已经有了不再取
+        self.assertEqual(boot["__messages"], {"Save": "บันทึก"})
+        load.assert_called_once()
+
+    def test_hooks_strip_before_cache_and_restore_on_every_reply(self):
+        source = (ROOT / "apps/pearnly_core/pearnly_core/hooks.py").read_text()
+        self.assertIn('"pearnly_core.desk.boot_messages.boot_session"', source)
+        self.assertIn('"pearnly_core.desk.boot_messages.extend_bootinfo"', source)

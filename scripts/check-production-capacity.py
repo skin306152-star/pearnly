@@ -228,14 +228,14 @@ checks.append('Database and Redis addresses come from runtime.env, defaulting to
 spec = importlib.util.spec_from_file_location('sizing', ROOT / 'infrastructure/production/sizing.py')
 sizing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sizing)
-as_mib = lambda value: int(str(value)[:-1]) * (1024 if str(value)[-1] in 'gG' else 1) if str(value)[-1] in 'gGmM' else int(value)
+as_mib = lambda value: as_mib(str(value)[:-1]) if str(value).endswith('b') else int(str(value)[:-1]) * (1024 if str(value)[-1] in 'gG' else 1) if str(value)[-1] in 'gGmM' else int(value)
 formula = sizing.recommend(8, 32095, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))
 # 2026-10-02 下一批：Cowork 识别 8 进程 × 12 线程、每线程 20 MiB（m7 实测卡在派发循环、不缺线程；总线程 96 不变），
 # 识别容器上限按 256 MiB 取整，连接上限随之 210 → 220（上线时 runtime.env 同步改成这些值）
 production = {**REAL, 'PEARNLY_MARIADB_MAX_CONNECTIONS': '220', 'PEARNLY_MARIADB_MEM': '8g', 'PEARNLY_MARIADB_BUFFER_POOL': '4G',
               'PEARNLY_COWORK_OCR_WORKERS': '8', 'PEARNLY_COWORK_OCR_THREADS': '12', 'PEARNLY_COWORK_OCR_THREAD_MB': '20',
               'PEARNLY_COWORK_OCR_MEM': '5376m', 'PEARNLY_ERP_OCR_MEM': '6656m', 'PEARNLY_DMS_OCR_MEM': '1792m',
-              'PEARNLY_ERP_WEB_THREADS': '8'}
+              'PEARNLY_ERP_WEB_THREADS': '8', 'PEARNLY_REDIS_CACHE_MAXMEMORY': '256mb', 'PEARNLY_REDIS_CACHE_MEM': '384m'}
 assert {k: as_mib(v) for k, v in formula.items()} == {k: as_mib(production[k]) for k in formula}, (formula, production)
 for cores, mem_mib in ((8, 32 * 1024), (12, 48 * 1024), (16, 64 * 1024), (32, 128 * 1024)):
     knobs = sizing.recommend(cores, mem_mib, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))

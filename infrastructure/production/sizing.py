@@ -61,6 +61,11 @@ def base(cores, mem_mib):
                       f"PEARNLY_{product}_OCR_THREAD_MB": thread_mb,
                       f"PEARNLY_{product}_OCR_MEM": f"{_ceil_mib(floor * workers)}m"})
     knobs["PEARNLY_MARIADB_BUFFER_POOL"] = f"{max(1, int(mem_mib * POOL_SHARE // 1024))}G"
+    # redis-cache：物理内存的 1/128，256mb–1gb（启动信息的翻译表按语言共享后每个在线用户约 0.1MB，32G 上 256mb 约四倍余量）；
+    # 容器比 maxmemory 多 128m（redis 自身开销与碎片）。
+    cache_mb = min(1024, max(256, int(mem_mib // 128) // 64 * 64))
+    knobs["PEARNLY_REDIS_CACHE_MAXMEMORY"] = f"{cache_mb}mb"
+    knobs["PEARNLY_REDIS_CACHE_MEM"] = f"{cache_mb + 128}m"
     return knobs
 
 

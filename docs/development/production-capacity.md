@@ -47,7 +47,7 @@
 
 | 项 | 值 | 依据 |
 | --- | --- | --- |
-| redis-cache | 128 MB，`allkeys-lru`；容器上限 256m（2026-10-02 实测在 192m 上限顶了 8969 次） | 只放可丢的缓存；会被淘汰，不能放状态（见 `docs/work/2026-10-02-redis-state.md`） |
+| redis-cache | `maxmemory` = 物理内存 / 128（256mb–1gb，32G 上 256mb），`allkeys-lru`；容器 = maxmemory + 128m（`sizing.py`）。启动信息的整份翻译表按语言共享（`pearnly_core/desk/boot_messages.py`），每个在线用户约 0.1MB | 只放可丢的缓存；会被淘汰，不能放状态（见 `docs/work/2026-10-02-redis-state.md`） |
 | redis-queue | 160 MB，`noeviction`，AOF 每秒刷盘 | 队列与不能丢的状态（锁、登录 state、对账进度） |
 | 调度器 | 每个产品一个（`dms-scheduler` / `erp-scheduler` / `cowork-scheduler`） | 加 Web 机器时**不得**在新机器上再起调度器 |
 | 前端 nginx、socketio、Keycloak | compose 内固定上限 | 实测远低于上限 |

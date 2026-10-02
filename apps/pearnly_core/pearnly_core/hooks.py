@@ -300,9 +300,11 @@ boot_session = [
     "pearnly_core.desk.currency.boot_session",
     # 上传前缩照片的站点开关（`pearnly_shrink_photos`，默认关）。
     "pearnly_core.desk.upload.boot_session",
+    # 整份翻译表不进按用户缓存的启动信息（每人约 1MB，挤满 redis-cache），返回前按语言放回（`extend_bootinfo` 同名模块）。
+    "pearnly_core.desk.boot_messages.boot_session",
 ]
 # 页面文案的版本指纹：每次启动都给（不进按用户缓存的启动信息），前端据此把文案包存在浏览器里。
-extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo"]
+extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.desk.boot_messages.extend_bootinfo"]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
 app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "desk/scan.js")]
