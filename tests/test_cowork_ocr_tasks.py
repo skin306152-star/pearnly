@@ -241,6 +241,37 @@ class SelfCheck(Base):
         self.assertTrue(tasks.self_check(http=self.google)["bucket"])   # 开关没开也能先自检
 
 
+class Shards(Base):
+    def test_dispatches_spread_over_the_configured_queues(self):
+        # 2026-10-02 m6：Cloud Tasks 空闲后刚开始投递时限速，分到几个队列开头的爬坡快几倍；默认 1 个照旧
+        self.assertEqual(tasks.settings()["shards"], 1)
+        self.assertEqual(tasks.queue_for(tasks.settings(), "ffffffff" + "0" * 24), "cowork-ocr")
+        frappe.local.conf[tasks.CONFIG] = {**CONFIG, "shards": 4}
+        config = tasks.settings()
+        self.assertEqual(tasks.queues(config), ["cowork-ocr", "cowork-ocr-1", "cowork-ocr-2", "cowork-ocr-3"])
+        picked = {tasks.queue_for(config, f"{n:08x}" + "0" * 24) for n in range(16)}
+        self.assertEqual(picked, set(tasks.queues(config)))
+        self.assertEqual(tasks.queue_for(config, "00000005" + "0" * 24), "cowork-ocr-1")   # 同一派发号总在同一队列
+        for bad in (0, 9, "4", True):
+            frappe.local.conf[tasks.CONFIG] = {**CONFIG, "shards": bad}
+            self.assertEqual(tasks.settings()["shards"], 1, bad)
+
+    def test_the_task_goes_to_its_shard_and_self_check_probes_every_queue(self):
+        frappe.local.conf[tasks.CONFIG] = {**CONFIG, "shards": 4}
+        with self.assertRaises(Deferred):
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda event: None, http=self.google,
+                       now=lambda: 1000.0)
+        url = self.google.posts[-1][0]
+        dispatch = self.checkpoints.values[tasks.DISPATCH_KEY]["body"]["id"]
+        self.assertIn("/queues/" + tasks.queue_for(tasks.settings(), dispatch) + "/tasks", url)
+        self.google.delete = lambda url, headers=None, timeout=None: Reply(204)
+        before = len(self.google.posts)
+        result = tasks.self_check(http=self.google)
+        self.assertTrue(result["ok"], result)
+        probes = [post[0] for post in self.google.posts[before:] if "/tasks" in post[0]]
+        self.assertEqual(sorted(p.split("/queues/")[1].split("/")[0] for p in probes), sorted(tasks.queues(tasks.settings())))
+
+
 class Collect(Base):
     def setUp(self):
         super().setUp()

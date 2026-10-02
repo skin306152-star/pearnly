@@ -109,7 +109,25 @@ def settings():
             "workflow_min_pages": minimum if type(minimum) is int and minimum >= 2 else WORKFLOW_MIN_PAGES,
             "workflow_max": value.get("workflow_max") if type(value.get("workflow_max")) is int else WORKFLOW_MAX,
             "adaptive": bool(value.get("adaptive", True)),
+            "shards": value.get("shards") if type(value.get("shards")) is int and 1 <= value.get("shards") <= MAX_SHARDS else 1,
             "invoker": value.get("invoker") or None}
+
+
+# 派发分到几个队列（站点配置 ``shards``，默认 1 = 只用 ``queue``；2 起依次是 ``queue``、``queue-1``、``queue-2``…）。2026-10-02
+# m2 / m6：队列空闲一阵后刚开始投递时 Cloud Tasks 自己限速（约每秒 1 个、一分钟后才放开），开头那批等了最多 27 秒；分到几个
+# 队列，开头的爬坡就快几倍。按派发号分（同一次派发总在同一个队列）。各队列的并发 / 速率加起来不超过下游（Cloud Run 20 实例 ×
+# 8 并发、识别名额 160）：4 个队列各 40 并发、每秒 5 个；服务器的在途名额与按模型的自适应上限照旧在建任务之前把关。
+MAX_SHARDS = 8
+
+
+def queue_for(config, dispatch):
+    shards = int(config.get("shards") or 1)
+    index = int(str(dispatch)[:8], 16) % shards if shards > 1 else 0
+    return config["queue"] if index == 0 else f"{config['queue']}-{index}"
+
+
+def queues(config):
+    return [config["queue"], *(f"{config['queue']}-{index}" for index in range(1, int(config.get("shards") or 1)))]
 
 
 def active():
@@ -591,7 +609,7 @@ def _pages_to_read(body):
 def _create_task(config, remote, envelope, body, *, http=None, workflow=False):
     """建一个 Cloud Task：直接调 Cloud Run（带识别服务账号的身份令牌），或多页对账文档交给 Workflows 新开一次执行。
     任务名由派发号算出：重复提交同一个只会有一个（409 当作已建好）。"""
-    parent = f"projects/{config['project']}/locations/{config['location']}/queues/{config['queue']}"
+    parent = f"projects/{config['project']}/locations/{config['location']}/queues/{queue_for(config, envelope['dispatch'])}"
     account = invoker(config)
     pages = int(body.get("page_count") or 1)
     if workflow:
@@ -636,12 +654,16 @@ def self_check(*, http=None):
         client.delete(f"{STORAGE}/storage/v1/b/{config['bucket']}/o/{quote(probe, safe='')}",
                       headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
         result["bucket"] = True
-        parent = f"projects/{config['project']}/locations/{config['location']}/queues/{config['queue']}"
-        response = client.post(f"{TASKS}/{parent}/tasks", json={"task": {"httpRequest": {
-            "url": remote["url"] + "/health", "httpMethod": "GET",
-            "oidcToken": {"serviceAccountEmail": invoker(config), "audience": remote["url"]}}}},
-            headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
-        response.raise_for_status()
+        for queue in queues(config):  # 分了几个队列就每个都建一个探测任务（建不了的队列名交回）
+            result["queue"] = queue
+            parent = f"projects/{config['project']}/locations/{config['location']}/queues/{queue}"
+            response = client.post(f"{TASKS}/{parent}/tasks", json={"task": {"httpRequest": {
+                "url": remote["url"] + "/health", "httpMethod": "GET",
+                "oidcToken": {"serviceAccountEmail": invoker(config), "audience": remote["url"]}}}},
+                headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
+            response.raise_for_status()
+        result.pop("queue", None)
+        result["queues"] = queues(config)
         result["task"] = True
     except Exception as exc:  # noqa: BLE001 - 自检把原因交回，不抛
         result["error"] = f"{type(exc).__name__}: {exc}"[:300]
