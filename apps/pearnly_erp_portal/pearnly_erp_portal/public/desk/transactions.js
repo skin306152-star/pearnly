@@ -13,26 +13,43 @@
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
 	p.trade = {
-		// 采购 / 销售网页识别在后台跑（2026-10-02：同步请求读多页 PDF 会撞 120 秒超时）。发起后每 1.5 秒按号问一次，
-		// 读完返回结果；失败按服务端给的原因用原生提示弹出（与原先同步调用时一样）。`progress(now)`：每次问到的
-		// {done, total}，给等候层显示页数，不再另外问一次。服务端说任务已经不在会回失败；一直问不到状态（号丢了）30 秒后也停。
+		// 采购 / 销售网页识别在后台跑（2026-10-02：同步请求读多页 PDF 会撞 120 秒超时）。推送优先、轮询兜底（同 Cowork 录入
+		// `intake-upload.js`，几百人同时识别时不能一两秒问一次）：服务端每读完一页、读完都推「pearnly_erp_recognise」给发起人，
+		// 收到页数直接更新等候层，收到结论立刻读结果；实时连接在线时 20 秒兜底问一次，不在线 5 秒。读完返回结果；失败按服务端
+		// 给的原因用原生提示弹出（与原先同步调用时一样）。服务端说任务已经不在会回失败；30 秒仍问不到任何状态（号丢了）也停。
 		async recognise(api, method, args, progress) {
-			await p.call(api + method, args, "POST");
-			for (let empty = 0; ;) {
-				await new Promise(resolve => setTimeout(resolve, 1500));
-				let now;
-				try {
-					now = (await frappe.call({method: api + "api_recognise_progress", args: {progress_key: args.progress_key},
-						type: "GET", silent: true})).message || {};
-				} catch (error) {
-					continue; // 一时问不到就下次再问
+			const key = args.progress_key, started = Date.now();
+			let wake = null, pushed = false;
+			const heard = data => {
+				if (data?.token !== key) return;
+				if (data.state) {pushed = true; wake?.();}
+				else if (Number.isFinite(data.done)) progress?.({done: data.done, total: data.total});
+			};
+			frappe.realtime?.on?.("pearnly_erp_recognise", heard);
+			try {
+				await p.call(api + method, args, "POST");
+				for (;;) {
+					if (!pushed) await new Promise(resolve => {
+						wake = resolve;
+						setTimeout(resolve, frappe.realtime?.socket?.connected ? 20000 : 5000);
+					});
+					wake = null; pushed = false;
+					let now;
+					try {
+						now = (await frappe.call({method: api + "api_recognise_progress", args: {progress_key: key},
+							type: "GET", silent: true})).message || {};
+					} catch (error) {
+						continue; // 一时问不到就下次再问
+					}
+					if (now.total) progress?.(now);
+					if (now.state === "done") return now.result;
+					if (now.state === "failed" || (!now.state && Date.now() - started > 30000)) {
+						frappe.msgprint({message: now.message || __("Recognition failed. Please try again."), indicator: "red"});
+						throw {_server_messages: true};
+					}
 				}
-				progress?.(now);
-				if (now.state === "done") return now.result;
-				if (now.state === "failed" || (!now.state && ++empty >= 20)) {
-					frappe.msgprint({message: now.message || __("Recognition failed. Please try again."), indicator: "red"});
-					throw {_server_messages: true};
-				}
+			} finally {
+				frappe.realtime?.off?.("pearnly_erp_recognise", heard);
 			}
 		},
 		// 收银小票的只读查看器：销售记录里点到"来源=POS"的行，或收银页点小票，都开这一个。

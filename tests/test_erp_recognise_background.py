@@ -42,6 +42,7 @@ class BackgroundRecognition(unittest.TestCase):
                                ("frappe.db", {"new": MagicMock()}),
                                ("frappe._", {"new": lambda text, *a, **kw: text}),  # 没有站点，不加载翻译
                                ("frappe.throw", {"new": _throw}),  # 没有请求上下文，不记消息
+                               ("frappe.publish_realtime", {"new": MagicMock()}),
                                ("pearnly_erp_portal.recognition.background._", {"new": lambda text, *a, **kw: text})):
             p = patch(target, **kwargs)
             p.start()
@@ -79,6 +80,17 @@ class BackgroundRecognition(unittest.TestCase):
             return {"doc_no": "INV-1"}
         state, _ = self.run_job(recognise)
         self.assertEqual(state, {"state": "done", "done": 2, "total": 2, "result": {"doc_no": "INV-1"}})
+        # 推送优先：每页一条、读完一条，只推给发起人（页面据此读结果，轮询只作兜底）
+        pushes = [(c.args[0], c.args[1], c.kwargs["user"]) for c in frappe.publish_realtime.call_args_list]
+        self.assertEqual(pushes, [("pearnly_erp_recognise", {"token": "token-abcdefgh", "done": 1, "total": 2}, "clerk@example.invalid"),
+                                  ("pearnly_erp_recognise", {"token": "token-abcdefgh", "done": 2, "total": 2}, "clerk@example.invalid"),
+                                  ("pearnly_erp_recognise", {"token": "token-abcdefgh", "state": "done"}, "clerk@example.invalid")])
+
+    def test_state_expires_after_an_hour(self):
+        calls = []
+        self.store.set_value = lambda key, value, expires_in_sec=None: calls.append(expires_in_sec)
+        progress.queued("token-abcdefgh", "job")
+        self.assertEqual(calls, [3600])
 
     def test_reasons_for_people_reach_the_page_unchanged(self):
         def recognise(**_):

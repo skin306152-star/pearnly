@@ -1,7 +1,7 @@
 """ERP 采购 / 销售网页识别的进度与结果（用户 2026-09-30：「录入工作台按页分进度，不要按份，ERP 那边一样」）。
 
 网页识别在后台跑（`recognition.background`，2026-10-02：同步请求读多页 PDF 会超过 gunicorn 120 秒）。页面发起时带一个随机号，
-后台每读完一页写一次「已读页数 / 总页数」，读完写结果或失败原因；页面按这个号轮询。按当前用户隔离。
+后台每读完一页写一次「已读页数 / 总页数」，读完写结果或失败原因，并推给发起人；页面收到推送就读，轮询只作兜底。按当前用户隔离、1 小时过期。
 存在不淘汰的状态存储（`pearnly_core.execution.state`）：结果丢了页面就会一直等，不能放会被挤掉的 redis-cache。
 """
 import re
@@ -25,7 +25,18 @@ def _key(token, user=None):
 
 def _write(token, value):
     store, key = _key(token)
-    store.set_value(key, value, expires_in_sec=EXPIRES)
+    store.set_value(key, value, expires_in_sec=EXPIRES)  # 1 小时后自动删，不常留
+
+
+EVENT = "pearnly_erp_recognise"
+
+
+def _push(payload):
+    """推给发起人（原生实时推送）：页面收到就更新页数 / 立刻读结果，轮询只作兜底（同 Cowork 录入，`intake-upload.js`）。推不了照样靠轮询。"""
+    try:
+        frappe.publish_realtime(EVENT, payload, user=frappe.session.user, after_commit=False)
+    except Exception:
+        pass
 
 
 def _read(token):
@@ -44,6 +55,7 @@ def reporter(token):
             _write(token, {**_read(token), "state": "running", "done": int(done), "total": int(total)})
         except Exception:
             pass  # 页数只作展示
+        _push({"token": token, "done": int(done), "total": int(total)})
     return report
 
 
@@ -54,6 +66,7 @@ def queued(token, job_id):
 def finish(token, outcome):
     """``outcome``：``{"state": "done", "result": …}`` 或 ``{"state": "failed", "message": …}``。写不进要报出来（页面会一直等）。"""
     _write(token, {**_read(token), **outcome})
+    _push({"token": token, "state": outcome["state"]})
 
 
 def read(token):
