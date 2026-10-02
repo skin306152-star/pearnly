@@ -25,4 +25,7 @@ Frappe 文档插入，一份对账几百行，和任务头在同一个事务里�
 
 - `tests/test_cowork_recon_bulk_rows.py`（新增，进候选离线道）：银行、收入两张行表各一次批量写入、名称与字段同逐行插入、权限一次、坏值一行不写、空日期 NULL；三处调用方源码里不再有逐行 `persist(get_doc(ROW…))`。
 - 收入对账离线测试（contracts、export、parse_info、income_vat）与对账相关离线测试 `test_cowork_recon_scanned_docs`（121）、`bank_warnings`（19）、`recon_presets`（26）、`reconciliation_gl_sheets`（32）全过。
-- 待补：真实库上写入回读（测试租户跑一套银行对账，核对行数、字段、事务时长），随下一批的闸②一起看。
+- 真实库（生产 MariaDB，testcowork，2026-10-02 约 09:20Z）：一次性容器挂本分支代码，在一个事务里批量写入银行 3 行、收入 1 行合成数据，
+  读回逐列核对（泰文描述、日期、金额、`stmt_balance_ok` 空值为 ''、空日期为 NULL、owner / docstatus），`get_doc` 正常打开，
+  然后回滚，回滚后两表该任务 0 行（不留数据、不扣费）。
+- 待补：事务时长的前后对比，随下一批的闸②（测试租户 100 人含对账）一起看。
