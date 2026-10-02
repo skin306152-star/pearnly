@@ -334,7 +334,7 @@ def run(name):
                                  "lease_until": now + timedelta(seconds=JOB_TIMEOUT + 60)}, update_modified=False)
     frappe.db.commit()
     timing = {"ready": (now - doc.next_run).total_seconds() if doc.next_run else None, "attempt": (doc.attempts or 0) + 1,
-              "wall": time.monotonic(), "cpu": time.thread_time(), "outcome": "failed:workflow_error"}
+              "wall": time.monotonic(), "cpu": time.thread_time(), "rq": _runqueue_wait(), "outcome": "failed:workflow_error"}
     frappe.flags.pearnly_ocr_timing = {}
     try:
         from .resources import check_memory
@@ -384,14 +384,32 @@ def _log_timing(name, kind, timing):
                           "ready": None if timing["ready"] is None else round(timing["ready"], 2),
                           "wall": round(time.monotonic() - timing["wall"], 3),
                           "cpu": round(time.thread_time() - timing["cpu"], 3), "threads": busy(),
+                          "rq": _since(_runqueue_wait(), timing.get("rq")),
                           "outcome": timing["outcome"], "steps": steps}, separators=(",", ":")), flush=True)
     except Exception:
         pass
 
 
+def _runqueue_wait():
+    """本线程到现在为止等 CPU 排队的总秒数（Linux ``/proc/thread-self/schedstat`` 第二项）；读不到返回 ``None``。
+
+    计时行里 ``wall`` 远大于 ``cpu`` 时，分得清是在等 CPU（``rq`` 大：线程可以跑却轮不到）还是在等数据库 / 外部（``rq`` 小）。
+    2026-10-02 m7：识别进程同时忙 9–14 个线程时入库中位 7.65 秒、CPU 只有 0.24 秒，进程 CPU 也没顶满，要靠这一项定位。"""
+    try:
+        with open("/proc/thread-self/schedstat") as handle:
+            return int(handle.read().split()[1]) / 1e9
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _since(now, then):
+    return round(now - then, 3) if isinstance(now, float) and isinstance(then, float) else None
+
+
 @contextmanager
 def step(label):
-    """产品在识别处理函数里给一步计时（实际耗时与本线程 CPU 秒），随本次运行的计时行一起输出。不在识别运行里就什么都不做。"""
+    """产品在识别处理函数里给一步计时：``[实际耗时, 本线程 CPU 秒, 等 CPU 排队秒]``（第三项读不到时没有），随本次运行的计时行
+    一起输出。不在识别运行里就什么都不做。"""
     try:
         steps = frappe.flags.get("pearnly_ocr_timing")
     except RuntimeError:  # 没有站点上下文（离线调用）
@@ -399,12 +417,16 @@ def step(label):
     if not isinstance(steps, dict):
         yield
         return
-    wall, cpu = time.monotonic(), time.thread_time()
+    wall, cpu, queued = time.monotonic(), time.thread_time(), _runqueue_wait()
     try:
         yield
     finally:
         previous = steps.get(label) or [0, 0]
-        steps[label] = [round(previous[0] + time.monotonic() - wall, 3), round(previous[1] + time.thread_time() - cpu, 3)]
+        value = [round(previous[0] + time.monotonic() - wall, 3), round(previous[1] + time.thread_time() - cpu, 3)]
+        waited = _since(_runqueue_wait(), queued)
+        if waited is not None:
+            value.append(round((previous[2] if len(previous) > 2 else 0) + waited, 3))
+        steps[label] = value
 
 
 def checkpoint_key(payload, model):

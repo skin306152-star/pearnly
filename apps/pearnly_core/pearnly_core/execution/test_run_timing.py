@@ -49,7 +49,8 @@ class RunTiming(unittest.TestCase):
         self.assertGreaterEqual(line["ready"], 7)
         self.assertGreaterEqual(line["wall"], 0)
         self.assertEqual(sorted(line["steps"]), ["persist"])
-        self.assertEqual(len(line["steps"]["persist"]), 2)
+        self.assertIn(len(line["steps"]["persist"]), (2, 3))  # 第三项：等 CPU 排队秒（Linux 才有）
+        self.assertIn("rq", line)
 
     def test_a_deferred_run_names_its_reason(self):
         def handler():
