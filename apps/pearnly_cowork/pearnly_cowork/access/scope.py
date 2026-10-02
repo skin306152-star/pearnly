@@ -176,7 +176,13 @@ def client_query(user=None):
 
 def _scope_query(table, user, client=False):
     # 只挡引用失效的行（归属 / 客户被停用），不按人过滤。
-    clauses = [f"{table}.`workspace` IN (SELECT name FROM `tabCowork Workspace` WHERE enabled=1)"]
+    # 启用的工作区先在这里查出来、按字面值放进条件（每次现查，不缓存）：原来写成 ``workspace IN (SELECT … enabled=1)`` 子查询，
+    # MariaDB 把它改成以工作区表驱动的半连接，记录表只能整表扫再排序——录入工作台列表 1.1 万行时每次约 64 毫秒、压测并发下
+    # 0.5–1.7 秒，是 2026-10-02 m4 / m5 慢查询的大头。按字面值写，列表按修改时间索引顺序只读 20 行（实测 0.24 毫秒）。
+    workspaces = frappe.get_all("Cowork Workspace", filters={"enabled": 1}, pluck="name", order_by="name asc")
+    if not workspaces:
+        return "1=0"
+    clauses = [f"{table}.`workspace` IN ({', '.join(frappe.db.escape(name) for name in workspaces)})"]
     if client:
         clauses.append(f"(COALESCE({table}.`client`, '')='' OR {table}.`client` IN "
                        f"(SELECT name FROM `tabCowork Client` WHERE enabled=1 AND workspace={table}.`workspace`))")

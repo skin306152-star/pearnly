@@ -83,5 +83,25 @@ class Contains(unittest.TestCase):
         self.assertTrue(all("enabled=1" in call.args[0] for call in db.sql.call_args_list))
 
 
+
+
+class ScopeQuery(unittest.TestCase):
+    def test_enabled_workspaces_are_listed_as_values_not_a_subquery(self):
+        # 2026-10-02 m4 / m5：子查询让 MariaDB 整表扫记录表再排序；按字面值写才走索引顺序读
+        db = mock.MagicMock()
+        db.escape.side_effect = lambda value: "'" + value.replace("'", "''") + "'"
+        with mock.patch.object(scope.frappe, "db", db), \
+                mock.patch.object(scope.frappe, "get_all", return_value=["w1", "o'k"]) as get_all:
+            clause = scope._scope_query("`tabCowork OCR History`", "u@example.com", client=True)
+        get_all.assert_called_once_with("Cowork Workspace", filters={"enabled": 1}, pluck="name", order_by="name asc")
+        self.assertIn("`tabCowork OCR History`.`workspace` IN ('w1', 'o''k')", clause)
+        self.assertNotIn("SELECT name FROM `tabCowork Workspace`", clause)
+        self.assertIn("`tabCowork Client` WHERE enabled=1", clause)        # 客户停用照旧挡
+
+    def test_no_enabled_workspace_sees_nothing(self):
+        with mock.patch.object(scope.frappe, "get_all", return_value=[]):
+            self.assertEqual(scope._scope_query("`tabCowork OCR History`", "u@example.com", client=True), "1=0")
+
+
 if __name__ == "__main__":
     unittest.main()
