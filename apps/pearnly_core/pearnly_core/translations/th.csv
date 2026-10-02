@@ -425,6 +425,7 @@ Owner Account,บัญชีเจ้าของ
 POS,ขายหน้าร้าน POS
 Page unavailable,ไม่สามารถใช้งานหน้านี้ได้
 Page {0} of {1} · {2} records,หน้า {0} จาก {1} · {2} รายการ
+Page {0}/{1},หน้า {0}/{1}
 Pages,จำนวนหน้า
 Paid Amount,จำนวนที่จ่ายแล้ว
 Pairing code,รหัสจับคู่
@@ -477,6 +478,7 @@ Push to the external ERP; the push log is the only source of status,ส่งไ
 Pushed,ส่งแล้ว
 Qty,จำนวน
 Query access,สิทธิ์ค้นหา
+Queued,รอคิว
 Queued to push,รอส่ง
 "Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
 Reading companies and years from {0}…,กำลังอ่านบริษัทและปีบัญชีจาก {0}…
@@ -709,6 +711,7 @@ Upload a transfer slip before submitting,กรุณาอัปโหลดห
 Upload a transfer slip up to 10 MB,กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ
 Upload transfer slip,อัปโหลดหลักฐานการโอน
+Uploading,กำลังอัปโหลด
 Usage,การใช้งาน
 "Use a JPG, PNG or PDF transfer slip","หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF"
 Used,ใช้แล้ว
@@ -1013,6 +1016,9 @@ intake.target.recognizeOnly,อ่านแล้วส่งออก
 intake.target.title,ERP ปลายทาง
 intake.target.year,ปีบัญชี
 intake.title,โต๊ะทำงานบันทึกข้อมูล
+intake.wait.page,หน้า {0}/{1}
+intake.wait.queued,รอคิว
+intake.wait.uploading,กำลังอัปโหลด
 nav.cashier,ขายหน้าร้าน POS
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท

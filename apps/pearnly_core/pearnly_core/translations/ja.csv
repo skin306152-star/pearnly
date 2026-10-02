@@ -425,6 +425,7 @@ Owner Account,所属アカウント
 POS,POS レジ
 Page unavailable,このページは利用できません
 Page {0} of {1} · {2} records,{0} / {1} ページ · 全 {2} 件
+Page {0}/{1},{0}/{1} ページ目
 Pages,枚数
 Paid Amount,支払済金額
 Pairing code,ペアリングコード
@@ -477,6 +478,7 @@ Push to the external ERP; the push log is the only source of status,外部ERPへ
 Pushed,送信済み
 Qty,数量
 Query access,照会権限
+Queued,順番待ち
 Queued to push,送信待ち
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
 Reading companies and years from {0}…,{0} から会社と年度を読み込み中…
@@ -709,6 +711,7 @@ Upload a transfer slip before submitting,送信前に振込明細をアップロ
 Upload a transfer slip up to 10 MB,10 MB 以下の振込明細をアップロードしてください
 "Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
 Upload transfer slip,振込明細をアップロード
+Uploading,アップロード中
 Usage,利用状況
 "Use a JPG, PNG or PDF transfer slip",振込明細は JPG・PNG・PDF を使用してください
 Used,使用済み
@@ -1013,6 +1016,9 @@ intake.target.recognizeOnly,読み取り後にエクスポート
 intake.target.title,連携先 ERP
 intake.target.year,年度
 intake.title,取り込みワークベンチ
+intake.wait.page,{0}/{1} ページ目
+intake.wait.queued,順番待ち
+intake.wait.uploading,アップロード中
 nav.cashier,POS レジ
 nav.clients,顧客管理
 nav.company,会社情報

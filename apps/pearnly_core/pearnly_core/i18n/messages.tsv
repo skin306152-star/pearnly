@@ -856,3 +856,6 @@ Entering	录入中	กำลังบันทึก	入力中	intake.push.pendi
 Subscription and top-up	订阅与充值	สมัครแพ็กเกจและเติมเงิน	プランとチャージ	home.billing
 {0} seconds so far	已用 {0} 秒	ผ่านไป {0} วินาที	経過 {0} 秒	shell.wait.elapsed
 Recognized {0}/{1} pages · {2}%	已识别 {0}/{1} 页 · {2}%	อ่านแล้ว {0}/{1} หน้า · {2}%	{0}/{1} ページ読み取り済み · {2}%	shell.wait.pages
+Uploading	上传中	กำลังอัปโหลด	アップロード中	intake.wait.uploading
+Queued	排队中	รอคิว	順番待ち	intake.wait.queued
+Page {0}/{1}	第 {0}/{1} 页	หน้า {0}/{1}	{0}/{1} ページ目	intake.wait.page

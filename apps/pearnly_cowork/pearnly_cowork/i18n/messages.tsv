@@ -1351,9 +1351,6 @@ In progress ({0})	进行中（{0}）	กำลังดำเนินการ 
 Progress	进度	ความคืบหน้า	進捗	cowork.recon.col.progress
 Started at	开始时间	เริ่มเมื่อ	開始日時	cowork.recon.col.startedAt
 Waiting in line, will submit automatically	排队中，稍后自动提交	รอคิว จะส่งให้อัตโนมัติ	順番待ち・自動で送信します	cowork.intake.waitingRoom
-Uploading	上传中	กำลังอัปโหลด	アップロード中	intake.wait.uploading
-Queued	排队中	รอคิว	順番待ち	intake.wait.queued
-Page {0}/{1}	第 {0}/{1} 页	หน้า {0}/{1}	{0}/{1} ページ目	intake.wait.page
 Direct upload is not available. Please upload again.	暂时无法直接上传，请重新上传。	ไม่สามารถอัปโหลดโดยตรงได้ในขณะนี้ กรุณาอัปโหลดใหม่	現在直接アップロードできません。もう一度アップロードしてください。	
 The uploaded file was not received. Please upload again.	没有收到上传的文件，请重新上传。	ไม่ได้รับไฟล์ที่อัปโหลด กรุณาอัปโหลดใหม่	アップロードしたファイルを受け取れませんでした。もう一度アップロードしてください。	
 The preview is temporarily unavailable. Please try again.	预览暂时无法显示，请稍后再试。	ไม่สามารถแสดงตัวอย่างได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง	プレビューを一時的に表示できません。もう一度お試しください。	

@@ -425,6 +425,7 @@ Owner Account,归属账号
 POS,收银 POS
 Page unavailable,页面暂不可用
 Page {0} of {1} · {2} records,第 {0} / {1} 页 · 共 {2} 条
+Page {0}/{1},第 {0}/{1} 页
 Pages,张数
 Paid Amount,已付金额
 Pairing code,配对码
@@ -477,6 +478,7 @@ Push to the external ERP; the push log is the only source of status,推送到外
 Pushed,已推送
 Qty,数量
 Query access,查询权限
+Queued,排队中
 Queued to push,待推送
 "Read the ID card, match it against the DMS customer base, then confirm",读身份证、与 DMS 客户库比对后确认资料
 Reading companies and years from {0}…,正在从 {0} 读取公司和年度…
@@ -709,6 +711,7 @@ Upload a transfer slip before submitting,请先上传转账凭证再提交
 Upload a transfer slip up to 10 MB,请上传不超过 10 MB 的转账凭证
 "Upload receipts and sheets, extract fields, review each item, then push",上传票据与表格、识别字段、逐项核对与推送
 Upload transfer slip,上传转账凭证
+Uploading,上传中
 Usage,使用情况
 "Use a JPG, PNG or PDF transfer slip",转账凭证须为 JPG、PNG 或 PDF
 Used,已使用
@@ -1013,6 +1016,9 @@ intake.target.recognizeOnly,识别后导出
 intake.target.title,目标 ERP
 intake.target.year,年度
 intake.title,录入工作台
+intake.wait.page,第 {0}/{1} 页
+intake.wait.queued,排队中
+intake.wait.uploading,上传中
 nav.cashier,收银 POS
 nav.clients,客户管理
 nav.company,公司

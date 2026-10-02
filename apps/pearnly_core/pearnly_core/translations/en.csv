@@ -423,6 +423,7 @@ Owner Account,Owner Account
 POS,POS
 Page unavailable,Page unavailable
 Page {0} of {1} · {2} records,Page {0} of {1} · {2} records
+Page {0}/{1},Page {0}/{1}
 Pages,Pages
 Paid Amount,Paid Amount
 Pairing code,Pairing code
@@ -475,6 +476,7 @@ Push to the external ERP; the push log is the only source of status,Push to the 
 Pushed,Pushed
 Qty,Qty
 Query access,Query access
+Queued,Queued
 Queued to push,Queued to push
 "Read the ID card, match it against the DMS customer base, then confirm","Read the ID card, match it against the DMS customer base, then confirm"
 Reading companies and years from {0}…,Reading companies and years from {0}…
@@ -707,6 +709,7 @@ Upload a transfer slip before submitting,Upload a transfer slip before submittin
 Upload a transfer slip up to 10 MB,Upload a transfer slip up to 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push","Upload receipts and sheets, extract fields, review each item, then push"
 Upload transfer slip,Upload transfer slip
+Uploading,Uploading
 Usage,Usage
 "Use a JPG, PNG or PDF transfer slip","Use a JPG, PNG or PDF transfer slip"
 Used,Used
@@ -1011,6 +1014,9 @@ intake.target.recognizeOnly,Recognize and export
 intake.target.title,Target ERP
 intake.target.year,Fiscal year
 intake.title,Intake Workbench
+intake.wait.page,Page {0}/{1}
+intake.wait.queued,Queued
+intake.wait.uploading,Uploading
 nav.cashier,POS
 nav.clients,Customers
 nav.company,Company
