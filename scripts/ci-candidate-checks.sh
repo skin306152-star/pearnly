@@ -31,7 +31,7 @@ offline() {
     pearnly_control.account.test_member_service pearnly_core.account.test_line_login pearnly_core.ocr_models.test_orient pearnly_core.execution.test_job_language \
     pearnly_core.execution.test_pool pearnly_core.execution.test_recycle pearnly_core.execution.test_provider_wait \
     pearnly_core.execution.test_vertex_overflow pearnly_core.execution.test_admission pearnly_core.execution.test_pages \
-    pearnly_core.execution.test_call_progress pearnly_core.execution.test_wake pearnly_core.execution.test_run_timing pearnly_core.execution.test_notify_result pearnly_core.execution.test_worker \
+    pearnly_core.execution.test_call_progress pearnly_core.execution.test_wake pearnly_core.execution.test_run_timing pearnly_core.execution.test_notify_result pearnly_core.execution.test_replay pearnly_core.execution.test_worker \
     pearnly_core.account.test_native_account_password
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-session-reuse.py scripts/test-dms-first-read.py scripts/test-dms-id-card-reads.py scripts/test-session-lock.py scripts/test-dms-line-language.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \
@@ -48,7 +48,7 @@ offline() {
                 tests/test_cowork_recognized_names.py tests/test_cowork_document_manifest.py tests/test_cowork_pdf_text_cache.py \
                 tests/test_cowork_history_indexes.py tests/test_cowork_provider_runtime.py tests/test_cowork_intake_pages.py tests/test_cowork_history_total.py \
                 tests/test_cowork_history_indexes.py tests/test_cowork_provider_runtime.py tests/test_cowork_intake_pages.py tests/test_cowork_history_total.py \
-                tests/test_dms_query_push.py tests/test_erp_recognise_background.py; do
+                tests/test_dms_query_push.py tests/test_erp_recognise_background.py tests/test_cowork_ocr_replay.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }

@@ -179,5 +179,40 @@ class ProductDeclarations(unittest.TestCase):
         self.assertTrue(any("product menu entries" in error for error in guard.check(self.root)))
 
 
+
+class OcrReplay(unittest.TestCase):
+    """回放压测只许在测试租户打开：认的站点名不许放宽，开关键不许进生产配置与别的代码。"""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.module = self.root / guard.REPLAY_MODULE
+        self.module.parent.mkdir(parents=True)
+        self.module.write_text('CONFIG = "pearnly_ocr_replay"\nTEST_SITES = re.compile(r"%s")\n' % guard.REPLAY_SITES)
+
+    def errors(self):
+        return guard.check_ocr_replay(self.root)
+
+    def test_the_registered_module_and_tests_may_name_the_switch(self):
+        test = self.root / "apps/pearnly_core/pearnly_core/execution/test_replay.py"
+        test.write_text('conf = {"pearnly_ocr_replay": {"enabled": 1}}\n')
+        self.assertEqual(self.errors(), [])
+
+    def test_widening_the_test_sites_is_rejected(self):
+        self.module.write_text('TEST_SITES = re.compile(r"[a-z0-9.-]+")\n')
+        self.assertTrue(any("do not widen TEST_SITES" in error for error in self.errors()))
+
+    def test_the_switch_in_production_config_or_product_code_is_rejected(self):
+        for relative in ("infrastructure/production/runtime.env.example", "apps/pearnly_cowork/pearnly_cowork/hooks.py",
+                         "scripts/set-site-config.py"):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("pearnly_ocr_replay = 1\n")
+        flagged = {error.split(":")[0] for error in self.errors()}
+        self.assertEqual(flagged, {"infrastructure/production/runtime.env.example",
+                                   "apps/pearnly_cowork/pearnly_cowork/hooks.py", "scripts/set-site-config.py"})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -12,7 +12,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
 
-from . import budget, pool, work
+from . import budget, pool, replay, work
 from .errors import Deferred, Uncertain
 
 
@@ -97,6 +97,7 @@ def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True
     ``hand_back``：这些原因前缀的 Deferred 不原地等、直接交给调用方（Gemini 被谷歌拒绝就转美国多区域入口；
     自家额度的等待照旧原地等）。``shared_quota``：共享额度（Gemini DSQ），零星拒绝不让整个模型停下（``budget.feedback``）。
     ``label``：限流计数的标签（``budget.note``）。"""
+    replay.refuse_paid(model)  # 测试租户开着回放压测时不发任何付费调用
     waited = 0.0
     while True:
         try:

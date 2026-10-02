@@ -63,6 +63,42 @@ def check_product_declarations(root):
     return errors
 
 
+# 回放压测（不调谷歌、交回以前的真结果）只许在测试租户打开（``pearnly_core.execution.replay``）：
+# 认的站点名写死在那个模块里，不许放宽；开关键也不许写进生产配置、部署脚本或别的产品代码 —— 正式站误开即使被运行时拒绝，
+# 也不该有机会出现在发布物里。
+REPLAY_KEY = "pearnly_ocr_replay"
+REPLAY_SITES = r"test(?:cowork|erp|dms)[0-9]{0,2}\.pearnly\.com|[a-z0-9-]+\.localhost"
+REPLAY_MODULE = "apps/pearnly_core/pearnly_core/execution/replay.py"
+REPLAY_ALLOWED = {REPLAY_MODULE, "scripts/check-architecture.py", "scripts/ocr-replay.py"}
+
+
+def check_ocr_replay(root):
+    errors = []
+    module = root / REPLAY_MODULE
+    if not module.is_file():
+        return errors
+    sites = re.search(r'^TEST_SITES = re\.compile\(r"([^"]*)"\)', module.read_text(), re.MULTILINE)
+    if not sites or sites.group(1) != REPLAY_SITES:
+        errors.append(f"{REPLAY_MODULE}: OCR replay may only be enabled on the test tenants; do not widen TEST_SITES")
+    for top in ("apps", "infrastructure", "scripts", ".github"):
+        base = root / top
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*"):
+            relative = path.relative_to(root).as_posix()
+            if (not path.is_file() or relative in REPLAY_ALLOWED or "/test_" in relative or "/tests/" in relative
+                    or any(part in {"node_modules", "__pycache__", "translations"} for part in path.parts)
+                    or path.suffix in {".png", ".jpg", ".pdf", ".xlsx", ".woff2", ".csv", ".tsv"}):
+                continue
+            try:
+                text = path.read_text()
+            except (UnicodeDecodeError, OSError):
+                continue
+            if REPLAY_KEY in text:
+                errors.append(f"{relative}: {REPLAY_KEY} may only be set on a test tenant through scripts/ocr-replay.py")
+    return errors
+
+
 def check(root=ROOT):
     policy = json.loads((root / POLICY.relative_to(ROOT)).read_text())
     mapping = json.loads((root / "docs/development/dms-module-map.json").read_text())
@@ -165,6 +201,7 @@ def check(root=ROOT):
         if re.search(r"<(?:input|select|textarea|table)\b", source):
             errors.append(f"{path.relative_to(root)}: use native Desk controls and Grid/DataTable")
     errors.extend(check_product_declarations(root))
+    errors.extend(check_ocr_replay(root))
     return errors
 
 

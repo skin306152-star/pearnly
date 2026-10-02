@@ -67,12 +67,15 @@ def load():
     provider = types.ModuleType("pearnly_core.execution.provider")
     provider.posted = []
     provider.http_post = lambda url, **kwargs: provider.posted.append(url) or provider.reply()
+    replay = types.ModuleType("pearnly_core.execution.replay")
+    replay.refuse_paid = lambda label: None  # 回放压测没开（开着时拒绝付费调用，见 pearnly_core/execution/test_replay.py）
     ocr = types.ModuleType("pearnly_core.ocr")
     ocr.credentials_path = lambda: "/run/secrets/ocr.json"
     core = types.ModuleType("pearnly_core")
     core.ocr = ocr
     execution = types.ModuleType("pearnly_core.execution")
     execution.budget, execution.work, execution.pool, execution.provider = budget, work, pool, provider
+    execution.replay = replay
     client = types.ModuleType("pearnly_cowork.ocr.providers.client")
 
     class ProviderError(Exception):
@@ -96,7 +99,7 @@ def load():
     modules = {"frappe": frappe, "pearnly_core": core, "pearnly_core.ocr": ocr, "pearnly_core.execution": execution,
                "pearnly_core.execution.errors": errors, "pearnly_core.execution.budget": budget,
                "pearnly_core.execution.work": work, "pearnly_core.execution.pool": pool,
-               "pearnly_core.execution.provider": provider,
+               "pearnly_core.execution.provider": provider, "pearnly_core.execution.replay": replay,
                "pearnly_cowork.ocr.providers.client": client, "pearnly_cowork.ocr.engine": engine,
                "pearnly_cowork.ocr.engine.errors": errors_module}
     sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))

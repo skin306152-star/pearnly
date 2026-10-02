@@ -22,7 +22,7 @@ from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
 from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
-from pearnly_cowork.ocr.execution import access, service, settings, store
+from pearnly_cowork.ocr.execution import access, replay, service, settings, store
 from pearnly_cowork.ocr.feedback import service as feedback
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
 from pearnly_cowork.ocr.policy import invoice_policy
@@ -101,10 +101,14 @@ def _recognize(doc, frozen, examples, source):
             frappe.throw(_("Recognition input and ownership cannot be changed."))
         return _freeze_result(doc, EngineResult(pipeline, ()), frozen, examples)
     environment = frozen["environment"]
+    # 测试租户开着回放压测（``replay``）：不调谷歌、不交 Cloud Run，取以前真识别过的同一份原件的结果，之后照常走
+    replaying = replay.active()
     stored = stored_original(source)
-    content = None if stored or source.kind == "document" or not forward.settings() else read_bytes(source)
+    content = (None if replaying or stored or source.kind == "document" or not forward.settings()
+               else read_bytes(source))
     # 原件在服务器上且超过一次请求能带的大小（20 MiB）：照旧在本机读，不让整份报错（ADR-016）。
-    if source.kind != "document" and forward.settings() and (stored or len(content) <= contract.MAX_CONTENT_BYTES):
+    if replaying or (source.kind != "document" and forward.settings()
+                     and (stored or len(content) <= contract.MAX_CONTENT_BYTES)):
         # 在 Cloud Run 上读（ADR-0015）：同一份引擎、同样冻结的配置；发出前已复核（上面的 _check），存结果前再复核一次。
         # 原件在原件桶里（浏览器直传，ADR-016）就只给对象和版本号，Cloud Run 自己读、核对 sha256。
         body = feedback.validate_snapshot(examples) if examples else None
@@ -112,10 +116,12 @@ def _recognize(doc, frozen, examples, source):
         # 识别时顺手把各页预览图存进原件桶：页面看原件直接从桶取，不再占服务器线程等 Cloud Run 现画。
         previews = []
         with core_work.step("remote"):
-            pipeline, evidence = forward.recognize(doc, frozen, body, content, source.filename,
-                                                   lambda page: store.pages_reached(doc.name, page), original=original,
-                                                   previews=preview_spec(source),
-                                                   on_previews=lambda items: previews.append(preview_record(source, items)))
+            if replaying:
+                pipeline, evidence = replay.recognize(doc, source, lambda page: store.pages_reached(doc.name, page))
+            else:
+                pipeline, evidence = forward.recognize(doc, frozen, body, content, source.filename,
+                    lambda page: store.pages_reached(doc.name, page), original=original, previews=preview_spec(source),
+                    on_previews=lambda items: previews.append(preview_record(source, items)))
         anchor = date.fromisoformat(str(doc.anchor_date)).year
         with core_work.step("validate"):
             PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor})  # 收到的必须是合规结果
