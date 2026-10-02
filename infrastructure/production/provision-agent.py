@@ -205,7 +205,9 @@ def nginx(site, group, tls=False):
         proxy_pass http://127.0.0.1:{PORTS[group]};
         proxy_set_header Host {site};
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 用本机看到的来源覆盖（不接客户端自带的 X-Forwarded-For，免得伪造）；容器内 nginx 只信任 X-Real-IP
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Frappe-Site-Name {site};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

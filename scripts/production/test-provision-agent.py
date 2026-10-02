@@ -275,6 +275,40 @@ class Contracts(unittest.TestCase):
         self.assertNotIn("proxy_set_header Host $host", config)
         self.assertNotIn("8180", config)
 
+    def test_real_client_ip_reaches_frappe(self):
+        """宿主机只传它自己看到的来源；容器内 nginx 只信任本机与 Docker 网段的 X-Real-IP（2026-10-02 全站都记成 172.18.0.1）。"""
+        config = agent.nginx("acme.pearnly.com", "dms", True)
+        self.assertIn("proxy_set_header X-Real-IP $remote_addr;", config)
+        self.assertIn("proxy_set_header X-Forwarded-For $remote_addr;", config)
+        self.assertNotIn("$proxy_add_x_forwarded_for", config)
+        template = (path.parents[2] / "infrastructure/production/frappe.conf.template").read_text()
+        self.assertIn("set_real_ip_from 172.16.0.0/12;", template)
+        self.assertIn("real_ip_header X-Real-IP;", template)
+        self.assertNotIn("$proxy_add_x_forwarded_for", template)
+
+    def test_refresh_rewrites_only_live_tenant_configs(self):
+        """部署时重写已开通站点的宿主机配置：只改内容不同的，已删除或没证书的不动。"""
+        import tempfile
+        refresh_spec = importlib.util.spec_from_file_location("refresh", path.parents[2] / "scripts/production/refresh-tenant-nginx.py")
+        refresh = importlib.util.module_from_spec(refresh_spec)
+        refresh_spec.loader.exec_module(refresh)
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            state, conf, certs = root / "state", root / "conf", root / "certs"
+            for d in (state, conf):
+                d.mkdir()
+            sites = {"old.pearnly.com": ("cowork", False, True, "old"), "same.pearnly.com": ("erp", False, True, None),
+                     "gone.pearnly.com": ("dms", True, True, "old"), "nocert.pearnly.com": ("dms", False, False, "old")}
+            for site, (group, deleted, cert, content) in sites.items():
+                (state / f"{site}.json").write_text(json.dumps({"site": site, "group": group, **({"deleted": True} if deleted else {})}))
+                if cert:
+                    (certs / site).mkdir(parents=True)
+                    (certs / site / "fullchain.pem").write_text("x")
+                (conf / f"pearnly-tenant-{site}.conf").write_text(content or refresh.agent.nginx(site, group, True))
+            changes = refresh.plan(state, conf, certs)
+            self.assertEqual([p.name for p, _ in changes], ["pearnly-tenant-old.pearnly.com.conf"])
+            self.assertIn("X-Real-IP $remote_addr", changes[0][1])
+
     def test_publish_rejects_previous_server_dns_before_writing(self):
         with patch.object(agent, "ROOT", path.parents[2]), \
              patch.object(agent.socket, "getaddrinfo", return_value=[(None, None, None, None, ("194.233.74.40", 443))]), \

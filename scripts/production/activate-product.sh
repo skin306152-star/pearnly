@@ -61,4 +61,8 @@ if [[ "$product" == cowork ]]; then
   "${compose[@]}" run -d --rm --no-deps cowork-worker bench --site all execute pearnly_cowork.recon_center.view_store.backfill \
     || printf 'Reconciliation view backfill did not start; stale views refresh in the background on open.\n' >&2
 fi
+# 已开通租户站的宿主机 nginx 配置按 provision-agent 当前模板重写（幂等，只改内容不同的；nginx -t 不过就全部还原）。
+# 模板改了（例如 2026-10-02 真实客户端 IP）时旧站点也跟上；失败只告警，不影响已切好的产品。
+python3 /opt/pearnly/deploy/scripts/production/refresh-tenant-nginx.py \
+  || printf 'Tenant nginx refresh failed; existing host configs were kept.\n' >&2
 printf 'Product %s activated with verified image.\n' "$product"
