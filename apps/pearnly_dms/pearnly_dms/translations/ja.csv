@@ -146,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ローン
 Finance approved,ローン承認済み
 Finance pending,ローン審査中
+First setup,初回設定
 First-time setup,初回設定
 Floor,階
 Full address directory,完全な住所一覧
@@ -956,6 +957,9 @@ dms.err.ERR_KMS_MISSING,サーバーの暗号化キーが設定されていま�
 dms.err.ERR_NO_CREDS,ユーザー名とパスワードを入力してください
 dms.err.ERR_PLAYWRIGHT_MISSING,サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください
 dms.err.ERR_UNEXPECTED,サーバー内部エラーが発生しました。管理者にお問い合わせください
+dms.manual.quick.booking,予約の作成
+dms.manual.quick.customer,顧客データの作成
+dms.manual.quick.setup,初回設定
 dms.snapshot.as_of,データ取得時刻：{time}
 dms.snapshot.geo_as_of,住所データ取得時刻：{time}。手動で更新します。
 dms.snapshot.geo_stale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。

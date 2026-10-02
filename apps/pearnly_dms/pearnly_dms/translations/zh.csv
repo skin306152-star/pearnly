@@ -146,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,贷款
 Finance approved,贷款已批
 Finance pending,贷款待批
+First setup,首次设置
 First-time setup,首次设置
 Floor,楼层
 Full address directory,完整地址目录
@@ -956,6 +957,9 @@ dms.err.ERR_KMS_MISSING,"服务器加密密钥未配置,请联系运维"
 dms.err.ERR_NO_CREDS,请输入用户名和密码
 dms.err.ERR_PLAYWRIGHT_MISSING,"服务器缺少 Playwright 依赖,请联系运维"
 dms.err.ERR_UNEXPECTED,"服务器内部错误,请联系管理员"
+dms.manual.quick.booking,开订车单
+dms.manual.quick.customer,建立客户资料
+dms.manual.quick.setup,首次设置
 dms.snapshot.as_of,资料时间：{time}
 dms.snapshot.geo_as_of,地址资料时间：{time}；手动读取更新
 dms.snapshot.geo_stale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新

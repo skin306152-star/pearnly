@@ -160,6 +160,9 @@ This tutorial video is not available yet. Please check back later.	这个教程�
 User manual	使用手册	คู่มือการใช้งาน	使い方マニュアル	dms.card.TXT_MANUAL_PICK
 Choose a topic to play its video	选择一个主题播放教程视频	เลือกหัวข้อเพื่อเปิดดูคลิป	トピックを選ぶと動画を再生します	dms.card.TXT_MANUAL_PICK_SUB
 First-time setup	首次设置	ติดตั้งครั้งแรก	初回設定	dms.card.TXT_MANUAL_SETUP
+First setup	首次设置	ตั้งค่าครั้งแรก	初回設定	dms.manual.quick.setup
+Customer data	建立客户资料	ข้อมูลลูกค้า	顧客データの作成	dms.manual.quick.customer
+Car booking	开订车单	ใบจองรถ	予約の作成	dms.manual.quick.booking
 Please send the customer's ID card photo and phone number	请发送客户的身份证照片和电话号码	กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า	お客様の身分証明書の写真と電話番号を送ってください	dms.card.TXT_NEED_BOTH
 Confirm saving a new customer	确认保存新客户	ยืนยันบันทึกลูกค้าใหม่	新規顧客の保存を確認	dms.card.TXT_NEW_CARD_ALT
 New customer — confirm the data to save	新客户，确认资料后保存	ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก	新規顧客です。データを確認して保存してください	dms.card.TXT_NEW_CARD_HEAD

@@ -55,17 +55,27 @@ def title(code: str) -> str:
     return _TITLES[code]()
 
 
-def manual_card() -> Dict[str, Any]:
-    """子菜单：一句文字 + LINE 底部快捷按钮 6.0 / 6.1 / 6.2（用户 2026-10-03 由卡片改为快捷按钮）。
+# 快捷按钮上的短标题（LINE 快捷按钮标签最多 20 字符；英文、泰文原标题加编号会超长，另立按钮词条）
+_QUICK = {"setup": "dms.manual.quick.setup", "customer": "dms.manual.quick.customer",
+          "booking": "dms.manual.quick.booking"}
 
-    LINE 快捷按钮的标签最多 20 个字符，英文、泰文的「6.1 + 标题」会超长、整条消息被拒，所以标签只写编号；
-    正文按编号列出三个主题，点按后聊天里显示的文字（displayText）仍是「编号 标题」。词条沿用原来的四个。"""
-    lines = [cards.TXT_MANUAL_PICK] + [f"{num} {title(code)}" for code, num in ITEMS]
+
+def quick_label(code: str, num: str, lang: Optional[str] = None) -> str:
+    from pearnly_dms import i18n
+
+    return f"{num} {i18n.t(_QUICK[code], lang=lang or i18n.line_lang())}"
+
+
+def manual_card() -> Dict[str, Any]:
+    """子菜单：一句提示 + LINE 底部快捷按钮「6.x 短标题」（用户 2026-10-03 由卡片改为快捷按钮）。
+
+    按钮标签用按钮词条（≤ 20 字符），点按后聊天里显示的文字（displayText）是「编号 完整标题」。"""
     items = [{"type": "action",
-              "action": {"type": "postback", "label": num, "data": cards._data(cards.ACT_MANUAL_VIDEO, item=code),
+              "action": {"type": "postback", "label": quick_label(code, num),
+                         "data": cards._data(cards.ACT_MANUAL_VIDEO, item=code),
                          "displayText": f"{num} {title(code)}"}}
              for code, num in ITEMS]
-    return {"type": "text", "text": "\n".join(lines), "quickReply": {"items": items}}
+    return {"type": "text", "text": cards.TXT_MANUAL_PICK, "quickReply": {"items": items}}
 
 
 def _https(url: str) -> bool:

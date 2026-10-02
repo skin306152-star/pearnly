@@ -36,7 +36,8 @@ testdms 的两次调用，正式站 ris 没有客户碰到。与压测负载、�
 
 ## 同批：菜单 6「คู่มือ」子菜单改成 LINE 快捷按钮（用户 2026-10-03）
 
-- `menu/manual.manual_card()` 由 Flex 卡片改为文字 + `quickReply` 三个 postback（动作码不变、`displayText` 为「编号 标题」），点按后照旧用回复令牌回视频。
-- LINE 快捷按钮标签上限 20 字符：英文「6.1 Create customer data」24、泰文「6.1 จัดทำข้อมูลลูกค้า」21 会让整条消息被拒，所以标签只写 6.0 / 6.1 / 6.2；
-  正文是 `TXT_MANUAL_PICK` 加三行「编号 标题」。四种语言词条不变（`TXT_MANUAL_PICK_SUB` 保留未用）。
-- `tests/test_dms_menu_manual.py` 改为断言文字 + 快捷按钮结构与标签长度；13 项通过，`check-dms-offline.py` 20 项通过。
+- `menu/manual.manual_card()` 由 Flex 卡片改为文字（只一句 `TXT_MANUAL_PICK`）+ `quickReply` 三个 postback（动作码不变），点按后照旧用回复令牌回视频。
+- 按钮标签「编号 短标题」用新加的按钮词条 `dms.manual.quick.setup / customer / booking`（LINE 快捷按钮标签上限 20 字符）：
+  泰文 ตั้งค่าครั้งแรก / ข้อมูลลูกค้า / ใบจองรถ，英文 First setup / Customer data / Car booking，中文、日文沿用原标题；点按后 `displayText` 为「编号 完整标题」。
+  原有四个手册词条不变（`TXT_MANUAL_PICK_SUB` 保留未用）。
+- `tests/test_dms_menu_manual.py`：断言文字 + 快捷按钮结构，并读术语表检查四种语言每个按钮标签 ≤ 20 字符；14 项通过，`check-dms-offline.py` 20 项通过。

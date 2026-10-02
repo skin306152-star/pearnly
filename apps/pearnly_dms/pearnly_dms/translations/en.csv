@@ -146,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,Finance
 Finance approved,Finance approved
 Finance pending,Finance pending
+First setup,First setup
 First-time setup,First-time setup
 Floor,Floor
 Full address directory,Full address directory
@@ -956,6 +957,9 @@ dms.err.ERR_KMS_MISSING,Server KMS key is not configured
 dms.err.ERR_NO_CREDS,Username and password required
 dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency
 dms.err.ERR_UNEXPECTED,"Internal server error, please contact admin"
+dms.manual.quick.booking,Car booking
+dms.manual.quick.customer,Customer data
+dms.manual.quick.setup,First setup
 dms.snapshot.as_of,Data as of {time}
 dms.snapshot.geo_as_of,Address data as of {time}; refreshed manually
 dms.snapshot.geo_stale,Older address data as of {time}; ask an administrator to refresh if needed

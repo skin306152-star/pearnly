@@ -146,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ไฟแนนซ์
 Finance approved,ไฟแนนซ์อนุมัติ
 Finance pending,ไฟแนนซ์รออนุมัติ
+First setup,ตั้งค่าครั้งแรก
 First-time setup,ติดตั้งครั้งแรก
 Floor,ชั้น
 Full address directory,รายการที่อยู่ครบชุด
@@ -956,6 +957,9 @@ dms.err.ERR_KMS_MISSING,เซิร์ฟเวอร์ยังไม่ต�
 dms.err.ERR_NO_CREDS,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน
 dms.err.ERR_PLAYWRIGHT_MISSING,เซิร์ฟเวอร์ขาดไลบรารี Playwright
 dms.err.ERR_UNEXPECTED,ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน กรุณาติดต่อผู้ดูแล
+dms.manual.quick.booking,ใบจองรถ
+dms.manual.quick.customer,ข้อมูลลูกค้า
+dms.manual.quick.setup,ตั้งค่าครั้งแรก
 dms.snapshot.as_of,ข้อมูล ณ {time}
 dms.snapshot.geo_as_of,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 dms.snapshot.geo_stale,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง

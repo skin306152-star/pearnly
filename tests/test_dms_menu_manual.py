@@ -100,20 +100,29 @@ class ManualTests(Isolated):
 
     def test_submenu_is_text_with_three_quick_replies(self):
         message = self.manual.manual_card()
-        # 用户 2026-10-03：卡片改成 LINE 底部快捷按钮；标签只写编号（快捷按钮标签上限 20 字符），正文列出三个主题
-        self.assertEqual(message["type"], "text")
-        self.assertEqual(message["text"].split("\n"),
-                         ["dms.card.TXT_MANUAL_PICK", "6.0 dms.card.TXT_MANUAL_SETUP",
-                          "6.1 dms.card.TXT_MANUAL_CUSTOMER", "6.2 dms.card.TXT_MANUAL_BOOKING"])
+        # 用户 2026-10-03：卡片改成 LINE 底部快捷按钮；按钮「编号 短标题」，正文一句提示，点按后显示完整标题
+        self.assertEqual((message["type"], message["text"]), ("text", "dms.card.TXT_MANUAL_PICK"))
         actions = [item["action"] for item in message["quickReply"]["items"]]
         self.assertEqual([item["type"] for item in message["quickReply"]["items"]], ["action"] * 3)
-        self.assertEqual([action["label"] for action in actions], ["6.0", "6.1", "6.2"])
+        self.assertEqual([action["label"] for action in actions],
+                         ["6.0 dms.manual.quick.setup", "6.1 dms.manual.quick.customer", "6.2 dms.manual.quick.booking"])
         self.assertEqual([action["displayText"] for action in actions],
                          ["6.0 dms.card.TXT_MANUAL_SETUP", "6.1 dms.card.TXT_MANUAL_CUSTOMER",
                           "6.2 dms.card.TXT_MANUAL_BOOKING"])
         self.assertEqual([data(action["data"]) for action in actions],
                          [{"action": "manual_video", "item": code} for code in ("setup", "customer", "booking")])
-        self.assertTrue(all(action["type"] == "postback" and len(action["label"]) <= 20 for action in actions))
+        self.assertTrue(all(action["type"] == "postback" for action in actions))
+
+    def test_every_quick_reply_label_fits_line_in_four_languages(self):
+        # LINE 快捷按钮标签最多 20 字符，超了整条消息被拒、用户什么都收不到
+        rows = {row[-1]: row[:4] for row in csv.reader((APP / "i18n/messages.tsv").open(encoding="utf-8"), delimiter="\t")
+                if row and row[-1].startswith("dms.manual.quick.")}
+        self.assertEqual(sorted(rows), ["dms.manual.quick.booking", "dms.manual.quick.customer", "dms.manual.quick.setup"])
+        for (code, num) in self.manual.ITEMS:
+            for lang, text in zip(("en", "zh", "th", "ja"), rows["dms.manual.quick." + code]):
+                with self.subTest(code=code, lang=lang):
+                    self.assertTrue(text.strip())
+                    self.assertLessEqual(len(f"{num} {text}"), 20)
 
     def test_configured_video_is_a_reply_with_the_right_fields(self):
         self.conf["pearnly_dms_manual_customer"] = {"video": VIDEO, "preview": COVER}
