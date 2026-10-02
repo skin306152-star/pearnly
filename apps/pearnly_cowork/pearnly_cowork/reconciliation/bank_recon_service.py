@@ -143,10 +143,37 @@ def _match(rows, header_values, rules=None):
 
 
 def _persist_rows(task, results):
-	for index, result in enumerate(results):
-		persist(frappe.get_doc({"doctype": ROW, "record_id": f"{task.name}-{index + 1}",
-			"workspace": task.workspace, "task": task.name, "row_index": index + 1,
-			**row_values(result)}))
+	"""一份对账的结果行一次写完（2026-10-02 压测：几百行逐行走完整的文档插入，任务头和行同一个事务开 60–100 多秒）。
+
+	与行控制器（``recon_documents.ReconDocument``）同一道把关：只有本服务写这些行（不经白名单入口）、工作空间权限查一次
+	（一份对账的行同属一个工作空间）；名称照旧取 ``record_id``；写之前按表结构核选项与长度，不合的照旧报错、一行也不写。
+	仍在调用方（任务头）的事务里，由调用方提交。"""
+	if not results:
+		return
+	bank_recon_access.require(task.workspace)
+	meta = frappe.get_meta(ROW)
+	rows = [_checked_row(meta, {"record_id": f"{task.name}-{index + 1}", "workspace": task.workspace,
+		"task": task.name, "row_index": index + 1, **row_values(result)}) for index, result in enumerate(results)]
+	now, user = now_datetime(), frappe.session.user
+	columns = list(rows[0])
+	frappe.db.bulk_insert(ROW, ["name", "owner", "modified_by", "creation", "modified", "docstatus", "idx", *columns],
+		[(row["record_id"], user, user, now, now, 0, 0, *(row[column] for column in columns)) for row in rows],
+		chunk_size=500)
+
+
+def _checked_row(meta, values):
+	"""与逐行插入时 Frappe 的校验同一口径：选项必须在列表里、文字不超长；空日期存 NULL。"""
+	for field, value in values.items():
+		df = meta.get_field(field)
+		if df is None:
+			continue
+		if df.fieldtype == "Select" and value not in (df.options or "").split("\n"):
+			frappe.throw(_("reconciliation.request_invalid"))
+		if df.fieldtype == "Data" and isinstance(value, str) and len(value) > (int(df.length or 0) or 140):
+			frappe.throw(_("reconciliation.request_invalid"))
+		if df.fieldtype == "Date" and value in ("", None):
+			values[field] = None
+	return values
 
 
 def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, header=None,
