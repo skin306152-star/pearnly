@@ -383,6 +383,18 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 - 重复上传照样扣费：现有设计（重复判定只是提醒；扣费按识别单参考号防重）。用户 2026-10-02 定：保持现状。
 - testcowork 等站 99 份识别单停在 recognizing 等：Work 都已终态、页面按 Work 显示、未扣费，均为旧版本或中断留下，不需要改。
 
+## 2026-10-02 评测修订版（本窗口代发，修复窗口跑金标）
+
+| 标签 | 修订版 | 变量 | 结论 |
+|---|---|---|---|
+| jpeg | 00035-ner | PDF 页 JPEG 90 | 扫描件变差（淡印 / 盖章处税号、单号多错约 18 处），读字长尾变短、Gemini 不变；不上，开关已撤回 |
+| eval8 | 00041-lek | 电子 PDF 走文字层 | 采购电子 PDF 字段错误 2.41%→21%（供应商文字层泰文乱码过门槛）；每页约 0.045 泰铢（看图约 0.09）；先要文字质量判断 |
+| eval7 | 00039-tub | 看图直读换 3.8-flash | 每页约 0.15 泰铢（基线约 0.09，思考 token 未计）；准确率看修复窗口金标 |
+
+全部标签和自定义受众已删（01:2xZ 回读：只有 00019 100%）；临时分支 `codex/eval-jpeg-switch` 与工作树已删（未推送，
+有用的改动——pypdf、两个评测开关——已在 `codex/cowork-run-timing`）。评测中查出：Cloud Run 镜像缺 pypdf（已补）；
+flash-lite 40 秒截断多为整页转写的正常长输出（已改为只对直读 / 复核截断）；失控复读约 0.3%，等计时日志上线再定。
+
 ## 收尾登记
 
 - 分支 `codex/cowork-ocr-preview-tasks`、`codex/cowork-provider-retries`：内容已经由发布分支 / 快进合入 main（e7cca8a2、5f97938c、
@@ -390,7 +402,7 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 - 2026-10-02 已删：本地与远端 `codex/cowork-lite-timeouts`、`codex/cowork-adaptive-dispatch`、`codex/cowork-adaptive-pools`、
   `codex/cowork-capacity-wait`（都是 main 的祖先）；本地 `codex/cowork-callback-writes`、`codex/cowork-ocr-preview-tasks`（无远端；
   `git cherry` 核对每个提交在 main 上都有等价补丁，变基后 SHA 不同才用了 -D）。
-- Cloud Run 评测标签 `eval`（0% 流量；修复窗口分支 `codex/invoice-read-rules` 的提示词，依次 00020 fd46ca38、00021 df81e3e4、
+- （已删，2026-10-02）Cloud Run 评测标签 `eval`（0% 流量；修复窗口分支 `codex/invoice-read-rules` 的提示词，依次 00020 fd46ca38、00021 df81e3e4、
   00023 61e28855、00024 6172790）和服务级自定义受众（标签地址；派发令牌以站点配置的地址为受众，标签地址不加自定义受众回 401，
   2026-10-01 23:00Z 实测）：**交接保留**，修复窗口跑完 eval3、testcowork 地址改回主地址后通知本窗口，删标签并
   `--remove-custom-audiences`。加自定义受众后生产主地址照常 200（23:11Z 回读）。
