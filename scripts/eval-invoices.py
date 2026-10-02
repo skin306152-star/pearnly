@@ -50,7 +50,9 @@ def read_sample(path):
         for row in csv.DictReader(handle, delimiter="\t"):
             row = {key.strip(): (value or "").strip() for key, value in row.items()}
             row["副本"] = row["副本"].replace("\\", "/")
-            row["答案目录"] = row["答案目录"].replace("\\", "/")
+            row["答案目录"] = (row.get("答案目录") or "").replace("\\", "/")
+            # 金标扩充样本没有「方向」：销项发票按销售交，其余按采购（打分以金标的方向为准）
+            row.setdefault("方向", "销售" if row.get("分类") == "销项发票" else "采购")
             rows.append(row)
     return rows
 
