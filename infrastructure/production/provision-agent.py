@@ -74,7 +74,9 @@ def image(group):
 
 
 def compose(group, *args):
-    return run(["docker", "compose", "--env-file", "/opt/pearnly/secrets/runtime.env", "-f",
+    sizing = Path("/opt/pearnly/state/sizing.env")  # 按机器算的参数在 runtime.env 之前读（sizing.py）
+    return run(["docker", "compose", *(["--env-file", str(sizing)] if sizing.exists() else []),
+                "--env-file", "/opt/pearnly/secrets/runtime.env", "-f",
                 str(ROOT / "infrastructure/production/compose.yml"), "--profile", group, *args])
 
 

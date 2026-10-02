@@ -219,6 +219,30 @@ assert moved['erp-web']['environment']['REDIS_QUEUE'] == 'redis://10.0.0.7:6379'
 assert moved['keycloak']['environment']['KC_DB_URL'] == 'jdbc:mariadb://10.0.0.5:3307/keycloak'
 assert services['erp-web']['environment']['DB_HOST'] == 'mariadb'
 checks.append('Database and Redis addresses come from runtime.env, defaulting to the compose services')
+
+# 按机器算容量参数（sizing.py，配置对照表的公式版）：在 2026-10-02 的生产机上与当时 runtime.env 逐项相同；换成更小或更大的机器，
+# 公式算出的组合同样过全部把关（每进程底线、连接数 85%、MariaDB 内存 70%、整机 1.3 倍）。
+spec = importlib.util.spec_from_file_location('sizing', ROOT / 'infrastructure/production/sizing.py')
+sizing = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sizing)
+as_mib = lambda value: int(str(value)[:-1]) * (1024 if str(value)[-1] in 'gG' else 1) if str(value)[-1] in 'gGmM' else int(value)
+formula = sizing.recommend(8, 32095, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))
+production = {**REAL, 'PEARNLY_MARIADB_MAX_CONNECTIONS': '210', 'PEARNLY_MARIADB_MEM': '8g', 'PEARNLY_MARIADB_BUFFER_POOL': '4G',
+              'PEARNLY_COWORK_OCR_MEM': '5g', 'PEARNLY_ERP_OCR_MEM': '7g', 'PEARNLY_ERP_WEB_THREADS': '8'}
+assert {k: as_mib(v) for k, v in formula.items()} == {k: as_mib(production[k]) for k in formula}, (formula, production)
+for cores, mem_mib in ((8, 32 * 1024), (12, 48 * 1024), (16, 64 * 1024), (32, 128 * 1024)):
+    knobs = sizing.recommend(cores, mem_mib, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))
+    target = rendered(**{k: str(v) for k, v in knobs.items()})
+    live = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['mem_limit'])}
+            for name, row in target.items() if set(row.get('profiles', [])) & {'dms', 'erp'}]
+    capacity.calculate(target, live, 'cowork', mem_mib * M, mem_mib * M * 3 // 4, 1024 * M)
+try:
+    sizing.recommend(4, 16 * 1024, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))
+except ValueError:
+    pass
+else:
+    raise AssertionError('Hosts below 8 cores / 30 GiB must be refused by the sizing formulas')
+checks.append('Sizing formulas reproduce production on 8 cores / 31 GiB and pass every capacity gate on larger hosts')
 assert '--innodb-buffer-pool-size=1G' in services['mariadb']['command']
 assert '--innodb-buffer-pool-size=6G' in rendered(PEARNLY_MARIADB_BUFFER_POOL='6G')['mariadb']['command']
 assert capacity.buffer_pool_mib(rendered(PEARNLY_MARIADB_BUFFER_POOL='6G')) == 6144

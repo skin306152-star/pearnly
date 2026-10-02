@@ -219,7 +219,8 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
 def check(product, transient_mib=0):
     if product not in ('dms', 'erp', 'cowork') or not os.environ.get('PEARNLY_IMAGE'):
         raise ValueError('A product and verified candidate image are required')
-    config = json.loads(output(['docker', 'compose', '--env-file',
+    sizing = Path('/opt/pearnly/state/sizing.env')  # 按机器算的参数在 runtime.env 之前读（sizing.py）
+    config = json.loads(output(['docker', 'compose', *(['--env-file', str(sizing)] if sizing.exists() else []), '--env-file',
         '/opt/pearnly/secrets/runtime.env', '-f', str(ROOT / 'compose.yml'),
         '--profile', '*', 'config', '--format', 'json']))
     ids = output(['docker', 'ps', '-q']).split()

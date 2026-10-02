@@ -8,10 +8,14 @@ product=${2:?Pass product}
 exec 9>/opt/pearnly/state/provision.lock
 flock 9
 export PEARNLY_IMAGE="$image"
-compose=(docker compose --env-file /opt/pearnly/secrets/runtime.env -f /opt/pearnly/deploy/infrastructure/production/compose.yml --profile "$product")
+compose=(docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f /opt/pearnly/deploy/infrastructure/production/compose.yml --profile "$product")
 # 先核对"服务器上这套部署脚本"和"这个镜像自带的副本"是同一份：不同源就停在这里，
 # 不要出现"站点已经跑新代码、开户还在用旧脚本"这种当时不报错的错配。
 python3 /opt/pearnly/deploy/scripts/production/check-deploy-image.py "$image" /opt/pearnly/deploy
+# 按机器核数与内存算的容量参数（sizing.py，配置对照表的公式版）：compose 在 runtime.env 之前读它，runtime.env 写死的照旧以它为准；
+# 算不出（低于最小支持的机器等）就留空，全按 runtime.env，与没有这一步时相同。
+python3 /opt/pearnly/deploy/infrastructure/production/sizing.py --write /opt/pearnly/state/sizing.env >/dev/null \
+  || { echo "sizing skipped; using runtime.env only" >&2; : > /opt/pearnly/state/sizing.env; }
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
 python3 /opt/pearnly/deploy/infrastructure/production/capacity.py --product "$product"
 previous_container=$("${compose[@]}" ps --quiet "$product-web")
