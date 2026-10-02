@@ -22,6 +22,8 @@
            -v /tmp/pearnly-eval:/out -v <本文件>:/eval.py:ro -w /home/frappe/frappe-bench/sites --entrypoint bash <镜像>
            -c 'su frappe -s /bin/bash -c "../env/bin/python /eval.py run --site testcowork.pearnly.com
                --user pearnlyai@gmail.com --sample /corpus/样本-发票300.tsv --corpus /corpus --out /out --tag eval1"'
+  l1:    同一容器写法，``/eval.py l1 --site testcowork.pearnly.com --out /out/<轮次>``：不调谷歌，从检查点桶（7 天自动删）
+           取回这一轮每页的 Vision 原文存成 ``l1.jsonl``，供零费用重放。
   score: python3 eval-invoices.py score --sample .../样本-发票300.tsv --corpus .../06-录入推送 --out /tmp/pearnly-eval
            [--glm .../样本-GLM子集42.tsv]
 """
@@ -163,6 +165,69 @@ def collect(args):
             states[record["state"]] += 1
             handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
     print(json.dumps(states))
+
+
+def l1(args):
+    """不调谷歌，只把一轮里每页的 Vision 原文（``layer1``）从检查点桶取回存下，供以后零费用重放（票头、分店、单号前缀）。
+    检查点桶 7 天自动删，评测跑完一周内取。按批次的调用证据（``provider_evidence``）里的检查点钥匙找对象；
+    只存整页文字，不存坐标。输出 ``<out>/l1.jsonl``：一份原件一行 ``{编号, batch, pages: {页码: 原文}}``。"""
+    import gzip
+    import hashlib
+    from urllib.parse import quote
+
+    import frappe
+    import requests
+    from google.auth.transport.requests import Request
+    from google.oauth2 import service_account
+
+    frappe.init(args.site, sites_path=".")
+    frappe.connect()
+    from pearnly_core import ocr as core_ocr
+    from pearnly_cowork.ocr.remote import tasks
+
+    bucket = (tasks.settings() or {}).get("bucket")
+    if not bucket:
+        raise SystemExit("task dispatch (checkpoint bucket) is not configured on this site")
+    credentials = service_account.Credentials.from_service_account_file(
+        core_ocr.credentials_path(), scopes=["https://www.googleapis.com/auth/devstorage.read_only"])
+    session = requests.Session()
+
+    def fetch(name):
+        if not credentials.valid:
+            credentials.refresh(Request())
+        response = session.get(f"https://storage.googleapis.com/storage/v1/b/{bucket}/o/{quote(name, safe='')}",
+                               params={"alt": "media"}, headers={"Authorization": f"Bearer {credentials.token}"}, timeout=60)
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        content = response.content
+        return json.loads(gzip.decompress(content) if content[:2] == b"\x1f\x8b" else content)
+
+    out = Path(args.out)
+    counts = collections.Counter()
+    with open(out / "results.jsonl", encoding="utf-8") as source, open(out / "l1.jsonl", "w", encoding="utf-8") as handle:
+        for line in source:
+            record = json.loads(line)
+            row = frappe.db.get_value("Cowork OCR Batch", record.get("batch"), ["work_name", "provider_evidence"], as_dict=True)
+            if not row or not row.work_name:
+                counts["no_batch"] += 1
+                continue
+            pages = {}
+            for call in json.loads(row.provider_evidence or "[]"):
+                if call.get("stage") != "layer1" or str(call.get("page")) in pages:
+                    continue
+                name = f"{args.site}/{row.work_name}/cp/" + hashlib.sha256(call["checkpoint_key"].encode()).hexdigest() + ".json"
+                found = fetch(name)
+                body = (found or {}).get("body") or {}
+                responses = body.get("responses") if isinstance(body, dict) else None
+                text = ((responses or [{}])[0].get("fullTextAnnotation") or {}).get("text") if responses else None
+                counts["page_text" if text else "page_missing"] += 1
+                if text:
+                    pages[str(call.get("page"))] = text
+            counts["docs_with_text" if pages else "docs_without_text"] += 1
+            handle.write(json.dumps({"编号": record["编号"], "batch": record.get("batch"), "pages": pages},
+                                    ensure_ascii=False) + "\n")
+    print(json.dumps(counts))
 
 
 def _invoices(names):
@@ -852,7 +917,10 @@ def main():
     golder.add_argument("--gold", required=True)
     golder.add_argument("--runs", nargs="+", required=True, help="一个或几个 run 的输出目录，并排比")
     args = parser.parse_args()
-    {"run": run, "score": score, "gold": gold, "collect": collect}[args.command](args)
+    l1_reader = sub.add_parser("l1")
+    l1_reader.add_argument("--site", required=True)
+    l1_reader.add_argument("--out", required=True)
+    {"run": run, "score": score, "gold": gold, "collect": collect, "l1": l1}[args.command](args)
 
 
 if __name__ == "__main__":
