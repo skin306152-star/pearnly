@@ -31,4 +31,9 @@ check("备份与演练都不 exec 进生产数据库", not re.search(r"docker ex
 check("演练在一次性临时库里恢复，不写生产库", "pearnly-restore-drill" in drill and "-h mariadb" in drill
       and not re.search(r"live\(\)[^\n]*(INSERT|UPDATE|DELETE|DROP)", drill, re.I))
 check("二进制日志开启并保留 7 天（恢复到任意时刻）", "--log-bin=binlog" in compose and "--binlog-expire-logs-seconds=604800" in compose)
+check("runtime.env 不整份 source（有带逗号的值），只取 PEARNLY_BACKUP_* 覆盖项",
+      not re.search(r"(^|\s)(\.|source) \S*runtime\.env", backup) and "PEARNLY_BACKUP_*" in backup
+      and backup.index("PEARNLY_BACKUP_*") < backup.index("BUCKET=${PEARNLY_BACKUP_BUCKET"))
+check("读服务账号密钥（只给 root 读）的上传 / 下载容器以 root 跑",
+      all("--user 0:0" in line for line in (backup + drill).splitlines() if "/key.json:ro" in line))
 print({"passed": len(checks), "checks": checks})

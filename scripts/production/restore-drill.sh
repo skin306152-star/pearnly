@@ -16,7 +16,7 @@ trap cleanup EXIT
 cleanup; mkdir -p $work; chmod 700 $work
 echo "== 1) 下载 $(date -u +%T)"
 APPIMG=$(docker inspect pearnly-production-cowork-web-1 --format '{{.Config.Image}}')
-day=$(docker run --rm --memory 512m -v $work:/dest -v $SECRETS/backup-reader.json:/key.json:ro \
+day=$(docker run --rm --user 0:0 --memory 512m -v $work:/dest -v $SECRETS/backup-reader.json:/key.json:ro \
   -v $DEPLOY/scripts/production/offsite-download.py:/download.py:ro --entrypoint /home/frappe/frappe-bench/env/bin/python \
   "$APPIMG" /download.py --key /key.json --bucket $BUCKET --dest /dest ${1:+--day $1}) || { echo "下载失败"; exit 1; }
 echo "备份日期 $day，文件 $(ls $work | wc -l) 个，$(du -sh $work | cut -f1)"

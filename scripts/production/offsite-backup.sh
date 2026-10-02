@@ -12,13 +12,16 @@
 # 最近一次写 backup-last.json。成功后删掉本机暂存，失败时留着查。
 set -uo pipefail
 STATE=/opt/pearnly/state; LOG=$STATE/backup.log; SECRETS=/opt/pearnly/secrets; DEPLOY=/opt/pearnly/deploy
+# runtime.env 不是 shell 脚本（有带逗号、空格的值），只取备份自己的覆盖项，不整份 source
+if [[ -f $SECRETS/runtime.env ]]; then
+  while IFS='=' read -r key value; do [[ $key == PEARNLY_BACKUP_* ]] && export "$key=$value"; done < $SECRETS/runtime.env
+fi
 BUCKET=${PEARNLY_BACKUP_BUCKET:-pearnly-backups-sg}; SLOW_SECONDS=2700
 mkdir -p $STATE
 exec 9>$STATE/backup.lock
 if ! flock -n 9; then
   printf '{"at":"%s","status":"skipped","reason":"previous backup still running"}\n' "$(date -u +%FT%TZ)" >> $LOG; exit 0
 fi
-[[ -f $SECRETS/runtime.env ]] && set -a && . $SECRETS/runtime.env && set +a
 started=$(date +%s); day=$(TZ=Asia/Bangkok date +%F); weekday=$(TZ=Asia/Bangkok date +%u)
 work=/opt/pearnly/backups/offsite/$day; rm -rf /opt/pearnly/backups/offsite; mkdir -p $work; chmod -R 700 /opt/pearnly/backups/offsite
 fail() { local took=$(( $(date +%s) - started ))
@@ -70,10 +73,10 @@ revision=$(docker inspect pearnly-production-cowork-web-1 --format '{{index .Con
 ( cd $work && sha256sum * ) > $work/SHA256SUMS
 printf '{"day":"%s","image_revision":"%s","databases":"%s"}\n' "$day" "$revision" "$(echo $dbs)" > $work/manifest.json
 
-# 5) 上传（生产镜像里的 Python + google-auth；只新建、不覆盖）
+# 5) 上传（生产镜像里的 Python + google-auth；只新建、不覆盖；以 root 跑，密钥文件只给 root 读）
 prefixes="daily/$day"; [[ $weekday == 7 ]] && prefixes="$prefixes weekly/$day"
 APPIMG=$(docker inspect pearnly-production-cowork-web-1 --format '{{.Config.Image}}')
-docker run --rm --memory 512m -v $work:/backup:ro -v $SECRETS/backup-writer.json:/key.json:ro \
+docker run --rm --user 0:0 --memory 512m -v $work:/backup:ro -v $SECRETS/backup-writer.json:/key.json:ro \
   -v $DEPLOY/scripts/production/offsite-upload.py:/upload.py:ro --entrypoint /home/frappe/frappe-bench/env/bin/python \
   "$APPIMG" /upload.py --key /key.json --bucket $BUCKET --source /backup $prefixes || fail upload
 
