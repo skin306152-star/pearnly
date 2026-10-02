@@ -35,13 +35,16 @@ LABELS = {
     "withdrawal": ("ถอน", "หักบัญชี", "withdrawal", "withdraw", "debit", "取款", "支出"),
     "deposit": ("ฝาก", "เข้า", "deposit", "credit", "存款", "存入"),
 }
-CARRY = ("ยอดยกมา", "ยอดเงินคงเหลือยกมา", "balanceforward", "broughtforward", "bf")
+CARRY = ("ยอดยกมา", "ยอดเงินคงเหลือยกมา", "ยอดคงเหลือยกมา", "balanceforward", "broughtforward", "bf")
 THAI_MONTHS = {"มค": 1, "กพ": 2, "มีค": 3, "เมย": 4, "พค": 5, "มิย": 6, "กค": 7, "สค": 8, "กย": 9, "ตค": 10,
                "พย": 11, "ธค": 12}  # keys keep the vowel marks: ม.ค. is January, มี.ค. March
 # Day, month, year with one repeated separator ("8 05/07/25" is row 8 on 5 July, not 8 May 2007).
 # No look-behind: a passbook's row number is sometimes printed against the date ("705/07/25" is row 7).
 DATE_RE = re.compile(r"(\d{1,2})\s*([/.-])\s*(\d{1,2})\s*\2\s*(\d{2,4})(?!\d)")
 THAI_DATE_RE = re.compile(r"(?<!\d)(\d{1,2})\s*([\u0e01-\u0e4e][\u0e01-\u0e4e.\s]{1,6}?)\s*(\d{2,4})(?!\d)")
+# 只印「日/月」的流水日期（2026-10-02 回放：21–40 行 / 页卡在日期的 95 份里 57 份是这种）：只认日期栏开头那一个，
+# 描述里的「1/5」之类不算；年份从整份对账单上印的完整日期（对账期间、打印日）推，见 `statement_period`。
+DAY_MONTH_RE = re.compile(r"^\s*(\d{1,2})\s*/\s*(\d{1,2})(?![\d/])")
 SMALL_RE = re.compile(r"\d{1,2}\.\d{2}")
 HEADER_BAND = 0.03  # header labels printed in two or three languages stack within this height
 BETAS = [step / 1000 for step in range(-40, 41)]  # photographed pages: y drifts with x
@@ -68,7 +71,46 @@ def resolve_year(raw, reference_year):
     return None
 
 
-def parse_date(text, reference_year):
+def statement_period(lines_by_page, reference_year):
+    """整份对账单上印的完整日期（任意位置：对账期间、打印日、各行）中，离中位数三个月内的最早与最晚那天；一个都没有返回 None。"""
+    found = []
+    for lines in lines_by_page.values():
+        for line in lines:
+            text = unicodedata.normalize("NFKC", str(line.text or ""))
+            # 一行可以印两个日期（「01/04/2026 - 30/04/2026」）：都取
+            for match in list(DATE_RE.finditer(text)) + list(THAI_DATE_RE.finditer(text)):
+                value = parse_date(match.group(0), reference_year)
+                if value:
+                    found.append(value)
+    if not found:
+        return None
+    # 印错 / 读错的个别年份（「30/04/2016」）不能把期间拉宽成好几年：只留离中位数三个月内的日期
+    found.sort()
+    middle = datetime.date.fromisoformat(found[len(found) // 2])
+    near = [v for v in found if abs((datetime.date.fromisoformat(v) - middle).days) <= 92]
+    return (near[0], near[-1])
+
+
+def _day_month(text, period):
+    """「日/月」→ 落在对账期间前后一个月内、且只有一个年份说得通时才给日期，否则不认。"""
+    match = DAY_MONTH_RE.match(text)
+    if not match or not period:
+        return ""
+    day, month = int(match.group(1)), int(match.group(2))
+    low = datetime.date.fromisoformat(period[0]) - datetime.timedelta(days=31)
+    high = datetime.date.fromisoformat(period[1]) + datetime.timedelta(days=31)
+    fits = []
+    for year in {low.year, high.year}:
+        try:
+            value = datetime.date(year, month, day)
+        except ValueError:
+            continue
+        if low <= value <= high:
+            fits.append(value)
+    return fits[0].isoformat() if len(fits) == 1 else ""
+
+
+def parse_date(text, reference_year, period=None):
     text = unicodedata.normalize("NFKC", str(text or ""))
     match = DATE_RE.search(text)
     if match:
@@ -77,7 +119,7 @@ def parse_date(text, reference_year):
         match = THAI_DATE_RE.search(text)
         month = THAI_MONTHS.get(re.sub(r"[.\s]", "", match.group(2))) if match else None
         if not month:
-            return ""
+            return _day_month(text, period)
         day, year = int(match.group(1)), int(match.group(3))
     year = resolve_year(year, reference_year)
     try:
@@ -148,7 +190,7 @@ def _fit(anchors, candidates, tolerance):
     return best[1], best[2]
 
 
-def _page_rows(page, tokens, lines, zones, top, reference_year):
+def _page_rows(page, tokens, lines, zones, top, reference_year, period=None):
     balances = sorted(_money(tokens, zones["balance"], top), key=lambda pair: pair[0].yc)
     if not balances:
         return None
@@ -173,7 +215,7 @@ def _page_rows(page, tokens, lines, zones, top, reference_year):
     dated = []
     for group in groups:
         text = " ".join(token.text for token in sorted(group["tokens"], key=lambda token: token.x0))
-        value = parse_date(text, reference_year)
+        value = parse_date(text, reference_year, period)
         if value:
             dated.append(((group["first"] + group["last"]) / 2, value, text))
     # 另数一遍「同一高度上有钱数的日期行」：TTB 电子账单每页页脚印的打印日期时间、表头上方的「截至某日」不是流水
@@ -198,6 +240,7 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
     """``tokens_by_page`` / ``lines_by_page``: {page: [TokenBox]} / {page: [RowBox]} → Reconstruction or None."""
     reference_year = reference_year or datetime.date.today().year
     trace = trace if trace is not None else []
+    period = statement_period(lines_by_page, reference_year)  # 只印「日/月」的行据此补年份
 
     def stop(reason, page=None, row=None):
         trace.append({"reason": reason, "page": page, "row": row})
@@ -214,7 +257,7 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
             return stop("no_header", page)
         else:
             top = 0.0
-        found = _page_rows(page, tokens, lines, zones, top, reference_year)
+        found = _page_rows(page, tokens, lines, zones, top, reference_year, period)
         if found is None:
             continue
         date_rows += found["date_rows"]
