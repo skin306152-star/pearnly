@@ -1,5 +1,6 @@
 """Cowork 录入的回放识别（ocr/execution/replay.py）。离线：不连站点、不连 Redis、不调 API；检查点与库用替身。"""
 import json
+import os
 import unittest
 from types import SimpleNamespace
 from unittest import mock
@@ -52,7 +53,7 @@ class Replay(unittest.TestCase):
         with self.assertRaises(Deferred) as waiting:
             self.recognize()
         self.assertEqual((waiting.exception.reason, waiting.exception.delay), ("replay_waiting", 7.5))
-        self.assertEqual(self.points[replay.KEY], {"state": "external", "body": {"from": "B-old", "due": 1007.5}})
+        self.assertEqual(self.points[replay.KEY], {"state": "external", "body": {"from": "batch:B-old", "due": 1007.5}})
         self.clock[0] = 1004.0
         with self.assertRaises(Deferred) as early:             # 提前被放回队列：等剩下的
             self.recognize()
@@ -61,7 +62,7 @@ class Replay(unittest.TestCase):
         pages = []
         pipeline, evidence = self.recognize(pages.append)
         self.assertEqual(pipeline, PIPELINE)
-        self.assertEqual(evidence, [*json.loads(EVIDENCE), {"replay": "B-old"}])
+        self.assertEqual(evidence, [*json.loads(EVIDENCE), {"replay": "batch:B-old"}])
         self.assertEqual(pages, [2])                            # 多页：读到最后一页
 
     def test_only_real_recognitions_of_the_same_content_and_page_count_are_used(self):
@@ -78,9 +79,29 @@ class Replay(unittest.TestCase):
             self.recognize()
         self.assertEqual(len(self.queries), 1)
 
+    def test_other_test_tenants_replay_from_the_shared_library(self):
+        import tempfile
+        self.matches = []                                       # 本租户没有真识别过
+        with tempfile.TemporaryDirectory() as sites:
+            entry = "a" * 64 + "-2"
+            os.makedirs(os.path.join(sites, replay.LIBRARY))
+            with open(os.path.join(sites, replay.LIBRARY, entry + ".json"), "w") as handle:
+                json.dump({"result_json": PIPELINE, "provider_evidence": EVIDENCE, "site": "testcowork.pearnly.com",
+                           "batch": "B-real"}, handle)
+            with mock.patch.object(replay.frappe.local, "sites_path", sites, create=True):
+                with self.assertRaises(Deferred):
+                    self.recognize()
+                self.assertEqual(self.points[replay.KEY]["body"]["from"], "library:" + entry)
+                self.clock[0] = 2000.0
+                pipeline, evidence = self.recognize()
+        self.assertEqual(pipeline, PIPELINE)
+        self.assertEqual(evidence[-1], {"replay": "library:" + entry})
+        self.assertIsNone(replay._load("library:../../etc/passwd"))   # 只认库里的条目名
+
     def test_content_never_recognized_for_real_fails_without_charging_or_calling_google(self):
         self.matches = []
-        with self.assertRaises(ProviderError) as refused:
+        with mock.patch.object(replay.frappe.local, "sites_path", "/nonexistent", create=True), \
+                self.assertRaises(ProviderError) as refused:
             self.recognize()
         self.assertEqual(refused.exception.code, "ocr.replay_missing")
         self.assertNotIn(replay.KEY, self.points)
