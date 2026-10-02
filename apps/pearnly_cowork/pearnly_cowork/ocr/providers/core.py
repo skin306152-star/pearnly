@@ -1,8 +1,10 @@
 """Bind invoice adapters to Core's credentials, budget and durable paid-call log."""
+import time
+
 import frappe
 
 from pearnly_core import ocr
-from pearnly_core.execution import budget, provider, work
+from pearnly_core.execution import budget, pool, provider, work
 from pearnly_cowork.ocr.providers.client import ProviderClient, ProviderConfigurationError
 
 
@@ -10,6 +12,20 @@ def core_identity():
     """References only. Never return an access token or read credential contents."""
     return {"backend": ocr.backend(), "project": ocr.project(), "location": ocr.location(),
             "credentials_path": ocr.credentials_path()}
+
+
+def wait_without_transaction(seconds):
+    """识别调用在本机原地等（Document AI 各区域都被限流、读字临时 5xx 隔 2 秒再试）之前先结束读事务：开了多线程的识别进程
+    放开数据库连接，否则提交结束读快照；不把事务带进等待（2026-10-02 压测窗口：长事务拖住 MVCC 历史清理，整库变慢）。
+    与 ``pearnly_core.execution.provider`` 等额度时同一做法。"""
+    try:
+        if pool.in_thread():
+            pool.release_db()
+        else:
+            frappe.db.commit()
+    except Exception:
+        pass  # 没有站点上下文（离线调用）：照常等
+    time.sleep(seconds)
 
 
 def build_client(environment, *, core_identity):
@@ -62,4 +78,4 @@ def build_client(environment, *, core_identity):
         feedback=budget.feedback, scope=budget.scope, access_token=ocr.access_token,
         require_context=require_context, checkpoint_read=work.checkpoint,
         regions=(getattr(frappe, "conf", None) or {}).get("pearnly_document_ai_regions"),
-        in_queue_job=provider._in_queue_job)
+        in_queue_job=provider._in_queue_job, sleep=wait_without_transaction)

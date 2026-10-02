@@ -77,6 +77,22 @@ class FakeCore:
             access_token=lambda: "FAKE_TOKEN_NOT_A_CREDENTIAL", require_context=lambda: None, **kwargs)
 
 
+class WaitWithoutTransaction(unittest.TestCase):
+    def test_an_in_place_wait_ends_the_read_transaction_first(self):
+        # 2026-10-02：本机原地等（Document AI 各区域都被限流、读字 5xx 隔 2 秒）前先结束读事务，不把事务带进等待
+        from pearnly_cowork.ocr.providers import core
+
+        for threaded, expected in ((True, ["release", "sleep"]), (False, ["commit", "sleep"])):
+            order = []
+            db = SimpleNamespace(commit=lambda: order.append("commit"))
+            with patch.object(core.pool, "in_thread", return_value=threaded), \
+                    patch.object(core.pool, "release_db", side_effect=lambda: order.append("release")), \
+                    patch.object(core.frappe, "db", db), \
+                    patch.object(core.time, "sleep", side_effect=lambda s: order.append("sleep")):
+                core.wait_without_transaction(2)
+            self.assertEqual(order, expected, threaded)
+
+
 class ProviderRuntime(unittest.TestCase):
     def setUp(self):
         self.core = FakeCore()
