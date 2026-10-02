@@ -88,6 +88,10 @@ def payload(query=False, language="th"):
             raise RuntimeError("Configure LIFF before publishing the DMS menus")
         if query:
             actions.append({"type": "postback", "label": str(cards.TXT_MENU_ITEM5), "data": "action=menu_query"})
+            # 3 × 2 的第 6 格（原图上是「เร็ว ๆ นี้」占位）给「คู่มือ」。basic 版 2 × 2 已满，
+            # 不加格：那些人从文字菜单（打 เมนู）第 6 行进。换了这格的图再重新发布菜单。
+            actions.append({"type": "postback", "label": str(cards.TXT_MENU_ITEM6),
+                            "data": "action=" + cards.ACT_MENU_MANUAL})
         # 聊天栏上那行字：以前是欢迎语截 14 个字（泰文里显示成半句），改为一个短词。
         bar = str(cards.TXT_MENU_BAR)[:14]
     columns = 3 if query else 2

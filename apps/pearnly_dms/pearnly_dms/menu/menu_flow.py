@@ -12,6 +12,8 @@ async → 同步。
 
 `mode` 存在会话 payload，落档后的分叉在 `after_customer_saved` 里读它。
 
+第 6 项「คู่มือ」（教程视频）在 `menu/manual.py`：只回覆、不动会话。
+
 ⚠️ 三类动作（菜单 / 继续订车 / 重拍）**都不消费 nonce**：菜单是无状态入口；
 继续订车用客户号对齐防串档；重拍照"编辑"范式**只校验不消费** nonce ——
 真正的写档仍由 `dms_flow` 的 `consume_nonce` 守卫，旧卡的确认会因态已变而被拒。
@@ -25,6 +27,7 @@ from typing import Optional
 from pearnly_core import line_session as store
 from pearnly_dms.booking.conversation import booking_qa as booking_qa
 from pearnly_dms.line import cards as cards
+from pearnly_dms.menu import manual as manual
 from pearnly_dms.menu import menu_cards as menu_cards
 from pearnly_dms.query import query_access as query_access
 from pearnly_dms.line.out import send as _send
@@ -37,6 +40,8 @@ MENU_ACTIONS = frozenset(
     {
         cards.ACT_MENU_CUSTOMER,
         cards.ACT_MENU_BOOKING,
+        cards.ACT_MENU_MANUAL,
+        cards.ACT_MANUAL_VIDEO,
         cards.ACT_CONTINUE_BOOKING,
         cards.ACT_RETAKE,
     }
@@ -54,6 +59,7 @@ _MENU_CHOICES = {
     "1": cards.ACT_MENU_CUSTOMER,
     "2": cards.ACT_MENU_BOOKING,
     "5": cards.ACT_MENU_QUERY,
+    "6": cards.ACT_MENU_MANUAL,
 }
 # 弹菜单/切模式时保留的已收料：重复进菜单不丢已拍的卡 / 已输的号。
 # `id_card_mid` 是订车逐问的身份证附件源，同样保留（落档后 `booking_qa.start` 要挂它）。
@@ -106,14 +112,17 @@ def can_query(binding: dict) -> bool:
 def handle_choice(
     binding: dict, line_user_id: str, reply_token: str, sess: Optional[dict], text: str
 ) -> bool:
-    """`menu` 态下的单字 '1'/'2' = 点对应菜单项，返回是否已接管。
+    """`menu` 态下的单字 '1'/'2'/'5'/'6' = 点对应菜单项，返回是否已接管。
 
-    只认这两个单字符：其余数字文本（如手机号）交回调用方走号码路。
+    只认这几个单字符：其余数字文本（如手机号）交回调用方走号码路。
     """
     stripped = text.strip()
     if (sess or {}).get("state") != "menu" or stripped not in _MENU_CHOICES:
         return False
     action = _MENU_CHOICES[stripped]
+    if action == cards.ACT_MENU_MANUAL:
+        manual.open_manual(reply_token)  # 看手册不动会话
+        return True
     if action == cards.ACT_MENU_QUERY:
         if not QUERY_FLOW_LANDED:
             return False  # 查询那族没搬：不认这个字，别假装接管了
@@ -136,6 +145,12 @@ def handle_postback(
 ) -> None:
     if action in (cards.ACT_MENU_CUSTOMER, cards.ACT_MENU_BOOKING):
         _choose(binding, line_user_id, reply_token, sess, action)
+    elif action == cards.ACT_MENU_MANUAL:
+        # 第 6 项「คู่มือ」：所有已绑定的人都能看，不看购买功能、不看花名册那一栏；
+        # 不动会话（进行中的建档 / 订车照旧）。
+        manual.open_manual(reply_token)
+    elif action == cards.ACT_MANUAL_VIDEO:
+        manual.play(reply_token, str(pb.get("item") or ""))
     elif action == cards.ACT_CONTINUE_BOOKING:
         _continue_booking(binding, line_user_id, reply_token, pb, sess)
     else:  # ACT_RETAKE

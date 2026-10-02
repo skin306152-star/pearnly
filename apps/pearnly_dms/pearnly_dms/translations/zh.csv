@@ -73,6 +73,7 @@ Choose a car model ({n} found),选择车型（共 {n} 项）
 Choose a colour for {car},选择 {car} 的颜色
 Choose a period and number of items (all branches/teams this account can see),选择时间段和条数（此账号可见的全部分店/团队）
 Choose a status,选择状态
+Choose a topic to play its video,选择一个主题播放教程视频
 "Choose an approver, or send to everyone so whoever is free can approve",选择审批人，或发给所有人，由先有空的人审批
 Choose an item to continue,选择一项继续
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
@@ -92,10 +93,12 @@ Contract status,合同状态
 Could not check the customer data. Please try again.,核对客户资料失败，请重试。
 Could not read data from DMS. Please try again.,从 DMS 读取资料失败，请重试。
 Count,数量
+Create a booking,开订车单
 "Create a car booking: choose the model and colour, then save",建立订车单：选择车型、颜色并保存
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",在 DMS 后台另建几个只给本系统用的账号，权限和连接账号相同。很多人同时操作时，每次会挑一个空闲账号，不用在一个账号上排队。这些账号不要再拿去 DMS 网页上登录。
 "Create a new customer from an ID card, or update an existing customer",用身份证建立新客户，或更新已有客户的资料
 Create and track bookings,建立和跟进订车单
+Create customer data,建立客户资料
 Credit/debit card,信用卡/借记卡
 Custom 1–30,自定义 1–30
 Customer,客户
@@ -143,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,贷款
 Finance approved,贷款已批
 Finance pending,贷款待批
+First-time setup,首次设置
 Floor,楼层
 Full address directory,完整地址目录
 Full customer records,完整客户资料
@@ -169,6 +173,7 @@ Latest 10,最近 10 条
 Latest error code,最近错误代码
 Latest sales from DMS,DMS 最新销售
 Manage system accounts,管理系统账号
+Manual,使用手册
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。
 Master data and all vehicle colors,主档与全部车型颜色
 Menu,菜单
@@ -362,6 +367,7 @@ This step does not need a picture. Please follow the question above.,这一步�
 This system account is already registered,这个系统账号已经登记过了
 This system account no longer exists; reload the page,这个系统账号已不存在，请刷新页面
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
+This tutorial video is not available yet. Please check back later.,这个教程视频暂未上线，请稍后再来看。
 This year Top 10,今年 Top 10
 Title,称谓
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
@@ -398,10 +404,13 @@ Use the back office,使用后台系统
 "Used only for the every-minute sync, 6:00–22:00.",只用于白天 6:00–22:00 每分钟同步。
 Used only to read data: the first full read and the every-minute daytime sync.,只用来读资料：首次读全档和白天每分钟同步。
 Used to create and edit customers. Leave a saved account's password empty to keep it.,建档、改资料时使用；已登记的账号密码留空即不改。
+User manual,使用手册
 Vehicle master data,车辆主档信息
+Video guides,教程视频
 View result / status,查看结果／状态
 View the latest sales data from DMS within your permissions,按你的权限查看 DMS 最新的销售资料
 Village,村（小区）
+Watch step-by-step video guides,观看分步骤的教程视频
 Welcome to Pearnly DMS,欢迎使用 Pearnly DMS
 Who should approve this request?,把申请发给谁审批？
 Write accounts,改写权限账号
@@ -462,12 +471,19 @@ dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进�
 dms.card.TXT_EXPIRED,此项已过期，请重新开始。
 dms.card.TXT_INTRO,拍摄客户身份证即可开始登记新客户。
 dms.card.TXT_LOOKUP_FAIL,核对客户资料失败，请重试。
+dms.card.TXT_MANUAL_BOOKING,开订车单
+dms.card.TXT_MANUAL_CUSTOMER,建立客户资料
+dms.card.TXT_MANUAL_NOT_READY,这个教程视频暂未上线，请稍后再来看。
+dms.card.TXT_MANUAL_PICK,使用手册
+dms.card.TXT_MANUAL_PICK_SUB,选择一个主题播放教程视频
+dms.card.TXT_MANUAL_SETUP,首次设置
 dms.card.TXT_MENU_BAR,菜单
 dms.card.TXT_MENU_D1,用身份证建立新客户，或更新已有客户的资料
 dms.card.TXT_MENU_D2,建立订车单：选择车型、颜色并保存
 dms.card.TXT_MENU_D3,免重新输入密码，直接打开 Pearnly DMS
 dms.card.TXT_MENU_D4,更新保存在 Pearnly 里的 DMS 用户名和密码
 dms.card.TXT_MENU_D5,按你的权限查看 DMS 最新的销售资料
+dms.card.TXT_MENU_D6,观看分步骤的教程视频
 dms.card.TXT_MENU_GREETING,"你好 🙏
 欢迎使用 Pearnly DMS
 请选择下方菜单开始使用"
@@ -477,6 +493,7 @@ dms.card.TXT_MENU_ITEM2,订车
 dms.card.TXT_MENU_ITEM3,进入 DMS
 dms.card.TXT_MENU_ITEM4,修改账号密码
 dms.card.TXT_MENU_ITEM5,查询资料
+dms.card.TXT_MENU_ITEM6,使用手册
 dms.card.TXT_MENU_PICK,请选择需要的菜单
 dms.card.TXT_MENU_PICK_SUB,选择一项继续
 dms.card.TXT_MENU_SEND_CARD,请发送客户的身份证照片
@@ -716,6 +733,8 @@ dms.card.rich.credentials.sub,更新 DMS 登录资料
 dms.card.rich.credentials.title,修改账号密码
 dms.card.rich.customer.sub,新增和修改客户资料
 dms.card.rich.customer.title,客户资料
+dms.card.rich.manual.sub,教程视频
+dms.card.rich.manual.title,使用手册
 dms.card.rich.portal.sub,使用后台系统
 dms.card.rich.portal.title,进入 DMS
 dms.card.rich.query.sub,DMS 最新销售

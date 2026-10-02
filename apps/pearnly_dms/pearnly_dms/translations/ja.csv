@@ -73,6 +73,7 @@ Choose a car model ({n} found),車種を選択（{n} 件）
 Choose a colour for {car},{car} の色を選択
 Choose a period and number of items (all branches/teams this account can see),期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
 Choose a status,ステータスを選択
+Choose a topic to play its video,トピックを選ぶと動画を再生します
 "Choose an approver, or send to everyone so whoever is free can approve",承認者を選ぶか、全員に送って手の空いた人に承認してもらいます
 Choose an item to continue,項目を選んで続けます
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
@@ -92,10 +93,12 @@ Contract status,契約状況
 Could not check the customer data. Please try again.,顧客データを確認できませんでした。もう一度お試しください。
 Could not read data from DMS. Please try again.,DMS からデータを読み取れませんでした。もう一度お試しください。
 Count,件数
+Create a booking,予約の作成
 "Create a car booking: choose the model and colour, then save",車の予約を作成：車種と色を選んで保存
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",このシステム専用の DMS アカウントを数件追加し、接続アカウントと同じ権限を付けてください。多人数が同時に操作するとき、1 つのアカウントで順番待ちせず空いているアカウントを使います。これらのアカウントで DMS の Web 画面にはログインしないでください。
 "Create a new customer from an ID card, or update an existing customer",身分証明書から新規顧客を作成、または既存顧客を更新
 Create and track bookings,予約の作成と確認
+Create customer data,顧客データの作成
 Credit/debit card,クレジット/デビットカード
 Custom 1–30,カスタム 1–30
 Customer,顧客
@@ -143,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ローン
 Finance approved,ローン承認済み
 Finance pending,ローン審査中
+First-time setup,初回設定
 Floor,階
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
@@ -169,6 +173,7 @@ Latest 10,最新 10 件
 Latest error code,最新のエラーコード
 Latest sales from DMS,DMS の最新販売
 Manage system accounts,システムアカウントを管理
+Manual,マニュアル
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 Master data and all vehicle colors,マスターデータと全車種の色
 Menu,メニュー
@@ -362,6 +367,7 @@ This step does not need a picture. Please follow the question above.,この手�
 This system account is already registered,このシステムアカウントは登録済みです
 This system account no longer exists; reload the page,このシステムアカウントはもうありません。ページを再読み込みしてください
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",このテナントのデータ量が現在の読み取り上限を超えているため、このグループは読み取っていません。接続は正常です。管理者が上限を上げてから再度読み取ってください。
+This tutorial video is not available yet. Please check back later.,このチュートリアル動画はまだ公開されていません。しばらくしてからご覧ください。
 This year Top 10,今年 Top 10
 Title,敬称
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
@@ -398,10 +404,13 @@ Use the back office,管理画面を使う
 "Used only for the every-minute sync, 6:00–22:00.",6:00〜22:00 の毎分同期にのみ使います。
 Used only to read data: the first full read and the every-minute daytime sync.,データの読み込み専用：初回の全件読み込みと日中の毎分同期。
 Used to create and edit customers. Leave a saved account's password empty to keep it.,顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。
+User manual,使い方マニュアル
 Vehicle master data,車両マスター情報
+Video guides,動画ガイド
 View result / status,結果／状態を見る
 View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
 Village,村
+Watch step-by-step video guides,手順ごとの動画ガイドを見る
 Welcome to Pearnly DMS,Pearnly DMS へようこそ
 Who should approve this request?,誰に承認を依頼しますか？
 Write accounts,書き込みアカウント
@@ -462,12 +471,19 @@ dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE 
 dms.card.TXT_EXPIRED,有効期限が切れました。もう一度やり直してください。
 dms.card.TXT_INTRO,お客様の身分証明書を撮影すると、新規顧客の登録を始めます。
 dms.card.TXT_LOOKUP_FAIL,顧客データを確認できませんでした。もう一度お試しください。
+dms.card.TXT_MANUAL_BOOKING,予約の作成
+dms.card.TXT_MANUAL_CUSTOMER,顧客データの作成
+dms.card.TXT_MANUAL_NOT_READY,このチュートリアル動画はまだ公開されていません。しばらくしてからご覧ください。
+dms.card.TXT_MANUAL_PICK,使い方マニュアル
+dms.card.TXT_MANUAL_PICK_SUB,トピックを選ぶと動画を再生します
+dms.card.TXT_MANUAL_SETUP,初回設定
 dms.card.TXT_MENU_BAR,メニュー
 dms.card.TXT_MENU_D1,身分証明書から新規顧客を作成、または既存顧客を更新
 dms.card.TXT_MENU_D2,車の予約を作成：車種と色を選んで保存
 dms.card.TXT_MENU_D3,パスワードを再入力せずに Pearnly DMS を開く
 dms.card.TXT_MENU_D4,Pearnly に保存した DMS のユーザー名とパスワードを更新
 dms.card.TXT_MENU_D5,権限の範囲で DMS の最新の販売データを見る
+dms.card.TXT_MENU_D6,手順ごとの動画ガイドを見る
 dms.card.TXT_MENU_GREETING,"こんにちは 🙏
 Pearnly DMS へようこそ
 下のメニューから始めてください"
@@ -477,6 +493,7 @@ dms.card.TXT_MENU_ITEM2,車の予約
 dms.card.TXT_MENU_ITEM3,DMS を開く
 dms.card.TXT_MENU_ITEM4,アカウントとパスワード
 dms.card.TXT_MENU_ITEM5,データ検索
+dms.card.TXT_MENU_ITEM6,マニュアル
 dms.card.TXT_MENU_PICK,メニューを選んでください
 dms.card.TXT_MENU_PICK_SUB,項目を選んで続けます
 dms.card.TXT_MENU_SEND_CARD,お客様の身分証明書の写真を送ってください
@@ -716,6 +733,8 @@ dms.card.rich.credentials.sub,DMS のログイン情報を更新
 dms.card.rich.credentials.title,アカウントとパスワード
 dms.card.rich.customer.sub,顧客の追加と編集
 dms.card.rich.customer.title,顧客データ
+dms.card.rich.manual.sub,動画ガイド
+dms.card.rich.manual.title,マニュアル
 dms.card.rich.portal.sub,管理画面を使う
 dms.card.rich.portal.title,DMS を開く
 dms.card.rich.query.sub,DMS の最新販売

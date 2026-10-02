@@ -23,6 +23,7 @@ from pearnly_dms.line import cards
 from pearnly_dms.line.cards import (
     ACT_MENU_BOOKING,
     ACT_MENU_CUSTOMER,
+    ACT_MENU_MANUAL,
     ACT_MENU_QUERY,
     _data,
 )
@@ -33,6 +34,7 @@ THEME_PINK = {"accent": "#f25c6e", "soft": "#fdecef", "border": "#f9d9de"}
 THEME_PURPLE = {"accent": "#7656d6", "soft": "#f0ebff", "border": "#e5dcff"}
 THEME_GREEN = {"accent": "#198c6a", "soft": "#e8f7f1", "border": "#d3eee4"}
 THEME_ORANGE = {"accent": "#c26a16", "soft": "#fff2e3", "border": "#f5dfc7"}
+THEME_TEAL = {"accent": "#0f7c8c", "soft": "#e6f5f7", "border": "#cdeaee"}
 
 
 def icon_base() -> str:
@@ -42,7 +44,14 @@ def icon_base() -> str:
     return frappe.utils.get_url().rstrip("/") + "/assets/pearnly_dms/images/menu"
 
 
-def menu_icon_disc(icon: str, soft: str, size: str, img: str) -> Dict[str, Any]:
+def menu_icon_disc(icon: str | None, soft: str, size: str, img: str,
+                   glyph: str = "", accent: str = "") -> Dict[str, Any]:
+    """图标圆底。`icon=None` 时画一个文字符号（`glyph`）代替图片 —— 第 6 项还没有设计图标。"""
+    if icon is None:
+        inner = {"type": "text", "text": glyph, "size": "lg", "color": accent,
+                 "align": "center", "gravity": "center"}
+    else:
+        inner = {"type": "image", "url": f"{icon_base()}/{icon}.png?v=1", "size": img}
     return {
         "type": "box",
         "layout": "vertical",
@@ -52,19 +61,18 @@ def menu_icon_disc(icon: str, soft: str, size: str, img: str) -> Dict[str, Any]:
         "backgroundColor": soft,
         "justifyContent": "center",
         "alignItems": "center",
-        "contents": [
-            {"type": "image", "url": f"{icon_base()}/{icon}.png?v=1", "size": img}
-        ],
+        "contents": [inner],
     }
 
 
 def menu_item(
     num: str,
-    icon: str,
+    icon: str | None,
     theme: Dict[str, str],
     title: str,
     desc: str,
     action: Dict[str, Any] | None,
+    glyph: str = "",
 ) -> Dict[str, Any]:
     """整行可点的菜单项：编号圆徽、图标、标题说明和箭头。`action=None` = 不可点（不画箭头）。"""
     accent = theme["accent"]
@@ -79,7 +87,7 @@ def menu_item(
         "paddingAll": "14px",
         "alignItems": "center",
         "contents": [
-            menu_icon_disc(icon, theme["soft"], "46px", "26px"),
+            menu_icon_disc(icon, theme["soft"], "46px", "26px", glyph, accent),
             {
                 "type": "text",
                 "text": num,
@@ -132,9 +140,10 @@ def menu_item(
 def menu_card(
     can_query: bool = False,
 ) -> Dict[str, Any]:
-    """入口菜单：标题区 + 整行可点的行卡（1 建档 / 2 订车 / 5 查资料）。
+    """入口菜单：标题区 + 整行可点的行卡（1 建档 / 2 订车 / 5 查资料 / 6 使用手册）。
 
     `can_query` → 是否显示第 5 项"搜索资料"（判据在后端，这里只管画不画）。
+    第 6 项「คู่มือ」人人都有（已绑定即可看，不看购买功能），见 `menu/manual.py`。
     """
     head = {
         "type": "box",
@@ -205,6 +214,18 @@ def menu_card(
                 {"type": "postback", "data": _data(ACT_MENU_QUERY)},
             )
         )
+    # 第 6 项还没有设计好的图标图片：先用文字符号 ▶ 画在圆底里，不引用不存在的图片。
+    contents.append(
+        menu_item(
+            "6",
+            None,
+            THEME_TEAL,
+            cards.TXT_MENU_ITEM6,
+            cards.TXT_MENU_D6,
+            {"type": "postback", "data": _data(ACT_MENU_MANUAL)},
+            glyph="▶",
+        )
+    )
     contents.append(
         {
             "type": "text",

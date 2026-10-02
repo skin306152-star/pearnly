@@ -171,7 +171,9 @@ class RichMenu(unittest.TestCase):
         self.assertEqual(zh["chatBarText"], "菜单")
         self.assertEqual(th["chatBarText"], "เมนู")
         self.assertEqual(zh["areas"][0]["action"]["label"], "客户资料")
-        self.assertEqual(len(zh["areas"]), 5)
+        self.assertEqual(len(zh["areas"]), 6)
+        self.assertEqual(zh["areas"][5]["action"]["label"], "使用手册")
+        self.assertEqual(th["areas"][5]["action"]["data"], "action=menu_manual")
         self.assertTrue(all(len(area["action"]["label"]) <= 20 for area in zh["areas"]))
 
     def test_old_thai_only_publish_is_still_used(self):

@@ -73,6 +73,17 @@ def reply_text(reply_token: str, text: str) -> bool:
     return line.reply(reply_token, [{"type": "text", "text": text}])
 
 
+def reply(reply_token: str, msg: Dict[str, Any]) -> bool:
+    """结构化消息**只走免费回覆**；没有令牌就不发（不转推播）。
+
+    给"本来就只该在用户点按钮那一刻回一次"的消息用（例如菜单第 6 项的教程视频），
+    这类消息不值得花推播额度。
+    """
+    if not reply_token:
+        return False
+    return line.reply(reply_token, [_snapshot_notice(msg)])
+
+
 def push_text(line_user_id: str, text: str) -> bool:
     """纯文本推送（老产品 `_out._push`）。"""
     return line.push(line_user_id, [{"type": "text", "text": text}])

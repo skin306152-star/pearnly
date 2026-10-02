@@ -73,6 +73,7 @@ Choose a car model ({n} found),เลือกรุ่นรถ (พบ {n} ร
 Choose a colour for {car},เลือกสีของ {car}
 Choose a period and number of items (all branches/teams this account can see),เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
 Choose a status,เลือกสถานะที่ต้องการ
+Choose a topic to play its video,เลือกหัวข้อเพื่อเปิดดูคลิป
 "Choose an approver, or send to everyone so whoever is free can approve",เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
 Choose an item to continue,เลือกรายการเพื่อดำเนินการต่อ
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ
@@ -92,10 +93,12 @@ Contract status,สถานะสัญญา
 Could not check the customer data. Please try again.,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
 Could not read data from DMS. Please try again.,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
 Count,จำนวน
+Create a booking,จัดทำใบจอง
 "Create a car booking: choose the model and colour, then save",สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.",สร้างบัญชี DMS เพิ่มอีกสองสามบัญชีสำหรับระบบนี้โดยเฉพาะ ให้มีสิทธิ์เท่ากับบัญชีของการเชื่อมต่อ เมื่อมีคนใช้งานพร้อมกันจำนวนมาก ระบบจะเลือกบัญชีที่ว่างให้ ไม่ต้องรอคิวบัญชีเดียว ห้ามนำบัญชีเหล่านี้ไปเข้าสู่ระบบบนเว็บ DMS
 "Create a new customer from an ID card, or update an existing customer",จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
 Create and track bookings,สร้างและติดตามใบจอง
+Create customer data,จัดทำข้อมูลลูกค้า
 Credit/debit card,บัตรเครดิต/เดบิต
 Custom 1–30,กำหนดเอง 1–30
 Customer,ลูกค้า
@@ -143,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ไฟแนนซ์
 Finance approved,ไฟแนนซ์อนุมัติ
 Finance pending,ไฟแนนซ์รออนุมัติ
+First-time setup,ติดตั้งครั้งแรก
 Floor,ชั้น
 Full address directory,รายการที่อยู่ครบชุด
 Full customer records,ข้อมูลลูกค้าครบชุด
@@ -169,6 +173,7 @@ Latest 10,ล่าสุด 10 รายการ
 Latest error code,รหัสข้อผิดพลาดล่าสุด
 Latest sales from DMS,ยอดขายล่าสุดจาก DMS
 Manage system accounts,จัดการบัญชีระบบ
+Manual,คู่มือ
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่
 Master data and all vehicle colors,ข้อมูลหลักและสีรถทุกรุ่น
 Menu,เมนู
@@ -362,6 +367,7 @@ This step does not need a picture. Please follow the question above.,ขั้�
 This system account is already registered,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
 This system account no longer exists; reload the page,บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",ข้อมูลของ租户นี้มากกว่าเพดานการอ่านปัจจุบัน กลุ่มนี้จึงยังไม่ได้อ่าน การเชื่อมต่อปกติดี ผู้ดูแลต้องปรับเพดานแล้วอ่านอีกครั้ง
+This tutorial video is not available yet. Please check back later.,คลิปคู่มือหัวข้อนี้ยังไม่เปิดให้ดู กรุณากลับมาดูใหม่ภายหลัง
 This year Top 10,ปีนี้ Top 10
 Title,คำนำหน้า
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
@@ -398,10 +404,13 @@ Use the back office,เข้าใช้งานระบบหลังบ้
 "Used only for the every-minute sync, 6:00–22:00.",ใช้เฉพาะซิงก์ทุกนาที 6:00–22:00
 Used only to read data: the first full read and the every-minute daytime sync.,ใช้อ่านข้อมูลเท่านั้น: อ่านทั้งหมดครั้งแรกและซิงก์ทุกนาทีช่วงกลางวัน
 Used to create and edit customers. Leave a saved account's password empty to keep it.,ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน
+User manual,คู่มือการใช้งาน
 Vehicle master data,ข้อมูลหลักรถยนต์
+Video guides,คลิปสอนการใช้งาน
 View result / status,ดูผล / สถานะการอ่าน
 View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 Village,หมู่บ้าน
+Watch step-by-step video guides,ดูคลิปสอนการใช้งานทีละขั้นตอน
 Welcome to Pearnly DMS,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
 Who should approve this request?,ส่งคำขอให้ใครอนุมัติ
 Write accounts,บัญชีสิทธิ์แก้ไข
@@ -462,12 +471,19 @@ dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไข�
 dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
 dms.card.TXT_INTRO,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
 dms.card.TXT_LOOKUP_FAIL,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_MANUAL_BOOKING,จัดทำใบจอง
+dms.card.TXT_MANUAL_CUSTOMER,จัดทำข้อมูลลูกค้า
+dms.card.TXT_MANUAL_NOT_READY,คลิปคู่มือหัวข้อนี้ยังไม่เปิดให้ดู กรุณากลับมาดูใหม่ภายหลัง
+dms.card.TXT_MANUAL_PICK,คู่มือการใช้งาน
+dms.card.TXT_MANUAL_PICK_SUB,เลือกหัวข้อเพื่อเปิดดูคลิป
+dms.card.TXT_MANUAL_SETUP,ติดตั้งครั้งแรก
 dms.card.TXT_MENU_BAR,เมนู
 dms.card.TXT_MENU_D1,จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
 dms.card.TXT_MENU_D2,สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
 dms.card.TXT_MENU_D3,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
 dms.card.TXT_MENU_D4,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
 dms.card.TXT_MENU_D5,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
+dms.card.TXT_MENU_D6,ดูคลิปสอนการใช้งานทีละขั้นตอน
 dms.card.TXT_MENU_GREETING,"สวัสดีค่ะ 🙏
 ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
 กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน"
@@ -477,6 +493,7 @@ dms.card.TXT_MENU_ITEM2,จัดทำใบจอง
 dms.card.TXT_MENU_ITEM3,เข้าสู่ระบบ DMS
 dms.card.TXT_MENU_ITEM4,เปลี่ยนบัญชีและรหัสผ่าน
 dms.card.TXT_MENU_ITEM5,ค้นหาข้อมูล
+dms.card.TXT_MENU_ITEM6,คู่มือ
 dms.card.TXT_MENU_PICK,กรุณาเลือกเมนูที่ต้องการ
 dms.card.TXT_MENU_PICK_SUB,เลือกรายการเพื่อดำเนินการต่อ
 dms.card.TXT_MENU_SEND_CARD,กรุณาส่งรูปบัตรประชาชนของลูกค้า
@@ -716,6 +733,8 @@ dms.card.rich.credentials.sub,อัปเดตข้อมูลเข้า�
 dms.card.rich.credentials.title,เปลี่ยนบัญชีและรหัสผ่าน
 dms.card.rich.customer.sub,เพิ่มและแก้ไขข้อมูลลูกค้า
 dms.card.rich.customer.title,จัดทำข้อมูลลูกค้า
+dms.card.rich.manual.sub,คลิปสอนการใช้งาน
+dms.card.rich.manual.title,คู่มือ
 dms.card.rich.portal.sub,เข้าใช้งานระบบหลังบ้าน
 dms.card.rich.portal.title,เข้าสู่ระบบ DMS
 dms.card.rich.query.sub,ยอดขายล่าสุดจาก DMS

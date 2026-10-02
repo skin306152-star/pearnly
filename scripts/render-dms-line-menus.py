@@ -10,6 +10,10 @@ Re-run after changing that wording:
     docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
       -v "$PWD:/repo" <frappe image> /repo/scripts/render-dms-line-menus.py
 
+The query menu's sixth card is the manual (LINE menu item 6, `action=menu_manual`). It used to be a
+grey "coming soon" placeholder: replace that card in the Thai original first (icon in the card's accent
+colour, title คู่มือ, subtitle คลิปสอนการใช้งาน), then re-run this script, then publish the menus again.
+
 Offline and idempotent; it only rewrites `public/images/menu/rich-{basic,query}-{en,zh,ja}.png`.
 Fonts are the open fonts shipped in the Frappe image (WenQuanYi Zen Hei, IPA PGothic, DejaVu).
 """
@@ -34,7 +38,7 @@ LAYOUTS = {
     "basic": [(46, 1204, 0, "customer"), (1296, 2454, 0, "booking"),
               (46, 1204, 1, "portal"), (1296, 2454, 1, "credentials")],
     "query": [(46, 788, 0, "customer"), (879, 1621, 0, "booking"), (1712, 2454, 0, "portal"),
-              (46, 788, 1, "credentials"), (879, 1621, 1, "query"), (1712, 2454, 1, "soon")],
+              (46, 788, 1, "credentials"), (879, 1621, 1, "query"), (1712, 2454, 1, "manual")],
 }
 ICON_Y = (310, 1153)  # icon centre per row: its fill is the card's accent colour
 
@@ -71,14 +75,6 @@ def main():
                 draw.rectangle(inner, fill=fill)
                 centre = (x0 + x1) // 2
                 limit = inner[2] - inner[0] - 40
-                if name == "soon":
-                    color = "#A7A2B8"  # the "coming soon" grey of the Thai original
-                    head = words["dms.card.rich.soon"][lang]
-                    draw.text((centre, top + 55), head, font=fit(bold, 60, head, limit), fill=color,
-                              anchor="mm", stroke_width=stroke, stroke_fill=color)
-                    for dx in (-44, 0, 44):
-                        draw.ellipse((centre + dx - 8, top + 150, centre + dx + 8, top + 166), fill=color)
-                    continue
                 accent = image.getpixel((centre - 80, ICON_Y[row] - 80))
                 head = words[f"dms.card.rich.{name}.title"][lang]
                 sub = words[f"dms.card.rich.{name}.sub"][lang]

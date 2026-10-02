@@ -140,6 +140,7 @@ Create a car booking: choose the model and colour, then save	建立订车单：�
 Open Pearnly DMS without typing your password again	免重新输入密码，直接打开 Pearnly DMS	เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง	パスワードを再入力せずに Pearnly DMS を開く	dms.card.TXT_MENU_D3
 Update the DMS username and password saved in Pearnly	更新保存在 Pearnly 里的 DMS 用户名和密码	อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly	Pearnly に保存した DMS のユーザー名とパスワードを更新	dms.card.TXT_MENU_D4
 View the latest sales data from DMS within your permissions	按你的权限查看 DMS 最新的销售资料	ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ	権限の範囲で DMS の最新の販売データを見る	dms.card.TXT_MENU_D5
+Watch step-by-step video guides	观看分步骤的教程视频	ดูคลิปสอนการใช้งานทีละขั้นตอน	手順ごとの動画ガイドを見る	dms.card.TXT_MENU_D6
 Hello 🙏\nWelcome to Pearnly DMS\nPlease choose a menu below to get started	你好 🙏\n欢迎使用 Pearnly DMS\n请选择下方菜单开始使用	สวัสดีค่ะ 🙏\nยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS\nกรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน	こんにちは 🙏\nPearnly DMS へようこそ\n下のメニューから始めてください	dms.card.TXT_MENU_GREETING
 Type menu to bring up this menu any time	随时输入 菜单 即可调出此菜单	พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา	いつでも メニュー と入力するとこのメニューを表示します	dms.card.TXT_MENU_HINT
 Customer data	客户资料	จัดทำข้อมูลลูกค้า	顧客データ	dms.card.TXT_MENU_ITEM1
@@ -147,11 +148,18 @@ Car booking	订车	จัดทำใบจอง	車の予約	dms.card.TXT_MENU
 Open DMS	进入 DMS	เข้าสู่ระบบ DMS	DMS を開く	dms.card.TXT_MENU_ITEM3
 Account & password	修改账号密码	เปลี่ยนบัญชีและรหัสผ่าน	アカウントとパスワード	dms.card.TXT_MENU_ITEM4
 Search data	查询资料	ค้นหาข้อมูล	データ検索	dms.card.TXT_MENU_ITEM5
+Manual	使用手册	คู่มือ	マニュアル	dms.card.TXT_MENU_ITEM6
 Please choose a menu	请选择需要的菜单	กรุณาเลือกเมนูที่ต้องการ	メニューを選んでください	dms.card.TXT_MENU_PICK
 Choose an item to continue	选择一项继续	เลือกรายการเพื่อดำเนินการต่อ	項目を選んで続けます	dms.card.TXT_MENU_PICK_SUB
 Please send a photo of the customer's ID card	请发送客户的身份证照片	กรุณาส่งรูปบัตรประชาชนของลูกค้า	お客様の身分証明書の写真を送ってください	dms.card.TXT_MENU_SEND_CARD
 Please choose a menu below to get started	请选择下方菜单开始使用	กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน	下のメニューから始めてください	dms.card.TXT_MENU_SUBTITLE
 Welcome to Pearnly DMS	欢迎使用 Pearnly DMS	ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS	Pearnly DMS へようこそ	dms.card.TXT_MENU_TITLE
+Create a booking	开订车单	จัดทำใบจอง	予約の作成	dms.card.TXT_MANUAL_BOOKING
+Create customer data	建立客户资料	จัดทำข้อมูลลูกค้า	顧客データの作成	dms.card.TXT_MANUAL_CUSTOMER
+This tutorial video is not available yet. Please check back later.	这个教程视频暂未上线，请稍后再来看。	คลิปคู่มือหัวข้อนี้ยังไม่เปิดให้ดู กรุณากลับมาดูใหม่ภายหลัง	このチュートリアル動画はまだ公開されていません。しばらくしてからご覧ください。	dms.card.TXT_MANUAL_NOT_READY
+User manual	使用手册	คู่มือการใช้งาน	使い方マニュアル	dms.card.TXT_MANUAL_PICK
+Choose a topic to play its video	选择一个主题播放教程视频	เลือกหัวข้อเพื่อเปิดดูคลิป	トピックを選ぶと動画を再生します	dms.card.TXT_MANUAL_PICK_SUB
+First-time setup	首次设置	ติดตั้งครั้งแรก	初回設定	dms.card.TXT_MANUAL_SETUP
 Please send the customer's ID card photo and phone number	请发送客户的身份证照片和电话号码	กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า	お客様の身分証明書の写真と電話番号を送ってください	dms.card.TXT_NEED_BOTH
 Confirm saving a new customer	确认保存新客户	ยืนยันบันทึกลูกค้าใหม่	新規顧客の保存を確認	dms.card.TXT_NEW_CARD_ALT
 New customer — confirm the data to save	新客户，确认资料后保存	ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก	新規顧客です。データを確認して保存してください	dms.card.TXT_NEW_CARD_HEAD
@@ -378,4 +386,5 @@ Account & password	修改账号密码	เปลี่ยนบัญชีแล
 Update your DMS sign-in	更新 DMS 登录资料	อัปเดตข้อมูลเข้าสู่ระบบ DMS	DMS のログイン情報を更新	dms.card.rich.credentials.sub
 Search data	查询资料	ค้นหาข้อมูล	データ検索	dms.card.rich.query.title
 Latest sales from DMS	DMS 最新销售	ยอดขายล่าสุดจาก DMS	DMS の最新販売	dms.card.rich.query.sub
-Coming soon	即将推出	เร็ว ๆ นี้	近日公開	dms.card.rich.soon
+Manual	使用手册	คู่มือ	マニュアル	dms.card.rich.manual.title
+Video guides	教程视频	คลิปสอนการใช้งาน	動画ガイド	dms.card.rich.manual.sub

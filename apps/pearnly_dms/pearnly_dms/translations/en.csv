@@ -73,6 +73,7 @@ Choose a car model ({n} found),Choose a car model ({n} found)
 Choose a colour for {car},Choose a colour for {car}
 Choose a period and number of items (all branches/teams this account can see),Choose a period and number of items (all branches/teams this account can see)
 Choose a status,Choose a status
+Choose a topic to play its video,Choose a topic to play its video
 "Choose an approver, or send to everyone so whoever is free can approve","Choose an approver, or send to everyone so whoever is free can approve"
 Choose an item to continue,Choose an item to continue
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
@@ -92,10 +93,12 @@ Contract status,Contract status
 Could not check the customer data. Please try again.,Could not check the customer data. Please try again.
 Could not read data from DMS. Please try again.,Could not read data from DMS. Please try again.
 Count,Count
+Create a booking,Create a booking
 "Create a car booking: choose the model and colour, then save","Create a car booking: choose the model and colour, then save"
 "Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.","Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website."
 "Create a new customer from an ID card, or update an existing customer","Create a new customer from an ID card, or update an existing customer"
 Create and track bookings,Create and track bookings
+Create customer data,Create customer data
 Credit/debit card,Credit/debit card
 Custom 1–30,Custom 1–30
 Customer,Customer
@@ -143,6 +146,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,Finance
 Finance approved,Finance approved
 Finance pending,Finance pending
+First-time setup,First-time setup
 Floor,Floor
 Full address directory,Full address directory
 Full customer records,Full customer records
@@ -169,6 +173,7 @@ Latest 10,Latest 10
 Latest error code,Latest error code
 Latest sales from DMS,Latest sales from DMS
 Manage system accounts,Manage system accounts
+Manual,Manual
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.","Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly."
 Master data and all vehicle colors,Master data and all vehicle colors
 Menu,Menu
@@ -362,6 +367,7 @@ This step does not need a picture. Please follow the question above.,This step d
 This system account is already registered,This system account is already registered
 This system account no longer exists; reload the page,This system account no longer exists; reload the page
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.","This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
+This tutorial video is not available yet. Please check back later.,This tutorial video is not available yet. Please check back later.
 This year Top 10,This year Top 10
 Title,Title
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
@@ -398,10 +404,13 @@ Use the back office,Use the back office
 "Used only for the every-minute sync, 6:00–22:00.","Used only for the every-minute sync, 6:00–22:00."
 Used only to read data: the first full read and the every-minute daytime sync.,Used only to read data: the first full read and the every-minute daytime sync.
 Used to create and edit customers. Leave a saved account's password empty to keep it.,Used to create and edit customers. Leave a saved account's password empty to keep it.
+User manual,User manual
 Vehicle master data,Vehicle master data
+Video guides,Video guides
 View result / status,View result / status
 View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
 Village,Village
+Watch step-by-step video guides,Watch step-by-step video guides
 Welcome to Pearnly DMS,Welcome to Pearnly DMS
 Who should approve this request?,Who should approve this request?
 Write accounts,Write accounts
@@ -462,12 +471,19 @@ dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start ag
 dms.card.TXT_EXPIRED,This item has expired. Please start again.
 dms.card.TXT_INTRO,Take a photo of the customer's ID card to start a new customer record.
 dms.card.TXT_LOOKUP_FAIL,Could not check the customer data. Please try again.
+dms.card.TXT_MANUAL_BOOKING,Create a booking
+dms.card.TXT_MANUAL_CUSTOMER,Create customer data
+dms.card.TXT_MANUAL_NOT_READY,This tutorial video is not available yet. Please check back later.
+dms.card.TXT_MANUAL_PICK,User manual
+dms.card.TXT_MANUAL_PICK_SUB,Choose a topic to play its video
+dms.card.TXT_MANUAL_SETUP,First-time setup
 dms.card.TXT_MENU_BAR,Menu
 dms.card.TXT_MENU_D1,"Create a new customer from an ID card, or update an existing customer"
 dms.card.TXT_MENU_D2,"Create a car booking: choose the model and colour, then save"
 dms.card.TXT_MENU_D3,Open Pearnly DMS without typing your password again
 dms.card.TXT_MENU_D4,Update the DMS username and password saved in Pearnly
 dms.card.TXT_MENU_D5,View the latest sales data from DMS within your permissions
+dms.card.TXT_MENU_D6,Watch step-by-step video guides
 dms.card.TXT_MENU_GREETING,"Hello 🙏
 Welcome to Pearnly DMS
 Please choose a menu below to get started"
@@ -477,6 +493,7 @@ dms.card.TXT_MENU_ITEM2,Car booking
 dms.card.TXT_MENU_ITEM3,Open DMS
 dms.card.TXT_MENU_ITEM4,Account & password
 dms.card.TXT_MENU_ITEM5,Search data
+dms.card.TXT_MENU_ITEM6,Manual
 dms.card.TXT_MENU_PICK,Please choose a menu
 dms.card.TXT_MENU_PICK_SUB,Choose an item to continue
 dms.card.TXT_MENU_SEND_CARD,Please send a photo of the customer's ID card
@@ -716,6 +733,8 @@ dms.card.rich.credentials.sub,Update your DMS sign-in
 dms.card.rich.credentials.title,Account & password
 dms.card.rich.customer.sub,Add and edit customers
 dms.card.rich.customer.title,Customer data
+dms.card.rich.manual.sub,Video guides
+dms.card.rich.manual.title,Manual
 dms.card.rich.portal.sub,Use the back office
 dms.card.rich.portal.title,Open DMS
 dms.card.rich.query.sub,Latest sales from DMS
