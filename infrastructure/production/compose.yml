@@ -98,8 +98,10 @@ services:
   redis-cache:
     image: redis:6.2-alpine@sha256:ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0
     restart: unless-stopped
-    mem_limit: 256m  # 2026-10-02 实测容器内存顶到 192m 上限 8969 次（Redis 自身约 132m，多出的是容器开销）；maxmemory 不变
-    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, allkeys-lru]
+    # 2026-10-02 m7：缓存里 87MB 是各用户的 bootinfo（Frappe 自带，每人一份约 1.1MB，其中整份翻译表约 1MB），128mb 被挤满后
+    # 表结构等元信息被反复淘汰（累计 10230 个键）、各进程重算；按每人约 1.1MB、几百人在线放到 512mb。容器留出开销（原 192m 顶上限 8969 次）。
+    mem_limit: 640m
+    command: [redis-server, --maxmemory, 512mb, --maxmemory-policy, allkeys-lru]
     networks: [runtime]
     logging: *logging
     healthcheck:
