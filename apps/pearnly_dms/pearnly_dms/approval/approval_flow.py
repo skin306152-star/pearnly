@@ -259,8 +259,9 @@ def _decide(
         _notify_operator(req, "TXT_REQ_REJECTED_SALES")
         return
 
-    # 批准：先说"正在处理"，执行丢后台（要重新登录 DMS、还要写库）
-    _reply(reply_token, approval_cards.TXT_PROCESSING)
+    # 批准：放 LINE 原生的加载动画（不再先发「正在处理」文字，用户 2026-10-02），执行丢后台（要重新登录 DMS、还要写库），
+    # 后台开始执行时再续一次（`_execute_approved`）。
+    _start_loading(line_user_id)
     _enqueue("approve", _execute_approved, binding, line_user_id, req)
 
 

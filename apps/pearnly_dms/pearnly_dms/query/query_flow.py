@@ -32,6 +32,7 @@ from pearnly_dms.line.errors import friendly
 from pearnly_dms.line.out import push_or_reply_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
+from pearnly_dms.line.out import start_loading
 from pearnly_dms.line.identity import matches as current_binding
 from pearnly_dms.snapshots import manual
 from pearnly_dms import i18n
@@ -281,6 +282,15 @@ def _begin_records(
     _run_records(binding, line_user_id, params, reply_token)
 
 
+def _waiting(line_user_id, status, reply_token):
+    """读取已登记：还在读（或已读完、结果正在推）就放 LINE 原生的加载动画——不计消息额度、对方打开聊天时可见、我们一发消息就停；
+    读完的结果由 `snapshot_sync` 推过来。登记即失败才发文字（用户 2026-10-02：等待一律用加载动画，不发「正在读」）。"""
+    if str(status.get("state") or "") == "failed":
+        _send(line_user_id, query_cards.manual_status_message(status), reply_token)
+    else:
+        start_loading(line_user_id, 60)
+
+
 def _still_reading(binding, line_user_id, reply_token, sess) -> bool:
     """查询的读取还没回来时打的字（「นานจัง」之类）：告诉他还在读，不让它掉进建档等别的流程（2026-10-02 ris）。
     已经读完（结果卡发过了）就不管，交上层照旧处理。"""
@@ -294,7 +304,7 @@ def _still_reading(binding, line_user_id, reply_token, sess) -> bool:
         return False
     if str(status.get("state") or "") not in {"queued", "running"}:
         return False
-    _send(line_user_id, query_cards.manual_status_message(status), reply_token)
+    start_loading(line_user_id, 60)  # 用 LINE 原生的加载动画回应，不再发「正在读」文字（用户 2026-10-02）
     return True
 
 
@@ -405,7 +415,7 @@ def _read_failure(binding, line_user_id, conditions, result, reply_token):
     except Exception as exc:
         _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
         return
-    _send(line_user_id, query_cards.manual_status_message(status), reply_token)
+    _waiting(line_user_id, status, reply_token)
 
 
 def _request_read(binding, line_user_id, conditions):
@@ -452,7 +462,7 @@ def _manual_action(binding, line_user_id, reply_token, action, values):
             return
         if store.get_session(line_user_id) != session:
             return
-        _send(line_user_id, query_cards.manual_status_message(status), reply_token)
+        _waiting(line_user_id, status, reply_token)
     except Exception as exc:
         _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
 

@@ -428,6 +428,7 @@ class QueryInteraction(unittest.TestCase):
         self.enterContext(patch.object(query_flow.store, "get_session", side_effect=lambda _: self.session))
         self.send = self.enterContext(patch.object(query_flow, "_send"))
         self.push = self.enterContext(patch.object(query_flow, "_push"))
+        self.loading = self.enterContext(patch.object(query_flow, "start_loading"))
         self.records = self.enterContext(patch.object(rb, "fetch_sales_records", return_value={"ok": True, "rows": []}))
         self.top = self.enterContext(patch.object(rb, "fetch_top_sales", return_value={"ok": True, "rows": []}))
         self.capabilities = self.enterContext(patch.object(rb, "query_capabilities", return_value={"ok": True, "top_sales": True}))
@@ -478,10 +479,11 @@ class QueryInteraction(unittest.TestCase):
         from pearnly_dms.query import query_cards
         self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_PENDING"}
         self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
-        message = self.send.call_args.args[1]
-        self.assertEqual(message["type"], "text")
-        self.assertNotIn("quickReply", message)
-        self.assertNotIn(query_cards._t("EMPTY_RECORDS_PREFIX"), message["text"])
+        # 等待用 LINE 原生的加载动画（用户 2026-10-02），不发「正在读」文字——冷数据更不会显示成「零记录」
+        self.loading.assert_called_once_with("U-lab", 60)
+        self.send.assert_not_called()
+        self.push.assert_not_called()
+        self.assertTrue(query_cards._t("EMPTY_RECORDS_PREFIX"))
         self.request.assert_called_once()
         args, kwargs = self.request.call_args
         self.assertEqual(args[:2], ("EP-own", rb.query_dataset(rb.query_parameters())))
@@ -535,12 +537,9 @@ class QueryInteraction(unittest.TestCase):
         self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_STALE"}
         self.status.return_value = {"state": "succeeded", "as_of": 123, "stale": True}
         self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
-        from pearnly_dms.query import query_cards
-        self.assertIn(query_cards._t("MANUAL_IDLE"), self.send.call_args.args[1]["text"])
-        # 读已经过期 → **自动重读一次**（菜单 5 没有"读取"按钮），但绝不承诺
-        # "点一下就能看到结果"；状态提示里也没有任何按钮。
-        message = self.send.call_args.args[1]
-        self.assertNotIn("quickReply", message)
+        # 读已经过期 → **自动重读一次**（菜单 5 没有"读取"按钮）；等待只放加载动画，不承诺"点一下就能看到结果"。
+        self.loading.assert_called_once_with("U-lab", 60)
+        self.send.assert_not_called()
         self.request.assert_called_once()
 
     def test_local_pagination_does_not_refresh_or_reuse_different_conditions(self):

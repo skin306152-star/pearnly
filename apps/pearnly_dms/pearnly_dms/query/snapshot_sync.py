@@ -39,16 +39,23 @@ def _incomplete(message):
     return DmsClientError(message, "ERR_DMS_SNAPSHOT_INCOMPLETE")
 
 
+LOADING_RENEW_SECONDS = 50  # LINE 加载动画最长 60 秒：读的过程中每 50 秒续一次
+
+
 class ScanBudget:
-    def __init__(self, job_started):
+    def __init__(self, job_started, renew=None):
         self.deadline = min(time.monotonic() + MAX_SCAN_SECONDS, job_started + 280)
         self.requests = 0
         self.bytes = 0
+        self.renew, self.renewed = renew, time.monotonic()
 
     def before(self):
         if time.monotonic() + READ_RESERVE_SECONDS > self.deadline or self.requests >= MAX_READS:
             raise _incomplete("DMS query capture budget exhausted")
         self.requests += 1
+        if self.renew and time.monotonic() - self.renewed >= LOADING_RENEW_SECONDS:
+            self.renewed = time.monotonic()
+            self.renew()  # 在本来就要发的读请求之间顺手续（不另起循环）
 
     def after(self, body):
         self.bytes += len(str(body or "").encode("utf-8"))
@@ -296,6 +303,22 @@ def _tell_failed(binding):
         logger.warning("DMS query failure notice could not be sent", exc_info=True)
 
 
+def _loading_renewer(params):
+    """给发起这次查询的操作员续 LINE 加载动画的函数（失败只记日志，绝不影响读取）。"""
+    line_user_id = ((params or {}).get("_binding") or {}).get("line_user_id")
+
+    def renew():
+        if not line_user_id:
+            return
+        try:
+            from pearnly_dms.line.out import start_loading
+
+            start_loading(line_user_id, 60)
+        except Exception:
+            logger.warning("DMS query loading animation not renewed", exc_info=True)
+    return renew
+
+
 NOTICE_KEY = "dms:query-failed-notice:"
 
 
@@ -368,8 +391,12 @@ def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
     expected_scope = None
     try:
         conditions, expected_scope = _guard(name, dataset, request_id, params)
+        renew = _loading_renewer(params)
+        renew()  # 任务开始读：给发起人放加载动画（排队那段由提交时那次 60 秒盖着）
+        frappe.local.dms_lock_wait_hook = renew  # 等 DMS 账号时也续（`adapter/session` 的等待钩子）
+
         def capture(client, adapter):
-            budget = ScanBudget(job_started)
+            budget = ScanBudget(job_started, renew)
             return _capture(_BoundedClient(client, budget), _BoundedAdapter(adapter, budget), conditions)
 
         # 这是操作员自己按出来的那一次查询：做完顺手把使用记录里的增量补回缓存。
@@ -399,3 +426,5 @@ def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
     except Exception as exc:
         frappe.db.rollback()
         return rb._failure(exc)
+    finally:
+        frappe.local.dms_lock_wait_hook = None  # 不留给同一进程的下一个任务

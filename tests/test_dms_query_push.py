@@ -142,10 +142,10 @@ class WhileWaiting(unittest.TestCase):
         sess = {"state": "query_results", "payload": dict(SESSION)}
         with patch.object(query_flow.sales_readback, "_query_endpoint", return_value="EP"), \
                 patch.object(query_flow.manual, "status", return_value={"state": "running"}), \
-                patch.object(query_flow, "_send") as send, \
-                patch.object(query_flow.query_cards, "manual_status_message", return_value={"type": "text", "text": "reading"}):
+                patch.object(query_flow, "_send") as send, patch.object(query_flow, "start_loading") as loading:
             self.assertTrue(query_flow.handle_text(BINDING, USER, "tok", sess, "นานจัง"))
-        send.assert_called_once_with(USER, {"type": "text", "text": "reading"}, "tok")
+        loading.assert_called_once_with(USER, 60)  # LINE 原生加载动画，不发「正在读」文字
+        send.assert_not_called()
         with patch.object(query_flow.sales_readback, "_query_endpoint", return_value="EP"), \
                 patch.object(query_flow.manual, "status", return_value={"state": "succeeded"}):
             self.assertFalse(query_flow.handle_text(BINDING, USER, "tok", sess, "นานจัง"))
@@ -159,6 +159,37 @@ class WhileWaiting(unittest.TestCase):
             begin.assert_not_called()
             self.assertTrue(query_flow.handle_text(BINDING, USER, "tok", sess, "15/11/2569"))
         self.assertEqual(begin.call_args.kwargs["query"], "15/11/2569")
+
+
+
+class LoadingAnimation(unittest.TestCase):
+    """等待一律用 LINE 原生加载动画（用户 2026-10-02）：提交后放、读的过程中续，读失败才发文字；动画接口失败流程照常。"""
+
+    def test_a_submitted_read_shows_the_animation_instead_of_text(self):
+        with patch.object(query_flow, "_send") as send, patch.object(query_flow, "start_loading") as loading:
+            query_flow._waiting(USER, {"state": "queued"}, "tok")
+        loading.assert_called_once_with(USER, 60)
+        send.assert_not_called()
+        with patch.object(query_flow, "_send") as send, patch.object(query_flow, "start_loading") as loading, \
+                patch.object(query_flow.query_cards, "manual_status_message", return_value={"type": "text", "text": "failed"}):
+            query_flow._waiting(USER, {"state": "failed"}, "tok")
+        loading.assert_not_called()
+        send.assert_called_once_with(USER, {"type": "text", "text": "failed"}, "tok")
+
+    def test_long_reads_renew_every_fifty_seconds_and_a_broken_api_changes_nothing(self):
+        calls = []
+        budget = snapshot_sync.ScanBudget(snapshot_sync.time.monotonic(), lambda: calls.append(1))
+        budget.before()
+        self.assertEqual(calls, [])
+        budget.renewed -= snapshot_sync.LOADING_RENEW_SECONDS
+        budget.before()
+        self.assertEqual(calls, [1])
+        with patch("pearnly_dms.line.out.start_loading", side_effect=RuntimeError("LINE down")):
+            snapshot_sync._loading_renewer({"_binding": {"line_user_id": USER}})()  # 不抛
+
+    def test_approval_shows_the_animation_instead_of_a_processing_text(self):
+        source = (ROOT / "apps/pearnly_dms/pearnly_dms/approval/approval_flow.py").read_text()
+        self.assertNotIn("_reply(reply_token, approval_cards.TXT_PROCESSING)", source)
 
 
 if __name__ == "__main__":
