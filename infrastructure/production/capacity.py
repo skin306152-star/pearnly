@@ -117,9 +117,21 @@ KEYCLOAK_CONNECTIONS = 20
 # MariaDB 内存（压测窗口只读核算 2026-10-01，容器 4G、当天 00:49 OOM 过一次）：固定占用约 1.28G（buffer pool 1G + key buffer
 # 128M + aria 128M + log 16M）；每个连接平均约 5M（sort 2M、join / read / stack 等），最坏带内存临时表约 19M。上限按平均算，
 # 「固定 + max_connections × 每连接」不超过容器上限的 MARIADB_SHARE（4G × 0.7 ≈ 2.8G，压测窗口的警戒线）。
+# 2026-10-02：缓冲池改由 runtime.env 设（PEARNLY_MARIADB_BUFFER_POOL），固定占用 = 缓冲池 + 其余约 286M。
 MARIADB_FIXED_MIB = 1310
+MARIADB_POOL_DEFAULT_MIB = 1024
 MARIADB_CONNECTION_MIB = 5
 MARIADB_SHARE = 0.7
+
+
+def buffer_pool_mib(services):
+    """MariaDB 命令行里的 --innodb-buffer-pool-size（如 1G / 6144M），换成 MiB；没写按默认 1G。"""
+    for part in [str(item) for item in services['mariadb'].get('command') or []]:
+        if part.startswith('--innodb-buffer-pool-size='):
+            value = part.split('=', 1)[1].strip().upper()
+            unit = {'G': 1024, 'M': 1}.get(value[-1:])
+            return int(float(value[:-1]) * unit) if unit else int(value) // MIB
+    return MARIADB_POOL_DEFAULT_MIB
 
 
 def _flag(command, name, default):
@@ -185,11 +197,14 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
     report['db_connections'] = connections(services, every)
     report['db_max_connections'] = max_connections(services)
     mariadb_limit = int(services['mariadb'].get('mem_limit') or 0)
-    report['db_memory_mib'] = MARIADB_FIXED_MIB + report['db_max_connections'] * MARIADB_CONNECTION_MIB
-    # 只在把上限提到默认（151）以上时把关：提连接数必须先有内存（生产已把 MariaDB 提到 4G）。
-    if (mariadb_limit and report['db_max_connections'] > 151
+    pool = buffer_pool_mib(services)
+    report['db_buffer_pool_mib'] = pool
+    report['db_memory_mib'] = (MARIADB_FIXED_MIB - MARIADB_POOL_DEFAULT_MIB + pool
+                               + report['db_max_connections'] * MARIADB_CONNECTION_MIB)
+    # 只在把连接数提到默认（151）以上、或把缓冲池提到默认（1G）以上时把关：提这两样都必须先有内存（生产已把 MariaDB 提到 4G）。
+    if (mariadb_limit and (report['db_max_connections'] > 151 or pool > MARIADB_POOL_DEFAULT_MIB)
             and report['db_memory_mib'] * MIB > mariadb_limit * MARIADB_SHARE):
-        raise ValueError('max_connections would push MariaDB past %d%% of its memory limit: %s'
+        raise ValueError('max_connections or the buffer pool would push MariaDB past %d%% of its memory limit: %s'
                          % (MARIADB_SHARE * 100, json.dumps(report)))
     if report['db_connections'] > report['db_max_connections'] * CONNECTION_SHARE:
         raise ValueError('Database connections would exceed %d%% of max_connections: %s'

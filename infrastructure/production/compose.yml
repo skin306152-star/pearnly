@@ -3,7 +3,7 @@ name: pearnly-production
 # 可调容量（2026-09-30）：三产品的识别进程、Cowork 对账进程、网页进程数和各自内存上限
 # 从 /opt/pearnly/secrets/runtime.env 读，没写就是下面各处 `:-` 后的原值：
 #   PEARNLY_{DMS,ERP,COWORK}_OCR_WORKERS / _OCR_MEM / _OCR_THREADS / _OCR_THREAD_MB、PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS、PEARNLY_COWORK_LONG_WORKERS / _LONG_MEM、
-#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_BILLING_WEB_THREADS / _WORKERS、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS。
+#   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_BILLING_WEB_THREADS / _WORKERS、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS / _BUFFER_POOL。
 # 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
 
 x-runtime: &runtime
@@ -75,7 +75,9 @@ services:
     # --max-connections：runtime.env 的 PEARNLY_MARIADB_MAX_CONNECTIONS，默认 151（MariaDB 默认值）。2026-10-01 线上 SET GLOBAL 到 300
     # 后，真实大文件回归把数据库顶到 2g 上限、被 OOM 杀了一次（每个连接的缓冲可随 64M 的大包涨到几十 MB）；
     # 现按估算高峰约 110 个连接保持 151。要调高先把 PEARNLY_MARIADB_MEM 一起调大。
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-buffer-pool-size=1G, --max-allowed-packet=64M, '--max-connections=${PEARNLY_MARIADB_MAX_CONNECTIONS:-151}']
+    # --innodb-buffer-pool-size：runtime.env 的 PEARNLY_MARIADB_BUFFER_POOL，默认 1G（2026-10-02 压测：1G 已满、机器 31G 只用了 9G）。
+    # 提缓冲池要同时提 PEARNLY_MARIADB_MEM，容量检查按「缓冲池 + 固定开销 + 连接数 × 每连接」核算（capacity.py）。
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, '--innodb-buffer-pool-size=${PEARNLY_MARIADB_BUFFER_POOL:-1G}', --max-allowed-packet=64M, '--max-connections=${PEARNLY_MARIADB_MAX_CONNECTIONS:-151}']
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
       MARIADB_DATABASE: keycloak

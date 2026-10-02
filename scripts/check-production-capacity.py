@@ -212,6 +212,19 @@ assert '--max-connections=300' in rendered(PEARNLY_MARIADB_MAX_CONNECTIONS='300'
 assert int(services['mariadb']['mem_limit']) == 2048 * M
 assert int(rendered(PEARNLY_MARIADB_MEM='3g')['mariadb']['mem_limit']) == 3072 * M
 checks.append('MariaDB connections and memory are set from runtime.env, default 151 / 2g')
+assert '--innodb-buffer-pool-size=1G' in services['mariadb']['command']
+assert '--innodb-buffer-pool-size=6G' in rendered(PEARNLY_MARIADB_BUFFER_POOL='6G')['mariadb']['command']
+assert capacity.buffer_pool_mib(rendered(PEARNLY_MARIADB_BUFFER_POOL='6G')) == 6144
+assert capacity.buffer_pool_mib(rendered(PEARNLY_MARIADB_BUFFER_POOL='3072M')) == 3072
+assert capacity.buffer_pool_mib(services) == 1024
+try:  # 只提缓冲池、不提容器上限：拒绝
+    capacity.calculate(rendered(**{**REAL, 'PEARNLY_MARIADB_BUFFER_POOL': '6G'}, PEARNLY_MARIADB_MAX_CONNECTIONS='210'),
+                       live, 'cowork', HOST_MIB * M, 24000 * M)
+except ValueError as error:
+    assert 'buffer pool' in str(error), error
+else:
+    raise AssertionError('A 6G buffer pool in a 4g MariaDB must be refused')
+checks.append('The MariaDB buffer pool is set from runtime.env and must fit its memory limit')
 # 识别进程开多线程（PEARNLY_*_OCR_THREADS，pool.py）：默认 1 不改任何行为；每多一个线程每进程多要 150 MiB。
 for name in ('dms-ocr-worker', 'erp-ocr-worker', 'cowork-ocr-worker'):
     assert services[name]['environment']['PEARNLY_OCR_THREADS'] == '1', name
