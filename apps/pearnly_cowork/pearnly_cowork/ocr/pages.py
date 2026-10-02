@@ -115,6 +115,29 @@ def assess_confidence(pages: list[dict]) -> dict:
 	return {"pages": pages, "confidence": "high" if maximum >= 6 else "medium" if maximum >= 3 else "low"}
 
 
+def restore_total_before_withholding(pages: list[dict]) -> int:
+	"""读出了预扣税额、合计却是扣了预扣税之后的实付额（未税 + 税额 − 预扣 = 合计）：合计改回扣前的含税总额（票面
+	「จำนวนเงินรวมทั้งสิ้น」，会计登记与金标都按它），预扣额照旧单独存。回改了几张。
+
+	2026-10-02 金标评测（零费用重放已存结果）：第一批改 5 张全对、扩充批改 17 张合计错 28 → 14，其余字段不变。"""
+	from decimal import Decimal, InvalidOperation
+
+	def money(value):
+		try:
+			return Decimal(str(value).replace(",", "").strip()) if value not in (None, "") else None
+		except InvalidOperation:
+			return None
+
+	changed = 0
+	for page in pages or []:
+		fields = (page or {}).get("fields") or {}
+		subtotal, vat, total, withheld = (money(fields.get(key)) for key in ("subtotal", "vat", "total_amount", "wht_amount"))
+		if withheld and withheld > 0 and None not in (subtotal, vat, total) and abs(subtotal + vat - withheld - total) <= Decimal("0.02"):
+			fields["total_amount"] = f"{subtotal + vat:.2f}"
+			changed += 1
+	return changed
+
+
 def all_pages_not_invoice(pages: list[dict]) -> bool:
 	if not pages:
 		return False

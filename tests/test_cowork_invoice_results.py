@@ -55,6 +55,20 @@ class InvoiceResultPreparation(unittest.TestCase):
         self.assertEqual(result.model_dump(mode="json"), original)
         self.assertNotIn("direction", plan["raw_pages"][0]["fields"])
 
+    def test_total_is_the_grand_total_before_withholding_tax(self):
+        # 2026-10-02 金标评测：读出了预扣税、合计却是扣后的实付额 → 合计改回扣前的含税总额（票面 จำนวนเงินรวมทั้งสิ้น）
+        net_paid = invoice(invoice_number="A", subtotal="20000", vat="1400", wht_rate="3", wht_amount="600",
+            total_amount="20800")
+        plan = prepare(batch(page(1, net_paid)))
+        fields = plan["groups"][0]["pages"][0]["fields"]
+        self.assertEqual((fields["total_amount"], fields["wht_amount"]), ("21400.00", "600"))
+        # 合计本来就是扣前的、没有预扣税、或对不上的：不动
+        for values in ({"total_amount": "21400", "wht_amount": "600"}, {"total_amount": "21400", "wht_amount": ""},
+                       {"total_amount": "20500", "wht_amount": "600"}):
+            same = invoice(invoice_number="B", subtotal="20000", vat="1400", **values)
+            kept = prepare(batch(page(1, same)))["groups"][0]["pages"][0]["fields"]
+            self.assertEqual(kept["total_amount"], values["total_amount"])
+
     def test_an_unread_page_joins_the_invoice_before_it_and_flags_it(self):
         unread = PipelinePageResult(page_number=2, invoice=invoice(), layer_chain=["PAGE_UNREAD"],
             needs_manual_review=True, confidence_band="needs_review",

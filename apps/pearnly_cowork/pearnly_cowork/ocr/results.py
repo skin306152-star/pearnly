@@ -13,7 +13,7 @@ from pearnly_cowork.contracts.push import (apply_batch_direction, apply_batch_pa
     normalize_direction, normalize_payment, normalize_posting_kind)
 from pearnly_cowork.ocr.grouping import group_invoices
 from pearnly_cowork.ocr.pages import (
-    aggregate_confidence_band, all_pages_not_invoice, assess_confidence,
+    aggregate_confidence_band, all_pages_not_invoice, assess_confidence, restore_total_before_withholding,
     flatten_pipeline_pages, history_pages,
 )
 from pearnly_cowork.ocr.schema.results import PipelineResult
@@ -149,6 +149,8 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
         if page["page_index"] in review_pages:
             page["_needs_manual_review"] = True
             page["_confidence_band"] = "needs_review"
+    # 合计按扣预扣税之前的含税总额（读出的预扣额照旧单独存）。
+    restore_total_before_withholding(raw)
     band = "needs_review" if review_pages else aggregate_confidence_band(result.pages)
     # Preserve the old whole-batch noninvoice gate. In a mixed batch, do not
     # silently discard noninvoice pages; grouping retains their source evidence.
