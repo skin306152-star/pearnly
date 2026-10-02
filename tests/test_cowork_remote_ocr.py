@@ -786,6 +786,31 @@ class StorageRetries(unittest.TestCase):
         self.assertEqual((final["status"], final["reason"]), ("deferred", "remote_store_unavailable"))
 
 
+class TextPathEval(unittest.TestCase):
+    def test_the_text_path_switch_is_read_from_the_revision_environment_only(self):
+        for value, expected in ((None, False), ("1", True), ("true", True), ("0", False), ("", False)):
+            with patch.dict(runner.os.environ, {} if value is None else {"OCR_TEXT_PATH_EVAL": value}):
+                if value is None:
+                    runner.os.environ.pop("OCR_TEXT_PATH_EVAL", None)
+                self.assertEqual(runner.text_path_forced(), expected, value)
+
+
+class DirectModelEval(unittest.TestCase):
+    def test_the_direct_model_switch_only_takes_listed_models(self):
+        for value, expected in ((None, ""), ("gemini-3.8-flash", "gemini-3.8-flash"), ("gpt-x", "")):
+            with patch.dict(runner.os.environ, {} if value is None else {"OCR_EVAL_DIRECT_MODEL": value}):
+                if value is None:
+                    runner.os.environ.pop("OCR_EVAL_DIRECT_MODEL", None)
+                self.assertEqual(runner.eval_direct_model(), expected, value)
+
+    def test_a_switched_direct_model_is_the_one_called(self):
+        google = Google()
+        with patch.dict(runner.os.environ, {"OCR_EVAL_DIRECT_MODEL": "gemini-3.8-flash"}):
+            final = remote(Bucket(), google)[-1]
+        self.assertEqual(final["status"], "done", final)
+        self.assertIn("models/gemini-3.8-flash:generateContent", google.sent[0])
+
+
 class PaidCallGuard(unittest.TestCase):
     def test_a_rate_limited_global_entry_switches_to_the_us_entry_at_once(self):
         google = Google(["429"])

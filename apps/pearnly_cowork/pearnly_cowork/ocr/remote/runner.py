@@ -285,6 +285,22 @@ def pdf_jpeg_quality():
     return value if 50 <= value <= 95 else 0
 
 
+def text_path_forced():
+    """评测开关：带文字层的 PDF 直接读文字层（不转图、不付费读字），等同站点配置 ``OCR_FAST_PATH_ENABLED=true``。
+    Cloud Run 环境变量 ``OCR_TEXT_PATH_EVAL=1``，只在不接流量的评测修订版上设（2026-10-02）；线上要开走站点配置。"""
+    return str(os.environ.get("OCR_TEXT_PATH_EVAL") or "").strip().lower() in ("1", "true")
+
+
+EVAL_DIRECT_MODELS = ("gemini-3.1-flash-lite", "gemini-3.8-flash")
+
+
+def eval_direct_model():
+    """评测开关：看图直读换模型（Cloud Run 环境变量 ``OCR_EVAL_DIRECT_MODEL``，只认登记的模型；其余读法不变），只在不接流量的
+    评测修订版上设（2026-10-02）。区域照模型自己的规则（3.8 走 global）。不设或不认得返回空。"""
+    value = str(os.environ.get("OCR_EVAL_DIRECT_MODEL") or "").strip()
+    return value if value in EVAL_DIRECT_MODELS else ""
+
+
 def page_threads():
     """一份多页文件同时读几页（Cloud Run 环境变量 ``OCR_PAGE_THREADS``，默认 1 = 一页一页读）。"""
     try:
@@ -466,8 +482,13 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
             previews = None
     try:
         environment, anchor = dict(body["environment"]), date.fromisoformat(body["anchor_date"])
+        if text_path_forced():
+            environment["OCR_FAST_PATH_ENABLED"] = "true"
         selected = invoice_policy(environment, body["policy"])
         config = config_from_environment(environment, selected)
+        if eval_direct_model():
+            from dataclasses import replace
+            config = replace(config, direct_model=eval_direct_model())
         examples = body.get("examples")
         selector = partial(fewshot_for_text, examples_by_tax=examples["examples_by_tax"]) if examples else None
         started, cpu = clock(), time.thread_time()
