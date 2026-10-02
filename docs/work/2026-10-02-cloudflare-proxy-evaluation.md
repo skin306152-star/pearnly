@@ -41,3 +41,11 @@ API token 只授 `pearnly.com` 这一个 zone：Zone:Read、DNS:Edit（切橙云
 1. 真实客户端 IP（已做，下一批上线）。
 2. 把第 1 条里的同步长请求改成后台 + 轮询（ERP 识别优先，它今天就会超时），开户流程适配橙云。
 3. 前置项都上线后，再按第 5、6 条只开一个测试站验证，确认收益后逐站开。按目前数据收益约 0.1–0.3 s 首屏，不急。
+
+## 排期（压测窗口转用户口径，2026-10-02）
+
+- 同意暂不开橙云。
+- 下一批只做 **ERP 识别改后台 + 轮询**（今天就会撞 gunicorn 120 秒，是现存问题；按规矩随 Cowork 一起上）。
+- **开橙云前置项（现在不排，真要开时一起做）**：DMS 连接测试 / LIFF 编辑器 / LINE 回调去重的实时 DMS 登录、Cowork `sheets.load` 等锁、
+  各处无上限同步导出、控制面 `logout_everywhere`、开户 `publish()` 适配橙云（灰云开通、签证书后再切）。
+- web p95 约 2 秒归「web CPU」项：主因是 redis-cache 被每用户 bootinfo 挤满（见 `2026-10-02-cowork-ocr-procs.md`「redis-cache」）。
