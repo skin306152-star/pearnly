@@ -258,7 +258,10 @@ def _push_result(endpoint, dataset, request_id, conditions):
     except Exception:
         # 2026-10-02 ris：推结果这一步报错只记了一行 warning，操作员两次查询都既没结果也没失败提示。
         # 现在记进 Error Log，并告诉发起人这次没查成、请重试（推不出去也不影响已落库的读取结果）。
-        frappe.log_error(title="DMS query result push failed")
+        try:
+            frappe.log_error(title="DMS query result push failed")
+        except Exception:  # 记不进 Error Log（没有站点上下文等）也不能把读取结果拖成失败
+            logger.warning("DMS query result push failed", exc_info=True)
         _tell_failed(binding)
 
 
