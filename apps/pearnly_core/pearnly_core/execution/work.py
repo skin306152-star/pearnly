@@ -212,14 +212,10 @@ def _finish(name, status, code="", delay=0, notify=True):
             pass  # Native scheduler repairs the delivery hint.
     if status not in ACTIVE:
         # 有结论就推给提交人（原生实时推送）：等候页收到立刻读结果，不用每一两秒轮询一次（2026-10-01 生产压测：几十份
-        # 同时识别，页面轮询占了网页 CPU 的一大块）。只作提醒，推送不了页面照样按兜底轮询拿到结果。
-        try:
-            owner = frappe.db.get_value(DT, name, ["user", "kind", "reference"], as_dict=True)
-            if owner and owner.user:
-                frappe.publish_realtime("pearnly_ocr_work", {"kind": owner.kind, "reference": owner.reference,
-                                                             "status": status}, user=owner.user, after_commit=False)
-        except Exception:
-            pass
+        # 同时识别，页面轮询占了网页 CPU 的一大块）。只作提醒，推送不了页面照样按兜底轮询拿到结果。产品在结果入库时已经推过
+        # （``notify_result``）的不再推第二次。
+        if not (status == "succeeded" and frappe.flags.get("pearnly_ocr_pushed") == name):
+            _push(name, status)
         from .inputs import remove
         remove(name)
         try:
@@ -231,6 +227,29 @@ def _finish(name, status, code="", delay=0, notify=True):
             pass  # Admission reservation expires conservatively.
     # 最后才告诉产品：名额已还、状态已落库，产品接着排的事看得到腾出来的名额。
     _finished(name, status, code)
+
+
+def _push(name, status):
+    try:
+        owner = frappe.db.get_value(DT, name, ["user", "kind", "reference"], as_dict=True)
+        if owner and owner.user:
+            frappe.publish_realtime("pearnly_ocr_work", {"kind": owner.kind, "reference": owner.reference,
+                                                         "status": status}, user=owner.user, after_commit=False)
+    except Exception:
+        pass
+
+
+def notify_result(name=None):
+    """产品在识别结果已经入库（已提交）时调用：马上推「有结论」给提交人，不等后面的收尾（例如扣费，2026-10-02 m7：结果入库到
+    扣费完还要约 2 秒）。这次运行以「成功」收尾时不再推第二次；收尾不是成功（例如扣费稍后重试）照常再推。"""
+    try:
+        name = name or frappe.flags.get("pearnly_ocr_work")
+        if not name:
+            return
+        _push(name, "succeeded")
+        frappe.flags.pearnly_ocr_pushed = name
+    except Exception:
+        pass  # 只是提醒：推不了照常在收尾时推
 
 
 def _woken(name):
@@ -265,6 +284,7 @@ def context(name):
     previous = frappe.flags.get("pearnly_ocr_work")
     frappe.flags.pearnly_ocr_work = name
     frappe.flags.pearnly_ocr_checkpoints = None
+    frappe.flags.pearnly_ocr_pushed = None
     try:
         yield
     finally:

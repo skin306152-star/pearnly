@@ -273,6 +273,8 @@ def run(batch_name):
             try:
                 with core_work.step("persist"):
                     doc = _persist(doc)
+                # 结果已入库（已提交）：先告诉等候页去读，扣费放在后面做（扣费按参考号幂等，不受影响）
+                core_work.notify_result()
             except frappe.QueryDeadlockError as exc:
                 # Only the local transaction is retried. The immutable result
                 # and independently committed provider checkpoints survive.
