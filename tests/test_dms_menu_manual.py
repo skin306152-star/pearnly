@@ -85,9 +85,12 @@ class MenuCardTests(Isolated):
             self.assertEqual(title, "dms.card.TXT_MENU_ITEM6")
         self.assertEqual(len(self.card_rows(can_query=True)), 4)  # 1, 2, 5, 6 (3/4 need LIFF)
 
-    def test_row_six_draws_a_glyph_not_a_missing_image(self):
+    def test_row_six_uses_its_shipped_icon(self):
         icon = self.card_rows()[-1]["contents"][0]["contents"][0]
-        self.assertEqual((icon["type"], icon["text"]), ("text", "▶"))
+        self.assertEqual(icon["type"], "image")
+        self.assertTrue(icon["url"].endswith("/menu-6.png?v=1"))
+        art = Path(__file__).resolve().parents[1] / "apps/pearnly_dms/pearnly_dms/public/images/menu"
+        self.assertTrue((art / "menu-6.png").is_file())
 
 
 class ManualTests(Isolated):
@@ -228,10 +231,12 @@ class RichMenuTests(Isolated):
                                           "data": "action=menu_manual"})
         self.assertEqual(last["bounds"], {"x": 1666, "y": 843, "width": 834, "height": 843})
 
-    def test_basic_menu_layout_is_unchanged(self):
+    def test_basic_menu_ends_with_a_wide_manual_card(self):
         areas = self.rich.payload(query=False)["areas"]
-        self.assertEqual(len(areas), 4)
-        self.assertNotIn("menu_manual", str(areas))
+        self.assertEqual([a["bounds"]["width"] for a in areas], [833, 833, 834, 1250, 1250])
+        self.assertEqual(areas[-1]["action"]["data"], "action=menu_manual")
+        self.assertEqual(areas[-1]["bounds"], {"x": 1250, "y": 843, "width": 1250, "height": 843})
+        self.assertNotIn("menu_query", str(areas))
 
 
 class GlossaryTests(unittest.TestCase):

@@ -44,14 +44,7 @@ def icon_base() -> str:
     return frappe.utils.get_url().rstrip("/") + "/assets/pearnly_dms/images/menu"
 
 
-def menu_icon_disc(icon: str | None, soft: str, size: str, img: str,
-                   glyph: str = "", accent: str = "") -> Dict[str, Any]:
-    """图标圆底。`icon=None` 时画一个文字符号（`glyph`）代替图片 —— 第 6 项还没有设计图标。"""
-    if icon is None:
-        inner = {"type": "text", "text": glyph, "size": "lg", "color": accent,
-                 "align": "center", "gravity": "center"}
-    else:
-        inner = {"type": "image", "url": f"{icon_base()}/{icon}.png?v=1", "size": img}
+def menu_icon_disc(icon: str, soft: str, size: str, img: str) -> Dict[str, Any]:
     return {
         "type": "box",
         "layout": "vertical",
@@ -61,18 +54,19 @@ def menu_icon_disc(icon: str | None, soft: str, size: str, img: str,
         "backgroundColor": soft,
         "justifyContent": "center",
         "alignItems": "center",
-        "contents": [inner],
+        "contents": [
+            {"type": "image", "url": f"{icon_base()}/{icon}.png?v=1", "size": img}
+        ],
     }
 
 
 def menu_item(
     num: str,
-    icon: str | None,
+    icon: str,
     theme: Dict[str, str],
     title: str,
     desc: str,
     action: Dict[str, Any] | None,
-    glyph: str = "",
 ) -> Dict[str, Any]:
     """整行可点的菜单项：编号圆徽、图标、标题说明和箭头。`action=None` = 不可点（不画箭头）。"""
     accent = theme["accent"]
@@ -87,7 +81,7 @@ def menu_item(
         "paddingAll": "14px",
         "alignItems": "center",
         "contents": [
-            menu_icon_disc(icon, theme["soft"], "46px", "26px", glyph, accent),
+            menu_icon_disc(icon, theme["soft"], "46px", "26px"),
             {
                 "type": "text",
                 "text": num,
@@ -214,16 +208,14 @@ def menu_card(
                 {"type": "postback", "data": _data(ACT_MENU_QUERY)},
             )
         )
-    # 第 6 项还没有设计好的图标图片：先用文字符号 ▶ 画在圆底里，不引用不存在的图片。
     contents.append(
         menu_item(
             "6",
-            None,
+            "menu-6",
             THEME_TEAL,
             cards.TXT_MENU_ITEM6,
             cards.TXT_MENU_D6,
             {"type": "postback", "data": _data(ACT_MENU_MANUAL)},
-            glyph="▶",
         )
     )
     contents.append(

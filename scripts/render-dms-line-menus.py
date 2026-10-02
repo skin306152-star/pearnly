@@ -10,9 +10,8 @@ Re-run after changing that wording:
     docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
       -v "$PWD:/repo" <frappe image> /repo/scripts/render-dms-line-menus.py
 
-The query menu's sixth card is the manual (LINE menu item 6, `action=menu_manual`). It used to be a
-grey "coming soon" placeholder: replace that card in the Thai original first (icon in the card's accent
-colour, title คู่มือ, subtitle คลิปสอนการใช้งาน), then re-run this script, then publish the menus again.
+The Thai originals are drawn by `draw-dms-line-menu-originals.py` (both menus end with the manual card,
+LINE menu item 6, `action=menu_manual`); run that first, then this script, then publish the menus again.
 
 Offline and idempotent; it only rewrites `public/images/menu/rich-{basic,query}-{en,zh,ja}.png`.
 Fonts are the open fonts shipped in the Frappe image (WenQuanYi Zen Hei, IPA PGothic, DejaVu).
@@ -35,8 +34,8 @@ SUBTITLE = "#6F6A80"
 ROWS = ((481, 688), (1325, 1531))
 LAYOUTS = {
     # menu -> list of (card x0, card x1, row, function) in reading order
-    "basic": [(46, 1204, 0, "customer"), (1296, 2454, 0, "booking"),
-              (46, 1204, 1, "portal"), (1296, 2454, 1, "credentials")],
+    "basic": [(46, 788, 0, "customer"), (879, 1621, 0, "booking"), (1712, 2454, 0, "portal"),
+              (46, 1204, 1, "credentials"), (1296, 2454, 1, "manual")],
     "query": [(46, 788, 0, "customer"), (879, 1621, 0, "booking"), (1712, 2454, 0, "portal"),
               (46, 788, 1, "credentials"), (879, 1621, 1, "query"), (1712, 2454, 1, "manual")],
 }
