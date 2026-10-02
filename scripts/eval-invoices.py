@@ -784,7 +784,7 @@ def gold_align(golds, invoices):
     return matched, [g for i, g in enumerate(golds) if i not in used_g], [r for i, r in enumerate(invoices) if i not in used_r]
 
 
-def gold_score(results, gold_rows):
+def gold_score(results, gold_rows, count_missed=False):
     by_doc = collections.defaultdict(list)
     for row in gold_rows:
         by_doc[row["编号"]].append(row)
@@ -793,6 +793,18 @@ def gold_score(results, gold_rows):
     kinds = collections.Counter()
     docs = collections.Counter()
     details = []
+
+    def missed_cells(gold, head):
+        """同口径（``--count-missed``）：漏掉的真票按「这张票全部字段错」计入分母，印了的算读错、没印的算多填。"""
+        for field, column, _key in GOLD_FIELDS:
+            if field == "wht":
+                continue
+            printed = gold_value(field, gold[column]) is not None
+            group = (field, head["方向"], head["形态"], "printed" if printed else "not_printed")
+            cells[group] += 1
+            wrong[group] += 1
+            kinds[f"{field}:missed_invoice"] += 1
+
     for record in results:
         rows = by_doc.get(record["编号"])
         if not rows:
@@ -812,11 +824,17 @@ def gold_score(results, gold_rows):
             docs["missed_document"] += 1
             details.append({"编号": record["编号"], "field": "*", "kind": "missed_document", "state": record["state"],
                             "types": sorted({row["票据类型"] for row in expected})})
+            if count_missed:
+                for gold in expected:
+                    missed_cells(gold, head)
             continue
         matched, missed, extra = gold_align(expected, invoices)
         docs["gold_invoices"] += len(expected)
         docs["missed_invoices"] += len(missed)
         docs["extra_invoices"] += len(extra)
+        if count_missed:
+            for gold in missed:
+                missed_cells(gold, head)
         for gold, invoice in matched:
             fields = invoice["fields"]
             for field, column, key in GOLD_FIELDS:
@@ -867,7 +885,7 @@ def gold(args):
     reports = {}
     for out in args.runs:
         results = [json.loads(line) for line in open(Path(out, "results.jsonl"), encoding="utf-8")]
-        report, details = gold_score(results, gold_rows)
+        report, details = gold_score(results, gold_rows, count_missed=args.count_missed)
         Path(out, "gold.json").write_text(json.dumps({"report": report, "details": details}, ensure_ascii=False, indent=1),
                                           encoding="utf-8")
         reports[Path(out).name] = report
@@ -916,6 +934,7 @@ def main():
     golder = sub.add_parser("gold")
     golder.add_argument("--gold", required=True)
     golder.add_argument("--runs", nargs="+", required=True, help="一个或几个 run 的输出目录，并排比")
+    golder.add_argument("--count-missed", action="store_true", help="漏掉的真票按全部字段错计入（各轮同口径比）")
     l1_reader = sub.add_parser("l1")
     l1_reader.add_argument("--site", required=True)
     l1_reader.add_argument("--out", required=True)
