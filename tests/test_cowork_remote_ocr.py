@@ -811,6 +811,38 @@ class DirectModelEval(unittest.TestCase):
         self.assertIn("models/gemini-3.8-flash:generateContent", google.sent[0])
 
 
+class StepTiming(unittest.TestCase):
+    """Cloud Run 上一份读取按步骤计时（2026-10-02 用户问：单页谷歌 4–6 秒，为什么一份 13–19 秒）。只计量，不改读取。"""
+
+    def lines(self, fn):
+        import contextlib
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            result = fn()
+        return result, [json.loads(line) for line in out.getvalue().splitlines() if line.startswith("{")]
+
+    def test_invoice_done_reports_each_step(self):
+        events, lines = self.lines(lambda: remote(Bucket(), Google()))
+        self.assertEqual(events[-1]["status"], "done")
+        done = [line for line in lines if line.get("event") == "invoice_done"][-1]
+        self.assertEqual(done["work"], WORK[:16])
+        steps = done["steps"]
+        self.assertEqual(steps["call_gemini-3.1-flash-lite"][0], 1)          # 一次直读
+        self.assertEqual(steps["render"][0], 1)                             # 一页渲染一次
+        self.assertGreaterEqual(steps["cp_get"][0] + steps["cp_create"][0], 2)   # 检查点读写都计到
+        self.assertTrue(all(isinstance(v, list) and len(v) == 2 for v in steps.values()))
+
+    def test_task_start_reports_delivery_delay_and_first_request(self):
+        runner._served.clear()
+        _none, lines = self.lines(lambda: runner.task_started({"work": WORK, "dispatch": "d" * 32}, "1000.5", "0",
+                                                              now=lambda: 1003.0))
+        _none, again = self.lines(lambda: runner.task_started({"work": WORK, "dispatch": "e" * 32}, None, "1"))
+        self.assertEqual((lines[0]["delay"], lines[0]["first"], lines[0]["work"], lines[0]["dispatch"]),
+                         (2.5, True, WORK[:16], "d" * 8))
+        self.assertEqual((again[0]["delay"], again[0]["first"], again[0]["retry"]), (None, False, "1"))
+
+
 class PaidCallGuard(unittest.TestCase):
     def test_a_rate_limited_global_entry_switches_to_the_us_entry_at_once(self):
         google = Google(["429"])

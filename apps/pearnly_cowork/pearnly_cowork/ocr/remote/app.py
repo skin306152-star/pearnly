@@ -81,6 +81,8 @@ def application(environ, start_response):
         start_response("200 OK", [("Content-Type", preview_type(png)), ("Cache-Control", "no-store")])
         return [png]
     if path == "/v1/cowork/task":
+        runner.task_started(body if isinstance(body, dict) else {}, environ.get("HTTP_X_CLOUDTASKS_TASKETA"),
+                            environ.get("HTTP_X_CLOUDTASKS_TASKRETRYCOUNT"))
         bucket, token = _backend()
         status = runner.task(body, bucket, token, id_token=_tokens(), orient=orient, page_source=PageSource,
                              originals=_originals_bucket())

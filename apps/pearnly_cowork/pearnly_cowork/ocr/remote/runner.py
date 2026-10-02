@@ -54,6 +54,75 @@ class Busy(Exception):
     """同一份单据已有另一个实例在跑（上一次请求断开后它可能还在跑）。"""
 
 
+class Steps:
+    """一份读取在 Cloud Run 上各步花的时间 ``{步骤: [次数, 秒]}``（2026-10-02 用户问：单页谷歌本身 4–6 秒，为什么一份要 13–19 秒）。
+    只计量、随 ``invoice_done`` 一行日志出去，不影响读取。多页同时读时各线程一起记（加锁）。"""
+
+    def __init__(self):
+        self._lock, self.values = threading.Lock(), {}
+
+    def add(self, name, seconds):
+        with self._lock:
+            entry = self.values.setdefault(name, [0, 0.0])
+            entry[0] += 1
+            entry[1] += seconds
+
+    def report(self):
+        with self._lock:
+            return {name: [count, round(total, 2)] for name, (count, total) in sorted(self.values.items())}
+
+
+class TimedBackend:
+    """检查点桶的读写各花多久（读 / 新建 / 覆盖 / 删除各记一项）。其余照原对象。"""
+
+    def __init__(self, backend, steps):
+        self._backend, self._steps = backend, steps
+
+    def _timed(self, name, method, *args, **kwargs):
+        started = time.monotonic()
+        try:
+            return getattr(self._backend, method)(*args, **kwargs)
+        finally:
+            self._steps.add(name, time.monotonic() - started)
+
+    def get(self, *args, **kwargs):
+        return self._timed("cp_get", "get", *args, **kwargs)
+
+    def create(self, *args, **kwargs):
+        return self._timed("cp_create", "create", *args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        return self._timed("cp_put", "put", *args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        return self._timed("cp_delete", "delete", *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._backend, name)
+
+
+class TimedPages:
+    """页面渲染（PDF 转图、转正）各花多久；其余照原对象（页数、文字层、上下文管理）。"""
+
+    def __init__(self, pages, steps):
+        self._pages, self._steps = pages, steps
+
+    def frame(self, page_number):
+        started = time.monotonic()
+        try:
+            return self._pages.frame(page_number)
+        finally:
+            self._steps.add("render", time.monotonic() - started)
+
+    def __getattr__(self, name):
+        return getattr(self._pages, name)
+
+
+def call_kind(identity, host):
+    """调用归哪一类：Gemini 按模型名，读字、Document AI 按地址。"""
+    return model_name(identity) or ("vision" if "vision" in host else "docai" if "documentai" in host else "other")
+
+
 class Store:
     """一份识别任务（site + work）的检查点与租约。
 
@@ -70,6 +139,7 @@ class Store:
         # 按模型分开记 ``{模型: [调用, 限流]}``（谷歌的共享额度按模型算，服务器各模型一个池；读字 / Document AI 记在 "" 下，
         # 算进这份所在的池）。2026-10-02 压测窗口：3.8 与 flash-lite 同在一个发票池会互相拖累。
         self.by_model = {}
+        self.steps = getattr(backend, "_steps", None) or Steps()
         self._lock = threading.Lock()  # 引擎可能多页同时读：缓存的读写要线程安全（每个调用各自一个对象）
 
     def count(self, identity, calls=0, throttled=0):
@@ -172,6 +242,7 @@ class Provider:
                 log(event="provider_wait", reason=str(exc.reason), seconds=delay)
                 (self._sleep or time.sleep)(delay)
                 waited += delay
+                self._store.steps.add("wait", delay)
 
     def _post(self, url, headers, payload, timeout_s, model):
         key = checkpoint_key(payload, model)
@@ -198,6 +269,7 @@ class Provider:
                                             timeout=(UPLOAD_STEP_SECONDS, timeout), stream=True)
         except requests.RequestException as exc:
             log(event="provider_call", host=host, status="transport_error", seconds=round(time.monotonic() - sent, 2))
+            self._store.steps.add("call_" + call_kind(model, host) + "_unanswered", time.monotonic() - sent)
             raise Uncertain("Provider transport outcome unknown") from exc
         log(event="provider_call", host=host, status=response.status_code, seconds=round(time.monotonic() - sent, 2))
         with self._store._lock:
@@ -209,6 +281,7 @@ class Provider:
                 self._store.count(model, throttled=1)
             self._store.put(key, "rejected", {"http": response.status_code})
             response.close()
+            self._store.steps.add("call_" + call_kind(model, host) + "_throttled", time.monotonic() - sent)
             raise Deferred("provider_" + str(response.status_code), _retry_after(response))
         try:
             raw = bytearray()
@@ -224,6 +297,7 @@ class Provider:
             raise Uncertain("Provider response was interrupted") from exc
         finally:
             response.close()
+            self._store.steps.add("call_" + call_kind(model, host), time.monotonic() - sent)
         if response.status_code == 200:
             try:
                 body = response.json()
@@ -468,15 +542,18 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
     except ValueError as exc:
         emit(contract.result("error", code="invalid_request", detail=str(exc)))
         return
+    steps = Steps()
     if content is None:
+        fetched = time.monotonic()
         content, failure = original_bytes(body, originals)
+        steps.add("original", time.monotonic() - fetched)
         if failure == "original_unavailable":
             emit(contract.result("deferred", reason="remote_original_unavailable", delay=15))
             return
         if failure:
             emit(contract.result("error", code=failure))
             return
-    store = Store(backend, body["site"], body["work"])
+    store = Store(TimedBackend(backend, steps), body["site"], body["work"])
     try:
         store.acquire(seconds=max(LEASE_SECONDS, int(body.get("yield_seconds", contract.YIELD_SECONDS)) + 600))
     except Busy:
@@ -531,12 +608,17 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
                          enable_text_path=selected.text_fast_path,
                          image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
                          orient=orient) as pages:
-            result = run_invoice(pages, guarded(model_call), guarded(vision_call), config=config,
+            result = run_invoice(TimedPages(pages, steps), guarded(model_call), guarded(vision_call), config=config,
                                  anchor_year=anchor.year, today=anchor, fewshot_selector=selector, map_pages=page_map)
-        # 线程 CPU 只在一页一页读时准（多页同时读时 CPU 花在页线程里）。
-        log(event="invoice_done", pages=body["page_count"], seconds=round(clock() - started, 2), calls=len(result.calls),
-            **({"cpu_seconds": round(time.thread_time() - cpu, 2)} if page_map is None else {"page_threads": limit}))
+        engine_seconds = clock() - started
+        waiting = time.monotonic()
         stored = previews.collect() if previews else None
+        if previews:
+            steps.add("previews_wait", time.monotonic() - waiting)
+        # 线程 CPU 只在一页一页读时准（多页同时读时 CPU 花在页线程里）。``steps``：各步的次数与秒数（见 ``Steps``）。
+        log(event="invoice_done", work=body["work"][:16], pages=body["page_count"], seconds=round(engine_seconds, 2),
+            calls=len(result.calls), steps=steps.report(),
+            **({"cpu_seconds": round(time.thread_time() - cpu, 2)} if page_map is None else {"page_threads": limit}))
         emit(contract.result("done", throttled=store.throttled, calls=store.calls, by_model=store.by_model, pipeline=result.pipeline.model_dump_json(),
                              evidence=contract.evidence(result.calls), **({"previews": stored} if stored else {})))
     except Deferred as exc:
@@ -714,6 +796,22 @@ def _task_parts(envelope, backend):
         return contract.task_request(envelope, request), None
     except ValueError:
         return None, "task_request_invalid"
+
+
+_served = threading.Event()  # 这个实例接过任务没有（第一份 = 冷启动后的第一份）
+
+
+def task_started(envelope, scheduled=None, retry=None, now=time.time):
+    """一份任务开始时记一行：Cloud Tasks 排定时刻（``X-CloudTasks-TaskETA``）到真正开始等了几秒（投递 + 冷启动）、第几次重试、
+    是不是这个实例的第一份。``work`` / ``dispatch`` 取前几位，与服务器的派发记录对得上。"""
+    try:
+        delay = round(now() - float(scheduled), 2) if scheduled else None
+    except (TypeError, ValueError):
+        delay = None
+    first = not _served.is_set()
+    _served.set()
+    log(event="task_start", work=str(envelope.get("work") or "")[:16], dispatch=str(envelope.get("dispatch") or "")[:8],
+        delay=delay, retry=retry, first=first)
 
 
 def task(envelope, backend, access_token, *, id_token, post=None, orient, page_source, originals=None, http=None,
