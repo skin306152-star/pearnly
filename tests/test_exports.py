@@ -67,7 +67,7 @@ class Harness(unittest.TestCase):
         frappe.local.pearnly_export_response = False
         self.session = SimpleNamespace(user=USER)
         self.db = FakeDB()
-        self.queued, self.pushed = [], []
+        self.queued, self.pushed, self.committed_at_enqueue = [], [], []
         self.folder = tempfile.mkdtemp()
         self.conf = {}
 
@@ -87,7 +87,7 @@ class Harness(unittest.TestCase):
 
         patches = {
             "session": self.session, "db": self.db, "get_doc": get_doc, "get_all": get_all,
-            "enqueue": lambda method, **kwargs: self.queued.append((method, kwargs)),
+            "enqueue": lambda method, **kwargs: self.queued.append((method, kwargs)) or self.committed_at_enqueue.append(self.db.commits),
             "publish_realtime": lambda event, message, user=None, **kwargs: self.pushed.append((event, message, user)),
             "set_user": lambda user: setattr(self.session, "user", user),
             "get_site_path": lambda *parts: os.path.join(self.folder, *parts[1:]),
@@ -150,7 +150,9 @@ class CoreExports(Harness):
                          (USER, "queued", "th", {"task_id": "T-1"}))
         self.assertEqual(self.queued, [("pearnly_core.exports.service.run",
                                         {"queue": "default", "timeout": service.TIMEOUT_SECONDS, "job": job,
-                                         "enqueue_after_commit": True})])
+                                         "enqueue_after_commit": False})])
+        # 导出接口是 GET，请求结束不提交：任务行必须在排队前自己提交，否则被回滚、页面问状态只得到「没有权限」
+        self.assertEqual(self.committed_at_enqueue, [1])
         self.assertNotIn("filecontent", frappe.local.response)
 
     def test_no_permission_means_no_file_and_no_job(self):

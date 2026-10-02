@@ -80,8 +80,11 @@ def enqueue(*, count, build, args, filename, content_type=None):
                     "lang": frappe.local.lang or "", "filename": filename, "content_type": content_type or "",
                     "expires_at": add_to_date(now_datetime(), seconds=TIMEOUT_SECONDS) + LIFETIME,
                     }).insert(ignore_permissions=True)
+    # 导出接口多是 GET，Frappe 在 GET 请求结束时不提交：先把这条任务提交了再排队，否则记录被回滚、
+    # 任务也永远等不到「提交后再排」，页面问状态只会得到「没有权限」（测试机 2026-10-03 点页查出）。
+    frappe.db.commit()
     frappe.enqueue("pearnly_core.exports.service.run", queue=QUEUE, timeout=TIMEOUT_SECONDS, job=name,
-                   enqueue_after_commit=True)
+                   enqueue_after_commit=False)
     return name
 
 
