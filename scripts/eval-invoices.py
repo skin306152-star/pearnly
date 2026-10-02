@@ -765,6 +765,13 @@ def gold_score(results, gold_rows):
                 if not printed and got is None:
                     cells[group] += 1
                     continue
+                if not printed and field in ("net", "vat"):
+                    # 没印未税 / 税额的收据：系统按记账口径推出未税 = 合计 − 税额、税额 = 0，不算多填（与印面不矛盾）
+                    gross, vat = money(gold["合计"]), money(gold["税额"]) or Decimal(0)
+                    derived = (gross - vat) if field == "net" and gross is not None else Decimal(0)
+                    if close(got, derived) or (field == "vat" and got == 0):
+                        cells[group] += 1
+                        continue
                 cells[group] += 1
                 ok = (close(got, want) if field in ("net", "vat", "gross", "wht") else got == want)
                 if not ok:
