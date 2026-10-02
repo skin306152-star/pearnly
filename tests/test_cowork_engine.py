@@ -150,6 +150,19 @@ class EngineTests(unittest.TestCase):
             # 上限随 2026-09-28 加的第 14 条（会计盖的凭证号章不是票号）放宽到 4800：仍远小于 L2 的 1.2 万。
             self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4800)
 
+    def test_bills_are_purchases_only_when_the_direct_model_is_3_8(self):
+        # 2026-10-02 eval7b：3.8 把电费通知单、请款单判成非票据；补的那句只随 3.8 走，flash-lite 的提示词一字不变
+        from pearnly_cowork.ocr.engine.prompts import BILLS_ARE_PURCHASES, IMAGE_SYSTEM, image_system
+        self.assertEqual(image_system("gemini-3.1-flash-lite"), IMAGE_SYSTEM)
+        self.assertEqual(image_system("gemini-3.8-flash").count(BILLS_ARE_PURCHASES), 1)
+        self.assertLess(len(image_system("gemini-3.8-flash")), 5200)
+        wrong = {**GOOD, "total_amount": "170"}
+        for model, expected in (("gemini-3.8-flash", True), ("lite", False)):
+            reader = Model([wrong, wrong, GOOD])
+            run(model=reader, config=replace(CONFIG, direct_model=model))
+            self.assertEqual([r.stage for r in reader.requests], ["direct", "recheck", "ocr_read"])
+            self.assertEqual([BILLS_ARE_PURCHASES in r.prompt for r in reader.requests], [expected] * 3)
+
     def test_a_full_tax_invoice_is_checked_against_the_transcript(self):
         # 2026-09-27 大语料：直读把单号读错一个字符、金额全对 —— 完整税票过了闸也拿 Vision 原文核对单号；
         # 2026-09-28 压测：原文也会读错，差一个字符时不替换，两种写法交复核、这一页转复核

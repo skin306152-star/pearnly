@@ -72,10 +72,27 @@ Rules:
 14. invoice_number is the number the issuer printed (เลขที่ / No.), never one stamped or handwritten later by the buyer (accounting voucher stamps such as RR690609-001, PV / JV numbers)."""
 
 
-def build_recheck_prompt(previous, reason):
+# 看图直读换成 3.8 时第 11 条后补这一句（2026-10-02 eval7b，用户同意随 3.8 上）：3.8 把印着「不是收据 / 不是税票」的
+# 电费通知单、请款单判成非票据（两批金标漏掉 62 份真票，其中首都电力局电费单 37 份），加这句后漏票 7 → 3、
+# 印了的读错 10.7% → 5.6%。只在 3.8 时加：flash-lite 没有这个问题，生产读法不变。
+BILLS_ARE_PURCHASES = (' A utility bill or billing notice (ใบแจ้งค่าไฟฟ้า / ใบแจ้งค่าน้ำประปา / ใบแจ้งหนี้ / INVOICE) that '
+                       'shows a seller, amounts and a total is purchase evidence, never a non-invoice, even when it '
+                       'prints ไม่ใช่ใบเสร็จรับเงิน or ไม่ใช่ใบกำกับภาษี.')
+_RULE_11_END = 'never make its rows additional_invoices.'
+
+
+def image_system(direct_model):
+    """看图读用的提示词：直读模型是 3.8 时第 11 条后补 ``BILLS_ARE_PURCHASES``，否则原样。直读、带提示复核、带原文再读
+    同用这一份（与 eval7b 实测一致）。"""
+    if str(direct_model or "").startswith("gemini-3.8"):
+        return IMAGE_SYSTEM.replace(_RULE_11_END, _RULE_11_END + BILLS_ARE_PURCHASES, 1)
+    return IMAGE_SYSTEM
+
+
+def build_recheck_prompt(previous, reason, system=IMAGE_SYSTEM):
     """带提示复核：给出第一次的读数和没过的检查，请模型看原图改读错的、保留读对的。"""
     keep = previous.model_dump(mode='json', exclude_none=True, exclude_defaults=True, exclude={'source_refs'})
-    return (IMAGE_SYSTEM + '\n\nA first reading of this document returned:\n'
+    return (system + '\n\nA first reading of this document returned:\n'
             + json.dumps(keep, ensure_ascii=False) + f'\nIt failed these checks: {reason}.\n'
             'Look at the document again carefully, especially the parts these checks concern (amounts at the foot, '
             'line amounts, discounts, tax IDs, dates), correct what was misread and return the complete JSON in the '

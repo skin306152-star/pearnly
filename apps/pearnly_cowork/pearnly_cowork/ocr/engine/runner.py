@@ -43,7 +43,7 @@ from pearnly_cowork.ocr.engine.errors import ContentError, DirectFallback, Engin
 from pearnly_cowork.ocr.engine.parsing import _parse_json
 from pearnly_cowork.ocr.engine.prompts import (
     L2_RETRY_HINT, L2_SYSTEM, L2_USER_PREFIX,
-    IMAGE_SYSTEM, L3_RETRY_HINT, L3_SYSTEM, OCR_TRANSCRIPT_NOTE, RESCUE_SYSTEM, build_l3_user_prompt,
+    L3_RETRY_HINT, L3_SYSTEM, OCR_TRANSCRIPT_NOTE, RESCUE_SYSTEM, build_l3_user_prompt, image_system,
     build_recheck_prompt,
 )
 
@@ -140,6 +140,7 @@ class _Run:
         self.calls: list[CallEvidence] = []
         self.escalations = 0
         self.titles = {}  # 页码 → 票头判成非票据的类别（记进 extraction_audit）
+        self.image_prompt = image_system(config.direct_model)
 
     def parse_invoice(self, data, stage, page):
         try:
@@ -250,7 +251,7 @@ class _Run:
         first = len(self.calls)
         best, passed = None, None
         try:
-            invoice, _ = self.read_image("direct", page, frame, IMAGE_SYSTEM)
+            invoice, _ = self.read_image("direct", page, frame, self.image_prompt)
             hard, warnings = self.gate(invoice)
             issue = "; ".join(filter(None, (hard, self.year_shift(invoice))))
             if not issue:
@@ -271,7 +272,8 @@ class _Run:
         if best is not None:  # 直读读出了东西、只是没过闸：先让同一模型带着没过的原因看原图复核
             chain.append("RC")
             try:
-                invoice, _ = self.read_image("recheck", page, frame, build_recheck_prompt(best, evidence["detail"]),
+                invoice, _ = self.read_image("recheck", page, frame, build_recheck_prompt(best, evidence["detail"],
+                                                                                    self.image_prompt),
                                              retries=0)
                 if passed is None:
                     invoice = self.fill_missing(invoice, best)
@@ -395,7 +397,7 @@ class _Run:
             try:
                 data, _ = self.model_json(
                     stage="ocr_read", page=page, model=self.config.layer2_model,
-                    prompt=IMAGE_SYSTEM + "\n\n" + fewshot + OCR_TRANSCRIPT_NOTE + text[:30000],
+                    prompt=self.image_prompt + "\n\n" + fewshot + OCR_TRANSCRIPT_NOTE + text[:30000],
                     images=((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),),
                     tokens=OCR_READ_TOKENS, timeout=self.config.layer2_timeout_s, retries=0,
                     thinking=OCR_READ_THINKING,
