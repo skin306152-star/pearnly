@@ -91,6 +91,21 @@ class Bucket:
         response.raise_for_status()
         return json.loads(response.content), int(response.headers["x-goog-generation"])
 
+    def names(self, prefix):
+        """这个前缀下现有的全部对象名（一份读取开头列一次检查点目录，之后不存在的不再逐个去问；见 ``runner.Store.prefetch``）。"""
+        found, token = set(), None
+        while True:
+            params = {"prefix": prefix, "fields": "items(name),nextPageToken", "maxResults": "1000"}
+            if token:
+                params["pageToken"] = token
+            response, _unsure = self._call("get", f"{API}/storage/v1/b/{self._name}/o", params=params, timeout=(10, 30))
+            response.raise_for_status()
+            value = response.json()
+            found.update(item["name"] for item in value.get("items") or [])
+            token = value.get("nextPageToken")
+            if not token:
+                return found
+
     def read_bytes(self, name, generation=None):
         """读一个对象的原始字节和版本号（原件桶，ADR-016）；给了版本号就只读那个版本。不存在返回 ``None``。"""
         params = {"alt": "media", **({"generation": str(generation)} if generation is not None else {})}

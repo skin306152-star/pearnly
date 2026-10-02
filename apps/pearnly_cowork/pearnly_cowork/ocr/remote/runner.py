@@ -97,6 +97,9 @@ class TimedBackend:
     def delete(self, *args, **kwargs):
         return self._timed("cp_delete", "delete", *args, **kwargs)
 
+    def names(self, *args, **kwargs):
+        return self._timed("cp_list", "names", *args, **kwargs)
+
     def __getattr__(self, name):
         return getattr(self._backend, name)
 
@@ -140,6 +143,7 @@ class Store:
         # 算进这份所在的池）。2026-10-02 压测窗口：3.8 与 flash-lite 同在一个发票池会互相拖累。
         self.by_model = {}
         self.steps = getattr(backend, "_steps", None) or Steps()
+        self._present = None  # 开头列出的检查点对象名（``prefetch``）；None = 没列过，照旧逐个去问
         self._lock = threading.Lock()  # 引擎可能多页同时读：缓存的读写要线程安全（每个调用各自一个对象）
 
     def count(self, identity, calls=0, throttled=0):
@@ -152,10 +156,26 @@ class Store:
     def _name(self, key):
         return self._prefix + "cp/" + hashlib.sha256(key.encode()).hexdigest() + ".json"
 
+    def prefetch(self):
+        """持租约后把这一份的检查点目录列一次：之后不在里面的检查点直接当没有，不再逐个去问桶（2026-10-02 m6：一页发票每份
+        要问 33 次，几乎都是备用入口 / 各尝试号的续跑探测、全都没有，约 1.1 秒）。同一份同一时刻只有持租约的这一个在写，
+        列完之后新写的由本对象自己记上，不会漏。列不出来就照旧逐个问。"""
+        try:
+            present = self._backend.names(self._prefix + "cp/")
+        except (AttributeError, requests.RequestException):
+            return
+        with self._lock:
+            self._present = set(present)
+
     def get(self, key):
         with self._lock:
             if key in self._cache:
                 return self._cache[key]
+            if self._present is not None and self._name(key) not in self._present:
+                # 开头列过目录、里面没有：就是没有（同一时刻只有持租约的这一个在写）。之后真去写「开始」仍按版本号新建，
+                # 万一有别人写过照样写不进、判结果不明，防重复付费不变。
+                self._cache[key], self._generation[key] = None, None
+                return None
         found = self._backend.get(self._name(key))
         with self._lock:
             self._cache.setdefault(key, found[0] if found else None)
@@ -559,6 +579,7 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
     except Busy:
         emit(contract.result("deferred", reason="remote_busy", delay=15))
         return
+    store.prefetch()
     if body["kind"] == "cowork.document":
         return _document(body, content, store, access_token, emit, orient=orient, page_source=page_source, http=http,
                          clock=clock)

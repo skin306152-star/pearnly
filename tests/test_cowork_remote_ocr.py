@@ -149,6 +149,11 @@ class Bucket:
         with self.lock:
             self.objects.pop(name, None)
 
+    def names(self, prefix):
+        with self.lock:
+            self.listed = getattr(self, "listed", 0) + 1
+            return {name for name in self.objects if name.startswith(prefix)}
+
 
 def remote(bucket, google, content=None, filename="invoice.png", pages=1, threads=1, **body):
     events = []
@@ -747,6 +752,13 @@ class StorageRetries(unittest.TestCase):
         session = self.Session(plan)
         return gcs.Bucket("b", lambda: "token", http=session, sleep=lambda s: None), session
 
+    def test_listing_a_prefix_follows_every_page(self):
+        bucket, session = self.bucket([self.reply(200, {"items": [{"name": "s/w/cp/a"}], "nextPageToken": "t"}),
+                                       requests.ConnectionError("reset"),
+                                       self.reply(200, {"items": [{"name": "s/w/cp/b"}]})])
+        self.assertEqual(bucket.names("s/w/cp/"), {"s/w/cp/a", "s/w/cp/b"})
+        self.assertEqual(len(session.calls), 3)                     # 第二页连接被重置也原地再试
+
     def test_a_reset_write_is_written_again(self):
         bucket, session = self.bucket([requests.ConnectionError("reset by peer"), self.reply(200, {"generation": "7"})])
         self.assertEqual(bucket.put("k", {"state": "done"}), 7)
@@ -830,8 +842,21 @@ class StepTiming(unittest.TestCase):
         steps = done["steps"]
         self.assertEqual(steps["call_gemini-3.1-flash-lite"][0], 1)          # 一次直读
         self.assertEqual(steps["render"][0], 1)                             # 一页渲染一次
-        self.assertGreaterEqual(steps["cp_get"][0] + steps["cp_create"][0], 2)   # 检查点读写都计到
+        self.assertGreaterEqual(steps["cp_create"][0], 2)                  # 检查点写入都计到
+        self.assertEqual(steps["cp_list"][0], 1)                            # 开头列一次目录
+        self.assertNotIn("cp_get", steps)                                   # 第一次读：不再逐个去问桶（2026-10-02 m6：每份 33 次）
         self.assertTrue(all(isinstance(v, list) and len(v) == 2 for v in steps.values()))
+
+    def test_a_resumed_reading_still_takes_what_was_already_read(self):
+        # 列过目录后，已在桶里的检查点照样取回、不再付费；只有不在目录里的才当没有
+        bucket, google = Bucket(), Google()
+        remote(bucket, google)
+        paid = len(google.sent)
+        again = Google()
+        final = remote(bucket, again)[-1]
+        self.assertEqual(final["status"], "done")
+        self.assertEqual((paid, len(again.sent)), (paid, 0))
+        self.assertGreaterEqual(bucket.listed, 2)
 
     def test_task_start_reports_delivery_delay_and_first_request(self):
         runner._served.clear()
