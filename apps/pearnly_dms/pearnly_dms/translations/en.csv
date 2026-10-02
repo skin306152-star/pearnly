@@ -209,6 +209,7 @@ Number of cars,Number of cars
 Older address data as of {time}; ask an administrator to refresh if needed,Older address data as of {time}; ask an administrator to refresh if needed
 Older data as of {time}; refresh manually if needed,Older data as of {time}; refresh manually if needed
 Older data: {0},Older data: {0}
+"Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.","Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched."
 Open DMS,Open DMS
 Open Pearnly DMS without typing your password again,Open Pearnly DMS without typing your password again
 Other,Other
@@ -720,6 +721,7 @@ dms.card.query.ST_UNALLOCATED,Not allocated yet
 dms.card.query.TITLE_TOP,Top sales
 dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
 dms.card.query.TXT_COMING_SOON,This menu is not available in the first release. Please choose 1 Sales records
+dms.card.query.TXT_DATE_SINGLE,"Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched."
 dms.card.query.TXT_DENIED,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
 dms.card.query.TXT_EXPIRED,This item has expired. Type menu to search again
 dms.card.query.TXT_LOADING,Reading the latest data from DMS

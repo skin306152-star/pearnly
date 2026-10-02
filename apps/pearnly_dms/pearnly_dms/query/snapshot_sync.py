@@ -296,6 +296,68 @@ def _tell_failed(binding):
         logger.warning("DMS query failure notice could not be sent", exc_info=True)
 
 
+NOTICE_KEY = "dms:query-failed-notice:"
+
+
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
+def notify_failed(endpoint=None, dataset="", request_id="", params=None, error_code=""):
+    """菜单 5 的一次查询读到最后失败了：告诉发起人（`manual.execute` 的 ``on_failed`` 与 :func:`sweep_stale` 调）。
+
+    同一次请求只说一次（按请求号在状态存储里占位）；绑定已变、或操作员已经换了查询条件（会话不再是这一组）就不说——那时
+    他已经不在等这一份了。"""
+    binding = (params or {}).get("_binding") or {}
+    line_user_id = binding.get("line_user_id")
+    if not line_user_id or not request_id:
+        return False
+    store_ = _state_store()
+    if not store_.set(store_.make_key(NOTICE_KEY + str(request_id)), 1, nx=True, ex=86400):
+        return False  # 已经说过了
+    if not current_binding(binding, line_user_id):
+        return False
+    conditions = rb.query_parameters(**{key: value for key, value in (params or {}).items() if key != "_binding"})
+    if conditions.get("kind") != "capabilities" and _session_params(line_user_id, conditions["kind"], conditions) is None:
+        return False
+    from pearnly_dms import i18n
+    from pearnly_dms.query import query_cards, query_flow
+
+    with i18n.line_language(line_user_id):
+        # 没账号 / 没权限照直说；其余（含「读取中断」——那句提到的「重新读取」按钮已经没有了）一律「这次读取失败，请稍后再试」
+        if error_code == "ERR_NO_CREDS":
+            text = query_cards.TXT_NO_ENDPOINT
+        elif error_code == "ERR_DMS_QUERY_FORBIDDEN":
+            text = query_cards.TXT_DENIED
+        else:
+            text = query_cards.manual_failed_text()
+        query_flow._push(line_user_id, text, "")
+    return True
+
+
+def sweep_stale():
+    """兜底（*/5 定时）：查询的读取卡在 queued / running 超过租约（进程被杀、部署重启、队列积压）——`manual._state`
+    已把它当失败，但没人告诉发起人。这里补说一次（:func:`notify_failed` 自己保证只说一次）。只读本站快照表，不登 DMS。"""
+    now = time.time()
+    rows = frappe.db.sql(f"SELECT dataset, refresh_request FROM `tab{store.DT}` WHERE dataset LIKE 'query.%%' "
+                         "AND (refresh_request LIKE '%%queued%%' OR refresh_request LIKE '%%running%%')", as_dict=True)
+    for row in rows:
+        try:
+            req = json.loads(row.refresh_request or "{}")
+        except ValueError:
+            continue
+        if req.get("state") not in manual.ACTIVE or now - float(req.get("updated_at") or now) <= manual.LEASE_AGE:
+            continue
+        try:
+            notify_failed(dataset=row.dataset, request_id=req.get("id"), params=req.get("params") or {},
+                          error_code="ERR_DMS_SNAPSHOT_INTERRUPTED")
+        except Exception:
+            logger.warning("DMS stale query notice failed", exc_info=True)
+
+
 def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
     """Token-gated one-shot collector. Retired scheduler calls do no IO."""
     if not request_id:

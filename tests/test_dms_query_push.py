@@ -61,5 +61,105 @@ class Push(unittest.TestCase):
         push.assert_not_called()
 
 
+
+class Store:
+    def __init__(self):
+        self.keys = set()
+
+    def make_key(self, key):
+        return "site|" + key
+
+    def set(self, key, value, nx=False, ex=None):
+        if nx and key in self.keys:
+            return None
+        self.keys.add(key)
+        return True
+
+
+class FailedReads(unittest.TestCase):
+    """读到最后失败、或卡住没人管时，告诉发起查询的操作员一次（2026-10-02 ris：失败出口全都不发消息）。"""
+
+    def setUp(self):
+        self.session = {"state": "query_results", "payload": dict(SESSION)}
+        self.store = Store()
+        for target, kwargs in (
+                ("pearnly_dms.query.snapshot_sync._state_store", {"return_value": self.store}),
+                ("pearnly_dms.query.snapshot_sync.current_binding", {"return_value": True}),
+                ("pearnly_core.line_session.get_session", {"side_effect": lambda user: self.session}),
+                ("pearnly_dms.i18n.line_language", {"return_value": MagicMock(__enter__=lambda s: s, __exit__=lambda s, *a: False)}),
+                ("pearnly_dms.query.query_cards._t", {"side_effect": lambda key, **kw: "T:" + key})):
+            p = patch(target, **kwargs)
+            p.start()
+            self.addCleanup(p.stop)
+        self.params = {**CONDITIONS, "_binding": BINDING}
+
+    def test_operator_hears_about_a_failed_read_once(self):
+        with patch.object(query_flow, "_push") as push:
+            self.assertTrue(snapshot_sync.notify_failed(request_id="req-9", params=self.params, error_code="ERR_DMS_TECHNICAL"))
+            self.assertFalse(snapshot_sync.notify_failed(request_id="req-9", params=self.params, error_code="ERR_DMS_TECHNICAL"))
+        push.assert_called_once_with(USER, "T:MANUAL_FAILED", "")  # query_cards.manual_failed_text()
+
+    def test_no_notice_when_the_operator_moved_on(self):
+        self.session = {"state": "query_menu", "payload": {}}
+        with patch.object(query_flow, "_push") as push:
+            self.assertFalse(snapshot_sync.notify_failed(request_id="req-8", params=self.params, error_code=""))
+        push.assert_not_called()
+
+    def test_stale_reads_are_swept_and_fresh_ones_left_alone(self):
+        import json as _json
+        import time as _time
+        now = _time.time()
+        rows = [frappe._dict(dataset="query.a", refresh_request=_json.dumps({"id": "old", "state": "running",
+                    "updated_at": now - 3600, "params": self.params})),
+                frappe._dict(dataset="query.b", refresh_request=_json.dumps({"id": "new", "state": "queued",
+                    "updated_at": now - 30, "params": self.params}))]
+        with patch.object(frappe, "db", MagicMock(sql=MagicMock(return_value=rows))), \
+                patch.object(snapshot_sync, "notify_failed") as notify:
+            snapshot_sync.sweep_stale()
+        self.assertEqual([c.kwargs["request_id"] for c in notify.call_args_list], ["old"])
+
+    def test_the_query_collector_registers_the_notice_and_the_sweep(self):
+        hooks = (ROOT / "apps/pearnly_dms/pearnly_dms/hooks.py").read_text()
+        self.assertIn('"on_failed": "pearnly_dms.query.snapshot_sync.notify_failed"', hooks)
+        self.assertIn('"pearnly_dms.query.snapshot_sync.sweep_stale"', hooks)
+        from pearnly_dms.snapshots import manual
+        with patch("frappe.get_attr") as get_attr:
+            manual._notify_failed({"on_failed": "pearnly_dms.query.snapshot_sync.notify_failed"}, "EP", "query.a", "r1",
+                                  {"params": self.params}, "ERR_X")
+            manual._notify_failed({"method": "pearnly_dms.adapter.snapshot_sync.refresh"}, "EP", "customers", "r2", {}, "ERR_X")
+        get_attr.assert_called_once_with("pearnly_dms.query.snapshot_sync.notify_failed")
+
+
+class WhileWaiting(unittest.TestCase):
+    """等结果时打的字不掉进建档；日期维度只收一个日期。"""
+
+    def setUp(self):
+        p = patch.object(query_flow, "_can_query", return_value=True)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_text_while_the_read_runs_says_it_is_still_reading(self):
+        sess = {"state": "query_results", "payload": dict(SESSION)}
+        with patch.object(query_flow.sales_readback, "_query_endpoint", return_value="EP"), \
+                patch.object(query_flow.manual, "status", return_value={"state": "running"}), \
+                patch.object(query_flow, "_send") as send, \
+                patch.object(query_flow.query_cards, "manual_status_message", return_value={"type": "text", "text": "reading"}):
+            self.assertTrue(query_flow.handle_text(BINDING, USER, "tok", sess, "นานจัง"))
+        send.assert_called_once_with(USER, {"type": "text", "text": "reading"}, "tok")
+        with patch.object(query_flow.sales_readback, "_query_endpoint", return_value="EP"), \
+                patch.object(query_flow.manual, "status", return_value={"state": "succeeded"}):
+            self.assertFalse(query_flow.handle_text(BINDING, USER, "tok", sess, "นานจัง"))
+
+    def test_a_date_range_is_refused_and_a_single_date_is_searched(self):
+        sess = {"state": "query_sales_input", "payload": {"field": "delivery_date"}}
+        with patch.object(query_flow, "_push") as push, patch.object(query_flow, "_begin_records") as begin, \
+                patch("pearnly_dms.query.query_cards._t", side_effect=lambda key, **kw: "T:" + key):
+            self.assertTrue(query_flow.handle_text(BINDING, USER, "tok", sess, "01/11/2569-30/11/2569"))
+            push.assert_called_once_with(USER, "T:TXT_DATE_SINGLE", "tok")
+            begin.assert_not_called()
+            self.assertTrue(query_flow.handle_text(BINDING, USER, "tok", sess, "15/11/2569"))
+        self.assertEqual(begin.call_args.kwargs["query"], "15/11/2569")
+
+
 if __name__ == "__main__":
     unittest.main()

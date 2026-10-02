@@ -197,9 +197,21 @@ def _update(endpoint, dataset, reader, request_id, values, *, expected_step=None
     return True
 
 
+def _notify_failed(collector, endpoint, dataset, request_id, req, code):
+    """终态失败时告诉发起人（只有登记了 ``on_failed`` 的收集器才有，现在是菜单 5 的查询）。通知失败不影响记录状态。"""
+    method = (collector or {}).get("on_failed")
+    if not method or not str(method).startswith("pearnly_dms."):
+        return
+    try:
+        frappe.get_attr(method)(endpoint=endpoint, dataset=dataset, request_id=request_id,
+                                params=(req or {}).get("params") or {}, error_code=code or "")
+    except Exception:
+        logger.warning("DMS failed-read notice not sent dataset=%s", dataset, exc_info=True)
+
+
 def execute(endpoint, dataset, reader, request_id, step=0):
     """One bounded chunk. Continuations belong to this explicit request only."""
-    claimed = False
+    claimed, req, collector = False, None, None
     try:
         req = assert_active(endpoint, dataset, request_id, reader=reader)
         collector = _collector(dataset, reader)
@@ -249,13 +261,17 @@ def execute(endpoint, dataset, reader, request_id, step=0):
                   "step": step + 1, "retries": retries, "busy_waits": busy_waits}
         if state == "succeeded":
             values["count"] = result.get("count", progress["processed"])
-        if _update(endpoint, dataset, reader, request_id, values) and state == "queued":
+        updated = _update(endpoint, dataset, reader, request_id, values)
+        if updated and state == "queued":
             try:
                 _enqueue(endpoint, dataset, reader, request_id, step + 1)
             except Exception:
                 _update(endpoint, dataset, reader, request_id,
                     {"state": "failed", "error_code": "ERR_DMS_SNAPSHOT_INTERRUPTED"}, expected_step=step + 1)
+                _notify_failed(collector, endpoint, dataset, request_id, req, "ERR_DMS_SNAPSHOT_INTERRUPTED")
                 raise
+        if updated and state == "failed":
+            _notify_failed(collector, endpoint, dataset, request_id, req, values["error_code"])
         return {"ok": state not in {"failed", "waiting"}, "state": state}
     except Exception as exc:
         code = getattr(exc, "error_code", None) or "ERR_DMS_SNAPSHOT_INCOMPLETE"
@@ -263,9 +279,9 @@ def execute(endpoint, dataset, reader, request_id, step=0):
             # This read-only worker owns the transaction; release any publication
             # fence before recording failure on the independent connection.
             frappe.db.rollback()
-            if claimed:
-                _update(endpoint, dataset, reader, request_id, {"state": "failed", "error_code": code},
-                        expected_step=step, expected_state="running")
+            if claimed and _update(endpoint, dataset, reader, request_id, {"state": "failed", "error_code": code},
+                                   expected_step=step, expected_state="running"):
+                _notify_failed(collector, endpoint, dataset, request_id, req, code)
         except Exception:
             pass  # Credential revocation deliberately makes the old scope inaccessible.
         logger.warning("DMS manual read failed (%s)", type(exc).__name__)

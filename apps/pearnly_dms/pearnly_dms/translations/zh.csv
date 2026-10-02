@@ -209,6 +209,7 @@ Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 Older data as of {time}; refresh manually if needed,当前为 {time} 的旧资料，需要时请手动刷新
 Older data: {0},旧资料：{0}
+"Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.",只能输入一个日期，例如 15/09/2569（佛历），不能按区间查。
 Open DMS,进入 DMS
 Open Pearnly DMS without typing your password again,免重新输入密码，直接打开 Pearnly DMS
 Other,其他
@@ -720,6 +721,7 @@ dms.card.query.ST_UNALLOCATED,尚未配车
 dms.card.query.TITLE_TOP,销售排行
 dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
 dms.card.query.TXT_COMING_SOON,此菜单首版尚未开放，请选择「1 销售记录」
+dms.card.query.TXT_DATE_SINGLE,只能输入一个日期，例如 15/09/2569（佛历），不能按区间查。
 dms.card.query.TXT_DENIED,此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。
 dms.card.query.TXT_EXPIRED,此项已过期，输入 菜单 重新查询
 dms.card.query.TXT_LOADING,正在从 DMS 读取最新资料

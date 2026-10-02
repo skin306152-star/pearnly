@@ -53,6 +53,8 @@ _TEXT_FIELDS = frozenset(
         "engine_no",
     }
 )
+_DATE_FIELDS = frozenset({"booking_date", "delivery_date"})
+_SINGLE_DATE_RE = re.compile(r"\d{1,2}/\d{1,2}/\d{4}")
 # 自定义期间：`01/08/2569-31/08/2569 15`（日期可带空格，末尾是条数）
 _DATE_RE = re.compile(r"^(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})\s+(\d{1,2})$")
 
@@ -113,8 +115,10 @@ def handle_postback(
 def handle_text(
     binding: dict, line_user_id: str, reply_token: str, sess: Optional[dict], text: str
 ) -> bool:
-    """只接管两个"等用户打字"的态；其它态返 False 交上层。"""
+    """接管两个"等用户打字"的态，以及"查询还在读"时打的字；其它态返 False 交上层。"""
     state = (sess or {}).get("state")
+    if state == "query_results":
+        return _still_reading(binding, line_user_id, reply_token, sess)
     if state not in {"query_sales_input", "query_top_custom"}:
         return False
     if not _can_query(binding):
@@ -126,6 +130,11 @@ def handle_text(
         # 空输入 / 认不出的维度 → 原样重问（不拿空串去查一整页）
         if not value or field not in _TEXT_FIELDS:
             _send(line_user_id, query_cards.input_prompt(field), reply_token)
+            return True
+        # 日期维度只收一个日期：DMS 销售列表只按文字片段搜（`sd`），没有日期区间；区间、乱写的照直说、留在这一步等重输
+        # （2026-10-02 ris：客户输入「01/11/2569-30/11/2569」，读出来是空的）。
+        if field in _DATE_FIELDS and not _SINGLE_DATE_RE.fullmatch(value):
+            _push(line_user_id, query_cards.TXT_DATE_SINGLE, reply_token)
             return True
         _begin_records(
             binding,
@@ -270,6 +279,23 @@ def _begin_records(
     }
     store.set_session(line_user_id, "query_results", params)
     _run_records(binding, line_user_id, params, reply_token)
+
+
+def _still_reading(binding, line_user_id, reply_token, sess) -> bool:
+    """查询的读取还没回来时打的字（「นานจัง」之类）：告诉他还在读，不让它掉进建档等别的流程（2026-10-02 ris）。
+    已经读完（结果卡发过了）就不管，交上层照旧处理。"""
+    try:
+        conditions = _manual_conditions(sess)
+        if not conditions or conditions.get("kind") not in {"records", "top"}:
+            return False
+        endpoint = sales_readback._query_endpoint(binding["user_id"])
+        status = manual.status(endpoint, sales_readback.query_dataset(conditions), reader="sales")
+    except Exception:
+        return False
+    if str(status.get("state") or "") not in {"queued", "running"}:
+        return False
+    _send(line_user_id, query_cards.manual_status_message(status), reply_token)
+    return True
 
 
 def _same_query_session(line_user_id, kind, params):

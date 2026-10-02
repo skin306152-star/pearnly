@@ -209,6 +209,7 @@ Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 Older data as of {time}; refresh manually if needed,{time} 時点の古いデータです。必要に応じて手動で更新してください。
 Older data: {0},古いデータ：{0}
+"Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.",日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。
 Open DMS,DMS を開く
 Open Pearnly DMS without typing your password again,パスワードを再入力せずに Pearnly DMS を開く
 Other,その他
@@ -720,6 +721,7 @@ dms.card.query.ST_UNALLOCATED,未割当
 dms.card.query.TITLE_TOP,販売ランキング
 dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
 dms.card.query.TXT_COMING_SOON,このメニューは初版ではまだ使えません。「1 販売記録」を選んでください
+dms.card.query.TXT_DATE_SINGLE,日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。
 dms.card.query.TXT_DENIED,このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。
 dms.card.query.TXT_EXPIRED,有効期限が切れました。メニュー と入力して検索し直してください
 dms.card.query.TXT_LOADING,DMS から最新データを読み取っています

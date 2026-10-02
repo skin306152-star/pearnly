@@ -209,6 +209,7 @@ Number of cars,จำนวนคัน
 Older address data as of {time}; ask an administrator to refresh if needed,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 Older data as of {time}; refresh manually if needed,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
 Older data: {0},ข้อมูลเก่า ณ {0}
+"Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.",ใส่ได้ครั้งละหนึ่งวันที่ เช่น 15/09/2569 (พ.ศ.) ค้นหาเป็นช่วงวันที่ไม่ได้
 Open DMS,เข้าสู่ระบบ DMS
 Open Pearnly DMS without typing your password again,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
 Other,อื่นๆ
@@ -720,6 +721,7 @@ dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
 dms.card.query.TITLE_TOP,ยอดขายสูงสุด
 dms.card.query.TOP_NOTE_PREFIX,สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
 dms.card.query.TXT_COMING_SOON,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
+dms.card.query.TXT_DATE_SINGLE,ใส่ได้ครั้งละหนึ่งวันที่ เช่น 15/09/2569 (พ.ศ.) ค้นหาเป็นช่วงวันที่ไม่ได้
 dms.card.query.TXT_DENIED,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
 dms.card.query.TXT_LOADING,กำลังอ่านข้อมูลล่าสุดจาก DMS

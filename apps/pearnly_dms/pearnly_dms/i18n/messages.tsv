@@ -392,3 +392,4 @@ Coming soon	即将推出	เร็ว ๆ นี้	近日公開	dms.card.rich.s
 The check could not start. Please try again.	检查没能开始，请再试一次。	เริ่มตรวจสอบไม่ได้ กรุณาลองใหม่อีกครั้ง	確認を開始できませんでした。もう一度お試しください。
 The check failed. Please try again.	检查失败，请再试一次。	ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	確認に失敗しました。もう一度お試しください。
 The check stopped before it finished. Please try again.	检查中途停止了，请再试一次。	การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง	確認が途中で止まりました。もう一度お試しください。
+Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.	只能输入一个日期，例如 15/09/2569（佛历），不能按区间查。	ใส่ได้ครั้งละหนึ่งวันที่ เช่น 15/09/2569 (พ.ศ.) ค้นหาเป็นช่วงวันที่ไม่ได้	日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。	dms.card.query.TXT_DATE_SINGLE

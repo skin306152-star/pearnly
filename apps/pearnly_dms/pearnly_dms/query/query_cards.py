@@ -330,6 +330,11 @@ def _navigation(result: dict, kind: str) -> List[Dict[str, Any]]:
     return actions
 
 
+def manual_failed_text() -> str:
+    """读到最后失败时告诉操作员的那句（「这次读取失败，请稍后再试」，`snapshot_sync.notify_failed` 用）。"""
+    return _t("MANUAL_FAILED")
+
+
 def manual_status_message(status: dict) -> Dict[str, Any]:
     """"正在读／读到一半／读失败"的**纯文本提示**（没有任何按钮）。
 

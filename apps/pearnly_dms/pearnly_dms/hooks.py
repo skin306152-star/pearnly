@@ -34,7 +34,9 @@ pearnly_dms_snapshot_collectors = [
     {"dataset": "customers", "reader": "authority",
      "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
     {"dataset_prefix": "query.", "reader": "sales",
-     "method": "pearnly_dms.query.snapshot_sync.refresh"},
+     "method": "pearnly_dms.query.snapshot_sync.refresh",
+     # 读到最后失败时告诉发起查询的操作员（2026-10-02 ris：失败出口全都不发消息，客户只看到「正在读」）
+     "on_failed": "pearnly_dms.query.snapshot_sync.notify_failed"},
     {"dataset": "geo", "reader": "authority",
      "method": "pearnly_dms.adapter.geo_sync.refresh"},
 ]
@@ -42,7 +44,8 @@ scheduler_events = {"cron": {
     # 白天每分钟看一次 DMS 使用记录（ADR-014）；窗口、间隔与开关在 `adapter/live_sync`。
     "* * * * *": ["pearnly_dms.adapter.live_sync.tick"],
     "*/10 * * * *": [schedule_menu_reconciliation],
-    "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
+    "*/5 * * * *": ["pearnly_dms.query.snapshot_sync.sweep_stale",
+                      "pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],
     # 每日全量回读（第二层保险）：泰国凌晨 3:00 四组强制重读，4:30 只补今晚没读成的组。
