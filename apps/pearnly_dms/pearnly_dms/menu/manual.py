@@ -56,14 +56,16 @@ def title(code: str) -> str:
 
 
 def manual_card() -> Dict[str, Any]:
-    """子菜单：标题 + 三个原生按钮（6.0 / 6.1 / 6.2）。按钮留在聊天记录里，随时能回看。"""
-    buttons = [
-        cards._btn(f"{num} {title(code)}", cards._data(cards.ACT_MANUAL_VIDEO, item=code), "secondary")
-        for code, num in ITEMS
-    ]
-    subtitle = {"type": "text", "text": cards.TXT_MANUAL_PICK_SUB, "size": "xs",
-                "color": "#8a8a8a", "wrap": True}
-    return cards._bubble(cards.TXT_MANUAL_PICK, [subtitle], buttons, cards.TXT_MANUAL_PICK)
+    """子菜单：一句文字 + LINE 底部快捷按钮 6.0 / 6.1 / 6.2（用户 2026-10-03 由卡片改为快捷按钮）。
+
+    LINE 快捷按钮的标签最多 20 个字符，英文、泰文的「6.1 + 标题」会超长、整条消息被拒，所以标签只写编号；
+    正文按编号列出三个主题，点按后聊天里显示的文字（displayText）仍是「编号 标题」。词条沿用原来的四个。"""
+    lines = [cards.TXT_MANUAL_PICK] + [f"{num} {title(code)}" for code, num in ITEMS]
+    items = [{"type": "action",
+              "action": {"type": "postback", "label": num, "data": cards._data(cards.ACT_MANUAL_VIDEO, item=code),
+                         "displayText": f"{num} {title(code)}"}}
+             for code, num in ITEMS]
+    return {"type": "text", "text": "\n".join(lines), "quickReply": {"items": items}}
 
 
 def _https(url: str) -> bool:
