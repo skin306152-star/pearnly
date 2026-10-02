@@ -28,6 +28,13 @@ class ArchitectureGuard(unittest.TestCase):
         (docs / "architecture-policy.json").write_text(json.dumps({"root_modules": {"pearnly_dms": ["__init__.py", "hooks.py", "dms_models.py"]}}))
         (docs / "dms-module-map.json").write_text(json.dumps({"modules": {"pearnly_dms.dms_models": "pearnly_dms.contracts.models"}, "compatibility": {}}))
 
+    def test_a_function_that_only_calls_itself_is_rejected(self):
+        module = self.package / "contracts/store.py"
+        module.write_text('def _state_store():\n    """doc"""\n    return _state_store()\n')
+        self.assertTrue(any("recurses forever" in error for error in guard.check(self.root)))
+        module.write_text("def walk(node):\n    if node:\n        return walk(node.next)\n    return None\n")
+        self.assertEqual(guard.check(self.root), [])
+
     def test_custom_ui_is_rejected(self):
         page = self.root / "frontend/src/pages/Example.vue"
         page.parent.mkdir(parents=True)
@@ -212,7 +219,6 @@ class OcrReplay(unittest.TestCase):
         flagged = {error.split(":")[0] for error in self.errors()}
         self.assertEqual(flagged, {"infrastructure/production/runtime.env.example",
                                    "apps/pearnly_cowork/pearnly_cowork/hooks.py", "scripts/set-site-config.py"})
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -54,7 +54,8 @@ offline() {
 
 flow() {
   run "${FLOW[@]}" up -d --wait db redis bench
-  for script in dms-flow-lab-init.py test-line-usage-redis.py test-dms-native-flow.py test-dms-native-recovery.py; do
+  for script in dms-flow-lab-init.py test-line-usage-redis.py test-dms-native-flow.py test-dms-native-recovery.py \
+                test-dms-state-store-native.py; do
     run "${FLOW[@]}" exec -T bench env/bin/python "/workspace/scripts/$script"
   done
   run "${FLOW[@]}" exec -T -w /home/frappe/frappe-bench/sites bench "$PY" -c 'import frappe,runpy; frappe.init(site="dms-flow-lab.localhost"); frappe.connect(); frappe.set_user("Administrator"); runpy.run_path("/workspace/scripts/sample-verify-dms-booking-flow.py")["main"]()'

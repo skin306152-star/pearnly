@@ -99,6 +99,20 @@ def check_ocr_replay(root):
     return errors
 
 
+def self_calls(tree):
+    """函数体（除文档字符串）只有一句 ``return 自己(...)``：一调用就无限递归（2026-10-03 DMS 编辑票据
+    ``_state_store`` 机械替换时写成自调用，LIFF 编辑器全挂，测试都替换了这个函数所以没测出来）。"""
+    found = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        body = [b for b in node.body if not (isinstance(b, ast.Expr) and isinstance(b.value, ast.Constant))]
+        if (len(body) == 1 and isinstance(body[0], ast.Return) and isinstance(body[0].value, ast.Call)
+                and isinstance(body[0].value.func, ast.Name) and body[0].value.func.id == node.name):
+            found.append((node.lineno, node.name))
+    return found
+
+
 def check(root=ROOT):
     policy = json.loads((root / POLICY.relative_to(ROOT)).read_text())
     mapping = json.loads((root / "docs/development/dms-module-map.json").read_text())
@@ -124,6 +138,8 @@ def check(root=ROOT):
         tree = ast.parse(path.read_text(), filename=str(path))
         relative = path.relative_to(root).as_posix()
         module = ".".join(path.with_suffix("").parts[path.parts.index("apps") + 2:])
+        errors.extend(f"{relative}:{line}: {name}() only calls itself and recurses forever"
+                      for line, name in self_calls(tree))
         if module in compat:
             expected = compat[module]
             imports = [n for n in tree.body if isinstance(n, ast.ImportFrom)]

@@ -39,9 +39,10 @@ MODES = ("booking", "customer", "account")
 
 
 def _state_store():
-    """不淘汰的状态存储（``pearnly_core.state``；用到时才导入）。"""
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入）。"""
+    from pearnly_core.execution import state as pearnly_state
 
-    return _state_store()
+    return pearnly_state.store()
 
 
 def _key(ticket: str) -> str:
