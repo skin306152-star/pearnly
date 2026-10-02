@@ -24,6 +24,8 @@
                --user pearnlyai@gmail.com --sample /corpus/样本-发票300.tsv --corpus /corpus --out /out --tag eval1"'
   l1:    同一容器写法，``/eval.py l1 --site testcowork.pearnly.com --out /out/<轮次>``：不调谷歌，从检查点桶（7 天自动删）
            取回这一轮每页的 Vision 原文存成 ``l1.jsonl``，供零费用重放。
+  subset: python3 eval-invoices.py subset --corpus /root/pearnly-corpus/06-录入推送 --out .../06-录入推送/样本-闸1小样本.tsv
+           生成闸 ① 固定小样本清单（只生成一次，之后每轮都用同一份）；打分时 ``gold --subset <清单>`` 只比清单里的文件。
   score: python3 eval-invoices.py score --sample .../样本-发票300.tsv --corpus .../06-录入推送 --out /tmp/pearnly-eval
            [--glm .../样本-GLM子集42.tsv]
 """
@@ -882,11 +884,18 @@ def gold(args):
     gold_rows = []
     with open(args.gold, encoding="utf-8-sig", newline="") as handle:
         gold_rows = [{key.strip(): (value or "").strip() for key, value in row.items()} for row in csv.DictReader(handle, delimiter="\t")]
+    keep = None
+    if args.subset:  # 只看固定小样本里属于这份金标的文件（候选与基线同一批文件）
+        with open(args.subset, encoding="utf-8-sig", newline="") as handle:
+            keep = {row["编号"] for row in csv.DictReader(handle, delimiter="\t") if row["金标"] == Path(args.gold).name}
+    suffix = "-subset" if keep is not None else ""
     reports = {}
     for out in args.runs:
         results = [json.loads(line) for line in open(Path(out, "results.jsonl"), encoding="utf-8")]
+        if keep is not None:
+            results = [record for record in results if record["编号"] in keep]
         report, details = gold_score(results, gold_rows, count_missed=args.count_missed)
-        Path(out, "gold.json").write_text(json.dumps({"report": report, "details": details}, ensure_ascii=False, indent=1),
+        Path(out, f"gold{suffix}.json").write_text(json.dumps({"report": report, "details": details}, ensure_ascii=False, indent=1),
                                           encoding="utf-8")
         reports[Path(out).name] = report
     lines = ["# 金标打分（票面印的值）", "", "| 指标 | " + " | ".join(reports) + " |", "| --- |" + " --- |" * len(reports)]
@@ -903,8 +912,59 @@ def gold(args):
     lines += ["", "文件级：" + json.dumps({name: r["documents"] for name, r in reports.items()}, ensure_ascii=False),
               "", "错误类别：" + json.dumps({name: r["kinds"] for name, r in reports.items()}, ensure_ascii=False)]
     text = "\n".join(lines) + "\n"
-    Path(args.runs[-1], "gold-compare.md").write_text(text, encoding="utf-8")
+    Path(args.runs[-1], f"gold-compare{suffix}.md").write_text(text, encoding="utf-8")
     print(text)
+
+
+# 闸 ① 小样本（用户 2026-10-02：没改读法的批次省测试费）：两批金标按 方向 × 形态 × 是否票据 分层，每层按页数配额，
+# 层内按编号的 sha1 排序依次取（不随机、可复现）；单份超过 3 页的不取，免得一份吃掉整层配额。约 100 页。
+SUBSET_QUOTA = {("采购", "扫描PDF", "票"): 18, ("采购", "照片", "票"): 18, ("采购", "电子PDF", "票"): 12,
+                ("销售", "扫描PDF", "票"): 8, ("销售", "照片", "票"): 8, ("销售", "电子PDF", "票"): 12,
+                ("", "扫描PDF", "非"): 8, ("", "照片", "非"): 8, ("", "电子PDF", "非"): 4}
+SUBSET_SOURCES = (("金标.tsv", "样本-发票300.tsv"), ("金标扩充.tsv", "样本-金标扩充.tsv"))
+
+
+def subset(args):
+    import hashlib
+
+    def rows(name):
+        with open(Path(args.corpus, name), encoding="utf-8-sig", newline="") as handle:
+            return [{k.strip(): (v or "").strip() for k, v in row.items()} for row in csv.DictReader(handle, delimiter="\t")]
+
+    pool = collections.defaultdict(list)
+    for gold_name, sample_name in SUBSET_SOURCES:
+        sample = {row["编号"]: row for row in rows(sample_name)}
+        docs = {}
+        for row in rows(gold_name):
+            doc = docs.setdefault(row["编号"], {"方向": row["方向"], "形态": row["形态"] or sample.get(row["编号"], {}).get("形态", ""),
+                                               "票": False})
+            doc["票"] |= row["是否票据"] == "是"
+        for number, doc in docs.items():
+            if number not in sample:
+                continue
+            invoice = "票" if doc["票"] else "非"
+            key = (doc["方向"] if invoice == "票" else "", doc["形态"], invoice)
+            pages = int(sample[number].get("页数") or 1)
+            if key in SUBSET_QUOTA and pages <= 3:
+                pool[key].append((hashlib.sha1(f"{gold_name}:{number}".encode()).hexdigest(), gold_name, number, pages))
+    picked = []
+    for key, quota in SUBSET_QUOTA.items():
+        used = 0
+        for _digest, gold_name, number, pages in sorted(pool[key]):
+            if used >= quota:
+                break
+            picked.append({"金标": gold_name, "编号": number, "方向": key[0], "形态": key[1],
+                           "是否票据": "是" if key[2] == "票" else "否", "页数": pages})
+            used += pages
+    with open(args.out, "w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["金标", "编号", "方向", "形态", "是否票据", "页数"], delimiter="\t")
+        writer.writeheader()
+        writer.writerows(picked)
+    summary = collections.Counter()
+    for row in picked:
+        summary[f"{row['方向'] or '非票据'}/{row['形态']}"] += row["页数"]
+    print(json.dumps({"docs": len(picked), "pages": sum(r["页数"] for r in picked), "by_stratum": summary,
+                      "by_gold": collections.Counter(r["金标"] for r in picked)}, ensure_ascii=False))
 
 
 def main():
@@ -935,11 +995,15 @@ def main():
     golder.add_argument("--gold", required=True)
     golder.add_argument("--runs", nargs="+", required=True, help="一个或几个 run 的输出目录，并排比")
     golder.add_argument("--count-missed", action="store_true", help="漏掉的真票按全部字段错计入（各轮同口径比）")
+    golder.add_argument("--subset", help="只比固定小样本（subset 生成的清单）里属于这份金标的文件")
+    subsetter = sub.add_parser("subset")
+    subsetter.add_argument("--corpus", required=True)
+    subsetter.add_argument("--out", required=True)
     l1_reader = sub.add_parser("l1")
     l1_reader.add_argument("--site", required=True)
     l1_reader.add_argument("--out", required=True)
     args = parser.parse_args()
-    {"run": run, "score": score, "gold": gold, "collect": collect, "l1": l1}[args.command](args)
+    {"run": run, "score": score, "gold": gold, "collect": collect, "l1": l1, "subset": subset}[args.command](args)
 
 
 if __name__ == "__main__":
