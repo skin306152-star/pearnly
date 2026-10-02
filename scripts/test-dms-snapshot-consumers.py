@@ -78,6 +78,9 @@ class SnapshotConsumers(unittest.TestCase):
         self.replace(frappe, "log_error")
         self.cache = Mock(); self.cache.make_key.side_effect = lambda key: key
         self.replace(frappe, "cache", return_value=self.cache)
+        # 锁与节流等不能丢的状态在不淘汰的状态存储（pearnly_core.execution.state，DMS 各模块用到时才导入）；与 frappe.cache 同一个替身
+        from pearnly_core.execution import state as pearnly_state
+        self.replace(pearnly_state, "store", return_value=self.cache)
         self.replace(frappe, "enqueue", side_effect=lambda method, **kw: self.jobs.append((method, copy.deepcopy(kw))))
         self.replace(frappe, "get_hooks", side_effect=lambda name: self.hooks.pearnly_dms_snapshot_collectors
                      if name == "pearnly_dms_snapshot_collectors" else [])

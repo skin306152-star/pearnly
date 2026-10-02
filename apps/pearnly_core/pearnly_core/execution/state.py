@@ -27,6 +27,8 @@ def store():
     from frappe.utils.redis_wrapper import RedisWrapper
 
     address = url()
+    if not address:
+        raise RuntimeError("no state Redis configured: set pearnly_state_redis or redis_queue in the site config")
     client = _clients.get(address)
     if client is None:
         with _lock:

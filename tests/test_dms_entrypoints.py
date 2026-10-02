@@ -127,6 +127,7 @@ class RichMenuPublish(unittest.TestCase):
                             pearnly_line_liff_id="1234-abcd", host_name="https://sample.test")
         with patch.object(frappe, "conf", conf), \
              patch.object(frappe, "cache", lambda *a, **kw: Cache()), \
+             patch.object(rich_menu, "_state_store", lambda: Cache()), \
              patch.object(rich_menu, "reconcile"), \
              patch.object(rich_menu.requests, "request", side_effect=request), \
              patch.object(rich_menu.requests, "get", side_effect=get), \
