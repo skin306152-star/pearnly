@@ -916,10 +916,10 @@ def main():
     golder = sub.add_parser("gold")
     golder.add_argument("--gold", required=True)
     golder.add_argument("--runs", nargs="+", required=True, help="一个或几个 run 的输出目录，并排比")
-    args = parser.parse_args()
     l1_reader = sub.add_parser("l1")
     l1_reader.add_argument("--site", required=True)
     l1_reader.add_argument("--out", required=True)
+    args = parser.parse_args()
     {"run": run, "score": score, "gold": gold, "collect": collect, "l1": l1}[args.command](args)
 
 
