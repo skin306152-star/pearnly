@@ -37,9 +37,9 @@ class StateStoreNative(unittest.TestCase):
 
     def test_every_moved_store_really_writes_and_reads(self):
         # 防漏：DMS 里新增的 `_state_store` 也要登记到这里
-        found = sorted(".".join(path.with_suffix("").parts[path.parts.index("pearnly_dms"):])
-                       for path in Path(frappe.get_app_path("pearnly_dms")).rglob("*.py")
-                       if "def _state_store(" in path.read_text())
+        package = Path(frappe.get_app_path("pearnly_dms"))
+        found = sorted(".".join(("pearnly_dms",) + path.relative_to(package).with_suffix("").parts)
+                       for path in package.rglob("*.py") if "def _state_store(" in path.read_text())
         self.assertEqual(found, sorted(MODULES))
         for name in MODULES:
             with self.subTest(module=name):
