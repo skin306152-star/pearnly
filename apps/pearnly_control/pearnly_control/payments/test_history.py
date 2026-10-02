@@ -70,6 +70,6 @@ class TestHistory(IntegrationTestCase):
         self.assertEqual(rates["pdf_first_pages"], 200)
         self.assertEqual(rates["pdf_first_rate"], float(billing.pdf_cost_thb(0, 1)))
         self.assertEqual(rates["pdf_after_rate"], float(billing.pdf_cost_thb(200, 1)))
-        self.assertEqual(rates["pdf_after_rate"], .75)
+        self.assertEqual(rates["pdf_after_rate"], 1.0)
         self.assertEqual(rates["chars_per_unit"], 50)
         self.assertEqual(rates["char_rate"], .01)

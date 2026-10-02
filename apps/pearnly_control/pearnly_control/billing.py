@@ -13,7 +13,7 @@
 
 | 单位 | 价格 |
 |---|---|
-| PDF / 图片 | 每月前 200 页 ฿1.50/页，超出后 ฿0.75/页 |
+| PDF / 图片 | 每月前 200 页 ฿1.50/页，超出后 ฿1.00/页（2026-10-02 起；此前 ฿0.75，已扣的不追溯） |
 | Excel / Word / CSV | 50 字符 = ฿0.01，向上取整 |
 | 文档折成"张"（套餐额度用） | 按量成本 ÷ ฿1.50，向上取整 |
 | 银行对账单计费页数 | max(物理页数, ⌈行数/40⌉)，防一页塞很多笔被低估 |
@@ -51,7 +51,7 @@ SUBSCRIPTION = "Pearnly Subscription"
 # 价格：老产品 services/billing/pricing.py 的原值，别改着改着漂了
 PDF_TIER1_LIMIT = 200
 PDF_TIER1_PRICE = Decimal("1.50")
-PDF_TIER2_PRICE = Decimal("0.75")
+PDF_TIER2_PRICE = Decimal("1.00")  # 用户 2026-10-02 定：超出 200 页后 ฿0.75 → ฿1.00，当天起生效、不追溯
 EXCEL_CHARS_PER_SATANG = 50
 EXCEL_SATANG_PRICE = Decimal("0.01")
 ROWS_PER_PAGE_BILLING = 40
