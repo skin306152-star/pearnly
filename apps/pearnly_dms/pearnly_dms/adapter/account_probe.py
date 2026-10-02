@@ -3,6 +3,8 @@
 
 * 读档账号：要能看 DMS 使用记录（每分钟同步靠它）、客户列表和单个客户资料（补读被改的客户）。
 * 改写账号：要能打开"新建客户"表单（建/改客户档都从这张表单开始）。
+* 操作员账号（`login`，用户 2026-10-02）：**只试能不能登录**，登上立即登出，不读不写任何资料，
+  也不留会话缓存 —— 那是操作员本人的账号，DMS 同一账号会互相挤下线。
 
 只读、不写 DMS；缺哪项就把那一项的名字回给界面。登录失败、连不上照旧走统一的错误话术。
 从不抛异常。
@@ -47,6 +49,7 @@ CHECKS: Dict[str, List[Tuple[str, Callable[[Any], bool]]]] = {
     "read": [("events", _can_read_events), ("customers", _can_list_customers),
              ("customer", _can_read_a_customer)],
     "write": [("customer_form", _can_open_customer_form)],
+    "login": [],
 }
 
 
@@ -65,6 +68,8 @@ def probe(system_url: str, username: str, password: str, purpose: str) -> Dict[s
         return {"ok": False, "error_code": code, "error_friendly": friendly(code)}
 
     def inspect(adapter):
+        if not CHECKS[purpose]:
+            return {"ok": True, "missing": []}  # 只试登录：登上即可，不碰任何资料
         client = adapter.client()
         missing = []
         for name, check in CHECKS[purpose]:
@@ -80,6 +85,7 @@ def probe(system_url: str, username: str, password: str, purpose: str) -> Dict[s
     try:
         adapter = MrerpDmsAdapter(system_url=system_url, username=username, password=password, headless=True)
         adapter.verify_password = True
+        adapter.sign_out_on_exit = purpose == "login"
         result = push.logged_in_probe(adapter, inspect)
         return result if result is not None else fail("ERR_DMS_CONCURRENT_LOGIN")
     except DmsAuthError:

@@ -316,10 +316,27 @@ def ask_pay_dst(company_banks: List[list], page: int = 0) -> Dict[str, Any]:
     )
 
 
-def master_problem(code: str) -> Dict[str, Any]:
-    """主档问题的通用卡：**按码取话术**，认不出的码退"读取不到"。"""
+# 主档键 → 订车预览卡上同一项的名称（"DMS 没设哪一项"直接说出那一项，管理员才知道去补什么）。
+_MASTER_ITEM_LABELS = {
+    "place_books": "LBL_PLACE",
+    "cars": "LBL_CAR",
+    "paints": "LBL_CAR",
+    "term_sales": "LBL_TERM",
+    "regis_behalfs": "LBL_REGIS",
+}
+
+
+def master_problem(code: str, key: str = "") -> Dict[str, Any]:
+    """主档问题的通用卡：**按码取话术**，认不出的码退"读取不到"。
+
+    DMS 里**没设**某项选项（`ERR_DMS_MASTER_EMPTY`）不是"暂时读不到"，重试永远不会好：
+    认得出是哪一项就点名那一项，让管理员知道去 DMS 补哪个设置。
+    """
     from pearnly_dms.line import errors as dms_errors
 
+    label = _MASTER_ITEM_LABELS.get(str(key or ""))
+    if code == "ERR_DMS_MASTER_EMPTY" and label:
+        return _msg(qat("TXT_MASTER_EMPTY_ITEM", item=qat(label)))
     return _msg(dms_errors.friendly(code).get(i18n.line_lang()) or _c("TXT_MASTER_UNAVAILABLE"))
 
 

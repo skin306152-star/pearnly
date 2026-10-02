@@ -83,11 +83,9 @@ Company information,Company information
 Confirm,Confirm
 Confirm booking,Confirm booking
 Confirm saving a new customer,Confirm saving a new customer
-Connected. Reading starts after you add the read account.,Connected. Reading starts after you add the read account.
 Connection account,Connection account
 "Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.","Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread."
 Continue booking,Continue booking
-Continuing with the existing data,Continuing with the existing data
 Contract not opened,Contract not opened
 Contract opened,Contract opened
 Contract status,Contract status
@@ -112,9 +110,11 @@ Customer records,Customer records
 DMS,DMS
 DMS System Account,DMS System Account
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.
+DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS data has not been read yet. The system reads it automatically; please try again after it finishes.
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
-"DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.","DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page."
-DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.,DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.
+"DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.","DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page."
+"DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.","DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read."
+"DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.","DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again."
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.
 Data as of {time},Data as of {time}
@@ -239,7 +239,6 @@ Read failed — click Read to retry,Read failed — click Read to retry
 Read failed — it will be retried automatically,Read failed — it will be retried automatically
 Read progress,Read progress
 Read status,Read status
-"Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.","Read this query in LINE, or ask an administrator to read the required data on the DMS connection page."
 Read time unknown,Read time unknown
 Reading,Reading
 Reading DMS master data…,Reading DMS master data…
@@ -279,9 +278,9 @@ Saved,Saved
 Saved DMS data,Saved DMS data
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.","Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again."
 "Saved · {action}
-Customer ID: {customer_id}
+Customer ID: {customer_code}
 Name: {name}","Saved · {action}
-Customer ID: {customer_id}
+Customer ID: {customer_code}
 Name: {name}"
 Search data,Search data
 Select at least one data group.,Select at least one data group.
@@ -319,8 +318,8 @@ The DMS account is busy. The read retries automatically; please wait.,The DMS ac
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,The DMS account stayed busy; automatic retries did not get through. Please try again later.
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.","The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 The DMS connection is not set up yet. Please contact the admin.,The DMS connection is not set up yet. Please contact the admin.
+"The DMS connection or account changed, so the previous data cannot be used. The system reads the new account's data automatically; reopen this page after it finishes.","The DMS connection or account changed, so the previous data cannot be used. The system reads the new account's data automatically; reopen this page after it finishes."
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
-"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
 The booking cannot be opened yet · The DMS account in use is «{username}»,The booking cannot be opened yet · The DMS account in use is «{username}»
 The booking cannot be opened yet · The DMS account of this user cannot be read,The booking cannot be opened yet · The DMS account of this user cannot be read
@@ -334,7 +333,7 @@ The read status changed. Refresh the page to check before trying again.,The read
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
 "The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.","The saved DMS data is too old to use safely. Please wait for sync to finish, then retry."
-"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.","The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds."
+The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.,The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.","The submission was sent, but its result is unconfirmed. Do not submit again; check the result first."
 There are more colours. Type a colour name to search.,There are more colours. Type a colour name to search.
@@ -355,7 +354,7 @@ This month Top 5,This month Top 5
 This query is queued.,This query is queued.
 This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read failed. Please try again later.,This read failed. Please try again later.
-This read was interrupted. Click Read again to retry; previously completed data was retained.,This read was interrupted. Click Read again to retry; previously completed data was retained.
+"This read was interrupted; previously completed data was kept. The system will read again, so please try later.","This read was interrupted; previously completed data was kept. The system will read again, so please try later."
 This request has already been handled,This request has already been handled
 This request has expired. Please start again.,This request has expired. Please start again.
 This step does not need a picture. Please follow the question above.,This step does not need a picture. Please follow the question above.
@@ -462,7 +461,6 @@ dms.card.TXT_DONE_SAVED,Customer data saved. Type menu for other tasks.
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
 dms.card.TXT_EXPIRED,This item has expired. Please start again.
 dms.card.TXT_INTRO,Take a photo of the customer's ID card to start a new customer record.
-dms.card.TXT_KEEP,Continuing with the existing data
 dms.card.TXT_LOOKUP_FAIL,Could not check the customer data. Please try again.
 dms.card.TXT_MENU_BAR,Menu
 dms.card.TXT_MENU_D1,"Create a new customer from an ID card, or update an existing customer"
@@ -496,7 +494,7 @@ Booking no.: {booking_no}
 Model: {car}
 Delivery date: {delivery_date_be}"
 dms.card.TXT_RECEIPT_SAVE,"Saved · {action}
-Customer ID: {customer_id}
+Customer ID: {customer_code}
 Name: {name}"
 dms.card.TXT_RESET,Started over. Take a photo of the ID card to start a customer record.
 dms.card.TXT_RETAKE,Please take the ID card photo again
@@ -598,6 +596,7 @@ dms.card.qa.TXT_BAD_PAYMENT_DETAIL,Invalid format. Please fill in both fields {h
 dms.card.qa.TXT_CAR_NONE,No matching model. Please try typing again.
 dms.card.qa.TXT_CAR_PICK,Choose a car model ({n} found)
 dms.card.qa.TXT_CONFIRM_ABOVE,Tap Confirm or Discard on the summary above
+dms.card.qa.TXT_MASTER_EMPTY_ITEM,"DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again."
 dms.card.qa.TXT_NEED_SLIP,There is a transfer payment. Please send the transfer slip before viewing the summary.
 dms.card.qa.TXT_NO_COMPANY_BANK,"No company receiving account yet. Please ask the admin to set it up in DMS, then try again."
 dms.card.qa.TXT_NO_IMAGE_NEEDED,This step does not need a picture. Please follow the question above.
@@ -741,7 +740,6 @@ dms.connect.acct.missing,{0} lacks access to: {1}
 dms.connect.acct.readAdd,Add read account
 dms.connect.acct.readChange,Change read account
 dms.connect.acct.readField,Read account
-dms.connect.acct.readFirst,Connected. Reading starts after you add the read account.
 dms.connect.acct.readHelp,"Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread."
 dms.connect.acct.readNone,Not set
 dms.connect.acct.removeRow,Remove
@@ -918,14 +916,14 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS mast
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
 dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
 dms.err.ERR_DMS_SNAPSHOT_BUSY,The DMS account stayed busy; automatic retries did not get through. Please try again later.
-dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.
-dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,This read was interrupted. Click Read again to retry; previously completed data was retained.
-dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,"Read this query in LINE, or ask an administrator to read the required data on the DMS connection page."
-dms.err.ERR_DMS_SNAPSHOT_PENDING,"DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page."
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,"DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read."
+dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,"This read was interrupted; previously completed data was kept. The system will read again, so please try later."
+dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,DMS data has not been read yet. The system reads it automatically; please try again after it finishes.
+dms.err.ERR_DMS_SNAPSHOT_PENDING,"DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page."
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
 dms.err.ERR_DMS_SNAPSHOT_RETRY,"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
-dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
-dms.err.ERR_DMS_SNAPSHOT_STALE,"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds."
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,"The DMS connection or account changed, so the previous data cannot be used. The system reads the new account's data automatically; reopen this page after it finishes."
+dms.err.ERR_DMS_SNAPSHOT_STALE,The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.
 dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,The data volume exceeds the read limit. Please contact an administrator.
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
 dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry

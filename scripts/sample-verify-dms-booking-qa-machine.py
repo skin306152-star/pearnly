@@ -196,8 +196,10 @@ def main():
     # ── 5. 凭证图 ──────────────────────────────────────────────────────
     sent.clear()
     qa = base("place", {"place_books": [["1", "A", "สาขา A"]]})
-    ck("别的步收到图片 → 返 False（图片不是它要的输入）",
-       machine.handle_image("t", "u", "MID1", "tok") is False)
+    ck("别的步收到图片 → 接住（不落到建档识别），只提醒这一步不需要图片、不推进",
+       machine.handle_image("t", "u", "MID1", "tok") is True and qa["step"] == "place"
+       and sent == [{"type": "text", "text": qa_cards.TXT_NO_IMAGE_NEEDED}]
+       and not qa["files"].get("slip_mid"), (qa["step"], sent))
 
     sent.clear()
     qa = base("slip")

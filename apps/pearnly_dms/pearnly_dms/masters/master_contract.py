@@ -19,7 +19,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
-from pearnly_dms.masters.company_banks import company_bank_label
+from pearnly_dms.masters.company_banks import PAYMENT_CHANNEL_BANKS, company_bank_label
 from pearnly_dms.booking.conversation.qa_util import car_label, find_row, row_name
 
 SNAPSHOT_KEYS = (
@@ -30,6 +30,11 @@ SNAPSHOT_KEYS = (
     "company_banks",
 )
 REQUIRED_NONEMPTY_KEYS = frozenset(SNAPSHOT_KEYS[:-1])
+#: 支票 / 现金支票 / 刷卡这三种渠道各自的银行目录。逐问到"选银行"那一步读的就是会话快照里
+#: 的这几行 —— 以前快照只收上面五类，这几类永远取不到，选刷卡后一律报"暂时读不到主档、请重试"，
+#: 重试也不会好（2026-10 录制实测）。目录**为空是合法的**（DMS 没设这类银行）：
+#: 那一笔改为手工填银行名称（`booking_qa_transfer.prepare_channel_bank_step`）。
+CHANNEL_BANK_KEYS = tuple(dict.fromkeys(PAYMENT_CHANNEL_BANKS.values()))
 _ROW_WIDTHS = {"company_banks": 5}
 
 # 逐问的答案项 → 主档键 / 标签键 / 取标签的函数
@@ -93,6 +98,12 @@ def build_snapshot(
         rows[key] = _compact(source, _ROW_WIDTHS.get(key, 3))
         if require_nonempty and key in REQUIRED_NONEMPTY_KEYS and not rows[key]:
             raise MasterSyncError("ERR_DMS_MASTER_EMPTY", key)
+    # 渠道银行目录是可选列：主档里没有这一键（取不到）就不进快照，`snapshot_rows` 照旧报
+    # 读不到；拿到列表（哪怕是空的）就原样收下。
+    for key in CHANNEL_BANK_KEYS:
+        source = masters.get(key)
+        if isinstance(source, list):
+            rows[key] = _compact(source)
     return {
         "version": _version(rows),
         "captured_at": captured_at or _now(),

@@ -28,7 +28,7 @@ def main():
         print(("PASS " if cond else "FAIL ") + label + ((" - " + str(detail)) if detail else ""))
 
     pushed, replied, sent = [], [], []
-    menu_flow._push = lambda line_user_id, text: pushed.append(text)
+    menu_flow._push = lambda line_user_id, text, reply_token="": pushed.append(text)
     menu_flow._reply = lambda reply_token, text: replied.append(text)
     menu_flow._send = lambda line_user_id, msg, reply_token="": sent.append(msg)
 

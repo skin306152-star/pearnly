@@ -107,7 +107,7 @@ def send_step(tenant_id, line_user_id, qa, step, reply_token=None) -> None:
         else:
             msg = booking_qa_pages.static_question(step, qa)
     except MasterSyncError as exc:
-        msg = qa_cards.master_problem(exc.code)
+        msg = qa_cards.master_problem(exc.code, exc.key)
     _send(line_user_id, msg, reply_token)
 
 
@@ -138,18 +138,23 @@ def handle_text(tenant_id, line_user_id, text, reply_token, sess=None) -> bool:
         else:
             _TEXT_HANDLERS.get(step, _reask)(tenant_id, line_user_id, qa, text, reply_token)
     except MasterSyncError as exc:
-        _send(line_user_id, qa_cards.master_problem(exc.code), reply_token)
+        _send(line_user_id, qa_cards.master_problem(exc.code, exc.key), reply_token)
     return True
 
 
 def handle_image(tenant_id, line_user_id, message_id, reply_token, sess=None) -> bool:
-    """`slip` / `slip_after` 步收凭证图；其它步与其它态返 False（图片不是它们要的输入）。"""
+    """`slip` / `slip_after` 步收凭证图；逐问的其它步**也接住**这张图，只回一句"这一步不需要图片"。
+
+    以前其它步返 False，图片落到建档识别那一路：整轮订车会话被覆写、从拍身份证重来，
+    还照扣一次识别费（2026-10 录制实测）。不是 `booking_qa` 态才返 False 交上层。
+    """
     qa = _qa(tenant_id, line_user_id, sess)
     if qa is None:
         return False
     step = qa.get("step") or ""
     if step not in ("slip", "slip_after"):
-        return False
+        _send(line_user_id, {"type": "text", "text": qa_cards.TXT_NO_IMAGE_NEEDED}, reply_token)
+        return True
     _audit(tenant_id, line_user_id, qa, step, f"image:{message_id}")
     qa["files"]["slip_mid"] = message_id
     if step == "slip":
@@ -187,7 +192,7 @@ def handle_postback(tenant_id, line_user_id, data, params, reply_token) -> bool:
     try:
         return _handle_postback(tenant_id, line_user_id, data, params, reply_token)
     except MasterSyncError as exc:
-        _send(line_user_id, qa_cards.master_problem(exc.code), reply_token)
+        _send(line_user_id, qa_cards.master_problem(exc.code, exc.key), reply_token)
         return True
 
 

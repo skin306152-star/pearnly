@@ -364,13 +364,17 @@ def candidates_card(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, A
     )
 
 
-def receipt_text(customer_id: str, name: str, mode: str) -> str:
-    """写档成功回执：客户码 + 姓名 + **实际做了什么**（诚实告知，不谎称新建）。"""
+def receipt_text(customer_code: str, name: str, mode: str) -> str:
+    """写档成功回执：DMS 客户编号 + 姓名 + **实际做了什么**（诚实告知，不谎称新建）。
+
+    `customer_code` 是 DMS 界面上的客户编号（`cuscode`），**不是**内部行号 `customer_id`
+    （2026-10 录制：回执显示过内部行号 132，DMS 界面上没有这个号）。
+    """
     action = _t("TXT_ACTION_CREATE") if mode == "create" else _t("TXT_ACTION_UPDATE")
     return _t(
         "TXT_RECEIPT_SAVE",
         action=action,
-        customer_id=customer_id or "—",
+        customer_code=customer_code or "—",
         name=name or "—",
     )
 

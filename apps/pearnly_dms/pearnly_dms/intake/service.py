@@ -322,17 +322,22 @@ def push_idcard_fields(
         # Keep the client tuple contract; create collisions now require a new
         # explicit review and never silently convert into an overwrite.
         actual = "update" if converted else mode
-        cache_updated = snapshot_writeback.customer(endpoint, cl, cid, expected_scope=cache_scope)
+        cached = snapshot_writeback.customer(endpoint, cl, cid, expected_scope=cache_scope)
+        # `customer_id` 是 DMS 内部行号（表单 `idsel`），界面上看不到；给人看的客户编号是
+        # 客户档的 `txtcuscode`（DMS 客户列表第一列）。它来自上面那次写后回读，不另读 DMS。
+        cuscode = str(cached.get("cuscode") or "") if isinstance(cached, dict) else ""
         return {
             "ok": True,
             "success": True,
             "customer_id": cid,
+            "cuscode": cuscode,
             "mode": actual,
-            "cache_updated": cache_updated,
+            "cache_updated": bool(cached),
             "elapsed_ms": int((time.time() - t0) * 1000),
             "response_body": {
                 "adapter": "mrerp_dms",
                 "customer_id": cid,
+                "cuscode": cuscode,
                 "mode": actual,
             },
         }

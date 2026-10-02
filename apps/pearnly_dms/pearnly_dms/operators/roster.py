@@ -58,6 +58,39 @@ def _clean(value) -> str:
     return str(value or "").strip()
 
 
+def _system_usernames() -> set:
+    """本站系统在用的 DMS 用户名：公司连接的账号（即读档账号）与它的管理员账号、已登记的系统账号。
+
+    操作员用了其中任何一个，后台读取 / 改写与操作员本人会互相把对方挤下线。反方向（登记系统账号
+    时不能用操作员账号）在 `connections.api._taken_names` 里拦。
+    """
+    names = set()
+    for row in frappe.get_all("Pearnly ERP Endpoint",
+                              filters={"adapter": "mrerp_dms", "owner_user": ["is", "not set"]},
+                              fields=["username", "admin_username"]):
+        names.update((row.get("username"), row.get("admin_username")))
+    names.update(frappe.get_all("DMS System Account", pluck="username"))
+    return {_clean(name) for name in names if _clean(name)}
+
+
+def _verify_dms_login(username: str, password: str) -> None:
+    """新增操作员、或改了他的 DMS 密码时，用这组账密**只试登录一次**（用户 2026-10-02）。
+
+    登上立即登出，不读不写任何资料；登不上就按原因拒绝保存（账密错 / 连不上 DMS / 账号正在
+    别处登录），沿用页面原生的错误提示。只在这两个时点试：DMS 同一账号会互相挤下线。
+    """
+    url = frappe.db.get_value("Pearnly ERP Endpoint",
+                              {"adapter": "mrerp_dms", "owner_user": ["is", "not set"]}, "system_url")
+    if not url:
+        frappe.throw(_("roster.error.noConnection"))
+    from pearnly_dms import i18n
+    from pearnly_dms.adapter.account_probe import probe
+
+    result = probe(url, username, password, "login")
+    if not result.get("ok"):
+        frappe.throw(i18n.t("dms.err." + str(result.get("error_code") or "ERR_UNEXPECTED")))
+
+
 def _line_status(user: str) -> dict:
     """该操作员绑没绑 LINE。真值在 `Pearnly LINE Binding`（一 user 一 LINE）。"""
     row = frappe.db.get_value(
@@ -174,8 +207,11 @@ def create_operator(
 
     if not frappe.db.exists("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1, "owner_user": ["is", "not set"]}):
         frappe.throw(_("roster.error.noConnection"))
+    if dms_username in _system_usernames():
+        frappe.throw(_("This account is already used by an operator or another system account"))
 
     pinned = advisors.resolve(advisor_id)
+    _verify_dms_login(dms_username, dms_password)
 
     # 内部身份不提供后台登录，不分配平台角色。
     # 邮箱是造的：Frappe 的 User 主键就是邮箱，而这些账号不收发信。
@@ -244,7 +280,11 @@ def update_operator(
             frappe.throw(_("Fill in the display name, DMS username and password"))
         doc.display_name = _clean(display_name)
     if dms_password:
-        doc.dms_password = str(dms_password)
+        # 改了账密才试；只改显示名 / 角色 / 提成归属不碰 DMS。最后才试，前面的校验先拒掉。
+        verify_password = str(dms_password)
+        doc.dms_password = verify_password
+    else:
+        verify_password = ""
     if dms_role:
         if dms_role not in VALID_ROLES:
             frappe.throw(_("Role must be sales or admin"))
@@ -257,6 +297,8 @@ def update_operator(
     if notes is not None:
         doc.notes = notes
 
+    if verify_password:
+        _verify_dms_login(doc.dms_username or "", verify_password)
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return _row(frappe.get_doc(OPERATOR, name))

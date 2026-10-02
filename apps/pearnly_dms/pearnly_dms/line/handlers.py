@@ -115,6 +115,13 @@ def _handle(event: dict) -> bool:
                     frappe.local.site, user_id, message.get("id") or "", reply_token, sess=sess
                 ):
                     return True
+            if (sess or {}).get("state") == "booking_review":
+                # 订车预览待确认：这时的图片不是任何一步要的输入。当身份证去识别会覆写这单
+                # 待确认的订车、还白扣一次识别费 —— 与文本一样只提醒，不动会话。
+                from pearnly_dms.booking.conversation import qa_cards as dms_qa_cards
+
+                line.reply(reply_token, [{"type": "text", "text": dms_qa_cards.TXT_NO_IMAGE_NEEDED}])
+                return True
             # 令牌一起带进后台任务：识别那几秒通常还在有效期内，结果卡就能走**免费回覆**
             # 而不是计费推播（2026-09-23 省额度）。
             dms_flow.handle_image(_binding(user_id, bound), user_id, message.get("id") or "",

@@ -34,6 +34,9 @@
 			// confirmed request runs, keep it disabled to prevent duplicate submits.
 			dialog.onhide = () => { if (!deleting) reset(); };
 		}
+		// 类型用 LINE 菜单上同一组词（客户资料 / 订车），操作员认得，也不另造词条。
+		const menu = await p.texts("dms.card.TXT_MENU_ITEM");
+		const kinds = {customer: menu("dms.card.TXT_MENU_ITEM1"), booking: menu("dms.card.TXT_MENU_ITEM2")};
 		const statuses = ["pending", "retrying", "success", "failed", "skipped_dup", "manual"];
 		const statusLabel = value => t(`connect.records.${value}`);
 		const filters = {};
@@ -55,7 +58,9 @@
 				{fieldname: "creation", label: t("connect.records.time"),
 					format: value => frappe.datetime.str_to_user(String(value ?? "").split(".")[0]).slice(0, 16)},
 				{fieldname: "actor_name", label: __("Operator")},
-				{fieldname: "business_key", label: t("connect.records.businessNumber")},
+				{fieldname: "kind", label: __("Type"), format: value => kinds[value] || "—"},
+				// 客户写入显示 DMS 客户编号（不是内部行号），订车显示订车单号；服务端已换好。
+				{fieldname: "number", label: t("connect.records.businessNumber"), format: value => value || "—"},
 				{fieldname: "error_code", label: t("connect.records.result"), format: (value, row) => value || (row.has_error_detail ? t("connect.records.contactSupport") : "—")},
 				{fieldname: "status", label: __("Status"), format: statusLabel},
 			],

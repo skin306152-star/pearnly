@@ -168,6 +168,8 @@ class MrerpDmsAdapter:
         self.session_reused = False
         # True = 本次是在验证账号密码：不复用缓存会话，一定真登一次
         self.verify_password = False
+        # True = 用完立即登出、不存会话缓存（只试登录的场合：操作员本人的账号不该被我们占着）
+        self.sign_out_on_exit = False
 
     # ----- 凭据来源 ---------------------------------------------------
 
@@ -351,7 +353,8 @@ class MrerpDmsAdapter:
         from pearnly_dms.adapter import session_cache
         from pearnly_dms.contracts.client_base import DmsClientError
 
-        keep = (session_cache.enabled() and not self.concurrent_login_detected
+        keep = (session_cache.enabled() and not getattr(self, "sign_out_on_exit", False)
+                and not self.concurrent_login_detected
                 and (exc_type is None or issubclass(exc_type, DmsClientError)))
         if self._admin_page is not None:
             self._finish_session(self._admin_ctx, self._admin_page, self._admin_username,

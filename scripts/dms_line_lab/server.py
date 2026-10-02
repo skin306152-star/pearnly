@@ -268,6 +268,10 @@ class Handler(BaseHTTPRequestHandler):
                         return self.respond({"message": "invalid image"}, 400)
                     db.execute("UPDATE rich_menus SET image=? WHERE site=? AND id=?", (self.body, site, parts[1]))
                     return self.respond({})
+                # Real LINE answers 404 until an image is uploaded; a 200 with no body made
+                # rich_menu.publish() skip the upload and then fail to link the menu.
+                if menu["image"] is None:
+                    return self.respond({"message": "Not found"}, 404)
                 return self.respond(menu["image"], mime="image/png")
             if len(parts) >= 3 and parts[0] == "user" and parts[2] == "richmenu":
                 user = parts[1]

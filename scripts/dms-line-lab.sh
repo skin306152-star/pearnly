@@ -8,7 +8,7 @@ case "${1:-status}" in
     "${compose[@]}" up -d --wait db redis
     "${compose[@]}" run --rm --no-deps site env/bin/python /workspace/scripts/dms-line-lab-init.py
     ;;
-  up) "${compose[@]}" up -d simulator site worker ocr-worker ocr-dispatch scheduler socketio ;;
+  up) "${compose[@]}" up -d simulator site worker ocr-worker ocr-dispatch dms-sync-worker scheduler socketio ;;
   status) "${compose[@]}" ps ;;
   test)
     "${compose[@]}" run --rm --no-deps site env/bin/python /workspace/scripts/test-dms-line-runtime.py

@@ -198,7 +198,8 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         if not store.verify_nonce(sess, pb.get("nonce")):
             _reply(reply_token, cards.TXT_EXPIRED)
             return
-        _reply(reply_token, cards.TXT_KEEP)
+        # 不再先回一句「ใช้ข้อมูลเดิมต่อ」：按钮的 displayText 已经在聊天里显示了用户点的字，
+        # 再回一句等于把按钮文字回显一遍（2026-10 录制实测）。令牌留给真正的结果。
         # 保留旧数据 = **零写入**。差异卡进订车时必须把 DMS 主档快照传下去，
         # 不能展示本次输入的新值、最终建单却重读旧值。
         menu_flow.after_customer_saved(
@@ -210,6 +211,7 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
             mode=str(payload.get("mode") or ""),
             same_data=True,
             summary=payload.get("master_summary") or payload.get("summary"),
+            reply_token=reply_token,
         )
         return
 
@@ -670,7 +672,7 @@ def execute(
     elif success:
         # create 被幂等/撞码转更新时，回执如实说"已更新"
         actual = result.get("mode") or mode
-        _push(line_user_id, cards.receipt_text(result.get("customer_id") or "", name, actual),
+        _push(line_user_id, cards.receipt_text(result.get("cuscode") or "", name, actual),
               reply_token)
         # 落档后的分叉交给菜单层：`mode=booking`/缺省 → **接着开订车逐问**；
         # `mode=customer`（菜单 1 只建档）→ 收尾不提订车。

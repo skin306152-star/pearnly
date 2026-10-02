@@ -28,7 +28,7 @@ from pearnly_dms.line import cards as cards
 from pearnly_dms.menu import menu_cards as menu_cards
 from pearnly_dms.query import query_access as query_access
 from pearnly_dms.line.out import send as _send
-from pearnly_dms.line.out import push_text as _push
+from pearnly_dms.line.out import push_or_reply_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,19 @@ _MENU_CHOICES = {
 # 弹菜单/切模式时保留的已收料：重复进菜单不丢已拍的卡 / 已输的号。
 # `id_card_mid` 是订车逐问的身份证附件源，同样保留（落档后 `booking_qa.start` 要挂它）。
 _KEEP_KEYS = ("id_card", "id_card_mid", "phone", "endpoint_id", "mode")
+# 只有**还在收料**的会话才把已收料带进菜单。客户卡已经发出（`reviewing`）、订车逐问 / 待确认、
+# 查询、审批这些态里点菜单 = 放弃那一轮重新开始（与 `เริ่มใหม่` 同语义）。以前一律保留，
+# 于是待确认卡还在时再点菜单 1，会拿着同一张卡、同一个号码重新查重，把旧卡原样再发一遍。
+_CARRY_STATES = frozenset({"collecting", "menu"})
+
+
+def _carried(sess: Optional[dict], *, keep_mode: bool) -> dict:
+    """进菜单时从旧会话带过来的已收料；不在收料阶段的会话什么都不带。"""
+    if (sess or {}).get("state") not in _CARRY_STATES:
+        return {}
+    old = (sess or {}).get("payload") or {}
+    return {key: old.get(key) for key in _KEEP_KEYS
+            if old.get(key) and (keep_mode or key != "mode")}
 
 
 # ── text：弹菜单 / menu 态下的单字 1|2 ───────────────────────────────────────
@@ -69,14 +82,12 @@ def open_menu(
     *,
     greet: bool = False,
 ) -> None:
-    """置 `menu` 态（保留已收料）→ 发菜单卡。
+    """置 `menu` 态（收料阶段保留已收料，其余放弃）→ 发菜单卡。
 
     `greet=True` 是问候语进场（照 mockup 先来一句欢迎）；`เมนู` 是回访召唤，
     只发卡不寒暄。词形判定在 `commands.classify`，本函数只管落态出卡。
     """
-    old = (sess or {}).get("payload") or {}
-    payload = {key: old.get(key) for key in _KEEP_KEYS if old.get(key)}
-    store.set_session(line_user_id, "menu", payload)
+    store.set_session(line_user_id, "menu", _carried(sess, keep_mode=True))
     allowed = can_query(binding)
     msgs: list = [
         menu_cards.menu_card(can_query=bool(allowed)),
@@ -136,12 +147,12 @@ def _choose(
 ) -> None:
     """选中菜单项：给会话打 `mode` 回 `collecting`；齐料直接查重，缺料按缺项提示补料。
 
-    有进行中的逐问 / 待确认订车也照常进菜单（会话被覆写 = 放弃，与 `เริ่มใหม่` 同语义）。
+    有进行中的待确认客户卡 / 逐问 / 待确认订车也照常进菜单（会话被覆写 = 放弃，与
+    `เริ่มใหม่` 同语义）：只有收料阶段的已收料会带过来（见 `_carried`）。
     """
     mode = MODE_CUSTOMER if action == cards.ACT_MENU_CUSTOMER else "booking"
-    old = (sess or {}).get("payload") or {}
-    # 保留清单派生自 `_KEEP_KEYS`（`mode` 由本函数按所选菜单重写，不从旧会话带）
-    payload = {key: old.get(key) for key in _KEEP_KEYS if key != "mode" and old.get(key)}
+    # `mode` 由本函数按所选菜单重写，不从旧会话带
+    payload = _carried(sess, keep_mode=False)
     payload["mode"] = mode
     store.set_session(line_user_id, "collecting", payload)
 
@@ -223,6 +234,7 @@ def after_customer_saved(
     mode: str = "",
     same_data: bool = False,
     summary: Optional[dict] = None,
+    reply_token: str = "",
 ) -> None:
     """客户档落定后：`booking`/缺省 → 开订车逐问；`customer` → 收尾**不提订车**。
 
@@ -231,6 +243,7 @@ def after_customer_saved(
 
     `same_data=True` 表示本次**零写入**（数据已存 / 选择保留），文案不谎称"已保存"。
     `summary` 透传给逐问开局 —— 预览卡与客户确认卡共用同一份五要素。
+    `reply_token`：点「ใช้ข้อมูลเดิม」那一下还在令牌有效期内，结果直接用免费回覆发出。
     """
     if mode != MODE_CUSTOMER:
         sess = store.get_session(line_user_id)
@@ -246,6 +259,7 @@ def after_customer_saved(
             summary=summary,
             user_id=str(binding.get("user_id") or ""),
             id_card_mid=payload.get("id_card_mid") or None,
+            reply_token=reply_token or None,
         )
         return
 
@@ -253,4 +267,4 @@ def after_customer_saved(
     # 真写档时上面已经有「保存成功 · 客户编号 · 姓名」回执，不再补一句"已保存，输入菜单…"
     # （用户 2026-09-27：录入成功后的下面那条不要了）。零写入时没有回执，保留那一句。
     if same_data:
-        _push(line_user_id, cards.TXT_DONE_SAME)
+        _push(line_user_id, cards.TXT_DONE_SAME, reply_token)

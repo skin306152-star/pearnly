@@ -60,7 +60,7 @@ def start(
                     "summary": dict(summary or {}), "id_card_mid": id_card_mid,
                     "mode": "booking",
                 })
-                msg = qa_cards.master_problem(exc.code)
+                msg = qa_cards.master_problem(exc.code, exc.key)
                 msg["quickReply"] = {"items": [{"type": "action", "action": {
                     "type": "postback", "label": cards._t("BTN_CONTINUE_BOOKING"),
                     "data": cards._data(cards.ACT_CONTINUE_BOOKING, cid=str(customer_id or "")),
@@ -68,7 +68,7 @@ def start(
                 _send(line_user_id, msg, reply_token)
                 return
             store.clear_session(line_user_id)
-            _send(line_user_id, qa_cards.master_problem(exc.code), reply_token)
+            _send(line_user_id, qa_cards.master_problem(exc.code, exc.key), reply_token)
             return
         advisor, dms_username = resolve_advisor(endpoint, masters=live_masters)
     if advisor is None:

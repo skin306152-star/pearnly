@@ -13,7 +13,7 @@ if config.get("db_host") not in (None, "db"):
 config.update(db_host="db", redis_cache="redis://redis:6379/0",
               redis_queue="redis://redis:6379/1", redis_socketio="redis://redis:6379/1",
         socketio_port=8196, webserver_port=8000,
-        pearnly_ocr_budget_redis="redis://redis:6379/6", workers={"ocr": {"timeout": 600}}, developer_mode=1, serve_default_site=False)
+        pearnly_ocr_budget_redis="redis://redis:6379/6", workers={"ocr": {"timeout": 600}, "dms_sync": {"timeout": 420}}, developer_mode=1, serve_default_site=False)
 config_file.write_text(json.dumps(config, indent=2))
 apps_file = sites / "apps.txt"
 apps = apps_file.read_text().splitlines() if apps_file.exists() else []

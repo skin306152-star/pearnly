@@ -16,6 +16,11 @@ def capture_scope(endpoint):
 
 
 def customer(endpoint, client, customer_id, *, expected_scope):
+    """Cache the verified customer; return its read-back fields (truthy) or False.
+
+    The caller reads the DMS business customer code (`cuscode`) from the returned
+    fields for receipts and the push ledger: no extra DMS request is made for it.
+    """
     # Capture credentials before readback, then fence publication. This helper is
     # called only after the writer's own verification succeeded.
     try:
@@ -24,7 +29,7 @@ def customer(endpoint, client, customer_id, *, expected_scope):
         with authoritative_read_session(client):
             fields = read_customer_complete(client, str(customer_id))
         store.verified_customer(endpoint, str(customer_id), fields, expected_scope=expected_scope)
-        return True
+        return dict(fields) or True
     except Exception:
         # A committed external operation must not become a retryable write due
         # to an optional cache failure. Do not log customer data/exception HTML.

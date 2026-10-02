@@ -83,11 +83,9 @@ Company information,会社情報
 Confirm,確定
 Confirm booking,予約を確定
 Confirm saving a new customer,新規顧客の保存を確認
-Connected. Reading starts after you add the read account.,接続しました。読み取りアカウントを追加すると読み込みを始めます。
 Connection account,接続アカウント
 "Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.",DMS への接続とデータ読み込みに使います：初回の全件読み込み、日中の毎分同期、夜間の再読み込み。
 Continue booking,予約を続ける
-Continuing with the existing data,既存データで続けます
 Contract not opened,契約未締結
 Contract opened,契約締結済み
 Contract status,契約状況
@@ -112,9 +110,11 @@ Customer records,顧客情報
 DMS,DMS
 DMS System Account,DMS システムアカウント
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
+DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
-"DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.",DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。
-DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.,DMS のデータが不完全なため公開していません。手動で再読み取りを行い、成功後に再試行してください。
+"DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。
+"DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.",DMS のデータが不完全なため公開していません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
+"DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.",DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
 Data as of {time},データ取得時刻：{time}
@@ -239,7 +239,6 @@ Read failed — click Read to retry,読み取り失敗。読み取りを押し�
 Read failed — it will be retried automatically,読み取りに失敗しました。後で自動的に再試行します
 Read progress,読み取りの進捗
 Read status,読み取り状態
-"Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.",LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。
 Read time unknown,読み取り時刻不明
 Reading,読み取り中
 Reading DMS master data…,DMS マスターデータを読み取り中…
@@ -279,9 +278,9 @@ Saved,保存しました
 Saved DMS data,読み取り済み DMS データ
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
 "Saved · {action}
-Customer ID: {customer_id}
+Customer ID: {customer_code}
 Name: {name}","保存しました · {action}
-顧客番号：{customer_id}
+顧客番号：{customer_code}
 氏名：{name}"
 Search data,データ検索
 Select at least one data group.,データを1種類以上選択してください。
@@ -319,8 +318,8 @@ The DMS account is busy. The read retries automatically; please wait.,DMS アカ
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
 The DMS connection is not set up yet. Please contact the admin.,DMS 接続がまだ設定されていません。管理者に連絡してください。
+"The DMS connection or account changed, so the previous data cannot be used. The system reads the new account's data automatically; reopen this page after it finishes.",DMS の接続またはアカウントが変更されたため、以前のデータは使用できません。新しいアカウントのデータをシステムが自動で読み取りますので、完了後にこの画面を開き直してください。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
-"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
 The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
 The booking cannot be opened yet · The DMS account in use is «{username}»,まだ予約を作成できません · 使用中の DMS アカウントは「{username}」です
 The booking cannot be opened yet · The DMS account of this user cannot be read,まだ予約を作成できません · このユーザーの DMS アカウントを読み取れません
@@ -334,7 +333,7 @@ The read status changed. Refresh the page to check before trying again.,読み�
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
 "The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",保存された DMS データは古いため使用できません。同期完了後に再試行してください。
-"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.",保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
+The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.,保存された DMS データは古いため使用できません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
 There are more colours. Type a colour name to search.,ほかにも色があります。色の名前を入力して検索できます。
@@ -355,7 +354,7 @@ This month Top 5,今月 Top 5
 This query is queued.,この検索は待機中です。
 This read failed. Click Read to retry.,今回の読み取りは失敗しました。読み取りを押して再試行できます。
 This read failed. Please try again later.,今回の読み取りは失敗しました。しばらくしてからお試しください。
-This read was interrupted. Click Read again to retry; previously completed data was retained.,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
+"This read was interrupted; previously completed data was kept. The system will read again, so please try later.",今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。
 This request has already been handled,この申請はすでに処理されています
 This request has expired. Please start again.,この申請は期限切れです。やり直してください。
 This step does not need a picture. Please follow the question above.,この手順では画像は不要です。上の質問に沿って進めてください。
@@ -462,7 +461,6 @@ dms.card.TXT_DONE_SAVED,顧客データを保存しました。ほかの操作�
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
 dms.card.TXT_EXPIRED,有効期限が切れました。もう一度やり直してください。
 dms.card.TXT_INTRO,お客様の身分証明書を撮影すると、新規顧客の登録を始めます。
-dms.card.TXT_KEEP,既存データで続けます
 dms.card.TXT_LOOKUP_FAIL,顧客データを確認できませんでした。もう一度お試しください。
 dms.card.TXT_MENU_BAR,メニュー
 dms.card.TXT_MENU_D1,身分証明書から新規顧客を作成、または既存顧客を更新
@@ -496,7 +494,7 @@ dms.card.TXT_RECEIPT_BOOKING,"予約を作成しました
 車種：{car}
 納車日：{delivery_date_be}"
 dms.card.TXT_RECEIPT_SAVE,"保存しました · {action}
-顧客番号：{customer_id}
+顧客番号：{customer_code}
 氏名：{name}"
 dms.card.TXT_RESET,やり直しました。身分証明書を撮影して顧客登録を始めてください。
 dms.card.TXT_RETAKE,身分証明書をもう一度撮影してください
@@ -598,6 +596,7 @@ dms.card.qa.TXT_BAD_PAYMENT_DETAIL,形式が正しくありません。2 つと�
 dms.card.qa.TXT_CAR_NONE,該当する車種が見つかりません。もう一度入力してください。
 dms.card.qa.TXT_CAR_PICK,車種を選択（{n} 件）
 dms.card.qa.TXT_CONFIRM_ABOVE,上の概要で「確定」または「破棄」を押してください
+dms.card.qa.TXT_MASTER_EMPTY_ITEM,DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。
 dms.card.qa.TXT_NEED_SLIP,振込の支払いがあります。概要を見る前に振込明細を送ってください。
 dms.card.qa.TXT_NO_COMPANY_BANK,会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。
 dms.card.qa.TXT_NO_IMAGE_NEEDED,この手順では画像は不要です。上の質問に沿って進めてください。
@@ -741,7 +740,6 @@ dms.connect.acct.missing,{0} に権限がありません：{1}
 dms.connect.acct.readAdd,読み取りアカウントを追加
 dms.connect.acct.readChange,読み取りアカウントを変更
 dms.connect.acct.readField,読み取りアカウント
-dms.connect.acct.readFirst,接続しました。読み取りアカウントを追加すると読み込みを始めます。
 dms.connect.acct.readHelp,DMS への接続とデータ読み込みに使います：初回の全件読み込み、日中の毎分同期、夜間の再読み込み。
 dms.connect.acct.readNone,未設定
 dms.connect.acct.removeRow,削除
@@ -918,14 +916,14 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデー
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
 dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
 dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
-dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。手動で再読み取りを行い、成功後に再試行してください。
-dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
-dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。
-dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
+dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。
+dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
 dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
-dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
-dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されたため、以前のデータは使用できません。新しいアカウントのデータをシステムが自動で読み取りますので、完了後にこの画面を開き直してください。
+dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
 dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,データ量が読み取り上限を超えています。管理者にご連絡ください。
 dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
 dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください

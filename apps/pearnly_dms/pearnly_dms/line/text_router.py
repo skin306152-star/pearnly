@@ -47,7 +47,8 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
     sess = store.get_session(line_user_id)
 
     if cmd in (commands.CMD_MENU, commands.CMD_GREETING):
-        # 菜单命令**覆盖任何进行中会话**（含逐问）：会话被覆写 = 放弃，与 เริ่มใหม่ 同语义。
+        # 菜单命令**覆盖任何进行中会话**（含待确认客户卡、逐问）：会话被覆写 = 放弃，与 เริ่มใหม่
+        # 同语义；只有还在收料（`collecting` / `menu`）时已拍的卡、已输的号会带过去（`menu_flow._carried`）。
         menu_flow.open_menu(
             binding, line_user_id, reply_token, sess, greet=cmd == commands.CMD_GREETING
         )

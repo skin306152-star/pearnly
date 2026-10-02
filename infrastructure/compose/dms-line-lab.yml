@@ -48,6 +48,12 @@ services:
     <<: *runtime
     mem_limit: 512m
     command: ["bench", "worker-pool", "--queue", "ocr", "--num-workers", "2"]
+  # DMS reads (first read, nightly re-read, change sync) run on their own native queue,
+  # registered with the production timeout in common_site_config by dms-line-lab-init.py.
+  dms-sync-worker:
+    <<: *runtime
+    mem_limit: 512m
+    command: ["bench", "worker", "--queue", "dms_sync"]
   ocr-dispatch:
     <<: *runtime
     mem_limit: 128m

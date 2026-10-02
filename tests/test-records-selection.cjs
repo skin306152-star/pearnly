@@ -16,6 +16,7 @@ async function fixture(fail = false) {
     clear_primary_action:()=>{primary=null;},
     btn_primary:{prop(key,value){assert.equal(key,'disabled');disabled=value;}}};
   const p = {escape:String, add_refresh(){}, success:msg=>notices.push(msg),
+    async texts(prefix){assert.equal(prefix,'dms.card.TXT_MENU_ITEM');return key=>'menu:'+key;},
     list:opts=>{options=opts;return list;},
     async call(method,args,type) {
       assert.equal(method,'pearnly_dms.records.manage.delete_records');
@@ -28,11 +29,18 @@ async function fixture(fail = false) {
     confirmation={message,action,reject};return confirmation;
   }},__:String,console});
   await p.records(page,(key,...args)=>[key,...args].join(':'));
-  return {calls,notices,list,
+  return {calls,notices,list,options:()=>options,
     select(names){selected=names.map(name=>({name}));options.on_selection(selected);},
     get primary(){return primary;},get confirmation(){return confirmation;},get disabled(){return disabled;}};
 }
 (async()=>{
+  const columns=Object.fromEntries((await fixture()).options().columns.map(c=>[c.fieldname,c]));
+  assert.equal(columns.kind.format('customer'),'menu:dms.card.TXT_MENU_ITEM1','customer writes use the LINE menu wording');
+  assert.equal(columns.kind.format('booking'),'menu:dms.card.TXT_MENU_ITEM2');
+  assert.equal(columns.kind.format(''),'—');
+  assert.equal(columns.number.format(''),'—','legacy rows without a DMS customer code stay blank, never the internal row ID');
+  assert.equal(columns.number.format('BK000002610000001'),'BK000002610000001');
+  assert.ok(!('business_key' in columns),'the internal DMS row ID is no longer a column');
   const cancelled=await fixture();
   cancelled.select([]);assert.equal(cancelled.primary,null);
   cancelled.select(['log-1']);assert.equal(cancelled.primary.label,'Delete');
