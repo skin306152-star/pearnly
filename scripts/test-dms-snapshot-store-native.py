@@ -140,6 +140,11 @@ class SnapshotLabCase(unittest.TestCase):
         language = patch("pearnly_core.line.user_language", return_value="th")
         language.start()
         self.addCleanup(language.stop)
+        # A query read keeps LINE's own loading animation running for the operator (user 2026-10-02);
+        # that call is LINE, not DMS, so it is recorded here instead of counting as an HTTP attempt.
+        self.loading = patch("pearnly_core.line.start_loading", return_value=True)
+        self.loading_calls = self.loading.start()
+        self.addCleanup(self.loading.stop)
 
     def tearDown(self):
         frappe.db.rollback()

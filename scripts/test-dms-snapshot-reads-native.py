@@ -427,6 +427,8 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         result, dataset = self._manual_query(authenticated)
         self.assertTrue(result["ok"], result)
         self.assertEqual(len(calls), 1)
+        # 任务开始读时给发起人放 LINE 原生加载动画（不发等待文字）
+        self.loading_calls.assert_any_call(self.line_id, 60)
         read = rb.fetch_sales_records(self.users[0], field="customer", query="MATCH", status="active")
         self.assertTrue(read["ok"], read)
         self.assertEqual([row["id"] for row in read["rows"]], ["2", "0"])
