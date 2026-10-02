@@ -331,6 +331,9 @@ The booking cannot be opened yet · The DMS account of this user cannot be read,
 The booking could not be created,订车单建立失败
 The booking could not be created. Please try again.,订车单建立失败，请重试。
 The card could not be read clearly. Please take the photo again.,身份证看不清，请重新拍照。
+The check could not start. Please try again.,检查没能开始，请再试一次。
+The check failed. Please try again.,检查失败，请再试一次。
+The check stopped before it finished. Please try again.,检查中途停止了，请再试一次。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 The data volume exceeds the read limit. Please contact an administrator.,数据量超过了读取上限，请联系管理人员。

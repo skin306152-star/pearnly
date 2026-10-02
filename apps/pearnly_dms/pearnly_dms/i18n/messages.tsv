@@ -388,3 +388,7 @@ Search data	查询资料	ค้นหาข้อมูล	データ検索	dms.c
 Latest sales from DMS	DMS 最新销售	ยอดขายล่าสุดจาก DMS	DMS の最新販売	dms.card.rich.query.sub
 Manual	使用手册	คู่มือ	マニュアル	dms.card.rich.manual.title
 Video guides	教程视频	คลิปสอนการใช้งาน	動画ガイド	dms.card.rich.manual.sub
+Coming soon	即将推出	เร็ว ๆ นี้	近日公開	dms.card.rich.soon
+The check could not start. Please try again.	检查没能开始，请再试一次。	เริ่มตรวจสอบไม่ได้ กรุณาลองใหม่อีกครั้ง	確認を開始できませんでした。もう一度お試しください。
+The check failed. Please try again.	检查失败，请再试一次。	ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	確認に失敗しました。もう一度お試しください。
+The check stopped before it finished. Please try again.	检查中途停止了，请再试一次。	การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง	確認が途中で止まりました。もう一度お試しください。

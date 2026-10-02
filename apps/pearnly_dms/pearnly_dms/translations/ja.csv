@@ -331,6 +331,9 @@ The booking cannot be opened yet · The DMS account of this user cannot be read,
 The booking could not be created,予約を作成できませんでした
 The booking could not be created. Please try again.,予約を作成できませんでした。もう一度お試しください。
 The card could not be read clearly. Please take the photo again.,カードがはっきり読み取れませんでした。もう一度撮影してください。
+The check could not start. Please try again.,確認を開始できませんでした。もう一度お試しください。
+The check failed. Please try again.,確認に失敗しました。もう一度お試しください。
+The check stopped before it finished. Please try again.,確認が途中で止まりました。もう一度お試しください。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 The data volume exceeds the read limit. Please contact an administrator.,データ量が読み取り上限を超えています。管理者にご連絡ください。

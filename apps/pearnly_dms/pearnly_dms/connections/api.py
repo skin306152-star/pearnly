@@ -263,7 +263,26 @@ def get_accounts() -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def set_read_account(username: str, password: str, system_url: str | None = None) -> dict:
+def set_read_account(username: str, password: str, system_url: str | None = None, check_key: str | None = None) -> dict:
+    """添加或更换读档账号：必填检查后排到后台真试（`connections.background`），页面按 ``check_key`` 问 `account_check`。"""
+    _require_admin()
+    if not (username or "").strip() or not password:
+        frappe.throw(_("Both account and password are required"))
+    from pearnly_dms.connections import background
+
+    return background.start("read", check_key, {"username": username, "password": password, "system_url": system_url})
+
+
+@frappe.whitelist()
+def account_check(check_key: str | None = None) -> dict:
+    """本人发起的那次账号试登：``{state, result | message}``（`connections.background.status`）。"""
+    _require_admin()
+    from pearnly_dms.connections import background
+
+    return background.status(check_key)
+
+
+def _set_read_account(username: str, password: str, system_url: str | None = None) -> dict:
     """添加或更换读档账号 —— 它就是本站连 DMS 用的账号（用户 2026-09-27："只要读档账号和
     权限账号就好了"，不再另有一个"连接账号"）。
 
@@ -301,7 +320,16 @@ def set_read_account(username: str, password: str, system_url: str | None = None
 
 
 @frappe.whitelist(methods=["POST"])
-def save_write_accounts(accounts) -> dict:
+def save_write_accounts(accounts, check_key: str | None = None) -> dict:
+    """改写账号整表保存：排到后台真试（`connections.background`），页面按 ``check_key`` 问 `account_check`。"""
+    _require_admin()
+    from pearnly_dms.connections import background
+
+    rows = frappe.parse_json(accounts) if isinstance(accounts, str) else (accounts or [])
+    return background.start("write", check_key, {"accounts": rows})
+
+
+def _save_write_accounts(accounts) -> dict:
     """改写账号整表保存：新行与改了密码的行按"改写"真试；有一行不通过就一行都不存。
 
     `accounts` = `[{name?, username, password?}]`。带 `name` 且没填密码 = 原样保留；

@@ -331,6 +331,9 @@ The booking cannot be opened yet · The DMS account of this user cannot be read,
 The booking could not be created,สร้างใบจองไม่สำเร็จ
 The booking could not be created. Please try again.,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
 The card could not be read clearly. Please take the photo again.,อ่านบัตรไม่ชัด กรุณาถ่ายใหม่
+The check could not start. Please try again.,เริ่มตรวจสอบไม่ได้ กรุณาลองใหม่อีกครั้ง
+The check failed. Please try again.,ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
+The check stopped before it finished. Please try again.,การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 The data volume exceeds the read limit. Please contact an administrator.,ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ

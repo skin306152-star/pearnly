@@ -331,6 +331,9 @@ The booking cannot be opened yet · The DMS account of this user cannot be read,
 The booking could not be created,The booking could not be created
 The booking could not be created. Please try again.,The booking could not be created. Please try again.
 The card could not be read clearly. Please take the photo again.,The card could not be read clearly. Please take the photo again.
+The check could not start. Please try again.,The check could not start. Please try again.
+The check failed. Please try again.,The check failed. Please try again.
+The check stopped before it finished. Please try again.,The check stopped before it finished. Please try again.
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
 The data volume exceeds the read limit. Please contact an administrator.,The data volume exceeds the read limit. Please contact an administrator.

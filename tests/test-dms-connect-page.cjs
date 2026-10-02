@@ -25,7 +25,7 @@ function element() {
 function harness({connected = true, accounts = null} = {}) {
   const calls = [], messages = [], successes = [], menu = [], dialogs = [], layouts = [], controls = [];
   const serverAccounts = clone(accounts || {read: null, write: []});
-  let reply = {ok: true}, primary = null, primaryLabel = '', secondary = null, secondaryCleared = 0, frozen = 0;
+  let reply = {ok: true}, check = null, primary = null, primaryLabel = '', secondary = null, secondaryCleared = 0, frozen = 0;
   const page = {
     main: {empty() {}}, clear_inner_toolbar() {}, set_indicator() {},
     set_primary_action(label, fn) {primary = fn; primaryLabel = label;},
@@ -43,7 +43,9 @@ function harness({connected = true, accounts = null} = {}) {
         return {connected, endpoint: connected ? {name: 'PRIMARY-LOCAL', system_url: 'https://dms.example.test'} : null};
       }
       if (method.endsWith('get_accounts')) return clone(serverAccounts);
-      if (method.endsWith('set_read_account') || method.endsWith('save_write_accounts')) return clone(reply);
+      // 试账号在后台跑（2026-10-02）：发起只回排队号，结果按号问 account_check。
+      if (method.endsWith('set_read_account') || method.endsWith('save_write_accounts')) return {queued: args.check_key};
+      if (method.endsWith('account_check')) return clone(check === null ? {state: 'done', result: reply} : check);
       throw new Error('Unexpected call: ' + method);
     },
     dialog(title, fields, action, submit) {
@@ -76,6 +78,7 @@ function harness({connected = true, accounts = null} = {}) {
     get secondaryCleared() {return secondaryCleared;}, get frozen() {return frozen;},
     primary() {assert(primary, 'a primary action must exist'); primary();},
     setReply(value) {reply = clone(value);},
+    setCheck(value) {check = value === null ? null : clone(value);},
     count(method) {return calls.filter(call => call.method.endsWith(method)).length;},
     start: () => p.connect(page, t, {}),
   };
@@ -115,7 +118,10 @@ test('not connected: the read account is the only button and saving it is the co
   h.primary();
   await h.dialogs.at(-1).submit({username: 'reader', password: 'x'}, {set_value() {}, hide() {}});
   const call = h.calls.find(c => c.method.endsWith('set_read_account'));
-  assert.deepEqual(call.args, {username: 'reader', password: 'x'});
+  assert.match(call.args.check_key, /^[A-Za-z0-9_-]{8,64}$/);
+  assert.deepEqual({...call.args, check_key: undefined}, {username: 'reader', password: 'x', check_key: undefined});
+  const asked = h.calls.find(c => c.method.endsWith('account_check'));
+  assert.deepEqual(asked.args, {check_key: call.args.check_key}, 'the status call carries only the key, never the password');
   assert.equal(call.type, 'POST');
   assert.equal(h.count('save_connection') + h.count('test_credentials'), 0);
   assert.equal(h.successes.at(-1), zh['dms.connect.acct.saved']);
@@ -164,3 +170,16 @@ test('write accounts: one account/password row by default, add and remove rows',
     {name: 'W1', username: 'w1', password: ''}, {name: '', username: 'w3', password: 'p3'}]);
   assert(hidden);
 });
+
+test('a check that fails in the background shows the server reason once and keeps the dialog open', async () => {
+  const h = harness();
+  await h.start();
+  h.setCheck({state: 'failed', message: '账号已被操作员使用'});
+  h.secondary.fn();
+  let hidden = false;
+  await h.dialogs.at(-1).submit({username: 'reader', password: 'x'}, {set_value() {}, hide() {hidden = true;}});
+  assert.equal(h.messages.at(-1).message, '账号已被操作员使用');
+  assert.equal(hidden, false);
+  assert.equal(h.successes.length, 0);
+});
+

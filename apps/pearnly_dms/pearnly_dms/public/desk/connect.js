@@ -50,6 +50,39 @@
 			const lang = (frappe.boot.lang || "th").slice(0, 2);
 			return value[lang] || value.th || "";
 		}
+		// 「真试一次再存」在后台跑（2026-10-02：同步请求会撞 120 秒上限）：发起后先问一次，之后推送优先、轮询兜底
+		// （实时连接在线 20 秒、不在线 5 秒一次，同 Cowork 录入）。读完返回原来的回复（`{ok, …}`）；后台报错按服务端给的
+		// 原因用原生提示弹出；30 秒仍问不到任何状态（号丢了）也停。
+		async function checkInBackground(method, args) {
+			const check_key = frappe.utils?.get_random?.(24) || String(Date.now()) + Math.random().toString(36).slice(2, 12);
+			const started = Date.now();
+			let wake = null, pushed = false;
+			const heard = (data) => { if (data?.token === check_key) { pushed = true; wake?.(); } };
+			frappe.realtime?.on?.("pearnly_dms_account_check", heard);
+			try {
+				await p.call(method, { ...args, check_key }, "POST");
+				for (let first = true; ; first = false) {
+					if (!first && !pushed) await new Promise((resolve) => {
+						wake = resolve;
+						setTimeout(resolve, frappe.realtime?.socket?.connected ? 20000 : 5000);
+					});
+					wake = null; pushed = false;
+					let now;
+					try {
+						now = (await p.call("pearnly_dms.connections.api.account_check", { check_key })) || {};
+					} catch (error) {
+						continue; // 一时问不到就下次再问
+					}
+					if (now.state === "done") return now.result || {};
+					if (now.state === "failed" || (!now.state && Date.now() - started > 30000)) {
+						frappe.msgprint({ message: p.escape(now.message || t("connect.error.failed")), indicator: "red" });
+						return { ok: false, shown: true };
+					}
+				}
+			} finally {
+				frappe.realtime?.off?.("pearnly_dms_account_check", heard);
+			}
+		}
 		// 按用途试过但权限不够：列出缺的那几项（使用记录 / 客户列表 …），不笼统说"失败"。
 		function accountFailure(result) {
 			const missing = (result.missing || []).map((key) => acct(`dms.connect.acct.check.${key}`));
@@ -70,7 +103,8 @@
 				acct("dms.connect.acct.testAndSave"),
 				async (values, d) => {
 					// 读档账号就是连接本身：第一次保存即连上 DMS，并开始读取缺的资料。
-					const result = await p.call("pearnly_dms.connections.api.set_read_account", values, "POST");
+					const result = await checkInBackground("pearnly_dms.connections.api.set_read_account", values);
+					if (result.shown) return;
 					if (!result.ok) return accountFailure(result);
 					d.set_value("password", "");
 					d.hide();
@@ -98,11 +132,11 @@
 						username: String(entry.user.get_value() || "").trim(),
 						password: entry.pass.get_value() || "",
 					}));
-					const result = await p.call(
+					const result = await checkInBackground(
 						"pearnly_dms.connections.api.save_write_accounts",
 						{ accounts: JSON.stringify(payload) },
-						"POST",
 					);
+					if (result.shown) return;
 					if (!result.ok) return accountFailure(result);
 					dialog.hide();
 					p.success(acct("dms.connect.acct.saved"));
