@@ -232,8 +232,9 @@ def _push_result(endpoint, dataset, request_id, conditions):
     """读取落地后，把结果推给发起这次查询的那位操作员（失败绝不影响读取结果）。
 
     `request_id` 此刻可能已经被下一次登记替换掉 —— 那就**不推**：那份结果属于
-    旧的条件。推送失败只记日志：数据已经安全落库，界面动作不该因为一条消息回退。
+    旧的条件。推不出去不影响已落库的读取结果，但要记 Error Log 并告诉发起人这次没查成。
     """
+    binding = {}
     try:
         request = manual._load(endpoint, dataset, "sales")[2]
         if request.get("id") != request_id:
@@ -249,14 +250,47 @@ def _push_result(endpoint, dataset, request_id, conditions):
             if kind == "capabilities":
                 query_flow._run_dimensions(binding, binding["line_user_id"])
             else:
-                # 条件形状与 `_begin_records` 当初写进会话的那份逐字一致 —— 否则
-                # `_same_query_session` 会认为"操作员已经换条件了"，结果就不该推。
-                params = {"query_kind": kind, **{key: value for key, value in conditions.items()
-                                                 if key != "kind"}}
+                params = _session_params(binding["line_user_id"], kind, conditions)
+                if params is None:
+                    return  # 操作员已经换了条件：这份结果属于旧条件，不推
                 runner = query_flow._run_records if kind == "records" else query_flow._run_top
                 runner(binding, binding["line_user_id"], params)
     except Exception:
-        logger.warning("DMS query result push failed", exc_info=True)
+        # 2026-10-02 ris：推结果这一步报错只记了一行 warning，操作员两次查询都既没结果也没失败提示。
+        # 现在记进 Error Log，并告诉发起人这次没查成、请重试（推不出去也不影响已落库的读取结果）。
+        frappe.log_error(title="DMS query result push failed")
+        _tell_failed(binding)
+
+
+def _session_params(line_user_id, kind, conditions):
+    """推结果用的查询参数：取发起人当前会话里那一份（含每页条数、页码，与 `_same_query_session` 比的是同一份）。
+
+    保存下来的 ``conditions`` 是 `query_parameters` 规整过的业务条件，按设计**不含**页码与每页条数（它们不决定缓存）；
+    以前直接拿它当参数，`_run_records` 取 ``params["limit"]`` 就 KeyError，结果永远推不出去（2026-10-02 ris 两次）。
+    会话已不是这组条件（换了条件、会话过期）返回 None。"""
+    from pearnly_core import line_session
+
+    session = line_session.get_session(line_user_id) or {}
+    payload = session.get("payload") or {}
+    if session.get("state") != "query_results" or payload.get("query_kind") != kind:
+        return None
+    if rb.query_parameters(kind, **payload) != conditions:
+        return None
+    return dict(payload)
+
+
+def _tell_failed(binding):
+    try:
+        from pearnly_dms import i18n
+        from pearnly_dms.query import query_cards, query_flow
+
+        line_user_id = binding.get("line_user_id")
+        if not line_user_id:
+            return
+        with i18n.line_language(line_user_id):
+            query_flow._push(line_user_id, query_cards.TXT_QUERY_FAILED, "")
+    except Exception:
+        logger.warning("DMS query failure notice could not be sent", exc_info=True)
 
 
 def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
