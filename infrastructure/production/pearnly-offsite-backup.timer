@@ -1,0 +1,11 @@
+[Unit]
+Description=Pearnly offsite backup at 02:00 Asia/Bangkok
+
+[Timer]
+# 曼谷 02:00 = UTC 19:00（避开 Frappe 每日任务 00:00 前后、DMS 03:00 全量回读与 04:30 补读）
+OnCalendar=*-*-* 19:00:00 UTC
+Persistent=false
+RandomizedDelaySec=0
+
+[Install]
+WantedBy=timers.target

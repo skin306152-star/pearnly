@@ -77,7 +77,10 @@ services:
     # 现按估算高峰约 110 个连接保持 151。要调高先把 PEARNLY_MARIADB_MEM 一起调大。
     # --innodb-buffer-pool-size：runtime.env 的 PEARNLY_MARIADB_BUFFER_POOL，默认 1G（2026-10-02 压测：1G 已满、机器 31G 只用了 9G）。
     # 提缓冲池要同时提 PEARNLY_MARIADB_MEM，容量检查按「缓冲池 + 固定开销 + 连接数 × 每连接」核算（capacity.py）。
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, '--innodb-buffer-pool-size=${PEARNLY_MARIADB_BUFFER_POOL:-1G}', --max-allowed-packet=64M, '--max-connections=${PEARNLY_MARIADB_MAX_CONNECTIONS:-151}']
+    # --log-bin：二进制日志存在数据卷里、保留 7 天（用户 2026-10-02 定，零费用），配合每日全量备份能恢复到任意时刻
+    # （见 scripts/production/restore-drill.sh 与 docs/work/2026-10-02-offsite-backup.md）。sync-binlog=0 交给系统刷盘，不加写延迟。
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, '--innodb-buffer-pool-size=${PEARNLY_MARIADB_BUFFER_POOL:-1G}', --max-allowed-packet=64M, '--max-connections=${PEARNLY_MARIADB_MAX_CONNECTIONS:-151}',
+              --log-bin=binlog, --binlog-expire-logs-seconds=604800, --sync-binlog=0]
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
       MARIADB_DATABASE: keycloak

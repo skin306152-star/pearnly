@@ -256,6 +256,9 @@ except ValueError as error:
 else:
     raise AssertionError('A 6G buffer pool in a 4g MariaDB must be refused')
 checks.append('The MariaDB buffer pool is set from runtime.env and must fit its memory limit')
+assert '--log-bin=binlog' in services['mariadb']['command']
+assert '--binlog-expire-logs-seconds=604800' in services['mariadb']['command']
+checks.append('MariaDB keeps 7 days of binary logs for point-in-time restore')
 # 识别进程开多线程（PEARNLY_*_OCR_THREADS，pool.py）：默认 1 不改任何行为；每多一个线程每进程多要 150 MiB。
 for name in ('dms-ocr-worker', 'erp-ocr-worker', 'cowork-ocr-worker'):
     assert services[name]['environment']['PEARNLY_OCR_THREADS'] == '1', name

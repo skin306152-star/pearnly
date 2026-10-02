@@ -1,0 +1,11 @@
+[Unit]
+Description=Pearnly offsite backup (databases, real-tenant files, encrypted secrets) to gs://pearnly-backups-sg
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/pearnly/deploy/scripts/production/offsite-backup.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=3h
