@@ -934,8 +934,15 @@ class PaidCallGuard(unittest.TestCase):
         paid = len(google.sent)
         self.assertEqual(remote(bucket, google)[-1]["status"], "done")
         self.assertEqual(len(google.sent), paid)
-        # 重发那次又断：判结果不明，之后也不再重放付费调用
+        # 重发那次又断：flash-lite 换第一个备用入口再试一次（2026-10-02 m6），读到就照常出结果，续跑不再付费
         bucket, google = Bucket(), Google(["drop", "drop"])
+        self.assertEqual(remote(bucket, google)[-1]["status"], "done")
+        self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[2])
+        paid = len(google.sent)
+        self.assertEqual(remote(bucket, google)[-1]["status"], "done")
+        self.assertEqual(len(google.sent), paid)
+        # 备用入口也断：判结果不明，之后也不再重放付费调用
+        bucket, google = Bucket(), Google(["drop", "drop", "drop"])
         self.assertEqual(remote(bucket, google)[-1]["status"], "uncertain")
         paid = len(google.sent)
         self.assertEqual(remote(bucket, google)[-1]["status"], "uncertain")

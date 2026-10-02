@@ -433,6 +433,23 @@ class ProviderRuntime(unittest.TestCase):
         self.core.client(environment={"VERTEX_OVERFLOW": "off"}).model_call(heavy)
         self.assertEqual([c["timeout_s"] for c in self.core.calls], [180])   # 3.8-flash 照旧给足
 
+    def test_a_silent_global_flash_lite_entry_is_tried_once_on_a_spare(self):
+        # 2026-10-02 m6：全球入口 flash-lite 第一次、重发都没回音就判了结果不明；现在换第一个备用入口再试一次
+        lite = replace(self.request, model="gemini-3.1-flash-lite", timeout_s=60, stage="direct")
+        self.core.plan = [Uncertain("silent"), Uncertain("silent again"), Response(model_body())]
+        result = self.core.client().model_call(lite)
+        self.assertEqual(result.text, '{"invoice_number": "A"}')
+        urls = [c["url"] for c in self.core.calls]
+        self.assertIn("aiplatform.googleapis.com", urls[0])
+        self.assertIn("aiplatform.googleapis.com", urls[1])
+        self.assertIn("aiplatform.us.rep.googleapis.com", urls[2])
+        self.assertEqual(len(urls), 3)                                   # 只多这一次
+        # 3.8 不在这里换入口（没回音时由引擎降到 flash-lite）
+        self.core.calls.clear()
+        self.core.plan = [Uncertain("silent"), Uncertain("silent again")]
+        with self.assertRaises(Uncertain):
+            self.core.client().model_call(replace(lite, model="gemini-3.8-flash"))
+
     def test_own_capacity_off_switch_and_regional_models_stay_on_their_entry(self):
         for environment, model, error in (({}, "gemini-3.8-flash", Deferred("capacity", 3)),
                                           ({"VERTEX_OVERFLOW": "off"}, "gemini-3.8-flash", Deferred("provider_429", 6)),

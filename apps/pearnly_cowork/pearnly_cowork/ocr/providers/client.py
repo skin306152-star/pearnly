@@ -305,6 +305,13 @@ class ProviderClient:
         except Deferred as error:
             if not str(error.reason).startswith("provider_"):
                 raise
+        except Uncertain:
+            # flash-lite 在全球入口第一次、重发都没回音（2026-10-02 m6：10:04–10:05 全球入口连续 60 秒不回，testcowork2 三份
+            # 判了结果不明；备用入口原来只在 429 时才用）：换第一个备用入口再试一次（用原上限、不再重发），只在这种时候多一次
+            # 调用。3.8 不在这里换入口：它没回音时由引擎降到 flash-lite 读（``engine.runner.read_image``）。
+            if "flash-lite" not in model.lower():
+                raise
+            return send(spares[0], resend=0, timeout=request.timeout_s)
         # 转到备用入口的这一次结果不明（读超时、连接断）时重发一次，不让整张作废（用户 2026-10-01 同意；部署后 128 张复压
         # 有 1 张转美国入口后 60 秒没回、整张判结果不明）。重发是新的检查点，极少数情况下这一次多付一遍。
         try:
