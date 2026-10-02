@@ -982,14 +982,16 @@ class Escalation(unittest.TestCase):
         store = {}
         cache = Mock(set_value=lambda key, value, expires_in_sec=None: store.__setitem__(key, value),
                      get_value=lambda key: store.get(key))
-        with patch.object(frappe, "cache", cache, create=True), \
+        # 进度与结果在不淘汰的状态存储（`pearnly_core.execution.state`，2026-10-02 网页识别改后台）；推送这里不管
+        with patch("pearnly_core.execution.state.store", return_value=cache), \
+                patch.object(frappe, "publish_realtime", Mock(), create=True), \
                 patch.object(frappe, "session", Mock(user="a@example.com"), create=True):
             self.assertIsNone(progress.reporter("x"))
             self.assertIsNone(progress.reporter(None))
             progress.reporter("k" * 24)(2, 5)
-            self.assertEqual(progress.read("k" * 24), {"done": 2, "total": 5})
+            self.assertEqual(progress.read("k" * 24), {"state": "running", "done": 2, "total": 5})
             self.assertEqual(progress.read("../other"), {})
-        with patch.object(frappe, "cache", cache, create=True), \
+        with patch("pearnly_core.execution.state.store", return_value=cache), \
                 patch.object(frappe, "session", Mock(user="b@example.com"), create=True):
             self.assertEqual(progress.read("k" * 24), {})
 

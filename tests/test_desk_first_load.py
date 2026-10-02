@@ -71,7 +71,8 @@ class TextVersionTest(unittest.TestCase):
 
     def test_core_declares_the_official_extend_bootinfo_hook(self):
         source = (ROOT / "apps/pearnly_core/pearnly_core/hooks.py").read_text()
-        self.assertIn('extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo"]', source)
+        line = next(row for row in source.splitlines() if row.startswith("extend_bootinfo = ["))
+        self.assertIn('"pearnly_core.browser_text.extend_bootinfo"', line)
 
 
 class WarmupTest(unittest.TestCase):
