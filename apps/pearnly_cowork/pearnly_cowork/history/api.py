@@ -1,6 +1,9 @@
 """Desk-ready backend RPCs. No frontend or external recognition/push is installed here."""
 from decimal import Decimal, InvalidOperation
 
+import hashlib
+import json
+
 import frappe
 from pearnly_cowork.access import scope
 from pearnly_cowork.history import duplicates, removal, storage
@@ -137,12 +140,39 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
         return {"items": [found[name] for name in page if name in found], "total": len(rows)}
     items = frappe.get_list(storage.DOCTYPE, filters=filters, fields=fields,
         order_by=order_by, limit_start=start, limit_page_length=limit)
-    # 总数在数据库里数（同一条权限查询条件），不把全部行的主键取回来再数：记录多了逐条取回会随行数线性变慢
-    # （2026-10-01 性能排查）。框架的 SELECT 不许写函数字符串，用字典写法。
-    counted = frappe.get_list(storage.DOCTYPE, filters=filters, fields=[{"COUNT": "name", "as": "total"}],
-        order_by="", limit_page_length=0)
-    total = int((counted[0].get("total") if counted else 0) or 0)
-    return {"items": items, "total": total}
+    return {"items": items, "total": _total(filters, start, limit, items)}
+
+
+TOTAL_SECONDS = 20
+
+
+def _total(filters, start, limit, items):
+    """列表总数（原生列表画「已显示 / 总数」和「加载更多」用）。2026-10-02 m6：每次刷新都数一遍全部可见行（1.2 万行时
+    0.2–0.7 秒），页面每 5–60 秒自动刷新一次，是列表 p95 约 2 秒的大头。
+    - 翻页（``start`` > 0）不数，回 ``None``，页面沿用第一页拿到的总数；
+    - 第一页没装满：总数就是这几行，不用数；
+    - 第一页装满了才数，同一个人、同一组筛选 20 秒内沿用上一次的数（新票在列表里马上出现，只是总数最多晚 20 秒），
+      且不小于这一页已有的行数。
+    数法不变：同一条权限查询条件、在数据库里数（不把全部主键取回来）。"""
+    if start:
+        return None
+    if len(items) < limit:
+        return len(items)
+    key = "cowork:history:total:" + hashlib.sha256(json.dumps([frappe.session.user, filters], sort_keys=True,
+                                                                default=str).encode()).hexdigest()
+    try:
+        cached = frappe.cache.get_value(key)
+    except Exception:
+        cached = None
+    if cached is None:
+        counted = frappe.get_list(storage.DOCTYPE, filters=filters, fields=[{"COUNT": "name", "as": "total"}],
+            order_by="", limit_page_length=0)
+        cached = int((counted[0].get("total") if counted else 0) or 0)
+        try:
+            frappe.cache.set_value(key, cached, expires_in_sec=TOTAL_SECONDS)
+        except Exception:
+            pass
+    return max(int(cached), len(items))
 
 
 

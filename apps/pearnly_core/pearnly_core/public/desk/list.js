@@ -333,7 +333,8 @@
 				const result = await this.load({start, page_length: length,
 					sort_by: this.sort_by, sort_order: this.sort_order});
 				if (request !== this.sequence) return;
-				this.total = result.total;
+				// 翻页时服务端可以不再数总数（回 null / 不回）：沿用第一页的总数（2026-10-02 m6：每次都数一遍全部可见行太慢）。
+				if (result.total !== null && result.total !== undefined) this.total = result.total;
 				// The framework renders the first column as the row subject and skips its
 				// formatter, so format that column here instead.
 				const subject = this.columns[0];
