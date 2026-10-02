@@ -744,9 +744,11 @@ Received By,ผู้รับเงิน
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Recent Orders,ออเดอร์ล่าสุด
 Recent Transactions,ธุรกรรมล่าสุด
+Recognition could not start. Please try again.,เริ่มอ่านเอกสารไม่ได้ กรุณาลองใหม่อีกครั้ง
 Recognition is busy right now. Please try again in a minute.,ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที
 Recognition is not configured for this account,ยังไม่ได้ตั้งค่าการรู้จำข้อความ
 Recognition returned nothing,ไม่พบข้อมูลจากการรู้จำ
+Recognition stopped before it finished. Please try again.,การอ่านเอกสารหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง
 Recognizing...,กำลังอ่านข้อความ…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ

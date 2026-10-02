@@ -744,9 +744,11 @@ Received By,Received By
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recent Orders,Recent Orders
 Recent Transactions,Recent Transactions
+Recognition could not start. Please try again.,Recognition could not start. Please try again.
 Recognition is busy right now. Please try again in a minute.,Recognition is busy right now. Please try again in a minute.
 Recognition is not configured for this account,Recognition is not configured for this account
 Recognition returned nothing,Recognition returned nothing
+Recognition stopped before it finished. Please try again.,Recognition stopped before it finished. Please try again.
 Recognizing...,Recognizing...
 Record,Record
 Record a count,Record a count

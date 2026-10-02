@@ -88,16 +88,17 @@ def api_sales_export(params=None):
 
 @frappe.whitelist(methods=["POST"])
 def api_recognise_sales(attachments=None, document_name=None, progress_key=None):
-    from pearnly_erp_portal.sales import recognition
-    from pearnly_erp_portal.recognition import policy, progress
+    """排到后台读（`recognition.background`），页面按 ``progress_key`` 问 `api_recognise_progress` 拿进度与结果。"""
+    from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.recognition import background
 
-    return policy.for_web(lambda: recognition.recognise(frappe.parse_json(attachments), document_name=document_name,
-                                                        progress=progress.reporter(progress_key)))
+    guard.require("sales.write")
+    return background.start("sales", progress_key, attachments=frappe.parse_json(attachments), document_name=document_name)
 
 
 @frappe.whitelist()
 def api_recognise_progress(progress_key=None):
-    """识别等候页按页的进度（本人发起的那次识别）：``{done, total}``，还没开始读是空。"""
+    """本人发起的那次识别：``{state, done, total, result | message}``（`recognition.progress.read`），还没发起是空。"""
     from pearnly_erp_portal.recognition import progress
 
     return progress.read(progress_key)

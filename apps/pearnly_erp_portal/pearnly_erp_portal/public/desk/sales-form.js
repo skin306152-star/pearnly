@@ -162,11 +162,11 @@
 				// 白底 + 官方转圈 + 按页进度 + 已用秒数（用户 2026-09-30「白屏加动画」「按页分进度，不要按份」）：
 				// 带一个随机进度号发起，识别每读完一页服务端记一次，等候期间按这个号问（`recognition.progress`）。
 				const progress_key = frappe.utils.get_random(24);
+				let latest = {}; // 后台识别的进度：`p.trade.recognise` 问到就更新，等候层直接读
 				const waiting = p.waiting(state.page, __("Recognizing..."), {elapsed: true,
-					pages: async () => (await frappe.call({method: u.api + "api_recognise_progress", args: {progress_key},
-						type: "GET", silent: true})).message});
+					pages: async () => latest});
 				try {
-					const result = await u.call("api_recognise_sales", {attachments: state.attachments, document_name: doc.name, progress_key}, true);
+					const result = await p.trade.recognise(u.api, "api_recognise_sales", {attachments: state.attachments, document_name: doc.name, progress_key}, now => {latest = now;});
 					if (!still_current() || state.disposed) return;
 					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break", "Table"].includes(form.fields_dict[key].df.fieldtype));

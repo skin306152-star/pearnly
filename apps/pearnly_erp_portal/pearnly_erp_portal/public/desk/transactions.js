@@ -13,6 +13,28 @@
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
 	p.trade = {
+		// 采购 / 销售网页识别在后台跑（2026-10-02：同步请求读多页 PDF 会撞 120 秒超时）。发起后每 1.5 秒按号问一次，
+		// 读完返回结果；失败按服务端给的原因用原生提示弹出（与原先同步调用时一样）。`progress(now)`：每次问到的
+		// {done, total}，给等候层显示页数，不再另外问一次。服务端说任务已经不在会回失败；一直问不到状态（号丢了）30 秒后也停。
+		async recognise(api, method, args, progress) {
+			await p.call(api + method, args, "POST");
+			for (let empty = 0; ;) {
+				await new Promise(resolve => setTimeout(resolve, 1500));
+				let now;
+				try {
+					now = (await frappe.call({method: api + "api_recognise_progress", args: {progress_key: args.progress_key},
+						type: "GET", silent: true})).message || {};
+				} catch (error) {
+					continue; // 一时问不到就下次再问
+				}
+				progress?.(now);
+				if (now.state === "done") return now.result;
+				if (now.state === "failed" || (!now.state && ++empty >= 20)) {
+					frappe.msgprint({message: now.message || __("Recognition failed. Please try again."), indicator: "red"});
+					throw {_server_messages: true};
+				}
+			}
+		},
 		// 收银小票的只读查看器：销售记录里点到"来源=POS"的行，或收银页点小票，都开这一个。
 		// `actions` 由调用方给（收银页给「退货退款 / 作废」，销售记录只读打开时不给）。
 		async receipt_view(name, t, actions = {}) {

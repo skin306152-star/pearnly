@@ -744,9 +744,11 @@ Received By,收款人
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
 Recent Orders,最近订单
 Recent Transactions,最近交易
+Recognition could not start. Please try again.,识别没能开始，请再试一次。
 Recognition is busy right now. Please try again in a minute.,识别服务繁忙，请一分钟后再试。
 Recognition is not configured for this account,尚未配置文字识别
 Recognition returned nothing,未识别到内容
+Recognition stopped before it finished. Please try again.,识别中途停止了，请再试一次。
 Recognizing...,识别中…
 Record,单据
 Record a count,录入盘点

@@ -1,7 +1,8 @@
-"""ERP 采购 / 销售网页识别按页的进度（用户 2026-09-30：「录入工作台按页分进度，不要按份，ERP 那边一样」）。
+"""ERP 采购 / 销售网页识别的进度与结果（用户 2026-09-30：「录入工作台按页分进度，不要按份，ERP 那边一样」）。
 
-网页识别是一次同步调用；页面发起时带一个随机的进度号，识别每读完一页（多页 PDF 逐页读，见 `policy.read_all`）
-就把「已读页数 / 总页数」写进缓存，页面等候期间按这个号轮询。只作展示：按当前用户隔离，缓存写不了不影响识别。
+网页识别在后台跑（`recognition.background`，2026-10-02：同步请求读多页 PDF 会超过 gunicorn 120 秒）。页面发起时带一个随机号，
+后台每读完一页写一次「已读页数 / 总页数」，读完写结果或失败原因；页面按这个号轮询。按当前用户隔离。
+存在不淘汰的状态存储（`pearnly_core.execution.state`）：结果丢了页面就会一直等，不能放会被挤掉的 redis-cache。
 """
 import re
 
@@ -12,26 +13,66 @@ TOKEN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 EXPIRES = 3600
 
 
-def _key(token):
-    return f"{PREFIX}{frappe.session.user}:{token}"
+def valid(token):
+    return isinstance(token, str) and bool(TOKEN.match(token))
+
+
+def _key(token, user=None):
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store(), f"{PREFIX}{user or frappe.session.user}:{token}"
+
+
+def _write(token, value):
+    store, key = _key(token)
+    store.set_value(key, value, expires_in_sec=EXPIRES)
+
+
+def _read(token):
+    store, key = _key(token)
+    value = store.get_value(key)
+    return value if isinstance(value, dict) else {}
 
 
 def reporter(token):
-    """发起识别时带的进度号 → ``(已读页数, 总页数)`` 的回报函数；没带或格式不对就不回报。"""
-    if not isinstance(token, str) or not TOKEN.match(token):
+    """发起识别时带的号 → ``(已读页数, 总页数)`` 的回报函数；没带或格式不对就不回报。"""
+    if not valid(token):
         return None
-    key = _key(token)
 
     def report(done, total):
         try:
-            frappe.cache.set_value(key, {"done": int(done), "total": int(total)}, expires_in_sec=EXPIRES)
+            _write(token, {**_read(token), "state": "running", "done": int(done), "total": int(total)})
         except Exception:
-            pass  # 进度只作展示
+            pass  # 页数只作展示
     return report
 
 
+def queued(token, job_id):
+    _write(token, {"state": "queued", "job": job_id})
+
+
+def finish(token, outcome):
+    """``outcome``：``{"state": "done", "result": …}`` 或 ``{"state": "failed", "message": …}``。写不进要报出来（页面会一直等）。"""
+    _write(token, {**_read(token), **outcome})
+
+
 def read(token):
-    if not isinstance(token, str) or not TOKEN.match(token):
+    """``{state, done, total, result | message}``；还没发起或号不对是空。后台任务已经不在（进程重启、超时）却没写结果的，
+    按失败回，页面不会一直等。"""
+    if not valid(token):
         return {}
-    value = frappe.cache.get_value(_key(token))
-    return value if isinstance(value, dict) else {}
+    value = _read(token)
+    if value.get("state") in ("queued", "running") and value.get("job") and not _job_alive(value["job"]):
+        value = {**_read(token)}  # 任务刚写完结果的竞态：再读一次
+        if value.get("state") in ("queued", "running"):
+            from frappe import _
+
+            value = {**value, "state": "failed", "message": _("Recognition stopped before it finished. Please try again.")}
+    return value
+
+
+def _job_alive(job_id):
+    from frappe.utils.background_jobs import get_job
+
+    job = get_job(job_id)
+    return bool(job) and job.get_status(refresh=False) in ("queued", "started", "deferred", "scheduled")

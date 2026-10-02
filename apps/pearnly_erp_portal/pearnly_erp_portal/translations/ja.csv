@@ -744,9 +744,11 @@ Received By,受領者
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Recent Orders,最近の会計
 Recent Transactions,最近の取引
+Recognition could not start. Please try again.,読み取りを開始できませんでした。もう一度お試しください。
 Recognition is busy right now. Please try again in a minute.,読み取りが混み合っています。1 分後にもう一度お試しください。
 Recognition is not configured for this account,文字認識が設定されていません
 Recognition returned nothing,内容を認識できませんでした
+Recognition stopped before it finished. Please try again.,読み取りが途中で止まりました。もう一度お試しください。
 Recognizing...,読み取り中…
 Record,伝票
 Record a count,棚卸を入力
