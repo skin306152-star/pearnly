@@ -20,7 +20,8 @@ day=$(docker run --rm --user 0:0 --memory 512m -v $work:/dest -v $SECRETS/backup
   -v $DEPLOY/scripts/production/offsite-download.py:/download.py:ro --entrypoint /home/frappe/frappe-bench/env/bin/python \
   "$APPIMG" /download.py --key /key.json --bucket $BUCKET --dest /dest ${1:+--day $1}) || { echo "下载失败"; exit 1; }
 echo "备份日期 $day，文件 $(ls $work | wc -l) 个，$(du -sh $work | cut -f1)"
-( cd $work && sha256sum -c --quiet SHA256SUMS ) && echo "SHA256 全部一致" || { echo "SHA256 不一致"; exit 1; }
+# 跳过清单自己那一行（2026-10-02 第一份备份的清单误把自己算了进去）
+( cd $work && grep -v " SHA256SUMS$" SHA256SUMS | sha256sum -c --quiet - ) && echo "SHA256 全部一致" || { echo "SHA256 不一致"; exit 1; }
 echo "== 2) 导入临时库 $(date -u +%T)"
 M=pearnly-production-mariadb-1; DBIMG=$(docker inspect $M --format '{{.Config.Image}}'); pw=$(openssl rand -hex 16)
 docker run -d --name $drill --memory 2g -v $drill:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=$pw "$DBIMG" \

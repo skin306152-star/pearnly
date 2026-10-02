@@ -70,7 +70,8 @@ rm -rf $bundle
 
 # 4) 清单
 revision=$(docker inspect pearnly-production-cowork-web-1 --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null)
-( cd $work && sha256sum * ) > $work/SHA256SUMS
+# 先算完再写：重定向会先建出空的 SHA256SUMS，若直接 `sha256sum * > SHA256SUMS`，清单会把自己（空文件）也算进去
+sums=$(cd $work && sha256sum -- *) || fail checksums; printf '%s\n' "$sums" > $work/SHA256SUMS
 printf '{"day":"%s","image_revision":"%s","databases":"%s"}\n' "$day" "$revision" "$(echo $dbs)" > $work/manifest.json
 
 # 5) 上传（生产镜像里的 Python + google-auth；只新建、不覆盖；以 root 跑，密钥文件只给 root 读）

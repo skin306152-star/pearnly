@@ -36,4 +36,5 @@ check("runtime.env 不整份 source（有带逗号的值），只取 PEARNLY_BAC
       and backup.index("PEARNLY_BACKUP_*") < backup.index("BUCKET=${PEARNLY_BACKUP_BUCKET"))
 check("读服务账号密钥（只给 root 读）的上传 / 下载容器以 root 跑",
       all("--user 0:0" in line for line in (backup + drill).splitlines() if "/key.json:ro" in line))
+check("校验清单不把自己算进去（先算完再写入）", ") > $work/SHA256SUMS" not in backup and "sha256sum -- *" in backup)
 print({"passed": len(checks), "checks": checks})
