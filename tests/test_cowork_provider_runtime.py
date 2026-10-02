@@ -400,12 +400,18 @@ class ProviderRuntime(unittest.TestCase):
         self.assertEqual(len({values["model"] for values in posted}), 4)
 
     def test_a_flash_lite_call_waits_40_seconds_first_then_resends_with_its_full_limit(self):
-        lite = replace(self.request, model="gemini-3.1-flash-lite", timeout_s=120)
+        lite = replace(self.request, model="gemini-3.1-flash-lite", timeout_s=120, stage="direct")
         self.core.plan = [Uncertain("read timed out"), Response(model_body())]
         result = self.core.client(environment={"VERTEX_OVERFLOW": "off"}).model_call(lite)
         self.assertEqual(result.text, '{"invoice_number": "A"}')
         self.assertEqual([c["timeout_s"] for c in self.core.calls], [40, 120])
         self.core.calls.clear()
+        # 整页转写 / 读文字是长输出：一次给足，不在 40 秒截断再付费重发（2026-10-02 评测）
+        for stage in ("ocr_read", "layer2"):
+            self.core.plan = [Response(model_body())]
+            self.core.client(environment={"VERTEX_OVERFLOW": "off"}).model_call(replace(lite, stage=stage))
+            self.assertEqual([c["timeout_s"] for c in self.core.calls], [120], stage)
+            self.core.calls.clear()
         self.core.plan = [Response(model_body())]
         heavy = replace(self.request, model="gemini-3.8-flash", timeout_s=180, stage="L9")
         self.core.client(environment={"VERTEX_OVERFLOW": "off"}).model_call(heavy)

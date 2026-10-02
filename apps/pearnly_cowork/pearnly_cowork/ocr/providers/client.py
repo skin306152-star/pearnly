@@ -94,6 +94,9 @@ VISION_FIRST_TIMEOUT = 15
 VISION_SECONDS_PER_MB = 10
 # flash-lite 第一次最多等多久（秒）；备用入口都结果不明时退回全球入口那次用的尝试号偏移（与全球入口本身、它的重发区分开）。
 LITE_FIRST_TIMEOUT, GLOBAL_FALLBACK_ATTEMPT = 40, 2
+# 只有输出短的看图读用这个第一次上限（直读 / 复核，正常输出 p99 约 2000 token）。整页转写（ocr_read，带思考、正常 3000–5000
+# token）和读文字这类长输出照旧一次给足：2026-10-02 两轮评测里 40 秒截断的多数是这类正常的长输出，截断后原样重发、多付一遍。
+LITE_SHORT_STAGES = ("direct", "recheck")
 VISION_5XX_RETRIES, VISION_5XX_PAUSE = 2, 2
 
 
@@ -273,7 +276,7 @@ class ProviderClient:
         自家额度的等待照旧原地等。续跑时已在任一备用入口读完的直接取回，不再付费。"""
         # flash-lite 正常单次 2–4 秒：第一次最多等 LITE_FIRST_TIMEOUT 秒，没回按「结果不明重发」再发（重发用原上限）；
         # 3.8-flash 读银行账单页有 70–180 秒才回的，照旧给足（2026-10-02 第三轮：一张发票在备用入口上干等了 183 秒和两次 60 秒）。
-        lite = "flash-lite" in model.lower()
+        lite = "flash-lite" in model.lower() and request.stage in LITE_SHORT_STAGES
         first_timeout = min(request.timeout_s, LITE_FIRST_TIMEOUT) if lite else request.timeout_s
 
         def send(where, attempt=request.attempt, hand_back=(), resend=retry_unknown, timeout=None):
