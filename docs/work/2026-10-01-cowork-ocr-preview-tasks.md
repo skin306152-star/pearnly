@@ -393,7 +393,10 @@ Workflows 还在重试、云上没有任何进展超过 5 分钟才判超时。
 - Cloud Run 评测标签 `eval`（0% 流量；修复窗口分支 `codex/invoice-read-rules` 的提示词，依次 00020 fd46ca38、00021 df81e3e4、
   00023 61e28855、00024 6172790）和服务级自定义受众（标签地址；派发令牌以站点配置的地址为受众，标签地址不加自定义受众回 401，
   2026-10-01 23:00Z 实测）：**交接保留**，修复窗口跑完 eval3、testcowork 地址改回主地址后通知本窗口，删标签并
-  `--remove-custom-audiences`。加自定义受众后生产主地址照常 200（23:11Z 回读）。之后发 Cloud Run 时流量按修订版名固定着，
+  `--remove-custom-audiences`。加自定义受众后生产主地址照常 200（23:11Z 回读）。
+  2026-10-02 00:2xZ 更新：eval4（00025）没过合入标准，`eval` 标签与它的受众已删；改为单一变量两组 `eval5` = 00026-jib
+  （codex/invoice-rules-nonin 328e93be）、`eval6` = 00027-vec（codex/invoice-rules-fields cbd07485），两个标签地址是现在仅有的自定义受众。
+  修复窗口评测完通知后删。之后发 Cloud Run 时流量按修订版名固定着，
   发布后要 `gcloud run services update-traffic cowork-ocr --to-latest` 并回读 100%。
 - 工作树 `/Users/skin/pearnly/.claude/worktrees/upbeat-lamarr-9e73fe`、分支 `codex/cowork-run-timing`：**交接保留**（计时日志未合入，
   等下一批；下一轮 100 人拆分完成后复核）。
