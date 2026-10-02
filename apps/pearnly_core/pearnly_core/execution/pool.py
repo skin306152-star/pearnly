@@ -15,6 +15,7 @@
 """
 from contextlib import contextmanager
 import contextvars
+from functools import partial
 import os
 import threading
 
@@ -127,13 +128,47 @@ def handoff(method, kwargs):
     job = getattr(frappe.local, "job", None)
     if job is None:
         return False
+    return _start(frappe.local.site, method, job.job_name, kwargs, job.user)
+
+
+RUN = "pearnly_core.execution.work.run"
+
+
+def relay(job):
+    """识别进程（``ocr_worker.OcrWorker``）从 RQ 取到 ``work.run`` 时调用：不进站点（不 init / 连库 / 跑 before_job），
+    直接把这份交给空闲线程，线程里照原生 ``execute_job`` 跑；RQ 这边随即记完成去取下一份。
+
+    原来 RQ 线程先按原生 ``execute_job`` 完整进一次站点、到 ``work.run`` 里才交线程（:func:`handoff`），这一趟空转
+    闲时 0.07 秒、100 人压测高峰 0.75–0.81 秒（和二十几个识别线程抢解释器锁），每进程一个 RQ 线程串行做，
+    高峰时任务在队列里等 15–20 秒（2026-10-02 m7）。等不到空闲线程时照原样在 RQ 线程里跑（与 :func:`handoff` 相同）。
+    不满足条件（没开线程、fork 模式、不是 ``work.run``）返回 None，调用方照原生跑。"""
+    arguments = job.kwargs or {}
+    if (threads() <= 1 or not no_fork() or job.func_name != "frappe.utils.background_jobs.execute_job"
+            or arguments.get("method") != RUN or not arguments.get("is_async", True)
+            or not isinstance(arguments.get("site"), str)):
+        return None
+    return partial(_relay, job, arguments)
+
+
+def _relay(job, arguments):
+    if _start(arguments["site"], RUN, arguments.get("job_name"), arguments.get("kwargs") or {}, arguments.get("user")):
+        return None
+    # 等了 SLOT_WAIT_SECONDS 还没空闲线程：就在这里照原生跑，算作在识别线程里（``work.run`` 不再二次等位，等外部时照样放开连接）
+    _worker.active = True
+    try:
+        return type(job)._execute(job)
+    finally:
+        _worker.active = False
+
+
+def _start(site, method, job_name, kwargs, user):
     slots = _semaphore()
     if not slots.acquire(timeout=SLOT_WAIT_SECONDS):
         return False
     _count(1)
     try:
         thread = threading.Thread(target=contextvars.Context().run,
-            args=(_run, slots, frappe.local.site, method, job.job_name, kwargs, job.user),
+            args=(_run, slots, site, method, job_name, kwargs, user),
             name="pearnly-ocr", daemon=False)
         thread.start()
     except BaseException:

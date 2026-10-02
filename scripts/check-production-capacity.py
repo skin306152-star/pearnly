@@ -59,7 +59,7 @@ assert services['cowork-long-worker']['command'] == ['/home/frappe/frappe-bench/
 assert int(services['cowork-long-worker']['mem_limit']) == 1536 * M
 assert services['cowork-long-worker']['profiles'] == ['cowork']
 assert not services['cowork-long-worker'].get('ports')
-assert services['cowork-ocr-worker']['command'][3] == 'ocr'
+assert services['cowork-ocr-worker']['command'][4] == 'ocr'
 checks.append('Cowork reconciliation lane never holds scheduled or interactive jobs')
 
 # 抢 CPU 时网页 / 数据库先跑（2026-10-01 半量压测：后台与网页抢同一台机器，页面跟着变慢）。只给后台降权重，
@@ -80,7 +80,10 @@ for name, service in services.items():
     value = (service.get('environment') or {}).get(NOFORK)
     if name in ('dms-ocr-worker', 'erp-ocr-worker', 'cowork-ocr-worker'):
         assert value == '1', name
-        assert service['command'][:2] == ['bench', 'worker-pool'], name
+        # Cowork 的走预导入入口：开了多线程时识别任务直接交线程（pearnly_core/execution/ocr_worker.py）
+        assert service['command'][:2] == ['bench', 'worker-pool'] or (
+            name == 'cowork-ocr-worker' and service['command'][:5] == [
+                '/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker', '--queue', 'ocr']), name
     else:
         assert value is None, name
 checks.append('Only the three OCR worker pools run jobs without forking')

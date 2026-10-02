@@ -123,6 +123,66 @@ class Pool(unittest.TestCase):
         kill.assert_called_once()
         recycle._requested = False
 
+    def rq_job(self, method="pearnly_core.execution.work.run", **extra):
+        arguments = {"site": "tenant.example", "user": "someone@example.com", "method": method, "event": None,
+                     "job_name": method, "is_async": True, "kwargs": {"name": "w1"}, **extra}
+        return SimpleNamespace(func_name="frappe.utils.background_jobs.execute_job", kwargs=arguments)
+
+    def test_the_ocr_worker_hands_work_run_to_a_thread_without_entering_the_site(self):
+        seen = []
+
+        def execute(site, method, event, job_name, kwargs, user=None, is_async=True):
+            seen.append((site, method, job_name, kwargs, user, pool.in_thread()))
+
+        frappe.local.job = None  # RQ 线程这边还没有进站点
+        with self.env(PEARNLY_OCR_THREADS="4"), \
+                patch("frappe.utils.background_jobs.execute_job", side_effect=execute), \
+                patch("frappe.init", side_effect=AssertionError("RQ 线程不应进站点")):
+            relayed = pool.relay(self.rq_job())
+            self.assertIsNone(relayed())          # 交出去了：RQ 这边的任务体立即结束
+            self.wait_idle()
+        self.assertEqual(seen, [("tenant.example", "pearnly_core.execution.work.run", "pearnly_core.execution.work.run",
+                                 {"name": "w1"}, "someone@example.com", True)])
+
+    def test_the_ocr_worker_leaves_other_jobs_native(self):
+        with self.env(PEARNLY_OCR_THREADS="4"):
+            self.assertIsNone(pool.relay(self.rq_job(method="other.method")))
+            self.assertIsNone(pool.relay(self.rq_job(is_async=False)))
+            self.assertIsNone(pool.relay(SimpleNamespace(func_name="x.y", kwargs={"method": pool.RUN})))
+        with self.env():
+            self.assertIsNone(pool.relay(self.rq_job()))           # 没开线程
+        with patch.dict(pool.os.environ, {"PEARNLY_OCR_THREADS": "4"}, clear=True):
+            self.assertIsNone(pool.relay(self.rq_job()))           # fork 模式
+
+    def test_the_ocr_worker_runs_in_place_as_a_thread_when_none_is_free_in_time(self):
+        class Job(SimpleNamespace):
+            def _execute(self):
+                return ("native", pool.in_thread())
+
+        job = Job(**vars(self.rq_job()))
+        with self.env(PEARNLY_OCR_THREADS="2"), patch.object(pool, "SLOT_WAIT_SECONDS", 0.05), \
+                patch("frappe.utils.background_jobs.execute_job", side_effect=lambda *a, **k: time.sleep(0.5)):
+            self.assertIsNone(pool.relay(job)())
+            self.assertIsNone(pool.relay(job)())
+            # 两个线程都忙：照原生在 RQ 线程里跑，算作识别线程（work.run 不再二次等位）
+            self.assertEqual(pool.relay(job)(), ("native", True))
+            self.assertFalse(pool.in_thread())
+            self.wait_idle()
+
+    def test_the_ocr_worker_class_only_swaps_the_job_body(self):
+        from frappe.utils.background_jobs import FrappeWorkerNoFork
+        from pearnly_core.execution.ocr_worker import OcrWorker
+
+        bodies = []
+        job = self.rq_job()
+        with self.env(PEARNLY_OCR_THREADS="4"), \
+                patch.object(FrappeWorkerNoFork, "perform_job", lambda self, job, queue: bodies.append(vars(job).get("_execute"))):
+            OcrWorker.perform_job(object.__new__(OcrWorker), job, None)
+            other = self.rq_job(method="other.method")
+            OcrWorker.perform_job(object.__new__(OcrWorker), other, None)
+        self.assertEqual(bodies[0].func, pool._relay)
+        self.assertIsNone(bodies[1])  # 其它任务照原生执行体
+
     def wait_idle(self):
         deadline = time.monotonic() + 5
         while pool.busy() and time.monotonic() < deadline:

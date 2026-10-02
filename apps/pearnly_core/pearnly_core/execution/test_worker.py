@@ -48,6 +48,20 @@ class Worker(unittest.TestCase):
         jobs.start_worker.assert_not_called()
         modules.assert_called_once_with([])
 
+    def test_the_threaded_ocr_queue_uses_the_relaying_worker_class(self):
+        from frappe.utils import background_jobs
+        from pearnly_core.execution.ocr_worker import OcrWorker
+
+        native = background_jobs.FrappeWorkerNoFork
+        for env, expected in (({"PEARNLY_OCR_THREADS": "8", "FRAPPE_BACKGROUND_WORKERS_NOFORK": "1"}, OcrWorker),
+                              ({"PEARNLY_OCR_THREADS": "1", "FRAPPE_BACKGROUND_WORKERS_NOFORK": "1"}, native),
+                              ({"PEARNLY_OCR_THREADS": "8"}, native)):
+            with patch.object(background_jobs, "FrappeWorkerNoFork", native), patch.dict(worker.os.environ, env, clear=True):
+                jobs, _ = self.start(["--queue", "ocr", "--num-workers", "4"])
+                self.assertIs(background_jobs.FrappeWorkerNoFork, expected)
+            jobs.start_worker_pool.assert_called_once_with(queue="ocr", num_workers=4, quiet=False, burst=False)
+        self.assertIs(background_jobs.FrappeWorkerNoFork, native)
+
 
 if __name__ == "__main__":
     unittest.main()

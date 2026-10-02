@@ -330,7 +330,8 @@ services:
     <<: *worker
     # 两个识别进程共用这一份上限：512m 时手机大图 / 多页 PDF 同时进来就被内核杀掉（2026-09-28 Cowork 压测约 80 次）。
     mem_limit: ${PEARNLY_COWORK_OCR_MEM:-2g}
-    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '${PEARNLY_COWORK_OCR_WORKERS:-2}']
+    # 同原生 worker-pool；开了多线程时取到识别任务直接交线程，不先在队列线程里进一次站点（pearnly_core/execution/ocr_worker.py）
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, 'ocr', --num-workers, '${PEARNLY_COWORK_OCR_WORKERS:-2}']
     volumes: *cowork-volumes
     environment:
       <<: *frappe-env

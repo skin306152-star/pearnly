@@ -9,6 +9,7 @@ Frappe 的 worker 每个任务 fork 一个子进程去跑；父进程没导入�
 
 清单 = 下面这份 Frappe 公共模块 + `--preload <app>` 指定的产品在自己 `hooks.py` 里声明的 `pearnly_worker_preload`。
 导入失败只记一行、跳过，不影响 worker 启动；导入时不开数据库 / Redis 连接（父进程没有 Site）。
+识别队列（`--queue ocr --num-workers N`，不 fork 且开了多线程）用 `ocr_worker.OcrWorker`：取到识别任务直接交线程。
 用法：`python -m pearnly_core.execution.worker --queue long [--num-workers 2] [--preload pearnly_cowork]`
 """
 import argparse
@@ -79,6 +80,14 @@ def main(argv=None):
     if args.num_workers is None:
         background_jobs.start_worker(queue=args.queue, quiet=args.quiet, burst=args.burst)
     else:
+        if args.queue == "ocr":
+            from pearnly_core.execution import pool
+
+            if pool.threads() > 1 and pool.no_fork():
+                from pearnly_core.execution.ocr_worker import OcrWorker
+
+                # 原生 start_worker_pool 不 fork 时用 FrappeWorkerNoFork：识别队列换成只换执行体的子类（见 ocr_worker）
+                background_jobs.FrappeWorkerNoFork = OcrWorker
         background_jobs.start_worker_pool(queue=args.queue, num_workers=args.num_workers, quiet=args.quiet,
                                           burst=args.burst)
 
