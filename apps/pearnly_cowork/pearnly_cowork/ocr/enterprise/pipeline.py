@@ -308,6 +308,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
                 pages.append(page)
                 continue
             data, response, picture = reading
+            first_response = response  # 第一遍照样付了费：采用再读时 response 换成再读那次，计费仍按第一遍 + 再读各一次
             data, response, checked, extra = _checked(model_call, picture, category, transcript,
                                                       number, data, response, running, rereads < MAX_REREAD_PAGES)
             del picture, reading  # one rendered page at a time, not the whole scan in memory
@@ -334,7 +335,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             page.layer2_ms = response.elapsed_ms
             page.layer2_input_tokens = response.input_tokens
             page.layer2_output_tokens = response.output_tokens
-            cost += model_cost_thb(response.model, response.input_tokens, response.output_tokens)
+            cost += model_cost_thb(first_response.model, first_response.input_tokens, first_response.output_tokens)
             pages.append(page)
         if unread == len(pages):
             raise ContentError("ocr.enterprise_schema_failed", detail="every page unreadable")

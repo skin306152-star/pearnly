@@ -2,6 +2,7 @@
 
 Document AI 与模型都是假的，不连服务商、不付费。
 """
+from dataclasses import replace
 import json
 import unittest
 
@@ -74,6 +75,21 @@ class BankPage(unittest.TestCase):
 		self.assertEqual(len(result.pages[0].document.entries), 2)
 		audit = result.pages[0].extraction_audit["self_check"]
 		self.assertEqual((audit["state"], audit["adopted"], audit["breaks"]), ("passed", "reread", [1, 0]))
+
+	def test_the_cost_estimate_counts_the_first_reading_and_the_reread_once_each(self):
+		# 2026-10-02 对账成本实测：采用再读时原来把再读算了两次、第一遍漏算
+		class Priced(Model):
+			def __call__(self, request):
+				tokens = (1000, 100) if not self.requests else (3000, 900)
+				return replace(super().__call__(request), input_tokens=tokens[0], output_tokens=tokens[1])
+
+		for answers in ((MISSED, GOOD), (MISSED, WORSE)):  # 采用再读 / 不采用
+			result = pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=render,
+				document_ai_call=docai("no geometry"), model_call=Priced(*answers))
+			expected = (pipeline.enterprise_pages.USD_PER_PAGE * pipeline.THB_PER_USD
+				+ pipeline.model_cost_thb(result.pages[0].layer2_model, 1000, 100)
+				+ pipeline.model_cost_thb(result.pages[0].layer2_model, 3000, 900))
+			self.assertAlmostEqual(result.estimated_cost_thb, expected, places=6)
 
 	def test_a_reread_that_is_no_better_is_not_used(self):
 		result = pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=render,
