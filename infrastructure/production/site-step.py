@@ -95,6 +95,16 @@ def ocr_budget(runtime):
     return budget
 
 
+def endpoints(runtime):
+    """数据库与 Redis 的地址（runtime.env 可改；默认是同一台机器 compose 里的服务名）。扩容时把数据库或 Redis 挪到别的机器，
+    只改 runtime.env 的 PEARNLY_DB_HOST / PEARNLY_DB_PORT / PEARNLY_REDIS_CACHE_URL / PEARNLY_REDIS_QUEUE_URL，不改代码；
+    开户与计费初始化不再把它们写回服务名（2026-10-02 可拆分自检）。"""
+    return {"db_host": (runtime.get("PEARNLY_DB_HOST") or "mariadb").strip(),
+            "db_port": int((runtime.get("PEARNLY_DB_PORT") or "3306").strip()),
+            "cache": (runtime.get("PEARNLY_REDIS_CACHE_URL") or "redis://redis-cache:6379").strip().rstrip("/"),
+            "queue": (runtime.get("PEARNLY_REDIS_QUEUE_URL") or "redis://redis-queue:6379").strip().rstrip("/")}
+
+
 def document_ai_regions(runtime):
     """Document AI 区域顺序与各区处理器（pearnly_document_ai_regions）：runtime.env 有值才下发，没值用代码默认。"""
     raw = (runtime.get("PEARNLY_DOCUMENT_AI_REGIONS") or "").strip()
@@ -121,10 +131,11 @@ def main():
     common = Path("common_site_config.json")
     values = json.loads(common.read_text()) if common.exists() else {}
     queue_db = {"dms": 1, "erp": 2, "cowork": 3}[group]
-    values.update(db_host="mariadb", db_port=3306, redis_cache="redis://redis-cache:6379",
-                  redis_queue=f"redis://redis-queue:6379/{queue_db}", redis_socketio=f"redis://redis-queue:6379/{queue_db}",
+    hosts = endpoints(runtime)
+    values.update(db_host=hosts["db_host"], db_port=hosts["db_port"], redis_cache=hosts["cache"],
+                  redis_queue=f"{hosts['queue']}/{queue_db}", redis_socketio=f"{hosts['queue']}/{queue_db}",
                   socketio_port=9000, serve_default_site=False,
-                  pearnly_ocr_budget_redis="redis://redis-queue:6379/6",
+                  pearnly_ocr_budget_redis=f"{hosts['queue']}/6",
                   pearnly_ocr_budget=ocr_budget(runtime),
                   workers={**values.get("workers", {}), "ocr": {"timeout": 600}})
     regions = document_ai_regions(runtime)
@@ -168,7 +179,7 @@ def main():
         marker.write_text(json.dumps(owner))
         marker.chmod(0o600)
         frappe.init(site=site, new_site=True)
-        _new_site(db_name=None, site=site, db_type="mariadb", db_host="mariadb",
+        _new_site(db_name=None, site=site, db_type="mariadb", db_host=hosts["db_host"], db_port=hosts["db_port"],
                   db_root_username="root", db_root_password=runtime["DB_ROOT_PASSWORD"],
                   admin_password=secrets.token_urlsafe(40), mariadb_user_host_login_scope="%")
         frappe.destroy()

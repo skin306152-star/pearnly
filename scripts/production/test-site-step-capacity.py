@@ -16,6 +16,27 @@ REGIONS = [{"location": "asia-southeast1", "processor": "6c7dfffac937fcd9",
             "version": "pretrained-ocr-v2.1-2024-08-07", "rpm": 120}]
 
 
+class Endpoints(unittest.TestCase):
+    """数据库与 Redis 地址只靠 runtime.env（2026-10-02 可拆分自检）：不填就是同一台机器的服务名，填了就用填的。"""
+
+    def test_defaults_are_the_compose_service_names(self):
+        self.assertEqual(step.endpoints({}), {"db_host": "mariadb", "db_port": 3306,
+                                              "cache": "redis://redis-cache:6379", "queue": "redis://redis-queue:6379"})
+
+    def test_a_separate_database_or_redis_host_is_configuration_only(self):
+        hosts = step.endpoints({"PEARNLY_DB_HOST": "10.0.0.5", "PEARNLY_DB_PORT": "3307",
+                                "PEARNLY_REDIS_CACHE_URL": "redis://10.0.0.6:6379/", "PEARNLY_REDIS_QUEUE_URL": "redis://10.0.0.7:6380"})
+        self.assertEqual(hosts, {"db_host": "10.0.0.5", "db_port": 3307,
+                                 "cache": "redis://10.0.0.6:6379", "queue": "redis://10.0.0.7:6380"})
+
+    def test_nothing_writes_the_service_names_back(self):
+        for name in ("site-step.py", "bootstrap-billing.py"):
+            source = (path.parent / name).read_text()
+            self.assertNotIn('db_host="mariadb"', source, name)
+            self.assertNotIn('"db_host": "mariadb"', source, name)
+            self.assertNotIn('"redis://redis-queue:6379/6"', source, name)
+
+
 class OcrBudget(unittest.TestCase):
     def test_without_runtime_value_keeps_the_agreed_budget(self):
         self.assertEqual(step.ocr_budget({}), {"concurrency": 8, "tenant_concurrency": 3, "rpm": 120})

@@ -8,6 +8,16 @@ import sys
 site = sys.argv[1] if len(sys.argv) > 1 else "billing.internal"
 if site not in {"billing.internal", "verify-billing.internal"}:
     raise SystemExit("Unexpected billing Site")
+def endpoints(runtime):
+    """数据库与 Redis 的地址（runtime.env 可改；默认是同一台机器 compose 里的服务名）。扩容时把数据库或 Redis 挪到别的机器，
+    只改 runtime.env 的 PEARNLY_DB_HOST / PEARNLY_DB_PORT / PEARNLY_REDIS_CACHE_URL / PEARNLY_REDIS_QUEUE_URL，不改代码；
+    开户与计费初始化不再把它们写回服务名（2026-10-02 可拆分自检）。"""
+    return {"db_host": (runtime.get("PEARNLY_DB_HOST") or "mariadb").strip(),
+            "db_port": int((runtime.get("PEARNLY_DB_PORT") or "3306").strip()),
+            "cache": (runtime.get("PEARNLY_REDIS_CACHE_URL") or "redis://redis-cache:6379").strip().rstrip("/"),
+            "queue": (runtime.get("PEARNLY_REDIS_QUEUE_URL") or "redis://redis-queue:6379").strip().rstrip("/")}
+
+
 path = Path("/run/secrets/runtime.env")
 config = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
 member_config = json.loads(Path("/run/secrets/member-identity.json").read_text())
@@ -25,8 +35,9 @@ os.setuid(1000)
 os.chdir("/home/frappe/frappe-bench/sites")
 common = Path("common_site_config.json")
 values = json.loads(common.read_text()) if common.exists() else {}
-values.update({"db_host": "mariadb", "db_port": 3306, "redis_cache": "redis://redis-cache:6379",
-               "redis_queue": "redis://redis-queue:6379", "redis_socketio": "redis://redis-queue:6379",
+hosts = endpoints(config)
+values.update({"db_host": hosts["db_host"], "db_port": hosts["db_port"], "redis_cache": hosts["cache"],
+               "redis_queue": hosts["queue"], "redis_socketio": hosts["queue"],
                "socketio_port": 9000, "serve_default_site": False})
 common.write_text(json.dumps(values))
 apps = Path("apps.txt")
@@ -39,7 +50,7 @@ from frappe.installer import _new_site, install_app, update_site_config
 
 if not Path(site, "site_config.json").exists():
     frappe.init(site=site, new_site=True)
-    _new_site(db_name=None, site=site, db_type="mariadb", db_host="mariadb",
+    _new_site(db_name=None, site=site, db_type="mariadb", db_host=hosts["db_host"], db_port=hosts["db_port"],
               db_root_username="root", db_root_password=config["DB_ROOT_PASSWORD"],
               admin_password=config["SITE_ADMIN_PASSWORD"], mariadb_user_host_login_scope="%")
     frappe.destroy()

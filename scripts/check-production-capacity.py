@@ -212,6 +212,13 @@ assert '--max-connections=300' in rendered(PEARNLY_MARIADB_MAX_CONNECTIONS='300'
 assert int(services['mariadb']['mem_limit']) == 2048 * M
 assert int(rendered(PEARNLY_MARIADB_MEM='3g')['mariadb']['mem_limit']) == 3072 * M
 checks.append('MariaDB connections and memory are set from runtime.env, default 151 / 2g')
+moved = rendered(PEARNLY_DB_HOST='10.0.0.5', PEARNLY_DB_PORT='3307', PEARNLY_REDIS_CACHE_URL='redis://10.0.0.6:6379',
+                 PEARNLY_REDIS_QUEUE_URL='redis://10.0.0.7:6379')
+assert moved['erp-web']['environment']['DB_HOST'] == '10.0.0.5', moved['erp-web']['environment']
+assert moved['erp-web']['environment']['REDIS_QUEUE'] == 'redis://10.0.0.7:6379'
+assert moved['keycloak']['environment']['KC_DB_URL'] == 'jdbc:mariadb://10.0.0.5:3307/keycloak'
+assert services['erp-web']['environment']['DB_HOST'] == 'mariadb'
+checks.append('Database and Redis addresses come from runtime.env, defaulting to the compose services')
 assert '--innodb-buffer-pool-size=1G' in services['mariadb']['command']
 assert '--innodb-buffer-pool-size=6G' in rendered(PEARNLY_MARIADB_BUFFER_POOL='6G')['mariadb']['command']
 assert capacity.buffer_pool_mib(rendered(PEARNLY_MARIADB_BUFFER_POOL='6G')) == 6144

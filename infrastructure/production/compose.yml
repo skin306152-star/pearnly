@@ -15,9 +15,9 @@ x-runtime: &runtime
     driver: json-file
     options: {max-size: 10m, max-file: '3'}
   environment: &frappe-env
-    DB_HOST: mariadb
-    REDIS_CACHE: redis://redis-cache:6379
-    REDIS_QUEUE: redis://redis-queue:6379
+    DB_HOST: ${PEARNLY_DB_HOST:-mariadb}
+    REDIS_CACHE: ${PEARNLY_REDIS_CACHE_URL:-redis://redis-cache:6379}
+    REDIS_QUEUE: ${PEARNLY_REDIS_QUEUE_URL:-redis://redis-queue:6379}
     SOCKETIO_PORT: '9000'
     GUNICORN_WORKERS: '2'
     GUNICORN_THREADS: '4'
@@ -127,7 +127,7 @@ services:
     environment:
       KC_HOSTNAME: https://${AUTH_HOST:?}
       KC_DB: mariadb
-      KC_DB_URL: jdbc:mariadb://mariadb:3306/keycloak
+      KC_DB_URL: jdbc:mariadb://${PEARNLY_DB_HOST:-mariadb}:${PEARNLY_DB_PORT:-3306}/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
       KC_BOOTSTRAP_ADMIN_USERNAME: pearnly-bootstrap
