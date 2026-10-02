@@ -29,8 +29,9 @@ from pearnly_cowork.ocr.validation import (
 )
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
-    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, adopt_from_reads, infer_withholding, invoice_number_alternative,
-    invoice_number_range, invoice_number_unseen, non_invoice_title, normalize_amounts, repair_from_transcript,
+    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, adopt_from_reads, clear_unprinted_branch, infer_withholding,
+    invoice_number_alternative, invoice_number_range, invoice_number_unseen, non_invoice_title, normalize_amounts,
+    repair_from_transcript,
 )
 from pearnly_cowork.ocr.validation.dates import year_shift
 from pearnly_cowork.ocr.engine.contracts import (
@@ -317,6 +318,7 @@ class _Run:
         if kind:
             self.titles[page] = kind
             return ["L1"]
+        clear_unprinted_branch(invoice, text)
         notes = repair_from_transcript(invoice, text, tolerance=self.config.amount_tolerance)
         # 同一张图上的其他票也逐张核单号（2026-09-28 复测：第 4 张 000098 读成 000096，只核第一张时漏标）
         siblings = [child for child in invoice.additional_invoices or [] if not child.is_not_invoice]
@@ -420,6 +422,8 @@ class _Run:
         kind = mark_title(l2, text)
         if kind:
             self.titles[page] = kind
+        if text_page is None:  # 只信 Vision 原文：PDF 文字层的泰文常有字体编码乱码，找不到分店字样不代表没印
+            clear_unprinted_branch(l2, text)
         if not l2.is_not_invoice:
             normalize_amounts(l2)
         warnings = validate_invoice_sources(l2, today=self.today)
@@ -500,6 +504,8 @@ class _Run:
                 l3_calls = self.calls[l3_start:]
         if page in self.titles and invoice is not l2:  # 视觉复核重读过：票头判定照样作数
             mark_title(invoice, text)
+        if invoice is not l2 and text_page is None:
+            clear_unprinted_branch(invoice, text)
         if not invoice.is_not_invoice and invoice.invoice_number:
             extracted_n = 1 + len(invoice.additional_invoices or [])
             candidate_n = count_invoice_no_candidates(l1.full_text, invoice.invoice_number)

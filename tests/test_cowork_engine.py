@@ -198,6 +198,12 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(reread.invoice.is_not_invoice)
         self.assertEqual(reread.extraction_audit["not_invoice_title"], "tax_report")
 
+    def test_a_guessed_head_office_branch_is_cleared_only_against_vision_text(self):
+        # 2026-10-02 两批金标重放：原文里没有任何分店字样，模型填的 00000 是猜的；PDF 文字层常有乱码，不据此清
+        full = {**GOOD, "document_type": "tax_invoice", "seller_branch": "00000"}
+        self.assertEqual(run(model=Model([full])).pipeline.pages[0].invoice.seller_branch, "")
+        self.assertEqual(run(Source(text=True), Model([full])).pipeline.pages[0].invoice.seller_branch, "00000")
+
     def test_a_failed_recheck_reads_image_and_transcript_together(self):
         wrong = {**GOOD, "total_amount": "170"}
         model = Model([wrong, wrong, GOOD])

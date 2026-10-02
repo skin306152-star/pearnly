@@ -14,6 +14,9 @@
 - 票头判非票据（2026-10-02 两批金标零费用重放）：Vision 原文前几行印着预扣税凭证、销项 / 进项税报表、增值税申报
   缴税、社保缴费这几类标题的，不是购销票据，这一页按「不是发票」处理（见 `non_invoice_title`）。
 
+- 分店：Vision 原文里连分店字样都没有（สาขา / สำนักงานใหญ่ / Head Office / Branch，或税号后直接接 5 位分店号），
+  模型填的 00000（总店）是猜的，清空（见 `clear_unprinted_branch`；读出具体分店号的不动）。
+
 「本公司是买方」那条不搬：Cowork 同一批可能是采购也可能是销售，客户本来就可能是卖方。
 修正都会留说明（进 validation_warnings），改动票面数字的只采用能让核对通过的那一个。
 """
@@ -197,6 +200,26 @@ def non_invoice_title(text) -> str | None:
         if pattern.search(head):
             return kind
     return None
+
+
+# 2026-10-02 两批金标零费用重放：「没印却填了」57→51、104→96，印了的分店一处不丢。
+# Vision 常把 ำ 拆成 ํ + า（สํานักงานใหญ่），先并回去再找；税号后直接接分店号（0105…/00000）也算印了。
+_BRANCH_MARK = re.compile(r"(?<!\d)\d{13}\s?/?\s?\d{5,6}(?!\d)|สาขา|สำนักงานใหญ่|ส\.?\s*นญ|Head\s*Office|Branch|\bHQ\b"
+                          r"|\bH\.\s*O\.?", re.IGNORECASE)
+HEAD_OFFICE = "00000"
+
+
+def clear_unprinted_branch(invoice, text) -> int:
+    """原文里没有任何分店字样：这页各张票上的 00000 分店清空，返回清了几栏。原文为空（没读到）不动。"""
+    if not text or _BRANCH_MARK.search(str(text).replace("\u0e4d\u0e32", "\u0e33")):
+        return 0
+    changed = 0
+    for each in [invoice, *(invoice.additional_invoices or [])]:
+        for key in ("seller_branch", "buyer_branch"):
+            if str(getattr(each, key, "") or "").strip() == HEAD_OFFICE:
+                setattr(each, key, "")
+                changed += 1
+    return changed
 
 
 def number_seen(read, text) -> bool:

@@ -7,7 +7,7 @@ from pearnly_cowork.ocr.schema import validate_invoice
 from pearnly_cowork.ocr.validation import check_amount_math
 from pearnly_cowork.ocr.validation.accounting import (
     infer_withholding, invoice_number_alternative, invoice_number_range, invoice_number_unseen, normalize_amounts, number_alternative,
-    non_invoice_title, number_seen, repair_from_transcript,
+    clear_unprinted_branch, non_invoice_title, number_seen, repair_from_transcript,
 )
 from test_cowork_engine import CONFIG, GOOD, Model, Source
 
@@ -17,6 +17,23 @@ def invoice(**fields):
 
 
 class Accounting(unittest.TestCase):
+    def test_a_head_office_branch_with_no_branch_wording_in_the_transcript_is_cleared(self):
+        def read(**values):
+            return validate_invoice({"document_type": "tax_invoice", "seller_branch": "00000", "buyer_branch": "00000",
+                                     "additional_invoices": [{"seller_branch": "00000"}], **values}, anchor_year=2026)
+
+        invoice = read()
+        self.assertEqual(clear_unprinted_branch(invoice, "ใบกำกับภาษี\nเลขที่ IV001"), 3)
+        self.assertEqual((invoice.seller_branch, invoice.buyer_branch, invoice.additional_invoices[0].seller_branch),
+                         ("", "", ""))
+        for text in ("สํานักงานใหญ่", "สาขาที่ 00001", "Head Office", "เลขประจำตัวผู้เสียภาษี 0105536092641/00000", ""):
+            kept = read()
+            self.assertEqual(clear_unprinted_branch(kept, text), 0, text)
+            self.assertEqual(kept.seller_branch, "00000")
+        branch = read(seller_branch="00080")  # 读出具体分店号的不动
+        clear_unprinted_branch(branch, "ใบแจ้งค่าบริการ")
+        self.assertEqual((branch.seller_branch, branch.buyer_branch), ("00080", ""))
+
     def test_non_invoice_titles_are_read_from_the_head_only(self):
         for text, kind in (("หนังสือรับรองการหักภาษี ณ ที่จ่าย\nตามมาตรา 50 ทวิ", "withholding_certificate"),
                            ("บริษัท ก\nรายงานภาษีซื้อ\nเดือน 1/2568", "tax_report"),
