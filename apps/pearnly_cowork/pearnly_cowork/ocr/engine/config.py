@@ -6,6 +6,9 @@ from pearnly_cowork.ocr.policy import InvoicePolicy
 from pearnly_cowork.ocr.engine.contracts import EngineConfig
 from pearnly_cowork.ocr.engine.errors import EngineError
 
+# 看图直读可以选的模型（站点配置 OCR_DIRECT_MODEL）。
+DIRECT_MODELS = ("gemini-3.1-flash-lite", "gemini-3.8-flash")
+
 
 def config_from_environment(environment: Mapping[str, str], selected: InvoicePolicy) -> EngineConfig:
     """Only migrated invoice paths are accepted; unsupported switches fail at admission.
@@ -50,9 +53,14 @@ def config_from_environment(environment: Mapping[str, str], selected: InvoicePol
     layer3 = environment.get("OCR_LAYER3_ENABLED", "0").strip().lower()
     if layer3 not in {"", "0", "1", "false", "true", "no", "yes", "off", "on"}:
         raise EngineError("ocr.engine_config_invalid", detail="OCR_LAYER3_ENABLED")
+    # 看图直读用的模型（站点配置 OCR_DIRECT_MODEL，只认登记的；不设照旧用策略的第一档）。2026-10-02 用户同意扫描件 / 照片改用
+    # 3.8-flash（eval7b 金标四项达标）：先只在 testcowork 打开压测，全过再逐站打开；回退＝把站点配置改回去。电子 PDF 走文字层不受影响。
+    direct = environment.get("OCR_DIRECT_MODEL", "").strip()
+    if direct and direct not in DIRECT_MODELS:
+        raise EngineError("ocr.engine_config_invalid", detail="OCR_DIRECT_MODEL")
     return EngineConfig(
         enable_layer3=layer3 in {"1", "true", "yes", "on"},
-        direct_model=selected.first_model, layer2_model=selected.first_model,
+        direct_model=direct or selected.first_model, layer2_model=selected.first_model,
         layer3_model=selected.l3_model, mode=selected.mode, provider=selected.backend,
         direct_enabled=selected.direct_enabled, max_direct_pages=selected.direct_max_pages,
         double_read=selected.double_read, image_first=selected.image_first,

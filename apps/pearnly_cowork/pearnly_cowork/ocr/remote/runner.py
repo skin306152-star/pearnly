@@ -21,7 +21,7 @@ import requests
 
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine import run_invoice
-from pearnly_cowork.ocr.engine.config import config_from_environment
+from pearnly_cowork.ocr.engine.config import DIRECT_MODELS as EVAL_DIRECT_MODELS, config_from_environment
 from pearnly_cowork.ocr.engine.contracts import ProviderFailure
 from pearnly_cowork.ocr.engine.errors import EngineError
 from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
@@ -281,7 +281,6 @@ def text_path_forced():
     return str(os.environ.get("OCR_TEXT_PATH_EVAL") or "").strip().lower() in ("1", "true")
 
 
-EVAL_DIRECT_MODELS = ("gemini-3.1-flash-lite", "gemini-3.8-flash")
 
 
 def eval_direct_model():

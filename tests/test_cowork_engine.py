@@ -290,6 +290,18 @@ class EngineTests(unittest.TestCase):
         with self.assertRaises(EngineError):
             config_from_environment(environment, invoice_policy(environment))
 
+    def test_the_site_picks_the_image_reading_model(self):
+        # 2026-10-02 用户同意扫描件 / 照片看图直读改用 3.8-flash：站点配置 OCR_DIRECT_MODEL，只认登记的模型，文字转读照旧
+        environment = {"OCR_LLM_BACKEND": "vertex"}
+        default = config_from_environment(environment, invoice_policy(environment))
+        environment["OCR_DIRECT_MODEL"] = "gemini-3.8-flash"
+        chosen = config_from_environment(environment, invoice_policy(environment))
+        self.assertEqual((chosen.direct_model, chosen.layer2_model), ("gemini-3.8-flash", default.layer2_model))
+        self.assertEqual(default.direct_model, default.layer2_model)
+        environment["OCR_DIRECT_MODEL"] = "gemini-9-ultra"
+        with self.assertRaises(EngineError):
+            config_from_environment(environment, invoice_policy(environment))
+
     def test_text_path_has_no_render_or_vision_and_injects_fewshot_only_l2(self):
         source, model, seen = Source(text=True), Model(), []
         result = run(source, model, fewshot_selector=lambda text: seen.append(text) or "HINT\n")
