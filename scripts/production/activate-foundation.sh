@@ -37,7 +37,8 @@ docker run --rm --user 0 --network pearnly-production_runtime \
   -v /opt/pearnly/secrets/runtime.env:/run/secrets/runtime.env:ro \
   -v /opt/pearnly/secrets/member-identity.json:/run/secrets/member-identity.json:ro \
   --entrypoint /home/frappe/frappe-bench/env/bin/python "$image" /run/bootstrap-billing.py
-docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" run --rm --no-deps billing-web bench --site billing.internal migrate
+# billing 没有后台进程，迁移默认排的「网站搜索索引」没人处理、永远滞留在共用队列（2026-10-03 清掉 13 个）；billing 也用不到网站搜索。
+docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" run --rm --no-deps billing-web bench --site billing.internal migrate --skip-search-index
 docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" up -d --no-deps billing-web
 docker image inspect "$image" --format '{{json .RepoDigests}}' > /opt/pearnly/deploy/active-image.json
 printf 'Foundation activated. Existing product services were not changed.\n'

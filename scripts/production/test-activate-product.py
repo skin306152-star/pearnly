@@ -271,6 +271,8 @@ class FoundationActivation(unittest.TestCase):
         self.assertEqual(trace[find('backup --with-files')]['image'], 'sha256:old-running-image')
         self.assertLess(find('backup --with-files'), find('/run/bootstrap-billing.py'))
         self.assertLess(find('bench --site billing.internal migrate'), find('up -d --no-deps billing-web'))
+        # billing 没有后台进程：迁移不排网站搜索索引任务（否则永远滞留在共用队列）
+        self.assertIn('--skip-search-index', calls[find('bench --site billing.internal migrate')])
 
     def test_failed_backup_or_migration_never_reopens_private_endpoint(self):
         for failure in ('backup', 'migrate'):
