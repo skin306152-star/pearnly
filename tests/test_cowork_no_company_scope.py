@@ -35,6 +35,27 @@ class ScopeWithoutCompanyTest(unittest.TestCase):
             self.assertFalse(scope.contains("WS-1"))
         self.assertFalse(scope.contains(""))
 
+    def test_the_same_check_is_read_once_per_transaction(self):
+        # 可重复读：同一事务里再查一遍结果必然相同，记在 Frappe 的事务级缓存里；提交 / 回滚清空缓存后照常现查（停用照旧生效）
+        from collections import defaultdict
+
+        def tree():
+            return defaultdict(tree)
+
+        rows = {"WS-1": [(1,)]}
+        db = mock.Mock(value_cache=tree(), sql=mock.Mock(side_effect=lambda query, values: rows.get(values[0], [])))
+        with mock.patch.object(scope.frappe, "db", db):
+            for _ in range(5):
+                self.assertTrue(scope.contains("WS-1"))
+            self.assertEqual(db.sql.call_count, 1)
+            self.assertFalse(scope.contains("WS-2"))
+            self.assertEqual(db.sql.call_count, 2)
+            rows.pop("WS-1")                      # 另一个事务把它停用了
+            self.assertTrue(scope.contains("WS-1"))  # 本事务的快照里仍是启用（与再查一遍的结果相同）
+            db.value_cache.clear()                # 提交 / 回滚
+            self.assertFalse(scope.contains("WS-1"))
+            self.assertEqual(db.sql.call_count, 3)
+
     def test_existing_row_is_reused(self):
         with mock.patch.object(scope.frappe, "get_all", return_value=["WS-OLDEST"]) as get_all, \
                 mock.patch.object(scope.frappe, "get_doc", side_effect=AssertionError("must not create")):

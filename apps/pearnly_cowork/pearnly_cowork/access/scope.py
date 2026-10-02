@@ -15,6 +15,26 @@ ROLES = {"intake": "Cowork Intake", "ocr_history": "Cowork OCR History",
 READ_FEATURES = ("intake", "ocr_history")
 READ_TYPES = {"read", "select", "report", "export", "print"}
 COWORK_TYPES = ("Cowork Workspace", "Cowork Client", "Cowork OCR History")
+MEMO = "__cowork_scope__"
+
+
+def _once(key, read):
+    """同一个数据库事务里同样的复核只查一次。
+
+    MariaDB 是可重复读：一个事务里重复的普通读看到的是同一份快照，再查一遍结果必然相同，所以记下来复用不改变任何判定。
+    记在 Frappe 自己的事务级缓存 ``frappe.db.value_cache`` 里：提交、回滚（含回滚到保存点）时它就清空，下一个事务照常现查，
+    停用 / 撤权照旧在下一个事务生效。2026-10-02 实验室实测：一份发票入库发约 52 条查询，其中「账号启用」8 次、「归属启用」9 次；
+    m7 高峰时每个来回都要等，入库中位 2.6 秒。"""
+    try:
+        cache = frappe.db.value_cache
+    except (AttributeError, RuntimeError):  # 没有数据库连接 / 站点上下文（离线调用）：照常现查
+        return read()
+    if not isinstance(cache, dict):  # 替身数据库（测试）：照常现查
+        return read()
+    memo = cache[MEMO]
+    if key not in memo:
+        memo[key] = read()
+    return memo[key]
 
 
 def _decision(permitted):
@@ -34,8 +54,8 @@ def _reject_share_fallback(doctype, user=None):
     # Frappe adds shared rows with OR outside permission_query_conditions.
     # Refuse the query if a legacy share could escape the scope predicate.
     user = user or frappe.session.user
-    if frappe.get_all("DocShare", filters={"share_doctype": doctype},
-                      or_filters={"user": user, "everyone": 1}, pluck="name", limit_page_length=1):
+    if _once(("share", doctype, user), lambda: frappe.get_all("DocShare", filters={"share_doctype": doctype},
+                      or_filters={"user": user, "everyone": 1}, pluck="name", limit_page_length=1)):
         frappe.throw(_("Remove legacy document shares before accessing Cowork records."),
                      frappe.PermissionError)
 
@@ -51,7 +71,7 @@ def granted(features, user=None):
     bought = set(entitlements()).intersection(features)
     if not bought:
         return set()
-    enabled = frappe.db.sql("select enabled from `tabUser` where name=%s", (user,))
+    enabled = _once(("enabled", user), lambda: frappe.db.sql("select enabled from `tabUser` where name=%s", (user,)))
     if not (enabled and enabled[0][0]):
         return set()
     roles = set(frappe.get_roles(user))
@@ -84,11 +104,11 @@ def administrator(user=None):
 def contains(workspace, client=None, user=None):
     # 只核对引用一致（归属存在且启用、客户属于它），不按人分公司 / 客户。热路径上一份发票要核十几次：直接写参数化查询，
     # 不经查询构建器每次拼一遍 SQL（判据同 frappe.db.exists）。
-    if not workspace or not frappe.db.sql("select 1 from `tabCowork Workspace` where name=%s and enabled=1 limit 1",
-                                          (workspace,)):
+    if not workspace or not _once(("workspace", workspace), lambda: frappe.db.sql(
+            "select 1 from `tabCowork Workspace` where name=%s and enabled=1 limit 1", (workspace,))):
         return False
-    if client and not frappe.db.sql("""select 1 from `tabCowork Client` where name=%s and workspace=%s and enabled=1
-            limit 1""", (client, workspace)):
+    if client and not _once(("client", workspace, client), lambda: frappe.db.sql(
+            "select 1 from `tabCowork Client` where name=%s and workspace=%s and enabled=1 limit 1", (client, workspace))):
         return False
     return True
 
@@ -176,10 +196,11 @@ def client_query(user=None):
 
 def _scope_query(table, user, client=False):
     # 只挡引用失效的行（归属 / 客户被停用），不按人过滤。
-    # 启用的工作区先在这里查出来、按字面值放进条件（每次现查，不缓存）：原来写成 ``workspace IN (SELECT … enabled=1)`` 子查询，
+    # 启用的工作区先在这里查出来、按字面值放进条件（每个事务现查一次，见 :func:`_once`）：原来写成 ``workspace IN (SELECT … enabled=1)`` 子查询，
     # MariaDB 把它改成以工作区表驱动的半连接，记录表只能整表扫再排序——录入工作台列表 1.1 万行时每次约 64 毫秒、压测并发下
     # 0.5–1.7 秒，是 2026-10-02 m4 / m5 慢查询的大头。按字面值写，列表按修改时间索引顺序只读 20 行（实测 0.24 毫秒）。
-    workspaces = frappe.get_all("Cowork Workspace", filters={"enabled": 1}, pluck="name", order_by="name asc")
+    workspaces = _once(("workspaces",), lambda: frappe.get_all("Cowork Workspace", filters={"enabled": 1}, pluck="name",
+                                                               order_by="name asc"))
     if not workspaces:
         return "1=0"
     clauses = [f"{table}.`workspace` IN ({', '.join(frappe.db.escape(name) for name in workspaces)})"]
