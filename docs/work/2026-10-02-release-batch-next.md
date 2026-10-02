@@ -32,8 +32,20 @@
      两轮拿到文字层的文件对称（4 / 3、6 / 10），没有系统性丢原文。
    - 兜底路径：914 份读完里 3.8 没回音 6、被限流 2；降到 flash-lite 读完 1 页（无新错）；flash-lite 换入口 0 次。失败 / 不明两轮同样 3 份。
    - 本批没改读法：按 `verification.md` 闸 ① 新增的「没改读法的批次」口径判过关（压测窗口转用户口径，2026-10-02）。
-4. 闸 ②：上线后由压测窗口在测试租户跑 100 人（待补）。
+4. 闸 ②（m7，100 人，12:08:49Z 结束，压测窗口）：发票 385 张全部入账、结果不明 0，15 套对账全部完成，e2e 中位比 m6 快 3–4 秒。
 
-## 部署与回读
+## 部署与回读（UTC）
 
-待补。
+- 镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:e25cd943ec4d3f82372f0084d642c96b4c7bbdfc3ede709052af1dca30560291`（rev 3ec39cf8），
+  构建 run 37000597106、stage run 37001237200。
+- 激活：ERP 11:29:36、Cowork 11:33:20、DMS 11:43:25；八站进维护 11:46:47 → activate-foundation（billing、MariaDB 重建）→ 退维护 11:48:57（约 2 分钟）。
+- `sizing.env` 首次生成，24 项与 runtime.env 写死的值逐项相同；容器内存上限与部署前一致。
+- 回读：所有生产容器都是新镜像；三个识别进程 NOFORK=1；八站 maintenance=0、ping 200、部署后无新 Error Log；
+  四个 Cowork 站 `v0_0_11_history_workspace_indexes` 已执行、workspace 索引 4 个都在；MariaDB 8g、缓冲池 4G、max_connections 210、
+  `log_bin=1`、binlog 7 天。redis-cache 部署前 122.6M / 128M（在淘汰）、redis-queue 9.6M；部署后 redis-queue 3.7M。
+- Cloud Run（派发窗口）：从 3ec39cf8 构建 cowork-ocr-00060-99l，11:51Z 按修订版名切 100%；batch3 标签与受众已删。
+- 队列分片（派发窗口）：cowork-ocr 改并发 40 / 每秒 5，cowork-ocr-1…3 各 40 / 5；erpcowork、testcowork、testcowork2、testcowork3
+  `pearnly_cowork_ocr_tasks.shards=4`，每站自检四个队列都能建探测任务。回退：删 shards，cowork-ocr 改回 150 / 20。
+- 回退目标：产品与 billing `…@sha256:074775d1…`（rev 387dae2b）。
+- 异地备份与首次恢复演练：见 `2026-10-02-offsite-backup.md`「上线与首次演练」（上线后修了两处脚本问题：aaba2585、36d9ca50）。
+- 监控快照 `/opt/pearnly/state/snapshot-{before,after}-3ec39cf8.txt`。

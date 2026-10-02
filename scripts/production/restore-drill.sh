@@ -48,8 +48,8 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass file:$SECRETS/backup.key 
   || { echo "密钥包解密失败"; exit 1; }
 echo "== 4) 抽读 $(date -u +%T)"
 for db in $(q -e "SELECT table_schema FROM information_schema.tables WHERE table_name='tabCowork OCR History'"); do
-  echo "  $db 票：$(q -e "SELECT CONCAT(name,' ',IFNULL(invoice_no,''),' ',IFNULL(grand_total,'')) FROM \`$db\`.\`tabCowork OCR History\` ORDER BY creation DESC LIMIT 1" 2>&1 | head -1)"
-  task=$(q -e "SELECT name FROM \`$db\`.\`tabCowork Bank Reconciliation\` ORDER BY creation DESC LIMIT 1" 2>/dev/null)
-  [[ -n $task ]] && echo "  $db 银行对账 $task：$(q -e "SELECT COUNT(*) FROM \`$db\`.\`tabCowork Bank Reconciliation Row\` WHERE task='$task'") 行"
+  # 最新一张票（单号只显示后 4 位）与最新一份有结果行的银行对账，读得出来即说明业务数据可用
+  echo "  $db 票：$(q -e "SELECT CONCAT(name,' 单号尾号 ',RIGHT(IFNULL(invoice_no,''),4),' 合计 ',IFNULL(total_amount,'')) FROM \`$db\`.\`tabCowork OCR History\` ORDER BY creation DESC LIMIT 1" 2>&1 | tail -1)"
+  echo "  $db 银行对账：$(q -e "SELECT CONCAT(task,' ',COUNT(*),' 行') FROM \`$db\`.\`tabCowork Bank Reconciliation Row\` GROUP BY task ORDER BY MAX(creation) DESC LIMIT 1" 2>&1 | tail -1)"
 done
 echo "== 5) 完成：耗时 $(( $(date +%s) - started )) 秒，日志 $out"

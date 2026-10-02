@@ -44,3 +44,27 @@
 1. 镜像带上本分支，激活后部署工具里有新脚本与 unit 文件；foundation 重建时 MariaDB 开二进制日志。
 2. 生成两个服务账号密钥直接写到服务器 secrets（600）；`install-offsite-backup.sh` 装定时器、生成 `backup.key` 并提示用户取走。
 3. 手动跑一次 `offsite-backup.sh` 验证上传；马上做第一次恢复演练（`restore-drill.sh`），结果写进本记录。
+
+## 上线与首次演练（2026-10-02）
+
+随 main 3ec39cf8 上线（`2026-10-02-release-batch-next.md`），foundation 11:47Z 重建后 `@@log_bin=1`、`binlog_expire_logs_seconds=604800`、
+`sync_binlog=0`。
+
+- 服务账号密钥：`gcloud iam service-accounts keys create /dev/stdout … | ssh … 'cat > /opt/pearnly/secrets/backup-{writer,reader}.json'`
+  直接写到服务器（600，root），本机与聊天里都不落地。writer 密钥 id 前缀 2849829e，reader 8859dd10。
+- `install-offsite-backup.sh`：定时器已启用，下次 2026-10-02 19:00Z（曼谷 10-03 02:00）；`backup.key` 已生成（600）。
+  用户已从服务器取出存进自己的密码管理器（「Pearnly 异地备份钥匙」），并用不显示内容的比较命令核对「一致」。
+- 第一次手动备份 11:51Z **失败（upload）**：上传容器以镜像默认的 frappe 用户运行，读不了只给 root 的密钥文件；另外脚本整份
+  `source` runtime.env，其中带逗号的值报 `command not found`（不影响结果，但 `PEARNLY_BACKUP_BUCKET` 覆盖项因读取在后而失效）。
+  修复 aaba2585：上传 / 下载容器 `--user 0:0`；runtime.env 只取 `PEARNLY_BACKUP_*`、在定桶名之前读。
+- 第二次 12:09:15–12:15:04Z **成功**：347 秒，168,656,288 字节（18 个对象），`daily/2026-10-02/`，不慢（< 45 分钟）。
+- 第一次恢复演练 12:15Z 第 1 步报 SHA256 不一致：`( … sha256sum * ) > SHA256SUMS` 的重定向先建出空的清单文件，清单把自己（空文件）也记了进去。
+  修复 36d9ca50：先算完再写；演练核对时跳过清单自己那一行（兼容这份已上传的备份）。数据文件本身无误。
+- 恢复演练 12:16:05–12:24:32Z **通过**（506 秒，`/opt/pearnly/state/restore-drill-2026-10-02.log`）：
+  1. 只读账号下载最新一份（18 个文件、161M），SHA256 全部一致；
+  2. 一次性临时库导入 10 个库（9 个租户库 + keycloak；最大的一个 188 秒），全部成功；
+  3. 表数与关键表行数「备份 vs 生产现在」47 项全部一致；4 个真实租户 / billing 的文件包可读；密钥包用 `backup.key` 解密成功（13 份站点配置、runtime.env 1 份）；
+  4. 抽读：脚本里抽读的字段名写错（`grand_total`，实际是 `total_amount`）、且取了最新一份还没有结果行的对账，输出无意义。
+     已改成读最新一张票（单号只显示后 4 位）与最新一份有结果行的对账；新查询已在生产库只读跑通（例：一份对账 405 行）。
+  5. 临时容器、卷、下载文件都已删，残留 0。
+- 下一次演练：每次改备份脚本或换数据库版本后，以及每季度一次。
