@@ -48,6 +48,7 @@ class AccountLockTests(unittest.TestCase):
     def use(self, lock, ttl="4"):
         self.enterContext(patch.dict(os.environ, {"PEARNLY_SESSION_LOCK_TTL": ttl}))
         self.enterContext(patch.object(frappe, "cache", lambda: FakeCache(lock), create=True))
+        self.enterContext(patch("pearnly_core.execution.state.store", lambda: FakeCache(lock)))  # 锁在不淘汰的状态存储
         self.enterContext(patch.object(session_lock, "_", side_effect=lambda text: text))
 
     def test_short_ttl_and_a_token_the_heartbeat_can_use(self):

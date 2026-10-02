@@ -21,6 +21,7 @@ import uuid
 from typing import Any, Dict, Optional
 
 import frappe
+from pearnly_core.execution import state as pearnly_state
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +272,7 @@ def _lock_scope(line_user_id: str):
 
     owner = uuid.uuid4().hex
     try:
-        cache = frappe.cache()
+        cache = pearnly_state.store()
         ok = cache.set(
             cache.make_key(_LOCK_PREFIX + str(line_user_id)), owner,
             nx=True, px=ATTEMPT_LOCK_SECONDS * 1000,
@@ -286,7 +287,7 @@ def _unlock_scope(line_user_id: str, owner: str) -> None:
     import frappe
 
     try:
-        cache = frappe.cache()
+        cache = pearnly_state.store()
         # A GET/DELETE pair can delete a new owner's lock after the old TTL
         # expires. Keep comparison and deletion atomic, with a Site-scoped key.
         cache.eval(

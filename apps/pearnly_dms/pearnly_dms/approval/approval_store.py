@@ -57,24 +57,34 @@ def _lock(request_id: str) -> Optional[str]:
     """抢这把申请锁。返回 owner（拿到）或 None（别人正在处理）。"""
     owner = frappe.generate_hash(length=32)
     try:
-        ok = frappe.cache().set(
-            _LOCK_PREFIX + str(request_id), owner, nx=True, px=LOCK_SECONDS * 1000
+        store = _state_store()
+        ok = store.set(
+            store.make_key(_LOCK_PREFIX + str(request_id)), owner, nx=True, px=LOCK_SECONDS * 1000
         )
     except Exception:  # noqa: BLE001
         logger.warning("[approval] 抢锁失败", exc_info=True)
         return None
     return owner if ok else None
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
+def _state_release(key, owner):
+    """原子释放自己持有的锁（``pearnly_core.execution.state.release``）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.release(key, owner)
+
+
 
 def _unlock(request_id: str, owner: str) -> None:
+    """只删自己那把锁（原子比对后删除，不淘汰的状态存储、按站点加前缀；原先先读再删，中间别人刚拿到的锁会被误删）。"""
     try:
-        current = frappe.cache().get(_LOCK_PREFIX + str(request_id))
-        # ⚠️ Redis 拿回来是 bytes，不解码就永远判成"不是自己的锁"，锁删不掉
-        if isinstance(current, (bytes, bytearray)):
-            current = current.decode("utf-8", "ignore")
-        if current is not None and str(current) != str(owner):
-            return  # 别人的锁不能删
-        frappe.cache().delete(_LOCK_PREFIX + str(request_id))
+        _state_release(_state_store().make_key(_LOCK_PREFIX + str(request_id)), owner)
     except Exception:  # noqa: BLE001
         logger.warning("[approval] 释锁失败（到点会自己过期）", exc_info=True)
 

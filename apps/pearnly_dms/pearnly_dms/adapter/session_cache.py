@@ -56,6 +56,13 @@ _PROBE_PATH = "cus/component/showdata.php"
 _PROBE_DATA = {"sd": "", "selcolsort": "1", "selcolsorttype": "1"}
 _ALIVE = re.compile(r"^\s*(dt::\d+|ndt::)")
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 
 def idle_seconds() -> int:
     try:
@@ -174,7 +181,7 @@ def restore(context: Any, account_key: str, base_url: str) -> bool:
 
 def _mark_kicked(account_key: str) -> None:
     try:
-        frappe.cache().set_value(_KICKED_PREFIX + _key(account_key)[len(_KEY_PREFIX):], "1",
+        _state_store().set_value(_KICKED_PREFIX + _key(account_key)[len(_KEY_PREFIX):], "1",
                                  expires_in_sec=KICK_BACKOFF_SECONDS)
     except Exception:
         pass
@@ -183,6 +190,6 @@ def _mark_kicked(account_key: str) -> None:
 def recently_kicked(account_key: str) -> bool:
     """这个账号的缓存会话最近被人顶掉过吗（后台任务据此暂不为自己去登录）。"""
     try:
-        return bool(frappe.cache().get_value(_KICKED_PREFIX + _key(account_key)[len(_KEY_PREFIX):]))
+        return bool(_state_store().get_value(_KICKED_PREFIX + _key(account_key)[len(_KEY_PREFIX):]))
     except Exception:
         return False

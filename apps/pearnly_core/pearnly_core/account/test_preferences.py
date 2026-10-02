@@ -20,6 +20,10 @@ class TestPreferences(unittest.TestCase):
         self.native.cache.get_value.return_value = {
             "id_token": "verified-id", "refresh_token": "old-refresh", "subject": "subject-a",
         }
+        # 登录会话（refresh token）在不淘汰的状态存储（pearnly_core.execution.state）；与 frappe.cache 同一个替身
+        p = patch("pearnly_core.execution.state.store", return_value=self.native.cache)
+        p.start()
+        self.addCleanup(p.stop)
         for module in (preferences, oidc_session, profile):
             p = patch.object(module, "frappe", self.native)
             p.start()

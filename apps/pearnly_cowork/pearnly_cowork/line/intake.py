@@ -12,6 +12,7 @@
 """
 import frappe
 from frappe import _
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_core import line, line_binding
 
@@ -99,22 +100,22 @@ def _admit(line_user_id, message_id, filename, choices, language, reply_token):
 
 def _remember(source_name, line_user_id, language, reply_token, choices):
     # 卡片上要摆这次的选择（目标、方向、入账方式；账套取票上记的另起一行）：趁本人会话还在时算好一起记下。
-    frappe.cache.set_value(_PENDING + source_name, {
+    pearnly_state.store().set_value(_PENDING + source_name, {
         "line_user_id": line_user_id, "language": language, "reply_token": reply_token,
         "direction": choices.get("direction"), "target": flow.target_name(choices),
         "mode": flow.mode_label(choices)}, expires_in_sec=PENDING_SECONDS)
 
 
 def _forget(source_name):
-    frappe.cache.delete_value(_PENDING + source_name)
+    pearnly_state.store().delete_value(_PENDING + source_name)
 
 
 def _take(source_name):
     """只通知一次：识别任务可能因扣费确认被推迟重跑，重跑时不再发。"""
     key = _PENDING + source_name
-    pending = frappe.cache.get_value(key)
+    pending = pearnly_state.store().get_value(key)
     if pending:
-        frappe.cache.delete_value(key)
+        pearnly_state.store().delete_value(key)
     return pending
 
 

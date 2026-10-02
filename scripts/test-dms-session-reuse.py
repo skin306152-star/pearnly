@@ -73,6 +73,7 @@ class FakeContext:
 def _patch_env(test, conf=None):
     cache = FakeCache()
     test.enterContext(patch.object(frappe, "cache", return_value=cache))
+    test.enterContext(patch.object(session_cache, "_state_store", return_value=cache))  # 被踢标记在不淘汰的状态存储
     test.enterContext(patch.object(frappe, "conf", frappe._dict(conf or {})))
     test.enterContext(patch("frappe.utils.password.encrypt", side_effect=lambda text: "enc:" + text))
     test.enterContext(patch("frappe.utils.password.decrypt", side_effect=lambda text: text[4:]))

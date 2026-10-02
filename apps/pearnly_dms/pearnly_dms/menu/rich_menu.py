@@ -28,6 +28,13 @@ LANGUAGES = i18n.LANGUAGES
 VARIANTS = ("basic", "query")
 _APPLIED = "pearnly:dms:line-menu:"
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 
 def key(language, variant) -> str:
     return f"{language}:{variant}"
@@ -107,7 +114,7 @@ def publish():
     """Idempotently publish every language × variant. Never delete a previous release's menu."""
     from frappe.installer import update_site_config
 
-    cache = frappe.cache()
+    cache = _state_store()
     with cache.lock(cache.make_key("pearnly:dms:publish-menu"), timeout=120, blocking_timeout=5):
         existing = {item["name"]: item["richMenuId"] for item in _request("GET", "richmenu/list").get("richmenus", [])}
         result = {}

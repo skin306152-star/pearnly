@@ -32,9 +32,10 @@ class FakeCache:
 class Progress(unittest.TestCase):
 	def setUp(self):
 		self.cache = FakeCache()
-		patcher = mock.patch.object(progress.frappe, "cache", self.cache)
-		patcher.start()
-		self.addCleanup(patcher.stop)
+		for patcher in (mock.patch.object(progress.frappe, "cache", self.cache),
+				mock.patch("pearnly_core.execution.state.store", return_value=self.cache)):
+			patcher.start()
+			self.addCleanup(patcher.stop)
 
 	def test_pages_are_counted_from_the_upload(self):
 		import pymupdf
@@ -172,8 +173,8 @@ class RecognitionCountsItsPages(unittest.TestCase):
 			client.model_call.side_effect = call
 			try:
 				with mock.patch.object(document_ocr, "build_client", return_value=client), \
-						mock.patch.object(progress.frappe, "cache", cache), \
-						mock.patch.object(document_ocr.frappe, "cache", cache), \
+						mock.patch.object(progress.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), \
+						mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), \
 						mock.patch.object(document_ocr.frappe, "db", mock.MagicMock()), \
 						mock.patch.object(document_ocr, "PageSource", mock.MagicMock()), \
 						mock.patch.object(document_ocr, "read_file", side_effect=read_file):
@@ -184,7 +185,7 @@ class RecognitionCountsItsPages(unittest.TestCase):
 
 		run_once({2})
 		run_once(set())  # 续跑：已完成的调用从检查点取回、照样经过；数字取较大的，不翻倍
-		with mock.patch.object(progress.frappe, "cache", cache):
+		with mock.patch.object(progress.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache):
 			current = progress.get("F1")
 			self.assertEqual((current["read"], current["done"], current["unread"]), (3, 3, [2]))
 			self.assertEqual((progress.latest_items("job")[0]["rows"], progress.latest_items("job")[0]["amount"]), (1, ""))

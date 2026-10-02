@@ -118,6 +118,16 @@ class FakeCache:
     def get(self, key):
         return self.values.get(key)
 
+    def make_key(self, key):
+        return key  # 生产里按站点加前缀；替身原样，键名照旧可断言
+
+    def release(self, key, owner):
+        """与 pearnly_core.execution.state.release 同义：值仍是 owner 才删。"""
+        if self.values.get(key) == owner:
+            self.values.pop(key, None)
+            return True
+        return False
+
     def delete(self, key):
         self.values.pop(key, None)
 
@@ -140,6 +150,9 @@ class ChangeSyncTests(unittest.TestCase):
         self.addCleanup(self.modules.stop)
         sys.modules.pop("pearnly_dms.adapter.change_sync", None)
         self.sync = importlib.import_module("pearnly_dms.adapter.change_sync")
+        # 锁在不淘汰的状态存储（pearnly_core.execution.state）；替身同一个假缓存
+        self.enterContext(patch.object(self.sync, "_state_store", return_value=self.cache))
+        self.enterContext(patch.object(self.sync, "_state_release", side_effect=self.cache.release))
         self.read = Mock(return_value={"customer_id": "59", "people_id": ID_CARD})
         self.enterContext(patch.object(self.sync, "read_customer_complete", self.read))
         # 这些用例测的是"点不出记录就整组重读"本身，与白天/夜里无关：默认不延后（ADR-012）。

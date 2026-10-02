@@ -21,6 +21,7 @@ from urllib.parse import quote
 import frappe
 import requests
 from frappe import _
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_core import line, line_binding
 from pearnly_core.account import line_login
@@ -114,7 +115,7 @@ def publish() -> dict:
     """
     from frappe.installer import update_site_config
 
-    cache = frappe.cache()
+    cache = pearnly_state.store()
     with cache.lock(cache.make_key("pearnly:erp:publish-menu"), timeout=120, blocking_timeout=5):
         existing = {item["name"]: item["richMenuId"]
                     for item in _request("GET", "richmenu/list").get("richmenus", [])}

@@ -1096,7 +1096,7 @@ class NoInvoiceChargeAfterTheCheckClosed(unittest.TestCase):
 				mock.patch.object(invoice_ocr.frappe, "db", mock.MagicMock(get_value=lambda *a, **k: frappe._dict(
 					kind=invoice_ocr.KIND, user="u@example.com", status="running"))), \
 				mock.patch.object(invoice_ocr.frappe, "session", mock.Mock(user="Administrator")), \
-				mock.patch.object(invoice_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), \
+				mock.patch.object(invoice_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), \
 				mock.patch.object(invoice_ocr.core_work, "checkpoint",
 					side_effect=lambda key, *a: {invoice_ocr.RESULT: saved}.get(key)), \
 				mock.patch.object(invoice_ocr, "_charge") as charge:
@@ -1406,7 +1406,7 @@ class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 				mock.patch.object(document_ocr.frappe, "db", mock.MagicMock(get_value=lambda *a, **k: frappe._dict(
 					kind=document_ocr.KIND, user="u@example.com", status="running"))), \
 				mock.patch.object(document_ocr.frappe, "session", mock.Mock(user="Administrator")), \
-				mock.patch.object(document_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), \
+				mock.patch.object(document_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), \
 				mock.patch.object(document_ocr.core_work, "checkpoint", side_effect=lambda key, *a: checkpoints.get(key)), \
 				mock.patch.object(document_ocr, "_charge") as charge:
 			outcome = document_ocr.run("job", "F1", "p.jpg", 1, "sha", "bank_statement", {"billing_tier": "t"})
@@ -1433,7 +1433,7 @@ class NoChargeAfterTheReconciliationClosed(unittest.TestCase):
 			with mock.patch.object(document_ocr.frappe, "flags", mock.MagicMock(get=lambda key: "W1")), \
 					mock.patch.object(document_ocr.frappe, "db", db), \
 					mock.patch.object(document_ocr.frappe, "session", mock.Mock(user="Administrator")), \
-					mock.patch.object(document_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), \
+					mock.patch.object(document_ocr.frappe, "set_user"), mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), \
 					mock.patch.object(document_ocr.core_work, "checkpoint",
 						side_effect=lambda key, *a: {document_ocr.RESULT: saved}.get(key)), \
 					mock.patch.object(document_ocr, "_charge") as charge:
@@ -1656,7 +1656,7 @@ class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 		cache.get_value.return_value = None
 		db = mock.MagicMock()
 		db.exists.return_value = True
-		with mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch.object(document_ocr.frappe, "db", db):
+		with mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), mock.patch.object(document_ocr.frappe, "db", db):
 			with mock.patch.object(jobs, "_job_ended", return_value=True):
 				# 续不了（已标中途中断）→ 算结束；续上了 → 照读，结果留给续跑的那个对账
 				with mock.patch.object(jobs, "resume_if_abandoned", return_value=jobs.INTERRUPTED):
@@ -1682,7 +1682,7 @@ class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 		client = mock.Mock()
 		client.document_ai_call.side_effect = lambda *a, **k: calls.append("docai") or {}
 		with mock.patch.object(document_ocr, "build_client", return_value=client), \
-				mock.patch.object(document_ocr.frappe, "cache", cache), \
+				mock.patch.object(document_ocr.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), \
 				mock.patch.object(document_ocr.frappe, "db", mock.MagicMock()), \
 				mock.patch.object(document_ocr, "PageSource", mock.MagicMock()), \
 				mock.patch.object(document_ocr, "_mime", return_value="image/png"), \
@@ -1887,7 +1887,7 @@ class ReconJobCleanup(unittest.TestCase):
 		cache.get_value.return_value = None  # the deploy's clear-cache dropped the state
 		key = hashlib.sha256(f"site.test|{user}|abc123".encode()).hexdigest()
 		db.exists.side_effect = lambda doctype, name: (doctype, name) == stored(key) if stored else False
-		with mock.patch.object(jobs.frappe, "cache", cache), mock.patch.object(jobs.frappe, "db", db), \
+		with mock.patch.object(jobs.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), mock.patch.object(jobs.frappe, "db", db), \
 				mock.patch.object(jobs.frappe, "local", mock.Mock(site="site.test")), \
 				mock.patch.object(jobs.frappe, "session", mock.Mock(user=user)), \
 				mock.patch.object(jobs, "_", side_effect=lambda text: text), \
@@ -1920,7 +1920,7 @@ class ReconJobCleanup(unittest.TestCase):
 			db.exists.return_value = False
 			job = mock.Mock(kwargs={"user": "u@example.com", "kwargs": {"kind": "bank"}})
 			job.get_status.return_value = job_state
-			with mock.patch.object(jobs.frappe, "cache", cache), mock.patch.object(jobs.frappe, "db", db), \
+			with mock.patch.object(jobs.frappe, "cache", cache), mock.patch("pearnly_core.execution.state.store", return_value=cache), mock.patch.object(jobs.frappe, "db", db), \
 					mock.patch.object(jobs.frappe, "local", mock.Mock(site="site.test")), \
 					mock.patch.object(jobs.frappe, "session", mock.Mock(user="u@example.com")), \
 					mock.patch.object(jobs, "_", side_effect=lambda text: text), \

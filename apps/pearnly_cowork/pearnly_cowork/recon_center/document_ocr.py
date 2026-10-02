@@ -25,6 +25,7 @@ from pearnly_core import billing_client, ocr
 from pearnly_core.execution import pages as core_pages, pool as core_pool
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred, QueueFull
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.recon_center import progress, waiting
@@ -263,7 +264,7 @@ def _recon_closed(recon_job, file=None):
     """对账已结束：状态缓存写着失败 / 完成，或者它存的源文件已经删了（对账结束时一定删；部署、清缓存会清掉状态缓存，
     只看缓存会把已结束的对账当成还在等），或者对账后台任务本身已经没了（部署 / 重启时被杀、判为弃置：源文件还在、
     状态缓存也被清了，识别却还在一页页付费读，没人用；2026-09-30 测试机重载打断压测 rI）。"""
-    job = frappe.cache.get_value(f"cowork:recon-job:{recon_job}") or {}
+    job = pearnly_state.store().get_value(f"cowork:recon-job:{recon_job}") or {}
     if job.get("state") in ("failed", "done") or bool(file and not frappe.db.exists("File", file)):
         return True
     from pearnly_cowork.recon_center import jobs

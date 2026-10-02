@@ -24,6 +24,13 @@ DT = "DMS Booking Delivery"
 WINDOW_SECONDS = 23 * 3600
 logger = logging.getLogger(__name__)
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 
 def age(stamp):
     return (frappe.utils.get_datetime() - frappe.utils.get_datetime(stamp)).total_seconds()
@@ -109,7 +116,7 @@ def _receipt_text(doc, marker):
 
 
 def deliver(name):
-    cache, owner = frappe.cache(), uuid.uuid4().hex
+    cache, owner = _state_store(), uuid.uuid4().hex
     key = cache.make_key("pearnly:dms:delivery:" + name)
     if not cache.set(key, owner, nx=True, ex=660):
         return False

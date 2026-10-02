@@ -27,6 +27,7 @@ import string
 import frappe
 from frappe import _
 from frappe.utils import now
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_core import keycloak_admin as kc
 from pearnly_control.account import identity_pools
@@ -177,7 +178,7 @@ def issue_from_doc(issue_name: str) -> dict:
 
 
 def _activate(doc, operator: str, *, target_name: str) -> dict:
-    with frappe.cache.lock(f"pearnly:issue:{doc.name}", timeout=120, blocking_timeout=2):
+    with pearnly_state.store().lock(pearnly_state.store().make_key(f"pearnly:issue:{doc.name}"), timeout=120, blocking_timeout=2):
         doc.reload()
         if identity_pools.issued(doc):
             return _result(doc, doc.target or target_name)

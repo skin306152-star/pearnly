@@ -29,6 +29,7 @@ import time
 from contextlib import contextmanager
 from typing import Optional
 from frappe import _
+from pearnly_core.execution import state as pearnly_state
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,7 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
         try:
             # blocking_timeout：最多等多久；timeout：锁自己的自动过期兜底。
             # thread_local=False：心跳线程要用同一个令牌续期。
-            lock = frappe.cache().lock(name, timeout=ttl, blocking_timeout=timeout_sec,
+            lock = pearnly_state.store().lock(name, timeout=ttl, blocking_timeout=timeout_sec,
                                        thread_local=False)
             acquired = bool(lock.acquire(blocking=True, blocking_timeout=timeout_sec))
         except Exception as exc:  # noqa: BLE001 — 锁基础设施坏了要如实处理，不能装作没事

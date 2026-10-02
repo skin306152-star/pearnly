@@ -16,6 +16,13 @@ from pearnly_dms.contracts.id_validate import normalize_thai_id
 
 LOG = "Pearnly Push Log"
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 
 def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
@@ -79,7 +86,7 @@ class Attempt:
 
     def begin(self):
         # Lock just the durable reservation, never hold a Redis lease across HTTP.
-        cache = frappe.cache()
+        cache = _state_store()
         with cache.lock(cache.make_key("dms-customer-dispatch:" + self.system),
                         timeout=15, blocking_timeout=5):
             frappe.db.commit()  # discard stale MariaDB repeatable-read view

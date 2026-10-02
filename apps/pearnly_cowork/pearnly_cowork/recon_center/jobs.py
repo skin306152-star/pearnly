@@ -12,6 +12,7 @@ import uuid
 
 import frappe
 from frappe import _
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.recon_center import progress, rerun, slots, waiting
@@ -43,9 +44,9 @@ def _key(job_id):
 
 
 def _state(job_id, **values):
-    current = frappe.cache.get_value(_key(job_id)) or {}
+    current = pearnly_state.store().get_value(_key(job_id)) or {}
     current.update(values)
-    frappe.cache.set_value(_key(job_id), current, expires_in_sec=TTL)
+    pearnly_state.store().set_value(_key(job_id), current, expires_in_sec=TTL)
     return current
 
 
@@ -101,7 +102,7 @@ TASK_NAMES = {"bank": ("Cowork Bank Reconciliation", "CBR"), "income": ("Cowork 
 
 def status(job_id):
     job_id = str(job_id or "")
-    current = frappe.cache.get_value(_key(job_id))
+    current = pearnly_state.store().get_value(_key(job_id))
     if current and current.get("user") == frappe.session.user:
         if current.get("state") in ("queued", "running") and _job_ended(job_id):
             # 后台任务已经没了（部署 / 重启时被判弃置、移进失败队列），缓存还停在「进行中」：页面会一直转圈
@@ -424,7 +425,7 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
 def _shown_stage(recon_job):
     """页面现在显示的阶段；状态缓存读不到就当没有（只作展示）。"""
     try:
-        return (frappe.cache.get_value(_key(recon_job)) or {}).get("stage")
+        return (pearnly_state.store().get_value(_key(recon_job)) or {}).get("stage")
     except Exception:
         return None
 
@@ -454,7 +455,7 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
     keep_files = bool(replace_task)
     parked = False
     try:
-        if not (frappe.cache.get_value(_key(recon_job)) or {}).get("files"):
+        if not (pearnly_state.store().get_value(_key(recon_job)) or {}).get("files"):
             # 排队时状态缓存被清掉了（部署 / 重载清缓存）：开跑时按任务参数补回来，看板和「进行中」才看得到文件与标题
             # （压测 rK V01）。只作展示，补不上不影响对账。
             _state(recon_job, user=frappe.session.user, kind=kind, title=str(title)[:140], task=None, error=None,

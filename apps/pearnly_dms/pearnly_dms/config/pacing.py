@@ -76,6 +76,13 @@ _KEY = "pearnly:dms:pacing:v1:{endpoint}"
 # ── 纯函数（离线可测） ───────────────────────────────────────────────────────
 
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.state``；用到时才导入，本模块保持不依赖框架导入）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 def clamp(attempt: Any) -> int:
     """尝试次数落在 1..3。脏值（None / 空串 / 非数字）按第 1 次算。"""
     try:
@@ -136,7 +143,7 @@ def _read(endpoint: Any) -> Dict[str, Any]:
     try:
         import frappe
 
-        blob = frappe.cache().get_value(_key(endpoint), use_local_cache=False)
+        blob = _state_store().get_value(_key(endpoint), use_local_cache=False)
     except Exception:
         logger.warning("[dms pacing] 读状态失败，按「没失败过」处理", exc_info=True)
         return {}
@@ -147,7 +154,7 @@ def _write(endpoint: Any, state: Dict[str, Any]) -> None:
     try:
         import frappe
 
-        frappe.cache().set_value(_key(endpoint), state, expires_in_sec=_STATE_TTL_SECONDS)
+        _state_store().set_value(_key(endpoint), state, expires_in_sec=_STATE_TTL_SECONDS)
     except Exception:
         logger.warning("[dms pacing] 写状态失败（不影响本次结果）", exc_info=True)
 

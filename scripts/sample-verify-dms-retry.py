@@ -252,6 +252,8 @@ def main():
     fake = types.ModuleType("frappe")
     fake.cache = lambda: FakeCache()
     sys.modules["frappe"] = fake
+    # 冷却状态放在不淘汰的状态存储（pearnly_core.execution.state）；这里同样换成假缓存
+    real_store, R._state_store = R._state_store, lambda: FakeCache()
     try:
         ep = "EP-TEST"
         check("一开始可以试（没有冷却）", R.cooldown_left(ep) == 0)
@@ -272,6 +274,7 @@ def main():
         check("真的用过之后才算'刚用过'", R.used_recently(fresh_ep))
         check("失败不会把'刚用过'抹掉（之前有人真的用过就算）", R.used_recently(ep))
     finally:
+        R._state_store = real_store
         del sys.modules["frappe"]
         store.clear()
 

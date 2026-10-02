@@ -20,6 +20,7 @@ import hashlib
 import frappe
 from frappe import _
 from frappe.utils import add_to_date, now
+from pearnly_core.execution import state as pearnly_state
 
 BINDING = "Pearnly LINE Binding"
 BIND_CODE = "Pearnly LINE Bind Code"
@@ -36,7 +37,7 @@ def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dic
     # work after MariaDB snapshot conflicts; callers must not batch other writes.
     # Allocation and revocation share one short site-scoped critical section.
     # This also avoids InnoDB next-key lock cycles between fresh user ranges.
-    with frappe.cache.lock(frappe.cache.make_key("pearnly_bind_allocation"), timeout=30, blocking_timeout=10):
+    with pearnly_state.store().lock(pearnly_state.store().make_key("pearnly_bind_allocation"), timeout=30, blocking_timeout=10):
         for attempt in range(3):
             try:
                 return _generate_bind_code(user, ttl_minutes)
@@ -100,8 +101,8 @@ def consume_bind_code(code: str, *, line_user_id: str = ""):
     # Signed webhook supplies the sender. Atomic, site-scoped fixed window prevents
     # the shorter human-friendly code from becoming an unlimited guessing oracle.
     actor = hashlib.sha256(line_user_id.encode()).hexdigest()
-    key = frappe.cache.make_key("pearnly_bind_attempts:" + actor)
-    attempts = frappe.cache.eval(
+    key = pearnly_state.store().make_key("pearnly_bind_attempts:" + actor)
+    attempts = pearnly_state.store().eval(
         "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],900) end; return n",
         1, key,
     )
@@ -124,7 +125,7 @@ def consume_bind_code(code: str, *, line_user_id: str = ""):
     # 行锁覆盖读与写；另一个请求必须在提交后重新读取 used。
     frappe.db.set_value(BIND_CODE, code, {"used": 1, "used_at": now()})
     frappe.db.commit()
-    frappe.cache.delete(key)
+    pearnly_state.store().delete(key)
     return {"user": doc.user}
 
 

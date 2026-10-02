@@ -23,6 +23,13 @@ logger = logging.getLogger(__name__)
 WORKER_GRACE_SECONDS = 660  # Existing worker timeout is 600 s.
 RECEIPT_WINDOW_SECONDS = 23 * 3600  # LINE retry keys expire at 24 h.
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 
 def endpoint_fingerprint(endpoint):
     return delivery.identity_fingerprint(endpoint)
@@ -84,7 +91,7 @@ def request(line_user_id, marker=None):
 def reconcile(line_user_id):
     # Bounded lease excludes another recovery worker. External requests remain
     # serialized by the actual DMS account lock as well.
-    cache = frappe.cache()
+    cache = _state_store()
     key = cache.make_key('pearnly:dms:reconcile:' + line_user_id)
     owner = uuid.uuid4().hex
     if not cache.set(key, owner, nx=True, ex=660):

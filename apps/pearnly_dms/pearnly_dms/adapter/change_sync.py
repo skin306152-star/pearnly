@@ -109,6 +109,20 @@ MODULES = (
     ("รหัสไปรษณีย์", "geo", False),              # 邮编
 )
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
+def _state_release(key, owner):
+    """原子释放自己持有的锁（``pearnly_core.execution.state.release``）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.release(key, owner)
+
+
 
 def seeded(state):
     """基线是否已经建好。没建好就不能做增量判断。"""
@@ -124,7 +138,8 @@ def _acquire(scope_key):
     """拿到牌子返回 token；别人在跑返回 None；Redis 不可用返回 ""（照做，不互斥）。"""
     token = frappe.generate_hash(length=16)
     try:
-        if not frappe.cache().set(_lock_key(scope_key), token, nx=True, ex=LOCK_SECONDS):
+        store = _state_store()
+        if not store.set(store.make_key(_lock_key(scope_key)), token, nx=True, ex=LOCK_SECONDS):
             return None
     except Exception:
         logger.warning("[dms changes] 互斥不可用，本轮不加锁继续")
@@ -136,9 +151,8 @@ def _release(scope_key, token):
     if not token:
         return
     try:
-        cache = frappe.cache()
-        if cache.get(_lock_key(scope_key)) in (token, token.encode()):
-            cache.delete(_lock_key(scope_key))
+        # 不淘汰的状态存储、按站点加前缀；只删自己那把（原先先读再删，中间别人刚拿到的锁会被误删）
+        _state_release(_state_store().make_key(_lock_key(scope_key)), token)
     except Exception:
         logger.warning("[dms changes] 互斥释放失败（会自然过期）")
 

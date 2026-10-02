@@ -16,6 +16,13 @@ from pearnly_core.endpoints import read_password
 
 PORTAL_PREFIX = "pearnly:dms:portal:"
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    return pearnly_state.store()
+
+
 
 def _identity(ticket):
     who = browser_ticket.resolve(ticket)
@@ -89,7 +96,7 @@ def portal_ticket(ticket: str, language: str = ""):
     who = _identity(ticket)
     _endpoint(who)
     token = secrets.token_urlsafe(32)
-    frappe.cache().set_value(PORTAL_PREFIX + token, {"account_ticket": ticket,
+    _state_store().set_value(PORTAL_PREFIX + token, {"account_ticket": ticket,
         "language": language if language in LANGUAGES else browser_api._bound_language(who["line_user_id"])},
         expires_in_sec=60)
     return {"url": "/api/method/pearnly_dms.account.api.open_portal?" + urlencode({"token": token}),
@@ -99,9 +106,9 @@ def portal_ticket(ticket: str, language: str = ""):
 @frappe.whitelist(allow_guest=True)
 def open_portal(token: str):
     key = PORTAL_PREFIX + str(token or "")
-    with frappe.cache().lock(key + ":lock", timeout=5, blocking_timeout=2):
-        record = frappe.cache().get_value(key)
-        frappe.cache().delete_value(key)
+    with _state_store().lock(_state_store().make_key(key + ":lock"), timeout=5, blocking_timeout=2):
+        record = _state_store().get_value(key)
+        _state_store().delete_value(key)
     if not isinstance(record, dict):
         browser_api._fail("dms_booking.expired", 409)
     who = _identity(record["account_ticket"])

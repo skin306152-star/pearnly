@@ -38,6 +38,12 @@ TTL_SECONDS = 30 * 60
 MODES = ("booking", "customer", "account")
 
 
+def _state_store():
+    """不淘汰的状态存储（``pearnly_core.state``；用到时才导入）。"""
+
+    return _state_store()
+
+
 def _key(ticket: str) -> str:
     return f"{PREFIX}{ticket}"
 
@@ -63,7 +69,7 @@ def issue(line_user_id: str, mode: str) -> str:
     if not identity:
         frappe.throw("dms_booking.not_bound", frappe.PermissionError)
     ticket = secrets.token_urlsafe(32)
-    frappe.cache().set_value(
+    _state_store().set_value(
         _key(ticket),
         {"line_user_id": str(line_user_id), "mode": normalize_mode(mode), **identity},
         expires_in_sec=TTL_SECONDS,
@@ -79,7 +85,7 @@ def resolve(ticket: str) -> Optional[Dict[str, Any]]:
     if not token:
         return None
     try:
-        blob = frappe.cache().get_value(_key(token))
+        blob = _state_store().get_value(_key(token))
     except Exception:
         logger.warning("[dms browser] 读票据失败，按无效处理", exc_info=True)
         return None
@@ -102,7 +108,7 @@ def revoke(ticket: str) -> None:
     if not token:
         return
     try:
-        frappe.cache().delete_value(_key(token))
+        _state_store().delete_value(_key(token))
     except Exception:
         logger.warning("[dms browser] 作废票据失败", exc_info=True)
 

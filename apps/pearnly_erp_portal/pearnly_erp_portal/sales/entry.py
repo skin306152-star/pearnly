@@ -10,6 +10,7 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import flt, getdate, now, nowdate
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import positions, stock, warehouses
@@ -135,7 +136,7 @@ def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False
     payload = dict(payload)
     fingerprint = hashlib.sha256(json.dumps([payload, name], sort_keys=True,
                                            ensure_ascii=False, default=str).encode()).hexdigest()
-    with frappe.cache.lock("erp-sales-post", timeout=120, blocking_timeout=20):
+    with pearnly_state.store().lock(pearnly_state.store().make_key("erp-sales-post"), timeout=120, blocking_timeout=20):
         try:
             existing = frappe.db.get_value(DOCTYPE, {"request_id": request_id}, "name")
             if existing:

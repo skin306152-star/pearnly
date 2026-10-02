@@ -5,6 +5,7 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import getdate, now, nowdate
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import positions, stock, warehouses
@@ -119,7 +120,7 @@ def post(payload, *, request_id, name=None, amended_from=None, finalize=None, al
     fingerprint = hashlib.sha256(json.dumps([payload, name, amended_from], sort_keys=True,
                                            ensure_ascii=False, default=str).encode()).hexdigest()
     # Serialize auto-item matching until commit. Unique request_id remains the durable replay guard.
-    with frappe.cache.lock("erp-purchase-post", timeout=120, blocking_timeout=20):
+    with pearnly_state.store().lock(pearnly_state.store().make_key("erp-purchase-post"), timeout=120, blocking_timeout=20):
         try:
             existing = frappe.db.get_value("Purchase Document", {"request_id": request_id}, "name")
             if existing:

@@ -14,6 +14,7 @@ import secrets
 
 import frappe
 from frappe import _
+from pearnly_core.execution import state as pearnly_state
 
 from pearnly_core import line
 from pearnly_erp_portal.inventory import count as counts
@@ -49,7 +50,7 @@ def session_binding() -> tuple:
 
 def issue(line_user_id: str, user: str) -> str:
     ticket = secrets.token_urlsafe(24)
-    frappe.cache.set_value(_key(ticket), {"line_user_id": line_user_id, "user": user},
+    pearnly_state.store().set_value(_key(ticket), {"line_user_id": line_user_id, "user": user},
                            expires_in_sec=TTL_SECONDS)
     return ticket
 
@@ -57,7 +58,7 @@ def issue(line_user_id: str, user: str) -> str:
 def resolve(ticket: str) -> dict:
     if not ticket:
         return {}
-    return frappe.cache.get_value(_key(ticket)) or {}
+    return pearnly_state.store().get_value(_key(ticket)) or {}
 
 
 def _header(name: str) -> str:

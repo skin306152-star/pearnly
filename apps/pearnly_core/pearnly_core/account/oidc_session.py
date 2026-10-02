@@ -4,6 +4,7 @@ import logging
 import frappe
 import requests
 from frappe import _
+from pearnly_core.execution import state as pearnly_state
 
 logger = logging.getLogger(__name__)
 SESSION_HINT = "pearnly_oidc_id_token"
@@ -15,7 +16,7 @@ def cache_key():
 
 def remember(tokens, subject):
     from frappe.sessions import get_expiry_in_seconds
-    frappe.cache.set_value(cache_key(), {
+    pearnly_state.store().set_value(cache_key(), {
         "id_token": tokens["id_token"], "refresh_token": tokens.get("refresh_token"),
         "subject": subject,
     }, expires_in_sec=get_expiry_in_seconds())
@@ -30,11 +31,11 @@ def remember(tokens, subject):
 
 def logout_hint():
     return (frappe.session.get(SESSION_HINT)
-            or (frappe.cache.get_value(cache_key()) or {}).get("id_token"))
+            or (pearnly_state.store().get_value(cache_key()) or {}).get("id_token"))
 
 
 def forget():
-    frappe.cache.delete_value(cache_key())
+    pearnly_state.store().delete_value(cache_key())
     try:
         frappe.session[SESSION_HINT] = None
     except Exception:
@@ -53,8 +54,8 @@ def update_profile(*, locale=None):
     这条通道只剩"语言偏好"一件事，别的字段一律按当前值原样写回。
     """
     key = cache_key()
-    with frappe.cache.lock(key + ":refresh", timeout=90, blocking_timeout=5):
-        saved = frappe.cache.get_value(key) or {}
+    with pearnly_state.store().lock(key + ":refresh", timeout=90, blocking_timeout=5):
+        saved = pearnly_state.store().get_value(key) or {}
         if not saved.get("refresh_token"):
             return False
         issuer = str(frappe.conf.pearnly_oidc_issuer).rstrip("/")

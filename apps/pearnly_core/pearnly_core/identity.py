@@ -24,6 +24,7 @@ import jwt
 import requests
 from frappe import _
 from pearnly_core.account import oidc_session, preferences
+from pearnly_core.execution import state as pearnly_state
 
 STATE_TTL = 600  # 秒
 DISCOVERY_TTL = 3600
@@ -93,7 +94,7 @@ def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
     nonce = secrets.token_urlsafe(32)
     verifier, challenge = _pkce_pair()
 
-    frappe.cache.set_value(
+    pearnly_state.store().set_value(
         _state_key(state),
         {"nonce": nonce, "verifier": verifier, "redirect_to": redirect_to,
          "expected_user": frappe.session.user if password_change else None},
@@ -132,9 +133,9 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if not code or not state:
         frappe.throw(_("Missing code or state"))
 
-    saved = frappe.cache.get_value(_state_key(state))
+    saved = pearnly_state.store().get_value(_state_key(state))
     # 一次性消费：无论成功失败都作废，防重放
-    frappe.cache.delete_value(_state_key(state))
+    pearnly_state.store().delete_value(_state_key(state))
     if not saved:
         frappe.throw(_("state is invalid or has expired"))
 

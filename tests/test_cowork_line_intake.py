@@ -365,7 +365,7 @@ class LineAnnounceTest(unittest.TestCase):
     def test_only_the_first_announcement_is_sent(self):
         cache = {intake._PENDING + "CWS-1": {"line_user_id": "U1", "language": "th", "reply_token": "tok"}}
         fake = mock.Mock(get_value=cache.get, delete_value=lambda key: cache.pop(key, None))
-        with mock.patch.object(intake.frappe, "cache", fake), \
+        with mock.patch.object(intake.frappe, "cache", fake), mock.patch("pearnly_core.execution.state.store", return_value=fake), \
                 mock.patch.object(intake.frappe, "local", mock.Mock(lang="zh")), \
                 mock.patch("pearnly_cowork.line.cards.previews", return_value=[{"type": "flex"}]), \
                 mock.patch.object(intake.line, "reply_or_push") as send:
@@ -375,7 +375,7 @@ class LineAnnounceTest(unittest.TestCase):
 
     def test_uploads_not_from_line_are_ignored(self):
         fake = mock.Mock(get_value=lambda key: None)
-        with mock.patch.object(intake.frappe, "cache", fake), \
+        with mock.patch.object(intake.frappe, "cache", fake), mock.patch("pearnly_core.execution.state.store", return_value=fake), \
                 mock.patch.object(intake.line, "reply_or_push") as send:
             intake.announce("CWS-2", "saved", ["H1"])
         send.assert_not_called()
