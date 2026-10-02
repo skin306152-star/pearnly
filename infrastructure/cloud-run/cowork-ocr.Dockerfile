@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_
 RUN pip install \
       "pydantic==2.12.5" "pydantic_core==2.41.5" "typing_extensions==4.16.0" "annotated-types==0.8.0" \
       "typing-inspection==0.4.4" \
-      "pymupdf==1.28.2" "pillow==12.3.0" \
+      "pymupdf==1.28.2" "pillow==12.3.0" "pypdf==6.15.0" \
       "requests==2.33.1" "urllib3==2.7.0" "certifi==2026.7.22" "charset-normalizer==3.5.1" "idna==3.19" \
       "onnxruntime==1.30.0" "numpy==2.5.3" "flatbuffers==25.12.19" "protobuf==7.36.1" "packaging==26.3" \
       "google-auth==2.36.0" "cachetools==5.5.2" "pyasn1==0.6.4" "pyasn1-modules==0.4.2" "rsa==4.9.1" \
