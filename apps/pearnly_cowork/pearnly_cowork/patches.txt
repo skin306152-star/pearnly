@@ -15,3 +15,4 @@ pearnly_cowork.patches.v0_0_8_backfill_review_reasons
 pearnly_cowork.patches.v0_0_9_work_boards
 pearnly_cowork.patches.v0_0_10_source_lookup_indexes
 pearnly_cowork.patches.v0_0_11_history_workspace_indexes
+pearnly_cowork.patches.v0_0_12_history_count_index

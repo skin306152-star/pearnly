@@ -32,6 +32,8 @@ INDEXES = {
     "workspace_seller_tax_index": ["workspace", "seller_tax", "creation"],      # 同卖方单号记忆、按税号找同方
     "workspace_date_seller_index": ["workspace", "invoice_date", "seller_name", "creation"],  # 重复检查（日期 + 卖方）
     "workspace_invoice_no_index": ["workspace", "invoice_no", "creation"],      # 重复检查（单号）
+    # 录入工作台的总数：权限条件只用到工作区和客户，计数只扫这个窄索引、不读表（2026-10-02 m7：1.3 万行每次 0.6–1.1 秒）
+    "workspace_client_index": ["workspace", "client"],
 }
 
 

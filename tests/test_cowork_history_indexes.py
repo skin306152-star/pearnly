@@ -22,6 +22,7 @@ class HistoryIndexes(unittest.TestCase):
 
         listed = Path(history.__file__).resolve().parents[3].joinpath("patches.txt").read_text()
         self.assertIn("pearnly_cowork.patches.v0_0_11_history_workspace_indexes", listed.split("[post_model_sync]")[1])
+        self.assertIn("pearnly_cowork.patches.v0_0_12_history_count_index", listed.split("[post_model_sync]")[1])
         db = MagicMock()
         with patch.object(history.frappe, "db", db):
             migration.execute()
