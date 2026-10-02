@@ -27,8 +27,8 @@ class CoreNotificationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         tree = ast.parse(WORK.read_text())
-        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in ("_notify", "_finish", "_finished")]
-        if len(nodes) != 3:
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in ("_notify", "_finish", "_finished", "_push")]
+        if len(nodes) != 4:
             raise AssertionError("Expected real Core notification and terminal functions")
         cls.code = compile(ast.Module(body=nodes, type_ignores=[]), str(WORK), "exec")
         hooks = ast.parse((DMS / "hooks.py").read_text())
@@ -52,7 +52,7 @@ class CoreNotificationTests(unittest.TestCase):
             set_value=lambda *a, **kw: self.calls.append(("status", a[2]["status"])),
         )
         redis = SimpleNamespace(zrem=lambda *a: self.calls.append(("release", *a)))
-        self.frappe = SimpleNamespace(db=db, get_hooks=lambda name: self.hooks, get_attr=self.callback,
+        self.frappe = SimpleNamespace(db=db, flags={}, get_hooks=lambda name: self.hooks, get_attr=self.callback,
             logger=lambda name: SimpleNamespace(exception=lambda text: self.calls.append(("diagnostic", text))))
         inputs = ModuleType("pearnly_core.execution.inputs")
         inputs.remove = lambda name: self.calls.append(("remove", name))

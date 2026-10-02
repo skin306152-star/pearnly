@@ -197,18 +197,37 @@ def _persist(doc):
     result = PipelineResult.model_validate_json(doc.result_json, context={"anchor_year": anchor})
     if result.engine == roundtrip.ENGINE:
         require_links(result, doc.workspace, doc.client)
-    plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
-        source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
-        payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
-        reference_kind=doc.get("reference_kind") or "physical_page")
+    with core_work.step("persist_prepare"):
+        plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
+            source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
+            payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
+            reference_kind=doc.get("reference_kind") or "physical_page")
     previews = (getattr(doc, "flags", None) or {}).get("cowork_previews")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
-    doc = store.read(doc.name, lock=True, write=True, authorize=False)
+    with core_work.step("persist_lock"):
+        doc = store.read(doc.name, lock=True, write=True, authorize=False)
     if doc.phase in {"saved", "not_invoice"}:
         return doc
+    # persist_batch 里面再分几步计时（persist_source / persist_names / persist_duplicates / persist_insert / persist_bind）
     rows = (persist_batch(doc.source_file, plan["groups"], doc.name, anchor_year=anchor, previews=previews)
             if plan["groups"] else [])
+    with core_work.step("persist_targets"):
+        _copy_targets(doc, rows)
+    doc.history_records = store.encode([r["name"] for r in rows])
+    doc.phase = "saved" if rows else "not_invoice"
+    doc.billing_state = "pending" if rows else "not_billable"
+    doc.requires_review = plan["requires_review"]
+    with core_work.step("persist_save"):
+        store.save(doc)
+    with core_work.step("persist_commit"):
+        frappe.db.commit()
+    with core_work.step("persist_announce"):
+        _announce(doc)
+    return doc
+
+
+def _copy_targets(doc, rows):
     if doc.get("target_connection") or doc.get("intake_target"):
         # 新建录入选的推送目标抄到每张票上：之后从列表进来提交也按第一次的选择推（用户 2026-09-26）；
         # 选的是哪张目标卡片也抄上（识别后导出的票打开复核页是「导出」，不是「提交」）。
@@ -216,14 +235,6 @@ def _persist(doc):
             frappe.db.set_value("Cowork OCR History", row["name"], {"push_connection": doc.get("target_connection") or "",
                 "push_account_set": doc.get("target_account_set") or "",
                 "intake_target": doc.get("intake_target") or ""}, update_modified=False)
-    doc.history_records = store.encode([r["name"] for r in rows])
-    doc.phase = "saved" if rows else "not_invoice"
-    doc.billing_state = "pending" if rows else "not_billable"
-    doc.requires_review = plan["requires_review"]
-    store.save(doc)
-    frappe.db.commit()
-    _announce(doc)
-    return doc
 
 
 def remote_progress(arguments, events, state, user=None):

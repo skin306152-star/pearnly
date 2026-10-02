@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
+from pearnly_core.execution.work import step
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
 from . import categories, duplicates, names, review
@@ -192,10 +193,11 @@ def _create(workspace, body, request_key, client=None, *, attachment=None, check
     if frappe.db.exists(DOCTYPE, name):
         return _existing(name, fingerprint)
     # 识别入库：先按税号换成人定的名称、清掉不是品名的品名（分类记忆按卖方名称取，要用换过的名称）。
-    pages = (categories.prepare(workspace, client, names.prepare(workspace, body["pages"]))
-             if check_duplicates else body["pages"])
-    # 放在请求指纹之后：重试时这家的票号历史可能已变，指纹只认调用方交来的内容。
-    pages = settle(workspace, name, pages)
+    with step("persist_names"):
+        pages = (categories.prepare(workspace, client, names.prepare(workspace, body["pages"]))
+                 if check_duplicates else body["pages"])
+        # 放在请求指纹之后：重试时这家的票号历史可能已变，指纹只认调用方交来的内容。
+        pages = settle(workspace, name, pages)
     body = {**body, "pages": pages, **extract_summary_fields(pages)}
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client or "",
                           "source": body["source"], "pages": encode(pages),
@@ -207,14 +209,16 @@ def _create(workspace, body, request_key, client=None, *, attachment=None, check
     if attachment:
         doc.update(attachment)
     if check_duplicates:
-        doc.update(duplicates.check(workspace, client, body))
+        with step("persist_duplicates"):
+            doc.update(duplicates.check(workspace, client, body))
         doc.flags.cowork_duplicate_match = doc.duplicate_match
     else:
         doc.duplicate_check_status = "not_checked"
     doc.flags.cowork_history_create = _CREATE_TOKEN
     frappe.db.savepoint("cowork_create")
     try:
-        doc.insert()
+        with step("persist_insert"):
+            doc.insert()
     except frappe.DuplicateEntryError:
         frappe.db.rollback(save_point="cowork_create")
         return _existing(name, fingerprint)

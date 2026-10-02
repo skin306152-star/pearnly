@@ -7,6 +7,7 @@ import hashlib
 
 import frappe
 from frappe import _
+from pearnly_core.execution.work import step
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts.history import initial_history
 from pearnly_cowork.files import access, guard, service as files
@@ -22,7 +23,8 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None, preview
         frappe.throw(_("Select between 1 and 500 records."))
     # Serializes competing manifests. No preview can observe a partially bound
     # source because completion and all invoice records commit together.
-    source = frappe.get_doc(access.SOURCE, source_file, for_update=True)
+    with step("persist_source"):
+        source = frappe.get_doc(access.SOURCE, source_file, for_update=True)
     scope.require_scope(source.workspace, source.client)
     if not source.binding_complete:
         access.require_full(source)
@@ -64,7 +66,8 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None, preview
             frappe.throw(_("The original invoice manifest is incomplete."))
         return [storage.project(row) for row in rows]
     # Check the stored bytes before admitting any recognized reference.
-    files.verify_stored(source)
+    with step("persist_verify"):
+        files.verify_stored(source)
     rows = []
     frappe.db.savepoint("cowork_bind_original")
     try:
@@ -85,7 +88,8 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None, preview
             if previews:
                 source.preview_objects = previews
             source.flags.cowork_original_write = guard.WRITE_CAPABILITY
-            source.save(ignore_permissions=True)
+            with step("persist_bind"):
+                source.save(ignore_permissions=True)
     except frappe.QueryDeadlockError:
         frappe.db.rollback()
         raise

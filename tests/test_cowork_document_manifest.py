@@ -5,6 +5,7 @@ File storage, DB locks and transaction behavior are tested separately by the
 dedicated lab script; these tests never import Frappe or open original files.
 """
 import ast
+from contextlib import nullcontext
 from copy import deepcopy
 import hashlib
 import json
@@ -310,7 +311,7 @@ class DocumentManifestTests(unittest.TestCase):
             # 原件在服务器上：登记前的核对照旧读一遍原件（``files.verify_stored`` → ``read_bytes``）。
             files=SimpleNamespace(read_bytes=self.service["read_bytes"], verify_stored=self.service["read_bytes"]),
             storage=storage,
-            hashlib=hashlib, initial_history=object(), _=lambda text: text)
+            hashlib=hashlib, initial_history=object(), _=lambda text: text, step=lambda label: nullcontext())
         load_functions("history/recognition.py", ["persist_batch"], env)
         return env, storage
 
