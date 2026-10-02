@@ -162,7 +162,8 @@ def call(remote, path, body, on_event, *, now=time.time, http=None, bucket=None)
         if found is not None:
             final, events = contract.parse_reply(found)
             if "throttled" in final:
-                _adapt(config, final.get("throttled"), pool_of(path), final.get("calls") or 0)
+                for model_pool, (seen, hit) in _pool_counts(final, pool_of(path, body)).items():
+                    _adapt(config, hit, model_pool, seen)
             applied = progress_applied(work, dispatch)
             for event in events:
                 if event["seq"] >= applied:
@@ -298,7 +299,7 @@ def _reserve(config, work, path, body, bucket=None):
         stamp = client.time()
         now = int(stamp[0]) + int(stamp[1]) / 1_000_000
         pause = budget.PREFIX + (bucket or "cowork-tasks-none") + ":pause"
-        pool = pool_of(path)
+        pool = pool_of(path, body)
         granted = client.eval(RESERVE, 5, budget.PREFIX + OUTSTANDING_KEY, budget.PREFIX + WORKFLOWS_KEY, pause,
             budget.PREFIX + ADAPTIVE_KEY + ":" + pool, budget.PREFIX + OUTSTANDING_KEY + ":" + pool,
             now, _member(work), now + LOST_SECONDS, cfg["concurrency"],
@@ -322,14 +323,54 @@ def _reserve(config, work, path, body, bucket=None):
 # （Document AI + gemini-3.8-flash）是谷歌不同的额度，各一个上限、各按自己的 429 收缩；全站名额与租户上限照旧跨池。
 # 站点配置 ``pearnly_cowork_ocr_tasks.adaptive`` 写 0 关掉（只按名额配置）。
 ADAPTIVE_KEY = "cowork-tasks-adaptive"
-POOLS = {"/v1/cowork/invoice": "invoice", "/v1/cowork/document": "document"}
+# 池按模型分（2026-10-02 压测窗口：谷歌的动态共享额度按模型算；全站打开 3.8 看图后，3.8（扫描件 / 照片 / 对账抽取）与
+# flash-lite（电子 PDF、整页转写）同在一个发票池会互相拖累）。一份派发占它主要用的那个模型的池：对账文档 = 3.8；发票 = 站点
+# 选的看图模型（``OCR_DIRECT_MODEL``，没选照策略的第一档）。结果里按模型带回调用和限流（``by_model``），各模型按各自的 429
+# 比例收放；读字 / Document AI 那部分（""）算进这份所在的池。旧版 Cloud Run 只带总数：整份算进所在的池。
+LITE, PRO = "gemini-3.1-flash-lite", "gemini-3.8-flash"
+DOCUMENT_POOL = PRO
+LEGACY_POOLS = ("invoice", "document")  # 改按模型分池之前的池名：上线时还在途的派发照样能还回去
 
 
-def pool_of(path):
-    return POOLS.get(path, "invoice")
+def pool_of(path, body=None):
+    if path == "/v1/cowork/document":
+        return DOCUMENT_POOL
+    from pearnly_cowork.ocr.engine.config import DIRECT_MODELS
+    from pearnly_cowork.ocr.policy import invoice_policy
+
+    environment = (body or {}).get("environment") or {}
+    chosen = str(environment.get("OCR_DIRECT_MODEL") or "").strip()
+    if chosen in DIRECT_MODELS:
+        return chosen
+    try:
+        first = invoice_policy(environment, (body or {}).get("policy")).first_model
+    except (ValueError, TypeError, KeyError):
+        return LITE
+    return first if first in ADAPTIVE_FLOOR else LITE
+
+
+def _pool_counts(final, job_pool):
+    """结果行 → ``{池: (调用, 限流)}``：按模型带回的各进各的池，认不出的模型和读字等算进 ``job_pool``。"""
+    pools = {}
+    by_model = final.get("by_model")
+    if isinstance(by_model, dict) and by_model:
+        for model, counts in by_model.items():
+            try:
+                seen, hit = int(counts[0] or 0), int(counts[1] or 0)
+            except (TypeError, ValueError, IndexError, KeyError):
+                continue
+            target = model if model in ADAPTIVE_FLOOR else job_pool
+            total = pools.get(target, (0, 0))
+            pools[target] = (total[0] + seen, total[1] + hit)
+        if pools:
+            return pools
+    return {job_pool: (int(final.get("calls") or 0), int(final.get("throttled") or 0))}
+
+
 ADAPTIVE_START, ADAPTIVE_SHRINK = 32, 0.8
-# 各池下限：发票用 flash-lite（额度独立，拐点是全站同时 30–40 个调用），不低于 24；对账文档每份同时调用多，下限 8。
-ADAPTIVE_FLOOR = {"invoice": 24, "document": 8}
+# 各池下限：flash-lite（拐点是全站同时 30–40 个调用）不低于 24；3.8 既读扫描件 / 照片又做对账抽取（对账一份同时调用多），
+# 不低于 16。
+ADAPTIVE_FLOOR = {LITE: 24, PRO: 16}
 # 30 秒一个窗口（一份读取的典型耗时）：窗口里 429 / 503 占谷歌调用超过 15% 才收缩，一个窗口最多缩一次；没超就放开——
 # 没碰过收缩线前慢启动（翻倍），之后每窗口加 2。上限存在 Redis 里（30 天），下次接着用，不每次从 32 冷启动。
 # 2026-10-02 第三轮：原来「一份结果带 429 就乘 0.8、每份加 1/上限」，429 只占 2–10% 也几乎每 5 秒缩一次，发票池长期压在下限 8，
@@ -364,14 +405,14 @@ return tostring(cap)
 """
 
 
-def _adaptive_start(config, cfg, pool="invoice"):
+def _adaptive_start(config, cfg, pool=LITE):
     """起步上限（0 = 关掉自适应）。"""
     if not config.get("adaptive", True):
         return 0
     return max(ADAPTIVE_FLOOR.get(pool, 8), min(int(cfg["concurrency"]), ADAPTIVE_START))
 
 
-def _adapt(config, throttled, pool="invoice", calls=0):
+def _adapt(config, throttled, pool=LITE, calls=0):
     """一份结果回来：按它挨了几次 429 调全站上限。记不住就算了（下一份再调）。返回调整后的上限。"""
     from pearnly_core.execution import budget
 
@@ -439,7 +480,7 @@ def _release(work):
         member = _member(work)
         client.zrem(budget.PREFIX + OUTSTANDING_KEY, member)
         client.zrem(budget.PREFIX + WORKFLOWS_KEY, member)
-        for pool in set(POOLS.values()):
+        for pool in (*ADAPTIVE_FLOOR, *LEGACY_POOLS):
             client.zrem(budget.PREFIX + OUTSTANDING_KEY + ":" + pool, member)
     except Exception:
         pass  # 记录到期自动释放

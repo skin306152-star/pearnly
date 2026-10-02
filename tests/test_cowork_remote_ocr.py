@@ -818,6 +818,7 @@ class PaidCallGuard(unittest.TestCase):
         self.assertEqual(final["status"], "done")
         self.assertEqual(final["throttled"], 1)          # 挨了几次 429 随结果交回（服务器据此调各池派发上限）
         self.assertEqual(final["calls"], 2)              # 发给谷歌几次（窗口内算 429 比例）
+        self.assertEqual(final["by_model"], {"gemini-3.1-flash-lite": [2, 1]})   # 按模型分开带回（服务器各模型一个池）
         self.assertIn("aiplatform.googleapis.com", google.sent[0])
         self.assertIn("aiplatform.us.rep.googleapis.com", google.sent[1])
 
@@ -840,6 +841,7 @@ class PaidCallGuard(unittest.TestCase):
         self.assertEqual(result.page.full_text, TEXT)    # 原地再试一次读到
         self.assertEqual(store.throttled, 1)             # 读字回复里的 8 也交回服务器算进限流比例（2026-10-02 复测）
         self.assertEqual(store.calls, 2)
+        self.assertEqual(store.by_model, {"": [2, 1]})   # 读字不是 Gemini：算进这份所在的池
         self.assertEqual(google.sent, ["https://vision.googleapis.com/v1/images:annotate"] * 2)
 
     def test_global_and_us_rate_limited_go_on_to_the_eu_entry_without_waiting(self):

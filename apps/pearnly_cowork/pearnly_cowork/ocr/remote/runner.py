@@ -67,7 +67,17 @@ class Store:
         self._cache, self._generation, self._lease = {}, {}, None
         self.throttled = 0  # 这次读取挨了谷歌几次 429 / 503（交回服务器，按它调各池在途派发数，见 ``tasks``）
         self.calls = 0      # 这次读取真正发给谷歌几次（服务器按窗口内的 429 比例调节）
+        # 按模型分开记 ``{模型: [调用, 限流]}``（谷歌的共享额度按模型算，服务器各模型一个池；读字 / Document AI 记在 "" 下，
+        # 算进这份所在的池）。2026-10-02 压测窗口：3.8 与 flash-lite 同在一个发票池会互相拖累。
+        self.by_model = {}
         self._lock = threading.Lock()  # 引擎可能多页同时读：缓存的读写要线程安全（每个调用各自一个对象）
+
+    def count(self, identity, calls=0, throttled=0):
+        """按模型记一次调用 / 限流（调用方已持有 ``_lock`` 或只在单线程里调；``identity`` 是检查点身份或模型名）。"""
+        model = model_name(identity)
+        entry = self.by_model.setdefault(model, [0, 0])
+        entry[0] += calls
+        entry[1] += throttled
 
     def _name(self, key):
         return self._prefix + "cp/" + hashlib.sha256(key.encode()).hexdigest() + ".json"
@@ -192,9 +202,11 @@ class Provider:
         log(event="provider_call", host=host, status=response.status_code, seconds=round(time.monotonic() - sent, 2))
         with self._store._lock:
             self._store.calls += 1
+            self._store.count(model, calls=1)
         if response.status_code in (429, 503):
             with self._store._lock:
                 self._store.throttled += 1
+                self._store.count(model, throttled=1)
             self._store.put(key, "rejected", {"http": response.status_code})
             response.close()
             raise Deferred("provider_" + str(response.status_code), _retry_after(response))
@@ -266,6 +278,15 @@ def build_client(environment, store, access_token, *, http=None, regions=None, c
         regions=regions, in_queue_job=lambda: False)
 
 
+def model_name(identity):
+    """检查点身份 ``["cowork", 供应方, 项目, 区域, 模型, ...]`` → Gemini 模型名；读字 / Document AI / 认不出的 → ""。"""
+    try:
+        value = json.loads(identity)[4] if str(identity).startswith("[") else identity
+    except (ValueError, TypeError, IndexError):
+        return ""
+    return value if isinstance(value, str) and value.startswith("gemini-") else ""
+
+
 def throttle_feedback(store, bucket, status, *args):
     """引擎报的限流（读字回复里的 8 / 14、配额拒绝）也算进这次读取挨的限流次数：服务器按 429 比例调派发数时一并算上
     （2026-10-02 100 人复测：一阵 vision_8 全记成「没有限流」，派发没有放慢，每份各自退避重派）。HTTP 429 / 503 在
@@ -273,6 +294,7 @@ def throttle_feedback(store, bucket, status, *args):
     if status in (429, 503):
         with store._lock:
             store.throttled += 1
+            store.count("", throttled=1)
 
 
 def text_path_forced():
@@ -515,10 +537,10 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
         log(event="invoice_done", pages=body["page_count"], seconds=round(clock() - started, 2), calls=len(result.calls),
             **({"cpu_seconds": round(time.thread_time() - cpu, 2)} if page_map is None else {"page_threads": limit}))
         stored = previews.collect() if previews else None
-        emit(contract.result("done", throttled=store.throttled, calls=store.calls, pipeline=result.pipeline.model_dump_json(),
+        emit(contract.result("done", throttled=store.throttled, calls=store.calls, by_model=store.by_model, pipeline=result.pipeline.model_dump_json(),
                              evidence=contract.evidence(result.calls), **({"previews": stored} if stored else {})))
     except Deferred as exc:
-        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay, throttled=store.throttled, calls=store.calls))
+        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay, throttled=store.throttled, calls=store.calls, by_model=store.by_model))
     except Uncertain as exc:
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:
@@ -594,9 +616,9 @@ def _document(body, content, store, access_token, emit, *, orient, page_source, 
                 map_pages=page_map)
         log(event="document_done", pages=body["page_count"], seconds=round(clock() - started, 2),
             page_threads=limit if page_map else 1)
-        emit(contract.result("done", legacy=legacy, throttled=store.throttled, calls=store.calls))
+        emit(contract.result("done", legacy=legacy, throttled=store.throttled, calls=store.calls, by_model=store.by_model))
     except Deferred as exc:
-        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay, throttled=store.throttled, calls=store.calls))
+        emit(contract.result("deferred", reason=str(exc.reason), delay=exc.delay, throttled=store.throttled, calls=store.calls, by_model=store.by_model))
     except Uncertain as exc:
         emit(contract.result("uncertain", reason=str(exc)[:200]))
     except ProviderFailure as exc:

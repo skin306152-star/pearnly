@@ -367,14 +367,31 @@ class Collect(Base):
         with mock.patch.object(tasks, "_adapt") as adapt, mock.patch.object(tasks, "progress_applied", return_value=0):
             tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google, now=lambda: 1010.0)
         adapt.assert_called_once()
-        self.assertEqual(adapt.call_args.args[1:3], (3, "document"))     # 对账文档的 429 只调对账池
+        self.assertEqual(adapt.call_args.args[1:3], (3, tasks.PRO))      # 对账文档（3.8 抽取）的 429 调 3.8 池
         self.assertEqual((tasks.pool_of("/v1/cowork/invoice"), tasks.pool_of("/v1/cowork/document")),
-                         ("invoice", "document"))
+                         (tasks.LITE, tasks.PRO))
+
+    def test_pools_follow_the_model_the_job_reads_with(self):
+        # 2026-10-02：谷歌共享额度按模型算——发票池跟着站点选的看图模型走，对账文档进 3.8 池
+        chosen = {"environment": {"OCR_LLM_BACKEND": "vertex", "OCR_DIRECT_MODEL": tasks.PRO}, "policy": {"mode": "economy"}}
+        default = {"environment": {"OCR_LLM_BACKEND": "vertex"}, "policy": {"mode": "economy"}}
+        self.assertEqual(tasks.pool_of("/v1/cowork/invoice", chosen), tasks.PRO)
+        self.assertEqual(tasks.pool_of("/v1/cowork/invoice", default), tasks.LITE)
+        # 按模型带回的各进各的池；读字等（""）和认不出的模型算进这份所在的池；旧版只带总数时整份进所在的池
+        final = {"throttled": 4, "calls": 20, "by_model": {tasks.PRO: [10, 3], tasks.LITE: [6, 1], "": [4, 0]}}
+        self.assertEqual(tasks._pool_counts(final, tasks.PRO), {tasks.PRO: (14, 3), tasks.LITE: (6, 1)})
+        self.assertEqual(tasks._pool_counts({"throttled": 2, "calls": 9}, tasks.LITE), {tasks.LITE: (9, 2)})
+        self.reply({"event": "result", "status": "done", "legacy": {}, "throttled": 4, "calls": 20,
+                    "by_model": final["by_model"]})
+        with mock.patch.object(tasks, "_adapt") as adapt, mock.patch.object(tasks, "progress_applied", return_value=0):
+            tasks.call(REMOTE, "/v1/cowork/document", document_body(), lambda e: None, http=self.google, now=lambda: 1010.0)
+        self.assertEqual(sorted(call.args[1:4] for call in adapt.call_args_list), sorted([(3, tasks.PRO, 14), (1, tasks.LITE, 6)]))
 
     def test_the_adaptive_limit_starts_low_and_can_be_switched_off(self):
         self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 160}), tasks.ADAPTIVE_START)
-        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, "document"), 10)
-        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, "invoice"), 24)  # 发票下限 24
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, "gemini-3.5-flash"), 10)
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, tasks.LITE), 24)  # flash-lite 下限 24
+        self.assertEqual(tasks._adaptive_start({"adaptive": True}, {"concurrency": 10}, tasks.PRO), 16)   # 3.8 下限 16
         self.assertEqual(tasks._adaptive_start({"adaptive": False}, {"concurrency": 160}), 0)
         frappe.local.conf[tasks.CONFIG] = {**CONFIG, "adaptive": 0}
         self.assertFalse(tasks.settings()["adaptive"])
