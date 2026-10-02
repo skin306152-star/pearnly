@@ -302,6 +302,34 @@ class EngineTests(unittest.TestCase):
         with self.assertRaises(EngineError):
             config_from_environment(environment, invoice_policy(environment))
 
+    def test_a_38_read_google_cannot_answer_is_read_with_flash_lite_instead(self):
+        # 2026-10-02 m5：3.8 各入口都超时 / 都限流时不判结果不明，改用 flash-lite 读完；提示词用 flash-lite 现行的那份
+        from pearnly_core.execution.errors import Deferred, Uncertain
+        from pearnly_cowork.ocr.engine.prompts import BILLS_ARE_PURCHASES
+
+        pro = replace(CONFIG, direct_model="gemini-3.8-flash", layer2_model="gemini-3.1-flash-lite")
+        for failure in (Uncertain("no answer from any entry"), Deferred("provider_429", 5)):
+            model = Model([failure, GOOD])
+            result = run(model=model, config=pro)
+            page = result.pipeline.pages[0]
+            self.assertEqual([r.model for r in model.requests], ["gemini-3.8-flash", "gemini-3.1-flash-lite"])
+            self.assertIn(BILLS_ARE_PURCHASES, model.requests[0].prompt)
+            self.assertNotIn(BILLS_ARE_PURCHASES, model.requests[1].prompt)
+            self.assertEqual(page.invoice.invoice_number, "IV69/100")
+            self.assertEqual(page.extraction_audit["model_downgrade"],
+                             [{"stage": "direct", "from": "gemini-3.8-flash", "to": "gemini-3.1-flash-lite",
+                               "reason": "provider_outcome_unknown" if isinstance(failure, Uncertain) else "provider_429"}])
+
+    def test_only_google_side_failures_of_a_38_read_fall_back(self):
+        from pearnly_core.execution.errors import Deferred, Uncertain
+
+        pro = replace(CONFIG, direct_model="gemini-3.8-flash", layer2_model="gemini-3.1-flash-lite")
+        for config, outputs, error in ((pro, [Deferred("capacity", 3)], Deferred),            # 自家额度：换模型解决不了
+                                       (CONFIG, [Uncertain("x")], Uncertain),                 # 本来就是 flash-lite：不降
+                                       (pro, [Uncertain("x"), Uncertain("y")], Uncertain)):   # flash-lite 也失败：照原样抛
+            with self.assertRaises(error):
+                run(model=Model(outputs), config=config)
+
     def test_text_path_has_no_render_or_vision_and_injects_fewshot_only_l2(self):
         source, model, seen = Source(text=True), Model(), []
         result = run(source, model, fewshot_selector=lambda text: seen.append(text) or "HINT\n")

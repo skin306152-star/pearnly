@@ -19,6 +19,8 @@ from typing import Callable
 
 from pydantic import ValidationError
 
+from pearnly_core.execution.errors import Deferred, Uncertain
+
 from pearnly_cowork.ocr.schema import Page, PipelinePageResult, PipelineResult, validate_invoice
 from pearnly_cowork.ocr.validation import (
     DISCOUNT_INFERRED_PREFIX, aggregate_page_confidence, bucket_confidence,
@@ -131,6 +133,15 @@ def mark_title(invoice, text):
     return None
 
 
+def downgrade_reason(exc):
+    """哪些失败可以降到 flash-lite 再读：结果不明（各入口都超时 / 断开）和谷歌那边的限流（``provider_*``）。自家额度、
+    令牌、存储这类暂缓不降（换模型解决不了）。不能降返回空。"""
+    if isinstance(exc, Uncertain):
+        return "provider_outcome_unknown"
+    reason = str(getattr(exc, "reason", "") or "")
+    return reason if reason.startswith("provider_") else ""
+
+
 class _Run:
     def __init__(self, source, model_call, vision_call, config, anchor_year, today,
                  fewshot_selector, pattern_memory):
@@ -141,6 +152,7 @@ class _Run:
         self.escalations = 0
         self.titles = {}  # 页码 → 票头判成非票据的类别（记进 extraction_audit）
         self.image_prompt = image_system(config.direct_model)
+        self.downgrades = {}  # 页码 → 看图读从 3.8 降到 flash-lite 的记录（只记进 extraction_audit，不给用户看）
 
     def parse_invoice(self, data, stage, page):
         try:
@@ -207,11 +219,28 @@ class _Run:
             return None
 
     def read_image(self, stage, page, frame, prompt, *, thinking="", retries=None):
-        data, calls = self.model_json(
-            stage=stage, page=page, model=self.config.direct_model, prompt=prompt,
-            images=((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),),
-            timeout=self.config.direct_timeout_s, retries=retries, thinking=thinking,
-        )
+        images = ((frame.image_bytes, sniff_direct_mime(frame.image_bytes)),)
+        try:
+            data, calls = self.model_json(
+                stage=stage, page=page, model=self.config.direct_model, prompt=prompt, images=images,
+                timeout=self.config.direct_timeout_s, retries=retries, thinking=thinking,
+            )
+        except (Uncertain, Deferred) as exc:
+            # 看图直读用 3.8 时，谷歌那边 3.8 全球 / 美国 / 欧洲入口都超时或都被限流（调用层已按规则换入口、重发、退回全球
+            # 入口一次）：不判结果不明、不交回稍后再读，改用 flash-lite（另一份额度）把这一页读完，照常出结果（2026-10-02 m5：
+            # 3.8 那几分钟变慢，14 份判了结果不明、用户只能重传）。用 flash-lite 现行的提示词（不带只随 3.8 生效的那句），
+            # flash-lite 也失败才照原样往外抛。降级的页在 extraction_audit 里记一笔（统计降级率），不显示给用户。
+            lite, reason = self.config.layer2_model, downgrade_reason(exc)
+            if not reason or not str(self.config.direct_model).startswith("gemini-3.8") or not lite \
+                    or lite == self.config.direct_model:
+                raise
+            self.downgrades.setdefault(page, []).append(
+                {"stage": stage, "from": self.config.direct_model, "to": lite, "reason": reason})
+            light = image_system(lite) + prompt[len(self.image_prompt):] if prompt.startswith(self.image_prompt) else prompt
+            data, calls = self.model_json(
+                stage=stage, page=page, model=lite, prompt=light, images=images,
+                timeout=self.config.direct_timeout_s, retries=retries, thinking=thinking,
+            )
         return self.parse_invoice(data, stage, page), calls
 
     @staticmethod
@@ -625,7 +654,10 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
                                       fewshot_selector, pattern_memory) if together else run)
         try:
             if direct:
-                return page_run.image_page(page)
+                result = page_run.image_page(page)
+                if page_run.downgrades.get(page):
+                    result.extraction_audit["model_downgrade"] = page_run.downgrades[page]
+                return result
             return page_run.pipeline_page(page, text_pages[page - 1] if text_pages is not None else None)
         except ContentError as exc:
             if source.page_count == 1 or isinstance(exc, DirectFallback):
