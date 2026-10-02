@@ -672,6 +672,7 @@ This invoice has already been recorded: {0},この請求書は既に登録済み
 This month,今月
 This operator's DMS account,このオペレーターのDMSアカウント
 This operator's DMS password,このオペレーターのDMSパスワード
+This photo could not be read. Save it as JPEG and upload it again.,この写真を読み取れません。JPEG で保存してからアップロードし直してください。
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
 "This site has no LINE access token configured, so it cannot send messages",このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
 This site has no assistant installer address yet.,このサイトにはアシスタントのインストーラーURLがまだありません。

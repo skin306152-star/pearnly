@@ -859,3 +859,4 @@ Recognized {0}/{1} pages · {2}%	已识别 {0}/{1} 页 · {2}%	อ่านแ�
 Uploading	上传中	กำลังอัปโหลด	アップロード中	intake.wait.uploading
 Queued	排队中	รอคิว	順番待ち	intake.wait.queued
 Page {0}/{1}	第 {0}/{1} 页	หน้า {0}/{1}	{0}/{1} ページ目	intake.wait.page
+This photo could not be read. Save it as JPEG and upload it again.	这张照片读不出来，请另存为 JPEG 后重新上传。	อ่านรูปนี้ไม่ได้ กรุณาบันทึกเป็น JPEG แล้วอัปโหลดใหม่	この写真を読み取れません。JPEG で保存してからアップロードし直してください。

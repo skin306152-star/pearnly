@@ -51,6 +51,10 @@ def recognise(attachments, document_name=None, billing_reference=None, progress=
         content = file.get_content()
         if isinstance(content, str):
             content = content.encode("utf-8")
+        from pearnly_core.desk import heic
+
+        if heic.is_heic(content):  # 钩子上线前存下的 iPhone 照片：读之前转成 JPEG（`pearnly_core.desk.heic`）
+            content, mime = heic.to_jpeg(content), "image/jpeg"
         images.append((content, mime))
         hashes.append(files.content_hash(file))
     if not images:

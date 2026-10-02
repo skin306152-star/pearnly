@@ -672,6 +672,7 @@ This invoice has already been recorded: {0},ใบนี้ถูกบันท
 This month,เดือนนี้
 This operator's DMS account,บัญชี DMS ของพนักงานรายนี้
 This operator's DMS password,รหัสผ่าน DMS ของพนักงานรายนี้
+This photo could not be read. Save it as JPEG and upload it again.,อ่านรูปนี้ไม่ได้ กรุณาบันทึกเป็น JPEG แล้วอัปโหลดใหม่
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์มากกว่าหนึ่ง: {0} หนึ่งการติดตั้งรองรับได้เพียงผลิตภัณฑ์เดียว
 "This site has no LINE access token configured, so it cannot send messages",เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงส่งข้อความไม่ได้
 This site has no assistant installer address yet.,ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้งผู้ช่วย

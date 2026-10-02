@@ -179,6 +179,10 @@ doc_events = {
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
         "on_update": "pearnly_core.desk.permissions.sync_profile_share",
     },
+    # iPhone 照片（HEIC）上传时转成 JPEG 再存，三个产品的原生上传都经过这里（`desk/heic.py`）。
+    "File": {
+        "before_insert": "pearnly_core.desk.heic.convert_file",
+    },
 }
 
 # Scheduled Tasks

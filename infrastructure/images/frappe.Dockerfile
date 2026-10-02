@@ -59,6 +59,11 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
     "onnxruntime==1.30.0" "numpy==2.5.3" "flatbuffers==25.12.19"
 
+# iPhone 照片（HEIC / HEIF）收文件时转成 JPEG（`pearnly_core.desk.heic`，2026-10-02 用户要求支持）。pi-heif 是 pillow-heif 的
+# 只解码版（BSD-3-Clause；轮子自带 libheif / libde265，LGPL，不带 x265 编码器），有 cp314 manylinux_2_28 x86_64 轮子，配镜像里的
+# Pillow 12.3.0。
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pi-heif==1.4.0"
+
 # ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
 #
 # 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走

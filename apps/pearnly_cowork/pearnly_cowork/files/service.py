@@ -97,6 +97,7 @@ def create(workspace, filename, content, request_key, client=None):
     scope.require("intake")
     scope.require_scope(workspace, client)
     _require_key(request_key)
+    filename, content = _heic_as_jpeg(filename, content)
     meta = inspect_content(filename, content)
     key = _request_key(workspace, request_key)
     name = "CWS-" + key[:48]
@@ -116,7 +117,17 @@ def create(workspace, filename, content, request_key, client=None):
     return project(doc)
 
 
+def _heic_as_jpeg(filename, content):
+    """iPhone 照片（HEIC / HEIF，按文件头认）先转成 JPEG 再进原有校验与识别（`pearnly_core.desk.heic`）。"""
+    from pearnly_core.desk import heic
+
+    if heic.is_heic(content):
+        return heic.jpeg_name(filename), heic.to_jpeg(content)
+    return filename, content
+
+
 # 浏览器直传（ADR-016）：只收 PDF / 图片（表格、Word 要在服务器上解析，照旧经服务器上传）。
+# HEIC 不直传：浏览器原样 PUT 到原件桶就没法先转 JPEG，所以照旧经服务器上传（`create` 里转）。
 DIRECT_KINDS = IMAGE_EXTENSIONS | {".pdf"}
 
 
@@ -144,6 +155,10 @@ def begin_direct(workspace, filename, byte_size, request_key, client=None):
     """浏览器直传第一步：签发上传地址。没开直传或不是 PDF / 图片返回 ``{"direct": 0}``，页面照旧经服务器上传。
 
     同一个幂等键已经登记过就直接给出原件信息（``done``），页面不用再传。"""
+    from pearnly_core.desk import heic
+
+    if str(filename or "").lower().endswith(heic.EXTENSIONS):
+        return {"direct": 0}
     name, _key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
     bucket_name = cloud.bucket()
     if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():

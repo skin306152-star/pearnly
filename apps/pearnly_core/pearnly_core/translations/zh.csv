@@ -672,6 +672,7 @@ This invoice has already been recorded: {0},这张票已经录过：{0}
 This month,本月
 This operator's DMS account,该操作员的 DMS 账号
 This operator's DMS password,该操作员的 DMS 密码
+This photo could not be read. Save it as JPEG and upload it again.,这张照片读不出来，请另存为 JPEG 后重新上传。
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品
 "This site has no LINE access token configured, so it cannot send messages",本站点没有配 LINE access token，发不出消息
 This site has no assistant installer address yet.,本站点还没有配置助手的安装包地址。
