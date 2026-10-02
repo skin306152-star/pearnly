@@ -83,10 +83,13 @@ ERP 采购识别、Cowork 的识别枚举与 Express / MR.ERP 推送判据都调
 
 ## 识别读法（ADR-013）
 
-ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：`gemini-3.1-flash-lite` 读 → 产品代码做确定性修复 → 只在金额 / 结构对不上时
+ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：便宜模型读 → 产品代码做确定性修复 → 只在金额 / 结构对不上时
 同一模型带提示复核 → 仍不过「原图 + Vision 原文」再读（ERP 采购另按需用原文核对税号 / 买方）→ 还不过标红。
-3.8 只是站点开关（默认关）。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
-改模型或规则前先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较。
+读的模型：ERP 固定 `gemini-3.1-flash-lite`（3.8 升级只是站点开关 `pearnly_erp_ocr_escalation`，默认关）；Cowork 电子 PDF 走文字层、
+`gemini-3.1-flash-lite`，扫描件 / 照片的看图直读按站点配置 `OCR_DIRECT_MODEL`（`pearnly_cowork_ocr_environment`）选模型，
+2026-10-02 过金标闸门后四个 Cowork 租户已写 `gemini-3.8-flash`（[记录](../work/2026-10-02-direct-model-3.8.md)；3.8 优惠价到 2026-12-31）。
+Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
+改模型、提示词或规则先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较，并过 [识别改动上线闸门](verification.md#识别改动上线闸门)（`scripts/eval-invoices.py`）。
 
 ## 本地控制面与云端开户
 
@@ -145,7 +148,7 @@ ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：
 
 ### 三产品共享识别执行
 
-Core 的 `execution` 域负责持久工作单、容量准入、供应商并发/速率、输入与模型检查点、原生 RQ 投递及有界修复。产品通过 `pearnly_ocr_handlers` 和失败通知 hook 登记自己的幂等工作流；Core 不导入 DMS/ERP/Cowork 的业务模块。DMS 已接入；Cowork 现在登记 `cowork.invoice`，PDF/图片及普通表格/文本识别到原生草稿和稳定账单回执已在隔离Site以假外部出口验证，未部署、未做付费模型验收；ERP仍预留。不能据此宣称整产品 OCR 迁移或线上验收完成。
+Core 的 `execution` 域负责持久工作单、容量准入、供应商并发/速率、输入与模型检查点、原生 RQ 投递及有界修复。产品通过 `pearnly_ocr_handlers` 和失败通知 hook 登记自己的幂等工作流；Core 不导入 DMS/ERP/Cowork 的业务模块。DMS、Cowork（`cowork.invoice` 等）与 ERP 的 LINE 收单（`erp.line_intake`）都已接入并在生产运行；ERP 网页上传识别 2026-10-02 起是 `ocr` 队列里的普通后台任务（`recognition.background`，进度与结果存不淘汰的状态存储，页面推送优先、轮询兜底：在线 20 秒、断开 5 秒），不走共享工作单。
 
 Cowork `ocr.execution`单向依赖engine/table_engine/inputs_runtime/table_inputs/providers、files/history/feedback与Core；history保存单向调用feedback，feedback通过本Site原生记录检查来源，不反向导入history流程。Batch固定actor/公司/原件/日期/策略/纠错快照，Core Work只存Batch引用。新controller与Work mixin阻断原生更新/分享绕开付费检查点，不给共享Work增加客户read权限。`ocr.engine`、schema、validation及纠错model保持纯计算。细节见[执行合同](../work/cowork-backend/invoice-execution.md)。 表格字节解析归table_inputs，纯L2编排复用engine；files持有不可变逻辑区段清单，history的逻辑索引不授予PDF预览。Batch分别固定结果单元数与字符计费单位，旧PDF/image任务字段向后兼容；完整性与通用模型边界见[表格执行](../work/cowork-backend/table-engine.md)。
 
@@ -154,11 +157,11 @@ Cowork第六批 `roundtrip` 域提供固定复核工作簿契约、字节解析�
 
 Cowork第七批 `targets` 是无IO的目录/目标证据合同；`push.express` 是显式输入的进销项准备闭包，单向依赖 `contracts.push`、`targets.identity` 与 `push.receipts` 的纯解包；`push.lifecycle/retry/receipts` 定义状态、恢复判据和回执投影。两种置信规则分别服务OCR字段证据与费用过账门槛，不能互换。以上不依赖Frappe、HTTP、环境变量、数据库或工作队列；日期和授权目录由后续服务端注入，不反向依赖识别执行或页面。没有注册ERP写入消费者，不能用共享OCR Work装载外部订单。第八批已装配原生连接、推送准备和持久账本；真实目录收集及外部消费者仍未接通，纯 `ready` 不是外部成功证明。见[运行证据与执行缺口](../work/cowork-backend/push-runtime-baseline.md)。
 
-Cowork 发票（图片 / PDF）可在 Cloud Run 上执行（[ADR-015](../adr/0015-ocr-on-cloud-run.md)）：`ocr.remote.forward` 在识别工作单里按份拿名额、把冻结配置与原件发给不公开的 Cloud Run 服务，按行读回进度与结果；`ocr.remote.runner/gcs/app` 只在不含 Frappe 的镜像里运行同一份引擎，检查点与租约存新加坡存储桶（7 天删除）。`contract` 为两边共用的纯约定；`runner` 不导入 Frappe、不连数据库或额度 Redis；开关是站点配置 `pearnly_cowork_ocr_remote`，关掉即回本机执行。
+Cowork 发票（图片 / PDF）在 Cloud Run 上执行（[ADR-015](../adr/0015-ocr-on-cloud-run.md)）：`ocr.remote.forward` 在识别工作单里按份拿名额、把冻结配置与原件交给不公开的 Cloud Run 服务 `cowork-ocr`；生产经 Cloud Tasks 派发（站点配置 `pearnly_cowork_ocr_tasks`，4 个队列分片），Cloud Run 读完回调唤醒工作单，之后复核、存结果、推送、扣费在服务器上完成——结果一入库先通知等候页再扣费，入库事务内范围权限只查一次。识别进程是 `pearnly_core.execution.ocr_worker.OcrWorker`：从队列取到识别任务直接交空闲线程，RQ 线程不再先做一遍完整站点初始化；进程数与线程数由 `infrastructure/production/sizing.py` 按机器规格算（生产 8 × 12，见 [生产容量](production-capacity.md)）。`ocr.remote.runner/gcs/app` 只在不含 Frappe 的镜像里运行同一份引擎，检查点与租约存新加坡存储桶（7 天删除）。`contract` 为两边共用的纯约定；`runner` 不导入 Frappe、不连数据库或额度 Redis；`pearnly_cowork_ocr_remote` 关掉即回本机执行、`pearnly_cowork_ocr_tasks` 关掉即回按行等回复。
 
 MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。各产品 bench 的原生队列保持隔离，容量使用同一个非淘汰 Redis DB6，按租户统一核算、按供应商项目/区域/模型调速。等待不占 OCR worker，网络结果未知不自动重做付费识别。此队列不得接入外部订单写入；DMS 写者锁与订单恢复仍由 booking/adapter 负责。
 
-`infrastructure/production/capacity.py` 在正式开户或激活前按候选 Compose 的内存硬限额计入所有现有产品及宿主预留，拒绝超额，不以空闲 RSS 推断容量。上线预算与证据见 [共享 OCR 容量](../operations/shared-ocr-capacity.md)。
+`infrastructure/production/capacity.py` 在正式开户或激活前按候选 Compose 的内存硬限额计入所有现有产品及宿主预留，拒绝超额，不以空闲 RSS 推断容量。当前生产的进程、线程、识别名额、Redis 与 Cloud Run / Cloud Tasks 参数见 [生产容量](production-capacity.md)；共享准入与恢复规则的最初设计和证据见 [共享 OCR 容量](../operations/shared-ocr-capacity.md)。
 
 ### Cowork 连接与推送账本（2026-09-21）
 

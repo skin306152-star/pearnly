@@ -9,4 +9,7 @@
 
 本次 SSD Nodes 是全新身份库和账本，旧服务器、旧本地目标和历史记录保留但不重放任务。配置、验证和部署的实际进度见 [切换记录](../docs/work/2026-09-20-ssdnodes-migration.md)。
 
-本机为 arm64、正式服务器为 amd64，本地测试数据不代表正式服务器吞吐上限。OCR 容量规则见 [共享 OCR 容量](../docs/operations/shared-ocr-capacity.md)。
+- 容量参数由 [`production/sizing.py`](production/sizing.py) 按机器核数 / 内存算出（`sizing.env`，`runtime.env` 写了的值优先），[`production/capacity.py`](production/capacity.py) 在激活前把关；对照表见 [生产容量](../docs/development/production-capacity.md)。
+- 每日异地备份：[`production/pearnly-offsite-backup.{service,timer}`](production/pearnly-offsite-backup.timer)（宿主机 systemd，曼谷 02:00）跑 `scripts/production/offsite-backup.sh`，上传到 `gs://pearnly-backups-sg`（日留 14 天、周留 8 周）；MariaDB 二进制日志保留 7 天。见 [异地备份记录](../docs/work/2026-10-02-offsite-backup.md)。
+
+本机为 arm64、正式服务器为 amd64，本地测试数据不代表正式服务器吞吐上限。当前生产的识别进程、名额与 Cloud Run / Cloud Tasks 参数见 [生产容量](../docs/development/production-capacity.md)；共享准入与恢复规则的最初设计见 [共享 OCR 容量](../docs/operations/shared-ocr-capacity.md)。

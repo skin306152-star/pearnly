@@ -7,6 +7,10 @@
   （用户：「cowork 那边只改读票和转正，对账不动」「由你来改造 cowork」）
 - 依据：[OCR 语料实测](../work/2026-09-27-ocr-corpus-eval.md) 第 8 节；评测脚本 `scripts/ocr-policy-bench.py`、`ocr-vision-bench.py`、`ocr-policy-report.py`
 - 关联：[ADR-012 票种决策表](0012-shared-tax-document-rules.md)
+- 后续（2026-10-02，用户批准）：Cowork **扫描件 / 照片的看图直读**改用 `gemini-3.8-flash`（站点配置 `OCR_DIRECT_MODEL`，连同「水电费账单、
+  请款单算采购凭证」一句，过两批金标闸门后 10-03 写入四个 Cowork 租户；电子 PDF 文字层仍 flash-lite；ERP、DMS 不变，仍 flash-lite；
+  3.8 优惠价到 2026-12-31）。记录：[直读模型换 3.8](../work/2026-10-02-direct-model-3.8.md)。下文「Cowork」节的 3.8 视觉复核开关
+  `OCR_LAYER3_ENABLED` 与 ERP 的 3.8 升级开关仍默认关。
 
 ## 问题
 

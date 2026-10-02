@@ -17,10 +17,11 @@
 1. **只搬执行位置**。Cloud Run 跑同一份引擎（`run_invoice`、`PageSource`、`ProviderClient`、同一份转正），受理时冻结的配置
    （环境、策略、示例快照、锚定日期）原样带过去。对照测试（`tests/test_cowork_remote_ocr.py`）证明同一原件、同样的谷歌回复，
    两边结果与计费证据一字不差、发出的谷歌请求顺序相同。
-2. **服务器保留**：受理、工作单、余额检查、权限、上传限制、每租户 / 全站名额、存结果、扣费、推送与页面实时推送。
+2. **服务器保留**：受理、工作单、余额检查、权限、上传限制、每租户 / 全站名额、存结果、扣费、推送与页面实时推送
+   （2026-10-03 起结果一入库先通知等候页、再扣费；入库事务内范围权限只查一次）。
 3. **Cloud Run 不公开**：只接受识别服务账号 `pearnly-ocr-sa` 签发的身份令牌（`roles/run.invoker`）；它自己也以该服务账号调谷歌，
    不新增模型 / OCR 权限；该账号只新增了检查点桶 `pearnly-ocr-checkpoints-sg` 的对象读写。
-4. **配置**：新加坡 `asia-southeast1`；每实例 2 vCPU / 4 GiB、并发 8；多页文件每份最多 8 页同时读（`OCR_PAGE_THREADS`，与本机 `map_pages` 同一约定）；最少 0、最多 20 个实例；单次 600 秒；启动加速；按请求计费。
+4. **配置**：新加坡 `asia-southeast1`；每实例 2 vCPU / 4 GiB、并发 8；多页文件每份最多 8 页同时读（`OCR_PAGE_THREADS`，与本机 `map_pages` 同一约定）；最少 0、最多 20 个实例；单次 1800 秒（`scripts/cloud-run/deploy-cowork-ocr.sh`；采纳时为 600 秒，随下文任务派发改为 1800）；启动加速；按请求计费。
    不用 Scheduler、Cloud NAT、VPC 连接器或常驻实例 —— 空闲零花费。
 5. **开关**：站点配置 `pearnly_cowork_ocr_remote = {"enabled": 1, "url": "https://…run.app"}`；不配、关掉或地址不合规就照旧在本机识别。
 
@@ -47,8 +48,10 @@
 
 ERP 采购 / 销售识别与 DMS 身份证识别在服务器上的计算很轻（转正约 15 毫秒、其余是等谷歌回复），经 Cloud Run 中转只多一跳；
 用户目标「不排队、只等识别本身」靠服务器等待时不占进程与连接实现：识别线程里共用层 `provider._post` 在发出谷歌请求前、原地等额度前
-放开数据库连接（`pool.release_db`，只在识别线程里，网页请求的事务照旧到请求结束才提交）；ERP 网页识别是同步请求，网页线程数可调
-（`PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS`）。
+放开数据库连接（`pool.release_db`，只在识别线程里，网页请求的事务照旧到请求结束才提交）；网页线程数可调
+（`PEARNLY_{DMS,ERP,COWORK}_WEB_THREADS`）。ERP 网页上传识别 2026-10-02 起不再是同步请求：改为 `ocr` 队列里的后台任务
+（`pearnly_erp_portal.recognition.background`），页面推送优先、轮询兜底（实时连接在线 20 秒、断开 5 秒一次），
+见 [记录](../work/2026-10-02-erp-recognise-background.md)。
 
 ## 保护在云上的形式（与本机不同的地方）
 
@@ -97,3 +100,6 @@ Cloud Run 与本机共用）和共用层（`ocr.overflow_locations`，ERP / DMS�
 （第一遍全部从检查点取回，跨页上下文仍由同一份读法负责）。检查点状态 `external` 让共用层把已交给云上的任务按「可能已付费」对待。
 关掉开关完全回到按行等回复。代码：`ocr.remote.tasks` / `callback`、`runner.task` / `warm`、`enterprise.first_pass`；
 设计、费用、要开通的配置见任务记录 `docs/work/2026-10-01-cowork-ocr-preview-tasks.md`。
+**生产现状**：代码默认仍关，但生产 Cowork 租户 2026-10-02 起开着，派发分到 4 个 Cloud Tasks 队列（`"shards": 4`，
+`cowork-ocr`、`cowork-ocr-1`…`-3`）；识别进程 2026-10-03 起由 `pearnly_core.execution.ocr_worker.OcrWorker` 直接把队列里的识别任务交给空闲线程，
+不再先做一遍完整站点初始化。参数见 [生产容量](../development/production-capacity.md)。

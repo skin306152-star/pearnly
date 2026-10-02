@@ -19,11 +19,11 @@
 
 | 项 | 正式 | 这里 | 原因 |
 | --- | --- | --- | --- |
-| 数据卷 | `external`、固定名 `pearnly-production_sites-*` | 项目内卷 `pearnly-testenv_sites-*` | 不碰正式数据 |
+| 数据卷 | `external`、固定名 `pearnly-production_sites-*` | 每个产品一套栈，项目内卷 `pearnly-testenv-<app>_sites-*` | 不碰正式数据；测一个产品不碰另一个 |
 | 产品代码 | 镜像里的 App | `/opt/pearnly-testenv/live/<app>/` 只读挂在 App 目录上（`live-<app>.yml`，`run.sh live` 生成） | 改了马上能试；`live-off` 回到纯镜像 |
-| 域名 | `*.pearnly.com` + 正式 DNS | `*.test.localhost`，隧道另给公网名 | 不占用正式域名 |
-| OCR 凭据 | 正式 Vertex 凭据 | 占位空凭据，测试站点不启用 OCR | 不产生付费调用 |
-| 计费/身份 | 正式 Keycloak realm 与计费租户 | 本机 Keycloak 与测试租户 | 不写正式账本 |
+| 域名 | `*.pearnly.com` + 正式 DNS | 空白站点 `*.test.localhost`；整站导入的测试租户仍用自己的 `test<app>.pearnly.com`，由 `lab-start` 把解析切到隧道、`lab-stop` 切回 | 测试租户域名不变，LINE / OIDC / 推送地址都不用改 |
+| OCR 凭据 | 正式 Vertex 凭据 | 测试机 `/opt/pearnly/secrets/ocr.json` 自 2026-09-24 起是线上那份：经 LINE / 网页识别是**真实付费调用**，只用于人工验收，不跑自动调 OCR 的脚本 | 与线上同一读法验收 |
+| 计费/身份 | 正式 Keycloak realm 与计费租户 | 测试租户登录走线上 Keycloak（同一批测试账号）；账本是整站导入的副本，扣费不回写线上。只有空白 `*.test.localhost` 站点才用本机 Keycloak（`--profile keycloak`） | 不写正式账本 |
 | 端口暴露 | 127.0.0.1，由宿主 nginx 终结 TLS | 同样 127.0.0.1，经隧道或 SSH 隧道访问 | 保持同一种请求路径 |
 
 ## 仍然不能由它证明的事
@@ -45,12 +45,15 @@ Mac 侧：
 ```bash
 export PEARNLY_TESTENV_HOST=lenovo-office-lan
 export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
-bash scripts/testenv.sh up        # 拉镜像并起栈
-bash scripts/testenv.sh sites     # 建/迁移测试租户站点
-bash scripts/testenv.sh urls      # 打印 Mac 侧可直接打开的地址
+export PEARNLY_TESTENV_SRC=<被测工作树>
+bash scripts/testenv.sh lab-start cowork   # 起该产品的栈（先停别的栈）→ 首次导入测试租户 → 挂实时源码 → 切域名
+bash scripts/testenv.sh live cowork        # 改完代码同步到测试机并生效
+bash scripts/testenv.sh urls               # 打印 Mac 侧可直接打开的地址
 bash scripts/testenv.sh logs dms-web
-bash scripts/testenv.sh down      # 只停栈，保留数据卷
-bash scripts/testenv.sh reset     # 删卷重来（会清掉这台机器的测试数据）
+bash scripts/testenv.sh lab-stop cowork    # 域名切回线上 → 停栈，保留数据卷
+bash scripts/testenv.sh reset              # 删卷重来（会连导入的测试租户数据一起清掉）
 ```
+
+产品为 `dms|erp|cowork`，一次只跑一个；`up` / `sites` / `down` 等单步命令见权威说明的「命令速查」。
 
 详见 [验证矩阵](../../docs/development/verification.md) 与本任务的 `docs/work/` 记录。

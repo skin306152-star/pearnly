@@ -11,8 +11,8 @@
 - 栈定义**只有一份**：[`production/compose.yml`](../../infrastructure/production/compose.yml)
   原样 + [`testenv/override.yml`](../../infrastructure/testenv/override.yml)（只换数据卷名、挂测试脚本）。
   线上 compose 改了，这里自动跟着改，不存在第二份需要同步的栈描述。
-- 站点：三个产品的空白站点（`dms|erp|cowork.test.localhost`），以及两个**整站导入的测试租户**
-  `testdms.pearnly.com`、`testerp.pearnly.com`（数据库、文件、`site_config.json` 与线上一致，
+- 站点：三个产品的空白站点（`dms|erp|cowork.test.localhost`），以及三个**整站导入的测试租户**
+  `testdms.pearnly.com`、`testerp.pearnly.com`、`testcowork.pearnly.com`（数据库、文件、`site_config.json` 与线上一致，
   包括 `encryption_key` 与各渠道凭据）。
 - 操作入口：[`scripts/testenv.sh`](../../scripts/testenv.sh)（Mac 侧）、
   [`infrastructure/testenv/`](../../infrastructure/testenv/README.md)（设备侧）。
@@ -74,8 +74,8 @@ bash scripts/testenv.sh lab-stop  dms   # 域名切回线上 → 停 DMS 栈（�
 bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 ```
 
-**按产品切换**：`lab-start` / `lab-stop` 可以只带要测的产品名（`dms`、`erp`，不带=两个都动）。
-只切一个产品时，另一个产品的域名完全不动：它仍走通配记录、仍由线上服务。
+**按产品切换**：`lab-start` / `lab-stop` 带要测的产品名（`dms`、`erp`、`cowork`；不带默认 `dms`）。
+只切一个产品时，其它产品的域名完全不动：它们仍走通配记录、仍由线上服务。
 
 **线上那份测试租户的定时任务**（2026-09-27 起）：`lab-start` 切完域名后把**线上**同名测试租户
 （如 `testdms.pearnly.com`）的调度暂停，`lab-stop` 切回时恢复；正式租户不碰。原因：切域名只转走流量，
@@ -114,16 +114,16 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
   不要当成"流程坏了"。
 
 底层是 [`testenv-cloudflare.sh`](../../scripts/testenv-cloudflare.sh) 的 `switch-lab` / `switch-prod`
-（同样接受产品名，并可 `status [dms] [erp]` 只读看某一个）。隧道本身同时带两个域名，
+（同样接受产品名，并可 `status [dms] [erp] [cowork]` 只读看某一个）。隧道本身同时带三个域名，
 所以"切哪个产品"只是"给哪个域名建/删自己的 CNAME"，不需要改隧道配置。
-注意 DMS 与 ERP 共用同一个测试租户数据导出通道，只切一个产品时不会顺带刷新另一个产品的数据。
+注意三个产品共用同一个测试租户数据导出通道，只切一个产品时不会顺带刷新另一个产品的数据。
 
-- 切换改的是 Cloudflare 解析：这两个名字平时走通配记录 `*.pearnly.com → 线上 IP`；
-  切过去时建两条 `CNAME → 隧道`，切回来时删除，自动回落到通配记录。
+- 切换改的是 Cloudflare 解析：这三个名字平时走通配记录 `*.pearnly.com → 线上 IP`；
+  切过去时给被切的产品建 `CNAME → 隧道`，切回来时删除，自动回落到通配记录。
 - **域名不变**，所以 LINE webhook、OIDC 登录、第三方 ERP 推送地址都不需要改：
   登录仍走线上 Keycloak 与同一批测试账号。
-- 影响范围只有这两个测试租户；其它租户完全不受影响。
-  切换期间这两个租户由测试机提供服务，线上容器照常在跑，只是没有流量。
+- 影响范围只有这几个测试租户；其它租户完全不受影响。
+  切换期间被切的租户由测试机提供服务，线上容器照常在跑，只是没有流量。
 - 明细开关（排查时用）：`bash scripts/testenv-cloudflare.sh status|switch-lab|switch-prod`。
 
 ## 当前状态与交接（2026-09-26）
@@ -154,7 +154,7 @@ PEARNLY_TESTENV_SRC=<被测分支工作树> bash scripts/testenv.sh lab-start er
 bash scripts/testenv.sh lab-stop erp                                          # 测完切回线上、停栈、卷保留
 ```
 
-**测试机可以关机**，前提是两个测试域名都已切回线上（`bash scripts/testenv-cloudflare.sh status` 没有 CNAME 记录）：
+**测试机可以关机**，前提是三个测试域名都已切回线上（`bash scripts/testenv-cloudflare.sh status` 没有 CNAME 记录）：
 关机不影响线上任何租户；数据在卷里，开机后 Windows SSH（自动启动）、WSL 的 docker / 隧道 / nginx（systemd 开机自启）
 都会在下一次 `lab-start` 远程拉起 WSL 时自己起来。**切在测试机上时关机**，被切过去的那个测试租户会整体打不开，
 所以关机前先 `lab-stop`。

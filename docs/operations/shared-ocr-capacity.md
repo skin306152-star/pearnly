@@ -1,6 +1,8 @@
 # 共享 OCR 容量与恢复
 
-适用本轮 DMS 候选及 Core 共享底座。历史验收服务器为 6 vCPU / 11960 MiB；2026-09-20 新目标已读回 8 vCPU / 32095 MiB，按空环境准备，见 [切换记录](../work/2026-09-20-ssdnodes-migration.md)。历史生产只有 DMS 和私有计费，ERP/Cowork 的真实 OCR 业务入口尚未迁入。这里定义三产品必须共用的执行边界，不把底座准备误称成三产品端到端验收。
+适用本轮 DMS 候选及 Core 共享底座。历史验收服务器为 6 vCPU / 11960 MiB；2026-09-20 新目标已读回 8 vCPU / 32095 MiB，按空环境准备，见 [切换记录](../work/2026-09-20-ssdnodes-migration.md)。写成时历史生产只有 DMS 和私有计费，ERP/Cowork 的真实 OCR 业务入口尚未迁入。这里定义三产品必须共用的执行边界，不把底座准备误称成三产品端到端验收。
+
+> 下表「初始设置」是 2026-09 DMS 候选的起步预算。三产品现已都在生产上识别：当前的识别名额（160）、进程 × 线程、Redis、Cloud Run / Cloud Tasks 参数以 [生产容量](../development/production-capacity.md) 为准；Cowork 发票识别的执行位置见 [ADR-015](../adr/0015-ocr-on-cloud-run.md)。准入、公平、失败与恢复的规则本身仍适用。
 
 ## 容量怎样控制
 
