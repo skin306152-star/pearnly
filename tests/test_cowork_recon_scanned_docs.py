@@ -1773,9 +1773,23 @@ class HeaderAnchoredStatement(unittest.TestCase):
 		result, _trace = self.read(rows)
 		self.assertFalse(result is not None and result.arithmetic_passed)
 
-	def test_a_newest_first_statement_is_left_to_the_extraction(self):
-		rows = [STATEMENT[0], [("05/06/2026", .05, .12), ("50.00", .51, .55), ("1,050.00", .61, .67)],
-			[("01/06/2026", .05, .12), ("200.00", .39, .44), ("1,000.00", .61, .67)]]
+	def test_a_newest_first_statement_balances_and_keeps_its_printed_order(self):
+		# 整份倒序（最新的印在最前、承前余额印在最后）：从旧到新接余额链与校验
+		rows = [STATEMENT[0]] + STATEMENT[2:][::-1] + [STATEMENT[1]]
+		result, _trace = self.read(rows)
+		self.assertTrue(result.arithmetic_passed, result.issues)
+		forward, _trace = self.read(STATEMENT)
+		key = lambda document: [(entry["transaction_date"], entry["direction"], entry["amount"], entry["balance"])
+			for entry in document["entries"]]
+		# 交回印刷顺序（新的在前），翻过来与正序那份逐行相同；对账入口按日期再翻成从旧到新
+		self.assertEqual(key(result.document)[::-1], key(forward.document))
+		self.assertEqual((result.document["opening_balance"], result.document["closing_balance"]), ("1000.00", "50.00"))
+		self.assertEqual([item["value"] for item in result.audit if item.get("field") == "row_order"], ["reversed"])
+		self.assertEqual([item["row"] for item in result.provenance], [1, 2, 3, 4])
+		self.assertNotIn("row_order", [item.get("field") for item in forward.audit])
+
+	def test_dates_out_of_order_without_running_newest_first_still_stop(self):
+		rows = [STATEMENT[0], STATEMENT[1], STATEMENT[3], STATEMENT[2], STATEMENT[4], STATEMENT[5]]
 		result, trace = self.read(rows)
 		self.assertIsNone(result)
 		self.assertEqual(trace[-1]["reason"], "date_missing_or_out_of_order")

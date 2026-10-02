@@ -30,7 +30,8 @@ class Reconstruction:
         return bool(self.issues or self.audit)
 
 
-def check_document(document: dict, category: str, pages: int) -> list[str]:
+def check_document(document: dict, category: str, pages: int, *, newest_first: bool = False) -> list[str]:
+    """``newest_first``：整份倒序的流水已按从旧到新排好（``header_bank``），行的页码随之从后往前。"""
     entries = document.get("entries") or []
     issues = []
     if not entries:
@@ -38,7 +39,7 @@ def check_document(document: dict, category: str, pages: int) -> list[str]:
     seen_pages = [int(row.get("page") or 0) for row in entries]
     if sorted(set(seen_pages)) != list(range(1, pages + 1)):
         issues.append("transaction_page_coverage_unverified")
-    if seen_pages != sorted(seen_pages):
+    if seen_pages != sorted(seen_pages, reverse=newest_first):
         issues.append("page_order_invalid")
     chain = (_bank_chain if category == "bank" else _gl_chain)(document)
     if chain["checked"] != len(entries) or chain["violation_count"]:

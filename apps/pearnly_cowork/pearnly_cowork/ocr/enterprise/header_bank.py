@@ -248,6 +248,7 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
 
     zones, audit, provenance, entries = None, [], [], []
     opening, previous, date_rows, money_date_rows, last_columns = None, None, 0, 0, None
+    printed = []  # (page, row, 本页表头列位)：先按印刷顺序收齐，判断整份是不是新的在前，再逐行接余额链
     for page in range(1, pages + 1):
         tokens, lines = tokens_by_page.get(page) or [], lines_by_page.get(page) or []
         header = _header(tokens, lines)
@@ -266,31 +267,39 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
             "beta": found["beta"], "tolerance": round(found["tolerance"], 6), "zones": {
                 key: [round(edge, 4) for edge in value] for key, value in zones.items()}},
             "basis": "printed column headers and balance-anchored rows"})
-        for row in found["rows"]:
-            balance = row["balance"]
-            if not row["amounts"] and not row["date"]:
-                if opening is None and not entries:
-                    opening = previous = balance  # printed brought-forward balance
-                    continue
-                if previous is not None and balance == previous:
-                    continue  # a page's carried-forward line repeats the running balance
-            columns = header[0] if header else last_columns
-            amount, direction = _amount(row, previous, columns)
-            entry = {"page": str(page), "transaction_date": row["date"], "transaction_date_raw": " ".join(
-                part for part in (row["date_raw"], (TIME_RE.search(row["text"]) or [None, ""])[1]) if part),
-                "description": row["text"][:240], "reference": "",
-                "deposit": money(amount) if amount is not None and direction == "deposit" else "",
-                "withdrawal": money(amount) if amount is not None and direction == "withdrawal" else "",
-                "amount": money(amount) if amount is not None else "", "direction": direction,
-                "balance": money(balance), "chain_repaired": False, "chain_amount_imputed": False,
-                "review_required": not direction}
-            entries.append(entry)
-            provenance.append({"row": len(entries), "source": {"page": page, "text": row["text"][:240]},
-                               "balance_bbox": [row["balance_token"].x0, row["balance_token"].y0,
-                                                row["balance_token"].x1, row["balance_token"].y1]})
-            previous = balance
+        columns = header[0] if header else last_columns
+        printed.extend((page, row, columns) for row in found["rows"])
         if header:
             last_columns = header[0]
+    newest_first = _newest_first([row["date"] for _page, row, _columns in printed])
+    if newest_first:
+        # 整份倒序（最新的印在最前）：从最旧的一行往新接余额链，「承前余额」那行原本印在最后，翻过来正好在最前
+        printed.reverse()
+        audit.append({"field": "row_order", "value": "reversed",
+                      "basis": "printed dates run newest first; balance chain read oldest first, "
+                               "audit row numbers count oldest first, rows returned in printed order"})
+    for page, row, columns in printed:
+        balance = row["balance"]
+        if not row["amounts"] and not row["date"]:
+            if opening is None and not entries:
+                opening = previous = balance  # printed brought-forward balance
+                continue
+            if previous is not None and balance == previous:
+                continue  # a page's carried-forward line repeats the running balance
+        amount, direction = _amount(row, previous, columns)
+        entry = {"page": str(page), "transaction_date": row["date"], "transaction_date_raw": " ".join(
+            part for part in (row["date_raw"], (TIME_RE.search(row["text"]) or [None, ""])[1]) if part),
+            "description": row["text"][:240], "reference": "",
+            "deposit": money(amount) if amount is not None and direction == "deposit" else "",
+            "withdrawal": money(amount) if amount is not None and direction == "withdrawal" else "",
+            "amount": money(amount) if amount is not None else "", "direction": direction,
+            "balance": money(balance), "chain_repaired": False, "chain_amount_imputed": False,
+            "review_required": not direction}
+        entries.append(entry)
+        provenance.append({"row": len(entries), "source": {"page": page, "text": row["text"][:240]},
+                           "balance_bbox": [row["balance_token"].x0, row["balance_token"].y0,
+                                            row["balance_token"].x1, row["balance_token"].y1]})
+        previous = balance
     if not entries:
         return stop("no_rows")
     if not _dates_in_order(entries, audit):
@@ -305,11 +314,27 @@ def reconstruct(tokens_by_page, lines_by_page, pages, *, reference_year=None, tr
     document["closing_balance"] = entries[-1]["balance"]
     document, repair_audit = _repair_bank(document)
     audit.extend(repair_audit)
-    issues = check_document(document, "bank", pages)
+    issues = check_document(document, "bank", pages, newest_first=newest_first)
     # 两种数法有一种与行数相等即可（原来的数法照旧有效，只多认一种），见 ``_page_rows``。
     if len(entries) not in (date_rows, money_date_rows):
         issues.append("date_anchor_row_count_mismatch")
+    if newest_first:
+        # 校验都在从旧到新的顺序上做完；交回印刷顺序（新的在前、页码递增），与模型抽取的结果同形：
+        # 对账入口的 ``bank_intake.chronological`` 见日期倒排、翻过来余额链更顺，就整份翻成从旧到新并重算期初。
+        document["entries"] = list(reversed(document["entries"]))
+        provenance = [{**item, "row": number} for number, item in enumerate(reversed(provenance), start=1)]
     return Reconstruction(document, audit, provenance, issues, pages)
+
+
+def _newest_first(dates):
+    """印出来的日期整体是从新到旧：首个日期晚于末个日期，且相邻两行往前倒的比往后走的多（同日不算）。
+    正序的流水一律不翻，所以原本拼得平的结果不受影响。"""
+    known = [value for value in dates if value]
+    if len(known) < 2 or known[0] <= known[-1]:
+        return False
+    down = sum(1 for left, right in zip(known, known[1:]) if right < left)
+    up = sum(1 for left, right in zip(known, known[1:]) if right > left)
+    return down > up
 
 
 def _dates_in_order(entries, audit):
