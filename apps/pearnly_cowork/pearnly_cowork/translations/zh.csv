@@ -663,6 +663,7 @@ Owner Id,执行者编号
 PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
 Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
+Page {0}/{1},第 {0}/{1} 页
 Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Paste a link,粘贴链接
@@ -1186,6 +1187,7 @@ Upload files,上传文件
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
 Upload · Review · Choose destination,上传 · 复核 · 选目标
 Uploaded By,上传人
+Uploading,上传中
 Uploading files,上传文件
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。
 Use the Cowork Companion service to access deliveries.,请通过 Cowork 助手服务访问任务领取记录。
@@ -2007,6 +2009,9 @@ intake.mrerpMenu.sales_cash,现金销售
 intake.mrerpMenu.sales_credit,赊销
 intake.mrerpMenu.title,MR.ERP 导入菜单
 intake.target.accountSet,账套
+intake.wait.page,第 {0}/{1} 页
+intake.wait.queued,排队中
+intake.wait.uploading,上传中
 leased,已领取
 legacy,旧版
 logical_section,文档逻辑单元

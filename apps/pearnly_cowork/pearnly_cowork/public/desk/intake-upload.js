@@ -31,7 +31,8 @@
 	// 识别是后台排队做的：受理后按旧线上 `ocr-job-poll.ts` 的节奏轮询批次，直到有结论。
 	//   每 1.5 秒一次、最长 60 分钟（服务端排队 30 分钟没开始才过期、开始处理后不再按提交时间过期；
 	//   原来 20 分钟就在页面上判超时，服务端其实还在做 · 2026-09-28 压测）；连续 10 次读不到状态（约 15 秒）才算失联。
-	// 识别有结论时服务端推一条「pearnly_ocr_work」，收到就立刻读结果；每读完一页也推一条（带 pages_done），直接更新按页进度。
+	// 识别有结论时服务端推一条「pearnly_ocr_work」，收到就立刻读结果；开始识别时推一条（带 reading），每读完一页也推一条
+	// （带 pages_done），直接更新等候页上的「识别中 / 第几页」。
 	// 轮询只作兜底：实时连接在线时 20 秒一次，连接不在时照旧 5 秒一次（2026-10-01 生产压测：每人同时等 6 份、每份每 5 秒
 	// 读一次状态，上百人同时用时网页进程被这些读状态占满）。连续 4 次读不到状态才算失联。
 	const POLL = {every_ms: 5000, pushed_ms: 20000, max_ms: 60 * 60 * 1000, soft_fails: 4};
@@ -42,8 +43,10 @@
 		p.intake_ocr_listening = true;
 		frappe.realtime.on("pearnly_ocr_work", data => {
 			if (data?.kind !== "cowork.invoice") return;
-			if (data.status === undefined && Number.isFinite(data.pages_done)) progressed.get(data.reference)?.(data.pages_done);
-			else woken.get(data.reference)?.();
+			if (data.status === undefined && data.reading) progressed.get(data.reference)?.({reading: true});
+			else if (data.status === undefined && Number.isFinite(data.pages_done)) {
+				progressed.get(data.reference)?.({pages_done: data.pages_done});
+			} else woken.get(data.reference)?.();
 		});
 	};
 	const poll_ms = () => (frappe.realtime?.socket?.connected ? POLL.pushed_ms : POLL.every_ms);
@@ -837,31 +840,48 @@
 		};
 
 		/* ── 识别进度：白底 + 官方转圈（`p.waiting`，用户 2026-09-30「白屏加动画」，原来是整屏灰遮罩）。
-		 * 按**页**算（用户 2026-09-30「按页分进度，不要按份」）：总页数是这一批上传后服务端数出的页数之和，
-		 * 已识别页数是每份识别任务回报的真实页数（`pages_done`：引擎按页顺序读，读到第 N 页前 N−1 页已读完），
-		 * 有结论的份按全部页数算。 */
-		const progress = {rows: [], frozen: null};
+		 * 第一屏（压测窗口转用户 2026-10-02）：选完图片马上在转圈下面摆本机原图，不等上传和识别；进度只写真实阶段的最短词
+		 * —— 上传中 / 排队中（已交给识别、还没从队列取出）/ 识别中（服务端开始识别时推的 `reading`）/ 第几页（多页文件，
+		 * `pages_done`：开始读第 N 页时前 N−1 页已读完）；一次传多份时每个阶段后面跟真实份数。不估百分比。 */
+		const progress = {rows: [], frozen: null, image: ""};
 		const row_pages = row => Math.max(1, Number(row.pages) || 1);
+		const stage_of = row => {
+			if (row.state === "new" || row.state === "uploading") return "uploading";
+			return row.reading || Number(row.pages_done) > 0 ? "reading" : "queued";
+		};
+		const STAGE_TEXT = {uploading: () => t("intake.wait.uploading"), queued: () => t("intake.wait.queued"),
+			reading: () => t("intake.status.recognizing"), done: () => t("intake.status.recognized")};
 		const progress_lines = () => {
-			const total = progress.rows.reduce((sum, row) => sum + row_pages(row), 0);
-			const done = progress.rows.reduce((sum, row) => sum + (row.finished ? row_pages(row)
-				: Math.min(row_pages(row), Number(row.pages_done) || 0)), 0);
-			const percent = total ? Math.round((done / total) * 100) : 0;
-			return [t("intake.proc.title"), t("intake.proc.sub"), __("shell.wait.pages", [done, total, percent])];
+			const open = progress.rows.filter(row => !row.finished);
+			if (progress.rows.length === 1 && open.length === 1) {
+				const row = open[0], now = stage_of(row);
+				// 多页文件读到第几页（第 N 页：已读完 N−1 页）
+				return [now === "reading" && row_pages(row) > 1
+					? t("intake.wait.page", Math.min(row_pages(row), (Number(row.pages_done) || 0) + 1), row_pages(row))
+					: STAGE_TEXT[now]()];
+			}
+			// 失败的不计进「已识别」，也不另写一项
+			const counts = {uploading: 0, queued: 0, reading: 0,
+				done: progress.rows.filter(row => row.finished && row.state !== "failed").length};
+			for (const row of open) counts[stage_of(row)] += 1;
+			return [Object.keys(STAGE_TEXT).filter(key => counts[key]).map(key => `${STAGE_TEXT[key]()} ${counts[key]}`)
+				.join(" · ")];
 		};
 		const paint_progress = () => {
 			if (!live) return;
-			if (!progress.frozen) progress.frozen = p.waiting(page, "");
+			if (!progress.frozen) progress.frozen = p.waiting(page, "", {image: progress.image});
 			progress.frozen.update(progress_lines().join("\n"));
 		};
 		const end_progress = () => {
 			progress.frozen?.done();
 			progress.frozen = null;
+			if (progress.image) URL.revokeObjectURL(progress.image);
+			progress.image = "";
 		};
 
 		/** 等一个识别批次出结论；读状态失败不弹窗（静默重试），连续读不到才算失联。 */
 		const wait_batch = async (name, on_progress = null) => {
-			if (on_progress) progressed.set(name, pages_done => on_progress({pages_done}));
+			if (on_progress) progressed.set(name, on_progress);
 			try {
 				return await poll_batch(name, on_progress);
 			} finally {
@@ -929,10 +949,11 @@
 				if (result.page_count) row.pages = result.page_count;
 				batch = FINISHED.has(result.state) || BROKEN.has(result.state) ? result : await wait_batch(result.name,
 					latest => {
-						if ((Number(latest.pages_done) || 0) > (Number(row.pages_done) || 0)) {
-							row.pages_done = latest.pages_done;
-							paint_progress();
-						}
+						const reading = Boolean(latest.reading) && !row.reading;
+						const paged = (Number(latest.pages_done) || 0) > (Number(row.pages_done) || 0);
+						if (reading) row.reading = true;
+						if (paged) row.pages_done = latest.pages_done;
+						if (reading || paged) paint_progress();
 					});
 			} catch (error) {
 				if (!error?._server_messages && !error?.responseJSON) console.error(error);
@@ -973,6 +994,9 @@
 		const run_batch = async waiting => {
 			if (!waiting.length) return;
 			progress.rows = waiting;
+			// 第一屏：这一批第一张图片直接在本机显示（PDF、表格不摆）
+			const shown = waiting.find(row => /^image\//.test(row.file?.type || ""));
+			progress.image = shown ? URL.createObjectURL(shown.file) : "";
 			paint_progress();
 			const pool = async (items, job) => {
 				const queue = items.slice();

@@ -829,8 +829,6 @@ This system address is not allowed; only public addresses can be used.	这个系
 This ERP account has no company or year to choose.	这个账号在目标 ERP 里没有可选的公司和年度。	บัญชี ERP นี้ไม่มีบริษัทหรือปีบัญชีให้เลือก	この ERP アカウントには選択できる会社・年度がありません。	intake.catalog.ERR_ACCOUNT_SET_EMPTY
 Reading companies and years took too long. Please try again.	读取公司和年度超时，请重试。	อ่านบริษัทและปีบัญชีนานเกินไป กรุณาลองใหม่	会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。	intake.catalog.ERR_TIMEOUT
 Could not read companies and years. Please try again.	没能读取公司和年度，请重试。	อ่านบริษัทและปีบัญชีไม่สำเร็จ กรุณาลองใหม่	会社と年度を読み込めませんでした。もう一度お試しください。	intake.catalog.ERR_UNEXPECTED
-Reading file contents	正在整理文件内容	กำลังอ่านเนื้อหาไฟล์	ファイル内容を読み取り中	intake.proc.title
-Reading supplier, amounts, dates and tax fields	正在读取供应商、金额、日期和税务字段	กำลังอ่านผู้ขาย ยอดเงิน วันที่ และช่องภาษี	仕入先・金額・日付・税項目を読み取り中	intake.proc.sub
 No recognition result — please re-upload	识别结果为空，请重新上传	ไม่มีผลการอ่าน กรุณาอัปโหลดใหม่	読取結果がありません。再アップロードしてください	intake.proc.empty
 Done · {0} ok · {1} failed	完成 · 成功 {0} · 失败 {1}	เสร็จ · สำเร็จ {0} · ล้มเหลว {1}	完了 · 成功 {0} · 失敗 {1}	intake.proc.batchFail
 Recognizing	识别中	กำลังอ่าน	読み取り中	intake.status.recognizing

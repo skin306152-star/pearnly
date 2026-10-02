@@ -663,6 +663,7 @@ Owner Id,実行者ID
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
 Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
+Page {0}/{1},{0}/{1} ページ目
 Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Paste a link,リンクを貼り付け
@@ -1186,6 +1187,7 @@ Upload files,ファイルのアップロード
 Upload the stock count sheet as an .xlsx file.,棚卸表は .xlsx 形式でアップロードしてください。
 Upload · Review · Choose destination,アップロード · 確認 · 送信先選択
 Uploaded By,アップロードしたユーザー
+Uploading,アップロード中
 Uploading files,ファイルをアップロード中
 Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
 Use the Cowork Companion service to access deliveries.,タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。
@@ -2007,6 +2009,9 @@ intake.mrerpMenu.sales_cash,現金売上
 intake.mrerpMenu.sales_credit,掛売上
 intake.mrerpMenu.title,MR.ERP 取込メニュー
 intake.target.accountSet,会計データ
+intake.wait.page,{0}/{1} ページ目
+intake.wait.queued,順番待ち
+intake.wait.uploading,アップロード中
 leased,取得済み
 legacy,旧形式
 logical_section,文書の論理単位

@@ -274,6 +274,7 @@ def run(batch_name):
                     doc.phase = "recognizing"
                     store.save(doc)
                     frappe.db.commit()
+                store.reading_started(doc.name)
                 try:
                     doc = _recognize(doc, frozen, examples, source)
                 except ProviderError as error:

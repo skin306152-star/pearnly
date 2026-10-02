@@ -481,8 +481,6 @@ Queued to push,待推送
 "Read the ID card, match it against the DMS customer base, then confirm",读身份证、与 DMS 客户库比对后确认资料
 Reading companies and years from {0}…,正在从 {0} 读取公司和年度…
 Reading companies and years took too long. Please try again.,读取公司和年度超时，请重试。
-Reading file contents,正在整理文件内容
-"Reading supplier, amounts, dates and tax fields",正在读取供应商、金额、日期和税务字段
 Received,实收金额
 Recognition Raw,识别原始输出
 Recognition Records,识别记录
@@ -992,8 +990,6 @@ intake.placeholder.counterparty,供应商 / 客户
 intake.placeholder.docNo,可留空
 intake.proc.batchFail,完成 · 成功 {0} · 失败 {1}
 intake.proc.empty,识别结果为空，请重新上传
-intake.proc.sub,正在读取供应商、金额、日期和税务字段
-intake.proc.title,正在整理文件内容
 intake.processing,处理中…
 intake.push.pending,录入中
 intake.refresh,刷新

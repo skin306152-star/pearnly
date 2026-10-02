@@ -663,6 +663,7 @@ Owner Id,รหัสผู้ดำเนินการ
 PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
 Page Count,จำนวนหน้า
 Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
+Page {0}/{1},หน้า {0}/{1}
 Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Paste a link,วางลิงก์
@@ -1186,6 +1187,7 @@ Upload files,อัปโหลดไฟล์
 Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
 Upload · Review · Choose destination,อัปโหลด · ตรวจสอบ · เลือกปลายทาง
 Uploaded By,ผู้อัปโหลด
+Uploading,กำลังอัปโหลด
 Uploading files,กำลังอัปโหลดไฟล์
 Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง
 Use the Cowork Companion service to access deliveries.,โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน
@@ -2007,6 +2009,9 @@ intake.mrerpMenu.sales_cash,ขายเงินสด
 intake.mrerpMenu.sales_credit,ขายเชื่อ
 intake.mrerpMenu.title,เมนูนำเข้า MR.ERP
 intake.target.accountSet,ชุดบัญชี
+intake.wait.page,หน้า {0}/{1}
+intake.wait.queued,รอคิว
+intake.wait.uploading,กำลังอัปโหลด
 leased,รับงานแล้ว
 legacy,ระบบเดิม
 logical_section,ส่วนข้อมูลของเอกสาร

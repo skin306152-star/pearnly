@@ -481,8 +481,6 @@ Queued to push,รอส่ง
 "Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
 Reading companies and years from {0}…,กำลังอ่านบริษัทและปีบัญชีจาก {0}…
 Reading companies and years took too long. Please try again.,อ่านบริษัทและปีบัญชีนานเกินไป กรุณาลองใหม่
-Reading file contents,กำลังอ่านเนื้อหาไฟล์
-"Reading supplier, amounts, dates and tax fields",กำลังอ่านผู้ขาย ยอดเงิน วันที่ และช่องภาษี
 Received,จำนวนที่รับจริง
 Recognition Raw,ผลการอ่านดิบ
 Recognition Records,บันทึกการอ่านข้อมูล
@@ -992,8 +990,6 @@ intake.placeholder.counterparty,ผู้ขาย / ลูกค้า
 intake.placeholder.docNo,เว้นว่างได้
 intake.proc.batchFail,เสร็จ · สำเร็จ {0} · ล้มเหลว {1}
 intake.proc.empty,ไม่มีผลการอ่าน กรุณาอัปโหลดใหม่
-intake.proc.sub,กำลังอ่านผู้ขาย ยอดเงิน วันที่ และช่องภาษี
-intake.proc.title,กำลังอ่านเนื้อหาไฟล์
 intake.processing,กำลังดำเนินการ…
 intake.push.pending,กำลังบันทึก
 intake.refresh,รีเฟรช

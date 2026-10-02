@@ -479,8 +479,6 @@ Queued to push,Queued to push
 "Read the ID card, match it against the DMS customer base, then confirm","Read the ID card, match it against the DMS customer base, then confirm"
 Reading companies and years from {0}…,Reading companies and years from {0}…
 Reading companies and years took too long. Please try again.,Reading companies and years took too long. Please try again.
-Reading file contents,Reading file contents
-"Reading supplier, amounts, dates and tax fields","Reading supplier, amounts, dates and tax fields"
 Received,Received
 Recognition Raw,Recognition Raw
 Recognition Records,Recognition Records
@@ -990,8 +988,6 @@ intake.placeholder.counterparty,Supplier / customer
 intake.placeholder.docNo,Optional
 intake.proc.batchFail,Done · {0} ok · {1} failed
 intake.proc.empty,No recognition result — please re-upload
-intake.proc.sub,"Reading supplier, amounts, dates and tax fields"
-intake.proc.title,Reading file contents
 intake.processing,Processing…
 intake.push.pending,Entering
 intake.refresh,Refresh

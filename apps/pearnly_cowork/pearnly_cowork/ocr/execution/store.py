@@ -104,6 +104,15 @@ def pages_reached(name, page, user=None):
         pass  # 进度只作展示：缓存一时写不了 / 推送不了不影响识别
 
 
+def reading_started(name, user=None):
+    """这份开始识别了（已从队列取出、标成识别中）：推给提交人，等候页由「排队中」改成「识别中」。只作展示，推送不了不影响识别。"""
+    try:
+        frappe.publish_realtime("pearnly_ocr_work", {"kind": "cowork.invoice", "reference": name, "reading": True},
+                                user=user or frappe.session.user, after_commit=False)
+    except Exception:
+        pass
+
+
 def pages_done(doc, state):
     if state in {"saved", "not_invoice"}:
         return int(doc.page_count or 0)
@@ -125,7 +134,10 @@ def project(doc):
             "reference_kind": doc.get("reference_kind") or "physical_page",
             "billing_kind": doc.get("billing_kind") or "pdf",
             "billing_units": int(doc.billing_units) if doc.get("billing_kind") else int(doc.page_count),
-            "state": state, "pages_done": pages_done(doc, state), "billing_state": doc.billing_state, "billing_code": doc.billing_code or "",
+            "state": state, "pages_done": pages_done(doc, state),
+            # 已开始识别（离开队列）：等候页「排队中 / 识别中」按这个分，推送丢了时轮询兜底
+            "reading": state not in {"saved", "not_invoice"} and doc.phase in {"recognizing", "recognized"},
+            "billing_state": doc.billing_state, "billing_code": doc.billing_code or "",
             "requires_review": bool(doc.requires_review),
             "history_records": json.loads(doc.history_records or "[]"),
             "attempts": work.attempts if work else 0,

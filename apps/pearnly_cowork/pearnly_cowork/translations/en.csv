@@ -663,6 +663,7 @@ Owner Id,Owner Id
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
 Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
+Page {0}/{1},Page {0}/{1}
 Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Paste a link,Paste a link
@@ -1186,6 +1187,7 @@ Upload files,Upload files
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
 Upload · Review · Choose destination,Upload · Review · Choose destination
 Uploaded By,Uploaded By
+Uploading,Uploading
 Uploading files,Uploading files
 Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
 Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
@@ -2007,6 +2009,9 @@ intake.mrerpMenu.sales_cash,Cash sales
 intake.mrerpMenu.sales_credit,Credit sales
 intake.mrerpMenu.title,MR.ERP import menu
 intake.target.accountSet,Account set
+intake.wait.page,Page {0}/{1}
+intake.wait.queued,Queued
+intake.wait.uploading,Uploading
 leased,leased
 legacy,legacy
 logical_section,logical_section

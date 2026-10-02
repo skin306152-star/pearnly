@@ -481,8 +481,6 @@ Queued to push,送信待ち
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
 Reading companies and years from {0}…,{0} から会社と年度を読み込み中…
 Reading companies and years took too long. Please try again.,会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。
-Reading file contents,ファイル内容を読み取り中
-"Reading supplier, amounts, dates and tax fields",仕入先・金額・日付・税項目を読み取り中
 Received,受領額
 Recognition Raw,認識の生データ
 Recognition Records,認識記録
@@ -992,8 +990,6 @@ intake.placeholder.counterparty,仕入先 / 顧客
 intake.placeholder.docNo,空欄可
 intake.proc.batchFail,完了 · 成功 {0} · 失敗 {1}
 intake.proc.empty,読取結果がありません。再アップロードしてください
-intake.proc.sub,仕入先・金額・日付・税項目を読み取り中
-intake.proc.title,ファイル内容を読み取り中
 intake.processing,処理中…
 intake.push.pending,入力中
 intake.refresh,更新

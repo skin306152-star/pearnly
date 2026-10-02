@@ -410,3 +410,10 @@ body.pearnly-product-desk .dt-cell--header {
 	text-align: center;
 	line-height: 1.6;
 }
+.pearnly-waiting-image {
+	max-width: min(100%, 480px);
+	max-height: 50vh;
+	object-fit: contain;
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius);
+}

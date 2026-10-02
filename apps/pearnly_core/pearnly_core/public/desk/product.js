@@ -346,12 +346,16 @@ frappe.provide("frappe.pearnly");
 	// Cowork 录入、ERP 采购 / 销售共用。`elapsed: true` 时下面多一行「已用 N 秒」。
 	// `pages: async () => ({done, total})`：每 1.5 秒问一次服务端读了几页，多一行「已识别 N/总 页 · 百分比」
 	// （用户 2026-09-30「按页分进度，不要按份」）；问不到或还没开始读就不显示这一行。
-	p.waiting = (page, text, {elapsed = false, pages = null} = {}) => {
+	// `image`：刚选的图片在本机的地址（`URL.createObjectURL`），文字下面直接摆原图，不等上传和识别；浏览器显示不了
+	// （如桌面浏览器的 HEIC）就不摆。地址由调用方收回。
+	p.waiting = (page, text, {elapsed = false, pages = null, image = ""} = {}) => {
 		const host = $(page.wrapper).find(".page-body").first();
 		host.addClass("pearnly-waiting-host");
 		const layer = $(`<div class="pearnly-waiting" role="status" aria-live="polite">
 			<div class="spinner-border text-muted" aria-hidden="true"></div>
 			<div class="pearnly-waiting-text text-muted"></div></div>`).appendTo(host);
+		if (image) $("<img class='pearnly-waiting-image' alt=''>").on("error", event => $(event.target).remove())
+			.attr("src", image).appendTo(layer);
 		const buttons = $(page.wrapper).find(".page-head button:not([disabled])").prop("disabled", true);
 		const started = Date.now();
 		let lines = String(text ?? "");
