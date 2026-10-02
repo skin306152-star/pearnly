@@ -139,6 +139,32 @@ def run(args):
     print(json.dumps(collections.Counter(record["state"] for record in done)), flush=True)
 
 
+def collect(args):
+    """不提交，只把站点上已有的一轮（请求号前缀 ``--tag``）收成 results.jsonl：评测中途被打断（如余额用完）后，
+    识别任务自己接着跑完，再用它把这一轮补齐。"""
+    import frappe
+
+    frappe.init(args.site, sites_path=".")
+    frappe.connect()
+    frappe.set_user(args.user)
+    from pearnly_cowork.ocr.execution import service as ocr
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    states = collections.Counter()
+    with open(out / "results.jsonl", "w", encoding="utf-8") as handle:
+        for row in frappe.db.sql("SELECT name, request_key, creation, modified FROM `tabCowork OCR Batch` WHERE request_key LIKE %s",
+                                 (f"{args.tag}-%",), as_dict=True):
+            view = ocr.detail(row.name)
+            number = row.request_key[len(args.tag) + 1:]
+            record = {"编号": number, "batch": row.name, "state": view["state"], "requires_review": view["requires_review"],
+                      "last_code": view.get("last_code"), "seconds": None,
+                      "invoices": _invoices(view["history_records"]) if view["state"] == "saved" else []}
+            states[record["state"]] += 1
+            handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+    print(json.dumps(states))
+
+
 def _invoices(names):
     """一份原件识别出的每张票：页内字段（逐页取第一张有字段的）加记录上的复核信息。"""
     import frappe
@@ -810,11 +836,16 @@ def main():
     scorer.add_argument("--out", required=True)
     scorer.add_argument("--glm")
     scorer.add_argument("--verdicts", help="人工裁决表（编号、字段、裁决、说明），见 load_verdicts")
+    collector = sub.add_parser("collect")
+    collector.add_argument("--site", required=True)
+    collector.add_argument("--user", required=True)
+    collector.add_argument("--tag", required=True)
+    collector.add_argument("--out", required=True)
     golder = sub.add_parser("gold")
     golder.add_argument("--gold", required=True)
     golder.add_argument("--runs", nargs="+", required=True, help="一个或几个 run 的输出目录，并排比")
     args = parser.parse_args()
-    {"run": run, "score": score, "gold": gold}[args.command](args)
+    {"run": run, "score": score, "gold": gold, "collect": collect}[args.command](args)
 
 
 if __name__ == "__main__":
