@@ -1,0 +1,123 @@
+{
+ "doctype": "DocType",
+ "name": "Pearnly Export",
+ "module": "Pearnly Core",
+ "engine": "InnoDB",
+ "autoname": "prompt",
+ "track_changes": 0,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-02 00:00:00.000000",
+ "modified": "2026-10-02 00:00:00.000000",
+ "field_order": [
+  "user",
+  "status",
+  "count_method",
+  "build_method",
+  "arguments",
+  "lang",
+  "filename",
+  "content_type",
+  "file_key",
+  "size",
+  "error",
+  "expires_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "label": "User",
+   "fieldtype": "Link",
+   "options": "User",
+   "reqd": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "options": "queued\nrunning\ndone\nfailed",
+   "default": "queued",
+   "read_only": 1
+  },
+  {
+   "fieldname": "count_method",
+   "label": "Size And Permission Check",
+   "fieldtype": "Data",
+   "length": 200,
+   "read_only": 1
+  },
+  {
+   "fieldname": "build_method",
+   "label": "Builder",
+   "fieldtype": "Data",
+   "length": 200,
+   "read_only": 1
+  },
+  {
+   "fieldname": "arguments",
+   "label": "Arguments",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lang",
+   "label": "Language",
+   "fieldtype": "Data",
+   "length": 20,
+   "read_only": 1
+  },
+  {
+   "fieldname": "filename",
+   "label": "File Name",
+   "fieldtype": "Data",
+   "length": 240,
+   "read_only": 1
+  },
+  {
+   "fieldname": "content_type",
+   "label": "Content Type",
+   "fieldtype": "Data",
+   "length": 120,
+   "read_only": 1
+  },
+  {
+   "fieldname": "file_key",
+   "label": "File Key",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "size",
+   "label": "Bytes",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error",
+   "label": "Error",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "label": "Expires At",
+   "fieldtype": "Datetime",
+   "search_index": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "actions": [],
+ "links": []
+}

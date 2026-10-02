@@ -43,12 +43,15 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 
 @frappe.whitelist(methods=["GET"])
 def export(task_id, lang="th"):
-	result = _transaction(bank_recon_service.export, task_id, lang)
-	make_access_log(doctype=TASK, document=task_id, file_type="bank_recon_workbook")
-	frappe.local.response.update(type="download", filename=result["filename"],
-		filecontent=result["content"], display_content_as="attachment",
-		content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	"""小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``，权限在排任务时和下载时各查一次）。"""
+	from pearnly_core.exports import service as exports
+
 	frappe.local.cowork_private_response = True
+	job = exports.deliver(count="pearnly_cowork.reconciliation.bank_recon_service.export_size",
+		build="pearnly_cowork.reconciliation.bank_recon_service.export", args={"task_id": task_id, "lang": lang},
+		content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	make_access_log(doctype=TASK, document=task_id, file_type="bank_recon_workbook")
+	return job
 
 
 @frappe.whitelist()

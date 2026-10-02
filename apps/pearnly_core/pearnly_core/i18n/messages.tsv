@@ -860,3 +860,7 @@ Uploading	上传中	กำลังอัปโหลด	アップロード中	i
 Queued	排队中	รอคิว	順番待ち	intake.wait.queued
 Page {0}/{1}	第 {0}/{1} 页	หน้า {0}/{1}	{0}/{1} ページ目	intake.wait.page
 This photo could not be read. Save it as JPEG and upload it again.	这张照片读不出来，请另存为 JPEG 后重新上传。	อ่านรูปนี้ไม่ได้ กรุณาบันทึกเป็น JPEG แล้วอัปโหลดใหม่	この写真を読み取れません。JPEG で保存してからアップロードし直してください。
+Preparing the file	正在准备文件	กำลังเตรียมไฟล์	ファイルを準備しています	
+The file is ready	文件已准备好	ไฟล์พร้อมแล้ว	ファイルの準備ができました	
+The export could not be created.	导出文件没有生成成功。	ไม่สามารถสร้างไฟล์ส่งออกได้	エクスポートファイルを作成できませんでした。	
+This file has expired. Export it again.	这个文件已过期，请重新导出。	ไฟล์นี้หมดอายุแล้ว กรุณาส่งออกใหม่	このファイルは期限切れです。もう一度エクスポートしてください。	

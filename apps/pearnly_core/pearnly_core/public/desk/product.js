@@ -340,6 +340,95 @@ frappe.provide("frappe.pearnly");
 		frappe.utils.play_sound(sound);
 	};
 
+	// ── 导出：小的当场下载，大的排后台、做完推送后下载（服务端 `pearnly_core.exports`）────────────────
+	// 原来各页直接 `window.open` / `location.assign` 导出地址，数据多就超时。现在统一走这里：服务端按行数决定，
+	// 回的是文件就直接存；回 `{export_job}` 就挂原生黄色提示等着，收到实时推送 `pearnly_export` 就去查一次，
+	// 推送连着时每 20 秒、断开时每 5 秒兜底查一次；做完下载并给原生完成提示（带提示音，跟账户静音），失败原生弹窗说原因。
+	const EXPORT_API = "pearnly_core.exports.api.";
+	const server_message = (payload, status) => {
+		try {
+			for (const item of JSON.parse(payload?._server_messages || "[]")) {
+				const message = JSON.parse(item)?.message;
+				if (message) return String(message).replace(/<[^>]*>/g, "").trim();
+			}
+		} catch (error) { /* 不是标准错误体（网关之类），按状态码说 */ }
+		return payload?.exception || `HTTP ${status}`;
+	};
+	const save_blob = (blob, name) => {
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url; link.download = name || "export";
+		document.body.appendChild(link); link.click(); link.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	};
+	const file_name = (response) => {
+		const header = response.headers.get("Content-Disposition") || "";
+		const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+		if (encoded) { try { return decodeURIComponent(encoded[1]); } catch (error) { /* 照下面取 */ } }
+		return /filename="?([^";]+)"?/i.exec(header)?.[1] || "";
+	};
+	const wait_export = (job) => new Promise((resolve) => {
+		const notice = frappe.show_alert({ message: p.escape(__("Preparing the file")), indicator: "yellow" }, 3600);
+		let timer = 0, finished = false;
+		const handler = (data) => { if (data?.job === job) check(); };
+		const finish = (state) => {
+			if (finished) return;
+			finished = true;
+			clearTimeout(timer);
+			frappe.realtime?.off?.("pearnly_export", handler);
+			notice?.remove?.();
+			if (state?.status === "done") {
+				const link = document.createElement("a");
+				link.href = `/api/method/${EXPORT_API}download?job=${encodeURIComponent(job)}`;
+				document.body.appendChild(link); link.click(); link.remove();
+				p.success(__("The file is ready"));
+			} else if (!state?.shown) {
+				frappe.msgprint({ message: p.escape(state?.error || __("The export could not be created.")),
+					indicator: "red" });
+			}
+			resolve(state);
+		};
+		const schedule = () => {
+			clearTimeout(timer);
+			if (!finished) timer = setTimeout(check, frappe.realtime?.socket?.connected ? 20000 : 5000);
+		};
+		async function check() {
+			if (finished) return;
+			try {
+				const state = await p.call(EXPORT_API + "status", { job });
+				if (state?.status === "done" || state?.status === "failed") return finish(state);
+			} catch (error) {
+				// 查不到（过期 / 没权限）：框架已弹过原因，这里收尾。
+				if (error?.exc_type || error?.status === 403) return finish({ status: "failed", shown: true });
+			}
+			schedule();
+		}
+		frappe.realtime?.on?.("pearnly_export", handler);
+		schedule();
+	});
+	/** 导出：`method` 是导出接口（照旧的参数，GET 或 POST）。当场给的文件直接存；排了任务就等推送后下载。 */
+	p.export_file = async (method, args = {}, { type = "GET" } = {}) => {
+		const query = new URLSearchParams();
+		for (const [key, value] of Object.entries(args || {})) {
+			if (value === undefined || value === null || value === "") continue;
+			query.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+		}
+		const options = { credentials: "same-origin",
+			headers: { "X-Frappe-CSRF-Token": frappe.csrf_token, Accept: "application/json, */*" } };
+		const response = type === "POST"
+			? await fetch(`/api/method/${method}`, { ...options, method: "POST", body: query })
+			: await fetch(`/api/method/${method}?${query.toString()}`, options);
+		const kind = response.headers.get("Content-Type") || "";
+		if (response.ok && !kind.includes("application/json")) {
+			save_blob(await response.blob(), file_name(response));
+			return { status: "done" };
+		}
+		const body = await response.json().catch(() => null);
+		if (response.ok && body?.message?.export_job) return wait_export(body.message.export_job);
+		frappe.msgprint({ message: p.escape(server_message(body, response.status)), indicator: "red" });
+		return { status: "failed" };
+	};
+
 	// ── 识别等候：白底 + 官方转圈（框架样式表自带的 `spinner-border`）+ 一行真实进度 ──────────────
 	// 用户 2026-09-30：识别时「白屏加动画」，不再用整屏灰遮罩。盖住这一页的内容区，顶栏与侧栏照常；页头按钮
 	// 等候期间停用（识别结果回来前不让提交 / 保存），结束后按原样恢复。文字只写真实的数（份数、已用秒数），不估算。

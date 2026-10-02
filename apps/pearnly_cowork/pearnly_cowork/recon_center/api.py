@@ -94,8 +94,11 @@ def export_vat(task_id, lang=None):
     """销项税报告核查工作簿（由存档的两边输入当场重建，改过就是改过的版本）。"""
     from frappe.core.doctype.access_log.access_log import make_access_log
 
-    result = vat_check_service.export(task_id, lang)
-    make_access_log(doctype=vat_check_service.TASK, document=task_id, file_type="vat_check_workbook")
-    frappe.local.response.update(type="download", filename=result["filename"], filecontent=result["content"],
-        display_content_as="attachment",
+    from pearnly_core.exports import service as exports
+
+    # 小的当场回文件，大的排后台、做完推送下载（权限在排任务时和下载时各查一次）。
+    job = exports.deliver(count="pearnly_cowork.reconciliation.vat_check_service.export_size",
+        build="pearnly_cowork.reconciliation.vat_check_service.export", args={"task_id": task_id, "lang": lang},
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    make_access_log(doctype=vat_check_service.TASK, document=task_id, file_type="vat_check_workbook")
+    return job

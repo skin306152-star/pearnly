@@ -97,10 +97,12 @@ def api_purchase_category(category_name, parent_category=None):
 
 @frappe.whitelist()
 def api_purchase_export(params=None):
-    from pearnly_erp_portal.purchasing import output
+    """小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
+    from pearnly_core.exports import service as exports
 
-    frappe.local.response.update(filename="purchase.xlsx", filecontent=output.workbook(_payload(params)),
-                                 type="download", display_content_as="attachment")
+    return exports.deliver(count="pearnly_erp_portal.purchasing.output.export_size",
+                           build="pearnly_erp_portal.purchasing.output.workbook", args={"params": _payload(params)},
+                           filename="purchase.xlsx", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @frappe.whitelist(methods=["POST"])

@@ -44,6 +44,17 @@ def _value(value):
     return value
 
 
+def export_size(params=None):
+    """导出要多少行（`pearnly_core.exports` 据此决定当场给还是排后台）：与导出同一份筛选、同一道权限，数到阈值 + 1 就停。"""
+    from pearnly_core.exports import service as exports
+    from pearnly_erp_portal.access import guard
+
+    guard.require("purchase.read")
+    filters, or_filters, _datefield = records.query(params)
+    return len(frappe.get_list("Purchase Document", filters=filters, or_filters=or_filters, fields=["name"],
+                               distinct=True, limit_page_length=exports.sync_rows() + 1))
+
+
 def workbook(params=None):
     from openpyxl import Workbook
     from openpyxl.styles import Font

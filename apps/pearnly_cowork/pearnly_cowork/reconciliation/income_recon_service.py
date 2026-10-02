@@ -279,6 +279,14 @@ def _export_row(row):
 		account_codes=row.account_codes or "")
 
 
+def export_size(task_id, lang="th"):
+	"""Rows the export of this task holds, behind the same access check as ``export``
+	(``pearnly_core.exports`` decides from it whether to answer now or in the background)."""
+	doc = frappe.get_doc(TASK, task_id)
+	income_recon_access.require(doc.workspace)
+	return frappe.db.count(ROW, {"task": doc.name})
+
+
 def export(task_id, lang="th"):
 	"""Render the review workbook of one stored task; no ERP, model or file access.
 

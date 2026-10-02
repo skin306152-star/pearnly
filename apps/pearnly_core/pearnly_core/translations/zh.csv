@@ -449,6 +449,7 @@ Plans do not renew automatically. Subscribe again after expiry.,套餐不自动�
 Please confirm,请确认
 Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
+Preparing the file,正在准备文件
 Processing Started At,开始执行时间
 Processing…,处理中…
 Product,产品
@@ -618,6 +619,8 @@ The current password is wrong,当前密码不正确
 The customer snapshot used to refill the form when approval executes.,批准执行时回填表单用的客户资料快照。
 "The details are not confirmed yet, so it cannot be pushed to DMS",资料还没确认，不能推送 DMS
 The document number the supplier issued; it must be kept as-is,供应商开的单据号，必须原样保留
+The export could not be created.,导出文件没有生成成功。
+The file is ready,文件已准备好
 The identity service did not return an id_token,身份服务未返回 id_token
 The identity service refused the password change: {0} {1},身份服务拒绝改密：{0} {1}
 The identity service returned an error: {0},身份服务返回错误：{0}
@@ -665,6 +668,7 @@ This advisor is no longer in the current DMS list. Please select again.,该顾�
 This company’s LINE official account is not configured yet.,本公司尚未配置 LINE 官方账号。
 This connection has no username and password yet.,这条连接还没有填账号和密码。
 This document has already been recorded: {0},这张单已经录过：{0}
+This file has expired. Export it again.,这个文件已过期，请重新导出。
 This identity is already bound to account {0} (record {1}),该身份已绑定到账号 {0}（记录 {1}）
 This identity is already bound to {0},该身份已绑定到 {0}
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）

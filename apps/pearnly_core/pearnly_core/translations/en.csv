@@ -447,6 +447,7 @@ Plans do not renew automatically. Subscribe again after expiry.,Plans do not ren
 Please confirm,Please confirm
 Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
+Preparing the file,Preparing the file
 Processing Started At,Processing Started At
 Processing…,Processing…
 Product,Product
@@ -616,6 +617,8 @@ The current password is wrong,The current password is wrong
 The customer snapshot used to refill the form when approval executes.,The customer snapshot used to refill the form when approval executes.
 "The details are not confirmed yet, so it cannot be pushed to DMS","The details are not confirmed yet, so it cannot be pushed to DMS"
 The document number the supplier issued; it must be kept as-is,The document number the supplier issued; it must be kept as-is
+The export could not be created.,The export could not be created.
+The file is ready,The file is ready
 The identity service did not return an id_token,The identity service did not return an id_token
 The identity service refused the password change: {0} {1},The identity service refused the password change: {0} {1}
 The identity service returned an error: {0},The identity service returned an error: {0}
@@ -663,6 +666,7 @@ This advisor is no longer in the current DMS list. Please select again.,This adv
 This company’s LINE official account is not configured yet.,This company’s LINE official account is not configured yet.
 This connection has no username and password yet.,This connection has no username and password yet.
 This document has already been recorded: {0},This document has already been recorded: {0}
+This file has expired. Export it again.,This file has expired. Export it again.
 This identity is already bound to account {0} (record {1}),This identity is already bound to account {0} (record {1})
 This identity is already bound to {0},This identity is already bound to {0}
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)

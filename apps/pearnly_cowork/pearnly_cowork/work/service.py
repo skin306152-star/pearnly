@@ -1148,6 +1148,13 @@ def search(keyword, board=None):
     return frappe.get_all(CARD, filters={**filters, "name": ["in", list(names)]}, pluck="name", limit_page_length=0)
 
 
+def export_size(names=None, board=None):
+    """导出的卡片数（与 ``export`` 同一份取数、同一道看板权限）：``pearnly_core.exports`` 据此决定当场给还是排后台。"""
+    data = board_data(board)
+    wanted = set(contracts.distinct(names, 5000)) if names else None
+    return sum(1 for card in data["cards"] if not card["is_template"] and (wanted is None or card["name"] in wanted))
+
+
 def export(names=None, board=None):
     """表格视图「导出 Excel」：按页面上当前看得到的卡片（`names`，没给就是整板）出一张工作簿。"""
     from frappe.utils.xlsxutils import make_xlsx

@@ -161,8 +161,8 @@
 				page.add_inner_button(t("cowork.stock.action.reload"), refresh);
 				page.add_inner_button(t("cowork.stock.count.close"), finish);
 			} else {
-				page.add_inner_button(t("cowork.stock.action.export"), () => window.location.assign(
-					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
+				page.add_inner_button(t("cowork.stock.action.export"), () => void p.export_file(
+					`${api}api_stock_count_export`, {name}));
 				page.add_inner_button(t("cowork.stock.action.reload"), refresh);
 			}
 			await render_data();

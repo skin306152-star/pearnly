@@ -323,6 +323,17 @@ def report(task_id):
     return snapshot
 
 
+def export_size(task_id):
+    """Rows the export holds (items + entries), behind the same access and legacy checks as ``export``;
+    ``pearnly_core.exports`` decides from it whether to answer now or in the background."""
+    task = _task(task_id)
+    if task.count_mode != "scan":
+        fail("stocktake.legacy_task")
+    items = frappe.db.sql("SELECT COUNT(*) FROM `tabCowork Stocktake Item` WHERE task=%s AND workspace=%s",
+                          (task.name, task.workspace))[0][0]
+    return int(items) + int(_entry_total(task))
+
+
 def export(task_id):
     """Use the full authorized locked snapshot, never the paginated preview."""
     return contract(workbook, report(task_id))

@@ -41,8 +41,9 @@
 		function ledger() {
 			page.set_title(title);
 			p.breadcrumbs({ label: title, route: p.subroute("pearnly-home") });
+			// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
 			page.add_inner_button(t("home.ledger.export"), () =>
-				location.assign("/api/method/pearnly_core.billing_www.export_records"),
+				void p.export_file("pearnly_core.billing_www.export_records"),
 			);
 			// 筛选放在页头下的原生筛选条（与客户、库存等列表一致），不再是表单里的两个下拉框。
 			page.add_field({

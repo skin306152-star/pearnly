@@ -755,7 +755,8 @@
 			// 导出取服务端存着的版本：有没保存的改动就先保存再导出，导出的与页面上看到的一致（2026-09-28 录制发现）。
 			const export_now = async () => {
 				if (dirty) await save();
-				window.location.assign(`/api/method/${spec.export}?task_id=${encodeURIComponent(name)}&lang=${lang()}`);
+				// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
+				await p.export_file(spec.export, {task_id: name, lang: lang()});
 			};
 			const buttons = () => {
 				page.clear_primary_action(); page.clear_secondary_action();

@@ -7,7 +7,7 @@
 导出件与页面上是同一句话（用户 2026-09-23："导出的报表术语表口径要统一"）。
 """
 from frappe import _
-from frappe.utils.xlsxutils import build_xlsx_response
+from frappe.utils.xlsxutils import make_xlsx
 from pearnly_core import browser_text
 
 from pearnly_erp_portal.cashier import shifts
@@ -50,8 +50,14 @@ def rows(names=None) -> list[dict]:
     return shifts.list_shifts(names=names, limit=0)
 
 
-def workbook(names=None) -> None:
+def export_size(names=None) -> int:
+    """导出的班次数（与导出同一份取数、同一道权限：非管理员只看自己的班）。"""
+    return len(rows(names))
+
+
+def workbook(names=None) -> dict:
     data = [[browser_text.label(key) for _field, key in COLUMNS]]
     for row in rows(names):
         data.append([cell(row, field) for field, _label in COLUMNS])
-    build_xlsx_response(data, _("Shift Records"))
+    title = _("Shift Records")
+    return {"filename": f"{title}.xlsx", "content": make_xlsx(data, title).getvalue()}

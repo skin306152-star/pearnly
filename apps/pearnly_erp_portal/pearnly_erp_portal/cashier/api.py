@@ -92,10 +92,15 @@ def api_list_shifts(**kwargs):
 
 @frappe.whitelist()
 def api_shifts_export(names=None):
-    """导出班次（交班记录页勾选的那几个；不给 names 就是整张列表）。"""
-    from pearnly_erp_portal.cashier import output
+    """导出班次（交班记录页勾选的那几个；不给 names 就是整张列表）。
+    小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
+    from pearnly_core.exports import service as exports
 
-    output.workbook(frappe.parse_json(names) if names else None)
+    return exports.deliver(count="pearnly_erp_portal.cashier.output.export_size",
+                           build="pearnly_erp_portal.cashier.output.workbook",
+                           args={"names": frappe.parse_json(names) if names else None},
+                           filename="shifts.xlsx",
+                           content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 # ── 销售 ────────────────────────────────────────────────────────────────────

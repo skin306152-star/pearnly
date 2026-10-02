@@ -21,10 +21,8 @@
 		// 勾选班次 → 右上角「导出选中的 N 个班次」：对账用。官方的列表把「导出」放在操作菜单里
 		// （导整张列表）；我们按勾选的那几个导。取数由服务端 `shifts.list_shifts` 兜着，
 		// 勾了别人的班次也只导出自己看得到的那几行。
-		const export_shifts = names => {
-			const query = new URLSearchParams({names: JSON.stringify(names)});
-			window.open(`/api/method/${api}api_shifts_export?${query}`, "_blank", "noopener,noreferrer");
-		};
+		// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
+		const export_shifts = names => void p.export_file(`${api}api_shifts_export`, {names});
 		const selection = p.selection_action({
 			page, list: () => list,
 			label: rows => t("trade.action.exportCount", rows.length),

@@ -1703,8 +1703,9 @@
 				$('<button type="button" class="btn btn-default btn-sm">').append(icon("download", "sm"))
 					.append($("<span>").text(t("cowork.work.table.export"))).appendTo(bar)
 					.on("click", () => {
+						// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
 						const names = shown_cards().map(card => card.name).join(",");
-						window.open(`/api/method/${API}export?board=${encodeURIComponent(state.board.name)}&names=${encodeURIComponent(names)}`);
+						void p.export_file(`${API}export`, {board: state.board.name, names});
 					});
 				$('<div class="pearnly-work-table">').appendTo(pane);
 				pane.on("click", "[data-open]", event => {

@@ -80,10 +80,12 @@ def api_remove_sale_attachment(name, file):
 
 @frappe.whitelist()
 def api_sales_export(params=None):
-    from pearnly_erp_portal.sales import output
+    """小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
+    from pearnly_core.exports import service as exports
 
-    frappe.local.response.update(filename="sales.xlsx", filecontent=output.workbook(_payload(params)),
-                                 type="download", display_content_as="attachment")
+    return exports.deliver(count="pearnly_erp_portal.sales.output.export_size",
+                           build="pearnly_erp_portal.sales.output.workbook", args={"params": _payload(params)},
+                           filename="sales.xlsx", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @frappe.whitelist(methods=["POST"])

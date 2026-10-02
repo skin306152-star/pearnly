@@ -449,6 +449,7 @@ Plans do not renew automatically. Subscribe again after expiry.,自動更新は�
 Please confirm,確認してください
 Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
+Preparing the file,ファイルを準備しています
 Processing Started At,実行開始日時
 Processing…,処理中…
 Product,製品
@@ -618,6 +619,8 @@ The current password is wrong,現在のパスワードが正しくありませ�
 The customer snapshot used to refill the form when approval executes.,承認実行時にフォームへ戻すための顧客情報スナップショット。
 "The details are not confirmed yet, so it cannot be pushed to DMS",情報が未確定のためDMSへ送信できません
 The document number the supplier issued; it must be kept as-is,仕入先が発行した伝票番号。そのまま保持する必要があります
+The export could not be created.,エクスポートファイルを作成できませんでした。
+The file is ready,ファイルの準備ができました
 The identity service did not return an id_token,アイデンティティサービスが id_token を返しませんでした
 The identity service refused the password change: {0} {1},アイデンティティサービスがパスワード変更を拒否しました: {0} {1}
 The identity service returned an error: {0},アイデンティティサービスがエラーを返しました: {0}
@@ -665,6 +668,7 @@ This advisor is no longer in the current DMS list. Please select again.,現在�
 This company’s LINE official account is not configured yet.,会社のLINE公式アカウントはまだ設定されていません。
 This connection has no username and password yet.,この接続にはユーザー名とパスワードがまだ設定されていません。
 This document has already been recorded: {0},この伝票は既に登録済みです: {0}
+This file has expired. Export it again.,このファイルは期限切れです。もう一度エクスポートしてください。
 This identity is already bound to account {0} (record {1}),このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています
 This identity is already bound to {0},このアイデンティティは既に {0} に紐づいています
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),このアイデンティティはこのサイトに未登録です。管理者に招待を依頼して再試行してください（自己登録は受け付けていません）

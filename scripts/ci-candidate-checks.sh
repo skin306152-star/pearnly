@@ -48,7 +48,7 @@ offline() {
                 tests/test_cowork_recognized_names.py tests/test_cowork_document_manifest.py tests/test_cowork_pdf_text_cache.py \
                 tests/test_cowork_history_indexes.py tests/test_cowork_provider_runtime.py tests/test_cowork_intake_pages.py tests/test_cowork_history_total.py \
                 tests/test_cowork_history_indexes.py tests/test_cowork_provider_runtime.py tests/test_cowork_intake_pages.py tests/test_cowork_history_total.py \
-                tests/test_dms_query_push.py tests/test_erp_recognise_background.py tests/test_cowork_ocr_replay.py tests/test_heic_uploads.py tests/test_dms_account_check_background.py; do
+                tests/test_dms_query_push.py tests/test_erp_recognise_background.py tests/test_cowork_ocr_replay.py tests/test_heic_uploads.py tests/test_dms_account_check_background.py tests/test_exports.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }

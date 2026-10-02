@@ -131,14 +131,8 @@
 			await list.reload();
 			await refresh_totals();
 		});
-		page.add_inner_button(t("stock.action.export"), () => {
-			const params = new URLSearchParams();
-			for (const [key, value] of Object.entries(query())) {
-				if (value !== undefined) params.set(key, value);
-			}
-			window.location.assign(
-				`/api/method/${api}api_stock_export?${params.toString()}`);
-		});
+		// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
+		page.add_inner_button(t("stock.action.export"), () => void p.export_file(`${api}api_stock_export`, query()));
 		if (can_open()) page.add_inner_button(t("stock.opening.title"), () =>
 			frappe.set_route(root, "opening"));
 

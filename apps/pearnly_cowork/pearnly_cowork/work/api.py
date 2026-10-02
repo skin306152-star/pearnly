@@ -276,10 +276,21 @@ def search(keyword, board=None):
     return _run(service.search, keyword, board or None)
 
 
+def export_size(names=None, board=None):
+    return _run(service.export_size, names, board)
+
+
+def export_file(names=None, board=None):
+    return {"filename": f"{_('cowork.nav.work')}-{frappe.utils.today()}.xlsx",
+            "content": _run(service.export, names, board)}
+
+
 @frappe.whitelist(methods=["GET"])
 def export(names=None, board=None):
-    """下载工作簿（原生二进制响应）；`names` 是逗号分隔的卡片号。"""
-    content = _run(service.export, [name for name in (names or "").split(",") if name] or None, board or None)
-    frappe.response["filename"] = f"{_('cowork.nav.work')}-{frappe.utils.today()}.xlsx"
-    frappe.response["filecontent"] = content
-    frappe.response["type"] = "binary"
+    """下载工作簿；`names` 是逗号分隔的卡片号。小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``）。"""
+    from pearnly_core.exports import service as exports
+
+    args = {"names": [name for name in (names or "").split(",") if name] or None, "board": board or None}
+    # 文件名（带当天日期）由 `export_file` 给，排后台时取生成那一刻的。
+    return exports.deliver(count="pearnly_cowork.work.api.export_size", build="pearnly_cowork.work.api.export_file",
+                           args=args, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

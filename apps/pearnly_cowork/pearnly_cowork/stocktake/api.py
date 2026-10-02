@@ -68,8 +68,12 @@ def report(task_id):
 
 @frappe.whitelist(methods=["GET"])
 def export(task_id):
-    content = _transaction(service.export, task_id)
-    make_access_log(doctype="Cowork Stocktake Task", document=task_id, file_type="stocktake_workbook")
-    frappe.local.response.update(type="download", filename="cowork-stocktake.xlsx", filecontent=content,
-        display_content_as="attachment", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    """小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``，权限在排任务时和下载时各查一次）。"""
+    from pearnly_core.exports import service as exports
+
     frappe.local.cowork_private_response = True
+    job = exports.deliver(count="pearnly_cowork.stocktake.service.export_size",
+        build="pearnly_cowork.stocktake.service.export", args={"task_id": task_id},
+        filename="cowork-stocktake.xlsx", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    make_access_log(doctype="Cowork Stocktake Task", document=task_id, file_type="stocktake_workbook")
+    return job

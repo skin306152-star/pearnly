@@ -238,16 +238,31 @@ def _csv(rows) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
+def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None):
+    return stock.stock_overview(warehouse=warehouse, q=q, include_zero=bool(include_zero),
+                                only_low=bool(only_low), limit=0)
+
+
+def stock_export_size(**kwargs):
+    """在库一览导出的行数（权限检查在 `stock_overview` 里，与生成同一道）。"""
+    return len(_stock_export_rows(**kwargs))
+
+
+def stock_export_file(**kwargs):
+    return _csv(_stock_export_rows(**kwargs))
+
+
 @frappe.whitelist()
 def api_stock_export(**kwargs):
-    """导出在库一览：与列表同一套筛选，导的是**全部**命中行，不只是当前那一页。"""
+    """导出在库一览：与列表同一套筛选，导的是**全部**命中行，不只是当前那一页。
+    小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
+    from pearnly_core.exports import service as exports
+
     kwargs = _clean(kwargs)
-    rows = stock.stock_overview(warehouse=kwargs.get("warehouse"), q=kwargs.get("q"),
-                                include_zero=bool(kwargs.get("include_zero")),
-                                only_low=bool(kwargs.get("only_low")), limit=0)
-    frappe.local.response.filename = "stock.csv"
-    frappe.local.response.filecontent = _csv(rows)
-    frappe.local.response.type = "binary"
+    args = {key: kwargs.get(key) for key in ("warehouse", "q", "include_zero", "only_low") if kwargs.get(key)}
+    return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_export_size",
+                           build="pearnly_erp_portal.inventory.api.stock_export_file", args=args,
+                           filename="stock.csv", content_type="text/csv; charset=utf-8")
 
 
 @frappe.whitelist()
@@ -682,17 +697,29 @@ def api_stock_count_delete(**kwargs):
     return counts.delete_count(kwargs.get("name"))
 
 
-@frappe.whitelist()
-def api_stock_count_export(**kwargs):
-    """导出盘点：汇总 + 明细两张表（明细里每条记录都带谁、何时、几张照片）。"""
-    kwargs = _clean(kwargs)
-    name = kwargs.get("name")
+def stock_count_export_size(name=None):
+    """盘点导出的行数：汇总行（任务上记着的品项数）+ 明细记录数；两处都带盘点的读权限检查。"""
+    return int(counts.get_count(name).get("item_total") or 0) + int(counts.entries_total(count=name) or 0)
+
+
+def stock_count_export_file(name=None):
     task = counts.get_count(name)
     items = counts.list_items(count=name, limit=0)
     entries = counts.list_entries(count=name, limit=0)
-    frappe.local.response.filename = f"{name}.xlsx"
-    frappe.local.response.filecontent = _count_workbook(task, items, entries)
-    frappe.local.response.type = "binary"
+    return {"filename": f"{name}.xlsx", "content": _count_workbook(task, items, entries)}
+
+
+@frappe.whitelist()
+def api_stock_count_export(**kwargs):
+    """导出盘点：汇总 + 明细两张表（明细里每条记录都带谁、何时、几张照片）。
+    小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
+    from pearnly_core.exports import service as exports
+
+    name = _clean(kwargs).get("name")
+    return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_count_export_size",
+                           build="pearnly_erp_portal.inventory.api.stock_count_export_file", args={"name": name},
+                           filename=f"{name}.xlsx",
+                           content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 

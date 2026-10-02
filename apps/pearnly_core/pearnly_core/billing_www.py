@@ -153,7 +153,31 @@ def delete_records(tab: str, names) -> dict:
 
 
 @frappe.whitelist()
-def export_records(date_from: str = "", date_to: str = "") -> None:
+def export_records(date_from: str = "", date_to: str = ""):
+    """导出全量明细。小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``）。"""
+    from pearnly_core.exports import service as exports
+
+    return exports.deliver(count="pearnly_core.billing_www.export_records_size",
+                           build="pearnly_core.billing_www.export_records_file",
+                           args={"date_from": date_from or "", "date_to": date_to or ""},
+                           filename="pearnly-billing.xlsx",
+                           content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+def export_records_size(date_from: str = "", date_to: str = "") -> int:
+    """三张表一共多少行（同一道登录 / 管理员检查），各取到阈值 + 1 就停。"""
+    from pearnly_core.exports import service as exports
+
+    user = _require_login()
+    cap = exports.sync_rows() + 1
+    start, end = (date_from or ""), (date_to or "")
+    usage = _client().records("usage", start=start, end=end, limit=cap).get("rows") or []
+    topup = (_client().records("topup", start=start, end=end, limit=cap).get("rows") or []
+             if set(ADMIN_ROLES) & set(frappe.get_roles(user)) else [])
+    return len(usage) + len(topup) + len(_ocr_rows(start, end, cap))
+
+
+def export_records_file(date_from: str = "", date_to: str = "") -> dict:
     """导出全量明细 → 一个 xlsx，三个 sheet（扣费 / 充值 / 识别）。
 
     列名跟着界面语言走：导出来是给人看的，不是给程序读的。
@@ -235,7 +259,4 @@ def export_records(date_from: str = "", date_to: str = "") -> None:
 
     buf = io.BytesIO()
     wb.save(buf)
-    buf.seek(0)
-    frappe.local.response.filename = "pearnly-billing.xlsx"
-    frappe.local.response.filecontent = buf.read()
-    frappe.local.response.type = "download"
+    return {"filename": "pearnly-billing.xlsx", "content": buf.getvalue()}

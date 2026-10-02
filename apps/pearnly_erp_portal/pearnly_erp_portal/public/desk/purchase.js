@@ -76,10 +76,9 @@
 				empty_action: can_write ? {label: __("New"), action: () => go("new")} : null,
 			});
 			async function refresh() {await list.reload(); primary();}
-			page.add_menu_item(__("Export"), () => {
-				const query = new URLSearchParams({params: JSON.stringify(parameters())});
-				window.open(`/api/method/${u.api}api_purchase_export?${query}`, "_blank", "noopener,noreferrer");
-			});
+			// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
+			page.add_menu_item(__("Export"), () => void p.export_file(`${u.api}api_purchase_export`,
+				{params: parameters()}));
 			p.add_refresh(page, refresh);
 			primary(); await list.ready;
 			list_cleanup = () => {live = false; list.destroy();};

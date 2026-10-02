@@ -1236,6 +1236,16 @@ def _export_row(row):
 		stmt_autocorrected=bool(row.stmt_autocorrected), group_no=int(getattr(row, "group_no", 0) or 0))
 
 
+def export_size(task_id, lang="th"):
+	"""Rows the export of this task holds, behind the same access and status checks as ``export``
+	(``pearnly_core.exports`` decides from it whether to answer now or in the background)."""
+	doc = frappe.get_doc(TASK, task_id)
+	bank_recon_access.require(doc.workspace)
+	if doc.status != "completed":
+		frappe.throw(_("reconciliation.review_required"))
+	return frappe.db.count(ROW, {"task": doc.name})
+
+
 def export(task_id, lang="th"):
 	"""Render the review workbook of one stored task; no ERP, model or file access.
 

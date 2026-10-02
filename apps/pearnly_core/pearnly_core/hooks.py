@@ -339,16 +339,24 @@ after_migrate = [
 doctype_js = {"User": "public/desk/user.js"}
 
 # Product account preferences never expose the framework user directory.
-has_permission = {"User": "pearnly_core.desk.permissions.user_permission"}
-permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query"}
+# 导出任务只给本人看（见 ``pearnly_core.exports``）。
+has_permission = {"User": "pearnly_core.desk.permissions.user_permission",
+                  "Pearnly Export": "pearnly_core.exports.service.has_permission"}
+permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query",
+                               "Pearnly Export": "pearnly_core.exports.service.query_conditions"}
 
 # Native clear-cache must not discard still-active identity sessions/state.
 persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]
 
 # Durable OCR backlog repair; second-level ETA delivery uses execution.dispatch.
-scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"]},
+scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"],
+                             # 导出文件 1 小时过期：每 10 分钟删一次过期的。
+                             "*/10 * * * *": ["pearnly_core.exports.service.sweep"]},
                     "hourly": ["pearnly_core.account.line_login.reconcile"],
                     "daily": ["pearnly_core.execution.work.prune_checkpoints"]}
+
+# 导出文件的下载响应不进缓存（与 Cowork 原件下载同一做法）。
+after_request = ["pearnly_core.exports.service.protect_response"]
 
 # LINE 绑定即登录：绑定变化 → 作废失效的 LINE 会话、同步身份服务里的关联（多产品共用）。
 pearnly_line_binding_changed = ["pearnly_core.account.line_login.binding_changed"]

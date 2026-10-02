@@ -135,6 +135,12 @@ def delete_many(task_ids):
 	return {"deleted": len(docs), "ids": [doc.name for doc in docs]}
 
 
+def export_size(task_id, lang=None):
+	"""发票与税报两边的行数（同一道权限检查）：``pearnly_core.exports`` 据此决定当场给还是排后台。"""
+	inputs = stored_inputs(task(task_id))
+	return len(inputs["invoices"] or []) + len(inputs["report_rows"] or [])
+
+
 def export(task_id, lang=None):
 	doc = task(task_id)
 	content, _summary = compute(stored_inputs(doc), lang or doc.lang)

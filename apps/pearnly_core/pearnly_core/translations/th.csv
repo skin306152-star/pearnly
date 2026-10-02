@@ -449,6 +449,7 @@ Plans do not renew automatically. Subscribe again after expiry.,แพ็กเ�
 Please confirm,กรุณายืนยัน
 Please sign in,กรุณาเข้าสู่ระบบ
 Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
+Preparing the file,กำลังเตรียมไฟล์
 Processing Started At,เริ่มดำเนินการเมื่อ
 Processing…,กำลังดำเนินการ…
 Product,ผลิตภัณฑ์
@@ -618,6 +619,8 @@ The current password is wrong,รหัสผ่านปัจจุบัน�
 The customer snapshot used to refill the form when approval executes.,สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ
 "The details are not confirmed yet, so it cannot be pushed to DMS",ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้
 The document number the supplier issued; it must be kept as-is,เลขเอกสารที่ผู้ขายออก ต้องเก็บตามต้นฉบับ
+The export could not be created.,ไม่สามารถสร้างไฟล์ส่งออกได้
+The file is ready,ไฟล์พร้อมแล้ว
 The identity service did not return an id_token,บริการตัวตนไม่ได้ส่ง id_token กลับมา
 The identity service refused the password change: {0} {1},บริการตัวตนปฏิเสธการเปลี่ยนรหัสผ่าน: {0} {1}
 The identity service returned an error: {0},บริการตัวตนตอบกลับข้อผิดพลาด: {0}
@@ -665,6 +668,7 @@ This advisor is no longer in the current DMS list. Please select again.,ไม�
 This company’s LINE official account is not configured yet.,บริษัทยังไม่ได้ตั้งค่าบัญชี LINE ทางการ
 This connection has no username and password yet.,การเชื่อมต่อนี้ยังไม่มีชื่อผู้ใช้และรหัสผ่าน
 This document has already been recorded: {0},เอกสารนี้ถูกบันทึกแล้ว: {0}
+This file has expired. Export it again.,ไฟล์นี้หมดอายุแล้ว กรุณาส่งออกใหม่
 This identity is already bound to account {0} (record {1}),ตัวตนนี้ผูกกับบัญชี {0} แล้ว (ระเบียน {1})
 This identity is already bound to {0},ตัวตนนี้ผูกกับ {0} แล้ว
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),ตัวตนนี้ยังไม่ลงทะเบียนบนเว็บไซต์นี้ กรุณาให้ผู้ดูแลเชิญแล้วลองใหม่ (เว็บไซต์นี้ไม่รับสมัครเอง)
