@@ -173,6 +173,31 @@ class EngineTests(unittest.TestCase):
                          ["invoice_number_unseen: ZZ-777"])
         self.assertTrue(page.needs_manual_review)
 
+    def test_a_non_invoice_title_in_the_transcript_marks_the_page_not_invoice(self):
+        # 2026-10-02 两批金标重放：预扣税凭证、税报表被读成完整税票 —— 原文票头印着这些标题就按「不是发票」处理
+        def titled(text):
+            def call(frame, *, stage, page_number):
+                return VisionResponse(Page(page_number=page_number, width=1, height=1, blocks=[], full_text=text,
+                                           avg_confidence=1), {"text": text}, 2, f"{stage}:{page_number}")
+            return call
+
+        full = {**GOOD, "document_type": "tax_invoice", "additional_invoices": [{**GOOD, "additional_invoices": []}]}
+        page = run(model=Model([full]), vision_call=titled("หนังสือรับรองการหักภาษี ณ ที่จ่าย\n" + TEXT)).pipeline.pages[0]
+        self.assertTrue(page.invoice.is_not_invoice)
+        self.assertEqual(page.invoice.additional_invoices, [])
+        self.assertEqual(page.extraction_audit, {"not_invoice_title": "withholding_certificate"})
+        self.assertFalse(any(w.startswith("invoice_number_") for w in page.validation_warnings))
+        # 真票页脚写着「请寄回预扣税凭证」：只看票头，不判
+        footer = "\n".join([TEXT] + ["line"] * 12 + ["กรุณาส่งหนังสือรับรองการหักภาษี ณ ที่จ่าย"])
+        kept = run(model=Model([full]), vision_call=titled(footer)).pipeline.pages[0]
+        self.assertFalse(kept.invoice.is_not_invoice)
+        self.assertEqual(kept.extraction_audit, {})
+        # 没过闸、带原文再读的路线同样判
+        wrong = {**GOOD, "total_amount": "170"}
+        reread = run(model=Model([wrong, wrong, GOOD]), vision_call=titled("รายงานภาษีขาย\n" + TEXT)).pipeline.pages[0]
+        self.assertTrue(reread.invoice.is_not_invoice)
+        self.assertEqual(reread.extraction_audit["not_invoice_title"], "tax_report")
+
     def test_a_failed_recheck_reads_image_and_transcript_together(self):
         wrong = {**GOOD, "total_amount": "170"}
         model = Model([wrong, wrong, GOOD])

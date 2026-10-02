@@ -7,7 +7,7 @@ from pearnly_cowork.ocr.schema import validate_invoice
 from pearnly_cowork.ocr.validation import check_amount_math
 from pearnly_cowork.ocr.validation.accounting import (
     infer_withholding, invoice_number_alternative, invoice_number_range, invoice_number_unseen, normalize_amounts, number_alternative,
-    number_seen, repair_from_transcript,
+    non_invoice_title, number_seen, repair_from_transcript,
 )
 from test_cowork_engine import CONFIG, GOOD, Model, Source
 
@@ -17,6 +17,15 @@ def invoice(**fields):
 
 
 class Accounting(unittest.TestCase):
+    def test_non_invoice_titles_are_read_from_the_head_only(self):
+        for text, kind in (("หนังสือรับรองการหักภาษี ณ ที่จ่าย\nตามมาตรา 50 ทวิ", "withholding_certificate"),
+                           ("บริษัท ก\nรายงานภาษีซื้อ\nเดือน 1/2568", "tax_report"),
+                           ("ใบเสร็จรับเงิน\nแบบ ภ.พ.30", "vat_return"),
+                           ("สำนักงานประกันสังคม\nใบเสร็จรับเงิน", "social_security"),
+                           ("ใบกำกับภาษี/ใบเสร็จรับเงิน\nTAX INVOICE", None),
+                           ("\n".join(["ใบกำกับภาษี"] + ["x"] * 10 + ["รายงานภาษีขาย"]), None), (None, None)):
+            self.assertEqual(non_invoice_title(text), kind, text)
+
     def test_amount_spellings_become_plain_numbers(self):
         value = invoice(subtotal="1,234.50", vat="(86.42)", total_amount="฿1,148.08")
         self.assertEqual(normalize_amounts(value), ["subtotal", "vat", "total_amount"])

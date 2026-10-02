@@ -11,6 +11,9 @@
 - 单号不纠正：原文与模型只差一个字符时两种写法都留给复核的人选（见 `invoice_number_alternative`）；
   只差 V/U、O/0、I/1 这类形近字时当作原文里有，保留模型读法、不交人选（见 `_CONFUSABLE`）。
 
+- 票头判非票据（2026-10-02 两批金标零费用重放）：Vision 原文前几行印着预扣税凭证、销项 / 进项税报表、增值税申报
+  缴税、社保缴费这几类标题的，不是购销票据，这一页按「不是发票」处理（见 `non_invoice_title`）。
+
 「本公司是买方」那条不搬：Cowork 同一批可能是采购也可能是销售，客户本来就可能是卖方。
 修正都会留说明（进 validation_warnings），改动票面数字的只采用能让核对通过的那一个。
 """
@@ -173,6 +176,27 @@ def invoice_number_alternative(invoice, text) -> str | None:
         return None
     other = min(near, key=len)
     return f"{NUMBER_ALTERNATIVE_PREFIX} {read}|{other}"
+
+
+# 票头标题（只看原文前 HEAD_LINES 行：真票的页脚可能写「请寄回预扣税凭证」，不能看全文）。
+# 2026-10-02 金标 287 份 + 扩展 646 份零费用重放：真票页命中 0；被记成票的非票据拦下 14 + 33 份。
+# 报关单、作废章、「ไม่ใช่ใบกำกับภาษี」真票上也有，不在此列。
+HEAD_LINES = 10
+_NON_INVOICE_TITLES = (
+    ("withholding_certificate", re.compile(r"หนังสือรับรองการหัก\s*ภาษี")),          # 50 ทวิ 预扣税凭证
+    ("tax_report", re.compile(r"รายงาน\s*ภาษี\s*(?:ขาย|ซื้อ)")),                     # 销项 / 进项税报表
+    ("vat_return", re.compile(r"ภ\s*\.?\s*พ\s*\.?\s*30|แบบแสดงรายการภาษีมูลค่าเพิ่ม")),  # ภ.พ.30 申报缴税
+    ("social_security", re.compile(r"สำนักงานประกันสังคม")),                          # 社保缴费
+)
+
+
+def non_invoice_title(text) -> str | None:
+    """原文前几行印着非购销票据的标题 → 返回类别，否则 ``None``。"""
+    head = "\n".join(str(text or "").splitlines()[:HEAD_LINES])
+    for kind, pattern in _NON_INVOICE_TITLES:
+        if pattern.search(head):
+            return kind
+    return None
 
 
 def number_seen(read, text) -> bool:

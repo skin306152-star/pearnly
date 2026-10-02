@@ -30,7 +30,7 @@ from pearnly_cowork.ocr.validation import (
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
     NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, adopt_from_reads, infer_withholding, invoice_number_alternative,
-    invoice_number_range, invoice_number_unseen, normalize_amounts, repair_from_transcript,
+    invoice_number_range, invoice_number_unseen, non_invoice_title, normalize_amounts, repair_from_transcript,
 )
 from pearnly_cowork.ocr.validation.dates import year_shift
 from pearnly_cowork.ocr.engine.contracts import (
@@ -120,6 +120,16 @@ def rescue_note(before, after) -> str:
             + " / ".join(diffs) + ")")
 
 
+def mark_title(invoice, text):
+    """票头是非购销票据（``non_invoice_title``）：这一页连同同页的其他读数都按「不是发票」处理，返回类别。"""
+    kind = non_invoice_title(text)
+    if kind and not invoice.is_not_invoice:
+        invoice.is_not_invoice = True
+        invoice.additional_invoices = []
+        return kind
+    return None
+
+
 class _Run:
     def __init__(self, source, model_call, vision_call, config, anchor_year, today,
                  fewshot_selector, pattern_memory):
@@ -128,6 +138,7 @@ class _Run:
         self.fewshot_selector, self.pattern_memory = fewshot_selector, pattern_memory
         self.calls: list[CallEvidence] = []
         self.escalations = 0
+        self.titles = {}  # 页码 → 票头判成非票据的类别（记进 extraction_audit）
 
     def parse_invoice(self, data, stage, page):
         try:
@@ -302,6 +313,10 @@ class _Run:
         self.calls.append(CallEvidence("layer1", page, 0, "vision", deepcopy(response.raw),
                                        elapsed_ms=response.elapsed_ms, checkpoint_key=response.checkpoint_key))
         text = response.page.full_text
+        kind = mark_title(invoice, text)
+        if kind:
+            self.titles[page] = kind
+            return ["L1"]
         notes = repair_from_transcript(invoice, text, tolerance=self.config.amount_tolerance)
         # 同一张图上的其他票也逐张核单号（2026-09-28 复测：第 4 张 000098 读成 000096，只核第一张时漏标）
         siblings = [child for child in invoice.additional_invoices or [] if not child.is_not_invoice]
@@ -332,8 +347,11 @@ class _Run:
             layer2_output_tokens=sum(c.output_tokens for c in calls),
             layer2_ms=sum(c.elapsed_ms for c in calls), total_ms=sum(c.elapsed_ms for c in calls),
             needs_manual_review=band == "needs_review", confidence_band=band,
-            final_confidence=confidence, validation_warnings=warnings,
+            final_confidence=confidence, validation_warnings=warnings, extraction_audit=self.title_audit(page),
         )
+
+    def title_audit(self, page):
+        return {"not_invoice_title": self.titles[page]} if page in self.titles else {}
 
     def unread_page(self, page, exc):
         """一页读不出：空票面 + 标记，交结果准备挂到相邻单据上（不计成一张票）。"""
@@ -399,6 +417,9 @@ class _Run:
                 tokens=16384, timeout=self.config.layer2_timeout_s,
             )
             l2 = self.parse_invoice(data, "layer2", page)
+        kind = mark_title(l2, text)
+        if kind:
+            self.titles[page] = kind
         if not l2.is_not_invoice:
             normalize_amounts(l2)
         warnings = validate_invoice_sources(l2, today=self.today)
@@ -477,6 +498,8 @@ class _Run:
                     else:
                         chain.append("L3_failed")
                 l3_calls = self.calls[l3_start:]
+        if page in self.titles and invoice is not l2:  # 视觉复核重读过：票头判定照样作数
+            mark_title(invoice, text)
         if not invoice.is_not_invoice and invoice.invoice_number:
             extracted_n = 1 + len(invoice.additional_invoices or [])
             candidate_n = count_invoice_no_candidates(l1.full_text, invoice.invoice_number)
@@ -522,7 +545,7 @@ class _Run:
             total_ms=sum(c.elapsed_ms for c in self.calls[first:]),
             needs_manual_review=band == "needs_review", confidence_band=band,
             final_confidence=confidence, field_confidence=field_confidences(l1, invoice),
-            validation_warnings=warnings, error=error,
+            validation_warnings=warnings, error=error, extraction_audit=self.title_audit(page),
         )
 
 
