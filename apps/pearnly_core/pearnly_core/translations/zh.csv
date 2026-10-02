@@ -997,7 +997,6 @@ intake.proc.title,正在整理文件内容
 intake.processing,处理中…
 intake.push.pending,录入中
 intake.refresh,刷新
-intake.review.dupWarn,检测到 {0} 张可能重复的发票
 intake.review.invoice,发票 {0}/{1}
 intake.save,保存
 intake.saving,提交中…
@@ -1189,7 +1188,6 @@ system_url is required,system_url 必填
 username / password are required,username / password 必填
 {0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
 {0} pages per cycle,每周期 {0} 页
-{0} possible duplicate invoice(s) detected,检测到 {0} 张可能重复的发票
 {0} record(s) deleted.,已删除 {0} 条记录。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
 {0} seconds so far,已用 {0} 秒

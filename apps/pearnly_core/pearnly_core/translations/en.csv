@@ -995,7 +995,6 @@ intake.proc.title,Reading file contents
 intake.processing,Processing…
 intake.push.pending,Entering
 intake.refresh,Refresh
-intake.review.dupWarn,{0} possible duplicate invoice(s) detected
 intake.review.invoice,Invoice {0}/{1}
 intake.save,Save
 intake.saving,Saving…
@@ -1187,7 +1186,6 @@ system_url is required,system_url is required
 username / password are required,username / password are required
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle
-{0} possible duplicate invoice(s) detected,{0} possible duplicate invoice(s) detected
 {0} record(s) deleted.,{0} record(s) deleted.
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} records · grand total {1} · payable {2} · outstanding {3}
 {0} seconds so far,{0} seconds so far

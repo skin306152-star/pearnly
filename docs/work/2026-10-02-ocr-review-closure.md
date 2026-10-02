@@ -33,8 +33,9 @@
   仅识别的票（`intake_target` = `none`）显示蓝色「已识别」（已有词条 `intake.status.recognized`）。推送三态与失败悬浮原因不变。
   列表接口多回 `intake_target` 一列。
 - 复核页（`intake-upload.js` 的 `show_notice`）：去掉黄色需复核提示条与漏识别那条；红色推送失败原因与按钮原样保留。
+  识别收尾的橙色「可能重复 N 张」提示（`intake.review.dupWarn`）也去掉；「识别结果为空」「N 份识别失败」、导出被拒 / 提交队列出错的提示保留（属于失败，不是质量提示）。
 - 翻译：删掉不再使用的 `cowork.review.*`（`send_anyway` 保留）、`cowork.quality.pending`、`intake.review.missed`、
-  `intake.col.entryStatus` 及其英文别名行（`Needs review` 对账任务仍用，保留），`i18n-build` 重建。
+  `intake.col.entryStatus`、`intake.review.dupWarn` 及其英文别名行（`Needs review` 对账任务仍用，保留），`i18n-build` 重建。
 
 有意变化已登记在 `tests/test_cowork_engine_source_parity.py`（年份差约 10 年先复核一次；复核读回同值时判定与字段同旧线上）。
 

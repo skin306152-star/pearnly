@@ -997,7 +997,6 @@ intake.proc.title,กำลังอ่านเนื้อหาไฟล์
 intake.processing,กำลังดำเนินการ…
 intake.push.pending,กำลังบันทึก
 intake.refresh,รีเฟรช
-intake.review.dupWarn,พบใบกำกับที่อาจซ้ำ {0} รายการ
 intake.review.invoice,ใบกำกับ {0}/{1}
 intake.save,บันทึก
 intake.saving,กำลังบันทึก…
@@ -1189,7 +1188,6 @@ system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password
 {0} of {1} pages used this cycle; {2} remaining.,รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า
 {0} pages per cycle,{0} หน้าต่อรอบ
-{0} possible duplicate invoice(s) detected,พบใบกำกับที่อาจซ้ำ {0} รายการ
 {0} record(s) deleted.,ลบแล้ว {0} รายการ
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}
 {0} seconds so far,ผ่านไป {0} วินาที

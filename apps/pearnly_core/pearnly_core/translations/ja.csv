@@ -997,7 +997,6 @@ intake.proc.title,ファイル内容を読み取り中
 intake.processing,処理中…
 intake.push.pending,入力中
 intake.refresh,更新
-intake.review.dupWarn,重複の可能性がある請求書 {0} 件を検出
 intake.review.invoice,請求書 {0}/{1}
 intake.save,保存
 intake.saving,保存中…
@@ -1189,7 +1188,6 @@ system_url is required,system_url は必須です
 username / password are required,username / password は必須です
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ
-{0} possible duplicate invoice(s) detected,重複の可能性がある請求書 {0} 件を検出
 {0} record(s) deleted.,{0}件を削除しました。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}
 {0} seconds so far,経過 {0} 秒

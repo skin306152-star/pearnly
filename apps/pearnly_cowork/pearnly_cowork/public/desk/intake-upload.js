@@ -1006,10 +1006,8 @@
 			}
 			if (failed) frappe.show_alert({message: p.escape(t("intake.proc.batchFail", records.length, failed)),
 				indicator: "orange"});
-			// 这一批的票都摆进「发票」下拉；旧版识别完提示可能重复的张数（只提醒，不拦）。
+			// 这一批的票都摆进「发票」下拉。识别后的质量提示（如可能重复的张数）不在录入口显示（用户 2026-10-02）。
 			await set_batch(records);
-			const duplicates = records.filter(record_name => details.get(record_name)?.duplicate_warning).length;
-			if (duplicates) frappe.show_alert({message: p.escape(t("intake.review.dupWarn", duplicates)), indicator: "orange"});
 			// 识别出来的第一张直接回填到左边，接着就能复核。
 			await open_record(records[0]);
 		};
