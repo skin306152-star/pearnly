@@ -690,10 +690,7 @@ def income_save(doc, inputs):
 		**{field: summary_value[field] for field in income_recon_service.TASK_SUMMARY_FIELDS}})
 	_record(doc)
 	income_recon_service.persist(doc)
-	for index, result in enumerate(results):
-		income_recon_service.persist(frappe.get_doc({"doctype": income_recon_service.ROW,
-			"record_id": f"{doc.name}-{index + 1}", "workspace": doc.workspace, "task": doc.name,
-			"row_index": index + 1, **income_recon_service.row_values(result)}))
+	income_recon_service._persist_rows(doc, results)
 	return results, summary
 
 

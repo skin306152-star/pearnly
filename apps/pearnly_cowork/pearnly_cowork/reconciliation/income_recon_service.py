@@ -29,6 +29,7 @@ from pearnly_cowork.reconciliation import (
 	vat_parse,
 )
 from pearnly_cowork.reconciliation.income_recon_access import ROW, TASK
+from pearnly_cowork.reconciliation import recon_documents
 from pearnly_cowork.reconciliation.income_recon_documents import persist
 from pearnly_cowork.reconciliation.export import income_workbook
 
@@ -85,12 +86,14 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_i
 		"created_by": frappe.session.user, "created_at": now_datetime(), **{
 			field: summary_value[field] for field in TASK_SUMMARY_FIELDS}})
 	persist(task)
-	for index, result in enumerate(results):
-		persist(frappe.get_doc({"doctype": ROW, "record_id": f"{name}-{index + 1}",
-			"workspace": workspace, "task": name, "row_index": index + 1,
-			**row_values(result)}))
+	_persist_rows(task, results)
 	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results),
 		"parse_info": parse_values}
+
+
+def _persist_rows(task, results):
+	"""结果行一次批量写入（``recon_documents.bulk_insert_rows``，与银行对账同一做法）。"""
+	recon_documents.bulk_insert_rows(ROW, income_recon_access, task, [row_values(result) for result in results])
 
 
 def _tax_field(tax_id):
