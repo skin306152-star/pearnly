@@ -38,6 +38,7 @@ def plan(state=agent.STATE, conf=CONF, certs=LETSENCRYPT):
 
 
 def main():
+    agent.ensure_timing_format()  # 租户配置引用的耗时日志格式（provision-agent.TIMING_FORMAT）
     changes = plan()
     backups = {path: path.read_text() for path, _ in changes}
     for path, text in changes:

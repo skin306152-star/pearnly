@@ -29,3 +29,11 @@
 
 登录一次，Activity Log 记的是真实公网 IP（不是 172.18.0.x）；`frappe.local.request_ip` 在两个不同来源下不同（限流键按 IP 区分）。
 `auth.pearnly.com`（Keycloak）的宿主机配置本来就是 `X-Forwarded-For $remote_addr`，不在本次范围。
+
+## 同批：宿主机按请求记耗时
+
+m7 时宿主机 access.log 只有调用次数、没有耗时，web p95 2 秒查不到落在哪个接口。租户站模板加
+`access_log /var/log/nginx/pearnly-timing.log pearnly_timing`（原 access.log 照记）：时间、真实客户端、站点、方法与路径（`$uri`，
+不记查询参数）、状态、字节、`rt=$request_time urt=$upstream_response_time`。格式定义在 `/etc/nginx/conf.d/pearnly-00-timing.conf`
+（`provision-agent.ensure_timing_format`，开户与刷新时写，按字母排在租户配置之前）。Ubuntu logrotate 按 `/var/log/nginx/*.log` 轮转。
+本地用 nginx:1.27 对生成的配置跑过 `nginx -t`。

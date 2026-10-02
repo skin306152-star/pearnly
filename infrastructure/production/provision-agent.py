@@ -190,6 +190,19 @@ def remove_maintenance(group):
     subprocess.run(["docker", "rm", "-f", maintenance_name(group)], capture_output=True)
 
 
+# 每个请求的耗时（只记路径 $uri、不记查询参数，免得把参数里的个人数据写进日志）：按接口看 p50 / p95（2026-10-02 m7 只有调用次数）。
+# log_format 只能在 http 段定义一次，放在按字母排在租户配置之前的单独文件里；Ubuntu 的 logrotate 按 /var/log/nginx/*.log 轮转。
+TIMING_FORMAT = Path("/etc/nginx/conf.d/pearnly-00-timing.conf")
+TIMING_FORMAT_TEXT = ("log_format pearnly_timing '$time_iso8601 $remote_addr $host \"$request_method $uri\" $status '\n"
+                      "                          '$body_bytes_sent rt=$request_time urt=$upstream_response_time';\n")
+
+
+def ensure_timing_format(path=None):
+    path = path or TIMING_FORMAT
+    if not path.exists() or path.read_text() != TIMING_FORMAT_TEXT:
+        path.write_text(TIMING_FORMAT_TEXT)
+
+
 def nginx(site, group, tls=False):
     acme = "location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }"
     http = f"server {{ listen 80; server_name {site}; {acme} location / {{ return 301 https://$host$request_uri; }} }}\n"
@@ -201,6 +214,8 @@ def nginx(site, group, tls=False):
     ssl_certificate /etc/letsencrypt/live/{site}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{site}/privkey.pem;
     client_max_body_size 30m;
+    access_log /var/log/nginx/access.log;
+    access_log /var/log/nginx/pearnly-timing.log pearnly_timing;
     location / {{
         proxy_pass http://127.0.0.1:{PORTS[group]};
         proxy_set_header Host {site};
@@ -227,6 +242,7 @@ def publish(p):
     path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{site}.conf")
     cert = Path(f"/etc/letsencrypt/live/{site}/fullchain.pem")
     Path("/var/www/letsencrypt").mkdir(parents=True, exist_ok=True, mode=0o755)
+    ensure_timing_format()
     path.write_text(nginx(site, group, cert.exists()))
     run(["nginx", "-t"])
     run(["systemctl", "reload", "nginx"])

@@ -286,6 +286,20 @@ class Contracts(unittest.TestCase):
         self.assertIn("real_ip_header X-Real-IP;", template)
         self.assertNotIn("$proxy_add_x_forwarded_for", template)
 
+    def test_timing_log_records_path_without_query(self):
+        """宿主机按请求记耗时：只记 $uri（不含查询参数），格式在租户配置之前单独定义。"""
+        config = agent.nginx("acme.pearnly.com", "dms", True)
+        self.assertIn("access_log /var/log/nginx/pearnly-timing.log pearnly_timing;", config)
+        self.assertIn("$uri", agent.TIMING_FORMAT_TEXT)
+        self.assertNotIn("$request_uri", agent.TIMING_FORMAT_TEXT)
+        self.assertNotIn("$args", agent.TIMING_FORMAT_TEXT)
+        self.assertIn("rt=$request_time urt=$upstream_response_time", agent.TIMING_FORMAT_TEXT)
+        self.assertLess(agent.TIMING_FORMAT.name, "pearnly-tenant-")
+        with tempfile.TemporaryDirectory() as root:
+            target = Path(root) / "timing.conf"
+            agent.ensure_timing_format(target)
+            self.assertEqual(target.read_text(), agent.TIMING_FORMAT_TEXT)
+
     def test_refresh_rewrites_only_live_tenant_configs(self):
         """部署时重写已开通站点的宿主机配置：只改内容不同的，已删除或没证书的不动。"""
         import tempfile
