@@ -22,7 +22,11 @@ import capacity  # noqa: E402
 ROOT = Path(__file__).resolve().parent
 MIB = capacity.MIB
 # 识别线程数与每线程内存（不随核数变）：Cowork / ERP 识别交给 Cloud Run，线程只带着原件等回复；DMS 本机读字。
-OCR_THREADS = {"COWORK": (24, 30), "ERP": (16, 80), "DMS": (8, 60)}
+# Cowork 2026-10-02 m7 实测：高峰每进程只有 8–9 个线程在忙，卡在 worker-pool 每接一个任务要初始化、连库、交线程的派发循环
+# （高峰每个任务 0.75–0.81 秒）。所以 Cowork 进程数跟核数走、每进程 12 线程：8 核上 8 × 12 = 96，与原来 4 × 24 总线程（= 识别名额里
+# Cowork 那一份）相同，派发循环翻倍。每线程内存按 20 MiB：m7 高峰 4 进程合计 1115 MiB（每进程 207–295 MiB、约 9 个线程在忙），
+# 折合每线程约 10–15 MiB，留 2 倍余量（原先估 30 MiB）。下一轮压测读 memory.peak 复核。
+OCR_THREADS = {"COWORK": (12, 20), "ERP": (16, 80), "DMS": (8, 60)}
 ERP_WEB_THREADS = 8
 POOL_SHARE = 0.13         # 缓冲池约占物理内存 13%（热数据 2026-10-02 约 1GB，留 4 倍增长）
 # 最小支持的机器：三个产品全开、识别线程照满时，8 核 / 31 GiB（2026-10-02 生产机）才放得下；更小的机器公式会超出整机 1.3 倍
@@ -35,6 +39,11 @@ def _ceil_gib(mib):
     return int(math.ceil(mib / 1024.0))
 
 
+def _ceil_mib(mib, step=256):
+    """识别容器上限按 256 MiB 取整（按 GiB 取整会在每个产品上白占最多 1 GiB 的整机预算）。"""
+    return int(math.ceil(mib / float(step))) * step
+
+
 def base(cores, mem_mib):
     """不依赖渲染的那部分：进程数、线程、内存上限、缓冲池。"""
     half, quarter = max(2, cores // 2), max(1, cores // 4)
@@ -45,12 +54,12 @@ def base(cores, mem_mib):
         "PEARNLY_DMS_WEB_WORKERS": half, "PEARNLY_DMS_WEB_MEM": f"{256 * half}m",
         "PEARNLY_COWORK_LONG_WORKERS": half, "PEARNLY_COWORK_LONG_MEM": f"{512 * half}m",
     }
-    for product, workers in (("COWORK", half), ("ERP", half), ("DMS", quarter)):
+    for product, workers in (("COWORK", max(2, cores)), ("ERP", half), ("DMS", quarter)):
         threads, thread_mb = OCR_THREADS[product]
         floor = capacity.PROCESS_FLOOR["ocr"] // MIB + thread_mb * (threads - 1)  # 与 capacity.check_processes 同一底线
         knobs.update({f"PEARNLY_{product}_OCR_WORKERS": workers, f"PEARNLY_{product}_OCR_THREADS": threads,
                       f"PEARNLY_{product}_OCR_THREAD_MB": thread_mb,
-                      f"PEARNLY_{product}_OCR_MEM": f"{_ceil_gib(floor * workers)}g"})
+                      f"PEARNLY_{product}_OCR_MEM": f"{_ceil_mib(floor * workers)}m"})
     knobs["PEARNLY_MARIADB_BUFFER_POOL"] = f"{max(1, int(mem_mib * POOL_SHARE // 1024))}G"
     return knobs
 

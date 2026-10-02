@@ -98,7 +98,7 @@ services:
   redis-cache:
     image: redis:6.2-alpine@sha256:ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0
     restart: unless-stopped
-    mem_limit: 192m
+    mem_limit: 256m  # 2026-10-02 实测容器内存顶到 192m 上限 8969 次（Redis 自身约 132m，多出的是容器开销）；maxmemory 不变
     command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, allkeys-lru]
     networks: [runtime]
     logging: *logging
