@@ -47,7 +47,8 @@ Cowork 上 Cloud Run 解决的是服务器 CPU / 进程 / 排队；DMS 排队与
 - `check-architecture.py` PASS；`check-dms-offline.py`（Python 3.14）20 项 PASS。
 - `scripts/dms-line-lab-stale-work.py` 补新入口的替身；`scripts/sample-verify-line-flow-real.py` 下载替身原本不收 `max_bytes`，改为接受关键字参数。
 
-## 未验 / 下一步
+## 结果
 
-- 测试环境 testdms 实时源码挂上后，用户真实上传一张身份证，看计时日志里 `loading` ≈ 0、`download` 与原来对比。
-- 随下一批攒批部署；不单独发版。
+- 用户看过拆分后认为提升不大，决定跳过测试机、直接部署（2026-10-03）：见 [上线记录](2026-10-03-release-ae54459f.md)。
+- 未做真实上传验证；以后生产计时日志里 `loading` 应接近 0，`download` 只在 25 秒内连续来图时下降。
+- 下载的大头等 SSD Nodes 路由工单；修好后在生产上复测到 `api-data.line.me` 的建连时间。
