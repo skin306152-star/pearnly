@@ -52,7 +52,7 @@ def main():
     line.get_profile = lambda uid: {"displayName": "verify"}
     with open(IMG, "rb") as fh:
         _img_bytes = fh.read()
-    line.download_message_content = lambda mid: _img_bytes
+    line.download_message_content = lambda mid, **_: _img_bytes
     # 后台任务同步执行：否则要等 worker，断言不了
     dms_flow._enqueue = lambda job, fn, *args: fn(*args)
 

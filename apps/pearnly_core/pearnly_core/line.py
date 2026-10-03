@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import json
 import logging
+import threading
 from urllib.parse import quote
 
 import frappe
@@ -437,6 +438,49 @@ def start_loading(user_id: str, seconds: int = 30) -> bool:
     return True
 
 
+def start_loading_background(user_id: str, seconds: int = 30):
+    """与 `start_loading` 发同一个请求，但在一个短线程里发，调用方不用等 LINE 来回（实测 0.3–0.7 秒）。
+
+    返回 `wait()`：调用方在发出任何回复**之前**调用它（最多等 3 秒），免得动画请求晚于回复到达、
+    回复之后又显示"正在输入"。令牌在调用线程里取好再交给线程，线程里不碰站点上下文与数据库。
+    """
+    if not user_id or not _conf("channel_access_token"):
+        return lambda: False
+    step = int(seconds or 0) or 30
+    step = max(5, min(60, step))
+    step = min(60, max(5, (step // 5) * 5))
+    headers = _headers()
+    outcome = {}
+
+    def send():
+        try:
+            resp = requests.post(
+                "https://api.line.me/v2/bot/chat/loading/start",
+                headers=headers,
+                json={"chatId": user_id, "loadingSeconds": step},
+                timeout=(1, 1),
+            )
+            outcome["status"], outcome["text"] = resp.status_code, resp.text[:300]
+        except requests.RequestException:
+            outcome["status"] = 0
+
+    thread = threading.Thread(target=send, name="line-loading", daemon=True)
+    thread.start()
+
+    def wait() -> bool:
+        thread.join(3)
+        status = outcome.get("status")
+        if status in (200, 202):
+            return True
+        if not status:
+            logger.warning("[line] loading animation unavailable")
+            return False
+        frappe.log_error(title="LINE loading 动画失败", message=f"{status} {outcome.get('text', '')}")
+        return False
+
+    return wait
+
+
 def get_profile(user_id: str) -> dict:
     resp = requests.get(
         f"https://api.line.me/v2/bot/profile/{user_id}",
@@ -523,11 +567,13 @@ class MediaTooLarge(ValueError):
     """The LINE media exceeds the caller's bounded download size."""
 
 
-def download_message_content(message_id: str, *, max_bytes=20 * 1024 * 1024) -> bytes:
-    """Stream media with a hard byte bound before buffering or decoding it."""
+def download_message_content(message_id: str, *, max_bytes=20 * 1024 * 1024, session=None) -> bytes:
+    """Stream media with a hard byte bound before buffering or decoding it.
+
+    `session`：调用方自己持有的 `requests.Session`，用来复用到 LINE 下载服务器的连接（DMS 用）；不传照旧每次新建连接。"""
     if not message_id:
         return b""
-    with requests.get(
+    with (session or requests).get(
         f"https://api-data.line.me/v2/bot/message/{message_id}/content",
         headers=_headers(), timeout=DOWNLOAD_TIMEOUT, stream=True,
     ) as resp:

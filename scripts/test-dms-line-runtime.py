@@ -315,6 +315,81 @@ class LineIdentity(unittest.TestCase):
         self.post.side_effect = requests.Timeout("local fixture")
         self.assertFalse(line.start_loading("U-lab"))
 
+    def test_background_loading_sends_the_same_request_and_reports_before_replies(self):
+        self.post.return_value.status_code = 202
+        wait = line.start_loading_background("U-lab", 63)
+        self.assertTrue(wait())
+        self.assertEqual(self.post.call_args.kwargs["json"], {"chatId": "U-lab", "loadingSeconds": 60})
+        self.assertEqual(self.post.call_args.kwargs["timeout"], (1, 1))
+        self.assertEqual(self.post.call_args.kwargs["headers"]["Authorization"], "Bearer lab-token")
+        self.post.side_effect = requests.Timeout("local fixture")
+        self.assertFalse(line.start_loading_background("U-lab")())
+        self.post.reset_mock()
+        self.config["pearnly_line_channel_access_token"] = ""
+        self.assertFalse(line.start_loading_background("U-lab")())
+        self.post.assert_not_called()
+
+    def test_media_download_uses_the_callers_session(self):
+        from unittest.mock import MagicMock
+        session = MagicMock()
+        response = session.get.return_value.__enter__.return_value
+        response.status_code, response.headers = 200, {"Content-Length": "3"}
+        response.iter_content.return_value = [b"img"]
+        with patch.object(line.requests, "get") as fresh:
+            self.assertEqual(line.download_message_content("m1", max_bytes=10, session=session), b"img")
+        fresh.assert_not_called()
+        self.assertIn("/v2/bot/message/m1/content", session.get.call_args.args[0])
+
+
+class DmsMediaConnection(unittest.TestCase):
+    def setUp(self):
+        from pearnly_dms.line import out
+        self.out = out
+        self.enterContext(patch.object(out, "_media_session", None))
+        self.download = self.enterContext(patch.object(line, "download_message_content", return_value=b"img"))
+
+    def test_downloads_reuse_one_connection_pool_without_cookies(self):
+        self.assertEqual(self.out.download_image("m1", 10), b"img")
+        self.assertEqual(self.out.download_image("m2", 10), b"img")
+        first, second = (call.kwargs["session"] for call in self.download.call_args_list)
+        self.assertIs(first, second)
+        self.assertEqual(self.download.call_args.kwargs["max_bytes"], 10)
+        from http.cookiejar import Cookie
+        cookie = Cookie(0, "probe", "1", None, False, "api-data.line.me", True, False, "/", True,
+                        True, None, False, None, None, {})
+        from requests.cookies import MockRequest
+        request = MockRequest(requests.Request("GET", "https://api-data.line.me/v2/bot/message/m1/content").prepare())
+        self.assertFalse(first.cookies.get_policy().set_ok(cookie, request))
+
+    def test_dropped_reused_connection_downloads_once_more_on_a_fresh_one(self):
+        self.download.side_effect = [requests.ConnectionError("closed by peer"), b"img"]
+        self.assertEqual(self.out.download_image("m1", 10), b"img")
+        first, second = (call.kwargs["session"] for call in self.download.call_args_list)
+        self.assertIsNot(first, second)
+
+    def test_id_card_loading_runs_alongside_and_lands_before_the_reply(self):
+        from pearnly_dms.intake import flow
+        events = []
+        self.enterContext(patch.object(flow, "_image_draft", return_value={"state": "collecting"}))
+        self.enterContext(patch.object(flow.out, "start_loading_background",
+                                       return_value=lambda: events.append("loading landed")))
+        recognize = self.enterContext(patch.object(flow, "_recognize_image",
+                                                   side_effect=lambda *a: events.append("recognized") or {"ok": 1}))
+        self.assertEqual(flow.process_image({"user_id": "u"}, "U-lab", "m1", "tok"), {"ok": 1})
+        self.assertEqual(events, ["recognized", "loading landed"])
+        recognize.assert_called_once_with({"user_id": "u"}, "U-lab", "m1", "tok")
+        events.clear()
+        recognize.side_effect = RuntimeError("local fixture")
+        with self.assertRaises(RuntimeError):
+            flow.process_image({"user_id": "u"}, "U-lab", "m1", "tok")
+        self.assertEqual(events, ["loading landed"])
+
+    def test_unreachable_server_is_not_retried(self):
+        self.download.side_effect = requests.ConnectTimeout("local fixture")
+        with self.assertRaises(requests.ConnectTimeout):
+            self.out.download_image("m1", 10)
+        self.assertEqual(self.download.call_count, 1)
+
 
 class OcrBackoff(unittest.TestCase):
     def setUp(self):

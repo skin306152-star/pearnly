@@ -299,15 +299,23 @@ def process_image(binding: dict, line_user_id: str, message_id: str,
     """下载 + 识别身份证。成功存 id_card；材料齐了自动查重。"""
     if not _image_draft(binding, line_user_id, message_id):
         return {"cancelled": "draft_changed"}
+    # 续一次"正在输入"与下载、识别同时进行；回复在任务结束时才发出，发出前先等动画请求落地。
     with ocr_timing.stage("loading"):
-        out.start_loading(line_user_id)
+        loading_sent = out.start_loading_background(line_user_id)
+    try:
+        return _recognize_image(binding, line_user_id, message_id, reply_token)
+    finally:
+        with ocr_timing.stage("loading"):
+            loading_sent()
+
+
+def _recognize_image(binding, line_user_id, message_id, reply_token):
     user_id = binding["user_id"]
     try:
         from pearnly_core.execution import inputs
         maximum = _id_ocr.MAX_ID_CARD_MB * 1024 * 1024
         with ocr_timing.stage("download"):
-            content = inputs.read(message_id,
-                lambda: line.download_message_content(message_id, max_bytes=maximum), maximum)
+            content = inputs.read(message_id, lambda: out.download_image(message_id, maximum), maximum)
     except line.MediaTooLarge:
         _push(line_user_id, ocr_error_text(_id_ocr.DmsOcrError(
             "ocr.file_too_large", 400, {"mb": _id_ocr.MAX_ID_CARD_MB})), reply_token)

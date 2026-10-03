@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import copy
 import secrets
+import threading
 from typing import Any, Dict, Optional
 
 from pearnly_core import line
@@ -92,6 +93,55 @@ def push_text(line_user_id: str, text: str) -> bool:
 def start_loading(line_user_id: str, seconds: int = 30) -> bool:
     """重活开始前给对方一个"正在输入"（老产品 `_out.start_loading`）。"""
     return line.start_loading(line_user_id, seconds)
+
+
+def start_loading_background(line_user_id: str, seconds: int = 30):
+    """同 `start_loading`，但不等 LINE 来回；返回 `wait()`，发出回复前调用（见 `line.start_loading_background`）。"""
+    return line.start_loading_background(line_user_id, seconds)
+
+
+# 到 LINE 下载服务器的连接按进程复用：服务器在新加坡，去 api-data.line.me 的线路往返约 330 毫秒，
+# 每次新建连接光握手就要约 1.4 秒（2026-10-03 生产实测，复用后同一请求 0.33 秒）。
+# 识别线程共用一个连接池；不存 Cookie，各租户只靠每次请求带的令牌区分。
+_media_lock = threading.Lock()
+_media_session = None
+
+
+def _line_media_session(replacing=None):
+    """当前进程共用的下载会话。`replacing`：刚出过连接错误的那一个，若仍是当前的就换新的；
+    旧的不主动关（别的线程可能正用它下载），没人用后随回收关闭。"""
+    global _media_session
+    from http.cookiejar import DefaultCookiePolicy
+    import requests
+    from requests.adapters import HTTPAdapter
+
+    with _media_lock:
+        if replacing is not None and _media_session is replacing:
+            _media_session = None
+        if _media_session is None:
+            session = requests.Session()
+            session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
+            session.mount("https://", HTTPAdapter(pool_connections=1, pool_maxsize=8))
+            _media_session = session
+        return _media_session
+
+
+def download_image(message_id: str, max_bytes: int) -> bytes:
+    """下载用户发来的图片，复用到 LINE 下载服务器的连接。
+
+    复用的空闲连接可能刚被 LINE 关掉：这种连接错误换新连接重下一次（只读 GET，没有副作用）；
+    连不上（超时）不重下，照原样上抛。"""
+    import requests
+
+    session = _line_media_session()
+    try:
+        return line.download_message_content(message_id, max_bytes=max_bytes, session=session)
+    except requests.ConnectTimeout:
+        raise
+    except requests.ConnectionError:
+        logger.info("[dms out] reused LINE media connection dropped; downloading again")
+        return line.download_message_content(message_id, max_bytes=max_bytes,
+                                             session=_line_media_session(replacing=session))
 
 
 def download_content(message_id: str) -> Optional[bytes]:

@@ -28,6 +28,7 @@ try:
     assert store.get_session(uid) is None, 'Do not overwrite another draft'
     with patch.object(flow, 'current_binding', return_value=True), \
          patch.object(flow.out, 'start_loading'), patch.object(flow, '_enqueue') as enqueue, \
+         patch.object(flow.out, 'start_loading_background', return_value=lambda: True), \
          patch.object(flow.line, 'download_message_content', return_value=b'local-image'), \
          patch.object(flow._id_ocr, 'editable_id_card', return_value={'name': 'local'}), \
          patch.object(flow, '_push') as push, patch.object(flow.line, 'reply'):
