@@ -391,6 +391,66 @@ class DmsMediaConnection(unittest.TestCase):
         self.assertEqual(self.download.call_count, 1)
 
 
+class LineTokenNotLogged(unittest.TestCase):
+    """Frappe 记错误时打印每层变量；LINE 令牌不能出现在里面（2026-10-03 菜单同步的错误日志存了令牌）。"""
+
+    TOKEN = "lab-secret-channel-token"
+
+    def setUp(self):
+        self.enterContext(patch.object(frappe, "conf", frappe._dict(
+            pearnly_line_channel_access_token=self.TOKEN, pearnly_dms_rich_menus={"basic": "b", "query": "q"})))
+        self.request = self.enterContext(patch.object(line.requests, "request"))
+
+    def logged(self, call):
+        try:
+            call()
+        except Exception:
+            return frappe.get_traceback(with_context=True)
+        self.fail("expected an error")
+
+    def test_network_error_keeps_its_type_without_the_token(self):
+        self.request.side_effect = requests.ConnectionError("Failed to resolve 'api.line.me'")
+        with self.assertRaises(requests.ConnectionError) as raised:
+            line.request("GET", "https://api.line.me/v2/bot/info", timeout=5)
+        self.assertIn("Failed to resolve", str(raised.exception))
+        self.assertEqual(self.request.call_args.kwargs["headers"]["Authorization"], "Bearer " + self.TOKEN)
+        self.assertNotIn(self.TOKEN, self.logged(lambda: line.request("GET", "https://api.line.me/v2/bot/info")))
+
+    def test_rich_menu_errors_do_not_log_the_token(self):
+        from pearnly_dms.menu import rich_menu
+        self.request.return_value = Mock(status_code=500, text="LINE fixture", content=b"")
+        self.assertNotIn(self.TOKEN, self.logged(lambda: rich_menu._request("GET", "richmenu/list")))
+        self.request.side_effect = requests.ReadTimeout("read timed out")
+        self.assertNotIn(self.TOKEN, self.logged(lambda: rich_menu._request("GET", "richmenu/list")))
+        self.assertNotIn(self.TOKEN, self.logged(lambda: rich_menu._has_image("menu-1")))
+        self.request.side_effect = None
+        self.request.return_value = Mock(status_code=200, content=b"png")
+        rich_menu._request("POST", "richmenu/m/content", image=b"png")
+        self.assertEqual(self.request.call_args.kwargs["headers"]["Content-Type"], "image/png")
+
+    def test_user_id_rejected_by_line_is_paused_for_a_day_without_an_error(self):
+        from pearnly_dms.menu import rich_menu
+        values = {}
+        cache = Mock(get_value=values.get, make_key=lambda key: key,
+                     set_value=lambda key, value, expires_in_sec=None: values.__setitem__(key, (value, expires_in_sec)))
+        cache.lock.return_value = nullcontext()
+        cache.get_value = lambda key: (values.get(key) or (None,))[0]
+        self.enterContext(patch.object(frappe, "cache", lambda: cache))
+        self.enterContext(patch.object(rich_menu.line_binding, "binding_of", return_value=Mock(user="u@x")))
+        self.enterContext(patch.object(rich_menu, "can_query", return_value=False))
+        self.request.return_value = Mock(status_code=400, content=b"x",
+                                         text='{"message":"The value for the \'userId\' parameter is invalid"}')
+        rich_menu.sync("Udeploy-fake", language="th")
+        self.assertEqual(values[rich_menu._APPLIED + "Udeploy-fake"], (rich_menu._REJECTED, 86400))
+        calls = self.request.call_count
+        rich_menu.sync("Udeploy-fake", language="th")
+        self.assertEqual(self.request.call_count, calls, "a rejected id is not retried within the day")
+        # 其他 400（例如菜单 ID 不对，是我们自己的问题）照样报错。
+        self.request.return_value = Mock(status_code=400, content=b"x", text='{"message":"richmenu not found"}')
+        with self.assertRaises(RuntimeError):
+            rich_menu.sync("U-real", language="th")
+
+
 class OcrBackoff(unittest.TestCase):
     def setUp(self):
         from pearnly_core.execution import provider

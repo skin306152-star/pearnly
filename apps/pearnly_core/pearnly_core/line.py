@@ -117,6 +117,26 @@ def _headers() -> dict:
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
+def request(method: str, url: str, *, headers: dict | None = None, session=None, **kwargs):
+    """调 LINE 接口；出错时错误日志里不带频道令牌。
+
+    Frappe 记错误时会打印每一层的变量，只按变量名 / 键名含 token、key 等词打码，请求头的 `Authorization` 不在其中
+    （2026-10-03 菜单同步的错误日志里存了令牌）。所以这里不把带令牌的请求头放进任何变量；requests 的异常换成同类、
+    不带原异常链的新异常，requests 内部各层（带着请求头）就不会进错误日志。`headers` 只放额外的头（如图片类型）。
+    """
+    try:
+        return (session or requests).request(method, url, headers={**_headers(), **(headers or {})}, **kwargs)
+    except requests.RequestException as exc:
+        raise _without_request(exc) from None
+
+
+def _without_request(exc):
+    try:
+        return type(exc)(str(exc))
+    except Exception:  # noqa: BLE001 —— 构造不了同类就退回基类，原因文字不丢
+        return requests.RequestException(f"{type(exc).__name__}: {exc}")
+
+
 def mirroring() -> bool:
     """本机样例站点的**本地镜像**是否开启（见 `_mirror`）。
 

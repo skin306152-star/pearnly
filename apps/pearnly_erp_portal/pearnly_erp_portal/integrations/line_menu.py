@@ -19,7 +19,6 @@ from pathlib import Path
 from urllib.parse import quote
 
 import frappe
-import requests
 from frappe import _
 from pearnly_core.execution import state as pearnly_state
 
@@ -45,15 +44,12 @@ def key(language, variant) -> str:
 
 
 def _request(method, path, *, body=None, image=None, missing_ok=False):
-    token = frappe.conf.get("pearnly_line_channel_access_token")
-    if not token:
+    if not frappe.conf.get("pearnly_line_channel_access_token"):
         raise RuntimeError("LINE channel unavailable")
-    headers = {"Authorization": "Bearer " + token}
+    # 走 `line.request`：令牌不进本层变量，网络错误不带 requests 内部各层，错误日志里就没有令牌。
     origin = "https://api-data.line.me" if image is not None else "https://api.line.me"
-    if image is not None:
-        headers["Content-Type"] = "image/png"
-    response = requests.request(method, origin + "/v2/bot/" + path, json=body,
-                                data=image, headers=headers, timeout=20)
+    response = line.request(method, origin + "/v2/bot/" + path, json=body, data=image, timeout=20,
+                            headers={"Content-Type": "image/png"} if image is not None else None)
     if response.status_code == 404 and missing_ok:
         return {}
     if response.status_code != 200:
@@ -102,9 +98,10 @@ def _image(variant, language) -> bytes:
 
 
 def _has_image(menu_id) -> bool:
-    token = frappe.conf.get("pearnly_line_channel_access_token")
-    response = requests.get("https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
-                            + "/content", headers={"Authorization": "Bearer " + token}, timeout=20)
+    if not frappe.conf.get("pearnly_line_channel_access_token"):
+        raise RuntimeError("LINE channel unavailable")
+    response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
+                            + "/content", timeout=20)
     return response.status_code == 200
 
 

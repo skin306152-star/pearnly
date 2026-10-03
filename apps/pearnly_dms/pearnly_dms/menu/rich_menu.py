@@ -11,11 +11,11 @@ published menus; they cannot replace the OA's default during an unfinished relea
 """
 import hashlib
 import json
+import logging
 from pathlib import Path
 from urllib.parse import quote
 
 import frappe
-import requests
 
 from pearnly_core import line, line_binding
 from pearnly_dms import i18n
@@ -27,6 +27,8 @@ CONFIG = "pearnly_dms_rich_menus"
 LANGUAGES = i18n.LANGUAGES
 VARIANTS = ("basic", "query")
 _APPLIED = "pearnly:dms:line-menu:"
+logger = logging.getLogger(__name__)
+_REJECTED = "rejected"
 
 def _state_store():
     """不淘汰的状态存储（``pearnly_core.execution.state``；用到时才导入，离线检查导入本模块不需要共用层）。"""
@@ -36,22 +38,25 @@ def _state_store():
 
 
 
+class UserRejected(RuntimeError):
+    """LINE 说这个用户 ID 本身无效（例如部署回读留下的假身份）：重试也不会好。"""
+
+
 def key(language, variant) -> str:
     return f"{language}:{variant}"
 
 
 def _request(method, path, *, body=None, image=None, missing_ok=False):
-    token = frappe.conf.get("pearnly_line_channel_access_token")
-    if not token:
+    if not frappe.conf.get("pearnly_line_channel_access_token"):
         raise RuntimeError("LINE channel unavailable")
-    headers = {"Authorization": "Bearer " + token}
+    # 走 `line.request`：令牌不进本层变量，网络错误不带 requests 内部各层，错误日志里就没有令牌。
     origin = "https://api-data.line.me" if image is not None else "https://api.line.me"
-    if image is not None:
-        headers["Content-Type"] = "image/png"
-    response = requests.request(method, origin + "/v2/bot/" + path, json=body,
-                                data=image, headers=headers, timeout=20)
+    response = line.request(method, origin + "/v2/bot/" + path, json=body, data=image, timeout=20,
+                            headers={"Content-Type": "image/png"} if image is not None else None)
     if response.status_code == 404 and missing_ok:
         return {}
+    if response.status_code == 400 and path.startswith("user/") and "'userId'" in response.text:
+        raise UserRejected(f"LINE rejected the user id: {response.text[:200]}")
     if response.status_code != 200:
         # LINE 把原因放在响应体里（例如 "An image has already been uploaded to the richmenu"）。
         # 只报状态码会让排查从"看一句话"变成"猜半天"，所以带上正文（截断）。
@@ -67,12 +72,10 @@ def _has_image(menu_id):
     同一套菜单会被重复发布（开户重跑、改渠道、换租户用同域名同 LIFF 时内容散列都一样），
     每次都盲传就会在第二次直接失败 —— 2026-09-20 线上就是这么卡住开户的。
     """
-    token = frappe.conf.get("pearnly_line_channel_access_token")
-    if not token:
+    if not frappe.conf.get("pearnly_line_channel_access_token"):
         raise RuntimeError("LINE channel unavailable")
-    response = requests.get("https://api-data.line.me/v2/bot/richmenu/"
-                            + quote(menu_id, safe="") + "/content",
-                            headers={"Authorization": "Bearer " + token}, timeout=20)
+    response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
+                            + "/content", timeout=20)
     return response.status_code == 200
 
 
@@ -176,27 +179,37 @@ def sync(line_user_id, language=None):
     menus = frappe.conf.get(CONFIG) or {}
     if not all(menus.get(key) for key in ("basic", "query")):
         return  # Not yet published; no external changes before the release gate.
+    if frappe.cache().get_value(_APPLIED + line_user_id) == _REJECTED:
+        return  # LINE 一天内说过这个 ID 无效：不再每 10 分钟重试、重复记错误。
     language = language or line.user_language(line_user_id, default="th")
     path = "user/" + quote(line_user_id, safe="") + "/richmenu"
     cache = frappe.cache()
-    with cache.lock(cache.make_key("pearnly:dms:menu-user:" + line_user_id), timeout=90, blocking_timeout=3):
-        for _ in range(3):
-            bound = line_binding.binding_of(line_user_id)
-            allowed = bool(bound and can_query({"user_id": bound.user}))
-            wanted = wanted_menu(menus, "query" if allowed else "basic", language)
-            if not bound:
-                _request("DELETE", path, missing_ok=True)
-                _remember(line_user_id, "-")
-                return
-            current = _request("GET", path, missing_ok=True).get("richMenuId")
-            if current != wanted:
-                _request("POST", path + "/" + wanted)
-            frappe.db.commit()  # Next permission read must not reuse a REPEATABLE READ snapshot.
-            fresh = line_binding.binding_of(line_user_id)
-            if fresh and bool(can_query({"user_id": fresh.user})) == allowed:
-                _remember(line_user_id, wanted)
-                return
-        raise RuntimeError("DMS permission changed during rich menu reconciliation")
+    try:
+        with cache.lock(cache.make_key("pearnly:dms:menu-user:" + line_user_id), timeout=90, blocking_timeout=3):
+            _sync_locked(line_user_id, menus, language, path)
+    except UserRejected:
+        logger.warning("LINE rejected a bound user id; DMS menu sync paused for a day")
+        _remember(line_user_id, _REJECTED)
+
+
+def _sync_locked(line_user_id, menus, language, path):
+    for _ in range(3):
+        bound = line_binding.binding_of(line_user_id)
+        allowed = bool(bound and can_query({"user_id": bound.user}))
+        wanted = wanted_menu(menus, "query" if allowed else "basic", language)
+        if not bound:
+            _request("DELETE", path, missing_ok=True)
+            _remember(line_user_id, "-")
+            return
+        current = _request("GET", path, missing_ok=True).get("richMenuId")
+        if current != wanted:
+            _request("POST", path + "/" + wanted)
+        frappe.db.commit()  # Next permission read must not reuse a REPEATABLE READ snapshot.
+        fresh = line_binding.binding_of(line_user_id)
+        if fresh and bool(can_query({"user_id": fresh.user})) == allowed:
+            _remember(line_user_id, wanted)
+            return
+    raise RuntimeError("DMS permission changed during rich menu reconciliation")
 
 
 def _remember(line_user_id, menu_id):

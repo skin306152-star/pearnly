@@ -104,6 +104,9 @@ class RichMenuPublish(unittest.TestCase):
 
         def request(method, url, **kwargs):
             path = url.rsplit("/v2/bot/", 1)[-1]
+            if method == "GET" and path.endswith("/content"):
+                calls.append(("read-image", path))
+                return Response(200 if path.split("/")[1] in state["images"] else 404, {}, b"png")
             calls.append(("image" if kwargs.get("data") else method, path))
             if method == "GET" and path == "richmenu/list":
                 return Response(200, {"richmenus": [{"name": name, "richMenuId": menu_id}
@@ -118,19 +121,13 @@ class RichMenuPublish(unittest.TestCase):
                 return Response(200, {"richMenuId": menu_id})
             return Response(200)
 
-        def get(url, **kwargs):
-            path = url.rsplit("/v2/bot/", 1)[-1]
-            calls.append(("read-image", path))
-            return Response(200 if path.split("/")[1] in state["images"] else 404, {}, b"png")
-
         conf = frappe._dict(pearnly_line_channel_access_token="token",
                             pearnly_line_liff_id="1234-abcd", host_name="https://sample.test")
         with patch.object(frappe, "conf", conf), \
              patch.object(frappe, "cache", lambda *a, **kw: Cache()), \
              patch.object(rich_menu, "_state_store", lambda: Cache()), \
              patch.object(rich_menu, "reconcile"), \
-             patch.object(rich_menu.requests, "request", side_effect=request), \
-             patch.object(rich_menu.requests, "get", side_effect=get), \
+             patch.object(rich_menu.line.requests, "request", side_effect=request), \
              patch("frappe.installer.update_site_config"):
             rich_menu.publish()
             first = len([call for call in calls if call[0] == "image"])
