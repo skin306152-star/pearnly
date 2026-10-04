@@ -16,6 +16,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import content as C  # noqa: E402
 import guides as G  # noqa: E402
+import mascot as M  # noqa: E402
 
 STATIC = HERE / "static"
 VERSION = ""
@@ -71,7 +72,7 @@ def jsonld(data):
 
 ORG = {"@type": "Organization", "@id": C.SITE + "/#org", "name": "Pearnly", "legalName": C.COMPANY["legal_name"],
        "taxID": C.COMPANY["reg_no"], "url": C.SITE + "/", "logo": C.SITE + "/static/logo-mark-512.png", "email": C.EMAIL,
-       "address": {"@type": "PostalAddress", **C.COMPANY["postal"]}, "sameAs": [C.LINE_URL, C.YOUTUBE_URL]}
+       "address": {"@type": "PostalAddress", **C.COMPANY["postal"]}, "sameAs": [C.LINE_URL, C.YOUTUBE_URL, C.MRERP_URL]}
 
 # 线条图标（24 网格，描边用 currentColor）。
 ICONS = {
@@ -95,6 +96,11 @@ ICONS = {
     "arrow": '<path d="M5 12h14M13 6l6 6-6 6"/>',
     "play": '<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>',
     "download": '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+    "asset": '<path d="M4 21V9l8-5 8 5v12M9 21v-6h6v6"/>',
+    "percent": '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+    "book": '<path d="M6 3h12v18H6z"/><path d="M9 3v18M12 8h4M12 12h4"/>',
+    "clock": '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    "login": '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l4-4-4-4M14 12H4"/>',
 }
 
 
@@ -180,6 +186,7 @@ def header(lang, key):
 def footer(lang):
     t = C.COMMON[lang]
     products = "".join(f'<li><a href="{url(lang, k)}">{esc("Pearnly " + C.PRODUCT[k][lang]["name"])}</a></li>' for k in C.PRODUCTS)
+    products += f'<li><a href="{url(lang, "mrerp")}">MR.ERP ERP · DMS</a></li>'
     if lang == "th":
         products += "".join(f'<li><a href="{url(lang, "landing:" + g.slug)}">{esc(g.meta.get("short", g.h1))}</a></li>' for g in G.LANDING)
     tools = "".join(f'<li><a href="{url(lang, k)}">{esc(C.TOOL[k][lang]["name"])}</a></li>' for k in C.TOOLS)
@@ -367,6 +374,7 @@ def story(lang):
     <div class="ss-flash"></div>
     <div class="ss-backdrop"></div>
     <div class="ss-finale"><div>
+      {M.svg("done", "ss-mascot")}
       <p class="ss-big">{big}</p>
       <p class="ss-lead">{esc(S["sub"])}</p>
       <a class="btn dark" href="#products" tabindex="-1">{icon("play")}<span>{esc(S["cta"])}</span></a>
@@ -394,7 +402,7 @@ def page_home(lang):
     <ul class="points">{points}</ul>
     <a class="more" href="{url(lang, k)}">{esc(t["more"])} {icon("arrow", "icon sm")}</a>
   </div>
-  <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{shot}</a>
+  <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{M.svg(k, "poster-mascot")}{shot}</a>
 </article>"""
     samples = {"baht-text": "1,070 → หนึ่งพันเจ็ดสิบบาทถ้วน", "vat": "1,070.00 → VAT 70.00",
                "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0-1055-99999-99-7 ✓"}
@@ -411,7 +419,7 @@ def page_home(lang):
     <p class="lead">{esc(h["lead"])}</p>
     {cta_buttons(lang, watch)}
   </div>
-  <div class="wrap wide">{demo(lang)}</div>
+  <div class="wrap wide hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div>
 </section>
 {story(lang)}<section class="wrap section logos reveal">
   <p class="serif">{esc(t["integrations"])}</p>
@@ -421,6 +429,7 @@ def page_home(lang):
   <h2 class="display center reveal">{esc(h["products_title"])}</h2>
   <div class="stack">{products}</div>
 </section>
+{pro_tier(lang)}
 <section class="wrap section">
   <h2 class="display center reveal">{esc(h["tools_title"])}</h2>
   <p class="lead center reveal">{esc(h["tools_text"])}</p>
@@ -492,12 +501,110 @@ def page_product(lang, key):
   <ul class="cards">{features}</ul>
 </section>
 {related_guides(lang, lambda g: g.product == key)}
+{pro_band(lang, key)}
 <section class="wrap section">
   <h2 class="display center reveal">{esc(t["others"])}</h2>
   <div class="tiles two">{others}</div>
 </section>
 """
     return head(lang, key, p["title"], p["description"], graph) + header(lang, key) + body + contact(lang) + footer(lang)
+
+
+# ---------------- MR.ERP 专业版（同一家公司） ----------------
+
+def walkers():
+    """三只 Pearnly 小单沿虚线走向托着小单的大账本：从轻量长大到完整版。"""
+    small = "".join(f'<span class="walker w{i}">{M.svg(k)}</span>' for i, k in enumerate(C.PRODUCTS))
+    return f'<div class="walk" aria-hidden="true"><div class="walk-line"></div>{small}<span class="walker big">{M.svg("pro")}</span></div>'
+
+
+def pro_tier(lang):
+    m = C.MRERP[lang]
+    cards = "".join(f'<li><b>{esc(a)}</b><span>{esc(b)}</span></li>' for a, b in m["tier_cards"])
+    return f"""<section class="wrap section" id="mrerp">
+  <div class="panel pro reveal">
+    <div class="pro-text">
+      <span class="eyebrow">{esc(m["tier_eyebrow"])}</span>
+      <h2 class="display">{esc(m["tier_title"])}</h2>
+      <p>{esc(m["tier_text"])}</p>
+      <ul class="pro-cards">{cards}</ul>
+      <a class="btn light" href="{url(lang, "mrerp")}"><span>{esc(m["tier_more"])}</span>{icon("arrow", "icon sm")}</a>
+    </div>
+    {walkers()}
+  </div>
+</section>
+"""
+
+
+def pro_band(lang, key):
+    band = C.MRERP[lang]["band"].get(key)
+    if not band:
+        return ""
+    return f"""<section class="wrap section">
+  <a class="pro-band reveal" href="{url(lang, "mrerp")}">{M.svg("pro", "band-mascot")}<span><b>{esc(band[0])}</b><span>{esc(band[1])}</span></span>{icon("arrow")}</a>
+</section>
+"""
+
+
+def page_mrerp(lang):
+    m, t = C.MRERP[lang], C.COMMON[lang]
+    trail = [("home", t["home"]), ("mrerp", "MR.ERP")]
+    login = f'<a class="btn light" href="{C.MRERP_LOGIN}" rel="noopener">{icon("login")}<span>{esc(m["login"])}</span></a>'
+
+    def column(name, note, items, cls):
+        rows = "".join(f"<li>{esc(x)}</li>" for x in items)
+        return f'<div class="flow-col {cls}"><b>{esc(name)}</b><span>{esc(note)}</span><ul>{rows}</ul></div>'
+
+    modules = "".join(f'<li class="card reveal">{icon(ic)}<h3>{esc(x)}</h3></li>' for x, ic in zip(m["modules"], C.MRERP_ICONS))
+    industries = "".join(f"<span>{esc(x)}</span>" for x in m["industries"])
+    head_row = "".join(f"<th>{esc(c)}</th>" for c in m["compare_cols"])
+    rows = "".join(f"<tr><th>{esc(a)}</th><td>{esc(b)}</td><td>{esc(c)}</td></tr>" for a, b, c in m["compare_rows"])
+    price, light, full = m["compare_price"]  # 不写价格：两边都接我们的 LINE
+    rows += (f'<tr class="price"><th>{esc(price)}</th><td><a href="{C.LINE_URL}" rel="noopener">{esc(light)}</a></td>'
+             f'<td><a href="{C.LINE_URL}" rel="noopener">{esc(full)} {icon("arrow", "icon sm")}</a></td></tr>')
+    graph = [ORG, breadcrumb(lang, trail),
+             {"@type": "SoftwareApplication", "name": "MR.ERP", "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+              "description": m["description"], "url": absolute(url(lang, "mrerp")), "sameAs": C.MRERP_URL,
+              "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}]
+    body = f"""<section class="hero sub">
+  <div class="wrap center">
+    {crumbs(lang, trail)}
+    <span class="badge">{esc(m["badge"])}</span>
+    <h1 class="display">{lines(m["h1"])}</h1>
+    <p class="lead">{esc(m["lead"])}</p>
+    {cta_buttons(lang, login)}
+  </div>
+</section>
+<section class="wrap section">
+  <div class="panel flow reveal">
+    <h2 class="display center">{esc(m["flow_title"])}</h2>
+    <p class="lead center">{esc(m["flow_text"])}</p>
+    <div class="flow-grid">{column(*m["light"], "light")}{walkers()}{column(*m["full"], "full")}</div>
+  </div>
+</section>
+<section class="wrap section">
+  <h2 class="display center reveal">{esc(m["modules_title"])}</h2>
+  <ul class="cards modules">{modules}</ul>
+  <div class="chips reveal"><p>{esc(m["industries_title"])}</p><div>{industries}</div></div>
+</section>
+<section class="wrap section">
+  <article class="panel product reveal">
+    <div class="product-text">
+      <span class="eyebrow">MR.ERP DMS</span>
+      <h3 class="display">{esc(m["dms_title"])}</h3>
+      <p class="muted">{esc(m["dms_text"])}</p>
+      <div class="actions"><a class="btn dark" href="{C.MRERP_DMS_LOGIN}" rel="noopener">{icon("login")}<span>{esc(m["dms_login"])}</span></a>
+      <a class="btn light" href="{url(lang, "dms")}">{esc(m["dms_more"])}</a></div>
+    </div>
+    <div class="duo" aria-hidden="true">{M.svg("dms")}<span class="duo-arrow">{icon("arrow")}</span>{M.svg("prodms")}</div>
+  </article>
+</section>
+<section class="wrap narrow section">
+  <h2 class="display center reveal">{esc(m["compare_title"])}</h2>
+  <div class="compare reveal"><table><thead><tr>{head_row}</tr></thead><tbody>{rows}</tbody></table></div>
+</section>
+"""
+    return head(lang, "mrerp", m["title"], m["description"], graph) + header(lang, "mrerp") + body + contact(lang) + footer(lang)
 
 
 def page_tools(lang):
@@ -719,7 +826,7 @@ def page_landing(g):
 def page_404(lang):
     t = C.COMMON[lang]
     back = f'<div class="actions"><a class="btn dark" href="{url(lang, "home")}">{esc(t["notfound_back"])}</a></div>'
-    body = (f'<section class="hero"><div class="wrap center"><h1 class="display">{esc(t["notfound_title"])}</h1>'
+    body = (f'<section class="hero"><div class="wrap center">{M.svg("find", "nf-mascot")}<h1 class="display">{esc(t["notfound_title"])}</h1>'
             f'<p class="lead">{esc(t["notfound_text"])}</p>{back}</div></section>\n')
     return head(lang, "home", t["notfound_title"] + " | Pearnly", t["notfound_text"], None, noindex=True) + header(lang, "home") + body + footer(lang)
 
@@ -737,6 +844,8 @@ def render(lang, key):
         return page_product(lang, key)
     if key == "tools":
         return page_tools(lang)
+    if key == "mrerp":
+        return page_mrerp(lang)
     return page_tool(lang, key)
 
 

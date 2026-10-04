@@ -169,6 +169,29 @@ class WebsiteTest(unittest.TestCase):
             self.assertEqual((len(data["rows"]), len(data["captions"])), (30, 5))
             self.assertIn('href="#products" tabindex="-1"', html_text)
 
+    def test_mrerp_family_is_linked_from_home_product_pages_and_its_own_page(self):
+        """MR.ERP 专业版：首页书架、ERP/DMS 页底部和 /mrerp/ 都指过去；/mrerp/ 带两个登录入口和 8 个模块。"""
+        for lang in C.LANGS:
+            mrerp = build.url(lang, "mrerp")
+            for key in ("home", "erp", "dms"):
+                self.assertIn(mrerp, self.pages[build.url(lang, key)].hrefs, (lang, key))
+            page = self.pages[mrerp]
+            self.assertIn(C.MRERP_LOGIN, page.hrefs)
+            self.assertIn(C.MRERP_DMS_LOGIN, page.hrefs)
+            self.assertEqual(len(C.MRERP[lang]["modules"]), len(C.MRERP_ICONS))
+
+    def test_mascots_are_decorative_and_self_contained(self):
+        """品牌形象只给眼睛看（aria-hidden），每只都是内联 SVG，不引用外部图片或页面里的 <defs>。"""
+        import mascot as M
+        for kind in M.KINDS:
+            svg = M.svg(kind, "x")
+            self.assertTrue(svg.startswith(f'<svg class="mascot m-{kind} x"'), kind)
+            self.assertIn('aria-hidden="true"', svg)
+            self.assertNotIn("href", svg)
+        home = (self.out / "index.html").read_text(encoding="utf-8")
+        for kind in ("base", "done", *C.PRODUCTS, "pro"):
+            self.assertIn(f'class="mascot m-{kind}', home)
+
 
 if __name__ == "__main__":
     unittest.main()

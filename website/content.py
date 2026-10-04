@@ -9,6 +9,10 @@ LINE_ID = "@pearnly"
 EMAIL = "hello@pearnly.com"
 YOUTUBE_URL = "https://www.youtube.com/@pearnlyth"
 COMPANION_URL = "/downloads/companion/PearnlyCompanion-Setup.exe"
+# MR.ERP：同一家公司（MR. ERP COMPANY LIMITED）的专业版 ERP / DMS，官网与登录入口在 mrerp4sme.com。
+MRERP_URL = "https://www.mrerp4sme.com/"
+MRERP_LOGIN = "https://www.mrerp4sme.com/login/login.php"
+MRERP_DMS_LOGIN = "https://www.mrerp4sme.com/dms/index.php"
 MEDIA = "https://media.pearnly.com/"
 
 # 运营主体（用户 2026-10-04 提供）：页脚与 schema.org Organization 共用。泰文地址按官方行政区名写。
@@ -37,6 +41,7 @@ PAGES = {
     "cowork": "/cowork/",
     "dms": "/dms/",
     "erp": "/erp/",
+    "mrerp": "/mrerp/",
     "tools": "/tools/",
     "baht-text": "/tools/baht-text/",
     "vat": "/tools/vat/",
@@ -70,7 +75,7 @@ INTEGRATIONS = {
 
 COMMON = {
     "th": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "เครื่องมือฟรี", "guides": "บทความ"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "เครื่องมือฟรี", "guides": "บทความ"},
         "cta": "คุยกับเราทาง LINE",
         "home": "หน้าแรก",
         "more": "ดูรายละเอียด",
@@ -98,7 +103,7 @@ COMMON = {
         "integrations": "ทำงานร่วมกับเครื่องมือที่คุณใช้อยู่",
     },
     "en": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "Free tools", "guides": "Guides (TH)"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "Free tools", "guides": "Guides (TH)"},
         "cta": "Chat with us on LINE",
         "home": "Home",
         "more": "Learn more",
@@ -126,7 +131,7 @@ COMMON = {
         "integrations": "Works with the tools you already use",
     },
     "zh": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "免费工具", "guides": "泰文指南"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "免费工具", "guides": "泰文指南"},
         "cta": "LINE 联系我们",
         "home": "首页",
         "more": "了解详情",
@@ -440,6 +445,121 @@ PRODUCT = {
                 ("团队与权限", "按岗位决定谁能看、能做什么。"),
             ],
         },
+    },
+}
+
+# MR.ERP 专业版：模块与行业名照 mrerp4sme.com 原文，不另加没有的功能、价格或客户数。
+MRERP_ICONS = ["doc", "box", "receipt", "bank", "asset", "percent", "book", "clock"]
+MRERP = {
+    "th": {
+        "title": "MR.ERP | ระบบ ERP และ DMS เต็มรูปแบบ จากบริษัทเดียวกับ Pearnly",
+        "description": "MR.ERP ระบบบริหารธุรกิจเต็มรูปแบบสำหรับ SMEs: จัดซื้อและเจ้าหนี้ สินค้าคงคลัง ขายและลูกหนี้ การเงิน ทะเบียนทรัพย์สิน VAT และภาษีหัก ณ ที่จ่าย บัญชี และติดตามงาน พร้อม MR.ERP DMS สำหรับผู้แทนจำหน่าย โดยทีมที่ปรึกษาและวางระบบบัญชีกว่า 30 ปี",
+        "badge": "Pearnly × MR.ERP · บริษัทเดียวกัน",
+        "h1": "ระบบเต็มรูปแบบ\nเมื่อธุรกิจโตขึ้น",
+        "lead": "MR.ERP คือระบบ ERP และ DMS เต็มรูปแบบของบริษัทเดียวกับ Pearnly ทีมที่ปรึกษาและวางระบบบัญชีประสบการณ์กว่า 30 ปี วางระบบให้ตามธุรกิจของคุณ",
+        "login": "เข้าสู่ระบบ MR.ERP",
+        "flow_title": "Pearnly ถ่ายเข้า · MR.ERP บริหาร",
+        "flow_text": "Pearnly ทำให้เอกสารเข้าระบบได้เร็วจากรูปและ LINE ส่วน MR.ERP คือระบบหลักที่บริหารทั้งธุรกิจ เริ่มจากตัวเบาก่อน แล้วค่อยขยายเมื่อพร้อม",
+        "light": ("Pearnly", "เบา เรียนรู้ง่าย", ["Cowork · สำนักงานบัญชี", "DMS · ผู้ช่วย LINE ของผู้แทนจำหน่าย", "ERP · ร้านค้าและธุรกิจขนาดเล็ก"]),
+        "full": ("MR.ERP", "เต็มรูปแบบ วางระบบโดยทีมที่ปรึกษา", ["MR.ERP ERP · 8 ระบบบริหารธุรกิจ", "MR.ERP DMS · ระบบผู้แทนจำหน่าย"]),
+        "modules_title": "8 ระบบในชุดเดียว",
+        "modules": ["ระบบบริหารจัดซื้อและเจ้าหนี้", "ระบบบริหารสินค้าคงคลัง", "ระบบบริหารการขายและลูกหนี้", "ระบบบริหารการเงิน",
+                    "ระบบทะเบียนทรัพย์สิน", "ระบบภาษีมูลค่าเพิ่มและภาษีหัก ณ ที่จ่าย", "ระบบบัญชี", "ระบบติดตามงาน"],
+        "industries_title": "วางระบบมาแล้วหลายอุตสาหกรรม",
+        "industries": ["ซื้อมา ขายไป", "อสังหาริมทรัพย์", "ค้าปลีก", "ให้บริการ", "ขายฝาก", "ผลิต", "นำเข้า ส่งออก"],
+        "dms_title": "MR.ERP DMS สำหรับผู้แทนจำหน่าย",
+        "dms_text": "ระบบหลักของผู้แทนจำหน่าย ใช้คู่กับ Pearnly DMS ผู้ช่วย LINE ที่อ่านบัตรประชาชน สร้างลูกค้า และทำใบจองเข้า MR.ERP DMS ให้ ไม่สร้างลูกค้าซ้ำ",
+        "dms_login": "เข้าสู่ระบบ MR.ERP DMS",
+        "dms_more": "ดู Pearnly DMS",
+        "compare_title": "เลือกแบบไหนดี",
+        "compare_cols": ["", "Pearnly ERP", "MR.ERP ERP"],
+        "compare_rows": [
+            ("เหมาะกับ", "ร้านค้าและธุรกิจขนาดเล็ก", "SMEs ที่ต้องการระบบบัญชีและบริหารครบชุด"),
+            ("ขอบเขต", "สินค้า คลัง ซื้อ ขาย และ POS", "8 ระบบ ตั้งแต่จัดซื้อ ขาย การเงิน ทรัพย์สิน ภาษี จนถึงบัญชี"),
+            ("เด่นที่", "ถ่ายรูปบิล ระบบบันทึกให้ ใช้ผ่านเว็บและ LINE", "ทีมที่ปรึกษาวางระบบให้ตามธุรกิจ ใช้งานออนไลน์แบบเรียลไทม์"),
+        ],
+        "compare_price": ("ราคา", "สอบถามทาง LINE", "ติดต่อที่ปรึกษา"),
+        "tier_eyebrow": "MR.ERP · ระบบเต็มรูปแบบ",
+        "tier_title": "โตเมื่อไร ก็มีระบบใหญ่รออยู่",
+        "tier_text": "Pearnly กับ MR.ERP เป็นบริษัทเดียวกัน เมื่อธุรกิจต้องการระบบครบชุด MR.ERP มี 8 ระบบบริหาร และ DMS สำหรับผู้แทนจำหน่าย โดยทีมที่ปรึกษากว่า 30 ปี",
+        "tier_cards": [("MR.ERP ERP", "จัดซื้อ คลัง ขาย การเงิน ทรัพย์สิน ภาษี บัญชี และติดตามงาน"),
+                       ("MR.ERP DMS", "ระบบผู้แทนจำหน่าย ใช้คู่กับ Pearnly DMS ใน LINE")],
+        "tier_more": "รู้จัก MR.ERP",
+        "band": {"erp": ("ต้องการระบบบัญชีครบชุด?", "MR.ERP ERP มี 8 ระบบ ตั้งแต่จัดซื้อจนถึงบัญชี จากบริษัทเดียวกับ Pearnly"),
+                 "dms": ("Pearnly DMS ทำงานคู่กับ MR.ERP DMS", "ผู้ช่วย LINE ส่งลูกค้าและใบจองเข้า MR.ERP DMS ระบบหลักของผู้แทนจำหน่าย")},
+    },
+    "en": {
+        "title": "MR.ERP | Full ERP and DMS from the company behind Pearnly",
+        "description": "MR.ERP is a full business system for SMEs: purchasing and payables, inventory, sales and receivables, finance, fixed assets, VAT and withholding tax, accounting and job tracking, plus MR.ERP DMS for dealers. Set up by a team with over 30 years in accounting consulting.",
+        "badge": "Pearnly × MR.ERP · one company",
+        "h1": "The full system,\nwhen your business grows",
+        "lead": "MR.ERP is the full ERP and DMS from the same company as Pearnly. Our consulting team has set up accounting systems for over 30 years and configures it around your business.",
+        "login": "Sign in to MR.ERP",
+        "flow_title": "Pearnly captures · MR.ERP runs the business",
+        "flow_text": "Pearnly gets documents into the system fast, from photos and LINE. MR.ERP is the core system that runs the whole business. Start light, grow when you are ready.",
+        "light": ("Pearnly", "Light, easy to learn", ["Cowork · accounting firms", "DMS · LINE assistant for dealers", "ERP · shops and small businesses"]),
+        "full": ("MR.ERP", "Full system, set up by consultants", ["MR.ERP ERP · 8 business modules", "MR.ERP DMS · dealer management"]),
+        "modules_title": "8 modules in one suite",
+        "modules": ["Purchasing and payables", "Inventory", "Sales and receivables", "Finance",
+                    "Fixed asset register", "VAT and withholding tax", "Accounting", "Job tracking"],
+        "industries_title": "Set up across many industries",
+        "industries": ["Trading", "Real estate", "Retail", "Services", "Consignment", "Manufacturing", "Import · export"],
+        "dms_title": "MR.ERP DMS for dealers",
+        "dms_text": "The core system for dealers. Use it with Pearnly DMS, the LINE assistant that reads ID cards, creates the customer and makes the booking in MR.ERP DMS, with no duplicate customers.",
+        "dms_login": "Sign in to MR.ERP DMS",
+        "dms_more": "See Pearnly DMS",
+        "compare_title": "Which one fits?",
+        "compare_cols": ["", "Pearnly ERP", "MR.ERP ERP"],
+        "compare_rows": [
+            ("Best for", "Shops and small businesses", "SMEs that need a complete accounting and management suite"),
+            ("Scope", "Products, stock, purchasing, sales and POS", "8 modules, from purchasing, sales, finance, assets and tax to accounting"),
+            ("Strength", "Snap a bill and it is entered; works on the web and in LINE", "Consultants set it up around your business; online and real-time"),
+        ],
+        "compare_price": ("Price", "Ask us on LINE", "Talk to a consultant"),
+        "tier_eyebrow": "MR.ERP · the full system",
+        "tier_title": "When you grow, the full system is ready",
+        "tier_text": "Pearnly and MR.ERP are one company. When your business needs the full suite, MR.ERP has 8 management modules and a DMS for dealers, set up by consultants with over 30 years of experience.",
+        "tier_cards": [("MR.ERP ERP", "Purchasing, inventory, sales, finance, assets, tax, accounting and job tracking."),
+                       ("MR.ERP DMS", "Dealer management, used with Pearnly DMS in LINE.")],
+        "tier_more": "Meet MR.ERP",
+        "band": {"erp": ("Need the complete accounting suite?", "MR.ERP ERP has 8 modules, from purchasing to accounting, from the same company as Pearnly."),
+                 "dms": ("Pearnly DMS works with MR.ERP DMS", "The LINE assistant sends customers and bookings into MR.ERP DMS, the dealers' core system.")},
+    },
+    "zh": {
+        "title": "MR.ERP | 与 Pearnly 同一家公司的专业版 ERP 与 DMS",
+        "description": "MR.ERP 是面向中小企业的完整经营管理系统：采购与应付、库存、销售与应收、资金、固定资产、增值税与预扣税、会计和工作跟踪，另有面向经销商的 MR.ERP DMS。由 30 多年会计顾问经验的团队实施。",
+        "badge": "Pearnly × MR.ERP · 同一家公司",
+        "h1": "业务做大了\n就用完整版",
+        "lead": "MR.ERP 是 Pearnly 同一家公司的专业版 ERP 和 DMS。顾问团队做了 30 多年会计系统实施，按你的业务把系统搭好。",
+        "login": "登录 MR.ERP",
+        "flow_title": "Pearnly 负责拍进来 · MR.ERP 负责管起来",
+        "flow_text": "Pearnly 让单据从照片和 LINE 快速进系统，MR.ERP 是管理整个企业的核心系统。先用轻量版，准备好了再扩展。",
+        "light": ("Pearnly", "轻量 · 好上手", ["Cowork · 会计事务所", "DMS · 经销商的 LINE 助手", "ERP · 商店与小型企业"]),
+        "full": ("MR.ERP", "完整版 · 顾问实施", ["MR.ERP ERP · 8 大管理模块", "MR.ERP DMS · 经销商管理系统"]),
+        "modules_title": "一套系统，8 大模块",
+        "modules": ["采购与应付管理", "库存管理", "销售与应收管理", "资金管理", "固定资产登记", "增值税与预扣税", "会计", "工作跟踪"],
+        "industries_title": "实施过的行业",
+        "industries": ["商贸", "房地产", "零售", "服务", "寄卖", "制造", "进出口"],
+        "dms_title": "MR.ERP DMS：经销商管理系统",
+        "dms_text": "经销商的核心系统。搭配 Pearnly DMS 使用：在 LINE 里读身份证、建客户、做订车单，直接进 MR.ERP DMS，不会重复建客户。",
+        "dms_login": "登录 MR.ERP DMS",
+        "dms_more": "了解 Pearnly DMS",
+        "compare_title": "怎么选",
+        "compare_cols": ["", "Pearnly ERP", "MR.ERP ERP"],
+        "compare_rows": [
+            ("适合", "商店与小型企业", "需要完整会计与管理系统的中小企业"),
+            ("范围", "商品、库存、采购、销售和 POS", "8 大模块，从采购、销售、资金、资产、税务到会计"),
+            ("特点", "拍单据就能录入，网页和 LINE 都能用", "顾问按业务实施，在线实时"),
+        ],
+        "compare_price": ("价格", "LINE 咨询", "联系顾问"),
+        "tier_eyebrow": "MR.ERP · 完整版",
+        "tier_title": "业务做大了，完整版就在这里",
+        "tier_text": "Pearnly 和 MR.ERP 是同一家公司。需要完整系统时，MR.ERP 有 8 大管理模块和面向经销商的 DMS，由 30 多年经验的顾问团队实施。",
+        "tier_cards": [("MR.ERP ERP", "采购、库存、销售、资金、资产、税务、会计和工作跟踪。"),
+                       ("MR.ERP DMS", "经销商管理系统，搭配 LINE 里的 Pearnly DMS。")],
+        "tier_more": "了解 MR.ERP",
+        "band": {"erp": ("需要完整的会计系统？", "MR.ERP ERP 有 8 大模块，从采购到会计，和 Pearnly 是同一家公司。"),
+                 "dms": ("Pearnly DMS 搭配 MR.ERP DMS", "LINE 助手把客户和订车单送进经销商的核心系统 MR.ERP DMS。")},
     },
 }
 
