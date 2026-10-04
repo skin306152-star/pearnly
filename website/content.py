@@ -10,6 +10,19 @@ EMAIL = "hello@pearnly.com"
 COMPANION_URL = "/downloads/companion/PearnlyCompanion-Setup.exe"
 MEDIA = "https://media.pearnly.com/"
 
+# 运营主体（用户 2026-10-04 提供）：页脚与 schema.org Organization 共用。泰文地址按官方行政区名写。
+COMPANY = {
+    "legal_name": "MR. ERP COMPANY LIMITED",
+    "reg_no": "0315551000297",
+    "address": {
+        "th": "158 หมู่ 8 ต.อิสาณ อ.เมืองบุรีรัมย์ จ.บุรีรัมย์ 31000",
+        "en": "158 Moo 8, Isan Subdistrict, Mueang Buriram District, Buriram Province 31000",
+        "zh": "158 Moo 8, Isan Subdistrict, Mueang Buriram District, Buriram Province 31000",
+    },
+    "postal": {"streetAddress": "158 Moo 8, Isan Subdistrict", "addressLocality": "Mueang Buriram", "addressRegion": "Buriram",
+               "postalCode": "31000", "addressCountry": "TH"},
+}
+
 LANGS = {
     "th": {"prefix": "", "html": "th", "hreflang": "th", "label": "ไทย", "og": "th_TH"},
     "en": {"prefix": "/en", "html": "en", "hreflang": "en", "label": "English", "og": "en_US"},
@@ -66,6 +79,8 @@ COMMON = {
         "contact_title": "อยากลองใช้กับงานของคุณ?",
         "contact_text": "ทักมาทาง LINE หรืออีเมล แล้วเราจะติดต่อกลับ",
         "contact": "ติดต่อ",
+        "operator": "ให้บริการโดย",
+        "reg_no": "เลขทะเบียนนิติบุคคล",
         "products": "ผลิตภัณฑ์",
         "language": "ภาษา",
         "skip": "ข้ามไปเนื้อหา",
@@ -92,6 +107,8 @@ COMMON = {
         "contact_title": "Want to try it on your own work?",
         "contact_text": "Message us on LINE or by email and we will get back to you.",
         "contact": "Contact",
+        "operator": "Operated by",
+        "reg_no": "Registration no.",
         "products": "Products",
         "language": "Language",
         "skip": "Skip to content",
@@ -118,6 +135,8 @@ COMMON = {
         "contact_title": "想用在你自己的业务上？",
         "contact_text": "通过 LINE 或邮件联系我们，我们会尽快回复。",
         "contact": "联系",
+        "operator": "运营方",
+        "reg_no": "企业注册号",
         "products": "产品",
         "language": "语言",
         "skip": "跳到正文",

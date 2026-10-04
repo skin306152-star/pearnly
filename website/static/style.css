@@ -322,7 +322,7 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .footer li { padding: 4px 0; }
 .footer li a { color: var(--muted); font-size: 14.5px; transition: color .2s; }
 .footer li a:hover { color: var(--ink); }
-.legal { margin-top: 44px; font-size: 13px; color: var(--faint); }
+.legal { margin-top: 44px; font-size: 13px; color: var(--faint); display: grid; gap: 2px; }
 @media (max-width: 760px) { .footer .cols { grid-template-columns: 1fr 1fr; } .brandcol { grid-column: 1 / -1; } }
 
 /* ---------- 渐入 ---------- */

@@ -57,8 +57,9 @@ def jsonld(data):
     return '<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/") + "</script>"
 
 
-ORG = {"@type": "Organization", "@id": C.SITE + "/#org", "name": "Pearnly", "url": C.SITE + "/", "logo": C.SITE + "/static/logo.png",
-       "email": C.EMAIL, "sameAs": [C.LINE_URL]}
+ORG = {"@type": "Organization", "@id": C.SITE + "/#org", "name": "Pearnly", "legalName": C.COMPANY["legal_name"],
+       "taxID": C.COMPANY["reg_no"], "url": C.SITE + "/", "logo": C.SITE + "/static/logo.png", "email": C.EMAIL,
+       "address": {"@type": "PostalAddress", **C.COMPANY["postal"]}, "sameAs": [C.LINE_URL]}
 
 # 线条图标（24 网格，描边用 currentColor）。
 ICONS = {
@@ -177,7 +178,10 @@ def footer(lang):
       <li><a href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a></li>
     </ul></div>
   </div>
-  <div class="wrap legal">© 2026 Pearnly</div>
+  <div class="wrap legal">
+    <p>© 2026 Pearnly · {esc(t["operator"])} {esc(C.COMPANY["legal_name"])} · {esc(t["reg_no"])} {esc(C.COMPANY["reg_no"])}</p>
+    <p>{esc(C.COMPANY["address"][lang])}</p>
+  </div>
 </footer>
 </body>
 </html>
