@@ -52,15 +52,19 @@ canvas.dots { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .section { padding-top: 88px; padding-bottom: 8px; }
 
-/* ---------- 顶栏：悬浮胶囊 ---------- */
-.topbar { position: fixed; top: 14px; left: 0; right: 0; z-index: 50; display: flex; justify-content: center; pointer-events: none; }
+/* ---------- 顶栏：页顶是透明全宽条，往下滑后收成悬浮玻璃胶囊（site.js 加 .scrolled） ---------- */
+.topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: center; pointer-events: none;
+  padding-top: 10px; transition: padding-top .5s var(--ease); }
 .pill {
-  pointer-events: auto; width: calc(100% - 32px); max-width: 1120px; display: flex; align-items: center; gap: 8px;
-  padding: 6px 6px 6px 22px; border-radius: 999px; border: 1px solid rgba(20, 20, 19, .08);
-  background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: saturate(1.4) blur(16px); backdrop-filter: saturate(1.4) blur(16px);
-  transition: box-shadow .3s var(--ease), background .3s var(--ease);
+  pointer-events: auto; width: calc(100% - 32px); max-width: 1320px; display: flex; align-items: center; gap: 8px;
+  padding: 8px 6px 8px 10px; border-radius: 999px; border: 1px solid transparent; background: transparent;
+  transition: max-width .55s var(--ease), padding .55s var(--ease), background .4s var(--ease), border-color .4s var(--ease), box-shadow .4s var(--ease);
 }
-.topbar.scrolled .pill { box-shadow: var(--shadow); background: rgba(255, 255, 255, .86); }
+.topbar.scrolled { padding-top: 14px; }
+.topbar.scrolled .pill {
+  max-width: 1080px; padding: 6px 6px 6px 22px; border-color: rgba(20, 20, 19, .08); box-shadow: var(--shadow);
+  background: rgba(255, 255, 255, .78); -webkit-backdrop-filter: saturate(1.4) blur(16px); backdrop-filter: saturate(1.4) blur(16px);
+}
 .wordmark { font-family: var(--serif); font-weight: 600; font-size: 23px; letter-spacing: -.01em; color: var(--ink); margin-right: 14px; line-height: 1; }
 .nav { flex: 1; display: flex; gap: 2px; }
 .nav a { padding: 7px 14px; border-radius: 999px; font-size: 15px; color: var(--muted); transition: background .2s, color .2s; }
@@ -70,7 +74,8 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .langs a:hover { color: var(--ink); }
 .langs a[aria-current] { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
 @media (max-width: 760px) {
-  .pill { flex-wrap: wrap; border-radius: 22px; padding: 8px 8px 6px 16px; row-gap: 4px; }
+  .pill, .topbar.scrolled .pill { flex-wrap: wrap; border-radius: 22px; padding: 8px 8px 6px 16px; row-gap: 4px; }
+  .pill { background: rgba(248, 248, 246, .92); }
   .nav { order: 3; flex-basis: 100%; overflow-x: auto; scrollbar-width: none; margin: 0 -8px 0 -10px; }
   .nav a { white-space: nowrap; font-size: 14px; padding: 6px 11px; }
   .langs { margin-left: auto; }

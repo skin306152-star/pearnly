@@ -133,7 +133,9 @@ def head(lang, key, title, description, graph, noindex=False):
 <meta property="og:locale" content="{C.LANGS[lang]["og"]}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f8f8f6">
-<link rel="icon" type="image/png" sizes="32x32" href="/static/icon-32.png">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="96x96" href="/static/icon-96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
 <link rel="apple-touch-icon" href="/static/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -647,6 +649,7 @@ def build(out):
             target = out / (url(lang, key).lstrip("/")) / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(render(lang, key), encoding="utf-8")
+    shutil.copy(STATIC / "favicon.ico", out / "favicon.ico")  # 谷歌搜索结果的站点图标：至少 48×48，根目录也放一份
     (out / "404.html").write_text(page_404(C.DEFAULT_LANG), encoding="utf-8")
     (out / "sitemap.xml").write_text(sitemap(), encoding="utf-8")
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {C.SITE}/sitemap.xml\n", encoding="utf-8")

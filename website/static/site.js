@@ -74,11 +74,11 @@
     for (var j = 0; j < items.length; j++) io.observe(items[j]);
   }
 
-  // ---- 顶栏：滚动后加阴影 ----
+  // ---- 顶栏：滚过 40px 后从透明全宽条收成胶囊 ----
   function topbar() {
     var bar = document.querySelector('.topbar');
     if (!bar) return;
-    var on = function () { bar.classList.toggle('scrolled', window.scrollY > 8); };
+    var on = function () { bar.classList.toggle('scrolled', window.scrollY > 40); };
     window.addEventListener('scroll', on, { passive: true });
     on();
   }
