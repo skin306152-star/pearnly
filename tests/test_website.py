@@ -1,4 +1,5 @@
 """pearnly.com 静态官网：每页都有独立标题/描述、自指 canonical、三语互指 hreflang，站内链接都能打开，结构化数据可解析，sitemap 列全。"""
+import html
 import json
 import re
 import sys
@@ -154,6 +155,19 @@ class WebsiteTest(unittest.TestCase):
         for table in (C.PRODUCT, C.TOOL):
             for key, by_lang in table.items():
                 self.assertEqual(len({json.dumps(shape(by_lang[l]), sort_keys=True) for l in C.LANGS}), 1, key)
+
+    def test_home_story_keeps_how_it_works_readable_in_every_language(self):
+        """首页滚动故事：动画只给眼睛看，"怎么运作"的三步仍是页面正文；数据可解析，30 张单据。"""
+        for lang in C.LANGS:
+            html_text = (self.out / build.url(lang, "home").lstrip("/") / "index.html").read_text(encoding="utf-8")
+            self.assertEqual(html_text.count('class="ss-stage" aria-hidden="true"'), 1, lang)
+            self.assertIn(f'id="story-title">{build.esc(C.HOME[lang]["steps_title"])}</h2>', html_text)
+            for title, text in C.HOME[lang]["steps"]:
+                self.assertIn(build.esc(text), html_text)
+            raw = html_text.split('data-story="', 1)[1].split('"', 1)[0]
+            data = json.loads(html.unescape(raw))
+            self.assertEqual((len(data["rows"]), len(data["captions"])), (30, 5))
+            self.assertIn('href="#products" tabindex="-1"', html_text)
 
 
 if __name__ == "__main__":
