@@ -290,7 +290,7 @@ def scene_cowork(L):
     <span class="sc-tag">{esc(L["system"])}</span>
     <div class="invs"><h5>{esc(L["invoices"])} <span class="dots">{dots}</span></h5><div class="inv-row">{cards}</div></div>
     <div class="erpbox" data-at="6200:read"><h5>{esc(L["erp"])} <span class="rb">{esc(L["readback"])}</span></h5><div id="erp-rows">{erp_rows}</div></div>
-    <div class="pill" data-at="6900">{icon("check")}<span>{esc(L["cowork_done"])}</span></div>
+    <div class="sc-done" data-at="6900">{icon("check")}<span>{esc(L["cowork_done"])}</span></div>
   </div>
   {flies}
 </div>"""
@@ -358,7 +358,7 @@ def scene_erp(L):
     <span class="sc-tag">{esc(L["system"])}</span>
     <div class="stock"><h5>{esc(L["stock"])}</h5>{rows.replace("{low}", esc(L["low"]))}
       <span class="restock" data-at="6700">+24 · {esc(L["restock"])}</span></div>
-    <div class="pill" data-at="7400">{icon("check")}<span>{esc(L["erp_done"])}</span></div>
+    <div class="sc-done" data-at="7400">{icon("check")}<span>{esc(L["erp_done"])}</span></div>
   </div>
   {flyer("+24", "#bill", "#sk1", 6000)}
 </div>"""

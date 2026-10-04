@@ -65,16 +65,19 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .pill { position: relative; isolation: isolate; }
 .pill::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; opacity: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, .12) 45%, rgba(255, 255, 255, 0) 60%),
+  background: linear-gradient(180deg, rgba(255, 255, 255, .38) 0%, rgba(255, 255, 255, .06) 40%, rgba(255, 255, 255, 0) 55%),
               radial-gradient(120% 140% at 50% -40%, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 60%);
   transition: opacity .4s var(--ease);
 }
+/* 纯透明液态玻璃（用户 2026-10-05）：几乎不着色、轻模糊，靠亮边和内侧折射光勾出形状 */
 .topbar.scrolled .pill {
-  max-width: 1080px; padding: 6px 6px 6px 22px; border-color: rgba(255, 255, 255, .65);
-  background: rgba(255, 255, 255, .28);
-  -webkit-backdrop-filter: blur(22px) saturate(1.9) brightness(1.04); backdrop-filter: blur(22px) saturate(1.9) brightness(1.04);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), inset 0 -1px 0 rgba(255, 255, 255, .25), inset 0 0 0 .5px rgba(20, 20, 19, .06),
-              0 10px 30px -10px rgba(20, 20, 19, .22), 0 2px 6px -2px rgba(20, 20, 19, .08);
+  max-width: 1080px; padding: 6px 6px 6px 22px; border-color: rgba(255, 255, 255, .75);
+  background: rgba(255, 255, 255, .03);
+  -webkit-backdrop-filter: blur(2.5px) saturate(1.7); backdrop-filter: blur(2.5px) saturate(1.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .45),
+              inset 1px 0 0 rgba(255, 255, 255, .45), inset -1px 0 0 rgba(255, 255, 255, .45),
+              inset 0 0 12px rgba(255, 255, 255, .22), inset 0 0 0 .5px rgba(20, 20, 19, .05),
+              0 8px 26px -12px rgba(20, 20, 19, .2), 0 1px 4px -1px rgba(20, 20, 19, .06);
 }
 .topbar.scrolled .pill::before { opacity: 1; }
 .wordmark { font-family: var(--serif); font-weight: 600; font-size: 23px; letter-spacing: -.01em; color: var(--ink); margin-right: 14px; line-height: 1; }
@@ -161,9 +164,10 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .thread { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: .55; transition: stroke-dashoffset .7s var(--ease); }
 .thread.on { stroke-dashoffset: 0; }
 .fly.doc { background: #fff; color: var(--ink); border: 1px solid var(--line-strong); }
-.pill { display: flex; align-items: center; gap: 9px; padding: 11px 14px; border-radius: 12px; background: rgba(29, 127, 71, .08); color: var(--green); font-size: 13.5px; font-weight: 500;
+/* 演示里的完成提示（别叫 .pill：那是顶栏胶囊） */
+.sc-done { display: flex; align-items: center; gap: 9px; padding: 11px 14px; border-radius: 12px; background: rgba(29, 127, 71, .08); color: var(--green); font-size: 13.5px; font-weight: 500;
   opacity: 0; transform: translateY(8px); transition: opacity .5s var(--ease), transform .5s var(--ease); margin-top: auto; }
-.pill.on { opacity: 1; transform: none; }
+.sc-done.on { opacity: 1; transform: none; }
 .flash { position: absolute; inset: 0; border-radius: inherit; background: #fff; opacity: 0; pointer-events: none; transition: opacity .35s; }
 .flash.on { opacity: .9; transition: none; }
 .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; z-index: 7; }

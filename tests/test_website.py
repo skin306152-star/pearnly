@@ -193,5 +193,13 @@ class WebsiteTest(unittest.TestCase):
             self.assertIn(f'class="mascot m-{kind}', home)
 
 
+    def test_topbar_capsule_class_is_not_reused_inside_the_page(self):
+        """顶栏胶囊 .pill 只有一个；页面里别的组件重名会把它的样式（比如默认隐藏）套到顶栏上。"""
+        for lang in C.LANGS:
+            for key in ("home", "mrerp", "erp"):
+                html_text = (self.out / build.url(lang, key).lstrip("/") / "index.html").read_text(encoding="utf-8")
+                self.assertEqual(len(re.findall(r'class="pill[" ]', html_text)), 1, (lang, key))
+
+
 if __name__ == "__main__":
     unittest.main()
