@@ -23,6 +23,7 @@ ACTIONS = {"new_site", "install_app", "set_oidc", "set_billing", "set_ocr", "set
            "verify_site", "drop_site"}
 MAINTENANCE_PREFIX = "pearnly-maintenance-"
 MAINTENANCE_MAX_AGE_HOURS = 12
+STEP_HINT = "PEARNLY_STEP_HINT "  # 与 site-step.py 一致
 BENCH_PYTHON = "/home/frappe/frappe-bench/env/bin/python"
 POD_NETWORK = "pearnly-production_runtime"
 
@@ -51,6 +52,10 @@ def run(args, *, data=None, timeout=1800):
         log = Path("/opt/pearnly/state/last-provision-error.log")
         log.write_text(result.stdout + "\n" + result.stderr)
         log.chmod(0o600)
+        # 站点步骤专门写给开户人看的那一行（要去 LINE 后台改的配置）才带回控制面。
+        hints = [line[len(STEP_HINT):].strip() for line in result.stdout.splitlines() if line.startswith(STEP_HINT)]
+        if hints:
+            raise RuntimeError(hints[-1][:400])
         raise RuntimeError("Server operation failed; inspect the restricted server log")
     return result.stdout
 

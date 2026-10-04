@@ -331,6 +331,18 @@ class Contracts(unittest.TestCase):
                 agent.publish({"site": "acme.pearnly.com", "group": "dms"})
             write.assert_not_called()
 
+    def test_only_the_step_hint_reaches_the_control_plane(self):
+        failed = subprocess.CompletedProcess([], 1, stdout="secret-ish noise\n" + agent.STEP_HINT
+                                             + "LINE 后台没开 Use webhook\n", stderr="trace with token")
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(agent, "Path", lambda value: Path(tmp) / Path(value).name), \
+                patch.object(agent.subprocess, "run", return_value=failed):
+            with self.assertRaisesRegex(RuntimeError, "^LINE 后台没开 Use webhook$"):
+                agent.run(["docker", "exec"])
+            failed.stdout = "no hint here"
+            with self.assertRaisesRegex(RuntimeError, "restricted server log"):
+                agent.run(["docker", "exec"])
+
 
 if __name__ == "__main__":
     unittest.main()

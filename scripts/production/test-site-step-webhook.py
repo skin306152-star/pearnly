@@ -4,9 +4,12 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import sys
 import unittest
 from unittest.mock import patch
 
+# 开户步骤用共用的纯约定（LIFF ID → LINE Login 频道），不依赖框架。
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps/pearnly_core"))
 path = Path(__file__).resolve().parents[2] / "infrastructure/production/site-step.py"
 spec = importlib.util.spec_from_file_location("site_step", path)
 step = importlib.util.module_from_spec(spec)
@@ -69,13 +72,63 @@ class CheckWebhook(unittest.TestCase):
             self.check(FakeLine())
 
     def test_use_webhook_switched_off_fails_with_the_console_instruction(self):
-        with self.assertRaisesRegex(AssertionError, "Use webhook"):
+        # 开户单上要看得懂：作为提示行带回控制面（见 provision-agent 的 STEP_HINT）。
+        with self.assertRaisesRegex(step.StepHint, "Use webhook"):
             self.check(FakeLine(endpoint=URL, active=False))
 
     def test_failed_test_push_fails(self):
         line = FakeLine(endpoint=URL, test={"success": False, "statusCode": 404, "reason": "NOT_FOUND"})
         with self.assertRaisesRegex(AssertionError, "404"):
             self.check(line)
+
+
+class FakeLiff:
+    """Stands in for the LINE Login stateless token and the LIFF app list."""
+
+    def __init__(self, apps):
+        self.apps, self.calls = apps, []
+
+    def __call__(self, request, timeout):
+        self.calls.append((request.get_method(), request.full_url, request.get_header("Authorization")))
+        if request.full_url.endswith("/oauth2/v3/token"):
+            return io.BytesIO(json.dumps({"access_token": "short-lived"}).encode())
+        return io.BytesIO(json.dumps({"apps": self.apps}).encode())
+
+
+class CheckLiff(unittest.TestCase):
+    LIFF = "2010411313-abcd1234"
+
+    def check(self, group, url, site=SITE, liff=LIFF, secret="login-secret"):
+        line = FakeLiff([{"liffId": self.LIFF, "view": {"type": "full", "url": url}}])
+        with patch.object(step.urllib.request, "urlopen", line):
+            step.check_liff(site, group, liff, secret)
+        return line
+
+    def test_erp_and_cowork_endpoints_must_be_under_the_site(self):
+        for url in ("https://acme-cowork.pearnly.com/", "https://acme-cowork.pearnly.com",
+                    "https://acme-cowork.pearnly.com/stocktake"):
+            line = self.check("cowork", url)
+        self.assertEqual(line.calls[-1][2], "Bearer short-lived")
+        for url in ("https://acme-cowork.pearnly/liff/dms-booking", "https://other.pearnly.com/",
+                    "https://acme-cowork.pearnly.com.evil.test/", ""):
+            with self.assertRaisesRegex(step.StepHint, "Endpoint URL"):
+                self.check("cowork", url)
+
+    def test_dms_endpoint_must_be_the_booking_editor(self):
+        self.check("dms", "https://acme-cowork.pearnly.com/liff/dms-booking")
+        with self.assertRaisesRegex(step.StepHint, "/liff/dms-booking"):
+            self.check("dms", "https://acme-cowork.pearnly.com/")
+
+    def test_liff_outside_the_login_channel_is_reported(self):
+        with self.assertRaisesRegex(step.StepHint, "LIFF ID"):
+            self.check("erp", "https://acme-cowork.pearnly.com/", liff="2010411313-other")
+
+    def test_nothing_to_check_without_liff_or_secret(self):
+        for liff, secret in (("", "s"), (self.LIFF, ""), ("not-a-liff", "s")):
+            line = FakeLiff([])
+            with patch.object(step.urllib.request, "urlopen", line):
+                step.check_liff(SITE, "erp", liff, secret)
+            self.assertEqual(line.calls, [])
 
 
 if __name__ == "__main__":

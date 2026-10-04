@@ -44,14 +44,15 @@ def after_request(request=None, response=None):
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @do_not_record
 def execute(tenant=None, action=None, email=None, password=None, username="", request_id="",
-            subject="", line_user_id="", login_channel=""):
+            subject="", line_user_id="", login_channel="", issuer=""):
     # Expected and unexpected errors stay inside this boundary. Frappe must not
     # persist a traceback with the credential-bearing request locals.
     _private_request()
     try:
         result = member_service.execute(tenant, action, email, password, username, request_id,
-                                        subject, line_user_id, login_channel)
+                                        subject, line_user_id, login_channel, issuer)
         frappe.db.commit()
+        _release_locks()
         return {"ok": True, **result}
     except MemberError as error:
         code = error.code
@@ -64,4 +65,13 @@ def execute(tenant=None, action=None, email=None, password=None, username="", re
         frappe.db.rollback()
     except Exception:
         code = "unavailable"
+    _release_locks()
     return {"ok": False, "error": code}
+
+
+def _release_locks():
+    # LINE 专用身份的命名锁（member_service._person_lock）在提交 / 回滚之后放掉。
+    try:
+        frappe.db.sql("select release_all_locks()")
+    except Exception:
+        pass

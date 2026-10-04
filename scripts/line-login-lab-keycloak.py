@@ -28,6 +28,11 @@ for a in profile["attributes"]:
     if a["name"] in ("firstName", "lastName"):
         a.pop("required", None)
 root.request(f"/admin/realms/{R}/users/profile", "PUT", profile)
+# Production ownership proof attribute (infrastructure/production/configure-member-identity.py): admin-only.
+profile = root.request(f"/admin/realms/{R}/users/profile")
+profile["attributes"].append({"name": "pearnly_member_owner", "multivalued": False,
+                              "permissions": {"view": ["admin"], "edit": ["admin"]}})
+root.request(f"/admin/realms/{R}/users/profile", "PUT", profile)
 
 # Fake LINE: ID token `sub` is a LINE-shaped user id taken from a user attribute.
 root.request("/admin/realms", "POST", {"realm": "fakeline", "enabled": True})
@@ -75,7 +80,8 @@ root.request(f"/admin/realms/{R}/users/{su}/role-mappings/clients/{mgr}", "POST"
 root.request(f"/admin/realms/{R}/clients/{cid}/scope-mappings/clients/{mgr}", "POST", roles)
 secret = root.request(f"/admin/realms/{R}/clients/{cid}/client-secret")["value"]
 subjects = {}
-for email, username in (("owner@lab.test", "LabOwner"), ("stranger@lab.test", "LabStranger")):
+for email, username in (("owner@lab.test", "LabOwner"), ("stranger@lab.test", "LabStranger"),
+                        ("other@lab.test", "LabOther")):
     root.request(f"/admin/realms/{R}/users", "POST", {
         "username": username, "email": email, "enabled": True, "emailVerified": True,
         "credentials": [{"type": "password", "value": "owner-pw", "temporary": False}]})

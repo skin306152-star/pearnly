@@ -100,34 +100,35 @@ class TestConfigAndEntry(Base):
 
 
 class TestLoginSource(Base):
+    """LINE 登录按本站生效绑定认人；身份服务给的 subject 是这个 LINE 的专用身份，不参与认人。"""
+
     def claims(self, idp=ALIAS, line=LINE_A):
-        return {"sub": "kc-subject", "pearnly_idp": idp, "pearnly_line_user_id": line}
+        return {"sub": "line-person-subject", "pearnly_idp": idp, "pearnly_line_user_id": line}
 
-    def test_password_login_is_untouched(self):
-        self.assertEqual(line_login.verify_login_source({"sub": "kc-subject"}, "owner@example.test"), {})
+    def test_password_login_is_not_a_line_login(self):
+        self.assertFalse(line_login.is_line_login({"sub": "kc-subject"}))
+        self.assertTrue(line_login.is_line_login(self.claims()))
 
-    def test_bound_line_passes(self):
-        self.assertEqual(line_login.verify_login_source(self.claims(), "owner@example.test"),
-                         {"identity_provider": ALIAS, "line_user_id": LINE_A})
+    def test_bound_line_resolves_to_its_user_whatever_the_subject(self):
+        self.assertEqual(line_login.resolve_line_login(self.claims()),
+                         ("owner@example.test", {"identity_provider": ALIAS, "line_user_id": LINE_A}))
 
     def test_other_site_other_line_unbound_disabled_or_not_enabled_are_refused(self):
-        cases = [(self.claims(idp="line-999999999"), "owner@example.test"),
-                 (self.claims(line=LINE_B), "owner@example.test"),
-                 (self.claims(line="garbage"), "owner@example.test")]
-        for claims, user in cases:
+        for claims in (self.claims(idp="line-999999999"), self.claims(line=LINE_B),
+                       self.claims(line="garbage"), self.claims(idp="")):
             with self.assertRaises(PermissionError_):
-                line_login.verify_login_source(claims, user)
+                line_login.resolve_line_login(claims)
         self.bindings[0].status = "unbound"
         with self.assertRaises(PermissionError_):
-            line_login.verify_login_source(self.claims(), "owner@example.test")
+            line_login.resolve_line_login(self.claims())
         self.bindings[0].status = "active"
         self.users["owner@example.test"] = 0
         with self.assertRaises(PermissionError_):
-            line_login.verify_login_source(self.claims(), "owner@example.test")
+            line_login.resolve_line_login(self.claims())
         self.users["owner@example.test"] = 1
         self.native.conf.pop("pearnly_line_login_idp")
         with self.assertRaises(PermissionError_):
-            line_login.verify_login_source(self.claims(), "owner@example.test")
+            line_login.resolve_line_login(self.claims())
 
 
 class TestSessionsAndSync(Base):

@@ -377,6 +377,9 @@ def _line_payload(dep, site: str, group: str) -> dict:
         # 有它才在身份服务里开 LINE 登录入口（见 scripts/production/configure-line-login.py）。
         "login_channel_secret": line_login_secret(frappe.db.get_value(ISSUE, dep.issue, "target"),
                                                   dep.product, channel.liff_id),
+        # 只读：开户时核对 LIFF 落地地址（所有产品）。
+        "liff_check_secret": line_login_secret(frappe.db.get_value(ISSUE, dep.issue, "target"),
+                                               dep.product, channel.liff_id, for_login=False),
     })
     return payload
 
@@ -385,12 +388,15 @@ def _line_payload(dep, site: str, group: str) -> dict:
 LINE_LOGIN_PRODUCTS = ("erp", "cowork")
 
 
-def line_login_secret(target, product, liff_id) -> str:
-    """开户目标上全平台一份的 LINE Login 频道密钥；该渠道 LIFF 属于这个频道、产品已接入才给。"""
+def line_login_secret(target, product, liff_id, *, for_login=True) -> str:
+    """开户目标上全平台一份的 LINE Login 频道密钥；该渠道 LIFF 属于这个频道、产品已接入才给。
+
+    `for_login=False`：只用来读回 LIFF 落地地址（DMS 不接 LINE 登录，但它的 LIFF 最要紧）。
+    """
     from frappe.utils.password import get_decrypted_password
     from pearnly_core.account.line_login_contract import login_channel_of
 
-    if product not in LINE_LOGIN_PRODUCTS or not target:
+    if (for_login and product not in LINE_LOGIN_PRODUCTS) or not target:
         return ""
     channel = frappe.db.get_value("Pearnly Target", target, "line_login_channel_id")
     if not channel or login_channel_of(liff_id) != channel:
@@ -450,6 +456,7 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     secret = channel.get_password("channel_secret", raise_exception=False) if enabled else ""
     token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
     login_secret = line_login_secret(target, dep.product, channel.liff_id) if enabled else ""
+    check_secret = line_login_secret(target, dep.product, channel.liff_id, for_login=False) if enabled else ""
     if enabled and not (secret and token):
         frappe.throw(_("LINE credentials are required before activation."))
     # `restart`: 这是**改一个正在服务的站点**，站点会继续按进程内的旧副本应答最长一分钟
@@ -460,7 +467,8 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
                "configured": enabled, "clear_credentials": not enabled, "restart": True,
                "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
                "channel_secret": secret, "channel_access_token": token,
-               "login_channel_secret": login_secret, "webhook_url": line_webhook_url(dep)}
+               "login_channel_secret": login_secret, "liff_check_secret": check_secret,
+               "webhook_url": line_webhook_url(dep)}
     step.payload = json.dumps(payload)
     step.status, step.output, step.finished_at = "pending", "", None
     req.status, req.error, req.finished_at = "pending", "", None

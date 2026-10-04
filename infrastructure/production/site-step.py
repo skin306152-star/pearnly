@@ -8,10 +8,19 @@ import secrets
 import shutil
 import sys
 import runpy
+import urllib.parse
 import urllib.request
 
 
 LINE_WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/"
+# 开户单上要让人看得懂的失败原因：执行器只把这一行带回控制面，其余输出留在服务器受限日志。
+STEP_HINT = "PEARNLY_STEP_HINT "
+# DMS 改单编辑器直接打开 LIFF 落地地址，必须一字不差；ERP / Cowork 只要在本站下面（填站点根）。
+LIFF_PATHS = {"dms": "/liff/dms-booking"}
+
+
+class StepHint(Exception):
+    """要人去 LINE 后台改的配置。消息是写给开户的人看的，不含任何凭据。"""
 # ERP / Cowork 的按权限富菜单（DMS 走自己的 `rich_menu`）。发布后站点配置里才有菜单表，
 # 没发布过绑定的人就只看到空白官方号（mrerp / erpcowork 开户后都没有，2026-09-30）。
 LINE_MENUS = {"erp": "pearnly_erp_portal.integrations.line_menu", "cowork": "pearnly_cowork.line.menu"}
@@ -70,9 +79,41 @@ def check_webhook(site, token):
     url = webhook_url(site)
     info = line_webhook(token, "GET")
     assert info.get("endpoint") == url, "LINE webhook URL does not point to this tenant"
-    assert info.get("active"), "Turn on 'Use webhook' in LINE Developers (Messaging API) for this channel"
+    if not info.get("active"):
+        raise StepHint("LINE 后台没开 Use webhook：LINE Developers → 该 OA 的 Messaging API 频道 → "
+                       "Messaging API 页打开 Use webhook，然后重试这一步")
     result = line_webhook(token, "POST", "test", {"endpoint": url})
     assert result.get("success"), "LINE webhook test failed: %s %s" % (result.get("statusCode"), result.get("reason"))
+
+
+def check_liff(site, group, liff_id, secret):
+    """LIFF 落地地址必须指向本站。它在 LINE 后台手填，系统以前从不核对（2026-10-04 查到
+    testcowork 少了 `.com`、testerp 填成了 DMS 的地址）。用 LINE Login 频道的临时令牌只读。"""
+    from pearnly_core.account.line_login_contract import login_channel_of
+
+    channel = login_channel_of(liff_id)
+    if not liff_id or not channel or not secret:
+        return
+    request = urllib.request.Request("https://api.line.me/oauth2/v3/token", method="POST", data=urllib.parse.urlencode({
+        "grant_type": "client_credentials", "client_id": channel, "client_secret": secret}).encode(),
+        headers={"Content-Type": "application/x-www-form-urlencoded"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        token = json.loads(response.read())["access_token"]
+    request = urllib.request.Request("https://api.line.me/liff/v1/apps", headers={"Authorization": "Bearer " + token})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        apps = json.loads(response.read() or b"{}").get("apps") or []
+    app = next((a for a in apps if a.get("liffId") == liff_id), None)
+    if not app:
+        raise StepHint(f"LIFF {liff_id} 不在 LINE Login 频道 {channel} 下：开户单上的 LIFF ID 填错了")
+    url = str((app.get("view") or {}).get("url") or "")
+    root = "https://" + site + "/"
+    if group in LIFF_PATHS:
+        expected, ok = "https://" + site + LIFF_PATHS[group], url == "https://" + site + LIFF_PATHS[group]
+    else:
+        expected, ok = root, (url.rstrip("/") + "/").startswith(root)
+    if not ok:
+        raise StepHint(f"LIFF {liff_id} 的 Endpoint URL 是 {url or '空'}，应为 {expected}：LINE Developers → "
+                       f"LINE Login 频道 {channel} → LIFF 里改好后重试这一步")
 
 
 # 共用 OCR 限额：各产品必须一字不差，否则 budget.permit 报 policy_mismatch 全部延后。
@@ -258,6 +299,7 @@ def main():
                 rich_menu.publish()
             if group in LINE_MENUS:
                 importlib.import_module(LINE_MENUS[group]).publish()
+            check_liff(site, group, p.get("liff_id"), p.get("liff_check_secret") or "")
             # LINE 绑定即登录：渠道带了 LINE Login 频道密钥才开；没带就关（站点侧回落密码登录）。
             config(pearnly_line_login_idp=line_login(p, group, runtime))
     elif action == "finalize_site":
@@ -325,4 +367,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except StepHint as hint:
+        print(STEP_HINT + str(hint).replace("\n", " "))
+        sys.exit(1)

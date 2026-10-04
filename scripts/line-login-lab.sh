@@ -21,6 +21,8 @@ up() {
     env/bin/python -c "import json;p=\"sites/common_site_config.json\";d=json.load(open(p));d.update(db_host=\"mariadb\",db_port=3306,redis_cache=\"redis://redis-cache:6379\",redis_queue=\"redis://redis-queue:6379\",redis_socketio=\"redis://redis-queue:6379\",serve_default_site=False);json.dump(d,open(p,\"w\"))"
     for s in erp.lab erp2.lab billing.lab; do [ -d sites/$s ] || bench new-site $s --db-root-password lab-root-only --admin-password lab-admin-only --install-app pearnly_core; done
     bench --site billing.lab list-apps | grep -q pearnly_control || bench --site billing.lab install-app pearnly_control
+    # No front-end build here: an empty bundle map lets native message pages (e.g. a refused sign-in) render.
+    mkdir -p sites/assets && { [ -f sites/assets/assets.json ] || echo "{}" > sites/assets/assets.json; }
     bench --site erp.lab migrate && bench --site erp2.lab migrate && bench --site billing.lab migrate'
 }
 serve() {

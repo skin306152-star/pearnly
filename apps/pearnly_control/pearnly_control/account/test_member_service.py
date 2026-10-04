@@ -184,30 +184,42 @@ CHANNEL = "2010411313"
 ALIAS = "line-2010411313"
 
 
+LINE_B = "U" + "b" * 32
+BUSINESS = "https://auth.example.test/realms/pearnly-business"
+
+
 class TestLineLinks(unittest.TestCase):
-    """LINE 登录关联：只替本租户登记过的身份写 Keycloak；入口按 LINE Login 频道共用，按站点记账。"""
+    """LINE 登录登记：只替本租户登记过的身份登记；每个 LINE 在每个池一个专用身份，按池计数释放。"""
 
     def setUp(self):
         self.native = MagicMock()
         self.native.conf = {"pearnly_billing_only": True, "pearnly_billing_scoped_tokens": True,
-                            "pearnly_billing_token": "unit-test-root-only"}
+                            "pearnly_billing_token": "unit-test-root-only",
+                            "pearnly_member_identity_ownership_key": "k" * 48}
         self.headers = {}
         self.native.get_request_header.side_effect = lambda name: self.headers.get(name)
-        self.native.db.get_value.return_value = "active"
+        self.native.db.sql.return_value = [[1]]  # get_lock
         self.owners = {("tenant-a", "owner-subject"), ("tenant-b", "owner-subject")}
         self.members = {("tenant-a", "member-subject")}
         self.links = {}
 
+        def matches(row, filters):
+            return all(getattr(row, key, None) == value for key, value in filters.items())
+
         def exists(doctype, filters=None):
             if doctype == service.LINE_LINK:
-                return filters in self.links
+                return any(matches(row, filters) for row in self.links.values())
             if isinstance(filters, dict):
                 pool = self.owners if doctype == service.TENANT_IDENTITY else self.members
-                return (filters["tenant"], filters["subject"]) in pool
+                return any(matches(SimpleNamespace(tenant=t, subject=s), filters) for t, s in pool)
             return False
 
-        def matches(row, filters):
-            return all(getattr(row, key) == value for key, value in filters.items())
+        def get_value(doctype, name, fields=None, **kwargs):
+            if doctype == "Pearnly Tenant":
+                return "active"
+            if doctype == service.LINE_LINK:
+                row = self.links.get(name)
+                return SimpleNamespace(**vars(row)) if row else None  # 与 Frappe 一样给副本
 
         def get_all(doctype, filters=None, fields=None, **kwargs):
             return [row for row in self.links.values() if matches(row, filters or {})]
@@ -216,44 +228,90 @@ class TestLineLinks(unittest.TestCase):
             for key in [k for k, row in self.links.items() if matches(row, filters)]:
                 del self.links[key]
 
+        def set_value(doctype, name, values, *args, **kwargs):
+            for field, value in values.items():
+                setattr(self.links[name], field, value)
+
         def insert(values):
             self.links[values["name"]] = SimpleNamespace(**values)
 
         self.native.db.exists.side_effect = exists
+        self.native.db.get_value.side_effect = get_value
         self.native.get_all.side_effect = get_all
         self.native.db.delete.side_effect = delete
-        self.native.db.set_value.side_effect = lambda doctype, name, field, value: setattr(
-            self.links[name], field, value)
+        self.native.db.set_value.side_effect = set_value
         for module in (service, member_api, member_provider):
             p = patch.object(module, "frappe", self.native)
             p.start()
             self.addCleanup(p.stop)
-        for target, value in (("MemberProvider", None), ("_insert", insert)):
-            p = patch.object(service, target, side_effect=value) if value else patch.object(service, target)
-            mocked = p.start()
-            self.addCleanup(p.stop)
-            if target == "MemberProvider":
-                self.provider_class, self.provider = mocked, mocked.return_value
+        p = patch.object(service, "_insert", side_effect=insert)
+        p.start()
+        self.addCleanup(p.stop)
+        p = patch.object(service, "realm_prefix", side_effect=lambda realm: "prefix-of-" + realm)
+        p.start()
+        self.addCleanup(p.stop)
+        p = patch.object(service, "MemberProvider")
+        self.provider_class = p.start()
+        self.addCleanup(p.stop)
+        self.provider = self.provider_class.return_value
+        self.provider.realm = "pearnly-business"
 
     def scope(self, product, tenant="tenant-a"):
         self.headers.update({"X-Pearnly-Billing-Product": product,
                              "X-Pearnly-Billing-Token": tenant_token("unit-test-root-only", tenant, product)})
 
-    def link(self, subject, line=LINE, tenant="tenant-a", product="erp", channel=CHANNEL):
+    def link(self, subject, line=LINE, tenant="tenant-a", product="erp", channel=CHANNEL, issuer=""):
         self.scope(product, tenant)
         return service.execute(tenant, "link-line", None, None, subject=subject, line_user_id=line,
-                               login_channel=channel)
+                               login_channel=channel, issuer=issuer)
 
     def unlink(self, subject, tenant="tenant-a", product="erp"):
         self.scope(product, tenant)
         return service.execute(tenant, "unlink-line", None, None, subject=subject, login_channel=CHANNEL)
 
-    def test_owner_and_member_link_to_the_shared_channel_entry(self):
+    def owner_of(self, line):
+        return service._digest("line-person-v1", "pearnly-business", ALIAS, line)
+
+    def test_link_puts_the_line_on_its_person_not_on_the_tenant_account(self):
         for product, subject in (("erp", "owner-subject"), ("dms", "member-subject")):
             self.assertEqual(self.link(subject, product=product), {"subject": subject})
-            self.provider_class.assert_called_with(product)
-            self.provider.link_line.assert_called_with(subject, ALIAS, LINE)
+            self.provider_class.assert_called_with(product, issuer="")
+            self.provider.ensure_line_person.assert_called_with(ALIAS, LINE, self.owner_of(LINE),
+                                                                service._old_direct_link)
+            # 租户账号自己不再挂 LINE（改造前可能挂着）。
+            self.provider.unlink_line.assert_called_with(subject, ALIAS)
+        self.assertEqual({row.realm for row in self.links.values()}, {"pearnly-business"})
         self.assertEqual(len(self.links), 2)
+        self.provider.release_line_person.assert_not_called()
+
+    def test_site_issuer_picks_the_pool(self):
+        # testcowork：Cowork 产品却签到业务池，关联要写进业务池。
+        self.link("owner-subject", product="cowork", issuer=BUSINESS)
+        self.provider_class.assert_called_with("cowork", issuer=BUSINESS)
+
+    def test_same_line_on_two_tenants_keeps_its_person_until_the_last_unbind(self):
+        self.link("owner-subject", tenant="tenant-a")
+        self.link("owner-subject", tenant="tenant-b")
+        self.unlink("owner-subject", tenant="tenant-a")
+        self.provider.release_line_person.assert_not_called()
+        self.unlink("owner-subject", tenant="tenant-b")
+        self.provider.release_line_person.assert_called_once_with(self.owner_of(LINE))
+        self.provider_class.assert_called_with(prefix="prefix-of-pearnly-business")
+        self.assertEqual(self.links, {})
+
+    def test_rebinding_another_line_releases_the_old_person(self):
+        self.link("owner-subject")
+        self.link("owner-subject", line=LINE_B)
+        self.provider.release_line_person.assert_called_once_with(self.owner_of(LINE))
+        self.assertEqual([row.line_user_id for row in self.links.values()], [LINE_B])
+        # 同一个 LINE 再登记一次：幂等，不释放。
+        self.link("owner-subject", line=LINE_B)
+        self.provider.release_line_person.assert_called_once()
+
+    def test_only_platform_registered_accounts_count_as_old_direct_links(self):
+        self.assertTrue(service._old_direct_link("owner-subject"))
+        self.assertTrue(service._old_direct_link("member-subject"))
+        self.assertFalse(service._old_direct_link("someone-else"))
 
     def test_unregistered_subject_bad_line_or_channel_rejected(self):
         for subject, line, channel in (("stranger", LINE, CHANNEL), ("owner-subject", "not-a-line-id", CHANNEL),
@@ -263,8 +321,14 @@ class TestLineLinks(unittest.TestCase):
                 self.link(subject, line, channel=channel)
         with self.assertRaises(member_provider.MemberError):
             self.link("member-subject", tenant="tenant-b")
-        self.provider.link_line.assert_not_called()
+        self.provider.ensure_line_person.assert_not_called()
         self.assertEqual(self.links, {})
+
+    def test_lock_timeout_is_unavailable(self):
+        self.native.db.sql.return_value = [[0]]
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.link("owner-subject")
+        self.assertEqual(raised.exception.code, "unavailable")
 
     def test_dms_scope_can_link_but_never_create_or_reset(self):
         self.scope("dms")
@@ -273,33 +337,6 @@ class TestLineLinks(unittest.TestCase):
                 service.execute("tenant-a", action, "x@example.test", "secret", "User1", "a" * 32)
         self.provider.create.assert_not_called()
         self.provider.reset_password.assert_not_called()
-
-    def test_unlinking_one_site_keeps_the_link_while_another_site_still_binds(self):
-        self.link("owner-subject", tenant="tenant-a")
-        self.link("owner-subject", tenant="tenant-b")
-        self.unlink("owner-subject", tenant="tenant-a")
-        self.provider.unlink_line.assert_not_called()
-        self.provider.link_line.assert_called_with("owner-subject", ALIAS, LINE)
-        self.unlink("owner-subject", tenant="tenant-b")
-        self.provider.unlink_line.assert_called_once_with("owner-subject", ALIAS)
-        self.assertEqual(self.links, {})
-
-    def test_line_moved_between_own_identities_is_relinked_but_not_from_elsewhere(self):
-        conflict = member_provider.MemberError("conflict")
-        self.link("member-subject")
-        self.provider.link_line.side_effect = [conflict, None]
-        self.provider.line_holders.return_value = ["member-subject", "owner-subject"]
-        self.link("owner-subject")
-        self.provider.unlink_line.assert_called_once_with("member-subject", ALIAS)
-        self.assertEqual({row.subject for row in self.links.values()}, {"owner-subject"})
-        # 持有人不是本租户的，或它在别的站点也用着这个 LINE：不抢。
-        for holders in (["other-tenant-subject"], ["owner-subject"]):
-            self.provider.link_line.side_effect = [conflict]
-            self.provider.line_holders.return_value = holders
-            with self.assertRaises(member_provider.MemberError):
-                self.link("member-subject" if holders == ["owner-subject"] else "owner-subject",
-                          tenant="tenant-a", product="dms")
-        self.provider.unlink_line.assert_called_once()
 
     def test_unlink_is_scoped_too(self):
         self.assertEqual(self.unlink("member-subject"), {"subject": "member-subject"})
@@ -318,45 +355,131 @@ class TestLineLinks(unittest.TestCase):
                 service.register_owner("tenant-a", "../admin")
 
 
-class TestProviderLineLinks(unittest.TestCase):
+class FakeKeycloak:
+    """够用的内存 Keycloak：用户、联合身份（LINE 关联）。"""
+
+    def __init__(self):
+        self.users, self.links, self.calls = {}, {}, []
+
+    def __call__(self, method, path, params=None, json=None, **kwargs):
+        self.calls.append((method, path))
+        parts = path.strip("/").split("/")
+
+        def reply(status, body=None):
+            return SimpleNamespace(status_code=status, json=lambda: body)
+
+        if path == "/users" and method == "GET":
+            if "idpAlias" in params:
+                return reply(200, [{"id": uid} for uid, links in self.links.items()
+                                   if links.get(params["idpAlias"]) == params["idpUserId"]])
+            field, value = next((k, v) for k, v in params.items() if k != "exact")
+            return reply(200, [u for u in self.users.values() if u.get(field) == value])
+        if path == "/users" and method == "POST":
+            if any(u["username"] == json["username"] for u in self.users.values()):
+                return reply(409)
+            uid = "kc-%d" % (len(self.users) + 1)
+            self.users[uid] = {"id": uid, **json}
+            self.links[uid] = {}
+            return reply(201)
+        uid = parts[1]
+        if uid not in self.users:
+            return reply(404)
+        if len(parts) == 2 and method == "DELETE":
+            del self.users[uid], self.links[uid]
+            return reply(204)
+        if parts[2:] == ["federated-identity"] and method == "GET":
+            return reply(200, [{"identityProvider": a, "userId": l} for a, l in self.links[uid].items()])
+        alias = parts[3]
+        if method == "POST":
+            if alias in self.links[uid]:
+                return reply(409)
+            self.links[uid][alias] = json["userId"]
+            return reply(204)
+        if method == "DELETE":
+            return reply(204 if self.links[uid].pop(alias, None) else 404)
+
+
+class TestProviderLinePerson(unittest.TestCase):
+    OWNER = "f" * 64
+
     def setUp(self):
         self.provider = member_provider.MemberProvider.__new__(member_provider.MemberProvider)
-        self.calls = []
-        self.responses = {}
+        self.kc = FakeKeycloak()
+        self.provider._request = self.kc
+        self.tenant_account = "kc-tenant"
+        self.kc.users[self.tenant_account] = {"id": self.tenant_account, "username": "owner1",
+                                              "email": "owner@example.test"}
+        self.kc.links[self.tenant_account] = {}
 
-        def request(method, path, **kwargs):
-            self.calls.append((method, path, kwargs.get("json")))
-            return SimpleNamespace(**self.responses.get(method, {"status_code": 204}),
-                                   json=lambda: self.responses.get(method, {}).get("body"))
+    def person(self):
+        return next(u for u in self.kc.users.values() if u["username"].startswith("pearnly-line-"))
 
-        self.provider._request = request
+    def test_person_is_created_without_password_and_holds_the_line(self):
+        subject = self.provider.ensure_line_person("line-1", LINE, self.OWNER, lambda holder: False)
+        person = self.person()
+        self.assertEqual(subject, person["id"])
+        self.assertEqual(person["username"], "pearnly-line-" + "f" * 32)
+        self.assertTrue(person["email"].endswith("@line.invalid") and person["emailVerified"])
+        self.assertNotIn("credentials", person)
+        self.assertEqual(person["attributes"][member_provider.OWNER_ATTRIBUTE], [self.OWNER])
+        self.assertEqual(self.kc.links[subject], {"line-1": LINE})
+        # 再来一次：不重复建、不重复挂。
+        self.kc.calls.clear()
+        self.assertEqual(self.provider.ensure_line_person("line-1", LINE, self.OWNER, lambda h: False), subject)
+        self.assertNotIn(("POST", "/users"), self.kc.calls)
+        self.assertEqual(len(self.kc.users), 2)
 
-    def test_same_link_is_a_noop_and_other_link_is_replaced(self):
-        self.provider.line_holders = lambda alias, line: []
-        self.responses["GET"] = {"status_code": 200, "body": [
-            {"identityProvider": "line-erp-t", "userId": LINE}]}
-        self.provider.link_line("s-1", "line-erp-t", LINE)
-        self.assertEqual([c[0] for c in self.calls], ["GET"])
-        self.calls.clear()
-        self.provider.link_line("s-1", "line-erp-t", "U" + "b" * 32)
-        self.assertEqual([c[0] for c in self.calls], ["GET", "DELETE", "POST"])
-        self.assertEqual(self.calls[-1][2]["userId"], "U" + "b" * 32)
-
-    def test_line_held_by_another_account_is_a_conflict_before_any_write(self):
-        # Keycloak itself accepts a duplicate link (verified on 26.7.4), so the check is ours.
-        self.responses["GET"] = {"status_code": 200, "body": [{"id": "s-2"}]}
+    def test_old_direct_link_is_moved_only_when_removable(self):
+        self.kc.links[self.tenant_account]["line-1"] = LINE
         with self.assertRaises(member_provider.MemberError) as raised:
-            self.provider.link_line("s-1", "line-erp-t", LINE)
+            self.provider.ensure_line_person("line-1", LINE, self.OWNER, lambda holder: False)
         self.assertEqual(raised.exception.code, "conflict")
-        self.assertEqual([(c[0], c[1]) for c in self.calls], [("GET", "/users")])
+        self.assertEqual(self.kc.links[self.tenant_account], {"line-1": LINE})
+        subject = self.provider.ensure_line_person("line-1", LINE, self.OWNER,
+                                                   lambda holder: holder == self.tenant_account)
+        self.assertEqual(self.kc.links[self.tenant_account], {})
+        self.assertEqual(self.kc.links[subject], {"line-1": LINE})
 
-    def test_missing_user_and_unlink_absent(self):
-        self.provider.line_holders = lambda alias, line: []
-        self.responses["GET"] = {"status_code": 404}
+    def test_a_same_named_account_with_another_owner_is_never_adopted(self):
+        self.kc.users["kc-x"] = {"id": "kc-x", "username": "pearnly-line-" + "f" * 32,
+                                 "email": "pearnly-line-" + "f" * 32 + "@line.invalid",
+                                 "attributes": {member_provider.OWNER_ATTRIBUTE: ["someone-else"]}}
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.provider.ensure_line_person("line-1", LINE, self.OWNER, lambda h: True)
+        self.assertEqual(raised.exception.code, "conflict")
+        self.assertEqual(self.kc.links["kc-x"] if "kc-x" in self.kc.links else {}, {})
+
+    def test_release_deletes_the_person_and_is_idempotent(self):
+        subject = self.provider.ensure_line_person("line-1", LINE, self.OWNER, lambda h: False)
+        self.provider.release_line_person(self.OWNER)
+        self.assertNotIn(subject, self.kc.users)
+        self.provider.release_line_person(self.OWNER)
+        self.assertIn(self.tenant_account, self.kc.users)
+
+    def test_unlink_absent_is_fine(self):
+        self.provider.unlink_line(self.tenant_account, "line-1")
+        self.provider.unlink_line("kc-missing", "line-1")
+
+
+class TestPoolPrefix(unittest.TestCase):
+    def setUp(self):
+        self.native = MagicMock()
+        self.native.conf = {"pearnly_member_identity_issuer": BUSINESS,
+                            "pearnly_member_identity_cowork_issuer": "https://auth.example.test/realms/pearnly-cowork"}
+        p = patch.object(member_provider, "frappe", self.native)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_issuer_wins_over_product_and_unknown_issuer_is_refused(self):
+        self.assertEqual(member_provider.pool_prefix("cowork"), "pearnly_member_identity_cowork")
+        self.assertEqual(member_provider.pool_prefix("cowork", BUSINESS + "/"), "pearnly_member_identity")
+        self.assertEqual(member_provider.pool_prefix("erp", "https://auth.example.test/realms/pearnly-cowork"),
+                         "pearnly_member_identity_cowork")
         with self.assertRaises(member_provider.MemberError):
-            self.provider.link_line("s-1", "line-erp-t", LINE)
-        self.responses["DELETE"] = {"status_code": 404}
-        self.provider.unlink_line("s-1", "line-erp-t")
+            member_provider.pool_prefix("erp", "https://evil.test/realms/pearnly-business")
+        self.assertEqual(member_provider.realm_prefix("pearnly-cowork"), "pearnly_member_identity_cowork")
+        with self.assertRaises(member_provider.MemberError):
+            member_provider.realm_prefix("master")
 
 
 if __name__ == "__main__":

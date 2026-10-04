@@ -27,6 +27,9 @@ from pearnly_core.account import oidc_session, preferences
 from pearnly_core.execution import state as pearnly_state
 
 STATE_TTL = 600  # 秒
+# 用过的 state 再留一会儿：LINE 内置浏览器会把同一个回调发两次（2026-10-04 生产日志：
+# 同一秒 499 + 417），第二次不报错，而是续上登录。
+CONSUMED_TTL = 120
 DISCOVERY_TTL = 3600
 
 
@@ -96,7 +99,7 @@ def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
 
     pearnly_state.store().set_value(
         _state_key(state),
-        {"nonce": nonce, "verifier": verifier, "redirect_to": redirect_to,
+        {"nonce": nonce, "verifier": verifier, "redirect_to": redirect_to, "idp_hint": idp_hint,
          "expected_user": frappe.session.user if password_change else None},
         expires_in_sec=STATE_TTL,
     )
@@ -126,6 +129,44 @@ def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
 # ── 第二步：回调、校验、绑定、建会话 ────────────────────────────────────────
 
 
+def _take_state(state: str) -> dict:
+    """一次性取出 state：取到的同时换成"已用"标记（锁内完成，并发的重复请求只会看到标记）。"""
+    store = pearnly_state.store()
+    key = _state_key(state)
+    with store.lock(key + ":take", timeout=30, blocking_timeout=10):
+        saved = store.get_value(key)
+        if saved and not saved.get("consumed"):
+            store.set_value(key, {"consumed": True, "redirect_to": saved.get("redirect_to"),
+                                  "idp_hint": saved.get("idp_hint")}, expires_in_sec=CONSUMED_TTL)
+    return saved or {}
+
+
+def _resume(saved: dict):
+    """重复的回调：已经登录就直接去目标页；还没有就重新走一遍（身份服务有会话，会立刻回来）。"""
+    if frappe.session.user != "Guest":
+        from pearnly_core import workspace as workspace_mod
+
+        frappe.local.response["type"] = "redirect"
+        frappe.local.response["location"] = workspace_mod.resolve_after_login(saved.get("redirect_to"))
+        return
+    _begin_login(saved.get("redirect_to"), idp_hint=saved.get("idp_hint"))
+
+
+def _refuse(reason: str):
+    """登录被拒：不建本地会话；说明页上的"请登录"先经浏览器注销结束身份服务那边这次会话。
+
+    以前只有 LINE 被拒时才注销（还是直接跳走、看不到原因）；按账号被拒（本站没登记这个身份）
+    时会话留在身份服务里，单点登录会一直把同一个身份带回来，连密码登录也进不去
+    （2026-10-04 testcowork 实际卡住过）。站点没有身份服务管理凭据，只能走浏览器注销。
+    """
+    from pearnly_core.account import line_login
+
+    frappe.respond_as_web_page(
+        _("Not permitted"), reason, http_status_code=403, indicator_color="red",
+        primary_action=line_login.end_session_url(frappe.local.pearnly_verified_tokens["id_token"]),
+        primary_label=_("Please sign in"))
+
+
 @frappe.whitelist(allow_guest=True)
 def callback(code: str | None = None, state: str | None = None, error: str | None = None):
     if error:
@@ -133,9 +174,9 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if not code or not state:
         frappe.throw(_("Missing code or state"))
 
-    saved = pearnly_state.store().get_value(_state_key(state))
-    # 一次性消费：无论成功失败都作废，防重放
-    pearnly_state.store().delete_value(_state_key(state))
+    saved = _take_state(state)
+    if saved.get("consumed"):
+        return _resume(saved)
     if not saved:
         frappe.throw(_("state is invalid or has expired"))
 
@@ -147,21 +188,19 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if token_issuer != issuer():
         frappe.throw(_("The ID token issuer is not the identity service configured for this site"))
 
-    user = _resolve_user(token_issuer, subject)
-    if saved.get("expected_user") and user != saved["expected_user"]:
-        frappe.throw(_("Not permitted"), frappe.PermissionError)
-
-    # 经外部入口（LINE）登录的：必须是本站入口、且是该账号在本站生效的绑定。
-    # 不通过就不建本地会话，并把身份服务那边这次会话也结束掉（否则单点登录会反复带回来）。
+    # 经 LINE 登录的：身份服务给的是这个 LINE 的专用身份，按本站生效绑定认人（必须是本站入口）。
+    # 其余按 (issuer, subject) 找本站登记的账号。不通过就不建本地会话，并结束身份服务那边的会话。
     from pearnly_core.account import line_login
 
     try:
-        source = line_login.verify_login_source(claims, user)
-    except frappe.PermissionError:
-        frappe.local.response["type"] = "redirect"
-        frappe.local.response["location"] = line_login.end_session_url(
-            frappe.local.pearnly_verified_tokens["id_token"])
-        return
+        if line_login.is_line_login(claims):
+            user, source = line_login.resolve_line_login(claims)
+        else:
+            user, source = _resolve_user(token_issuer, subject), {}
+        if saved.get("expected_user") and user != saved["expected_user"]:
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+    except frappe.PermissionError as refused:
+        return _refuse(str(refused))
 
     # 把身份服务侧的会话 id 暂存，交由 on_session_creation 记进会话登记表。
     frappe.local.pearnly_kc = {
@@ -171,14 +210,22 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         **source,
     }
     _login_as(user)
-    oidc_session.remember(frappe.local.pearnly_verified_tokens, subject)
-    from pearnly_core.account.profile import apply_login_username
-    apply_login_username(user, claims)
-    preferences.finish_login_locale(user, claims.get("locale"))
+    tokens = frappe.local.pearnly_verified_tokens
+    if source:
+        # LINE 专用身份不是本站账号：只留注销凭据，不拿它的令牌改资料、不用它的用户名和语言。
+        oidc_session.remember({"id_token": tokens["id_token"]}, subject)
+        preferences.finish_login_locale(user, None)
+        identity_filters = {"issuer": token_issuer, "user": user, "status": "active"}
+    else:
+        oidc_session.remember(tokens, subject)
+        from pearnly_core.account.profile import apply_login_username
+        apply_login_username(user, claims)
+        preferences.finish_login_locale(user, claims.get("locale"))
+        identity_filters = {"issuer": token_issuer, "subject": subject}
 
     frappe.db.set_value(
         "Pearnly Identity",
-        {"issuer": token_issuer, "subject": subject},
+        identity_filters,
         "last_login_at",
         frappe.utils.now(),
         update_modified=False,

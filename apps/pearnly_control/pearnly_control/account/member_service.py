@@ -18,13 +18,14 @@ import frappe
 from pearnly_core.account import line_login_contract as line_contract
 
 from pearnly_control.billing_auth import valid_token
-from pearnly_control.account.member_provider import MemberError, MemberProvider, PREFIX
+from pearnly_control.account.member_provider import MemberError, MemberProvider, PREFIX, realm_prefix
 
 IDENTITY = "Pearnly Member Identity"
 OPERATION = "Pearnly Member Operation"
 # 开户时登记的租户管理员（员工台账只记团队里建的号，管理员由控制面发号）。
 TENANT_IDENTITY = "Pearnly Tenant Identity"
-# 每个站点（租户 × 产品）上各身份当前关联的 LINE —— 共用入口下解绑时据此判断还能不能摘。
+# 每个站点（租户 × 产品）上各身份当前绑定的 LINE —— 同一账号池里还有没有站点绑着这个 LINE，
+# 决定解绑时要不要删掉它的 LINE 专用身份。
 LINE_LINK = "Pearnly LINE Login Link"
 # ERP keys must stay byte-identical: ledger keys and owner stamps already exist.
 PRODUCTS = ("erp", "cowork")
@@ -169,70 +170,89 @@ def _link_key(tenant, product, subject, alias):
     return hashlib.sha256(json.dumps([tenant, product, subject, alias], separators=(",", ":")).encode()).hexdigest()
 
 
-def _movable(tenant, product, holder, alias):
-    """同租户内改绑：旧持有人是本租户登记的身份，且它的这条 LINE 只挂在本站点上，才可以摘。"""
-    if not _registered(tenant, holder):
-        return False
-    elsewhere = frappe.get_all(LINE_LINK, filters={"subject": holder, "alias": alias}, fields=["tenant", "product"])
-    return all(row.tenant == tenant and row.product == product for row in elsewhere)
+def _person_owner(provider, alias, line_user_id):
+    """LINE 专用身份的归属证明：只有本服务算得出来（服务器密钥），身份服务里管理员可见。"""
+    return _digest("line-person-v1", provider.realm, alias, line_user_id)
 
 
-def link_line(tenant, product, subject, line_user_id, login_channel):
-    """把站点上已生效的 LINE 绑定关联到该身份在 Keycloak 的 LINE 登录入口。
+def _person_lock(realm, alias, line_user_id):
+    """同一池同一 LINE 的建 / 删串行（各租户锁不住彼此）；连接结束或提交后释放。"""
+    name = "pearnly-line-person:" + hashlib.sha256(
+        json.dumps([realm, alias, line_user_id], separators=(",", ":")).encode()).hexdigest()[:40]
+    if (frappe.db.sql("select get_lock(%s, 20)", (name,)) or [[0]])[0][0] != 1:
+        raise MemberError("unavailable")
 
-    入口按 LINE Login 频道共用（全平台只配一次）；站点只能替**本租户已登记**的身份关联，
-    并按（租户, 产品, 身份）记账 —— 同一身份在别的站点也绑着时，解绑一处不会断掉另一处。
+
+def _old_direct_link(holder):
+    """改造前 LINE 直接挂在租户账号上；这些账号都由本平台登记过，迁到专用身份时可以摘。"""
+    return bool(frappe.db.exists(TENANT_IDENTITY, {"subject": holder})
+                or frappe.db.exists(IDENTITY, {"subject": holder}))
+
+
+def _release(realm, alias, line_user_id):
+    """这个 LINE 在该池里已没有任何站点绑着：删掉它的专用身份（连同身份服务会话）。"""
+    if frappe.db.exists(LINE_LINK, {"realm": realm, "alias": alias, "line_user_id": line_user_id}):
+        return
+    provider = MemberProvider(prefix=realm_prefix(realm))
+    provider.release_line_person(_person_owner(provider, alias, line_user_id))
+
+
+def link_line(tenant, product, subject, line_user_id, login_channel, issuer=""):
+    """站点上一条生效的 LINE 绑定 → 该 LINE 在站点所在账号池的专用身份挂上这个 LINE。
+
+    入口按 LINE Login 频道共用（全平台只配一次）。登录时身份服务认出的是专用身份，站点按
+    自己的有效绑定认人，所以同一个 LINE 绑在多个租户的账号上互不冲突（2026-10-04 用户在
+    testerp 与 testcowork 各有账号、同一个 LINE，后绑的那边一直登录不了）。
+    站点只能替**本租户已登记**的身份登记，并按（租户, 产品, 身份）记账。
     """
     if not line_contract.valid_line_user_id(line_user_id) or not _registered(tenant, subject):
         raise MemberError("not_permitted")
     alias = _alias(login_channel)
-    provider = MemberProvider(product)
-    try:
-        provider.link_line(subject, alias, line_user_id)
-    except MemberError as error:
-        # 同一个 LINE 在本站从 A 改绑到 B：A 身上的旧关联要先摘掉。只摘本租户、只挂在本站的，
-        # 挂在别处（别的租户、或 A 在别的站点也用着）的一律不动、不抢。
-        if error.code != "conflict":
-            raise
-        others = [h for h in provider.line_holders(alias, line_user_id) if h != subject]
-        if not others or not all(_movable(tenant, product, holder, alias) for holder in others):
-            raise
-        for holder in others:
-            provider.unlink_line(holder, alias)
-            frappe.db.delete(LINE_LINK, {"tenant": tenant, "product": product, "subject": holder, "alias": alias})
-        provider.link_line(subject, alias, line_user_id)
+    provider = MemberProvider(product, issuer=issuer)
     key = _link_key(tenant, product, subject, alias)
-    if frappe.db.exists(LINE_LINK, key):
-        frappe.db.set_value(LINE_LINK, key, "line_user_id", line_user_id)
+    previous = frappe.db.get_value(LINE_LINK, key, ["line_user_id", "realm"], as_dict=True)
+    _person_lock(provider.realm, alias, line_user_id)
+    provider.ensure_line_person(alias, line_user_id, _person_owner(provider, alias, line_user_id),
+                                _old_direct_link)
+    # 租户账号自己不再挂 LINE（改造前可能挂着别的 LINE；没有就是 404）。
+    provider.unlink_line(subject, alias)
+    values = {"line_user_id": line_user_id, "realm": provider.realm}
+    if previous:
+        frappe.db.set_value(LINE_LINK, key, values)
     else:
         _insert({"doctype": LINE_LINK, "name": key, "tenant": tenant, "product": product,
-                 "subject": subject, "alias": alias, "line_user_id": line_user_id})
+                 "subject": subject, "alias": alias, **values})
+    if previous and (previous.line_user_id, previous.realm or provider.realm) != (line_user_id, provider.realm):
+        realm = previous.realm or provider.realm
+        _person_lock(realm, alias, previous.line_user_id)
+        _release(realm, alias, previous.line_user_id)
     return {"subject": subject}
 
 
-def unlink_line(tenant, product, subject, login_channel):
+def unlink_line(tenant, product, subject, login_channel, issuer=""):
     if not _registered(tenant, subject):
         raise MemberError("not_permitted")
     alias = _alias(login_channel)
-    frappe.db.delete(LINE_LINK, {"tenant": tenant, "product": product, "subject": subject, "alias": alias})
-    remaining = frappe.get_all(LINE_LINK, filters={"subject": subject, "alias": alias},
-                               fields=["line_user_id"], order_by="modified desc", limit=1)
-    provider = MemberProvider(product)
-    if remaining:
-        # 这个身份在别的站点还绑着：保持（或恢复成）那边的 LINE，不摘。
-        provider.link_line(subject, alias, remaining[0].line_user_id)
-    else:
-        provider.unlink_line(subject, alias)
+    provider = MemberProvider(product, issuer=issuer)
+    filters = {"tenant": tenant, "product": product, "subject": subject, "alias": alias}
+    rows = frappe.get_all(LINE_LINK, filters=filters, fields=["line_user_id", "realm"])
+    frappe.db.delete(LINE_LINK, filters)
+    # 改造前直接挂在这个账号上的关联（没有就是 404，不算错）。
+    provider.unlink_line(subject, alias)
+    for row in rows:
+        realm = row.realm or provider.realm
+        _person_lock(realm, alias, row.line_user_id)
+        _release(realm, alias, row.line_user_id)
     return {"subject": subject}
 
 
 def execute(tenant, action, email, password, username="", request_id="", subject="", line_user_id="",
-            login_channel=""):
+            login_channel="", issuer=""):
     if action in ("link-line", "unlink-line"):
         tenant, product = authorize(tenant, line_contract.PRODUCTS)
         if action == "link-line":
-            return link_line(tenant, product, subject, line_user_id, login_channel)
-        return unlink_line(tenant, product, subject, login_channel)
+            return link_line(tenant, product, subject, line_user_id, login_channel, issuer)
+        return unlink_line(tenant, product, subject, login_channel, issuer)
     tenant, product = authorize(tenant)
     if (not isinstance(email, str) or "@" not in email or len(email) > 140
             or not isinstance(password, str) or not password):
@@ -290,5 +310,11 @@ def purge_members(tenant):
         frappe.db.delete(OPERATION, {"member": row.name})
         frappe.db.delete(IDENTITY, {"name": row.name, "tenant": tenant})
     frappe.db.delete(TENANT_IDENTITY, {"tenant": tenant})
+    lines = {(row.realm, row.alias, row.line_user_id) for row in frappe.get_all(
+        LINE_LINK, filters={"tenant": tenant}, fields=["realm", "alias", "line_user_id"]) if row.realm}
     frappe.db.delete(LINE_LINK, {"tenant": tenant})
+    # 别的租户不再绑着的 LINE，专用身份一并删掉。
+    for realm, alias, line_user_id in sorted(lines):
+        _person_lock(realm, alias, line_user_id)
+        _release(realm, alias, line_user_id)
     return {"members": len(members)}

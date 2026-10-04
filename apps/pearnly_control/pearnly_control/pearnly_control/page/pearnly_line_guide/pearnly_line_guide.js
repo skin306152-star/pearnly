@@ -15,7 +15,8 @@ frappe.pages["pearnly-line-guide"].on_page_load = function (wrapper) {
 		return {
 			prefix: prefix || "acme",
 			webhook: "https://" + domain + "/api/method/pearnly_core.line.webhook",
-			"liff-app": "https://" + domain + "/desk",
+			// 站点根：LIFF 只要求页面在落地地址之下，填根最稳（开户时会核对，见 site-step.check_liff）。
+			"liff-app": "https://" + domain + "/",
 			"liff-dms": "https://" + domain + "/liff/dms-booking",
 		};
 	};

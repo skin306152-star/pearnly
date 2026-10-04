@@ -23,7 +23,7 @@ import frappe  # noqa: E402
 facts = json.load(open("/tmp/lab-facts.json"))
 ALIAS, LINES, SUBJECTS = facts["alias"], facts["lines"], facts["subjects"]
 U1, U2 = LINES["lineuser1"], LINES["lineuser2"]
-OWNER, STRANGER = "owner@lab.test", "stranger@lab.test"
+OWNER, STRANGER, OTHER = "owner@lab.test", "stranger@lab.test", "other@lab.test"
 SITE = "http://erp.lab:8000"
 SITE2 = "http://erp2.lab:8000"
 KC = "http://keycloak:8080"
@@ -74,6 +74,20 @@ def wait_link(line_user_id, want, seconds=40, site="erp.lab"):
 
 def kc_links(email):
     return [(x["identityProvider"], x["userId"]) for x in kc.request(f"{R}/users/{SUBJECTS[email]}/federated-identity")]
+
+
+def holders(line_user_id):
+    """Who holds this LINE at the shared entry: must be its LINE person, never a tenant account."""
+    return kc.request(f"{R}/users?idpAlias={ALIAS}&idpUserId={line_user_id}&briefRepresentation=true") or []
+
+
+def held_by_person(line_user_id):
+    rows = holders(line_user_id)
+    return len(rows) == 1 and rows[0]["username"].startswith("pearnly-line-")
+
+
+def tenant_accounts_hold_no_line():
+    return all(not kc_links(email) for email in (OWNER, STRANGER, OTHER))
 
 
 class Browser:
@@ -128,16 +142,21 @@ def sessions(user):
                                      fields=["session_id", "identity_provider", "line_user_id"]))
 
 
-# ── A. binding links the LINE in Keycloak through the member service ─────────
+# ── A. binding: the LINE's own person in Keycloak holds it, not the tenant account ──
 bind(OWNER, U1)
 row = wait_link(U1, "linked")
 check("A1 binding → login_link=linked (worker, member service)", row and row.login_link == "linked", row)
-check("A2 Keycloak federated link owner ↔ U1", (ALIAS, U1) in kc_links(OWNER), kc_links(OWNER))
+check("A2 the LINE person holds U1; tenant accounts hold no LINE",
+      held_by_person(U1) and tenant_accounts_hold_no_line(), (holders(U1), kc_links(OWNER)))
+person = kc.request(f"{R}/users/{holders(U1)[0]['id']}")
+check("A3 the LINE person has no password, a placeholder email and no pending profile form",
+      not kc.request(f"{R}/users/{person['id']}/credentials") and person["email"].endswith("@line.invalid")
+      and not person.get("requiredActions"), person)
 
-# ── B. LINE in-app browser: tap link → no password → lands on target ──────────
+# ── B. LINE in-app browser: tap link → no password → lands on target as the bound user ─
 b_line, r, landed = line_login("lineuser1")
 check("B1 LINE entry lands on the deep link", landed == SITE + "/desk/lab-target", landed or r.status_code)
-check("B2 site session is the owner", b_line.user() == OWNER, b_line.user())
+check("B2 site session is the bound user", b_line.user() == OWNER, b_line.user())
 rows = sessions(OWNER)
 check("B3 session register records LINE source",
       any(s.identity_provider == ALIAS and s.line_user_id == U1 for s in rows), rows)
@@ -146,6 +165,9 @@ check("B4 went straight to the hidden LINE entry, no Pearnly password form",
       and any(f"/broker/{ALIAS}/login" in u for _, u in b_line.trail)
       and not any("/realms/pearnly-business/login-actions/authenticate" in u for _, u in b_line.trail),
       [u[:70] for _, u in b_line.trail[:4]])
+local_name = db(lambda: frappe.db.get_value("User", OWNER, "username"))
+check("B5 the LINE person's username never overwrites the local user", not str(local_name).startswith("pearnly-line-"),
+      local_name)
 
 # ── C. same link outside LINE → no LINE hop ───────────────────────────────────
 b = Browser()
@@ -162,13 +184,13 @@ check("D1 password login lands", b_pw.user() == OWNER, b_pw.user())
 rows = sessions(OWNER)
 check("D2 password session has no LINE source", sum(1 for s in rows if not s.identity_provider) >= 1, rows)
 
-# ── E. unbind → LINE session dies at once, password session survives, link removed
+# ── E. unbind → LINE session dies at once, password session survives, the person is gone
 db(lambda: __import__("pearnly_core.line_binding", fromlist=["x"]).unbind(U1))
 check("E1 LINE session revoked immediately", b_line.user() in ("Guest", "HTTP 403", "HTTP 401"), b_line.user())
 check("E2 password session untouched", b_pw.user() == OWNER, b_pw.user())
 row = wait_link(U1, "unlinked")
-check("E3 login_link=unlinked and Keycloak link removed",
-      row.login_link == "unlinked" and (ALIAS, U1) not in kc_links(OWNER), (row, kc_links(OWNER)))
+check("E3 login_link=unlinked and the LINE person removed", row.login_link == "unlinked" and not holders(U1),
+      (row, holders(U1)))
 
 # ── F. unbound LINE → Keycloak refuses, no account is created ────────────────
 users_before = len(kc.request(f"{R}/users"))
@@ -176,19 +198,26 @@ b, r, landed = line_login("lineuser1")
 check("F1 unlinked LINE refused by Keycloak", landed is None and r.status_code in (400, 401, 403), r.status_code)
 check("F2 no Keycloak account created", len(kc.request(f"{R}/users")) == users_before)
 
-# ── G. stale Keycloak link but no binding on the site → site refuses, SSO ended ─
-kc.request(f"{R}/users/{SUBJECTS[OWNER]}/federated-identity/{ALIAS}", "POST",
+# ── G. a person still holds the LINE but the site has no binding → site refuses, explains,
+#       and its sign-in button ends the identity session (no SSO loop back into a refusal) ──
+kc.request(f"{R}/users", "POST", {"username": "lab-stale-person", "email": "stale@line.invalid", "enabled": True,
+                                  "emailVerified": True})
+stale = kc.request(f"{R}/users?username=lab-stale-person&exact=true")[0]["id"]
+kc.request(f"{R}/users/{stale}/federated-identity/{ALIAS}", "POST",
            {"identityProvider": ALIAS, "userId": U1, "userName": U1})
-kc_before = len(kc.request(f"{R}/users/{SUBJECTS[OWNER]}/sessions"))
 b, r, landed = line_login("lineuser1")
 check("G1 site refuses a LINE login without an active binding", b.user() in ("Guest", "HTTP 403"), b.user())
-check("G2 refusal went through Keycloak end-session", any("logout" in u for _, u in b.trail), [u[:80] for _, u in b.trail[-3:]])
-kc_sessions = kc.request(f"{R}/users/{SUBJECTS[OWNER]}/sessions")
-check("G3 the refused LINE login left no Keycloak session behind",
-      len(kc_sessions) == kc_before, (kc_before, len(kc_sessions)))
-kc.request(f"{R}/users/{SUBJECTS[OWNER]}/federated-identity/{ALIAS}", "DELETE")
+logout = re.search(r"""href=["']([^"']*logout[^"']*)["']""", html.unescape(r.text or ""))
+check("G2 refusal page explains and offers sign-in through end-session",
+      r.status_code == 403 and logout is not None and "not bound" in (r.text or ""), (r.status_code, (r.text or "")[:200]))
+check("G3 the refused LINE login is still a live identity session until the button", len(
+      kc.request(f"{R}/users/{stale}/sessions")) == 1)
+if logout:
+    b.go("GET", logout.group(1))
+check("G4 the sign-in button ended the identity session", not kc.request(f"{R}/users/{stale}/sessions"))
+kc.request(f"{R}/users/{stale}", "DELETE")
 
-# ── H. re-bind, then the same LINE moves to another person of the tenant ──────
+# ── H. re-bind, then the same LINE moves to another person of the same tenant ─
 bind(OWNER, U1)
 wait_link(U1, "linked")
 b_owner_line, r, landed = line_login("lineuser1")
@@ -202,25 +231,40 @@ frappe.destroy()
 bind(STRANGER, U1)
 check("H1 owner's LINE session revoked when the LINE moved", b_owner_line.user() != OWNER, b_owner_line.user())
 row = wait_link(U1, "linked")
-check("H2 link moved: stranger holds U1, owner does not",
-      row.user == STRANGER and (ALIAS, U1) in kc_links(STRANGER) and (ALIAS, U1) not in kc_links(OWNER),
-      (row, kc_links(STRANGER), kc_links(OWNER)))
+check("H2 binding moved; still one LINE person, no tenant account holds it",
+      row.user == STRANGER and held_by_person(U1) and tenant_accounts_hold_no_line(), (row, holders(U1)))
 b, r, landed = line_login("lineuser1")
 check("H3 LINE now signs in as the new holder", b.user() == STRANGER, b.user())
 
 # ── I. hourly reconcile repairs a lost link ───────────────────────────────────
-kc.request(f"{R}/users/{SUBJECTS[STRANGER]}/federated-identity/{ALIAS}", "DELETE")
+kc.request(f"{R}/users/{holders(U1)[0]['id']}", "DELETE")
 db(lambda: frappe.db.set_value("Pearnly LINE Binding", {"line_user_id": U1}, "login_link", "failed"))
 db(lambda: __import__("pearnly_core.account.line_login", fromlist=["x"]).reconcile())
-check("I1 reconcile relinks a failed binding", (ALIAS, U1) in kc_links(STRANGER)
-      and binding_state(U1).login_link == "linked", (kc_links(STRANGER), binding_state(U1)))
+check("I1 reconcile recreates the person for a failed binding", held_by_person(U1)
+      and binding_state(U1).login_link == "linked", (holders(U1), binding_state(U1)))
 
-# ── J. second LINE for an unregistered identity is refused by the member service
+# ── M. the 2026-10-04 case: one LINE, two tenants, two different accounts ─────
+bind(OTHER, U1, site="erp2.lab")
+row = wait_link(U1, "linked", site="erp2.lab")
+check("M1 the second tenant's own account binds the same LINE", row and row.login_link == "linked", row)
+check("M2 still exactly one LINE person; no tenant account holds it", held_by_person(U1) and tenant_accounts_hold_no_line(),
+      (holders(U1), kc_links(STRANGER), kc_links(OTHER)))
+b, r, landed = line_login("lineuser1", site=SITE2)
+check("M3 LINE opens the second site as that site's account", b.user(SITE2) == OTHER, b.user(SITE2))
+b, r, landed = line_login("lineuser1", site=SITE)
+check("M4 and still opens the first site as its own account", b.user(SITE) == STRANGER, b.user(SITE))
+db(lambda: __import__("pearnly_core.line_binding", fromlist=["x"]).unbind(U1), "erp2.lab")
+wait_link(U1, "unlinked", site="erp2.lab")
+check("M5 unbinding one tenant keeps the person for the other", held_by_person(U1), holders(U1))
+b, r, landed = line_login("lineuser1", site=SITE)
+check("M6 the first site still opens by LINE", b.user(SITE) == STRANGER, b.user(SITE))
+
+# ── J. a registered account can hold a different LINE ─────────────────────────
 bind(OWNER, U2)
 row = wait_link(U2, "linked", seconds=15)
-check("J1 owner (registered) can hold a different LINE", row.login_link == "linked", row)
+check("J1 owner (registered) can hold a different LINE", row.login_link == "linked" and held_by_person(U2), row)
 
-# ── L. one shared entry: the same person binds the same LINE on two sites ─────
+# ── L. one shared entry: the same account binds the same LINE on two sites ────
 bind(OWNER, U2, site="erp2.lab")
 row = wait_link(U2, "linked", site="erp2.lab")
 check("L1 second site links the same LINE through the shared entry", row and row.login_link == "linked", row)
@@ -228,14 +272,14 @@ b, r, landed = line_login("lineuser2", site=SITE2)
 check("L2 LINE opens the second site without a password", b.user(SITE2) == OWNER, b.user(SITE2))
 db(lambda: __import__("pearnly_core.line_binding", fromlist=["x"]).unbind(U2))  # unbind on the first site only
 wait_link(U2, "unlinked")
-check("L3 unbinding on one site keeps the Keycloak link for the other", (ALIAS, U2) in kc_links(OWNER), kc_links(OWNER))
+check("L3 unbinding on one site keeps the LINE person for the other", held_by_person(U2), holders(U2))
 b, r, landed = line_login("lineuser2", site=SITE2)
 check("L4 second site still opens by LINE", b.user(SITE2) == OWNER, b.user(SITE2))
 b, r, landed = line_login("lineuser2", site=SITE)
 check("L5 first site refuses the same LINE now it is unbound there", b.user(SITE) != OWNER, b.user(SITE))
 db(lambda: __import__("pearnly_core.line_binding", fromlist=["x"]).unbind(U2), "erp2.lab")
 wait_link(U2, "unlinked", site="erp2.lab")
-check("L6 unbinding on the last site removes the link", (ALIAS, U2) not in kc_links(OWNER), kc_links(OWNER))
+check("L6 unbinding on the last site removes the LINE person", not holders(U2), holders(U2))
 
 # ── K. only credential actions demand a fresh password; profile/locale keep Keycloak defaults ─
 ages = {a: ((kc.request(f"{R}/authentication/required-actions/{a}/config", ok=(200, 400, 404)) or {})

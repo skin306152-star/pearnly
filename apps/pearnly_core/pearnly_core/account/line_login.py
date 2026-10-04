@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """LINE 绑定即登录（多产品共用）：已绑定 LINE 的人在 LINE 里点链接免密进网页端。
 
-做法（用户 2026-09-26 定）：身份服务（Keycloak）为每个站点配一个隐藏的 LINE 登录入口，
-会话仍由身份服务签发、照常登记；本站只做三件事：
+做法（用户 2026-09-26 定，2026-10-04 改）：身份服务（Keycloak）每个 LINE Login 频道一个隐藏的
+LINE 登录入口，会话仍由身份服务签发、照常登记。身份服务里**每个 LINE 一个专用身份**（控制面建、
+没有密码、不属于任何租户），所以同一个 LINE 绑在几个租户的账号上互不冲突。本站只做三件事：
 
-1. **关联同步**：绑定变化 → 经计费站点的建号服务把"这个 LINE ↔ 这个身份"写进身份服务
-   （站点永不持有身份服务管理凭据）。失败留 `failed`，定时对账补齐；上线时已有绑定也由对账补上。
-2. **登录核对**：ID token 带了登录来源（`pearnly_idp`）就必须是本站的 LINE 入口，且
-   `pearnly_line_user_id` 必须是该账号在本站**生效**的绑定 —— 所以 LINE 只能进绑定了它的站点，
-   解绑、改绑、停用之后身份服务里残留的会话也进不来。
+1. **关联同步**：绑定变化 → 经计费站点的建号服务登记"本站这个账号绑着这个 LINE"，控制面据此
+   维护专用身份（站点永不持有身份服务管理凭据）。失败留 `failed`，定时对账补齐。
+2. **登录认人**：ID token 带了登录来源（`pearnly_idp`）就必须是本站的 LINE 入口，再按
+   `pearnly_line_user_id` 找本站**生效**的绑定认人 —— 不看身份服务里的账号是谁。所以 LINE 只能
+   进绑定了它的站点，解绑、改绑、停用之后身份服务里残留的会话也进不来。
 3. **会话作废**：绑定不再对应时，立即作废本站经 LINE 登录的会话（密码登录的不动）。
 
 站点上是否启用由开通步骤写入的 `pearnly_line_login_idp` 决定，且必须等于按本站 LIFF 所属
@@ -91,18 +92,25 @@ def enter(to=None):
 # ── 登录核对（identity.callback 调用） ────────────────────────────────────────
 
 
-def verify_login_source(claims: dict, user: str) -> dict:
-    """密码登录返回 {}；LINE 登录核对通过返回来源；不通过抛 PermissionError。"""
+def is_line_login(claims: dict) -> bool:
+    return bool(claims.get(contract.CLAIM_IDP))
+
+
+def resolve_line_login(claims: dict) -> tuple:
+    """LINE 登录按本站生效的绑定认人，返回 (本地账号, 登录来源)；不通过抛 PermissionError。
+
+    身份服务认出的是这个 LINE 的专用身份，不是本站账号，所以这里不按 subject 找人。
+    """
     source = claims.get(contract.CLAIM_IDP)
-    if not source:
-        return {}
     line_user_id = claims.get(contract.CLAIM_LINE_USER)
     alias = enabled_alias()
-    if (not alias or source != alias or not contract.valid_line_user_id(line_user_id)
-            or active_line_of(user) != line_user_id):
+    user = ""
+    if alias and source == alias and contract.valid_line_user_id(line_user_id):
+        user = frappe.db.get_value(BINDING, {"line_user_id": line_user_id, "status": "active"}, "user") or ""
+    if not user or active_line_of(user) != line_user_id:
         frappe.throw(_("This LINE account is not bound to this account on this site. Sign in with your password."),
                      frappe.PermissionError)
-    return {"identity_provider": source, "line_user_id": line_user_id}
+    return user, {"identity_provider": source, "line_user_id": line_user_id}
 
 
 def active_line_of(user: str) -> str:

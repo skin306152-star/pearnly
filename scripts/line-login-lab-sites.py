@@ -53,6 +53,8 @@ def billing():
         member_service.register_owner(tenant, facts["subjects"]["owner@lab.test"])
         member_service.register_owner(tenant, facts["subjects"]["owner@lab.test"])  # idempotent
         facts["token_" + tenant] = tenant_token(ROOT_TOKEN, tenant, "erp")
+    # The tenant-2 account of a different person (own Keycloak account) — same LINE as a tenant-1 user later.
+    member_service.register_owner(TENANT2, facts["subjects"]["other@lab.test"])
     print("tenant identities:", frappe.get_all("Pearnly Tenant Identity", fields=["tenant", "subject", "role"]))
 
 
@@ -86,5 +88,5 @@ def erp_users(emails):
 erp_config("erp.lab", TENANT)
 run("erp.lab", erp_users(("owner@lab.test", "stranger@lab.test")))
 erp_config("erp2.lab", TENANT2)
-run("erp2.lab", erp_users(("owner@lab.test",)))
+run("erp2.lab", erp_users(("owner@lab.test", "other@lab.test")))
 json.dump(facts, open("/tmp/lab-facts.json", "w"))

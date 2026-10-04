@@ -56,17 +56,22 @@ def _call(action, *, email, password, username=""):
     return result
 
 
+def _issuer():
+    # 控制面按本站实际签到的账号池写关联（老租户可能与产品默认的池不同）。
+    return str(frappe.conf.get("pearnly_oidc_issuer") or "").rstrip("/")
+
+
 def link_line(subject, line_user_id, login_channel):
-    """把本站生效的 LINE 绑定关联到该身份的 LINE 登录入口（服务端核对归属、按站点记账）。"""
+    """把本站生效的 LINE 绑定登记到控制面：该 LINE 在本站账号池的专用身份挂上这个 LINE。"""
     result = _post({"action": "link-line", "subject": subject, "line_user_id": line_user_id,
-                    "login_channel": login_channel}, line_login_contract.PRODUCTS)
+                    "login_channel": login_channel, "issuer": _issuer()}, line_login_contract.PRODUCTS)
     if result.get("subject") != subject:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
 def unlink_line(subject, login_channel):
-    result = _post({"action": "unlink-line", "subject": subject, "login_channel": login_channel},
-                   line_login_contract.PRODUCTS)
+    result = _post({"action": "unlink-line", "subject": subject, "login_channel": login_channel,
+                    "issuer": _issuer()}, line_login_contract.PRODUCTS)
     if result.get("subject") != subject:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
