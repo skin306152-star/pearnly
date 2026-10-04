@@ -47,7 +47,12 @@ FEATURE_ICONS = {
     "erp": ["box", "doc", "receipt", "arrows", "register", "phone", "users"],
 }
 
-INTEGRATIONS = ["Express", "MR.ERP DMS", "LINE", "PDF · Excel"]
+# 首页“接入”一行：每项按语言给文字（不点名具体会计软件）。
+INTEGRATIONS = {
+    "th": ["ERP ภายนอก (เชื่อมต่อแบบกำหนดเอง)", "MR.ERP DMS", "LINE", "PDF · Excel"],
+    "en": ["Your ERP (custom integration)", "MR.ERP DMS", "LINE", "PDF · Excel"],
+    "zh": ["第三方 ERP（定制接入）", "MR.ERP DMS", "LINE", "PDF · Excel"],
+}
 
 COMMON = {
     "th": {
@@ -133,8 +138,8 @@ COMMON = {
 HOME = {
     "th": {
         "title": "Pearnly | ถ่ายรูปเอกสาร ข้อมูลเข้าระบบให้เอง",
-        "description": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน แล้วบันทึกเข้า Express, MR.ERP DMS หรือระบบ ERP ของคุณ ใช้งานได้ทั้งบนเว็บและใน LINE",
-        "badge": "LINE · เว็บ · Express · MR.ERP DMS",
+        "description": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน แล้วบันทึกเข้า ERP ที่คุณใช้อยู่ (เชื่อมต่อแบบกำหนดเอง), MR.ERP DMS หรือ Pearnly ERP ใช้งานได้ทั้งบนเว็บและใน LINE",
+        "badge": "LINE · เว็บ · MR.ERP DMS · เชื่อมต่อ ERP ภายนอก",
         "h1": "ถ่ายรูปเอกสาร\nข้อมูลเข้าระบบให้เอง",
         "lead": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน ตรวจตัวเลขให้ แล้วบันทึกเข้าโปรแกรมที่คุณใช้อยู่ ทั้งบนเว็บและใน LINE",
         "products_title": "เลือกตามงานของคุณ",
@@ -142,15 +147,15 @@ HOME = {
         "steps": [
             ("ส่งเอกสาร", "ถ่ายรูปหรืออัปโหลด PDF ผ่าน LINE หรือเว็บ"),
             ("ระบบอ่านและตรวจ", "อ่านข้อมูลสำคัญ ตรวจเลขผู้เสียภาษี ยอดรวม และ VAT รายการที่ตรวจไม่ผ่านจะถูกทำเครื่องหมายไว้"),
-            ("บันทึกเข้าระบบ", "ส่งเข้า Express, MR.ERP DMS หรือ Pearnly ERP แล้วตรวจผลกลับหลังส่ง"),
+            ("บันทึกเข้าระบบ", "ส่งเข้า ERP ที่คุณใช้อยู่ (เชื่อมต่อแบบกำหนดเอง), MR.ERP DMS หรือ Pearnly ERP แล้วตรวจผลกลับหลังส่ง"),
         ],
         "tools_title": "เครื่องมือฟรีสำหรับงานบัญชี",
         "tools_text": "ใช้ได้ทันที ไม่ต้องสมัคร",
     },
     "en": {
         "title": "Pearnly | Snap the document, the data enters itself",
-        "description": "Pearnly reads Thai tax invoices, receipts and ID cards, then enters them into Express, MR.ERP DMS or your ERP. Works on the web and in LINE.",
-        "badge": "LINE · Web · Express · MR.ERP DMS",
+        "description": "Pearnly reads Thai tax invoices, receipts and ID cards, then enters them into your own ERP through a custom integration, MR.ERP DMS or Pearnly ERP. Works on the web and in LINE.",
+        "badge": "LINE · Web · MR.ERP DMS · Custom ERP integration",
         "h1": "Snap the document.\nThe data enters itself.",
         "lead": "Pearnly reads tax invoices, receipts and ID cards, checks the numbers, and enters them into the software you already use, on the web and in LINE.",
         "products_title": "Pick the one that fits your work",
@@ -158,15 +163,15 @@ HOME = {
         "steps": [
             ("Send the document", "Take a photo or upload a PDF in LINE or on the web."),
             ("It reads and checks", "Key fields are read; tax ID, totals and VAT are checked. Anything that fails a check is flagged."),
-            ("It enters the data", "Into Express, MR.ERP DMS or Pearnly ERP, and reads the result back after each push."),
+            ("It enters the data", "Into your own ERP through a custom integration, MR.ERP DMS or Pearnly ERP, and reads the result back after each push."),
         ],
         "tools_title": "Free tools for Thai accounting",
         "tools_text": "Ready to use, no sign-up.",
     },
     "zh": {
         "title": "Pearnly | 拍下单据，数据自动进系统",
-        "description": "Pearnly 读取泰国税务发票、收据和身份证，录入 Express、MR.ERP DMS 或你的 ERP。网页和 LINE 都能用。",
-        "badge": "LINE · 网页 · Express · MR.ERP DMS",
+        "description": "Pearnly 读取泰国税务发票、收据和身份证，录入你在用的 ERP（定制接入）、MR.ERP DMS 或 Pearnly ERP。网页和 LINE 都能用。",
+        "badge": "LINE · 网页 · MR.ERP DMS · 定制接入第三方 ERP",
         "h1": "拍下单据\n数据自动进系统",
         "lead": "Pearnly 读取税务发票、收据和身份证，核对数字，再录入你正在用的软件。网页和 LINE 都能用。",
         "products_title": "按你的业务选择",
@@ -174,7 +179,7 @@ HOME = {
         "steps": [
             ("发送单据", "在 LINE 或网页上拍照、上传 PDF。"),
             ("读取并核对", "读出关键字段，核对税号、合计和 VAT；核对不过的会标出来。"),
-            ("录入系统", "推送到 Express、MR.ERP DMS 或 Pearnly ERP，推送后回读核对结果。"),
+            ("录入系统", "推送到你在用的 ERP（定制接入）、MR.ERP DMS 或 Pearnly ERP，推送后回读核对结果。"),
         ],
         "tools_title": "泰国会计免费工具",
         "tools_text": "打开就能用，无需注册。",
@@ -186,14 +191,14 @@ PRODUCT = {
         "th": {
             "name": "Cowork",
             "who": "สำหรับสำนักงานบัญชี",
-            "summary": "บันทึกใบกำกับภาษีเข้า Express กระทบยอดธนาคารและรายได้ ตรวจรายงานภาษีขาย และติดตามงานของทีม",
-            "title": "Pearnly Cowork | บันทึกใบกำกับภาษีเข้า Express และกระทบยอด สำหรับสำนักงานบัญชี",
-            "description": "อัปโหลดใบกำกับภาษีและใบเสร็จ ระบบอ่านข้อมูลแล้วส่งเข้า Express ผ่านผู้ช่วย Windows พร้อมกระทบยอดธนาคาร กระทบยอดรายได้ ตรวจรายงานภาษีขาย และบอร์ดงานของทีม",
+            "summary": "บันทึกใบกำกับภาษีเข้า ERP ที่คุณใช้อยู่ กระทบยอดธนาคารและรายได้ ตรวจรายงานภาษีขาย และติดตามงานของทีม",
+            "title": "Pearnly Cowork | บันทึกใบกำกับภาษีเข้า ERP และกระทบยอด สำหรับสำนักงานบัญชี",
+            "description": "อัปโหลดใบกำกับภาษีและใบเสร็จ ระบบอ่านข้อมูลแล้วส่งเข้า ERP ที่คุณใช้อยู่ (เชื่อมต่อแบบกำหนดเอง) พร้อมกระทบยอดธนาคาร กระทบยอดรายได้ ตรวจรายงานภาษีขาย และบอร์ดงานของทีม",
             "h1": "Cowork สำหรับสำนักงานบัญชี",
             "lead": "งานคีย์เอกสารและกระทบยอดที่ทำซ้ำทุกเดือน ให้ระบบช่วยทำ ทีมมีเวลาตรวจงานมากขึ้น",
             "features": [
-                ("บันทึกเอกสารเข้า Express", "อัปโหลดใบกำกับภาษีและใบเสร็จ ทั้ง PDF และรูปถ่าย หรือส่งทาง LINE ระบบอ่านข้อมูล ตรวจยอด แล้วส่งเข้า Express พร้อมตรวจผลกลับ"),
-                ("ผู้ช่วย Windows", "ติดตั้งบนเครื่องที่ใช้ Express เพื่อรับเอกสารจาก Cowork เข้าโปรแกรมบัญชี"),
+                ("บันทึกเอกสารเข้า ERP", "อัปโหลดใบกำกับภาษีและใบเสร็จ ทั้ง PDF และรูปถ่าย หรือส่งทาง LINE ระบบอ่านข้อมูล ตรวจยอด แล้วส่งเข้า ERP ที่คุณใช้อยู่ พร้อมตรวจผลกลับ"),
+                ("เชื่อมต่อ ERP ภายนอกแบบกำหนดเอง", "ปรับการเชื่อมต่อให้เข้ากับ ERP หรือโปรแกรมบัญชีที่สำนักงานใช้อยู่ รวมถึงโปรแกรมบนเครื่อง Windows ผ่านผู้ช่วย Windows"),
                 ("กระทบยอดธนาคาร", "นำ statement ธนาคารมาเทียบกับบัญชีแยกประเภท เห็นรายการที่ตรงและไม่ตรงทันที"),
                 ("กระทบยอดรายได้", "เทียบรายได้ในบัญชีแยกประเภทกับรายงานภาษีขาย หาจุดที่ไม่ตรงกัน"),
                 ("ตรวจรายงานภาษีขาย", "เทียบรายงานภาษีขายกับใบกำกับภาษีขายทีละใบ"),
@@ -204,14 +209,14 @@ PRODUCT = {
         "en": {
             "name": "Cowork",
             "who": "For accounting firms",
-            "summary": "Enter tax invoices into Express, reconcile bank and income, check the output VAT report, and track the team's work.",
-            "title": "Pearnly Cowork | Enter tax invoices into Express and reconcile, for accounting firms",
-            "description": "Upload tax invoices and receipts; Cowork reads them and pushes them into Express through the Windows helper. Bank and income reconciliation, output VAT report checks and team task boards included.",
+            "summary": "Enter tax invoices into your ERP, reconcile bank and income, check the output VAT report, and track the team's work.",
+            "title": "Pearnly Cowork | Enter tax invoices into your ERP and reconcile, for accounting firms",
+            "description": "Upload tax invoices and receipts; Cowork reads them and pushes them into the ERP you already use through a custom integration. Bank and income reconciliation, output VAT report checks and team task boards included.",
             "h1": "Cowork for accounting firms",
             "lead": "Let the system take the monthly keying and reconciliation, so your team has more time to review.",
             "features": [
-                ("Enter documents into Express", "Upload tax invoices and receipts as PDFs or photos, or send them in LINE. Cowork reads and checks them, pushes them into Express and reads the result back."),
-                ("Windows helper", "Installed on the PC that runs Express, it takes documents from Cowork into the accounting software."),
+                ("Enter documents into your ERP", "Upload tax invoices and receipts as PDFs or photos, or send them in LINE. Cowork reads and checks them, pushes them into your ERP and reads the result back."),
+                ("Custom third-party ERP integration", "The connection is fitted to the ERP or accounting software your firm uses, including desktop software on Windows through the Windows helper."),
                 ("Bank reconciliation", "Match the bank statement against the general ledger and see what matches and what does not."),
                 ("Income reconciliation", "Compare ledger income with the output VAT report and find the gaps."),
                 ("Output VAT report check", "Check the output VAT report against each sales tax invoice."),
@@ -222,14 +227,14 @@ PRODUCT = {
         "zh": {
             "name": "Cowork",
             "who": "面向会计事务所",
-            "summary": "税务发票录入 Express、银行与收入对账、销项税报告核查、团队任务管理。",
-            "title": "Pearnly Cowork | 税务发票录入 Express 与对账，面向会计事务所",
-            "description": "上传税务发票和收据，Cowork 读取后通过 Windows 小助手推送进 Express；另有银行对账、收入对账、销项税报告核查和团队任务看板。",
+            "summary": "税务发票录入你在用的 ERP、银行与收入对账、销项税报告核查、团队任务管理。",
+            "title": "Pearnly Cowork | 税务发票录入 ERP 与对账，面向会计事务所",
+            "description": "上传税务发票和收据，Cowork 读取后推送进你在用的 ERP（定制接入）；另有银行对账、收入对账、销项税报告核查和团队任务看板。",
             "h1": "Cowork：会计事务所的帮手",
             "lead": "每个月重复的录入和对账交给系统，团队把时间留给审核。",
             "features": [
-                ("单据录入 Express", "上传 PDF 或照片形式的税务发票、收据，也可以用 LINE 发送。系统读取、核对后推送进 Express，并回读结果。"),
-                ("Windows 小助手", "装在运行 Express 的电脑上，把 Cowork 的单据录入会计软件。"),
+                ("单据录入 ERP", "上传 PDF 或照片形式的税务发票、收据，也可以用 LINE 发送。系统读取、核对后推送进你在用的 ERP，并回读结果。"),
+                ("定制接入第三方 ERP", "按事务所在用的 ERP 或会计软件定制接入；装在 Windows 电脑上的软件通过 Windows 小助手连接。"),
                 ("银行对账", "银行流水对总账，哪些对上、哪些没对上一目了然。"),
                 ("收入对账", "总账收入对销项税报告，找出差异。"),
                 ("销项税报告核查", "销项税报告逐张对照销项税务发票。"),
@@ -567,21 +572,21 @@ TOOL = {
 DEMO_LABELS = {
     "th": {"read": "อ่านจากเอกสาร", "seller": "ผู้ขาย", "tax_id": "เลขประจำตัวผู้เสียภาษี", "doc_no": "เลขที่เอกสาร", "date": "วันที่",
            "base": "มูลค่าก่อน VAT", "vat": "VAT 7%", "total": "ยอดรวม", "checked": "ตรวจแล้ว",
-           "cowork_done": "ส่งเข้า Express แล้ว · ตรวจผลกลับตรงกัน",
+           "cowork_done": "ส่งเข้า ERP แล้ว · ตรวจผลกลับตรงกัน",
            "name": "ชื่อ-นามสกุล", "id_no": "เลขบัตรประชาชน", "birth": "วันเกิด", "address": "ที่อยู่", "phone": "เบอร์โทร",
            "dms_read": "ข้อมูลลูกค้าใน DMS", "dms_done": "สร้างลูกค้าใน MR.ERP DMS แล้ว · ไม่ซ้ำ",
            "erp_read": "รายการซื้อ", "supplier": "ผู้ขาย", "items": "รายการ", "erp_done": "สร้างรายการซื้อแล้ว",
            "confirm": "ยืนยัน", "found": "ลูกค้าใหม่ · สร้างใน DMS?"},
     "en": {"read": "Read from the document", "seller": "Seller", "tax_id": "Tax ID", "doc_no": "Document no.", "date": "Date",
            "base": "Before VAT", "vat": "VAT 7%", "total": "Total", "checked": "checked",
-           "cowork_done": "Pushed to Express · read back and matched",
+           "cowork_done": "Pushed to your ERP · read back and matched",
            "name": "Name", "id_no": "ID number", "birth": "Date of birth", "address": "Address", "phone": "Phone",
            "dms_read": "Customer in DMS", "dms_done": "Customer created in MR.ERP DMS · no duplicate",
            "erp_read": "Purchase record", "supplier": "Supplier", "items": "Items", "erp_done": "Purchase record created",
            "confirm": "Confirm", "found": "New customer · create in DMS?"},
     "zh": {"read": "从单据读取", "seller": "卖方", "tax_id": "税号", "doc_no": "单号", "date": "日期",
            "base": "税前金额", "vat": "VAT 7%", "total": "合计", "checked": "已核对",
-           "cowork_done": "已推送 Express · 回读一致",
+           "cowork_done": "已推送 ERP · 回读一致",
            "name": "姓名", "id_no": "身份证号", "birth": "出生日期", "address": "地址", "phone": "电话",
            "dms_read": "DMS 客户资料", "dms_done": "已在 MR.ERP DMS 建客户 · 未重复",
            "erp_read": "采购记录", "supplier": "供应商", "items": "明细", "erp_done": "已生成采购记录",

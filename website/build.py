@@ -289,7 +289,7 @@ def demo(lang):
 def page_home(lang):
     h, t = C.HOME[lang], C.COMMON[lang]
     watch = f'<a class="btn light" href="#products">{icon("play")}<span>{esc(t["watch"])}</span></a>'
-    logos = "".join(f"<span>{esc(name)}</span>" for name in C.INTEGRATIONS)
+    logos = "".join(f"<span>{esc(name)}</span>" for name in C.INTEGRATIONS[lang])
     products = ""
     for i, k in enumerate(C.PRODUCTS):
         p, o = C.PRODUCT[k][lang], C.OVERVIEW[k]
