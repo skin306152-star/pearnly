@@ -84,4 +84,3 @@
 刷新回读两者都是 `openid, chat_message.write`。开了之后 LIFF 不能最小化成浮窗（LINE 的限制，扫描页扫完自己关，不受影响）；
 业务员第一次打开扫描页会被 LINE 问一次是否允许代发消息。开户说明（`line_guide_content/zh.html` C2 第 3 步）改为
 "DMS 再勾 chat_message.write，ERP / Cowork 不勾"。
-
