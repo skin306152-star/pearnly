@@ -20,6 +20,12 @@
 - `python3 tests/test_website.py` 8 项通过（新增：文章元数据齐全、引用的产品与工具存在、至少 3 个小节、不含 Express；仅泰文页的 hreflang 只含 th + x-default）。`node --test tests/test-website-tools.cjs`、`check-architecture.py` 通过。
 - 本机预览：文章页、目录页 2×2、首页推荐区。
 
-## 待用户确认后发布
+## 用户确认（2026-10-04）
+
+用户回复“文章没问题，发布吧”，以下税务说法按用户确认发布：
 
 需用户或会计同事核对的税务说法：进项发票要素与买方税号/分支要求；进项税最长 6 个月顺延的条件；预扣税常用税率与 1,000 泰铢以下不扣的说法；ภ.ง.ด.3/53 与 7 日 / 网上延 8 日；ภ.พ.30 15 日；VAT 登记门槛 1.8 百万、30 日内登记。
+
+## 追加
+
+- 页脚与 Organization `sameAs` 加 YouTube 频道 `https://www.youtube.com/@pearnlyth`（三段总览片已公开）。
