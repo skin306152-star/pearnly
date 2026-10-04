@@ -41,6 +41,9 @@ LINE 免费回覆只能回给刚发来消息的人、收到后 1 分钟内用一
 
 - `scripts/test-dms-line-runtime.py` 63 条（新增 `DmsPageReply` 4、`DmsSlowReply` 2；扫描标记改为纯文字）；`test-dms-intake-queue` 23、
   `test_dms_query_push` 11：生产镜像 6e29deef 挂载本分支、断网，通过。
+- 第一次分支构建在候选离线道失败：`test-dms-line-language` 的假编辑器 `save` 不收 `deliver`、`test-dms-snapshot-consumers` 的状态存储替身让
+  `_SlowReply` 把假对象当时间算。前者改测试（并断言那句话按收件人语言），后者改代码（读回的不是时间就不计时）。之后生产镜像挂载本分支
+  跑完整候选离线道 54 步全过。
 - `check-architecture` PASS；`check-dms-offline`（Python 3.14）20 项 PASS；本地 `development.yml` 同名 38 步通过；`vue-tsc` / `vite build` 通过。
 - `scripts/test-dms-customer-write-flow.py`：main 上本来就 2 失败 4 报错（不在任何 CI 道里），本分支删掉 4 个审批测试后余下同样 6 条，与本任务无关，未修。
 - 旧系统对照：删审批 3 条登记，只重新登记本分支改过的 7 个模块（out、booking_edit、cards、customer_edit、intake/flow ×2、text_router）。

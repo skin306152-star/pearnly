@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 import re
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import frappe
 
@@ -135,15 +135,19 @@ class EditorAndDiffLabels(unittest.TestCase):
         seen = {}
 
         class Editor:
-            def save(self, line_user_id, nonce, form):
+            def save(self, line_user_id, nonce, form, deliver=None):
                 seen["lang"] = i18n.line_lang()
+                # 新卡交给页面那句话再免费回覆（`line.page_reply`），这里只收下。
+                seen["kept"] = deliver(line_user_id, {"type": "flex"})
                 return "n2"
 
         with patch.object(browser_api, "_ticket_line_user", return_value={"line_user_id": "U1", "mode": "customer"}), \
              patch.object(browser_api, "_editor", return_value=Editor()), \
+             patch("pearnly_dms.line.page_reply._state", return_value=Mock()), \
              patch("pearnly_core.line.user_language", return_value="zh"):
-            self.assertEqual(browser_api.browser_save("t", "n1", {}), {"nonce": "n2"})
-        self.assertEqual(seen["lang"], "zh")
+            result = browser_api.browser_save("t", "n1", {})
+        self.assertEqual((result["nonce"], seen["lang"], seen["kept"]), ("n2", "zh", True))
+        self.assertEqual(result["marker"], f"已修改资料 #{result['code']}", "the chat sentence is in the recipient's language")
         self.assertEqual(i18n.line_lang(), "th", "the language block ends with the request")
 
 

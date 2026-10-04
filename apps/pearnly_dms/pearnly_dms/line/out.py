@@ -270,8 +270,11 @@ class _SlowReply:
             key = client.make_key(_RESULTS + line_user_id)
         except Exception:
             return
-        age = time.time() - float(noted) if noted else None
-        if age is None or age >= _TOKEN_LIFE:
+        try:
+            age = time.time() - float(noted)
+        except (TypeError, ValueError):
+            return  # 没记到（或记的不是时间）：不知道令牌还剩多久，就不抢先回
+        if age >= _TOKEN_LIFE:
             return
         from pearnly_dms.line import cards
 
