@@ -83,11 +83,11 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .wordmark { font-family: var(--serif); font-weight: 600; font-size: 23px; letter-spacing: -.01em; color: var(--ink); margin-right: 14px; line-height: 1; }
 .nav { flex: 1; display: flex; gap: 2px; }
 .nav a { padding: 7px 14px; border-radius: 999px; font-size: 15px; color: var(--muted); transition: background .2s, color .2s; }
-.nav a:hover, .nav a[aria-current] { background: var(--soft); color: var(--ink); }
-.langs { display: flex; background: var(--soft); border-radius: 999px; padding: 3px; }
+.nav a:hover, .nav a[aria-current] { color: var(--ink); }
+.langs { display: flex; border-radius: 999px; padding: 3px; }
 .langs a { padding: 4px 11px; border-radius: 999px; font-size: 13px; color: var(--faint); transition: all .2s; }
 .langs a:hover { color: var(--ink); }
-.langs a[aria-current] { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
+.langs a[aria-current] { color: var(--ink); }
 @media (max-width: 760px) {
   .pill, .topbar.scrolled .pill { flex-wrap: wrap; border-radius: 22px; padding: 8px 8px 6px 16px; row-gap: 4px; }
   .pill { background: rgba(248, 248, 246, .92); }
@@ -139,10 +139,10 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .lights { display: flex; gap: 7px; }
 .lights i { width: 11px; height: 11px; border-radius: 50%; background: #e2e0d9; }
 .wintitle { position: absolute; left: 50%; transform: translateX(-50%); font-size: 13px; color: var(--faint); white-space: nowrap; }
-.seg { position: absolute; left: 50%; transform: translateX(-50%); display: flex; background: var(--soft); border-radius: 999px; padding: 3px; }
+.seg { position: absolute; left: 50%; transform: translateX(-50%); display: flex; border-radius: 999px; padding: 3px; }
 .seg button { border: 0; background: none; padding: 4px 16px; border-radius: 999px; font-size: 13.5px; color: var(--muted); cursor: pointer; transition: all .25s var(--ease); }
 .seg button:hover { color: var(--ink); }
-.seg button[aria-selected="true"] { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
+.seg button[aria-selected="true"] { color: var(--ink); }
 
 /* ---------- 首页演示：左"现实"、右"系统"，元素按 site.js 的时间轴加类 ---------- */
 .demo-body { position: relative; }
@@ -389,10 +389,10 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
   background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 40px; }
 .tool input.short { max-width: 150px; }
 .tool input:focus, .tool select:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 4px rgba(20, 20, 19, .07); }
-.segmented { display: inline-flex; flex-wrap: wrap; background: var(--soft); border-radius: 999px; padding: 4px; justify-self: start; }
+.segmented { display: inline-flex; flex-wrap: wrap; border-radius: 999px; padding: 4px; justify-self: start; }
 .segmented input { position: absolute; opacity: 0; pointer-events: none; }
 .segmented span { display: block; padding: 7px 18px; border-radius: 999px; font-size: 14.5px; color: var(--muted); cursor: pointer; transition: all .2s var(--ease); }
-.segmented input:checked + span { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
+.segmented input:checked + span { color: var(--ink); }
 .segmented input:focus-visible + span { outline: 2px solid var(--ink); }
 .check { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--ink); }
@@ -699,3 +699,20 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
   .pro-band { padding: 16px 18px; gap: 14px; }
   .band-mascot { height: 76px; }
 }
+
+/* ---------- 选中态统一液态玻璃（用户 2026-10-05）：轨道是一层浅玻璃槽，选中项是一颗透明玻璃珠，靠亮边、内侧折射光和投影立起来 ---------- */
+.langs, .seg, .segmented {
+  background: rgba(20, 20, 19, .035);
+  box-shadow: inset 0 1px 2px rgba(20, 20, 19, .07), inset 0 -1px 0 rgba(255, 255, 255, .7);
+  -webkit-backdrop-filter: blur(6px) saturate(1.6); backdrop-filter: blur(6px) saturate(1.6);
+}
+.nav a, .langs a, .seg button, .segmented span { transition: color .25s var(--ease), background .35s var(--ease), box-shadow .35s var(--ease); }
+.nav a:hover, .nav a[aria-current], .langs a[aria-current], .seg button[aria-selected="true"], .segmented input:checked + span {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .14) 55%, rgba(255, 255, 255, .3) 100%);
+  -webkit-backdrop-filter: blur(4px) saturate(1.8); backdrop-filter: blur(4px) saturate(1.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .55), inset 0 0 0 .5px rgba(20, 20, 19, .09),
+              inset 0 0 8px rgba(255, 255, 255, .35), 0 4px 12px -6px rgba(20, 20, 19, .28), 0 1px 2px rgba(20, 20, 19, .06);
+}
+.nav a:hover:not([aria-current]) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 0 0 0 .5px rgba(20, 20, 19, .06), 0 3px 10px -6px rgba(20, 20, 19, .2); }
+/* 透明顶栏压在深色内容上也要看得清：字加深、带一圈柔白光晕（玻璃本身仍是透明的） */
+.topbar.scrolled .nav a, .topbar.scrolled .langs a, .topbar.scrolled .wordmark { color: var(--ink); text-shadow: 0 0 6px rgba(255, 255, 255, .95), 0 0 2px rgba(255, 255, 255, .9); }
