@@ -29,3 +29,15 @@
 ## 追加
 
 - 页脚与 Organization `sameAs` 加 YouTube 频道 `https://www.youtube.com/@pearnlyth`（三段总览片已公开）。
+
+## 发布（2026-10-04）
+
+- `main` 快进到 `b7bac7f2` 并推送（远端回读一致），主目录 `bash scripts/publish-website.sh` 发布。
+- 线上回读：`/guides/` 与 4 篇文章 200，首页、英文首页、VAT 工具页 200；sitemap 32 个地址；页脚有 YouTube 链接；小助手 `latest.json` 200。
+- Search Console：4 篇文章都已“请求编入索引”（今天共用了 7 次请求）。
+- 发布脚本打包加 `--no-xattrs`，去掉 macOS `com.apple.provenance` 扩展属性在服务器 tar 上的警告（不影响内容）。
+
+## 收尾
+
+- 删除工作树 `/Users/skin/pearnly-guides`、本地与远端分支 `codex/website-guides`；本地预览服务已停。
+- 不在本仓的外部状态（用户谷歌账号下）：YouTube 频道 Pearnly（@pearnlyth）三段总览片已公开；谷歌商家资料 Pearnly 已建、未验证（用户决定暂不录验证视频）。
