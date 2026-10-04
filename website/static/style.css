@@ -332,3 +332,43 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- 教程文章 ---------- */
+.meta { margin-top: 18px; font-size: 14px; color: var(--faint); }
+.toc { margin-top: 44px; padding: 22px 26px; border-radius: 20px; }
+.toc > span { font-size: 13px; font-weight: 600; color: var(--faint); letter-spacing: .02em; }
+.toc ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.toc a { color: var(--text); font-size: 15px; }
+.toc a:hover { color: var(--ink); text-decoration: underline; }
+.prose { margin-top: 40px; font-size: 17px; line-height: 1.85; color: var(--text); }
+.prose h2 { font-size: 26px; font-weight: 600; letter-spacing: -.015em; margin: 52px 0 16px; scroll-margin-top: 96px; }
+.prose h3 { font-size: 19px; margin: 32px 0 10px; }
+.prose p, .prose ul, .prose ol, .prose table { margin: 0 0 18px; }
+.prose ul, .prose ol { padding-left: 22px; }
+.prose li { margin: 6px 0; }
+.prose li strong { color: var(--ink); }
+.prose a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.prose a:hover { text-decoration-color: var(--ink); }
+.prose table { width: 100%; border-collapse: collapse; font-size: 15px; background: rgba(255, 255, 255, .9); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: table; }
+.prose th { text-align: left; font-weight: 600; color: var(--ink); background: var(--soft); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.prose td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.prose tr:last-child td { border-bottom: 0; }
+.prose table.sum td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prose table.sum tr.total td { font-weight: 600; color: var(--ink); background: var(--soft); }
+.prose code { font: 14px var(--mono); background: var(--soft); padding: 2px 6px; border-radius: 6px; }
+.prose .note { padding: 14px 18px; border-radius: 14px; background: rgba(255, 210, 0, .12); border: 1px solid rgba(201, 160, 0, .25); font-size: 15.5px; }
+.prose ul.checklist { list-style: none; padding-left: 0; }
+.prose ul.checklist li { position: relative; padding-left: 30px; }
+.prose ul.checklist li::before { content: "✓"; position: absolute; left: 4px; top: 0; color: var(--green); font-weight: 700; }
+.disclaimer { margin-top: 44px !important; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--faint); line-height: 1.7; }
+.plain-links { list-style: none; padding: 0; margin: 0; }
+.plain-links li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.plain-links a { color: var(--ink); font-weight: 500; }
+.plain-links a:hover { text-decoration: underline; }
+.more-link { margin-top: 28px; }
+@media (max-width: 760px) {
+  .prose { font-size: 16.5px; }
+  .prose table { display: block; overflow-x: auto; }
+}
+.tiles.pair { grid-template-columns: repeat(2, 1fr); margin-top: 0; }
+@media (max-width: 760px) { .tiles.pair { grid-template-columns: 1fr; } }

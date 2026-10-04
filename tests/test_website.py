@@ -57,8 +57,8 @@ class WebsiteTest(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.out = build.build(Path(cls.tmp.name) / "dist")
         cls.pages = {}
-        for key in C.PAGES:
-            for lang in C.LANGS:
+        for key in list(C.PAGES) + list(build.THAI_ONLY):
+            for lang in build.languages(key):
                 path = build.url(lang, key)
                 parser = Page()
                 parser.feed((cls.out / path.lstrip("/") / "index.html").read_text(encoding="utf-8"))
@@ -83,8 +83,10 @@ class WebsiteTest(unittest.TestCase):
         self.assertEqual(len(set(descriptions)), len(descriptions))
 
     def test_canonical_points_at_itself_and_hreflang_is_complete(self):
-        expected = {C.LANGS[l]["hreflang"] for l in C.LANGS} | {"x-default"}
+        thai_only = {build.url("th", key) for key in build.THAI_ONLY}
         for path, page in self.pages.items():
+            langs = [C.DEFAULT_LANG] if path in thai_only else list(C.LANGS)
+            expected = {C.LANGS[l]["hreflang"] for l in langs} | {"x-default"}
             canonical = [l["href"] for l in page.links if l.get("rel") == "canonical"]
             self.assertEqual(canonical, [C.SITE + path], path)
             alternates = {l["hreflang"]: l["href"] for l in page.links if l.get("rel") == "alternate"}
@@ -116,6 +118,17 @@ class WebsiteTest(unittest.TestCase):
         locs = set(re.findall(r"<loc>([^<]+)</loc>", sitemap))
         self.assertEqual(locs, {C.SITE + p for p in self.pages})
         self.assertIn(f"Sitemap: {C.SITE}/sitemap.xml", (self.out / "robots.txt").read_text())
+
+    def test_guides_have_complete_front_matter_and_resolve_their_links(self):
+        import guides as G
+        self.assertGreaterEqual(len(G.ALL), 1)
+        for g in G.ALL:
+            self.assertIn(g.product, C.PRODUCTS, g.slug)
+            for tool in g.tools:
+                self.assertIn(tool, C.TOOLS, g.slug)
+            _, toc = g.sections()
+            self.assertGreaterEqual(len(toc), 3, g.slug)
+            self.assertNotIn("Express", g.body, g.slug)
 
     def test_not_found_page_is_not_indexed(self):
         self.assertIn('<meta name="robots" content="noindex">', (self.out / "404.html").read_text(encoding="utf-8"))

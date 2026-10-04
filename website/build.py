@@ -15,6 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import content as C  # noqa: E402
+import guides as G  # noqa: E402
 
 STATIC = HERE / "static"
 VERSION = ""
@@ -34,8 +35,18 @@ def plain(text):
     return str(text).replace("\n", " ")
 
 
+# 只有泰文版的页面（教程文章）：不加语言前缀、不出多语 hreflang。
+THAI_ONLY = {"guides": "/guides/", **{"guide:" + g.slug: f"/guides/{g.slug}/" for g in G.ALL}}
+
+
 def url(lang, key):
+    if key in THAI_ONLY:
+        return THAI_ONLY[key]
     return C.LANGS[lang]["prefix"] + C.PAGES[key]
+
+
+def languages(key):
+    return [C.DEFAULT_LANG] if key in THAI_ONLY else list(C.LANGS)
 
 
 def absolute(path):
@@ -97,7 +108,7 @@ def breadcrumb(lang, trail):
 
 
 def head(lang, key, title, description, graph, noindex=False):
-    alternates = "".join(f'<link rel="alternate" hreflang="{C.LANGS[l]["hreflang"]}" href="{absolute(url(l, key))}">' for l in C.LANGS)
+    alternates = "".join(f'<link rel="alternate" hreflang="{C.LANGS[l]["hreflang"]}" href="{absolute(url(l, key))}">' for l in languages(key))
     alternates += f'<link rel="alternate" hreflang="x-default" href="{absolute(url(C.DEFAULT_LANG, key))}">'
     canonical = absolute(url(lang, key))
     ld = jsonld({"@context": "https://schema.org", "@graph": graph}) if graph else ""
@@ -139,12 +150,12 @@ def header(lang, key):
     t = C.COMMON[lang]
     here, chosen = ' aria-current="page"', ' aria-current="true"'
     nav = "".join(
-        f'<a href="{url(lang, k)}"{here if key == k or (k == "tools" and key in C.TOOLS) else ""}>{esc(label)}</a>'
+        f'<a href="{url(lang, k)}"{here if key == k or (k == "tools" and key in C.TOOLS) or (k == "guides" and key.startswith("guide:")) else ""}>{esc(label)}</a>'
         for k, label in t["nav"].items()
     )
     short = {"th": "TH", "en": "EN", "zh": "中文"}
     langs = "".join(
-        f'<a href="{url(l, key)}" hreflang="{C.LANGS[l]["hreflang"]}" lang="{C.LANGS[l]["html"]}" title="{esc(C.LANGS[l]["label"])}"'
+        f'<a href="{url(l, key if l in languages(key) else "home")}" hreflang="{C.LANGS[l]["hreflang"]}" lang="{C.LANGS[l]["html"]}" title="{esc(C.LANGS[l]["label"])}"'
         f'{chosen if l == lang else ""}>{short[l]}</a>'
         for l in C.LANGS
     )
@@ -348,8 +359,31 @@ def page_home(lang):
   <p class="lead center reveal">{esc(h["tools_text"])}</p>
   <div class="tiles">{tools}</div>
 </section>
-"""
+{home_guides(lang)}"""
     return head(lang, "home", h["title"], h["description"], graph) + header(lang, "home") + body + contact(lang) + footer(lang)
+
+
+def home_guides(lang):
+    if lang != "th" or not G.ALL:
+        return ""
+    T = C.GUIDE_TEXT
+    tiles = "".join(guide_tile(g) for g in G.ALL[:4])
+    return f"""<section class="wrap section">
+  <h2 class="display center reveal">{esc(T["home_title"])}</h2>
+  <p class="lead center reveal">{esc(T["home_text"])}</p>
+  <div class="tiles pair">{tiles}</div>
+  <p class="center more-link"><a class="more" href="{url(lang, "guides")}">{esc(T["all"])} {icon("arrow", "icon sm")}</a></p>
+</section>
+"""
+
+
+def related_guides(lang, matches):
+    """泰文页面底部的“延伸阅读”：工具页按 tools、产品页按 product 找文章。"""
+    found = [g for g in G.ALL if matches(g)]
+    if lang != "th" or not found:
+        return ""
+    links = "".join(f'<li><a href="{url(lang, "guide:" + g.slug)}">{esc(g.h1)}</a></li>' for g in found)
+    return f'<section class="wrap narrow section"><h2 class="display">{esc(C.GUIDE_TEXT["related"])}</h2><ul class="plain-links">{links}</ul></section>'
 
 
 def page_product(lang, key):
@@ -390,6 +424,7 @@ def page_product(lang, key):
   <h2 class="display center reveal">{esc(t["features"])}</h2>
   <ul class="cards">{features}</ul>
 </section>
+{related_guides(lang, lambda g: g.product == key)}
 <section class="wrap section">
   <h2 class="display center reveal">{esc(t["others"])}</h2>
   <div class="tiles two">{others}</div>
@@ -489,6 +524,7 @@ def page_tool(lang, key):
   <h2 class="display">{esc(t["faq"])}</h2>
   <div class="faq">{faq}</div>
 </section>
+{related_guides(lang, lambda g: key in g.tools)}
 <section class="wrap section">
   <a class="pitch reveal" href="{url(lang, "home")}"><span>{esc(t["tool_cta"])}</span>{icon("arrow")}</a>
   <h2 class="display center">{esc(t["tools_more"])}</h2>
@@ -497,6 +533,73 @@ def page_tool(lang, key):
 <script src="/static/tools.js?v={VERSION}" defer></script>
 """
     return head(lang, key, p["title"], p["description"], [ORG, breadcrumb(lang, trail), app]) + header(lang, key) + body + footer(lang)
+
+
+# ---------------- 泰文教程文章 ----------------
+
+def guide_tile(g):
+    T = C.GUIDE_TEXT
+    return (f'<a class="tile reveal" href="{url("th", "guide:" + g.slug)}"><span class="eyebrow">{esc(T["read"].format(minutes=g.minutes))}</span>'
+            f'<h3>{esc(g.h1)}</h3><p>{esc(g.lead)}</p><span class="more">{icon("arrow", "icon sm")}</span></a>')
+
+
+def page_guides():
+    lang, t, P = "th", C.COMMON["th"], C.GUIDES_INDEX
+    trail = [("home", t["home"]), ("guides", C.GUIDE_TEXT["label"])]
+    items = "".join(guide_tile(g) for g in G.ALL)
+    graph = [ORG, breadcrumb(lang, trail), {"@type": "CollectionPage", "name": P["h1"], "url": absolute(url(lang, "guides")), "inLanguage": "th",
+             "hasPart": [{"@type": "Article", "headline": g.h1, "url": absolute(url(lang, "guide:" + g.slug))} for g in G.ALL]}]
+    body = f"""<section class="hero sub"><div class="wrap center">{crumbs(lang, trail)}<h1 class="display">{esc(P["h1"])}</h1><p class="lead">{esc(P["lead"])}</p></div></section>
+<section class="wrap section"><div class="tiles pair">{items}</div></section>
+"""
+    return head(lang, "guides", P["title"], P["description"], graph) + header(lang, "guides") + body + contact(lang) + footer(lang)
+
+
+def page_guide(g):
+    lang, t, T = "th", C.COMMON["th"], C.GUIDE_TEXT
+    key = "guide:" + g.slug
+    trail = [("home", t["home"]), ("guides", T["label"]), (key, g.h1)]
+    body_html, toc = g.sections()
+    toc_html = "".join(f'<li><a href="#{sid}">{esc(title)}</a></li>' for sid, title in toc)
+    p, o = C.PRODUCT[g.product][lang], C.OVERVIEW[g.product]
+    tools = "".join(
+        f'<a class="tile" href="{url(lang, k)}"><h3>{esc(C.TOOL[k][lang]["name"])}</h3><p>{esc(C.TOOL[k][lang]["short"])}</p></a>' for k in g.tools
+    )
+    tools_html = f'<section class="wrap narrow section"><h2 class="display">{esc(T["tools"])}</h2><div class="tiles three">{tools}</div></section>' if tools else ""
+    others = "".join(guide_tile(other) for other in G.ALL if other.slug != g.slug)
+    shot = window(f'<img src="{o["poster"]}" alt="" loading="lazy" width="1280" height="720"><span class="playbtn"><span class="circle">{icon("play")}</span></span>')
+    cta = f"""<section class="wrap section">
+  <article class="panel product reveal">
+    <div class="product-text">
+      <span class="eyebrow">{esc(p["who"])}</span>
+      <h3 class="display">{esc(T["cta_title"].format(name=p["name"]))}</h3>
+      <p class="muted">{esc(p["summary"])}</p>
+      <div class="actions"><a class="btn dark" href="{C.LINE_URL}" rel="noopener">{icon("chat")}<span>{esc(t["cta"])}</span></a><a class="btn light" href="{url(lang, g.product)}">{esc(t["more"])}</a></div>
+    </div>
+    <a class="poster" href="{url(lang, g.product)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{shot}</a>
+  </article>
+</section>"""
+    article = {"@type": "Article", "headline": g.h1, "description": g.description, "datePublished": g.published, "dateModified": g.updated,
+               "inLanguage": "th", "mainEntityOfPage": absolute(url(lang, key)), "image": C.SITE + "/static/og.png",
+               "author": {"@id": ORG["@id"]}, "publisher": {"@id": ORG["@id"]}}
+    body = f"""<section class="hero sub">
+  <div class="wrap center">
+    {crumbs(lang, trail)}
+    <span class="badge">{esc(T["label"])} · {esc(T["read"].format(minutes=g.minutes))}</span>
+    <h1 class="display">{esc(g.h1)}</h1>
+    <p class="lead">{esc(g.lead)}</p>
+    <p class="meta">{esc(T["updated"].format(date=G.thai_date(g.updated)))}</p>
+  </div>
+</section>
+<section class="wrap narrow">
+  <nav class="toc panel" aria-label="{esc(T["toc"])}"><span>{esc(T["toc"])}</span><ol>{toc_html}</ol></nav>
+  <article class="prose">{body_html}<p class="disclaimer">{esc(T["disclaimer"])}</p></article>
+</section>
+{tools_html}
+{cta}
+<section class="wrap section"><h2 class="display center">{esc(T["more"])}</h2><div class="tiles three">{others}</div></section>
+"""
+    return head(lang, key, g.title, g.description, [ORG, breadcrumb(lang, trail), article]) + header(lang, key) + body + footer(lang)
 
 
 def page_404(lang):
@@ -508,6 +611,10 @@ def page_404(lang):
 
 
 def render(lang, key):
+    if key == "guides":
+        return page_guides()
+    if key.startswith("guide:"):
+        return page_guide(next(g for g in G.ALL if "guide:" + g.slug == key))
     if key == "home":
         return page_home(lang)
     if key in C.PRODUCTS:
@@ -519,9 +626,9 @@ def render(lang, key):
 
 def sitemap():
     rows = []
-    for key in C.PAGES:
-        for lang in C.LANGS:
-            alts = "".join(f'<xhtml:link rel="alternate" hreflang="{C.LANGS[l]["hreflang"]}" href="{absolute(url(l, key))}"/>' for l in C.LANGS)
+    for key in list(C.PAGES) + list(THAI_ONLY):
+        for lang in languages(key):
+            alts = "".join(f'<xhtml:link rel="alternate" hreflang="{C.LANGS[l]["hreflang"]}" href="{absolute(url(l, key))}"/>' for l in languages(key))
             alts += f'<xhtml:link rel="alternate" hreflang="x-default" href="{absolute(url(C.DEFAULT_LANG, key))}"/>'
             rows.append(f"<url><loc>{absolute(url(lang, key))}</loc>{alts}</url>")
     return ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
@@ -534,8 +641,8 @@ def build(out):
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(STATIC, out / "static")
-    for key in C.PAGES:
-        for lang in C.LANGS:
+    for key in list(C.PAGES) + list(THAI_ONLY):
+        for lang in languages(key):
             target = out / (url(lang, key).lstrip("/")) / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(render(lang, key), encoding="utf-8")

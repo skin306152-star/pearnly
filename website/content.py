@@ -69,7 +69,7 @@ INTEGRATIONS = {
 
 COMMON = {
     "th": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "เครื่องมือฟรี"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "เครื่องมือฟรี", "guides": "บทความ"},
         "cta": "คุยกับเราทาง LINE",
         "home": "หน้าแรก",
         "more": "ดูรายละเอียด",
@@ -97,7 +97,7 @@ COMMON = {
         "integrations": "ทำงานร่วมกับเครื่องมือที่คุณใช้อยู่",
     },
     "en": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "Free tools"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "Free tools", "guides": "Guides (TH)"},
         "cta": "Chat with us on LINE",
         "home": "Home",
         "more": "Learn more",
@@ -125,7 +125,7 @@ COMMON = {
         "integrations": "Works with the tools you already use",
     },
     "zh": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "免费工具"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "免费工具", "guides": "泰文指南"},
         "cta": "LINE 联系我们",
         "home": "首页",
         "more": "了解详情",
@@ -610,4 +610,26 @@ DEMO_LABELS = {
            "dms_read": "DMS 客户资料", "dms_done": "已在 MR.ERP DMS 建客户 · 未重复",
            "erp_read": "采购记录", "supplier": "供应商", "items": "明细", "erp_done": "已生成采购记录",
            "confirm": "确认", "found": "新客户 · 在 DMS 中创建？"},
+}
+
+# 泰文教程文章（website/guides/）的页面文字：文章只有泰文版。
+GUIDES_INDEX = {
+    "title": "บทความงานบัญชีและภาษี สำหรับสำนักงานบัญชีและเจ้าของกิจการ | Pearnly",
+    "description": "บทความอธิบายงานบัญชีและภาษีที่ทำทุกเดือน เช่น กระทบยอดธนาคาร ตรวจใบกำกับภาษีซื้อ ภาษีหัก ณ ที่จ่าย และ VAT 7% เขียนให้นำไปใช้ได้ทันที",
+    "h1": "บทความงานบัญชีและภาษี",
+    "lead": "งานที่ทำทุกเดือน อธิบายเป็นขั้นตอน พร้อมตัวอย่างตัวเลข",
+}
+GUIDE_TEXT = {
+    "label": "บทความ",
+    "read": "อ่าน {minutes} นาที",
+    "updated": "อัปเดต {date}",
+    "toc": "ในบทความนี้",
+    "home_title": "บทความแนะนำ",
+    "home_text": "งานบัญชีและภาษีที่ทำทุกเดือน อธิบายเป็นขั้นตอน",
+    "all": "ดูบทความทั้งหมด",
+    "related": "อ่านเพิ่มเติม",
+    "tools": "เครื่องมือที่ใช้ในบทความนี้",
+    "more": "บทความอื่น",
+    "cta_title": "ให้ Pearnly {name} ช่วยทำงานนี้",
+    "disclaimer": "บทความนี้เป็นข้อมูลทั่วไป ไม่ใช่คำแนะนำทางภาษีสำหรับกรณีเฉพาะ กฎและอัตราอาจเปลี่ยนตามประกาศกรมสรรพากร ควรตรวจสอบประกาศล่าสุดหรือปรึกษาผู้เชี่ยวชาญก่อนใช้",
 }
