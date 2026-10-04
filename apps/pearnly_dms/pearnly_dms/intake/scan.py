@@ -33,9 +33,12 @@ from pearnly_dms.line import cards
 
 PREFIX = "scan:"
 CODE_LENGTH = 6
-# 识别排队最长 30 分钟（`max_age`），登记与原件都留一小时。
+# 识别排队最长 30 分钟（`max_age`）：「只开始一次」的标记留一小时。
 TTL_SECONDS = 60 * 60
-_STALE_SECONDS = TTL_SECONDS
+# 原件与归属留 7 天：订车会把它作为「身份证复印件」附进 DMS（可能在建档之后过一阵才订、失败还要补传），
+# 和聊天里发的照片一样能取到（2026-10-05 测试机：识别后即删，订车附件失败）。
+_KEEP_SECONDS = 7 * 24 * 3600
+_STALE_SECONDS = _KEEP_SECONDS
 _KEY = "pearnly:dms:id-scan:"
 _STARTED = "pearnly:dms:id-scan-started:"
 _ID = re.compile(r"[0-9a-f]{16}")
@@ -112,7 +115,7 @@ def _binding(line_user_id: str) -> Optional[dict]:
 
 
 def _sweep(directory: Path) -> None:
-    """顺手删掉一小时前留下、没走到识别的照片（有界：只看这一个目录）。"""
+    """顺手删掉 7 天前留下的照片（有界：只看这一个目录）。"""
     cutoff = time.time() - _STALE_SECONDS
     try:
         entries = list(os.scandir(directory))
@@ -151,7 +154,7 @@ def store_upload(line_user_id: str, content: bytes) -> dict:
     path = directory / scan_id
     path.write_bytes(content)
     _state().set_value(_KEY + scan_id, {"line_user_id": line_user_id, "size": len(content)},
-                       expires_in_sec=TTL_SECONDS)
+                       expires_in_sec=_KEEP_SECONDS)
     flow.merge_session(binding, line_user_id, {"pending_image": PREFIX + scan_id}, keep=("phone", "mode"))
     code = scan_id[:CODE_LENGTH]
     return {"code": code, "marker": marker_text(code)}
@@ -206,24 +209,26 @@ def start(line_user_id: str, code: str) -> bool:
 
 
 def read(message_id: str, line_user_id: str) -> bytes:
-    """识别任务取扫描图（代替从 LINE 下载）；读到就删掉原件（识别任务自己留一份可续跑的输入）。"""
+    """识别任务取扫描图（代替从 LINE 下载），只给上传者。原件留着给订车附件用（见 `content`）。"""
     scan_id = str(message_id or "")[len(PREFIX):]
     if not _ID.fullmatch(scan_id):
         return b""
     meta = _state().get_value(_KEY + scan_id)
     if not isinstance(meta, dict) or meta.get("line_user_id") != line_user_id:
         return b""
-    path = _directory() / scan_id
-    try:
-        content = path.read_bytes()
-    except OSError:
+    return content(message_id)
+
+
+def content(message_id: str) -> bytes:
+    """订车附件取「身份证复印件」：`scan:<id>` 是服务端随机生成、只在本人草稿里的编号。取不到返回空。"""
+    scan_id = str(message_id or "")[len(PREFIX):]
+    if not str(message_id or "").startswith(PREFIX) or not _ID.fullmatch(scan_id):
         return b""
     try:
-        path.unlink()
+        return (_directory() / scan_id).read_bytes()
     except OSError:
-        pass
-    return content
+        return b""
 
 
-__all__ = ["PREFIX", "ScanError", "handle_code", "link", "marker_text", "prompt",
+__all__ = ["PREFIX", "ScanError", "content", "handle_code", "link", "marker_text", "prompt",
            "read", "start", "store_upload"]

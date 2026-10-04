@@ -1,4 +1,5 @@
 """Download the exact attachments selected in the confirmed draft."""
+from pearnly_dms.intake import scan as id_scan
 from pearnly_dms.line import out
 
 KINDS = (("id_card", "สำเนาบัตรประชาชน", "idcard.jpg"),
@@ -11,7 +12,11 @@ def download(qa, *, missing=None):
         mid = (qa.get("files") or {}).get(f"{key}_mid")
         if not mid or (missing is not None and display not in missing):
             continue
-        content = out.download_content(mid)
+        if str(mid).startswith(id_scan.PREFIX):
+            # 扫描页直传的身份证在本站点，不在 LINE（2026-10-05：曾当成 LINE 消息去下载，附件失败）。
+            content = id_scan.content(mid)
+        else:
+            content = out.download_content(mid)
         if not content:
             failed.append({"display_name": display, "error": "line content download failed"})
             continue

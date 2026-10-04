@@ -524,7 +524,7 @@ class DmsIdScan(unittest.TestCase):
         self.assertEqual(result["marker"], f"ID card scanned #{result['code']}", "plain text, no icon")
         self.assertEqual(self.session["payload"]["mode"], "customer", "phone / mode stay as with a chat photo")
         self.assertEqual(self.scan.read(pending, "U-sales"), self.JPEG)
-        self.assertEqual(self.scan.read(pending, "U-sales"), b"", "the original is handed over once")
+        self.assertEqual(self.scan.read(pending, "U-sales"), self.JPEG, "kept for the booking attachment")
         self.begin.assert_not_called()
 
     def test_upload_rejects_non_images_oversize_and_other_steps(self):
@@ -570,6 +570,20 @@ class DmsIdScan(unittest.TestCase):
         self.assertEqual(self.begin.call_args.args[3], "")
         with self.assertRaises(self.scan.ScanError):
             self.scan.start("U-sales", "ffffff")
+
+    def test_booking_attaches_the_scanned_card_from_the_site_not_line(self):
+        from pearnly_dms.booking import attachments
+        from pearnly_dms.line import out
+
+        self.scan.store_upload("U-sales", self.JPEG)
+        pending = self.session["payload"]["pending_image"]
+        with patch.object(out, "download_content", side_effect=AssertionError("not a LINE message")):
+            done, failed = attachments.download({"files": {"id_card_mid": pending}})
+        self.assertEqual((failed, done[0]["display_name"], done[0]["content"]),
+                         ([], "สำเนาบัตรประชาชน", self.JPEG))
+        with patch.object(out, "download_content", return_value=b""):
+            _, failed = attachments.download({"files": {"id_card_mid": "scan:" + "0" * 16}})
+        self.assertEqual(failed[0]["error"], "line content download failed", "a missing scan is reported, not hidden")
 
     def test_only_the_uploader_can_read_the_photo(self):
         self.scan.store_upload("U-sales", self.JPEG)
