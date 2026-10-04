@@ -135,7 +135,7 @@ async function capture(): Promise<void> {
       ticket = await ensureScanTicket();
       result = await uploadScan(ticket, image);
     }
-    returnToChat(result);
+    returnToChat("scan", result);
   } catch (err) {
     busy = false;
     fail(err);

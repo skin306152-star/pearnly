@@ -27,8 +27,6 @@ An admin account must be set up in Pearnly before updating.,更新するには�
 Any other payment channel?,ほかの支払方法はありますか？
 Apply,実行
 Approve,承認
-Approved. Customer data updated.,承認しました。顧客データを更新しました。
-Approver,承認者
 Attached,添付済み
 Awaiting manager,営業マネージャー待ち
 Back to chat,チャットに戻る
@@ -65,9 +63,8 @@ Cash,現金
 Cash purchase,現金購入
 Cash/finance,現金/ローン
 Cashier's cheque,預金小切手
-Change approver,承認者を変更
 Change read account,読み取りアカウントを変更
-Change request sent. Waiting for the approver.,変更申請を送りました。承認者の対応を待っています。
+Changes saved,内容を修正しました
 Channel details — type them,支払方法の詳細 — 入力してください
 Cheque,小切手
 Choose a bank,銀行を選択
@@ -76,7 +73,6 @@ Choose a colour for {car},{car} の色を選択
 Choose a period and number of items (all branches/teams this account can see),期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
 Choose a status,ステータスを選択
 Choose a topic to play its video,トピックを選ぶと動画を再生します
-"Choose an approver, or send to everyone so whoever is free can approve",承認者を選ぶか、全員に送って手の空いた人に承認してもらいます
 Choose an item to continue,項目を選んで続けます
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
 Choose the matching customer,該当する顧客を選択
@@ -106,7 +102,6 @@ Credit/debit card,クレジット/デビットカード
 Custom 1–30,カスタム 1–30
 Customer,顧客
 Customer data,顧客データ
-Customer data change request,顧客データの変更申請
 Customer data differs,顧客データに違いがあります
 Customer data matches,顧客データが一致しています
 Customer data saved. Type menu for other tasks.,顧客データを保存しました。ほかの操作は メニュー と入力してください。
@@ -201,7 +196,6 @@ Next,次へ
 Next Attempt,次回試行
 Next page,次のページ
 No active DMS account found. Ask the owner to check the operator data.,有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。
-No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,LINE と連携した承認者がまだいません。pearnly.com/dms で承認者を追加するよう管理者に依頼してください
 "No company receiving account yet. Please ask the admin to set it up in DMS, then try again.",会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。
 No matching model. Please try typing again.,該当する車種が見つかりません。もう一度入力してください。
 No records for this condition · Last read from DMS at,この条件の記録はありません · DMS から最後に読み取った時刻
@@ -209,6 +203,7 @@ No sales in this period,この期間の販売はありません
 None (the connection's own account is used),未設定（接続自身のアカウントのみ使用）
 Not all files were attached. Please add them in DMS.,添付ファイルがすべて付いていません。DMS で追加してください。
 Not allocated yet,未割当
+Not done yet. Please tap View result again in a moment.,まだ終わっていません。少し待ってからもう一度「結果を見る」を押してください。
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください
 Not read yet,未読み取り
 Not set,未設定
@@ -276,9 +271,6 @@ Remove,削除
 "Remove slip, go on",明細を削除して続ける
 Remove the account and add it again to change its name,アカウント名を変えるには行を削除して追加し直してください
 Removed {0},{0} を削除しました
-Request approval,承認を申請
-Request rejected,申請を却下しました
-Requested by,申請者
 Resumed {0},{0} を再開しました
 Retry,再試行
 Retry booking,予約を再作成
@@ -306,9 +298,7 @@ Select at least one data group.,データを1種類以上選択してくださ�
 Select one or more DMS data groups to read,読み取る DMS データを1種類以上選択してください
 "Select the data to update, then wait for the read to finish.",更新するデータを選択し、読み取りが完了するまでお待ちください。
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",予約金の振込明細を送ってください · 現金払いの場合は 現金 と入力するとこの手順を飛ばせます
-Send to everyone,全員に送る
 Sending…,送信中…
-Sent to,送信先
 Sent. You can go back to the chat.,送信しました。チャットに戻れます。
 "Separate fields with | , / or ·","項目は | , / または · で区切ってください"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。
@@ -318,6 +308,7 @@ Something went wrong. Please try again.,システムエラーです。もう一�
 Start over,やり直し
 Started over. Take a photo of the ID card to start a customer record.,やり直しました。身分証明書を撮影して顧客登録を始めてください。
 Status not given,ステータス未設定
+"Still working on it. When it is done, tap View result.",処理中です。終わったら「結果を見る」を押してください。
 Stop / resume,停止 / 再開
 Stopped {0},{0} を停止しました
 Subdistrict,町
@@ -365,6 +356,7 @@ The saved credentials cannot be read back; check the site encryption key,保存�
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
 There are more colours. Type a colour name to search.,ほかにも色があります。色の名前を入力して検索できます。
 There is a transfer payment. Please send the transfer slip before viewing the summary.,振込の支払いがあります。概要を見る前に振込明細を送ってください。
+There is more. Tap View result to see the rest.,続きがあります。「結果を見る」を押してください。
 These conditions have not been read. Click Read this query.,この条件のデータは未読み取りです。この検索の読み取りを押してください。
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。
 This account is already in use by the connection or another system account,このアカウントは接続または他のシステムアカウントで使用中です
@@ -383,7 +375,6 @@ This read failed. Click Read to retry.,今回の読み取りは失敗しまし�
 This read failed. Please try again later.,今回の読み取りは失敗しました。しばらくしてからお試しください。
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。
 This request has already been handled,この申請はすでに処理されています
-This request has expired. Please start again.,この申請は期限切れです。やり直してください。
 This step does not need a picture. Please follow the question above.,この手順では画像は不要です。上の質問に沿って進めてください。
 This step has expired. Go back to the chat and start again.,この手順は期限切れです。チャットに戻ってやり直してください。
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。
@@ -417,13 +408,11 @@ Type the sales document number,販売伝票番号を入力してください
 Type what you want to search for,検索したい語を入力してください
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
 Update data,データを更新
-Update failed (DMS refused it). The request is still open; approve again to retry.,更新できませんでした（DMS が拒否）。申請は残っています。もう一度承認すると再試行します。
 Update failed — click Update data to retry,更新に失敗しました。「データを更新」を押して再試行してください
 Update failed. Please ask the admin to check the admin password in Pearnly.,更新できませんでした。Pearnly の管理者パスワードを管理者に確認してもらってください。
 Update the DMS username and password saved in Pearnly,Pearnly に保存した DMS のユーザー名とパスワードを更新
 Update your DMS sign-in,DMS のログイン情報を更新
 Updating data…,データを更新中…
-"Updating the data, please wait",データを更新しています。しばらくお待ちください
 Use name on card,カードの氏名を使う
 Use the back office,管理画面を使う
 "Used only for the every-minute sync, 6:00–22:00.",6:00〜22:00 の毎分同期にのみ使います。
@@ -432,17 +421,13 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 User manual,使い方マニュアル
 Vehicle master data,車両マスター情報
 Video guides,動画ガイド
+View result,結果を見る
 View result / status,結果／状態を見る
 View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
 Village,村
 Watch step-by-step video guides,手順ごとの動画ガイドを見る
 Welcome to Pearnly DMS,Pearnly DMS へようこそ
-Who should approve this request?,誰に承認を依頼しますか？
 Write accounts,書き込みアカウント
-Your account cannot approve this request,あなたのアカウントにはこの申請を承認する権限がありません
-"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",あなたのアカウントには DMS 接続が設定されていないため承認できません。管理者に連絡してください。
-Your change request was approved and the customer data is updated.,変更申請が承認され、顧客データを更新しました。
-Your change request was rejected. Contact the approver if needed.,変更申請は却下されました。必要なら承認者に連絡してください。
 cars,台
 customer details,顧客情報
 customer list,顧客一覧
@@ -468,7 +453,7 @@ dms.card.BTN_RETRY,再試行
 dms.card.BTN_RETRY_BOOKING,予約を再作成
 dms.card.BTN_SAVE_NEW,新規顧客を保存
 dms.card.BTN_SCAN_CARD,身分証をスキャン
-dms.card.BTN_SUBMIT_APPROVAL,承認を申請
+dms.card.BTN_SHOW_RESULT,結果を見る
 dms.card.BTN_UPDATE,データを更新
 dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
 dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
@@ -497,6 +482,7 @@ dms.card.TXT_DIFF_HEAD,既存データがありますが、一部が一致しま
 dms.card.TXT_DIFF_HEADER,相違点
 dms.card.TXT_DONE_SAME,既存データを使用しました。ほかの操作は メニュー と入力してください。
 dms.card.TXT_DONE_SAVED,顧客データを保存しました。ほかの操作は メニュー と入力してください。
+dms.card.TXT_EDIT_SENT,内容を修正しました
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
 dms.card.TXT_EXPIRED,有効期限が切れました。もう一度やり直してください。
 dms.card.TXT_ID_CHECKSUM,13 桁の身分証番号を読み取りましたが、チェック桁が一致しません。カードの番号を確認し、番号がはっきり写るように撮り直してください。
@@ -530,9 +516,11 @@ dms.card.TXT_MENU_PICK_SUB,項目を選んで続けます
 dms.card.TXT_MENU_SEND_CARD,お客様の身分証明書の写真を送ってください
 dms.card.TXT_MENU_SUBTITLE,下のメニューから始めてください
 dms.card.TXT_MENU_TITLE,Pearnly DMS へようこそ
+dms.card.TXT_MORE_RESULTS,続きがあります。「結果を見る」を押してください。
 dms.card.TXT_NEED_BOTH,お客様の身分証明書の写真と電話番号を送ってください
 dms.card.TXT_NEW_CARD_ALT,新規顧客の保存を確認
 dms.card.TXT_NEW_CARD_HEAD,新規顧客です。データを確認して保存してください
+dms.card.TXT_NOT_READY,まだ終わっていません。少し待ってからもう一度「結果を見る」を押してください。
 dms.card.TXT_NO_CREDIT,クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください
 dms.card.TXT_NO_ENDPOINT,DMS 接続がまだ設定されていません。管理者に連絡してください。
 dms.card.TXT_PICK_ABOVE,上のカードから選ぶか、やり直し と入力して新しく始めてください
@@ -551,31 +539,8 @@ dms.card.TXT_SAME,この顧客はすでに登録済みで、データも一致�
 dms.card.TXT_SAME_ALT,顧客データが一致しています
 dms.card.TXT_SAVE_FAIL,保存できませんでした。もう一度お試しください。
 dms.card.TXT_SCAN_SENT,身分証をスキャンしました
+dms.card.TXT_STILL_WORKING,処理中です。終わったら「結果を見る」を押してください。
 dms.card.TXT_SYSTEM_ERROR,システムエラーです。もう一度お試しください。
-dms.card.approval.BTN_ALL_APPROVERS,全員に送る
-dms.card.approval.BTN_APPROVE,承認
-dms.card.approval.BTN_CHANGE_APPROVER,承認者を変更
-dms.card.approval.BTN_REJECT,却下
-dms.card.approval.LBL_APPROVER,承認者
-dms.card.approval.LBL_CUSTOMER,顧客
-dms.card.approval.LBL_REQUESTER,申請者
-dms.card.approval.LBL_SENT_TO,送信先
-dms.card.approval.TITLE_REQUEST,顧客データの変更申請
-dms.card.approval.TXT_APPROVER_NO_ENDPOINT,あなたのアカウントには DMS 接続が設定されていないため承認できません。管理者に連絡してください。
-dms.card.approval.TXT_EXEC_FAIL_ADMIN,更新できませんでした（DMS が拒否）。申請は残っています。もう一度承認すると再試行します。
-dms.card.approval.TXT_NOT_APPROVER,あなたのアカウントにはこの申請を承認する権限がありません
-dms.card.approval.TXT_NO_APPROVERS,LINE と連携した承認者がまだいません。pearnly.com/dms で承認者を追加するよう管理者に依頼してください
-dms.card.approval.TXT_PICK_APPROVER,誰に承認を依頼しますか？
-dms.card.approval.TXT_PICK_APPROVER_SUB,承認者を選ぶか、全員に送って手の空いた人に承認してもらいます
-dms.card.approval.TXT_PROCESSING,データを更新しています。しばらくお待ちください
-dms.card.approval.TXT_REQ_APPROVED_ADMIN,承認しました。顧客データを更新しました。
-dms.card.approval.TXT_REQ_APPROVED_SALES,変更申請が承認され、顧客データを更新しました。
-dms.card.approval.TXT_REQ_EXPIRED,この申請は期限切れです。やり直してください。
-dms.card.approval.TXT_REQ_REJECTED_ADMIN,申請を却下しました
-dms.card.approval.TXT_REQ_REJECTED_SALES,変更申請は却下されました。必要なら承認者に連絡してください。
-dms.card.approval.TXT_REQ_STALE,この申請はすでに処理されています
-dms.card.approval.TXT_SALES_FALLBACK,営業担当
-dms.card.approval.TXT_SENT_WAIT,変更申請を送りました。承認者の対応を待っています。
 dms.card.car.brand,メーカー
 dms.card.car.desc,車両の詳細
 dms.card.car.engine,エンジン

@@ -21,7 +21,6 @@ import secrets
 from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_core import line_session as store
-from pearnly_dms.approval import approval_flow as approval_flow
 from pearnly_dms.editor import booking_edit as editor
 from pearnly_dms.editor.edit_snapshot import GEO_FIELDS
 from pearnly_dms.line import cards as cards
@@ -122,7 +121,7 @@ def _card(
             "subdistrict": customer["subdistrict_name"],
         },
     }
-    # 上一次确认留下的派生态（候选/显式差异/审批）必须先清掉，否则新卡会带着旧结论。
+    # 上一次确认留下的派生态（候选/显式差异）必须先清掉，否则新卡会带着旧结论（approval 是旧会话残留）。
     new = {
         k: v
         for k, v in payload.items()
@@ -170,10 +169,10 @@ def _card(
                 diffs, {**snapshot["geo"], "prefixes": snapshot["prefixes"]}
             )
             # 端点写权限由**服务端**判：前端传来的任何东西都不作为依据。
-            card, approval = approval_flow.exact_diff_card(
-                binding["user_id"], display, has_admin, nonce, summary
-            )
-            new.update(display_diffs=display, has_admin=has_admin, approval=approval)
+            from pearnly_dms.intake import review as dms_review
+
+            card = dms_review.diff_card(binding["user_id"], display, has_admin, nonce, summary)
+            new.update(display_diffs=display, has_admin=has_admin)
         else:
             card = (
                 cards.same_customer_card
@@ -188,8 +187,11 @@ def _card(
     return new, card
 
 
-def save(line_user_id: str, nonce: str, submitted: dict) -> str:
-    """保存客户档并**同步确认**新卡已送达 LINE；返回轮换后的新 nonce。**不写 DMS**。"""
+def save(line_user_id: str, nonce: str, submitted: dict, deliver=None) -> str:
+    """保存客户档并**同步确认**新卡已送达 LINE；返回轮换后的新 nonce。**不写 DMS**。
+
+    `deliver(line_user_id, card) -> bool`：怎么送新卡，默认推播；LINE 编辑页传入"先存着、等页面发的那句话来了免费回覆"
+    （`line.page_reply`）。"""
     binding, payload, endpoint = _review(line_user_id, nonce)
     customer = editor._customer(dict(submitted.get("customer") or {}))
     snapshot = editor._snapshot(endpoint, customer=customer, include_booking_masters=False)
@@ -214,7 +216,7 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     if not store.replace_review_payload(line_user_id, nonce, new, state=STATE):
         raise editor.DmsBookingEditError("dms_booking.expired", 409)
     try:
-        if not _out.send(line_user_id, card):
+        if not (deliver or _out.send)(line_user_id, card):
             raise RuntimeError("customer_preview_not_delivered")
     except Exception as exc:
         # 卡没发出去 → 恢复旧 payload/nonce，用户还能重试同一份草稿。

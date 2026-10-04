@@ -27,8 +27,6 @@ An admin account must be set up in Pearnly before updating.,An admin account mus
 Any other payment channel?,Any other payment channel?
 Apply,Apply
 Approve,Approve
-Approved. Customer data updated.,Approved. Customer data updated.
-Approver,Approver
 Attached,Attached
 Awaiting manager,Awaiting manager
 Back to chat,Back to chat
@@ -65,9 +63,8 @@ Cash,Cash
 Cash purchase,Cash purchase
 Cash/finance,Cash/finance
 Cashier's cheque,Cashier's cheque
-Change approver,Change approver
 Change read account,Change read account
-Change request sent. Waiting for the approver.,Change request sent. Waiting for the approver.
+Changes saved,Changes saved
 Channel details — type them,Channel details — type them
 Cheque,Cheque
 Choose a bank,Choose a bank
@@ -76,7 +73,6 @@ Choose a colour for {car},Choose a colour for {car}
 Choose a period and number of items (all branches/teams this account can see),Choose a period and number of items (all branches/teams this account can see)
 Choose a status,Choose a status
 Choose a topic to play its video,Choose a topic to play its video
-"Choose an approver, or send to everyone so whoever is free can approve","Choose an approver, or send to everyone so whoever is free can approve"
 Choose an item to continue,Choose an item to continue
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
 Choose the matching customer,Choose the matching customer
@@ -106,7 +102,6 @@ Credit/debit card,Credit/debit card
 Custom 1–30,Custom 1–30
 Customer,Customer
 Customer data,Customer data
-Customer data change request,Customer data change request
 Customer data differs,Customer data differs
 Customer data matches,Customer data matches
 Customer data saved. Type menu for other tasks.,Customer data saved. Type menu for other tasks.
@@ -201,7 +196,6 @@ Next,Next
 Next Attempt,Next Attempt
 Next page,Next page
 No active DMS account found. Ask the owner to check the operator data.,No active DMS account found. Ask the owner to check the operator data.
-No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms
 "No company receiving account yet. Please ask the admin to set it up in DMS, then try again.","No company receiving account yet. Please ask the admin to set it up in DMS, then try again."
 No matching model. Please try typing again.,No matching model. Please try typing again.
 No records for this condition · Last read from DMS at,No records for this condition · Last read from DMS at
@@ -209,6 +203,7 @@ No sales in this period,No sales in this period
 None (the connection's own account is used),None (the connection's own account is used)
 Not all files were attached. Please add them in DMS.,Not all files were attached. Please add them in DMS.
 Not allocated yet,Not allocated yet
+Not done yet. Please tap View result again in a moment.,Not done yet. Please tap View result again in a moment.
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 Not read yet,Not read yet
 Not set,Not set
@@ -276,9 +271,6 @@ Remove,Remove
 "Remove slip, go on","Remove slip, go on"
 Remove the account and add it again to change its name,Remove the account and add it again to change its name
 Removed {0},Removed {0}
-Request approval,Request approval
-Request rejected,Request rejected
-Requested by,Requested by
 Resumed {0},Resumed {0}
 Retry,Retry
 Retry booking,Retry booking
@@ -306,9 +298,7 @@ Select at least one data group.,Select at least one data group.
 Select one or more DMS data groups to read,Select one or more DMS data groups to read
 "Select the data to update, then wait for the read to finish.","Select the data to update, then wait for the read to finish."
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step","Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step"
-Send to everyone,Send to everyone
 Sending…,Sending…
-Sent to,Sent to
 Sent. You can go back to the chat.,Sent. You can go back to the chat.
 "Separate fields with | , / or ·","Separate fields with | , / or ·"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.
@@ -318,6 +308,7 @@ Something went wrong. Please try again.,Something went wrong. Please try again.
 Start over,Start over
 Started over. Take a photo of the ID card to start a customer record.,Started over. Take a photo of the ID card to start a customer record.
 Status not given,Status not given
+"Still working on it. When it is done, tap View result.","Still working on it. When it is done, tap View result."
 Stop / resume,Stop / resume
 Stopped {0},Stopped {0}
 Subdistrict,Subdistrict
@@ -365,6 +356,7 @@ The saved credentials cannot be read back; check the site encryption key,The sav
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.","The submission was sent, but its result is unconfirmed. Do not submit again; check the result first."
 There are more colours. Type a colour name to search.,There are more colours. Type a colour name to search.
 There is a transfer payment. Please send the transfer slip before viewing the summary.,There is a transfer payment. Please send the transfer slip before viewing the summary.
+There is more. Tap View result to see the rest.,There is more. Tap View result to see the rest.
 These conditions have not been read. Click Read this query.,These conditions have not been read. Click Read this query.
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
 This account is already in use by the connection or another system account,This account is already in use by the connection or another system account
@@ -383,7 +375,6 @@ This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read failed. Please try again later.,This read failed. Please try again later.
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.","This read was interrupted; previously completed data was kept. The system will read again, so please try later."
 This request has already been handled,This request has already been handled
-This request has expired. Please start again.,This request has expired. Please start again.
 This step does not need a picture. Please follow the question above.,This step does not need a picture. Please follow the question above.
 This step has expired. Go back to the chat and start again.,This step has expired. Go back to the chat and start again.
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.","This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer."
@@ -417,13 +408,11 @@ Type the sales document number,Type the sales document number
 Type what you want to search for,Type what you want to search for
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
 Update data,Update data
-Update failed (DMS refused it). The request is still open; approve again to retry.,Update failed (DMS refused it). The request is still open; approve again to retry.
 Update failed — click Update data to retry,Update failed — click Update data to retry
 Update failed. Please ask the admin to check the admin password in Pearnly.,Update failed. Please ask the admin to check the admin password in Pearnly.
 Update the DMS username and password saved in Pearnly,Update the DMS username and password saved in Pearnly
 Update your DMS sign-in,Update your DMS sign-in
 Updating data…,Updating data…
-"Updating the data, please wait","Updating the data, please wait"
 Use name on card,Use name on card
 Use the back office,Use the back office
 "Used only for the every-minute sync, 6:00–22:00.","Used only for the every-minute sync, 6:00–22:00."
@@ -432,17 +421,13 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 User manual,User manual
 Vehicle master data,Vehicle master data
 Video guides,Video guides
+View result,View result
 View result / status,View result / status
 View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
 Village,Village
 Watch step-by-step video guides,Watch step-by-step video guides
 Welcome to Pearnly DMS,Welcome to Pearnly DMS
-Who should approve this request?,Who should approve this request?
 Write accounts,Write accounts
-Your account cannot approve this request,Your account cannot approve this request
-"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.","Your account has no DMS connection set up, so it cannot approve. Please tell the admin."
-Your change request was approved and the customer data is updated.,Your change request was approved and the customer data is updated.
-Your change request was rejected. Contact the approver if needed.,Your change request was rejected. Contact the approver if needed.
 cars,cars
 customer details,customer details
 customer list,customer list
@@ -468,7 +453,7 @@ dms.card.BTN_RETRY,Retry
 dms.card.BTN_RETRY_BOOKING,Retry booking
 dms.card.BTN_SAVE_NEW,Save new customer
 dms.card.BTN_SCAN_CARD,Scan ID card
-dms.card.BTN_SUBMIT_APPROVAL,Request approval
+dms.card.BTN_SHOW_RESULT,View result
 dms.card.BTN_UPDATE,Update data
 dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
 dms.card.MSG_BIND_GREETING,Hello
@@ -497,6 +482,7 @@ dms.card.TXT_DIFF_HEAD,"Existing data found, but some fields differ"
 dms.card.TXT_DIFF_HEADER,Differences
 dms.card.TXT_DONE_SAME,Existing data kept. Type menu for other tasks.
 dms.card.TXT_DONE_SAVED,Customer data saved. Type menu for other tasks.
+dms.card.TXT_EDIT_SENT,Changes saved
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
 dms.card.TXT_EXPIRED,This item has expired. Please start again.
 dms.card.TXT_ID_CHECKSUM,"The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible."
@@ -530,9 +516,11 @@ dms.card.TXT_MENU_PICK_SUB,Choose an item to continue
 dms.card.TXT_MENU_SEND_CARD,Please send a photo of the customer's ID card
 dms.card.TXT_MENU_SUBTITLE,Please choose a menu below to get started
 dms.card.TXT_MENU_TITLE,Welcome to Pearnly DMS
+dms.card.TXT_MORE_RESULTS,There is more. Tap View result to see the rest.
 dms.card.TXT_NEED_BOTH,Please send the customer's ID card photo and phone number
 dms.card.TXT_NEW_CARD_ALT,Confirm saving a new customer
 dms.card.TXT_NEW_CARD_HEAD,New customer — confirm the data to save
+dms.card.TXT_NOT_READY,Not done yet. Please tap View result again in a moment.
 dms.card.TXT_NO_CREDIT,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 dms.card.TXT_NO_ENDPOINT,The DMS connection is not set up yet. Please contact the admin.
 dms.card.TXT_PICK_ABOVE,"Please choose from the card above, or type restart to begin a new item"
@@ -551,31 +539,8 @@ dms.card.TXT_SAME,This customer already exists and the data matches
 dms.card.TXT_SAME_ALT,Customer data matches
 dms.card.TXT_SAVE_FAIL,Save failed. Please try again.
 dms.card.TXT_SCAN_SENT,ID card scanned
+dms.card.TXT_STILL_WORKING,"Still working on it. When it is done, tap View result."
 dms.card.TXT_SYSTEM_ERROR,Something went wrong. Please try again.
-dms.card.approval.BTN_ALL_APPROVERS,Send to everyone
-dms.card.approval.BTN_APPROVE,Approve
-dms.card.approval.BTN_CHANGE_APPROVER,Change approver
-dms.card.approval.BTN_REJECT,Reject
-dms.card.approval.LBL_APPROVER,Approver
-dms.card.approval.LBL_CUSTOMER,Customer
-dms.card.approval.LBL_REQUESTER,Requested by
-dms.card.approval.LBL_SENT_TO,Sent to
-dms.card.approval.TITLE_REQUEST,Customer data change request
-dms.card.approval.TXT_APPROVER_NO_ENDPOINT,"Your account has no DMS connection set up, so it cannot approve. Please tell the admin."
-dms.card.approval.TXT_EXEC_FAIL_ADMIN,Update failed (DMS refused it). The request is still open; approve again to retry.
-dms.card.approval.TXT_NOT_APPROVER,Your account cannot approve this request
-dms.card.approval.TXT_NO_APPROVERS,No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms
-dms.card.approval.TXT_PICK_APPROVER,Who should approve this request?
-dms.card.approval.TXT_PICK_APPROVER_SUB,"Choose an approver, or send to everyone so whoever is free can approve"
-dms.card.approval.TXT_PROCESSING,"Updating the data, please wait"
-dms.card.approval.TXT_REQ_APPROVED_ADMIN,Approved. Customer data updated.
-dms.card.approval.TXT_REQ_APPROVED_SALES,Your change request was approved and the customer data is updated.
-dms.card.approval.TXT_REQ_EXPIRED,This request has expired. Please start again.
-dms.card.approval.TXT_REQ_REJECTED_ADMIN,Request rejected
-dms.card.approval.TXT_REQ_REJECTED_SALES,Your change request was rejected. Contact the approver if needed.
-dms.card.approval.TXT_REQ_STALE,This request has already been handled
-dms.card.approval.TXT_SALES_FALLBACK,Salesperson
-dms.card.approval.TXT_SENT_WAIT,Change request sent. Waiting for the approver.
 dms.card.car.brand,Brand
 dms.card.car.desc,Car details
 dms.card.car.engine,Engine

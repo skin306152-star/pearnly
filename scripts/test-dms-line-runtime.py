@@ -521,7 +521,7 @@ class DmsIdScan(unittest.TestCase):
         result = self.scan.store_upload("U-sales", self.JPEG)
         pending = self.session["payload"]["pending_image"]
         self.assertTrue(pending.startswith("scan:") and pending[5:].startswith(result["code"]))
-        self.assertEqual(result["marker"], f"📷 ID card scanned #{result['code']}")
+        self.assertEqual(result["marker"], f"ID card scanned #{result['code']}", "plain text, no icon")
         self.assertEqual(self.session["payload"]["mode"], "customer", "phone / mode stay as with a chat photo")
         self.assertEqual(self.scan.read(pending, "U-sales"), self.JPEG)
         self.assertEqual(self.scan.read(pending, "U-sales"), b"", "the original is handed over once")
@@ -553,15 +553,19 @@ class DmsIdScan(unittest.TestCase):
 
     def test_stale_marker_says_expired_and_starts_nothing(self):
         self.scan.store_upload("U-sales", self.JPEG)
-        self.assertTrue(self.scan.handle_marker("U-sales", "tok", "📷 ID card scanned #000000"))
-        self.assertFalse(self.scan.handle_marker("U-sales", "tok", "0812345678"))
+        from pearnly_dms.line import page_reply
+
+        self.assertTrue(page_reply.route("U-sales", "tok", "ID card scanned #000000"))
+        self.assertFalse(page_reply.route("U-sales", "tok", "0812345678"))
         self.begin.assert_not_called()
         self.assertEqual(self.reply.call_args.args[1][0]["text"], "Expired")
 
     def test_page_fallback_starts_without_a_token_and_only_once(self):
         result = self.scan.store_upload("U-sales", self.JPEG)
         self.assertTrue(self.scan.start("U-sales", result["code"]))
-        self.assertTrue(self.scan.handle_marker("U-sales", "tok", result["marker"]))
+        from pearnly_dms.line import page_reply
+
+        self.assertTrue(page_reply.route("U-sales", "tok", result["marker"]))
         self.begin.assert_called_once()
         self.assertEqual(self.begin.call_args.args[3], "")
         with self.assertRaises(self.scan.ScanError):
@@ -616,6 +620,137 @@ class DmsIdScan(unittest.TestCase):
              patch.object(browser_api, "_fail", side_effect=refuse), self.assertRaises(Refused) as raised:
             browser_api.browser_scan("t", image)
         self.assertEqual(raised.exception.args, ("dms_booking.line_auth_required", 403))
+
+
+class _FakeRedis(_FakeState):
+    """加上底层 get / delete（慢任务结果用的是底层读写）。"""
+
+    def get(self, key):
+        return self.values.get(key)
+
+    def delete(self, key):
+        self.values.pop(key, None)
+
+    def delete_value(self, key):
+        self.values.pop(key, None)
+
+
+class DmsPageReply(unittest.TestCase):
+    """LINE 页面（扫描、编辑）做完后替业务员发一句纯文字，webhook 用它的令牌免费回覆。"""
+
+    def setUp(self):
+        from pearnly_dms.line import page_reply
+
+        self.page_reply = page_reply
+        self.state = _FakeRedis()
+        self.enterContext(patch.object(page_reply, "_state", return_value=self.state))
+        self.send = self.enterContext(patch.object(line, "reply_or_push", return_value=True))
+        self.reply = self.enterContext(patch.object(line, "reply"))
+
+    def test_the_sentence_is_plain_text_and_recognised_in_every_language(self):
+        from pearnly_dms import i18n
+
+        for kind, key in self.page_reply.KINDS.items():
+            for lang, label in i18n.all_languages(f"dms.card.{key}").items():
+                # 不加图标：没有表情符号（U+2600–27BF、U+1F000 起）。
+                self.assertFalse(any(0x2600 <= ord(ch) <= 0x27BF or ord(ch) >= 0x1F000 for ch in label), (lang, label))
+                self.assertEqual(self.page_reply.parse(f"{label} #a1b2c3"), (kind, "a1b2c3"), (lang, label))
+        for text in ("0812345678", "#a1b2c3", "hello #a1b2c3", "แก้ไขข้อมูลแล้ว #12345"):
+            self.assertIsNone(self.page_reply.parse(text), text)
+
+    def test_saved_card_goes_back_once_with_the_free_reply_token(self):
+        with patch.object(frappe.local, "dms_line_lang", "zh", create=True):
+            held = self.page_reply.hold("U-sales", [{"type": "flex", "altText": "card"}])
+        self.assertEqual(held["marker"], f"已修改资料 #{held['code']}")
+        self.assertTrue(self.page_reply.route("U-sales", "tok-1", held["marker"]))
+        self.send.assert_called_once_with("U-sales", [{"type": "flex", "altText": "card"}], "tok-1")
+        self.assertTrue(self.page_reply.route("U-sales", "tok-2", held["marker"]))
+        self.assertEqual(self.send.call_count, 1, "the card is sent once")
+        self.reply.assert_called_once()
+
+    def test_page_fallback_pushes_and_only_the_owner_can_take_the_card(self):
+        held = self.page_reply.hold("U-sales", [{"type": "text", "text": "card"}])
+        self.assertIsNone(self.page_reply.deliver("U-other", held["code"]))
+        self.assertTrue(self.page_reply.deliver("U-sales", held["code"]))
+        self.assertEqual(self.send.call_args.args[2], "", "no token: push")
+        self.assertIsNone(self.page_reply.deliver("U-sales", held["code"]))
+
+    def test_editor_save_keeps_the_card_for_the_page_sentence(self):
+        from pearnly_dms.editor import browser_api
+
+        def save(line_user_id, nonce, submitted, deliver=None):
+            self.assertTrue(deliver(line_user_id, {"type": "flex"}))
+            return "n2"
+
+        editor = Mock(save=save)
+        self.enterContext(patch.object(browser_api.tickets, "resolve",
+                                       return_value={"line_user_id": "U-sales", "mode": "customer"}))
+        self.enterContext(patch.object(browser_api, "_editor", return_value=editor))
+        self.enterContext(patch("pearnly_dms.i18n.line_language", return_value=nullcontext()))
+        result = browser_api.browser_save("t", "n1", "{}")
+        self.assertEqual(result["nonce"], "n2")
+        self.assertTrue(result["marker"].endswith("#" + result["code"]))
+        self.send.assert_not_called()
+
+
+class DmsSlowReply(unittest.TestCase):
+    """慢任务：令牌快过期先免费回「还在处理」，结果存起来，点「查看结果」再免费回。"""
+
+    def setUp(self):
+        from pearnly_dms.line import out
+
+        self.out = out
+        self.state = _FakeRedis()
+        self.enterContext(patch.object(out, "_state", return_value=self.state))
+        self.enterContext(patch.object(out, "SLOW_AFTER", 0.05))
+        self.sent = []
+        self.enterContext(patch.object(line, "reply_sender",
+                                       return_value=lambda messages: self.sent.append(messages) or True))
+        self.reply = self.enterContext(patch.object(line, "reply"))
+        from pearnly_dms.line import cards
+
+        for name, value in (("TXT_STILL_WORKING", "Still working"), ("BTN_SHOW_RESULT", "View result"),
+                            ("TXT_NOT_READY", "Not yet"), ("TXT_EXPIRED", "Expired"),
+                            ("TXT_MORE_RESULTS", "More")):
+            self.enterContext(patch.object(cards, name, value, create=True))
+
+    def batch(self, messages):
+        return patch.object(frappe.local, "pearnly_line_batch",
+                            {"to": "U-sales", "token": "tok", "origin": "tok", "used": False,
+                             "messages": list(messages)}, create=True)
+
+    def test_slow_job_replies_still_working_then_hands_the_result_on_tap(self):
+        import time as clock
+
+        self.out.note_reply_token("tok")
+        with self.batch([{"type": "text", "text": "done"}]):
+            slow = self.out._SlowReply("U-sales", "tok")
+            clock.sleep(0.2)
+            self.assertEqual(self.sent[0][0]["text"], "Still working")
+            self.assertEqual(self.sent[0][0]["quickReply"]["items"][0]["action"]["data"], "action=show_result")
+            self.out.show_result("U-sales", "tok-wait")
+            self.assertEqual(self.reply.call_args.args[1][0]["text"], "Not yet")
+            slow.finish()
+            self.assertEqual(frappe.local.pearnly_line_batch["messages"], [], "nothing is pushed")
+            self.assertTrue(frappe.local.pearnly_line_batch["used"])
+        self.out.show_result("U-sales", "tok-tap")
+        self.assertEqual(self.reply.call_args.args, ("tok-tap", [{"type": "text", "text": "done"}]))
+        self.out.show_result("U-sales", "tok-again")
+        self.assertEqual(self.reply.call_args.args[1][0]["text"], "Expired")
+
+    def test_fast_job_and_stale_token_change_nothing(self):
+        import time as clock
+
+        self.out.note_reply_token("tok")
+        with patch.object(self.out, "SLOW_AFTER", 5), self.batch([{"type": "text", "text": "done"}]):
+            slow = self.out._SlowReply("U-sales", "tok")
+            slow.finish()
+            self.assertEqual(frappe.local.pearnly_line_batch["messages"], [{"type": "text", "text": "done"}])
+        clock.sleep(0.1)
+        self.assertEqual(self.sent, [])
+        self.state.values[self.out._token_key("old")] = clock.time() - 58
+        self.assertIsNone(self.out._SlowReply("U-sales", "old").timer, "a token about to expire is not used")
+        self.assertIsNone(self.out._SlowReply("U-sales", "").timer)
 
 
 class DmsReviewLanguage(unittest.TestCase):

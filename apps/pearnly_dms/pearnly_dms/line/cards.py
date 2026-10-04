@@ -68,15 +68,12 @@ ACT_MENU_QUERY = "menu_query"
 ACT_MENU_MANUAL = "menu_manual"
 ACT_MANUAL_VIDEO = "manual_video"
 ACT_CONTINUE_BOOKING = "continue_booking"
+# 慢任务做完后「查看结果」（`line.out.show_result`）。
+ACT_SHOW_RESULT = "show_result"
 ACT_RETAKE = "retake"
 ACT_CONFIRM_BOOKING = "confirm_booking"
 ACT_CANCEL_BOOKING = "cancel_booking"
 ACT_RETRY_BOOKING = "retry_booking"
-ACT_SUBMIT_APPROVAL = "approval_submit"
-ACT_APPROVAL_TARGET = "approval_target"
-ACT_APPROVAL_APPROVE = "approval_approve"
-ACT_APPROVAL_REJECT = "approval_reject"
-ACT_APPROVAL_RETARGET = "approval_retarget"
 # 连不上对方 DMS 时那颗「重试」（同一件事重跑一次，每次把超时拉长）。
 ACT_RETRY = "retry"
 
@@ -160,7 +157,7 @@ def _kv_row(label: str, value: str) -> Dict[str, Any]:
 
 
 def diff_rows(display_diffs: List[Dict[str, str]]) -> List[Dict[str, Any]]:
-    """逐条「字段标签（粗）+ 旧 → 新（红）」行。差异卡与审批申请卡共用同一渲染。"""
+    """逐条「字段标签（粗）+ 旧 → 新（红）」行。差异卡用。"""
     return [
         {
             "type": "box",
@@ -302,7 +299,6 @@ def diff_card(
 
     **主按钮由调用方按角色解出，渲染层不藏优先级**：
 
-    · `primary='approval'`（信用授权类 · 策略要审）→ [ส่งขออนุมัติ]
     · `primary='update'`（有改写权）→ [อัปเดตข้อมูล]
     · `primary='none'`（无改写权且没配 admin）→ 只给一句提示，**不给主按钮**
       （让用户点了才发现"要管理员"是最差体验）
@@ -312,9 +308,7 @@ def diff_card(
     rows.append({"type": "text", "text": _t("TXT_DIFF_HEADER"), "size": "xs", "color": "#8a8a8a"})
     rows += diff_rows(display_diffs)
     footer: List[Dict[str, Any]] = []
-    if primary == "approval":
-        footer.append(_btn(_t("BTN_SUBMIT_APPROVAL"), _data(ACT_SUBMIT_APPROVAL, nonce=nonce), "primary"))
-    elif primary == "update":
+    if primary == "update":
         footer.append(_btn(_t("BTN_UPDATE"), _data(ACT_UPDATE, nonce=nonce), "primary"))
     else:
         rows.append({"type": "separator", "margin": "sm"})

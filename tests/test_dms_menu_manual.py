@@ -220,7 +220,6 @@ class PostbackRoutingTests(Isolated):
         sys.modules["pearnly_dms.ocr.timing"].traced = lambda name: (lambda function: function)
         self.stub("pearnly_dms.booking.conversation.booking_flow", BOOKING_ACTIONS=frozenset())
         self.stub("pearnly_dms.query.query_flow", QUERY_ACTIONS=frozenset())
-        self.stub("pearnly_dms.approval.approval_flow", APPROVAL_ACTIONS=frozenset())
         menu = self.stub("pearnly_dms.menu.menu_flow", handle_postback=Mock(),
                          MENU_ACTIONS=frozenset({self.cards.ACT_MENU_MANUAL, self.cards.ACT_MANUAL_VIDEO}))
         flow = importlib.import_module("pearnly_dms.intake.flow")

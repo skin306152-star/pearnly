@@ -174,7 +174,6 @@ class KeepDataPostbackTests(Isolated):
         sys.modules["pearnly_dms.ocr.timing"].traced = lambda name: (lambda function: function)
         self.stub("pearnly_dms.booking.conversation.booking_flow", BOOKING_ACTIONS=frozenset())
         self.stub("pearnly_dms.query.query_flow", QUERY_ACTIONS=frozenset())
-        self.stub("pearnly_dms.approval.approval_flow", APPROVAL_ACTIONS=frozenset())
         self.saved = Mock()
         self.stub("pearnly_dms.menu.menu_flow", MENU_ACTIONS=frozenset(), after_customer_saved=self.saved)
         self.flow = importlib.import_module("pearnly_dms.intake.flow")

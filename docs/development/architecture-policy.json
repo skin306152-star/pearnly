@@ -27,7 +27,6 @@
     "pearnly_dms": [
       "__init__.py",
       "api.py",
-      "dms_approval_flow.py",
       "dms_booking_flow.py",
       "dms_browser_api.py",
       "dms_flow.py",
@@ -83,13 +82,6 @@
       "snapshots",
       "config"
     ],
-    "approval": [
-      "contracts",
-      "intake",
-      "line",
-      "ocr",
-      "operators"
-    ],
     "booking": [
       "adapter",
       "client",
@@ -114,7 +106,6 @@
     "contracts": [],
     "editor": [
       "adapter",
-      "approval",
       "booking",
       "contracts",
       "intake",
@@ -126,13 +117,13 @@
     ],
     "intake": [
       "adapter",
-      "approval",
       "booking",
       "contracts",
       "editor",
       "line",
       "menu",
       "ocr",
+      "operators",
       "query",
       "snapshots"
     ],

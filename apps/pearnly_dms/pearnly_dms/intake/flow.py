@@ -14,8 +14,6 @@
 
 1. **菜单分叉**：`mode` 仍由 `pearnly_dms.menu.menu_flow` 写进会话，建档后的分叉在
    `menu_flow.after_customer_saved`（`booking`/缺省 → 接着订车；`customer` → 只收尾）。
-2. **审批流**：无改写权且有差异时走 `pearnly_dms.approval.approval_flow.exact_diff_card`
-   （提审 → 管理员批 → **以批准人凭据执行**）。
 3. **订车逐问**：入口就在上面的 `after_customer_saved` → `booking_qa.start`。
 
 `exact` 且无差异时出"用旧资料"卡（老产品直拍路径的行为，未变）。
@@ -125,6 +123,11 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
     pb = {k: v[0] for k, v in parse_qs(postback.get("data") or "").items()}
     action = pb.get("action")
 
+    # 慢任务的「查看结果」：免费回覆存着的结果（`line.out.show_result`）。
+    if action == cards.ACT_SHOW_RESULT:
+        out.show_result(line_user_id, reply_token)
+        return
+
     # 逐问按钮（`data="qa:<action>[:<value>]"`）直接归逐问状态机；
     # datetimepicker 选中的日期在 `postback.params` 里，一并带过去。
     if str(postback.get("data") or "").startswith("qa:"):
@@ -169,11 +172,11 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         return
 
     # Unmatched OCR geography stays empty. Do not consume the edit nonce before
-    # rejecting an incomplete write (including submitting that write for approval).
+    # rejecting an incomplete write.
     # 拒绝的话术**必须说清是缺地址**：2026-09-25 实测里操作员在这里被
     # 「所选项目已不在主档」误导，以为 DMS 那边把数据删了 —— 真实原因只是编辑页里
     # 地址没选全（多半是邮编那格）。缺项照旧不写入，只是改成能照着做的话。
-    if action in {cards.ACT_CREATE, cards.ACT_UPDATE, cards.ACT_SUBMIT_APPROVAL} and any(
+    if action in {cards.ACT_CREATE, cards.ACT_UPDATE} and any(
         not str((payload.get("draft") or {}).get(key) or "").strip()
         for key in ("province_id", "district_id", "subdistrict_id", "zipcode_id")
     ):
@@ -183,14 +186,6 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         _send(line_user_id, cards.edit_entry_card(
             pb["nonce"], notice=dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang=i18n.line_lang())
         ), reply_token)
-        return
-
-    # 审批那一族（提审 / 选人 / 改派 / 批 / 拒）：一次性由存储的原子认领保证，
-    # 所以这里**不消费 nonce**，但必须排在下方的写档守卫之前。
-    from pearnly_dms.approval import approval_flow as approval_flow
-
-    if action in approval_flow.APPROVAL_ACTIONS:
-        approval_flow.handle_postback(binding, line_user_id, reply_token, action, pb, sess)
         return
 
     if action == cards.ACT_KEEP:
@@ -454,20 +449,16 @@ def run_dedup(
             )
             has_admin = draft.has_admin_creds(ep_name)
             display = draft.display_diffs(field_diffs, geo)
-            # 主按钮按**花名册角色 + 审批策略**解出（搬自老产品的 `exact_diff_card`）：
-            # 销售 + 该类改动要审 → 提审卡；有写权 → 直接更新；都没有 → 只提示去设置。
-            from pearnly_dms.approval import approval_flow as approval_flow
+            # 主按钮按写权解出：本人 DMS 账号有写权或花名册是管理员 → 直接更新；否则只给「用旧资料」。
+            from pearnly_dms.intake import review as dms_review
 
-            card, needs_approval = approval_flow.exact_diff_card(
-                str(binding.get("user_id") or ""), display, has_admin, nonce, summary
-            )
+            card = dms_review.diff_card(str(binding.get("user_id") or ""), display, has_admin, nonce, summary)
             payload.update(
                 field_diffs=field_diffs,
                 has_admin=has_admin,
                 display_diffs=display,
                 master_draft=master_draft,
                 master_summary=master_summary,
-                approval=needs_approval,
             )
         else:
             # 菜单层未搬 → 统一走"资料一致"卡（老产品直拍路径就是这样）

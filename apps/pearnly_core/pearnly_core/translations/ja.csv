@@ -41,7 +41,6 @@ An admin session was requested but no admin credentials are configured,adminセ�
 Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
-Assign To,承認者の指定
 Assistant not connected,アシスタント未接続
 Attempt,試行回数
 Attempts,試行回数
@@ -85,7 +84,6 @@ Change your password from your account profile using Change Password.,プロフ�
 Charges,課金
 Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
-Claimed By,担当者
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
 Click to sort by {0},{0} で並べ替え
 Client ID is required,クライアントIDは必須です
@@ -157,7 +155,6 @@ Current password,現在のパスワード
 Current plan,現在のプラン
 Customer Match,顧客照合
 Customer Name,顧客名
-Customer Snapshot,顧客情報のスナップショット
 Customer master data,顧客マスタ
 Customer matching is required before confirming,確定の前に顧客照合が必要です
 Customer matching must be done before confirming,確定する前に顧客照合を完了してください
@@ -166,9 +163,7 @@ Customers,顧客
 DMS Admin,DMS 管理者
 DMS Advisor ID,DMSアドバイザーID
 DMS Advisor Name,DMSアドバイザー名
-DMS Connection,DMS接続
 DMS Customer Match,DMS 顧客照合
-DMS Customer No,DMS顧客番号
 DMS Customer Ref,DMS顧客参照
 DMS Endpoint,DMSエンドポイント
 DMS ID Card Intake,DMS 身分証取り込み
@@ -231,7 +226,6 @@ Elapsed (ms),所要時間(ms)
 Email,メール
 Email is required,メールアドレスは必須です
 Empty = matched automatically from the DMS account (the legacy product's default).,空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
-Empty = sent to all admins (whoever sees it first approves).,空欄＝全管理者に送信（先に見た人が承認）。
 Enable,有効化
 "Enable ""{0}""? A new bind code is needed to link LINE again.",「{0}」を有効化しますか。LINE連携には新しい連携コードが必要です。
 Enabled,有効
@@ -243,7 +237,6 @@ Endpoint {0} is disabled,端点 {0} は無効です
 Entering,入力中
 Error Message,エラーメッセージ
 Event ID,イベントID
-Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
 Expense,経費
 Expense / Item Category,費用・商品カテゴリ
 Expired,期限切れ
@@ -264,7 +257,6 @@ Failed to start: {0},起動に失敗しました：{0}
 Failure Reason,失敗理由
 Failure reason,失敗理由
 Failures,失敗回数
-Field Diffs,項目ごとの差分
 File,ファイル
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
@@ -284,7 +276,6 @@ Grand Total,税込合計
 Guests are not allowed to upload files for {0} Doctype,ゲストは {0} にファイルをアップロードできません
 Guide,使い方
 HTTP Status,HTTPステータス
-Handled At,処理日時
 Home,ホーム
 Home (Subscription & Billing),ホーム（プランと請求）
 How each push to the external ERP went,外部ERPへの連携過程と結果
@@ -450,7 +441,6 @@ Please confirm,確認してください
 Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
 Preparing the file,ファイルを準備しています
-Processing Started At,実行開始日時
 Processing…,処理中…
 Product,製品
 Product Ref,商品の外部参照
@@ -514,7 +504,6 @@ Removed from Product History By,製品履歴から削除した人
 Reorder sidebar,サイドバーの並べ替え
 Request & Response,リクエストと応答
 Request Body,リクエスト内容
-Request Snapshot,申請内容のスナップショット
 Request failed (HTTP {0}),リクエスト失敗（HTTP {0}）
 Requested,申請額
 Requested By,申請者
@@ -616,7 +605,6 @@ The billing service returned HTTP {0},課金基盤が HTTP {0} を返しまし�
 The bind code has expired — please regenerate,連携コードの期限が切れました。再生成してください
 The control plane is not affected,コントロールプレーンは影響を受けません
 The current password is wrong,現在のパスワードが正しくありません
-The customer snapshot used to refill the form when approval executes.,承認実行時にフォームへ戻すための顧客情報スナップショット。
 "The details are not confirmed yet, so it cannot be pushed to DMS",情報が未確定のためDMSへ送信できません
 The document number the supplier issued; it must be kept as-is,仕入先が発行した伝票番号。そのまま保持する必要があります
 The export could not be created.,エクスポートファイルを作成できませんでした。
@@ -641,7 +629,6 @@ The new password cannot be the same as the current one,新しいパスワード�
 The new password is required,新しいパスワードは必須です
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです
 The old key stops working right away.,古いキーはすぐに使えなくなります。
-The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。
 The plan quota is used first; anything over is charged per plan rate from the balance,登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます
 The push channel must be companion or cloud,送信チャネルは companion または cloud のみです
 The recognition queue is full. Please try again later.,読み取り待ちがいっぱいです。後でもう一度お試しください。
@@ -740,10 +727,8 @@ What Was Pushed,何を送ったか
 What Was Recognised,認識の記録
 Whether this LINE can sign in to this account; kept in step with the identity service.,このLINEでこのアカウントにログインできるか。ID サービスと自動で同期します。
 Which connection it went to. Empty = it failed before a connection was chosen.,どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
-Which customer is being changed.,どの顧客を変更するか。
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。
 "Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
-Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.,誰が起案したか（営業本人）。実行時は**承認者自身**の資格情報を使い、ここは由来の記録だけです。
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Withholding Tax,源泉税
@@ -754,7 +739,6 @@ Yes,はい
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
 Your access domain,アクセスドメイン
 Your account was updated elsewhere. Sign in again to load the current username.,別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。
-"`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。"
 account.cancel,キャンセル
 account.changePassword,パスワード変更
 account.error.http,リクエスト失敗（HTTP {0}）

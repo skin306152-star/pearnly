@@ -112,13 +112,10 @@ def main():
     check("无改写权 → 不给主按钮", "update" not in actions(none), actions(none))
     check("无改写权 → 卡上写清要先配管理员",
           C.TXT_ADMIN_NEEDED in body_texts(none), body_texts(none)[-1][:40])
-    appr = C.diff_card(diffs, "n5", primary="approval", summary=summary)
-    check("信用授权类 → 主按钮是提交审核",
-          actions(appr)[0] == "approval_submit", actions(appr))
     check("差异卡始终保留用旧资料 / 修改两条退路",
-          actions(appr)[-2:] == ["keep", ""]
-          and [b["action"].get("type") for b in buttons(appr)][-1] == "uri",
-          actions(appr))
+          actions(upd)[-2:] == ["keep", ""]
+          and [b["action"].get("type") for b in buttons(upd)][-1] == "uri",
+          actions(upd))
     check("差异卡的 [แก้ไข] 是深链，点一下直接进编辑页（不多弹卡）",
           buttons(upd)[-1]["action"]["uri"].startswith("http")
           and "editor=customer" in buttons(upd)[-1]["action"]["uri"],
@@ -237,13 +234,13 @@ def main():
     used = set()
     for path in glob.glob(os.path.join(os.path.dirname(i18n.__file__), "**", "*.py"), recursive=True):
         src = Path(path).read_text(encoding="utf-8")
-        # ⚠️ 只有**本命名空间**的 `_t` 才算 `dms.card.*`。本仓库现在有四个命名空间
-        # （`dms.card.*` / `.qa.*` / `.query.*` / `.approval.*`），各自的模块都叫
+        # ⚠️ 只有**本命名空间**的 `_t` 才算 `dms.card.*`。本仓库现在有三个命名空间
+        # （`dms.card.*` / `.qa.*` / `.query.*`；`.approval.*` 已随审批删除），各自的模块都叫
         # `dms_<ns>_cards.py`，每个都有自己那个 `_t`。不分青红皂白地收进来，就会拿一批
         # 住在别的命名空间的键去 `dms.card.*` 里找，报一整屏假"缺键"（**踩了三次**：
         # qa_cards、query_cards、approval_cards）。
         # 判据：文件里只要出现 `dms.card.<子命名空间>.` 就说明它用的是那套，跳过。
-        # 各命名空间自己的"防漏键"由各自的验收脚本负责（qa-cards / query-cards / approval-flow）。
+        # 各命名空间自己的"防漏键"由各自的验收脚本负责（qa-cards / query-cards）。
         if not re.search(r"dms\.card\.[a-z_]+\.", src):
             used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
         # ⚠️ 前缀 lookbehind 不能少：**本仓库有三套命名空间**（`dms.card.*` /

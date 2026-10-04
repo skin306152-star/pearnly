@@ -27,8 +27,6 @@ An admin account must be set up in Pearnly before updating.,需要先在 Pearnly
 Any other payment channel?,还有其他付款方式吗？
 Apply,执行
 Approve,批准
-Approved. Customer data updated.,已批准，客户资料已更新。
-Approver,审批人
 Attached,已附上
 Awaiting manager,待销售经理
 Back to chat,返回聊天
@@ -65,9 +63,8 @@ Cash,现金
 Cash purchase,现金购买
 Cash/finance,现金/贷款
 Cashier's cheque,本票
-Change approver,更换审批人
 Change read account,修改读档账号
-Change request sent. Waiting for the approver.,修改申请已发出，等待审批人处理。
+Changes saved,已修改资料
 Channel details — type them,付款方式说明 — 请输入
 Cheque,支票
 Choose a bank,选择银行
@@ -76,7 +73,6 @@ Choose a colour for {car},选择 {car} 的颜色
 Choose a period and number of items (all branches/teams this account can see),选择时间段和条数（此账号可见的全部分店/团队）
 Choose a status,选择状态
 Choose a topic to play its video,选择一个主题播放教程视频
-"Choose an approver, or send to everyone so whoever is free can approve",选择审批人，或发给所有人，由先有空的人审批
 Choose an item to continue,选择一项继续
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
 Choose the matching customer,请选择对应的客户
@@ -106,7 +102,6 @@ Credit/debit card,信用卡/借记卡
 Custom 1–30,自定义 1–30
 Customer,客户
 Customer data,客户资料
-Customer data change request,客户资料修改申请
 Customer data differs,客户资料有差异
 Customer data matches,客户资料一致
 Customer data saved. Type menu for other tasks.,客户资料已保存。输入 菜单 办理其他事项。
@@ -201,7 +196,6 @@ Next,下一页
 Next Attempt,下次尝试
 Next page,下一页
 No active DMS account found. Ask the owner to check the operator data.,找不到可用的 DMS 账号，请老板检查操作员资料。
-No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,系统里还没有连接 LINE 的审批人，请通知管理员到 pearnly.com/dms 添加
 "No company receiving account yet. Please ask the admin to set it up in DMS, then try again.",还没有公司的收款账户资料，请管理员在 DMS 设置后再试。
 No matching model. Please try typing again.,没有找到对应车型，请重新输入。
 No records for this condition · Last read from DMS at,没有符合条件的记录 · 最近一次从 DMS 读取于
@@ -209,6 +203,7 @@ No sales in this period,这段时间没有销售
 None (the connection's own account is used),未配置（只用连接自己的账号）
 Not all files were attached. Please add them in DMS.,附件没有全部上传，请到 DMS 补上。
 Not allocated yet,尚未配车
+Not done yet. Please tap View result again in a moment.,还没好，请稍后再点「查看结果」。
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 Not read yet,尚未读取
 Not set,未设置
@@ -276,9 +271,6 @@ Remove,删除
 "Remove slip, go on",删除凭证后继续
 Remove the account and add it again to change its name,要改账号名，请删掉这一行再重新添加
 Removed {0},已移除 {0}
-Request approval,提交审批
-Request rejected,已拒绝申请
-Requested by,申请人
 Resumed {0},已启用 {0}
 Retry,重试
 Retry booking,重新建立订车单
@@ -306,9 +298,7 @@ Select at least one data group.,请至少选择一组资料。
 Select one or more DMS data groups to read,请选择至少一组需要读取的 DMS 资料
 "Select the data to update, then wait for the read to finish.",选择需要更新的资料，点击后请等待读取完成。
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",请发送订金转账凭证 · 如果客户付现金，输入 现金 跳过这一步
-Send to everyone,发给所有人
 Sending…,正在发送…
-Sent to,发送给
 Sent. You can go back to the chat.,已发送，可以回到聊天了。
 "Separate fields with | , / or ·","栏位之间用 | , / 或 · 分隔"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。
@@ -318,6 +308,7 @@ Something went wrong. Please try again.,系统出错，请重试。
 Start over,重新开始
 Started over. Take a photo of the ID card to start a customer record.,已重新开始，拍摄身份证即可登记客户。
 Status not given,未注明状态
+"Still working on it. When it is done, tap View result.",还在处理，做完后请点「查看结果」。
 Stop / resume,停用 / 启用
 Stopped {0},已停用 {0}
 Subdistrict,镇（区）
@@ -365,6 +356,7 @@ The saved credentials cannot be read back; check the site encryption key,保存�
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",提交已发出，但结果尚未确认。请勿重复提交，先核实结果。
 There are more colours. Type a colour name to search.,还有更多颜色，可输入颜色名称搜索。
 There is a transfer payment. Please send the transfer slip before viewing the summary.,有转账付款，请先发送转账凭证再查看汇总。
+There is more. Tap View result to see the rest.,还有更多结果，请点「查看结果」继续看。
 These conditions have not been read. Click Read this query.,尚未读取此条件，请点击读取本次查询。
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。
 This account is already in use by the connection or another system account,这个账号已被连接或其他系统账号使用
@@ -383,7 +375,6 @@ This read failed. Click Read to retry.,本次读取失败，可点击读取重�
 This read failed. Please try again later.,本次读取失败，请稍后再试。
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",本次读取已中断，此前成功的资料仍保留。系统会重新读取，请稍后再试。
 This request has already been handled,此申请已被处理
-This request has expired. Please start again.,此申请已过期，请重新开始。
 This step does not need a picture. Please follow the question above.,这一步不需要图片，按上面的问题操作即可。
 This step has expired. Go back to the chat and start again.,这一步已过期，请回到聊天重新开始。
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",这一步需要凭证的图片，请以图片发送；没有转账就输入 现金。
@@ -417,13 +408,11 @@ Type the sales document number,请输入销售单据号
 Type what you want to search for,请输入要查询的内容
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
 Update data,更新数据
-Update failed (DMS refused it). The request is still open; approve again to retry.,更新失败（DMS 拒绝）。申请仍在，重新批准即可再试一次。
 Update failed — click Update data to retry,更新失败，点击更新数据可重试
 Update failed. Please ask the admin to check the admin password in Pearnly.,更新失败，请通知管理员检查 Pearnly 里的管理员密码。
 Update the DMS username and password saved in Pearnly,更新保存在 Pearnly 里的 DMS 用户名和密码
 Update your DMS sign-in,更新 DMS 登录资料
 Updating data…,数据更新中...
-"Updating the data, please wait",正在更新资料，请稍候
 Use name on card,使用证件上的姓名
 Use the back office,使用后台系统
 "Used only for the every-minute sync, 6:00–22:00.",只用于白天 6:00–22:00 每分钟同步。
@@ -432,17 +421,13 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 User manual,使用手册
 Vehicle master data,车辆主档信息
 Video guides,教程视频
+View result,查看结果
 View result / status,查看结果／状态
 View the latest sales data from DMS within your permissions,按你的权限查看 DMS 最新的销售资料
 Village,村（小区）
 Watch step-by-step video guides,观看分步骤的教程视频
 Welcome to Pearnly DMS,欢迎使用 Pearnly DMS
-Who should approve this request?,把申请发给谁审批？
 Write accounts,改写权限账号
-Your account cannot approve this request,你的账号没有权限审批这项申请
-"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",你的账号还没有设置 DMS 连接，无法审批，请通知管理员。
-Your change request was approved and the customer data is updated.,修改申请已获批准，客户资料已更新。
-Your change request was rejected. Contact the approver if needed.,修改申请被拒绝，如有需要请联系审批人。
 cars,台
 customer details,客户资料
 customer list,客户列表
@@ -468,7 +453,7 @@ dms.card.BTN_RETRY,重试
 dms.card.BTN_RETRY_BOOKING,重新建立订车单
 dms.card.BTN_SAVE_NEW,保存新客户
 dms.card.BTN_SCAN_CARD,扫描身份证
-dms.card.BTN_SUBMIT_APPROVAL,提交审批
+dms.card.BTN_SHOW_RESULT,查看结果
 dms.card.BTN_UPDATE,更新资料
 dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
 dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
@@ -497,6 +482,7 @@ dms.card.TXT_DIFF_HEAD,找到原有资料，部分不一致
 dms.card.TXT_DIFF_HEADER,差异
 dms.card.TXT_DONE_SAME,已沿用原资料。输入 菜单 办理其他事项。
 dms.card.TXT_DONE_SAVED,客户资料已保存。输入 菜单 办理其他事项。
+dms.card.TXT_EDIT_SENT,已修改资料
 dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
 dms.card.TXT_EXPIRED,此项已过期，请重新开始。
 dms.card.TXT_ID_CHECKSUM,已读到 13 位身份证号，但校验位不符。请核对卡面上的号码，再重新拍照，让号码清晰可见。
@@ -530,9 +516,11 @@ dms.card.TXT_MENU_PICK_SUB,选择一项继续
 dms.card.TXT_MENU_SEND_CARD,请发送客户的身份证照片
 dms.card.TXT_MENU_SUBTITLE,请选择下方菜单开始使用
 dms.card.TXT_MENU_TITLE,欢迎使用 Pearnly DMS
+dms.card.TXT_MORE_RESULTS,还有更多结果，请点「查看结果」继续看。
 dms.card.TXT_NEED_BOTH,请发送客户的身份证照片和电话号码
 dms.card.TXT_NEW_CARD_ALT,确认保存新客户
 dms.card.TXT_NEW_CARD_HEAD,新客户，确认资料后保存
+dms.card.TXT_NOT_READY,还没好，请稍后再点「查看结果」。
 dms.card.TXT_NO_CREDIT,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 dms.card.TXT_NO_ENDPOINT,尚未设置 DMS 连接，请联系管理员。
 dms.card.TXT_PICK_ABOVE,请从上方卡片中选择，或输入 重新开始 办理新的一项
@@ -551,31 +539,8 @@ dms.card.TXT_SAME,这位客户已有资料，资料一致
 dms.card.TXT_SAME_ALT,客户资料一致
 dms.card.TXT_SAVE_FAIL,保存失败，请重试。
 dms.card.TXT_SCAN_SENT,已扫描身份证
+dms.card.TXT_STILL_WORKING,还在处理，做完后请点「查看结果」。
 dms.card.TXT_SYSTEM_ERROR,系统出错，请重试。
-dms.card.approval.BTN_ALL_APPROVERS,发给所有人
-dms.card.approval.BTN_APPROVE,批准
-dms.card.approval.BTN_CHANGE_APPROVER,更换审批人
-dms.card.approval.BTN_REJECT,拒绝
-dms.card.approval.LBL_APPROVER,审批人
-dms.card.approval.LBL_CUSTOMER,客户
-dms.card.approval.LBL_REQUESTER,申请人
-dms.card.approval.LBL_SENT_TO,发送给
-dms.card.approval.TITLE_REQUEST,客户资料修改申请
-dms.card.approval.TXT_APPROVER_NO_ENDPOINT,你的账号还没有设置 DMS 连接，无法审批，请通知管理员。
-dms.card.approval.TXT_EXEC_FAIL_ADMIN,更新失败（DMS 拒绝）。申请仍在，重新批准即可再试一次。
-dms.card.approval.TXT_NOT_APPROVER,你的账号没有权限审批这项申请
-dms.card.approval.TXT_NO_APPROVERS,系统里还没有连接 LINE 的审批人，请通知管理员到 pearnly.com/dms 添加
-dms.card.approval.TXT_PICK_APPROVER,把申请发给谁审批？
-dms.card.approval.TXT_PICK_APPROVER_SUB,选择审批人，或发给所有人，由先有空的人审批
-dms.card.approval.TXT_PROCESSING,正在更新资料，请稍候
-dms.card.approval.TXT_REQ_APPROVED_ADMIN,已批准，客户资料已更新。
-dms.card.approval.TXT_REQ_APPROVED_SALES,修改申请已获批准，客户资料已更新。
-dms.card.approval.TXT_REQ_EXPIRED,此申请已过期，请重新开始。
-dms.card.approval.TXT_REQ_REJECTED_ADMIN,已拒绝申请
-dms.card.approval.TXT_REQ_REJECTED_SALES,修改申请被拒绝，如有需要请联系审批人。
-dms.card.approval.TXT_REQ_STALE,此申请已被处理
-dms.card.approval.TXT_SALES_FALLBACK,销售
-dms.card.approval.TXT_SENT_WAIT,修改申请已发出，等待审批人处理。
 dms.card.car.brand,品牌
 dms.card.car.desc,车辆说明
 dms.card.car.engine,发动机

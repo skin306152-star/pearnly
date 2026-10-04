@@ -41,7 +41,6 @@ An admin session was requested but no admin credentials are configured,An admin 
 Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
-Assign To,Assign To
 Assistant not connected,Assistant not connected
 Attempt,Attempt
 Attempts,Attempts
@@ -85,7 +84,6 @@ Change your password from your account profile using Change Password.,Change you
 Charges,Charges
 Checkpoints,Checkpoints
 Choose a plan,Choose a plan
-Claimed By,Claimed By
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Click to sort by {0},Click to sort by {0}
 Client ID is required,Client ID is required
@@ -157,7 +155,6 @@ Current password,Current password
 Current plan,Current plan
 Customer Match,Customer Match
 Customer Name,Customer Name
-Customer Snapshot,Customer Snapshot
 Customer master data,Customer master data
 Customer matching is required before confirming,Customer matching is required before confirming
 Customer matching must be done before confirming,Customer matching must be done before confirming
@@ -166,9 +163,7 @@ Customers,Customers
 DMS Admin,DMS Admin
 DMS Advisor ID,DMS Advisor ID
 DMS Advisor Name,DMS Advisor Name
-DMS Connection,DMS Connection
 DMS Customer Match,DMS Customer Match
-DMS Customer No,DMS Customer No
 DMS Customer Ref,DMS Customer Ref
 DMS Endpoint,DMS Endpoint
 DMS ID Card Intake,DMS ID Card Intake
@@ -231,7 +226,6 @@ Elapsed (ms),Elapsed (ms)
 Email,Email
 Email is required,Email is required
 Empty = matched automatically from the DMS account (the legacy product's default).,Empty = matched automatically from the DMS account (the legacy product's default).
-Empty = sent to all admins (whoever sees it first approves).,Empty = sent to all admins (whoever sees it first approves).
 Enable,Enable
 "Enable ""{0}""? A new bind code is needed to link LINE again.","Enable ""{0}""? A new bind code is needed to link LINE again."
 Enabled,Enabled
@@ -243,7 +237,6 @@ Endpoint {0} is disabled,Endpoint {0} is disabled
 Entering,Entering
 Error Message,Error Message
 Event ID,Event ID
-Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).
 Expense,Expense
 Expense / Item Category,Expense / Item Category
 Expired,Expired
@@ -263,7 +256,6 @@ Failed to start (HTTP {0}): {1},Failed to start (HTTP {0}): {1}
 Failed to start: {0},Failed to start: {0}
 Failure Reason,Failure Reason
 Failures,Failures
-Field Diffs,Field Diffs
 File,File
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
@@ -283,7 +275,6 @@ Grand Total,Grand Total
 Guests are not allowed to upload files for {0} Doctype,Guests are not allowed to upload files for {0} Doctype
 Guide,Guide
 HTTP Status,HTTP Status
-Handled At,Handled At
 Home,Home
 Home (Subscription & Billing),Home (Subscription & Billing)
 How each push to the external ERP went,How each push to the external ERP went
@@ -448,7 +439,6 @@ Please confirm,Please confirm
 Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
 Preparing the file,Preparing the file
-Processing Started At,Processing Started At
 Processing…,Processing…
 Product,Product
 Product Ref,Product Ref
@@ -512,7 +502,6 @@ Removed from Product History By,Removed from Product History By
 Reorder sidebar,Reorder sidebar
 Request & Response,Request & Response
 Request Body,Request Body
-Request Snapshot,Request Snapshot
 Request failed (HTTP {0}),Request failed (HTTP {0})
 Requested,Requested
 Requested By,Requested By
@@ -614,7 +603,6 @@ The billing service returned HTTP {0},The billing service returned HTTP {0}
 The bind code has expired — please regenerate,The bind code has expired — please regenerate
 The control plane is not affected,The control plane is not affected
 The current password is wrong,The current password is wrong
-The customer snapshot used to refill the form when approval executes.,The customer snapshot used to refill the form when approval executes.
 "The details are not confirmed yet, so it cannot be pushed to DMS","The details are not confirmed yet, so it cannot be pushed to DMS"
 The document number the supplier issued; it must be kept as-is,The document number the supplier issued; it must be kept as-is
 The export could not be created.,The export could not be created.
@@ -639,7 +627,6 @@ The new password cannot be the same as the current one,The new password cannot b
 The new password is required,The new password is required
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available","The new platform has no DMS advisor roster source yet, so for now only automatic matching is available"
 The old key stops working right away.,The old key stops working right away.
-The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).
 The plan quota is used first; anything over is charged per plan rate from the balance,The plan quota is used first; anything over is charged per plan rate from the balance
 The push channel must be companion or cloud,The push channel must be companion or cloud
 The recognition queue is full. Please try again later.,The recognition queue is full. Please try again later.
@@ -738,10 +725,8 @@ What Was Pushed,What Was Pushed
 What Was Recognised,What Was Recognised
 Whether this LINE can sign in to this account; kept in step with the identity service.,Whether this LINE can sign in to this account; kept in step with the identity service.
 Which connection it went to. Empty = it failed before a connection was chosen.,Which connection it went to. Empty = it failed before a connection was chosen.
-Which customer is being changed.,Which customer is being changed.
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.
 "Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).","Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over)."
-Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.,Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.","Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull","Windows app on the merchant's accounting PC: installer, pairing, outbound pull"
 Withholding Tax,Withholding Tax
@@ -752,7 +737,6 @@ Yes,Yes
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
 Your access domain,Your access domain
 Your account was updated elsewhere. Sign in again to load the current username.,Your account was updated elsewhere. Sign in again to load the current username.
-"`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session."
 account.cancel,Cancel
 account.changePassword,Change password
 account.error.http,Request failed (HTTP {0})

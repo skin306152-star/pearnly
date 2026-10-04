@@ -334,14 +334,14 @@ class IntakeQueue(unittest.TestCase):
         self.assertEqual(self.jobs[0][1]["target"], f"pearnly_dms.intake.flow.write_{kind}")
         return payload["nonce"]
 
-    def test_incomplete_address_keeps_nonce_and_real_edit_link_without_write_or_approval(self):
-        actions = (self.cards.ACT_CREATE, self.cards.ACT_UPDATE, self.cards.ACT_SUBMIT_APPROVAL)
+    def test_incomplete_address_keeps_nonce_and_real_edit_link_without_write(self):
+        actions = (self.cards.ACT_CREATE, self.cards.ACT_UPDATE)
         for field in GEO:
             for action in actions:
                 with self.subTest(field=field, action=action):
                     self.jobs.clear()
                     payload = {"nonce": "needs-address", "draft": {**GEO, field: ""},
-                               "scenario": "exact_diff", "approval": True}
+                               "scenario": "exact_diff"}
                     self.store.set_session(LINE_USER, "reviewing", payload)
                     before = self.store.get_session(LINE_USER)
                     self.event(action=action, nonce="needs-address", token="reply-needs-address")
@@ -371,11 +371,11 @@ class IntakeQueue(unittest.TestCase):
         self.assertEqual(self.messages()[-1][1]["messages"], [{"type": "text", "text": self.cards.TXT_EXPIRED}])
         self.assertEqual(self.store.get_session(LINE_USER)["payload"]["nonce"], "current")
 
-    def test_phone_only_update_or_approval_still_requires_unmatched_ocr_address_review(self):
-        for action in (self.cards.ACT_UPDATE, self.cards.ACT_SUBMIT_APPROVAL):
+    def test_phone_only_update_still_requires_unmatched_ocr_address_review(self):
+        for action in (self.cards.ACT_UPDATE,):
             with self.subTest(action=action):
                 payload = {"nonce": "phone-only", "customer_id": "offline-customer",
-                    "scenario": "exact_diff", "approval": True,
+                    "scenario": "exact_diff",
                     "draft": {**GEO, "phone": PHONE, "subdistrict_id": "", "zipcode_id": ""},
                     "field_diffs": [{"field": "phone", "old": "0000000000", "new": PHONE}],
                     "id_card": {"address": {"subdistrict": "ปากน้ำ", "zipcode": "10270"}}}

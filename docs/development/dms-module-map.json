@@ -60,9 +60,6 @@
     "pearnly_dms.dms_out": "pearnly_dms.line.out",
     "pearnly_dms.dms_text_router": "pearnly_dms.line.text_router",
     "pearnly_dms.line_handlers": "pearnly_dms.line.handlers",
-    "pearnly_dms.dms_approval_cards": "pearnly_dms.approval.approval_cards",
-    "pearnly_dms.dms_approval_flow": "pearnly_dms.approval.approval_flow",
-    "pearnly_dms.dms_approval_store": "pearnly_dms.approval.approval_store",
     "pearnly_dms.dms_query_access": "pearnly_dms.query.query_access",
     "pearnly_dms.dms_query_cards": "pearnly_dms.query.query_cards",
     "pearnly_dms.dms_query_flow": "pearnly_dms.query.query_flow",
@@ -118,12 +115,6 @@
       "module": "pearnly_dms.line.handlers",
       "exports": [
         "handle"
-      ]
-    },
-    "pearnly_dms.dms_approval_flow": {
-      "module": "pearnly_dms.approval.approval_flow",
-      "exports": [
-        "_execute_approved"
       ]
     },
     "pearnly_dms.dms_query_flow": {

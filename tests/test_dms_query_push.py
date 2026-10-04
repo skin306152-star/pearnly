@@ -187,10 +187,6 @@ class LoadingAnimation(unittest.TestCase):
         with patch("pearnly_dms.line.out.start_loading", side_effect=RuntimeError("LINE down")):
             snapshot_sync._loading_renewer({"_binding": {"line_user_id": USER}})()  # 不抛
 
-    def test_approval_shows_the_animation_instead_of_a_processing_text(self):
-        source = (ROOT / "apps/pearnly_dms/pearnly_dms/approval/approval_flow.py").read_text()
-        self.assertNotIn("_reply(reply_token, approval_cards.TXT_PROCESSING)", source)
-
 
 if __name__ == "__main__":
     unittest.main()

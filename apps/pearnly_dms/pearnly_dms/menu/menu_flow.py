@@ -65,7 +65,7 @@ _MENU_CHOICES = {
 # `id_card_mid` 是订车逐问的身份证附件源，同样保留（落档后 `booking_qa.start` 要挂它）。
 _KEEP_KEYS = ("id_card", "id_card_mid", "phone", "endpoint_id", "mode")
 # 只有**还在收料**的会话才把已收料带进菜单。客户卡已经发出（`reviewing`）、订车逐问 / 待确认、
-# 查询、审批这些态里点菜单 = 放弃那一轮重新开始（与 `เริ่มใหม่` 同语义）。以前一律保留，
+# 查询这些态里点菜单 = 放弃那一轮重新开始（与 `เริ่มใหม่` 同语义）。以前一律保留，
 # 于是待确认卡还在时再点菜单 1，会拿着同一张卡、同一个号码重新查重，把旧卡原样再发一遍。
 _CARRY_STATES = frozenset({"collecting", "menu"})
 

@@ -1,14 +1,25 @@
-"""A changed upstream customer requires a NEW server-owned review/approval."""
+"""A changed upstream customer requires a NEW server-owned review."""
 import secrets
 
 from pearnly_core import line_session as store
-from pearnly_dms.approval import approval_flow
 from pearnly_dms.contracts.customer_merge import split
 from pearnly_dms.intake import draft
 from pearnly_dms.line import cards, out
 from pearnly_dms.line.errors import friendly
 from pearnly_dms.line.identity import matches
 from pearnly_dms import i18n
+
+
+def diff_card(user_id, display, has_admin, nonce, summary):
+    """有差异的老客户卡：能改（本人 DMS 账号有写权，或花名册是管理员）就给「更新」，否则只给「用旧资料」。
+
+    原来走审批（销售提审 → 管理员批）的那一支已删（用户 2026-10-05：审批不做）；审批策略本来就是关的，
+    这里就是原来实际走的那一支。"""
+    from pearnly_dms.operators import roster
+
+    role = (roster.get_profile(str(user_id)) or {}).get("dms_role") or ""
+    primary = "update" if (has_admin or role == "admin") else "none"
+    return cards.diff_card(display, nonce, primary=primary, summary=summary)
 
 
 def conflict_notice(conflict):
@@ -29,15 +40,15 @@ def build(user_id, payload, conflict, *, has_admin):
     master_draft, master_summary = draft.master_snapshot(current)
     nonce = secrets.token_hex(8)
     updated = {key: value for key, value in payload.items()
-               if key not in {"dms_retry", "candidates", "approval", "display_diffs"}}
+               if key not in {"dms_retry", "candidates", "approval", "display_diffs"}}  # approval：旧会话残留
     updated.update(nonce=nonce, customer_id=conflict["customer_id"], scenario="exact_diff",
                    customer_baseline=current, draft=customer, summary=summary, field_diffs=diffs,
                    write_fields=fields, write_addresses=addresses,
                    master_draft=master_draft, master_summary=master_summary)
     if diffs:
         display = draft.display_diffs(diffs, {})
-        card, approval = approval_flow.exact_diff_card(user_id, display, has_admin, nonce, summary)
-        updated.update(display_diffs=display, has_admin=has_admin, approval=approval)
+        card = diff_card(user_id, display, has_admin, nonce, summary)
+        updated.update(display_diffs=display, has_admin=has_admin)
     else:
         card = cards.same_customer_card(summary, nonce)
     return updated, card

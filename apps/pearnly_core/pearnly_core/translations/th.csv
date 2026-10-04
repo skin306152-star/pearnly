@@ -41,7 +41,6 @@ An admin session was requested but no admin credentials are configured,ขอเ
 Approval,การอนุมัติ
 Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
 Are you sure you want to sign out?,คุณต้องการออกจากระบบหรือไม่?
-Assign To,มอบหมายให้
 Assistant not connected,ผู้ช่วยยังไม่เชื่อมต่อ
 Attempt,ครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
@@ -85,7 +84,6 @@ Change your password from your account profile using Change Password.,กรุ�
 Charges,ค่าบริการ
 Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
-Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Click to sort by {0},คลิกเพื่อเรียงตาม {0}
 Client ID is required,ต้องระบุ Client ID
@@ -157,7 +155,6 @@ Current password,รหัสผ่านปัจจุบัน
 Current plan,แพ็กเกจปัจจุบัน
 Customer Match,จับคู่ลูกค้า
 Customer Name,ชื่อลูกค้า
-Customer Snapshot,สแนปช็อตข้อมูลลูกค้า
 Customer master data,ข้อมูลหลักของลูกค้า
 Customer matching is required before confirming,ต้องจับคู่ลูกค้าก่อนยืนยัน
 Customer matching must be done before confirming,ต้องจับคู่ลูกค้าให้เสร็จก่อนจึงจะยืนยันได้
@@ -166,9 +163,7 @@ Customers,ทะเบียนลูกค้า
 DMS Admin,DMS ผู้ดูแล
 DMS Advisor ID,DMS Advisor ID
 DMS Advisor Name,ชื่อที่ปรึกษา DMS
-DMS Connection,การเชื่อมต่อ DMS
 DMS Customer Match,DMS จับคู่ลูกค้า
-DMS Customer No,เลขลูกค้า DMS
 DMS Customer Ref,รหัสอ้างอิงลูกค้า DMS
 DMS Endpoint,ปลายทาง DMS
 DMS ID Card Intake,DMS บันทึกบัตรประชาชน
@@ -231,7 +226,6 @@ Elapsed (ms),ใช้เวลา (ms)
 Email,อีเมล
 Email is required,กรุณากรอกอีเมล
 Empty = matched automatically from the DMS account (the legacy product's default).,เว้นว่าง = จับคู่อัตโนมัติจากบัญชี DMS (ค่าเริ่มต้นของผลิตภัณฑ์เดิม)
-Empty = sent to all admins (whoever sees it first approves).,เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)
 Enable,เปิดใช้งาน
 "Enable ""{0}""? A new bind code is needed to link LINE again.","ยืนยันเปิด ""{0}""? ต้องออกรหัสผูกใหม่เพื่อเชื่อม LINE อีกครั้ง"
 Enabled,เปิดใช้งาน
@@ -243,7 +237,6 @@ Endpoint {0} is disabled,ปลายทาง {0} ถูกปิดใช้�
 Entering,กำลังบันทึก
 Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
-Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)
 Expense,ค่าใช้จ่าย
 Expense / Item Category,หมวดค่าใช้จ่าย/สินค้า
 Expired,หมดอายุ
@@ -264,7 +257,6 @@ Failed to start: {0},เริ่มระบบล้มเหลว: {0}
 Failure Reason,สาเหตุที่ล้มเหลว
 Failure reason,สาเหตุที่ล้มเหลว
 Failures,จำนวนล้มเหลว
-Field Diffs,ส่วนต่างรายฟิลด์
 File,ไฟล์
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
 "Fill in the display name, DMS username and password",กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน
@@ -284,7 +276,6 @@ Grand Total,ยอดรวม
 Guests are not allowed to upload files for {0} Doctype,ผู้เยี่ยมชมอัปโหลดไฟล์ให้ {0} ไม่ได้
 Guide,คู่มือใช้งาน
 HTTP Status,สถานะ HTTP
-Handled At,จัดการเมื่อ
 Home,หน้าหลัก
 Home (Subscription & Billing),หน้าหลัก (แพ็กเกจและค่าบริการ)
 How each push to the external ERP went,ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก
@@ -450,7 +441,6 @@ Please confirm,กรุณายืนยัน
 Please sign in,กรุณาเข้าสู่ระบบ
 Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 Preparing the file,กำลังเตรียมไฟล์
-Processing Started At,เริ่มดำเนินการเมื่อ
 Processing…,กำลังดำเนินการ…
 Product,ผลิตภัณฑ์
 Product Ref,รหัสอ้างอิงสินค้า
@@ -514,7 +504,6 @@ Removed from Product History By,ผู้ลบออกจากประวั
 Reorder sidebar,จัดลำดับแถบด้านข้าง
 Request & Response,คำขอและการตอบกลับ
 Request Body,เนื้อหาคำขอ
-Request Snapshot,สแนปช็อตคำขอ
 Request failed (HTTP {0}),คำขอล้มเหลว (HTTP {0})
 Requested,จำนวนที่ขอ
 Requested By,ผู้ขอ
@@ -616,7 +605,6 @@ The billing service returned HTTP {0},ระบบเรียกเก็บเ
 The bind code has expired — please regenerate,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
 The current password is wrong,รหัสผ่านปัจจุบันไม่ถูกต้อง
-The customer snapshot used to refill the form when approval executes.,สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ
 "The details are not confirmed yet, so it cannot be pushed to DMS",ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้
 The document number the supplier issued; it must be kept as-is,เลขเอกสารที่ผู้ขายออก ต้องเก็บตามต้นฉบับ
 The export could not be created.,ไม่สามารถสร้างไฟล์ส่งออกได้
@@ -641,7 +629,6 @@ The new password cannot be the same as the current one,รหัสผ่าน�
 The new password is required,ต้องระบุรหัสผ่านใหม่
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น
 The old key stops working right away.,คีย์เดิมจะใช้ไม่ได้ทันที
-The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,คนที่กดอนุมัติ (บันทึกตอนรับเรื่อง ล้างทิ้งถ้าเขียนไม่สำเร็จและต้องส่งกลับคืน)
 The plan quota is used first; anything over is charged per plan rate from the balance,หลังสมัครจะใช้โควตาก่อน ส่วนที่เกินหักตามราคาต่อหน่วยจากยอดคงเหลือ
 The push channel must be companion or cloud,ช่องทางส่งต้องเป็น companion หรือ cloud
 The recognition queue is full. Please try again later.,คิวการอ่านเต็ม กรุณาลองใหม่ภายหลัง
@@ -740,10 +727,8 @@ What Was Pushed,ส่งอะไรไป
 What Was Recognised,สิ่งที่อ่านได้
 Whether this LINE can sign in to this account; kept in step with the identity service.,LINE นี้เข้าสู่ระบบบัญชีนี้ได้หรือไม่ ระบบซิงก์กับบริการยืนยันตัวตนให้อัตโนมัติ
 Which connection it went to. Empty = it failed before a connection was chosen.,ส่งไปยังการเชื่อมต่อใด เว้นว่าง = ล้มเหลวก่อนเลือกการเชื่อมต่อ
-Which customer is being changed.,จะแก้ลูกค้ารายใด
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,ปลายทางคือระบบใด ค่าอ้างตามผลิตภัณฑ์เดิม (webhook | xero | flowaccount | mrerp | mrerp_dms | express) แพลตฟอร์มใหม่ทำเฉพาะ mrerp_dms ส่วนที่เหลือลิสต์ไว้เพื่อไม่ให้สัญญาเปลี่ยนแบบเงียบ ๆ
 "Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",ใครกำลังจัดการแถวนี้อยู่ ผลิตภัณฑ์เดิมใช้สัญญาเช่าเพื่อรับประกันว่า**แต่ละแถวถูกส่งเพียงครั้งเดียว** (เฉพาะ pending ที่มีสัญญาเช่า และตัวที่หมดอายุสามารถถูกยึดได้)
-Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.,ใครเป็นผู้เสนอ (ตัวพนักงานขาย) ตอนดำเนินการใช้ข้อมูลรับรองของ**ผู้อนุมัติ**เอง ที่นี่บันทึกแค่ที่มา
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",การเชื่อมต่อนี้เป็นของใคร **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** (ที่เจ้าของตั้งไว้ ด้วยบัญชีที่มีสิทธิ์) ใส่ค่า = การเชื่อมต่อของผู้ปฏิบัติงานรายนั้น ในผลิตภัณฑ์เดิมผู้ปฏิบัติงานแต่ละคนมี DMS ของตัวเอง โดยใช้ของเจ้าของเป็นแม่แบบ
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
@@ -754,7 +739,6 @@ Yes,ใช่
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,หน้านี้ต้องเข้าสู่ระบบของเว็บไซต์ก่อนจึงจะเปิดได้ กรุณาเข้าผ่านโดเมนของเว็บไซต์แล้วเข้าสู่ระบบ
 Your access domain,โดเมนสำหรับเข้าใช้งาน
 Your account was updated elsewhere. Sign in again to load the current username.,บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน
-"`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก"
 account.cancel,ยกเลิก
 account.changePassword,เปลี่ยนรหัสผ่าน
 account.error.http,คำขอล้มเหลว (HTTP {0})

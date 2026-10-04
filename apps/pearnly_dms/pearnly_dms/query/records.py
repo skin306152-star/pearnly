@@ -9,7 +9,7 @@ from pearnly_dms.records.access import DMS_SCOPE, LOG_SOURCE, require_access
 
 STATUSES = ("pending", "retrying", "success", "failed", "skipped_dup", "manual")
 #: 客户档写入在台账正文里的两种标记：LINE / 网页经 `intake.customer_attempt` 写的
-#: `operation=customer_write`，以及流程自己补记、审批执行记的 `mode`。
+#: `operation=customer_write`，以及流程自己补记的 `mode`。
 CUSTOMER_WRITE_MODES = frozenset({"create", "overwrite", "update"})
 
 

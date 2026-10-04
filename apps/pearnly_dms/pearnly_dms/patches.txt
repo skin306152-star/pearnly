@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 pearnly_dms.operators.endpoint_backfill
 pearnly_dms.snapshots.scope_rekey
+pearnly_dms.patches.v0_0_1_drop_dms_change_request

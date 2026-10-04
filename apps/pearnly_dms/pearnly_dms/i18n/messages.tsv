@@ -113,7 +113,6 @@ Start over	重新开始	เริ่มใหม่	やり直し	dms.card.BTN_RE
 Retry	重试	ลองใหม่	再試行	dms.card.BTN_RETRY
 Retry booking	重新建立订车单	ลองสร้างใบจองอีกครั้ง	予約を再作成	dms.card.BTN_RETRY_BOOKING
 Save new customer	保存新客户	บันทึกลูกค้าใหม่	新規顧客を保存	dms.card.BTN_SAVE_NEW
-Request approval	提交审批	ส่งขออนุมัติ	承認を申請	dms.card.BTN_SUBMIT_APPROVAL
 Update data	更新资料	อัปเดตข้อมูล	データを更新	dms.card.BTN_UPDATE
 New customer created	新建客户	สร้างลูกค้าใหม่	新規顧客を作成	dms.card.TXT_ACTION_CREATE
 Customer data updated	更新客户资料	อัปเดตข้อมูลลูกค้า	顧客データを更新	dms.card.TXT_ACTION_UPDATE
@@ -178,30 +177,6 @@ This customer already exists and the data matches	这位客户已有资料，资
 Customer data matches	客户资料一致	ข้อมูลลูกค้าตรงกัน	顧客データが一致しています	dms.card.TXT_SAME_ALT
 Save failed. Please try again.	保存失败，请重试。	บันทึกไม่สำเร็จ กรุณาลองใหม่	保存できませんでした。もう一度お試しください。	dms.card.TXT_SAVE_FAIL
 Something went wrong. Please try again.	系统出错，请重试。	ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง	システムエラーです。もう一度お試しください。	dms.card.TXT_SYSTEM_ERROR
-Send to everyone	发给所有人	ส่งหาทุกคน	全員に送る	dms.card.approval.BTN_ALL_APPROVERS
-Approve	批准	อนุมัติ	承認	dms.card.approval.BTN_APPROVE
-Change approver	更换审批人	เปลี่ยนผู้อนุมัติ	承認者を変更	dms.card.approval.BTN_CHANGE_APPROVER
-Reject	拒绝	ปฏิเสธ	却下	dms.card.approval.BTN_REJECT
-Approver	审批人	ผู้อนุมัติ	承認者	dms.card.approval.LBL_APPROVER
-Customer	客户	ลูกค้า	顧客	dms.card.approval.LBL_CUSTOMER
-Requested by	申请人	ผู้ขอ	申請者	dms.card.approval.LBL_REQUESTER
-Sent to	发送给	ส่งถึง	送信先	dms.card.approval.LBL_SENT_TO
-Customer data change request	客户资料修改申请	คำขอแก้ไขข้อมูลลูกค้า	顧客データの変更申請	dms.card.approval.TITLE_REQUEST
-Your account has no DMS connection set up, so it cannot approve. Please tell the admin.	你的账号还没有设置 DMS 连接，无法审批，请通知管理员。	บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล	あなたのアカウントには DMS 接続が設定されていないため承認できません。管理者に連絡してください。	dms.card.approval.TXT_APPROVER_NO_ENDPOINT
-Update failed (DMS refused it). The request is still open; approve again to retry.	更新失败（DMS 拒绝）。申请仍在，重新批准即可再试一次。	อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่	更新できませんでした（DMS が拒否）。申請は残っています。もう一度承認すると再試行します。	dms.card.approval.TXT_EXEC_FAIL_ADMIN
-Your account cannot approve this request	你的账号没有权限审批这项申请	บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้	あなたのアカウントにはこの申請を承認する権限がありません	dms.card.approval.TXT_NOT_APPROVER
-No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms	系统里还没有连接 LINE 的审批人，请通知管理员到 pearnly.com/dms 添加	ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms	LINE と連携した承認者がまだいません。pearnly.com/dms で承認者を追加するよう管理者に依頼してください	dms.card.approval.TXT_NO_APPROVERS
-Who should approve this request?	把申请发给谁审批？	ส่งคำขอให้ใครอนุมัติ	誰に承認を依頼しますか？	dms.card.approval.TXT_PICK_APPROVER
-Choose an approver, or send to everyone so whoever is free can approve	选择审批人，或发给所有人，由先有空的人审批	เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ	承認者を選ぶか、全員に送って手の空いた人に承認してもらいます	dms.card.approval.TXT_PICK_APPROVER_SUB
-Updating the data, please wait	正在更新资料，请稍候	กำลังอัปเดตข้อมูล กรุณารอสักครู่	データを更新しています。しばらくお待ちください	dms.card.approval.TXT_PROCESSING
-Approved. Customer data updated.	已批准，客户资料已更新。	อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย	承認しました。顧客データを更新しました。	dms.card.approval.TXT_REQ_APPROVED_ADMIN
-Your change request was approved and the customer data is updated.	修改申请已获批准，客户资料已更新。	คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย	変更申請が承認され、顧客データを更新しました。	dms.card.approval.TXT_REQ_APPROVED_SALES
-This request has expired. Please start again.	此申请已过期，请重新开始。	คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่	この申請は期限切れです。やり直してください。	dms.card.approval.TXT_REQ_EXPIRED
-Request rejected	已拒绝申请	ปฏิเสธคำขอแล้ว	申請を却下しました	dms.card.approval.TXT_REQ_REJECTED_ADMIN
-Your change request was rejected. Contact the approver if needed.	修改申请被拒绝，如有需要请联系审批人。	คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ	変更申請は却下されました。必要なら承認者に連絡してください。	dms.card.approval.TXT_REQ_REJECTED_SALES
-This request has already been handled	此申请已被处理	คำขอนี้ถูกดำเนินการไปแล้ว	この申請はすでに処理されています	dms.card.approval.TXT_REQ_STALE
-Salesperson	销售	พนักงานขาย	営業担当	dms.card.approval.TXT_SALES_FALLBACK
-Change request sent. Waiting for the approver.	修改申请已发出，等待审批人处理。	ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ	変更申請を送りました。承認者の対応を待っています。	dms.card.approval.TXT_SENT_WAIT
 Brand	品牌	ยี่ห้อ	メーカー	dms.card.car.brand
 Car details	车辆说明	รายละเอียดรถ	車両の詳細	dms.card.car.desc
 Engine	发动机	เครื่องยนต์	エンジン	dms.card.car.engine
@@ -418,3 +393,8 @@ ID number	身份证号	เลขบัตรประชาชน	身分証番�
 First name	名	ชื่อ	名	dms.card.REVIEW_FIRST_NAME
 Last name	姓	นามสกุล	姓	dms.card.REVIEW_LAST_NAME
 Date of birth	出生日期	วันเกิด	生年月日	dms.card.REVIEW_BIRTHDAY
+Changes saved	已修改资料	แก้ไขข้อมูลแล้ว	内容を修正しました	dms.card.TXT_EDIT_SENT
+Still working on it. When it is done, tap View result.	还在处理，做完后请点「查看结果」。	กำลังดำเนินการอยู่ เสร็จแล้วกด «ดูผล»	処理中です。終わったら「結果を見る」を押してください。	dms.card.TXT_STILL_WORKING
+View result	查看结果	ดูผล	結果を見る	dms.card.BTN_SHOW_RESULT
+Not done yet. Please tap View result again in a moment.	还没好，请稍后再点「查看结果」。	ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง	まだ終わっていません。少し待ってからもう一度「結果を見る」を押してください。	dms.card.TXT_NOT_READY
+There is more. Tap View result to see the rest.	还有更多结果，请点「查看结果」继续看。	ยังมีผลลัพธ์อีก กด «ดูผล» เพื่อดูต่อ	続きがあります。「結果を見る」を押してください。	dms.card.TXT_MORE_RESULTS

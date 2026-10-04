@@ -31,6 +31,7 @@ import {
   loadGeo,
   loadPaints,
   saveDraft,
+  returnToChat,
   snapshotErrorKey,
   type Draft,
   type EditorMode,
@@ -416,6 +417,11 @@ async function save(): Promise<void> {
     // 服务端换了新 nonce（旧卡作废）。页面留着它，用户再点一次保存也能成。
     nonce.value = result.nonce;
     stage.value = "saved";
+    // 新卡由交接页替业务员在聊天里发一句话后免费回覆（不占推送额度，`line/page_reply.py`）。
+    if (result.code && result.marker) {
+      returnToChat("edit", { code: result.code, marker: result.marker });
+      return;
+    }
     setTimeout(() => void closePage(), 900);
   } catch (err) {
     // 即使服务端拒绝本次保存，也不丢掉用户编辑的值。

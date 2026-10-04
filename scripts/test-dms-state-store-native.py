@@ -21,7 +21,7 @@ MODULES = (
     "pearnly_dms.config.pacing", "pearnly_dms.booking.delivery", "pearnly_dms.booking.recovery",
     "pearnly_dms.adapter.change_sync", "pearnly_dms.adapter.session_cache", "pearnly_dms.intake.customer_attempt",
     "pearnly_dms.menu.rich_menu", "pearnly_dms.account.api", "pearnly_dms.query.snapshot_sync",
-    "pearnly_dms.approval.approval_store", "pearnly_dms.editor.browser_ticket",
+    "pearnly_dms.editor.browser_ticket",
 )
 
 

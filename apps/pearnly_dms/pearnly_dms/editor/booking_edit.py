@@ -372,7 +372,7 @@ def _payments(rows: list, masters: dict) -> List[dict]:
         raise DmsBookingEditError(exc.code) from exc
 
 
-def save(line_user_id: str, nonce: str, submitted: dict) -> str:
+def save(line_user_id: str, nonce: str, submitted: dict, deliver=None) -> str:
     """保存草稿并**同步确认**新版预览卡已送达 LINE；返回轮换后的新 nonce。"""
     binding, payload, endpoint = _review(line_user_id, nonce)
     qa = dict(payload.get("qa") or {})
@@ -447,17 +447,17 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     new_payload = {**payload, "qa": qa, "nonce": new_nonce}
     if not store.replace_review_payload(line_user_id, nonce, new_payload):
         raise DmsBookingEditError("dms_booking.expired", 409)
-    if not _dispatch_preview(line_user_id, new_nonce, qa):
+    if not _dispatch_preview(line_user_id, new_nonce, qa, deliver):
         # 卡没发出去也没落队：恢复旧 payload/nonce，如实报错（用户还能重试同一份草稿）。
         store.replace_review_payload(line_user_id, new_nonce, payload)
         raise DmsBookingEditError("dms_booking.preview_send_failed", 503)
     return new_nonce
 
 
-def _dispatch_preview(line_user_id: str, nonce: str, qa: dict) -> bool:
-    """同步取得 LINE 200 回执；失败时调用方恢复旧 nonce，编辑页保持可重试。"""
+def _dispatch_preview(line_user_id: str, nonce: str, qa: dict, deliver=None) -> bool:
+    """同步取得 LINE 200 回执（或 `deliver` 收下，见 `customer_edit.save`）；失败时调用方恢复旧 nonce，编辑页保持可重试。"""
     try:
-        return bool(_out.send(line_user_id, qa_cards.preview_card(qa, nonce)))
+        return bool((deliver or _out.send)(line_user_id, qa_cards.preview_card(qa, nonce)))
     except Exception:
         logger.warning("[dms] booking preview send failed", exc_info=True)
         return False

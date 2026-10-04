@@ -14,10 +14,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import copy
 import secrets
 import threading
+import time
 from typing import Any, Dict, Optional
 
 from pearnly_core import line
@@ -208,6 +211,130 @@ def enqueue(job: str, fn, *args) -> None:
     )
 
 
+# ── 慢任务不占推送额度 ─────────────────────────────────────────────────────
+# LINE：回覆令牌收到后 1 分钟内有效、只能用一次（官方文档）。任务跑得久，结果到时令牌已过期，只能推播。
+# 做法（用户 2026-10-05「其它的做掉」）：任务跑到 SLOW_AFTER 秒还没完，趁令牌还在先免费回一句「还在处理」
+# 带「查看结果」按钮；任务做完不推播，结果存起来，他点按钮（一次新的消息，带新令牌）再免费回给他。
+SLOW_AFTER = 40
+_TOKEN_LIFE = 55
+_TOKEN_AT = "pearnly:dms:reply-token-at:"
+_RESULTS = "pearnly:dms:held-results:"
+_RESULT_SECONDS = 24 * 3600
+
+
+def _state():
+    from pearnly_core.execution import state
+
+    return state.store()
+
+
+def _token_key(token: str) -> str:
+    return _TOKEN_AT + hashlib.sha256(token.encode()).hexdigest()[:32]
+
+
+def note_reply_token(token: str) -> None:
+    """webhook 收到事件时记下回覆令牌的收到时间（2 分钟），后台任务据此算令牌还剩多久。"""
+    if not token:
+        return
+    try:
+        _state().set_value(_token_key(token), time.time(), expires_in_sec=120)
+    except Exception:
+        # 记不下只是少了"先回一句"的机会，不能挡住这条消息的处理。
+        logger.warning("[dms out] could not note reply token time", exc_info=True)
+
+
+def _show_result_button(text: str) -> Dict[str, Any]:
+    from pearnly_dms.line import cards
+
+    label = str(cards.BTN_SHOW_RESULT)[:20]
+    return {"type": "text", "text": str(text), "quickReply": {"items": [{"type": "action", "action": {
+        "type": "postback", "label": label, "data": "action=" + cards.ACT_SHOW_RESULT, "displayText": label}}]}}
+
+
+class _SlowReply:
+    """一个后台任务的「还在处理」计时：令牌快过期还没做完 → 用令牌回一句；做完时把结果改存起来。
+
+    计时线程里没有站点上下文：存储客户端与完整键名在任务线程里先取好，线程里只用底层读写。"""
+
+    def __init__(self, line_user_id: str, token: str):
+        self.lock = threading.Lock()
+        self.sent = False
+        self.closed = False
+        self.timer = None
+        self.user = line_user_id
+        if not line_user_id or not token:
+            return
+        try:
+            client = _state()
+            noted = client.get_value(_token_key(token))
+            key = client.make_key(_RESULTS + line_user_id)
+        except Exception:
+            return
+        age = time.time() - float(noted) if noted else None
+        if age is None or age >= _TOKEN_LIFE:
+            return
+        from pearnly_dms.line import cards
+
+        message = _show_result_button(cards.TXT_STILL_WORKING)
+        send = line.reply_sender(token)
+        self.client, self.key = client, key
+
+        def fire():
+            with self.lock:
+                if self.closed:
+                    return
+                self.sent = send([message])
+                if self.sent:
+                    client.set(key, json.dumps({"pending": True}), ex=_RESULT_SECONDS)
+
+        self.timer = threading.Timer(max(0.0, SLOW_AFTER - age), fire)
+        self.timer.daemon = True
+        self.timer.start()
+
+    def finish(self) -> None:
+        """任务结束（含出错）时调用，在 `line.batch` 发出之前。"""
+        if self.timer is None:
+            return
+        self.timer.cancel()
+        with self.lock:
+            self.closed = True
+            if not self.sent:
+                return
+        import frappe
+
+        # 令牌已用来回「还在处理」：这一批发给本人的消息不推播，存起来等他点「查看结果」。
+        current = getattr(frappe.local, "pearnly_line_batch", None)
+        held = []
+        if current and current.get("to") == self.user:
+            held, current["messages"] = list(current["messages"]), []
+            current["used"] = True
+        self.client.set(self.key, json.dumps({"messages": held}), ex=_RESULT_SECONDS)
+
+
+def show_result(line_user_id: str, reply_token: str) -> None:
+    """「查看结果」按钮：有结果就免费回给他；还在跑就再回一句「还没好」；什么都没有就说过期。"""
+    from pearnly_dms.line import cards
+
+    client = _state()
+    key = client.make_key(_RESULTS + line_user_id)
+    raw = client.get(key)
+    held = json.loads(raw) if raw else None
+    if not held:
+        line.reply(reply_token, [{"type": "text", "text": str(cards.TXT_EXPIRED)}])
+        return
+    if held.get("pending"):
+        line.reply(reply_token, [_show_result_button(cards.TXT_NOT_READY)])
+        return
+    messages = list(held.get("messages") or [])
+    # 一次回覆最多 5 条：多出来的留着，最后一条换成带按钮的「还有结果」。
+    if len(messages) > 5:
+        client.set(key, json.dumps({"messages": messages[4:]}), ex=_RESULT_SECONDS)
+        messages = messages[:4] + [_show_result_button(cards.TXT_MORE_RESULTS)]
+    else:
+        client.delete(key)
+    line.reply(reply_token, messages or [{"type": "text", "text": str(cards.TXT_EXPIRED)}])
+
+
 def run_guarded(target, arguments):
     """Persisted queue entry: a rebind/revocation while waiting cancels stale work."""
     import frappe
@@ -227,7 +354,11 @@ def run_guarded(target, arguments):
     try:
         # 后台任务同样按这个人手机上的语言说话（问过的语言有一小时缓存，不会每次都问 LINE）。
         with i18n.line_language(user), line.batch(user, arguments.get("reply_token") or ""):
-            return frappe.get_attr(target)(**arguments)
+            slow = _SlowReply(user, arguments.get("reply_token") or "")
+            try:
+                return frappe.get_attr(target)(**arguments)
+            finally:
+                slow.finish()
     finally:
         frappe.local.dms_lock_wait_hook = None
 

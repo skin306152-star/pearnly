@@ -27,8 +27,6 @@ An admin account must be set up in Pearnly before updating.,ต้องตั�
 Any other payment channel?,มีช่องทางอื่นอีกไหม
 Apply,ดำเนินการ
 Approve,อนุมัติ
-Approved. Customer data updated.,อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย
-Approver,ผู้อนุมัติ
 Attached,แนบแล้ว
 Awaiting manager,รอ ผจก.ขาย
 Back to chat,กลับไปที่แชท
@@ -65,9 +63,8 @@ Cash,เงินสด
 Cash purchase,ซื้อเงินสด
 Cash/finance,เงินสด/ไฟแนนซ์
 Cashier's cheque,แคชเชียร์เช็ค
-Change approver,เปลี่ยนผู้อนุมัติ
 Change read account,แก้ไขบัญชีอ่านข้อมูล
-Change request sent. Waiting for the approver.,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
+Changes saved,แก้ไขข้อมูลแล้ว
 Channel details — type them,รายละเอียดช่องทาง — พิมพ์
 Cheque,เช็ค
 Choose a bank,เลือกธนาคาร
@@ -76,7 +73,6 @@ Choose a colour for {car},เลือกสีของ {car}
 Choose a period and number of items (all branches/teams this account can see),เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
 Choose a status,เลือกสถานะที่ต้องการ
 Choose a topic to play its video,เลือกหัวข้อเพื่อเปิดดูคลิป
-"Choose an approver, or send to everyone so whoever is free can approve",เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
 Choose an item to continue,เลือกรายการเพื่อดำเนินการต่อ
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ
 Choose the matching customer,เลือกลูกค้าที่ตรงกัน
@@ -106,7 +102,6 @@ Credit/debit card,บัตรเครดิต/เดบิต
 Custom 1–30,กำหนดเอง 1–30
 Customer,ลูกค้า
 Customer data,จัดทำข้อมูลลูกค้า
-Customer data change request,คำขอแก้ไขข้อมูลลูกค้า
 Customer data differs,พบข้อมูลลูกค้าที่ต่างกัน
 Customer data matches,ข้อมูลลูกค้าตรงกัน
 Customer data saved. Type menu for other tasks.,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
@@ -201,7 +196,6 @@ Next,ถัดไป
 Next Attempt,ครั้งถัดไปที่ลอง
 Next page,หน้าถัดไป
 No active DMS account found. Ask the owner to check the operator data.,ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน
-No approver in the system has connected LINE yet. Please ask the admin to add one at pearnly.com/dms,ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms
 "No company receiving account yet. Please ask the admin to set it up in DMS, then try again.",ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
 No matching model. Please try typing again.,ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง
 No records for this condition · Last read from DMS at,ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ
@@ -209,6 +203,7 @@ No sales in this period,ไม่พบยอดขายในช่วงเ�
 None (the connection's own account is used),ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)
 Not all files were attached. Please add them in DMS.,แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS
 Not allocated yet,ยังไม่จัดสรรรถ
+Not done yet. Please tap View result again in a moment.,ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
 Not read yet,ยังไม่ได้อ่าน
 Not set,ยังไม่ตั้ง
@@ -276,9 +271,6 @@ Remove,ลบ
 "Remove slip, go on",ลบสลิปแล้วไปต่อ
 Remove the account and add it again to change its name,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 Removed {0},ลบ {0} แล้ว
-Request approval,ส่งขออนุมัติ
-Request rejected,ปฏิเสธคำขอแล้ว
-Requested by,ผู้ขอ
 Resumed {0},ใช้งาน {0} แล้ว
 Retry,ลองใหม่
 Retry booking,ลองสร้างใบจองอีกครั้ง
@@ -306,9 +298,7 @@ Select at least one data group.,กรุณาเลือกข้อมูล
 Select one or more DMS data groups to read,กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม
 "Select the data to update, then wait for the read to finish.",เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้
-Send to everyone,ส่งหาทุกคน
 Sending…,กำลังส่ง…
-Sent to,ส่งถึง
 Sent. You can go back to the chat.,ส่งแล้ว กลับไปที่แชทได้เลย
 "Separate fields with | , / or ·","คั่นช่องด้วย | , / หรือ ·"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS
@@ -318,6 +308,7 @@ Something went wrong. Please try again.,ระบบขัดข้อง กร
 Start over,เริ่มใหม่
 Started over. Take a photo of the ID card to start a customer record.,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
 Status not given,ไม่ระบุสถานะ
+"Still working on it. When it is done, tap View result.",กำลังดำเนินการอยู่ เสร็จแล้วกด «ดูผล»
 Stop / resume,หยุดใช้ / ใช้งาน
 Stopped {0},หยุดใช้ {0} แล้ว
 Subdistrict,ตำบล
@@ -365,6 +356,7 @@ The saved credentials cannot be read back; check the site encryption key,อ่�
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",ส่งข้อมูลแล้วแต่ยังยืนยันผลไม่ได้ กรุณาอย่าส่งซ้ำ ให้ตรวจสอบผลก่อน
 There are more colours. Type a colour name to search.,มีสีมากกว่านี้ พิมพ์ชื่อสีเพื่อค้นหาได้
 There is a transfer payment. Please send the transfer slip before viewing the summary.,มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ
+There is more. Tap View result to see the rest.,ยังมีผลลัพธ์อีก กด «ดูผล» เพื่อดูต่อ
 These conditions have not been read. Click Read this query.,ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 This account is already in use by the connection or another system account,บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว
@@ -383,7 +375,6 @@ This read failed. Click Read to retry.,อ่านครั้งนี้ไ�
 This read failed. Please try again later.,อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",การอ่านครั้งนี้หยุดกลางทาง ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่ ระบบจะอ่านใหม่อีกครั้ง กรุณาลองใหม่ภายหลัง
 This request has already been handled,คำขอนี้ถูกดำเนินการไปแล้ว
-This request has expired. Please start again.,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
 This step does not need a picture. Please follow the question above.,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
 This step has expired. Go back to the chat and start again.,ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
@@ -417,13 +408,11 @@ Type the sales document number,พิมพ์เลขที่เอกสา�
 Type what you want to search for,พิมพ์คำที่ต้องการค้นหา
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง
 Update data,อัปเดตข้อมูล
-Update failed (DMS refused it). The request is still open; approve again to retry.,อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่
 Update failed — click Update data to retry,อัปเดตไม่สำเร็จ กดอัปเดตข้อมูลเพื่อลองใหม่
 Update failed. Please ask the admin to check the admin password in Pearnly.,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly
 Update the DMS username and password saved in Pearnly,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
 Update your DMS sign-in,อัปเดตข้อมูลเข้าสู่ระบบ DMS
 Updating data…,กำลังอัปเดตข้อมูล…
-"Updating the data, please wait",กำลังอัปเดตข้อมูล กรุณารอสักครู่
 Use name on card,ใช้ชื่อตามบัตร
 Use the back office,เข้าใช้งานระบบหลังบ้าน
 "Used only for the every-minute sync, 6:00–22:00.",ใช้เฉพาะซิงก์ทุกนาที 6:00–22:00
@@ -432,17 +421,13 @@ Used to create and edit customers. Leave a saved account's password empty to kee
 User manual,คู่มือการใช้งาน
 Vehicle master data,ข้อมูลหลักรถยนต์
 Video guides,คลิปสอนการใช้งาน
+View result,ดูผล
 View result / status,ดูผล / สถานะการอ่าน
 View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 Village,หมู่บ้าน
 Watch step-by-step video guides,ดูคลิปสอนการใช้งานทีละขั้นตอน
 Welcome to Pearnly DMS,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
-Who should approve this request?,ส่งคำขอให้ใครอนุมัติ
 Write accounts,บัญชีสิทธิ์แก้ไข
-Your account cannot approve this request,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
-"Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
-Your change request was approved and the customer data is updated.,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
-Your change request was rejected. Contact the approver if needed.,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
 cars,คัน
 customer details,ข้อมูลลูกค้า
 customer list,รายชื่อลูกค้า
@@ -468,7 +453,7 @@ dms.card.BTN_RETRY,ลองใหม่
 dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
 dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
 dms.card.BTN_SCAN_CARD,สแกนบัตรประชาชน
-dms.card.BTN_SUBMIT_APPROVAL,ส่งขออนุมัติ
+dms.card.BTN_SHOW_RESULT,ดูผล
 dms.card.BTN_UPDATE,อัปเดตข้อมูล
 dms.card.MSG_BIND_BAD_CODE,รหัสผูกนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณากลับไปสร้างใหม่ที่หน้าเว็บ
 dms.card.MSG_BIND_GREETING,สวัสดีครับ นี่คือผู้ช่วย DMS\nกรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม เพื่อผูกบัญชีให้เสร็จ
@@ -497,6 +482,7 @@ dms.card.TXT_DIFF_HEAD,พบข้อมูลเดิม มีบางส�
 dms.card.TXT_DIFF_HEADER,ความต่าง
 dms.card.TXT_DONE_SAME,ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น
 dms.card.TXT_DONE_SAVED,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
+dms.card.TXT_EDIT_SENT,แก้ไขข้อมูลแล้ว
 dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ
 dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
 dms.card.TXT_ID_CHECKSUM,อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน
@@ -530,9 +516,11 @@ dms.card.TXT_MENU_PICK_SUB,เลือกรายการเพื่อด�
 dms.card.TXT_MENU_SEND_CARD,กรุณาส่งรูปบัตรประชาชนของลูกค้า
 dms.card.TXT_MENU_SUBTITLE,กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน
 dms.card.TXT_MENU_TITLE,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
+dms.card.TXT_MORE_RESULTS,ยังมีผลลัพธ์อีก กด «ดูผล» เพื่อดูต่อ
 dms.card.TXT_NEED_BOTH,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
 dms.card.TXT_NEW_CARD_ALT,ยืนยันบันทึกลูกค้าใหม่
 dms.card.TXT_NEW_CARD_HEAD,ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก
+dms.card.TXT_NOT_READY,ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง
 dms.card.TXT_NO_CREDIT,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
 dms.card.TXT_NO_ENDPOINT,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล
 dms.card.TXT_PICK_ABOVE,กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
@@ -551,31 +539,8 @@ dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมู�
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
 dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
 dms.card.TXT_SCAN_SENT,สแกนบัตรแล้ว
+dms.card.TXT_STILL_WORKING,กำลังดำเนินการอยู่ เสร็จแล้วกด «ดูผล»
 dms.card.TXT_SYSTEM_ERROR,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
-dms.card.approval.BTN_ALL_APPROVERS,ส่งหาทุกคน
-dms.card.approval.BTN_APPROVE,อนุมัติ
-dms.card.approval.BTN_CHANGE_APPROVER,เปลี่ยนผู้อนุมัติ
-dms.card.approval.BTN_REJECT,ปฏิเสธ
-dms.card.approval.LBL_APPROVER,ผู้อนุมัติ
-dms.card.approval.LBL_CUSTOMER,ลูกค้า
-dms.card.approval.LBL_REQUESTER,ผู้ขอ
-dms.card.approval.LBL_SENT_TO,ส่งถึง
-dms.card.approval.TITLE_REQUEST,คำขอแก้ไขข้อมูลลูกค้า
-dms.card.approval.TXT_APPROVER_NO_ENDPOINT,บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
-dms.card.approval.TXT_EXEC_FAIL_ADMIN,อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่
-dms.card.approval.TXT_NOT_APPROVER,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
-dms.card.approval.TXT_NO_APPROVERS,ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms
-dms.card.approval.TXT_PICK_APPROVER,ส่งคำขอให้ใครอนุมัติ
-dms.card.approval.TXT_PICK_APPROVER_SUB,เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
-dms.card.approval.TXT_PROCESSING,กำลังอัปเดตข้อมูล กรุณารอสักครู่
-dms.card.approval.TXT_REQ_APPROVED_ADMIN,อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย
-dms.card.approval.TXT_REQ_APPROVED_SALES,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
-dms.card.approval.TXT_REQ_EXPIRED,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
-dms.card.approval.TXT_REQ_REJECTED_ADMIN,ปฏิเสธคำขอแล้ว
-dms.card.approval.TXT_REQ_REJECTED_SALES,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
-dms.card.approval.TXT_REQ_STALE,คำขอนี้ถูกดำเนินการไปแล้ว
-dms.card.approval.TXT_SALES_FALLBACK,พนักงานขาย
-dms.card.approval.TXT_SENT_WAIT,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
 dms.card.car.brand,ยี่ห้อ
 dms.card.car.desc,รายละเอียดรถ
 dms.card.car.engine,เครื่องยนต์

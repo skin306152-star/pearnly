@@ -190,7 +190,7 @@ class batch:
     """`with line.batch(用户, 令牌):` —— 块内发给该用户的消息攒到块结束一次发出。
 
     · 嵌套同一用户：并入外层（外层没令牌、内层有，就接过令牌）；
-    · 块内发给**别人**的（例如审批通知管理员）照常立即发送；
+    · 块内发给**别人**的（例如通知另一个人）照常立即发送；
     · 需要真实送达结果的发送（带 `retry_key` 的回执）会当场连同已攒的消息一起发出，
       并返回真实结果；其余发送在块内返回 True（已接收，块结束时发）。
     """
@@ -499,6 +499,32 @@ def start_loading_background(user_id: str, seconds: int = 30):
         return False
 
     return wait
+
+
+def reply_sender(reply_token: str):
+    """给后台线程用的回覆：令牌与请求头在调用线程里取好，返回 `send(messages) -> bool`，可在任何线程调用、只能用一次。
+
+    用在"任务跑得久、免费回覆令牌快过期"时由计时线程先回一句（LINE：令牌收到后 1 分钟内有效、只能用一次）。
+    线程里不碰站点上下文与数据库，也不记用量（`_count` 要站点上下文）。没有令牌或没配渠道 → 返回恒为 False 的 `send`。
+    """
+    if not reply_token or not _conf("channel_access_token"):
+        return lambda messages: False
+    headers = _headers()
+
+    def send(messages: list) -> bool:
+        try:
+            resp = requests.post(
+                "https://api.line.me/v2/bot/message/reply",
+                headers=headers,
+                json={"replyToken": reply_token, "messages": messages[:_BATCH_LIMIT]},
+                timeout=TIMEOUT,
+            )
+        except requests.RequestException:
+            logger.warning("[line] background reply failed")
+            return False
+        return resp.status_code == 200
+
+    return send
 
 
 def get_profile(user_id: str) -> dict:

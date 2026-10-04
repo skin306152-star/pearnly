@@ -29,7 +29,6 @@ class NativeCustomerAttempt(lab["SnapshotLabCase"]):
     def setUp(self):
         super().setUp()
         self.names = set()
-        self.approvals = set()
 
     def make(self, suffix="a", owner=0):
         marker = attempt(self.endpoints[owner], self.users[owner], self.uid + "-" + suffix)
@@ -40,11 +39,8 @@ class NativeCustomerAttempt(lab["SnapshotLabCase"]):
         frappe.db.rollback()
         for name in self.names:
             frappe.db.delete(LOG, {"name": name, "actor": ["in", self.users]})
-        for name in self.approvals:
-            frappe.db.delete("DMS Change Request", {"name": name, "operator_user": ["in", self.users]})
         frappe.db.commit()
         self.assertFalse(any(frappe.db.exists(LOG, name) for name in self.names))
-        self.assertFalse(any(frappe.db.exists("DMS Change Request", name) for name in self.approvals))
         super().tearDown()
 
     def test_before_dispatch_has_no_marker_and_success_recovers_only_this_request(self):
@@ -143,44 +139,8 @@ class NativeCustomerAttempt(lab["SnapshotLabCase"]):
                 other.begin()
             self.assertFalse(frappe.db.exists(LOG, other.name))
 
-    def test_stale_approval_worker_cannot_finish_another_claim_from_old_rr_view(self):
-        from pearnly_dms.approval import approval_store
-        request = approval_store.create_request(self.users[0], endpoint_id=self.endpoint,
-                                               customer_id="SYNTHETIC-CUSTOMER")
-        self.assertTrue(request)
-        self.approvals.add(request)
-        claimed = approval_store.claim(request, self.users[0])
-        self.assertEqual(claimed["status"], "processing")
-        # Establish this connection's old RR view before another process claims.
-        self.assertEqual(approval_store.get_request(request)["decided_by"], self.users[0])
-        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--reclaim",
-                                 request, self.users[1]], capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 0, result.stderr[-1500:])
-        self.assertTrue(json.loads(result.stdout)["claimed"])
-        self.assertFalse(approval_store.finish(request, "approved", expected_claim=claimed))
-        frappe.db.commit()
-        live = approval_store.get_request(request)
-        self.assertEqual((live["status"], live["decided_by"]), ("processing", self.users[1]))
-        self.assertTrue(approval_store.finish(request, "rejected", expected_claim=live))
-
-
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--reclaim":
-        lab["connect"]()
-        try:
-            from pearnly_dms.approval import approval_store
-            request, actor = sys.argv[2:4]
-            # Only the UUID-owned fixture request can be expired/reclaimed.
-            operator = frappe.db.get_value(approval_store.DT, request, "operator_user")
-            if not operator or not operator.startswith("snapshot-") or not actor.startswith("snapshot-"):
-                raise RuntimeError("Refusing foreign approval fixture")
-            frappe.db.set_value(approval_store.DT, request, "processing_at",
-                                frappe.utils.add_to_date(minutes=-11))
-            frappe.db.commit()
-            print(json.dumps({"claimed": bool(approval_store.claim(request, actor))}))
-        finally:
-            frappe.destroy()
-    elif len(sys.argv) > 1 and sys.argv[1] == "--reserve":
+    if len(sys.argv) > 1 and sys.argv[1] == "--reserve":
         lab["connect"]()
         try:
             try:

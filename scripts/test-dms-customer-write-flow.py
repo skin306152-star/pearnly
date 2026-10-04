@@ -182,65 +182,6 @@ class CustomerWriteFlow(unittest.TestCase):
         self.assertEqual(self.transport.records["own"]["txtemail"], "changed@example.invalid")
         self.assertEqual(self.transport.records["own"]["txttel"], queue["PHONE"])
 
-    def test_old_approval_cannot_authorize_new_conflicting_value(self):
-        from pearnly_dms.approval import approval_flow, approval_store
-        payload = self.review()
-        self.transport.records["own"] = identity["record"]()
-        baseline = self.client.read_customer("own")
-        payload.update(customer_id="own", customer_baseline=baseline, has_admin=True)
-        binding = {"user_id": USER, "binding_revision": "revision-1"}
-        self.store.set_session(UID, "approval_pending", {
-            "approval_request": "approval-one", "source": payload, "binding": binding})
-        req = {"id": "approval-one", "operator_user_id": USER, "customer_id": "own",
-               "field_diffs": [{"field": "phone", "old": baseline["phone"], "new": queue["PHONE"]}],
-               "draft": {"fields": payload["draft"], "baseline": baseline}}
-        self.transport.records["own"]["txttel"] = "0800000888"
-        finish = self.enterContext(patch.object(approval_store, "finish", return_value=True))
-        self.enterContext(patch.object(approval_flow.roster_store, "line_user_id_of", return_value=UID))
-        self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
-        approval_flow._execute_approved(binding, UID, req)
-        finish.assert_called_once_with("approval-one", "rejected", expected_claim=req)
-        fresh = self.store.get_session(UID)
-        self.assertEqual(fresh["state"], "reviewing")
-        self.assertEqual(fresh["payload"]["customer_baseline"]["phone"], "0800000888")
-        self.assertFalse(self.transport.writes())
-
-    def test_old_approval_conflict_does_not_replace_new_operator_draft(self):
-        from pearnly_dms.approval import approval_flow, approval_store
-        payload = self.review()
-        self.transport.records["own"] = identity["record"]()
-        baseline = self.client.read_customer("own")
-        self.transport.records["own"]["txttel"] = "0800000888"
-        self.enterContext(patch.object(approval_store, "finish", return_value=True))
-        self.enterContext(patch.object(approval_flow.roster_store, "line_user_id_of", return_value=UID))
-        self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
-        approval_flow._execute_approved({"user_id": USER}, UID, {
-            "id": "old-request", "operator_user_id": USER, "customer_id": "own",
-            "field_diffs": [{"field": "phone", "new": queue["PHONE"]}],
-            "draft": {"fields": payload["draft"], "baseline": baseline}})
-        self.assertEqual(self.store.get_session(UID)["payload"], payload)
-        self.assertFalse(self.transport.writes())
-
-    def test_lost_approval_claim_cannot_reopen_review_even_for_original_draft(self):
-        from pearnly_dms.approval import approval_flow, approval_store
-        payload = self.review()
-        self.transport.records["own"] = identity["record"]()
-        baseline = self.client.read_customer("own")
-        binding = {"user_id": USER, "binding_revision": "revision-1"}
-        pending = {"approval_request": "old-request", "source": payload, "binding": binding}
-        self.store.set_session(UID, "approval_pending", pending)
-        self.transport.records["own"]["txttel"] = "0800000888"
-        self.enterContext(patch.object(approval_store, "finish", return_value=False))
-        self.enterContext(patch.object(approval_flow.roster_store, "line_user_id_of", return_value=UID))
-        self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
-        approval_flow._execute_approved(binding, UID, {
-            "id": "old-request", "operator_user_id": USER, "customer_id": "own",
-            "field_diffs": [{"field": "phone", "new": queue["PHONE"]}],
-            "draft": {"fields": payload["draft"], "baseline": baseline}})
-        self.assertEqual(self.store.get_session(UID)["state"], "approval_pending")
-        self.assertEqual(self.store.get_session(UID)["payload"], pending)
-        self.assertFalse(self.transport.writes())
-
     def booking_editor(self):
         from pearnly_dms.editor import booking_edit, edit_snapshot
         self.transport.records["own"] = identity["record"](txtbirthday="01/01/2530")
@@ -272,28 +213,6 @@ class CustomerWriteFlow(unittest.TestCase):
             "regis_id": "regis", "delivery_date_be": "30/09/2569", "regis_name": baseline["name"]},
             "payments": [{"channel": "cash", "amount": "10.25", "extra": {}}], "keep_files": {}}
         return booking_edit, baseline, submitted
-
-    def test_approval_revoked_during_live_read_cannot_dispatch(self):
-        from pearnly_dms.approval import approval_flow, approval_store
-        payload = self.review()
-        self.transport.records["own"] = identity["record"]()
-        baseline = self.client.read_customer("own")
-        req = {"id": "active-request", "operator_user_id": USER, "customer_id": "own",
-               "processing_at": "claim-time", "decided_by": USER, "status": "processing",
-               "field_diffs": [{"field": "phone", "old": baseline["phone"], "new": queue["PHONE"]}],
-               "draft": {"fields": payload["draft"], "baseline": baseline}}
-        self.enterContext(patch.object(approval_store, "get_request", return_value=req))
-        self.enterContext(patch.object(approval_store, "finish", return_value=True))
-        self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
-        post = self.transport.post
-        def revoked(url, **kwargs):
-            if url.endswith("cus/form.php"):
-                self.db.rows["DMS Operator", "operator"]["status"] = "inactive"
-            return post(url, **kwargs)
-        self.transport.post = revoked
-        approval_flow._execute_approved({"user_id": USER, "binding_revision": "revision-1"}, UID, req)
-        self.assertFalse(self.transport.writes())
-        self.assertFalse(self.ledgers())
 
     def test_booking_editor_freezes_baseline_and_only_records_user_edits(self):
         editor, baseline, submitted = self.booking_editor()

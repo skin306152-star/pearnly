@@ -43,6 +43,10 @@ def handle(event: dict) -> bool:
     """
     source = event.get("source") or {}
     user_id = source.get("userId") or ""
+    # 记下回覆令牌的收到时间：后台任务跑得久时据此在令牌过期前先回一句（`line.out._SlowReply`）。
+    from pearnly_dms.line import out as dms_out
+
+    dms_out.note_reply_token(event.get("replyToken") or "")
     # 回给这个人的卡片、提示用他手机上 LINE 的语言（用户 2026-09-27，与 ERP 一致）；
     # 顺手核一下他的图文菜单是不是这个语言，不是就排一次重挂。
     with i18n.line_language(user_id) as language, line.batch(user_id, event.get("replyToken") or ""):

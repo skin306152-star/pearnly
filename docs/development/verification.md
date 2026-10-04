@@ -54,7 +54,7 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
 | LINE 入口路由 | `scripts/sample-verify-dms-entry-e2e.sh <组> <测试Site>` | 出口和两处入队均替换，真实本地会话；不是 LINE 真机 E2E |
 | 网页编辑器 API/票据 | `scripts/sample-verify-dms-edit-browser.sh <组> <测试Site> <端口>` | 本地 Site 与 HTTP 断言；已有脚本假定该测试站点未配置 LIFF |
 | 编辑器页面 | `scripts/sample-verify-dms-edit-page.sh <组> <测试Site> <端口>` | 先读脚本，核对真实 DMS 主档读取、测试草稿及消息出口；不默认离线 |
-| 查询/审批/其他 DMS 模块 | `scripts/sample-verify-dms-*.sh` 中对应单项 | 先读选中脚本和被调用代码，逐项确认副作用；禁止 glob 批量运行 |
+| 查询/其他 DMS 模块 | `scripts/sample-verify-dms-*.sh` 中对应单项 | 先读选中脚本和被调用代码，逐项确认副作用；禁止 glob 批量运行 |
 
 测试前必须确认容器运行或挂载的是本次工作树的代码；脚本从本树送进容器，不代表容器中的 App 也来自本树。记录镜像 ID、挂载来源及 Site。多个脚本共用 `/tmp/dmscheck`，未经隔离不要并行覆盖同名脚本或争用同一测试账号。
 

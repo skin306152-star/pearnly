@@ -10,8 +10,8 @@
 1. 提示发身份证的文字带一个快捷按钮，打开 LIFF 扫描页（票据模式 `scan`）；
 2. 页面上传照片 → `store_upload`：只在收料态（`collecting`）收，照片存站点私有目录，
    会话的 `pending_image` 记成 `scan:<id>`（与聊天里发照片同一个"以最后一张为准"的规则）；
-3. 页面替业务员在聊天里发一句「📷 … #<短码>」→ webhook 收到这条文字（带免费回覆令牌）→
-   `handle_marker` 开始识别；LIFF 没有发消息权限（`chat_message.write`）时页面改调 `start`，
+3. 页面替业务员在聊天里发一句纯文字「… #<短码>」（`line.page_reply`，不加图标）→ webhook 收到这条文字
+   （带免费回覆令牌）→ `handle_code` 开始识别；LIFF 没有发消息权限（`chat_message.write`）时页面改调 `start`，
    结果只能走推播；
 4. 识别任务读照片走 `read`（代替从 LINE 下载），之后与聊天里发照片完全相同。
 
@@ -32,7 +32,6 @@ import frappe
 from pearnly_dms.line import cards
 
 PREFIX = "scan:"
-MARK = "📷"
 CODE_LENGTH = 6
 # 识别排队最长 30 分钟（`max_age`），登记与原件都留一小时。
 TTL_SECONDS = 60 * 60
@@ -40,7 +39,6 @@ _STALE_SECONDS = TTL_SECONDS
 _KEY = "pearnly:dms:id-scan:"
 _STARTED = "pearnly:dms:id-scan-started:"
 _ID = re.compile(r"[0-9a-f]{16}")
-_MARKER = re.compile(r"^" + MARK + r".*#([0-9a-f]{%d})\s*$" % CODE_LENGTH, re.S)
 
 
 class ScanError(Exception):
@@ -93,8 +91,10 @@ def prompt(text: str) -> dict:
 
 
 def marker_text(code: str) -> str:
-    """页面替业务员发回聊天的那句话（按收件人语言）；`handle_marker` 认它末尾的短码。"""
-    return f"{MARK} {cards.TXT_SCAN_SENT} #{code}"
+    """页面替业务员发回聊天的那句话（按收件人语言，纯文字）；`line.page_reply.route` 认它。"""
+    from pearnly_dms.line import page_reply
+
+    return page_reply.marker("scan", code)
 
 
 def _binding(line_user_id: str) -> Optional[dict]:
@@ -185,12 +185,9 @@ def _begin(line_user_id: str, pending: str, reply_token: str) -> bool:
     return True
 
 
-def handle_marker(line_user_id: str, reply_token: str, text: str) -> bool:
-    """聊天里收到扫描页发的那句话 → 用它的免费回覆令牌开始识别。不是这句话返回 False。"""
-    match = _MARKER.match(str(text or "").strip())
-    if not match:
-        return False
-    pending = _pending(line_user_id, match.group(1))
+def handle_code(line_user_id: str, reply_token: str, code: str) -> bool:
+    """聊天里收到扫描页发的那句话（`line.page_reply.route` 已认出短码）→ 用它的免费回覆令牌开始识别。"""
+    pending = _pending(line_user_id, code)
     if not pending:
         from pearnly_core import line
 
@@ -228,5 +225,5 @@ def read(message_id: str, line_user_id: str) -> bytes:
     return content
 
 
-__all__ = ["MARK", "PREFIX", "ScanError", "handle_marker", "link", "marker_text", "prompt",
+__all__ = ["PREFIX", "ScanError", "handle_code", "link", "marker_text", "prompt",
            "read", "start", "store_upload"]

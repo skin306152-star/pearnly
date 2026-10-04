@@ -8,11 +8,10 @@
 
 会话在入口只读一次，沿分支透传 —— 同一条消息不重复读库。
 
-### 各分支的归属（2026-09-21 复核：这段曾写"查询/审批没搬"，与代码不符）
+### 各分支的归属
 
 · **查询**：`query_flow.handle_text` 在 `menu_flow.handle_choice` **之前**接手
   （见下面 `route` 的顺序）——正在查数据时打的字不会被吃成手机号。
-· **审批**：POSTBACK 那条链在 `flow.handle_postback` 里认 `approval_flow.APPROVAL_ACTIONS`。
 · **逐字段修正**：线上基准那版已经把它换成**浏览器编辑页**（`ACT_EDIT` → 编辑页），
   不是缺口 —— 别按"对话里逐字段改"的老印象找回来。
 · **菜单层与订车逐问**：`เมนู` / 问候语弹菜单卡；逐问态与待确认态的文本各有归属。
@@ -56,10 +55,11 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
 
     state = (sess or {}).get("state")
 
-    # 扫描页替业务员发回的那句话（「📷 … #短码」）：开始识别。它带数字，必须排在"含数字→手机号"之前。
-    from pearnly_dms.intake import scan as id_scan
+    # LINE 里打开的页面（扫身份证、编辑页）替业务员发回的那句话（「… #短码」）：开始识别 / 送回新卡。
+    # 它带数字，必须排在"含数字→手机号"之前。
+    from pearnly_dms.line import page_reply
 
-    if id_scan.handle_marker(line_user_id, reply_token, text):
+    if page_reply.route(line_user_id, reply_token, text):
         return
 
     # 查询那两条"等打字"的态**排在订车前面**（照线上顺序：查询 → 逐问 → 待确认）。
@@ -100,6 +100,8 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
     else:
         tip = nudge(sess)
         if tip in (cards.TXT_ASK_CARD, cards.TXT_NEED_BOTH):
+            from pearnly_dms.intake import scan as id_scan
+
             tip = id_scan.prompt(tip)
         line.reply(reply_token, [tip if isinstance(tip, dict) else {"type": "text", "text": tip}])
 

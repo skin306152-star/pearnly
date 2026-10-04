@@ -185,21 +185,23 @@ export function uploadScan(ticket: string, image: string): Promise<{ code: strin
   return call<{ code: string; marker: string }>(`${API}browser_scan`, { ticket, image }, { method: "POST" });
 }
 
-const SCAN_MARKER_KEY = "pearnly_dms_scan_marker";
-const SCAN_CODE_KEY = "pearnly_dms_scan_code";
+const PAGE_MARKER_KEY = "pearnly_dms_page_marker";
+const PAGE_CODE_KEY = "pearnly_dms_page_code";
+const PAGE_KIND_KEY = "pearnly_dms_page_kind";
 
 /**
- * 交回 LINE：替业务员发消息要在 LIFF 登记的地址下 init 之后才能做，所以把那句话与短码放进
- * sessionStorage，跳回交接页（`/liff/dms-booking?editor=scan_sent`）由它发送并关窗。
+ * 交回 LINE：替业务员发消息要在 LIFF 登记的地址下 init 之后才能做，所以把那句话、短码与页面类型放进
+ * sessionStorage，跳回交接页（`/liff/dms-booking?editor=page_sent`）由它发送并关窗（`line/page_reply.py`）。
  */
-export function returnToChat(result: { code: string; marker: string }): void {
+export function returnToChat(kind: "scan" | "edit", result: { code: string; marker: string }): void {
   try {
-    sessionStorage.setItem(SCAN_MARKER_KEY, result.marker);
-    sessionStorage.setItem(SCAN_CODE_KEY, result.code);
+    sessionStorage.setItem(PAGE_MARKER_KEY, result.marker);
+    sessionStorage.setItem(PAGE_CODE_KEY, result.code);
+    sessionStorage.setItem(PAGE_KIND_KEY, kind);
   } catch {
-    /* 存不下：交接页会提示过期，业务员可以直接在聊天里发照片 */
+    /* 存不下：交接页会提示过期，业务员回聊天重来即可 */
   }
-  window.location.replace("/liff/dms-booking?editor=scan_sent");
+  window.location.replace("/liff/dms-booking?editor=page_sent");
 }
 
 export function loadDraft(ticket: string, nonce: string): Promise<Draft> {
@@ -223,8 +225,8 @@ export function saveDraft(
   ticket: string,
   nonce: string,
   payload: Record<string, unknown>,
-): Promise<{ nonce: string }> {
-  return call<{ nonce: string }>(
+): Promise<{ nonce: string; code?: string; marker?: string }> {
+  return call<{ nonce: string; code?: string; marker?: string }>(
     `${API}browser_save`,
     { ticket, nonce, form: JSON.stringify(payload) },
     { method: "POST" },
