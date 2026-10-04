@@ -32,7 +32,7 @@ if [ "$WITH_NGINX" = 1 ]; then
   cp "$ROOT/infrastructure/production/landing.conf" "$WORK/bundle/landing.conf"
 fi
 
-tar -C "$WORK/bundle" -cf - . | ssh "$HOST" "set -e
+COPYFILE_DISABLE=1 tar -C "$WORK/bundle" -cf - . | ssh "$HOST" "set -e
 in=\$(mktemp -d)
 trap 'rm -rf \$in' EXIT
 tar -C \$in -xf -
