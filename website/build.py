@@ -36,7 +36,8 @@ def plain(text):
 
 
 # 只有泰文版的页面（教程文章）：不加语言前缀、不出多语 hreflang。
-THAI_ONLY = {"guides": "/guides/", **{"guide:" + g.slug: f"/guides/{g.slug}/" for g in G.ALL}}
+THAI_ONLY = {"guides": "/guides/", **{"guide:" + g.slug: f"/guides/{g.slug}/" for g in G.ALL},
+             **{"landing:" + g.slug: f"/{g.slug}/" for g in G.LANDING}}
 
 
 def url(lang, key):
@@ -179,6 +180,8 @@ def header(lang, key):
 def footer(lang):
     t = C.COMMON[lang]
     products = "".join(f'<li><a href="{url(lang, k)}">{esc("Pearnly " + C.PRODUCT[k][lang]["name"])}</a></li>' for k in C.PRODUCTS)
+    if lang == "th":
+        products += "".join(f'<li><a href="{url(lang, "landing:" + g.slug)}">{esc(g.meta.get("short", g.h1))}</a></li>' for g in G.LANDING)
     tools = "".join(f'<li><a href="{url(lang, k)}">{esc(C.TOOL[k][lang]["name"])}</a></li>' for k in C.TOOLS)
     return f"""</main>
 <footer class="footer">
@@ -381,11 +384,11 @@ def home_guides(lang):
 
 
 def related_guides(lang, matches):
-    """泰文页面底部的“延伸阅读”：工具页按 tools、产品页按 product 找文章。"""
-    found = [g for g in G.ALL if matches(g)]
+    """泰文页面底部的“延伸阅读”：工具页按 tools、产品页按 product 找关键词专页与文章。"""
+    found = [("landing:" + g.slug, g) for g in G.LANDING if matches(g)] + [("guide:" + g.slug, g) for g in G.ALL if matches(g)]
     if lang != "th" or not found:
         return ""
-    links = "".join(f'<li><a href="{url(lang, "guide:" + g.slug)}">{esc(g.h1)}</a></li>' for g in found)
+    links = "".join(f'<li><a href="{url(lang, key)}">{esc(g.h1)}</a></li>' for key, g in found)
     return f'<section class="wrap narrow section"><h2 class="display">{esc(C.GUIDE_TEXT["related"])}</h2><ul class="plain-links">{links}</ul></section>'
 
 
@@ -605,6 +608,53 @@ def page_guide(g):
     return head(lang, key, g.title, g.description, [ORG, breadcrumb(lang, trail), article]) + header(lang, key) + body + footer(lang)
 
 
+def page_landing(g):
+    """关键词专页：一个搜索需求一页，带产品总览片、常见问题（FAQPage）与相关文章/工具。"""
+    lang, t, T = "th", C.COMMON["th"], C.GUIDE_TEXT
+    key = "landing:" + g.slug
+    p, o = C.PRODUCT[g.product][lang], C.OVERVIEW[g.product]
+    trail = [("home", t["home"]), (g.product, "Pearnly " + p["name"]), (key, g.h1)]
+    video = (f'<video preload="none" playsinline controls poster="{o["poster"]}" width="1920" height="1080" aria-label="{esc(t["overview"])}">'
+             f'<source src="{video_url(o)}" type="video/mp4"></video>'
+             f'<button type="button" class="playbtn" aria-label="{esc(t["play"])}"><span class="circle">{icon("play")}</span></button>')
+    bar = f'<span class="wintitle">{esc(t["overview"])} · Pearnly {esc(p["name"])}</span>'
+    more = f'<a class="btn light" href="{url(lang, g.product)}">{esc(t["more"])}</a>'
+    faq = "".join(f"<details><summary>{esc(q)}</summary><p>{esc(a)}</p></details>" for q, a in g.faq)
+    related = "".join(
+        f'<a class="tile" href="{url(lang, "guide:" + other.slug)}"><span class="eyebrow">{esc(T["label"])}</span><h3>{esc(other.h1)}</h3><p>{esc(other.lead)}</p></a>'
+        for other in G.ALL if other.slug in g.meta.get("guides", [])
+    ) + "".join(
+        f'<a class="tile" href="{url(lang, k)}"><span class="eyebrow">{esc(t["nav"]["tools"])}</span><h3>{esc(C.TOOL[k][lang]["name"])}</h3><p>{esc(C.TOOL[k][lang]["short"])}</p></a>'
+        for k in g.tools
+    )
+    related_html = f'<section class="wrap section"><h2 class="display center">{esc(T["related"])}</h2><div class="tiles three">{related}</div></section>' if related else ""
+    graph = [ORG, breadcrumb(lang, trail),
+             {"@type": "WebPage", "name": g.h1, "description": g.description, "url": absolute(url(lang, key)), "inLanguage": "th",
+              "dateModified": g.updated, "about": {"@type": "SoftwareApplication", "name": "Pearnly " + p["name"], "url": absolute(url(lang, g.product))},
+              "publisher": {"@id": ORG["@id"]}},
+             {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in g.faq]}]
+    body = f"""<section class="hero sub">
+  <div class="wrap center">
+    {crumbs(lang, trail)}
+    <span class="badge">{esc(p["who"])}</span>
+    <h1 class="display">{esc(g.h1)}</h1>
+    <p class="lead">{esc(g.lead)}</p>
+    {cta_buttons(lang, more)}
+  </div>
+  <div class="wrap wide">{window(f'<div class="player">{video}</div>', bar, "reveal")}</div>
+</section>
+<section class="wrap narrow">
+  <article class="prose">{g.body}</article>
+</section>
+<section class="wrap narrow section">
+  <h2 class="display">{esc(t["faq"])}</h2>
+  <div class="faq">{faq}</div>
+</section>
+{related_html}
+"""
+    return head(lang, key, g.title, g.description, graph) + header(lang, key) + body + contact(lang) + footer(lang)
+
+
 def page_404(lang):
     t = C.COMMON[lang]
     back = f'<div class="actions"><a class="btn dark" href="{url(lang, "home")}">{esc(t["notfound_back"])}</a></div>'
@@ -618,6 +668,8 @@ def render(lang, key):
         return page_guides()
     if key.startswith("guide:"):
         return page_guide(next(g for g in G.ALL if "guide:" + g.slug == key))
+    if key.startswith("landing:"):
+        return page_landing(next(g for g in G.LANDING if "landing:" + g.slug == key))
     if key == "home":
         return page_home(lang)
     if key in C.PRODUCTS:

@@ -1,14 +1,16 @@
-"""泰文教程文章：website/guides/<slug>.html。
+"""泰文教程文章 website/guides/<slug>.html 与关键词专页 website/landing/<slug>.html。
 
 文件开头一段 HTML 注释写 JSON 元数据，其余是文章正文 HTML（只用 h2/h3/p/ul/ol/table/.note）。
-文章只有泰文版（面向泰国搜索），所以不出 hreflang 多语版本。涉及税务规则的文章发布前要经用户或会计确认。
+两类都只有泰文版（面向泰国搜索），所以不出 hreflang 多语版本。涉及税务规则的文章发布前要经用户或会计确认。
+关键词专页每页只主攻一个搜索需求，元数据多一个 faq（[[问, 答], ...]），网址在站点根下 /<slug>/。
 """
 import json
 import re
 from pathlib import Path
 
-DIR = Path(__file__).resolve().parent / "guides"
+HERE = Path(__file__).resolve().parent
 REQUIRED = ("order", "title", "description", "h1", "lead", "published", "updated", "minutes", "product", "tools")
+LANDING_REQUIRED = ("order", "title", "description", "h1", "lead", "updated", "product", "tools", "faq")
 FRONT = re.compile(r"\A\s*<!--(.*?)-->\s*", re.S)
 H2 = re.compile(r"<h2>(.*?)</h2>", re.S)
 THAI_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -42,15 +44,15 @@ def thai_date(iso):
     return f"{day} {THAI_MONTHS[month - 1]} {year + 543}"
 
 
-def load():
+def load(directory="guides", required=REQUIRED):
     guides = []
-    for path in sorted(DIR.glob("*.html")):
+    for path in sorted((HERE / directory).glob("*.html")):
         text = path.read_text(encoding="utf-8")
         match = FRONT.match(text)
         if not match:
             raise ValueError(f"{path.name}: missing front matter comment")
         meta = json.loads(match.group(1))
-        missing = [key for key in REQUIRED if key not in meta]
+        missing = [key for key in required if key not in meta]
         if missing:
             raise ValueError(f"{path.name}: missing {missing}")
         guides.append(Guide(path.stem, meta, text[match.end():].strip()))
@@ -58,3 +60,4 @@ def load():
 
 
 ALL = load()
+LANDING = load("landing", LANDING_REQUIRED)

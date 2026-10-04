@@ -129,6 +129,15 @@ class WebsiteTest(unittest.TestCase):
             _, toc = g.sections()
             self.assertGreaterEqual(len(toc), 3, g.slug)
             self.assertNotIn("Express", g.body, g.slug)
+        slugs = {g.slug for g in G.ALL}
+        self.assertGreaterEqual(len(G.LANDING), 1)
+        for g in G.LANDING:
+            self.assertIn(g.product, C.PRODUCTS, g.slug)
+            self.assertTrue(all(tool in C.TOOLS for tool in g.tools), g.slug)
+            self.assertTrue(set(g.meta.get("guides", [])) <= slugs, g.slug)
+            self.assertGreaterEqual(len(g.faq), 3, g.slug)
+            self.assertNotIn("Express", g.body + json.dumps(g.meta, ensure_ascii=False), g.slug)
+            self.assertNotIn(g.slug, C.PAGES, "landing slug must not shadow a site page")
 
     def test_not_found_page_is_not_indexed(self):
         self.assertIn('<meta name="robots" content="noindex">', (self.out / "404.html").read_text(encoding="utf-8"))
