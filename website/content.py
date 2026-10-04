@@ -32,12 +32,12 @@ PAGES = {
 PRODUCTS = ("cowork", "dms", "erp")
 TOOLS = ("baht-text", "vat", "withholding-tax", "tax-id")
 
-# 每个产品页只放一段总览片。视频不进仓库：放在服务器 /var/www/pearnly-media（网址 /media/），
-# 由 scripts/publish-website.sh --media 从 website/media/ 上传；封面在 static/posters/。
+# 每个产品页只放一段总览片。视频在 Cloudflare R2 桶 pearnly-media（media.pearnly.com，与 DMS LINE 手册视频同处，不进仓库）；
+# v 是文件 sha256 前 10 位，换片后改 v 才能绕过 CDN 旧缓存。封面在 static/posters/。
 OVERVIEW = {
-    "cowork": {"file": "cowork-overview.mp4", "poster": "/static/posters/cowork.jpg", "seconds": 175, "uploaded": "2026-09-29"},
-    "dms": {"file": "dms-overview.mp4", "poster": "/static/posters/dms.jpg", "seconds": 149, "uploaded": "2026-09-28"},
-    "erp": {"file": "erp-overview.mp4", "poster": "/static/posters/erp.jpg", "seconds": 92, "uploaded": "2026-09-28"},
+    "cowork": {"file": "cowork-overview.mp4", "v": "64ab0f600a", "poster": "/static/posters/cowork.jpg", "seconds": 175, "uploaded": "2026-09-29"},
+    "dms": {"file": "dms-overview.mp4", "v": "38bd04a455", "poster": "/static/posters/dms.jpg", "seconds": 149, "uploaded": "2026-09-28"},
+    "erp": {"file": "erp-overview.mp4", "v": "a977b3f7fc", "poster": "/static/posters/erp.jpg", "seconds": 92, "uploaded": "2026-09-28"},
 }
 
 # 功能图标（各语言同序），图形在 build.py 的 ICONS。

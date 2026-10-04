@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """生成 pearnly.com 静态官网：纯 HTML + 一个样式表 + 两个脚本（站点交互 site.js、免费工具 tools.js），只用标准库。
 
-用法：python3 website/build.py [--out DIR] [--preview]（默认 website/dist，不提交；--preview 把 website/media 链进去供本地看视频）。
+用法：python3 website/build.py [--out DIR]（默认 website/dist，不提交）。
 文案在 content.py；发布见 scripts/publish-website.sh。
 """
 import argparse
@@ -40,6 +40,10 @@ def url(lang, key):
 
 def absolute(path):
     return C.SITE + path
+
+
+def video_url(overview):
+    return f"{C.MEDIA}{overview['file']}?v={overview['v']}"
 
 
 def asset_version():
@@ -356,7 +360,7 @@ def page_product(lang, key):
         for k in C.PRODUCTS if k != key
     )
     video = (f'<video preload="none" playsinline controls poster="{o["poster"]}" width="1920" height="1080" aria-label="{esc(t["overview"])}">'
-             f'<source src="/media/{o["file"]}" type="video/mp4"></video>'
+             f'<source src="{video_url(o)}" type="video/mp4"></video>'
              f'<button type="button" class="playbtn" aria-label="{esc(t["play"])}"><span class="circle">{icon("play")}</span></button>')
     bar = f'<span class="wintitle">{esc(t["overview"])} · Pearnly {esc(p["name"])}</span>'
     trail = [("home", t["home"]), (key, "Pearnly " + p["name"])]
@@ -366,7 +370,7 @@ def page_product(lang, key):
               "operatingSystem": "Web, LINE", "description": p["description"], "url": absolute(url(lang, key)),
               "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}},
              {"@type": "VideoObject", "name": f"Pearnly {p['name']} · {t['overview']}", "description": p["description"],
-              "thumbnailUrl": absolute(o["poster"]), "contentUrl": absolute("/media/" + o["file"]), "uploadDate": o["uploaded"],
+              "thumbnailUrl": absolute(o["poster"]), "contentUrl": video_url(o), "uploadDate": o["uploaded"],
               "duration": f"PT{minutes}M{seconds}S", "inLanguage": "th", "publisher": {"@id": ORG["@id"]}}]
     body = f"""<section class="hero sub">
   <div class="wrap center">
@@ -520,8 +524,7 @@ def sitemap():
             'xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' + "\n".join(rows) + "\n</urlset>\n")
 
 
-def build(out, media=None):
-    """media：本地视频目录；给了就把它链接成 out/media 供本地预览（发布时视频另走 publish-website.sh --media）。"""
+def build(out):
     global VERSION
     VERSION = asset_version()
     if out.exists():
@@ -535,17 +538,14 @@ def build(out, media=None):
     (out / "404.html").write_text(page_404(C.DEFAULT_LANG), encoding="utf-8")
     (out / "sitemap.xml").write_text(sitemap(), encoding="utf-8")
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {C.SITE}/sitemap.xml\n", encoding="utf-8")
-    if media and media.is_dir():
-        (out / "media").symlink_to(media.resolve(), target_is_directory=True)
     return out
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=HERE / "dist")
-    parser.add_argument("--preview", action="store_true", help="link website/media into the output for local preview")
     args = parser.parse_args()
-    out = build(args.out.resolve(), HERE / "media" if args.preview else None)
+    out = build(args.out.resolve())
     pages = sum(1 for _ in out.rglob("index.html"))
     print(f"Built {pages} pages into {out}")
 

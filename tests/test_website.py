@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "website"))
 import build  # noqa: E402
 import content as C  # noqa: E402
 
-EXTERNAL_PREFIXES = ("/downloads/", "/media/")  # 小助手下载与总览视频由 nginx 另外提供，不在静态站里
+EXTERNAL_PREFIXES = ("/downloads/",)  # 小助手下载由 nginx 另外提供，不在静态站里
 
 
 class Page(HTMLParser):

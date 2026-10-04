@@ -23,6 +23,6 @@ frontend/components.d.ts
 /companion/build/
 /companion/dist/
 
-# 官网构建产物与本地总览视频（视频经 scripts/publish-website.sh --media 上传，不进仓库）
+# 官网构建产物（python3 website/build.py）与本地视频原片（视频在 R2 media.pearnly.com，不进仓库）
 /website/dist/
 /website/media/

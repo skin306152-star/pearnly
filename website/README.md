@@ -5,12 +5,12 @@
 - 泰文在 `/`，英文 `/en/`，中文 `/zh/`；每页自带 canonical、三语 hreflang、Open Graph 与 schema.org 结构化数据，另生成 `sitemap.xml`、`robots.txt`、`404.html`。
 - 文案只写产品已有的能力，不写准确率、价格或客户数；改文案只改 `content.py`。
 - 视觉：暖白底 + 点阵，黑白为主，不用品牌紫；字体 IBM Plex Sans Thai（正文）与 Source Serif 4（字标），经 Google Fonts。
-- 每个产品页只放一段总览片：视频文件放 `website/media/`（不进仓库，见 `content.py` 的 `OVERVIEW`），封面在 `static/posters/`，线上地址 `/media/…`。
+- 每个产品页只放一段总览片：视频在 Cloudflare R2 桶 `pearnly-media`（`media.pearnly.com`，与 DMS LINE 手册视频同处，免费额度内），封面在 `static/posters/`。换片：`npx wrangler r2 object put pearnly-media/<文件名> --file <本地文件> --content-type video/mp4 --remote`，再把 `content.py` 里 `OVERVIEW` 的 `v` 改成新文件 sha256 前 10 位（绕过 CDN 旧缓存）。
 
 本地预览：
 
 ```bash
-python3 website/build.py --preview && python3 -m http.server 8765 --directory website/dist
+python3 website/build.py && python3 -m http.server 8765 --directory website/dist
 ```
 
 检查：`python3 tests/test_website.py`（标签、链接、sitemap）与 `node --test tests/test-website-tools.cjs`（工具计算）。
@@ -18,7 +18,7 @@ python3 website/build.py --preview && python3 -m http.server 8765 --directory we
 发布（只从 `main` 发布，一次 SSH，上一版保留在 `/var/www/pearnly-landing.prev`）：
 
 ```bash
-bash scripts/publish-website.sh                  # 只换网页
-bash scripts/publish-website.sh --nginx --media  # 同时安装 landing.conf、上传总览视频
-bash scripts/publish-website.sh --rollback       # 网页换回上一版
+bash scripts/publish-website.sh              # 只换网页
+bash scripts/publish-website.sh --nginx      # 同时安装 infrastructure/production/landing.conf
+bash scripts/publish-website.sh --rollback   # 网页换回上一版
 ```
