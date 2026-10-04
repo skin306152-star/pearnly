@@ -70,7 +70,7 @@ def jsonld(data):
 
 ORG = {"@type": "Organization", "@id": C.SITE + "/#org", "name": "Pearnly", "legalName": C.COMPANY["legal_name"],
        "taxID": C.COMPANY["reg_no"], "url": C.SITE + "/", "logo": C.SITE + "/static/logo.png", "email": C.EMAIL,
-       "address": {"@type": "PostalAddress", **C.COMPANY["postal"]}, "sameAs": [C.LINE_URL]}
+       "address": {"@type": "PostalAddress", **C.COMPANY["postal"]}, "sameAs": [C.LINE_URL, C.YOUTUBE_URL]}
 
 # 线条图标（24 网格，描边用 currentColor）。
 ICONS = {
@@ -187,6 +187,7 @@ def footer(lang):
     <div><h2>{esc(t["contact"])}</h2><ul>
       <li><a href="{C.LINE_URL}" rel="noopener">LINE {esc(C.LINE_ID)}</a></li>
       <li><a href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a></li>
+      <li><a href="{C.YOUTUBE_URL}" rel="noopener">YouTube</a></li>
     </ul></div>
   </div>
   <div class="wrap legal">

@@ -7,6 +7,7 @@ SITE = "https://pearnly.com"
 LINE_URL = "https://line.me/R/ti/p/@pearnly"
 LINE_ID = "@pearnly"
 EMAIL = "hello@pearnly.com"
+YOUTUBE_URL = "https://www.youtube.com/@pearnlyth"
 COMPANION_URL = "/downloads/companion/PearnlyCompanion-Setup.exe"
 MEDIA = "https://media.pearnly.com/"
 
