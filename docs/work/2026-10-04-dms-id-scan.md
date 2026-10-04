@@ -76,3 +76,12 @@
 - 金标：裁剪后的照片与原图读法是否持平（ris 50 张，flash-lite），识别预算暂停中，需用户同意。
 - 省推播额度要在 LINE 后台给这个 LIFF 勾 `chat_message.write`（首次打开会多一个授权确认）；不勾功能照样能用，
   每次扫描多一条推播。若采用，开户说明 `line_guide_content` 那句"不勾"要一起改。
+
+## LIFF 发消息权限（2026-10-05）
+
+用户让我代为操作：LINE Developers → Pearnly（LINE Login，频道 2010411313）→ LIFF，给 `testdms`（`2010411313-6iTLjpWn`）与
+`rayong-lsuzu`（ris，`2010411313-KiXV2tco`）的 Scopes 加 `chat_message.write`（原来只有 `openid`，`profile` 仍不勾；端点不变）。
+刷新回读两者都是 `openid, chat_message.write`。开了之后 LIFF 不能最小化成浮窗（LINE 的限制，扫描页扫完自己关，不受影响）；
+业务员第一次打开扫描页会被 LINE 问一次是否允许代发消息。开户说明（`line_guide_content/zh.html` C2 第 3 步）改为
+"DMS 再勾 chat_message.write，ERP / Cowork 不勾"。
+
