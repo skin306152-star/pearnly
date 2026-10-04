@@ -58,3 +58,17 @@
   原因：控制面配的签发方是内部地址 `http://keycloak:8080/realms/…`，站点发的是公开地址 `https://auth.pearnly.com/realms/…`，
   按完整地址比对全部 not_permitted（实验室两边同一地址，没暴露）。修正为只比账号池名（分支 `codex/line-login-pool-realm`），
   只需重建 billing。期间原有关联仍在租户账号上，站点已按绑定认人，已有的 LINE 登录不受影响；新绑定登记会失败。
+
+## 部署 1088ded0（只更新 billing，UTC 2026-10-04）
+
+- 镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:700eb54a0e3ce97c328b791286c0b7013f7c73e890e3d6f5a21ce98c91fb014f`
+  （构建 run 37213603344、stage run 37214050661），日志 `/opt/pearnly/state/deploy-1088ded0.log`。部署工具同步到该镜像；
+  六站维护 15:43:43–15:45:49 跑 activate-foundation，产品容器仍是 0242752b 镜像（f5283c70）。
+- 回读：mrerp / testerp / erpcowork / testcowork 手动对账后绑定全部 `linked`；控制面关联 4 行（testcowork 记在业务池）；
+  业务池 U26139…、Ue93e6…，Cowork 池 Ue93e6… 各只由一个 `pearnly-line-*` 专用身份持有，租户账号身上不再有 LINE 关联；
+  六站 ping 200；billing 为新镜像。
+- Error Log（站点时间 22:15 之后）：五站 0；testcowork 30 条 `Session Stopped`，全在 22:32:03–04（15:32 UTC）同一秒，
+  都是小助手 `companion.queue_api.lease` 轮询，之后没有新的 —— 推测是第一次维护结束后个别 web 进程仍按旧的维护配置应答，与本改动无关。
+- 回退目标：产品回 `…@sha256:beff130d…`（1d690052），billing 回 0242752b 之前的镜像；回退后专用身份留在身份服务里不影响旧代码
+  （旧代码按租户账号认人，需对账重新把关联挂回租户账号）。
+- 待真机：用户在 LINE「Cowork-test」点库存盘点 / 任务管理，免密进入 testcowork；testerp 同理。
