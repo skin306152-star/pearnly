@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Pearnly</title>
+<style>@media(prefers-color-scheme:dark){rect:first-of-type{fill:#fff}path,rect:last-of-type{fill:#000}}</style>
+  <rect x="8" y="8" width="496" height="496" rx="72" fill="#000"/>
+  <path d="M88 424V112Q88 80 120 80H400Q432 80 432 112V252H228V304H432V352H180V236Q180 204 212 204H384V128H136V424Z" fill="#fff"/>
+  <rect x="180" y="384" width="252" height="40" fill="#fff"/>
+</svg>

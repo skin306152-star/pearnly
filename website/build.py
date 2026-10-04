@@ -69,7 +69,7 @@ def jsonld(data):
 
 
 ORG = {"@type": "Organization", "@id": C.SITE + "/#org", "name": "Pearnly", "legalName": C.COMPANY["legal_name"],
-       "taxID": C.COMPANY["reg_no"], "url": C.SITE + "/", "logo": C.SITE + "/static/logo.png", "email": C.EMAIL,
+       "taxID": C.COMPANY["reg_no"], "url": C.SITE + "/", "logo": C.SITE + "/static/logo-mark-512.png", "email": C.EMAIL,
        "address": {"@type": "PostalAddress", **C.COMPANY["postal"]}, "sameAs": [C.LINE_URL, C.YOUTUBE_URL]}
 
 # 线条图标（24 网格，描边用 currentColor）。
@@ -133,8 +133,8 @@ def head(lang, key, title, description, graph, noindex=False):
 <meta property="og:locale" content="{C.LANGS[lang]["og"]}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f8f8f6">
-<link rel="icon" href="/favicon.ico" sizes="48x48">
-<link rel="icon" type="image/png" sizes="96x96" href="/static/icon-96.png">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/svg+xml" href="/static/icon.svg">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
 <link rel="apple-touch-icon" href="/static/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
