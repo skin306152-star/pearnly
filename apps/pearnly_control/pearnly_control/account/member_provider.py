@@ -38,17 +38,24 @@ def _issuer_of(prefix):
     return str(frappe.conf.get(prefix + "_issuer") or "").rstrip("/")
 
 
+def _realm_of(issuer):
+    issuer = str(issuer or "").rstrip("/")
+    return issuer.rsplit("/realms/", 1)[1] if "/realms/" in issuer else ""
+
+
 def pool_prefix(product="erp", issuer=""):
     """站点实际签到哪个账号池就用哪个；没给签发方时按产品。
 
     老租户可能与产品默认的池不一致（testcowork 是 Cowork 产品却签到业务池，2026-10-04 查实），
-    按产品猜会把关联写进它根本不存在的池。签发方只能是已配置的池之一，否则拒绝。
+    按产品猜会把关联写进它根本不存在的池。只比账号池名：站点给的是公开地址
+    （`https://auth…/realms/x`），控制面配的是内部地址（`http://keycloak:8080/realms/x`）。
+    池只能是已配置的两个之一，否则拒绝。
     """
-    issuer = str(issuer or "").rstrip("/")
-    if not issuer:
+    if not str(issuer or "").strip():
         return config_prefix(product)
+    realm = _realm_of(issuer)
     for prefix in POOL_PREFIXES:
-        if _issuer_of(prefix) == issuer:
+        if realm and _realm_of(_issuer_of(prefix)) == realm:
             return prefix
     raise MemberError("not_permitted")
 
@@ -56,8 +63,7 @@ def pool_prefix(product="erp", issuer=""):
 def realm_prefix(realm):
     """账号池名 → 配置键前缀（解绑时按关联记录上的池找回去）。"""
     for prefix in POOL_PREFIXES:
-        issuer = _issuer_of(prefix)
-        if "/realms/" in issuer and issuer.rsplit("/realms/", 1)[1] == realm:
+        if realm and _realm_of(_issuer_of(prefix)) == realm:
             return prefix
     raise MemberError("unavailable")
 

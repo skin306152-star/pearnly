@@ -47,3 +47,14 @@
 | 工作树 | 本机 Python 3.12 | development.yml 全部闸门（34 条单行 + 2 条多行） | PASS |
 | 工作树 | 生产镜像 `4e80514d` + 本分支五个 App 源码，断网 2G | `test_member_service`、`test_line_login`、新增 `test_identity_callback`（43 条） | PASS |
 | 工作树 | 真实 Keycloak 26.7.4 + 假 LINE + 两个真实 Frappe 站点 + 控制面（`scripts/line-login-lab.sh all`，独立 colima 环境） | A–M 共 40 项，含新增 M1–M6「同一 LINE、两个租户、两个不同账号」与 G2–G4「被拒说明页、按钮注销后不再卡住」 | 40/40 PASS |
+
+## 部署 0242752b（UTC 2026-10-04）
+
+- 镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:f5283c708c783e81098ecdc067229be5e4377452e1ad4db36cdf3a5a7b26bbf2`
+  （构建 run 37211950852、stage run 37212407779），日志 `/opt/pearnly/state/deploy-0242752b.log`。
+- 激活：ERP 15:17:45、Cowork 15:21:09、DMS 15:24:10，都是 "activated with verified image"；六站维护 → activate-foundation
+  （billing 备份 / 迁移 / 重建）→ 15:28:17 退出维护。回读：24 个容器为新镜像，六站 ping 200。
+- 部署后：控制面补登记 testcowork 身份（T-2026-0287，`d753c4f0…`）；四个站点手动对账 → 全部 `failed`。
+  原因：控制面配的签发方是内部地址 `http://keycloak:8080/realms/…`，站点发的是公开地址 `https://auth.pearnly.com/realms/…`，
+  按完整地址比对全部 not_permitted（实验室两边同一地址，没暴露）。修正为只比账号池名（分支 `codex/line-login-pool-realm`），
+  只需重建 billing。期间原有关联仍在租户账号上，站点已按绑定认人，已有的 LINE 登录不受影响；新绑定登记会失败。

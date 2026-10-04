@@ -464,8 +464,9 @@ class TestProviderLinePerson(unittest.TestCase):
 class TestPoolPrefix(unittest.TestCase):
     def setUp(self):
         self.native = MagicMock()
-        self.native.conf = {"pearnly_member_identity_issuer": BUSINESS,
-                            "pearnly_member_identity_cowork_issuer": "https://auth.example.test/realms/pearnly-cowork"}
+        # 生产：控制面配内部地址，站点发来公开地址（2026-10-04 部署后查实，按完整地址比对全部被拒）。
+        self.native.conf = {"pearnly_member_identity_issuer": "http://keycloak:8080/realms/pearnly-business",
+                            "pearnly_member_identity_cowork_issuer": "http://keycloak:8080/realms/pearnly-cowork"}
         p = patch.object(member_provider, "frappe", self.native)
         p.start()
         self.addCleanup(p.stop)
@@ -475,8 +476,9 @@ class TestPoolPrefix(unittest.TestCase):
         self.assertEqual(member_provider.pool_prefix("cowork", BUSINESS + "/"), "pearnly_member_identity")
         self.assertEqual(member_provider.pool_prefix("erp", "https://auth.example.test/realms/pearnly-cowork"),
                          "pearnly_member_identity_cowork")
-        with self.assertRaises(member_provider.MemberError):
-            member_provider.pool_prefix("erp", "https://evil.test/realms/pearnly-business")
+        for unknown in ("https://auth.example.test/realms/master", "https://auth.example.test/", "garbage"):
+            with self.assertRaises(member_provider.MemberError):
+                member_provider.pool_prefix("erp", unknown)
         self.assertEqual(member_provider.realm_prefix("pearnly-cowork"), "pearnly_member_identity_cowork")
         with self.assertRaises(member_provider.MemberError):
             member_provider.realm_prefix("master")
