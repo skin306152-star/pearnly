@@ -110,9 +110,10 @@ class NativeDeskContract(unittest.TestCase):
 
     def test_only_ticket_based_line_editor_and_account_keep_standalone_routes(self):
         source = (ROOT/'frontend/src/router.ts').read_text()
-        self.assertEqual(re.findall(r'path:\s*"([^"]+)"', source), ['/dms/account', '/dms/editor'])
+        # 三个都是 LINE 一次性票据页：编辑草稿、账号、扫身份证（2026-10-04）。
+        self.assertEqual(re.findall(r'path:\s*"([^"]+)"', source), ['/dms/account', '/dms/scan', '/dms/editor'])
         html = (ROOT/'apps/pearnly_core/pearnly_core/www/pearnly-app.html').read_text()
-        self.assertIn('!["dms/editor", "dms/account"].includes(route)', html)
+        self.assertIn('!["dms/editor", "dms/account", "dms/scan"].includes(route)', html)
         self.assertIn('location.replace("/desk/"', html)
 
 
