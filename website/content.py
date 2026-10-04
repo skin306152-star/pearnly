@@ -32,17 +32,22 @@ PAGES = {
 PRODUCTS = ("cowork", "dms", "erp")
 TOOLS = ("baht-text", "vat", "withholding-tax", "tax-id")
 
-# 已公开在 media.pearnly.com 的教程视频；其余教程上传后在这里补上即可出现在对应产品页。
-VIDEOS = {
-    "dms": [
-        {"file": "DMS-1-ตั้งค่าเชื่อมต่อและพนักงาน.mp4", "poster": "封面/6.0-ติดตั้งครั้งแรก.jpg", "seconds": 225, "uploaded": "2026-10-02",
-         "title": {"th": "ตั้งค่าการเชื่อมต่อและพนักงาน", "en": "Connect DMS and add sales staff", "zh": "连接 DMS 与添加员工"}},
-        {"file": "DMS-2-เมนู1-จัดทำข้อมูลลูกค้า.mp4", "poster": "封面/6.1-จัดทำข้อมูลลูกค้า.jpg", "seconds": 111, "uploaded": "2026-10-02",
-         "title": {"th": "เมนู 1 · จัดทำข้อมูลลูกค้า", "en": "Menu 1 · Customer record", "zh": "菜单 1 · 建客户资料"}},
-        {"file": "DMS-3-เมนู2-จัดทำใบจอง.mp4", "poster": "封面/6.2-จัดทำใบจอง.jpg", "seconds": 180, "uploaded": "2026-10-02",
-         "title": {"th": "เมนู 2 · จัดทำใบจอง", "en": "Menu 2 · Booking", "zh": "菜单 2 · 订车单"}},
-    ],
+# 每个产品页只放一段总览片。视频不进仓库：放在服务器 /var/www/pearnly-media（网址 /media/），
+# 由 scripts/publish-website.sh --media 从 website/media/ 上传；封面在 static/posters/。
+OVERVIEW = {
+    "cowork": {"file": "cowork-overview.mp4", "poster": "/static/posters/cowork.jpg", "seconds": 175, "uploaded": "2026-09-29"},
+    "dms": {"file": "dms-overview.mp4", "poster": "/static/posters/dms.jpg", "seconds": 149, "uploaded": "2026-09-28"},
+    "erp": {"file": "erp-overview.mp4", "poster": "/static/posters/erp.jpg", "seconds": 92, "uploaded": "2026-09-28"},
 }
+
+# 功能图标（各语言同序），图形在 build.py 的 ICONS。
+FEATURE_ICONS = {
+    "cowork": ["doc", "plug", "bank", "chart", "check", "board"],
+    "dms": ["idcard", "shield", "calendar", "users", "list"],
+    "erp": ["box", "doc", "receipt", "arrows", "register", "phone", "users"],
+}
+
+INTEGRATIONS = ["Express", "MR.ERP DMS", "LINE", "PDF · Excel"]
 
 COMMON = {
     "th": {
@@ -65,6 +70,11 @@ COMMON = {
         "tool_cta": "ต้องจัดการเอกสารวันละหลายร้อยใบ? Pearnly อ่านและบันทึกเข้าระบบให้",
         "tool_local": "คำนวณในเครื่องของคุณ ไม่มีการส่งข้อมูลออกไป",
         "faq": "คำถามที่พบบ่อย",
+        "watch": "ดูวิดีโอแนะนำ",
+        "overview": "วิดีโอแนะนำ",
+        "play": "เล่นวิดีโอ",
+        "others": "ผลิตภัณฑ์อื่น",
+        "integrations": "ทำงานร่วมกับเครื่องมือที่คุณใช้อยู่",
     },
     "en": {
         "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "Free tools"},
@@ -86,6 +96,11 @@ COMMON = {
         "tool_cta": "Handling hundreds of documents a day? Pearnly reads them and enters them for you.",
         "tool_local": "Calculated on your device. Nothing is sent anywhere.",
         "faq": "FAQ",
+        "watch": "Watch the overview",
+        "overview": "Overview video",
+        "play": "Play video",
+        "others": "Other products",
+        "integrations": "Works with the tools you already use",
     },
     "zh": {
         "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "tools": "免费工具"},
@@ -107,6 +122,11 @@ COMMON = {
         "tool_cta": "每天要处理几百张单据？Pearnly 帮你读取并录入系统。",
         "tool_local": "在你的设备上计算，不会上传任何数据。",
         "faq": "常见问题",
+        "watch": "观看介绍视频",
+        "overview": "介绍视频",
+        "play": "播放视频",
+        "others": "其他产品",
+        "integrations": "接入你已经在用的工具",
     },
 }
 
@@ -114,7 +134,8 @@ HOME = {
     "th": {
         "title": "Pearnly | ถ่ายรูปเอกสาร ข้อมูลเข้าระบบให้เอง",
         "description": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน แล้วบันทึกเข้า Express, MR.ERP DMS หรือระบบ ERP ของคุณ ใช้งานได้ทั้งบนเว็บและใน LINE",
-        "h1": "ถ่ายรูปเอกสาร ข้อมูลเข้าระบบให้เอง",
+        "badge": "LINE · เว็บ · Express · MR.ERP DMS",
+        "h1": "ถ่ายรูปเอกสาร\nข้อมูลเข้าระบบให้เอง",
         "lead": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน ตรวจตัวเลขให้ แล้วบันทึกเข้าโปรแกรมที่คุณใช้อยู่ ทั้งบนเว็บและใน LINE",
         "products_title": "เลือกตามงานของคุณ",
         "steps_title": "ทำงานอย่างไร",
@@ -129,7 +150,8 @@ HOME = {
     "en": {
         "title": "Pearnly | Snap the document, the data enters itself",
         "description": "Pearnly reads Thai tax invoices, receipts and ID cards, then enters them into Express, MR.ERP DMS or your ERP. Works on the web and in LINE.",
-        "h1": "Snap the document. The data enters itself.",
+        "badge": "LINE · Web · Express · MR.ERP DMS",
+        "h1": "Snap the document.\nThe data enters itself.",
         "lead": "Pearnly reads tax invoices, receipts and ID cards, checks the numbers, and enters them into the software you already use, on the web and in LINE.",
         "products_title": "Pick the one that fits your work",
         "steps_title": "How it works",
@@ -144,7 +166,8 @@ HOME = {
     "zh": {
         "title": "Pearnly | 拍下单据，数据自动进系统",
         "description": "Pearnly 读取泰国税务发票、收据和身份证，录入 Express、MR.ERP DMS 或你的 ERP。网页和 LINE 都能用。",
-        "h1": "拍下单据，数据自动进系统",
+        "badge": "LINE · 网页 · Express · MR.ERP DMS",
+        "h1": "拍下单据\n数据自动进系统",
         "lead": "Pearnly 读取税务发票、收据和身份证，核对数字，再录入你正在用的软件。网页和 LINE 都能用。",
         "products_title": "按你的业务选择",
         "steps_title": "怎么运作",
@@ -538,4 +561,29 @@ TOOL = {
             ],
         },
     },
+}
+
+# 首页交互演示：单据内容固定是泰文样例（虚构公司、示例号码），字段名随语言。
+DEMO_LABELS = {
+    "th": {"read": "อ่านจากเอกสาร", "seller": "ผู้ขาย", "tax_id": "เลขประจำตัวผู้เสียภาษี", "doc_no": "เลขที่เอกสาร", "date": "วันที่",
+           "base": "มูลค่าก่อน VAT", "vat": "VAT 7%", "total": "ยอดรวม", "checked": "ตรวจแล้ว",
+           "cowork_done": "ส่งเข้า Express แล้ว · ตรวจผลกลับตรงกัน",
+           "name": "ชื่อ-นามสกุล", "id_no": "เลขบัตรประชาชน", "birth": "วันเกิด", "address": "ที่อยู่", "phone": "เบอร์โทร",
+           "dms_read": "ข้อมูลลูกค้าใน DMS", "dms_done": "สร้างลูกค้าใน MR.ERP DMS แล้ว · ไม่ซ้ำ",
+           "erp_read": "รายการซื้อ", "supplier": "ผู้ขาย", "items": "รายการ", "erp_done": "สร้างรายการซื้อแล้ว",
+           "confirm": "ยืนยัน", "found": "ลูกค้าใหม่ · สร้างใน DMS?"},
+    "en": {"read": "Read from the document", "seller": "Seller", "tax_id": "Tax ID", "doc_no": "Document no.", "date": "Date",
+           "base": "Before VAT", "vat": "VAT 7%", "total": "Total", "checked": "checked",
+           "cowork_done": "Pushed to Express · read back and matched",
+           "name": "Name", "id_no": "ID number", "birth": "Date of birth", "address": "Address", "phone": "Phone",
+           "dms_read": "Customer in DMS", "dms_done": "Customer created in MR.ERP DMS · no duplicate",
+           "erp_read": "Purchase record", "supplier": "Supplier", "items": "Items", "erp_done": "Purchase record created",
+           "confirm": "Confirm", "found": "New customer · create in DMS?"},
+    "zh": {"read": "从单据读取", "seller": "卖方", "tax_id": "税号", "doc_no": "单号", "date": "日期",
+           "base": "税前金额", "vat": "VAT 7%", "total": "合计", "checked": "已核对",
+           "cowork_done": "已推送 Express · 回读一致",
+           "name": "姓名", "id_no": "身份证号", "birth": "出生日期", "address": "地址", "phone": "电话",
+           "dms_read": "DMS 客户资料", "dms_done": "已在 MR.ERP DMS 建客户 · 未重复",
+           "erp_read": "采购记录", "supplier": "供应商", "items": "明细", "erp_done": "已生成采购记录",
+           "confirm": "确认", "found": "新客户 · 在 DMS 中创建？"},
 }

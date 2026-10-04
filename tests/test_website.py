@@ -12,17 +12,19 @@ sys.path.insert(0, str(ROOT / "website"))
 import build  # noqa: E402
 import content as C  # noqa: E402
 
-EXTERNAL_PREFIXES = ("/downloads/",)  # 小助手下载目录由 nginx 另外提供，不在静态站里
+EXTERNAL_PREFIXES = ("/downloads/", "/media/")  # 小助手下载与总览视频由 nginx 另外提供，不在静态站里
 
 
 class Page(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.title, self.meta, self.links, self.hrefs, self.srcs, self.ld = "", {}, [], [], [], []
+        self.title, self.meta, self.links, self.hrefs, self.srcs, self.ld, self.ids = "", {}, [], [], [], [], set()
         self._in_title = self._in_ld = False
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if a.get("id"):
+            self.ids.add(a["id"])
         if tag == "title":
             self._in_title = True
         elif tag == "meta" and ("name" in a or "property" in a):
@@ -97,8 +99,10 @@ class WebsiteTest(unittest.TestCase):
             for href in page.hrefs + page.srcs + [l["href"] for l in page.links if l.get("rel") in ("stylesheet", "icon", "apple-touch-icon")]:
                 if href.startswith("/"):
                     self.assertTrue(self.resolves(href), f"{path} → {href}")
+                elif href.startswith("#"):
+                    self.assertIn(href[1:], page.ids, f"{path} → {href}")
                 else:
-                    self.assertRegex(href, r"^(https://|mailto:|#main$)", f"{path} → {href}")
+                    self.assertRegex(href, r"^(https://|mailto:)", f"{path} → {href}")
 
     def test_structured_data_parses(self):
         for path, page in self.pages.items():

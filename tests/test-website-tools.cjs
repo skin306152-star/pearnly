@@ -62,12 +62,12 @@ test('amounts format with thousands separators', () => {
 });
 
 test('tax id check digit matches the shared MOD-11 rule', () => {
-  const ok = t.taxId('0105536112014');
+  const ok = t.taxId('0105599999997');
   assert.equal(ok.complete, true);
   assert.equal(ok.valid, true);
-  assert.equal(ok.formatted, '0-1055-36112-01-4');
-  assert.equal(t.taxId('0-1055-36112-01-4').valid, true);
-  assert.equal(t.taxId('0105536112015').valid, false);
+  assert.equal(ok.formatted, '0-1055-99999-99-7');
+  assert.equal(t.taxId('0-1055-99999-99-7').valid, true);
+  assert.equal(t.taxId('0105599999998').valid, false);
   assert.equal(t.taxId('12345').complete, false);
   assert.equal(t.taxId('').digits, '');
 });

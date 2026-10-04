@@ -23,5 +23,6 @@ frontend/components.d.ts
 /companion/build/
 /companion/dist/
 
-# 官网静态站构建产物（python3 website/build.py）
+# 官网构建产物与本地总览视频（视频经 scripts/publish-website.sh --media 上传，不进仓库）
 /website/dist/
+/website/media/
