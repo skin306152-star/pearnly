@@ -618,6 +618,34 @@ class DmsIdScan(unittest.TestCase):
         self.assertEqual(raised.exception.args, ("dms_booking.line_auth_required", 403))
 
 
+class DmsReviewLanguage(unittest.TestCase):
+    """识别打回的提示按收件人手机语言说（2026-10-04：中文手机上括号里是泰文字段名、校验位那句整句泰文）。"""
+
+    def say(self, language, missing):
+        from pearnly_dms import i18n
+        from pearnly_dms.ocr import ocr_review
+
+        with patch.object(frappe.local, "dms_line_lang", language, create=True):
+            return ocr_review.review_text(missing), i18n
+
+    def test_missing_fields_follow_the_recipient_language(self):
+        text, i18n = self.say("zh", ["people_id", "first_name"])
+        blurry = i18n.t("dms.card.TXT_BLURRY", lang="zh")
+        self.assertEqual(text, f"{blurry}（身份证号、名）")
+        text, _ = self.say("en", ["last_name", "birthday"])
+        self.assertTrue(text.endswith("(Last name, Date of birth)"), text)
+        text, _ = self.say("th", ["people_id"])
+        self.assertTrue(text.endswith("(เลขบัตรประชาชน)"), text)
+
+    def test_checksum_sentence_is_translated_and_thai_keeps_its_wording(self):
+        text, _ = self.say("zh", ["people_id_checksum"])
+        self.assertEqual(text, "已读到 13 位身份证号，但校验位不符。请核对卡面上的号码，再重新拍照，让号码清晰可见。")
+        text, _ = self.say("th", ["people_id_checksum"])
+        self.assertTrue(text.startswith("อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน"), text)
+        text, _ = self.say("ja", [])
+        self.assertNotIn("dms.card", text, "every language has the blurry sentence")
+
+
 class OcrBackoff(unittest.TestCase):
     def setUp(self):
         from pearnly_core.execution import provider

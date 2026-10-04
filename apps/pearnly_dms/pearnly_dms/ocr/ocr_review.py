@@ -12,29 +12,29 @@
 
 from __future__ import annotations
 
-from typing import Dict, Iterable
+from typing import Iterable
 
+from pearnly_dms import i18n
 from pearnly_dms.line import cards as cards
 
 CHECKSUM_KEY = "people_id_checksum"
 
-# 键 = 识别归一层 missing_fields 的产出（与源码机械对账，加字段不会静默掉出去）
-MISSING_LABELS_TH: Dict[str, str] = {
-    "people_id": "เลขบัตรประชาชน",
-    "first_name": "ชื่อ",
-    "last_name": "นามสกุล",
-    "birthday": "วันเกิด",
-}
+# 键 = 识别归一层 missing_fields 的产出（与源码机械对账，加字段不会静默掉出去）；
+# 字段名在语言包 `dms.card.REVIEW_<键>`，按收件人手机的 LINE 语言说（2026-10-04 用户：
+# 中文手机上括号里是泰文字段名、校验位那句整句泰文）。
+MISSING_FIELDS = ("people_id", "first_name", "last_name", "birthday")
 
-TXT_ID_CHECKSUM = (
-    "อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน "
-    "กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน"
-)
+# 列字段名用的分隔符：中文、日文用顿号，其余用逗号（标点，不是文案）。
+_SEPARATOR = {"zh": "、", "ja": "、"}
 
 
 def review_text(missing: Iterable[str]) -> str:
     """打回时对用户说的话：校验位错说号码对不上，其余才是拍不清 + 列缺项。"""
     keys = list(missing)
-    head = TXT_ID_CHECKSUM if CHECKSUM_KEY in keys else cards.TXT_BLURRY
-    labels = [MISSING_LABELS_TH[k] for k in keys if k in MISSING_LABELS_TH]
-    return head + (" (" + ", ".join(labels) + ")" if labels else "")
+    head = cards.TXT_ID_CHECKSUM if CHECKSUM_KEY in keys else cards.TXT_BLURRY
+    lang = i18n.line_lang()
+    labels = [i18n.t(f"dms.card.REVIEW_{key.upper()}", lang=lang) for key in keys if key in MISSING_FIELDS]
+    if not labels:
+        return head
+    return i18n.t("dms.card.TXT_REVIEW_MISSING", lang=lang, text=head,
+                  fields=_SEPARATOR.get(lang, ", ").join(labels))

@@ -149,6 +149,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,ไฟแนนซ์
 Finance approved,ไฟแนนซ์อนุมัติ
 Finance pending,ไฟแนนซ์รออนุมัติ
+First name,ชื่อ
 First setup,ตั้งค่าครั้งแรก
 First-time setup,ติดตั้งครั้งแรก
 Fit the ID card inside the frame,วางบัตรให้อยู่ในกรอบ
@@ -169,12 +170,14 @@ ID card copy,สำเนาบัตรประชาชน
 ID card photo received. Please type the customer's phone number.,รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า
 ID card scanned,สแกนบัตรแล้ว
 ID no.,เลขบัตร
+ID number,เลขบัตรประชาชน
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
 Invalid format. Please fill in both fields {hint},รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
 Keep existing data,ใช้ข้อมูลเดิม
 Last Check,ตรวจสอบล่าสุด
 Last Checked At,เวลาตรวจสอบล่าสุด
 Last Error,ข้อผิดพลาดล่าสุด
+Last name,นามสกุล
 Last successful completion,เวลาที่อ่านสำเร็จล่าสุด
 Last successful record count,จำนวนรายการที่อ่านสำเร็จล่าสุด
 Latest 10,ล่าสุด 10 รายการ
@@ -331,6 +334,7 @@ Tap Retry within 30 minutes,กรุณากดลองใหม่ภาย�
 Test and add,ทดสอบและเพิ่ม
 Test and save,ทดสอบและบันทึก
 That's all,ครบแล้ว
+"The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible.",อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน
 The DMS account can only be switched before the session starts,เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
 The DMS account is busy. The read retries automatically; please wait.,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
@@ -472,6 +476,10 @@ dms.card.MSG_BIND_HELP,บัญชีที่ผูกแล้ว: {0}\nพ�
 dms.card.MSG_BIND_NEED,ยังไม่ได้ผูกบัญชี กรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม
 dms.card.MSG_BIND_OK,ผูกบัญชีสำเร็จ บัญชี: {0}\nตอนนี้ส่งงานให้ผมได้เลย
 dms.card.MSG_BIND_UNBOUND,ยกเลิกการผูกแล้ว หากต้องการใช้ใหม่ กรุณาสร้างรหัสผูกใหม่
+dms.card.REVIEW_BIRTHDAY,วันเกิด
+dms.card.REVIEW_FIRST_NAME,ชื่อ
+dms.card.REVIEW_LAST_NAME,นามสกุล
+dms.card.REVIEW_PEOPLE_ID,เลขบัตรประชาชน
 dms.card.TXT_ACTION_CREATE,สร้างลูกค้าใหม่
 dms.card.TXT_ACTION_UPDATE,อัปเดตข้อมูลลูกค้า
 dms.card.TXT_ADMIN_AUTH_FAIL,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly
@@ -491,6 +499,7 @@ dms.card.TXT_DONE_SAME,ใช้ข้อมูลเดิมเรียบร
 dms.card.TXT_DONE_SAVED,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
 dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ
 dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
+dms.card.TXT_ID_CHECKSUM,อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน
 dms.card.TXT_INTRO,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
 dms.card.TXT_LOOKUP_FAIL,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
 dms.card.TXT_MANUAL_BOOKING,จัดทำใบจอง
@@ -537,6 +546,7 @@ dms.card.TXT_RECEIPT_SAVE,"บันทึกสำเร็จ · {action}
 ชื่อ: {name}"
 dms.card.TXT_RESET,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
 dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
+dms.card.TXT_REVIEW_MISSING,{text} ({fields})
 dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
 dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
@@ -1007,3 +1017,4 @@ usage log,บันทึกการใช้งาน
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
+{text} ({fields}),{text} ({fields})

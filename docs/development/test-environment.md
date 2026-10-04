@@ -32,6 +32,8 @@
    → 部署生产（每一步仍需用户同意）。生产只跑 main 构建出来的镜像。
 4. 实时源码盖不到的改动，要构建镜像再用新 digest `lab-start`：依赖 / Dockerfile / Frappe 底座版本、`frontend/` 的前端 SPA
    （它是构建产物；实时同步时镜像里的那份原样保留）。要单独验"镜像本身"：`bash scripts/testenv.sh live-off <app>`。
+   只调前端 SPA 时可以不换镜像：先在 `frontend/` 里 `vite build`，再 `PEARNLY_TESTENV_LOCAL_SPA=1 … testenv.sh live <app>`，
+   本地构建的那份随源码一起挂上（2026-10-04 起；没构建就直接报错，不会悄悄用镜像里的旧版）。
 
 实时源码怎么做到的：`live` 把工作树里 5 个自有 App（`git ls-files`，含未提交改动）打包送到测试机
 `/opt/pearnly-testenv/live/<app>/`，原地同步后以只读挂载盖在镜像的 App 目录上（`/opt/pearnly-testenv/live-<app>.yml`，

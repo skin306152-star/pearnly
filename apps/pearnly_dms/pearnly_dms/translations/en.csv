@@ -149,6 +149,7 @@ Extra DMS accounts reserved for the system. Admin reads and customer writes pick
 Finance,Finance
 Finance approved,Finance approved
 Finance pending,Finance pending
+First name,First name
 First setup,First setup
 First-time setup,First-time setup
 Fit the ID card inside the frame,Fit the ID card inside the frame
@@ -169,12 +170,14 @@ ID card copy,ID card copy
 ID card photo received. Please type the customer's phone number.,ID card photo received. Please type the customer's phone number.
 ID card scanned,ID card scanned
 ID no.,ID no.
+ID number,ID number
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","Invalid amount. Type a number, e.g. 5000 or 5,000.50"
 Invalid format. Please fill in both fields {hint},Invalid format. Please fill in both fields {hint}
 Keep existing data,Keep existing data
 Last Check,Last Check
 Last Checked At,Last Checked At
 Last Error,Last Error
+Last name,Last name
 Last successful completion,Last successful completion
 Last successful record count,Last successful record count
 Latest 10,Latest 10
@@ -331,6 +334,7 @@ Tap Retry within 30 minutes,Tap Retry within 30 minutes
 Test and add,Test and add
 Test and save,Test and save
 That's all,That's all
+"The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible.","The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible."
 The DMS account can only be switched before the session starts,The DMS account can only be switched before the session starts
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
 The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
@@ -472,6 +476,10 @@ dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.
 dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the web page.
 dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
 dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
+dms.card.REVIEW_BIRTHDAY,Date of birth
+dms.card.REVIEW_FIRST_NAME,First name
+dms.card.REVIEW_LAST_NAME,Last name
+dms.card.REVIEW_PEOPLE_ID,ID number
 dms.card.TXT_ACTION_CREATE,New customer created
 dms.card.TXT_ACTION_UPDATE,Customer data updated
 dms.card.TXT_ADMIN_AUTH_FAIL,Update failed. Please ask the admin to check the admin password in Pearnly.
@@ -491,6 +499,7 @@ dms.card.TXT_DONE_SAME,Existing data kept. Type menu for other tasks.
 dms.card.TXT_DONE_SAVED,Customer data saved. Type menu for other tasks.
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
 dms.card.TXT_EXPIRED,This item has expired. Please start again.
+dms.card.TXT_ID_CHECKSUM,"The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible."
 dms.card.TXT_INTRO,Take a photo of the customer's ID card to start a new customer record.
 dms.card.TXT_LOOKUP_FAIL,Could not check the customer data. Please try again.
 dms.card.TXT_MANUAL_BOOKING,Create a booking
@@ -537,6 +546,7 @@ Customer ID: {customer_code}
 Name: {name}"
 dms.card.TXT_RESET,Started over. Take a photo of the ID card to start a customer record.
 dms.card.TXT_RETAKE,Please take the ID card photo again
+dms.card.TXT_REVIEW_MISSING,{text} ({fields})
 dms.card.TXT_SAME,This customer already exists and the data matches
 dms.card.TXT_SAME_ALT,Customer data matches
 dms.card.TXT_SAVE_FAIL,Save failed. Please try again.
@@ -1007,3 +1017,4 @@ usage log,usage log
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
 {n} latest sales records from DMS,{n} latest sales records from DMS
+{text} ({fields}),{text} ({fields})

@@ -13,6 +13,8 @@ import { ensureScanTicket, forgetTicket, loadConfig, returnToChat, uploadScan } 
 import { createTexts, type Locale } from "../../lib/i18n";
 import {
   CARD_RATIO,
+  SAMPLE_WIDTH,
+  SETTLE_FRAMES,
   STEADY_FRAMES,
   analyze,
   cropRect,
@@ -29,7 +31,6 @@ const { t, locale, load: loadTexts, setLocale } = createTexts([], "dms.");
 
 const stage = ref<"starting" | "aiming" | "sending" | "failed" | "nocamera">("starting");
 const tip = ref<Hint>("place");
-const manual = ref(false);
 const errorText = ref("");
 const video = ref<HTMLVideoElement | null>(null);
 const frame = ref<Rect>({ x: 0, y: 0, w: 0, h: 0 });
@@ -48,16 +49,15 @@ const ERROR_KEYS: Record<string, string> = {
   "dms_booking.line_auth_required": "dms.edit.liffUnavailable",
   "dms_booking.not_bound": "dms.edit.liffUnavailable",
 };
-/** 取景框缩成这个宽度来判断（约 240 × 151 像素，每帧几毫秒）。 */
-const SAMPLE_WIDTH = 240;
+/** 取景框缩成 360 × 227 来判断（每帧几毫秒）。 */
 const SAMPLE_HEIGHT = Math.round(SAMPLE_WIDTH / CARD_RATIO);
 
 let ticket = "";
 let stream: MediaStream | null = null;
 let timer = 0;
-let manualTimer = 0;
 let previous: Uint8Array | null = null;
 let steady = 0;
+let settled = 0;
 let busy = false;
 const sampler = document.createElement("canvas");
 sampler.width = SAMPLE_WIDTH;
@@ -65,18 +65,19 @@ sampler.height = SAMPLE_HEIGHT;
 
 function stopCamera(): void {
   window.clearInterval(timer);
-  window.clearTimeout(manualTimer);
   stream?.getTracks().forEach((track) => track.stop());
   stream = null;
 }
 
-/** 取景框在页面上的位置（视频按宽度铺满、等比缩放，换算是线性的）。 */
+/** 取景框：页面上与视频像素里各一份（视频按 cover 铺满取景区，见 `guideRect`）。 */
+function currentGuide(el: HTMLVideoElement) {
+  return guideRect(el.videoWidth, el.videoHeight, el.clientWidth || el.videoWidth, el.clientHeight || el.videoHeight);
+}
+
 function layout(): void {
   const el = video.value;
   if (!el || !el.videoWidth) return;
-  const guide = guideRect(el.videoWidth, el.videoHeight);
-  const k = el.clientWidth / el.videoWidth;
-  frame.value = { x: guide.x * k, y: guide.y * k, w: guide.w * k, h: guide.h * k };
+  frame.value = currentGuide(el).view;
 }
 
 function tick(): void {
@@ -85,14 +86,16 @@ function tick(): void {
   layout();
   const ctx = sampler.getContext("2d", { willReadFrequently: true });
   if (!ctx) return;
-  const guide = guideRect(el.videoWidth, el.videoHeight);
+  const guide = currentGuide(el).video;
   ctx.drawImage(el, guide.x, guide.y, guide.w, guide.h, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
   const gray = toGray(ctx.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data, SAMPLE_WIDTH * SAMPLE_HEIGHT);
   const moved = motion(previous, gray);
   previous = gray;
   tip.value = frameHint(analyze(gray, SAMPLE_WIDTH, SAMPLE_HEIGHT), moved);
   steady = tip.value === "ready" ? steady + 1 : 0;
-  if (steady >= STEADY_FRAMES) void capture();
+  // 其余都合格、只是还在轻微晃动：累计够了也拍（真机手持很难"完全不动"）。
+  settled = tip.value === "ready" || tip.value === "hold" ? settled + 1 : 0;
+  if (steady >= STEADY_FRAMES || settled >= SETTLE_FRAMES) void capture();
 }
 
 function explain(err: unknown): string {
@@ -113,7 +116,7 @@ async function capture(): Promise<void> {
   if (busy || !el || !el.videoWidth) return;
   busy = true;
   // 原分辨率裁取景框（四周放宽一点），不缩小：送去识别的照片不比在聊天里发的差。
-  const area = cropRect(guideRect(el.videoWidth, el.videoHeight), el.videoWidth, el.videoHeight);
+  const area = cropRect(currentGuide(el).video, el.videoWidth, el.videoHeight);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(area.w);
   canvas.height = Math.round(area.h);
@@ -159,14 +162,10 @@ async function startCamera(): Promise<void> {
   await el.play().catch(() => undefined);
   busy = false;
   steady = 0;
+  settled = 0;
   previous = null;
-  manual.value = false;
   stage.value = "aiming";
   timer = window.setInterval(tick, 150);
-  // 自动拍不到（反光、光线差）时给手动快门。
-  manualTimer = window.setTimeout(() => {
-    manual.value = true;
-  }, 4000);
 }
 
 /** 回 LINE：在 LINE 里关掉这一页，普通浏览器里退一步。 */
@@ -225,7 +224,8 @@ function changeLocale(value: Locale): void {
       <ErrorMessage v-if="stage === 'failed'" :message="errorText" />
 
       <div class="pn-scan-actions">
-        <Button v-if="stage === 'aiming' && manual" variant="solid" :label="t('dms.edit.scanShoot')" @click="capture" />
+        <!-- 手动快门一直在：反光、光线差自动拍不到时随时能按。 -->
+        <Button v-if="stage === 'aiming'" variant="solid" :label="t('dms.edit.scanShoot')" @click="capture" />
         <Button v-if="stage === 'failed'" variant="solid" :label="t('dms.edit.scanRetry')" @click="startCamera" />
         <Button variant="outline" theme="gray" :label="t('dms.edit.scanBack')" @click="backToChat" />
       </div>
@@ -238,16 +238,21 @@ function changeLocale(value: Locale): void {
   display: grid;
   gap: 12px;
 }
+/* 取景区铺满宽度、固定 5:4，画面按 cover 裁边铺满：框占宽 90%，卡要拿近才对得上，字也更清楚
+   （2026-10-04 真机：限高的竖长画面里框太小）。提示和拍照按钮始终在屏幕内。 */
 .pn-scan-view {
   position: relative;
   overflow: hidden;
+  width: 100%;
+  aspect-ratio: 5 / 4;
   border-radius: 8px;
   background: #000;
 }
 .pn-scan-video {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
 }
 .pn-scan-frame {
   position: absolute;

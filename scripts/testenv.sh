@@ -212,6 +212,14 @@ live() {
   list=$(cd "$src/apps" && git ls-files -co --exclude-standard -- "${apps[@]}" \
     | while IFS= read -r file; do [[ -f "$file" ]] && printf '%s\n' "$file"; done)
   [[ -n "$list" ]] || { echo "no product code under $src/apps" >&2; exit 2; }
+  # 前端 SPA 是构建产物（.gitignore），默认用镜像里那份。调前端时设 PEARNLY_TESTENV_LOCAL_SPA=1：
+  # 带上工作树里本地构建好的那份（先在 frontend/ 里 vite build），省掉每轮换镜像。
+  if [[ "${PEARNLY_TESTENV_LOCAL_SPA:-}" == 1 ]]; then
+    local spa=pearnly_core/pearnly_core/public/pearnly-app
+    [[ -f "$src/apps/$spa/index.html" ]] || {
+      echo "PEARNLY_TESTENV_LOCAL_SPA=1 but $src/apps/$spa is not built (run vite build in frontend/)" >&2; exit 2; }
+    list+=$'\n'$(cd "$src/apps" && find "$spa" -type f | LC_ALL=C sort)
+  fi
   (cd "$src/apps" && printf '%s\n' "$list" | COPYFILE_DISABLE=1 tar -czf "$tarball" -T -)
   migrate_hash=$(cd "$src/apps" && printf '%s\n' "$list" \
     | grep -E '/doctype/.*\.json$|/patches\.txt$|/patches/.*\.py$|/hooks\.py$|/fixtures/' \

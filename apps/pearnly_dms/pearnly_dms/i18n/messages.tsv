@@ -412,3 +412,9 @@ Cannot open the camera. Please send the ID card photo in the chat instead.	无�
 This step has expired. Go back to the chat and start again.	这一步已过期，请回到聊天重新开始。	ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่	この手順は期限切れです。チャットに戻ってやり直してください。	dms.edit.scanExpired
 The photo is too large. Please try again.	照片太大，请重试。	รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง	写真が大きすぎます。もう一度お試しください。	dms.edit.scanTooLarge
 Could not send the photo. Please try again.	照片没有发出去，请重试。	ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง	写真を送れませんでした。もう一度お試しください。	dms.edit.scanFailed
+The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible.	已读到 13 位身份证号，但校验位不符。请核对卡面上的号码，再重新拍照，让号码清晰可见。	อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน	13 桁の身分証番号を読み取りましたが、チェック桁が一致しません。カードの番号を確認し、番号がはっきり写るように撮り直してください。	dms.card.TXT_ID_CHECKSUM
+{text} ({fields})	{text}（{fields}）	{text} ({fields})	{text}（{fields}）	dms.card.TXT_REVIEW_MISSING
+ID number	身份证号	เลขบัตรประชาชน	身分証番号	dms.card.REVIEW_PEOPLE_ID
+First name	名	ชื่อ	名	dms.card.REVIEW_FIRST_NAME
+Last name	姓	นามสกุล	姓	dms.card.REVIEW_LAST_NAME
+Date of birth	出生日期	วันเกิด	生年月日	dms.card.REVIEW_BIRTHDAY

@@ -35,7 +35,7 @@
 
 ## 验证
 
-- `scripts/test-dms-line-runtime.py` 55 条（新增 `DmsIdScan` 9 条：有 LIFF 才给按钮且标签 ≤ 20 字；只收收料态的图片、
+- `scripts/test-dms-line-runtime.py` 57 条（新增 `DmsReviewLanguage` 2 条：中/英/泰字段名与标点、校验位那句中文与泰文原句；`DmsIdScan` 9 条：有 LIFF 才给按钮且标签 ≤ 20 字；只收收料态的图片、
   拒非图片/超大；带数字的那句话不被当手机号、只开始一次且用它的令牌；过期短码回过期、不开始；回落无令牌且与那句话
   不重复；只有上传者能读、读一次；识别读扫描图不经 LINE 下载、重拍提示仍带按钮；上传接口只认 `scan` 票据、收 data URL）：
   生产镜像 f5283c70 挂载本分支、断网，通过。
@@ -45,6 +45,30 @@
 - `check-architecture.py` PASS；`check-dms-offline.py`（Python 3.14）20 项 PASS；`i18n-build --check` PASS；
   `check-i18n --strict` 与 main 输出逐行相同（main 上原本就不过）；`vue-tsc` 与 `vite build` 通过；
   生产镜像 f5283c70 挂载本分支跑完整 `ci-candidate-checks.sh offline`：54 项全过。
+
+## 真机第一轮（iPhone，2026-10-04 晚）与调整
+
+- 链路通：扫描 → 上传 → 识别 → 结果推回 LINE（没有 `chat_message.write`，走的回落推播）。
+- 第一版：卡在框里 5 分钟一直"拿稳"——两帧差上限 6 手持达不到；拍照按钮在竖长画面下被挤出屏幕。
+  改：上限放宽、按钮常驻、画面限高。
+- 第二版：太灵敏、框太小，三张都读不清（看不清 ×2、校验位不过 ×1）。用户要"看清必须的字段才拍"。改：
+  - 取景区铺满宽度、5:4、`object-fit: cover`，框占宽 90%（iPhone 竖屏约 351 点，原约 229）；换算见 `coverMap` / `guideRect`。
+  - 逐块判断身份证号、泰文姓名、地址三块（`FIELD_REGIONS`），每块清晰度 ≥ 800、字迹对比 ≥ 18、反光 ≤ 5%；
+    两帧差 ≤ 12，连续 4 帧（约 0.6 秒）才拍，只差"拿稳"累计 14 帧（约 2 秒）兜底。缩略图 360 像素宽。
+  - 校准用用户截图里的真卡：清楚 1410–1481、拿远一倍 928–1072、轻度模糊 602–709、拖影 383–438、1/3 分辨率 436–584；
+    号码处反光、卡没对准都判不拍。
+- 测试机调前端不再每轮换镜像：`testenv.sh live` 新增 `PEARNLY_TESTENV_LOCAL_SPA=1`，带上本地构建的 SPA；
+  `run.sh` 从镜像补构建产物时改为不覆盖已有文件（原来"有 SPA 就整个跳过"会漏补控制面图标）。
+
+## 复核提示的语言（用户 2026-10-04 让一起修）
+
+`ocr/ocr_review.py` 的字段名与"校验位不过"那句写死泰文，中文手机上显示"身份证看不清，请重新拍照。（เลขบัตรประชาชน）"
+和整句泰文。改进语言包：`dms.card.TXT_ID_CHECKSUM`、`TXT_REVIEW_MISSING`（中日用全角括号）、`REVIEW_PEOPLE_ID` 等四个字段名，
+中日分隔用顿号。泰文措辞不变。
+
+旧系统对照（`check-dms-parity.py`）只重新登记本分支与 ae54459f / 1d690052 改过的 8 个模块（`ocr_review`、`text_router`、
+`menu_flow`、`intake/flow` ×2、`line/out`、`rich_menu` ×2）；main 上另有 28 个模块的差异此前未登记（如 10-02 会话状态挪进
+不淘汰 Redis），不是本任务改的，保持原样。
 
 ## 未验 / 待定
 
