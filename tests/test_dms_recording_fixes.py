@@ -107,6 +107,9 @@ class MenuSessionTests(Isolated):
                   reply_text=lambda token, text: self.replies.append(text))
         self.stub("pearnly_dms.intake.flow", run_dedup=Mock(__name__="run_dedup"),
                   _enqueue=lambda job, fn, *args: self.queued.append((job, args)))
+        # 提示发身份证的文字带「扫身份证」快捷按钮（`intake.scan.prompt`）。
+        self.stub("pearnly_dms.intake.scan",
+                  prompt=lambda text: {"type": "text", "text": text, "quickReply": "scan"})
         self.menu = importlib.import_module("pearnly_dms.menu.menu_flow")
         self.cards = importlib.import_module("pearnly_dms.line.cards")
 
@@ -120,7 +123,8 @@ class MenuSessionTests(Isolated):
                                   self.collected("reviewing"))
         self.assertEqual(self.store.writes, [("collecting", {"mode": "customer"})])
         self.assertEqual(self.queued, [], "the old card must not be looked up and sent again")
-        self.assertEqual(self.replies, ["dms.card.TXT_MENU_SEND_CARD"])
+        self.assertEqual(self.sends, [({"type": "text", "text": "dms.card.TXT_MENU_SEND_CARD",
+                                        "quickReply": "scan"}, "tok")])
 
     def test_menu_word_with_a_pending_card_drops_it(self):
         self.menu.open_menu({"user_id": "u"}, "U1", "tok", self.collected("reviewing"))

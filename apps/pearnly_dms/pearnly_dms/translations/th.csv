@@ -31,6 +31,7 @@ Approved. Customer data updated.,อนุมัติแล้ว อัปเ�
 Approver,ผู้อนุมัติ
 Attached,แนบแล้ว
 Awaiting manager,รอ ผจก.ขาย
+Back to chat,กลับไปที่แชท
 Bank transfer,เงินโอน
 Booking,ใบจอง
 Booking ID,รหัสการจอง
@@ -53,6 +54,7 @@ Brand,ยี่ห้อ
 Building,อาคาร
 Cached result captured at {time},อ่านผลที่บันทึกไว้เมื่อ {time}
 Cancel,ยกเลิก
+Cannot open the camera. Please send the ID card photo in the chat instead.,เปิดกล้องไม่ได้ กรุณาส่งรูปบัตรประชาชนในแชทแทน
 Car,รถ
 Car allocation,การจัดสรรรถ
 Car details,รายละเอียดรถ
@@ -92,6 +94,7 @@ Contract opened,เปิดสัญญาแล้ว
 Contract status,สถานะสัญญา
 Could not check the customer data. Please try again.,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
 Could not read data from DMS. Please try again.,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
+Could not send the photo. Please try again.,ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง
 Count,จำนวน
 Create a booking,จัดทำใบจอง
 "Create a car booking: choose the model and colour, then save",สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
@@ -148,19 +151,23 @@ Finance approved,ไฟแนนซ์อนุมัติ
 Finance pending,ไฟแนนซ์รออนุมัติ
 First setup,ตั้งค่าครั้งแรก
 First-time setup,ติดตั้งครั้งแรก
+Fit the ID card inside the frame,วางบัตรให้อยู่ในกรอบ
 Floor,ชั้น
 Full address directory,รายการที่อยู่ครบชุด
 Full customer records,ข้อมูลลูกค้าครบชุด
 Gear,เกียร์
+Glare on the card. Tilt it slightly,บัตรมีแสงสะท้อน เอียงบัตรเล็กน้อย
 Grade,เกรด
 "Hello 🙏
 Welcome to Pearnly DMS
 Please choose a menu below to get started","สวัสดีค่ะ 🙏
 ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
 กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน"
+Hold still…,ถือนิ่งๆ…
 House no.,บ้านเลขที่
 ID card copy,สำเนาบัตรประชาชน
 ID card photo received. Please type the customer's phone number.,รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า
+ID card scanned,สแกนบัตรแล้ว
 ID no.,เลขบัตร
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
 Invalid format. Please fill in both fields {hint},รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
@@ -206,6 +213,7 @@ Not set (data is read only at night),ยังไม่ตั้ง (อ่า�
 Not set (no daytime sync),ยังไม่ตั้ง (ไม่ซิงก์ช่วงกลางวัน)
 Not set (the connection account is used),ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)
 Not set (the read account is used for writes),ยังไม่ตั้ง (ใช้บัญชีอ่านข้อมูลในการแก้ไข)
+Not sharp yet. Hold the phone steady,ภาพยังไม่ชัด ถือโทรศัพท์ให้นิ่ง
 Number of cars,จำนวนคัน
 Older address data as of {time}; ask an administrator to refresh if needed,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 Older data as of {time}; refresh manually if needed,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
@@ -289,13 +297,16 @@ Customer ID: {customer_code}
 Name: {name}","บันทึกสำเร็จ · {action}
 รหัสลูกค้า: {customer_code}
 ชื่อ: {name}"
+Scan ID card,สแกนบัตรประชาชน
 Search data,ค้นหาข้อมูล
 Select at least one data group.,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 Select one or more DMS data groups to read,กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม
 "Select the data to update, then wait for the read to finish.",เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้
 Send to everyone,ส่งหาทุกคน
+Sending…,กำลังส่ง…
 Sent to,ส่งถึง
+Sent. You can go back to the chat.,ส่งแล้ว กลับไปที่แชทได้เลย
 "Separate fields with | , / or ·","คั่นช่องด้วย | , / หรือ ·"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS
 Similar customers found. Choose the one that matches.,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
@@ -314,6 +325,7 @@ Sync is delayed; showing data as of {time},การซิงก์ล่าช�
 System accounts,บัญชีระบบ
 THB,บาท
 Take a photo of the customer's ID card to start a new customer record.,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
+Take photo,ถ่ายรูป
 Tap Confirm or Discard on the summary above,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
 Tap Retry within 30 minutes,กรุณากดลองใหม่ภายใน 30 นาที
 Test and add,ทดสอบและเพิ่ม
@@ -339,6 +351,7 @@ The check stopped before it finished. Please try again.,การตรวจส
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 The data volume exceeds the read limit. Please contact an administrator.,ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ
+The photo is too large. Please try again.,รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง
 The read status changed. Refresh the page to check before trying again.,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
 The recognition result needs checking. Please do not resend this image yet.,กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ
@@ -368,6 +381,7 @@ This read failed. Please try again later.,อ่านครั้งนี้�
 This request has already been handled,คำขอนี้ถูกดำเนินการไปแล้ว
 This request has expired. Please start again.,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
 This step does not need a picture. Please follow the question above.,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
+This step has expired. Go back to the chat and start again.,ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
 This system account is already registered,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
 This system account no longer exists; reload the page,บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า
@@ -375,11 +389,13 @@ This system account no longer exists; reload the page,บัญชีระบ�
 This tutorial video is not available yet. Please check back later.,คลิปคู่มือหัวข้อนี้ยังไม่เปิดให้ดู กรุณากลับมาดูใหม่ภายหลัง
 This year Top 10,ปีนี้ Top 10
 Title,คำนำหน้า
+Too dark or too bright. Move to better light,มืดหรือสว่างเกินไป ลองย้ายไปที่แสงพอดี
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่
 Top sales,ยอดขายสูงสุด
 Top sales from DMS,ยอดขายสูงสุดจาก DMS
 Total deposit,ยอดเงินจองรวม
+Try again,ลองอีกครั้ง
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",พิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
 "Type bank name | card type, e.g. KBank | VISA",พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA
 "Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank",พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
@@ -447,6 +463,7 @@ dms.card.BTN_RESTART,เริ่มใหม่
 dms.card.BTN_RETRY,ลองใหม่
 dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
 dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
+dms.card.BTN_SCAN_CARD,สแกนบัตรประชาชน
 dms.card.BTN_SUBMIT_APPROVAL,ส่งขออนุมัติ
 dms.card.BTN_UPDATE,อัปเดตข้อมูล
 dms.card.MSG_BIND_BAD_CODE,รหัสผูกนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณากลับไปสร้างใหม่ที่หน้าเว็บ
@@ -523,6 +540,7 @@ dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประช
 dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
 dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_SCAN_SENT,สแกนบัตรแล้ว
 dms.card.TXT_SYSTEM_ERROR,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
 dms.card.approval.BTN_ALL_APPROVERS,ส่งหาทุกคน
 dms.card.approval.BTN_APPROVE,อนุมัติ
@@ -900,6 +918,20 @@ dms.edit.road,ถนน
 dms.edit.room,ห้อง
 dms.edit.save,บันทึก
 dms.edit.saved,บันทึกฉบับร่างแล้ว ส่งสรุปใหม่ไปที่ LINE เรียบร้อย
+dms.edit.scanBack,กลับไปที่แชท
+dms.edit.scanExpired,ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่
+dms.edit.scanFailed,ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง
+dms.edit.scanNoCamera,เปิดกล้องไม่ได้ กรุณาส่งรูปบัตรประชาชนในแชทแทน
+dms.edit.scanRetry,ลองอีกครั้ง
+dms.edit.scanSending,กำลังส่ง…
+dms.edit.scanSent,ส่งแล้ว กลับไปที่แชทได้เลย
+dms.edit.scanShoot,ถ่ายรูป
+dms.edit.scanTipFocus,ภาพยังไม่ชัด ถือโทรศัพท์ให้นิ่ง
+dms.edit.scanTipGlare,บัตรมีแสงสะท้อน เอียงบัตรเล็กน้อย
+dms.edit.scanTipHold,ถือนิ่งๆ…
+dms.edit.scanTipLight,มืดหรือสว่างเกินไป ลองย้ายไปที่แสงพอดี
+dms.edit.scanTipPlace,วางบัตรให้อยู่ในกรอบ
+dms.edit.scanTooLarge,รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง
 dms.edit.slip,ใบโอนเงินจอง
 dms.edit.slipConflict,มีสลิปโอนเงินแนบอยู่ แต่ไม่มีช่องทางเงินโอน กรุณาเพิ่มช่องทางเงินโอนหรือนำสลิปออก
 dms.edit.slipRequired,การโอนเงินต้องมีสลิป ร่างนี้ยังไม่มีสลิป กรุณานำช่องทางเงินโอนออก หรือเริ่มทำใบจองใหม่ใน LINE และแนบสลิป

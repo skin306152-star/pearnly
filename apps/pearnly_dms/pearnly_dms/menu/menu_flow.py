@@ -188,12 +188,12 @@ def _choose(
         )
         return
     if id_card:
-        tail = cards.TXT_ASK_PHONE
-    elif phone:
-        tail = cards.TXT_ASK_CARD
-    else:
-        tail = cards.TXT_MENU_SEND_CARD
-    _reply(reply_token, tail)
+        _reply(reply_token, cards.TXT_ASK_PHONE)
+        return
+    from pearnly_dms.intake import scan as id_scan
+
+    tail = cards.TXT_ASK_CARD if phone else cards.TXT_MENU_SEND_CARD
+    _send(line_user_id, id_scan.prompt(tail), reply_token)
 
 
 def _continue_booking(
@@ -234,7 +234,9 @@ def _retake(
         return
     kept = {key: payload.get(key) for key in ("phone", "mode", "endpoint_id") if payload.get(key)}
     store.set_session(line_user_id, "collecting", kept)
-    _reply(reply_token, cards.TXT_RETAKE)
+    from pearnly_dms.intake import scan as id_scan
+
+    _send(line_user_id, id_scan.prompt(cards.TXT_RETAKE), reply_token)
 
 
 # ── 客户档落定后的分叉（`mode` 门控订车串联） ────────────────────────────────

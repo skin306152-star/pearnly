@@ -172,6 +172,36 @@ export async function ensureTicket(draft: string, mode: EditorMode): Promise<str
   return rememberTicket(auth.ticket);
 }
 
+/** 扫身份证页的票据（交接页已换好放在 sessionStorage；没有就现场换一张）。 */
+export async function ensureScanTicket(): Promise<string> {
+  const stored = storedTicket();
+  if (stored) return stored;
+  const auth = await call<{ ticket: string }>(`${API}browser_auth`, { editor: "scan" }, { method: "POST" });
+  return rememberTicket(auth.ticket);
+}
+
+/** 上传扫描到的身份证（data URL）。返回要替业务员发回聊天的那句话与短码。 */
+export function uploadScan(ticket: string, image: string): Promise<{ code: string; marker: string }> {
+  return call<{ code: string; marker: string }>(`${API}browser_scan`, { ticket, image }, { method: "POST" });
+}
+
+const SCAN_MARKER_KEY = "pearnly_dms_scan_marker";
+const SCAN_CODE_KEY = "pearnly_dms_scan_code";
+
+/**
+ * 交回 LINE：替业务员发消息要在 LIFF 登记的地址下 init 之后才能做，所以把那句话与短码放进
+ * sessionStorage，跳回交接页（`/liff/dms-booking?editor=scan_sent`）由它发送并关窗。
+ */
+export function returnToChat(result: { code: string; marker: string }): void {
+  try {
+    sessionStorage.setItem(SCAN_MARKER_KEY, result.marker);
+    sessionStorage.setItem(SCAN_CODE_KEY, result.code);
+  } catch {
+    /* 存不下：交接页会提示过期，业务员可以直接在聊天里发照片 */
+  }
+  window.location.replace("/liff/dms-booking?editor=scan_sent");
+}
+
 export function loadDraft(ticket: string, nonce: string): Promise<Draft> {
   return call<Draft>(`${API}browser_draft`, { ticket, nonce });
 }

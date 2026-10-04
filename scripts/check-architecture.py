@@ -208,7 +208,8 @@ def check(root=ROOT):
     router = root / "frontend/src/router.ts"
     if router.exists():
         routes = re.findall(r'path:\s*["\']([^"\']+)', router.read_text())
-        if any(route not in {"/dms/editor", "/dms/account"} for route in routes):
+        # 三个都是 LINE 一次性票据页（编辑草稿 / 账号 / 扫身份证），不是产品 Web 的第二套外壳。
+        if any(route not in {"/dms/editor", "/dms/account", "/dms/scan"} for route in routes):
             errors.append("frontend/src/router.ts: product Web routes must use native Desk; only scoped LINE editors are standalone")
     for path in (root / "apps").glob("*/*/public/desk/*.js"):
         source = path.read_text()

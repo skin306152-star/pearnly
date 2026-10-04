@@ -11,6 +11,12 @@ export const router = createRouter({
       component: () => import("./pages/dms/AccountPage.vue"),
     },
     {
+      path: "/dms/scan",
+      name: "dms-scan",
+      meta: { standalone: true },
+      component: () => import("./pages/dms/ScanPage.vue"),
+    },
+    {
       path: "/dms/editor",
       name: "dms-editor",
       meta: { standalone: true },
@@ -19,7 +25,7 @@ export const router = createRouter({
   ],
 });
 router.beforeEach((to) => {
-  if (["/dms/editor", "/dms/account"].includes(to.path)) return true;
+  if (["/dms/editor", "/dms/account", "/dms/scan"].includes(to.path)) return true;
   window.location.replace("/desk/pearnly-home");
   return false;
 });

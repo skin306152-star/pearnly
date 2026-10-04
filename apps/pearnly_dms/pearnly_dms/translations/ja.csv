@@ -31,6 +31,7 @@ Approved. Customer data updated.,承認しました。顧客データを更新�
 Approver,承認者
 Attached,添付済み
 Awaiting manager,営業マネージャー待ち
+Back to chat,チャットに戻る
 Bank transfer,振込
 Booking,予約
 Booking ID,予約ID
@@ -53,6 +54,7 @@ Brand,メーカー
 Building,建物
 Cached result captured at {time},保存済み結果の取得時刻：{time}
 Cancel,キャンセル
+Cannot open the camera. Please send the ID card photo in the chat instead.,カメラを開けません。チャットで身分証の写真を送ってください。
 Car,車両
 Car allocation,車両の割当
 Car details,車両の詳細
@@ -92,6 +94,7 @@ Contract opened,契約締結済み
 Contract status,契約状況
 Could not check the customer data. Please try again.,顧客データを確認できませんでした。もう一度お試しください。
 Could not read data from DMS. Please try again.,DMS からデータを読み取れませんでした。もう一度お試しください。
+Could not send the photo. Please try again.,写真を送れませんでした。もう一度お試しください。
 Count,件数
 Create a booking,予約の作成
 "Create a car booking: choose the model and colour, then save",車の予約を作成：車種と色を選んで保存
@@ -148,19 +151,23 @@ Finance approved,ローン承認済み
 Finance pending,ローン審査中
 First setup,初回設定
 First-time setup,初回設定
+Fit the ID card inside the frame,身分証を枠に合わせてください
 Floor,階
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
 Gear,ギア
+Glare on the card. Tilt it slightly,カードが反射しています。少し傾けてください
 Grade,グレード
 "Hello 🙏
 Welcome to Pearnly DMS
 Please choose a menu below to get started","こんにちは 🙏
 Pearnly DMS へようこそ
 下のメニューから始めてください"
+Hold still…,そのまま動かさないでください…
 House no.,番地
 ID card copy,身分証明書のコピー
 ID card photo received. Please type the customer's phone number.,身分証明書の写真を受け取りました。お客様の電話番号を入力してください。
+ID card scanned,身分証をスキャンしました
 ID no.,身分証番号
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","金額が正しくありません。数字で入力してください（例：5000 または 5,000.50）"
 Invalid format. Please fill in both fields {hint},形式が正しくありません。2 つとも入力してください {hint}
@@ -206,6 +213,7 @@ Not set (data is read only at night),未設定（夜間のみ読み込み）
 Not set (no daytime sync),未設定（日中は同期しない）
 Not set (the connection account is used),未設定（接続アカウントを使用）
 Not set (the read account is used for writes),未設定（書き込みに読み取りアカウントを使用）
+Not sharp yet. Hold the phone steady,まだぼやけています。スマホを動かさないでください
 Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 Older data as of {time}; refresh manually if needed,{time} 時点の古いデータです。必要に応じて手動で更新してください。
@@ -289,13 +297,16 @@ Customer ID: {customer_code}
 Name: {name}","保存しました · {action}
 顧客番号：{customer_code}
 氏名：{name}"
+Scan ID card,身分証をスキャン
 Search data,データ検索
 Select at least one data group.,データを1種類以上選択してください。
 Select one or more DMS data groups to read,読み取る DMS データを1種類以上選択してください
 "Select the data to update, then wait for the read to finish.",更新するデータを選択し、読み取りが完了するまでお待ちください。
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",予約金の振込明細を送ってください · 現金払いの場合は 現金 と入力するとこの手順を飛ばせます
 Send to everyone,全員に送る
+Sending…,送信中…
 Sent to,送信先
+Sent. You can go back to the chat.,送信しました。チャットに戻れます。
 "Separate fields with | , / or ·","項目は | , / または · で区切ってください"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。
 Similar customers found. Choose the one that matches.,似た顧客が見つかりました。該当する顧客を選んでください。
@@ -314,6 +325,7 @@ Sync is delayed; showing data as of {time},同期が遅延しています。{tim
 System accounts,システムアカウント
 THB,バーツ
 Take a photo of the customer's ID card to start a new customer record.,お客様の身分証明書を撮影すると、新規顧客の登録を始めます。
+Take photo,撮影
 Tap Confirm or Discard on the summary above,上の概要で「確定」または「破棄」を押してください
 Tap Retry within 30 minutes,30 分以内に「再試行」を押してください
 Test and add,テストして追加
@@ -339,6 +351,7 @@ The check stopped before it finished. Please try again.,確認が途中で止ま
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 The data volume exceeds the read limit. Please contact an administrator.,データ量が読み取り上限を超えています。管理者にご連絡ください。
+The photo is too large. Please try again.,写真が大きすぎます。もう一度お試しください。
 The read status changed. Refresh the page to check before trying again.,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
@@ -368,6 +381,7 @@ This read failed. Please try again later.,今回の読み取りは失敗しま�
 This request has already been handled,この申請はすでに処理されています
 This request has expired. Please start again.,この申請は期限切れです。やり直してください。
 This step does not need a picture. Please follow the question above.,この手順では画像は不要です。上の質問に沿って進めてください。
+This step has expired. Go back to the chat and start again.,この手順は期限切れです。チャットに戻ってやり直してください。
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。
 This system account is already registered,このシステムアカウントは登録済みです
 This system account no longer exists; reload the page,このシステムアカウントはもうありません。ページを再読み込みしてください
@@ -375,11 +389,13 @@ This system account no longer exists; reload the page,このシステムアカ�
 This tutorial video is not available yet. Please check back later.,このチュートリアル動画はまだ公開されていません。しばらくしてからご覧ください。
 This year Top 10,今年 Top 10
 Title,敬称
+Too dark or too bright. Move to better light,暗すぎるか明るすぎます。明るさのちょうどよい場所へ
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
 Top sales,販売ランキング
 Top sales from DMS,DMS の販売ランキング
 Total deposit,予約金合計
+Try again,もう一度
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",期間と件数を入力してください（例：01/08/2569-31/08/2569 15、仏暦）
 "Type bank name | card type, e.g. KBank | VISA",銀行名 | カードの種類 を入力（例：KBank | VISA）
 "Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank",小切手番号 | 小切手帳番号 | 銀行名 を入力（例：123456 | 01 | KBank）
@@ -447,6 +463,7 @@ dms.card.BTN_RESTART,やり直し
 dms.card.BTN_RETRY,再試行
 dms.card.BTN_RETRY_BOOKING,予約を再作成
 dms.card.BTN_SAVE_NEW,新規顧客を保存
+dms.card.BTN_SCAN_CARD,身分証をスキャン
 dms.card.BTN_SUBMIT_APPROVAL,承認を申請
 dms.card.BTN_UPDATE,データを更新
 dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
@@ -523,6 +540,7 @@ dms.card.TXT_RETAKE,身分証明書をもう一度撮影してください
 dms.card.TXT_SAME,この顧客はすでに登録済みで、データも一致しています
 dms.card.TXT_SAME_ALT,顧客データが一致しています
 dms.card.TXT_SAVE_FAIL,保存できませんでした。もう一度お試しください。
+dms.card.TXT_SCAN_SENT,身分証をスキャンしました
 dms.card.TXT_SYSTEM_ERROR,システムエラーです。もう一度お試しください。
 dms.card.approval.BTN_ALL_APPROVERS,全員に送る
 dms.card.approval.BTN_APPROVE,承認
@@ -900,6 +918,20 @@ dms.edit.road,道路
 dms.edit.room,部屋
 dms.edit.save,保存
 dms.edit.saved,下書きを保存し、新しいプレビューを LINE に送信しました。
+dms.edit.scanBack,チャットに戻る
+dms.edit.scanExpired,この手順は期限切れです。チャットに戻ってやり直してください。
+dms.edit.scanFailed,写真を送れませんでした。もう一度お試しください。
+dms.edit.scanNoCamera,カメラを開けません。チャットで身分証の写真を送ってください。
+dms.edit.scanRetry,もう一度
+dms.edit.scanSending,送信中…
+dms.edit.scanSent,送信しました。チャットに戻れます。
+dms.edit.scanShoot,撮影
+dms.edit.scanTipFocus,まだぼやけています。スマホを動かさないでください
+dms.edit.scanTipGlare,カードが反射しています。少し傾けてください
+dms.edit.scanTipHold,そのまま動かさないでください…
+dms.edit.scanTipLight,暗すぎるか明るすぎます。明るさのちょうどよい場所へ
+dms.edit.scanTipPlace,身分証を枠に合わせてください
+dms.edit.scanTooLarge,写真が大きすぎます。もう一度お試しください。
 dms.edit.slip,振込票
 dms.edit.slipConflict,振込票が添付されていますが、振込支払いがありません。振込を追加するか、振込票を削除してください。
 dms.edit.slipRequired,振込には振込票が必要です。この下書きには添付されていません。振込を削除するか、LINE で予約を入力し直して振込票を添付してください。

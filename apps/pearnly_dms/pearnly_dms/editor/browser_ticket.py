@@ -35,7 +35,7 @@ PREFIX = "pearnly:dms:browser-ticket:"
 # 30 分钟：够打开页面、改一遍、保存；和 `booking_review` 的会话 TTL 同量级。
 TTL_SECONDS = 30 * 60
 
-MODES = ("booking", "customer", "account")
+MODES = ("booking", "customer", "account", "scan")
 
 
 def _state_store():

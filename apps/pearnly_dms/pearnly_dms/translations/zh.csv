@@ -31,6 +31,7 @@ Approved. Customer data updated.,已批准，客户资料已更新。
 Approver,审批人
 Attached,已附上
 Awaiting manager,待销售经理
+Back to chat,返回聊天
 Bank transfer,转账
 Booking,订车单
 Booking ID,订车编号
@@ -53,6 +54,7 @@ Brand,品牌
 Building,楼宇
 Cached result captured at {time},已缓存结果读取于 {time}
 Cancel,取消
+Cannot open the camera. Please send the ID card photo in the chat instead.,无法打开相机，请回到聊天直接发身份证照片。
 Car,车辆
 Car allocation,配车
 Car details,车辆说明
@@ -92,6 +94,7 @@ Contract opened,已签合同
 Contract status,合同状态
 Could not check the customer data. Please try again.,核对客户资料失败，请重试。
 Could not read data from DMS. Please try again.,从 DMS 读取资料失败，请重试。
+Could not send the photo. Please try again.,照片没有发出去，请重试。
 Count,数量
 Create a booking,开订车单
 "Create a car booking: choose the model and colour, then save",建立订车单：选择车型、颜色并保存
@@ -148,19 +151,23 @@ Finance approved,贷款已批
 Finance pending,贷款待批
 First setup,首次设置
 First-time setup,首次设置
+Fit the ID card inside the frame,把身份证放进框内
 Floor,楼层
 Full address directory,完整地址目录
 Full customer records,完整客户资料
 Gear,变速箱
+Glare on the card. Tilt it slightly,卡片反光，请稍微倾斜
 Grade,等级
 "Hello 🙏
 Welcome to Pearnly DMS
 Please choose a menu below to get started","你好 🙏
 欢迎使用 Pearnly DMS
 请选择下方菜单开始使用"
+Hold still…,拿稳不动…
 House no.,门牌号
 ID card copy,身份证复印件
 ID card photo received. Please type the customer's phone number.,已收到身份证照片，请输入客户的电话号码。
+ID card scanned,已扫描身份证
 ID no.,证件号码
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","金额不正确，请输入数字，例如 5000 或 5,000.50"
 Invalid format. Please fill in both fields {hint},格式不正确，请两栏都填写 {hint}
@@ -206,6 +213,7 @@ Not set (data is read only at night),未设置（资料只在凌晨读取）
 Not set (no daytime sync),未设置（白天不同步）
 Not set (the connection account is used),未设置（使用连接账号）
 Not set (the read account is used for writes),未设置（改写时用读档账号）
+Not sharp yet. Hold the phone steady,画面还不清楚，请拿稳
 Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 Older data as of {time}; refresh manually if needed,当前为 {time} 的旧资料，需要时请手动刷新
@@ -289,13 +297,16 @@ Customer ID: {customer_code}
 Name: {name}","保存成功 · {action}
 客户编号：{customer_code}
 姓名：{name}"
+Scan ID card,扫描身份证
 Search data,查询资料
 Select at least one data group.,请至少选择一组资料。
 Select one or more DMS data groups to read,请选择至少一组需要读取的 DMS 资料
 "Select the data to update, then wait for the read to finish.",选择需要更新的资料，点击后请等待读取完成。
 "Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step",请发送订金转账凭证 · 如果客户付现金，输入 现金 跳过这一步
 Send to everyone,发给所有人
+Sending…,正在发送…
 Sent to,发送给
+Sent. You can go back to the chat.,已发送，可以回到聊天了。
 "Separate fields with | , / or ·","栏位之间用 | , / 或 · 分隔"
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。
 Similar customers found. Choose the one that matches.,找到相似的客户，请选择对应的一位。
@@ -314,6 +325,7 @@ Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time}
 System accounts,系统账号
 THB,泰铢
 Take a photo of the customer's ID card to start a new customer record.,拍摄客户身份证即可开始登记新客户。
+Take photo,拍照
 Tap Confirm or Discard on the summary above,请在上方汇总中点「确认」或「放弃」
 Tap Retry within 30 minutes,请在 30 分钟内点「重试」
 Test and add,测试并添加
@@ -339,6 +351,7 @@ The check stopped before it finished. Please try again.,检查中途停止了，
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 The data volume exceeds the read limit. Please contact an administrator.,数据量超过了读取上限，请联系管理人员。
+The photo is too large. Please try again.,照片太大，请重试。
 The read status changed. Refresh the page to check before trying again.,读取状态已变化，请刷新页面确认后再试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
@@ -368,6 +381,7 @@ This read failed. Please try again later.,本次读取失败，请稍后再试�
 This request has already been handled,此申请已被处理
 This request has expired. Please start again.,此申请已过期，请重新开始。
 This step does not need a picture. Please follow the question above.,这一步不需要图片，按上面的问题操作即可。
+This step has expired. Go back to the chat and start again.,这一步已过期，请回到聊天重新开始。
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",这一步需要凭证的图片，请以图片发送；没有转账就输入 现金。
 This system account is already registered,这个系统账号已经登记过了
 This system account no longer exists; reload the page,这个系统账号已不存在，请刷新页面
@@ -375,11 +389,13 @@ This system account no longer exists; reload the page,这个系统账号已不�
 This tutorial video is not available yet. Please check back later.,这个教程视频暂未上线，请稍后再来看。
 This year Top 10,今年 Top 10
 Title,称谓
+Too dark or too bright. Move to better light,光线太暗或太亮，请换个位置
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
 Top sales,销售排行
 Top sales from DMS,DMS 销售排行
 Total deposit,订金合计
+Try again,重试
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",请输入日期范围和条数，例如 01/08/2569-31/08/2569 15（佛历）
 "Type bank name | card type, e.g. KBank | VISA",请输入 银行名称 | 卡种，例如 KBank | VISA
 "Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank",请输入 支票号码 | 支票簿号 | 银行名称，例如 123456 | 01 | KBank
@@ -447,6 +463,7 @@ dms.card.BTN_RESTART,重新开始
 dms.card.BTN_RETRY,重试
 dms.card.BTN_RETRY_BOOKING,重新建立订车单
 dms.card.BTN_SAVE_NEW,保存新客户
+dms.card.BTN_SCAN_CARD,扫描身份证
 dms.card.BTN_SUBMIT_APPROVAL,提交审批
 dms.card.BTN_UPDATE,更新资料
 dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
@@ -523,6 +540,7 @@ dms.card.TXT_RETAKE,请重新拍摄身份证
 dms.card.TXT_SAME,这位客户已有资料，资料一致
 dms.card.TXT_SAME_ALT,客户资料一致
 dms.card.TXT_SAVE_FAIL,保存失败，请重试。
+dms.card.TXT_SCAN_SENT,已扫描身份证
 dms.card.TXT_SYSTEM_ERROR,系统出错，请重试。
 dms.card.approval.BTN_ALL_APPROVERS,发给所有人
 dms.card.approval.BTN_APPROVE,批准
@@ -900,6 +918,20 @@ dms.edit.road,道路
 dms.edit.room,房间
 dms.edit.save,保存
 dms.edit.saved,草稿已保存，新版预览已发送到 LINE。
+dms.edit.scanBack,返回聊天
+dms.edit.scanExpired,这一步已过期，请回到聊天重新开始。
+dms.edit.scanFailed,照片没有发出去，请重试。
+dms.edit.scanNoCamera,无法打开相机，请回到聊天直接发身份证照片。
+dms.edit.scanRetry,重试
+dms.edit.scanSending,正在发送…
+dms.edit.scanSent,已发送，可以回到聊天了。
+dms.edit.scanShoot,拍照
+dms.edit.scanTipFocus,画面还不清楚，请拿稳
+dms.edit.scanTipGlare,卡片反光，请稍微倾斜
+dms.edit.scanTipHold,拿稳不动…
+dms.edit.scanTipLight,光线太暗或太亮，请换个位置
+dms.edit.scanTipPlace,把身份证放进框内
+dms.edit.scanTooLarge,照片太大，请重试。
 dms.edit.slip,订金转账凭证
 dms.edit.slipConflict,已附转账凭证，但没有转账付款。请添加转账方式或删除凭证。
 dms.edit.slipRequired,转账付款需要附上转账凭证。当前草稿没有凭证，请先移除此付款方式，或返回 LINE 重新录入并上传凭证。

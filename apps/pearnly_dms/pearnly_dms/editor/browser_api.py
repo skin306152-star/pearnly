@@ -226,6 +226,51 @@ def browser_save(ticket: str, nonce: str, form: Any = None) -> dict:
     return {"nonce": new_nonce}
 
 
+# ── 扫身份证 ─────────────────────────────────────────────────────────────
+def _scan_user(ticket: str) -> str:
+    who = _ticket_line_user(ticket)
+    if who["mode"] != "scan":
+        _fail("dms_booking.line_auth_required", 403)
+    return who["line_user_id"]
+
+
+def _scan(call):
+    from pearnly_dms.intake import scan
+
+    try:
+        return call(scan)
+    except scan.ScanError as exc:
+        _fail(exc.code, exc.status)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def browser_scan(ticket: str, image: str = "") -> dict:
+    """扫描页上传身份证照片（base64）。返回要替业务员发回聊天的那句话，见 `intake.scan`。"""
+    import base64
+    import binascii
+
+    from pearnly_dms import i18n
+
+    line_user_id = _scan_user(ticket)
+    data = str(image or "")
+    if data.startswith("data:"):
+        data = data.split(",", 1)[-1]
+    try:
+        content = base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError):
+        _fail("dms_scan.not_image")
+    # 发回聊天的那句话按这个人手机上 LINE 的语言（与卡片一致）。
+    with i18n.line_language(line_user_id):
+        return _scan(lambda scan: scan.store_upload(line_user_id, content))
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def browser_scan_start(ticket: str, code: str = "") -> dict:
+    """扫描页发不了消息（LIFF 没有 `chat_message.write`）时的回落：直接开始识别，结果走推播。"""
+    line_user_id = _scan_user(ticket)
+    return {"started": bool(_scan(lambda scan: scan.start(line_user_id, code)))}
+
+
 # ── 文案 ─────────────────────────────────────────────────────────────────
 @frappe.whitelist(allow_guest=True)
 def browser_text(keys: Any = None) -> dict:
@@ -247,6 +292,8 @@ def browser_text(keys: Any = None) -> dict:
 
 __all__ = [
     "browser_auth",
+    "browser_scan",
+    "browser_scan_start",
     "browser_config",
     "browser_draft",
     "browser_geo",

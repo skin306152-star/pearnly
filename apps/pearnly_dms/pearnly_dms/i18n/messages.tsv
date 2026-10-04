@@ -396,3 +396,19 @@ The check could not start. Please try again.	检查没能开始，请再试一�
 The check failed. Please try again.	检查失败，请再试一次。	ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	確認に失敗しました。もう一度お試しください。
 The check stopped before it finished. Please try again.	检查中途停止了，请再试一次。	การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง	確認が途中で止まりました。もう一度お試しください。
 Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.	只能输入一个日期，例如 15/09/2569（佛历），不能按区间查。	ใส่ได้ครั้งละหนึ่งวันที่ เช่น 15/09/2569 (พ.ศ.) ค้นหาเป็นช่วงวันที่ไม่ได้	日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。	dms.card.query.TXT_DATE_SINGLE
+Scan ID card	扫描身份证	สแกนบัตรประชาชน	身分証をスキャン	dms.card.BTN_SCAN_CARD
+ID card scanned	已扫描身份证	สแกนบัตรแล้ว	身分証をスキャンしました	dms.card.TXT_SCAN_SENT
+Fit the ID card inside the frame	把身份证放进框内	วางบัตรให้อยู่ในกรอบ	身分証を枠に合わせてください	dms.edit.scanTipPlace
+Not sharp yet. Hold the phone steady	画面还不清楚，请拿稳	ภาพยังไม่ชัด ถือโทรศัพท์ให้นิ่ง	まだぼやけています。スマホを動かさないでください	dms.edit.scanTipFocus
+Too dark or too bright. Move to better light	光线太暗或太亮，请换个位置	มืดหรือสว่างเกินไป ลองย้ายไปที่แสงพอดี	暗すぎるか明るすぎます。明るさのちょうどよい場所へ	dms.edit.scanTipLight
+Glare on the card. Tilt it slightly	卡片反光，请稍微倾斜	บัตรมีแสงสะท้อน เอียงบัตรเล็กน้อย	カードが反射しています。少し傾けてください	dms.edit.scanTipGlare
+Hold still…	拿稳不动…	ถือนิ่งๆ…	そのまま動かさないでください…	dms.edit.scanTipHold
+Take photo	拍照	ถ่ายรูป	撮影	dms.edit.scanShoot
+Try again	重试	ลองอีกครั้ง	もう一度	dms.edit.scanRetry
+Back to chat	返回聊天	กลับไปที่แชท	チャットに戻る	dms.edit.scanBack
+Sending…	正在发送…	กำลังส่ง…	送信中…	dms.edit.scanSending
+Sent. You can go back to the chat.	已发送，可以回到聊天了。	ส่งแล้ว กลับไปที่แชทได้เลย	送信しました。チャットに戻れます。	dms.edit.scanSent
+Cannot open the camera. Please send the ID card photo in the chat instead.	无法打开相机，请回到聊天直接发身份证照片。	เปิดกล้องไม่ได้ กรุณาส่งรูปบัตรประชาชนในแชทแทน	カメラを開けません。チャットで身分証の写真を送ってください。	dms.edit.scanNoCamera
+This step has expired. Go back to the chat and start again.	这一步已过期，请回到聊天重新开始。	ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่	この手順は期限切れです。チャットに戻ってやり直してください。	dms.edit.scanExpired
+The photo is too large. Please try again.	照片太大，请重试。	รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง	写真が大きすぎます。もう一度お試しください。	dms.edit.scanTooLarge
+Could not send the photo. Please try again.	照片没有发出去，请重试。	ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง	写真を送れませんでした。もう一度お試しください。	dms.edit.scanFailed

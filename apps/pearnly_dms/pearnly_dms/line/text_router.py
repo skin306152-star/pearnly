@@ -56,6 +56,12 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
 
     state = (sess or {}).get("state")
 
+    # 扫描页替业务员发回的那句话（「📷 … #短码」）：开始识别。它带数字，必须排在"含数字→手机号"之前。
+    from pearnly_dms.intake import scan as id_scan
+
+    if id_scan.handle_marker(line_user_id, reply_token, text):
+        return
+
     # 查询那两条"等打字"的态**排在订车前面**（照线上顺序：查询 → 逐问 → 待确认）。
     # 它自带权限门，且只接管自己那两个态，别的态一律返 False。
     if query_flow.handle_text(binding, line_user_id, reply_token, sess, text):
@@ -92,7 +98,10 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
             [menu_cards.menu_card(can_query=menu_flow.can_query(binding))],
         )
     else:
-        line.reply(reply_token, [{"type": "text", "text": nudge(sess)}])
+        tip = nudge(sess)
+        if tip in (cards.TXT_ASK_CARD, cards.TXT_NEED_BOTH):
+            tip = id_scan.prompt(tip)
+        line.reply(reply_token, [tip if isinstance(tip, dict) else {"type": "text", "text": tip}])
 
 
 def capture_phone(
@@ -113,7 +122,9 @@ def capture_phone(
         sess=sess,
     )
     if not payload.get("id_card"):
-        line.reply(reply_token, [{"type": "text", "text": cards.TXT_ASK_CARD}])
+        from pearnly_dms.intake import scan as id_scan
+
+        line.reply(reply_token, [id_scan.prompt(cards.TXT_ASK_CARD)])
         return
     flow._enqueue(
         "dedup",

@@ -451,6 +451,173 @@ class LineTokenNotLogged(unittest.TestCase):
             rich_menu.sync("U-real", language="th")
 
 
+class _FakeState:
+    """不淘汰 Redis 的替身：只认扫描用到的几个调用。"""
+
+    def __init__(self):
+        self.values = {}
+
+    def make_key(self, key):
+        return "site|" + key
+
+    def set_value(self, key, value, expires_in_sec=None):
+        self.values[key] = value
+
+    def get_value(self, key):
+        return self.values.get(key)
+
+    def set(self, key, value, ex=None, nx=False):
+        if nx and key in self.values:
+            return False
+        self.values[key] = value
+        return True
+
+
+class DmsIdScan(unittest.TestCase):
+    """LINE 里「扫身份证」：直传照片 → 同一条识别；旧的发照片流程不变。"""
+
+    JPEG = b"\xff\xd8\xff\xe0" + b"x" * 64
+
+    def setUp(self):
+        import os
+        import tempfile
+        from pearnly_core import line_session
+        from pearnly_dms.intake import flow, scan
+        from pearnly_dms.line import identity
+
+        self.scan, self.flow = scan, flow
+        root = tempfile.mkdtemp()
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        self.enterContext(patch.object(frappe, "get_site_path", lambda *parts: os.path.join(root, *parts)))
+        self.enterContext(patch.object(frappe.local, "site", "testdms.local", create=True))
+        self.enterContext(patch.object(frappe.local, "flags", frappe._dict(), create=True))
+        self.state = _FakeState()
+        self.enterContext(patch.object(scan, "_state", return_value=self.state))
+        self.session = {"state": "collecting", "payload": {"mode": "customer"}}
+        self.enterContext(patch.object(line_session, "get_session", side_effect=lambda uid: self.session))
+        self.enterContext(patch.object(identity, "current", return_value={"user": "sales@x", "binding_revision": "r1"}))
+        self.merge = self.enterContext(patch.object(flow, "merge_session", side_effect=self._merge))
+        self.begin = self.enterContext(patch.object(flow, "handle_image"))
+        self.enterContext(patch.object(line, "liff_id", return_value="1234-abcd"))
+        self.reply = self.enterContext(patch.object(line, "reply"))
+        for name, value in (("BTN_SCAN_CARD", "Scan ID card"), ("TXT_SCAN_SENT", "ID card scanned"),
+                            ("TXT_EXPIRED", "Expired")):
+            self.enterContext(patch.object(scan.cards, name, value, create=True))
+
+    def _merge(self, binding, line_user_id, fields, keep=(), sess=None):
+        self.session = {"state": "collecting", "payload": {**self.session.get("payload", {}), **fields}}
+        return self.session["payload"]
+
+    def test_prompt_offers_the_scan_button_only_when_the_site_has_liff(self):
+        message = self.scan.prompt("Please send the ID card photo")
+        action = message["quickReply"]["items"][0]["action"]
+        self.assertEqual((message["text"], action["type"]), ("Please send the ID card photo", "uri"))
+        self.assertEqual(action["uri"], "https://liff.line.me/1234-abcd?editor=scan")
+        self.assertLessEqual(len(action["label"]), 20)
+        with patch.object(line, "liff_id", return_value=""):
+            self.assertEqual(self.scan.prompt("x"), {"type": "text", "text": "x"})
+
+    def test_upload_registers_the_photo_as_the_image_to_read(self):
+        result = self.scan.store_upload("U-sales", self.JPEG)
+        pending = self.session["payload"]["pending_image"]
+        self.assertTrue(pending.startswith("scan:") and pending[5:].startswith(result["code"]))
+        self.assertEqual(result["marker"], f"📷 ID card scanned #{result['code']}")
+        self.assertEqual(self.session["payload"]["mode"], "customer", "phone / mode stay as with a chat photo")
+        self.assertEqual(self.scan.read(pending, "U-sales"), self.JPEG)
+        self.assertEqual(self.scan.read(pending, "U-sales"), b"", "the original is handed over once")
+        self.begin.assert_not_called()
+
+    def test_upload_rejects_non_images_oversize_and_other_steps(self):
+        with self.assertRaises(self.scan.ScanError) as raised:
+            self.scan.store_upload("U-sales", b"%PDF-1.7")
+        self.assertEqual(raised.exception.code, "dms_scan.not_image")
+        with patch("pearnly_dms.ocr.ocr_service.MAX_ID_CARD_MB", 0):
+            with self.assertRaises(self.scan.ScanError):
+                self.scan.store_upload("U-sales", self.JPEG)
+        self.session = {"state": "reviewing", "payload": {}}
+        with self.assertRaises(self.scan.ScanError) as raised:
+            self.scan.store_upload("U-sales", self.JPEG)
+        self.assertEqual((raised.exception.code, raised.exception.status), ("dms_booking.expired", 409))
+
+    def test_marker_in_chat_starts_recognition_once_with_its_free_reply_token(self):
+        from pearnly_dms.line import text_router
+
+        result = self.scan.store_upload("U-sales", self.JPEG)
+        pending = self.session["payload"]["pending_image"]
+        binding = {"user_id": "sales@x", "tenant_id": "testdms.local"}
+        with patch.object(text_router, "capture_phone", side_effect=AssertionError("marker is not a phone")):
+            text_router.route(binding, "U-sales", "tok-1", result["marker"])
+            text_router.route(binding, "U-sales", "tok-2", result["marker"])
+        self.begin.assert_called_once()
+        self.assertEqual(self.begin.call_args.args[1:], ("U-sales", pending, "tok-1"))
+
+    def test_stale_marker_says_expired_and_starts_nothing(self):
+        self.scan.store_upload("U-sales", self.JPEG)
+        self.assertTrue(self.scan.handle_marker("U-sales", "tok", "📷 ID card scanned #000000"))
+        self.assertFalse(self.scan.handle_marker("U-sales", "tok", "0812345678"))
+        self.begin.assert_not_called()
+        self.assertEqual(self.reply.call_args.args[1][0]["text"], "Expired")
+
+    def test_page_fallback_starts_without_a_token_and_only_once(self):
+        result = self.scan.store_upload("U-sales", self.JPEG)
+        self.assertTrue(self.scan.start("U-sales", result["code"]))
+        self.assertTrue(self.scan.handle_marker("U-sales", "tok", result["marker"]))
+        self.begin.assert_called_once()
+        self.assertEqual(self.begin.call_args.args[3], "")
+        with self.assertRaises(self.scan.ScanError):
+            self.scan.start("U-sales", "ffffff")
+
+    def test_only_the_uploader_can_read_the_photo(self):
+        self.scan.store_upload("U-sales", self.JPEG)
+        pending = self.session["payload"]["pending_image"]
+        self.assertEqual(self.scan.read(pending, "U-other"), b"")
+        self.assertEqual(self.scan.read("scan:../../etc", "U-sales"), b"")
+
+    def test_recognition_reads_the_scan_instead_of_downloading_from_line(self):
+        from pearnly_dms.line import out
+        from pearnly_dms.ocr import ocr_service
+
+        self.scan.store_upload("U-sales", self.JPEG)
+        pending = self.session["payload"]["pending_image"]
+        seen = {}
+
+        def recognize(user, content, filename, *args, **kwargs):
+            seen.update(content=content, reference=kwargs["billing_reference"])
+            return {"id": "EP"}, {"needs_review": True, "missing_fields": ["people_id"]}, 0
+
+        sent = []
+        with patch.object(out, "download_image", side_effect=AssertionError("no LINE download")), \
+             patch.object(self.flow, "_image_draft", return_value=self.session), \
+             patch.object(ocr_service, "recognize_id_card", side_effect=recognize), \
+             patch.object(self.flow, "_send", side_effect=lambda uid, msg, token="": sent.append(msg)), \
+             patch.object(frappe, "db", Mock(), create=True):
+            self.flow._recognize_image({"user_id": "sales@x"}, "U-sales", pending, "tok")
+        self.assertEqual(seen, {"content": self.JPEG, "reference": f"idcard:line:{pending}"})
+        self.assertEqual(sent[0]["quickReply"]["items"][0]["action"]["type"], "uri",
+                         "the retake prompt offers the scan button again")
+
+    def test_upload_api_needs_a_scan_ticket_and_takes_a_data_url(self):
+        import base64
+        from pearnly_dms.editor import browser_api
+
+        stored = self.enterContext(patch.object(self.scan, "store_upload", return_value={"code": "abc123"}))
+        self.enterContext(patch("pearnly_dms.i18n.line_language", return_value=nullcontext()))
+        image = "data:image/jpeg;base64," + base64.b64encode(self.JPEG).decode()
+        with patch.object(browser_api.tickets, "resolve", return_value={"line_user_id": "U-sales", "mode": "scan"}):
+            self.assertEqual(browser_api.browser_scan("t", image), {"code": "abc123"})
+        self.assertEqual(stored.call_args.args, ("U-sales", self.JPEG))
+        class Refused(Exception):
+            pass
+
+        def refuse(code, status=400):
+            raise Refused(code, status)
+
+        with patch.object(browser_api.tickets, "resolve", return_value={"line_user_id": "U-sales", "mode": "customer"}), \
+             patch.object(browser_api, "_fail", side_effect=refuse), self.assertRaises(Refused) as raised:
+            browser_api.browser_scan("t", image)
+        self.assertEqual(raised.exception.args, ("dms_booking.line_auth_required", 403))
+
+
 class OcrBackoff(unittest.TestCase):
     def setUp(self):
         from pearnly_core.execution import provider

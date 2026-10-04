@@ -80,6 +80,10 @@
         var API = "/api/method/pearnly_dms.editor.browser_api.";
         // 票据与语言放 sessionStorage（同源、不落 URL）：SPA 那边读同一把钥匙。
         var TICKET_KEY = "pearnly_dms_ticket";
+        // 扫身份证：SPA 扫描页上传后把要发回聊天的那句话与短码放这里，再跳回本页（`editor=scan_sent`）。
+        // 替业务员发消息（`liff.sendMessages`）要在 LIFF 登记的这个地址下 init 之后才能调，所以留在本页做。
+        var SCAN_MARKER_KEY = "pearnly_dms_scan_marker";
+        var SCAN_CODE_KEY = "pearnly_dms_scan_code";
         var LANG_KEY = "pearnly_dms_lang";
         var CACHE_LANG_KEY = "pearnly_lang";
         var msg = document.getElementById("msg");
@@ -195,16 +199,60 @@
             "&editor=" +
             encodeURIComponent(editor);
           if (accountAction) target = APP_URL + "#/dms/account?action=" + encodeURIComponent(accountAction);
+          if (editor === "scan") target = APP_URL + "#/dms/scan";
           location.replace(target);
+        }
+
+        function stored(key) {
+          try {
+            return sessionStorage.getItem(key) || "";
+          } catch (e) {
+            return "";
+          }
+        }
+
+        // 扫描页传完照片回到这里：替业务员在聊天里发那句话（带免费回覆令牌开始识别）；
+        // LIFF 没有发消息权限或不在 LINE 里 → 直接开始识别（结果走推播）。然后关窗回聊天。
+        async function finishScan() {
+          var ticket = stored(TICKET_KEY);
+          var marker = stored(SCAN_MARKER_KEY);
+          var code = stored(SCAN_CODE_KEY);
+          if (!ticket || !marker) return showError("dms.edit.expired");
+          var config = await get("browser_config", {});
+          CONFIG.liffId = (config && config.liff_id) || "";
+          CONFIG.csrf = (config && config.csrf_token) || "";
+          var sent = false;
+          if (CONFIG.liffId && window.liff) {
+            try {
+              await window.liff.init({ liffId: CONFIG.liffId });
+              if (window.liff.isInClient()) {
+                await window.liff.sendMessages([{ type: "text", text: marker }]);
+                sent = true;
+              }
+            } catch (e) {
+              sent = false;
+            }
+          }
+          if (!sent) await post("browser_scan_start", { ticket: ticket, code: code });
+          try {
+            sessionStorage.removeItem(SCAN_MARKER_KEY);
+            sessionStorage.removeItem(SCAN_CODE_KEY);
+          } catch (e) {
+            /* 留着也只是一句已发过的话，短码对不上时服务端不会再开始一次 */
+          }
+          document.getElementById("spin").hidden = true;
+          msg.textContent = text("dms.edit.scanSent");
+          if (window.liff && window.liff.isInClient && window.liff.isInClient()) window.liff.closeWindow();
         }
 
         async function main() {
           var draft = param("draft");
-          var editor = param("editor") === "customer" ? "customer" : "booking";
+          var editor = ["customer", "scan", "scan_sent"].includes(param("editor")) ? param("editor") : "booking";
           var accountAction = ["portal", "credentials"].includes(param("action")) ? param("action") : "";
-          await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable"]);
+          await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable", "dms.edit.scanSent"]);
           msg.textContent = text("dms.edit.loading");
-          if (!draft && !accountAction) return showError("dms.edit.expired");
+          if (editor === "scan_sent") return finishScan();
+          if (!draft && !accountAction && editor !== "scan") return showError("dms.edit.expired");
           // 配置也从接口拿（LIFF ID + csrf），不依赖模板变量 —— 见文件头的说明。
           var config = await get("browser_config", {});
           CONFIG.liffId = (config && config.liff_id) || "";

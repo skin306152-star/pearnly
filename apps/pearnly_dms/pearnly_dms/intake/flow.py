@@ -37,6 +37,7 @@ from pearnly_core import line
 from pearnly_core import line_session as store
 from pearnly_dms.line import cards as cards
 from pearnly_dms.intake import draft as draft
+from pearnly_dms.intake import scan as id_scan
 from pearnly_dms.intake import service as dms_intake
 from pearnly_dms.ocr import ocr_review as ocr_review
 from pearnly_dms.ocr import ocr_service as _id_ocr
@@ -315,14 +316,19 @@ def _recognize_image(binding, line_user_id, message_id, reply_token):
         from pearnly_core.execution import inputs
         maximum = _id_ocr.MAX_ID_CARD_MB * 1024 * 1024
         with ocr_timing.stage("download"):
-            content = inputs.read(message_id, lambda: out.download_image(message_id, maximum), maximum)
+            if message_id.startswith(id_scan.PREFIX):
+                # 扫描页直传的照片：已在本站点，不经 LINE 下载。
+                loader = lambda: id_scan.read(message_id, line_user_id)  # noqa: E731
+            else:
+                loader = lambda: out.download_image(message_id, maximum)  # noqa: E731
+            content = inputs.read(message_id, loader, maximum)
     except line.MediaTooLarge:
         _push(line_user_id, ocr_error_text(_id_ocr.DmsOcrError(
             "ocr.file_too_large", 400, {"mb": _id_ocr.MAX_ID_CARD_MB})), reply_token)
         return {"failed": "image_too_large", "notified": True}
     if not content:
         if _image_draft(binding, line_user_id, message_id):
-            _push(line_user_id, cards.TXT_BLURRY, reply_token)
+            _send(line_user_id, id_scan.prompt(cards.TXT_BLURRY), reply_token)
         return {"failed": "image_unavailable", "notified": True}
     try:
         ep, ocr, _ = _id_ocr.recognize_id_card(
@@ -341,7 +347,7 @@ def _recognize_image(binding, line_user_id, message_id, reply_token):
         return {"cancelled": "draft_changed"}
     if ocr.get("needs_review"):
         # 读不清 / 校验位对不上 → 打回，按**真实原因**说话；不查重
-        _push(line_user_id, ocr_review.review_text(ocr.get("missing_fields") or []), reply_token)
+        _send(line_user_id, id_scan.prompt(ocr_review.review_text(ocr.get("missing_fields") or [])), reply_token)
         return {"cancelled": "review_required"}
 
     id_card = _id_ocr.editable_id_card(ocr["id_card"])
