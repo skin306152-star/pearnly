@@ -22,3 +22,6 @@ frontend/components.d.ts
 # Windows 小助手（companion/）的本机构建产物
 /companion/build/
 /companion/dist/
+
+# 官网静态站构建产物（python3 website/build.py）
+/website/dist/
