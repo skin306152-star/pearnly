@@ -243,77 +243,135 @@ def window(body, bar="", cls=""):
     return f'<div class="window {cls}"><div class="winbar"><span class="lights"><i></i><i></i><i></i></span>{bar}</div>{body}</div>'
 
 
-# ---------------- 首页交互演示（单据是虚构样例） ----------------
+# ---------------- 首页交互演示：三段"现实 → 系统"的小故事（样例全是虚构） ----------------
+# 编排写在标记里，site.js 只是一个通用时间轴：
+#   data-at="900,1500:pick,2400:-pick"  到点给元素加/去类（默认类 on，"-类" 表示去掉）
+#   class="fly" data-from data-to       到点从一个元素飞到另一个元素（按实时位置算，桌面/手机通用）
+#   data-type="文字"                    加上 on 时逐字打出来
+#   data-count="on:120:110|refill:6:30" 加上对应类时数字滚动到目标值
+# 系统开了"减少动态效果"时直接显示终态。
 
-def field(k, label, value, checked=None):
-    tick = f'<em class="tick">✓ {esc(checked)}</em>' if checked else ""
-    return f'<div class="f" data-k="{k}"><span>{esc(label)}</span><b>{esc(value)}{tick}</b></div>'
+def flyer(text, src, dst, at, cls=""):
+    return f'<span class="fly {cls}" data-from="{src}" data-to="{dst}" data-at="{at}">{esc(text)}</span>'
 
 
-COWORK_DOC = """<div class="doc invoice" aria-hidden="true">
-  <div class="doc-top"><div class="doc-logo">ต</div><div class="doc-title"><b>ใบกำกับภาษี / ใบเสร็จรับเงิน</b><span data-k="doc_no">เลขที่ IV2569-0142</span><span data-k="date">วันที่ 27/09/2569</span></div></div>
-  <div class="doc-seller"><b data-k="seller">บริษัท ตัวอย่างการค้า จำกัด</b><span>88 ถนนตัวอย่าง แขวงสีลม กรุงเทพฯ 10500</span><span data-k="tax_id">เลขประจำตัวผู้เสียภาษี 0105599999997</span></div>
-  <table><thead><tr><th>รายการ</th><th>จำนวน</th><th>ราคา</th><th>จำนวนเงิน</th></tr></thead>
-  <tbody><tr><td>กาแฟคั่วเข้ม 250 กรัม</td><td>20</td><td>110.00</td><td>2,200.00</td></tr><tr><td>ชาเขียวมัทฉะ 100 กรัม</td><td>10</td><td>150.00</td><td>1,500.00</td></tr></tbody></table>
-  <div class="doc-sum"><span data-k="base">รวมเงิน <b>3,700.00</b></span><span data-k="vat">ภาษีมูลค่าเพิ่ม 7% <b>259.00</b></span><span data-k="total" class="grand">รวมทั้งสิ้น <b>3,959.00</b></span></div>
-  <i class="scan"></i>
+def scene_cowork(L):
+    rows = [("27/09", "โอนออก", "2,889.00", 0), ("27/09", "ค่าธรรมเนียม", "15.00", None), ("28/09", "โอนออก", "856.00", 1),
+            ("28/09", "รับโอน", "12,400.00", None), ("29/09", "โอนออก", "321.00", 2)]
+    invs = [("บจ. ตัวอย่างกาแฟ", "2,889.00"), ("ร้านวัสดุภัณฑ์ทวีผล", "856.00"), ("บจ. ขนส่งด่วนไทย", "321.00")]
+    T = [900, 2200, 3500]
+    def st_at(m):
+        return "" if m is None else f' data-at="{T[m] + 900}"'
+
+    stmt = "".join(
+        f'<div class="st-row" id="st{n}"{st_at(m)}><span>{d}</span><span>{esc(t)}</span><b>{a}</b><i class="ok">✓</i></div>'
+        for n, (d, t, a, m) in enumerate(rows))
+    cards = "".join(
+        f'<div class="inv i{i}" id="inv{i}" data-at="{T[i]}:pick,{T[i] + 900}:-pick,{T[i] + 900}:on,{4800 + i * 150}:sent">'
+        f'<span>ใบกำกับภาษี</span><b>{esc(n)}</b><em>{a}</em><i class="ok">✓</i></div>'
+        for i, (n, a) in enumerate(invs))
+    target = {0: 0, 1: 2, 2: 4}
+    flies = "".join(flyer(a, f"#inv{i}", f"#st{target[i]}", T[i] + 200) for i, (_n, a) in enumerate(invs))
+    threads = "".join(f'<path class="thread" pathLength="1" data-from="#st{target[i]}" data-to="#inv{i}" data-at="{T[i] + 700},4800:-on"/>'
+                      for i in range(3))
+    flies += f'<svg class="threads" aria-hidden="true">{threads}</svg>'
+    flies += "".join(flyer(a, f"#inv{i}", "#erp-rows", 4800 + i * 150, "doc") for i, (_n, a) in enumerate(invs))
+    erp_rows = "".join(
+        f'<div class="erp-row" data-at="{5400 + i * 160}"><span>{d}</span><span>{esc(n)}</span><b>{a}</b><i class="ok">✓</i></div>'
+        for i, ((n, a), d) in enumerate(zip(invs, ("27/09", "28/09", "29/09"))))
+    dots = "".join(f'<i data-at="{t + 900}"></i>' for t in T)
+    return f"""<div class="scene" data-scene="cowork" data-total="10500">
+  <div class="sc-real">
+    <span class="sc-tag">{esc(L["real"])}</span>
+    <div class="stmt"><h5>{esc(L["stmt"])} <small>ก.ย. 2569</small></h5>{stmt}</div>
+    <div class="sc-mascot" data-at="{T[0] + 900}:hop,{T[0] + 1500}:-hop,{T[1] + 900}:hop,{T[1] + 1500}:-hop,{T[2] + 900}:hop,{T[2] + 1500}:-hop,6900:hop,7500:-hop">{M.svg("cowork")}</div>
+  </div>
+  <div class="sc-sys">
+    <span class="sc-tag">{esc(L["system"])}</span>
+    <div class="invs"><h5>{esc(L["invoices"])} <span class="dots">{dots}</span></h5><div class="inv-row">{cards}</div></div>
+    <div class="erpbox" data-at="6200:read"><h5>{esc(L["erp"])} <span class="rb">{esc(L["readback"])}</span></h5><div id="erp-rows">{erp_rows}</div></div>
+    <div class="pill" data-at="6900">{icon("check")}<span>{esc(L["cowork_done"])}</span></div>
+  </div>
+  {flies}
 </div>"""
 
-ERP_DOC = """<div class="doc invoice" aria-hidden="true">
-  <div class="doc-top"><div class="doc-logo">ว</div><div class="doc-title"><b>ใบกำกับภาษี</b><span data-k="doc_no">เลขที่ INV-0927</span><span>วันที่ 28/09/2569</span></div></div>
-  <div class="doc-seller"><b data-k="supplier">หจก. ตัวอย่างวัสดุสำนักงาน</b><span>12 ถนนตัวอย่าง อ.เมือง จ.ขอนแก่น 40000</span></div>
-  <table><thead><tr><th>รายการ</th><th>จำนวน</th><th>ราคา</th><th>จำนวนเงิน</th></tr></thead>
-  <tbody><tr data-k="item1"><td>กระดาษ A4 80 แกรม</td><td>10 รีม</td><td>125.00</td><td>1,250.00</td></tr><tr data-k="item2"><td>แฟ้มสันกว้าง 3 นิ้ว</td><td>24 เล่ม</td><td>45.00</td><td>1,080.00</td></tr></tbody></table>
-  <div class="doc-sum"><span>รวมเงิน <b>2,330.00</b></span><span data-k="vat">ภาษีมูลค่าเพิ่ม 7% <b>163.10</b></span><span data-k="total" class="grand">รวมทั้งสิ้น <b>2,493.10</b></span></div>
-  <i class="scan"></i>
+
+def scene_dms(L):
+    fields = [("name", L["name"], "นาย สมชาย ใจดี", 1800), ("id_no", L["id_no"], "1-1234-xxxxx-xx-1", 2250),
+              ("birth", L["birth"], "12/03/2528", 2700), ("address", L["address"], "99 ถ.ตัวอย่าง อ.เมือง จ.เชียงใหม่", 3150),
+              ("phone", L["phone"], "089-999-1234", 4400)]
+    form = "".join(f'<div class="fr" id="fr-{k}"><span>{esc(lab)}</span><b data-type="{esc(v)}" data-at="{at + 650}"></b></div>'
+                   for k, lab, v, at in fields)
+    flies = "".join(flyer(v, "#dm-card" if k != "phone" else "#dm-phone", f"#fr-{k}", at) for k, _lab, v, at in fields)
+    olds = "".join(f"<li>{esc(n)}</li>" for n in ("นาง สมศรี ดีมาก", "นาย ประเสริฐ ทองดี", "นางสาว มาลี สุขใจ"))
+    return f"""<div class="scene" data-scene="dms" data-total="10500">
+  <div class="sc-real">
+    <span class="sc-tag">{esc(L["real"])}</span>
+    <div class="phone"><div class="ph-bar">{esc(L["chat"])}</div>
+      <div class="bub me" data-at="250"><div class="idmini" id="dm-card"><span class="idh">บัตรประจำตัวประชาชน</span><i class="idph"></i>
+        <b>นาย สมชาย ใจดี</b><span>1 1234 xxxxx xx 1</span><span>12 มี.ค. 2528</span><span>99 ถ.ตัวอย่าง จ.เชียงใหม่</span>
+        <i class="corners" data-at="800"></i><i class="flash" data-at="1350,1750:-on"></i></div></div>
+      <div class="bub me txt" id="dm-phone" data-at="3900">089-999-1234</div>
+      <div class="bub bot typing" data-at="7700,8300:-on"><i></i><i></i><i></i></div>
+      <div class="bub bot txt" data-at="8300">{esc(L["bot"])}</div>
+    </div>
+    <div class="sc-mascot" data-at="6000:hop,6600:-hop,8300:hop,8900:-hop">{M.svg("dms")}</div>
+  </div>
+  <div class="sc-sys">
+    <span class="sc-tag">{esc(L["system"])}</span>
+    <div class="dform"><h5>{esc(L["form"])}</h5>{form}</div>
+    <div class="dup" data-at="5000"><h6>{esc(L["dup"])}</h6><ul>{olds}</ul><i class="lens"></i>
+      <span class="nodup" data-at="6000">✓ {esc(L["nodup"])}</span></div>
+    <div class="slip" data-at="6700"><b>{esc(L["booking"])} BK-0412</b><span>นาย สมชาย ใจดี · 089-999-1234</span><span>{esc(L["sales"])}</span></div>
+  </div>
+  {flies}
+</div>"""
+
+
+def scene_erp(L):
+    prods = [("กระดาษ A4 ×10", "1,250.00", "doc"), ("แฟ้มสันกว้าง ×24", "1,080.00", "board"), ("ปากกา ×12", "180.00", "list")]
+    T = [300, 1700, 3100]
+    tiles = "".join(f'<div class="prod" data-at="{t}:on,{t + 1150}:gone">{icon(ic)}<span>{esc(n)}</span></div>' for (n, _a, ic), t in zip(prods, T))
+    lines = "".join(f'<div class="rl" data-at="{t + 700}"><span>{esc(n)}</span><b>{a}</b></div>' for (n, a, _ic), t in zip(prods, T))
+    stock = [("กระดาษ A4", 120, 110, None, 92, 85), ("แฟ้มสันกว้าง", 30, 6, 30, 60, 12), ("ปากกา", 48, 36, None, 64, 48)]
+    rows = ""
+    for i, (n, a, b, c, w0, w1) in enumerate(stock):
+        refill = f",6700:refill" if c else ""
+        count = f"on:{a}:{b}" + (f"|refill:{b}:{c}" if c else "")
+        low = f'<em class="low" data-at="{T[i] + 900},6700:-on">{{low}}</em>' if c else ""
+        rows += (f'<div class="sk" id="sk{i}" style="--w0:{w0}%;--w1:{w1}%;--w2:{w0}%" data-at="{T[i] + 800}{refill}">'
+                 f'<span>{esc(n)}</span><b data-count="{count}">{a}</b>{low}<div class="bar"><i></i></div></div>')
+    beeps = ",".join(f"{t + 600}:beep,{t + 900}:-beep" for t in T)
+    return f"""<div class="scene" data-scene="erp" data-total="9800">
+  <div class="sc-real">
+    <span class="sc-tag">{esc(L["real"])}</span>
+    <div class="pos" data-at="{beeps},5200:dim">
+      <h5>{esc(L["pos"])}</h5>
+      <div class="belt">{tiles}<i class="beam"></i><span class="beep">{esc(L["beep"])}</span></div>
+      <div class="rcpt"><h6>{esc(L["receipt"])}</h6>{lines}<div class="rl tot" data-at="4100"><span>{esc(L["total"])}</span><b>2,510.00</b></div>
+        <span class="paid" data-at="4400">{esc(L["paid"])}</span></div>
+    </div>
+    <div class="bill" id="bill" data-at="5300"><b>{esc(L["bill"])}</b><span>หจก. ตัวอย่างวัสดุ</span><span>แฟ้มสันกว้าง ×24</span><em>+24</em><i class="flash" data-at="5700,6100:-on"></i></div>
+    <div class="sc-mascot" data-at="{",".join(f"{t + 600}:hop,{t + 1100}:-hop" for t in T)},6700:hop,7300:-hop">{M.svg("erp")}</div>
+  </div>
+  <div class="sc-sys">
+    <span class="sc-tag">{esc(L["system"])}</span>
+    <div class="stock"><h5>{esc(L["stock"])}</h5>{rows.replace("{low}", esc(L["low"]))}
+      <span class="restock" data-at="6700">+24 · {esc(L["restock"])}</span></div>
+    <div class="pill" data-at="7400">{icon("check")}<span>{esc(L["erp_done"])}</span></div>
+  </div>
+  {flyer("+24", "#bill", "#sk1", 6000)}
 </div>"""
 
 
 def demo(lang):
     L = C.DEMO_LABELS[lang]
-    dms_doc = f"""<div class="doc chat" aria-hidden="true">
-  <div class="msg me"><div class="idcard"><span class="idc-h">บัตรประจำตัวประชาชน · ตัวอย่าง</span><span class="idc-photo"></span><b data-k="name">นาย สมชาย ใจดี</b><span data-k="id_no">1 1234 xxxxx xx 1</span><span data-k="birth">เกิดวันที่ 12 มี.ค. 2528</span><span data-k="address">99 ถ.ตัวอย่าง อ.เมือง จ.เชียงใหม่</span></div></div>
-  <div class="msg me"><span class="bubble" data-k="phone">089-999-1234</span></div>
-  <div class="msg bot"><span class="bubble">{esc(L["found"])}<em class="chip">{esc(L["confirm"])}</em></span></div>
-</div>"""
-    scenes = [
-        ("cowork", COWORK_DOC, L["read"], [
-            field("seller", L["seller"], "บริษัท ตัวอย่างการค้า จำกัด"),
-            field("tax_id", L["tax_id"], "0-1055-99999-99-7", L["checked"]),
-            field("doc_no", L["doc_no"], "IV2569-0142"),
-            field("date", L["date"], "27/09/2569"),
-            field("base", L["base"], "3,700.00"),
-            field("vat", L["vat"], "259.00", L["checked"]),
-            field("total", L["total"], "3,959.00"),
-        ], L["cowork_done"]),
-        ("dms", dms_doc, L["dms_read"], [
-            field("name", L["name"], "นาย สมชาย ใจดี"),
-            field("id_no", L["id_no"], "1-1234-xxxxx-xx-1", L["checked"]),
-            field("birth", L["birth"], "12/03/2528"),
-            field("address", L["address"], "99 ถ.ตัวอย่าง อ.เมือง จ.เชียงใหม่"),
-            field("phone", L["phone"], "089-999-1234"),
-        ], L["dms_done"]),
-        ("erp", ERP_DOC, L["erp_read"], [
-            field("supplier", L["supplier"], "หจก. ตัวอย่างวัสดุสำนักงาน"),
-            field("doc_no", L["doc_no"], "INV-0927"),
-            field("item1", L["items"], "กระดาษ A4 80 แกรม × 10"),
-            field("item2", L["items"], "แฟ้มสันกว้าง 3 นิ้ว × 24"),
-            field("vat", L["vat"], "163.10", L["checked"]),
-            field("total", L["total"], "2,493.10"),
-        ], L["erp_done"]),
-    ]
     tabs = "".join(
         f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(C.PRODUCT[k][lang]["name"])}</button>'
-        for i, (k, _doc, _title, _fields, _done) in enumerate(scenes)
-    )
-    body = "".join(
-        f"""<div class="scene{' active' if i == 0 else ''}" data-scene="{k}">
-  <div class="scene-doc">{doc}</div>
-  <div class="scene-out"><div class="out-head"><span class="spark"></span>{esc(title)}</div>{"".join(fields)}<div class="done">{icon("check")}<span>{esc(done)}</span></div></div>
-</div>"""
-        for i, (k, doc, title, fields, done) in enumerate(scenes)
-    )
-    return window(f'<div class="demo-body">{body}<div class="progress"><i></i></div></div>', f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
+        for i, k in enumerate(C.PRODUCTS))
+    body = scene_cowork(L).replace('class="scene"', 'class="scene active"', 1) + scene_dms(L) + scene_erp(L)
+    return window(f'<div class="demo-body" aria-hidden="true">{body}<div class="progress"><i></i></div></div>',
+                  f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
 
 
 # ---------------- 页面 ----------------

@@ -83,56 +83,114 @@
     on();
   }
 
-  // ---- 首页演示：扫描单据 → 字段逐个出现 → 完成 → 换下一个产品 ----
+  // ---- 首页演示：三段"现实 → 系统"小故事。编排都在标记里（见 build.py 的说明），这里只是通用时间轴 ----
   function demo() {
     var root = document.querySelector('.demo');
     if (!root) return;
     var tabs = root.querySelectorAll('[data-tab]');
     var bar = root.querySelector('.progress i');
     var order = [], timers = [], current = 0, visible = false, started = false;
+    var SPEED = 0.6;  // 标记里按 10 秒左右编排，整体压到 6 秒左右播放
     for (var i = 0; i < tabs.length; i++) order.push(tabs[i].getAttribute('data-tab'));
+    var hashed = /^#demo-(\w+)/.exec(location.hash);
+    if (hashed && order.indexOf(hashed[1]) >= 0) current = order.indexOf(hashed[1]);
 
     function clear() { timers.forEach(clearTimeout); timers = []; }
     function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+    function steps(el) {
+      return el.getAttribute('data-at').split(',').map(function (part) {
+        var bits = part.trim().split(':');
+        var cls = bits[1] || 'on', off = cls.charAt(0) === '-';
+        return { at: +bits[0], cls: off ? cls.slice(1) : cls, off: off };
+      });
+    }
+    function type(el, done) {
+      var text = el.getAttribute('data-type');
+      if (done || reduce) { el.textContent = text; return; }
+      var n = 0;
+      (function tick() { el.textContent = text.slice(0, ++n); if (n < text.length) later(tick, 28); })();
+    }
+    function count(el, cls, done) {
+      el.getAttribute('data-count').split('|').forEach(function (rule) {
+        var r = rule.split(':');
+        if (r[0] !== cls) return;
+        var from = +r[1], to = +r[2], t0 = performance.now();
+        if (done || reduce) { el.textContent = to; return; }
+        (function tick(now) {
+          var k = Math.min(1, (now - t0) / 650);
+          el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+          if (k < 1) requestAnimationFrame(tick);
+        })(t0);
+      });
+    }
+    function center(el, base) {
+      var r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - base.left, y: r.top + r.height / 2 - base.top };
+    }
+    function fly(el, scene) {
+      var src = scene.querySelector(el.getAttribute('data-from')), dst = scene.querySelector(el.getAttribute('data-to'));
+      if (!src || !dst || !el.animate) return;
+      var base = scene.getBoundingClientRect(), a = center(src, base), b = center(dst, base);
+      var w = el.offsetWidth / 2, h = el.offsetHeight / 2, lift = Math.min(90, Math.abs(b.x - a.x) * 0.25 + 30);
+      var at = function (p, s, o) {
+        var x = a.x + (b.x - a.x) * p - w, y = a.y + (b.y - a.y) * p - h - Math.sin(p * Math.PI) * lift;
+        return { transform: 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')', opacity: o };
+      };
+      el.animate([at(0, 0.6, 0), at(0.15, 1, 1), at(0.5, 1.08, 1), at(0.9, 1, 1), at(1, 0.7, 0)],
+                 { duration: +(el.getAttribute('data-dur') || 750) * SPEED, easing: 'cubic-bezier(.45,0,.25,1)', fill: 'both' });
+    }
+    // 配对的线：从一个元素的右边缘连到另一个元素的左边缘，加 on 时由 CSS 画出来
+    function thread(el, scene) {
+      var src = scene.querySelector(el.getAttribute('data-from')), dst = scene.querySelector(el.getAttribute('data-to'));
+      if (!src || !dst) return;
+      var base = scene.getBoundingClientRect(), r1 = src.getBoundingClientRect(), r2 = dst.getBoundingClientRect();
+      var x1 = r1.right - base.left - 4, y1 = r1.top + r1.height / 2 - base.top;
+      if (r2.top > r1.bottom + 20) {  // 手机上两栏叠起来：从这一行的右端往下弯到卡片顶部
+        var x2v = r2.left + r2.width / 2 - base.left, y2v = r2.top - base.top + 2;
+        el.setAttribute('d', 'M' + x1 + ' ' + y1 + ' C' + (x1 + 28) + ' ' + y1 + ' ' + x2v + ' ' + (y2v - 70) + ' ' + x2v + ' ' + y2v);
+        return;
+      }
+      var x2 = r2.left - base.left + 4, y2 = r2.top + r2.height / 2 - base.top, dx = Math.max(40, (x2 - x1) / 2);
+      el.setAttribute('d', 'M' + x1 + ' ' + y1 + ' C' + (x1 + dx) + ' ' + y1 + ' ' + (x2 - dx) + ' ' + y2 + ' ' + x2 + ' ' + y2);
+    }
+    function apply(el, step, scene, done) {
+      if (el.classList.contains('fly')) { if (!done) fly(el, scene); return; }
+      if (el.classList.contains('thread') && !step.off) thread(el, scene);
+      el.classList.toggle(step.cls, !step.off);
+      if (step.off) return;
+      if (step.cls === 'on' && el.hasAttribute('data-type')) type(el, done);
+      if (el.hasAttribute('data-count')) count(el, step.cls, done);
+      el.querySelectorAll(':scope > [data-count]').forEach(function (c) { count(c, step.cls, done); });
+    }
+    function reset(scene) {
+      scene.querySelectorAll('[data-at]').forEach(function (el) {
+        steps(el).forEach(function (st) { el.classList.remove(st.cls); });
+        if (el.hasAttribute('data-type')) el.textContent = '';
+        if (el.getAnimations) el.getAnimations().forEach(function (an) { an.cancel(); });
+      });
+      scene.querySelectorAll('[data-count]').forEach(function (el) { el.textContent = el.getAttribute('data-count').split('|')[0].split(':')[1]; });
+    }
 
     function play(index, auto) {
       clear();
       current = index;
-      var name = order[index];
+      var name = order[index], scene;
       for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-selected', String(i === index));
-      var scenes = root.querySelectorAll('.scene');
-      var scene;
-      for (var s = 0; s < scenes.length; s++) {
-        var active = scenes[s].getAttribute('data-scene') === name;
-        scenes[s].classList.toggle('active', active);
-        if (active) scene = scenes[s];
-      }
-      var fields = scene.querySelectorAll('.f');
-      var msgs = scene.querySelectorAll('.msg');
-      var done = scene.querySelector('.done');
-      var doc = scene.querySelector('.doc');
-      scene.querySelectorAll('.on, .hit').forEach(function (el) { el.classList.remove('on', 'hit'); });
-      done.classList.remove('on');
+      root.querySelectorAll('.scene').forEach(function (s) {
+        var active = s.getAttribute('data-scene') === name;
+        s.classList.toggle('active', active);
+        if (active) scene = s;
+      });
+      reset(scene);
+      var all = [];
+      scene.querySelectorAll('[data-at]').forEach(function (el) { steps(el).forEach(function (st) { all.push([el, st]); }); });
+      all.sort(function (x, y) { return x[1].at - y[1].at; });
       if (reduce) {
-        fields.forEach(function (f) { f.classList.add('on'); });
-        msgs.forEach(function (m) { m.classList.add('on'); });
-        done.classList.add('on');
+        all.forEach(function (pair) { apply(pair[0], pair[1], scene, true); });
         return;
       }
-      var at = 200;
-      msgs.forEach(function (m) { later(function () { m.classList.add('on'); }, at); at += 650; });
-      later(function () { doc.classList.add('scanning'); }, at);
-      at += 500;
-      fields.forEach(function (f) {
-        later(function () {
-          f.classList.add('on');
-          var hit = doc.querySelector('[data-k="' + f.getAttribute('data-k') + '"]');
-          if (hit) { hit.classList.add('hit'); later(function () { hit.classList.remove('hit'); }, 700); }
-        }, at);
-        at += 420;
-      });
-      later(function () { doc.classList.remove('scanning'); done.classList.add('on'); }, at + 100);
-      var total = at + 3200;
+      all.forEach(function (pair) { later(function () { apply(pair[0], pair[1], scene, false); }, pair[1].at * SPEED); });
+      var total = +scene.getAttribute('data-total') * SPEED;
       if (bar) {
         bar.style.transition = 'none'; bar.style.width = '0%';
         void bar.offsetWidth;
@@ -144,20 +202,7 @@
     for (var t = 0; t < tabs.length; t++) {
       (function (index) { tabs[index].addEventListener('click', function () { play(index); }); })(t);
     }
-    // 悬停字段时在单据上标出对应位置
-    root.addEventListener('pointerover', function (e) {
-      var f = e.target.closest && e.target.closest('.f');
-      root.querySelectorAll('.doc .hl').forEach(function (el) { el.classList.remove('hl'); });
-      if (!f) return;
-      var scene = f.closest('.scene');
-      var hit = scene.querySelector('.doc [data-k="' + f.getAttribute('data-k') + '"]');
-      if (hit) hit.classList.add('hl');
-    });
-    root.addEventListener('pointerleave', function () {
-      root.querySelectorAll('.doc .hl').forEach(function (el) { el.classList.remove('hl'); });
-    });
-
-    if (!('IntersectionObserver' in window)) { visible = true; play(0); return; }
+    if (!('IntersectionObserver' in window)) { visible = true; play(current); return; }
     new IntersectionObserver(function (entries) {
       visible = entries[0].isIntersecting;
       if (visible && !started) { started = true; play(current); }
