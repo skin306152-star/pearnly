@@ -214,5 +214,24 @@ class WebsiteTest(unittest.TestCase):
         self.assertGreater(found, 0)
 
 
+    def test_demo_buttons_open_line_and_carry_a_prefilled_message_for_phones(self):
+        """预约演示按钮：默认链到加好友页（电脑扫码）；手机上 site.js 换成预填好产品名的对话。MR.ERP 页是约顾问。"""
+        from urllib.parse import unquote
+        for lang in C.LANGS:
+            for key, expect in (("cowork", "Pearnly Cowork"), ("dms", "Pearnly DMS"), ("home", "Pearnly")):
+                html_text = (self.out / build.url(lang, key).lstrip("/") / "index.html").read_text(encoding="utf-8")
+                messages = re.findall(r'href="https://line.me/R/ti/p/@pearnly" data-line-message="([^"]+)"', html_text)
+                self.assertTrue(messages, (lang, key))
+                for m in messages:
+                    m = unquote(html.unescape(m))
+                    self.assertTrue(m.startswith("https://line.me/R/oaMessage/@pearnly/?"), m)
+                    self.assertIn(expect, m)
+            mrerp = (self.out / build.url(lang, "mrerp").lstrip("/") / "index.html").read_text(encoding="utf-8")
+            self.assertIn(html.escape(C.COMMON[lang]["cta_consult"]), mrerp)
+        for page in ("about", "privacy"):
+            for lang in C.LANGS:
+                self.assertIn(build.url(lang, page), self.pages[build.url(lang, "home")].hrefs)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,7 @@ import hashlib
 import html
 import json
 import shutil
+from urllib.parse import quote
 import sys
 from pathlib import Path
 
@@ -213,19 +214,31 @@ def footer(lang):
 """
 
 
-def cta_buttons(lang, extra=""):
+def line_message(text):
+    """打开 @pearnly 的对话并预填好这句话（LINE 的 oaMessage 链接）。只在手机上有用：电脑上它会跳到 LINE 首页。"""
+    return "https://line.me/R/oaMessage/" + quote(C.LINE_ID, safe="") + "/?" + quote(text, safe="")
+
+
+def demo_button(lang, name="Pearnly", consult=False):
+    """默认链到加好友页（电脑上显示二维码）；site.js 在手机上换成预填好消息的对话，客户点一下发送就行。"""
     t = C.COMMON[lang]
-    return f'<div class="actions"><a class="btn dark" href="{C.LINE_URL}" rel="noopener">{icon("chat")}<span>{esc(t["cta"])}</span></a>{extra}</div>'
+    message = line_message(t["consult_msg"] if consult else t["demo_msg"].format(name=name))
+    return (f'<a class="btn dark" href="{C.LINE_URL}" data-line-message="{esc(message)}" rel="noopener">'
+            f'{icon("chat")}<span>{esc(t["cta_consult" if consult else "cta"])}</span></a>')
 
 
-def contact(lang):
+def cta_buttons(lang, extra="", name="Pearnly", consult=False):
+    return f'<div class="actions">{demo_button(lang, name, consult)}{extra}</div>'
+
+
+def contact(lang, name="Pearnly", consult=False):
     t = C.COMMON[lang]
     mail = f'<a class="btn light" href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a>'
     return f"""<section class="wrap section">
   <div class="panel cta reveal">
     <h2 class="display">{esc(t["contact_title"])}</h2>
     <p class="lead">{esc(t["contact_text"])}</p>
-    {cta_buttons(lang, mail)}
+    {cta_buttons(lang, mail, name, consult)}
   </div>
 </section>
 """
@@ -551,7 +564,7 @@ def page_product(lang, key):
     <span class="badge">{esc(p["who"])}</span>
     <h1 class="display">{esc(p["h1"])}</h1>
     <p class="lead">{esc(p["lead"])}</p>
-    {cta_buttons(lang, download)}
+    {cta_buttons(lang, download, "Pearnly " + p["name"])}
   </div>
   <div class="wrap wide" id="overview">{window(f'<div class="player">{video}</div>', bar, "reveal")}</div>
 </section>
@@ -566,7 +579,7 @@ def page_product(lang, key):
   <div class="tiles two">{others}</div>
 </section>
 """
-    return head(lang, key, p["title"], p["description"], graph) + header(lang, key) + body + contact(lang) + footer(lang)
+    return head(lang, key, p["title"], p["description"], graph) + header(lang, key) + body + contact(lang, "Pearnly " + p["name"]) + footer(lang)
 
 
 # ---------------- MR.ERP 专业版（同一家公司） ----------------
@@ -631,7 +644,7 @@ def page_mrerp(lang):
     <span class="badge">{esc(m["badge"])}</span>
     <h1 class="display">{lines(m["h1"])}</h1>
     <p class="lead">{esc(m["lead"])}</p>
-    {cta_buttons(lang, login)}
+    {cta_buttons(lang, login, consult=True)}
   </div>
 </section>
 <section class="wrap section">
@@ -663,7 +676,7 @@ def page_mrerp(lang):
   <div class="compare reveal"><table><thead><tr>{head_row}</tr></thead><tbody>{rows}</tbody></table></div>
 </section>
 """
-    return head(lang, "mrerp", m["title"], m["description"], graph) + header(lang, "mrerp") + body + contact(lang) + footer(lang)
+    return head(lang, "mrerp", m["title"], m["description"], graph) + header(lang, "mrerp") + body + contact(lang, consult=True) + footer(lang)
 
 
 def page_tools(lang):
@@ -807,7 +820,7 @@ def page_guide(g):
       <span class="eyebrow">{esc(p["who"])}</span>
       <h3 class="display">{esc(T["cta_title"].format(name=p["name"]))}</h3>
       <p class="muted">{esc(p["summary"])}</p>
-      <div class="actions"><a class="btn dark" href="{C.LINE_URL}" rel="noopener">{icon("chat")}<span>{esc(t["cta"])}</span></a><a class="btn light" href="{url(lang, g.product)}">{esc(t["more"])}</a></div>
+      <div class="actions">{demo_button(lang, "Pearnly " + p["name"])}<a class="btn light" href="{url(lang, g.product)}">{esc(t["more"])}</a></div>
     </div>
     <a class="poster" href="{url(lang, g.product)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{shot}</a>
   </article>
@@ -866,7 +879,7 @@ def page_landing(g):
     <span class="badge">{esc(p["who"])}</span>
     <h1 class="display">{esc(g.h1)}</h1>
     <p class="lead">{esc(g.lead)}</p>
-    {cta_buttons(lang, more)}
+    {cta_buttons(lang, more, "Pearnly " + p["name"])}
   </div>
   <div class="wrap wide">{window(f'<div class="player">{video}</div>', bar, "reveal")}</div>
 </section>
@@ -879,7 +892,7 @@ def page_landing(g):
 </section>
 {related_html}
 """
-    return head(lang, key, g.title, g.description, graph) + header(lang, key) + body + contact(lang) + footer(lang)
+    return head(lang, key, g.title, g.description, graph) + header(lang, key) + body + contact(lang, "Pearnly " + p["name"]) + footer(lang)
 
 
 # ---------------- 关于我们 ----------------

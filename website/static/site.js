@@ -370,6 +370,12 @@
     window.addEventListener('pointermove', function (e) { px = e.clientX; py = e.clientY; if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
   }
 
-  function init() { dots(); reveal(); topbar(); demo(); players(); story(); mascots(); }
+  // ---- 预约演示按钮：手机上直接打开预填好消息的 LINE 对话；电脑上留在加好友页（扫码） ----
+  function lineMessages() {
+    if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
+    document.querySelectorAll('[data-line-message]').forEach(function (a) { a.href = a.getAttribute('data-line-message'); });
+  }
+
+  function init() { dots(); reveal(); topbar(); demo(); players(); story(); mascots(); lineMessages(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
