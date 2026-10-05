@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Private one-shot maintenance container; secrets arrive on stdin, not argv."""
+from concurrent.futures import ThreadPoolExecutor
 import importlib
 import json
 import os
@@ -208,17 +209,24 @@ def purge_site_objects(bucket, site, token, *, opener=None):
             query["pageToken"] = page
         with opener(urllib.request.Request(base + "?" + urllib.parse.urlencode(query), headers=headers), timeout=30) as response:
             listing = json.load(response)
+        targets = []
         for item in listing.get("items", []):
             name = item["name"]
             if not name.startswith(prefix):
                 raise ValueError("Storage listing returned an object outside the site prefix")
-            target = f"{base}/{urllib.parse.quote(name, safe='')}?generation={int(item['generation'])}"
+            targets.append(f"{base}/{urllib.parse.quote(name, safe='')}?generation={int(item['generation'])}")
+
+        def delete(target):
             try:
                 opener(urllib.request.Request(target, method="DELETE", headers=headers), timeout=30).close()
             except urllib.error.HTTPError as error:
                 if error.code != 404:
                     raise
-            deleted += 1
+
+        # 一页最多 1000 个对象，逐个删一个大租户要几十分钟（会撞上执行器单步时限），同时删 16 个。
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            for _done in pool.map(delete, targets):
+                deleted += 1
         page = listing.get("nextPageToken") or ""
         if not page:
             return deleted
