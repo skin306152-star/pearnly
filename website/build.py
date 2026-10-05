@@ -204,6 +204,7 @@ def footer(lang):
   </div>
   <div class="wrap legal">
     <p>© 2026 Pearnly · {esc(t["operator"])} {esc(C.COMPANY["legal_name"])} · {esc(t["reg_no"])} {esc(C.COMPANY["reg_no"])}</p>
+    <p class="legal-links"><a href="{url(lang, "about")}">{esc(t["about"])}</a><a href="{url(lang, "privacy")}">{esc(t["privacy"])}</a></p>
     <p>{esc(C.COMPANY["address"][lang])}</p>
   </div>
 </footer>
@@ -881,6 +882,91 @@ def page_landing(g):
     return head(lang, key, g.title, g.description, graph) + header(lang, key) + body + contact(lang) + footer(lang)
 
 
+# ---------------- 关于我们 ----------------
+
+def page_about(lang):
+    a, t, m = C.ABOUT[lang], C.COMMON[lang], C.MRERP[lang]
+    trail = [("home", t["home"]), ("about", t["about"])]
+
+    def column(name, note, items, cls, href):
+        rows = "".join(f"<li>{esc(x)}</li>" for x in items)
+        return f'<a class="flow-col {cls}" href="{href}"><b>{esc(name)}</b><span>{esc(note)}</span><ul>{rows}</ul></a>'
+
+    story = "".join(f"<p>{esc(x)}</p>" for x in a["story"])
+    principles = "".join(f'<li class="card reveal"><h3>{esc(h)}</h3><p>{esc(d)}</p></li>' for h, d in a["principles"])
+    industries = "".join(f"<span>{esc(x)}</span>" for x in m["industries"])
+    values = [C.COMPANY["legal_name"], C.COMPANY["reg_no"], C.COMPANY["address"][lang],
+              f'<a href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a>', f'<a href="{C.LINE_URL}" rel="noopener">{esc(C.LINE_ID)}</a>',
+              f'<a href="{C.MRERP_URL}" rel="noopener">mrerp4sme.com</a>']
+    rows = "".join(f"<tr><th>{esc(k)}</th><td>{v if v.startswith('<a') else esc(v)}</td></tr>" for k, v in zip(a["rows"], values))
+    graph = [ORG, breadcrumb(lang, trail),
+             {"@type": "AboutPage", "name": a["title"], "url": absolute(url(lang, "about")), "inLanguage": C.LANGS[lang]["html"],
+              "about": {"@id": ORG["@id"]}}]
+    body = f"""<section class="hero sub">
+  <div class="wrap center">
+    {crumbs(lang, trail)}
+    <span class="badge">{esc(a["badge"])}</span>
+    <h1 class="display">{lines(a["h1"])}</h1>
+    <p class="lead">{esc(a["lead"])}</p>
+  </div>
+</section>
+<section class="wrap narrow section">
+  <h2 class="display">{esc(a["story_title"])}</h2>
+  <div class="prose about-story">{story}</div>
+</section>
+<section class="wrap section">
+  <div class="panel flow reveal">
+    <h2 class="display center">{esc(a["family_title"])}</h2>
+    <div class="flow-grid">{column(*m["light"], "light", url(lang, "home") + "#products")}{walkers()}{column(*m["full"], "full", url(lang, "mrerp"))}</div>
+  </div>
+  <div class="chips reveal"><p>{esc(a["industries_title"])}</p><div>{industries}</div></div>
+</section>
+<section class="wrap section">
+  <h2 class="display center reveal">{esc(a["principles_title"])}</h2>
+  <ul class="cards">{principles}</ul>
+</section>
+<section class="wrap narrow section">
+  <h2 class="display center reveal">{esc(a["company_title"])}</h2>
+  <div class="compare reveal"><table><tbody>{rows}</tbody></table></div>
+</section>
+"""
+    return head(lang, "about", a["title"], a["description"], graph) + header(lang, "about") + body + contact(lang) + footer(lang)
+
+
+# ---------------- 隐私政策 ----------------
+
+def policy_blocks(blocks):
+    """一节里的内容：字符串是段落，列表是要点。"""
+    return "".join(f"<p>{esc(b)}</p>" if isinstance(b, str) else "<ul>" + "".join(f"<li>{esc(x)}</li>" for x in b) + "</ul>"
+                   for b in blocks)
+
+
+def page_privacy(lang):
+    pv, t = C.PRIVACY[lang], C.COMMON[lang]
+    trail = [("home", t["home"]), ("privacy", t["privacy"])]
+    toc = "".join(f'<li><a href="#s{i + 1}">{esc(h)}</a></li>' for i, (h, _b) in enumerate(pv["sections"]))
+    sections = "".join(f'<h2 id="s{i + 1}">{esc(h)}</h2>{policy_blocks(b)}' for i, (h, b) in enumerate(pv["sections"]))
+    contact_rows = (f'<p>{esc(C.COMPANY["legal_name"])} · {esc(C.COMPANY["address"][lang])}</p>'
+                    f'<p><a href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a> · <a href="{C.LINE_URL}" rel="noopener">LINE {esc(C.LINE_ID)}</a></p>')
+    graph = [ORG, breadcrumb(lang, trail),
+             {"@type": "WebPage", "name": pv["h1"], "url": absolute(url(lang, "privacy")), "inLanguage": C.LANGS[lang]["html"],
+              "dateModified": C.PRIVACY_EFFECTIVE, "publisher": {"@id": ORG["@id"]}}]
+    body = f"""<section class="hero sub">
+  <div class="wrap center">
+    {crumbs(lang, trail)}
+    <h1 class="display">{esc(pv["h1"])}</h1>
+    <p class="lead">{esc(pv["lead"])}</p>
+    <p class="meta">{esc(pv["effective"])}</p>
+  </div>
+</section>
+<section class="wrap narrow">
+  <nav class="toc panel" aria-label="{esc(pv["h1"])}"><ol>{toc}</ol></nav>
+  <article class="prose policy">{sections}<h2>{esc(t["contact"])}</h2>{contact_rows}</article>
+</section>
+"""
+    return head(lang, "privacy", pv["title"], pv["description"], graph) + header(lang, "privacy") + body + footer(lang)
+
+
 def page_404(lang):
     t = C.COMMON[lang]
     back = f'<div class="actions"><a class="btn dark" href="{url(lang, "home")}">{esc(t["notfound_back"])}</a></div>'
@@ -904,6 +990,10 @@ def render(lang, key):
         return page_tools(lang)
     if key == "mrerp":
         return page_mrerp(lang)
+    if key == "about":
+        return page_about(lang)
+    if key == "privacy":
+        return page_privacy(lang)
     return page_tool(lang, key)
 
 
