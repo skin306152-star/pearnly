@@ -24,8 +24,8 @@
 ## 分层
 
 ```
-控制面  Pearnly LINE Channel ── 每部署一条：channel_id / secret / token / LIFF
-           │  开通时随 set_line 步骤下发
+控制面  Pearnly LINE Channel ── 每部署一条：channel_id / secret / LIFF（系统建）/ 旧租户的长期 token
+           │  开通时随 set_line 步骤下发；没有长期 token 的站点用 channel_id + secret 现取短时令牌
            ▼
 租户站点 pearnly_core.line ── 传输层：验签、幂等、发消息、webhook 入口
            │  hooks: pearnly_line_handlers

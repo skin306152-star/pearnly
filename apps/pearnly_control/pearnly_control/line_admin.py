@@ -43,8 +43,8 @@ def upsert_channel(deployment: str, channel_id: str = "", channel_secret: str = 
         doc.update(payload)
         doc.save(ignore_permissions=True)
     else:
-        if not channel_secret or not channel_access_token:
-            frappe.throw(_("Creating a channel requires both secret and access token"))
+        if not channel_secret or not (channel_id or channel_access_token):
+            frappe.throw(_("Creating a channel requires the channel secret and the Channel ID"))
         doc = frappe.get_doc({"doctype": CHANNEL, **payload})
         doc.insert(ignore_permissions=True)
     frappe.db.commit()

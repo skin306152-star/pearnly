@@ -43,7 +43,56 @@ def _conf(key: str, default: str = "") -> str:
 
 
 def is_configured() -> bool:
-    return bool(_conf("channel_secret") and _conf("channel_access_token"))
+    """有密钥（收消息验签要它），并且能发消息（见 `can_send`）。"""
+    return bool(_conf("channel_secret") and can_send())
+
+
+def can_send() -> bool:
+    """能拿到发消息的令牌：存着长期令牌，或有频道号 + 密钥可以现取（见 `access_token`）。"""
+    return bool(_conf("channel_access_token") or (_conf("channel_id") and _conf("channel_secret")))
+
+
+# 开户不再手抄长期令牌（2026-10-05）：只拿频道号 + 密钥，发消息时向 LINE 现取短时令牌。
+# 短时令牌 15 分钟有效、不限发放次数；按站点缓存 10 分钟，多个进程共用一张。
+# 站点配置里有长期令牌（10-05 之前开的租户、本机样板）就照旧用它。
+_TOKEN_API = "https://api.line.me/oauth2/v3/token"
+_TOKEN_TTL = 600
+
+
+def access_token() -> str:
+    """本站发消息用的令牌；没配渠道返回空串，向 LINE 取令牌失败抛 `requests.RequestException`。"""
+    token = _conf("channel_access_token")
+    if token:
+        return token
+    channel, secret = _conf("channel_id"), _conf("channel_secret")
+    if not (channel and secret):
+        return ""
+    # 键里带密钥的摘要：后台重发密钥后不会继续用旧密钥换来的令牌。
+    key = "pearnly:line:channel-token:%s:%s" % (channel, hashlib.sha256(secret.encode()).hexdigest()[:16])
+    try:
+        cached = frappe.cache.get_value(key)
+    except Exception:
+        cached = None
+    if cached:
+        return cached
+    try:
+        response = requests.post(_TOKEN_API, data={"grant_type": "client_credentials", "client_id": channel,
+                                                   "client_secret": secret}, timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        raise _without_request(exc) from None
+    token = ""
+    if response.status_code == 200:
+        try:
+            token = str(response.json().get("access_token") or "")
+        except ValueError:
+            token = ""
+    if not token:
+        raise requests.HTTPError(f"LINE did not issue a channel token: HTTP {response.status_code}")
+    try:
+        frappe.cache.set_value(key, token, expires_in_sec=_TOKEN_TTL)
+    except Exception:
+        pass
+    return token
 
 
 def channel_id() -> str:
@@ -111,7 +160,7 @@ def verify_signature(body: bytes, signature: str) -> bool:
 
 
 def _headers() -> dict:
-    token = _conf("channel_access_token")
+    token = access_token()
     if not token:
         frappe.throw(_("This site has no LINE access token configured, so it cannot send messages"))
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
@@ -315,10 +364,10 @@ def push(to: str, messages: list, *, retry_key: str = "") -> bool:
         return flush(retry_key=retry_key) if retry_key else True
     if mirroring():
         return _mirror("push", to, messages)
-    headers = _headers()
-    if retry_key:
-        headers["X-Line-Retry-Key"] = retry_key
     try:
+        headers = _headers()
+        if retry_key:
+            headers["X-Line-Retry-Key"] = retry_key
         resp = requests.post(
             "https://api.line.me/v2/bot/message/push",
             headers=headers,
@@ -434,7 +483,7 @@ def start_loading(user_id: str, seconds: int = 30) -> bool:
     重活（识别身份证、建单）开始之前叫一次，用户才知道系统在动 —— 老产品同一处也这么做。
     ⚠️ LINE 只接受 5~60 秒、且以 5 秒为步长的值；别的会被接口拒。这里先夹再对齐步长。
     """
-    if not user_id or not _conf("channel_access_token"):
+    if not user_id or not can_send():
         return False
     step = int(seconds or 0) or 30
     step = max(5, min(60, step))
@@ -464,12 +513,16 @@ def start_loading_background(user_id: str, seconds: int = 30):
     返回 `wait()`：调用方在发出任何回复**之前**调用它（最多等 3 秒），免得动画请求晚于回复到达、
     回复之后又显示"正在输入"。令牌在调用线程里取好再交给线程，线程里不碰站点上下文与数据库。
     """
-    if not user_id or not _conf("channel_access_token"):
+    if not user_id or not can_send():
         return lambda: False
     step = int(seconds or 0) or 30
     step = max(5, min(60, step))
     step = min(60, max(5, (step // 5) * 5))
-    headers = _headers()
+    try:
+        headers = _headers()
+    except requests.RequestException:
+        logger.warning("[line] loading animation unavailable: no channel token")
+        return lambda: False
     outcome = {}
 
     def send():
@@ -507,9 +560,13 @@ def reply_sender(reply_token: str):
     用在"任务跑得久、免费回覆令牌快过期"时由计时线程先回一句（LINE：令牌收到后 1 分钟内有效、只能用一次）。
     线程里不碰站点上下文与数据库，也不记用量（`_count` 要站点上下文）。没有令牌或没配渠道 → 返回恒为 False 的 `send`。
     """
-    if not reply_token or not _conf("channel_access_token"):
+    if not reply_token or not can_send():
         return lambda messages: False
-    headers = _headers()
+    try:
+        headers = _headers()
+    except requests.RequestException:
+        logger.warning("[line] background reply unavailable: no channel token")
+        return lambda messages: False
 
     def send(messages: list) -> bool:
         try:
@@ -589,8 +646,7 @@ def public_account() -> dict:
     （多一个本地生成的二维码，错误话术按 DMS 的键）。那份属于 DMS 的窗口，
     本次不动它；下次动 DMS 时把它改成调用本函数 + 自己补二维码。
     """
-    token = _conf("channel_access_token")
-    if not token or not _conf("channel_secret"):
+    if not is_configured():
         frappe.throw(_("The LINE channel is not configured for this account"))
     try:
         resp = requests.get("https://api.line.me/v2/bot/info",

@@ -47,7 +47,7 @@ def key(language, variant) -> str:
 
 
 def _request(method, path, *, body=None, image=None, missing_ok=False):
-    if not frappe.conf.get("pearnly_line_channel_access_token"):
+    if not line.can_send():
         raise RuntimeError("LINE channel unavailable")
     # 走 `line.request`：令牌不进本层变量，网络错误不带 requests 内部各层，错误日志里就没有令牌。
     origin = "https://api-data.line.me" if image is not None else "https://api.line.me"
@@ -72,7 +72,7 @@ def _has_image(menu_id):
     同一套菜单会被重复发布（开户重跑、改渠道、换租户用同域名同 LIFF 时内容散列都一样），
     每次都盲传就会在第二次直接失败 —— 2026-09-20 线上就是这么卡住开户的。
     """
-    if not frappe.conf.get("pearnly_line_channel_access_token"):
+    if not line.can_send():
         raise RuntimeError("LINE channel unavailable")
     response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
                             + "/content", timeout=20)

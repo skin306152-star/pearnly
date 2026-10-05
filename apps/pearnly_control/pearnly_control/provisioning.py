@@ -33,7 +33,7 @@ from frappe.utils import now
 from pearnly_control import features as features_mod
 from pearnly_control import infra
 from pearnly_control.account import identity_pools
-from pearnly_control.onboarding.line_ids import clean_credential, half_filled
+from pearnly_control.onboarding.line_ids import clean_credential, incomplete
 from pearnly_core import keycloak_admin as kc
 
 REQUEST = "Pearnly Provisioning Request"
@@ -76,9 +76,9 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     if not license_ok:
         frappe.throw(_("Issue {0} is {1}; only an issued one can be provisioned").format(
             issue.name, issue.status))
-    # LINE 凭据先全部核对完再建任何东西：建部署时 `_ensure_oidc_client` 会提交事务，
+    # LINE 凭据先全部核对完、LIFF 先建好再建任何东西：建部署时 `_ensure_oidc_client` 会提交事务，
     # 之后再报错就留下一张没有步骤的请求，再点一次走 `_sync_steps`，LINE 被静默跳过（PR-2026-0296）。
-    line_credentials = {row.name: _line_credentials_of(row) for row in issue.apps}
+    line_credentials = {row.name: _line_inputs(issue, row) for row in issue.apps}
 
     request = frappe.get_doc({
         "doctype": REQUEST,
@@ -130,7 +130,7 @@ def _sync_steps(req) -> int:
         # 首次规划半路失败时渠道还没建：开户单上带了凭据就在这里补上（已有的渠道不动，
         # 那可能是之后在「LINE 渠道」里改过的）。
         if not frappe.db.exists(LINE_CHANNEL, {"deployment": dep}):
-            channel = _ensure_line_channel(issue, row, dep_doc, _line_credentials_of(row))
+            channel = _ensure_line_channel(issue, row, dep_doc, _line_inputs(issue, row))
             if channel:
                 late_channels.append((dep, channel))
         for step in _steps_for(issue, dep_doc, row):
@@ -191,14 +191,66 @@ def _ensure_deployment(issue, row):
     return dep
 
 
-def _line_credentials_of(row) -> tuple[str, str]:
-    """开户单产品行上的 LINE 密钥与访问令牌（明文）。只填了一个就拒绝。"""
+def _line_credentials_of(row) -> dict:
+    """开户单产品行上的 LINE 渠道（明文）。2026-10-05 起只填 Channel ID + Channel secret；
+    长期令牌可留空（之前开的单可能带着）。填了却用不起来就拒绝。"""
     secret = row.get_password("line_channel_secret", raise_exception=False) if row.line_channel_secret else ""
     token = row.get_password("line_channel_access_token", raise_exception=False) if row.line_channel_access_token else ""
+    channel_id = (row.line_channel_id or "").strip()
     secret, token = clean_credential(secret), clean_credential(token)
-    if half_filled(secret, token):
-        frappe.throw(_("Row {0}: a LINE channel needs both the channel secret and the access token").format(row.app))
-    return secret, token
+    if incomplete(channel_id, secret, token):
+        frappe.throw(_("Row {0}: a LINE channel needs both the Channel ID and the Channel secret").format(row.app))
+    return {"channel_id": channel_id, "secret": secret, "token": token, "liff_id": row.line_liff_id or ""}
+
+
+def _line_inputs(issue, row) -> dict:
+    """产品行的 LINE 渠道，并在共用 LINE Login 频道下建好 / 校正它的 LIFF（没填渠道就什么都不做）。"""
+    credentials = _line_credentials_of(row)
+    if credentials["secret"]:
+        credentials["liff_id"] = ensure_liff(issue.target, (row.domain or "").strip().lower(), row.app,
+                                             credentials["liff_id"])
+    return credentials
+
+
+def _login_channel(target) -> tuple[str, str]:
+    """开户目标上全平台一份的 LINE Login 频道（号, 密钥）。"""
+    from frappe.utils.password import get_decrypted_password
+
+    if not target:
+        return "", ""
+    channel = (frappe.db.get_value("Pearnly Target", target, "line_login_channel_id") or "").strip()
+    secret = get_decrypted_password("Pearnly Target", target, "line_login_channel_secret", raise_exception=False) or ""
+    return channel, secret
+
+
+def ensure_liff(target, site: str, product: str, liff_id: str = "") -> str:
+    """这个部署在共用 LINE Login 频道下的 LIFF：没有就建、设置不对就改（见 `onboarding.line_liff`）。
+
+    LIFF 不再手建手抄（2026-10-05）。失败当场报给开户人，不留半套配置。
+    """
+    import requests
+
+    from pearnly_control.onboarding import line_liff
+
+    channel, secret = _login_channel(target)
+    if not (channel and secret):
+        frappe.throw(_("The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up").format(target))
+    try:
+        return line_liff.ensure(channel, secret, site, product, liff_id)
+    except line_liff.LiffFull:
+        frappe.throw(_("The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again").format(channel))
+    except (line_liff.LiffError, requests.RequestException) as exc:
+        frappe.throw(_("Could not set up the LIFF app for {0}: {1}").format(site, exc))
+
+
+def remove_liff(target, liff_id: str) -> bool:
+    """拆租户时删掉它的 LIFF，腾出共用频道的名额（LINE 上限 30 个）。"""
+    from pearnly_control.onboarding import line_liff
+
+    channel, secret = _login_channel(target)
+    if not (channel and secret and liff_id):
+        return False
+    return line_liff.remove(channel, secret, liff_id)
 
 
 def _ensure_line_channel(issue, row, dep, credentials):
@@ -211,9 +263,9 @@ def _ensure_line_channel(issue, row, dep, credentials):
 
     只在产品行**带了凭据**时才动渠道（幂等）：没填就完全保持现状——离线开户、之后再配。
     反过来，如果渠道已经存在而开户单上又填了新的，以开户单为准（那是运维的显式修改）。
+    LIFF ID 是 `_line_inputs` 刚在 LINE 上建好 / 核对过的那个。
     """
-    secret, token = credentials
-    if not (secret and token):
+    if not credentials["secret"]:
         return None
 
     existing = frappe.db.get_value(LINE_CHANNEL, {"deployment": dep.name}, "name")
@@ -221,10 +273,10 @@ def _ensure_line_channel(issue, row, dep, credentials):
     channel.update({
         "deployment": dep.name,
         "status": "active",
-        "channel_id": row.line_channel_id or "",
-        "liff_id": row.line_liff_id or "",
-        "channel_secret": secret,
-        "channel_access_token": token,
+        "channel_id": credentials["channel_id"],
+        "liff_id": credentials["liff_id"],
+        "channel_secret": credentials["secret"],
+        "channel_access_token": credentials["token"],
     })
     # 开户单上的值直接落库：打标记让 `on_update` 跳过排队 —— 这一步发生在开通步骤
     # 还没生成的时候，`set_line` 的载荷由下面的规划自己算。
@@ -454,18 +506,24 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     if step.status == "running":
         frappe.throw(_("LINE configuration is being applied. Try again shortly."))
     secret = channel.get_password("channel_secret", raise_exception=False) if enabled else ""
-    token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
-    login_secret = line_login_secret(target, dep.product, channel.liff_id) if enabled else ""
-    check_secret = line_login_secret(target, dep.product, channel.liff_id, for_login=False) if enabled else ""
-    if enabled and not (secret and token):
+    token = (channel.get_password("channel_access_token", raise_exception=False) or "") if enabled else ""
+    if enabled and incomplete(channel.channel_id, secret, token):
         frappe.throw(_("LINE credentials are required before activation."))
+    liff_id = channel.liff_id or ""
+    if enabled:
+        # 每次重排都把 LIFF 对齐一次：没有就建；地址不在本站、缺必需权限这类用不了的改回规定（见 `onboarding.line_liff`）。
+        liff_id = ensure_liff(target, dep.site_name, dep.product, liff_id)
+        if liff_id != channel.liff_id:
+            channel.db_set("liff_id", liff_id, update_modified=False)
+    login_secret = line_login_secret(target, dep.product, liff_id) if enabled else ""
+    check_secret = line_login_secret(target, dep.product, liff_id, for_login=False) if enabled else ""
     # `restart`: 这是**改一个正在服务的站点**，站点会继续按进程内的旧副本应答最长一分钟
     # （Frappe 进程内缓存 `site_config.json`）。开/停渠道是运维动作，容忍一次该产品组的
     # 重启，换"立刻生效"。开通流程本身不带这个键 —— 新站点没有旧副本，不需要重启，
     # 也就不该把该产品下的其他租户一起踢下线（见 provision-agent 里的说明）。
     payload = {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
                "configured": enabled, "clear_credentials": not enabled, "restart": True,
-               "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
+               "channel_id": channel.channel_id or "", "liff_id": liff_id,
                "channel_secret": secret, "channel_access_token": token,
                "login_channel_secret": login_secret, "liff_check_secret": check_secret,
                "webhook_url": line_webhook_url(dep)}

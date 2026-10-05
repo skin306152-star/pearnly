@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/pearnly_control"))
-from pearnly_control.onboarding.line_ids import clean_credential, half_filled, normalize_liff_id
+from pearnly_control.onboarding.line_ids import clean_credential, incomplete, normalize_liff_id
 
 
 class LiffIdTests(unittest.TestCase):
@@ -36,11 +36,15 @@ class CredentialTests(unittest.TestCase):
         self.assertEqual(clean_credential(None), "")
         self.assertEqual(clean_credential("*" * 33), "*" * 33)
 
-    def test_only_one_of_secret_and_token_is_half_filled(self):
-        self.assertTrue(half_filled("secret", ""))
-        self.assertTrue(half_filled("", "token"))
-        self.assertFalse(half_filled("secret", "token"))
-        self.assertFalse(half_filled("", None))
+    def test_channel_needs_the_secret_and_its_id_or_a_stored_token(self):
+        self.assertFalse(incomplete("2011793651", "secret"))
+        self.assertFalse(incomplete("", "secret", "token"))
+        self.assertFalse(incomplete("2011793651", "secret", "token"))
+        self.assertFalse(incomplete("", "", None))
+        self.assertTrue(incomplete("", "secret"))
+        self.assertTrue(incomplete("2011793651", ""))
+        self.assertTrue(incomplete("2011793651", "", "token"))
+        self.assertTrue(incomplete("", "", "token"))
 
 
 if __name__ == "__main__":

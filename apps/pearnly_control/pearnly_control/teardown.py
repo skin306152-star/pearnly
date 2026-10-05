@@ -230,7 +230,7 @@ def _state(doc) -> dict:
 # ── 执行器在最后一步调用：删身份账号与 OIDC 客户端 ─────────────────────────
 @frappe.whitelist(methods=["POST"])
 def api_purge_control(request: str) -> dict:
-    """拆掉**外部**那些东西：身份账号、这个部署的 OIDC 客户端。
+    """拆掉**外部**那些东西：身份账号、这个部署的 OIDC 客户端、它在共用 LINE Login 频道下的 LIFF。
 
     为什么单独一步、不让执行器直接删：只有控制面知道这些是谁（subject 记在发号单上）。
     """
@@ -287,6 +287,14 @@ def api_purge_control(request: str) -> dict:
         if client and client.delete_oidc_client(client_id):
             removed_clients.append(client_id)
 
+    # 每个部署的 LIFF 建在全平台共用的 LINE Login 频道下（LINE 上限 30 个）：拆租户就腾出名额。
+    from pearnly_control.provisioning import remove_liff
+    removed_liffs = []
+    for dep in targets["deployments"]:
+        liff_id = frappe.db.get_value(LINE_CHANNEL, {"deployment": dep["name"]}, "liff_id")
+        if liff_id and remove_liff(frappe.db.get_value(ISSUE, dep["issue"], "target"), liff_id):
+            removed_liffs.append(liff_id)
+
     from pearnly_control import infra, billing_remote
     if any(infra.is_cloud(row.get("target")) for row in targets["issues"]):
         billing_remote.call("purge", tenant=tenant)
@@ -301,6 +309,7 @@ def api_purge_control(request: str) -> dict:
         "removed_users": removed_users,
         "kept_users": kept_users,
         "removed_oidc_clients": removed_clients,
+        "removed_liffs": removed_liffs,
     }
 
 

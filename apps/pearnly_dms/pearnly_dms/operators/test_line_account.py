@@ -48,9 +48,20 @@ class TestPublicLineAccount(unittest.TestCase):
                 self.assertNotIn(token, str(result))
                 self.assertNotIn('private-bot-user-id', str(result))
 
+    def test_site_without_a_stored_token_uses_a_token_issued_from_its_channel(self):
+        self.config['pearnly_line_channel_access_token'] = ''
+        with patch.object(line_account.line_api, 'access_token', return_value='issued-token') as issued:
+            result = line_account.public_account()
+        issued.assert_called_once_with()
+        self.http.assert_called_with('https://api.line.me/v2/bot/info',
+            headers={'Authorization': 'Bearer issued-token'}, timeout=10)
+        self.assertEqual(result['basic_id'], '@assigned-company')
+
     def test_missing_configuration_never_calls_line(self):
-        for key in ['pearnly_line_channel_access_token', 'pearnly_line_channel_secret']:
-            with self.subTest(key=key), patch.dict(self.config, {key: ''}):
+        missing = [{'pearnly_line_channel_secret': ''},
+                   {'pearnly_line_channel_access_token': '', 'pearnly_line_channel_id': ''}]
+        for values in missing:
+            with self.subTest(values=values), patch.dict(self.config, values):
                 with self.assertRaises(AccountUnavailable):
                     line_account.public_account()
                 frappe.throw.assert_called_with('roster.line.notConfigured')

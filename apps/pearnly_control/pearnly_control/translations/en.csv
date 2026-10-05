@@ -54,9 +54,12 @@ Could not queue provisioning,Could not queue provisioning
 Could not queue the deletion,Could not queue the deletion
 Could not read what would be deleted,Could not read what would be deleted
 Could not reject,Could not reject
+Could not set up the LIFF app for {0}: {1},Could not set up the LIFF app for {0}: {1}
 Create the site,Create the site
 Create the tenant account,Create the tenant account
+Created and kept correct by provisioning on the shared LINE Login channel.,Created and kept correct by provisioning on the shared LINE Login channel.
 Creating a channel requires both secret and access token,Creating a channel requires both secret and access token
+Creating a channel requires the channel secret and the Channel ID,Creating a channel requires the channel secret and the Channel ID
 Credential Delivery,Credential Delivery
 Credentials,Credentials
 "Credentials (stored only here, pushed to the tenant site at provisioning)","Credentials (stored only here, pushed to the tenant site at provisioning)"
@@ -93,6 +96,7 @@ Feature Code,Feature Code
 Feature Name,Feature Name
 Features,Features
 Fill in only if a LIFF app exists; otherwise leave empty.,Fill in only if a LIFF app exists; otherwise leave empty.
+"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.","Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later."
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
 Finalize the site,Finalize the site
 Finished At,Finished At
@@ -146,6 +150,7 @@ LINE configuration is being applied. Try again shortly.,LINE configuration is be
 LINE credentials are required before activation.,LINE credentials are required before activation.
 Last Updated,Last Updated
 Leave empty to use the company name,Leave empty to use the company name
+Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.
 Local Port,Local Port
 Local URL,Local URL
 Manual adjustment · {0},Manual adjustment · {0}
@@ -224,6 +229,7 @@ Reviewed At,Reviewed At
 Reviewed By,Reviewed By
 Role,Role
 Row {0} on the issue has no domain; cannot build the site,Row {0} on the issue has no domain; cannot build the site
+Row {0}: a LINE channel needs both the Channel ID and the Channel secret,Row {0}: a LINE channel needs both the Channel ID and the Channel secret
 Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Run provisioning,Run provisioning
 Running,Running
@@ -257,6 +263,7 @@ Tenant Note,Tenant Note
 Tenant Provisioning,Tenant Provisioning
 Tenant {0} does not exist,Tenant {0} does not exist
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.
+"The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again","The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again"
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.","The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting."
 "The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
 The address this tenant is reached at.,The address this tenant is reached at.
@@ -269,6 +276,7 @@ The last issue attempt failed; set it back to draft before issuing again,The las
 The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)
 The product app installed on this site; pearnly_core is shared by every product.,The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.","The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
+"The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up","The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up"
 The received amount must be greater than 0,The received amount must be greater than 0
 The requested amount must be greater than 0,The requested amount must be greater than 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,The same key submitted twice yields only one set of resources. Defaults to the issue number.

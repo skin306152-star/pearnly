@@ -54,9 +54,12 @@ Could not queue provisioning,開通キューに入れられませんでした
 Could not queue the deletion,削除をキューに入れられませんでした
 Could not read what would be deleted,削除対象を読み取れませんでした
 Could not reject,却下に失敗しました
+Could not set up the LIFF app for {0}: {1},{0} の LIFF を設定できませんでした: {1}
 Create the site,サイトを作成
 Create the tenant account,テナントアカウントを作成
+Created and kept correct by provisioning on the shared LINE Login channel.,開通処理が共用の LINE Login チャネルに自動作成し、正しい設定に保ちます。
 Creating a channel requires both secret and access token,チャネル作成には secret と access token の両方が必要です
+Creating a channel requires the channel secret and the Channel ID,チャネル作成には Channel secret と Channel ID の両方が必要です
 Credential Delivery,資格情報の受け渡し方法
 Credentials,資格情報
 "Credentials (stored only here, pushed to the tenant site at provisioning)",資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）
@@ -93,6 +96,7 @@ Feature Code,機能コード
 Feature Name,機能名
 Features,機能
 Fill in only if a LIFF app exists; otherwise leave empty.,LIFFアプリがある場合のみ入力。なければ空欄。
+"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.",Channel ID と Channel secret だけを入力します（LINE Developers → Basic settings）。トークンと LIFF は開通処理が自動で用意します。後で設定する場合は空欄のままにします。
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,入力すると開通時にこのテナント専用のLINEチャネルを配信します。空欄なら後から設定できます。
 Finalize the site,サイトを仕上げ
 Finished At,終了日時
@@ -146,6 +150,7 @@ LINE configuration is being applied. Try again shortly.,LINE 設定を適用中�
 LINE credentials are required before activation.,有効化の前に LINE の認証情報が必要です。
 Last Updated,最終更新
 Leave empty to use the company name,空欄なら会社名を使います
+Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,空欄で構いません。サイトが Channel ID とシークレットから短期トークンを発行します。2026-10-05 より前に開設したチャネルだけが長期トークンを保持しています。
 Local Port,ローカルポート
 Local URL,ローカルURL
 Manual adjustment · {0},手動調整 · {0}
@@ -227,6 +232,7 @@ Reviewed At,審査日時
 Reviewed By,審査者
 Role,対応ロール
 Row {0} on the issue has no domain; cannot build the site,発行伝票の {0} 行にドメインがなく、サイトを構築できません
+Row {0}: a LINE channel needs both the Channel ID and the Channel secret,{0} 行目: LINE チャネルには Channel ID と Channel secret の両方が必要です
 Row {0}: a LINE channel needs both the channel secret and the access token,{0} 行目: LINE チャネルにはチャネルシークレットとアクセストークンの両方が必要です
 Run provisioning,開通を実行
 Running,実行中
@@ -260,6 +266,7 @@ Tenant Note,テナント備考
 Tenant Provisioning,テナントプロビジョニング
 Tenant {0} does not exist,テナント {0} が存在しません
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。
+"The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again",LINE Login チャネル {0} の LIFF は上限の 30 個に達しています。LINE Developers で不要なものを削除してから再試行してください
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
 "The URL to paste into the LINE console, derived from the deployment domain.",LINE管理画面に貼るURL。デプロイのドメインから算出します。
 The address this tenant is reached at.,このテナントのアクセス先アドレス
@@ -272,6 +279,7 @@ The last issue attempt failed; set it back to draft before issuing again,前回�
 The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),パスワード確認用クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
 The product app installed on this site; pearnly_core is shared by every product.,このサイトに入れる製品アプリ。pearnly_core は全製品で共用します。
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。
+"The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",開設先 {0} に LINE Login チャネルが未設定のため LIFF を作成できません
 The received amount must be greater than 0,受領額は0より大きい必要があります
 The requested amount must be greater than 0,申請額は0より大きい必要があります
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,同じキーで二重送信しても資源は1セットだけ。既定は発行伝票番号。

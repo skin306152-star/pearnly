@@ -8,6 +8,7 @@ import secrets
 import shutil
 import sys
 import runpy
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -86,19 +87,41 @@ def check_webhook(site, token):
     assert result.get("success"), "LINE webhook test failed: %s %s" % (result.get("statusCode"), result.get("reason"))
 
 
+def stateless_token(channel, secret):
+    """用频道号 + 密钥向 LINE 换一张 15 分钟的短时令牌（Messaging API 与 LINE Login 频道都适用）。"""
+    request = urllib.request.Request("https://api.line.me/oauth2/v3/token", method="POST", data=urllib.parse.urlencode({
+        "grant_type": "client_credentials", "client_id": channel, "client_secret": secret}).encode(),
+        headers={"Content-Type": "application/x-www-form-urlencoded"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read())["access_token"]
+
+
+def channel_token(p):
+    """开户下发的 Messaging API 令牌：渠道带了长期令牌（10-05 之前开的租户）就用它，否则用频道号 + 密钥现取。"""
+    token = (p.get("channel_access_token") or "").strip()
+    if token:
+        return token
+    if not p.get("channel_id"):
+        raise StepHint("开户单上没有 LINE 渠道 ID：在 LINE 渠道里补上 Channel ID 后重试这一步")
+    try:
+        return stateless_token(p["channel_id"], p["channel_secret"])
+    except urllib.error.HTTPError as exc:
+        if exc.code in (400, 401):
+            raise StepHint("LINE 不认这组 Channel ID / Channel secret：到 LINE Developers → 该 OA 的频道 → "
+                           "Basic settings 重新复制两个值，改好后重试这一步") from None
+        raise
+
+
 def check_liff(site, group, liff_id, secret):
-    """LIFF 落地地址必须指向本站。它在 LINE 后台手填，系统以前从不核对（2026-10-04 查到
-    testcowork 少了 `.com`、testerp 填成了 DMS 的地址）。用 LINE Login 频道的临时令牌只读。"""
+    """LIFF 落地地址必须指向本站。LIFF 由控制面开户时建好（`pearnly_control.onboarding.line_liff`），
+    这里在站点上再读回核对一次（2026-10-04 手建时查到 testcowork 少了 `.com`、testerp 填成了 DMS 的地址）。
+    用 LINE Login 频道的临时令牌只读。"""
     from pearnly_core.account.line_login_contract import login_channel_of
 
     channel = login_channel_of(liff_id)
     if not liff_id or not channel or not secret:
         return
-    request = urllib.request.Request("https://api.line.me/oauth2/v3/token", method="POST", data=urllib.parse.urlencode({
-        "grant_type": "client_credentials", "client_id": channel, "client_secret": secret}).encode(),
-        headers={"Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(request, timeout=20) as response:
-        token = json.loads(response.read())["access_token"]
+    token = stateless_token(channel, secret)
     request = urllib.request.Request("https://api.line.me/liff/v1/apps", headers={"Authorization": "Bearer " + token})
     with urllib.request.urlopen(request, timeout=20) as response:
         apps = json.loads(response.read() or b"{}").get("apps") or []
@@ -283,12 +306,14 @@ def main():
                    pearnly_line_channel_access_token="", pearnly_line_liff_id="",
                    pearnly_line_login_idp="")
         else:
-            assert p["configured"] and p["channel_secret"] and p["channel_access_token"]
-            config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
-                   pearnly_line_channel_access_token=p["channel_access_token"],
+            assert p["configured"] and p["channel_secret"]
+            # 先换令牌：频道号 / 密钥不对就停在这里，站点配置不写进半套凭据。
+            token = channel_token(p)
+            config(pearnly_line_channel_id=p.get("channel_id", ""), pearnly_line_channel_secret=p["channel_secret"],
+                   pearnly_line_channel_access_token=(p.get("channel_access_token") or "").strip(),
                    pearnly_line_liff_id=p.get("liff_id", ""), pearnly_line_product=group)
             # 控制面没带地址（09-30 前重排 set_line 的载荷）就按站点名算，和 verify_site 核对的是同一个地址。
-            set_webhook(site, p.get("webhook_url") or webhook_url(site), p["channel_access_token"])
+            set_webhook(site, p.get("webhook_url") or webhook_url(site), token)
             # 持久菜单：凭据写进去**不等于交付**。用户看到的是 OA 上那条真实菜单，
             # 而 2026-09-20 现场正是"新平台动作已切换、OA 默认菜单还指着旧 pearnly.com
             # 公共路径与旧 Purchase LIFF"。发布是幂等的（按内容散列命名），所以每次
@@ -355,10 +380,12 @@ def main():
         if group == "erp":
             assert frappe.db.exists("ERP Company", {"is_default": 1, "is_active": 1}), \
                 "The ERP tenant has no default company"
-        if group in LINE_MENUS and frappe.conf.get("pearnly_line_channel_access_token"):
+        from pearnly_core import line
+
+        if group in LINE_MENUS and line.can_send():
             assert importlib.import_module(LINE_MENUS[group])._published(), "This tenant's LINE menus are not published"
-        if frappe.conf.get("pearnly_line_channel_access_token"):
-            check_webhook(site, frappe.conf.pearnly_line_channel_access_token)
+        if line.can_send():
+            check_webhook(site, line.access_token())
     else:
         raise ValueError("Unsupported Site action")
     frappe.db.commit()

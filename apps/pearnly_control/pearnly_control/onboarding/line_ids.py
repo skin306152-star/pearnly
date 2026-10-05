@@ -35,6 +35,12 @@ def clean_credential(value: str | None) -> str:
     return text.strip()
 
 
-def half_filled(secret: str | None, token: str | None) -> bool:
-    """密钥与访问令牌只填了一个：渠道用不起来，保存 / 规划时必须当场拒绝。"""
-    return bool(secret) != bool(token)
+def incomplete(channel_id: str | None, secret: str | None, token: str | None = None) -> bool:
+    """填了 LINE 渠道却用不起来：保存 / 规划时必须当场拒绝。
+
+    2026-10-05 起开户只要 Channel ID + Channel secret，令牌由系统用这两个值现取。长期令牌仍可填
+    （之前开的租户）：有密钥并且有频道号或长期令牌就算齐；一格都没填是"这次不配 LINE"。
+    """
+    if not (channel_id or secret or token):
+        return False
+    return not (secret and (channel_id or token))

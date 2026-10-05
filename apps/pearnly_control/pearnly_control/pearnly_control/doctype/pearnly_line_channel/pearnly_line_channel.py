@@ -17,7 +17,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from pearnly_control.onboarding.line_ids import clean_credential, normalize_liff_id
+from pearnly_control.onboarding.line_ids import clean_credential, incomplete, normalize_liff_id
 
 
 class PearnlyLINEChannel(Document):
@@ -35,7 +35,9 @@ class PearnlyLINEChannel(Document):
         self.channel_access_token = clean_credential(self.channel_access_token)
         # `pending` 只表示凭据还没齐，齐了就生效（2026-09-29：手建的渠道停在默认的 pending，
         # 下发的是 configured=False，看着配好了其实没生效）。要停用用 `suspended`。
-        if self.status == "pending" and self.channel_secret and self.channel_access_token:
+        # 齐 = 密钥 + 频道号（令牌系统现取），或密钥 + 长期令牌（10-05 之前的渠道）。
+        if self.status == "pending" and self.channel_secret and not incomplete(
+                self.channel_id, self.channel_secret, self.channel_access_token):
             self.status = "active"
         try:
             self.liff_id = normalize_liff_id(self.liff_id)

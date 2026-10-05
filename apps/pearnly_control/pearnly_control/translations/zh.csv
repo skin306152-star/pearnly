@@ -54,9 +54,12 @@ Could not queue provisioning,排不进开通队列
 Could not queue the deletion,排队删除失败
 Could not read what would be deleted,读不到要删除的内容
 Could not reject,拒绝失败
+Could not set up the LIFF app for {0}: {1},{0} 的 LIFF 没建好：{1}
 Create the site,建站点
 Create the tenant account,建租户账号
+Created and kept correct by provisioning on the shared LINE Login channel.,由开通流程在全平台共用的 LINE Login 频道下自动建好并保持正确。
 Creating a channel requires both secret and access token,新建渠道必须同时给 secret 与 access token
+Creating a channel requires the channel secret and the Channel ID,新建渠道必须同时给 Channel secret 与 Channel ID
 Credential Delivery,凭据交付方式
 Credentials,凭据
 "Credentials (stored only here, pushed to the tenant site at provisioning)",凭据（只在这里存一份，开通时推到租户站点）
@@ -93,6 +96,7 @@ Feature Code,功能代码
 Feature Name,功能名称
 Features,功能
 Fill in only if a LIFF app exists; otherwise leave empty.,有 LIFF 应用才填；没有就留空
+"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.",只填 Channel ID 和 Channel secret（LINE Developers → Basic settings）。令牌和 LIFF 由开通流程自动处理。留空就之后再配。
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,填了就在本次开通里把这个租户自己的 LINE 渠道一起下发；留空则之后再配。
 Finalize the site,收尾站点
 Finished At,结束时间
@@ -146,6 +150,7 @@ LINE configuration is being applied. Try again shortly.,LINE 配置正在应用�
 LINE credentials are required before activation.,启用前必须先填 LINE 凭据。
 Last Updated,最近变动
 Leave empty to use the company name,留空用公司名称
+Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,留空即可：站点用 Channel ID 和密钥现取短时令牌。只有 2026-10-05 之前开的渠道这里还存着长期令牌。
 Local Port,本机端口
 Local URL,本机访问地址
 Manual adjustment · {0},人工调账 · {0}
@@ -227,6 +232,7 @@ Reviewed At,审核时间
 Reviewed By,审核人
 Role,对应角色
 Row {0} on the issue has no domain; cannot build the site,发号单里 {0} 这一行没有域名，无法建站
+Row {0}: a LINE channel needs both the Channel ID and the Channel secret,第 {0} 行：LINE 渠道要同时填 Channel ID 与 Channel secret
 Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：LINE 渠道要同时填 channel secret 与 access token
 Run provisioning,执行开通
 Running,进行中
@@ -260,6 +266,7 @@ Tenant Note,租户备注
 Tenant Provisioning,租户开通
 Tenant {0} does not exist,租户 {0} 不存在
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。
+"The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again",LINE Login 频道 {0} 已有 30 个 LIFF（LINE 的上限）。先到 LINE Developers 删掉不用的，再重试
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging API 频道的基本 ID（@xxx），用于识别与排查
 "The URL to paste into the LINE console, derived from the deployment domain.",填到 LINE 后台的那个地址，由部署域名算出
 The address this tenant is reached at.,这个租户的访问地址
@@ -272,6 +279,7 @@ The last issue attempt failed; set it back to draft before issuing again,这张�
 The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),必须给密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
 The product app installed on this site; pearnly_core is shared by every product.,该站点安装的产品 App，另有所有产品共用的 pearnly_core
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站
+"The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",开户目标 {0} 没有配 LINE Login 频道，建不了 LIFF
 The received amount must be greater than 0,实收金额必须大于 0
 The requested amount must be greater than 0,申请金额必须大于 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,同一个键重复提交只会有一套资源。默认用发号单号

@@ -82,6 +82,38 @@ class CheckWebhook(unittest.TestCase):
             self.check(line)
 
 
+class ChannelToken(unittest.TestCase):
+    """2026-10-05：开户单不再抄长期令牌，执行器用频道号 + 密钥现取。"""
+
+    def issue(self, payload, answer=None):
+        calls = []
+
+        def urlopen(request, timeout):
+            calls.append(step.urllib.parse.parse_qs(request.data.decode()))
+            if isinstance(answer, Exception):
+                raise answer
+            return io.BytesIO(json.dumps({"access_token": "short"}).encode())
+
+        with patch.object(step.urllib.request, "urlopen", urlopen):
+            return step.channel_token(payload), calls
+
+    def test_stored_long_lived_token_is_used_as_is(self):
+        token, calls = self.issue({"channel_id": "200", "channel_secret": "s", "channel_access_token": " long \n"})
+        self.assertEqual((token, calls), ("long", []))
+
+    def test_without_a_stored_token_one_is_issued_from_the_channel(self):
+        token, calls = self.issue({"channel_id": "200", "channel_secret": "s", "channel_access_token": ""})
+        self.assertEqual(token, "short")
+        self.assertEqual(calls, [{"grant_type": ["client_credentials"], "client_id": ["200"], "client_secret": ["s"]}])
+
+    def test_wrong_channel_credentials_tell_the_operator_where_to_copy_them(self):
+        refused = step.urllib.error.HTTPError("https://api.line.me/oauth2/v3/token", 400, "Bad Request", {}, None)
+        with self.assertRaisesRegex(step.StepHint, "Basic settings"):
+            self.issue({"channel_id": "200", "channel_secret": "wrong"}, refused)
+        with self.assertRaisesRegex(step.StepHint, "Channel ID"):
+            self.issue({"channel_id": "", "channel_secret": "s"})
+
+
 class FakeLiff:
     """Stands in for the LINE Login stateless token and the LIFF app list."""
 

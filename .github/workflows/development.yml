@@ -29,6 +29,8 @@ jobs:
         run: python3 tests/test_product_feature_catalog.py
       - name: Verify LIFF IDs are stored as IDs, not URLs
         run: python3 tests/test_liff_ids.py
+      - name: Verify provisioning creates or corrects each tenant's LIFF on the shared LINE Login channel
+        run: python3 tests/test_line_liff.py
       - name: Verify queued/reflected dotted targets resolve
         run: python3 tests/test_queue_targets.py
       - name: Verify DMS queue and reply-token call contracts

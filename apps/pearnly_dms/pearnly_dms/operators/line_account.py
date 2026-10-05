@@ -7,15 +7,16 @@ import frappe
 import pyqrcode
 import requests
 from frappe import _
+from pearnly_core import line as line_api
 
 
 def public_account():
-    token = str(frappe.conf.get("pearnly_line_channel_access_token") or "").strip()
-    if not token or not frappe.conf.get("pearnly_line_channel_secret"):
+    if not line_api.is_configured():
         frappe.throw(_("roster.line.notConfigured"))
     try:
+        # 长期令牌或用频道号 + 密钥现取的短时令牌（见 `pearnly_core.line.access_token`）。
         response = requests.get("https://api.line.me/v2/bot/info",
-                                headers={"Authorization": "Bearer " + token}, timeout=10)
+                                headers={"Authorization": "Bearer " + line_api.access_token()}, timeout=10)
         response.raise_for_status()
         info = response.json()
     except (requests.RequestException, ValueError):

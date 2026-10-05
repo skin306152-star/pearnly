@@ -157,7 +157,7 @@ The last issue attempt failed; set it back to draft before issuing again	这张�
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."	账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号	"บัญชี {0} มีอยู่แล้วในเป้าหมาย ""{1}"" กรุณาเชิญบัญชีเดิมแทนการออกใบซ้ำ"	アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。
 This issue has no usable initial password; fill it in again before issuing	这张单上没有可用的初始密码，重新填一次再发号	ใบนี้ไม่มีรหัสผ่านเริ่มต้นที่ใช้ได้ กรอกใหม่ก่อนออกใบ	この伝票には有効な初期パスワードがありません。再入力してから発行してください。
 No such deployment: {0}	部署不存在：{0}	ไม่มีการติดตั้งนี้: {0}	そのデプロイはありません: {0}
-Creating a channel requires both secret and access token	新建渠道必须同时给 secret 与 access token	การสร้างช่องทางต้องระบุทั้ง secret และ access token	チャネル作成には secret と access token の両方が必要です
+Creating a channel requires the channel secret and the Channel ID	新建渠道必须同时给 Channel secret 与 Channel ID	การสร้างช่องทางต้องระบุทั้ง Channel secret และ Channel ID	チャネル作成には Channel secret と Channel ID の両方が必要です
 Company name is required	公司名称必填	ต้องระบุชื่อบริษัท	会社名は必須です
 Crediting…	入账中…	กำลังบันทึกเข้าบัญชี…	入金処理中…
 Could not credit	入账失败	บันทึกเข้าบัญชีไม่สำเร็จ	入金に失敗しました
@@ -284,7 +284,7 @@ Invalid amount	金额不对	จำนวนเงินไม่ถูกต้�
 Invalid billing reference	计费参考号不对	เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง	課金参照番号が正しくありません
 LINE configuration is being applied. Try again shortly.	LINE 配置正在应用，请稍后再试。	กำลังใช้การตั้งค่า LINE กรุณาลองใหม่ภายหลัง	LINE 設定を適用中です。しばらくしてから再試行してください。
 LINE credentials are required before activation.	启用前必须先填 LINE 凭据。	ต้องกรอกข้อมูลรับรอง LINE ก่อนเปิดใช้งาน	有効化の前に LINE の認証情報が必要です。
-Row {0}: a LINE channel needs both the channel secret and the access token	第 {0} 行：LINE 渠道要同时填 channel secret 与 access token	แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง channel secret และ access token	{0} 行目: LINE チャネルにはチャネルシークレットとアクセストークンの両方が必要です
+Row {0}: a LINE channel needs both the Channel ID and the Channel secret	第 {0} 行：LINE 渠道要同时填 Channel ID 与 Channel secret	แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง Channel ID และ Channel secret	{0} 行目: LINE チャネルには Channel ID と Channel secret の両方が必要です
 Set up OCR	设置 OCR	ตั้งค่า OCR	OCR を設定
 Tenant Provisioning	租户开通	การเตรียมผู้เช่า	テナントプロビジョニング
 The billing reference was already used for another request	这个计费参考号已经用在别的请求上了	เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว	この課金参照番号は別のリクエストで使用済みです
@@ -299,3 +299,9 @@ LINE Login Callback URL	LINE Login 回调地址	Callback URL ของ LINE Logi
 Invalid LINE Login channel ID	LINE Login 频道 ID 不正确	Channel ID ของ LINE Login ไม่ถูกต้อง	LINE LoginチャネルIDが正しくありません
 LINE Setup Guide	LINE 开通手册	คู่มือเปิดใช้ LINE	LINE 開通ガイド	
 Copy	复制	คัดลอก	コピー	
+The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up	开户目标 {0} 没有配 LINE Login 频道，建不了 LIFF	เป้าหมายการเปิดบัญชี {0} ยังไม่มีช่องทาง LINE Login จึงสร้าง LIFF ไม่ได้	開設先 {0} に LINE Login チャネルが未設定のため LIFF を作成できません
+The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again	LINE Login 频道 {0} 已有 30 个 LIFF（LINE 的上限）。先到 LINE Developers 删掉不用的，再重试	ช่องทาง LINE Login {0} มี LIFF ครบ 30 แอปแล้ว (ขีดจำกัดของ LINE) ลบแอปที่ไม่ใช้ใน LINE Developers แล้วลองใหม่	LINE Login チャネル {0} の LIFF は上限の 30 個に達しています。LINE Developers で不要なものを削除してから再試行してください
+Could not set up the LIFF app for {0}: {1}	{0} 的 LIFF 没建好：{1}	ตั้งค่า LIFF ของ {0} ไม่สำเร็จ: {1}	{0} の LIFF を設定できませんでした: {1}
+Created and kept correct by provisioning on the shared LINE Login channel.	由开通流程在全平台共用的 LINE Login 频道下自动建好并保持正确。	ระบบเปิดบัญชีสร้างและดูแลให้ถูกต้องเองบนช่องทาง LINE Login ที่ใช้ร่วมกัน	開通処理が共用の LINE Login チャネルに自動作成し、正しい設定に保ちます。
+Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.	留空即可：站点用 Channel ID 和密钥现取短时令牌。只有 2026-10-05 之前开的渠道这里还存着长期令牌。	เว้นว่างได้: ไซต์จะขอโทเคนอายุสั้นจาก Channel ID และ secret เอง เฉพาะช่องทางที่เปิดก่อน 2026-10-05 เท่านั้นที่ยังเก็บโทเคนระยะยาวไว้ที่นี่	空欄で構いません。サイトが Channel ID とシークレットから短期トークンを発行します。2026-10-05 より前に開設したチャネルだけが長期トークンを保持しています。
+Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.	只填 Channel ID 和 Channel secret（LINE Developers → Basic settings）。令牌和 LIFF 由开通流程自动处理。留空就之后再配。	กรอกเฉพาะ Channel ID และ Channel secret (LINE Developers → Basic settings) ระบบเปิดบัญชีจะออกโทเคนและสร้าง LIFF เอง เว้นว่างไว้เพื่อกำหนดช่องทางภายหลัง	Channel ID と Channel secret だけを入力します（LINE Developers → Basic settings）。トークンと LIFF は開通処理が自動で用意します。後で設定する場合は空欄のままにします。

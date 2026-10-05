@@ -27,7 +27,8 @@ class LineGuide(unittest.TestCase):
         html = self.ns["render"]("zh")
         self.assertNotIn('src="img/', html)
         self.assertNotIn('src=""', html)  # a referenced file that does not exist
-        self.assertGreaterEqual(html.count('src="data:image/jpeg;base64,'), 20)
+        source = (MODULE.parent / "line_guide_content" / "zh.html").read_text()
+        self.assertEqual(html.count('src="data:image/jpeg;base64,'), source.count('src="img/'))
 
     def test_every_shipped_screenshot_is_used(self):
         source = (MODULE.parent / "line_guide_content" / "zh.html").read_text()

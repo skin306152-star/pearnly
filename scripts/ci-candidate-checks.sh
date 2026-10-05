@@ -24,6 +24,7 @@ offline_py() { run docker run --rm --network none --entrypoint "$PY" "$@"; }
 offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_cloud_onboarding.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_channel_setup.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_core_line_token.py
   offline_py -v "$PWD:/candidate:ro" \
     -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
     "$IMAGE" /candidate/tests/test_dms_entrypoints.py

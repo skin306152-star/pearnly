@@ -24,18 +24,17 @@
 </style>
 <div class="plg">
 <section class="panel" aria-labelledby="collect-title">
-  <h3 id="collect-title">一共要从 LINE 拿 4 个值，最后填进开户单</h3>
+  <h3 id="collect-title">从 LINE 只拿 2 个值，填进开户单；令牌、LIFF、Webhook 地址、菜单、免密登录都由系统处理</h3>
   <div class="tablebox">
   <table class="collect table table-bordered">
     <thead><tr><th>值</th><th>长什么样</th><th>在哪拿</th><th>填到开户单</th></tr></thead>
     <tbody>
       <tr><td>频道 ID</td><td><code>2011793651</code>（10 位数字）</td><td>A2 或 B2</td><td>LINE 渠道 ID</td></tr>
       <tr><td>频道密钥</td><td>32 位字母数字</td><td>A2 或 B2</td><td>LINE 渠道密钥</td></tr>
-      <tr><td>长期访问令牌</td><td>很长一串，以 <code>=</code> 结尾</td><td>B4</td><td>LINE 渠道访问令牌</td></tr>
-      <tr><td>LIFF ID</td><td><code>2010411313-xxxxxxxx</code></td><td>C3</td><td>LINE LIFF ID</td></tr>
     </tbody>
   </table>
   </div>
+  <p>你在 LINE 后台要做的只有：建号、开 Messaging API（A1–A2），以及几个开关：Webhooks 开、问候语关、Manual chat（A3），Webhook redelivery 开（B3）。</p>
 </section>
 
 <!-- ───────────── A ───────────── -->
@@ -59,15 +58,15 @@
   </div>
 
   <div class="step">
-    <h3>A2　开通 Messaging API，拿频道 ID 和密钥，填 Webhook</h3>
+    <h3>A2　开通 Messaging API，拿频道 ID 和密钥</h3>
     <ol>
       <li>回到 manager.line.biz，点进刚建的号 → 右上角 <b>Settings</b>。</li>
       <li>左侧点 <span class="n">1</span> <b>Messaging API</b>。</li>
       <li>新号这里会有一个 <b>Enable Messaging API</b>（启用）按钮：点它 → 选择开发者（Provider）选 <b>Pearnly</b> → 隐私政策、条款两个网址留空 → OK。</li>
       <li>启用后就是下图的样子：<span class="n">2</span> <b>Channel ID</b> 和 <b>Channel secret</b>，各点 Copy 记下来。</li>
-      <li><span class="n">3</span> <b>Webhook URL</b> 填上面生成的 Webhook 地址 <code data-fill="webhook"></code>，点 <b>Save</b>。</li>
+      <li><span class="n">3</span> <b>Webhook URL</b> 不用填，开户时系统会填好。</li>
     </ol>
-    <div class="warn"><b>Provider 一定选 Pearnly</b>，不要新建。选错了，后面在 Developers 里找不到这个号，LIFF 也对不上。</div>
+    <div class="warn"><b>Provider 一定选 Pearnly</b>，不要新建。选错了，后面在 Developers 里找不到这个号，LINE 免密登录也认不出人。</div>
     <figure><img src="img/o3_msgapi.jpg" alt="Messaging API 设置页" loading="lazy"><figcaption>Settings → Messaging API（已启用的样子）</figcaption></figure>
   </div>
 
@@ -76,7 +75,7 @@
     <ol>
       <li>左侧点 <span class="n">1</span> <b>Response settings</b>。</li>
       <li><span class="n">2</span> <b>Greeting message</b> 关掉（灰色）。</li>
-      <li><span class="n">3</span> <b>Webhooks</b> 打开（绿色）。这一步最容易漏，没开的话客户发消息系统收不到。</li>
+      <li><span class="n">3</span> <b>Webhooks</b> 打开（绿色）。这一步最容易漏，没开的话客户发消息系统收不到；开户最后一步会检查它。</li>
     </ol>
     <figure><img src="img/o4_response.jpg" alt="Response settings" loading="lazy"><figcaption>Settings → Response settings</figcaption></figure>
     <ol start="4">
@@ -90,7 +89,7 @@
 
 <!-- ───────────── B ───────────── -->
 <section class="part-block" aria-labelledby="pb">
-  <h2 id="pb"><span class="part">B</span>LINE Developers：打开重投、发长期令牌</h2>
+  <h2 id="pb"><span class="part">B</span>LINE Developers：打开重投、核对自动回复</h2>
   <p class="where">网址 <a href="https://developers.line.biz/console/" target="_blank" rel="noopener">developers.line.biz/console</a>，同一个账号。</p>
 
   <div class="step">
@@ -116,88 +115,36 @@
     </ol>
     <figure><img src="img/d4_msgapi_top.jpg" alt="Messaging API 标签顶部" loading="lazy"><figcaption>Messaging API 标签</figcaption></figure>
     <ol start="2">
-      <li>往下到 Webhook settings：<span class="n">1</span> Webhook URL 应该就是你在 A2 填的地址 <code data-fill="webhook"></code>。</li>
+      <li>往下到 Webhook settings：<span class="n">1</span> Webhook URL 开户前是空的，开户后系统会填成 <code data-fill="webhook"></code>，不用手填。</li>
       <li><span class="n">2</span> <b>Use webhook</b> 打开（和 A3 的 Webhooks 是同一个开关，两边哪边开都行）。</li>
       <li><span class="n">3</span> <b>Webhook redelivery</b> 打开：会弹一个说明框，勾上 <b>I've read and understood the above</b> → 点 <b>Enable Webhook redelivery</b>。</li>
     </ol>
-    <figure><img src="img/d5_webhook.jpg" alt="Webhook settings：URL、Use webhook、redelivery" loading="lazy"><figcaption>三处都对：地址正确、两个开关都是绿色</figcaption></figure>
-    <p class="where">地址不对的话点 Edit，<span class="n">1</span> 改成正确地址 → <span class="n">2</span> <b>Update</b>。旁边的 Verify 在开户完成之前会失败，属正常，不用管。</p>
-    <figure><img src="img/d5b_webhook_edit.jpg" alt="Webhook URL 编辑状态" loading="lazy"><figcaption>点 Edit 之后的样子</figcaption></figure>
+    <figure><img src="img/d5_webhook.jpg" alt="Webhook settings：URL、Use webhook、redelivery" loading="lazy"><figcaption>开户完成后的样子：地址是系统填的，两个开关是你开的</figcaption></figure>
+    <p class="where">没有地址时 Use webhook 打不开也没关系：先去开户，开户最后一步会提示回来打开，打开后在发号单上点<b>重试开通</b>。</p>
     <ol start="5">
       <li>同一页再往下的 LINE Official Account features：<span class="n">1</span> <b>Auto-reply messages</b> 如果是 Enabled，说明 A3 的 Response method 没选对，回去改成 Manual chat。</li>
     </ol>
     <figure><img src="img/d6_oa_features.jpg" alt="LINE Official Account features" loading="lazy"><figcaption>这一块只显示状态，改要回 A3</figcaption></figure>
   </div>
-
-  <div class="step">
-    <h3>B4　发长期访问令牌</h3>
-    <ol>
-      <li>Messaging API 标签拉到最底：<b>Channel access token (long-lived)</b>。</li>
-      <li>新号这里是 <b>Issue</b> 按钮：点一次，出来一长串令牌，点旁边小图标复制。</li>
-    </ol>
-    <figure><img src="img/d7_token.jpg" alt="Channel access token" loading="lazy"><figcaption>已发过令牌的号显示的是 Reissue</figcaption></figure>
-    <div class="warn"><b>已经在用的号千万不要点 Reissue</b>：旧令牌会立刻失效，那个租户的 LINE 马上发不出消息。只有新号才点 Issue。</div>
-  </div>
 </section>
 
 <hr>
-
-<!-- ───────────── C ───────────── -->
-<section class="part-block" aria-labelledby="pc">
-  <h2 id="pc"><span class="part">C</span>建 LIFF（LINE 免密登录要用）</h2>
-  <p class="where">LIFF 建在全平台共用的 <b>Pearnly</b> 频道下（LINE Login 类型、猫咪头像），<b>不是</b>建在新号自己的频道里。每个租户建一个。</p>
-
-  <div class="step">
-    <h3>C1　打开共用频道的 LIFF 标签</h3>
-    <ol>
-      <li>Developers → Providers → Pearnly → 点名字叫 <b>Pearnly</b>、标着 <b>LINE Login</b> 的那张卡片。</li>
-      <li>点 <span class="n">1</span> <b>LIFF</b> 标签 → <span class="n">2</span> <b>Add</b>。</li>
-    </ol>
-    <figure><img src="img/l0_liff_add_btn.jpg" alt="Pearnly LINE Login 频道的 LIFF 标签" loading="lazy"><figcaption>顶部写着 Pearnly · LINE Login · Published 就对了</figcaption></figure>
-  </div>
-
-  <div class="step">
-    <h3>C2　填 LIFF 表单</h3>
-    <ol>
-      <li><span class="n">1</span> <b>LIFF app name</b>：填域名前缀，例如 <code data-fill="prefix"></code>。</li>
-    </ol>
-    <figure><img src="img/l2_liff_form_name.jpg" alt="LIFF 表单：名称" loading="lazy"><figcaption>Add a LIFF app</figcaption></figure>
-    <ol start="2">
-      <li><span class="n">1</span> <b>Size</b> 选 <b>Full</b>。</li>
-      <li><span class="n">2</span> <b>Endpoint URL</b>：ERP / Cowork 填 <code data-fill="liff-app"></code>；DMS 填 <code data-fill="liff-dms"></code>。</li>
-      <li><span class="n">3</span> <b>Scopes</b> 勾 <b>openid</b> 和 <b>profile</b>；<b>DMS 再勾 chat_message.write</b>（LINE 里扫身份证后结果走免费回复，不勾也能用，但每扫一次多占 1 条推送额度），ERP / Cowork 不勾。</li>
-    </ol>
-    <figure><img src="img/l3_liff_form_size.jpg" alt="LIFF 表单：Size、Endpoint、Scopes" loading="lazy"><figcaption>表单中段</figcaption></figure>
-    <ol start="5">
-      <li><span class="n">1</span> <b>Add friend option</b> 选 <b>Off</b>；Scan QR 不用开。</li>
-      <li>点 <span class="n">2</span> <b>Add</b>。</li>
-    </ol>
-    <figure><img src="img/l4_liff_form_add.jpg" alt="LIFF 表单底部 Add" loading="lazy"><figcaption>表单底部</figcaption></figure>
-  </div>
-
-  <div class="step">
-    <h3>C3　复制 LIFF ID</h3>
-    <p>回到 LIFF 列表，找到刚建的那一行，<span class="n">1</span> 复制 <b>LIFF ID</b>。</p>
-    <figure><img src="img/l1_liff_list.jpg" alt="LIFF 列表" loading="lazy"><figcaption>LIFF 列表</figcaption></figure>
-    <div class="ok">LIFF ID 必须以 <code>2010411313-</code> 开头。不是这个开头，说明建错了频道，LINE 免密登录不会开。</div>
-  </div>
-</section>
 
 <hr>
 
 <!-- ───────────── D ───────────── -->
 <section class="part-block" aria-labelledby="pd">
-  <h2 id="pd"><span class="part">D</span>开户后台：填单、发号并开通</h2>
+  <h2 id="pd"><span class="part">C</span>开户后台：填单、发号并开通</h2>
   <p class="where">本机管理后台 <code>control.localhost:8104</code> → 发号单。</p>
 
   <div class="step">
-    <h3>D1　新建发号单</h3>
+    <h3>C1　新建发号单</h3>
     <p>点右上 <span class="n">1</span> <b>+ 添加Pearnly Issue</b>。</p>
     <figure><img src="img/c1_list.jpg" alt="发号单列表" loading="lazy"><figcaption>发号单列表</figcaption></figure>
   </div>
 
   <div class="step">
-    <h3>D2　填基础信息和产品行</h3>
+    <h3>C2　填基础信息和产品行</h3>
     <ol>
       <li><span class="n">1</span> 公司名称、用户名、邮箱、初始密码（都必填）；欢迎邮件语言默认泰文。</li>
       <li><span class="n">2</span> 产品与域名这一行：选<b>产品</b>，填<b>域名前缀</b> <code data-fill="prefix"></code>。</li>
@@ -207,36 +154,34 @@
   </div>
 
   <div class="step">
-    <h3>D3　在整行编辑里填 LINE 四个值</h3>
+    <h3>C3　在整行编辑里填 LINE 两个值</h3>
     <ol>
       <li>上半部分：<span class="n">1</span> 产品、<span class="n">2</span> 域名前缀（只填前缀，访问域名会自动出来）、<span class="n">3</span> 界面标题（可以留空，留空用公司名）。</li>
     </ol>
     <figure><img src="img/c3_row_top.jpg" alt="整行编辑上半部分" loading="lazy"><figcaption>编辑行 #1（这是 erpcowork 的真实例子）</figcaption></figure>
     <ol start="2">
-      <li>往下 LINE 渠道：<span class="n">1</span> 依次填 <b>LINE 渠道 ID</b>、<b>LINE LIFF ID</b>、<b>LINE 渠道密钥</b>、<b>LINE 渠道访问令牌</b>。</li>
-      <li>四个值要么全填，要么全空；只填一半会被拒绝保存。</li>
+      <li>往下 LINE 渠道：填 <b>LINE 渠道 ID</b> 和 <b>LINE 渠道密钥</b>（A2 拿到的两个值）。两个要么都填，要么都空。</li>
+      <li>访问令牌、LIFF 都不用填：令牌由系统现取，LIFF 由系统在共用的 Pearnly（LINE Login）频道下建好。</li>
       <li>填完按 <b>Esc</b> 或点空白处关闭这个窗口。</li>
     </ol>
-    <figure><img src="img/c4_row_line.jpg" alt="整行编辑 LINE 部分" loading="lazy"><figcaption>密钥和令牌保存后只显示圆点，正常</figcaption></figure>
   </div>
 
   <div class="step">
-    <h3>D4　发号并开通，看进度</h3>
+    <h3>C4　发号并开通，看进度</h3>
     <ol>
-      <li>点右上 <b>发号并开通</b>（D2 截图里的 <span class="n">4</span>）。</li>
+      <li>点右上 <b>发号并开通</b>（C2 截图里的 <span class="n">4</span>）。系统先在共用 LINE Login 频道下建好这个租户的 LIFF，频道 ID 或密钥不对、LIFF 满 30 个会当场提示。</li>
       <li>开通自动进行，点 <b>查看进度</b> 能看到每一步，全部完成大约几分钟。</li>
-      <li><span class="n">1</span> <b>配 LINE 渠道</b> 这一步会自动设置 Webhook 地址、发布 LINE 菜单、开免密登录。</li>
-      <li><span class="n">2</span> <b>标记开通完成</b> 是最后检查。如果这一步失败，最常见的原因是 A3 / B3 的 Webhook 开关没开：打开后在发号单上点<b>重试开通</b>。</li>
+      <li><span class="n">1</span> <b>配 LINE 渠道</b> 这一步自动取令牌、设置 Webhook 地址、发布 LINE 菜单、在账号池开 LINE 免密登录入口，并核对 LIFF 地址。</li>
+      <li><span class="n">2</span> <b>标记开通完成</b> 是最后检查。如果这一步失败，进度里会写明原因，最常见的是 A3 / B3 的 Webhook 开关没开：打开后在发号单上点<b>重试开通</b>。</li>
     </ol>
-    <figure><img src="img/c5_progress.jpg" alt="开通进度 14 步全部完成" loading="lazy"><figcaption>14 步全部"完成"就是开好了</figcaption></figure>
-    <div class="warn">第 3、4 条的自动设置和检查，要等 2026-09-30 合入的开户改动<b>部署上线后</b>才生效。部署前开的租户：Webhook 照 A2 手填即可；LINE 菜单和 Cowork 免密登录需要部署后重新执行一次"配 LINE 渠道"。</div>
+    <figure><img src="img/c5_progress.jpg" alt="开通进度全部完成" loading="lazy"><figcaption>全部"完成"就是开好了</figcaption></figure>
   </div>
 </section>
 
 <hr>
 
 <section class="part-block" aria-labelledby="pe">
-  <h2 id="pe"><span class="part">E</span>开完 2 分钟自测</h2>
+  <h2 id="pe"><span class="part">D</span>开完 2 分钟自测</h2>
   <ul class="checklist">
     <li><input type="checkbox" id="t1"><label for="t1">手机 LINE 搜 Bot basic ID（B3 里 @ 开头那个）加好友。</label></li>
     <li><input type="checkbox" id="t2"><label for="t2">用租户账号登录网页 → 个人信息 → LINE 那一块会出绑定码。</label></li>
@@ -246,13 +191,12 @@
 </section>
 
 <section class="panel" aria-labelledby="pf">
-  <h3 id="pf">最容易出错的 5 个地方</h3>
+  <h3 id="pf">最容易出错的 4 个地方</h3>
   <ol style="margin:0;padding-left:1.3em;display:grid;gap:6px">
     <li>开 Messaging API 时 Provider 没选 <b>Pearnly</b>。</li>
     <li>Webhook 开关没开（A3 的 Webhooks 或 B3 的 Use webhook，二者是同一个）。</li>
-    <li>给已经在用的号点了 <b>Reissue</b>，那个租户的 LINE 立刻断。</li>
-    <li>LIFF 建到了新号自己的频道里，而不是共用的 Pearnly（LINE Login）频道。</li>
-    <li>Webhook 地址、LIFF 地址里的前缀和开户单的域名前缀不一致。</li>
+    <li>Response method 没选 Manual chat，客户同时收到自动回复和系统回复。</li>
+    <li>在 Basic settings 点了 Channel secret 旁边的 <b>Issue</b>：密钥换了，开户单（或 LINE 渠道）里要改成新的。</li>
   </ol>
 </section>
 </div>
