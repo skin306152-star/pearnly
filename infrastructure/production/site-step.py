@@ -184,11 +184,65 @@ def document_ai_regions(runtime):
     return value
 
 
+GCS_API = "https://storage.googleapis.com/storage/v1/b/"
+
+
+def purge_site_objects(bucket, site, token, *, opener=None):
+    """删租户时把它在 Cowork 原件桶里的东西全删掉（`<站点>/originals/…`、`<站点>/previews/…`，含所有版本）。
+
+    隐私政策承诺"停用或要求删除后 30 天内删除"（2026-10-05）：以前删租户只删站点和数据库，桶里的原件一直留着。
+    只认 `<站点>/` 这一个前缀：站点名为空、带斜杠或不像域名一律拒绝，绝不会退化成"删整个桶"。
+    已经不在的对象（404）算删过，所以中途失败可以整步重跑。返回删掉的对象数。
+    """
+    if not bucket:
+        return 0
+    if not site or site != site.strip() or "/" in site or "." not in site:
+        raise ValueError("Refusing to purge objects for an unsafe site prefix")
+    opener = opener or urllib.request.urlopen
+    prefix, base = site + "/", GCS_API + urllib.parse.quote(bucket, safe="") + "/o"
+    headers = {"Authorization": "Bearer " + token}
+    deleted, page = 0, ""
+    while True:
+        query = {"prefix": prefix, "versions": "true", "fields": "items(name,generation),nextPageToken"}
+        if page:
+            query["pageToken"] = page
+        with opener(urllib.request.Request(base + "?" + urllib.parse.urlencode(query), headers=headers), timeout=30) as response:
+            listing = json.load(response)
+        for item in listing.get("items", []):
+            name = item["name"]
+            if not name.startswith(prefix):
+                raise ValueError("Storage listing returned an object outside the site prefix")
+            target = f"{base}/{urllib.parse.quote(name, safe='')}?generation={int(item['generation'])}"
+            try:
+                opener(urllib.request.Request(target, method="DELETE", headers=headers), timeout=30).close()
+            except urllib.error.HTTPError as error:
+                if error.code != 404:
+                    raise
+            deleted += 1
+        page = listing.get("nextPageToken") or ""
+        if not page:
+            return deleted
+
+
+def storage_token(credentials_info):
+    """识别服务账号（对原件桶有对象读写）换一个短期访问令牌。"""
+    from google.auth.transport.requests import Request
+    from google.oauth2 import service_account
+
+    credentials = service_account.Credentials.from_service_account_info(
+        credentials_info, scopes=["https://www.googleapis.com/auth/devstorage.read_write"])
+    credentials.refresh(Request())
+    return credentials.token
+
+
 def main():
     job = json.load(sys.stdin)
     action, p = job["action"], job["payload"]
     site, group = p["site"], p["group"]
     runtime = dict(line.split("=", 1) for line in Path("/run/secrets/runtime.env").read_text().splitlines() if "=" in line)
+    # 删租户要清原件桶：密钥在降权前读进内存（容器里只读挂载，属主不一定是 frappe）。
+    storage_key = (json.loads(Path("/run/secrets/ocr.json").read_text())
+                   if action == "drop_site" and Path("/run/secrets/ocr.json").is_file() else None)
     os.setgid(1000)
     os.setuid(1000)
     os.chdir("/home/frappe/frappe-bench/sites")
@@ -229,6 +283,12 @@ def main():
         if path.exists():
             # Validated single-site path, exact native database identity, no backup.
             frappe.init(site=site)
+            # 先清桶再删库：桶清到一半失败时站点还在，整步可以重跑。
+            bucket = str(frappe.conf.get("pearnly_cowork_originals_bucket") or "").strip()
+            if bucket:
+                if not storage_key:
+                    raise RuntimeError("Cannot delete the tenant's original files: storage key is missing")
+                print(f"PURGED_OBJECTS {purge_site_objects(bucket, site, storage_token(storage_key))}")
             frappe.flags.root_login = "root"
             frappe.flags.root_password = runtime["DB_ROOT_PASSWORD"]
             from frappe.database import drop_user_and_database
