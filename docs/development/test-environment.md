@@ -21,7 +21,7 @@
 
 1. 第一次（或换了底座镜像）：用**线上正在跑的 digest** 起栈，并挂上被测工作树的代码（**一次只起一个产品**）：
    ```bash
-   export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
+   export PEARNLY_TESTENV_SRC=<被测分支工作树的绝对路径>
    export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…   # 线上 digest
    bash scripts/testenv.sh lab-start cowork     # 起栈 →（首次才导入租户）→ 挂实时源码 → 切域名
    ```
@@ -167,7 +167,7 @@ bash scripts/testenv.sh lab-stop erp                                          # 
 `testdms` / `testerp` 一样：整站导入 + 切域名，登录走线上 Keycloak 与同一批测试账号。
 
 ```bash
-export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
+export PEARNLY_TESTENV_SRC=<被测分支工作树的绝对路径>
 export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
 bash scripts/testenv.sh lab-start cowork   # 起 Cowork 栈 →（首次或要求刷新）导入 testcowork + 账本 → 收尾 → 切 testcowork 域名
 bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈（卷保留）
