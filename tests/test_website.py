@@ -201,5 +201,18 @@ class WebsiteTest(unittest.TestCase):
                 self.assertEqual(len(re.findall(r'class="pill[" ]', html_text)), 1, (lang, key))
 
 
+    def test_video_upload_dates_carry_a_time_zone(self):
+        """Google 视频结构化数据要求 uploadDate 是带时区的完整日期时间，只写日期会被 Search Console 报"缺少时区信息"。"""
+        from datetime import datetime
+        found = 0
+        for page in self.pages.values():
+            for block in page.ld:
+                for node in json.loads(block).get("@graph", []):
+                    if node.get("@type") == "VideoObject":
+                        found += 1
+                        self.assertIsNotNone(datetime.fromisoformat(node["uploadDate"]).tzinfo, node["uploadDate"])
+        self.assertGreater(found, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

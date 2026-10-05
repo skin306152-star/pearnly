@@ -542,7 +542,7 @@ def page_product(lang, key):
               "operatingSystem": "Web, LINE", "description": p["description"], "url": absolute(url(lang, key)),
               "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}},
              {"@type": "VideoObject", "name": f"Pearnly {p['name']} · {t['overview']}", "description": p["description"],
-              "thumbnailUrl": absolute(o["poster"]), "contentUrl": video_url(o), "uploadDate": o["uploaded"],
+              "thumbnailUrl": absolute(o["poster"]), "contentUrl": video_url(o), "uploadDate": o["uploaded"] + "T00:00:00+07:00",  # Google 要带时区的完整日期时间（泰国时间）
               "duration": f"PT{minutes}M{seconds}S", "inLanguage": "th", "publisher": {"@id": ORG["@id"]}}]
     body = f"""<section class="hero sub">
   <div class="wrap center">
