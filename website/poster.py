@@ -73,7 +73,7 @@ def state(p):
         fx = hx + sw + 6
         legs.append((hx, hy, (hx + fx) / 2 + 7, (hy + feet) / 2 - 2, fx, feet))
     return dict(a=a, b=b, f=(fx_, fy_), tip=(tx, ty), m1=m1, m2=m2, hip=hip, tilt=tilt, legs=legs, feet=feet,
-                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(38, -56), pen_ctrl=rot(98, -84), pen=rot(72, -26))
+                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(38, -52), pen_ctrl=rot(80, -72), pen=rot(66, -30))
 
 
 def limb(a, b, bend):
