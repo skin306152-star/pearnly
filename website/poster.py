@@ -12,8 +12,8 @@ import math
 from urllib.parse import quote
 
 W, HP = 1440, 560                   # 画布宽、画面高
-SCALE, GROUND = 1.45, 772           # 小单的放大倍数、脚踩的高度（在画布下面）
-H = GROUND + 74                     # 小单脚下还有一行手写字
+SCALE = 1.35                        # 小单的放大倍数
+H = HP + 74                         # 画布下面一行手写字
 P0 = .6                             # 没有脚本时（或减少动态效果时）卷到的程度（0–1）
 RX = 26                             # 画面圆角
 STRIDE = 30                         # 小单每往前走多少迈半步
@@ -40,42 +40,40 @@ def clamp(v, lo=0.0, hi=1.0):
 # ---------------- 动画状态（与 site.js peel() 同一套公式） ----------------
 
 def state(p):
-    """进度 p → 折线 A（左边上）到 B（下边上）、翻起来的纸角 T、小单的身体、两条腿、两只手。"""
-    a = 120 + 170 * p                          # 左边被翻起的高度
-    b = a * 1.75                               # 下边被翻起的宽度
+    """进度 p → 折线 A（左边上）到 B（下边上）、被小单捏着拉过来的纸尖 T、小单的身体、两条腿、两只手。
+
+    小单站在画面上，左手捏着纸尖往右上方拉、身子往后仰，边退边把左下角掀开；k 是纸尖在“折线 → 镜像位置”上走到的比例。
+    """
+    a = 120 + 150 * p                          # 左边被掀起的高度
+    b = a * 1.75                               # 下边被掀起的宽度
     ln = math.hypot(a, b)
     ux, uy = b / ln, a / ln                    # 折线方向（左上 → 右下）
     nx, ny = uy, -ux                           # 指向画面那一侧的法线
     t0 = a * uy                                # 原来的纸角 C=(0,HP) 在折线上的垂足 F
     fx_, fy_ = ux * t0, HP - a + uy * t0
-    dist = a * b / ln                          # 纸角离折线的距离
-    k = .6                                     # 纸不是平折过去，而是弯着翻起：纸角只到镜像位置的 60%
+    dist = a * b / ln
+    k = .66
     tx, ty = fx_ + nx * dist * k, fy_ + ny * dist * k
-    ax_, ay_ = 0, HP - a
-    m1 = ((ax_ + tx) / 2 - nx * dist * .1, (ay_ + ty) / 2 - ny * dist * .1)    # 两条边往折线那边弯，像参考里的弧
+    m1 = (tx / 2 - nx * dist * .1, (HP - a + ty) / 2 - ny * dist * .1)      # 两条边往折线那边弯一点
     m2 = ((b + tx) / 2 - nx * dist * .14, (HP + ty) / 2 - ny * dist * .14)
-    fin = clamp((p - .9) / .1)                 # 卷到头：停下、直起身、挥手
-    ph = b / STRIDE
-    walk = 1 - fin
-    bob = -4 * abs(math.cos(ph)) * walk
-    tilt = 16 - 20 * fin
-    hip = (b - 90 - 20 * fin, GROUND - 40 * SCALE + 2 + bob)
+    ph = a / 14                                # 掀得越开，小单往后退的步子越多
+    bob = -3 * abs(math.cos(ph))
+    tilt = 12
+    hip = (tx + 92, ty + 70 + bob)
+    feet = hip[1] + 40 * SCALE - 2
 
     def rot(px, py):
         t = math.radians(tilt)
         px, py = px * SCALE, py * SCALE
         return hip[0] + px * math.cos(t) - py * math.sin(t), hip[1] + px * math.sin(t) + py * math.cos(t)
-    swing = 20 * math.sin(ph) * walk
+    swing = 14 * math.sin(ph)
     legs = []
     for side, sw in ((-14, swing), (14, -swing)):
         hx, hy = rot(side, 0)
-        fx = hx + sw + 5 * fin * (1 if side > 0 else -1)
-        legs.append((hx, hy, (hx + fx) / 2 + 8 * walk, (hy + GROUND) / 2 - 2, fx))
-    push = (b + (tx - b) * .1, HP + (ty - HP) * .1 + bob)
-    wave = rot(70, -126)
-    hand = (push[0] + (wave[0] - push[0]) * fin, push[1] + (wave[1] - push[1]) * fin)
-    return dict(a=a, b=b, f=(fx_, fy_), tip=(tx, ty), m1=m1, m2=m2,
-                fin=fin, hip=hip, tilt=tilt, legs=legs, push_sh=rot(36, -50), hand=hand, pen_sh=rot(-36, -46), pen=rot(-58, -24))
+        fx = hx + sw + 6
+        legs.append((hx, hy, (hx + fx) / 2 + 7, (hy + feet) / 2 - 2, fx, feet))
+    return dict(a=a, b=b, f=(fx_, fy_), tip=(tx, ty), m1=m1, m2=m2, hip=hip, tilt=tilt, legs=legs, feet=feet,
+                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(36, -46), pen=rot(60, -20))
 
 
 def limb(a, b, bend):
@@ -88,8 +86,8 @@ def limb(a, b, bend):
 
 
 def leg(l, side):
-    hx, hy, kx, ky, fx = l
-    return f"M{n(hx)} {n(hy)}L{n(kx)} {n(ky)}L{n(fx)} {GROUND}h{n(16 * side)}"
+    hx, hy, kx, ky, fx, gy = l
+    return f"M{n(hx)} {n(hy)}L{n(kx)} {n(ky)}L{n(fx)} {n(gy)}h{n(14 * side)}"
 
 
 # ---------------- 滤镜与花纹 ----------------
@@ -296,14 +294,14 @@ def curl(s):
     g = f'x1="{n(fx)}" y1="{n(fy)}" x2="{n(tx)}" y2="{n(ty)}"'
     return dict(
         defs=(f'<linearGradient id="pz-back" class="pz-g" gradientUnits="userSpaceOnUse" {g}>'
-              '<stop offset="0" stop-color="#b9b3a8"/><stop offset=".1" stop-color="#e9e5de"/><stop offset=".24" stop-color="#ffffff"/>'
-              '<stop offset=".55" stop-color="#e2ddd4"/><stop offset=".85" stop-color="#f6f3ee"/><stop offset="1" stop-color="#d8d2c7"/></linearGradient>'
+              '<stop offset="0" stop-color="#c7a979"/><stop offset=".12" stop-color="#e6d1aa"/><stop offset=".3" stop-color="#fbf1dc"/>'
+              '<stop offset=".62" stop-color="#ead8b5"/><stop offset=".88" stop-color="#f6eacf"/><stop offset="1" stop-color="#dcc49b"/></linearGradient>'
               f'<linearGradient id="pz-gap" class="pz-g2" gradientUnits="userSpaceOnUse" x1="{n(fx)}" y1="{n(fy)}" x2="0" y2="{HP}">'
               '<stop offset="0" stop-color="#2a1e10" stop-opacity=".32"/><stop offset=".45" stop-color="#2a1e10" stop-opacity="0"/></linearGradient>'
               '<filter id="pz-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>'),
         gap=f'<path class="pz-gapshade" d="M0 {n(HP - a)}L{n(b)} {HP}H0Z" fill="url(#pz-gap)"/>',
-        shadow=f'<path class="pz-flap" d="{flap}" fill="#2a1e10" opacity=".34" filter="url(#pz-soft)" transform="translate(10 8)"/>',
-        flap=f'<path class="pz-flap" d="{flap}" fill="url(#pz-back)" stroke="#cfc8bb" stroke-width="1"/>')
+        shadow=f'<path class="pz-flap" d="{flap}" fill="#3a2a14" opacity=".3" filter="url(#pz-soft)" transform="translate(12 10)"/>',
+        flap=f'<path class="pz-flap" d="{flap}" fill="url(#pz-back)" stroke="#c4ab80" stroke-width="1.6"/>')
 
 
 def pencil(at):
@@ -335,15 +333,14 @@ def mascot(s):
             '<circle cx="14" cy="-76" r="5" fill="currentColor" stroke="none"/></g></g></svg>')
     hip = s["hip"]
     pen = f'color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#pz-pencil)"'
-    return (f'<g class="pz-mascot">'
+    return (f'<g class="pz-mascot"><ellipse class="pz-ground" cx="{n(s["hip"][0] + 6)}" cy="{n(s["feet"] + 3)}" rx="58" ry="9" fill="#3a2a14" opacity=".16"/>'
             f'<g {pen}><path class="pz-leg" d="{leg(s["legs"][0], -1)}"/><path class="pz-leg" d="{leg(s["legs"][1], 1)}"/>'
             f'<g class="pz-body" transform="translate({n(hip[0])} {n(hip[1])}) rotate({n(s["tilt"])}) scale({SCALE})" stroke-width="{n(3 / SCALE)}">{body}</g>'
             f'<path class="pz-arm-pen" d="{limb(s["pen_sh"], s["pen"], -12)}"/></g>'
             + pencil(s["pen"])
             + f'<g {pen}><circle class="pz-hand-pen" cx="{n(s["pen"][0])}" cy="{n(s["pen"][1])}" r="8.5" fill="{PAPER}"/>'
             f'<path class="pz-arm-push" d="{limb(s["push_sh"], s["hand"], 14)}"/>'
-            f'<circle class="pz-hand-push" cx="{n(s["hand"][0])}" cy="{n(s["hand"][1])}" r="8.5" fill="{PAPER}"/></g>'
-            f'<path class="pz-ground" d="M{n(s["hip"][0] - 100)} {GROUND} m0 4 h200 M{n(s["hip"][0] - 70)} {GROUND} m0 11 h140" stroke="{INK}" stroke-width="1.6" opacity=".35" filter="url(#pz-pencil)"/></g>')
+            f'<circle class="pz-hand-push" cx="{n(s["hand"][0])}" cy="{n(s["hand"][1])}" r="8.5" fill="{PAPER}"/></g></g>')
 
 
 def svg(L):
@@ -362,7 +359,7 @@ def svg(L):
 {c["flap"]}
 </g>
 {mascot(s)}
-<text class="pz-caption" x="{n(s['hip'][0])}" y="{GROUND + 54}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
+<text class="pz-caption" x="44" y="{HP + 54}" font-family="{HAND}" font-size="30" fill="#3b3934">{esc(L["caption"])}</text>
 </svg>"""
 
 

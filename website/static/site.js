@@ -378,9 +378,9 @@
     function q(sel) { return svg.querySelector(sel); }
     function all(sel) { return svg.querySelectorAll(sel); }
     var clip = q('.pz-clip'), body = q('.pz-body'), legs = all('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'),
-      pen = q('.pz-pen'), armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push'), ground = q('.pz-ground'), caption = q('.pz-caption'),
+      pen = q('.pz-pen'), armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push'), ground = q('.pz-ground'),
       flaps = all('.pz-flap'), gap = q('.pz-gapshade'), g1 = q('.pz-g'), g2 = q('.pz-g2');
-    var SCALE = 1.45, GROUND = 772, STRIDE = 30, HP = 560;
+    var SCALE = 1.35, HP = 560;
     function f(v) { return Math.round(v * 10) / 10; }
     function clamp(v) { return Math.max(0, Math.min(1, v)); }
     function set(el, k, v) { el.setAttribute(k, v); }
@@ -390,12 +390,12 @@
     }
     // 进度 p → 左下角斜卷的纸卷 + 小单每个部件（与 poster.py state() / roll_attrs() 同一套公式）
     function draw(p) {
-      var a = 120 + 170 * p, b = a * 1.75, ln = Math.sqrt(a * a + b * b), ux = b / ln, uy = a / ln, nx = uy, ny = -ux;
-      var t0 = a * uy, fx = ux * t0, fy = HP - a + uy * t0, dist = a * b / ln, tx = fx + nx * dist * .6, ty = fy + ny * dist * .6;
+      var a = 120 + 150 * p, b = a * 1.75, ln = Math.sqrt(a * a + b * b), ux = b / ln, uy = a / ln, nx = uy, ny = -ux;
+      var t0 = a * uy, fx = ux * t0, fy = HP - a + uy * t0, dist = a * b / ln, tx = fx + nx * dist * .66, ty = fy + ny * dist * .66;
       var m1x = tx / 2 - nx * dist * .1, m1y = (HP - a + ty) / 2 - ny * dist * .1;
       var m2x = (b + tx) / 2 - nx * dist * .14, m2y = (HP + ty) / 2 - ny * dist * .14;
-      var fin = clamp((p - .9) / .1), ph = b / STRIDE, walk = 1 - fin, bob = -4 * Math.abs(Math.cos(ph)) * walk, tilt = 16 - 20 * fin;
-      var hip = [b - 90 - 20 * fin, GROUND - 40 * SCALE + 2 + bob], t = tilt * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
+      var ph = a / 14, bob = -3 * Math.abs(Math.cos(ph)), tilt = 12;
+      var hip = [tx + 92, ty + 70 + bob], feet = hip[1] + 40 * SCALE - 2, t = tilt * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
       function rot(px, py) { px *= SCALE; py *= SCALE; return [hip[0] + px * c - py * sn, hip[1] + px * sn + py * c]; }
       // 写实翻页角（与 poster.py curl() 同一套公式）：翻起的纸背、它的投影、折痕下的暗影都跟着折线走
       set(clip, 'd', 'M0 0H1440V' + HP + 'H' + f(b) + 'L0 ' + f(HP - a) + 'Z');
@@ -404,21 +404,20 @@
       set(gap, 'd', 'M0 ' + f(HP - a) + 'L' + f(b) + ' ' + HP + 'H0Z');
       set(g1, 'x1', f(fx)); set(g1, 'y1', f(fy)); set(g1, 'x2', f(tx)); set(g1, 'y2', f(ty));
       set(g2, 'x1', f(fx)); set(g2, 'y1', f(fy));
-      var swing = 20 * Math.sin(ph) * walk;
-      [[-14, swing, -1], [14, -swing, 1]].forEach(function (l, i) {
-        var h = rot(l[0], 0), fx = h[0] + l[1] + 5 * fin * l[2];
-        set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + fx) / 2 + 8 * walk) + ' ' + f((h[1] + GROUND) / 2 - 2) + 'L' + f(fx) + ' ' + GROUND + 'h' + 16 * l[2]);
+      var swing = 14 * Math.sin(ph);
+      [[-14, swing], [14, -swing]].forEach(function (l, i) {
+        var h = rot(l[0], 0), fx2 = h[0] + l[1] + 6;
+        set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + fx2) / 2 + 7) + ' ' + f((h[1] + feet) / 2 - 2) + 'L' + f(fx2) + ' ' + f(feet) + 'h' + (i ? 14 : -14));
       });
-      var push = [b + (tx - b) * .1, HP + (ty - HP) * .1 + bob], wave = rot(70, -126), hand = [push[0] + (wave[0] - push[0]) * fin, push[1] + (wave[1] - push[1]) * fin];
-      var penAt = rot(-58, -24);
+      // 小单左手捏着拉过来的纸尖，右手拿铅笔
+      var hand = [tx + 4, ty + 4], penAt = rot(60, -20);
       set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(' + f(tilt) + ') scale(' + SCALE + ')');
-      set(armPen, 'd', limb(rot(-36, -46), penAt, -12));
+      set(armPen, 'd', limb(rot(36, -46), penAt, -12));
       set(handPen, 'cx', f(penAt[0])); set(handPen, 'cy', f(penAt[1]));
       set(pen, 'transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(-24) translate(0 -64)');
-      set(armPush, 'd', limb(rot(36, -50), hand, 14));
+      set(armPush, 'd', limb(rot(-34, -50), hand, 14));
       set(handPush, 'cx', f(hand[0])); set(handPush, 'cy', f(hand[1]));
-      set(ground, 'd', 'M' + f(hip[0] - 100) + ' ' + GROUND + ' m0 4 h200 M' + f(hip[0] - 70) + ' ' + GROUND + ' m0 11 h140');
-      set(caption, 'x', f(hip[0]));
+      set(ground, 'cx', f(hip[0] + 6)); set(ground, 'cy', f(feet + 3));
     }
     // 手机上只取左边一段
     function fit() {
