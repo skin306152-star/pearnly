@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping
 
 from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 
 
 
@@ -39,7 +40,11 @@ _ACCOUNT_MAPPING_KEYS = (
     "vat_input_acc",
 )
 
-_MAX_ACCOUNT_SETS = 50
+# 有意改动（用户 2026-10-07）：来源版本这里只留前 50 个。推送前核「小助手报过这份账套、可写」
+# （`connections.preparation.reported_writable`、`push.express.account_rules`、选目标 / 冻结目标的数据目录配对）
+# 读的就是这份，而网页可选的账套来自目录投影（上限 ``MAX_ACCOUNT_SETS``）：排在 50 名以外的账套能选、推不了。
+# 两边用同一个上限。
+_MAX_ACCOUNT_SETS = MAX_ACCOUNT_SETS
 
 def _sanitize_account_sets(raw: Any) -> list[dict[str, Any]]:
     if not isinstance(raw, list):

@@ -27,6 +27,8 @@ HASHES = {
     "services/erp/express_account_identity.py": "6271c1277c12bffbad09a02514ca29255bdb68f776106d5232f4f2241b8eaa4b",
 }
 NOW = datetime(2026, 9, 21, 4, 5, 6, tzinfo=timezone.utc)
+# 有意改动（2026-10-07）：来源只存前 50 个账套，本仓与目录投影同一上限（见 `connections/reports.py`）。
+LEGACY_ACCOUNT_SETS = 50
 BOOK = r"E:\DATA\BOOK"
 ROOT = r"D:\APP"
 
@@ -254,17 +256,22 @@ def fixtures():
 
 def run(root=None, source_text=None):
     state, old = load_legacy(root, source_text)
-    count = 0
+    count = widened = 0
     for body, previous in fixtures():
         state.reset(previous)
         result = old("synthetic", deepcopy(body))
         plan = plan_report(body, previous, NOW)
+        patch, response = dict(plan.patch), dict(plan.response)
+        if len(patch.get("reported_account_sets") or []) > LEGACY_ACCOUNT_SETS:
+            patch["reported_account_sets"] = patch["reported_account_sets"][:LEGACY_ACCOUNT_SETS]
+            response["account_sets_received"] = LEGACY_ACCOUNT_SETS
+            widened += 1
         assert not state.errors, (count, state.errors)
-        assert state.config == {**previous, **plan.patch}, (count, body, state.config, plan.patch)
+        assert state.config == {**previous, **patch}, (count, body, state.config, patch)
         assert state.observations == plan.observations, (count, body, state.observations, plan.observations)
         assert state.completions == ([] if plan.completion is None else [plan.completion]), (count, body, state.completions, plan.completion)
         assert state.projection_errors == ([] if plan.projection_error is None else [plan.projection_error]), (count, body, state.projection_errors, plan.projection_error)
-        assert {k: v for k, v in result.items() if k not in {"ok", "endpoint_id", "connection"}} == plan.response
+        assert {k: v for k, v in result.items() if k not in {"ok", "endpoint_id", "connection"}} == response
         expected_lease = [] if plan.offline else [plan.lease_selection]
         # The legacy route sends the raw string; its lease immediately applies
         # account normalization. Native trimming has the same effective key.
@@ -289,7 +296,8 @@ def run(root=None, source_text=None):
         else:
             raise AssertionError("Native plan accepted malformed mapping")
     print(f"PASS source={SOURCE_SHA} reports={count} value_differences=0 malformed_mapping_adaptations={adaptations} "
-          "lease_selection_differences=0 auth_db_clock_publish=controlled_boundaries no_external_io=true")
+          f"lease_selection_differences=0 account_set_limit_widened={widened} "
+          "auth_db_clock_publish=controlled_boundaries no_external_io=true")
 
 
 if __name__ == "__main__":

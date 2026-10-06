@@ -135,9 +135,26 @@ class CompanionReportTests(unittest.TestCase):
     def test_raw_limits_do_not_truncate_projection_input(self):
         plan = plan_report({"account_sets": [{"code": str(i)} for i in range(51)],
                             "accounts": [{"code": str(i)} for i in range(3001)]}, {}, NOW)
-        self.assertEqual(plan.response["account_sets_received"], 50)
         self.assertEqual(plan.response["accounts_received"], 3000)
         self.assertEqual(len(plan.observations[0]["account_sets"]), 51)
+
+    def test_every_selectable_account_set_is_kept_for_the_push_checks(self):
+        # 来源版本只存前 50 个，第 51 个起能在目录里选到、推送前却核不到「小助手报过可写」。
+        from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
+        rows = [{"code": f"T{i}", "path": rf"C:\EXP\T{i}", "root": r"C:\EXP", "writable": True}
+                for i in range(MAX_ACCOUNT_SETS + 1)]
+        plan = plan_report({"account_sets": rows}, {}, NOW)
+        self.assertEqual(plan.response["account_sets_received"], MAX_ACCOUNT_SETS)
+        self.assertEqual(len(plan.patch["reported_account_sets"]), MAX_ACCOUNT_SETS)
+        self.assertEqual(plan.patch["reported_account_sets"][104]["path"], r"C:\EXP\T104")
+
+    def test_account_set_past_the_fiftieth_passes_the_push_allowlist(self):
+        from pearnly_cowork.push.express.account_rules import account_set_allowed
+        rows = [{"code": f"T{i}", "path": rf"C:\EXP\T{i}", "root": r"C:\EXP", "writable": True} for i in range(105)]
+        config = {"account_set": r"C:\EXP\T0", "express_root": r"C:\EXP",
+                  **plan_report({"account_sets": rows}, {}, NOW).patch}
+        self.assertTrue(account_set_allowed(r"C:\EXP\T104", {"config": config}, r"C:\EXP"))
+        self.assertFalse(account_set_allowed(r"C:\EXP\T105", {"config": config}, r"C:\EXP"))
 
     def test_refresh_account_can_differ_from_selected_but_must_be_registered(self):
         value = body(catalog={}, master_refresh_request_id="R", master_refresh_scope="account_set",
