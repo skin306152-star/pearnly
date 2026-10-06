@@ -28,15 +28,14 @@ def status(entry):
             if row:
                 items.append({"history": history, "revision": int(entry.workbook_revision or 0),
                               "filename": contracts.workbook_name(row.invoice_no, row.seller_tax, entry.filename)})
-    histories = json.loads(entry.histories_json or "[]")
-    statuses = {row.name: row.last_push_status for row in frappe.get_all(
-        HISTORY, filters={"name": ["in", histories]}, fields=["name", "last_push_status"],
-        ignore_permissions=True)} if histories and entry.state == "done" else {}
-    # settled：这份文件里的票都已推送成功，表格不会再变，小助手可以不再来问。
+    # settled：这份文件里的票都已推送成功、而且表格的当前版本已经是「全部成功」那一版 —— 小助手可以不再来问。
+    # 只看票的实时状态不够：人在网页推成功后，表格要等下一次后台推进才升版本；小助手若在这之间就停止询问，
+    # 文件夹里会永远留着旧表格（10-07 测试机实测踩到）。所以以随表格版本一起记下的那份状态为准。
+    recorded = json.loads(entry.outcome_json or "{}").get("_signature") or []
     return {"state": entry.state, "code": entry.last_code or "", "items": items,
             "finished": entry.state in FINISHED,
             "settled": entry.state in ("not_invoice", "failed") or (
-                entry.state == "done" and bool(histories) and all(statuses.get(name) == "success" for name in histories))}
+                entry.state == "done" and bool(recorded) and all(status == "success" for _name, status, _reason in recorded))}
 
 
 def render(entry, history):
