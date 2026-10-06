@@ -284,6 +284,14 @@ def demo(lang):
 
 # ---------------- 页面 ----------------
 
+def hand_chars(lang):
+    """首页上所有用手写体写出来的字（中文手写字体按字取子集，漏了的字会掉回印刷体）。"""
+    t, m = C.COMMON[lang], C.MRERP[lang]
+    parts = [*C.DEMO_LABELS[lang].values(), *C.INTEGRATIONS[lang], t["integrations"], t["more"], m["tier_eyebrow"],
+             t["products"], t["nav"]["tools"], t["contact"], *(C.PRODUCT[k][lang]["who"] for k in C.PRODUCTS)]
+    return "".join(str(x) for x in parts)
+
+
 def page_home(lang):
     h, t = C.HOME[lang], C.COMMON[lang]
     watch = f'<a class="btn light" href="#products">{icon("play")}<span>{esc(t["watch"])}</span></a>'
@@ -301,7 +309,7 @@ def page_home(lang):
     <ul class="points">{points}</ul>
     <a class="more" href="{url(lang, k)}">{esc(t["more"])} {icon("arrow", "icon sm")}</a>
   </div>
-  <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{M.svg(k, "poster-mascot")}{shot}</a>
+  <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{S.badge(k)}{shot}</a>
 </article>"""
     samples = {"baht-text": "1,070 → หนึ่งพันเจ็ดสิบบาทถ้วน", "vat": "1,070.00 → VAT 70.00",
                "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0-1055-99999-99-7 ✓"}
@@ -331,15 +339,16 @@ def page_home(lang):
   <h2 class="display center reveal">{esc(h["products_title"])}</h2>
   <div class="stack">{products}</div>
 </section>
-{pro_tier(lang)}
+{pro_tier(lang, sketch=True)}
 <section class="wrap section">
   <h2 class="display center reveal">{esc(h["tools_title"])}</h2>
   <p class="lead center reveal">{esc(h["tools_text"])}</p>
   <div class="tiles">{tools}</div>
 </section>
 {home_guides(lang)}"""
-    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel, "".join(str(v) for v in C.DEMO_LABELS[lang].values()))) + header(lang, "home") + body
-            + contact(lang) + footer(lang))
+    # 首页整页手绘（试验）：正文仍是印刷体，边框、标题下划线、对勾、标签小字换成铅笔手绘，见 style.css「首页手绘」
+    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel, hand_chars(lang))) + header(lang, "home")
+            + '<div class="sketch">' + body + contact(lang) + '</div>' + footer(lang).replace('<footer class="footer', '<footer class="footer sketch', 1))
 
 
 def home_guides(lang):
@@ -415,13 +424,13 @@ def page_product(lang, key):
 
 # ---------------- MR.ERP 专业版（同一家公司） ----------------
 
-def walkers():
-    """三只 Pearnly 小单沿虚线走向托着小单的大账本：从轻量长大到完整版。"""
-    small = "".join(f'<span class="walker w{i}">{M.svg(k)}</span>' for i, k in enumerate(C.PRODUCTS))
+def walkers(sketch=False):
+    """三只 Pearnly 小单沿虚线走向托着小单的大账本：从轻量长大到完整版。sketch=True 时三只小单用首页的铅笔画版。"""
+    small = "".join(f'<span class="walker w{i}">{S.badge(k, "mascot") if sketch else M.svg(k)}</span>' for i, k in enumerate(C.PRODUCTS))
     return f'<div class="walk" aria-hidden="true"><div class="walk-line"></div>{small}<span class="walker big">{M.svg("pro")}</span></div>'
 
 
-def pro_tier(lang):
+def pro_tier(lang, sketch=False):
     m = C.MRERP[lang]
     cards = "".join(f'<li><b>{esc(a)}</b><span>{esc(b)}</span></li>' for a, b in m["tier_cards"])
     return f"""<section class="wrap section" id="mrerp">
@@ -433,7 +442,7 @@ def pro_tier(lang):
       <ul class="pro-cards">{cards}</ul>
       <a class="btn light" href="{url(lang, "mrerp")}"><span>{esc(m["tier_more"])}</span>{icon("arrow", "icon sm")}</a>
     </div>
-    {walkers()}
+    {walkers(sketch)}
   </div>
 </section>
 """

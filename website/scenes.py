@@ -377,3 +377,14 @@ def erp(L):
     flies = "".join(flyer(f"-{q}", "#er-reg", f"#er-sk{i}", T[i] + 800) for i, (_k, _n, _a, q) in enumerate(prods))
     flies += flyer("+24", "#er-bill", "#er-sk1", 6000, "doc")
     return f'<div class="scene hd-scene" data-scene="erp" data-total="9800">{real}{sys_}{flies}</div>'
+
+
+# ---------------- 首页产品卡片角上的小单（手绘版，替代 mascot.py 的粗线版） ----------------
+
+PROPS = {"cowork": "pencil", "dms": "camera", "erp": "basket"}
+
+
+def badge(kind, cls="poster-mascot"):
+    """产品卡片右上角站着的小单：穿这个产品的衣服、拿这个产品的道具，会眨眼。"""
+    return (f'<svg class="{cls} hd-badge" viewBox="-80 -150 180 200" aria-hidden="true" focusable="false">'
+            f'<g filter="url(#hd-pencil)">{mascot(0, 0, 1.0, "", PROPS[kind], kind)}</g></svg>')

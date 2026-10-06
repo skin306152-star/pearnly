@@ -185,9 +185,12 @@ class WebsiteTest(unittest.TestCase):
             self.assertIn('aria-hidden="true"', svg)
             self.assertNotIn("href", svg)
         home = (self.out / "index.html").read_text(encoding="utf-8")
-        # 首页演示窗上方挥手的 base、滚动故事结尾的 done 都随那两处去掉了；手绘演示（website/scenes.py）里自带小单
-        for kind in (*C.PRODUCTS, "pro"):
-            self.assertIn(f'class="mascot m-{kind}', home)
+        # 首页整页手绘：产品卡片和 MR.ERP 一节里的三只小单换成铅笔画版（website/scenes.py badge），只给眼睛看
+        self.assertIn('class="mascot m-pro', home)
+        for kind in C.PRODUCTS:
+            badge = re.search(rf'<svg class="[^"]*hd-badge"[^>]*>(?:(?!</svg>).)*hm-{kind}', home, re.S)
+            self.assertIsNotNone(badge, kind)
+            self.assertIn('aria-hidden="true"', badge.group(0))
 
 
     def test_topbar_capsule_class_is_not_reused_inside_the_page(self):

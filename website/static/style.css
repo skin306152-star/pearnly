@@ -746,3 +746,55 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'%3E%3Cpath d='M9 6 Q50 2 92 5 Q99 6 98 19 Q98 33 90 35 Q50 39 9 36 Q2 35 2 21 Q2 7 9 6 Z' fill='%23ffe066' fill-opacity='.75' stroke='%233d362c' stroke-width='2.2' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M12 4 Q60 0 95 8' stroke='%233d362c' stroke-width='1.4' fill='none' opacity='.45' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
 }
 .demo .seg button:focus-visible { outline: 2px dashed #3d362c; outline-offset: 2px; }
+
+/* ---------- 首页手绘（试验，build.py 首页外面包一层 .sketch）：正文、按钮仍是印刷体；边框、标题下划线、对勾、标签换成铅笔手绘 ----------
+   铅笔框：一张拉伸的 SVG（描边不随拉伸变粗），外加一块平涂的投影，和主视觉、演示里的纸一样。 */
+.sketch { --sk-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' preserveAspectRatio='none'%3E%3Cpath d='M6 2.5 Q200 0.5 394 2 Q398.5 2.5 398 8 Q399.5 100 398 192 Q397.5 197.5 392 197.5 Q200 199.5 8 198 Q2 197.5 2 192 Q0.5 100 2 8 Q2 3 6 2.5 Z' fill='none' stroke='%233d362c' stroke-width='2.2' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M30 3 Q200 -1 360 4' fill='none' stroke='%233d362c' stroke-width='1.2' opacity='.35' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  --sk-swoosh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 24' preserveAspectRatio='none'%3E%3Cpath d='M4 13 C40 7 92 10 196 6 L197 17 C130 19 64 22 3 21 Z' fill='%23ffd84d' opacity='.85'/%3E%3C/svg%3E");
+  --sk-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12 q3 3 6 8 q5 -11 11 -16' fill='none' stroke='%232e8a55' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --sk-hand: Sriracha, "Long Cang", var(--sans);
+}
+.sketch .panel, .sketch .tile, .sketch .poster .window, .sketch .pro-cards li {
+  position: relative; border: 0; border-radius: 12px; background-color: #fffdf8; -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: 7px 8px 0 rgba(58, 42, 20, .09);
+}
+.sketch .panel::before, .sketch .tile::before, .sketch .poster .window::after, .sketch .pro-cards li::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3; background: var(--sk-frame) no-repeat 0 0 / 100% 100%;
+}
+.sketch .tile { transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
+.sketch .tile:hover { transform: translate(-2px, -3px) rotate(-.4deg); box-shadow: 10px 12px 0 rgba(58, 42, 20, .12); }
+.sketch .product:nth-child(odd) { transform: rotate(-.35deg); }
+.sketch .product:nth-child(even) { transform: rotate(.3deg); }
+/* 分区大标题下面一道黄色荧光笔 */
+.sketch h2.display { position: relative; }
+.sketch h2.display::after { content: ""; display: block; width: min(220px, 50%); height: 12px; margin: 8px auto 0; background: var(--sk-swoosh) no-repeat 0 0 / 100% 100%; }
+.sketch .pro h2.display::after, .sketch .product-text h3::after { margin-left: 0; }
+/* 标签、小字、链接换手写 */
+.sketch .eyebrow, .sketch .logos .serif, .sketch .more { font-family: var(--sk-hand); font-weight: 400; letter-spacing: 0; }
+.sketch .eyebrow { font-size: 16px; color: #8a8170; }
+:lang(zh-Hans) .sketch .eyebrow { font-size: 19px; }
+.sketch .more { font-size: 17px; background: var(--sk-swoosh) no-repeat 0 100% / 100% 7px; padding-bottom: 2px; }
+.sketch .logos .serif { font-size: 22px; color: #6b6356; }
+.sketch .logo-row span { font-family: var(--sk-hand); font-weight: 400; font-size: 25px; letter-spacing: 0; color: #8a8170; }
+.sketch .logo-row span:hover { color: #2d2b27; }
+/* 功能点前的对勾换成手画的 */
+.sketch .points .icon { visibility: hidden; }
+.sketch .points li { position: relative; }
+.sketch .points li::before { content: ""; position: absolute; left: -1px; top: 4px; width: 20px; height: 20px; background: var(--sk-tick) no-repeat center / contain; }
+/* 免费工具小块：示例像荧光笔划过的一行字 */
+.sketch .tile code { background: rgba(255, 216, 77, .35); border-radius: 3px; font-family: var(--sk-hand); font-size: 14px; }
+/* MR.ERP 完整版的小卡片 */
+.sketch .pro-cards li { background-color: #fffdf8; }
+/* 页脚：顶上一道手画的波浪线 */
+.footer.sketch { border-top: 0; position: relative; }
+.footer.sketch::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 12px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q30 1 60 6 T120 6 T180 6 T240 6' fill='none' stroke='%233d362c' stroke-width='1.6' opacity='.45' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") repeat-x 0 0 / 240px 12px; }
+.footer.sketch h2 { font-family: Sriracha, "Long Cang", var(--sans); font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 15px; }
+:lang(zh-Hans) .footer.sketch h2 { font-size: 18px; }
+/* 卡片角上的手绘小单 */
+.hd-badge { overflow: visible; }
+.sketch .poster-mascot.hd-badge { height: 132px; top: -118px; right: 24px; }
+@media (max-width: 760px) { .sketch .poster-mascot.hd-badge { height: 96px; top: -86px; } }
+.sketch .walk .walker:not(.big) .hd-badge { width: 100%; height: auto; }
+.hd-badge .hm-hop { stroke-width: 3; }
+@media (max-width: 760px) { .sketch .product:nth-child(n) { transform: none; } }
