@@ -302,6 +302,9 @@ def _set_read_account(username: str, password: str, system_url: str | None = Non
     result = probe(url, username, password, "read")
     if not result.get("ok"):
         return _probe_failure(result, username)
+    gap = _read_scope_gap(url, username, password)
+    if gap:
+        return _probe_failure({"error_friendly": gap}, username)
     previous = frappe.db.get_value(ENDPOINT, _endpoint_name(), "username") if _endpoint_name() else None
     doc, _saved = _store_connection(url, username, password)
     for old in {row.username for row in current} | ({previous} if previous else set()):
@@ -317,6 +320,31 @@ def _set_read_account(username: str, password: str, system_url: str | None = Non
 
     reading = connection_snapshots.bootstrap(doc.name, actor)
     return {"ok": True, "reading": reading.get("state")}
+
+
+def _read_scope_gap(url: str, username: str, password: str) -> str:
+    """读档账号必须看得到全部客户，否则白天同步、夜里全量都会悄悄少读。
+
+    DMS 按账号权限过滤客户列表：拿一个改写账号（没登记就用连接的管理员账号）数一次客户总数作对照，
+    读档账号少了就拒绝登记并说清两边各几位。两边任一数不出来就不拦（不因对照账号登不上挡住换号）。
+    对照账号会真登录一次；只在登记读档账号时做。
+    """
+    from pearnly_dms import i18n
+    from pearnly_dms.adapter import admin_pool
+    from pearnly_dms.adapter.account_probe import customer_count
+
+    name = _endpoint_name()
+    admin_user = frappe.db.get_value(ENDPOINT, name, "admin_username") if name else None
+    admin_password = read_password(ENDPOINT, name, "admin_password") if name else None
+    references = admin_pool.members(admin_user, admin_password, exclude=username)
+    if not references:
+        return ""
+    reference = references[0]
+    seen = customer_count(url, username, password)
+    total = customer_count(url, reference.username, reference.password)
+    if seen is None or total is None or seen >= total:
+        return ""
+    return i18n.t("dms.connect.read.scope", seen=seen, total=total, reference=reference.username)
 
 
 @frappe.whitelist(methods=["POST"])

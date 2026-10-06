@@ -372,6 +372,7 @@ This month Top 20,เดือนนี้ Top 20
 This month Top 30,เดือนนี้ Top 30
 This month Top 5,เดือนนี้ Top 5
 This query is queued.,การอ่านครั้งนี้อยู่ในคิวแล้ว
+"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account.",บัญชีอ่านข้อมูลนี้เห็นลูกค้าได้เพียง {seen} ราย ขณะที่ {reference} เห็น {total} ราย DMS จำกัดรายชื่อลูกค้าตามสิทธิ์ของบัญชี กรุณาใช้บัญชีที่เห็นลูกค้าทั้งหมดเป็นบัญชีอ่านข้อมูล
 This read failed. Click Read to retry.,อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้
 This read failed. Please try again later.,อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",การอ่านครั้งนี้หยุดกลางทาง ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่ ระบบจะอ่านใหม่อีกครั้ง กรุณาลองใหม่ภายหลัง
@@ -815,6 +816,7 @@ dms.connect.pool.removed,ลบ {0} แล้ว
 dms.connect.pool.summary,ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 dms.connect.pool.testAndAdd,ทดสอบและเพิ่ม
 dms.connect.pool.toggle,หยุดใช้ / ใช้งาน
+dms.connect.read.scope,บัญชีอ่านข้อมูลนี้เห็นลูกค้าได้เพียง {seen} ราย ขณะที่ {reference} เห็น {total} ราย DMS จำกัดรายชื่อลูกค้าตามสิทธิ์ของบัญชี กรุณาใช้บัญชีที่เห็นลูกค้าทั้งหมดเป็นบัญชีอ่านข้อมูล
 dms.doctype.system_account,บัญชีระบบ DMS
 dms.doctype.system_account.description,บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว
 dms.doctype.system_account.last_checked_at,เวลาตรวจสอบล่าสุด

@@ -17,15 +17,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/pearnly_dms"))
 
 from pearnly_dms.client.eventlog_reader import ACTION_DELETE, ACTION_EDIT
-from pearnly_dms.contracts.id_validate import normalize_thai_id
 
 CUSTOMERS = "ลูกค้า"
 CARS = "รุ่นรถ"
 PROVINCES = "จังหวัด"
 ID_CARD = "1103702587460"
+# DMS 使用记录点名客户用的是客户代码（车行自编），不是身份证号（2026-10-06 实测）。
+CODE = "9112"
 
 
-def row(seq, module, action=ACTION_EDIT, target=ID_CARD, account="sale02"):
+def row(seq, module, action=ACTION_EDIT, target=CODE, account="sale02"):
     spans = "".join(f"<span>{value}</span>" for value in
                     (account, "25/09/2569", "10:00:00", "10.0.0.1", module, action, target))
     return (f'<div data-val="{seq}||2" data-allo="" data-cf="">'
@@ -76,8 +77,8 @@ class FakeStore:
         self.state = incoming
         return incoming
 
-    def customer_index(self, endpoint):
-        return {normalize_thai_id(people): cid for people, cid in self.customers.items()}
+    def customer_codes(self, endpoint):
+        return dict(self.customers)
 
     def verified_customer(self, endpoint, customer_id, fields, *, expected_scope=None):
         self.verified.append((customer_id, fields))
@@ -153,7 +154,7 @@ class ChangeSyncTests(unittest.TestCase):
         # 锁在不淘汰的状态存储（pearnly_core.execution.state）；替身同一个假缓存
         self.enterContext(patch.object(self.sync, "_state_store", return_value=self.cache))
         self.enterContext(patch.object(self.sync, "_state_release", side_effect=self.cache.release))
-        self.read = Mock(return_value={"customer_id": "59", "people_id": ID_CARD})
+        self.read = Mock(return_value={"customer_id": "59", "cuscode": CODE, "people_id": ID_CARD})
         self.enterContext(patch.object(self.sync, "read_customer_complete", self.read))
         # 这些用例测的是"点不出记录就整组重读"本身，与白天/夜里无关：默认不延后（ADR-012）。
         self.defer = self.enterContext(
@@ -186,15 +187,40 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_named_customer_change_is_read_back_per_record(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        self.store.customers[ID_CARD] = "59"
+        self.store.customers[CODE] = "59"
         log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
 
         self.catch_up(log)
 
-        self.assertEqual(self.store.verified, [("59", {"customer_id": "59", "people_id": ID_CARD})])
+        self.assertEqual(self.store.verified, [("59", {"customer_id": "59", "cuscode": CODE, "people_id": ID_CARD})])
         entry = self.store.written[-1]["modules"][CUSTOMERS]
         self.assertEqual((entry["count"], entry["seq"], entry["dirty_since"]), (231, 832, 0))
         self.assertEqual(self.manual.requests, [], "按记录补上了就不该整组重读")
+
+    def test_new_customer_named_by_its_dealer_code_is_found_and_cached(self):
+        """2026-10-06：新增客户 134 在使用记录里是「เพิ่ม | 9112」，缓存里还没有它。"""
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 281, "seq": 981, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"count": 282, "rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
+        self.read.return_value = {"customer_id": "134", "cuscode": CODE, "people_id": "1310200999112"}
+        with patch.object(self.sync, "_search_customer", return_value="134") as search:
+            self.catch_up(log)
+
+        search.assert_called_once_with(log, CODE)
+        self.assertEqual([cid for cid, _fields in self.store.verified], ["134"])
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual((entry["seq"], entry["dirty_since"]), (982, 0))
+        self.assertEqual(self.manual.requests, [])
+
+    def test_customer_the_read_account_cannot_see_falls_back_to_a_group_read(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 281, "seq": 981, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"count": 282, "rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
+        with patch.object(self.sync, "_search_customer", return_value=""), \
+                self.assertLogs(self.sync.logger, "WARNING") as logs:
+            self.catch_up(log)
+
+        self.assertEqual(self.store.verified, [])
+        self.assertTrue(any(CODE in line for line in logs.output))
+        self.assertEqual([r["dataset"] for r in self.manual.requests], ["customers"])
 
     def test_daytime_leaves_a_big_group_read_for_the_night(self):
         """白天点不出记录：客户组只标记待重读、水位推进，不马上登记一个多小时的整组读取。"""
@@ -223,7 +249,7 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_delete_is_not_guessed_per_record(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        self.store.customers[ID_CARD] = "59"
+        self.store.customers[CODE] = "59"
         log = FakeEventLog({CUSTOMERS: {"count": 231,
                                         "rows": [row(832, CUSTOMERS, ACTION_DELETE)]}})
 
@@ -247,10 +273,10 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_an_edit_and_a_delete_in_the_same_batch_both_land(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        self.store.customers[ID_CARD] = "59"
+        self.store.customers[CODE] = "59"
         self.store.customers["1000001205453"] = "60"
         log = FakeEventLog({CUSTOMERS: {"count": 232, "rows": [
-            row(832, CUSTOMERS, ACTION_EDIT, ID_CARD),
+            row(832, CUSTOMERS, ACTION_EDIT, CODE),
             row(833, CUSTOMERS, ACTION_DELETE, "1000001205453"),
         ]}})
 
@@ -274,7 +300,7 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_record_read_failure_keeps_the_watermark_for_the_next_pull(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        self.store.customers[ID_CARD] = "59"
+        self.store.customers[CODE] = "59"
         self.read.side_effect = RuntimeError("read failed")
         log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
 
@@ -286,8 +312,8 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_readback_identity_mismatch_is_never_written(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        self.store.customers[ID_CARD] = "59"
-        self.read.return_value = {"customer_id": "59", "people_id": "9999999999999"}
+        self.store.customers[CODE] = "59"
+        self.read.return_value = {"customer_id": "59", "cuscode": "0001", "people_id": ID_CARD}
         log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
 
         self.catch_up(log)

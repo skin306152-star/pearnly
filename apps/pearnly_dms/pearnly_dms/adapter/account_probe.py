@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """登记系统账号前按用途真试一次（用户 2026-09-27）：能登录不等于权限够。
 
-* 读档账号：要能看 DMS 使用记录（每分钟同步靠它）、客户列表和单个客户资料（补读被改的客户）。
+* 读档账号：要能看 DMS 使用记录（每分钟同步靠它）、客户列表和单个客户资料（补读被改的客户），
+  并且**看得到全部客户**（`customer_count` 与改写账号对照，见 `connections.api._read_scope_gap`）。
 * 改写账号：要能打开"新建客户"表单（建/改客户档都从这张表单开始）。
 * 操作员账号（`login`，用户 2026-10-02）：**只试能不能登录**，登上立即登出，不读不写任何资料，
   也不留会话缓存 —— 那是操作员本人的账号，DMS 同一账号会互相挤下线。
@@ -12,7 +13,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Tuple
+import re
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,28 @@ def _can_read_a_customer(client) -> bool:
 
 def _can_open_customer_form(client) -> bool:
     return bool(client.list_geo("provinces"))
+
+
+def customer_count(system_url: str, username: str, password: str) -> Optional[int]:
+    """这个账号在 DMS 客户列表里能看到几位客户；登不上或读不懂就 ``None``（不作判断）。
+
+    DMS 按账号权限过滤客户列表（2026-10-06 测试 DMS 同一时刻：dmstest 39 位、dmstest001 44 位、
+    sale02 16 位），读档账号看不全，白天同步和夜里全量就会悄悄少读。只读，从不抛异常。
+    """
+    from pearnly_dms.adapter import push
+    from pearnly_dms.adapter.session import MrerpDmsAdapter
+
+    def inspect(adapter):
+        body = adapter.client()._post_text("cus/component/showdata.php", {"sd": ""})
+        match = re.fullmatch(r"dt::(0|[1-9][0-9]{0,8})", (body or "").strip())
+        return int(match[1]) if match else None
+
+    try:
+        adapter = MrerpDmsAdapter(system_url=system_url, username=username, password=password, headless=True)
+        return push.logged_in_probe(adapter, inspect)
+    except Exception:
+        logger.info("[dms account probe] customer count unavailable for %s", username, exc_info=True)
+        return None
 
 
 CHECKS: Dict[str, List[Tuple[str, Callable[[Any], bool]]]] = {

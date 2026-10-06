@@ -372,6 +372,7 @@ This month Top 20,This month Top 20
 This month Top 30,This month Top 30
 This month Top 5,This month Top 5
 This query is queued.,This query is queued.
+"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account.","This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account."
 This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read failed. Please try again later.,This read failed. Please try again later.
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.","This read was interrupted; previously completed data was kept. The system will read again, so please try later."
@@ -815,6 +816,7 @@ dms.connect.pool.removed,Removed {0}
 dms.connect.pool.summary,"{0} registered, {1} in use"
 dms.connect.pool.testAndAdd,Test and add
 dms.connect.pool.toggle,Stop / resume
+dms.connect.read.scope,"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account."
 dms.doctype.system_account,DMS System Account
 dms.doctype.system_account.description,Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.
 dms.doctype.system_account.last_checked_at,Last Checked At

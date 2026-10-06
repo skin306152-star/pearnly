@@ -372,6 +372,7 @@ This month Top 20,今月 Top 20
 This month Top 30,今月 Top 30
 This month Top 5,今月 Top 5
 This query is queued.,この検索は待機中です。
+"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account.",この読み取りアカウントで見える顧客は {seen} 件ですが、{reference} では {total} 件見えます。DMS はアカウントの権限で顧客一覧を制限しています。すべての顧客が見えるアカウントを読み取りアカウントにしてください。
 This read failed. Click Read to retry.,今回の読み取りは失敗しました。読み取りを押して再試行できます。
 This read failed. Please try again later.,今回の読み取りは失敗しました。しばらくしてからお試しください。
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。
@@ -815,6 +816,7 @@ dms.connect.pool.removed,{0} を削除しました
 dms.connect.pool.summary,登録 {0} 件、利用可能 {1} 件
 dms.connect.pool.testAndAdd,テストして追加
 dms.connect.pool.toggle,停止 / 再開
+dms.connect.read.scope,この読み取りアカウントで見える顧客は {seen} 件ですが、{reference} では {total} 件見えます。DMS はアカウントの権限で顧客一覧を制限しています。すべての顧客が見えるアカウントを読み取りアカウントにしてください。
 dms.doctype.system_account,DMS システムアカウント
 dms.doctype.system_account.description,システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。
 dms.doctype.system_account.last_checked_at,最終チェック日時

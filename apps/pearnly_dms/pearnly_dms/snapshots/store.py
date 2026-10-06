@@ -389,26 +389,22 @@ def merge_change_state(endpoint, incoming, *, base, expected_scope=None):
         return merged
 
 
-def customer_index(endpoint):
-    """本地缓存的 身份证号 → 客户号（归一化后唯一才算入索引）。
+def customer_codes(endpoint):
+    """本地缓存的 客户代码 → 客户号（唯一才算入；DMS 使用记录按客户代码点名客户）。
 
-    **一次读、一次解析**：一轮增量可能点名好几条客户，逐条去解析整份 payload
-    在大租户上是白花的开销。身份证号重复的客户不进索引 —— 有歧义宁可去 DMS 反查。
+    代码重复的客户不进索引 —— 有歧义宁可去 DMS 反查（同 `customer_index` 的规矩）。
     """
-    from pearnly_dms.contracts.id_validate import normalize_thai_id
-
-    key = scope(endpoint)
-    raw = frappe.db.get_value(DT, _name(key, "customers"), "payload")
+    raw = frappe.db.get_value(DT, _name(scope(endpoint), "customers"), "payload")
     index, ambiguous = {}, set()
     for cid, item in (((_load_big(raw) or {}).get("customers")) or {}).items():
-        people = normalize_thai_id((item or {}).get("people_id"))
-        if not people:
+        code = str((item or {}).get("cuscode") or "").strip()
+        if not code:
             continue
-        if people in index:
-            ambiguous.add(people)
-        index[people] = cid
-    for people in ambiguous:
-        index.pop(people, None)
+        if code in index:
+            ambiguous.add(code)
+        index[code] = cid
+    for code in ambiguous:
+        index.pop(code, None)
     return index
 
 

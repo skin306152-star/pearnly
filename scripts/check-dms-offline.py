@@ -28,6 +28,7 @@ UNIT_TESTS = (
     "tests/test_dms_recording_fixes.py",
     "tests/test_dms_menu_manual.py",
     "tests/test_dms_customer_update_rules.py",
+    "tests/test_dms_read_scope.py",
 )
 
 if __name__ == "__main__":

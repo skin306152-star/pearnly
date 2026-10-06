@@ -372,6 +372,7 @@ This month Top 20,本月 Top 20
 This month Top 30,本月 Top 30
 This month Top 5,本月 Top 5
 This query is queued.,本次查询已排队。
+"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account.",这个读档账号只能看到 {seen} 位客户，{reference} 能看到 {total} 位。DMS 按账号权限限制客户列表，请换一个能看到全部客户的账号作为读档账号。
 This read failed. Click Read to retry.,本次读取失败，可点击读取重试。
 This read failed. Please try again later.,本次读取失败，请稍后再试。
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",本次读取已中断，此前成功的资料仍保留。系统会重新读取，请稍后再试。
@@ -815,6 +816,7 @@ dms.connect.pool.removed,已移除 {0}
 dms.connect.pool.summary,已登记 {0} 个，可用 {1} 个
 dms.connect.pool.testAndAdd,测试并添加
 dms.connect.pool.toggle,停用 / 启用
+dms.connect.read.scope,这个读档账号只能看到 {seen} 位客户，{reference} 能看到 {total} 位。DMS 按账号权限限制客户列表，请换一个能看到全部客户的账号作为读档账号。
 dms.doctype.system_account,DMS 系统账号
 dms.doctype.system_account.description,只给系统用的额外 DMS 账号。管理员读取和客户资料写入会挑空闲的一个，操作员不必在同一个账号上排队。
 dms.doctype.system_account.last_checked_at,最近检查时间

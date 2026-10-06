@@ -23,7 +23,6 @@ from pearnly_dms.client.client_intake import (
     _GEO_LABEL_MAP, _IDENTITY_MAP, _IdentitySearchRows,
 )
 from pearnly_dms.contracts.client_base import DmsClientError
-from pearnly_dms.contracts.id_validate import normalize_thai_id
 
 
 ERROR = "ERR_DMS_SNAPSHOT_INCOMPLETE"
@@ -728,38 +727,46 @@ def read_customer_complete(client, cid, *, limits=None):
     return _collect(client, lambda budget: _read_customer_complete(client, cid, budget), limits)
 
 
-def search_customer_by_identity(client, identity, *, limits=None):
-    """按身份证号在原生客户列表里找客户号；找不到或有歧义一律返回空字符串。
+def search_customer_by_code(client, code, *, limits=None):
+    """按客户代码（รหัสลูกค้า）在原生客户列表里找客户号；找不到或有歧义一律返回空字符串。
 
-    给"顺手同步"用：DMS 的使用记录里，客户那一栏写的是**身份证号**，不是客户号
-    （实测 `… | ลูกค้า | แก้ไข | 1103702587460`）。所以必须反查回客户号才能补读。
+    给白天同步用：DMS 使用记录里客户那一栏写的是**客户代码**，不是身份证号
+    （2026-10-06 测试 DMS 实测：新增客户 134 记为 ``เพิ่ม | 9112``，9112 是它的客户代码）。
+    以前按身份证号反查，只有代码恰好等于证号的客户（本产品建的）补得进来，车行自编代码的
+    客户全部推到夜里。DMS 不允许客户代码重复（原生 ``chkdocno``）。
 
-    严格程度与建档时的查重一致：一页 10 条被打满视为可能被截断、找不到第二页、
-    形状可疑、多命中全部**放弃**（返回空），绝不猜一个客户号去覆盖缓存。
+    列表搜索是模糊匹配，所以按行里的代码精确筛，再读表单核对代码；一页被打满、形状可疑、
+    多命中全部**放弃**（返回空），绝不猜一个客户号去覆盖缓存。
     """
-    target = normalize_thai_id(identity)
-    if len(target) != 13 or not (target.isascii() and target.isdigit()):
+    target = str(code or "").strip()
+    if not target:
         return ""
 
     def search(budget):
         body = client._post_text("cus/component/showdata.php", {
-            "sdtamt": "10", "sdtpage": "1", "sd": target,
+            "sdtamt": "100", "sdtpage": "1", "sd": target,
             "selcolsort": "1", "selcolsorttype": "1"})
         budget.add_rows(1)
+        if body.lstrip().startswith("ndt::"):
+            return ""
         parser = _IdentitySearchRows()
         parser.feed(body)
         parser.close()
-        if (parser.invalid or parser.depth
+        rows = client._parse_customer_rows(body)
+        if (parser.invalid or parser.depth or not body.lstrip().startswith("dt::")
                 or len(parser.ids) != len(re.findall(r"\bdata-val\s*=", body, re.I))
-                or len(parser.ids) >= 10 or body.lstrip().startswith("err::")):
+                or [row["customer_id"] for row in rows] != parser.ids):
             _fail("customer search response is unusable")
+        exact = [row["customer_id"] for row in rows if str(row.get("cuscode") or "").strip() == target]
+        if len(rows) >= 100 and not exact:
+            _fail("customer code search may be truncated")
         found = ""
-        for cid in dict.fromkeys(parser.ids):
+        for cid in dict.fromkeys(exact):
             fields = _read_customer_complete(client, cid, budget)
-            if normalize_thai_id(fields.get("people_id")) != target:
+            if str(fields.get("cuscode") or "").strip() != target:
                 continue
             if found:
-                _fail("customer identity has multiple exact matches")
+                _fail("customer code has multiple exact matches")
             found = cid
         return found
 

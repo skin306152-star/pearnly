@@ -51,7 +51,6 @@ from pearnly_dms.client import eventlog_reader
 from pearnly_dms.client.eventlog_reader import EventLogLimits
 from pearnly_dms.client.snapshot_reader import SnapshotLimits, read_customer_complete
 from pearnly_dms.contracts.client_base import DmsClientError
-from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.snapshots import manual, store
 
 logger = logging.getLogger(__name__)
@@ -348,18 +347,22 @@ def _new_events(client, module, *, cursor, limits, usage):
 def _apply_customers(client, events, *, endpoint, expected_scope):
     """把流水点名的客户补读回来。返回 True＝这批变化已经落到缓存。
 
+    流水里点名客户用的是**客户代码**（รหัสลูกค้า），不是身份证号；本产品建的客户代码恰好
+    等于证号，车行自编代码的不是（2026-10-06 实测，见 `search_customer_by_code`）。
+
     删除：不逐条猜"删掉之后还剩什么"，但**必须先把自己这条 overlay 撤掉** ——
     overlay 会被下一次整组重读当成必须读到的目标，留着它会让客户缓存永久读不出来。
     撤掉之后仍然交整组重读（由它按原生列表决定这条客户到底还在不在）。
+
+    读档账号看不到的客户（DMS 按账号权限过滤客户列表）搜不到：交整组重读并留日志，
+    不猜客户号。
     """
-    known = store.customer_index(endpoint)
+    known = store.customer_codes(endpoint)
     targets = []
     for event in events:
         if not event.names_record:
             return False            # 点不到记录 → 交给整组重读
-        target = normalize_thai_id(event.target)
-        if not target:
-            return False
+        target = str(event.target or "").strip()
         if event.action == eventlog_reader.ACTION_DELETE:
             cid = known.get(target)
             if cid:
@@ -372,19 +375,21 @@ def _apply_customers(client, events, *, endpoint, expected_scope):
     for target in targets:
         cid = known.get(target) or _search_customer(client, target)
         if not cid:
+            logger.warning("[dms changes] 使用记录点名的客户代码 %s 在读档账号的客户列表里找不到"
+                           "（读档账号可能看不到全部客户），交给整组重读", target)
             return False
         fields = read_customer_complete(client, cid, limits=RECORD_LIMITS)
-        if normalize_thai_id(fields.get("people_id")) != target:
-            return False            # 读回来的不是这个人 → 不写
+        if str(fields.get("cuscode") or "").strip() != target:
+            return False            # 读回来的不是这条 → 不写
         store.verified_customer(endpoint, cid, fields, expected_scope=expected_scope)
     return not removed
 
 
 def _search_customer(client, target):
-    """按身份证号反查客户号；找不到或有歧义都返回空（由 `snapshot_reader` 严格判定）。"""
-    from pearnly_dms.client.snapshot_reader import search_customer_by_identity
+    """按客户代码反查客户号；找不到或有歧义都返回空（由 `snapshot_reader` 严格判定）。"""
+    from pearnly_dms.client.snapshot_reader import search_customer_by_code
 
-    return search_customer_by_identity(client, target, limits=RECORD_LIMITS)
+    return search_customer_by_code(client, target, limits=RECORD_LIMITS)
 
 
 # ── 整组重读的登记 ─────────────────────────────────────────────────────
