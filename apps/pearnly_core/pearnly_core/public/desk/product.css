@@ -85,6 +85,17 @@ body.pearnly-product-desk .pearnly-compact-list .result .level-left {
 body.pearnly-product-desk .pearnly-compact-list .result .list-row-col {
 	margin-right: var(--margin-sm);
 }
+/* 第一列（单据号 / 名称）：框架给这条链接 `flex: 0 0 auto; max-width: 100%`，可同一格里前面还有勾选框，
+   长一点的值就伸出格子、被格子的 overflow 截掉一截，也没有省略号（2026-10-07：录入工作台显示成「NV2025…」）。
+   让它在格子里收缩、按块元素截断，开头完整显示、尾部出省略号；完整值照旧在悬浮提示里。 */
+body.pearnly-product-desk .pearnly-compact-list .result .list-subject > a.level-item {
+	display: block;
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 body.pearnly-product-desk .btn.btn-primary {
 	color: #fff;
 	border-color: var(--pearnly-accent);
