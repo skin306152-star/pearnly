@@ -284,73 +284,6 @@ def demo(lang):
 
 # ---------------- 页面 ----------------
 
-def story(lang):
-    """首页滚动故事：一张税票被拍下、读出、核对、记进账本，整个月 30 张，你打了 0 个字。
-
-    动画区只给眼睛看（aria-hidden）；读屏和搜索引擎读的是同一段里的标题和三步说明。
-    """
-    h, S, R = C.HOME[lang], C.HOME[lang]["story"], C.STORY_RECEIPT
-    steps = "".join(f"<li><b>{esc(a)}</b> {esc(b)}</li>" for a, b in h["steps"])
-    marks = "".join(f'<span>0{i + 1} {esc(x)}</span>' for i, x in enumerate(S["steps"]))
-    items = "".join(f'<div class="ss-row"><span>{esc(a)}</span><span>{esc(b)}</span></div>' for a, b in R["lines"])
-    slots = "".join(
-        f'<div class="ss-slot"><span class="ss-k">{esc(k)}</span><span class="ss-v"></span>'
-        f'<span class="ss-ok">{esc(c)}</span></div>' if c else
-        f'<div class="ss-slot"><span class="ss-k">{esc(k)}</span><span class="ss-v"></span><span></span></div>'
-        for k, c in zip(S["keys"], S["checks"]))
-    cols = "".join(f"<th>{esc(c)}</th>" for c in S["cols"])
-    first = [R["date"][:5], R["seller"], R["vat"], R["total"]]
-    data = esc(json.dumps({"captions": S["captions"], "docs": S["docs"], "rows": [first] + [list(r) for r in C.STORY_ROWS]},
-                          ensure_ascii=False))
-    big = "<br>".join(esc(x).replace("{0}", '<span class="ss-zero">0</span>') for x in S["big"])
-    return f"""<section class="ss" id="story" aria-labelledby="story-title">
-  <h2 class="sr-only" id="story-title">{esc(h["steps_title"])}</h2>
-  <ol class="sr-only">{steps}</ol>
-  <div class="ss-stage" aria-hidden="true" data-story="{data}">
-    <div class="ss-marks">{marks}</div>
-    <div class="ss-caption">{esc(S["captions"][0])}</div>
-    <div class="ss-grid">
-      <div class="ss-camera">
-        <div class="ss-pile"><div class="ss-count"></div></div>
-        <div class="ss-vf"><span class="ss-rec">SCAN</span><i></i><i></i><i></i><i></i></div>
-        <div class="ss-receipt">
-          <div class="ss-head"><div class="ss-co ss-f">{esc(R["seller"])}</div><div class="ss-ti">ใบกำกับภาษี</div></div>
-          <div class="ss-sub">TAX INVOICE · สำนักงานใหญ่</div>
-          <div class="ss-dash"></div>
-          <div class="ss-row"><span>เลขผู้เสียภาษี</span><b class="ss-f">{esc(R["tax_id"])}</b></div>
-          <div class="ss-row"><span>วันที่</span><b class="ss-f">{esc(R["date"])}</b></div>
-          <div class="ss-dash"></div>{items}<div class="ss-dash"></div>
-          <div class="ss-row"><span>รวมก่อนภาษี</span><span>{esc(R["base"])}</span></div>
-          <div class="ss-row"><span>VAT 7%</span><b class="ss-f">{esc(R["vat"])}</b></div>
-          <div class="ss-row ss-total"><span>รวมทั้งสิ้น</span><span class="ss-f">{esc(R["total"])}</span></div>
-          <div class="ss-code"></div>
-          <div class="ss-stamp">ได้รับเงินแล้ว</div>
-          <div class="ss-scan"></div>
-        </div>
-      </div>
-      <div class="ss-system">
-        <div class="ss-card"><h4><span>{esc(S["card"])}</span><span>AUTO</span></h4>{slots}</div>
-        <div class="ss-ledger">
-          <h4><span>{esc(S["ledger"])}</span><span class="ss-saved">● {esc(S["saved"])}</span></h4>
-          <table><thead><tr>{cols}</tr></thead></table>
-          <div class="ss-body"><table><tbody class="ss-rows"></tbody></table></div>
-        </div>
-      </div>
-    </div>
-    <div class="ss-flash"></div>
-    <div class="ss-backdrop"></div>
-    <div class="ss-finale"><div>
-      {M.svg("done", "ss-mascot")}
-      <p class="ss-big">{big}</p>
-      <p class="ss-lead">{esc(S["sub"])}</p>
-      <a class="btn dark" href="#products" tabindex="-1">{icon("play")}<span>{esc(S["cta"])}</span></a>
-    </div></div>
-    <div class="ss-hud"><div><small>{esc(S["filled"])}</small><b class="ss-filled">0</b></div><div class="ss-zeroes"><small>{esc(S["typed"])}</small><b>0<span class="ss-caret"></span></b></div></div>
-  </div>
-</section>
-"""
-
-
 def page_home(lang):
     h, t = C.HOME[lang], C.COMMON[lang]
     watch = f'<a class="btn light" href="#products">{icon("play")}<span>{esc(t["watch"])}</span></a>'
@@ -378,6 +311,7 @@ def page_home(lang):
     )
     graph = [ORG, {"@type": "WebSite", "@id": C.SITE + "/#site", "name": "Pearnly", "url": C.SITE + "/",
                    "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}]
+    steps = "".join(f"<li><b>{esc(a)}</b> {esc(b)}</li>" for a, b in h["steps"])
     peel = {**h["peel"], "cols": h["story"]["cols"], "rows": C.STORY_ROWS[:8], "ledger": h["story"]["ledger"], "saved": h["story"]["saved"]}
     body = f"""<section class="hero">
   <div class="wrap center">
@@ -388,8 +322,8 @@ def page_home(lang):
   </div>
   <div class="wrap wide"><figure class="peel">{P.doodle()}{P.svg(peel)}{P.ask(peel)}</figure></div>
 </section>
-<section class="wrap wide section demo-band"><div class="hero-stage">{demo(lang)}</div></section>
-{story(lang)}<section class="wrap section logos reveal">
+<section class="wrap wide section demo-band" aria-labelledby="steps-title"><h2 class="sr-only" id="steps-title">{esc(h["steps_title"])}</h2><ol class="sr-only">{steps}</ol><div class="hero-stage">{demo(lang)}</div></section>
+<section class="wrap section logos reveal">
   <p class="serif">{esc(t["integrations"])}</p>
   <div class="logo-row">{logos}</div>
 </section>

@@ -225,131 +225,6 @@
   }
 
 
-  // ---- 首页滚动故事：进度只由滚动位置决定，往回滚就倒放 ----
-  function story() {
-    var stage = document.querySelector('.ss-stage');
-    if (!stage) return;
-    var section = stage.parentNode, data = JSON.parse(stage.getAttribute('data-story'));
-    var q = function (s) { return stage.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(stage.querySelectorAll(s)); };
-    var receipt = q('.ss-receipt'), vf = q('.ss-vf'), scan = q('.ss-scan'), flash = q('.ss-flash'), card = q('.ss-card'),
-        ledger = q('.ss-ledger'), rowsEl = q('.ss-rows'), saved = q('.ss-saved'), finale = q('.ss-finale'),
-        backdrop = q('.ss-backdrop'), filledEl = q('.ss-filled'), caption = q('.ss-caption'), count = q('.ss-count'), pile = q('.ss-pile');
-    var marks = qa('.ss-marks span'), fields = qa('.ss-f'), slots = qa('.ss-v'), oks = qa('.ss-slot');
-    var rows = data.rows, TOTAL = rows.length;
-    var chips = fields.map(function (f, i) {
-      var c = document.createElement('div');
-      c.className = 'ss-chip' + (i === 0 ? ' th' : '');
-      c.textContent = f.textContent;
-      stage.appendChild(c);
-      return c;
-    });
-    var MINIS = 14, minis = [];
-    for (var n = 0; n < MINIS; n++) {
-      var d = document.createElement('div');
-      d.className = 'ss-mini';
-      d.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i><b>✓</b>';
-      d._rot = ((n * 47) % 21) - 10; d._dx = ((n * 29) % 13) - 6; d._dy = -n * 3;
-      pile.insertBefore(d, count);
-      minis.push(d);
-    }
-    function clamp(v) { return Math.min(1, Math.max(0, v)); }
-    function seg(p, a, b) { return clamp((p - a) / (b - a)); }
-    function ease(t) { return 1 - Math.pow(1 - t, 3); }
-    function io(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-    function lerp(a, b, t) { return a + (b - a) * t; }
-    var shown = 0;
-    function setRows(k) {
-      if (k === shown) return;
-      if (k < shown) { rowsEl.innerHTML = ''; shown = 0; }
-      for (var i = shown; i < k; i++) {
-        var tr = document.createElement('tr');
-        if (i === 0) tr.className = 'mine';
-        rows[i].forEach(function (x) { var td = document.createElement('td'); td.textContent = x; tr.appendChild(td); });
-        rowsEl.insertBefore(tr, rowsEl.firstChild);
-      }
-      shown = k;
-    }
-    var AT = [0, 0.2, 0.42, 0.64, 0.8];
-    function frame() {
-      var r = section.getBoundingClientRect();
-      var p = reduce ? 1 : clamp(-r.top / (r.height - window.innerHeight));
-      var m = window.innerWidth <= 760;
-      var st = stage.getBoundingClientRect();
-
-      // 1 拍：单据进来，取景框收拢，快门一闪
-      var a = ease(seg(p, 0, 0.16)), vfIn = ease(seg(p, 0.06, 0.17));
-      receipt.style.transform = 'translateY(' + lerp(60, 0, a) + 'vh) rotate(' + lerp(-12, -3, a) + 'deg)';
-      vf.style.transform = 'scale(' + lerp(1.35, 1, vfIn) + ')';
-      vf.style.opacity = vfIn * (1 - seg(p, 0.4, 0.48));
-      flash.style.opacity = p > 0.165 && p < 0.2 ? (1 - seg(p, 0.165, 0.2)) * 0.9 : 0;
-
-      // 2 读：扫描线 + 荧光笔
-      var s = seg(p, 0.2, 0.38);
-      scan.style.opacity = s > 0 && s < 1 ? 1 : 0;
-      scan.style.top = lerp(-2, 100, s) + '%';
-      fields.forEach(function (f, i) { f.style.setProperty('--hl', ease(seg(p, 0.21 + i * 0.033, 0.25 + i * 0.033))); });
-
-      // 3 核：字段飞进表单，逐项打勾
-      var fade = seg(p, 0.4, 0.52), filled = 0;
-      receipt.style.opacity = 1 - fade * 0.55;
-      receipt.style.filter = 'blur(' + fade * 1.2 + 'px)';
-      receipt.style.visibility = p > 0.78 ? 'hidden' : 'visible';
-      var k = io(seg(p, 0.64, 0.72));
-      chips.forEach(function (c, i) {
-        var t = io(seg(p, 0.4 + i * 0.028, 0.5 + i * 0.028));
-        var src = fields[i].getBoundingClientRect(), dst = slots[i].getBoundingClientRect();
-        var x = lerp(src.left, dst.left, t) - st.left, y = lerp(src.top + src.height / 2, dst.top + dst.height / 2, t) - st.top;
-        var lift = Math.sin(t * Math.PI) * (m ? 26 : 60);
-        c.style.transform = 'translate(' + x + 'px,' + (y - c.offsetHeight / 2 - lift) + 'px) scale(' + lerp(0.9, 1, t) + ')';
-        c.style.opacity = p < 0.4 + i * 0.028 ? 0 : 1 - seg(p, 0.64, 0.665);
-        var ok = oks[i].querySelector('.ss-ok');
-        if (ok) ok.classList.toggle('on', t >= 1 && p > 0.52 + i * 0.028);
-        if (t >= 1) filled++;
-      });
-      card.style.opacity = (m ? seg(p, 0.3, 0.4) : 0.35 + seg(p, 0.3, 0.4) * 0.65) * (1 - seg(p, 0.64, 0.7));
-
-      // 4 记：表单收成账本里的一行，整个月一行行补进来
-      card.style.transform = 'translateY(' + k * (m ? 40 : 90) + 'px) scaleY(' + lerp(1, 0.2, k) + ')';
-      ledger.classList.toggle('on', m && p > 0.66);
-      ledger.style.opacity = m ? seg(p, 0.66, 0.72) : 0.35 + seg(p, 0.6, 0.7) * 0.65;
-      ledger.style.transform = m ? '' : 'translateY(' + (-k * (card.offsetHeight + 22) / 2) + 'px)';
-      var rowsNow = p < 0.7 ? 0 : 1 + Math.floor(ease(seg(p, 0.78, 0.92)) * (TOTAL - 1));
-      setRows(rowsNow);
-      saved.classList.toggle('on', p > 0.7);
-
-      // 整个月的单据一张张落到这一摞上，和账本同步
-      var pt = seg(p, 0.76, 0.92);
-      minis.forEach(function (d, i) {
-        var t = ease(clamp((pt - i / MINIS) * MINIS / 2.2));
-        d.style.opacity = t > 0 ? 1 : 0;
-        d.style.transform = 'translate(' + d._dx + 'px, calc(' + lerp(-60, 0, t) + 'vh + ' + d._dy + 'px)) rotate(' + lerp(d._rot * 3, d._rot, t) + 'deg)';
-      });
-      count.style.opacity = p > 0.77 ? 1 : 0;
-      count.textContent = data.docs + ' ' + Math.max(1, rowsNow) + ' / ' + TOTAL;
-
-      // 计数器：系统填的格子一直涨，你打的字一直是 0
-      filledEl.textContent = p >= 0.7 ? rowsNow * 5 : filled;
-
-      // 收尾
-      var f = ease(seg(p, 0.92, 0.98));
-      finale.style.opacity = f; backdrop.style.opacity = f;
-      finale.style.transform = 'translateY(' + lerp(20, 0, f) + 'px)';
-      finale.classList.toggle('on', f > 0.9);
-      var step = p < 0.2 ? 0 : p < 0.42 ? 1 : p < 0.64 ? 2 : 3;
-      marks.forEach(function (el, i) { el.classList.toggle('on', i <= step); });
-      var at = 0;
-      AT.forEach(function (v, i) { if (p >= v) at = i; });
-      if (caption.textContent !== data.captions[at]) caption.textContent = data.captions[at];
-      caption.style.opacity = 1 - f;
-    }
-    var ticking = false;
-    function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(function () { frame(); ticking = false; }); } }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(frame);
-    frame();
-  }
-
   // ---- 品牌形象 น้องใบ：眼睛跟着指针，眨眼错开，点首屏那只会跳一下 ----
   function mascots() {
     var looks = Array.prototype.slice.call(document.querySelectorAll('.mascot .m-look'));
@@ -519,6 +394,6 @@
     document.querySelectorAll('[data-line-message]').forEach(function (a) { a.href = a.getAttribute('data-line-message'); });
   }
 
-  function init() { dots(); reveal(); topbar(); demo(); players(); story(); mascots(); peel(); lineMessages(); }
+  function init() { dots(); reveal(); topbar(); demo(); players(); mascots(); peel(); lineMessages(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

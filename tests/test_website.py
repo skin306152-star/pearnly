@@ -156,18 +156,14 @@ class WebsiteTest(unittest.TestCase):
             for key, by_lang in table.items():
                 self.assertEqual(len({json.dumps(shape(by_lang[l]), sort_keys=True) for l in C.LANGS}), 1, key)
 
-    def test_home_story_keeps_how_it_works_readable_in_every_language(self):
-        """首页滚动故事：动画只给眼睛看，"怎么运作"的三步仍是页面正文；数据可解析，30 张单据。"""
+    def test_home_keeps_how_it_works_readable_in_every_language(self):
+        """首页滚动故事那一屏已去掉（用户 2026-10-06）；“怎么运作”的三步仍以读屏可读的正文留在演示那一节。"""
         for lang in C.LANGS:
             html_text = (self.out / build.url(lang, "home").lstrip("/") / "index.html").read_text(encoding="utf-8")
-            self.assertEqual(html_text.count('class="ss-stage" aria-hidden="true"'), 1, lang)
-            self.assertIn(f'id="story-title">{build.esc(C.HOME[lang]["steps_title"])}</h2>', html_text)
+            self.assertNotIn('class="ss-stage"', html_text, lang)
+            self.assertIn(f'id="steps-title">{build.esc(C.HOME[lang]["steps_title"])}</h2>', html_text)
             for title, text in C.HOME[lang]["steps"]:
                 self.assertIn(build.esc(text), html_text)
-            raw = html_text.split('data-story="', 1)[1].split('"', 1)[0]
-            data = json.loads(html.unescape(raw))
-            self.assertEqual((len(data["rows"]), len(data["captions"])), (30, 5))
-            self.assertIn('href="#products" tabindex="-1"', html_text)
 
     def test_mrerp_family_is_linked_from_home_product_pages_and_its_own_page(self):
         """MR.ERP 专业版：首页书架、ERP/DMS 页底部和 /mrerp/ 都指过去；/mrerp/ 带两个登录入口和 8 个模块。"""
@@ -189,8 +185,8 @@ class WebsiteTest(unittest.TestCase):
             self.assertIn('aria-hidden="true"', svg)
             self.assertNotIn("href", svg)
         home = (self.out / "index.html").read_text(encoding="utf-8")
-        # 首页演示窗上方原来那只挥手的 base 已去掉：手绘演示（website/scenes.py）里自带小单
-        for kind in ("done", *C.PRODUCTS, "pro"):
+        # 首页演示窗上方挥手的 base、滚动故事结尾的 done 都随那两处去掉了；手绘演示（website/scenes.py）里自带小单
+        for kind in (*C.PRODUCTS, "pro"):
             self.assertIn(f'class="mascot m-{kind}', home)
 
 
