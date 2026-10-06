@@ -189,7 +189,8 @@ class WebsiteTest(unittest.TestCase):
             self.assertIn('aria-hidden="true"', svg)
             self.assertNotIn("href", svg)
         home = (self.out / "index.html").read_text(encoding="utf-8")
-        for kind in ("base", "done", *C.PRODUCTS, "pro"):
+        # 首页演示窗上方原来那只挥手的 base 已去掉：手绘演示（website/scenes.py）里自带小单
+        for kind in ("done", *C.PRODUCTS, "pro"):
             self.assertIn(f'class="mascot m-{kind}', home)
 
 
