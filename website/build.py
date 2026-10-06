@@ -486,7 +486,7 @@ def page_home(lang):
     )
     graph = [ORG, {"@type": "WebSite", "@id": C.SITE + "/#site", "name": "Pearnly", "url": C.SITE + "/",
                    "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}]
-    peel = {**h["peel"], "cols": h["story"]["cols"], "rows": C.STORY_ROWS[:5]}
+    peel = {**h["peel"], "cols": h["story"]["cols"], "rows": C.STORY_ROWS[:7], "ledger": h["story"]["ledger"], "saved": h["story"]["saved"]}
     body = f"""<section class="hero">
   <div class="wrap center">
     <span class="badge"><i class="live"></i>{esc(h["badge"])}</span>
@@ -494,7 +494,7 @@ def page_home(lang):
     <p class="lead">{esc(h["lead"])}</p>
     {cta_buttons(lang, watch)}
   </div>
-  <div class="wrap wide"><figure class="peel">{P.doodle()}{P.svg(peel)}</figure></div>
+  <div class="wrap wide peel-track"><figure class="peel">{P.doodle()}{P.svg(peel)}</figure></div>
 </section>
 <section class="wrap wide section demo-band"><div class="hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div></section>
 {story(lang)}<section class="wrap section logos reveal">

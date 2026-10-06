@@ -374,52 +374,72 @@
   function peel() {
     var svg = document.querySelector('.pz');
     if (!svg) return;
-    var p0 = +svg.getAttribute('data-p0'), ZY = +svg.getAttribute('data-zy'), ZEND = +svg.getAttribute('data-zend'), z0 = +svg.getAttribute('data-z0');
+    var track = svg.closest('.peel-track'), card = svg.closest('.peel'), p0 = +svg.getAttribute('data-p0');
     function q(sel) { return svg.querySelector(sel); }
-    function all(sel) { return svg.querySelectorAll(sel); }
-    var clip = q('.pz-clip'), tops = all('.pz-ztop'), bots = all('.pz-zbot'), shut = all('.pz-zshut'), slider = q('.pz-slider'), walker = q('.pz-walker');
+    var clip = q('.pz-clip'), roll = q('.pz-roll'), rshade = q('.pz-rshade'), done = q('.pz-done'), body = q('.pz-body'),
+      legs = svg.querySelectorAll('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'), pen = q('.pz-pen'),
+      armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push');
+    var SCALE = 1.75, GROUND = 550, STRIDE = 34, width = 1440;
     function f(v) { return Math.round(v * 10) / 10; }
-    function pt(x, y) { return f(x) + ' ' + f(y); }
-    function each(list, d) { for (var i = 0; i < list.length; i++) list[i].setAttribute('d', d); }
-    // 拉链从左边拉开到 z（与 poster.py geom() 同一套公式）；小单拽着拉片跟着往右走
-    function draw(p) {
-      var z = 260 + 300 * p, up = 50 + 80 * Math.max(p, 0), down = Math.min(up * .55, 62);
-      var top = 'M0 ' + f(ZY - up) + 'Q' + pt(z * .45, ZY - up * .9) + ' ' + pt(z, ZY);
-      var bot = 'M0 ' + f(ZY + down) + 'Q' + pt(z * .45, ZY + down * .9) + ' ' + pt(z, ZY);
-      clip.setAttribute('d', 'M0 0H1440V560H0Z' + top + 'Q' + pt(z * .45, ZY + down * .9) + ' 0 ' + f(ZY + down) + 'Z');
-      each(tops, top); each(bots, bot); each(shut, 'M' + f(z) + ' ' + ZY + 'H' + ZEND);
-      slider.setAttribute('transform', 'translate(' + f(z) + ' ' + ZY + ')');
-      walker.setAttribute('transform', 'translate(' + f(z - z0) + ' 0)');
+    function clamp(v) { return Math.max(0, Math.min(1, v)); }
+    function limb(a, b, bend) {
+      var dx = b[1] - a[1], dy = a[0] - b[0], d = Math.sqrt(dx * dx + dy * dy) || 1;
+      return 'M' + f(a[0]) + ' ' + f(a[1]) + 'Q' + f((a[0] + b[0]) / 2 + dx / d * bend) + ' ' + f((a[1] + b[1]) / 2 + dy / d * bend) + ' ' + f(b[0]) + ' ' + f(b[1]);
     }
-    // 手机上只取左边一段，变成竖版海报
+    // 进度 p → 纸卷与小单的每个部件（与 poster.py state() 同一套公式）
+    function draw(p) {
+      var x = 150 + (width - 310) * p, d = 36 + 70 * p, fin = clamp((p - .86) / .12), ph = x / STRIDE, walk = 1 - fin;
+      var bob = -5 * Math.abs(Math.cos(ph)) * walk, tilt = 18 - 22 * fin, hip = [x - d / 2 - 88 - 34 * fin, 482 + bob];
+      var a = tilt * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+      function rot(px, py) { px *= SCALE; py *= SCALE; return [hip[0] + px * c - py * sn, hip[1] + px * sn + py * c]; }
+      var swing = 22 * Math.sin(ph) * walk;
+      [[-14, swing, -1], [14, -swing, 1]].forEach(function (l, i) {
+        var h = rot(l[0], 0), fx = h[0] + l[1] + 6 * fin * l[2], kx = (h[0] + fx) / 2 + 9 * walk, ky = (h[1] + GROUND) / 2 - 2;
+        legs[i].setAttribute('d', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f(kx) + ' ' + f(ky) + 'L' + f(fx) + ' ' + GROUND + 'h' + 16 * l[2]);
+      });
+      var push = [x - d / 2 - 2, 392 + bob], wave = rot(70, -128), hand = [push[0] + (wave[0] - push[0]) * fin, push[1] + (wave[1] - push[1]) * fin];
+      var penAt = rot(-58, -24);
+      body.setAttribute('transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(' + f(tilt) + ') scale(' + SCALE + ')');
+      armPen.setAttribute('d', limb(rot(-36, -46), penAt, -12));
+      handPen.setAttribute('cx', f(penAt[0])); handPen.setAttribute('cy', f(penAt[1]));
+      pen.setAttribute('transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(-24) translate(0 -64)');
+      armPush.setAttribute('d', limb(rot(36, -50), hand, 14));
+      handPush.setAttribute('cx', f(hand[0])); handPush.setAttribute('cy', f(hand[1]));
+      clip.setAttribute('x', f(x));
+      roll.setAttribute('transform', 'translate(' + f(x) + ' 0) scale(' + f(d / 100 * 1000) / 1000 + ' 1)');
+      rshade.setAttribute('x', f(x + d / 2 - 4));
+      done.setAttribute('opacity', f(fin));
+    }
+    // 手机上只取左边一段；画布可见宽度跟着变，纸卷卷到可见范围的右边为止
     function fit() {
-      var view = svg.getAttribute(svg.parentNode.clientWidth < 640 ? 'data-view-sm' : 'data-view');
+      var sm = card.clientWidth < 640, view = svg.getAttribute(sm ? 'data-view-sm' : 'data-view');
+      width = +view.split(' ')[2];
       svg.setAttribute('viewBox', view);
-      q('.pz-frame').setAttribute('width', view.split(' ')[2]);   // 画面圆角跟着裁切宽度走
+      q('.pz-frame').setAttribute('width', width);
     }
     fit();
-    window.addEventListener('resize', fit);
-    if (reduce) { draw(p0); return; }
-    // 往下滑越卷越高；每隔几秒用力拽一下。只在看得见、卷的程度有变化时才重画
-    var cur = -.75, tug = 0, last = 0, queued = false;
+    if (reduce) { draw(p0); window.addEventListener('resize', function () { fit(); draw(p0); }); return; }
+    track.classList.add('scrolly');
+    // 卡片吸顶后，页面再往下滑多少就卷多少；平滑跟随，只在看得见、进度有变化时重画
+    var cur = 0, last = 0, queued = false, seen = true;
     function goal() {
-      var r = svg.getBoundingClientRect(), vh = window.innerHeight;
-      return Math.max(.12, Math.min(1, (vh - r.top - r.height * .45) / (vh * .8)));
+      var r = track.getBoundingClientRect(), top = parseFloat(getComputedStyle(card).top) || 0;
+      return clamp((top - r.top) / Math.max(1, r.height - card.offsetHeight));
     }
     function frame(now) {
       queued = false;
-      var g = goal(), k = Math.max(0, 1 - (now - tug) / 700), pull = Math.sin(Math.min(1, (now - tug) / 700) * Math.PI) * .07 * (k > 0);
-      cur += (g - cur) * Math.min(1, (now - last) / 160 || .1);
+      var g = goal();
+      cur += (g - cur) * Math.min(1, (now - last) / 120 || .15);
       last = now;
-      draw(cur + pull);
-      if (Math.abs(g - cur) > .002 || k > 0) queue();
+      draw(cur);
+      if (Math.abs(g - cur) > .0008) queue();
     }
     function queue() { if (!queued) { queued = true; requestAnimationFrame(frame); } }
-    var seen = true;
-    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { seen = e[0].isIntersecting; if (seen) queue(); }).observe(svg);
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { seen = e[0].isIntersecting; if (seen) queue(); }).observe(track);
     window.addEventListener('scroll', function () { if (seen) queue(); }, { passive: true });
-    setInterval(function () { if (seen && !document.hidden) { tug = performance.now(); queue(); } }, 4200);
+    window.addEventListener('resize', function () { fit(); queue(); });
     last = performance.now();
+    draw(0);
     queue();
   }
 
