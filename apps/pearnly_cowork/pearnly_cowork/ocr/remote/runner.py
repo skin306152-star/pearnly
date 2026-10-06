@@ -706,7 +706,8 @@ def _document(body, content, store, access_token, emit, *, orient, page_source, 
 
     try:
         environment, started = dict(body["environment"]), clock()
-        client = build_client(environment, store, access_token, http=http, regions=body.get("regions"))
+        client = build_client(environment, store, access_token, http=http, regions=body.get("regions"),
+                              claude_target=body.get("anthropic"))
         yield_seconds = body.get("yield_seconds", contract.YIELD_SECONDS)
 
         def guarded(callback):
@@ -747,7 +748,7 @@ def _document(body, content, store, access_token, emit, *, orient, page_source, 
                 None if is_pdf else recon_reading.image_mime(content), body["document_type"],
                 reading(guarded(partial(client.document_ai_call, retry_unknown=True))),
                 extracting(recon_reading.document_page_failure(guarded(partial(client.model_call, retry_unknown=True)))),
-                map_pages=page_map)
+                map_pages=page_map, environment=environment)
         log(event="document_done", pages=body["page_count"], seconds=round(clock() - started, 2),
             page_threads=limit if page_map else 1)
         emit(contract.result("done", legacy=legacy, throttled=store.throttled, calls=store.calls, by_model=store.by_model))
@@ -964,7 +965,8 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
     environment = dict(request["environment"])
     is_pdf = request["filename"].lower().endswith(".pdf")
     client = build_client(environment, store, access_token, http=http, regions=request.get("regions"),
-                          cached_only=(lambda url: "documentai" in url) if body["stage"] == "extract" else None)
+                          cached_only=(lambda url: "documentai" in url) if body["stage"] == "extract" else None,
+                          claude_target=request.get("anthropic"))
     started = time.monotonic()
     try:
         with page_source(content, request["filename"], expected_page_count=request["page_count"], enable_text_path=False,
@@ -976,7 +978,7 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
                 # 按它自己的规则处理（2026-10-01 复查）。
                 partial(client.document_ai_call, retry_unknown=False),
                 recon_reading.document_page_failure(partial(client.model_call, retry_unknown=0)),
-                body["stage"], body["index"])
+                body["stage"], body["index"], environment=environment)
         status = "done" if sent else "skipped"
     except NotWarm:
         status = "not_ready"

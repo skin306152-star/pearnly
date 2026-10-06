@@ -8,6 +8,7 @@
 import dataclasses
 
 from pearnly_core.execution.errors import Uncertain
+from pearnly_cowork.ocr.engine.config import document_reading
 from pearnly_cowork.ocr.engine.contracts import ModelRequest, ProviderFailure
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import pipeline as enterprise
@@ -70,9 +71,12 @@ def document_page_failure(call):
     return invoke
 
 
-def read_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call, map_pages=None):
+def read_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call, map_pages=None,
+                  environment=None):
     """企业档读一份文件 → 旧线上管线结果形状（多页、带 engine）。页面图只在要 3.8 抽取时逐页渲染。
-    ``map_pages``：各页第一遍抽取同时做的方式（``enterprise.run``）；不给就一页一页读。"""
+    ``map_pages``：各页第一遍抽取同时做的方式（``enterprise.run``）；不给就一页一页读。
+    ``environment``：受理时冻结的识别环境，按站点引擎选抽取模型与再读次数（ADR-017）；不给 = 现行读法。"""
+    model, rereads = document_reading(environment or {})
     reads = enterprise.pdf_chunks(content, source.page_count) if is_pdf else [(content, mime, 1)]
 
     def render(number):
@@ -80,11 +84,13 @@ def read_document(source, content, is_pdf, mime, document_type, document_ai_call
         return frame.image_bytes, frame.mime_type
 
     result = enterprise.run(enterprise.CATEGORIES[document_type], page_count=source.page_count, reads=reads,
-        render=render, document_ai_call=document_ai_call, model_call=model_call, map_pages=map_pages)
+        render=render, document_ai_call=document_ai_call, model_call=model_call, map_pages=map_pages,
+        model=model, max_rereads=rereads)
     return enterprise.to_legacy(result)
 
 
-def warm_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call, stage, index):
+def warm_document(source, content, is_pdf, mime, document_type, document_ai_call, model_call, stage, index,
+                  environment=None):
     """多页文件的预热（Cloud Workflows）：:func:`read_document` 第一遍里的一块读字或一页抽取（``enterprise.first_pass``），
     分块与渲染与 :func:`read_document` 完全相同。"""
     reads = enterprise.pdf_chunks(content, source.page_count) if is_pdf else [(content, mime, 1)]
@@ -94,7 +100,8 @@ def warm_document(source, content, is_pdf, mime, document_type, document_ai_call
         return frame.image_bytes, frame.mime_type
 
     return enterprise.first_pass(enterprise.CATEGORIES[document_type], page_count=source.page_count, reads=reads,
-        render=render, document_ai_call=document_ai_call, model_call=model_call, stage=stage, index=index)
+        render=render, document_ai_call=document_ai_call, model_call=model_call, stage=stage, index=index,
+        model=document_reading(environment or {})[0])
 
 
 def image_mime(content):

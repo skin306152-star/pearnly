@@ -208,11 +208,13 @@ DOCUMENT_TYPES = ("bank_statement", "general_ledger", "vat_report")
 
 
 def document_request(*, site, work, filename, content, page_count, document_type, environment, regions=None,
-                     yield_seconds=YIELD_SECONDS):
+                     yield_seconds=YIELD_SECONDS, anthropic=None):
     body = {"version": VERSION, "kind": "cowork.document", "site": site, "work": work, "filename": filename,
             "content": base64.b64encode(content).decode("ascii"), "page_count": page_count,
             "document_type": document_type, "environment": environment, "regions": regions,
             "yield_seconds": yield_seconds}
+    if anthropic is not None:
+        body["anthropic"] = anthropic
     parse_request(body)
     return body
 
@@ -293,6 +295,7 @@ def _parse_document(body):
     regions = body.get("regions")
     if regions is not None and (not isinstance(regions, list) or not all(isinstance(r, dict) for r in regions)):
         raise ValueError("invalid regions")
+    _anthropic(body)
     _yield_seconds(body)
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)

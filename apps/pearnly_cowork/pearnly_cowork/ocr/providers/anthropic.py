@@ -171,7 +171,7 @@ def build_payload(request: ModelRequest, models=None):
     model = _identity(request.model, "ocr.invalid_model")
     if (not is_claude(model) or not isinstance(request.prompt, str) or not request.prompt
             or type(request.max_output_tokens) is not int or request.max_output_tokens < 1
-            or request.response_schema is not None):
+            or request.response_schema is not None and not isinstance(request.response_schema, dict)):
         raise ProviderConfigurationError("ocr.invalid_model_request")
     content = []
     for data, mime in request.images:
@@ -179,8 +179,12 @@ def build_payload(request: ModelRequest, models=None):
             raise ProviderConfigurationError("ocr.invalid_model_image")
         content.append({"type": "image", "source": {"type": "base64", "media_type": mime,
                                                     "data": base64.b64encode(data).decode("ascii")}})
+    output = {"effort": EFFORT}
+    if request.response_schema is not None:
+        # 对账抽取带严格结果格式（``enterprise.contract.SCHEMAS``）：交给官方结构化输出，回复一定是合这份格式的 JSON。
+        output["format"] = {"type": "json_schema", "schema": deepcopy(request.response_schema)}
     body = {"model": (models or {}).get(model, model), "max_tokens": request.max_output_tokens,
-            "messages": [{"role": "user", "content": content}], "output_config": {"effort": EFFORT}}
+            "messages": [{"role": "user", "content": content}], "output_config": output}
     if content:
         # 看图读：提示词放 system 打缓存标记（每页同一份，读缓存价约十分之一），图在前、读取指令在后。
         body["system"] = [{"type": "text", "text": request.prompt, "cache_control": {"type": "ephemeral"}}]

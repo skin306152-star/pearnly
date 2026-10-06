@@ -290,7 +290,8 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
     environment = frozen["environment"]
     if forward.settings():
         return _read_remote(content, filename, pages, frozen, document_type, recon_job, file)
-    client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY})
+    client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY},
+                          claude_target=frozen.get("anthropic"))
     started = time.monotonic()
 
     def guarded(callback):
@@ -347,7 +348,7 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
         return read_file(source, content, is_pdf, None if is_pdf else _mime(content), document_type,
             reading(guarded(functools.partial(client.document_ai_call, retry_unknown=True))),
             extracting(page_failure(guarded(functools.partial(client.model_call, retry_unknown=True)))),
-            map_pages=core_pages.mapper() if int(pages) > 1 else None)
+            map_pages=core_pages.mapper() if int(pages) > 1 else None, environment=environment)
 
 
 page_failure = recon_reading.document_page_failure

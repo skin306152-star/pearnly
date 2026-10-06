@@ -352,14 +352,14 @@ LEGACY_POOLS = ("invoice", "document")  # 改按模型分池之前的池名：�
 
 
 def pool_of(path, body=None):
+    if (body or {}).get("anthropic") is not None:
+        return CLAUDE  # Claude 引擎（ADR-017）：额度在 Anthropic，不与谷歌的模型池互相拖累（发票与对账文档同一个池）
     if path == "/v1/cowork/document":
         return DOCUMENT_POOL
     from pearnly_cowork.ocr.engine.config import DIRECT_MODELS
     from pearnly_cowork.ocr.policy import invoice_policy
 
     environment = (body or {}).get("environment") or {}
-    if (body or {}).get("anthropic") is not None:
-        return CLAUDE  # Claude 引擎（ADR-017）：额度在 Anthropic，不与谷歌的模型池互相拖累
     chosen = str(environment.get("OCR_DIRECT_MODEL") or "").strip()
     if chosen in DIRECT_MODELS:
         return chosen

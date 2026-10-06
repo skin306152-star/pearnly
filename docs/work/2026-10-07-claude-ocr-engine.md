@@ -9,7 +9,7 @@
   3. 开户后台能切换，站点步骤写对配置；缺 Claude 连接时拒绝。
   4. 测试环境（testcowork）用聚合平台密钥真读通过，交用户试用。
 - 本次不做：ERP / DMS；客户计费单价；生产正式密钥与部署（另行按发布流程）。
-- 本次范围状态：进行中。收尾状态：施工中。
+- 本次范围状态：第一步、第二步实现完成，等用户试用。收尾状态：施工中。
 - 分支 / 基线 / 工作树 / 集成目标：`pearnly/claude-ocr-engine` / `63e2c712`（10-07 变基到 `a2443248`）/ `/Users/skin/pearnly-wt-claude-ocr` / `main`。
 - 并行窗口：Cowork「文件夹自动录入」（`pearnly/cowork-folder-intake`，改 `folder_intake/`、companion、`hooks.py`、翻译、架构说明）。
   本包只动 `ocr/`（providers、engine、execution/settings、remote）、`pearnly_control` 的部署与开户步骤、站点步骤脚本、Cloud Run 部署脚本、
@@ -43,7 +43,14 @@
 - 计量：`engine.cost` 增加 Sonnet 5.5 价目（估算口径）。
 - 文档：[ADR-017](../adr/0017-ocr-engine-claude.md)（含扩展点：一家供应商一个适配器、批处理复用组请求 / 解析、按功能选执行方式）、
   ADR 索引、`architecture.md` OCR 段一句。
-- 第二步（对账文档抽取换 Claude）未做：读法带 Document AI 原文与严格结果格式，先小样本验证再接。
+
+## 变更与决定（第二步：对账文档抽取）
+
+- `enterprise.request.build_request(model=)`、`pipeline.run(model=, max_rereads=)` / `first_pass(model=)`：不给照旧 3.8、最多再读 10 页。
+- `engine.config.document_reading(environment)`：Claude 档位 → `(claude-sonnet-5-5, 0)`；`recon_reading.read_document` /
+  `warm_document` 按受理冻结的识别环境取；调用方 `recon_center/document_ocr` 与 Cloud Run `remote.runner._document` / 预热传入环境与 `claude_target`。
+- 适配层：请求带结果格式时用官方结构化输出（`output_config.format = json_schema`）。
+- 远程：`contract.document_request(anthropic=)` 校验非密连接形状；`forward.send_document` 带上；`tasks.pool_of` 对文档同样分到 Claude 池。
 
 ## 验证
 
@@ -55,10 +62,12 @@
 | 10-07 | 同上 | 本机与 main 对比 | `check-i18n.py --strict` | 与 main 同样失败、各 App 未译条数一致（存量，非本次引入） | 存量 |
 | 10-07 | 3356ee71 | 测试机一次性容器（生产镜像 03151bec，不连站点 / 测试栈），OpenRouter 测试密钥 | 真实渲染 + 完整引擎 + Claude 适配层读 5 份语料（照片、扫描、电子 PDF、电费单、糊照片） | 每份 1 次 Claude 调用、0 次谷歌；4 份全对；糊照片税号错一位被校验位拦下 → 需复核（`single_read_unchecked`） | 通过 |
 | 10-07 | 2582fb3e（变基到 a2443248） | 测试机 Cowork 测试栈实时源码，testcowork（另一窗口的文件夹录入也在这份上）；站点配置改：OCR_ENGINE=claude、pearnly_anthropic（OpenRouter）、回放关；转发 Cloud Run 保持关 | 真实入口 `files.create` → `ocr.submit` → 后台识别 → 入库，2 份（照片税票、扫描税票） | 两份 saved / confirmed、字段全对、各 1 次 `direct` claude-sonnet-5-5；提交到入库 8.1 / 12.0 秒 | 通过 |
+| 10-07 | 第二步未提交差异 | 本机 Docker 生产镜像 4e80514d，`--network none` | `test_cowork_claude_engine` 34（含对账文档、站点步骤）、recon_reread 21、remote_ocr 69、ocr_tasks 44、bank_page_checks 17、recon_scanned_docs 122、recon_progress 13、document_tier 30、opening_batch 18、recon_waiting 21、recon_resume 13、recon_slots 6、recon_speed 6、bank_warnings 19、bank_day_month 7、engine 56；`check-architecture.py` | 全部 OK / 0 违规 | 通过 |
+| 10-07 | 同上 | 测试机一次性容器（生产镜像 03151bec），OpenRouter 测试密钥，只看图（不调谷歌） | 银行对账单 2 页（KBank 照片、BAY 电子 PDF）经 `pipeline._extract` + 结构化输出 | 都 `END_TURN`、合格式；43 行 0 断、27 行 1 断（交人确认）；$0.063 / $0.037，32 / 17 秒 | 通过（断点按只读一遍口径标出） |
 
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
-| 实现 | 第一步完成 | 对账文档（第二步）未做 |
+| 实现 | 第一步、第二步完成 | 批处理执行方式未做（扩展点已留） |
 | 本地验证 | 通过 | 引擎来源对照（`*_source_parity.py`，需旧线上源码）未跑 |
 | 测试环境 | 进行中 | 真实入口已跑通；等用户在 testcowork 试用；开户后台切换在本机控制面（测试机没有控制面），只有单元测试 |
 | 部署 / 业务验收 | 未执行 | |

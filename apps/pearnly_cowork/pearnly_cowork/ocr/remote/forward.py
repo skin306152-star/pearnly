@@ -105,7 +105,7 @@ def send_document(*, work_name, filename, content, page_count, document_type, fr
     config = _config()
     body = contract.document_request(site=frappe.local.site, work=work_name, filename=filename, content=content,
         page_count=page_count, document_type=document_type, environment=frozen["environment"], regions=regions,
-        yield_seconds=yield_seconds)
+        yield_seconds=yield_seconds, anthropic=frozen.get("anthropic"))
 
     def on_event(event):
         kind = event["event"]

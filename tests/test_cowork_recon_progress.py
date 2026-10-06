@@ -151,7 +151,7 @@ class RecognitionCountsItsPages(unittest.TestCase):
 		client.document_ai_call.return_value = ({}, 1, "key")
 		client.model_call.side_effect = lambda request, **_kw: response
 
-		def read_file(source, content, is_pdf, mime, kind, docai, model, map_pages=None):
+		def read_file(source, content, is_pdf, mime, kind, docai, model, map_pages=None, environment=None):
 			docai(b"a", "application/pdf", expected_pages=2, page_number=1)
 			docai(b"b", "application/pdf", expected_pages=1, page_number=2)
 			for number in (1, 2, 3):

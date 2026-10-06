@@ -14,6 +14,12 @@ ENGINES = (GEMINI, CLAUDE)
 CLAUDE_MODEL = "claude-sonnet-5-5"
 
 
+def document_reading(environment: Mapping[str, str]):
+    """对账文档抽取（银行 / 总账 / 税报，``enterprise.run``）按站点引擎选的 ``(模型, 每份最多再读几页)``；
+    ``(None, None)`` = 现行读法（3.8、自核不过最多再读 10 页）。Claude（ADR-017）只读一遍：不再读，自核不过照旧标出来。"""
+    return (CLAUDE_MODEL, 0) if engine_of(environment) == CLAUDE else (None, None)
+
+
 def engine_of(environment: Mapping[str, str]) -> str:
     """站点选的识别引擎；认不出的报配置错误（不悄悄回到某一家）。"""
     engine = str(environment.get("OCR_ENGINE", "") or "").strip().lower() or GEMINI

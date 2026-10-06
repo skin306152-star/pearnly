@@ -136,7 +136,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(harness.client.model_call(request()).finish_reason, "MAX_TOKENS")
 
     def test_requests_it_cannot_express_fail_before_any_paid_call(self):
-        for bad in (request(model="gemini-3.8-flash"), request(response_schema={"type": "object"}),
+        for bad in (request(model="gemini-3.8-flash"), request(response_schema=["not", "a", "schema"]),
                     request(images=((PNG, "application/pdf"),)), request(prompt="")):
             harness = Harness([])
             with self.assertRaises(ProviderConfigurationError):
@@ -199,6 +199,15 @@ class AdapterTests(unittest.TestCase):
                     {**TARGET, "base_url": "https://x.example?y=1"}):
             with self.assertRaises(ProviderConfigurationError):
                 anthropic.connection(bad)
+
+    def test_a_strict_result_shape_goes_to_structured_outputs(self):
+        # 对账抽取带严格结果格式：交给官方结构化输出（回复一定合格式），档位不变。
+        from pearnly_cowork.ocr.enterprise import contract as enterprise_contract
+
+        schema = enterprise_contract.SCHEMAS["bank"]
+        body = anthropic.build_payload(request(response_schema=schema, max_output_tokens=16384))
+        self.assertEqual(body["output_config"], {"effort": "low", "format": {"type": "json_schema", "schema": schema}})
+        self.assertIsNot(body["output_config"]["format"]["schema"], schema)
 
     def test_batch_requests_reuse_the_same_payload_and_parser(self):
         # 以后接批处理（同价减半）：组请求与解析是纯函数，与实时调用同一份。
@@ -378,6 +387,57 @@ class RemoteTests(unittest.TestCase):
         self.assertIn(tasks.CLAUDE, tasks.ADAPTIVE_FLOOR)
         self.assertNotEqual(tasks.pool_of("/v1/cowork/invoice", contract.request(**self.BODY)), tasks.CLAUDE)
 
+
+class DocumentTests(unittest.TestCase):
+    """对账文档（银行 / 总账 / 税报）：同一份提示词与结果格式换 Claude 读一遍，自核不过不再读（ADR-017 第二步）。"""
+
+    def test_the_engine_picks_the_extraction_model_and_reread_limit(self):
+        from pearnly_cowork.ocr.engine.config import document_reading
+        from pearnly_cowork.ocr.enterprise import contract as enterprise_contract, request as enterprise_request
+
+        self.assertEqual(document_reading(CLAUDE_ENV), (CLAUDE_MODEL, 0))
+        self.assertEqual(document_reading({"OCR_LLM_BACKEND": "vertex"}), (None, None))
+        claude = enterprise_request.build_request("bank", "TRANSCRIPT", model=CLAUDE_MODEL)
+        current = enterprise_request.build_request("bank", "TRANSCRIPT")
+        self.assertEqual((claude["model"], current["model"]), (CLAUDE_MODEL, enterprise_contract.MODEL))
+        self.assertEqual({k: v for k, v in claude.items() if k != "model"},
+                         {k: v for k, v in current.items() if k != "model"})  # 提示词、结果格式不随模型变
+
+    def run_bank(self, model_call, **engine):
+        from pearnly_cowork.ocr.enterprise import pipeline
+
+        transcript = "01/10/2026 deposit 100 balance 1100"
+        with patch.object(pipeline, "_local", return_value=None), \
+             patch.object(pipeline, "_transcripts", return_value=[transcript]):
+            return pipeline.run("bank", page_count=1, reads=[(PNG, "image/png", 1)],
+                                render=lambda number: (PNG, "image/png"),
+                                document_ai_call=lambda *a, **k: ({}, 1, "docai"), model_call=model_call, **engine)
+
+    def test_claude_reads_each_page_once_even_when_the_balance_breaks(self):
+        broken = {"opening_balance": "1000", "closing_balance": "1500", "entries": [
+            {"transaction_date": "2026-10-01", "transaction_date_raw": "01/10/2026", "description": "x",
+             "reference": "", "deposit": "100", "withdrawal": "", "amount": "100", "direction": "deposit",
+             "balance": "1500"}]}
+        model = Model([broken, broken])
+        self.run_bank(model, model=CLAUDE_MODEL, max_rereads=0)
+        self.assertEqual([r.model for r in model.requests], [CLAUDE_MODEL])
+        self.assertIsNotNone(model.requests[0].response_schema)
+        current = Model([broken, broken])
+        self.run_bank(current)
+        self.assertEqual(len(current.requests), 2)  # 现行读法：余额链断了再读一次
+
+    def test_requests_and_pools_carry_claude_for_documents(self):
+        body = contract.document_request(site="t.pearnly.com", work="a" * 64, filename="s.pdf", content=b"%PDF",
+                                         page_count=1, document_type="bank_statement", environment=CLAUDE_ENV,
+                                         anthropic=RELAY)
+        self.assertEqual(body["anthropic"], RELAY)
+        self.assertEqual(tasks.pool_of("/v1/cowork/document", body), tasks.CLAUDE)
+        del body["anthropic"]
+        self.assertEqual(tasks.pool_of("/v1/cowork/document", body), tasks.DOCUMENT_POOL)
+        with self.assertRaises(ValueError):
+            contract.document_request(site="t.pearnly.com", work="a" * 64, filename="s.pdf", content=b"%PDF",
+                                      page_count=1, document_type="bank_statement", environment=CLAUDE_ENV,
+                                      anthropic={"base_url": "x"})
 
 class SiteTests(unittest.TestCase):
     """站点本机：站点配置里的连接只冻结非密部分；Claude 档位受理时冻结连接、执行前核对；没配连接就不受理。"""

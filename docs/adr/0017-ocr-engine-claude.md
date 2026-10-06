@@ -75,9 +75,11 @@
 
 ## 范围
 
-- 本 ADR 第一步：Cowork 发票录入（`cowork.invoice`）与对账的销项税核查（`cowork.vat_check`，同一引擎）。
-- 第二步（同一工作包，验证后再接）：对账文档抽取（`enterprise.pipeline`，银行 / 总账 / 税报）在 Document AI 本地拼不平、
-  要调模型的那一步换 Claude；它带 Document AI 原文与严格结果格式，读法与发票不同，先用语料小样本验证。
+- 第一步：Cowork 发票录入（`cowork.invoice`）与对账的销项税核查（`cowork.vat_check`，同一引擎）。
+- 第二步：对账文档抽取（`enterprise.pipeline`，银行 / 总账 / 税报）在 Document AI 本地拼不平、要调模型的那一步换 Claude
+  （`config.document_reading`）。Document AI 读字照旧（谷歌），提示词、合同与结果格式不变；结果格式交给官方结构化输出
+  （`output_config.format = json_schema`），回复一定合格式。只读一遍：每份最多再读 0 页，自核不过（余额链断、合计对不上）照旧标出来交人确认。
+  站点本机、Cloud Run 与多页预热（`first_pass`）同一读法，受理冻结的识别环境带到执行处；Cloud Tasks 走 Claude 派发池。
 - 不做：ERP 采购 / 销售、DMS 身份证（走共用层 `pearnly_core.ocr`，另立工作包）；客户计费单价（另定）。
 
 ## 后果与验证

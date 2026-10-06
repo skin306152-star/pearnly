@@ -136,8 +136,8 @@ IMAGE_FIRST = ("vat",)
 
 
 def _extract(model_call, image, mime, category, transcript, number, *, reread=False, image_only=False, note=True,
-             reason=None):
-    request = build_request(category, transcript, image_only=image_only)
+             reason=None, model=None):
+    request = build_request(category, transcript, image_only=image_only, model=model)
     config = request["config"]
     prompt = request["prompt"]
     if reread and note:
@@ -161,7 +161,7 @@ def _extract(model_call, image, mime, category, transcript, number, *, reread=Fa
     return data, response
 
 
-def _checked(model_call, picture, category, transcript, number, data, response, running, may_reread):
+def _checked(model_call, picture, category, transcript, number, data, response, running, may_reread, model=None):
     """一页抽取完先自核（``self_check``）；银行页内余额链有断点、税报行合计对不上页合计，就这页再抽一次：
     银行取断点严格更少的那次，税报只有再读对上了才用再读的；再读失败（读不出、结果不明）照旧用第一次，不丢页。
     返回 ``(document, response, 留痕 or None, 再读花的钱)``；总账不核（``None``）。"""
@@ -188,7 +188,7 @@ def _checked(model_call, picture, category, transcript, number, data, response, 
         # 税报重读用原读法原样（带转写稿、不加「上次没对上」那句），与压测模拟的读法一致
         image, mime = picture()
         second, again = _extract(model_call, image, mime, category, transcript, number, reread=True,
-                                 note=category not in IMAGE_FIRST, reason="; ".join(reasons))
+                                 note=category not in IMAGE_FIRST, reason="; ".join(reasons), model=model)
     except ContentError:
         audit["reread_failed"] = True
         return _repaired(data, transcript, category, audit), response, audit, 0.0
@@ -241,7 +241,7 @@ def _one_at_a_time(render):
     return invoke
 
 
-def _first_reading(model_call, render, category, transcripts, keep_image):
+def _first_reading(model_call, render, category, transcripts, keep_image, model=None):
     """第 n 页的第一遍抽取：只用这一页自己的图和转写稿，与别的页无关。回 ``(data, response, 取这页图的办法)``；银行页抽取
     重发后仍结果不明回 ``None``（这一页读不出，见 ``run``）。一页一页读时留着这页的图给再读用（与原来一样只渲染一次）；
     各页同时读时不把整份扫描件的图都留在内存里，要再读的页再渲染一次（同一页渲染结果不变，见 ``PageSource.frame``）。"""
@@ -249,7 +249,7 @@ def _first_reading(model_call, render, category, transcripts, keep_image):
         image, mime = render(number)
         try:
             data, response = _extract(model_call, image, mime, category, transcripts[number - 1], number,
-                                      image_only=category in IMAGE_FIRST)
+                                      image_only=category in IMAGE_FIRST, model=model)
             return data, response, ((lambda: (image, mime)) if keep_image else partial(render, number))
         except ContentError as error:
             # 只有银行账单这样兜底：余额链一定在缺的那页断开、交人确认；总账、税报没有逐笔余额，丢一页看不出来，
@@ -261,8 +261,11 @@ def _first_reading(model_call, render, category, transcripts, keep_image):
 
 
 def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
-        render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, map_pages=None) -> PipelineResult:
+        render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, map_pages=None,
+        model=None, max_rereads=None) -> PipelineResult:
     """``reads``: the Document AI inputs (PDF chunks or the one image); ``render(n)``: page n's image.
+    ``model`` / ``max_rereads``：站点引擎选的抽取模型与每份最多再读几页（ADR-017，``config.document_reading``）；
+    不给 = 现行读法（合同里的 3.8、最多 ``MAX_REREAD_PAGES``）。
 
     ``map_pages(fn, page_numbers)``（可选，与发票引擎同一约定：按页码顺序交回每页结果，任一页出错等其余页结束后抛页码最小的
     那个）：各页的**第一遍抽取**同时做。之后的自核、再读、结转累计照旧按页码顺序一页一页来（再读名额先到先得、税报按前面
@@ -294,8 +297,9 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         together = map_pages is not None and len(transcripts) > 1
         if together:
             render = _one_at_a_time(render)  # PDF 渲染库不是线程安全的（与发票引擎的 _SerialSource 一样）
-        first = _first_reading(model_call, render, category, transcripts, keep_image=not together)
+        first = _first_reading(model_call, render, category, transcripts, keep_image=not together, model=model)
         firsts = map_pages(first, numbers) if together else None
+        limit = MAX_REREAD_PAGES if max_rereads is None else max_rereads
         for number, transcript in enumerate(transcripts, 1):
             reading = firsts[number - 1] if together else first(number)
             if reading is None:
@@ -310,7 +314,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             data, response, picture = reading
             first_response = response  # 第一遍照样付了费：采用再读时 response 换成再读那次，计费仍按第一遍 + 再读各一次
             data, response, checked, extra = _checked(model_call, picture, category, transcript,
-                                                      number, data, response, running, rereads < MAX_REREAD_PAGES)
+                                                      number, data, response, running, rereads < limit, model)
             del picture, reading  # one rendered page at a time, not the whole scan in memory
             rereads += bool(checked and checked["reread"])
             cost += extra
@@ -364,7 +368,8 @@ def _transcripts(payloads, page_count):
 
 
 def first_pass(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
-               render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, stage: str, index: int) -> bool:
+               render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, stage: str, index: int,
+               model=None) -> bool:
     """多页文件的预热（Cloud Workflows，各块 / 各页分开并行）：只做 :func:`run` 第一遍里的一件事——第 ``index`` 块读字
     （``stage="read"``）或第 ``index`` 页的第一遍抽取（``"extract"``）。用的是与 ``run`` 同一套步骤（``_local`` 判本地拼行、
     ``_transcripts``、``_first_reading``），发出的请求逐字相同、检查点键相同；不出结果，最后由 ``run`` 原封不动读整份时
@@ -387,7 +392,7 @@ def first_pass(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, s
     transcripts = _transcripts(payloads, page_count)
     if not 1 <= index <= len(transcripts):
         return False
-    _first_reading(model_call, render, category, transcripts, keep_image=False)(index)
+    _first_reading(model_call, render, category, transcripts, keep_image=False, model=model)(index)
     return True
 
 
