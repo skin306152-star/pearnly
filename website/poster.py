@@ -1,10 +1,10 @@
-"""首页主视觉“卷起一角”：一幅彩色铅笔画的书桌（乱放的税票、小票、流水、手机里的 LINE、咖啡）放在液态玻璃卡片里。
-往下滑时，铅笔线条的小单（น้องใบ）在画布下面一手推、一手拿铅笔，迈着步子把画布左下角斜着卷成一根纸卷，
-露出底下整理好的账；卷到一定程度停下，直起身挥手。
+"""首页主视觉“翻起一角”：一幅彩色铅笔画的书桌（乱放的税票、小票、流水、手机里的 LINE、咖啡）放在液态玻璃卡片里。
+往下滑时，铅笔线条的小单（น้องใบ）在画布下面一手推、一手拿铅笔，迈着步子托着画布左下角往上翻，
+翻起来的纸背有真实的明暗和投影，露出底下整理好的账；翻到一定程度停下，直起身挥手。
 
 整张是一个内联 SVG（电脑看整张，手机上 site.js 只取左段），不加图片文件、不发请求；
 画风是铅笔描边 + 平涂上色 + 排线阴影，线条抖动和铅笔颗粒用 SVG 滤镜。
-卷到哪、纸卷多粗、小单每一步的腿和手，都由 state() 按进度 p 算出；site.js 的 peel() 用同一套公式逐帧重画。
+翻到哪、纸角翻到哪、小单每一步的腿和手，都由 state() 按进度 p 算出；site.js 的 peel() 用同一套公式逐帧重画。
 这里给没有脚本时的静态样子；系统开了“减少动态效果”时也停在这一帧。
 """
 import html
@@ -40,12 +40,20 @@ def clamp(v, lo=0.0, hi=1.0):
 # ---------------- 动画状态（与 site.js peel() 同一套公式） ----------------
 
 def state(p):
-    """进度 p → 折线 A（左边上）到 B（下边上）、纸卷的位置粗细、小单的身体、两条腿、两只手。"""
-    a = 120 + 170 * p                          # 左边被卷起的高度
-    b = a * 1.75                               # 下边被卷起的宽度
-    d = 44 + 40 * p                            # 纸卷中间鼓起的厚度
+    """进度 p → 折线 A（左边上）到 B（下边上）、翻起来的纸角 T、小单的身体、两条腿、两只手。"""
+    a = 120 + 170 * p                          # 左边被翻起的高度
+    b = a * 1.75                               # 下边被翻起的宽度
     ln = math.hypot(a, b)
     ux, uy = b / ln, a / ln                    # 折线方向（左上 → 右下）
+    nx, ny = uy, -ux                           # 指向画面那一侧的法线
+    t0 = a * uy                                # 原来的纸角 C=(0,HP) 在折线上的垂足 F
+    fx_, fy_ = ux * t0, HP - a + uy * t0
+    dist = a * b / ln                          # 纸角离折线的距离
+    k = .6                                     # 纸不是平折过去，而是弯着翻起：纸角只到镜像位置的 60%
+    tx, ty = fx_ + nx * dist * k, fy_ + ny * dist * k
+    ax_, ay_ = 0, HP - a
+    m1 = ((ax_ + tx) / 2 - nx * dist * .1, (ay_ + ty) / 2 - ny * dist * .1)    # 两条边往折线那边弯，像参考里的弧
+    m2 = ((b + tx) / 2 - nx * dist * .14, (HP + ty) / 2 - ny * dist * .14)
     fin = clamp((p - .9) / .1)                 # 卷到头：停下、直起身、挥手
     ph = b / STRIDE
     walk = 1 - fin
@@ -63,10 +71,10 @@ def state(p):
         hx, hy = rot(side, 0)
         fx = hx + sw + 5 * fin * (1 if side > 0 else -1)
         legs.append((hx, hy, (hx + fx) / 2 + 8 * walk, (hy + GROUND) / 2 - 2, fx))
-    push = (b - 12, HP - 2 + bob)
+    push = (b + (tx - b) * .1, HP + (ty - HP) * .1 + bob)
     wave = rot(70, -126)
     hand = (push[0] + (wave[0] - push[0]) * fin, push[1] + (wave[1] - push[1]) * fin)
-    return dict(a=a, b=b, d=d, ang=math.degrees(math.atan2(uy, ux)), len=ln,
+    return dict(a=a, b=b, f=(fx_, fy_), tip=(tx, ty), m1=m1, m2=m2,
                 fin=fin, hip=hip, tilt=tilt, legs=legs, push_sh=rot(36, -50), hand=hand, pen_sh=rot(-36, -46), pen=rot(-58, -24))
 
 
@@ -283,33 +291,22 @@ def under(L):
     return f'<rect width="{W}" height="{HP}" fill="{PAPER}"/>{lines}<path d="M40 0 V{HP}" stroke="#f0a9a9" stroke-width="2"/>{head}{body}'
 
 
-def bulge(ln, th, k):
-    """纸卷在自己坐标里的一条弧：两头落在折线上（y=0），中间鼓到 -th*k。"""
-    return f"M0 0C{n(ln * .2)} {n(-th * 1.3 * k)} {n(ln * .8)} {n(-th * 1.3 * k)} {n(ln)} 0"
-
-
-def roll_attrs(s):
-    """纸角卷成的纸卷：中间粗、两头收到折线两端（左边上的 A、下边上的 B）。x 沿折线，负 y 朝画面。"""
-    ln, th = s["len"], s["d"]
-    back = f"C{n(ln * .8)} {n(-th * 1.3)} {n(ln * .2)} {n(-th * 1.3)} 0 0Z"
+def curl(s):
+    """写实的翻页角：翻起来的背面（弯三角，明暗沿法线渐变）、它压在画面上的柔和投影、折痕下面露出那块的暗影。"""
+    a, b = s["a"], s["b"]
+    (fx, fy), (tx, ty), (m1x, m1y), (m2x, m2y) = s["f"], s["tip"], s["m1"], s["m2"]
+    flap = f"M0 {n(HP - a)}Q{n(m1x)} {n(m1y)} {n(tx)} {n(ty)}Q{n(m2x)} {n(m2y)} {n(b)} {HP}Z"
+    g = f'x1="{n(fx)}" y1="{n(fy)}" x2="{n(tx)}" y2="{n(ty)}"'
     return dict(
-        tf=f"translate(0 {n(HP - s['a'])}) rotate({n(s['ang'])})",
-        body=bulge(ln, th, 1) + "Z",
-        lines=bulge(ln, th, .3) + bulge(ln, th, .58) + bulge(ln, th, .82),
-        hi=bulge(ln, th, .68),
-        shade=bulge(ln, th, 1.34) + back)
-
-
-def roll(s, part):
-    """纸卷：画布背面朝外，压在折线靠画面那一侧。part=shade 画它在画面上投下的排线阴影。"""
-    r = roll_attrs(s)
-    if part == "shade":
-        return f'<g class="pz-rtf" transform="{r["tf"]}"><path class="pz-rshade" d="{r["shade"]}" fill="url(#pz-hatch)" opacity=".8"/></g>'
-    return (f'<g class="pz-rtf" transform="{r["tf"]}" filter="url(#pz-pencil)">'
-            f'<path class="pz-rbody" d="{r["body"]}" fill="#f6efdf" {OUT}/>'
-            f'<path class="pz-rhi" d="{r["hi"]}" stroke="#fffaf0" stroke-width="6" fill="none" stroke-linecap="round"/>'
-            f'<path class="pz-rlines" d="{r["lines"]}" stroke="#c9b993" stroke-width="2" fill="none" stroke-linecap="round"/>'
-            f'<path d="M0 0H{n(s["len"])}" class="pz-rfold" stroke="{LINE}" stroke-width="2.8" stroke-linecap="round"/></g>')
+        defs=(f'<linearGradient id="pz-back" class="pz-g" gradientUnits="userSpaceOnUse" {g}>'
+              '<stop offset="0" stop-color="#b9b3a8"/><stop offset=".1" stop-color="#e9e5de"/><stop offset=".24" stop-color="#ffffff"/>'
+              '<stop offset=".55" stop-color="#e2ddd4"/><stop offset=".85" stop-color="#f6f3ee"/><stop offset="1" stop-color="#d8d2c7"/></linearGradient>'
+              f'<linearGradient id="pz-gap" class="pz-g2" gradientUnits="userSpaceOnUse" x1="{n(fx)}" y1="{n(fy)}" x2="0" y2="{HP}">'
+              '<stop offset="0" stop-color="#2a1e10" stop-opacity=".32"/><stop offset=".45" stop-color="#2a1e10" stop-opacity="0"/></linearGradient>'
+              '<filter id="pz-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>'),
+        gap=f'<path class="pz-gapshade" d="M0 {n(HP - a)}L{n(b)} {HP}H0Z" fill="url(#pz-gap)"/>',
+        shadow=f'<path class="pz-flap" d="{flap}" fill="#2a1e10" opacity=".34" filter="url(#pz-soft)" transform="translate(10 8)"/>',
+        flap=f'<path class="pz-flap" d="{flap}" fill="url(#pz-back)" stroke="#cfc8bb" stroke-width="1"/>')
 
 
 def pencil(at):
@@ -354,18 +351,19 @@ def mascot(s):
 
 def svg(L):
     s = state(P0)
+    c = curl(s)
     data = f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-p0="{P0}"'
     clip = f"M0 0H{W}V{HP}H{n(s['b'])}L0 {n(HP - s['a'])}Z"
     return f"""<svg class="pz" viewBox="{VIEW}" {data} role="img" aria-label="{esc(L["alt"])}">
-{DEFS}
+{DEFS.replace("</defs>", c["defs"] + "</defs>")}
 <clipPath id="pz-frame"><rect class="pz-frame" width="{W}" height="{HP}" rx="{RX}"/></clipPath>
 <clipPath id="pz-clip"><path class="pz-clip" d="{clip}"/></clipPath>
 <g clip-path="url(#pz-frame)">
-{under(L)}
+{under(L)}{c["gap"]}
 <g clip-path="url(#pz-clip)"><g filter="url(#pz-wobble)">{photo()}</g>
-<rect width="{W}" height="{HP}" filter="url(#pz-tex)" opacity=".5"/>{roll(s, "shade")}</g>
+<rect width="{W}" height="{HP}" filter="url(#pz-tex)" opacity=".5"/>{c["shadow"]}</g>
+{c["flap"]}
 </g>
-{roll(s, "body")}
 {mascot(s)}
 <text class="pz-caption" x="{n(s['hip'][0])}" y="{GROUND + 54}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
 </svg>"""

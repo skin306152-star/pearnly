@@ -377,9 +377,9 @@
     var card = svg.closest('.peel'), p0 = +svg.getAttribute('data-p0');
     function q(sel) { return svg.querySelector(sel); }
     function all(sel) { return svg.querySelectorAll(sel); }
-    var clip = q('.pz-clip'), tfs = all('.pz-rtf'), body = q('.pz-body'), legs = all('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'),
+    var clip = q('.pz-clip'), body = q('.pz-body'), legs = all('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'),
       pen = q('.pz-pen'), armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push'), ground = q('.pz-ground'), caption = q('.pz-caption'),
-      rshade = q('.pz-rshade'), rbody = q('.pz-rbody'), rlines = q('.pz-rlines'), rhi = q('.pz-rhi'), rfold = q('.pz-rfold');
+      flaps = all('.pz-flap'), gap = q('.pz-gapshade'), g1 = q('.pz-g'), g2 = q('.pz-g2');
     var SCALE = 1.45, GROUND = 772, STRIDE = 30, HP = 560;
     function f(v) { return Math.round(v * 10) / 10; }
     function clamp(v) { return Math.max(0, Math.min(1, v)); }
@@ -390,25 +390,26 @@
     }
     // 进度 p → 左下角斜卷的纸卷 + 小单每个部件（与 poster.py state() / roll_attrs() 同一套公式）
     function draw(p) {
-      var a = 120 + 170 * p, b = a * 1.75, th = 44 + 40 * p, ln = Math.sqrt(a * a + b * b);
+      var a = 120 + 170 * p, b = a * 1.75, ln = Math.sqrt(a * a + b * b), ux = b / ln, uy = a / ln, nx = uy, ny = -ux;
+      var t0 = a * uy, fx = ux * t0, fy = HP - a + uy * t0, dist = a * b / ln, tx = fx + nx * dist * .6, ty = fy + ny * dist * .6;
+      var m1x = tx / 2 - nx * dist * .1, m1y = (HP - a + ty) / 2 - ny * dist * .1;
+      var m2x = (b + tx) / 2 - nx * dist * .14, m2y = (HP + ty) / 2 - ny * dist * .14;
       var fin = clamp((p - .9) / .1), ph = b / STRIDE, walk = 1 - fin, bob = -4 * Math.abs(Math.cos(ph)) * walk, tilt = 16 - 20 * fin;
       var hip = [b - 90 - 20 * fin, GROUND - 40 * SCALE + 2 + bob], t = tilt * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
       function rot(px, py) { px *= SCALE; py *= SCALE; return [hip[0] + px * c - py * sn, hip[1] + px * sn + py * c]; }
-      function bulge(k) { return 'M0 0C' + f(ln * .2) + ' ' + f(-th * 1.3 * k) + ' ' + f(ln * .8) + ' ' + f(-th * 1.3 * k) + ' ' + f(ln) + ' 0'; }
+      // 写实翻页角（与 poster.py curl() 同一套公式）：翻起的纸背、它的投影、折痕下的暗影都跟着折线走
       set(clip, 'd', 'M0 0H1440V' + HP + 'H' + f(b) + 'L0 ' + f(HP - a) + 'Z');
-      var tf = 'translate(0 ' + f(HP - a) + ') rotate(' + f(Math.atan2(a, b) * 180 / Math.PI) + ')';
-      for (var i = 0; i < tfs.length; i++) set(tfs[i], 'transform', tf);
-      set(rbody, 'd', bulge(1) + 'Z');
-      set(rlines, 'd', bulge(.3) + bulge(.58) + bulge(.82));
-      set(rhi, 'd', bulge(.68));
-      set(rshade, 'd', bulge(1.34) + 'C' + f(ln * .8) + ' ' + f(-th * 1.3) + ' ' + f(ln * .2) + ' ' + f(-th * 1.3) + ' 0 0Z');
-      set(rfold, 'd', 'M0 0H' + f(ln));
+      var flapD = 'M0 ' + f(HP - a) + 'Q' + f(m1x) + ' ' + f(m1y) + ' ' + f(tx) + ' ' + f(ty) + 'Q' + f(m2x) + ' ' + f(m2y) + ' ' + f(b) + ' ' + HP + 'Z';
+      for (var i = 0; i < flaps.length; i++) set(flaps[i], 'd', flapD);
+      set(gap, 'd', 'M0 ' + f(HP - a) + 'L' + f(b) + ' ' + HP + 'H0Z');
+      set(g1, 'x1', f(fx)); set(g1, 'y1', f(fy)); set(g1, 'x2', f(tx)); set(g1, 'y2', f(ty));
+      set(g2, 'x1', f(fx)); set(g2, 'y1', f(fy));
       var swing = 20 * Math.sin(ph) * walk;
       [[-14, swing, -1], [14, -swing, 1]].forEach(function (l, i) {
         var h = rot(l[0], 0), fx = h[0] + l[1] + 5 * fin * l[2];
         set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + fx) / 2 + 8 * walk) + ' ' + f((h[1] + GROUND) / 2 - 2) + 'L' + f(fx) + ' ' + GROUND + 'h' + 16 * l[2]);
       });
-      var push = [b - 12, HP - 2 + bob], wave = rot(70, -126), hand = [push[0] + (wave[0] - push[0]) * fin, push[1] + (wave[1] - push[1]) * fin];
+      var push = [b + (tx - b) * .1, HP + (ty - HP) * .1 + bob], wave = rot(70, -126), hand = [push[0] + (wave[0] - push[0]) * fin, push[1] + (wave[1] - push[1]) * fin];
       var penAt = rot(-58, -24);
       set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(' + f(tilt) + ') scale(' + SCALE + ')');
       set(armPen, 'd', limb(rot(-36, -46), penAt, -12));
