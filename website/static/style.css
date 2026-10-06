@@ -816,7 +816,7 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .hm.hm-cheer .hm-wave { animation: hm-wave 1s var(--ease) 2; }
 @keyframes hm-wave { 30%, 70% { transform: rotate(130deg); } 50% { transform: rotate(105deg); } }
 .hm-mouth { transform-box: fill-box; transform-origin: center top; transition: transform .3s var(--ease); }
-.hm.hm-cheer .hm-mouth { transform: scale(1.4, 2); }
+.hm.hm-cheer .hm-mouth { transform: scale(1.3, 1.5); }
 .hm .hm-eyes { animation: hm-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes hm-blink { 0%, 95%, 100% { transform: none; } 97% { transform: scaleY(.1); } }
 /* 两边之间飞的东西：手写字的小纸条；配对线是铅笔虚线 */

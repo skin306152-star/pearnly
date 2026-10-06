@@ -78,7 +78,7 @@ def costume(kind):
                 + face(-10, -72, 4.2)
                 + '<circle cx="-10" cy="-72" r="9.5" fill="none" stroke-width="2.4"/><circle cx="14" cy="-72" r="9.5" fill="none" stroke-width="2.4"/>'
                 '<path d="M-0.5 -72 h5" stroke-width="2.4"/>'
-                '<path d="M-24 -44 H18 M-24 -35 H6" stroke="#bdb7aa" stroke-width="3"/>'
+                '<path d="M-24 -37 H18 M-24 -28 H6" stroke="#bdb7aa" stroke-width="3"/>'
                 + t(29, -16, "2,889.00", 11.5, "#2d2b27", "end", ' stroke="none"'))
         return body, (-38, -50), (38, -50), 14, 46
     if kind == "dms":
@@ -88,13 +88,13 @@ def costume(kind):
                 + '<path d="M6 -48 H40 M6 -37 H34 M6 -26 H28" stroke="#9fb6cb" stroke-width="3.6"/>')
         return body, (-56, -36), (56, -40), 22, 58
     if kind == "erp":
-        bars = "".join(f"M{x} -28 V-12 " for x in (-26, -22, -19, -14, -11, -6, -3, 2, 6, 10, 16, 20, 24))
+        bars = "".join(f"M{x} -24 V-10 " for x in (-26, -22, -19, -14, -11, -6, -3, 2, 6, 10, 16, 20, 24))
         body = (f'<path d="{zigzag(-80)}" fill="{PAPER}"/>'
                 '<path d="M-44 -78 Q0 -120 44 -78 Z" fill="#ffd84d"/><path d="M-50 -78 H50" stroke-width="2.8"/>'
                 + face(-10, -58, 4.2)
                 + f'<path d="{bars}" stroke-width="1.8"/>'
-                '<g class="hm-laser"><path d="M-32 -20 H32" stroke="#e5484d" stroke-width="2.4"/>'
-                '<path d="M-32 -20 H32" stroke="#e5484d" stroke-width="9" opacity=".2"/></g>')
+                '<g class="hm-laser"><path d="M-32 -17 H32" stroke="#e5484d" stroke-width="2.4"/>'
+                '<path d="M-32 -17 H32" stroke="#e5484d" stroke-width="9" opacity=".2"/></g>')
         return body, (-38, -42), (38, -42), 14, 46
     body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
             '<path d="M-24 -38 H18 M-24 -26 H8" stroke="#bdb7aa" stroke-width="3"/>'
