@@ -112,9 +112,6 @@ DEFS = """<defs>
   <feFlood flood-color="#dcc39a"/><feComposite in2="o" operator="in" result="s"/>
   <feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge>
 </filter>
-<pattern id="pz-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)">
-  <path d="M0 4 H8" stroke="#8d7f66" stroke-width="1.5"/>
-</pattern>
 </defs>"""
 
 
