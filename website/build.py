@@ -490,11 +490,11 @@ def page_home(lang):
     body = f"""<section class="hero">
   <div class="wrap center">
     <span class="badge"><i class="live"></i>{esc(h["badge"])}</span>
-    <h1 class="display">{lines(h["h1"])}</h1>
+    <h1 class="display">{lines(h["h1"]).replace(esc(h["h1_mark"]), f'<span class="hl">{esc(h["h1_mark"])}</span>', 1)}</h1>
     <p class="lead">{esc(h["lead"])}</p>
     {cta_buttons(lang, watch)}
   </div>
-  <div class="wrap wide"><figure class="peel">{P.svg(peel)}</figure></div>
+  <div class="wrap wide"><figure class="peel">{P.doodle()}{P.svg(peel)}</figure></div>
 </section>
 <section class="wrap wide section demo-band"><div class="hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div></section>
 {story(lang)}<section class="wrap section logos reveal">

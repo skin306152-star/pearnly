@@ -1,7 +1,7 @@
 """首页主视觉“掀开纸堆”：上半张是一张写实的书桌俯拍（乱放的税票、小票、流水、手机里的 LINE、咖啡），
-下半张是暖白纸面，铅笔线条的小单（น้องใบ）把照片的一角卷起来，露出底下已经整理好的账。
+下半张就是网页本身（不另加底色和卡片框），铅笔线条的小单（น้องใบ）把照片的一角卷起来，露出底下已经整理好的账。
 
-整张是一个内联 SVG（viewBox 1440×860，手机上 site.js 只取左边 720 宽，变成竖版），不加图片文件、不发请求；
+整张是一个内联 SVG（电脑看整张，手机上 site.js 只取左段，变成竖版），不加图片文件、不发请求；
 “照片”是矢量画出来的，纹理与光影用 SVG 滤镜。卷角几何在这里和 site.js 的 peel() 各算一次：
 这里给没有脚本时的静态样子，脚本接管后随滚动卷起、随手用力微动；系统开了“减少动态效果”时静止。
 """
@@ -13,8 +13,10 @@ W, H, HP = 1440, 860, 560          # 画布宽高、照片下沿
 HAND_X = 330                        # 小单双手抓住卷边的位置（x 固定，y 跟着卷边走）
 HIP, TILT = (338, 668), -4          # 小单身体底边中点与倾斜角度
 P0 = .3                             # 没有脚本时的卷起程度（0–1）
+ROT = -1.2                          # 相片在页面上微微斜放
+VIEW, VIEW_SM = f"-40 -40 1520 {H + 40}", f"-24 -40 760 {H + 40}"   # 电脑整张；手机只取左段成竖版
 
-INK, PAPER, CREAM = "#2d2b27", "#fffdf8", "#f5f0e6"
+INK, PAPER = "#2d2b27", "#fffdf8"
 THAI = "'IBM Plex Sans Thai', sans-serif"
 MONO = "ui-monospace, 'SF Mono', Menlo, monospace"
 HAND = "'Sriracha', 'Long Cang', cursive"
@@ -72,24 +74,20 @@ def arms(hand):
 DEFS = """<defs>
 <filter id="pz-wood" x="0" y="0" width="100%" height="100%">
   <feTurbulence type="fractalNoise" baseFrequency=".0028 .1" numOctaves="4" seed="11"/>
-  <feColorMatrix values="0 0 0 0 .30  0 0 0 0 .16  0 0 0 0 .06  1.7 0 0 0 -.62"/>
-</filter>
-<filter id="pz-grain" x="0" y="0" width="100%" height="100%">
-  <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="3"/>
-  <feColorMatrix values="0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .22  0 0 0 .5 -.18"/>
+  <feColorMatrix values="0 0 0 0 .62  0 0 0 0 .46  0 0 0 0 .28  1.1 0 0 0 -.5"/>
 </filter>
 <filter id="pz-sh" x="-25%" y="-25%" width="160%" height="160%">
   <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="b"/><feOffset in="b" dx="16" dy="20" result="o"/>
-  <feFlood flood-color="#2a1404" flood-opacity=".42"/><feComposite in2="o" operator="in" result="s1"/>
+  <feFlood flood-color="#4a3018" flood-opacity=".2"/><feComposite in2="o" operator="in" result="s1"/>
   <feGaussianBlur in="SourceAlpha" stdDeviation="1.8" result="c"/><feOffset in="c" dx="2" dy="3" result="co"/>
-  <feFlood flood-color="#1e0f04" flood-opacity=".5"/><feComposite in2="co" operator="in" result="s2"/>
+  <feFlood flood-color="#3a2410" flood-opacity=".3"/><feComposite in2="co" operator="in" result="s2"/>
   <feMerge><feMergeNode in="s1"/><feMergeNode in="s2"/><feMergeNode in="SourceGraphic"/></feMerge>
 </filter>
 <filter id="pz-lift" x="-25%" y="-25%" width="170%" height="170%">
   <feGaussianBlur in="SourceAlpha" stdDeviation="16" result="b"/><feOffset in="b" dx="26" dy="34" result="o"/>
-  <feFlood flood-color="#2a1404" flood-opacity=".45"/><feComposite in2="o" operator="in" result="s1"/>
+  <feFlood flood-color="#4a3018" flood-opacity=".24"/><feComposite in2="o" operator="in" result="s1"/>
   <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="c"/><feOffset in="c" dx="3" dy="5" result="co"/>
-  <feFlood flood-color="#1e0f04" flood-opacity=".45"/><feComposite in2="co" operator="in" result="s2"/>
+  <feFlood flood-color="#3a2410" flood-opacity=".28"/><feComposite in2="co" operator="in" result="s2"/>
   <feMerge><feMergeNode in="s1"/><feMergeNode in="s2"/><feMergeNode in="SourceGraphic"/></feMerge>
 </filter>
 <filter id="pz-bokeh" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.6"/></filter>
@@ -100,7 +98,7 @@ DEFS = """<defs>
   <feDisplacementMap in="SourceGraphic" in2="t" scale="2.6" xChannelSelector="R" yChannelSelector="G"/>
 </filter>
 <linearGradient id="pz-desk" x1="0" y1="0" x2="1" y2="1">
-  <stop offset="0" stop-color="#c8925c"/><stop offset=".55" stop-color="#b07843"/><stop offset="1" stop-color="#8e5a2e"/>
+  <stop offset="0" stop-color="#f4ebdc"/><stop offset=".55" stop-color="#ead9bd"/><stop offset="1" stop-color="#dcc5a2"/>
 </linearGradient>
 <linearGradient id="pz-paper" x1="0" y1="0" x2="1" y2="1">
   <stop offset="0" stop-color="#fffefa"/><stop offset="1" stop-color="#f0ebe0"/>
@@ -113,7 +111,7 @@ DEFS = """<defs>
   <stop offset="1" stop-color="#ffd08a" stop-opacity="0"/>
 </radialGradient>
 <radialGradient id="pz-vig" cx=".5" cy=".45" r=".75">
-  <stop offset=".55" stop-color="#2a1404" stop-opacity="0"/><stop offset="1" stop-color="#2a1404" stop-opacity=".42"/>
+  <stop offset=".6" stop-color="#4a3018" stop-opacity="0"/><stop offset="1" stop-color="#4a3018" stop-opacity=".12"/>
 </radialGradient>
 <radialGradient id="pz-coffee" cx=".42" cy=".38" r=".7">
   <stop offset="0" stop-color="#7a4a26"/><stop offset=".7" stop-color="#4a2812"/><stop offset="1" stop-color="#2e170a"/>
@@ -276,8 +274,8 @@ def leaves():
 
 
 def desk():
-    plank = "".join(f'<rect x="0" y="{y}" width="{W}" height="2" fill="#5a3416" opacity=".28"/>' for y in (186, 392))
-    leaf_shadow = ('<g opacity=".28" filter="url(#pz-blur)"><path d="M120 120 C200 40 330 60 420 140 C320 170 200 180 120 120 Z" fill="#1d0e03"/>'
+    plank = "".join(f'<rect x="0" y="{y}" width="{W}" height="2" fill="#a3825a" opacity=".22"/>' for y in (186, 392))
+    leaf_shadow = ('<g opacity=".12" filter="url(#pz-blur)"><path d="M120 120 C200 40 330 60 420 140 C320 170 200 180 120 120 Z" fill="#1d0e03"/>'
                    '<path d="M90 230 C170 180 300 200 360 270 C260 290 160 280 90 230 Z" fill="#1d0e03"/></g>')
     return (f'<rect width="{W}" height="{HP}" fill="url(#pz-desk)"/>'
             f'<rect width="{W}" height="{HP}" filter="url(#pz-wood)"/>' + plank + leaf_shadow)
@@ -285,7 +283,7 @@ def desk():
 
 def lighting():
     blinds = "".join(f'<rect x="-600" y="{-500 + i * 92}" width="2800" height="40"/>' for i in range(16))
-    return (f'<g fill="#2a1404" opacity=".17" filter="url(#pz-soft)" style="mix-blend-mode:multiply" transform="rotate(-27 720 280)">{blinds}</g>'
+    return (f'<g fill="#5a3a1a" opacity=".09" filter="url(#pz-soft)" style="mix-blend-mode:multiply" transform="rotate(-27 720 280)">{blinds}</g>'
             f'<rect width="{W}" height="{HP}" fill="url(#pz-sun)" style="mix-blend-mode:screen"/>'
             f'<rect width="{W}" height="{HP}" fill="url(#pz-vig)"/>')
 
@@ -360,19 +358,21 @@ def mascot(hand):
 def svg(L):
     g = geom(P0)
     defs = DEFS.replace("{0}", n(g['grad'][0])).replace("{1}", n(g['grad'][1])).replace("{2}", n(g['grad'][2])).replace("{3}", n(g['grad'][3]))
-    data = f'data-hp="{HP}" data-hand-x="{HAND_X}" data-p0="{P0}" data-shoulders="{",".join(n(v) for xy in SHOULDERS for v in xy)}"'
-    return f"""<svg class="pz" viewBox="0 0 {W} {H}" {data} role="img" aria-label="{esc(L["alt"])}">
+    data = f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-hp="{HP}" data-hand-x="{HAND_X}" data-p0="{P0}" data-shoulders="{",".join(n(v) for xy in SHOULDERS for v in xy)}"'
+    return f"""<svg class="pz" viewBox="{VIEW}" {data} role="img" aria-label="{esc(L["alt"])}">
 {defs}
-<rect width="{W}" height="{H}" fill="{CREAM}"/><rect width="{W}" height="{H}" filter="url(#pz-grain)" opacity=".5"/>
+<g transform="rotate({ROT} {W / 2} {HP / 2})">
+<rect x="6" y="20" width="{W - 12}" height="{HP - 4}" fill="#4a3018" opacity=".2" filter="url(#pz-blur)"/>
 <clipPath id="pz-clip"><path class="pz-clip" d="{g['clip']}"/></clipPath>
 <clipPath id="pz-under"><rect width="{W}" height="{HP}"/></clipPath>
 <g clip-path="url(#pz-under)">{under(L)}
-<path class="pz-shade" d="{g['band']}" fill="#2a1404" opacity=".38" filter="url(#pz-blur)" transform="translate(8 16)"/></g>
-<g clip-path="url(#pz-clip)">{photo()}<path class="pz-bend" d="{g['curve']}" stroke="#2a1404" stroke-width="46" fill="none" opacity=".3" filter="url(#pz-blur)"/></g>
+<path class="pz-shade" d="{g['band']}" fill="#4a3018" opacity=".26" filter="url(#pz-blur)" transform="translate(8 16)"/></g>
+<g clip-path="url(#pz-clip)">{photo()}<path class="pz-bend" d="{g['curve']}" stroke="#4a3018" stroke-width="46" fill="none" opacity=".2" filter="url(#pz-blur)"/></g>
 <path class="pz-band" d="{g['band']}" fill="url(#pz-roll)"/>
 <g color="{INK}" filter="url(#pz-pencil)" fill="none" stroke="currentColor" stroke-linecap="round">
 <path class="pz-curve" d="{g['curve']}" stroke-width="1.4" opacity=".5"/><path class="pz-lip" d="{g['lip']}" stroke-width="2.4"/></g>
 {mascot(g['hand'])}
+</g>
 <text class="pz-caption" x="{HIP[0]}" y="{HIP[1] + 130}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
 </svg>"""
 
@@ -382,3 +382,11 @@ def fonts(L):
     chars = "".join(sorted(set(L["caption"] + "".join(NOTE))))
     families = "family=Sriracha" + ("&family=Long+Cang" if any("\u4e00" <= c <= "\u9fff" for c in chars) else "")
     return f"https://fonts.googleapis.com/css2?{families}&text={quote(chars)}&display=swap"
+
+
+def doodle():
+    """标题区到相片之间的一笔铅笔箭头，把视线带下来。"""
+    return ('<svg class="pz-doodle" viewBox="0 0 120 110" fill="none" stroke="#2d2b27" stroke-width="2.4" stroke-linecap="round" '
+            'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+            '<path d="M12 12 C52 4 90 18 94 48 C97 70 88 86 74 100"/>'
+            '<path d="M62 92 L74 101 L80 86"/></svg>')

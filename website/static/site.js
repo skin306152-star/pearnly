@@ -397,7 +397,7 @@
       hands.setAttribute('transform', 'translate(' + HX + ' ' + f(hy) + ')');
     }
     // 手机上只取左边一段，变成竖版海报
-    function fit() { svg.setAttribute('viewBox', svg.parentNode.clientWidth < 640 ? '0 0 720 860' : '0 0 1440 860'); }
+    function fit() { svg.setAttribute('viewBox', svg.getAttribute(svg.parentNode.clientWidth < 640 ? 'data-view-sm' : 'data-view')); }
     fit();
     window.addEventListener('resize', fit);
     if (reduce) { draw(p0); return; }

@@ -727,13 +727,25 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .compare tbody th { width: 34%; }
 
 /* 主视觉下面的演示窗：给挥手的小单留出位置，别压到主视觉上 */
-.demo-band { padding-top: 150px; }
-@media (max-width: 760px) { .demo-band { padding-top: 110px; } }
+.demo-band { padding-top: 112px; }
+@media (max-width: 760px) { .demo-band { padding-top: 90px; } }
 
-/* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：照片 × 铅笔手绘，卷角由 site.js peel() 随滚动卷起 ---------- */
-.peel { margin: 0; border-radius: 22px; overflow: hidden; background: #f5f0e6;
-  box-shadow: 0 1px 2px rgba(20, 20, 19, .05), 0 24px 60px -24px rgba(60, 36, 10, .32); }
-.pz { display: block; width: 100%; height: auto; }
+/* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：一张浅色书桌相片斜放在页面上，页面本身就是手绘那张纸 ---------- */
+.peel { position: relative; margin: 0 auto; max-width: 1000px; }
+.pz { display: block; width: 100%; height: auto; overflow: visible; }
 .pz .pz-face { overflow: visible; }
-
-@media (max-width: 760px) { .peel { border-radius: 16px; margin: 0 -4px; } }
+.pz-doodle { position: absolute; z-index: 2; width: 92px; height: auto; right: 9%; top: -86px; opacity: .6; }
+/* 标题里一个词下面的荧光笔，和相片里便利贴、荧光笔是同一种黄 */
+.hero h1 { isolation: isolate; }
+.hl { position: relative; white-space: nowrap; }
+.hl::after {
+  content: ""; position: absolute; z-index: -1; left: -.06em; right: -.06em; bottom: .04em; height: .4em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 24' preserveAspectRatio='none'%3E%3Cpath d='M4 13 C40 7 92 10 196 6 L197 17 C130 19 64 22 3 21 Z' fill='%23ffd84d' opacity='.85'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+  transform-origin: left center; animation: hl-draw .9s .45s var(--ease) both;
+}
+/* 泰文、英文行高里字下面留白不同，荧光笔要分别抬高才贴着字 */
+:lang(th) .hl::after { bottom: .24em; height: .36em; }
+:lang(en) .hl::after { bottom: .36em; height: .3em; }
+@keyframes hl-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .hl::after { animation: none; } }
+@media (max-width: 760px) { .pz-doodle { display: none; } }
