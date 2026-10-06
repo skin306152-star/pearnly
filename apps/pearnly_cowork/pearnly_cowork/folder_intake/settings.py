@@ -1,14 +1,15 @@
 """文件夹自动录入的站点总闸 `pearnly_cowork_folder_intake`（缺省 = 全关）。
 
 规则页、小助手接口、受理、自动推送、结果表格每一步都先读它；关掉后整条链停下，已有的票与推送不受影响。
-写法：`true`，或 `{"enabled": 1, "ocr_inflight": 1, "push_pending": 5, "inline_max_mib": 15}`。非法值只关本功能。
+写法：`true`，或 `{"enabled": 1, "ocr_inflight": 0, "push_pending": 5, "inline_max_mib": 15}`。非法值只关本功能。
+`ocr_inflight`：同时在识别的文件夹单上限；0（缺省）= 自动，取商户识别并发的一半，另一半留给网页 / LINE。
 """
 import frappe
 from frappe import _
 
 KEY = "pearnly_cowork_folder_intake"
-DEFAULTS = {"ocr_inflight": 1, "push_pending": 5, "inline_max_mib": 15}
-LIMITS = {"ocr_inflight": (1, 3), "push_pending": (1, 20), "inline_max_mib": (1, 20)}
+DEFAULTS = {"ocr_inflight": 0, "push_pending": 5, "inline_max_mib": 15}
+LIMITS = {"ocr_inflight": (0, 8), "push_pending": (1, 20), "inline_max_mib": (1, 20)}
 
 
 def config():

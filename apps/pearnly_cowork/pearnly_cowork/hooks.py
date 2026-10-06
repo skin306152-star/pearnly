@@ -440,7 +440,7 @@ pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow
                         # 对账三类文档（银行账单 / 总账 / 销项税报告）要模型读的：扫描件、照片、要模型兜底的 PDF
                         "cowork.recon_document": "pearnly_cowork.recon_center.document_ocr.run"}
 # LINE 发来的单据：识别落成票后推卡、最终失败时回一句（不是从 LINE 来的原件什么都不做）。
-cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized"]
+cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized", "pearnly_cowork.folder_intake.events.recognized"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}
 # 续跑时遇到上一个进程留下的「结果不明」调用，由对账的识别任务自己处理：账单 / 总账 / 税报按有限次重发，发票当成这一页
 # 读不出交引擎按页兜底；不整份作废（2026-09-30 压测第 18 轮）。

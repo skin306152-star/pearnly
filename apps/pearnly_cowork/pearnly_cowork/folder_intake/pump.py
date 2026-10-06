@@ -170,11 +170,11 @@ def _store(entry):
 
 
 def _capacity(cfg):
-    """还能再交几份文件夹识别：本站在识别的文件夹单、商户与全站的识别排队都要留出余量。读不到就当没有余量。"""
-    inflight = frappe.db.count(FILE, {"state": "submitted"})
-    room = cfg["ocr_inflight"] - inflight
-    if room <= 0:
-        return 0
+    """还能再交几份文件夹识别。上限缺省是商户识别并发的一半（另一半始终留给网页 / LINE，它们来了不用排在
+    文件夹后面）；商户与全站的识别排队都还要低于上限一半。读不到就当没有余量。
+
+    10-07 测试机实测：原来固定一次只交一份、靠每分钟的定时推进，41 份要一个多小时（每份间隔约 90 秒），
+    不适合生产；现在按并发名额交，识别一结束就由钩子马上接下一份（`events.recognized`）。"""
     try:
         from pearnly_core.execution import budget
 
@@ -186,7 +186,8 @@ def _capacity(cfg):
         return 0
     if pending * 2 >= limits["pending"] or tenant * 2 >= limits["tenant_pending"]:
         return 0
-    return room
+    ceiling = cfg["ocr_inflight"] or max(1, limits["tenant_concurrency"] // 2)
+    return max(0, ceiling - frappe.db.count(FILE, {"state": "submitted"}))
 
 
 def _submit_step(cfg, deadline):

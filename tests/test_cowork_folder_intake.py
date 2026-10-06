@@ -125,12 +125,14 @@ class AdditiveGuards(unittest.TestCase):
             "stocktake", "recon", "line-binding", "work")])
         self.assertEqual(scripts[12:], ["versioned_asset('pearnly_cowork', 'desk/intake-folders.js')"])
         # 识别后的按类别钩子不碰（只能替换、不能追加的那几个 dict）。
-        self.assertIn('cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized"]', source)
+        # 识别后的钩子只在 LINE 之后追加文件夹的推进（列表，追加不替换）；按类别的 dict 不碰。
+        self.assertIn('cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized", '
+                      '"pearnly_cowork.folder_intake.events.recognized"]', source)
         self.assertIn('pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}', source)
         self.assertIn('pearnly_cowork.folder_intake.schedule.tick', source)
 
     def test_hook_targets_exist(self):
-        for dotted in ("pearnly_cowork.folder_intake.schedule.tick", "pearnly_cowork.folder_intake.access.deny",
+        for dotted in ("pearnly_cowork.folder_intake.schedule.tick", "pearnly_cowork.folder_intake.events.recognized", "pearnly_cowork.folder_intake.access.deny",
                        "pearnly_cowork.folder_intake.access.deny_query", "pearnly_cowork.folder_intake.access.reject_share",
                        "pearnly_cowork.folder_intake.pump.run"):
             module, name = dotted.rsplit(".", 1)
