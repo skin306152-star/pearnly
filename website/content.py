@@ -8,6 +8,7 @@ LINE_URL = "https://line.me/R/ti/p/@pearnly"
 LINE_ID = "@pearnly"
 EMAIL = "hello@pearnly.com"
 YOUTUBE_URL = "https://www.youtube.com/@pearnlyth"
+TUTORIALS_URL = YOUTUBE_URL + "/playlists"   # 顶栏「使用教程」：频道里按产品分的播放列表
 COMPANION_URL = "/downloads/companion/PearnlyCompanion-Setup.exe"
 # MR.ERP：同一家公司（MR. ERP COMPANY LIMITED）的专业版 ERP / DMS，官网与登录入口在 mrerp4sme.com。
 MRERP_URL = "https://www.mrerp4sme.com/"
@@ -77,7 +78,7 @@ INTEGRATIONS = {
 
 COMMON = {
     "th": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "เครื่องมือฟรี", "guides": "บทความ"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "เครื่องมือฟรี", "guides": "บทความ", "tutorials": "วิธีใช้งาน"},
         "cta": "นัดดูเดโมผ่าน LINE",
         "cta_consult": "นัดคุยกับที่ปรึกษา",
         "demo_msg": "สวัสดี อยากนัดดูเดโม {name}",
@@ -109,7 +110,7 @@ COMMON = {
         "integrations": "ทำงานร่วมกับเครื่องมือที่คุณใช้อยู่",
     },
     "en": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "Free tools", "guides": "Guides (TH)"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "Free tools", "guides": "Guides (TH)", "tutorials": "Tutorials"},
         "cta": "Book a demo on LINE",
         "cta_consult": "Talk to a consultant",
         "demo_msg": "Hi, I would like a demo of {name}.",
@@ -141,7 +142,7 @@ COMMON = {
         "integrations": "Works with the tools you already use",
     },
     "zh": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "免费工具", "guides": "泰文指南"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "免费工具", "guides": "泰文指南", "tutorials": "使用教程"},
         "cta": "LINE 预约演示",
         "cta_consult": "预约顾问",
         "demo_msg": "你好，想预约 {name} 的演示。",

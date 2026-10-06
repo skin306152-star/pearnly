@@ -86,7 +86,7 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .nav a { padding: 7px 14px; border-radius: 999px; font-size: 15px; color: var(--muted); transition: background .2s, color .2s; }
 .nav a, .langs a { white-space: nowrap; }
 /* 平板和小屏笔记本：顶栏还是一行，收紧间距，别把“免费工具”和语言按钮挤成两行 */
-@media (min-width: 761px) and (max-width: 1080px) {
+@media (min-width: 901px) and (max-width: 1080px) {
   .nav a { padding: 7px 8px; font-size: 14px; }
   .langs a { padding: 4px 8px; }
   .wordmark { margin-right: 6px; }
@@ -96,7 +96,8 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .langs a { padding: 4px 11px; border-radius: 999px; font-size: 13px; color: var(--faint); transition: all .2s; }
 .langs a:hover { color: var(--ink); }
 .langs a[aria-current] { color: var(--ink); }
-@media (max-width: 760px) {
+/* 平板以下：导航换到第二行、可横向滑动 */
+@media (max-width: 900px) {
   .pill, .topbar.scrolled .pill { flex-wrap: wrap; border-radius: 22px; padding: 8px 8px 6px 16px; row-gap: 4px; }
   .pill { background: rgba(248, 248, 246, .92); }
   .nav { order: 3; flex-basis: 100%; overflow-x: auto; scrollbar-width: none; margin: 0 -8px 0 -10px; }

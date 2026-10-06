@@ -163,6 +163,7 @@ def header(lang, key):
     t = C.COMMON[lang]
     here, chosen = ' aria-current="page"', ' aria-current="true"'
     nav = "".join(
+        f'<a href="{C.TUTORIALS_URL}" target="_blank" rel="noopener">{esc(label)}</a>' if k == "tutorials" else
         f'<a href="{url(lang, k)}"{here if key == k or (k == "tools" and key in C.TOOLS) or (k == "guides" and key.startswith("guide:")) else ""}>{esc(label)}</a>'
         for k, label in t["nav"].items()
     )
