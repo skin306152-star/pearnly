@@ -84,6 +84,13 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .wordmark { font-family: var(--serif); font-weight: 600; font-size: 23px; letter-spacing: -.01em; color: var(--ink); margin-right: 14px; line-height: 1; }
 .nav { flex: 1; display: flex; gap: 2px; }
 .nav a { padding: 7px 14px; border-radius: 999px; font-size: 15px; color: var(--muted); transition: background .2s, color .2s; }
+.nav a, .langs a { white-space: nowrap; }
+/* 平板和小屏笔记本：顶栏还是一行，收紧间距，别把“免费工具”和语言按钮挤成两行 */
+@media (min-width: 761px) and (max-width: 1080px) {
+  .nav a { padding: 7px 8px; font-size: 14px; }
+  .langs a { padding: 4px 8px; }
+  .wordmark { margin-right: 6px; }
+}
 .nav a:hover, .nav a[aria-current] { color: var(--ink); }
 .langs { display: flex; border-radius: 999px; padding: 3px; }
 .langs a { padding: 4px 11px; border-radius: 999px; font-size: 13px; color: var(--faint); transition: all .2s; }
@@ -789,12 +796,18 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .footer.sketch { border-top: 0; position: relative; }
 .footer.sketch::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 12px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q30 1 60 6 T120 6 T180 6 T240 6' fill='none' stroke='%233d362c' stroke-width='1.6' opacity='.45' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") repeat-x 0 0 / 240px 12px; }
-.footer.sketch h2 { font-family: Sriracha, "Long Cang", var(--sans); font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 15px; }
-:lang(zh-Hans) .footer.sketch h2 { font-size: 18px; }
 /* 卡片角上的手绘小单 */
 .hd-badge { overflow: visible; }
-.sketch .poster-mascot.hd-badge { height: 132px; top: -118px; right: 24px; }
-@media (max-width: 760px) { .sketch .poster-mascot.hd-badge { height: 96px; top: -86px; } }
+.hd-badge .hm-shadow { display: none; }
+/* 产品卡片上沿的小单：脚底（SVG 底边）正好踩在铅笔框的上沿线上，站在视频那一栏的正上方 */
+.card-mascot { position: absolute; z-index: 4; bottom: calc(100% - 3px); right: 13%; height: 150px; width: auto; pointer-events: none; }
+/* 小单站在每张卡片上沿，卡片之间要留出它的个子 */
+.sketch #products .stack { gap: 150px; }
+.sketch #products h2.display { margin-bottom: 150px; }
+.product.flip .card-mascot { right: auto; left: 13%; }
+.product:hover .card-mascot { animation: hop .6s var(--ease); }
+@media (max-width: 860px) { .card-mascot { height: 108px; right: 28px; } .product.flip .card-mascot { left: auto; right: 28px; }
+  .sketch #products .stack { gap: 112px; } .sketch #products h2.display { margin-bottom: 112px; } }
 .sketch .walk .walker:not(.big) .hd-badge { width: 100%; height: auto; }
 .hd-badge .hm-hop { stroke-width: 3; }
 @media (max-width: 760px) { .sketch .product:nth-child(n) { transform: none; } }

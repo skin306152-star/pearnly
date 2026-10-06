@@ -301,7 +301,7 @@ def page_home(lang):
         p, o = C.PRODUCT[k][lang], C.OVERVIEW[k]
         points = "".join(f"<li>{icon('check', 'icon sm')}<span>{esc(a)}</span></li>" for a, _ in p["features"][:3])
         shot = window(f'<img src="{o["poster"]}" alt="" loading="lazy" width="1280" height="720"><span class="playbtn"><span class="circle">{icon("play")}</span></span>')
-        products += f"""<article class="panel product reveal{' flip' if i % 2 else ''}">
+        products += f"""<article class="panel product reveal{' flip' if i % 2 else ''}">{S.badge(k, "card-mascot")}
   <div class="product-text">
     <span class="eyebrow">{esc(p["who"])}</span>
     <h3 class="display">Pearnly {esc(p["name"])}</h3>
@@ -309,7 +309,7 @@ def page_home(lang):
     <ul class="points">{points}</ul>
     <a class="more" href="{url(lang, k)}">{esc(t["more"])} {icon("arrow", "icon sm")}</a>
   </div>
-  <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{S.badge(k)}{shot}</a>
+  <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{shot}</a>
 </article>"""
     samples = {"baht-text": "1,070 → หนึ่งพันเจ็ดสิบบาทถ้วน", "vat": "1,070.00 → VAT 70.00",
                "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0-1055-99999-99-7 ✓"}

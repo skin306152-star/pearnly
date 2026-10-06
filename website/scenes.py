@@ -57,11 +57,11 @@ def zigzag(top, half=39):
 
 
 def face(ex, ey, r=5, gap=24):
-    """两点眼 + 腮红 + 笑嘴；ex 是左眼的 x。"""
+    """两点眼 + 腮红 + 笑嘴；ex 是左眼的 x。眼睛包在 .m-look 里，跟着鼠标转（site.js mascots()）。"""
     cx = ex + gap / 2
-    return ('<g class="hm-eyes">'
+    return ('<g class="m-look"><g class="hm-eyes">'
             f'<circle cx="{n(ex)}" cy="{n(ey)}" r="{r}" fill="currentColor" stroke="none"/>'
-            f'<circle cx="{n(ex + gap)}" cy="{n(ey)}" r="{r}" fill="currentColor" stroke="none"/></g>'
+            f'<circle cx="{n(ex + gap)}" cy="{n(ey)}" r="{r}" fill="currentColor" stroke="none"/></g></g>'
             f'<ellipse cx="{n(ex - 11)}" cy="{n(ey + 14)}" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
             f'<ellipse cx="{n(ex + gap + 11)}" cy="{n(ey + 14)}" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
             f'<path class="hm-mouth" d="M{n(cx - 6)} {n(ey + 22)} q6 6 12 0" stroke-width="2.6"/>')
@@ -169,7 +169,7 @@ def cowork(L):
                  + t(18, 40, L["stmt"], 22, "#2d2b27") + t(320, 40, "ก.ย. 2569", 16, "#5b7fd8", "end")
                  + st + '</g>')
     raise_ = ",".join(f"{T[i] + 1050}:hm-jot,{T[i] + 1600}:-hm-jot" for i in range(3))
-    mm = mascot(432, 420, 1.25, f' data-at="{raise_},9100:hm-hopping,9100:hm-cheer"', kind="cowork")
+    mm = mascot(414, 420, 1.25, f' data-at="{raise_},9100:hm-hopping,9100:hm-cheer"', kind="cowork")
     real = panel("sc-real", label(L["real"]) + statement + mm)
 
     # ---- 系统里：上面三张读出来的税票，下面一本 ERP 进项日记账
@@ -203,8 +203,8 @@ def cowork(L):
               + f'<g class="hd-lens" data-at="7700"><circle cx="0" cy="0" r="22" fill="#ffffff" fill-opacity=".35" stroke-width="3" stroke="{LINE}"/>'
               + f'<path d="M15 16 L32 33" stroke-width="7" stroke="{LINE}" stroke-linecap="round"/></g></g>')
     stamp = (f'<g transform="translate(262 470) rotate(-4)"><g class="hd-stamp" data-at="8900">'
-             f'<rect x="-120" y="-22" width="240" height="44" rx="12" fill="#43b36f" {OUT}/>'
-             + t(0, 7, L["cowork_done"], 16, "#fff", "middle") + '</g></g>')
+             f'<rect x="-190" y="-22" width="380" height="44" rx="12" fill="#43b36f" {OUT}/>'
+             + t(0, 7, L["cowork_done"], 15, "#fff", "middle") + '</g></g>')
     sys_ = panel("sc-sys", label(L["system"]) + t(28, 82, L["invoices"], 18, "#2d2b27") + dots + cards + ledger + stamp)
 
     # ---- 跨两边：税票金额飞到对上的那一行，配对线（连到税票下沿，不横穿别的税票）；税票飞进日记账
@@ -370,8 +370,8 @@ def erp(L):
     restock = (f'<g class="hd-pop" data-at="6700"><rect x="96" y="384" width="230" height="32" rx="16" fill="#e9f4ec" {OUT}/>'
                + t(211, 405, f'+24 · {L["restock"]}', 15, "#2e8a55", "middle") + '</g>')
     done = (f'<g transform="translate(262 466) rotate(-3)"><g class="hd-stamp" data-at="7400">'
-            f'<rect x="-170" y="-22" width="340" height="44" rx="12" fill="#43b36f" {OUT}/>'
-            + t(0, 7, L["erp_done"], 16, "#fff", "middle") + '</g></g>')
+            f'<rect x="-212" y="-22" width="424" height="44" rx="12" fill="#43b36f" {OUT}/>'
+            + t(0, 7, L["erp_done"], 15, "#fff", "middle") + '</g></g>')
     sys_ = panel("sc-sys", label(L["system"]) + t(28, 82, L["stock"], 18, "#2d2b27") + rows + restock + done)
 
     flies = "".join(flyer(f"-{q}", "#er-reg", f"#er-sk{i}", T[i] + 800) for i, (_k, _n, _a, q) in enumerate(prods))
@@ -385,6 +385,6 @@ PROPS = {"cowork": "pencil", "dms": "camera", "erp": "basket"}
 
 
 def badge(kind, cls="poster-mascot"):
-    """产品卡片右上角站着的小单：穿这个产品的衣服、拿这个产品的道具，会眨眼。"""
-    return (f'<svg class="{cls} hd-badge" viewBox="-80 -150 180 200" aria-hidden="true" focusable="false">'
+    """产品卡片上沿站着的小单：穿这个产品的衣服、拿这个产品的道具，会眨眼、眼睛跟着鼠标。viewBox 底边就是脚底，方便贴着框线站。"""
+    return (f'<svg class="{cls} hd-badge" viewBox="-80 -152 180 194" aria-hidden="true" focusable="false">'
             f'<g filter="url(#hd-pencil)">{mascot(0, 0, 1.0, "", PROPS[kind], kind)}</g></svg>')

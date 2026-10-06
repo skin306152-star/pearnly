@@ -227,7 +227,7 @@
 
   // ---- 品牌形象 น้องใบ：眼睛跟着指针，眨眼错开，点首屏那只会跳一下 ----
   function mascots() {
-    var looks = Array.prototype.slice.call(document.querySelectorAll('.mascot .m-look'));
+    var looks = Array.prototype.slice.call(document.querySelectorAll('.mascot .m-look, .hm .m-look'));
     document.querySelectorAll('.mascot .m-blink').forEach(function (g, i) { g.style.animationDelay = (-((i * 1.7) % 5.5)) + 's'; });
     document.querySelectorAll('.hero-mascot').forEach(function (m) {
       m.addEventListener('click', function () { m.classList.remove('hop'); void m.getBoundingClientRect(); m.classList.add('hop'); });
@@ -237,7 +237,8 @@
     function update() {
       queued = false;
       looks.forEach(function (g) {
-        var r = g.ownerSVGElement.getBoundingClientRect();
+        // 整张 SVG 里只有一只小单的（品牌形象）按整张算；手绘场景里的小单按它自己的身体算
+        var r = (g.closest('.hm') || g.ownerSVGElement).getBoundingClientRect();
         if (r.bottom < 0 || r.top > window.innerHeight) return;
         var dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height * 0.3), d = Math.sqrt(dx * dx + dy * dy) || 1, k = Math.min(1, d / 240) * 5;
         g.setAttribute('transform', 'translate(' + (dx / d * k).toFixed(2) + ' ' + (dy / d * k).toFixed(2) + ')');
