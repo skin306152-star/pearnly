@@ -73,7 +73,7 @@ def state(p):
         fx = hx + sw + 6
         legs.append((hx, hy, (hx + fx) / 2 + 7, (hy + feet) / 2 - 2, fx, feet))
     return dict(a=a, b=b, f=(fx_, fy_), tip=(tx, ty), m1=m1, m2=m2, hip=hip, tilt=tilt, legs=legs, feet=feet,
-                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(36, -46), pen=rot(60, -20))
+                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(38, -56), pen_ctrl=rot(98, -84), pen=rot(72, -26))
 
 
 def limb(a, b, bend):
@@ -294,14 +294,17 @@ def curl(s):
     g = f'x1="{n(fx)}" y1="{n(fy)}" x2="{n(tx)}" y2="{n(ty)}"'
     return dict(
         defs=(f'<linearGradient id="pz-back" class="pz-g" gradientUnits="userSpaceOnUse" {g}>'
-              '<stop offset="0" stop-color="#c7a979"/><stop offset=".12" stop-color="#e6d1aa"/><stop offset=".3" stop-color="#fbf1dc"/>'
-              '<stop offset=".62" stop-color="#ead8b5"/><stop offset=".88" stop-color="#f6eacf"/><stop offset="1" stop-color="#dcc49b"/></linearGradient>'
+              '<stop offset="0" stop-color="#d2b98f"/><stop offset=".16" stop-color="#e4d1ae"/><stop offset=".38" stop-color="#efe1c4"/>'
+              '<stop offset=".66" stop-color="#e7d6b6"/><stop offset=".9" stop-color="#ecdcbd"/><stop offset="1" stop-color="#dcc6a1"/></linearGradient>'
+              f'<clipPath id="pz-flapclip"><path class="pz-flap" d="{flap}"/></clipPath>'
               f'<linearGradient id="pz-gap" class="pz-g2" gradientUnits="userSpaceOnUse" x1="{n(fx)}" y1="{n(fy)}" x2="0" y2="{HP}">'
               '<stop offset="0" stop-color="#2a1e10" stop-opacity=".32"/><stop offset=".45" stop-color="#2a1e10" stop-opacity="0"/></linearGradient>'
               '<filter id="pz-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>'),
         gap=f'<path class="pz-gapshade" d="M0 {n(HP - a)}L{n(b)} {HP}H0Z" fill="url(#pz-gap)"/>',
         shadow=f'<path class="pz-flap" d="{flap}" fill="#3a2a14" opacity=".3" filter="url(#pz-soft)" transform="translate(12 10)"/>',
-        flap=f'<path class="pz-flap" d="{flap}" fill="url(#pz-back)" stroke="#c4ab80" stroke-width="1.6"/>')
+        flap=(f'<path class="pz-flap" d="{flap}" fill="url(#pz-back)"/>'
+              f'<rect width="{W}" height="{HP}" filter="url(#pz-tex)" opacity=".7" clip-path="url(#pz-flapclip)"/>'
+              f'<path class="pz-flap" d="{flap}" fill="none" stroke="#b89d72" stroke-width="1.8"/>'))
 
 
 def pencil(at):
@@ -336,9 +339,9 @@ def mascot(s):
     return (f'<g class="pz-mascot"><ellipse class="pz-ground" cx="{n(s["hip"][0] + 6)}" cy="{n(s["feet"] + 3)}" rx="58" ry="9" fill="#3a2a14" opacity=".16"/>'
             f'<g {pen}><path class="pz-leg" d="{leg(s["legs"][0], -1)}"/><path class="pz-leg" d="{leg(s["legs"][1], 1)}"/>'
             f'<g class="pz-body" transform="translate({n(hip[0])} {n(hip[1])}) rotate({n(s["tilt"])}) scale({SCALE})" stroke-width="{n(3 / SCALE)}">{body}</g>'
-            f'<path class="pz-arm-pen" d="{limb(s["pen_sh"], s["pen"], -12)}"/></g>'
+            '</g>'
             + pencil(s["pen"])
-            + f'<g {pen}><circle class="pz-hand-pen" cx="{n(s["pen"][0])}" cy="{n(s["pen"][1])}" r="8.5" fill="{PAPER}"/>'
+            + f'<g {pen}><path class="pz-arm-pen" d="M{n(s["pen_sh"][0])} {n(s["pen_sh"][1])}Q{n(s["pen_ctrl"][0])} {n(s["pen_ctrl"][1])} {n(s["pen"][0])} {n(s["pen"][1])}"/><circle class="pz-hand-pen" cx="{n(s["pen"][0])}" cy="{n(s["pen"][1])}" r="10" fill="{PAPER}"/>'
             f'<path class="pz-arm-push" d="{limb(s["push_sh"], s["hand"], 14)}"/>'
             f'<circle class="pz-hand-push" cx="{n(s["hand"][0])}" cy="{n(s["hand"][1])}" r="8.5" fill="{PAPER}"/></g></g>')
 

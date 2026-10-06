@@ -410,9 +410,9 @@
         set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + fx2) / 2 + 7) + ' ' + f((h[1] + feet) / 2 - 2) + 'L' + f(fx2) + ' ' + f(feet) + 'h' + (i ? 14 : -14));
       });
       // 小单左手捏着拉过来的纸尖，右手拿铅笔
-      var hand = [tx + 4, ty + 4], penAt = rot(60, -20);
+      var hand = [tx + 4, ty + 4], penAt = rot(72, -26), penSh = rot(38, -56), penCtrl = rot(98, -84);
       set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(' + f(tilt) + ') scale(' + SCALE + ')');
-      set(armPen, 'd', limb(rot(36, -46), penAt, -12));
+      set(armPen, 'd', 'M' + f(penSh[0]) + ' ' + f(penSh[1]) + 'Q' + f(penCtrl[0]) + ' ' + f(penCtrl[1]) + ' ' + f(penAt[0]) + ' ' + f(penAt[1]));
       set(handPen, 'cx', f(penAt[0])); set(handPen, 'cy', f(penAt[1]));
       set(pen, 'transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(-24) translate(0 -64)');
       set(armPush, 'd', limb(rot(-34, -50), hand, 14));
