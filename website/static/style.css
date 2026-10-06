@@ -811,3 +811,8 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .sketch .walk .walker:not(.big) .hd-badge { width: 100%; height: auto; }
 .hd-badge .hm-hop { stroke-width: 3; }
 @media (max-width: 760px) { .sketch .product:nth-child(n) { transform: none; } }
+/* 视频框：铅笔线往里抖了几像素，视频本身要缩进线里，别让画面的边角冒出线外 */
+.sketch .poster .window { padding: 7px; background-color: #fffdf8; overflow: visible; }
+.sketch .poster .window .winbar { border-radius: 6px 6px 0 0; }
+.sketch .poster .window img { border-radius: 0 0 6px 6px; }
+.sketch .poster .window .playbtn { left: 7px; right: 7px; bottom: 7px; top: 53px; border-radius: 0 0 6px 6px; }
