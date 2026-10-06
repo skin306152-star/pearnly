@@ -3,6 +3,7 @@ import secrets
 
 from pearnly_core import line_session as store
 from pearnly_dms.contracts.customer_merge import secondary_addresses, split
+from pearnly_dms.intake.customer_diff import master_name_if_close
 from pearnly_dms.intake import draft
 from pearnly_dms.line import cards, out
 from pearnly_dms.line.errors import friendly
@@ -30,10 +31,14 @@ def conflict_notice(conflict):
     return text
 
 
-def build(user_id, payload, conflict, *, has_admin):
+def build(user_id, payload, conflict, *, has_admin, existing=False):
+    """重新出卡。``existing``＝建档时撞上已有客户：姓名按查重命中时同一条规则——识别结果与主档
+    足够像就沿用主档写法（缓存没跟上时走到这条路，2026-10-06 实测两次结果不一致）。"""
     current = conflict["current"]
     # 卡上只列真会写进 DMS 的差异：联系/寄送地址已有内容的不改（与写入层同一条规则）。
     desired = secondary_addresses(conflict["desired"], current)
+    if existing and "name" in desired:
+        desired["name"] = master_name_if_close(current.get("name"), desired["name"])
     diffs = [{"field": key, "old": str(current.get(key) or ""), "new": str(value)}
              for key, value in desired.items() if str(current.get(key) or "") != str(value)]
     fields, addresses = split(desired)
@@ -67,7 +72,8 @@ def reopen(binding, line_user_id, payload, result, *, reply_token="", expected=N
     from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
     endpoint = resolve_dms_endpoint(binding["user_id"], payload.get("endpoint_id"))
     updated, card = build(binding["user_id"], payload,
-        result["response_body"]["customer_conflict"], has_admin=draft.has_admin_creds(endpoint))
+        result["response_body"]["customer_conflict"], has_admin=draft.has_admin_creds(endpoint),
+        existing=result.get("error_code") == "ERR_DMS_CUSTOMER_EXISTS")
     if not store.replace_session_snapshot(line_user_id, current, "reviewing", updated):
         return False
     out.push_or_reply_text(line_user_id, friendly(result["error_code"], lang=i18n.line_lang()), reply_token)

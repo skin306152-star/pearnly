@@ -16,6 +16,8 @@ DMS 里已有的客户 vs 身份证识别出的新值：**只报白名单里真�
 
 from __future__ import annotations
 
+import difflib
+import re
 from typing import Any, Dict, List
 
 # 允许 diff 的字段：身份 + 户籍地址（地址比 id，不比显示标签）。people_id 不在内（主键）。
@@ -75,3 +77,21 @@ def diff_customer_fields(current: Dict[str, Any], incoming: Dict[str, Any]) -> L
         if new != old:
             out.append({"field": field, "old": old, "new": new})
     return out
+
+
+SAME_NAME_RATIO = 0.8
+
+
+def master_name_if_close(master: Any, name: str) -> str:
+    """证号已命中老客户时：识别的姓名与主档足够像就用主档写法，否则保留识别结果。
+
+    只在按完整证号找到的客户上用（身份已经由证号确定），所以这里只决定"要不要报改名"：
+    漏一个符号不该让用户去改 DMS 里本来对的名字；整段不同（例如婚后改姓）照常报差异。
+    查重直接命中（`intake.service.recognize_lookup`）和建档时撞上已有客户（`intake.review.build`）
+    两条路用同一条规则（用户 2026-10-06 定）。
+    """
+    master = str(master or "").strip()
+    a, b = re.sub(r"\s+", "", master), re.sub(r"\s+", "", str(name or ""))
+    if a and b and difflib.SequenceMatcher(None, a, b).ratio() >= SAME_NAME_RATIO:
+        return master
+    return name

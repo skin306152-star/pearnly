@@ -46,3 +46,10 @@
   跑完已删除，线上代码未替换）：测试客户 61 原分店为空 → 一次覆盖更新后分店为 16 / 00000；再对 61 只改户籍门牌号
   `aaa` → `Taaa`：户籍段改了，联系/寄送段保持 `aaa`；随后复原为 `aaa`。DMS 测试账套留下的改动：客户 61、62 分店为 00000。
 - 还缺：LINE 端到端（真人发消息）未在测试租户走过；生产部署随下一批，未部署。
+
+## 追加：撞上已有客户时姓名也按"相近就沿用 DMS 写法"（同日，用户选方案 1）
+
+testdms 两次实测结果不一致：客户 134 走"新客户卡 → 建档撞上已有客户 → 差异卡"，姓名被改成识别结果；客户 135 查重直接命中，
+姓名只差一个字按 DMS 保留。规则（相似度 ≥ 0.8 沿用 DMS 写法，差别大的照常列差异）从 `intake/service.py` 挪到纯函数模块
+`intake/customer_diff.master_name_if_close`（`service` 保留同名导入），`intake/review.build` 在 `ERR_DMS_CUSTOMER_EXISTS` 时同样执行；
+`ERR_DMS_CUSTOMER_CHANGED`（销售已确认过的覆盖）不受影响。`scripts/test-dms-intake-queue.py` 加 2 条，镜像内 25 项通过。

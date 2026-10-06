@@ -6,13 +6,11 @@ The historical run_logged_in/err imports remain as thin compatibility exports.
 """
 from __future__ import annotations
 
-import difflib
 import logging
-import re
 import time
 from typing import Any, Dict, List, Optional
 
-from pearnly_dms.intake.customer_diff import diff_customer_fields
+from pearnly_dms.intake.customer_diff import SAME_NAME_RATIO, diff_customer_fields, master_name_if_close  # noqa: F401
 from pearnly_dms.line.errors import friendly
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.adapter.push import build_adapter
@@ -91,22 +89,6 @@ def incoming_for_diff(name: str, addr, resolved, phone: str = "") -> Dict[str, s
 
 #: 识别姓名与主档姓名（去空格）的相似度达到这一值就按主档。ris 50 张实测：flash-lite
 #: 误读（漏元音/声调、ช/ซ 这类形近字）都 ≥ 0.83；拿每张去比其余 49 位客户的姓名都 < 0.7。
-SAME_NAME_RATIO = 0.8
-
-
-def master_name_if_close(master: Any, name: str) -> str:
-    """证号已命中老客户时：识别的姓名与主档足够像就用主档写法，否则保留识别结果。
-
-    只在按完整证号找到的客户上用（身份已经由证号确定），所以这里只决定"要不要报改名"：
-    漏一个符号不该让用户去改 DMS 里本来对的名字；整段不同（例如婚后改姓）照常报差异。
-    """
-    master = str(master or "").strip()
-    a, b = re.sub(r"\s+", "", master), re.sub(r"\s+", "", str(name or ""))
-    if a and b and difflib.SequenceMatcher(None, a, b).ratio() >= SAME_NAME_RATIO:
-        return master
-    return name
-
-
 def recognize_lookup(
     endpoint: Any,
     *,

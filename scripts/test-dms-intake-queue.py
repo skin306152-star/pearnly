@@ -666,5 +666,30 @@ class IntakeQueue(unittest.TestCase):
         self.assertEqual(len(self.messages()), sent_before_revoke)
 
 
+class ExistingCustomerName(unittest.TestCase):
+    """建档时撞上已有客户：姓名与查重直接命中走同一条规则（用户 2026-10-06 定）。"""
+
+    def build(self, current_name, card_name):
+        from pearnly_dms.intake import review
+
+        conflict = {"customer_id": "134", "current": {"name": current_name, "people_id": "1310200999112"},
+                    "desired": {"name": card_name, "people_id": "1310200999112"}, "conflicts": []}
+        with patch.object(review.draft, "master_snapshot", return_value=({}, {})), \
+                patch.object(review.draft, "display_diffs", side_effect=lambda diffs, geo: diffs), \
+                patch.object(review, "diff_card", return_value={"type": "flex"}), \
+                patch.object(review.cards, "same_customer_card", return_value={"type": "flex"}):
+            updated, _card = review.build("u", {}, conflict, has_admin=True, existing=True)
+        return updated
+
+    def test_one_letter_apart_keeps_the_dms_spelling_and_shows_no_name_change(self):
+        updated = self.build("อิศราถรณ์ ทดสอบดี", "อริศราภรณ์ ทดสอบดี")
+        self.assertNotIn("name", [diff["field"] for diff in updated["field_diffs"]])
+        self.assertEqual(updated["write_fields"]["name"], "อิศราถรณ์ ทดสอบดี")
+
+    def test_a_really_different_name_is_still_offered_as_a_change(self):
+        updated = self.build("สมศรี ใจดี", "สมศรี แสนสุข")
+        self.assertIn({"field": "name", "old": "สมศรี ใจดี", "new": "สมศรี แสนสุข"}, updated["field_diffs"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
