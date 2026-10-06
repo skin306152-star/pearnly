@@ -18,6 +18,7 @@ sys.path.insert(0, str(HERE))
 import content as C  # noqa: E402
 import guides as G  # noqa: E402
 import mascot as M  # noqa: E402
+import poster as P  # noqa: E402
 
 STATIC = HERE / "static"
 VERSION = ""
@@ -115,12 +116,13 @@ def breadcrumb(lang, trail):
     return {"@type": "BreadcrumbList", "itemListElement": items}
 
 
-def head(lang, key, title, description, graph, noindex=False):
+def head(lang, key, title, description, graph, noindex=False, fonts=""):
     alternates = "".join(f'<link rel="alternate" hreflang="{C.LANGS[l]["hreflang"]}" href="{absolute(url(l, key))}">' for l in languages(key))
     alternates += f'<link rel="alternate" hreflang="x-default" href="{absolute(url(C.DEFAULT_LANG, key))}">'
     canonical = absolute(url(lang, key))
     ld = jsonld({"@context": "https://schema.org", "@graph": graph}) if graph else ""
     robots = '<meta name="robots" content="noindex">\n' if noindex else ""
+    extra = f'<link rel="stylesheet" href="{esc(fonts)}">\n' if fonts else ""
     return f"""<!doctype html>
 <html lang="{C.LANGS[lang]["html"]}">
 <head>
@@ -148,7 +150,7 @@ def head(lang, key, title, description, graph, noindex=False):
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{FONTS}">
-<link rel="stylesheet" href="/static/style.css?v={VERSION}">
+{extra}<link rel="stylesheet" href="/static/style.css?v={VERSION}">
 <script>document.documentElement.classList.add('js')</script>
 <script src="/static/site.js?v={VERSION}" defer></script>
 {ld}
@@ -484,6 +486,7 @@ def page_home(lang):
     )
     graph = [ORG, {"@type": "WebSite", "@id": C.SITE + "/#site", "name": "Pearnly", "url": C.SITE + "/",
                    "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}]
+    peel = {**h["peel"], "cols": h["story"]["cols"], "rows": C.STORY_ROWS[:5]}
     body = f"""<section class="hero">
   <div class="wrap center">
     <span class="badge"><i class="live"></i>{esc(h["badge"])}</span>
@@ -491,8 +494,9 @@ def page_home(lang):
     <p class="lead">{esc(h["lead"])}</p>
     {cta_buttons(lang, watch)}
   </div>
-  <div class="wrap wide hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div>
+  <div class="wrap wide"><figure class="peel">{P.svg(peel)}</figure></div>
 </section>
+<section class="wrap wide section demo-band"><div class="hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div></section>
 {story(lang)}<section class="wrap section logos reveal">
   <p class="serif">{esc(t["integrations"])}</p>
   <div class="logo-row">{logos}</div>
@@ -508,7 +512,8 @@ def page_home(lang):
   <div class="tiles">{tools}</div>
 </section>
 {home_guides(lang)}"""
-    return head(lang, "home", h["title"], h["description"], graph) + header(lang, "home") + body + contact(lang) + footer(lang)
+    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel)) + header(lang, "home") + body
+            + contact(lang) + footer(lang))
 
 
 def home_guides(lang):

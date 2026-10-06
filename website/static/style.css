@@ -725,3 +725,15 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 a.flow-col { display: block; color: var(--text); transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
 a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .compare tbody th { width: 34%; }
+
+/* 主视觉下面的演示窗：给挥手的小单留出位置，别压到主视觉上 */
+.demo-band { padding-top: 150px; }
+@media (max-width: 760px) { .demo-band { padding-top: 110px; } }
+
+/* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：照片 × 铅笔手绘，卷角由 site.js peel() 随滚动卷起 ---------- */
+.peel { margin: 0; border-radius: 22px; overflow: hidden; background: #f5f0e6;
+  box-shadow: 0 1px 2px rgba(20, 20, 19, .05), 0 24px 60px -24px rgba(60, 36, 10, .32); }
+.pz { display: block; width: 100%; height: auto; }
+.pz .pz-face { overflow: visible; }
+
+@media (max-width: 760px) { .peel { border-radius: 16px; margin: 0 -4px; } }

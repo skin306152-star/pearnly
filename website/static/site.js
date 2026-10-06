@@ -370,12 +370,66 @@
     window.addEventListener('pointermove', function (e) { px = e.clientX; py = e.clientY; if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
   }
 
+  // ---- 首页主视觉：小单把书桌照片的一角卷起来，露出底下整理好的账（几何与 website/poster.py geom() 同一套） ----
+  function peel() {
+    var svg = document.querySelector('.pz');
+    if (!svg) return;
+    var HP = +svg.getAttribute('data-hp'), HX = +svg.getAttribute('data-hand-x'), p0 = +svg.getAttribute('data-p0');
+    var sh = svg.getAttribute('data-shoulders').split(',').map(Number);
+    var clip = svg.querySelector('.pz-clip'), band = svg.querySelector('.pz-band'), shade = svg.querySelector('.pz-shade'),
+      lip = svg.querySelector('.pz-lip'), edge = svg.querySelector('.pz-curve'), bend = svg.querySelector('.pz-bend'),
+      grad = svg.querySelector('#pz-roll'), arms = svg.querySelectorAll('.pz-arm'), hands = svg.querySelector('.pz-hands');
+    function f(v) { return Math.round(v * 10) / 10; }
+    function draw(p) {
+      var L = 120 + 120 * p, w = 700 + 260 * p, t = 14 + L * .16, cx = w * .42, cy = HP - L * .62, ly = cy + t * .85;
+      var curve = 'M' + f(w) + ' ' + HP + 'Q' + f(cx) + ' ' + f(cy) + ' 0 ' + f(HP - L);
+      var low = '0 ' + f(HP - L + t) + 'Q' + f(cx) + ' ' + f(ly) + ' ' + f(w) + ' ' + HP;
+      var mx = .25 * w + .5 * cx, my = .25 * HP + .5 * cy + .25 * (HP - L), k = t / Math.sqrt(L * L + w * w);
+      clip.setAttribute('d', 'M0 0H1440V' + HP + 'H' + f(w) + 'Q' + f(cx) + ' ' + f(cy) + ' 0 ' + f(HP - L) + 'Z');
+      band.setAttribute('d', curve + 'L' + low + 'Z'); shade.setAttribute('d', curve + 'L' + low + 'Z');
+      bend.setAttribute('d', curve); edge.setAttribute('d', curve); lip.setAttribute('d', 'M' + low);
+      grad.setAttribute('x1', f(mx)); grad.setAttribute('y1', f(my)); grad.setAttribute('x2', f(mx - L * k)); grad.setAttribute('y2', f(my + w * k));
+      var lo = 0, hi = 1, s = 0, i, x, hy;
+      for (i = 0; i < 24; i++) { s = (lo + hi) / 2; x = (1 - s) * (1 - s) * w + 2 * s * (1 - s) * cx; if (x > HX) lo = s; else hi = s; }
+      hy = (1 - s) * (1 - s) * HP + 2 * s * (1 - s) * ly + s * s * (HP - L + t);
+      arms[0].setAttribute('d', 'M' + sh[0] + ' ' + sh[1] + 'Q' + f(Math.min(sh[0], HX) - 30) + ' ' + f((sh[1] + hy) / 2) + ' ' + f(HX - 9) + ' ' + f(hy));
+      arms[1].setAttribute('d', 'M' + sh[2] + ' ' + sh[3] + 'Q' + f(Math.max(sh[2], HX) + 26) + ' ' + f((sh[3] + hy) / 2) + ' ' + f(HX + 9) + ' ' + f(hy));
+      hands.setAttribute('transform', 'translate(' + HX + ' ' + f(hy) + ')');
+    }
+    // 手机上只取左边一段，变成竖版海报
+    function fit() { svg.setAttribute('viewBox', svg.parentNode.clientWidth < 640 ? '0 0 720 860' : '0 0 1440 860'); }
+    fit();
+    window.addEventListener('resize', fit);
+    if (reduce) { draw(p0); return; }
+    // 往下滑越卷越高；每隔几秒用力拽一下。只在看得见、卷的程度有变化时才重画
+    var cur = -.75, tug = 0, last = 0, queued = false;
+    function goal() {
+      var r = svg.getBoundingClientRect(), vh = window.innerHeight;
+      return Math.max(.12, Math.min(1, (vh - r.top - r.height * .45) / (vh * .8)));
+    }
+    function frame(now) {
+      queued = false;
+      var g = goal(), k = Math.max(0, 1 - (now - tug) / 700), pull = Math.sin(Math.min(1, (now - tug) / 700) * Math.PI) * .07 * (k > 0);
+      cur += (g - cur) * Math.min(1, (now - last) / 160 || .1);
+      last = now;
+      draw(cur + pull);
+      if (Math.abs(g - cur) > .002 || k > 0) queue();
+    }
+    function queue() { if (!queued) { queued = true; requestAnimationFrame(frame); } }
+    var seen = true;
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { seen = e[0].isIntersecting; if (seen) queue(); }).observe(svg);
+    window.addEventListener('scroll', function () { if (seen) queue(); }, { passive: true });
+    setInterval(function () { if (seen && !document.hidden) { tug = performance.now(); queue(); } }, 4200);
+    last = performance.now();
+    queue();
+  }
+
   // ---- 预约演示按钮：手机上直接打开预填好消息的 LINE 对话；电脑上留在加好友页（扫码） ----
   function lineMessages() {
     if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
     document.querySelectorAll('[data-line-message]').forEach(function (a) { a.href = a.getAttribute('data-line-message'); });
   }
 
-  function init() { dots(); reveal(); topbar(); demo(); players(); story(); mascots(); lineMessages(); }
+  function init() { dots(); reveal(); topbar(); demo(); players(); story(); mascots(); peel(); lineMessages(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

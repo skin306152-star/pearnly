@@ -181,6 +181,8 @@ HOME = {
         "badge": "LINE · เว็บ · MR.ERP DMS · เชื่อมต่อ ERP ภายนอก",
         "h1": "ถ่ายรูปเอกสาร\nข้อมูลเข้าระบบให้เอง",
         "lead": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน ตรวจตัวเลขให้ แล้วบันทึกเข้าโปรแกรมที่คุณใช้อยู่ ทั้งบนเว็บและใน LINE",
+        "peel": {"caption": "ข้างใต้มีอะไร?",
+                 "alt": "โต๊ะทำงานที่มีใบกำกับภาษี ใบเสร็จ และสเตทเมนต์วางกองอยู่ น้องใบกำลังเปิดมุมภาพขึ้น ข้างใต้คือรายการที่บันทึกเรียบร้อยแล้ว"},
         "products_title": "เลือกตามงานของคุณ",
         "steps_title": "ทำงานอย่างไร",
         "steps": [
@@ -213,6 +215,8 @@ HOME = {
         "badge": "LINE · Web · MR.ERP DMS · Custom ERP integration",
         "h1": "Snap the document.\nThe data enters itself.",
         "lead": "Pearnly reads tax invoices, receipts and ID cards, checks the numbers, and enters them into the software you already use, on the web and in LINE.",
+        "peel": {"caption": "what's under here?",
+                 "alt": "A desk piled with tax invoices, receipts and a bank statement; the mascot peels up a corner of the photo to show the neatly recorded entries underneath."},
         "products_title": "Pick the one that fits your work",
         "steps_title": "How it works",
         "steps": [
@@ -245,6 +249,8 @@ HOME = {
         "badge": "LINE · 网页 · MR.ERP DMS · 定制接入第三方 ERP",
         "h1": "拍下单据\n数据自动进系统",
         "lead": "Pearnly 读取税务发票、收据和身份证，核对数字，再录入你正在用的软件。网页和 LINE 都能用。",
+        "peel": {"caption": "下面是什么？",
+                 "alt": "书桌上堆着税务发票、收据和银行流水，小单把照片一角掀起来，下面是已经录好的账。"},
         "products_title": "按你的业务选择",
         "steps_title": "怎么运作",
         "steps": [
