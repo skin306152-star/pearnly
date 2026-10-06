@@ -730,11 +730,24 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .demo-band { padding-top: 112px; }
 @media (max-width: 760px) { .demo-band { padding-top: 90px; } }
 
-/* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：一张浅色书桌相片斜放在页面上，页面本身就是手绘那张纸 ---------- */
-.peel { position: relative; margin: 0 auto; max-width: 1000px; }
-.pz { display: block; width: 100%; height: auto; overflow: visible; }
+/* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：彩铅插画放进一张液态玻璃卡片（同顶栏的玻璃做法），左下角被小单卷起 ---------- */
+.peel {
+  position: relative; isolation: isolate; margin: 0 auto; max-width: 1060px; padding: 16px 16px 4px; border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, .8); background: rgba(255, 255, 255, .1);
+  -webkit-backdrop-filter: blur(3px) saturate(1.7); backdrop-filter: blur(3px) saturate(1.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .5),
+              inset 1px 0 0 rgba(255, 255, 255, .5), inset -1px 0 0 rgba(255, 255, 255, .5),
+              inset 0 0 18px rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(20, 20, 19, .06),
+              0 18px 50px -22px rgba(20, 20, 19, .28), 0 2px 6px -2px rgba(20, 20, 19, .08);
+}
+.peel::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .42) 0%, rgba(255, 255, 255, .06) 22%, rgba(255, 255, 255, 0) 40%),
+              radial-gradient(120% 60% at 50% -18%, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 60%);
+}
+.pz { display: block; width: 100%; height: auto; overflow: hidden; }
 .pz .pz-face { overflow: visible; }
-.pz-doodle { position: absolute; z-index: 2; width: 150px; height: auto; right: 9%; top: -150px; opacity: .8; }
+.pz-doodle { position: absolute; z-index: 2; width: 128px; height: auto; right: 7%; top: -128px; }
 /* 标题里一个词下面的荧光笔，和相片里便利贴、荧光笔是同一种黄 */
 .hero h1 { isolation: isolate; }
 .hl { position: relative; white-space: nowrap; }
@@ -748,4 +761,4 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 :lang(en) .hl::after { bottom: .36em; height: .3em; }
 @keyframes hl-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .hl::after { animation: none; } }
-@media (max-width: 760px) { .pz-doodle { display: none; } }
+@media (max-width: 760px) { .pz-doodle { display: none; } .peel { padding: 10px 10px 2px; border-radius: 24px; } }

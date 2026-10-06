@@ -10,16 +10,12 @@ import html
 import math
 from urllib.parse import quote
 
-W, H, HP = 1440, 900, 560          # 画布宽高、画面下沿
-PROP_X, PROP = 300, 340             # 大铅笔顶住卷边的位置（x 固定，y 跟着卷边走）与铅笔长度
-PEEK_X = 446                        # 小单另一只手扒住卷边的位置
-GRIP = .52                          # 小单握在铅笔上的位置（从笔尖算起的比例）
-HIP, TILT, SCALE = (362, 732), 6, 1.7   # 小单身体底边中点、后仰角度、放大倍数
+W, H, HP = 1440, 870, 560          # 画布宽高、画面下沿
+HIP, TILT, SCALE = (204, 714), 4, 1.55   # 小单身体底边中点、后仰角度、放大倍数
 GROUND = HIP[1] + 40 * SCALE
 P0 = .3                             # 没有脚本时的卷起程度（0–1）
-ROLL = ((.16, 2.4, .55), (.3, 1.8, .4), (.44, 1.4, .28))   # 卷筒明暗线：位置比例、粗细、深浅
-ROT = -1.2                          # 画面在页面上微微斜放
-VIEW, VIEW_SM = f"-40 -40 1520 {H + 40}", f"-24 -40 760 {H + 40}"   # 电脑整张；手机只取左段成竖版
+RX = 26                             # 画面圆角
+VIEW, VIEW_SM = f"0 0 {W} {H}", f"0 0 720 {H}"   # 电脑整张；手机只取左段成竖版
 
 INK, LINE, PAPER = "#2d2b27", "#3d362c", "#fffdf6"
 HAND = "'Sriracha', 'Long Cang', cursive"
@@ -35,26 +31,29 @@ def n(v):
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
+def pt(x, y):
+    return f"{n(x)} {n(y)}"
+
+
 # ---------------- 卷角几何（与 site.js peel() 同一套公式） ----------------
 
 def geom(p):
-    lift, width = 120 + 90 * p, 700 + 260 * p
-    t = 16 + lift * .2
-    cx, cy = width * .42, HP - lift * .62
-    curve = f"M{n(width)} {HP}Q{n(cx)} {n(cy)} 0 {n(HP - lift)}"
-    clip = f"M0 0H{W}V{HP}H{n(width)}Q{n(cx)} {n(cy)} 0 {n(HP - lift)}Z"
-    lip = f"M0 {n(HP - lift + t)}Q{n(cx)} {n(cy + t * .85)} {n(width)} {HP}"
-
-    def lip_at(x0):                     # 卷边下沿上 x = x0 的点
-        lo, hi = 0.0, 1.0
-        for _ in range(24):
-            s = (lo + hi) / 2
-            x = (1 - s) ** 2 * width + 2 * s * (1 - s) * cx
-            lo, hi = (s, hi) if x > x0 else (lo, s)
-        return x0, (1 - s) ** 2 * HP + 2 * s * (1 - s) * (cy + t * .85) + s * s * (HP - lift + t)
-    def roll(f):                        # 卷筒上顺着卷边走的明暗线：在折线与卷边之间按比例插值
-        return f"M0 {n(HP - lift + f * t)}Q{n(cx)} {n(cy + .85 * f * t)} {n(width)} {HP}"
-    return dict(curve=curve, clip=clip, band=curve + "L" + lip[1:] + "Z", lip=lip, roll=roll, top=lip_at(PROP_X), peek=lip_at(PEEK_X))
+    """左下角往上卷起一角：折痕 A→B，卷起来的那块背面是 A→T→B 的弯三角，T 是原来的纸角。"""
+    lift = 170 + 110 * p
+    w = lift * 1.7
+    ax, ay, bx, by = 0, HP - lift, w, HP
+    fx, fy = w * .55, HP - lift * .55          # 折痕的弯度
+    tx, ty = w * .3, HP - lift * .22           # 卷起来的纸角
+    px, py = w * .1, HP - lift * .42           # 左边那条边的弯度
+    qx, qy = w * .6, HP - lift * .06           # 下边那条边的弯度
+    gx, gy = fx + (tx - fx) * .55, fy + (ty - fy) * .55   # 折痕旁的排线阴影只到这里
+    fold = f"M{pt(ax, ay)}Q{pt(fx, fy)} {pt(bx, by)}"
+    return dict(
+        clip=f"M0 0H{W}V{HP}H{n(bx)}Q{pt(fx, fy)} {pt(ax, ay)}Z",
+        flap=f"{fold}Q{pt(qx, qy)} {pt(tx, ty)}Q{pt(px, py)} {pt(ax, ay)}Z",
+        crease=f"{fold}Q{pt(gx, gy)} {pt(ax, ay)}Z",
+        fold=fold, edge=f"M{pt(ax, ay)}Q{pt(px, py)} {pt(tx, ty)}Q{pt(qx, qy)} {pt(bx, by)}",
+        hand=(tx + 2, ty + 7))
 
 
 def rot(x, y):
@@ -63,16 +62,8 @@ def rot(x, y):
     return HIP[0] + x * math.cos(a) - y * math.sin(a), HIP[1] + x * math.sin(a) + y * math.cos(a)
 
 
-GRIP_SHOULDER, PEEK_SHOULDER = rot(-38, -42), rot(38, -48)
-
-
-def pencil_pose(top):
-    """铅笔顶在卷边上、笔尖着地并往左斜：卷得越高立得越直。返回旋转角和小单握住的点。"""
-    hx, hy = top
-    rise = GROUND - hy
-    run = math.sqrt(max(PROP ** 2 - rise ** 2, 0))
-    lean = math.degrees(math.atan2(run, rise))
-    return lean, (hx - run * GRIP, GROUND - rise * GRIP)
+PEEK_SHOULDER, BACK_SHOULDER = rot(-38, -46), rot(38, -46)
+BACK_HAND = rot(44, -54)
 
 
 def limb(a, b, bend):
@@ -106,9 +97,6 @@ DEFS = """<defs>
 </filter>
 <pattern id="pz-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)">
   <path d="M0 4 H8" stroke="#8d7f66" stroke-width="1.5"/>
-</pattern>
-<pattern id="pz-hatch2" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
-  <path d="M0 4.5 H9" stroke="#b39c78" stroke-width="1.6"/>
 </pattern>
 </defs>"""
 
@@ -288,22 +276,24 @@ def under(L):
             f'<path d="M30 0 V{HP}" stroke="#f0a9a9" stroke-width="2"/>{head}{rows}')
 
 
-# ---------------- 小单与大铅笔 ----------------
+# ---------------- 小单 ----------------
 
-def pencil(top):
-    """一支黄色大铅笔，橡皮头顶住卷边，笔尖着地。"""
-    lean, _ = pencil_pose(top)
-    L = PROP
-    return (f'<g class="pz-prop" transform="translate({n(top[0])} {n(top[1])}) rotate({n(lean)})" color="{INK}" stroke="currentColor" '
-            f'stroke-width="2.6" stroke-linejoin="round" filter="url(#pz-pencil)">'
-            '<rect x="-11" y="-4" width="22" height="24" rx="6" fill="#ff9ba3"/><rect x="-11" y="18" width="22" height="12" fill="#cfd2d8"/>'
-            '<path d="M-11 22 H11 M-11 26 H11" stroke-width="1.4"/>'
-            f'<rect x="-11" y="30" width="22" height="{L - 70}" fill="#ffd84d"/><path d="M-3.5 34 V{L - 44}" stroke="#e6b62e" stroke-width="2.4"/>'
-            f'<path d="M-11 {L - 40} L0 {L} L11 {L - 40} Z" fill="#f6dcb4"/><path d="M-3.6 {L - 13} L0 {L} L3.6 {L - 13} Z" fill="currentColor"/></g>')
+def pencil():
+    """小单背在身后的一支黄铅笔：斜横在腰后，橡皮头从左边露出来，笔尖从右边露出来，右手在右边攥着。"""
+    cx, cy = rot(0, -40)
+    a = math.radians(-18)
+    half = 140
+    x0, y0 = cx + math.cos(a) * half, cy + math.sin(a) * half     # 笔尖那头（右上）
+    L = half * 2
+    return (f'<g transform="translate({n(x0)} {n(y0)}) rotate({n(math.degrees(a) - 90)})" color="{INK}" stroke="currentColor" stroke-width="2.6" '
+            f'stroke-linejoin="round" filter="url(#pz-pencil)">'
+            f'<rect x="-10" y="-{L - 26}" width="20" height="{L - 60}" fill="#ffd84d"/><path d="M-3 -{L - 30} V-38" stroke="#e6b62e" stroke-width="2.2"/>'
+            f'<rect x="-10" y="-{L}" width="20" height="22" rx="6" fill="#ff9ba3"/><rect x="-10" y="-{L - 20}" width="20" height="10" fill="#cfd2d8"/>'
+            f'<path d="M-10 -36 L0 0 L10 -36 Z" fill="#f6dcb4"/><path d="M-3.4 -12 L0 0 L3.4 -12 Z" fill="currentColor"/></g>')
 
 
 def mascot(g):
-    """铅笔线条的小单：左手扶着大铅笔，右手扒住卷边，仰头往里看。"""
+    """铅笔线条的小单：右手把铅笔藏在身后，左手捏住卷起来的纸角，仰头往里看。"""
     def zig():
         out, up = [], True
         for _ in range(8):
@@ -313,74 +303,65 @@ def mascot(g):
     body = (f'<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V0 {zig()} Z" fill="{PAPER}"/>'
             '<path d="M-24 -38 H18 M-24 -26 H8" stroke="#bdb7aa" stroke-width="3"/>'
             '<rect x="2" y="-17" width="26" height="10" rx="3" fill="#ffd84d" stroke="currentColor" stroke-width="2.4"/>'
-            '<ellipse cx="10" cy="-52" rx="4.5" ry="5.5" stroke-width="2.4"/>'
+            '<ellipse cx="-6" cy="-52" rx="4.5" ry="5.5" stroke-width="2.4"/>'
             '<svg class="mascot pz-face" x="-39" y="-100" width="78" height="60" viewBox="-39 -100 78 60" overflow="visible">'
-            '<ellipse cx="-19" cy="-64" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
-            '<ellipse cx="25" cy="-65" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
-            '<g class="m-blink"><circle cx="-4" cy="-80" r="5" fill="currentColor" stroke="none"/>'
-            '<circle cx="21" cy="-81" r="5" fill="currentColor" stroke="none"/></g></svg>')
+            '<ellipse cx="-25" cy="-65" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+            '<ellipse cx="19" cy="-64" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+            '<g class="m-blink"><circle cx="-18" cy="-81" r="5" fill="currentColor" stroke="none"/>'
+            '<circle cx="6" cy="-80" r="5" fill="currentColor" stroke="none"/></g></svg>')
     (ax, ay), (bx, by) = rot(-14, 0), rot(14, 0)
     k = SCALE
     gy = n(GROUND)
-    legs = (f'<path d="M{n(ax)} {n(ay)} L{n(ax - 10 * k)} {n(ay + 22 * k)} L{n(ax - 6 * k)} {gy} h{n(-18 * k)}"/>'
-            f'<path d="M{n(bx)} {n(by)} L{n(bx + 16 * k)} {n(by + 20 * k)} L{n(bx + 22 * k)} {gy} h{n(18 * k)}"/>')
-    _, grip = pencil_pose(g["top"])
-    peek = g["peek"]
+    legs = (f'<path d="M{n(ax)} {n(ay)} L{n(ax - 14 * k)} {n(ay + 20 * k)} L{n(ax - 10 * k)} {gy} h{n(-18 * k)}"/>'
+            f'<path d="M{n(bx)} {n(by)} L{n(bx + 12 * k)} {n(by + 22 * k)} L{n(bx + 18 * k)} {gy} h{n(18 * k)}"/>')
+    hx, hy = g["hand"]
+    bh = BACK_HAND
     return (f'<g class="pz-pencil" color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#pz-pencil)">'
-            f'<path d="M{HIP[0] - 120} {gy} m0 4 h250 M{HIP[0] - 84} {gy} m0 11 h170 M{HIP[0] - 40} {gy} m0 18 h80" stroke-width="1.6" opacity=".35"/>'
-            + legs
+            f'<path d="M{HIP[0] - 110} {gy} m0 4 h230 M{HIP[0] - 76} {gy} m0 11 h158 M{HIP[0] - 36} {gy} m0 18 h76" stroke-width="1.6" opacity=".35"/>'
+            + legs + '</g>' + pencil()
+            + f'<g color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#pz-pencil)">'
             + f'<g transform="translate({HIP[0]} {HIP[1]}) rotate({TILT}) scale({SCALE})" stroke-width="{n(3 / SCALE)}">{body}</g>'
-            + f'<path class="pz-grip" d="{limb(GRIP_SHOULDER, grip, -18)}"/>'
-            + f'<circle class="pz-grip-hand" cx="{n(grip[0])}" cy="{n(grip[1])}" r="9" fill="{PAPER}"/>'
-            + f'<path class="pz-peek" d="{limb(PEEK_SHOULDER, peek, 16)}"/>'
-            + f'<g class="pz-peek-hand" transform="translate({n(peek[0])} {n(peek[1])})">'
-              f'<circle cy="2" r="9.5" fill="{PAPER}"/><path d="M-6 -6 q6 -6 12 0" stroke-width="2.2"/></g>'
+            + f'<path d="{limb(BACK_SHOULDER, bh, -10)}"/><circle cx="{n(bh[0])}" cy="{n(bh[1])}" r="9" fill="{PAPER}"/>'
+            + f'<path class="pz-peek" d="{limb(PEEK_SHOULDER, (hx, hy), 18)}"/>'
+            + f'<circle class="pz-peek-hand" cx="{n(hx)}" cy="{n(hy)}" r="9.5" fill="{PAPER}"/>'
             + '</g>')
 
 
 def svg(L):
     g = geom(P0)
-    data = (f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-hp="{HP}" data-p0="{P0}" data-prop-x="{PROP_X}" data-prop="{PROP}" '
-            f'data-peek-x="{PEEK_X}" data-ground="{n(GROUND)}" data-grip="{GRIP}" '
-            f'data-shoulders="{",".join(n(v) for xy in (GRIP_SHOULDER, PEEK_SHOULDER) for v in xy)}"')
+    data = (f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-hp="{HP}" data-p0="{P0}" '
+            f'data-shoulder="{n(PEEK_SHOULDER[0])},{n(PEEK_SHOULDER[1])}"')
     return f"""<svg class="pz" viewBox="{VIEW}" {data} role="img" aria-label="{esc(L["alt"])}">
 {DEFS}
-<g transform="rotate({ROT} {W / 2} {HP / 2})">
-<path d="M10 16 H{W + 12} V{HP + 12} H10 Z" fill="#e7dcc8"/>
+<clipPath id="pz-frame"><rect class="pz-frame" width="{W}" height="{HP}" rx="{RX}"/></clipPath>
 <clipPath id="pz-clip"><path class="pz-clip" d="{g['clip']}"/></clipPath>
-<clipPath id="pz-under"><rect width="{W}" height="{HP}"/></clipPath>
-<g clip-path="url(#pz-under)">{under(L)}
-<path class="pz-shade" d="{g['band']}" fill="url(#pz-hatch)" opacity=".55" transform="translate(6 18)"/></g>
+<g clip-path="url(#pz-frame)">
+<g>{under(L)}<path class="pz-shade" d="{g['flap']}" fill="url(#pz-hatch)" opacity=".6" transform="translate(14 14)"/></g>
 <g clip-path="url(#pz-clip)"><g filter="url(#pz-wobble)">{photo()}</g>
-<rect width="{W}" height="{HP}" filter="url(#pz-tex)" opacity=".5"/>
-<path class="pz-bend" d="{g['curve']}" stroke="url(#pz-hatch2)" stroke-width="40" fill="none" opacity=".8"/>
-<rect width="{W}" height="{HP}" fill="none" stroke="{LINE}" stroke-width="5" filter="url(#pz-pencil)"/></g>
-<path class="pz-band" d="{g['band']}" fill="#fbf6ea"/>
-{"".join(f'<path class="pz-roll" data-f="{f}" d="{g["roll"](f)}" fill="none" stroke="#9c8f77" stroke-width="{w}" opacity="{o}" stroke-linecap="round"/>' for f, w, o in ROLL)}
-<g color="{LINE}" filter="url(#pz-pencil)" fill="none" stroke="currentColor" stroke-linecap="round">
-<path class="pz-curve" d="{g['curve']}" stroke-width="2"/><path class="pz-lip" d="{g['lip']}" stroke-width="2.8"/></g>
-{pencil(g['top'])}
-{mascot(g)}
+<rect width="{W}" height="{HP}" filter="url(#pz-tex)" opacity=".5"/></g>
+<path class="pz-flap" d="{g['flap']}" fill="#fbf6ea"/>
+<path class="pz-crease" d="{g['crease']}" fill="url(#pz-hatch)" opacity=".7"/>
+<g color="{LINE}" filter="url(#pz-pencil)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+<path class="pz-fold" d="{g['fold']}" stroke-width="2"/><path class="pz-edge" d="{g['edge']}" stroke-width="2.8"/></g>
 </g>
-<text class="pz-caption" x="{HIP[0] + 10}" y="{n(GROUND + 66)}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
+{mascot(g)}
+<text class="pz-caption" x="{HIP[0] + 10}" y="{n(GROUND + 64)}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
 </svg>"""
 
 
 def fonts(L):
     """手写字体：Sriracha（泰文 + 拉丁，Google 按字符集分片，只下用到的那片）；中文手写字很大，只按用到的几个字取子集。"""
     urls = ["https://fonts.googleapis.com/css2?family=Sriracha&display=swap"]
-    cjk = "".join(sorted({c for c in L["caption"] if "一" <= c <= "鿿" or c in "，。？"}))
+    cjk = "".join(sorted({c for c in L["caption"] if "\u4e00" <= c <= "\u9fff" or c in "，。？"}))
     if cjk:
         urls.append(f"https://fonts.googleapis.com/css2?family=Long+Cang&text={quote(cjk)}&display=swap")
     return urls
 
 
 def doodle():
-    """标题区到画面之间：随手一笔，绕一个小圈，末端是一架纸飞机——单据飞进系统。"""
-    return ('<svg class="pz-doodle" viewBox="0 0 200 230" fill="none" stroke="#2d2b27" stroke-width="2.6" stroke-linecap="round" '
-            'stroke-linejoin="round" aria-hidden="true" focusable="false"><g filter="url(#pz-pencil)">'
-            '<path d="M8 56 C40 22 100 12 130 30 C150 42 158 64 144 78 C130 92 104 84 104 64 C104 44 128 38 144 48 '
-            'C164 60 170 88 164 114 C160 134 150 150 138 162"/>'
-            '<g transform="translate(122 186) rotate(180) scale(.95) translate(-36 -36)">'
-            '<path d="M66 6 L6 27 L33 39 L45 66 Z" fill="#fffdf6"/><path d="M66 6 L33 39 L45 66 Z" fill="#e9e1cf"/>'
-            '<path d="M66 6 L33 39"/></g></g></svg>')
+    """标题区到卡片之间：一笔黄色记号笔，绕一个小圈落进卡片（和标题下的荧光笔同色）。"""
+    return ('<svg class="pz-doodle" viewBox="370 100 300 310" fill="none" stroke="#ffd84d" stroke-width="9" stroke-linecap="round" '
+            'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+            '<path d="M385 143 C430 115 520 112 568 140 C600 158 625 190 615 225 C605 252 560 258 535 240 C510 222 512 180 545 160 '
+            'C575 142 625 170 640 200 C652 228 650 280 638 310 C628 335 608 362 582 390"/>'
+            '<path d="M585 356 L582 390 L614 382"/></svg>')
