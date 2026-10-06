@@ -494,7 +494,7 @@ def page_home(lang):
     <p class="lead">{esc(h["lead"])}</p>
     {cta_buttons(lang, watch)}
   </div>
-  <div class="wrap wide peel-track"><figure class="peel">{P.doodle()}{P.svg(peel)}</figure></div>
+  <div class="wrap wide"><figure class="peel">{P.doodle()}{P.svg(peel)}</figure></div>
 </section>
 <section class="wrap wide section demo-band"><div class="hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div></section>
 {story(lang)}<section class="wrap section logos reveal">

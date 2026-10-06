@@ -745,10 +745,6 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
   background: linear-gradient(180deg, rgba(255, 255, 255, .3) 0%, rgba(255, 255, 255, .04) 14%, rgba(255, 255, 255, 0) 26%);
 }
 .pz { display: block; width: 100%; height: auto; overflow: hidden; }
-/* 滚动驱动：卡片在屏幕中间停住，页面再滑过这段高度，小单把画卷完（site.js 加 .scrolly；没脚本或减少动态效果时不加） */
-.peel-track.scrolly { height: 260vh; }
-.peel-track.scrolly .peel { position: sticky; top: max(84px, calc(50vh - 34vw * .5)); }
-@media (min-width: 1100px) { .peel-track.scrolly .peel { top: max(84px, calc(50vh - 240px)); } }
 .pz .pz-face { overflow: visible; }
 .pz-doodle { position: absolute; z-index: 2; width: 128px; height: auto; right: 7%; top: -128px; }
 /* 标题里一个词下面的荧光笔，和相片里便利贴、荧光笔是同一种黄 */
