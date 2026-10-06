@@ -116,13 +116,13 @@ def breadcrumb(lang, trail):
     return {"@type": "BreadcrumbList", "itemListElement": items}
 
 
-def head(lang, key, title, description, graph, noindex=False, fonts=""):
+def head(lang, key, title, description, graph, noindex=False, fonts=()):
     alternates = "".join(f'<link rel="alternate" hreflang="{C.LANGS[l]["hreflang"]}" href="{absolute(url(l, key))}">' for l in languages(key))
     alternates += f'<link rel="alternate" hreflang="x-default" href="{absolute(url(C.DEFAULT_LANG, key))}">'
     canonical = absolute(url(lang, key))
     ld = jsonld({"@context": "https://schema.org", "@graph": graph}) if graph else ""
     robots = '<meta name="robots" content="noindex">\n' if noindex else ""
-    extra = f'<link rel="stylesheet" href="{esc(fonts)}">\n' if fonts else ""
+    extra = "".join(f'<link rel="stylesheet" href="{esc(f)}">\n' for f in fonts)
     return f"""<!doctype html>
 <html lang="{C.LANGS[lang]["html"]}">
 <head>

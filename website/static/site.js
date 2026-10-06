@@ -374,27 +374,43 @@
   function peel() {
     var svg = document.querySelector('.pz');
     if (!svg) return;
-    var HP = +svg.getAttribute('data-hp'), HX = +svg.getAttribute('data-hand-x'), p0 = +svg.getAttribute('data-p0');
-    var prop = +svg.getAttribute('data-prop'), ground = +svg.getAttribute('data-ground');
-    var clip = svg.querySelector('.pz-clip'), band = svg.querySelector('.pz-band'), shade = svg.querySelector('.pz-shade'),
-      lip = svg.querySelector('.pz-lip'), edge = svg.querySelector('.pz-curve'), bend = svg.querySelector('.pz-bend'),
-      grad = svg.querySelector('#pz-roll'), pencil = svg.querySelector('.pz-prop');
+    function num(k) { return +svg.getAttribute('data-' + k); }
+    var HP = num('hp'), p0 = num('p0'), PX = num('prop-x'), prop = num('prop'), KX = num('peek-x'), ground = num('ground'), grip = num('grip');
+    var sh = svg.getAttribute('data-shoulders').split(',').map(Number);
+    function q(sel) { return svg.querySelector(sel); }
+    var bands = svg.querySelectorAll('.pz-band'), rolls = svg.querySelectorAll('.pz-roll'), clip = q('.pz-clip'), shade = q('.pz-shade'), lip = q('.pz-lip'), edge = q('.pz-curve'),
+      bend = q('.pz-bend'), pencil = q('.pz-prop'), gripArm = q('.pz-grip'), gripHand = q('.pz-grip-hand'), peekArm = q('.pz-peek'), peekHand = q('.pz-peek-hand');
     function f(v) { return Math.round(v * 10) / 10; }
+    // 胳膊：从肩到手，向一侧拱一点（与 poster.py limb() 同一算法）
+    function limb(ax, ay, bx, by, bend) {
+      var dx = by - ay, dy = ax - bx, d = Math.sqrt(dx * dx + dy * dy) || 1;
+      return 'M' + f(ax) + ' ' + f(ay) + 'Q' + f((ax + bx) / 2 + dx / d * bend) + ' ' + f((ay + by) / 2 + dy / d * bend) + ' ' + f(bx) + ' ' + f(by);
+    }
     function draw(p) {
-      var L = 120 + 90 * p, w = 700 + 260 * p, t = 14 + L * .16, cx = w * .42, cy = HP - L * .62, ly = cy + t * .85;
+      var L = 120 + 90 * p, w = 700 + 260 * p, t = 16 + L * .2, cx = w * .42, cy = HP - L * .62, ly = cy + t * .85, i;
       var curve = 'M' + f(w) + ' ' + HP + 'Q' + f(cx) + ' ' + f(cy) + ' 0 ' + f(HP - L);
       var low = '0 ' + f(HP - L + t) + 'Q' + f(cx) + ' ' + f(ly) + ' ' + f(w) + ' ' + HP;
-      var mx = .25 * w + .5 * cx, my = .25 * HP + .5 * cy + .25 * (HP - L), k = t / Math.sqrt(L * L + w * w);
       clip.setAttribute('d', 'M0 0H1440V' + HP + 'H' + f(w) + 'Q' + f(cx) + ' ' + f(cy) + ' 0 ' + f(HP - L) + 'Z');
-      band.setAttribute('d', curve + 'L' + low + 'Z'); shade.setAttribute('d', curve + 'L' + low + 'Z');
+      for (i = 0; i < bands.length; i++) bands[i].setAttribute('d', curve + 'L' + low + 'Z');
+      for (i = 0; i < rolls.length; i++) {
+        var k = +rolls[i].getAttribute('data-f');
+        rolls[i].setAttribute('d', 'M0 ' + f(HP - L + k * t) + 'Q' + f(cx) + ' ' + f(cy + .85 * k * t) + ' ' + f(w) + ' ' + HP);
+      }
+      shade.setAttribute('d', curve + 'L' + low + 'Z');
       bend.setAttribute('d', curve); edge.setAttribute('d', curve); lip.setAttribute('d', 'M' + low);
-      grad.setAttribute('x1', f(mx)); grad.setAttribute('y1', f(my)); grad.setAttribute('x2', f(mx - L * k)); grad.setAttribute('y2', f(my + w * k));
-      var lo = 0, hi = 1, s = 0, i, x, hy;
-      for (i = 0; i < 24; i++) { s = (lo + hi) / 2; x = (1 - s) * (1 - s) * w + 2 * s * (1 - s) * cx; if (x > HX) lo = s; else hi = s; }
-      hy = (1 - s) * (1 - s) * HP + 2 * s * (1 - s) * ly + s * s * (HP - L + t);
-      // 铅笔顶在卷边上、笔尖着地：卷得越高立得越直（与 poster.py prop() 同一算法）
-      var rise = ground - hy, lean = -Math.atan2(-Math.sqrt(Math.max(prop * prop - rise * rise, 0)), rise) * 180 / Math.PI;
-      pencil.setAttribute('transform', 'translate(' + HX + ' ' + f(hy) + ') rotate(' + f(lean) + ')');
+      function lipY(x0) {
+        var lo = 0, hi = 1, s = 0, j, x;
+        for (j = 0; j < 24; j++) { s = (lo + hi) / 2; x = (1 - s) * (1 - s) * w + 2 * s * (1 - s) * cx; if (x > x0) lo = s; else hi = s; }
+        return (1 - s) * (1 - s) * HP + 2 * s * (1 - s) * ly + s * s * (HP - L + t);
+      }
+      // 大铅笔顶在卷边上、笔尖着地：卷得越高立得越直；小单的一只手握在铅笔上，另一只手扒着卷边
+      var ty = lipY(PX), rise = ground - ty, run = Math.sqrt(Math.max(prop * prop - rise * rise, 0));
+      var gx = PX - run * grip, gy = ground - rise * grip, ky = lipY(KX);
+      pencil.setAttribute('transform', 'translate(' + PX + ' ' + f(ty) + ') rotate(' + f(Math.atan2(run, rise) * 180 / Math.PI) + ')');
+      gripArm.setAttribute('d', limb(sh[0], sh[1], gx, gy, -18));
+      gripHand.setAttribute('cx', f(gx)); gripHand.setAttribute('cy', f(gy));
+      peekArm.setAttribute('d', limb(sh[2], sh[3], KX, ky, 16));
+      peekHand.setAttribute('transform', 'translate(' + KX + ' ' + f(ky) + ')');
     }
     // 手机上只取左边一段，变成竖版海报
     function fit() { svg.setAttribute('viewBox', svg.getAttribute(svg.parentNode.clientWidth < 640 ? 'data-view-sm' : 'data-view')); }
