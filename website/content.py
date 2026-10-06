@@ -78,7 +78,7 @@ INTEGRATIONS = {
 
 COMMON = {
     "th": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "เครื่องมือฟรี", "guides": "บทความ", "tutorials": "วิธีใช้งาน"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tutorials": "วิธีใช้งาน", "tools": "เครื่องมือ", "guides": "คลังความรู้"},
         "cta": "นัดดูเดโมผ่าน LINE",
         "cta_consult": "นัดคุยกับที่ปรึกษา",
         "demo_msg": "สวัสดี อยากนัดดูเดโม {name}",
@@ -110,7 +110,7 @@ COMMON = {
         "integrations": "ทำงานร่วมกับเครื่องมือที่คุณใช้อยู่",
     },
     "en": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "Free tools", "guides": "Guides (TH)", "tutorials": "Tutorials"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tutorials": "Tutorials", "tools": "Tools", "guides": "Resources"},
         "cta": "Book a demo on LINE",
         "cta_consult": "Talk to a consultant",
         "demo_msg": "Hi, I would like a demo of {name}.",
@@ -142,7 +142,7 @@ COMMON = {
         "integrations": "Works with the tools you already use",
     },
     "zh": {
-        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tools": "免费工具", "guides": "泰文指南", "tutorials": "使用教程"},
+        "nav": {"cowork": "Cowork", "dms": "DMS", "erp": "ERP", "mrerp": "MR.ERP", "tutorials": "使用教程", "tools": "工具", "guides": "财税知识"},
         "cta": "LINE 预约演示",
         "cta_consult": "预约顾问",
         "demo_msg": "你好，想预约 {name} 的演示。",
