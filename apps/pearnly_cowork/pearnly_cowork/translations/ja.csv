@@ -345,6 +345,7 @@ Decide once ({0}),一度だけ決める（{0}）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
 Default Payment,既定の支払方法
+Default handling for this folder,既定の処理
 Delete selected ({0}),選択を削除（{0}）
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
@@ -431,7 +432,9 @@ Enter a valid quantity with no more than six decimal places.,有効な数量を�
 Enter list name,リスト名を入力
 Enter the user name,ユーザー名を入力してください
 Entered into Express,登録済み
+Entered {0} · in progress {1},登録済み {0} · 処理中 {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},登録済み {0} · 処理中 {1} · 失敗 {2} · 請求書以外 {3}
+Entered {0} · to check {1},登録済み {0} · 要確認 {1}
 Entering into Express,登録中
 Entries,記録
 Entries · {0},記録 · {0}
@@ -477,6 +480,7 @@ First Recognition Value,初回認識値
 Folder and schedule,フォルダーとスケジュール
 Folder auto-intake is not turned on for this site.,このサイトではフォルダー自動取込が有効になっていません。
 Folder auto-intake rules,フォルダー自動取込ルール
+Folder results,結果
 Folder rule name,ルール名
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
 Folder rules work with Express connections only.,Express 接続でのみ使えます。
@@ -678,6 +682,7 @@ Observer,オブザーバー
 On schedule,スケジュール
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
+One folder per rule. PDF and image files only.,1 フォルダーに 1 ルール。PDF と画像のみ。
 One of the default choices is not valid for this account set.,既定の処理の一部がこの帳簿では使えません。
 Only PDF and image files are read.,読み取るのは PDF と画像だけです。
 Only an active count can be deleted,進行中の棚卸のみ削除できます
@@ -885,6 +890,7 @@ Saved. Scan the next item.,保存しました。次の商品を読み取って�
 Scan barcode or QR code,バーコード・QRコードを読む
 Scan barcodes · Record quantities,バーコード読取 · 数量記録
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
+Schedule,実行日時
 Scope,範囲
 Scope Key,権限範囲識別子
 Search cards,カードを検索
@@ -988,6 +994,7 @@ The Companion delivery record was not found.,アシスタントのタスク受�
 The Companion identity is no longer valid. Authenticate again.,アシスタントの認証が無効になりました。再認証してください。
 The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。
 The Companion on this PC has not synced folders recently. Open it and update to the latest version.,この PC のコンパニオンが最近フォルダーを同期していません。起動して最新版に更新してください。
+The Companion on this PC has not synced recently. Update it to the latest version.,この PC のコンパニオンが同期していません。最新版に更新してください。
 The Companion queue request is invalid.,アシスタントのキューリクエストが無効です。
 The Companion queue response is invalid.,アシスタントのキューレスポンスが無効です。
 The Companion report is invalid.,Companion レポートが無効です。
@@ -1395,14 +1402,16 @@ cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
 cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
 cowork.folder.agentStale,コンパニオンがオフラインか更新が必要
-cowork.folder.agentStaleHint,この PC のコンパニオンが最近フォルダーを同期していません。起動して最新版に更新してください。
+cowork.folder.agentStaleHint,この PC のコンパニオンが同期していません。最新版に更新してください。
 cowork.folder.batch_missing,読み取りタスクが見つかりません。
 cowork.folder.billing_pending,課金の完了待ち
 cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
 cowork.folder.catalogEmpty,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
+cowork.folder.col.result,結果
+cowork.folder.col.schedule,実行日時
 cowork.folder.connection_fixed,ルールは別の PC に移せません。停止して新しく作成してください。
 cowork.folder.content_mismatch,アップロード内容が PC のファイルと一致しません。
-cowork.folder.counts,登録済み {0} · 処理中 {1} · 失敗 {2} · 請求書以外 {3}
+cowork.folder.counts,登録済み {0} · 要確認 {1}
 cowork.folder.day,{0} 日
 cowork.folder.default.account,区分が一致しない費用の勘定科目
 cowork.folder.default.department,部門
@@ -1426,6 +1435,7 @@ cowork.folder.field.folder,フォルダー
 cowork.folder.field.root,許可されたルートフォルダー
 cowork.folder.field.time,時刻（バンコク）
 cowork.folder.field.title,ルール名
+cowork.folder.folderHint,1 フォルダーに 1 ルール。PDF と画像のみ。
 cowork.folder.guide.oneRule,1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 cowork.folder.guide.result,システムが作成。書類を置かないでください
 cowork.folder.guide.resultRule,各請求書の結果表は _Pearnly结果 に保存され、翌日確認できます。
@@ -1463,7 +1473,7 @@ cowork.folder.runScan,検出 {0} · 新規 {1} · スキップ {2} · アップ�
 cowork.folder.runs,実行履歴
 cowork.folder.schedule,毎月 {0} {1}
 cowork.folder.schedule_invalid,毎月の実行日と時刻を選んでください。
-cowork.folder.section.defaults,毎回この方法で処理
+cowork.folder.section.defaults,既定の処理
 cowork.folder.section.folder,フォルダーとスケジュール
 cowork.folder.section.target,書類の登録先
 cowork.folder.size_invalid,ファイルが空か大きすぎます。

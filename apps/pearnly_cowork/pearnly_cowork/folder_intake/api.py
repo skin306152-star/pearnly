@@ -11,7 +11,14 @@ def listing():
 
 @frappe.whitelist()
 def options(connection, account_set_key=None):
-    return rules.options(connection, account_set_key)
+    # 读目录 / 存货科目组都锁这条连接行，与小助手心跳、刷新目录并发时可能死锁：只读请求，回滚重试即可。
+    for attempt in range(3):
+        try:
+            return rules.options(connection, account_set_key)
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()
+            if attempt == 2:
+                raise
 
 
 @frappe.whitelist(methods=["POST"])

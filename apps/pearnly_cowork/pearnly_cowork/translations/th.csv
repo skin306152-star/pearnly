@@ -345,6 +345,7 @@ Decide once ({0}),ตัดสินใจครั้งเดียว ({0})
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
+Default handling for this folder,การจัดการเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete this card permanently? This cannot be undone.,ลบการ์ดนี้ถาวรหรือไม่? กู้คืนไม่ได้
 Delete this list and all its cards permanently? This cannot be undone.,ลบรายการนี้และการ์ดทั้งหมดถาวรหรือไม่? กู้คืนไม่ได้
@@ -431,7 +432,9 @@ Enter a valid quantity with no more than six decimal places.,กรุณาร�
 Enter list name,ใส่ชื่อรายการ
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Entered into Express,บันทึกแล้ว
+Entered {0} · in progress {1},บันทึกแล้ว {0} · กำลังทำ {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},บันทึกแล้ว {0} · กำลังทำ {1} · ล้มเหลว {2} · ไม่ใช่ใบกำกับ {3}
+Entered {0} · to check {1},บันทึกแล้ว {0} · รอตรวจ {1}
 Entering into Express,กำลังบันทึก
 Entries,รายการ
 Entries · {0},รายการบันทึก · {0}
@@ -477,6 +480,7 @@ First Recognition Value,ค่าที่อ่านได้ครั้ง�
 Folder and schedule,โฟลเดอร์และเวลา
 Folder auto-intake is not turned on for this site.,ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์
 Folder auto-intake rules,กฎบันทึกอัตโนมัติจากโฟลเดอร์
+Folder results,ผลลัพธ์
 Folder rule name,ชื่อกฎ
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
 Folder rules work with Express connections only.,ใช้ได้เฉพาะการเชื่อมต่อ Express
@@ -678,6 +682,7 @@ Observer,ผู้สังเกตการณ์
 On schedule,ตามเวลา
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีที่อ่านจากรูป จับคู่ยอดเงินกับเลขที่เอกสารผิดแถว (ยอดทุกบรรทัดมีในบัญชีแยกประเภท เพียงแต่เลื่อนไปจับกับเลขที่ข้างเคียง) เป็นการอ่านผิด ไม่ใช่ผลต่างจริง กรุณาแก้ตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
+One folder per rule. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ อ่านเฉพาะ PDF และรูปภาพ
 One of the default choices is not valid for this account set.,ค่าเริ่มต้นบางรายการใช้กับชุดบัญชีนี้ไม่ได้
 Only PDF and image files are read.,อ่านเฉพาะ PDF และรูปภาพ
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
@@ -885,6 +890,7 @@ Saved. Scan the next item.,บันทึกแล้ว สแกนราย�
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
+Schedule,กำหนดการ
 Scope,ขอบเขต
 Scope Key,รหัสขอบเขตสิทธิ์
 Search cards,ค้นหาการ์ด
@@ -988,6 +994,7 @@ The Companion delivery record was not found.,ไม่พบบันทึก�
 The Companion identity is no longer valid. Authenticate again.,ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่
 The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,ผู้ช่วยกำลังอ่านชุดบัญชีนี้ เปิดกฎอีกครั้งในอีกสักครู่เพื่อเลือกบัญชี
 The Companion on this PC has not synced folders recently. Open it and update to the latest version.,ผู้ช่วยบนเครื่องนี้ยังไม่ได้ซิงค์โฟลเดอร์ช่วงนี้ ให้เปิดผู้ช่วยและอัปเดตเป็นเวอร์ชันล่าสุด
+The Companion on this PC has not synced recently. Update it to the latest version.,ผู้ช่วยบนเครื่องนี้ยังไม่ได้ซิงค์ ให้อัปเดตเป็นเวอร์ชันล่าสุด
 The Companion queue request is invalid.,คำขอคิวงานของผู้ช่วยไม่ถูกต้อง
 The Companion queue response is invalid.,การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง
 The Companion report is invalid.,รายงานจาก Companion ไม่ถูกต้อง
@@ -1395,14 +1402,16 @@ cowork.choice.title,เลือกครั้งเดียวสำหรั
 cowork.choice.vat,ภาษีในใบเสร็จนี้
 cowork.folder.account_set_invalid,ชุดบัญชีนี้ไม่อยู่ในรายการ ให้โหลดใหม่ในการบันทึกใหม่
 cowork.folder.agentStale,ผู้ช่วยออฟไลน์หรือต้องอัปเดต
-cowork.folder.agentStaleHint,ผู้ช่วยบนเครื่องนี้ยังไม่ได้ซิงค์โฟลเดอร์ช่วงนี้ ให้เปิดผู้ช่วยและอัปเดตเป็นเวอร์ชันล่าสุด
+cowork.folder.agentStaleHint,ผู้ช่วยบนเครื่องนี้ยังไม่ได้ซิงค์ ให้อัปเดตเป็นเวอร์ชันล่าสุด
 cowork.folder.batch_missing,ไม่พบงานอ่านเอกสาร
 cowork.folder.billing_pending,รอการตัดค่าบริการเสร็จ
 cowork.folder.cardHint,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 cowork.folder.catalogEmpty,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
+cowork.folder.col.result,ผลลัพธ์
+cowork.folder.col.schedule,กำหนดการ
 cowork.folder.connection_fixed,ย้ายกฎไปเครื่องอื่นไม่ได้ ให้ปิดแล้วสร้างใหม่
 cowork.folder.content_mismatch,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
-cowork.folder.counts,บันทึกแล้ว {0} · กำลังทำ {1} · ล้มเหลว {2} · ไม่ใช่ใบกำกับ {3}
+cowork.folder.counts,บันทึกแล้ว {0} · รอตรวจ {1}
 cowork.folder.day,วันที่ {0}
 cowork.folder.default.account,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
 cowork.folder.default.department,แผนก
@@ -1426,6 +1435,7 @@ cowork.folder.field.folder,โฟลเดอร์
 cowork.folder.field.root,โฟลเดอร์หลักที่อนุญาต
 cowork.folder.field.time,เวลา (กรุงเทพฯ)
 cowork.folder.field.title,ชื่อกฎ
+cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ อ่านเฉพาะ PDF และรูปภาพ
 cowork.folder.guide.oneRule,หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 cowork.folder.guide.result,ระบบสร้างเอง ห้ามวางเอกสาร
 cowork.folder.guide.resultRule,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป
@@ -1463,7 +1473,7 @@ cowork.folder.runScan,พบ {0} · ใหม่ {1} · ข้าม {2} · อ�
 cowork.folder.runs,ประวัติการทำงาน
 cowork.folder.schedule,ทุกเดือน {0} เวลา {1}
 cowork.folder.schedule_invalid,เลือกวันและเวลาที่ทำงานทุกเดือน
-cowork.folder.section.defaults,จัดการแบบนี้ทุกครั้ง
+cowork.folder.section.defaults,การจัดการเริ่มต้น
 cowork.folder.section.folder,โฟลเดอร์และเวลา
 cowork.folder.section.target,ปลายทางของเอกสาร
 cowork.folder.size_invalid,ไฟล์ว่างหรือใหญ่เกินไป

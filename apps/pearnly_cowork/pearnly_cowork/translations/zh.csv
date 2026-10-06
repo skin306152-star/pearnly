@@ -345,6 +345,7 @@ Decide once ({0}),需要定一次（{0}）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
+Default handling for this folder,默认处理
 Delete selected ({0}),删除所选（{0}）
 Delete this card permanently? This cannot be undone.,彻底删除这张卡片？删除后无法恢复。
 Delete this list and all its cards permanently? This cannot be undone.,彻底删除这个列表和里面所有卡片？删除后无法恢复。
@@ -431,7 +432,9 @@ Enter a valid quantity with no more than six decimal places.,请输入有效数�
 Enter list name,输入列表名称
 Enter the user name,请填写用户名
 Entered into Express,已推送
+Entered {0} · in progress {1},已推 {0} · 处理中 {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},已推 {0} · 进行中 {1} · 失败 {2} · 非发票 {3}
+Entered {0} · to check {1},已推 {0} · 待处理 {1}
 Entering into Express,推送中
 Entries,记录
 Entries · {0},逐笔记录 · {0}
@@ -477,6 +480,7 @@ First Recognition Value,首次识别值
 Folder and schedule,文件夹与时间
 Folder auto-intake is not turned on for this site.,本站没有开通文件夹自动录入。
 Folder auto-intake rules,自动录入规则
+Folder results,结果
 Folder rule name,规则名称
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
 Folder rules work with Express connections only.,自动录入只用于 Express 连接。
@@ -678,6 +682,7 @@ Observer,观察者
 On schedule,按时
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",以下识别出的税报页金额和单号配错了行（这几行的金额总账里都有，只是对应的单号错开了），是读错，不是真实差异，请对照原件改（括号里是行数）：{0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
+One folder per rule. PDF and image files only.,一个文件夹对应一条规则，只读 PDF 和图片。
 One of the default choices is not valid for this account set.,有一项默认处理在这份账套里不可用。
 Only PDF and image files are read.,只读 PDF 和图片。
 Only an active count can be deleted,只有进行中的盘点能删除
@@ -885,6 +890,7 @@ Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
 Scan barcodes · Record quantities,扫条码 · 记数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
+Schedule,每月运行
 Scope,范围
 Scope Key,权限范围标识
 Search cards,搜索卡片
@@ -988,6 +994,7 @@ The Companion delivery record was not found.,未找到助手任务领取记录�
 The Companion identity is no longer valid. Authenticate again.,助手身份已失效，请重新认证。
 The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,小助手还在读这份账套，稍后重新打开即可选科目。
 The Companion on this PC has not synced folders recently. Open it and update to the latest version.,这台电脑的小助手最近没有同步文件夹。请打开小助手并升级到最新版。
+The Companion on this PC has not synced recently. Update it to the latest version.,这台电脑的小助手最近没有同步，请升级到最新版。
 The Companion queue request is invalid.,助手队列请求无效。
 The Companion queue response is invalid.,助手队列响应无效。
 The Companion report is invalid.,伴侣端上报内容无效。
@@ -1395,14 +1402,16 @@ cowork.choice.title,这份账套选一次
 cowork.choice.vat,票上的税额
 cowork.folder.account_set_invalid,这份账套不在连接的目录里，请在新建录入里重新读取。
 cowork.folder.agentStale,小助手不在线或需升级
-cowork.folder.agentStaleHint,这台电脑的小助手最近没有同步文件夹。请打开小助手并升级到最新版。
+cowork.folder.agentStaleHint,这台电脑的小助手最近没有同步，请升级到最新版。
 cowork.folder.batch_missing,找不到识别任务。
 cowork.folder.billing_pending,等扣费完成。
 cowork.folder.cardHint,设一个本机文件夹，每月自动识别推送
 cowork.folder.catalogEmpty,还没有账套目录。请先在新建录入里点重新读取。
+cowork.folder.col.result,结果
+cowork.folder.col.schedule,每月运行
 cowork.folder.connection_fixed,规则不能换到另一台电脑，请停用后新建一条。
 cowork.folder.content_mismatch,上传的内容与电脑上的文件不一致。
-cowork.folder.counts,已推 {0} · 进行中 {1} · 失败 {2} · 非发票 {3}
+cowork.folder.counts,已推 {0} · 待处理 {1}
 cowork.folder.day,{0} 日
 cowork.folder.default.account,没对上科目的费用
 cowork.folder.default.department,部门
@@ -1426,6 +1435,7 @@ cowork.folder.field.folder,文件夹
 cowork.folder.field.root,允许读取的根目录
 cowork.folder.field.time,几点（曼谷）
 cowork.folder.field.title,规则名称
+cowork.folder.folderHint,一个文件夹对应一条规则，只读 PDF 和图片。
 cowork.folder.guide.oneRule,一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 cowork.folder.guide.result,系统生成，别放单据
 cowork.folder.guide.resultRule,每张发票的结果表格放在 _Pearnly结果，第二天核对。
@@ -1463,7 +1473,7 @@ cowork.folder.runScan,扫到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 
 cowork.folder.runs,运行记录
 cowork.folder.schedule,每月 {0} {1}
 cowork.folder.schedule_invalid,请选每月运行的日期和时间。
-cowork.folder.section.defaults,这一类以后都这样处理
+cowork.folder.section.defaults,默认处理
 cowork.folder.section.folder,文件夹与时间
 cowork.folder.section.target,去向
 cowork.folder.size_invalid,文件为空或太大。

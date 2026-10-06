@@ -29,56 +29,10 @@
 	}
 }
 
-/* 自动录入规则页（intake-folders.js）：顶上的文件夹放法、规则行、运行记录。 */
-.pearnly-folder-page {
-	padding: var(--padding-md, 15px);
-}
-.pearnly-folder-guide {
-	margin-bottom: 16px;
-	padding: 12px 14px;
-	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius-md, 8px);
-}
-.pearnly-folder-tree {
-	margin: 8px 0;
-	font-family: var(--font-family-monospace, monospace);
-	font-size: var(--text-sm, 12px);
-	line-height: 1.8;
-}
-.pearnly-folder-rules {
-	margin: 0;
-	padding-left: 18px;
-	font-size: var(--text-sm, 12px);
-	color: var(--text-muted);
-}
-.pearnly-folder-row {
-	display: grid;
-	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
-	gap: 12px;
-	align-items: center;
-	padding: 12px 14px;
-	border-bottom: 1px solid var(--border-color);
-}
-.pearnly-folder-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	justify-content: flex-end;
-}
-.pearnly-folder-empty {
-	padding: 24px 14px;
-}
+/* 自动录入规则的运行记录（intake-folders.js）：一次运行一行。 */
 .pearnly-folder-run {
 	padding: 8px 0;
 	border-bottom: 1px solid var(--border-color);
-}
-@media (max-width: 767px) {
-	.pearnly-folder-row {
-		grid-template-columns: minmax(0, 1fr);
-	}
-	.pearnly-folder-actions {
-		justify-content: flex-start;
-	}
 }
 
 /* 弹窗里那四组选择各自的标题（卡片上方一行小标题）。 */

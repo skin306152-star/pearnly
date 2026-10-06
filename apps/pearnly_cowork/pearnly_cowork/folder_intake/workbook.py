@@ -71,6 +71,19 @@ def _notice(source_name, doc, code):
     return buffer.getvalue()
 
 
+def reason_text(reason):
+    """票上记的原因码 → 给人看的话（与网页列表 `p.intake_push_reason` 同一套词条 `intake.error.<码>`）。"""
+    import re
+
+    text = str(reason or "").strip()
+    match = re.match(r"^\[([A-Z0-9_]+)\]", text) or re.match(r"^([A-Za-z][A-Za-z0-9_]*)(?=$|:)", text)
+    if not match:
+        return text
+    key = "intake.error." + match.group(1)
+    translated = _(key)
+    return text if translated == key else translated
+
+
 def _review(doc):
     canonical = bool(doc.source_file)
     if canonical:
@@ -82,7 +95,7 @@ def _review(doc):
     if doc.last_push_status:
         push_facts[doc.name] = {"state": {"status": doc.last_push_status}}
     elif doc.last_push_reason:
-        push_facts[doc.name] = {"state": {"status": "manual", "reason": doc.last_push_reason}}
+        push_facts[doc.name] = {"state": {"status": "manual", "reason": reason_text(doc.last_push_reason)}}
     for name, facts in export_facts.for_histories([doc]).items():
         push_facts.setdefault(name, {}).update(facts)
     return build_review_workbook([{"history_id": doc.name, "merged_fields": fields}], push_facts=push_facts)

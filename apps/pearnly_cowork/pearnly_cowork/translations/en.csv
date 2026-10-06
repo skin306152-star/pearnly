@@ -345,6 +345,7 @@ Decide once ({0}),Decide once ({0})
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Item Type,Default Item Type
 Default Payment,Default Payment
+Default handling for this folder,Default handling for this folder
 Delete selected ({0}),Delete selected ({0})
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
@@ -431,7 +432,9 @@ Enter a valid quantity with no more than six decimal places.,Enter a valid quant
 Enter list name,Enter list name
 Enter the user name,Enter the user name
 Entered into Express,Entered into Express
+Entered {0} · in progress {1},Entered {0} · in progress {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},Entered {0} · in progress {1} · failed {2} · not invoices {3}
+Entered {0} · to check {1},Entered {0} · to check {1}
 Entering into Express,Entering into Express
 Entries,Entries
 Entries · {0},Entries · {0}
@@ -477,6 +480,7 @@ First Recognition Value,First Recognition Value
 Folder and schedule,Folder and schedule
 Folder auto-intake is not turned on for this site.,Folder auto-intake is not turned on for this site.
 Folder auto-intake rules,Folder auto-intake rules
+Folder results,Folder results
 Folder rule name,Folder rule name
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
 Folder rules work with Express connections only.,Folder rules work with Express connections only.
@@ -678,6 +682,7 @@ Observer,Observer
 On schedule,On schedule
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
+One folder per rule. PDF and image files only.,One folder per rule. PDF and image files only.
 One of the default choices is not valid for this account set.,One of the default choices is not valid for this account set.
 Only PDF and image files are read.,Only PDF and image files are read.
 Only an active count can be deleted,Only an active count can be deleted
@@ -885,6 +890,7 @@ Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
+Schedule,Schedule
 Scope,Scope
 Scope Key,Scope Key
 Search cards,Search cards
@@ -988,6 +994,7 @@ The Companion delivery record was not found.,The Companion delivery record was n
 The Companion identity is no longer valid. Authenticate again.,The Companion identity is no longer valid. Authenticate again.
 The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
 The Companion on this PC has not synced folders recently. Open it and update to the latest version.,The Companion on this PC has not synced folders recently. Open it and update to the latest version.
+The Companion on this PC has not synced recently. Update it to the latest version.,The Companion on this PC has not synced recently. Update it to the latest version.
 The Companion queue request is invalid.,The Companion queue request is invalid.
 The Companion queue response is invalid.,The Companion queue response is invalid.
 The Companion report is invalid.,The Companion report is invalid.
@@ -1395,14 +1402,16 @@ cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
 cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
 cowork.folder.agentStale,Companion offline or needs update
-cowork.folder.agentStaleHint,The Companion on this PC has not synced folders recently. Open it and update to the latest version.
+cowork.folder.agentStaleHint,The Companion on this PC has not synced recently. Update it to the latest version.
 cowork.folder.batch_missing,The recognition task was not found.
 cowork.folder.billing_pending,Waiting for the recognition charge to complete.
 cowork.folder.cardHint,Set a local folder once; documents are read and entered every month
 cowork.folder.catalogEmpty,No account sets yet. Use Reload in New Intake first.
+cowork.folder.col.result,Folder results
+cowork.folder.col.schedule,Schedule
 cowork.folder.connection_fixed,A rule cannot move to another PC. Turn it off and create a new one.
 cowork.folder.content_mismatch,The uploaded file does not match the file on the PC.
-cowork.folder.counts,Entered {0} · in progress {1} · failed {2} · not invoices {3}
+cowork.folder.counts,Entered {0} · to check {1}
 cowork.folder.day,Day {0}
 cowork.folder.default.account,Expense account when no category matches
 cowork.folder.default.department,Department for this rule
@@ -1426,6 +1435,7 @@ cowork.folder.field.folder,Folder to read
 cowork.folder.field.root,Allowed root folder on the PC
 cowork.folder.field.time,Run at (Bangkok time)
 cowork.folder.field.title,Folder rule name
+cowork.folder.folderHint,One folder per rule. PDF and image files only.
 cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 cowork.folder.guide.result,"made by the system, do not put documents here"
 cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
@@ -1463,7 +1473,7 @@ cowork.folder.runScan,Found {0} · new {1} · skipped {2} · upload failed {3}
 cowork.folder.runs,Run history
 cowork.folder.schedule,Monthly on {0} at {1}
 cowork.folder.schedule_invalid,Choose a day and time for the monthly run.
-cowork.folder.section.defaults,Handle these the same way every time
+cowork.folder.section.defaults,Default handling for this folder
 cowork.folder.section.folder,Folder and schedule
 cowork.folder.section.target,Where the documents go
 cowork.folder.size_invalid,The file is empty or too large.

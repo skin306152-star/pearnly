@@ -193,10 +193,13 @@ def listing():
             frappe.clear_messages()
             continue
         usable.append({"name": doc.name, "label": connection.get("label") or doc.name})
-        fresh = agent.fresh(agent.read(doc.name))
+        state = agent.read(doc.name)
+        fresh, labels = agent.fresh(state), {row["id"]: row["label"] for row in state.get("roots") or []}
         for name in frappe.get_all(RULE, filters={"connection": doc.name}, pluck="name",
                                    order_by="creation asc", ignore_permissions=True):
-            rows.append({**project(read(RULE, name)), "connection_label": usable[-1]["label"], "agent_fresh": fresh})
+            row = project(read(RULE, name))
+            row.update(connection_label=usable[-1]["label"], agent_fresh=fresh, root_label=labels.get(row["root_id"], ""))
+            rows.append(row)
     return {"rules": rows, "connections": usable}
 
 
@@ -209,7 +212,22 @@ def project(rule):
             "folder": rule.folder or "", "run_day": int(rule.run_day or 0), "run_time": rule.run_time,
             "defaults": json.loads(rule.defaults_json or "{}"), "rule_owner": rule.rule_owner,
             "active_since": rule.active_since, "run_request": int(rule.run_request or 0),
-            "last_run": last[0] if last else None, "counts": counts(rule.name)}
+            "last_run": last[0] if last else None, "counts": counts(rule.name), "results": results(rule.name)}
+
+
+def results(rule):
+    """按发票算：已推成功几张、要人处理几张（停下待选、退回、失败的文件）、还在路上几份文件。"""
+    entered = attention = 0
+    for row in frappe.db.sql(f"SELECT state, outcome_json FROM `tab{FILE}` WHERE rule=%s AND state IN ('done', 'failed')",
+                             (rule,), as_dict=True):
+        if row.state == "failed":
+            attention += 1
+            continue
+        for _name, status, _reason in json.loads(row.outcome_json or "{}").get("_signature") or []:
+            entered += status == "success"
+            attention += status != "success"
+    moving = sum(count for state, count in counts(rule).items() if state not in ("done", "failed", "not_invoice"))
+    return {"entered": entered, "attention": attention, "moving": moving}
 
 
 def counts(rule, since=None):
