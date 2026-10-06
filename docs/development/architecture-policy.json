@@ -186,6 +186,7 @@
       "targets"
     ],
     "contracts": [],
+    "folder_intake": ["access", "companion", "connections", "files", "history", "ocr", "push", "roundtrip", "targets"],
     "files": [
       "access",
       "ocr"

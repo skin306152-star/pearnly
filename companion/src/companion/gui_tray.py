@@ -18,6 +18,8 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from . import watchdog
 from .config import CompanionConfig
+from .folder_worker import FolderIntake
+from .gui_folders import FolderRootsDialog
 from .gui_tray_workers import (
     PollWorker,
     UpdateWorker as _UpdateWorker,
@@ -142,6 +144,7 @@ class TrayApp(QObject):
         self._update_action = None
         self._settings_action = None
         self._logs_action = None
+        self._folders_action = None
         self._quit_action = None
         self._profile_states: dict[str, tuple[str, object]] = {}
         self._last_keys: dict[str, str] = {}
@@ -155,6 +158,9 @@ class TrayApp(QObject):
         activity("log_started", lang=self.lang)
         self._heal = watchdog.HealBackoff()  # 自愈退避:防目标永久不可达时无限重启空转
         self.worker = self._spawn_worker()
+        # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
+        self._folders = FolderIntake(lambda: self.configs, lang=lambda: self.lang)
+        self._folders.start()
         # 看门狗:主线程定时巡检 worker 存活时标,卡死即自愈重启。主线程 Qt 事件循环不受
         # worker(后台 QThread)卡死影响,QTimer 必按时触发 → 卡死能被稳稳兜住。
         self._watchdog = QTimer()
@@ -189,6 +195,9 @@ class TrayApp(QObject):
         self._settings_action = menu.addAction(
             t("tray_open_settings", self.lang), self._repair
         )
+        self._folders_action = menu.addAction(
+            t("tray_folders", self.lang), self._open_folders
+        )
         self._logs_action = menu.addAction(
             t("tray_open_logs", self.lang), self._open_logs
         )
@@ -205,6 +214,8 @@ class TrayApp(QObject):
             self._settings_action.setText(t("tray_open_settings", self.lang))
         if self._logs_action:
             self._logs_action.setText(t("tray_open_logs", self.lang))
+        if self._folders_action:
+            self._folders_action.setText(t("tray_folders", self.lang))
         if self._quit_action:
             self._quit_action.setText(t("tray_quit", self.lang))
         if self._update_action and self._pending_update:
@@ -416,6 +427,15 @@ class TrayApp(QObject):
         self._last_keys.clear()
         self._retranslate()
         self._restart_worker()
+        if getattr(self, "_folders", None) is not None:
+            self._folders.start()
+
+    def _open_folders(self) -> None:
+        dialog = FolderRootsDialog(
+            [cfg for cfg in self.configs if not cfg.paused], lang=self.lang,
+            on_saved=self._folders.start,
+        )
+        dialog.exec()
 
     def _restart_worker(self) -> None:
         """协作式停旧 worker；finished 后才用最新 configs 启动唯一新 worker。"""
@@ -473,6 +493,8 @@ class TrayApp(QObject):
         self._restart_pending = False
         activity("log_quit", lang=self.lang)
         self._watchdog.stop()
+        if getattr(self, "_folders", None) is not None:
+            self._folders.stop()
         worker = self.worker
         if worker is not None and worker.isRunning():
             worker.stop(signal_offline=True)

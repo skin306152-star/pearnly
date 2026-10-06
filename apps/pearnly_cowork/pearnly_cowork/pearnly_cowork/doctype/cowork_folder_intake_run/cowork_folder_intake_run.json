@@ -1,0 +1,122 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Folder Intake Run",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-07 12:00:00.000000",
+ "modified": "2026-10-07 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "One scan of a folder auto-intake rule on the companion PC.",
+ "field_order": [
+  "input_key",
+  "rule",
+  "connection",
+  "trigger",
+  "started_at",
+  "scanned_at",
+  "found",
+  "new_files",
+  "skipped",
+  "upload_failed",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "input_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "rule",
+   "label": "Rule",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Folder Intake Rule",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1
+  },
+  {
+   "fieldname": "trigger",
+   "label": "Trigger",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "schedule\nmanual\ncatch_up"
+  },
+  {
+   "fieldname": "started_at",
+   "label": "Started At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scanned_at",
+   "label": "Scanned At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "found",
+   "label": "Found",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "new_files",
+   "label": "New Files",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "skipped",
+   "label": "Skipped",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "upload_failed",
+   "label": "Upload Failed",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "note",
+   "label": "Note",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

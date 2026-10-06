@@ -282,6 +282,8 @@ app_include_js = [
     versioned_asset("pearnly_cowork", "desk/recon.js"),
     versioned_asset("pearnly_cowork", "desk/line-binding.js"),
     versioned_asset("pearnly_cowork", "desk/work.js"),
+    # 自动录入规则页（录入工作台子路由 pearnly-intake/folders，2026-10-07）
+    versioned_asset("pearnly_cowork", "desk/intake-folders.js"),
 ]
 app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css"), versioned_asset("pearnly_cowork", "desk/recon.css"),
                    versioned_asset("pearnly_cowork", "desk/work.css")]
@@ -333,6 +335,9 @@ permission_query_conditions = {
     "Cowork Work Field": "pearnly_cowork.work.access.field_query",
     "Cowork Work Mirror": "pearnly_cowork.work.access.mirror_query",
     "Cowork Work Rule": "pearnly_cowork.work.access.rule_query",
+    "Cowork Folder Intake Rule": "pearnly_cowork.folder_intake.access.deny_query",
+    "Cowork Folder Intake Run": "pearnly_cowork.folder_intake.access.deny_query",
+    "Cowork Folder Intake File": "pearnly_cowork.folder_intake.access.deny_query",
 }
 has_permission = {
     "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
@@ -380,6 +385,9 @@ has_permission = {
     "Cowork Work Field": "pearnly_cowork.work.access.has_permission",
     "Cowork Work Mirror": "pearnly_cowork.work.access.has_permission",
     "Cowork Work Rule": "pearnly_cowork.work.access.has_permission",
+    "Cowork Folder Intake Rule": "pearnly_cowork.folder_intake.access.deny",
+    "Cowork Folder Intake Run": "pearnly_cowork.folder_intake.access.deny",
+    "Cowork Folder Intake File": "pearnly_cowork.folder_intake.access.deny",
 }
 doc_events = {"Pearnly OCR Work": {
     "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",
@@ -398,7 +406,8 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.vat_check_access.reject_share",
         "pearnly_cowork.reconciliation.preset_store.reject_share",
         "pearnly_cowork.recon_center.rerun.reject_share",
-        "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share"],
+        "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share",
+        "pearnly_cowork.folder_intake.access.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.history.names.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
@@ -410,7 +419,8 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.vat_check_access.reject_share",
         "pearnly_cowork.reconciliation.preset_store.reject_share",
         "pearnly_cowork.recon_center.rerun.reject_share",
-        "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share"],
+        "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share",
+        "pearnly_cowork.folder_intake.access.reject_share"],
 }}
 extend_doctype_class = {
     "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
@@ -486,6 +496,8 @@ after_install = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.
 after_migrate = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.scope.ensure_on_migrate",
                  "pearnly_cowork.work.service.ensure_on_migrate"]
 boot_session = "pearnly_cowork.line.boot.boot_session"
+# 文件夹自动录入的站点总闸放进启动信息（不进按用户缓存的 boot_session，改总闸后刷新页面即生效）。
+extend_bootinfo = ["pearnly_cowork.folder_intake.boot.extend_bootinfo"]
 pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 
 
@@ -499,7 +511,9 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
                                  # 等识别的对账：提醒万一没送到、时限到了、开始读了、名额腾出来了，放回队列（recon_center/waiting.py）
                                  "pearnly_cowork.recon_center.waiting.tick",
                                  # 对账按租户限流：清掉不在跑却占着名额的，补位（recon_center/slots.py）
-                                 "pearnly_cowork.recon_center.slots.tick"]},
+                                 "pearnly_cowork.recon_center.slots.tick",
+                                 # 文件夹自动录入的后台推进（站点总闸没开时立即返回，folder_intake/schedule.py）
+                                 "pearnly_cowork.folder_intake.schedule.tick"]},
                     # 对账预设问题留着的原文件：过期没人答的删掉（recon_center/rerun.py）。
                     "daily": ["pearnly_cowork.recon_center.rerun.expire"]}
 

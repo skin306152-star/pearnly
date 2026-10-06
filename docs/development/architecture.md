@@ -68,6 +68,7 @@
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
 | `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |
 | `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
+| `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；站点总闸 `pearnly_cowork_folder_intake` 缺省全关 |
 | `work` | 任务管理：多块看板（成员、可见范围、看板权限）、卡片、标签、评论与活动、附件（原生私有 File） | `contracts`（含看板权限矩阵）/ `access`（判据）/ `boards` / `service` / `api`；只依赖 `access`；原生资源只读且按看板过滤，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
 
@@ -180,7 +181,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 ### Cowork 机器心跳及回执接口（第十至十二批）
 
-`companion.http_auth` 只接受三个精确 POST RPC：`heartbeat.report`、`queue_api.lease`、`queue_api.acknowledge`。每个请求绑定独立操作类型和请求对象，机器身份不能继承到通用 RPC、资源 CRUD、别名或浏览器会话；保留原生 issuer IP 限制。新原生 Connection / 新凭据的报告单向调用 `connections.collector`，目录刷新不自动授予推送准备资料。
+`companion.http_auth` 只接受三个精确 POST RPC：`heartbeat.report`、`queue_api.lease`、`queue_api.acknowledge`；2026-10-07 另列一张表 `FOLDER_METHODS`，追加文件夹自动录入的四个精确 POST RPC（`folder_intake.machine` 的 `sync` / `begin` / `finish` / `workbook_file`），同一套信封、同一份配对码身份，原三个的路径、校验与身份逐字不变。每个请求绑定独立操作类型和请求对象，机器身份不能继承到通用 RPC、资源 CRUD、别名或浏览器会话；保留原生 issuer IP 限制。新原生 Connection / 新凭据的报告单向调用 `connections.collector`，目录刷新不自动授予推送准备资料。
 
 `companion.transport` 单向调用 `push.native` 账本，不包含 HTTP 或提交。私有 Delivery 把线协议 UUID 绑定到本 Site/Connection/历史 Credential/Attempt/fence；原始 attempt secret 使用原生 Password 密文，不编码进句柄。`receipt_auth` 的窄能力可在停闸、撤权或轮换后接收原历史任务结果，不能领取新任务或写报告，也不跳过原 issuer 的 IP 限制；它与当前派发能力互不通用。
 
@@ -188,7 +189,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 ### Cowork 人工确认与 ACK 本地联动（第十三至十四批）
 
-第十三批 `connections.preparation` 从原生数据域采集准备资料并逐类绑定机器缓存来源，`companion.submission` 以原actor/current权限及凭据实现人工确认；poll不自动激活。第十四批 `push.native.completion` 在同一ACK事务中单向调用 `history.push_state` 和 `connections.stock_effects`，没有反向依赖。History是原账本的窄状态投影，不改变人工审核版本；库存增量只影响匹配账号/root/原报告凭据的画像。
+第十三批 `connections.preparation` 从原生数据域采集准备资料并逐类绑定机器缓存来源，`companion.submission` 以原actor/current权限及凭据实现人工确认；poll不自动激活。唯一明确例外（用户 2026-10-07）：`folder_intake` 的自动录入规则——规则负责人启用规则即视为对该规则文件夹票的常设确认，由后台以负责人身份调用同一组 `push.application.service`（`choices_view` / `submit` / `confirm` / `cancel_prepared`），判据、账本与小助手队列不变；网页手动推送与 poll 仍不自动激活。第十四批 `push.native.completion` 在同一ACK事务中单向调用 `history.push_state` 和 `connections.stock_effects`，没有反向依赖。History是原账本的窄状态投影，不改变人工审核版本；库存增量只影响匹配账号/root/原报告凭据的画像。
 
 唯一 `Cowork Push Notification` 为push域私有原生事件，继承通用CRUD/分享拒绝，仅LINE来源首次成功保存held素材；无发送消费者或接收人权限。失败回滚账本、投影、计数、事件和锁释放，重复ACK不重放副作用。复核表仅通过既有History范围读取服务器状态；单号和主档动作事实待后续接入。详见[第十四批合同](../work/cowork-backend/fourteenth-source-review.md)。以上替代前述旧批次中相应待办，不代表真实Windows接线、完整通知功能或独立ERP回读已验收。
 

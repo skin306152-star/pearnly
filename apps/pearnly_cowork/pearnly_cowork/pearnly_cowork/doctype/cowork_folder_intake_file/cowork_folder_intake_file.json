@@ -1,0 +1,215 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Folder Intake File",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-07 12:00:00.000000",
+ "modified": "2026-10-07 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "One local file picked up by a folder auto-intake rule, from upload to recognition, push and result workbook.",
+ "field_order": [
+  "input_key",
+  "rule",
+  "connection",
+  "run",
+  "relpath",
+  "filename",
+  "byte_size",
+  "sha256",
+  "actor",
+  "state",
+  "route",
+  "temp_file",
+  "source_file",
+  "batch",
+  "histories_json",
+  "outcome_json",
+  "last_code",
+  "attempts",
+  "next_attempt_at",
+  "workbook_revision",
+  "registered_at",
+  "finished_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "input_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "rule",
+   "label": "Rule",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Folder Intake Rule",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "run",
+   "label": "Run",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "relpath",
+   "label": "Relative Path",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "filename",
+   "label": "Filename",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 255,
+   "reqd": 1
+  },
+  {
+   "fieldname": "byte_size",
+   "label": "Byte Size",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "sha256",
+   "label": "SHA-256",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor",
+   "label": "Actor",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "state",
+   "label": "State",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "registered\nuploaded\nsource_ready\nsubmitted\nrecognized\npushing\ndone\nnot_invoice\nfailed",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "route",
+   "label": "Route",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "direct\ninline"
+  },
+  {
+   "fieldname": "temp_file",
+   "label": "Temporary File",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "source_file",
+   "label": "Source File",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "batch",
+   "label": "Batch",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "histories_json",
+   "label": "Histories",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "outcome_json",
+   "label": "Outcome",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_code",
+   "label": "Last Code",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "attempts",
+   "label": "Attempts",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "next_attempt_at",
+   "label": "Next Attempt At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "workbook_revision",
+   "label": "Workbook Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "registered_at",
+   "label": "Registered At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_at",
+   "label": "Finished At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

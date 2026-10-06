@@ -1,0 +1,190 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Folder Intake Rule",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-07 12:00:00.000000",
+ "modified": "2026-10-07 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "Folder auto-intake rule: one local folder on a companion PC, the same preconditions as New Intake, a monthly schedule and per-category defaults.",
+ "field_order": [
+  "title",
+  "workspace",
+  "client",
+  "connection",
+  "rule_owner",
+  "enabled",
+  "active_since",
+  "account_set_key",
+  "account_label",
+  "direction",
+  "posting_kind",
+  "root_id",
+  "folder",
+  "run_day",
+  "run_time",
+  "defaults_json",
+  "run_request",
+  "run_request_at",
+  "rule_revision"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "label": "Title",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "reqd": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "label": "Client",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "rule_owner",
+   "label": "Rule Owner",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "enabled",
+   "label": "Enabled",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "active_since",
+   "label": "Active Since",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "account_set_key",
+   "label": "Account Set",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 255,
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_label",
+   "label": "Account Set Label",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "direction",
+   "label": "Direction",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "purchase\nsales",
+   "reqd": 1
+  },
+  {
+   "fieldname": "posting_kind",
+   "label": "Posting Kind",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "service\nstock",
+   "reqd": 1
+  },
+  {
+   "fieldname": "root_id",
+   "label": "Root",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1
+  },
+  {
+   "fieldname": "folder",
+   "label": "Folder",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "run_day",
+   "label": "Run Day",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "run_time",
+   "label": "Run Time",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 5,
+   "reqd": 1
+  },
+  {
+   "fieldname": "defaults_json",
+   "label": "Defaults",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "run_request",
+   "label": "Run Request",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "run_request_at",
+   "label": "Run Requested At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rule_revision",
+   "label": "Rule Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

@@ -1354,3 +1354,102 @@ Waiting in line, will submit automatically	排队中，稍后自动提交	รอ
 Direct upload is not available. Please upload again.	暂时无法直接上传，请重新上传。	ไม่สามารถอัปโหลดโดยตรงได้ในขณะนี้ กรุณาอัปโหลดใหม่	現在直接アップロードできません。もう一度アップロードしてください。	
 The uploaded file was not received. Please upload again.	没有收到上传的文件，请重新上传。	ไม่ได้รับไฟล์ที่อัปโหลด กรุณาอัปโหลดใหม่	アップロードしたファイルを受け取れませんでした。もう一度アップロードしてください。	
 The preview is temporarily unavailable. Please try again.	预览暂时无法显示，请稍后再试。	ไม่สามารถแสดงตัวอย่างได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง	プレビューを一時的に表示できません。もう一度お試しください。	
+Folder auto-intake rules	自动录入规则	กฎบันทึกอัตโนมัติจากโฟลเดอร์	フォルダー自動取込ルール	cowork.folder.title
+Set a local folder once; documents are read and entered every month	设一个本机文件夹，每月自动识别推送	ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน	ローカルフォルダーを一度設定すると毎月自動で読み取り・登録	cowork.folder.cardHint
+New folder rule	新建规则	สร้างกฎ	ルールを作成	cowork.folder.new
+Edit folder rule	编辑规则	แก้ไขกฎ	ルールを編集	cowork.folder.edit
+No folder rules yet. Create one and put the documents into its folder.	还没有规则。新建一条，把单据放进对应的文件夹即可。	ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น	ルールはまだありません。作成して、そのフォルダーに書類を入れてください。	cowork.folder.empty
+Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.	自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。	การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน	自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。	cowork.folder.noExpress
+Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cowork.folder.runNow
+Run history	运行记录	ประวัติการทำงาน	実行履歴	cowork.folder.runs
+Turn off	停用	ปิดใช้งาน	停止	cowork.folder.disable
+Turn on	启用	เปิดใช้งาน	有効にする	cowork.folder.enable
+Turn this rule on? Only files added to the folder from now on are processed.	启用这条规则？只处理从现在起放进文件夹的文件。	เปิดใช้กฎนี้หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์ตั้งแต่ตอนนี้	このルールを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。	cowork.folder.enableConfirm
+Turn this rule off? Documents already entered stay as they are.	停用这条规则？已经推送的单据不受影响。	ปิดใช้กฎนี้หรือไม่ เอกสารที่บันทึกแล้วจะไม่ได้รับผลกระทบ	このルールを停止しますか？登録済みの書類はそのままです。	cowork.folder.disableConfirm
+Rule is on	启用中	เปิดใช้งาน	有効	cowork.folder.on
+Rule is off	已停用	ปิดใช้งานแล้ว	停止中	cowork.folder.off
+Companion offline or needs update	小助手不在线或需升级	ผู้ช่วยออฟไลน์หรือต้องอัปเดต	コンパニオンがオフラインか更新が必要	cowork.folder.agentStale
+The Companion on this PC has not synced folders recently. Open it and update to the latest version.	这台电脑的小助手最近没有同步文件夹。请打开小助手并升级到最新版。	ผู้ช่วยบนเครื่องนี้ยังไม่ได้ซิงค์โฟลเดอร์ช่วงนี้ ให้เปิดผู้ช่วยและอัปเดตเป็นเวอร์ชันล่าสุด	この PC のコンパニオンが最近フォルダーを同期していません。起動して最新版に更新してください。	cowork.folder.agentStaleHint
+Entered {0} · in progress {1} · failed {2} · not invoices {3}	已推 {0} · 进行中 {1} · 失败 {2} · 非发票 {3}	บันทึกแล้ว {0} · กำลังทำ {1} · ล้มเหลว {2} · ไม่ใช่ใบกำกับ {3}	登録済み {0} · 処理中 {1} · 失敗 {2} · 請求書以外 {3}	cowork.folder.counts
+Day {0}	{0} 日	วันที่ {0}	{0} 日	cowork.folder.day
+Last day of the month	月末	วันสุดท้ายของเดือน	月末	cowork.folder.lastDay
+Monthly on {0} at {1}	每月 {0} {1}	ทุกเดือน {0} เวลา {1}	毎月 {0} {1}	cowork.folder.schedule
+(the root folder itself)	（根目录本身）	(โฟลเดอร์หลักเอง)	（ルートフォルダー自体）	cowork.folder.rootItself
+Run requested. The Companion starts within a few minutes.	已请求运行，小助手几分钟内开始。	ส่งคำขอแล้ว ผู้ช่วยจะเริ่มภายในไม่กี่นาที	実行を依頼しました。数分以内に開始します。	cowork.folder.runRequested
+Found {0} · new {1} · skipped {2} · upload failed {3}	扫到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}	พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดล้มเหลว {3}	検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}	cowork.folder.runScan
+No runs yet	还没有运行记录	ยังไม่มีประวัติ	実行履歴はまだありません	cowork.folder.noRuns
+Folder rule name	规则名称	ชื่อกฎ	ルール名	cowork.folder.field.title
+Express PC	Express 电脑	เครื่อง Express	Express の PC	cowork.folder.field.connection
+Allowed root folder on the PC	允许读取的根目录	โฟลเดอร์หลักที่อนุญาต	許可されたルートフォルダー	cowork.folder.field.root
+Folder to read	文件夹	โฟลเดอร์	フォルダー	cowork.folder.field.folder
+Run on day	每月几号	วันที่ทำงาน	実行日	cowork.folder.field.day
+Run at (Bangkok time)	几点（曼谷）	เวลา (กรุงเทพฯ)	時刻（バンコク）	cowork.folder.field.time
+Where the documents go	去向	ปลายทางของเอกสาร	書類の登録先	cowork.folder.section.target
+Folder and schedule	文件夹与时间	โฟลเดอร์และเวลา	フォルダーとスケジュール	cowork.folder.section.folder
+Handle these the same way every time	这一类以后都这样处理	จัดการแบบนี้ทุกครั้ง	毎回この方法で処理	cowork.folder.section.defaults
+Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.	设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。	ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง	一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。	cowork.folder.defaultsHint
+When the document does not show cash or credit	票面看不出现购 / 赊购	เมื่อเอกสารไม่ระบุเงินสดหรือเงินเชื่อ	現金・掛けが書類から分からない場合	cowork.folder.default.payment
+VAT on receipts and abbreviated tax invoices	收据、简易税票上的税额	ภาษีในใบเสร็จและใบกำกับภาษีอย่างย่อ	領収書・簡易税請求書の税額	cowork.folder.default.vat
+Expense account when no category matches	没对上科目的费用	บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด	区分が一致しない費用の勘定科目	cowork.folder.default.account
+Department for this rule	部门	แผนก	部門	cowork.folder.default.department
+Stock item not found in Express	存货品名在 Express 里找不到	ไม่พบสินค้าใน Express	Express に在庫品目がない場合	cowork.folder.default.item
+Claim as input VAT	抵进项	ขอคืนภาษีซื้อ	仕入税額控除する	cowork.folder.vat.claim
+Record as expense	不抵，计入费用	บันทึกเป็นค่าใช้จ่าย	費用に計上	cowork.folder.vat.expense
+Create it from the document	照票面新建	สร้างใหม่ตามเอกสาร	書類どおり新規作成	cowork.folder.item.new
+Stop and let me choose	停下来让我选	หยุดให้ฉันเลือก	止めて選択する	cowork.folder.item.ask
+The Companion is still reading this account set. Reopen the rule in a minute to choose an account.	小助手还在读这份账套，稍后重新打开即可选科目。	ผู้ช่วยกำลังอ่านชุดบัญชีนี้ เปิดกฎอีกครั้งในอีกสักครู่เพื่อเลือกบัญชี	コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。	cowork.folder.mastersLoading
+No account sets yet. Use Reload in New Intake first.	还没有账套目录。请先在新建录入里点重新读取。	ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน	帳簿一覧がまだありません。先に新規取込で再読み込みしてください。	cowork.folder.catalogEmpty
+How to put documents in the folders	文件夹放法	วิธีวางเอกสารในโฟลเดอร์	フォルダーへの書類の置き方	cowork.folder.guide.title
+allowed root, set once on the Companion	允许读取的根目录（在小助手上设一次）	โฟลเดอร์หลักที่อนุญาต ตั้งครั้งเดียวในผู้ช่วย	許可されたルート（コンパニオンで一度設定）	cowork.folder.guide.root
+CompanyA-purchase-service	公司A-进项-服务	บริษัทA-ซื้อ-บริการ	会社A-仕入-サービス	cowork.folder.guide.sampleA
+CompanyA-sales	公司A-销项	บริษัทA-ขาย	会社A-売上	cowork.folder.guide.sampleB
+rule {0}	规则 {0}	กฎ {0}	ルール {0}	cowork.folder.guide.rule
+subfolders are scanned too	下级子文件夹会一起扫	สแกนโฟลเดอร์ย่อยด้วย	サブフォルダーも読み取ります	cowork.folder.guide.sub
+made by the system, do not put documents here	系统生成，别放单据	ระบบสร้างเอง ห้ามวางเอกสาร	システムが作成。書類を置かないでください	cowork.folder.guide.result
+One folder = one rule = one company, one year's account set, purchase or sales, service or stock.	一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。	หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก	1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫	cowork.folder.guide.oneRule
+Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.	下级子文件夹随意分，文件名随意，一份 PDF 里几张发票都行。	ตั้งชื่อโฟลเดอร์ย่อยและไฟล์ได้อิสระ PDF หนึ่งไฟล์มีหลายใบกำกับได้	サブフォルダー名・ファイル名は自由。1 つの PDF に複数の請求書があっても構いません。	cowork.folder.guide.subRule
+Only PDF and image files are read.	只读 PDF 和图片。	อ่านเฉพาะ PDF และรูปภาพ	読み取るのは PDF と画像だけです。	cowork.folder.guide.typesRule
+Each invoice's result sheet is written to _Pearnly结果 for checking the next day.	每张发票的结果表格放在 _Pearnly结果，第二天核对。	ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป	各請求書の結果表は _Pearnly结果 に保存され、翌日確認できます。	cowork.folder.guide.resultRule
+When a new fiscal year starts, change the rule's account set.	换财年时在规则里改年度账套。	เมื่อเริ่มปีบัญชีใหม่ ให้เปลี่ยนชุดบัญชีในกฎ	新しい会計年度になったらルールの帳簿を変更してください。	cowork.folder.guide.yearRule
+Files already in the folder when the rule is turned on are not processed.	规则启用前已在文件夹里的文件不处理。	ไฟล์ที่อยู่ในโฟลเดอร์ก่อนเปิดใช้กฎจะไม่ถูกประมวลผล	ルールを有効にする前からあるファイルは処理しません。	cowork.folder.guide.sinceRule
+Entered into Express	已推送	บันทึกแล้ว	登録済み	cowork.folder.state.done
+Entering into Express	推送中	กำลังบันทึก	登録中	cowork.folder.state.pushing
+Recognized, waiting to enter	已识别	อ่านแล้ว	読み取り済み	cowork.folder.state.recognized
+Being recognized	识别中	กำลังอ่าน	読み取り中	cowork.folder.state.submitted
+Waiting for recognition	等待识别	รอการอ่าน	読み取り待ち	cowork.folder.state.source_ready
+Uploaded from the PC	已上传	อัปโหลดแล้ว	アップロード済み	cowork.folder.state.uploaded
+Uploading from the PC	上传中	กำลังอัปโหลด	アップロード中	cowork.folder.state.registered
+Not an invoice file	不是发票	ไม่ใช่ใบกำกับ	請求書以外	cowork.folder.state.not_invoice
+Could not finish	失败	ล้มเหลว	失敗	cowork.folder.state.failed
+On schedule	按时	ตามเวลา	スケジュール	cowork.folder.trigger.schedule
+Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cowork.folder.trigger.manual
+Catch-up after start	开机补跑	ทำย้อนหลังหลังเปิดเครื่อง	起動後の追い実行	cowork.folder.trigger.catch_up
+Folder auto-intake is not turned on for this site.	本站没有开通文件夹自动录入。	ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์	このサイトではフォルダー自動取込が有効になっていません。	cowork.folder.disabled
+Folder rules work with Express connections only.	自动录入只用于 Express 连接。	ใช้ได้เฉพาะการเชื่อมต่อ Express	Express 接続でのみ使えます。	cowork.folder.express_only
+The folder rule is incomplete or invalid.	规则内容不完整或不正确。	กฎไม่ครบหรือไม่ถูกต้อง	ルールの内容が不完全または不正です。	cowork.folder.invalid
+Choose a folder inside the allowed root, without system folders.	请选允许读取的根目录下的文件夹，不能是系统生成的文件夹。	เลือกโฟลเดอร์ในโฟลเดอร์หลักที่อนุญาต และไม่ใช่โฟลเดอร์ระบบ	許可されたルート内の、システム以外のフォルダーを選んでください。	cowork.folder.path_invalid
+Choose an allowed root reported by the Companion.	请选小助手上报的根目录。	เลือกโฟลเดอร์หลักที่ผู้ช่วยรายงาน	コンパニオンが報告したルートを選んでください。	cowork.folder.root_invalid
+Choose a day and time for the monthly run.	请选每月运行的日期和时间。	เลือกวันและเวลาที่ทำงานทุกเดือน	毎月の実行日と時刻を選んでください。	cowork.folder.schedule_invalid
+One of the default choices is not valid for this account set.	有一项默认处理在这份账套里不可用。	ค่าเริ่มต้นบางรายการใช้กับชุดบัญชีนี้ไม่ได้	既定の処理の一部がこの帳簿では使えません。	cowork.folder.defaults_invalid
+This account set is not in the connection's list. Reload the list in New Intake.	这份账套不在连接的目录里，请在新建录入里重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการ ให้โหลดใหม่ในการบันทึกใหม่	この帳簿は一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
+Choose the inventory account group for this account set first.	请先为这份账套选存货科目组。	เลือกกลุ่มบัญชีสินค้าคงเหลือของชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	cowork.folder.stock_group_needed
+A rule cannot move to another PC. Turn it off and create a new one.	规则不能换到另一台电脑，请停用后新建一条。	ย้ายกฎไปเครื่องอื่นไม่ได้ ให้ปิดแล้วสร้างใหม่	ルールは別の PC に移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
+Another active rule already uses this folder or a folder containing it.	已有启用的规则用了这个文件夹或包含它的文件夹。	มีกฎที่เปิดอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ที่ครอบอยู่แล้ว	有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。	cowork.folder.overlap
+This PC already has the maximum number of folder rules.	这台电脑的规则数已到上限。	เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว	この PC のルール数が上限に達しています。	cowork.folder.too_many
+This rule is turned off.	这条规则已停用。	กฎนี้ปิดใช้งานอยู่	このルールは停止中です。	cowork.folder.rule_disabled
+This rule no longer exists for this PC.	这台电脑上没有这条规则。	ไม่มีกฎนี้สำหรับเครื่องนี้	この PC にこのルールはありません。	cowork.folder.rule_missing
+The rule owner can no longer enter documents with this connection.	规则负责人已不能用这条连接录入。	ผู้รับผิดชอบกฎไม่สามารถบันทึกด้วยการเชื่อมต่อนี้ได้แล้ว	ルール担当者はこの接続で登録できなくなっています。	cowork.folder.owner_not_ready
+This file record was not found.	找不到这份文件记录。	ไม่พบรายการไฟล์นี้	このファイル記録が見つかりません。	cowork.folder.entry_missing
+Only PDF and image files are read.	只读 PDF 和图片。	อ่านเฉพาะ PDF และรูปภาพ	読み取るのは PDF と画像だけです。	cowork.folder.type_invalid
+The file is empty or too large.	文件为空或太大。	ไฟล์ว่างหรือใหญ่เกินไป	ファイルが空か大きすぎます。	cowork.folder.size_invalid
+This file is too large to send from this PC.	文件太大，不能从这台电脑上传。	ไฟล์ใหญ่เกินกว่าจะส่งจากเครื่องนี้	このファイルは大きすぎて送信できません。	cowork.folder.too_large
+The uploaded file does not match the file on the PC.	上传的内容与电脑上的文件不一致。	ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง	アップロード内容が PC のファイルと一致しません。	cowork.folder.content_mismatch
+The uploaded file was not received. It will be sent again.	上传的文件没收到，下次会重传。	ไม่ได้รับไฟล์ที่อัปโหลด จะส่งใหม่	アップロードされたファイルを受信できませんでした。再送します。	cowork.folder.upload_lost
+Waiting for the recognition charge to complete.	等扣费完成。	รอการตัดค่าบริการเสร็จ	課金の完了待ち	cowork.folder.billing_pending
+The recognition task was not found.	找不到识别任务。	ไม่พบงานอ่านเอกสาร	読み取りタスクが見つかりません。	cowork.folder.batch_missing
+The file check is busy. It will be retried.	原件核对繁忙，稍后重试。	ระบบตรวจไฟล์ไม่ว่าง จะลองใหม่	ファイル確認が混み合っています。再試行します。	cowork.folder.inspect_busy
+A step failed and will be retried in ten minutes.	这一步出错，十分钟后重试。	ขั้นตอนนี้ล้มเหลว จะลองใหม่ในสิบนาที	この手順が失敗しました。10 分後に再試行します。	cowork.folder.step_error
+The result sheet is not ready yet.	结果表格还没好。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
+Original file name	原文件	ไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file
+Invoice number on the document	发票号	เลขที่ใบกำกับ	請求書番号	cowork.folder.wb.invoice
+Why it is not in the review sheet	为什么没有复核表	เหตุที่ไม่มีตารางตรวจทาน	確認表がない理由	cowork.folder.wb.reason

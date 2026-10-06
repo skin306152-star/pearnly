@@ -43,3 +43,9 @@ def _account_set_cache_in_tmp(tmp_path, monkeypatch):
         monkeypatch.setattr(
             module, "_sets_cache_file", lambda profile_id: tmp_path / f"account_sets_{profile_id or 'default'}.json"
         )
+
+
+@pytest.fixture(autouse=True)
+def _folder_state_in_tmp(tmp_path, monkeypatch):
+    """文件夹自动录入的本机状态（folder_store）：测试里放进本次的临时目录。"""
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folder_intake"))

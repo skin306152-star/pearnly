@@ -144,6 +144,17 @@
 				cleanup = await p.intake_new({page, t, go, still_current, name: rest[1] || ""});
 				return;
 			}
+			// 自动录入规则（`intake-folders.js`，2026-10-07）：规则页出错只回列表，不影响录入工作台。
+			if (rest[0] === "folders" && p.intake_folders) {
+				try {
+					cleanup = (await p.intake_folders({page, t, go, still_current})) || (() => {});
+				} catch (error) {
+					console.error(error);
+					cleanup = () => {};
+					await go();
+				}
+				return;
+			}
 			// 认不出的层级（旧书签、手输）收敛回列表，不停在空白页。
 			await go();
 		}});

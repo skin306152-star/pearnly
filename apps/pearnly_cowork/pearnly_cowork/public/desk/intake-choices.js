@@ -218,9 +218,11 @@
 			});
 		};
 
+		// 第四张卡片「自动录入规则」（2026-10-07）：不是推送目标，点了关掉弹窗进规则页；规则页脚本没加载时不摆。
+		const folder_card = () => [p.intake_folder_card?.()].filter(Boolean);
 		const paint_targets = () => {
 			picked.connection = snapshot.connections[picked.target]?.name || null;
-			target_choice.set_items(p.intake_targets.TARGETS.map(target => ({
+			target_choice.set_items([...p.intake_targets.TARGETS.map(target => ({
 				value: target.adapter,
 				label: target.label,
 				status: p.intake_targets.describe(target.adapter, snapshot),
@@ -229,7 +231,7 @@
 					target.adapter === "express"
 						? p.intake_targets.express_dialog({connection: snapshot.connections.express, on_done: refresh})
 						: p.intake_targets.connect_dialog({connection: snapshot.connections.mrerp, on_done: refresh}))},
-			})));
+			})), ...folder_card()]);
 		};
 		const refresh = async () => {
 			snapshot = await p.intake_targets.state();
@@ -275,8 +277,13 @@
 
 		const host = name => d.fields_dict[name]?.$wrapper;
 		const target_choice = p.cowork_choice(host("target"), {
-			items: p.intake_targets.TARGETS.map(target => ({value: target.adapter, label: target.label})),
+			items: [...p.intake_targets.TARGETS.map(target => ({value: target.adapter, label: target.label})), ...folder_card()],
 			on_change: value => {
+				if (value === "folder") {
+					d.hide();
+					void frappe.set_route("pearnly-intake", "folders");
+					return;
+				}
 				picked.target = value;
 				picked.connection = snapshot?.connections?.[value]?.name || null;
 				for (const name of ["company", "year", "posting_kind", "payment"]) set_value(name, null);
@@ -284,6 +291,8 @@
 				load_catalog();
 			},
 		});
+		// 四张卡片排成两排（2026-10-07）：只作用在这个弹窗的目标卡片上，别处的卡片组不变。
+		if (folder_card().length) host("target").addClass("pearnly-intake-targets-quad");
 		// 目标系统这一组是卡片，自己带一个标题（下拉那几组的标题由字段标签给）。
 		$("<div class='pearnly-choice-title'>").text(__(t("intake.target.title"))).prependTo(host("target"));
 		target_choice.set_enabled(true);

@@ -1,3 +1,4 @@
+(the root folder itself),(the root folder itself)
 1 day before,1 day before
 1 hour before,1 hour before
 10 minutes before,10 minutes before
@@ -27,8 +28,10 @@ A reported ERP field is invalid.,A reported ERP field is invalid.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
 A required text field is empty. Fill it in and try again,A required text field is empty. Fill it in and try again
 A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
+A rule cannot move to another PC. Turn it off and create a new one.,A rule cannot move to another PC. Turn it off and create a new one.
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
+A step failed and will be retried in ten minutes.,A step failed and will be retried in ten minutes.
 A successful push has no ERP document number. Check its receipt.,A successful push has no ERP document number. Check its receipt.
 A text field is too long. Shorten it and try again,A text field is too long. Shorten it and try again
 A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is required.
@@ -71,6 +74,7 @@ All,All
 All labels,All labels
 All members,All members
 Allowed Users,Allowed Users
+Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
 Amount,Amount
 An account needed for this invoice is not set. Check the account settings,An account needed for this invoice is not set. Check the account settings
@@ -81,6 +85,7 @@ An invoice line has no amount or complete quantity and unit price. Complete it b
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
 Anchor Date,Anchor Date
+Another active rule already uses this folder or a folder containing it.,Another active rule already uses this folder or a folder containing it.
 Another push holds the writer lock.,Another push holds the writer lock.
 Any due date,Any due date
 Archive,Archive
@@ -121,6 +126,7 @@ Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
 Batched: match by total,Batched: match by total
 Before VAT,Before VAT
+Being recognized,Being recognized
 Billing Code,Billing Code
 Billing Kind,Billing Kind
 Billing Receipt,Billing Receipt
@@ -173,6 +179,7 @@ Card templates,Card templates
 Cash,Cash
 Cash purchase,Cash purchase
 Cash sales,Cash sales
+Catch-up after start,Catch-up after start
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
 Change list color,Change list color
@@ -190,7 +197,10 @@ Checking,Checking
 Checklist,Checklist
 Checks Json,Checks Json
 Cheque,Cheque
+Choose a day and time for the monthly run.,Choose a day and time for the monthly run.
 Choose a file,Choose a file
+"Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
+Choose an allowed root reported by the Companion.,Choose an allowed root reported by the Companion.
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
@@ -201,6 +211,7 @@ Choose service or stock for this invoice and submit again,Choose service or stoc
 "Choose the Express records for this invoice first, then submit again","Choose the Express records for this invoice first, then submit again"
 Choose the company,Choose the company
 Choose the destination for these documents,Choose the destination for these documents
+Choose the inventory account group for this account set first.,Choose the inventory account group for this account set first.
 Choose the inventory account group for this account set. Tap the number:,Choose the inventory account group for this account set. Tap the number:
 Choose the payment method,Choose the payment method
 Choose the sheet to import,Choose the sheet to import
@@ -225,7 +236,10 @@ Comments,Comments
 Comments and activity,Comments and activity
 Companion Report,Companion Report
 Companion authentication failed.,Companion authentication failed.
+Companion offline or needs update,Companion offline or needs update
 Company,Company
+CompanyA-purchase-service,CompanyA-purchase-service
+CompanyA-sales,CompanyA-sales
 Complete,Complete
 Complete statement review before exporting the result.,Complete statement review before exporting the result.
 Completed,Completed
@@ -248,6 +262,7 @@ Copy list,Copy list
 Copy to,Copy to
 Correct entry,Correct entry
 Corrected Value,Corrected Value
+Could not finish,Could not finish
 Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menus. Try again later.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
 Could not store this document,Could not store this document
@@ -301,6 +316,7 @@ Create board,Create board
 Create card,Create card
 Create from template,Create from template
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
+Create it from the document,Create it from the document
 Created,Created
 Created By,Created By
 Creation Request Hash,Creation Request Hash
@@ -322,6 +338,7 @@ Date,Date
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
 Dates,Dates
+Day {0},Day {0}
 Days later,Days later
 Debit,Debit
 Decide once ({0}),Decide once ({0})
@@ -338,6 +355,7 @@ Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts?
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Department,Department
+Department for this rule,Department for this rule
 Deposit,Deposit
 Description,Description
 Details,Details
@@ -385,12 +403,14 @@ ERP Token,ERP Token
 ERP Username,ERP Username
 ERP document number,ERP document number
 ERP records cannot be saved in Cowork.,ERP records cannot be saved in Cowork.
+Each invoice's result sheet is written to _Pearnly结果 for checking the next day.,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
 Edit,Edit
 Edit Count,Edit Count
 Edit card,Edit card
 Edit dates,Edit dates
+Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
 Electronic,Electronic
@@ -410,6 +430,9 @@ Enter a valid email,Enter a valid email
 Enter a valid quantity with no more than six decimal places.,Enter a valid quantity with no more than six decimal places.
 Enter list name,Enter list name
 Enter the user name,Enter the user name
+Entered into Express,Entered into Express
+Entered {0} · in progress {1} · failed {2} · not invoices {3},Entered {0} · in progress {1} · failed {2} · not invoices {3}
+Entering into Express,Entering into Express
 Entries,Entries
 Entries · {0},Entries · {0}
 Entries — {0},Entries — {0}
@@ -421,11 +444,13 @@ Evidence Owner,Evidence Owner
 Examples Json,Examples Json
 Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV exported from online banking or the electronic PDF is most accurate
 Expense account,Expense account
+Expense account when no category matches,Expense account when no category matches
 Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+Express PC,Express PC
 "Express already has this invoice number with different content. Check it, or choose Send anyway","Express already has this invoice number with different content. Check it, or choose Send anyway"
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
@@ -440,6 +465,7 @@ Field name,Field name
 File,File
 File Hash,File Hash
 Files,Files
+Files already in the folder when the rule is turned on are not processed.,Files already in the folder when the rule is turned on are not processed.
 Filter,Filter
 Find,Find
 Find product,Find product
@@ -448,7 +474,15 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
+Folder and schedule,Folder and schedule
+Folder auto-intake is not turned on for this site.,Folder auto-intake is not turned on for this site.
+Folder auto-intake rules,Folder auto-intake rules
+Folder rule name,Folder rule name
+Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
+Folder rules work with Express connections only.,Folder rules work with Express connections only.
+Folder to read,Folder to read
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
+Found {0} · new {1} · skipped {2} · upload failed {3},Found {0} · new {1} · skipped {2} · upload failed {3}
 Found {0}. Tap the number to choose:,Found {0}. Tap the number to choose:
 General,General
 General ledger,General ledger
@@ -457,12 +491,14 @@ Generation Key,Generation Key
 Gray,Gray
 Green,Green
 Group,Group
+Handle these the same way every time,Handle these the same way every time
 Hide details,Hide details
 History,History
 History Records,History Records
 History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
+How to put documents in the folders,How to put documents in the folders
 IN,IN
 "If you have the electronic statement, upload it instead","If you have the electronic statement, upload it instead"
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
@@ -506,6 +542,7 @@ Invoice Total,Invoice Total
 Invoice detail,Invoice detail
 Invoice no.,Invoice no.
 Invoice number,Invoice number
+Invoice number on the document,Invoice number on the document
 Invoice pages do not match the original page references.,Invoice pages do not match the original page references.
 Invoice recognition is busy. Try again in a moment.,Invoice recognition is busy. Try again in a moment.
 Invoice recognition took too long. Try again later.,Invoice recognition took too long. Try again later.
@@ -534,6 +571,7 @@ Last Push Status,Last Push Status
 Last Pushed At (UTC),Last Pushed At (UTC)
 Last Request Hash,Last Request Hash
 Last Request Key,Last Request Key
+Last day of the month,Last day of the month
 Last used,Last used
 Lease Expires At,Lease Expires At
 Leave board,Leave board
@@ -583,6 +621,7 @@ Members and observers,Members and observers
 Mirror,Mirror
 Missing page,Missing page
 Monthly,Monthly
+Monthly on {0} at {1},Monthly on {0} at {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.","Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
 Move,Move
 Move all cards in this list,Move all cards in this list
@@ -593,6 +632,7 @@ Native Content Hash,Native Content Hash
 Needs review,Needs review
 Never,Never
 New code,New code
+New folder rule,New folder rule
 New records must start as drafts.,New records must start as drafts.
 New stock count,New stock count
 New task,New task
@@ -600,8 +640,10 @@ New task,New task
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
 No account set matches “{0}”,No account set matches “{0}”
+No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No cards are assigned to you,No cards are assigned to you
 No due date,No due date
+No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
@@ -612,6 +654,7 @@ No presets yet,No presets yet
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No rules yet,No rules yet
+No runs yet,No runs yet
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 "No, check line by line","No, check line by line"
@@ -619,6 +662,7 @@ No warehouse matches that name,No warehouse matches that name
 None,None
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
+Not an invoice file,Not an invoice file
 Not bound,Not bound
 Not card deposits net of fee,Not card deposits net of fee
 Not counted,Not counted
@@ -631,7 +675,11 @@ Number,Number
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Observer,Observer
+On schedule,On schedule
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
+"One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
+One of the default choices is not valid for this account set.,One of the default choices is not valid for this account set.
+Only PDF and image files are read.,Only PDF and image files are read.
 Only an active count can be deleted,Only an active count can be deleted
 Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
@@ -649,6 +697,7 @@ Original SHA-256,Original SHA-256
 Original Size,Original Size
 Original Type,Original Type
 Original evidence and ownership cannot be changed.,Original evidence and ownership cannot be changed.
+Original file name,Original file name
 Original files can only be changed through the Cowork file service.,Original files can only be changed through the Cowork file service.
 Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
@@ -748,6 +797,7 @@ Recognition tasks cannot be deleted through the document API.,Recognition tasks 
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
 Recognized with high confidence,Recognized with high confidence
+"Recognized, waiting to enter","Recognized, waiting to enter"
 Reconciled,Reconciled
 Reconciliation Type,Reconciliation Type
 Reconciliation completed: {0},Reconciliation completed: {0}
@@ -760,6 +810,7 @@ Record Id,Record Id
 Record Key,Record Key
 Record Revision,Record Revision
 Record a count,Record a count
+Record as expense,Record as expense
 Recount,Recount
 Recount this product,Recount this product
 Recurring,Recurring
@@ -817,7 +868,14 @@ Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
 Rule,Rule
+Rule is off,Rule is off
+Rule is on,Rule is on
 Rules saved,Rules saved
+Run at (Bangkok time),Run at (Bangkok time)
+Run history,Run history
+Run now,Run now
+Run on day,Run on day
+Run requested. The Companion starts within a few minutes.,Run requested. The Companion starts within a few minutes.
 Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
@@ -848,8 +906,10 @@ Service,Service
 Service or stock?,Service or stock?
 Set At,Set At
 Set By,Set By
+Set a local folder once; documents are read and entered every month,Set a local folder once; documents are read and entered every month
 Set by {0} on {1},Set by {0} on {1}
 Set due date,Set due date
+Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder
 Settings Json,Settings Json
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
@@ -899,7 +959,10 @@ Stock count photos are not yet supported. Remove the photos before saving.,Stock
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
 Stock item,Stock item
+Stock item not found in Express,Stock item not found in Express
+Stop and let me choose,Stop and let me choose
 Stop watching,Stop watching
+Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.
 Submit,Submit
 Summary table import,Summary table import
 Table,Table
@@ -923,6 +986,8 @@ That photo cannot be attached. Upload it again.,That photo cannot be attached. U
 The Companion delivery record is invalid.,The Companion delivery record is invalid.
 The Companion delivery record was not found.,The Companion delivery record was not found.
 The Companion identity is no longer valid. Authenticate again.,The Companion identity is no longer valid. Authenticate again.
+The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
+The Companion on this PC has not synced folders recently. Open it and update to the latest version.,The Companion on this PC has not synced folders recently. Open it and update to the latest version.
 The Companion queue request is invalid.,The Companion queue request is invalid.
 The Companion queue response is invalid.,The Companion queue response is invalid.
 The Companion report is invalid.,The Companion report is invalid.
@@ -995,11 +1060,14 @@ The document sections are incomplete or invalid.,The document sections are incom
 "The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway","The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 The entry does not balance. Check the amounts,The entry does not balance. Check the amounts
 The export contains an invalid or repeated history reference.,The export contains an invalid or repeated history reference.
+The file check is busy. It will be retried.,The file check is busy. It will be retried.
 The file exceeds the allowed size.,The file exceeds the allowed size.
 The file has too many rows. Split it and reconcile each part,The file has too many rows. Split it and reconcile each part
+The file is empty or too large.,The file is empty or too large.
 The file is larger than 25 MB,The file is larger than 25 MB
 The file is larger than 5 MB.,The file is larger than 5 MB.
 The file size or page metadata is invalid.,The file size or page metadata is invalid.
+The folder rule is incomplete or invalid.,The folder rule is incomplete or invalid.
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
 The general ledger could not be read.,The general ledger could not be read.
 "The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.","The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
@@ -1050,6 +1118,7 @@ The push data exceeds the size limit.,The push data exceeds the size limit.
 The push record has changed. Reload and try again.,The push record has changed. Reload and try again.
 The push target has changed. Prepare the invoice again.,The push target has changed. Prepare the invoice again.
 The quantity is not a valid number,The quantity is not a valid number
+The recognition task was not found.,The recognition task was not found.
 The recognized content does not match the original references.,The recognized content does not match the original references.
 The recognized invoice manifest cannot be replaced.,The recognized invoice manifest cannot be replaced.
 The reconciliation could not be completed.,The reconciliation could not be completed.
@@ -1067,12 +1136,14 @@ The reports cover different periods ({0}).,The reports cover different periods (
 The request is invalid. Reload and try again.,The request is invalid. Reload and try again.
 The requested page is not part of this invoice.,The requested page is not part of this invoice.
 The result is not confirmed. Check in Express before sending again,The result is not confirmed. Check in Express before sending again
+The result sheet is not ready yet.,The result sheet is not ready yet.
 The review workbook cannot be read. Check its format and content.,The review workbook cannot be read. Check its format and content.
 The review workbook contains an invalid number.,The review workbook contains an invalid number.
 The review workbook contains no invoice rows to import.,The review workbook contains no invoice rows to import.
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.
 The review worksheet name contains extra spaces. Restore the original name.,The review worksheet name contains extra spaces. Restore the original name.
 The row has no product code or barcode,The row has no product code or barcode
+The rule owner can no longer enter documents with this connection.,The rule owner can no longer enter documents with this connection.
 The seller and buyer have the same tax ID. Correct it and submit again,The seller and buyer have the same tax ID. Correct it and submit again
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
@@ -1086,8 +1157,10 @@ The stocktake export snapshot is incomplete. Reload and try again.,The stocktake
 The system is busy and the reconciliation was not finished. Please try again shortly.,The system is busy and the reconciliation was not finished. Please try again shortly.
 The tax ID is not valid. Correct it and submit again,The tax ID is not valid. Correct it and submit again
 The unsent preparation was cancelled.,The unsent preparation was cancelled.
+The uploaded file does not match the file on the PC.,The uploaded file does not match the file on the PC.
 The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
 The uploaded file is empty.,The uploaded file is empty.
+The uploaded file was not received. It will be sent again.,The uploaded file was not received. It will be sent again.
 The uploaded file was not received. Please upload again.,The uploaded file was not received. Please upload again.
 The verified ERP export details are invalid.,The verified ERP export details are invalid.
 The worksheet row or column information is invalid.,The worksheet row or column information is invalid.
@@ -1109,7 +1182,9 @@ This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR m
 This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
 This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
+This PC already has the maximum number of folder rules.,This PC already has the maximum number of folder rules.
 This account cannot send documents,This account cannot send documents
+This account set is not in the connection's list. Reload the list in New Intake.,This account set is not in the connection's list. Reload the list in New Intake.
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
 This board no longer exists,This board no longer exists
@@ -1122,6 +1197,8 @@ This delivery conflicts with the current task state.,This delivery conflicts wit
 This document format is not supported.,This document format is not supported.
 This file does not match the review workbook format.,This file does not match the review workbook format.
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.","This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
+This file is too large to send from this PC.,This file is too large to send from this PC.
+This file record was not found.,This file record was not found.
 This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
@@ -1148,6 +1225,8 @@ This request key was used for another credential operation.,This request key was
 This request key was used for different content.,This request key was used for different content.
 This request key was used for different push content.,This request key was used for different push content.
 This request was already used for different content.,This request was already used for different content.
+This rule is turned off.,This rule is turned off.
+This rule no longer exists for this PC.,This rule no longer exists for this PC.
 This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
 "This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.","This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF."
 "This statement shows no running balance, so balances cannot be checked line by line.","This statement shows no running balance, so balances cannot be checked line by line."
@@ -1166,6 +1245,10 @@ Total,Total
 Transaction Date,Transaction Date
 Transaction type,Transaction type
 Transfer,Transfer
+Turn off,Turn off
+Turn on,Turn on
+Turn this rule off? Documents already entered stay as they are.,Turn this rule off? Documents already entered stay as they are.
+Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
 Type,Type
 Type a few letters of the company or account set name to find it,Type a few letters of the company or account set name to find it
 "Type or scan, then press Enter","Type or scan, then press Enter"
@@ -1187,8 +1270,10 @@ Upload files,Upload files
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
 Upload · Review · Choose destination,Upload · Review · Choose destination
 Uploaded By,Uploaded By
+Uploaded from the PC,Uploaded from the PC
 Uploading,Uploading
 Uploading files,Uploading files
+Uploading from the PC,Uploading from the PC
 Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
 Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
 Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
@@ -1201,6 +1286,7 @@ Username can only have letters and numbers,Username can only have letters and nu
 VAT,VAT
 VAT Report Check,VAT Report Check
 VAT is not 7% of the base,VAT is not 7% of the base
+VAT on receipts and abbreviated tax invoices,VAT on receipts and abbreviated tax invoices
 VAT report amount,VAT report amount
 VAT report detail,VAT report detail
 VAT without a base amount,VAT without a base amount
@@ -1219,14 +1305,20 @@ Voided,Voided
 Voucher no.,Voucher no.
 WHT amount,WHT amount
 Waiting,Waiting
+Waiting for recognition,Waiting for recognition
+Waiting for the recognition charge to complete.,Waiting for the recognition charge to complete.
 "Waiting in line, will submit automatically","Waiting in line, will submit automatically"
 Waiting to start,Waiting to start
 Warehouse,Warehouse
 Watch,Watch
 Weekly,Weekly
 When a card enters,When a card enters
+"When a new fiscal year starts, change the rule's account set.","When a new fiscal year starts, change the rule's account set."
+When the document does not show cash or credit,When the document does not show cash or credit
+Where the documents go,Where the documents go
 Who can add and remove members,Who can add and remove members
 Who can comment,Who can comment
+Why it is not in the review sheet,Why it is not in the review sheet
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
@@ -1244,6 +1336,7 @@ You do not have access to this ERP target.,You do not have access to this ERP ta
 account,account
 active,active
 admitted,admitted
+"allowed root, set once on the Companion","allowed root, set once on the Companion"
 amount,amount
 before VAT,before VAT
 catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
@@ -1300,6 +1393,105 @@ cowork.choice.party,Express record
 cowork.choice.payment,Payment
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
+cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
+cowork.folder.agentStale,Companion offline or needs update
+cowork.folder.agentStaleHint,The Companion on this PC has not synced folders recently. Open it and update to the latest version.
+cowork.folder.batch_missing,The recognition task was not found.
+cowork.folder.billing_pending,Waiting for the recognition charge to complete.
+cowork.folder.cardHint,Set a local folder once; documents are read and entered every month
+cowork.folder.catalogEmpty,No account sets yet. Use Reload in New Intake first.
+cowork.folder.connection_fixed,A rule cannot move to another PC. Turn it off and create a new one.
+cowork.folder.content_mismatch,The uploaded file does not match the file on the PC.
+cowork.folder.counts,Entered {0} · in progress {1} · failed {2} · not invoices {3}
+cowork.folder.day,Day {0}
+cowork.folder.default.account,Expense account when no category matches
+cowork.folder.default.department,Department for this rule
+cowork.folder.default.item,Stock item not found in Express
+cowork.folder.default.payment,When the document does not show cash or credit
+cowork.folder.default.vat,VAT on receipts and abbreviated tax invoices
+cowork.folder.defaultsHint,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
+cowork.folder.defaults_invalid,One of the default choices is not valid for this account set.
+cowork.folder.disable,Turn off
+cowork.folder.disableConfirm,Turn this rule off? Documents already entered stay as they are.
+cowork.folder.disabled,Folder auto-intake is not turned on for this site.
+cowork.folder.edit,Edit folder rule
+cowork.folder.empty,No folder rules yet. Create one and put the documents into its folder.
+cowork.folder.enable,Turn on
+cowork.folder.enableConfirm,Turn this rule on? Only files added to the folder from now on are processed.
+cowork.folder.entry_missing,This file record was not found.
+cowork.folder.express_only,Folder rules work with Express connections only.
+cowork.folder.field.connection,Express PC
+cowork.folder.field.day,Run on day
+cowork.folder.field.folder,Folder to read
+cowork.folder.field.root,Allowed root folder on the PC
+cowork.folder.field.time,Run at (Bangkok time)
+cowork.folder.field.title,Folder rule name
+cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
+cowork.folder.guide.result,"made by the system, do not put documents here"
+cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
+cowork.folder.guide.root,"allowed root, set once on the Companion"
+cowork.folder.guide.rule,rule {0}
+cowork.folder.guide.sampleA,CompanyA-purchase-service
+cowork.folder.guide.sampleB,CompanyA-sales
+cowork.folder.guide.sinceRule,Files already in the folder when the rule is turned on are not processed.
+cowork.folder.guide.sub,subfolders are scanned too
+cowork.folder.guide.subRule,Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.
+cowork.folder.guide.title,How to put documents in the folders
+cowork.folder.guide.typesRule,Only PDF and image files are read.
+cowork.folder.guide.yearRule,"When a new fiscal year starts, change the rule's account set."
+cowork.folder.inspect_busy,The file check is busy. It will be retried.
+cowork.folder.invalid,The folder rule is incomplete or invalid.
+cowork.folder.item.ask,Stop and let me choose
+cowork.folder.item.new,Create it from the document
+cowork.folder.lastDay,Last day of the month
+cowork.folder.mastersLoading,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
+cowork.folder.new,New folder rule
+cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
+cowork.folder.noRuns,No runs yet
+cowork.folder.off,Rule is off
+cowork.folder.on,Rule is on
+cowork.folder.overlap,Another active rule already uses this folder or a folder containing it.
+cowork.folder.owner_not_ready,The rule owner can no longer enter documents with this connection.
+cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
+cowork.folder.rootItself,(the root folder itself)
+cowork.folder.root_invalid,Choose an allowed root reported by the Companion.
+cowork.folder.rule_disabled,This rule is turned off.
+cowork.folder.rule_missing,This rule no longer exists for this PC.
+cowork.folder.runNow,Run now
+cowork.folder.runRequested,Run requested. The Companion starts within a few minutes.
+cowork.folder.runScan,Found {0} · new {1} · skipped {2} · upload failed {3}
+cowork.folder.runs,Run history
+cowork.folder.schedule,Monthly on {0} at {1}
+cowork.folder.schedule_invalid,Choose a day and time for the monthly run.
+cowork.folder.section.defaults,Handle these the same way every time
+cowork.folder.section.folder,Folder and schedule
+cowork.folder.section.target,Where the documents go
+cowork.folder.size_invalid,The file is empty or too large.
+cowork.folder.state.done,Entered into Express
+cowork.folder.state.failed,Could not finish
+cowork.folder.state.not_invoice,Not an invoice file
+cowork.folder.state.pushing,Entering into Express
+cowork.folder.state.recognized,"Recognized, waiting to enter"
+cowork.folder.state.registered,Uploading from the PC
+cowork.folder.state.source_ready,Waiting for recognition
+cowork.folder.state.submitted,Being recognized
+cowork.folder.state.uploaded,Uploaded from the PC
+cowork.folder.step_error,A step failed and will be retried in ten minutes.
+cowork.folder.stock_group_needed,Choose the inventory account group for this account set first.
+cowork.folder.title,Folder auto-intake rules
+cowork.folder.too_large,This file is too large to send from this PC.
+cowork.folder.too_many,This PC already has the maximum number of folder rules.
+cowork.folder.trigger.catch_up,Catch-up after start
+cowork.folder.trigger.manual,Run now
+cowork.folder.trigger.schedule,On schedule
+cowork.folder.type_invalid,Only PDF and image files are read.
+cowork.folder.upload_lost,The uploaded file was not received. It will be sent again.
+cowork.folder.vat.claim,Claim as input VAT
+cowork.folder.vat.expense,Record as expense
+cowork.folder.wb.file,Original file name
+cowork.folder.wb.invoice,Invoice number on the document
+cowork.folder.wb.reason,Why it is not in the review sheet
+cowork.folder.workbook_not_ready,The result sheet is not ready yet.
 cowork.intake.interrupted,Recognition was interrupted (not charged). Upload this file again
 cowork.intake.waitingRoom,"Waiting in line, will submit automatically"
 cowork.line.boundAt,Bound at
@@ -2015,6 +2207,7 @@ intake.wait.uploading,Uploading
 leased,leased
 legacy,legacy
 logical_section,logical_section
+"made by the system, do not put documents here","made by the system, do not put documents here"
 manual,Manual
 none,none
 not_billable,not_billable
@@ -2212,6 +2405,7 @@ roundtrip.export_sales_items_required,Sales invoices need line items with tax-ex
 roundtrip.export_scope_mixed,Export records from the same company and client together.
 roundtrip.export_text_invalid,The invoice contains text that Excel cannot store safely. Check its length and characters.
 roundtrip.reference_unavailable,A referenced history record is unavailable in the selected company and client.
+rule {0},rule {0}
 saved,saved
 scan,scan
 service,Service
@@ -2240,6 +2434,7 @@ stocktake.request_invalid,The stock count request is invalid. Reload and try aga
 stocktake.row_invalid,The import row is invalid or has missing required values.
 stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
 stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
+subfolders are scanned too,subfolders are scanned too
 summary_table_batch,Summary table import
 total,total
 used by {0} items,used by {0} items

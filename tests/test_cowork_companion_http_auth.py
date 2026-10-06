@@ -15,7 +15,7 @@ SOURCE = Path(__file__).resolve().parents[1] / 'apps/pearnly_cowork/pearnly_cowo
 
 def pure_contract():
     tree = ast.parse(SOURCE.read_text())
-    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', '_HEADER'}
+    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'MACHINE_METHODS', 'MACHINE_PATHS', '_HEADER'}
     selected = [node for node in tree.body if
         isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in
             {'RequestContractError', '_machine_candidate', '_envelope'}
@@ -113,5 +113,34 @@ class CompanionHttpContract(unittest.TestCase):
         self.assertNotIn('allow_guest', source)
         self.assertIn('frappe.local.session_obj = None', source)
 
+
+
+class FolderMachineMethods(unittest.TestCase):
+    """文件夹自动录入的四个机器方法与原来三个同一套信封规则；原来三个的表逐字不变。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = pure_contract()
+
+    def test_tables(self):
+        methods, folder = self.contract['METHODS'], self.contract['FOLDER_METHODS']
+        self.assertEqual(set(methods), {'heartbeat', 'lease', 'ack'})
+        self.assertFalse(set(methods) & set(folder))
+        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder})
+        self.assertEqual(set(self.contract['PATHS'].values()) & {'/api/method/' + m for m in folder.values()}, set())
+
+    def test_folder_paths_use_the_same_envelope(self):
+        for method in self.contract['FOLDER_METHODS'].values():
+            path = '/api/method/' + method
+            self.assertTrue(self.contract['_machine_candidate'](path, ''))
+            self.contract['_envelope'](path=path, method='POST', header='Bearer exp_CWEC-synthetic_Ab-c_d',
+                                       cookies={}, query={}, form={}, payload={}, session_user='Guest')
+            for bad in ({'method': 'GET'}, {'session_user': 'someone@example.com'}, {'cookies': {'sid': 'x'}},
+                        {'payload': []}, {'query': {'cmd': 'x'}}):
+                values = dict(path=path, method='POST', header='Bearer exp_CWEC-synthetic_Ab-c_d', cookies={},
+                              query={}, form={}, payload={}, session_user='Guest')
+                values.update(bad)
+                with self.assertRaises(self.contract['RequestContractError']):
+                    self.contract['_envelope'](**values)
 
 if __name__ == '__main__': unittest.main()

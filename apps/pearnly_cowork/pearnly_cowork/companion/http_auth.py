@@ -21,6 +21,16 @@ PATH = '/api/method/' + METHOD
 METHODS = {'heartbeat': METHOD, 'lease': 'pearnly_cowork.companion.queue_api.lease',
            'ack': 'pearnly_cowork.companion.queue_api.acknowledge'}
 PATHS = {operation: '/api/method/' + method for operation, method in METHODS.items()}
+# 文件夹自动录入的机器方法（folder_intake/machine.py，2026-10-07）：与上面三个同一套鉴权、同一份配对码身份，
+# 只是另列一张表；上面三个的路径、校验与身份逐字不变。
+FOLDER_METHODS = {'folder_sync': 'pearnly_cowork.folder_intake.machine.sync',
+                  'folder_begin': 'pearnly_cowork.folder_intake.machine.begin',
+                  'folder_finish': 'pearnly_cowork.folder_intake.machine.finish',
+                  'folder_workbook': 'pearnly_cowork.folder_intake.machine.workbook_file'}
+MACHINE_METHODS = {**METHODS, **FOLDER_METHODS}
+MACHINE_PATHS = {operation: '/api/method/' + method for operation, method in MACHINE_METHODS.items()}
+if len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS):
+    raise RuntimeError('companion machine methods must not overlap')
 _AUTHORITY = object()
 _HEADER = re.compile(r'(?i:Bearer) (exp_[A-Za-z0-9._-]+)')
 
@@ -31,16 +41,16 @@ class RequestContractError(ValueError):
 
 def _machine_candidate(path, header, command=None):
     return (any(path.startswith(prefix + method) for prefix in
-                ('/api/method/', '/api/v1/method/', '/api/v2/method/') for method in METHODS.values())
+                ('/api/method/', '/api/v1/method/', '/api/v2/method/') for method in MACHINE_METHODS.values())
             or bool(re.search(r'exp_', header, flags=re.IGNORECASE))
-            or command in METHODS.values())
+            or command in MACHINE_METHODS.values())
 
 
 def _envelope(*, path, method, header, cookies, query, form, payload,
               session_user, authorization_source=None):
     """Pure input boundary; run before identity and again at the handler seam."""
     match = _HEADER.fullmatch(header)
-    if (path not in PATHS.values() or method != 'POST' or match is None
+    if (path not in MACHINE_PATHS.values() or method != 'POST' or match is None
             or parse_token(match.group(1)) is None
             or session_user not in ('', 'Guest', None)
             or 'sid' in cookies or authorization_source
@@ -132,7 +142,7 @@ def before_request():
             # EnvironHeaders reads this mapping live; ordinary requests never enter.
             frappe.local.cowork_companion_http_envelope = _PendingRequest(
                 token, request, deepcopy(payload),
-                next(operation for operation, path in PATHS.items() if path == request.path), _AUTHORITY)
+                next(operation for operation, path in MACHINE_PATHS.items() if path == request.path), _AUTHORITY)
             request.environ.pop('HTTP_AUTHORIZATION', None)
         except frappe.AuthenticationError:
             raise
@@ -226,14 +236,14 @@ def _authenticate_request(request):
     frappe.local.cowork_private_response = True
     pending = getattr(frappe.local, 'cowork_companion_http_envelope', None)
     if (not isinstance(pending, _PendingRequest) or pending.authority is not _AUTHORITY
-            or pending.request is not request or request.path != PATHS.get(pending.operation) or request.method != 'POST'
+            or pending.request is not request or request.path != MACHINE_PATHS.get(pending.operation) or request.method != 'POST'
             or request.headers.get('Authorization') or 'sid' in request.cookies
             or frappe.session.user not in ('', 'Guest', None)
             or request.headers.get('Frappe-Authorization-Source')
             or any(key in request.args or key in request.form for key in ('cmd', 'sid'))):
         _deny()
     token, payload, operation = pending.token, pending.payload, pending.operation
-    method = METHODS[operation]
+    method = MACHINE_METHODS[operation]
     # handler.execute_cmd can select an override/server script before reaching
     # the whitelist check. Such routing changes must not inherit this identity.
     from frappe.core.doctype.server_script.server_script_utils import get_server_script_map
@@ -283,8 +293,8 @@ def current_request(operation='heartbeat'):
     bound = getattr(frappe.local, 'cowork_companion_http_context', None)
     request = _request()
     if (not isinstance(bound, _BoundRequest) or bound.authority is not _AUTHORITY
-            or operation not in METHODS or bound.operation != operation
-            or request is not bound.request or request.path != PATHS[operation] or request.method != 'POST'
+            or operation not in MACHINE_METHODS or bound.operation != operation
+            or request is not bound.request or request.path != MACHINE_PATHS[operation] or request.method != 'POST'
             or frappe.local.site != bound.context.site or frappe.session.user != bound.context.issuer
             or not isinstance(bound.context, receipt_auth.ReceiptContext if operation == 'ack' else AgentContext)
             or any(key in request.args or key in request.form for key in ('cmd', 'sid'))):
