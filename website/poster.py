@@ -10,8 +10,11 @@ import math
 from urllib.parse import quote
 
 W, H, HP = 1440, 860, 560          # 画布宽高、照片下沿
-HAND_X = 330                        # 小单双手抓住卷边的位置（x 固定，y 跟着卷边走）
-HIP, TILT = (338, 668), -4          # 小单身体底边中点与倾斜角度
+HAND_X = 372                        # 铅笔顶住卷边的位置（x 固定，y 跟着卷边走）
+PROP = 300                          # 那支铅笔的长度；卷边越高，铅笔立得越直
+HIP, TILT, SCALE = (548, 698), 5, 1.25   # 小单单膝蹲着：身体底边中点、前倾角度、放大倍数
+LENS, LENS_R = (594, 456), 46       # 另一只手举着放大镜，镜片里透过相片看到底下的账
+FOCUS = (660, 420)                  # 镜片对准底下那张账的位置（合计和绿勾）
 P0 = .3                             # 没有脚本时的卷起程度（0–1）
 ROT = -1.2                          # 相片在页面上微微斜放
 VIEW, VIEW_SM = f"-40 -40 1520 {H + 40}", f"-24 -40 760 {H + 40}"   # 电脑整张；手机只取左段成竖版
@@ -34,7 +37,7 @@ def n(v):
 # ---------------- 卷角几何（与 site.js peel() 同一套公式） ----------------
 
 def geom(p):
-    lift, width = 120 + 120 * p, 700 + 260 * p
+    lift, width = 120 + 90 * p, 700 + 260 * p
     t = 14 + lift * .16
     cx, cy = width * .42, HP - lift * .62
     curve = f"M{n(width)} {HP}Q{n(cx)} {n(cy)} 0 {n(HP - lift)}"
@@ -55,18 +58,20 @@ def geom(p):
 
 def rot(x, y):
     a = math.radians(TILT)
+    x, y = x * SCALE, y * SCALE
     return HIP[0] + x * math.cos(a) - y * math.sin(a), HIP[1] + x * math.sin(a) + y * math.cos(a)
 
 
-SHOULDERS = (rot(-30, -60), rot(28, -66))
+REST_SHOULDER, LENS_SHOULDER = rot(-28, -62), rot(28, -58)
+GROUND = HIP[1] + 42 * SCALE
 
 
-def arms(hand):
-    """两只胳膊从肩膀举过头顶抓住卷边，手肘往外撑。"""
+def prop(hand):
+    """一支黄铅笔斜撑在地上，顶住卷起的那一角。"""
     hx, hy = hand
-    (lx, ly), (rx, ry) = SHOULDERS
-    return (f"M{n(lx)} {n(ly)}Q{n(min(lx, hx) - 30)} {n((ly + hy) / 2)} {n(hx - 9)} {n(hy)}",
-            f"M{n(rx)} {n(ry)}Q{n(max(rx, hx) + 26)} {n((ry + hy) / 2)} {n(hx + 9)} {n(hy)}")
+    rise = GROUND - hy
+    lean = -math.degrees(math.atan2(-math.sqrt(max(PROP ** 2 - rise ** 2, 0)), rise))
+    return f"translate({n(hx)} {n(hy)}) rotate({n(lean)})"
 
 
 # ---------------- 滤镜与渐变 ----------------
@@ -321,8 +326,23 @@ def under(L):
             f'<rect x="30" y="0" width="1.5" height="{HP}" fill="#f2b8b8"/>{head}{rows}')
 
 
-def mascot(hand):
-    """铅笔线条的小单：往后仰着拽卷边。"""
+def lens(L):
+    """放大镜：镜片里是放大 1.1 倍的“底下那张账”，像透过乱糟糟的相片直接读到数据。"""
+    cx, cy = LENS
+    d = (-.62, .78)
+    a = (cx + d[0] * (LENS_R + 4), cy + d[1] * (LENS_R + 4))
+    b = (cx + d[0] * (LENS_R + 46), cy + d[1] * (LENS_R + 46))
+    return (f'<clipPath id="pz-glass"><circle cx="{cx}" cy="{cy}" r="{LENS_R}"/></clipPath>'
+            f'<g clip-path="url(#pz-glass)"><g transform="translate({cx} {cy}) scale(1.1) translate({-FOCUS[0]} {-FOCUS[1]})">{under(L)}</g>'
+            f'<path d="M{cx + 4} {cy - 32} a30 30 0 0 1 24 20" stroke="#fff" stroke-width="5" fill="none" opacity=".8"/></g>'
+            f'<g color="{INK}" stroke="currentColor" stroke-linecap="round" fill="none" filter="url(#pz-pencil)">'
+            f'<circle cx="{cx}" cy="{cy}" r="{LENS_R}" stroke-width="4.5"/>'
+            f'<path d="M{n(a[0])} {n(a[1])} L{n(b[0])} {n(b[1])}" stroke-width="13"/>'
+            f'<path d="M{n(a[0])} {n(a[1])} L{n(b[0])} {n(b[1])}" stroke="#ffd84d" stroke-width="7"/></g>'), b
+
+
+def mascot(grip):
+    """铅笔线条的小单：用一支铅笔撑起相片一角，自己单膝蹲着举放大镜往里看。"""
     def zig():
         out, up = [], True
         for _ in range(8):
@@ -332,33 +352,42 @@ def mascot(hand):
     body = (f'<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V0 {zig()} Z" fill="{PAPER}"/>'
             '<path d="M-24 -40 H18 M-24 -28 H8" stroke="#bdb7aa" stroke-width="3"/>'
             '<rect x="2" y="-18" width="26" height="10" rx="3" fill="#ffd84d" stroke="currentColor" stroke-width="2.4"/>'
-            '<path d="M44 -98 q6 8 0 14 q-6 -6 0 -14 z" fill="#bfe0ff" stroke-width="2"/>'
-            '<path d="M-7 -50 l3.5 -3 l3.5 3 l3.5 -3 l3.5 3" stroke-width="2.4"/>'
+            '<ellipse cx="6" cy="-52" rx="4" ry="5" stroke-width="2.4"/>'
             '<svg class="mascot pz-face" x="-39" y="-100" width="78" height="60" viewBox="-39 -100 78 60" overflow="visible">'
-            '<ellipse cx="-24" cy="-60" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".8"/>'
-            '<ellipse cx="22" cy="-62" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".8"/>'
-            '<g class="m-look"><g class="m-blink"><circle cx="-13" cy="-74" r="5" fill="currentColor" stroke="none"/>'
-            '<circle cx="13" cy="-75" r="5" fill="currentColor" stroke="none"/></g></g></svg>')
-    (ax, ay), (bx, by) = rot(-14, 0), rot(14, 0)
-    g = HIP[1] + 62
-    legs = (f'<path d="M{n(ax)} {n(ay)} L{n(ax - 24)} {n(ay + 28)} L{n(ax - 16)} {g} h-17"/>'
-            f'<path d="M{n(bx)} {n(by)} L{n(bx + 24)} {n(by + 28)} L{n(bx + 16)} {g} h17"/>')
-    a1, a2 = arms(hand)
-    hx, hy = hand
+            '<ellipse cx="-25" cy="-62" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".8"/>'
+            '<ellipse cx="19" cy="-64" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".8"/>'
+            '<g class="m-blink"><circle cx="-9" cy="-78" r="5" fill="currentColor" stroke="none"/>'
+            '<circle cx="17" cy="-77" r="5" fill="currentColor" stroke="none"/></g></svg>')
+    (ax, ay), (bx, by) = rot(-12, 0), rot(14, 0)
+    k = SCALE
+    g = n(HIP[1] + 42 * k)
+    legs = (f'<path d="M{n(bx)} {n(by)} L{n(bx + 30 * k)} {n(by + 16 * k)} L{n(bx + 34 * k)} {g} h{n(16 * k)}"/>'
+            f'<path d="M{n(ax)} {n(ay)} L{n(ax - 12 * k)} {g} L{n(ax - 46 * k)} {g}"/>')
+    (sx, sy), (gx, gy) = LENS_SHOULDER, grip
+    rx, ry = REST_SHOULDER
     return (f'<g class="pz-pencil" color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#pz-pencil)">'
-            f'<path d="M{HIP[0] - 80} {g + 4} h160 M{HIP[0] - 54} {g + 11} h104 M{HIP[0] - 30} {g + 18} h52" stroke-width="1.6" opacity=".35"/>'
+            f'<path d="M{HIP[0] - 96} {g} m0 4 h190 M{HIP[0] - 64} {g} m0 11 h124 M{HIP[0] - 34} {g} m0 18 h60" stroke-width="1.6" opacity=".35"/>'
             + legs
-            + f'<g transform="translate({HIP[0]} {HIP[1]}) rotate({TILT})">{body}</g>'
-            + f'<path class="pz-arm" d="{a1}"/><path class="pz-arm" d="{a2}"/>'
-            + f'<g class="pz-hands" transform="translate({n(hx)} {n(hy)})"><circle cx="-9" cy="0" r="7" fill="{PAPER}"/><circle cx="9" cy="0" r="7" fill="{PAPER}"/>'
-              '<path d="M-34 -6 l-14 -6 M-30 -22 l-10 -12 M32 -8 l14 -6 M28 -24 l9 -12" stroke-width="2" opacity=".5"/></g>'
+            + f'<g transform="translate({HIP[0]} {HIP[1]}) rotate({TILT}) scale({SCALE})" stroke-width="{n(3 / SCALE)}">{body}</g>'
+            + f'<path d="M{n(rx)} {n(ry)}Q{n(rx - 30)} {n(ry + 24)} {n(rx - 4)} {n(ry + 50)}"/><circle cx="{n(rx - 4)}" cy="{n(ry + 50)}" r="7" fill="{PAPER}"/>'
+            + f'<path d="M{n(sx)} {n(sy)}Q{n(max(sx, gx) + 14)} {n((sy + gy) / 2 + 16)} {n(gx)} {n(gy)}"/>'
+            + f'<circle cx="{n(gx)}" cy="{n(gy)}" r="7" fill="{PAPER}"/>'
             + '</g>')
+
+
+def pencil(hand):
+    L = PROP
+    return (f'<g class="pz-prop" transform="{prop(hand)}" color="{INK}" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" filter="url(#pz-pencil)">'
+            f'<rect x="-9" y="-2" width="18" height="20" rx="5" fill="#ff9ba3"/><rect x="-9" y="16" width="18" height="10" fill="#cfd2d8"/>'
+            f'<rect x="-9" y="26" width="18" height="{L - 60}" fill="#ffd84d"/><path d="M-3 30 V{L - 38}" stroke="#e0b52e" stroke-width="2"/>'
+            f'<path d="M-9 {L - 34} L0 {L} L9 {L - 34} Z" fill="#f3d9b1"/><path d="M-3 {L - 11} L0 {L} L3 {L - 11} Z" fill="currentColor"/></g>')
 
 
 def svg(L):
     g = geom(P0)
     defs = DEFS.replace("{0}", n(g['grad'][0])).replace("{1}", n(g['grad'][1])).replace("{2}", n(g['grad'][2])).replace("{3}", n(g['grad'][3]))
-    data = f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-hp="{HP}" data-hand-x="{HAND_X}" data-p0="{P0}" data-shoulders="{",".join(n(v) for xy in SHOULDERS for v in xy)}"'
+    data = f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-hp="{HP}" data-hand-x="{HAND_X}" data-p0="{P0}" data-prop="{PROP}" data-ground="{n(GROUND)}"'
+    glass, grip = lens(L)
     return f"""<svg class="pz" viewBox="{VIEW}" {data} role="img" aria-label="{esc(L["alt"])}">
 {defs}
 <g transform="rotate({ROT} {W / 2} {HP / 2})">
@@ -371,9 +400,11 @@ def svg(L):
 <path class="pz-band" d="{g['band']}" fill="url(#pz-roll)"/>
 <g color="{INK}" filter="url(#pz-pencil)" fill="none" stroke="currentColor" stroke-linecap="round">
 <path class="pz-curve" d="{g['curve']}" stroke-width="1.4" opacity=".5"/><path class="pz-lip" d="{g['lip']}" stroke-width="2.4"/></g>
-{mascot(g['hand'])}
+{pencil(g['hand'])}
+{glass}
+{mascot(grip)}
 </g>
-<text class="pz-caption" x="{HIP[0]}" y="{HIP[1] + 130}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
+<text class="pz-caption" x="{HIP[0]}" y="{HIP[1] + 122}" font-family="{HAND}" font-size="30" fill="#3b3934" text-anchor="middle">{esc(L["caption"])}</text>
 </svg>"""
 
 
@@ -385,8 +416,10 @@ def fonts(L):
 
 
 def doodle():
-    """标题区到相片之间的一笔铅笔箭头，把视线带下来。"""
-    return ('<svg class="pz-doodle" viewBox="0 0 120 110" fill="none" stroke="#2d2b27" stroke-width="2.4" stroke-linecap="round" '
+    """标题区到相片之间：一架铅笔画的纸飞机沿虚线飞向相片——单据飞进系统。"""
+    return ('<svg class="pz-doodle" viewBox="0 0 180 140" fill="none" stroke="#2d2b27" stroke-width="2.2" stroke-linecap="round" '
             'stroke-linejoin="round" aria-hidden="true" focusable="false">'
-            '<path d="M12 12 C52 4 90 18 94 48 C97 70 88 86 74 100"/>'
-            '<path d="M62 92 L74 101 L80 86"/></svg>')
+            '<path d="M6 30 C40 6 90 4 112 60" stroke-dasharray="1 8" stroke-width="2.6"/>'
+            '<g transform="translate(128 98) rotate(70) scale(.95) translate(-36 -36)">'
+            '<path d="M66 6 L6 27 L33 39 L45 66 Z" fill="#fffdf8"/><path d="M66 6 L33 39 L45 66 Z" fill="#ebe6da"/>'
+            '<path d="M66 6 L33 39"/></g></svg>')

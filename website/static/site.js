@@ -375,13 +375,13 @@
     var svg = document.querySelector('.pz');
     if (!svg) return;
     var HP = +svg.getAttribute('data-hp'), HX = +svg.getAttribute('data-hand-x'), p0 = +svg.getAttribute('data-p0');
-    var sh = svg.getAttribute('data-shoulders').split(',').map(Number);
+    var prop = +svg.getAttribute('data-prop'), ground = +svg.getAttribute('data-ground');
     var clip = svg.querySelector('.pz-clip'), band = svg.querySelector('.pz-band'), shade = svg.querySelector('.pz-shade'),
       lip = svg.querySelector('.pz-lip'), edge = svg.querySelector('.pz-curve'), bend = svg.querySelector('.pz-bend'),
-      grad = svg.querySelector('#pz-roll'), arms = svg.querySelectorAll('.pz-arm'), hands = svg.querySelector('.pz-hands');
+      grad = svg.querySelector('#pz-roll'), pencil = svg.querySelector('.pz-prop');
     function f(v) { return Math.round(v * 10) / 10; }
     function draw(p) {
-      var L = 120 + 120 * p, w = 700 + 260 * p, t = 14 + L * .16, cx = w * .42, cy = HP - L * .62, ly = cy + t * .85;
+      var L = 120 + 90 * p, w = 700 + 260 * p, t = 14 + L * .16, cx = w * .42, cy = HP - L * .62, ly = cy + t * .85;
       var curve = 'M' + f(w) + ' ' + HP + 'Q' + f(cx) + ' ' + f(cy) + ' 0 ' + f(HP - L);
       var low = '0 ' + f(HP - L + t) + 'Q' + f(cx) + ' ' + f(ly) + ' ' + f(w) + ' ' + HP;
       var mx = .25 * w + .5 * cx, my = .25 * HP + .5 * cy + .25 * (HP - L), k = t / Math.sqrt(L * L + w * w);
@@ -392,9 +392,9 @@
       var lo = 0, hi = 1, s = 0, i, x, hy;
       for (i = 0; i < 24; i++) { s = (lo + hi) / 2; x = (1 - s) * (1 - s) * w + 2 * s * (1 - s) * cx; if (x > HX) lo = s; else hi = s; }
       hy = (1 - s) * (1 - s) * HP + 2 * s * (1 - s) * ly + s * s * (HP - L + t);
-      arms[0].setAttribute('d', 'M' + sh[0] + ' ' + sh[1] + 'Q' + f(Math.min(sh[0], HX) - 30) + ' ' + f((sh[1] + hy) / 2) + ' ' + f(HX - 9) + ' ' + f(hy));
-      arms[1].setAttribute('d', 'M' + sh[2] + ' ' + sh[3] + 'Q' + f(Math.max(sh[2], HX) + 26) + ' ' + f((sh[3] + hy) / 2) + ' ' + f(HX + 9) + ' ' + f(hy));
-      hands.setAttribute('transform', 'translate(' + HX + ' ' + f(hy) + ')');
+      // 铅笔顶在卷边上、笔尖着地：卷得越高立得越直（与 poster.py prop() 同一算法）
+      var rise = ground - hy, lean = -Math.atan2(-Math.sqrt(Math.max(prop * prop - rise * rise, 0)), rise) * 180 / Math.PI;
+      pencil.setAttribute('transform', 'translate(' + HX + ' ' + f(hy) + ') rotate(' + f(lean) + ')');
     }
     // 手机上只取左边一段，变成竖版海报
     function fit() { svg.setAttribute('viewBox', svg.getAttribute(svg.parentNode.clientWidth < 640 ? 'data-view-sm' : 'data-view')); }

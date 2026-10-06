@@ -734,7 +734,7 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .peel { position: relative; margin: 0 auto; max-width: 1000px; }
 .pz { display: block; width: 100%; height: auto; overflow: visible; }
 .pz .pz-face { overflow: visible; }
-.pz-doodle { position: absolute; z-index: 2; width: 92px; height: auto; right: 9%; top: -86px; opacity: .6; }
+.pz-doodle { position: absolute; z-index: 2; width: 132px; height: auto; right: 10%; top: -104px; opacity: .75; }
 /* 标题里一个词下面的荧光笔，和相片里便利贴、荧光笔是同一种黄 */
 .hero h1 { isolation: isolate; }
 .hl { position: relative; white-space: nowrap; }
