@@ -485,7 +485,7 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
   .prose { font-size: 16.5px; }
   .prose table { display: block; overflow-x: auto; }
 }
-.tiles.pair { grid-template-columns: repeat(2, 1fr); margin-top: 0; }
+.tiles.pair { grid-template-columns: repeat(2, 1fr); margin-top: 40px; }
 @media (max-width: 760px) { .tiles.pair { grid-template-columns: 1fr; } }
 
 
