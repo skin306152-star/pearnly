@@ -145,7 +145,8 @@
       if (!src || !dst) return;
       var base = scene.getBoundingClientRect(), r1 = src.getBoundingClientRect(), r2 = dst.getBoundingClientRect();
       var x1 = r1.right - base.left - 4, y1 = r1.top + r1.height / 2 - base.top;
-      if (r2.top > r1.bottom + 20) {  // 手机上两栏叠起来：从这一行的右端往下弯到卡片顶部
+      if (r2.top > r1.bottom + 20) {  // 手机上两栏叠起来：从这一行的右端往下弯到卡片顶部（data-to-top 指定叠起来时连到哪个元素）
+        if (el.getAttribute('data-to-top')) r2 = scene.querySelector(el.getAttribute('data-to-top')).getBoundingClientRect();
         var x2v = r2.left + r2.width / 2 - base.left, y2v = r2.top - base.top + 2;
         el.setAttribute('d', 'M' + x1 + ' ' + y1 + ' C' + (x1 + 28) + ' ' + y1 + ' ' + x2v + ' ' + (y2v - 70) + ' ' + x2v + ' ' + y2v);
         return;

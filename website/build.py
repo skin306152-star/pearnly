@@ -19,6 +19,7 @@ import content as C  # noqa: E402
 import guides as G  # noqa: E402
 import mascot as M  # noqa: E402
 import poster as P  # noqa: E402
+import scenes as S  # noqa: E402
 
 STATIC = HERE / "static"
 VERSION = ""
@@ -271,47 +272,6 @@ def flyer(text, src, dst, at, cls=""):
     return f'<span class="fly {cls}" data-from="{src}" data-to="{dst}" data-at="{at}">{esc(text)}</span>'
 
 
-def scene_cowork(L):
-    rows = [("27/09", "โอนออก", "2,889.00", 0), ("27/09", "ค่าธรรมเนียม", "15.00", None), ("28/09", "โอนออก", "856.00", 1),
-            ("28/09", "รับโอน", "12,400.00", None), ("29/09", "โอนออก", "321.00", 2)]
-    invs = [("บจ. ตัวอย่างกาแฟ", "2,889.00"), ("ร้านวัสดุภัณฑ์ทวีผล", "856.00"), ("บจ. ขนส่งด่วนไทย", "321.00")]
-    T = [900, 2200, 3500]
-    def st_at(m):
-        return "" if m is None else f' data-at="{T[m] + 900}"'
-
-    stmt = "".join(
-        f'<div class="st-row" id="st{n}"{st_at(m)}><span>{d}</span><span>{esc(t)}</span><b>{a}</b><i class="ok">✓</i></div>'
-        for n, (d, t, a, m) in enumerate(rows))
-    cards = "".join(
-        f'<div class="inv i{i}" id="inv{i}" data-at="{T[i]}:pick,{T[i] + 900}:-pick,{T[i] + 900}:on,{4800 + i * 150}:sent">'
-        f'<span>ใบกำกับภาษี</span><b>{esc(n)}</b><em>{a}</em><i class="ok">✓</i></div>'
-        for i, (n, a) in enumerate(invs))
-    target = {0: 0, 1: 2, 2: 4}
-    flies = "".join(flyer(a, f"#inv{i}", f"#st{target[i]}", T[i] + 200) for i, (_n, a) in enumerate(invs))
-    threads = "".join(f'<path class="thread" pathLength="1" data-from="#st{target[i]}" data-to="#inv{i}" data-at="{T[i] + 700},4800:-on"/>'
-                      for i in range(3))
-    flies += f'<svg class="threads" aria-hidden="true">{threads}</svg>'
-    flies += "".join(flyer(a, f"#inv{i}", "#erp-rows", 4800 + i * 150, "doc") for i, (_n, a) in enumerate(invs))
-    erp_rows = "".join(
-        f'<div class="erp-row" data-at="{5400 + i * 160}"><span>{d}</span><span>{esc(n)}</span><b>{a}</b><i class="ok">✓</i></div>'
-        for i, ((n, a), d) in enumerate(zip(invs, ("27/09", "28/09", "29/09"))))
-    dots = "".join(f'<i data-at="{t + 900}"></i>' for t in T)
-    return f"""<div class="scene" data-scene="cowork" data-total="10500">
-  <div class="sc-real">
-    <span class="sc-tag">{esc(L["real"])}</span>
-    <div class="stmt"><h5>{esc(L["stmt"])} <small>ก.ย. 2569</small></h5>{stmt}</div>
-    <div class="sc-mascot" data-at="{T[0] + 900}:hop,{T[0] + 1500}:-hop,{T[1] + 900}:hop,{T[1] + 1500}:-hop,{T[2] + 900}:hop,{T[2] + 1500}:-hop,6900:hop,7500:-hop">{M.svg("cowork")}</div>
-  </div>
-  <div class="sc-sys">
-    <span class="sc-tag">{esc(L["system"])}</span>
-    <div class="invs"><h5>{esc(L["invoices"])} <span class="dots">{dots}</span></h5><div class="inv-row">{cards}</div></div>
-    <div class="erpbox" data-at="6200:read"><h5>{esc(L["erp"])} <span class="rb">{esc(L["readback"])}</span></h5><div id="erp-rows">{erp_rows}</div></div>
-    <div class="sc-done" data-at="6900">{icon("check")}<span>{esc(L["cowork_done"])}</span></div>
-  </div>
-  {flies}
-</div>"""
-
-
 def scene_dms(L):
     fields = [("name", L["name"], "นาย สมชาย ใจดี", 1800), ("id_no", L["id_no"], "1-1234-xxxxx-xx-1", 2250),
               ("birth", L["birth"], "12/03/2528", 2700), ("address", L["address"], "99 ถ.ตัวอย่าง อ.เมือง จ.เชียงใหม่", 3150),
@@ -385,7 +345,7 @@ def demo(lang):
     tabs = "".join(
         f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(C.PRODUCT[k][lang]["name"])}</button>'
         for i, k in enumerate(C.PRODUCTS))
-    body = scene_cowork(L).replace('class="scene"', 'class="scene active"', 1) + scene_dms(L) + scene_erp(L)
+    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + scene_dms(L) + scene_erp(L)
     return window(f'<div class="demo-body" aria-hidden="true">{body}<div class="progress"><i></i></div></div>',
                   f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
 
@@ -496,7 +456,7 @@ def page_home(lang):
   </div>
   <div class="wrap wide"><figure class="peel">{P.doodle()}{P.svg(peel)}{P.ask(peel)}</figure></div>
 </section>
-<section class="wrap wide section demo-band"><div class="hero-stage">{M.svg("base", "hero-mascot")}{demo(lang)}</div></section>
+<section class="wrap wide section demo-band"><div class="hero-stage">{demo(lang)}</div></section>
 {story(lang)}<section class="wrap section logos reveal">
   <p class="serif">{esc(t["integrations"])}</p>
   <div class="logo-row">{logos}</div>
@@ -512,7 +472,7 @@ def page_home(lang):
   <div class="tiles">{tools}</div>
 </section>
 {home_guides(lang)}"""
-    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel)) + header(lang, "home") + body
+    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel, "".join(str(v) for v in C.DEMO_LABELS[lang].values()))) + header(lang, "home") + body
             + contact(lang) + footer(lang))
 
 

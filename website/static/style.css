@@ -727,8 +727,8 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .compare tbody th { width: 34%; }
 
 /* 主视觉下面的演示窗：给挥手的小单留出位置，别压到主视觉上 */
-.demo-band { padding-top: 112px; }
-@media (max-width: 760px) { .demo-band { padding-top: 90px; } }
+.demo-band { padding-top: 72px; }
+@media (max-width: 760px) { .demo-band { padding-top: 56px; } }
 
 /* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：彩铅插画放进一张液态玻璃卡片（同顶栏的玻璃做法），左下角被小单卷起 ---------- */
 .peel {
@@ -773,3 +773,54 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 @keyframes hl-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .hl::after { animation: none; } }
 @media (max-width: 760px) { .pz-doodle { display: none; } .peel { padding: 10px 10px 2px; border-radius: 24px; } }
+
+/* ---------- 首页演示 · 手绘版（website/scenes.py）：左右两张内联 SVG，元素按 site.js demo() 的时间轴加类 ---------- */
+.hd-defs { position: absolute; width: 0; height: 0; }
+.scene.hd-scene.active { min-height: 0; }
+.hd-scene .sc-real, .hd-scene .sc-sys { padding: 0; display: block; }
+.hd-scene .sc-real { background: #f6efdf; }
+.hd-scene .sc-sys { background: #fffdf8; }
+.hd { display: block; width: 100%; height: auto; overflow: visible; }
+.hd text { user-select: none; }
+.hd .pop, .hd-inv, .hd-stamp, .hd-chip, .hd-dot, .hm-hop { transform-box: fill-box; transform-origin: center; }
+/* 一笔画出来：荧光笔、对勾 */
+/* 圆头线帽在长度为 0 时也会画出一个点，所以没画之前连透明度一起藏起来 */
+.hd-hl, .hd-tick { stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; transition: stroke-dashoffset .45s var(--ease), opacity .1s; }
+.hd-hl.on, .hd-tick.on, .hd-inv.read .hd-cardtick { stroke-dashoffset: 0; opacity: 1; }
+.hd-hl.on { opacity: .85; }
+/* 读出来的税票：弹出来，扫描条从上扫到下；推进 ERP 后淡一点 */
+.hd-inv { opacity: 0; transform: scale(.6) rotate(-6deg); transition: opacity .35s var(--ease), transform .5s cubic-bezier(.3, 1.5, .5, 1); }
+.hd-inv.on { opacity: 1; transform: none; }
+.hd-inv.hd-sent { opacity: .45; }
+.hd-scan { opacity: 0; }
+.hd-inv.scan .hd-scan { animation: hd-scan .9s ease-in-out; }
+@keyframes hd-scan { 0% { opacity: .5; transform: translateY(0); } 90% { opacity: .5; transform: translateY(100px); } 100% { opacity: 0; transform: translateY(100px); } }
+.hd-dot { transition: fill .3s; }
+.hd-dot.on { fill: #43b36f; animation: hd-pop .45s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes hd-pop { from { transform: scale(.3); } }
+.hd-chip, .hd-stamp { opacity: 0; }
+.hd-chip.on { opacity: 1; animation: hd-pop .45s cubic-bezier(.3, 1.6, .5, 1); }
+.hd-stamp.on { opacity: 1; animation: hd-stamp .5s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes hd-stamp { from { opacity: 0; transform: scale(2.2) rotate(8deg); } }
+/* 放大镜沿着日记账三行扫一遍（回读） */
+.hd-lens { opacity: 0; transform: translate(70px, 330px); }
+.hd-lens.on { animation: hd-lens 1.3s ease-in-out forwards; }
+@keyframes hd-lens { 0% { opacity: 0; transform: translate(70px, 330px); } 12% { opacity: 1; } 35% { transform: translate(380px, 342px); }
+  65% { transform: translate(90px, 376px); } 88% { opacity: 1; transform: translate(380px, 412px); } 100% { opacity: 0; transform: translate(400px, 412px); } }
+/* 小单：抬笔打勾、跳一下、最后挥手（类名都带 hm- 前缀，别撞上全站的 .hop / .ok） */
+.hm-arm, .hm-wave, .hm-leg { transition: transform .35s var(--ease); }
+.hm.hm-jot .hm-arm { animation: hm-jot .55s var(--ease); }
+@keyframes hm-jot { 40% { transform: rotate(-58deg); } 70% { transform: rotate(-40deg); } }
+.hm.hm-hopping .hm-hop { animation: hm-hop .6s var(--ease); }
+@keyframes hm-hop { 35% { transform: translateY(-22px); } 60% { transform: translateY(0) scaleY(.94); } }
+.hm.hm-cheer .hm-wave { animation: hm-wave 1s var(--ease) 2; }
+@keyframes hm-wave { 30%, 70% { transform: rotate(130deg); } 50% { transform: rotate(105deg); } }
+.hm.hm-cheer .hm-mouth { d: path("M-8 -56 q8 12 16 0"); }
+.hm .hm-eyes { animation: hm-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes hm-blink { 0%, 95%, 100% { transform: none; } 97% { transform: scaleY(.1); } }
+/* 两边之间飞的东西：手写字的小纸条；配对线是铅笔虚线 */
+.fly.hd-fly { background: #fffdf6; color: #2d2b27; border: 2px solid #3d362c; border-radius: 6px; font: 400 15px/1.2 Sriracha, "Long Cang", cursive;
+  padding: 3px 10px; box-shadow: 4px 5px 0 rgba(58, 42, 20, .14); }
+.fly.hd-fly.doc { background: #fff8e1; }
+.hd-thread { stroke: #3d362c; stroke-width: 2; stroke-linecap: round; opacity: .7; }
+@media (prefers-reduced-motion: reduce) { .hm .hm-eyes { animation: none; } }

@@ -437,10 +437,13 @@ def svg(L):
 </svg>"""
 
 
-def fonts(L):
-    """手写字体：Sriracha（泰文 + 拉丁，Google 按字符集分片，只下用到的那片）；中文手写字很大，只按用到的几个字取子集。"""
+def fonts(L, extra=""):
+    """手写字体：Sriracha（泰文 + 拉丁，Google 按字符集分片，只下用到的那片）；中文手写字很大，只按用到的几个字取子集。
+
+    extra：同一页上其他手写的中文（首页演示的标签）。
+    """
     urls = ["https://fonts.googleapis.com/css2?family=Sriracha&display=swap"]
-    cjk = "".join(sorted({c for c in L["caption"] if "\u4e00" <= c <= "\u9fff" or c in "，。？"}))
+    cjk = "".join(sorted({c for c in L["caption"] + extra if "\u4e00" <= c <= "\u9fff" or c in "，。？·"}))
     if cjk:
         urls.append(f"https://fonts.googleapis.com/css2?family=Long+Cang&text={quote(cjk)}&display=swap")
     return urls
