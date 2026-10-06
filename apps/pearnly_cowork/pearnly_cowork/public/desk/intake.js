@@ -64,6 +64,15 @@
 			}) : restore_new;
 			// 官方筛选条件 → 接口参数。条件全在筛选区里（见下面 `add_filters`），
 			// 这里只做翻译，不再偷偷默认什么。
+			// 推送状态（2026-10-07）：页面表单里的一个原生下拉，与状态列同一口径；从自动录入规则页「查看待处理」
+			// 进来时预选「失败」（`frappe.route_options`，用一次就清）。
+			const preset = frappe.route_options?.push_state || "";
+			frappe.route_options = null;
+			const push_filter = page.add_field({fieldtype: "Select", fieldname: "push_state", label: t("intake.col.status"),
+				options: [{value: "", label: __("All")}, {value: "failed", label: __("connect.records.failed")},
+					{value: "pending", label: t("intake.push.pending")}, {value: "success", label: __("connect.records.success")}],
+				default: preset, change: () => void list?.reload()});
+			if (preset) push_filter.set_value(preset);
 			const parameters = () => {
 				const picked = p.filter_values(list);
 				const [from, to] = picked.invoice_date || [];
@@ -71,6 +80,7 @@
 					posting_kind: picked.posting_kind || undefined,
 					date_from: from || undefined,
 					date_to: to || undefined,
+					push_state: push_filter.get_value() || undefined,
 				};
 			};
 			list = p.list({

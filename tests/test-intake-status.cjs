@@ -8,7 +8,10 @@ const source = fs.readFileSync('apps/pearnly_cowork/pearnly_cowork/public/desk/i
 (async () => {
   let options;
   const list = {ready: Promise.resolve(), data: [], reload: async () => {}, destroy() {}};
-  const page = {set_title() {}, set_primary_action() {}, clear_primary_action() {}};
+  // 原生 Page 的 add_field（推送状态下拉，2026-10-07）：替身记下字段定义，值默认「全部」。
+  const fields = {};
+  const page = {set_title() {}, set_primary_action() {}, clear_primary_action() {},
+    add_field(df) { fields[df.fieldname] = df; return {get_value: () => df.default || '', set_value() {}}; }};
   const p = {
     intake_targets: {RECOGNIZE_ONLY: 'none'},
     intake_push_reason: reason => `why:${reason}`,
@@ -20,6 +23,10 @@ const source = fs.readFileSync('apps/pearnly_cowork/pearnly_cowork/public/desk/i
   const frappe = {pearnly: p, model: {can_write: () => true}, set_route() {}, session: {user: 'u'}};
   vm.runInNewContext(source, {frappe, __: String, console});
   await p.intake(page, key => key, {});
+
+  // 推送状态筛选：四个选项、默认全部，选中的值原样交给 workbench。
+  assert.equal(JSON.stringify(fields.push_state.options.map(row => row.value)), JSON.stringify(['', 'failed', 'pending', 'success']));
+  assert.equal(fields.push_state.default, '');
 
   const column = options.columns.find(col => col.fieldname === 'last_push_status');
   assert.equal(column.label, 'intake.col.status');

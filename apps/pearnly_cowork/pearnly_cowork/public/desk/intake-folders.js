@@ -48,11 +48,18 @@
 				return {items: data.rules, total: data.rules.length};
 			},
 			on_open: row => edit(row),
-			row_actions: row => (row.enabled ? [{id: "run", label: ft("cowork.folder.runNow"), action: async () => {
-				await p.call(API + "run_now", {name: row.name}, "POST");
-				frappe.show_alert({message: p.escape(ft("cowork.folder.runRequested")), indicator: "green"});
-				await list.reload();
-			}}] : []),
+			row_actions: row => [
+				// 有没推出去的票：直接到录入工作台、只看「失败」的那些，在复核页按原因处理（选一次 / 删掉）。
+				...(row.results?.attention ? [{id: "attention", label: ft("cowork.folder.viewAttention"), action: () => {
+					frappe.route_options = {push_state: "failed"};
+					frappe.set_route(root);
+				}}] : []),
+				...(row.enabled ? [{id: "run", label: ft("cowork.folder.runNow"), action: async () => {
+					await p.call(API + "run_now", {name: row.name}, "POST");
+					frappe.show_alert({message: p.escape(ft("cowork.folder.runRequested")), indicator: "green"});
+					await list.reload();
+				}}] : []),
+			],
 			empty_action: {label: ft("cowork.folder.new"), action: () => edit(null)},
 		});
 		page.set_primary_action(ft("cowork.folder.new"), () => edit(null));

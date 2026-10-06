@@ -77,9 +77,15 @@ def records(workspace, staged=0, start=0, limit=50):
         order_by="creation desc, name desc", limit_start=start, limit_page_length=limit)
 
 
+# 列表「推送状态」筛选（2026-10-07）：与状态列同一口径 —— 失败 = 转人工，或还没进推送账本就停下（只有原因、没有状态）。
+PUSH_STATES = {"failed": [["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"]],
+               "pending": [["last_push_status", "=", "pending"]], "success": [["last_push_status", "=", "success"]]}
+
+
 @frappe.whitelist()
 def workbench(staged=None, quality_status=None, posting_kind=None,
-              date_from=None, date_to=None, start=0, limit=20, sort_by=None, sort_order=None, source_file=None):
+              date_from=None, date_to=None, start=0, limit=20, sort_by=None, sort_order=None, source_file=None,
+              push_state=None):
     """录入工作台的队列：读本站点当前用户看得见的识别记录。
 
     界面上不出现账套（Cowork 不记账、只留记录），所以这里也不收这个参数、不回这个
@@ -116,6 +122,10 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
         filters["posting_kind"] = normalize_posting_kind(posting_kind)
     if date_from or date_to:
         filters["invoice_date"] = ["between", [date_from or "1900-01-01", date_to or "2999-12-31"]]
+    or_filters = PUSH_STATES.get(str(push_state or "")) or None
+    if or_filters and len(or_filters) == 1:
+        filters[or_filters[0][0]] = or_filters[0][2]
+        or_filters = None
     order_by = "modified desc, name desc"
     if source_file:
         filters["source_file"] = str(source_file)
@@ -130,7 +140,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     if sort_by == "total_amount" and not source_file:
         # 金额存的是 Decimal 文本（合同口径），数据库按文字排会得到 1200 < 13375 < 2140 < 450 这种顺序；
         # 框架的 order_by 又不许写表达式。所以与下面计数同一条权限查询取全部行，按数值排好再分页。
-        rows = frappe.get_list(storage.DOCTYPE, filters=filters, fields=["name", "total_amount"],
+        rows = frappe.get_list(storage.DOCTYPE, filters=filters, or_filters=or_filters, fields=["name", "total_amount"],
             order_by="name desc", limit_page_length=0)
         rows.sort(key=lambda row: (_amount(row.total_amount), row.name),
                   reverse=not str(sort_order or "").lower().startswith("asc"))
@@ -138,15 +148,15 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
         found = {row.name: row for row in frappe.get_list(storage.DOCTYPE,
             filters={**filters, "name": ["in", page]}, fields=fields, limit_page_length=0)} if page else {}
         return {"items": [found[name] for name in page if name in found], "total": len(rows)}
-    items = frappe.get_list(storage.DOCTYPE, filters=filters, fields=fields,
+    items = frappe.get_list(storage.DOCTYPE, filters=filters, or_filters=or_filters, fields=fields,
         order_by=order_by, limit_start=start, limit_page_length=limit)
-    return {"items": items, "total": _total(filters, start, limit, items)}
+    return {"items": items, "total": _total(filters, start, limit, items, or_filters)}
 
 
 TOTAL_SECONDS = 20
 
 
-def _total(filters, start, limit, items):
+def _total(filters, start, limit, items, or_filters=None):
     """列表总数（原生列表画「已显示 / 总数」和「加载更多」用）。2026-10-02 m6：每次刷新都数一遍全部可见行（1.2 万行时
     0.2–0.7 秒），页面每 5–60 秒自动刷新一次，是列表 p95 约 2 秒的大头。
     - 翻页（``start`` > 0）不数，回 ``None``，页面沿用第一页拿到的总数；
@@ -158,15 +168,15 @@ def _total(filters, start, limit, items):
         return None
     if len(items) < limit:
         return len(items)
-    key = "cowork:history:total:" + hashlib.sha256(json.dumps([frappe.session.user, filters], sort_keys=True,
+    key = "cowork:history:total:" + hashlib.sha256(json.dumps([frappe.session.user, filters, or_filters or []], sort_keys=True,
                                                                 default=str).encode()).hexdigest()
     try:
         cached = frappe.cache.get_value(key)
     except Exception:
         cached = None
     if cached is None:
-        counted = frappe.get_list(storage.DOCTYPE, filters=filters, fields=[{"COUNT": "name", "as": "total"}],
-            order_by="", limit_page_length=0)
+        counted = frappe.get_list(storage.DOCTYPE, filters=filters, or_filters=or_filters,
+            fields=[{"COUNT": "name", "as": "total"}], order_by="", limit_page_length=0)
         cached = int((counted[0].get("total") if counted else 0) or 0)
         try:
             frappe.cache.set_value(key, cached, expires_in_sec=TOTAL_SECONDS)

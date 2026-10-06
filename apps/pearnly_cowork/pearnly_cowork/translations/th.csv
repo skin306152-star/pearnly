@@ -1301,6 +1301,7 @@ Valid,ใช้งาน
 Value,ค่า
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
+View the ones to check,ดูรายการที่ต้องตรวจ
 Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ
@@ -1498,6 +1499,7 @@ cowork.folder.type_invalid,อ่านเฉพาะ PDF และรูปภ
 cowork.folder.upload_lost,ไม่ได้รับไฟล์ที่อัปโหลด จะส่งใหม่
 cowork.folder.vat.claim,ขอคืนภาษีซื้อ
 cowork.folder.vat.expense,บันทึกเป็นค่าใช้จ่าย
+cowork.folder.viewAttention,ดูรายการที่ต้องตรวจ
 cowork.folder.wb.file,ไฟล์ต้นฉบับ
 cowork.folder.wb.invoice,เลขที่ใบกำกับ
 cowork.folder.wb.reason,เหตุที่ไม่มีตารางตรวจทาน

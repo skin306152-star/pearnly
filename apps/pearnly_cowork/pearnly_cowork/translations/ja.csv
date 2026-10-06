@@ -1301,6 +1301,7 @@ Valid,有効
 Value,値
 Version,バージョン
 View differences,差異を見る
+View the ones to check,要確認を見る
 Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
@@ -1498,6 +1499,7 @@ cowork.folder.type_invalid,読み取るのは PDF と画像だけです。
 cowork.folder.upload_lost,アップロードされたファイルを受信できませんでした。再送します。
 cowork.folder.vat.claim,仕入税額控除する
 cowork.folder.vat.expense,費用に計上
+cowork.folder.viewAttention,要確認を見る
 cowork.folder.wb.file,元のファイル
 cowork.folder.wb.invoice,請求書番号
 cowork.folder.wb.reason,確認表がない理由

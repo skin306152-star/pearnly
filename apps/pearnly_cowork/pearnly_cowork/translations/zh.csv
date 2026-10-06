@@ -1301,6 +1301,7 @@ Valid,有效
 Value,值
 Version,版本
 View differences,查看差异
+View the ones to check,查看待处理
 Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
@@ -1498,6 +1499,7 @@ cowork.folder.type_invalid,只读 PDF 和图片。
 cowork.folder.upload_lost,上传的文件没收到，下次会重传。
 cowork.folder.vat.claim,抵进项
 cowork.folder.vat.expense,不抵，计入费用
+cowork.folder.viewAttention,查看待处理
 cowork.folder.wb.file,原文件
 cowork.folder.wb.invoice,发票号
 cowork.folder.wb.reason,为什么没有复核表
