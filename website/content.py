@@ -87,7 +87,7 @@ COMMON = {
         "more": "ดูรายละเอียด",
         "features": "ทำอะไรได้บ้าง",
         "videos": "วิดีโอสอนใช้งาน",
-        "tools_more": "เครื่องมือฟรีอื่นๆ",
+        "tools_more": "เครื่องมืออื่นๆ",
         "contact_title": "อยากลองใช้กับงานของคุณ?",
         "contact_text": "ทักมาทาง LINE เพื่อนัดดูเดโมกับเอกสารจริงของคุณ หรือส่งอีเมล แล้วเราจะติดต่อกลับ",
         "contact": "ติดต่อ",
@@ -119,7 +119,7 @@ COMMON = {
         "more": "Learn more",
         "features": "What it does",
         "videos": "Tutorial videos",
-        "tools_more": "More free tools",
+        "tools_more": "More tools",
         "contact_title": "Want to try it on your own work?",
         "contact_text": "Message us on LINE to book a demo with your own documents, or email us and we will get back to you.",
         "contact": "Contact",
@@ -151,7 +151,7 @@ COMMON = {
         "more": "了解详情",
         "features": "能做什么",
         "videos": "教程视频",
-        "tools_more": "其他免费工具",
+        "tools_more": "其他工具",
         "contact_title": "想用在你自己的业务上？",
         "contact_text": "在 LINE 上预约演示，用你自己的单据试；或发邮件，我们会尽快回复。",
         "contact": "联系",
@@ -192,7 +192,7 @@ HOME = {
             ("ระบบอ่านและตรวจ", "อ่านข้อมูลสำคัญ ตรวจเลขผู้เสียภาษี ยอดรวม และ VAT รายการที่ตรวจไม่ผ่านจะถูกทำเครื่องหมายไว้"),
             ("บันทึกเข้าระบบ", "ส่งเข้า ERP ที่คุณใช้อยู่ (เชื่อมต่อแบบกำหนดเอง), MR.ERP DMS หรือ Pearnly ERP แล้วตรวจผลกลับหลังส่ง"),
         ],
-        "tools_title": "เครื่องมือฟรีสำหรับงานบัญชี",
+        "tools_title": "เครื่องมือสำหรับงานบัญชี",
         "tools_text": "ใช้ได้ทันที ไม่ต้องสมัคร",
         "story": {
             "steps": ["ถ่าย", "อ่าน", "ตรวจ", "บันทึก"],
@@ -227,7 +227,7 @@ HOME = {
             ("It reads and checks", "Key fields are read; tax ID, totals and VAT are checked. Anything that fails a check is flagged."),
             ("It enters the data", "Into your own ERP through a custom integration, MR.ERP DMS or Pearnly ERP, and reads the result back after each push."),
         ],
-        "tools_title": "Free tools for Thai accounting",
+        "tools_title": "Tools for Thai accounting",
         "tools_text": "Ready to use, no sign-up.",
         "story": {
             "steps": ["Snap", "Read", "Check", "Post"],
@@ -262,7 +262,7 @@ HOME = {
             ("读取并核对", "读出关键字段，核对税号、合计和 VAT；核对不过的会标出来。"),
             ("录入系统", "推送到你在用的 ERP（定制接入）、MR.ERP DMS 或 Pearnly ERP，推送后回读核对结果。"),
         ],
-        "tools_title": "泰国会计免费工具",
+        "tools_title": "泰国会计工具",
         "tools_text": "打开就能用，无需注册。",
         "story": {
             "steps": ["拍", "读", "核", "记"],
@@ -847,21 +847,21 @@ PRIVACY = {
 
 TOOLS_INDEX = {
     "th": {
-        "title": "เครื่องมือฟรีสำหรับงานบัญชี | Pearnly",
-        "description": "เครื่องมือฟรีสำหรับงานบัญชีไทย: แปลงตัวเลขเป็นคำอ่านภาษาไทย (บาทถ้วน) คำนวณ VAT 7% คำนวณภาษีหัก ณ ที่จ่าย และตรวจเลขประจำตัวผู้เสียภาษี 13 หลัก",
-        "h1": "เครื่องมือฟรีสำหรับงานบัญชี",
+        "title": "เครื่องมือสำหรับงานบัญชี | Pearnly",
+        "description": "เครื่องมือสำหรับงานบัญชีไทย ใช้ฟรี: แปลงตัวเลขเป็นคำอ่านภาษาไทย (บาทถ้วน) คำนวณ VAT 7% คำนวณภาษีหัก ณ ที่จ่าย และตรวจเลขประจำตัวผู้เสียภาษี 13 หลัก",
+        "h1": "เครื่องมือสำหรับงานบัญชี",
         "lead": "ใช้ได้ทันที ไม่ต้องสมัคร คำนวณในเครื่องของคุณ",
     },
     "en": {
-        "title": "Free tools for Thai accounting | Pearnly",
-        "description": "Free tools for Thai accounting: Thai baht text converter, 7% VAT calculator, withholding tax calculator and 13-digit tax ID checker.",
-        "h1": "Free tools for Thai accounting",
+        "title": "Tools for Thai accounting | Pearnly",
+        "description": "Tools for Thai accounting, free to use: Thai baht text converter, 7% VAT calculator, withholding tax calculator and 13-digit tax ID checker.",
+        "h1": "Tools for Thai accounting",
         "lead": "Ready to use, no sign-up, calculated on your device.",
     },
     "zh": {
-        "title": "泰国会计免费工具 | Pearnly",
-        "description": "泰国会计免费工具：金额转泰文大写（บาทถ้วน）、7% VAT 计算、预扣税计算、13 位税号校验。",
-        "h1": "泰国会计免费工具",
+        "title": "泰国会计工具 | Pearnly",
+        "description": "泰国会计工具（免费使用）：金额转泰文大写（บาทถ้วน）、7% VAT 计算、预扣税计算、13 位税号校验。",
+        "h1": "泰国会计工具",
         "lead": "打开就能用，无需注册，在你的设备上计算。",
     },
 }
@@ -1098,19 +1098,19 @@ DEMO_LABELS = {
 
 # 泰文教程文章（website/guides/）的页面文字：文章只有泰文版。
 GUIDES_INDEX = {
-    "title": "บทความงานบัญชีและภาษี สำหรับสำนักงานบัญชีและเจ้าของกิจการ | Pearnly",
-    "description": "บทความอธิบายงานบัญชีและภาษีที่ทำทุกเดือน เช่น กระทบยอดธนาคาร ตรวจใบกำกับภาษีซื้อ ภาษีหัก ณ ที่จ่าย และ VAT 7% เขียนให้นำไปใช้ได้ทันที",
-    "h1": "บทความงานบัญชีและภาษี",
+    "title": "คลังความรู้บัญชีและภาษี สำหรับสำนักงานบัญชีและเจ้าของกิจการ | Pearnly",
+    "description": "คลังความรู้อธิบายงานบัญชีและภาษีที่ทำทุกเดือน เช่น กระทบยอดธนาคาร ตรวจใบกำกับภาษีซื้อ ภาษีหัก ณ ที่จ่าย และ VAT 7% เขียนให้นำไปใช้ได้ทันที",
+    "h1": "คลังความรู้บัญชีและภาษี",
     "lead": "งานที่ทำทุกเดือน อธิบายเป็นขั้นตอน พร้อมตัวอย่างตัวเลข",
 }
 GUIDE_TEXT = {
-    "label": "บทความ",
+    "label": "คลังความรู้",
     "read": "อ่าน {minutes} นาที",
     "updated": "อัปเดต {date}",
     "toc": "ในบทความนี้",
-    "home_title": "บทความแนะนำ",
+    "home_title": "คลังความรู้บัญชีและภาษี",
     "home_text": "งานบัญชีและภาษีที่ทำทุกเดือน อธิบายเป็นขั้นตอน",
-    "all": "ดูบทความทั้งหมด",
+    "all": "ดูคลังความรู้ทั้งหมด",
     "related": "อ่านเพิ่มเติม",
     "tools": "เครื่องมือที่ใช้ในบทความนี้",
     "more": "บทความอื่น",
