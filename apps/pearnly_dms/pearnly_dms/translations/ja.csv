@@ -115,6 +115,7 @@ DMS data has not been read yet. The system reads it automatically; please try ag
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。
 "DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.",DMS のデータが不完全なため公開していません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
+"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.",DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.",DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
@@ -934,6 +935,7 @@ dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されま�
 dms.err.ERR_DMS_BOOKING_PATCH,予約情報の入力に失敗しました · 再試行してください
 dms.err.ERR_DMS_BUSY,現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください
+dms.err.ERR_DMS_CUSTOMER_BRANCH,DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。
 dms.err.ERR_DMS_CUSTOMER_CHANGED,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。

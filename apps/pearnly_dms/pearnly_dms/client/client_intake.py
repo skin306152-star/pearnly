@@ -9,7 +9,8 @@
     birthday_be→txtbirthday · phone→txttel
     地址 house_no/moo/soi/road/province_id/district_id/subdistrict_id/zipcode_id →
     txthousenum/txtmoo/txtsoi/txtroad/selprovinces/seldistricts/selsubdistricts/selzipcodes
-    （三段地址各带后缀 ""/_ct/_sd，同值）
+    （三段地址各带后缀 ""/_ct/_sd：身份证地址照写，联系/寄送只在 DMS 里整段为空时补，
+    见 `customer_merge.secondary_addresses`）
 
 照搬老产品 `services/erp/mrerp_dms_client_intake.py`。三个真机踩过的坑写在下面代码里，
 **都不要"顺手改好"**：
@@ -36,6 +37,7 @@ from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.contracts import customer_merge
 from pearnly_dms.intake.customer_geo import clear_customer_select_defaults, validate_customer_selects
+from pearnly_dms.masters.master_rows import parse_rows as parse_bshsd_rows
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +57,11 @@ _IDENTITY_MAP = {
     "credit_day": "txtcreditday",
 }
 # 分店（สาขา）= 隐藏 branchcusval（主档 id）+ txtbranchcus（显示码）配对的 typeahead。
-# 身份证录入**不改分店**：只读显示当前码，保存时由载入的表单默认值原样保留
-# （所以它不在可写映射里）。
+# 身份证录入**不改已有分店**：保存时由载入的表单默认值原样保留（所以它不在可写映射里）；
+# 只有空着时补 00000，见 `_ensure_customer_branch`。
 _BRANCH_VAL = "branchcusval"
 _BRANCH_CODE = "txtbranchcus"
+_HEAD_OFFICE = "00000"
 # 地址友好键 → DMS 字段前缀（三段地址各加 ""/_ct/_sd 后缀）
 _ADDR_MAP = {
     "house_no": "txthousenum",
@@ -285,7 +288,8 @@ class DmsClientIntakeMixin:
 
         字段按"**键在就写**"：传了空串 = 真的清空 DMS；没传这个键才保留原值。
         `addresses` 给 `{""/_ct/_sd: 地址块}` 时三段分别写；不给就用 `fields` 里的
-        单套地址写满三处（向后兼容）。
+        单套地址写满三处（向后兼容）。覆盖时再按 DMS 的规则收口：联系/寄送两段在 DMS
+        里已有内容就保留，只有整段为空才用身份证地址补（`customer_merge.secondary_addresses`）。
         """
         if mode not in ("create", "overwrite"):
             raise DmsClientError(f"bad save mode: {mode!r}", "ERR_DMS_CUSTOMER_SAVE")
@@ -343,6 +347,9 @@ class DmsClientIntakeMixin:
         data = self._parse_form_defaults(form_html)
         if mode == "overwrite":
             current = self._extract_customer_fields(self._identity_form_data(form_html), form_html)
+            present = tuple(suffix for suffix in customer_merge.SUFFIXES[1:]
+                            if re.search(rf'<select\b[^>]*name="selprovinces{suffix}"', form_html, re.I))
+            desired = customer_merge.secondary_addresses(desired, current, present)
             desired, conflicts = customer_merge.merge(baseline, desired, current)
             if conflicts:
                 raise customer_merge.CustomerConflict("ERR_DMS_CUSTOMER_CHANGED",
@@ -362,6 +369,7 @@ class DmsClientIntakeMixin:
             clear_customer_select_defaults(data)
         self._apply_customer_fields(data, fields, addresses, derive_tax=False)
         self._guard_required_selects(data, form_html)
+        self._ensure_customer_branch(data)
 
         endpoint = "cus/new.php" if mode == "create" else "cus/edit.php"
         if on_attempt:
@@ -455,6 +463,28 @@ class DmsClientIntakeMixin:
             for fk, dms in _ADDR_MAP.items():
                 if fk in blk:
                     data[dms + sfx] = str(blk.get(fk) or "")
+
+    def _ensure_customer_branch(self, data: Dict[str, str]) -> None:
+        """客户的「สาขา」为空时补成 00000（总公司）。
+
+        DMS 网页保存客户时这一栏必填；`cus/edit.php` 收到空值会被数据库外键拒绝，只回一句
+        `err::ข้อมูลดังกล่าวถูกใช้งานในระบบ`（2026-10-06 在测试 DMS 上复现：空分店原样提交被拒，
+        只补分店即成功）。真实车行约 95% 的老客户这一栏是空的。个人客户开票就是 00000；
+        已有分店（企业客户的分支号）原样保留；表单里没有这一栏就不碰。00000 在各家 DMS 的
+        内部 id 不同（ris 是 1、测试账套是 16），每次实时查。
+        """
+        if _BRANCH_VAL not in data or str(data[_BRANCH_VAL] or "").strip():
+            return
+        rows = parse_bshsd_rows(_BRANCH_CODE, self._post_text("cus/component/bshsd.php", {
+            "bshsdamt": "200", "bshsdcurrpage": "1", "elemname": _BRANCH_CODE, "sdt": _HEAD_OFFICE,
+        }))
+        if rows is None:
+            raise DmsClientError("DMS customer branch list unavailable", "ERR_DMS_MASTER_UNAVAILABLE")
+        matches = [row for row in rows if len(row) > 1 and str(row[1]).strip() == _HEAD_OFFICE]
+        if len(matches) != 1:
+            raise DmsClientError(f"DMS has {len(matches)} customer branches coded {_HEAD_OFFICE}",
+                                 "ERR_DMS_CUSTOMER_BRANCH")
+        data[_BRANCH_VAL], data[_BRANCH_CODE] = str(matches[0][0]), _HEAD_OFFICE
 
     def _guard_required_selects(self, data: Dict[str, str], form_html: str) -> None:
         """称谓与地址四级必须与**实时**级联对账；空值/被删值不再拿第一项补齐。"""

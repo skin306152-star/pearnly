@@ -25,6 +25,7 @@ from typing import Optional
 from pearnly_core import line
 from pearnly_core import line_session as store
 from pearnly_dms.booking.conversation import booking_qa as booking_qa
+from pearnly_dms.intake.phone_text import extract_phone
 from pearnly_dms.line import cards as cards
 from pearnly_dms.line import commands as commands
 from pearnly_dms.menu import menu_cards as menu_cards
@@ -56,7 +57,7 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
     state = (sess or {}).get("state")
 
     # LINE 里打开的页面（扫身份证、编辑页）替业务员发回的那句话（「… #短码」）：开始识别 / 送回新卡。
-    # 它带数字，必须排在"含数字→手机号"之前。
+    # 它带数字，必须排在"认电话"之前。
     from pearnly_dms.line import page_reply
 
     if page_reply.route(line_user_id, reply_token, text):
@@ -67,7 +68,7 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
     if query_flow.handle_text(binding, line_user_id, reply_token, sess, text):
         return
 
-    # 逐问/待确认态**先于一切文本路**（尤其"含数字→手机号"）：金额、单字被吃成号码就废一次会话。
+    # 逐问/待确认态**先于一切文本路**（尤其"认电话"）：金额、单字被吃成号码就废一次会话。
     # 待确认态的文本只提醒点确认/丢弃，**不覆写会话**（确认/取消是 postback 专属）。
     if state == "booking_qa" and booking_qa.handle_text(
         binding["tenant_id"], line_user_id, text, reply_token, sess=sess
@@ -87,8 +88,9 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
     if menu_flow.handle_choice(binding, line_user_id, reply_token, sess, text):
         return
 
-    if any(ch.isdigit() for ch in text):
-        capture_phone(binding, line_user_id, reply_token, sess, text)
+    phone = extract_phone(text)
+    if phone:
+        capture_phone(binding, line_user_id, reply_token, sess, phone)
         return
 
     if not sess:
@@ -99,6 +101,8 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
         )
     else:
         tip = nudge(sess)
+        if tip is None:
+            return
         if tip in (cards.TXT_ASK_CARD, cards.TXT_NEED_BOTH):
             from pearnly_dms.intake import scan as id_scan
 
@@ -109,10 +113,10 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
 def capture_phone(
     binding: dict, line_user_id: str, reply_token: str, sess: Optional[dict], text: str
 ) -> None:
-    """手机号**透传**：DMS 是权威，它吃什么就送什么，不在我们这边写死格式。
+    """收下一个电话（`text` 是 `extract_phone` 从消息里认出的那一段，原样写进 DMS）。
 
-    "含数字即视为号码"是**纯路由判据**（用来区分号码和闲聊）；格式对不对由 DMS
-    保存时裁决 —— 我们自己加格式校验只会把 DMS 认得的号码挡在外面。
+    只认像电话的那一段：DMS 不校验电话栏，整条消息照收会把地址、闲聊存成电话
+    （2026-10-05 ris 实例，见 `intake.phone_text`）。
     """
     from pearnly_dms.intake import flow as flow
 
@@ -141,8 +145,8 @@ def capture_phone(
     )
 
 
-def nudge(sess: dict) -> str:
-    """按当前收料进度给下一步提示。
+def nudge(sess: dict) -> Optional[str]:
+    """按当前收料进度给下一步提示；身份证和电话都已收到（正在查重、卡片马上到）→ `None`，不插话。
 
     只管"还缺材料"的态：已经建档的用户再听到"请发身份证和手机号"，
     就是要他**重付一次 OCR**，所以话术必须跟着进度走。
@@ -154,4 +158,6 @@ def nudge(sess: dict) -> str:
         return cards.TXT_ASK_PHONE
     if payload.get("phone") and not payload.get("id_card"):
         return cards.TXT_ASK_CARD
+    if payload.get("phone") and payload.get("id_card"):
+        return None
     return cards.TXT_NEED_BOTH

@@ -2,7 +2,7 @@
 import secrets
 
 from pearnly_core import line_session as store
-from pearnly_dms.contracts.customer_merge import split
+from pearnly_dms.contracts.customer_merge import secondary_addresses, split
 from pearnly_dms.intake import draft
 from pearnly_dms.line import cards, out
 from pearnly_dms.line.errors import friendly
@@ -31,7 +31,9 @@ def conflict_notice(conflict):
 
 
 def build(user_id, payload, conflict, *, has_admin):
-    current, desired = conflict["current"], conflict["desired"]
+    current = conflict["current"]
+    # 卡上只列真会写进 DMS 的差异：联系/寄送地址已有内容的不改（与写入层同一条规则）。
+    desired = secondary_addresses(conflict["desired"], current)
     diffs = [{"field": key, "old": str(current.get(key) or ""), "new": str(value)}
              for key, value in desired.items() if str(current.get(key) or "") != str(value)]
     fields, addresses = split(desired)

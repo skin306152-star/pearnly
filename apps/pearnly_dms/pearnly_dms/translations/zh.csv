@@ -115,6 +115,7 @@ DMS data has not been read yet. The system reads it automatically; please try ag
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS 资料还在读取中，读完即可使用，请稍后再试。若一直未就绪，请管理员在 DMS 连接页确认已添加读档账号。
 "DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.",DMS 未返回完整资料，没有发布不完整结果。系统每天凌晨会自动重新读取，读完后再试。
+"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.",DMS 里没有客户分店 00000（总公司），无法保存客户。请管理员在 DMS 里添加 00000 分店后再试。
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.",DMS 里还没有设置「{item}」的选项，请管理员在 DMS 添加后再试。
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS 同步未取得完整资料，没有发布不完整结果。请等待同步成功后重试。
@@ -934,6 +935,7 @@ dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,订车请求已发送，但尚未核实 
 dms.err.ERR_DMS_BOOKING_PATCH,回填订车单资料失败 · 请稍后重试
 dms.err.ERR_DMS_BUSY,现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。
 dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出其他登录后重试
+dms.err.ERR_DMS_CUSTOMER_BRANCH,DMS 里没有客户分店 00000（总公司），无法保存客户。请管理员在 DMS 里添加 00000 分店后再试。
 dms.err.ERR_DMS_CUSTOMER_CHANGED,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS 中已有此证号的客户，请重新核对差异并确认；没有自动覆盖资料。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。

@@ -29,6 +29,20 @@ def flatten(fields, addresses=None, *, derive_tax=True):
     return result
 
 
+def secondary_addresses(desired, current, present=SUFFIXES[1:]):
+    """DMS's own address rule (native ``dupaddr``): the ID-card block ``""`` is written as
+    given; contact ``_ct`` and document-delivery ``_sd`` are filled from it only while that
+    whole block is still empty in DMS. A block already in use is never overwritten: it is
+    usually where the customer actually lives, not the hometown printed on the card.
+    ``present`` lists the secondary blocks the native form actually has; others are left alone."""
+    secondary = {key + suffix for suffix in SUFFIXES[1:] for key in ADDRESS}
+    result = {key: item for key, item in desired.items() if key not in secondary}
+    for suffix in present:
+        if not any(value(current.get(key + suffix)).strip() for key in ADDRESS):
+            result.update({key + suffix: value(desired.get(key, current.get(key))) for key in ADDRESS})
+    return result
+
+
 def split(values):
     return ({key: values[key] for key in IDENTITY if key in values},
             {suffix: {key: values[key + suffix] for key in ADDRESS if key + suffix in values}

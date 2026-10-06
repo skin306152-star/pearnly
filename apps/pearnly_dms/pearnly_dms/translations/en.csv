@@ -115,6 +115,7 @@ DMS data has not been read yet. The system reads it automatically; please try ag
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.","DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page."
 "DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.","DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read."
+"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.","DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again."
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.","DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again."
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.
@@ -934,6 +935,7 @@ dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,"The booking request was sent, but the D
 dms.err.ERR_DMS_BOOKING_PATCH,Failed to fill in the booking details — please retry
 dms.err.ERR_DMS_BUSY,"Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly."
 dms.err.ERR_DMS_CONCURRENT_LOGIN,This DMS account is being used elsewhere — sign out there and retry
+dms.err.ERR_DMS_CUSTOMER_BRANCH,"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again."
 dms.err.ERR_DMS_CUSTOMER_CHANGED,The customer record changed after you edited it. Review the current differences before confirming again.
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,"Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer."

@@ -115,6 +115,7 @@ DMS data has not been read yet. The system reads it automatically; please try ag
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",ข้อมูล DMS กำลังอ่านอยู่ อ่านเสร็จแล้วจึงใช้งานได้ กรุณาลองใหม่ภายหลัง หากยังไม่พร้อมเป็นเวลานาน ให้ผู้ดูแลตรวจสอบว่าได้เพิ่มบัญชีอ่านข้อมูลในหน้าการเชื่อมต่อ DMS แล้ว
 "DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.",DMS ส่งข้อมูลมาไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ ระบบจะอ่านข้อมูลใหม่อัตโนมัติทุกคืน กรุณาลองอีกครั้งหลังอ่านเสร็จ
+"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.",ใน DMS ไม่มีสาขาลูกค้า 00000 (สำนักงานใหญ่) จึงบันทึกลูกค้าไม่ได้ กรุณาแจ้งผู้ดูแลเพิ่มสาขา 00000 ใน DMS แล้วลองอีกครั้ง
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.",ยังไม่ได้ตั้งค่าตัวเลือก «{item}» ใน DMS กรุณาให้ผู้ดูแลเพิ่มใน DMS แล้วลองใหม่อีกครั้ง
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,การซิงก์ DMS ได้ข้อมูลไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณาลองใหม่หลังซิงก์สำเร็จ
@@ -934,6 +935,7 @@ dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,ส่งคำขอจองแล้�
 dms.err.ERR_DMS_BOOKING_PATCH,เติมข้อมูลใบจองไม่สำเร็จ — กรุณาลองใหม่
 dms.err.ERR_DMS_BUSY,ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่
 dms.err.ERR_DMS_CONCURRENT_LOGIN,บัญชี DMS นี้กำลังถูกใช้งานที่อื่น · กรุณาออกจากระบบที่อื่นแล้วลองใหม่
+dms.err.ERR_DMS_CUSTOMER_BRANCH,ใน DMS ไม่มีสาขาลูกค้า 00000 (สำนักงานใหญ่) จึงบันทึกลูกค้าไม่ได้ กรุณาแจ้งผู้ดูแลเพิ่มสาขา 00000 ใน DMS แล้วลองอีกครั้ง
 dms.err.ERR_DMS_CUSTOMER_CHANGED,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่
