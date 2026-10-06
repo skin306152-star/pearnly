@@ -1086,6 +1086,7 @@ The helper has not been given this account set. Check the helper's account sets,
 The helper is not allowed to write to this account set. Check the helper's account set,小助手没有这份账套的写入权限，请检查小助手选的账套
 The helper is out of date. Update the helper and submit again,小助手版本太旧，请更新后再提交
 "The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",这台电脑的小助手里没有这份账套，或没有写入权限，请检查小助手选的账套
+The helper was not connected when this invoice was ready to push; it will try again in ten minutes.,小助手当时没连上，十分钟后再推。
 "The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",准备推送时小助手不在线，或还没报上这份账套。请确认小助手在运行后再推一次
 The image file cannot be read.,无法读取该图像文件。
 The import columns do not match the stock count template.,导入列与盘点模板不匹配。
@@ -1410,6 +1411,7 @@ cowork.folder.cardHint,设一个本机文件夹，每月自动识别推送
 cowork.folder.catalogEmpty,还没有账套目录。请先在新建录入里点重新读取。
 cowork.folder.col.result,结果
 cowork.folder.col.schedule,每月运行
+cowork.folder.companion_offline,小助手当时没连上，十分钟后再推。
 cowork.folder.connection_fixed,规则不能换到另一台电脑，请停用后新建一条。
 cowork.folder.content_mismatch,上传的内容与电脑上的文件不一致。
 cowork.folder.counts,已推 {0} · 待处理 {1}

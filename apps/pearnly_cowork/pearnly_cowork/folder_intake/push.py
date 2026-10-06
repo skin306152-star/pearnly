@@ -9,7 +9,9 @@
 - 仍缺的（典型是同税号有几个档）只在票上记原因（`push_state.record_failure`，网页列表照常显示「失败 + 选择」按钮），
   不建推送记录；
 - 人已经动过的票（改过、推过）不碰，交给人；
-- 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录。
+- 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录；
+- 准备时小助手没报上这份账套（刚好重启、断线），确认必然失败：撤掉这次准备、回 ``retry`` 让调用方过一会儿再推，
+  重试用新的请求号（旧号会重放已撤回的那条）；``final`` 时照常记失败。
 """
 import hashlib
 import json
@@ -25,12 +27,17 @@ HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"
 
 
-def push_key(entry, history, version):
-    return "folder:" + hashlib.sha256(f"{entry}\0{history}\0{version}".encode()).hexdigest()[:56]
+OFFLINE = "cowork.folder.companion_offline"
 
 
-def push_one(entry, rule, history):
-    """推一张票，回这张票的去向：``sent`` / ``held`` / ``failed`` / ``human`` / ``missing``。调用方已切成负责人身份。"""
+def push_key(entry, history, version, attempt=0):
+    seed = f"{entry}\0{history}\0{version}" + (f"\0{attempt}" if attempt else "")
+    return "folder:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
+
+
+def push_one(entry, rule, history, attempt=0, final=True):
+    """推一张票，回这张票的去向：``sent`` / ``held`` / ``failed`` / ``human`` / ``missing``，
+    非 ``final`` 时还可能回 ``retry``（小助手没报上账套）。调用方已切成负责人身份。"""
     row = frappe.db.get_value(HISTORY, history, ["edit_count", "last_push_status", "last_push_record",
                                                  "record_version"], as_dict=True)
     if not row:
@@ -63,7 +70,7 @@ def push_one(entry, rule, history):
         frappe.db.commit()
         return {"status": "held", "reason": reason}
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
-    key = push_key(entry.name, history, row.record_version)
+    key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
                                 rule.account_set_key, None, None, rule.posting_kind)
     frappe.db.commit()
@@ -71,6 +78,9 @@ def push_one(entry, rule, history):
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}
     if result.get("status") == "prepared":
         adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
+        if not final and not destinations.ready(adapter, result):
+            _withdraw(result)
+            return {"status": "retry", "reason": OFFLINE}
         try:
             destinations.of(adapter).confirm(rule.connection, result, "confirm:" + key)
             frappe.db.commit()

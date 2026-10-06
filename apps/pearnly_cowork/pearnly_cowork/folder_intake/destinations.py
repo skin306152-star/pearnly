@@ -16,12 +16,23 @@ class ExpressTarget:
     intake_target = "express"
 
     @staticmethod
+    def ready(prepared):
+        """准备时小助手报上了这份账套才能确认；没报上（小助手刚好重启、断线）确认必然失败，
+        自动录入撤掉这次准备、过一会儿重来，而不是记成失败（网页「提交」仍照原样提示）。"""
+        return bool(prepared.get("has_reported_credential"))
+
+    @staticmethod
     def confirm(connection, prepared, request_key):
         return application.confirm(prepared["name"], prepared["revision"], request_key,
                                    credential=credentials.for_confirmation(connection))
 
 
 ADAPTERS = {ExpressTarget.adapter: ExpressTarget}
+
+
+def ready(adapter, prepared):
+    target = ADAPTERS[adapter]
+    return target.ready(prepared) if hasattr(target, "ready") else True
 
 
 def supported(adapter):

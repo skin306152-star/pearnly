@@ -1086,6 +1086,7 @@ The helper has not been given this account set. Check the helper's account sets,
 The helper is not allowed to write to this account set. Check the helper's account set,ผู้ช่วยไม่มีสิทธิ์เขียนชุดบัญชีนี้ กรุณาตรวจชุดบัญชีที่เลือกในผู้ช่วย
 The helper is out of date. Update the helper and submit again,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 "The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์เขียน กรุณาตรวจสอบชุดบัญชีที่ผู้ช่วยเลือก
+The helper was not connected when this invoice was ready to push; it will try again in ten minutes.,ผู้ช่วยยังไม่ได้เชื่อมต่อตอนจะส่ง จะลองส่งใหม่ในสิบนาที
 "The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",ตอนเตรียมส่ง ผู้ช่วยออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่าผู้ช่วยทำงานอยู่ แล้วส่งอีกครั้ง
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
 The import columns do not match the stock count template.,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
@@ -1410,6 +1411,7 @@ cowork.folder.cardHint,ตั้งโฟลเดอร์ในเครื่
 cowork.folder.catalogEmpty,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 cowork.folder.col.result,ผลลัพธ์
 cowork.folder.col.schedule,กำหนดการ
+cowork.folder.companion_offline,ผู้ช่วยยังไม่ได้เชื่อมต่อตอนจะส่ง จะลองส่งใหม่ในสิบนาที
 cowork.folder.connection_fixed,ย้ายกฎไปเครื่องอื่นไม่ได้ ให้ปิดแล้วสร้างใหม่
 cowork.folder.content_mismatch,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
 cowork.folder.counts,บันทึกแล้ว {0} · รอตรวจ {1}

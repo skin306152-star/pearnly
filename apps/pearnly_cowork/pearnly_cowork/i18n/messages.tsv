@@ -1425,6 +1425,7 @@ Waiting for the recognition charge to complete.	等扣费完成。	รอกา�
 The recognition task was not found.	找不到识别任务。	ไม่พบงานอ่านเอกสาร	読み取りタスクが見つかりません。	cowork.folder.batch_missing
 The file check is busy. It will be retried.	原件核对繁忙，稍后重试。	ระบบตรวจไฟล์ไม่ว่าง จะลองใหม่	ファイル確認が混み合っています。再試行します。	cowork.folder.inspect_busy
 A step failed and will be retried in ten minutes.	这一步出错，十分钟后重试。	ขั้นตอนนี้ล้มเหลว จะลองใหม่ในสิบนาที	この手順が失敗しました。10 分後に再試行します。	cowork.folder.step_error
+The helper was not connected when this invoice was ready to push; it will try again in ten minutes.	小助手当时没连上，十分钟后再推。	ผู้ช่วยยังไม่ได้เชื่อมต่อตอนจะส่ง จะลองส่งใหม่ในสิบนาที	ヘルパーが接続されていなかったため、10 分後にもう一度送信します。	cowork.folder.companion_offline
 The result sheet is not ready yet.	结果表格还没好。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
 Original file name	原文件	ไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file
 Invoice number on the document	发票号	เลขที่ใบกำกับ	請求書番号	cowork.folder.wb.invoice

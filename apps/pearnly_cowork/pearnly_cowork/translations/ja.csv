@@ -1086,6 +1086,7 @@ The helper has not been given this account set. Check the helper's account sets,
 The helper is not allowed to write to this account set. Check the helper's account set,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
 The helper is out of date. Update the helper and submit again,アシスタントが古いバージョンです。更新して再送信してください
 "The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
+The helper was not connected when this invoice was ready to push; it will try again in ten minutes.,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
 "The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
 The image file cannot be read.,この画像ファイルを読み取れません。
 The import columns do not match the stock count template.,インポートする列が棚卸テンプレートと一致しません。
@@ -1410,6 +1411,7 @@ cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月
 cowork.folder.catalogEmpty,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 cowork.folder.col.result,結果
 cowork.folder.col.schedule,実行日時
+cowork.folder.companion_offline,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
 cowork.folder.connection_fixed,ルールは別の PC に移せません。停止して新しく作成してください。
 cowork.folder.content_mismatch,アップロード内容が PC のファイルと一致しません。
 cowork.folder.counts,登録済み {0} · 要確認 {1}

@@ -3,7 +3,9 @@ import ast
 import importlib.util
 import pathlib
 import sys
+import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
@@ -144,6 +146,63 @@ class AdditiveGuards(unittest.TestCase):
         imported = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
         self.assertIn("pearnly_cowork.roundtrip.export", imported)
         self.assertNotIn("pearnly_cowork.roundtrip.export_writer", imported)
+
+
+class OfflineCompanionRetry(unittest.TestCase):
+    """准备时小助手没报上账套：撤回这次准备、回 retry、重试换请求号；最后一次照常走确认（记失败）。"""
+
+    def _push(self, reported):
+        calls = {"cancel": [], "confirm": [], "keys": []}
+
+        class Error(Exception):
+            pass
+
+        db = types.SimpleNamespace(
+            get_value=lambda doctype, name, fields=None, as_dict=False: (
+                types.SimpleNamespace(edit_count=0, last_push_status="", last_push_record="", record_version=3)
+                if doctype == "Cowork OCR History" else ("express" if fields == "adapter" else 7)),
+            commit=lambda: None, rollback=lambda: None)
+        frappe = types.SimpleNamespace(db=db, ValidationError=Error, PermissionError=Error,
+                                       AuthenticationError=Error, clear_messages=lambda: None)
+
+        def submit(history, connection, key, *args):
+            calls["keys"].append(key)
+            return {"status": "prepared", "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
+
+        application = types.SimpleNamespace(
+            choices_view=lambda *args: {"needed": []}, submit=submit,
+            cancel_prepared=lambda name, revision: calls["cancel"].append(name),
+            submission_failed=lambda history, reason: None)
+        express = types.SimpleNamespace(ready=lambda prepared: bool(prepared.get("has_reported_credential")),
+                                        confirm=lambda *args: calls["confirm"].append(args))
+        destinations = types.SimpleNamespace(of=lambda adapter: express,
+                                             ready=lambda adapter, prepared: express.ready(prepared))
+        modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                   "pearnly_cowork.folder_intake": types.SimpleNamespace(contracts=contracts, destinations=destinations),
+                   "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace()),
+                   "pearnly_cowork.push": types.SimpleNamespace(choices=types.SimpleNamespace()),
+                   "pearnly_cowork.push.application": types.SimpleNamespace(service=application)}
+        with mock.patch.dict(sys.modules, modules):
+            push = _load("folder_push_under_test", APP / "folder_intake/push.py")
+        rule = types.SimpleNamespace(connection="C", account_set_key="A", posting_kind="purchase", defaults_json="{}")
+        entry = types.SimpleNamespace(name="E")
+        return push, rule, entry, calls
+
+    def test_unreported_account_set_retries_with_a_new_key(self):
+        push, rule, entry, calls = self._push(reported=False)
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False), {"status": "retry", "reason": push.OFFLINE})
+        self.assertEqual(push.push_one(entry, rule, "H", 1, final=False)["status"], "retry")
+        self.assertEqual(calls["cancel"], ["CWP-1", "CWP-1"])
+        self.assertEqual(calls["confirm"], [])
+        self.assertEqual(len(set(calls["keys"])), 2)
+        self.assertEqual(calls["keys"][0], push.push_key("E", "H", 3))
+
+    def test_last_attempt_and_reported_account_set_confirm_as_before(self):
+        push, rule, entry, calls = self._push(reported=False)
+        self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "sent")
+        push, rule, entry, calls = self._push(reported=True)
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["status"], "sent")
+        self.assertEqual((len(calls["confirm"]), calls["cancel"]), (1, []))
 
 
 if __name__ == "__main__":

@@ -31,6 +31,9 @@ LOCK_SECONDS = 120
 STEP_SECONDS = 45
 # 推送出了结论但不是成功的票（待人选、失败）：这么多天内人在网页处理好，结果表格跟着更新。
 FOLLOW_DAYS = 30
+# 准备时小助手没报上账套（重启、断线）：每 10 分钟重推一次，6 小时后仍不行就照常记失败。
+OFFLINE_SECONDS = 600
+OFFLINE_RETRIES = 36
 
 
 def kick():
@@ -302,8 +305,16 @@ def _push(entry, cfg, deadline):
         else:
             if time.monotonic() > deadline or _pending_pushes(entry.connection) >= cfg["push_pending"]:
                 return
+            retries = outcome.get("_retry") or {}
+            attempt = int(retries.get(history) or 0)
             with _as(entry.actor):
-                outcome[history] = push_one(entry, rule, history)
+                result = push_one(entry, rule, history, attempt, final=attempt >= OFFLINE_RETRIES)
+            if result.get("status") == "retry":
+                entry = read(FILE, name, for_update=True)
+                outcome["_retry"] = dict(retries, **{history: attempt + 1})
+                entry.outcome_json = json.dumps(outcome, sort_keys=True)
+                return _later(entry, OFFLINE_SECONDS, result["reason"])
+            outcome[history] = result
         entry = read(FILE, name, for_update=True)
         entry.outcome_json = json.dumps(outcome, sort_keys=True)
         write(entry)
