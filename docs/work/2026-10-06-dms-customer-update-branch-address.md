@@ -42,3 +42,7 @@
   无 00000 → 不提交；联系/寄送有内容保留、为空补齐；电话提取）。改动前 3 条失败，改动后全过；已登记进 `check-dms-offline.py`。
 - 本地（Python 3.14）：`check-architecture.py` PASS；`check-dms-offline.py` 全 PASS；`development.yml` 其余 Python 闸门全过；
   `i18n-build.py --check` PASS。
+- **测试 DMS 实跑分支代码**（2026-10-06，分支包临时放进生产 DMS 容器的隔离目录 `/tmp/pfix`，只对 testdms 站点、测试账套；
+  跑完已删除，线上代码未替换）：测试客户 61 原分店为空 → 一次覆盖更新后分店为 16 / 00000；再对 61 只改户籍门牌号
+  `aaa` → `Taaa`：户籍段改了，联系/寄送段保持 `aaa`；随后复原为 `aaa`。DMS 测试账套留下的改动：客户 61、62 分店为 00000。
+- 还缺：LINE 端到端（真人发消息）未在测试租户走过；生产部署随下一批，未部署。
