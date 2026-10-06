@@ -155,7 +155,9 @@ def _store(entry):
             return _fail(entry, str(error))
     if "retry" in result:
         return _later(entry, max(5, int(result["retry"] or 5)), "cowork.folder.inspect_busy")
-    if result.get("sha256") and result["sha256"] != entry.sha256:
+    # 直传的原件由云端核对后报回摘要，须与小助手声明的一致；经接口上传的在收下时已逐字节核过，
+    # 而 HEIC 照片建原件时会转成 JPEG（`files.service.create`），摘要本来就不同（10-07 测试机实测踩到）。
+    if entry.route == "direct" and result.get("sha256") and result["sha256"] != entry.sha256:
         return _fail(entry, "cowork.folder.content_mismatch")
     entry.source_file, entry.state, entry.next_attempt_at, entry.last_code = result["name"], "source_ready", None, ""
     write(entry)
