@@ -380,7 +380,7 @@
     var clip = q('.pz-clip'), body = q('.pz-body'), legs = all('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'),
       pen = q('.pz-pen'), armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push'), ground = q('.pz-ground'),
       flaps = all('.pz-flap'), gap = q('.pz-gapshade'), g1 = q('.pz-g'), g2 = q('.pz-g2'),
-      sheets = all('.pz-sheet'), front = q('.pz-front'), back = q('.pz-backview');
+      sheets = all('.pz-sheet'), front = q('.pz-front'), back = q('.pz-cheer');
     var SCALE = 1.35, HP = 560, DRAWN = [1132, 482], BACK = DRAWN;
     function f(v) { return Math.round(v * 10) / 10; }
     function clamp(v) { return Math.max(0, Math.min(1, v)); }
@@ -439,7 +439,7 @@
     fit();
     window.addEventListener('resize', fit);
 
-    // ---- 点“下面是什么？”：整张画往右上揭走、淡掉，小单松手跳到账上背对着看；再点一下盖回去 ----
+    // ---- 点整张画（或“下面是什么？”）：整张画往右上揭走、淡掉，小单松手跳到账旁边朝你挥手；再点一下盖回去 ----
     var cur = 0, open = false, busy = false, OUT = 9;
     function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function jump(from, to, t) {
@@ -475,7 +475,7 @@
         sheet(p);
         var fade = clamp((ease(tt) - .7) / .3);
         for (var i = 0; i < sheets.length; i++) set(sheets[i], 'opacity', f(1 - fade));
-        // 小单：跳起来一道弧，空中转身，落到账上背对着（盖回时倒着放）
+        // 小单：跳起来一道弧，半空换成挥手的姿势，落到账旁边朝你挥手（盖回时倒着放）
         var jt = clamp((tt - .12) / .7), at = jump(hip, backHip, ease(jt));
         if (jt < .5) { place(front, at, hip, 1, 1); set(back, 'opacity', 0); }
         else { place(back, at, DRAWN, at[2], 1); set(front, 'opacity', 0); }
@@ -486,7 +486,7 @@
         }
       })(t0);
     }
-    ask.addEventListener('click', toggle);
+    card.addEventListener('click', toggle);   // 按钮在卡片里，键盘按回车/空格时的点击也会冒泡到这里
 
     if (reduce) { draw(p0); cur = p0; return; }
     // 卡片从屏幕下方往上走约 3/4 屏就卷到头；平滑跟随，只在看得见、进度有变化时重画（揭开后不再跟着滚动）

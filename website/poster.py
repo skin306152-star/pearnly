@@ -373,11 +373,11 @@ def mascot(s):
             f'<circle class="pz-hand-push" cx="{n(s["hand"][0])}" cy="{n(s["hand"][1])}" r="8.5" fill="{PAPER}"/></g></g>')
 
 
-BACK_HIP = (1132, 482)                  # 揭开后小单跳到这里，背对着看账
+BACK_HIP = (1132, 482)                  # 揭开后小单跳到这里，正面朝你站在账旁边
 
 
-def backview():
-    """小单的背影：纸身、锯齿底、没有脸；左手叉腰，右手把铅笔扛在肩上。"""
+def cheer():
+    """揭开后的小单：正面站直，笑着朝你挥手，另一只手照旧斜拿着铅笔。"""
     def zig():
         out, up = [], True
         for _ in range(8):
@@ -386,24 +386,34 @@ def backview():
         return " ".join(out)
     x, y = BACK_HIP
     k = SCALE
+
+    def at(px, py):
+        return x + px * k, y + py * k
     body = (f'<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V0 {zig()} Z" fill="{PAPER}"/>'
-            '<path d="M-20 -70 q20 8 40 0" stroke="#d9d2c4" stroke-width="2.4"/>')
+            '<path d="M-24 -38 H18 M-24 -26 H8" stroke="#bdb7aa" stroke-width="3"/>'
+            '<rect x="2" y="-17" width="26" height="10" rx="3" fill="#ffd84d" stroke="currentColor" stroke-width="2.4"/>'
+            '<path d="M-9 -56 q9 10 18 0" stroke-width="2.6"/>'
+            '<ellipse cx="-22" cy="-62" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+            '<ellipse cx="22" cy="-62" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+            '<path d="M-17 -76 q5 -6 10 0 M7 -76 q5 -6 10 0" stroke-width="3"/>')
     pen = f'color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#pz-pencil)"'
-    pencil_ = (f'<g transform="translate({n(x + 40 * k)} {n(y - 70 * k)}) rotate(-58)" stroke-width="2.6">'
-               f'<rect x="-8" y="-70" width="16" height="18" rx="5" fill="#ff9ba3"/><rect x="-8" y="-54" width="16" height="8" fill="#cfd2d8"/>'
-               f'<rect x="-8" y="-46" width="16" height="96" fill="#ffd84d"/><path d="M-8 50 L0 80 L8 50 Z" fill="#f6dcb4"/>'
-               f'<path d="M-3 70 L0 80 L3 70 Z" fill="currentColor"/></g>')
-    return (f'<g class="pz-backview" opacity="0" style="pointer-events:none">'
+    sh_l, wave = at(-38, -52), at(-70, -112)
+    sh_r, grip = at(38, -52), at(60, -12)
+    legs = (f'<path d="M{n(at(-14, 0)[0])} {y} L{n(at(-18, 40)[0])} {n(at(0, 40)[1])} h-14"/>'
+            f'<path d="M{n(at(14, 0)[0])} {y} L{n(at(18, 40)[0])} {n(at(0, 40)[1])} h14"/>')
+    return (f'<g class="pz-cheer" opacity="0" style="pointer-events:none">'
             f'<ellipse cx="{x}" cy="{n(y + 40 * k + 1)}" rx="56" ry="9" fill="#3a2a14" opacity=".16"/>'
-            f'<g {pen}><path d="M{n(x - 14 * k)} {y} L{n(x - 18 * k)} {n(y + 40 * k)} h-14 M{n(x + 14 * k)} {y} L{n(x + 18 * k)} {n(y + 40 * k)} h14"/>'
-            f'<g transform="translate({x} {y}) scale({k})" stroke-width="{n(3 / k)}">{body}</g>'
-            f'<path d="M{n(x - 38 * k)} {n(y - 54 * k)} q-26 8 -14 30 q8 4 14 -6"/></g>'
-            f'<g {pen}>{pencil_}<path d="M{n(x + 38 * k)} {n(y - 54 * k)} q16 -8 14 -26"/>'
-            f'<circle cx="{n(x + 52 * k)}" cy="{n(y - 76 * k)}" r="9" fill="{PAPER}"/></g></g>')
+            f'<g {pen}>{legs}<g transform="translate({x} {y}) scale({k})" stroke-width="{n(3 / k)}">{body}</g>'
+            f'<path d="M{n(sh_l[0])} {n(sh_l[1])}Q{n(sh_l[0] - 26)} {n(sh_l[1] - 10)} {n(wave[0])} {n(wave[1])}"/>'
+            f'<circle cx="{n(wave[0])}" cy="{n(wave[1])}" r="9" fill="{PAPER}"/>'
+            f'<path d="M{n(wave[0] - 22)} {n(wave[1] - 6)} q-6 -10 -2 -20 M{n(wave[0] - 4)} {n(wave[1] - 22)} q2 -10 10 -14" stroke-width="2" opacity=".5"/></g>'
+            + pencil(grip).replace('class="pz-pen"', 'class="pz-pen2"').replace('rotate(-24)', 'rotate(28)')
+            + f'<g {pen}><path d="M{n(sh_r[0])} {n(sh_r[1])}Q{n(at(50, -34)[0])} {n(at(50, -34)[1])} {n(grip[0])} {n(grip[1])}"/>'
+            f'<circle cx="{n(grip[0])}" cy="{n(grip[1])}" r="10" fill="{PAPER}"/></g></g>')
 
 
 def ask(L):
-    """“下面是什么？”是一个按钮：点一下整张画揭开、小单跳到账上；再点盖回去。"""
+    """“下面是什么？”是给键盘和读屏用的按钮；鼠标点整张画任何地方都一样：揭开、小单跳到账旁边；再点盖回去。"""
     return f'<button type="button" class="pz-ask" aria-pressed="false">{esc(L["caption"])}</button>'
 
 
@@ -423,7 +433,7 @@ def svg(L):
 <g class="pz-sheet">{c["flap"]}</g>
 </g>
 <g class="pz-front">{mascot(s)}</g>
-{backview()}
+{cheer()}
 </svg>"""
 
 
