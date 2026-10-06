@@ -10,7 +10,7 @@
   4. 测试环境（testcowork）用聚合平台密钥真读通过，交用户试用。
 - 本次不做：ERP / DMS；客户计费单价；生产正式密钥与部署（另行按发布流程）。
 - 本次范围状态：进行中。收尾状态：施工中。
-- 分支 / 基线 / 工作树 / 集成目标：`pearnly/claude-ocr-engine` / `63e2c712` / `/Users/skin/pearnly-wt-claude-ocr` / `main`。
+- 分支 / 基线 / 工作树 / 集成目标：`pearnly/claude-ocr-engine` / `63e2c712`（10-07 变基到 `a2443248`）/ `/Users/skin/pearnly-wt-claude-ocr` / `main`。
 - 并行窗口：Cowork「文件夹自动录入」（`pearnly/cowork-folder-intake`，改 `folder_intake/`、companion、`hooks.py`、翻译、架构说明）。
   本包只动 `ocr/`（providers、engine、execution/settings、remote）、`pearnly_control` 的部署与开户步骤、站点步骤脚本、Cloud Run 部署脚本、
   测试与本记录 / ADR；共用文件（`hooks.py`、`messages.tsv`、翻译、`architecture.md`）尽量不碰，碰了合并前变基复核。
@@ -53,10 +53,19 @@
 | 10-07 | 同上 | 同上 | 新增 `test_cowork_claude_engine.py` 30、`test_control_ocr_engine.py` 7；`test_line_channel_setup.py` 16、`test_cloud_onboarding.py` 17 | 全部 OK | 通过 |
 | 10-07 | 同上 | 本机 python3.14 / 系统 python3 | `development.yml` 全部 python 闸门（含 `check-architecture.py` 0 违规、`i18n-build.py --check`、site-step / provision-agent 测试） | 全部通过（4 个在系统 3.9 上因类型语法报错，用 3.14 重跑通过，与改动无关） | 通过 |
 | 10-07 | 同上 | 本机与 main 对比 | `check-i18n.py --strict` | 与 main 同样失败、各 App 未译条数一致（存量，非本次引入） | 存量 |
+| 10-07 | 3356ee71 | 测试机一次性容器（生产镜像 03151bec，不连站点 / 测试栈），OpenRouter 测试密钥 | 真实渲染 + 完整引擎 + Claude 适配层读 5 份语料（照片、扫描、电子 PDF、电费单、糊照片） | 每份 1 次 Claude 调用、0 次谷歌；4 份全对；糊照片税号错一位被校验位拦下 → 需复核（`single_read_unchecked`） | 通过 |
+| 10-07 | 2582fb3e（变基到 a2443248） | 测试机 Cowork 测试栈实时源码，testcowork（另一窗口的文件夹录入也在这份上）；站点配置改：OCR_ENGINE=claude、pearnly_anthropic（OpenRouter）、回放关；转发 Cloud Run 保持关 | 真实入口 `files.create` → `ocr.submit` → 后台识别 → 入库，2 份（照片税票、扫描税票） | 两份 saved / confirmed、字段全对、各 1 次 `direct` claude-sonnet-5-5；提交到入库 8.1 / 12.0 秒 | 通过 |
 
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
 | 实现 | 第一步完成 | 对账文档（第二步）未做 |
 | 本地验证 | 通过 | 引擎来源对照（`*_source_parity.py`，需旧线上源码）未跑 |
-| 测试环境 | 未执行 | |
+| 测试环境 | 进行中 | 真实入口已跑通；等用户在 testcowork 试用；开户后台切换在本机控制面（测试机没有控制面），只有单元测试 |
 | 部署 / 业务验收 | 未执行 | |
+
+## 测试环境占用与恢复（收尾必须做）
+
+testcowork 测试副本与另一窗口（文件夹自动录入）共用，本包改过的站点配置收尾时恢复：
+- `pearnly_ocr_replay` 恢复为 `{"enabled": 1, "profile": "normal"}`（另一窗口的临时设置）；
+- 删 `pearnly_cowork_ocr_environment.OCR_ENGINE` 与 `pearnly_anthropic`；
+- 通知「Cowork单据自动化识别推送」窗口；`pearnly_cowork_ocr_remote`、`pearnly_cowork_folder_intake`、lab-stop 由它恢复。
