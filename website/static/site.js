@@ -374,28 +374,22 @@
   function peel() {
     var svg = document.querySelector('.pz');
     if (!svg) return;
-    var HP = +svg.getAttribute('data-hp'), p0 = +svg.getAttribute('data-p0');
-    var sh = svg.getAttribute('data-shoulder').split(',').map(Number);
+    var p0 = +svg.getAttribute('data-p0'), ZY = +svg.getAttribute('data-zy'), ZEND = +svg.getAttribute('data-zend'), z0 = +svg.getAttribute('data-z0');
     function q(sel) { return svg.querySelector(sel); }
-    var clip = q('.pz-clip'), flap = q('.pz-flap'), shade = q('.pz-shade'), crease = q('.pz-crease'), fold = q('.pz-fold'),
-      edge = q('.pz-edge'), arm = q('.pz-peek'), hand = q('.pz-peek-hand');
+    function all(sel) { return svg.querySelectorAll(sel); }
+    var clip = q('.pz-clip'), tops = all('.pz-ztop'), bots = all('.pz-zbot'), shut = all('.pz-zshut'), slider = q('.pz-slider'), walker = q('.pz-walker');
     function f(v) { return Math.round(v * 10) / 10; }
     function pt(x, y) { return f(x) + ' ' + f(y); }
-    // 左下角往上卷起一角（与 poster.py geom() 同一套公式）：折痕 A→B，卷起的背面是 A→T→B 的弯三角
+    function each(list, d) { for (var i = 0; i < list.length; i++) list[i].setAttribute('d', d); }
+    // 拉链从左边拉开到 z（与 poster.py geom() 同一套公式）；小单拽着拉片跟着往右走
     function draw(p) {
-      var L = 170 + 110 * p, w = L * 1.7, ay = HP - L, fx = w * .55, fy = HP - L * .55, tx = w * .3, ty = HP - L * .22,
-        px = w * .1, py = HP - L * .42, qx = w * .6, qy = HP - L * .06, gx = fx + (tx - fx) * .55, gy = fy + (ty - fy) * .55;
-      var foldD = 'M' + pt(0, ay) + 'Q' + pt(fx, fy) + ' ' + pt(w, HP);
-      clip.setAttribute('d', 'M0 0H1440V' + HP + 'H' + f(w) + 'Q' + pt(fx, fy) + ' ' + pt(0, ay) + 'Z');
-      var flapD = foldD + 'Q' + pt(qx, qy) + ' ' + pt(tx, ty) + 'Q' + pt(px, py) + ' ' + pt(0, ay) + 'Z';
-      flap.setAttribute('d', flapD); shade.setAttribute('d', flapD);
-      crease.setAttribute('d', foldD + 'Q' + pt(gx, gy) + ' ' + pt(0, ay) + 'Z');
-      fold.setAttribute('d', foldD);
-      edge.setAttribute('d', 'M' + pt(0, ay) + 'Q' + pt(px, py) + ' ' + pt(tx, ty) + 'Q' + pt(qx, qy) + ' ' + pt(w, HP));
-      // 小单的左手捏住纸角（胳膊与 poster.py limb() 同一算法）
-      var hx = tx + 2, hy = ty + 7, dx = hy - sh[1], dy = sh[0] - hx, d = Math.sqrt(dx * dx + dy * dy) || 1;
-      arm.setAttribute('d', 'M' + pt(sh[0], sh[1]) + 'Q' + pt((sh[0] + hx) / 2 + dx / d * 18, (sh[1] + hy) / 2 + dy / d * 18) + ' ' + pt(hx, hy));
-      hand.setAttribute('cx', f(hx)); hand.setAttribute('cy', f(hy));
+      var z = 260 + 300 * p, up = 50 + 80 * Math.max(p, 0), down = Math.min(up * .55, 62);
+      var top = 'M0 ' + f(ZY - up) + 'Q' + pt(z * .45, ZY - up * .9) + ' ' + pt(z, ZY);
+      var bot = 'M0 ' + f(ZY + down) + 'Q' + pt(z * .45, ZY + down * .9) + ' ' + pt(z, ZY);
+      clip.setAttribute('d', 'M0 0H1440V560H0Z' + top + 'Q' + pt(z * .45, ZY + down * .9) + ' 0 ' + f(ZY + down) + 'Z');
+      each(tops, top); each(bots, bot); each(shut, 'M' + f(z) + ' ' + ZY + 'H' + ZEND);
+      slider.setAttribute('transform', 'translate(' + f(z) + ' ' + ZY + ')');
+      walker.setAttribute('transform', 'translate(' + f(z - z0) + ' 0)');
     }
     // 手机上只取左边一段，变成竖版海报
     function fit() {
