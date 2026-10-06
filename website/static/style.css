@@ -746,6 +746,17 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 }
 .pz { display: block; width: 100%; height: auto; overflow: hidden; }
 .pz .pz-face { overflow: visible; }
+/* “下面是什么？”：手写字的按钮，下面一道手绘虚线，鼠标移上去轻轻晃一下 */
+.pz-ask {
+  position: absolute; left: 4.2%; bottom: 2.4%; z-index: 2; padding: 2px 4px 8px; border: 0; background: none; cursor: pointer;
+  font: 400 clamp(15px, 2.1vw, 24px)/1.2 Sriracha, "Long Cang", cursive; color: #3b3934;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 4 Q30 1 60 4 T118 4' stroke='%233b3934' stroke-width='1.6' fill='none' stroke-dasharray='4 5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 0 100%; background-size: 100% 6px; transition: transform .3s var(--ease);
+}
+.pz-ask:hover { animation: pz-wiggle .5s var(--ease); }
+.pz-ask:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 8px; }
+@keyframes pz-wiggle { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-3deg); } 65% { transform: rotate(2deg); } }
+@media (prefers-reduced-motion: reduce) { .pz-ask:hover { animation: none; } }
 .pz-doodle { position: absolute; z-index: 2; width: 128px; height: auto; right: 7%; top: -128px; }
 /* 标题里一个词下面的荧光笔，和相片里便利贴、荧光笔是同一种黄 */
 .hero h1 { isolation: isolate; }

@@ -274,16 +274,43 @@ def photo():
             + obj(0, 0, 0, leaves()))
 
 
+def tick(x, y, color="#2e8a55"):
+    """手画的对勾。"""
+    return f'<path d="M{x - 9} {y - 1} q4 3 7 9 q6 -14 15 -20" stroke="{color}" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+
+
 def under(L):
-    """画面底下那张：整理好的账，左下角卷开后露出来。"""
-    lines = "".join(f'<path d="M30 {y} H{W - 30}" stroke="#e8e1d2" stroke-width="1.6"/>' for y in range(312, HP, 40))
-    head = (t(60, 300, L["ledger"], 24, "#2d2b27")
-            + '<path d="M60 312 q90 8 200 -2" stroke="#ffd84d" stroke-width="8" fill="none" stroke-linecap="round" opacity=".8"/>')
+    """画面底下那张：手绘的进项账。平时左下角掀开只露出左下一块；点“下面是什么？”整张揭开后看全。"""
+    rows = L["rows"]
+    ruled = "".join(f'<path d="M30 {y} Q{W / 2} {y + (1.5 if i % 2 else -1.5)} {W - 30} {y}" stroke="#e4dccb" stroke-width="1.6" fill="none"/>'
+                    for i, y in enumerate(range(150, HP - 10, 46)))
+    cols = (t(66, 136, L["cols"][0], 20, "#9a917f") + t(176, 136, L["cols"][1], 20, "#9a917f")
+            + t(640, 136, L["cols"][2], 20, "#9a917f", "end") + t(820, 136, L["cols"][3], 20, "#9a917f", "end"))
     body = "".join(
-        t(60, 344 + i * 40, d, 19) + t(150, 344 + i * 40, s, 19, "#2d2b27") + t(470, 344 + i * 40, tot, 19, "#2d2b27", "end")
-        + f'<circle cx="500" cy="{338 + i * 40}" r="11" fill="#43b36f" {OUT}/><path d="M494 {338 + i * 40} l4 4 l8 -9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
-        for i, (d, s, v, tot) in enumerate(L["rows"][:6]))
-    return f'<rect width="{W}" height="{HP}" fill="{PAPER}"/>{lines}<path d="M40 0 V{HP}" stroke="#f0a9a9" stroke-width="2"/>{head}{body}'
+        t(66, 186 + i * 46, d, 21) + t(176, 186 + i * 46, s, 21, "#2d2b27") + t(640, 186 + i * 46, v, 21, anchor="end")
+        + t(820, 186 + i * 46, tot, 21, "#2d2b27", "end") + tick(866, 180 + i * 46)
+        for i, (d, s, v, tot) in enumerate(rows))
+    seps = "".join(f'<path d="M{x} 112 V{HP - 24}" stroke="#d9cfba" stroke-width="1.6" stroke-dasharray="6 7"/>' for x in (150, 664, 846))
+    card = (f'<g transform="translate(1010 62) rotate(-3) scale(.9)">'
+            f'<path d="M6 4 Q170 -4 330 6 Q338 140 330 250 Q170 258 4 248 Q-4 130 6 4Z" fill="#f2faf3" {OUT}/>'
+            f'<path d="M12 12 Q170 6 322 14" stroke="#cfe8d6" stroke-width="3" fill="none"/>'
+            + t(168, 132, "30/30", 84, "#2e8a55", "middle") + tick(108, 192) + t(130, 202, L["saved"], 30, "#2e8a55")
+            + '<path d="M286 40 l6 -16 l6 16 l16 6 l-16 6 l-6 16 l-6 -16 l-16 -6 z" fill="#ffd84d" stroke="#3d362c" stroke-width="2"/></g>')
+    return (f'<g class="pz-ledger" filter="url(#pz-pencil)"><rect width="{W}" height="{HP}" fill="{PAPER}"/>{ruled}'
+            f'<path d="M44 0 Q42 {HP / 2} 45 {HP}" stroke="#f0a9a9" stroke-width="2.2" fill="none"/>'
+            + t(66, 78, L["ledger"], 36, "#2d2b27")
+            + '<path d="M64 92 q140 12 300 -2" stroke="#ffd84d" stroke-width="11" fill="none" stroke-linecap="round" opacity=".8"/>'
+            + seps + cols + '<path d="M60 148 Q450 144 900 149" stroke="#3d362c" stroke-width="2" fill="none"/>' + body + card + '</g>')
+
+
+def half_plane(a, b, far=5000):
+    """折线靠画面那一侧的半平面（折线扫过整张画时也成立）。"""
+    ln = math.hypot(a, b)
+    ux, uy, nx, ny = b / ln, a / ln, a / ln, -b / ln
+    ax, ay = 0, HP - a
+    pts = [(ax - ux * far, ay - uy * far), (ax + ux * far, ay + uy * far)]
+    pts += [(pts[1][0] + nx * far, pts[1][1] + ny * far), (pts[0][0] + nx * far, pts[0][1] + ny * far)]
+    return "M" + "L".join(f"{n(x)} {n(y)}" for x, y in pts) + "Z"
 
 
 def curl(s):
@@ -346,23 +373,57 @@ def mascot(s):
             f'<circle class="pz-hand-push" cx="{n(s["hand"][0])}" cy="{n(s["hand"][1])}" r="8.5" fill="{PAPER}"/></g></g>')
 
 
+BACK_HIP = (1132, 482)                  # 揭开后小单跳到这里，背对着看账
+
+
+def backview():
+    """小单的背影：纸身、锯齿底、没有脸；左手叉腰，右手把铅笔扛在肩上。"""
+    def zig():
+        out, up = [], True
+        for _ in range(8):
+            out.append(f"l-9.75 {-8 if up else 8}")
+            up = not up
+        return " ".join(out)
+    x, y = BACK_HIP
+    k = SCALE
+    body = (f'<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V0 {zig()} Z" fill="{PAPER}"/>'
+            '<path d="M-20 -70 q20 8 40 0" stroke="#d9d2c4" stroke-width="2.4"/>')
+    pen = f'color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#pz-pencil)"'
+    pencil_ = (f'<g transform="translate({n(x + 40 * k)} {n(y - 70 * k)}) rotate(-58)" stroke-width="2.6">'
+               f'<rect x="-8" y="-70" width="16" height="18" rx="5" fill="#ff9ba3"/><rect x="-8" y="-54" width="16" height="8" fill="#cfd2d8"/>'
+               f'<rect x="-8" y="-46" width="16" height="96" fill="#ffd84d"/><path d="M-8 50 L0 80 L8 50 Z" fill="#f6dcb4"/>'
+               f'<path d="M-3 70 L0 80 L3 70 Z" fill="currentColor"/></g>')
+    return (f'<g class="pz-backview" opacity="0" style="pointer-events:none">'
+            f'<ellipse cx="{x}" cy="{n(y + 40 * k + 1)}" rx="56" ry="9" fill="#3a2a14" opacity=".16"/>'
+            f'<g {pen}><path d="M{n(x - 14 * k)} {y} L{n(x - 18 * k)} {n(y + 40 * k)} h-14 M{n(x + 14 * k)} {y} L{n(x + 18 * k)} {n(y + 40 * k)} h14"/>'
+            f'<g transform="translate({x} {y}) scale({k})" stroke-width="{n(3 / k)}">{body}</g>'
+            f'<path d="M{n(x - 38 * k)} {n(y - 54 * k)} q-26 8 -14 30 q8 4 14 -6"/></g>'
+            f'<g {pen}>{pencil_}<path d="M{n(x + 38 * k)} {n(y - 54 * k)} q16 -8 14 -26"/>'
+            f'<circle cx="{n(x + 52 * k)}" cy="{n(y - 76 * k)}" r="9" fill="{PAPER}"/></g></g>')
+
+
+def ask(L):
+    """“下面是什么？”是一个按钮：点一下整张画揭开、小单跳到账上；再点盖回去。"""
+    return f'<button type="button" class="pz-ask" aria-pressed="false">{esc(L["caption"])}</button>'
+
+
 def svg(L):
     s = state(P0)
     c = curl(s)
     data = f'data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-p0="{P0}"'
-    clip = f"M0 0H{W}V{HP}H{n(s['b'])}L0 {n(HP - s['a'])}Z"
+    clip = half_plane(s["a"], s["b"])
     return f"""<svg class="pz" viewBox="{VIEW}" {data} role="img" aria-label="{esc(L["alt"])}">
 {DEFS.replace("</defs>", c["defs"] + "</defs>")}
 <clipPath id="pz-frame"><rect class="pz-frame" width="{W}" height="{HP}" rx="{RX}"/></clipPath>
 <clipPath id="pz-clip"><path class="pz-clip" d="{clip}"/></clipPath>
 <g clip-path="url(#pz-frame)">
 {under(L)}{c["gap"]}
-<g clip-path="url(#pz-clip)"><g filter="url(#pz-wobble)">{photo()}</g>
+<g class="pz-sheet" clip-path="url(#pz-clip)"><g filter="url(#pz-wobble)">{photo()}</g>
 <rect width="{W}" height="{HP}" filter="url(#pz-tex)" opacity=".5"/>{c["shadow"]}</g>
-{c["flap"]}
+<g class="pz-sheet">{c["flap"]}</g>
 </g>
-{mascot(s)}
-<text class="pz-caption" x="44" y="{HP + 54}" font-family="{HAND}" font-size="30" fill="#3b3934">{esc(L["caption"])}</text>
+<g class="pz-front">{mascot(s)}</g>
+{backview()}
 </svg>"""
 
 

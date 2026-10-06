@@ -374,13 +374,14 @@
   function peel() {
     var svg = document.querySelector('.pz');
     if (!svg) return;
-    var card = svg.closest('.peel'), p0 = +svg.getAttribute('data-p0');
+    var card = svg.closest('.peel'), ask = card.querySelector('.pz-ask'), p0 = +svg.getAttribute('data-p0');
     function q(sel) { return svg.querySelector(sel); }
     function all(sel) { return svg.querySelectorAll(sel); }
     var clip = q('.pz-clip'), body = q('.pz-body'), legs = all('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'),
       pen = q('.pz-pen'), armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push'), ground = q('.pz-ground'),
-      flaps = all('.pz-flap'), gap = q('.pz-gapshade'), g1 = q('.pz-g'), g2 = q('.pz-g2');
-    var SCALE = 1.35, HP = 560;
+      flaps = all('.pz-flap'), gap = q('.pz-gapshade'), g1 = q('.pz-g'), g2 = q('.pz-g2'),
+      sheets = all('.pz-sheet'), front = q('.pz-front'), back = q('.pz-backview');
+    var SCALE = 1.35, HP = 560, DRAWN = [1132, 482], BACK = DRAWN;
     function f(v) { return Math.round(v * 10) / 10; }
     function clamp(v) { return Math.max(0, Math.min(1, v)); }
     function set(el, k, v) { el.setAttribute(k, v); }
@@ -388,54 +389,115 @@
       var dx = b[1] - a[1], dy = a[0] - b[0], d = Math.sqrt(dx * dx + dy * dy) || 1;
       return 'M' + f(a[0]) + ' ' + f(a[1]) + 'Q' + f((a[0] + b[0]) / 2 + dx / d * bend) + ' ' + f((a[1] + b[1]) / 2 + dy / d * bend) + ' ' + f(b[0]) + ' ' + f(b[1]);
     }
-    // 进度 p → 左下角斜卷的纸卷 + 小单每个部件（与 poster.py state() / roll_attrs() 同一套公式）
-    function draw(p) {
+    // 进度 p → 翻页角的几何（与 poster.py state() / curl() / half_plane() 同一套公式）；p 超过 1 就是整张往右上揭走
+    function geom(p) {
       var a = 120 + 150 * p, b = a * 1.75, ln = Math.sqrt(a * a + b * b), ux = b / ln, uy = a / ln, nx = uy, ny = -ux;
-      var t0 = a * uy, fx = ux * t0, fy = HP - a + uy * t0, dist = a * b / ln, tx = fx + nx * dist * .66, ty = fy + ny * dist * .66;
-      var m1x = tx / 2 - nx * dist * .1, m1y = (HP - a + ty) / 2 - ny * dist * .1;
-      var m2x = (b + tx) / 2 - nx * dist * .14, m2y = (HP + ty) / 2 - ny * dist * .14;
-      var ph = a / 14, bob = -3 * Math.abs(Math.cos(ph)), tilt = 12;
-      var hip = [tx + 92, ty + 70 + bob], feet = hip[1] + 40 * SCALE - 2, t = tilt * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
-      function rot(px, py) { px *= SCALE; py *= SCALE; return [hip[0] + px * c - py * sn, hip[1] + px * sn + py * c]; }
-      // 写实翻页角（与 poster.py curl() 同一套公式）：翻起的纸背、它的投影、折痕下的暗影都跟着折线走
-      set(clip, 'd', 'M0 0H1440V' + HP + 'H' + f(b) + 'L0 ' + f(HP - a) + 'Z');
-      var flapD = 'M0 ' + f(HP - a) + 'Q' + f(m1x) + ' ' + f(m1y) + ' ' + f(tx) + ' ' + f(ty) + 'Q' + f(m2x) + ' ' + f(m2y) + ' ' + f(b) + ' ' + HP + 'Z';
+      var t0 = a * uy, fx = ux * t0, fy = HP - a + uy * t0, dist = a * b / ln;
+      return { a: a, b: b, ux: ux, uy: uy, nx: nx, ny: ny, fx: fx, fy: fy, dist: dist, tx: fx + nx * dist * .66, ty: fy + ny * dist * .66 };
+    }
+    function sheet(p) {
+      var g = geom(p), a = g.a, b = g.b, tx = g.tx, ty = g.ty, d = g.dist, far = 5000, ay = HP - a;
+      var p1 = [-g.ux * far, ay - g.uy * far], p2 = [g.ux * far, ay + g.uy * far];
+      set(clip, 'd', 'M' + f(p1[0]) + ' ' + f(p1[1]) + 'L' + f(p2[0]) + ' ' + f(p2[1]) + 'L' + f(p2[0] + g.nx * far) + ' ' + f(p2[1] + g.ny * far) +
+        'L' + f(p1[0] + g.nx * far) + ' ' + f(p1[1] + g.ny * far) + 'Z');
+      var flapD = 'M0 ' + f(ay) + 'Q' + f(tx / 2 - g.nx * d * .1) + ' ' + f((ay + ty) / 2 - g.ny * d * .1) + ' ' + f(tx) + ' ' + f(ty) +
+        'Q' + f((b + tx) / 2 - g.nx * d * .14) + ' ' + f((HP + ty) / 2 - g.ny * d * .14) + ' ' + f(b) + ' ' + HP + 'Z';
       for (var i = 0; i < flaps.length; i++) set(flaps[i], 'd', flapD);
-      set(gap, 'd', 'M0 ' + f(HP - a) + 'L' + f(b) + ' ' + HP + 'H0Z');
-      set(g1, 'x1', f(fx)); set(g1, 'y1', f(fy)); set(g1, 'x2', f(tx)); set(g1, 'y2', f(ty));
-      set(g2, 'x1', f(fx)); set(g2, 'y1', f(fy));
+      set(gap, 'd', 'M0 ' + f(ay) + 'L' + f(b) + ' ' + HP + 'H0Z');
+      set(g1, 'x1', f(g.fx)); set(g1, 'y1', f(g.fy)); set(g1, 'x2', f(tx)); set(g1, 'y2', f(ty));
+      set(g2, 'x1', f(g.fx)); set(g2, 'y1', f(g.fy));
+      return g;
+    }
+    // 小单：左手捏着纸尖往后拉、右手拿铅笔，掀得越开退得越多
+    function figure(g) {
+      var ph = g.a / 14, bob = -3 * Math.abs(Math.cos(ph)), t = 12 * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
+      var hip = [g.tx + 92, g.ty + 70 + bob], feet = hip[1] + 40 * SCALE - 2;
+      function rot(px, py) { px *= SCALE; py *= SCALE; return [hip[0] + px * c - py * sn, hip[1] + px * sn + py * c]; }
       var swing = 14 * Math.sin(ph);
       [[-14, swing], [14, -swing]].forEach(function (l, i) {
-        var h = rot(l[0], 0), fx2 = h[0] + l[1] + 6;
-        set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + fx2) / 2 + 7) + ' ' + f((h[1] + feet) / 2 - 2) + 'L' + f(fx2) + ' ' + f(feet) + 'h' + (i ? 14 : -14));
+        var h = rot(l[0], 0), x2 = h[0] + l[1] + 6;
+        set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + x2) / 2 + 7) + ' ' + f((h[1] + feet) / 2 - 2) + 'L' + f(x2) + ' ' + f(feet) + 'h' + (i ? 14 : -14));
       });
-      // 小单左手捏着拉过来的纸尖，右手拿铅笔
-      var hand = [tx + 4, ty + 4], penAt = rot(60, -12), penSh = rot(38, -52), penCtrl = rot(50, -34);
-      set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(' + f(tilt) + ') scale(' + SCALE + ')');
+      var hand = [g.tx + 4, g.ty + 4], penAt = rot(60, -12), penSh = rot(38, -52), penCtrl = rot(50, -34);
+      set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(12) scale(' + SCALE + ')');
       set(armPen, 'd', 'M' + f(penSh[0]) + ' ' + f(penSh[1]) + 'Q' + f(penCtrl[0]) + ' ' + f(penCtrl[1]) + ' ' + f(penAt[0]) + ' ' + f(penAt[1]));
       set(handPen, 'cx', f(penAt[0])); set(handPen, 'cy', f(penAt[1]));
       set(pen, 'transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(28) translate(0 -72)');
       set(armPush, 'd', limb(rot(-34, -50), hand, 14));
       set(handPush, 'cx', f(hand[0])); set(handPush, 'cy', f(hand[1]));
       set(ground, 'cx', f(hip[0] + 6)); set(ground, 'cy', f(feet + 3));
+      return hip;
     }
+    function draw(p) { return figure(sheet(p)); }
     // 手机上只取左边一段
     function fit() {
       var view = svg.getAttribute(card.clientWidth < 640 ? 'data-view-sm' : 'data-view');
       svg.setAttribute('viewBox', view);
       q('.pz-frame').setAttribute('width', view.split(' ')[2]);
+      BACK = card.clientWidth < 640 ? [560, 482] : [1132, 482];
     }
     fit();
     window.addEventListener('resize', fit);
-    if (reduce) { draw(p0); return; }
-    // 卡片从屏幕下方往上走约 3/4 屏就卷到头；平滑跟随，只在看得见、进度有变化时重画
-    var cur = 0, last = 0, queued = false, seen = true;
+
+    // ---- 点“下面是什么？”：整张画往右上揭走、淡掉，小单松手跳到账上背对着看；再点一下盖回去 ----
+    var cur = 0, open = false, busy = false, OUT = 9;
+    function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+    function jump(from, to, t) {
+      var x = from[0] + (to[0] - from[0]) * t, y = from[1] + (to[1] - from[1]) * t - 150 * 4 * t * (1 - t);
+      var squash = t > .9 ? 1 - .1 * Math.sin((t - .9) / .1 * Math.PI) : 1;
+      return [x, y, squash];
+    }
+    function place(el, at, origin, squash, op) {
+      set(el, 'transform', 'translate(' + f(at[0] - origin[0]) + ' ' + f(at[1] - origin[1]) + ')' +
+        (squash !== 1 ? ' translate(' + f(at[0]) + ' ' + f(at[1] + 54) + ') scale(' + f((2 - squash) * 100) / 100 + ' ' + f(squash * 100) / 100 + ') translate(' + f(-at[0]) + ' ' + f(-at[1] - 54) + ')' : ''));
+      set(el, 'opacity', op);
+    }
+    function toggle() {
+      if (busy) return;
+      open = !open;
+      ask.setAttribute('aria-pressed', String(open));
+      card.classList.toggle('revealed', open);
+      var start = cur, hip = figure(geom(start));
+      var backHip = [BACK[0], BACK[1]];
+      if (reduce) {
+        sheet(open ? OUT : start);
+        for (var i = 0; i < sheets.length; i++) set(sheets[i], 'opacity', open ? 0 : 1);
+        set(front, 'opacity', open ? 0 : 1); set(front, 'transform', '');
+        set(back, 'opacity', open ? 1 : 0); place(back, BACK, DRAWN, 1, open ? 1 : 0);
+        return;
+      }
+      busy = true;
+      var t0 = performance.now(), dur = 1500;
+      (function step(now) {
+        var k = clamp((now - t0) / dur), e = ease(k), tt = open ? k : 1 - k;
+        // 纸：揭走 / 盖回（p 从当前进度到 OUT），最后 30% 时间淡掉
+        var p = start + (OUT - start) * ease(open ? k : 1 - k);
+        sheet(p);
+        var fade = clamp((ease(tt) - .7) / .3);
+        for (var i = 0; i < sheets.length; i++) set(sheets[i], 'opacity', f(1 - fade));
+        // 小单：跳起来一道弧，空中转身，落到账上背对着（盖回时倒着放）
+        var jt = clamp((tt - .12) / .7), at = jump(hip, backHip, ease(jt));
+        if (jt < .5) { place(front, at, hip, 1, 1); set(back, 'opacity', 0); }
+        else { place(back, at, DRAWN, at[2], 1); set(front, 'opacity', 0); }
+        if (k < 1) requestAnimationFrame(step);
+        else {
+          busy = false;
+          if (!open) { set(front, 'transform', ''); set(front, 'opacity', 1); set(back, 'opacity', 0); queue(); }
+        }
+      })(t0);
+    }
+    ask.addEventListener('click', toggle);
+
+    if (reduce) { draw(p0); cur = p0; return; }
+    // 卡片从屏幕下方往上走约 3/4 屏就卷到头；平滑跟随，只在看得见、进度有变化时重画（揭开后不再跟着滚动）
+    var last = 0, queued = false, seen = true;
     function goal() {
       var r = svg.getBoundingClientRect(), vh = window.innerHeight;
       return clamp((vh * .95 - r.top) / (vh * .75));
     }
     function frame(now) {
       queued = false;
+      if (open || busy) return;
       var g = goal();
       cur += (g - cur) * Math.min(1, (now - last) / 120 || .15);
       last = now;
