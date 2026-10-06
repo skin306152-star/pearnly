@@ -272,48 +272,12 @@ def flyer(text, src, dst, at, cls=""):
     return f'<span class="fly {cls}" data-from="{src}" data-to="{dst}" data-at="{at}">{esc(text)}</span>'
 
 
-def scene_erp(L):
-    prods = [("กระดาษ A4 ×10", "1,250.00", "doc"), ("แฟ้มสันกว้าง ×24", "1,080.00", "board"), ("ปากกา ×12", "180.00", "list")]
-    T = [300, 1700, 3100]
-    tiles = "".join(f'<div class="prod" data-at="{t}:on,{t + 1150}:gone">{icon(ic)}<span>{esc(n)}</span></div>' for (n, _a, ic), t in zip(prods, T))
-    lines = "".join(f'<div class="rl" data-at="{t + 700}"><span>{esc(n)}</span><b>{a}</b></div>' for (n, a, _ic), t in zip(prods, T))
-    stock = [("กระดาษ A4", 120, 110, None, 92, 85), ("แฟ้มสันกว้าง", 30, 6, 30, 60, 12), ("ปากกา", 48, 36, None, 64, 48)]
-    rows = ""
-    for i, (n, a, b, c, w0, w1) in enumerate(stock):
-        refill = f",6700:refill" if c else ""
-        count = f"on:{a}:{b}" + (f"|refill:{b}:{c}" if c else "")
-        low = f'<em class="low" data-at="{T[i] + 900},6700:-on">{{low}}</em>' if c else ""
-        rows += (f'<div class="sk" id="sk{i}" style="--w0:{w0}%;--w1:{w1}%;--w2:{w0}%" data-at="{T[i] + 800}{refill}">'
-                 f'<span>{esc(n)}</span><b data-count="{count}">{a}</b>{low}<div class="bar"><i></i></div></div>')
-    beeps = ",".join(f"{t + 600}:beep,{t + 900}:-beep" for t in T)
-    return f"""<div class="scene" data-scene="erp" data-total="9800">
-  <div class="sc-real">
-    <span class="sc-tag">{esc(L["real"])}</span>
-    <div class="pos" data-at="{beeps},5200:dim">
-      <h5>{esc(L["pos"])}</h5>
-      <div class="belt">{tiles}<i class="beam"></i><span class="beep">{esc(L["beep"])}</span></div>
-      <div class="rcpt"><h6>{esc(L["receipt"])}</h6>{lines}<div class="rl tot" data-at="4100"><span>{esc(L["total"])}</span><b>2,510.00</b></div>
-        <span class="paid" data-at="4400">{esc(L["paid"])}</span></div>
-    </div>
-    <div class="bill" id="bill" data-at="5300"><b>{esc(L["bill"])}</b><span>หจก. ตัวอย่างวัสดุ</span><span>แฟ้มสันกว้าง ×24</span><em>+24</em><i class="flash" data-at="5700,6100:-on"></i></div>
-    <div class="sc-mascot" data-at="{",".join(f"{t + 600}:hop,{t + 1100}:-hop" for t in T)},6700:hop,7300:-hop">{M.svg("erp")}</div>
-  </div>
-  <div class="sc-sys">
-    <span class="sc-tag">{esc(L["system"])}</span>
-    <div class="stock"><h5>{esc(L["stock"])}</h5>{rows.replace("{low}", esc(L["low"]))}
-      <span class="restock" data-at="6700">+24 · {esc(L["restock"])}</span></div>
-    <div class="sc-done" data-at="7400">{icon("check")}<span>{esc(L["erp_done"])}</span></div>
-  </div>
-  {flyer("+24", "#bill", "#sk1", 6000)}
-</div>"""
-
-
 def demo(lang):
     L = C.DEMO_LABELS[lang]
     tabs = "".join(
         f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(C.PRODUCT[k][lang]["name"])}</button>'
         for i, k in enumerate(C.PRODUCTS))
-    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + S.dms(L) + scene_erp(L)
+    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + S.dms(L) + S.erp(L)
     return window(f'<div class="demo-body" aria-hidden="true">{body}<div class="progress"><i></i></div></div>',
                   f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
 

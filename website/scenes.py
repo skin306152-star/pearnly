@@ -119,7 +119,7 @@ def prop_svg(kind):
             '<path d="M-7 95 L0 120 L7 95 Z" fill="#f6dcb4"/><path d="M-2.6 112 L0 120 L2.6 112 Z" fill="currentColor"/></g>')
 
 
-def mascot(x, y, k=1.0, data="", prop="pencil", kind="base"):
+def mascot(x, y, k=1.0, data="", prop="pencil", kind="base", flip=False):
     """铅笔线条的小单（髋部在 x,y），穿各产品自己的衣服：左手可以挥，右手拿道具，可以抬起来打勾、拍照。
 
     结构：.hm（位置）> .hm-move（走动）> .hm-hop（跳）> 腿 .hm-leg、身体、左臂 .hm-wave、右臂 .hm-arm（带道具）。
@@ -132,7 +132,7 @@ def mascot(x, y, k=1.0, data="", prop="pencil", kind="base"):
             f'<circle cx="-24" cy="36" r="8.5" fill="{PAPER}"/></g></g>')
     arm = (f'<g transform="translate({rx} {ry})"><g class="hm-arm"><path d="M0 0 Q12 16 20 36"/>{prop_svg(prop)}'
            f'<circle cx="20" cy="36" r="9" fill="{PAPER}"/></g></g>')
-    return (f'<g class="hm hm-{kind}" transform="translate({n(x)} {n(y)}) scale({k})"{data}><g class="hm-move"><g class="hm-hop" {PEN} stroke-width="{n(3 / k)}">'
+    return (f'<g class="hm hm-{kind}" transform="translate({n(x)} {n(y)}) scale({-k if flip else k} {k})"{data}><g class="hm-move"><g class="hm-hop" {PEN} stroke-width="{n(3 / k)}">'
             f'<ellipse class="hm-shadow" cx="0" cy="41" rx="{shadow}" ry="7" fill="#3a2a14" stroke="none" opacity=".14"/>'
             f'{legs}{wave}<g>{body}</g>{arm}</g></g></g>')
 
@@ -288,3 +288,92 @@ def dms(L):
 
     flies = "".join(flyer(v, "#dm-card" if k != "phone" else "#dm-phone", f"#dm-f-{k}", at) for k, _lab, v, at in fields)
     return f'<div class="scene hd-scene" data-scene="dms" data-total="10500">{real}{sys_}{flies}</div>'
+
+
+# ---------------- ERP：柜台扫码卖货 → 库存跟着减 → 快没货了 → 拍采购单 → 库存补回来 ----------------
+
+def product(kind):
+    """柜台上的三样货（底边中点在原点）：A4 纸、宽脊文件夹、一盒笔。"""
+    if kind == "a4":
+        return (f'<rect x="-28" y="-30" width="56" height="30" rx="3" fill="{PAPER}" {OUT}/>'
+                f'<rect x="-28" y="-21" width="56" height="12" fill="#5b86d6" {OUT}/>' + t(0, -11, "A4", 11, "#ffffff", "middle", ' stroke="none"'))
+    if kind == "binder":
+        return (f'<rect x="-17" y="-52" width="34" height="52" rx="3" fill="#5b86d6" {OUT}/>'
+                f'<rect x="-10" y="-42" width="20" height="16" rx="2" fill="{PAPER}" stroke-width="2" stroke="{LINE}"/>'
+                f'<circle cx="0" cy="-12" r="5" fill="{PAPER}" stroke-width="2" stroke="{LINE}"/>')
+    return (f'<path d="M-12 -22 V-40 M-4 -22 V-44 M4 -22 V-38 M12 -22 V-42" stroke-width="5" stroke="#3d362c" stroke-linecap="round"/>'
+            f'<path d="M-12 -40 V-42 M-4 -44 V-46 M4 -38 V-40 M12 -42 V-44" stroke-width="5" stroke="#e0565b" stroke-linecap="round"/>'
+            f'<rect x="-22" y="-24" width="44" height="24" rx="3" fill="#ff8fb4" {OUT}/>')
+
+
+def erp(L):
+    prods = [("a4", "กระดาษ A4 ×10", "1,250.00", 10), ("binder", "แฟ้มสันกว้าง ×24", "1,080.00", 24), ("pens", "ปากกา ×12", "180.00", 12)]
+    T = [300, 1700, 3100]
+    counter_y = 330
+
+    # ---- 现实：门店柜台。左边收银机吐出收据；货一样样滑到小单那里，小单身上的条码一扫“嘀”，货进篮子
+    receipt = (f'<g transform="translate(36 58) rotate(-2)"><path d="M0 4 Q90 0 178 3 L180 128 l-11 6 l-11 -6 l-11 6 l-11 -6 l-11 6 l-11 -6 l-11 6 l-11 -6 l-11 6 l-11 -6 '
+               f'l-11 6 l-11 -6 l-11 6 l-11 -6 l-11 6 l-11 -6 Z" fill="#fbf8f0" {OUT}/>'
+               + t(90, 26, L["receipt"], 15, "#2d2b27", "middle")
+               + '<path d="M10 36 H170" stroke="#a89f8e" stroke-width="1.6" stroke-dasharray="4 4"/>'
+               + "".join(typed(12, 56 + i * 20, nm, T[i] + 700, 12) + typed(168, 56 + i * 20, amt, T[i] + 750, 12, anchor="end")
+                         for i, (_k, nm, amt, _q) in enumerate(prods))
+               + '<path d="M10 112 H170" stroke="#a89f8e" stroke-width="1.6" stroke-dasharray="4 4"/>'
+               + typed(12, 128 - 2, L["total"], 4100, 14) + typed(168, 126, "2,510.00", 4150, 14, anchor="end")
+               + f'<g transform="translate(142 150) rotate(-14)"><g class="hd-stamp" data-at="4400"><rect x="-46" y="-16" width="92" height="32" rx="7" fill="none" stroke="#e0565b" stroke-width="3"/>'
+               + t(0, 6, L["paid"], 15, "#e0565b", "middle") + '</g></g></g>')
+    register = (f'<g id="er-reg" transform="translate(20 {counter_y})">'
+                f'<path d="M6 0 L18 -96 H190 L202 0 Z" fill="#e6edf5" {OUT}/>'
+                f'<rect x="34" y="-86" width="136" height="34" rx="6" fill="#2f3b33" {OUT}/>'
+                + "".join(typed(160, -63, amt, T[i] + 650, 16, "#9ff0b0", "end") for i, (_k, _n, amt, _q) in enumerate(prods[:1]))
+                + "".join(f'<rect class="hd-pop" data-at="{T[i] + 650},{T[i + 1] + 650 if i < 2 else 99999}:-on" x="36" y="-84" width="132" height="30" rx="5" fill="#2f3b33" stroke="none"/>'
+                          + typed(160, -63, amt, T[i] + 650, 16, "#9ff0b0", "end") for i, (_k, _n, amt, _q) in enumerate(prods[1:], 1))
+                + "".join(f'<rect x="{40 + c * 26}" y="{-44 + r * 14}" width="20" height="9" rx="2" fill="#fffdf6" stroke-width="1.8" stroke="{LINE}"/>'
+                          for c in range(5) for r in range(3)) + '</g>')
+    counter = (f'<path d="M6 {counter_y} H514 V{counter_y + 26} H6 Z" fill="#d9b98a" {OUT}/>'
+               f'<path d="M6 {counter_y + 26} V{counter_y + 120} M514 {counter_y + 26} V{counter_y + 120}" stroke="{LINE}" stroke-width="2.4" opacity=".4"/>')
+    goods = "".join(f'<g transform="translate(262 {counter_y})"><g class="hd-good" data-at="{T[i]}:on,{T[i] + 300}:go,{T[i] + 800}:in">{product(k)}</g></g>'
+                    for i, (k, _n, _a, _q) in enumerate(prods))
+    beeps = ",".join(f"{T[i] + 600}:on,{T[i] + 1000}:-on" for i in range(3))
+    beep = (f'<g class="hd-pop" data-at="{beeps}"><path d="M300 150 Q300 128 330 128 H372 Q396 128 396 150 Q396 170 372 170 H344 L332 184 L334 170 Q300 172 300 150 Z" fill="#ffffff" {OUT}/>'
+            + t(348, 157, L["beep"], 17, "#e0565b", "middle") + '</g>')
+    hm_at = ",".join(f"{T[i] + 600}:hm-beep,{T[i] + 1000}:-hm-beep" for i in range(3)) + ",5800:hm-hopping,6400:-hm-hopping,7400:hm-hopping,7400:hm-cheer"
+    mm = mascot(436, counter_y - 48, 1.15, f' data-at="{hm_at}"', prop="basket", kind="erp", flip=True)
+    bill = (f'<g transform="translate(40 386) rotate(-3)"><g class="hd-pop" id="er-bill" data-at="5300">'
+            f'<rect width="220" height="104" rx="6" fill="{PAPER}" {OUT}/>'
+            + t(14, 26, L["bill"], 16, "#2d2b27") + t(14, 50, "หจก. ตัวอย่างวัสดุ", 14) + t(14, 72, "แฟ้มสันกว้าง ×24", 14)
+            + t(206, 92, "+24", 20, "#2e8a55", "end")
+            + '<rect class="hd-flash" data-at="5700,6100:-on" x="-4" y="-4" width="228" height="112" rx="8" fill="#ffffff" stroke="none"/></g></g>'
+            + f'<g transform="translate(250 412) rotate(16)"><g class="hd-pop" data-at="5500,6500:-on">'
+            f'<rect x="-30" y="-50" width="60" height="100" rx="12" fill="#3a3d45" {OUT}/><rect x="-24" y="-42" width="48" height="80" rx="7" fill="#dbe7fb" stroke="none"/>'
+            f'<circle cx="0" cy="-2" r="10" fill="#ffd84d" stroke-width="2" stroke="{LINE}"/>'
+            '<g class="hd-pop" data-at="5700,6100:-on" stroke="#f0b400" stroke-width="3"><path d="M-38 -30 l-14 -4 M-36 -8 h-16 M-36 14 l-14 6"/></g></g></g>')
+    real = panel("sc-real", label(L["real"]) + receipt + register + counter + goods + mm + beep + bill)
+
+    # ---- 系统里：三样货的库存条，卖一样减一截；文件夹见底贴“快没货了”；拍了采购单补回去
+    stock = [(120, 110, None, .92, .85), (30, 6, 30, .6, .12), (48, 36, None, .64, .48)]
+    rows = ""
+    for i, ((k, nm, _a, _q), (a, b, c, w0, w1)) in enumerate(zip(prods, stock)):
+        y = 118 + i * 92
+        steps = f"{T[i] + 1000}" + (",6700:refill" if c else "")
+        count = f"on:{a}:{b}" + (f"|refill:{b}:{c}" if c else "")
+        rows += (f'<g id="er-sk{i}" class="hd-sk" data-at="{steps}" style="--w0:{w0};--w1:{w1};--w2:{w0}">'
+                 f'<rect x="20" y="{y - 46}" width="460" height="80" fill="none" stroke="none"/>'
+                 f'<g transform="translate(52 {y + 8}) scale(.8)">{product(k)}</g>'
+                 + t(96, y - 6, nm.split(" ×")[0], 17, "#2d2b27")
+                 + f'<text x="470" y="{y - 2}" font-family="{HAND}" font-size="30" fill="#2d2b27" text-anchor="end" data-count="{count}">{a}</text>'
+                 + f'<rect x="96" y="{y + 8}" width="300" height="16" rx="8" fill="#f3ecdc" {OUT}/>'
+                 + f'<rect class="hd-bar" x="98" y="{y + 10}" width="296" height="12" rx="6" fill="#43b36f" stroke="none"/>'
+                 + (f'<g transform="translate(414 {y + 2}) rotate(6)"><g class="hd-pop hd-low" data-at="{T[i] + 1300},6700:-on">'
+                    f'<rect x="-6" y="-6" width="96" height="36" rx="4" fill="#ffd1d1" {OUT}/>' + t(42, 18, L["low"], 15, "#e0565b", "middle") + '</g></g>' if c else "")
+                 + '</g>')
+    restock = (f'<g class="hd-pop" data-at="6700"><rect x="96" y="384" width="230" height="32" rx="16" fill="#e9f4ec" {OUT}/>'
+               + t(211, 405, f'+24 · {L["restock"]}', 15, "#2e8a55", "middle") + '</g>')
+    done = (f'<g transform="translate(262 466) rotate(-3)"><g class="hd-stamp" data-at="7400">'
+            f'<rect x="-170" y="-22" width="340" height="44" rx="12" fill="#43b36f" {OUT}/>'
+            + t(0, 7, L["erp_done"], 16, "#fff", "middle") + '</g></g>')
+    sys_ = panel("sc-sys", label(L["system"]) + t(28, 82, L["stock"], 18, "#2d2b27") + rows + restock + done)
+
+    flies = "".join(flyer(f"-{q}", "#er-reg", f"#er-sk{i}", T[i] + 800) for i, (_k, _n, _a, q) in enumerate(prods))
+    flies += flyer("+24", "#er-bill", "#er-sk1", 6000, "doc")
+    return f'<div class="scene hd-scene" data-scene="erp" data-total="9800">{real}{sys_}{flies}</div>'

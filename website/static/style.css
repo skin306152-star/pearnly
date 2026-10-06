@@ -842,4 +842,18 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 /* 小单拿相机拍一下：相机抬起，闪光线条闪一下 */
 .hm-flash { opacity: 0; }
 .hm.hm-snap .hm-flash { animation: hd-flash .5s .2s ease-out both; }
+.hd-good, .hd-sk .hd-bar { transform-box: fill-box; }
+/* ERP：货出现在柜台上 → 滑到小单的篮子边 → 跳进篮子 */
+.hd-good { opacity: 0; transform-origin: center bottom; transform: scale(.5); transition: opacity .3s, transform .5s var(--ease); }
+.hd-good.on { opacity: 1; transform: none; }
+.hd-good.go { transform: translateX(62px); }
+.hd-good.in { opacity: 0; transform: translate(84px, -40px) scale(.35); transition: opacity .35s .1s, transform .4s var(--ease); }
+/* 库存条：卖了缩一截，补货再拉回来（--w0/--w1/--w2 写在每一行上） */
+.hd-sk .hd-bar { transform-origin: left center; transform: scaleX(var(--w0)); transition: transform .65s var(--ease), fill .3s; }
+.hd-sk.on .hd-bar { transform: scaleX(var(--w1)); }
+.hd-sk.refill .hd-bar { transform: scaleX(var(--w2)); }
+.hd-sk:has(.hd-low.on) .hd-bar { fill: #f0b400; }
+/* 小单身上的条码扫描线：平时淡，“嘀”一下时亮起来 */
+.hm-laser { opacity: .35; transition: opacity .15s; }
+.hm.hm-beep .hm-laser { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes { animation: none; } }
