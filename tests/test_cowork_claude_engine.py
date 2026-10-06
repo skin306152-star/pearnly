@@ -277,7 +277,8 @@ class EngineProfileTests(unittest.TestCase):
     def test_claude_profile_reads_once_with_the_tested_prompt(self):
         config = claude_config({**CLAUDE_ENV, "OCR_DIRECT_MODEL": "gemini-3.8-flash", "OCR_LAYER3_ENABLED": "1"})
         self.assertEqual((config.direct_model, config.single_read, config.enable_layer3), (CLAUDE_MODEL, True, False))
-        self.assertEqual(config.layer2_model, "gemini-3.1-flash-lite")  # 文字层 / 表格仍走原读法
+        # 全部交给 Claude：表格的文字也给 Claude，每页都看图直读（含电子 PDF、页数多的文件）
+        self.assertEqual((config.layer2_model, config.direct_enabled, config.max_direct_pages), (CLAUDE_MODEL, True, 50))
         self.assertEqual(image_system(CLAUDE_MODEL), image_system("gemini-3.8-flash"))
         self.assertNotEqual(image_system(CLAUDE_MODEL), IMAGE_SYSTEM)
 
@@ -286,6 +287,7 @@ class EngineProfileTests(unittest.TestCase):
         for value in ("", "gemini", "GEMINI"):
             config = claude_config({**environment, "OCR_ENGINE": value})
             self.assertEqual((config.direct_model, config.single_read), ("gemini-3.8-flash", False))
+            self.assertEqual(config.layer2_model, "gemini-3.1-flash-lite")
         self.assertEqual(image_system("gemini-3.1-flash-lite"), IMAGE_SYSTEM)
 
     def test_an_unknown_engine_is_a_configuration_error(self):
@@ -294,6 +296,17 @@ class EngineProfileTests(unittest.TestCase):
 
     def test_cost_estimate_knows_claude(self):
         self.assertEqual(model_cost_thb(CLAUDE_MODEL, 1_000_000, 0), 70.0)
+
+    def test_claude_cost_is_priced_from_the_reply_usage_with_cache_rates(self):
+        from pearnly_cowork.ocr.engine.cost import THB_PER_USD, calls_cost_thb, response_cost_thb
+
+        usage = {"input_tokens": 1_000_000, "cache_read_input_tokens": 1_000_000,
+                 "cache_creation_input_tokens": 1_000_000, "output_tokens": 1_000_000}
+        reply = anthropic.parse_response(message("{}", usage=usage), CLAUDE_MODEL)
+        usd = 2.0 + 0.2 + 2.5 + 10.0  # 未缓存 + 读缓存 0.1 倍 + 写缓存 1.25 倍 + 输出
+        self.assertAlmostEqual(response_cost_thb(reply), usd * THB_PER_USD)
+        gemini = ModelResponse("{}", {}, 1_000_000, 0, "gemini-3.8-flash", 0)
+        self.assertAlmostEqual(calls_cost_thb([gemini]), 0.75 * THB_PER_USD)  # 谷歌照旧按 token 估
 
 
 class SingleReadTests(unittest.TestCase):
@@ -341,6 +354,23 @@ class SingleReadTests(unittest.TestCase):
         self.assertEqual(pages[1].layer_chain, ["PAGE_UNREAD"])
         with self.assertRaises(ProviderFailure):
             read(Model([ProviderFailure("ocr.provider_auth", http_status=401)]))
+
+    def test_text_layer_pdfs_and_long_files_are_read_by_image_too(self):
+        source = Source(5)
+        source.text_pages = [Page(page_number=n, width=1, height=1, blocks=[], full_text="TAX INVOICE text layer " * 3, avg_confidence=1) for n in range(1, 6)]
+        model = Model([GOOD] * 5)
+        result = read(model, source)
+        self.assertEqual([(r.stage, r.model, len(r.images)) for r in model.requests], [("direct", CLAUDE_MODEL, 1)] * 5)
+        self.assertEqual(result.pipeline.engine, "image_direct")
+
+    def test_tables_go_to_claude_as_text(self):
+        from pearnly_cowork.ocr.engine.runner import run_text_pages
+
+        model = Model([GOOD])
+        run_text_pages([Page(page_number=1, width=1, height=1, blocks=[], full_text="TAX INVOICE IV69/100 total 107 " * 2,
+                             avg_confidence=1)], model,
+                       config=claude_config(), anchor_year=2026, today=TODAY)
+        self.assertEqual([(r.stage, r.model, r.images) for r in model.requests], [("layer2", CLAUDE_MODEL, ())])
 
     def test_the_gemini_path_still_rechecks(self):
         model = Model([OFF_BY_ONE_TOTAL, GOOD])
@@ -395,8 +425,8 @@ class DocumentTests(unittest.TestCase):
         from pearnly_cowork.ocr.engine.config import document_reading
         from pearnly_cowork.ocr.enterprise import contract as enterprise_contract, request as enterprise_request
 
-        self.assertEqual(document_reading(CLAUDE_ENV), (CLAUDE_MODEL, 0))
-        self.assertEqual(document_reading({"OCR_LLM_BACKEND": "vertex"}), (None, None))
+        self.assertEqual(document_reading(CLAUDE_ENV), (CLAUDE_MODEL, 0, False))
+        self.assertEqual(document_reading({"OCR_LLM_BACKEND": "vertex"}), (None, None, True))
         claude = enterprise_request.build_request("bank", "TRANSCRIPT", model=CLAUDE_MODEL)
         current = enterprise_request.build_request("bank", "TRANSCRIPT")
         self.assertEqual((claude["model"], current["model"]), (CLAUDE_MODEL, enterprise_contract.MODEL))
@@ -412,6 +442,44 @@ class DocumentTests(unittest.TestCase):
             return pipeline.run("bank", page_count=1, reads=[(PNG, "image/png", 1)],
                                 render=lambda number: (PNG, "image/png"),
                                 document_ai_call=lambda *a, **k: ({}, 1, "docai"), model_call=model_call, **engine)
+
+    def test_claude_skips_document_ai_and_reads_every_page_from_the_image(self):
+        from pearnly_cowork.ocr.engine.config import document_reading
+        from pearnly_cowork.ocr.enterprise import pipeline
+        from pearnly_cowork.ocr import recon_reading
+
+        row = {"transaction_date": "2026-10-01", "transaction_date_raw": "01/10/2026", "description": "x",
+               "reference": "", "deposit": "100", "withdrawal": "", "amount": "100", "direction": "deposit"}
+        pages = [{"opening_balance": "1000", "closing_balance": "1100", "entries": [{**row, "balance": "1100"}]},
+                 {"opening_balance": "1100", "closing_balance": "1200", "entries": [{**row, "balance": "1200"}]}]
+
+        def no_document_ai(*args, **kwargs):
+            raise AssertionError("Claude never calls Document AI")
+
+        class Doc:
+            page_count = 2
+
+            def frame(self, number):
+                return Frame(PNG + bytes([number]), "image/png")
+
+        for category, document_type in (("bank", "bank_statement"), ("gl", "general_ledger"), ("vat", "vat_report")):
+            model = Model(pages if category != "vat" else [{"rows": []}, {"rows": []}])
+            with patch.object(pipeline, "_local", side_effect=AssertionError("no local rebuild without a transcript")):
+                legacy = recon_reading.read_document(Doc(), b"%PDF-not-read", True, "application/pdf", document_type,
+                                                     no_document_ai, model, environment=CLAUDE_ENV)
+            self.assertEqual([(r.model, r.stage) for r in model.requests], [(CLAUDE_MODEL, "enterprise_schema")] * 2)
+            self.assertTrue(all("the only source" in r.prompt and "Enterprise OCR transcript:" not in r.prompt
+                                for r in model.requests), category)
+            self.assertEqual(legacy["timings"]["read_ms"], [])
+        self.assertFalse(pipeline.first_pass("bank", page_count=2, reads=[], render=lambda n: (PNG, "image/png"),
+                                             document_ai_call=no_document_ai, model_call=Model([]), stage="read",
+                                             index=1, transcribe=False))
+        warm = Model([pages[0]])
+        self.assertTrue(recon_reading.warm_document(Doc(), b"%PDF-not-read", True, "application/pdf",
+                                                    "bank_statement", no_document_ai, warm, "extract", 2,
+                                                    environment=CLAUDE_ENV))
+        self.assertEqual(warm.requests[0].page_number, 2)
+        self.assertEqual(document_reading({})[2], True)
 
     def test_claude_reads_each_page_once_even_when_the_balance_breaks(self):
         broken = {"opening_balance": "1000", "closing_balance": "1500", "entries": [

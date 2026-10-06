@@ -45,7 +45,9 @@
    - 输出写满上限不原样重读；格式坏不重试（`retries=0`）。读不出的页记成读不出（多页文件不拖垮整份）。
    - `claude` 时忽略 `OCR_DIRECT_MODEL`（切回 `gemini` 自动恢复原来选的 3.8 / flash-lite）。
    - 提示词与 3.8 同一份（`IMAGE_SYSTEM` + 「水电费账单算采购凭证」），即小样本实测用的那份；谷歌路径不变。
-   - PDF 文字层路线、Word / Excel 表格、超过直读页数上限的文件仍走原读法（模型是谷歌，路由不受影响）。
+   - **全部交给 Claude**（用户 2026-10-07：「选 Claude 就全部走 Claude」）：每页都看图直读，带文字层的电子 PDF、
+     页数多的文件也一样（直读上限放到引擎的 50 页）；Word / Excel 表格没有图，文字交给 Claude（`layer2_model`）。
+     选 Claude 的租户识别不调任何谷歌接口（Vision、Document AI、Gemini）。
 4. **连接与密钥**：站点配置 `pearnly_anthropic` =
    `{"api_key", "base_url", "auth": "x-api-key" | "bearer", "models": {正式模型名: 入口上的模型名}}`，
    与 LINE / 计费凭据同一套做法：开户步骤从服务器 `runtime.env` 的 `PEARNLY_ANTHROPIC_CONFIG` 写进 Cowork 组的
@@ -76,16 +78,19 @@
 ## 范围
 
 - 第一步：Cowork 发票录入（`cowork.invoice`）与对账的销项税核查（`cowork.vat_check`，同一引擎）。
-- 第二步：对账文档抽取（`enterprise.pipeline`，银行 / 总账 / 税报）在 Document AI 本地拼不平、要调模型的那一步换 Claude
-  （`config.document_reading`）。Document AI 读字照旧（谷歌），提示词、合同与结果格式不变；结果格式交给官方结构化输出
-  （`output_config.format = json_schema`），回复一定合格式。只读一遍：每份最多再读 0 页，自核不过（余额链断、合计对不上）照旧标出来交人确认。
-  站点本机、Cloud Run 与多页预热（`first_pass`）同一读法，受理冻结的识别环境带到执行处；Cloud Tasks 走 Claude 派发池。
+- 第二步：对账文档（`enterprise.pipeline`，银行 / 总账 / 税报）全部交给 Claude（`config.document_reading` →
+  `transcribe=False`）：不调 Document AI、不本地拼行，每页只看图抽取一次（提示词用合同里「图是唯一来源」那一版，结果格式不变，
+  交给官方结构化输出 `output_config.format = json_schema`）；不再读，自核不过（余额链断、合计对不上）照旧标出来交人确认。
+  带文字层的电子账单先按文字层坐标本地拼行（不调任何供应商、不花钱），算得平就用，与现行一样。
+  站点本机、Cloud Run 与多页预热（`first_pass`，读字那一步不发调用）同一读法；Cloud Tasks 走 Claude 派发池。
 - 不做：ERP 采购 / 销售、DMS 身份证（走共用层 `pearnly_core.ocr`，另立工作包）；客户计费单价（另定）。
 
 ## 后果与验证
 
 - 谷歌路径：代码路径与提示词不变；现有引擎、对照、远程执行测试全部照过。在途工作单冻结配置不含 `OCR_ENGINE`，按原读法续跑。
 - 回退：开户后台把引擎改回「现状」（或站点配置删掉 `OCR_ENGINE`），下一份起回到谷歌；已受理的按受理时冻结的继续。
-- 成本：Claude 每页约 ฿0.39（实时、只读一遍），比现行看图直读贵；切换按租户做，由用户决定哪些租户用。
+- 成本：Claude 发票每页约 ฿0.39、对账单每页约 ฿1.07（小样本，实时、只读一遍），比现行贵（对账单现行平均 ฿0.356，
+  拼得平的页不调模型）；切换按租户做，由用户决定哪些租户用。成本记录（`engine.cost.response_cost_thb`）按 Claude 回复里
+  未缓存 / 读缓存 / 写缓存 / 输出分项用量和官方倍率算实价。
 - 上线前按 [识别改动上线闸门](../development/verification.md#识别改动上线闸门) 过金标与 100 人压测；
   正式密钥、Cloud Run 密钥与挂载在发布记录里登记。

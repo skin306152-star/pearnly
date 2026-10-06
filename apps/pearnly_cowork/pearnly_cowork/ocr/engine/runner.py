@@ -670,7 +670,9 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
     run = _Run(shared, model_call, vision_call, config, anchor_year, today,
                fewshot_selector, pattern_memory)
     runs = {}
-    direct = text_pages is None and config.direct_enabled and source.page_count <= config.max_direct_pages
+    # 只读一遍（ADR-017）每页都看图读：带文字层的电子 PDF 也一样（小样本实测的是看图读这一种读法）。
+    direct = ((text_pages is None or config.single_read) and config.direct_enabled
+              and source.page_count <= config.max_direct_pages)
 
     def read(page):
         # 多页文件里一页读不出（模型输出失控写满上限、格式坏，直读与带原文再读都没结果）不再拖垮整份：

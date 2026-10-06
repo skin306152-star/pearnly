@@ -28,7 +28,7 @@ from functools import partial
 from typing import Callable, Iterable, List, Tuple
 
 from pearnly_cowork.ocr.engine.contracts import ModelRequest
-from pearnly_cowork.ocr.engine.cost import THB_PER_USD, model_cost_thb  # 价目与发票识别共用一处
+from pearnly_cowork.ocr.engine.cost import THB_PER_USD, response_cost_thb  # 价目与发票识别共用一处
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import contract, header_bank, pages as enterprise_pages, self_check
 from pearnly_cowork.ocr.enterprise.adapter import PipelineResult, make_page
@@ -192,7 +192,7 @@ def _checked(model_call, picture, category, transcript, number, data, response, 
     except ContentError:
         audit["reread_failed"] = True
         return _repaired(data, transcript, category, audit), response, audit, 0.0
-    extra = model_cost_thb(again.model, again.input_tokens, again.output_tokens)
+    extra = response_cost_thb(again)
     if category == "bank":
         breaks = self_check.bank_breaks(second)
         audit["breaks"].append(breaks)
@@ -241,7 +241,7 @@ def _one_at_a_time(render):
     return invoke
 
 
-def _first_reading(model_call, render, category, transcripts, keep_image, model=None):
+def _first_reading(model_call, render, category, transcripts, keep_image, model=None, image_only=False):
     """第 n 页的第一遍抽取：只用这一页自己的图和转写稿，与别的页无关。回 ``(data, response, 取这页图的办法)``；银行页抽取
     重发后仍结果不明回 ``None``（这一页读不出，见 ``run``）。一页一页读时留着这页的图给再读用（与原来一样只渲染一次）；
     各页同时读时不把整份扫描件的图都留在内存里，要再读的页再渲染一次（同一页渲染结果不变，见 ``PageSource.frame``）。"""
@@ -249,7 +249,7 @@ def _first_reading(model_call, render, category, transcripts, keep_image, model=
         image, mime = render(number)
         try:
             data, response = _extract(model_call, image, mime, category, transcripts[number - 1], number,
-                                      image_only=category in IMAGE_FIRST, model=model)
+                                      image_only=image_only or category in IMAGE_FIRST, model=model)
             return data, response, ((lambda: (image, mime)) if keep_image else partial(render, number))
         except ContentError as error:
             # 只有银行账单这样兜底：余额链一定在缺的那页断开、交人确认；总账、税报没有逐笔余额，丢一页看不出来，
@@ -262,10 +262,11 @@ def _first_reading(model_call, render, category, transcripts, keep_image, model=
 
 def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
         render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, map_pages=None,
-        model=None, max_rereads=None) -> PipelineResult:
+        model=None, max_rereads=None, transcribe=True) -> PipelineResult:
     """``reads``: the Document AI inputs (PDF chunks or the one image); ``render(n)``: page n's image.
-    ``model`` / ``max_rereads``：站点引擎选的抽取模型与每份最多再读几页（ADR-017，``config.document_reading``）；
-    不给 = 现行读法（合同里的 3.8、最多 ``MAX_REREAD_PAGES``）。
+    ``model`` / ``max_rereads`` / ``transcribe``：站点引擎选的读法（ADR-017，``config.document_reading``）；不给 = 现行读法
+    （合同里的 3.8、最多 ``MAX_REREAD_PAGES``、先读字）。``transcribe=False``：不调 Document AI（``reads`` /
+    ``document_ai_call`` 不用）、不本地拼行，每页只看图抽取。
 
     ``map_pages(fn, page_numbers)``（可选，与发票引擎同一约定：按页码顺序交回每页结果，任一页出错等其余页结束后抛页码最小的
     那个）：各页的**第一遍抽取**同时做。之后的自核、再读、结转累计照旧按页码顺序一页一页来（再读名额先到先得、税报按前面
@@ -276,19 +277,19 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         raise ContentError("ocr.enterprise_category_invalid", detail=str(category))
     started = time.monotonic()
     payloads, billed, read_ms = [], 0, []
-    for index, (content, mime, expected) in enumerate(reads, 1):
+    for index, (content, mime, expected) in enumerate(reads if transcribe else (), 1):
         body, elapsed_read, _key = document_ai_call(content, mime, expected_pages=expected, page_number=index)
         read_ms.append(elapsed_read)
         payloads.append(body)
         billed += expected
     cost = billed * enterprise_pages.USD_PER_PAGE * THB_PER_USD
     pages = None
-    if category in ("bank", "gl"):
+    if category in ("bank", "gl") and transcribe:
         local = _local(payloads, category, page_count)
         if local is not None:
             pages = _local_pages(local, category)
     if pages is None:
-        transcripts = _transcripts(payloads, page_count)
+        transcripts = _transcripts(payloads, page_count) if transcribe else [""] * page_count
         pages = []
         unread = 0
         rereads = 0
@@ -297,7 +298,8 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
         together = map_pages is not None and len(transcripts) > 1
         if together:
             render = _one_at_a_time(render)  # PDF 渲染库不是线程安全的（与发票引擎的 _SerialSource 一样）
-        first = _first_reading(model_call, render, category, transcripts, keep_image=not together, model=model)
+        first = _first_reading(model_call, render, category, transcripts, keep_image=not together, model=model,
+                               image_only=not transcribe)
         firsts = map_pages(first, numbers) if together else None
         limit = MAX_REREAD_PAGES if max_rereads is None else max_rereads
         for number, transcript in enumerate(transcripts, 1):
@@ -339,7 +341,7 @@ def run(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int
             page.layer2_ms = response.elapsed_ms
             page.layer2_input_tokens = response.input_tokens
             page.layer2_output_tokens = response.output_tokens
-            cost += model_cost_thb(first_response.model, first_response.input_tokens, first_response.output_tokens)
+            cost += response_cost_thb(first_response)
             pages.append(page)
         if unread == len(pages):
             raise ContentError("ocr.enterprise_schema_failed", detail="every page unreadable")
@@ -369,14 +371,14 @@ def _transcripts(payloads, page_count):
 
 def first_pass(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, str, int]],
                render: Callable[[int], Tuple[bytes, str]], document_ai_call, model_call, stage: str, index: int,
-               model=None) -> bool:
+               model=None, transcribe=True) -> bool:
     """多页文件的预热（Cloud Workflows，各块 / 各页分开并行）：只做 :func:`run` 第一遍里的一件事——第 ``index`` 块读字
     （``stage="read"``）或第 ``index`` 页的第一遍抽取（``"extract"``）。用的是与 ``run`` 同一套步骤（``_local`` 判本地拼行、
     ``_transcripts``、``_first_reading``），发出的请求逐字相同、检查点键相同；不出结果，最后由 ``run`` 原封不动读整份时
     从检查点取回。返回这次是否该发调用（本地拼行算得平、页号超出时 ``run`` 不会调模型，这里也不调）。"""
     if category not in ("bank", "gl", "vat") or page_count < 1:
         raise ContentError("ocr.enterprise_category_invalid", detail=str(category))
-    reads = list(reads)
+    reads = list(reads) if transcribe else []  # 不读字（ADR-017 Claude）：没有读字这一步，抽取只看图
     if stage == "read":
         if not 1 <= index <= len(reads):
             return False
@@ -385,14 +387,18 @@ def first_pass(category: str, *, page_count: int, reads: Iterable[Tuple[bytes, s
         return True
     if stage != "extract":
         raise ValueError("unknown stage")
-    payloads = [document_ai_call(content, mime, expected_pages=expected, page_number=number)[0]
-                for number, (content, mime, expected) in enumerate(reads, 1)]
-    if category in ("bank", "gl") and _local(payloads, category, page_count) is not None:
-        return False
-    transcripts = _transcripts(payloads, page_count)
+    if transcribe:
+        payloads = [document_ai_call(content, mime, expected_pages=expected, page_number=number)[0]
+                    for number, (content, mime, expected) in enumerate(reads, 1)]
+        if category in ("bank", "gl") and _local(payloads, category, page_count) is not None:
+            return False
+        transcripts = _transcripts(payloads, page_count)
+    else:
+        transcripts = [""] * page_count
     if not 1 <= index <= len(transcripts):
         return False
-    _first_reading(model_call, render, category, transcripts, keep_image=False, model=model)(index)
+    _first_reading(model_call, render, category, transcripts, keep_image=False, model=model,
+                   image_only=not transcribe)(index)
     return True
 
 

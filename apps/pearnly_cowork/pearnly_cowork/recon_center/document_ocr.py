@@ -226,7 +226,7 @@ def _board(recon_job, file, filename, counted):
 
     def on_extracted(page, text):
         counted["done"] = counted.get("done", 0) + 1
-        _progress(file, done=counted["done"])
+        _progress(file, read=counted["done"], done=counted["done"])  # 不读字的读法（ADR-017 Claude）：读完一页也算读到
         try:
             document = json.loads(text or "{}")
         except (TypeError, ValueError):
@@ -329,7 +329,8 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
             if getattr(request, "stage", "") == enterprise.REREAD_STAGE:
                 return response  # 自核没过、这页再读一次：看板不重复记页数、不再报一次「刚读出」
             counted["done"] += 1
-            _progress(file, done=counted["done"])
+            # 不读字的读法（ADR-017 Claude）没有读字这一步：抽完一页也算读到这页（先读字时读到的页数本来就不少于抽完的）
+            _progress(file, read=counted["done"], done=counted["done"])
             try:
                 document = json.loads(response.text or "{}")
             except (TypeError, ValueError):

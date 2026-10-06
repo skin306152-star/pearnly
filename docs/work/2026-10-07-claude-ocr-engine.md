@@ -9,7 +9,7 @@
   3. 开户后台能切换，站点步骤写对配置；缺 Claude 连接时拒绝。
   4. 测试环境（testcowork）用聚合平台密钥真读通过，交用户试用。
 - 本次不做：ERP / DMS；客户计费单价；生产正式密钥与部署（另行按发布流程）。
-- 本次范围状态：第一步、第二步实现完成，等用户试用。收尾状态：施工中。
+- 本次范围状态：第一、二、三步实现完成（选 Claude 就全部走 Claude），等用户压测。收尾状态：施工中。
 - 分支 / 基线 / 工作树 / 集成目标：`pearnly/claude-ocr-engine` / `63e2c712`（10-07 变基到 `a2443248`）/ `/Users/skin/pearnly-wt-claude-ocr` / `main`。
 - 并行窗口：Cowork「文件夹自动录入」（`pearnly/cowork-folder-intake`，改 `folder_intake/`、companion、`hooks.py`、翻译、架构说明）。
   本包只动 `ocr/`（providers、engine、execution/settings、remote）、`pearnly_control` 的部署与开户步骤、站点步骤脚本、Cloud Run 部署脚本、
@@ -51,6 +51,17 @@
   `warm_document` 按受理冻结的识别环境取；调用方 `recon_center/document_ocr` 与 Cloud Run `remote.runner._document` / 预热传入环境与 `claude_target`。
 - 适配层：请求带结果格式时用官方结构化输出（`output_config.format = json_schema`）。
 - 远程：`contract.document_request(anthropic=)` 校验非密连接形状；`forward.send_document` 带上；`tasks.pool_of` 对文档同样分到 Claude 池。
+
+## 变更与决定（第三步：选 Claude 就全部走 Claude，用户 2026-10-07）
+
+- 发票：`config_from_environment` 在 Claude 档位把 `layer2_model` 设成 Claude、直读打开、直读上限 50 页；`run_invoice`
+  只读一遍时不管有没有文字层都看图直读。表格（Word / Excel）文字交给 Claude。
+- 对账文档：`document_reading` 回 `DocumentReading(model, max_rereads, transcribe)`；Claude = `(claude, 0, False)`：
+  `pipeline.run(transcribe=False)` 不调 Document AI、不本地拼行、每页只看图；`first_pass` 读字阶段不发调用。
+  电子账单的文字层本地拼行（`jobs.py` → `text_layer.read`，不花钱）保留。
+- 看板：不读字时抽完一页也算读到这页（`document_ocr` 两处）。
+- 成本：`cost.response_cost_thb` / `claude_usage_usd` 按 Claude 回复的分项用量（未缓存、读缓存 0.1 倍、写缓存 1.25 倍、输出）算实价；
+  `calls_cost_thb` 与对账管线都用它。谷歌照旧按 token 估。
 
 ## 验证
 

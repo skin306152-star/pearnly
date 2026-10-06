@@ -7,6 +7,7 @@ import json
 import unittest
 
 from pearnly_cowork.ocr.engine.contracts import ModelResponse
+from pearnly_cowork.ocr.engine.cost import model_cost_thb
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import pipeline, self_check
 
@@ -87,8 +88,8 @@ class BankPage(unittest.TestCase):
 			result = pipeline.run("bank", page_count=1, reads=[(b"img", "image/jpeg", 1)], render=render,
 				document_ai_call=docai("no geometry"), model_call=Priced(*answers))
 			expected = (pipeline.enterprise_pages.USD_PER_PAGE * pipeline.THB_PER_USD
-				+ pipeline.model_cost_thb(result.pages[0].layer2_model, 1000, 100)
-				+ pipeline.model_cost_thb(result.pages[0].layer2_model, 3000, 900))
+				+ model_cost_thb(result.pages[0].layer2_model, 1000, 100)
+				+ model_cost_thb(result.pages[0].layer2_model, 3000, 900))
 			self.assertAlmostEqual(result.estimated_cost_thb, expected, places=6)
 
 	def test_a_reread_that_is_no_better_is_not_used(self):
