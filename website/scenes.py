@@ -47,41 +47,93 @@ def panel(cls, inner, extra=""):
 
 # ---------------- 小单 ----------------
 
-def mascot(x, y, k=1.0, data="", prop="pencil"):
-    """铅笔线条的小单（髋部在 x,y）：左手可以挥，右手拿着道具（铅笔 / 相机），可以抬起来打勾、拍照。
-
-    结构：.hm（位置）> .hm-move（走动）> .hm-hop（跳）> 腿 .hm-leg、身体、左臂 .hm-wave、右臂 .hm-arm（带铅笔）。
-    关节都用 translate 包一层，CSS 只在局部原点 (0,0) 上旋转。
-    """
+def zigzag(top, half=39):
+    """纸身：圆角上沿 + 右边下来 + 锯齿底边（从右往左）。"""
     zig, up = [], True
     for _ in range(8):
-        zig.append(f"l-9.75 {-8 if up else 8}")
+        zig.append(f"l{n(-half / 4)} {-8 if up else 8}")
         up = not up
-    body = (f'<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V0 {" ".join(zig)} Z" fill="{PAPER}"/>'
+    return f"M{-half} {top + 12} Q{-half} {top} {-half + 12} {top} H{half - 12} Q{half} {top} {half} {top + 12} V0 {' '.join(zig)} Z"
+
+
+def face(ex, ey, r=5, gap=24):
+    """两点眼 + 腮红 + 笑嘴；ex 是左眼的 x。"""
+    cx = ex + gap / 2
+    return ('<g class="hm-eyes">'
+            f'<circle cx="{n(ex)}" cy="{n(ey)}" r="{r}" fill="currentColor" stroke="none"/>'
+            f'<circle cx="{n(ex + gap)}" cy="{n(ey)}" r="{r}" fill="currentColor" stroke="none"/></g>'
+            f'<ellipse cx="{n(ex - 11)}" cy="{n(ey + 14)}" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+            f'<ellipse cx="{n(ex + gap + 11)}" cy="{n(ey + 14)}" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+            f'<path class="hm-mouth" d="M{n(cx - 6)} {n(ey + 22)} q6 6 12 0" stroke-width="2.6"/>')
+
+
+# 每个产品的小单穿不同的衣服（与 website/mascot.py 里的产品形象一致，这里是铅笔画版）：
+#   cowork：头顶一道黄条、戴圆眼镜、身上印着金额（会计）
+#   dms：身体就是一张蓝色身份证，举着一台黑色小相机
+#   erp：戴黄色小店遮阳帽，身上一段条码带红色扫描线，提着黄色购物篮
+def costume(kind):
+    if kind == "cowork":
+        body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
+                '<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V-86 H-39 Z" fill="#ffd84d"/>'
+                + face(-10, -72, 4.2)
+                + '<circle cx="-10" cy="-72" r="9.5" fill="none" stroke-width="2.4"/><circle cx="14" cy="-72" r="9.5" fill="none" stroke-width="2.4"/>'
+                '<path d="M-0.5 -72 h5" stroke-width="2.4"/>'
+                '<path d="M-24 -44 H18 M-24 -35 H6" stroke="#bdb7aa" stroke-width="3"/>'
+                + t(29, -16, "2,889.00", 11.5, "#2d2b27", "end", ' stroke="none"'))
+        return body, (-38, -50), (38, -50), 14, 46
+    if kind == "dms":
+        body = ('<rect x="-56" y="-72" width="112" height="72" rx="12" fill="#eaf3fb"/>'
+                '<path d="M-52 -58 H52" stroke-width="2" opacity=".25"/>'
+                + face(-36, -44, 4.4, 18)
+                + '<path d="M6 -48 H40 M6 -37 H34 M6 -26 H28" stroke="#9fb6cb" stroke-width="3.6"/>')
+        return body, (-56, -36), (56, -40), 22, 58
+    if kind == "erp":
+        bars = "".join(f"M{x} -28 V-12 " for x in (-26, -22, -19, -14, -11, -6, -3, 2, 6, 10, 16, 20, 24))
+        body = (f'<path d="{zigzag(-80)}" fill="{PAPER}"/>'
+                '<path d="M-44 -78 Q0 -120 44 -78 Z" fill="#ffd84d"/><path d="M-50 -78 H50" stroke-width="2.8"/>'
+                + face(-10, -58, 4.2)
+                + f'<path d="{bars}" stroke-width="1.8"/>'
+                '<g class="hm-laser"><path d="M-32 -20 H32" stroke="#e5484d" stroke-width="2.4"/>'
+                '<path d="M-32 -20 H32" stroke="#e5484d" stroke-width="9" opacity=".2"/></g>')
+        return body, (-38, -42), (38, -42), 14, 46
+    body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
             '<path d="M-24 -38 H18 M-24 -26 H8" stroke="#bdb7aa" stroke-width="3"/>'
-            '<rect x="2" y="-17" width="26" height="10" rx="3" fill="#ffd84d" stroke-width="2.4"/>'
-            '<ellipse cx="-21" cy="-62" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
-            '<ellipse cx="23" cy="-62" rx="8" ry="4.5" fill="#ff9ba3" stroke="none" opacity=".85"/>'
-            '<g class="hm-eyes"><circle cx="-10" cy="-76" r="5" fill="currentColor" stroke="none"/>'
-            '<circle cx="14" cy="-76" r="5" fill="currentColor" stroke="none"/></g>'
-            '<path class="hm-mouth" d="M-5 -54 q6 6 12 0" stroke-width="2.6"/>')
-    legs = ('<g transform="translate(-14 0)"><path class="hm-leg l" d="M0 0 L-4 40 h-14"/></g>'
-            '<g transform="translate(14 0)"><path class="hm-leg r" d="M0 0 L4 40 h14"/></g>')
-    wave = ('<g transform="translate(-38 -50)"><g class="hm-wave"><path d="M0 0 Q-22 12 -24 36"/>'
+            '<rect x="2" y="-17" width="26" height="10" rx="3" fill="#ffd84d" stroke-width="2.4"/>' + face(-10, -76))
+    return body, (-38, -50), (38, -50), 14, 46
+
+
+def prop_svg(kind):
+    """右手拿的东西，画在手的位置 (20, 36)。"""
+    if kind == "camera":                      # DMS：黑色小相机，黄色镜头
+        return ('<g transform="translate(26 14) rotate(-12)" stroke-width="2.6">'
+                '<rect x="-20" y="-15" width="40" height="28" rx="7" fill="#3d362c"/><rect x="-12" y="-21" width="12" height="7" rx="2" fill="#3d362c"/>'
+                '<circle cx="3" cy="-1" r="9" fill="#ffd84d"/><circle cx="3" cy="-1" r="3.5" fill="#fffdf6" stroke="none"/>'
+                '<g class="hm-flash" stroke="#f0b400" stroke-width="3"><path d="M24 -24 l9 -9 M30 -10 h12 M16 -30 v-12"/></g></g>')
+    if kind == "basket":                      # ERP：黄色购物篮
+        return ('<g transform="translate(22 46)" stroke-width="2.6">'
+                '<path d="M-12 -12 Q0 -32 12 -12" fill="none"/>'
+                '<path d="M-20 -12 H20 L15 16 H-15 Z" fill="#ffd84d"/><path d="M-8 -6 V11 M0 -6 V11 M8 -6 V11" stroke-width="1.8" opacity=".55"/></g>')
+    return ('<g transform="translate(20 36) rotate(28) translate(0 -58)" stroke-width="2.6">'
+            '<rect x="-7" y="0" width="14" height="16" rx="4" fill="#ff9ba3"/><rect x="-7" y="14" width="14" height="7" fill="#cfd2d8"/>'
+            '<rect x="-7" y="21" width="14" height="74" fill="#ffd84d"/>'
+            '<path d="M-7 95 L0 120 L7 95 Z" fill="#f6dcb4"/><path d="M-2.6 112 L0 120 L2.6 112 Z" fill="currentColor"/></g>')
+
+
+def mascot(x, y, k=1.0, data="", prop="pencil", kind="base"):
+    """铅笔线条的小单（髋部在 x,y），穿各产品自己的衣服：左手可以挥，右手拿道具，可以抬起来打勾、拍照。
+
+    结构：.hm（位置）> .hm-move（走动）> .hm-hop（跳）> 腿 .hm-leg、身体、左臂 .hm-wave、右臂 .hm-arm（带道具）。
+    关节都用 translate 包一层，CSS 只在局部原点 (0,0) 上旋转。
+    """
+    body, (lx, ly), (rx, ry), hip, shadow = costume(kind)
+    legs = (f'<g transform="translate({-hip} 0)"><path class="hm-leg l" d="M0 0 L-4 40 h-14"/></g>'
+            f'<g transform="translate({hip} 0)"><path class="hm-leg r" d="M0 0 L4 40 h14"/></g>')
+    wave = (f'<g transform="translate({lx} {ly})"><g class="hm-wave"><path d="M0 0 Q-22 12 -24 36"/>'
             f'<circle cx="-24" cy="36" r="8.5" fill="{PAPER}"/></g></g>')
-    pencil = ('<g transform="translate(20 36) rotate(28) translate(0 -58)" stroke-width="2.6">'
-              '<rect x="-7" y="0" width="14" height="16" rx="4" fill="#ff9ba3"/><rect x="-7" y="14" width="14" height="7" fill="#cfd2d8"/>'
-              '<rect x="-7" y="21" width="14" height="74" fill="#ffd84d"/>'
-              '<path d="M-7 95 L0 120 L7 95 Z" fill="#f6dcb4"/><path d="M-2.6 112 L0 120 L2.6 112 Z" fill="currentColor"/></g>')
-    camera = ('<g transform="translate(24 30) rotate(-12)" stroke-width="2.6">'
-              '<rect x="-20" y="-15" width="40" height="28" rx="6" fill="#5b7fd8"/><rect x="-10" y="-21" width="14" height="7" rx="2" fill="#3a5bb0"/>'
-              '<circle cx="2" cy="-1" r="9" fill="#ffffff"/><circle cx="2" cy="-1" r="4" fill="#2d2b27" stroke="none"/>'
-              '<g class="hm-flash" stroke="#f0b400" stroke-width="3"><path d="M24 -24 l9 -9 M30 -10 h12 M16 -30 v-12"/></g></g>')
-    held = camera if prop == "camera" else pencil
-    arm = (f'<g transform="translate(38 -50)"><g class="hm-arm"><path d="M0 0 Q12 16 20 36"/>{held}'
+    arm = (f'<g transform="translate({rx} {ry})"><g class="hm-arm"><path d="M0 0 Q12 16 20 36"/>{prop_svg(prop)}'
            f'<circle cx="20" cy="36" r="9" fill="{PAPER}"/></g></g>')
-    return (f'<g class="hm" transform="translate({n(x)} {n(y)}) scale({k})"{data}><g class="hm-move"><g class="hm-hop" {PEN} stroke-width="{n(3 / k)}">'
-            f'<ellipse class="hm-shadow" cx="0" cy="41" rx="46" ry="7" fill="#3a2a14" stroke="none" opacity=".14"/>'
+    return (f'<g class="hm hm-{kind}" transform="translate({n(x)} {n(y)}) scale({k})"{data}><g class="hm-move"><g class="hm-hop" {PEN} stroke-width="{n(3 / k)}">'
+            f'<ellipse class="hm-shadow" cx="0" cy="41" rx="{shadow}" ry="7" fill="#3a2a14" stroke="none" opacity=".14"/>'
             f'{legs}{wave}<g>{body}</g>{arm}</g></g></g>')
 
 
@@ -117,7 +169,7 @@ def cowork(L):
                  + t(18, 40, L["stmt"], 22, "#2d2b27") + t(320, 40, "ก.ย. 2569", 16, "#5b7fd8", "end")
                  + st + '</g>')
     raise_ = ",".join(f"{T[i] + 1050}:hm-jot,{T[i] + 1600}:-hm-jot" for i in range(3))
-    mm = mascot(436, 420, 1.0, f' data-at="{raise_},9100:hm-hopping,9100:hm-cheer"')
+    mm = mascot(432, 420, 1.25, f' data-at="{raise_},9100:hm-hopping,9100:hm-cheer"', kind="cowork")
     real = panel("sc-real", label(L["real"]) + statement + mm)
 
     # ---- 系统里：上面三张读出来的税票，下面一本 ERP 进项日记账
@@ -204,8 +256,8 @@ def dms(L):
              + f'<g class="hd-pop hd-bub" data-at="8300"><rect x="20" y="256" width="200" height="34" rx="17" fill="#ffffff" stroke-width="2" stroke="{LINE}"/>'
              + t(120, 278, L["bot"], 14, "#2e8a55", "middle") + '</g>'
              + '<rect x="96" y="18" width="58" height="12" rx="6" fill="#1f2025" stroke="none"/></g>')
-    mm = mascot(420, 430, 1.0, ' data-at="1100:hm-jot,1100:hm-snap,1700:-hm-jot,1700:-hm-snap,6000:hm-hopping,6600:-hm-hopping,8300:hm-hopping,8300:hm-cheer"',
-                prop="camera")
+    mm = mascot(384, 430, 1.25, ' data-at="1100:hm-jot,1100:hm-snap,1700:-hm-jot,1700:-hm-snap,6000:hm-hopping,6600:-hm-hopping,8300:hm-hopping,8300:hm-cheer"',
+                prop="camera", kind="dms")
     real = panel("sc-real", label(L["real"]) + phone + mm)
 
     # ---- 系统里：新客户资料逐格写进去 → 查老客户（放大镜扫过）→ 订车单
