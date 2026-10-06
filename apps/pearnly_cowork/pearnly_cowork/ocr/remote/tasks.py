@@ -346,6 +346,7 @@ ADAPTIVE_KEY = "cowork-tasks-adaptive"
 # 选的看图模型（``OCR_DIRECT_MODEL``，没选照策略的第一档）。结果里按模型带回调用和限流（``by_model``），各模型按各自的 429
 # 比例收放；读字 / Document AI 那部分（""）算进这份所在的池。旧版 Cloud Run 只带总数：整份算进所在的池。
 LITE, PRO = "gemini-3.1-flash-lite", "gemini-3.8-flash"
+CLAUDE = "claude-sonnet-5-5"  # Claude 引擎的派发池（ADR-017）
 DOCUMENT_POOL = PRO
 LEGACY_POOLS = ("invoice", "document")  # 改按模型分池之前的池名：上线时还在途的派发照样能还回去
 
@@ -357,6 +358,8 @@ def pool_of(path, body=None):
     from pearnly_cowork.ocr.policy import invoice_policy
 
     environment = (body or {}).get("environment") or {}
+    if (body or {}).get("anthropic") is not None:
+        return CLAUDE  # Claude 引擎（ADR-017）：额度在 Anthropic，不与谷歌的模型池互相拖累
     chosen = str(environment.get("OCR_DIRECT_MODEL") or "").strip()
     if chosen in DIRECT_MODELS:
         return chosen
@@ -388,7 +391,7 @@ def _pool_counts(final, job_pool):
 ADAPTIVE_START, ADAPTIVE_SHRINK = 32, 0.8
 # 各池下限：flash-lite（拐点是全站同时 30–40 个调用）不低于 24；3.8 既读扫描件 / 照片又做对账抽取（对账一份同时调用多），
 # 不低于 16。
-ADAPTIVE_FLOOR = {LITE: 24, PRO: 16}
+ADAPTIVE_FLOOR = {LITE: 24, PRO: 16, CLAUDE: 24}
 # 30 秒一个窗口（一份读取的典型耗时）：窗口里 429 / 503 占谷歌调用超过 15% 才收缩，一个窗口最多缩一次；没超就放开——
 # 没碰过收缩线前慢启动（翻倍），之后每窗口加 2。上限存在 Redis 里（30 天），下次接着用，不每次从 32 冷启动。
 # 2026-10-02 第三轮：原来「一份结果带 429 就乘 0.8、每份加 1/上限」，429 只占 2–10% 也几乎每 5 秒缩一次，发票池长期压在下限 8，

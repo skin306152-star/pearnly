@@ -103,6 +103,7 @@ Finished At,结束时间
 For example http://keycloak.localhost:8105,例如 http://keycloak.localhost:8105
 For example: local sample / production,例如：本地样板 / 生产
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。
+Gemini keeps the current reading. Claude reads each page once with Claude Sonnet. Saving applies it to the tenant site.,Gemini 保持现行读法；Claude 用 Claude Sonnet 每页只读一遍。保存后下发到租户站点。
 Grant feature roles,发功能权限
 Granted DocTypes,授予的 DocType
 Idempotency Key,幂等键
@@ -214,6 +215,7 @@ Realm,Realm
 Reason (the tenant will see it; required),原因（租户那边看得到，必填）
 Received Amount,实收金额
 Received amount (as actually credited by the bank),实收金额（以银行到账为准）
+Recognition engine,识别引擎
 Reference,外部单号
 Reject,拒绝
 Reject top-up,拒绝充值
@@ -281,6 +283,7 @@ The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",开户目标 {0} 没有配 LINE Login 频道，建不了 LIFF
 The received amount must be greater than 0,实收金额必须大于 0
+The recognition engine is being applied. Try again shortly.,识别引擎正在下发，请稍后再试。
 The requested amount must be greater than 0,申请金额必须大于 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,同一个键重复提交只会有一套资源。默认用发号单号
 "The top-up amount must be between ฿0.01 and ฿500,000","充值金额要在 ฿0.01 到 ฿500,000 之间"
@@ -299,6 +302,7 @@ Transfer Slip,转账截图
 Type,类型
 Unknown billing unit: {0},未知的计费单位：{0}
 Unknown product: {0},未知产品：{0}
+Unknown recognition engine.,未知的识别引擎。
 Unknown step status: {0},未知步骤状态：{0}
 Used This Cycle (pages),本周期已用（张）
 Used to send messages (long-lived).,发消息用（long-lived）

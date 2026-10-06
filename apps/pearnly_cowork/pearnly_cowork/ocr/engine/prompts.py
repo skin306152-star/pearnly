@@ -83,8 +83,8 @@ _RULE_11_END = 'never make its rows additional_invoices.'
 
 def image_system(direct_model):
     """看图读用的提示词：直读模型是 3.8 时第 11 条后补 ``BILLS_ARE_PURCHASES``，否则原样。直读、带提示复核、带原文再读
-    同用这一份（与 eval7b 实测一致）。"""
-    if str(direct_model or "").startswith("gemini-3.8"):
+    同用这一份（与 eval7b 实测一致）。Claude（ADR-017）用与 3.8 同一份：2026-10-07 两轮小样本就是用这份读的。"""
+    if str(direct_model or "").startswith(("gemini-3.8", "claude-")):
         return IMAGE_SYSTEM.replace(_RULE_11_END, _RULE_11_END + BILLS_ARE_PURCHASES, 1)
     return IMAGE_SYSTEM
 

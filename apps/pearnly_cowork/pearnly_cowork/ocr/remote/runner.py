@@ -26,7 +26,9 @@ from pearnly_cowork.ocr.engine.contracts import ProviderFailure
 from pearnly_cowork.ocr.engine.errors import EngineError
 from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
 from pearnly_cowork.ocr.policy import invoice_policy
-from pearnly_cowork.ocr.providers.client import ProviderClient
+from pearnly_cowork.ocr.providers import anthropic
+from pearnly_cowork.ocr.providers.client import ProviderClient, ProviderConfigurationError
+from pearnly_cowork.ocr.providers.route import ModelRouter
 from pearnly_cowork.ocr.remote import contract
 from pearnly_cowork.ocr import originals as original_files, recon_reading
 
@@ -356,29 +358,58 @@ def terminal_read(store, key):
     return saved["body"]
 
 
-def build_client(environment, store, access_token, *, http=None, regions=None, cached_only=None):
+ANTHROPIC_ENV = "ANTHROPIC_CONFIG"  # Claude 连接（ADR-017）：Secret Manager 注入的 JSON，格式同站点的连接文件
+
+
+def claude_config():
+    """Cloud Run 自己的 Claude 连接 ``(非密部分, 密钥)``；没配返回 ``(None, "")``。"""
+    raw = os.environ.get(ANTHROPIC_ENV) or ""
+    if not raw.strip():
+        return None, ""
+    try:
+        value = json.loads(raw)
+        target = anthropic.connection({key: value[key] for key in ("base_url", "auth", "models") if key in value})
+    except (ValueError, TypeError, AttributeError, ProviderConfigurationError):
+        return None, ""
+    return target, str(value.get("api_key") or "")
+
+
+def build_client(environment, store, access_token, *, http=None, regions=None, cached_only=None, claude_target=None):
+    """``claude_target``：服务器受理时冻结的 Claude 非密连接（ADR-017）。Cloud Run 自己的连接与它不一致（换了入口 / 模型名）
+    就拒绝，不拿另一个入口的密钥去读。"""
     project = environment.get("GCP_PROJECT")
     provider = Provider(store, http, cached_only=cached_only)
 
     def require_context():
         return None  # 站点权限由服务器在发出前、存结果前复核（ADR-0015）
 
-    return ProviderClient(environment, project=project, post=provider.post, checkpoint_key=checkpoint_key,
+    shared = dict(post=provider.post, checkpoint_key=checkpoint_key,
         reject_checkpoint=lambda key, body: store.put(key, "rejected", body),
         terminal_read=partial(terminal_read, store),
         terminal_write=lambda key, body: store.put(TERMINAL + key, "terminal", body),
         feedback=partial(throttle_feedback, store), scope=lambda provider, project, location, model: f"{provider}:{location}",
-        access_token=access_token, require_context=require_context, checkpoint_read=store.get,
-        regions=regions, in_queue_job=lambda: False)
+        checkpoint_read=store.get)
+    google = ProviderClient(environment, project=project, access_token=access_token, require_context=require_context,
+                            regions=regions, in_queue_job=lambda: False, **shared)
+    if claude_target is None:
+        return google
+    frozen = anthropic.connection(claude_target)
+
+    def require_claude():
+        if claude_config()[0] != frozen:
+            raise ProviderConfigurationError("ocr.provider_configuration_changed")
+
+    return ModelRouter(google, anthropic.AnthropicClient(frozen, api_key=lambda: claude_config()[1],
+                                                          require_context=require_claude, clock=time.monotonic, **shared))
 
 
 def model_name(identity):
-    """检查点身份 ``["cowork", 供应方, 项目, 区域, 模型, ...]`` → Gemini 模型名；读字 / Document AI / 认不出的 → ""。"""
+    """检查点身份 ``["cowork", 供应方, 项目, 区域, 模型, ...]`` → 模型名（Gemini / Claude）；读字 / Document AI / 认不出的 → ""。"""
     try:
         value = json.loads(identity)[4] if str(identity).startswith("[") else identity
     except (ValueError, TypeError, IndexError):
         return ""
-    return value if isinstance(value, str) and value.startswith("gemini-") else ""
+    return value if isinstance(value, str) and value.startswith(("gemini-", anthropic.FAMILY)) else ""
 
 
 def throttle_feedback(store, bucket, status, *args):
@@ -595,14 +626,14 @@ def recognize(body, backend, access_token, emit, *, orient, page_source, http=No
             environment["OCR_FAST_PATH_ENABLED"] = "true"
         selected = invoice_policy(environment, body["policy"])
         config = config_from_environment(environment, selected)
-        if eval_direct_model():
+        if eval_direct_model() and not config.single_read:  # 评测换直读模型只对谷歌读法有意义（ADR-017）
             from dataclasses import replace
             config = replace(config, direct_model=eval_direct_model())
         examples = body.get("examples")
         selector = partial(fewshot_for_text, examples_by_tax=examples["examples_by_tax"]) if examples else None
         started, cpu = clock(), time.thread_time()
         yield_seconds = body.get("yield_seconds", contract.YIELD_SECONDS)
-        client = build_client(environment, store, access_token, http=http)
+        client = build_client(environment, store, access_token, http=http, claude_target=body.get("anthropic"))
         model_call, vision_call = client.model_call, client.vision_call
         if body.get("variant") == "vat_check":
             model_call, vision_call = recon_reading.vat_callbacks(client)  # 与服务器本机执行同一份包装

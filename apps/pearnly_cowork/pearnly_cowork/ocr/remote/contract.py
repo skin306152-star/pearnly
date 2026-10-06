@@ -140,10 +140,14 @@ def _original(body):
 
 
 def request(*, site, work, batch, filename, content=None, page_count, anchor_date, environment, policy,
-            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None, previews=None):
+            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None, previews=None,
+            anthropic=None):
+    """``anthropic``：Claude 引擎（ADR-017）受理时冻结的非密连接（入口、认证方式、模型名）；密钥在 Cloud Run 自己的密钥里。"""
     body = {"version": VERSION, "kind": "cowork.invoice", "site": site, "work": work, "batch": batch,
             "filename": filename, "page_count": page_count, "anchor_date": anchor_date, "environment": environment,
             "policy": policy, "examples": examples, "variant": variant, "yield_seconds": yield_seconds}
+    if anthropic is not None:
+        body["anthropic"] = anthropic
     if previews is not None:
         body["previews"] = previews
     if original is not None:
@@ -213,6 +217,18 @@ def document_request(*, site, work, filename, content, page_count, document_type
     return body
 
 
+def _anthropic(body):
+    """只核形状（不含密钥）；入口、模型名是否合规由 Cloud Run 建客户端时按 ``providers.anthropic.connection`` 再核。"""
+    if "anthropic" not in body:
+        return
+    value = body["anthropic"]
+    if (not isinstance(value, dict) or set(value) != {"base_url", "auth", "models"}
+            or not isinstance(value["base_url"], str) or not isinstance(value["auth"], str)
+            or not isinstance(value["models"], dict)
+            or any(not isinstance(k, str) or not isinstance(v, str) for k, v in value["models"].items())):
+        raise ValueError("invalid anthropic")
+
+
 def parse_request(body):
     """Cloud Run 收到请求先过这一关；服务器发出前也用它自检。不合规就 ValueError。"""
     if not isinstance(body, dict) or body.get("version") != VERSION:
@@ -240,6 +256,7 @@ def parse_request(body):
         raise ValueError("invalid examples")
     if body.get("variant", "intake") not in VARIANTS:
         raise ValueError("invalid variant")
+    _anthropic(body)
     _yield_seconds(body)
     if "original" in body:
         if "content" in body:

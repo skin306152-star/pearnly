@@ -18,6 +18,7 @@
 - [ADR-014 DMS 会话复用、白天增量同步与账号并发](0014-dms-session-reuse-live-sync.md)
 - [ADR-015 Cowork 发票识别在 Cloud Run 上执行](0015-ocr-on-cloud-run.md)
 - [ADR-016 Cowork 原件由浏览器直传谷歌存储](0016-originals-direct-to-cloud-storage.md)
+- [ADR-017 识别引擎可切换：新增 Claude（Anthropic）供应商与「只读一遍」读法](0017-ocr-engine-claude.md)
 
 待定稿：
 

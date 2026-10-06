@@ -103,6 +103,7 @@ Finished At,สิ้นสุดเมื่อ
 For example http://keycloak.localhost:8105,ตัวอย่าง http://keycloak.localhost:8105
 For example: local sample / production,ตัวอย่าง: ตัวอย่างในเครื่อง / โปรดักชัน
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น
+Gemini keeps the current reading. Claude reads each page once with Claude Sonnet. Saving applies it to the tenant site.,Gemini ใช้วิธีอ่านแบบเดิม ส่วน Claude ใช้ Claude Sonnet อ่านแต่ละหน้าครั้งเดียว บันทึกแล้วจะนำไปใช้กับไซต์ของผู้เช่า
 Grant feature roles,มอบบทบาทตามฟีเจอร์
 Granted DocTypes,DocType ที่อนุญาต
 Idempotency Key,คีย์กันซ้ำ
@@ -214,6 +215,7 @@ Realm,Realm
 Reason (the tenant will see it; required),เหตุผล (ผู้เช่าจะเห็น จำเป็นต้องกรอก)
 Received Amount,จำนวนที่รับจริง
 Received amount (as actually credited by the bank),จำนวนที่รับจริง (ตามยอดที่ธนาคารเข้าจริง)
+Recognition engine,เครื่องมืออ่านเอกสาร
 Reference,เลขที่อ้างอิงภายนอก
 Reject,ปฏิเสธ
 Reject top-up,ปฏิเสธการเติมเงิน
@@ -281,6 +283,7 @@ The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",API เปิดใช้บนเซิร์ฟเวอร์ เช่น https://api.pearnly.com/v1/deployments กรอกเมื่อเซิร์ฟเวอร์พร้อม ถ้าเว้นว่างจะออกใบแต่ไม่สร้างเว็บไซต์
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",เป้าหมายการเปิดบัญชี {0} ยังไม่มีช่องทาง LINE Login จึงสร้าง LIFF ไม่ได้
 The received amount must be greater than 0,จำนวนที่รับจริงต้องมากกว่า 0
+The recognition engine is being applied. Try again shortly.,กำลังนำเครื่องมืออ่านเอกสารไปใช้ โปรดลองอีกครั้งในอีกสักครู่
 The requested amount must be greater than 0,จำนวนที่ขอต้องมากกว่า 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,ส่งคีย์เดิมซ้ำจะได้ทรัพยากรชุดเดียวเท่านั้น ค่าเริ่มต้นคือเลขใบเปิดใช้งาน
 "The top-up amount must be between ฿0.01 and ฿500,000","จำนวนเติมเงินต้องอยู่ระหว่าง ฿0.01 ถึง ฿500,000"
@@ -299,6 +302,7 @@ Transfer Slip,สลิปโอนเงิน
 Type,ประเภท
 Unknown billing unit: {0},หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}
 Unknown product: {0},ไม่รู้จักผลิตภัณฑ์: {0}
+Unknown recognition engine.,ไม่รู้จักเครื่องมืออ่านเอกสารนี้
 Unknown step status: {0},สถานะขั้นตอนที่ไม่รู้จัก: {0}
 Used This Cycle (pages),ใช้ไปในรอบนี้ (หน้า)
 Used to send messages (long-lived).,ใช้ส่งข้อความ (long-lived)

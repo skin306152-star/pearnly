@@ -8,6 +8,18 @@ from pearnly_cowork.ocr.engine.errors import EngineError
 
 # 看图直读可以选的模型（站点配置 OCR_DIRECT_MODEL）。
 DIRECT_MODELS = ("gemini-3.1-flash-lite", "gemini-3.8-flash")
+# 识别引擎（站点配置 OCR_ENGINE，ADR-017）：空 / gemini = 现行读法；claude = 看图直读交给 Claude、只读一遍。
+GEMINI, CLAUDE = "gemini", "claude"
+ENGINES = (GEMINI, CLAUDE)
+CLAUDE_MODEL = "claude-sonnet-5-5"
+
+
+def engine_of(environment: Mapping[str, str]) -> str:
+    """站点选的识别引擎；认不出的报配置错误（不悄悄回到某一家）。"""
+    engine = str(environment.get("OCR_ENGINE", "") or "").strip().lower() or GEMINI
+    if engine not in ENGINES:
+        raise EngineError("ocr.engine_config_invalid", detail="OCR_ENGINE")
+    return engine
 
 
 def config_from_environment(environment: Mapping[str, str], selected: InvoicePolicy) -> EngineConfig:
@@ -58,9 +70,12 @@ def config_from_environment(environment: Mapping[str, str], selected: InvoicePol
     direct = environment.get("OCR_DIRECT_MODEL", "").strip()
     if direct and direct not in DIRECT_MODELS:
         raise EngineError("ocr.engine_config_invalid", detail="OCR_DIRECT_MODEL")
+    # Claude 引擎（ADR-017）：看图直读换 Claude、只读一遍、不升 3.8。OCR_DIRECT_MODEL 照旧校验但不用，切回 gemini 时原样生效。
+    # 文字层、表格与超过直读页数的文件仍走原读法（模型是谷歌的那几档）。
+    claude = engine_of(environment) == CLAUDE
     return EngineConfig(
-        enable_layer3=layer3 in {"1", "true", "yes", "on"},
-        direct_model=direct or selected.first_model, layer2_model=selected.first_model,
+        enable_layer3=layer3 in {"1", "true", "yes", "on"} and not claude, single_read=claude,
+        direct_model=CLAUDE_MODEL if claude else direct or selected.first_model, layer2_model=selected.first_model,
         layer3_model=selected.l3_model, mode=selected.mode, provider=selected.backend,
         direct_enabled=selected.direct_enabled, max_direct_pages=selected.direct_max_pages,
         double_read=selected.double_read, image_first=selected.image_first,

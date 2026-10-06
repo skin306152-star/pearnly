@@ -233,7 +233,8 @@ def _recognize(content, filename, pages, frozen, recon_job=None, file=None):
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in
-                                                      ("backend", "project", "location", "credentials_path")})
+                                                      ("backend", "project", "location", "credentials_path")},
+                          claude_target=frozen.get("anthropic"))
     started = time.monotonic()
 
     def guarded(callback):

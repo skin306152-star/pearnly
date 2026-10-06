@@ -136,7 +136,8 @@ def _recognize(doc, frozen, examples, source):
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
     client = build_client(environment, core_identity={k: frozen["target"][k] for k in
-                          ("backend", "project", "location", "credentials_path")})
+                          ("backend", "project", "location", "credentials_path")},
+                          claude_target=frozen.get("anthropic"))
     body = feedback.validate_snapshot(examples) if examples else None
     selector = partial(fewshot_for_text, examples_by_tax=body["examples_by_tax"]) if body else None
     started = time.monotonic()

@@ -66,6 +66,8 @@ RUNAWAY_HINT = ("\n\nYour previous answer ran away repeating characters and was 
 RUNAWAY_TEMPERATURE = 0.4
 UNREAD_STAGE = "PAGE_UNREAD"
 UNREAD_PREFIX = "page_unread:"
+# 只读一遍时没过闸的原因（ADR-017）：不复核、不叫 Vision，写进提示、这一页转人工复核。
+SINGLE_READ_PREFIX = "single_read_unchecked:"
 
 
 def is_auth_failure(failure: ProviderFailure) -> bool:
@@ -184,9 +186,9 @@ class _Run:
             if "MAX_TOKENS" in response.finish_reason and stage in IMAGE_READS:
                 # 看图读写满了输出上限：多半是模型复读失控（2026-09-28 压测：单号后一长串 0 写满 8192）。
                 # 原样重读照样写满，先换参数原地重读一次（温度调高打破复读、上限减半、提示别复读），
-                # 读出来就用；仍写满或读不出再交下一步。
-                data = self.runaway_retry(stage, page, model, prompt, images, tokens, timeout, thinking,
-                                          attempt + 1)
+                # 读出来就用；仍写满或读不出再交下一步。只读一遍（ADR-017）不重读：直接当这次没读出。
+                data = None if self.config.single_read else self.runaway_retry(
+                    stage, page, model, prompt, images, tokens, timeout, thinking, attempt + 1)
                 if data is not None:
                     return data, self.calls[first:]
                 truncated = True
@@ -271,11 +273,35 @@ class _Run:
         siblings = [] if invoice.is_not_invoice else invoice.additional_invoices or []
         return "; ".join(filter(None, (year_shift(each, anchor_year=self.anchor_year) for each in [invoice, *siblings])))
 
+    def single_page(self, page):
+        """只读一遍（ADR-017）：看图直读一次，照常过检查闸（金额勾稽、折扣 / 预扣税推算、合理性、年份）；没过闸不复核、
+        不叫 Vision、不重读，原因写进提示、这一页转人工复核。读不出（格式坏、写满上限、对方明确拒绝）当这页读不出，
+        由 ``run_invoice`` 照多页规则处理。认证失败照旧往外抛。"""
+        frame = self.source.frame(page)
+        first = len(self.calls)
+        try:
+            invoice, _ = self.read_image("direct", page, frame, self.image_prompt, retries=0)
+        except ProviderFailure as exc:
+            if is_auth_failure(exc):
+                raise
+            raise ContentError(exc.code, stage="direct", page_number=page) from exc
+        hard, warnings = self.gate(invoice)
+        issue = "; ".join(filter(None, (hard, self.year_shift(invoice))))
+        if issue:
+            warnings.append(SINGLE_READ_PREFIX + " " + issue)
+        result = self.direct_result(page, invoice, warnings, self.calls[first:], ["ID"], force=bool(issue))
+        if issue:
+            result.extraction_audit["direct_fallback"] = {"page_number": page, "code": "ocr.direct_gate_failed",
+                                                          "detail": issue}
+        return result
+
     def image_page(self, page):
         """一页图片（ADR-013）：直读 → 带提示复核 → Vision 原文 + 原图再读；前一步过了闸就不再往下走。
 
         年份差约 10 年（`year_shift`）只让同一模型带提示复核一次（2026-10-02），不往 Vision 原文再读升级：
         那条路读日期更差（`validation.dates`）。复核没读对就保留读数照常出结果，不额外标红。"""
+        if self.config.single_read:
+            return self.single_page(page)
         frame = self.source.frame(page)
         first = len(self.calls)
         best, passed = None, None
@@ -358,11 +384,11 @@ class _Run:
         warnings.extend(notes + [note for note in numbers if note])
         return ["L1"]
 
-    def direct_result(self, page, invoice, warnings, calls, chain):
+    def direct_result(self, page, invoice, warnings, calls, chain, force=False):
         if not invoice.is_not_invoice and not str(invoice.invoice_number or "").strip():
             warnings.append("direct_read: invoice_number missing")
-        force = any(w.startswith((DISCOUNT_INFERRED_PREFIX, NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX))
-                    for w in warnings)
+        force = force or any(w.startswith((DISCOUNT_INFERRED_PREFIX, NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX))
+                             for w in warnings)
         credit = credit_note_review_reason(invoice)
         if credit:
             warnings.append(credit)

@@ -7,11 +7,13 @@ import frappe
 from frappe import _
 from pearnly_core import ocr
 from pearnly_cowork.ocr.policy import invoice_policy
-from pearnly_cowork.ocr.engine.config import config_from_environment
+from pearnly_cowork.ocr.engine.config import CLAUDE, config_from_environment, engine_of
+from pearnly_cowork.ocr.providers.client import ProviderConfigurationError
 
 STRING_KEYS = {"OCR_ENGINE_MODE", "OCR_LLM_BACKEND", "OCR_FLASH_MODEL", "OCR_FLASHLITE_MODEL",
                "OCR_FALLBACK_MODEL", "OCR_ESCALATE_MODEL", "GCP_PROJECT", "GOOGLE_CLOUD_PROJECT",
-               "VERTEX_PROJECT", "VERTEX_LOCATION", "VERTEX_LOCATION_25", "TZ", "OCR_DIRECT_MODEL"}
+               "VERTEX_PROJECT", "VERTEX_LOCATION", "VERTEX_LOCATION_25", "TZ", "OCR_DIRECT_MODEL",
+               "OCR_ENGINE"}
 NUMBER_KEYS = set("""OCR_IMAGE_DIRECT OCR_IMAGE_DIRECT_MAX_PAGES OCR_IMAGE_FIRST OCR_FAST_PATH_ENABLED
 OCR_DOUBLE_READ OCR_DOUBLE_READ_BIG_THB OCR_IMAGE_FIRST_ESCALATE_CONF OCR_PIPELINE_CONF_THRESHOLD
 OCR_PIPELINE_AMOUNT_TOL OCR_CONF_AUTO OCR_CONF_REVIEW OCR_IMG_MAX_LONG_EDGE OCR_DIRECT_TIMEOUT_SECONDS
@@ -22,6 +24,16 @@ OCR_TOTALS_RESCUE_TIMEOUT_SECONDS OCR_LAYER3_ENABLED""".split())
 def target():
     return {"backend": ocr.backend(), "project": ocr.project(), "location": ocr.location(),
             "credentials_path": ocr.credentials_path(), "endpoint": ocr.endpoint()}
+
+
+def claude_target():
+    """站点 Claude 连接里非密的部分（ADR-017）；没配 / 配坏了返回 ``None``。"""
+    from pearnly_cowork.ocr.providers.core import anthropic_target
+
+    try:
+        return anthropic_target()
+    except ProviderConfigurationError:
+        return None
 
 
 def snapshot(*, deterministic=False):
@@ -46,6 +58,7 @@ def snapshot(*, deterministic=False):
     try:
         selected = invoice_policy(environment, policy)
         config_from_environment(environment, selected)
+        engine = engine_of(environment)
         today = datetime.now(ZoneInfo(environment.get("TZ") or "UTC")).date()
     except (ValueError, TypeError, KeyError) as exc:
         frappe.throw(_("Invalid Cowork OCR configuration."))
@@ -70,9 +83,16 @@ def snapshot(*, deterministic=False):
     environment.setdefault("VERTEX_LOCATION", destination["location"])
     if not 1 <= selected.direct_max_pages <= 50 or not 1 <= selected.direct_timeout_seconds <= 120:
         frappe.throw(_("Invalid Cowork OCR configuration."))
-    return {"environment": environment, "policy": policy, "target": destination,
-            "mode": selected.mode, "billing_tier": "B" if selected.mode == "economy" else "A",
-            "fewshot": selected.fewshot_enabled, "anchor_date": today.isoformat(), "schema": 1}
+    frozen = {"environment": environment, "policy": policy, "target": destination,
+              "mode": selected.mode, "billing_tier": "B" if selected.mode == "economy" else "A",
+              "fewshot": selected.fewshot_enabled, "anchor_date": today.isoformat(), "schema": 1}
+    if engine == CLAUDE:
+        # Claude 引擎（ADR-017）：受理时冻结连接里非密的那部分（入口、认证方式、模型名），执行前与当时的配置核对；密钥不冻结。
+        claude = claude_target()
+        if claude is None:
+            frappe.throw(_("Cowork OCR requires a configured provider credential reference."))
+        frozen["anthropic"] = claude
+    return frozen
 
 
 def revalidate(saved):
@@ -80,4 +100,6 @@ def revalidate(saved):
             and saved.get("target") is None and saved.get("fewshot") is False):
         return
     if saved.get("schema") != 1 or saved.get("target") != target():
+        frappe.throw(_("The OCR connection changed after this task was accepted."))
+    if "anthropic" in saved and saved["anthropic"] != claude_target():
         frappe.throw(_("The OCR connection changed after this task was accepted."))

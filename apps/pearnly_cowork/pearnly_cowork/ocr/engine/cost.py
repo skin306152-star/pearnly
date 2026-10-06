@@ -5,7 +5,9 @@
 """
 THB_PER_USD = 35.0
 # USD per million input / output tokens.
-MODEL_PRICES_PER_M_USD = {"gemini-3.8-flash": (0.75, 3.75), "gemini-3.1-flash-lite": (0.25, 1.50)}
+# Claude Sonnet 5.5（ADR-017）：Anthropic 官方标价 2 / 10 美元（2026-10-07 核对）；缓存读价约十分之一，这里按全价估（宁可估高）。
+MODEL_PRICES_PER_M_USD = {"gemini-3.8-flash": (0.75, 3.75), "gemini-3.1-flash-lite": (0.25, 1.50),
+                          "claude-sonnet-5-5": (2.0, 10.0)}
 VISION_USD_PER_IMAGE = 0.0015
 
 

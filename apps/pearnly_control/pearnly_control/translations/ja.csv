@@ -103,6 +103,7 @@ Finished At,終了日時
 For example http://keycloak.localhost:8105,例: http://keycloak.localhost:8105
 For example: local sample / production,例：ローカル見本 / 本番
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
+Gemini keeps the current reading. Claude reads each page once with Claude Sonnet. Saving applies it to the tenant site.,Gemini は現行の読み取りのまま。Claude は Claude Sonnet で各ページを一度だけ読み取ります。保存するとテナントのサイトに反映されます。
 Grant feature roles,機能ロールを付与
 Granted DocTypes,付与するDocType
 Idempotency Key,冪等キー
@@ -214,6 +215,7 @@ Realm,レルム
 Reason (the tenant will see it; required),理由（テナント側に表示されます。必須）
 Received Amount,受領額
 Received amount (as actually credited by the bank),受領額（銀行の実際の入金額）
+Recognition engine,認識エンジン
 Reference,外部参照番号
 Reject,却下
 Reject top-up,チャージを却下
@@ -281,6 +283,7 @@ The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",開設先 {0} に LINE Login チャネルが未設定のため LIFF を作成できません
 The received amount must be greater than 0,受領額は0より大きい必要があります
+The recognition engine is being applied. Try again shortly.,認識エンジンを反映中です。しばらくしてから再試行してください。
 The requested amount must be greater than 0,申請額は0より大きい必要があります
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,同じキーで二重送信しても資源は1セットだけ。既定は発行伝票番号。
 "The top-up amount must be between ฿0.01 and ฿500,000","チャージ額は฿0.01〜฿500,000の範囲で入力してください"
@@ -299,6 +302,7 @@ Transfer Slip,振込明細
 Type,種別
 Unknown billing unit: {0},不明な課金単位: {0}
 Unknown product: {0},不明な製品: {0}
+Unknown recognition engine.,不明な認識エンジンです。
 Unknown step status: {0},不明なステップ状態: {0}
 Used This Cycle (pages),今サイクル使用量（枚）
 Used to send messages (long-lived).,メッセージ送信用（long-lived）。
