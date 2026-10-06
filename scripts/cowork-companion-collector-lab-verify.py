@@ -115,7 +115,10 @@ class NativeCollector(unittest.TestCase):
         self.assertEqual(self.row(request).status, 'requested')
         self.assertTrue(self.doc().enabled)
         self.assertEqual(self.snapshot().name, before)
-        self.assertTrue(self.model.parse(self.doc().report_json)['agent_last_seen_at'].startswith('1970-'))
+        # 报到时间记在密钥行（心跳入口 `credentials.record_seen`），上报记录里不再存；下线只把准备凭据标成离线。
+        report = self.model.parse(self.doc().report_json)
+        self.assertNotIn('agent_last_seen_at', report)
+        self.assertIsNot((report.get('_preparation_binding') or {}).get('online'), True)
 
     def test_human_request_machine_lease_completion_and_no_duplicate_replay(self):
         request, lease = self.lease()

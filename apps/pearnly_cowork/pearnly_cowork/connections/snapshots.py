@@ -54,6 +54,9 @@ def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pend
     heads[head_key] = {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision,
         "request_id": request_id if request_id is not None else head.get("request_id"),
         "status": "pending" if pending else "fresh"}
-    doc.projection_heads = model.dumps(heads)
-    access.write(doc)
+    encoded = model.dumps(heads)
+    if encoded != (doc.projection_heads or ""):
+        # 心跳每分钟都会带同一份目录来：指针没变就不重写连接这一行（整行含上报记录，会全量进数据库日志）。
+        doc.projection_heads = encoded
+        access.write(doc)
     return {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision, "published": not same}

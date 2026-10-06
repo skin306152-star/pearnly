@@ -18,8 +18,11 @@ def _receive(context, body):
     doc = frappe.get_doc('Cowork ERP Connection', context.connection, for_update=True)
     previous = {**model.parse(doc.get('report_json'), {}), **model.parse(doc.config_json, {})}
     plan = plan_report(body, previous, datetime.now(timezone.utc))
-    return collector.ingest(doc, plan, credential_id=context.credential_id,
+    result = collector.ingest(doc, plan, credential_id=context.credential_id,
         token_generation=context.token_generation, issuer=context.issuer)
+    # 报到时间只记在这把密钥的小行上；连接的上报记录只在内容变了时才重写（`collector.ingest`）。
+    credentials.record_seen(context.credential_id, context.token_generation, offline=plan.offline)
+    return result
 
 
 @frappe.whitelist(methods=['POST'])

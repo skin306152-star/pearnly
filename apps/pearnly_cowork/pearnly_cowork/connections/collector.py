@@ -20,6 +20,11 @@ ACCOUNT_CACHE_KEYS = ('reported_accounts', 'accounts_seen_at', 'reported_product
                       'reported_suppliers', 'reported_departments',
                       'catalog_seen_at', 'catalog_fingerprint', 'reported_stock_acc_groups', 'stock_acc_groups_seen_at')
 _MAX_ACCOUNT_CACHES = 10
+# 每次心跳都会变、又没有读的人：不写进上报记录。小助手每分钟报到一次，留着它们会让内容没变的上报记录
+# （生产每条几百 KB）每分钟整份重写一遍、全量进数据库日志。报到时间由心跳入口记在密钥那一小行上
+# （`companion.credentials.record_seen`），在线判断读那里。
+VOLATILE_KEYS = frozenset(('agent_last_seen_at', 'account_sets_seen_at', 'accounts_seen_at',
+                           'catalog_seen_at', 'stock_acc_groups_seen_at'))
 
 
 def _keep_account_caches(report, plan, credential_id, token_generation, now):
@@ -59,15 +64,22 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
         doc.projection_heads = '{}'
     report = model.parse(doc.get('report_json'), {})
     plan = _keep_account_caches(report, plan, credential_id, token_generation, now)
-    report.update({key: value for key, value in plan.patch.items() if key in CACHE_KEYS})
+    report.update({key: value for key, value in plan.patch.items() if key in CACHE_KEYS and key not in VOLATILE_KEYS})
+    for key in VOLATILE_KEYS:
+        report.pop(key, None)
     preparation.attribute_report(doc, report, plan, credential_id, token_generation, issuer)
-    if len(model.dumps(report).encode()) > 16 * 1024 * 1024:
+    encoded = model.dumps(report)
+    if len(encoded.encode()) > 16 * 1024 * 1024:
         frappe.throw(_('connection.snapshot_too_large'))
-    doc.report_json = model.dumps(report)
-    doc.report_received_at = now
-    doc.report_credential = credential_id
-    doc.report_generation = token_generation
-    access.write(doc)
+    # 内容、配置、上报凭据都没变就不写连接这一行（整行写入会把上报记录一起带进数据库日志）。
+    # `report_received_at` 因此是「上报内容最近一次变化」的时间；报到时间看密钥行。
+    if (changed or encoded != (doc.get('report_json') or '') or doc.report_credential != credential_id
+            or int(doc.report_generation or 0) != int(token_generation)):
+        doc.report_json = encoded
+        doc.report_received_at = now
+        doc.report_credential = credential_id
+        doc.report_generation = token_generation
+        access.write(doc)
     result = {'ok': True, 'endpoint_id': doc.name, **plan.response,
               'connection': {'endpoint_id': doc.name, 'endpoint_name': doc.label or 'Express',
                              'pearnly_account': issuer}}

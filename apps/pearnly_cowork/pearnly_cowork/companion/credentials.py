@@ -118,20 +118,36 @@ ONLINE_SECONDS = 180
 
 def _online(doc, row, now=None):
     """助手实际连上：**当前这把**有效密钥最近 3 分钟内报过到。只生成了密钥、旧密钥报的、
-    时间戳缺失或读不出，一律算没连上（旧版同样“拿不准一律判离线”）。"""
+    时间缺失或读不出，一律算没连上（旧版同样“拿不准一律判离线”）。
+
+    报到时间记在密钥这一小行上（`record_seen`），不在连接的上报记录里：心跳每分钟一次，
+    记在上报记录里会让整份（几百 KB）每分钟重写一遍、全量进数据库日志。"""
     if row is None or row.revoked_at or not row.active_key:
         return False
     if (doc.get('report_credential') != row.name
             or int(doc.get('report_generation') or 0) != int(row.token_generation)):
         return False
-    try:
-        seen = datetime.fromisoformat(str(json.loads(doc.get('report_json') or '{}').get('agent_last_seen_at') or ''))
-    except (TypeError, ValueError, AttributeError):
+    seen = getattr(row, 'last_seen_at', None)
+    if int(getattr(row, 'last_seen_generation', None) or 0) != int(row.token_generation):
+        return False
+    if isinstance(seen, str):
+        try:
+            seen = datetime.fromisoformat(seen)
+        except ValueError:
+            return False
+    if not isinstance(seen, datetime):
         return False
     if seen.tzinfo is None:
-        return False
+        seen = seen.replace(tzinfo=timezone.utc)  # 库里存的是 UTC 无时区
     age = ((now or datetime.now(timezone.utc)) - seen).total_seconds()
     return 0 <= age < ONLINE_SECONDS
+
+
+def record_seen(credential_id, generation, *, offline=False, now=None):
+    """心跳报到：只改这把密钥的两列（调用方已持有连接 → 密钥锁，并负责提交）。小助手说自己下线就清空。"""
+    frappe.db.set_value(DOCTYPE, credential_id, {
+        'last_seen_at': None if offline else (now or _now()),
+        'last_seen_generation': int(generation)}, update_modified=False)
 
 
 def _dto(doc, row):

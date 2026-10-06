@@ -265,7 +265,9 @@ class NativeHeartbeat(unittest.TestCase):
         self.report(self.body())
         denied = self.request(headers=self.human_headers, body={'offline': True})
         self.assertIn(denied.status_code, (401, 403))
-        self.assertNotEqual(json.loads(self.persisted()['report_json'])['agent_last_seen_at'], '1970-01-01 00:00:00+00')
+        # 报到时间记在密钥行：人的会话冒用不能把它清成下线。
+        self.assertIsNotNone(frappe.db.get_value('Cowork Express Agent Credential', self.issued['credential_id'],
+                                                 'last_seen_at'))
 
     def test_authority_is_revalidated_after_hook_and_before_writes(self):
         real = self.heartbeat._receive
