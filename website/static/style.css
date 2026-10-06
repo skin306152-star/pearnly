@@ -179,8 +179,6 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .sc-done.on { opacity: 1; transform: none; }
 .flash { position: absolute; inset: 0; border-radius: inherit; background: #fff; opacity: 0; pointer-events: none; transition: opacity .35s; }
 .flash.on { opacity: .9; transition: none; }
-.progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; z-index: 7; }
-.progress i { display: block; height: 100%; width: 0; background: var(--ink); opacity: .55; }
 
 /* Cowork：流水与发票配对 → 一起推进 ERP → 回读 */
 .stmt { width: 100%; max-width: 360px; background: #fff; border-radius: 8px; padding: 18px 18px 10px; box-shadow: var(--shadow); transform: rotate(-1deg); }
@@ -812,10 +810,10 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .product:hover .card-mascot { animation: hop .6s var(--ease); }
 @media (max-width: 860px) { .card-mascot { height: 108px; right: 28px; } .product.flip .card-mascot { left: auto; right: 28px; }
   .sketch #products .stack { gap: 112px; } .sketch #products h2.display { margin-bottom: 112px; } }
-/* 三只小单脚底（SVG 底边）踩在虚线中间：虚线离底 6px、粗 3px，所以下面垫 7px；个子保持原来那么高 */
-.sketch .walk .walker:not(.big) { height: 85px; padding-bottom: 7px; box-sizing: border-box; }
+/* 三只小单走在虚线上方一点、不踩线：虚线离底 6px、粗 3px，脚底（SVG 底边）再往上留 8px（手机 6px）；个子保持原来那么高 */
+.sketch .walk .walker:not(.big) { height: 95px; padding-bottom: 17px; box-sizing: border-box; }
 .sketch .walk .walker:not(.big) .hd-badge { width: auto; height: 100%; }
-@media (max-width: 860px) { .sketch .walk .walker:not(.big) { height: 52px; } }
+@media (max-width: 860px) { .sketch .walk .walker:not(.big) { height: 60px; padding-bottom: 15px; } }
 .hd-badge .hm-hop { stroke-width: 3; }
 @media (max-width: 760px) { .sketch .product:nth-child(n) { transform: none; } }
 /* 视频框：铅笔线往里抖了几像素，视频本身要缩进线里，别让画面的边角冒出线外 */

@@ -279,7 +279,7 @@ def demo(lang):
         f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(C.PRODUCT[k][lang]["name"])}</button>'
         for i, k in enumerate(C.PRODUCTS))
     body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + S.dms(L) + S.erp(L)
-    return window(f'<div class="demo-body" aria-hidden="true">{body}<div class="progress"><i></i></div></div>',
+    return window(f'<div class="demo-body" aria-hidden="true">{body}</div>',
                   f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
 
 

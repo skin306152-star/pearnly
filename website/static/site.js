@@ -88,7 +88,6 @@
     var root = document.querySelector('.demo');
     if (!root) return;
     var tabs = root.querySelectorAll('[data-tab]');
-    var bar = root.querySelector('.progress i');
     var order = [], timers = [], current = 0, visible = false, started = false;
     var SPEED = 0.6;  // 标记里按 10 秒左右编排，整体压到 6 秒左右播放
     for (var i = 0; i < tabs.length; i++) order.push(tabs[i].getAttribute('data-tab'));
@@ -192,11 +191,6 @@
       }
       all.forEach(function (pair) { later(function () { apply(pair[0], pair[1], scene, false); }, pair[1].at * SPEED); });
       var total = +scene.getAttribute('data-total') * SPEED;
-      if (bar) {
-        bar.style.transition = 'none'; bar.style.width = '0%';
-        void bar.offsetWidth;
-        bar.style.transition = 'width ' + total + 'ms linear'; bar.style.width = '100%';
-      }
       if (auto !== false) later(function () { if (visible) play((current + 1) % order.length); else started = false; }, total);
     }
 
