@@ -272,38 +272,6 @@ def flyer(text, src, dst, at, cls=""):
     return f'<span class="fly {cls}" data-from="{src}" data-to="{dst}" data-at="{at}">{esc(text)}</span>'
 
 
-def scene_dms(L):
-    fields = [("name", L["name"], "นาย สมชาย ใจดี", 1800), ("id_no", L["id_no"], "1-1234-xxxxx-xx-1", 2250),
-              ("birth", L["birth"], "12/03/2528", 2700), ("address", L["address"], "99 ถ.ตัวอย่าง อ.เมือง จ.เชียงใหม่", 3150),
-              ("phone", L["phone"], "089-999-1234", 4400)]
-    form = "".join(f'<div class="fr" id="fr-{k}"><span>{esc(lab)}</span><b data-type="{esc(v)}" data-at="{at + 650}"></b></div>'
-                   for k, lab, v, at in fields)
-    flies = "".join(flyer(v, "#dm-card" if k != "phone" else "#dm-phone", f"#fr-{k}", at) for k, _lab, v, at in fields)
-    olds = "".join(f"<li>{esc(n)}</li>" for n in ("นาง สมศรี ดีมาก", "นาย ประเสริฐ ทองดี", "นางสาว มาลี สุขใจ"))
-    return f"""<div class="scene" data-scene="dms" data-total="10500">
-  <div class="sc-real">
-    <span class="sc-tag">{esc(L["real"])}</span>
-    <div class="phone"><div class="ph-bar">{esc(L["chat"])}</div>
-      <div class="bub me" data-at="250"><div class="idmini" id="dm-card"><span class="idh">บัตรประจำตัวประชาชน</span><i class="idph"></i>
-        <b>นาย สมชาย ใจดี</b><span>1 1234 xxxxx xx 1</span><span>12 มี.ค. 2528</span><span>99 ถ.ตัวอย่าง จ.เชียงใหม่</span>
-        <i class="corners" data-at="800"></i><i class="flash" data-at="1350,1750:-on"></i></div></div>
-      <div class="bub me txt" id="dm-phone" data-at="3900">089-999-1234</div>
-      <div class="bub bot typing" data-at="7700,8300:-on"><i></i><i></i><i></i></div>
-      <div class="bub bot txt" data-at="8300">{esc(L["bot"])}</div>
-    </div>
-    <div class="sc-mascot" data-at="6000:hop,6600:-hop,8300:hop,8900:-hop">{M.svg("dms")}</div>
-  </div>
-  <div class="sc-sys">
-    <span class="sc-tag">{esc(L["system"])}</span>
-    <div class="dform"><h5>{esc(L["form"])}</h5>{form}</div>
-    <div class="dup" data-at="5000"><h6>{esc(L["dup"])}</h6><ul>{olds}</ul><i class="lens"></i>
-      <span class="nodup" data-at="6000">✓ {esc(L["nodup"])}</span></div>
-    <div class="slip" data-at="6700"><b>{esc(L["booking"])} BK-0412</b><span>นาย สมชาย ใจดี · 089-999-1234</span><span>{esc(L["sales"])}</span></div>
-  </div>
-  {flies}
-</div>"""
-
-
 def scene_erp(L):
     prods = [("กระดาษ A4 ×10", "1,250.00", "doc"), ("แฟ้มสันกว้าง ×24", "1,080.00", "board"), ("ปากกา ×12", "180.00", "list")]
     T = [300, 1700, 3100]
@@ -345,7 +313,7 @@ def demo(lang):
     tabs = "".join(
         f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(C.PRODUCT[k][lang]["name"])}</button>'
         for i, k in enumerate(C.PRODUCTS))
-    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + scene_dms(L) + scene_erp(L)
+    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + S.dms(L) + scene_erp(L)
     return window(f'<div class="demo-body" aria-hidden="true">{body}<div class="progress"><i></i></div></div>',
                   f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
 

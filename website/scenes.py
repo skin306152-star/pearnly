@@ -7,7 +7,7 @@ SVG 里的动作全是 CSS 类驱动（见 style.css「手绘演示」一节）�
 """
 from poster import esc, n, INK, LINE, PAPER, HAND, OUT
 
-PW, PH = 520, 510                   # 每半边画布
+PW, PH = 520, 520                   # 每半边画布
 PEN = f'color="{INK}" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"'
 
 DEFS = ('<svg class="hd-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>'
@@ -47,8 +47,8 @@ def panel(cls, inner, extra=""):
 
 # ---------------- 小单 ----------------
 
-def mascot(x, y, k=1.0, data=""):
-    """铅笔线条的小单（髋部在 x,y）：左手可以挥，右手拿着铅笔，可以抬起来打勾。
+def mascot(x, y, k=1.0, data="", prop="pencil"):
+    """铅笔线条的小单（髋部在 x,y）：左手可以挥，右手拿着道具（铅笔 / 相机），可以抬起来打勾、拍照。
 
     结构：.hm（位置）> .hm-move（走动）> .hm-hop（跳）> 腿 .hm-leg、身体、左臂 .hm-wave、右臂 .hm-arm（带铅笔）。
     关节都用 translate 包一层，CSS 只在局部原点 (0,0) 上旋转。
@@ -73,7 +73,12 @@ def mascot(x, y, k=1.0, data=""):
               '<rect x="-7" y="0" width="14" height="16" rx="4" fill="#ff9ba3"/><rect x="-7" y="14" width="14" height="7" fill="#cfd2d8"/>'
               '<rect x="-7" y="21" width="14" height="74" fill="#ffd84d"/>'
               '<path d="M-7 95 L0 120 L7 95 Z" fill="#f6dcb4"/><path d="M-2.6 112 L0 120 L2.6 112 Z" fill="currentColor"/></g>')
-    arm = (f'<g transform="translate(38 -50)"><g class="hm-arm"><path d="M0 0 Q12 16 20 36"/>{pencil}'
+    camera = ('<g transform="translate(24 30) rotate(-12)" stroke-width="2.6">'
+              '<rect x="-20" y="-15" width="40" height="28" rx="6" fill="#5b7fd8"/><rect x="-10" y="-21" width="14" height="7" rx="2" fill="#3a5bb0"/>'
+              '<circle cx="2" cy="-1" r="9" fill="#ffffff"/><circle cx="2" cy="-1" r="4" fill="#2d2b27" stroke="none"/>'
+              '<g class="hm-flash" stroke="#f0b400" stroke-width="3"><path d="M24 -24 l9 -9 M30 -10 h12 M16 -30 v-12"/></g></g>')
+    held = camera if prop == "camera" else pencil
+    arm = (f'<g transform="translate(38 -50)"><g class="hm-arm"><path d="M0 0 Q12 16 20 36"/>{held}'
            f'<circle cx="20" cy="36" r="9" fill="{PAPER}"/></g></g>')
     return (f'<g class="hm" transform="translate({n(x)} {n(y)}) scale({k})"{data}><g class="hm-move"><g class="hm-hop" {PEN} stroke-width="{n(3 / k)}">'
             f'<ellipse class="hm-shadow" cx="0" cy="41" rx="46" ry="7" fill="#3a2a14" stroke="none" opacity=".14"/>'
@@ -157,3 +162,77 @@ def cowork(L):
     flies += f'<svg class="threads" aria-hidden="true">{threads}</svg>'
     flies += "".join(flyer(a, f"#cw-inv{i}", f"#cw-er{i}", 6000 + i * 160, "doc") for i, (_n, a, _l) in enumerate(invs))
     return f'<div class="scene hd-scene" data-scene="cowork" data-total="11200">{real}{sys_}{flies}</div>'
+
+
+# ---------------- DMS：LINE 里收到身份证 → 读成客户资料 → 查老客户 → 订车单，回 LINE 报好 ----------------
+
+def car(x, y):
+    """订车单角上的一辆小车。"""
+    return (f'<g transform="translate({x} {y})" stroke-width="2.4">'
+            '<path d="M4 36 Q2 22 14 20 L26 6 Q30 2 38 2 H60 Q68 2 72 8 L82 20 Q94 22 92 36 Z" fill="#ff8f8f"/>'
+            '<path d="M28 18 L36 8 H48 V18 Z M54 18 V8 H62 Q66 8 68 12 L72 18 Z" fill="#dbeafb"/>'
+            '<circle cx="24" cy="38" r="8" fill="#3d362c"/><circle cx="72" cy="38" r="8" fill="#3d362c"/>'
+            '<circle cx="24" cy="38" r="3" fill="#fffdf6" stroke="none"/><circle cx="72" cy="38" r="3" fill="#fffdf6" stroke="none"/></g>')
+
+
+def dms(L):
+    fields = [("name", L["name"], "นาย สมชาย ใจดี", 1800), ("id_no", L["id_no"], "1-1234-xxxxx-xx-1", 2250),
+              ("birth", L["birth"], "12/03/2528", 2700), ("address", L["address"], "99 ถ.ตัวอย่าง อ.เมือง จ.เชียงใหม่", 3150),
+              ("phone", L["phone"], "089-999-1234", 4400)]
+
+    # ---- 现实：销售的手机里，LINE 发来身份证照片和电话；小单拿相机拍一下（读卡）
+    card = (f'<g id="dm-card"><rect x="62" y="80" width="160" height="112" rx="8" fill="#eaf2ff" {OUT}/>'
+            + t(70, 98, "บัตรประจำตัวประชาชน", 11, "#5b7fd8")
+            + f'<rect x="180" y="106" width="34" height="42" rx="4" fill="#fffdf6" stroke-width="2" stroke="{LINE}"/>'
+            + f'<circle cx="197" cy="122" r="7" fill="#f6dcb4" stroke-width="1.8" stroke="{LINE}"/>'
+            + f'<path d="M186 146 q11 -14 22 0" fill="#9fb6f0" stroke-width="1.8" stroke="{LINE}"/>'
+            + t(70, 124, "นาย สมชาย ใจดี", 14, "#2d2b27") + t(70, 142, "1 1234 xxxxx xx 1", 11)
+            + t(70, 158, "12 มี.ค. 2528", 11) + t(70, 176, "99 ถ.ตัวอย่าง จ.เชียงใหม่", 10.5)
+            + '<g class="hd-corners hd-pop" data-at="800" stroke="#e0565b" stroke-width="3.4" fill="none">'
+            '<path d="M56 92 V74 H74 M210 74 H228 V92 M228 182 V198 H210 M74 198 H56 V182"/></g>'
+            + '<rect class="hd-flash" data-at="1350,1750:-on" x="58" y="76" width="168" height="120" rx="10" fill="#ffffff" stroke="none"/></g>')
+    phone = (f'<g transform="translate(40 66)">'
+             f'<rect width="250" height="420" rx="32" fill="#3a3d45" {OUT}/>'
+             f'<rect x="10" y="10" width="230" height="400" rx="24" fill="#e6edf5" stroke="none"/>'
+             f'<path d="M10 34 a24 24 0 0 1 24 -24 H216 a24 24 0 0 1 24 24 V58 H10 Z" fill="#3fcb73" stroke="none"/>'
+             + t(125, 42, L["chat"], 16, "#ffffff", "middle")
+             + f'<g class="hd-pop hd-bub" data-at="250"><rect x="52" y="72" width="180" height="128" rx="14" fill="#3fcb73" stroke="none"/>{card}</g>'
+             + f'<g class="hd-pop hd-bub" id="dm-phone" data-at="3900"><rect x="118" y="212" width="114" height="32" rx="16" fill="#3fcb73" stroke="none"/>'
+             + t(175, 233, "089-999-1234", 14, "#ffffff", "middle") + '</g>'
+             + f'<g class="hd-pop hd-typing" data-at="7700,8300:-on"><rect x="20" y="256" width="64" height="32" rx="16" fill="#ffffff" stroke-width="2" stroke="{LINE}"/>'
+             + "".join(f'<circle class="d{i}" cx="{38 + i * 14}" cy="272" r="4" fill="#8a8170" stroke="none"/>' for i in range(3)) + '</g>'
+             + f'<g class="hd-pop hd-bub" data-at="8300"><rect x="20" y="256" width="200" height="34" rx="17" fill="#ffffff" stroke-width="2" stroke="{LINE}"/>'
+             + t(120, 278, L["bot"], 14, "#2e8a55", "middle") + '</g>'
+             + '<rect x="96" y="18" width="58" height="12" rx="6" fill="#1f2025" stroke="none"/></g>')
+    mm = mascot(420, 430, 1.0, ' data-at="1100:hm-jot,1100:hm-snap,1700:-hm-jot,1700:-hm-snap,6000:hm-hopping,6600:-hm-hopping,8300:hm-hopping,8300:hm-cheer"',
+                prop="camera")
+    real = panel("sc-real", label(L["real"]) + phone + mm)
+
+    # ---- 系统里：新客户资料逐格写进去 → 查老客户（放大镜扫过）→ 订车单
+    rows = ""
+    for i, (k, lab, val, at) in enumerate(fields):
+        y = 78 + i * 34
+        rows += (f'<g id="dm-f-{k}"><rect x="136" y="{y - 22}" width="322" height="30" fill="none" stroke="none"/>'
+                 + t(18, y, lab, 15, "#8a8170") + typed(140, y, val, at + 650, 16)
+                 + f'</g><path d="M14 {y + 11} Q236 {y + 9} 458 {y + 12}" stroke="#e4dccb" stroke-width="1.5" fill="none"/>')
+    form = (f'<g transform="translate(24 66)"><path d="M0 2 Q236 -3 472 2 L473 244 Q236 248 1 245 Z" fill="{PAPER}" {OUT}/>'
+            + t(18, 34, L["form"], 18, "#2d2b27")
+            + '<path d="M16 44 q100 6 220 -2" stroke="#ffd84d" stroke-width="8" fill="none" stroke-linecap="round" opacity=".7"/>'
+            + f'<g transform="translate(0 20)">{rows}</g></g>')
+    olds = ("นาง สมศรี ดีมาก", "นาย ประเสริฐ ทองดี", "นางสาว มาลี สุขใจ")
+    minis = "".join(f'<g transform="translate({18 + i * 150} 46) rotate({(-2, 1, -1)[i]})"><rect width="138" height="38" rx="6" fill="{PAPER}" stroke-width="2" stroke="{LINE}"/>'
+                    + t(10, 25, nm, 13, "#4a443a") + '</g>' for i, nm in enumerate(olds))
+    dup = (f'<g transform="translate(24 318)"><g class="hd-pop hd-dup" data-at="5000">'
+           f'<path d="M0 2 Q236 -2 472 2 L472 96 Q236 99 0 96 Z" fill="#fbf3df" {OUT}/>' + t(18, 30, L["dup"], 17, "#2d2b27") + minis
+           + f'<g class="hd-pop" data-at="6000"><rect x="270" y="8" width="190" height="30" rx="15" fill="#e9f4ec" {OUT}/>'
+           + t(365, 29, "✓ " + L["nodup"], 14, "#2e8a55", "middle") + '</g></g></g>'
+           + f'<g class="hd-lens2" data-at="5100"><circle cx="0" cy="0" r="22" fill="#ffffff" fill-opacity=".35" stroke-width="3" stroke="{LINE}"/>'
+           + f'<path d="M15 16 L32 33" stroke-width="7" stroke="{LINE}" stroke-linecap="round"/></g>')
+    slip = (f'<g transform="translate(40 426) rotate(-2)"><g class="hd-pop hd-slip" data-at="6700">'
+            f'<rect width="420" height="74" rx="8" fill="#fff8e1" {OUT}/>'
+            + t(16, 28, f'{L["booking"]} BK-0412', 18, "#2d2b27") + t(16, 50, "นาย สมชาย ใจดี · 089-999-1234", 14)
+            + t(16, 68, L["sales"], 12.5, "#8a8170") + car(318, 14) + tick(286, 24, at="7400") + '</g></g>')
+    sys_ = panel("sc-sys", label(L["system"]) + form + dup + slip)
+
+    flies = "".join(flyer(v, "#dm-card" if k != "phone" else "#dm-phone", f"#dm-f-{k}", at) for k, _lab, v, at in fields)
+    return f'<div class="scene hd-scene" data-scene="dms" data-total="10500">{real}{sys_}{flies}</div>'

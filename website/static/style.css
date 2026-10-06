@@ -823,4 +823,22 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
   padding: 3px 10px; box-shadow: 4px 5px 0 rgba(58, 42, 20, .14); }
 .fly.hd-fly.doc { background: #fff8e1; }
 .hd-thread { stroke: #3d362c; stroke-width: 2; stroke-linecap: round; opacity: .7; }
+.hd-pop, .hd-flash, .hd-typing circle { transform-box: fill-box; transform-origin: center; }
+/* 通用：弹出来（气泡、取景框、提示、订车单） */
+.hd-pop { opacity: 0; transform: scale(.7); transition: opacity .3s var(--ease), transform .45s cubic-bezier(.3, 1.5, .5, 1); }
+.hd-pop.on { opacity: 1; transform: none; }
+.hd-flash { opacity: 0; }
+.hd-flash.on { animation: hd-flash .4s ease-out; }
+@keyframes hd-flash { 0% { opacity: .95; } 100% { opacity: 0; } }
+.hd-typing.on circle { animation: hd-dots .9s ease-in-out infinite; }
+.hd-typing .d1 { animation-delay: .15s !important; } .hd-typing .d2 { animation-delay: .3s !important; }
+@keyframes hd-dots { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+/* 放大镜扫过三张老客户卡片 */
+.hd-lens2 { opacity: 0; transform: translate(110px, 386px); }
+.hd-lens2.on { animation: hd-lens2 1.2s ease-in-out forwards; }
+@keyframes hd-lens2 { 0% { opacity: 0; transform: translate(110px, 386px); } 15% { opacity: 1; } 50% { transform: translate(260px, 390px); }
+  85% { opacity: 1; transform: translate(410px, 386px); } 100% { opacity: 0; transform: translate(430px, 386px); } }
+/* 小单拿相机拍一下：相机抬起，闪光线条闪一下 */
+.hm-flash { opacity: 0; }
+.hm.hm-snap .hm-flash { animation: hd-flash .5s .2s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes { animation: none; } }
