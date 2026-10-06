@@ -77,7 +77,10 @@ class FakeStore:
         self.state = incoming
         return incoming
 
+    code_reads = 0
+
     def customer_codes(self, endpoint):
+        self.code_reads += 1
         return dict(self.customers)
 
     def verified_customer(self, endpoint, customer_id, fields, *, expected_scope=None):
@@ -211,7 +214,8 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual((entry["seq"], entry["dirty_since"]), (982, 0))
         self.assertEqual(self.manual.requests, [])
 
-    def test_customer_the_read_account_cannot_see_falls_back_to_a_group_read(self):
+    def test_customer_the_read_account_cannot_see_is_retried_not_frozen(self):
+        """认不出：挂进 pending 之后每轮再试，水位照常前进，不马上整组重读。"""
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 281, "seq": 981, "dirty_since": 0}})
         log = FakeEventLog({CUSTOMERS: {"count": 282, "rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
         with patch.object(self.sync, "_search_customer", return_value=""), \
@@ -220,7 +224,9 @@ class ChangeSyncTests(unittest.TestCase):
 
         self.assertEqual(self.store.verified, [])
         self.assertTrue(any(CODE in line for line in logs.output))
-        self.assertEqual([r["dataset"] for r in self.manual.requests], ["customers"])
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual((entry["seq"], entry["dirty_since"], list(entry["pending"])), (982, 0, [CODE]))
+        self.assertEqual(self.manual.requests, [])
 
     def test_daytime_leaves_a_big_group_read_for_the_night(self):
         """白天点不出记录：客户组只标记待重读、水位推进，不马上登记一个多小时的整组读取。"""
@@ -298,7 +304,7 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual(self.manual.requests, [])
         self.assertEqual(log.calls[0][1]["ftd"], CUSTOMERS + "||2", "按模块逐个查，没有全局过滤器")
 
-    def test_record_read_failure_keeps_the_watermark_for_the_next_pull(self):
+    def test_record_read_failure_is_retried_on_the_next_pull(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
         self.read.side_effect = RuntimeError("read failed")
@@ -307,8 +313,15 @@ class ChangeSyncTests(unittest.TestCase):
         self.catch_up(log)
 
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual((entry["count"], entry["seq"]), (230, 831), "下一轮还要重试这一条")
+        self.assertEqual((entry["count"], entry["seq"], list(entry["pending"])), (231, 832, [CODE]),
+                         "水位前进，这一条挂起下一轮重试")
         self.assertEqual(self.manual.requests, [], "一次读失败不等于要整组重读")
+
+        self.read.side_effect = None
+        self.catch_up(log)
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual(self.store.verified[-1][0], "59", "下一轮补上")
+        self.assertEqual(entry["pending"], {})
 
     def test_readback_identity_mismatch_is_never_written(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
@@ -320,11 +333,11 @@ class ChangeSyncTests(unittest.TestCase):
 
         self.assertEqual(self.store.verified, [], "读回来的不是这个人就不能写进缓存")
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual(entry["seq"], 832, "按记录补不上，只能整组重读")
-        self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
+        self.assertEqual((entry["seq"], list(entry["pending"])), (832, [CODE]), "挂起重试，过期交整组重读")
 
     def test_truncated_backlog_asks_for_a_group_read(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"count": 100, "seq": 1, "dirty_since": 0}})
+        self.store.customers[CODE] = "59"
         rows = [row(1000 - index, CUSTOMERS) for index in range(200)]
         log = FakeEventLog({CUSTOMERS: {"count": 400, "rows": rows}})
 
@@ -332,8 +345,10 @@ class ChangeSyncTests(unittest.TestCase):
 
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual(entry["seq"], 1)
-        self.assertEqual(entry["count"], 400, "记下读到的总数，不再重复翻页")
+        self.assertEqual((entry["seq"], entry["count"]), (1000, 400),
+                         "翻到的照常补、水位前进，翻不到的那一段交整组重读")
+        self.assertTrue(entry["dirty_since"])
+        self.assertEqual(self.read.call_count, 1, "翻到的那批（同一客户）照常补读")
 
     def test_dirty_dataset_clears_once_the_group_read_actually_landed(self):
         self.store.state = self.baseline(**{CARS: {"count": 20, "seq": 900, "dirty_since": 50.0}})
@@ -410,6 +425,57 @@ class ChangeSyncTests(unittest.TestCase):
         self.catch_up(log)
 
         self.assertEqual(self.store.written[-1]["modules"][PROVINCES]["seq"], 800)
+
+    def test_a_group_waiting_for_the_night_still_takes_new_edits_per_record(self):
+        """2026-10-06：待重读期间不再冻结——之后的客户改动照常一分钟内补进缓存。"""
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 500.0}})
+        self.store.customers[CODE] = "59"
+        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.verified[-1][0], "59")
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual((entry["seq"], entry["dirty_since"]), (832, 500.0), "待重读标记留到整组重读落地")
+        self.assertEqual(self.manual.requests, [])
+
+    def test_the_landed_group_read_clears_the_mark_and_the_pending_codes(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 500.0,
+                                                        "pending": {"OLD-1": 400.0}}})
+        self.manual.completed["customers"] = 900.0
+        log = FakeEventLog({CUSTOMERS: {"count": 230, "rows": []}})
+
+        self.catch_up(log)
+
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual((entry["dirty_since"], entry["pending"]), (0.0, {}))
+
+    def test_a_code_still_unresolved_after_the_window_goes_to_the_night(self):
+        now = 1_000_000.0
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0,
+            "pending": {CODE: now - self.sync.PENDING_SECONDS - 1}}})
+        log = FakeEventLog({CUSTOMERS: {"count": 230, "rows": []}})
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(log)
+
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual((entry["dirty_since"], entry["pending"]), (now, {}))
+        self.assertEqual([r["dataset"] for r in self.manual.requests], ["customers"])
+
+    def test_customer_group_registration_failure_keeps_the_watermark(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.manual.fail = True
+        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS, target="")]}})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.written[-1]["modules"][CUSTOMERS]["seq"], 831, "下一轮从原处重来")
+
+    def test_an_idle_minute_does_not_load_the_customer_cache(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.catch_up(FakeEventLog({CUSTOMERS: {"count": 230, "rows": []}}))
+        self.assertEqual(self.store.code_reads, 0, "没有改动就不读整份客户缓存（ris 1.5 万位）")
 
     def test_seed_records_the_current_head_and_applies_nothing(self):
         self.store.state = None

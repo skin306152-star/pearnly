@@ -67,6 +67,10 @@ PULL_SECONDS = 6.0
 PULL_REQUESTS = 90
 #: 追水位最多翻几页；翻不完就是积压太多，交整组重读。
 MAX_NEW_PAGES = 4
+#: 客户代码认不出时（新客户对读档会话的隐身期、读取超时等），之后每轮再试多久才交给凌晨全量。
+PENDING_SECONDS = 1800
+#: 同时挂着重试的客户代码最多几个（每个每轮最多一次搜索 + 一次读表单）。
+PENDING_MAX = 10
 #: 服务自身的动作以谁的名义登记（Frappe 的 Administrator 具备全部角色）。
 SERVICE_ACTOR = "Administrator"
 
@@ -249,10 +253,10 @@ def _pull(endpoint, *, client, state, expected_scope):
             next_index = (start + index) % len(MODULES)
             break
         try:
-            entry, usage = _advance(endpoint, client=client, module=module, dataset=dataset,
-                                    per_record=per_record, entry=entry, total=total,
-                                    limits=limits, usage=usage, actor=actor,
-                                    expected_scope=expected_scope)
+            advance = _advance_records if per_record else _advance
+            entry, usage = advance(endpoint, client=client, module=module, dataset=dataset,
+                                   entry=entry, total=total, limits=limits, usage=usage,
+                                   actor=actor, expected_scope=expected_scope)
         except Exception:
             # 这一模块没处理成功：留着旧水位，下一轮再来；别的模块照常。
             logger.warning("[dms changes] 模块 %s 的增量处理失败，保留旧水位", module)
@@ -264,9 +268,12 @@ def _pull(endpoint, *, client, state, expected_scope):
     store.merge_change_state(endpoint, incoming, base=state, expected_scope=expected_scope)
 
 
-def _advance(endpoint, *, client, module, dataset, per_record, entry, total,
+def _advance(endpoint, *, client, module, dataset, entry, total,
              limits, usage, actor, expected_scope):
-    """把一个模块推进到"此刻"。返回 `(新的水位条目, 用量)`。"""
+    """把一个整组模块（车型、公司、地址……）推进到"此刻"。返回 `(新的水位条目, 用量)`。
+
+    这些组小、整组重读几分钟就完，所以"有变化就登记整组重读、落地前不再翻流水"。
+    客户组按记录补读，走 `_advance_records`。"""
     now = time.time()
     dirty = float(entry.get("dirty_since") or 0)
     if dirty:
@@ -305,15 +312,67 @@ def _advance(endpoint, *, client, module, dataset, per_record, entry, total,
         return {"count": total, "seq": cursor,
                 "dirty_since": _note_dirty(endpoint, dataset, entry, now, actor),
                 "checked_at": now}, usage
-    if per_record and _apply_customers(client, events, endpoint=endpoint,
-                                       expected_scope=expected_scope):
-        return {"count": total, "seq": newest, "dirty_since": 0,
-                "checked_at": now}, usage
     if _request_refresh(endpoint, dataset, actor=actor):
         # 整组重读已登记：水位推进到最新，dirty 标记等它落地才对账。
         return {"count": total, "seq": newest, "dirty_since": now,
                 "checked_at": now}, usage
     return {**entry, "checked_at": now}, usage
+
+
+def _advance_records(endpoint, *, client, module, dataset, entry, total,
+                     limits, usage, actor, expected_scope):
+    """客户组：**每条改动各自补读，一条认不出不连累别的，也不冻结之后的改动**（2026-10-06）。
+
+    以前一条认不出就把整组标成待重读，而待重读期间不再翻流水——白天出一次意外，当天后面
+    所有客户改动都要等凌晨全量。现在：
+    * 能认出的客户当场补进缓存；
+    * 认不出的客户代码挂进 ``pending``，之后每轮再试，满 ``PENDING_SECONDS`` 仍不行才交凌晨全量；
+    * 点不出记录（标识为空）、删除、积压翻不完、对不上账 → 照旧登记整组重读（白天留给凌晨），
+      但水位照常前进、能认出的照常补；
+    * 待重读期间新来的改动照常逐条处理，整组重读落地后清掉待重读标记和 pending；
+    * 只有"该登记整组重读却登记不上"时才不推进水位，下一轮从原处重来，保证不悄悄丢。
+    """
+    now = time.time()
+    dirty = float(entry.get("dirty_since") or 0)
+    pending = dict(entry.get("pending") or {})
+    if dirty and _refreshed(endpoint, dataset, since=dirty):
+        dirty, pending = 0.0, {}   # 整组重读已经覆盖了这之前的一切
+
+    if entry.get("seq") is None:
+        head, usage = eventlog_reader.page(client, module, page_number=1,
+                                           limits=HEAD_LIMITS, usage=usage)
+        return {"count": total, "seq": head[0].seq if head else 0, "dirty_since": dirty,
+                "pending": pending, "checked_at": now}, usage
+
+    cursor = int(entry.get("seq") or 0)
+    previous = entry.get("count")
+    events, newest, gap = [], cursor, False
+    if previous != total:
+        events, newest, truncated = _new_events(client, module, cursor=cursor, limits=limits,
+                                                usage=usage)
+        short = previous is not None and len(events) < max(0, int(total) - int(previous))
+        gap = previous is None or truncated or short or not events
+    retry = {code: since for code, since in pending.items() if now - float(since) <= PENDING_SECONDS}
+    expired = len(retry) < len(pending)
+    if not events and not retry and not gap and not expired:
+        # 没有新改动、也没有待重试的：只记一下检查时刻（不加载整份客户缓存）。
+        return {"count": total, "seq": cursor, "dirty_since": dirty, "pending": {},
+                "checked_at": now}, usage
+    unresolved, needs_group = _apply_customers(client, events, endpoint=endpoint,
+                                               expected_scope=expected_scope, retry=list(retry))
+    pending = {code: retry.get(code, now) for code in unresolved}
+    if len(pending) > PENDING_MAX:
+        pending = dict(sorted(pending.items(), key=lambda item: item[1])[-PENDING_MAX:])
+        expired = True
+    if gap or needs_group or expired:
+        marked = _note_dirty(endpoint, dataset, {"dirty_since": dirty}, now, actor)
+        if not marked:
+            # 整组重读登记不上：不推进水位，下一轮从原处重来（补读过的客户再读一次无害）。
+            return {**entry, "dirty_since": dirty, "pending": dict(entry.get("pending") or {}),
+                    "checked_at": now}, usage
+        dirty = marked
+    return {"count": total, "seq": newest, "dirty_since": dirty, "pending": pending,
+            "checked_at": now}, usage
 
 
 def _note_dirty(endpoint, dataset, entry, now, actor):
@@ -344,45 +403,55 @@ def _new_events(client, module, *, cursor, limits, usage):
 
 
 # ── 按记录补读（目前只有客户） ──────────────────────────────────────────
-def _apply_customers(client, events, *, endpoint, expected_scope):
-    """把流水点名的客户补读回来。返回 True＝这批变化已经落到缓存。
+def _apply_customers(client, events, *, endpoint, expected_scope, retry=()):
+    """把流水点名的客户（以及上几轮没认出、还在重试期内的 ``retry``）逐个补读回缓存。
+
+    返回 ``(认不出的客户代码, 是否需要整组重读)``。每个客户各自成败，一个失败不影响其他。
 
     流水里点名客户用的是**客户代码**（รหัสลูกค้า），不是身份证号；本产品建的客户代码恰好
     等于证号，车行自编代码的不是（2026-10-06 实测，见 `search_customer_by_code`）。
+    标识为空的事件点不到具体记录 → 需要整组重读。
 
     删除：不逐条猜"删掉之后还剩什么"，但**必须先把自己这条 overlay 撤掉** ——
     overlay 会被下一次整组重读当成必须读到的目标，留着它会让客户缓存永久读不出来。
     撤掉之后仍然交整组重读（由它按原生列表决定这条客户到底还在不在）。
 
-    读档账号看不到的客户（DMS 按账号权限过滤客户列表）搜不到：交整组重读并留日志，
+    认不出（读档账号的列表里找不到、读取失败、读回来的代码对不上）→ 留日志、交回调用方挂起重试，
     不猜客户号。
     """
     known = store.customer_codes(endpoint)
-    targets = []
+    targets, needs_group = [], False
     for event in events:
-        if not event.names_record:
-            return False            # 点不到记录 → 交给整组重读
         target = str(event.target or "").strip()
+        if not event.names_record or not target:
+            needs_group = True       # 点不到记录 → 交给整组重读
+            continue
         if event.action == eventlog_reader.ACTION_DELETE:
             cid = known.get(target)
             if cid:
                 store.forget_customer(endpoint, cid, expected_scope=expected_scope)
+            needs_group = True
+            if target in targets:
+                targets.remove(target)
             continue
-        if target in targets:
-            continue
-        targets.append(target)
-    removed = any(event.action == eventlog_reader.ACTION_DELETE for event in events)
+        if target not in targets:
+            targets.append(target)
+    for code in retry:
+        if code not in targets:
+            targets.append(code)
+    unresolved = []
     for target in targets:
-        cid = known.get(target) or _search_customer(client, target)
-        if not cid:
-            logger.warning("[dms changes] 使用记录点名的客户代码 %s 在读档账号的客户列表里找不到"
-                           "（读档账号可能看不到全部客户），交给整组重读", target)
-            return False
-        fields = read_customer_complete(client, cid, limits=RECORD_LIMITS)
-        if str(fields.get("cuscode") or "").strip() != target:
-            return False            # 读回来的不是这条 → 不写
-        store.verified_customer(endpoint, cid, fields, expected_scope=expected_scope)
-    return not removed
+        try:
+            cid = known.get(target) or _search_customer(client, target)
+            fields = read_customer_complete(client, cid, limits=RECORD_LIMITS) if cid else None
+            if not fields or str(fields.get("cuscode") or "").strip() != target:
+                raise LookupError("not resolved")
+            store.verified_customer(endpoint, cid, fields, expected_scope=expected_scope)
+        except Exception:
+            logger.warning("[dms changes] 客户代码 %s 这一轮补不上（读档账号看不到、读取失败或代码已改），"
+                           "之后再试，过期交凌晨全量", target)
+            unresolved.append(target)
+    return unresolved, needs_group
 
 
 def _search_customer(client, target):
