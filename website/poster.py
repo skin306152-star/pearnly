@@ -73,7 +73,7 @@ def state(p):
         fx = hx + sw + 6
         legs.append((hx, hy, (hx + fx) / 2 + 7, (hy + feet) / 2 - 2, fx, feet))
     return dict(a=a, b=b, f=(fx_, fy_), tip=(tx, ty), m1=m1, m2=m2, hip=hip, tilt=tilt, legs=legs, feet=feet,
-                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(38, -52), pen_ctrl=rot(80, -72), pen=rot(66, -30))
+                push_sh=rot(-34, -50), hand=(tx + 4, ty + 4), pen_sh=rot(38, -52), pen_ctrl=rot(50, -34), pen=rot(60, -12))
 
 
 def limb(a, b, bend):
@@ -309,8 +309,8 @@ def curl(s):
 
 def pencil(at):
     hx, hy = at
-    L, grip = 150, 64
-    return (f'<g class="pz-pen" transform="translate({n(hx)} {n(hy)}) rotate(-24) translate(0 {-grip})" color="{INK}" stroke="currentColor" stroke-width="2.6" '
+    L, grip = 150, 72                    # 竖着拿，手握在中段，橡皮头朝上
+    return (f'<g class="pz-pen" transform="translate({n(hx)} {n(hy)}) rotate(8) translate(0 {-grip})" color="{INK}" stroke="currentColor" stroke-width="2.6" '
             f'stroke-linejoin="round" filter="url(#pz-pencil)">'
             f'<rect x="-8" y="0" width="16" height="18" rx="5" fill="#ff9ba3"/><rect x="-8" y="16" width="16" height="8" fill="#cfd2d8"/>'
             f'<rect x="-8" y="24" width="16" height="{L - 54}" fill="#ffd84d"/>'
