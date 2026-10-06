@@ -27,3 +27,9 @@ testdms 真机 LINE 实测（样卡 ต.หนองขมาร）：识别读�
 - 生产 DMS 容器隔离目录 `/tmp/pfix` 跑分支代码（跑完已删）：`test-dms-intake-queue.py` 23 项 OK（两条用例改为断言快捷按钮）；
   `sample-verify-dms-cards.py` 53/0、`sample-verify-dms-qa-cards.py` 27/0（testdms 站点上下文，只构造消息不发送）。
 - 还缺：部署后 LINE 真机重走同一张样卡；快捷按钮在手机上的样子由用户确认。
+
+## 菜单 6 教程视频：ris 漏配 → 改为 DMS bench 共用（同日追加）
+
+- 现象：ris 操作员点菜单 6 看不了，用户（LINE 绑在 testdms）能看。原因：视频地址按站点写在 site_config，10-02 上线步骤是"先 testdms、验收后再写正式站点"，ris 一直没写，按设计回「教程视频暂未上线」。
+- 处置（用户同意）：ris 站点配置写入三项（值取自 testdms），回读三项都能生成可播放的视频消息；DMS bench `common_site_config.json` 也写入同三项（原有键不变），现有与以后新开的 DMS 租户都直接生效。
+- 代码：`scripts/production/configure-dms-runtime.py`（每次 DMS 激活都会跑）用 `setdefault` 写这三项，生成的地址与线上逐字一致；站点或 bench 已有自己的值不覆盖。`test-dms-runtime.py` 加 2 条并登记进 `development.yml`。

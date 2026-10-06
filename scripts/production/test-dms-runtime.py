@@ -26,6 +26,19 @@ class DmsRuntime(unittest.TestCase):
         self.assertEqual(result["db_host"], original["db_host"])
         self.assertEqual(runtime["configured"](result), result)
 
+    def test_menu_six_tutorial_videos_are_shared_by_every_dms_site(self):
+        result = runtime["configured"]({})
+        for key in ("pearnly_dms_manual_setup", "pearnly_dms_manual_customer", "pearnly_dms_manual_booking"):
+            entry = result[key]
+            self.assertTrue(entry["video"].startswith("https://media.pearnly.com/") and entry["video"].endswith(".mp4"))
+            self.assertTrue(entry["preview"].startswith("https://media.pearnly.com/") and entry["preview"].endswith(".jpg"))
+            self.assertFalse(any(ch.isspace() or ord(ch) > 127 for ch in entry["video"] + entry["preview"]))
+
+    def test_a_bench_that_already_set_its_own_videos_keeps_them(self):
+        own = {"video": "https://example.invalid/own.mp4", "preview": "https://example.invalid/own.jpg"}
+        result = runtime["configured"]({"pearnly_dms_manual_setup": own})
+        self.assertEqual(result["pearnly_dms_manual_setup"], own)
+
     def test_install_is_atomic_idempotent_and_preserves_mode(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "common_site_config.json"
