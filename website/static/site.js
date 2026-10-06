@@ -414,7 +414,7 @@
       set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(' + f(tilt) + ') scale(' + SCALE + ')');
       set(armPen, 'd', 'M' + f(penSh[0]) + ' ' + f(penSh[1]) + 'Q' + f(penCtrl[0]) + ' ' + f(penCtrl[1]) + ' ' + f(penAt[0]) + ' ' + f(penAt[1]));
       set(handPen, 'cx', f(penAt[0])); set(handPen, 'cy', f(penAt[1]));
-      set(pen, 'transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(8) translate(0 -72)');
+      set(pen, 'transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(28) translate(0 -72)');
       set(armPush, 'd', limb(rot(-34, -50), hand, 14));
       set(handPush, 'cx', f(hand[0])); set(handPush, 'cy', f(hand[1]));
       set(ground, 'cx', f(hip[0] + 6)); set(ground, 'cy', f(feet + 3));

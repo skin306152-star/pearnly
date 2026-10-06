@@ -310,7 +310,7 @@ def curl(s):
 def pencil(at):
     hx, hy = at
     L, grip = 150, 72                    # 竖着拿，手握在中段，橡皮头朝上
-    return (f'<g class="pz-pen" transform="translate({n(hx)} {n(hy)}) rotate(8) translate(0 {-grip})" color="{INK}" stroke="currentColor" stroke-width="2.6" '
+    return (f'<g class="pz-pen" transform="translate({n(hx)} {n(hy)}) rotate(28) translate(0 {-grip})" color="{INK}" stroke="currentColor" stroke-width="2.6" '
             f'stroke-linejoin="round" filter="url(#pz-pencil)">'
             f'<rect x="-8" y="0" width="16" height="18" rx="5" fill="#ff9ba3"/><rect x="-8" y="16" width="16" height="8" fill="#cfd2d8"/>'
             f'<rect x="-8" y="24" width="16" height="{L - 54}" fill="#ffd84d"/>'
