@@ -10,8 +10,9 @@
   不建推送记录；
 - 人已经动过的票（改过、推过）不碰，交给人；
 - 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录；
-- 准备时小助手没报上这份账套（刚好重启、断线），确认必然失败：撤掉这次准备、回 ``retry`` 让调用方过一会儿再推，
-  重试用新的请求号（旧号会重放已撤回的那条）；``final`` 时照常记失败。
+- 小助手没连上（重启、断线）是暂时的：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好断线的，撤掉这次准备再重来，
+  重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。小助手连着但没报上这份账套，照现有规则记失败；
+  ``final`` 时一律照现有规则走。
 """
 import hashlib
 import json
@@ -37,7 +38,7 @@ def push_key(entry, history, version, attempt=0):
 
 def push_one(entry, rule, history, attempt=0, final=True):
     """推一张票，回这张票的去向：``sent`` / ``held`` / ``failed`` / ``human`` / ``missing``，
-    非 ``final`` 时还可能回 ``retry``（小助手没报上账套）。调用方已切成负责人身份。"""
+    非 ``final`` 时还可能回 ``retry``（小助手没连上）。调用方已切成负责人身份。"""
     row = frappe.db.get_value(HISTORY, history, ["edit_count", "last_push_status", "last_push_record",
                                                  "record_version"], as_dict=True)
     if not row:
@@ -69,6 +70,9 @@ def push_one(entry, rule, history, attempt=0, final=True):
         push_state.record_failure(history, reason)
         frappe.db.commit()
         return {"status": "held", "reason": reason}
+    adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
+    if not final and not destinations.online(adapter, rule.connection):
+        return {"status": "retry", "reason": OFFLINE}
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
@@ -76,9 +80,14 @@ def push_one(entry, rule, history, attempt=0, final=True):
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}
+    if result.get("status") == "cancelled":
+        # 同一请求号重放出之前撤回的那条（上一轮小助手没连上时撤的）：换新号再来，不当成已推。
+        if not final:
+            return {"status": "retry", "reason": OFFLINE}
+        return {"status": "failed", "reason": str(result.get("reason") or "push.preparation_cancelled")[:300]}
     if result.get("status") == "prepared":
-        adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
-        if not final and not destinations.ready(adapter, result):
+        if (not final and not destinations.ready(adapter, result)
+                and not destinations.online(adapter, rule.connection)):
             _withdraw(result)
             return {"status": "retry", "reason": OFFLINE}
         try:

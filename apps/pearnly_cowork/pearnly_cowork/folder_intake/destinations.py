@@ -7,6 +7,8 @@
 
 注意：读文件夹的永远是这条连接的 Windows 小助手（配对码身份），所以目前只登记 Express。
 """
+import frappe
+
 from pearnly_cowork.companion import credentials
 from pearnly_cowork.push.application import service as application
 
@@ -16,9 +18,13 @@ class ExpressTarget:
     intake_target = "express"
 
     @staticmethod
+    def online(connection):
+        """这条连接的小助手现在连着（与网页选去向时的「在线」同一判据）。"""
+        return credentials.online(connection)
+
+    @staticmethod
     def ready(prepared):
-        """准备时小助手报上了这份账套才能确认；没报上（小助手刚好重启、断线）确认必然失败，
-        自动录入撤掉这次准备、过一会儿重来，而不是记成失败（网页「提交」仍照原样提示）。"""
+        """准备时小助手报上了这份账套，确认才可能成功。"""
         return bool(prepared.get("has_reported_credential"))
 
     @staticmethod
@@ -28,6 +34,18 @@ class ExpressTarget:
 
 
 ADAPTERS = {ExpressTarget.adapter: ExpressTarget}
+
+
+def online(adapter, connection):
+    """小助手没连上（重启、断线、电脑关着）是暂时的：自动录入过一会儿再推，不记失败。读不出就当连着，照常走现有提交。"""
+    target = ADAPTERS[adapter]
+    try:
+        return target.online(connection) if hasattr(target, "online") else True
+    except Exception:
+        frappe.clear_messages()
+        return True
+    finally:
+        frappe.db.commit()  # 只读；判在线会锁住凭据行，读完立刻放开，不带着锁去准备推送（小助手报到也要这把锁）
 
 
 def ready(adapter, prepared):

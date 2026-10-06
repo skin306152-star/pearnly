@@ -320,7 +320,7 @@ def _push(entry, cfg, deadline):
         write(entry)
         frappe.db.commit()
     entry = read(FILE, name, for_update=True)
-    entry.state, entry.next_attempt_at = "pushing", None
+    entry.state, entry.next_attempt_at, entry.last_code = "pushing", None, ""
     write(entry)
     frappe.db.commit()
 

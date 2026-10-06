@@ -149,9 +149,9 @@ class AdditiveGuards(unittest.TestCase):
 
 
 class OfflineCompanionRetry(unittest.TestCase):
-    """准备时小助手没报上账套：撤回这次准备、回 retry、重试换请求号；最后一次照常走确认（记失败）。"""
+    """小助手没连上：不准备（或撤回刚好断线时的准备）、回 retry、重试换请求号；连着但没报上账套、或最后一次，照现有规则走。"""
 
-    def _push(self, reported):
+    def _push(self, reported=True, online=lambda: True, status="prepared"):
         calls = {"cancel": [], "confirm": [], "keys": []}
 
         class Error(Exception):
@@ -167,16 +167,15 @@ class OfflineCompanionRetry(unittest.TestCase):
 
         def submit(history, connection, key, *args):
             calls["keys"].append(key)
-            return {"status": "prepared", "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
+            return {"status": status, "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
 
         application = types.SimpleNamespace(
             choices_view=lambda *args: {"needed": []}, submit=submit,
             cancel_prepared=lambda name, revision: calls["cancel"].append(name),
             submission_failed=lambda history, reason: None)
-        express = types.SimpleNamespace(ready=lambda prepared: bool(prepared.get("has_reported_credential")),
-                                        confirm=lambda *args: calls["confirm"].append(args))
-        destinations = types.SimpleNamespace(of=lambda adapter: express,
-                                             ready=lambda adapter, prepared: express.ready(prepared))
+        express = types.SimpleNamespace(confirm=lambda *args: calls["confirm"].append(args))
+        destinations = types.SimpleNamespace(of=lambda adapter: express, online=lambda adapter, connection: online(),
+                                             ready=lambda adapter, prepared: bool(prepared.get("has_reported_credential")))
         modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.folder_intake": types.SimpleNamespace(contracts=contracts, destinations=destinations),
                    "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace()),
@@ -185,25 +184,34 @@ class OfflineCompanionRetry(unittest.TestCase):
         with mock.patch.dict(sys.modules, modules):
             push = _load("folder_push_under_test", APP / "folder_intake/push.py")
         rule = types.SimpleNamespace(connection="C", account_set_key="A", posting_kind="purchase", defaults_json="{}")
-        entry = types.SimpleNamespace(name="E")
-        return push, rule, entry, calls
+        return push, rule, types.SimpleNamespace(name="E"), calls
 
-    def test_unreported_account_set_retries_with_a_new_key(self):
-        push, rule, entry, calls = self._push(reported=False)
+    def test_offline_companion_waits_without_preparing(self):
+        push, rule, entry, calls = self._push(online=lambda: False)
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=False), {"status": "retry", "reason": push.OFFLINE})
+        self.assertEqual((calls["keys"], calls["cancel"], calls["confirm"]), ([], [], []))
+
+    def test_drop_while_preparing_is_withdrawn_and_retried_with_a_new_key(self):
+        answers = iter([True, False, True, False])
+        push, rule, entry, calls = self._push(reported=False, online=lambda: next(answers))
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["status"], "retry")
         self.assertEqual(push.push_one(entry, rule, "H", 1, final=False)["status"], "retry")
-        self.assertEqual(calls["cancel"], ["CWP-1", "CWP-1"])
-        self.assertEqual(calls["confirm"], [])
-        self.assertEqual(len(set(calls["keys"])), 2)
-        self.assertEqual(calls["keys"][0], push.push_key("E", "H", 3))
+        self.assertEqual((calls["cancel"], calls["confirm"]), (["CWP-1", "CWP-1"], []))
+        self.assertEqual(calls["keys"], [push.push_key("E", "H", 3), push.push_key("E", "H", 3, 1)])
+        self.assertNotEqual(calls["keys"][0], calls["keys"][1])
 
-    def test_last_attempt_and_reported_account_set_confirm_as_before(self):
-        push, rule, entry, calls = self._push(reported=False)
-        self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "sent")
-        push, rule, entry, calls = self._push(reported=True)
+    def test_online_but_unreported_account_set_and_last_attempt_follow_the_existing_push(self):
+        push, rule, entry, calls = self._push(reported=False, online=lambda: True)
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["status"], "sent")
-        self.assertEqual((len(calls["confirm"]), calls["cancel"]), (1, []))
+        push, rule, entry, calls2 = self._push(reported=False, online=lambda: False)
+        self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "sent")
+        self.assertEqual((len(calls["confirm"]), len(calls2["confirm"]), calls["cancel"]), (1, 1, []))
 
+    def test_replayed_withdrawn_preparation_is_not_counted_as_sent(self):
+        push, rule, entry, calls = self._push(status="cancelled")
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["status"], "retry")
+        self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "failed")
+        self.assertEqual(calls["confirm"], [])
 
 if __name__ == "__main__":
     unittest.main()
