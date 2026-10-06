@@ -209,9 +209,10 @@ def cowork(L):
 
     # ---- 跨两边：税票金额飞到对上的那一行，配对线（连到税票下沿，不横穿别的税票）；税票飞进日记账
     flies = "".join(flyer(a, f"#cw-inv{i}", f"#cw-st{row_of[i]}", T[i] + 300) for i, (_n, a, _l) in enumerate(invs))
-    threads = "".join(f'<path class="thread hd-thread" pathLength="1" data-from="#cw-st{row_of[i]}" data-to="#cw-a{i}" data-to-top="#cw-inv{i}" data-at="{T[i] + 800},5800:-on"/>'
-                      for i in range(3))
-    flies += f'<svg class="threads" aria-hidden="true">{threads}</svg>'
+    # 第三条线要从小单和 ERP 日记账背后穿过去：单独放一层，压在两栏的画（小单、日记账）底下、底色上面
+    threads = ["".join(f'<path class="thread hd-thread" pathLength="1" data-from="#cw-st{row_of[i]}" data-to="#cw-a{i}" data-to-top="#cw-inv{i}" data-at="{T[i] + 800},5800:-on"/>'
+                       for i in group) for group in ((0, 1), (2,))]
+    flies += f'<svg class="threads" aria-hidden="true">{threads[0]}</svg><svg class="threads hd-under" aria-hidden="true">{threads[1]}</svg>'
     flies += "".join(flyer(a, f"#cw-inv{i}", f"#cw-er{i}", 6000 + i * 160, "doc") for i, (_n, a, _l) in enumerate(invs))
     return f'<div class="scene hd-scene" data-scene="cowork" data-total="11200">{real}{sys_}{flies}</div>'
 
