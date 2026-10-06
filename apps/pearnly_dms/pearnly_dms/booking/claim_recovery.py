@@ -29,7 +29,7 @@ def recover(line_user_id):
     from pearnly_dms import i18n
 
     with i18n.line_language(line_user_id):  # 定时任务发的：按收件人的手机语言
-        out.send(line_user_id, qa_cards.booking_retry_card(cards.TXT_SYSTEM_ERROR, nonce))
+        out.send(line_user_id, qa_cards.booking_retry_message(cards.TXT_SYSTEM_ERROR, nonce))
     return True
 
 

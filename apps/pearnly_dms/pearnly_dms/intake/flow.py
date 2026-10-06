@@ -183,7 +183,7 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         if not store.verify_nonce(sess, pb.get("nonce"), "reviewing"):
             _reply(reply_token, cards.TXT_EXPIRED)
             return
-        _send(line_user_id, cards.edit_entry_card(
+        _send(line_user_id, cards.edit_entry_message(
             pb["nonce"], notice=dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang=i18n.line_lang())
         ), reply_token)
         return
@@ -285,7 +285,7 @@ def _open_browser_editor(
     if not dms_edit_link.url(nonce, customer=True):
         _reply(reply_token, cards.TXT_EDIT_UNAVAILABLE)
         return
-    line.reply(reply_token, [cards.edit_entry_card(nonce)])
+    line.reply(reply_token, [cards.edit_entry_message(nonce)])
 
 
 # ── collecting：识别 ───────────────────────────────────────────────────────
@@ -475,7 +475,7 @@ def run_dedup(
             for c in (res.get("candidates") or [])
         ]
         payload = {**base, "scenario": "similar", "candidates": cands2}
-        card = cards.candidates_card(cands2, nonce)
+        card = cards.candidates_message(cands2, nonce)
 
     if not store.replace_session_snapshot(line_user_id, sess, "reviewing", payload):
         return

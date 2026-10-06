@@ -482,20 +482,20 @@ def preview_card(qa: Dict[str, Any], nonce: str, notice: str = "") -> Dict[str, 
     return _bubble(qat("TXT_PREVIEW_TITLE"), rows, footer, qat("TXT_PREVIEW_TITLE"))
 
 
-def booking_retry_card(message: str, nonce: str, code: str = "") -> Dict[str, Any]:
-    """建单在外部 DMS 写入前失败时，保留草稿并发一次性重试按钮。
+def booking_retry_message(message: str, nonce: str, code: str = "") -> Dict[str, Any]:
+    """建单在外部 DMS 写入前失败时，保留草稿：**文案 + LINE 原生快捷按钮**「ลองใหม่」「ทิ้ง」，不出卡片。
 
     "先在别处退出 DMS"只对被顶下线（`ERR_DMS_CONCURRENT_LOGIN`）成立；连不上、排队超时、
     系统中断只提示"30 分钟内点重试"，不叫人去退出一个根本没登录的地方。
+    按钮用「ลองใหม่」：快捷按钮标签限 20 个字，「ลองสร้างใบจองอีกครั้ง」有 21 个字会被 LINE 整条拒收。
     """
     failed = qat("retry.failed")
     hint = qat("retry.hint" if code == "ERR_DMS_CONCURRENT_LOGIN" else "retry.hint_later")
-    rows = [
-        {"type": "text", "text": message or failed, "wrap": True},
-        {"type": "text", "text": hint, "size": "sm", "wrap": True},
-    ]
-    footer = [
-        _btn(_cards.BTN_RETRY_BOOKING, _data(ACT_RETRY_BOOKING, nonce=nonce), "primary"),
-        _btn(qat("BTN_DISCARD"), _data(ACT_CANCEL_BOOKING, nonce=nonce), "secondary"),
-    ]
-    return _bubble(failed, rows, footer, qat("retry.alt"))
+    lines = [failed] + ([message] if message and message != failed else []) + [hint]
+    retry, discard = _cards.BTN_RETRY, qat("BTN_DISCARD")
+    return {"type": "text", "text": "\n".join(lines), "quickReply": {"items": [
+        {"type": "action", "action": {"type": "postback", "label": retry,
+                                      "data": _data(ACT_RETRY_BOOKING, nonce=nonce), "displayText": retry}},
+        {"type": "action", "action": {"type": "postback", "label": discard,
+                                      "data": _data(ACT_CANCEL_BOOKING, nonce=nonce), "displayText": discard}},
+    ]}}

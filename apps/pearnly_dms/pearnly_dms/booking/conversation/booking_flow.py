@@ -121,7 +121,7 @@ def _queue_claimed(binding, line_user_id, payload, reply_token=""):
         # claim revokes any old job before its customer/order write guard.
         nonce = secrets.token_hex(8)
         if _arm_retry(binding["tenant_id"], line_user_id, payload, nonce):
-            _send(line_user_id, qa_cards.booking_retry_card(cards.TXT_SYSTEM_ERROR, nonce))
+            _send(line_user_id, qa_cards.booking_retry_message(cards.TXT_SYSTEM_ERROR, nonce))
 
 
 # ── 建订车单 ─────────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ def _execute_booking(binding: dict, line_user_id: str, payload: dict,
         # Safe only before the order-attempt marker; an unknown order is never replayed.
         retry_nonce = secrets.token_hex(8)
         if _arm_retry(binding["tenant_id"], line_user_id, payload, retry_nonce):
-            _send(line_user_id, qa_cards.booking_retry_card(cards.TXT_SYSTEM_ERROR, retry_nonce))
+            _send(line_user_id, qa_cards.booking_retry_message(cards.TXT_SYSTEM_ERROR, retry_nonce))
         else:
             recovery.request(line_user_id)
 
@@ -197,7 +197,7 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
         if _arm_retry(tenant, line_user_id, payload, retry_nonce):
             _send(
                 line_user_id,
-                qa_cards.booking_retry_card(
+                qa_cards.booking_retry_message(
                     friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL,
                     retry_nonce,
                     code=result.get("error_code") or "",

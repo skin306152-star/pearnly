@@ -89,7 +89,7 @@ def field_labels() -> Dict[str, str]:
     经 `__getattr__` 仍可用；名字里的 `_TH` 是历史遗留，内容已跟随收件人语言）。"""
     return {f: _t(f"diff.{f}") for f in _DIFF_FIELD_NAMES}
 
-_MAX_CANDIDATES = 4  # 候选卡按钮上限（LINE bubble 体积限制）
+_MAX_CANDIDATES = 4  # 候选上限（与原候选卡一致；quick reply 最多 13 项）
 
 
 # ── 构造器 ───────────────────────────────────────────────────────────────
@@ -224,23 +224,19 @@ def _summary_rows(summary: Dict[str, str]) -> List[Dict[str, Any]]:
     return [_kv_row(_t(f"sum.{f}"), s.get(f, "")) for f in _SUMMARY_FIELD_NAMES]
 
 
-def edit_entry_card(nonce: str, *, notice: str = "") -> Dict[str, Any]:
-    """点 [แก้ไข] 之后回的那张卡：就一个"打开编辑页"的按钮。
+def edit_entry_message(nonce: str, *, notice: str = "") -> Dict[str, Any]:
+    """点 [แก้ไข] 之后、或保存前缺项被拦下时：**一句文案 + LINE 原生快捷按钮**「แก้ไข」，不出卡片。
 
-    线上 `customer_edit_entry._open` 就是这个形状（`cards._bubble(BTN_EDIT, [],
-    [cards._edit_button(nonce)], BTN_EDIT)`）—— 点编辑不再展开字段菜单，
-    而是给一个能开浏览器编辑页的入口。一般正文为空；保存前缺项拒绝可带上既有
-    已翻译错误提示，同时保持原 nonce 的编辑入口有效。
-
-    **尺寸按操作员反馈调大**（2026-09-25："这个按钮和文案做得也太小了吧"）：
-    提示正文回到默认字号（原来 `size: "sm"` 偏小），按钮用标准高度（原来的
-    `height: "sm"` 偏矮）。只动这一张卡，其它卡的按钮形状不变。
+    用户 2026-10-06 口径：菜单 1、2 里只有客户主档卡和订车主档卡用卡片，其余一律文案加按钮，
+    文案用正式说法。按钮能拿到编辑页深链就直接打开（uri），否则退回 postback（`ACT_EDIT`）。
     """
-    label = _t("BTN_EDIT")
-    rows = [{"type": "text", "text": notice, "wrap": True}] if notice else []
-    button = _edit_button(nonce)
-    button["height"] = "md"
-    return _bubble(label, rows, [button], notice or label)
+    return _text_with_buttons(notice or _t("TXT_EDIT_ENTRY"), [_edit_button(nonce)["action"]])
+
+
+def _text_with_buttons(text: str, actions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """文案 + quick reply（LINE 原生按键，标签不超过 20 个字，最多 13 个）。"""
+    return {"type": "text", "text": text,
+            "quickReply": {"items": [{"type": "action", "action": action} for action in actions]}}
 
 
 def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
@@ -345,20 +341,25 @@ def retry_message(text: str) -> Dict[str, Any]:
     }
 
 
-def candidates_card(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, Any]:
-    """场景④相似：候选按钮（码 · 姓名 · 证号尾 4）+ [ลูกค้าใหม่] 兜底。人工认领。"""
-    rows: List[Dict[str, Any]] = []
-    for c in candidates[:_MAX_CANDIDATES]:
+def candidates_message(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, Any]:
+    """场景④相似：文案逐行列出候选（码 · 姓名 · 证号尾 4），快捷按钮按序号认领，[ลูกค้าใหม่] 兜底。
+
+    按钮标签只放序号与客户代码（LINE 限 20 个字），完整信息在文案里。人工认领。
+    """
+    lines, actions = [_t("TXT_CANDIDATES_HEAD")], []
+    for number, c in enumerate(candidates[:_MAX_CANDIDATES], 1):
         cid = str(c.get("customer_id") or "")
         tail = (str(c.get("people_id") or ""))[-4:]
-        label = f"{c.get('cuscode') or '—'} · {c.get('name') or ''}"
+        line = f"{number}. {c.get('cuscode') or '—'} · {c.get('name') or ''}"
         if tail:
-            label += f" · x{tail}"
-        rows.append(_btn(label[:40], _data(ACT_PICK, nonce=nonce, cid=cid), "link"))
-    footer = [_btn(_t("BTN_NEW_CUSTOMER"), _data(ACT_CREATE, nonce=nonce), "primary")]
-    return _bubble(
-        _t("TXT_CANDIDATES_HEAD"), rows, footer, _t("TXT_CANDIDATES_ALT")
-    )
+            line += f" · x{tail}"
+        lines.append(line)
+        label = f"{number}. {c.get('cuscode') or ''}".strip()[:20]
+        actions.append({"type": "postback", "label": label,
+                        "data": _data(ACT_PICK, nonce=nonce, cid=cid), "displayText": line[:300]})
+    new = _t("BTN_NEW_CUSTOMER")
+    actions.append({"type": "postback", "label": new, "data": _data(ACT_CREATE, nonce=nonce), "displayText": new})
+    return _text_with_buttons("\n".join(lines), actions)
 
 
 def receipt_text(customer_code: str, name: str, mode: str) -> str:

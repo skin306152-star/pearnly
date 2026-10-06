@@ -233,7 +233,10 @@ Please choose the type of data to search,请选择要查询的资料类型
 Please send a photo of the customer's ID card,请发送客户的身份证照片
 Please send the customer's ID card photo and phone number,请发送客户的身份证照片和电话号码
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes",请先在其他地方退出 DMS，再在 30 分钟内点「重试」
+"Please sign out of DMS on other devices, then tap Retry within 30 minutes.",请先在其他设备退出 DMS，并于 30 分钟内点击「重试」。
 Please take the ID card photo again,请重新拍摄身份证
+Please tap Edit to review and update the customer's information on the edit page.,请点击「编辑」，在编辑页核对并修改客户资料。
+Please tap Retry within 30 minutes.,请于 30 分钟内点击「重试」。
 Postcode,邮编
 Previous,上一页
 Previous page,上一页
@@ -346,7 +349,9 @@ The check failed. Please try again.,检查失败，请再试一次。
 The check stopped before it finished. Please try again.,检查中途停止了，请再试一次。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
+"The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。
 The data volume exceeds the read limit. Please contact an administrator.,数据量超过了读取上限，请联系管理人员。
+"The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",系统找到以下相似客户，请选择对应的客户；如均不符合，请选择「新客户」。
 The photo is too large. Please try again.,照片太大，请重试。
 The read status changed. Refresh the page to check before trying again.,读取状态已变化，请刷新页面确认后再试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
@@ -478,12 +483,13 @@ dms.card.TXT_BOOKING_CANCELLED,已放弃，没有保存任何资料 · 输入 �
 dms.card.TXT_BOOKING_CUSTOMER,系统中已有这位客户
 dms.card.TXT_BOOKING_FAIL,订车单建立失败，请重试。
 dms.card.TXT_CANDIDATES_ALT,请选择对应的客户
-dms.card.TXT_CANDIDATES_HEAD,找到相似的客户，请选择对应的一位。
+dms.card.TXT_CANDIDATES_HEAD,系统找到以下相似客户，请选择对应的客户；如均不符合，请选择「新客户」。
 dms.card.TXT_DIFF_ALT,客户资料有差异
 dms.card.TXT_DIFF_HEAD,找到原有资料，部分不一致
 dms.card.TXT_DIFF_HEADER,差异
 dms.card.TXT_DONE_SAME,已沿用原资料。输入 菜单 办理其他事项。
 dms.card.TXT_DONE_SAVED,客户资料已保存。输入 菜单 办理其他事项。
+dms.card.TXT_EDIT_ENTRY,请点击「编辑」，在编辑页核对并修改客户资料。
 dms.card.TXT_EDIT_SENT,已修改资料
 dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
 dms.card.TXT_EXPIRED,此项已过期，请重新开始。
@@ -633,8 +639,8 @@ dms.card.qa.pay.other,其他
 dms.card.qa.pay.transfer,转账
 dms.card.qa.retry.alt,订车单建立失败 · 重试
 dms.card.qa.retry.failed,订车单建立失败
-dms.card.qa.retry.hint,请先在其他地方退出 DMS，再在 30 分钟内点「重试」
-dms.card.qa.retry.hint_later,请在 30 分钟内点「重试」
+dms.card.qa.retry.hint,请先在其他设备退出 DMS，并于 30 分钟内点击「重试」。
+dms.card.qa.retry.hint_later,请于 30 分钟内点击「重试」。
 dms.card.query.ALT_RECORDS,DMS 最新销售记录 {n} 条
 dms.card.query.ALT_TOP,DMS 销售排行
 dms.card.query.ASK_ADVISOR,请输入销售顾问姓名
@@ -927,7 +933,7 @@ dms.edit.total,订金合计
 dms.edit.transfer,转账
 dms.edit.village,村/小区
 dms.err.ERR_CRED_DECRYPT,凭据解密失败 · 请重新输入用户名和密码
-dms.err.ERR_DMS_ADDRESS_INCOMPLETE,客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。
 dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理员凭据登录失败 · 请检查管理员用户名和密码
 dms.err.ERR_DMS_ADVISOR_REQUIRED,这张订车单还没定销售顾问 · 请联系管理员为该 DMS 账号配置销售顾问后重开单
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,"在 DMS 销售顾问名册里找不到该顾问 · 请让管理员在 DMS 顾问名册补上这个账号,或联系 Pearnly 配置归属"

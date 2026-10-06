@@ -233,7 +233,10 @@ Please choose the type of data to search,Please choose the type of data to searc
 Please send a photo of the customer's ID card,Please send a photo of the customer's ID card
 Please send the customer's ID card photo and phone number,Please send the customer's ID card photo and phone number
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes","Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
+"Please sign out of DMS on other devices, then tap Retry within 30 minutes.","Please sign out of DMS on other devices, then tap Retry within 30 minutes."
 Please take the ID card photo again,Please take the ID card photo again
+Please tap Edit to review and update the customer's information on the edit page.,Please tap Edit to review and update the customer's information on the edit page.
+Please tap Retry within 30 minutes.,Please tap Retry within 30 minutes.
 Postcode,Postcode
 Previous,Previous
 Previous page,Previous page
@@ -346,7 +349,9 @@ The check failed. Please try again.,The check failed. Please try again.
 The check stopped before it finished. Please try again.,The check stopped before it finished. Please try again.
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
+"The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.","The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again."
 The data volume exceeds the read limit. Please contact an administrator.,The data volume exceeds the read limit. Please contact an administrator.
+"The following similar customers were found. Please select the matching customer, or select New customer if none of them match.","The following similar customers were found. Please select the matching customer, or select New customer if none of them match."
 The photo is too large. Please try again.,The photo is too large. Please try again.
 The read status changed. Refresh the page to check before trying again.,The read status changed. Refresh the page to check before trying again.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
@@ -478,12 +483,13 @@ dms.card.TXT_BOOKING_CANCELLED,Discarded. Nothing was saved · Type menu to star
 dms.card.TXT_BOOKING_CUSTOMER,Customer found in the system
 dms.card.TXT_BOOKING_FAIL,The booking could not be created. Please try again.
 dms.card.TXT_CANDIDATES_ALT,Choose the matching customer
-dms.card.TXT_CANDIDATES_HEAD,Similar customers found. Choose the one that matches.
+dms.card.TXT_CANDIDATES_HEAD,"The following similar customers were found. Please select the matching customer, or select New customer if none of them match."
 dms.card.TXT_DIFF_ALT,Customer data differs
 dms.card.TXT_DIFF_HEAD,"Existing data found, but some fields differ"
 dms.card.TXT_DIFF_HEADER,Differences
 dms.card.TXT_DONE_SAME,Existing data kept. Type menu for other tasks.
 dms.card.TXT_DONE_SAVED,Customer data saved. Type menu for other tasks.
+dms.card.TXT_EDIT_ENTRY,Please tap Edit to review and update the customer's information on the edit page.
 dms.card.TXT_EDIT_SENT,Changes saved
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
 dms.card.TXT_EXPIRED,This item has expired. Please start again.
@@ -633,8 +639,8 @@ dms.card.qa.pay.other,Other
 dms.card.qa.pay.transfer,Bank transfer
 dms.card.qa.retry.alt,Booking failed · Retry
 dms.card.qa.retry.failed,The booking could not be created
-dms.card.qa.retry.hint,"Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
-dms.card.qa.retry.hint_later,Tap Retry within 30 minutes
+dms.card.qa.retry.hint,"Please sign out of DMS on other devices, then tap Retry within 30 minutes."
+dms.card.qa.retry.hint_later,Please tap Retry within 30 minutes.
 dms.card.query.ALT_RECORDS,{n} latest sales records from DMS
 dms.card.query.ALT_TOP,Top sales from DMS
 dms.card.query.ASK_ADVISOR,Type the sales advisor's name
@@ -927,7 +933,7 @@ dms.edit.total,Booking deposit total
 dms.edit.transfer,Transfer
 dms.edit.village,Village
 dms.err.ERR_CRED_DECRYPT,Credential decrypt failed — please re-enter username and password
-dms.err.ERR_DMS_ADDRESS_INCOMPLETE,"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,"The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again."
 dms.err.ERR_DMS_ADMIN_AUTH,DMS admin credential login failed — check the admin username and password
 dms.err.ERR_DMS_ADVISOR_REQUIRED,"This booking has no sales advisor assigned — ask your admin to set the advisor for this DMS account, then start the booking again"
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,"The advisor is not in the DMS advisor list — ask your admin to add this account to the DMS advisor list, or contact Pearnly to configure it"

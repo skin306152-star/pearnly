@@ -108,12 +108,13 @@ def main():
     finally:
         frappe.conf["pearnly_line_liff_id"] = saved
 
-    rcard = q.booking_retry_card("", "n2")
-    ck("重试卡有标题/提示/重试按钮且不露 key",
-       "dms.card." not in str(rcard) and "สร้างใบจองไม่สำเร็จ" in str(rcard))
+    rcard = q.booking_retry_message("", "n2")
+    ck("重试是文案 + 原生快捷按钮「ลองใหม่」「ทิ้ง」且不露 key（不是卡片）",
+       rcard["type"] == "text" and "dms.card." not in str(rcard) and "สร้างใบจองไม่สำเร็จ" in rcard["text"]
+       and [i["action"]["label"] for i in rcard["quickReply"]["items"]] == ["ลองใหม่", "ทิ้ง"])
     ck("连不上/系统中断的重试卡不叫人去别处退出 DMS；被顶下线的才叫",
        "ออกจากระบบ" not in str(rcard)
-       and "ออกจากระบบ" in str(q.booking_retry_card("", "n3", code="ERR_DMS_CONCURRENT_LOGIN")))
+       and "ออกจากระบบ" in str(q.booking_retry_message("", "n3", code="ERR_DMS_CONCURRENT_LOGIN")))
 
     # ── 裸名守卫 ──────────────────────────────────────────────────────
     # PEP 562 的模块 `__getattr__` 只覆盖「模块属性访问」，**管不到模块内函数里的

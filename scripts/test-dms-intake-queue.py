@@ -351,7 +351,9 @@ class IntakeQueue(unittest.TestCase):
                     kind, body = self.messages()[-1]
                     self.assertEqual((kind, body["replyToken"]), ("reply", "reply-needs-address"))
                     card = body["messages"][0]
-                    button = card["contents"]["footer"]["contents"][0]["action"]
+                    # 文案 + LINE 原生快捷按钮，不出卡片（用户 2026-10-06）。
+                    self.assertEqual(card["type"], "text")
+                    button = card["quickReply"]["items"][0]["action"]
                     self.assertEqual(button["type"], "uri")
                     self.assertIn("needs-address", button["uri"])
                     self.assertIn("editor=customer", button["uri"])
@@ -387,7 +389,8 @@ class IntakeQueue(unittest.TestCase):
                 self.assertEqual(self.store.get_session(LINE_USER), before)
                 kind, body = self.messages()[-1]
                 self.assertEqual((kind, body["replyToken"]), ("reply", "reply-phone-only"))
-                button = body["messages"][0]["contents"]["footer"]["contents"][0]["action"]
+                self.assertEqual(body["messages"][0]["type"], "text")
+                button = body["messages"][0]["quickReply"]["items"][0]["action"]
                 self.assertEqual(button["type"], "uri")
                 self.assertIn("phone-only", button["uri"])
 

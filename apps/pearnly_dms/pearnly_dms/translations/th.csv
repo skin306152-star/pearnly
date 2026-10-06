@@ -233,7 +233,10 @@ Please choose the type of data to search,กรุณาเลือกประ
 Please send a photo of the customer's ID card,กรุณาส่งรูปบัตรประชาชนของลูกค้า
 Please send the customer's ID card photo and phone number,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes",กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
+"Please sign out of DMS on other devices, then tap Retry within 30 minutes.",กรุณาออกจากระบบ DMS บนอุปกรณ์อื่นก่อน แล้วกด «ลองใหม่» ภายใน 30 นาที
 Please take the ID card photo again,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
+Please tap Edit to review and update the customer's information on the edit page.,กรุณากด «แก้ไข» เพื่อตรวจสอบและแก้ไขข้อมูลลูกค้าในหน้าแก้ไข
+Please tap Retry within 30 minutes.,กรุณากด «ลองใหม่» ภายใน 30 นาที
 Postcode,รหัสไปรษณีย์
 Previous,ก่อนหน้า
 Previous page,หน้าก่อน
@@ -346,7 +349,9 @@ The check failed. Please try again.,ตรวจสอบไม่สำเร�
 The check stopped before it finished. Please try again.,การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
+"The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",ข้อมูลที่อยู่ของลูกค้าไม่ครบถ้วน กรุณากด «แก้ไข» เพื่อระบุจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ให้ครบถ้วน แล้วบันทึกอีกครั้ง
 The data volume exceeds the read limit. Please contact an administrator.,ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ
+"The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",ระบบพบลูกค้าที่มีข้อมูลใกล้เคียงดังต่อไปนี้ กรุณาเลือกลูกค้าที่ตรงกัน หากไม่มีรายการที่ตรงกัน กรุณาเลือก «ลูกค้าใหม่»
 The photo is too large. Please try again.,รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง
 The read status changed. Refresh the page to check before trying again.,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
@@ -478,12 +483,13 @@ dms.card.TXT_BOOKING_CANCELLED,ทิ้งรายการแล้ว ไม
 dms.card.TXT_BOOKING_CUSTOMER,พบข้อมูลลูกค้าในระบบ
 dms.card.TXT_BOOKING_FAIL,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
 dms.card.TXT_CANDIDATES_ALT,เลือกลูกค้าที่ตรงกัน
-dms.card.TXT_CANDIDATES_HEAD,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
+dms.card.TXT_CANDIDATES_HEAD,ระบบพบลูกค้าที่มีข้อมูลใกล้เคียงดังต่อไปนี้ กรุณาเลือกลูกค้าที่ตรงกัน หากไม่มีรายการที่ตรงกัน กรุณาเลือก «ลูกค้าใหม่»
 dms.card.TXT_DIFF_ALT,พบข้อมูลลูกค้าที่ต่างกัน
 dms.card.TXT_DIFF_HEAD,พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน
 dms.card.TXT_DIFF_HEADER,ความต่าง
 dms.card.TXT_DONE_SAME,ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น
 dms.card.TXT_DONE_SAVED,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
+dms.card.TXT_EDIT_ENTRY,กรุณากด «แก้ไข» เพื่อตรวจสอบและแก้ไขข้อมูลลูกค้าในหน้าแก้ไข
 dms.card.TXT_EDIT_SENT,แก้ไขข้อมูลแล้ว
 dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ
 dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
@@ -633,8 +639,8 @@ dms.card.qa.pay.other,อื่นๆ
 dms.card.qa.pay.transfer,เงินโอน
 dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
 dms.card.qa.retry.failed,สร้างใบจองไม่สำเร็จ
-dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
-dms.card.qa.retry.hint_later,กรุณากดลองใหม่ภายใน 30 นาที
+dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS บนอุปกรณ์อื่นก่อน แล้วกด «ลองใหม่» ภายใน 30 นาที
+dms.card.qa.retry.hint_later,กรุณากด «ลองใหม่» ภายใน 30 นาที
 dms.card.query.ALT_RECORDS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
 dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
 dms.card.query.ASK_ADVISOR,พิมพ์ชื่อที่ปรึกษาการขาย
@@ -927,7 +933,7 @@ dms.edit.total,ยอดเงินจองรวม
 dms.edit.transfer,เงินโอน
 dms.edit.village,หมู่บ้าน
 dms.err.ERR_CRED_DECRYPT,ถอดรหัสข้อมูลรับรองไม่สำเร็จ
-dms.err.ERR_DMS_ADDRESS_INCOMPLETE,ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,ข้อมูลที่อยู่ของลูกค้าไม่ครบถ้วน กรุณากด «แก้ไข» เพื่อระบุจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ให้ครบถ้วน แล้วบันทึกอีกครั้ง
 dms.err.ERR_DMS_ADMIN_AUTH,เข้าสู่ระบบด้วยบัญชีผู้ดูแล DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่านผู้ดูแล
 dms.err.ERR_DMS_ADVISOR_REQUIRED,ใบจองนี้ยังไม่ได้กำหนดที่ปรึกษาการขาย กรุณาให้ผู้ดูแลกำหนดที่ปรึกษาให้บัญชี DMS นี้ แล้วเปิดใบจองใหม่
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,ไม่พบที่ปรึกษาการขายรายนี้ในรายชื่อที่ปรึกษาของ DMS กรุณาให้ผู้ดูแลเพิ่มบัญชีนี้ในรายชื่อที่ปรึกษาการขาย หรือติดต่อทีม Pearnly เพื่อกำหนดให้

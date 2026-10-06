@@ -183,7 +183,7 @@ def _card(
         card = cards.new_customer_card(summary, nonce)
     else:
         new["candidates"] = lookup.get("candidates") or []
-        card = cards.candidates_card(new["candidates"], nonce)
+        card = cards.candidates_message(new["candidates"], nonce)
     return new, card
 
 

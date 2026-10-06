@@ -131,17 +131,16 @@ def main():
          "people_id": "1234567890123"}
         for i in range(6)
     ]
-    cc = C.candidates_card(cands, "n6")
-    picks = [b for b in body_buttons(cc)
-             if parse_qs(b["action"]["data"]).get("action", [""])[0] == "pick"]
-    check("候选按钮最多 4 个（LINE bubble 体积限制）", len(picks) == 4, len(picks))
-    check("候选选择按钮在卡片主体（footer 只留兜底）",
-          len(body_buttons(cc)) == 4 and len(buttons(cc)) == 1,
-          (len(body_buttons(cc)), len(buttons(cc))))
-    check("候选标签带客户码 + 证号尾 4",
-          "C0" in picks[0]["action"]["label"] and "x0123" in picks[0]["action"]["label"],
-          picks[0]["action"]["label"])
-    check("候选卡有新建客户兜底", actions(cc) == ["create_new"], actions(cc))
+    cc = C.candidates_message(cands, "n6")
+    qr = [item["action"] for item in cc["quickReply"]["items"]]
+    picks = [a for a in qr if parse_qs(a.get("data", "")).get("action", [""])[0] == "pick"]
+    check("候选是文案 + 原生快捷按钮，不是卡片（用户 2026-10-06）", cc["type"] == "text", cc["type"])
+    check("候选按钮最多 4 个", len(picks) == 4, len(picks))
+    check("候选按钮标签带序号与客户码，不超过 LINE 的 20 字",
+          picks[0]["label"] == "1. C0" and all(len(a["label"]) <= 20 for a in qr), [a["label"] for a in qr])
+    check("候选文案逐行列出客户码 + 姓名 + 证号尾 4", "1. C0 · ชื่อ0 · x0123" in cc["text"], cc["text"])
+    check("最后一个按钮是新建客户兜底",
+          parse_qs(qr[-1]["data"]).get("action", [""])[0] == "create_new", qr[-1])
 
     # ── 6. 回执：不谎称 ────────────────────────────────────────────────
     r_new = C.receipt_text("126", "สมชาย", "create")
@@ -209,12 +208,13 @@ def main():
               [b["action"].get("type") for b in buttons(bare)])
 
         # 「点编辑之后回的那张卡」与卡片上的按钮同源（线上 `customer_edit_entry._open`）。
-        entry = C.edit_entry_card("n7")
-        check("点编辑回的卡只有一个按钮", len(buttons(entry)) == 1, buttons(entry))
+        entry = C.edit_entry_message("n7")
+        entry_actions = [item["action"] for item in entry["quickReply"]["items"]]
+        check("点编辑回的是文案 + 一个原生快捷按钮（不是卡片）",
+              entry["type"] == "text" and len(entry_actions) == 1, entry)
         check("且它就是同一条深链",
-              bool(edit_buttons(entry))
-              and "draft=n7" in edit_buttons(entry)[0]["action"]["uri"],
-              buttons(entry))
+              entry_actions[0].get("type") == "uri" and "draft=n7" in entry_actions[0]["uri"],
+              entry_actions)
     finally:
         if before is None:
             frappe.conf.pop("pearnly_line_liff_id", None)
@@ -320,7 +320,7 @@ def main():
         ("一致卡", C.same_customer_card({}, "n2")),
         ("差异卡", C.diff_card([{"label": "ชื่อ", "old": "a", "new": "b"}], "n3",
                                primary="none", summary={})),
-        ("候选卡", C.candidates_card([], "n4")),
+        ("候选消息", C.candidates_message([], "n4")),
     ) if "dms.card." in str(msg)]
     check("卡片正文不露裸 key", not leaked, leaked)
 

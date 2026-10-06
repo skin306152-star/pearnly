@@ -1,6 +1,6 @@
 en	zh	th	ja	key
 The DMS account stayed busy; automatic retries did not get through. Please try again later.	DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。	บัญชี DMS ไม่ว่าง ระบบลองอ่านซ้ำอัตโนมัติหลายครั้งแล้วยังไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง	DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_BUSY
-The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.	客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。	ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง	お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。	dms.err.ERR_DMS_ADDRESS_INCOMPLETE
+The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.	客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。	ข้อมูลที่อยู่ของลูกค้าไม่ครบถ้วน กรุณากด «แก้ไข» เพื่อระบุจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ให้ครบถ้วน แล้วบันทึกอีกครั้ง	お客様の住所情報が不完全です。「編集」をタップし、都県・郡区・町村・郵便番号を入力のうえ、再度保存してください。	dms.err.ERR_DMS_ADDRESS_INCOMPLETE
 Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
 Update data	更新数据	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
 Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help
@@ -109,6 +109,7 @@ Cancel	取消	ยกเลิก	キャンセル	dms.card.BTN_CANCEL_BOOKING
 Confirm booking	确认订车	ยืนยันจอง	予約を確定	dms.card.BTN_CONFIRM_BOOKING
 Continue booking	继续订车	ทำใบจองต่อ	予約を続ける	dms.card.BTN_CONTINUE_BOOKING
 Edit	编辑	แก้ไข	編集	dms.card.BTN_EDIT
+Please tap Edit to review and update the customer's information on the edit page.	请点击「编辑」，在编辑页核对并修改客户资料。	กรุณากด «แก้ไข» เพื่อตรวจสอบและแก้ไขข้อมูลลูกค้าในหน้าแก้ไข	「編集」をタップし、編集画面で顧客情報をご確認・修正してください。	dms.card.TXT_EDIT_ENTRY
 Keep existing data	使用原资料	ใช้ข้อมูลเดิม	既存データを使う	dms.card.BTN_KEEP
 New customer	新客户	ลูกค้าใหม่	新規顧客	dms.card.BTN_NEW_CUSTOMER
 Start over	重新开始	เริ่มใหม่	やり直し	dms.card.BTN_RESTART
@@ -127,7 +128,7 @@ Discarded. Nothing was saved · Type menu to start again	已放弃，没有保�
 Customer found in the system	系统中已有这位客户	พบข้อมูลลูกค้าในระบบ	システムに顧客データがあります	dms.card.TXT_BOOKING_CUSTOMER
 The booking could not be created. Please try again.	订车单建立失败，请重试。	สร้างใบจองไม่สำเร็จ กรุณาลองใหม่	予約を作成できませんでした。もう一度お試しください。	dms.card.TXT_BOOKING_FAIL
 Choose the matching customer	请选择对应的客户	เลือกลูกค้าที่ตรงกัน	該当する顧客を選択	dms.card.TXT_CANDIDATES_ALT
-Similar customers found. Choose the one that matches.	找到相似的客户，请选择对应的一位。	พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน	似た顧客が見つかりました。該当する顧客を選んでください。	dms.card.TXT_CANDIDATES_HEAD
+The following similar customers were found. Please select the matching customer, or select New customer if none of them match.	系统找到以下相似客户，请选择对应的客户；如均不符合，请选择「新客户」。	ระบบพบลูกค้าที่มีข้อมูลใกล้เคียงดังต่อไปนี้ กรุณาเลือกลูกค้าที่ตรงกัน หากไม่มีรายการที่ตรงกัน กรุณาเลือก «ลูกค้าใหม่»	以下の類似する顧客が見つかりました。該当する顧客を選択してください。該当しない場合は「新規顧客」を選択してください。	dms.card.TXT_CANDIDATES_HEAD
 Customer data differs	客户资料有差异	พบข้อมูลลูกค้าที่ต่างกัน	顧客データに違いがあります	dms.card.TXT_DIFF_ALT
 Existing data found, but some fields differ	找到原有资料，部分不一致	พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน	既存データがありますが、一部が一致しません	dms.card.TXT_DIFF_HEAD
 Differences	差异	ความต่าง	相違点	dms.card.TXT_DIFF_HEADER
@@ -269,8 +270,8 @@ Other	其他	อื่นๆ	その他	dms.card.qa.pay.other
 Bank transfer	转账	เงินโอน	振込	dms.card.qa.pay.transfer
 Booking failed · Retry	订车单建立失败 · 重试	สร้างใบจองไม่สำเร็จ · ลองใหม่	予約作成に失敗 · 再試行	dms.card.qa.retry.alt
 The booking could not be created	订车单建立失败	สร้างใบจองไม่สำเร็จ	予約を作成できませんでした	dms.card.qa.retry.failed
-Please sign out of DMS elsewhere, then tap Retry within 30 minutes	请先在其他地方退出 DMS，再在 30 分钟内点「重试」	กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที	ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください	dms.card.qa.retry.hint
-Tap Retry within 30 minutes	请在 30 分钟内点「重试」	กรุณากดลองใหม่ภายใน 30 นาที	30 分以内に「再試行」を押してください	dms.card.qa.retry.hint_later
+Please sign out of DMS on other devices, then tap Retry within 30 minutes.	请先在其他设备退出 DMS，并于 30 分钟内点击「重试」。	กรุณาออกจากระบบ DMS บนอุปกรณ์อื่นก่อน แล้วกด «ลองใหม่» ภายใน 30 นาที	他の端末で DMS からログアウトしたうえで、30 分以内に「再試行」をタップしてください。	dms.card.qa.retry.hint
+Please tap Retry within 30 minutes.	请于 30 分钟内点击「重试」。	กรุณากด «ลองใหม่» ภายใน 30 นาที	30 分以内に「再試行」をタップしてください。	dms.card.qa.retry.hint_later
 {n} latest sales records from DMS	DMS 最新销售记录 {n} 条	บันทึกการขายล่าสุดจาก DMS {n} รายการ	DMS の最新販売記録 {n} 件	dms.card.query.ALT_RECORDS
 Top sales from DMS	DMS 销售排行	ยอดขายสูงสุดจาก DMS	DMS の販売ランキング	dms.card.query.ALT_TOP
 Type the sales advisor's name	请输入销售顾问姓名	พิมพ์ชื่อที่ปรึกษาการขาย	営業担当の名前を入力してください	dms.card.query.ASK_ADVISOR

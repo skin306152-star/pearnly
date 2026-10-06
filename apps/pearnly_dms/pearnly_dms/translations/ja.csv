@@ -233,7 +233,10 @@ Please choose the type of data to search,検索するデータの種類を選ん
 Please send a photo of the customer's ID card,お客様の身分証明書の写真を送ってください
 Please send the customer's ID card photo and phone number,お客様の身分証明書の写真と電話番号を送ってください
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes",ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください
+"Please sign out of DMS on other devices, then tap Retry within 30 minutes.",他の端末で DMS からログアウトしたうえで、30 分以内に「再試行」をタップしてください。
 Please take the ID card photo again,身分証明書をもう一度撮影してください
+Please tap Edit to review and update the customer's information on the edit page.,「編集」をタップし、編集画面で顧客情報をご確認・修正してください。
+Please tap Retry within 30 minutes.,30 分以内に「再試行」をタップしてください。
 Postcode,郵便番号
 Previous,前へ
 Previous page,前のページ
@@ -346,7 +349,9 @@ The check failed. Please try again.,確認に失敗しました。もう一度�
 The check stopped before it finished. Please try again.,確認が途中で止まりました。もう一度お試しください。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
+"The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",お客様の住所情報が不完全です。「編集」をタップし、都県・郡区・町村・郵便番号を入力のうえ、再度保存してください。
 The data volume exceeds the read limit. Please contact an administrator.,データ量が読み取り上限を超えています。管理者にご連絡ください。
+"The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",以下の類似する顧客が見つかりました。該当する顧客を選択してください。該当しない場合は「新規顧客」を選択してください。
 The photo is too large. Please try again.,写真が大きすぎます。もう一度お試しください。
 The read status changed. Refresh the page to check before trying again.,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
@@ -478,12 +483,13 @@ dms.card.TXT_BOOKING_CANCELLED,破棄しました。何も保存されていま�
 dms.card.TXT_BOOKING_CUSTOMER,システムに顧客データがあります
 dms.card.TXT_BOOKING_FAIL,予約を作成できませんでした。もう一度お試しください。
 dms.card.TXT_CANDIDATES_ALT,該当する顧客を選択
-dms.card.TXT_CANDIDATES_HEAD,似た顧客が見つかりました。該当する顧客を選んでください。
+dms.card.TXT_CANDIDATES_HEAD,以下の類似する顧客が見つかりました。該当する顧客を選択してください。該当しない場合は「新規顧客」を選択してください。
 dms.card.TXT_DIFF_ALT,顧客データに違いがあります
 dms.card.TXT_DIFF_HEAD,既存データがありますが、一部が一致しません
 dms.card.TXT_DIFF_HEADER,相違点
 dms.card.TXT_DONE_SAME,既存データを使用しました。ほかの操作は メニュー と入力してください。
 dms.card.TXT_DONE_SAVED,顧客データを保存しました。ほかの操作は メニュー と入力してください。
+dms.card.TXT_EDIT_ENTRY,「編集」をタップし、編集画面で顧客情報をご確認・修正してください。
 dms.card.TXT_EDIT_SENT,内容を修正しました
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
 dms.card.TXT_EXPIRED,有効期限が切れました。もう一度やり直してください。
@@ -633,8 +639,8 @@ dms.card.qa.pay.other,その他
 dms.card.qa.pay.transfer,振込
 dms.card.qa.retry.alt,予約作成に失敗 · 再試行
 dms.card.qa.retry.failed,予約を作成できませんでした
-dms.card.qa.retry.hint,ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください
-dms.card.qa.retry.hint_later,30 分以内に「再試行」を押してください
+dms.card.qa.retry.hint,他の端末で DMS からログアウトしたうえで、30 分以内に「再試行」をタップしてください。
+dms.card.qa.retry.hint_later,30 分以内に「再試行」をタップしてください。
 dms.card.query.ALT_RECORDS,DMS の最新販売記録 {n} 件
 dms.card.query.ALT_TOP,DMS の販売ランキング
 dms.card.query.ASK_ADVISOR,営業担当の名前を入力してください
@@ -927,7 +933,7 @@ dms.edit.total,予約金合計
 dms.edit.transfer,振込
 dms.edit.village,村・住宅地
 dms.err.ERR_CRED_DECRYPT,認証情報の復号に失敗しました · ユーザー名とパスワードを再入力してください
-dms.err.ERR_DMS_ADDRESS_INCOMPLETE,お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,お客様の住所情報が不完全です。「編集」をタップし、都県・郡区・町村・郵便番号を入力のうえ、再度保存してください。
 dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理者資格情報でのログインに失敗しました · 管理者のユーザー名とパスワードをご確認ください
 dms.err.ERR_DMS_ADVISOR_REQUIRED,この予約には販売アドバイザーが設定されていません · 管理者に該当 DMS アカウントのアドバイザー設定を依頼してから、予約を作成し直してください
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,このアドバイザーは DMS のアドバイザー名簿に存在しません · 管理者に当該アカウントの追加を依頼するか、Pearnly にご連絡ください
