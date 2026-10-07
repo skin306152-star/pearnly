@@ -20,8 +20,8 @@
 
 /* 新建录入的目标卡片加了「自动录入规则」后是四张：排成两排两列（2026-10-07），窄屏照旧一列。
  * 四张一样大（用户 2026-10-07）：每张卡一行 —— 名称在左，状态药丸与「连接」靠右；每排等高
- * （`grid-auto-rows: 1fr`），内容少的「仅识别」「自动录入规则」不会矮一截、也不会空出一大块。
- * 「自动录入规则」点了是进另一页，右侧一个官方式的 › 提示。 */
+ * （`grid-auto-rows: 1fr`），内容少的「识别后导出」「自动录入规则」不会矮一截、也不会空出一大块。
+ * 「识别后导出」「自动录入规则」两张没有状态和按钮，右侧各一个 › 提示（用户 2026-10-07）。 */
 .pearnly-intake-targets-quad .pearnly-choice {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	grid-auto-rows: 1fr;
@@ -59,6 +59,7 @@
 	flex: none;
 }
 
+.pearnly-intake-targets-quad .pearnly-choice-card[data-value="none"]::after,
 .pearnly-intake-targets-quad .pearnly-choice-card[data-value="folder"]::after {
 	content: "\203A";
 	margin-left: auto;
