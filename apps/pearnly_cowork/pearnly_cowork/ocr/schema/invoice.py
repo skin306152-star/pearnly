@@ -147,9 +147,8 @@ class ThaiInvoice(BaseModel):
         default=False,
         description="true when text contains สำเนา / COPY / DUPLICATE markers",
     )
-    # 录不录要人定的类别 / 单张疑点（`contracts.document_policy`，用户 2026-10-07）；普通票据为空。
-    document_flag: str = Field(default="", description="withholding_certificate / loan_repayment / cancelled / "
-                               "billing_notice / customs_declaration, empty for an ordinary document")
+    # 录不录由租户选的类别（`contracts.document_policy`，用户 2026-10-07）：原文标题认出的预扣税凭证；普通票据为空。
+    document_flag: str = Field(default="", description="withholding_certificate, empty for an ordinary document")
 
     invoice_number: Optional[str] = Field(default=None)
     date: Optional[str] = Field(

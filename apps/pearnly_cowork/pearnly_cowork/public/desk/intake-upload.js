@@ -130,11 +130,9 @@
 	const RESULT_UNKNOWN = /^(ERP_CONFIRMED_PUSH_RESULT_UNKNOWN|EXPRESS_MANUAL:\s*confirmed_push_unacked|confirmed_push_unacked|ERR_MRERP_READBACK_NOT_FOUND|ERR_MRERP_READBACK_NOT_LINKED|ERR_MRERP_LEGACY_MENU_UNVERIFIED)/;
 	/** 这两种退回是「Express 已有 / 上一版还在」：会计核对后可以「仍然推送」（小助手认 `duplicate_confirmed`）。 */
 	const SEND_ANYWAY = /^\[(DUPLICATE_CONTENT_DIFFERS|PRIOR_DOC_STILL_IN_ERP)\]/;
-	/** 转账凭条 / 预扣税凭证 / 还款收据录不录：这个租户选一次（`contracts/document_policy.py`）；选了不录入的只是说明。 */
+	/** 转账凭条 / 预扣税凭证录不录：这个租户选一次（`contracts/document_policy.py`）；选了不录入的只是说明。 */
 	const POLICY_NEEDED = /^document_policy_needed_/;
 	const POLICY_SKIPPED = /^document_policy_skip_/;
-	/** 疑点票（作废章 / 通知联 / 报关单）：默认不推，会计看过可「仍要录入」这一张。 */
-	const SUSPECT = /^document_suspect_/;
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
 	const code_text = code => {
 		if (!code) return "";
@@ -552,11 +550,6 @@
 						$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__(`cowork.policy.${value}`))
 							.on("click", () => void choose_policy(record, value)).appendTo(row);
 					}
-				}
-				if (SUSPECT.test(reason) && !recognize_only) {
-					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.policy.release"))
-						.on("click", () => void submit({names: [record.name], extra: {release_suspect: 1}}))
-						.appendTo(row);
 				}
 			}
 		};

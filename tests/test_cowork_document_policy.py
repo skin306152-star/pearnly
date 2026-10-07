@@ -1,4 +1,4 @@
-"""转账凭条 / 预扣税凭证 / 还款收据录不录、疑点票（`contracts.document_policy`，用户 2026-10-07）：纯函数，不连库。"""
+"""转账凭条 / 预扣税凭证录不录由租户选（`contracts.document_policy`，用户 2026-10-07）：纯函数，不连库。"""
 from decimal import Decimal
 import unittest
 
@@ -26,30 +26,24 @@ def prepare(*reads, policy=None):
 
 
 class Rules(unittest.TestCase):
-    def test_classes_come_from_the_type_or_the_flag(self):
+    def test_classes_come_from_the_type_or_the_title_flag(self):
         self.assertEqual(rules.document_class(SLIP), "payment_evidence")
         self.assertEqual(rules.document_class(WHT), "withholding_certificate")
-        self.assertEqual(rules.document_class({"document_flag": "loan_repayment"}), "loan_repayment")
         self.assertEqual(rules.document_class(TAX), "")
-        self.assertEqual(rules.document_class({**TAX, "document_flag": "cancelled"}), "")
-        self.assertEqual(rules.suspect_flag({**TAX, "document_flag": "cancelled"}), "cancelled")
         self.assertEqual(rules.document_class(None), "")
 
-    def test_the_push_waits_for_a_choice_honours_it_and_holds_suspects_until_released(self):
+    def test_the_push_waits_for_a_choice_and_honours_it(self):
         self.assertEqual(rules.push_block(SLIP, {}), "document_policy_needed_payment_evidence")
         self.assertEqual(rules.push_block(SLIP, {"payment_evidence": "skip"}), "document_policy_skip_payment_evidence")
         self.assertIsNone(rules.push_block(SLIP, {"payment_evidence": "enter"}))
         self.assertIsNone(rules.push_block(TAX, {}))
-        held = {**TAX, "document_flag": "billing_notice"}
-        self.assertEqual(rules.push_block(held, {}), "document_suspect_billing_notice")
-        self.assertIsNone(rules.push_block(held, {}, release_suspect=True))
         # 一个选择只管它自己那一类
         self.assertEqual(rules.push_block(WHT, {"payment_evidence": "enter"}),
                          "document_policy_needed_withholding_certificate")
 
     def test_only_known_classes_and_values_are_kept(self):
-        self.assertEqual(rules.normalize({"payment_evidence": "skip", "loan_repayment": "maybe", "cancelled": "skip",
-                                          "other": "enter"}), {"payment_evidence": "skip"})
+        self.assertEqual(rules.normalize({"payment_evidence": "skip", "withholding_certificate": "maybe",
+                                          "cancelled": "skip", "other": "enter"}), {"payment_evidence": "skip"})
         self.assertEqual(rules.normalize("not a mapping"), {})
 
     def test_an_unknown_flag_from_the_model_is_dropped(self):
@@ -99,10 +93,11 @@ class Grouping(unittest.TestCase):
         return {"page_index": index, "fields": {**TAX, **fields}, "is_copy": False}
 
     def test_a_flag_counts_only_when_every_page_of_the_invoice_has_it(self):
-        mixed = group_invoices([self.page(0, document_flag="billing_notice"), self.page(1)])
+        mixed = group_invoices([self.page(0, document_flag="withholding_certificate"), self.page(1)])
         self.assertEqual([g["invoice_fields"]["document_flag"] for g in mixed], [""])
-        same = group_invoices([self.page(0, document_flag="cancelled"), self.page(1, document_flag="cancelled")])
-        self.assertEqual([g["invoice_fields"]["document_flag"] for g in same], ["cancelled"])
+        same = group_invoices([self.page(0, document_flag="withholding_certificate"),
+                               self.page(1, document_flag="withholding_certificate")])
+        self.assertEqual([g["invoice_fields"]["document_flag"] for g in same], ["withholding_certificate"])
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ def save_duplicate_setting(enabled):
 
 @frappe.whitelist(methods=["POST"])
 def choose_document_policy(name, value):
-    """复核页对转账凭条 / 预扣税凭证 / 还款收据选「录入 / 不录入」：这个租户同类以后都这样（见 `document_policy`）。"""
+    """复核页对转账凭条 / 预扣税凭证选「录入 / 不录入」：这个租户同类以后都这样（见 `document_policy`）。"""
     return document_policy.choose(name, value)
 
 

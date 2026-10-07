@@ -431,7 +431,6 @@ Enter a quantity,กรุณากรอกจำนวน
 Enter a stock count title of 1 to 120 characters.,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter a valid quantity with no more than six decimal places.,กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง
-Enter anyway,บันทึกต่อไป
 Enter list name,ใส่ชื่อรายการ
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Entered into Express,บันทึกแล้ว
@@ -1066,7 +1065,6 @@ The document could not be read. Check the file and try again.,ไม่สาม
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่
 The document exceeds the allowed size after decompression.,เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด
 The document file is damaged or cannot be decompressed.,ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้
-The document is stamped cancelled; it is not sent unless you choose to,เอกสารมีตราประทับยกเลิก ระบบจะไม่ส่งเว้นแต่คุณเลือก
 The document reader is unavailable. Contact your administrator.,บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
 The document sections are incomplete or invalid.,ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง
 "The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway",เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express หรือเลือก ส่งต่อไป
@@ -1202,9 +1200,8 @@ This account set is unavailable.,ชุดบัญชีนี้ไม่พ�
 This action is not allowed in the current push state.,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
 This board no longer exists,บอร์ดนี้ไม่มีอยู่แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
-This company does not enter loan repayment receipts; this one is not sent,บริษัทนี้ไม่บันทึกใบเสร็จชำระเงินกู้ รายการนี้จะไม่ถูกส่ง
 This company does not enter transfer slips; this one is not sent,บริษัทนี้ไม่บันทึกสลิปโอนเงิน รายการนี้จะไม่ถูกส่ง
-This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย รายการนี้จะไม่ถูกส่ง
+This company does not enter withholding tax certificates (50 Tawi); this one is not sent,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย รายการนี้จะไม่ถูกส่ง
 This connection does not support an Express Companion credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express
 This connection is disabled.,การเชื่อมต่อนี้ถูกปิดใช้งาน
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
@@ -1221,14 +1218,11 @@ This file type is not supported.,ไม่รองรับไฟล์ปร�
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงคลังนี้สำหรับชุดบัญชีนี้ได้
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
-This is a customs declaration page; it is not sent unless you choose to,นี่คือหน้าใบขนสินค้า ระบบจะไม่ส่งเว้นแต่คุณเลือก
-This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on,นี่คือใบเสร็จชำระเงินกู้ บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,นี่คือสลิปโอนเงิน บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลอง มีแค่ยอดรวมของบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการแต่ละใบสำคัญ
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,นี่คือหนังสือรับรองการหักภาษี ณ ที่จ่าย บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน
 This is taking too long. Check the list later.,ใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
-This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to,นี่คือส่วนใบแจ้งค่าสาธารณูปโภค (ส่วนใบเสร็จบันทึกแยก) ระบบจะไม่ส่งเว้นแต่คุณเลือก
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This label no longer exists,ไม่มีป้ายกำกับนี้แล้ว
 This list no longer exists,ไม่มีรายการนี้แล้ว
@@ -1538,7 +1532,6 @@ cowork.nav.reconVat,ตรวจสอบรายงานภาษีขาย
 cowork.nav.work,จัดการงาน
 cowork.policy.enter,บันทึก (ประเภทนี้ต่อไปเหมือนกัน)
 cowork.policy.invalid,เอกสารนี้ไม่ต้องเลือก
-cowork.policy.release,บันทึกต่อไป
 cowork.policy.skip,ไม่บันทึก (ประเภทนี้ต่อไปเหมือนกัน)
 cowork.policy.skipped,ไม่บันทึก
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
@@ -2211,15 +2204,10 @@ intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพ�
 intake.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
 intake.error.date_implausible,วันที่เอกสารดูไม่ถูกต้อง กรุณาตรวจแล้วส่งใหม่
 intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นซื้อหรือขาย แล้วส่งใหม่
-intake.error.document_policy_needed_loan_repayment,นี่คือใบเสร็จชำระเงินกู้ บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน
 intake.error.document_policy_needed_payment_evidence,นี่คือสลิปโอนเงิน บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน
 intake.error.document_policy_needed_withholding_certificate,นี่คือหนังสือรับรองการหักภาษี ณ ที่จ่าย บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน
-intake.error.document_policy_skip_loan_repayment,บริษัทนี้ไม่บันทึกใบเสร็จชำระเงินกู้ รายการนี้จะไม่ถูกส่ง
 intake.error.document_policy_skip_payment_evidence,บริษัทนี้ไม่บันทึกสลิปโอนเงิน รายการนี้จะไม่ถูกส่ง
 intake.error.document_policy_skip_withholding_certificate,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย รายการนี้จะไม่ถูกส่ง
-intake.error.document_suspect_billing_notice,นี่คือส่วนใบแจ้งค่าสาธารณูปโภค (ส่วนใบเสร็จบันทึกแยก) ระบบจะไม่ส่งเว้นแต่คุณเลือก
-intake.error.document_suspect_cancelled,เอกสารมีตราประทับยกเลิก ระบบจะไม่ส่งเว้นแต่คุณเลือก
-intake.error.document_suspect_customs_declaration,นี่คือหน้าใบขนสินค้า ระบบจะไม่ส่งเว้นแต่คุณเลือก
 intake.error.entry_not_balanced,รายการบัญชีไม่สมดุล กรุณาตรวจยอดเงิน
 intake.error.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่

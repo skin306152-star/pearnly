@@ -51,14 +51,13 @@ def confirm(name, expected_revision, request_key):
 @frappe.whitelist(methods=["POST"])
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           confirm_duplicate=None, release_suspect=None):
+           confirm_duplicate=None):
     """复核页「提交」一张票：失败不抛，原因记在票上（列表状态图标悬浮可看）。
 
-    `confirm_duplicate`：会计在复核页点了「仍然推送」（Express 已有同号不同内容 / 上一版还在）。
-    `release_suspect`：会计看过疑点票（作废章 / 通知联 / 报关单）点了「仍要录入」。"""
+    `confirm_duplicate`：会计在复核页点了「仍然推送」（Express 已有同号不同内容 / 上一版还在）。"""
     return _local_transaction(service.submit, history, connection, request_key, expected_history_version,
         expected_connection_revision, account_set_key, catalog_request_id, catalog_revision, posting_kind,
-        confirm_duplicate=_flag(confirm_duplicate), release_suspect=_flag(release_suspect))
+        confirm_duplicate=_flag(confirm_duplicate))
 
 
 def _flag(value):

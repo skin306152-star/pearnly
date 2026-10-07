@@ -431,7 +431,6 @@ Enter a quantity,请填写数量
 Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符的盘点标题。
 Enter a valid email,请填写正确的邮箱
 Enter a valid quantity with no more than six decimal places.,请输入有效数量，最多保留六位小数。
-Enter anyway,仍要录入
 Enter list name,输入列表名称
 Enter the user name,请填写用户名
 Entered into Express,已推送
@@ -1066,7 +1065,6 @@ The document could not be read. Check the file and try again.,无法读取文档
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,单据日期不在所选账套的会计期间内，请核对年度后重新发送。
 The document exceeds the allowed size after decompression.,文档解压后的大小超过上限。
 The document file is damaged or cannot be decompressed.,文档文件已损坏或无法解压。
-The document is stamped cancelled; it is not sent unless you choose to,票上有作废章，默认不推送
 The document reader is unavailable. Contact your administrator.,文档读取服务不可用，请联系管理员。
 The document sections are incomplete or invalid.,文档逻辑单元不完整或无效。
 "The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway",这张票的上一版还在 Express 里，请先在 Express 删掉，或点「仍然推送」
@@ -1202,9 +1200,8 @@ This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This board no longer exists,这个看板已不存在
 This channel is not open yet,这个通道还没开放
-This company does not enter loan repayment receipts; this one is not sent,本公司银行还款收据不录入，这张不推送
 This company does not enter transfer slips; this one is not sent,本公司转账凭条不录入，这张不推送
-This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent,本公司预扣税凭证（50 ทวิ）不录入，这张不推送
+This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司预扣税凭证（50 ทวิ）不录入，这张不推送
 This connection does not support an Express Companion credential.,此连接不支持 Express 助手凭据。
 This connection is disabled.,此连接已停用。
 This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
@@ -1221,14 +1218,11 @@ This file type is not supported.,不支持此文件类型。
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This inventory account group cannot be chosen for this account set.,这份账套不能选这个存货科目组。
 This invoice was already sent successfully,这张票已经推送成功过
-This is a customs declaration page; it is not sent unless you choose to,这是报关单页，默认不推送
-This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on,这是银行还款收据。本公司这类单据录不录？选一次，以后同类都这样处理
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",这是销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,这是转账凭条。本公司这类单据录不录？选一次，以后同类都这样处理
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,这是试算表，只有科目合计，请上传带逐笔凭证的总账。
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,这是预扣税凭证（50 ทวิ）。本公司这类单据录不录？选一次，以后同类都这样处理
 This is taking too long. Check the list later.,对账时间较长，请稍后在列表里查看。
-This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to,这是水电费的通知联（收据联另算一张），默认不推送
 This item is also stocked at:,这件货还在别处：
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
@@ -1538,7 +1532,6 @@ cowork.nav.reconVat,销项税报告核查
 cowork.nav.work,任务管理
 cowork.policy.enter,录入（以后同类都录）
 cowork.policy.invalid,这张票不需要选录不录
-cowork.policy.release,仍要录入
 cowork.policy.skip,不录入（以后同类都不录）
 cowork.policy.skipped,不录入
 cowork.quality.confirmed,高置信识别
@@ -2211,15 +2204,10 @@ intake.error.currency_not_thb,只有泰铢的票能推到 Express
 intake.error.date_future,票面日期在未来，请改正后再提交
 intake.error.date_implausible,票面日期不对劲，请核对后再提交
 intake.error.direction_unknown,请选这张是进项还是销项，再提交
-intake.error.document_policy_needed_loan_repayment,这是银行还款收据。本公司这类单据录不录？选一次，以后同类都这样处理
 intake.error.document_policy_needed_payment_evidence,这是转账凭条。本公司这类单据录不录？选一次，以后同类都这样处理
 intake.error.document_policy_needed_withholding_certificate,这是预扣税凭证（50 ทวิ）。本公司这类单据录不录？选一次，以后同类都这样处理
-intake.error.document_policy_skip_loan_repayment,本公司银行还款收据不录入，这张不推送
 intake.error.document_policy_skip_payment_evidence,本公司转账凭条不录入，这张不推送
 intake.error.document_policy_skip_withholding_certificate,本公司预扣税凭证（50 ทวิ）不录入，这张不推送
-intake.error.document_suspect_billing_notice,这是水电费的通知联（收据联另算一张），默认不推送
-intake.error.document_suspect_cancelled,票上有作废章，默认不推送
-intake.error.document_suspect_customs_declaration,这是报关单页，默认不推送
 intake.error.entry_not_balanced,分录借贷不平，请核对金额
 intake.error.items_incomplete,有明细缺品名或金额，请补好后再提交
 intake.error.items_mismatch,明细合计与票面金额对不上，请改好明细后再提交

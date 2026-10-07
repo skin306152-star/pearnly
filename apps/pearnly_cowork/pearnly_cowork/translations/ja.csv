@@ -431,7 +431,6 @@ Enter a quantity,数量を入力してください
 Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～120 文字で入力してください。
 Enter a valid email,正しいメールアドレスを入力してください
 Enter a valid quantity with no more than six decimal places.,有効な数量を小数点以下 6 桁以内で入力してください。
-Enter anyway,このまま入力
 Enter list name,リスト名を入力
 Enter the user name,ユーザー名を入力してください
 Entered into Express,登録済み
@@ -1066,7 +1065,6 @@ The document could not be read. Check the file and try again.,文書を読み取
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。
 The document exceeds the allowed size after decompression.,展開後の文書サイズが上限を超えています。
 The document file is damaged or cannot be decompressed.,文書ファイルが破損しているか、展開できません。
-The document is stamped cancelled; it is not sent unless you choose to,取消印があるため、既定では送信しません
 The document reader is unavailable. Contact your administrator.,文書の読み取り機能が利用できません。管理者にお問い合わせください。
 The document sections are incomplete or invalid.,文書の論理単位が不完全または無効です。
 "The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway",この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
@@ -1202,9 +1200,8 @@ This account set is unavailable.,この会計データは利用できません�
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
 This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
-This company does not enter loan repayment receipts; this one is not sent,この会社ではローン返済の領収書を入力しないため、送信しません
 This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
-This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
+This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
 This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
 This connection is disabled.,この接続は無効です。
 This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
@@ -1221,14 +1218,11 @@ This file type is not supported.,このファイル形式には対応してい�
 This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
 This inventory account group cannot be chosen for this account set.,この会計データではこの在庫勘定グループを選択できません。
 This invoice was already sent successfully,この伝票は送信済みです
-This is a customs declaration page; it is not sent unless you choose to,輸出入申告書のページです。既定では送信しません
-This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on,これはローン返済の領収書です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",これは売上明細で、売上税報告ではありません。売上税報告（รายงานภาษีขาย）をアップロードしてください。
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,これは科目合計だけの試算表です。伝票ごとの明細がある総勘定元帳をアップロードしてください。
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
-This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to,公共料金の通知部分です（領収部分は別の伝票）。既定では送信しません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This label no longer exists,このラベルはもうありません
 This list no longer exists,このリストはもうありません
@@ -1538,7 +1532,6 @@ cowork.nav.reconVat,売上税報告チェック
 cowork.nav.work,タスク管理
 cowork.policy.enter,入力する（以後も同様）
 cowork.policy.invalid,この伝票ではこの選択は不要です
-cowork.policy.release,このまま入力
 cowork.policy.skip,入力しない（以後も同様）
 cowork.policy.skipped,入力しない
 cowork.quality.confirmed,高い信頼度で認識
@@ -2211,15 +2204,10 @@ intake.error.currency_not_thb,Express に送れるのはタイバーツの伝票
 intake.error.date_future,伝票日付が未来です。直して再送信してください
 intake.error.date_implausible,伝票日付がおかしいようです。確認して再送信してください
 intake.error.direction_unknown,この伝票が仕入か売上かを選んで再送信してください
-intake.error.document_policy_needed_loan_repayment,これはローン返済の領収書です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
 intake.error.document_policy_needed_payment_evidence,これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
 intake.error.document_policy_needed_withholding_certificate,これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
-intake.error.document_policy_skip_loan_repayment,この会社ではローン返済の領収書を入力しないため、送信しません
 intake.error.document_policy_skip_payment_evidence,この会社では振込明細を入力しないため、送信しません
 intake.error.document_policy_skip_withholding_certificate,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
-intake.error.document_suspect_billing_notice,公共料金の通知部分です（領収部分は別の伝票）。既定では送信しません
-intake.error.document_suspect_cancelled,取消印があるため、既定では送信しません
-intake.error.document_suspect_customs_declaration,輸出入申告書のページです。既定では送信しません
 intake.error.entry_not_balanced,仕訳の貸借が合いません。金額を確認してください
 intake.error.items_incomplete,品名または金額のない明細があります。直して再送信してください
 intake.error.items_mismatch,明細の合計が伝票の金額と合いません。明細を直して再送信してください

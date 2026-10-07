@@ -120,7 +120,7 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
     archive naming, accounting categories and duplicate DB lookup are not part
     of this pure slice. The persistence service rechecks every assigned scope.
 
-    ``document_policy``：这个租户对转账凭条 / 预扣税凭证 / 还款收据选过的「录入 / 不录入」
+    ``document_policy``：这个租户对转账凭条 / 预扣税凭证选过的「录入 / 不录入」
     （`contracts.document_policy`），由调用方读出传入。
     """
     source = normalize_source(source)
