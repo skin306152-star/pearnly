@@ -4,8 +4,9 @@
 小助手传完一份也会马上叫一次。每份文件一步一提交，任何一份出错只影响它自己。
 
 不挤现有客户（影响评估 2026-10-06）：
-- 识别：全站同时在识别的文件夹单不超过 `ocr_inflight`（默认 1），且商户与全站的识别排队都低于上限一半才交，
-  给网页 / LINE / 对账留足名额；排不上的文件留在本表，下一分钟再看，不变成会过期的识别单；
+- 识别：走批处理（用户 2026-10-07，ADR-018：文件夹录入不急，等几十分钟换 Claude 半价；站点引擎不是 Claude 或原件是
+  表格时识别入口自动按实时）。排批处理的不占识别名额；真在实时识别的文件夹单不超过商户识别并发的一半，且商户与全站的
+  识别排队都低于上限一半才交，给网页 / LINE / 对账留足名额；排不上的文件留在本表，下一分钟再看，不变成会过期的识别单；
 - 推送：每条连接同时「录入中」的文件夹票不超过 `push_pending`（默认 5），会计手动推的单最多排在这几张后面；
 - 推送前扣费已成功（用户 2026-10-07：扣费成功后才推送）。
 """
@@ -26,6 +27,9 @@ BATCH = "Cowork OCR Batch"
 WORK = "Pearnly OCR Work"
 HISTORY = "Cowork OCR History"
 ACTIVE = ("queued", "running", "deferred")
+# 识别单排在批处理里（结果通常几分钟到一小时，最长约一天）：不占识别名额，隔几分钟看一次就够。
+BATCH_WAITING = "batch_waiting"
+BATCH_POLL_SECONDS = 300
 LOCK = "cowork:folder:pump"
 LOCK_SECONDS = 120
 STEP_SECONDS = 45
@@ -190,7 +194,13 @@ def _capacity(cfg):
     if pending * 2 >= limits["pending"] or tenant * 2 >= limits["tenant_pending"]:
         return 0
     ceiling = cfg["ocr_inflight"] or max(1, limits["tenant_concurrency"] // 2)
-    return max(0, ceiling - frappe.db.count(FILE, {"state": "submitted"}))
+    return max(0, ceiling - _realtime_inflight())
+
+
+def _realtime_inflight():
+    """已交识别、真在实时识别的文件夹单（排在批处理里的不算：它们还没建识别工作单，不占名额）。"""
+    return int(frappe.db.sql(f"""SELECT COUNT(*) FROM `tab{FILE}` f LEFT JOIN `tab{BATCH}` b ON b.name = f.batch
+        WHERE f.state = 'submitted' AND COALESCE(b.phase, '') != %s""", (BATCH_WAITING,))[0][0])
 
 
 def _submit_step(cfg, deadline):
@@ -214,7 +224,7 @@ def _submit(entry):
             result = recognition.submit(entry.source_file, request_key(entry.name), direction=rule.direction,
                                         posting_kind=rule.posting_kind, connection=rule.connection,
                                         account_set_key=rule.account_set_key,
-                                        target=destinations.of(_adapter(rule)).intake_target)
+                                        target=destinations.of(_adapter(rule)).intake_target, delivery="batch")
         except (Deferred, QueueFull) as error:
             frappe.db.rollback()
             entry = read(FILE, name, for_update=True)
@@ -244,6 +254,8 @@ def _recognized(entry):
                                 as_dict=True)
     if not batch:
         return _fail(entry, "cowork.folder.batch_missing")
+    if batch.phase == BATCH_WAITING:
+        return _later(entry, BATCH_POLL_SECONDS, "")
     if batch.phase == "not_invoice":
         entry.state, entry.finished_at, entry.workbook_revision = "not_invoice", now_datetime(), 1
         write(entry)

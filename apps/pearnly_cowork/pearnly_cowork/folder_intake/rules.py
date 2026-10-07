@@ -232,12 +232,15 @@ def results(rule):
 
 def counts(rule, since=None):
     """这条规则（或某次运行）的文件各处在哪一步。"""
-    sql = f"SELECT state, COUNT(*) AS total FROM `tab{FILE}` WHERE rule=%s"
+    # 已交识别、但排在批处理里的单独算一步（规则页显示「排队识别中」）。
+    sql = (f"SELECT CASE WHEN f.state = 'submitted' AND b.phase = 'batch_waiting' THEN 'batch_waiting' "
+           f"ELSE f.state END AS state, COUNT(*) AS total FROM `tab{FILE}` f "
+           f"LEFT JOIN `tabCowork OCR Batch` b ON b.name = f.batch WHERE f.rule=%s")
     values = [rule]
     if since:
-        sql += " AND run=%s"
+        sql += " AND f.run=%s"
         values.append(since)
-    rows = frappe.db.sql(sql + " GROUP BY state", values, as_dict=True)
+    rows = frappe.db.sql(sql + " GROUP BY 1", values, as_dict=True)
     return {row.state: int(row.total) for row in rows}
 
 

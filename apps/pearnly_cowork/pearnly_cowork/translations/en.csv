@@ -774,6 +774,7 @@ Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Questions,Questions
 Queued,Queued
+Queued for batch recognition,Queued for batch recognition
 "Queued, {0} ahead","Queued, {0} ahead"
 "Queued, {0} tasks ahead","Queued, {0} tasks ahead"
 Read,Read
@@ -1484,6 +1485,7 @@ cowork.folder.section.defaults,Default handling for this folder
 cowork.folder.section.folder,Folder and schedule
 cowork.folder.section.target,Where the documents go
 cowork.folder.size_invalid,The file is empty or too large.
+cowork.folder.state.batch_waiting,Queued for batch recognition
 cowork.folder.state.done,Entered into Express
 cowork.folder.state.failed,Could not finish
 cowork.folder.state.not_invoice,Not an invoice file

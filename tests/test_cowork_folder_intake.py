@@ -141,6 +141,16 @@ class AdditiveGuards(unittest.TestCase):
             tree = ast.parse((ROOT / "apps/pearnly_cowork" / (module.replace(".", "/") + ".py")).read_text())
             self.assertIn(name, {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}, dotted)
 
+    def test_recognition_goes_through_batch_delivery(self):
+        # 文件夹录入不急，走批处理换半价（ADR-018）；引擎不是 Claude 或原件是表格时识别入口自己按实时。
+        tree = ast.parse((APP / "folder_intake/pump.py").read_text())
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+                 and getattr(node.func, "attr", "") == "submit"]
+        self.assertTrue(calls)
+        for call in calls:
+            delivery = {kw.arg: kw.value for kw in call.keywords}.get("delivery")
+            self.assertEqual(getattr(delivery, "value", None), "batch")
+
     def test_roundtrip_untouched_by_workbook(self):
         tree = ast.parse((APP / "folder_intake/workbook.py").read_text())
         imported = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}

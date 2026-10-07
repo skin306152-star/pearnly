@@ -1392,6 +1392,7 @@ Entered into Express	已推送	บันทึกแล้ว	登録済み	cowor
 Entering into Express	推送中	กำลังบันทึก	登録中	cowork.folder.state.pushing
 Recognized, waiting to enter	已识别	อ่านแล้ว	読み取り済み	cowork.folder.state.recognized
 Being recognized	识别中	กำลังอ่าน	読み取り中	cowork.folder.state.submitted
+Queued for batch recognition	排队识别中	รอคิวอ่านแบบชุด	バッチ認識の順番待ち	cowork.folder.state.batch_waiting
 Waiting for recognition	等待识别	รอการอ่าน	読み取り待ち	cowork.folder.state.source_ready
 Uploaded from the PC	已上传	อัปโหลดแล้ว	アップロード済み	cowork.folder.state.uploaded
 Uploading from the PC	上传中	กำลังอัปโหลด	アップロード中	cowork.folder.state.registered
