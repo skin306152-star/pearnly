@@ -355,7 +355,6 @@ Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,删除选中的 {0} 份盘点？已过账的删不掉。
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
-Delivery,交付方式
 Department,部门
 Department for this rule,部门
 Deposit,存款
@@ -529,7 +528,6 @@ Invalid posting type.,过账类型无效。
 Invalid push execution mode.,推送执行模式无效。
 Invalid push request.,推送请求无效。
 Invalid push target.,推送目标无效。
-Invalid recognition delivery.,识别交付方式无效。
 Invalid recognized invoice group.,识别出的发票分组无效。
 Invalid request,请求无效
 Invalid request key.,请求编号无效。
@@ -758,7 +756,6 @@ Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 Progress,进度
 PromptPay,PromptPay
-Provider Batch,供应商批次
 Provider Evidence,服务商调用证据
 Purchase (expense),采购（费用）
 Purchase (goods),采购（货品）
@@ -1350,7 +1347,6 @@ active,有效
 admitted,已受理
 "allowed root, set once on the Companion",允许读取的根目录（在小助手上设一次）
 amount,金额
-batch_waiting,等待批处理识别
 before VAT,未税
 catalog_refresh_invalid,目录证据无效，请刷新后重新选择。
 catalog_refresh_pending,目录正在等待刷新。

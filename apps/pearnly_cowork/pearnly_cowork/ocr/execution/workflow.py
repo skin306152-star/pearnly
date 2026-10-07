@@ -48,12 +48,6 @@ def _require_work(doc):
 
 def _check(doc, frozen=None, examples=None):
     _require_work(doc)
-    return verify(doc, frozen, examples)
-
-
-def verify(doc, frozen=None, examples=None):
-    """付费前复核（不要求工作单）：发起人仍有权限、原件未变、冻结的配置与样例仍有效。批处理收集请求（ADR-018，
-    那时还没有工作单）直接用它；识别工作单里的复核（``_check``）先核工作单再走这里。"""
     # Long RQ jobs retain Frappe's local roles cache even after another request
     # invalidates Redis. Reset the actor context before each paid call/save.
     frappe.set_user(doc.actor)
@@ -106,16 +100,14 @@ def _recognize(doc, frozen, examples, source):
         if kind != "excel" or units != document.billing_characters:
             frappe.throw(_("Recognition input and ownership cannot be changed."))
         return _freeze_result(doc, EngineResult(pipeline, ()), frozen, examples)
-    # 批处理交付（ADR-018）：结果已按检查点键预先填在本站，最后这一遍必须在本机跑才取得到，不交 Cloud Run、不回放。
-    batched = getattr(doc, "delivery", None) == service.BATCH_DELIVERY
-    remote = forward.settings() and not batched
+    environment = frozen["environment"]
     # 测试租户开着回放压测（``replay``）：不调谷歌、不交 Cloud Run，取以前真识别过的同一份原件的结果，之后照常走
-    replaying = replay.active() and not batched
+    replaying = replay.active()
     stored = stored_original(source)
-    content = (None if replaying or stored or source.kind == "document" or not remote
+    content = (None if replaying or stored or source.kind == "document" or not forward.settings()
                else read_bytes(source))
     # 原件在服务器上且超过一次请求能带的大小（20 MiB）：照旧在本机读，不让整份报错（ADR-016）。
-    if replaying or (source.kind != "document" and remote
+    if replaying or (source.kind != "document" and forward.settings()
                      and (stored or len(content) <= contract.MAX_CONTENT_BYTES)):
         # 在 Cloud Run 上读（ADR-0015）：同一份引擎、同样冻结的配置；发出前已复核（上面的 _check），存结果前再复核一次。
         # 原件在原件桶里（浏览器直传，ADR-016）就只给对象和版本号，Cloud Run 自己读、核对 sha256。
@@ -141,7 +133,12 @@ def _recognize(doc, frozen, examples, source):
         if flags is not None:
             flags.cowork_previews = previews[0] if previews else None
         return doc
-    client = local_client(frozen)
+    selected = invoice_policy(environment, frozen["policy"])
+    config = config_from_environment(environment, selected)
+    client = build_client(environment, core_identity={k: frozen["target"][k] for k in
+                          ("backend", "project", "location", "credentials_path")})
+    body = feedback.validate_snapshot(examples) if examples else None
+    selector = partial(fewshot_for_text, examples_by_tax=body["examples_by_tax"]) if body else None
     started = time.monotonic()
     # 多页文件各页同时读（开关 PEARNLY_OCR_PAGE_THREADS，见 pearnly_core.execution.pages）：进度改按「已读完几页」推，
     # 不再按「读到第 N 页」推（各页同时读时第 N 页开始不代表前面都读完了）。
@@ -163,41 +160,23 @@ def _recognize(doc, frozen, examples, source):
 
     # 本机读：开了多线程时每个进程同时最多 local_slots() 份（渲染与整理吃内存）；交给 Cloud Run 的不占这个名额（ADR-015）。
     with core_pool.local_slot():
-        result = run_local(doc, frozen, examples, source, guarded(client.model_call), guarded(client.vision_call),
-                           page_map, units=(kind, units))
+        if source.kind == "document":
+            document = extract_table(read_bytes(source), source.filename)
+            validate_document(document)
+            freeze_doc_manifest(source, document)  # unchanged input/manifest required on every replay
+            if kind != "excel" or units != document.billing_characters:
+                frappe.throw(_("Recognition input and ownership cannot be changed."))
+            result = run_table(document, guarded(client.model_call), config=config,
+                anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
+                today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
+        else:
+            with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
+                            enable_text_path=selected.text_fast_path,
+                            image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as pages:
+                result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
+                    anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
+                    today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector, map_pages=page_map)
     return _freeze_result(doc, result, frozen, examples)
-
-
-def local_client(frozen):
-    """本机识别用的供应商客户端（谷歌 + 按冻结配置路由的 Claude）：实时识别与批处理收集请求（``batch``）同一个。"""
-    return build_client(frozen["environment"], core_identity={k: frozen["target"][k] for k in
-                        ("backend", "project", "location", "credentials_path")},
-                        claude_target=frozen.get("anthropic"))
-
-
-def run_local(doc, frozen, examples, source, model_call, vision_call, page_map=None, units=None):
-    """本机跑一遍引擎（冻结的配置、日期、样例与原件）：实时识别与批处理收集请求（ADR-018）走同一段，
-    所以两边发出的请求逐字节相同、检查点键相同。``units``：表格要核对的计费基数（``(kind, units)``）。"""
-    environment = frozen["environment"]
-    selected = invoice_policy(environment, frozen["policy"])
-    config = config_from_environment(environment, selected)
-    body = feedback.validate_snapshot(examples) if examples else None
-    selector = partial(fewshot_for_text, examples_by_tax=body["examples_by_tax"]) if body else None
-    anchor = date.fromisoformat(str(doc.anchor_date))
-    if source.kind == "document":
-        document = extract_table(read_bytes(source), source.filename)
-        validate_document(document)
-        freeze_doc_manifest(source, document)  # unchanged input/manifest required on every replay
-        kind, count = units or service.billing_basis(doc)
-        if kind != "excel" or count != document.billing_characters:
-            frappe.throw(_("Recognition input and ownership cannot be changed."))
-        return run_table(document, model_call, config=config, anchor_year=anchor.year, today=anchor,
-                         fewshot_selector=selector)
-    with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
-                    enable_text_path=selected.text_fast_path,
-                    image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")), orient=ocr.orient) as pages:
-        return run_invoice(pages, model_call, vision_call, config=config, anchor_year=anchor.year, today=anchor,
-                           fewshot_selector=selector, map_pages=page_map)
 
 
 def _freeze_result(doc, result, frozen, examples, remote=None):

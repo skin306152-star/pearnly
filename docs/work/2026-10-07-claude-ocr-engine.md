@@ -9,7 +9,7 @@
   3. 开户后台能切换，站点步骤写对配置；缺 Claude 连接时拒绝。
   4. 测试环境（testcowork）用聚合平台密钥真读通过，交用户试用。
 - 本次不做：ERP / DMS；客户计费单价；生产正式密钥与部署（另行按发布流程）。
-- 本次范围状态：第一、二、三步实现完成（选 Claude 就全部走 Claude），等用户压测。收尾状态：施工中。
+- 本次范围状态：**已废止（2026-10-07 用户）**，代码已从 main 撤回，测试资源已删。收尾状态：见文末「废止与清理」。
 - 分支 / 基线 / 工作树 / 集成目标：`pearnly/claude-ocr-engine` / `63e2c712`（10-07 变基到 `a2443248`）/ `/Users/skin/pearnly-wt-claude-ocr` / `main`。
 - 并行窗口：Cowork「文件夹自动录入」（`pearnly/cowork-folder-intake`，改 `folder_intake/`、companion、`hooks.py`、翻译、架构说明）。
   本包只动 `ocr/`（providers、engine、execution/settings、remote）、`pearnly_control` 的部署与开户步骤、站点步骤脚本、Cloud Run 部署脚本、
@@ -117,3 +117,19 @@ testcowork 测试副本与另一窗口（文件夹自动录入）共用，本包
 - `pearnly_ocr_replay` 恢复为 `{"enabled": 1, "profile": "normal"}`（另一窗口的临时设置）；
 - 删 `pearnly_cowork_ocr_environment.OCR_ENGINE` 与 `pearnly_anthropic`；
 - 通知「Cowork单据自动化识别推送」窗口；`pearnly_cowork_ocr_remote`、`pearnly_cowork_folder_intake`、lab-stop 由它恢复。
+
+## 金标对照与废止（2026-10-07）
+
+- 金标：测试机 `语料/金标-2026-10/`，306 份分层抽样里挑「产品真会遇到」的 215 份（应录入 164 份 / 206 张票，非票据 51 份），
+  8 个代理不看任何引擎结果逐张填写，4 个代理对争议格盲读复核（184 个答案 177 个与金标一致，改 2 格）。
+- 结果（真实入口，Claude 官方 API 批处理 / 谷歌现行）：印了的字段读错 Claude 5.7%、谷歌 2.1%；按谷歌走的步数分三层，
+  Claude 在「谷歌只读一次」「读一次 + 读字核对」「复核救回」三层都差 2.5–4 倍；非票据被录 Claude 31 / 51、谷歌 22 / 51；
+  多录 13 / 27 张。成本 Claude 批处理约 ฿0.30 / 页，谷歌 ฿0.155（明年约 ฿0.28）。小样本「约 1%」是先看了 Claude 结果再判、被带偏。
+- 用户决定：Claude 作废删除，生产只留谷歌，后续修复只针对谷歌（非票据、多联去重），用这份金标验证。
+
+## 废止与清理
+
+- 代码：撤回 08ca7999 / 718f4095 / e6eb7359 / 62b6db8b / 894f6fac / 86608a82 / e477b729；文件夹录入的批处理调用由该窗口撤回（59afd784）。
+  ADR-017 / ADR-018 标「已废止」保留。生产（2a5158ea）里的 Claude 代码默认关闭未生效，随下一批部署删掉。
+- 资源：测试 Cloud Run 服务 cowork-ocr-test 与镜像、密钥 pearnly-anthropic-test、testcowork 的 Claude 配置、本机 Anthropic 密钥文件
+  —— 清理结果见提交说明与本记录更新。

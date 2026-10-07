@@ -30,38 +30,6 @@ COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
               "pearnly_cowork_ocr_policy": {"mode": "economy"}}
 
 
-def anthropic_conf(runtime):
-    """Claude 连接（ADR-017）：服务器 runtime.env 的 ``PEARNLY_ANTHROPIC_CONFIG``（JSON：api_key / base_url / auth / models）。
-    没填返回 ``None``（不登记）；填坏了直接报错，不写半套。测试期填聚合平台那份，上生产换正式那份。"""
-    raw = (runtime.get("PEARNLY_ANTHROPIC_CONFIG") or "").strip()
-    if not raw:
-        return None
-    value = json.loads(raw)
-    assert isinstance(value, dict) and set(value) <= {"api_key", "base_url", "auth", "models"}
-    assert isinstance(value.get("api_key"), str) and value["api_key"].strip()
-    assert str(value.get("base_url") or "").startswith("https://")
-    assert value.get("auth", "x-api-key") in ("x-api-key", "bearer")
-    assert isinstance(value.get("models", {}), dict)
-    return value
-
-
-def ocr_environment(conf, engine):
-    """本站识别环境 = 组默认（common_site_config）+ 本站已有覆盖（如 OCR_DIRECT_MODEL）+ 开户后台选的引擎（ADR-017）。
-
-    选 Claude 而这台服务器没登记 Claude 连接就停在这里（不写半套配置）；切回 gemini 只去掉 OCR_ENGINE，
-    本站原来选的 3.8 / flash-lite 照旧生效。"""
-    if engine not in ("gemini", "claude"):
-        raise ValueError("Unknown recognition engine")
-    environment = dict(conf.get("pearnly_cowork_ocr_environment") or COWORK_OCR["pearnly_cowork_ocr_environment"])
-    if engine == "claude":
-        if not conf.get("pearnly_anthropic"):
-            raise StepHint("选了 Claude 识别，但这台服务器还没配 Claude 连接（runtime.env 的 PEARNLY_ANTHROPIC_CONFIG）：先配好再重试这一步")
-        environment["OCR_ENGINE"] = "claude"
-    else:
-        environment.pop("OCR_ENGINE", None)
-    return environment
-
-
 def line_login(p, group, runtime):
     """在该产品的账号池（ERP / DMS 业务 realm，Cowork 自己的 realm）建/更新 LIFF 所属 LINE Login 频道的
     共用隐藏入口，返回别名；不开就返回空串。"""
@@ -307,13 +275,6 @@ def main():
         # 所以每个 Cowork 租户识别都报“请先配置 Cowork 发票识别参数”（testcowork 2026-09-27 真机）。
         # 档位取旧线上的兜底档 economy（`engine_policy._FAILSAFE_MODE`），模型走 Vertex（与 `set_ocr` 同一连接）。
         values.update(COWORK_OCR)
-        # Claude 连接（ADR-017）：runtime.env 配了就登记、没配就去掉（同一份 runtime.env 是唯一来源）；
-        # 选了 Claude 而没登记的站点在 set_ocr 停下并提示。
-        claude = anthropic_conf(runtime)
-        if claude:
-            values["pearnly_anthropic"] = claude
-        else:
-            values.pop("pearnly_anthropic", None)
     common.write_text(json.dumps(values))
     Path("apps.txt").write_text("\n".join(["frappe", "erpnext", "pearnly_core", "pearnly_dms",
                                         "pearnly_cowork", "pearnly_erp_portal"]) + "\n")
@@ -407,8 +368,6 @@ def main():
         assert Path("/run/secrets/ocr.json").is_file()
         config(pearnly_ocr_backend="vertex", pearnly_ocr_credentials="/run/secrets/ocr.json",
                pearnly_ocr_project="pearnly", pearnly_ocr_location="asia-southeast1")
-        if group == "cowork" and "engine" in p:
-            config(pearnly_cowork_ocr_environment=ocr_environment(frappe.conf, p["engine"]))
     elif action == "set_line":
         if p.get("clear_credentials"):
             config(pearnly_line_channel_id="", pearnly_line_channel_secret="",

@@ -18,8 +18,6 @@
 - [ADR-014 DMS 会话复用、白天增量同步与账号并发](0014-dms-session-reuse-live-sync.md)
 - [ADR-015 Cowork 发票识别在 Cloud Run 上执行](0015-ocr-on-cloud-run.md)
 - [ADR-016 Cowork 原件由浏览器直传谷歌存储](0016-originals-direct-to-cloud-storage.md)
-- [ADR-017 识别引擎可切换：新增 Claude（Anthropic）供应商与「只读一遍」读法](0017-ocr-engine-claude.md)
-- [ADR-018 Claude 批处理识别：预填检查点，识别仍走实时同一条路](0018-claude-batch-delivery.md)
 
 待定稿：
 
@@ -33,3 +31,5 @@
 2026-09-19 补充：ADR-008 经用户确认，允许云端独立计费 Site 复用 `pearnly_control` 的计费表与规则；它不提供 Desk、开户或用户管理。管理页面和人工审核仍在本机。此决定更新上文 ADR-004 对整个 App 不上云的旧描述，不将整套控制面搬上云。
 
 已确认但不重复询问的事项见计划包 `10-IMPLEMENTATION-HANDOFF.md` 的「已确认，不要重问」。
+- [ADR-017 识别引擎可切换：新增 Claude（Anthropic）供应商与「只读一遍」读法（已废止）](0017-ocr-engine-claude.md)
+- [ADR-018 Claude 批处理识别（已废止）](0018-claude-batch-delivery.md)

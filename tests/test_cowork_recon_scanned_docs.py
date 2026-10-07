@@ -1687,7 +1687,7 @@ class NoCallAfterTheReconciliationClosed(unittest.TestCase):
 				mock.patch.object(document_ocr, "PageSource", mock.MagicMock()), \
 				mock.patch.object(document_ocr, "_mime", return_value="image/png"), \
 				mock.patch.object(document_ocr, "read_file", side_effect=lambda source, content, is_pdf, mime, kind,
-					docai, model, map_pages=None, environment=None: (docai("a"), docai("b"))):
+					docai, model, map_pages=None: (docai("a"), docai("b"))):
 			with self.assertRaises(document_ocr.ReconClosed):
 				document_ocr._read(b"img", "p.png", 1, {"environment": {}, "target": dict.fromkeys(document_ocr.IDENTITY)},
 					"bank_statement", "job")

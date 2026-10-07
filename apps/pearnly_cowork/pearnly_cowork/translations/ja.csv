@@ -355,7 +355,6 @@ Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
-Delivery,配信方式
 Department,部門
 Department for this rule,部門
 Deposit,入金
@@ -529,7 +528,6 @@ Invalid posting type.,転記タイプが無効です。
 Invalid push execution mode.,送信実行モードが無効です。
 Invalid push request.,送信要求が無効です。
 Invalid push target.,送信先が無効です。
-Invalid recognition delivery.,認識の配信方式が無効です。
 Invalid recognized invoice group.,認識した請求書グループが無効です。
 Invalid request,リクエストが無効です
 Invalid request key.,要求キーが無効です。
@@ -758,7 +756,6 @@ Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 Progress,進捗
 PromptPay,PromptPay
-Provider Batch,プロバイダーバッチ
 Provider Evidence,プロバイダー呼び出し証跡
 Purchase (expense),仕入（経費）
 Purchase (goods),仕入（商品）
@@ -1350,7 +1347,6 @@ active,有効
 admitted,受け付け済み
 "allowed root, set once on the Companion",許可されたルート（コンパニオンで一度設定）
 amount,金額
-batch_waiting,バッチ認識待ち
 before VAT,税抜
 catalog_refresh_invalid,ディレクトリの情報が無効です。更新して選択し直してください。
 catalog_refresh_pending,ディレクトリの更新を待機しています。

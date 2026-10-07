@@ -140,14 +140,10 @@ def _original(body):
 
 
 def request(*, site, work, batch, filename, content=None, page_count, anchor_date, environment, policy,
-            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None, previews=None,
-            anthropic=None):
-    """``anthropic``：Claude 引擎（ADR-017）受理时冻结的非密连接（入口、认证方式、模型名）；密钥在 Cloud Run 自己的密钥里。"""
+            examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None, previews=None):
     body = {"version": VERSION, "kind": "cowork.invoice", "site": site, "work": work, "batch": batch,
             "filename": filename, "page_count": page_count, "anchor_date": anchor_date, "environment": environment,
             "policy": policy, "examples": examples, "variant": variant, "yield_seconds": yield_seconds}
-    if anthropic is not None:
-        body["anthropic"] = anthropic
     if previews is not None:
         body["previews"] = previews
     if original is not None:
@@ -208,27 +204,13 @@ DOCUMENT_TYPES = ("bank_statement", "general_ledger", "vat_report")
 
 
 def document_request(*, site, work, filename, content, page_count, document_type, environment, regions=None,
-                     yield_seconds=YIELD_SECONDS, anthropic=None):
+                     yield_seconds=YIELD_SECONDS):
     body = {"version": VERSION, "kind": "cowork.document", "site": site, "work": work, "filename": filename,
             "content": base64.b64encode(content).decode("ascii"), "page_count": page_count,
             "document_type": document_type, "environment": environment, "regions": regions,
             "yield_seconds": yield_seconds}
-    if anthropic is not None:
-        body["anthropic"] = anthropic
     parse_request(body)
     return body
-
-
-def _anthropic(body):
-    """只核形状（不含密钥）；入口、模型名是否合规由 Cloud Run 建客户端时按 ``providers.anthropic.connection`` 再核。"""
-    if "anthropic" not in body:
-        return
-    value = body["anthropic"]
-    if (not isinstance(value, dict) or set(value) != {"base_url", "auth", "models"}
-            or not isinstance(value["base_url"], str) or not isinstance(value["auth"], str)
-            or not isinstance(value["models"], dict)
-            or any(not isinstance(k, str) or not isinstance(v, str) for k, v in value["models"].items())):
-        raise ValueError("invalid anthropic")
 
 
 def parse_request(body):
@@ -258,7 +240,6 @@ def parse_request(body):
         raise ValueError("invalid examples")
     if body.get("variant", "intake") not in VARIANTS:
         raise ValueError("invalid variant")
-    _anthropic(body)
     _yield_seconds(body)
     if "original" in body:
         if "content" in body:
@@ -295,7 +276,6 @@ def _parse_document(body):
     regions = body.get("regions")
     if regions is not None and (not isinstance(regions, list) or not all(isinstance(r, dict) for r in regions)):
         raise ValueError("invalid regions")
-    _anthropic(body)
     _yield_seconds(body)
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)

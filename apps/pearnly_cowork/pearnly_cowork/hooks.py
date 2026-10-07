@@ -505,10 +505,7 @@ pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep",
                                              "pearnly_cowork.work.reminders.run",
                                              # 部署 / 重启时被杀的对账续跑（recon_center/jobs.py）
-                                             "pearnly_cowork.recon_center.jobs.resume_abandoned",
-                                             # Claude 批处理识别：查批次、结果回来就建工作单（ocr/execution/batch.py，ADR-018）；
-                                             # 没有等着的识别时只有一次查询
-                                             "pearnly_cowork.ocr.execution.batch.tick"],
+                                             "pearnly_cowork.recon_center.jobs.resume_abandoned"],
                              "* * * * *": [
                                  # 等识别的对账：提醒万一没送到、时限到了、开始读了、名额腾出来了，放回队列（recon_center/waiting.py）
                                  "pearnly_cowork.recon_center.waiting.tick",

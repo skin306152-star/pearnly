@@ -9,8 +9,7 @@ from copy import deepcopy
 from pearnly_cowork.ocr.enterprise import contract
 
 
-def build_request(category: str, transcript: str, *, image_only: bool = False, model: str | None = None) -> dict:
-    """``model``：站点选的抽取模型（ADR-017；不给 = 合同里的 3.8）。提示词、结果格式与合同哈希不随模型变。"""
+def build_request(category: str, transcript: str, *, image_only: bool = False) -> dict:
     prompt = contract.PROMPTS[category]
     if image_only:
         prompt = prompt.replace(
@@ -21,7 +20,7 @@ def build_request(category: str, transcript: str, *, image_only: bool = False, m
     else:
         prompt += "\nEnterprise OCR transcript:\n---\n" + transcript + "\n---"
     return {
-        "model": model or contract.MODEL,
+        "model": contract.MODEL,
         "location": contract.LOCATION,
         "prompt": prompt,
         "config": {

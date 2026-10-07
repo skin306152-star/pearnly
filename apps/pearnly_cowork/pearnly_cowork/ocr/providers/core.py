@@ -5,35 +5,13 @@ import frappe
 
 from pearnly_core import ocr
 from pearnly_core.execution import budget, pool, provider, work
-from pearnly_cowork.ocr.providers import anthropic
 from pearnly_cowork.ocr.providers.client import ProviderClient, ProviderConfigurationError
-from pearnly_cowork.ocr.providers.route import ModelRouter
-
-# Claude 连接（ADR-017）：站点配置（Cowork 组的 common_site_config，由开户步骤从服务器的 runtime.env 写入，
-# 与 LINE / 计费凭据同一套做法）``{"api_key", "base_url", "auth": "x-api-key" | "bearer", "models": {正式模型名: 入口上的模型名}}``。
-ANTHROPIC_CONF = "pearnly_anthropic"
 
 
-def _anthropic_conf():
-    value = (getattr(frappe, "conf", None) or {}).get(ANTHROPIC_CONF)
-    if not value:
-        return None
-    if not isinstance(value, dict):
-        raise ProviderConfigurationError("ocr.anthropic_credentials_not_configured")
-    return value
-
-
-def anthropic_target():
-    """当前站点的 Claude 连接里非密的那部分（入口、认证方式、模型名映射），冻结进工作单用；没配返回 ``None``。"""
-    value = _anthropic_conf()
-    if value is None:
-        return None
-    return anthropic.connection({key: value[key] for key in ("base_url", "auth", "models") if key in value})
-
-
-def anthropic_key():
-    value = _anthropic_conf() or {}
-    return str(value.get("api_key") or "")
+def core_identity():
+    """References only. Never return an access token or read credential contents."""
+    return {"backend": ocr.backend(), "project": ocr.project(), "location": ocr.location(),
+            "credentials_path": ocr.credentials_path()}
 
 
 def wait_without_transaction(seconds):
@@ -50,14 +28,12 @@ def wait_without_transaction(seconds):
     time.sleep(seconds)
 
 
-def build_client(environment, *, core_identity, claude_target=None):
+def build_client(environment, *, core_identity):
     """Use a frozen nonsecret environment and admission-time Core references.
 
     Only Vertex is migrated in this slice. No model or feature selection is
     re-read from Site config; the engine supplies the frozen actual model.
     A caller must still recheck source/actor access immediately before callback.
-    ``claude_target``: the frozen nonsecret Claude connection (ADR-017) when the
-    engine chose Claude; Claude model calls are routed to it, everything else stays Vertex.
     """
     frozen = dict(core_identity)
     if (frozen.get("backend") != "vertex" or not frozen.get("project")
@@ -94,24 +70,12 @@ def build_client(environment, *, core_identity, claude_target=None):
             raise ProviderConfigurationError("ocr.invalid_provider_checkpoint")
         return saved["body"]
 
-    shared = dict(post=provider.post, checkpoint_key=work.checkpoint_key,
-                  reject_checkpoint=lambda key, body: work.checkpoint(key, "rejected", body),
-                  terminal_read=terminal_read,
-                  terminal_write=lambda key, body: work.checkpoint("cowork.terminal:" + key, "terminal", body),
-                  feedback=budget.feedback, scope=budget.scope, checkpoint_read=work.checkpoint)
-    google = ProviderClient(environment, project=frozen["project"], access_token=ocr.access_token,
-        require_context=require_context,
+    return ProviderClient(environment, project=frozen["project"], post=provider.post,
+        checkpoint_key=work.checkpoint_key,
+        reject_checkpoint=lambda key, body: work.checkpoint(key, "rejected", body),
+        terminal_read=terminal_read,
+        terminal_write=lambda key, body: work.checkpoint("cowork.terminal:" + key, "terminal", body),
+        feedback=budget.feedback, scope=budget.scope, access_token=ocr.access_token,
+        require_context=require_context, checkpoint_read=work.checkpoint,
         regions=(getattr(frappe, "conf", None) or {}).get("pearnly_document_ai_regions"),
-        in_queue_job=provider._in_queue_job, sleep=wait_without_transaction, **shared)
-    if claude_target is None:
-        return google
-    claude_frozen = anthropic.connection(claude_target)
-
-    def require_claude_context():
-        require_context()
-        if anthropic_target() != claude_frozen:
-            raise ProviderConfigurationError("ocr.provider_configuration_changed")
-
-    return ModelRouter(google, anthropic.AnthropicClient(claude_frozen, api_key=anthropic_key,
-                                                          require_context=require_claude_context,
-                                                          clock=time.monotonic, **shared))
+        in_queue_job=provider._in_queue_job, sleep=wait_without_transaction)

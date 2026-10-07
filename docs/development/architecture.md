@@ -88,7 +88,7 @@ ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：
 读的模型：ERP 固定 `gemini-3.1-flash-lite`（3.8 升级只是站点开关 `pearnly_erp_ocr_escalation`，默认关）；Cowork 电子 PDF 走文字层、
 `gemini-3.1-flash-lite`，扫描件 / 照片的看图直读按站点配置 `OCR_DIRECT_MODEL`（`pearnly_cowork_ocr_environment`）选模型，
 2026-10-02 过金标闸门后四个 Cowork 租户已写 `gemini-3.8-flash`（[记录](../work/2026-10-02-direct-model-3.8.md)；3.8 优惠价到 2026-12-31）。
-Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。Cowork 另有可切换的 Claude 引擎（[ADR-017](../adr/0017-ocr-engine-claude.md)，站点配置 `OCR_ENGINE=claude`，开户后台按部署切换）：供应商适配层 `ocr.providers.anthropic`、按模型路由 `ocr.providers.route`，看图直读只读一遍。Claude 另有批处理交付（[ADR-018](../adr/0018-claude-batch-delivery.md)，`submit(delivery="batch")`）：`ocr.execution.batch` 收集请求、交 `ocr.providers.anthropic_batch`，结果按检查点键预填后再建工作单，识别仍走实时同一条路。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
+Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
 改模型、提示词或规则先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较，并过 [识别改动上线闸门](verification.md#识别改动上线闸门)（`scripts/eval-invoices.py`）。
 
 ## 本地控制面与云端开户

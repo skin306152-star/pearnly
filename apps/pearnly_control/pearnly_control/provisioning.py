@@ -534,49 +534,6 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     # Commit together with the channel save. The runner sees only committed state.
 
 
-OCR_ENGINES = ("gemini", "claude")  # ADR-017：开户后台的「识别引擎」；与 Cowork 站点配置 OCR_ENGINE 同一组值
-
-
-def _ocr_payload(dep, **extra) -> dict:
-    """``set_ocr`` 步骤的载荷。Cowork 带上本部署选的识别引擎（默认现状 gemini），其余产品不带。"""
-    payload = {"site": dep.site_name, "group": dep.bench_group}
-    if dep.product == "cowork":
-        engine = getattr(dep, "ocr_engine", None) or "gemini"
-        if engine not in OCR_ENGINES:
-            frappe.throw(_("Unknown recognition engine."))
-        payload["engine"] = engine
-    payload.update(extra)
-    return payload
-
-
-def queue_ocr_engine(dep):
-    """部署单上改了识别引擎（ADR-017）：把该部署的 ``set_ocr`` 步骤带上新引擎重新排队，下发到正在服务的站点。
-
-    与改 LINE 渠道（``queue_cloud_line_config``）同一做法：只改一个已开通的云端站点，带 ``restart`` 让该产品组
-    马上读到新配置；还没开通完的部署由开通计划自己带上当时选的引擎。"""
-    if dep.product != "cowork":
-        return
-    target = frappe.db.get_value(ISSUE, dep.issue, "target")
-    if not infra.is_cloud(target):
-        return
-    tenant = frappe.db.get_value(ISSUE, dep.issue, "tenant")
-    if tenant and frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting":
-        return
-    parent = frappe.db.get_value(REQUEST, {"idempotency_key": dep.issue}, "name")
-    if not parent:
-        return
-    req = frappe.get_doc(REQUEST, parent, for_update=True)
-    step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_ocr"), None)
-    if not step:
-        return
-    if step.status == "running":
-        frappe.throw(_("The recognition engine is being applied. Try again shortly."))
-    step.payload = json.dumps(_ocr_payload(dep, restart=True))
-    step.status, step.output, step.finished_at = "pending", "", None
-    req.status, req.error, req.finished_at = "pending", "", None
-    req.save(ignore_permissions=True)
-
-
 def _roles_for(issue, dep) -> dict:
     """该部署要建的角色与权限 = 开单上**勾了**的功能。
 
@@ -683,7 +640,7 @@ def _steps_for(issue, dep, row) -> list[dict]:
         # "站点开出来好好的，就是识别不了"（老样板站是手工补的）。
         {"step_key": f"{dep.name}:set_ocr", "deployment": dep.name,
          "action": "set_ocr", "status": "pending",
-         "payload": json.dumps(_ocr_payload(dep), ensure_ascii=False)},
+         "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},
         {"step_key": f"{dep.name}:finalize_site", "deployment": dep.name,
          "action": "finalize_site", "status": "pending",
          "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},

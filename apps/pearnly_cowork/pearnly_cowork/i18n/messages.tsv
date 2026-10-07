@@ -1433,7 +1433,3 @@ Schedule	每月运行	กำหนดการ	実行日時	cowork.folder.col.sc
 Folder results	结果	ผลลัพธ์	結果	cowork.folder.col.result
 One folder per rule. PDF and image files only.	一个文件夹对应一条规则，只读 PDF 和图片。	หนึ่งโฟลเดอร์ต่อหนึ่งกฎ อ่านเฉพาะ PDF และรูปภาพ	1 フォルダーに 1 ルール。PDF と画像のみ。	cowork.folder.folderHint
 View the ones to check	查看待处理	ดูรายการที่ต้องตรวจ	要確認を見る	cowork.folder.viewAttention
-batch_waiting	等待批处理识别	รอการอ่านแบบชุด	バッチ認識待ち	
-Delivery	交付方式	วิธีส่งงาน	配信方式	
-Provider Batch	供应商批次	ชุดงานของผู้ให้บริการ	プロバイダーバッチ	
-Invalid recognition delivery.	识别交付方式无效。	วิธีส่งงานอ่านเอกสารไม่ถูกต้อง	認識の配信方式が無効です。	

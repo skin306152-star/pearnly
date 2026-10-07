@@ -16,15 +16,11 @@ ORIGINALS=pearnly-cowork-originals-sg   # 浏览器直传的原件（ADR-016）�
 [ -z "$(git status --porcelain -- apps/pearnly_core apps/pearnly_cowork infrastructure/cloud-run)" ] || {
   echo "识别代码有未提交改动：只部署已提交的版本" >&2; exit 1; }
 TAG="$REGION-docker.pkg.dev/$PROJECT/pearnly/$SERVICE:$(git rev-parse --short=12 HEAD)"
-# Claude 连接（ADR-017）：Secret Manager 里的 JSON（同站点配置 pearnly_anthropic 的格式），设了 PEARNLY_ANTHROPIC_SECRET 才挂成环境变量
-# ANTHROPIC_CONFIG；测试服务挂聚合平台那份、线上挂正式那份。不设就不挂（已挂的保持不变）：只有选了 Claude 引擎的租户会用到。
-SECRETS=()
-[ -z "${PEARNLY_ANTHROPIC_SECRET:-}" ] || SECRETS=(--update-secrets "ANTHROPIC_CONFIG=$PEARNLY_ANTHROPIC_SECRET:latest")
 docker buildx build --platform linux/amd64 --load -t "$TAG" -f infrastructure/cloud-run/cowork-ocr.Dockerfile .
 docker push "$TAG"
 gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" --image "$TAG" --service-account "$ACCOUNT" \
   --no-allow-unauthenticated --cpu 2 --memory 4Gi --concurrency 8 --min-instances 0 --max-instances 20 \
   --timeout 1800 --cpu-boost --set-env-vars "PEARNLY_OCR_BUCKET=$BUCKET,PEARNLY_ORIGINALS_BUCKET=$ORIGINALS,OCR_THREADS=8,OCR_PAGE_THREADS=8" \
-  --labels app=pearnly,role=ocr "${SECRETS[@]}" --quiet
+  --labels app=pearnly,role=ocr --quiet
 gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --format="value(status.url,spec.template.metadata.annotations['autoscaling.knative.dev/minScale'])"

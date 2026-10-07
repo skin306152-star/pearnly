@@ -15,13 +15,6 @@ TEARDOWN_FLAG = "pearnly_teardown"
 
 
 class PearnlyDeployment(Document):
-    def on_update(self):
-        """改了识别引擎（ADR-017）就下发到租户站点；新开的部署由开通计划带上。"""
-        if self.product == "cowork" and not self.flags.in_insert and self.has_value_changed("ocr_engine"):
-            from pearnly_control.provisioning import queue_ocr_engine
-
-            queue_ocr_engine(self)
-
     def on_trash(self):
         """**一条部署记录背后是一台真实站点，不能单删。**
 

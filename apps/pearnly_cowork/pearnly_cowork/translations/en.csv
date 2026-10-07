@@ -355,7 +355,6 @@ Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
-Delivery,Delivery
 Department,Department
 Department for this rule,Department for this rule
 Deposit,Deposit
@@ -529,7 +528,6 @@ Invalid posting type.,Invalid posting type.
 Invalid push execution mode.,Invalid push execution mode.
 Invalid push request.,Invalid push request.
 Invalid push target.,Invalid push target.
-Invalid recognition delivery.,Invalid recognition delivery.
 Invalid recognized invoice group.,Invalid recognized invoice group.
 Invalid request,Invalid request
 Invalid request key.,Invalid request key.
@@ -758,7 +756,6 @@ Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 Progress,Progress
 PromptPay,PromptPay
-Provider Batch,Provider Batch
 Provider Evidence,Provider Evidence
 Purchase (expense),Purchase (expense)
 Purchase (goods),Purchase (goods)
@@ -1350,7 +1347,6 @@ active,active
 admitted,admitted
 "allowed root, set once on the Companion","allowed root, set once on the Companion"
 amount,amount
-batch_waiting,batch_waiting
 before VAT,before VAT
 catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
 catalog_refresh_pending,The directory refresh is still pending.

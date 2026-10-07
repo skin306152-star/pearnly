@@ -106,8 +106,6 @@ class EngineConfig:
     double_read: bool = False
     image_first: bool = False
     enable_layer3: bool = True  # 3.8 视觉复核（L3）；按站点配置默认关（ADR-013），见 config_from_environment
-    # 只读一遍（ADR-017，Claude 引擎）：看图直读一次，没过闸不复核、不叫 Vision、不重读，原因写进提示转人工复核。
-    single_read: bool = False
     fallback_to_layer2: bool = True
     max_escalations: int | None = None
     direct_timeout_s: float = 60

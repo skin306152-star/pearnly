@@ -103,7 +103,6 @@ Finished At,Finished At
 For example http://keycloak.localhost:8105,For example http://keycloak.localhost:8105
 For example: local sample / production,For example: local sample / production
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.","For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email."
-Gemini keeps the current reading. Claude reads each page once with Claude Sonnet. Saving applies it to the tenant site.,Gemini keeps the current reading. Claude reads each page once with Claude Sonnet. Saving applies it to the tenant site.
 Grant feature roles,Grant feature roles
 Granted DocTypes,Granted DocTypes
 Idempotency Key,Idempotency Key
@@ -213,7 +212,6 @@ Realm,Realm
 Reason (the tenant will see it; required),Reason (the tenant will see it; required)
 Received Amount,Received Amount
 Received amount (as actually credited by the bank),Received amount (as actually credited by the bank)
-Recognition engine,Recognition engine
 Reject,Reject
 Reject top-up,Reject top-up
 Rejected,Rejected
@@ -280,7 +278,6 @@ The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.","The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up","The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up"
 The received amount must be greater than 0,The received amount must be greater than 0
-The recognition engine is being applied. Try again shortly.,The recognition engine is being applied. Try again shortly.
 The requested amount must be greater than 0,The requested amount must be greater than 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,The same key submitted twice yields only one set of resources. Defaults to the issue number.
 "The top-up amount must be between ฿0.01 and ฿500,000","The top-up amount must be between ฿0.01 and ฿500,000"
@@ -299,7 +296,6 @@ Transfer Slip,Transfer Slip
 Type,Type
 Unknown billing unit: {0},Unknown billing unit: {0}
 Unknown product: {0},Unknown product: {0}
-Unknown recognition engine.,Unknown recognition engine.
 Unknown step status: {0},Unknown step status: {0}
 Used This Cycle (pages),Used This Cycle (pages)
 Used to send messages (long-lived).,Used to send messages (long-lived).

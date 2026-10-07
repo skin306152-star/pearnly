@@ -49,18 +49,9 @@ def _target(connection, account_set_key):
 TARGETS = ("mrerp", "express", "none")
 
 
-# 交付方式（ADR-018）：缺省实时；``batch`` = Claude 批处理（同价减半，结果几分钟到几小时回来），给文件夹自动录入这类
-# 不急的入口用。只有冻结的引擎是 Claude、原件是图片 / PDF 才真走批处理，其余照旧实时（调用方不必先判断）。
-BATCH_DELIVERY = "batch"
-BATCH_WAITING = "batch_waiting"
-
-
 def submit(source_file, request_key, *, direction=None, posting_kind=None, payment=None,
-           connection=None, account_set_key=None, target=None, delivery=None):
+           connection=None, account_set_key=None, target=None):
     scope.require("intake")
-    if delivery not in (None, "", "realtime", BATCH_DELIVERY):
-        frappe.throw(_("Invalid recognition delivery."))
-    delivery = BATCH_DELIVERY if delivery == BATCH_DELIVERY else None
     if not isinstance(request_key, str) or not 1 <= len(request_key.strip()) <= 128:
         frappe.throw(_("A request key of 1 to 128 characters is required."))
     direction, posting_kind = normalize_direction(direction), normalize_posting_kind(posting_kind)
@@ -80,7 +71,7 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
     # 目标只在带了时进指纹：不带目标的老请求指纹不变，重放照旧认得出来。
     fingerprint = store.digest([source.name, source.sha256, frappe.session.user, request_key,
                                 direction, posting_kind, payment, *([connection, account_set_key] if connection else []),
-                                *([target] if target else []), *([delivery] if delivery else [])])
+                                *([target] if target else [])])
     admitted = _admitted(name, fingerprint, source)
     if admitted is not None:
         return admitted
@@ -101,8 +92,6 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
         frappe.throw(_("This file type is not supported."))
     frozen = frozen or settings.snapshot()
     examples = feedback.snapshot_for_scope(source.workspace, source.client) if frozen["fewshot"] else None
-    if delivery and not batch_eligible(frozen, source):
-        delivery = None  # 现行谷歌引擎 / 表格：没有批处理，照旧实时（指纹仍按调用方要的算，重复提交认得出）
     balance(billing_units, frozen["billing_tier"], kind=billing_kind)
     frappe.db.commit()  # 结束读快照再锁（到这里只读没写）：锁后的「交过没有」要看到别人刚提交的那份
     source = frappe.get_doc(files.SOURCE, source_file, for_update=True)
@@ -121,38 +110,15 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None, payme
         "examples_json": store.encode(examples), "anchor_date": frozen["anchor_date"],
         "direction": direction, "posting_kind": posting_kind, "payment": payment,
         "target_connection": connection, "target_account_set": account_set_key, "intake_target": target,
-        "phase": BATCH_WAITING if delivery else "admitted", "delivery": delivery,
+        "phase": "admitted",
         "billing_state": "not_due", "work_name": work_name})
-    if delivery:
-        # 批处理：先不建识别工作单（不占租户在途名额、等几小时也不会过期），收集请求交给 Anthropic；结果回来按检查点预填后
-        # 再建工作单（``batch.release``），照常识别、入库、扣费。
-        frappe.db.commit()
-        frappe.enqueue("pearnly_cowork.ocr.execution.batch.collect", queue="long", timeout=600,
-                       job_id="cowork-ocr-batch-" + doc.name, deduplicate=True, enqueue_after_commit=False,
-                       batch_name=doc.name)
-        return store.project(doc)
-    enqueue_work(doc)
-    return store.project(doc)
-
-
-def enqueue_work(doc):
-    """建这份识别的工作单（Core 把受理与工作单一起提交）；工作单名在识别单上早已定好。不做授权投影：批处理在
-    定时任务里（系统身份）放行时也用它（ADR-018），工作单本身记的是发起人。"""
     # Core commits admission+Work together. The Batch already contains the exact
     # deterministic Work name before a worker can be enqueued by that commit.
     with work_guard.work_creation():
         actual = work.submit(KIND, doc.name, {"batch_name": doc.name}, doc.actor)
-    if actual != doc.work_name:
+    if actual != work_name:
         raise RuntimeError("Unexpected OCR work identity")
-    return actual
-
-
-def batch_eligible(frozen, source):
-    """这份能不能走 Claude 批处理：冻结的引擎是 Claude、原件是图片 / PDF（表格与谷歌引擎没有批处理）。"""
-    from pearnly_cowork.ocr.engine.config import CLAUDE, engine_of
-
-    return (source.kind in ("image", "pdf") and bool(frozen.get("anthropic"))
-            and engine_of(frozen.get("environment") or {}) == CLAUDE)
+    return store.project(doc)
 
 
 def _admitted(name, fingerprint, source):
