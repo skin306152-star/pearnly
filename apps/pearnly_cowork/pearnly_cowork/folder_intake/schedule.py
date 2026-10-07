@@ -1,9 +1,7 @@
-"""每分钟的定时入口：站点总闸没开就立即返回（只读一次站点配置，不查库、不导入推进代码）。"""
-from pearnly_cowork.folder_intake import settings
+"""每分钟的定时入口：推进文件夹录入（没有待办文件时 `pump.run` 几条小查询就返回）。"""
 
 
 def tick():
-    if settings.enabled():
-        from pearnly_cowork.folder_intake import pump
+    from pearnly_cowork.folder_intake import pump
 
-        pump.run()
+    pump.run()

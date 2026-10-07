@@ -361,7 +361,7 @@ frappe.provide("frappe.pearnly");
 	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
 	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），
 	// 所以第二个参数留给"这不是提交、是删除"这类场合；默认仍是 submit。
-	// ── 上传前缩照片（站点开关 `pearnly_shrink_photos`，默认关；见 `pearnly_core/desk/upload.py`）─────────────
+	// ── 上传前缩照片（所有租户都开，参数由启动信息 `pearnly_shrink_photos` 给；见 `pearnly_core/desk/upload.py`）─────────────
 	// 按 EXIF 转正，只缩不放大：长边大于 2400 才缩到 2400（高质量缩放），存成 JPEG 0.92；其余（长边不超过 2400、PDF、
 	// 表格、SVG / GIF、浏览器解不开的 HEIC）原样返回。录入工作台与 ERP 采购 / 销售录入的照片上传口用。
 	p.shrink_photo = async file => {

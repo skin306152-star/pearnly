@@ -77,9 +77,6 @@ def owner_ready(rule):
 
 def _guarded(operation, handler):
     context, body = _released(operation)
-    if not settings.enabled():
-        http_auth.clear_private_messages()
-        return {"ok": False, "code": "cowork.folder.disabled", "protocol": PROTOCOL}
     try:
         result = handler(context, body)
         frappe.db.commit()

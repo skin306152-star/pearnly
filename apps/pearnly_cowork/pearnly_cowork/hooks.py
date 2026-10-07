@@ -497,7 +497,6 @@ after_migrate = ["pearnly_cowork.team.setup.sync_roles", "pearnly_cowork.access.
                  "pearnly_cowork.work.service.ensure_on_migrate"]
 boot_session = "pearnly_cowork.line.boot.boot_session"
 # 文件夹自动录入的站点总闸放进启动信息（不进按用户缓存的 boot_session，改总闸后刷新页面即生效）。
-extend_bootinfo = ["pearnly_cowork.folder_intake.boot.extend_bootinfo"]
 pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 
 
@@ -515,7 +514,7 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
                                  "pearnly_cowork.recon_center.waiting.tick",
                                  # 对账按租户限流：清掉不在跑却占着名额的，补位（recon_center/slots.py）
                                  "pearnly_cowork.recon_center.slots.tick",
-                                 # 文件夹自动录入的后台推进（站点总闸没开时立即返回，folder_intake/schedule.py）
+                                 # 文件夹自动录入的后台推进（folder_intake/schedule.py）
                                  "pearnly_cowork.folder_intake.schedule.tick"]},
                     # 对账预设问题留着的原文件：过期没人答的删掉（recon_center/rerun.py）。
                     "daily": ["pearnly_cowork.recon_center.rerun.expire"]}

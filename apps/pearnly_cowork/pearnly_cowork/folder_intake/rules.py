@@ -14,7 +14,7 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import preparation
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.folder_intake import agent, contracts, destinations, settings
+from pearnly_cowork.folder_intake import agent, contracts, destinations
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -39,7 +39,6 @@ def _connection(name):
 
 
 def _require():
-    settings.require()
     scope.require("intake")
 
 

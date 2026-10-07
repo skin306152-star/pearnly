@@ -1401,7 +1401,6 @@ Could not finish	失败	ล้มเหลว	失敗	cowork.folder.state.failed
 On schedule	按时	ตามเวลา	スケジュール	cowork.folder.trigger.schedule
 Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cowork.folder.trigger.manual
 Catch-up after start	开机补跑	ทำย้อนหลังหลังเปิดเครื่อง	起動後の追い実行	cowork.folder.trigger.catch_up
-Folder auto-intake is not turned on for this site.	本站没有开通文件夹自动录入。	ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์	このサイトではフォルダー自動取込が有効になっていません。	cowork.folder.disabled
 Folder rules work with Express connections only.	自动录入只用于 Express 连接。	ใช้ได้เฉพาะการเชื่อมต่อ Express	Express 接続でのみ使えます。	cowork.folder.express_only
 The folder rule is incomplete or invalid.	规则内容不完整或不正确。	กฎไม่ครบหรือไม่ถูกต้อง	ルールの内容が不完全または不正です。	cowork.folder.invalid
 Choose a folder inside the allowed root, without system folders.	请选允许读取的根目录下的文件夹，不能是系统生成的文件夹。	เลือกโฟลเดอร์ในโฟลเดอร์หลักที่อนุญาต และไม่ใช่โฟลเดอร์ระบบ	許可されたルート内の、システム以外のフォルダーを選んでください。	cowork.folder.path_invalid

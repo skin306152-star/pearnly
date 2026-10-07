@@ -99,6 +99,28 @@ def check_ocr_replay(root):
     return errors
 
 
+SITE_CONFIG_KEY = re.compile(r"""conf(?:\.get\(|\[)\s*["'](pearnly_[a-z0-9_]+)["']""")
+
+
+def check_site_config_keys(root, policy):
+    """站点配置键要登记用途（`architecture-policy.json` 的 ``site_config_keys``）。产品功能对所有租户直接生效，
+    不加按租户的启用开关：文件夹自动录入、上传前缩照片都曾做成默认关的开关，新开户就没有（用户 2026-10-07）。"""
+    registered = set(policy.get("site_config_keys", {})) - {"_rule"}
+    errors = []
+    base = root / "apps"
+    if not base.is_dir():
+        return errors
+    for path in base.rglob("*.py"):
+        relative = path.relative_to(root).as_posix()
+        if "/tests/" in relative or "/test_" in relative or any(part in {"node_modules", "__pycache__"} for part in path.parts):
+            continue
+        for key in sorted(set(SITE_CONFIG_KEY.findall(path.read_text()))):
+            if key not in registered:
+                errors.append(f"{relative}: site config key {key} is not registered in docs/development/architecture-policy.json "
+                              "site_config_keys; features apply to every tenant, so do not add a per-tenant on/off switch")
+    return errors
+
+
 def self_calls(tree):
     """函数体（除文档字符串）只有一句 ``return 自己(...)``：一调用就无限递归（2026-10-03 DMS 编辑票据
     ``_state_store`` 机械替换时写成自调用，LIFF 编辑器全挂，测试都替换了这个函数所以没测出来）。"""
@@ -219,6 +241,7 @@ def check(root=ROOT):
             errors.append(f"{path.relative_to(root)}: use native Desk controls and Grid/DataTable")
     errors.extend(check_product_declarations(root))
     errors.extend(check_ocr_replay(root))
+    errors.extend(check_site_config_keys(root, policy))
     return errors
 
 

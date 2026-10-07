@@ -62,8 +62,6 @@ def _lock():
 
 def run():
     cfg = settings.config()
-    if cfg is None:
-        return
     acquired, key = _lock()
     if not acquired:
         return

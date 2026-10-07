@@ -302,7 +302,7 @@ boot_session = [
     "pearnly_core.desk.navigation.extend_boot",
     # 站点货币：符号从服务端给（前端自己去读 `Currency` 表会撞权限弹窗，见该文件抬头）。
     "pearnly_core.desk.currency.boot_session",
-    # 上传前缩照片的站点开关（`pearnly_shrink_photos`，默认关）。
+    # 上传前缩照片的参数（所有租户都开，`pearnly_core/desk/upload.py`）。
     "pearnly_core.desk.upload.boot_session",
     # 整份翻译表不进按用户缓存的启动信息（每人约 1MB，挤满 redis-cache），返回前按语言放回（`extend_bootinfo` 同名模块）。
     "pearnly_core.desk.boot_messages.boot_session",

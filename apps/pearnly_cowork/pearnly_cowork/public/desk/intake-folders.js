@@ -241,7 +241,6 @@
 		d.show();
 	}
 
-	// 「新建录入」弹窗的第四张卡片：只有站点开了文件夹自动录入（启动信息里的总闸）才摆，没开的站点弹窗照旧三张。
-	p.intake_folder_card = () => (frappe.boot.pearnly_cowork_folder_intake
-		? {value: "folder", label: ft("cowork.folder.title")} : null);
+	// 「新建录入」弹窗的第四张卡片（所有 Cowork 租户都有，用户 2026-10-07：功能不按租户开关）。
+	p.intake_folder_card = () => ({value: "folder", label: ft("cowork.folder.title")});
 })();
