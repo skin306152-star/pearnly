@@ -18,6 +18,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from . import watchdog
 from .config import CompanionConfig
+from .auto_update import AutoUpdate
 from .folder_worker import FolderIntake
 from .gui_folders import FolderRootsDialog
 from .gui_tray_workers import (
@@ -150,6 +151,14 @@ class TrayApp(QObject):
         self._last_keys: dict[str, str] = {}
         self._pending_update = None  # (version, url)
         self._update_worker = None  # 后台下载线程(存活期持引用防 GC)
+        # 强制自动更新（auto_update.py）：发现新版就下载，空闲时停下手上的活再静默安装。
+        self._updating = False
+        self._auto_update = AutoUpdate(
+            busy=self._busy, stop_work=self._stop_for_update, work_stopped=self._work_stopped,
+            resume_work=self._resume_after_update, start_download=self._start_download,
+            install=self._install_update)
+        self._auto_timer = QTimer()
+        self._auto_timer.timeout.connect(self._auto_update_tick)
         self._restart_pending = False
         self._quitting = False
         self.worker_stopped.connect(self._on_worker_finished)
@@ -249,7 +258,7 @@ class TrayApp(QObject):
             self._status_action.setText(_menu_text(text))
 
     def _on_update_available(self, version: str, url: str) -> None:
-        if self._pending_update and self._pending_update[0] == version:
+        if not self._auto_update.offer(version, url):
             return  # 同版本只提示一次
         self._pending_update = (version, url)
         if self._update_action:
@@ -261,6 +270,9 @@ class TrayApp(QObject):
             t("update_avail_body", self.lang, ver=version),
             pearnly_icon(),
         )
+        if not self._auto_timer.isActive():
+            self._auto_timer.start(15000)
+        QTimer.singleShot(0, self._auto_update_tick)
 
     def _on_batch_done(self, profile_id: str, n_ok: int, n_fail: int, inv: str) -> None:
         """每批结束都弹原生通知(诚实三态),不再只在全成功时弹:
@@ -304,36 +316,78 @@ class TrayApp(QObject):
         prompt.done.set()
 
     def _do_update(self) -> None:
-        if not self._pending_update or self._update_worker is not None:
-            return  # 已在更新中 → 忽略重复点(防再点又起一个下载)
-        version, url = self._pending_update
-        activity("log_updating", lang=self.lang, ver=version)
+        """手动点「更新」：和自动更新走同一条路（下载 → 等空闲 → 停稳 → 安装），不在写账套中途换版本。"""
         if self._update_action:
-            self._update_action.setEnabled(False)  # 下载期间禁用,避免重复触发
+            self._update_action.setEnabled(False)
         self.tray.showMessage(
             t("update_avail_title", self.lang),
             t("update_downloading", self.lang),
             pearnly_icon(),
         )
-        # 下载放后台线程 → UI 不卡死(61MB 主线程同步下载是「点了就卡」的根因)。
+        self._auto_update_tick()
+
+    def _auto_update_tick(self) -> None:
+        if self._quitting:
+            return
+        state = self._auto_update.tick()
+        if state == "stopping":
+            self._auto_timer.setInterval(2000)  # 等两边停稳，勤看一点
+        elif state == "failed":
+            self._auto_timer.setInterval(15000)
+            self._on_update_failed()
+
+    def _busy(self) -> bool:
+        """有连接正在推送、等账套锁或扫账套：不换版本。"""
+        return any(state[0] in ("working", "waiting_lock", "indexing")
+                   for state in self._profile_states.values())
+
+    def _start_download(self, version: str, url: str) -> None:
         from .updater import DOWNLOAD_SITE
 
+        activity("log_updating", lang=self.lang, ver=version)
+        # 下载放后台线程 → UI 不卡死(61MB 主线程同步下载是「点了就卡」的根因)。
         self._update_worker = _UpdateWorker(DOWNLOAD_SITE, url)
         self._update_worker.done.connect(self._on_update_downloaded)
-        self._update_worker.failed.connect(self._on_update_failed)
+        self._update_worker.failed.connect(self._on_update_download_failed)
         self._update_worker.start()
 
     def _on_update_downloaded(self, path: str) -> None:
+        self._update_worker = None
+        self._auto_update.downloaded(path)
+        self._auto_update_tick()
+
+    def _on_update_download_failed(self) -> None:
+        self._update_worker = None
+        self._auto_update.download_failed()
+        self._on_update_failed()
+
+    def _stop_for_update(self) -> None:
+        """空闲了：让取任务线程与文件夹线程做完手上这一步就停，停稳再装（不再自愈重启）。"""
+        self._updating = True
+        if getattr(self, "_folders", None) is not None:
+            self._folders.stop()
+        worker = self.worker
+        if worker is not None and worker.isRunning():
+            worker.stop(signal_offline=True)
+
+    def _work_stopped(self) -> bool:
+        worker = self.worker
+        folders = getattr(self, "_folders", None)
+        return (worker is None or not worker.isRunning()) and not (folders is not None and folders.running())
+
+    def _resume_after_update(self) -> None:
+        self._updating = False
+        if self.worker is None:
+            self.worker = self._spawn_worker()
+        if getattr(self, "_folders", None) is not None:
+            self._folders.start()
+
+    def _install_update(self, path: str) -> None:
         from .updater import run_installer_silent
 
-        try:
-            run_installer_silent(path)  # 安装器关本进程→装新→自启(本进程随之退出)
-        except Exception:
-            log.exception("自动更新启动安装器失败")
-            self._on_update_failed()
+        run_installer_silent(path)  # 安装器关本进程→装新→自启(本进程随之退出)
 
     def _on_update_failed(self) -> None:
-        self._update_worker = None
         if self._update_action:
             self._update_action.setEnabled(True)  # 放回,允许重试
         self.tray.showMessage(
@@ -439,7 +493,7 @@ class TrayApp(QObject):
 
     def _restart_worker(self) -> None:
         """协作式停旧 worker；finished 后才用最新 configs 启动唯一新 worker。"""
-        if self._quitting:
+        if self._quitting or getattr(self, "_updating", False):
             return
         self._restart_pending = True
         old = self.worker
@@ -458,6 +512,8 @@ class TrayApp(QObject):
             self.tray.hide()
             self.app.quit()
             return
+        if getattr(self, "_updating", False):
+            return  # 为更新停下：等安装器接手，不再起新的取任务线程
         if self._restart_pending:
             self._restart_pending = False
             self.worker = self._spawn_worker()
@@ -493,6 +549,8 @@ class TrayApp(QObject):
         self._restart_pending = False
         activity("log_quit", lang=self.lang)
         self._watchdog.stop()
+        if getattr(self, "_auto_timer", None) is not None:
+            self._auto_timer.stop()
         if getattr(self, "_folders", None) is not None:
             self._folders.stop()
         worker = self.worker

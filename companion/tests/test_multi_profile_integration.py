@@ -62,6 +62,10 @@ def _gui_tray_with_fake_qt(monkeypatch):
         setattr(qtgui, name, Dummy)
     for name in ("QApplication", "QMenu", "QMessageBox", "QSystemTrayIcon"):
         setattr(qtwidgets, name, Dummy)
+    # 托盘还会带进其它窗口模块（例如文件夹自动录入的设置窗）：没列出的 Qt 名字一律给个空壳。
+    for module in (qtcore, qtgui, qtwidgets):
+        module.__getattr__ = lambda name: Dummy
+    sys.modules.pop("src.companion.gui_folders", None)
     monkeypatch.setitem(sys.modules, "PySide6", pyside)
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qtcore)
     monkeypatch.setitem(sys.modules, "PySide6.QtGui", qtgui)
@@ -274,3 +278,34 @@ def test_profile_callback_failure_keeps_close_fallback(monkeypatch):
     app._repair()
 
     assert calls["count"] == 2
+
+
+def test_stopping_for_an_update_waits_for_both_threads_and_never_respawns(monkeypatch):
+    gui_tray = _gui_tray_with_fake_qt(monkeypatch)
+    app = gui_tray.TrayApp.__new__(gui_tray.TrayApp)
+    old = _LifecycleWorker()
+    folders = SimpleNamespace(stopped=False, alive=True)
+    folders.stop = lambda: setattr(folders, "stopped", True)
+    folders.running = lambda: folders.alive
+    app.worker = old
+    app._folders = folders
+    app._restart_pending = False
+    app._quitting = False
+    app._updating = False
+    app._profile_states = {"A": ("working", ""), "B": ("idle", "")}
+    spawned = []
+    app._spawn_worker = lambda: spawned.append(True)
+    old.finished.connect(lambda current=old: app._on_worker_finished(current))
+
+    assert app._busy() is True  # 有连接正在推送：不换版本
+    app._profile_states["A"] = ("idle", "")
+    assert app._busy() is False
+    app._stop_for_update()
+    assert folders.stopped is True and old.stop_calls == 1
+    old.finish()
+    assert app.worker is None and spawned == []  # 不再起新的取任务线程
+    assert app._work_stopped() is False  # 文件夹线程还在做手上那一步
+    folders.alive = False
+    assert app._work_stopped() is True
+    app._restart_worker()  # 期间改了连接设置也不重启
+    assert spawned == []

@@ -64,6 +64,10 @@ class FolderIntake:
     def stop(self) -> None:
         self._stop.set()
 
+    def running(self) -> bool:
+        """线程还在（停下要等它做完手上这一步，例如一份正在上传的文件）。"""
+        return bool(self._thread and self._thread.is_alive())
+
     def _active(self) -> list:
         try:
             return [cfg for cfg in list(self._configs() or []) if not getattr(cfg, "paused", False)
