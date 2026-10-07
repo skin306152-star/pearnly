@@ -774,7 +774,6 @@ Quantity counted this time,จำนวนที่นับครั้งน�
 Quantity differences,ผลต่างจำนวน
 Questions,คำถาม
 Queued,รอคิว
-Queued for batch recognition,รอคิวอ่านแบบชุด
 "Queued, {0} ahead",กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
 "Queued, {0} tasks ahead",อยู่ในคิว มีงานก่อนหน้า {0} งาน
 Read,อ่านแล้ว
@@ -1485,7 +1484,6 @@ cowork.folder.section.defaults,การจัดการเริ่มต้�
 cowork.folder.section.folder,โฟลเดอร์และเวลา
 cowork.folder.section.target,ปลายทางของเอกสาร
 cowork.folder.size_invalid,ไฟล์ว่างหรือใหญ่เกินไป
-cowork.folder.state.batch_waiting,รอคิวอ่านแบบชุด
 cowork.folder.state.done,บันทึกแล้ว
 cowork.folder.state.failed,ล้มเหลว
 cowork.folder.state.not_invoice,ไม่ใช่ใบกำกับ

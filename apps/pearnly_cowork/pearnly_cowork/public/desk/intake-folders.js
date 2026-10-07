@@ -224,7 +224,7 @@
 	/** 运行记录：每次扫了几份、传了几份，以及这一次的文件各走到哪一步。 */
 	async function runs(rule) {
 		const view = await p.call(API + "runs", {name: rule.name});
-		const STATES = ["done", "pushing", "recognized", "submitted", "batch_waiting", "source_ready", "uploaded", "registered",
+		const STATES = ["done", "pushing", "recognized", "submitted", "source_ready", "uploaded", "registered",
 			"not_invoice", "failed"];
 		const lines = (view.runs || []).map(run => {
 			const states = STATES.filter(name => run.states?.[name])

@@ -774,7 +774,6 @@ Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
 Questions,質問
 Queued,順番待ち
-Queued for batch recognition,バッチ認識の順番待ち
 "Queued, {0} ahead",順番待ち · 前に {0} 件
 "Queued, {0} tasks ahead",待機中（前に {0} 件）
 Read,読み取り済み
@@ -1485,7 +1484,6 @@ cowork.folder.section.defaults,既定の処理
 cowork.folder.section.folder,フォルダーとスケジュール
 cowork.folder.section.target,書類の登録先
 cowork.folder.size_invalid,ファイルが空か大きすぎます。
-cowork.folder.state.batch_waiting,バッチ認識の順番待ち
 cowork.folder.state.done,登録済み
 cowork.folder.state.failed,失敗
 cowork.folder.state.not_invoice,請求書以外
