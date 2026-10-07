@@ -63,7 +63,6 @@
 			empty_action: {label: ft("cowork.folder.new"), action: () => edit(null)},
 		});
 		page.set_primary_action(ft("cowork.folder.new"), () => edit(null));
-		p.add_refresh(page, () => list.reload());
 		await list.ready;
 		return () => list.destroy();
 	};

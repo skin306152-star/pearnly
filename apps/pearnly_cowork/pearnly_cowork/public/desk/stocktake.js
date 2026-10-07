@@ -142,7 +142,6 @@
 						format: value => p.datetime_text(value) },
 				] });
 			page.set_primary_action(t("cowork.stock.count.new"), open_new);
-			page.add_inner_button(t("cowork.stock.action.reload"), () => list.reload());
 		}
 		async function refresh() {
 			const request = ++refresh_sequence, name = count;
@@ -153,17 +152,14 @@
 			page.clear_inner_toolbar(); page.clear_primary_action();
 			page.set_indicator(t("cowork.stock.count.headline", status_text(state.task), state.task.counted_total,
 				state.task.item_total, state.task.difference_total), active() ? "orange" : "green");
-			// 进行中的任务**只留三颗**（用户 2026-09-22 口径："只有刷新、结束盘点、开始盘点按钮，
-			// 其它全部不要"）：刷新、结束盘点，加右边那颗开始盘点。
-			// 已结束的是只读态 —— 之前定过"结束后只可查看和导出"，所以那一档保留导出 + 刷新。
+			// 进行中的任务只留结束盘点 + 右边那颗开始盘点（用户 2026-09-22 口径；10-07 起所有界面不放刷新按钮）。
+			// 已结束的是只读态 —— 之前定过"结束后只可查看和导出"，所以那一档只留导出。
 			if (active()) {
 				page.set_primary_action(t("cowork.stock.count.start"), () => entry_form(null, true));
-				page.add_inner_button(t("cowork.stock.action.reload"), refresh);
 				page.add_inner_button(t("cowork.stock.count.close"), finish);
 			} else {
 				page.add_inner_button(t("cowork.stock.action.export"), () => void p.export_file(
 					`${api}api_stock_count_export`, {name}));
-				page.add_inner_button(t("cowork.stock.action.reload"), refresh);
 			}
 			await render_data();
 		}

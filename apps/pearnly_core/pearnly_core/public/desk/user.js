@@ -103,7 +103,6 @@ frappe.ui.form.on("User", {
         frm.page.sidebar.hide();
         frm.dashboard.hide();
         frm.page.clear_icons();
-        frappe.pearnly.add_refresh(frm.page, () => frm.reload_doc());
         frm.remove_custom_button(__("Reset Password"), __("Password"));
         frm.$wrapper.find(".pearnly-password-action").remove();
         if (frappe.app.sidebar.sidebar_title !== frappe.boot.pearnly_sidebar) {

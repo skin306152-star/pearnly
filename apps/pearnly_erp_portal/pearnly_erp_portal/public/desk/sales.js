@@ -91,7 +91,6 @@
 			// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
 			page.add_menu_item(__("Export"), () => void p.export_file(`${u.api}api_sales_export`,
 				{params: parameters()}));
-			p.add_refresh(page, refresh);
 			primary(); await list.ready;
 			list_cleanup = () => {live = false; list.destroy();};
 		}

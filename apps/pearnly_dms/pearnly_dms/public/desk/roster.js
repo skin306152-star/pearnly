@@ -7,7 +7,6 @@
 		const status = value => __(value === "active" ? "Active" : "Inactive");
 		async function refresh() { await list.reload(); }
 		page.set_primary_action(t("roster.add"), create);
-		p.add_refresh(page, refresh, __("Reload List"));
 		page.set_title_sub(p.escape(t("roster.subtitle")));
 		list = p.list({page, doctype: "DMS Operator", selectable: true, compact_columns: true,
 			on_open: editor,

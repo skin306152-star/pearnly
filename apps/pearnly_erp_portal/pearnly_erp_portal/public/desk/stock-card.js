@@ -209,12 +209,6 @@
 		// 从列表进二级页面时把报表当前的日期区间带过去（同一次会话内）。
 		let range = null;
 
-		// 右上角只留一颗刷新：`p.clear_page` 每次换级都会清掉旧的图标（不清就会越堆越多）。
-		function set_refresh(action) {
-			page.clear_icons?.();
-			p.add_refresh(page, action);
-		}
-
 		function open_list() {
 			// 日期区间留在工具栏（它必须**一直看得见**：期初/期末就是按这个区间滚出来的，
 			// 与 ERPNext 自己的报表工具栏同一个做法）；商品与仓库那两条改走**官方原生筛选**
@@ -271,7 +265,6 @@
 					{ fieldname: "closing_qty", width: 90, min_width: 80, fieldtype: "Float", label: t("trade.closing"), format: value => p.number(value) },
 				],
 			});
-			set_refresh(() => list.reload());
 		}
 
 		function open_ledger(row, dates) {
@@ -293,8 +286,8 @@
 			// 二级页面的重新取数：日期一改就按新区间重取这张卡（期初/期末/明细一起换）。
 			// 日期那两格的 `change` 之前调的是一个**不存在的** `reload`
 			// （实测 `ReferenceError: reload is not defined`），于是改了日期整页没反应、
-			// 控制台还报错。先定义再挂给 `change` 和右上角那颗刷新，两处同一个函数。
-			// `force`：右上角那颗刷新不管日期有没有动都重取；两格日期只有**真的变了**才重取
+			// 控制台还报错。先定义再挂给 `change`。
+			// `force`：不管日期有没有动都重取；两格日期只有**真的变了**才重取
 			// （建表时给默认值也会触发 `change`，照单全收的话一进页面就打 5 次同一个接口 ——
 			// 实测每次打开 5 次，现在是 1 次）。
 			async function refresh_card(force = false) {
@@ -333,7 +326,6 @@
 			], 4));
 			const host = form.fields_dict.movements.$wrapper;
 			host.empty().append(p.ledger_table(t, card));
-			set_refresh(() => void refresh_card(true));
 		}
 
 		async function render(rest) {

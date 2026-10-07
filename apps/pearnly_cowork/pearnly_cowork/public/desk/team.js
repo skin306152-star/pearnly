@@ -77,7 +77,6 @@
 				empty_action: { label: t("cowork.team.new"), action: () => editor(null) },
 			});
 			restore_new();
-			p.add_refresh(page, () => list.reload());
 			await list.ready;
 		}
 

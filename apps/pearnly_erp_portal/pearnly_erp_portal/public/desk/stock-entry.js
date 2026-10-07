@@ -33,13 +33,7 @@
 		const priced = direction === "in";
 		// 弹窗点「全屏编辑」时把已填的值带进二级页面（两边在同一个闭包里，不必写进 URL）。
 		let carry = null;
-		let list, form, lines = null, head = null, refresh_icon = null;
-
-		// 刷新那颗图标只在列表那一级出现：二级页面里有没提交的输入，一颗刷新把它清掉不合适。
-		function set_refresh(on) {
-			if (on && !refresh_icon) refresh_icon = p.add_refresh(page, () => void list?.reload());
-			if (!on && refresh_icon) { refresh_icon.remove(); refresh_icon = null; }
-		}
+		let list, form, lines = null, head = null;
 
 		// 单据号的那一格：新建时把**当前要发的号**显示出来（只读预览，不占号）—— 号由系统发、
 		// 不给改，但要看得见（旧系统 mrerp 的表单也是把号填进只读输入框）。
@@ -183,7 +177,6 @@
 				],
 			});
 			restore_new();
-			set_refresh(true);
 		}
 
 		// ── 弹窗：新建 / 查看 / 提交 ─────────────────────────────────────────────
@@ -232,7 +225,6 @@
 		// ── 二级页面：同一套字段摊成整页，提交即过账 ──────────────────────────────
 
 		async function open_new() {
-			set_refresh(false);
 			p.breadcrumbs({ label: __(direction === "in" ? "nav.stockIn" : "nav.stockOut"),
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
@@ -263,7 +255,6 @@
 		async function render(rest) {
 			p.clear_page(page);
 			list = null; form = null; lines = null; head = null;
-			set_refresh(false);
 			if (!rest.length) { open_list(); return; }
 			if (rest[0] !== SECOND || !canWrite) { p.redirect_up(root); return; }
 			await open_new();

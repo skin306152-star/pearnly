@@ -126,11 +126,7 @@
 			],
 		});
 
-		// 工具栏：刷新在导出左边；导出导的是**全部命中行**（不只是当前这一页）。
-		page.add_inner_button(t("stock.action.reload"), async () => {
-			await list.reload();
-			await refresh_totals();
-		});
+		// 工具栏：导出导的是**全部命中行**（不只是当前这一页）。
 		// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
 		page.add_inner_button(t("stock.action.export"), () => void p.export_file(`${api}api_stock_export`, query()));
 		if (can_open()) page.add_inner_button(t("stock.opening.title"), () =>

@@ -146,7 +146,6 @@
 			empty_action: can_write ? {label: t("supplier.new"), action: () => editor()} : null,
 		});
 		restore_new();
-		p.add_refresh(page, () => void list.reload());
 		await list.ready;
 		// 别处的选择框指过来时（`link.js` 的 one-shot）：新建 / 打开这条记录。
 		// **要在列表就绪之后**：按名字找行得先有行。

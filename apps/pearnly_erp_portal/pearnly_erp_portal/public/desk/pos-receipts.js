@@ -129,7 +129,6 @@
 				{ fieldname: "shift", width: 140, min_width: 96, label: t("trade.shiftNo") },
 			],
 		});
-		p.add_refresh(page, () => void list?.reload());
 		await list.ready;
 	};
 })();

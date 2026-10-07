@@ -300,8 +300,7 @@
 				],
 			});
 
-			// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。
-			page.add_inner_button(t("product.action.reload"), () => void list.reload());
+			// 工具栏：导入在新建左边（新建是页面主按钮，永远在最右）。
 			if (can_create) page.add_inner_button(t("product.action.import"), () => open_import());
 			restore_primary();
 			await list.ready;

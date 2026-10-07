@@ -120,7 +120,6 @@
 		let list, current, sequence = 0;
 		const title = () => __(spec.title);
 		const breadcrumbs = trail => p.breadcrumbs({ label: title(), route: p.subroute(root), trail: trail || [] });
-		p.add_refresh(page, () => current ? show_result(current) : list?.reload());
 
 		function clear() {
 			list?.destroy();

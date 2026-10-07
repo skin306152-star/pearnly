@@ -128,7 +128,6 @@
 				empty_action: can_write()
 					? {label: t("company.new"), action: () => go_to("new")} : null});
 			restore_new();
-			p.add_refresh(page, () => list.reload());
 			await list.ready;
 			// 别处的选择框指过来时（`link.js` 的 one-shot）：新建公司 / 打开这家公司。
 			if (can_write()) {
@@ -342,10 +341,6 @@
 			if (name && name !== frappe.boot.pearnly_company) {
 				page.add_inner_button(t("company.setCurrent"), () => p.switch_company(name));
 			}
-			// 右上角那颗刷新：重取一次值填回表单（不整页重画），免得把正在填的内容抹掉。
-			p.add_refresh(page, async () => {
-				form.set_values(await p.call(api + "api_get_profile", name ? {name} : {}));
-			});
 		}
 
 		const go_to = (...parts) => frappe.set_route(root, ...parts);

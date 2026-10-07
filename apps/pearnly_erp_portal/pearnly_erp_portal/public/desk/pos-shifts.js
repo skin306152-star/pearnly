@@ -105,7 +105,6 @@
 					cell_class: value => num(value) ? "pearnly-payment-due" : "" },
 			],
 		});
-		p.add_refresh(page, () => void list?.reload());
 		await list.ready;
 	};
 })();

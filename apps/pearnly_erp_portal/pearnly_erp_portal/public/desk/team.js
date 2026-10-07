@@ -105,7 +105,6 @@
 				empty_action: { label: t("team.new"), action: () => editor(null) },
 			});
 			restore_new();
-			p.add_refresh(page, () => list.reload());
 			await list.ready;
 		}
 

@@ -75,7 +75,6 @@
 				empty_action: can_manage()
 					? {label: t("company.newWarehouse"), action: () => editor(null)} : null});
 			restore_new();
-			p.add_refresh(page, () => list.reload());
 			await list.ready;
 			// 别处的选择框指过来时（`link.js` 的 one-shot）：点「新建」开这一页自己的新建弹窗；
 			// 点右边那颗箭头（打开这条记录）开它自己的弹窗。**必须在列表就绪之后** ——

@@ -206,8 +206,7 @@
 			return true;
 		};
 
-		// ── 页面右上：刷新、提醒铃铛、菜单 ─────────────────────────────────────
-		p.add_refresh(page, () => reload());
+		// ── 页面右上：提醒铃铛、菜单 ─────────────────────────────────────
 		const bell = page.add_action_icon("bell", () => void open_notifications(), "pearnly-work-bell",
 			t("cowork.work.notify.title")).attr({type: "button", "aria-label": t("cowork.work.notify.title")});
 		const badge = $('<span class="pearnly-work-bell-count hide">').appendTo(bell);

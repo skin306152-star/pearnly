@@ -28,7 +28,6 @@
 			list?.destroy();
 			list = null;
 			p.clear_page(page);
-			p.add_refresh(page, refresh);
 			page.set_title_sub(
 				home.pending_topups.length
 					? p.escape(t("home.pending.count", home.pending_topups.length) + " " + t("home.pending.hint"))

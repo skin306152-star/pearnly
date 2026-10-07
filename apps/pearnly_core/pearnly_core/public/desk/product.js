@@ -209,10 +209,17 @@ frappe.provide("frappe.pearnly");
 		schedule();
 		return { stop, now: run };
 	};
-	p.add_refresh = (page, refresh, label = __("Reload")) =>
-		page.add_action_icon("es-line-reload", refresh, "", label)
-			.removeClass("btn-default")
-			.attr({type: "button", "aria-label": label});
+	// 右上角不放「刷新」（用户 2026-10-07：所有界面右上角的刷新按钮全部去掉，不管是图标还是按钮）。
+	// 官方列表与报表也会自己加一颗（`base_list.js` / `query_report.js` 的 `es-line-reload`）：产品界面里一律不加，
+	// 给回空的 jQuery，官方后面再对它 `.remove()` 之类照样不出错。列表靠实时推送与 `p.live` 自己刷新。
+	const NativeActionIcon = frappe.ui?.Page?.prototype?.add_action_icon;
+	if (NativeActionIcon && !NativeActionIcon.pearnly_no_reload) {
+		const add_action_icon = function (icon, ...rest) {
+			return frappe.boot?.pearnly_product && icon === "es-line-reload" ? $() : NativeActionIcon.call(this, icon, ...rest);
+		};
+		add_action_icon.pearnly_no_reload = true;
+		frappe.ui.Page.prototype.add_action_icon = add_action_icon;
+	}
 	// 页面文案按前缀整包取。以前每进一页都重新请求一次（同一前缀一个页面里还会取两三次），
 	// 而且排在表结构、列表之前，首开多一次来回。现在：同一会话里每个前缀只取一次；启动信息里
 	// 有语言包指纹（`pearnly_text_version`，见 `browser_text.py`）时再存进浏览器，刷新、
@@ -816,8 +823,7 @@ frappe.provide("frappe.pearnly");
 		page.page_form.detach();
 		page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
 		page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
-		// 右上角那排图标也要清：`add_refresh` 每进一次列表就加一颗，不清就会越堆越多
-		// （实测收发存页面进了几次之后右上角挂了一排刷新）。用原生 `clear_icons()`。
+		// 右上角那排图标也要清（每进一次列表就会重加一遍，不清就越堆越多）。用原生 `clear_icons()`。
 		page.clear_icons?.();
 		page.hide_form();
 		page.clear_primary_action(); page.clear_indicator();

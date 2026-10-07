@@ -1047,13 +1047,6 @@
 			await run_batch(added);
 		});
 
-		p.add_refresh(page, async () => {
-			if (!current) return render_batch();
-			// 刷新＝丢掉没存的改动、按服务端最新版本重摆这张票。
-			current = await detail(current.name);
-			fill(current);
-			sync_save();
-		});
 		render_batch();
 		if (name) {
 			// 从列表点「复核」进来：这份原件识别出了几张票，就把同一份的都摆进「发票」下拉。

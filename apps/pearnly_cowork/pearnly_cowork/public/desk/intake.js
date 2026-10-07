@@ -124,7 +124,6 @@
 				empty_action: can_write ? {label: t("intake.action.new"), action: create} : null,
 			});
 			selection();
-			p.add_refresh(page, () => list.reload());
 			await list.ready;
 			// 提交后票是「录入中」，推送在后台进行。推送状态一变、本人的识别一读完，服务端都推实时事件（`cowork_intake_changed`、
 			// `pearnly_ocr_work`），收到就重拉；列表里还有录入中的每 5 秒兜底一次，没有就 60 秒（`p.live`；原来有录入中的就每 4 秒

@@ -65,7 +65,6 @@
 				{fieldname: "status", label: __("Status"), format: statusLabel},
 			],
 		});
-		p.add_refresh(page, () => list.reload(), __("Reload List"));
 		await list.ready;
 	};
 })();
