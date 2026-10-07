@@ -62,3 +62,16 @@
 
 - 单测：`tests/test_cowork_ocr_attachments.py`、`tests/test_cowork_document_policy.py` 等（生产镜像内跑；全部 Cowork 测试文件与 main 逐个对比无新增失败）。
 - 测试机试用（复核页"录入 / 不录入"）→ 合入 main → 与 Claude 撤回统一部署。
+
+## 上线（2026-10-07 晚，与 Claude 撤回 e543a645 统一部署）
+
+- main `5bedaa54`（本批 + 云端镜像导入修复）。第一次构建云端识别镜像失败：识别结构引用了镜像里没有的 `contracts`，
+  分支 CI 没拦住；改为把类别取值留在识别目录内，`check-architecture.py` 新增「Cloud Run 识别服务只导入镜像拷贝了的模块」。
+- 生产镜像 `sha256:9d61390e8c10dfbf8a1f10d32cc24a3023acaf6dedda4f5cc81ea89d0d591961`，ERP / Cowork / DMS 依次激活成功。
+- Cloud Run `cowork-ocr` 新修订版 `cowork-ocr-00061-c72`（镜像 `cowork-ocr:5bedaa549db7`），按名字切 100%；环境变量无评测开关，最少实例 0。
+- 回读：六站点 maintenance_mode=0；部署后 Error Log 仅 erpcowork 1 条（维护期间小助手领任务被拒，SessionStopped）；
+  `Cowork Workspace.document_policy` 两个 Cowork 站点已建；三个 ocr-worker NOFORK=1；四个域名 ping 200
+  （ERP 激活切换时 mrerp 短暂 502，两分钟内恢复）；mariadb 内存 41%；Cloud Run 切换后无报错。
+- 未覆盖：新修订版切换后还没接到真实识别请求；并发闸门未单独压测（本批不增加识别调用，测试机实跑的慢经日志核实为
+  当时测试租户云端识别关闭、本地排队 p50 101 秒，非代码原因）；billing-web 不在三产品激活范围，仍是旧镜像。
+- 测试机：cowork 测试栈已 lab-stop，testcowork 域名切回线上；金标结果与工具留在 `金标-2026-10`。
