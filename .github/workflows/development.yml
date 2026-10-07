@@ -80,6 +80,8 @@ jobs:
         run: node --test tests/test-desk-live.cjs
       - name: Verify the Desk text cache
         run: node --test tests/test-desk-texts.cjs
+      - name: Verify long text fields wrap in product forms
+        run: node --test tests/test-wrap-data.cjs
       - name: Verify the DMS connection page (read and write accounts)
         run: node tests/test-dms-connect-page.cjs
       - name: Verify native POS entry and lifecycle

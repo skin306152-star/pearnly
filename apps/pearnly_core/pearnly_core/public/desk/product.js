@@ -266,8 +266,11 @@ frappe.provide("frappe.pearnly");
 	p.grow_textarea = element => {
 		const node = element?.target ?? element;
 		if (!node || node.tagName !== "TEXTAREA") return;
+		// 还没显示出来（在收起的小节、没打开的弹窗里）量不出高度：先不动，显示出来时由下面的尺寸监听再量。
+		if (!node.offsetWidth) return;
 		node.style.height = "auto";
 		node.style.height = `${Math.min(node.scrollHeight, p.TEXTAREA_MAX_PX)}px`;
+		node.pearnly_width = node.offsetWidth;
 	};
 	p.fit_textareas = root => {
 		$(root || document).find("textarea.form-control").each((_, node) => p.grow_textarea(node));
@@ -276,6 +279,18 @@ frappe.provide("frappe.pearnly");
 	// 弹窗打开时也过一遍 —— 查看/编辑一张已有单据时，长备注不能只露两行。
 	$(document).on("input focus change", "textarea.form-control", event => p.grow_textarea(event.target));
 	$(document).on("shown.bs.modal", event => p.fit_textareas(event.target));
+	// 程序填进去的值（识别结果、打开已有单据）不触发上面那些事件；框从隐藏变显示、窗口变宽变窄时换行也会变
+	// （用户 2026-10-07：编辑页里地址、备注只露两行）。每个多行框都挂上尺寸监听：宽度一变（含从 0 到显示）就重量。
+	const watch = typeof ResizeObserver === "function" ? new ResizeObserver(entries => {
+		for (const {target} of entries) {
+			if (target.offsetWidth && target.offsetWidth !== target.pearnly_width) p.grow_textarea(target);
+		}
+	}) : null;
+	p.watch_textarea = node => {
+		if (!node || node.tagName !== "TEXTAREA") return;
+		watch?.observe(node);
+		p.grow_textarea(node);
+	};
 	// 官方 `ControlSmallText.make_input()` 里写死了**内联** `height: 150px` ——
 	// 皮肤里的高度被它压住，而我们的"内容超出才长"又必须能改这一格。所以照接管
 	// `ControlLink` 的同一套做法：继承它、只把那个内联高度去掉，其余（官方的
@@ -286,10 +301,61 @@ frappe.provide("frappe.pearnly");
 			make_input() {
 				super.make_input();
 				this.$input.css({height: ""});
+				p.watch_textarea(this.input);
+			}
+			set_formatted_input(value) {
+				super.set_formatted_input(value);
+				p.grow_textarea(this.input);
 			}
 		}
 		SmallText.pearnly_small_text = true;
 		frappe.ui.form.ControlSmallText = SmallText;
+	}
+	// 一行字的文字框（官方 `Data`）写不下时**换行、框往下长**（用户 2026-10-07：「字段框超过当前框后自动换行和延伸」，
+	// 全产品全界面）。官方单行框是浏览器的单行输入元素，不能换行；官方能换行的是多行框。所以产品界面里
+	// **表单 / 弹窗布局里带标签的普通文字字段**（`Data`、没有 Email / 电话 / 网址这类选项）照官方 `ControlData`
+	// 原样建，只把那个输入元素换成会长高的多行框：值、校验、事件、只读呈现都还是官方的。仍是「一行字」——
+	// 回车不换行（输入法确认字时的回车照常），粘贴进来的换行变成空格。
+	// 不换的：工具栏 / 列表筛选（`input_class`）、表格（行内编辑与展开的行表单，表格行高固定）、
+	// 单独嵌入的输入框（`only_input`、不在布局里，例如收银台的搜索框与扫码），以及管理后台（不是产品界面）。
+	const NativeData = frappe.ui?.form?.ControlData;
+	if (NativeData && !NativeData.pearnly_data) {
+		class WrapData extends NativeData {
+			static html_element = "textarea";
+			make_input() {
+				super.make_input();
+				this.$input.addClass("pearnly-wrap-data").attr("rows", 1).removeAttr("type");
+				this.$input.on("keydown", event => {
+					if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) event.preventDefault();
+				});
+				this.$input.on("paste", event => {
+					const text = frappe.utils.get_clipboard_data(event);
+					if (!/[\r\n]/.test(text || "")) return;
+					event.preventDefault();
+					const node = this.input;
+					node.setRangeText(text.replace(/\s*[\r\n]+\s*/g, " "), node.selectionStart, node.selectionEnd, "end");
+					node.dispatchEvent(new Event("input", {bubbles: true}));
+				});
+				p.watch_textarea(this.input);
+			}
+			set_formatted_input(value) {
+				super.set_formatted_input(value);
+				p.grow_textarea(this.input);
+			}
+		}
+		class Data extends NativeData {
+			constructor(opts) {
+				const df = opts?.df || {};
+				if (new.target === Data && frappe.boot?.pearnly_product && opts.layout && !opts.only_input
+						&& df.fieldtype === "Data" && !df.options && !df.input_class && df.label
+						&& !$(opts.parent).closest(".form-in-grid, .grid-row").length) {
+					return new WrapData(opts);
+				}
+				super(opts);
+			}
+		}
+		Data.pearnly_data = true;
+		frappe.ui.form.ControlData = Data;
 	}
 	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
 	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），

@@ -319,6 +319,26 @@ body.pearnly-product-desk textarea.form-control {
 		min-width: 0;
 	}
 }
+/* 一行字的文字框换成会长高的多行框后（`product.js` 的 `WrapData`）：外观仍是官方单行框 —— 整列宽、
+   官方输入框高度起步、不能手拖；写不下才换行往下长（`p.grow_textarea`）。 */
+body.pearnly-product-desk textarea.form-control.pearnly-wrap-data {
+	width: 100%;
+	max-width: none;
+	min-width: 0;
+	height: var(--input-height);
+	min-height: var(--input-height);
+	resize: none;
+	overflow-y: auto;
+	line-height: 1.4;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+/* 只读时官方用一格文字呈现：同样换行显示，不截断。 */
+body.pearnly-product-desk .frappe-control[data-fieldtype="Data"] .like-disabled-input {
+	height: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {
 	display: flex;
