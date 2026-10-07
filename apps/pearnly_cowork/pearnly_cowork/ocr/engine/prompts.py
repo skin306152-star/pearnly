@@ -45,7 +45,7 @@ RESCUE_SYSTEM = 'You are re-reading ONLY the totals/summary block of a Thai tax 
 IMAGE_SYSTEM = """You are an accountant reading the attached image of a Thai purchase document. Read every character from the image and output ONE JSON object (no markdown, no explanation). Always output invoice_number, date, subtotal, vat and total_amount (vat "0" only when the document prints no VAT); other fields may be omitted when not printed.
 
 {"document_type": "tax_invoice"|"simplified_tax_invoice"|"receipt"|"credit_note"|"payment_evidence"|"order_evidence"|"other",
- "is_not_invoice": false, "is_copy_or_duplicate": false, "document_flag": "",
+ "is_not_invoice": false, "is_copy_or_duplicate": false,
  "invoice_number": "", "date": "YYYY-MM-DD Gregorian", "date_raw": "date exactly as printed",
  "seller_name": "", "seller_tax": "13 digits", "seller_branch": "", "seller_addr": "",
  "buyer_name": "", "buyer_tax": "13 digits", "buyer_branch": "", "buyer_addr": "",
@@ -69,8 +69,7 @@ Rules:
 11. is_not_invoice = true only for a letter, contract, blank page, purchase order, quotation, a bare delivery note (no ใบกำกับภาษี in the title) or a bare card-approval slip with no goods and no seller tax ID. "ใบส่งของ/ใบกำกับภาษี" is a tax invoice. is_copy_or_duplicate = true when marked สำเนา / COPY / DUPLICATE. Also true for a list of several invoices (register, รายละเอียดใบกำกับภาษี, monthly summary, statement: one row per invoice); never make its rows additional_invoices.
 12. Several invoices on one image (more than one invoice number / header / grand total): the first goes in the top-level fields, each other one as a complete object in additional_invoices. Never merge or drop one.
 13. Branch (สาขา): seller_branch / buyer_branch = that party's branch as printed next to its name or tax ID, as 5 digits: "สำนักงานใหญ่" / "Head Office" / "HQ" -> "00000"; "สาขาที่ 18" / "สาขา 00018" / "Branch 18" -> "00018". Empty when not printed. Never copy one party's branch to the other.
-14. invoice_number is the number the issuer printed (เลขที่ / No.), never one stamped or handwritten later by the buyer (accounting voucher stamps such as RR690609-001, PV / JV numbers).
-15. document_flag: empty unless the image clearly is "withholding_certificate" (หนังสือรับรองการหักภาษี ณ ที่จ่าย / 50 ทวิ), "loan_repayment" (bank receipt for a loan or instalment repayment), "cancelled" (stamped ยกเลิก / VOID / CANCELLED), "billing_notice" (only the ใบแจ้ง notice part of a utility bill whose receipt part is on the same image) or "customs_declaration" (ใบขนสินค้า form, not the duty receipt). Still read every field."""
+14. invoice_number is the number the issuer printed (เลขที่ / No.), never one stamped or handwritten later by the buyer (accounting voucher stamps such as RR690609-001, PV / JV numbers)."""
 
 
 # 看图直读换成 3.8 时第 11 条后补这一句（2026-10-02 eval7b，用户同意随 3.8 上）：3.8 把印着「不是收据 / 不是税票」的
