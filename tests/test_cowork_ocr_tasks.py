@@ -741,7 +741,8 @@ class Board(unittest.TestCase):
                  {"event": "extracted", "page": 1, "text": "{}", "reread": True}, {"event": "unread", "page": 2}], state)
             document_ocr.remote_progress({"recon_job": "R1", "file": "F1", "filename": "s.pdf"},
                 [{"event": "read", "pages": 1}], state)
-        self.assertEqual(calls, [("p", {"read": 2, "state": "reading"}), ("p", {"done": 1}), ("l", "R1"), ("u", 2),
+        # 抽完一页也报「读到这页」（不读字的读法 ADR-017 没有读字事件；看板只取较大值，先读字时不倒退）
+        self.assertEqual(calls, [("p", {"read": 2, "state": "reading"}), ("p", {"read": 1, "done": 1}), ("l", "R1"), ("u", 2),
                                  ("p", {"read": 3, "state": "reading"})])
 
 
