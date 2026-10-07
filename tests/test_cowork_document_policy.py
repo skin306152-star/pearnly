@@ -3,6 +3,7 @@ from decimal import Decimal
 import unittest
 
 from pearnly_cowork.contracts import document_policy as rules
+from pearnly_cowork.contracts.history import primary_page_fields
 from pearnly_cowork.ocr.engine.prompts import IMAGE_SYSTEM
 from pearnly_cowork.ocr.grouping import group_invoices
 from pearnly_cowork.ocr.results import prepare_history_batch
@@ -83,6 +84,20 @@ class SavingFollowsTheChoice(unittest.TestCase):
         plan = prepare(TAX, policy={"payment_evidence": "skip"})
         self.assertFalse(any(w.startswith("document_policy:") for p in plan["raw_pages"]
                              for w in p.get("_validation_warnings") or []))
+
+
+class Evidence(unittest.TestCase):
+    def test_a_non_invoice_page_with_its_own_number_and_total_is_evidence_not_a_record(self):
+        plan = prepare(TAX, {"document_type": "other", "invoice_number": "IV1 to IV9", "total_amount": "900",
+                             "is_not_invoice": True})  # 清单续页：带自己的「单号」和合计
+        self.assertEqual(len(plan["groups"]), 1)
+        self.assertEqual(plan["groups"][0]["source_page_indices"], [1, 2])
+
+    def test_evidence_never_becomes_the_primary_page(self):
+        copy = {"is_copy": True, "fields": {**TAX}}
+        slip = {"is_copy": False, "fields": {**SLIP, "is_not_invoice": True}}
+        self.assertEqual(primary_page_fields([copy, slip])["invoice_number"], "IV1")
+        self.assertEqual(primary_page_fields([slip])["invoice_number"], "TX9")  # 整张都是非发票页：照旧
 
 
 class Grouping(unittest.TestCase):

@@ -181,12 +181,20 @@ def _summary_amount(value) -> str | None:
 PARTY_FIELDS = ("seller_tax", "buyer_name", "buyer_tax")
 
 
+def _not_invoice(page: dict) -> bool:
+	value = (page.get("fields") or {}).get("is_not_invoice")
+	return value.strip().lower() == "true" if isinstance(value, str) else value is True
+
+
 def _selected_page(pages: list[dict]) -> dict | None:
 	def score(page):
 		fields = page.get("fields") or {}
 		return sum(bool(fields.get(key)) for key in ("invoice_number", "total_amount", "seller_name", "date"))
 
 	pages = [page for page in pages or [] if isinstance(page, dict)]
+	# 挂在票上作证据的非发票页（转账凭条、清单续页……）不当主页：只有副本页的票挂了一张转账凭条时，
+	# 主页仍是票本身（2026-10-07）。整张记录都是非发票页时照旧挑。
+	pages = [page for page in pages if not _not_invoice(page)] or pages
 	for page in pages:
 		fields = page.get("fields") or {}
 		if not page.get("is_copy") and not page.get("is_duplicate"):
