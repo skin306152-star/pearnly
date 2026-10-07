@@ -35,6 +35,7 @@ from pearnly_cowork.ocr.validation.accounting import (
     invoice_number_alternative, invoice_number_range, invoice_number_unseen, non_invoice_title, normalize_amounts,
     repair_from_transcript,
 )
+from pearnly_cowork.ocr.validation.attachments import drop_attachments
 from pearnly_cowork.ocr.validation.dates import year_shift
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
@@ -678,6 +679,7 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
         if summary:
             page.invoice = page.invoice.model_copy(update={"is_not_invoice": True, "additional_invoices": []})
             page.validation_warnings.append(summary)
+    drop_attachments(pages)  # 已有正式票时，随票的「其他」附属页不另算一张（2026-10-07 独立金标）
     # Adapters must supply a stable key. Empty keys (pure callers) represent unique calls.
     seen, calls = set(), []
     for call in run.calls:
