@@ -228,6 +228,9 @@ live() {
   scp -q -o BatchMode=yes "$tarball" "$host:C:/Users/codexops/AppData/Local/Temp/pearnly-testenv-live.tgz"
   rm -f "$tarball"
   echo "源码：$(git -C "$src" rev-parse --short HEAD)$(git -C "$src" diff --quiet HEAD -- apps || echo ' + 未提交改动')（$src）"
+  # 测试机上 `wsl --shutdown` 过（例如改网络模式）会带走保活进程，WSL 空闲关掉后隧道报 530（2026-10-07）：
+  # 每次同步顺带补起，已在跑就什么都不做。
+  keepalive start
   bash_remote_app "$target_app" live "$win_temp/pearnly-testenv-live.tgz" "$migrate_hash"
 }
 
