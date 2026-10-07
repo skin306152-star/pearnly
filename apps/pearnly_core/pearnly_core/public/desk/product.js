@@ -300,7 +300,8 @@ frappe.provide("frappe.pearnly");
 		class SmallText extends NativeSmallText {
 			make_input() {
 				super.make_input();
-				this.$input.css({height: ""});
+				// 按一行起量：空框由皮肤的最小高度兜底，不被浏览器默认的两行撑高。
+				this.$input.css({height: ""}).attr("rows", 1);
 				p.watch_textarea(this.input);
 			}
 			set_formatted_input(value) {

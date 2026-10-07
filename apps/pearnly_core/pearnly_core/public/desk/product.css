@@ -329,6 +329,9 @@ body.pearnly-product-desk textarea.form-control.pearnly-wrap-data {
 	min-height: var(--input-height);
 	resize: none;
 	overflow-y: auto;
+	/* 一行时与官方单行框同高（28px = 4 + 19.6 + 4）：行距留给换行后的多行，上下内边距收一点。 */
+	padding-top: 4px;
+	padding-bottom: 4px;
 	line-height: 1.4;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
