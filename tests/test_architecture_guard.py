@@ -154,6 +154,31 @@ class ProductDeclarations(unittest.TestCase):
             (package / "i18n").mkdir(exist_ok=True)
             (package / "i18n/messages.tsv").write_text("en\tzh\tth\tja\tkey\n")
 
+    def test_the_cloud_run_ocr_service_only_imports_what_its_image_copies(self):
+        # 2026-10-07：识别结构引用了镜像里没有的 contracts，CI 没拦住、到部署构建才失败
+        ocr = self.root / "apps/pearnly_cowork/pearnly_cowork/ocr"
+        (ocr / "remote").mkdir(parents=True)
+        for path in ("apps/pearnly_cowork/pearnly_cowork/__init__.py", "apps/pearnly_cowork/pearnly_cowork/ocr/__init__.py",
+                     "apps/pearnly_cowork/pearnly_cowork/ocr/remote/__init__.py"):
+            (self.root / path).write_text("")
+        (ocr / "remote/app.py").write_text("from ..schema import invoice\n\ndef later():\n    import pearnly_cowork.history\n")
+        (ocr / "schema").mkdir()
+        (ocr / "schema/__init__.py").write_text("")
+        (ocr / "schema/invoice.py").write_text("X = 1\n")
+        image = self.root / "infrastructure/cloud-run"
+        image.mkdir(parents=True)
+        (image / "cowork-ocr.Dockerfile").write_text(
+            "COPY apps/pearnly_cowork/pearnly_cowork/__init__.py pearnly_cowork/__init__.py\n"
+            "COPY apps/pearnly_cowork/pearnly_cowork/ocr pearnly_cowork/ocr\n")
+        self.assertEqual(guard.check_cloud_run_image(self.root), [])  # 函数里的延迟导入不算
+        contracts = self.root / "apps/pearnly_cowork/pearnly_cowork/contracts"
+        contracts.mkdir()
+        (contracts / "__init__.py").write_text("")
+        (contracts / "rules.py").write_text("")
+        (ocr / "schema/invoice.py").write_text("from pearnly_cowork.contracts import rules\n")
+        errors = guard.check_cloud_run_image(self.root)
+        self.assertTrue(any("contracts/rules.py" in error for error in errors), errors)
+
     def test_a_product_declares_its_own_catalog_menu_and_glossary(self):
         self.assertEqual(guard.check(self.root), [])
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Optional
 
 POLICY_CLASSES = ("payment_evidence", "withholding_certificate")
-FLAGS = ("withholding_certificate",)
 ENTER, SKIP = "enter", "skip"
 VALUES = (ENTER, SKIP)
 NEEDED_PREFIX = "document_policy_needed_"
@@ -62,5 +61,5 @@ def apply_to_pages(pages, policy: Mapping[str, str]) -> None:
             page.setdefault("_validation_warnings", []).append(f"{WARNING_PREFIX} {policy.get(kind) or 'ask'} {kind}")
 
 
-__all__ = ["ENTER", "FLAGS", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages",
+__all__ = ["ENTER", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages",
            "document_class", "normalize", "push_block"]

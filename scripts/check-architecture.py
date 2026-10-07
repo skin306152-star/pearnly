@@ -99,6 +99,71 @@ def check_ocr_replay(root):
     return errors
 
 
+# Cowork 识别的 Cloud Run 镜像只拷 Dockerfile 里列的那几个目录 / 文件（ADR-0015）：从服务入口出发，模块顶层导入
+# 用到的本仓模块都要在拷贝清单里，否则镜像构建时导入就失败（2026-10-07：识别结构引用了 contracts，到部署才发现）。
+CLOUD_RUN_DOCKERFILE = "infrastructure/cloud-run/cowork-ocr.Dockerfile"
+CLOUD_RUN_ENTRY = "pearnly_cowork.ocr.remote.app"
+
+
+def _module_file(root, module):
+    package = module.split(".")[0]
+    base = root / "apps" / package / Path(*module.split("."))
+    for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _top_level_imports(tree, module, is_package):
+    """模块导入时就会执行的导入（不进函数体）：返回完整模块名。"""
+    found, stack = [], list(tree.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        if isinstance(node, ast.Import):
+            found.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                parts = module.split(".") if is_package else module.split(".")[:-1]
+                parts = parts[:len(parts) - node.level + 1]
+                base = ".".join(parts + ([node.module] if node.module else []))
+            else:
+                base = node.module or ""
+            found.append(base)
+            found.extend(f"{base}.{alias.name}" for alias in node.names)
+        stack.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def check_cloud_run_image(root):
+    dockerfile = root / CLOUD_RUN_DOCKERFILE
+    if not dockerfile.is_file() or _module_file(root, CLOUD_RUN_ENTRY) is None:
+        return []
+    copied = []
+    for line in dockerfile.read_text().splitlines():
+        words = line.split()
+        if words[:1] == ["COPY"]:
+            copied.extend(root / source for source in words[1:-1])
+    errors, seen, queue = [], set(), [CLOUD_RUN_ENTRY]
+    while queue:
+        module = queue.pop()
+        path = _module_file(root, module)
+        if path is None or path in seen:
+            continue
+        seen.add(path)
+        if not any(path == source or source in path.parents for source in copied):
+            errors.append(f"{path.relative_to(root)}: imported by the Cloud Run OCR service ({CLOUD_RUN_ENTRY}) "
+                          f"but not copied into {CLOUD_RUN_DOCKERFILE}")
+            continue
+        parts = module.split(".")
+        queue.extend(".".join(parts[:i]) for i in range(1, len(parts)))
+        tree = ast.parse(path.read_text(), filename=str(path))
+        queue.extend(name for name in _top_level_imports(tree, module, path.name == "__init__.py")
+                     if name.startswith("pearnly_"))
+    return errors
+
+
 SITE_CONFIG_KEY = re.compile(r"""conf(?:\.get\(|\[)\s*["'](pearnly_[a-z0-9_]+)["']""")
 
 
@@ -242,6 +307,7 @@ def check(root=ROOT):
     errors.extend(check_product_declarations(root))
     errors.extend(check_ocr_replay(root))
     errors.extend(check_site_config_keys(root, policy))
+    errors.extend(check_cloud_run_image(root))
     return errors
 
 
