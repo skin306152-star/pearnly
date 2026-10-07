@@ -19,5 +19,10 @@ class ModelRouter:
             return self._claude.model_call(request, **kwargs)
         return self._base.model_call(request, **kwargs)
 
+    @property
+    def claude(self):
+        """Claude 的客户端（没配为 ``None``）：批处理（ADR-018）组请求、取请求头用。"""
+        return self._claude
+
     def __getattr__(self, name):
         return getattr(self._base, name)

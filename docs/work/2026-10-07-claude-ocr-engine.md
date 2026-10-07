@@ -100,6 +100,17 @@
   所以测试机本机读时的「结果不明」/ 读超时多是这一层造成，不是产品或 OpenRouter；生产（普通 Linux + Cloud Run）没有这一层。
   测试机直连 OpenRouter 的大量卡死与早先「Wi-Fi 断流」的判断已被这组对照推翻。
 
+## 批处理交付（ADR-018，2026-10-07，用户：「另一个窗口的功能要走批量，你只管建好 claude 这边」）
+
+- 入口 `ocr.execution.service.submit(..., delivery="batch")`；`ocr.execution.batch`（收集 / 定时推进 / 预填检查点 / 放行），
+  `ocr.providers.anthropic_batch`（纯协议层），`AnthropicClient.batch_entry`（键与实时检查点键相同）；识别单加 `delivery`、
+  `provider_batch` 字段与 `batch_waiting` 阶段；`workflow.run_local` 抽出供实时与收集共用；批处理结果按半价计。
+- 测试：`tests/test_cowork_claude_batch.py` 17 条（含「收集的请求预填后再跑引擎 0 次付费调用」）；识别执行相关既有套件全过
+  （`test_cowork_invoice_checks.py` 在 main 上原本就 2 处报错，与本次无关，已另开任务）。
+- 测试站实测（官方密钥、测试 Cloud Run 不参与、站点本机最后一遍）：4 页 PDF 10.3 分钟、单页 4.7 / 2.6 分钟；
+  5 页全部从批处理预填取回（检查点用量 `service_tier=batch`），0 次实时付费调用，结果入库。首轮发现放行时在定时任务里
+  做了带权限的投影而报错（工作单已建好、识别照常完成），已改为放行不做投影，复跑无报错。
+
 ## 测试环境占用与恢复（收尾必须做）
 
 testcowork 测试副本与另一窗口（文件夹自动录入）共用，本包改过的站点配置收尾时恢复：

@@ -13,6 +13,7 @@ VISION_USD_PER_IMAGE = 0.0015
 # Claude 的提示词缓存按官方倍率计（读缓存 0.1 倍、写 5 分钟缓存 1.25 倍输入价）：回复里分开报了这三种输入 token，
 # 按回复算出的是实价，不是估算（``response_cost_thb``）。
 CLAUDE_CACHE_READ, CLAUDE_CACHE_WRITE = 0.1, 1.25
+BATCH_DISCOUNT = 0.5
 
 
 def model_cost_thb(model, input_tokens, output_tokens):
@@ -32,9 +33,11 @@ def claude_usage_usd(model, usage):
     def tokens(name):
         return max(0, int(usage.get(name) or 0))
 
-    return (tokens("input_tokens") * price[0] + tokens("cache_read_input_tokens") * price[0] * CLAUDE_CACHE_READ
-            + tokens("cache_creation_input_tokens") * price[0] * CLAUDE_CACHE_WRITE
-            + tokens("output_tokens") * price[1]) / 1e6
+    usd = (tokens("input_tokens") * price[0] + tokens("cache_read_input_tokens") * price[0] * CLAUDE_CACHE_READ
+           + tokens("cache_creation_input_tokens") * price[0] * CLAUDE_CACHE_WRITE
+           + tokens("output_tokens") * price[1]) / 1e6
+    # 批处理（ADR-018）的结果用量标着 service_tier=batch：全部 token 按半价。
+    return usd * BATCH_DISCOUNT if usage.get("service_tier") == "batch" else usd
 
 
 def response_cost_thb(response):

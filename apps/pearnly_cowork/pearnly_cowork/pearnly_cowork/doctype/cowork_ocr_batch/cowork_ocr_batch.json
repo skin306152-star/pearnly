@@ -171,7 +171,7 @@
    "label": "Phase",
    "read_only": 1,
    "hidden": 1,
-   "options": "admitted\nrecognizing\nrecognized\nsaved\nnot_invoice"
+   "options": "admitted\nrecognizing\nrecognized\nsaved\nnot_invoice\nbatch_waiting"
   },
   {
    "fieldname": "billing_state",
@@ -245,6 +245,21 @@
    "label": "Billing Units",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "delivery",
+   "fieldtype": "Data",
+   "label": "Delivery",
+   "length": 20,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "provider_batch",
+   "fieldtype": "Long Text",
+   "label": "Provider Batch",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "field_order": [
@@ -276,7 +291,9 @@
   "billing_receipt",
   "reference_kind",
   "billing_kind",
-  "billing_units"
+  "billing_units",
+  "delivery",
+  "provider_batch"
  ],
- "modified": "2026-09-26 12:00:00.000000"
+ "modified": "2026-10-07 18:00:00.000000"
 }

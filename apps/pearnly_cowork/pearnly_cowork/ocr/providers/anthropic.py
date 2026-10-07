@@ -101,12 +101,27 @@ class AnthropicClient:
         self._terminal_write(key, {"refusal": refusal, "raw": raw})
         raise ProviderError(**refusal)
 
+    def _identity(self, model, stage, page_number, attempt):
+        """检查点身份：入口主机 + 模型 + 阶段 + 页 + 尝试。实时调用与批处理（``batch_entry``）同一个算法，键一致。"""
+        return json.dumps(["cowork", PROVIDER, self.host, LOCATION, model, stage, page_number, attempt])
+
+    def headers(self):
+        """调用用的请求头（含密钥，只给发出请求的代码用，不进检查点与证据）。批处理的提交 / 查询也用它。"""
+        return self._headers()
+
+    def batch_entry(self, request: ModelRequest):
+        """批处理（Message Batches，同价减半，ADR-018）的一条：``(检查点键, 请求体)``，不发出、不复核、不付费。
+        键与这条请求实时发出时的检查点键相同：批处理结果按这个键预先填进检查点，之后照常跑识别就直接取回。"""
+        _reference(request.stage, request.page_number, request.attempt)
+        body = self.payload(request)
+        return self._key(body, self._identity(request.model, request.stage, request.page_number, request.attempt)), body
+
     def _send(self, *, payload, model, stage, page_number, attempt, timeout_s, retry_unknown):
         _reference(stage, page_number, attempt)
         if not isinstance(timeout_s, (int, float)) or isinstance(timeout_s, bool) or not 0 < timeout_s <= 180:
             raise ProviderConfigurationError("ocr.invalid_provider_timeout")
         self._require_context()
-        identity = json.dumps(["cowork", PROVIDER, self.host, LOCATION, model, stage, page_number, attempt])
+        identity = self._identity(model, stage, page_number, attempt)
         key = self._key(payload, identity)
         if retry_unknown:
             saved = self._checkpoint_read(key) or {}

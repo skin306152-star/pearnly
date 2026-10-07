@@ -355,6 +355,7 @@ Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายก
 Delete {0} stock counts? Posted ones cannot be deleted.,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
 Deleted {0},ลบแล้ว {0} รายการ
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
+Delivery,วิธีส่งงาน
 Department,แผนก
 Department for this rule,แผนก
 Deposit,ฝาก
@@ -528,6 +529,7 @@ Invalid posting type.,ประเภทการลงบัญชีไม่�
 Invalid push execution mode.,โหมดการส่งไม่ถูกต้อง
 Invalid push request.,คำขอส่งไม่ถูกต้อง
 Invalid push target.,เป้าหมายการส่งไม่ถูกต้อง
+Invalid recognition delivery.,วิธีส่งงานอ่านเอกสารไม่ถูกต้อง
 Invalid recognized invoice group.,กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง
 Invalid request,คำขอไม่ถูกต้อง
 Invalid request key.,รหัสคำขอไม่ถูกต้อง
@@ -756,6 +758,7 @@ Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
 Progress,ความคืบหน้า
 PromptPay,พร้อมเพย์
+Provider Batch,ชุดงานของผู้ให้บริการ
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
 Purchase (expense),ซื้อ (ค่าใช้จ่าย)
 Purchase (goods),ซื้อ (สินค้า)
@@ -1347,6 +1350,7 @@ active,ใช้งานอยู่
 admitted,รับงานแล้ว
 "allowed root, set once on the Companion",โฟลเดอร์หลักที่อนุญาต ตั้งครั้งเดียวในผู้ช่วย
 amount,จำนวนเงิน
+batch_waiting,รอการอ่านแบบชุด
 before VAT,ก่อนภาษี
 catalog_refresh_invalid,หลักฐานไดเรกทอรีไม่ถูกต้อง โปรดรีเฟรชแล้วเลือกใหม่
 catalog_refresh_pending,กำลังรอการรีเฟรชไดเรกทอรี
