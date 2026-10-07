@@ -12,9 +12,10 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.targets import stock_groups
+from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_cowork.contracts.history import primary_page, primary_page_fields
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax, resolve_posting_kind
-from pearnly_cowork.history import push_state, storage
+from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.express import choices as choice_rules
@@ -57,9 +58,15 @@ def _view(row):
     return result
 
 
+def _document_block(doc, *, release_suspect):
+    """口径类单据没选过 / 选了不录入、疑点票没放行 → 原因码（`contracts.document_policy`）；能推回 None。"""
+    fields = primary_page_fields(json.loads(doc.pages or "[]"))
+    return policy_rules.push_block(fields, document_policy.read(doc.workspace), release_suspect=release_suspect)
+
+
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-            *, confirm_duplicate=False):
+            *, confirm_duplicate=False, release_suspect=False):
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -75,6 +82,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
     if confirm_duplicate:
         # 只在点了「仍然推送」时写进意图：老的请求键回放时意图照旧对得上。
         intent["confirm_duplicate"] = True
+    if release_suspect:  # 复核页点了「仍要录入」（疑点票）：同上，只在点了时写进意图
+        intent["release_suspect"] = True
     if posting_kind not in (None, "", "service", "stock"):
         frappe.throw(_("push.posting_kind_invalid"))
     previous = ledger.lookup_request(context, request_key)
@@ -92,6 +101,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
         frappe.throw(_("push.adapter_not_connected"))
     if frappe.conf.get("pearnly_cowork_erp_push_enabled") not in (True, 1):
         return {"status": "disabled", "reason": "ERR_EXPRESS_DISABLED", "history": doc.name, "connection": connection}
+    blocked = _document_block(doc, release_suspect=release_suspect)
+    if blocked:  # 原因码由提交记在票上，复核页按码出文案与按钮（录入 / 不录入、仍要录入）
+        frappe.throw(blocked)
     if adapter == "mrerp":
         return _view(_prepare_mrerp(doc, loaded, request_key, intent, account_set_key,
                                     catalog_request_id, catalog_revision))
@@ -218,7 +230,8 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None):
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
-    if loaded.endpoint.get("adapter") != "express":
+    if loaded.endpoint.get("adapter") != "express" or _document_block(doc, release_suspect=True):
+        # 这类单据录不录还没定（或定了不录）：先不问对方档、科目这些，提交时停在口径那一步
         return {"needed": [], "options": {}}
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
@@ -408,7 +421,7 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False):
+           *, confirm_duplicate=False, release_suspect=False):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
@@ -416,7 +429,8 @@ def submit(history, connection, request_key, expected_history_version, expected_
     """
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
-            account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate)
+            account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate,
+            release_suspect=release_suspect)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":

@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-09-20 00:00:00.000000",
+ "modified": "2026-10-08 10:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -20,7 +20,8 @@
   "address",
   "branch",
   "phone",
-  "enabled"
+  "enabled",
+  "document_policy"
  ],
  "fields": [
   {
@@ -59,6 +60,13 @@
    "fieldtype": "Check",
    "label": "Enabled",
    "default": "1"
+  },
+  {
+   "fieldname": "document_policy",
+   "fieldtype": "Small Text",
+   "label": "Document Policy",
+   "hidden": 1,
+   "read_only": 1
   }
  ],
  "permissions": [

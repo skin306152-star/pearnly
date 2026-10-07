@@ -8,6 +8,7 @@ from copy import deepcopy
 from typing import Dict, List, Literal, Optional, get_args
 
 from pydantic import BaseModel, Field, PrivateAttr, ValidationInfo, field_validator, model_validator
+from pearnly_cowork.contracts import document_policy
 from pearnly_cowork.ocr.schema.evidence import FieldRef
 from pearnly_core.tax_documents import codes as tax_codes
 from pearnly_core.tax_documents.amounts import repaired_tax_id
@@ -146,6 +147,9 @@ class ThaiInvoice(BaseModel):
         default=False,
         description="true when text contains สำเนา / COPY / DUPLICATE markers",
     )
+    # 录不录要人定的类别 / 单张疑点（`contracts.document_policy`，用户 2026-10-07）；普通票据为空。
+    document_flag: str = Field(default="", description="withholding_certificate / loan_repayment / cancelled / "
+                               "billing_notice / customs_declaration, empty for an ordinary document")
 
     invoice_number: Optional[str] = Field(default=None)
     date: Optional[str] = Field(
@@ -277,6 +281,12 @@ class ThaiInvoice(BaseModel):
     def _coerce_bool(cls, v):
         """Gemini sometimes returns null for booleans; treat null as False."""
         return False if v is None else v
+
+    @field_validator("document_flag", mode="before")
+    @classmethod
+    def _coerce_document_flag(cls, v):
+        """认不得的标记当作没有：标记只决定录不录要不要人定，读错一个值不能让票消失。"""
+        return v if v in document_policy.FLAGS else ""
 
     @field_validator("items", mode="before")
     @classmethod

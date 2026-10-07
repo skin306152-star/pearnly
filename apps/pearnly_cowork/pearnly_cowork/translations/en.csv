@@ -384,6 +384,7 @@ Document total,Document total
 Document type,Document type
 Does account {0} belong in this reconciliation?,Does account {0} belong in this reconciliation?
 Does {0} post in batches?,Does {0} post in batches?
+Don't enter (this kind from now on),Don't enter (this kind from now on)
 Done,Done
 Done list (cards moved here are complete),Done list (cards moved here are complete)
 Download template,Download template
@@ -420,6 +421,7 @@ Email,Email
 Enable,Enable
 Enable {0},Enable {0}
 Enabled,Enabled
+Enter (this kind from now on),Enter (this kind from now on)
 Enter a board name,Enter a board name
 Enter a comment,Enter a comment
 Enter a field name,Enter a field name
@@ -429,6 +431,7 @@ Enter a quantity,Enter a quantity
 Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1 to 120 characters.
 Enter a valid email,Enter a valid email
 Enter a valid quantity with no more than six decimal places.,Enter a valid quantity with no more than six decimal places.
+Enter anyway,Enter anyway
 Enter list name,Enter list name
 Enter the user name,Enter the user name
 Entered into Express,Entered into Express
@@ -670,6 +673,7 @@ Not an invoice file,Not an invoice file
 Not bound,Not bound
 Not card deposits net of fee,Not card deposits net of fee
 Not counted,Not counted
+Not entered,Not entered
 Not permitted,Not permitted
 Not set,Not set
 Note,Note
@@ -1062,6 +1066,7 @@ The document could not be read. Check the file and try again.,The document could
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,The document date is outside the fiscal period of the chosen account set. Check the year and send it again.
 The document exceeds the allowed size after decompression.,The document exceeds the allowed size after decompression.
 The document file is damaged or cannot be decompressed.,The document file is damaged or cannot be decompressed.
+The document is stamped cancelled; it is not sent unless you choose to,The document is stamped cancelled; it is not sent unless you choose to
 The document reader is unavailable. Contact your administrator.,The document reader is unavailable. Contact your administrator.
 The document sections are incomplete or invalid.,The document sections are incomplete or invalid.
 "The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway","The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
@@ -1197,11 +1202,15 @@ This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
 This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
+This company does not enter loan repayment receipts; this one is not sent,This company does not enter loan repayment receipts; this one is not sent
+This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
+This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent,This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent
 This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
 This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
 This delivery conflicts with the current task state.,This delivery conflicts with the current task state.
+This document does not need this choice,This document does not need this choice
 This document format is not supported.,This document format is not supported.
 This file does not match the review workbook format.,This file does not match the review workbook format.
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.","This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
@@ -1212,9 +1221,14 @@ This file type is not supported.,This file type is not supported.
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
 This invoice was already sent successfully,This invoice was already sent successfully
+This is a customs declaration page; it is not sent unless you choose to,This is a customs declaration page; it is not sent unless you choose to
+This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on,This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).","This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย)."
+This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,This is a trial balance with account totals only. Upload the general ledger with each voucher.
+This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
+This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to,This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to
 This item is also stocked at:,This item is also stocked at:
 This label no longer exists,This label no longer exists
 This list no longer exists,This list no longer exists
@@ -1522,6 +1536,11 @@ cowork.nav.reconBank,Bank Reconciliation
 cowork.nav.reconIncome,Income Reconciliation
 cowork.nav.reconVat,VAT Report Check
 cowork.nav.work,Task Management
+cowork.policy.enter,Enter (this kind from now on)
+cowork.policy.invalid,This document does not need this choice
+cowork.policy.release,Enter anyway
+cowork.policy.skip,Don't enter (this kind from now on)
+cowork.policy.skipped,Not entered
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.recon.bank.gl_credit_only,Ledger credit only
@@ -2192,6 +2211,15 @@ intake.error.currency_not_thb,Only invoices in Thai baht can be sent to Express
 intake.error.date_future,The invoice date is in the future. Correct it and submit again
 intake.error.date_implausible,The invoice date looks wrong. Correct it and submit again
 intake.error.direction_unknown,Choose purchase or sales for this invoice and submit again
+intake.error.document_policy_needed_loan_repayment,This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on
+intake.error.document_policy_needed_payment_evidence,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
+intake.error.document_policy_needed_withholding_certificate,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
+intake.error.document_policy_skip_loan_repayment,This company does not enter loan repayment receipts; this one is not sent
+intake.error.document_policy_skip_payment_evidence,This company does not enter transfer slips; this one is not sent
+intake.error.document_policy_skip_withholding_certificate,This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent
+intake.error.document_suspect_billing_notice,This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to
+intake.error.document_suspect_cancelled,The document is stamped cancelled; it is not sent unless you choose to
+intake.error.document_suspect_customs_declaration,This is a customs declaration page; it is not sent unless you choose to
 intake.error.entry_not_balanced,The entry does not balance. Check the amounts
 intake.error.items_incomplete,Some line items have no name or amount. Fix the lines and submit again
 intake.error.items_mismatch,The line items do not add up to the invoice amount. Fix the lines and submit again

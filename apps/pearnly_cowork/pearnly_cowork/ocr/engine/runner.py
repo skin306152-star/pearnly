@@ -36,6 +36,7 @@ from pearnly_cowork.ocr.validation.accounting import (
     repair_from_transcript,
 )
 from pearnly_cowork.ocr.validation.attachments import drop_attachments
+from pearnly_cowork.contracts import document_policy
 from pearnly_cowork.ocr.validation.dates import year_shift
 from pearnly_cowork.ocr.engine.contracts import (
     CallEvidence, EngineConfig, EngineResult, ModelCall, ModelRequest,
@@ -127,6 +128,8 @@ def rescue_note(before, after) -> str:
 def mark_title(invoice, text):
     """票头是非购销票据（``non_invoice_title``）：这一页连同同页的其他读数都按「不是发票」处理，返回类别。"""
     kind = non_invoice_title(text)
+    if kind in document_policy.FLAGS:  # 预扣税凭证录不录由租户选（`contracts.document_policy`），这里只标类别
+        invoice.document_flag = kind
     if kind and not invoice.is_not_invoice:
         invoice.is_not_invoice = True
         invoice.additional_invoices = []

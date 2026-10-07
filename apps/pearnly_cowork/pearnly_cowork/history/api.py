@@ -6,7 +6,7 @@ import json
 
 import frappe
 from pearnly_cowork.access import scope
-from pearnly_cowork.history import duplicates, removal, storage
+from pearnly_cowork.history import document_policy, duplicates, removal, storage
 
 # 列头能点的字段：原生列表的排序回服务端，认不出的字段不许拼进 SQL。
 SORT_FIELDS = frozenset(("invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
@@ -21,6 +21,12 @@ def duplicate_setting():
 @frappe.whitelist(methods=["POST"])
 def save_duplicate_setting(enabled):
     return duplicates.save_setting(enabled)
+
+
+@frappe.whitelist(methods=["POST"])
+def choose_document_policy(name, value):
+    """复核页对转账凭条 / 预扣税凭证 / 还款收据选「录入 / 不录入」：这个租户同类以后都这样（见 `document_policy`）。"""
+    return document_policy.choose(name, value)
 
 
 @frappe.whitelist(methods=["POST"])

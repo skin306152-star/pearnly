@@ -18,6 +18,7 @@ from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, preview_record, preview_spec, stored_original
 from pearnly_cowork.files.access import reference_count, reference_kind
+from pearnly_cowork.history import document_policy
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
@@ -207,7 +208,8 @@ def _persist(doc):
         plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
             source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
             payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
-            reference_kind=doc.get("reference_kind") or "physical_page")
+            reference_kind=doc.get("reference_kind") or "physical_page",
+            document_policy=document_policy.read(doc.workspace))
     previews = (getattr(doc, "flags", None) or {}).get("cowork_previews")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.

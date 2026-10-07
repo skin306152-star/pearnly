@@ -8,6 +8,7 @@ This module performs no permission decision, persistence, model call or charge.
 from collections import Counter
 from copy import deepcopy
 
+from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_cowork.contracts.history import normalize_source
 from pearnly_cowork.contracts.push import (apply_batch_direction, apply_batch_payment,
     normalize_direction, normalize_payment, normalize_posting_kind)
@@ -84,11 +85,11 @@ def _require_complete(result, expected_page_count):
     return review_pages
 
 
-def _attach_unread(groups, unread):
+def _attach_unread(groups, unread, *, flag=True):
     """读不出的页挂到前一张单据上（从第 1 页起读不出的挂第一张），并在那张票上标红「有一页没读出」。
 
     与 ERP `recognition.policy.read_all` 同一做法：不进分组算法（空白页会被当成续页并进上一张，
-    按金额分界时又进下一张，两种方向不一致），分完再挂。"""
+    按金额分界时又进下一张，两种方向不一致），分完再挂。``flag=False``：只挂作证据、不标红（非发票页）。"""
     if not unread or not groups:
         return groups
     for page in sorted(unread, key=lambda item: item["page_index"]):
@@ -96,6 +97,8 @@ def _attach_unread(groups, unread):
         group = max(before, key=lambda item: min(item["page_indices"])) if before else groups[0]
         group["source_pages"].append(deepcopy(page))
         group["page_indices"] = sorted([*group["page_indices"], page["page_index"]])
+        if not flag:
+            continue
         first = group["source_pages"][0]
         first["_validation_warnings"] = [*(first.get("_validation_warnings") or []),
                                          *(page.get("_validation_warnings") or [])]
@@ -106,7 +109,7 @@ def _attach_unread(groups, unread):
 
 def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, workspace: str,
                           source: str, client=None, posting_kind=None, direction=None, payment=None,
-                          reference_kind="physical_page") -> dict:
+                          reference_kind="physical_page", document_policy=None) -> dict:
     """Prepare groups for persist_batch; a result is never a billing permission.
 
     ``has_billable_result`` only distinguishes an invoice result from a complete
@@ -116,6 +119,9 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
     All groups use the explicitly supplied scope. Automatic company assignment,
     archive naming, accounting categories and duplicate DB lookup are not part
     of this pure slice. The persistence service rechecks every assigned scope.
+
+    ``document_policy``：这个租户对转账凭条 / 预扣税凭证 / 还款收据选过的「录入 / 不录入」
+    （`contracts.document_policy`），由调用方读出传入。
     """
     source = normalize_source(source)
     if reference_kind not in {"physical_page", "logical_section"}:
@@ -142,6 +148,7 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
                 **references, "confidence": None, "confidence_band": aggregate_confidence_band(result.pages),
                 "requires_review": bool(review_pages), "has_billable_result": bool(groups)}
     raw = flatten_pipeline_pages(result.pages)
+    policy_rules.apply_to_pages(raw, policy_rules.normalize(document_policy))
     # A recoverable L3 / image-first failure keeps its validated L2 evidence.
     # Preserve the source error and force review, including every invoice on a
     # multi-invoice physical page, without mutating the caller's result model.
@@ -160,8 +167,14 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
                 "confidence_band": band, "requires_review": bool(review_pages), "has_billable_result": False}
     unread = [page for page in raw if UNREAD_STAGE in (page.get("_layer_chain") or [])]
     raw_read = [page for page in raw if UNREAD_STAGE not in (page.get("_layer_chain") or [])]
-    assessed = assess_confidence(raw_read)
-    groups = _attach_unread(group_invoices(assessed["pages"]), unread)
+    # 非发票页（清单续页、附属页、选了不录入的转账凭条……）不自成一张票，分完挂到前一张作证据（2026-10-07：
+    # 带自己单号和金额的非发票页原先会单独成一张记录）。整份只剩读不出的页和非发票页时照旧分，不让读不出的页丢掉。
+    evidence = [page for page in raw_read if all_pages_not_invoice([page])]
+    invoices = [page for page in raw_read if not all_pages_not_invoice([page])]
+    if not invoices:
+        invoices, evidence = raw_read, []
+    assessed = assess_confidence(invoices)
+    groups = _attach_unread(_attach_unread(group_invoices(assessed["pages"]), evidence, flag=False), unread)
     prepared = []
     declared_direction = normalize_direction(direction)
     # 入口勾的付款方式（现金/赊账）：先归一，再逐张写成人工裁决。

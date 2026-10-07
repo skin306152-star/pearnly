@@ -39,6 +39,7 @@
 		// 「仅识别」的票（`intake_target` 为 `none`，识别后导出、不推送）：蓝色「已识别」，表示识别完成、可以导出；
 		// 导出不另记状态。识别后的需复核原因不在列表显示（用户 2026-10-02），服务端照样算、作内部质量信号。
 		const push_status = (status, row) => (status ? PUSH_STATUS[status] || ["red", () => __("connect.records.failed")]
+			: /^document_policy_skip_/.test(String(row?.last_push_reason || "")) ? ["gray", () => __("cowork.policy.skipped")]
 			: row?.last_push_reason ? ["red", () => __("connect.records.failed")]
 			: row?.intake_target === p.intake_targets?.RECOGNIZE_ONLY ? ["blue", () => t("intake.status.recognized")]
 			: null);

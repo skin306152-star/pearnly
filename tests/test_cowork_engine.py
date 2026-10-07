@@ -147,15 +147,16 @@ class EngineTests(unittest.TestCase):
         run(model=model)
         for request in model.requests:
             self.assertNotIn("source_refs", request.prompt.split("A first reading")[0])
-            # 上限随 2026-09-28 加的第 14 条（会计盖的凭证号章不是票号）放宽到 4800：仍远小于 L2 的 1.2 万。
-            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 4800)
+            # 上限随 2026-09-28 加的第 14 条（会计盖的凭证号章不是票号）放宽到 4800，随 2026-10-07 第 15 条
+            # （录不录的类别 / 疑点标记，约 100 个输入令牌）放宽到 5300：仍远小于 L2 的 1.2 万。
+            self.assertLess(len(request.prompt.split("A first reading")[0].split("An OCR transcript")[0]), 5300)
 
     def test_bills_are_purchases_only_when_the_direct_model_is_3_8(self):
         # 2026-10-02 eval7b：3.8 把电费通知单、请款单判成非票据；补的那句只随 3.8 走，flash-lite 的提示词一字不变
         from pearnly_cowork.ocr.engine.prompts import BILLS_ARE_PURCHASES, IMAGE_SYSTEM, image_system
         self.assertEqual(image_system("gemini-3.1-flash-lite"), IMAGE_SYSTEM)
         self.assertEqual(image_system("gemini-3.8-flash").count(BILLS_ARE_PURCHASES), 1)
-        self.assertLess(len(image_system("gemini-3.8-flash")), 5200)
+        self.assertLess(len(image_system("gemini-3.8-flash")), 5700)
         wrong = {**GOOD, "total_amount": "170"}
         for model, expected in (("gemini-3.8-flash", True), ("lite", False)):
             reader = Model([wrong, wrong, GOOD])
@@ -199,6 +200,7 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(page.invoice.is_not_invoice)
         self.assertEqual(page.invoice.additional_invoices, [])
         self.assertEqual(page.extraction_audit, {"not_invoice_title": "withholding_certificate"})
+        self.assertEqual(page.invoice.document_flag, "withholding_certificate")  # 录不录由租户的选择定（存档时）
         self.assertFalse(any(w.startswith("invoice_number_") for w in page.validation_warnings))
         # 真票页脚写着「请寄回预扣税凭证」：只看票头，不判
         footer = "\n".join([TEXT] + ["line"] * 12 + ["กรุณาส่งหนังสือรับรองการหักภาษี ณ ที่จ่าย"])

@@ -1214,6 +1214,20 @@ Claim as input VAT	抵进项	ขอคืนภาษีซื้อ	仕入税�
 Count as expense	不抵，计入费用	ไม่ขอคืน นับเป็นค่าใช้จ่าย	控除せず費用に含める	cowork.choice.expense
 The chosen value is not in this account set. Choose again	所选的不在这份账套里，请重新选择	สิ่งที่เลือกไม่อยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
 Choose the Express records for this invoice first, then submit again	请先为这张票选定 Express 里的对应项，再提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed
+This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on	这是转账凭条。本公司这类单据录不录？选一次，以后同类都这样处理	นี่คือสลิปโอนเงิน บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน	これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_payment_evidence
+This company does not enter transfer slips; this one is not sent	本公司转账凭条不录入，这张不推送	บริษัทนี้ไม่บันทึกสลิปโอนเงิน รายการนี้จะไม่ถูกส่ง	この会社では振込明細を入力しないため、送信しません	intake.error.document_policy_skip_payment_evidence
+This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on	这是预扣税凭证（50 ทวิ）。本公司这类单据录不录？选一次，以后同类都这样处理	นี่คือหนังสือรับรองการหักภาษี ณ ที่จ่าย บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน	これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_withholding_certificate
+This company does not enter withholding tax certificate (50 Tawi)s; this one is not sent	本公司预扣税凭证（50 ทวิ）不录入，这张不推送	บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย รายการนี้จะไม่ถูกส่ง	この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません	intake.error.document_policy_skip_withholding_certificate
+This is a loan repayment receipt. Enter this kind for this company? Choose once and the same kind follows it from now on	这是银行还款收据。本公司这类单据录不录？选一次，以后同类都这样处理	นี่คือใบเสร็จชำระเงินกู้ บริษัทนี้จะบันทึกเอกสารประเภทนี้หรือไม่ เลือกครั้งเดียว ครั้งต่อไปใช้แบบเดียวกัน	これはローン返済の領収書です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_loan_repayment
+This company does not enter loan repayment receipts; this one is not sent	本公司银行还款收据不录入，这张不推送	บริษัทนี้ไม่บันทึกใบเสร็จชำระเงินกู้ รายการนี้จะไม่ถูกส่ง	この会社ではローン返済の領収書を入力しないため、送信しません	intake.error.document_policy_skip_loan_repayment
+The document is stamped cancelled; it is not sent unless you choose to	票上有作废章，默认不推送	เอกสารมีตราประทับยกเลิก ระบบจะไม่ส่งเว้นแต่คุณเลือก	取消印があるため、既定では送信しません	intake.error.document_suspect_cancelled
+This is the notice part of a utility bill (its receipt part is entered on its own); it is not sent unless you choose to	这是水电费的通知联（收据联另算一张），默认不推送	นี่คือส่วนใบแจ้งค่าสาธารณูปโภค (ส่วนใบเสร็จบันทึกแยก) ระบบจะไม่ส่งเว้นแต่คุณเลือก	公共料金の通知部分です（領収部分は別の伝票）。既定では送信しません	intake.error.document_suspect_billing_notice
+This is a customs declaration page; it is not sent unless you choose to	这是报关单页，默认不推送	นี่คือหน้าใบขนสินค้า ระบบจะไม่ส่งเว้นแต่คุณเลือก	輸出入申告書のページです。既定では送信しません	intake.error.document_suspect_customs_declaration
+Enter (this kind from now on)	录入（以后同类都录）	บันทึก (ประเภทนี้ต่อไปเหมือนกัน)	入力する（以後も同様）	cowork.policy.enter
+Don't enter (this kind from now on)	不录入（以后同类都不录）	ไม่บันทึก (ประเภทนี้ต่อไปเหมือนกัน)	入力しない（以後も同様）	cowork.policy.skip
+Enter anyway	仍要录入	บันทึกต่อไป	このまま入力	cowork.policy.release
+Not entered	不录入	ไม่บันทึก	入力しない	cowork.policy.skipped
+This document does not need this choice	这张票不需要选录不录	เอกสารนี้ไม่ต้องเลือก	この伝票ではこの選択は不要です	cowork.policy.invalid
 The chosen Express stock item no longer exists. Choose again	所选的 Express 存货已不存在，请重新选择	สินค้าคงคลังที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่	選んだ Express の在庫品目はもうありません。選び直してください	intake.error.STOCK_ITEM_NOT_FOUND
 Checked in the ERP	已在 ERP 核对	ตรวจใน ERP แล้ว	ERP で確認済み	cowork.unknown.check
 Result in the ERP	ERP 里的结果	ผลใน ERP	ERP での結果	cowork.unknown.outcome

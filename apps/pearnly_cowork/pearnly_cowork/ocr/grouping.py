@@ -175,6 +175,9 @@ def _build_invoice_from_pages(pages_group: List[Dict]) -> Dict[str, Any]:
         return {}
     # 标量字段一律取第一个非空(跨页发票各字段可能散在不同页)
     merged_fields: Dict[str, Any] = {k: _first_non_empty(pages_group, k) for k in _SCALAR_FIELDS}
+    # 录不录的类别 / 疑点标记要每页一致才算：同号的通知联 + 收据联并成一张时，收据不因通知联被拦（2026-10-07）
+    flags = {str((p.get("fields") or {}).get("document_flag") or "") for p in pages_group}
+    merged_fields["document_flag"] = flags.pop() if len(flags) == 1 else ""
     for k in _PROVENANCE_FIELDS:
         v = _first_non_empty(pages_group, k)
         if not _is_empty(v):

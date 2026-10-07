@@ -17,7 +17,7 @@ def invoice(**values):
 
 class InvoiceSchemaTests(unittest.TestCase):
     def test_all_source_fields_and_defaults_remain(self):
-        expected = "document_type is_not_invoice is_copy_or_duplicate invoice_number date date_raw " \
+        expected = "document_type is_not_invoice is_copy_or_duplicate document_flag invoice_number date date_raw " \
             "seller_name seller_tax seller_addr seller_branch buyer_name buyer_tax buyer_addr buyer_branch " \
             "subtotal vat wht_rate wht_amount discount total_amount payment_received cash_amount change_amount " \
             "payment_method currency items notes category additional_invoices source_refs"
