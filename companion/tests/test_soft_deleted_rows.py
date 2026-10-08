@@ -5,8 +5,7 @@
 成功**。DBF 的删除是打标记不是抹数据,幂等闸在那条软删的旧行上命中,返回「已存在,跳过」,
 一个字节都没写。
 
-删单重推这条路上串着四道闸,任何一道把软删行当真都会把票挡在外面:
-  ① 幂等查重(_find_existing)     → 认下幽灵行 = 假成功,票永远进不去
+删单重推这条路上串着几道闸,任何一道把软删行当真都会把票挡在外面(写入前的查重 2026-10-08 已拿掉):
   ② 单头/GL 读回(_verify)        → 新旧同号并存,GL 合计翻倍 → 好单被判不平回滚
   ③ 明细读回(dbf_detail)         → 旧明细也数进去 → 行数对不上 → 回滚
   ④ 主档查码/读回、库存主档定位     → 挂到看不见的对手方 / 扣库存扣进幽灵行
@@ -276,47 +275,25 @@ def test_purchase_lands_again_after_the_bill_was_deleted_in_express(datat):
     assert len(_live(datat, "APTRN", REFNUM="INV-9001")) == 1
 
 
-# ── ② 反向:幂等不能被改坏 ─────────────────────────────────────────────────
+# ── ② 票还在账里:照写第二张 ─────────────────────────────────────────────────
 
 
-def test_live_duplicate_sale_is_still_skipped(datat):
-    """票还好端端在账里 → 仍旧幂等跳过,绝不建第二张。"""
-    first = _push_sale(datat)
+def test_live_duplicate_sale_is_written_again(datat):
+    """票还在账里也照写第二张(不查重,用户 2026-09-30、2026-10-08)。"""
+    _push_sale(datat)
     again = _push_sale(datat)
-    assert again.ok and again.skipped and again.docnum == first.docnum
-    assert len(_live(datat, "ARTRN", DOCNUM=_REF)) == 1
-    assert len(_live(datat, "GLJNLIT", VOUCHER=_REF)) == 3
+    assert again.ok and not again.skipped, again.error
+    assert len(_live(datat, "ARTRN", DOCNUM=_REF)) == 2
 
 
-def test_live_duplicate_purchase_is_still_skipped(datat):
+def test_live_duplicate_purchase_is_written_again(datat):
     first = _push_purchase(datat)
     again = _push_purchase(datat)
-    assert again.ok and again.skipped and again.docnum == first.docnum
-    assert len(_live(datat, "APTRN", REFNUM="INV-9001")) == 1
+    assert again.ok and not again.skipped and again.docnum != first.docnum
+    assert len(_live(datat, "APTRN", REFNUM="INV-9001")) == 2
 
 
 # ── ③ 变异:把软删判断去掉,上面那条路必须立刻塌 ────────────────────────────
-
-
-def test_counting_deleted_rows_brings_the_silent_no_op_back(datat, monkeypatch):
-    """变异证据:live_rows 退回"软删行照算" → 重推立刻回到「报成功但没写」。"""
-    _push_sale(datat)
-    _express_delete_sale(datat, _REF)
-
-    monkeypatch.setattr(S, "live_rows", _count_deleted_rows)
-    again = _push_sale(datat)
-    assert again.ok and again.skipped  # 假成功
-    assert _live(datat, "ARTRN") == []  # 一个字节没写
-
-
-def test_counting_deleted_rows_brings_the_purchase_no_op_back(datat, monkeypatch):
-    first = _push_purchase(datat)
-    _express_delete_purchase(datat, first.docnum)
-
-    monkeypatch.setattr(S, "live_rows", _count_deleted_rows)
-    again = _push_purchase(datat)
-    assert again.ok and again.skipped
-    assert _live(datat, "APTRN") == []
 
 
 def test_readback_would_reject_the_good_invoice_if_ghosts_counted(datat, monkeypatch):

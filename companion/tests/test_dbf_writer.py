@@ -316,13 +316,13 @@ def test_docnum_daily_sequence(datat):
     assert res.docnum == "RR581231-002"
 
 
-# ── 幂等 ────────────────────────────────────────────────────
-def test_idempotent_no_double_write(datat):
+# ── 不查重:同一张票再推就再写一张(用户 2026-09-30、2026-10-08) ─────────────────
+def test_same_invoice_pushed_again_is_written_again(datat):
     r1 = W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
     assert r1.ok and not r1.skipped
     r2 = W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
-    assert r2.ok and r2.skipped and r2.docnum == r1.docnum
-    assert len(_rows(datat, "APTRN", REFNUM="INV-9001")) == 1
+    assert r2.ok and not r2.skipped and r2.docnum != r1.docnum
+    assert len(_rows(datat, "APTRN", REFNUM="INV-9001")) == 2
 
 
 # ── 备份 + 回滚 ─────────────────────────────────────────────

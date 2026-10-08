@@ -16,7 +16,7 @@ from typing import Callable, Optional
 
 from .config import CompanionConfig
 from .logger import activity, get_logger
-from . import projection_refresh
+from . import projection_refresh, task_journal
 from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
@@ -212,6 +212,18 @@ def _handle_dbf_task(
         expected_company=st.account_company,
         index_batch=index_batch,
     )
+    # 同一个任务上次已经写进去、只是回执没送到（断网 / 关机）：照上次的回执回报，不写第二张。
+    # 只认任务号，会计再推一次是新任务、照写（不查重，见 task_journal）。
+    done = task_journal.written(task.id)
+    if done is not None:
+        log.info(f"✓ dbf task {task.id} already written → {done.get('docnum')}")
+        qc.ack_success(
+            task.id,
+            extracted_invoice_no=done.get("docnum"),
+            line_modes=done.get("line_modes"),
+            meta={**(done.get("meta") or {}), "written": False, "duplicate_skipped": True},
+        )
+        return None
     if direction == "sales":
         # 会计补的期初(库存卖但客户账里此品零库存 → 先垫库存再过账)· 与销售同事务原子成败。
         res = write_sale(
@@ -221,7 +233,10 @@ def _handle_dbf_task(
         res = write_purchase(payload, st.account_dir, **common)
     meta = _push_meta(res, direction, st.account_dir)
     if res.ok:
-        log.info(f"✓ dbf task {task.id} → {res.docnum} (skipped={res.skipped})")
+        log.info(f"✓ dbf task {task.id} → {res.docnum}")
+        task_journal.remember(
+            task.id, {"docnum": res.docnum, "line_modes": res.line_modes, "meta": meta}
+        )
         qc.ack_success(
             task.id,
             extracted_invoice_no=res.docnum,
@@ -248,9 +263,7 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     from .dbf_writer import ERR_INDEX, ERR_WAITING_LOCK
     from .dbf_sales import ERR_CUSTOMER_AMBIGUOUS, ERR_CUSTOMER_DUP
     from .dbf_writer import (
-        ERR_DUPLICATE_DIFFERS,
         ERR_FIELD_WIDTH,
-        ERR_PRIOR_DOC_EXISTS,
         ERR_SUPPLIER_AMBIGUOUS,
         ERR_SUPPLIER_DUP,
     )
@@ -260,10 +273,6 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         ERR_INDEX: "rolled_back",  # 写了一半已恢复备份
         ERR_SUPPLIER_DUP: "needs_review",  # 疑似重复供应商 → 人工确认
         ERR_CUSTOMER_DUP: "needs_review",
-        # 重复检出两码:重试多少次结论都一样,只有会计能定「还推不推」。当暂时失败一遍遍
-        # 重刷,只会把同一个问句反复摔在她脸上,而她看到的是"失败(重试中)"。
-        ERR_DUPLICATE_DIFFERS: "needs_review",
-        ERR_PRIOR_DOC_EXISTS: "needs_review",
         # 同税号多档定不出 / 字段超宽:重试结论也一样,要人选档或改票(2026-09-28 压测:先按普通失败重试 3 次)。
         ERR_CUSTOMER_AMBIGUOUS: "needs_review",
         ERR_SUPPLIER_AMBIGUOUS: "needs_review",
@@ -299,12 +308,8 @@ def _push_meta(res, direction: str, account_dir: str) -> dict:
     notes = getattr(res, "notes", None)
     if notes:
         m["notes"] = dict(notes)
-    # 「到底进没进去」的唯一判据。ok=True 也可能一个字节没写(幂等命中),而布尔
-    # duplicate_skipped 只在 ok 分支上报 —— 失败/拒单时调用方连这个都拿不到,只能猜。
+    # 「到底进没进去」的唯一判据(同一任务重发、上次已写过时为 False,见 task_journal)。
     m["written"] = bool(res.written)
-    # 检出重复(内容不同 / 上一版还在)→ 结构化差异,管家与录入台照它把现状摆给会计看。
-    if getattr(res, "duplicate", None):
-        m["duplicate"] = dict(res.duplicate)
     # 失败时的结构化现场证据(读回校验/明细不符)→ 云端据此定位卡在哪个表哪一行,不用
     # 再让会计把红字一个字一个字抄回来。成功路径恒无(见 DbfWriteResult.evidence)。
     if getattr(res, "evidence", None):
@@ -313,9 +318,7 @@ def _push_meta(res, direction: str, account_dir: str) -> dict:
         m["index_requery"] = True  # write_* 仅在 _verify_index 回查命中后才 ok
         key = "created_customer" if direction == "sales" else "created_supplier"
         m[key] = bool(getattr(res, "created_party", False))
-        # 「这次真写进去了」与「ERP 里本来就有,我们什么都没做」在推送日志上长得一模一样,
-        # 会计据此判断"到底进没进"就只能去 ERP 里翻。docnum 两种情况都有值,区分不了,
-        # 所以显式上报:True = 命中幂等未重写(docnum 是**既有那张**的号)。
+        # True = 同一任务重发、上次已写过,本次未重写(docnum 是上次写的那张)。
         m["duplicate_skipped"] = bool(getattr(res, "skipped", False))
     if (getattr(res, "error_code", "") or "") in (
         "CDX_REINDEX_FAILED",

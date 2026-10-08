@@ -27,12 +27,9 @@ from . import fiscal_period
 from . import master_create
 from . import stock_sale
 from . import cdx_reindex
-from . import duplicate_gate as D
-from . import write_gates as G
 from .consistency import account_company_matches
 from .dbf_writer import (
     ERR_ACCOUNT_DIR,
-    ERR_PRIOR_DOC_EXISTS,  # noqa: F401  re-export · 云端与测试从本模块取
     ERR_COMPANY,
     ERR_FIELD_WIDTH,
     ERR_VALIDATION,
@@ -52,7 +49,6 @@ from .dbf_writer import (
     _restore,
     _verify_index,
     _WriteError,
-    _docnum_exists,  # noqa: F401  re-export · 防重单判读与采购共用同一份
     amount_fields,
     audit_fields,
 )
@@ -148,7 +144,7 @@ def _sales_docnum(artrn, prefix: str, docdate_be: str, ref_no: str) -> str:
 
     两个约束下的退让:
       · DOCNUM 定宽 C(12),票号超宽 → 退回自编号(ISVAT.REFNUM 仍是真实票号,报表不受影响);
-      · 幂等靠 YOUREF+CUSCOD(见 _find_existing),与本函数选什么号无关。
+      · 账套里已有同号的单(会计手录过)照写,不查重(用户 2026-09-30)。
     回退开关:PEARNLY_SALES_DOCNUM=seq → 整体退回旧的自编号行为。
     """
     if os.environ.get("PEARNLY_SALES_DOCNUM", "").strip().lower() == "seq":
@@ -162,29 +158,6 @@ def _sales_docnum(artrn, prefix: str, docdate_be: str, ref_no: str) -> str:
         _MAX_DOCNUM,
     )
     return _next_docnum(artrn, prefix, docdate_be)
-
-
-def _find_existing(artrn, ref_no: str, cuscod: str) -> Optional[str]:
-    """幂等:同 YOUREF+CUSCOD 的销售单已存在 → 返回**最后**那张的 DOCNUM。
-
-    只认还算数的行(S.live_rows)。会计在 Express 里删掉单据后行仍软删躺在 ARTRN 里,连
-    软删行一起认就是「删了也再也导不进来,且每次都报成功」——2026-07-25 现场那张
-    IV690531-001 正是死在这里。
-
-    取最后一张而不是第一张:理由与采购侧同(见 dbf_writer._find_existing)。销项这边号还会撞
-    —— DOCNUM 取的就是票面票号,确认后落的第二张与第一张同号,单靠本函数分不开,故 head_row
-    也取最后一张,两处合起来才让重投比得上刚写的那张。
-    """
-    sales_rectyp = set(S.SALES_RECTYP.values())  # {'3','1'}
-    latest = None
-    for r in S.live_rows(artrn):
-        if (
-            (r.YOUREF or "").strip() == ref_no
-            and (r.CUSCOD or "").strip() == cuscod
-            and (r.RECTYP or "").strip() in sales_rectyp
-        ):
-            latest = (r.DOCNUM or "").strip()
-    return latest
 
 
 def write_sale(
@@ -254,11 +227,7 @@ def write_sale(
     total = Decimal(entry.total_amount)
     has_vat = vat > 0
 
-    # 闸序 = 查重 → 防重单(与桥骨架一字对齐 · 理由见 write_gates 模块头)。
-    # 解析已有客户码(只读)→ 查重。无码新客户留待备份后建档。
-    def _open_ar():
-        return _open(account_dir, "ARTRN", dbf.READ_ONLY)
-
+    # 不查重:账套里已有同号 / 同票的单照写(用户 2026-09-30、2026-10-08:Express 手工录入也不拦重复)。
     try:
         existing_code = entry.customer_code or (
             ""
@@ -278,26 +247,6 @@ def write_sale(
     elif not entry.customer_confirmed_new and master_create.suspected_customer_dup(account_dir, entry):
         # 新客户疑似重复(核心名相似·税号不同)→ 不静默建重复户,转人工确认(镜像采购)。
         return DbfWriteResult(False, error_code=ERR_CUSTOMER_DUP, error="dup")
-
-    dup, early = G.check_duplicate(
-        _open_ar,
-        _find_existing,
-        entry.ref_no,
-        existing_code or "",
-        payload,
-        base=base,
-        vat=vat,
-        total=total,
-        docdat=docdat,
-        label="销售单",
-    )
-    if early is not None:
-        return early
-    blocked_prior, waved_prior = G.check_prior_doc(
-        _open_ar, payload, dup, label="销售单"
-    )
-    if blocked_prior is not None:
-        return blocked_prior
 
     clock.lap("checks")
     backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES) if make_backup else None
@@ -368,7 +317,7 @@ def write_sale(
             party_code=entry.customer_code,
             created_party=created_customer,
             line_modes=line_modes,
-            notes={**notes, **D.confirmed_note(dup or waved_prior)},
+            notes=notes,
         )
     except Exception as e:
         clock.lap("failed_step")

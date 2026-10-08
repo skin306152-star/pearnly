@@ -161,18 +161,6 @@ def test_an_invoice_the_accountant_deleted_can_be_pushed_again(acct):
     assert _live_with_ref(acct, ref, cus) == 1
 
 
-def test_counting_the_ghost_row_brings_the_silent_no_op_back(acct, monkeypatch):
-    """变异:live_rows 退回"软删行照算" → 同一份真账套立刻回到「每次都报成功,永远进不去」。"""
-    ghost = _a_deleted_invoice(acct)
-    ref, cus = ghost["YOUREF"], ghost["CUSCOD"]
-
-    monkeypatch.setattr(S, "live_rows", lambda t: iter(list(t)))
-    res = _push(acct, ref, cus)
-    assert res.ok and res.skipped  # 假成功
-    assert res.docnum == ghost["DOCNUM"]  # 报回来的还是那张已经被删掉的单
-    assert _live_with_ref(acct, ref, cus) == 0  # 一个字节没写
-
-
 def test_full_delete_and_repush_cycle_on_the_real_account(acct):
     """完整循环:推 → 会计在 Express 里删 → 重推。
 

@@ -95,26 +95,6 @@ class WrittenFlagTests(unittest.TestCase):
     def test_failed_push_still_reports_written(self):
         self.assertIs(_push_meta(_res(ok=False), "sales", ACCT)["written"], False)
 
-    def test_duplicate_detail_is_forwarded_for_the_front_ends(self):
-        dup = {
-            "reason": "content_differs",
-            "docnum": "RR690305-001",
-            "confirm_param": "duplicate_confirmed",
-            "fields": [
-                {
-                    "field": "total_amount",
-                    "label": "含税总额",
-                    "in_erp": "1,070.00",
-                    "incoming": "2,140.00",
-                }
-            ],
-        }
-        m = _push_meta(_res(ok=False, duplicate=dup), "purchase", ACCT)
-        self.assertEqual(m["duplicate"], dup)
-
-    def test_duplicate_key_absent_when_there_is_nothing_to_show(self):
-        self.assertNotIn("duplicate", _push_meta(_res(), "sales", ACCT))
-
 
 class FailurePathTests(unittest.TestCase):
     def test_failed_push_has_no_index_requery_claim(self):

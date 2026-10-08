@@ -1,7 +1,6 @@
 """DBF 写路的返回形状(采购/销项共用)。
 
-从 dbf_writer 抽出:防重单/查重两道闸也要造这个结果,留在 dbf_writer 里 write_gates 就得
-反向 import 它,绕成环。字段含义一字未改。
+从 dbf_writer 抽出,采购 / 销项两条写路共用。
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from typing import Optional
 class DbfWriteResult:
     ok: bool
     docnum: Optional[str] = None
-    skipped: bool = False  # 幂等命中(已存在)→ 未重写
+    skipped: bool = False  # 同一推送任务重发、上次已写过 → 本次未重写(见 task_journal)
     error_code: Optional[str] = None
     error: str = ""
     backup_dir: Optional[str] = None
@@ -27,9 +26,6 @@ class DbfWriteResult:
     # 诚实标注:{标注键: 人话原因}。写成功但**有一部分没写**时必填(会计期间判不出 → 应收/
     # 应付月桶未写)。会计据此知道要去 Express 补哪一笔,不填就成了静默漏账。
     notes: Optional[dict] = None
-    # 检出重复时的结构化差异(见 duplicate_gate.differs_meta / prior_alive_meta)。
-    # 管家/录入台照它把「已有单号 + 已有金额 + 本次金额」摆给会计看。
-    duplicate: Optional[dict] = None
     # 失败时的结构化现场证据(readback_verify / detail_mismatch / detail_sum_mismatch)——
     # 随 ack meta.evidence 回云端,支持/会计一眼看到卡在哪个表哪一行。成功路径恒 None。
     evidence: Optional[dict] = None
@@ -38,7 +34,7 @@ class DbfWriteResult:
     def written(self) -> bool:
         """本次是否真往账套写了字节 —— 调用方判「到底进没进去」只认这一个。
 
-        ok=True 且 skipped=True(幂等命中)= 没写。算出来而不是存下来:多一个可写字段就多
+        ok=True 且 skipped=True(同一任务重发)= 没写。算出来而不是存下来:多一个可写字段就多
         一处与真相漂移的机会,而「报成功但没写」正是这轮要根治的谎。
         """
         return bool(self.ok and not self.skipped)

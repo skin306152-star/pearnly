@@ -49,3 +49,16 @@ def _account_set_cache_in_tmp(tmp_path, monkeypatch):
 def _folder_state_in_tmp(tmp_path, monkeypatch):
     """文件夹自动录入的本机状态（folder_store）：测试里放进本次的临时目录。"""
     monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folder_intake"))
+
+
+@pytest.fixture(autouse=True)
+def _task_journal_in_tmp(tmp_path, monkeypatch):
+    """已写任务的本机记录（task_journal）：测试里放进本次的临时目录，任务号不在用例之间串。"""
+    import importlib
+
+    for name in ("companion.task_journal", "src.companion.task_journal"):
+        try:
+            module = importlib.import_module(name)
+        except ImportError:
+            continue
+        monkeypatch.setattr(module, "FILE", tmp_path / "written_tasks.json")

@@ -259,12 +259,13 @@ def test_sale_backup_and_rollback(datat, monkeypatch):
     assert _rows(datat, "GLJNLIT", VOUCHER="SO-9001") == []
 
 
-def test_sale_idempotent(datat):
+def test_same_sale_pushed_again_is_written_again(datat):
+    """不查重:同号销项再推照写一张(会计手录 Express 也不拦,用户 2026-09-30、2026-10-08)。"""
     r1 = WS.write_sale(_sale(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
     r2 = WS.write_sale(_sale(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
     assert r1.ok and not r1.skipped
-    assert r2.ok and r2.skipped and r2.docnum == r1.docnum
-    assert len(_rows(datat, "ARTRN", YOUREF="SO-9001")) == 1
+    assert r2.ok and not r2.skipped, r2.error
+    assert len(_rows(datat, "ARTRN", YOUREF="SO-9001")) == 2
 
 
 def test_auto_create_new_customer(datat):

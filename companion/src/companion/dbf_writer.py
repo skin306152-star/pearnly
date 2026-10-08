@@ -28,11 +28,9 @@ from . import cdx_reindex
 from . import dbf_detail
 from . import account_rules
 from . import dbf_schema as S
-from . import duplicate_gate as D
 from . import fiscal_period
 from . import master_create
 from . import purchase_lines
-from . import write_gates as G
 from .consistency import account_company_matches
 from .write_result import DbfWriteResult  # noqa: F401  re-export · dbf_sales 与测试从本模块取
 from .dbf_fields import (
@@ -63,8 +61,6 @@ ERR_INDEX = "CDX_REINDEX_FAILED"  # CDX 重建/索引回查失败 → 回滚,Exp
 ERR_WAITING_LOCK = "ACCOUNT_BUSY_LOCKED"  # Express 占用账套 → 回滚,稍后自动重试(非失败)
 ERR_SUPPLIER_DUP = "SUPPLIER_DUP_SUSPECTED"  # 疑似重复供应商 → 不建,转人工确认
 ERR_SUPPLIER_AMBIGUOUS = "SUPPLIER_BRANCH_AMBIGUOUS"  # 同税号多分店档定不出唯一 → 转人工
-ERR_PRIOR_DOC_EXISTS = G.ERR_PRIOR_DOC_EXISTS  # 上一版还在 → 摆现状待确认(见 write_gates)
-ERR_DUPLICATE_DIFFERS = G.ERR_DUPLICATE_DIFFERS  # 同钥匙内容不同 → 摆差异,不静默不硬拦
 ERR_STOCK_IN = "STOCK_IN_FAILED"  # 采购入库路失败(混行/数量成本非法/建档失败)→ 交会计
 
 # 真表定宽列上限(逆向 DATAT):超长 → 写前拒,绝不溢出/截断坏 Express。
@@ -136,7 +132,7 @@ def _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departm
 def _next_docnum(aptrn, prefix: str, docdate_be: str) -> str:
     """DOCNUM = PREFIX + 佛历YYMMDD + '-' + 当日序号(3位)。扫 APTRN 取当日最大 +1。
 
-    ⚠️ 这里**故意连软删行一起扫**(与 _find_existing/_verify 相反)。号是给人看的凭证编号,
+    ⚠️ 这里**故意连软删行一起扫**(与 _verify 相反)。号是给人看的凭证编号,
     删掉的 RR690531-002 在会计手上、在打印件上仍是"用过的号";跳过软删行就会把它再发一次,
     PACK 前后同号两张单撞在一起。查重问"还算不算数",发号问"用没用过",判据本就不同。
     """
@@ -150,31 +146,6 @@ def _next_docnum(aptrn, prefix: str, docdate_be: str) -> str:
             except ValueError:
                 continue
     return f"{head}{seq + 1:03d}"
-
-
-_docnum_exists = G.docnum_exists  # 防重单判读与销项共用一份(test_prior_doc_guard 锁 is)
-
-
-def _find_existing(aptrn, ref_no: str, supcod: str) -> Optional[str]:
-    """幂等:同 REFNUM+SUPCOD 的采购单已存在 → 返回**最后**那张的 DOCNUM。
-
-    只认还算数的行 —— 与销项 _find_existing 同一个坑:会计删掉采购单后行仍软删躺在 APTRN 里,
-    连它一起认就变成"删了也永远重推不进去,还每次都报成功"。
-
-    取最后一张而不是第一张:会计确认「知道了,还是推」之后同钥匙下有两张,取第一张就永远拿旧
-    的那张 A 去比内容,而队列是 at-least-once —— 丢一次 ack 重投就再比出一次差异、载荷里的确认
-    位又还在,于是再落一张,每丢一次多一张且无上界。取最后一张,重投比的是刚写的那张,内容一致
-    → 幂等跳过,自愈。
-    """
-    latest = None
-    for r in S.live_rows(aptrn):
-        if (
-            (r.REFNUM or "").strip() == ref_no
-            and (r.SUPCOD or "").strip() == supcod
-            and (r.RECTYP or "").strip() in (S.RECTYP["RR"], S.RECTYP["HP"])
-        ):
-            latest = (r.DOCNUM or "").strip()
-    return latest
 
 
 def _bump_isrun(
@@ -364,11 +335,7 @@ def write_purchase(
     )
     has_vat = vat > 0
 
-    # 闸序 = 查重 → 防重单(与桥骨架一字对齐 · 理由见 write_gates 模块头)。
-    # 解析已有供应商码(只读)→ 查重。无码新供应商留待备份后建档。
-    def _open_ap():
-        return _open(account_dir, "APTRN", dbf.READ_ONLY)
-
+    # 不查重:账套里已有同号 / 同票的单照写(用户 2026-09-30、2026-10-08:Express 手工录入也不拦重复)。
     try:
         existing_code = entry.supplier_code or (
             ""
@@ -388,26 +355,6 @@ def write_purchase(
     elif not entry.supplier_confirmed_new and master_create.suspected_supplier_dup(account_dir, entry):
         # 新供应商疑似重复(核心名相似·税号不同)→ 不静默建重复户,转人工确认。
         return DbfWriteResult(False, error_code=ERR_SUPPLIER_DUP, error="dup")
-
-    dup, early = G.check_duplicate(
-        _open_ap,
-        _find_existing,
-        entry.ref_no,
-        existing_code or "",
-        payload,
-        base=base,
-        vat=vat,
-        total=total,
-        docdat=docdat,
-        label="采购单",
-    )
-    if early is not None:
-        return early
-    blocked_prior, waved_prior = G.check_prior_doc(
-        _open_ap, payload, dup, label="采购单"
-    )
-    if blocked_prior is not None:
-        return blocked_prior
 
     clock.lap("checks")
     backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES) if make_backup else None
@@ -467,7 +414,7 @@ def write_purchase(
             party_code=entry.supplier_code,
             created_party=created_supplier,
             line_modes=line_modes,
-            notes={**notes, **D.confirmed_note(dup or waved_prior)},
+            notes=notes,
         )
     except Exception as e:  # 任何失败 → 回滚还原
         clock.lap("failed_step")
