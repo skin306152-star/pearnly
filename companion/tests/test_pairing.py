@@ -11,6 +11,7 @@ from src.companion import pairing
 from src.companion.account_probe import AccountSet
 from src.companion.config import CompanionConfig
 from src.companion.profile_store import ProfileStoreError
+from src.companion.i18n import t
 
 
 def _acc(
@@ -66,7 +67,7 @@ def test_new_profile_requires_pairing_code(tmp_path, monkeypatch):
         lang="zh",
     )
 
-    assert not r.ok and "需要填写配对码" in r.error
+    assert not r.ok and r.error == t("pair_err_code_required", "zh")
     queue.assert_not_called()
 
 
@@ -74,7 +75,7 @@ def test_rejects_no_chosen(tmp_path):
     r = pairing.pair(
         token="exp_a_b@testcowork.pearnly.com", chosen=None, express_root=str(tmp_path), lang="zh"
     )
-    assert not r.ok and "选一个账套" in r.error
+    assert not r.ok and r.error == t("pair_err_no_chosen", "zh")
 
 
 def test_rejects_missing_account_dir(tmp_path):

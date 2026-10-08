@@ -77,6 +77,7 @@ Attachments,ไฟล์แนบ
 Auto Fetch Serial Numbers,ดึงหมายเลขเครื่องอัตโนมัติ
 Available Qty,จำนวนคงเหลือ
 Average Unit Cost,ต้นทุนต่อหน่วยเฉลี่ย
+Average cost,ต้นทุนเฉลี่ย
 Back,กลับ
 Back to entries,กลับไปรายการ
 Back to summary,กลับไปสรุป
@@ -541,6 +542,7 @@ No items found. Scan barcode again.,ไม่พบสินค้า กรุ�
 No items in cart,ยังไม่มีสินค้าในตะกร้า
 No items were read,ไม่พบรายการสินค้า
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
+No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No product matches this code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No recent transactions found,ไม่พบธุรกรรมล่าสุด

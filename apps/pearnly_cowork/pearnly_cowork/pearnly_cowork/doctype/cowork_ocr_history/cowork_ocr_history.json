@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-10-01 15:30:00.000000",
+ "modified": "2026-10-08 20:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -206,8 +206,7 @@
    "fieldtype": "Data",
    "label": "Invoice Total",
    "length": 200,
-   "read_only": 1,
-   "description": "Decimal summary; pages retain the original amount."
+   "read_only": 1
   },
   {
    "fieldname": "record_version",

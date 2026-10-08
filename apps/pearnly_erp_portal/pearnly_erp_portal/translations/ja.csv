@@ -77,6 +77,7 @@ Attachments,添付ファイル
 Auto Fetch Serial Numbers,シリアル番号を自動取得
 Available Qty,利用可能在庫数
 Average Unit Cost,平均単価
+Average cost,平均原価
 Back,戻る
 Back to entries,記録へ戻る
 Back to summary,集計へ戻る
@@ -541,6 +542,7 @@ No items found. Scan barcode again.,商品が見つかりません。バーコ�
 No items in cart,カートに商品がありません
 No items were read,明細を読み取れませんでした
 No product for this code: {0},このコードの商品が見つかりません: {0}
+No product matches that code,そのコードの商品が見つかりません
 No product matches this code,このコードに一致する商品がありません
 No receipts in this shift,このシフトのレシートはありません
 No recent transactions found,最近の取引はありません

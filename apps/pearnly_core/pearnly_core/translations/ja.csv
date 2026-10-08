@@ -104,6 +104,7 @@ Confirmed At,確認日時
 Confirmed By,確認者
 Confirmed · ready to push,確認済み・送信可能
 Connect,接続
+Connect DMS,DMSに接続
 Connect DMS before adding an operator.,オペレーターを追加する前にDMSを接続してください。
 Connect DMS to load the advisor list.,DMSを接続すると担当者一覧を読み込めます。
 Connect and save,接続して保存

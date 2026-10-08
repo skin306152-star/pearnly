@@ -36,7 +36,6 @@
   },
   {
    "default": "head",
-   "description": "Legacy used head office / branch, with the branch number when it is a branch",
    "fieldname": "branch_type",
    "fieldtype": "Select",
    "label": "Branch Type",
@@ -85,7 +84,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-08 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Supplier",
  "naming_rule": "Expression",

@@ -13,6 +13,7 @@ from src.companion.gui_profiles import (  # noqa: E402
     profile_status_key,
 )
 from src.companion.profile_store import ProfileStore, ProfileStoreError  # noqa: E402
+from src.companion.i18n import t  # noqa: E402
 
 
 class _Protector:
@@ -75,7 +76,7 @@ def test_main_window_shows_each_connection_with_status_and_its_folders(tmp_path,
     dialog = _main_window(store, monkeypatch, {store.profiles[0].profile_id: ("idle", "")})
 
     # 这台电脑：Express 账套是全部成员数据根的并集，已有成员时不再检测
-    assert dialog.machine_box.title() == "这台电脑"
+    assert dialog.machine_box.title() == "本机"
     assert dialog.express_value.text() == r"S:\\EXP68 等 2 个年度"
     assert dialog.add_btn.text() == "添加成员" and dialog.add_btn.isEnabled()
 
@@ -255,7 +256,7 @@ def test_picking_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypa
 
     assert store.path.read_bytes() == before
     assert dialog._roots == [r"S:\\EXP68", r"S:\\EXP69"]
-    assert dialog.express_value.text() == "未能读取 Express 公司列表,请确认 Express 路径。"
+    assert dialog.express_value.text() == t("status_reg_error", "zh")
 
 
 def test_footer_update_button_shows_the_real_step_and_asks_the_tray(tmp_path, monkeypatch):
@@ -276,7 +277,7 @@ def test_footer_update_button_shows_the_real_step_and_asks_the_tray(tmp_path, mo
     dialog.upd_btn.click()
     assert clicks == [True]
     for state, label, button in (("latest", "已是最新版本", "检查更新"), ("found", "发现新版本 v1.4.0", "立即更新"),
-                                 ("ready", "v1.4.0 已下载，手上的录入做完后自动安装", "立即更新")):
+                                 ("ready", t("upd_ready", "zh", ver="1.4.0"), "立即更新")):
         status["value"] = (state, "1.4.0")
         dialog._paint_update()
         assert (dialog.upd_lbl.text(), dialog.upd_btn.text()) == (label, button)

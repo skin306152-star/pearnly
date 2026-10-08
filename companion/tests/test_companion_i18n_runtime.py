@@ -46,7 +46,7 @@ def test_nested_failure_status_retranslates_without_losing_its_reason():
         {"err": MessageSpec("pair_err_network")},
     )
 
-    assert status.render("zh") == "配对失败:连不上 Pearnly,请检查网络后重试。"
+    assert status.render("zh") == "配对失败：无法连接 Pearnly，请检查网络后重试。"
     assert "เชื่อมต่อ Pearnly ไม่ได้" in status.render("th")
 
 

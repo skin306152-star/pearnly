@@ -1,8 +1,8 @@
 en	zh	th	ja	key
-The DMS account stayed busy; automatic retries did not get through. Please try again later.	DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。	บัญชี DMS ไม่ว่าง ระบบลองอ่านซ้ำอัตโนมัติหลายครั้งแล้วยังไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง	DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_BUSY
+The DMS account stayed busy; automatic retries did not get through. Please try again later.	DMS 账号持续占用，自动重试未成功，请稍后再试。	บัญชี DMS ไม่ว่าง ระบบลองอ่านซ้ำอัตโนมัติหลายครั้งแล้วยังไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง	DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_BUSY
 The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.	客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。	ข้อมูลที่อยู่ของลูกค้าไม่ครบถ้วน กรุณากด «แก้ไข» เพื่อระบุจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ให้ครบถ้วน แล้วบันทึกอีกครั้ง	お客様の住所情報が不完全です。「編集」をタップし、都県・郡区・町村・郵便番号を入力のうえ、再度保存してください。	dms.err.ERR_DMS_ADDRESS_INCOMPLETE
 Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
-Update data	更新数据	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
+Update data	更新资料	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
 Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help
 Reading DMS master data…	正在读取 DMS 主档…	กำลังอ่านข้อมูลหลักจาก DMS…	DMS マスターデータを読み取り中…	dms.connect.cache.processing
 {0}/{1} groups	{0}/{1} 组	{0}/{1} กลุ่ม	{0}/{1} グループ	dms.connect.cache.groups
@@ -24,25 +24,25 @@ Latest error code	最近错误代码	รหัสข้อผิดพลาด�
 Not read yet	尚未读取	ยังไม่ได้อ่าน	未読み取り	dms.connect.cache.state.idle
 Queued	已排队	อยู่ในคิว	待機中	dms.connect.cache.state.queued
 Reading	正在读取	กำลังอ่าน	読み取り中	dms.connect.cache.state.running
-Account busy — the read will continue shortly	账号忙，读取稍后会自动继续	บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่	アカウントが使用中です。まもなく自動的に続行します	dms.connect.cache.state.waiting
-Data updated	数据更新完成	อัปเดตข้อมูลแล้ว	データ更新完了	dms.connect.cache.state.succeeded
-Read failed — it will be retried automatically	读取失败，稍后会自动重试	อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ	読み取りに失敗しました。後で自動的に再試行します	dms.connect.cache.state.failed
+Account busy — the read will continue shortly	账号繁忙，将稍后自动继续读取	บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่	アカウントが使用中です。まもなく自動的に続行します	dms.connect.cache.state.waiting
+Data updated	资料已更新	อัปเดตข้อมูลแล้ว	データ更新完了	dms.connect.cache.state.succeeded
+Read failed — it will be retried automatically	读取失败，将稍后自动重试	อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ	読み取りに失敗しました。後で自動的に再試行します	dms.connect.cache.state.failed
 {0} processed; total not yet known	已处理 {0} 项，总数尚未确定	อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด	{0} 件処理済み。総数は未確定です	dms.connect.cache.processed
 Older data: {0}	旧资料：{0}	ข้อมูลเก่า ณ {0}	古いデータ：{0}	dms.connect.cache.stale
 Multiple primary DMS connections exist; ask an administrator to check the configuration	存在多条 DMS 主连接，请管理员检查配置	มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลตรวจสอบการตั้งค่า	DMS の主接続が複数あります。管理者に設定の確認を依頼してください
 Enable the DMS connection before reading data	请先启用 DMS 连接，再读取资料	กรุณาเปิดใช้งานการเชื่อมต่อ DMS ก่อนอ่านข้อมูล	データを読み取る前に DMS 接続を有効にしてください
 Select one or more DMS data groups to read	请选择至少一组需要读取的 DMS 资料	กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม	読み取る DMS データを1種類以上選択してください
-DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.	DMS 中已有此证号的客户，请重新核对差异并确认；没有自动覆盖资料。	DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ	DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。	dms.err.ERR_DMS_CUSTOMER_EXISTS
+DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.	DMS 中已有此证号的客户，请重新核对差异并确认；资料未被自动覆盖。	DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ	DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。	dms.err.ERR_DMS_CUSTOMER_EXISTS
 The customer record changed after you edited it. Review the current differences before confirming again.	客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。	ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง	編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。	dms.err.ERR_DMS_CUSTOMER_CHANGED
 The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.	提交已发出，但结果尚未确认。请勿重复提交，先核实结果。	ส่งข้อมูลแล้วแต่ยังยืนยันผลไม่ได้ กรุณาอย่าส่งซ้ำ ให้ตรวจสอบผลก่อน	送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。	dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED
-DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.	DMS 里没有客户分店 00000（总公司），无法保存客户。请管理员在 DMS 里添加 00000 分店后再试。	ใน DMS ไม่มีสาขาลูกค้า 00000 (สำนักงานใหญ่) จึงบันทึกลูกค้าไม่ได้ กรุณาแจ้งผู้ดูแลเพิ่มสาขา 00000 ใน DMS แล้วลองอีกครั้ง	DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。	dms.err.ERR_DMS_CUSTOMER_BRANCH
-DMS data has not been read yet. The system reads it automatically; please try again after it finishes.	DMS 资料还没有读取，系统会自动读取，读完后请再试。	ยังไม่ได้อ่านข้อมูล DMS ระบบจะอ่านให้อัตโนมัติ กรุณาลองใหม่เมื่ออ่านเสร็จ	DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED
+DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.	DMS 中不存在客户分店 00000（总公司），无法保存客户。请管理员在 DMS 中添加 00000 分店后重试。	ใน DMS ไม่มีสาขาลูกค้า 00000 (สำนักงานใหญ่) จึงบันทึกลูกค้าไม่ได้ กรุณาแจ้งผู้ดูแลเพิ่มสาขา 00000 ใน DMS แล้วลองอีกครั้ง	DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。	dms.err.ERR_DMS_CUSTOMER_BRANCH
+DMS data has not been read yet. The system reads it automatically; please try again after it finishes.	DMS 资料尚未读取，系统将自动读取，完成后请重试。	ยังไม่ได้อ่านข้อมูล DMS ระบบจะอ่านให้อัตโนมัติ กรุณาลองใหม่เมื่ออ่านเสร็จ	DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED
 This read was interrupted; previously completed data was kept. The system will read again, so please try later.	本次读取已中断，此前成功的资料仍保留。系统会重新读取，请稍后再试。	การอ่านครั้งนี้หยุดกลางทาง ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่ ระบบจะอ่านใหม่อีกครั้ง กรุณาลองใหม่ภายหลัง	今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。	dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED
-Reading this query now. The result arrives as soon as it is ready.	正在读取这个条件的记录，读完马上把结果发过来。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_IDLE
-Reading this query now. The result arrives as soon as it is ready.	正在读取这个条件的记录，读完马上把结果发过来。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_QUEUED
-Reading this query now. The result arrives as soon as it is ready.	正在读取这个条件的记录，读完马上把结果发过来。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_RUNNING
-The DMS account is busy. The read retries automatically; please wait.	DMS 账号忙，系统会自动重读，请稍等。	บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่	DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。	dms.card.query.MANUAL_WAITING
-Read completed. Sending the result now.	读取完成，正在把结果发过来。	อ่านเสร็จแล้ว กำลังส่งผลการอ่านให้	読み取りが完了しました。結果をお送りします。	dms.card.query.MANUAL_SUCCEEDED
+Reading this query now. The result arrives as soon as it is ready.	正在读取该条件的记录，完成后将立即发送结果。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_IDLE
+Reading this query now. The result arrives as soon as it is ready.	正在读取该条件的记录，完成后将立即发送结果。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_QUEUED
+Reading this query now. The result arrives as soon as it is ready.	正在读取该条件的记录，完成后将立即发送结果。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_RUNNING
+The DMS account is busy. The read retries automatically; please wait.	DMS 账号繁忙，系统将自动重新读取，请稍候。	บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่	DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。	dms.card.query.MANUAL_WAITING
+Read completed. Sending the result now.	读取完成，正在发送结果。	อ่านเสร็จแล้ว กำลังส่งผลการอ่านให้	読み取りが完了しました。結果をお送りします。	dms.card.query.MANUAL_SUCCEEDED
 This read failed. Please try again later.	本次读取失败，请稍后再试。	อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง	今回の読み取りは失敗しました。しばらくしてからお試しください。	dms.card.query.MANUAL_FAILED
 Cached result captured at {time}	已缓存结果读取于 {time}	อ่านผลที่บันทึกไว้เมื่อ {time}	保存済み結果の取得時刻：{time}	dms.card.query.MANUAL_AS_OF
 Progress {processed}/{total}	进度 {processed}/{total}	ความคืบหน้า {processed}/{total}	進捗 {processed}/{total}	dms.card.query.MANUAL_PROGRESS
@@ -50,7 +50,7 @@ Read time unknown	读取时间未知	ไม่ทราบเวลาที่�
 The recognition queue is busy. Please send the image again shortly.	识别队列繁忙，请稍后重新发送图片。	คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่	認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.	识别结果待核实，请先不要重复发送这张图片。	กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ	認識結果を確認中です。この画像を再送しないでください。
 Recognition could not finish. Please try again shortly.	识别未完成，请稍后重试。	อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่	認識を完了できませんでした。しばらくしてから再試行してください。
-The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+The saved credentials cannot be read back; check the site encryption key	无法读取已保存的凭据，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
 Enter the DMS password.	请填写 DMS 密码。	กรุณากรอกรหัสผ่าน DMS	DMS パスワードを入力してください。	dms.account.invalid
 Booking ID	订车编号	รหัสการจอง	予約ID
 Booking Number	订车单号	เลขที่การจอง	予約番号
@@ -60,7 +60,7 @@ Multiple DMS connections exist for this operator	这个操作员有多条 DMS �
 Next Attempt	下次尝试	ครั้งถัดไปที่ลอง	次回試行
 Submission Evidence	提交凭据	หลักฐานการส่ง	送信エビデンス
 Submission Nonce	提交随机码	nonce การส่ง	送信ノンス
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）	เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录未完成（重试后未收到成功的 checklogin 响应或跳转，对方页面可能加载缓慢或被拦截）	เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
 Reload List	刷新列表	โหลดรายการใหม่	リストを再読み込み
 DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.	DMS 资料还在读取中，读完即可使用，请稍后再试。若一直未就绪，请管理员在 DMS 连接页确认已添加读档账号。	ข้อมูล DMS กำลังอ่านอยู่ อ่านเสร็จแล้วจึงใช้งานได้ กรุณาลองใหม่ภายหลัง หากยังไม่พร้อมเป็นเวลานาน ให้ผู้ดูแลตรวจสอบว่าได้เพิ่มบัญชีอ่านข้อมูลในหน้าการเชื่อมต่อ DMS แล้ว	DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。	dms.err.ERR_DMS_SNAPSHOT_PENDING
 The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.	现有 DMS 资料已过期，暂不能使用。系统每天凌晨会自动重新读取，读完后再试。	ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ ระบบจะอ่านข้อมูลใหม่อัตโนมัติทุกคืน กรุณาลองอีกครั้งหลังอ่านเสร็จ	保存された DMS データは古いため使用できません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_STALE
@@ -76,18 +76,18 @@ Older address data as of {time}; ask an administrator to refresh if needed	当�
 Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.	DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。	ข้อมูล DMS ที่อ่านไว้ อัปเดตเมื่อกดอ่าน / อัปเดตเท่านั้น แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การดูผลไม่อ่าน DMS ซ้ำ	読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。	dms.card.query.CARD_NOTE
 Data captured at	资料取得时间	เวลาที่ซิงก์ข้อมูล	データ取得時刻	dms.card.query.LBL_READ_AT
 Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of	本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间	สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ	このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻	dms.card.query.TOP_NOTE_PREFIX
-The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.	DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。	การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่	DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。	dms.err.ERR_DMS_SNAPSHOT_RETRY
-The data volume exceeds the read limit. Please contact an administrator.	数据量超过了读取上限，请联系管理人员。	ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ	データ量が読み取り上限を超えています。管理者にご連絡ください。	dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE
-Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.	现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。	ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่	現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_BUSY
+The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.	DMS 连接中断，本次读取已暂停。系统将从断点继续读取，已完成的组仍保留。	การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่	DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。	dms.err.ERR_DMS_SNAPSHOT_RETRY
+The data volume exceeds the read limit. Please contact an administrator.	数据量超过读取上限，请联系管理员。	ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ	データ量が読み取り上限を超えています。管理者にご連絡ください。	dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE
+Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.	DMS 当前使用人数较多，本次排队超时，未提交任何内容。请稍后再试。	ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่	現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_BUSY
 Add read account	添加读档账号	เพิ่มบัญชีอ่านข้อมูล	読み取りアカウントを追加	dms.connect.acct.readAdd
 Change read account	修改读档账号	แก้ไขบัญชีอ่านข้อมูล	読み取りアカウントを変更	dms.connect.acct.readChange
 Read account	读档账号	บัญชีอ่านข้อมูล	読み取りアカウント	dms.connect.acct.readField
 Not set	未设置	ยังไม่ตั้ง	未設定	dms.connect.acct.readNone
-Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.	用来连接 DMS 和读资料：首次读全档、白天每分钟同步、凌晨回读。	ใช้เชื่อมต่อ DMS และอ่านข้อมูล: อ่านทั้งหมดครั้งแรก ซิงก์ทุกนาทีช่วงกลางวัน และอ่านซ้ำตอนกลางคืน	DMS への接続とデータ読み込みに使います：初回の全件読み込み、日中の毎分同期、夜間の再読み込み。	dms.connect.acct.readHelp
+Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.	用于连接 DMS 并读取资料：首次完整读取、白天每分钟同步及凌晨重新读取。	ใช้เชื่อมต่อ DMS และอ่านข้อมูล: อ่านทั้งหมดครั้งแรก ซิงก์ทุกนาทีช่วงกลางวัน และอ่านซ้ำตอนกลางคืน	DMS への接続とデータ読み込みに使います：初回の全件読み込み、日中の毎分同期、夜間の再読み込み。	dms.connect.acct.readHelp
 Add write accounts	添加改写权限账号	เพิ่มบัญชีสิทธิ์แก้ไข	書き込みアカウントを追加	dms.connect.acct.writeAdd
 Write accounts	改写权限账号	บัญชีสิทธิ์แก้ไข	書き込みアカウント	dms.connect.acct.writeField
 Not set (the read account is used for writes)	未设置（改写时用读档账号）	ยังไม่ตั้ง (ใช้บัญชีอ่านข้อมูลในการแก้ไข)	未設定（書き込みに読み取りアカウントを使用）	dms.connect.acct.writeNone
-Used to create and edit customers. Leave a saved account's password empty to keep it.	建档、改资料时使用；已登记的账号密码留空即不改。	ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน	顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。	dms.connect.acct.writeHelp
+Used to create and edit customers. Leave a saved account's password empty to keep it.	用于新建和修改客户资料；已登记账号的密码留空则保持不变。	ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน	顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。	dms.connect.acct.writeHelp
 Test and save	测试并保存	ทดสอบและบันทึก	テストして保存	dms.connect.acct.testAndSave
 Saved	已保存	บันทึกแล้ว	保存しました	dms.connect.acct.saved
 {0} lacks access to: {1}	{0} 权限不足：{1}	{0} ไม่มีสิทธิ์: {1}	{0} に権限がありません：{1}	dms.connect.acct.missing
@@ -95,16 +95,16 @@ usage log	使用记录	บันทึกการใช้งาน	利用履�
 customer list	客户列表	รายชื่อลูกค้า	顧客一覧	dms.connect.acct.check.customers
 customer details	客户资料	ข้อมูลลูกค้า	顧客情報	dms.connect.acct.check.customer
 new customer form	新建客户	ฟอร์มเพิ่มลูกค้า	新規顧客フォーム	dms.connect.acct.check.customer_form
-This account is already used by an operator or another system account	这个账号已被操作员或其他系统账号使用	บัญชีนี้ถูกใช้โดยผู้ปฏิบัติงานหรือบัญชีระบบอื่นแล้ว	このアカウントはオペレーターまたは他のシステムアカウントで使用中です	dms.connect.acct.errTaken
-This system account no longer exists; reload the page	这个系统账号已不存在，请刷新页面	บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า	このシステムアカウントはもうありません。ページを再読み込みしてください	dms.connect.acct.errGone
-Remove the account and add it again to change its name	要改账号名，请删掉这一行再重新添加	หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่	アカウント名を変えるには行を削除して追加し直してください	dms.connect.acct.errRename
+This account is already used by an operator or another system account	该账号已被操作员或其他系统账号使用	บัญชีนี้ถูกใช้โดยผู้ปฏิบัติงานหรือบัญชีระบบอื่นแล้ว	このアカウントはオペレーターまたは他のシステムアカウントで使用中です	dms.connect.acct.errTaken
+This system account no longer exists; reload the page	该系统账号不存在，请刷新页面	บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า	このシステムアカウントはもうありません。ページを再読み込みしてください	dms.connect.acct.errGone
+Remove the account and add it again to change its name	如需修改账号名，请删除此行后重新添加	หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่	アカウント名を変えるには行を削除して追加し直してください	dms.connect.acct.errRename
 The DMS account can only be switched before the session starts	只能在开始会话前切换 DMS 账号	เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น	DMS アカウントはセッション開始前にのみ切り替えられます	dms.connect.acct.errSwitch
 Add	添加	เพิ่ม	追加	dms.connect.acct.addRow
 Remove	删除	ลบ	削除	dms.connect.acct.removeRow
 DMS System Account	DMS 系统账号	บัญชีระบบ DMS	DMS システムアカウント	dms.doctype.system_account
 Last Check	最近检查	ตรวจสอบล่าสุด	最終チェック	dms.doctype.system_account.last_status
 Last Checked At	最近检查时间	เวลาตรวจสอบล่าสุด	最終チェック日時	dms.doctype.system_account.last_checked_at
-Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.	只给系统用的额外 DMS 账号。管理员读取和客户资料写入会挑空闲的一个，操作员不必在同一个账号上排队。	บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว	システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。	dms.doctype.system_account.description
+Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.	系统专用的额外 DMS 账号，用于管理员读取和客户资料写入。	บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น การอ่านสิทธิ์ผู้ดูแลและการบันทึกข้อมูลลูกค้าจะเลือกบัญชีที่ว่าง พนักงานไม่ต้องรอคิวบัญชีเดียว	システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。	dms.doctype.system_account.description
 Cancel	取消	ยกเลิก	キャンセル	dms.card.BTN_CANCEL_BOOKING
 Confirm booking	确认订车	ยืนยันจอง	予約を確定	dms.card.BTN_CONFIRM_BOOKING
 Continue booking	继续订车	ทำใบจองต่อ	予約を続ける	dms.card.BTN_CONTINUE_BOOKING
@@ -117,11 +117,11 @@ Retry	重试	ลองใหม่	再試行	dms.card.BTN_RETRY
 Retry booking	重新建立订车单	ลองสร้างใบจองอีกครั้ง	予約を再作成	dms.card.BTN_RETRY_BOOKING
 Save new customer	保存新客户	บันทึกลูกค้าใหม่	新規顧客を保存	dms.card.BTN_SAVE_NEW
 Update data	更新资料	อัปเดตข้อมูล	データを更新	dms.card.BTN_UPDATE
-New customer created	新建客户	สร้างลูกค้าใหม่	新規顧客を作成	dms.card.TXT_ACTION_CREATE
-Customer data updated	更新客户资料	อัปเดตข้อมูลลูกค้า	顧客データを更新	dms.card.TXT_ACTION_UPDATE
-Update failed. Please ask the admin to check the admin password in Pearnly.	更新失败，请通知管理员检查 Pearnly 里的管理员密码。	อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly	更新できませんでした。Pearnly の管理者パスワードを管理者に確認してもらってください。	dms.card.TXT_ADMIN_AUTH_FAIL
-An admin account must be set up in Pearnly before updating.	需要先在 Pearnly 设置管理员账号才能更新。	ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้	更新するには、先に Pearnly で管理者アカウントを設定してください。	dms.card.TXT_ADMIN_NEEDED
-Phone number received. Please take a photo of the customer's ID card.	已收到电话号码，请拍客户的身份证。	รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า	電話番号を受け取りました。お客様の身分証明書を撮影してください。	dms.card.TXT_ASK_CARD
+New customer created	已新建客户	สร้างลูกค้าใหม่	新規顧客を作成	dms.card.TXT_ACTION_CREATE
+Customer data updated	客户资料已更新	อัปเดตข้อมูลลูกค้า	顧客データを更新	dms.card.TXT_ACTION_UPDATE
+Update failed. Please ask the admin to check the admin password in Pearnly.	更新失败，请通知管理员检查 Pearnly 中的管理员密码。	อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly	更新できませんでした。Pearnly の管理者パスワードを管理者に確認してもらってください。	dms.card.TXT_ADMIN_AUTH_FAIL
+An admin account must be set up in Pearnly before updating.	请先在 Pearnly 中设置管理员账号后再更新。	ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้	更新するには、先に Pearnly で管理者アカウントを設定してください。	dms.card.TXT_ADMIN_NEEDED
+Phone number received. Please take a photo of the customer's ID card.	已收到电话号码，请拍摄客户的身份证。	รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า	電話番号を受け取りました。お客様の身分証明書を撮影してください。	dms.card.TXT_ASK_CARD
 ID card photo received. Please type the customer's phone number.	已收到身份证照片，请输入客户的电话号码。	รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า	身分証明書の写真を受け取りました。お客様の電話番号を入力してください。	dms.card.TXT_ASK_PHONE
 The card could not be read clearly. Please take the photo again.	身份证看不清，请重新拍照。	อ่านบัตรไม่ชัด กรุณาถ่ายใหม่	カードがはっきり読み取れませんでした。もう一度撮影してください。	dms.card.TXT_BLURRY
 Discarded. Nothing was saved · Type menu to start again	已放弃，没有保存任何资料 · 输入 菜单 重新开始	ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่	破棄しました。何も保存されていません · メニュー と入力してやり直してください	dms.card.TXT_BOOKING_CANCELLED
@@ -139,7 +139,7 @@ Take a photo of the customer's ID card to start a new customer record.	拍摄客
 Could not check the customer data. Please try again.	核对客户资料失败，请重试。	ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่	顧客データを確認できませんでした。もう一度お試しください。	dms.card.TXT_LOOKUP_FAIL
 Create a new customer from an ID card, or update an existing customer	用身份证建立新客户，或更新已有客户的资料	จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม	身分証明書から新規顧客を作成、または既存顧客を更新	dms.card.TXT_MENU_D1
 Create a car booking: choose the model and colour, then save	建立订车单：选择车型、颜色并保存	สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง	車の予約を作成：車種と色を選んで保存	dms.card.TXT_MENU_D2
-Open Pearnly DMS without typing your password again	免重新输入密码，直接打开 Pearnly DMS	เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง	パスワードを再入力せずに Pearnly DMS を開く	dms.card.TXT_MENU_D3
+Open Pearnly DMS without typing your password again	无需重新输入密码，直接打开 Pearnly DMS	เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง	パスワードを再入力せずに Pearnly DMS を開く	dms.card.TXT_MENU_D3
 Update the DMS username and password saved in Pearnly	更新保存在 Pearnly 里的 DMS 用户名和密码	อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly	Pearnly に保存した DMS のユーザー名とパスワードを更新	dms.card.TXT_MENU_D4
 View the latest sales data from DMS within your permissions	按你的权限查看 DMS 最新的销售资料	ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ	権限の範囲で DMS の最新の販売データを見る	dms.card.TXT_MENU_D5
 Watch step-by-step video guides	观看分步骤的教程视频	ดูคลิปสอนการใช้งานทีละขั้นตอน	手順ごとの動画ガイドを見る	dms.card.TXT_MENU_D6
@@ -156,27 +156,27 @@ Choose an item to continue	选择一项继续	เลือกรายการ�
 Please send a photo of the customer's ID card	请发送客户的身份证照片	กรุณาส่งรูปบัตรประชาชนของลูกค้า	お客様の身分証明書の写真を送ってください	dms.card.TXT_MENU_SEND_CARD
 Please choose a menu below to get started	请选择下方菜单开始使用	กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน	下のメニューから始めてください	dms.card.TXT_MENU_SUBTITLE
 Welcome to Pearnly DMS	欢迎使用 Pearnly DMS	ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS	Pearnly DMS へようこそ	dms.card.TXT_MENU_TITLE
-Create a booking	开订车单	จัดทำใบจอง	予約の作成	dms.card.TXT_MANUAL_BOOKING
+Create a booking	新建订车单	จัดทำใบจอง	予約の作成	dms.card.TXT_MANUAL_BOOKING
 Create customer data	建立客户资料	จัดทำข้อมูลลูกค้า	顧客データの作成	dms.card.TXT_MANUAL_CUSTOMER
-This tutorial video is not available yet. Please check back later.	这个教程视频暂未上线，请稍后再来看。	คลิปคู่มือหัวข้อนี้ยังไม่เปิดให้ดู กรุณากลับมาดูใหม่ภายหลัง	このチュートリアル動画はまだ公開されていません。しばらくしてからご覧ください。	dms.card.TXT_MANUAL_NOT_READY
+This tutorial video is not available yet. Please check back later.	此教程视频暂未上线，请稍后查看。	คลิปคู่มือหัวข้อนี้ยังไม่เปิดให้ดู กรุณากลับมาดูใหม่ภายหลัง	このチュートリアル動画はまだ公開されていません。しばらくしてからご覧ください。	dms.card.TXT_MANUAL_NOT_READY
 User manual	使用手册	คู่มือการใช้งาน	使い方マニュアル	dms.card.TXT_MANUAL_PICK
 Choose a topic to play its video	选择一个主题播放教程视频	เลือกหัวข้อเพื่อเปิดดูคลิป	トピックを選ぶと動画を再生します	dms.card.TXT_MANUAL_PICK_SUB
 First-time setup	首次设置	ติดตั้งครั้งแรก	初回設定	dms.card.TXT_MANUAL_SETUP
 First setup	首次设置	ตั้งค่าครั้งแรก	初回設定	dms.manual.quick.setup
 Customer data	建立客户资料	ข้อมูลลูกค้า	顧客データの作成	dms.manual.quick.customer
-Car booking	开订车单	ใบจองรถ	予約の作成	dms.manual.quick.booking
+Car booking	新建订车单	ใบจองรถ	予約の作成	dms.manual.quick.booking
 Please send the customer's ID card photo and phone number	请发送客户的身份证照片和电话号码	กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า	お客様の身分証明書の写真と電話番号を送ってください	dms.card.TXT_NEED_BOTH
 Confirm saving a new customer	确认保存新客户	ยืนยันบันทึกลูกค้าใหม่	新規顧客の保存を確認	dms.card.TXT_NEW_CARD_ALT
 New customer — confirm the data to save	新客户，确认资料后保存	ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก	新規顧客です。データを確認して保存してください	dms.card.TXT_NEW_CARD_HEAD
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms	额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐	เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms	クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください	dms.card.TXT_NO_CREDIT
 The DMS connection is not set up yet. Please contact the admin.	尚未设置 DMS 连接，请联系管理员。	ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล	DMS 接続がまだ設定されていません。管理者に連絡してください。	dms.card.TXT_NO_ENDPOINT
-Please choose from the card above, or type restart to begin a new item	请从上方卡片中选择，或输入 重新开始 办理新的一项	กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่	上のカードから選ぶか、やり直し と入力して新しく始めてください	dms.card.TXT_PICK_ABOVE
+Please choose from the card above, or type restart to begin a new item	请从上方卡片中选择，或输入「重新开始」办理新业务	กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่	上のカードから選ぶか、やり直し と入力して新しく始めてください	dms.card.TXT_PICK_ABOVE
 Advisor: {name}	销售顾问：{name}	ที่ปรึกษา: {name}	担当：{name}	dms.card.TXT_RECEIPT_ADVISOR
 Booking created\nBooking no.: {booking_no}\nModel: {car}\nDelivery date: {delivery_date_be}	订车单已建立\n订车单号：{booking_no}\n车型：{car}\n交车日期：{delivery_date_be}	เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}	予約を作成しました\n予約番号：{booking_no}\n車種：{car}\n納車日：{delivery_date_be}	dms.card.TXT_RECEIPT_BOOKING
 Saved · {action}\nCustomer ID: {customer_code}\nName: {name}	保存成功 · {action}\n客户编号：{customer_code}\n姓名：{name}	บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_code}\nชื่อ: {name}	保存しました · {action}\n顧客番号：{customer_code}\n氏名：{name}	dms.card.TXT_RECEIPT_SAVE
 Started over. Take a photo of the ID card to start a customer record.	已重新开始，拍摄身份证即可登记客户。	เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า	やり直しました。身分証明書を撮影して顧客登録を始めてください。	dms.card.TXT_RESET
 Please take the ID card photo again	请重新拍摄身份证	กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง	身分証明書をもう一度撮影してください	dms.card.TXT_RETAKE
-This customer already exists and the data matches	这位客户已有资料，资料一致	ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน	この顧客はすでに登録済みで、データも一致しています	dms.card.TXT_SAME
+This customer already exists and the data matches	该客户已存在，资料一致	ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน	この顧客はすでに登録済みで、データも一致しています	dms.card.TXT_SAME
 Customer data matches	客户资料一致	ข้อมูลลูกค้าตรงกัน	顧客データが一致しています	dms.card.TXT_SAME_ALT
 Save failed. Please try again.	保存失败，请重试。	บันทึกไม่สำเร็จ กรุณาลองใหม่	保存できませんでした。もう一度お試しください。	dms.card.TXT_SAVE_FAIL
 Something went wrong. Please try again.	系统出错，请重试。	ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง	システムエラーです。もう一度お試しください。	dms.card.TXT_SYSTEM_ERROR
@@ -226,42 +226,42 @@ Registered under	登记名义	จดทะเบียนในนาม	登録�
 Sales terms	销售条件	เงื่อนไขการขาย	販売条件	dms.card.qa.LBL_TERM
 Total deposit	订金合计	ยอดเงินจองรวม	予約金合計	dms.card.qa.LBL_TOTAL
 The booking cannot be opened yet · The DMS account in use is «{username}»	暂时无法建立订车单 · 当前使用的 DMS 账号是「{username}」	ยังเปิดใบจองไม่ได้ครับ · บัญชี DMS ที่ใช้อยู่คือ «{username}»	まだ予約を作成できません · 使用中の DMS アカウントは「{username}」です	dms.card.qa.TXT_ADVISOR_BLOCK
-The booking cannot be opened yet · The DMS account of this user cannot be read	暂时无法建立订车单 · 系统还读不到这位用户的 DMS 账号	ยังเปิดใบจองไม่ได้ครับ · ระบบยังอ่านบัญชี DMS ของผู้ใช้นี้ไม่ได้	まだ予約を作成できません · このユーザーの DMS アカウントを読み取れません	dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER
+The booking cannot be opened yet · The DMS account of this user cannot be read	暂时无法建立订车单 · 无法读取该用户的 DMS 账号	ยังเปิดใบจองไม่ได้ครับ · ระบบยังอ่านบัญชี DMS ของผู้ใช้นี้ไม่ได้	まだ予約を作成できません · このユーザーの DMS アカウントを読み取れません	dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER
 Amount ({channel}) — type the amount, e.g. 5000	金额（{channel}）— 请输入金额，例如 5000	ยอดเงิน ({channel}) — พิมพ์จำนวนเงิน เช่น 5000	金額（{channel}）— 金額を入力（例：5000）	dms.card.qa.TXT_ASK_AMOUNT
-Car model — type a short model name to search, e.g. dmax	车型 — 输入简短的车型名称搜索，例如 dmax	รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax	車種 — 短い車種名を入力して検索（例：dmax）	dms.card.qa.TXT_ASK_CAR
+Car model — type a short model name to search, e.g. dmax	车型 — 请输入车型简称进行搜索，例如 dmax	รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax	車種 — 短い車種名を入力して検索（例：dmax）	dms.card.qa.TXT_ASK_CAR
 Type the card type, e.g. VISA	请输入卡种，例如 VISA	พิมพ์ประเภทบัตร เช่น VISA	カードの種類を入力（例：VISA）	dms.card.qa.TXT_ASK_CARD_REF
 Type bank name | card type, e.g. KBank | VISA	请输入 银行名称 | 卡种，例如 KBank | VISA	พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA	銀行名 | カードの種類 を入力（例：KBank | VISA）	dms.card.qa.TXT_ASK_CARD_REF_MANUAL
 Type cheque no. | cheque book no., e.g. 123456 | 01	请输入 支票号码 | 支票簿号，例如 123456 | 01	พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01	小切手番号 | 小切手帳番号 を入力（例：123456 | 01）	dms.card.qa.TXT_ASK_CHEQUE_REF
 Type cheque no. | cheque book no. | bank name, e.g. 123456 | 01 | KBank	请输入 支票号码 | 支票簿号 | 银行名称，例如 123456 | 01 | KBank	พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank	小切手番号 | 小切手帳番号 | 銀行名 を入力（例：123456 | 01 | KBank）	dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL
-Expected delivery date — tap the button to pick a date	预计交车日期 — 点按钮选择日期	วันที่คาดว่าจะส่งมอบรถ — กดปุ่มเพื่อเลือกวันที่	納車予定日 — ボタンを押して日付を選択	dms.card.qa.TXT_ASK_DATE
-Any other payment channel?	还有其他付款方式吗？	มีช่องทางอื่นอีกไหม	ほかの支払方法はありますか？	dms.card.qa.TXT_ASK_MORE
+Expected delivery date — tap the button to pick a date	预计交车日期 — 请点击按钮选择日期	วันที่คาดว่าจะส่งมอบรถ — กดปุ่มเพื่อเลือกวันที่	納車予定日 — ボタンを押して日付を選択	dms.card.qa.TXT_ASK_DATE
+Any other payment channel?	是否还有其他付款方式？	มีช่องทางอื่นอีกไหม	ほかの支払方法はありますか？	dms.card.qa.TXT_ASK_MORE
 Channel details — type them	付款方式说明 — 请输入	รายละเอียดช่องทาง — พิมพ์	支払方法の詳細 — 入力してください	dms.card.qa.TXT_ASK_OTHER_REF
 Choose a colour for {car}	选择 {car} 的颜色	เลือกสีของ {car}	{car} の色を選択	dms.card.qa.TXT_ASK_PAINT
 Deposit payment channel — choose one	订金付款方式 — 请选择	ช่องทางชำระเงินจอง — เลือกช่องทาง	予約金の支払方法 — 選択してください	dms.card.qa.TXT_ASK_PAY_CHANNEL
-Receiving bank — choose the bank the company received the money in	收款银行 — 选择公司收款的银行	ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน	入金先銀行 — 会社が入金を受けた銀行を選択	dms.card.qa.TXT_ASK_PAY_DST
+Receiving bank — choose the bank the company received the money in	收款银行 — 请选择公司收款银行	ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน	入金先銀行 — 会社が入金を受けた銀行を選択	dms.card.qa.TXT_ASK_PAY_DST
 Booking location — choose below	订车地点 — 请在下方选择	สถานที่รับจอง — กดเลือกด้านล่าง	予約受付場所 — 下から選択	dms.card.qa.TXT_ASK_PLACE
 Registered under — choose below	登记名义 — 请在下方选择	จดทะเบียนในนาม — กดเลือกด้านล่าง	登録名義 — 下から選択	dms.card.qa.TXT_ASK_REGIS
-Registration name — tap Use name on card, or type another name	登记人姓名 — 点「使用证件上的姓名」，或输入其他姓名	ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น	登録者名 — 「カードの氏名を使う」を押すか、別の氏名を入力	dms.card.qa.TXT_ASK_REGIS_NAME
-Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step	请发送订金转账凭证 · 如果客户付现金，输入 现金 跳过这一步	ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้	予約金の振込明細を送ってください · 現金払いの場合は 現金 と入力するとこの手順を飛ばせます	dms.card.qa.TXT_ASK_SLIP
+Registration name — tap Use name on card, or type another name	登记人姓名 — 请点击「使用证件上的姓名」，或输入其他姓名	ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น	登録者名 — 「カードの氏名を使う」を押すか、別の氏名を入力	dms.card.qa.TXT_ASK_REGIS_NAME
+Send the deposit transfer slip now · If the customer paid in cash, type cash to skip this step	请发送订金转账凭证 · 如客户以现金支付，请输入「现金」跳过此步骤	ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้	予約金の振込明細を送ってください · 現金払いの場合は 現金 と入力するとこの手順を飛ばせます	dms.card.qa.TXT_ASK_SLIP
 Sales terms — choose below	销售条件 — 请在下方选择	เงื่อนไขการขาย — กดเลือกด้านล่าง	販売条件 — 下から選択	dms.card.qa.TXT_ASK_TERM
-Not all files were attached. Please add them in DMS.	附件没有全部上传，请到 DMS 补上。	แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS	添付ファイルがすべて付いていません。DMS で追加してください。	dms.card.qa.TXT_ATTACH_FAIL
+Not all files were attached. Please add them in DMS.	部分附件上传失败，请在 DMS 中补充上传。	แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS	添付ファイルがすべて付いていません。DMS で追加してください。	dms.card.qa.TXT_ATTACH_FAIL
 Invalid amount. Type a number, e.g. 5000 or 5,000.50	金额不正确，请输入数字，例如 5000 或 5,000.50	จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50	金額が正しくありません。数字で入力してください（例：5000 または 5,000.50）	dms.card.qa.TXT_BAD_AMOUNT
-Invalid format. Please fill in both fields {hint}	格式不正确，请两栏都填写 {hint}	รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}	形式が正しくありません。2 つとも入力してください {hint}	dms.card.qa.TXT_BAD_PAYMENT_DETAIL
-No matching model. Please try typing again.	没有找到对应车型，请重新输入。	ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง	該当する車種が見つかりません。もう一度入力してください。	dms.card.qa.TXT_CAR_NONE
+Invalid format. Please fill in both fields {hint}	格式不正确，两栏均须填写 {hint}	รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}	形式が正しくありません。2 つとも入力してください {hint}	dms.card.qa.TXT_BAD_PAYMENT_DETAIL
+No matching model. Please try typing again.	未找到匹配的车型，请重新输入。	ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง	該当する車種が見つかりません。もう一度入力してください。	dms.card.qa.TXT_CAR_NONE
 Choose a car model ({n} found)	选择车型（共 {n} 项）	เลือกรุ่นรถ (พบ {n} รายการ)	車種を選択（{n} 件）	dms.card.qa.TXT_CAR_PICK
-Tap Confirm or Discard on the summary above	请在上方汇总中点「确认」或「放弃」	กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ	上の概要で「確定」または「破棄」を押してください	dms.card.qa.TXT_CONFIRM_ABOVE
-There is a transfer payment. Please send the transfer slip before viewing the summary.	有转账付款，请先发送转账凭证再查看汇总。	มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ	振込の支払いがあります。概要を見る前に振込明細を送ってください。	dms.card.qa.TXT_NEED_SLIP
-No company receiving account yet. Please ask the admin to set it up in DMS, then try again.	还没有公司的收款账户资料，请管理员在 DMS 设置后再试。	ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง	会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。	dms.card.qa.TXT_NO_COMPANY_BANK
-This step does not need a picture. Please follow the question above.	这一步不需要图片，按上面的问题操作即可。	ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย	この手順では画像は不要です。上の質問に沿って進めてください。	dms.card.qa.TXT_NO_IMAGE_NEEDED
-DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.	DMS 里还没有设置「{item}」的选项，请管理员在 DMS 添加后再试。	ยังไม่ได้ตั้งค่าตัวเลือก «{item}» ใน DMS กรุณาให้ผู้ดูแลเพิ่มใน DMS แล้วลองใหม่อีกครั้ง	DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。	dms.card.qa.TXT_MASTER_EMPTY_ITEM
+Tap Confirm or Discard on the summary above	请在上方汇总中点击「确认」或「放弃」	กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ	上の概要で「確定」または「破棄」を押してください	dms.card.qa.TXT_CONFIRM_ABOVE
+There is a transfer payment. Please send the transfer slip before viewing the summary.	本单包含转账付款，请先发送转账凭证，再查看汇总。	มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ	振込の支払いがあります。概要を見る前に振込明細を送ってください。	dms.card.qa.TXT_NEED_SLIP
+No company receiving account yet. Please ask the admin to set it up in DMS, then try again.	尚未设置公司收款账户，请联系管理员在 DMS 中设置后重试。	ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง	会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。	dms.card.qa.TXT_NO_COMPANY_BANK
+This step does not need a picture. Please follow the question above.	此步骤无需图片，请按上方提示操作。	ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย	この手順では画像は不要です。上の質問に沿って進めてください。	dms.card.qa.TXT_NO_IMAGE_NEEDED
+DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.	DMS 中尚未设置「{item}」选项，请联系管理员在 DMS 中添加后重试。	ยังไม่ได้ตั้งค่าตัวเลือก «{item}» ใน DMS กรุณาให้ผู้ดูแลเพิ่มใน DMS แล้วลองใหม่อีกครั้ง	DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。	dms.card.qa.TXT_MASTER_EMPTY_ITEM
 There are more colours. Type a colour name to search.	还有更多颜色，可输入颜色名称搜索。	มีสีมากกว่านี้ พิมพ์ชื่อสีเพื่อค้นหาได้	ほかにも色があります。色の名前を入力して検索できます。	dms.card.qa.TXT_PAINT_MANY
 Choose a bank	选择银行	เลือกธนาคาร	銀行を選択	dms.card.qa.TXT_PICK_BANK
 Booking summary — check before confirming	订车单汇总 — 确认前请核对	สรุปใบจอง — ตรวจสอบก่อนยืนยัน	予約の概要 — 確定前に確認してください	dms.card.qa.TXT_PREVIEW_TITLE
 Separate fields with | , / or ·	栏位之间用 | , / 或 · 分隔	คั่นช่องด้วย | , / หรือ ·	項目は | , / または · で区切ってください	dms.card.qa.TXT_SEP_HINT
-A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.	附有转账凭证，但还没有转账付款。请添加转账或删除凭证后再查看汇总。	พบสลิปโอนเงินแนบอยู่ แต่ยังไม่มีช่องทางเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุปครับ	振込明細が添付されていますが、振込の支払いがありません。振込を追加するか明細を削除してから概要を見てください。	dms.card.qa.TXT_SLIP_CONFLICT
-This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.	这一步需要凭证的图片，请以图片发送；没有转账就输入 现金。	ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน	この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。	dms.card.qa.TXT_SLIP_ONLY_IMAGE
+A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.	已附转账凭证，但未添加转账付款。请添加转账付款或删除凭证后查看汇总。	พบสลิปโอนเงินแนบอยู่ แต่ยังไม่มีช่องทางเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุปครับ	振込明細が添付されていますが、振込の支払いがありません。振込を追加するか明細を削除してから概要を見てください。	dms.card.qa.TXT_SLIP_CONFLICT
+This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.	此步骤需要转账凭证图片，请以图片形式发送；如无转账，请输入「现金」。	ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน	この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。	dms.card.qa.TXT_SLIP_ONLY_IMAGE
 Attached	已附上	แนบแล้ว	添付済み	dms.card.qa.VAL_ATTACHED
-then try again	然后再试一次	แล้วลองใหม่อีกครั้ง	その後もう一度お試しください	dms.card.qa._TH_RETRY
+then try again	然后重试	แล้วลองใหม่อีกครั้ง	その後もう一度お試しください	dms.card.qa._TH_RETRY
 Credit/debit card	信用卡/借记卡	บัตรเครดิต/เดบิต	クレジット/デビットカード	dms.card.qa.pay.card
 Cash	现金	เงินสด	現金	dms.card.qa.pay.cash
 Cashier's cheque	本票	แคชเชียร์เช็ค	預金小切手	dms.card.qa.pay.cashier_cheque
@@ -283,8 +283,8 @@ Type the expected delivery date, e.g. 15/09/2569 (Buddhist year)	请输入预计
 Type the engine number	请输入发动机号	พิมพ์หมายเลขเครื่อง	エンジン番号を入力してください	dms.card.query.ASK_ENGINE_NO
 Type the sales document number	请输入销售单据号	พิมพ์เลขที่เอกสารการขาย	販売伝票番号を入力してください	dms.card.query.ASK_SALES_DOC_NO
 Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)	请输入日期范围和条数，例如 01/08/2569-31/08/2569 15（佛历）	พิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15	期間と件数を入力してください（例：01/08/2569-31/08/2569 15、仏暦）	dms.card.query.ASK_TOP_CUSTOM
-Rank sales by what?	按什么排行销售？	จัดอันดับยอดขายตามอะไร	何で販売ランキングを出しますか？	dms.card.query.ASK_TOP_GROUP
-Rank by number of cars or amount?	按台数还是金额排行？	จัดอันดับด้วยจำนวนคันหรือยอดเงิน	台数と金額のどちらでランキングしますか？	dms.card.query.ASK_TOP_METRIC
+Rank sales by what?	请选择销售排行依据	จัดอันดับยอดขายตามอะไร	何で販売ランキングを出しますか？	dms.card.query.ASK_TOP_GROUP
+Rank by number of cars or amount?	请选择排行指标：台数或金额	จัดอันดับด้วยจำนวนคันหรือยอดเงิน	台数と金額のどちらでランキングしますか？	dms.card.query.ASK_TOP_METRIC
 Choose a period and number of items (all branches/teams this account can see)	选择时间段和条数（此账号可见的全部分店/团队）	เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)	期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）	dms.card.query.ASK_TOP_PERIOD
 Type the car model	请输入车型	พิมพ์รุ่นรถ	車種を入力してください	dms.card.query.ASK_VEHICLE
 Sales records from DMS	DMS 销售记录	บันทึกการขายจาก DMS	DMS の販売記録	dms.card.query.CARD_TITLE
@@ -302,7 +302,7 @@ Sales document no.	销售单据号	เลขที่เอกสารขาย
 Top sales	销售排行	ยอดขายสูงสุด	販売ランキング	dms.card.query.DIM_TOP
 Car model	车型	รุ่นรถ	車種	dms.card.query.DIM_VEHICLE
 No records for this condition · Last read from DMS at	没有符合条件的记录 · 最近一次从 DMS 读取于	ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ	この条件の記録はありません · DMS から最後に読み取った時刻	dms.card.query.EMPTY_RECORDS_PREFIX
-No sales in this period	这段时间没有销售	ไม่พบยอดขายในช่วงเวลานี้	この期間の販売はありません	dms.card.query.EMPTY_TOP
+No sales in this period	该时间段内无销售记录	ไม่พบยอดขายในช่วงเวลานี้	この期間の販売はありません	dms.card.query.EMPTY_TOP
 Car model	车型	รุ่นรถ	車種	dms.card.query.GRP_MODEL
 Subtype	子类型	ประเภทย่อย	サブタイプ	dms.card.query.GRP_SUBTYPE
 Car type	车辆类型	ประเภทรถ	車両タイプ	dms.card.query.GRP_TYPE
@@ -321,11 +321,11 @@ Number of cars	台数	จำนวนคัน	台数	dms.card.query.MET_QTY
 Next page	下一页	หน้าถัดไป	次のページ	dms.card.query.NAV_NEXT
 Previous page	上一页	หน้าก่อน	前のページ	dms.card.query.NAV_PREV
 Custom 1–30	自定义 1–30	กำหนดเอง 1–30	カスタム 1–30	dms.card.query.PERIOD_CUSTOM
-This month Top 10	本月 Top 10	เดือนนี้ Top 10	今月 Top 10	dms.card.query.PERIOD_M_10
-This month Top 20	本月 Top 20	เดือนนี้ Top 20	今月 Top 20	dms.card.query.PERIOD_M_20
-This month Top 30	本月 Top 30	เดือนนี้ Top 30	今月 Top 30	dms.card.query.PERIOD_M_30
-This month Top 5	本月 Top 5	เดือนนี้ Top 5	今月 Top 5	dms.card.query.PERIOD_M_5
-This year Top 10	今年 Top 10	ปีนี้ Top 10	今年 Top 10	dms.card.query.PERIOD_Y_10
+This month Top 10	本月前 10 名	เดือนนี้ Top 10	今月 Top 10	dms.card.query.PERIOD_M_10
+This month Top 20	本月前 20 名	เดือนนี้ Top 20	今月 Top 20	dms.card.query.PERIOD_M_20
+This month Top 30	本月前 30 名	เดือนนี้ Top 30	今月 Top 30	dms.card.query.PERIOD_M_30
+This month Top 5	本月前 5 名	เดือนนี้ Top 5	今月 Top 5	dms.card.query.PERIOD_M_5
+This year Top 10	今年前 10 名	ปีนี้ Top 10	今年 Top 10	dms.card.query.PERIOD_Y_10
 Choose a status	选择状态	เลือกสถานะที่ต้องการ	ステータスを選択	dms.card.query.PICK_STATUS
 Status not given	未注明状态	ไม่ระบุสถานะ	ステータス未設定	dms.card.query.STATUS_UNKNOWN
 Allocated	已配车	จัดสรรแล้ว	割当済み	dms.card.query.ST_ALLOCATED
@@ -336,16 +336,16 @@ Contract opened	已签合同	เปิดสัญญาแล้ว	契約締�
 Draft	草稿	แบบร่าง	下書き	dms.card.query.ST_DRAFT
 Finance approved	贷款已批	ไฟแนนซ์อนุมัติ	ローン承認済み	dms.card.query.ST_FINANCE_APPROVED
 Finance pending	贷款待批	ไฟแนนซ์รออนุมัติ	ローン審査中	dms.card.query.ST_FINANCE_PENDING
-Awaiting manager	待销售经理	รอ ผจก.ขาย	営業マネージャー待ち	dms.card.query.ST_MANAGER_PENDING
+Awaiting manager	待销售经理审批	รอ ผจก.ขาย	営業マネージャー待ち	dms.card.query.ST_MANAGER_PENDING
 Ready for pickup	可提车	พร้อมรับรถ	納車準備完了	dms.card.query.ST_READY
 Not allocated yet	尚未配车	ยังไม่จัดสรรรถ	未割当	dms.card.query.ST_UNALLOCATED
 Top sales	销售排行	ยอดขายสูงสุด	販売ランキング	dms.card.query.TITLE_TOP
-This menu is not available in the first release. Please choose 1 Sales records	此菜单首版尚未开放，请选择「1 销售记录」	เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย	このメニューは初版ではまだ使えません。「1 販売記録」を選んでください	dms.card.query.TXT_COMING_SOON
-This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.	此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。	บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน	このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。	dms.card.query.TXT_DENIED
-This item has expired. Type menu to search again	此项已过期，输入 菜单 重新查询	รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่	有効期限が切れました。メニュー と入力して検索し直してください	dms.card.query.TXT_EXPIRED
+This menu is not available in the first release. Please choose 1 Sales records	此菜单暂未开放，请选择「1 销售记录」	เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย	このメニューは初版ではまだ使えません。「1 販売記録」を選んでください	dms.card.query.TXT_COMING_SOON
+This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.	此账号尚无在 LINE 查询资料的权限，请联系管理员在操作员页面开通。	บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน	このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。	dms.card.query.TXT_DENIED
+This item has expired. Type menu to search again	此项已过期，请输入「菜单」重新查询	รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่	有効期限が切れました。メニュー と入力して検索し直してください	dms.card.query.TXT_EXPIRED
 Reading the latest data from DMS	正在从 DMS 读取最新资料	กำลังอ่านข้อมูลล่าสุดจาก DMS	DMS から最新データを読み取っています	dms.card.query.TXT_LOADING
-No active DMS account found. Ask the owner to check the operator data.	找不到可用的 DMS 账号，请老板检查操作员资料。	ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน	有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。	dms.card.query.TXT_NO_ENDPOINT
-Pick just one main condition and the search runs right away. No need to answer everything.	只要选一个主要条件，系统马上查询，不用每项都答。	เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ	主な条件を 1 つ選ぶだけですぐに検索します。全部に答える必要はありません。	dms.card.query.TXT_PICK_SALES
+No active DMS account found. Ask the owner to check the operator data.	未找到可用的 DMS 账号，请联系管理员检查操作员资料。	ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน	有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。	dms.card.query.TXT_NO_ENDPOINT
+Pick just one main condition and the search runs right away. No need to answer everything.	请选择一个主要条件，系统将立即查询。	เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ	主な条件を 1 つ選ぶだけですぐに検索します。全部に答える必要はありません。	dms.card.query.TXT_PICK_SALES
 Please choose the type of data to search	请选择要查询的资料类型	กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา	検索するデータの種類を選んでください	dms.card.query.TXT_PICK_TYPE
 Could not read data from DMS. Please try again.	从 DMS 读取资料失败，请重试。	อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	DMS からデータを読み取れませんでした。もう一度お試しください。	dms.card.query.TXT_QUERY_FAILED
 1 Sales records	1 销售记录	1 บันทึกการขาย	1 販売記録	dms.card.query.TYPE_SALES
@@ -370,34 +370,34 @@ Latest sales from DMS	DMS 最新销售	ยอดขายล่าสุดจ�
 Manual	使用手册	คู่มือ	マニュアル	dms.card.rich.manual.title
 Video guides	教程视频	คลิปสอนการใช้งาน	動画ガイド	dms.card.rich.manual.sub
 Coming soon	即将推出	เร็ว ๆ นี้	近日公開	dms.card.rich.soon
-The check could not start. Please try again.	检查没能开始，请再试一次。	เริ่มตรวจสอบไม่ได้ กรุณาลองใหม่อีกครั้ง	確認を開始できませんでした。もう一度お試しください。
-The check failed. Please try again.	检查失败，请再试一次。	ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	確認に失敗しました。もう一度お試しください。
-The check stopped before it finished. Please try again.	检查中途停止了，请再试一次。	การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง	確認が途中で止まりました。もう一度お試しください。
-Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.	只能输入一个日期，例如 15/09/2569（佛历），不能按区间查。	ใส่ได้ครั้งละหนึ่งวันที่ เช่น 15/09/2569 (พ.ศ.) ค้นหาเป็นช่วงวันที่ไม่ได้	日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。	dms.card.query.TXT_DATE_SINGLE
+The check could not start. Please try again.	无法开始检查，请重试。	เริ่มตรวจสอบไม่ได้ กรุณาลองใหม่อีกครั้ง	確認を開始できませんでした。もう一度お試しください。
+The check failed. Please try again.	检查失败，请重试。	ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	確認に失敗しました。もう一度お試しください。
+The check stopped before it finished. Please try again.	检查未完成，请重试。	การตรวจสอบหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง	確認が途中で止まりました。もう一度お試しください。
+Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.	仅支持输入单个日期，例如 15/09/2569（佛历），不支持按日期范围查询。	ใส่ได้ครั้งละหนึ่งวันที่ เช่น 15/09/2569 (พ.ศ.) ค้นหาเป็นช่วงวันที่ไม่ได้	日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。	dms.card.query.TXT_DATE_SINGLE
 Scan ID card	扫描身份证	สแกนบัตรประชาชน	身分証をスキャン	dms.card.BTN_SCAN_CARD
 ID card scanned	已扫描身份证	สแกนบัตรแล้ว	身分証をスキャンしました	dms.card.TXT_SCAN_SENT
-Fit the ID card inside the frame	把身份证放进框内	วางบัตรให้อยู่ในกรอบ	身分証を枠に合わせてください	dms.edit.scanTipPlace
-Not sharp yet. Hold the phone steady	画面还不清楚，请拿稳	ภาพยังไม่ชัด ถือโทรศัพท์ให้นิ่ง	まだぼやけています。スマホを動かさないでください	dms.edit.scanTipFocus
-Too dark or too bright. Move to better light	光线太暗或太亮，请换个位置	มืดหรือสว่างเกินไป ลองย้ายไปที่แสงพอดี	暗すぎるか明るすぎます。明るさのちょうどよい場所へ	dms.edit.scanTipLight
-Glare on the card. Tilt it slightly	卡片反光，请稍微倾斜	บัตรมีแสงสะท้อน เอียงบัตรเล็กน้อย	カードが反射しています。少し傾けてください	dms.edit.scanTipGlare
-Hold still…	拿稳不动…	ถือนิ่งๆ…	そのまま動かさないでください…	dms.edit.scanTipHold
+Fit the ID card inside the frame	请将身份证置于框内	วางบัตรให้อยู่ในกรอบ	身分証を枠に合わせてください	dms.edit.scanTipPlace
+Not sharp yet. Hold the phone steady	画面不清晰，请保持手机稳定	ภาพยังไม่ชัด ถือโทรศัพท์ให้นิ่ง	まだぼやけています。スマホを動かさないでください	dms.edit.scanTipFocus
+Too dark or too bright. Move to better light	光线过暗或过亮，请调整拍摄位置	มืดหรือสว่างเกินไป ลองย้ายไปที่แสงพอดี	暗すぎるか明るすぎます。明るさのちょうどよい場所へ	dms.edit.scanTipLight
+Glare on the card. Tilt it slightly	卡片反光，请略微倾斜	บัตรมีแสงสะท้อน เอียงบัตรเล็กน้อย	カードが反射しています。少し傾けてください	dms.edit.scanTipGlare
+Hold still…	请保持不动…	ถือนิ่งๆ…	そのまま動かさないでください…	dms.edit.scanTipHold
 Take photo	拍照	ถ่ายรูป	撮影	dms.edit.scanShoot
 Try again	重试	ลองอีกครั้ง	もう一度	dms.edit.scanRetry
 Back to chat	返回聊天	กลับไปที่แชท	チャットに戻る	dms.edit.scanBack
 Sending…	正在发送…	กำลังส่ง…	送信中…	dms.edit.scanSending
-Sent. You can go back to the chat.	已发送，可以回到聊天了。	ส่งแล้ว กลับไปที่แชทได้เลย	送信しました。チャットに戻れます。	dms.edit.scanSent
-Cannot open the camera. Please send the ID card photo in the chat instead.	无法打开相机，请回到聊天直接发身份证照片。	เปิดกล้องไม่ได้ กรุณาส่งรูปบัตรประชาชนในแชทแทน	カメラを開けません。チャットで身分証の写真を送ってください。	dms.edit.scanNoCamera
-This step has expired. Go back to the chat and start again.	这一步已过期，请回到聊天重新开始。	ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่	この手順は期限切れです。チャットに戻ってやり直してください。	dms.edit.scanExpired
-The photo is too large. Please try again.	照片太大，请重试。	รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง	写真が大きすぎます。もう一度お試しください。	dms.edit.scanTooLarge
-Could not send the photo. Please try again.	照片没有发出去，请重试。	ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง	写真を送れませんでした。もう一度お試しください。	dms.edit.scanFailed
-The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible.	已读到 13 位身份证号，但校验位不符。请核对卡面上的号码，再重新拍照，让号码清晰可见。	อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน	13 桁の身分証番号を読み取りましたが、チェック桁が一致しません。カードの番号を確認し、番号がはっきり写るように撮り直してください。	dms.card.TXT_ID_CHECKSUM
+Sent. You can go back to the chat.	已发送，请返回聊天。	ส่งแล้ว กลับไปที่แชทได้เลย	送信しました。チャットに戻れます。	dms.edit.scanSent
+Cannot open the camera. Please send the ID card photo in the chat instead.	无法打开相机，请返回聊天直接发送身份证照片。	เปิดกล้องไม่ได้ กรุณาส่งรูปบัตรประชาชนในแชทแทน	カメラを開けません。チャットで身分証の写真を送ってください。	dms.edit.scanNoCamera
+This step has expired. Go back to the chat and start again.	此步骤已过期，请返回聊天重新开始。	ขั้นตอนนี้หมดอายุแล้ว กรุณากลับไปที่แชทแล้วเริ่มใหม่	この手順は期限切れです。チャットに戻ってやり直してください。	dms.edit.scanExpired
+The photo is too large. Please try again.	照片过大，请重试。	รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง	写真が大きすぎます。もう一度お試しください。	dms.edit.scanTooLarge
+Could not send the photo. Please try again.	照片发送失败，请重试。	ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง	写真を送れませんでした。もう一度お試しください。	dms.edit.scanFailed
+The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible.	身份证号校验位不符，请核对卡面号码后重新拍照，确保号码清晰可见。	อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน กรุณาตรวจสอบเลขบนบัตรอีกครั้ง แล้วถ่ายใหม่ให้เห็นเลขบัตรชัดเจน	13 桁の身分証番号を読み取りましたが、チェック桁が一致しません。カードの番号を確認し、番号がはっきり写るように撮り直してください。	dms.card.TXT_ID_CHECKSUM
 {text} ({fields})	{text}（{fields}）	{text} ({fields})	{text}（{fields}）	dms.card.TXT_REVIEW_MISSING
 ID number	身份证号	เลขบัตรประชาชน	身分証番号	dms.card.REVIEW_PEOPLE_ID
 First name	名	ชื่อ	名	dms.card.REVIEW_FIRST_NAME
 Last name	姓	นามสกุล	姓	dms.card.REVIEW_LAST_NAME
 Date of birth	出生日期	วันเกิด	生年月日	dms.card.REVIEW_BIRTHDAY
-Changes saved	已修改资料	แก้ไขข้อมูลแล้ว	内容を修正しました	dms.card.TXT_EDIT_SENT
-Still working on it. When it is done, tap View result.	还在处理，做完后请点「查看结果」。	กำลังดำเนินการอยู่ เสร็จแล้วกด «ดูผล»	処理中です。終わったら「結果を見る」を押してください。	dms.card.TXT_STILL_WORKING
+Changes saved	资料已修改	แก้ไขข้อมูลแล้ว	内容を修正しました	dms.card.TXT_EDIT_SENT
+Still working on it. When it is done, tap View result.	正在处理，完成后请点击「查看结果」。	กำลังดำเนินการอยู่ เสร็จแล้วกด «ดูผล»	処理中です。終わったら「結果を見る」を押してください。	dms.card.TXT_STILL_WORKING
 View result	查看结果	ดูผล	結果を見る	dms.card.BTN_SHOW_RESULT
-Not done yet. Please tap View result again in a moment.	还没好，请稍后再点「查看结果」。	ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง	まだ終わっていません。少し待ってからもう一度「結果を見る」を押してください。	dms.card.TXT_NOT_READY
-There is more. Tap View result to see the rest.	还有更多结果，请点「查看结果」继续看。	ยังมีผลลัพธ์อีก กด «ดูผล» เพื่อดูต่อ	続きがあります。「結果を見る」を押してください。	dms.card.TXT_MORE_RESULTS
+Not done yet. Please tap View result again in a moment.	处理尚未完成，请稍后再次点击「查看结果」。	ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง	まだ終わっていません。少し待ってからもう一度「結果を見る」を押してください。	dms.card.TXT_NOT_READY
+There is more. Tap View result to see the rest.	还有更多结果，请点击「查看结果」继续查看。	ยังมีผลลัพธ์อีก กด «ดูผล» เพื่อดูต่อ	続きがあります。「結果を見る」を押してください。	dms.card.TXT_MORE_RESULTS

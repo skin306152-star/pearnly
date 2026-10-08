@@ -63,7 +63,6 @@
   },
   {
    "default": "0",
-   "description": "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",
    "fieldname": "auto_stock_in",
    "fieldtype": "Check",
    "label": "Post Stock On Confirm"
@@ -72,7 +71,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-08 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Purchase Settings",
  "owner": "Administrator",

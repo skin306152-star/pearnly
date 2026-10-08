@@ -77,6 +77,7 @@ Attachments,Attachments
 Auto Fetch Serial Numbers,Auto Fetch Serial Numbers
 Available Qty,Available Qty
 Average Unit Cost,Average Unit Cost
+Average cost,Average cost
 Back,Back
 Back to entries,Back to entries
 Back to summary,Back to summary
@@ -541,6 +542,7 @@ No items found. Scan barcode again.,No items found. Scan barcode again.
 No items in cart,No items in cart
 No items were read,No items were read
 No product for this code: {0},No product for this code: {0}
+No product matches that code,No product matches that code
 No product matches this code,No product matches this code
 No receipts in this shift,No receipts in this shift
 No recent transactions found,No recent transactions found
