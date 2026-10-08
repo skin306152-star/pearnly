@@ -22,7 +22,9 @@ def _receive(context, body):
         token_generation=context.token_generation, issuer=context.issuer)
     # 报到时间只记在这把密钥的小行上；连接的上报记录只在内容变了时才重写（`collector.ingest`）。
     credentials.record_seen(context.credential_id, context.token_generation, offline=plan.offline)
-    return result
+    # 告诉小助手：账套名单没变时可以只报「没变」（`plan_report` 的 `account_sets_unchanged`）。
+    # 旧服务端不回这一项，小助手就照旧每次整份上传 —— 两边谁先上线都不会把网页上的账套目录清掉。
+    return {**result, 'account_sets_unchanged_ok': True}
 
 
 @frappe.whitelist(methods=['POST'])

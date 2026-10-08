@@ -651,3 +651,47 @@ def test_newly_found_year_folders_are_remembered_as_authorized(tmp_path):
     worker._remember_roots(Cfg(), [r"C:\ACCOUNT\69EXP"], [r"c:\account\69exp\\", r"C:\ACCOUNT\70EXP"])
     worker._remember_roots(Cfg(), [r"C:\ACCOUNT\69EXP"], None)
     assert saved == [{"authorized_roots": [r"C:\ACCOUNT\69EXP", r"C:\ACCOUNT\70EXP"]}]
+
+
+def test_heartbeat_sends_the_account_lists_only_when_they_change():
+    """心跳瘦身（2026-10-08）：服务端回过 `account_sets_unchanged_ok` 后，账套名单与科目表没变的那几拍只报在线；
+    变了、满 30 分钟、网页要求重新读取时照旧整份上传。服务端没回这一项（旧版）就一直整份上传。"""
+
+    class QC(_FakeQC):
+        def __init__(self, accepts):
+            super().__init__()
+            self.accepts = accepts
+
+        def health(self, **kwargs):
+            self.health_calls.append(kwargs)
+            return {"account_sets_unchanged_ok": True} if self.accepts else {}
+
+    cfg = types.SimpleNamespace(
+        heartbeat_interval_s=60, method="dbf", account_set="", account_dir="", account_company="",
+        account_set_row=0, revenue_acc="", ar_acc="", vat_output_acc="", fallback_acc="", ap_acc="",
+        vat_input_acc="", resolved_express_root=lambda: "", backend_url="https://x")
+    sets, accounts = [{"path": "A"}], [{"code": "1"}]
+
+    def beat(qc, state, **changes):
+        state.update(last_heartbeat=0.0, **changes)
+        worker._run_periodic(cfg, qc, state, on_update_available=None)
+        return qc.health_calls[-1]
+
+    old_server = QC(accepts=False)
+    state = {"last_update_check": time.time(), "reported_account_sets": sets, "reported_accounts": accounts}
+    for _ in range(3):
+        call = beat(old_server, state)
+        assert call["account_sets"] == sets and not call.get("account_sets_unchanged")
+
+    qc = QC(accepts=True)
+    state = {"last_update_check": time.time(), "reported_account_sets": sets, "reported_accounts": accounts}
+    first = beat(qc, state)  # 刚启动：整份
+    assert first["account_sets"] == sets and first["accounts"] == accounts
+    slim = beat(qc, state)  # 没变：只报在线
+    assert slim["account_sets"] is None and slim["accounts"] is None and slim["account_sets_unchanged"] is True
+    changed = beat(qc, state, reported_account_sets=[{"path": "A"}, {"path": "B"}])  # 变了：整份
+    assert changed["account_sets"] == [{"path": "A"}, {"path": "B"}]
+    assert beat(qc, state)["account_sets"] is None
+    state["sent_full_at"] = time.time() - worker._FULL_REPORT_S - 1  # 满 30 分钟：整份
+    assert beat(qc, state)["account_sets"] == [{"path": "A"}, {"path": "B"}]
+    assert beat(qc, state)["account_sets"] is None

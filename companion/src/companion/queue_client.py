@@ -102,6 +102,7 @@ class QueueClient:
         master_refresh_account_set: Optional[str] = None,
         master_refresh_error: Optional[str] = None,
         offline: bool = False,
+        account_sets_unchanged: bool = False,
     ) -> dict:
         """心跳 · 上报探测到的账套列表 + 科目表 + 录入方式 + **客户所选账套**(供 FE 选/镜像)· 返回连接状态。
 
@@ -118,6 +119,9 @@ class QueueClient:
         body: dict = {}
         if account_sets is not None:
             body["account_sets"] = account_sets
+        elif account_sets_unchanged:
+            # 账套名单与上次相同：只说「没变」，不整份上传（服务端回过 `account_sets_unchanged_ok` 才这样发）
+            body["account_sets_unchanged"] = True
         if accounts is not None:
             body["accounts"] = accounts
         if method is not None:

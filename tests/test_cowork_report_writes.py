@@ -70,6 +70,22 @@ class ReportWrites(unittest.TestCase):
         self.assertEqual(len(self.writes), 3)
         self.assertEqual((self.doc.report_credential, self.doc.report_generation), ("CRED-NEW", 3))
 
+    def test_an_unchanged_heartbeat_keeps_the_catalog_and_writes_nothing(self):
+        """心跳瘦身（2026-10-08）：小助手只报「账套名单没变」时，上报记录里的名单、科目表原样保留，
+        不发目录观测（网页上的账套目录不变），连接这一行也不写。"""
+        self.ingest(heartbeat(0))
+        published = collector.snapshots.publish.call_count
+        slim = plan_report({"account_set": BOOK, "account_sets_unchanged": True}, {},
+                           datetime(2026, 10, 7, 4, 1, tzinfo=timezone.utc))
+        self.assertEqual(slim.observations, [])
+        for minute in range(1, 4):
+            self.ingest(slim)
+        stored = json.loads(self.doc.report_json)
+        self.assertEqual(stored["reported_account_sets"][0]["path"], BOOK)
+        self.assertEqual([row["code"] for row in stored["reported_accounts"]], ["1100"])
+        self.assertEqual(len(self.writes), 1)
+        self.assertEqual(collector.snapshots.publish.call_count, published)
+
     def test_going_offline_is_recorded_once(self):
         self.ingest(heartbeat(0))
         offline = plan_report({"offline": True}, {}, datetime(2026, 10, 7, 4, 1, tzinfo=timezone.utc))

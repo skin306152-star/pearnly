@@ -29,6 +29,19 @@ class CompanionReportTests(unittest.TestCase):
                                         "account_sets_received": 0, "accounts_received": 0})
         self.assertEqual(plan.observations, [])
 
+    def test_unchanged_account_sets_keep_the_previous_catalog(self):
+        # 心跳瘦身（2026-10-08）：声明「没变」时不碰名单、不发目录观测；不声明又没带名单的旧行为不变
+        # （把所选账套补成一条目录）。
+        slim = plan_report({"account_set": BOOK, "account_dir": BOOK, "account_sets_unchanged": True}, {}, NOW)
+        self.assertNotIn("reported_account_sets", slim.patch)
+        self.assertEqual(slim.observations, [])
+        self.assertIsNone(slim.completion)
+        legacy = plan_report({"account_set": BOOK, "account_dir": BOOK}, {}, NOW)
+        self.assertEqual(len(legacy.observations), 1)
+        self.assertEqual(legacy.observations[0]["account_sets"][0]["source_id"], KEY)
+        # 只认明确的 true，别的值照旧行为
+        self.assertEqual(len(plan_report({"account_set": BOOK, "account_sets_unchanged": "yes"}, {}, NOW).observations), 1)
+
     def test_offline_short_circuits_all_report_components(self):
         plan = plan_report(body(offline="false", mapping=["malformed"], catalog={}), {}, NOW)
         self.assertTrue(plan.offline)  # Source truthiness is intentionally retained.

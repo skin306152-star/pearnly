@@ -384,6 +384,16 @@ def _check_update(cfg: CompanionConfig, state: dict, on_update_available) -> Non
 
 
 _CATALOG_INTERVAL_S = 1800  # 目录+指纹上报节流(慢于心跳 · 上万条不必每拍重扫重传)
+_FULL_REPORT_S = 1800  # 账套名单没变时也至少每 30 分钟整份上传一次（服务端万一丢了也能补上）
+
+
+def _report_digest(account_sets, accounts) -> str:
+    """账套名单 + 科目表的指纹：和上次整份上传的一样，这一拍就只报在线。"""
+    import hashlib
+    import json
+
+    raw = json.dumps([account_sets or [], accounts], sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _run_periodic(
@@ -483,9 +493,20 @@ def _run_periodic(
                 account_ready=refresh_ready,
                 error=refresh_error,
             )
+            # 心跳瘦身（2026-10-08）：账套名单与科目表和上次整份上传的一样、服务端也认「没变」时，只报在线；
+            # 下面几种照旧整份上传：网页要求重新读取、这次带目录、距上次整份已满 30 分钟、刚启动或换了配对码（state 重置）。
+            digest = _report_digest(known_sets, known_accts)
+            slim = bool(
+                state.get("unchanged_ok")
+                and not refresh_request_id
+                and catalog is None
+                and digest == state.get("sent_digest")
+                and now - float(state.get("sent_full_at", 0.0) or 0.0) < _FULL_REPORT_S
+            )
             hb = qc.health(
-                account_sets=known_sets,
-                accounts=known_accts,
+                account_sets=None if slim else known_sets,
+                accounts=None if slim else known_accts,
+                account_sets_unchanged=slim,
                 method=cfg.method,
                 selected=selected,
                 mapping=mapping,
@@ -494,6 +515,10 @@ def _run_periodic(
                 max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
                 **refresh_fields,
             )
+            if not slim:
+                state["sent_digest"] = digest
+                state["sent_full_at"] = now
+            state["unchanged_ok"] = bool(isinstance(hb, dict) and hb.get("account_sets_unchanged_ok"))
             if catalog_version:
                 state["last_catalog"] = catalog_version
             _sync_account_set(cfg, hb)

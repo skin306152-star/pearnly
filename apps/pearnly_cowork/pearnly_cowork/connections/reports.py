@@ -554,7 +554,10 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
     account_sets = _account_sets(body.get("account_sets"))
     selected_key = _selected_account_set(body)
     reported_sets = body.get("account_sets") is not None
-    if not reported_sets:
+    # 小助手声明「账套名单与上次相同」（2026-10-08 心跳瘦身：名单只在变化时才整份上传）：这次不带名单，
+    # 也不发目录观测，网页上的账套目录保持上次那份；不能像没报名单时那样把目录换成只剩所选的一个。
+    unchanged = not reported_sets and body.get("account_sets_unchanged") is True
+    if not reported_sets and not unchanged:
         account_sets = _ensure_selected_choice(account_sets, body, selected_key)
     scope = str(body.get("master_refresh_scope") or "").strip()
     request_id = body.get("master_refresh_request_id")
