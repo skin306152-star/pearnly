@@ -76,7 +76,7 @@ def _read_isinfo(account_dir: Path) -> Tuple[str, str, str]:
         if not p.exists():
             continue
         try:
-            t = dbf.Table(str(p), codepage=S.CODEPAGE)
+            t = dbf.Table(str(p), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
             t.open(dbf.READ_ONLY)
             try:
                 if len(t):
@@ -219,7 +219,7 @@ def probe_account_sets(
     if not Path(reg).exists():
         raise RegistryUnavailable(f"未找到 Express 公司登记表: {reg}")
     try:
-        t = dbf.Table(str(reg), codepage="cp874")
+        t = dbf.Table(str(reg), codepage="cp874", unicode_errors=S.UNICODE_ERRORS)
         t.open(dbf.READ_ONLY)
     except Exception as e:
         raise RegistryUnavailable(f"读取 Express 公司登记表失败: {e}") from e
@@ -326,7 +326,7 @@ def probe_chart_of_accounts(account_dir: str | Path) -> List[ChartAccount]:
     if path is None:
         raise RegistryUnavailable(f"未找到科目表: {base / _GLACC_DBF}")
     try:
-        t = dbf.Table(str(path), codepage=S.CODEPAGE)
+        t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
         t.open(dbf.READ_ONLY)
     except Exception as e:
         raise RegistryUnavailable(f"读取科目表失败: {e}") from e
@@ -397,7 +397,7 @@ def probe_default_accounts(account_dir: str | Path) -> dict:
         return {}
     out: dict = {}
     try:
-        t = dbf.Table(str(path), codepage=S.CODEPAGE)
+        t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
         t.open(dbf.READ_ONLY)
         try:
             if not len(t):

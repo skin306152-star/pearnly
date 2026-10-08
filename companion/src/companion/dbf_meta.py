@@ -17,7 +17,7 @@ from . import dbf_schema as S
 
 def field_width(account_dir, table: str, field: str) -> int:
     """表 `table` 的定长列 `field` 声明宽度(字节)。表/列不存在直接抛 —— 不猜默认值。"""
-    t = dbf.Table(str(Path(account_dir) / f"{table}.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / f"{table}.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         return int(t.field_info(field).length)

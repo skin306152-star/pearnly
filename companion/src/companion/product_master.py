@@ -66,7 +66,7 @@ _STKCOD_PREFIX = "PN"  # Pearnly 非库存自动建档码前缀(与账码样式/
 
 
 def _open(account_dir: Path, name: str, mode):
-    t = dbf.Table(str(account_dir / f"{name}.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(account_dir / f"{name}.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(mode)
     return t
 

@@ -57,7 +57,7 @@ def _stmas_state(account_dir: Path, stkcod: str) -> Tuple[Decimal, Decimal, str]
     按 STKCOD 读而不按品名读:同名可能有多行(历史脏数据/建档撞名),按名匹配会把货入到另一行,
     与随后写 STMAS 的那一行对不上。
     """
-    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         for r in t:
@@ -95,7 +95,7 @@ def write_stock_in_lines(
     """
     line_modes: List[Dict] = []
     in_by_account: Dict[str, Decimal] = {}
-    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE)
+    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     st.open(dbf.READ_WRITE)
     try:
         for seq, it in enumerate(items, start=1):

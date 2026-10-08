@@ -36,7 +36,7 @@ def _open_ro(account_dir, name: str):
     for cand in (f"{name}.DBF", f"{name.lower()}.dbf"):
         p = base / cand
         if p.exists():
-            t = dbf.Table(str(p), codepage=S.CODEPAGE)
+            t = dbf.Table(str(p), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
             t.open(dbf.READ_ONLY)
             return t
     return None

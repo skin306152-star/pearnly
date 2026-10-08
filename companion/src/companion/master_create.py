@@ -158,7 +158,7 @@ def _norm_match(name: str) -> str:
 
 
 def _open(account_dir: Path, name: str, mode):
-    t = dbf.Table(str(account_dir / f"{name}.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(account_dir / f"{name}.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(mode)
     return t
 
@@ -304,7 +304,12 @@ def _ar_acc_from_lines(lines, fallback: str) -> str:
 
 
 def _code_exists(account_dir: Path, table: str, codefield: str, code: str) -> bool:
-    return code in _all_codes(account_dir, table, codefield)
+    """这个码在这张表里还算数(只看未删的行:删掉的客户不能再用来挂新单)。"""
+    t = _open(account_dir, table, dbf.READ_ONLY)
+    try:
+        return any((getattr(r, codefield) or "").strip() == code for r in S.live_rows(t))
+    finally:
+        t.close()
 
 
 def _cash_customer(account_dir: Path) -> str:
@@ -550,7 +555,8 @@ def ensure_customer(
         return found
 
     codes = _all_codes(account_dir, "ARMAS", "CUSCOD")
-    code = wanted or _next_code(codes, _code_prefix(core))
+    # 现金客户码被删过(软删行还占着码):不复用这个码,另发一个,免得旧单据指向新档
+    code = wanted if wanted and wanted not in codes else _next_code(codes, _code_prefix(core))
     # 现金客户 / 现销:分录借方是现金,不是应收 → 客户档科目取这套账的默认应收科目
     accnum = (account_rules.default_account(account_dir, _DEFAULT_AR_SLOT) if wanted
               else _ar_acc_from_lines(entry.lines, ar_acc or account_rules.default_account(account_dir, _DEFAULT_AR_SLOT)))

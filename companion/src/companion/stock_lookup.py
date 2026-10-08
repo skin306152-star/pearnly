@@ -55,7 +55,7 @@ def find_rows(account_dir, name: str, types: Iterable[str]) -> List[Dict]:
     if not target:
         return []
     allow = tuple(str(t) for t in types)
-    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         out: List[Dict] = []
@@ -83,7 +83,7 @@ def find_rows_by_code(account_dir, code: str, types: Iterable[str]) -> List[Dict
     if not wanted:
         return []
     allow = tuple(str(t) for t in types)
-    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         return [

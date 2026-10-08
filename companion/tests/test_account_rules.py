@@ -125,3 +125,33 @@ def test_without_a_cash_customer_one_is_created_with_the_default_receivable(acct
         t.close()
     # 再来一张:这个码已经在了,直接用
     assert MC.ensure_customer(acct, _Cash(), created_date=dt.date(2026, 10, 2)) == MC.CASH_CUSTOMER
+
+
+def _poison(path: Path, good: bytes, bad: bytes) -> None:
+    """把文件里第一处 `good` 字节换成同长的 `bad`(模拟真实账套里解不出的字节)。"""
+    data = path.read_bytes()
+    assert good in data and len(good) == len(bad)
+    path.write_bytes(data.replace(good, bad, 1))
+
+
+def test_a_row_with_undecodable_bytes_does_not_fail_the_write(acct):
+    # 2026-10-08 回归:62 套里 3 套有个别行带 0x90 / 0x99,严格解码读到就抛错,整张单回滚
+    synth._seed(acct, "ARMAS", [{"CUSCOD": "XBAD", "CUSNAM": "BADNAME", "CUSTYP": "05", "ACCNUM": "1130-01"},
+                                {"CUSCOD": "CASH", "CUSNAM": "ขายสด", "CUSTYP": "05", "ACCNUM": "1130-01"}])
+    _poison(acct / "ARMAS.DBF", b"BADNAME", b"BAD\x90\x99ME")
+    assert MC.ensure_customer(acct, _Cash(), created_date=dt.date(2026, 10, 1)) == "CASH"
+
+
+def test_updating_a_row_keeps_its_undecodable_bytes(acct):
+    synth._seed(acct, "ARMAS", [{"CUSCOD": "C9", "CUSNAM": "KEEPME", "CUSTYP": "05", "ACCNUM": "1130-01"}])
+    _poison(acct / "ARMAS.DBF", b"KEEPME", b"KE\x90\x99ME")
+    t = dbf.Table(str(acct / "ARMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    t.open(dbf.READ_WRITE)
+    try:
+        for r in S.live_rows(t):
+            with r as rec:
+                rec.CUSTYP = "06"
+    finally:
+        t.close()
+    data = (acct / "ARMAS.DBF").read_bytes()
+    assert b"KE\x90\x99ME" in data and b"06" in data

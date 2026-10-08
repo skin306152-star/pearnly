@@ -715,3 +715,18 @@ def test_cash_sale_debits_the_cash_account_not_receivables(datat):
     assert res.ok, res.error
     debit = [r for r in _rows(datat, "GLJNLIT", VOUCHER="SO-9001") if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT]
     assert [(r.ACCNUM or "").strip() for r in debit] == ["11-01-01-00"]
+
+
+def test_creating_the_missing_cash_customer_counts_as_a_new_master(datat):
+    """云端给现金客户码 เงินสด、账套里没有:建档后回执要标新建主档(才会重建 ARMAS 索引)。"""
+    import account_rules_fixture as F
+    from companion import master_create as MC
+
+    F.isinfo(datat, ACCNUM00="11-01-01-00", ACCNUM02="11-03-01-00")
+    F.glacc(datat, ("11-01-01-00", "เงินสด"), ("11-03-01-00", "ลูกหนี้การค้า"))
+    sale = _sale(doctype="HS", customer={"code": MC.CASH_CUSTOMER, "name": MC.CASH_CUSTOMER, "tax_id": "",
+                                         "prename": "", "customer_new": False})
+    res = WS.write_sale(sale, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    assert res.created_party is True
+    assert [(r.CUSCOD or "").strip() for r in _rows(datat, "ARMAS")] == [MC.CASH_CUSTOMER]

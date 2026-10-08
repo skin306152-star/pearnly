@@ -88,7 +88,7 @@ def load(account_dir) -> Optional[FiscalCalendar]:
     path = Path(account_dir) / f"{TABLE}.DBF"
     if not path.is_file():
         return None
-    t = dbf.Table(str(path), codepage=S.CODEPAGE)
+    t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         row = next(iter(S.live_rows(t)), None)  # 真表恒 1 行

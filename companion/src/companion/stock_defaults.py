@@ -63,7 +63,7 @@ def _stock_columns(account_dir) -> tuple:
     """一次扫表取回 (全部 QUCOD, 全部 STKGRP) —— 两项各扫一遍就是白读一遍 STMAS。"""
     qucods: List[str] = []
     stkgrps: List[str] = []
-    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         for r in S.live_rows(t):

@@ -100,7 +100,7 @@ def line_mode(
 
 
 def _open(account_dir, name: str, mode):
-    t = dbf.Table(str(Path(account_dir) / f"{name}.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / f"{name}.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(mode)
     return t
 

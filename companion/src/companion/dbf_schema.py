@@ -21,6 +21,10 @@ import dbf
 from .table_specs import TABLE_SPECS as _TABLE_SPECS
 
 CODEPAGE = "cp874"
+# 打开账套表一律按「遇到解不出的字节就替换」读:真实账套里有个别行带 cp874 解不出的字节(测试机 62 套里 3 套,
+# 0x90 / 0x99),严格模式下读到那一行就抛错,整张单回滚(2026-10-08 回归测出)。只影响读出来的文本,文件里原有的
+# 字节不动(改一行时只写被改的字段);坏行的码对不上任何东西,等于跳过。
+UNICODE_ERRORS = "replace"
 DBF_TYPE = "vfp"
 
 

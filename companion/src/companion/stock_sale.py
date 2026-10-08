@@ -133,7 +133,7 @@ def stock_accounts(account_dir: Path, acccod: str) -> Tuple[str, str]:
     采购入库侧(stock_purchase)只用得到存货科目,但同样要求 COGS 科目在位:少了它这批货
     日后卖出时结转不了成本,与其入库后才卡住,不如入库前就交会计把账套配全。
     """
-    t = dbf.Table(str(Path(account_dir) / "ISACC.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "ISACC.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         for r in t:
@@ -151,7 +151,7 @@ def stock_accounts(account_dir: Path, acccod: str) -> Tuple[str, str]:
 def standard_cost(account_dir: Path, stkcod: str) -> float:
     """STMAS.STNPR = 该品的标准成本。负库存出货就按它结转(真账 61EXP/61SKBAC 的负结存出货行
     XUNITPR 恰等于 STNPR,不是移动均价)。没配/为 0 → 返 0 = 没有成本基础,本行不结转。"""
-    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         for r in t:
@@ -246,7 +246,7 @@ def write_stock_lines(
     """
     line_modes: List[Dict] = []
     cogs_by_pair: Dict[Tuple[str, str], Decimal] = {}
-    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE)
+    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     st.open(dbf.READ_WRITE)
     try:
         for seq, it in enumerate(items, start=1):
@@ -372,7 +372,7 @@ def write_stmas_fields(
     只写还算数的行:软删的同码旧档若排在前面,扣库存就扣进了 Express 看不见的行 —— 真档
     余额一动不动,账面有货实物没货(或反过来),而且不报任何错。
     """
-    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_WRITE)
     try:
         for r in S.live_rows(t):
@@ -425,7 +425,7 @@ def set_opening_stock(
     GL 开账分录(借存货 / 贷 ทุน-ยกมา 期初权益)待真账 gold 逆向确认科目后补 —— 不凭空写 GL。
     """
     results: List[Dict] = []
-    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE)
+    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     st.open(dbf.READ_WRITE)
     try:
         for seq, it in enumerate(items, start=1):

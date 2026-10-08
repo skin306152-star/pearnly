@@ -57,7 +57,7 @@ def _unit_rows(account_dir) -> List[Tuple[str, str, str]]:
     path = Path(account_dir) / "ISTAB.DBF"
     if not path.is_file():
         return []
-    t = dbf.Table(str(path), codepage=S.CODEPAGE)
+    t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         out = []

@@ -201,7 +201,7 @@ def _glacc_index(account_dir) -> Dict[str, Dict[str, str]]:
     path = Path(account_dir) / "GLACC.DBF"
     if not path.is_file():
         return {}
-    t = dbf.Table(str(path), codepage=S.CODEPAGE)
+    t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     try:
         out: Dict[str, Dict[str, str]] = {}
@@ -229,7 +229,7 @@ def _looks_like_inventory(name: str) -> bool:
 
 
 def _open(account_dir, table: str):
-    t = dbf.Table(str(Path(account_dir) / f"{table}.DBF"), codepage=S.CODEPAGE)
+    t = dbf.Table(str(Path(account_dir) / f"{table}.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_ONLY)
     return t
 

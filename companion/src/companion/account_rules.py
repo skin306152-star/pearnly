@@ -24,7 +24,7 @@ def _open(account_dir, name: str):
     for cand in (f"{name}.DBF", f"{name.lower()}.dbf"):
         path = Path(account_dir) / cand
         if path.is_file():
-            t = dbf.Table(str(path), codepage=S.CODEPAGE)
+            t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
             t.open(dbf.READ_ONLY)
             return t
     return None

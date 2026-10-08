@@ -76,7 +76,7 @@ def sccomp_company_count(root: str | Path) -> int:
             return 0
         import dbf
 
-        t = dbf.Table(str(p), codepage="cp874")
+        t = dbf.Table(str(p), codepage="cp874", unicode_errors="replace")
         t.open(dbf.READ_ONLY)
         try:
             return sum(1 for r in t if not dbf.is_deleted(r))

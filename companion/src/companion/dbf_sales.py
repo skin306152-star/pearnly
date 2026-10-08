@@ -306,10 +306,16 @@ def write_sale(
     try:
         since = _table_sizes(account_dir)  # 读回只核对这之后追加的行(见 _VERIFY_TABLES)
         # 新客户 → 先在 ARMAS 建档(备份-回滚事务内)拿到码
+        # 云端给了现金客户码、账套里却没有时 ensure_customer 也会新建:同样要重建 ARMAS 索引、回执标「新建主档」
+        cash_missing = existing_code == master_create.CASH_CUSTOMER and not master_create._code_exists(
+            account_dir, "ARMAS", "CUSCOD", master_create.CASH_CUSTOMER
+        )
         entry.customer_code = master_create.ensure_customer(
             account_dir, entry, created_date=docdat, userid=userid
         )
-        created_customer = bool(not existing_code)
+        created_customer = bool(not existing_code) or (
+            cash_missing and entry.customer_code == master_create.CASH_CUSTOMER
+        )
         # 补期初:同一备份-回滚事务内先垫库存(STMAS/STCRD 已在 BACKUP_TABLES),_write_all 的
         # 库存卖行随即复用①真扣库存 + 移动均价 COGS。期初或后续过账任一失败 → 一并回滚,不留半吊子。
         if opening_stock:

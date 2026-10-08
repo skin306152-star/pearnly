@@ -32,7 +32,7 @@ def read_company(account_dir: str | Path) -> str:
         p = d / cand
         if not p.exists():
             continue
-        t = dbf.Table(str(p), codepage=S.CODEPAGE)
+        t = dbf.Table(str(p), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
         t.open(dbf.READ_ONLY)
         try:
             if len(t):
