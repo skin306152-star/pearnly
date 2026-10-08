@@ -848,20 +848,27 @@ frappe.provide("frappe.pearnly");
 		}
 	};
 	// `trail` 里带 `route` 的节点可点（父级），最后一个通常不带（就是当前页）。
+	// 窄屏下拉：首页 + 各级父页；同一个去处只列一次（首页的二级页，例如「订阅与充值」，父级就是首页，
+	// 原来会列两个「首页」，用户 2026-10-08）。
+	const crumb_target = target => String(target || "").replace(/^\/+/, "").replace(/^desk\//, "").replace(/\/+$/, "");
 	p.breadcrumbs = ({ label, route = "", trail = [] }) => {
 		const parents = trail.filter(step => step.route);
+		const menu = [
+			// 语义键（`nav.home`）而不是英文原句 —— 传 "Home" 会被框架自带译文抢走。
+			...(frappe.boot.pearnly_pages?.includes("pearnly-home") ? [{ label: __("nav.home"), target: "pearnly-home" }] : []),
+			{ label, target: route || frappe.get_route_str() },
+			...parents.map(step => ({ label: p.escape(step.label), target: step.route })),
+		];
+		const seen = new Set();
 		frappe.breadcrumbs.add({
 			type: "Custom", label, route,
 			pearnly_trail: trail,
-			menu_items: trail.length ? [
-				// 语义键（`nav.home`）而不是英文原句 —— 传 "Home" 会被框架自带译文抢走。
-				...(frappe.boot.pearnly_pages?.includes("pearnly-home")
-					? [{ label: __("nav.home"), onClick: () => frappe.set_route("pearnly-home") }] : []),
-				{ label, onClick: () => frappe.set_route(route || frappe.get_route_str()) },
-				...parents.map(step => ({
-					label: p.escape(step.label), onClick: () => frappe.set_route(step.route),
-				})),
-			] : [],
+			menu_items: trail.length ? menu.filter(item => {
+				const key = crumb_target(item.target);
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			}).map(item => ({ label: item.label, onClick: () => frappe.set_route(item.target) })) : [],
 		});
 	};
 	p.notBuilt = async (page, t) => {
