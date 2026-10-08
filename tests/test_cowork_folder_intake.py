@@ -26,7 +26,8 @@ class ContractTests(unittest.TestCase):
     def test_folder_is_relative_and_never_the_result_folder(self):
         self.assertEqual(contracts.folder(" 冰厂/进项\\2026-10 "), "冰厂\\进项\\2026-10")
         self.assertEqual(contracts.folder(""), "")
-        for bad in ("..\\x", "a\\..\\b", "C:\\x", "a|b", "_Pearnly结果", "a\\_pearnly结果\\b", "a.\\b"):
+        for bad in ("..\\x", "a\\..\\b", "C:\\x", "a|b", "_Pearnly结果", "a\\_pearnly结果\\b", "a.\\b",
+                    "_ผลลัพธ์ Pearnly", "a\\_pearnly results", "_Pearnly結果"):
             with self.assertRaises(contracts.ContractError, msg=bad):
                 contracts.folder(bad)
 
@@ -65,7 +66,7 @@ class ContractTests(unittest.TestCase):
 
     def test_paths_from_the_companion(self):
         self.assertEqual(contracts.relpath("a/b/c.pdf"), "a\\b\\c.pdf")
-        for bad in ("../c.pdf", "_Pearnly结果\\2026-10\\x.pdf", ""):
+        for bad in ("../c.pdf", "_Pearnly结果\\2026-10\\x.pdf", "_ผลลัพธ์ Pearnly\\2026-10\\x.pdf", ""):
             with self.assertRaises(contracts.ContractError):
                 contracts.relpath(bad)
         self.assertEqual(contracts.filename("x.HEIC"), "x.HEIC")
@@ -75,8 +76,22 @@ class ContractTests(unittest.TestCase):
 
     def test_workbook_names(self):
         self.assertEqual(contracts.workbook_name("INV/001", "0105536082808", "a.pdf"), "INV-001_2808.xlsx")
-        self.assertEqual(contracts.workbook_name("", "", "收据 照片.jpg"), "未识别_收据 照片.xlsx")
+        self.assertEqual(contracts.workbook_name("", "", "收据 照片.jpg", "无发票号_"), "无发票号_收据 照片.xlsx")
+        self.assertEqual(contracts.workbook_name("", "", "a.pdf", "ไม่มีเลขที่_"), "ไม่มีเลขที่_a.xlsx")
+        self.assertEqual(contracts.workbook_name("", "", "a.pdf", "x/y:"), "x-y-a.xlsx")
         self.assertEqual(contracts.workbook_name("A1", "", "x.pdf"), "A1.xlsx")
+
+
+    def test_result_folder_follows_the_rule_owner_language_and_old_rules_keep_theirs(self):
+        self.assertEqual(contracts.result_folder_for("th"), "_ผลลัพธ์ Pearnly")
+        self.assertEqual(contracts.result_folder_for("zh"), "_Pearnly结果")
+        self.assertEqual(contracts.result_folder_for("en"), "_Pearnly Results")
+        self.assertEqual(contracts.result_folder_for("ja"), "_Pearnly結果")
+        self.assertEqual(contracts.result_folder_for("zh-TW"), "_Pearnly结果")
+        self.assertEqual(contracts.result_folder_for(None), "_ผลลัพธ์ Pearnly")
+        self.assertEqual(contracts.result_folder(""), "_Pearnly结果")
+        self.assertEqual(contracts.result_folder("_Pearnly Results"), "_Pearnly Results")
+        self.assertEqual(contracts.result_folder("..\\x"), "_Pearnly结果")
 
 
 class AdditiveGuards(unittest.TestCase):

@@ -156,5 +156,6 @@ apps/pearnly_erp_portal/pearnly_erp_portal/inventory/audit.py	*	不进界面：�
 apps/pearnly_cowork/pearnly_cowork/line/handlers.py	解绑	输入词：同上，Cowork 的 LINE 通道收同一组解绑词
 apps/pearnly_cowork/pearnly_cowork/line/handlers.py	ยกเลิกการผูก	输入词：同上，Cowork 的 LINE 通道收同一组解绑词
 apps/pearnly_cowork/pearnly_cowork/line/handlers.py	ยกเลิกการเชื่อมต่อ	输入词：同上，Cowork 的 LINE 通道收同一组解绑词
-apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	_Pearnly结果	待定（2026-10-08 报用户）：客户盘上的结果文件夹名，小助手按这个名字排除扫描；改名要服务端与小助手同改并兼容盘上已有的旧文件夹
-apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	未识别_	待定（同上）：没有发票号时结果表格的文件名前缀，写在客户盘上
+apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	_Pearnly结果	约定：结果文件夹四语名，按建规则的人的网页语言取一个、记在规则上；小助手扫描时一律跳过，所以不放翻译包（译文改了，盘上已有的文件夹仍要认得）
+apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	_ผลลัพธ์ Pearnly	约定：结果文件夹四语名，按建规则的人的网页语言取一个、记在规则上；小助手扫描时一律跳过，所以不放翻译包（译文改了，盘上已有的文件夹仍要认得）
+apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	_Pearnly結果	约定：结果文件夹四语名，按建规则的人的网页语言取一个、记在规则上；小助手扫描时一律跳过，所以不放翻译包（译文改了，盘上已有的文件夹仍要认得）

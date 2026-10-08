@@ -758,6 +758,7 @@ No invoice was found in this document.,この書類から請求書が見つか�
 No items were read,明細を読み取れませんでした
 No members,メンバーなし
 No notifications,通知はありません
+No number_,番号なし_
 No presets yet,プリセットはまだありません
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
@@ -976,6 +977,7 @@ Response Json,確認応答JSON
 Restore,復元
 Result,結果
 Result Directory Revision,結果ディレクトリリビジョン
+Result Folder,結果フォルダー
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
 Result in the ERP,ERP での結果
@@ -1663,6 +1665,7 @@ cowork.folder.new,ルールを作成
 cowork.folder.noExpress,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
 cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
 cowork.folder.noRuns,実行履歴はまだありません
+cowork.folder.no_number_prefix,番号なし_
 cowork.folder.off,停止中
 cowork.folder.on,有効
 cowork.folder.overlap,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。

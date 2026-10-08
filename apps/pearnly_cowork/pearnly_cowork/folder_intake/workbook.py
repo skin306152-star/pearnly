@@ -19,6 +19,13 @@ HISTORY = "Cowork OCR History"
 FINISHED = ("done", "not_invoice", "failed")
 
 
+def _filename(invoice_no, seller_tax, fallback):
+    """结果表格文件名；没有发票号时的前缀按当前语言（取表格时已切到规则负责人的语言）取词条。"""
+    key = "cowork.folder.no_number_prefix"
+    prefix = _(key)
+    return contracts.workbook_name(invoice_no, seller_tax, fallback, "" if prefix == key else prefix)
+
+
 def status(entry):
     """给小助手的在途文件状态：到哪一步、失败原因，以及已经可以取表格的发票（带版本，变了重取）。"""
     items = []
@@ -27,7 +34,7 @@ def status(entry):
             row = frappe.db.get_value(HISTORY, history, ["invoice_no", "seller_tax"], as_dict=True)
             if row:
                 items.append({"history": history, "revision": int(entry.workbook_revision or 0),
-                              "filename": contracts.workbook_name(row.invoice_no, row.seller_tax, entry.filename)})
+                              "filename": _filename(row.invoice_no, row.seller_tax, entry.filename)})
     # settled：这份文件里的票都已推送成功、而且表格的当前版本已经是「全部成功」那一版 —— 小助手可以不再来问。
     # 只看票的实时状态不够：人在网页推成功后，表格要等下一次后台推进才升版本；小助手若在这之间就停止询问，
     # 文件夹里会永远留着旧表格（10-07 测试机实测踩到）。所以以随表格版本一起记下的那份状态为准。
@@ -42,7 +49,7 @@ def render(entry, history):
     if entry.state != "done" or history not in json.loads(entry.histories_json or "[]"):
         frappe.throw(_("cowork.folder.workbook_not_ready"))
     doc = storage.read(history)
-    filename = contracts.workbook_name(doc.invoice_no, doc.seller_tax, entry.filename)
+    filename = _filename(doc.invoice_no, doc.seller_tax, entry.filename)
     try:
         content = _review(doc)
     except ExportError as error:
@@ -84,4 +91,6 @@ def _review(doc):
         push_facts[doc.name] = {"state": {"status": "manual", "reason": export_facts.reason_text(doc.last_push_reason)}}
     for name, facts in export_facts.for_histories([doc]).items():
         push_facts.setdefault(name, {}).update(facts)
-    return build_review_workbook([{"history_id": doc.name, "merged_fields": fields}], push_facts=push_facts)
+    # 取表格时已切到规则负责人的语言（machine._as），表格按这个人的语言出
+    return build_review_workbook([{"history_id": doc.name, "merged_fields": fields}], push_facts=push_facts,
+                                 lang=getattr(frappe.local, "lang", None) or "th")

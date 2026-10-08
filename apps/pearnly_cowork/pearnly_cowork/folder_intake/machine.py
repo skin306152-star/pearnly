@@ -46,13 +46,18 @@ def _fail(code):
 
 @contextmanager
 def _as(user):
-    """以规则负责人的身份做一件事，做完还原成配对签发人（机器请求的会话已与浏览器脱钩，见 `http_auth`）。"""
-    previous = frappe.session.user
+    """以规则负责人的身份做一件事，做完还原成配对签发人（机器请求的会话已与浏览器脱钩，见 `http_auth`）。
+    语言也换成负责人的网页语言：结果表格与文件名按这个人的语言出（用户 2026-10-08）。"""
+    from frappe.translate import get_user_lang
+
+    previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(user)
+    frappe.local.lang = get_user_lang(user)
     try:
         yield
     finally:
         frappe.set_user(previous)
+        frappe.local.lang = previous_lang
 
 
 def _rule(name, context):
@@ -272,8 +277,9 @@ def _workbook(context, body):
     history = body.get("history")
     with _as(entry.actor):
         filename, content, revision = workbook.render(entry, history)
+    folder = contracts.result_folder(frappe.db.get_value(RULE, entry.rule, "result_folder"))
     return {"entry": entry.name, "history": history, "filename": filename, "revision": revision,
-            "content": base64.b64encode(content).decode("ascii")}
+            "result_folder": folder, "content": base64.b64encode(content).decode("ascii")}
 
 
 @frappe.whitelist(methods=["POST"])

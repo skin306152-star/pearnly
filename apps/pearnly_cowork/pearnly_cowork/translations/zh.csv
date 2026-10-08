@@ -758,6 +758,7 @@ No invoice was found in this document.,此单据中未识别到发票。
 No items were read,未识别到明细
 No members,无成员
 No notifications,没有提醒
+No number_,无发票号_
 No presets yet,暂无预设
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,未找到该编码对应的物料
@@ -976,6 +977,7 @@ Response Json,回执（JSON）
 Restore,恢复
 Result,结果
 Result Directory Revision,结果目录版本
+Result Folder,结果文件夹
 Result Json,识别结果（JSON）
 Result Unknown,结果未知
 Result in the ERP,ERP 里的结果
@@ -1663,6 +1665,7 @@ cowork.folder.new,新建规则
 cowork.folder.noExpress,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
 cowork.folder.noRoots,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
 cowork.folder.noRuns,暂无运行记录
+cowork.folder.no_number_prefix,无发票号_
 cowork.folder.off,已停用
 cowork.folder.on,启用中
 cowork.folder.overlap,已有启用中的规则使用此文件夹或其上级文件夹。

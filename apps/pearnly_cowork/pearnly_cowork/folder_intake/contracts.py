@@ -1,7 +1,7 @@
 """文件夹自动录入的纯规则（不连库、不依赖框架）：路径、时间、规则默认值、防重键、小助手报文的形状。
 
 规则口径见 `docs/work/2026-10-06-cowork-folder-intake.md`：一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 +
-进项或销项 + 服务或存货；只收 PDF / 图片；`_Pearnly结果` 由系统生成、不扫描。
+进项或销项 + 服务或存货；只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）由系统生成、不扫描。
 """
 from __future__ import annotations
 
@@ -11,6 +11,11 @@ import re
 from typing import Any, Dict, List, Mapping, Optional
 
 RESULT_FOLDER = "_Pearnly结果"
+# 结果文件夹按建规则那个人的网页语言起名（用户 2026-10-08），建好就记在规则上不再变；
+# 这几个名字同时是与小助手的约定（扫描时一律跳过），所以写在这里而不放翻译包：译文改了，
+# 盘上已有的文件夹仍要认得。没记名字的旧规则沿用 RESULT_FOLDER。
+RESULT_FOLDERS = {"zh": RESULT_FOLDER, "th": "_ผลลัพธ์ Pearnly", "en": "_Pearnly Results", "ja": "_Pearnly結果"}
+_RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS.values())
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
 DIRECTIONS = ("purchase", "sales")
 POSTING_KINDS = ("service", "stock")
@@ -43,6 +48,22 @@ def text(value: Any, *, maximum: int, optional: bool = False) -> str:
     return value.strip()
 
 
+def result_folder_for(lang: Any) -> str:
+    """建规则的人的界面语言 → 结果文件夹名；不认识的语言（含 zh-TW 这类带地区的）按主语言取，再不行用泰文。"""
+    code = str(lang or "").split("-")[0].lower()
+    return RESULT_FOLDERS.get(code) or RESULT_FOLDERS["th"]
+
+
+def result_folder(value: Any) -> str:
+    """规则上记的结果文件夹名；空或不是约定里的名字（旧规则）就是 RESULT_FOLDER。"""
+    name = str(value or "")
+    return name if name.casefold() in _RESULT_NAMES else RESULT_FOLDER
+
+
+def is_result_folder(part: str) -> bool:
+    return part.casefold() in _RESULT_NAMES
+
+
 def folder(value: Any) -> str:
     """规则里的文件夹：允许读取的根目录下的相对路径，`\\` 分隔；空串 = 根目录本身。
 
@@ -50,7 +71,7 @@ def folder(value: Any) -> str:
     raw = "" if value in (None, "") else text(value, maximum=MAX_PATH)
     parts = [part.strip() for part in re.split(r"[\\/]+", raw) if part.strip()]
     for part in parts:
-        if part in (".", "..") or _BAD_PART.search(part) or part.endswith(".") or part.casefold() == RESULT_FOLDER.casefold():
+        if part in (".", "..") or _BAD_PART.search(part) or part.endswith(".") or is_result_folder(part):
             raise ContractError("cowork.folder.path_invalid")
     return "\\".join(parts)
 
@@ -146,7 +167,7 @@ def relpath(value: Any) -> str:
     parts = [part for part in re.split(r"[\\/]+", raw) if part]
     if not parts or any(part in (".", "..") or _BAD_PART.search(part) for part in parts):
         raise ContractError("cowork.folder.path_invalid")
-    if any(part.casefold() == RESULT_FOLDER.casefold() for part in parts[:-1]):
+    if any(is_result_folder(part) for part in parts[:-1]):
         raise ContractError("cowork.folder.path_invalid")
     return "\\".join(parts)
 
@@ -212,13 +233,15 @@ def roots(value: Any) -> List[Dict[str, Any]]:
     return result
 
 
-def workbook_name(invoice_no: Any, seller_tax: Any, fallback: str) -> str:
-    """结果表格的文件名：`发票号_卖方税号后4位.xlsx`；没有发票号用 `未识别_原文件名.xlsx`。Windows 不认的字符换成 `-`。"""
+def workbook_name(invoice_no: Any, seller_tax: Any, fallback: str, no_number: str = "") -> str:
+    """结果表格的文件名：`发票号_卖方税号后4位.xlsx`；没有发票号用 `<no_number>原文件名.xlsx`
+    （前缀由调用方按规则负责人的语言取词条 `cowork.folder.no_number_prefix`）。Windows 不认的字符换成 `-`。"""
     number = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", str(invoice_no or "").strip()).strip(" .")[:80]
     tail = re.sub(r"\D", "", str(seller_tax or ""))[-4:]
     if number:
         stem = f"{number}_{tail}" if tail else number
     else:
         base = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", fallback.rsplit(".", 1)[0]).strip(" .")[:80] or "document"
-        stem = "未识别_" + base
+        prefix = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", str(no_number or "")).strip()[:40]
+        stem = prefix + base
     return stem + ".xlsx"

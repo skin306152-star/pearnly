@@ -328,10 +328,12 @@ class FolderIntake:
                 target = Path(previous)
             else:
                 taken = {Path(path).name.casefold() for path in row["paths"].values()}
-                month_dir = folder / plan.RESULT_FOLDER / row["month"]
+                result = plan.result_folder(answer.get("result_folder"))
+                month_dir = folder / result / row["month"]
                 if month_dir.is_dir():
                     taken |= {child.name.casefold() for child in month_dir.iterdir()}
-                target = plan.result_path(folder, row["month"], answer.get("filename") or item.get("filename"), taken)
+                target = plan.result_path(folder, row["month"], answer.get("filename") or item.get("filename"),
+                                          taken, result)
             target.parent.mkdir(parents=True, exist_ok=True)
             temporary = target.with_name(target.name + ".part")
             temporary.write_bytes(base64.b64decode(answer["content"], validate=True))

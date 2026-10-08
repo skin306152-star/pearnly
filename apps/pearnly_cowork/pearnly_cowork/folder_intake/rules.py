@@ -130,6 +130,8 @@ def save(values):
                  "run_day": day, "run_time": at, "defaults_json": json.dumps(defaults, sort_keys=True)})
     if not name:
         rule.enabled, rule.active_since = 1, now_datetime()
+        # 结果文件夹按建规则这个人的网页语言起名，之后改语言也不变（不在盘上再长出第二个结果文件夹）
+        rule.result_folder = contracts.result_folder_for(getattr(frappe.local, "lang", None))
     if before != _routing(rule) or not name:
         rule.rule_revision = int(rule.rule_revision or 0) + 1
     write(rule)

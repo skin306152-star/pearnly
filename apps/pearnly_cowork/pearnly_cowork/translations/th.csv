@@ -758,6 +758,7 @@ No invoice was found in this document.,ไม่พบใบกำกับภ�
 No items were read,ไม่พบรายการ
 No members,ไม่มีสมาชิก
 No notifications,ไม่มีการแจ้งเตือน
+No number_,ไม่มีเลขที่_
 No presets yet,ยังไม่มีค่าที่ตั้งไว้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
@@ -976,6 +977,7 @@ Response Json,ผลตอบรับ (JSON)
 Restore,กู้คืน
 Result,ผลการนับ
 Result Directory Revision,เวอร์ชันไดเรกทอรีผลลัพธ์
+Result Folder,โฟลเดอร์ผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
 Result in the ERP,ผลใน ERP
@@ -1663,6 +1665,7 @@ cowork.folder.new,สร้างกฎ
 cowork.folder.noExpress,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
 cowork.folder.noRoots,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้
 cowork.folder.noRuns,ยังไม่มีประวัติการทำงาน
+cowork.folder.no_number_prefix,ไม่มีเลขที่_
 cowork.folder.off,ปิดใช้งานแล้ว
 cowork.folder.on,เปิดใช้งานอยู่
 cowork.folder.overlap,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว

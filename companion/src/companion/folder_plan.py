@@ -5,7 +5,7 @@
 - 每月几号（1–28，0 = 月末）几点，按曼谷时间（UTC+7，泰国不用夏令时）；
 - 到点时电脑关着 / 小助手没开，下次启动补跑一次（错过几次也只补最近那一次）；
 - 只收规则启用之后放进文件夹的文件（按文件在本机的创建时间，先用云端时间校正本机时钟）；
-- 只收 PDF / 图片；`_Pearnly结果` 里是系统生成的结果表格，不扫描；
+- 只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
 - 文件 2 分钟内没再变动才算写完（扫描仪、复制还没完成的先不传）。
 """
 
@@ -22,6 +22,10 @@ from typing import Iterator, Optional
 
 BANGKOK = dt.timezone(dt.timedelta(hours=7))
 RESULT_FOLDER = "_Pearnly结果"
+# 结果文件夹按建规则那个人的网页语言起名（与云端 contracts.RESULT_FOLDERS 同一份约定）；
+# 云端随表格告诉用哪一个，扫描时这几个名字一律跳过。旧规则与旧云端用 RESULT_FOLDER。
+RESULT_FOLDERS = (RESULT_FOLDER, "_ผลลัพธ์ Pearnly", "_Pearnly Results", "_Pearnly結果")
+_RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS)
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
 STABLE_SECONDS = 120
 # 按时开跑后这么久之内算「按时」，再晚就是「开机补跑」。
@@ -73,6 +77,16 @@ def due(rule: dict, state: dict, now: float) -> Optional[Due]:
     return None
 
 
+def is_result_folder(name: str) -> bool:
+    return name.casefold() in _RESULT_NAMES
+
+
+def result_folder(value) -> str:
+    """云端给的结果文件夹名；不是约定里的名字（旧云端没给）就用 RESULT_FOLDER。"""
+    name = str(value or "")
+    return name if name.casefold() in _RESULT_NAMES else RESULT_FOLDER
+
+
 def rule_folder(root: str, folder: str) -> Path:
     parts = [part for part in re.split(r"[\\/]+", folder or "") if part]
     if any(part in (".", "..") for part in parts):
@@ -105,7 +119,7 @@ def scan(folder: Path) -> Iterator[Candidate]:
     if not folder.is_dir():
         return
     for current, dirs, files in os.walk(folder):
-        dirs[:] = sorted(d for d in dirs if d.casefold() != RESULT_FOLDER.casefold() and not _skipped_name(d))
+        dirs[:] = sorted(d for d in dirs if not is_result_folder(d) and not _skipped_name(d))
         for name in sorted(files):
             if _skipped_name(name) or not name.lower().endswith(EXTENSIONS):
                 continue
@@ -144,7 +158,7 @@ def folders_of(root: Path) -> list[str]:
         return found
     for current, dirs, _files in os.walk(root):
         depth = len(Path(current).relative_to(root).parts)
-        dirs[:] = sorted(d for d in dirs if d.casefold() != RESULT_FOLDER.casefold() and not _skipped_name(d))
+        dirs[:] = sorted(d for d in dirs if not is_result_folder(d) and not _skipped_name(d))
         if depth >= FOLDER_DEPTH:
             dirs[:] = []
         for name in dirs:
@@ -154,9 +168,9 @@ def folders_of(root: Path) -> list[str]:
     return found
 
 
-def result_path(folder: Path, month: str, filename: str, taken: set[str]) -> Path:
-    """结果表格放 ``<规则文件夹>\\_Pearnly结果\\YYYY-MM\\``；同名的（同号不同卖方以外的重名）加 (2)、(3)。"""
-    target = folder / RESULT_FOLDER / month
+def result_path(folder: Path, month: str, filename: str, taken: set[str], result: str = RESULT_FOLDER) -> Path:
+    """结果表格放 ``<规则文件夹>\\<结果文件夹>\\YYYY-MM\\``；同名的（同号不同卖方以外的重名）加 (2)、(3)。"""
+    target = folder / result_folder(result) / month
     stem, suffix = os.path.splitext(filename)
     name, index = filename, 2
     while name.casefold() in taken:

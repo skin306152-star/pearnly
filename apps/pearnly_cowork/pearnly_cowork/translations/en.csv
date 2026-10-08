@@ -758,6 +758,7 @@ No invoice was found in this document.,No invoice was found in this document.
 No items were read,No items were read
 No members,No members
 No notifications,No notifications
+No number_,No number_
 No presets yet,No presets yet
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
@@ -976,6 +977,7 @@ Response Json,Response Json
 Restore,Restore
 Result,Result
 Result Directory Revision,Result Directory Revision
+Result Folder,Result Folder
 Result Json,Result Json
 Result Unknown,Result Unknown
 Result in the ERP,Result in the ERP
@@ -1663,6 +1665,7 @@ cowork.folder.new,New folder rule
 cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
 cowork.folder.noRoots,No folders on this PC yet. Add them in the Companion on that PC.
 cowork.folder.noRuns,No runs yet
+cowork.folder.no_number_prefix,No number_
 cowork.folder.off,Rule is off
 cowork.folder.on,Rule is on
 cowork.folder.overlap,Another active rule already uses this folder or a folder containing it.

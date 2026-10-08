@@ -52,9 +52,20 @@ def test_scan_skips_results_hidden_and_other_types(tmp_path):
                  plan.RESULT_FOLDER + "/2026-10/x.pdf"):
         (folder / name).write_bytes(b"x")
     (folder / "empty.pdf").write_bytes(b"")
+    for other in plan.RESULT_FOLDERS[1:]:
+        (folder / other).mkdir()
+        (folder / other / "y.pdf").write_bytes(b"x")
     found = sorted(c.relpath for c in plan.scan(folder))
     assert found == ["a.pdf", "sub\\b.JPG"]
     assert plan.folders_of(folder) == ["sub"]
+
+
+def test_result_folder_comes_from_the_server_and_falls_back_to_the_old_name(tmp_path):
+    assert plan.result_folder("_ผลลัพธ์ Pearnly") == "_ผลลัพธ์ Pearnly"
+    assert plan.result_folder(None) == plan.RESULT_FOLDER == "_Pearnly结果"
+    assert plan.result_folder("..\\evil") == plan.RESULT_FOLDER
+    target = plan.result_path(tmp_path, "2026-10", "a.xlsx", set(), "_Pearnly Results")
+    assert target.parent.parent.name == "_Pearnly Results"
 
 
 def test_new_and_stable():
@@ -120,13 +131,19 @@ class FakeClient:
         self.calls.append(("finish", entry, content))
         return {"ok": True, "entry": entry, "state": "uploaded"}
 
+    result_folder = None  # 旧云端不给结果文件夹名
+
     def workbook(self, entry, history):
         self.calls.append(("workbook", entry, history))
-        return {"ok": True, "filename": "INV-1_2808.xlsx", "revision": 1,
-                "content": base64.b64encode(b"PK-xlsx").decode()}
+        answer = {"ok": True, "filename": "INV-1_2808.xlsx", "revision": 1,
+                  "content": base64.b64encode(b"PK-xlsx").decode()}
+        if self.result_folder:
+            answer["result_folder"] = self.result_folder
+        return answer
 
 
-def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch):
+@pytest.mark.parametrize("given, expected", [(None, "_Pearnly结果"), ("_ผลลัพธ์ Pearnly", "_ผลลัพธ์ Pearnly")])
+def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch, given, expected):
     root = tmp_path / "S"
     folder = root / "ice-purchase"
     folder.mkdir(parents=True)
@@ -146,6 +163,7 @@ def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch):
     rule = {"name": "R1", "title": "ice", "root_id": root_id, "folder": "ice-purchase", "run_day": 1,
             "run_time": "22:00", "active_since": active_since, "run_request": 1, "ready": True}
     fake = FakeClient([rule])
+    fake.result_folder = given
     worker = FolderIntake(lambda: [cfg], client_factory=fake)
     worker.round(cfg, key)
     begins = [c for c in fake.calls if c[0] == "begin"]
@@ -161,7 +179,7 @@ def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch):
     sync_body = [c for c in fake.calls if c[0] == "sync"][-1][1]
     assert sync_body["runs"][0]["new_files"] == 1 and sync_body["runs"][0]["skipped"] == 1
     assert len([c for c in fake.calls if c[0] == "begin"]) == 1
-    written = list((folder / plan.RESULT_FOLDER).rglob("*.xlsx"))
+    written = list((folder / expected).rglob("*.xlsx"))
     assert [p.name for p in written] == ["INV-1_2808.xlsx"] and written[0].read_bytes() == b"PK-xlsx"
 
 
