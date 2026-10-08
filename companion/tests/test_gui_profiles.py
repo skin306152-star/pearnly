@@ -300,8 +300,17 @@ def test_update_button_uses_the_windows_icons_refresh_then_download(tmp_path, mo
     store = _store_with_one_connection(tmp_path, monkeypatch)
     status = {"value": ("none", "")}
     monkeypatch.setattr(gui_profiles.autostart, "is_enabled", lambda: True)
-    present = ["Helvetica", "Arial", gui_profiles.QFontDatabase.families()[0]]
-    monkeypatch.setattr(gui_profiles, "ICON_FONTS", ("Segoe Fluent Icons", *present))
+    from PySide6.QtGui import QIcon, QPixmap
+
+    drawn = []
+
+    def fake_icon(glyph, _color):
+        drawn.append(glyph)
+        pixmap = QPixmap(16, 16)
+        pixmap.fill()
+        return QIcon(pixmap)
+
+    monkeypatch.setattr(gui_profiles, "glyph_icon", fake_icon)
     dialog = ProfileManagerDialog(lang="zh", profile_store=store, update_status=lambda: status["value"],
                                   on_update=lambda: None)
     dialog._live_refresh.stop()
@@ -310,10 +319,17 @@ def test_update_button_uses_the_windows_icons_refresh_then_download(tmp_path, mo
     status["value"] = ("found", "1.4.0")
     dialog._paint_update()
     assert dialog.upd_btn.property("glyph") == gui_profiles.GLYPH_DOWNLOAD
+    dialog._paint_update()  # 状态没变不重画图标
+    assert drawn == [gui_profiles.GLYPH_REFRESH, gui_profiles.GLYPH_DOWNLOAD]
 
-    monkeypatch.setattr(gui_profiles, "ICON_FONTS", ("Segoe Fluent Icons", "Segoe MDL2 Assets"))
-    if not any(name in gui_profiles.QFontDatabase.families() for name in gui_profiles.ICON_FONTS):
-        assert gui_profiles.glyph_icon(gui_profiles.GLYPH_REFRESH, "black").isNull()
+
+def test_without_the_windows_icon_font_the_button_is_text_only(monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(gui_profiles, "ICON_FONTS", ("No Such Icon Font",))
+    monkeypatch.setenv("WINDIR", str(tmp_path))
+    assert gui_profiles.glyph_icon(gui_profiles.GLYPH_REFRESH, "black").isNull()
 
 
 @pytest.mark.skipif(__import__("sys").platform != "win32", reason="Windows 自带图标字体只在 Windows 上有")
@@ -321,7 +337,7 @@ def test_windows_has_the_icon_font_and_both_icons_draw_something():
     from PySide6.QtWidgets import QApplication
 
     QApplication.instance() or QApplication([])
-    assert any(name in gui_profiles.QFontDatabase.families() for name in gui_profiles.ICON_FONTS)
+    assert gui_profiles.icon_font_family() in gui_profiles.ICON_FONTS
     for glyph in (gui_profiles.GLYPH_REFRESH, gui_profiles.GLYPH_DOWNLOAD):
         image = gui_profiles.glyph_icon(glyph, "black").pixmap(16, 16).toImage()
         assert any(image.pixelColor(x, y).alpha() for x in range(image.width()) for y in range(image.height()))

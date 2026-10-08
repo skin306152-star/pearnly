@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Callable, Mapping, Optional
 
 import os
+from pathlib import Path
 
 from PySide6.QtCore import QRect, QTimer, Qt
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPainter, QPixmap
@@ -70,8 +71,27 @@ GLYPH_REFRESH = "\ue72c"  # Refresh：循环箭头
 GLYPH_DOWNLOAD = "\ue896"  # Download：箭头落进托盘
 
 
+ICON_FONT_FILES = ("SegoeIcons.ttf", "segmdl2.ttf")  # 上面两套字体在 %WINDIR%\Fonts 里的文件名
+
+
+def icon_font_family() -> str:
+    """系统字体里找图标字体；列表里没有（例如无界面模式不读系统字体）就直接从 Windows 字体目录加载文件。"""
+    families = QFontDatabase.families()
+    found = next((name for name in ICON_FONTS if name in families), "")
+    if found:
+        return found
+    fonts = Path(os.environ.get("WINDIR") or r"C:\Windows") / "Fonts"
+    for file_name in ICON_FONT_FILES:
+        if (fonts / file_name).is_file():
+            loaded = QFontDatabase.applicationFontFamilies(QFontDatabase.addApplicationFont(str(fonts / file_name)))
+            found = next((name for name in ICON_FONTS if name in loaded), "")
+            if found:
+                return found
+    return ""
+
+
 def glyph_icon(glyph: str, color, size: int = 16) -> QIcon:
-    family = next((name for name in ICON_FONTS if name in QFontDatabase.families()), "")
+    family = icon_font_family()
     if not family:
         return QIcon()
     ratio = 2  # 高分屏也清楚
