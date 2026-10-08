@@ -193,8 +193,10 @@ Delete {0} selected push records from this list? Sent business documents will no
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。
 Delete {0} selected records? Pushed ones cannot be deleted.,選択した {0} 件を削除しますか？送信済みは削除できません。
 Deleted,削除しました
+Deleted {0},{0} 件を削除しました
 Deleted {0} operators,{0}名の操作員を削除しました
 Deleted {0} push records,{0}件の送信記録を削除しました
+Deleted {0}. {1} already pushed were kept,{0} 件を削除しました。送信済みの {1} 件は残しました
 Deleting the OIDC client failed: {0} {1},OIDCクライアントの削除に失敗: {0} {1}
 Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
 Deployment,デプロイ
@@ -379,6 +381,7 @@ No service account configured (site config pearnly_ocr_credentials),サービス
 No sign-in credentials configured,ログイン資格情報が未設定です
 No such local account: {0},ローカルアカウントがありません: {0}
 No.,番号
+"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します
 Not Permitted,権限がありません
 Not allowed,不許可
 Not connected,未接続
@@ -938,6 +941,9 @@ intake.col.name,番号
 intake.col.status,ステータス
 intake.collapse,閉じる
 intake.confirm.delete,選択した {0} 件を削除しますか？送信済みは削除できません。
+intake.delete.done,{0} 件を削除しました
+intake.delete.none,削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します
+intake.delete.partial,{0} 件を削除しました。送信済みの {1} 件は残しました
 intake.dir.purchase,仕入
 intake.dir.purchaseFull,仕入（受領した請求書）
 intake.dir.sales,売上

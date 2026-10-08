@@ -92,7 +92,7 @@
 				...(connection ? {name: connection.name, expected_revision: connection.revision} : {}),
 			}, "POST");
 			d.hide();
-			p.success(__("Saved"));
+			p.success(__("Saved"), "click");
 			await on_done();
 		});
 	}

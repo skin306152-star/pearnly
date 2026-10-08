@@ -637,7 +637,7 @@
 			if (current.name !== saved.name) return;
 			current = saved;
 			if (quiet) return sync_save();
-			p.success(__("Saved"));
+			p.success(__("Saved"), "click");
 			fill(current);
 			sync_save();
 		};

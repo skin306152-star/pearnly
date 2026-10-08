@@ -217,7 +217,7 @@
 				else page.clear_primary_action();
 			}
 			const selection = p.selection_action({
-				page, list: () => list, empty: restore_primary,
+				page, list: () => list, sound: "click", empty: restore_primary,
 				label: rows => (rows.every(row => !row.is_active)
 					? t("product.action.bulkEnable", rows.length)
 					: t("product.action.bulkDisable", rows.length)),

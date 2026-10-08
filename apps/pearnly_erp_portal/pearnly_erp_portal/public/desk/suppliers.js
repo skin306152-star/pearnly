@@ -63,7 +63,7 @@
 					branch_type: Number(data.branch_no) ? "branch" : "head",
 					branch_no: Number(data.branch_no) ? data.branch_no : dialog.get_value("branch_no") || "",
 				});
-				p.success(t("supplier.lookup.found", data.name || data.tax_id || ""));
+				p.success(t("supplier.lookup.found", data.name || data.tax_id || ""), null);  // 只是填进表单、还没保存：官方此时不出声
 			} finally {
 				frappe.dom.unfreeze();
 			}
@@ -113,7 +113,7 @@
 		// 行勾选 + 表头全选（与商品/采购/销售那几个列表同一个原生实现），
 		// 选中之后主按钮变"批量启用/停用" —— 主数据本来就有启用态，选择要有个去处。
 		const selection = p.selection_action({
-			page, list: () => list, empty: restore_new,
+			page, list: () => list, sound: "click", empty: restore_new,
 			label: rows => (rows.every(row => !Number(row.is_active))
 				? t("supplier.action.bulkEnable", rows.length)
 				: t("supplier.action.bulkDisable", rows.length)),

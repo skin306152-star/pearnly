@@ -193,8 +193,10 @@ Delete {0} selected push records from this list? Sent business documents will no
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง
 Delete {0} selected records? Pushed ones cannot be deleted.,ลบ {0} รายการที่เลือก? รายการที่ส่งแล้วลบไม่ได้
 Deleted,ลบแล้ว
+Deleted {0},ลบแล้ว {0} รายการ
 Deleted {0} operators,ลบผู้ปฏิบัติงานแล้ว {0} คน
 Deleted {0} push records,ลบบันทึกการส่งแล้ว {0} รายการ
+Deleted {0}. {1} already pushed were kept,ลบแล้ว {0} รายการ เก็บ {1} รายการที่ส่งแล้วไว้
 Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเร็จ: {0} {1}
 Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
 Deployment,การติดตั้ง
@@ -379,6 +381,7 @@ No service account configured (site config pearnly_ocr_credentials),ยังไ
 No sign-in credentials configured,ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ
 No such local account: {0},ไม่มีบัญชีในเครื่องนี้: {0}
 No.,เลขที่
+"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",ไม่ได้ลบ: {0} รายการที่เลือกส่งแล้วทั้งหมด รายการที่ส่งแล้วต้องเก็บไว้เพื่อตรวจย้อนได้ว่าส่งใบไหน
 Not Permitted,ไม่มีสิทธิ์
 Not allowed,ไม่อนุญาต
 Not connected,ยังไม่เชื่อมต่อ
@@ -938,6 +941,9 @@ intake.col.name,เลขที่
 intake.col.status,สถานะ
 intake.collapse,ย่อ
 intake.confirm.delete,ลบ {0} รายการที่เลือก? รายการที่ส่งแล้วลบไม่ได้
+intake.delete.done,ลบแล้ว {0} รายการ
+intake.delete.none,ไม่ได้ลบ: {0} รายการที่เลือกส่งแล้วทั้งหมด รายการที่ส่งแล้วต้องเก็บไว้เพื่อตรวจย้อนได้ว่าส่งใบไหน
+intake.delete.partial,ลบแล้ว {0} รายการ เก็บ {1} รายการที่ส่งแล้วไว้
 intake.dir.purchase,ซื้อ
 intake.dir.purchaseFull,ซื้อ (บิลที่ได้รับ)
 intake.dir.sales,ขาย

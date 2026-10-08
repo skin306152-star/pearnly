@@ -193,8 +193,10 @@ Delete {0} selected push records from this list? Sent business documents will no
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.
 Delete {0} selected records? Pushed ones cannot be deleted.,Delete {0} selected records? Pushed ones cannot be deleted.
 Deleted,Deleted
+Deleted {0},Deleted {0}
 Deleted {0} operators,Deleted {0} operators
 Deleted {0} push records,Deleted {0} push records
+Deleted {0}. {1} already pushed were kept,Deleted {0}. {1} already pushed were kept
 Deleting the OIDC client failed: {0} {1},Deleting the OIDC client failed: {0} {1}
 Deleting the account failed: {0} {1},Deleting the account failed: {0} {1}
 Deployment,Deployment
@@ -378,6 +380,7 @@ No service account configured (site config pearnly_ocr_credentials),No service a
 No sign-in credentials configured,No sign-in credentials configured
 No such local account: {0},No such local account: {0}
 No.,No.
+"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice","None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice"
 Not Permitted,Not Permitted
 Not allowed,Not allowed
 Not connected,Not connected
@@ -936,6 +939,9 @@ intake.col.name,No.
 intake.col.status,Status
 intake.collapse,Collapse
 intake.confirm.delete,Delete {0} selected records? Pushed ones cannot be deleted.
+intake.delete.done,Deleted {0}
+intake.delete.none,"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice"
+intake.delete.partial,Deleted {0}. {1} already pushed were kept
 intake.dir.purchase,Purchase
 intake.dir.purchaseFull,Purchase (bills received)
 intake.dir.sales,Sale

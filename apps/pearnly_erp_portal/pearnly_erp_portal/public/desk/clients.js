@@ -57,7 +57,7 @@
 					customer_name: data.name || dialog.get_value("customer_name") || "",
 					address: data.address || dialog.get_value("address") || "",
 				});
-				p.success(t("client.lookup.found", data.name || data.tax_id || ""));
+				p.success(t("client.lookup.found", data.name || data.tax_id || ""), null);  // 只是填进表单、还没保存：官方此时不出声
 			} finally {
 				frappe.dom.unfreeze();
 			}
@@ -110,7 +110,7 @@
 			change: () => void list?.reload()});
 		// 行勾选 + 表头全选；选中后主按钮变"批量启用/停用"（客户也有启用态）。
 		const selection = p.selection_action({
-			page, list: () => list, empty: restore_new,
+			page, list: () => list, sound: "click", empty: restore_new,
 			label: rows => (rows.every(row => !Number(row.is_active))
 				? t("client.action.bulkEnable", rows.length)
 				: t("client.action.bulkDisable", rows.length)),

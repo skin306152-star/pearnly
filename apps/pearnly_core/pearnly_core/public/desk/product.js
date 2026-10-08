@@ -365,9 +365,14 @@ frappe.provide("frappe.pearnly");
 		Data.pearnly_data = true;
 		frappe.ui.form.ControlData = Data;
 	}
-	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
-	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），
-	// 所以第二个参数留给"这不是提交、是删除"这类场合；默认仍是 submit。
+	// 成功回音。对齐官方 Frappe 16.33.0（`frappe/hooks.py` 的 `sounds` 与框架自己的调用处，用户 2026-10-08 要求全平台统一）：
+	//   click  —— 保存 / 更新 / 新建 / 修改（含启用停用、恢复）：`form.js` 保存后、发评论、改评论；
+	//   submit —— 提交落定（单据提交、收付款、开班交班、结束盘点）与后台任务做完（识别、对账、导出）：`form.js` 提交后；
+	//   cancel —— 作废 / 取消 / 归档 / 解绑（记录还留着）：`form.js` 取消、放弃；
+	//   delete —— 删除（单条、批量、删评论、移除附件）：`model.js` 删除、`bulk_operations.js` 批量删除；
+	//   error  —— 出错：`request.js` 500 / 超时 / 死锁；
+	//   email  —— 发邮件（只有收银台的发小票）；alert 官方注册了但前端没用，我们也不用。
+	// 只填进表单、还没保存（如按税号查到公司资料）官方不出声：传 `null`。默认 submit。
 	// ── 上传前缩照片（所有租户都开，参数由启动信息 `pearnly_shrink_photos` 给；见 `pearnly_core/desk/upload.py`）─────────────
 	// 按 EXIF 转正，只缩不放大：长边大于 2400 才缩到 2400（高质量缩放），存成 JPEG 0.92；其余（长边不超过 2400、PDF、
 	// 表格、SVG / GIF、浏览器解不开的 HEIC）原样返回。录入工作台与 ERP 采购 / 销售录入的照片上传口用。
@@ -411,7 +416,7 @@ frappe.provide("frappe.pearnly");
 
 	p.success = (message, sound = "submit") => {
 		frappe.show_alert({ message: p.escape(message), indicator: "green" });
-		frappe.utils.play_sound(sound);
+		if (sound) frappe.utils.play_sound(sound);
 	};
 
 	// ── 导出：小的当场下载，大的排后台、做完推送后下载（服务端 `pearnly_core.exports`）────────────────

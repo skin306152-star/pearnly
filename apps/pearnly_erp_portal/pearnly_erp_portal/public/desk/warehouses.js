@@ -26,7 +26,7 @@
 			page.set_title(__("nav.warehouses"));
 			p.breadcrumbs({label: __("nav.warehouses"), route: p.subroute("pearnly-warehouses")});
 			selection = p.selection_action({
-				page, list: () => list, empty: restore_new,
+				page, list: () => list, sound: "click", empty: restore_new,
 				label: rows => (rows.every(row => !Number(row.is_active))
 					? t("company.action.bulkEnable", rows.length)
 					: t("company.action.bulkDisable", rows.length)),

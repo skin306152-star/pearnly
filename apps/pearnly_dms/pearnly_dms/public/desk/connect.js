@@ -108,7 +108,7 @@
 					if (!result.ok) return accountFailure(result);
 					d.set_value("password", "");
 					d.hide();
-					p.success(acct("dms.connect.acct.saved")); // 缺的资料组已在后台开始读，页面不等
+					p.success(acct("dms.connect.acct.saved"), "click"); // 缺的资料组已在后台开始读，页面不等
 					await refresh();
 				},
 			);
@@ -139,7 +139,7 @@
 					if (result.shown) return;
 					if (!result.ok) return accountFailure(result);
 					dialog.hide();
-					p.success(acct("dms.connect.acct.saved"));
+					p.success(acct("dms.connect.acct.saved"), "click");
 					await refresh();
 				},
 			);

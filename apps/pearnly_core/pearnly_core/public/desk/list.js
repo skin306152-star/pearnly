@@ -427,7 +427,10 @@
 	// 返回的就是 `p.list({ on_selection })` 要的那个回调。
 	// `empty` 给"没选中时右上角本来就有主按钮"的页面用（商品页的"新建商品"、盘点页的"新建盘点"）：
 	// 不传就按惯例清掉那颗按钮。
-	// `sound` 只在**删除类**动作上传 `"delete"`（官方批量删除就是这一声）；其余默认 `submit`。
+	// `sound` 按动作取官方那一声（见 `product.js` 的 `p.success`）：删除 `"delete"`、作废 `"cancel"`、
+	// 启用停用这类保存 `"click"`；不传是 `submit`。
+	// `success(rows, result)` 拿得到服务端的返回（例如「删了几条、跳过几条」），返回空就不弹成功提示——
+	// 一条都没做成时不能说"已删除"（用户 2026-10-08：录入工作台推送过的记录删不掉，却一直提示已删除）。
 	// 注意：确认文案那个参数收下来就改名成 confirm_text —— 架构检查拦的是裸的浏览器
 	// confirm 调用，参数也叫 confirm 的话会被它的正则误伤（连注释里的字面量都算）。
 	p.selection_action = ({ page, list, label, when, reason, confirm: confirm_text, run, success,
@@ -449,8 +452,9 @@
 		async function perform(rows) {
 			busy = true; paint();
 			try {
-				await run(rows);
-				if (success) p.success(success(rows), sound);
+				const result = await run(rows);
+				const message = success ? success(rows, result) : "";
+				if (message) p.success(message, sound);
 				list()?.clear_checked_items?.();
 				await list()?.reload?.();
 			} catch (error) {

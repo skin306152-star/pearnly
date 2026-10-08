@@ -207,7 +207,10 @@
 					remove.type = "button";
 					remove.className = "btn btn-xs btn-default";
 					remove.textContent = t("cowork.recon.preset.remove");
-					remove.addEventListener("click", () => call("remove", { scope_key: item.scope, rule: item.rule }));
+					remove.addEventListener("click", async () => {
+						await call("remove", { scope_key: item.scope, rule: item.rule });
+						frappe.utils.play_sound("delete");  // 官方删除：只响一声，不另弹提示
+					});
 					head.append(name, remove);
 					// 固定选项的规则可直接改；答案是科目号的（对哪个总账科目）只显示，要改就删了让它下次重新问。
 					const values = spec.presets[item.rule];
@@ -876,7 +879,7 @@
 				modified = saved.task.modified; dirty = false; status = saved.task.status;
 				view = saved; inputs = clone(saved.inputs); good = clone(saved.inputs);
 				buttons(); paint();
-				p.success(t("cowork.recon.saved"));
+				p.success(t("cowork.recon.saved"), "click");
 			}
 			// 对账预设：系统定不了、但定一次规矩就能定的地方（如这个账户的多笔对一笔是不是汇总入账），一次问一个，
 			// 选了即记住并按它重算（已识别的数据，不再识别）；以后同一账户不再问（用户 2026-09-30 批准）。

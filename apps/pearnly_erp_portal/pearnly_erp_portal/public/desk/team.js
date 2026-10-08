@@ -67,7 +67,7 @@
 
 		// 选中若干位员工 → 批量停用/启用（与商品、供应商、客户同一套 `p.selection_action`）。
 		const selection = p.selection_action({
-			page, list: () => list, empty: restore_new,
+			page, list: () => list, sound: "click", empty: restore_new,
 			label: rows => (rows.every(row => !row.enabled)
 				? t("team.action.bulkEnable", rows.length)
 				: t("team.action.bulkDisable", rows.length)),

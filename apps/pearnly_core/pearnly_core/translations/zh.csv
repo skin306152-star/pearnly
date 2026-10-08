@@ -193,8 +193,10 @@ Delete {0} selected push records from this list? Sent business documents will no
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。
 Delete {0} selected records? Pushed ones cannot be deleted.,删除选中的 {0} 条记录？已推送的删不掉。
 Deleted,已删除
+Deleted {0},已删除 {0} 条
 Deleted {0} operators,已删除 {0} 名操作员
 Deleted {0} push records,已删除 {0} 条推送记录
+Deleted {0}. {1} already pushed were kept,已删除 {0} 条，{1} 条推送过的保留
 Deleting the OIDC client failed: {0} {1},删除 OIDC 客户端失败：{0} {1}
 Deleting the account failed: {0} {1},删除账号失败：{0} {1}
 Deployment,部署
@@ -379,6 +381,7 @@ No service account configured (site config pearnly_ocr_credentials),没有配服
 No sign-in credentials configured,没配登录凭据
 No such local account: {0},本地账号不存在：{0}
 No.,单号
+"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",一条都没删：选中的 {0} 条都推送过。推送过的记录要留着，才能追到每次推送的是哪张票
 Not Permitted,没有权限
 Not allowed,未允许
 Not connected,未连接
@@ -938,6 +941,9 @@ intake.col.name,单号
 intake.col.status,状态
 intake.collapse,收起
 intake.confirm.delete,删除选中的 {0} 条记录？已推送的删不掉。
+intake.delete.done,已删除 {0} 条
+intake.delete.none,一条都没删：选中的 {0} 条都推送过。推送过的记录要留着，才能追到每次推送的是哪张票
+intake.delete.partial,已删除 {0} 条，{1} 条推送过的保留
 intake.dir.purchase,进项
 intake.dir.purchaseFull,进项（收到的票）
 intake.dir.sales,销项

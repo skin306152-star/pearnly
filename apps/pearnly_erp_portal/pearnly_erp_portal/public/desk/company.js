@@ -68,7 +68,7 @@
 				await form.set_value("company_name", data.name || form.get_value("company_name") || "");
 				await form.set_value("address", data.address || form.get_value("address") || "");
 				if (Number(data.branch_no)) await form.set_value("branch", data.branch_no);
-				p.success(t("company.lookup.found", data.name || data.tax_id || ""));
+				p.success(t("company.lookup.found", data.name || data.tax_id || ""), null);  // 只是填进表单、还没保存：官方此时不出声
 			} finally {
 				frappe.dom.unfreeze();
 			}
@@ -81,7 +81,7 @@
 			page.set_title(__("nav.company"));
 			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root)});
 			selection = p.selection_action({
-				page, list: () => list, empty: restore_new,
+				page, list: () => list, sound: "click", empty: restore_new,
 				label: rows => (rows.every(row => !Number(row.is_active))
 					? t("company.action.bulkEnable", rows.length)
 					: t("company.action.bulkDisable", rows.length)),

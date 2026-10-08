@@ -836,6 +836,9 @@ Recognition result	识别结果	ผลการอ่าน	読み取り結果	i
 Line items	明细	รายการ	明細	intake.nav.items
 Recognize and export	识别后导出	อ่านแล้วส่งออก	読み取り後にエクスポート	intake.target.recognizeOnly
 Delete {0} selected records? Pushed ones cannot be deleted.	删除选中的 {0} 条记录？已推送的删不掉。	ลบ {0} รายการที่เลือก? รายการที่ส่งแล้วลบไม่ได้	選択した {0} 件を削除しますか？送信済みは削除できません。	intake.confirm.delete
+Deleted {0}	已删除 {0} 条	ลบแล้ว {0} รายการ	{0} 件を削除しました	intake.delete.done
+Deleted {0}. {1} already pushed were kept	已删除 {0} 条，{1} 条推送过的保留	ลบแล้ว {0} รายการ เก็บ {1} รายการที่ส่งแล้วไว้	{0} 件を削除しました。送信済みの {1} 件は残しました	intake.delete.partial
+None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice	一条都没删：选中的 {0} 条都推送过。推送过的记录要留着，才能追到每次推送的是哪张票	ไม่ได้ลบ: {0} รายการที่เลือกส่งแล้วทั้งหมด รายการที่ส่งแล้วต้องเก็บไว้เพื่อตรวจย้อนได้ว่าส่งใบไหน	削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します	intake.delete.none
 Entering	录入中	กำลังบันทึก	入力中	intake.push.pending
 Subscription and top-up	订阅与充值	สมัครแพ็กเกจและเติมเงิน	プランとチャージ	home.billing
 {0} seconds so far	已用 {0} 秒	ผ่านไป {0} วินาที	経過 {0} 秒	shell.wait.elapsed

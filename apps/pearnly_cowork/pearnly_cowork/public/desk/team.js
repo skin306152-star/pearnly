@@ -43,7 +43,7 @@
 		}
 
 		const selection = p.selection_action({
-			page, list: () => list, empty: restore_new,
+			page, list: () => list, sound: "click", empty: restore_new,
 			label: rows => (rows.every(row => !row.enabled)
 				? t("cowork.team.action.bulkEnable", rows.length)
 				: t("cowork.team.action.bulkDisable", rows.length)),

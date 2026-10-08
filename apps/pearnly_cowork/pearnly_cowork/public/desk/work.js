@@ -697,7 +697,7 @@
 			await p.call(`${API}archive`, {name: card.name}, "POST");
 			state.cards = state.cards.filter(row => row.name !== card.name);
 			render();
-			p.success(t("cowork.work.card.archived"));
+			p.success(t("cowork.work.card.archived"), "cancel");
 		};
 		// 修改标签（照 Trello 的标签弹窗）：勾选已有标签；「新建标签」建好后回到这里，已勾的不丢。
 		const edit_labels = (card, chosen) => {
@@ -883,12 +883,12 @@
 			}
 			if (action === "archive-all") {
 				const {archived} = await p.call(`${API}archive_all`, {name: row.name}, "POST");
-				if (archived) p.success(t("cowork.work.card.archived"));
+				if (archived) p.success(t("cowork.work.card.archived"), "cancel");
 				return reload();
 			}
 			if (action === "archive-list") {
 				await p.call(`${API}archive_list`, {name: row.name}, "POST");
-				p.success(t("cowork.work.list.archived"));
+				p.success(t("cowork.work.list.archived"), "cancel");
 				return reload();
 			}
 			if (action === "copy") {
@@ -1318,7 +1318,7 @@
 					draw_activity(result.activity);
 					base = current();
 					refresh_dirty();
-					p.success(t("cowork.work.card.saved"));
+					p.success(t("cowork.work.card.saved"), "click");
 					await reload();
 				} finally {
 					saving = false;
@@ -1357,11 +1357,13 @@
 			};
 			d.fields_dict.files.$wrapper.on("click", "[data-file]", async event => {
 				draw_files(await p.call(`${API}detach`, {name, file: $(event.currentTarget).attr("data-file")}, "POST"));
+				frappe.utils.play_sound("delete");
 				if (base) base.cover = current().cover;
 				await refresh_activity();
 			});
 			d.fields_dict.activity.$wrapper.on("click", "[data-comment]", async event => {
 				draw_activity(await p.call(`${API}delete_comment`, {activity: $(event.currentTarget).attr("data-comment")}, "POST"));
+				frappe.utils.play_sound("delete");
 				void reload();
 			});
 		};
@@ -1415,7 +1417,7 @@
 						state.labels = await p.call(`${API}save_labels`, {board: state.board.name, rows: JSON.stringify(rows.map(row => ({
 							name: row.name, title: row.title.trim(), color: row.color})))}, "POST");
 						d.hide();
-						p.success(t("cowork.work.labels.saved"));
+						p.success(t("cowork.work.labels.saved"), "click");
 						await reload();
 						if (after) after();
 					} finally {
@@ -1476,7 +1478,7 @@
 							name: row.name, title: row.title.trim(), fieldtype: row.fieldtype, show_on_card: row.show_on_card ? 1 : 0,
 							options: row.options.split("\n").map(value => value.trim()).filter(Boolean)})))}, "POST");
 						d.hide();
-						p.success(t("cowork.work.fields.saved"));
+						p.success(t("cowork.work.fields.saved"), "click");
 						await reload();
 					} finally {
 						d.enable_primary_action();
@@ -1571,13 +1573,13 @@
 				await Promise.all([draw(), reload()]);
 			};
 			d.$body.on("click", "[data-restore]", event => void act("restore", $(event.currentTarget).attr("data-restore"),
-				"cowork.work.archived.restored"));
+				"cowork.work.archived.restored", "click"));
 			d.$body.on("click", "[data-restore-list]", event => void act("restore_list",
-				$(event.currentTarget).attr("data-restore-list"), "cowork.work.archived.restored"));
+				$(event.currentTarget).attr("data-restore-list"), "cowork.work.archived.restored", "click"));
 			d.$body.on("click", "[data-restore-board]", async event => {
 				const board = $(event.currentTarget).attr("data-restore-board");
 				await p.call(`${API}restore_board`, {board}, "POST");
-				p.success(t("cowork.work.archived.restored"));
+				p.success(t("cowork.work.archived.restored"), "click");
 				d.hide();
 				await switch_board(board);
 			});
@@ -1756,7 +1758,7 @@
 					try {
 						await p.call(`${API}save_rules`, {board: state.board.name, rows: JSON.stringify(rows)}, "POST");
 						d.hide();
-						p.success(t("cowork.work.rules.saved"));
+						p.success(t("cowork.work.rules.saved"), "click");
 					} finally {
 						d.enable_primary_action();
 					}
@@ -1855,7 +1857,7 @@
 				d.add_custom_action(t("cowork.work.board.archive"), async () => {
 					await p.call(`${API}archive_board`, {board: row.name}, "POST");
 					d.hide();
-					p.success(t("cowork.work.board.archived"));
+					p.success(t("cowork.work.board.archived"), "cancel");
 					state.board = null;
 					try { localStorage.removeItem(BOARD_KEY); } catch (error) { /* 无痕窗口 */ }
 					await reload();

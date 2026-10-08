@@ -60,8 +60,18 @@
 				page, list: () => list, empty: restore_new,
 				label: () => __("Delete"),
 				confirm: rows => t("intake.confirm.delete", rows.length),
+				sound: "delete",
 				run: rows => p.call(API + "delete", {records: rows.map(row => row.name)}, "POST"),
-				success: () => __("Deleted"),
+				// 推送过的服务端不删（`history/removal.py`）：按服务端回的条数说，一条都没删就说明原因、不报成功
+				// （用户 2026-10-08：选中的都推送过，却一直提示「已删除」，看着像删不掉在循环）。
+				success: (_rows, result) => {
+					const deleted = Number(result?.deleted) || 0, skipped = Number(result?.skipped) || 0;
+					if (!deleted) {
+						frappe.msgprint({message: p.escape(t("intake.delete.none", skipped)), indicator: "orange"});
+						return "";
+					}
+					return skipped ? t("intake.delete.partial", deleted, skipped) : t("intake.delete.done", deleted);
+				},
 			}) : restore_new;
 			// 官方筛选条件 → 接口参数。条件全在筛选区里（见下面 `add_filters`），
 			// 这里只做翻译，不再偷偷默认什么。
