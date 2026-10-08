@@ -104,7 +104,8 @@ def _guarded(operation, handler):
 
 def _sync(context, body):
     roots = contracts.roots(body.get("roots"))
-    agent.remember(context.connection, roots=roots, version=body.get("version"))
+    agent.remember(context.connection, roots=roots, version=body.get("version"),
+                   health=contracts.health(body.get("rule_health")))
     for row in (body.get("runs") or [])[:50]:
         try:
             _record_run(context, row)

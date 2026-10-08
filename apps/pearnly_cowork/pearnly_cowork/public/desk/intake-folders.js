@@ -25,8 +25,11 @@
 		page.set_title(ft("cowork.folder.title"));
 		p.breadcrumbs({label: t("intake.title"), route: p.subroute(root), trail: [{label: ft("cowork.folder.title"), route: ""}]});
 		let data = {rules: [], connections: []};
+		// 文件夹不可用：小助手报这条规则的文件夹不在了（授权移除 / 改名 / 子文件夹删了），到点也不会跑。
 		const status = row => (!row.enabled ? ["gray", ft("cowork.folder.off")]
-			: !row.agent_fresh ? ["orange", ft("cowork.folder.agentStale")] : ["green", ft("cowork.folder.on")]);
+			: !row.agent_fresh ? ["orange", ft("cowork.folder.agentStale")]
+			: ["root_missing", "folder_missing"].includes(row.folder_state) ? ["red", ft("cowork.folder.folderMissing")]
+			: ["green", ft("cowork.folder.on")]);
 		const edit = rule => open_rule({t, data, rule, on_saved: () => list.reload()});
 
 		const list = p.list({
@@ -231,8 +234,9 @@
 		const lines = (view.runs || []).map(run => {
 			const states = STATES.filter(name => run.states?.[name])
 				.map(name => `${ft("cowork.folder.state." + name)} ${run.states[name]}`).join(" · ");
+			const missing = ["root_missing", "folder_missing"].includes(run.note) ? ` · ${ft("cowork.folder.folderMissing")}` : "";
 			return `<div class="pearnly-folder-run"><div>${p.escape(frappe.datetime.str_to_user(run.started_at))} · `
-				+ `${p.escape(ft("cowork.folder.trigger." + (run.trigger || "schedule")))}</div>`
+				+ `${p.escape(ft("cowork.folder.trigger." + (run.trigger || "schedule")) + missing)}</div>`
 				+ `<div class="text-muted small">${p.escape(ft("cowork.folder.runScan", run.found || 0, run.new_files || 0,
 					run.skipped || 0, run.upload_failed || 0))}${states ? " · " + p.escape(states) : ""}</div></div>`;
 		}).join("") || `<div class="text-muted">${p.escape(ft("cowork.folder.noRuns"))}</div>`;

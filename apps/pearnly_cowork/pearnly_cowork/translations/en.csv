@@ -543,6 +543,7 @@ Folder,Folder
 Folder and schedule,Folder and schedule
 Folder auto-intake is not turned on for this site.,Folder auto-intake is not turned on for this site.
 Folder auto-intake rules,Folder auto-intake rules
+Folder not available,Folder not available
 Folder results,Folder results
 Folder rule name,Folder rule name
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
@@ -1401,6 +1402,7 @@ This file is too large to send from this PC.,This file is too large to send from
 This file record was not found.,This file record was not found.
 This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
+This folder overlaps the folder of rule «{0}».,This folder overlaps the folder of rule «{0}».
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
 This invoice was already sent successfully,This invoice was already sent successfully
@@ -1660,6 +1662,7 @@ cowork.folder.field.root,Allowed root folder on the PC
 cowork.folder.field.time,Run at (Bangkok time)
 cowork.folder.field.title,Folder rule name
 cowork.folder.folderHint,One folder per rule. PDF and image files only.
+cowork.folder.folderMissing,Folder not available
 cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 cowork.folder.guide.result,"made by the system, do not put documents here"
 cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
@@ -1687,6 +1690,7 @@ cowork.folder.no_number_prefix,No number_
 cowork.folder.off,Rule is off
 cowork.folder.on,Rule is on
 cowork.folder.overlap,Another active rule already uses this folder or a folder containing it.
+cowork.folder.overlap_with,This folder overlaps the folder of rule «{0}».
 cowork.folder.owner_not_ready,The rule owner can no longer enter documents with this connection.
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
 cowork.folder.rootItself,(the root folder itself)

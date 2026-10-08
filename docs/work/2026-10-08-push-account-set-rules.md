@@ -26,7 +26,7 @@
 | 录入人写固定的 `PEARNLY`（不再写 BIT9 —— 测试事务所的真人账号） | 真账单据 26 个录入人大多不在用户表，Express 照常打开 | `dbf_schema.PEARNLY_USERID` |
 
 服务端：部门不再要人选（`push/express/choices.py`），选过的照用；自动录入规则里设的部门在这份账套还没记过时照规则记下
-（`folder_intake/push.py`）。其余写入规则全在小助手，服务端载荷不变（新旧版本互相兼容：旧小助手照旧写法）。
+（`folder_intake/push.py`；同日改为只管该规则的票、不进账套记忆，见 [2026-10-08-folder-rule-scope](2026-10-08-folder-rule-scope.md)）。其余写入规则全在小助手，服务端载荷不变（新旧版本互相兼容：旧小助手照旧写法）。
 
 ## MR.ERP（少问人）
 

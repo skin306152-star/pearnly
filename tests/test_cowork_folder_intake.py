@@ -180,12 +180,13 @@ class OfflineCompanionRetry(unittest.TestCase):
         frappe = types.SimpleNamespace(db=db, ValidationError=Error, PermissionError=Error,
                                        AuthenticationError=Error, clear_messages=lambda: None)
 
-        def submit(history, connection, key, *args):
+        def submit(history, connection, key, *args, **kwargs):
             calls["keys"].append(key)
+            calls.setdefault("fixed", []).append(kwargs.get("fixed"))
             return {"status": status, "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
 
         application = types.SimpleNamespace(
-            choices_view=lambda *args: {"needed": []}, submit=submit,
+            choices_view=lambda *args, **kwargs: {"needed": []}, submit=submit,
             cancel_prepared=lambda name, revision: calls["cancel"].append(name),
             submission_failed=lambda history, reason: None)
         express = types.SimpleNamespace(confirm=lambda *args: calls["confirm"].append(args))
@@ -222,11 +223,38 @@ class OfflineCompanionRetry(unittest.TestCase):
         self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "sent")
         self.assertEqual((len(calls["confirm"]), len(calls2["confirm"]), calls["cancel"]), (1, 1, []))
 
+    def test_rule_defaults_go_with_this_push_only(self):
+        # 用户 2026-10-08：规则的「这一类都这样处理」当这张票的选择用，不写进账套记忆（这里也没有可写的入口）
+        push, rule, entry, calls = self._push()
+        rule.defaults_json = '{"payment": "cash", "item": "ask", "department": "HQ"}'
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=True)["status"], "sent")
+        self.assertEqual(calls["fixed"], [{"payment": "cash", "department": "HQ"}])
+
     def test_replayed_withdrawn_preparation_is_not_counted_as_sent(self):
         push, rule, entry, calls = self._push(status="cancelled")
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["status"], "retry")
         self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "failed")
         self.assertEqual(calls["confirm"], [])
+
+
+class RuleSafety(unittest.TestCase):
+    """规则文件夹：跨电脑网络共享重叠、小助手报的文件夹在不在（2026-10-08）。"""
+
+    def test_network_paths_overlap_but_local_drives_do_not(self):
+        a = contracts.share_path("\\\\Server\\Scans", "A")
+        self.assertEqual(a, "\\\\server\\scans\\a")
+        self.assertTrue(contracts.path_nested(a, contracts.share_path("\\\\server\\scans", "")))
+        self.assertFalse(contracts.path_nested(a, contracts.share_path("\\\\server\\scans", "B")))
+        self.assertEqual(contracts.share_path("", "A"), "")  # 本机盘：不比对
+        rows = contracts.roots([{"id": "R1", "label": "S:\\a", "share": "\\\\srv\\a"},
+                                {"id": "R2", "label": "C:\\b", "share": "C:\\b"}])
+        self.assertEqual([r["share"] for r in rows], ["\\\\srv\\a", ""])
+
+    def test_rule_health_keeps_only_known_states(self):
+        self.assertEqual(contracts.health({"R1": "ok", "R2": "folder_missing", "R3": "boom", 4: "ok"}),
+                         {"R1": "ok", "R2": "folder_missing"})
+        self.assertEqual(contracts.health(None), {})
+
 
 if __name__ == "__main__":
     unittest.main()

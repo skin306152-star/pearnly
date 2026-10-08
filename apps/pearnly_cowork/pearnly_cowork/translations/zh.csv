@@ -543,6 +543,7 @@ Folder,文件夹
 Folder and schedule,文件夹与时间
 Folder auto-intake is not turned on for this site.,本站没有开通文件夹自动录入。
 Folder auto-intake rules,自动录入规则
+Folder not available,文件夹不可用
 Folder results,结果
 Folder rule name,规则名称
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
@@ -1401,6 +1402,7 @@ This file is too large to send from this PC.,文件过大，无法从此电脑�
 This file record was not found.,文件记录不存在。
 This file type is not supported.,不支持此文件类型。
 "This file type is not supported. Use PDF, Excel or CSV.",不支持此文件类型，请使用 PDF、Excel 或 CSV。
+This folder overlaps the folder of rule «{0}».,与规则「{0}」的文件夹重叠
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This inventory account group cannot be chosen for this account set.,此账套不能选择该存货科目组。
 This invoice was already sent successfully,此发票已推送成功
@@ -1660,6 +1662,7 @@ cowork.folder.field.root,允许读取的根目录
 cowork.folder.field.time,运行时间（曼谷时间）
 cowork.folder.field.title,规则名称
 cowork.folder.folderHint,每个文件夹对应一条规则，仅支持 PDF 和图片文件。
+cowork.folder.folderMissing,文件夹不可用
 cowork.folder.guide.oneRule,一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 cowork.folder.guide.result,系统生成，别放单据
 cowork.folder.guide.resultRule,每张发票的结果表格放在 _Pearnly结果，第二天核对。
@@ -1687,6 +1690,7 @@ cowork.folder.no_number_prefix,无发票号_
 cowork.folder.off,已停用
 cowork.folder.on,启用中
 cowork.folder.overlap,已有启用中的规则使用此文件夹或其上级文件夹。
+cowork.folder.overlap_with,与规则「{0}」的文件夹重叠
 cowork.folder.owner_not_ready,规则负责人已无权使用此连接录入。
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 cowork.folder.rootItself,（根目录本身）

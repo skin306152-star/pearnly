@@ -117,5 +117,20 @@ class Choices(unittest.TestCase):
         self.assertEqual(C.norm_name("บมจ.บิ๊กซี ซูเปอร์เซ็นเตอร์"), C.norm_name("บิ๊กซี\xa0ซูเปอร์เซ็นเตอร์ จำกัด (มหาชน)"))
 
 
+class FolderRuleDefaults(unittest.TestCase):
+    """自动录入规则的默认值只管这条规则的票：当这张票的选择用、优先于账套记过的，不进账套记忆（用户 2026-10-08）。"""
+
+    def test_rule_values_win_for_this_document_only(self):
+        subject = C.supplier_subject("purchase", SUPPLIER, "BANGCHAK GREENNET CO.,LTD.")
+        remembered = {"payment": {subject: "credit"}}
+        plain = C.resolve(purchase(), direction="purchase", posting_kind="service", config=CONFIG,
+                          remembered=remembered, account_resolved=True)
+        ruled = C.resolve(purchase(), direction="purchase", posting_kind="service", config=CONFIG,
+                          remembered=remembered, account_resolved=True, fixed={"payment": "cash", "vat": "claim"})
+        self.assertEqual(plain["applied"].get("payment"), "credit")
+        self.assertEqual(ruled["applied"].get("payment"), "cash")
+        self.assertNotIn("payment", {item["kind"] for item in ruled["needed"]})
+
+
 if __name__ == "__main__":
     unittest.main()

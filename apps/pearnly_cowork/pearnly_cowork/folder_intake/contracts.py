@@ -19,6 +19,8 @@ _RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS.values())
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
 DIRECTIONS = ("purchase", "sales")
 POSTING_KINDS = ("service", "stock")
+# 规则可以预先定下的「这一类都这样处理」（与 push/express/choices.py 的选择项同名，对方档除外）
+KINDS = ("payment", "vat", "account", "item", "department")
 PAYMENT_VALUES = ("cash", "credit")
 VAT_VALUES = ("claim", "expense")
 ITEM_VALUES = ("__new__", "ask")
@@ -226,11 +228,41 @@ def roots(value: Any) -> List[Dict[str, Any]]:
                     clean.add(folder(item))
                 except ContractError:
                     continue
+            share = str(row.get("share") or "").strip()
             result.append({"id": root_id(row.get("id")), "label": text(row.get("label"), maximum=255),
-                           "folders": sorted(clean - {""})})
+                           "folders": sorted(clean - {""}),
+                           # 网络共享（含映射盘换算回的 \\服务器\共享…）：跨电脑比对文件夹是否重叠用；本机盘为空
+                           "share": share if share.startswith("\\\\") and len(share) <= 500 else ""})
         except ContractError:
             continue
     return result
+
+
+RULE_HEALTH = ("ok", "root_missing", "folder_missing")
+
+
+def health(value: Any) -> Dict[str, str]:
+    """小助手报的各规则文件夹在不在：{规则名: ok | root_missing（授权文件夹已移除 / 改名） | folder_missing（规则的
+    子文件夹没了）}。不合形状的项丢掉，不让一次同步失败。"""
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(name)[:140]: state for name, state in list(value.items())[:500]
+            if isinstance(name, str) and state in RULE_HEALTH}
+
+
+def share_path(share: str, folder: str) -> str:
+    """网络共享上的规则文件夹（小写、`\\` 分隔）；不是网络共享返回空串。"""
+    base = str(share or "").strip().rstrip("\\")
+    if not base.startswith("\\\\"):
+        return ""
+    return "\\".join(part for part in [base, folder or ""] if part).casefold()
+
+
+def path_nested(a: str, b: str) -> bool:
+    """两个完整路径是否相同或互相包含。"""
+    left, right = [p for p in a.split("\\") if p], [p for p in b.split("\\") if p]
+    shorter = min(len(left), len(right))
+    return bool(shorter) and left[:shorter] == right[:shorter]
 
 
 def workbook_name(invoice_no: Any, seller_tax: Any, fallback: str, no_number: str = "") -> str:

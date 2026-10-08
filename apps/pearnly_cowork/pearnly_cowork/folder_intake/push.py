@@ -4,8 +4,8 @@
 （`choices_view`），缺就弹框问、关掉弹框就不推、不留推送记录；都有了再「准备」（`submit`）并「确认发送」
 （Express 的确认入口，`companion/submission.py`）。这里照同一顺序：
 
-- 缺的项里规则设了「这一类以后都这样处理」的，用现有的「记住选择」记下（与会计在复核页选一次完全一样，
-  `push.choices.record`），这份账套以后同类的票都照它走；
+- 规则设了「这一类都这样处理」的项，推这条规则的票时直接当这张票的选择用（`fixed`），优先于账套里记过的，
+  **不写进账套记忆**（用户 2026-10-08：规则的默认值只管自己的票，不影响网页推送和同账套的其他规则）；
 - 仍缺的（典型是同税号有几个档）只在票上记原因（`push_state.record_failure`，网页列表照常显示「失败 + 选择」按钮），
   不建推送记录；
 - 人已经动过的票（改过、推过）不碰，交给人；
@@ -21,7 +21,6 @@ import frappe
 
 from pearnly_cowork.folder_intake import contracts, destinations
 from pearnly_cowork.history import push_state
-from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application import service as application
 
 HISTORY = "Cowork OCR History"
@@ -46,25 +45,13 @@ def push_one(entry, rule, history, attempt=0, final=True):
     if int(row.edit_count or 0) or row.last_push_status or row.last_push_record:
         return {"status": "human"}
     frappe.db.commit()  # choices_view 只看不记，结束时整笔回滚：先把前面的落掉
+    # 规则里定的「这一类都这样处理」只管这条规则自己的票：推送时当作这张票的选择用，优先于账套里记过的，
+    # 不写进账套记忆（用户 2026-10-08：以前记成整份账套的选择，网页推送和同账套的其他规则都会跟着变）。
+    defaults = json.loads(rule.defaults_json or "{}")
+    fixed = {kind: value for kind in contracts.KINDS if (value := contracts.default_value(defaults, kind))}
     try:
-        view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind)
-        defaults = json.loads(rule.defaults_json or "{}")
-        applied = False
-        # 部门不再「要人选」（push/express/choices.py）：规则里设了部门、这份账套又还没记过，照规则记下（与以前问到时
-        # 套用规则默认值同一个效果），否则规则里的部门就再也用不上了。
-        department = contracts.default_value(defaults, "department")
-        if department and not (choice_store.remembered(rule.connection, view.get("account_set")
-                                                       or rule.account_set_key).get("department") or {}).get("*"):
-            applied = choice_store.record(rule.connection, view.get("account_set") or rule.account_set_key,
-                                          "department", "*", department, "") or applied
-        for item in view.get("needed") or []:
-            value = contracts.default_value(defaults, item.get("kind"))
-            if value:
-                applied = choice_store.record(rule.connection, view.get("account_set") or rule.account_set_key,
-                                              item["kind"], item["subject"], value, item.get("label")) or applied
-        if applied:
-            frappe.db.commit()
-            view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind)
+        view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind,
+                                        fixed=fixed)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         # 与网页「提交」失败同一做法：原因记在票上（列表照常显示「失败」+ 原因），这份文件照样往下走、出表格。
         reason = str(error)[:300]
@@ -83,7 +70,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
-                                rule.account_set_key, None, None, rule.posting_kind)
+                                rule.account_set_key, None, None, rule.posting_kind, fixed=fixed)
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}

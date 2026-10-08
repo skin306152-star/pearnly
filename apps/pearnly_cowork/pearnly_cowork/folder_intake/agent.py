@@ -12,9 +12,11 @@ TTL = 7 * 86400
 STALE_SECONDS = 2 * 3600
 
 
-def remember(connection, *, roots, version):
+def remember(connection, *, roots, version, health=None):
+    """`health`：各规则的文件夹在不在（{规则名: ok | root_missing | folder_missing}，1.3.19 起的小助手报）。"""
     frappe.cache.set_value(KEY + connection, {"roots": roots, "version": str(version or "")[:40],
-                                              "at": now_datetime().isoformat()}, expires_in_sec=TTL)
+                                              "health": health or {}, "at": now_datetime().isoformat()},
+                           expires_in_sec=TTL)
 
 
 def read(connection):

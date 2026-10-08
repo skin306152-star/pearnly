@@ -144,12 +144,32 @@ def _routing(rule):
 
 
 def _no_overlap(connection, root, folder, current):
-    """同一台小助手上启用的规则，文件夹不能相同或互相包含：否则同一份文件会按两套口径各推一次。"""
+    """启用的规则，文件夹不能相同或互相包含：否则同一份文件会按两套口径各推一次（推进两个账套）。
+
+    同一台电脑：小助手授权时就不许两个授权文件夹相同或互相包含（不分成员，`companion/folder_store.py`），
+    这里再管同一个授权文件夹之内。不同电脑：本机盘（C:\…）是各自的文件夹，不算重叠；网络共享（含映射盘换算回的
+    网络路径）可能是同一个文件夹 —— 同一工作空间里其他电脑的规则按网络路径比对（2026-10-08）。同一个共享在一台电脑
+    映射成盘符、另一台用网络路径但小助手读不到映射的（非持久映射），认不出来。"""
     rows = frappe.get_all(RULE, filters={"connection": connection, "enabled": 1, "root_id": root},
-                          fields=["name", "folder"], ignore_permissions=True)
+                          fields=["name", "title", "folder"], ignore_permissions=True)
     for row in rows:
         if row.name != current and contracts.nested(row.folder or "", folder):
-            frappe.throw(_("cowork.folder.overlap"))
+            frappe.throw(_("cowork.folder.overlap_with").format(row.title))
+    mine = contracts.share_path(_share(connection, root), folder)
+    if not mine:
+        return
+    workspace = frappe.db.get_value(CONNECTION, connection, "workspace")
+    others = frappe.get_all(RULE, filters={"workspace": workspace, "enabled": 1, "connection": ["!=", connection]},
+                            fields=["name", "title", "connection", "root_id", "folder"], ignore_permissions=True)
+    for row in others:
+        theirs = contracts.share_path(_share(row.connection, row.root_id), row.folder or "")
+        if row.name != current and theirs and contracts.path_nested(mine, theirs):
+            frappe.throw(_("cowork.folder.overlap_with").format(row.title))
+
+
+def _share(connection, root):
+    return next((row.get("share") or "" for row in agent.read(connection).get("roots") or []
+                 if row.get("id") == root), "")
 
 
 def set_enabled(name, enabled):
@@ -199,7 +219,9 @@ def listing():
         for name in frappe.get_all(RULE, filters={"connection": doc.name}, pluck="name",
                                    order_by="creation asc", ignore_permissions=True):
             row = project(read(RULE, name))
-            row.update(connection_label=usable[-1]["label"], agent_fresh=fresh, root_label=labels.get(row["root_id"], ""))
+            row.update(connection_label=usable[-1]["label"], agent_fresh=fresh, root_label=labels.get(row["root_id"], ""),
+                       # 小助手报这条规则的文件夹不在了（授权移除 / 改名 / 子文件夹删了）：列表显示「文件夹不可用」
+                       folder_state=(state.get("health") or {}).get(name) if fresh else None)
             rows.append(row)
     return {"rules": rows, "connections": usable}
 

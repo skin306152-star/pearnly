@@ -543,6 +543,7 @@ Folder,フォルダー
 Folder and schedule,フォルダーとスケジュール
 Folder auto-intake is not turned on for this site.,このサイトではフォルダー自動取込が有効になっていません。
 Folder auto-intake rules,フォルダー自動取込ルール
+Folder not available,フォルダーが見つかりません
 Folder results,結果
 Folder rule name,ルール名
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
@@ -1401,6 +1402,7 @@ This file is too large to send from this PC.,このファイルは大きすぎ�
 This file record was not found.,このファイル記録が見つかりません。
 This file type is not supported.,このファイル形式には対応していません。
 "This file type is not supported. Use PDF, Excel or CSV.",このファイル形式は使えません。PDF、Excel、CSV を使ってください。
+This folder overlaps the folder of rule «{0}».,ルール「{0}」のフォルダーと重なっています
 This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
 This inventory account group cannot be chosen for this account set.,この会計データではこの在庫勘定グループを選択できません。
 This invoice was already sent successfully,この伝票は送信済みです
@@ -1660,6 +1662,7 @@ cowork.folder.field.root,許可されたルートフォルダー
 cowork.folder.field.time,時刻（バンコク）
 cowork.folder.field.title,ルール名
 cowork.folder.folderHint,1 フォルダーに 1 ルール。PDF と画像のみ。
+cowork.folder.folderMissing,フォルダーが見つかりません
 cowork.folder.guide.oneRule,1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 cowork.folder.guide.result,システムが作成。書類を置かないでください
 cowork.folder.guide.resultRule,各請求書の結果表は _Pearnly结果 に保存され、翌日確認できます。
@@ -1687,6 +1690,7 @@ cowork.folder.no_number_prefix,番号なし_
 cowork.folder.off,停止中
 cowork.folder.on,有効
 cowork.folder.overlap,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。
+cowork.folder.overlap_with,ルール「{0}」のフォルダーと重なっています
 cowork.folder.owner_not_ready,ルール担当者はこの接続で登録できなくなっています。
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
 cowork.folder.rootItself,（ルートフォルダー自体）

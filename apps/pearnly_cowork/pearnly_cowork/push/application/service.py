@@ -66,7 +66,7 @@ def _document_block(doc):
 
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-            *, confirm_duplicate=False):
+            *, confirm_duplicate=False, fixed=None):
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -141,7 +141,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     selected['config'].update(deepcopy(preparation['reported_config']))
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          selected['config'], preparation)
+                          selected['config'], preparation, fixed)
     if decision["needed"]:
         # 拿不准的项（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）还没人选：不发小助手，停在这里等人选一次。
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
@@ -203,7 +203,7 @@ def _require_matching_account(loaded, target, direction, fields, invoice_date):
         frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
 
 
-def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation):
+def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
     票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。"""
@@ -212,7 +212,7 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     remembered = choice_store.remembered(connection, account_set)
     kind = resolve_posting_kind(posting_kind, flat)
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
-                                    remembered=remembered, account_resolved=source == SRC_CATEGORY)
+                                    remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed)
     applied = decision["applied"]
     remember = applied.pop("remember_payment", None)
     if remember:
@@ -223,7 +223,7 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     return decision
 
 
-def choices_view(history, connection, account_set_key=None, posting_kind=None):
+def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None):
     """复核页提交前 / 退回后要人选的项与可选值（与准备同一套判定，不建推送记录）。"""
     scope.require("intake")
     doc = storage.read(history)
@@ -233,7 +233,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None):
         return {"needed": [], "options": {}}
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          config, preparation)
+                          config, preparation, fixed)
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
     kinds = {item["kind"] for item in decision["needed"]}
     options = {}
@@ -421,7 +421,7 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False):
+           *, confirm_duplicate=False, fixed=None):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
@@ -429,7 +429,8 @@ def submit(history, connection, request_key, expected_history_version, expected_
     """
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
-            account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate)
+            account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate,
+            fixed=fixed)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":

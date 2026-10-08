@@ -543,6 +543,7 @@ Folder,โฟลเดอร์
 Folder and schedule,โฟลเดอร์และเวลา
 Folder auto-intake is not turned on for this site.,ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์
 Folder auto-intake rules,กฎบันทึกอัตโนมัติจากโฟลเดอร์
+Folder not available,ไม่พบโฟลเดอร์
 Folder results,ผลลัพธ์
 Folder rule name,ชื่อกฎ
 Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
@@ -1401,6 +1402,7 @@ This file is too large to send from this PC.,ไฟล์มีขนาดใ�
 This file record was not found.,ไม่พบรายการไฟล์นี้
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
 "This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
+This folder overlaps the folder of rule «{0}».,โฟลเดอร์ซ้อนกับกฎ «{0}»
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
@@ -1660,6 +1662,7 @@ cowork.folder.field.root,โฟลเดอร์หลักที่อนุ�
 cowork.folder.field.time,เวลาทำงาน (เวลากรุงเทพฯ)
 cowork.folder.field.title,ชื่อกฎ
 cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ
+cowork.folder.folderMissing,ไม่พบโฟลเดอร์
 cowork.folder.guide.oneRule,หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 cowork.folder.guide.result,ระบบสร้างเอง ห้ามวางเอกสาร
 cowork.folder.guide.resultRule,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป
@@ -1687,6 +1690,7 @@ cowork.folder.no_number_prefix,ไม่มีเลขที่_
 cowork.folder.off,ปิดใช้งานแล้ว
 cowork.folder.on,เปิดใช้งานอยู่
 cowork.folder.overlap,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว
+cowork.folder.overlap_with,โฟลเดอร์ซ้อนกับกฎ «{0}»
 cowork.folder.owner_not_ready,ผู้รับผิดชอบกฎไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 cowork.folder.rootItself,(ตัวโฟลเดอร์หลัก)

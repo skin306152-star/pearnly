@@ -1450,7 +1450,6 @@ One of the default choices is not valid for this account set.	有一项默认处
 This account set is not in the connection's list. Reload the list in New Intake.	此账套不在该连接的账套列表中，请在新建录入中重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่	この帳簿は一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	cowork.folder.stock_group_needed
 A rule cannot move to another PC. Turn it off and create a new one.	规则无法转移至其他电脑，请停用后新建规则。	ไม่สามารถย้ายกฎไปยังเครื่องอื่นได้ กรุณาปิดใช้กฎนี้แล้วสร้างกฎใหม่	ルールは別の PC に移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
-Another active rule already uses this folder or a folder containing it.	已有启用中的规则使用此文件夹或其上级文件夹。	มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว	有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。	cowork.folder.overlap
 This PC already has the maximum number of folder rules.	此电脑的规则数量已达上限。	เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว	この PC のルール数が上限に達しています。	cowork.folder.too_many
 This rule is turned off.	此规则已停用。	กฎนี้ปิดใช้งานอยู่	このルールは停止中です。	cowork.folder.rule_disabled
 This rule no longer exists for this PC.	此电脑上不存在该规则。	ไม่พบกฎนี้ในเครื่องนี้	この PC にこのルールはありません。	cowork.folder.rule_missing
@@ -1670,3 +1669,5 @@ Could not read the MR.ERP master data.	无法读取 MR.ERP 主档。	ไม่�
 This value cannot be chosen for this account set.	此账套不能选择该值。	ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้	この帳簿ではこの値を選択できません。	connection.mrerp_default_invalid
 MR.ERP Master Defaults per Account Set	各账套的 MR.ERP 默认值	ค่าเริ่มต้น MR.ERP ของแต่ละชุดบัญชี	会計データ別 MR.ERP 既定値
 MR.ERP Master Options Seen	已读取的 MR.ERP 主档	ข้อมูลหลัก MR.ERP ที่พบ	取得済みの MR.ERP マスター
+Folder not available	文件夹不可用	ไม่พบโฟลเดอร์	フォルダーが見つかりません	cowork.folder.folderMissing
+This folder overlaps the folder of rule «{0}».	与规则「{0}」的文件夹重叠	โฟลเดอร์ซ้อนกับกฎ «{0}»	ルール「{0}」のフォルダーと重なっています	cowork.folder.overlap_with

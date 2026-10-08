@@ -101,13 +101,15 @@ def _expense_receipt(fields) -> bool:
 
 def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[str],
             config: Mapping[str, Any], remembered: Mapping[str, Mapping[str, str]],
-            account_resolved: bool = False) -> Dict[str, Any]:
+            account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
     reported_accounts / reported_departments`）；`remembered`：`{kind: {subject: value}}`，这份账套里记过的；
     `account_resolved`：费用科目已由科目映射（分类 → 科目）定下，不用再问。
     `needed` 每条：`{kind, subject, label, options?, current?}`，页面据此弹一次框。
+    `fixed`：`{kind: value}`，自动录入规则给这条规则定的值（付款 / 抵进项 / 费用科目 / 存货 / 部门），只对这张票生效、
+    优先于账套里记过的，不写进账套记忆（用户 2026-10-08：规则的默认值只管自己的票）。对方档不在此列。
     """
     fields = fields if isinstance(fields, Mapping) else {}
     direction = "sales" if direction == "sales" else "purchase"
@@ -116,6 +118,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     needed: List[Dict[str, Any]] = []
 
     def chosen(kind, subject):
+        if kind != "party" and str((fixed or {}).get(kind) or "").strip():
+            return str(fixed[kind]).strip()
         return str((remembered.get(kind) or {}).get(subject) or "").strip()
 
     # ── 对方档 ──
