@@ -62,7 +62,7 @@ def _gui_tray_with_fake_qt(monkeypatch):
         setattr(qtgui, name, Dummy)
     for name in ("QApplication", "QMenu", "QMessageBox", "QSystemTrayIcon"):
         setattr(qtwidgets, name, Dummy)
-    # 托盘还会带进其它窗口模块（例如文件夹自动录入的设置窗）：没列出的 Qt 名字一律给个空壳。
+    # 托盘还会带进其它窗口模块：没列出的 Qt 名字一律给个空壳。
     for module in (qtcore, qtgui, qtwidgets):
         module.__getattr__ = lambda name: Dummy
     sys.modules.pop("src.companion.gui_folders", None)

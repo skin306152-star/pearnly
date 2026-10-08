@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -5,31 +6,112 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from src.companion.gui_profiles import (
+from src.companion import gui_profiles  # noqa: E402
+from src.companion.gui_profiles import (  # noqa: E402
     ProfileManagerDialog,
     masked_token,
-    profile_item_text,
     profile_status_key,
-)  # noqa: E402
-from src.companion import gui_profiles  # noqa: E402
+)
+from src.companion.profile_store import ProfileStore, ProfileStoreError  # noqa: E402
 
 
-def test_profile_item_shows_only_the_pearnly_account_and_state():
-    # 账套 / 年度由网页第一步选择（2026-09-26）：列表不显示公司、账套、端点、密钥。
-    active = SimpleNamespace(
-        account_company="Acme Co.",
+class _Protector:
+    prefix = "test:"
+
+    def protect(self, value: str) -> str:
+        return self.prefix + base64.b64encode(value.encode()).decode()
+
+    def unprotect(self, value: str) -> str:
+        if not value.startswith(self.prefix):
+            raise ProfileStoreError("bad test ciphertext")
+        return base64.b64decode(value[len(self.prefix):]).decode()
+
+
+def _store_with_one_connection(tmp_path, monkeypatch):
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    cfg = store.new_runtime_config()
+    cfg.update(
+        backend_url="https://testcowork.pearnly.com",
+        bearer_token="exp_endpoint-1_secret",
         account_dir=r"S:\\EXP68\\ACME",
-        account_set="",
-        paused=False,
-        endpoint_name="Cowork Express",
+        account_set=r"S:\\EXP68\\ACME",
+        account_company="Acme Co.",
         pearnly_account="owner@example.com",
+        paired=True,
+        ui_lang="zh",
     )
-    paused = SimpleNamespace(**{**vars(active), "paused": True})
+    store.save_profile(cfg)
+    return store
 
-    assert profile_item_text(active, "zh", ("idle", ""), "exp_secret-1234") == (
-        "owner@example.com · Pearnly 已连接"
-    )
-    assert "พักการใช้งาน" in profile_item_text(paused, "th", ("idle", ""))
+
+def _assert_free_window(window):
+    # 普通窗口：最小化、最大化、关闭都有，能拖边框调大小（用户 2026-10-08）
+    from PySide6.QtCore import Qt
+
+    flags = window.windowFlags()
+    for hint in (Qt.WindowMinimizeButtonHint, Qt.WindowMaximizeButtonHint, Qt.WindowCloseButtonHint):
+        assert flags & hint
+    assert window.isSizeGripEnabled()
+    assert window.minimumWidth() < window.maximumWidth()
+
+
+def _main_window(store, monkeypatch, states=None):
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(gui_profiles.autostart, "is_enabled", lambda: True)
+    dialog = ProfileManagerDialog(lang="zh", profile_store=store, profile_states=states or {})
+    dialog._live_refresh.stop()  # 测试里不去读本机真实配置
+    return dialog
+
+
+def test_main_window_shows_each_connection_with_status_and_its_folders(tmp_path, monkeypatch):
+    # 2026-10-08：连接、网页可选的文件夹、开机启动在同一个窗口；卡片标题只写 Pearnly 账号（不显示账套）。
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    dialog = _main_window(store, monkeypatch, {store.profiles[0].profile_id: ("idle", "")})
+
+    [card] = dialog._cards.values()
+    assert card["box"].title() == "owner@example.com"
+    assert card["status"].text() == "Pearnly 已连接"
+    assert dialog.empty.isHidden()
+    assert dialog.autostart.isChecked()
+    assert dialog.lang_btn.text() == "中文 / ไทย"
+    _assert_free_window(dialog)
+
+    from src.companion.gui_folders import FolderRootsBox
+
+    [folders] = card["box"].findChildren(FolderRootsBox)
+    assert folders.list.isHidden() and folders.remove_btn.isHidden()  # 没有文件夹不摆空框
+    assert folders._save([str(tmp_path / "invoices")])  # 添加当场保存，不再有「保存」按钮
+    assert folders.paths() == [str(tmp_path / "invoices")]
+    assert not folders.list.isHidden()
+
+
+def test_folder_overlap_is_refused_and_nothing_is_saved(tmp_path, monkeypatch):
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    dialog = _main_window(store, monkeypatch)
+    from src.companion.gui_folders import FolderRootsBox
+
+    [folders] = next(iter(dialog._cards.values()))["box"].findChildren(FolderRootsBox)
+    warnings = []
+    monkeypatch.setattr(gui_profiles.QMessageBox, "warning", lambda *args: warnings.append(args))
+    from src.companion import gui_folders
+
+    monkeypatch.setattr(gui_folders.QMessageBox, "warning", lambda *args: warnings.append(args))
+    root = tmp_path / "invoices"
+    assert not folders._save([str(root), str(root / "2026")])
+    assert warnings and folders.paths() == []
+
+
+def test_main_window_without_connections_says_how_to_add_one(tmp_path, monkeypatch):
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    dialog = _main_window(store, monkeypatch)
+
+    assert dialog._cards == {}
+    assert not dialog.empty.isHidden()
+    assert "添加连接" in dialog.empty.text()
 
 
 def test_masked_token_never_exposes_the_middle():
@@ -63,20 +145,25 @@ def test_successful_profile_change_notifies_runtime_and_keeps_close_fallback():
     assert calls == ["reload"]
 
 
-def test_open_manager_refreshes_persisted_identity_and_live_state(monkeypatch):
+def test_open_window_rebuilds_cards_only_when_connections_change(monkeypatch):
     old_store = SimpleNamespace(path=Path("profiles.json"), profiles=("old",))
     new_store = SimpleNamespace(path=old_store.path, profiles=("new",))
     dialog = ProfileManagerDialog.__new__(ProfileManagerDialog)
     dialog._store = old_store
     dialog._profile_states = {}
     dialog._profile_state_provider = lambda: {"profile-a": ("idle", "")}
-    dialog._selected_profile_id = lambda: "profile-a"
-    refreshed = []
-    dialog._refresh = refreshed.append
+    calls = []
+    dialog._refresh = lambda: calls.append("rebuild")
+    dialog._paint_states = lambda: calls.append("states")
     monkeypatch.setattr(gui_profiles.ProfileStore, "load", lambda _path: new_store)
 
     dialog._refresh_runtime_snapshot()
 
     assert dialog._store is new_store
     assert dialog._profile_states == {"profile-a": ("idle", "")}
-    assert refreshed == ["profile-a"]
+    assert calls == ["rebuild"]
+
+    # 只是状态变了：只刷状态行，不重建卡片（正在点的文件夹 / 菜单不会被打断）
+    dialog._profile_state_provider = lambda: {"profile-a": ("working", "INV-1")}
+    dialog._refresh_runtime_snapshot()
+    assert calls == ["rebuild", "states"]

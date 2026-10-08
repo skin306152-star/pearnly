@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """系统托盘常驻(PySide6)· 后台线程跑 DBF 直写 poll loop,托盘显示连接/活动状态。
 
-主线程 = Qt 事件循环 + 托盘图标(绿空闲/黄工作/红错误/灰离线)+ 右键菜单(状态/打开日志/
-重新配对/退出);后台 QThread = QueueClient poll → _handle_dbf_task 直写 → 周期心跳 +
+主线程 = Qt 事件循环 + 托盘图标(绿空闲/黄工作/红错误/灰离线)+ 右键菜单(状态/打开小助手/
+退出;左键单击也打开小助手主窗口);后台 QThread = QueueClient poll → _handle_dbf_task 直写 → 周期心跳 +
 夜间 PACK tick(复用 main 的核心,不重复直写逻辑)。worker 出状态/离线通过信号回主线程。
 """
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -20,7 +19,6 @@ from . import watchdog
 from .config import CompanionConfig
 from .auto_update import AutoUpdate
 from .folder_worker import FolderIntake
-from .gui_folders import FolderRootsDialog
 from .gui_tray_workers import (
     PollWorker,
     UpdateWorker as _UpdateWorker,
@@ -143,9 +141,7 @@ class TrayApp(QObject):
         self.tray.setToolTip(t("tray_tooltip", self.lang))
         self._status_action = None
         self._update_action = None
-        self._settings_action = None
-        self._logs_action = None
-        self._folders_action = None
+        self._open_action = None
         self._quit_action = None
         self._profile_states: dict[str, tuple[str, object]] = {}
         self._last_keys: dict[str, str] = {}
@@ -163,6 +159,7 @@ class TrayApp(QObject):
         self._quitting = False
         self.worker_stopped.connect(self._on_worker_finished)
         self._build_menu()
+        self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
         activity("log_started", lang=self.lang)
         self._heal = watchdog.HealBackoff()  # 自愈退避:防目标永久不可达时无限重启空转
@@ -200,16 +197,8 @@ class TrayApp(QObject):
         self._update_action.setVisible(False)
         self._update_action.triggered.connect(self._do_update)
         menu.addSeparator()
-        # 「设置 / 重新配对」单一入口(旧版「打开设置」「重新配对」两项开的是同一个配对窗,冗余)。
-        self._settings_action = menu.addAction(
-            t("tray_open_settings", self.lang), self._repair
-        )
-        self._folders_action = menu.addAction(
-            t("tray_folders", self.lang), self._open_folders
-        )
-        self._logs_action = menu.addAction(
-            t("tray_open_logs", self.lang), self._open_logs
-        )
+        # 只留一个入口：连接、网页可选的文件夹、开机启动、日志都在主窗口（2026-10-08）。
+        self._open_action = menu.addAction(t("tray_open", self.lang), self._repair)
         menu.addSeparator()
         self._quit_action = menu.addAction(t("tray_quit", self.lang), self._quit)
         self.tray.setContextMenu(menu)
@@ -219,12 +208,8 @@ class TrayApp(QObject):
         self._retranslate()
 
     def _retranslate(self) -> None:
-        if self._settings_action:
-            self._settings_action.setText(t("tray_open_settings", self.lang))
-        if self._logs_action:
-            self._logs_action.setText(t("tray_open_logs", self.lang))
-        if self._folders_action:
-            self._folders_action.setText(t("tray_folders", self.lang))
+        if self._open_action:
+            self._open_action.setText(t("tray_open", self.lang))
         if self._quit_action:
             self._quit_action.setText(t("tray_quit", self.lang))
         if self._update_action and self._pending_update:
@@ -434,15 +419,13 @@ class TrayApp(QObject):
             )
         self._last_keys[profile_id] = key
 
-    def _open_logs(self) -> None:
-        from .config import LOG_DIR
-
-        try:
-            os.startfile(str(LOG_DIR))
-        except Exception:
-            log.exception("打开日志目录失败")
+    def _on_tray_activated(self, reason) -> None:
+        """左键单击 / 双击托盘图标 = 打开主窗口（右键仍是菜单）。"""
+        if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
+            self._repair()
 
     def _repair(self) -> None:
+        """打开小助手主窗口（进程内唯一，已开着就提到最前）。"""
         from .gui_profiles import open_profile_manager
 
         live = {"profiles": False, "pending": False}
@@ -461,6 +444,7 @@ class TrayApp(QObject):
             profile_state_provider=lambda: dict(self._profile_states),
             on_language_changed=language_changed,
             on_profiles_changed=profiles_changed,
+            on_folders_changed=self._start_folders,
         )
         if changed and (not live["profiles"] or live["pending"]):
             self._reload_profiles()
@@ -484,12 +468,10 @@ class TrayApp(QObject):
         if getattr(self, "_folders", None) is not None:
             self._folders.start()
 
-    def _open_folders(self) -> None:
-        dialog = FolderRootsDialog(
-            [cfg for cfg in self.configs if not cfg.paused], lang=self.lang,
-            on_saved=self._folders.start,
-        )
-        dialog.exec()
+    def _start_folders(self) -> None:
+        """主窗口里添加了文件夹：文件夹自动录入线程没在跑就起来（已在跑不重复）。"""
+        if getattr(self, "_folders", None) is not None:
+            self._folders.start()
 
     def _restart_worker(self) -> None:
         """协作式停旧 worker；finished 后才用最新 configs 启动唯一新 worker。"""

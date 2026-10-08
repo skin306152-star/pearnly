@@ -1,26 +1,37 @@
-"""Express Profile management for one shared Companion process."""
+"""小助手主窗口：一个进程内所有 Express 连接（及各自网页可选的文件夹）的管理。"""
 
 from __future__ import annotations
 
 from typing import Callable, Mapping, Optional
 
+import os
+
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QDialog,
+    QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
+    QMenu,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
+from . import autostart
+from .folder_store import connection_key
+from .gui_folders import FolderRootsBox
 from .gui_pairing import open_pairing
 from .i18n import default_lang, normalize, persist_ui_lang, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore
+from .version import VERSION
 
 log = get_logger(__name__)
 
@@ -47,19 +58,18 @@ def profile_status_key(record: ProfileRecord, state: Optional[tuple[str, str]]) 
     return "profiles_offline"
 
 
-def profile_item_text(
-    record: ProfileRecord,
-    lang: str,
-    state: Optional[tuple[str, str]] = None,
-    token: str = "",
-) -> str:
-    # 只显示连接人的 Pearnly 账号 + 状态；账套 / 年度由网页第一步选择，这里不显示（用户 2026-09-26）。
-    label = t(profile_status_key(record, state), lang)
-    owner = str(getattr(record, "pearnly_account", "") or "").strip() or "-"
-    return f"{owner} · {label}"
+_STATUS_COLORS = {
+    "profiles_online": "#27ae60",
+    "profiles_processing": "#b7950b",
+    "profiles_attention": "#d35400",
+    "profiles_offline": "#c0392b",
+}
 
 
 class ProfileManagerDialog(QDialog):
+    """小助手主窗口（2026-10-08）：每条连接一张卡片（状态、修改 / 暂停 / 移除、网页可选的文件夹），
+    下面是添加连接与开机启动；语言切换只在这里一处。托盘左键或「打开小助手」打开。"""
+
     def __init__(
         self,
         parent=None,
@@ -72,6 +82,7 @@ class ProfileManagerDialog(QDialog):
         ] = None,
         on_language_changed: Optional[Callable[[str], None]] = None,
         on_profiles_changed: Optional[Callable[[], None]] = None,
+        on_folders_changed: Optional[Callable[[], None]] = None,
     ) -> None:
         super().__init__(parent)
         self._store = profile_store or ProfileStore.load()
@@ -81,10 +92,18 @@ class ProfileManagerDialog(QDialog):
         self.changed = False
         self._on_language_changed = on_language_changed
         self._on_profiles_changed = on_profiles_changed
+        self._on_folders_changed = on_folders_changed
         self._profile_states = dict(profile_states or {})
         self._profile_state_provider = profile_state_provider
+        self._cards: dict[str, dict] = {}
         self.setWindowTitle(t("profiles_title", self.lang))
-        self.setMinimumSize(520, 340)
+        # 普通窗口：可最小化、最大化、关闭，拖边框随意调大小（用户 2026-10-08）。
+        self.setWindowFlags(
+            Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint
+        )
+        self.setSizeGripEnabled(True)
+        self.setMinimumSize(420, 300)
+        self.resize(560, 420)
         self._build()
         self._refresh()
         self._live_refresh = QTimer(self)
@@ -96,50 +115,54 @@ class ProfileManagerDialog(QDialog):
         layout = QVBoxLayout(self)
         header = QHBoxLayout()
         header.addStretch(1)
-        self.lang_lbl = QLabel(t("profiles_lang", self.lang))
-        header.addWidget(self.lang_lbl)
         self.lang_btn = QPushButton(t("lang_toggle", self.lang))
+        self.lang_btn.setFlat(True)
         self.lang_btn.clicked.connect(self._toggle_lang)
         header.addWidget(self.lang_btn)
         layout.addLayout(header)
 
-        self.list = QListWidget()
-        self.list.currentItemChanged.connect(self._selection_changed)
-        self.list.itemDoubleClicked.connect(lambda _item: self._edit())
-        layout.addWidget(self.list, 1)
+        self.empty = QLabel()
+        self.empty.setWordWrap(True)
+        layout.addWidget(self.empty)
+        self.cards_host = QWidget()
+        self.cards = QVBoxLayout(self.cards_host)
+        self.cards.setContentsMargins(0, 0, 0, 0)
+        self.cards.addStretch(1)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setWidget(self.cards_host)
+        layout.addWidget(scroll, 1)
 
-        buttons = QHBoxLayout()
+        actions = QHBoxLayout()
         self.add_btn = QPushButton(t("profiles_add", self.lang))
-        self.edit_btn = QPushButton(t("profiles_edit", self.lang))
-        self.pause_btn = QPushButton(t("profiles_pause", self.lang))
-        self.remove_btn = QPushButton(t("profiles_remove", self.lang))
         self.add_btn.clicked.connect(self._add)
-        self.edit_btn.clicked.connect(self._edit)
-        self.pause_btn.clicked.connect(self._toggle_paused)
-        self.remove_btn.clicked.connect(self._remove)
-        for button in (
-            self.add_btn,
-            self.edit_btn,
-            self.pause_btn,
-            self.remove_btn,
-        ):
-            buttons.addWidget(button)
-        buttons.addStretch(1)
-        layout.addLayout(buttons)
+        actions.addWidget(self.add_btn)
+        actions.addStretch(1)
+        self.autostart = QCheckBox(t("chk_autostart", self.lang))
+        self.autostart.setChecked(self._autostart_enabled())
+        self.autostart.toggled.connect(self._toggle_autostart)
+        actions.addWidget(self.autostart)
+        layout.addLayout(actions)
+
+        footer = QHBoxLayout()
+        self.ver_lbl = QLabel("v" + VERSION)
+        self.ver_lbl.setStyleSheet("color:#999")
+        footer.addWidget(self.ver_lbl)
+        footer.addStretch(1)
+        self.logs_btn = QPushButton(t("tray_open_logs", self.lang))
+        self.logs_btn.setFlat(True)
+        self.logs_btn.clicked.connect(self._open_logs)
+        footer.addWidget(self.logs_btn)
+        layout.addLayout(footer)
 
     def _retranslate(self) -> None:
         self.setWindowTitle(t("profiles_title", self.lang))
-        self.lang_lbl.setText(t("profiles_lang", self.lang))
         self.lang_btn.setText(t("lang_toggle", self.lang))
         self.add_btn.setText(t("profiles_add", self.lang))
-        self.edit_btn.setText(t("profiles_edit", self.lang))
-        self.pause_btn.setText(t("profiles_pause", self.lang))
-        self.remove_btn.setText(t("profiles_remove", self.lang))
-        self._refresh(self._selected_profile_id())
-
-    def _selected_profile_id(self) -> Optional[str]:
-        item = self.list.currentItem()
-        return item.data(Qt.UserRole) if item is not None else None
+        self.autostart.setText(t("chk_autostart", self.lang))
+        self.logs_btn.setText(t("tray_open_logs", self.lang))
+        self._refresh()
 
     def _toggle_lang(self) -> None:
         selected = "zh" if self.lang == "th" else "th"
@@ -164,20 +187,40 @@ class ProfileManagerDialog(QDialog):
         if self._on_language_changed is not None:
             self._on_language_changed(self.lang)
 
-    def _selected_record(self) -> Optional[ProfileRecord]:
-        item = self.list.currentItem()
-        profile_id = item.data(Qt.UserRole) if item is not None else None
+    def _autostart_enabled(self) -> bool:
+        try:
+            return autostart.is_enabled()
+        except Exception:  # 非 Windows（开发机）读不到注册表：按已存设置显示
+            return bool(self._store.global_settings.autostart)
+
+    def _toggle_autostart(self, checked: bool) -> None:
+        try:
+            autostart.enable() if checked else autostart.disable()
+            cfg = self._store.new_runtime_config()
+            cfg.update(autostart=bool(checked))
+            self._store.save_profile(cfg)
+        except Exception as exc:
+            self.autostart.blockSignals(True)
+            self.autostart.setChecked(not checked)
+            self.autostart.blockSignals(False)
+            self._show_error(exc)
+
+    def _open_logs(self) -> None:
+        from .config import LOG_DIR
+
+        try:
+            os.startfile(str(LOG_DIR))
+        except Exception:
+            log.exception("打开日志目录失败")
+
+    def _record(self, profile_id: str) -> Optional[ProfileRecord]:
         return next(
-            (
-                record
-                for record in self._store.profiles
-                if record.profile_id == profile_id
-            ),
+            (record for record in self._store.profiles if record.profile_id == profile_id),
             None,
         )
 
     def _refresh_runtime_snapshot(self) -> None:
-        """Keep the open manager aligned with worker state and persisted identity."""
+        """Keep the open window aligned with worker state and persisted identity."""
         try:
             store = ProfileStore.load(self._store.path)
             states = (
@@ -190,41 +233,61 @@ class ProfileManagerDialog(QDialog):
             return
         if store.profiles == self._store.profiles and states == self._profile_states:
             return
-        selected = self._selected_profile_id()
+        rebuild = store.profiles != self._store.profiles
         self._store = store
         self._profile_states = states
-        self._refresh(selected)
+        if rebuild:
+            self._refresh()
+        else:
+            self._paint_states()
 
-    def _refresh(self, select_id: Optional[str] = None) -> None:
-        self.list.clear()
-        selected_row = -1
-        for row, record in enumerate(self._store.profiles):
-            runtime = self._store.runtime_config(record.profile_id)
-            item = QListWidgetItem(
-                profile_item_text(
-                    record,
-                    self.lang,
-                    self._profile_states.get(record.profile_id),
-                    runtime.bearer_token,
-                )
-            )
-            item.setData(Qt.UserRole, record.profile_id)
-            self.list.addItem(item)
-            if record.profile_id == select_id:
-                selected_row = row
-        if self.list.count():
-            self.list.setCurrentRow(selected_row if selected_row >= 0 else 0)
-        self._selection_changed()
+    def _refresh(self) -> None:
+        """按已存连接重建卡片（只在连接增删改、换语言时；状态变化只刷状态行）。"""
+        for card in self._cards.values():
+            card["box"].setParent(None)
+            card["box"].deleteLater()
+        self._cards.clear()
+        for record in self._store.profiles:
+            self._cards[record.profile_id] = self._build_card(record)
+            self.cards.insertWidget(self.cards.count() - 1, self._cards[record.profile_id]["box"])
+        self.empty.setText(t("profiles_empty", self.lang))
+        self.empty.setVisible(not self._cards)
+        self._paint_states()
 
-    def _selection_changed(self, *_args) -> None:
-        record = self._selected_record()
-        enabled = record is not None
-        self.edit_btn.setEnabled(enabled)
-        self.pause_btn.setEnabled(enabled)
-        self.remove_btn.setEnabled(enabled)
-        if record is not None:
-            key = "profiles_resume" if record.paused else "profiles_pause"
-            self.pause_btn.setText(t(key, self.lang))
+    def _build_card(self, record: ProfileRecord) -> dict:
+        box = QGroupBox(str(getattr(record, "pearnly_account", "") or "").strip() or "-")
+        inner = QVBoxLayout(box)
+        top = QHBoxLayout()
+        status = QLabel()
+        top.addWidget(status)
+        top.addStretch(1)
+        more = QToolButton()
+        more.setText("⋯")
+        more.setPopupMode(QToolButton.InstantPopup)
+        menu = QMenu(more)
+        menu.addAction(t("profiles_edit", self.lang), lambda pid=record.profile_id: self._edit(pid))
+        pause = menu.addAction(
+            t("profiles_resume" if record.paused else "profiles_pause", self.lang),
+            lambda pid=record.profile_id: self._toggle_paused(pid),
+        )
+        menu.addSeparator()
+        menu.addAction(t("profiles_remove", self.lang), lambda pid=record.profile_id: self._remove(pid))
+        more.setMenu(menu)
+        top.addWidget(more)
+        inner.addLayout(top)
+        try:
+            key = connection_key(self._store.runtime_config(record.profile_id))
+        except Exception:
+            key = ""
+        if key:
+            inner.addWidget(FolderRootsBox(key, lang=self.lang, on_changed=self._folders_changed))
+        return {"box": box, "status": status, "pause": pause, "record": record}
+
+    def _paint_states(self) -> None:
+        for profile_id, card in self._cards.items():
+            key = profile_status_key(card["record"], self._profile_states.get(profile_id))
+            card["status"].setText(t(key, self.lang))
+            card["status"].setStyleSheet(f"color:{_STATUS_COLORS.get(key, '#7f8c8d')}")
 
     def _show_error(self, exc: Optional[Exception] = None) -> None:
         if exc is not None:
@@ -242,6 +305,14 @@ class ProfileManagerDialog(QDialog):
         except Exception:
             log.exception("实时应用 Express 连接变更失败，将在关闭设置后重试")
 
+    def _folders_changed(self) -> None:
+        if self._on_folders_changed is None:
+            return
+        try:
+            self._on_folders_changed()
+        except Exception:
+            log.exception("启动文件夹自动录入失败")
+
     def _add(self) -> None:
         try:
             saved = open_pairing(self, lang=self.lang, profile_store=self._store)
@@ -252,17 +323,16 @@ class ProfileManagerDialog(QDialog):
             self._sync_language_from_store()
         if saved:
             self._profiles_changed()
-            self._refresh(self._store.profiles[-1].profile_id)
+            self._refresh()
 
-    def _edit(self) -> None:
-        record = self._selected_record()
-        if record is None:
+    def _edit(self, profile_id: str) -> None:
+        if self._record(profile_id) is None:
             return
         try:
             saved = open_pairing(
                 self,
                 lang=self.lang,
-                profile_id=record.profile_id,
+                profile_id=profile_id,
                 profile_store=self._store,
             )
         except Exception as exc:
@@ -272,10 +342,10 @@ class ProfileManagerDialog(QDialog):
             self._sync_language_from_store()
         if saved:
             self._profiles_changed()
-            self._refresh(record.profile_id)
+            self._refresh()
 
-    def _toggle_paused(self) -> None:
-        record = self._selected_record()
+    def _toggle_paused(self, profile_id: str) -> None:
+        record = self._record(profile_id)
         if record is None:
             return
         try:
@@ -284,10 +354,10 @@ class ProfileManagerDialog(QDialog):
             self._show_error(exc)
             return
         self._profiles_changed()
-        self._refresh(record.profile_id)
+        self._refresh()
 
-    def _remove(self) -> None:
-        record = self._selected_record()
+    def _remove(self, profile_id: str) -> None:
+        record = self._record(profile_id)
         if record is None:
             return
         box = QMessageBox(self)
@@ -296,7 +366,7 @@ class ProfileManagerDialog(QDialog):
             t(
                 "profiles_remove_body",
                 self.lang,
-                company=record.account_company or "-",
+                company=record.pearnly_account or record.account_company or "-",
             )
         )
         remove_btn = box.addButton(
@@ -328,8 +398,9 @@ def open_profile_manager(
     ] = None,
     on_language_changed: Optional[Callable[[str], None]] = None,
     on_profiles_changed: Optional[Callable[[], None]] = None,
+    on_folders_changed: Optional[Callable[[], None]] = None,
 ) -> bool:
-    """Open the process-wide manager and report whether profiles changed."""
+    """Open the process-wide main window and report whether profiles changed."""
     global _OPEN_MANAGER
     if _OPEN_MANAGER is not None:
         try:
@@ -348,6 +419,7 @@ def open_profile_manager(
         profile_state_provider=profile_state_provider,
         on_language_changed=on_language_changed,
         on_profiles_changed=on_profiles_changed,
+        on_folders_changed=on_folders_changed,
     )
     try:
         _OPEN_MANAGER.exec()

@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QFileDialog,
-    QMessageBox,
 )
 
 from . import pairing
@@ -39,7 +38,6 @@ from .i18n import (
     StatusSpec,
     default_lang,
     normalize,
-    persist_ui_lang,
     t,
 )
 from .logger import get_logger
@@ -88,18 +86,19 @@ class PairingDialog(QDialog):
         configured_roots = list(getattr(self._cfg, "authorized_roots", None) or ())
         self._share_all_roots = not self._prefill or len(configured_roots) > 1
         self.lang = normalize(lang or (self._cfg.ui_lang or default_lang()))
-        self._status_spec = StatusSpec(MessageSpec("status_scanning"), True)
+        self._status_spec = StatusSpec(MessageSpec(""), True)  # 状态行只写进度与错误
         self._root_placeholder_key = "ph_root"
         self._account_placeholder_key = "ph_acct_loading"
         self._pairing_in_progress = False
         from .gui_tray import pearnly_icon
 
         self.setWindowIcon(pearnly_icon())
-        # 可最小化 + 不强制置顶 + 可缩放。
+        # 普通窗口：可最小化、最大化、关闭，不强制置顶，拖边框随意调大小。
         self.setWindowFlags(
-            Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint
+            Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint
         )
-        self.setMinimumWidth(540)
+        self.setSizeGripEnabled(True)
+        self.setMinimumWidth(420)
         self._build()
         # 高度随内容自适应、封顶屏幕(超出才显示滚动条)。
         try:
@@ -124,44 +123,6 @@ class PairingDialog(QDialog):
 
     def _build(self) -> None:
         build_pairing_ui(self)
-
-    def _retranslate(self) -> None:
-        """切语言后刷新所有可见文案(下拉项保留·只换标签)。"""
-        self.setWindowTitle(
-            self._t("win_title_edit" if self._profile_id else "win_title_add")
-        )
-        self.lang_btn.setText(self._t("lang_toggle"))
-        self.intro.setText(self._t("intro"))
-        self.sec_connect.setText(self._t("sec_connect"))
-        self.lbl_code.setText(self._t("lbl_code"))
-        self.token.setPlaceholderText(
-            self._t("ph_code_keep" if self._prefill else "ph_code")
-        )
-        self.sec_account.setText(self._t("sec_account"))
-        self.lbl_root.setText(self._t("lbl_root"))
-        self.root_combo.setPlaceholderText(self._t(self._root_placeholder_key))
-        for i, (r, n) in enumerate(self._roots):  # 年度根下拉项含单位词 → 随语言刷新
-            self.root_combo.setItemText(i, self._root_item_label(r, n))
-        self.lbl_acct.setText(self._t("lbl_acct"))
-        self.help_acct.setText(self._t("help_acct"))
-        self.all_roots.setText(self._t("chk_all_roots"))
-        self.autostart.setText(self._t("chk_autostart"))
-        self.browse_btn.setText(self._t("btn_browse"))
-        self.cancel_btn.setText(self._t("btn_cancel"))
-        self.pair_btn.setText(self._t("btn_pair"))
-        self.account.setPlaceholderText(self._t(self._account_placeholder_key))
-        self._render_status()
-
-    def _toggle_lang(self) -> None:
-        selected = "zh" if self.lang == "th" else "th"
-        try:
-            self.lang = persist_ui_lang(self._store, selected)
-        except Exception:
-            log.exception("保存界面语言失败")
-            self._set_status("profiles_error", ok=False)
-            return
-        self._cfg.update(ui_lang=self.lang)
-        self._retranslate()
 
     def _set_status(self, key: str, ok: bool = True, **fmt) -> None:
         self._status_spec = StatusSpec(MessageSpec(key, fmt), ok)
@@ -231,12 +192,11 @@ class PairingDialog(QDialog):
         self.setWindowTitle(
             self._t("win_title_edit" if self._profile_id else "win_title_add")
         )
-        # 换根按钮常驻:任意事务所 / 任意年度 / 探测选错年度根,都能手动改指(不必逼到探测失败)。
-        self.browse_btn.setVisible(True)
         saved = (self._cfg.express_root or "").strip()
-        # 探测数据根要读 \\accserver 上一堆 SCCOMP,慢 → 放后台,窗口先秒开、显示"正在检测"。
+        # 探测数据根要读 \\accserver 上一堆 SCCOMP,慢 → 放后台,窗口先秒开、「Express 数据」一行显示"正在查找"。
         self._set_root_placeholder("ph_root_scanning")
-        self._set_status("status_scanning", ok=True)
+        self._set_express_value("status_scanning")
+        self.pair_btn.setEnabled(False)
 
         def work():
             cands: List[str] = []
@@ -250,6 +210,7 @@ class PairingDialog(QDialog):
             if not roots:
                 self._set_root_placeholder("ph_root")
                 self._sync_root_row([])
+                self._set_express_value("")
                 self._set_status("browse_hint", ok=False)
                 return
             prefer = (
@@ -262,9 +223,20 @@ class PairingDialog(QDialog):
         def fail(e):
             log.error("自动探测 Express 数据根失败: %r", e)
             self._set_root_placeholder("ph_root")
+            self._set_express_value("")
             self._set_status("browse_hint", ok=False)
 
         self._spawn("detect", work, done, fail)
+
+    def _set_express_value(self, key: str, **fmt) -> None:
+        self.express_value.setText(self._t(key, **fmt) if key else "-")
+
+    def _show_roots(self, root: str) -> None:
+        """「Express 数据」一行：当前数据根；检测到多个年度时写「… 等 N 个年度」（全部授权，网页里选）。"""
+        others = max(0, len(self._roots) - 1)
+        self.express_value.setText(
+            self._t("express_roots_more", path=root, n=len(self._roots)) if others else root
+        )
 
     def _root_item_label(self, root: str, n: int) -> str:
         return self._t("root_item", name=Path(root).name or str(root), n=n)
@@ -301,10 +273,12 @@ class PairingDialog(QDialog):
                 self.root_combo.setCurrentIndex(i)
                 return
         # 新根:数登记公司(读 \\accserver 上 SCCOMP)也走后台,不冻结 UI;只数一次,复用于校验+标签。
-        self._set_status("status_scanning", ok=True)
+        self._set_express_value("status_scanning")
+        self._set_status("", ok=True)
 
         def done(n):
             if n <= 0:  # 不是有效 Express 数据根(无 secure/SCCOMP)
+                self._set_express_value("")
                 self._set_status("status_reg_error", ok=False)
                 return
             self.root_combo.blockSignals(True)  # 新根插到顶部
@@ -315,6 +289,7 @@ class PairingDialog(QDialog):
 
         def fail(e):
             log.error("读取所选 Express 数据根失败: %r", e)
+            self._set_express_value("")
             self._set_status("status_reg_error", ok=False)
 
         self._spawn("detect", lambda: sccomp_company_count(p), done, fail)
@@ -322,13 +297,15 @@ class PairingDialog(QDialog):
     def _load_root(self, root: str) -> None:
         # 读该根的账套名单(SCCOMP + 每家 ISINFO)也走网络 → 后台,期间账套下拉显示"加载中"。
         self.account.clear()
+        self._sets = []
+        self.pair_btn.setEnabled(False)
         self._set_account_placeholder("ph_acct_loading")
-        self._set_status("ph_acct_loading", ok=True)
+        self._set_express_value("status_scanning")
 
         def done(sets):
             if not sets:
+                self._set_express_value("")
                 self._set_status("status_reg_error", ok=False)
-                self.browse_btn.setVisible(True)
                 return
             self._express_root = root
             self._sets = sets
@@ -338,13 +315,14 @@ class PairingDialog(QDialog):
             # 预填:命中已配账套则选中(触发默认科目向量探测,供全自动映射);未命中或首次配对留未选。
             self.account.setCurrentIndex(self._prefill_account_index(sets))
             self._set_account_placeholder("ph_acct_select")
-            self._set_status("status_found", n=len(sets), ok=True)
-            self.browse_btn.setVisible(True)  # 不是要的年度/事务所时可换根
+            self._show_roots(root)
+            self._set_status("", ok=True)
+            self.pair_btn.setEnabled(not self._pairing_in_progress)
 
         def fail(e):
             log.error("读取 Express 账套列表失败: %r", e)
+            self._set_express_value("")
             self._set_status("status_reg_error", ok=False)
-            self.browse_btn.setVisible(True)
 
         self._spawn("root", lambda: probe_account_sets(root), done, fail)
 
@@ -408,7 +386,9 @@ class PairingDialog(QDialog):
         self._set_pairing_busy(True)
         self._set_status("pairing", ok=True)
         token, root, sets = self.token.text(), self._express_root or "", self._sets
-        autostart, lang = self.autostart.isChecked(), self.lang
+        # 开机启动在主窗口里设（全局一项）；配对沿用那里的选择，首次配对默认开。
+        autostart = bool(getattr(self._store.global_settings, "autostart", True))
+        lang = self.lang
         # 检测到的数据根全部授权：网页第一步选哪个年度 / 账套就写哪个（端侧逐次对照可写目录复核）。
         authorized_roots = [candidate for candidate, _count in getattr(self, "_roots", ())] or [root]
 
@@ -429,16 +409,8 @@ class PairingDialog(QDialog):
         def done(res):
             self._set_pairing_busy(False)
             if res.ok:
+                # 不再弹「配对成功」框：回到主窗口就能看到这条连接的状态。
                 self.result_info = res
-                QMessageBox.information(
-                    self,
-                    self._t("pair_ok_title"),
-                    self._t(
-                        "pair_ok_body",
-                        company=res.company,
-                        n=res.account_sets,
-                    ),
-                )
                 self.accept()
             else:
                 self._set_pair_error(res.error_key, res.error_fmt)

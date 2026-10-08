@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
-"""托盘「自动录入文件夹…」：在本机给每条连接设一次允许读取的根目录。
+"""主窗口里每条连接下的「网页可选的文件夹」：在本机给这条连接设允许读取的根目录。
 
 这是安全边界，只能在这台电脑上设（网页上只能在这些根目录下选子文件夹）；否则能登录网页的人就能让办公室
 电脑把任意文件传上云。具体哪个文件夹、什么时候跑、推到哪个账套，都在网页的「自动录入规则」里设。
+添加、移除当场保存（2026-10-08 起不再有单独的文件夹窗口和「保存」按钮）。
 """
 
 from __future__ import annotations
 
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox,
-    QDialog,
+    QAbstractItemView,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -19,80 +20,93 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
-from .folder_store import connection_key, roots, set_all_roots
+from .folder_store import roots, set_roots
 from .i18n import t
+from .logger import get_logger
+
+log = get_logger(__name__)
 
 
-class FolderRootsDialog(QDialog):
-    def __init__(self, configs: Iterable, *, lang: str, on_saved: Optional[Callable[[], None]] = None,
+class FolderRootsBox(QWidget):
+    def __init__(self, key: str, *, lang: str, on_changed: Optional[Callable[[], None]] = None,
                  parent=None) -> None:
         super().__init__(parent)
+        self.key = key
         self.lang = lang
-        self._on_saved = on_saved
-        self._configs = [cfg for cfg in configs if connection_key(cfg)]
-        self._paths: dict[str, list[str]] = {connection_key(cfg): [row["path"] for row in roots(connection_key(cfg))]
-                                             for cfg in self._configs}
-        self.setWindowTitle(t("folders_title", lang))
-        self.setMinimumSize(560, 360)
+        self._on_changed = on_changed
         layout = QVBoxLayout(self)
-        hint = QLabel(t("folders_hint", lang))
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
-        self.profile = QComboBox()
-        for cfg in self._configs:
-            label = str(getattr(cfg, "pearnly_account", "") or getattr(cfg, "endpoint_name", "") or cfg.profile_id)
-            self.profile.addItem(label, connection_key(cfg))
-        self.profile.currentIndexChanged.connect(lambda _index: self._paint())
-        layout.addWidget(self.profile)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        self.label = QLabel()
+        layout.addWidget(self.label)
         self.list = QListWidget()
-        layout.addWidget(self.list, 1)
+        self.list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.list.currentRowChanged.connect(lambda _row: self._sync_buttons())
+        layout.addWidget(self.list)
         buttons = QHBoxLayout()
-        add = QPushButton(t("folders_add", lang))
-        add.clicked.connect(self._add)
-        remove = QPushButton(t("folders_remove", lang))
-        remove.clicked.connect(self._remove)
-        buttons.addWidget(add)
-        buttons.addWidget(remove)
+        self.add_btn = QPushButton()
+        self.add_btn.clicked.connect(self._add)
+        self.remove_btn = QPushButton()
+        self.remove_btn.clicked.connect(self._remove)
+        buttons.addWidget(self.add_btn)
+        buttons.addWidget(self.remove_btn)
         buttons.addStretch(1)
-        save = QPushButton(t("folders_save", lang))
-        save.setDefault(True)
-        save.clicked.connect(self._save)
-        buttons.addWidget(save)
         layout.addLayout(buttons)
-        if not self._configs:
-            hint.setText(t("folders_no_connection", lang))
-            add.setEnabled(False)
-            save.setEnabled(False)
+        self.retranslate(lang)
         self._paint()
 
-    def _key(self) -> str:
-        return self.profile.currentData() or ""
+    def retranslate(self, lang: str) -> None:
+        self.lang = lang
+        self.label.setText(t("folders_label", lang))
+        self.add_btn.setText(t("folders_add", lang))
+        self.remove_btn.setText(t("folders_remove", lang))
+
+    def paths(self) -> list[str]:
+        return [row["path"] for row in roots(self.key)]
 
     def _paint(self) -> None:
         self.list.clear()
-        for path in self._paths.get(self._key(), []):
+        for path in self.paths():
             self.list.addItem(path)
+        # 列表只占刚好的行数，没有文件夹就不摆空框（不在窗口里留一大块空白）。
+        count = self.list.count()
+        self.list.setVisible(count > 0)
+        self.remove_btn.setVisible(count > 0)
+        if count:
+            self.list.setFixedHeight(self.list.sizeHintForRow(0) * count + 2 * self.list.frameWidth())
+        self._sync_buttons()
+
+    def _sync_buttons(self) -> None:
+        self.remove_btn.setEnabled(self.list.currentRow() >= 0)
+
+    def _save(self, paths: list[str]) -> bool:
+        try:
+            set_roots(self.key, paths)
+        except ValueError as error:
+            QMessageBox.warning(self, t("folders_title", self.lang),
+                                t("folders_overlap", self.lang, path=str(error)))
+            return False
+        except OSError:
+            log.exception("保存允许读取的文件夹失败")
+            QMessageBox.warning(self, t("folders_title", self.lang), t("profiles_error", self.lang))
+            return False
+        self._paint()
+        if self._on_changed is not None:
+            self._on_changed()
+        return True
 
     def _add(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, t("folders_pick", self.lang))
-        if folder and folder not in self._paths.setdefault(self._key(), []):
-            self._paths[self._key()].append(folder)
-            self._paint()
+        current = self.paths()
+        if folder and folder not in current:
+            self._save(current + [folder])
 
     def _remove(self) -> None:
         row = self.list.currentRow()
-        if row >= 0:
-            del self._paths[self._key()][row]
-            self._paint()
-
-    def _save(self) -> None:
-        try:
-            set_all_roots(self._paths)
-        except ValueError as error:
-            QMessageBox.warning(self, t("folders_title", self.lang), t("folders_overlap", self.lang, path=str(error)))
-            return
-        if self._on_saved:
-            self._on_saved()
-        self.accept()
+        current = self.paths()
+        if 0 <= row < len(current):
+            self._save(current[:row] + current[row + 1:])

@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
 
 from .account_probe import AccountSet
 from .express_locate import sccomp_company_count, sccomp_path
-from .version import VERSION
 
 _DEFAULT_MIN_COMPANIES = 10
 
@@ -128,33 +127,36 @@ def _compact_form() -> QFormLayout:
 
 
 def build_pairing_ui(dialog) -> None:
+    """配对 / 修改连接窗只摆两行：配对码、Express 数据（检测到的数据根 + 「更换…」）。
+
+    语言切换、版本号、开机启动都在主窗口（2026-10-08），这里不再重复。
+    """
     root = QVBoxLayout(dialog)
-    top = QHBoxLayout()
-    dialog.ver_lbl = QLabel("v" + VERSION)
-    dialog.ver_lbl.setStyleSheet("color:#aaa;font-size:11px")
-    top.addWidget(dialog.ver_lbl)
-    top.addStretch(1)
-    dialog.lang_btn = QPushButton(dialog._t("lang_toggle"))
-    dialog.lang_btn.setFlat(True)
-    dialog.lang_btn.clicked.connect(dialog._toggle_lang)
-    top.addWidget(dialog.lang_btn)
-    root.addLayout(top)
 
     # 账套 / 年度由网页第一步选择（用户 2026-09-26）：介绍文案与账套区不再摆出来，
     # 控件仍挂在窗口上隐藏着——配对要用检测出的数据根和账套名单（内部默认账套、授权全部数据根）。
     hidden = []
     dialog.intro = QLabel(dialog._t("intro"))
-    hidden.append(dialog.intro)
+    dialog.sec_connect = QLabel(dialog._t("sec_connect"))
+    hidden += [dialog.intro, dialog.sec_connect]
 
     form = _compact_form()
-    dialog.sec_connect = QLabel(dialog._t("sec_connect"))
-    form.addRow(dialog.sec_connect)
     dialog.token = QLineEdit()
     dialog.token.setPlaceholderText(
         dialog._t("ph_code_keep" if dialog._prefill else "ph_code")
     )
     dialog.lbl_code = QLabel(dialog._t("lbl_code"))
     form.addRow(dialog.lbl_code, dialog.token)
+
+    dialog.lbl_express = QLabel(dialog._t("lbl_express"))
+    dialog.express_value = QLabel("")
+    dialog.express_value.setTextInteractionFlags(Qt.TextSelectableByMouse)
+    dialog.browse_btn = QPushButton(dialog._t("btn_browse"))
+    dialog.browse_btn.clicked.connect(dialog._browse_root)
+    express_row = QHBoxLayout()
+    express_row.addWidget(dialog.express_value, 1)
+    express_row.addWidget(dialog.browse_btn)
+    form.addRow(dialog.lbl_express, express_row)
 
     dialog.sec_account = QLabel(dialog._t("sec_account"))
     dialog.root_combo = NoScrollComboBox()
@@ -174,11 +176,6 @@ def build_pairing_ui(dialog) -> None:
         widget.setParent(dialog)
         widget.setVisible(False)
 
-    dialog.autostart = QCheckBox(dialog._t("chk_autostart"))
-    dialog.autostart.setChecked(
-        bool(dialog._cfg.autostart) if dialog._prefill else True
-    )
-    form.addRow(dialog.autostart)
     form_host = QWidget()
     form_host.setLayout(form)
 
@@ -200,14 +197,11 @@ def build_pairing_ui(dialog) -> None:
     root.addWidget(dialog.status)
 
     buttons = QHBoxLayout()
-    dialog.browse_btn = QPushButton(dialog._t("btn_browse"))
-    dialog.browse_btn.clicked.connect(dialog._browse_root)
-    dialog.browse_btn.setVisible(False)
-    buttons.addWidget(dialog.browse_btn)
     buttons.addStretch(1)
     dialog.cancel_btn = QPushButton(dialog._t("btn_cancel"))
     dialog.cancel_btn.clicked.connect(dialog.reject)
-    dialog.pair_btn = QPushButton(dialog._t("btn_pair"))
+    # 添加 = 「配对」；修改已有连接 = 「保存」。
+    dialog.pair_btn = QPushButton(dialog._t("btn_save" if dialog._prefill else "btn_pair"))
     dialog.pair_btn.setDefault(True)
     dialog.pair_btn.clicked.connect(dialog._on_pair)
     buttons.addWidget(dialog.cancel_btn)
@@ -237,17 +231,16 @@ def set_pairing_busy(dialog, busy: bool) -> None:
     dialog._pairing_in_progress = busy
     enabled = not busy
     for widget in (
-        dialog.lang_btn,
         dialog.cancel_btn,
         dialog.browse_btn,
         dialog.root_combo,
         dialog.account,
         dialog.all_roots,
         dialog.token,
-        dialog.autostart,
-        dialog.pair_btn,
     ):
         widget.setEnabled(enabled)
+    # 账套名单还没读到时「配对」保持停用（点了也只会报「请选择 Express 文件夹」）。
+    dialog.pair_btn.setEnabled(enabled and bool(getattr(dialog, "_sets", None)))
 
 
 def shutdown_probes(dialog) -> None:

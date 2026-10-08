@@ -50,8 +50,15 @@ def test_account_section_is_not_shown(qtbot=None):
                        dialog.help_acct, dialog.all_roots):
             assert widget.isHidden()
         assert dialog.all_roots.isChecked()
-        for widget in (dialog.token, dialog.autostart, dialog.pair_btn):
+        for widget in (dialog.token, dialog.express_value, dialog.browse_btn, dialog.pair_btn):
             assert not widget.isHidden()
+        # 语言、版本、开机启动只在主窗口（2026-10-08）
+        for name in ("lang_btn", "ver_lbl", "autostart"):
+            assert not hasattr(dialog, name)
+        assert dialog.pair_btn.text() == "配对"
+        from test_gui_profiles import _assert_free_window
+
+        _assert_free_window(dialog)
     finally:
         gui_pairing.PairingDialog._autodetect = original
 
@@ -60,3 +67,28 @@ def test_tray_status_line_is_capped():
     long = "บริษัท " * 30 + " · 离线 · 云端推送未开启"
     assert len(_menu_text(long)) == MENU_TEXT_MAX
     assert _menu_text("离线") == "离线"
+
+
+def test_tray_menu_has_one_entry_and_left_click_opens_the_main_window():
+    # 2026-10-08：托盘只留状态、打开小助手、退出；文件夹、日志、设置都在主窗口。
+    from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    app.lang = "zh"
+    app.tray = QSystemTrayIcon()
+    app._quit = lambda: None
+    opened = []
+    app._repair = lambda: opened.append(True)
+    app._build_menu()
+
+    texts = [action.text() for action in app.tray.contextMenu().actions()
+             if action.isVisible() and not action.isSeparator()]
+    assert texts == ["启动中…", "打开小助手", "退出"]
+
+    app._on_tray_activated(QSystemTrayIcon.Context)
+    assert opened == []
+    app._on_tray_activated(QSystemTrayIcon.Trigger)
+    assert opened == [True]

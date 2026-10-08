@@ -43,19 +43,18 @@ def test_pairing_busy_disables_every_mutable_control():
             self.enabled = enabled
 
     names = (
-        "lang_btn",
         "cancel_btn",
         "browse_btn",
         "root_combo",
         "account",
         "all_roots",
         "token",
-        "autostart",
         "pair_btn",
     )
     dialog = SimpleNamespace(
         **{name: Control() for name in names},
         _pairing_in_progress=False,
+        _sets=[object()],
     )
 
     set_pairing_busy(dialog, True)
@@ -66,6 +65,11 @@ def test_pairing_busy_disables_every_mutable_control():
     assert dialog._pairing_in_progress is False
     assert all(getattr(dialog, name).enabled for name in names)
 
+    # 账套名单还没读到：放开其余控件，「配对」仍停用
+    dialog._sets = []
+    set_pairing_busy(dialog, False)
+    assert not dialog.pair_btn.enabled and dialog.token.enabled
+
 
 def test_pair_spawn_sync_error_restores_controls_and_safe_status():
     dialog = PairingDialog.__new__(PairingDialog)
@@ -74,10 +78,9 @@ def test_pair_spawn_sync_error_restores_controls_and_safe_status():
     dialog.token = SimpleNamespace(text=lambda: "exp_e_s")
     dialog._express_root = r"S:\\EXP68"
     dialog._sets = []
-    dialog.autostart = SimpleNamespace(isChecked=lambda: True)
     dialog.lang = "zh"
     dialog._cfg = object()
-    dialog._store = object()
+    dialog._store = SimpleNamespace(global_settings=SimpleNamespace(autostart=True))
     busy, errors = [], []
     dialog._set_pairing_busy = busy.append
     dialog._set_status = lambda *_args, **_kwargs: None
