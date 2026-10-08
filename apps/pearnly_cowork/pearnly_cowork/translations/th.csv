@@ -507,7 +507,7 @@ Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express PC,เครื่อง Express
-"Express already has this invoice number with different content. Check it, or choose Send anyway","ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ส่งต่อไป"""
+"Express already has this invoice number with different content. Check it, or choose Send anyway","ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
@@ -1043,7 +1043,7 @@ Seller branch,สาขาผู้ขาย
 Seller tax ID,เลขประจำตัวผู้เสียภาษีผู้ขาย
 Selling Price,ราคาขาย
 Send,ส่ง
-Send anyway,ส่งต่อไป
+Send anyway,ยืนยันการส่ง
 Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสผูกบัญชีจากหน้า Cowork
 Service,บริการ
@@ -1229,7 +1229,7 @@ The document exceeds the allowed size after decompression.,เอกสารม
 The document file is damaged or cannot be decompressed.,ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้
 The document reader is unavailable. Contact your administrator.,บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
 The document sections are incomplete or invalid.,ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง
-"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway","เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ส่งต่อไป"""
+"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway","เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 The entry does not balance. Check the amounts,ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน
 The export contains an invalid or repeated history reference.,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน
 The file check is busy. It will be retried.,ระบบตรวจไฟล์ไม่ว่าง ระบบจะลองใหม่ภายหลัง
@@ -1862,7 +1862,7 @@ cowork.recon.timeout,การกระทบยอดใช้เวลาน�
 cowork.recon.vat.left,รายงานภาษีขาย
 cowork.recon.vat.right,ใบกำกับภาษีขาย
 cowork.review.number_field,เลขที่เอกสาร
-cowork.review.send_anyway,ส่งต่อไป
+cowork.review.send_anyway,ยืนยันการส่ง
 cowork.stock.action.export,ส่งออก
 cowork.stock.action.reload,โหลดใหม่
 cowork.stock.actualLocation,ตำแหน่งจริง
@@ -2398,7 +2398,7 @@ intake.error.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายร�
 intake.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 intake.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 intake.error.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
-intake.error.DUPLICATE_CONTENT_DIFFERS,"ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ส่งต่อไป"""
+intake.error.DUPLICATE_CONTENT_DIFFERS,"ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ
 intake.error.ERR_MRERP_MENU_CHANGED,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
@@ -2410,7 +2410,7 @@ intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.NO_ACCOUNT_SELECTION,ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์บันทึกข้อมูล กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย
 intake.error.PAYLOAD_INVALID,ผู้ช่วยไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
-intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ส่งต่อไป"""
+intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 intake.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 intake.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 intake.error.STOCK_ITEM_NOT_FOUND,สินค้าคงเหลือที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่
