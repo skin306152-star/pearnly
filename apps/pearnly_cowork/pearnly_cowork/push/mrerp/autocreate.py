@@ -42,6 +42,7 @@ def _buyer_from_history(h: Dict[str, Any]) -> Dict[str, str]:
         "address": pick("customer_address", "buyer_address", "buyer_addr", "address"),
         "phone": pick("customer_phone", "phone"),
         "email": pick("customer_email", "email"),
+        "branch": pick("buyer_branch", "customer_branch"),  # 票面分店号（MR.ERP 客户分店表里有就用，见 defaults.py）
     }
 
 
@@ -110,6 +111,7 @@ def _seller_from_history(h: Dict[str, Any]) -> Dict[str, str]:
         "address": pick("seller_address", "supplier_address", "seller_addr"),
         "phone": pick("seller_phone", "phone"),
         "email": pick("seller_email", "email"),
+        "branch": pick("seller_branch", "supplier_branch"),
     }
 
 
@@ -207,10 +209,12 @@ def _provision_expense_item(adapter, mappings: Dict[str, Any]) -> None:
     ):
         return
     name = _expense_cfg(mappings, "name", "ค่าใช้จ่าย")
-    acc = _expense_cfg(mappings, "acc", "5230-01")
+    # 费用科目与分类按这份账套选的（push/mrerp/defaults.py 放进 mappings）；旧线上写死 TEST2019 的 5230-01
+    # （模板里是交通差旅费）与 04-SER，2026-10-08 起不再兜底。
+    acc = _expense_cfg(mappings, "acc", "")
     overrides = {
         "_mrerp_product_type": _EXPENSE_ITEM_TYPE,
-        "_mrerp_product_category": _expense_cfg(mappings, "category", "04-SER"),
+        "_mrerp_product_category": _expense_cfg(mappings, "category", ""),
         **{f"_mrerp_product_{k}": acc for k in _EXPENSE_ITEM_ACC_KEYS},
     }
     adapter.create_products([{"code": code, "name": name, "price": 0}], {**mappings, **overrides})

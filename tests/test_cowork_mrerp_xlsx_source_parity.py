@@ -31,12 +31,34 @@ def history(hid, **fields):
             "total_amount": base["total_amount"], "fields": base}
 
 
+# 有意变化（2026-10-08）：分店 / 部门 / 员工 / 科目等不再写死 TEST2019 的值，改由推送前按这家公司的主档算好放进
+# mappings。对照时把 TEST2019 的值从 mappings 喂给新生成器（旧生成器认得其中的 `_mrerp_customer_*` 等覆盖键，
+# 不认得的键忽略），其余输出必须与旧线上逐字节一致。
+TEST2019 = {
+    "_mrerp_header": {"branch": "00000", "dept": "BOI1", "job": "00002", "store": "0000", "employee": "กร ทดสอบ",
+                      "area": "สุพรรณบุรี", "delivery": "ขนส่งโดยบริษัท"},
+    "_mrerp_customer_type": "1-11", "_mrerp_customer_account": "1130-03", "_mrerp_customer_salesman": "กร",
+    "_mrerp_customer_area": "สุพรรณ", "_mrerp_customer_shipping": "TRUCK1", "_mrerp_customer_branch": "00000",
+    "_mrerp_customer_prefix": "บริษัท",
+    "_mrerp_supplier_type": "2-21", "_mrerp_supplier_account": "2110-01", "_mrerp_supplier_branch": "00000",
+    "_mrerp_supplier_prefix": "บริษัท",
+    "_mrerp_product_category": "03-FIG", **{f"_mrerp_product_unit_{k}": "ผน" for k in ("count", "std", "buy", "sell")},
+    "_mrerp_product_acc_rev": "4110-01", "_mrerp_product_acc_ret": "4110-10", "_mrerp_product_acc_dis": "4110-20",
+    "_mrerp_product_acc_pur": "5110-01", "_mrerp_product_acc_purret": "5110-11", "_mrerp_product_acc_purdis": "5110-21",
+    "_mrerp_product_acc_inv": "1150-30", "_mrerp_product_acc_cost": "5100-01", "_mrerp_product_supplier": "CODE_NOAP",
+    "_mrerp_receipt_account_cash": "1111-01", "_mrerp_receipt_account_bank": "1112-01",
+}
+
 CASES = [
     # 客户编号取两边都认的值：旧版按整数比较，新平台按字符串（Cowork Client 名称）比较。
+    # 两个商品都映射：对不上商品码时旧版兜底写 TEST2019 的商品 "123"，新版留空让 MR.ERP 明确拒（有意变化）
     ("sales_credit", False, [dict(history("a1b2c3d4", **SELLER, **BUYER), client_id="7")],
      {"clients": [{"erp_type": "mrerp", "client_id": 7, "erp_code": "C0001"}],
-      "products": [{"item_name": "กระดาษ A4 80 แกรม", "erp_code": "P-A4"}]}),
-    ("sales_cash", False, [history("0000beef", **SELLER, payment_method="cash")], {}),
+      "products": [{"item_name": "กระดาษ A4 80 แกรม", "erp_code": "P-A4"},
+                   {"item_name": "หมึกพิมพ์ HP 85A", "erp_code": "P-HP"}]}),
+    ("sales_cash", False, [history("0000beef", **SELLER, payment_method="cash")],
+     {"products": [{"item_name": "กระดาษ A4 80 แกรม", "erp_code": "P-A4"},
+                   {"item_name": "หมึกพิมพ์ HP 85A", "erp_code": "P-HP"}]}),
     ("purchase", False, [history("00c0ffee", **SELLER, **BUYER)], {}),
     ("purchase", True, [history("00facade", **SELLER, **BUYER)], {}),
     ("customer_master", False, [{"code": "0105562055501", "name": "บริษัท ลูกค้า จำกัด",
@@ -67,8 +89,23 @@ class XlsxSourceParity(unittest.TestCase):
             with self.subTest(kind=kind, expense=expense):
                 old = self.legacy.generate_xlsx(copy.deepcopy(rows), copy.deepcopy(mappings),
                                                 sheet_kind=kind, expense=expense)
-                new = self.native.generate_xlsx(copy.deepcopy(rows), copy.deepcopy(mappings),
+                new = self.native.generate_xlsx(copy.deepcopy(rows), {**TEST2019, **copy.deepcopy(mappings)},
                                                 sheet_kind=kind, expense=expense)
+                if kind == "sales_cash":
+                    # 有意变化：现金收款写现金栏（第 16 列），不再记进「รับอื่นๆ 1」槽（MR.ERP 过账时那一槽借记的是
+                    # 菜单关联的借方 3，不一定是现金）。只换这两格的值，其余逐字节相同。
+                    old, new = members(old), members(new)
+                    self.assertEqual(set(old), set(new))
+                    for name in old:
+                        if name != "xl/worksheets/sheet1.xml":
+                            self.assertEqual(new[name], old[name], name)
+                    sheet = new["xl/worksheets/sheet1.xml"].decode()
+                    self.assertIn('<c r="P2" s="10"><v>2648.25</v></c>', sheet)  # 现金栏 = 全额
+                    self.assertIn('<c r="R2" s="10"><v>0</v></c>', sheet)        # รับอื่นๆ 1 = 0
+                    self.assertEqual(sheet.replace('<c r="P2" s="10"><v>2648.25</v></c>', '<c r="P2" s="10"><v>0</v></c>')
+                                     .replace('<c r="R2" s="10"><v>0</v></c>', '<c r="R2" s="10"><v>2648.25</v></c>'),
+                                     old["xl/worksheets/sheet1.xml"].decode())
+                    continue
                 self.assertEqual(members(new), members(old))
 
     def test_invoice_number_and_preflight_match(self):

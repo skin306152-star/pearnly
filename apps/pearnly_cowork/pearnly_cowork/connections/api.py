@@ -77,6 +77,11 @@ def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
 
 
 @frappe.whitelist(methods=["POST"])
+def choose_mrerp_default(name, account_set_key, field, code):
+    return _call(service.choose_mrerp_default, name, account_set_key, field, code)
+
+
+@frappe.whitelist(methods=["POST"])
 def request_mrerp_menu(name, account_set_key):
     request = _call(service.request_mrerp_menu, name, account_set_key)
     # 读 MR.ERP 导入页在后台做（提交后才入队）；前端按返回的申请时刻轮询 mrerp_menu。

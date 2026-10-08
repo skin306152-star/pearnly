@@ -17,7 +17,7 @@ from collections import OrderedDict
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx import generator as _gen
+from pearnly_cowork.push.mrerp.xlsx import defaults as account_values, generator as _gen
 from pearnly_cowork.push.mrerp.xlsx.fmt import history_number, mrerp_sales_tax_label
 from pearnly_cowork.push.mrerp.xlsx.sales_credit import (
     build_sales_credit_detail_rows,
@@ -68,30 +68,24 @@ _HEADERS_4 = ["เลขที่", "เลขที่เช็ค", "เช็
 _NUM_COLS_1 = {15, 16, 18, 20, 22}
 _DATE_COLS_1 = {2, 8, 12}
 
-# 收款科目(รับอื่นๆ)· 收款落哪个 GL 科目 —— 实测 MR.ERP 现金票要求 3 个收款槽全非空,
-# 且每槽是**科目表里的科目码**(1111-01=现金 / 1112-01=银行,非付款方式代号)。转账票落银行,
-# 现金票落现金。⚠️ 科目码按套账不同 —— 生产须由 mappings["_mrerp_receipt_account_*"] 注入
-# (对接 S4 科目解析);未配时用 TEST2019 默认,推别的套账会因科目不存在被 report 回读挡下(fail-safe)。
-_DEFAULT_RECEIPT_ACCOUNT_BANK = "1112-01"
-_DEFAULT_RECEIPT_ACCOUNT_CASH = "1111-01"
+# 收款怎么写（2026-10-08 按 MR.ERP 源码改，旧线上全额记在「รับอื่นๆ 1」槽、科目写死 TEST2019 的 1111-01 / 1112-01）：
+# MR.ERP 过账时（`arse/component/arsepc.php` insacglhd）现金栏 `จำนวนเงินสดรับ`（第 16 列）借记这个菜单关联的现金科目、
+# 没配则借记参考科目 2「เงินสด」；「รับอื่นๆ 1」槽借记的是菜单关联的借方 3（配了就不用我们写的科目）。所以现金收款
+# 写进现金栏；转账 / 刷卡收款仍记「รับอื่นๆ 1」，科目用这份账套选的银行科目。三个槽 MR.ERP 都要求填存在的科目码，
+# 不用的槽金额 0、科目沿用同一个（不产生分录）。科目由推送前按主档算好放进 mappings（见 `push/mrerp/defaults.py`）。
 
 
-def _receipt_account(history: Dict[str, Any], mappings: Dict[str, Any]) -> str:
-    """收款落账科目:现金付→现金科目,其余(转账/刷卡)→银行科目。可经 mappings 覆盖。"""
+def _is_cash(history: Dict[str, Any]) -> bool:
     from pearnly_cowork.push.express.payment import payment_is_paid
 
     fields = history.get("fields") if isinstance(history.get("fields"), dict) else history
-    is_cash = payment_is_paid(fields) and str(fields.get("payment_method", "")).lower() in (
-        "",
-        "cash",
-        "เงินสด",
-    )
-    if isinstance(mappings, dict):
-        key = "_mrerp_receipt_account_cash" if is_cash else "_mrerp_receipt_account_bank"
-        override = (mappings.get(key) or "").strip()
-        if override:
-            return override
-    return _DEFAULT_RECEIPT_ACCOUNT_CASH if is_cash else _DEFAULT_RECEIPT_ACCOUNT_BANK
+    return payment_is_paid(fields) and str(fields.get("payment_method", "")).lower() in ("", "cash", "เงินสด")
+
+
+def _receipt_account(history: Dict[str, Any], mappings: Dict[str, Any]) -> str:
+    """收款科目:现金付→这家公司的现金科目(参考科目 2),其余(转账/刷卡)→这份账套选的银行科目。"""
+    key = "_mrerp_receipt_account_cash" if _is_cash(history) else "_mrerp_receipt_account_bank"
+    return str((mappings or {}).get(key) or "").strip() if isinstance(mappings, dict) else ""
 
 
 def _col_letter(n: int) -> str:
@@ -214,28 +208,29 @@ def generate_xlsx_sales_cash(histories: List[Dict[str, Any]], mappings: Dict[str
         base = build_sales_credit_row(history, mappings)
         inv, date = base["invoice_no"], base["invoice_date"]
         cust, bill = base["customer_code"], base["bill_no"]
+        head = account_values.header(mappings, cust)
         col_vals = {
             1: inv,
             2: date,
             3: mrerp_sales_tax_label(history),
-            4: "00000",
-            5: "BOI1",
-            6: "00002",
-            7: "กร ทดสอบ",
+            4: head["branch"],
+            5: head["dept"],
+            6: head["job"],
+            7: head["employee"],
             8: date,
             9: cust,
             10: cust,
             11: bill,
             12: date,
-            13: "สุพรรณบุรี",
-            14: "ขนส่งโดยบริษัท",
+            13: head["area"],
+            14: head["delivery"],
             15: discount,
-            16: 0,  # 现金收讫 0(全额走收款科目槽,见下)
         }
-        # 收款槽 1-3(รับอื่นๆ):MR.ERP 现金票要求 3 槽全非空 → 槽1 记全额到收款科目,
-        # 槽2/3 用同科目占位、金额 0(满足非空校验,不产生额外分录)。见 _receipt_account。
-        acct = _receipt_account(history, mappings)
-        col_vals.update({17: acct, 18: _cash_received(history), 19: acct, 20: 0, 21: acct, 22: 0})
+        # 现金收款进现金栏（第 16 列）；转账 / 刷卡记「รับอื่นๆ 1」到银行科目。三槽都要填存在的科目码，不用的金额 0。
+        acct, received = _receipt_account(history, mappings), _cash_received(history)
+        cash = _is_cash(history)
+        col_vals.update({16: received if cash else 0, 17: acct, 18: 0 if cash else received,
+                         19: acct, 20: 0, 21: acct, 22: 0})
         cells = []
         for col in range(1, 23):
             if col in _NUM_COLS_1:
@@ -252,16 +247,17 @@ def generate_xlsx_sales_cash(histories: List[Dict[str, Any]], mappings: Dict[str
     # ── Sheet2 items ───────────────────────────────────────────────
     rows2 = [_header_row(_HEADERS_2, 8)]
     cur = 2
+    line = account_values.header(mappings)
     for history, _discount, details in documents:
         inv = _gen.derive_mrerp_invoice_no(history)
         for d in details:
-            code = d.get("product_code") or "123"
+            code = d.get("product_code") or ""
             cells = [
                 _str_cell(1, cur, inv, _S_TEXT),
                 _str_cell(2, cur, code, _S_TEXT),
-                _str_cell(3, cur, "BOI1", _S_TEXT),
-                _str_cell(4, cur, "00002", _S_TEXT),
-                _str_cell(5, cur, "0000", _S_TEXT),
+                _str_cell(3, cur, line["dept"], _S_TEXT),
+                _str_cell(4, cur, line["job"], _S_TEXT),
+                _str_cell(5, cur, line["store"], _S_TEXT),
                 _num_cell(6, cur, d.get("qty", 0) or 0),
                 _num_cell(7, cur, d.get("unit_price", 0) or 0),
                 _num_cell(8, cur, d.get("amount", 0) or 0),

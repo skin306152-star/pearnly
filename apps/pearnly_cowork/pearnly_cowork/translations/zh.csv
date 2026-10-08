@@ -9,6 +9,7 @@
 5 minutes before,5 分钟前
 A board needs at least one admin,看板至少需要一位管理员
 A board needs at least one list,看板至少需要保留一个列表
+A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,所选的值在 MR.ERP 中已不存在，请重新选择。
 A client cannot be moved to another company.,客户不能转移到另一家公司。
 A client needs a name.,请填写客户名称。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
@@ -125,6 +126,7 @@ Balance breaks,余额差异
 Bank,银行
 Bank Code,银行代码
 Bank Reconciliation,银行对账
+Bank account,银行收款科目
 Bank amount,银行金额
 Bank deposit only,仅银行存入
 Bank statement,银行账单
@@ -285,6 +287,7 @@ Copy to,复制到
 Correct entry,修改记录
 Corrected Value,修正值
 Could not finish,失败
+Could not read the MR.ERP master data.,无法读取 MR.ERP 主档。
 Could not read the MR.ERP menus. Try again later.,无法读取 MR.ERP 菜单，请稍后重试。
 Could not read this document. Please send it again.,无法识别此单据，请重新发送。
 Could not store this document,无法保存此单据
@@ -363,6 +366,7 @@ Custom Fields,自定义字段
 Custom fields,自定义字段
 Custom fields saved,自定义字段已保存
 Customer,客户
+Customer type,客户类型
 Cyan,青
 Daily,每天
 Date,日期
@@ -392,6 +396,7 @@ Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
+Delivery type,运输方式
 Department,部门
 Department for this rule,部门
 Deposit,存款
@@ -465,6 +470,7 @@ Edit labels,修改标签
 Electronic,电子版
 Electronic file,电子文件
 Email,邮箱
+Employee,员工
 Enable,启用
 Enable {0},启用 {0}
 Enabled,启用
@@ -644,6 +650,7 @@ It was entered,已入账
 It was not entered,未入账
 Item,项目
 Items,物料
+Job,项目
 Job Roles,功能权限
 Just read,刚读出
 Keep,保留
@@ -692,12 +699,16 @@ Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
 MR.ERP Import Menu Options Seen,已读取的 MR.ERP 导入菜单
 MR.ERP Import Menu per Account Set,各账套的 MR.ERP 导入菜单
+MR.ERP Master Defaults per Account Set,各账套的 MR.ERP 默认值
+MR.ERP Master Options Seen,已读取的 MR.ERP 主档
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
+MR.ERP default values are needed for this account set. Choose them before pushing.,需要选择 MR.ERP 默认值，请选择后再推送。
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP 中此类单据有多个已关联日记账的导入菜单，请选择一个后再推送。
 MR.ERP import menu,MR.ERP 导入菜单
 MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊购录入。
+MR.ERP settings,MR.ERP 设置
 Make template,设为模板
 Manual,手工
 Many-to-one lines,多笔对一笔
@@ -834,6 +845,7 @@ Party Type,往来单位类型
 Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Paste a link,粘贴链接
+Payable account,应付科目
 Payload Json,冻结载荷（JSON）
 Payment,付款方式
 Payment Evidence,付款凭证
@@ -865,6 +877,7 @@ Product Code,产品编码
 Product Name,产品名称
 Product code,商品编码
 Product codes and barcodes must be stored as text.,产品编码和条形码必须以文本格式保存。
+Product group,商品分类
 Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 Progress,进度
@@ -906,6 +919,7 @@ Reading the scanned or photographed document took too long. Try again later.,扫
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Receipt,收据
+Receivable account,应收科目
 Recently read,最近读取
 Recognised {0} documents,已识别 {0} 张单据
 Recognition Confidence,识别置信度
@@ -1018,6 +1032,7 @@ Run on day,每月运行日
 Run requested. The Companion starts within a few minutes.,已请求运行，小助手将在几分钟内开始。
 SHA-256,SHA-256
 SKU,SKU
+Sales area,销售区域
 Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票缺少未税金额明细，无法导出。
 Sample Key,修正例标识
@@ -1136,6 +1151,7 @@ Subfolders can be named freely; file names can be anything; one PDF may hold sev
 Submit,提交
 Summary Json,汇总信息
 Summary table import,汇总表导入
+Supplier type,供应商类型
 Table,表格
 Tap Send documents to ERP in the menu first,请先点击菜单中的「发送单据至 ERP」
 Tap the menu to start,请点击菜单开始
@@ -1422,6 +1438,7 @@ This supplier is not in Express and could not be created. Check the supplier nam
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
 This tax ID is already used by another company.,该税号已被其他公司使用。
 This tax id is already used by another client.,该税号已被其他客户使用。
+This value cannot be chosen for this account set.,此账套不能选择该值。
 Time left {0},剩余 {0}
 Times Used,使用次数
 Title,标题
@@ -1579,6 +1596,7 @@ connection.adapter_invalid,不支持此 ERP 连接类型。
 connection.config_invalid,请检查 ERP 连接配置。
 connection.disabled,此连接已停用。
 connection.lock_required,读取推送目标前必须锁定连接。
+connection.mrerp_default_invalid,此账套不能选择该值。
 connection.mrerp_menu_invalid,此账套不能选择该 MR.ERP 菜单。
 connection.not_found,找不到此连接或目录记录。
 connection.preparation_incomplete,此账套的推送准备资料尚未完整获取。
@@ -2404,7 +2422,10 @@ intake.error.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建�
 intake.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重试
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
+intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
+intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。
+intake.error.ERR_MRERP_MASTER_UNREADABLE,无法读取 MR.ERP 主档。
 intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP 菜单设置已变更（所选菜单不存在或未关联日记账），请重新选择。
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP 中此类单据有多个已关联日记账的导入菜单，请选择一个后再推送。
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
@@ -2456,6 +2477,22 @@ intake.error.payload_version_outdated,小助手版本过旧，请更新后重新
 intake.error.posting_kind_needed,请为此发票选择服务或存货后重新提交
 intake.error.seller_buyer_same_tax,卖方和买方税号相同，请更正后重新提交
 intake.error.tax_id_invalid,税号无效，请更正后重新提交
+intake.mrerpDefault.ap_account,应付科目
+intake.mrerpDefault.ar_account,应收科目
+intake.mrerpDefault.area,销售区域
+intake.mrerpDefault.bank_account,银行收款科目
+intake.mrerpDefault.branch,分店
+intake.mrerpDefault.customer_type,客户类型
+intake.mrerpDefault.delivery,运输方式
+intake.mrerpDefault.dept,部门
+intake.mrerpDefault.employee,员工
+intake.mrerpDefault.expense_account,费用科目
+intake.mrerpDefault.job,项目
+intake.mrerpDefault.product_group,商品分类
+intake.mrerpDefault.store,仓库
+intake.mrerpDefault.supplier_type,供应商类型
+intake.mrerpDefault.title,MR.ERP 设置
+intake.mrerpDefault.unit,单位
 intake.mrerpMenu.purchase,采购（货品）
 intake.mrerpMenu.purchase_expense,采购（费用）
 intake.mrerpMenu.readFailed,无法读取 MR.ERP 菜单，请稍后重试。

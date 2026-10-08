@@ -9,6 +9,7 @@
 5 minutes before,5分前
 A board needs at least one admin,ボードには管理者が少なくとも1人必要です
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
+A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,選択した値は MR.ERP に存在しません。選び直してください。
 A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
 A client needs a name.,顧客名を入力してください。
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
@@ -125,6 +126,7 @@ Balance breaks,残高が合わない箇所
 Bank,銀行
 Bank Code,銀行コード
 Bank Reconciliation,銀行照合
+Bank account,銀行勘定
 Bank amount,銀行金額
 Bank deposit only,銀行入金のみ
 Bank statement,銀行明細
@@ -285,6 +287,7 @@ Copy to,コピー先
 Correct entry,記録を修正
 Corrected Value,修正値
 Could not finish,失敗
+Could not read the MR.ERP master data.,MR.ERP のマスターデータを読み取れません。
 Could not read the MR.ERP menus. Try again later.,MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。
 Could not read this document. Please send it again.,書類を読み取れませんでした。もう一度送信してください。
 Could not store this document,書類を保存できませんでした
@@ -363,6 +366,7 @@ Custom Fields,カスタム項目
 Custom fields,カスタムフィールド
 Custom fields saved,カスタムフィールドを保存しました
 Customer,顧客
+Customer type,顧客区分
 Cyan,水色
 Daily,毎日
 Date,日付
@@ -392,6 +396,7 @@ Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
+Delivery type,配送方法
 Department,部門
 Department for this rule,部門
 Deposit,入金
@@ -465,6 +470,7 @@ Edit labels,ラベルを編集
 Electronic,電子版
 Electronic file,電子ファイル
 Email,メール
+Employee,担当者
 Enable,有効化
 Enable {0},{0}件を有効化
 Enabled,有効
@@ -644,6 +650,7 @@ It was entered,計上されている
 It was not entered,計上されていない（再送信可）
 Item,項目
 Items,品目
+Job,案件
 Job Roles,機能権限
 Just read,読み取ったばかり
 Keep,引き継ぐ
@@ -692,12 +699,16 @@ Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
 MR.ERP Import Menu Options Seen,取得済みの MR.ERP 取込メニュー
 MR.ERP Import Menu per Account Set,会計データ別 MR.ERP 取込メニュー
+MR.ERP Master Defaults per Account Set,会計データ別 MR.ERP 既定値
+MR.ERP Master Options Seen,取得済みの MR.ERP マスター
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
+MR.ERP default values are needed for this account set. Choose them before pushing.,MR.ERP の既定値を選択してから送信してください。
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
 MR.ERP import menu,MR.ERP 取込メニュー
 MR.ERP purchases can only be entered on credit.,MR.ERP の仕入は掛けでのみ登録できます。
+MR.ERP settings,MR.ERP 設定
 Make template,テンプレートにする
 Manual,手入力
 Many-to-one lines,複数対 1 件
@@ -834,6 +845,7 @@ Party Type,取引先区分
 Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Paste a link,リンクを貼り付け
+Payable account,買掛金勘定
 Payload Json,固定ペイロードJSON
 Payment,支払方法
 Payment Evidence,支払証跡
@@ -865,6 +877,7 @@ Product Code,商品コード
 Product Name,商品名
 Product code,商品コード
 Product codes and barcodes must be stored as text.,商品コードとバーコードは文字列として保存してください。
+Product group,商品分類
 Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 Progress,進捗
@@ -906,6 +919,7 @@ Reading the scanned or photographed document took too long. Try again later.,ス
 Ready for the next product,次の商品を棚卸できます
 Reason,理由
 Receipt,領収書
+Receivable account,売掛金勘定
 Recently read,最近の読み取り
 Recognised {0} documents,{0} 件の書類を読み取りました
 Recognition Confidence,認識の信頼度
@@ -1018,6 +1032,7 @@ Run on day,実行日
 Run requested. The Companion starts within a few minutes.,実行を依頼しました。数分以内に開始します。
 SHA-256,SHA-256
 SKU,SKU
+Sales area,販売地域
 Sales invoices,売上請求書
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
 Sample Key,修正例識別子
@@ -1136,6 +1151,7 @@ Subfolders can be named freely; file names can be anything; one PDF may hold sev
 Submit,確定
 Summary Json,集計情報
 Summary table import,集計表の取り込み
+Supplier type,仕入先区分
 Table,テーブル
 Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
 Tap the menu to start,メニューを押して始めてください
@@ -1422,6 +1438,7 @@ This supplier is not in Express and could not be created. Check the supplier nam
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 This tax ID is already used by another company.,この納税者番号は既に別の会社で使用されています。
 This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
+This value cannot be chosen for this account set.,この帳簿ではこの値を選択できません。
 Time left {0},残り {0}
 Times Used,使用回数
 Title,タイトル
@@ -1579,6 +1596,7 @@ connection.adapter_invalid,このERP接続タイプはサポートされてい�
 connection.config_invalid,ERP接続設定を確認してください。
 connection.disabled,この接続は無効です。
 connection.lock_required,送信先を読み取る前に接続をロックしてください。
+connection.mrerp_default_invalid,この帳簿ではこの値を選択できません。
 connection.mrerp_menu_invalid,この会計データではこの MR.ERP メニューを選択できません。
 connection.not_found,接続またはディレクトリの記録が見つかりません。
 connection.preparation_incomplete,この会計データの送信準備情報が不足しています。
@@ -2404,7 +2422,10 @@ intake.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成�
 intake.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。Express で確認してから再送信してください
+intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
+intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
+intake.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み取れません。
 intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
@@ -2456,6 +2477,22 @@ intake.error.payload_version_outdated,アシスタントが古いバージョン
 intake.error.posting_kind_needed,この伝票がサービスか在庫かを選んで再送信してください
 intake.error.seller_buyer_same_tax,売手と買手の納税者番号が同じです。直して再送信してください
 intake.error.tax_id_invalid,納税者番号が正しくありません。直して再送信してください
+intake.mrerpDefault.ap_account,買掛金勘定
+intake.mrerpDefault.ar_account,売掛金勘定
+intake.mrerpDefault.area,販売地域
+intake.mrerpDefault.bank_account,銀行勘定
+intake.mrerpDefault.branch,支店
+intake.mrerpDefault.customer_type,顧客区分
+intake.mrerpDefault.delivery,配送方法
+intake.mrerpDefault.dept,部門
+intake.mrerpDefault.employee,担当者
+intake.mrerpDefault.expense_account,費用勘定
+intake.mrerpDefault.job,案件
+intake.mrerpDefault.product_group,商品分類
+intake.mrerpDefault.store,倉庫
+intake.mrerpDefault.supplier_type,仕入先区分
+intake.mrerpDefault.title,MR.ERP 設定
+intake.mrerpDefault.unit,単位
 intake.mrerpMenu.purchase,仕入（商品）
 intake.mrerpMenu.purchase_expense,仕入（経費）
 intake.mrerpMenu.readFailed,MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。

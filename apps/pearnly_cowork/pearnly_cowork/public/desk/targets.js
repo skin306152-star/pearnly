@@ -281,7 +281,8 @@
 		const args = {name: connection.name, account_set_key};
 		const read = () => p.call(API.connections + "mrerp_menu", args).catch(() => null);
 		let view = await read();
-		if (!view || (view.known && !fresh)) return view;
+		// 菜单与主档都读到过才直接用（09-28 起读过菜单的账套还没读过主档，第一次要补读）
+		if (!view || (view.known && view.defaults?.known && !fresh)) return view;
 		const request = await p.call(API.connections + "request_mrerp_menu", args, "POST").catch(() => null);
 		if (!request) return view;
 		const started = Date.now();
@@ -300,25 +301,52 @@
 		return kinds.filter(kind => view?.kinds?.[kind]?.needed);
 	}
 
+	/* 主档默认值（部门 / 员工 / 科目等，用户 2026-10-08）：这家公司 MR.ERP 主档里某项只有一个就不问，多个时请人选一次，
+	 * 按连接 + 账套记住（服务端 `targets/mrerp_masters.py`）。与菜单同一个弹窗一次问齐。 */
+	const DEFAULT_FIELDS = {
+		sales: ["branch", "dept", "job", "store", "employee", "area", "delivery", "customer_type", "ar_account",
+			"bank_account", "product_group", "unit"],
+		purchase: ["branch", "dept", "job", "store", "employee", "supplier_type", "ap_account", "product_group",
+			"unit", "expense_account"],
+	};
+
+	function mrerp_default_needed(view, direction) {
+		const fields = DEFAULT_FIELDS[direction] || [...new Set([...DEFAULT_FIELDS.sales, ...DEFAULT_FIELDS.purchase])];
+		return fields.filter(field => view?.defaults?.fields?.[field]?.needed);
+	}
+
 	/**
 	 * 推 MR.ERP 前，这份账套这张票会用到的菜单得定下来。要选时先重读一次导入页（选项可能刚变），
 	 * 再用原生弹窗一次选齐；选好存下返回 true，关掉弹窗返回 false（这份账套的票这次先不推）。
 	 * 读不到菜单不在这里拦（推送时服务端会核对并说明原因）。
 	 */
 	async function mrerp_menu_ready(connection, account_set_key, direction) {
+		const any_needed = view => mrerp_menu_needed(view, direction).length || mrerp_default_needed(view, direction).length;
 		let view = await mrerp_menu(connection, account_set_key);
-		if (!mrerp_menu_needed(view, direction).length) return true;
+		if (!any_needed(view)) return true;
 		view = await mrerp_menu(connection, account_set_key, {fresh: true});
 		const needed = mrerp_menu_needed(view, direction);
-		if (!needed.length) return true;
+		const defaults = mrerp_default_needed(view, direction);
+		if (!needed.length && !defaults.length) return true;
+		const option_label = option => [option.code, option.name].filter(Boolean).join(" · ");
 		return new Promise(resolve => {
-			const d = p.dialog(__("intake.mrerpMenu.title"), needed.map(kind => ({fieldtype: "Select", fieldname: kind,
-				label: __(`intake.mrerpMenu.${kind}`), reqd: 1,
-				options: view.kinds[kind].options.map(option => ({value: option.idmenu, label: option.label || option.idmenu})),
-			})), __("Save"), async values => {
+			const d = p.dialog(__(defaults.length ? "intake.mrerpDefault.title" : "intake.mrerpMenu.title"), [
+				...needed.map(kind => ({fieldtype: "Select", fieldname: kind,
+					label: __(`intake.mrerpMenu.${kind}`), reqd: 1,
+					options: view.kinds[kind].options.map(option => ({value: option.idmenu, label: option.label || option.idmenu})),
+				})),
+				...defaults.map(field => ({fieldtype: "Select", fieldname: `default_${field}`,
+					label: __(`intake.mrerpDefault.${field}`), reqd: 1,
+					options: view.defaults.fields[field].options.map(option => ({value: option.code, label: option_label(option)})),
+				})),
+			], __("Save"), async values => {
 				for (const kind of needed) {
 					await p.call(API.connections + "choose_mrerp_menu",
 						{name: connection.name, account_set_key, doc_type: kind, idmenu: values[kind]}, "POST");
+				}
+				for (const field of defaults) {
+					await p.call(API.connections + "choose_mrerp_default",
+						{name: connection.name, account_set_key, field, code: values[`default_${field}`]}, "POST");
 				}
 				resolve(true);
 				d.hide();
@@ -387,7 +415,7 @@
 		prefetch_account,
 		express_dialog,
 		stock_group, stock_group_needed, stock_group_options, choose_stock_group, ask_stock_group,
-		mrerp_menu, mrerp_menu_needed, mrerp_menu_ready,
+		mrerp_menu, mrerp_menu_needed, mrerp_default_needed, mrerp_menu_ready,
 		express_choices_ready,
 		ready, state};
 })();

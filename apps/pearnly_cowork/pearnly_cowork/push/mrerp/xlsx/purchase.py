@@ -19,7 +19,7 @@ import zipfile
 from collections import OrderedDict
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx import generator as _gen
+from pearnly_cowork.push.mrerp.xlsx import defaults as account_values, generator as _gen
 from pearnly_cowork.push.mrerp.xlsx.fmt import (
     fmt_date,
     fmt_number,
@@ -259,6 +259,7 @@ def generate_xlsx_purchase(
 
     # ── Sheet1 header ──────────────────────────────────────────────
     rows1 = [_header_row(_HEADERS_1, 16)]
+    head = account_values.header(mappings)
     for ridx, history in enumerate(histories, start=2):
         inv = _gen.derive_mrerp_invoice_no(history)
         date = fmt_date(history.get("invoice_date")) or ""
@@ -272,10 +273,10 @@ def generate_xlsx_purchase(
                 if expense
                 else "7 (แยก)"
             ),
-            4: "00000",
-            5: "BOI1",
-            6: "00002",
-            7: "กร ทดสอบ",
+            4: head["branch"],
+            5: head["dept"],
+            6: head["job"],
+            7: head["employee"],
             8: date,
             9: supplier,
             10: supplier,
@@ -312,9 +313,9 @@ def generate_xlsx_purchase(
             cells = [
                 _str_cell(1, cur, inv, _S_TEXT),
                 _str_cell(2, cur, d["code"], _S_TEXT),
-                _str_cell(3, cur, "BOI1", _S_TEXT),
-                _str_cell(4, cur, "00002", _S_TEXT),
-                _str_cell(5, cur, "0000", _S_TEXT),
+                _str_cell(3, cur, head["dept"], _S_TEXT),
+                _str_cell(4, cur, head["job"], _S_TEXT),
+                _str_cell(5, cur, head["store"], _S_TEXT),
                 _num_cell(6, cur, d["qty"]),
                 _num_cell(7, cur, d["price"]),
                 _num_cell(8, cur, d["amount"]),

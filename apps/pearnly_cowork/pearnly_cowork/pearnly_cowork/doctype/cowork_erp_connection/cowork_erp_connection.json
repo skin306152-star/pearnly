@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-22 00:00:00.000000",
- "modified": "2026-09-22 00:00:00.000000",
+ "modified": "2026-10-08 22:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -43,7 +43,9 @@
   "report_generation",
   "stock_acc_groups",
   "mrerp_menus",
-  "mrerp_menu_options"
+  "mrerp_menu_options",
+  "mrerp_defaults",
+  "mrerp_master_options"
  ],
  "fields": [
   {
@@ -258,6 +260,22 @@
   {
    "fieldname": "mrerp_menu_options",
    "label": "MR.ERP Import Menu Options Seen",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "mrerp_defaults",
+   "label": "MR.ERP Master Defaults per Account Set",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "mrerp_master_options",
+   "label": "MR.ERP Master Options Seen",
    "fieldtype": "Long Text",
    "read_only": 1,
    "no_copy": 1,

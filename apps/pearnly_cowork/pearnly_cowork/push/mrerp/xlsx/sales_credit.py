@@ -12,7 +12,7 @@ import,勿在 facade 之前直接 import(否则循环 import 半初始化)。
 import io
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx import generator as _gen
+from pearnly_cowork.push.mrerp.xlsx import defaults as account_values, generator as _gen
 from pearnly_cowork.push.mrerp.xlsx.fmt import (
     fmt_date,
     fmt_number,
@@ -240,21 +240,22 @@ def _generate_xlsx_sales_credit_korn_clone(
         invoice_date = row_data.get("invoice_date", "")
         bill_no = row_data.get("bill_no", "")
         cust_code = row_data.get("customer_code", "")
+        head = account_values.header(mappings, cust_code)
         STR_VALUES = [
             invoice_no,
             invoice_date,
             mrerp_sales_tax_label(history),
-            "00000",
-            "BOI1",
-            "00002",
-            "กร ทดสอบ",
+            head["branch"],
+            head["dept"],
+            head["job"],
+            head["employee"],
             invoice_date,
             cust_code,
             cust_code,
             bill_no,
             invoice_date,
-            "สุพรรณบุรี",
-            "ขนส่งโดยบริษัท",
+            head["area"],
+            head["delivery"],
         ]
         cells = []
         for i, val in enumerate(STR_VALUES, 1):
@@ -292,6 +293,7 @@ def _generate_xlsx_sales_credit_korn_clone(
 
     cur_row = 2
     total_detail_rows = 0
+    line = account_values.header(mappings)
     for history in histories:
         invoice_no = _gen.derive_mrerp_invoice_no(history)
         detail_rows = build_sales_credit_detail_rows(history, mappings)
@@ -299,13 +301,14 @@ def _generate_xlsx_sales_credit_korn_clone(
             qty = row_data.get("qty", 0) or 0
             unit_price = row_data.get("unit_price", 0) or 0
             amount = row_data.get("amount", 0) or 0
-            product_code = row_data.get("product_code") or "123"
+            # 对不上商品码不再兜底成 TEST2019 的商品 "123"：空着让 MR.ERP 明确拒掉（自建商品在生成前已补好码）
+            product_code = row_data.get("product_code") or ""
             cells = [
                 f'<c r="A{cur_row}" s="3" t="s"><v>{_get_idx(invoice_no)}</v></c>',
                 f'<c r="B{cur_row}" s="3" t="s"><v>{_get_idx(product_code)}</v></c>',
-                f'<c r="C{cur_row}" s="3" t="s"><v>{_get_idx("BOI1")}</v></c>',
-                f'<c r="D{cur_row}" s="3" t="s"><v>{_get_idx("00002")}</v></c>',
-                f'<c r="E{cur_row}" s="3" t="s"><v>{_get_idx("0000")}</v></c>',
+                f'<c r="C{cur_row}" s="3" t="s"><v>{_get_idx(line["dept"])}</v></c>',
+                f'<c r="D{cur_row}" s="3" t="s"><v>{_get_idx(line["job"])}</v></c>',
+                f'<c r="E{cur_row}" s="3" t="s"><v>{_get_idx(line["store"])}</v></c>',
                 f'<c r="F{cur_row}" s="5"><v>{_format_num(qty)}</v></c>',
                 f'<c r="G{cur_row}" s="5"><v>{_format_num(unit_price)}</v></c>',
                 f'<c r="H{cur_row}" s="5"><v>{_format_num(amount)}</v></c>',

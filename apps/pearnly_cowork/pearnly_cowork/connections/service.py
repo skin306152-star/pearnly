@@ -18,7 +18,7 @@ from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
-from pearnly_cowork.targets import mrerp_menus as menu_rules, stock_groups
+from pearnly_cowork.targets import mrerp_masters as master_rules, mrerp_menus as menu_rules, stock_groups
 from . import access, model, snapshots, refresh as refresh_leases
 from .preparation import reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope
@@ -322,7 +322,13 @@ def mrerp_menu(name, account_set_key):
     doc = _read(CONNECTION, name)
     access.require_connection(doc)
     account = _mrerp_menu_account(doc, account_set_key)
-    return menu_rules.view(doc.mrerp_menus, doc.mrerp_menu_options, account)
+    return _mrerp_view(doc, account)
+
+
+def _mrerp_view(doc, account):
+    """菜单视图 + 主档默认值（同一个选择弹窗一次问齐）。"""
+    return {**menu_rules.view(doc.mrerp_menus, doc.mrerp_menu_options, account),
+            "defaults": master_rules.view(doc.get("mrerp_defaults"), doc.get("mrerp_master_options"), account)}
 
 
 def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
@@ -341,7 +347,25 @@ def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
             _error("connection.mrerp_menu_invalid")
         doc.mrerp_menus = model.dumps(value)
         access.write(doc)
-    return menu_rules.view(doc.mrerp_menus, doc.mrerp_menu_options, account)
+    return _mrerp_view(doc, account)
+
+
+def choose_mrerp_default(name, account_set_key, field, code):
+    """记下这份账套这个主档字段用哪个值（部门 / 员工 / 科目等，选一次按连接 + 账套记住，用户 2026-10-08）。
+
+    只收最近一次从 MR.ERP 主档读到的可用值。与连接配置分开存，不升连接版本：正在推的票用的是准备推送时冻结的选择。
+    """
+    doc = _read(CONNECTION, name)
+    actor = access.require_connection(doc)
+    account = _mrerp_menu_account(doc, account_set_key)
+    if master_rules.chosen_map(doc.get("mrerp_defaults"), account).get(field) != str(code or "").strip():
+        value = master_rules.choose(doc.get("mrerp_defaults"), account, field, code, doc.get("mrerp_master_options"),
+                                    actor=actor, at=_now().isoformat())
+        if value is None:
+            _error("connection.mrerp_default_invalid")
+        doc.mrerp_defaults = model.dumps(value)
+        access.write(doc)
+    return _mrerp_view(doc, account)
 
 
 def request_mrerp_menu(name, account_set_key):
@@ -364,6 +388,23 @@ def observe_mrerp_menus(name, account_set_key, pages, error=None):
         return
     value = menu_rules.observe(doc.mrerp_menu_options, account, pages, at=_now().isoformat(), error=error)
     frappe.db.set_value(CONNECTION, doc.name, "mrerp_menu_options", model.dumps(value), update_modified=False)
+
+
+def observe_mrerp_masters(name, account_set_key, fields, error=None):
+    """内部：存下这次从 MR.ERP 读到的主档可用值（推送与读取任务共用）。不是 RPC，调用方负责提交。"""
+    account = mrerp_account_key(account_set_key)
+    if not account or (fields is None and not error):
+        return
+    doc = _read(CONNECTION, name)
+    if doc.adapter != "mrerp":
+        return
+    value = master_rules.observe(doc.get("mrerp_master_options"), account, fields, at=_now().isoformat(), error=error)
+    frappe.db.set_value(CONNECTION, doc.name, "mrerp_master_options", model.dumps(value), update_modified=False)
+
+
+def mrerp_chosen_defaults(loaded, account_set_key):
+    """准备推送时冻结进载荷的：这份账套各主档字段选过的代码。"""
+    return master_rules.chosen_map(loaded.doc.get("mrerp_defaults"), mrerp_account_key(account_set_key))
 
 
 def mrerp_chosen_menus(loaded, account_set_key):

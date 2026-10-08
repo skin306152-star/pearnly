@@ -52,16 +52,17 @@ _HEADERS = [
     "รหัสสาขาลูกค้า",
 ]
 
-# TEST2019 默认结构码(照抄现有客户 0006 的合法值)· 生产按套账经 mappings 覆盖。
-# ⚠️ area/account/salesman 是套账专属主数据码,别的套账必须覆盖,否则被 report 挡下(fail-safe)。
+# 类型 / 应收科目 / 销售员 / 区域 / 运输是这家公司自己的主档代码，推送前按主档与这份账套选过的值算好放进
+# mappings（`_mrerp_customer_*`，见 push/mrerp/defaults.py）；称谓与客户分店按每个客户算（`prefix` / `branch`）。
+# 缺了写空串，MR.ERP 会明确拒掉，不再写 TEST2019 的值（旧线上照抄客户 0006，换公司必被拒，2026-10-08）。
 _DEFAULTS = {
-    "type": "1-11",  # ประเภทลูกค้า · 应收账款(贸易债务人)
-    "account": "1130-03",  # รหัสบัญชี · 应收科目
-    "salesman": "กร",  # รหัสพนักงานขาย
-    "area": "สุพรรณ",  # รหัสพื้นที่การขาย · 须恰 6 字符
-    "shipping": "TRUCK1",  # รหัสประเภทขนส่ง
-    "branch": "00000",  # 分支 · 总公司
-    "prefix": "บริษัท",  # คำนำหน้า · 公司抬头
+    "type": "",
+    "account": "",
+    "salesman": "",
+    "area": "",
+    "shipping": "",
+    "branch": "",
+    "prefix": "",
     "country": "TH",
     "email": "noemail@pearnly.app",  # 邮箱必填且须合法格式 · 单据无邮箱时的占位默认
 }
@@ -118,11 +119,12 @@ def build_customer_row(cust: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[i
     def _or_ph(v: str) -> str:
         return v.strip() if v and v.strip() else _PLACEHOLDER
 
+    prefix = str(cust.get("prefix") or "").strip() or _cfg(mappings, "prefix")
     # MR.ERP 客户导入把地址 2-4/邮箱/联系人等都当必填(空→报错)· 无数据填占位 "-"。
     return {
         1: str(cust.get("code") or "")[:20],
         2: _cfg(mappings, "type"),
-        3: _cfg(mappings, "prefix"),
+        3: prefix,
         4: name,
         5: _or_ph(addr[:100]),
         6: _or_ph(addr[100:200]),
@@ -133,7 +135,7 @@ def build_customer_row(cust: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[i
         11: _email(cust.get("email")),
         12: _cfg(mappings, "country"),
         13: _cfg(mappings, "account"),
-        14: _cfg(mappings, "prefix"),
+        14: prefix,
         15: name[:50],
         16: _cfg(mappings, "salesman"),
         17: _cfg(mappings, "area"),
@@ -144,7 +146,7 @@ def build_customer_row(cust: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[i
         22: 0,  # จัดอันดับ
         23: 1,  # อัตราแลกเปลี่ยน
         24: tax,
-        25: _cfg(mappings, "branch"),
+        25: str(cust.get("branch") or "").strip() or _cfg(mappings, "branch"),
     }
 
 

@@ -24,13 +24,16 @@ component/importpc（确认）→ component/report（importpc 回纯数字时逐
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_core.session_lock import account_lock
 from pearnly_cowork.connections.mrerp_session import MrErpSession, SessionError, lock_key
+from pearnly_cowork.connections.mrerp_master_reader import MasterReader
 from pearnly_cowork.push.mrerp import readback, routing
+from pearnly_cowork.push.mrerp.defaults import AccountDefaults, Missing, tag_default_changed
 from pearnly_cowork.push.mrerp.account_valve import ACCOUNT_REVIEW_CODE, account_gate, tag_account_review
 from pearnly_cowork.push.mrerp.models import (
     FailedRow,
@@ -50,6 +53,10 @@ from pearnly_cowork.targets import mrerp_menus
 
 logger = logging.getLogger(__name__)
 
+
+# 主档导入报「这个码已存在」（imparmas / impapmas / impstkmas importpc.php 的 รหัสลูกค้า / รหัสผู้จำหน่าย /
+# รหัสสินค้า[เพื่อซื้อ|เพื่อขาย]ดังกล่าวมีอยู่ในระบบแล้ว）
+_CODE_EXISTS = re.compile(r"รหัส(?:ลูกค้า|ผู้จำหน่าย|สินค้า(?:เพื่อซื้อ|เพื่อขาย)?)ดังกล่าวมีอยู่ในระบบแล้ว")
 
 READBACK_NOT_FOUND = "ERR_MRERP_READBACK_NOT_FOUND"
 READBACK_NOT_LINKED = "ERR_MRERP_READBACK_NOT_LINKED"
@@ -71,6 +78,9 @@ class MrErpImport:
         self.import_sent = False
         # 这次会话读到的导入页选项（导入页 → 选项 | None），调用方存下来给选择入口用。
         self.observed_menus: Dict[str, Optional[List[Dict[str, Any]]]] = {}
+        # 这家公司的导入值（推送时按主档算，见 push/mrerp/defaults.py）；自建主档要的值定不下来时记下原因码。
+        self.account_defaults: Optional[AccountDefaults] = None
+        self.default_reason: Optional[str] = None
 
     # ---- lifecycle ---------------------------------------------------
 
@@ -141,7 +151,24 @@ class MrErpImport:
         if not histories:
             return self._result(original, [], mismatch_failed, t0, 0)
 
-        # 科目安全阀(主动层):提供了该套账科目表且配置科目码不在表内 → 全挡下退回用户配置(不硬建)。
+        # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档与这份账套选过的值算，定不下来就不推、
+        # 不建主档（规则见 targets/mrerp_masters.py）。参考科目、称谓只有网页，会改写会话里的当前菜单，所以在打开
+        # 导入页之前读。
+        self._prepare(m)
+        self.default_reason = None
+        if self.account_defaults is None:  # 同一次会话里几组单据（赊销 / 现金）共用一次读取
+            self.account_defaults = AccountDefaults(MasterReader(self._request, self.login_url),
+                                                    (mappings or {}).get("_mrerp_defaults"))
+        try:
+            self.account_defaults.reader.reference()
+            self.account_defaults.reader.prefixes()
+            self.account_defaults.header(mappings, histories, sales=m.doc_type.startswith("sales"),
+                                         cash_sale=m.doc_type == "sales_cash")
+        except Missing as missing:
+            return self._result(original, [], mismatch_failed + [self._fail_row(h, [missing.reason])
+                                                                 for h in histories], t0, 0)
+
+        # 科目安全阀(主动层):这家公司的科目表(上面读到的)里没有要用的科目码 → 全挡下退回用户配置(不硬建)。
         review = account_gate(mappings)
         if review:
             reasons = [ACCOUNT_REVIEW_CODE, ", ".join(review)]
@@ -150,7 +177,6 @@ class MrErpImport:
 
         # 菜单：这次打开的导入页里，这份账套选过的（或唯一一个）已关联日记账的菜单；定不下来就不推、不建主档。
         chosen = ((mappings or {}).get("_mrerp_menus") or {}).get(m.doc_type)
-        self._prepare(m)
         menu, reason = mrerp_menus.resolve(self._read_menus(m), chosen)
         if reason:
             return self._result(original, [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories],
@@ -167,6 +193,10 @@ class MrErpImport:
 
             provision_suppliers(self, histories, mappings)
 
+        if self.default_reason:  # 自建主档要的值定不下来（要人选 / 选过的没了）：这批不推
+            return self._result(original, [], mismatch_failed + [self._fail_row(h, [self.default_reason])
+                                                                 for h in histories], t0, 0)
+
         valid, preflight_failed = self._preflight(histories, mappings)
         if not valid:
             return self._result(original, [], mismatch_failed + preflight_failed, t0, 0)
@@ -176,6 +206,9 @@ class MrErpImport:
             from pearnly_cowork.push.mrerp.autocreate import provision_products
 
             provision_products(self, valid, mappings)
+            if self.default_reason:
+                return self._result(original, [], mismatch_failed + preflight_failed
+                                    + [self._fail_row(h, [self.default_reason]) for h in valid], t0, 0)
 
         xlsx_bytes = _gen.generate_xlsx(valid, mappings, sheet_kind=m.sheet_kind, expense=m.expense)
         expected = [_gen.derive_mrerp_invoice_no(h) for h in valid]
@@ -224,16 +257,40 @@ class MrErpImport:
     # ---- 自建主数据 --------------------------------------------------
 
     def create_customers(self, customers: List[Dict[str, Any]], mappings: Dict[str, Any]) -> Dict[str, bool]:
-        """自建客户(idempotent)· 导入 imparmas · 返回 {客户码: 成功}。已存在视为成功。"""
-        return self._import_masters(get_module("master_customer"), customers, mappings, "A")
+        """自建客户(idempotent)· 导入 imparmas · 返回 {客户码: 成功}。已存在视为成功。
+        类型 / 应收科目 / 销售员等取这家公司的主档（push/mrerp/defaults.py），定不下来就不建、记下原因码。"""
+        try:
+            records, shared = self._defaults().customers(customers)
+        except Missing as missing:
+            return self._not_created(customers, missing)
+        return self._import_masters(get_module("master_customer"), records, {**mappings, **shared}, "A")
 
     def create_products(self, products: List[Dict[str, Any]], mappings: Dict[str, Any]) -> Dict[str, bool]:
-        """自建商品(idempotent)· 导入 impstkmas · 返回 {商品码: 成功}。已存在视为成功。"""
-        return self._import_masters(get_module("master_product"), products, mappings, "C")
+        """自建商品(idempotent)· 导入 impstkmas · 返回 {商品码: 成功}。已存在视为成功。
+        分类 / 单位 / 科目取这家公司的主档与参考科目（费用物料取这份账套选的费用科目）。"""
+        try:
+            values = self._defaults().products(expense=bool(getattr(self.module, "expense", False)))
+        except Missing as missing:
+            return self._not_created(products, missing)
+        return self._import_masters(get_module("master_product"), products, {**mappings, **values}, "C")
 
     def create_suppliers(self, suppliers: List[Dict[str, Any]], mappings: Dict[str, Any]) -> Dict[str, bool]:
         """自建供应商(idempotent)· 导入 impapmas · 返回 {供应商码: 成功}。已存在视为成功。"""
-        return self._import_masters(get_module("master_supplier"), suppliers, mappings, "A")
+        try:
+            records, shared = self._defaults().suppliers(suppliers)
+        except Missing as missing:
+            return self._not_created(suppliers, missing)
+        return self._import_masters(get_module("master_supplier"), records, {**mappings, **shared}, "A")
+
+    def _defaults(self) -> AccountDefaults:
+        if self.account_defaults is None:  # 只建主档、没走 upload_invoice_batch 的调用（测试 / 工具）
+            self._prepare(self.module)
+            self.account_defaults = AccountDefaults(MasterReader(self._request, self.login_url), {})
+        return self.account_defaults
+
+    def _not_created(self, records: List[Dict[str, Any]], missing: "Missing") -> Dict[str, bool]:
+        self.default_reason = self.default_reason or missing.reason
+        return {str(r.get("code") or ""): False for r in records if r.get("code")}
 
     def _import_masters(self, module, records: List[Dict[str, Any]], mappings: Dict[str, Any],
                         code_col: str) -> Dict[str, bool]:
@@ -253,8 +310,10 @@ class MrErpImport:
         if raw == "1":
             return {c: True for c in codes}
         notes = parse_master_report(self._fetch_report(idus_form, module=module), code_col=code_col)
-        # 空备注=新建成功;"มีอยู่ในระบบแล้ว"(该码已存在)=幂等重复,视为成功
-        return {c: (not notes.get(c) or "มีอยู่ในระบบแล้ว" in notes.get(c, "")) for c in codes}
+        # 空备注 = 新建成功；「รหัส…ดังกล่าวมีอยู่ในระบบแล้ว」（这个**码**已存在）= 幂等重复，视为成功。
+        # 只有「ชื่อสินค้า…มีอยู่ในระบบแล้ว」（同名的另一个码已存在）不算：码并没有建出来（2026-10-08 按 MR.ERP 源码修，
+        # 旧线上只看「มีอยู่ในระบบแล้ว」，把同名不同码当成已建好，后面的单据才因码不存在失败）。
+        return {c: (not notes.get(c) or bool(_CODE_EXISTS.search(notes.get(c, "")))) for c in codes}
 
     # ---- 5 步 --------------------------------------------------------
 
@@ -367,7 +426,7 @@ class MrErpImport:
             already = {row.invoice_no for row in report.failed if is_already_pushed_error("; ".join(row.reasons))}
             accepted += [inv for inv in expected if inv in already and inv not in accepted]
             # 科目安全阀:report 报科目未匹配 → 归为 ERR_ACCOUNT_NEEDS_REVIEW(退回用户配置,不硬建)
-            failed = [_fail(row.invoice_no, tag_account_review(list(row.reasons)))
+            failed = [_fail(row.invoice_no, tag_default_changed(tag_account_review(list(row.reasons))))
                       for row in report.failed if row.invoice_no not in already]
             seen = set(accepted) | {f.invoice_no for f in failed}
             failed.extend(_fail(inv, ["report did not mention this invoice"]) for inv in expected if inv not in seen)

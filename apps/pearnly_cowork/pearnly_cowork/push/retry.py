@@ -31,6 +31,10 @@ USER_DATA_ERROR_CODES = {
     # 故意不在此 set · 属技术错 · 走 retry 队列(但永远不显示 success)。
     "ERR_CUSTOMER_NAME_MISMATCH",
     "ERR_PRODUCT_NAME_MISMATCH",
+    # MR.ERP 主档默认值（2026-10-08）：要人选 / 选过的值没了 / 读不到主档，重推一样，要人处理。
+    "ERR_MRERP_DEFAULT_CHOICE_REQUIRED",
+    "ERR_MRERP_DEFAULT_CHANGED",
+    "ERR_MRERP_MASTER_UNREADABLE",
 }
 
 USER_DATA_ERROR_THAI_PATTERNS = (

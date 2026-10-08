@@ -116,7 +116,7 @@ def run(record):
 
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     outcome = execute(claim["payload"], target, secrets, system_url, today)
-    _remember_menus(row.connection, target.get("account_set"), outcome.get("menus"))
+    _remember_menus(row.connection, target.get("account_set"), outcome.get("menus"), outcome.get("masters"))
     fence, token = claim["fence"], claim["attempt_token"]
     if outcome["status"] == "unknown":
         ledger.mark_unknown(record, context=context, adapter=adapter, fence=fence, attempt_token=token,
@@ -131,12 +131,15 @@ def run(record):
     dispatch_next(row.connection)
 
 
-def _remember_menus(connection, account_set, menus):
-    """把这次读到的导入页菜单选项存回连接（选择入口用）；存不了不影响推送结果。"""
-    if not menus:
+def _remember_menus(connection, account_set, menus, masters=None):
+    """把这次读到的导入页菜单选项与主档可用值存回连接（选择入口用）；存不了不影响推送结果。"""
+    if not menus and not masters:
         return
     try:
-        connections.observe_mrerp_menus(connection, account_set, menus)
+        if menus:
+            connections.observe_mrerp_menus(connection, account_set, menus)
+        if masters:
+            connections.observe_mrerp_masters(connection, account_set, masters)
         frappe.db.commit()
     except Exception:  # noqa: BLE001 — 只是给选择入口的缓存
         frappe.db.rollback()
@@ -163,23 +166,26 @@ def execute(payload, target, secrets, system_url, today):
         return _exception(importer, f"ERR_UNEXPECTED: {type(error).__name__}: {error}")
     meta = {"elapsed_ms": result.elapsed_ms, "xlsx_size_bytes": result.xlsx_size_bytes}
     menus = importer.observed_menus
+    masters = importer.account_defaults.observed if importer.account_defaults else {}
     if result.unknown:
         # 导入受理了、所选菜单里却查不到：可能已落库，不能当失败重推，也不能当成功。
         text = "; ".join(str(r) for r in result.unknown[0].reasons)[:500]
-        return {"status": "unknown", "reason": text, "meta": meta, "menus": menus}
+        return {"status": "unknown", "reason": text, "meta": meta, "menus": menus, "masters": masters}
     if result.success:
         row = result.success[0]
         if row.already_pushed:
             meta["already_pushed"] = True
-        return {"status": "success", "docnum": row.mrerp_bill_no, "reason": "", "meta": meta, "menus": menus}
+        return {"status": "success", "docnum": row.mrerp_bill_no, "reason": "", "meta": meta, "menus": menus,
+                "masters": masters}
     failed = result.failed[0] if result.failed else None
     reasons = failed.reasons if failed else ["ERR_UNKNOWN_UPLOAD_OUTCOME"]
     text = "; ".join(str(r) for r in reasons)[:500]
     return {"status": "failed", "reason": text, "meta": {**meta, "user_data": is_user_data_error(text)},
-            "menus": menus}
+            "menus": menus, "masters": masters}
 
 
 def _exception(importer, reason):
     sent = bool(importer and importer.import_sent)
     return {"status": "unknown" if sent else "failed", "reason": reason[:500],
-            "menus": importer.observed_menus if importer else {}}
+            "menus": importer.observed_menus if importer else {},
+            "masters": importer.account_defaults.observed if importer and importer.account_defaults else {}}

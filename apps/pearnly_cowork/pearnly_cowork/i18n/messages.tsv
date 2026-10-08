@@ -1648,3 +1648,25 @@ Sending was cancelled because the account set was in use. Close Express and send
 The helper is out of date. Update the helper and submit again	小助手版本过旧，请更新后重新提交	ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	アシスタントが古いバージョンです。更新して再送信してください	intake.error.ERR_PAYLOAD_VERSION
 No number_	无发票号_	ไม่มีเลขที่_	番号なし_	cowork.folder.no_number_prefix
 Result Folder	结果文件夹	โฟลเดอร์ผลลัพธ์	結果フォルダー
+MR.ERP settings	MR.ERP 设置	การตั้งค่า MR.ERP	MR.ERP 設定	intake.mrerpDefault.title
+Branch	分店	สาขา	支店	intake.mrerpDefault.branch
+Department	部门	แผนก	部門	intake.mrerpDefault.dept
+Job	项目	งาน	案件	intake.mrerpDefault.job
+Warehouse	仓库	คลังสินค้า	倉庫	intake.mrerpDefault.store
+Employee	员工	พนักงาน	担当者	intake.mrerpDefault.employee
+Sales area	销售区域	พื้นที่การขาย	販売地域	intake.mrerpDefault.area
+Delivery type	运输方式	ประเภทขนส่ง	配送方法	intake.mrerpDefault.delivery
+Customer type	客户类型	ประเภทลูกค้า	顧客区分	intake.mrerpDefault.customer_type
+Receivable account	应收科目	บัญชีลูกหนี้	売掛金勘定	intake.mrerpDefault.ar_account
+Supplier type	供应商类型	ประเภทผู้จำหน่าย	仕入先区分	intake.mrerpDefault.supplier_type
+Payable account	应付科目	บัญชีเจ้าหนี้	買掛金勘定	intake.mrerpDefault.ap_account
+Bank account	银行收款科目	บัญชีเงินฝากธนาคาร	銀行勘定	intake.mrerpDefault.bank_account
+Product group	商品分类	หมวดสินค้า	商品分類	intake.mrerpDefault.product_group
+Unit	单位	หน่วยนับ	単位	intake.mrerpDefault.unit
+Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	intake.mrerpDefault.expense_account
+MR.ERP default values are needed for this account set. Choose them before pushing.	需要选择 MR.ERP 默认值，请选择后再推送。	กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง	MR.ERP の既定値を選択してから送信してください。	intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED
+A chosen MR.ERP value no longer exists in MR.ERP. Choose again.	所选的值在 MR.ERP 中已不存在，请重新选择。	ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่	選択した値は MR.ERP に存在しません。選び直してください。	intake.error.ERR_MRERP_DEFAULT_CHANGED
+Could not read the MR.ERP master data.	无法读取 MR.ERP 主档。	ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้	MR.ERP のマスターデータを読み取れません。	intake.error.ERR_MRERP_MASTER_UNREADABLE
+This value cannot be chosen for this account set.	此账套不能选择该值。	ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้	この帳簿ではこの値を選択できません。	connection.mrerp_default_invalid
+MR.ERP Master Defaults per Account Set	各账套的 MR.ERP 默认值	ค่าเริ่มต้น MR.ERP ของแต่ละชุดบัญชี	会計データ別 MR.ERP 既定値
+MR.ERP Master Options Seen	已读取的 MR.ERP 主档	ข้อมูลหลัก MR.ERP ที่พบ	取得済みの MR.ERP マスター

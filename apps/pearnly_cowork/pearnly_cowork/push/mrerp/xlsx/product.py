@@ -55,25 +55,27 @@ _HEADERS = [
     "รหัสผู้จำหน่าย",
 ]
 
-# TEST2019 默认结构码(照抄现有商品 P26050030)· 生产按套账经 mappings 覆盖
+# 类型、成本法是 MR.ERP 的系统表（各公司相同，模板 stderp2020.sql:3488-3490）；分类 / 单位 / 8 个科目 / 供应商是这家
+# 公司自己的主档，推送前按主档、参考科目与这份账套选过的值算好放进 mappings（`_mrerp_product_*`，见
+# push/mrerp/defaults.py）。缺了写空串，MR.ERP 会明确拒掉，不再写 TEST2019 的值（2026-10-08）。
 _DEFAULTS = {
     # ★import 认的是短标签非 select 值/全名(实测:类型只认 "จัดทำสต๊อค",带 "สินค้า : " 前缀被拒)
     "type": "จัดทำสต๊อค",  # 库存型(Zihao 定:商品建库存型)
-    "category": "03-FIG",
+    "category": "",
     "cost_method": "Average",
-    "unit_count": "ผน",
-    "unit_std": "ผน",
-    "unit_buy": "ผน",
-    "unit_sell": "ผน",
-    "acc_rev": "4110-01",  # 收入-赊销
-    "acc_ret": "4110-10",  # 收入-退货
-    "acc_dis": "4110-20",  # 收入-折让
-    "acc_pur": "5110-01",  # 采购
-    "acc_purret": "5110-11",  # 采购退回
-    "acc_purdis": "5110-21",  # 采购折让
-    "acc_inv": "1150-30",  # 存货科目
-    "acc_cost": "5100-01",  # 销货成本
-    "supplier": "CODE_NOAP",  # 无供应商占位
+    "unit_count": "",
+    "unit_std": "",
+    "unit_buy": "",
+    "unit_sell": "",
+    "acc_rev": "",
+    "acc_ret": "",
+    "acc_dis": "",
+    "acc_pur": "",
+    "acc_purret": "",
+    "acc_purdis": "",
+    "acc_inv": "",
+    "acc_cost": "",
+    "supplier": "",
 }
 
 

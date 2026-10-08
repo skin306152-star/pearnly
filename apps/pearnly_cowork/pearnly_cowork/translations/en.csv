@@ -9,6 +9,7 @@
 5 minutes before,5 minutes before
 A board needs at least one admin,A board needs at least one admin
 A board needs at least one list,A board needs at least one list
+A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 A client cannot be moved to another company.,A client cannot be moved to another company.
 A client needs a name.,A client needs a name.
 A completed record cannot become a draft.,A completed record cannot become a draft.
@@ -125,6 +126,7 @@ Balance breaks,Balance breaks
 Bank,Bank
 Bank Code,Bank Code
 Bank Reconciliation,Bank Reconciliation
+Bank account,Bank account
 Bank amount,Bank amount
 Bank deposit only,Bank deposit only
 Bank statement,Bank statement
@@ -285,6 +287,7 @@ Copy to,Copy to
 Correct entry,Correct entry
 Corrected Value,Corrected Value
 Could not finish,Could not finish
+Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menus. Try again later.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
 Could not store this document,Could not store this document
@@ -363,6 +366,7 @@ Custom Fields,Custom Fields
 Custom fields,Custom fields
 Custom fields saved,Custom fields saved
 Customer,Customer
+Customer type,Customer type
 Cyan,Cyan
 Daily,Daily
 Date,Date
@@ -392,6 +396,7 @@ Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
+Delivery type,Delivery type
 Department,Department
 Department for this rule,Department for this rule
 Deposit,Deposit
@@ -465,6 +470,7 @@ Edit labels,Edit labels
 Electronic,Electronic
 Electronic file,Electronic file
 Email,Email
+Employee,Employee
 Enable,Enable
 Enable {0},Enable {0}
 Enabled,Enabled
@@ -644,6 +650,7 @@ It was entered,It was entered
 It was not entered,It was not entered
 Item,Item
 Items,Items
+Job,Job
 Job Roles,Job Roles
 Just read,Just read
 Keep,Keep
@@ -692,12 +699,16 @@ Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
 MR.ERP Import Menu Options Seen,MR.ERP Import Menu Options Seen
 MR.ERP Import Menu per Account Set,MR.ERP Import Menu per Account Set
+MR.ERP Master Defaults per Account Set,MR.ERP Master Defaults per Account Set
+MR.ERP Master Options Seen,MR.ERP Master Options Seen
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.","MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.","MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
+MR.ERP default values are needed for this account set. Choose them before pushing.,MR.ERP default values are needed for this account set. Choose them before pushing.
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
 MR.ERP import menu,MR.ERP import menu
 MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
+MR.ERP settings,MR.ERP settings
 Make template,Make template
 Manual,Manual
 Many-to-one lines,Many-to-one lines
@@ -834,6 +845,7 @@ Party Type,Party Type
 Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Paste a link,Paste a link
+Payable account,Payable account
 Payload Json,Payload Json
 Payment,Payment
 Payment Evidence,Payment Evidence
@@ -865,6 +877,7 @@ Product Code,Product Code
 Product Name,Product Name
 Product code,Product code
 Product codes and barcodes must be stored as text.,Product codes and barcodes must be stored as text.
+Product group,Product group
 Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 Progress,Progress
@@ -906,6 +919,7 @@ Reading the scanned or photographed document took too long. Try again later.,Rea
 Ready for the next product,Ready for the next product
 Reason,Reason
 Receipt,Receipt
+Receivable account,Receivable account
 Recently read,Recently read
 Recognised {0} documents,Recognised {0} documents
 Recognition Confidence,Recognition Confidence
@@ -1018,6 +1032,7 @@ Run on day,Run on day
 Run requested. The Companion starts within a few minutes.,Run requested. The Companion starts within a few minutes.
 SHA-256,SHA-256
 SKU,SKU
+Sales area,Sales area
 Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
@@ -1136,6 +1151,7 @@ Subfolders can be named freely; file names can be anything; one PDF may hold sev
 Submit,Submit
 Summary Json,Summary Json
 Summary table import,Summary table import
+Supplier type,Supplier type
 Table,Table
 Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
 Tap the menu to start,Tap the menu to start
@@ -1422,6 +1438,7 @@ This supplier is not in Express and could not be created. Check the supplier nam
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 This tax ID is already used by another company.,This tax ID is already used by another company.
 This tax id is already used by another client.,This tax id is already used by another client.
+This value cannot be chosen for this account set.,This value cannot be chosen for this account set.
 Time left {0},Time left {0}
 Times Used,Times Used
 Title,Title
@@ -1579,6 +1596,7 @@ connection.adapter_invalid,Unsupported ERP connection type.
 connection.config_invalid,Check the ERP connection settings.
 connection.disabled,This connection is disabled.
 connection.lock_required,Lock the connection before reading the push target.
+connection.mrerp_default_invalid,This value cannot be chosen for this account set.
 connection.mrerp_menu_invalid,This MR.ERP menu cannot be chosen for this account set.
 connection.not_found,Connection or directory record not found.
 connection.preparation_incomplete,Preparation data for this account set is incomplete.
@@ -2404,7 +2422,10 @@ intake.error.CUSTOMER_NOT_IN_ARMAS,This customer is not in Express and could not
 intake.error.DBF_WRITE_FAILED,Writing to Express failed and was undone. It is retried automatically
 intake.error.DUPLICATE_CONTENT_DIFFERS,"Express already has this invoice number with different content. Check it, or choose Send anyway"
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,The result is not confirmed. Check in Express before sending again
+intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
+intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
+intake.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
 intake.error.ERR_MRERP_MENU_CHANGED,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
@@ -2456,6 +2477,22 @@ intake.error.payload_version_outdated,The helper is out of date. Update the help
 intake.error.posting_kind_needed,Choose service or stock for this invoice and submit again
 intake.error.seller_buyer_same_tax,The seller and buyer have the same tax ID. Correct it and submit again
 intake.error.tax_id_invalid,The tax ID is not valid. Correct it and submit again
+intake.mrerpDefault.ap_account,Payable account
+intake.mrerpDefault.ar_account,Receivable account
+intake.mrerpDefault.area,Sales area
+intake.mrerpDefault.bank_account,Bank account
+intake.mrerpDefault.branch,Branch
+intake.mrerpDefault.customer_type,Customer type
+intake.mrerpDefault.delivery,Delivery type
+intake.mrerpDefault.dept,Department
+intake.mrerpDefault.employee,Employee
+intake.mrerpDefault.expense_account,Expense account
+intake.mrerpDefault.job,Job
+intake.mrerpDefault.product_group,Product group
+intake.mrerpDefault.store,Warehouse
+intake.mrerpDefault.supplier_type,Supplier type
+intake.mrerpDefault.title,MR.ERP settings
+intake.mrerpDefault.unit,Unit
 intake.mrerpMenu.purchase,Purchase (goods)
 intake.mrerpMenu.purchase_expense,Purchase (expense)
 intake.mrerpMenu.readFailed,Could not read the MR.ERP menus. Try again later.

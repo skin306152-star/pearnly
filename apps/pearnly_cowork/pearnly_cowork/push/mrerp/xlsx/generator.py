@@ -90,6 +90,7 @@ from pearnly_cowork.push.mrerp.xlsx.schemas import (  # noqa: F401  facade publi
 )
 
 # PhpSpreadsheet 兼容后处理(非 sales_credit 路径)· generate_xlsx 用
+from pearnly_cowork.push.mrerp.xlsx import defaults as account_values
 from pearnly_cowork.push.mrerp.xlsx.sharedstrings import _convert_inline_to_shared_strings
 
 # sales_credit 装配/Korn 克隆 · 必在上方 leaf import 之后(sales_credit 反向 import 本模块)
@@ -384,6 +385,10 @@ def generate_xlsx(
         if sheet_kind == "sales_credit" and group_name == "header":
             for row_idx, history in enumerate(histories, start=2):
                 row_data = build_sales_credit_row(history, mappings)
+                head = account_values.header(mappings, row_data.get("customer_code"))
+                row_data = {"branch_code": head["branch"], "department": head["dept"], "job": head["job"],
+                            "salesman": head["employee"], "sales_area": head["area"],
+                            "shipping_type": head["delivery"], **row_data}
                 for col_idx, col in enumerate(cols, start=1):
                     val = _safe_val(row_data.get(col["key"]), col)
                     if val is None:
@@ -393,9 +398,12 @@ def generate_xlsx(
                         cell.number_format = "@"
         elif sheet_kind == "sales_credit" and group_name == "detail":
             cur_row = 2
+            line = account_values.header(mappings)
             for history in histories:
                 detail_rows = build_sales_credit_detail_rows(history, mappings)
                 for row_data in detail_rows:
+                    row_data = {"department": line["dept"], "job": line["job"], "warehouse": line["store"],
+                                **row_data}
                     for col_idx, col in enumerate(cols, start=1):
                         val = _safe_val(row_data.get(col["key"]), col)
                         if val is None:

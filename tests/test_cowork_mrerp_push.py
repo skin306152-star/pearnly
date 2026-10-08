@@ -61,6 +61,32 @@ MENUS = {"impaptran": [("67", "ซื้อ-เดิม", False), ("68", "ซ�
 LISTING = {"impaptran": "aptran", "impartran": "artran", "imparse": "arse"}
 
 
+# 这家公司的主档（接口按 MR.ERP 源码的键与列位；每张小主档只有一个值 = 不用问，科目表有多个 = 要选过）。
+CHART = [[1, "1111-01", "เงินสด"], [2, "1112-01", "เงินฝากธนาคาร"], [3, "1130-01", "ลูกหนี้การค้า"],
+         [4, "2120-01", "เจ้าหนี้การค้า"], [5, "5300-01", "ค่าใช้จ่ายเบ็ดเตล็ด"], [6, "4110-01", "รายได้"],
+         [7, "1150-30", "สินค้าคงเหลือ"], [8, "5100-01", "ต้นทุนขาย"]]
+SMALL = {"txtothcombrh": [[1, "00000", "สำนักงานใหญ่"]], "txtothdept_h": [[1, "D001", "บัญชี"]],
+         "txtothsuborder_h": [[1, "00001", "ทั่วไป"]], "txtemp": [[1, "E01", "นาย", "สมชาย ใจดี"]],
+         "txtstore[]": [[1, "0001", "คลังหลัก"]], "txtararea": [[1, "000001", "กรุงเทพ"]],
+         "txtardelivery": [[1, "000001", "ส่งเอง"]], "txtothcombrhcus": [[1, "00000", "สำนักงานใหญ่"]]}
+LISTS = {
+    "fabillrev": {k: SMALL[k] for k in ("txtothcombrh", "txtothdept_h", "txtothsuborder_h", "txtemp")},
+    "artran": {**SMALL, "txtarmas": [[9, "C0001", "บริษัท", "ลูกค้าเก่า", 9, "C0001", "ลูกค้าเก่า", 2, "สมหญิง ขายเก่ง",
+                                      2, "เชียงใหม่", 2, "ไปรษณีย์", 1, "00000", "สำนักงานใหญ่"]]},
+    "armas": {**SMALL, "txtrectype": [[1, "C-01", "ลูกหนี้การค้า"]], "txtacfile": CHART, "inpdupdata": []},
+    "apmas": {"txtsuptype": [[1, "2-11", "เจ้าหนี้การค้า"]], "txtacfile": CHART,
+              "txtothcombrhcus": SMALL["txtothcombrhcus"], "inpdupdata": [[1, "เงินสด", "เงินสด"]]},
+    "stktraniss": {"txtstore[]": SMALL["txtstore[]"]},
+    "stkmas": {"txtstkgrp": [[1, "01", "สินค้า"]], "txtunit_usell": [[1, "PCS", "ชิ้น"]], "txtacfile_rev": CHART},
+}
+REFERENCE = "".join(f'<input type="text" name="txtacfile[{i}]" id="txtacfile{i}" value="{code}" readonly>'
+                    for i, code in ((2, "1111-01"), (4, "1150-30"), (15, "4110-01"), (17, "4110-01"), (18, "4110-01"),
+                                    (21, "5100-01"), (22, "5100-01"), (23, "5100-01"), (24, "5100-01")))
+PREFIXES = '<select name="selprefix" id="selprefix"><option value="1">นาย</option><option value="2">บริษัท</option></select>'
+# 账套选过的科目（科目表有多个，不会自动定）
+CHOSEN = {"ar_account": "1130-01", "ap_account": "2120-01", "bank_account": "1112-01", "expense_account": "5300-01"}
+
+
 def form_page(options):
     if options is None:
         return '<input type="hidden" name="idus" value="15"><h3>กรุณาป้อนข้อมูล "ตั้งค่าระบบสินค้า"</h3>'
@@ -76,7 +102,8 @@ class FakeMrErp:
     """
 
     def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False,
-                 menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None):
+                 menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None,
+                 lists=None):
         self.password, self.importpc, self.notes = password, importpc, notes
         self.upload_error, self.importpc_raises = upload_error, importpc_raises
         self.menus = dict(MENUS, **(menus or {}))
@@ -85,6 +112,8 @@ class FakeMrErp:
         self.unlinked_listing, self.change_menus_after = set(unlinked_listing), change_menus_after
         self.accepted, self.calls, self.uploads = False, [], []
         self.pending, self.session_menu, self.form_opens = {}, None, 0
+        self.lists = {k: v for k, v in {**LISTS, **(lists or {})}.items() if v is not None}
+        self.files = []
 
     def __call__(self, session, method, url, **kwargs):
         path = url.replace(BASE, "").split("?")[0]
@@ -106,6 +135,7 @@ class FakeMrErp:
             return response(url, '<input type="hidden" name="idus" value="15">')
         if path.endswith("/component/uploadexcel.php"):
             self.uploads.append((module, kwargs["data"]["selmenu"]))
+            self.files.append((module, kwargs["files"]["uploadfile"][1]))
             if module in LISTING:
                 book = load_workbook(io.BytesIO(kwargs["files"]["uploadfile"][1]))
                 sheet = book.worksheets[0]
@@ -123,6 +153,15 @@ class FakeMrErp:
                 menu = self.pending["menu"]
                 self.listed.setdefault(menu, []).extend(self.prefix.get(menu, "") + i for i in self.pending["invoices"])
             return response(url, self.importpc)
+        if path.endswith("/component/bshlistboxdata.php"):
+            import json
+            payload = self.lists.get(module)
+            return response(url, json.dumps(payload) if payload is not None else
+                            '<script>alert("กรุณา Login เข้าสู่ระบบ")</script>No database selected')
+        if path == "/acreffile/acreffileform.php":
+            return response(url, REFERENCE)
+        if path == "/armas/allform.php":
+            return response(url, PREFIXES)
         if path.endswith("/component/report.php"):
             return response(url, content=report(self.notes or []))
         if path.endswith("/allview.php"):
@@ -172,8 +211,8 @@ def push(site, histories, mappings=None):
         importer = transport.MrErpImport(system_url=BASE, username="test01", password="test01",
                                          comidyear="15", seldb="1")
         with importer:
-            return importer, importer.upload_routed_batch(histories, {"_own_tax_id": OWN, **(mappings or {})},
-                                                          today=TODAY)
+            return importer, importer.upload_routed_batch(
+                histories, {"_own_tax_id": OWN, "_mrerp_defaults": dict(CHOSEN), **(mappings or {})}, today=TODAY)
 
 
 def execute(site, histories):
@@ -186,7 +225,7 @@ def execute(site, histories):
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
             patch.object(transport, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
-        return runner.execute({"histories": histories, "mappings": {"_own_tax_id": OWN}},
+        return runner.execute({"histories": histories, "mappings": {"_own_tax_id": OWN, "_mrerp_defaults": dict(CHOSEN)}},
                               {"account_set": "15:1"}, {"username": "test01", "password": site.password_used},
                               BASE, TODAY)
 
@@ -300,6 +339,123 @@ class Import(unittest.TestCase):
         _, result = push(site, [other])
         self.assertEqual(result.failed[0].reasons, [routing.ACCOUNT_SET_MISMATCH_CODE])
         self.assertFalse([u for u in site.uploads if u[0] in ("impartran", "imparse", "impaptran")])
+
+
+def sheet_rows(blob, index=0):
+    book = load_workbook(io.BytesIO(blob))
+    return [[c.value for c in row] for row in book.worksheets[index].iter_rows(min_row=2)]
+
+
+TEST2019 = ("BOI1", "กร ทดสอบ", "สุพรรณ", "TRUCK1", "1130-03", "2110-01", "5230-01", "04-SER", "03-FIG", "ผน",
+            "CODE_NOAP", "1-11", "2-21")
+
+
+class Defaults(unittest.TestCase):
+    """导入值按这家公司的主档与账套所选（用户 2026-10-08）：不写 TEST2019 的值；定不下来就停下请人选。"""
+
+    def test_header_and_lines_use_the_company_masters_and_the_customer_record(self):
+        site = FakeMrErp()
+        mapping = {"clients": [{"erp_type": "mrerp", "client_id": "7", "erp_code": "C0001"}],
+                   "products": [{"item_name": "กระดาษ A4", "erp_code": "P-A4"}]}
+        _, result = push(site, [dict(sales(posting_payment_manual="credit"), client_id="7")], mapping)
+        self.assertEqual(len(result.success), 1)
+        blob = dict(site.files)["impartran"]
+        head = sheet_rows(blob)[0]
+        # 分店 / 部门 / 工作取主档唯一值；员工 / 区域 / 运输取客户档 C0001 的
+        self.assertEqual(head[3:7], ["00000", "D001", "00001", "สมหญิง ขายเก่ง"])
+        self.assertEqual(head[12:14], ["เชียงใหม่", "ไปรษณีย์"])
+        self.assertEqual(sheet_rows(blob, 1)[0][2:5], ["D001", "00001", "0001"])
+
+    def test_nothing_from_test2019_reaches_any_import_file(self):
+        for histories in ([sales(posting_payment_manual="credit", client_id="7")],
+                          [purchase(posting_item_type_manual="goods")], [purchase(posting_item_type_manual="expense")]):
+            site = FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True)]})
+            _, result = push(site, histories)
+            self.assertEqual(len(result.success), 1, result.failed)
+            for module, blob in site.files:
+                book = load_workbook(io.BytesIO(blob))
+                values = {str(c.value) for ws in book.worksheets for row in ws.iter_rows() for c in row if c.value}
+                with self.subTest(module=module):
+                    self.assertFalse(values & set(TEST2019), values & set(TEST2019))
+
+    def test_new_customer_and_supplier_get_the_companys_codes(self):
+        site = FakeMrErp()
+        push(site, [sales(posting_payment_manual="credit", client_id="7")])
+        customer = sheet_rows(dict(site.files)["imparmas"])[0]
+        self.assertEqual(customer[1:3], ["C-01", "บริษัท"])          # 类型、称谓（按名称前缀）
+        self.assertEqual(customer[12], "1130-01")                     # 应收科目（账套所选）
+        self.assertEqual(customer[15:18], ["E01", "000001", "000001"])  # 销售员 / 区域 / 运输代码
+        self.assertEqual(customer[24], "00000")
+        product = sheet_rows(dict(site.files)["impstkmas"])[0]
+        self.assertEqual(product[1], "01")
+        self.assertEqual(product[10:13], ["PCS", "PCS", "PCS"])
+        self.assertEqual(product[20:28], ["4110-01", "4110-01", "4110-01", "5100-01", "5100-01", "5100-01",
+                                          "1150-30", "5100-01"])  # 参考科目
+        self.assertEqual(product[28], "เงินสด")
+        site = FakeMrErp()
+        push(site, [purchase(posting_item_type_manual="expense")])
+        supplier = sheet_rows(dict(site.files)["impapmas"])[0]
+        self.assertEqual((supplier[1], supplier[12]), ("2-11", "2120-01"))
+        expense_item = sheet_rows(dict(site.files)["impstkmas"])[0]
+        self.assertEqual(set(expense_item[20:28]), {"5300-01"})       # 费用物料 8 科目 = 所选费用科目
+
+    def test_cash_receipt_goes_in_the_cash_column_and_bank_receipt_to_the_chosen_bank_account(self):
+        mapping = {"products": [{"item_name": "กระดาษ A4", "erp_code": "P-A4"}]}
+        for method, cash, slot, account in (("cash", 1070.0, 0, "1111-01"), ("transfer", 0, 1070.0, "1112-01")):
+            with self.subTest(method=method):
+                site = FakeMrErp()
+                push(site, [sales(posting_payment_manual="cash", payment_method=method, payment_status="paid")], mapping)
+                head = sheet_rows(dict(site.files)["imparse"])[0]
+                self.assertEqual((float(head[15] or 0), head[16], float(head[17] or 0)), (cash, account, slot))
+                self.assertEqual((head[18], head[20]), (account, account))
+
+    def test_several_options_without_a_choice_stop_before_anything_is_written(self):
+        two = {"fabillrev": {**LISTS["fabillrev"], "txtothdept_h": [[1, "D001", "บัญชี"], [2, "D002", "ขาย"]]}}
+        site = FakeMrErp(lists=two)
+        _, result = push(site, [purchase()])
+        self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_DEFAULT_CHOICE_REQUIRED"])
+        self.assertFalse(site.uploads)
+        site = FakeMrErp(lists=two)
+        _, result = push(site, [purchase()], {"_mrerp_defaults": {**CHOSEN, "dept": "D002"}})
+        self.assertEqual(len(result.success), 1)
+        self.assertEqual(sheet_rows(dict(site.files)["impaptran"])[0][4], "D002")
+
+    def test_a_chosen_value_that_is_gone_stops_and_is_not_replaced(self):
+        site = FakeMrErp()
+        _, result = push(site, [purchase()], {"_mrerp_defaults": {**CHOSEN, "dept": "D009"}})
+        self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_DEFAULT_CHANGED"])
+        self.assertFalse(site.uploads)
+
+    def test_unreadable_masters_stop(self):
+        site = FakeMrErp(lists={"fabillrev": None})
+        _, result = push(site, [purchase()])
+        self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_MASTER_UNREADABLE"])
+        self.assertFalse(site.uploads)
+
+    def test_account_not_chosen_stops_before_creating_the_customer(self):
+        site = FakeMrErp()
+        _, result = push(site, [sales(posting_payment_manual="credit", client_id="7")],
+                         {"_mrerp_defaults": {k: v for k, v in CHOSEN.items() if k != "ar_account"}})
+        self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_DEFAULT_CHOICE_REQUIRED"])
+        self.assertFalse([u for u in site.uploads if u[0] in ("imparmas", "impartran")])
+
+    def test_master_mismatch_in_the_report_asks_to_choose_again(self):
+        invoice_no = routing._gen.derive_mrerp_invoice_no(purchase())
+        site = FakeMrErp(importpc="2", notes=[(invoice_no, "ไม่พบข้อมูลแผนก")])
+        _, result = push(site, [purchase()])
+        self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_DEFAULT_CHANGED", "ไม่พบข้อมูลแผนก"])
+
+    def test_only_an_existing_code_counts_as_created(self):
+        self.assertTrue(transport._CODE_EXISTS.search("รหัสสินค้าดังกล่าวมีอยู่ในระบบแล้ว"))
+        self.assertTrue(transport._CODE_EXISTS.search("รหัสลูกค้าดังกล่าวมีอยู่ในระบบแล้ว"))
+        self.assertFalse(transport._CODE_EXISTS.search("ชื่อสินค้าดังกล่าวมีอยู่ในระบบแล้ว"))
+
+    def test_masters_read_during_the_push_are_returned_for_the_choice_dialog(self):
+        site = FakeMrErp()
+        site.password_used = "test01"
+        outcome = execute(site, [purchase()])
+        self.assertEqual(outcome["status"], "success", outcome)
+        self.assertEqual(outcome["masters"]["dept"], [{"code": "D001", "name": "บัญชี"}])
 
 
 class Menu(unittest.TestCase):

@@ -48,12 +48,14 @@ _HEADERS = [
     "รหัสสาขาผู้จำหน่าย",
 ]
 
-# TEST2019 默认结构码 · 生产按套账经 mappings 覆盖。⚠️ type/account/branch 是套账专属主数据码。
+# 类型 / 应付科目是这家公司自己的主档代码，推送前按主档与这份账套选过的值算好放进 mappings（`_mrerp_supplier_*`，
+# 见 push/mrerp/defaults.py）；称谓与供应商分店按每个供应商算。缺了写空串，MR.ERP 会明确拒掉（旧线上写死 TEST2019
+# 的 2-21 / 2110-01，在 MR.ERP 模板里分别是「其他应付」与「银行透支」，2026-10-08）。
 _DEFAULTS = {
-    "type": "2-21",  # ประเภทผู้จำหน่าย · 应付账款(贸易债权人)· 恰 4 字符
-    "account": "2110-01",  # รหัสบัญชี · 应付科目
-    "branch": "00000",  # รหัสสาขา · 总公司 · 恰 5 字符
-    "prefix": "บริษัท",  # คำนำหน้า
+    "type": "",
+    "account": "",
+    "branch": "",
+    "prefix": "",
     "country": "TH",
     "email": "noemail@pearnly.app",
 }
@@ -108,10 +110,11 @@ def build_supplier_row(sup: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[in
     def _or_ph(v: str) -> str:
         return v.strip() if v and v.strip() else _PLACEHOLDER
 
+    prefix = str(sup.get("prefix") or "").strip() or _cfg(mappings, "prefix")
     return {
         1: str(sup.get("code") or "")[:20],
         2: _cfg(mappings, "type"),
-        3: _cfg(mappings, "prefix"),
+        3: prefix,
         4: name,
         5: _or_ph(addr[:100]),
         6: _or_ph(addr[100:200]),
@@ -122,7 +125,7 @@ def build_supplier_row(sup: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[in
         11: _email(sup.get("email")),
         12: _cfg(mappings, "country"),
         13: _cfg(mappings, "account"),
-        14: _cfg(mappings, "prefix"),
+        14: prefix,
         15: name[:50],
         16: 0,  # เครดิตเทอม
         17: 0,  # ส่วนลด
@@ -130,7 +133,7 @@ def build_supplier_row(sup: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[in
         19: 0,  # จัดอันดับ
         20: 1,  # อัตราแลกเปลี่ยน
         21: tax,
-        22: _cfg(mappings, "branch"),
+        22: str(sup.get("branch") or "").strip() or _cfg(mappings, "branch"),
     }
 
 

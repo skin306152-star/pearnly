@@ -9,6 +9,7 @@
 5 minutes before,ก่อน 5 นาที
 A board needs at least one admin,บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน
 A board needs at least one list,บอร์ดต้องมีรายการอย่างน้อยหนึ่งรายการ
+A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 A client cannot be moved to another company.,ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้
 A client needs a name.,กรุณากรอกชื่อลูกค้า
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
@@ -125,6 +126,7 @@ Balance breaks,จุดที่ยอดคงเหลือไม่ต่�
 Bank,ธนาคาร
 Bank Code,รหัสธนาคาร
 Bank Reconciliation,กระทบยอดธนาคาร
+Bank account,บัญชีเงินฝากธนาคาร
 Bank amount,ยอดธนาคาร
 Bank deposit only,มีเฉพาะรายการฝากในธนาคาร
 Bank statement,รายการเดินบัญชีธนาคาร
@@ -285,6 +287,7 @@ Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
 Could not finish,ไม่สำเร็จ
+Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read the MR.ERP menus. Try again later.,ไม่สามารถอ่านเมนู MR.ERP ได้ กรุณาลองใหม่ภายหลัง
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารนี้ได้ กรุณาส่งใหม่
 Could not store this document,ไม่สามารถบันทึกเอกสารนี้ได้
@@ -363,6 +366,7 @@ Custom Fields,ฟิลด์ที่กำหนดเอง
 Custom fields,ช่องที่กำหนดเอง
 Custom fields saved,บันทึกช่องที่กำหนดเองแล้ว
 Customer,ลูกค้า
+Customer type,ประเภทลูกค้า
 Cyan,ฟ้า
 Daily,ทุกวัน
 Date,วันที่
@@ -392,6 +396,7 @@ Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายก
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} stock counts,ลบการตรวจนับ {0} รายการแล้ว
+Delivery type,ประเภทขนส่ง
 Department,แผนก
 Department for this rule,แผนก
 Deposit,ฝาก
@@ -465,6 +470,7 @@ Edit labels,แก้ไขป้ายกำกับ
 Electronic,อิเล็กทรอนิกส์
 Electronic file,ไฟล์อิเล็กทรอนิกส์
 Email,อีเมล
+Employee,พนักงาน
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
 Enabled,เปิดใช้
@@ -644,6 +650,7 @@ It was entered,ลงบัญชีแล้ว
 It was not entered,ยังไม่ลงบัญชี
 Item,รายการ
 Items,รายการ
+Job,งาน
 Job Roles,สิทธิ์การใช้งาน
 Just read,เพิ่งอ่านได้
 Keep,คงไว้
@@ -692,12 +699,16 @@ Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
 MR.ERP Import Menu Options Seen,เมนูนำเข้า MR.ERP ที่พบ
 MR.ERP Import Menu per Account Set,เมนูนำเข้า MR.ERP ของแต่ละชุดบัญชี
+MR.ERP Master Defaults per Account Set,ค่าเริ่มต้น MR.ERP ของแต่ละชุดบัญชี
+MR.ERP Master Options Seen,ข้อมูลหลัก MR.ERP ที่พบ
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
+MR.ERP default values are needed for this account set. Choose them before pushing.,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
 MR.ERP import menu,เมนูนำเข้า MR.ERP
 MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
+MR.ERP settings,การตั้งค่า MR.ERP
 Make template,ตั้งเป็นเทมเพลต
 Manual,กรอกเอง
 Many-to-one lines,หลายรายการต่อหนึ่งรายการ
@@ -834,6 +845,7 @@ Party Type,ประเภทคู่ค้า
 Password updated,อัปเดตรหัสผ่านแล้ว
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Paste a link,วางลิงก์
+Payable account,บัญชีเจ้าหนี้
 Payload Json,ข้อมูลส่งที่ตรึงไว้ (JSON)
 Payment,วิธีชำระเงิน
 Payment Evidence,หลักฐานการชำระเงิน
@@ -865,6 +877,7 @@ Product Code,รหัสสินค้า
 Product Name,ชื่อสินค้า
 Product code,รหัสสินค้า
 Product codes and barcodes must be stored as text.,รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ
+Product group,หมวดสินค้า
 Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
 Progress,ความคืบหน้า
@@ -906,6 +919,7 @@ Reading the scanned or photographed document took too long. Try again later.,ก
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
 Receipt,ใบเสร็จรับเงิน
+Receivable account,บัญชีลูกหนี้
 Recently read,รายการที่อ่านล่าสุด
 Recognised {0} documents,อ่านเอกสารแล้ว {0} ใบ
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
@@ -1018,6 +1032,7 @@ Run on day,วันที่ทำงานประจำเดือน
 Run requested. The Companion starts within a few minutes.,ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที
 SHA-256,SHA-256
 SKU,SKU
+Sales area,พื้นที่การขาย
 Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบกำกับภาษีขายไม่มีรายการยอดก่อนภาษี จึงไม่สามารถส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
@@ -1136,6 +1151,7 @@ Subfolders can be named freely; file names can be anything; one PDF may hold sev
 Submit,ยืนยัน
 Summary Json,ข้อมูลสรุป
 Summary table import,นำเข้าตารางสรุป
+Supplier type,ประเภทผู้จำหน่าย
 Table,ตาราง
 Tap Send documents to ERP in the menu first,กรุณากด «ส่งเอกสารเข้า ERP» ในเมนูก่อน
 Tap the menu to start,กรุณากดเมนูเพื่อเริ่มต้น
@@ -1422,6 +1438,7 @@ This supplier is not in Express and could not be created. Check the supplier nam
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 This tax ID is already used by another company.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
 This tax id is already used by another client.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับลูกค้ารายอื่นแล้ว
+This value cannot be chosen for this account set.,ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้
 Time left {0},เหลือเวลา {0}
 Times Used,จำนวนครั้งที่ใช้
 Title,ชื่อเรื่อง
@@ -1579,6 +1596,7 @@ connection.adapter_invalid,ไม่รองรับประเภทกา�
 connection.config_invalid,กรุณาตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
 connection.disabled,การเชื่อมต่อนี้ปิดใช้งานแล้ว
 connection.lock_required,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
+connection.mrerp_default_invalid,ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้
 connection.mrerp_menu_invalid,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
 connection.not_found,ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี
 connection.preparation_incomplete,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
@@ -2404,7 +2422,10 @@ intake.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายน
 intake.error.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 intake.error.DUPLICATE_CONTENT_DIFFERS,"ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
+intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
+intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ
+intake.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 intake.error.ERR_MRERP_MENU_CHANGED,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
@@ -2456,6 +2477,22 @@ intake.error.payload_version_outdated,ผู้ช่วยเป็นรุ่
 intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
 intake.error.seller_buyer_same_tax,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.tax_id_invalid,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
+intake.mrerpDefault.ap_account,บัญชีเจ้าหนี้
+intake.mrerpDefault.ar_account,บัญชีลูกหนี้
+intake.mrerpDefault.area,พื้นที่การขาย
+intake.mrerpDefault.bank_account,บัญชีเงินฝากธนาคาร
+intake.mrerpDefault.branch,สาขา
+intake.mrerpDefault.customer_type,ประเภทลูกค้า
+intake.mrerpDefault.delivery,ประเภทขนส่ง
+intake.mrerpDefault.dept,แผนก
+intake.mrerpDefault.employee,พนักงาน
+intake.mrerpDefault.expense_account,บัญชีค่าใช้จ่าย
+intake.mrerpDefault.job,งาน
+intake.mrerpDefault.product_group,หมวดสินค้า
+intake.mrerpDefault.store,คลังสินค้า
+intake.mrerpDefault.supplier_type,ประเภทผู้จำหน่าย
+intake.mrerpDefault.title,การตั้งค่า MR.ERP
+intake.mrerpDefault.unit,หน่วยนับ
 intake.mrerpMenu.purchase,ซื้อ (สินค้า)
 intake.mrerpMenu.purchase_expense,ซื้อ (ค่าใช้จ่าย)
 intake.mrerpMenu.readFailed,ไม่สามารถอ่านเมนู MR.ERP ได้ กรุณาลองใหม่ภายหลัง

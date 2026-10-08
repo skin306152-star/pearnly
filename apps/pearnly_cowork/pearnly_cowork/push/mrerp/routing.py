@@ -116,8 +116,8 @@ def _walkin_to_cash(history: Dict[str, Any], default_doc: str, mappings: Dict[st
     """无买方散客销售 → 现金销售单(ขายเงินสด · 账正:钱入现金,不在 เงินสด 客户下虚挂应收)。
 
     仅当 ① 默认端点是销项 ② 开关开(默认 · mappings['_mrerp_walkin_sales_cash']=False 可关)
-    ③ 无买方身份(无 client_id 且票面无买方税号)。现金收款科目由 sales_cash 生成器解析(默认
-    1111-01,可经 _mrerp_receipt_account_cash 覆盖);套账无该科目时 account_gate 会干净挡下,不乱推。
+    ③ 无买方身份(无 client_id 且票面无买方税号)。现金收款写现金栏,MR.ERP 按菜单关联的现金科目 /
+    参考科目「เงินสด」过账(见 xlsx/sales_cash.py 与 push/mrerp/defaults.py)。
     """
     if not default_doc.startswith("sales"):
         return False
