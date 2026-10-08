@@ -109,7 +109,7 @@ def test_network_exception_is_logged_but_not_exposed_to_customer(tmp_path, monke
 
     assert not result.ok and result.error_key == "pair_err_network"
     assert "WinError" not in result.error and "stack trace" not in result.error
-    assert "เชื่อมต่อ Pearnly ไม่ได้" in result.error
+    assert "ไม่สามารถเชื่อมต่อ Pearnly ได้" in result.error
 
 
 def test_rejects_disabled_endpoint_403(tmp_path, monkeypatch):

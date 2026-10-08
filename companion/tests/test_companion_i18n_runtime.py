@@ -47,7 +47,7 @@ def test_nested_failure_status_retranslates_without_losing_its_reason():
     )
 
     assert status.render("zh") == "配对失败：无法连接 Pearnly，请检查网络后重试。"
-    assert "เชื่อมต่อ Pearnly ไม่ได้" in status.render("th")
+    assert "ไม่สามารถเชื่อมต่อ Pearnly ได้" in status.render("th")
 
 
 def test_language_persists_globally_without_mutating_profiles(tmp_path):
