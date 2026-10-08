@@ -53,6 +53,15 @@
 
 `login/mainmenu.php` 按网址参数 `comidyear` 直接切公司，没核对账号权限；`bshlistboxdata` 不查菜单权限。
 
-## 验证
+## 验证（提交 `386a7927`）
 
-见文末提交与 CI 记录（随进度补）。
+- 本机：`test_cowork_mrerp_masters` 7、`push_purity` / `mrerp_menus` / `targets` / `push_contract` 等 76 通过；
+  `test_cowork_mrerp_xlsx_source_parity`（旧线上 ec2e5c95 的生成器与模板）通过 —— 喂入 TEST2019 值后 7 种表型逐字节一致，
+  现金销售只有现金栏 / 「รับอื่นๆ 1」两格按有意变化互换；Development checks 各步 0 失败；`check-i18n --strict` 通过。
+- 生产镜像（测试机，`9d61390e`，挂本工作树源码，`--network none`）：`test_cowork_mrerp_push` 37（含新增 11）、`mrerp_menus` 17、
+  `connections` 9、`push_lifecycle` 30、`push_native_contract` 12、`push_runtime_drift` 11、`push_contract` 19、`push_account` 6、
+  `targets` 39、`line_intake` 27、`mrerp_collector` 12、`mrerp_catalog` 8、`stock_acc_group_choice` 8、`push_purity` 2 通过；
+  `ci-candidate-checks.sh offline` 全部通过。
+- 分支 CI：Development checks success（`386a7927`）。
+- 测试租户（testcowork 实时源码）：`mrerp_menu` 视图带 `defaults`（15 个字段），弹窗词条四语生效。没有登录真实 MR.ERP 读主档
+  （test01 单会话；用户口径以源码为准）。
