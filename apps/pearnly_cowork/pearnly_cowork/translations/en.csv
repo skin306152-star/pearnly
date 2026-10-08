@@ -1046,6 +1046,7 @@ Send,Send
 Send anyway,Send anyway
 Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
+Sending was cancelled because the account set was in use. Close Express and send again,Sending was cancelled because the account set was in use. Close Express and send again
 Service,Service
 Service or stock?,Service or stock?
 Set At,Set At
@@ -2407,6 +2408,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a jou
 intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+intake.error.ERR_PAYLOAD_VERSION,The helper is out of date. Update the helper and submit again
 intake.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
 intake.error.NO_ACCOUNT_SELECTION,"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set"
 intake.error.PAYLOAD_INVALID,The helper could not read this invoice. Check the fields and submit again
@@ -2417,6 +2419,7 @@ intake.error.STOCK_ITEM_NOT_FOUND,The chosen Express stock item no longer exists
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
 intake.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 intake.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+intake.error.USER_ABORTED_BUSY,Sending was cancelled because the account set was in use. Close Express and send again
 intake.error.account_not_in_chart,An account used for this invoice is not in the Express chart of accounts. Check the account settings
 intake.error.account_set_not_allowed,The helper has not been given this account set. Check the helper's account sets
 intake.error.agent_failed,The helper could not write this invoice. It is retried automatically

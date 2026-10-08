@@ -1046,6 +1046,7 @@ Send,送信
 Send anyway,このまま送信
 Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
+Sending was cancelled because the account set was in use. Close Express and send again,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
 Service,サービス
 Service or stock?,サービスですか、在庫品ですか？
 Set At,設定日時
@@ -2407,6 +2408,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年�
 intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+intake.error.ERR_PAYLOAD_VERSION,アシスタントが古いバージョンです。更新して再送信してください
 intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 intake.error.NO_ACCOUNT_SELECTION,このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
 intake.error.PAYLOAD_INVALID,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
@@ -2417,6 +2419,7 @@ intake.error.STOCK_ITEM_NOT_FOUND,選んだ Express の在庫品目はもうあ�
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+intake.error.USER_ABORTED_BUSY,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
 intake.error.account_not_in_chart,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 intake.error.account_set_not_allowed,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
 intake.error.agent_failed,アシスタントが書き込めませんでした。自動で再試行します

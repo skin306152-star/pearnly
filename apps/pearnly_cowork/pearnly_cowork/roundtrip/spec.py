@@ -151,7 +151,9 @@ def status_label(status: Any, reason: Any = None) -> str:
     if not label:
         return STATUS_UNKNOWN
     r = str(reason or "").strip()
-    return f"{label} · {r[:60]}" if r else label
+    # 原因已按导出人的语言译成整句（`push.export_facts.reason_text`），泰文整句多在 60–160 字；
+    # 旧线上截 60 字放的是小助手原文，照截会把译文截断在半句（2026-10-08 改为 200）。
+    return f"{label} · {r[:200]}" if r else label
 
 
 # ── 回导键 ────────────────────────────────────────────────────────────────

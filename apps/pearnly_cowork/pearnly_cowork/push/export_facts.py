@@ -5,11 +5,30 @@ also checks current connection/log access, including revocation. No raw response
 target, credential or request payload leaves this adapter.
 """
 import json
+import re
 
 import frappe
+from frappe import _
 
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.push.export_actions import parse_actions
+
+
+_REASON_CODES = (re.compile(r"^\[([A-Z0-9_]+)\]"), re.compile(r"^EXPRESS_MANUAL:\s*([a-z_]+)"),
+                 re.compile(r"^([A-Za-z][A-Za-z0-9_]*)(?=$|:)"))
+
+
+def reason_text(reason):
+    """推送账本记的原因 → 给人看的话，与网页列表 `p.intake_push_reason` 同一套词条 `intake.error.<码>`：
+    小助手回报 `[码] 原文`、服务端预检 `码` 或 `码:细节`；认不出码或这个码没有词条的原样返回。"""
+    text = str(reason or "").strip()
+    for pattern in _REASON_CODES:
+        match = pattern.match(text)
+        if match:
+            key = "intake.error." + match.group(1)
+            translated = _(key)
+            return text if translated == key else translated
+    return text
 
 
 def for_histories(histories):
@@ -50,7 +69,7 @@ def for_histories(histories):
                    (doc.name, candidate.connection, doc.workspace, doc.client or '')):
             continue
         if row.name == doc.last_push_record and doc.last_push_status:
-            result.setdefault(doc.name, {})['state'] = {'status': doc.last_push_status, 'reason': row.reason or ''}
+            result.setdefault(doc.name, {})['state'] = {'status': doc.last_push_status, 'reason': reason_text(row.reason)}
         if row.name not in successes or row.status != 'success':
             continue
         target = json.loads(row.target_json)

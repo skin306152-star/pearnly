@@ -1046,6 +1046,7 @@ Send,发表
 Send anyway,仍然推送
 Send documents to ERP,发送单据至 ERP
 Send the code from the Cowork page to bind,请发送 Cowork 页面上的绑定码
+Sending was cancelled because the account set was in use. Close Express and send again,账套正被占用，已终止推送，请关闭 Express 后重新推送
 Service,服务
 Service or stock?,请选择服务或存货
 Set At,设定时间
@@ -2407,6 +2408,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已�
 intake.error.ERR_MRERP_MENU_UNREADABLE,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
+intake.error.ERR_PAYLOAD_VERSION,小助手版本过旧，请更新后重新提交
 intake.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
 intake.error.NO_ACCOUNT_SELECTION,此电脑的小助手中没有此账套或无写入权限，请检查小助手所选账套
 intake.error.PAYLOAD_INVALID,小助手无法读取此发票，请核对字段后重新提交
@@ -2417,6 +2419,7 @@ intake.error.STOCK_ITEM_NOT_FOUND,所选的 Express 存货已不存在，请重�
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 intake.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 intake.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+intake.error.USER_ABORTED_BUSY,账套正被占用，已终止推送，请关闭 Express 后重新推送
 intake.error.account_not_in_chart,所用科目不在 Express 科目表中，请检查科目设置
 intake.error.account_set_not_allowed,小助手未获授权使用此账套，请检查小助手的账套设置
 intake.error.agent_failed,小助手写入失败，将自动重试

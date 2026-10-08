@@ -165,7 +165,11 @@ def verify(contents):
         assert old_spec.decode_row_key(value) == spec.decode_row_key(value)
         count["spec"] += 1
     for status in (None, "", "success", "queued", "failed", "error", "manual", "skipped_dup", "other"):
-        assert old_spec.status_label(status, "a" * 80) == spec.status_label(status, "a" * 80)
+        assert old_spec.status_label(status, "a" * 60) == spec.status_label(status, "a" * 60)
+        count["spec"] += 1
+        # Explicit change: the reason is a whole translated sentence now, kept up to 200 characters, not cut at 60.
+        if old_spec.status_label(status, "a" * 80) != spec.status_label(status, "a" * 80):
+            assert spec.status_label(status, "a" * 250).endswith(" · " + "a" * 200)
         count["spec"] += 1
     for header_set in ([], list(spec.ROUNDTRIP_HEADERS), list(spec.REQUIRED_HEADERS), list(spec.REQUIRED_HEADERS[:-1])):
         assert old_spec.is_roundtrip_sheet(header_set) == spec.is_roundtrip_sheet(header_set)

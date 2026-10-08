@@ -1046,6 +1046,7 @@ Send,ส่ง
 Send anyway,ยืนยันการส่ง
 Send documents to ERP,ส่งเอกสารเข้า ERP
 Send the code from the Cowork page to bind,กรุณาส่งรหัสผูกบัญชีจากหน้า Cowork
+Sending was cancelled because the account set was in use. Close Express and send again,ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่
 Service,บริการ
 Service or stock?,กรุณาเลือกบริการหรือสินค้า
 Set At,เวลาที่ตั้ง
@@ -2407,6 +2408,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมน�
 intake.error.ERR_MRERP_MENU_UNREADABLE,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+intake.error.ERR_PAYLOAD_VERSION,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.NO_ACCOUNT_SELECTION,ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์บันทึกข้อมูล กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย
 intake.error.PAYLOAD_INVALID,ผู้ช่วยไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
@@ -2417,6 +2419,7 @@ intake.error.STOCK_ITEM_NOT_FOUND,สินค้าคงเหลือที�
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 intake.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 intake.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
+intake.error.USER_ABORTED_BUSY,ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่
 intake.error.account_not_in_chart,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
 intake.error.account_set_not_allowed,ผู้ช่วยยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจชุดบัญชีในผู้ช่วย
 intake.error.agent_failed,ผู้ช่วยไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
