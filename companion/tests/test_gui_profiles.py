@@ -190,6 +190,7 @@ def test_open_window_rebuilds_cards_only_when_connections_change(monkeypatch):
     dialog._profile_state_provider = lambda: {"profile-a": ("idle", "")}
     dialog._roots_state = "ready"
     dialog._paint_roots = lambda: None
+    dialog._paint_update = lambda: None
     monkeypatch.setattr(gui_profiles, "machine_roots", lambda _store: [])
     calls = []
     dialog._refresh = lambda: calls.append("rebuild")
@@ -255,3 +256,37 @@ def test_picking_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypa
     assert store.path.read_bytes() == before
     assert dialog._roots == [r"S:\\EXP68", r"S:\\EXP69"]
     assert dialog.express_value.text() == "未能读取 Express 公司列表,请确认 Express 路径。"
+
+
+def test_footer_update_button_shows_the_real_step_and_asks_the_tray(tmp_path, monkeypatch):
+    # 2026-10-08：版本号旁一个带下载图标的按钮——平时「检查更新」，有新版「立即更新」；下载 / 安装中只显示状态。
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    status = {"value": ("none", "")}
+    clicks = []
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(gui_profiles.autostart, "is_enabled", lambda: True)
+    dialog = ProfileManagerDialog(lang="zh", profile_store=store, update_status=lambda: status["value"],
+                                  on_update=lambda: clicks.append(True))
+    dialog._live_refresh.stop()
+
+    assert (dialog.upd_btn.text(), dialog.upd_lbl.text()) == ("检查更新", "")
+    assert not dialog.upd_btn.isHidden()
+    dialog.upd_btn.click()
+    assert clicks == [True]
+    for state, label, button in (("latest", "已是最新版本", "检查更新"), ("found", "发现新版本 v1.4.0", "立即更新"),
+                                 ("ready", "v1.4.0 已下载，手上的录入做完后自动安装", "立即更新")):
+        status["value"] = (state, "1.4.0")
+        dialog._paint_update()
+        assert (dialog.upd_lbl.text(), dialog.upd_btn.text()) == (label, button)
+    for state in ("checking", "downloading", "installing"):
+        status["value"] = (state, "1.4.0")
+        dialog._paint_update()
+        assert dialog.upd_btn.isHidden()
+
+
+def test_footer_has_no_update_button_without_the_tray(tmp_path, monkeypatch):
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    dialog = _main_window(store, monkeypatch)
+    assert dialog.upd_btn.isHidden() and dialog.upd_lbl.isHidden()

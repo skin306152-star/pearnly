@@ -19,6 +19,7 @@ from . import watchdog
 from .config import CompanionConfig
 from .auto_update import AutoUpdate
 from .folder_worker import FolderIntake
+from .gui_pairing_support import ProbeThread
 from .gui_tray_workers import (
     PollWorker,
     UpdateWorker as _UpdateWorker,
@@ -116,6 +117,7 @@ def _status_icon(key: str) -> QIcon:
 
 
 MENU_TEXT_MAX = 48
+UPDATE_CHECK_MS = 60_000  # 每分钟查一次新版
 
 
 def _menu_text(text: str) -> str:
@@ -155,6 +157,14 @@ class TrayApp(QObject):
             install=self._install_update)
         self._auto_timer = QTimer()
         self._auto_timer.timeout.connect(self._auto_update_tick)
+        # 发布后一分钟内发现新版（用户 2026-10-08）：托盘自己的后台线程查 latest.json（约 400 字节的静态文件，
+        # 不产生费用），不放在取任务线程里——网络慢时会拖慢领任务。取任务线程里原有的每小时检查保留，同一版本重复发现会被忽略。
+        self._checking = None  # 在跑的检查线程（持引用防 GC）
+        self._checked_latest = False  # 手动检查过、确实没有新版（界面显示「已是最新版本」）
+        self._check_timer = QTimer()
+        self._check_timer.timeout.connect(self._check_for_update)
+        self._check_timer.start(UPDATE_CHECK_MS)
+        QTimer.singleShot(5000, self._check_for_update)
         self._restart_pending = False
         self._quitting = False
         self.worker_stopped.connect(self._on_worker_finished)
@@ -299,6 +309,46 @@ class TrayApp(QObject):
         box.exec()
         prompt.choice = "retry" if box.clickedButton() is retry_btn else "abort"
         prompt.done.set()
+
+    def _check_for_update(self, manual: bool = False) -> None:
+        """后台查一次云端有没有新版；有就交给自动更新（下载 → 等空闲 → 安装）。同一时间只查一个。"""
+        if self._quitting or self._updating or self._checking is not None:
+            return
+        from .updater import DOWNLOAD_SITE, check_update
+
+        worker = ProbeThread(lambda: check_update(DOWNLOAD_SITE))
+        self._checking = worker
+        result: list = []
+        worker.ok.connect(result.append)
+
+        def finished() -> None:
+            # 线程真正结束后才松引用（结果信号发出时线程还没退出，那时丢掉最后一个引用会崩）。
+            self._checking = None
+            update = result[0] if result else None
+            if update:
+                self._checked_latest = False
+                self._on_update_available(str(update["version"]), str(update["url"]))
+            elif manual and result:
+                self._checked_latest = True
+
+        worker.finished.connect(finished)
+        worker.start()
+
+    def update_status(self) -> tuple[str, str]:
+        """主窗口底部显示的更新状态（真实流程状态，不估算）。"""
+        if self._checking is not None and not self._auto_update.pending:
+            return "checking", ""
+        state, version = self._auto_update.state()
+        if state == "none":
+            return ("latest" if self._checked_latest else "none"), ""
+        return state, version
+
+    def _update_now(self) -> None:
+        """主窗口的更新按钮：有新版就马上推进（仍等手上的录入做完才安装）；没有就立即检查一次。"""
+        if self._auto_update.pending:
+            self._do_update()
+        else:
+            self._check_for_update(manual=True)
 
     def _do_update(self) -> None:
         """手动点「更新」：和自动更新走同一条路（下载 → 等空闲 → 停稳 → 安装），不在写账套中途换版本。"""
@@ -445,6 +495,8 @@ class TrayApp(QObject):
             on_language_changed=language_changed,
             on_profiles_changed=profiles_changed,
             on_folders_changed=self._start_folders,
+            update_status=self.update_status,
+            on_update=self._update_now,
         )
         if changed and (not live["profiles"] or live["pending"]):
             self._reload_profiles()
@@ -533,6 +585,8 @@ class TrayApp(QObject):
         self._watchdog.stop()
         if getattr(self, "_auto_timer", None) is not None:
             self._auto_timer.stop()
+        if getattr(self, "_check_timer", None) is not None:
+            self._check_timer.stop()
         if getattr(self, "_folders", None) is not None:
             self._folders.stop()
         worker = self.worker

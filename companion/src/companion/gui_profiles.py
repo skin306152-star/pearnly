@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QStyle,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -91,8 +92,12 @@ class ProfileManagerDialog(QDialog):
         on_language_changed: Optional[Callable[[str], None]] = None,
         on_profiles_changed: Optional[Callable[[], None]] = None,
         on_folders_changed: Optional[Callable[[], None]] = None,
+        update_status: Optional[Callable[[], tuple[str, str]]] = None,
+        on_update: Optional[Callable[[], None]] = None,
     ) -> None:
         super().__init__(parent)
+        self._update_status = update_status
+        self._on_update = on_update
         self._store = profile_store or ProfileStore.load()
         self.lang = normalize(
             lang or self._store.global_settings.ui_lang or default_lang()
@@ -116,6 +121,7 @@ class ProfileManagerDialog(QDialog):
         self.setMinimumSize(420, 300)
         self.resize(560, 420)
         self._build()
+        self._paint_update()
         self._refresh()
         if not self._roots:
             self._detect_roots()
@@ -180,6 +186,15 @@ class ProfileManagerDialog(QDialog):
         self.ver_lbl = QLabel("v" + VERSION)
         self.ver_lbl.setStyleSheet("color:#999")
         footer.addWidget(self.ver_lbl)
+        # 更新：状态一行 + 带下载图标的按钮（平时「检查更新」，有新版「立即更新」）；托盘没接上时（首次配对）不显示。
+        self.upd_lbl = QLabel()
+        self.upd_lbl.setStyleSheet("color:#999")
+        footer.addWidget(self.upd_lbl)
+        self.upd_btn = QPushButton()
+        self.upd_btn.setIcon(self.style().standardIcon(QStyle.SP_ArrowDown))
+        self.upd_btn.setFlat(True)
+        self.upd_btn.clicked.connect(self._update_clicked)
+        footer.addWidget(self.upd_btn)
         footer.addStretch(1)
         self.logs_btn = QPushButton(t("tray_open_logs", self.lang))
         self.logs_btn.setFlat(True)
@@ -197,6 +212,7 @@ class ProfileManagerDialog(QDialog):
         self.add_btn.setText(t("profiles_add", self.lang))
         self.autostart.setText(t("chk_autostart", self.lang))
         self.logs_btn.setText(t("tray_open_logs", self.lang))
+        self._paint_update()
         self._refresh()
 
     def _toggle_lang(self) -> None:
@@ -322,6 +338,30 @@ class ProfileManagerDialog(QDialog):
         self._probes.shutdown()
         super().done(result)
 
+    # ── 更新 ───────────────────────────────────────────────────────────────
+
+    def _paint_update(self) -> None:
+        if self._update_status is None:
+            self.upd_lbl.hide()
+            self.upd_btn.hide()
+            return
+        try:
+            state, version = self._update_status()
+        except Exception:
+            state, version = "none", ""
+        self.upd_lbl.setText(t("upd_" + state, self.lang, ver=version) if state != "none" else "")
+        busy = state in ("checking", "downloading", "installing")
+        self.upd_btn.setText(t("upd_now" if state in ("found", "ready", "failed") else "upd_check", self.lang))
+        self.upd_btn.setVisible(not busy)
+
+    def _update_clicked(self) -> None:
+        if self._on_update is not None:
+            try:
+                self._on_update()
+            except Exception:
+                log.exception("更新按钮处理失败")
+        self._paint_update()
+
     def _open_logs(self) -> None:
         from .config import LOG_DIR
 
@@ -348,6 +388,8 @@ class ProfileManagerDialog(QDialog):
         except Exception as exc:
             log.debug("刷新 Express 连接状态失败: %r", exc)
             return
+        finally:
+            self._paint_update()
         if store.profiles == self._store.profiles and states == self._profile_states:
             return
         rebuild = store.profiles != self._store.profiles
@@ -521,6 +563,8 @@ def open_profile_manager(
     on_language_changed: Optional[Callable[[str], None]] = None,
     on_profiles_changed: Optional[Callable[[], None]] = None,
     on_folders_changed: Optional[Callable[[], None]] = None,
+    update_status: Optional[Callable[[], tuple[str, str]]] = None,
+    on_update: Optional[Callable[[], None]] = None,
 ) -> bool:
     """Open the process-wide main window and report whether profiles changed."""
     global _OPEN_MANAGER
@@ -542,6 +586,8 @@ def open_profile_manager(
         on_language_changed=on_language_changed,
         on_profiles_changed=on_profiles_changed,
         on_folders_changed=on_folders_changed,
+        update_status=update_status,
+        on_update=on_update,
     )
     try:
         _OPEN_MANAGER.exec()

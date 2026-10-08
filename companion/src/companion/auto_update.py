@@ -57,6 +57,19 @@ class AutoUpdate:
     def _waiting_retry(self) -> bool:
         return bool(self.failed_at) and self._clock() - self.failed_at < RETRY_SECONDS
 
+    def state(self) -> tuple[str, str]:
+        """给界面显示的真实状态：(none|found|downloading|failed|ready|installing, 版本号)。只读，不推进流程。"""
+        if not self.pending:
+            return "none", ""
+        version = self.pending[0]
+        if self.stopping:
+            return "installing", version
+        if self.path is None:
+            if self.downloading:
+                return "downloading", version
+            return ("failed" if self._waiting_retry() else "found"), version
+        return ("failed" if self._waiting_retry() else "ready"), version
+
     def tick(self) -> str:
         if not self.pending:
             return "none"

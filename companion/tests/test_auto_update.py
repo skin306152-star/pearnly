@@ -87,3 +87,30 @@ def test_a_newer_release_replaces_a_downloaded_older_one():
     box.busy = False
     assert box.flow.tick() == "downloading"
     assert box.calls[-1] == ("download", "1.3.9")
+
+
+def test_state_reports_the_real_step_without_moving_the_flow():
+    # 主窗口底部显示（2026-10-08）：只读，不推进下载 / 安装
+    box = Box()
+    assert box.flow.state() == ("none", "")
+    box.flow.offer("1.4.0", "/x.exe")
+    assert box.flow.state() == ("found", "1.4.0")
+    assert box.calls == []
+    box.flow.tick()
+    assert box.flow.state() == ("downloading", "1.4.0")
+    box.flow.downloaded("C:/setup.exe")
+    assert box.flow.state() == ("ready", "1.4.0")
+    box.flow.tick()
+    assert box.flow.state() == ("installing", "1.4.0")
+    box.flow.offer("1.4.1", "/y.exe")  # 安装途中又发了新版：不打断，显示仍是在装
+    assert box.flow.state()[0] == "installing"
+
+
+def test_state_shows_a_failed_download_until_the_retry():
+    box = Box()
+    box.flow.offer("1.4.0", "/x.exe")
+    box.flow.tick()
+    box.flow.download_failed()
+    assert box.flow.state() == ("failed", "1.4.0")
+    box.now += RETRY_SECONDS + 1
+    assert box.flow.state() == ("found", "1.4.0")

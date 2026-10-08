@@ -63,3 +63,38 @@ def test_tray_menu_has_one_entry_and_left_click_opens_the_main_window():
     assert opened == []
     app._on_tray_activated(QSystemTrayIcon.Trigger)
     assert opened == [True]
+
+
+def test_tray_checks_for_a_new_version_in_the_background_and_hands_it_to_auto_update(monkeypatch):
+    # 2026-10-08：发布后一分钟内发现新版；检查在托盘自己的后台线程里，不占取任务线程。
+    import time
+
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion import gui_tray, updater
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    assert gui_tray.UPDATE_CHECK_MS == 60_000
+    app = TrayApp.__new__(TrayApp)
+    app._quitting = app._updating = False
+    app._checking = None
+    app._checked_latest = False
+    offered = []
+    app._on_update_available = lambda version, url: offered.append((version, url))
+    app._auto_update = SimpleNamespace(pending=None, state=lambda: ("none", ""))
+    answers = [None, {"version": "1.4.0", "url": "/x.exe"}]
+    monkeypatch.setattr(updater, "check_update", lambda _site: answers.pop(0))
+
+    def run(manual):
+        app._check_for_update(manual=manual)
+        assert app.update_status() == ("checking", "")
+        deadline = time.monotonic() + 5
+        while app._checking is not None and time.monotonic() < deadline:
+            QApplication.processEvents()
+            time.sleep(0.01)
+
+    run(True)
+    assert offered == [] and app.update_status() == ("latest", "")
+    run(False)
+    assert offered == [("1.4.0", "/x.exe")]
