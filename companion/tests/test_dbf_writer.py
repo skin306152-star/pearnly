@@ -553,3 +553,43 @@ def test_head_office_supplier_keeps_zero(datat):
     assert res.party_code == "S000"
     assert int(_rows(datat, "APTRN", DOCNUM=res.docnum)[0].ORGNUM) == 0
     assert int(_rows(datat, "ISVAT", DOCNUM=res.docnum)[0].ORGNUM) == 0
+
+
+def test_periodic_inventory_account_set_debits_purchases_not_stock(datat):
+    """2026-10-08:期末盘存制(ISPERPETUA=N)账套,采购借「购货」科目(ISINFO.ACCNUM18),不借默认存货科目。"""
+    import account_rules_fixture as F
+
+    F.isinfo(datat, ISPERPETUA="N", ACCNUM04="11-04-02-00", ACCNUM18="51-03-00-00")
+    F.glacc(datat, ("51-03-00-00", "ซื้อ"), ("11-04-02-00", "สินค้าสำเร็จรูป"))
+    res = W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    debits = [(r.ACCNUM or "").strip() for r in _rows(datat, "GLJNLIT", VOUCHER=res.docnum)
+              if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT]
+    assert debits[0] == "51-03-00-00"
+    assert "11-04-02-00" not in debits
+
+
+def test_payable_line_uses_the_suppliers_own_account(datat):
+    import account_rules_fixture as F
+
+    F.glacc(datat, ("21-02-05-00", "เจ้าหนี้-ต่างประเทศ"))
+    F.seed(datat, "APMAS", [{"SUPCOD": "S001", "SUPNAM": "ปตท", "ACCNUM": "21-02-05-00"}])
+    res = W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    credits = [(r.ACCNUM or "").strip() for r in _rows(datat, "GLJNLIT", VOUCHER=res.docnum)
+               if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT]
+    assert credits == ["21-02-05-00"]
+
+
+def test_cash_purchase_credits_the_cash_account_not_payables(datat):
+    """2026-10-08:现购 HP 贷现金(ISINFO.ACCNUM00),不碰应付 —— 与真实账套里 Express 自己记的一致。"""
+    import account_rules_fixture as F
+
+    F.isinfo(datat, ACCNUM00="11-01-01-00")
+    F.glacc(datat, ("11-01-01-00", "เงินสด"))
+    res = W.write_purchase(_payload(doctype="HP"), datat, allowed_sets=("DATAT",), selected_dir=str(datat),
+                           make_backup=False)
+    assert res.ok, res.error
+    credits = [(r.ACCNUM or "").strip() for r in _rows(datat, "GLJNLIT", VOUCHER=res.docnum)
+               if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT]
+    assert credits == ["11-01-01-00"]

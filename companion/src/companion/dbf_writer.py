@@ -26,6 +26,7 @@ import dbf
 
 from . import cdx_reindex
 from . import dbf_detail
+from . import account_rules
 from . import dbf_schema as S
 from . import duplicate_gate as D
 from . import fiscal_period
@@ -301,7 +302,7 @@ def write_purchase(
     payload: Dict[str, Any],
     account_dir: str | Path,
     *,
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     depcod: str = "",
     make_backup: bool = True,
     allowed_sets: tuple = ALLOWED_ACCOUNT_SETS,
@@ -531,6 +532,37 @@ def _write_all(
     """写完采购六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注)。"""
     rectyp = S.RECTYP[prefix]
     paid = prefix == "HP"
+    # 按这套账自己的设置(2026-10-08):这本单据簿挂哪本日记账、设没设默认部门;赊购的应付行记供应商档上的科目、
+    # 到期日按供应商档的付款期(以前恒用账套默认应付科目、到期日 = 单据日期)。
+    book = account_rules.book(account_dir, prefix)
+    jnltyp = book.get("JNLTYP") or S.JNLTYP_PURCHASE
+    depcod = depcod or book.get("DEPCOD", "")
+    duedat = None
+    # 期末盘存制的账套:采购借记账套的「购货」科目(ISINFO.ACCNUM18),不借存货、也不做「借存货 / 贷购货」重分类
+    # (以前一律借账套默认存货科目 ACCNUM04,7 套期末盘存制账套记错科目)。只换默认存货科目,会计选过的科目不动。
+    periodic = account_rules.periodic_inventory(account_dir)
+    if periodic:
+        debits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "D"]
+        stock_default = account_rules.default_account(account_dir, "ACCNUM04")
+        purchases = account_rules.default_account(account_dir, "ACCNUM18")
+        if debits and stock_default and str(debits[0].get("acc") or "") == stock_default \
+                and account_rules.postable_account(account_dir, purchases):
+            debits[0]["acc"] = purchases
+    credits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "C"]
+    payterm = 0
+    if paid:
+        # 现购:Express 原生贷现金(ISINFO.ACCNUM00),完全不碰应付(真实账套 2165 张 HP 无一例外;2026-10-08 核对)。
+        # 以前贷应付、表头却写已付 → 应付控制科目虚挂一笔。
+        cash = account_rules.default_account(account_dir, "ACCNUM00")
+        if credits and cash and account_rules.postable_account(account_dir, cash):
+            credits[0]["acc"] = cash
+    else:
+        if credits:
+            credits[0]["acc"] = account_rules.control_account(
+                account_dir, "APMAS", entry.supplier_code, str(credits[0].get("acc") or "")
+            )
+        payterm = account_rules.party_terms(account_dir, "APMAS", entry.supplier_code)[1]
+        duedat = account_rules.due_date(docdat, payterm)
     name = entry.supplier_name
     # 凭证表头与进项税记录的分店号 = 这家供应商档的分店号(税表分店一栏;真账一致 99%+)。
     orgnum = master_create.party_orgnum(account_dir, "APMAS", "SUPCOD", entry.supplier_code)
@@ -567,7 +599,9 @@ def _write_all(
                 "PVATPRORAT": "-",
                 "DOCSTAT": "N",
                 "USERID": userid,
-                **audit_fields(docdat, depcod, has_vat, orgnum),
+                **audit_fields(docdat, depcod, has_vat, orgnum, duedat),
+                # 单据上的付款天数(真账 RR 89% 等于供应商档的);老合成表没有这一列就不写
+                **({"PAYTRM": payterm} if "PAYTRM" in ap.field_names else {}),
                 **nxtseq_override,
             }
         )
@@ -581,7 +615,7 @@ def _write_all(
         line_modes, reclass = purchase_lines.write_detail(
             account_dir, docnum, docdat, entry, gl_rows, depcod=depcod, userid=userid
         )
-        gl_rows += reclass
+        gl_rows += [] if periodic else reclass
 
     if has_vat:
         iv = _open(account_dir, "ISVAT", dbf.READ_WRITE)
@@ -612,7 +646,7 @@ def _write_all(
     try:
         gj.append(
             {
-                "JNLTYP": S.JNLTYP_PURCHASE,
+                "JNLTYP": jnltyp,
                 "VOUDAT": docdat,
                 "VOUCHER": docnum,
                 "DESCRP": descrp,
@@ -638,7 +672,7 @@ def _write_all(
     finally:
         gi.close()
 
-    _bump_isrun(account_dir, prefix)
+    _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_apbal(account_dir, prefix, entry.supplier_code, docdat, total)
     return docnum, line_modes, purchase_lines.has_stock_lines(line_modes), notes
 

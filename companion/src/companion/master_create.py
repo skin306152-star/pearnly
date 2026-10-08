@@ -27,6 +27,7 @@ from typing import List, Optional, Tuple
 
 import dbf
 
+from . import account_rules
 from . import dbf_schema as S
 
 _PRENAMES = (
@@ -46,9 +47,13 @@ _MAX_PRENAM = 15
 # 地址列宽逐列对真 DATAT gold(ADDR01/02 C50 · ADDR03 C30)。
 _ADDR_WIDTHS = (50, 50, 30)
 
-# gold 默认科目(分录推不出时兜底)
-_DEFAULT_AP_ACC = "21-02-01-00"  # 应付账款(供应商)
-_DEFAULT_AR_ACC = "11-02-01-00"  # 应收账款(客户)
+# 新建对方档的科目:分录里的应付 / 应收行 → 没有就取这套账的默认科目(ISINFO.ACCNUM07 / 02)。
+# 以前兜底写死 21-02-01-00 / 11-02-01-00:测试机 62 套真实账套里 28 套没有这个码(2026-10-08 删)。
+_DEFAULT_AP_SLOT = "ACCNUM07"
+_DEFAULT_AR_SLOT = "ACCNUM02"
+# Pearnly 现销用的现金客户码(云端 sales_mapper 同值)。账套里没有就先认这套账自己的现金客户,再没有才建。
+CASH_CUSTOMER = "เงินสด"
+_CASH_NAMES = {"เงินสด", "ขายสด", "ขายเงินสด", "ลูกค้าเงินสด", "cash", "cashsale", "cashsales", "cashcustomer"}
 
 # 疑似重复阈值:核心名归一后相似度 ≥ 此值 + 税号不同/缺 → 不静默建,转人工。
 # 偏保守(宁可多问一次也不建重复户·Owner 拍板)。
@@ -298,6 +303,25 @@ def _ar_acc_from_lines(lines, fallback: str) -> str:
     return fallback
 
 
+def _code_exists(account_dir: Path, table: str, codefield: str, code: str) -> bool:
+    return code in _all_codes(account_dir, table, codefield)
+
+
+def _cash_customer(account_dir: Path) -> str:
+    """这套账自己唯一的现金客户(名称是「เงินสด / ขายสด / cash…」);没有或不止一个返回空串。"""
+    t = _open(account_dir, "ARMAS", dbf.READ_ONLY)
+    try:
+        hits = [
+            (getattr(r, "CUSCOD") or "").strip()
+            for r in S.live_rows(t)
+            if _norm_match(getattr(r, "CUSNAM", "") or "") in {_norm_match(n) for n in _CASH_NAMES}
+        ]
+    finally:
+        t.close()
+    hits = [h for h in hits if h]
+    return hits[0] if len(hits) == 1 else ""
+
+
 def _reindex(account_dir: Path, table: str) -> None:
     t = _open(account_dir, table, dbf.READ_WRITE)
     try:
@@ -440,7 +464,7 @@ def ensure_supplier(
     entry,
     *,
     created_date: _dt.date,
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     ap_acc: str = "",
 ) -> str:
     """find-or-create 供应商,返回 SUPCOD。已在备份-回滚事务内调用。"""
@@ -457,7 +481,9 @@ def ensure_supplier(
 
     codes = _all_codes(account_dir, "APMAS", "SUPCOD")
     code = _next_code(codes, _code_prefix(core))
-    accnum = _ap_acc_from_lines(entry.lines, ap_acc or _DEFAULT_AP_ACC)
+    accnum = _ap_acc_from_lines(entry.lines, ap_acc or account_rules.default_account(account_dir, _DEFAULT_AP_SLOT))
+    if not accnum:
+        raise ValueError("新供应商没有可用的应付科目(分录与账套默认科目都没有)")
     has_vat = str(entry.vat_rate or "0") not in ("0", "")
     addr1, addr2, addr3 = _split_address(getattr(entry, "supplier_address", ""))
 
@@ -466,7 +492,8 @@ def ensure_supplier(
         t.append(
             {
                 "SUPCOD": code,
-                "SUPTYP": "00",
+                # 类型码照这套账现有供应商最常用的(「00」有的账套没有、有的是「应计费用」)
+                "SUPTYP": account_rules.common_type(account_dir, "APMAS", "SUPTYP"),
                 "PRENAM": entry.supplier_prename[:_MAX_PRENAM],
                 "SUPNAM": core[:_MAX_NAME],
                 "ADDR01": addr1,
@@ -498,24 +525,37 @@ def ensure_customer(
     entry,
     *,
     created_date: _dt.date,
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     ar_acc: str = "",
 ) -> str:
-    """find-or-create 客户,返回 CUSCOD。已在备份-回滚事务内调用。"""
+    """find-or-create 客户,返回 CUSCOD。已在备份-回滚事务内调用。
+
+    现金客户(云端给 เงินสด):这套账里有这个码就用;没有就认这套账自己唯一的现金客户(按名称);
+    再没有才建一个 เงินสด(以前直接写这个码,62 套里 56 套根本没有这个客户 → 单据挂在查无此人的客户上)。"""
+    wanted = ""
     if entry.customer_code:
-        return entry.customer_code
-    core = _strip_prename(entry.customer_name)
+        if entry.customer_code != CASH_CUSTOMER or _code_exists(account_dir, "ARMAS", "CUSCOD", CASH_CUSTOMER):
+            return entry.customer_code
+        own = _cash_customer(account_dir)
+        if own:
+            return own
+        wanted = CASH_CUSTOMER
+    core = _strip_prename(entry.customer_name) or (CASH_CUSTOMER if wanted else "")
     # 同 ensure_supplier:entry 是 duck-typed 接口,getattr 兼容无 branch 字段的调用方。
     branch = _branch_no(getattr(entry, "customer_branch", ""))
-    found = None if getattr(entry, "customer_confirmed_new", False) else _find_code(
+    found = None if (wanted or getattr(entry, "customer_confirmed_new", False)) else _find_code(
         account_dir, "ARMAS", "CUSCOD", "CUSNAM", entry.customer_tax_id, core, branch
     )
     if found:
         return found
 
     codes = _all_codes(account_dir, "ARMAS", "CUSCOD")
-    code = _next_code(codes, _code_prefix(core))
-    accnum = _ar_acc_from_lines(entry.lines, ar_acc or _DEFAULT_AR_ACC)
+    code = wanted or _next_code(codes, _code_prefix(core))
+    # 现金客户 / 现销:分录借方是现金,不是应收 → 客户档科目取这套账的默认应收科目
+    accnum = (account_rules.default_account(account_dir, _DEFAULT_AR_SLOT) if wanted
+              else _ar_acc_from_lines(entry.lines, ar_acc or account_rules.default_account(account_dir, _DEFAULT_AR_SLOT)))
+    if not accnum:
+        raise ValueError("新客户没有可用的应收科目(分录与账套默认科目都没有)")
     addr1, addr2, addr3 = _split_address(getattr(entry, "customer_address", ""))
 
     t = _open(account_dir, "ARMAS", dbf.READ_WRITE)
@@ -523,7 +563,8 @@ def ensure_customer(
         t.append(
             {
                 "CUSCOD": code,
-                "CUSTYP": "00",
+                # 类型码照这套账现有客户最常用的(「00」有的账套没有、有的是「国外应收」)
+                "CUSTYP": account_rules.common_type(account_dir, "ARMAS", "CUSTYP"),
                 "PRENAM": entry.customer_prename[:_MAX_PRENAM],
                 "CUSNAM": core[:_MAX_NAME],
                 "ADDR01": addr1,

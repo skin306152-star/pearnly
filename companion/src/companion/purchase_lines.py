@@ -62,7 +62,7 @@ def write_detail(
     gl_rows: List[GlRow],
     *,
     depcod: str = "",
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
 ) -> Tuple[List[dict], List[GlRow]]:
     """写本单明细行,返回 (逐行 mode 结果, 要追加的重分类分录行)。
 

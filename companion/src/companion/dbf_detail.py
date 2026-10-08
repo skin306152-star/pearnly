@@ -20,6 +20,7 @@ from typing import List, Optional
 
 import dbf
 
+from . import account_rules
 from . import dbf_schema as S
 from . import product_master
 from .logger import get_logger
@@ -143,7 +144,7 @@ def write_stcrd_detail(
     items_account: str,
     *,
     depcod: str = "",
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     ref_no: str = "",
     posopr: str = S.STCRD_POSOPR,
 ) -> List[dict]:
@@ -152,6 +153,7 @@ def write_stcrd_detail(
 
     `ref_no` 只有采购侧传(真账镜像:采购行带 REFNUM 98%+,销项行 0/14834 带)。"""
     line_modes: List[dict] = []
+    location = account_rules.main_location(account_dir)
     t = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
         for seq, it in enumerate(items, start=1):
@@ -171,7 +173,7 @@ def write_stcrd_detail(
                 else S.stcrd_detail_row
             )
             t.append(
-                builder(
+                account_rules.localize_stcrd(account_dir, builder(
                     docnum,
                     seq,
                     docdat,
@@ -185,7 +187,7 @@ def write_stcrd_detail(
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=posopr,
-                )
+                ), unit, location)
             )
             line_modes.append(
                 line_mode(

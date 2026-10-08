@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dbf
 
 from . import dbf_detail
+from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
@@ -190,7 +191,7 @@ def write_sale(
     payload: Dict[str, Any],
     account_dir: str | Path,
     *,
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     depcod: str = "",
     make_backup: bool = True,
     allowed_sets: tuple = ALLOWED_ACCOUNT_SETS,
@@ -407,6 +408,26 @@ def _write_all(
     """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注)。"""
     prefix = entry.doctype  # IV / HS
     cash = prefix == "HS"
+    # 按这套账自己的设置(2026-10-08):单据簿的日记账 / 默认部门;赊销的应收行记客户档上的科目、到期日按客户档
+    # 付款期(以前恒用账套默认应收科目,62 套里 44% 的客户挂的不是它,控制科目与明细账对不上)。
+    book = account_rules.book(account_dir, prefix)
+    jnltyp = book.get("JNLTYP") or S.JNLTYP_SALES
+    depcod = depcod or book.get("DEPCOD", "")
+    duedat = None
+    debits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "D"]
+    payterm = 0
+    if cash:
+        # 现销:Express 原生借现金(ISINFO.ACCNUM00),完全不碰应收(真实账套 1.4 万张 HS 无一例外;2026-10-08 核对)。
+        cash_acc = account_rules.default_account(account_dir, "ACCNUM00")
+        if debits and cash_acc and account_rules.postable_account(account_dir, cash_acc):
+            debits[0]["acc"] = cash_acc
+    else:
+        if debits:
+            debits[0]["acc"] = account_rules.control_account(
+                account_dir, "ARMAS", entry.customer_code, str(debits[0].get("acc") or "")
+            )
+        payterm = account_rules.party_terms(account_dir, "ARMAS", entry.customer_code)[1]
+        duedat = account_rules.due_date(docdat, payterm)
     name = entry.customer_name
     # 凭证表头与销项税记录的分店号 = 这家客户档的分店号(税表分店一栏;真账一致 99%+)。
     orgnum = master_create.party_orgnum(account_dir, "ARMAS", "CUSCOD", entry.customer_code)
@@ -444,7 +465,8 @@ def _write_all(
                 "IVCAMT": netamt if cash else 0.0,
                 "DOCSTAT": "N",
                 "USERID": userid,
-                **audit_fields(docdat, depcod, has_vat, orgnum),
+                **audit_fields(docdat, depcod, has_vat, orgnum, duedat),
+                **({"PAYTRM": payterm} if "PAYTRM" in ar.field_names else {}),
                 **nxtseq_override,
             }
         )
@@ -508,7 +530,7 @@ def _write_all(
     try:
         gj.append(
             {
-                "JNLTYP": S.JNLTYP_SALES,
+                "JNLTYP": jnltyp,
                 "VOUDAT": docdat,
                 "VOUCHER": docnum,
                 "DESCRP": descrp,
@@ -530,13 +552,13 @@ def _write_all(
     finally:
         gi.close()
 
-    _bump_isrun(account_dir, prefix, S.JNLTYP_SALES)
+    _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_arbal(account_dir, entry.customer_code, docdat, prefix, total)
     return docnum, line_modes, stock_sale.has_stock_lines(line_modes), notes
 
 
 def _write_stcrd_detail(
-    account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = "BIT9"
+    account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID
 ):
     """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。"""
     return dbf_detail.write_stcrd_detail(

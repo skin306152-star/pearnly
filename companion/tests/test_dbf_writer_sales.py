@@ -66,6 +66,10 @@ def datat(tmp_path):
         t.close()
     # 账套会计期间(余额表月桶的列号读它)。本模块的票是佛历 58xx = 公历 2015。
     seed_fiscal_year(d, 2015)
+    # 真账套必有单位表:明细行单位码只写这套账里有的码(2026-10-08)
+    from _synth_account import ISTAB_UNITS, _seed
+
+    _seed(d, "ISTAB", [{"TABTYP": "20", "TYPCOD": c, "SHORTNAM": sh, "TYPDES": de} for c, sh, de in ISTAB_UNITS])
     return d
 
 
@@ -687,3 +691,27 @@ def test_push_goes_through_when_express_already_has_the_same_invoice_no(datat, o
     assert again.docnum == first.docnum  # 凭证号仍是票面发票号
     assert len(_rows(datat, "ARTRN", DOCNUM=first.docnum)) == 2
     assert len(_rows(datat, "STCRD", DOCNUM=first.docnum)) == 4
+
+
+def test_receivable_line_uses_the_customers_own_account(datat):
+    """2026-10-08:赊销应收行记客户档上挂的科目(Express 自己过账就这样),不再一律用账套默认应收科目。"""
+    from _synth_account import _seed
+
+    _seed(datat, "GLACC", [{"ACCNUM": "11-03-02-00", "ACCNAM": "ลูกหนี้ พ.ก.ง.", "ACCTYP": "0", "GROUP": "1"}])
+    _seed(datat, "ARMAS", [{"CUSCOD": "C001", "CUSNAM": "ลูกค้า ทดสอบ", "ACCNUM": "11-03-02-00"}])
+    res = WS.write_sale(_sale(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    debit = [r for r in _rows(datat, "GLJNLIT", VOUCHER="SO-9001") if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT]
+    assert [(r.ACCNUM or "").strip() for r in debit] == ["11-03-02-00"]
+
+
+def test_cash_sale_debits_the_cash_account_not_receivables(datat):
+    import account_rules_fixture as F
+
+    F.isinfo(datat, ACCNUM00="11-01-01-00")
+    F.glacc(datat, ("11-01-01-00", "เงินสด"))
+    res = WS.write_sale(_sale(doctype="HS"), datat, allowed_sets=("DATAT",), selected_dir=str(datat),
+                        make_backup=False)
+    assert res.ok, res.error
+    debit = [r for r in _rows(datat, "GLJNLIT", VOUCHER="SO-9001") if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT]
+    assert [(r.ACCNUM or "").strip() for r in debit] == ["11-01-01-00"]

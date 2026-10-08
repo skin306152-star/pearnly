@@ -469,4 +469,4 @@ class _NewCustomer:
         self.customer_tax_id = ""
         self.customer_prename = ""
         self.customer_address = ""
-        self.lines = []
+        self.lines = [{"acc": "11-02-01-00", "side": "D", "amount": "107.00"}]  # 新客户档科目取分录的应收行

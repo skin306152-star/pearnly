@@ -56,9 +56,16 @@ def test_falls_back_to_builtin_map_when_account_table_has_no_wording(acct):
 
 def test_rejects_builtin_code_absent_from_this_account(acct):
     """内置映射给的码不在本账套码表里 → 返空,让调用方保留模板单位,不写无效码。"""
-    assert S.unit_to_tqucod("pcs") == "ชิ"
-    assert "ชิ" not in unit_code.legal_codes(acct)
-    assert unit_code.resolve(acct, "pcs") == ""
+    assert S.unit_to_tqucod("gallon") == "กน"
+    assert "กน" not in unit_code.legal_codes(acct)
+    assert unit_code.resolve(acct, "gallon") == ""
+
+
+def test_pieces_map_to_the_code_real_account_sets_use(acct):
+    """「ชิ้น / pcs」在 62 套真实账套里都是 ชน(旧映射写 ชิ,一套都没有;2026-10-08)。"""
+    assert S.unit_to_tqucod("pcs") == "ชน"
+    assert unit_code.resolve(acct, "ชิ้น") == "ชน"
+    assert unit_code.resolve(acct, "pcs") == "ชน"
 
 
 def test_unknown_unit_returns_empty(acct):

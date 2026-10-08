@@ -233,7 +233,7 @@ def ensure_item(
     target_account: str,
     *,
     created_date: _dt.date,
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     unit: str = "",
     vatcod: str = "",
 ) -> str:
@@ -386,7 +386,7 @@ def ensure_stock_item(
     account_dir: Path,
     name: str,
     *,
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     unit: str = "",
     acccod: str = "",
     code: str = "",

@@ -23,6 +23,7 @@ from typing import Dict, List, Tuple
 
 import dbf
 
+from . import account_rules
 from . import dbf_detail
 from . import dbf_schema as S
 from . import product_master
@@ -80,7 +81,7 @@ def write_stock_in_lines(
     party_code: str,
     *,
     depcod: str = "",
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     acccod: str = "",
     ref_no: str = "",
 ) -> Tuple[List[Dict], Dict[str, Decimal]]:
@@ -126,7 +127,7 @@ def write_stock_in_lines(
             new_bal = cur_bal + qty
             new_val = _money(cur_val + amount)
             st.append(
-                S.stcrd_stock_in_row(
+                account_rules.localize_stcrd(account_dir, S.stcrd_stock_in_row(
                     docnum,
                     seq,
                     docdat,
@@ -142,7 +143,7 @@ def write_stock_in_lines(
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=S.STCRD_POSOPR_PURCHASE,
-                )
+                ), unit)
             )
             stock_sale.write_stmas_fields(
                 account_dir,

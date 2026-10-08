@@ -34,7 +34,7 @@ def amount_fields(is_cash: bool, has_vat: bool, base, vat, total):
     return "2", b, b, b, b, t
 
 
-def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0) -> Dict[str, Any]:
+def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0, duedat=None) -> Dict[str, Any]:
     """Express GUI 录入时自动填、外部直写**必须补**的"审核/单据"字段。
 
     缺这些(尤其 `CMPLAPP='Y'`)→ Express 视为未审核/不完整,报表与放大镜列表都看不到
@@ -45,7 +45,7 @@ def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0) -> Dict[st
     return {
         "CMPLAPP": "Y",
         "CMPLDAT": docdat,
-        "DUEDAT": docdat,
+        "DUEDAT": duedat or docdat,  # 赊账单 = 单据日期 + 对方档付款期(调用方算);现金单 = 单据日期
         "VATDAT": docdat,
         "BILNUM": "~",
         "NXTSEQ": "1",

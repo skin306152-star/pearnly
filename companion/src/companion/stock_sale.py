@@ -34,6 +34,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import dbf
 
+from . import account_rules
 from . import dbf_detail
 from . import dbf_schema as S
 from . import product_master
@@ -231,7 +232,7 @@ def write_stock_lines(
     party_code: str,
     *,
     depcod: str = "",
-    userid: str = "BIT9",
+    userid: str = S.PEARNLY_USERID,
     acccod: str = "",
 ) -> Tuple[List[Dict], List[Tuple[str, str, str, Decimal]]]:
     """写库存明细行 + 扣 STMAS,返回 (逐行 mode 结果, COGS 分录行)。
@@ -263,7 +264,7 @@ def write_stock_lines(
                 new_val = _q2(item["mremval"] - cogs)
                 inv_acc, cogs_acc = stock_accounts(account_dir, item["acccod"])
                 st.append(
-                    S.stcrd_stock_out_row(
+                    account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
                         seq,
                         docdat,
@@ -279,7 +280,7 @@ def write_stock_lines(
                         rem_val=new_val,
                         unit=unit,
                         depcod=depcod,
-                    )
+                    ), unit)
                 )
                 _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
                 key = (cogs_acc, inv_acc)
@@ -300,7 +301,7 @@ def write_stock_lines(
                 new_bal = basis.bal - qty
                 new_val = _q2(basis.val - cogs)
                 st.append(
-                    S.stcrd_stock_out_row(
+                    account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
                         seq,
                         docdat,
@@ -316,7 +317,7 @@ def write_stock_lines(
                         rem_val=new_val,
                         unit=unit,
                         depcod=depcod,
-                    )
+                    ), unit)
                 )
                 _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)
                 if cogs:
@@ -412,7 +413,7 @@ def _set_stmas_opening(account_dir: Path, stkcod: str, qty: float, val: float) -
 
 
 def set_opening_stock(
-    account_dir: Path, items: List[Dict], docdat, *, userid: str = "BIT9"
+    account_dir: Path, items: List[Dict], docdat, *, userid: str = S.PEARNLY_USERID
 ) -> List[Dict]:
     """会计补的期初 → 建/复用 STKTYP=0 库存目录档 + 置 STMAS 期初/结存 + 写 STCRD 期初入库行。
 
@@ -451,7 +452,7 @@ def set_opening_stock(
                 continue
             docnum = f"OB{d.strftime('%y%m%d')}-{seq:03d}"  # 期初单(OB=opening balance)
             st.append(
-                S.stcrd_opening_row(
+                account_rules.localize_stcrd(account_dir, S.stcrd_opening_row(
                     docnum,
                     seq,
                     d,
@@ -462,7 +463,7 @@ def set_opening_stock(
                     rem_bal=qty,
                     rem_val=val,
                     unit=unit,
-                )
+                ), unit)
             )
             _set_stmas_opening(account_dir, stkcod, qty, val)
             results.append(
