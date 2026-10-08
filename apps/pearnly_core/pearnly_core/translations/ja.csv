@@ -41,6 +41,7 @@ An admin session was requested but no admin credentials are configured,adminセ�
 Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
+Arguments,引数
 Assistant not connected,アシスタント未接続
 Attempt,試行回数
 Attempts,試行回数
@@ -60,15 +61,18 @@ Bind LINE,LINEを連携
 Bind code,連携コード
 Binding needs a LINE user and a local account,連携にはLINEユーザーとローカルアカウントが必要です
 Birth Date,生年月日
+Body,本文
 Booking Defaults,起票の既定値
 Both account and password are required,アカウントとパスワードの両方が必要です
 Both issuer and subject are required,issuer と subject はどちらも必須です
 Bound At,連携日時
 Branches {0},支店 {0}
+Builder,生成方法
 Business Key,業務キー
 Business number,業務番号
 Buyer,買い手
 Buyer Tax ID,買い手税番号
+Bytes,バイト数
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
@@ -82,6 +86,7 @@ Change password,パスワード変更
 Change your password and sign out other devices on the account page of the identity service,パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 Charges,課金
+Checkpoint Key,チェックポイントキー
 Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
@@ -261,6 +266,7 @@ Failure Reason,失敗理由
 Failure reason,失敗理由
 Failures,失敗回数
 File,ファイル
+File Key,ファイルキー
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
 "Filters must be four-value rows with string doctypes, fields, and operators.",フィルタは doctype・フィールド・演算子の4値行である必要があります
@@ -444,6 +450,7 @@ Plans do not renew automatically. Subscribe again after expiry.,自動更新は�
 Please confirm,確認してください
 Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
+Please try again later,しばらくしてから再試行してください
 Preparing the file,ファイルを準備しています
 Processing…,処理中…
 Product,製品
@@ -553,8 +560,10 @@ Site config is missing {0},サイト設定に {0} がありません
 Site config is missing {0}_admin_client_id / _secret,サイト設定に {0}_admin_client_id / _secret がありません
 Site config is missing {0}_issuer,サイト設定に {0}_issuer がありません
 Site config pearnly_ocr_credentials must point at an existing service-account JSON,サイト設定 pearnly_ocr_credentials は実在するサービスアカウントJSONを指す必要があります
+Size And Permission Check,サイズと権限の確認
 Source,ソース
 Source Attachment,元の添付ファイル
+State,状態
 Status,ステータス
 Status cannot go backwards: {0} → {1},ステータスを戻すことはできません: {0} → {1}
 Status must be active or inactive,ステータスは active または inactive のみです
@@ -634,6 +643,7 @@ The new password is required,新しいパスワードは必須です
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです
 The old key stops working right away.,古いキーはすぐに使えなくなります。
 The plan quota is used first; anything over is charged per plan rate from the balance,登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます
+The provisioning target {0} has no account pool for {1},開通ターゲット {0} に {1} のアカウントプールがありません
 The push channel must be companion or cloud,送信チャネルは companion または cloud のみです
 The recognition queue is full. Please try again later.,読み取り待ちがいっぱいです。後でもう一度お試しください。
 The recognition result is not confirmed yet. Refresh later to check.,読み取り結果はまだ確定していません。後で更新して確認してください。
@@ -736,6 +746,7 @@ Which system is on the other side. Values follow the legacy product (webhook | x
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Withholding Tax,源泉税
+Work,読み取りジョブ
 Work together,コラボレーション
 Workspace,ワークスペース
 Wrong ERP username or password. Check it under Connect and try again.,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。

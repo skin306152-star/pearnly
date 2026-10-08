@@ -55,6 +55,14 @@ Could not queue the deletion,排队删除失败
 Could not read what would be deleted,无法读取待删除内容
 Could not reject,拒绝失败
 Could not set up the LIFF app for {0}: {1},无法为 {0} 创建 LIFF 应用：{1}
+Cowork Account Pool,Cowork 账号池
+Cowork Admin Client ID,Cowork 管理客户端 ID
+Cowork Admin Client Secret,Cowork 管理客户端密钥
+Cowork Identity Subject,Cowork 账号标识
+Cowork Password-check Client ID,Cowork 改密校验客户端 ID
+Cowork Password-check Client Secret,Cowork 改密校验客户端密钥
+Cowork Realm,Cowork Realm
+Create Request Hash,创建请求哈希
 Create the site,创建站点
 Create the tenant account,创建租户账号
 Created and kept correct by provisioning on the shared LINE Login channel.,由开通流程在共用 LINE Login 频道下自动创建并维护。
@@ -106,6 +114,8 @@ For example: local sample / production,例如：本地样板 / 生产
 Grant feature roles,授予功能权限
 Granted DocTypes,授予的 DocType
 Idempotency Key,幂等键
+Identity Provider,身份提供方
+Identity Realm,身份 Realm
 Identity Service URL,身份服务地址
 Identity Subject,身份主体
 "If you encounter any problems while using our services, please contact us through the official channels below.",在使用过程中遇到任何问题，欢迎通过以下官方联系方式与我们联系。
@@ -300,6 +310,8 @@ Type,类型
 Unknown billing unit: {0},未知的计费单位：{0}
 Unknown product: {0},未知产品：{0}
 Unknown step status: {0},未知步骤状态：{0}
+Usage Checked,用量核对日期
+Usage Month,用量月份
 Used This Cycle (pages),本周期已用（张）
 Used to send messages (long-lived).,用于发送消息（长期令牌）。
 "Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",用于 Webhook 验签。**每个租户独立配置**。

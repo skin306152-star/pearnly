@@ -3,6 +3,7 @@
 1-12; Thai companies commonly start in January,1–12；泰国公司一般从 1 月开始
 13 digits; a branch adds its 5-digit branch number,税号 13 位；有分店再带 5 位分店编号
 A company needs a name,请填写公司名称
+A company needs at least one warehouse,公司至少需要一个仓库
 A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须关联其生成的采购记录
 A confirmed draft must point at the record it created,已确认的草稿必须关联其生成的记录
@@ -151,6 +152,7 @@ Check the opening stock row,请检查这条期初明细
 Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
 Cheque,支票
+Choices,选项
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
 Choose a local opening stock file,请选择本地期初库存文件
@@ -457,6 +459,8 @@ Item Code,物料编码
 Item Code: {0} is not available under warehouse {1}.,物料 {0} 在仓库 {1} 无货
 Item Details,物料详细信息
 Item Group,物料组
+Item Key,品项键
+Item Kind,品项类型
 Item Name,物料名称
 Item Name is required,物料名称不能为空
 Item Type,物料类型
@@ -508,6 +512,7 @@ Manual Entry,手动录入
 Manually Set Amounts,手动设置金额
 Media Type,文件类型
 Merge Items,合并明细
+Method,付款方式
 Missing Values Required,缺少必填项
 Mode of Payment,付款方式
 Modes of Payment,付款方式
@@ -635,6 +640,7 @@ Paid {0},已付款 {0}
 Parent Category,上级分类
 Parent Item Group,上级物料组
 Partly Paid,部分付款
+Party,往来单位
 Password updated,密码已更新
 Pay,收款
 Payment,付款
@@ -642,6 +648,7 @@ Payment Date,付款日期
 Payment Evidence,付款凭证
 Payment Failed,收款失败
 Payment Method,付款方式
+Payment Methods,付款方式
 Payment Needs Approval,付款需要审批
 Payment Receipt,付款凭证
 Payment Received,收款成功
@@ -746,6 +753,8 @@ Received By,收款人
 Received; confirm it on the ERP page,已接收，请在 ERP 页面确认
 Recent Orders,最近订单
 Recent Transactions,最近交易
+Recognition,识别
+Recognition Result,识别结果
 Recognition could not start. Please try again.,无法启动识别，请重试。
 Recognition is busy right now. Please try again in a minute.,识别服务繁忙，请一分钟后再试。
 Recognition is not configured for this account,尚未配置文字识别
@@ -762,6 +771,7 @@ Recount this product,重新盘点该物料
 Redeem Loyalty Points,抵扣忠诚度积分
 Reference,参考
 Reference Cost,参考成本
+Reference Type,来源单据类型
 Reference cost,参考成本
 References,参考
 Refresh,刷新
@@ -774,6 +784,7 @@ Reload,刷新
 Remaining Amount,剩余金额
 Remark,备注
 Remarks,备注
+Remove,移除
 Replace the entered rows with the imported file?,确定要用导入文件替换已填写的明细吗？
 Request Hash,请求哈希
 Request ID already exists,请求编号已存在
@@ -878,6 +889,7 @@ Some products had stock movements during counting. Open the affected row and rec
 Sort Order,排序
 Source,来源
 Source File,来源文件
+Source File Record,源文件记录
 Split,分拆
 Start counting,开始盘点
 Status,状态
@@ -949,6 +961,7 @@ Terminals,收银台
 That code is not valid,绑定码无效
 That file could not be read; please use the template,无法读取该文件，请使用模板格式
 That file has no rows,该文件没有数据行
+That file has too many rows,文件行数过多
 That file is not an Excel workbook,该文件不是 Excel 工作簿
 That photo could not be read,无法识别该照片
 That row is not part of this stock count,该行不属于此盘点
@@ -961,6 +974,7 @@ The amount received is less than the total,实收金额小于应收金额
 The balance could not be checked right now. Please try again in a minute.,暂时无法查询余额，请稍后重试。
 The cart is empty,购物车为空
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
+The cashier is not enabled for this company,该公司未启用收银
 The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
@@ -1100,6 +1114,7 @@ VAT Rate,增值税率
 VAT Rate %,税率%
 VAT applies,含 VAT
 Value,金额
+Value Change,金额变动
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 Void the payments before voiding the document,作废单据前请先冲销付款

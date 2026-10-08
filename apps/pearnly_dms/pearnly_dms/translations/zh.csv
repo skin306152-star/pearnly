@@ -79,6 +79,7 @@ Choose the matching customer,请选择对应的客户
 Colour,颜色
 Coming soon,即将推出
 Company information,公司资料
+Complete Snapshot,完整快照
 Confirm,确认
 Confirm booking,确认订车
 Confirm saving a new customer,确认保存新客户
@@ -122,9 +123,11 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},资料时间：{time}
 Data captured at,资料取得时间
 Data updated,资料已更新
+Dataset,数据集
 Date,日期
 Date of birth,出生日期
 Delivery,交车
+Delivery date,交车日期
 Deposit payment channel — choose one,订金付款方式 — 请选择
 Deposit transfer slip,订金转账凭证
 Differences,差异
@@ -153,6 +156,7 @@ Floor,楼层
 Full address directory,完整地址目录
 Full customer records,完整客户资料
 Gear,变速箱
+Generation,代次
 Glare on the card. Tilt it slightly,卡片反光，请略微倾斜
 Grade,等级
 "Hello 🙏
@@ -173,6 +177,7 @@ Keep existing data,使用原资料
 Last Check,最近检查
 Last Checked At,最近检查时间
 Last Error,上次错误
+Last Synchronization Error,最近同步错误
 Last name,姓
 Last successful completion,上次成功完成时间
 Last successful record count,上次成功记录数
@@ -181,6 +186,7 @@ Latest error code,最近错误代码
 Latest sales from DMS,DMS 最新销售
 Manage system accounts,管理系统账号
 Manual,使用手册
+Manual Read Request,手动读取请求
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",DMS 当前使用人数较多，本次排队超时，未提交任何内容。请稍后再试。
 Master data and all vehicle colors,主档与全部车型颜色
 Menu,菜单
@@ -241,13 +247,16 @@ Postcode,邮编
 Previous,上一页
 Previous page,上一页
 Price in DMS,DMS 价格
+Private Synchronization Progress,内部同步进度
 Progress {processed}/{total},进度 {processed}/{total}
 Province,府
+Query Requested,查询请求时间
 Queued,已排队
 Rank by number of cars or amount?,请选择排行指标：台数或金额
 Rank sales by what?,请选择销售排行依据
 Read / refresh selected data,读取／刷新所选资料
 Read / refresh this query,读取／刷新本次查询
+Read Completed,读取完成时间
 Read account,读档账号
 Read completed,读取完成
 Read completed. Click View result.,读取完成，点击查看结果。
@@ -257,6 +266,7 @@ Read failed — it will be retried automatically,读取失败，将稍后自动�
 Read progress,读取进度
 Read status,读取状态
 Read time unknown,读取时间未知
+Reader Scope,读取范围
 Reading,正在读取
 Reading DMS master data…,正在读取 DMS 主档…
 "Reading data, please wait…",正在读取资料，请稍候…
@@ -275,6 +285,7 @@ Remove,删除
 "Remove slip, go on",删除凭证后继续
 Remove the account and add it again to change its name,如需修改账号名，请删除此行后重新添加
 Removed {0},已移除 {0}
+Requested Query,请求的查询
 Resumed {0},已启用 {0}
 Retry,重试
 Retry booking,重新建立订车单
@@ -309,6 +320,7 @@ Shares the queue when many people work at once. Create them in DMS with the conn
 Similar customers found. Choose the one that matches.,找到相似的客户，请选择对应的一位。
 Soi,巷（Soi）
 Something went wrong. Please try again.,系统出错，请重试。
+Source Read Started,源读取开始时间
 Start over,重新开始
 Started over. Take a photo of the ID card to start a customer record.,已重新开始，拍摄身份证即可登记客户。
 Status not given,未注明状态
@@ -427,6 +439,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,�
 Used to create and edit customers. Leave a saved account's password empty to keep it.,用于新建和修改客户资料；已登记账号的密码留空则保持不变。
 User manual,使用手册
 Vehicle master data,车辆主档信息
+Verified Write Results,已核实的写入结果
 Video guides,教程视频
 View result,查看结果
 View result / status,查看结果／状态

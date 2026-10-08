@@ -41,6 +41,7 @@ An admin session was requested but no admin credentials are configured,已请求
 Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
 Are you sure you want to sign out?,确定要退出登录吗？
+Arguments,参数
 Assistant not connected,小助手未连接
 Attempt,尝试次数
 Attempts,尝试次数
@@ -60,15 +61,18 @@ Bind LINE,绑定 LINE
 Bind code,绑定码
 Binding needs a LINE user and a local account,绑定需要 LINE 用户与本地账号
 Birth Date,出生日期
+Body,内容
 Booking Defaults,建单默认值
 Both account and password are required,请填写账号和密码
 Both issuer and subject are required,issuer 与 subject 不能为空
 Bound At,绑定时间
 Branches {0},分店 {0}
+Builder,生成方式
 Business Key,业务键
 Business number,业务编号
 Buyer,买方
 Buyer Tax ID,买方税号
+Bytes,字节数
 Cancel,取消
 Cannot confirm while the status is {0},当前状态为 {0}，无法确认
 Cannot match while the status is {0},当前状态为 {0}，无法匹配
@@ -82,6 +86,7 @@ Change password,更改密码
 Change your password and sign out other devices on the account page of the identity service,请在身份服务的账户页修改密码并退出其他设备
 Change your password from your account profile using Change Password.,请在个人资料中使用「更改密码」修改登录密码。
 Charges,扣费
+Checkpoint Key,检查点键
 Checkpoints,检查点
 Choose a plan,选择套餐
 Claiming a push job requires a connection,领取推送任务时必须指定连接
@@ -261,6 +266,7 @@ Failure Reason,失败原因
 Failure reason,失败原因
 Failures,失败次数
 File,文件
+File Key,文件键
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,填写显示名及该操作员的 DMS 账号和密码，保存后分别生成绑定码
 "Fill in the display name, DMS username and password",请填写显示名、DMS 用户名和密码
 "Filters must be four-value rows with string doctypes, fields, and operators.",筛选条件必须为四个值的行，且 doctype、字段和运算符为字符串
@@ -444,6 +450,7 @@ Plans do not renew automatically. Subscribe again after expiry.,套餐不自动�
 Please confirm,请确认
 Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
+Please try again later,请稍后重试
 Preparing the file,正在准备文件
 Processing…,处理中…
 Product,产品
@@ -553,8 +560,10 @@ Site config is missing {0},站点配置缺少 {0}
 Site config is missing {0}_admin_client_id / _secret,站点配置缺少 {0}_admin_client_id / _secret
 Site config is missing {0}_issuer,站点配置缺少 {0}_issuer
 Site config pearnly_ocr_credentials must point at an existing service-account JSON,站点配置 pearnly_ocr_credentials 必须指向已存在的服务账号 JSON 文件
+Size And Permission Check,大小与权限检查
 Source,来源
 Source Attachment,原始附件
+State,状态
 Status,状态
 Status cannot go backwards: {0} → {1},状态不能回退：{0} → {1}
 Status must be active or inactive,状态只能是 active 或 inactive
@@ -634,6 +643,7 @@ The new password is required,新密码不能为空
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
 The old key stops working right away.,原配对码将立即失效。
 The plan quota is used first; anything over is charged per plan rate from the balance,优先使用套餐额度，超出部分按套餐单价从余额扣除
+The provisioning target {0} has no account pool for {1},开户目标 {0} 未配置 {1} 的账号池
 The push channel must be companion or cloud,推送渠道只能是 companion 或 cloud
 The recognition queue is full. Please try again later.,识别队列已满，请稍后重试。
 The recognition result is not confirmed yet. Refresh later to check.,识别结果尚未确认，请稍后刷新查看。
@@ -736,6 +746,7 @@ Which system is on the other side. Values follow the legacy product (webhook | x
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",连接所属账号。**留空 = 本站点共享连接**；填写 = 该操作员的个人连接。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",安装在商家会计电脑上的 Windows 程序，提供安装、配对与任务拉取
 Withholding Tax,预扣税
+Work,识别作业
 Work together,工作协作
 Workspace,工作区
 Wrong ERP username or password. Check it under Connect and try again.,目标 ERP 账号或密码错误，请在「连接」中检查后重试。

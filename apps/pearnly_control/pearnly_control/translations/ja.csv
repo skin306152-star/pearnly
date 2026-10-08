@@ -55,6 +55,14 @@ Could not queue the deletion,削除をキューに入れられませんでした
 Could not read what would be deleted,削除対象を読み取れませんでした
 Could not reject,却下に失敗しました
 Could not set up the LIFF app for {0}: {1},{0} の LIFF を設定できませんでした: {1}
+Cowork Account Pool,Cowork アカウントプール
+Cowork Admin Client ID,Cowork 管理クライアント ID
+Cowork Admin Client Secret,Cowork 管理クライアントシークレット
+Cowork Identity Subject,Cowork アカウント識別子
+Cowork Password-check Client ID,Cowork パスワード確認用クライアント ID
+Cowork Password-check Client Secret,Cowork パスワード確認用クライアントシークレット
+Cowork Realm,Cowork レルム
+Create Request Hash,作成リクエストハッシュ
 Create the site,サイトを作成
 Create the tenant account,テナントアカウントを作成
 Created and kept correct by provisioning on the shared LINE Login channel.,開通処理が共用の LINE Login チャネルに自動作成し、正しい設定に保ちます。
@@ -106,6 +114,8 @@ For example: local sample / production,例：ローカル見本 / 本番
 Grant feature roles,機能ロールを付与
 Granted DocTypes,付与するDocType
 Idempotency Key,冪等キー
+Identity Provider,ID プロバイダー
+Identity Realm,認証レルム
 Identity Service URL,アイデンティティサービスURL
 Identity Subject,アイデンティティのサブジェクト
 "If you encounter any problems while using our services, please contact us through the official channels below.",ご利用中に問題が発生した場合は、以下の公式窓口までお問い合わせください。
@@ -300,6 +310,8 @@ Type,種別
 Unknown billing unit: {0},不明な課金単位: {0}
 Unknown product: {0},不明な製品: {0}
 Unknown step status: {0},不明なステップ状態: {0}
+Usage Checked,利用量確認日
+Usage Month,利用月
 Used This Cycle (pages),今サイクル使用量（枚）
 Used to send messages (long-lived).,メッセージ送信用（long-lived）。
 "Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",Webhookの署名検証用。**テナントごとに1つ**。テナントサイトは自分のものだけを使うため、他社の署名は通りません。

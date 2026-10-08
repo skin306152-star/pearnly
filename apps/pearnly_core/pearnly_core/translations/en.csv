@@ -41,6 +41,7 @@ An admin session was requested but no admin credentials are configured,An admin 
 Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
+Arguments,Arguments
 Assistant not connected,Assistant not connected
 Attempt,Attempt
 Attempts,Attempts
@@ -60,15 +61,18 @@ Bind LINE,Bind LINE
 Bind code,Bind code
 Binding needs a LINE user and a local account,Binding needs a LINE user and a local account
 Birth Date,Birth Date
+Body,Body
 Booking Defaults,Booking Defaults
 Both account and password are required,Both account and password are required
 Both issuer and subject are required,Both issuer and subject are required
 Bound At,Bound At
 Branches {0},Branches {0}
+Builder,Builder
 Business Key,Business Key
 Business number,Business number
 Buyer,Buyer
 Buyer Tax ID,Buyer Tax ID
+Bytes,Bytes
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
@@ -82,6 +86,7 @@ Change password,Change password
 Change your password and sign out other devices on the account page of the identity service,Change your password and sign out other devices on the account page of the identity service
 Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
 Charges,Charges
+Checkpoint Key,Checkpoint Key
 Checkpoints,Checkpoints
 Choose a plan,Choose a plan
 Claiming a push job requires a connection,Claiming a push job requires a connection
@@ -260,6 +265,7 @@ Failed to start: {0},Failed to start: {0}
 Failure Reason,Failure Reason
 Failures,Failures
 File,File
+File Key,File Key
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
 "Filters must be four-value rows with string doctypes, fields, and operators.","Filters must be four-value rows with string doctypes, fields, and operators."
@@ -442,6 +448,7 @@ Plans do not renew automatically. Subscribe again after expiry.,Plans do not ren
 Please confirm,Please confirm
 Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
+Please try again later,Please try again later
 Preparing the file,Preparing the file
 Processing…,Processing…
 Product,Product
@@ -551,8 +558,10 @@ Site config is missing {0},Site config is missing {0}
 Site config is missing {0}_admin_client_id / _secret,Site config is missing {0}_admin_client_id / _secret
 Site config is missing {0}_issuer,Site config is missing {0}_issuer
 Site config pearnly_ocr_credentials must point at an existing service-account JSON,Site config pearnly_ocr_credentials must point at an existing service-account JSON
+Size And Permission Check,Size And Permission Check
 Source,Source
 Source Attachment,Source Attachment
+State,State
 Status,Status
 Status cannot go backwards: {0} → {1},Status cannot go backwards: {0} → {1}
 Status must be active or inactive,Status must be active or inactive
@@ -632,6 +641,7 @@ The new password is required,The new password is required
 "The new platform has no DMS advisor roster source yet, so for now only automatic matching is available","The new platform has no DMS advisor roster source yet, so for now only automatic matching is available"
 The old key stops working right away.,The old key stops working right away.
 The plan quota is used first; anything over is charged per plan rate from the balance,The plan quota is used first; anything over is charged per plan rate from the balance
+The provisioning target {0} has no account pool for {1},The provisioning target {0} has no account pool for {1}
 The push channel must be companion or cloud,The push channel must be companion or cloud
 The recognition queue is full. Please try again later.,The recognition queue is full. Please try again later.
 The recognition result is not confirmed yet. Refresh later to check.,The recognition result is not confirmed yet. Refresh later to check.
@@ -734,6 +744,7 @@ Which system is on the other side. Values follow the legacy product (webhook | x
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.","Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull","Windows app on the merchant's accounting PC: installer, pairing, outbound pull"
 Withholding Tax,Withholding Tax
+Work,Work
 Work together,Work together
 Workspace,Workspace
 Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP username or password. Check it under Connect and try again.

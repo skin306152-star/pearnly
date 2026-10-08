@@ -3,6 +3,7 @@
 1-12; Thai companies commonly start in January,1〜12。タイ企業は1月開始が一般的です
 13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
 A company needs a name,会社には名前が必要です
+A company needs at least one warehouse,会社には倉庫が 1 つ以上必要です
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
@@ -151,6 +152,7 @@ Check the opening stock row,この期首明細を確認してください
 Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
 Cheque,小切手
+Choices,選択肢
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
 Choose a local opening stock file,アップロード済みの期首在庫ファイルを選択してください
@@ -457,6 +459,8 @@ Item Code,品目コード
 Item Code: {0} is not available under warehouse {1}.,商品 {0} は倉庫 {1} にありません
 Item Details,商品の詳細
 Item Group,品目グループ
+Item Key,品目キー
+Item Kind,品目区分
 Item Name,品目名
 Item Name is required,品目名を入力してください
 Item Type,品目区分
@@ -508,6 +512,7 @@ Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
 Media Type,メディア種別
 Merge Items,明細統合
+Method,支払方法
 Missing Values Required,必須項目が未入力です
 Mode of Payment,支払方法
 Modes of Payment,支払方法
@@ -635,6 +640,7 @@ Paid {0},{0} を支払いました
 Parent Category,親カテゴリ
 Parent Item Group,親品目グループ
 Partly Paid,一部支払済み
+Party,取引先
 Password updated,パスワードを更新しました
 Pay,会計
 Payment,支払
@@ -642,6 +648,7 @@ Payment Date,支払日
 Payment Evidence,支払証跡
 Payment Failed,入金失敗
 Payment Method,支払方法
+Payment Methods,支払方法
 Payment Needs Approval,支払いに承認が必要
 Payment Receipt,支払証憑
 Payment Received,入金済み
@@ -746,6 +753,8 @@ Received By,受領者
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Recent Orders,最近の会計
 Recent Transactions,最近の取引
+Recognition,読み取り
+Recognition Result,読み取り結果
 Recognition could not start. Please try again.,読み取りを開始できませんでした。もう一度お試しください。
 Recognition is busy right now. Please try again in a minute.,読み取りが混み合っています。1 分後にもう一度お試しください。
 Recognition is not configured for this account,文字認識が設定されていません
@@ -762,6 +771,7 @@ Recount this product,この商品を再棚卸
 Redeem Loyalty Points,ロイヤルティポイントを使う
 Reference,参照番号
 Reference Cost,参考原価
+Reference Type,参照元区分
 Reference cost,参考原価
 References,参照情報
 Refresh,更新
@@ -774,6 +784,7 @@ Reload,再読み込み
 Remaining Amount,残り金額
 Remark,備考
 Remarks,備考
+Remove,削除
 Replace the entered rows with the imported file?,入力済みの明細を取込ファイルで置き換えますか？
 Request Hash,リクエストハッシュ
 Request ID already exists,リクエスト ID は既に存在します
@@ -878,6 +889,7 @@ Some products had stock movements during counting. Open the affected row and rec
 Sort Order,並び順
 Source,ソース
 Source File,元ファイル
+Source File Record,元ファイル記録
 Split,分割
 Start counting,棚卸を開始
 Status,ステータス
@@ -949,6 +961,7 @@ Terminals,レジ
 That code is not valid,コードが正しくありません
 That file could not be read; please use the template,このファイルは読み取れません。テンプレートをご利用ください
 That file has no rows,このファイルには行がありません
+That file has too many rows,ファイルの行数が多すぎます
 That file is not an Excel workbook,Excel ブックではありません
 That photo could not be read,この写真を読み取れません
 That row is not part of this stock count,この行はこの棚卸に含まれていません
@@ -961,6 +974,7 @@ The amount received is less than the total,受取額が合計に足りません
 The balance could not be checked right now. Please try again in a minute.,現在残高を確認できません。1 分後にもう一度お試しください。
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
+The cashier is not enabled for this company,この会社ではレジが有効になっていません
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
@@ -1100,6 +1114,7 @@ VAT Rate,付加価値税率
 VAT Rate %,税率%
 VAT applies,VAT 対象
 Value,金額
+Value Change,金額変動
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 Void the payments before voiding the document,伝票を取り消す前に支払を取り消してください

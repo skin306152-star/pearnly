@@ -3,6 +3,7 @@
 1-12; Thai companies commonly start in January,1-12; Thai companies commonly start in January
 13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
 A company needs a name,A company needs a name
+A company needs at least one warehouse,A company needs at least one warehouse
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
@@ -151,6 +152,7 @@ Check the opening stock row,Check the opening stock row
 Checkout,Checkout
 Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
 Cheque,Cheque
+Choices,Choices
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
 Choose a local opening stock file,Choose a local opening stock file
@@ -457,6 +459,8 @@ Item Code,Item Code
 Item Code: {0} is not available under warehouse {1}.,Item Code: {0} is not available under warehouse {1}.
 Item Details,Item Details
 Item Group,Item Group
+Item Key,Item Key
+Item Kind,Item Kind
 Item Name,Item Name
 Item Name is required,Item Name is required
 Item Type,Item Type
@@ -508,6 +512,7 @@ Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
 Media Type,Media Type
 Merge Items,Merge Items
+Method,Method
 Missing Values Required,Missing Values Required
 Mode of Payment,Mode of Payment
 Modes of Payment,Modes of Payment
@@ -635,6 +640,7 @@ Paid {0},Paid {0}
 Parent Category,Parent Category
 Parent Item Group,Parent Item Group
 Partly Paid,Partly Paid
+Party,Party
 Password updated,Password updated
 Pay,Pay
 Payment,Payment
@@ -642,6 +648,7 @@ Payment Date,Payment Date
 Payment Evidence,Payment Evidence
 Payment Failed,Payment Failed
 Payment Method,Payment Method
+Payment Methods,Payment Methods
 Payment Needs Approval,Payment Needs Approval
 Payment Receipt,Payment Receipt
 Payment Received,Payment Received
@@ -746,6 +753,8 @@ Received By,Received By
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recent Orders,Recent Orders
 Recent Transactions,Recent Transactions
+Recognition,Recognition
+Recognition Result,Recognition Result
 Recognition could not start. Please try again.,Recognition could not start. Please try again.
 Recognition is busy right now. Please try again in a minute.,Recognition is busy right now. Please try again in a minute.
 Recognition is not configured for this account,Recognition is not configured for this account
@@ -762,6 +771,7 @@ Recount this product,Recount this product
 Redeem Loyalty Points,Redeem Loyalty Points
 Reference,Reference
 Reference Cost,Reference Cost
+Reference Type,Reference Type
 Reference cost,Reference cost
 References,References
 Refresh,Refresh
@@ -774,6 +784,7 @@ Reload,Reload
 Remaining Amount,Remaining Amount
 Remark,Remark
 Remarks,Remarks
+Remove,Remove
 Replace the entered rows with the imported file?,Replace the entered rows with the imported file?
 Request Hash,Request Hash
 Request ID already exists,Request ID already exists
@@ -878,6 +889,7 @@ Some products had stock movements during counting. Open the affected row and rec
 Sort Order,Sort Order
 Source,Source
 Source File,Source File
+Source File Record,Source File Record
 Split,Split
 Start counting,Start counting
 Status,Status
@@ -949,6 +961,7 @@ Terminals,Terminals
 That code is not valid,That code is not valid
 That file could not be read; please use the template,That file could not be read; please use the template
 That file has no rows,That file has no rows
+That file has too many rows,That file has too many rows
 That file is not an Excel workbook,That file is not an Excel workbook
 That photo could not be read,That photo could not be read
 That row is not part of this stock count,That row is not part of this stock count
@@ -961,6 +974,7 @@ The amount received is less than the total,The amount received is less than the 
 The balance could not be checked right now. Please try again in a minute.,The balance could not be checked right now. Please try again in a minute.
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
+The cashier is not enabled for this company,The cashier is not enabled for this company
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
@@ -1100,6 +1114,7 @@ VAT Rate,VAT Rate
 VAT Rate %,VAT Rate %
 VAT applies,VAT applies
 Value,Value
+Value Change,Value Change
 Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
 Void the payments before voiding the document,Void the payments before voiding the document

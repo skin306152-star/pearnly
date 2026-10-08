@@ -9,6 +9,7 @@
 A board needs at least one admin,看板至少需要一位管理员
 A board needs at least one list,看板至少需要保留一个列表
 A client cannot be moved to another company.,客户不能转移到另一家公司。
+A client needs a name.,请填写客户名称。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
 A date could not be read. Check the date format in the file,部分日期无法读取，请检查文件中的日期格式
 "A document section exceeds 30,000 characters. Split the document before recognition.","文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
@@ -21,6 +22,7 @@ A numeric value in the invoice is invalid. Correct it before exporting.,发票�
 A positive record revision is required.,记录版本必须是正整数。
 A positive source page number is required.,源文件页码必须是正整数。
 A product code or barcode identifies more than one product.,产品编码或条形码对应了多个产品。
+A product needs a name.,请填写物料名称。
 A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,对账因程序错误未完成，错误已记录。重试将得到相同结果。
 A referenced history record is unavailable in the selected company and client.,所选公司和客户范围内无法访问引用的历史记录。
 A reported ERP action is invalid.,上报的 ERP 操作无效。
@@ -39,14 +41,18 @@ A value in the ERP data report exceeds the allowed length.,ERP 数据报告中�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,部分支出或存入金额为负数，请检查支出 / 存入列
 Abbreviated Tax Invoice,简式税务发票
 Access to the Companion queue has been revoked.,小助手队列的访问权限已撤销。
+Account Codes,科目编码
 Account Key,账套键
+Account Set,账套
 Account Set Key,账套选择键
+Account Set Label,账套名称
 Account code,科目代码
 Account set,账套
 Ack Digest,回执摘要
 Active,正常
 Active Attempt,当前尝试
 Active Key,活动防重键
+Active Since,启用时间
 Actor,操作人
 Actual Qty,实盘数量
 Actual location,实际仓位
@@ -77,6 +83,7 @@ Allowed Users,授权用户
 Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
 Amount,金额
+Amount Tolerance,金额容差
 An account needed for this invoice is not set. Check the account settings,缺少此发票所需的科目，请检查科目设置
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,所用科目不在 Express 科目表中，请检查科目设置
 An amount could not be read. Check the amount format in the file,部分金额无法读取，请检查文件中的金额格式
@@ -92,6 +99,8 @@ Archive,归档
 Archive all cards in this list,将此列表中的所有卡片归档
 Archive board,归档看板
 Archive this list,归档此列表
+Archived,已归档
+Archived At,归档时间
 Archived at,归档时间
 Archived boards,已归档的看板
 Archived cards,已归档的卡片
@@ -113,6 +122,7 @@ Back to list,返回列表
 Balance,余额
 Balance breaks,余额差异
 Bank,银行
+Bank Code,银行代码
 Bank Reconciliation,银行对账
 Bank amount,银行金额
 Bank deposit only,仅银行存入
@@ -124,6 +134,7 @@ Bank {0}: received {1},银行 {0} 到账 {1}
 Barcode,条形码
 Barcode / QR code,条码/二维码
 "Barcode, QR code or product code",条形码、二维码或物料编码
+Batch,批次
 Batched: match by total,汇总入账，按合计匹配
 Before VAT,不含税
 Being recognized,识别中
@@ -158,12 +169,14 @@ Bound to {0},已绑定到 {0}
 Branch,执行分支
 Branch No,分支机构编号
 Buyer Client,买方客户
+Buyer Name,买方名称
 Buyer address,买方地址
 Buyer branch,买方分支机构
 Buyer tax ID,买方税号
 "By preset, ledger account {0} is used for this bank account",按预设，此账户使用总账科目 {0}
 "By preset, these accounts are left out: {0}",按预设，这些科目不参与对账：{0}
 By preset: {0} groups matched by total,按预设：已按合计匹配 {0} 组多笔对一笔
+Byte Size,文件大小（字节）
 Calendar,日历
 Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
@@ -195,8 +208,10 @@ Checked in the ERP,已在 ERP 核对
 Checked in the ERP: not entered. It can be sent again,已在 ERP 核对：未入账，可重新推送
 Checking,核对中
 Checklist,清单
+Checklist Id,清单 ID
 Checks Json,检查结果（JSON）
 Cheque,支票
+Chinese Name,中文名称
 Choose a day and time for the monthly run.,请选择每月运行的日期和时间。
 Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
@@ -219,8 +234,11 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择操作
+Chosen At,选择时间
+Chosen By,选择人
 Claim as input VAT,抵扣进项税
 Client,客户
+Client Name,客户名称
 Close count,结束盘点
 Closed,已结束
 Closed At,关闭时间
@@ -232,6 +250,7 @@ Collapse list,收起列表
 Collection is not connected for this ERP data type.,此 ERP 数据类型暂不支持采集。
 Color,颜色
 Comment,评论
+Commenting,评论权限
 Comments,评论
 Comments and activity,评论和活动
 Companion Report,小助手上报
@@ -254,6 +273,7 @@ Connection Configuration,连接配置
 Connection Name,连接名称
 Connection Revision,连接版本
 Connection or directory record not found.,找不到此连接或目录记录。
+Contact Email,联系邮箱
 Content Hash,内容摘要
 Continuous counting,连续盘点
 Copy card,复制卡片
@@ -279,6 +299,8 @@ Counted by,盘点人
 Counted in total,计入合计
 Counted quantity,实盘数量
 Cover,封面
+Cover Color,封面颜色
+Cover File,封面文件
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
 Cowork Client,Cowork 买方客户
@@ -329,23 +351,30 @@ Credit sales,赊销
 Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
+Custom Fields,自定义字段
 Custom fields,自定义字段
 Custom fields saved,自定义字段已保存
 Customer,客户
 Cyan,青
 Daily,每天
 Date,日期
+Date Diff Days,日期相差天数
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
 Dates,日期
 Day {0},{0} 日
+Days,天数
 Days later,天后
 Debit,借方
 Decide once ({0}),待确认（{0}）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
+Default Cost,默认成本
 Default Item Type,默认项目类型
 Default Payment,默认付款方式
+Default Sell Unit,默认销售单位
+Default board,默认看板
 Default handling for this folder,默认处理
+Defaults,默认值
 Delete selected ({0}),删除所选（{0}）
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
 Delete this list and all its cards permanently? This cannot be undone.,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
@@ -359,8 +388,11 @@ Department,部门
 Department for this rule,部门
 Deposit,存款
 Description,摘要
+Detail,详情
 Details,详细信息
 Difference,有差异
+Difference Amount,差异金额
+Difference Count,差异笔数
 Difference detail,差异明细
 Difference value,差异金额
 Differences,差异
@@ -378,6 +410,7 @@ Discount,折扣金额
 Discount Amount,折扣金额
 Display text (optional),显示文本（可选）
 Document Key,单据防重键
+Document Policy,单据录入规则
 Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
@@ -386,17 +419,22 @@ Does account {0} belong in this reconciliation?,科目 {0} 是否参与对账？
 Does {0} post in batches?,{0} 是否汇总入账？
 Don't enter (this kind from now on),不录入（同类单据均不录入）
 Done,已完成
+Done List,完成列表
 Done list (cards moved here are complete),完成列表（移入即完成）
 Download template,下载模板
 Draft,草稿
 Dropdown,下拉
 Due,到期
+Due Time,到期时间
 Due date,到期日
 Due later,以后到期
 Due this week,7 天内到期
 Due time,到期时间
 Due today,今天到期
 Due today or tomorrow,今明两天到期
+Duplicate Check Status,查重状态
+Duplicate Match Level,重复匹配程度
+Duplicate Record Reference,重复记录
 Duplicate records are not allowed.,不能重复选择同一条记录。
 ERP Code,ERP 编码
 ERP Connection,ERP 连接
@@ -410,6 +448,7 @@ Each record must have a name and revision.,每条记录都必须提供标识和�
 Each record must have a valid name.,每条记录都必须提供有效标识。
 Edit,编辑
 Edit Count,修改次数
+Edit History,修改记录
 Edit card,编辑卡片
 Edit dates,编辑日期
 Edit folder rule,编辑规则
@@ -421,6 +460,7 @@ Email,邮箱
 Enable,启用
 Enable {0},启用 {0}
 Enabled,启用
+English Name,英文名称
 Enter (this kind from now on),录入（同类单据均录入）
 Enter a board name,请输入看板名称
 Enter a comment,请输入评论
@@ -444,6 +484,8 @@ Entries — {0},记录 — {0}
 Entry,记录
 Entry saved,已记录
 Event Key,事件标识
+Every unit needs a factor to the base unit.,请为每个单位填写与基本单位的换算系数。
+Every unit needs a name.,请为每个单位填写名称。
 Evidence Fingerprint,证据指纹
 Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
@@ -462,6 +504,7 @@ Express PC,Express 电脑
 Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
 Express record,Express 对应档案
 External Docnum,ERP 凭证号
+Factor to Base,换算系数
 Failed,失败
 Failure Count,失败次数
 Fence,尝试隔离序号
@@ -469,16 +512,19 @@ Field,字段
 Field name,字段名称
 File,文件
 File Hash,文件哈希值
+Filename,文件名
 Files,文件
 Files already in the folder when the rule is turned on are not processed.,规则启用前已在文件夹里的文件不处理。
 Filter,筛选
 Find,查找
 Find product,查找物料
+Fingerprint,指纹
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项。结束后仅可查看和导出。
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
+Folder,文件夹
 Folder and schedule,文件夹与时间
 Folder auto-intake is not turned on for this site.,本站没有开通文件夹自动录入。
 Folder auto-intake rules,自动录入规则
@@ -488,8 +534,32 @@ Folder rules need an Express connection with the Pearnly Companion. Connect Expr
 Folder rules work with Express connections only.,自动录入只用于 Express 连接。
 Folder to read,文件夹
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",拍摄提示：请将单据摆正、文字朝上，完整拍入画面。
+Formula Diff,公式差额
+Formula Statement Closing,按公式计算的对账单期末余额
 Found {0} · new {1} · skipped {2} · upload failed {3},扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
 Found {0}. Tap the number to choose:,找到 {0} 个账套，请点击序号选择：
+GL Account Code,总账科目编码
+GL Amount,总账金额
+GL Balance,总账余额
+GL Closing,总账期末余额
+GL Credit,总账贷方
+GL Credit Only,仅总账贷方笔数
+GL Credit Only Amount,仅总账贷方金额
+GL Date,总账日期
+GL Debit,总账借方
+GL Debit Only,仅总账借方笔数
+GL Debit Only Amount,仅总账借方金额
+GL Description,总账摘要
+GL Document No,总账凭证号
+GL File Name,总账文件名
+GL Only Credit,仅总账贷方金额
+GL Only Debit,仅总账借方金额
+GL Opening,总账期初余额
+GL Row Count,总账行数
+GL Source,总账来源文件
+GL Total,总账合计
+GL Total Credit,总账贷方合计
+GL Total Debit,总账借方合计
 General,常用功能
 General ledger,总账
 General ledger detail,总账明细
@@ -498,7 +568,9 @@ Gray,灰
 Green,绿
 Group,组
 Handle these the same way every time,这一类以后都这样处理
+Has GL Match,有总账匹配
 Hide details,隐藏详情
+Histories,识别记录
 History,票据历史
 History Records,识别记录
 History Version,票据历史版本
@@ -517,8 +589,10 @@ Inactive,已停用
 Income Reconciliation,收入对账
 Income account,收入科目
 Initial Password,初始密码
+Inputs,输入参数
 Insert,插入
 Installed At (UTC),安装时间（UTC）
+Intake Target,录入目标
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
 Invalid checklist,清单无效
 Invalid color,颜色无效
@@ -572,11 +646,14 @@ Labels,标签
 Labels saved,标签已保存
 Last Fields Edit (UTC),最近字段修改时间（UTC）
 Last Login,最后登录
+Last Push Reason,最近推送原因
 Last Push Record,最近推送记录
 Last Push Status,最近推送状态
 Last Pushed At (UTC),最近推送时间（UTC）
 Last Request Hash,最近请求摘要
 Last Request Key,最近请求标识
+Last Seen Generation,最近确认代次
+Last Used At,最近使用时间
 Last day of the month,月末
 Last used,上次使用
 Lease Expires At,租约到期时间
@@ -589,6 +666,7 @@ Ledger {0} {1}: one line {2},总账 {0} {1} 一笔 {2}
 "Ledger: {0} card slip(s) on {1}, total {2}",总账 {1} 刷卡 {0} 笔，合计 {2}
 Left out (not in the tax report),不参与对账（不在销项税报告里）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},已排除 {0} 行与主账单重复、疑似识别错误的行，请核对：{1}
+Legacy Status,旧状态
 Light,灯光
 Line {0} ({1}): balance off by {2} — {3},第 {0} 行（{1}）余额差 {2}：{3}
 List,列表
@@ -600,6 +678,8 @@ Location mismatch,仓位不符
 Lock Key,锁键
 Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
+MR.ERP Import Menu Options Seen,已读取的 MR.ERP 导入菜单
+MR.ERP Import Menu per Account Set,各账套的 MR.ERP 导入菜单
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
@@ -615,15 +695,20 @@ Mark all as read,全部标为已读
 Mark complete,标记完成
 Mark each balance break as a missing page or a known difference before saving.,请将每处余额差异标记为「此处缺页」或「已知差异」后再保存。
 Mark incomplete,标记未完成
+Match Layer,匹配层级
+Match Status,匹配状态
 Match and save,核对并保存
 Match rate,匹配率
 Matched,已匹配
+Matched Count,已匹配笔数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",已按预设刷卡手续费率匹配 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记
 Matches,一致
 Matching and saving,逐笔核对并保存
 Member,成员
+Member management,成员管理权限
 Members,成员
 Members and observers,成员和观察者
+Minimum Stock,最低库存
 Mirror,镜像
 Missing page,此处缺页
 Monthly,每月
@@ -637,12 +722,14 @@ Name,名称
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
 Never,从不
+New Files,新文件数
 New code,重新生成绑定码
 New folder rule,新建规则
 New records must start as drafts.,新记录必须先保存为草稿。
 New stock count,新建盘点
 New task,新建任务
 "New, as on the invoice",新建（按票面）
+Next Attempt At,下次重试时间
 No Companion credential has been issued for this connection.,此连接尚未签发小助手凭据。
 No ERP is ready to use,暂无可用的 ERP
 No account set matches “{0}”,没有找到包含「{0}」的账套
@@ -693,7 +780,9 @@ Only an active count can be deleted,只能删除进行中的盘点
 Only board admins can do this,仅看板管理员可执行此操作
 Only invoices in Thai baht can be sent to Express,仅泰铢发票可推送至 Express
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
+Only one sell unit can be the default.,只能设置一个默认销售单位。
 Open card,打开卡片
+Opening Diff,期初差额
 Options,选项
 Options (one per line),选项（每行一个）
 Orange,橙
@@ -702,6 +791,7 @@ Original Content Coverage Complete,原件内容已完整覆盖
 Original Document Manifest,原件内容索引
 Original File,原始文件
 Original Filename,原始文件名
+Original Inputs,原始输入
 Original SHA-256,原始文件 SHA-256
 Original Size,原始文件大小
 Original Type,原始文件类型
@@ -722,6 +812,8 @@ PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页�
 Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
 Page {0}/{1},第 {0}/{1} 页
+Parse Info Json,解析信息
+Party Type,往来单位类型
 Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Paste a link,粘贴链接
@@ -765,7 +857,9 @@ Purchase (expense),采购（费用）
 Purchase (goods),采购（货品）
 Purchase or sales?,请选择进项或销项
 Purple,紫
+Push Account Set,推送账套
 Push Attempt,推送尝试
+Push Connection,推送连接
 Push Record,推送记录
 Push record not found.,找不到推送记录。
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。
@@ -834,21 +928,27 @@ Refresh Request Aliases,刷新请求幂等索引
 Refresh Started At (UTC),刷新开始时间（UTC）
 Refresh Status,刷新状态
 Refresh the account directory before continuing.,请先刷新账套目录。
+Registered At,登记时间
 Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
+Relative Path,相对路径
 Reload,刷新
 Remarks,备注
+Reminder,提醒
 Remove,移除
 Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Remove mirror,移除镜像
 Remove template,取消模板
+Repeat,重复
 Replaced by your later submission of the same files.,已被相同文件的后续提交取代。
+Report Count,报告数量
 Report Credential,上报凭据
 Report Credential Generation,上报凭据版本
 Report Received At (UTC),上报接收时间（UTC）
 Request Digest,请求摘要
 Request Fingerprint,请求内容指纹
 Request Hash,请求内容摘要
+Request ID,请求 ID
 Request Json,请求数据（JSON）
 Request Key,请求标识
 Request Receipts,请求回执
@@ -865,6 +965,7 @@ Result Unknown,结果未知
 Result in the ERP,ERP 里的结果
 Review,复核
 Review JSON,复核记录 JSON
+Review Reasons,复核原因
 Review differences,查看差异
 Review document,复核单据
 Reviewed amounts need a balance and at most two decimal places.,复核行必须填写余额，金额最多保留两位小数。
@@ -873,18 +974,32 @@ Revocation Reason,撤销原因
 Revoked At (UTC),撤销时间（UTC）
 Revoked By,撤销人
 Role,角色
+Root,根目录
+Route,上传方式
+Row Count,行数
+Row Index,行号
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格导入物料行与实盘数量；实盘数量可留空，稍后在线盘点。
 Rule,规则
+Rule Owner,规则负责人
+Rule Revision,规则版本
 Rule is off,已停用
 Rule is on,启用中
 Rules saved,规则已保存
+Run,扫描批次
+Run Day,每月执行日
+Run Info Json,运行信息
+Run Request,立即执行请求
+Run Requested At,请求执行时间
+Run Time,执行时间
 Run at (Bangkok time),运行时间（曼谷时间）
 Run history,运行记录
 Run now,立即运行
 Run on day,每月运行日
 Run requested. The Companion starts within a few minutes.,已请求运行，小助手将在几分钟内开始。
+SHA-256,SHA-256
+SKU,SKU
 Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票缺少未税金额明细，无法导出。
 Sample Key,修正例标识
@@ -894,6 +1009,7 @@ Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
 Scan barcodes · Record quantities,扫描条码 · 记录数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
+Scanned At,扫描时间
 Schedule,每月运行
 Scope,范围
 Scope Key,权限范围标识
@@ -903,11 +1019,13 @@ Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
 Select valid files to download.,请选择有效文件进行下载。
+Sell Units,销售单位
 Seller Name,卖方名称
 Seller Tax ID,卖方税号
 Seller address,卖方地址
 Seller branch,卖方分支机构
 Seller tax ID,卖方税号
+Selling Price,售价
 Send,发表
 Send anyway,仍然推送
 Send documents to ERP,发送单据至 ERP
@@ -930,10 +1048,12 @@ Sheet,表格文件
 Short,盘亏
 Show,显示
 Show details,显示详情
+Show on Card,在卡片上显示
 Show on card,显示在卡片正面
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
+Sold by Weight,按重量销售
 Some fields are uncertain. Check them against the original and submit again,部分字段无法确认，请对照原件核对后重新提交
 Some line items have no name or amount. Fix the lines and submit again,部分明细缺少品名或金额，请补全后重新提交
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
@@ -958,9 +1078,28 @@ Start date,开始日期
 Start reconciliation,开始对账
 Started At,开始时间
 Started at,开始时间
+Statement Autocorrected,对账单已自动更正
+Statement Balance,对账单余额
+Statement Balance Check,对账单余额校验
+Statement Balance Known,对账单余额已知
+Statement Closing,对账单期末余额
+Statement Confidence,对账单识别置信度
+Statement Date,对账单日期
+Statement Deposit,对账单存入
+Statement Deposit Only,仅对账单存入笔数
+Statement Deposit Only Amount,仅对账单存入金额
+Statement Description,对账单摘要
+Statement Opening,对账单期初余额
+Statement Source,对账单来源文件
+Statement Total Deposit,对账单存入合计
+Statement Total Withdrawal,对账单支出合计
+Statement Withdrawal,对账单支出
+Statement Withdrawal Only,仅对账单支出笔数
+Statement Withdrawal Only Amount,仅对账单支出金额
 Statement review is not available for this task.,此任务没有逐行复核记录。
 Status,状态
 Stock,库存
+Stock Account Group per Account Set,各账套的存货科目组
 Stock changed; recount,库存已变动，需重新盘点
 Stock count,库存盘点
 Stock count closed,盘点已结束
@@ -972,8 +1111,10 @@ Stock item,存货
 Stock item not found in Express,Express 中无对应存货
 Stop and let me choose,暂停并手动选择
 Stop watching,取消关注
+Stored Page Previews,已存页面预览
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,下级子文件夹随意分，文件名随意，一份 PDF 里几张发票都行。
 Submit,提交
+Summary Json,汇总信息
 Summary table import,汇总表导入
 Table,表格
 Tap Send documents to ERP in the menu first,请先点击菜单中的「发送单据至 ERP」
@@ -989,8 +1130,10 @@ Taxes and Charges,税费
 Team board,团队看板
 Team visible,团队可见
 Template,模板
+Temporary File,临时文件
 Text,文本
 Text is too long,内容过长
+Thai Name,泰文名称
 That code is not valid,绑定码不正确
 That photo cannot be attached. Upload it again.,照片无法添加，请重新上传。
 The Companion delivery record is invalid.,小助手任务领取记录无效。
@@ -1042,6 +1185,7 @@ The card no longer exists,卡片不存在
 The chosen Express stock item no longer exists. Choose again,所选的 Express 存货已不存在，请重新选择
 The chosen account set belongs to another company. Check the account set,所选账套属于其他公司，请核对账套
 The chosen value is not in this account set. Choose again,所选项不在此账套中，请重新选择
+The client fields are invalid.,客户字段无效。
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
 The connection has changed. Reload and try again.,连接已更新，请重新加载后重试。
@@ -1097,7 +1241,9 @@ The import columns do not match the stock count template.,导入列与盘点模�
 The import contains a repeated product code.,导入数据包含重复的产品编码。
 The import contains no product rows.,导入数据中没有产品行。
 "The import exceeds the limit of 10,000 rows.","导入数据超过 10,000 行上限。"
+The import file is too large.,导入文件过大。
 The import row is invalid or has missing required values.,导入行无效或缺少必填值。
+The import rows are invalid.,导入行无效。
 The invoice configuration does not match the OCR connection.,发票识别配置与服务连接不一致。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,发票包含 Excel 无法完整保存的文本，请检查长度和字符。
 The invoice data is invalid and cannot be exported.,发票数据无效，无法导出。
@@ -1126,6 +1272,8 @@ The outdated unsent preparation was replaced.,已替换过期且尚未发送的�
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,单据上的本方税号与所选账套不一致，请核对账套后重新发送。
 The preview is temporarily unavailable. Please try again.,预览暂时无法显示，请稍后再试。
 The printed invoice date cannot be read. Check the date shown on the document.,无法识别票面日期，请核对单据上的日期。
+The product fields are invalid.,物料字段无效。
+The product units are invalid.,物料单位无效。
 The push data exceeds the size limit.,推送数据超过大小限制。
 The push record has changed. Reload and try again.,推送记录已更新，请重新加载后重试。
 The push target has changed. Prepare the invoice again.,推送目标已变更，请重新准备票据。
@@ -1201,6 +1349,7 @@ This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This board no longer exists,该看板不存在
 This channel is not open yet,此渠道尚未开放
+This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
 This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
 This connection does not support an Express Companion credential.,此连接不支持 Express 小助手凭据。
@@ -1233,6 +1382,7 @@ This operation ID has already been used for another request.,此操作 ID 已用
 This option is no longer current,此选项已失效，请重新点击菜单
 This original already has a recognition task with different parameters.,此原始文件已有参数不同的识别任务。
 This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
+This product already has a unit called {0}.,该物料已有名为 {0} 的单位。
 This push attempt is no longer current.,此推送尝试已失效。
 This recognition service currently accepts PDF and image originals.,此识别服务目前仅支持 PDF 和图片原件。
 This refresh request has expired. Request a new refresh.,此刷新请求已过期，请重新申请刷新。
@@ -1250,7 +1400,10 @@ This scanned or photographed document could not be read. Check the file and try 
 This stock count task is closed.,此盘点任务已关闭。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
+This tax ID is already used by another company.,该税号已被其他公司使用。
+This tax id is already used by another client.,该税号已被其他客户使用。
 Time left {0},剩余 {0}
+Times Used,使用次数
 Title,标题
 To do,待办
 Token Digest,令牌摘要
@@ -1258,7 +1411,10 @@ Token Generation,令牌版本
 Token Tail,令牌末四位
 Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
+Too many rows to import.,导入行数过多。
 Total,含税
+Track Batch,按批次管理
+Track Expiry,按有效期管理
 Transaction Date,交易日期
 Transaction type,业务类型
 Transfer,转账
@@ -1274,6 +1430,7 @@ Unbind Pearnly Cowork LINE?,确定要解绑 Pearnly Cowork LINE 吗？
 Unit,单位
 Unknown reconciliation type.,未知的对账类型。
 Unmatched,未匹配
+Unmatched Count,未匹配笔数
 Unsupported ERP connection type.,不支持此 ERP 连接类型。
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
@@ -1281,6 +1438,7 @@ Updated At,更新时间
 Updated By,更新人
 Updated {0} user(s),已更新 {0} 位用户
 Upload,上传
+Upload Failed,上传失败数
 Upload a sheet,上传导入
 Upload both files.,请上传两份文件。
 Upload files,上传文件
@@ -1291,17 +1449,25 @@ Uploaded from the PC,已上传
 Uploading,上传中
 Uploading files,上传文件
 Uploading from the PC,上传中
+Use Count,使用次数
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 小助手凭据服务访问凭据。
 Use the Cowork Companion service to access deliveries.,请通过 Cowork 小助手服务访问任务领取记录。
 Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别服务访问识别任务。
 Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
 Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
+Use the Cowork push service to access push records.,请通过 Cowork 推送服务访问推送记录。
 Use the reconciliation workflow to change these records.,请通过对账流程更改这些记录。
 Use the stock count workflow to change these records.,请通过盘点流程更改这些记录。
 User Settings,用户菜单
 Username can only have letters and numbers,用户名只能包含英文字母和数字
 VAT,VAT
+VAT Date,税票日期
+VAT Document No,税票号码
+VAT File Name,销项税报告文件名
+VAT Only Negative,仅销项税报告负数金额
+VAT Only Positive,仅销项税报告正数金额
 VAT Report Check,销项税报告核查
+VAT Total,销项税报告合计
 VAT is not 7% of the base,税额≠税基×7%
 VAT on receipts and abbreviated tax invoices,收据、简易税票上的税额
 VAT report amount,销项税报告金额
@@ -1329,6 +1495,7 @@ Waiting for the recognition charge to complete.,正在等待扣费完成。
 Waiting to start,排队中
 Warehouse,仓库
 Watch,关注
+Watchers,关注者
 Weekly,每周
 When a card enters,卡片进入列表时
 "When a new fiscal year starts, change the rule's account set.",换财年时在规则里改年度账套。
@@ -1342,6 +1509,7 @@ With differences,有差异
 Withdrawal,提款
 Work Coordination,工作协调
 Work Name,后台任务标识
+Workbook Revision,工作簿版本
 Workspace,公司账套
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Yearly,每年
@@ -1363,6 +1531,8 @@ catalog_refresh_required,请先刷新账套目录。
 catalog_refresh_stale,账套目录已过期，请重新刷新。
 charged,已计费
 client,客户
+client_import.file_too_large,导入文件过大。
+client_import.too_many_rows,导入行数过多。
 closed,已关闭
 companion.context_invalid,小助手身份已失效，请重新认证。
 companion.credential_not_found,此连接尚未签发小助手凭据。
@@ -2482,6 +2652,7 @@ vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
 vat_check.status.void_match,作废一致
 vat_check.status.void_no_invoice,作废（无需发票）
+workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0} ({1} matching lines),{0}（匹配 {1} 笔）
 {0} added you to {1},{0} 将你添加到卡片「{1}」
 {0} bank lines add up to it ({1} to {2}),银行 {0} 笔合计相等（{1} 至 {2}）

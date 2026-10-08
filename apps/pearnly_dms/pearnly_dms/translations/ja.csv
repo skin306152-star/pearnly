@@ -79,6 +79,7 @@ Choose the matching customer,該当する顧客を選択
 Colour,色
 Coming soon,近日公開
 Company information,会社情報
+Complete Snapshot,完全スナップショット
 Confirm,確定
 Confirm booking,予約を確定
 Confirm saving a new customer,新規顧客の保存を確認
@@ -122,9 +123,11 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},データ取得時刻：{time}
 Data captured at,データ取得時刻
 Data updated,データ更新完了
+Dataset,データセット
 Date,日付
 Date of birth,生年月日
 Delivery,納車
+Delivery date,納車日
 Deposit payment channel — choose one,予約金の支払方法 — 選択してください
 Deposit transfer slip,予約金の振込明細
 Differences,相違点
@@ -153,6 +156,7 @@ Floor,階
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
 Gear,ギア
+Generation,世代
 Glare on the card. Tilt it slightly,カードが反射しています。少し傾けてください
 Grade,グレード
 "Hello 🙏
@@ -173,6 +177,7 @@ Keep existing data,既存データを使う
 Last Check,最終チェック
 Last Checked At,最終チェック日時
 Last Error,前回のエラー
+Last Synchronization Error,最終同期エラー
 Last name,姓
 Last successful completion,前回成功時の完了時刻
 Last successful record count,前回成功時の件数
@@ -181,6 +186,7 @@ Latest error code,最新のエラーコード
 Latest sales from DMS,DMS の最新販売
 Manage system accounts,システムアカウントを管理
 Manual,マニュアル
+Manual Read Request,手動読み取り要求
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 Master data and all vehicle colors,マスターデータと全車種の色
 Menu,メニュー
@@ -241,13 +247,16 @@ Postcode,郵便番号
 Previous,前へ
 Previous page,前のページ
 Price in DMS,DMS の価格
+Private Synchronization Progress,内部同期の進捗
 Progress {processed}/{total},進捗 {processed}/{total}
 Province,県
+Query Requested,照会要求日時
 Queued,待機中
 Rank by number of cars or amount?,台数と金額のどちらでランキングしますか？
 Rank sales by what?,何で販売ランキングを出しますか？
 Read / refresh selected data,選択したデータを読み取り／更新
 Read / refresh this query,この検索を読み取り／更新
+Read Completed,読み取り完了日時
 Read account,読み取りアカウント
 Read completed,読み取り完了
 Read completed. Click View result.,読み取りが完了しました。結果を見るを押してください。
@@ -257,6 +266,7 @@ Read failed — it will be retried automatically,読み取りに失敗しまし�
 Read progress,読み取りの進捗
 Read status,読み取り状態
 Read time unknown,読み取り時刻不明
+Reader Scope,読み取り範囲
 Reading,読み取り中
 Reading DMS master data…,DMS マスターデータを読み取り中…
 "Reading data, please wait…",データを読み取り中です。しばらくお待ちください…
@@ -275,6 +285,7 @@ Remove,削除
 "Remove slip, go on",明細を削除して続ける
 Remove the account and add it again to change its name,アカウント名を変えるには行を削除して追加し直してください
 Removed {0},{0} を削除しました
+Requested Query,要求された照会
 Resumed {0},{0} を再開しました
 Retry,再試行
 Retry booking,予約を再作成
@@ -309,6 +320,7 @@ Shares the queue when many people work at once. Create them in DMS with the conn
 Similar customers found. Choose the one that matches.,似た顧客が見つかりました。該当する顧客を選んでください。
 Soi,ソイ
 Something went wrong. Please try again.,システムエラーです。もう一度お試しください。
+Source Read Started,ソース読み取り開始日時
 Start over,やり直し
 Started over. Take a photo of the ID card to start a customer record.,やり直しました。身分証明書を撮影して顧客登録を始めてください。
 Status not given,ステータス未設定
@@ -427,6 +439,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,�
 Used to create and edit customers. Leave a saved account's password empty to keep it.,顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。
 User manual,使い方マニュアル
 Vehicle master data,車両マスター情報
+Verified Write Results,検証済みの書き込み結果
 Video guides,動画ガイド
 View result,結果を見る
 View result / status,結果／状態を見る

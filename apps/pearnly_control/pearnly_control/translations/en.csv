@@ -55,6 +55,14 @@ Could not queue the deletion,Could not queue the deletion
 Could not read what would be deleted,Could not read what would be deleted
 Could not reject,Could not reject
 Could not set up the LIFF app for {0}: {1},Could not set up the LIFF app for {0}: {1}
+Cowork Account Pool,Cowork Account Pool
+Cowork Admin Client ID,Cowork Admin Client ID
+Cowork Admin Client Secret,Cowork Admin Client Secret
+Cowork Identity Subject,Cowork Identity Subject
+Cowork Password-check Client ID,Cowork Password-check Client ID
+Cowork Password-check Client Secret,Cowork Password-check Client Secret
+Cowork Realm,Cowork Realm
+Create Request Hash,Create Request Hash
 Create the site,Create the site
 Create the tenant account,Create the tenant account
 Created and kept correct by provisioning on the shared LINE Login channel.,Created and kept correct by provisioning on the shared LINE Login channel.
@@ -106,6 +114,8 @@ For example: local sample / production,For example: local sample / production
 Grant feature roles,Grant feature roles
 Granted DocTypes,Granted DocTypes
 Idempotency Key,Idempotency Key
+Identity Provider,Identity Provider
+Identity Realm,Identity Realm
 Identity Service URL,Identity Service URL
 Identity Subject,Identity Subject
 "If you encounter any problems while using our services, please contact us through the official channels below.","If you encounter any problems while using our services, please contact us through the official channels below."
@@ -297,6 +307,8 @@ Type,Type
 Unknown billing unit: {0},Unknown billing unit: {0}
 Unknown product: {0},Unknown product: {0}
 Unknown step status: {0},Unknown step status: {0}
+Usage Checked,Usage Checked
+Usage Month,Usage Month
 Used This Cycle (pages),Used This Cycle (pages)
 Used to send messages (long-lived).,Used to send messages (long-lived).
 "Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.","Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass."

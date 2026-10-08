@@ -79,6 +79,7 @@ Choose the matching customer,Choose the matching customer
 Colour,Colour
 Coming soon,Coming soon
 Company information,Company information
+Complete Snapshot,Complete Snapshot
 Confirm,Confirm
 Confirm booking,Confirm booking
 Confirm saving a new customer,Confirm saving a new customer
@@ -122,9 +123,11 @@ DMS sync did not return complete data. No partial data was published. Please ret
 Data as of {time},Data as of {time}
 Data captured at,Data captured at
 Data updated,Data updated
+Dataset,Dataset
 Date,Date
 Date of birth,Date of birth
 Delivery,Delivery
+Delivery date,Delivery date
 Deposit payment channel — choose one,Deposit payment channel — choose one
 Deposit transfer slip,Deposit transfer slip
 Differences,Differences
@@ -153,6 +156,7 @@ Floor,Floor
 Full address directory,Full address directory
 Full customer records,Full customer records
 Gear,Gear
+Generation,Generation
 Glare on the card. Tilt it slightly,Glare on the card. Tilt it slightly
 Grade,Grade
 "Hello 🙏
@@ -173,6 +177,7 @@ Keep existing data,Keep existing data
 Last Check,Last Check
 Last Checked At,Last Checked At
 Last Error,Last Error
+Last Synchronization Error,Last Synchronization Error
 Last name,Last name
 Last successful completion,Last successful completion
 Last successful record count,Last successful record count
@@ -181,6 +186,7 @@ Latest error code,Latest error code
 Latest sales from DMS,Latest sales from DMS
 Manage system accounts,Manage system accounts
 Manual,Manual
+Manual Read Request,Manual Read Request
 "Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.","Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly."
 Master data and all vehicle colors,Master data and all vehicle colors
 Menu,Menu
@@ -241,13 +247,16 @@ Postcode,Postcode
 Previous,Previous
 Previous page,Previous page
 Price in DMS,Price in DMS
+Private Synchronization Progress,Private Synchronization Progress
 Progress {processed}/{total},Progress {processed}/{total}
 Province,Province
+Query Requested,Query Requested
 Queued,Queued
 Rank by number of cars or amount?,Rank by number of cars or amount?
 Rank sales by what?,Rank sales by what?
 Read / refresh selected data,Read / refresh selected data
 Read / refresh this query,Read / refresh this query
+Read Completed,Read Completed
 Read account,Read account
 Read completed,Read completed
 Read completed. Click View result.,Read completed. Click View result.
@@ -257,6 +266,7 @@ Read failed — it will be retried automatically,Read failed — it will be retr
 Read progress,Read progress
 Read status,Read status
 Read time unknown,Read time unknown
+Reader Scope,Reader Scope
 Reading,Reading
 Reading DMS master data…,Reading DMS master data…
 "Reading data, please wait…","Reading data, please wait…"
@@ -275,6 +285,7 @@ Remove,Remove
 "Remove slip, go on","Remove slip, go on"
 Remove the account and add it again to change its name,Remove the account and add it again to change its name
 Removed {0},Removed {0}
+Requested Query,Requested Query
 Resumed {0},Resumed {0}
 Retry,Retry
 Retry booking,Retry booking
@@ -309,6 +320,7 @@ Shares the queue when many people work at once. Create them in DMS with the conn
 Similar customers found. Choose the one that matches.,Similar customers found. Choose the one that matches.
 Soi,Soi
 Something went wrong. Please try again.,Something went wrong. Please try again.
+Source Read Started,Source Read Started
 Start over,Start over
 Started over. Take a photo of the ID card to start a customer record.,Started over. Take a photo of the ID card to start a customer record.
 Status not given,Status not given
@@ -427,6 +439,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,U
 Used to create and edit customers. Leave a saved account's password empty to keep it.,Used to create and edit customers. Leave a saved account's password empty to keep it.
 User manual,User manual
 Vehicle master data,Vehicle master data
+Verified Write Results,Verified Write Results
 Video guides,Video guides
 View result,View result
 View result / status,View result / status

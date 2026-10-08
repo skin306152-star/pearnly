@@ -9,6 +9,7 @@
 A board needs at least one admin,ボードには管理者が少なくとも1人必要です
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
 A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
+A client needs a name.,顧客名を入力してください。
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
 A date could not be read. Check the date format in the file,読み取れない日付があります。ファイルの日付の書式を確認してください
 "A document section exceeds 30,000 characters. Split the document before recognition.","文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
@@ -21,6 +22,7 @@ A numeric value in the invoice is invalid. Correct it before exporting.,請求�
 A positive record revision is required.,レコードの版には正の整数が必要です。
 A positive source page number is required.,元ファイルのページ番号には正の整数が必要です。
 A product code or barcode identifies more than one product.,商品コードまたはバーコードが複数の商品に対応しています。
+A product needs a name.,商品名を入力してください。
 A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,プログラムのエラーにより今回の照合は完了しませんでした。自動で記録され、こちらで対応します。再試行しても同じ結果になります。
 A referenced history record is unavailable in the selected company and client.,選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。
 A reported ERP action is invalid.,報告された ERP の操作が無効です。
@@ -39,14 +41,18 @@ A value in the ERP data report exceeds the allowed length.,ERP データレポ�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
 Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
+Account Codes,勘定科目コード
 Account Key,会計データキー
+Account Set,会計データ
 Account Set Key,会計データ選択キー
+Account Set Label,会計データ名
 Account code,勘定科目コード
 Account set,会計データ
 Ack Digest,確認応答ダイジェスト
 Active,正常
 Active Attempt,現在の試行
 Active Key,有効な重複防止キー
+Active Since,有効開始日時
 Actor,実行者
 Actual Qty,実棚数量
 Actual location,実際の棚番
@@ -77,6 +83,7 @@ Allowed Users,許可ユーザー
 Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
 Amount,金額
+Amount Tolerance,金額許容差
 An account needed for this invoice is not set. Check the account settings,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 An amount could not be read. Check the amount format in the file,読み取れない金額があります。ファイルの金額の書式を確認してください
@@ -92,6 +99,8 @@ Archive,アーカイブ
 Archive all cards in this list,このリストのカードをすべてアーカイブ
 Archive board,ボードをアーカイブ
 Archive this list,このリストをアーカイブ
+Archived,アーカイブ済み
+Archived At,アーカイブ日時
 Archived at,アーカイブ日時
 Archived boards,アーカイブ済みボード
 Archived cards,アーカイブ済みカード
@@ -113,6 +122,7 @@ Back to list,一覧に戻る
 Balance,残高
 Balance breaks,残高が合わない箇所
 Bank,銀行
+Bank Code,銀行コード
 Bank Reconciliation,銀行照合
 Bank amount,銀行金額
 Bank deposit only,銀行入金のみ
@@ -124,6 +134,7 @@ Bank {0}: received {1},銀行 {0}：入金 {1}
 Barcode,バーコード
 Barcode / QR code,バーコード / QRコード
 "Barcode, QR code or product code",バーコード・QRコード・商品コード
+Batch,バッチ
 Batched: match by total,まとめて入金：合計で照合
 Before VAT,税抜
 Being recognized,読み取り中
@@ -158,12 +169,14 @@ Bound to {0},{0} に連携しました
 Branch,実行分岐
 Branch No,支店番号
 Buyer Client,買い手顧客
+Buyer Name,買い手名
 Buyer address,買い手住所
 Buyer branch,買い手支店
 Buyer tax ID,買い手税番号
 "By preset, ledger account {0} is used for this bank account",プリセットにより、この口座には総勘定元帳の科目 {0} を使用
 "By preset, these accounts are left out: {0}",プリセットにより次の科目は照合に含めていません：{0}
 By preset: {0} groups matched by total,プリセットにより {0} 組を合計で照合済み
+Byte Size,ファイルサイズ（バイト）
 Calendar,カレンダー
 Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
@@ -195,8 +208,10 @@ Checked in the ERP,ERP で確認済み
 Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
 Checking,照合中
 Checklist,チェックリスト
+Checklist Id,チェックリスト ID
 Checks Json,検証結果JSON
 Cheque,小切手
+Chinese Name,中国語名
 Choose a day and time for the monthly run.,毎月の実行日と時刻を選んでください。
 Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
@@ -219,8 +234,11 @@ Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
+Chosen At,選択日時
+Chosen By,選択者
 Claim as input VAT,仕入税額控除する
 Client,顧客
+Client Name,顧客名
 Close count,棚卸を終了
 Closed,終了
 Closed At,クローズ日時
@@ -232,6 +250,7 @@ Collapse list,リストを折りたたむ
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
 Color,色
 Comment,コメント
+Commenting,コメント権限
 Comments,コメント
 Comments and activity,コメントとアクティビティ
 Companion Report,Companion レポート
@@ -254,6 +273,7 @@ Connection Configuration,接続設定
 Connection Name,接続名
 Connection Revision,接続リビジョン
 Connection or directory record not found.,接続またはディレクトリの記録が見つかりません。
+Contact Email,連絡先メールアドレス
 Content Hash,内容ハッシュ
 Continuous counting,連続棚卸
 Copy card,カードをコピー
@@ -279,6 +299,8 @@ Counted by,担当者
 Counted in total,合計に含む
 Counted quantity,実地数量
 Cover,カバー
+Cover Color,カバーの色
+Cover File,カバーファイル
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork Client,Cowork 買い手顧客
@@ -329,23 +351,30 @@ Credit sales,掛売上
 Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
+Custom Fields,カスタム項目
 Custom fields,カスタムフィールド
 Custom fields saved,カスタムフィールドを保存しました
 Customer,顧客
 Cyan,水色
 Daily,毎日
 Date,日付
+Date Diff Days,日付差（日数）
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
 Dates,日付
 Day {0},{0} 日
+Days,日数
 Days later,日後
 Debit,借方
 Decide once ({0}),一度だけ決める（{0}）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
+Default Cost,既定原価
 Default Item Type,既定の明細種類
 Default Payment,既定の支払方法
+Default Sell Unit,既定の販売単位
+Default board,既定のボード
 Default handling for this folder,既定の処理
+Defaults,既定値
 Delete selected ({0}),選択を削除（{0}）
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
@@ -359,8 +388,11 @@ Department,部門
 Department for this rule,部門
 Deposit,入金
 Description,摘要
+Detail,詳細
 Details,詳細
 Difference,差異あり
+Difference Amount,差異金額
+Difference Count,差異件数
 Difference detail,差異明細
 Difference value,差異金額
 Differences,差異
@@ -378,6 +410,7 @@ Discount,割引額
 Discount Amount,割引額
 Display text (optional),表示テキスト（任意）
 Document Key,伝票重複防止キー
+Document Policy,書類の取扱ルール
 Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
@@ -386,17 +419,22 @@ Does account {0} belong in this reconciliation?,科目 {0} を照合に含めま
 Does {0} post in batches?,{0} はまとめて入金されますか
 Don't enter (this kind from now on),入力しない（以後も同様）
 Done,完了
+Done List,完了リスト
 Done list (cards moved here are complete),完了リスト（移動すると完了）
 Download template,テンプレートをダウンロード
 Draft,下書き
 Dropdown,ドロップダウン
 Due,期日
+Due Time,期限時刻
 Due date,期日
 Due later,それ以降
 Due this week,7日以内が期限
 Due time,期限時刻
 Due today,今日が期限
 Due today or tomorrow,今日か明日が期日
+Duplicate Check Status,重複チェック状態
+Duplicate Match Level,重複一致レベル
+Duplicate Record Reference,重複レコード
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
 ERP Code,ERP コード
 ERP Connection,ERP接続
@@ -410,6 +448,7 @@ Each record must have a name and revision.,各レコードには識別子と版�
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
 Edit,編集
 Edit Count,編集回数
+Edit History,編集履歴
 Edit card,カードを編集
 Edit dates,日付を編集
 Edit folder rule,ルールを編集
@@ -421,6 +460,7 @@ Email,メール
 Enable,有効化
 Enable {0},{0}件を有効化
 Enabled,有効
+English Name,英語名
 Enter (this kind from now on),入力する（以後も同様）
 Enter a board name,ボード名を入力してください
 Enter a comment,コメントを入力してください
@@ -444,6 +484,8 @@ Entries — {0},記録 — {0}
 Entry,エントリー
 Entry saved,記録しました
 Event Key,イベント識別子
+Every unit needs a factor to the base unit.,すべての単位に基準単位への換算係数を入力してください。
+Every unit needs a name.,すべての単位に名前を入力してください。
 Evidence Fingerprint,証跡フィンガープリント
 Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
@@ -462,6 +504,7 @@ Express PC,Express の PC
 Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 Express record,Express の取引先
 External Docnum,ERP伝票番号
+Factor to Base,基準単位換算係数
 Failed,失敗
 Failure Count,失敗回数
 Fence,試行分離番号
@@ -469,16 +512,19 @@ Field,項目
 Field name,フィールド名
 File,ファイル
 File Hash,ファイルのハッシュ値
+Filename,ファイル名
 Files,ファイル
 Files already in the folder when the rule is turned on are not processed.,ルールを有効にする前からあるファイルは処理しません。
 Filter,絞り込み
 Find,検索
 Find product,商品を検索
+Fingerprint,フィンガープリント
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
+Folder,フォルダー
 Folder and schedule,フォルダーとスケジュール
 Folder auto-intake is not turned on for this site.,このサイトではフォルダー自動取込が有効になっていません。
 Folder auto-intake rules,フォルダー自動取込ルール
@@ -488,8 +534,32 @@ Folder rules need an Express connection with the Pearnly Companion. Connect Expr
 Folder rules work with Express connections only.,Express 接続でのみ使えます。
 Folder to read,フォルダー
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
+Formula Diff,計算式差額
+Formula Statement Closing,計算式による明細期末残高
 Found {0} · new {1} · skipped {2} · upload failed {3},検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}
 Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタップして選択してください：
+GL Account Code,元帳勘定科目コード
+GL Amount,元帳金額
+GL Balance,元帳残高
+GL Closing,元帳期末残高
+GL Credit,元帳貸方
+GL Credit Only,元帳貸方のみ件数
+GL Credit Only Amount,元帳貸方のみ金額
+GL Date,元帳日付
+GL Debit,元帳借方
+GL Debit Only,元帳借方のみ件数
+GL Debit Only Amount,元帳借方のみ金額
+GL Description,元帳摘要
+GL Document No,元帳伝票番号
+GL File Name,元帳ファイル名
+GL Only Credit,元帳のみ貸方金額
+GL Only Debit,元帳のみ借方金額
+GL Opening,元帳期首残高
+GL Row Count,元帳行数
+GL Source,元帳ソースファイル
+GL Total,元帳合計
+GL Total Credit,元帳貸方合計
+GL Total Debit,元帳借方合計
 General,一般
 General ledger,総勘定元帳
 General ledger detail,総勘定元帳明細
@@ -498,7 +568,9 @@ Gray,グレー
 Green,緑
 Group,グループ
 Handle these the same way every time,毎回この方法で処理
+Has GL Match,元帳一致あり
 Hide details,詳細を隠す
+Histories,読み取り履歴
 History,伝票履歴
 History Records,認識記録
 History Version,伝票履歴バージョン
@@ -517,8 +589,10 @@ Inactive,無効
 Income Reconciliation,収益照合
 Income account,収入科目
 Initial Password,初期パスワード
+Inputs,入力内容
 Insert,挿入
 Installed At (UTC),インストール日時（UTC）
+Intake Target,取込先
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid checklist,チェックリストが無効です
 Invalid color,色が無効です
@@ -572,11 +646,14 @@ Labels,ラベル
 Labels saved,ラベルを保存しました
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
 Last Login,最終ログイン
+Last Push Reason,最終送信理由
 Last Push Record,最終送信記録
 Last Push Status,最終送信状態
 Last Pushed At (UTC),最終送信日時（UTC）
 Last Request Hash,最終要求ハッシュ
 Last Request Key,最終要求キー
+Last Seen Generation,最終確認世代
+Last Used At,最終使用日時
 Last day of the month,月末
 Last used,前回使用
 Lease Expires At,リース有効期限
@@ -589,6 +666,7 @@ Ledger {0} {1}: one line {2},総勘定元帳 {0} {1}：1 件 {2}
 "Ledger: {0} card slip(s) on {1}, total {2}",元帳：{1} のカード {0} 件、合計 {2}
 Left out (not in the tax report),照合に含めない（税報告にない）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},メインの明細と重複し読み誤りと思われる {0} 行を除外しました。確認してください：{1}
+Legacy Status,旧ステータス
 Light,ライト
 Line {0} ({1}): balance off by {2} — {3},{0} 行目（{1}）残高差 {2}：{3}
 List,リスト
@@ -600,6 +678,8 @@ Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
+MR.ERP Import Menu Options Seen,取得済みの MR.ERP 取込メニュー
+MR.ERP Import Menu per Account Set,会計データ別 MR.ERP 取込メニュー
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
@@ -615,15 +695,20 @@ Mark all as read,すべて既読にする
 Mark complete,完了にする
 Mark each balance break as a missing page or a known difference before saving.,残高が合わない各箇所を「ページ欠落」または「既知の差異」にしてから保存してください。
 Mark incomplete,未完了に戻す
+Match Layer,照合レイヤー
+Match Status,照合状態
 Match and save,照合と保存
 Match rate,一致率
 Matched,一致
+Matched Count,照合済み件数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します
 Matches,一致
 Matching and saving,照合して保存中
 Member,メンバー
+Member management,メンバー管理権限
 Members,メンバー
 Members and observers,メンバーとオブザーバー
+Minimum Stock,最低在庫
 Mirror,ミラー
 Missing page,ページ欠落
 Monthly,毎月
@@ -637,12 +722,14 @@ Name,名前
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
 Never,なし
+New Files,新規ファイル数
 New code,新しいコード
 New folder rule,ルールを作成
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 New stock count,棚卸を作成
 New task,新規タスク
 "New, as on the invoice",伝票どおり新規作成
+Next Attempt At,次回再試行日時
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
@@ -693,7 +780,9 @@ Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
+Only one sell unit can be the default.,既定の販売単位は 1 つだけ設定できます。
 Open card,カードを開く
+Opening Diff,期首差額
 Options,オプション
 Options (one per line),選択肢（1行に1つ）
 Orange,橙
@@ -702,6 +791,7 @@ Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
 Original File,元ファイル
 Original Filename,元のファイル名
+Original Inputs,元の入力内容
 Original SHA-256,元ファイルの SHA-256
 Original Size,元ファイルサイズ
 Original Type,元ファイルの種類
@@ -722,6 +812,8 @@ PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数�
 Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
 Page {0}/{1},{0}/{1} ページ目
+Parse Info Json,解析情報
+Party Type,取引先区分
 Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Paste a link,リンクを貼り付け
@@ -765,7 +857,9 @@ Purchase (expense),仕入（経費）
 Purchase (goods),仕入（商品）
 Purchase or sales?,仕入ですか、売上ですか？
 Purple,紫
+Push Account Set,送信先会計データ
 Push Attempt,送信試行
+Push Connection,送信先接続
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
@@ -834,21 +928,27 @@ Refresh Request Aliases,更新要求の冪等索引
 Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
+Registered At,登録日時
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
+Relative Path,相対パス
 Reload,再読み込み
 Remarks,備考
+Reminder,リマインダー
 Remove,削除
 Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Repeat,繰り返し
 Replaced by your later submission of the same files.,同じファイルの後からの送信に置き換えられました。
+Report Count,レポート数
 Report Credential,レポート認証情報
 Report Credential Generation,レポート認証情報の世代
 Report Received At (UTC),レポート受信日時（UTC）
 Request Digest,要求ダイジェスト
 Request Fingerprint,リクエスト内容のフィンガープリント
 Request Hash,要求内容ハッシュ
+Request ID,リクエスト ID
 Request Json,リクエストデータ（JSON）
 Request Key,リクエストキー
 Request Receipts,リクエストの受領記録
@@ -865,6 +965,7 @@ Result Unknown,結果不明
 Result in the ERP,ERP での結果
 Review,レビュー
 Review JSON,確認記録 JSON
+Review Reasons,確認理由
 Review differences,差異を確認
 Review document,書類を確認
 Reviewed amounts need a balance and at most two decimal places.,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
@@ -873,18 +974,32 @@ Revocation Reason,失効理由
 Revoked At (UTC),失効日時 (UTC)
 Revoked By,失効者
 Role,役割
+Root,ルートフォルダー
+Route,アップロード方式
+Row Count,行数
+Row Index,行番号
 Row {0}: {1},{0} 行目：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,表の行と実数を登録します。実数を空欄にすると、後でオンラインで棚卸できます。
 Rule,ルール
+Rule Owner,ルール所有者
+Rule Revision,ルール改訂番号
 Rule is off,停止中
 Rule is on,有効
 Rules saved,ルールを保存しました
+Run,スキャン回
+Run Day,毎月の実行日
+Run Info Json,実行情報
+Run Request,即時実行リクエスト
+Run Requested At,実行要求日時
+Run Time,実行時刻
 Run at (Bangkok time),時刻（バンコク）
 Run history,実行履歴
 Run now,今すぐ実行
 Run on day,実行日
 Run requested. The Companion starts within a few minutes.,実行を依頼しました。数分以内に開始します。
+SHA-256,SHA-256
+SKU,SKU
 Sales invoices,売上請求書
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
 Sample Key,修正例識別子
@@ -894,6 +1009,7 @@ Saved. Scan the next item.,保存しました。次の商品を読み取って�
 Scan barcode or QR code,バーコード・QRコードを読む
 Scan barcodes · Record quantities,バーコード読取 · 数量記録
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
+Scanned At,スキャン日時
 Schedule,実行日時
 Scope,範囲
 Scope Key,権限範囲識別子
@@ -903,11 +1019,13 @@ Select a file to upload.,アップロードするファイルを選択してく�
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
+Sell Units,販売単位
 Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
 Seller address,売り手住所
 Seller branch,売り手支店
 Seller tax ID,売り手税番号
+Selling Price,販売価格
 Send,送信
 Send anyway,このまま送信
 Send documents to ERP,書類をERPへ送信
@@ -930,10 +1048,12 @@ Sheet,シート
 Short,不足
 Show,表示
 Show details,詳細を表示
+Show on Card,カードに表示
 Show on card,カードに表示
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
+Sold by Weight,量り売り
 Some fields are uncertain. Check them against the original and submit again,不確かな項目があります。原本と照合して再送信してください
 Some line items have no name or amount. Fix the lines and submit again,品名または金額のない明細があります。直して再送信してください
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
@@ -958,9 +1078,28 @@ Start date,開始日
 Start reconciliation,照合を開始
 Started At,開始日時
 Started at,開始日時
+Statement Autocorrected,明細自動補正済み
+Statement Balance,明細残高
+Statement Balance Check,明細残高チェック
+Statement Balance Known,明細残高あり
+Statement Closing,明細期末残高
+Statement Confidence,明細読み取り信頼度
+Statement Date,明細日付
+Statement Deposit,明細入金
+Statement Deposit Only,明細入金のみ件数
+Statement Deposit Only Amount,明細入金のみ金額
+Statement Description,明細摘要
+Statement Opening,明細期首残高
+Statement Source,明細ソースファイル
+Statement Total Deposit,明細入金合計
+Statement Total Withdrawal,明細出金合計
+Statement Withdrawal,明細出金
+Statement Withdrawal Only,明細出金のみ件数
+Statement Withdrawal Only Amount,明細出金のみ金額
 Statement review is not available for this task.,このタスクには明細確認記録がありません。
 Status,状態
 Stock,在庫
+Stock Account Group per Account Set,会計データ別在庫勘定グループ
 Stock changed; recount,在庫変動・再棚卸
 Stock count,棚卸
 Stock count closed,棚卸を終了しました
@@ -972,8 +1111,10 @@ Stock item,在庫品目
 Stock item not found in Express,Express に在庫品目がない場合
 Stop and let me choose,止めて選択する
 Stop watching,ウォッチをやめる
+Stored Page Previews,保存済みページプレビュー
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,サブフォルダー名・ファイル名は自由。1 つの PDF に複数の請求書があっても構いません。
 Submit,確定
+Summary Json,集計情報
 Summary table import,集計表の取り込み
 Table,テーブル
 Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
@@ -989,8 +1130,10 @@ Taxes and Charges,税金および諸費用
 Team board,チームボード
 Team visible,チームに公開
 Template,テンプレート
+Temporary File,一時ファイル
 Text,テキスト
 Text is too long,テキストが長すぎます
+Thai Name,タイ語名
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
@@ -1042,6 +1185,7 @@ The card no longer exists,カードはもうありません
 The chosen Express stock item no longer exists. Choose again,選んだ Express の在庫品目はもうありません。選び直してください
 The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
 The chosen value is not in this account set. Choose again,選んだ値はこの帳簿にありません。選び直してください
+The client fields are invalid.,顧客の項目が正しくありません。
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
@@ -1097,7 +1241,9 @@ The import columns do not match the stock count template.,インポートする�
 The import contains a repeated product code.,インポートデータに重複する商品コードがあります。
 The import contains no product rows.,インポートデータに商品行がありません。
 "The import exceeds the limit of 10,000 rows.","インポートデータが上限の 10,000 行を超えています。"
+The import file is too large.,インポートファイルが大きすぎます。
 The import row is invalid or has missing required values.,インポート行が無効か、必須項目が不足しています。
+The import rows are invalid.,インポート行が正しくありません。
 The invoice configuration does not match the OCR connection.,請求書の認識設定とサービスの接続設定が一致しません。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
 The invoice data is invalid and cannot be exported.,請求書データが無効なため、エクスポートできません。
@@ -1126,6 +1272,8 @@ The outdated unsent preparation was replaced.,古い未送信の準備を置き�
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
 The preview is temporarily unavailable. Please try again.,プレビューを一時的に表示できません。もう一度お試しください。
 The printed invoice date cannot be read. Check the date shown on the document.,請求書に記載された日付を読み取れません。書類の日付を確認してください。
+The product fields are invalid.,商品の項目が正しくありません。
+The product units are invalid.,商品の単位が正しくありません。
 The push data exceeds the size limit.,送信データがサイズ制限を超えています。
 The push record has changed. Reload and try again.,送信記録が更新されました。再読み込みしてお試しください。
 The push target has changed. Prepare the invoice again.,送信先が変更されました。伝票を再度準備してください。
@@ -1201,6 +1349,7 @@ This account set is unavailable.,この会計データは利用できません�
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
 This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
+This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
 This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
 This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
@@ -1233,6 +1382,7 @@ This operation ID has already been used for another request.,この操作 ID は
 This option is no longer current,この選択肢は無効です。メニューからやり直してください
 This original already has a recognition task with different parameters.,この元ファイルには、異なるパラメーターの認識タスクが既にあります。
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
+This product already has a unit called {0}.,この商品には既に単位 {0} があります。
 This push attempt is no longer current.,この送信試行は無効になっています。
 This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
 This refresh request has expired. Request a new refresh.,この更新要求は期限切れです。再度要求してください。
@@ -1250,7 +1400,10 @@ This scanned or photographed document could not be read. Check the file and try 
 This stock count task is closed.,この棚卸タスクはクローズ済みです。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
+This tax ID is already used by another company.,この納税者番号は既に別の会社で使用されています。
+This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
 Time left {0},残り {0}
+Times Used,使用回数
 Title,タイトル
 To do,未着手
 Token Digest,トークンダイジェスト
@@ -1258,7 +1411,10 @@ Token Generation,トークン世代
 Token Tail,トークン末尾
 Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。もう少し入力して絞り込んでください
+Too many rows to import.,インポートする行が多すぎます。
 Total,税込
+Track Batch,ロット管理
+Track Expiry,有効期限管理
 Transaction Date,取引日
 Transaction type,取引区分
 Transfer,振込
@@ -1274,6 +1430,7 @@ Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか�
 Unit,単位
 Unknown reconciliation type.,不明な照合種別です。
 Unmatched,未照合
+Unmatched Count,未照合件数
 Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
@@ -1281,6 +1438,7 @@ Updated At,更新日時
 Updated By,更新者
 Updated {0} user(s),ユーザー{0}件を更新しました
 Upload,アップロード
+Upload Failed,アップロード失敗数
 Upload a sheet,取り込み
 Upload both files.,両方のファイルをアップロードしてください。
 Upload files,ファイルのアップロード
@@ -1291,17 +1449,25 @@ Uploaded from the PC,アップロード済み
 Uploading,アップロード中
 Uploading files,ファイルをアップロード中
 Uploading from the PC,アップロード中
+Use Count,使用回数
 Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
 Use the Cowork Companion service to access deliveries.,タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。
 Use the Cowork OCR service to access recognition tasks.,認識タスクへのアクセスには Cowork 認識サービスを使用してください。
 Use the Cowork OCR service to change recognition tasks.,認識タスクの変更には Cowork 認識サービスを使用してください。
 Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
+Use the Cowork push service to access push records.,送信記録には Cowork の送信サービスからアクセスしてください。
 Use the reconciliation workflow to change these records.,照合の手順で変更してください。
 Use the stock count workflow to change these records.,これらの記録は棚卸の操作から変更してください。
 User Settings,ユーザーメニュー
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
 VAT,VAT
+VAT Date,税務請求書日付
+VAT Document No,税務請求書番号
+VAT File Name,売上税報告ファイル名
+VAT Only Negative,売上税報告のみ（マイナス）
+VAT Only Positive,売上税報告のみ（プラス）
 VAT Report Check,売上税報告チェック
+VAT Total,売上税報告合計
 VAT is not 7% of the base,税額が課税標準の7%でない
 VAT on receipts and abbreviated tax invoices,領収書・簡易税請求書の税額
 VAT report amount,税報告金額
@@ -1329,6 +1495,7 @@ Waiting for the recognition charge to complete.,課金の完了待ち
 Waiting to start,開始待ち
 Warehouse,倉庫
 Watch,ウォッチ
+Watchers,ウォッチャー
 Weekly,毎週
 When a card enters,カードがリストに入ったとき
 "When a new fiscal year starts, change the rule's account set.",新しい会計年度になったらルールの帳簿を変更してください。
@@ -1342,6 +1509,7 @@ With differences,差異あり
 Withdrawal,出金
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
+Workbook Revision,ワークブック改訂番号
 Workspace,会社帳簿
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Yearly,毎年
@@ -1363,6 +1531,8 @@ catalog_refresh_required,先に会計データのディレクトリを更新し�
 catalog_refresh_stale,会計データのディレクトリが古くなっています。再度更新してください。
 charged,課金済み
 client,顧客
+client_import.file_too_large,インポートファイルが大きすぎます。
+client_import.too_many_rows,インポートする行が多すぎます。
 closed,クローズ済み
 companion.context_invalid,アシスタントの認証が無効になりました。再認証してください。
 companion.credential_not_found,この接続にはアシスタント認証情報が発行されていません。
@@ -2482,6 +2652,7 @@ vat_check.recognition_timeout,請求書の読み取りに時間がかかりす�
 vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認してください。
 vat_check.status.void_match,取消 · 一致
 vat_check.status.void_no_invoice,取消 · 請求書不要
+workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用されています。
 {0} ({1} matching lines),{0}（一致 {1} 件）
 {0} added you to {1},{0} があなたを「{1}」に追加しました
 {0} bank lines add up to it ({1} to {2}),銀行 {0} 件の合計が一致（{1}〜{2}）

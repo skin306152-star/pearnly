@@ -1,42 +1,42 @@
 (empty),(ว่าง)
 A billing reference is required,ต้องกรอกเลขอ้างอิงการเรียกเก็บเงิน
-A deployment is a live site. Delete the tenant so its site and database go away too.,การติดตั้งคือไซต์จริง หากต้องการลบทั้งไซต์และฐานข้อมูล กรุณาลบผู้เช่า
-A rejection needs a reason; the tenant will see it,การปฏิเสธต้องระบุเหตุผล เพราะผู้เช่าจะเห็น
+A deployment is a live site. Delete the tenant so its site and database go away too.,การติดตั้งคือเว็บไซต์ที่ใช้งานจริงและไม่สามารถลบแยกได้ กรุณาลบพื้นที่ทำงานเพื่อลบเว็บไซต์และฐานข้อมูลพร้อมกัน
+A rejection needs a reason; the tenant will see it,การปฏิเสธต้องระบุเหตุผล (พื้นที่ทำงานมองเห็นได้)
 "A single top-up is capped at ฿500,000","เติมเงินครั้งละไม่เกิน ฿500,000"
-A wallet must belong to a tenant,กระเป๋าเงินต้องผูกกับผู้เช่า
+A wallet must belong to a tenant,กระเป๋าเงินต้องผูกกับพื้นที่ทำงาน
 Account information,ข้อมูลบัญชี
 Account opening is available only for configured cloud targets,เปิดบัญชีได้เฉพาะระบบคลาวด์ที่กำหนดค่าไว้เท่านั้น
-"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.","บัญชี {0} มีอยู่แล้วในเป้าหมาย ""{1}"" กรุณาเชิญบัญชีเดิมแทนการออกใบซ้ำ"
+"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.",บัญชี {0} มีอยู่แล้วในเป้าหมาย “{1}” กรุณาเชิญบัญชีที่มีอยู่แทนการออกใบซ้ำ
 Action,การกระทำ
-Action name the runner understands; see pearnly_control/provisioning.py,ชื่อการกระทำที่ตัวรันรู้จัก ดู pearnly_control/provisioning.py
+Action name the runner understands; see pearnly_control/provisioning.py,ชื่อการกระทำที่ตัวดำเนินการรองรับ
 Admin Client ID,Admin Client ID
 Admin Client Secret,Admin Client Secret
 Amount (THB),จำนวนเงิน (บาท)
 Amount must be greater than 0,จำนวนเงินต้องมากกว่า 0
 An adjustment cannot be 0,ยอดปรับต้องไม่เป็น 0
 An adjustment must have a reason,การปรับยอดต้องระบุเหตุผล
-An employee identity is used by another tenant; review it before deleting this tenant,บัญชีพนักงานถูกใช้งานโดยผู้เช่ารายอื่น โปรดตรวจสอบก่อนลบผู้เช่ารายนี้
+An employee identity is used by another tenant; review it before deleting this tenant,มีบัญชีพนักงานที่ใช้งานในพื้นที่ทำงานอื่น กรุณาตรวจสอบก่อนลบพื้นที่ทำงานนี้
 Approve and credit,อนุมัติและบันทึกเข้าบัญชี
 Approve top-up,อนุมัติการเติมเงิน
-At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)
+At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,เมื่อเปิดใช้งาน ระบบจะสร้างบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานและมอบสิทธิ์ให้ เว้นว่างหมายถึงฟีเจอร์นี้ไม่ต้องควบคุมสิทธิ์ (เช่น หน้าหลัก)
 Balance (THB),ยอดคงเหลือ (บาท)
 Balance After,ยอดคงเหลือหลังเปลี่ยนแปลง
-"Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",ยอดคงเหลือไม่พอชำระค่าบริการรายเดือน (ต้องใช้ ฿{0} มี ฿{1})
+"Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",ยอดคงเหลือไม่เพียงพอสำหรับชำระค่าบริการรายเดือน (ต้องใช้ ฿{0} คงเหลือ ฿{1})
 Basic Info,ข้อมูลพื้นฐาน
-Bench Group,กลุ่มรัน
+Bench Group,กลุ่มประมวลผล
 Billing Mode,รูปแบบการคิดค่าบริการ
 Billing Month,เดือนที่คิดค่าบริการ
 Billing Units,หน่วยคิดค่าบริการ
-Billing service unavailable; please retry,บริการเรียกเก็บเงินใช้งานไม่ได้ กรุณาลองใหม่
+Billing service unavailable; please retry,บริการเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาลองใหม่
 Build the workspace,สร้างพื้นที่ทำงาน
-"Cannot read the provisioning target, so the identity service URL is unknown",อ่านเป้าหมายการเปิดใช้ไม่ได้ จึงไม่ทราบที่อยู่บริการตัวตน
+"Cannot read the provisioning target, so the identity service URL is unknown",ไม่สามารถอ่านเป้าหมายการเปิดใช้ได้ จึงไม่ทราบที่อยู่บริการตัวตน
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
 Channel Secret,Channel Secret
 Client ID for Invitation Links,Client ID สำหรับลิงก์เชิญ
 "Client with only the password grant, used to verify the current password. Shared by all three products.",ไคลเอนต์ที่เปิดเฉพาะ password grant ใช้ตรวจสอบ 'รหัสผ่านปัจจุบัน' ทั้งสามผลิตภัณฑ์ใช้ร่วมกัน
 Close,ปิด
-Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,มาจากใบเปิดใช้งาน การบังคับระดับฟีเจอร์ยังไม่ได้ทำ (ดู docs/p4/06-provisioning.md)
+Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,มาจากใบเปิดใช้งาน
 Comma separated. The role gets read/write on these DocTypes.,คั่นด้วยจุลภาค บทบาทนี้จะได้สิทธิ์อ่าน/เขียนบน DocType เหล่านี้
 Company Name,ชื่อบริษัท
 Company name is required,ต้องระบุชื่อบริษัท
@@ -47,79 +47,89 @@ Contact Name,ชื่อผู้ติดต่อ
 Contact Phone,เบอร์ติดต่อ
 Contact us,ติดต่อเรา
 Control API URL,ที่อยู่ Control API
-Control-plane records,บันทึกฝั่งคอนโซล
+Control-plane records,บันทึกในระบบควบคุม
 Copy,คัดลอก
-Could not credit,บันทึกเข้าบัญชีไม่สำเร็จ
-Could not queue provisioning,เข้าคิวการเปิดใช้งานไม่ได้
-Could not queue the deletion,เข้าคิวการลบไม่สำเร็จ
-Could not read what would be deleted,อ่านรายการที่จะลบไม่ได้
-Could not reject,ปฏิเสธไม่สำเร็จ
-Could not set up the LIFF app for {0}: {1},ตั้งค่า LIFF ของ {0} ไม่สำเร็จ: {1}
+Could not credit,ไม่สามารถบันทึกเข้าบัญชีได้
+Could not queue provisioning,ไม่สามารถเข้าคิวการเปิดใช้งานได้
+Could not queue the deletion,ไม่สามารถเข้าคิวการลบได้
+Could not read what would be deleted,ไม่สามารถอ่านรายการที่จะลบได้
+Could not reject,ไม่สามารถปฏิเสธได้
+Could not set up the LIFF app for {0}: {1},ไม่สามารถสร้างแอป LIFF สำหรับ {0} ได้: {1}
+Cowork Account Pool,กลุ่มบัญชีผู้ใช้ Cowork
+Cowork Admin Client ID,Admin Client ID ของ Cowork
+Cowork Admin Client Secret,Admin Client Secret ของ Cowork
+Cowork Identity Subject,รหัสบัญชีผู้ใช้ Cowork
+Cowork Password-check Client ID,Client ID ตรวจรหัสผ่านของ Cowork
+Cowork Password-check Client Secret,Client Secret ตรวจรหัสผ่านของ Cowork
+Cowork Realm,Realm ของ Cowork
+Create Request Hash,แฮชคำขอสร้าง
 Create the site,สร้างเว็บไซต์
-Create the tenant account,สร้างบัญชีผู้เช่า
-Created and kept correct by provisioning on the shared LINE Login channel.,ระบบเปิดบัญชีสร้างและดูแลให้ถูกต้องเองบนช่องทาง LINE Login ที่ใช้ร่วมกัน
+Create the tenant account,สร้างบัญชีพื้นที่ทำงาน
+Created and kept correct by provisioning on the shared LINE Login channel.,สร้างและดูแลโดยอัตโนมัติผ่านขั้นตอนการเปิดบัญชีบนช่องทาง LINE Login ที่ใช้ร่วมกัน
 Creating a channel requires both secret and access token,การสร้างช่องทางต้องระบุทั้ง secret และ access token
 Creating a channel requires the channel secret and the Channel ID,การสร้างช่องทางต้องระบุทั้ง Channel secret และ Channel ID
 Credential Delivery,วิธีส่งมอบข้อมูลรับรอง
 Credentials,ข้อมูลรับรอง
-"Credentials (stored only here, pushed to the tenant site at provisioning)",ข้อมูลรับรอง (เก็บไว้ที่นี่ที่เดียว ผลักไปเว็บไซต์ผู้เช่าตอนเปิดใช้)
-Credited ฿{0}; {1} now has ฿{2},บันทึก ฿{0} เข้าบัญชีแล้ว ตอนนี้ {1} มียอดคงเหลือ ฿{2}
+"Credentials (stored only here, pushed to the tenant site at provisioning)",ข้อมูลรับรอง (เก็บไว้ที่นี่เท่านั้น และซิงก์ไปยังเว็บไซต์ของพื้นที่ทำงานเมื่อเปิดใช้งาน)
+Credited ฿{0}; {1} now has ฿{2},บันทึก ฿{0} เข้าบัญชีแล้ว ยอดคงเหลือปัจจุบันของ {1} คือ ฿{2}
 Crediting…,กำลังบันทึกเข้าบัญชี…
 Cycle End,สิ้นสุดรอบนี้
 Cycle Start,เริ่มรอบนี้
 DMS is the one already proven; ERP and Cowork use the same API surface.,ตัวที่พิสูจน์แล้วคือ DMS ส่วน ERP และ Cowork ใช้ API ชุดเดียวกัน
 "Dear customer,",เรียน ผู้ใช้งาน
-Default On,เปิดตามปกติ
+Default On,เปิดใช้โดยค่าเริ่มต้น
 Default Target,เป้าหมายเริ่มต้น
-Delete tenant,ลบผู้เช่า
-Deletion queued ({0} steps). The on-host runner will do the work.,เข้าคิวการลบแล้ว ({0} ขั้นตอน) ตัวรันบนเครื่องจะทำงานต่อ
+Delete tenant,ลบพื้นที่ทำงาน
+Deletion queued ({0} steps). The on-host runner will do the work.,เพิ่มเข้าคิวการลบแล้ว ({0} ขั้นตอน)
 Deployments,การติดตั้ง
 Details,รายละเอียด
 Display Name,ชื่อที่แสดง
 Domain,โดเมน
 Domain Prefix,คำนำหน้าโดเมน
 Domain already taken: {0} (issue {1}),โดเมนถูกใช้แล้ว: {0} (ใบเปิดใช้งาน {1})
-Domain prefix cannot be all digits: {0},คำนำหน้าโดเมนเป็นตัวเลขล้วนไม่ได้: {0}
-Domain prefix {0} is reserved; pick another,คำนำหน้าโดเมน {0} สงวนไว้ กรุณาเลือกใหม่
+Domain prefix cannot be all digits: {0},คำนำหน้าโดเมนต้องไม่เป็นตัวเลขล้วน: {0}
+Domain prefix {0} is reserved; pick another,คำนำหน้าโดเมน {0} เป็นชื่อที่สงวนไว้ กรุณาเปลี่ยน
 Done,เสร็จแล้ว
 Duplicate domain on the same issue: {0},โดเมนซ้ำในใบเดียวกัน: {0}
 Email,อีเมล
 Enable HTTPS access,เปิดการเข้าถึงผ่าน HTTPS
 Enabled Features,ฟีเจอร์ที่เปิดใช้
-Enabled — {0} steps,เปิดใช้งานแล้ว {0} ขั้นตอน
-Enforcement,การบังคับสิทธิ์
+Enabled — {0} steps,เปิดใช้งานแล้ว ({0} ขั้นตอน)
+Enforcement,การควบคุมสิทธิ์
 External Reference,เลขที่อ้างอิงภายนอก
-Failed,ล้มเหลว
+Failed,ไม่สำเร็จ
 Feature,ฟีเจอร์
-Feature Catalog,แคตตาล็อกฟีเจอร์
+Feature Catalog,แค็ตตาล็อกฟีเจอร์
 Feature Code,รหัสฟีเจอร์
 Feature Name,ชื่อฟีเจอร์
 Features,ฟีเจอร์
-Fill in only if a LIFF app exists; otherwise leave empty.,กรอกเฉพาะเมื่อมีแอป LIFF ถ้าไม่มีให้เว้นว่าง
-"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.",กรอกเฉพาะ Channel ID และ Channel secret (LINE Developers → Basic settings) ระบบเปิดบัญชีจะออกโทเคนและสร้าง LIFF เอง เว้นว่างไว้เพื่อกำหนดช่องทางภายหลัง
+Fill in only if a LIFF app exists; otherwise leave empty.,กรอกเฉพาะเมื่อมีแอป LIFF แล้ว
+"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.",กรอกเฉพาะ Channel ID และ Channel secret (LINE Developers → Basic settings) ขั้นตอนการเปิดบัญชีจะสร้างโทเคนการเข้าถึงและแอป LIFF โดยอัตโนมัติ เว้นว่างไว้เพื่อตั้งค่าภายหลังได้
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,กรอกส่วนนี้เพื่อส่งมอบช่องทาง LINE ของผู้เช่ารายนี้ตั้งแต่ตอนเปิดใช้งาน ถ้าเว้นว่างไว้ค่อยกำหนดภายหลัง
-Finalize the site,เก็บงานเว็บไซต์ให้เรียบร้อย
+Finalize the site,ตั้งค่าเว็บไซต์ให้เสร็จสมบูรณ์
 Finished At,สิ้นสุดเมื่อ
 For example http://keycloak.localhost:8105,ตัวอย่าง http://keycloak.localhost:8105
-For example: local sample / production,ตัวอย่าง: ตัวอย่างในเครื่อง / โปรดักชัน
+For example: local sample / production,ตัวอย่าง: ระบบตัวอย่างในเครื่อง / ระบบจริง
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น
-Grant feature roles,มอบบทบาทตามฟีเจอร์
+Grant feature roles,มอบสิทธิ์ตามฟีเจอร์
 Granted DocTypes,DocType ที่อนุญาต
 Idempotency Key,คีย์กันซ้ำ
+Identity Provider,ผู้ให้บริการยืนยันตัวตน
+Identity Realm,Realm ยืนยันตัวตน
 Identity Service URL,ที่อยู่บริการตัวตน
-Identity Subject,ตัวตนSubject
+Identity Subject,Subject ของตัวตน
 "If you encounter any problems while using our services, please contact us through the official channels below.",หากพบปัญหาระหว่างการใช้งาน โปรดติดต่อเราผ่านช่องทางอย่างเป็นทางการด้านล่าง
 Initial Password,รหัสผ่านเริ่มต้น
 Initial password,รหัสผ่านเริ่มต้น
-Initial password is required (the user signs in with it directly),ต้องระบุรหัสผ่านเริ่มต้น (ผู้ใช้ใช้เข้าสู่ระบบโดยตรง)
+Initial password is required (the user signs in with it directly),ต้องระบุรหัสผ่านเริ่มต้น
 Install core apps,ติดตั้งแอปพื้นฐาน
 Install the product app,ติดตั้งแอปผลิตภัณฑ์
 Insufficient balance; please top up first,ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน
-"Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID ไม่ถูกต้อง: {0} กรอกเฉพาะรหัส เช่น 2010411313-abcd1234
+"Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID ไม่ถูกต้อง: {0} กรุณากรอกเฉพาะ ID เช่น 2010411313-abcd1234
 Invalid LINE Login channel ID,Channel ID ของ LINE Login ไม่ถูกต้อง
 Invalid amount,จำนวนเงินไม่ถูกต้อง
 Invalid billing reference,เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง
-"Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63
+"Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขึ้นต้นหรือลงท้ายด้วยขีดกลาง ความยาว 1–63 ตัวอักษร
 Invalid email,อีเมลไม่ถูกต้อง
 Invalid service token,โทเคนบริการไม่ถูกต้อง
 Invitation Email,อีเมลเชิญ
@@ -130,7 +140,7 @@ Issue failed,ออกใบไม่สำเร็จ
 Issue {0} is {1}; only an issued one can be provisioned,ใบเปิดใช้งาน {0} อยู่สถานะ {1} เปิดใช้งานได้เฉพาะใบที่ issued แล้วเท่านั้น
 Issued At,ออกใบเมื่อ
 Issued By,ออกโดย
-Issued: {0} / tenant {1},ออกใบแล้ว: {0} / ผู้เช่า {1}
+Issued: {0} / tenant {1},ออกใบแล้ว: {0} / พื้นที่ทำงาน {1}
 Issues,ใบเปิดใช้งาน
 Issuing…,กำลังออกใบ…
 "Kind regards,",ขอแสดงความนับถือ
@@ -146,39 +156,39 @@ LINE Login Channel ID,Channel ID ของ LINE Login
 LINE Login Channel Secret,Channel secret ของ LINE Login
 LINE Setup Guide,คู่มือเปิดใช้ LINE
 LINE channel (optional),ช่องทาง LINE (ไม่บังคับ)
-LINE configuration is being applied. Try again shortly.,กำลังใช้การตั้งค่า LINE กรุณาลองใหม่ภายหลัง
+LINE configuration is being applied. Try again shortly.,กำลังนำการตั้งค่า LINE ไปใช้ กรุณาลองใหม่ภายหลัง
 LINE credentials are required before activation.,ต้องกรอกข้อมูลรับรอง LINE ก่อนเปิดใช้งาน
 Last Updated,แก้ไขล่าสุด
 Leave empty to use the company name,เว้นว่างเพื่อใช้ชื่อบริษัท
-Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,เว้นว่างได้: ไซต์จะขอโทเคนอายุสั้นจาก Channel ID และ secret เอง เฉพาะช่องทางที่เปิดก่อน 2026-10-05 เท่านั้นที่ยังเก็บโทเคนระยะยาวไว้ที่นี่
+Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,ไม่ต้องกรอก เฉพาะช่องทางที่เปิดก่อน 2026-10-05 เท่านั้นที่เก็บโทเคนระยะยาวไว้ที่นี่
 Local Port,พอร์ตในเครื่อง
 Local URL,ที่อยู่ในเครื่อง
-Manual adjustment · {0},ปรับยอดด้วยคน · {0}
+Manual adjustment · {0},ปรับยอดด้วยตนเอง · {0}
 Mark provisioning done,ทำเครื่องหมายว่าเปิดใช้งานเสร็จ
-Matches the feature key in the product's own feature catalog (features.json).,ตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกของผลิตภัณฑ์เอง (features.json)
+Matches the feature key in the product's own feature catalog (features.json).,ต้องตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกฟีเจอร์ของผลิตภัณฑ์ (features.json)
 Monthly Fee,ค่าบริการรายเดือน
-No provisioning request yet; click “Run provisioning” to start,"ยังไม่มีคำขอเปิดใช้งาน กด ""เริ่มเปิดใช้งาน"" เพื่อเริ่ม"
-No such deployment: {0},ไม่มีการติดตั้งนี้: {0}
-No such plan: {0},ไม่มีแพ็กเกจนี้: {0}
+No provisioning request yet; click “Run provisioning” to start,ยังไม่มีคำขอเปิดใช้งาน กรุณากด “เริ่มเปิดใช้งาน”
+No such deployment: {0},ไม่พบการติดตั้ง: {0}
+No such plan: {0},ไม่พบแพ็กเกจ: {0}
 No such step: {0},ไม่พบขั้นตอน {0}
-No such tenant: {0},ไม่มีผู้เช่านี้: {0}
-No transfer slip is attached,ยังไม่ได้แนบหลักฐานการโอน
+No such tenant: {0},ไม่พบพื้นที่ทำงาน: {0}
+No transfer slip is attached,ไม่ได้แนบสลิปโอนเงิน
 Not issued,ยังไม่ออกใบ
 Not permitted,ไม่มีสิทธิ์ดำเนินการ
 Not provisioned,ยังไม่เปิดใช้งาน
 Notes,หมายเหตุ
 OIDC Client ID,OIDC Client ID
 OIDC Client Secret,OIDC Client Secret
-One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,หนึ่งช่องทาง LINE ต่อการติดตั้ง (บริษัท × ผลิตภัณฑ์) นี่คือขอบเขตการแยก: การตรวจลายเซ็นและการส่งข้อความใช้ข้อมูลรับรองของช่องทางนี้เอง
-"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",หนึ่งรายต่อการติดตั้ง: callback ใช้โดเมนของเว็บไซต์ ถ้าใช้ร่วมกันผู้เช่ารายที่สองจะเข้าไม่ได้
-Only a platform admin can handle top-ups and balances,เฉพาะผู้ดูแลแพลตฟอร์มเท่านั้นที่จัดการเติมเงินและยอดคงเหลือได้
+One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,การติดตั้งแต่ละรายการ (บริษัท × ผลิตภัณฑ์) ใช้ช่องทาง LINE หนึ่งช่องทาง การตรวจลายเซ็นและการส่งข้อความใช้ข้อมูลรับรองของช่องทางนี้
+"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",แต่ละการติดตั้งใช้ไคลเอนต์แยกกัน
+Only a platform admin can handle top-ups and balances,เฉพาะผู้ดูแลแพลตฟอร์มเท่านั้นที่สามารถจัดการการเติมเงินและยอดคงเหลือได้
 Open the LINE channel,เปิดช่องทาง LINE
 Operations,ปฏิบัติการ
 Output,ผลลัพธ์การทำงาน
 Over-rate (per page),ราคาส่วนเกิน (ต่อหน้า)
 Pages,จำนวนหน้า
-Pages Used This Month,หน้าใช้ไปเดือนนี้
-Partly done {0}/{1},ทำไปบางส่วน {0}/{1}
+Pages Used This Month,จำนวนหน้าที่ใช้เดือนนี้
+Partly done {0}/{1},เสร็จบางส่วน {0}/{1}
 Password Delivered At,ส่งรหัสผ่านเริ่มต้นเมื่อ
 Password-check Client ID,Client ID ตรวจรหัสผ่าน
 Password-check Client Secret,Client Secret ตรวจรหัสผ่าน
@@ -189,13 +199,13 @@ Pearnly Subscription,การสมัครแพ็กเกจ
 Pearnly Topup Request,คำขอเติมเงิน
 Pearnly Wallet,กระเป๋าเงิน
 Pending,รอดำเนินการ
-Pick at least one product,เลือกอย่างน้อยหนึ่งผลิตภัณฑ์
+Pick at least one product,กรุณาเลือกอย่างน้อยหนึ่งผลิตภัณฑ์
 Plan,แพ็กเกจ
-Plan {0} ({1} days · {2} pages),แพ็กเกจ {0} ({1} วัน · {2} หน้า)
+Plan {0} ({1} days · {2} pages),สมัครใช้งานแพ็กเกจ {0} ({1} วัน · {2} หน้า)
 Please change your initial password promptly,กรุณาเปลี่ยนรหัสผ่านเริ่มต้นโดยเร็ว
 "Prefix only, e.g. aerp",ใส่เฉพาะคำนำหน้า เช่น aerp
 Product App,แอปผลิตภัณฑ์
-Product {0} is selected twice,เลือกผลิตภัณฑ์ {0} สองครั้ง
+Product {0} is selected twice,เลือกผลิตภัณฑ์ {0} ซ้ำ
 Products & Domains,ผลิตภัณฑ์และโดเมน
 Proof,หลักฐาน
 Provisioning Credentials (stored only here),ข้อมูลรับรองการเปิดใช้ (เก็บไว้ที่นี่ที่เดียว)
@@ -211,31 +221,31 @@ Queueing the deletion…,กำลังเข้าคิวการลบ…
 Quota,โควตา
 Quota per Cycle (pages),โควตาต่อรอบ (หน้า)
 Realm,Realm
-Reason (the tenant will see it; required),เหตุผล (ผู้เช่าจะเห็น จำเป็นต้องกรอก)
-Received Amount,จำนวนที่รับจริง
-Received amount (as actually credited by the bank),จำนวนที่รับจริง (ตามยอดที่ธนาคารเข้าจริง)
+Reason (the tenant will see it; required),เหตุผล (พื้นที่ทำงานมองเห็นได้ จำเป็นต้องกรอก)
+Received Amount,จำนวนเงินที่ได้รับจริง
+Received amount (as actually credited by the bank),จำนวนเงินที่ได้รับจริง (ตามยอดที่เข้าบัญชีธนาคาร)
 Reference,เลขที่อ้างอิงภายนอก
 Reject,ปฏิเสธ
 Reject top-up,ปฏิเสธการเติมเงิน
-Rejected,ถูกปฏิเสธ
+Rejected,ปฏิเสธแล้ว
 Removed At,เวลาที่ลบ
 Removed By,ผู้ลบ
-Requested Amount,จำนวนที่ขอ
+Requested Amount,จำนวนเงินที่ขอ
 Requested At,ขอเมื่อ
 Restart services,รีสตาร์ตบริการ
 Retry deletion,ลบอีกครั้ง
 Retry provisioning,ลองเปิดใช้งานอีกครั้ง
 Retry welcome email,ลองส่งอีเมลต้อนรับอีกครั้ง
-Review,ดำเนินการ
+Review,ตรวจสอบ
 Review Note,หมายเหตุการตรวจสอบ
 Reviewed At,ตรวจสอบเมื่อ
 Reviewed By,ตรวจสอบโดย
 Role,บทบาท
-Row {0} on the issue has no domain; cannot build the site,แถว {0} ในใบเปิดใช้งานไม่มีโดเมน สร้างเว็บไซต์ไม่ได้
+Row {0} on the issue has no domain; cannot build the site,แถวที่ {0} ในใบเปิดใช้งานไม่มีโดเมน ไม่สามารถสร้างเว็บไซต์ได้
 Row {0}: a LINE channel needs both the Channel ID and the Channel secret,แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง Channel ID และ Channel secret
 Row {0}: a LINE channel needs both the channel secret and the access token,แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง channel secret และ access token
 Run provisioning,เริ่มเปิดใช้งาน
-Running,กำลังทำ
+Running,กำลังดำเนินการ
 Service URL is required,ต้องระบุที่อยู่บริการ
 Set up OCR,ตั้งค่า OCR
 Set up the LINE channel,ตั้งค่าช่องทาง LINE
@@ -249,50 +259,50 @@ Site Provisioning API,API สร้างเว็บไซต์
 Site URL,ที่อยู่เว็บไซต์
 Site name {0} is already taken by deployment {1},ชื่อเว็บไซต์ {0} ถูกการติดตั้ง {1} ใช้อยู่
 Sites and databases,เว็บไซต์และฐานข้อมูล
-Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้ Bench โปรเซสเดียวกัน บันทึกไว้เพื่อจำกัดขอบเขตของปัญหา
-Skipped,ไม่ต้องทำ
+Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้โปรเซส Bench ร่วมกัน
+Skipped,ข้ามแล้ว
 Source,ที่มา
 Started At,เริ่มเมื่อ
 Step,ขั้นตอน
 Step Details,รายละเอียดขั้นตอน
 Steps,ขั้นตอน
 Support email,อีเมลฝ่ายบริการลูกค้า
-Support phone,โทรศัพท์
+Support phone,โทรศัพท์ฝ่ายบริการลูกค้า
 Target Name,ชื่อเป้าหมาย
 Target name is required,ต้องระบุชื่อเป้าหมาย
-Teardown request {0} does not exist,คำขอรื้อถอน {0} ไม่มีอยู่
-Tenant,ผู้เช่า
-Tenant Note,หมายเหตุผู้เช่า
-Tenant Provisioning,การเตรียมผู้เช่า
-Tenant {0} does not exist,ผู้เช่า {0} ไม่มีอยู่
+Teardown request {0} does not exist,ไม่พบคำขอรื้อถอน {0}
+Tenant,พื้นที่ทำงาน
+Tenant Note,หมายเหตุจากพื้นที่ทำงาน
+Tenant Provisioning,การเปิดใช้งานพื้นที่ทำงาน
+Tenant {0} does not exist,ไม่พบพื้นที่ทำงาน {0}
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,ขอบคุณที่เลือก Pearnly บัญชีของคุณเปิดใช้งานแล้ว คุณสามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที
-"The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again",ช่องทาง LINE Login {0} มี LIFF ครบ 30 แอปแล้ว (ขีดจำกัดของ LINE) ลบแอปที่ไม่ใช้ใน LINE Developers แล้วลองใหม่
+"The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again",ช่องทาง LINE Login {0} มีแอป LIFF ครบจำนวนสูงสุด (30 แอป) แล้ว กรุณาลบแอปที่ไม่ใช้แล้วใน LINE Developers แล้วลองอีกครั้ง
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Basic ID ของช่องทาง Messaging API (@xxx) ใช้ระบุและตรวจสอบปัญหา
-"The URL to paste into the LINE console, derived from the deployment domain.",ที่อยู่ที่นำไปใส่ในหลังบ้าน LINE คำนวณจากโดเมนของการติดตั้ง
+"The URL to paste into the LINE console, derived from the deployment domain.",ที่อยู่สำหรับกรอกในหน้าจัดการ LINE สร้างจากโดเมนของการติดตั้ง
 The address this tenant is reached at.,ที่อยู่ที่เข้าถึงผู้เช่ารายนี้
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)
-The balance could not be read; this is not 'insufficient balance',อ่านยอดคงเหลือไม่ได้ ไม่ใช่ยอดไม่พอ
+The balance could not be read; this is not 'insufficient balance',ไม่สามารถอ่านยอดคงเหลือได้
 The billing reference was already used for another request,เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว
-"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",คือโดเมนของการติดตั้งนี้ Frappe เลือกเว็บไซต์จาก Host จึงใช้ค่าเดียวกัน
-The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,บริการตัวตนสร้างลิงก์ในอีเมลเชิญจากไคลเอนต์นี้ ระยะตัวอย่างผู้เช่าทุกรายใช้ร่วมกัน ผู้เช่าจริงจะมีไคลเอนต์ของตนเอง
-The last issue attempt failed; set it back to draft before issuing again,การออกใบครั้งก่อนล้มเหลว ตั้งกลับเป็น draft ก่อนออกใหม่
+"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",ใช้ค่าเดียวกับโดเมนของการติดตั้ง
+The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,บริการตัวตนใช้ไคลเอนต์นี้สร้างลิงก์ในอีเมลเชิญ
+The last issue attempt failed; set it back to draft before issuing again,การออกใบครั้งก่อนไม่สำเร็จ กรุณาเปลี่ยนสถานะกลับเป็น draft ก่อนออกใบอีกครั้ง
 The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),ต้องระบุ Client Secret สำหรับตรวจรหัสผ่าน (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_PASSWORD_CHECK_SECRET)
 The product app installed on this site; pearnly_core is shared by every product.,แอปผลิตภัณฑ์ที่ติดตั้งบนเว็บไซต์นี้ ส่วน pearnly_core ใช้ร่วมกันทุกผลิตภัณฑ์
-"The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",API เปิดใช้บนเซิร์ฟเวอร์ เช่น https://api.pearnly.com/v1/deployments กรอกเมื่อเซิร์ฟเวอร์พร้อม ถ้าเว้นว่างจะออกใบแต่ไม่สร้างเว็บไซต์
-"The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",เป้าหมายการเปิดบัญชี {0} ยังไม่มีช่องทาง LINE Login จึงสร้าง LIFF ไม่ได้
-The received amount must be greater than 0,จำนวนที่รับจริงต้องมากกว่า 0
-The requested amount must be greater than 0,จำนวนที่ขอต้องมากกว่า 0
+"The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",API เปิดใช้งานบนเซิร์ฟเวอร์ เช่น https://api.pearnly.com/v1/deployments ถ้าเว้นว่างจะออกใบเปิดใช้งานเท่านั้นโดยไม่สร้างเว็บไซต์
+"The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",เป้าหมายการเปิดบัญชี {0} ยังไม่ได้กำหนดช่องทาง LINE Login จึงไม่สามารถสร้างแอป LIFF ได้
+The received amount must be greater than 0,จำนวนเงินที่ได้รับจริงต้องมากกว่า 0
+The requested amount must be greater than 0,จำนวนเงินที่ขอต้องมากกว่า 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,ส่งคีย์เดิมซ้ำจะได้ทรัพยากรชุดเดียวเท่านั้น ค่าเริ่มต้นคือเลขใบเปิดใช้งาน
 "The top-up amount must be between ฿0.01 and ฿500,000","จำนวนเติมเงินต้องอยู่ระหว่าง ฿0.01 ถึง ฿500,000"
-These accounts could not be deleted: {0},บัญชีเหล่านี้ลบไม่ได้: {0}
+These accounts could not be deleted: {0},ไม่สามารถลบบัญชีต่อไปนี้ได้: {0}
 This is a read-only copy of the cloud billing request,นี่คือสำเนาอ่านอย่างเดียวของคำขอเรียกเก็บเงินบนคลาวด์
-"This is an account activation notice. If you did not request this account, please contact our support team.",อีเมลแจ้งการเปิดใช้งานบัญชี หากคุณไม่ได้ขอเปิดใช้งาน โปรดติดต่อฝ่ายบริการลูกค้า
-This issue has no usable initial password; fill it in again before issuing,ใบนี้ไม่มีรหัสผ่านเริ่มต้นที่ใช้ได้ กรอกใหม่ก่อนออกใบ
-This removes everything about this tenant. It cannot be undone.,การดำเนินการนี้จะลบทุกอย่างของผู้เช่ารายนี้ และกู้คืนไม่ได้
-This request has already been handled (currently: {0}),คำขอนี้ถูกดำเนินการแล้ว (ปัจจุบัน: {0})
-This tenant no longer exists.,ผู้เช่ารายนี้ไม่มีอยู่แล้ว
+"This is an account activation notice. If you did not request this account, please contact our support team.",อีเมลฉบับนี้เป็นการแจ้งเปิดใช้งานบัญชี หากคุณไม่ได้ขอเปิดใช้งาน โปรดติดต่อฝ่ายบริการลูกค้า
+This issue has no usable initial password; fill it in again before issuing,ใบเปิดใช้งานนี้ไม่มีรหัสผ่านเริ่มต้นที่ใช้ได้ กรุณากรอกใหม่ก่อนออกใบ
+This removes everything about this tenant. It cannot be undone.,การดำเนินการนี้จะลบข้อมูลทั้งหมดของพื้นที่ทำงานนี้ และไม่สามารถย้อนกลับได้
+This request has already been handled (currently: {0}),คำขอนี้ได้รับการดำเนินการแล้ว (สถานะปัจจุบัน: {0})
+This tenant no longer exists.,ไม่พบพื้นที่ทำงานนี้
 This top-up request was already reviewed; it cannot be handled twice,คำขอเติมเงินนี้ตรวจสอบแล้ว ไม่สามารถดำเนินการซ้ำได้
-Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).,ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)
+Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).,เลือกไว้หมายถึงเปิดใช้โดยค่าเริ่มต้น ไม่ได้เลือกหมายถึงต้องซื้อแยก (เช่น ผู้ช่วย Pearnly)
 Top-up Review,ตรวจสอบการเติมเงิน
 Top-up approved · request {0},อนุมัติการเติมเงินแล้ว · คำขอ {0}
 Transfer Slip,สลิปโอนเงิน
@@ -300,14 +310,16 @@ Type,ประเภท
 Unknown billing unit: {0},หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}
 Unknown product: {0},ไม่รู้จักผลิตภัณฑ์: {0}
 Unknown step status: {0},สถานะขั้นตอนที่ไม่รู้จัก: {0}
+Usage Checked,วันที่ตรวจสอบยอดใช้งาน
+Usage Month,เดือนของยอดใช้งาน
 Used This Cycle (pages),ใช้ไปในรอบนี้ (หน้า)
-Used to send messages (long-lived).,ใช้ส่งข้อความ (long-lived)
-"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",ใช้ตรวจลายเซ็น webhook **หนึ่งรายต่อผู้เช่า**: เว็บไซต์ผู้เช่าใช้ของตัวเองเท่านั้น ลายเซ็นของรายอื่นจะไม่ผ่าน
+Used to send messages (long-lived).,ใช้ส่งข้อความ (โทเคนระยะยาว)
+"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",ใช้ตรวจลายเซ็น Webhook **กำหนดแยกสำหรับแต่ละพื้นที่ทำงาน**
 Username,ชื่อผู้ใช้
-Username and initial password are both required: they are the credentials for the user's first sign-in,ต้องกรอกทั้งชื่อผู้ใช้และรหัสผ่านเริ่มต้น เพราะเป็นข้อมูลรับรองสำหรับการเข้าสู่ระบบครั้งแรก
-"Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดล่าง และขีดกลาง ยาว 3–30
+Username and initial password are both required: they are the credentials for the user's first sign-in,ต้องกรอกชื่อผู้ใช้และรหัสผ่านเริ่มต้น
+"Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดล่าง และขีดกลาง ความยาว 3–30 ตัวอักษร
 View progress,ดูความคืบหน้า
-View transfer slip,ดูหลักฐานการโอน
+View transfer slip,ดูสลิปโอนเงิน
 View welcome email,ดูอีเมลต้อนรับ
 Webhook URL,Webhook URL
 Welcome Email Error,ข้อผิดพลาดของอีเมลต้อนรับ
@@ -321,4 +333,4 @@ Your account is ready,เปิดใช้งานสำเร็จ
 grant only handles money in (topup / adjustment); use charge() for deductions,grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()
 "{0} in-plan scan ({1} pages, within quota)",{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)
 {0} out-of-plan scan ({1} over quota),{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)
-{0} — {1} features,{0} — {1} ฟีเจอร์
+{0} — {1} features,{0} — {1} รายการ

@@ -1,17 +1,17 @@
 en	zh	th	ja	key
-That code is not valid	绑定码无效	รหัสไม่ถูกต้อง	コードが正しくありません
-Bound to {0}	已绑定到 {0}	เชื่อมต่อกับ {0} แล้ว	{0} に連携しました
-Send the code from the ERP page to bind	请发送 ERP 页面上的绑定码	กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ	ERP 画面のコードを送信して連携してください
+That code is not valid	绑定码无效	รหัสผูกบัญชีไม่ถูกต้อง	コードが正しくありません
+Bound to {0}	已绑定到 {0}	ผูกบัญชีกับ {0} แล้ว	{0} に連携しました
+Send the code from the ERP page to bind	请发送 ERP 页面上的绑定码	กรุณาส่งรหัสผูกบัญชีจากหน้า ERP	ERP 画面のコードを送信して連携してください
 Bind this account first	请先绑定 ERP 账号	กรุณาผูกบัญชี ERP ก่อนใช้งาน	先に ERP アカウントを連携してください
-LINE unbound	LINE 已解绑	ยกเลิกการเชื่อมต่อแล้ว	LINE の連携を解除しました
+LINE unbound	LINE 已解绑	ยกเลิกการผูกบัญชี LINE แล้ว	LINE の連携を解除しました
 This channel is not open yet	该通道尚未开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません
-Only purchase documents can be sent in for now	目前仅支持接收采购单据	ตอนนี้รับเฉพาะเอกสารจัดซื้อ	現時点では仕入書類のみ受け付けます
-This account cannot send documents	该账号无权发送单据	บัญชีนี้ส่งเอกสารไม่ได้	このアカウントは書類を送信できません
+Only purchase documents can be sent in for now	目前仅支持接收采购单据	ขณะนี้รับเฉพาะเอกสารจัดซื้อเท่านั้น	現時点では仕入書類のみ受け付けます
+This account cannot send documents	该账号无权发送单据	บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร	このアカウントは書類を送信できません
 Could not store this document	单据保存失败，请重新发送	บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่	書類を保存できませんでした。再送してください
 Already received	该文件已接收	ได้รับไฟล์นี้แล้ว	このファイルは受け取り済みです
 Received; confirm it on the ERP page	已接收，请在 ERP 页面确认	ได้รับแล้ว กรุณายืนยันในหน้า ERP	受け取りました。ERP 画面で確認してください
 Draft not found	草稿不存在	ไม่พบรายการร่าง	下書きが見つかりません
-This draft was already confirmed or discarded	该草稿已确认或已作废	รายการนี้ยืนยันหรือยกเลิกไปแล้ว	この下書きは確認済みか破棄済みです
+This draft was already confirmed or discarded	该草稿已确认或已作废	แบบร่างนี้ถูกยืนยันหรือยกเลิกแล้ว	この下書きは確認済みか破棄済みです
 This document has no content	文件内容为空	ไฟล์นี้ไม่มีเนื้อหา	この書類は中身がありません
 This document is too large	文件过大	ไฟล์นี้ใหญ่เกินไป	この書類は大きすぎます
 A stored source file must carry its hash	存档文件必须包含文件指纹	ไฟล์ที่เก็บต้องมีค่าแฮช	保存したファイルにはハッシュが必要です
@@ -19,7 +19,7 @@ A confirmed draft must point at the purchase record it created	已确认的草�
 Now sending {0} documents	当前发送{0}单据	กำลังส่งเอกสาร{0}	{0}の書類を送信中
 purchase	采购	จัดซื้อ	仕入
 sales	销售	ขาย	売上
-Unknown direction	未知的方向	ทิศทางไม่ถูกต้อง	不明な区分
+Unknown direction	未知的方向	ไม่ทราบทิศทางของเอกสาร	不明な区分
 Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な買い手
 Product name	物料名称	ชื่อสินค้า	商品名	product.field.name
 Code	编码	รหัส	コード	product.field.code
@@ -41,7 +41,7 @@ New product	新建物料	เพิ่มสินค้า	商品を追加	produ
 Edit	编辑	แก้ไข	編集	product.action.edit
 Save	保存	บันทึก	保存	product.action.save
 Enable / disable	启用 / 停用	เปิด / ปิดใช้งาน	有効 / 無効	product.action.disable
-Not set	未设置	ยังไม่ตั้ง	未設定	product.cell.notSet
+Not set	未设置	ยังไม่ได้ตั้งค่า	未設定	product.cell.notSet
 Saved {0}	已保存 {0}	บันทึก {0} แล้ว	{0} を保存しました	product.notice.saved
 Updated {0}	已更新 {0}	อัปเดต {0} แล้ว	{0} を更新しました	product.notice.toggled
 Enable	启用	เปิดใช้งาน	有効化	product.action.enable
@@ -61,14 +61,14 @@ Excel file	Excel 文件	ไฟล์ Excel	Excel ファイル	product.field.impo
 Imported {0} product(s)	已导入 {0} 个物料	นำเข้า {0} รายการแล้ว	{0}件を取り込みました	product.notice.imported
 Skipped {0} row(s); the first ones are listed above	已跳过 {0} 行，部分明细见上方	ข้าม {0} แถว รายการแรกแสดงด้านบน	{0}行をスキップしました（先頭のみ表示）	product.notice.importSkipped
 Choose a file to import	请选择要导入的文件	กรุณาเลือกไฟล์ที่จะนำเข้า	取り込むファイルを選択してください	product.import.noFile
-That file could not be read; please use the template	无法读取该文件，请使用模板格式	อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ	このファイルは読み取れません。テンプレートをご利用ください	product.import.badFile
+That file could not be read; please use the template	无法读取该文件，请使用模板格式	ไม่สามารถอ่านไฟล์นี้ได้ กรุณาใช้รูปแบบตามแบบฟอร์ม	このファイルは読み取れません。テンプレートをご利用ください	product.import.badFile
 That file has no rows	该文件没有数据行	ไฟล์นี้ไม่มีข้อมูล	このファイルには行がありません	product.import.emptyFile
 That file is not an Excel workbook	该文件不是 Excel 工作簿	ไฟล์นี้ไม่ใช่ Excel	Excel ブックではありません	product.import.notWorkbook
 The sheet needs a product name column	表格中必须包含物料名称列	ต้องมีคอลัมน์ชื่อสินค้า	商品名の列が必要です	product.import.missingName
-The first row must be the column headings; the sheet needs at least a product name column	第一行须为表头，且表格中至少包含物料名称列	แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย	1行目は見出し行です。少なくとも商品名の列が必要です	product.import.hint
+The first row must be the column headings; the sheet needs at least a product name column	第一行须为表头，且表格中至少包含物料名称列	แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์	1行目は見出し行です。少なくとも商品名の列が必要です	product.import.hint
 QR payload	二维码内容	ข้อมูล QR	QR 内容	product.field.qr
 Image URL	图片地址	URL รูปภาพ	画像 URL	product.field.image
-The product code cannot be changed	物料编码不可修改	รหัสสินค้าแก้ไม่ได้	商品コードは変更できません	product.error.codeLocked
+The product code cannot be changed	物料编码不可修改	ไม่สามารถแก้ไขรหัสสินค้าได้	商品コードは変更できません	product.error.codeLocked
 Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	product.field.codeAuto
 Choose file	选择文件	เลือกไฟล์	ファイルを選択	product.import.pick
 The value is not a number	该值不是数字	ค่านี้ไม่ใช่ตัวเลข	数値ではありません	product.import.notNumber
@@ -76,15 +76,15 @@ The value must be zero or more	该值不能小于 0	ค่านี้ต้อ�
 Download template	下载模板	ดาวน์โหลดแบบฟอร์ม	テンプレートをダウンロード	product.import.template
 Scan	扫码	สแกน	スキャン	product.action.scan
 Scan a code	扫码	สแกนโค้ด	コードをスキャン	product.scan.title
-Point the camera at the barcode or QR code	请将条码或二维码对准摄像头	เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์	カメラをバーコード・QR コードに向けてください	product.scan.hint
-This browser cannot scan with the camera; use a scanner or type the code	当前浏览器不支持摄像头扫码，请使用扫码枪或手动输入	เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง	このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください	product.scan.unsupported
+Point the camera at the barcode or QR code	请将条码或二维码对准摄像头	กรุณาเล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์โค้ด	カメラをバーコード・QR コードに向けてください	product.scan.hint
+This browser cannot scan with the camera; use a scanner or type the code	当前浏览器不支持摄像头扫码，请使用扫码枪或手动输入	เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง กรุณาใช้เครื่องสแกนหรือพิมพ์รหัสเอง	このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください	product.scan.unsupported
 Camera permission was refused; allow it and try again	摄像头权限被拒绝，请允许后重试	ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่	カメラの許可が拒否されました。許可してから再試行してください	product.scan.denied
-This device has no camera to scan with	当前设备没有可用的摄像头	อุปกรณ์นี้ไม่มีกล้องให้สแกน	この端末にはスキャンに使えるカメラがありません	product.scan.noCamera
+This device has no camera to scan with	当前设备没有可用的摄像头	อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้	この端末にはスキャンに使えるカメラがありません	product.scan.noCamera
 This code is already taken	该条码已被占用	รหัสนี้ถูกใช้ไปแล้ว	このコードは既に使われています	product.scan.taken
 Already used by {0} (code {1})	已被「{0}」使用（编码 {1}）	ถูกใช้กับ {0} (รหัส {1}) แล้ว	既に「{0}」(コード {1}) で使われています	product.scan.takenBody
 No item matches the scanned code {0}	未找到与扫描编码 {0} 匹配的物料	ไม่พบสินค้าที่ตรงกับรหัส {0}	スキャンしたコード {0} に一致する商品がありません	product.scan.notFound
-Open that product	打开该物料	ไปแก้รายการนั้น	その商品を開く	product.scan.open
-Light	闪光灯	ไฟ	ライト	product.scan.light
+Open that product	打开该物料	เปิดสินค้ารายการนี้	その商品を開く	product.scan.open
+Light	闪光灯	ไฟแฟลช	ライト	product.scan.light
 Scanned	已扫描	สแกนแล้ว	読み取りました	product.scan.done
 Product name	物料名称	ชื่อสินค้า	商品名	stock.col.name
 Code	编码	รหัส	コード	stock.col.code
@@ -99,22 +99,22 @@ Search name or barcode	搜索名称或条码	ค้นหาชื่อหร�
 Reload	刷新	โหลดใหม่	再読み込み	stock.action.reload
 Export	导出	ส่งออก	エクスポート	stock.action.export
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	stock.action.ledger
-Select one row to open its ledger	请仅选择一行以查看流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	stock.action.ledgerSingle
+Select one row to open its ledger	请仅选择一行以查看流水	กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก	明細は1行ずつ開きます	stock.action.ledgerSingle
 Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	stock.field.docNoAuto
-System number	单据编号	เลขที่ระบบ	システム番号	trade.systemNo
+System number	单据编号	เลขที่เอกสาร	システム番号	trade.systemNo
 Only an active count can be deleted	仅可删除进行中的盘点	ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่	進行中の棚卸のみ削除できます	stock.count.deleteBlocked
 In stock	正常	มีสินค้า	在庫あり	stock.status.ok
 Low stock	低库存	สต็อกต่ำ	在庫少	stock.status.low
 Out of stock	缺货	สินค้าหมด	在庫切れ	stock.status.out
-Low (≤{0})	低库存（≤{0}）	ต่ำ (≤{0})	在庫少（≤{0}）	stock.status.lowWith
-Not set	未设置	ยังไม่ตั้ง	未設定	stock.cell.notSet
-SKU {0} · Value {1} · Low {2} · Out {3}	SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}	SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}	SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}	stock.notice.totals
+Low (≤{0})	低库存（≤{0}）	สต็อกต่ำ (≤{0})	在庫少（≤{0}）	stock.status.lowWith
+Not set	未设置	ยังไม่ได้ตั้งค่า	未設定	stock.cell.notSet
+SKU {0} · Value {1} · Low {2} · Out {3}	SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}	SKU {0} · มูลค่า {1} · สต็อกต่ำ {2} · สินค้าหมด {3}	SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}	stock.notice.totals
 Counted quantity	实盘数量	จำนวนที่นับได้	実地数量	stock.count.counted
-Stock is counted in this unit; leave it empty to use the selling unit	库存按此单位计量；留空则与销售单位相同	นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย	在庫はこの単位で数えます。空欄なら販売単位と同じ	product.field.baseUnitHint
+Stock is counted in this unit; leave it empty to use the selling unit	库存按此单位计量；留空则与销售单位相同	ใช้หน่วยนี้ในการนับสต็อก หากเว้นว่างจะใช้หน่วยเดียวกับหน่วยขาย	在庫はこの単位で数えます。空欄なら販売単位と同じ	product.field.baseUnitHint
 Stock count	盘点	ตรวจนับสต็อก	棚卸	nav.stockCount
 Name	名称	ชื่อ	名前	stock.count.name
 New stock count	新建盘点	สร้างการตรวจนับ	棚卸を作成	stock.count.new
-In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.	盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。	ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์	在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。	stock.count.newHint
+In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.	盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。	ตรวจนับในคลัง: สร้างจากยอดคงเหลือปัจจุบัน อัปโหลดไฟล์: ใช้แถวและจำนวนที่นับได้จากไฟล์	在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。	stock.count.newHint
 Notes	备注	หมายเหตุ	備考	stock.count.notes
 Stock count created, {0} rows	盘点已创建，{0} 行	สร้างการตรวจนับแล้ว {0} แถว	棚卸を作成しました（{0} 行）	stock.count.created
 Rows	行数	จำนวนแถว	行数	stock.count.rows
@@ -146,21 +146,21 @@ Entries	记录	รายการ	記録	stock.count.entries
 Entries — {0}	记录 — {0}	รายการ — {0}	記録 — {0}	stock.count.entriesTitle
 Counted by	盘点人	ผู้ตรวจนับ	担当者	stock.count.countedBy
 Counted at	盘点时间	เวลาที่นับ	日時	stock.count.countedAt
-Counted in total	计入合计	นับรวมแล้ว	合計に含む	stock.count.entryLive
+Counted in total	计入合计	รวมในยอดรวมแล้ว	合計に含む	stock.count.entryLive
 Voided, not in the total	已撤销，不计入合计	ยกเลิกแล้ว ไม่รวมในยอด	取消済み（合計に含まない）	stock.count.entryVoided
 Void	撤销	ยกเลิก	取消	stock.count.void
 Voided	已撤销	ยกเลิกแล้ว	取消しました	stock.count.entryVoidedNotice
 Photos	照片	รูปภาพ	写真	stock.count.photos
 Close count	结束盘点	ปิดการตรวจนับ	棚卸を終了	stock.count.close
-Closing locks every entry. Rows never counted stay empty. Continue?	结束后所有记录将被锁定，未盘点的行保持为空。确定要继续吗？	เมื่อปิดแล้วรายการจะถูกล็อก แถวที่ยังไม่นับจะว่างไว้ ดำเนินการต่อ?	終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？	stock.count.closeConfirm
+Closing locks every entry. Rows never counted stay empty. Continue?	结束后所有记录将被锁定，未盘点的行保持为空。确定要继续吗？	เมื่อปิดแล้ว ทุกรายการจะถูกล็อก แถวที่ยังไม่นับจะเว้นว่างไว้ ต้องการดำเนินการต่อใช่หรือไม่	終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？	stock.count.closeConfirm
 Count closed	盘点已结束	ปิดการตรวจนับแล้ว	棚卸を終了しました	stock.count.closed
 Post differences	过账差异	ลงบัญชีผลต่าง	差異を転記	stock.count.post
-Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?	过账后结存将调整为实盘数量并生成库存流水，未盘点的行不受影响。确定要继续吗？	การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?	転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？	stock.count.postConfirm
-Posted {0} differences	已过账 {0} 处差异	ลงบัญชีผลต่าง {0} รายการ	差異 {0} 件を転記しました	stock.count.posted
+Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?	过账后结存将调整为实盘数量并生成库存流水，未盘点的行不受影响。确定要继续吗？	การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหวสต็อก แถวที่ยังไม่นับจะไม่ได้รับผลกระทบ ต้องการดำเนินการต่อใช่หรือไม่	転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？	stock.count.postConfirm
+Posted {0} differences	已过账 {0} 处差异	ลงบัญชีผลต่าง {0} รายการแล้ว	差異 {0} 件を転記しました	stock.count.posted
 {0} · counted {1} / {2} · differences {3}	{0} · 已盘点 {1} / {2} · 差异 {3}	{0} · นับแล้ว {1} / {2} · ผลต่าง {3}	{0} · 棚卸済み {1} / {2} · 差異 {3}	stock.count.headline
 Stock count	盘点	ตรวจนับสต็อก	棚卸	stock.mobile.title
 Select a stock count	选择盘点	เลือกการตรวจนับ	棚卸を選択	stock.mobile.pickTask
-No stock count in progress	无进行中的盘点	ไม่มีการตรวจนับที่เปิดอยู่	進行中の棚卸はありません	stock.mobile.noTask
+No stock count in progress	无进行中的盘点	ไม่มีการตรวจนับที่กำลังดำเนินการ	進行中の棚卸はありません	stock.mobile.noTask
 Open	打开	เปิด	開く	stock.mobile.open
 Scan	扫码	สแกน	スキャン	stock.mobile.scan
 Code or barcode	编码或条码	รหัสหรือบาร์โค้ด	コード・バーコード	stock.mobile.codePlaceholder
@@ -168,9 +168,9 @@ Find	查询	ค้นหา	検索	stock.mobile.find
 Save	保存	บันทึก	保存	stock.mobile.save
 Saved	已保存	บันทึกแล้ว	保存しました	stock.mobile.saved
 No product matches that code	未找到该编码对应的物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.mobile.notFound
-This browser cannot scan with the camera	当前浏览器不支持摄像头扫码	เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้	このブラウザーはカメラでスキャンできません	stock.mobile.noCamera
+This browser cannot scan with the camera	当前浏览器不支持摄像头扫码	เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง	このブラウザーはカメラでスキャンできません	stock.mobile.noCamera
 Close camera	关闭相机	ปิดกล้อง	カメラを閉じる	stock.mobile.cameraOff
-This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.	该 LINE 账号尚未绑定员工账号。请从 LINE 中打开，或先在网页登录。	บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน	この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。	stock.mobile.notBound
+This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.	该 LINE 账号尚未绑定员工账号。请从 LINE 中打开，或先在网页登录。	บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน	この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。	stock.mobile.notBound
 Stock count template	盘点表模板	เทมเพลตตรวจนับ	棚卸テンプレート	stock.count.template
 Count by	盘点方式	วิธีตรวจนับ	棚卸方法	stock.count.mode
 In-stock	盘点在库	ตรวจนับในคลัง	在庫棚卸	stock.count.modeStock
@@ -182,7 +182,7 @@ Rows are matched by product code, then barcode. Rows already imported are replac
 Choose the sheet to import	请先选择要导入的表格	กรุณาเลือกไฟล์ที่ต้องการนำเข้า	取り込むシートを選択してください	stock.count.importMissing
 Import result	导入结果	ผลการนำเข้า	取り込み結果	stock.count.importTitle
 {0} rows were not imported	{0} 行未导入	นำเข้าไม่ได้ {0} แถว	{0} 行は取り込めませんでした	stock.count.importSkipped
-Imported {0} rows, {1} with a counted quantity	已导入 {0} 行，其中 {1} 行带实盘数量	นำเข้าแล้ว {0} แถว ในนั้น {1} แถวมีจำนวนที่นับได้	{0} 行を取り込みました（うち {1} 行に実地数量）	stock.count.imported
+Imported {0} rows, {1} with a counted quantity	已导入 {0} 行，其中 {1} 行带实盘数量	นำเข้าแล้ว {0} แถว โดยมี {1} แถวที่มีจำนวนที่นับได้	{0} 行を取り込みました（うち {1} 行に実地数量）	stock.count.imported
 No product matches that code	未找到该编码对应的物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.count.problemCode
 The row has no product code or barcode	该行缺少物料编码或条码	แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด	この行に商品コードもバーコードもありません	stock.count.problemIdentifier
 No warehouse matches that name	该仓库名不存在	ไม่พบคลังสินค้าชื่อนี้	その倉庫名は存在しません	stock.count.problemWarehouse
@@ -190,18 +190,18 @@ The quantity is not a valid number	数量不是有效数字	จำนวนไ�
 Book {0} · counted {1} · difference {2}	账面 {0} · 实盘 {1} · 差异 {2}	ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}	帳簿 {0} · 実地 {1} · 差異 {2}	stock.count.chartTotals
 Nothing counted yet	暂无盘点记录	ยังไม่มีการนับ	まだ棚卸記録がありません	stock.count.chartEmpty
 Delete selected ({0})	删除所选（{0}）	ลบที่เลือก ({0})	選択を削除（{0}）	stock.count.deleteSelected
-Delete {0} stock counts? Posted ones cannot be deleted.	确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。	ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้	選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。	stock.count.deleteConfirm
+Delete {0} stock counts? Posted ones cannot be deleted.	确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。	ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้	選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。	stock.count.deleteConfirm
 Deleted {0} stock counts	已删除 {0} 份盘点	ลบการตรวจนับแล้ว {0} รายการ	棚卸を {0} 件削除しました	stock.count.deleted
 Difference value	差异金额	มูลค่าผลต่าง	差異金額	stock.count.differenceValue
 Show only	仅显示	แสดงเฉพาะ	表示のみ	stock.board.only
 Chart by	统计维度	แผนภูมิแบ่งตาม	グラフの軸	stock.board.by
 Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
 Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.board.title
-Void this count of {0}?	确定要撤销 {0} 的这条盘点记录吗？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
-ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード
+Void this count of {0}?	确定要撤销 {0} 的这条盘点记录吗？	ต้องการยกเลิกรายการนับของ {0} นี้ใช่หรือไม่	この {0} の記録を取り消しますか？	stock.count.voidConfirm
+ERP Stock Count Variance	盘点差异看板	แดชบอร์ดผลต่างการตรวจนับ	棚卸差異ボード
 Items	物料	รายการสินค้า	商品	trade.lines
 Product	物料	สินค้า	商品	trade.product
-Warehouse	仓库	คลัง	倉庫	trade.warehouse
+Warehouse	仓库	คลังสินค้า	倉庫	trade.warehouse
 Location	仓位	ตำแหน่ง	保管場所	trade.location
 Quantity	数量	จำนวน	数量	trade.qty
 Unit Cost	单位成本	ต้นทุนต่อหน่วย	単位原価	trade.cost
@@ -211,11 +211,11 @@ Unit	单位	หน่วย	単位	trade.unit
 Discount	折扣金额	ส่วนลด	割引額	trade.discount
 Add Discount	添加折扣	เพิ่มส่วนลด	割引を追加	trade.addDiscount
 Customer	客户	ลูกค้า	顧客	trade.customer
-Search by customer name or phone	通过客户名称、电话进行搜索	ค้นหาด้วยชื่อลูกค้าหรือโทรศัพท์	顧客名か電話で検索	trade.customerHint
+Search by customer name or phone	通过客户名称、电话进行搜索	ค้นหาด้วยชื่อลูกค้าหรือเบอร์โทรศัพท์	顧客名か電話で検索	trade.customerHint
 Enter discount percentage	输入折扣百分比	กรอกเปอร์เซ็นต์ส่วนลด	割引率を入力	trade.discountPercentHint
 Discount percentage	折扣百分比	เปอร์เซ็นต์ส่วนลด	割引率	trade.discountPercent
 Additional	附加项	เพิ่มเติม	追加	trade.discountAdditional
-discount applied	已应用折扣	ส่วนลดที่ใช้	割引を適用しました	trade.discountApplied
+discount applied	已应用折扣	ใช้ส่วนลดแล้ว	割引を適用しました	trade.discountApplied
 Invalid Discount	无效折扣	ส่วนลดไม่ถูกต้อง	割引が無効です	trade.discountInvalid
 Discount cannot be greater than 100%.	折扣率不能超过 100%。	ส่วนลดต้องไม่เกิน 100%	割引率は100%を超えられません	trade.discountOver100
 VAT Rate	增值税率	อัตรา VAT	付加価値税率	trade.vat
@@ -228,38 +228,38 @@ Not Posted	未记入库存	ยังไม่บันทึกสต็อก	�
 Submit and Receive Stock	提交并入库	ยืนยันและรับเข้าสต็อก	確定して入庫	trade.submitReceive
 Submit	提交过账	ยืนยัน	確定	trade.submit
 Void	作废	ยกเลิก	取消	trade.void
-Void this document and reverse its stock movements?	确定要作废此单据并冲销对应库存变动吗？	ยกเลิกเอกสารและย้อนรายการสต็อกหรือไม่?	この伝票を取り消して在庫移動を戻しますか？	trade.voidConfirm
+Void this document and reverse its stock movements?	确定要作废此单据并冲销对应库存变动吗？	ต้องการยกเลิกเอกสารนี้และกลับรายการสต็อกที่เกี่ยวข้องใช่หรือไม่	この伝票を取り消して在庫移動を戻しますか？	trade.voidConfirm
 Void {0} selected	作废选中的 {0} 张	ยกเลิก {0} รายการที่เลือก	選択した{0}件を取り消す	trade.action.voidCount
-Void {0} document(s) and reverse their stock movements?	确定要作废选中的 {0} 张单据并冲销对应库存变动吗？	ยกเลิก {0} เอกสารและย้อนรายการสต็อกหรือไม่?	選択した{0}件の伝票を取り消して在庫移動を戻しますか？	trade.voidConfirmCount
+Void {0} document(s) and reverse their stock movements?	确定要作废选中的 {0} 张单据并冲销对应库存变动吗？	ต้องการยกเลิกเอกสาร {0} รายการที่เลือกและกลับรายการสต็อกที่เกี่ยวข้องใช่หรือไม่	選択した{0}件の伝票を取り消して在庫移動を戻しますか？	trade.voidConfirmCount
 Voided {0}	已作废 {0} 张	ยกเลิก {0} รายการแล้ว	{0}件を取り消しました	trade.voidNotice
 Only a submitted document can be voided	仅可作废已提交的单据	ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว	確定済みの伝票のみ取消できます	trade.voidBlocked
-Void the payments before voiding the document	请先冲销付款，再作废此单据	ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร	先に入金を取り消してから伝票を取り消してください	trade.voidPaid
+Void the payments before voiding the document	请先冲销付款，再作废此单据	กรุณายกเลิกการชำระเงินก่อน แล้วจึงยกเลิกเอกสารนี้	先に入金を取り消してから伝票を取り消してください	trade.voidPaid
 Export {0}	导出选中的 {0} 个班次	ส่งออก {0} กะ	{0}件をエクスポート	trade.action.exportCount
 Exported {0} shifts	已导出 {0} 个班次	ส่งออก {0} กะแล้ว	{0}件のシフトを出力しました	trade.exportNotice
 Cancel {0}	取消选中的 {0} 条	ยกเลิก {0} รายการ	{0}件をキャンセル
 Cancelled {0}	已取消 {0} 条	ยกเลิก {0} รายการแล้ว	{0}件をキャンセルしました
-All Items	所有物料	รายการทั้งหมด	すべての商品	trade.allItems
+All Items	所有物料	สินค้าทั้งหมด	すべての商品	trade.allItems
 Item Details	物料详细信息	รายละเอียดสินค้า	商品の詳細	trade.itemDetails
 Quantity Available	可用数量	จำนวนคงเหลือ	在庫数	trade.actualQty
-List Price	标价	ราคาป้าย	表示価格	trade.listPrice
+List Price	标价	ราคาตั้ง	表示価格	trade.listPrice
 Opening Amount	期初金额	ยอดยกมา	開始金額	trade.openingAmount
 Expected Amount	预期金额	ยอดที่ควรมี	あるべき金額	trade.expectedAmount
 Counted Amount	清点金额	ยอดนับได้	実地金額	trade.countedAmount
 Complete Order	完成订单	ปิดการขาย	会計を確定	trade.completeOrder
 Remaining Amount	剩余金额	ยอดคงเหลือ	残り金額	trade.remaining
-Recent Orders	最近订单	ออเดอร์ล่าสุด	最近の会計	trade.recentOrders
-Hide Recent Orders	隐藏最近订单	ซ่อนออเดอร์ล่าสุด	最近の会計を隠す	trade.hideRecentOrders
+Recent Orders	最近订单	คำสั่งซื้อล่าสุด	最近の会計	trade.recentOrders
+Hide Recent Orders	隐藏最近订单	ซ่อนคำสั่งซื้อล่าสุด	最近の会計を隠す	trade.hideRecentOrders
 Receipt Status	小票状态	สถานะใบเสร็จ	レシート状態	trade.invoiceStatus
 Search by receipt number	按小票编号搜索	ค้นหาด้วยเลขที่ใบเสร็จ	レシート番号で検索	trade.searchOrders
 Select a receipt to load its summary	选择小票以加载汇总	เลือกใบเสร็จเพื่อดูสรุป	レシートを選ぶと集計を表示	trade.selectOrderHint
 Items not found.	未找到物料	ไม่พบสินค้า	商品が見つかりません	trade.itemsNotFound
-Pick quantity, discount or price first	请先选择数量、折扣或单价	เลือกจำนวน ส่วนลด หรือราคาก่อน	先に数量・割引・単価を選んでください	trade.pickPadTarget
+Pick quantity, discount or price first	请先选择数量、折扣或单价	กรุณาเลือกจำนวน ส่วนลด หรือราคาก่อน	先に数量・割引・単価を選んでください	trade.pickPadTarget
 The amount received is less than the total	实收金额小于应收金额	รับเงินน้อยกว่ายอดที่ต้องชำระ	受取額が合計に足りません	trade.underpaid
 Enter {0} amount	输入{0}金额	กรอกจำนวนเงิน {0}	{0}の金額を入力	trade.enterAmount
-Payment Reconciliation	支付方式对账	กระทบยอดวิธีชำระ	支払方法の照合	trade.balances
+Payment Reconciliation	支付方式对账	กระทบยอดวิธีชำระเงิน	支払方法の照合	trade.balances
 Edit Cart	返回购物车	กลับไปที่ตะกร้า	カートに戻る	trade.editCart
 Source File	来源文件	ไฟล์ต้นทาง	元ファイル
-File Fingerprint	文件指纹	ลายนิ้วมือไฟล์	ファイル指紋
+File Fingerprint	文件指纹	ค่าแฮชของไฟล์	ファイル指紋
 Cancelled At	作废时间	เวลายกเลิก	取消日時
 No	序号	ลำดับ	番号
 Discount (%)	折扣率（%）	ส่วนลด (%)	割引率 (%)
@@ -268,10 +268,10 @@ Original Line	原单明细行	บรรทัดเดิม	元の明細行
 Email	邮箱	อีเมล	メール	team.email
 Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード	team.password
 Job Roles	功能权限	สิทธิ์การใช้งาน	機能権限	team.roles
-Only the checked features are visible to this user	该用户仅可查看已勾选的功能	ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก	チェックした機能だけがこのユーザーに表示されます	team.rolesHint
-Last Login	最后登录	เข้าใช้ล่าสุด	最終ログイン	team.lastLogin
+Only the checked features are visible to this user	该用户仅可查看已勾选的功能	ผู้ใช้นี้จะเห็นเฉพาะฟังก์ชันที่เลือกไว้	チェックした機能だけがこのユーザーに表示されます	team.rolesHint
+Last Login	最后登录	เข้าสู่ระบบล่าสุด	最終ログイン	team.lastLogin
 Companies	公司	บริษัท	会社	team.companies
-Leave all unchecked to allow every company	不勾选则可查看全部公司	ไม่ติ๊กเลย = ไม่จำกัด เห็นทุกบริษัท	未チェックの場合は全社を許可します	team.companiesHint
+Leave all unchecked to allow every company	不勾选则可查看全部公司	หากไม่เลือก จะเห็นได้ทุกบริษัท	未チェックの場合は全社を許可します	team.companiesHint
 All companies	全部公司	ทุกบริษัท	全社	team.allCompanies
 Status	状态	สถานะ	状態	team.status
 Active	正常	ปกติ	正常	team.active
@@ -282,35 +282,35 @@ Enable	启用	เปิดใช้งาน	有効化	team.enable
 Disable	停用	ปิดใช้งาน	無効化	team.disable
 Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	team.action.bulkEnable
 Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	team.action.bulkDisable
-Added {0}	已添加 {0}	เพิ่มแล้ว {0}	{0}を追加しました	team.notice.added
+Added {0}	已添加 {0}	เพิ่ม {0} แล้ว	{0}を追加しました	team.notice.added
 Saved	已保存	บันทึกแล้ว	保存しました	team.notice.saved
 Password updated	密码已更新	อัปเดตรหัสผ่านแล้ว	パスワードを更新しました	team.notice.password
-Updated {0} user(s)	已更新 {0} 位用户	อัปเดตผู้ใช้ {0} คน	ユーザー{0}件を更新しました	team.notice.toggled
+Updated {0} user(s)	已更新 {0} 位用户	อัปเดตผู้ใช้ {0} คนแล้ว	ユーザー{0}件を更新しました	team.notice.toggled
 Products	物料	สินค้า	商品	team.role.products
 Stock	库存	สต็อก	在庫	team.role.stock
 Purchasing	采购	จัดซื้อ	購買	team.role.purchase
 Sales	销售	ขาย	販売	team.role.sales
-Cashier	收银	เก็บเงิน	レジ	team.role.cashier
+Cashier	收银	แคชเชียร์	レジ	team.role.cashier
 Enter the user name	请填写用户名	กรุณากรอกชื่อผู้ใช้	ユーザー名を入力してください
 Enter a valid email	请填写正确的邮箱	กรุณากรอกอีเมลให้ถูกต้อง	正しいメールアドレスを入力してください
 Already exists	已存在	มีอยู่แล้ว	すでに存在します
-Choose at least one job role	请至少勾选一个功能权限	เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง	機能権限を1つ以上選んでください
+Choose at least one job role	请至少勾选一个功能权限	กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ	機能権限を1つ以上選んでください
 The password must be at least {0} characters	密码至少 {0} 位	รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร	パスワードは{0}文字以上にしてください
-Select one receipt to refund	每次只能对一张小票退款	เลือกได้ครั้งละหนึ่งใบเสร็จ	返品できるレシートは1件ずつです	trade.refundSingle
-Only a completed sale receipt can be refunded	仅可对已完成的小票退货退款	คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
+Select one receipt to refund	每次只能对一张小票退款	คืนเงินได้ครั้งละหนึ่งใบเสร็จเท่านั้น	返品できるレシートは1件ずつです	trade.refundSingle
+Only a completed sale receipt can be refunded	仅可对已完成的小票退货退款	คืนสินค้าและคืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	trade.action.ledger
 Add row	添加明细	เพิ่มรายการ	明細を追加	trade.action.addLine
-Select one row to open its ledger	请仅选择一行以查看流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	trade.action.ledgerSingle
+Select one row to open its ledger	请仅选择一行以查看流水	กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก	明細は1行ずつ開きます	trade.action.ledgerSingle
 Save Draft	保存草稿	บันทึกฉบับร่าง	下書きを保存	trade.save
 Close	关闭	ปิด	閉じる	trade.close
 Date	日期	วันที่	日付	trade.date
 Document Number	单据编号	เลขที่เอกสาร	伝票番号	trade.docNo
 Reference	关联单据	เอกสารอ้างอิง	参照伝票	trade.reference
 Status	状态	สถานะ	状態	trade.status
-New Stock Receipt	新建入库单	รับสินค้าเข้า	入庫伝票を作成	trade.newIn
-New Stock Issue	新建出库单	จ่ายสินค้าออก	出庫伝票を作成	trade.newOut
-Opening Quantity	期初数量	ยอดยกมา	期首数量	trade.opening
-Closing Quantity	期末数量	ยอดคงเหลือ	期末数量	trade.closing
+New Stock Receipt	新建入库单	สร้างใบรับสินค้า	入庫伝票を作成	trade.newIn
+New Stock Issue	新建出库单	สร้างใบจ่ายสินค้า	出庫伝票を作成	trade.newOut
+Opening Quantity	期初数量	จำนวนยกมา	期首数量	trade.opening
+Closing Quantity	期末数量	จำนวนคงเหลือ	期末数量	trade.closing
 Received	入库数量	รับเข้า	入庫数量	trade.in
 Issued	出库数量	จ่ายออก	出庫数量	trade.out
 From Date	开始日期	ตั้งแต่วันที่	開始日	trade.from
@@ -322,11 +322,11 @@ Tax ID	税号	เลขประจำตัวผู้เสียภาษี
 Address	地址	ที่อยู่	住所	trade.address
 Branch Type	分支机构类型	ประเภทสาขา	支店種類	trade.branchType
 Branch Number	分支机构编号	เลขที่สาขา	支店番号	trade.branchNo
-Payment Status	付款状态	สถานะชำระเงิน	支払状態	trade.paymentState
+Payment Status	付款状态	สถานะการชำระเงิน	支払状態	trade.paymentState
 Payment Method	付款方式	วิธีชำระเงิน	支払方法	trade.method
 Payment Date	付款日期	วันที่ชำระเงิน	支払日	trade.paymentDate
 New Sales Document	新建销售单	สร้างเอกสารขาย	販売伝票を作成	trade.newSale
-Total	总计	ยอดชำระ	請求額	trade.total
+Total	总计	ยอดรวม	請求額	trade.total
 Shift {0} · Expected cash {1}	班次 {0} · 应有现金 {1}	กะ {0} · เงินสดที่ควรมี {1}	シフト {0} · 現金予定額 {1}	trade.shiftOpen
 No Open Shift	尚未开班	ยังไม่เปิดกะ	未開店	trade.noShift
 Checkout	结账	ชำระเงิน	会計	trade.checkout
@@ -336,15 +336,15 @@ Opening Cash	备用现金	เงินสดเริ่มต้น	釣銭準�
 Paid Amount	付款金额	รับชำระ	受取額	trade.paid
 Complete Payment	完成收款	รับชำระเงิน	支払完了	trade.pay
 Receipt {0} · Change {1}	小票 {0} · 找零 {1}	ใบเสร็จ {0} · เงินทอน {1}	レシート {0} · お釣り {1}	trade.paidNotice
-Refund	退货退款	คืนสินค้า	返品・返金	trade.refund
+Refund	退货退款	คืนสินค้า/คืนเงิน	返品・返金	trade.refund
 Original Item and Location	原单物料与仓位	สินค้าและตำแหน่งในบิลเดิม	元伝票の商品と保管場所	trade.originalLine
 Refund Amount	退款金额	ยอดคืนเงิน	返金額	trade.refundAmount
 Close Shift	交班	ปิดกะ	シフト終了	trade.closeShift
 Counted Cash	实点现金	เงินสดที่นับได้	実際の現金	trade.countedCash
 Default Location	默认仓位	ตำแหน่งเริ่มต้น	既定の保管場所	product.field.defaultLocation
 Used for new documents only. Each location keeps its own stock.	仅作为新单据的默认值，各仓位库存单独计算。	ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก	新しい伝票の初期値です。各保管場所の在庫は個別に管理します。	product.field.locationHint
-Select the original sale line	请选择原单中的物料行	เลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
-Select a product for each stock item	请为每条货物明细选择物料	เลือกสินค้าสำหรับแต่ละรายการ	各在庫明細の商品を選択してください
+Select the original sale line	请选择原单中的物料行	กรุณาเลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
+Select a product for each stock item	请为每条货物明细选择物料	กรุณาเลือกสินค้าสำหรับแต่ละรายการ	各在庫明細の商品を選択してください
 draft	草稿	ฉบับร่าง	下書き
 submitted	已提交	ยืนยันแล้ว	確定済み
 void	已作废	ยกเลิกแล้ว	取消済み
@@ -352,8 +352,8 @@ completed	已完成	เสร็จสิ้น	完了
 goods	货物	สินค้า	物品
 service	服务	บริการ	サービス
 quotation	报价单	ใบเสนอราคา	見積書
-tax_invoice	完整税务发票	ใบกำกับภาษีเต็มรูป	税務請求書
-receipt	收据	ใบเสร็จ	領収書
+tax_invoice	完整税务发票	ใบกำกับภาษีเต็มรูปแบบ	税務請求書
+receipt	收据	ใบเสร็จรับเงิน	領収書
 person	个人	บุคคล	個人
 company	公司	บริษัท	会社
 hq	总部	สำนักงานใหญ่	本店
@@ -367,8 +367,8 @@ transfer	转账	โอนเงิน	振込
 sale	销售	ขาย	販売
 refund	退货	คืนสินค้า	返品
 opening	期初	ยอดยกมา	期首
-purchase_in	采购入库	รับจากการซื้อ	仕入入庫
-sale_out	销售出库	จ่ายจากการขาย	販売出庫
+purchase_in	采购入库	รับเข้าจากการซื้อ	仕入入庫
+sale_out	销售出库	จ่ายออกจากการขาย	販売出庫
 stock_in	入库	รับเข้า	入庫
 stock_out	出库	จ่ายออก	出庫
 adjust	调整	ปรับปรุง	調整
@@ -376,7 +376,7 @@ count	盘点	ตรวจนับ	棚卸
 Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.workbench.title
 Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	stock.workbench.continuous
 Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
-Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际仓位和数量，保存后进入下一项。	สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
+Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际仓位和数量，保存后进入下一项。	สแกน แล้วระบุตำแหน่งจริงและจำนวน จากนั้นบันทึกเพื่อไปยังรายการถัดไป	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
 Find product	查找物料	ค้นหาสินค้า	商品を検索	stock.workbench.find
 This item is also stocked at:	该物料还存放于：	สินค้านี้มีอยู่ที่อื่นด้วย:	この商品は他の場所にも在庫があります:	stock.workbench.elsewhere
 Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	stock.workbench.camera
@@ -389,48 +389,48 @@ Correct entry	修改记录	แก้ไขรายการ	記録を修正	sto
 Record a count	录入盘点	บันทึกการตรวจนับ	棚卸を入力	stock.workbench.record
 Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	stock.workbench.saveNext
 Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	stock.workbench.review
-Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
-Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。	เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	stock.workbench.cameraFailed
-Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว สแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
+Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
+Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	stock.workbench.cameraFailed
+Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว กรุณาสแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
 Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	stock.workbench.locationDiff
 Quantity differences	数量差异	ผลต่างจำนวน	数量差異	stock.workbench.quantityDiff
-Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。	สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
-Stock changed; recount	库存已变动，需重新盘点	สต็อกเปลี่ยน ต้องนับใหม่	在庫変動・再棚卸	stock.workbench.needsRecount
-Recount this product	重新盘点该物料	นับสินค้านี้ใหม่	この商品を再棚卸	stock.workbench.recount
-Void all current observations for this product and recount it? Previous records remain in the history.	确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。	ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	stock.workbench.recountConfirm
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.	确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点的 {1} 项保持不变。结束后任务仅可查看和导出。	จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว	差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。	stock.workbench.finishConfirm
-Use the stock count workbench	请通过盘点工作台操作	โปรดใช้หน้าปฏิบัติงานตรวจนับ	棚卸作業台から操作してください
-The stock count changed. Review the differences again.	盘点数据已变化，请重新查看并确认差异。	ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง	棚卸内容が変更されました。差異を再確認してください。
-Stock changed during counting. Recount the affected products.	盘点期间库存已变化，请重新盘点受影响的物料。	สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่	棚卸中に在庫が変動しました。対象商品を再棚卸してください。
-Count at least one item before finishing	请至少盘点一项后再结束	โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ	終了する前に少なくとも1件を棚卸してください
-Edit in Full Page	在完整页面编辑	แก้ไขแบบเต็มหน้า	全画面で編集	product.action.fullPage
+Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。	สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
+Stock changed; recount	库存已变动，需重新盘点	สต็อกเปลี่ยนแปลงแล้ว ต้องตรวจนับใหม่	在庫変動・再棚卸	stock.workbench.needsRecount
+Recount this product	重新盘点该物料	ตรวจนับสินค้านี้ใหม่	この商品を再棚卸	stock.workbench.recount
+Void all current observations for this product and recount it? Previous records remain in the history.	确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。	ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	stock.workbench.recountConfirm
+Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.	确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点的 {1} 项保持不变。结束后任务仅可查看和导出。	ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ ตรวจนับแล้ว {0} รายการ ส่วน {1} รายการที่ยังไม่ได้ตรวจนับจะไม่เปลี่ยนแปลง หลังสิ้นสุดแล้วจะดูและส่งออกงานนี้ได้เท่านั้น	差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。	stock.workbench.finishConfirm
+Use the stock count workbench	请通过盘点工作台操作	กรุณาใช้หน้าปฏิบัติงานตรวจนับ	棚卸作業台から操作してください
+The stock count changed. Review the differences again.	盘点数据已变化，请重新查看并确认差异。	ข้อมูลตรวจนับเปลี่ยนแปลงแล้ว กรุณาตรวจสอบผลต่างอีกครั้ง	棚卸内容が変更されました。差異を再確認してください。
+Stock changed during counting. Recount the affected products.	盘点期间库存已变化，请重新盘点受影响的物料。	สต็อกเปลี่ยนแปลงระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ได้รับผลกระทบใหม่	棚卸中に在庫が変動しました。対象商品を再棚卸してください。
+Count at least one item before finishing	请至少盘点一项后再结束	กรุณาตรวจนับอย่างน้อยหนึ่งรายการก่อนสิ้นสุดการตรวจนับ	終了する前に少なくとも1件を棚卸してください
+Edit in Full Page	在完整页面编辑	แก้ไขในหน้าเต็ม	全画面で編集	product.action.fullPage
 Products	物料行	รายการสินค้า	商品行	product.new.lines
-Fill in as many rows as you need; leave the code empty and the system assigns one	可填写多行；编码留空时由系统自动生成	กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้	複数行をまとめて入力できます。コードは空欄なら自動採番されます。	product.new.hint
+Fill in as many rows as you need; leave the code empty and the system assigns one	可填写多行；编码留空时由系统自动生成	กรอกได้หลายแถว หากเว้นว่างรหัส ระบบจะสร้างรหัสให้อัตโนมัติ	複数行をまとめて入力できます。コードは空欄なら自動採番されます。	product.new.hint
 Created {0} product(s)	已新建 {0} 个物料	สร้างสินค้า {0} รายการแล้ว	{0}件の商品を作成しました	product.notice.savedCount
 There is nothing to save	没有需要保存的内容	ไม่มีข้อมูลที่จะบันทึก	保存する行がありません	product.notice.nothingToSave
-Created {0}; {1} row(s) were not saved — fix them and save again	已新建 {0} 个物料，{1} 行保存失败，请修正后重新保存	สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง	{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください	product.notice.partial
-Edit in Full Page	在完整页面编辑	แก้ไขแบบเต็มหน้า	全画面で編集	trade.action.fullPage
+Created {0}; {1} row(s) were not saved — fix them and save again	已新建 {0} 个物料，{1} 行保存失败，请修正后重新保存	สร้างสินค้าแล้ว {0} รายการ บันทึกไม่สำเร็จ {1} แถว กรุณาแก้ไขแล้วบันทึกอีกครั้ง	{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください	product.notice.partial
+Edit in Full Page	在完整页面编辑	แก้ไขในหน้าเต็ม	全画面で編集	trade.action.fullPage
 Submit	提交	ยืนยัน	確定	trade.action.submit
 Submitted {0}	已提交 {0}	ยืนยันแล้ว {0}	{0} を提出しました	trade.notice.submitted
 Submit	提交	ยืนยัน	確定	product.action.submit
-Codes start at {0}	编码从 {0} 开始	เริ่มที่ {0}	{0} から採番します	product.new.hintCode
+Codes start at {0}	编码从 {0} 开始	รหัสเริ่มที่ {0}	{0} から採番します	product.new.hintCode
 In	入库	รับเข้า	入库	trade.groupIn
 Out	出库	จ่ายออก	出庫	trade.groupOut
 Balance	结存	คงเหลือ	残高	trade.groupBalance
 Amount	金额	จำนวนเงิน	金額	trade.amount
-Opening	期初	ยกมา	期首	trade.rowOpening
+Opening	期初	ยอดยกมา	期首	trade.rowOpening
 Total · {0} row(s)	合计 · {0} 条明细	รวม · {0} รายการ	合計 · {0} 明細	trade.totalRows
 Document	单据	เอกสาร	伝票	trade.groupDoc
 Start counting	开始盘点	เริ่มตรวจนับ	棚卸を開始	stock.count.start
 Photos	照片	รูปภาพ	写真	stock.workbench.photos
-Up to 5 photos per entry; take a photo or choose from the gallery.	每条记录最多 5 张照片，可以拍照或从相册选择。	บันทึกได้ไม่เกิน 5 รูปต่อรายการ ถ่ายรูปหรือเลือกจากอัลบั้มก็ได้	1記録につき写真は5枚まで。撮影またはアルバムから選択できます。	stock.workbench.photoHint
+Up to 5 photos per entry; take a photo or choose from the gallery.	每条记录最多 5 张照片，可以拍照或从相册选择。	บันทึกได้ไม่เกิน 5 รูปต่อรายการ โดยถ่ายรูปหรือเลือกจากอัลบั้ม	1記録につき写真は5枚まで。撮影またはアルバムから選択できます。	stock.workbench.photoHint
 Add photos	添加照片	เพิ่มรูปภาพ	写真を追加	stock.workbench.addPhoto
-Remove	移除	ลบ	削除	stock.workbench.removePhoto
+Remove	移除	นำออก	削除	stock.workbench.removePhoto
 At most 5 photos per entry	每条记录最多 5 张照片	บันทึกได้ไม่เกิน 5 รูปต่อรายการ	1記録につき写真は5枚までです	stock.workbench.photoLimit
 Finish	完成	เสร็จสิ้น	完了	stock.workbench.done
 Product / position / counted by / time	物料 / 仓位 / 盘点人 / 时间	สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา	商品・位置・担当者・日時	stock.count.photoInfo
-Back to summary	返回汇总	กลับไปสรุป	集計へ戻る	stock.count.linkSummary
-Back to entries	返回记录	กลับไปรายการ	記録へ戻る	stock.count.linkEntries
+Back to summary	返回汇总	กลับไปหน้าสรุป	集計へ戻る	stock.count.linkSummary
+Back to entries	返回记录	กลับไปหน้ารายการ	記録へ戻る	stock.count.linkEntries
 Abbreviated Tax Invoice	简式税务发票	ใบกำกับภาษีอย่างย่อ	簡易税務請求書
 Additional Information	附加信息	ข้อมูลเพิ่มเติม	追加情報
 Address	地址	ที่อยู่	住所
@@ -441,12 +441,12 @@ Amended	已修订	แก้ไขแล้ว	修正済み
 Amended From	修订自	แก้ไขจาก	修正元
 Amount	金额	จำนวนเงิน	金額
 Amount Payable	应付金额	ยอดที่ต้องชำระ	支払金額
-Apply	应用	สมัคร	適用
+Apply	应用	ใช้	適用
 Approval Status	审批状态	สถานะการอนุมัติ	承認状況
-Are you sure you want to delete the attachment?	确定要删除该附件吗？	คุณแน่ใจหรือไม่ว่าคุณต้องการลบไฟล์แนบ?	添付ファイルを削除しますか？
-Are you sure you want to delete?	确定要删除吗？	ยืนยันการลบหรือไม่	削除しますか？
+Are you sure you want to delete the attachment?	确定要删除该附件吗？	ต้องการลบไฟล์แนบนี้ใช่หรือไม่	添付ファイルを削除しますか？
+Are you sure you want to delete?	确定要删除吗？	ต้องการลบใช่หรือไม่	削除しますか？
 Attach	添加文件	แนบ	添付
-Attachment	附件	เอกสารแนบ	添付ファイル
+Attachment	附件	ไฟล์แนบ	添付ファイル
 Attachment Type	附件类型	ประเภทไฟล์แนบ	添付ファイルの種類
 Attachments	附件	ไฟล์แนบ	添付ファイル
 Bank	银行	ธนาคาร	銀行
@@ -460,7 +460,7 @@ Branch No is required	分支机构编号不能为空	กรุณาระบุ
 Branch Type	分支机构类型	ประเภทสาขา	支店区分
 Cancel	取消	ยกเลิก	キャンセル
 Cancellation	取消	การยกเลิก	取消
-Cancelled	已取消	ยกเลิก	取消済み
+Cancelled	已取消	ยกเลิกแล้ว	取消済み
 Cancelled On	取消时间	วันที่ยกเลิก	取消日時
 Cash	现金	เงินสด	現金
 Category	类别	หมวดหมู่	カテゴリ
@@ -468,23 +468,23 @@ Category Name	分类名称	ชื่อหมวดหมู่	カテゴリ名
 Cheque	支票	เช็ค	小切手
 Columns	列	คอลัมน์	列
 Confirm	确认	ยืนยัน	確認
-Confirm the document before recording a payment	记录付款前请先提交单据	กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน	支払を記録する前に伝票を提出してください
+Confirm the document before recording a payment	记录付款前请先提交单据	กรุณายืนยันเอกสารก่อนบันทึกการชำระเงิน	支払を記録する前に伝票を提出してください
 Create New Item	创建新物料	สร้างสินค้าใหม่	新規品目作成
-Creation	创建日期	การสร้าง	作成日時
+Creation	创建日期	วันที่สร้าง	作成日時
 Currency	货币	สกุลเงิน	通貨
 Custom	自定义	กำหนดเอง	カスタム
 Date	日期	วันที่	日付
 Dedupe Key	去重键	คีย์กันซ้ำ	重複防止キー
 Delete	删除	ลบ	削除
 Description	描述	คำอธิบาย	説明
-Discount Amount	折扣金额	จำนวนส่วนลด	割引額
+Discount Amount	折扣金额	ยอดส่วนลด	割引額
 Discount Total	折扣总额	ยอดส่วนลดรวม	割引合計
 Document Type	单据类型	ประเภทเอกสาร	伝票種別
 Document has already been cancelled	单据已取消	เอกสารถูกยกเลิกแล้ว	伝票は取消済みです
-Document has already been submitted	单据已提交	ส่งเอกสารแล้ว	伝票は提出済みです
+Document has already been submitted	单据已提交	ยืนยันเอกสารแล้ว	伝票は提出済みです
 Document has been cancelled	单据已取消	เอกสารถูกยกเลิกแล้ว	伝票は取消済みです
-Document must be submitted	请先提交单据	กรุณาส่งเอกสารก่อน	伝票を提出してください
-Draft	草稿	ร่าง	下書き
+Document must be submitted	请先提交单据	กรุณายืนยันเอกสารก่อน	伝票を提出してください
+Draft	草稿	ฉบับร่าง	下書き
 Due Date	到期日	วันที่ครบกำหนด	支払期日
 Enabled	已启用	เปิดใช้งานแล้ว	有効
 Exchange Rate	汇率	อัตราแลกเปลี่ยน	為替レート
@@ -498,12 +498,12 @@ Export	导出	ส่งออก	エクスポート
 External System Reference	外部系统引用	รหัสอ้างอิงระบบภายนอก	外部システム参照
 File	文件	ไฟล์	ファイル
 File Name	文件名	ชื่อไฟล์	ファイル名
-File not found	文件不存在	ไฟล์ไม่พบ	ファイルが見つかりません
+File not found	文件不存在	ไม่พบไฟล์	ファイルが見つかりません
 Filters	筛选条件	ตัวกรอง	フィルタ
 From Date	开始日期	จากวันที่	開始日
-Generated	已生成	สร้างขึ้น	生成済み
+Generated	已生成	สร้างแล้ว	生成済み
 Goods	货物	สินค้า	商品
-Grand Total	总计	ยอดรวมทั้งหมด	税込合計
+Grand Total	总计	ยอดรวมทั้งสิ้น	税込合計
 Head Office	总部	สำนักงานใหญ่	本店
 ID	编号	รหัส	ID
 Image Fingerprint	影像指纹	ลายนิ้วมือภาพ	画像フィンガープリント
@@ -514,53 +514,53 @@ Invalid value	值无效	ค่าไม่ถูกต้อง	値が無効で�
 Invoice	发票	ใบแจ้งหนี้	請求書
 Invoice Amount	发票金额	ยอดตามใบแจ้งหนี้	請求金額
 Is Paid	已付款	ชำระแล้ว	支払済み
-Is Reversal	冲销	รายการกลับบัญชี	取消仕訳
-Item	物料	รายการ	品目
+Is Reversal	冲销	กลับรายการ	取消仕訳
+Item	物料	สินค้า	品目
 Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明
-Item Code	物料编码	รหัสรายการ	品目コード
-Item Group	物料组	กลุ่มรายการ	品目グループ
-Item Name	物料名称	ชื่อรายการ	品目名
+Item Code	物料编码	รหัสสินค้า	品目コード
+Item Group	物料组	กลุ่มสินค้า	品目グループ
+Item Name	物料名称	ชื่อสินค้า	品目名
 Item Name is required	物料名称不能为空	กรุณาระบุชื่อสินค้า	品目名を入力してください
-Item Type	物料类型	ประเภทของรายการ	品目区分
-Items	物料	รายการ	品目
+Item Type	物料类型	ประเภทสินค้า	品目区分
+Items	物料	รายการสินค้า	品目
 Items are required	物料明细不能为空	กรุณาระบุรายการสินค้า	品目を入力してください
 LINE	LINE	LINE	LINE
 Last Month	上个月	เดือนที่แล้ว	先月
-Line Amount	行金额	จำนวนเงินบรรทัด	行金額
+Line Amount	行金额	จำนวนเงินรายบรรทัด	行金額
 Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引
 Line No	行号	ลำดับบรรทัด	行番号
 Location	地点	ที่ตั้ง	保管場所
-Manual	手动	คู่มือ	手動入力
+Manual	手动	ด้วยตนเอง	手動入力
 Manually Set Amounts	手动设置金额	กำหนดยอดเงินด้วยตนเอง	金額の手動設定
 Merge Items	合并明细	รวมรายการ	明細統合
 Mode of Payment	付款方式	วิธีการชำระเงิน	支払方法
 More Filters	更多筛选条件	ตัวกรองเพิ่มเติม	追加フィルタ
 Net Total	净总计	ยอดรวมสุทธิ	正味合計
-New	新建	ใหม่	新規
+New	新建	สร้างใหม่	新規
 New Category	新建分类	สร้างหมวดหมู่	カテゴリ作成
-New Purchase Invoice	新建采购发票	ใบแจ้งหนี้ซื้อใหม่	仕入請求書作成
+New Purchase Invoice	新建采购发票	สร้างใบแจ้งหนี้ซื้อ	仕入請求書作成
 None	无	ไม่มี	なし
 Not permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません
 Note	备注	หมายเหตุ	備考
-OCR	文字识别	รู้จำข้อความ	文字認識
-Only Draft documents can be deleted	只能删除草稿单据	ลบได้เฉพาะเอกสารร่าง	下書きの伝票のみ削除できます
-Only an image or a PDF can be recognised	仅支持识别图片或 PDF	รองรับการรู้จำเฉพาะรูปภาพหรือ PDF	画像または PDF のみ認識できます
+OCR	文字识别	อ่านเอกสาร (OCR)	文字認識
+Only Draft documents can be deleted	只能删除草稿单据	ลบได้เฉพาะเอกสารฉบับร่าง	下書きの伝票のみ削除できます
+Only an image or a PDF can be recognised	仅支持识别图片或 PDF	รองรับการอ่านเฉพาะรูปภาพหรือ PDF	画像または PDF のみ認識できます
 Opening Balance	期初余额	ยอดคงเหลือต้นงวด	開始残高
 Other	其他	อื่นๆ	その他
 Outstanding Amount	未付金额	จำนวนเงินค้างชำระ	未払金額
 Paid	已付款	ชำระแล้ว	支払済み
 Paid Amount	付款金额	จำนวนเงินที่ชำระแล้ว	支払済金額
 Parent Category	上级分类	หมวดหมู่หลัก	親カテゴリ
-Parent Item Group	上级物料组	กลุ่มรายการผู้ปกครอง	親品目グループ
+Parent Item Group	上级物料组	กลุ่มสินค้าหลัก	親品目グループ
 Partly Paid	部分付款	ชำระบางส่วน	一部支払済み
 Payment	付款	การชำระเงิน	支払
 Payment Date	付款日期	วันที่ชำระเงิน	支払日
 Payment Receipt	付款凭证	หลักฐานการชำระเงิน	支払証憑
-Payment Status	付款状态	สถานะการชำระ	支払状況
+Payment Status	付款状态	สถานะการชำระเงิน	支払状況
 Payments	付款	การชำระเงิน	支払履歴
 Period	期间	ช่วงเวลา	期間
 Please select an Item	请选择物料	กรุณาเลือกสินค้า	品目を選択してください
-Posting Date	记账日期	วันที่โพสต์	転記日
+Posting Date	记账日期	วันที่ลงบัญชี	転記日
 Prices Include Tax	价格含税	ราคารวมภาษี	税込価格
 Print	打印	พิมพ์	印刷
 Product	产品	สินค้า	製品
@@ -572,20 +572,20 @@ Purchase Count	采购笔数	จำนวนรายการซื้อ	仕入
 Purchase Invoice	采购发票	ใบแจ้งหนี้ซื้อ	仕入請求書
 Purchase Order	采购订单	คำสั่งซื้อ	発注書
 Purchase Records	采购记录	บันทึกการจัดซื้อ	仕入記録
-Qty	数量	ปริมาณ	数量
-Quantity	数量	ปริมาณ	数量
-Rate	单价	อัตรา	単価
+Qty	数量	จำนวน	数量
+Quantity	数量	จำนวน	数量
+Rate	单价	ราคาต่อหน่วย	単価
 Reason for Cancellation	取消原因	เหตุผลในการยกเลิก	取消理由
-Receipt	收据	ใบเสร็จ	領収書
+Receipt	收据	ใบเสร็จรับเงิน	領収書
 Received By	收款人	ผู้รับเงิน	受領者
-Recognition is not configured for this account	尚未配置文字识别	ยังไม่ได้ตั้งค่าการรู้จำข้อความ	文字認識が設定されていません
-Recognition returned nothing	未识别到内容	ไม่พบข้อมูลจากการรู้จำ	内容を認識できませんでした
+Recognition is not configured for this account	尚未配置文字识别	ยังไม่ได้ตั้งค่าการอ่านเอกสาร	文字認識が設定されていません
+Recognition returned nothing	未识别到内容	ไม่พบข้อมูลจากการอ่านเอกสาร	内容を認識できませんでした
 Reference	参考	อ้างอิง	参照番号
 References	参考	การอ้างอิง	参照情報
-Remarks	备注	ข้อสังเกต	備考
+Remarks	备注	หมายเหตุ	備考
 Request ID already exists	请求编号已存在	รหัสคำขอมีอยู่แล้ว	リクエスト ID は既に存在します
 Requested By	申请人	ผู้ขอ	申請者
-Reset	重置	เริ่มใหม่	リセット
+Reset	重置	รีเซ็ต	リセット
 Reversal	冲销	กลับรายการ	取消仕訳
 Rotate	旋转	หมุน	回転
 Rounding Adjustment	舍入调整	การปรับปัดเศษ	丸め調整
@@ -595,26 +595,26 @@ Service	服务	บริการ	サービス
 Sort Order	排序	ลำดับการจัดเรียง	並び順
 Source	来源	แหล่งที่มา	ソース
 Status	状态	สถานะ	ステータス
-Stock Posted At	库存过账时间	วันที่ลงบัญชีสต็อก	在庫転記日時
+Stock Posted At	库存过账时间	วันเวลาที่ลงบัญชีสต็อก	在庫転記日時
 Subcategory	子分类	หมวดหมู่ย่อย	サブカテゴリ
-Submit	提交	ส่ง	提出
-Submitted	已提交	ส่งแล้ว	提出済み
-Substitute Receipt	替代收据	ใบสำคัญรับเงิน	代替領収書
+Submit	提交	ยืนยัน	提出
+Submitted	已提交	ยืนยันแล้ว	提出済み
+Substitute Receipt	替代收据	ใบรับรองแทนใบเสร็จรับเงิน	代替領収書
 Summary	概要	สรุป	摘要
-Supplier	供应商	ผู้จัดจำหน่าย	仕入先
+Supplier	供应商	ผู้จำหน่าย	仕入先
 Supplier Doc Reference	供应商单据参考号	เลขอ้างอิงเอกสารผู้จำหน่าย	仕入先伝票参照番号
-Supplier Invoice No	供应商发票号	หมายเลขใบแจ้งหนี้ผู้จัดจำหน่าย	仕入先請求書番号
+Supplier Invoice No	供应商发票号	เลขที่ใบแจ้งหนี้ผู้จำหน่าย	仕入先請求書番号
 Supplier Invoice No already exists	供应商发票编号已存在	เลขที่ใบแจ้งหนี้ผู้จำหน่ายมีอยู่แล้ว	仕入先請求書番号は既に存在します
 Supplier Invoice No is required	供应商发票编号不能为空	กรุณาระบุเลขที่ใบแจ้งหนี้ผู้จำหน่าย	仕入先請求書番号を入力してください
-Supplier Name	供应商名称	ชื่อผู้จัดจำหน่าย	仕入先名
-Supplier Tax ID	供应商税号	เลขผู้เสียภาษีผู้ขาย	仕入先の税番号
+Supplier Name	供应商名称	ชื่อผู้จำหน่าย	仕入先名
+Supplier Tax ID	供应商税号	เลขประจำตัวผู้เสียภาษีผู้จำหน่าย	仕入先の税番号
 Supplier is disabled	供应商已停用	ผู้จำหน่ายถูกปิดใช้งาน	仕入先は無効です
 Supplier is required	供应商不能为空	กรุณาระบุผู้จำหน่าย	仕入先を入力してください
 Supplier not found	供应商不存在	ไม่พบผู้จำหน่าย	仕入先が見つかりません
-Suppliers	供应商	ผู้จัดจำหน่าย	仕入先数
+Suppliers	供应商	ผู้จำหน่าย	仕入先数
 Tax Amount	税额	จำนวนภาษี	税額
 Tax Exclusive	不含税	ไม่รวมภาษี	税抜
-Tax ID	税号	หมายเลขประจำตัวผู้เสียภาษี	納税者番号
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号
 Tax Inclusive	含税	รวมภาษี	税込
 Tax Invoice	税务发票	ใบกำกับภาษี	税務請求書
 Credit Note	贷项通知单	ใบลดหนี้	返品・値引伝票
@@ -626,7 +626,7 @@ Taxes and Charges	税费	ภาษีและค่าธรรมเนีย�
 The payment is more than the net payable	付款金额超过应付金额	ยอดชำระเกินยอดที่ต้องชำระ	支払金額が支払残高を超えています
 This Month	本月	เดือนนี้	今月
 This Quarter	本季度	ไตรมาสนี้	今四半期
-To Date	结束日期	ณ วันที่	終了日
+To Date	结束日期	ถึงวันที่	終了日
 Total Amount	总金额	จำนวนเงินรวม	合計金額
 Total Taxes and Charges	总税费	รวมภาษีและค่าธรรมเนียม	税金および諸費用合計
 Type	类型	ประเภท	種別
@@ -648,15 +648,15 @@ Withholding Tax must be greater than zero	预扣税额必须大于零	ยอด�
 No attachments	无附件	ไม่มีไฟล์แนบ	添付ファイルなし
 Split	分拆	แยก	分割
 Entry Method	录入方式	วิธีการบันทึก	入力方法
-Upload and Recognize	上传识别	อัปโหลดเพื่ออ่านข้อความ	アップロードして読み取る
+Upload and Recognize	上传识别	อัปโหลดและอ่านเอกสาร	アップロードして読み取る
 Manual Entry	手动录入	กรอกข้อมูลเอง	手動入力
-Recognizing...	识别中…	กำลังอ่านข้อความ…	読み取り中…
+Recognizing...	识别中…	กำลังอ่านเอกสาร…	読み取り中…
 Unable to load preview	无法加载预览	ไม่สามารถโหลดตัวอย่างได้	プレビューを読み込めません
 Zoom In	放大	ขยาย	拡大
 Zoom Out	缩小	ย่อ	縮小
 Full Screen	全屏	เต็มหน้าจอ	全画面
 Invalid file	无效文件	ไฟล์ไม่ถูกต้อง	無効なファイル
-Upload an invoice, then review the recognized details.	上传发票，识别后复核并修改。	อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้	請求書をアップロードし、読み取り結果を確認・修正します。
+Upload an invoice, then review the recognized details.	上传发票，识别后复核并修改。	อัปโหลดใบกำกับภาษี แล้วตรวจทานและแก้ไขข้อมูลที่อ่านได้	請求書をアップロードし、読み取り結果を確認・修正します。
 Enter purchase details. Files are added as attachments only.	手动填写采购信息，文件仅作为附件。	กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น	仕入情報を手入力します。ファイルは添付のみです。
 Quotation	报价单	ใบเสนอราคา	見積書
 Company	公司	บริษัท	会社
@@ -669,7 +669,7 @@ Collection Status	收款状态	สถานะการรับเงิน	入
 Collection Method	收款方式	วิธีรับเงิน	入金方法
 Collection Date	收款日期	วันที่รับเงิน	入金日
 Collection Remarks	收款备注	หมายเหตุการรับเงิน	入金備考
-Received Amount	已收金额	ยอดรับเงิน	入金額
+Received Amount	已收金额	จำนวนเงินที่ได้รับ	入金額
 Details	详细信息	รายละเอียด	詳細
 Preview	预览	ตัวอย่าง	プレビュー
 Previous	上一个	ก่อนหน้า	前へ
@@ -677,24 +677,24 @@ Next	下一个	ถัดไป	次へ
 Loading...	加载中…	กำลังโหลด…	読み込み中…
 Retry	重试	ลองใหม่	再試行
 VAT Applies	计增值税	คิด VAT	課税対象
-Upload a receipt, then review the recognized details.	上传收据，识别后复核并修改。	อัปโหลดใบเสร็จ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้	領収書をアップロードし、読み取り結果を確認・修正します。
+Upload a receipt, then review the recognized details.	上传收据，识别后复核并修改。	อัปโหลดใบเสร็จรับเงิน แล้วตรวจทานและแก้ไขข้อมูลที่อ่านได้	領収書をアップロードし、読み取り結果を確認・修正します。
 Enter the sale by hand. Files are added as attachments only.	手动填写销售内容，文件仅作为附件。	กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น	販売内容を手入力します。ファイルは添付のみです。
-A confirmed document cannot be edited	已提交的单据不能修改	เอกสารที่ยืนยันแล้วแก้ไขไม่ได้	確定済みの伝票は編集できません
-This document cannot be recorded yet	该单据暂无法入账	ยังบันทึกเอกสารนี้ไม่ได้	この伝票はまだ記録できません
+A confirmed document cannot be edited	已提交的单据不能修改	ไม่สามารถแก้ไขเอกสารที่ยืนยันแล้วได้	確定済みの伝票は編集できません
+This document cannot be recorded yet	该单据暂无法入账	ยังไม่สามารถลงบัญชีเอกสารนี้ได้	この伝票はまだ記録できません
 Quantity must be greater than zero	数量必须大于 0	จำนวนต้องมากกว่า 0	数量は 0 より大きい必要があります
 Discount cannot exceed the amount	折扣不能超过金额	ส่วนลดต้องไม่เกินยอดเงิน	割引は金額を超えられません
 Net total - discount + VAT must equal the total	金额不一致：净总计 − 折扣 + 增值税必须等于总计	ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม	金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
 Non-claimable VAT	不可抵扣的增值税	ภาษีซื้อที่ขอคืนไม่ได้	控除できない消費税
-This is a credit note. Credit notes cannot be recorded as a purchase yet.	该单据为贷项通知单，暂不支持作为采购单录入。	เอกสารนี้เป็นใบลดหนี้ ยังบันทึกเป็นใบซื้อไม่ได้	これは返品・値引伝票です。仕入としてはまだ登録できません。
+This is a credit note. Credit notes cannot be recorded as a purchase yet.	该单据为贷项通知单，暂不支持作为采购单录入。	เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ	これは返品・値引伝票です。仕入としてはまだ登録できません。
 Paid amount cannot exceed the total	收款金额不能超过合计	ยอดรับเงินต้องไม่เกินยอดรวม	入金額は合計を超えられません
 Customer is required	客户不能为空	กรุณาระบุลูกค้า	顧客は必須です
 Customer is disabled	客户已停用	ลูกค้าถูกปิดใช้งาน	顧客は無効です
 Item is disabled	物料已停用	สินค้าถูกปิดใช้งาน	品目は無効です
 Document already exists	单据已存在	มีเอกสารนี้อยู่แล้ว	伝票は既に存在します
 Only a submitted document can be cancelled	只能作废已提交的单据	ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว	確定済みの伝票のみ取消できます
-Only a receipt records a collection	仅收据可登记收款	บันทึกการรับเงินได้เฉพาะใบเสร็จ	入金を記録できるのは領収書のみです
-Suppliers	供应商	ผู้ขาย	仕入先	supplier.title
-New Supplier	新建供应商	เพิ่มผู้ขาย	仕入先を追加	supplier.new
+Only a receipt records a collection	仅收据可登记收款	บันทึกการรับเงินได้เฉพาะใบเสร็จรับเงิน	入金を記録できるのは領収書のみです
+Suppliers	供应商	ผู้จำหน่าย	仕入先	supplier.title
+New Supplier	新建供应商	เพิ่มผู้จำหน่าย	仕入先を追加	supplier.new
 Save	保存	บันทึก	保存	supplier.save
 Create	创建	สร้าง	作成	supplier.create
 Close	关闭	ปิด	閉じる	supplier.close
@@ -706,7 +706,7 @@ Status	状态	สถานะ	状態	supplier.col.status
 Head Office	总部	สำนักงานใหญ่	本店	supplier.head
 Branch Office	分支机构	สาขา	支店	supplier.branch
 Disabled	已停用	ปิดใช้งาน	無効	supplier.inactive
-Supplier Name	供应商名称	ชื่อผู้ขาย	仕入先名	supplier.field.name
+Supplier Name	供应商名称	ชื่อผู้จำหน่าย	仕入先名	supplier.field.name
 Phone	电话	โทรศัพท์	電話	supplier.field.phone
 Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	supplier.field.taxId
 Branch Type	分支机构类型	ประเภทสาขา	支店種別	supplier.field.branch
@@ -737,38 +737,38 @@ Tax ID	税号	เลขประจำตัวผู้เสียภาษี
 Address	地址	ที่อยู่	住所	client.field.address
 Remarks	备注	หมายเหตุ	備考	client.field.note
 Active	启用	ใช้งาน	有効	client.field.active
-Supplier	供应商	ผู้ขาย	仕入先	supplier.col.name
+Supplier	供应商	ผู้จำหน่าย	仕入先	supplier.col.name
 Query	查询	ค้นหา	照会	supplier.lookup.action
 Enter a tax ID first	请先填写税号	กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน	先に納税者番号を入力してください	supplier.lookup.needTaxId
 Querying the Revenue Department...	正在向税务局查询…	กำลังค้นหาจากกรมสรรพากร…	税務局に照会中…	supplier.lookup.querying
-Found: {0}	已查到：{0}	พบ: {0}	取得: {0}	supplier.lookup.found
-Lookup failed, please fill in manually	查询失败，请手动填写	ค้นหาไม่สำเร็จ กรุณากรอกเอง	照会に失敗しました。手入力してください	supplier.lookup.failed
+Found: {0}	已查到：{0}	พบข้อมูล: {0}	取得: {0}	supplier.lookup.found
+Lookup failed, please fill in manually	查询失败，请手动填写	ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง	照会に失敗しました。手入力してください	supplier.lookup.failed
 Tax ID must be 13 digits	税号必须是 13 位数字	เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก	納税者番号は13桁です	supplier.lookup.invalid_format
-Not found in the Revenue Department records	税务局未查到该税号的登记信息	ไม่พบข้อมูลในกรมสรรพากร	税務局に登録がありません	supplier.lookup.not_found
-Tax ID exists but is not VAT registered	该税号未进行增值税登记	มีเลขนี้แต่ไม่ได้จดทะเบียน VAT	番号は存在しますがVAT登録がありません	supplier.lookup.not_vat_registered
-Cannot reach the Revenue Department right now	暂时无法连接税务局	เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้	現在、税務局に接続できません	supplier.lookup.rd_unreachable
-The Revenue Department replied in an unreadable format	税务局返回的数据格式无法解析	รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้	税務局の応答形式を解釈できません	supplier.lookup.parse_error
+Not found in the Revenue Department records	税务局未查到该税号的登记信息	ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร	税務局に登録がありません	supplier.lookup.not_found
+Tax ID exists but is not VAT registered	该税号未进行增值税登记	เลขประจำตัวผู้เสียภาษีนี้ไม่ได้จดทะเบียนภาษีมูลค่าเพิ่ม	番号は存在しますがVAT登録がありません	supplier.lookup.not_vat_registered
+Cannot reach the Revenue Department right now	暂时无法连接税务局	ไม่สามารถเชื่อมต่อกรมสรรพากรได้ในขณะนี้	現在、税務局に接続できません	supplier.lookup.rd_unreachable
+The Revenue Department replied in an unreadable format	税务局返回的数据格式无法解析	ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้	税務局の応答形式を解釈できません	supplier.lookup.parse_error
 Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	supplier.action.bulkDisable
 Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	supplier.action.bulkEnable
-Updated {0} supplier(s)	已更新 {0} 家供应商	อัปเดตผู้ขาย {0} ราย	仕入先 {0}件を更新しました	supplier.notice.toggled
+Updated {0} supplier(s)	已更新 {0} 家供应商	อัปเดตผู้จำหน่าย {0} รายแล้ว	仕入先 {0}件を更新しました	supplier.notice.toggled
 Query	查询	ค้นหา	照会	client.lookup.action
 Enter a tax ID first	请先填写税号	กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน	先に納税者番号を入力してください	client.lookup.needTaxId
 Querying the Revenue Department...	正在向税务局查询…	กำลังค้นหาจากกรมสรรพากร…	税務局に照会中…	client.lookup.querying
-Found: {0}	已查到：{0}	พบ: {0}	取得: {0}	client.lookup.found
-Lookup failed, please fill in manually	查询失败，请手动填写	ค้นหาไม่สำเร็จ กรุณากรอกเอง	照会に失敗しました。手入力してください	client.lookup.failed
+Found: {0}	已查到：{0}	พบข้อมูล: {0}	取得: {0}	client.lookup.found
+Lookup failed, please fill in manually	查询失败，请手动填写	ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง	照会に失敗しました。手入力してください	client.lookup.failed
 Tax ID must be 13 digits	税号必须是 13 位数字	เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก	納税者番号は13桁です	client.lookup.invalid_format
-Not found in the Revenue Department records	税务局未查到该税号的登记信息	ไม่พบข้อมูลในกรมสรรพากร	税務局に登録がありません	client.lookup.not_found
-Tax ID exists but is not VAT registered	该税号未进行增值税登记	มีเลขนี้แต่ไม่ได้จดทะเบียน VAT	番号は存在しますがVAT登録がありません	client.lookup.not_vat_registered
-Cannot reach the Revenue Department right now	暂时无法连接税务局	เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้	現在、税務局に接続できません	client.lookup.rd_unreachable
-The Revenue Department replied in an unreadable format	税务局返回的数据格式无法解析	รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้	税務局の応答形式を解釈できません	client.lookup.parse_error
+Not found in the Revenue Department records	税务局未查到该税号的登记信息	ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร	税務局に登録がありません	client.lookup.not_found
+Tax ID exists but is not VAT registered	该税号未进行增值税登记	เลขประจำตัวผู้เสียภาษีนี้ไม่ได้จดทะเบียนภาษีมูลค่าเพิ่ม	番号は存在しますがVAT登録がありません	client.lookup.not_vat_registered
+Cannot reach the Revenue Department right now	暂时无法连接税务局	ไม่สามารถเชื่อมต่อกรมสรรพากรได้ในขณะนี้	現在、税務局に接続できません	client.lookup.rd_unreachable
+The Revenue Department replied in an unreadable format	税务局返回的数据格式无法解析	ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้	税務局の応答形式を解釈できません	client.lookup.parse_error
 Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	client.action.bulkDisable
 Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	client.action.bulkEnable
-Updated {0} customer(s)	已更新 {0} 位客户	อัปเดตลูกค้า {0} ราย	顧客 {0}件を更新しました	client.notice.toggled
+Updated {0} customer(s)	已更新 {0} 位客户	อัปเดตลูกค้า {0} รายแล้ว	顧客 {0}件を更新しました	client.notice.toggled
 Branch {0}	分支机构 {0}	สาขา {0}	支店 {0}
-Active	已启用	ปกติ	正常	product.active
+Active	已启用	เปิดใช้งาน	正常	product.active
 Disabled	已停用	ปิดใช้งาน	無効	product.inactive
-Active	已启用	ปกติ	正常	supplier.active
-Active	已启用	ปกติ	正常	client.active
+Active	已启用	เปิดใช้งาน	正常	supplier.active
+Active	已启用	เปิดใช้งาน	正常	client.active
 Saved	已保存	บันทึกแล้ว	保存しました
 Collected {0}	已收款 {0}	รับชำระแล้ว {0}	入金しました {0}
 Paid {0}	已付款 {0}	ชำระแล้ว {0}	{0} を支払いました
@@ -780,9 +780,9 @@ Shift No	班次编号	เลขที่กะ	シフト番号	trade.shiftNo
 Cashier	收银员	พนักงานเก็บเงิน	レジ担当	trade.cashier
 Opened At	开班时间	เวลาเปิดกะ	開始時刻	trade.openedAt
 Closed At	交班时间	เวลาปิดกะ	終了時刻	trade.closedAt
-Which company this terminal belongs to, and which warehouse it sells from	收银台所属公司及出货仓库	เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน	このレジがどの会社に属し、どの倉庫から販売するか	trade.terminalHint
-Sales Count	销售笔数	จำนวนบิล	件数	trade.salesCount
-Refund Count	退款笔数	จำนวนการคืนเงิน	返品件数	trade.refundCount
+Which company this terminal belongs to, and which warehouse it sells from	收银台所属公司及出货仓库	บริษัทที่เป็นเจ้าของจุดขายนี้ และคลังสินค้าที่ใช้จ่ายสินค้าขาย	このレジがどの会社に属し、どの倉庫から販売するか	trade.terminalHint
+Sales Count	销售笔数	จำนวนรายการขาย	件数	trade.salesCount
+Refund Count	退款笔数	จำนวนรายการคืนเงิน	返品件数	trade.refundCount
 Gross	毛额	ยอดขายรวม	売上総額	trade.gross
 Net Total	净总计	ยอดสุทธิ	純額	trade.net
 Payments	收付款	การรับชำระ	入出金	trade.byMethod
@@ -794,11 +794,11 @@ Cash Check	现金核对	ตรวจเงินสด	現金確認	trade.countC
 Change Total	找零合计	เงินทอนรวม	お釣り合計	trade.changeTotal
 Expected Cash	应有现金	เงินสดที่ควรมี	現金予定額	trade.expectedCash
 Difference	差额	ผลต่าง	差異	trade.diff
-Matches	无差异	ตรงกัน	一致	trade.diffEven
-Over by {0}	长款 {0}	เกินมา {0}	{0} 多い	trade.diffOver
-Short by {0}	短款 {0}	ขาดไป {0}	{0} 不足	trade.diffShort
+Matches	无差异	ไม่มีผลต่าง	一致	trade.diffEven
+Over by {0}	长款 {0}	เงินเกิน {0}	{0} 多い	trade.diffOver
+Short by {0}	短款 {0}	เงินขาด {0}	{0} 不足	trade.diffShort
 Sale	销售	ขาย	販売	trade.kind.sale
-Refund	退货退款	คืนสินค้า	返品・返金	trade.kind.refund
+Refund	退货退款	คืนสินค้า/คืนเงิน	返品・返金	trade.kind.refund
 Completed	已完成	เสร็จสิ้น	完了	trade.state.completed
 Voided	已作废	ยกเลิกแล้ว	取消済み	trade.state.void
 Open	开班中	เปิดกะอยู่	営業中	trade.state.open
@@ -806,12 +806,12 @@ Closed	已交班	ปิดกะแล้ว	終了	trade.state.closed
 Products	物料	สินค้า	商品	trade.counterProducts
 Search by code, barcode or name	按物料编码、条码或名称搜索	ค้นหาด้วยรหัส บาร์โค้ด หรือชื่อ	コード・バーコード・名前で検索	trade.searchProducts
 Cart	购物车	ตะกร้า	カート	trade.cart
-Lines in this shift	当班小票	บิลในกะนี้	このシフトのレシート	trade.shiftReceipts
+Lines in this shift	当班小票	ใบเสร็จในกะนี้	このシフトのレシート	trade.shiftReceipts
 No receipts in this shift	当班暂无小票	กะนี้ยังไม่มีใบเสร็จ	このシフトのレシートはありません	trade.receiptsEmpty
 Code	编码	รหัส	コード	trade.code
 On hand	库存	คงเหลือ	在庫	trade.onHand
 Clear cart	清空购物车	ล้างตะกร้า	カートを空にする	trade.cartClear
-Clear the cart?	确定要清空购物车吗？	ล้างตะกร้าใช่ไหม	カートを空にしますか	trade.cartClearConfirm
+Clear the cart?	确定要清空购物车吗？	ต้องการล้างตะกร้าใช่หรือไม่	カートを空にしますか	trade.cartClearConfirm
 The cart is empty	购物车为空	ตะกร้าว่างเปล่า	カートは空です	trade.cartEmpty
 Added: {0}	已加入：{0}	เพิ่มแล้ว: {0}	追加しました: {0}	trade.addedToCart
 No product for this code: {0}	未找到该编码对应的物料：{0}	ไม่พบสินค้าสำหรับรหัสนี้: {0}	このコードの商品が見つかりません: {0}	trade.scanNotFound
@@ -819,15 +819,15 @@ Change	找零	เงินทอน	お釣り	trade.change
 Pay	收款	รับชำระ	会計	trade.action.pay
 Total Items	总数量	จำนวนชิ้น	合計点数	trade.totalItems
 Remove	移除	นำออก	削除	trade.remove
-Pick a line first	请先选择一行	เลือกบรรทัดก่อน	先に行を選んでください	trade.pickLine
+Pick a line first	请先选择一行	กรุณาเลือกรายการก่อน	先に行を選んでください	trade.pickLine
 New Invoice	新单	บิลใหม่	新規会計	trade.newInvoice
-New Order	新订单	ออเดอร์ใหม่	新しい注文	trade.newOrder
-You cannot submit empty order.	无法提交空订单	ออเดอร์ว่างส่งไม่ได้	空の注文は送信できません	trade.submitEmpty
-You cannot submit the order without payment.	未收款，无法提交订单	ยังไม่รับชำระ ส่งไม่ได้	入金がないと送信できません	trade.submitNoPayment
+New Order	新订单	คำสั่งซื้อใหม่	新しい注文	trade.newOrder
+You cannot submit empty order.	无法提交空订单	ไม่สามารถยืนยันคำสั่งซื้อที่ไม่มีรายการได้	空の注文は送信できません	trade.submitEmpty
+You cannot submit the order without payment.	未收款，无法提交订单	ยังไม่ได้รับชำระเงิน ไม่สามารถยืนยันคำสั่งซื้อได้	入金がないと送信できません	trade.submitNoPayment
 Opened at {0}	开班时间 {0}	เปิดกะเมื่อ {0}	開始 {0}	trade.openedAtSub
 Shift {0} · opened {1} · expected cash {2}	班次 {0} · 开班 {1} · 应有现金 {2}	กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}	シフト {0} · 開始 {1} · 現金予定額 {2}	trade.shiftOpenedAt
 Cashier Records	收银记录	บันทึกการรับเงิน	レジ記録	nav.posReceipts
-Shift Records	班次记录	บันทึกกะ	シフト記録	nav.posShifts
+Shift Records	班次记录	ประวัติกะ	シフト記録	nav.posShifts
 Company name	公司名称	ชื่อบริษัท	会社名	company.field.name
 Short name	简称	ชื่อย่อ	略称	company.field.shortName
 Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	company.field.taxId
@@ -835,7 +835,7 @@ Branch	分支机构	สาขา	支店	company.field.branch
 Phone	电话	โทรศัพท์	電話	company.field.phone
 Contact person	联系人	ผู้ติดต่อ	担当者	company.field.contactPerson
 Contact email	联系邮箱	อีเมลติดต่อ	連絡先メール	company.field.contactEmail
-PromptPay	PromptPay 收款	พร้อมเพย์รับเงิน	PromptPay 受け取り	company.field.promptpay
+PromptPay	PromptPay 收款	พร้อมเพย์สำหรับรับเงิน	PromptPay 受け取り	company.field.promptpay
 Address	地址	ที่อยู่	住所	company.field.address
 Note	备注	หมายเหตุ	備考	company.field.note
 Company details	公司信息	ข้อมูลบริษัท	会社情報	company.section.basic
@@ -857,13 +857,13 @@ Saved	已保存	บันทึกแล้ว	保存しました	company.notice
 Query	查询	ค้นหา	照会	company.lookup.action
 Enter a tax ID first	请先填写税号	กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน	先に納税者番号を入力してください	company.lookup.needTaxId
 Querying the Revenue Department...	正在向税务局查询…	กำลังค้นหาจากกรมสรรพากร…	税務局に照会中…	company.lookup.querying
-Found: {0}	已查到：{0}	พบ: {0}	取得: {0}	company.lookup.found
-Lookup failed, please fill in manually	查询失败，请手动填写	ค้นหาไม่สำเร็จ กรุณากรอกเอง	照会に失敗しました。手入力してください	company.lookup.failed
+Found: {0}	已查到：{0}	พบข้อมูล: {0}	取得: {0}	company.lookup.found
+Lookup failed, please fill in manually	查询失败，请手动填写	ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง	照会に失敗しました。手入力してください	company.lookup.failed
 Tax ID must be 13 digits	税号必须是 13 位数字	เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก	納税者番号は13桁です	company.lookup.invalid_format
-Not found in the Revenue Department records	税务局未查到该税号的登记信息	ไม่พบข้อมูลในกรมสรรพากร	税務局に登録がありません	company.lookup.not_found
-Tax ID exists but is not VAT registered	该税号未进行增值税登记	มีเลขนี้แต่ไม่ได้จดทะเบียน VAT	番号は存在しますがVAT登録がありません	company.lookup.not_vat_registered
-Cannot reach the Revenue Department right now	暂时无法连接税务局	เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้	現在、税務局に接続できません	company.lookup.rd_unreachable
-The Revenue Department replied in an unreadable format	税务局返回的数据格式无法解析	รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้	税務局の応答形式を解釈できません	company.lookup.parse_error
+Not found in the Revenue Department records	税务局未查到该税号的登记信息	ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร	税務局に登録がありません	company.lookup.not_found
+Tax ID exists but is not VAT registered	该税号未进行增值税登记	เลขประจำตัวผู้เสียภาษีนี้ไม่ได้จดทะเบียนภาษีมูลค่าเพิ่ม	番号は存在しますがVAT登録がありません	company.lookup.not_vat_registered
+Cannot reach the Revenue Department right now	暂时无法连接税务局	ไม่สามารถเชื่อมต่อกรมสรรพากรได้ในขณะนี้	現在、税務局に接続できません	company.lookup.rd_unreachable
+The Revenue Department replied in an unreadable format	税务局返回的数据格式无法解析	ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้	税務局の応答形式を解釈できません	company.lookup.parse_error
 Company name	公司名称	ชื่อบริษัท	会社名	company.col.name
 Short name	简称	ชื่อย่อ	略称	company.col.shortName
 Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	company.col.taxId
@@ -884,45 +884,45 @@ Print Receipt	打印收据	พิมพ์ใบเสร็จ	レシート印�
 Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	company.action.bulkDisable
 Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	company.action.bulkEnable
 Only the product admin can change this	仅产品管理员可修改	แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์	製品管理者のみ変更できます	company.onlyAdmin
-Updated {0} record(s)	已更新 {0} 条记录	อัปเดต {0} รายการ	{0}件を更新しました	company.notice.updated
+Updated {0} record(s)	已更新 {0} 条记录	อัปเดต {0} รายการแล้ว	{0}件を更新しました	company.notice.updated
 Customer not found	未找到客户	ไม่พบลูกค้า	顧客が見つかりません
 Product not found	未找到物料	ไม่พบสินค้า	商品が見つかりません
-Void the refunds first	请先撤销相关退货退款	ต้องยกเลิกการคืนสินค้าก่อน	先に返品・返金を取消してください
+Void the refunds first	请先撤销相关退货退款	กรุณายกเลิกรายการคืนสินค้าและคืนเงินที่เกี่ยวข้องก่อน	先に返品・返金を取消してください
 Invalid value: {0}	值无效：{0}	ค่าไม่ถูกต้อง: {0}	値が無効です: {0}
-That photo could not be read	无法识别该照片	อ่านรูปภาพนี้ไม่ได้	この写真を読み取れません
+That photo could not be read	无法识别该照片	ไม่สามารถอ่านรูปภาพนี้ได้	この写真を読み取れません
 Stock count not found	未找到盘点	ไม่พบการตรวจนับ	棚卸が見つかりません
 This stock count is closed	该盘点已结束	การตรวจนับนี้ปิดแล้ว	この棚卸は終了しています
 That row is not part of this stock count	该行不属于此盘点	แถวนี้ไม่ได้อยู่ในการตรวจนับนี้	この行はこの棚卸に含まれていません
 Direction must be in or out	方向只能是入库或出库	ทิศทางต้องเป็น รับเข้า หรือ จ่ายออก เท่านั้น	方向は入庫か出庫のいずれかです
-Not enough stock on hand	库存不足	สต็อกคงเหลือไม่พอ	在庫が足りません
-This unit is not defined on the product	该单位未在此物料中定义	หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้	この単位はこの商品に定義されていません
+Not enough stock on hand	库存不足	สินค้าคงเหลือไม่เพียงพอ	在庫が足りません
+This unit is not defined on the product	该单位未在此物料中定义	ไม่ได้กำหนดหน่วยนี้ไว้ในสินค้านี้	この単位はこの商品に定義されていません
 Warehouse not found	未找到仓库	ไม่พบคลังสินค้า	倉庫が見つかりません
 This warehouse already exists	该仓库已存在	คลังสินค้านี้มีอยู่แล้ว	この倉庫は既に存在します
 No company is available for this account	此账号无可用公司	บัญชีนี้ไม่มีบริษัทที่ใช้งานได้	このアカウントで使える会社がありません
 The fiscal year start month must be between 1 and 12	会计年度的起始月份必须在 1 到 12 之间	เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12	会計年度の開始月は1〜12の範囲で指定してください
-A confirmed draft must point at the record it created	已确认的草稿必须关联其生成的记录	ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น	確定した下書きは、それが作成した伝票を指している必要があります
-A stock entry needs at least one line	出入库单至少需要一行明细	เอกสารรับ-จ่ายต้องมีอย่างน้อย 1 รายการ	入出庫伝票には少なくとも1行必要です
+A confirmed draft must point at the record it created	已确认的草稿必须关联其生成的记录	ฉบับร่างที่ยืนยันแล้วต้องเชื่อมโยงกับรายการที่สร้างจากฉบับร่างนั้น	確定した下書きは、それが作成した伝票を指している必要があります
+A stock entry needs at least one line	出入库单至少需要一行明细	เอกสารรับ-จ่ายสินค้าต้องมีรายการอย่างน้อย 1 รายการ	入出庫伝票には少なくとも1行必要です
 Enter a quantity	请输入数量	กรุณากรอกจำนวน	数量を入力してください
-Click to choose a customer	点击选择客户	แตะเพื่อเลือกลูกค้า	顧客を選んでください	trade.pickCustomer
+Click to choose a customer	点击选择客户	คลิกเพื่อเลือกลูกค้า	顧客を選んでください	trade.pickCustomer
 Walk-in customer	散客	ลูกค้าทั่วไป	一般客	trade.walkIn
-0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.	未勾选表示尚未设置价格（并非 ฿0）。	0 หมายถึงยังไม่เคยตั้งราคา (ไม่ใช่ราคา ฿0 จริง) คอลัมน์ Currency ของ Frappe เก็บ NULL ไม่ได้ ความต่างระหว่าง "ยังไม่ตั้ง" กับ "ศูนย์" จึงใช้ธงนี้แทน และด่านราคาศูนย์ของ POS อ่านค่านี้	0 は価格を一度も設定していない（実際の ฿0 ではない）ことを表します。Frappe の Currency 列は NULL を保存できないため、「未設定」と「0」の区別はこのフラグで持ち、POS のゼロ価格ガードがこれを参照します。
-1-12; Thai companies commonly start in January	1–12；泰国公司一般从 1 月开始	1-12; บริษัทไทยมักเริ่มเดือนมกราคม	1〜12。タイ企業は1月開始が一般的です
-A payment has to be approved before it counts as paid	付款经审批后方视为已付	การจ่ายต้องได้รับการอนุมัติก่อนจึงนับว่าจ่ายแล้ว	支払いは承認されて初めて支払済みとして扱われます
+0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.	未勾选表示尚未设置价格（并非 ฿0）。	หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งราคา (ไม่ใช่ราคา ฿0)	0 は価格を一度も設定していない（実際の ฿0 ではない）ことを表します。Frappe の Currency 列は NULL を保存できないため、「未設定」と「0」の区別はこのフラグで持ち、POS のゼロ価格ガードがこれを参照します。
+1-12; Thai companies commonly start in January	1–12；泰国公司一般从 1 月开始	1–12 โดยทั่วไปบริษัทในประเทศไทยเริ่มต้นเดือนมกราคม	1〜12。タイ企業は1月開始が一般的です
+A payment has to be approved before it counts as paid	付款经审批后方视为已付	การจ่ายเงินจะถือว่าชำระแล้วเมื่อได้รับการอนุมัติ	支払いは承認されて初めて支払済みとして扱われます
 Amounts	金额	จำนวนเงิน	金額
-Anonymous buyers get no tax id; only companies have branches	散客无税号；仅公司设有分支机构	ผู้ซื้อทั่วไปไม่มีเลขประจำตัวผู้เสียภาษี มีเพียงบริษัทเท่านั้นที่มีสาขา	匿名の買い手には税番号がなく、支店があるのは法人だけです
+Anonymous buyers get no tax id; only companies have branches	散客无税号；仅公司设有分支机构	ลูกค้าทั่วไปไม่มีเลขประจำตัวผู้เสียภาษี และมีเพียงบริษัทเท่านั้นที่มีสาขา	匿名の買い手には税番号がなく、支店があるのは法人だけです
 As Of	截至	ณ วันที่	基準日
 Average Unit Cost	平均单位成本	ต้นทุนต่อหน่วยเฉลี่ย	平均単価
 Base Currency	本位币	สกุลเงินหลัก	基準通貨
 Base Unit	库存单位	หน่วยฐาน	基準単位
 Basis Qty	基准数量	จำนวนฐาน	基準数量
-Basis Set	已设基准	ตั้ง基準แล้ว	基準設定済み
-Block Duplicate Documents	阻止重复单据	บล็อกเอกสารซ้ำ	重複伝票をブロック
-Bucket	号段	ช่วงรหัส	採番区分
+Basis Set	已设基准	กำหนดฐานแล้ว	基準設定済み
+Block Duplicate Documents	阻止重复单据	ป้องกันเอกสารซ้ำ	重複伝票をブロック
+Bucket	号段	ช่วงเลขที่	採番区分
 Buyer Type	客户类型	ประเภทลูกค้า	顧客種類
 Calculation Version	计算版本	เวอร์ชันการคำนวณ	計算バージョン
 Cash Difference	现金差额	ผลต่างเงินสด	現金差異
-Cashier (POS)	收银（POS）	เก็บเงิน (POS)	レジ（POS）
-Cashier counter, shifts and the cashier's own sales	收银台、班次及收银员本人的销售	เคาน์เตอร์ขาย กะ และยอดขายของพนักงานเก็บเงินเอง	レジカウンター、シフト、レジ担当自身の売上
+Cashier (POS)	收银（POS）	ขายหน้าร้าน (POS)	レジ（POS）
+Cashier counter, shifts and the cashier's own sales	收银台、班次及收银员本人的销售	จุดขาย กะ และยอดขายของพนักงานเก็บเงินเอง	レジカウンター、シフト、レジ担当自身の売上
 Client Reference	客户引用	ข้อมูลอ้างอิงจากไคลเอนต์	クライアント参照
 Closed at	结束时间	เวลาปิด	終了日時
 Closed by	结束人	ผู้ปิด	終了者
@@ -933,14 +933,14 @@ Cost Is Set	已设成本	ตั้งต้นทุนแล้ว	原価設定
 Cost Known	成本已知	ทราบต้นทุนแล้ว	原価判明
 Created when a sales draft is confirmed	销售草稿确认后生成	สร้างเมื่อยืนยันฉบับร่างการขาย	販売下書きの確定時に作成されます
 Created when the draft is confirmed	草稿确认后生成	สร้างเมื่อยืนยันฉบับร่าง	下書きの確定時に作成されます
-Decided At	处理时间	เวลาตัดสินใจ	判定日時
+Decided At	处理时间	เวลาดำเนินการ	判定日時
 Default Company	默认公司	บริษัทเริ่มต้น	既定の会社
-Default Due Days	默认账期（天）	กำหนดชำระเริ่มต้น (วัน)	既定の支払期限（日）
+Default Due Days	默认账期（天）	ระยะเวลาเครดิตเริ่มต้น (วัน)	既定の支払期限（日）
 Default Selling Unit	默认销售单位	หน่วยขายเริ่มต้น	既定の販売単位
 Default Terminal	默认收银台	จุดขายเริ่มต้น	既定のレジ
 Default VAT Rate (%)	默认 VAT 税率（%）	อัตรา VAT เริ่มต้น (%)	既定のVAT率（%）
-Default WHT Rate for Services (%)	服务类默认预扣税率（%）	อัตราหัก ณ ที่จ่ายเริ่มต้นสำหรับบริการ (%)	サービス既定の源泉徴収率（%）
-Default withholding for service documents	服务类单据默认的预扣税	ค่าหัก ณ ที่จ่ายเริ่มต้นสำหรับเอกสารบริการ	サービス伝票の既定の源泉徴収
+Default WHT Rate for Services (%)	服务类默认预扣税率（%）	อัตราภาษีหัก ณ ที่จ่ายเริ่มต้นสำหรับงานบริการ (%)	サービス既定の源泉徴収率（%）
+Default withholding for service documents	服务类单据默认的预扣税	ภาษีหัก ณ ที่จ่ายเริ่มต้นสำหรับเอกสารงานบริการ	サービス伝票の既定の源泉徴収
 Difference	差异	ผลต่าง	差異
 Differences	差异合计	ผลต่างรวม	差異合計
 Discard Reason	丢弃原因	เหตุผลที่ทิ้ง	破棄理由
@@ -952,12 +952,12 @@ Fetched At	获取时间	เวลาที่ดึงข้อมูล	取得�
 File SHA-256	文件 SHA-256	SHA-256 ของไฟล์	ファイル SHA-256
 Fiscal Year Starts In	会计年度起始月份	เดือนที่เริ่มปีบัญชี	会計年度の開始月
 Found	已找到	พบ	検出
-Frappe's Currency column cannot hold NULL, so 0 is both a real cost and "never set". The counter needs to tell them apart (same reason as price_set).	未勾选表示尚未设置成本。	คอลัมน์ Currency ของ Frappe เก็บ NULL ไม่ได้ 0 จึงเป็นได้ทั้งต้นทุนจริงและ "ยังไม่ตั้ง" จุดขายต้องแยกสองกรณีนี้ออกจากกัน (เหตุผลเดียวกับ price_set)	Frappe の Currency 列は NULL を保持できないため、0 は実コストと「未設定」の両方を意味します。レジはこの2つを区別する必要があります（price_set と同じ理由）。
-Free note kept with the collection record (who took the money, reference).	收款记录备注（收款人、参考号）。	บันทึกอิสระที่เก็บไว้กับรายการรับเงิน (ใครรับเงิน เอกสารอ้างอิง)	入金記録に残す自由記入（受け取った人、参照番号）。
+Frappe's Currency column cannot hold NULL, so 0 is both a real cost and "never set". The counter needs to tell them apart (same reason as price_set).	未勾选表示尚未设置成本。	หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน	Frappe の Currency 列は NULL を保持できないため、0 は実コストと「未設定」の両方を意味します。レジはこの2つを区別する必要があります（price_set と同じ理由）。
+Free note kept with the collection record (who took the money, reference).	收款记录备注（收款人、参考号）。	หมายเหตุของรายการรับเงิน (ผู้รับเงิน เลขที่อ้างอิง)	入金記録に残す自由記入（受け取った人、参照番号）。
 Opening quantity already recorded in stock	已记入库存的期初数量	จำนวนยกมาที่บันทึกในสต็อกแล้ว	在庫に記録済みの期首数量
-Idempotency anchor for a whole request; a repeat submit is ignored	重复提交将被忽略	จุดอ้างอิงกันส่งซ้ำของทั้งคำขอ ส่งซ้ำจะถูกมองข้าม	リクエスト全体の冪等アンカー。再送信は無視されます
-Idempotency anchor: a repeat submit returns the same sale instead of charging twice	重复提交将返回同一张小票，不会重复收款	จุดอ้างอิงกันส่งซ้ำ: ส่งซ้ำจะได้ใบเสร็จเดิม ไม่คิดเงินซ้ำ	冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
-image or pdf, as LINE reported it	image 或 pdf（LINE 返回的原始值）	image หรือ pdf ตามที่ LINE แจ้ง	image または pdf（LINEが通知したまま）
+Idempotency anchor for a whole request; a repeat submit is ignored	重复提交将被忽略	การส่งซ้ำจะถูกละเว้น	リクエスト全体の冪等アンカー。再送信は無視されます
+Idempotency anchor: a repeat submit returns the same sale instead of charging twice	重复提交将返回同一张小票，不会重复收款	การส่งซ้ำจะได้รับใบเสร็จเดิม และจะไม่เรียกเก็บเงินซ้ำ	冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
+image or pdf, as LINE reported it	image 或 pdf（LINE 返回的原始值）	image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)	image または pdf（LINEが通知したまま）
 Last counted at	上次盘点时间	ตรวจนับล่าสุดเมื่อ	最終棚卸日時
 Last counted by	上次盘点人	ผู้ตรวจนับล่าสุด	最終棚卸者
 Last Movement	最后一次流水	ความเคลื่อนไหวล่าสุด	最終の入出庫
@@ -967,36 +967,36 @@ Low Stock Threshold	低库存阈值	เกณฑ์สต็อกต่ำ	低�
 Media Type	文件类型	ประเภทไฟล์	メディア種別
 Modes of Payment	付款方式	วิธีชำระเงิน	支払方法
 Next Number	下一编号	เลขถัดไป	次の番号
-Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero	未勾选表示未设置成本，金额与单位成本留空	ปิดหมายถึงยังไม่เคยตั้งต้นทุน มูลค่าและต้นทุนต่อหน่วยจะว่างไว้ ไม่เดาเป็นศูนย์	オフは原価が未確定であることを示し、金額と単価は 0 と推測せず空のままにします
+Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero	未勾选表示未设置成本，金额与单位成本留空	หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน มูลค่าและต้นทุนต่อหน่วยจะเว้นว่างไว้	オフは原価が未確定であることを示し、金額と単価は 0 と推測せず空のままにします
 On Hand	现有库存	คงเหลือ	現在庫
 Opening Qty	期初数量	จำนวนยกมา	期首数量
 Opening Unit Cost	期初单位成本	ต้นทุนต่อหน่วยยกมา	期首単価
-Payment Needs Approval	付款需要审批	การจ่ายต้องอนุมัติ	支払いに承認が必要
-Post Stock On Confirm	确认时过账库存	ลงบัญชีสต็อกตอนยืนยัน	確定時に在庫転記
+Payment Needs Approval	付款需要审批	การจ่ายเงินต้องได้รับอนุมัติ	支払いに承認が必要
+Post Stock On Confirm	确认时过账库存	ลงบัญชีสต็อกเมื่อยืนยัน	確定時に在庫転記
 Posted Qty	已过账数量	จำนวนที่ลงบัญชีแล้ว	転記済み数量
 Posted at	过账时间	เวลาลงบัญชี	転記日時
 Posted by	过账人	ผู้ลงบัญชี	転記者
 Prefix for this company's document numbers	本公司单据编号前缀	คำนำหน้าเลขเอกสารของบริษัทนี้	この会社の伝票番号の接頭辞
 Price Is Set	已设价格	ตั้งราคาแล้ว	価格設定済み
 Product Name	物料名称	ชื่อสินค้า	商品名
-PromptPay ID	PromptPay ID	พร้อมเพย์	PromptPay ID
+PromptPay ID	PromptPay ID	รหัสพร้อมเพย์	PromptPay ID
 Purchase Record	采购记录	รายการจัดซื้อ	仕入記録
 QR Payload	QR 内容	ข้อมูล QR	QR内容
 Qty (base unit, signed)	数量（库存单位，带正负）	จำนวน (หน่วยฐาน มีเครื่องหมาย)	数量（基準単位・符号付き）
 Qty (entered unit)	数量（录入单位）	จำนวน (หน่วยที่กรอก)	数量（入力単位）
 Receipt No	小票号	เลขที่ใบเสร็จ	レシート番号
 Received At	收到时间	เวลาที่ได้รับ	受信日時
-Received from LINE, then confirmed into a purchase record or discarded	接收自 LINE，确认后生成采购记录或予以丢弃	รับจาก LINE แล้วยืนยันเป็นรายการจัดซื้อหรือทิ้ง	LINEから受信し、仕入記録として確定するか破棄します
+Received from LINE, then confirmed into a purchase record or discarded	接收自 LINE，确认后生成采购记录或予以丢弃	รับจาก LINE และสร้างเป็นรายการจัดซื้อเมื่อยืนยัน หรือทิ้ง	LINEから受信し、仕入記録として確定するか破棄します
 Record	单据	เอกสาร	伝票
 Reference Cost	参考成本	ต้นทุนอ้างอิง	参考原価
 Refund Of	对应的小票	อ้างอิงใบเสร็จที่คืน	返金元レシート
-Refuse a second document with the same supplier and document number	拒绝供应商与单据编号均相同的重复单据	ปฏิเสธเอกสารใบที่สองที่ผู้จัดจำหน่ายและเลขเอกสารซ้ำกัน	同じ仕入先・同じ伝票番号の2件目を拒否します
+Refuse a second document with the same supplier and document number	拒绝供应商与单据编号均相同的重复单据	ปฏิเสธเอกสารซ้ำที่มีผู้จำหน่ายและเลขที่เอกสารเดียวกัน	同じ仕入先・同じ伝票番号の2件目を拒否します
 Request Hash	请求哈希	แฮชของคำขอ	リクエストハッシュ
 Request id	请求 ID	รหัสคำขอ	リクエストID
 Sale Price	售价	ราคาขาย	販売価格
 Sales Document	销售单据	เอกสารขาย	販売伝票
 Selling Units	销售单位	หน่วยขาย	販売単位
-Sending the same file twice must not create two drafts	同一文件重复发送不会生成重复草稿	ส่งไฟล์เดิมสองครั้งต้องไม่สร้างฉบับร่างสองใบ	同じファイルを2回送っても下書きを2件作らない
+Sending the same file twice must not create two drafts	同一文件重复发送不会生成重复草稿	การส่งไฟล์เดิมซ้ำจะไม่สร้างฉบับร่างซ้ำ	同じファイルを2回送っても下書きを2件作らない
 Sent By	发送人	ผู้ส่ง	送信者
 Shift	班次	กะ	シフト
 Short Name	简称	ชื่อย่อ	略称
@@ -1004,30 +1004,30 @@ Sold At	销售时间	เวลาขาย	販売日時
 Stock Token	库存令牌	โทเคนสต็อก	在庫トークン
 Stock Value	库存金额	มูลค่าสต็อก	在庫金額
 Stock count tasks, staff entries and variance posting	盘点任务、员工录入与差异过账	งานตรวจนับ การบันทึกของพนักงาน และการลงบัญชีผลต่าง	棚卸タスク、担当者入力、差異の転記
-Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.	库存按此单位计量，其他单位换算为此单位。留空则使用销售单位。	สต็อกนับด้วยหน่วยนี้ หน่วยอื่นแปลงมาเป็นหน่วยนี้ ถ้าเว้นว่างจะใช้หน่วยขาย	在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
-Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company	出库仓库（须属于同一公司）。留空则使用该公司唯一的仓库。	สต็อกจ่ายออกจากคลังนี้ (ต้องเป็นของบริษัทเดียวกัน) ถ้าเว้นว่าง = คลังเดียวของบริษัทนี้	在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の唯一の倉庫
+Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.	库存按此单位计量，其他单位换算为此单位。留空则使用销售单位。	สต็อกคำนวณตามหน่วยนี้ หน่วยอื่นจะแปลงเป็นหน่วยนี้ หากเว้นว่างไว้จะใช้หน่วยขาย	在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company	出库仓库（须属于同一公司）。留空则使用该公司唯一的仓库。	คลังสินค้าที่จ่ายออก (ต้องเป็นของบริษัทเดียวกัน) หากเว้นว่างไว้ จะใช้คลังสินค้าเพียงแห่งเดียวของบริษัทนี้	在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の唯一の倉庫
 Submitted At	提交时间	เวลาส่ง	提出日時
-That warehouse belongs to another company	该仓库属于其他公司	คลังนี้เป็นของบริษัทอื่น	この倉庫は別会社のものです
+That warehouse belongs to another company	该仓库属于其他公司	คลังสินค้านี้เป็นของบริษัทอื่น	この倉庫は別会社のものです
 The LINE account that sent the document	发送此文件的 LINE 账号	บัญชี LINE ที่ส่งเอกสารนี้	この書類を送ってきたLINEアカウント
 The company used for new documents and for the company profile page	新建单据及公司资料页所用的公司	บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท	新しい伝票と会社プロフィール画面で使う会社
-This counter sells for this company; stock leaves its warehouse	此收银台以该公司名义开单，并从该公司仓库出库	จุดขายนี้ขายให้บริษัทนี้ สต็อกจ่ายออกจากคลังของบริษัทนี้	このレジはこの会社の販売を行い、その倉庫から在庫が出ます
+This counter sells for this company; stock leaves its warehouse	此收银台以该公司名义开单，并从该公司仓库出库	จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้	このレジはこの会社の販売を行い、その倉庫から在庫が出ます
 Unbound	未绑定	ยังไม่ผูก	未連携
 Unit Cost (net of VAT)	单位成本（不含 VAT）	ต้นทุนต่อหน่วย (ไม่รวม VAT)	単価（VAT除く）
 Used when a new purchase line does not say otherwise	新建采购明细未单独指定时使用	ใช้เมื่อรายการจัดซื้อใหม่ไม่ได้ระบุไว้เป็นอย่างอื่น	新しい仕入明細で別途指定がない場合に使います
 VAT Applicable	含 VAT	คิด VAT	VAT 対象
 Void Reason	撤销原因	เหตุผลการยกเลิก	取消理由
 Voided	已作废	ยกเลิกแล้ว	取消済み
-Who bought this receipt; empty means a walk-in customer	购买此小票的客户；留空表示散客	ใครซื้อใบเสร็จนี้ ถ้าเว้นว่าง = ลูกค้าทั่วไป	このレシートの購入者。空欄は一般客（通りがかり）です
-Year, year-month or ALL, depending on the reset policy	年、年月或 ALL，取决于重置策略	ปี, ปี-เดือน หรือ ALL ขึ้นกับนโยบายรีเซ็ต	年・年月・ALL のいずれか（リセット方針による）
-Add Order Discount	添加整单折扣	เพิ่มส่วนลดทั้งบิล	伝票割引を追加
+Who bought this receipt; empty means a walk-in customer	购买此小票的客户；留空表示散客	ลูกค้าของใบเสร็จนี้ หากเว้นว่างไว้หมายถึงลูกค้าทั่วไป	このレシートの購入者。空欄は一般客（通りがかり）です
+Year, year-month or ALL, depending on the reset policy	年、年月或 ALL，取决于重置策略	ปี ปี-เดือน หรือ ALL ขึ้นอยู่กับนโยบายการเริ่มเลขใหม่	年・年月・ALL のいずれか（リセット方針による）
+Add Order Discount	添加整单折扣	เพิ่มส่วนลดท้ายบิล	伝票割引を追加
 Additional Information updated successfully.	附加信息已更新	อัปเดตข้อมูลเพิ่มเติมแล้ว	追加情報を更新しました
 All the items have been already returned.	所有物料都已退货	สินค้าทั้งหมดถูกคืนแล้ว	すべての商品は返品済みです
 Auto Fetch Serial Numbers	自动获取序列号	ดึงหมายเลขเครื่องอัตโนมัติ	シリアル番号を自動取得
 Change Amount	找零	เงินทอน	お釣り
-Checkout Order / Submit Order / New Order	结账 / 提交订单 / 新订单	ชำระเงิน / ยืนยันคำสั่งซื้อ / ออเดอร์ใหม่	会計 / 注文確定 / 新規注文
+Checkout Order / Submit Order / New Order	结账 / 提交订单 / 新订单	ชำระเงิน / ยืนยันคำสั่งซื้อ / คำสั่งซื้อใหม่	会計 / 注文確定 / 新規注文
 Clear	清除	ล้าง	クリア
 Clear Link	清除关联	ล้างการเชื่อมโยง	リンクを解除
-Click to add email / phone	点击添加邮箱 / 电话	แตะเพื่อเพิ่มอีเมล / เบอร์โทร	メール・電話を追加
+Click to add email / phone	点击添加邮箱 / 电话	คลิกเพื่อเพิ่มอีเมล / เบอร์โทรศัพท์	メール・電話を追加
 Close the POS	关闭收银台	ปิดจุดขาย	レジを閉じる
 Contact Details	联系方式	ข้อมูลติดต่อ	連絡先
 Create POS Opening Entry	新建开班记录	สร้างรายการเปิดกะ	シフト開始を作成
@@ -1036,45 +1036,45 @@ Discount cannot be greater than 100%	折扣率不可超过 100%	ส่วนล�
 Edit Receipt	编辑收据	แก้ไขใบเสร็จ	領収書を編集
 Editing {0} is not allowed as per POS Profile settings	按收银台配置，不允许修改 {0}	ไม่อนุญาตให้แก้ไข {0} ตามการตั้งค่าจุดขาย	レジ設定により {0} は編集できません
 Email Receipt	邮件发送收据	ส่งใบเสร็จทางอีเมล	領収書をメール送信
-Email not sent to {0} (unsubscribed / disabled)	未向 {0} 发送邮件（已退订 / 已停用）	ไม่ได้ส่งอีเมลถึง {0} (ยกเลิกรับ / ปิดใช้งาน)	{0} にメールを送信できませんでした（配信停止・無効）
+Email not sent to {0} (unsubscribed / disabled)	未向 {0} 发送邮件（已退订 / 已停用）	ไม่ได้ส่งอีเมลถึง {0} (ยกเลิกการรับข่าวสาร / ปิดใช้งาน)	{0} にメールを送信できませんでした（配信停止・無効）
 Email sent successfully.	邮件已发送	ส่งอีเมลแล้ว	メールを送信しました
-Enter amount to be redeemed.	输入要抵扣的金额	กรอกจำนวนที่ต้องการใช้แต้ม	利用する金額を入力してください
+Enter amount to be redeemed.	输入要抵扣的金额	กรอกจำนวนเงินที่ต้องการใช้คะแนนสะสม	利用する金額を入力してください
 Enter customer's email	输入客户邮箱	กรอกอีเมลลูกค้า	顧客のメールを入力
 Enter customer's phone number	输入客户电话	กรอกเบอร์โทรลูกค้า	顧客の電話番号を入力
 Enter discount percentage.	输入折扣百分比	กรอกเปอร์เซ็นต์ส่วนลด	割引率を入力してください
-Enter {0} amount.	输入 {0} 金额	กรอกจำนวน {0}	{0} の金額を入力してください
-Fetched only {0} available serial numbers.	仅获取到 {0} 个可用序列号	ดึงหมายเลขเครื่องได้เพียง {0} รายการ	利用可能なシリアル番号を {0} 件だけ取得しました
+Enter {0} amount.	输入 {0} 金额	กรอกจำนวนเงิน {0}	{0} の金額を入力してください
+Fetched only {0} available serial numbers.	仅获取到 {0} 个可用序列号	ดึงหมายเลขเครื่องที่ใช้ได้เพียง {0} รายการ	利用可能なシリアル番号を {0} 件だけ取得しました
 Filter by invoice status	按单据状态筛选	กรองตามสถานะเอกสาร	伝票ステータスで絞り込み
-Focus on Item Group filter	定位到物料组筛选	โฟกัสตัวกรองกลุ่มรายการ	品目グループ絞り込みにフォーカス
-Focus on search input	定位到搜索框	โฟกัสช่องค้นหา	検索欄にフォーカス
-Ignore Pricing Rule is enabled. Cannot apply coupon code.	已启用「忽略定价规则」，无法使用优惠券	เปิดใช้ "ไม่ใช้กฎราคา" จึงใช้โค้ดคูปองไม่ได้	「価格ルールを無視」が有効なため、クーポンコードは使用できません
+Focus on Item Group filter	定位到物料组筛选	ไปที่ตัวกรองกลุ่มสินค้า	品目グループ絞り込みにフォーカス
+Focus on search input	定位到搜索框	ไปที่ช่องค้นหา	検索欄にフォーカス
+Ignore Pricing Rule is enabled. Cannot apply coupon code.	已启用「忽略定价规则」，无法使用优惠券	เปิดใช้ "ไม่ใช้กฎการกำหนดราคา" อยู่ จึงไม่สามารถใช้โค้ดคูปองได้	「価格ルールを無視」が有効なため、クーポンコードは使用できません
 Invalid Return	无效退货	การคืนสินค้าไม่ถูกต้อง	無効な返品
 Invoice Status	单据状态	สถานะเอกสาร	伝票ステータス
-Item Cart	购物车	ตะกร้า	カート
-Item Code: {0} is not available under warehouse {1}.	物料 {0} 在仓库 {1} 无货	สินค้า {0} ไม่มีในคลัง {1}	商品 {0} は倉庫 {1} にありません
-Item is removed since no serial / batch no selected.	未选择序列号 / 批号，已移除该物料	เอาสินค้าออกแล้วเนื่องจากไม่ได้เลือกหมายเลขเครื่อง / ล็อต	シリアル・ロットが未選択のため商品を削除しました
+Item Cart	购物车	ตะกร้าสินค้า	カート
+Item Code: {0} is not available under warehouse {1}.	物料 {0} 在仓库 {1} 无货	สินค้า {0} ไม่มีในคลังสินค้า {1}	商品 {0} は倉庫 {1} にありません
+Item is removed since no serial / batch no selected.	未选择序列号 / 批号，已移除该物料	นำสินค้าออกแล้ว เนื่องจากไม่ได้เลือกหมายเลขเครื่อง / เลขล็อต	シリアル・ロットが未選択のため商品を削除しました
 Last transacted	最近交易时间	ทำรายการล่าสุด	最終取引
 Loyalty Points	忠诚度积分	คะแนนสะสม	ロイヤルティポイント
-Loyalty Program	忠诚度计划	โปรแกรมสะสมแต้ม	ロイヤルティプログラム
+Loyalty Program	忠诚度计划	โปรแกรมสะสมคะแนน	ロイヤルティプログラム
 No items found. Scan barcode again.	未找到物料，请重新扫码	ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง	商品が見つかりません。バーコードを再スキャンしてください
 No items in cart	购物车为空	ยังไม่มีสินค้าในตะกร้า	カートに商品がありません
 No recent transactions found	暂无最近交易	ไม่พบธุรกรรมล่าสุด	最近の取引はありません
-Not Available	无货	ไม่มีสินค้า	在庫なし
+Not Available	无货	สินค้าหมด	在庫なし
 Open Form View	打开表单视图	เปิดมุมมองฟอร์ม	フォーム表示を開く
-Opening Balance Details	开班余额明细	รายละเอียดยอดยกมา	開始残高の明細
-Outdated POS Opening Entry	过期的开班记录	รายการเปิดกะที่ล้าสมัย	古いシフト開始
+Opening Balance Details	开班余额明细	รายละเอียดยอดเงินเปิดกะ	開始残高の明細
+Outdated POS Opening Entry	过期的开班记录	รายการเปิดกะที่หมดอายุ	古いシフト開始
 POS Closed	收银台已关闭	ปิดจุดขายแล้ว	レジは閉店しました
 POS Opening Entry Cancelled	开班记录已作废	ยกเลิกรายการเปิดกะแล้ว	シフト開始を取消しました
-POS Opening Entry has been cancelled. Please refresh the page.	开班记录已作废，请刷新页面	รายการเปิดกะถูกยกเลิก กรุณารีเฟรชหน้า	シフト開始は取消されました。ページを更新してください
-POS Profile	收银台配置	โปรไฟล์จุดขาย	POS プロファイル
+POS Opening Entry has been cancelled. Please refresh the page.	开班记录已作废，请刷新页面	ยกเลิกรายการเปิดกะแล้ว กรุณารีเฟรชหน้า	シフト開始は取消されました。ページを更新してください
+POS Profile	收银台配置	การตั้งค่าจุดขาย	POS プロファイル
 POS has been closed at {0}. Please refresh the page.	收银台已于 {0} 关闭，请刷新页面	ปิดจุดขายเมื่อ {0} กรุณารีเฟรชหน้า	レジは {0} に閉店しました。ページを更新してください
-POS invoice {0} created successfully	收银单据 {0} 已生成	สร้างเอกสารขาย {0} สำเร็จ	レジ伝票 {0} を作成しました
+POS invoice {0} created successfully	收银单据 {0} 已生成	สร้างเอกสารขาย {0} แล้ว	レジ伝票 {0} を作成しました
 Payment Failed	收款失败	ชำระเงินไม่สำเร็จ	入金失敗
 Payment Received	收款成功	รับชำระแล้ว	入金済み
-Payment of {0} received successfully.	已成功收款 {0}	รับชำระ {0} สำเร็จ	{0} の入金に成功しました
-Payment of {0} received successfully. Waiting for other requests to complete...	已成功收款 {0}，正在等待其他请求完成…	รับชำระ {0} สำเร็จ กำลังรอคำขออื่นเสร็จสิ้น...	{0} の入金に成功しました。他の処理の完了を待っています…
+Payment of {0} received successfully.	已成功收款 {0}	รับชำระ {0} แล้ว	{0} の入金に成功しました
+Payment of {0} received successfully. Waiting for other requests to complete...	已成功收款 {0}，正在等待其他请求完成…	รับชำระ {0} แล้ว กำลังรอคำขออื่นดำเนินการให้เสร็จ…	{0} の入金に成功しました。他の処理の完了を待っています…
 Phone Number	电话号码	เบอร์โทรศัพท์	電話番号
-Please add Mode of payments and opening balance details.	请添加支付方式与开班余额明细	กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดยกมา	支払方法と開始残高の明細を追加してください
+Please add Mode of payments and opening balance details.	请添加支付方式与开班余额明细	กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดเงินเปิดกะ	支払方法と開始残高の明細を追加してください
 Please select a field to edit from numpad	请先用键盘选择要修改的字段	กรุณาเลือกช่องที่ต้องการแก้ไขจากแป้นตัวเลข	テンキーから編集する項目を選択してください
 Point of Sale	收银台	จุดขาย	レジ
 Price is not set for the item.	该物料未设置售价	สินค้านี้ยังไม่ได้ตั้งราคา	この商品には価格が設定されていません
@@ -1082,97 +1082,97 @@ Recent Transactions	最近交易	ธุรกรรมล่าสุด	最近�
 Redeem Loyalty Points	抵扣忠诚度积分	ใช้คะแนนสะสม	ロイヤルティポイントを使う
 Refresh	刷新	รีเฟรช	更新
 Remark	备注	หมายเหตุ	備考
-Returned	已退货	คืนแล้ว	返品済み
+Returned	已退货	คืนสินค้าแล้ว	返品済み
 Search by customer name, phone, email.	按客户名称、电话、邮箱搜索	ค้นหาด้วยชื่อลูกค้า เบอร์โทร อีเมล	顧客名・電話・メールで検索
 Search by invoice id or customer name	按单据编号或客户名称搜索	ค้นหาด้วยเลขที่เอกสารหรือชื่อลูกค้า	伝票番号または顧客名で検索
 Search by item code, serial number or barcode	按物料号、序列号或条码搜索	ค้นหาด้วยรหัสสินค้า หมายเลขเครื่อง หรือบาร์โค้ด	商品コード・シリアル番号・バーコードで検索
-Select Loyalty Program	选择忠诚度计划	เลือกโปรแกรมสะสมแต้ม	ロイヤルティプログラムを選択
+Select Loyalty Program	选择忠诚度计划	เลือกโปรแกรมสะสมคะแนน	ロイヤルティプログラムを選択
 Select a Payment Method.	请选择支付方式	กรุณาเลือกวิธีชำระเงิน	支払方法を選択してください
 Select an invoice to load summary data	选择一张单据以查看汇总	เลือกเอกสารเพื่อดูข้อมูลสรุป	伝票を選択すると概要が表示されます
-Select item group	选择物料组	เลือกกลุ่มรายการ	品目グループを選択
+Select item group	选择物料组	เลือกกลุ่มสินค้า	品目グループを選択
 Send	发送	ส่ง	送信
 Serial No: {0} has already been transacted into another POS Invoice.	序列号 {0} 已用于另一张收银单据	หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว	シリアル番号 {0} は他のレジ伝票で使用済みです
-Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.	物料 {0} 在仓库 {1} 没有可用序列号，请更换仓库	สินค้า {0} ในคลัง {1} ไม่มีหมายเลขเครื่อง กรุณาเปลี่ยนคลัง	商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
-Sold by	收银员	ผู้ขาย	担当者
-Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.	物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}	สินค้า {0} ในคลัง {1} มีไม่พอ คงเหลือ {2} {3}	商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
+Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.	物料 {0} 在仓库 {1} 没有可用序列号，请更换仓库	สินค้า {0} ในคลังสินค้า {1} ไม่มีหมายเลขเครื่องที่ใช้ได้ กรุณาเปลี่ยนคลังสินค้า	商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
+Sold by	收银员	พนักงานเก็บเงิน	担当者
+Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.	物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}	สินค้า {0} ในคลังสินค้า {1} มีไม่เพียงพอ ใช้ได้ {2} {3}	商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
 Switch Between Payment Modes	切换支付方式	สลับวิธีชำระเงิน	支払方法を切り替え
-The cashier assets did not load (official-*.js).	收银台资源加载失败（official-*.js）	ไฟล์ของหน้าจุดขายโหลดไม่ครบ (official-*.js)	レジのファイルが読み込めませんでした（official-*.js）
-The current POS opening entry is outdated. Please close it and create a new one.	当前开班记录已过期，请先交班再重新开班	รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่	現在のシフト開始は古くなっています。閉めて新しく作成してください
-There were errors while sending email. Please try again.	发送邮件时出错，请重试	เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองใหม่	メール送信中にエラーが発生しました。再試行してください
+The cashier assets did not load (official-*.js).	收银台资源加载失败（official-*.js）	ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)	レジのファイルが読み込めませんでした（official-*.js）
+The current POS opening entry is outdated. Please close it and create a new one.	当前开班记录已过期，请先交班再重新开班	รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่	現在のシフト開始は古くなっています。閉めて新しく作成してください
+There were errors while sending email. Please try again.	发送邮件时出错，请重试	เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองอีกครั้ง	メール送信中にエラーが発生しました。再試行してください
 Total Quantity	总数量	จำนวนรวม	合計数量
 Totals	合计	ยอดรวม	合計
 Update Additional Information	更新附加信息	อัปเดตข้อมูลเพิ่มเติม	追加情報を更新
-You can redeem upto {0}.	最多可抵扣 {0}	ใช้แต้มได้สูงสุด {0}	最大 {0} まで利用できます
-You cannot redeem more than {0}.	抵扣金额不能超过 {0}	ใช้แต้มได้ไม่เกิน {0}	{0} を超えて利用できません
-You don't have enough points to redeem.	积分不足，无法抵扣	คะแนนไม่พอสำหรับการใช้แต้ม	ポイントが足りないため利用できません
+You can redeem upto {0}.	最多可抵扣 {0}	ใช้คะแนนสะสมได้สูงสุด {0}	最大 {0} まで利用できます
+You cannot redeem more than {0}.	抵扣金额不能超过 {0}	ใช้คะแนนสะสมได้ไม่เกิน {0}	{0} を超えて利用できません
+You don't have enough points to redeem.	积分不足，无法抵扣	คะแนนสะสมไม่เพียงพอสำหรับการแลก	ポイントが足りないため利用できません
 You have unsaved changes. Do you want to save the invoice?	存在未保存的更改，是否保存此单据？	มีการแก้ไขที่ยังไม่บันทึก ต้องการบันทึกเอกสารหรือไม่	未保存の変更があります。伝票を保存しますか？
-You must select a customer before adding an item.	添加物料前必须先选择客户	ต้องเลือกลูกค้าก่อนเพิ่มสินค้า	商品を追加する前に顧客を選択してください
-Open a shift before selling	请先开班	ต้องเปิดกะก่อนขาย	販売前にシフトを開始してください
+You must select a customer before adding an item.	添加物料前必须先选择客户	กรุณาเลือกลูกค้าก่อนเพิ่มสินค้า	商品を追加する前に顧客を選択してください
+Open a shift before selling	请先开班	กรุณาเปิดกะก่อน	販売前にシフトを開始してください
 This shift is closed	该班次已交班	กะนี้ปิดแล้ว	このシフトは終了しています
-This shift is already closed	该班次已交班	กะนี้ปิดไปแล้ว	このシフトはすでに終了しています
+This shift is already closed	该班次已交班	กะนี้ปิดแล้ว	このシフトはすでに終了しています
 Shift not found	班次不存在	ไม่พบกะนี้	シフトが見つかりません
-This terminal already has an open shift	该收银台已有未交班的班次	เครื่องขายนี้มีกะที่เปิดอยู่แล้ว	このレジにはすでに開いているシフトがあります
+This terminal already has an open shift	该收银台已有未交班的班次	จุดขายนี้มีกะที่ยังเปิดอยู่แล้ว	このレジにはすでに開いているシフトがあります
 This shift belongs to another cashier	该班次属于其他收银员	กะนี้เป็นของพนักงานเก็บเงินคนอื่น	このシフトは他のレジ担当のものです
-Counted amount is required	请填写实点金额	ต้องกรอกยอดนับได้	実地金額は必須です
-Terminal not found	收银台不存在	ไม่พบเครื่องขายนี้	レジが見つかりません
-A terminal needs a name	请填写收银台名称	เครื่องขายต้องมีชื่อ	レジには名前が必要です
-Sale not found	销售单不存在	ไม่พบบิลขายนี้	売上が見つかりません
+Counted amount is required	请填写实点金额	กรุณากรอกยอดเงินที่นับได้	実地金額は必須です
+Terminal not found	收银台不存在	ไม่พบจุดขายนี้	レジが見つかりません
+A terminal needs a name	请填写收银台名称	กรุณากรอกชื่อจุดขาย	レジには名前が必要です
+Sale not found	销售单不存在	ไม่พบเอกสารขายนี้	売上が見つかりません
 Provide at least one line item	至少需要一行明细	ต้องมีรายการอย่างน้อยหนึ่งรายการ	明細を最低 1 行入力してください
-A refund needs the original sale	退款必须指定原始销售单	การคืนเงินต้องอ้างอิงบิลขายต้นทาง	返品には元の売上が必要です
-A refund cannot be more than the original sale	退款不能超过原始销售单	คืนเงินได้ไม่เกินบิลขายต้นทาง	返品は元の売上を超えられません
-This sale is already voided	该销售单已作废	บิลขายนี้ถูกยกเลิกแล้ว	この売上はすでに無効です
+A refund needs the original sale	退款必须指定原始销售单	การคืนเงินต้องระบุเอกสารขายต้นฉบับ	返品には元の売上が必要です
+A refund cannot be more than the original sale	退款不能超过原始销售单	ยอดคืนเงินต้องไม่เกินยอดของเอกสารขายต้นฉบับ	返品は元の売上を超えられません
+This sale is already voided	该销售单已作废	เอกสารขายนี้ถูกยกเลิกแล้ว	この売上はすでに無効です
 Sales Records	销售记录	บันทึกการขาย	売上記録
 Additional Discount Percentage	整单折扣率	เปอร์เซ็นต์ส่วนลดท้ายบิล	伝票割引率
-Available Qty	可用量	จำนวนคงเหลือ	利用可能在庫数
+Available Qty	可用量	จำนวนที่ใช้ได้	利用可能在庫数
 Conversion Factor	换算系数	ตัวคูณแปลงหน่วย	換算係数
 Default	默认	ค่าเริ่มต้น	既定
 Lines	明细行	รายการ	明細行
-Price List Rate	标价	ราคาป้าย	表示価格
+Price List Rate	标价	ราคาตั้ง	表示価格
 Rounded Total	舍入后总计	ยอดรวมหลังปัดเศษ	端数調整後合計
 Stock UOM	库存单位	หน่วยวัดสต็อก	在庫単位
 Taxes	税费	ภาษี	税
 Time	时间	เวลา	時刻
 Company	公司	บริษัท	会社	trade.company
-A company needs a name	请填写公司名称	บริษัทต้องมีชื่อ	会社には名前が必要です
-A customer needs a name	请填写客户名称	ลูกค้าต้องมีชื่อ	顧客には名前が必要です
-A product needs a name	请填写物料名称	สินค้าต้องมีชื่อ	品目には名前が必要です
-A stock count needs a name	请填写盘点单名称	เอกสารตรวจนับต้องมีชื่อ	棚卸には名前が必要です
-A submitted document cannot be changed	已提交的单据不可修改	เอกสารที่ส่งแล้วแก้ไขไม่ได้	送信済みの伝票は変更できません
-A submitted entry cannot be changed	已提交的出入库单不可修改	รายการที่ส่งแล้วแก้ไขไม่ได้	送信済みの入出庫は変更できません
-A supplier needs a name	请填写供应商名称	ผู้ขายต้องมีชื่อ	仕入先には名前が必要です
-A warehouse needs a name	请填写仓库名称	คลังต้องมีชื่อ	倉庫には名前が必要です
+A company needs a name	请填写公司名称	กรุณากรอกชื่อบริษัท	会社には名前が必要です
+A customer needs a name	请填写客户名称	กรุณากรอกชื่อลูกค้า	顧客には名前が必要です
+A product needs a name	请填写物料名称	กรุณากรอกชื่อสินค้า	品目には名前が必要です
+A stock count needs a name	请填写盘点单名称	กรุณากรอกชื่อเอกสารตรวจนับ	棚卸には名前が必要です
+A submitted document cannot be changed	已提交的单据不可修改	ไม่สามารถแก้ไขเอกสารที่ส่งแล้วได้	送信済みの伝票は変更できません
+A submitted entry cannot be changed	已提交的出入库单不可修改	ไม่สามารถแก้ไขเอกสารรับ-จ่ายสินค้าที่ส่งแล้วได้	送信済みの入出庫は変更できません
+A supplier needs a name	请填写供应商名称	กรุณากรอกชื่อผู้จำหน่าย	仕入先には名前が必要です
+A warehouse needs a name	请填写仓库名称	กรุณากรอกชื่อคลังสินค้า	倉庫には名前が必要です
 Add Column	添加列	เพิ่มคอลัมน์	列を追加
 At most {0} photos per entry	每张单据最多 {0} 张照片	หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป	1 件あたり写真は最大 {0} 枚です
 Company not found	公司不存在	ไม่พบบริษัทนี้	会社が見つかりません
 Following fields have missing values:	以下字段缺少值：	ฟิลด์ต่อไปนี้ยังไม่ได้กรอก:	次の項目が未入力です:
-Missing Values Required	缺少必填项	ต้องกรอกข้อมูลที่จำเป็น	必須項目が未入力です
-Open this page from LINE, or sign in to the site first	请从 LINE 打开本页，或先登录站点	เปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน	このページは LINE から開くか、先にサイトへログインしてください
+Missing Values Required	缺少必填项	ยังไม่ได้กรอกข้อมูลที่จำเป็น	必須項目が未入力です
+Open this page from LINE, or sign in to the site first	请从 LINE 打开本页，或先登录站点	กรุณาเปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน	このページは LINE から開くか、先にサイトへログインしてください
 Purchase document not found	采购单不存在	ไม่พบเอกสารจัดซื้อนี้	購買伝票が見つかりません
 Setup Auto Email	设置自动邮件	ตั้งค่าอีเมลอัตโนมัติ	自動メールを設定
-Stock entry not found	出入库单不存在	ไม่พบเอกสารสต็อกนี้	入出庫伝票が見つかりません
-That submission was already used for a different entry	该提交已用于其他单据	การส่งนี้ถูกใช้กับรายการอื่นไปแล้ว	この送信は別の明細で使用済みです
+Stock entry not found	出入库单不存在	ไม่พบเอกสารรับ-จ่ายสินค้านี้	入出庫伝票が見つかりません
+That submission was already used for a different entry	该提交已用于其他单据	การส่งนี้ถูกใช้กับเอกสารอื่นแล้ว	この送信は別の明細で使用済みです
 This LINE account is not bound to an ERP user	该 LINE 账号未绑定 ERP 用户	บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP	この LINE アカウントは ERP ユーザーに紐付いていません
 This barcode already exists	该条码已存在	บาร์โค้ดนี้มีอยู่แล้ว	このバーコードは既に存在します
 This document is already recorded: {0}	该单据已录入：{0}	เอกสารนี้บันทึกแล้ว: {0}	この伝票は登録済みです: {0}
 This document is void	该单据已作废	เอกสารนี้ถูกยกเลิกแล้ว	この伝票は無効です
-This entry changed underneath you; reload and try again	该单据已被修改，请刷新后重试	รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่	この明細は他で変更されました。再読み込みしてやり直してください
+This entry changed underneath you; reload and try again	该单据已被修改，请刷新后重试	เอกสารนี้ถูกแก้ไขแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง	この明細は他で変更されました。再読み込みしてやり直してください
 This product code already exists	该物料编码已存在	รหัสสินค้านี้มีอยู่แล้ว	この品目コードは既に存在します
 This request was already recorded	该请求已记录	คำขอนี้ถูกบันทึกแล้ว	このリクエストは登録済みです
-This status change is not allowed	不允许此状态变更	เปลี่ยนสถานะแบบนี้ไม่ได้	このステータス変更は許可されていません
+This status change is not allowed	不允许此状态变更	ไม่อนุญาตให้เปลี่ยนสถานะนี้	このステータス変更は許可されていません
 This stock count is already posted	该盘点单已过账	เอกสารตรวจนับนี้ลงบัญชีแล้ว	この棚卸はすでに計上済みです
 No product matches this code	未找到与该编号匹配的物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	このコードに一致する商品がありません
 Return	退货退款	คืนสินค้า	返品・返金
-Pick a warehouse	请选择仓库	กรุณาเลือกคลัง	倉庫を選択してください
-This terminal has no warehouse; set one in the terminal settings	该收银台未设置仓库，请在收银台设置中选择仓库	เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย	このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
-A warehouse must belong to a company	仓库必须隶属于公司	คลังต้องอยู่ในบริษัท	倉庫は必ず会社に属します
-This payment method is not enabled for this company	该公司未启用此收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้	この会社ではこの支払方法が有効になっていません
+Pick a warehouse	请选择仓库	กรุณาเลือกคลังสินค้า	倉庫を選択してください
+This terminal has no warehouse; set one in the terminal settings	该收银台未设置仓库，请在收银台设置中选择仓库	จุดขายนี้ยังไม่ได้กำหนดคลังสินค้า กรุณาเลือกคลังสินค้าในการตั้งค่าจุดขาย	このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
+A warehouse must belong to a company	仓库必须隶属于公司	คลังสินค้าต้องสังกัดบริษัท	倉庫は必ず会社に属します
+This payment method is not enabled for this company	该公司未启用此收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระเงินนี้	この会社ではこの支払方法が有効になっていません
 Username	用户名	ชื่อผู้ใช้	ユーザー名	team.username
-Username can only have letters and numbers	用户名只能包含英文字母和数字	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข	ユーザー名は英数字のみ使用できます	team.usernameCharset
+Username can only have letters and numbers	用户名只能包含英文字母和数字	ชื่อผู้ใช้ต้องประกอบด้วยตัวอักษรภาษาอังกฤษและตัวเลขเท่านั้น	ユーザー名は英数字のみ使用できます	team.usernameCharset
 User Settings	用户菜单	เมนูผู้ใช้	ユーザーメニュー
 Several matches found. Please select a record.	找到多个匹配结果，请选择一条记录。	พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ	複数の候補があります。レコードを選択してください。
 Supplier not found. Please select the supplier again.	供应商不存在，请重新选择供应商。	ไม่พบผู้จำหน่าย กรุณาเลือกใหม่	仕入先が見つかりません。選択し直してください。
 Customer not found. Please select the customer again.	客户不存在，请重新选择客户。	ไม่พบลูกค้า กรุณาเลือกใหม่	顧客が見つかりません。選択し直してください。
-General	常用功能	ทั่วไป	一般
+General	常用功能	ฟังก์ชันที่ใช้บ่อย	一般
 Enter opening stock	录入期初库存	บันทึกสต็อกยกมา	期首在庫を登録	stock.opening.title
 Opening date	期初日期	วันที่สต็อกยกมา	期首日	stock.opening.date
 Opening quantity	期初数量	จำนวนยกมา	期首数量	stock.opening.qty
@@ -1187,112 +1187,126 @@ Opening stock review	期初库存核对	ตรวจสอบสต็อกย�
 Confirm opening stock	确认入账	ยืนยันบันทึกสต็อกยกมา	期首在庫を確定	stock.opening.submit
 Row number	行号	แถวที่	行番号	stock.opening.rowNumber
 Ready to post	待入账	พร้อมบันทึก	登録可能	stock.opening.ready
-Already recorded; skipped	已录入，已跳过	บันทึกแล้ว ไม่บันทึกซ้ำ	登録済み・重複登録なし	stock.opening.skipped
+Already recorded; skipped	已录入，已跳过	บันทึกไว้แล้ว ข้ามรายการนี้	登録済み・重複登録なし	stock.opening.skipped
 Select a warehouse and opening date first	请先选择仓库和期初日期	กรุณาเลือกคลังและวันที่ยกมาก่อน	先に倉庫と期首日を選択してください	stock.opening.headerRequired
 Correct the marked rows, then preview again	请修正明细中的错误，再重新预览	กรุณาแก้ไขแถวที่มีข้อผิดพลาดแล้วตรวจสอบอีกครั้ง	明細のエラーを修正して再確認してください	stock.opening.fixErrors
-Replace the entered rows with the imported file?	确定要用导入文件替换已填写的明细吗？	แทนที่รายการที่กรอกด้วยไฟล์นำเข้าหรือไม่?	入力済みの明細を取込ファイルで置き換えますか？	stock.opening.replaceRows
+Replace the entered rows with the imported file?	确定要用导入文件替换已填写的明细吗？	ต้องการแทนที่รายการที่กรอกไว้ด้วยไฟล์นำเข้าใช่หรือไม่	入力済みの明細を取込ファイルで置き換えますか？	stock.opening.replaceRows
 Recorded {0} opening row(s); skipped {1} already recorded row(s)	已录入 {0} 行期初库存，已跳过 {1} 行已录入明细	บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว	期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました	stock.opening.saved
 Opening stock item	期初明细	รายการยกมา	期首明細	stock.opening.item
 Add opening item	添加明细	เพิ่มรายการ	明細を追加	stock.opening.add
 Product ID	物料标识	รหัสระบุสินค้า	商品ID	stock.opening.productId
 Last page	末页	หน้าสุดท้าย	最終ページ	stock.opening.lastPage
 Check the opening stock row	请检查这条期初明细	กรุณาตรวจสอบรายการยกมานี้	この期首明細を確認してください
-Choose a local opening stock file	请选择本地期初库存文件	กรุณาเลือกไฟล์สต็อกยกมาที่อัปโหลดไว้	アップロード済みの期首在庫ファイルを選択してください
+Choose a local opening stock file	请选择本地期初库存文件	กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง	アップロード済みの期首在庫ファイルを選択してください
 Choose an existing product for opening stock	请选择已有的物料录入期初	กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา	登録済みの商品を選択してください
-Each product and location may appear only once	同一物料和仓位只能填写一次	สินค้าและตำแหน่งเดียวกันระบุได้เพียงครั้งเดียว	同じ商品と保管場所は1回だけ入力してください
+Each product and location may appear only once	同一物料和仓位只能填写一次	สินค้าเดียวกันในตำแหน่งจัดเก็บเดียวกันระบุได้เพียงครั้งเดียว	同じ商品と保管場所は1回だけ入力してください
 Fix all opening stock errors before submitting	请修正全部期初明细错误后再入账	กรุณาแก้ไขข้อผิดพลาดทั้งหมดก่อนบันทึก	期首明細のエラーをすべて修正してから確定してください
 Keep product IDs, codes and barcodes as text in the opening stock file	期初文件中的物料标识、编码和条码请使用文本格式	รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ	商品ID・コード・バーコードは文字列形式にしてください
 Opening quantity and unit cost are required and must be non-negative	期初数量和成本单价必填，且不能小于零	ต้องระบุจำนวนและต้นทุนต่อหน่วยยกมาเป็นค่าที่ไม่ติดลบ	期首数量と単価は必須です。0以上で入力してください
-Opening quantity supports six decimal places and unit cost supports two	期初数量最多六位小数，成本单价最多两位小数	จำนวนยกมารองรับทศนิยม6ตำแหน่ง ต้นทุนต่อหน่วย2ตำแหน่ง	数量は小数6桁、単価は小数2桁まで入力できます
-Opening stock changed. Preview the rows again before submitting.	期初数据已变化，请重新预览核对后再入账。	ข้อมูลยกมาเปลี่ยนแปลง กรุณาตรวจสอบอีกครั้งก่อนบันทึก	期首データが変更されました。再確認してから確定してください
-Opening stock files cannot contain formulas or error cells	期初文件不能包含公式或错误单元格，请粘贴为数值	ไฟล์ยกมาต้องไม่มีสูตรหรือเซลล์ข้อผิดพลาด กรุณาวางเป็นค่า	数式やエラーのあるセルは使用できません。値として貼り付けてください
+Opening quantity supports six decimal places and unit cost supports two	期初数量最多六位小数，成本单价最多两位小数	จำนวนยกมารองรับทศนิยมสูงสุด 6 ตำแหน่ง และต้นทุนต่อหน่วยสูงสุด 2 ตำแหน่ง	数量は小数6桁、単価は小数2桁まで入力できます
+Opening stock changed. Preview the rows again before submitting.	期初数据已变化，请重新预览核对后再入账。	ข้อมูลยกมามีการเปลี่ยนแปลง กรุณาตรวจสอบอีกครั้งก่อนบันทึก	期首データが変更されました。再確認してから確定してください
+Opening stock files cannot contain formulas or error cells	期初文件不能包含公式或错误单元格，请粘贴为数值	ไฟล์ยกมาต้องไม่มีสูตรหรือเซลล์ที่มีข้อผิดพลาด กรุณาวางแบบค่า	数式やエラーのあるセルは使用できません。値として貼り付けてください
 Opening stock must use the product base unit	期初库存必须使用物料的库存单位	สต็อกยกมาต้องใช้หน่วยฐานของสินค้า	期首在庫は商品の基準単位で入力してください
-Opening stock review is not configured	期初核对配置缺失，请联系管理员	ยังไม่ได้ตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแล	期首確認の設定がありません。管理者に連絡してください
+Opening stock review is not configured	期初核对配置缺失，请联系管理员	ไม่พบการตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแลระบบ	期首確認の設定がありません。管理者に連絡してください
 Product is disabled	物料已停用	สินค้าถูกปิดใช้งาน	商品は無効になっています
-Product not found or its identifiers are ambiguous	找不到物料，或编码、条码匹配不唯一	ไม่พบสินค้า หรือรหัสตรงกับสินค้ามากกว่าหนึ่งรายการ	商品が見つからないか、コードが一意ではありません
-Provide between 1 and 5000 opening stock rows	请填写 1 至 5000 条期初明细	กรุณาระบุรายการยกมา1ถึง5000รายการ	期首明細を1〜5000行入力してください
+Product not found or its identifiers are ambiguous	找不到物料，或编码、条码匹配不唯一	ไม่พบสินค้า หรือรหัส/บาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ	商品が見つからないか、コードが一意ではありません
+Provide between 1 and 5000 opening stock rows	请填写 1 至 5000 条期初明细	กรุณาระบุรายการยกมา 1 ถึง 5000 รายการ	期首明細を1〜5000行入力してください
 The opening stock amount is too large	期初库存金额过大	มูลค่าสต็อกยกมามากเกินไป	期首在庫金額が大きすぎます
 The opening stock file is too large	期初库存文件过大	ไฟล์สต็อกยกมาใหญ่เกินไป	期首在庫ファイルが大きすぎます
 The product identifiers refer to different products	该行的物料标识、编码或条码对应不同物料	รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ	この行の商品ID・コード・バーコードは別の商品を指しています
-This stock position already has stock movements; use a stock adjustment	该物料在此仓位已有出入库记录，请使用库存调整	สินค้าตำแหน่งนี้มีการเคลื่อนไหวแล้ว กรุณาใช้การปรับสต็อก	この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
-This stock position is already initialized; use a stock adjustment	该物料在此仓位已录入期初，请使用库存调整	สินค้าตำแหน่งนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับสต็อก	この保管場所の商品は期首登録済みです。在庫調整を使用してください
+This stock position already has stock movements; use a stock adjustment	该物料在此仓位已有出入库记录，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
+This stock position is already initialized; use a stock adjustment	该物料在此仓位已录入期初，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品は期首登録済みです。在庫調整を使用してください
 Use a valid opening date that is not in the future	请填写有效的期初日期，不能晚于今天	กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้	本日以前の有効な期首日を入力してください
-Use an XLSX opening stock file	请使用 XLSX 格式的期初库存文件	กรุณาใช้ไฟล์สต็อกยกมารูปแบบXLSX	XLSX形式の期首在庫ファイルを使用してください
-Use one worksheet for opening stock	期初库存文件只能包含一个工作表	ไฟล์สต็อกยกมาต้องมีแผ่นงานเดียว	期首在庫ファイルのシートは1つにしてください
-Use unique opening stock columns, including a product identifier, quantity and unit cost	请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复	กรุณาใช้หัวตารางตามแบบฟอร์ม ต้องมีรหัสสินค้า จำนวนและต้นทุนต่อหน่วย โดยไม่ซ้ำคอลัมน์	テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です
-The opening stock value is too large to preserve its decimal precision	期初数值过大，无法保持所需小数精度	ค่าสต็อกยกมามากเกินกว่าจะรักษาความละเอียดทศนิยม	期首数値が大きすぎて必要な小数精度を保持できません
-Bound	已绑定	เชื่อมต่อแล้ว	連携済み	erp.line.status.bound
-Not bound	未绑定	ยังไม่เชื่อมต่อ	未連携	erp.line.status.unbound
-Binding code	绑定码	รหัสเชื่อมต่อ	連携コード	erp.line.code
-New code	重新生成	ขอรหัสใหม่	新しいコード	erp.line.newCode
+Use an XLSX opening stock file	请使用 XLSX 格式的期初库存文件	กรุณาใช้ไฟล์สต็อกยกมารูปแบบ XLSX	XLSX形式の期首在庫ファイルを使用してください
+Use one worksheet for opening stock	期初库存文件只能包含一个工作表	ไฟล์สต็อกยกมาต้องมีแผ่นงานเพียงแผ่นเดียว	期首在庫ファイルのシートは1つにしてください
+Use unique opening stock columns, including a product identifier, quantity and unit cost	请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复	กรุณาใช้หัวตารางตามแบบฟอร์มยกมา โดยต้องมีรหัสระบุสินค้า จำนวน และต้นทุนต่อหน่วยเป็นอย่างน้อย และคอลัมน์ต้องไม่ซ้ำกัน	テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です
+The opening stock value is too large to preserve its decimal precision	期初数值过大，无法保持所需小数精度	ค่าสต็อกยกมามีขนาดใหญ่เกินไป ไม่สามารถรักษาความละเอียดทศนิยมได้	期首数値が大きすぎて必要な小数精度を保持できません
+Bound	已绑定	ผูกบัญชีแล้ว	連携済み	erp.line.status.bound
+Not bound	未绑定	ยังไม่ได้ผูกบัญชี	未連携	erp.line.status.unbound
+Binding code	绑定码	รหัสผูกบัญชี	連携コード	erp.line.code
+New code	重新生成	สร้างรหัสใหม่	新しいコード	erp.line.newCode
 Time left {0}	剩余 {0}	เหลือเวลา {0}	残り {0}	erp.line.remaining
 Code expired	绑定码已过期	รหัสหมดอายุแล้ว	コードの有効期限が切れました	erp.line.expired
 LINE name	LINE 名称	ชื่อ LINE	LINE の名前	erp.line.lineName
-Bound at	绑定时间	เชื่อมต่อเมื่อ	連携日時	erp.line.boundAt
+Bound at	绑定时间	เวลาที่ผูกบัญชี	連携日時	erp.line.boundAt
 Unbind LINE	解绑 LINE	ยกเลิกการเชื่อมต่อ LINE	LINE 連携を解除	erp.line.unbind
-Unbind Pearnly ERP LINE?	确定要解绑 Pearnly ERP LINE 吗？	ยืนยันการยกเลิกการเชื่อมต่อ?	Pearnly ERP LINE の連携を解除しますか？	erp.line.unbindConfirm
+Unbind Pearnly ERP LINE?	确定要解绑 Pearnly ERP LINE 吗？	ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่	Pearnly ERP LINE の連携を解除しますか？	erp.line.unbindConfirm
 LINE is not enabled for this account	该账号未开通 LINE	บัญชีนี้ยังไม่ได้เปิดใช้ LINE	このアカウントは LINE が有効になっていません
-Choose purchase or sales first	请先选择采购或销售	กรุณาเลือก ซื้อ หรือ ขาย ก่อนส่งเอกสาร	先に仕入か売上を選んでください
+Choose purchase or sales first	请先选择采购或销售	กรุณาเลือก ซื้อ หรือ ขาย ก่อน	先に仕入か売上を選んでください
 Choose the company	选择公司	เลือกบริษัท	会社を選んでください
-Choose the customer	请选择客户	เลือกลูกค้า	顧客を選んでください
-Choose the payment method	请选择付款方式	เลือกวิธีชำระเงิน	支払方法を選んでください
-Choose the supplier	请选择供应商	เลือกผู้จัดจำหน่าย	仕入先を選んでください
-Choose the warehouse	请选择仓库	เลือกคลังสินค้า	倉庫を選んでください
-Choose what to record	请选择要录入的类型	เลือกรายการที่ต้องการบันทึก	記録する種類を選んでください
-Could not read this document. Please send it again.	识别失败，请重新发送	อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่อีกครั้ง	読み取れませんでした。もう一度送ってください
+Choose the customer	请选择客户	กรุณาเลือกลูกค้า	顧客を選んでください
+Choose the payment method	请选择付款方式	กรุณาเลือกวิธีชำระเงิน	支払方法を選んでください
+Choose the supplier	请选择供应商	กรุณาเลือกผู้จำหน่าย	仕入先を選んでください
+Choose the warehouse	请选择仓库	กรุณาเลือกคลังสินค้า	倉庫を選んでください
+Choose what to record	请选择要录入的类型	กรุณาเลือกประเภทที่ต้องการบันทึก	記録する種類を選んでください
+Could not read this document. Please send it again.	识别失败，请重新发送	ไม่สามารถอ่านเอกสารได้ กรุณาส่งใหม่อีกครั้ง	読み取れませんでした。もう一度送ってください
 From the document	按票面识别	อ่านจากเอกสาร	書類から読み取る
-No items were read	未识别到明细	ไม่พบรายการสินค้า	明細を読み取れませんでした
-No warehouse is available for this company	该公司无可用仓库	บริษัทนี้ยังไม่มีคลังสินค้า	この会社に使用できる倉庫がありません
-Not found on the document	票面未载明	ไม่พบในเอกสาร	書類に記載がありません
-Paid or unpaid?	请选择已付或未付	ชำระแล้วหรือยังไม่ได้ชำระ?	支払済みですか、未払いですか？
+No items were read	未识别到明细	ไม่พบรายการในเอกสาร	明細を読み取れませんでした
+No warehouse is available for this company	该公司无可用仓库	บริษัทนี้ไม่มีคลังสินค้าที่ใช้งานได้	この会社に使用できる倉庫がありません
+Not found on the document	票面未载明	ไม่ได้ระบุในเอกสาร	書類に記載がありません
+Paid or unpaid?	请选择已付或未付	กรุณาเลือก ชำระแล้ว หรือ ยังไม่ชำระ	支払済みですか、未払いですか？
 Please upload a PDF or image	请上传 PDF 或图片	กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ	PDF または画像をアップロードしてください
-Service or stock item?	请选择服务或库存商品	บริการหรือสินค้าคงคลัง?	サービスですか、在庫品ですか？
+Service or stock item?	请选择服务或库存商品	กรุณาเลือก บริการ หรือ สินค้าคงคลัง	サービスですか、在庫品ですか？
 Stock item	库存商品	สินค้าคงคลัง	在庫品
 Subtotal	小计	ยอดก่อนภาษี	小計
-Tap the menu to start	请点击下方菜单开始	กดเมนูด้านล่างเพื่อเริ่มต้น	下のメニューから始めてください
-The recognition queue is busy. Please send the document again shortly.	识别队列繁忙，请稍后重新发送	คิวอ่านเอกสารเต็ม กรุณาส่งใหม่อีกครั้งในอีกสักครู่	読み取りが混み合っています。しばらくしてからもう一度送ってください
-The recognition result needs checking. Please do not resend this document yet.	识别结果待核对，请勿重复发送	ผลการอ่านต้องตรวจสอบ กรุณายังไม่ต้องส่งเอกสารนี้ซ้ำ	読み取り結果の確認が必要です。まだ再送しないでください
-This option is no longer current	该选项已失效，请按最新步骤选择	ตัวเลือกนี้ไม่ใช่ขั้นตอนปัจจุบันแล้ว	この選択肢は現在の手順ではありません
+Tap the menu to start	请点击下方菜单开始	กรุณากดเมนูด้านล่างเพื่อเริ่มต้น	下のメニューから始めてください
+The recognition queue is busy. Please send the document again shortly.	识别队列繁忙，请稍后重新发送	ระบบอ่านเอกสารมีคิวหนาแน่น กรุณาส่งเอกสารใหม่อีกครั้งในภายหลัง	読み取りが混み合っています。しばらくしてからもう一度送ってください
+The recognition result needs checking. Please do not resend this document yet.	识别结果待核对，请勿重复发送	ผลการอ่านอยู่ระหว่างรอตรวจสอบ กรุณาอย่าส่งเอกสารนี้ซ้ำ	読み取り結果の確認が必要です。まだ再送しないでください
+This option is no longer current	该选项已失效，请按最新步骤选择	ตัวเลือกนี้ใช้ไม่ได้แล้ว กรุณาเลือกตามขั้นตอนล่าสุด	この選択肢は現在の手順ではありません
 {0} more items	另有 {0} 项	และอีก {0} รายการ	ほか {0} 件
-This document is no longer available	该单据已不可用	เอกสารนี้ใช้งานไม่ได้แล้ว	この書類は利用できません
-Upload a document or enter it manually?	请选择上传识别或手动录入	อัปโหลดเอกสารหรือกรอกเอง?	書類をアップロードしますか、手入力しますか？
+This document is no longer available	该单据已不可用	เอกสารนี้ไม่สามารถใช้งานได้แล้ว	この書類は利用できません
+Upload a document or enter it manually?	请选择上传识别或手动录入	กรุณาเลือก อัปโหลดเอกสาร หรือ กรอกเอง	書類をアップロードしますか、手入力しますか？
 Upload and recognise	上传识别	อัปโหลดเอกสาร	アップロードして読み取る
 Enter manually	手动录入	กรอกเอง	手入力
-General supplier	一般供应商	ผู้ขายทั่วไป	一般仕入先
-Review document	复核单据	ตรวจสอบเอกสาร	書類を確認
-Document summary · open details to review and post	单据摘要 · 进入明细完成复核与入账	สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี	書類の概要 · 明細画面で確認して計上してください
+General supplier	一般供应商	ผู้จำหน่ายทั่วไป	一般仕入先
+Review document	复核单据	ตรวจทานเอกสาร	書類を確認
+Document summary · open details to review and post	单据摘要 · 进入明细完成复核与入账	สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี	書類の概要 · 明細画面で確認して計上してください
 Direction	方向	ทิศทาง	方向
 Transaction type	业务类型	ประเภทรายการ	取引区分
-Documents	单据数量	เอกสาร	書類数
+Documents	单据数量	จำนวนเอกสาร	書類数
 Document no.	单据号	เลขที่เอกสาร	書類番号
 Document type	单据类型	ประเภทเอกสาร	書類種類
 Seller	卖方名称	ชื่อผู้ขาย	売り手
-Seller tax ID	卖方税号	เลขผู้เสียภาษีผู้ขาย	売り手税番号
+Seller tax ID	卖方税号	เลขประจำตัวผู้เสียภาษีของผู้ขาย	売り手税番号
 Seller branch	卖方分支机构	สาขาผู้ขาย	売り手支店
 Seller address	卖方地址	ที่อยู่ผู้ขาย	売り手住所
 Buyer	买方名称	ชื่อผู้ซื้อ	買い手
-Buyer tax ID	买方税号	เลขผู้เสียภาษีผู้ซื้อ	買い手税番号
+Buyer tax ID	买方税号	เลขประจำตัวผู้เสียภาษีของผู้ซื้อ	買い手税番号
 Buyer branch	买方分支机构	สาขาผู้ซื้อ	買い手支店
 Buyer address	买方地址	ที่อยู่ผู้ซื้อ	買い手住所
-WHT amount	预扣税额	ภาษีหัก ณ ที่จ่าย	源泉税額
-Document total	总金额	ยอดรวม	合計
+WHT amount	预扣税额	จำนวนภาษีหัก ณ ที่จ่าย	源泉税額
+Document total	总金额	ยอดรวมทั้งสิ้น	合計
 Payment method	付款方式	วิธีชำระเงิน	支払方法
-For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	拍摄提示：请将单据摆正，文字朝上，完整入镜。	เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น	読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
+For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	拍摄提示：请将单据摆正，文字朝上，完整入镜。	คำแนะนำในการถ่ายภาพ: กรุณาวางเอกสารให้ตรง ตัวอักษรหันขึ้นด้านบน และถ่ายให้เห็นครบทั้งแผ่น	読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 Buy	采购	ซื้อ	仕入
 Sell	销售	ขาย	売上
-Record purchases	采购录入	บันทึกซื้อ	仕入入力
-Record sales	销售录入	บันทึกขาย	売上入力
-Receive documents and add stock	收单并入库	รับเอกสารและเพิ่มสินค้าเข้าสต๊อก	伝票を登録して入庫
-Issue documents and deduct stock	开单并出库	ออกเอกสารและตัดสินค้าออกจากสต๊อก	伝票を登録して出庫
-Count stock on the web	在网页端清点库存	นับสินค้าคงคลังผ่านหน้าเว็บ	Webで在庫を数える
+Record purchases	采购录入	บันทึกการซื้อ	仕入入力
+Record sales	销售录入	บันทึกการขาย	売上入力
+Receive documents and add stock	收单并入库	รับเอกสารและรับสินค้าเข้าสต็อก	伝票を登録して入庫
+Issue documents and deduct stock	开单并出库	ออกเอกสารและตัดสินค้าออกจากสต็อก	伝票を登録して出庫
+Count stock on the web	在网页端清点库存	ตรวจนับสินค้าผ่านหน้าเว็บ	Webで在庫を数える
 ERP menu	ERP 菜单	เมนู ERP	ERPメニュー
-A tax ID failed its check digit	税号校验位错误	เลขผู้เสียภาษีไม่ผ่านการตรวจสอบหลัก	税番号のチェックディジットが一致しません
-This is not a purchase or sales document	该文件不是采购或销售单据	เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย	これは仕入・売上の書類ではありません
+A tax ID failed its check digit	税号校验位错误	เลขประจำตัวผู้เสียภาษีมีหลักตรวจสอบไม่ถูกต้อง	税番号のチェックディジットが一致しません
+This is not a purchase or sales document	该文件不是采购或销售单据	ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย	これは仕入・売上の書類ではありません
 Recognition is busy right now. Please try again in a minute.	识别服务繁忙，请一分钟后再试。	ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	読み取りが混み合っています。1 分後にもう一度お試しください。
-The recognition service did not answer in time. Please try again.	识别服务响应超时，请重试。	ระบบอ่านเอกสารไม่ตอบกลับตามเวลา กรุณาลองใหม่	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
+The recognition service did not answer in time. Please try again.	识别服务响应超时，请重试。	ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 This PDF has more than {0} pages	PDF 超过 {0} 页	PDF มีมากกว่า {0} หน้า	PDF が {0} ページを超えています
 This file holds {0} documents; only the first is filled in. Upload the others separately.	该文件包含 {0} 张单据，仅填入第一张，其余请分别上传。	ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน	このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
-Your balance is not enough for recognition. Please top up and send it again.	余额不足，无法识别。请充值后重新发送。	ยอดเงินคงเหลือไม่พอสำหรับการอ่านเอกสาร กรุณาเติมเงินแล้วส่งใหม่อีกครั้ง	残高が不足しているため読み取りできません。チャージしてからもう一度送信してください。
-The balance could not be checked right now. Please try again in a minute.	暂时无法查询余额，请稍后重试。	ยังตรวจสอบยอดเงินไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	現在残高を確認できません。1 分後にもう一度お試しください。
-Recognition stopped before it finished. Please try again.	识别中断，请重试。	การอ่านเอกสารหยุดก่อนเสร็จ กรุณาลองใหม่อีกครั้ง	読み取りが途中で止まりました。もう一度お試しください。
-Recognition could not start. Please try again.	无法启动识别，请重试。	เริ่มอ่านเอกสารไม่ได้ กรุณาลองใหม่อีกครั้ง	読み取りを開始できませんでした。もう一度お試しください。
+Your balance is not enough for recognition. Please top up and send it again.	余额不足，无法识别。请充值后重新发送。	ยอดคงเหลือไม่เพียงพอสำหรับการอ่านเอกสาร กรุณาเติมเงินแล้วส่งใหม่อีกครั้ง	残高が不足しているため読み取りできません。チャージしてからもう一度送信してください。
+The balance could not be checked right now. Please try again in a minute.	暂时无法查询余额，请稍后重试。	ไม่สามารถตรวจสอบยอดคงเหลือได้ในขณะนี้ กรุณาลองอีกครั้งในภายหลัง	現在残高を確認できません。1 分後にもう一度お試しください。
+Recognition stopped before it finished. Please try again.	识别中断，请重试。	การอ่านเอกสารหยุดชะงัก กรุณาลองอีกครั้ง	読み取りが途中で止まりました。もう一度お試しください。
+Recognition could not start. Please try again.	无法启动识别，请重试。	ไม่สามารถเริ่มอ่านเอกสารได้ กรุณาลองอีกครั้ง	読み取りを開始できませんでした。もう一度お試しください。
+A company needs at least one warehouse	公司至少需要一个仓库	บริษัทต้องมีคลังสินค้าอย่างน้อย 1 แห่ง	会社には倉庫が 1 つ以上必要です	
+Choices	选项	ตัวเลือก	選択肢	
+Item Key	品项键	คีย์รายการสินค้า	品目キー	
+Item Kind	品项类型	ประเภทรายการ	品目区分	
+Method	付款方式	วิธีชำระเงิน	支払方法	
+Party	往来单位	คู่ค้า	取引先	
+Payment Methods	付款方式	วิธีชำระเงิน	支払方法	
+Recognition	识别	การอ่านเอกสาร	読み取り	
+Recognition Result	识别结果	ผลการอ่านเอกสาร	読み取り結果	
+Reference Type	来源单据类型	ประเภทเอกสารอ้างอิง	参照元区分	
+Source File Record	源文件记录	ไฟล์ต้นฉบับ	元ファイル記録	
+That file has too many rows	文件行数过多	ไฟล์มีจำนวนแถวมากเกินไป	ファイルの行数が多すぎます	
+The cashier is not enabled for this company	该公司未启用收银	บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)	この会社ではレジが有効になっていません	
+Value Change	金额变动	มูลค่าที่เปลี่ยนแปลง	金額変動	
