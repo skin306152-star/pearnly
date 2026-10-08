@@ -9,8 +9,7 @@ def test_all_keys_have_both_languages():
 
 
 def test_placeholder_format():
-    # 检测结果不再报账套数、不再要求选账套（账套由网页第一步选，2026-09-26）。
-    assert t("status_found", "zh", n=5) == "已找到 Express 数据。"
+    assert t("express_roots_more", "zh", path=r"S:\EXP68", n=3) == r"S:\EXP68 等 3 个年度"
     assert "X" in t("pair_fail", "zh", err="X")
 
 

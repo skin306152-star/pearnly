@@ -37,6 +37,8 @@ def _store_with_one_connection(tmp_path, monkeypatch):
         account_dir=r"S:\\EXP68\\ACME",
         account_set=r"S:\\EXP68\\ACME",
         account_company="Acme Co.",
+        express_root=r"S:\\EXP68",
+        authorized_roots=[r"S:\\EXP68", r"S:\\EXP69"],
         pearnly_account="owner@example.com",
         paired=True,
         ui_lang="zh",
@@ -56,11 +58,12 @@ def _assert_free_window(window):
     assert window.minimumWidth() < window.maximumWidth()
 
 
-def _main_window(store, monkeypatch, states=None):
+def _main_window(store, monkeypatch, states=None, detected=()):
     from PySide6.QtWidgets import QApplication
 
     QApplication.instance() or QApplication([])
     monkeypatch.setattr(gui_profiles.autostart, "is_enabled", lambda: True)
+    monkeypatch.setattr(gui_profiles, "detect_roots", lambda _store: list(detected))
     dialog = ProfileManagerDialog(lang="zh", profile_store=store, profile_states=states or {})
     dialog._live_refresh.stop()  # 测试里不去读本机真实配置
     return dialog
@@ -70,6 +73,11 @@ def test_main_window_shows_each_connection_with_status_and_its_folders(tmp_path,
     # 2026-10-08：连接、网页可选的文件夹、开机启动在同一个窗口；卡片标题只写 Pearnly 账号（不显示账套）。
     store = _store_with_one_connection(tmp_path, monkeypatch)
     dialog = _main_window(store, monkeypatch, {store.profiles[0].profile_id: ("idle", "")})
+
+    # 这台电脑：Express 账套是全部成员数据根的并集，已有成员时不再检测
+    assert dialog.machine_box.title() == "这台电脑"
+    assert dialog.express_value.text() == r"S:\\EXP68 等 2 个年度"
+    assert dialog.add_btn.text() == "添加成员" and dialog.add_btn.isEnabled()
 
     [card] = dialog._cards.values()
     assert card["box"].title() == "owner@example.com"
@@ -107,11 +115,39 @@ def test_folder_overlap_is_refused_and_nothing_is_saved(tmp_path, monkeypatch):
 def test_main_window_without_connections_says_how_to_add_one(tmp_path, monkeypatch):
     monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
-    dialog = _main_window(store, monkeypatch)
+    dialog = _main_window(store, monkeypatch, detected=[r"S:\\EXP68"])
 
     assert dialog._cards == {}
     assert not dialog.empty.isHidden()
-    assert "添加连接" in dialog.empty.text()
+    assert "添加成员" in dialog.empty.text()
+    # 还没有成员：后台自动找 Express，找完之前不能添加成员
+    assert not dialog.add_btn.isEnabled()
+    _wait_until(lambda: dialog._roots_state == "ready")
+    assert dialog._roots == [r"S:\\EXP68"]
+    assert dialog.express_value.text() == r"S:\\EXP68"
+    assert dialog.add_btn.isEnabled()
+
+
+def test_without_express_the_machine_row_says_to_pick_it(tmp_path, monkeypatch):
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    dialog = _main_window(store, monkeypatch)
+    _wait_until(lambda: dialog._roots_state == "ready")
+
+    assert "更换" in dialog.express_value.text()
+    assert not dialog.add_btn.isEnabled() and dialog.change_btn.isEnabled()
+
+
+def _wait_until(condition, seconds=5):
+    import time
+
+    from PySide6.QtWidgets import QApplication
+
+    deadline = time.monotonic() + seconds
+    while not condition() and time.monotonic() < deadline:
+        QApplication.processEvents()
+        time.sleep(0.01)
+    assert condition()
 
 
 def test_masked_token_never_exposes_the_middle():
@@ -152,6 +188,9 @@ def test_open_window_rebuilds_cards_only_when_connections_change(monkeypatch):
     dialog._store = old_store
     dialog._profile_states = {}
     dialog._profile_state_provider = lambda: {"profile-a": ("idle", "")}
+    dialog._roots_state = "ready"
+    dialog._paint_roots = lambda: None
+    monkeypatch.setattr(gui_profiles, "machine_roots", lambda _store: [])
     calls = []
     dialog._refresh = lambda: calls.append("rebuild")
     dialog._paint_states = lambda: calls.append("states")

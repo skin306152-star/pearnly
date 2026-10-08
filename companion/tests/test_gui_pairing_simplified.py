@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""配对窗只留必要项（2026-09-26）：账套 / 年度由网页第一步选择，小助手不选、不显示。无 PySide6 则跳过。"""
+"""添加成员窗只有配对码一行（2026-10-08：账套是这台电脑的全局设置，在主窗口里）。无 PySide6 则跳过。"""
 
 from types import SimpleNamespace
 
@@ -7,60 +7,31 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from src.companion.account_probe import AccountSet  # noqa: E402
 from src.companion.gui_pairing import PairingDialog  # noqa: E402
 from src.companion.gui_tray import MENU_TEXT_MAX, _menu_text  # noqa: E402
 
 
-def _acc(path):
-    return AccountSet(code="A", name="A", company="C", path=path, tax_id="", writable=True, row=2)
+def test_add_member_window_has_only_the_pairing_code():
+    from PySide6.QtWidgets import QApplication, QLineEdit
 
-
-def _dialog(prefill, account_set=""):
-    dialog = PairingDialog.__new__(PairingDialog)
-    dialog._prefill = prefill
-    dialog._cfg = SimpleNamespace(account_set=account_set, account_dir="")
-    return dialog
-
-
-def test_default_account_is_picked_without_asking():
-    sets = [_acc(r"S:\\EXP68\\A"), _acc(r"S:\\EXP68\\B")]
-    assert PairingDialog._prefill_account_index(_dialog(False), sets) == 0
-    assert PairingDialog._prefill_account_index(_dialog(True, r"S:\\EXP68\\B"), sets) == 1
-    assert PairingDialog._prefill_account_index(_dialog(True, r"S:\\GONE"), sets) == 0
-    assert PairingDialog._prefill_account_index(_dialog(True), []) == -1
-
-
-def test_account_section_is_not_shown(qtbot=None):
-    from PySide6.QtWidgets import QApplication
-
-    from src.companion import gui_pairing
     from src.companion.profile_store import ProfileStore
 
     QApplication.instance() or QApplication([])
-    original = gui_pairing.PairingDialog._autodetect
-    gui_pairing.PairingDialog._autodetect = lambda self: None
-    try:
-        store = ProfileStore.__new__(ProfileStore)
-        store.new_runtime_config = lambda: SimpleNamespace(paired=False, authorized_roots=[], ui_lang="zh",
-                                                           autostart=True, express_root="", account_set="",
-                                                           account_dir="")
-        dialog = PairingDialog(profile_store=store, lang="zh")
-        for widget in (dialog.intro, dialog.sec_account, dialog.root_combo, dialog.account,
-                       dialog.help_acct, dialog.all_roots):
-            assert widget.isHidden()
-        assert dialog.all_roots.isChecked()
-        for widget in (dialog.token, dialog.express_value, dialog.browse_btn, dialog.pair_btn):
-            assert not widget.isHidden()
-        # 语言、版本、开机启动只在主窗口（2026-10-08）
-        for name in ("lang_btn", "ver_lbl", "autostart"):
-            assert not hasattr(dialog, name)
-        assert dialog.pair_btn.text() == "配对"
-        from test_gui_profiles import _assert_free_window
+    store = ProfileStore.__new__(ProfileStore)
+    store.new_runtime_config = lambda: SimpleNamespace(paired=False, ui_lang="zh", account_set="", account_dir="")
+    dialog = PairingDialog(profile_store=store, lang="zh", roots=[r"S:\\EXP68"])
 
-        _assert_free_window(dialog)
-    finally:
-        gui_pairing.PairingDialog._autodetect = original
+    assert dialog.windowTitle() == "添加成员"
+    assert dialog.findChildren(QLineEdit) == [dialog.token]
+    # 语言、版本、开机启动、Express 账套都在主窗口（2026-10-08）
+    for name in ("lang_btn", "ver_lbl", "autostart", "browse_btn", "root_combo", "account"):
+        assert not hasattr(dialog, name)
+    assert dialog.pair_btn.text() == "配对" and not dialog.pair_btn.isEnabled()  # 没填配对码不能点
+    dialog.token.setText("exp_e_s@testcowork.pearnly.com")
+    assert dialog.pair_btn.isEnabled()
+    from test_gui_profiles import _assert_free_window
+
+    _assert_free_window(dialog)
 
 
 def test_tray_status_line_is_capped():
