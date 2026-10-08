@@ -184,7 +184,7 @@ class TableEngineTests(unittest.TestCase):
 
     def test_roundtrip_requires_exact_known_sheet_and_all_required_headers_on_row_one(self):
         headers = list(REQUIRED_HEADERS)
-        for provenance in (roundtrip_provenance("สรุป"), roundtrip_provenance("sales"),
+        for provenance in (roundtrip_provenance("สรุป"), roundtrip_provenance("Sheet1"),
                            roundtrip_provenance(headers=headers[:-1]), roundtrip_provenance(source_row=2)):
             self.assertFalse(has_roundtrip_sheet(provenance))
         self.assertTrue(has_roundtrip_sheet(roundtrip_provenance(headers=[" " + h + " " for h in headers]

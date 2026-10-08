@@ -3,8 +3,8 @@ from pearnly_cowork.roundtrip.export_mapping import ExportError, PreparedWorkboo
 from pearnly_cowork.roundtrip.export_writer import write_workbook
 
 
-def build_review_workbook(records, *, push_facts=None) -> bytes:
-    return write_workbook(validate_records(records, push_facts=push_facts))
+def build_review_workbook(records, *, push_facts=None, lang="th") -> bytes:
+    return write_workbook(validate_records(records, push_facts=push_facts), lang)
 
 
 __all__ = ["ExportError", "PreparedWorkbook", "validate_records", "build_review_workbook"]

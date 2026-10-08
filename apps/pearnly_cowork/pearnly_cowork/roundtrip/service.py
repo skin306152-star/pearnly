@@ -64,4 +64,5 @@ def export(names):
         frappe.throw(_("roundtrip.export_scope_mixed"), frappe.PermissionError)
     for name, facts in export_facts.for_histories(histories).items():
         push_facts.setdefault(name, {}).update(facts)
-    return build_review_workbook(records, push_facts=push_facts)
+    # 表格按导出人的网页语言出（Sheet 名、表头、状态；导回时四种语言都认）
+    return build_review_workbook(records, push_facts=push_facts, lang=getattr(frappe.local, "lang", None) or "th")

@@ -41,10 +41,11 @@ def _text(raw: Any) -> str:
     return "" if s.lower() in ("none", "null", "nan") else s
 
 def _header_map(ws) -> Dict[str, int]:
-    """表头行 → {列名: 列号}。重名列取最左一列(会计复制列时不至于串位)。"""
+    """表头行 → {列名: 列号}。重名列取最左一列(会计复制列时不至于串位)。
+    列名按规格名记:任一导出语言的表头都认回同一列(见 spec.canonical)。"""
     out: Dict[str, int] = {}
     for col in range(1, (ws.max_column or 0) + 1):
-        name = _text(ws.cell(row=1, column=col).value)
+        name = rt.canonical(_text(ws.cell(row=1, column=col).value))
         if name and name not in out:
             out[name] = col
     return out
@@ -250,7 +251,7 @@ def _read_sheets(file_bytes):
         for name in workbook.sheetnames:
             worksheet = workbook[name]
             if not hasattr(worksheet, "iter_rows"):
-                if rt.is_data_sheet(name):
+                if rt.is_data_sheet(rt.canonical(name)):
                     raise RoundtripParseError("ocr.roundtrip_parse_failed", sheet=name)
                 ignored.append({"sheet_name": name, "reason": "non_worksheet", "nonempty_rows": []})
                 continue
@@ -262,12 +263,14 @@ def _read_sheets(file_bytes):
                 rows.append(tuple(values))
             sheet = _Sheet(name, tuple(rows), max((len(row) for row in rows), default=0))
             headers = _header_map(sheet)
-            if rt.is_data_sheet(name) and rt.is_roundtrip_sheet(list(headers)):
+            # 按导出人语言起的 Sheet 名认回规格名(方向仍然只看 Sheet;旧版泰文表原样)
+            spec_name = rt.canonical(name) if name == name.strip() else name
+            if rt.is_data_sheet(spec_name) and rt.is_roundtrip_sheet(list(headers)):
                 if name != name.strip():
                     raise RoundtripParseError("ocr.roundtrip_sheet_name_invalid", sheet=name)
-                hits.append((name, sheet, headers))
+                hits.append((spec_name, sheet, headers))
             else:
-                ignored.append({"sheet_name": name, "reason": "summary" if name == rt.SHEET_SUMMARY else "not_matched",
+                ignored.append({"sheet_name": name, "reason": "summary" if spec_name == rt.SHEET_SUMMARY else "not_matched",
                                 "nonempty_rows": [i for i, row in enumerate(rows, 1)
                                                   if any(_text(value) for value in row)]})
     finally:

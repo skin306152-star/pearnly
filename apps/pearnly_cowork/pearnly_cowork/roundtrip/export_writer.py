@@ -1,4 +1,8 @@
-"""In-memory XLSX adapter for the fixed Thai review-workbook protocol."""
+"""In-memory XLSX adapter for the review-workbook protocol.
+
+The protocol names are Thai (`spec`); sheet names, headers and status words are
+written in the exporting person's language and read back in any of them.
+"""
 import io
 from decimal import Decimal
 
@@ -42,9 +46,9 @@ def _cell(ws, row, column, value=None, *, formula=False):
     return cell
 
 
-def _header(ws, headers, widths):
+def _header(ws, headers, widths, lang):
     for index, label in enumerate(headers, 1):
-        cell = _cell(ws, 1, index, label)
+        cell = _cell(ws, 1, index, rt.localize(label, lang))
         cell.font, cell.fill, cell.alignment, cell.border = HEADER_FONT, HEADER_FILL, CENTER, BORDER
         ws.column_dimensions[get_column_letter(index)].width = widths[index - 1]
         if label == rt.COL_ROW_KEY:
@@ -68,8 +72,8 @@ def _fill(action):
     return NEW_FILL if action == "new" else REUSED_FILL if action == "reused" else None
 
 
-def _status(ws, row, column, action):
-    cell = _cell(ws, row, column, {"new": "ใหม่", "reused": "เดิม", "": "-"}[action])
+def _status(ws, row, column, action, lang):
+    cell = _cell(ws, row, column, rt.localize({"new": "ใหม่", "reused": "เดิม", "": "-"}[action], lang))
     cell.alignment = CENTER
     fill = _fill(action)
     if fill is not None:
@@ -85,8 +89,8 @@ def _roundtrip_values(**values):
     return result
 
 
-def _sales(ws, records):
-    _header(ws, HEADERS_TH, COLUMN_WIDTHS)
+def _sales(ws, records, lang):
+    _header(ws, HEADERS_TH, COLUMN_WIDTHS, lang)
     row = 2
     for record in records:
         fields = record["merged_fields"]
@@ -128,15 +132,16 @@ def _sales(ws, records):
                     cell.alignment, cell.number_format = RIGHT, MONEY_FORMAT
                 else:
                     cell.alignment = LEFT
-            _status(ws, row, 13, item_action)
-            _status(ws, row, 14, customer_action)
+            _status(ws, row, 13, item_action, lang)
+            _status(ws, row, 14, customer_action, lang)
             values = _roundtrip_values(
                 party_tax=text(fields.get("buyer_tax")) or text(fields.get("buyer_tax_id")),
                 party_branch=text(fields.get("buyer_branch")),
                 doc_vat=number(fields.get("vat_amount")) or number(fields.get("vat")),
                 docnum=text(fields.get("erp_docnum")), item_code=item.get("erp_item_code"),
                 party_code=text(fields.get("erp_party_code")), push_status=fields.get("push_status"),
-                push_reason=fields.get("push_reason"), row_key=rt.encode_row_key(fields["history_id"], line_index))
+                push_reason=fields.get("push_reason"), row_key=rt.encode_row_key(fields["history_id"], line_index),
+                lang=lang)
             for offset, value in enumerate(values, 15):
                 _cell(ws, row, offset, value)
             if item_action == "new" and text(fields.get("stock_acc_group")):
@@ -152,7 +157,7 @@ def _first(fields, *keys):
     return None
 
 
-def _purchase_rows(records):
+def _purchase_rows(records, lang):
     rows = []
     for index, record in enumerate(records, 1):
         fields = record["merged_fields"]
@@ -165,11 +170,12 @@ def _purchase_rows(records):
             *_roundtrip_values(party_tax=fields.get("seller_tax") or fields.get("seller_tax_id"),
                 party_branch=fields.get("seller_branch"), doc_vat=vat, docnum=fields.get("erp_docnum"),
                 party_code=fields.get("erp_party_code"), push_status=fields.get("push_status"),
-                push_reason=fields.get("push_reason"), row_key=rt.encode_row_key(fields["history_id"], 0))])
+                push_reason=fields.get("push_reason"), row_key=rt.encode_row_key(fields["history_id"], 0),
+                lang=lang)])
     return rows
 
 
-def _pending_rows(records):
+def _pending_rows(records, lang):
     rows = []
     for record in records:
         fields = record["merged_fields"]
@@ -181,12 +187,12 @@ def _pending_rows(records):
             *_roundtrip_values(party_tax=fields.get("seller_tax") or fields.get("buyer_tax"),
                 party_branch=fields.get("seller_branch") or fields.get("buyer_branch"),
                 push_status=fields.get("push_status"), push_reason=fields.get("push_reason"),
-                row_key=rt.encode_row_key(fields["history_id"], 0))])
+                row_key=rt.encode_row_key(fields["history_id"], 0), lang=lang)])
     return rows
 
 
-def _grid(ws, headers, widths, rows, *, money_columns=(), fill=None):
-    _header(ws, headers, widths)
+def _grid(ws, headers, widths, rows, lang, *, money_columns=(), fill=None):
+    _header(ws, headers, widths, lang)
     for row, values in enumerate(rows, 2):
         for column, value in enumerate(values, 1):
             cell = _cell(ws, row, column, value)
@@ -198,19 +204,22 @@ def _grid(ws, headers, widths, rows, *, money_columns=(), fill=None):
                 cell.fill = fill
 
 
-def write_workbook(prepared: PreparedWorkbook) -> bytes:
+def write_workbook(prepared: PreparedWorkbook, lang="th") -> bytes:
     workbook = Workbook()
     sales = workbook.active
-    sales.title = rt.SHEET_SALES
-    _sales(sales, prepared.sales)
-    _grid(workbook.create_sheet(rt.SHEET_PURCHASE), [*rt.PURCHASE_HEADERS, *rt.ROUNDTRIP_HEADERS],
-          [*rt.PURCHASE_WIDTHS, *rt.ROUNDTRIP_WIDTHS], _purchase_rows(prepared.purchase), money_columns=(7, 8, 9))
-    _grid(workbook.create_sheet(rt.SHEET_PENDING), [*rt.PENDING_HEADERS, *rt.ROUNDTRIP_HEADERS],
-          [*rt.PENDING_WIDTHS, *rt.ROUNDTRIP_WIDTHS], _pending_rows(prepared.pending), money_columns=(5,), fill=PENDING_FILL)
-    rows = [[KIND_LABELS.get(text(value.get("kind")), text(value.get("kind")) or "-"),
+    sales.title = rt.localize(rt.SHEET_SALES, lang)
+    _sales(sales, prepared.sales, lang)
+    _grid(workbook.create_sheet(rt.localize(rt.SHEET_PURCHASE, lang)), [*rt.PURCHASE_HEADERS, *rt.ROUNDTRIP_HEADERS],
+          [*rt.PURCHASE_WIDTHS, *rt.ROUNDTRIP_WIDTHS], _purchase_rows(prepared.purchase, lang), lang,
+          money_columns=(7, 8, 9))
+    _grid(workbook.create_sheet(rt.localize(rt.SHEET_PENDING, lang)), [*rt.PENDING_HEADERS, *rt.ROUNDTRIP_HEADERS],
+          [*rt.PENDING_WIDTHS, *rt.ROUNDTRIP_WIDTHS], _pending_rows(prepared.pending, lang), lang,
+          money_columns=(5,), fill=PENDING_FILL)
+    rows = [[rt.localize(KIND_LABELS[text(value.get("kind"))], lang) if text(value.get("kind")) in KIND_LABELS
+             else text(value.get("kind")) or "-",
              text(value.get("code")), text(value.get("name")), text(value.get("docnum")), text(value.get("acc_group"))]
             for value in prepared.created_masters]
-    _grid(workbook.create_sheet(rt.SHEET_SUMMARY), SUMMARY_HEADERS, SUMMARY_WIDTHS, rows)
+    _grid(workbook.create_sheet(rt.localize(rt.SHEET_SUMMARY, lang)), SUMMARY_HEADERS, SUMMARY_WIDTHS, rows, lang)
     # 打开就落在有内容的那一页（只导了进项时第一页「ขาย」是空的，用户 2026-09-27 以为导出没内容）。
     for index, group in enumerate((prepared.sales, prepared.purchase, prepared.pending)):
         if group:

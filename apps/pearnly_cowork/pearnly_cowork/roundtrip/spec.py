@@ -143,13 +143,103 @@ _STATUS_LABEL = {
 }
 STATUS_UNKNOWN = "-"
 
+# ── 按导出人的语言出表(用户 2026-10-08)────────────────────────────────────
+# 上面的泰文名是**规格名**:写侧、读侧、回导合同都按它。导出时 Sheet 名、表头与状态按导出人
+# 语言换成下表的译名;导回时四种语言(含旧版只有泰文的表)都认回规格名。译名写在这里而不放
+# 翻译包:它们是认表的合同,译文日后若改了,已经导出在会计手里的表格仍要导得回来。
+# 同一语言里两个规格名不许共用一个译名(读侧按译名反查,见 tests/test_cowork_roundtrip_language.py)。
+_TEXTS: Dict[str, Dict[str, str]] = {
+    # Sheet
+    SHEET_SALES: {"zh": "销项", "en": "Sales", "ja": "売上"},
+    SHEET_PURCHASE: {"zh": "进项", "en": "Purchases", "ja": "仕入"},
+    SHEET_PENDING: {"zh": "待分类", "en": "To classify", "ja": "未分類"},
+    SHEET_SUMMARY: {"zh": "汇总", "en": "Summary", "ja": "集計"},
+    # 回导列
+    COL_PARTY_TAX: {"zh": "对方税号", "en": "Counterparty tax ID", "ja": "取引先税番号"},
+    COL_PARTY_BRANCH: {"zh": "对方分支", "en": "Counterparty branch", "ja": "取引先支店"},
+    COL_DOC_VAT: {"zh": "单据税额", "en": "Document VAT", "ja": "伝票税額"},
+    COL_ERP_DOCNUM: {"zh": "ERP 单据号", "en": "ERP document no.", "ja": "ERP 伝票番号"},
+    COL_ERP_ITEM: {"zh": "ERP 商品编码", "en": "ERP item code", "ja": "ERP 商品コード"},
+    COL_ERP_PARTY: {"zh": "ERP 往来单位编码", "en": "ERP party code", "ja": "ERP 取引先コード"},
+    COL_PUSH_STATUS: {"zh": "推送状态", "en": "Push status", "ja": "送信状態"},
+    COL_ROW_KEY: {"zh": "系统引用码", "en": "System reference", "ja": "システム参照"},
+    # 销项
+    "วันที่": {"zh": "日期", "en": "Date", "ja": "日付"},
+    "เลขที่": {"zh": "单号", "en": "Number", "ja": "番号"},
+    "ชื่อลูกค้า": {"zh": "客户名称", "en": "Customer name", "ja": "顧客名"},
+    "ชื่อสินค้า": {"zh": "商品名称", "en": "Item name", "ja": "商品名"},
+    "จำนวน": {"zh": "数量", "en": "Quantity", "ja": "数量"},
+    "ราคาต่อหน่วย": {"zh": "单价", "en": "Unit price", "ja": "単価"},
+    "จำนวนเงิน": {"zh": "金额", "en": "Amount", "ja": "金額"},
+    "รวมจำนวนเงิน": {"zh": "合计金额", "en": "Total amount", "ja": "合計金額"},
+    "รวมจำนวนเงินก่อนVAT": {"zh": "未税合计", "en": "Total before VAT", "ja": "税抜合計"},
+    "VAT": {"zh": "增值税", "en": "VAT", "ja": "VAT"},
+    "อ้างอิง": {"zh": "参考", "en": "Reference", "ja": "参照"},
+    "Status": {"zh": "状态", "en": "Status", "ja": "ステータス"},
+    "สถานะสินค้า": {"zh": "商品状态", "en": "Item status", "ja": "商品状態"},
+    "สถานะลูกค้า": {"zh": "客户状态", "en": "Customer status", "ja": "顧客状態"},
+    "กลุ่มบัญชีสินค้าคงคลัง": {"zh": "存货科目组", "en": "Inventory account group", "ja": "在庫勘定グループ"},
+    # 进项
+    "ลำดับ": {"zh": "序号", "en": "No.", "ja": "No."},
+    "ชื่อผู้ขาย": {"zh": "供应商名称", "en": "Supplier name", "ja": "仕入先名"},
+    "เลขประจำตัวผู้เสียภาษี": {"zh": "税号", "en": "Tax ID", "ja": "税番号"},
+    "สาขา": {"zh": "分支", "en": "Branch", "ja": "支店"},
+    "มูลค่าก่อนภาษี": {"zh": "未税金额", "en": "Amount before VAT", "ja": "税抜金額"},
+    "ภาษีซื้อ": {"zh": "进项税额", "en": "Input VAT", "ja": "仕入税額"},
+    "รวมทั้งสิ้น": {"zh": "价税合计", "en": "Total", "ja": "合計"},
+    "หมวดค่าใช้จ่าย": {"zh": "费用类别", "en": "Expense category", "ja": "費用区分"},
+    # 待分类
+    "คู่ค้า": {"zh": "往来单位", "en": "Counterparty", "ja": "取引先"},
+    PENDING_COL_REASON: {"zh": "原因", "en": "Reason", "ja": "理由"},
+    # 汇总
+    "ประเภท": {"zh": "类型", "en": "Type", "ja": "種類"},
+    "รหัส": {"zh": "编码", "en": "Code", "ja": "コード"},
+    "ชื่อ": {"zh": "名称", "en": "Name", "ja": "名称"},
+    "เอกสารที่สร้าง": {"zh": "建档单据", "en": "Created in document", "ja": "作成伝票"},
+    "สินค้า/บริการ": {"zh": "商品/服务", "en": "Item/Service", "ja": "商品・サービス"},
+    "ลูกค้า": {"zh": "客户", "en": "Customer", "ja": "顧客"},
+    "ผู้ขาย": {"zh": "供应商", "en": "Supplier", "ja": "仕入先"},
+    # 状态
+    "สำเร็จ": {"zh": "成功", "en": "Succeeded", "ja": "成功"},
+    "รอส่ง": {"zh": "待推送", "en": "Waiting", "ja": "送信待ち"},
+    "ล้มเหลว": {"zh": "失败", "en": "Failed", "ja": "失敗"},
+    "ตรวจสอบเอง": {"zh": "待人工核对", "en": "Manual check", "ja": "手動確認"},
+    "ซ้ำ · ข้าม": {"zh": "重复 · 已跳过", "en": "Duplicate · skipped", "ja": "重複・スキップ"},
+    "ใหม่": {"zh": "新建", "en": "New", "ja": "新規"},
+    "เดิม": {"zh": "沿用", "en": "Existing", "ja": "既存"},
+}
+# 读侧只反查 Sheet 名与表头(状态等单元格值不回读)
+_READ_NAMES = (SHEET_SALES, SHEET_PURCHASE, SHEET_PENDING, SHEET_SUMMARY, *ROUNDTRIP_HEADERS,
+               "วันที่", "เลขที่", "ชื่อลูกค้า", "ชื่อสินค้า", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน", "รวมจำนวนเงิน",
+               "รวมจำนวนเงินก่อนVAT", "VAT", "อ้างอิง", "Status", "สถานะสินค้า", "สถานะลูกค้า",
+               "กลุ่มบัญชีสินค้าคงคลัง", *PURCHASE_HEADERS, *PENDING_HEADERS,
+               "ประเภท", "รหัส", "ชื่อ", "เอกสารที่สร้าง")
+_CANONICAL: Dict[str, str] = {}
+for _name in _READ_NAMES:
+    for _text in (_name, *_TEXTS.get(_name, {}).values()):
+        _CANONICAL.setdefault(_text.strip().casefold(), _name)
+del _name, _text
 
-def status_label(status: Any, reason: Any = None) -> str:
+
+def localize(name: str, lang: Any = "th") -> str:
+    """规格名 → 导出人语言的译名;泰文或不认识的语言原样(泰文就是规格名)。"""
+    code = str(lang or "").split("-")[0].lower()
+    return _TEXTS.get(name, {}).get(code) or name
+
+
+def canonical(value: Any) -> str:
+    """表格里读到的 Sheet 名 / 表头 → 规格名;不认识的原样返回(会计自己加的列照旧带着)。"""
+    text = str(value or "").strip()
+    return _CANONICAL.get(text.casefold(), text)
+
+
+def status_label(status: Any, reason: Any = None, lang: Any = "th") -> str:
     """推送状态 → 表格里给会计看的文本。带原因时附在后面,便于直接判断该不该去 ERP 删单。"""
     s = str(status or "").strip().lower()
     label = _STATUS_LABEL.get(s)
     if not label:
         return STATUS_UNKNOWN
+    label = localize(label, lang)
     r = str(reason or "").strip()
     # 原因已按导出人的语言译成整句（`push.export_facts.reason_text`），泰文整句多在 60–160 字；
     # 旧线上截 60 字放的是小助手原文，照截会把译文截断在半句（2026-10-08 改为 200）。
@@ -211,6 +301,7 @@ def roundtrip_values(
     push_status: Any = None,
     push_reason: Any = None,
     row_key: Any = "",
+    lang: Any = "th",
 ) -> List[Any]:
     """按 ROUNDTRIP_HEADERS 顺序生成这几格的值(写侧唯一入口·保证顺序不漂)。"""
     return [
@@ -220,6 +311,6 @@ def roundtrip_values(
         str(docnum or "").strip(),
         str(item_code or "").strip(),
         str(party_code or "").strip(),
-        status_label(push_status, push_reason),
+        status_label(push_status, push_reason, lang),
         str(row_key or "").strip(),
     ]
