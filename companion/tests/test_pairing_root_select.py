@@ -152,28 +152,50 @@ def test_a_picked_root_comes_first_with_the_other_years_beside_it(tmp_path):
 
 def test_changing_the_machine_root_updates_every_member_and_keeps_what_still_fits(tmp_path, monkeypatch):
     # 2026-10-08：Express 账套是这台电脑的全局设置，「更换…」同步到全部成员（暂停的也同步、仍保持暂停）。
-    new_root = tmp_path / "70EXP"
-    kept = new_root / "ACME"
-    fresh = new_root / "NEWCO"
-    for folder in (kept, fresh):
+    root70, root69 = tmp_path / "70EXP", tmp_path / "69EXP"
+    acme, newco = root70 / "ACME", root70 / "NEWCO"
+    other_drive = tmp_path / "D-drive" / "BETA"  # 登记在 69 年度、放在别的盘（登记表写绝对路径）
+    for folder in (acme, newco, other_drive):
         folder.mkdir(parents=True)
     store = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
-    _member(store, "exp_a_1", str(new_root), str(kept), revenue="4999")  # 账套还在新根下：原样保留
-    _member(store, "exp_b_2", r"S:\\GONE", r"S:\\GONE\\OLD", paused=True)  # 不在了：换成默认账套
-    monkeypatch.setattr(gui_pairing, "probe_account_sets", lambda root: [
-        AccountSet(code="N", name="NEWCO", company="New Co.", path=str(fresh), tax_id="", writable=True, row=3)])
+    _member(store, "exp_a_1", str(root70), str(acme), revenue="4999")         # 仍登记在主根：原样保留
+    _member(store, "exp_b_2", r"S:\\OLD", str(other_drive), revenue="4888")  # 登记在另一年度：保留，主根改成那一年
+    _member(store, "exp_c_3", r"S:\\GONE", r"S:\\GONE\\OLD", paused=True)  # 新数据根里没有：换成默认账套
+    registry = {
+        str(root70): [AccountSet(code="A", name="ACME", company="", path=str(acme), tax_id="", writable=False, row=1),
+                      AccountSet(code="N", name="NEWCO", company="", path=str(newco), tax_id="", writable=False, row=2)],
+        str(root69): [AccountSet(code="B", name="BETA", company="", path=str(other_drive), tax_id="", writable=False,
+                                 row=1)],
+    }
+    detailed = [AccountSet(code="N", name="NEWCO", company="New Co.", path=str(newco), tax_id="", writable=True, row=2)]
+    monkeypatch.setattr(gui_pairing, "probe_account_sets",
+                        lambda root, include_details=True: registry[root] if not include_details else detailed)
     monkeypatch.setattr(gui_pairing, "probe_default_accounts", lambda path: {"revenue_acc": "4100"})
 
-    roots = [str(new_root), str(tmp_path / "69EXP")]
-    assert gui_pairing.apply_roots(store, roots) == 2
+    roots = [str(root70), str(root69)]
+    assert gui_pairing.apply_roots(store, roots) == 3
 
     reloaded = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
-    first, second = (reloaded.runtime_config(record.profile_id) for record in reloaded.profiles)
-    for cfg in (first, second):
-        assert cfg.express_root == str(new_root)
-        assert list(cfg.authorized_roots) == roots
-    assert (first.account_dir, first.revenue_acc) == (str(kept), "4999")
-    assert (second.account_dir, second.account_company, second.account_set_row, second.revenue_acc) == (
-        str(fresh), "New Co.", 3, "4100")
-    assert [record.paused for record in reloaded.profiles] == [False, True]
-    assert first.bearer_token == "exp_a_1" and second.bearer_token == "exp_b_2"
+    first, second, third = (reloaded.runtime_config(record.profile_id) for record in reloaded.profiles)
+    assert (first.express_root, list(first.authorized_roots)) == (str(root70), roots)  # 新年度在前
+    assert (first.account_dir, first.account_company, first.revenue_acc) == (str(acme), "Old Co.", "4999")
+    # 推送按「数据根 + 账套」找账套：主根必须是真正登记它的那一年
+    assert (second.express_root, list(second.authorized_roots)) == (str(root69), roots)
+    assert (second.account_dir, second.revenue_acc) == (str(other_drive), "4888")
+    assert (third.express_root, third.account_dir, third.account_company, third.account_set_row,
+            third.revenue_acc) == (str(root70), str(newco), "New Co.", 2, "4100")
+    assert [record.paused for record in reloaded.profiles] == [False, False, True]
+    assert [cfg.bearer_token for cfg in (first, second, third)] == ["exp_a_1", "exp_b_2", "exp_c_3"]
+
+
+def test_nothing_is_written_when_a_member_has_no_usable_account_set(tmp_path, monkeypatch):
+    store = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
+    _member(store, "exp_a_1", r"S:\\EXP68", r"S:\\EXP68\\ACME")
+    before = (tmp_path / "c.json").read_bytes()
+    monkeypatch.setattr(gui_pairing, "probe_account_sets", lambda root, include_details=True: [])
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        gui_pairing.apply_roots(store, [str(tmp_path / "70EXP")])
+    assert (tmp_path / "c.json").read_bytes() == before

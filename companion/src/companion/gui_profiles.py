@@ -228,9 +228,14 @@ class ProfileManagerDialog(QDialog):
         except Exception:  # 非 Windows（开发机）读不到注册表：按已存设置显示
             return bool(self._store.global_settings.autostart)
 
+    @staticmethod
+    def _fresh_store(store: ProfileStore) -> ProfileStore:
+        return ProfileStore.load(store.path, protector=getattr(store, "_protector", None))
+
     def _toggle_autostart(self, checked: bool) -> None:
         try:
             autostart.enable() if checked else autostart.disable()
+            self._store = self._fresh_store(self._store)
             cfg = self._store.new_runtime_config()
             cfg.update(autostart=bool(checked))
             self._store.save_profile(cfg)
@@ -287,8 +292,11 @@ class ProfileManagerDialog(QDialog):
 
         def work():
             roots = roots_for_pick(picked)
-            if roots and store.profiles:
-                apply_roots(store, roots)
+            if roots:
+                # 写之前从磁盘重读：小助手后台可能刚更新过成员（例如新发现的年度），不拿窗口里的旧副本盖回去。
+                fresh = self._fresh_store(store)
+                if fresh.profiles:
+                    apply_roots(fresh, roots)
             return roots
 
         def done(roots):
@@ -298,7 +306,8 @@ class ProfileManagerDialog(QDialog):
                 return
             self._roots = list(roots)
             self._paint_roots()
-            if store.profiles:
+            self._store = self._fresh_store(store)
+            if self._store.profiles:
                 self._profiles_changed()
                 self._refresh()
 

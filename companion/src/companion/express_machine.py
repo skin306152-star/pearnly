@@ -86,15 +86,29 @@ def profile_root_candidates(store, exclude_id: str = "") -> List[str]:
     return roots
 
 
+def authorized_order(roots: Iterable[str]) -> List[str]:
+    """授权年度的存放顺序：与旧版配对一致，新年度在前（同年度保持原顺序）。"""
+    return sorted(roots, key=year_key, reverse=True)
+
+
+def member_roots(record) -> List[str]:
+    """一个成员自己的数据根：主根（没有就取账套的上一级）在前，再接它授权的其它年度。"""
+    found: List[str] = []
+    primary = str(getattr(record, "express_root", "") or "").strip() or ntpath.dirname(
+        str(getattr(record, "account_dir", "") or "").rstrip("\\/"))
+    for root in (primary, *(getattr(record, "authorized_roots", None) or ())):
+        root = str(root or "").strip().rstrip("\\/")
+        if root and not any(same_root(root, known) for known in found):
+            found.append(root)
+    return found
+
+
 def machine_roots(store) -> List[str]:
     """这台电脑当前的 Express 数据根 = 全部成员数据根的并集（主根在前，按出现顺序）。"""
     found: List[str] = []
     for record in store.profiles:
-        primary = str(record.express_root or "").strip() or ntpath.dirname(
-            str(record.account_dir or "").rstrip("\\/"))
-        for root in (primary, *(getattr(record, "authorized_roots", None) or ())):
-            root = str(root or "").strip().rstrip("\\/")
-            if root and not any(same_root(root, known) for known in found):
+        for root in member_roots(record):
+            if not any(same_root(root, known) for known in found):
                 found.append(root)
     return found
 
@@ -129,43 +143,54 @@ def default_account(sets: List[AccountSet], keep: str = "") -> Optional[AccountS
 def apply_roots(store, roots: List[str]) -> int:
     """把这台电脑的数据根写进每个成员（暂停的也写）；返回改了几个成员。
 
-    成员原来的默认账套还在新数据根下就原样保留（连同人工改过的科目）；不在了就换成主根里第一个够得到的账套，
-    科目取它 ISINFO 的默认值。服务端在下一次心跳拿到新的账套与数据根，不用重新配对。
+    成员原来的默认账套仍登记在新数据根里（按登记表里的账套名单认，账套可以在别的盘）→ 账套、行号、人工改过的
+    科目原样保留，主数据根取真正登记它的那一个（推送按「数据根 + 账套」找账套，两者必须对得上）；
+    不在了才换成主根里第一个够得到的账套，科目取它 ISINFO 的默认值。全部算好再写，有一个成员找不到可用账套
+    就一个都不改。服务端在下一次心跳拿到新的账套与数据根，不用重新配对。
     """
     if not roots:
         raise ValueError("no Express data root")
-    changed, fallback, targets = 0, [], []  # 主根的默认账套只读一次（共享盘上读登记表较慢）
+    listed: dict = {}
+
+    def registered(root: str) -> List[AccountSet]:
+        if root not in listed:  # 只读登记表（不读每个账套的 ISINFO），每个根只读一次
+            try:
+                listed[root] = probe_account_sets(root, include_details=False)
+            except Exception:
+                listed[root] = []
+        return listed[root]
+
+    fallback: list = []
+    targets = []
     for record in store.profiles:
         cfg = store.runtime_config(record.profile_id)
-        inside = any(
-            str(cfg.account_dir or "").lower().startswith(norm_root(root) + "\\")
-            or str(cfg.account_dir or "").lower().startswith(norm_root(root) + "/")
-            for root in roots
-        )
-        updates = {
-            "express_root": roots[0],
-            "authorized_roots": list(roots),
-            "express_exe": str(Path(roots[0]) / "ExpressI.exe"),
-        }
-        if not inside:
+        account = str(cfg.account_dir or "").strip()
+        home = next((root for root in roots
+                     if account and any(same_root(item.path, account) for item in registered(root))), None)
+        if home is not None:
+            updates = {"express_root": home}
+        else:
             if not fallback:
                 fallback.append(default_account(probe_account_sets(roots[0])))
             chosen = fallback[0]
             if chosen is None:
                 raise ValueError(roots[0])
+            home = roots[0]
             defaults = probe_default_accounts(chosen.path) or {}
-            updates.update(
-                account_dir=str(chosen.path),
-                account_set=str(chosen.path),
-                account_company=chosen.company,
-                account_set_row=int(getattr(chosen, "row", 0) or 0),
+            updates = {
+                "express_root": home,
+                "account_dir": str(chosen.path),
+                "account_set": str(chosen.path),
+                "account_company": chosen.company,
+                "account_set_row": int(getattr(chosen, "row", 0) or 0),
                 **{key: str(defaults.get(key, "") or "") for key in ACCOUNT_MAP_KEYS},
-            )
+            }
+        updates["authorized_roots"] = authorized_order(roots)
+        if not same_root(home, cfg.express_root):  # 主根没变就不动程序路径（与配对时的取法一致）
+            updates["express_exe"] = str(Path(home) / "ExpressI.exe")
         target = replace(cfg)
         target.update(**updates)
         targets.append((target, record.paused))
-    # 全部算好再写：有一个成员找不到可用账套就一个都不改，不会只改一半。
     for target, paused in targets:
         store.save_profile(target, paused=paused)
-        changed += 1
-    return changed
+    return len(targets)

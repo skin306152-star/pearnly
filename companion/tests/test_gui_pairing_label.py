@@ -54,7 +54,7 @@ def test_pairing_uses_the_machine_roots_and_reports_every_account_set(monkeypatc
     pair = calls["pair"]
     assert pair["chosen"].path == r"S:\\EXP68\\B" and pair["all_sets"] == sets
     assert pair["express_root"] == r"S:\\EXP68"
-    assert pair["authorized_roots"] == [r"S:\\EXP68", r"S:\\EXP69"]
+    assert pair["authorized_roots"] == [r"S:\\EXP69", r"S:\\EXP68"]  # 与旧版一致：新年度在前
     assert pair["enable_autostart"] is True
 
 

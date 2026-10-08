@@ -206,3 +206,52 @@ def test_open_window_rebuilds_cards_only_when_connections_change(monkeypatch):
     dialog._profile_state_provider = lambda: {"profile-a": ("working", "INV-1")}
     dialog._refresh_runtime_snapshot()
     assert calls == ["rebuild", "states"]
+
+
+def test_start_with_windows_is_one_setting_and_never_touches_members(tmp_path, monkeypatch):
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    before = store.profiles
+    dialog = _main_window(store, monkeypatch)
+    calls = []
+    monkeypatch.setattr(gui_profiles.autostart, "disable", lambda: calls.append("off"))
+    monkeypatch.setattr(gui_profiles.autostart, "enable", lambda: calls.append("on"))
+
+    dialog.autostart.setChecked(False)
+
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    assert calls == ["off"] and reloaded.global_settings.autostart is False
+    assert reloaded.profiles == before
+
+
+def test_change_writes_the_picked_root_to_every_member_and_the_window_shows_it(tmp_path, monkeypatch):
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    dialog = _main_window(store, monkeypatch, {store.profiles[0].profile_id: ("idle", "")})
+    picked = r"T:\\EXP70"
+    monkeypatch.setattr(gui_profiles.QFileDialog, "getExistingDirectory", lambda *_args: picked)
+    monkeypatch.setattr(gui_profiles, "roots_for_pick", lambda path: [path, r"T:\\EXP69"])
+    applied, reloads = [], []
+    monkeypatch.setattr(gui_profiles, "apply_roots", lambda fresh, roots: applied.append((fresh.path, roots)))
+    dialog._on_profiles_changed = lambda: reloads.append(True)
+
+    dialog._change_roots()
+    assert not dialog.change_btn.isEnabled() and not dialog.add_btn.isEnabled()  # 正在换，先不能添加成员
+    _wait_until(lambda: dialog._roots_state == "ready")
+
+    assert applied == [(store.path, [picked, r"T:\\EXP69"])]
+    assert reloads == [True]  # 通知托盘重载成员、重启取任务线程
+    assert dialog.express_value.text() == r"T:\\EXP70 等 2 个年度"
+
+
+def test_picking_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypatch):
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    before = store.path.read_bytes()
+    dialog = _main_window(store, monkeypatch)
+    monkeypatch.setattr(gui_profiles.QFileDialog, "getExistingDirectory", lambda *_args: str(tmp_path))
+    monkeypatch.setattr(gui_profiles, "roots_for_pick", lambda path: [])
+
+    dialog._change_roots()
+    _wait_until(lambda: dialog._roots_state == "ready")
+
+    assert store.path.read_bytes() == before
+    assert dialog._roots == [r"S:\\EXP68", r"S:\\EXP69"]
+    assert dialog.express_value.text() == "未能读取 Express 公司列表,请确认 Express 路径。"

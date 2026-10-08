@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 
 from . import pairing
 from .account_probe import probe_account_sets, probe_default_accounts
-from .express_machine import default_account
+from .express_machine import authorized_order, default_account, member_roots
 from .gui_pairing_support import Probes
 from .i18n import MessageSpec, StatusSpec, default_lang, normalize, t
 from .logger import get_logger
@@ -59,6 +59,9 @@ class PairingDialog(QDialog):
             )
             if self._cfg is None:
                 raise ProfileStoreError("profile not found")
+            # 更换密钥只换密钥：用这个成员自己原来的数据根（主根在前），默认账套、科目、授权年度都不变；
+            # 改账套走主窗口「这台电脑」的「更换…」。
+            self._roots = member_roots(self._cfg) or self._roots
         # 更换密钥：沿用这个成员原来的默认账套与人工改过的科目；添加成员从空白开始。
         self._prefill = bool(self._cfg.paired)
         self.lang = normalize(lang or (self._cfg.ui_lang or default_lang()))
@@ -190,7 +193,7 @@ class PairingDialog(QDialog):
             express_root=roots[0],
             enable_autostart=autostart,
             mapping=self._auto_mapping(chosen, defaults),
-            authorized_roots=list(roots),
+            authorized_roots=authorized_order(roots),
             lang=lang,
             config=self._cfg,
             profile_store=self._store,
