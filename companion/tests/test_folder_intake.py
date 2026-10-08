@@ -178,6 +178,7 @@ def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch, given,
     worker.round(cfg, key)
     sync_body = [c for c in fake.calls if c[0] == "sync"][-1][1]
     assert sync_body["runs"][0]["new_files"] == 1 and sync_body["runs"][0]["skipped"] == 1
+    assert sync_body["rule_health"] == {"R1": "ok"}  # 上一轮看到规则的文件夹在,报给云端
     assert len([c for c in fake.calls if c[0] == "begin"]) == 1
     written = list((folder / expected).rglob("*.xlsx"))
     assert [p.name for p in written] == ["INV-1_2808.xlsx"] and written[0].read_bytes() == b"PK-xlsx"
@@ -259,3 +260,20 @@ def test_failed_upload_is_retried_next_round(tmp_path, monkeypatch):
     ledger = folder_store.Ledger(key)
     row = ledger.files[ledger.file_key("R1", "a.pdf")]
     assert row.get("entry") and not row.get("retry")
+
+
+def test_share_path_turns_mapped_drives_into_network_paths():
+    mapped = {"S": "\\\\SERVER\\scans"}
+    assert plan.share_path("\\\\server\\scans\\A", mapped) == "\\\\server\\scans\\A"
+    assert plan.share_path("S:\\2569\\A", mapped) == "\\\\SERVER\\scans\\2569\\A"
+    assert plan.share_path("C:\\Users\\a\\scans", mapped) == ""  # 本机盘:各台电脑各自的文件夹
+
+
+def test_rule_health_reports_missing_folders(tmp_path, monkeypatch):
+    from companion.folder_worker import _folder_health
+
+    (tmp_path / "ok").mkdir()
+    root = {"id": "R", "path": str(tmp_path)}
+    assert _folder_health({"folder": "ok"}, root) == "ok"
+    assert _folder_health({"folder": "gone"}, root) == "folder_missing"
+    assert _folder_health({"folder": "ok"}, None) == "root_missing"

@@ -45,6 +45,9 @@ class FolderIntake:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._folders: dict[str, tuple[float, list]] = {}
+        # 上一轮看到的各规则文件夹在不在（{连接: {规则名: ok | root_missing | folder_missing}}），下一次同步报给云端，
+        # 网页规则列表据此显示「文件夹不可用」（以前文件夹没了只在本机记一笔，规则静静地不跑）。
+        self._health: dict[str, dict] = {}
 
     # ── 线程 ──────────────────────────────────────────────────────────────
 
@@ -99,13 +102,16 @@ class FolderIntake:
         try:
             local_roots = roots(key)
             response = client.sync({"version": VERSION, "roots": self._report(key, local_roots),
-                                    "runs": list(ledger.runs), "watch": ledger.watch()})
+                                    "runs": list(ledger.runs), "watch": ledger.watch(),
+                                    "rule_health": self._health.get(key, {})})
             if not response.get("ok"):
                 return
             ledger.runs = []
             now = self._clock()
             offset = float(response.get("server_time") or now) - now
             by_id = {row["id"]: row for row in local_roots}
+            self._health[key] = {rule["name"]: _folder_health(rule, by_id.get(rule.get("root_id")))
+                                 for rule in response.get("rules") or [] if rule.get("name")}
             for rule in response.get("rules") or []:
                 if self._stop.is_set():
                     break
@@ -133,7 +139,8 @@ class FolderIntake:
         cached = self._folders.get(key)
         if cached and now - cached[0] < FOLDER_REPORT_SECONDS and len(cached[1]) == len(local_roots):
             return cached[1]
-        report = [{"id": row["id"], "label": row["label"], "folders": plan.folders_of(Path(row["path"]))}
+        report = [{"id": row["id"], "label": row["label"], "folders": plan.folders_of(Path(row["path"])),
+                   "share": plan.share_path(row["path"])}
                   for row in local_roots]
         self._folders[key] = (now, report)
         return report
@@ -202,6 +209,11 @@ class FolderIntake:
             return
         baseline = set(state.get("baseline") or [])
         folder = plan.rule_folder(root["path"], rule.get("folder") or "")
+        if not folder.is_dir():  # 规则的子文件夹被删 / 改名:记明原因(网页运行记录显示「文件夹不可用」)
+            record.update(note="folder_missing", scanned=True)
+            ledger.runs.append(record)
+            handled()
+            return
         activity("log_folder_run", lang=self._lang(), name=rule.get("title") or "")
         waiting: list[plan.Candidate] = []
         for candidate in plan.scan(folder):
@@ -350,3 +362,14 @@ class FolderIntake:
         except Exception:
             log.exception("结果表格写入失败 %s", history)
             return False
+
+
+def _folder_health(rule: dict, root: Optional[dict]) -> str:
+    """这条规则的文件夹在不在:授权文件夹没了(移除 / 改名)、规则的子文件夹没了,还是正常。"""
+    if root is None:
+        return "root_missing"
+    try:
+        exists = plan.rule_folder(root["path"], rule.get("folder") or "").is_dir()
+    except (OSError, ValueError):
+        exists = False
+    return "ok" if exists else "folder_missing"

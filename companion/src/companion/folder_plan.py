@@ -14,6 +14,7 @@ from __future__ import annotations
 import calendar
 import datetime as dt
 import hashlib
+import ntpath
 import os
 import re
 from dataclasses import dataclass
@@ -85,6 +86,49 @@ def result_folder(value) -> str:
     """云端给的结果文件夹名；不是约定里的名字（旧云端没给）就用 RESULT_FOLDER。"""
     name = str(value or "")
     return name if name.casefold() in _RESULT_NAMES else RESULT_FOLDER
+
+
+def share_path(path: str, mapped: Optional[dict] = None) -> str:
+    """授权文件夹若在网络共享上,换成网络路径(\\\\服务器\\共享\\…);本机盘返回空串。
+
+    云端拿它跨电脑比对规则文件夹是否重叠(同一个共享在两台电脑上各建规则会把同一份文件推两次)。映射盘按当前用户的
+    持久映射(注册表 HKCU\\Network\\<盘符>\\RemotePath)换算;非持久映射认不出,当本机盘。"""
+    text = ntpath.normpath(str(path or "").strip())  # 按 Windows 路径规整(在别的系统上跑测试也一样)
+    if text.startswith("\\\\"):
+        return text
+    drive = text[:2].upper()
+    if len(drive) == 2 and drive[1] == ":":
+        remote = (mapped if mapped is not None else _mapped_drives()).get(drive[0])
+        if remote:
+            return ntpath.normpath(remote.rstrip("\\") + text[2:])
+    return ""
+
+
+def _mapped_drives() -> dict:
+    try:
+        import winreg  # Windows 才有
+    except ImportError:
+        return {}
+    found = {}
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Network") as network:
+            index = 0
+            while True:
+                try:
+                    letter = winreg.EnumKey(network, index)
+                except OSError:
+                    break
+                index += 1
+                try:
+                    with winreg.OpenKey(network, letter) as key:
+                        value, _kind = winreg.QueryValueEx(key, "RemotePath")
+                except OSError:
+                    continue
+                if isinstance(value, str) and value.startswith("\\\\"):
+                    found[letter.upper()[:1]] = value
+    except OSError:
+        return {}
+    return found
 
 
 def rule_folder(root: str, folder: str) -> Path:
