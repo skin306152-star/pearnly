@@ -103,7 +103,7 @@ class FakeMrErp:
 
     def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False,
                  menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None,
-                 lists=None):
+                 lists=None, records=None, head="00000"):
         self.password, self.importpc, self.notes = password, importpc, notes
         self.upload_error, self.importpc_raises = upload_error, importpc_raises
         self.menus = dict(MENUS, **(menus or {}))
@@ -114,6 +114,7 @@ class FakeMrErp:
         self.pending, self.session_menu, self.form_opens = {}, None, 0
         self.lists = {k: v for k, v in {**LISTS, **(lists or {})}.items() if v is not None}
         self.files = []
+        self.records, self.head = dict(records or {}), head  # {(模块, id): dupdata 回应}；总店分店
 
     def __call__(self, session, method, url, **kwargs):
         path = url.replace(BASE, "").split("?")[0]
@@ -162,6 +163,11 @@ class FakeMrErp:
             return response(url, REFERENCE)
         if path == "/armas/allform.php":
             return response(url, PREFIXES)
+        if path == "/artran/allform.php":
+            return response(url, f'<input type="text" name="txtothcombrh" id="txtothcombrh" value="{self.head}" readonly>')
+        if path.endswith("/component/dupdata.php"):
+            import json
+            return response(url, json.dumps(self.records.get((module, kwargs["data"]["hiddupdata"]), [])))
         if path.endswith("/component/report.php"):
             return response(url, content=report(self.notes or []))
         if path.endswith("/allview.php"):
@@ -409,12 +415,13 @@ class Defaults(unittest.TestCase):
                 self.assertEqual((float(head[15] or 0), head[16], float(head[17] or 0)), (cash, account, slot))
                 self.assertEqual((head[18], head[20]), (account, account))
 
-    def test_several_options_without_a_choice_stop_before_anything_is_written(self):
+    def test_several_departments_follow_the_mrerp_default_unless_one_was_chosen(self):
+        # 不问人：没选过就跟 MR.ERP 网页新建单据的默认（按代码第一条），选过就用选过的
         two = {"fabillrev": {**LISTS["fabillrev"], "txtothdept_h": [[1, "D001", "บัญชี"], [2, "D002", "ขาย"]]}}
         site = FakeMrErp(lists=two)
         _, result = push(site, [purchase()])
-        self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_DEFAULT_CHOICE_REQUIRED"])
-        self.assertFalse(site.uploads)
+        self.assertEqual(len(result.success), 1)
+        self.assertEqual(sheet_rows(dict(site.files)["impaptran"])[0][4], "D001")
         site = FakeMrErp(lists=two)
         _, result = push(site, [purchase()], {"_mrerp_defaults": {**CHOSEN, "dept": "D002"}})
         self.assertEqual(len(result.success), 1)
@@ -431,6 +438,25 @@ class Defaults(unittest.TestCase):
         _, result = push(site, [purchase()])
         self.assertEqual(result.failed[0].reasons, ["ERR_MRERP_MASTER_UNREADABLE"])
         self.assertFalse(site.uploads)
+
+    def test_new_customer_copies_the_companys_most_common_type_and_account(self):
+        # 现有客户 3 个：2 个挂 1130-01，1 个挂 1111-01 → 新客户用 1130-01（MR.ERP「复制现有档案」同源）
+        row = lambda account: [1, "C-01", "", 1, "x"] + [""] * 9 + [account]  # noqa: E731
+        lists = {"armas": {**LISTS["armas"], "inpdupdata": [[1, "C1", "a"], [2, "C2", "b"], [3, "C3", "c"]]}}
+        records = {("armas", "1"): row("1130-01"), ("armas", "2"): row("1130-01"), ("armas", "3"): row("1111-01")}
+        site = FakeMrErp(lists=lists, records=records)
+        _, result = push(site, [dict(sales(posting_payment_manual="credit"), client_id="7")],
+                         {"_mrerp_defaults": {k: v for k, v in CHOSEN.items() if k != "ar_account"}})
+        self.assertEqual(len(result.success), 1, result.failed)
+        self.assertEqual(sheet_rows(dict(site.files)["imparmas"])[0][12], "1130-01")
+
+    def test_head_office_is_the_branch_when_there_are_several(self):
+        lists = {"artran": {**LISTS["artran"], "txtothcombrh": [[1, "00000", "สนญ"], [2, "00001", "สาขา"]]}}
+        site = FakeMrErp(lists=lists, head="00001")
+        push(site, [dict(sales(posting_payment_manual="credit"), client_id="7")],
+             {"clients": [{"erp_type": "mrerp", "client_id": "7", "erp_code": "C0001"}],
+              "products": [{"item_name": "กระดาษ A4", "erp_code": "P-A4"}]})
+        self.assertEqual(sheet_rows(dict(site.files)["impartran"])[0][3], "00001")
 
     def test_account_not_chosen_stops_before_creating_the_customer(self):
         site = FakeMrErp()

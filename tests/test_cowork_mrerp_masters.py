@@ -86,9 +86,42 @@ class Resolve(unittest.TestCase):
         self.assertEqual(view["fields"]["dept"]["chosen"], "D002")
         self.assertFalse(view["fields"]["dept"]["needed"])
         self.assertFalse(view["fields"]["branch"]["needed"])           # 只有一个
-        self.assertTrue(view["fields"]["bank_account"]["needed"])      # 科目没选过
+        self.assertTrue(view["fields"]["bank_account"]["needed"])      # 科目表里没有存款科目：要选
+        self.assertTrue(view["fields"]["customer_type"]["needed"] is False)  # 只有一个类型
         self.assertIsNone(view["fields"]["store"]["reason"])           # 没读到：不问（推送时再核对）
         self.assertNotIn("customer_branch", view["fields"])            # 不是选择项
+
+    def test_rules_decide_without_asking_where_mrerp_itself_would(self):
+        fields = rules.masters([FABILLREV, ARMAS])
+        observed = {**fields, "head_branch": "00000"}
+        # 部门不止一个、没选过：跟 MR.ERP 网页新建单据的默认（按代码排序第一条），不问
+        self.assertEqual(rules.resolve_field(observed, {}, "dept")[0]["code"], "D001")
+        self.assertEqual(rules.resolve_field(observed, {"dept": "D002"}, "dept")[0]["code"], "D002")
+        two = {"branch": [{"code": "00000", "name": "สำนักงานใหญ่"}, {"code": "00001", "name": "สาขา 1"}]}
+        self.assertEqual(rules.resolve_field({**two, "head_branch": "00001"}, {}, "branch")[0]["code"], "00001")
+        self.assertEqual(rules.resolve_field({**two, "head_branch": ""}, {}, "branch")[0]["code"], "00000")
+        # 银行收款科目：只有一个「เงินฝาก…」就用它，多个要选
+        chart = [{"code": "1111-01", "name": "เงินสด"}, {"code": "1112-01", "name": "เงินฝากธนาคาร กสิกร"}]
+        self.assertEqual(rules.resolve_field({"chart": chart}, {}, "bank_account")[0]["code"], "1112-01")
+        chart.append({"code": "1112-02", "name": "เงินฝากธนาคาร กรุงเทพ"})
+        self.assertEqual(rules.resolve_field({"chart": chart}, {}, "bank_account")[1], rules.CHOICE_REQUIRED)
+        # 费用科目永远要选
+        self.assertEqual(rules.resolve_field({"chart": chart}, {}, "expense_account")[1], rules.CHOICE_REQUIRED)
+
+    def test_new_records_copy_the_companys_most_common_setup(self):
+        customer = lambda kind, account: [1, kind, "", 1, "x"] + [""] * 9 + [account]  # noqa: E731
+        samples = {"armas": [customer("1-11", "1130-01")] * 7 + [customer("1-12", "1130-02")] * 3,
+                   "apmas": [customer("2-11", "2120-01")] * 5 + [customer("2-21", "2110-01")] * 5}
+        suggested = rules.suggest(samples)
+        self.assertEqual(suggested, {"customer_type": "1-11", "ar_account": "1130-01"})  # 供应商没有明显多数：不给
+        chart = {"chart": [{"code": "1130-01", "name": "ลูกหนี้"}, {"code": "1130-02", "name": "ลูกหนี้ 2"}]}
+        self.assertEqual(rules.resolve_field(chart, {}, "ar_account", suggested)[0]["code"], "1130-01")
+        self.assertEqual(rules.resolve_field(chart, {}, "ap_account", suggested)[1], rules.CHOICE_REQUIRED)
+
+    def test_head_branch_comes_from_the_new_document_page(self):
+        page = '<label>สาขา</label><input type="text" name="txtothcombrh" id="txtothcombrh" size="5" value="00001" readonly>'
+        self.assertEqual(rules.parse_head_branch(page), "00001")
+        self.assertEqual(rules.parse_head_branch("<html></html>"), "")
 
     def test_a_failed_read_keeps_what_was_seen_before(self):
         observed = rules.observe(None, "15:1", rules.masters([FABILLREV]), at="t1")

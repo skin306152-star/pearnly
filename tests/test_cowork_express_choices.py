@@ -94,11 +94,14 @@ class Choices(unittest.TestCase):
         needed = next(item for item in result["needed"] if item["kind"] == "account")
         self.assertEqual(needed["current"], "99-99-99-99")
 
-    def test_departments_are_chosen_once_per_account_set(self):
-        config = {**CONFIG, "reported_departments": [{"code": "SUTI", "name": "สาขาที่ 1"}]}
+    def test_department_is_not_asked_but_a_remembered_one_is_used(self):
+        # 用户 2026-10-08：部门不再问（没选过由小助手取单据簿默认部门或不记）；以前选过 / 自动录入规则设的照用
+        config = {**CONFIG, "reported_departments": [{"code": "SUTI", "name": "สาขาที่ 1"},
+                                                     {"code": "HQ", "name": "สำนักงานใหญ่"}]}
         result = C.resolve(purchase(posting_payment_manual="credit"), direction="purchase", posting_kind="service",
                            config=config, remembered={}, account_resolved=True)
-        self.assertEqual(kinds(result), ["department"])
+        self.assertEqual(kinds(result), [])
+        self.assertNotIn("department", result["applied"])
         done = C.resolve(purchase(posting_payment_manual="credit"), direction="purchase", posting_kind="service",
                          config=config, remembered={"department": {"*": "SUTI"}}, account_resolved=True)
         payload = C.apply_to_payload({"direction": "purchase", "supplier": {}, "items": []}, done["applied"])

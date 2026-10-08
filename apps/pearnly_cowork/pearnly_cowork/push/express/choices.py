@@ -134,15 +134,12 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                            "current": value or ""})
 
     # ── 部门（整份账套一个）──
+    # 不再问（用户 2026-10-08：62 套真实账套全都有两个以上部门，等于每套账都要问一次）：选过的照用；没选过由小助手
+    # 写入时取这本单据簿自己设的默认部门（ISRUN.DEPCOD），簿上也没设就不记部门 —— 与会计在 Express 里手录不选部门一样。
     departments = _rows(config.get("reported_departments"))
     value = chosen("department", "*")
-    if departments:
-        if value and value in _codes(departments):
-            applied["department"] = value
-        else:
-            needed.append({"kind": "department", "subject": "*", "label": "",
-                           "options": [{"code": row["code"], "name": row.get("name") or ""} for row in departments],
-                           "current": value or ""})
+    if departments and value and value in _codes(departments):
+        applied["department"] = value
 
     party_key = supplier_subject(direction, tax, name)
     if direction == "purchase":

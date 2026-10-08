@@ -3,9 +3,11 @@
 规则见 `targets/mrerp_masters.py`；读取见 `connections/mrerp_master_reader.py`。生成器只从 mappings 取（见 `xlsx/defaults.py`
 与各主档生成器的 `_mrerp_*` 覆盖键），算不出就整批停下、给出原因码请人选，不写任何别家公司的值。
 
-- 表头 / 明细：分店、部门、工作、仓库、员工，销项另有销售区、运输；销项客户档里有员工 / 区域 / 运输的优先用客户档的。
+- 表头 / 明细：分店、部门、工作、仓库、员工，销项另有销售区、运输；没选过就跟 MR.ERP 网页新建单据的默认（总店、
+  按代码第一条）；销项客户档里有员工 / 区域 / 运输的优先用客户档的。
 - 现金销售：现金收款用参考科目 2「เงินสด」，转账 / 刷卡用这份账套选的银行科目。
-- 自建客户 / 供应商：类型、应收 / 应付科目、销售员 / 区域 / 运输代码；称谓按名称前缀对称谓表，分店按票面分店号。
+- 自建客户 / 供应商：类型、应收 / 应付科目照这家公司现有档案最常用的那组（没有明显多数才问）；销售员 / 区域 / 运输
+  代码同表头；称谓按名称前缀对称谓表，分店按票面分店号。
 - 自建商品：分类、单位；货品 8 个科目取参考科目，费用物料 8 个科目取这份账套选的费用科目；默认供应商取现金供应商
   （没有就取第一个供应商）。
 """
@@ -25,6 +27,9 @@ _MODULES = {
     "product_group": ("stkmas",), "unit": ("stkmas",), "chart": ("armas", "apmas", "stkmas"),
 }
 _PRODUCT_REFERENCE = ("acc_rev", "acc_ret", "acc_dis", "acc_pur", "acc_purret", "acc_purdis", "acc_inv", "acc_cost")
+# 「最常用的那组」从哪类现有档案抽样
+_SAMPLE_MODULE = {"customer_type": "armas", "ar_account": "armas", "supplier_type": "apmas", "ap_account": "apmas",
+                  "product_group": "stkmas", "unit": "stkmas"}
 CASH_PARTY = "เงินสด"  # 与 xlsx/lookups.MRERP_CASH_CUSTOMER 同值（Pearnly 自建的现金客户 / 供应商码）
 
 
@@ -69,10 +74,25 @@ class AccountDefaults:
 
     def value(self, field: str) -> Dict[str, str]:
         values = self._options(field)
-        hit, reason = rules.resolve(values, self.chosen.get(field), single=field not in rules.ACCOUNT_FIELDS)
+        single = field not in rules.ACCOUNT_FIELDS
+        default = ""
+        if values and not self.chosen.get(field) and not (single and len(values) == 1):
+            default = self._rule_default(field, values)
+        hit, reason = rules.resolve(values, self.chosen.get(field), single=single, default=default)
         if reason:
             raise Missing(reason)
         return hit
+
+    def _rule_default(self, field: str, values: List[Dict[str, str]]) -> str:
+        """没选过又不止一个可用值：按规则取（网页默认 / 总店 / 现有档案最常用的那组 / 唯一存款科目）。"""
+        key = "chart" if field in rules.ACCOUNT_FIELDS else field
+        observed = {key: values, "head_branch": self.reader.known_head_branch()}
+        suggested = None
+        if field in _SAMPLE_MODULE:
+            suggested = self.reader.suggested(_SAMPLE_MODULE[field])
+            if suggested:
+                self.observed.setdefault("suggested", {}).update(suggested)
+        return rules.rule_default(observed, field, suggested)
 
     def chart(self) -> List[str]:
         return [v["code"] for v in self._options("chart") or []]

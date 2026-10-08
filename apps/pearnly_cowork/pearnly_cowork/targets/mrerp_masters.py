@@ -5,11 +5,17 @@
 且由 `imp*/component/importpc.php` 与这家公司自己的主档逐条比对；对不上整张单据被拒，MR.ERP 不会自动建档。
 旧线上写死的是 TEST2019 的值（`กร ทดสอบ` = Korn 测试），换任何一家公司都推不进去。
 
-规则（用户 2026-10-08）：同 `targets/mrerp_menus.py` —— 某项只有一个可用值就用它；多个时请人选一次，按
-「连接 + 账套」记住；每次推送按这次读到的主档核对，选过的没了就停下请人重选，**不自动换**。能用这家公司在
-MR.ERP 里自己的设置就不问：商品 8 个科目与现金科目取「参考科目」（`acreffile/acreffileform.php`，MR.ERP 网页
-新建时的默认同源）；销项的员工 / 销售区 / 运输优先用客户档里的（MR.ERP 网页选客户后同样改用客户档）；
-称谓按票面名称的前缀对称谓表。
+规则（用户 2026-10-08）：能用这家公司在 MR.ERP 里自己的设置与习惯就**不问人**，只有真定不下来的才请人选一次，
+按「连接 + 账套」记住；选过的以选过的为准，选过的没了就停下请人重选，**不自动换**。
+- 只有一个可用值就用它；
+- 部门 / 项目 / 仓库 / 员工 / 销售区 / 运输：跟 MR.ERP 网页新建单据的默认走（按代码排序第一条，
+  `artran/component/javascript/allform.js:1495-1562`）；本公司分店取总店（`statusmain`，同一页 :52-63）；
+  销项的员工 / 销售区 / 运输优先用客户档里的（网页选了客户也改用客户档）；
+- 新建客户 / 供应商 / 商品的类型、科目、分类、单位：照这家公司现有档案里最常用的那组（MR.ERP 自己「复制现有档案」
+  `*/component/dupdata.php` 同源），有明显多数才用；
+- 商品 8 个科目与现金科目取「参考科目」（`acreffile/acreffileform.php`）；称谓按票面名称的前缀对称谓表；
+- 银行收款科目：科目表里只有一个「เงินฝาก…」存款科目就用它；
+- 真要问的：多个存款科目时的银行收款科目、费用物料的费用科目、没有明显多数的类型 / 科目 / 分类 / 单位。
 
 主档从各模块的 `component/bshlistboxdata.php`（登录并选好账套后 POST，不带参数，回 JSON）读；
 `[id, 代码, 名称]` 一行，员工是 `[id, 代码, 称谓, "名 姓"]`。表为空时这个键整个不出现。
@@ -43,6 +49,16 @@ SOURCES: Dict[str, Tuple[str, ...]] = {
 CHART = "txtacfile"  # 科目表：几个科目字段共用
 ACCOUNT_FIELDS = ("ar_account", "ap_account", "bank_account", "expense_account")
 FIELDS = (*(k for k in SOURCES if k != "customer_branch"), *ACCOUNT_FIELDS)
+
+# 没选过、又有多个可用值时，跟 MR.ERP 网页新建单据的默认（按代码排序的第一条）走，不问人。
+WEB_DEFAULT = ("dept", "job", "store", "employee", "area", "delivery")
+# 没选过、又有多个可用值时，照这家公司现有档案里最常用的那组（见 `suggest`），没有明显多数才问。
+SUGGESTED = ("customer_type", "ar_account", "supplier_type", "ap_account", "product_group", "unit")
+# 现有档案 dupdata 回应里各字段的列位（armas / apmas / stkmas `component/dupdata.php`，2026-10-08 核对源码）。
+SAMPLE_COLUMNS = {"armas": {"customer_type": 1, "ar_account": 14},
+                  "apmas": {"supplier_type": 1, "ap_account": 14},
+                  "stkmas": {"product_group": 2, "unit": 43}}
+MAJORITY = 0.6
 
 # 录入提交前按票面方向问哪些（只问会用到的）。
 FIELDS_FOR_DIRECTION = {
@@ -180,10 +196,10 @@ def options(observed: Dict[str, List[Dict[str, str]]], field: str) -> Optional[L
     return observed.get("chart" if field in ACCOUNT_FIELDS else field)
 
 
-def resolve(values: Optional[List[Dict[str, str]]], chosen: Any, *,
-            single: bool = True) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
+def resolve(values: Optional[List[Dict[str, str]]], chosen: Any, *, single: bool = True,
+            default: Any = None) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
     """这次写哪个值 → (值, None) 或 (None, 原因码)。选过的以选过的为准，失效就停下，不换。
-    科目字段 `single=False`：科目表不会只有一个科目，永远请人选。"""
+    没选过：只有一个就用（科目字段 `single=False` 不算），再看规则给的默认 `default`（不在可用值里就当没有）。"""
     if values is None:
         return None, UNREADABLE
     want = str(chosen or "").strip()
@@ -192,11 +208,59 @@ def resolve(values: Optional[List[Dict[str, str]]], chosen: Any, *,
         return (hit, None) if hit else (None, CHANGED)
     if single and len(values) == 1:
         return values[0], None
+    rule = str(default or "").strip()
+    hit = next((v for v in values if rule and v["code"] == rule), None)
+    if hit:
+        return hit, None
     return None, (CHOICE_REQUIRED if values else UNREADABLE)
 
 
-def resolve_field(observed: Dict[str, Any], chosen: Dict[str, str], field: str):
-    return resolve(options(observed, field), chosen.get(field), single=field not in ACCOUNT_FIELDS)
+def rule_default(observed: Dict[str, Any], field: str, suggested: Optional[Dict[str, str]] = None) -> str:
+    """没选过、又不止一个可用值时，按规则该用哪个（见文件头）；定不下来是空串。"""
+    values = options(observed, field) or []
+    codes = [v["code"] for v in values]
+    if field in WEB_DEFAULT:
+        return codes[0] if codes else ""
+    if field == "branch":
+        head = str((observed or {}).get("head_branch") or "")
+        return head if head in codes else ("00000" if "00000" in codes else "")
+    if field == "bank_account":
+        deposits = [v["code"] for v in values if v["name"].startswith("เงินฝาก")]
+        return deposits[0] if len(deposits) == 1 else ""
+    if field in SUGGESTED:
+        return str((suggested if suggested is not None else (observed or {}).get("suggested") or {}).get(field) or "")
+    return ""
+
+
+def resolve_field(observed: Dict[str, Any], chosen: Dict[str, str], field: str,
+                  suggested: Optional[Dict[str, str]] = None):
+    return resolve(options(observed, field), chosen.get(field), single=field not in ACCOUNT_FIELDS,
+                   default=rule_default(observed, field, suggested))
+
+
+def suggest(samples: Dict[str, List[Any]]) -> Dict[str, str]:
+    """现有档案的 dupdata 回应 {模块: [记录, …]} → 各字段最常用的值；占比不到 MAJORITY 的不给（要人选）。"""
+    out: Dict[str, str] = {}
+    for module, columns in SAMPLE_COLUMNS.items():
+        rows = [r for r in samples.get(module) or [] if isinstance(r, list)]
+        for field, index in columns.items():
+            values = [str(r[index]).strip() for r in rows if len(r) > index and str(r[index] or "").strip()]
+            if not values:
+                continue
+            best = max(set(values), key=values.count)
+            if values.count(best) / len(values) >= MAJORITY:
+                out[field] = best
+    return out
+
+
+_HEAD_BRANCH = re.compile(r"<input\b[^>]*\bid=[\"']txtothcombrh[\"'][^>]*>", re.IGNORECASE)
+
+
+def parse_head_branch(page: str) -> str:
+    """赊销新建单据页（`artran/allform.php`）预填的本公司分店 = 总店（statusmain）；页上没有就是空串。"""
+    match = _HEAD_BRANCH.search(page or "")
+    value = _VALUE.search(match.group(0)) if match else None
+    return _text(value.group(1)) if value else ""
 
 
 # ── 按账套记住所选 ─────────────────────────────────────────────────────────
@@ -246,7 +310,9 @@ def observe(raw: Any, account: str, fields: Optional[Dict[str, List[Dict[str, st
         entry.update(error=str(error)[:80], error_at=at)
     else:
         entry["fields"] = {**entry["fields"], **{k: v for k, v in (fields or {}).items()
-                                                 if k in (*SOURCES, "chart") and isinstance(v, list)}}
+                                                 if (k in (*SOURCES, "chart") and isinstance(v, list))
+                                                 or (k == "suggested" and isinstance(v, dict))
+                                                 or (k == "head_branch" and isinstance(v, str))}}
         entry.update(observed_at=at, error=None, error_at=None)
     value[account] = entry
     if len(value) > _MAX_ACCOUNTS:
@@ -288,6 +354,7 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
 
 
 __all__ = ["ACCOUNT_FIELDS", "CHANGED", "CHOICE_REQUIRED", "FIELDS", "FIELDS_FOR_DIRECTION", "REFERENCE",
+           "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "parse_head_branch", "rule_default", "suggest",
            "UNREADABLE", "choices", "choose", "chosen_map", "customer_defaults", "known_codes", "masters",
            "observe", "observed_for", "options", "parse_listbox", "parse_prefixes", "parse_reference", "prefix_for",
            "resolve", "resolve_field", "view"]

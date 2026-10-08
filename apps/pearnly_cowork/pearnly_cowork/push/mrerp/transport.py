@@ -151,9 +151,9 @@ class MrErpImport:
         if not histories:
             return self._result(original, [], mismatch_failed, t0, 0)
 
-        # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档与这份账套选过的值算，定不下来就不推、
-        # 不建主档（规则见 targets/mrerp_masters.py）。参考科目、称谓只有网页，会改写会话里的当前菜单，所以在打开
-        # 导入页之前读。
+        # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档、这份账套选过的值与规则算，定不下来就
+        # 不推、不建主档（规则见 targets/mrerp_masters.py）。参考科目、称谓、总店只有网页，会改写会话里的当前菜单，
+        # 所以在打开导入页之前读。
         self._prepare(m)
         self.default_reason = None
         if self.account_defaults is None:  # 同一次会话里几组单据（赊销 / 现金）共用一次读取
@@ -162,6 +162,7 @@ class MrErpImport:
         try:
             self.account_defaults.reader.reference()
             self.account_defaults.reader.prefixes()
+            self.account_defaults.reader.head_branch()
             self.account_defaults.header(mappings, histories, sales=m.doc_type.startswith("sales"),
                                          cash_sale=m.doc_type == "sales_cash")
         except Missing as missing:

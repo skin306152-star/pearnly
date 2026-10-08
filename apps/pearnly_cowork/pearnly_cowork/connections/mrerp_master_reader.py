@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import json
 from typing import Callable, Dict, Optional
 
 from pearnly_cowork.targets import mrerp_masters as rules
@@ -31,6 +32,9 @@ LISTS = {
 FOR_CHOICES = ("fabillrev", "armas", "apmas", "stktraniss", "stkmas")
 REFERENCE_PAGE = "acreffile/acreffileform.php"
 PREFIX_PAGE = "armas/allform.php"
+HEAD_BRANCH_PAGE = "artran/allform.php"  # 赊销新建单据页：预填的本公司分店 = 总店
+# 「最常用的那组」抽样：每类取最新的这么多份现有档案（`component/dupdata.php`，MR.ERP「复制现有档案」同源）。
+SAMPLE_SIZE = 30
 
 Request = Callable[..., object]
 
@@ -43,7 +47,9 @@ class MasterReader:
         self.lists: Dict[str, Optional[dict]] = {}
         self._reference: Optional[Dict[int, str]] = None
         self._prefixes: Optional[list] = None
+        self._head_branch = ""
         self._pages_read = set()
+        self._samples: Dict[str, list] = {}
 
     def listbox(self, module: str) -> Optional[dict]:
         if module not in self.lists:
@@ -73,10 +79,48 @@ class MasterReader:
         return self._prefixes
 
 
+    def head_branch(self) -> str:
+        """总店分店码；只能在导入页打开之前读（见文件头）。"""
+        if "head" not in self._pages_read:
+            self._pages_read.add("head")
+            response = self._request("GET", HEAD_BRANCH_PAGE, headers={"Referer": f"{self._base}/login/mainmenu.php"})
+            self._head_branch = rules.parse_head_branch(getattr(response, "text", "") or "")
+        return self._head_branch
+
+    def known_head_branch(self) -> str:
+        """已经读到的总店分店码（不去读网页：推送里网页只能在导入页打开前读）。"""
+        return self._head_branch
+
+    def samples(self, module: str) -> list:
+        """这类档案里最新的 SAMPLE_SIZE 份的完整资料（dupdata 回应），读不到的跳过。"""
+        if module not in self._samples:
+            rows = [r for r in (self.listbox(module) or {}).get("inpdupdata") or []
+                    if isinstance(r, list) and r and str(r[0]).isdigit()]
+            newest = sorted(rows, key=lambda r: int(r[0]), reverse=True)[:SAMPLE_SIZE]
+            found = []
+            for row in newest:
+                response = self._request("POST", f"{module}/component/dupdata.php", data={"hiddupdata": str(row[0])},
+                                         headers={"X-Requested-With": "XMLHttpRequest", "Origin": self._base,
+                                                  "Referer": f"{self._base}/{module}/allform.php"})
+                try:
+                    value = json.loads(getattr(response, "text", "") or "")
+                except ValueError:
+                    continue
+                if isinstance(value, list):
+                    found.append(value)
+            self._samples[module] = found
+        return self._samples[module]
+
+    def suggested(self, *modules: str) -> Dict[str, str]:
+        return rules.suggest({m: self.samples(m) for m in modules})
+
+
 def read_for_choices(request: Request, base: str):
-    """给选择弹窗：读全部小主档 → (各字段可用值, None) 或 (None, 原因码)。"""
+    """给选择弹窗：读全部小主档、总店、现有档案最常用的那组 → (各字段可用值, None) 或 (None, 原因码)。"""
     reader = MasterReader(request, base)
     fields = reader.fields(*FOR_CHOICES)
     if not fields:
         return None, rules.UNREADABLE
+    fields["head_branch"] = reader.head_branch()
+    fields["suggested"] = reader.suggested("armas", "apmas", "stkmas")
     return fields, None

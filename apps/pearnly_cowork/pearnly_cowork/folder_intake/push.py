@@ -50,6 +50,13 @@ def push_one(entry, rule, history, attempt=0, final=True):
         view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind)
         defaults = json.loads(rule.defaults_json or "{}")
         applied = False
+        # 部门不再「要人选」（push/express/choices.py）：规则里设了部门、这份账套又还没记过，照规则记下（与以前问到时
+        # 套用规则默认值同一个效果），否则规则里的部门就再也用不上了。
+        department = contracts.default_value(defaults, "department")
+        if department and not (choice_store.remembered(rule.connection, view.get("account_set")
+                                                       or rule.account_set_key).get("department") or {}).get("*"):
+            applied = choice_store.record(rule.connection, view.get("account_set") or rule.account_set_key,
+                                          "department", "*", department, "") or applied
         for item in view.get("needed") or []:
             value = contracts.default_value(defaults, item.get("kind"))
             if value:
