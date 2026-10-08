@@ -42,7 +42,7 @@ def status(entry):
     return {"state": entry.state, "code": entry.last_code or "", "items": items,
             "finished": entry.state in FINISHED,
             "settled": entry.state in ("not_invoice", "failed") or (
-                entry.state == "done" and bool(recorded) and all(status == "success" for _name, status, _reason in recorded))}
+                entry.state == "done" and bool(recorded) and all(status in contracts.SETTLED for _name, status, _reason in recorded))}
 
 
 def render(entry, history):

@@ -468,3 +468,72 @@ def _render_page(source, number):
         return originals.render_page(source.kind, read_bytes(source), number)
     except originals.Rejected as error:
         reject(error.code)
+
+
+# ── 删除：录入工作台删票后，没有别的票再用的原件连同存储一起删（用户 2026-10-08「删就删除所有记录和储存」）──
+
+
+ACTIVE_BATCH = ("admitted", "recognizing")
+
+
+def purge(source_names):
+    """删掉这些原件：原件记录、它的识别批次、服务器上的文件、原件桶里的原件与预览。
+
+    调用方（`history/removal.py`）已核过权限并删掉了引用它的票；这里再核一次：还有票在用、或还有识别没结束的原件不删。
+    数据库行当场删；磁盘文件与桶里的对象等事务提交后再删（回滚时不丢文件），桶里的放后台任务，不拖慢删除请求。
+    返回删掉的原件数。"""
+    paths, prefixes, removed = [], [], 0
+    bucket_name = cloud.bucket()
+    for name in dict.fromkeys(source_names or []):
+        source = frappe.db.get_value(access.SOURCE, name, ["name", "stored_file", "storage_url"], as_dict=True,
+                                     for_update=True)
+        if not source or frappe.db.exists(access.HISTORY, {"source_file": name}) \
+                or frappe.db.exists("Cowork OCR Batch", {"source_file": name, "phase": ["in", ACTIVE_BATCH]}):
+            continue
+        files = frappe.get_all("File", filters={"attached_to_doctype": access.SOURCE, "attached_to_name": name},
+                               fields=["name", "file_url"], ignore_permissions=True)
+        if source.stored_file and source.stored_file not in {row.name for row in files}:
+            row = frappe.db.get_value("File", source.stored_file, ["name", "file_url"], as_dict=True)
+            if row:
+                files.append(row)
+        for row in files:
+            frappe.db.delete("File", {"name": row.name})
+            # 框架按内容去重：同样内容的别的文件记录还指着这份磁盘文件就留着。
+            if row.file_url and not frappe.db.exists("File", {"file_url": row.file_url}):
+                parts = [part for part in row.file_url.split("/") if part and part != ".."]
+                paths.append(frappe.get_site_path(*(parts if parts[:1] == ["private"] else ["public", *parts])))
+        frappe.db.delete("Cowork OCR Batch", {"source_file": name})
+        frappe.db.delete(access.SOURCE, {"name": name})
+        removed += 1
+        stored = cloud.parse_url(source.storage_url) if source.storage_url else None
+        if stored:
+            prefixes.append((stored[0], stored[1]))
+        if bucket_name:
+            prefixes.append((bucket_name, f"{frappe.local.site}/previews/{name}/"))
+    if paths:
+        frappe.db.after_commit.add(lambda: _remove_paths(paths))
+    if prefixes:
+        frappe.enqueue("pearnly_cowork.files.service.purge_objects", queue="short", prefixes=prefixes,
+                       enqueue_after_commit=True)
+    return removed
+
+
+def _remove_paths(paths):
+    import os
+
+    for path in paths:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            logger.warning("original file not removed: %s", path)
+
+
+def purge_objects(prefixes):
+    """后台：删原件桶里这些原件与预览（失败记一条错误日志，不重试；对象留着只占存储，不影响任何功能）。"""
+    for bucket_name, prefix in prefixes or []:
+        try:
+            cloud.delete_prefix(bucket_name, prefix)
+        except Exception:
+            frappe.log_error(title="Cowork original objects not deleted", message=frappe.get_traceback()[-1500:])

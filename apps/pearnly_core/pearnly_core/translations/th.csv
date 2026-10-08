@@ -197,12 +197,14 @@ Delete,ลบ
 Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,ต้องการลบพนักงานที่เลือก {0} คนใช่หรือไม่ ระบบจะยกเลิกการผูก LINE และลบการเชื่อมต่อ DMS โดยยังเก็บบันทึกการส่งไว้
 Delete {0} selected push records from this list? Sent business documents will not be affected.,ต้องการลบบันทึกการส่งที่เลือก {0} รายการใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,ต้องการลบรายการที่เลือก {0} รายการใช่หรือไม่ การดำเนินการนี้จะไม่เปลี่ยนแปลงยอดคงเหลือหรือยกเลิกคำขอเติมเงิน
+Delete {0} selected records?,ต้องการลบ {0} รายการที่เลือกใช่หรือไม่
 Delete {0} selected records? Pushed ones cannot be deleted.,ต้องการลบ {0} รายการที่เลือกใช่หรือไม่ รายการที่ส่งแล้วไม่สามารถลบได้
 Deleted,ลบแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} operators,ลบพนักงานแล้ว {0} คน
 Deleted {0} push records,ลบบันทึกการส่งแล้ว {0} รายการ
 Deleted {0}. {1} already pushed were kept,ลบ {0} รายการแล้ว และเก็บรายการที่ส่งแล้วไว้ {1} รายการ
+Deleted {0}. {1} being pushed were not deleted,ลบ {0} รายการแล้ว {1} รายการกำลังส่ง ไม่ได้ลบ
 Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเร็จ: {0} {1}
 Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
 Deployment,การติดตั้ง
@@ -388,6 +390,7 @@ No service account configured (site config pearnly_ocr_credentials),ยังไ
 No sign-in credentials configured,ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ
 No such local account: {0},ไม่พบบัญชีภายในระบบ: {0}
 No.,เลขที่
+None deleted: the {0} selected records are being pushed.,ไม่ได้ลบรายการใด: {0} รายการที่เลือกกำลังส่ง
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด
 Not Permitted,ไม่มีสิทธิ์
 Not allowed,ไม่อนุญาต
@@ -952,10 +955,10 @@ intake.col.grandTotal,ยอดรวมทั้งสิ้น
 intake.col.name,เลขที่
 intake.col.status,สถานะ
 intake.collapse,ย่อ
-intake.confirm.delete,ต้องการลบ {0} รายการที่เลือกใช่หรือไม่ รายการที่ส่งแล้วไม่สามารถลบได้
+intake.confirm.delete,ต้องการลบ {0} รายการที่เลือกใช่หรือไม่
 intake.delete.done,ลบ {0} รายการแล้ว
-intake.delete.none,ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด
-intake.delete.partial,ลบ {0} รายการแล้ว และเก็บรายการที่ส่งแล้วไว้ {1} รายการ
+intake.delete.none,ไม่ได้ลบรายการใด: {0} รายการที่เลือกกำลังส่ง
+intake.delete.partial,ลบ {0} รายการแล้ว {1} รายการกำลังส่ง ไม่ได้ลบ
 intake.dir.purchase,ซื้อ
 intake.dir.purchaseFull,ซื้อ (ใบกำกับภาษีที่ได้รับ)
 intake.dir.sales,ขาย

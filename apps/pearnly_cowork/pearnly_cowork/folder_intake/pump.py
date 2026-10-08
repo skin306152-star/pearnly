@@ -17,7 +17,7 @@ from datetime import timedelta
 import frappe
 from frappe.utils import add_to_date, now_datetime
 
-from pearnly_cowork.folder_intake import destinations, inbox, settings
+from pearnly_cowork.folder_intake import contracts, destinations, inbox, settings
 from pearnly_cowork.folder_intake.access import FILE, RULE, read, write
 from pearnly_cowork.folder_intake.machine import owner_ready, request_key
 from pearnly_cowork.folder_intake.push import push_one
@@ -112,7 +112,12 @@ def _each(names, deadline, handle):
     for name in names:
         if time.monotonic() > deadline:
             return
-        entry = read(FILE, name, for_update=True)
+        try:
+            entry = read(FILE, name, for_update=True)
+        except frappe.DoesNotExistError:
+            # 规则刚被删除，它的文件进度一起删了：跳过，不打断这一轮其他文件。
+            frappe.clear_messages()
+            continue
         try:
             handle(entry)
         except frappe.QueryDeadlockError:
@@ -329,8 +334,9 @@ def _signature(entry):
         return []
     rows = {row.name: row for row in frappe.get_all(HISTORY, filters={"name": ["in", histories]},
             fields=["name", "last_push_status", "last_push_reason"], ignore_permissions=True)}
-    return [[name, (rows.get(name) or {}).get("last_push_status") or "", (rows.get(name) or {}).get("last_push_reason") or ""]
-            for name in histories]
+    # 票在录入工作台被删了：记 deleted，与成功一样算有了结论（不再等它、不再出它的表格）。
+    return [[name, (rows[name].last_push_status or "") if name in rows else contracts.DELETED,
+             (rows[name].last_push_reason or "") if name in rows else ""] for name in histories]
 
 
 def _settle_step(cfg, deadline):
@@ -339,7 +345,7 @@ def _settle_step(cfg, deadline):
         outcome = json.loads(entry.outcome_json or "{}")
         signature = _signature(entry)
         for name, status, _reason in signature:
-            if (outcome.get(name) or {}).get("status") == "sent" and status not in ("success", "manual"):
+            if (outcome.get(name) or {}).get("status") == "sent" and status not in ("success", "manual", contracts.DELETED):
                 return _later(entry, 30, "")
         entry.state, entry.finished_at = "done", now_datetime()
         entry.workbook_revision = int(entry.workbook_revision or 0) + 1
@@ -362,7 +368,7 @@ def _follow_step(cfg, deadline):
     def follow(entry):
         outcome = json.loads(entry.outcome_json or "{}")
         before = outcome.get("_signature") or []
-        if before and all(status == "success" for _name, status, _reason in before):
+        if before and all(status in contracts.SETTLED for _name, status, _reason in before):
             entry.next_attempt_at = add_to_date(now_datetime(), days=FOLLOW_DAYS + 1)
             write(entry)
             return frappe.db.commit()

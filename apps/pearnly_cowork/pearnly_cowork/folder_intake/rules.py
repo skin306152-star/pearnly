@@ -14,7 +14,7 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import preparation
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.folder_intake import agent, contracts, destinations
+from pearnly_cowork.folder_intake import agent, contracts, destinations, inbox
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -187,6 +187,32 @@ def set_enabled(name, enabled):
         rule.rule_revision = int(rule.rule_revision or 0) + 1
         write(rule)
     return project(rule)
+
+
+def delete(names):
+    """删除选中的规则（列表勾选后右上角「删除」，2026-10-08）：连同它的运行记录与文件进度一起删，小助手下一次同步
+    就不再跑它；已经建出的录入记录留在录入工作台，照常可看、可推。没有这条连接使用权的规则不删，已不存在的跳过。"""
+    _require()
+    names = json.loads(names) if isinstance(names, str) else names
+    if not isinstance(names, list) or not names or len(names) > MAX_RULES * 10 \
+            or not all(isinstance(name, str) and 0 < len(name) <= 140 for name in names):
+        frappe.throw(_("cowork.folder.invalid"))
+    deleted, inline = 0, []
+    for name in dict.fromkeys(names):
+        if not frappe.db.exists(RULE, name):
+            continue
+        rule = read(RULE, name, for_update=True)
+        _connection(rule.connection)
+        inline += frappe.get_all(FILE, filters={"rule": rule.name, "route": "inline"}, pluck="name",
+                                 ignore_permissions=True)
+        frappe.db.delete(FILE, {"rule": rule.name})
+        frappe.db.delete(RUN, {"rule": rule.name})
+        frappe.db.delete(RULE, {"name": rule.name})
+        deleted += 1
+    # 网页直传的原件暂存（还没建原件的）提交后再清，回滚时不丢文件。
+    if inline:
+        frappe.db.after_commit.add(lambda: [inbox.drop(name) for name in inline])
+    return {"deleted": deleted}
 
 
 def run_now(name):

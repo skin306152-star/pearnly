@@ -32,6 +32,11 @@ def set_enabled(name, enabled):
 
 
 @frappe.whitelist(methods=["POST"])
+def delete(names):
+    return rules.delete(names)
+
+
+@frappe.whitelist(methods=["POST"])
 def run_now(name):
     return rules.run_now(name)
 

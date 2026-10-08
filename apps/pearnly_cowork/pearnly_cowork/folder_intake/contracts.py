@@ -239,6 +239,9 @@ def roots(value: Any) -> List[Dict[str, Any]]:
 
 
 RULE_HEALTH = ("ok", "root_missing", "folder_missing")
+# 结果表格的票状态：推送成功或票已在录入工作台删除，这张都不再变（小助手可以不再来问）。
+DELETED = "deleted"
+SETTLED = ("success", DELETED)
 
 
 def health(value: Any) -> Dict[str, str]:

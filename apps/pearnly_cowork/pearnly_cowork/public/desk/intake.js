@@ -53,7 +53,7 @@
 			let list;
 			// 新平台以批量识别和推送为主，识别后人工自然复核（用户 2026-09-26）：列表不再有「确认」
 			// （把草稿标成已完成）这一步，也就没有「草稿」筛选。勾选后右上角换成「删除」（ERP 列表同一套
-			// `p.selection_action`）：能删的删，已推送的服务端跳过；没勾选时是新建录入。
+			// `p.selection_action`）：连同推送记录与原件一起删，只有正在推送的服务端跳过（用户 2026-10-08）；没勾选时是新建录入。
 			const restore_new = () => (can_write ? page.set_primary_action(t("intake.action.new"), create)
 				: page.clear_primary_action());
 			const selection = can_write ? p.selection_action({
@@ -62,8 +62,7 @@
 				confirm: rows => t("intake.confirm.delete", rows.length),
 				sound: "delete",
 				run: rows => p.call(API + "delete", {records: rows.map(row => row.name)}, "POST"),
-				// 推送过的服务端不删（`history/removal.py`）：按服务端回的条数说，一条都没删就说明原因、不报成功
-				// （用户 2026-10-08：选中的都推送过，却一直提示「已删除」，看着像删不掉在循环）。
+				// 正在推送的服务端不删（`history/removal.py`）：按服务端回的条数说，一条都没删就说明原因、不报成功。
 				success: (_rows, result) => {
 					const deleted = Number(result?.deleted) || 0, skipped = Number(result?.skipped) || 0;
 					if (!deleted) {

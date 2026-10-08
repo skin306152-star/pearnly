@@ -197,12 +197,14 @@ Delete,删除
 Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,确定要删除选中的 {0} 名操作员吗？将解除 LINE 绑定并移除 DMS 连接，推送记录将保留。
 Delete {0} selected push records from this list? Sent business documents will not be affected.,确定要删除选中的 {0} 条推送记录吗？已推送的业务单据不受影响。
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,确定要删除所选 {0} 条记录吗？此操作不会更改余额或取消充值申请。
+Delete {0} selected records?,确定要删除选中的 {0} 条记录吗？
 Delete {0} selected records? Pushed ones cannot be deleted.,确定要删除选中的 {0} 条记录吗？已推送的记录无法删除。
 Deleted,已删除
 Deleted {0},已删除 {0} 条
 Deleted {0} operators,已删除 {0} 名操作员
 Deleted {0} push records,已删除 {0} 条推送记录
 Deleted {0}. {1} already pushed were kept,已删除 {0} 条，已保留 {1} 条已推送记录
+Deleted {0}. {1} being pushed were not deleted,已删除 {0} 条，{1} 条正在推送，未删除
 Deleting the OIDC client failed: {0} {1},删除 OIDC 客户端失败：{0} {1}
 Deleting the account failed: {0} {1},删除账号失败：{0} {1}
 Deployment,部署
@@ -388,6 +390,7 @@ No service account configured (site config pearnly_ocr_credentials),未配置服
 No sign-in credentials configured,未配置登录凭据
 No such local account: {0},本地账号不存在：{0}
 No.,单号
+None deleted: the {0} selected records are being pushed.,未删除任何记录：选中的 {0} 条记录正在推送。
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",未删除任何记录：选中的 {0} 条记录均已推送。
 Not Permitted,没有权限
 Not allowed,不允许
@@ -952,10 +955,10 @@ intake.col.grandTotal,价税合计
 intake.col.name,单号
 intake.col.status,状态
 intake.collapse,收起
-intake.confirm.delete,确定要删除选中的 {0} 条记录吗？已推送的记录无法删除。
+intake.confirm.delete,确定要删除选中的 {0} 条记录吗？
 intake.delete.done,已删除 {0} 条
-intake.delete.none,未删除任何记录：选中的 {0} 条记录均已推送。
-intake.delete.partial,已删除 {0} 条，已保留 {1} 条已推送记录
+intake.delete.none,未删除任何记录：选中的 {0} 条记录正在推送。
+intake.delete.partial,已删除 {0} 条，{1} 条正在推送，未删除
 intake.dir.purchase,进项
 intake.dir.purchaseFull,进项（收到的发票）
 intake.dir.sales,销项

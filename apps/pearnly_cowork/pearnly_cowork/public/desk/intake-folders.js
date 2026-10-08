@@ -1,7 +1,7 @@
 /* 自动录入规则（录入工作台子路由 `pearnly-intake/folders`，2026-10-07）。
  *
  * 版面照录入工作台本身：原生列表（`p.list`）一行一条规则，点一行打开原生弹窗编辑；
- * 行尾一颗「立即运行」，停用 / 启用与运行记录放在弹窗左下角官方的自定义动作位。
+ * 行尾一颗「立即运行」，停用 / 启用与运行记录放在弹窗左下角官方的自定义动作位；勾选后右上角「删除」。
  * 规则 = 新建录入那一组前置条件 + 文件夹 + 每月几号几点 + 遇到时的默认处理。
  * 本功能的词条在 Cowork 自己的翻译包里，一律经原生 `__()` 取（录入工作台按前缀取的文案包里没有 `cowork.`）。
  */
@@ -31,6 +31,23 @@
 			: ["root_missing", "folder_missing"].includes(row.folder_state) ? ["red", ft("cowork.folder.folderMissing")]
 			: ["green", ft("cowork.folder.on")]);
 		const edit = rule => open_rule({t, data, rule, on_saved: () => list.reload()});
+		const create = () => page.set_primary_action(ft("cowork.folder.new"), () => edit(null));
+		// 勾选后右上角换成「删除」（用户 2026-10-08：只加删除）。确认语与提示音照官方列表的批量删除
+		// （`list_view.js` 的 bulk_delete：同一句确认、删完只放 delete 音不弹提示）。
+		const selection = p.selection_action({
+			page, list: () => list, empty: create,
+			label: () => __("Delete"),
+			confirm: rows => rows.length > 1
+				? __("Delete {0} items permanently?", [rows.length], "Title of confirmation dialog")
+				: __("Delete {0} item permanently?", [rows.length], "Title of confirmation dialog"),
+			run: rows => p.call(API + "delete", {names: JSON.stringify(rows.map(row => row.name))}, "POST"),
+			sound: "delete",
+			// 官方列表删完不弹提示，只放声音：不给提示文字，声音在这里自己放（`p.success` 没有文字就不放声）。
+			success: () => {
+				frappe.utils.play_sound("delete");
+				return "";
+			},
+		});
 
 		const list = p.list({
 			page, doctype: "Cowork Folder Intake Rule", compact_columns: true,
@@ -63,9 +80,10 @@
 					await list.reload();
 				}}] : []),
 			],
+			on_selection: selection,
 			empty_action: {label: ft("cowork.folder.new"), action: () => edit(null)},
 		});
-		page.set_primary_action(ft("cowork.folder.new"), () => edit(null));
+		create();
 		await list.ready;
 		return () => list.destroy();
 	};

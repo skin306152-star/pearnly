@@ -127,3 +127,35 @@ def read(stored, *, http=None):
         headers={"Authorization": "Bearer " + _token()}, timeout=(10, 120))
     response.raise_for_status()
     return response.content
+
+
+def delete_prefix(bucket_name, prefix, *, http=None):
+    """删掉桶里这个前缀下的全部对象（含旧版本）；已经不在的（404）算删过，可以重跑。返回删掉的个数。
+
+    前缀必须是 ``<站点>/originals/<原件名>`` 或 ``<站点>/previews/<原件名>/`` 这种落到单份原件的形状，绝不会退化成整站或整桶。"""
+    parts = str(prefix or "").split("/")
+    if len(parts) < 3 or parts[1] not in ("originals", "previews") or not parts[2].startswith("CWS-") \
+            or "." not in parts[0]:
+        raise ValueError("Refusing to delete objects for an unsafe prefix")
+    if http is None:
+        import requests as http
+    base = f"https://{HOST}/storage/v1/b/{quote(bucket_name, safe='')}/o"
+    deleted, page = 0, ""
+    while True:
+        params = {"prefix": prefix, "versions": "true", "fields": "items(name,generation),nextPageToken"}
+        if page:
+            params["pageToken"] = page
+        response = http.get(base, params=params, headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
+        response.raise_for_status()
+        listing = response.json()
+        for item in listing.get("items") or []:
+            if not str(item.get("name") or "").startswith(prefix):
+                raise ValueError("Storage listing returned an object outside the prefix")
+            gone = http.delete(f"{base}/{quote(item['name'], safe='')}", params={"generation": str(int(item["generation"]))},
+                               headers={"Authorization": "Bearer " + _token()}, timeout=(10, 30))
+            if gone.status_code != 404:
+                gone.raise_for_status()
+            deleted += 1
+        page = listing.get("nextPageToken") or ""
+        if not page:
+            return deleted

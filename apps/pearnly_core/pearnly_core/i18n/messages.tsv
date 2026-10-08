@@ -832,10 +832,10 @@ Original document	原件	ต้นฉบับ	原本	intake.nav.original
 Recognition result	识别结果	ผลการอ่าน	読み取り結果	intake.nav.result
 Line items	明细	รายการ	明細	intake.nav.items
 Recognize and export	识别后导出	อ่านแล้วส่งออก	読み取り後にエクスポート	intake.target.recognizeOnly
-Delete {0} selected records? Pushed ones cannot be deleted.	确定要删除选中的 {0} 条记录吗？已推送的记录无法删除。	ต้องการลบ {0} รายการที่เลือกใช่หรือไม่ รายการที่ส่งแล้วไม่สามารถลบได้	選択した {0} 件を削除しますか？送信済みは削除できません。	intake.confirm.delete
+Delete {0} selected records?	确定要删除选中的 {0} 条记录吗？	ต้องการลบ {0} รายการที่เลือกใช่หรือไม่	選択した {0} 件を削除しますか？	intake.confirm.delete
 Deleted {0}	已删除 {0} 条	ลบ {0} รายการแล้ว	{0} 件を削除しました	intake.delete.done
-Deleted {0}. {1} already pushed were kept	已删除 {0} 条，已保留 {1} 条已推送记录	ลบ {0} รายการแล้ว และเก็บรายการที่ส่งแล้วไว้ {1} รายการ	{0} 件を削除しました。送信済みの {1} 件は残しました	intake.delete.partial
-None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice	未删除任何记录：选中的 {0} 条记录均已推送。	ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด	削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します	intake.delete.none
+Deleted {0}. {1} being pushed were not deleted	已删除 {0} 条，{1} 条正在推送，未删除	ลบ {0} รายการแล้ว {1} รายการกำลังส่ง ไม่ได้ลบ	{0} 件を削除しました。送信中の {1} 件は削除していません	intake.delete.partial
+None deleted: the {0} selected records are being pushed.	未删除任何记录：选中的 {0} 条记录正在推送。	ไม่ได้ลบรายการใด: {0} รายการที่เลือกกำลังส่ง	削除していません: 選んだ {0} 件は送信中です。	intake.delete.none
 Entering	录入中	กำลังบันทึก	入力中	intake.push.pending
 Subscription and top-up	订阅与充值	สมัครแพ็กเกจและเติมเงิน	プランとチャージ	home.billing
 {0} seconds so far	已用 {0} 秒	ผ่านไป {0} วินาที	経過 {0} 秒	shell.wait.elapsed
