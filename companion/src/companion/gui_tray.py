@@ -116,6 +116,19 @@ def _status_icon(key: str) -> QIcon:
 
 
 
+def _window_open() -> bool:
+    """小助手的主窗口或配对窗正开着（只看已经打开过的模块，不为这个去导入界面）。"""
+    for module_name, attribute in ((__package__ + ".gui_profiles", "_OPEN_MANAGER"),
+                                   (__package__ + ".gui_pairing", "_OPEN_DIALOG")):
+        window = getattr(sys.modules.get(module_name), attribute, None)
+        try:
+            if window is not None and window.isVisible():
+                return True
+        except RuntimeError:
+            continue  # Qt 对象已回收
+    return False
+
+
 MENU_TEXT_MAX = 48
 UPDATE_CHECK_MS = 60_000  # 每分钟查一次新版
 
@@ -151,6 +164,7 @@ class TrayApp(QObject):
         self._update_worker = None  # 后台下载线程(存活期持引用防 GC)
         # 强制自动更新（auto_update.py）：发现新版就下载，空闲时停下手上的活再静默安装。
         self._updating = False
+        self._update_requested = False  # 有人点了「立即更新」：主窗口开着也照装
         self._auto_update = AutoUpdate(
             busy=self._busy, stop_work=self._stop_for_update, work_stopped=self._work_stopped,
             resume_work=self._resume_after_update, start_download=self._start_download,
@@ -172,6 +186,14 @@ class TrayApp(QObject):
         self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
         activity("log_started", lang=self.lang)
+        # 从 Program Files 迁到用户目录安装后，开机自启要指向新位置（只改已经开着的，不替人打开）。
+        try:
+            from . import autostart
+
+            if autostart.repoint():
+                log.info("开机自启已改指向当前安装位置")
+        except Exception:
+            log.exception("核对开机自启位置失败（忽略）")
         self._heal = watchdog.HealBackoff()  # 自愈退避:防目标永久不可达时无限重启空转
         self.worker = self._spawn_worker()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
@@ -352,6 +374,7 @@ class TrayApp(QObject):
 
     def _do_update(self) -> None:
         """手动点「更新」：和自动更新走同一条路（下载 → 等空闲 → 停稳 → 安装），不在写账套中途换版本。"""
+        self._update_requested = True
         if self._update_action:
             self._update_action.setEnabled(False)
         self.tray.showMessage(
@@ -372,9 +395,12 @@ class TrayApp(QObject):
             self._on_update_failed()
 
     def _busy(self) -> bool:
-        """有连接正在推送、等账套锁或扫账套：不换版本。"""
-        return any(state[0] in ("working", "waiting_lock", "indexing")
-                   for state in self._profile_states.values())
+        """有连接正在推送、等账套锁或扫账套：不换版本。小助手的窗口开着（有人正在用）也先不自动装，
+        等窗口关了再装；有人点了「立即更新」就不等窗口（2026-10-08：自动更新别打断正在用的人）。"""
+        if any(state[0] in ("working", "waiting_lock", "indexing")
+               for state in self._profile_states.values()):
+            return True
+        return _window_open() and not self._update_requested
 
     def _start_download(self, version: str, url: str) -> None:
         from .updater import DOWNLOAD_SITE

@@ -1,5 +1,7 @@
 ; Pearnly Companion 安装包(Inno Setup)· 把 64 位 companion.exe + 预编译 cdx_reindex_runner.exe
-; 装到 Program Files,建快捷方式,装完启动(首次弹配对窗)。未签名(内部测试 · 签名记 backlog)。
+; 装到当前用户的程序目录(%LOCALAPPDATA%\Programs),建快捷方式,装完启动(首次弹配对窗)。未签名(内部测试 · 签名记 backlog)。
+; 按用户安装(2026-10-08):不要管理员权限,自动更新静默覆盖安装时不弹「用户账户控制」授权窗口
+; (原来装在 Program Files,每次自动更新都弹授权,打断正在用电脑的人)。配置、配对在 %APPDATA% 里,不受影响。
 ; 编译:ISCC.exe packaging\installer.iss → dist\PearnlyCompanion-Setup.exe
 #define AppName "Pearnly Companion"
 ; 版本号单一真相源 = src/companion/version.py。release.ps1 用 /DAppVersion=<ver> 注入;
@@ -13,7 +15,11 @@ AppId={{8F3C2A91-4E7B-4D2A-9C11-PEARNLYCOMP01}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=Pearnly
+PrivilegesRequired=lowest
+; 非管理员模式下 {autopf} = 当前用户的 %LOCALAPPDATA%\Programs
 DefaultDirName={autopf}\Pearnly Companion
+; 旧版按全机装在 Program Files:不沿用那个目录(当前用户写不进去),装到上面的用户目录
+UsePreviousAppDir=no
 DefaultGroupName=Pearnly Companion
 DisableProgramGroupPage=yes
 OutputDir=..\dist

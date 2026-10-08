@@ -98,3 +98,35 @@ def test_tray_checks_for_a_new_version_in_the_background_and_hands_it_to_auto_up
     assert offered == [] and app.update_status() == ("latest", "")
     run(False)
     assert offered == [("1.4.0", "/x.exe")]
+
+
+def test_auto_update_waits_while_a_helper_window_is_open_unless_someone_asked(monkeypatch):
+    # 2026-10-08：自动更新不打断正在用小助手的人：窗口开着先不装；点了「立即更新」就照装。录入中永远不装。
+    from src.companion import gui_tray
+    from src.companion.gui_tray import TrayApp
+
+    app = TrayApp.__new__(TrayApp)
+    app._profile_states = {"A": ("idle", "")}
+    app._update_requested = False
+    opened = {"value": False}
+    monkeypatch.setattr(gui_tray, "_window_open", lambda: opened["value"])
+
+    assert app._busy() is False
+    opened["value"] = True
+    assert app._busy() is True
+    app._update_requested = True
+    assert app._busy() is False
+    app._profile_states = {"A": ("working", "INV-1")}
+    assert app._busy() is True
+
+
+def test_window_open_sees_the_open_main_window(monkeypatch):
+    from types import SimpleNamespace
+
+    from src.companion import gui_profiles, gui_tray
+
+    assert gui_tray._window_open() is False or gui_profiles._OPEN_MANAGER is not None
+    monkeypatch.setattr(gui_profiles, "_OPEN_MANAGER", SimpleNamespace(isVisible=lambda: True))
+    assert gui_tray._window_open() is True
+    monkeypatch.setattr(gui_profiles, "_OPEN_MANAGER", SimpleNamespace(isVisible=lambda: False))
+    assert gui_tray._window_open() is False

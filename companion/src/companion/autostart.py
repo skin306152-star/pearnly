@@ -48,6 +48,28 @@ def disable() -> None:
         pass
 
 
+def repoint() -> bool:
+    """开机自启已开、但指向的不是本程序(例如从 Program Files 迁到用户目录安装后,2026-10-08):改指向本程序。
+
+    只在打包后的程序里做(开发时 sys.executable 是 python,不能写进开机启动)。返回是否改了。
+    """
+    if not getattr(sys, "frozen", False):
+        return False
+    winreg = _winreg()
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_READ
+        ) as key:
+            current, _kind = winreg.QueryValueEx(key, _VALUE_NAME)
+    except FileNotFoundError:
+        return False  # 没开开机自启:不替人打开
+    wanted = default_command()
+    if str(current).strip().casefold() == wanted.casefold():
+        return False
+    enable(wanted)
+    return True
+
+
 def is_enabled() -> bool:
     winreg = _winreg()
     try:
