@@ -125,6 +125,7 @@ Phone number received. Please take a photo of the customer's ID card.	已收到�
 ID card photo received. Please type the customer's phone number.	已收到身份证照片，请输入客户的电话号码。	ได้รับรูปบัตรประชาชนแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า	身分証明書の写真を受け取りました。お客様の電話番号を入力してください。	dms.card.TXT_ASK_PHONE
 The card could not be read clearly. Please take the photo again.	身份证看不清，请重新拍照。	ภาพบัตรประชาชนไม่ชัด กรุณาถ่ายรูปใหม่	カードがはっきり読み取れませんでした。もう一度撮影してください。	dms.card.TXT_BLURRY
 Discarded. Nothing was saved · Type menu to start again	已放弃，没有保存任何资料 · 输入 菜单 重新开始	ยกเลิกรายการแล้ว ไม่มีการบันทึกข้อมูลใด ๆ · พิมพ์ เมนู เพื่อเริ่มใหม่	破棄しました。何も保存されていません · メニュー と入力してやり直してください	dms.card.TXT_BOOKING_CANCELLED
+Booking no.: {booking_no}	订车单号：{booking_no}	เลขที่รายการ: {booking_no}	予約番号: {booking_no}	dms.card.TXT_BOOKING_REF
 Customer found in the system	系统中已有这位客户	พบข้อมูลลูกค้าในระบบ	システムに顧客データがあります	dms.card.TXT_BOOKING_CUSTOMER
 The booking could not be created. Please try again.	订车单建立失败，请重试。	สร้างใบจองไม่สำเร็จ กรุณาลองใหม่	予約を作成できませんでした。もう一度お試しください。	dms.card.TXT_BOOKING_FAIL
 Choose the matching customer	请选择对应的客户	กรุณาเลือกลูกค้าที่ตรงกัน	該当する顧客を選択	dms.card.TXT_CANDIDATES_ALT

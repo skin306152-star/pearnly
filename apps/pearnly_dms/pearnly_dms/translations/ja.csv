@@ -45,6 +45,7 @@ Booking date,予約日
 Booking failed · Retry,予約作成に失敗 · 再試行
 Booking location,予約受付場所
 Booking location — choose below,予約受付場所 — 下から選択
+Booking no.: {booking_no},予約番号: {booking_no}
 Booking summary — check before confirming,予約の概要 — 確定前に確認してください
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
@@ -495,6 +496,7 @@ dms.card.TXT_BLURRY,カードがはっきり読み取れませんでした。も
 dms.card.TXT_BOOKING_CANCELLED,破棄しました。何も保存されていません · メニュー と入力してやり直してください
 dms.card.TXT_BOOKING_CUSTOMER,システムに顧客データがあります
 dms.card.TXT_BOOKING_FAIL,予約を作成できませんでした。もう一度お試しください。
+dms.card.TXT_BOOKING_REF,予約番号: {booking_no}
 dms.card.TXT_CANDIDATES_ALT,該当する顧客を選択
 dms.card.TXT_CANDIDATES_HEAD,以下の類似する顧客が見つかりました。該当する顧客を選択してください。該当しない場合は「新規顧客」を選択してください。
 dms.card.TXT_DIFF_ALT,顧客データに違いがあります

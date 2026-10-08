@@ -111,7 +111,8 @@ def message(result) -> str:
     """"结果未知"要说给用户听的那句话；有单号就把单号带上。"""
     text = dms_errors.friendly(UNKNOWN)[i18n.line_lang()]
     number = str((result or {}).get("booking_no") or "")
-    return f"{text}\nเลขที่รายการ: {number}" if number else text
+    # 单号标签也按收件人的语言取（原来写死泰文，2026-10-08 全部改走语言包）
+    return f"{text}\n{i18n.t('dms.card.TXT_BOOKING_REF', i18n.line_lang(), booking_no=number)}" if number else text
 
 
 def review_message(session, fallback) -> str:

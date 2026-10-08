@@ -45,6 +45,7 @@ Booking date,วันที่จอง
 Booking failed · Retry,สร้างใบจองไม่สำเร็จ · ลองใหม่
 Booking location,สถานที่รับจอง
 Booking location — choose below,สถานที่รับจอง — กรุณาเลือกด้านล่าง
+Booking no.: {booking_no},เลขที่รายการ: {booking_no}
 Booking summary — check before confirming,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
@@ -495,6 +496,7 @@ dms.card.TXT_BLURRY,ภาพบัตรประชาชนไม่ชัด
 dms.card.TXT_BOOKING_CANCELLED,ยกเลิกรายการแล้ว ไม่มีการบันทึกข้อมูลใด ๆ · พิมพ์ เมนู เพื่อเริ่มใหม่
 dms.card.TXT_BOOKING_CUSTOMER,พบข้อมูลลูกค้าในระบบ
 dms.card.TXT_BOOKING_FAIL,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_BOOKING_REF,เลขที่รายการ: {booking_no}
 dms.card.TXT_CANDIDATES_ALT,กรุณาเลือกลูกค้าที่ตรงกัน
 dms.card.TXT_CANDIDATES_HEAD,ระบบพบลูกค้าที่มีข้อมูลใกล้เคียงดังต่อไปนี้ กรุณาเลือกลูกค้าที่ตรงกัน หากไม่มีรายการที่ตรงกัน กรุณาเลือก «ลูกค้าใหม่»
 dms.card.TXT_DIFF_ALT,พบข้อมูลลูกค้าที่ต่างกัน

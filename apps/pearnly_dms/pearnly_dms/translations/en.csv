@@ -45,6 +45,7 @@ Booking date,Booking date
 Booking failed · Retry,Booking failed · Retry
 Booking location,Booking location
 Booking location — choose below,Booking location — choose below
+Booking no.: {booking_no},Booking no.: {booking_no}
 Booking summary — check before confirming,Booking summary — check before confirming
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
@@ -495,6 +496,7 @@ dms.card.TXT_BLURRY,The card could not be read clearly. Please take the photo ag
 dms.card.TXT_BOOKING_CANCELLED,Discarded. Nothing was saved · Type menu to start again
 dms.card.TXT_BOOKING_CUSTOMER,Customer found in the system
 dms.card.TXT_BOOKING_FAIL,The booking could not be created. Please try again.
+dms.card.TXT_BOOKING_REF,Booking no.: {booking_no}
 dms.card.TXT_CANDIDATES_ALT,Choose the matching customer
 dms.card.TXT_CANDIDATES_HEAD,"The following similar customers were found. Please select the matching customer, or select New customer if none of them match."
 dms.card.TXT_DIFF_ALT,Customer data differs

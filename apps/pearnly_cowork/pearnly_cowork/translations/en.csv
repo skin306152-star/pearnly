@@ -1,3 +1,4 @@
+(Not specified),(Not specified)
 (the root folder itself),(the root folder itself)
 1 day before,1 day before
 1 hour before,1 hour before
@@ -160,6 +161,7 @@ Book Qty,Book Qty
 Book location,Book location
 Book position,Book position
 Book quantity,Book quantity
+Book warehouse,Book warehouse
 Bound,Bound
 Bound Account Set,Bound Account Set
 Bound Invoice Records,Bound Invoice Records
@@ -289,15 +291,21 @@ Could not store this document,Could not store this document
 Count Mode,Count Mode
 Count as expense,Count as expense
 Count closed,Count closed
+Count details,Count details
+Count result,Count result
 Count saved,Count saved
 Count sheet,Count sheet
+Count summary,Count summary
 Counted,Counted
 Counted At,Counted At
 Counted By,Counted By
 Counted at,Counted at
+Counted at (UTC),Counted at (UTC)
 Counted by,Counted by
 Counted in total,Counted in total
+Counted location,Counted location
 Counted quantity,Counted quantity
+Counted warehouse,Counted warehouse
 Cover,Cover
 Cover Color,Cover Color
 Cover File,Cover File
@@ -483,6 +491,7 @@ Entries · {0},Entries · {0}
 Entries — {0},Entries — {0}
 Entry,Entry
 Entry saved,Entry saved
+Entry status,Entry status
 Event Key,Event Key
 Every unit needs a factor to the base unit.,Every unit needs a factor to the base unit.
 Every unit needs a name.,Every unit needs a name.
@@ -586,6 +595,7 @@ In progress,In progress
 In progress ({0}),In progress ({0})
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
+Included in total,Included in total
 Income Reconciliation,Income Reconciliation
 Income account,Income account
 Initial Password,Initial Password
@@ -655,6 +665,7 @@ Last Request Key,Last Request Key
 Last Seen Generation,Last Seen Generation
 Last Used At,Last Used At
 Last day of the month,Last day of the month
+Last modified by,Last modified by
 Last used,Last used
 Lease Expires At,Lease Expires At
 Leave board,Leave board
@@ -674,6 +685,7 @@ List actions,List actions
 List archived,List archived
 List name,List name
 Location,Location
+Location check,Location check
 Location mismatch,Location mismatch
 Lock Key,Lock Key
 Lock Kind,Lock Kind
@@ -710,7 +722,9 @@ Members,Members
 Members and observers,Members and observers
 Minimum Stock,Minimum Stock
 Mirror,Mirror
+Mismatched,Mismatched
 Missing page,Missing page
+Modified at (UTC),Modified at (UTC)
 Monthly,Monthly
 Monthly on {0} at {1},Monthly on {0} at {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.","Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
@@ -763,6 +777,7 @@ Not counted,Not counted
 Not entered,Not entered
 Not permitted,Not permitted
 Not set,Not set
+Not specified in books,Not specified in books
 Note,Note
 Notes,Notes
 Notifications,Notifications
@@ -805,6 +820,7 @@ Other,Other
 Outcome,Outcome
 Output VAT report,Output VAT report
 Over,Over
+Over book quantity,Over book quantity
 Overdue,Overdue
 Owner ID,Owner ID
 Owner Id,Owner Id
@@ -1046,6 +1062,7 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}","Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
 Sheet,Sheet
 Short,Short
+Short of book quantity,Short of book quantity
 Show,Show
 Show details,Show details
 Show on Card,Show on Card
@@ -1413,6 +1430,7 @@ Too many items,Too many items
 Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
 Too many rows to import.,Too many rows to import.
 Total,Total
+Total counted quantity,Total counted quantity
 Track Batch,Track Batch
 Track Expiry,Track Expiry
 Transaction Date,Transaction Date
@@ -1477,6 +1495,7 @@ Valid,Valid
 Value,Value
 Version,Version
 View differences,View differences
+View photo,View photo
 View the ones to check,View the ones to check
 Visibility,Visibility
 Void,Void
@@ -1485,6 +1504,7 @@ Void match,Void match
 Void this count of {0}?,Void this count of {0}?
 Void · no invoice needed,Void · no invoice needed
 Voided,Voided
+Voided (excluded from total),Voided (excluded from total)
 "Voided, not in the total","Voided, not in the total"
 Voucher no.,Voucher no.
 WHT amount,WHT amount
@@ -1494,6 +1514,7 @@ Waiting for the recognition charge to complete.,Waiting for the recognition char
 "Waiting in line, will submit automatically","Waiting in line, will submit automatically"
 Waiting to start,Waiting to start
 Warehouse,Warehouse
+Warehouse check,Warehouse check
 Watch,Watch
 Watchers,Watchers
 Weekly,Weekly
@@ -2008,6 +2029,40 @@ cowork.stocktake.col.product_code,Product code
 cowork.stocktake.col.product_name,Product name
 cowork.stocktake.col.unit,Unit
 cowork.stocktake.col.warehouse,Warehouse
+cowork.stocktake.export.actual_total,Total counted quantity
+cowork.stocktake.export.barcode,Barcode / QR code
+cowork.stocktake.export.book_location,Book location
+cowork.stocktake.export.book_qty,Book quantity
+cowork.stocktake.export.book_warehouse,Book warehouse
+cowork.stocktake.export.count_result,Count result
+cowork.stocktake.export.counted_at,Counted at (UTC)
+cowork.stocktake.export.counted_by,Counted by
+cowork.stocktake.export.counted_location,Counted location
+cowork.stocktake.export.counted_qty,Quantity counted this time
+cowork.stocktake.export.counted_warehouse,Counted warehouse
+cowork.stocktake.export.difference,Difference
+cowork.stocktake.export.entry_counted,Included in total
+cowork.stocktake.export.entry_status,Entry status
+cowork.stocktake.export.entry_voided,Voided (excluded from total)
+cowork.stocktake.export.location,Location
+cowork.stocktake.export.location_blank,(Not specified)
+cowork.stocktake.export.location_comparison,Location check
+cowork.stocktake.export.photo,View photo
+cowork.stocktake.export.product_code,Product code
+cowork.stocktake.export.product_name,Product name
+cowork.stocktake.export.result_matched,Matched
+cowork.stocktake.export.result_mismatched,Mismatched
+cowork.stocktake.export.result_not_counted,Not counted
+cowork.stocktake.export.result_not_specified,Not specified in books
+cowork.stocktake.export.result_over,Over book quantity
+cowork.stocktake.export.result_short,Short of book quantity
+cowork.stocktake.export.sheet_detail,Count details
+cowork.stocktake.export.sheet_summary,Count summary
+cowork.stocktake.export.unit,Unit
+cowork.stocktake.export.updated_at,Modified at (UTC)
+cowork.stocktake.export.updated_by,Last modified by
+cowork.stocktake.export.warehouse,Warehouse
+cowork.stocktake.export.warehouse_comparison,Warehouse check
 cowork.team.action.bulkDisable,Disable {0}
 cowork.team.action.bulkEnable,Enable {0}
 cowork.team.active,Active

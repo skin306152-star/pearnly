@@ -31,6 +31,28 @@ _LABELS = {
     "not_counted": "ยังไม่ได้นับ", "not_specified": "ไม่ได้ระบุในบัญชี",
     "matched": "ตรงกัน", "mismatched": "ไม่ตรงกัน", "over": "เกินบัญชี", "short": "ขาดบัญชี",
 }
+# 表头、Sheet 名、结果标签按语义键取（2026-10-08：导出文件也走语言包，按导出人的界面语言）。
+# 这里只留泰文默认值（与旧线上逐字一致，泰文导出不变）；其它语言由调用方用翻译包取好后传 `texts` 进来。
+SUMMARY_KEYS = (
+    "product_code", "product_name", "barcode", "unit", "book_qty", "actual_total", "difference", "count_result",
+    "book_warehouse", "counted_warehouse", "warehouse_comparison", "book_location", "counted_location",
+    "location_comparison", "photo",
+)
+DETAIL_KEYS = (
+    "product_code", "product_name", "barcode", "warehouse", "location", "unit", "counted_qty", "counted_by",
+    "counted_at", "entry_status", "updated_by", "updated_at", "book_warehouse", "warehouse_comparison",
+    "book_location", "location_comparison", "photo",
+)
+TEXT_KEYS = (
+    *dict.fromkeys(SUMMARY_KEYS + DETAIL_KEYS), "sheet_summary", "sheet_detail", "location_blank",
+    "entry_voided", "entry_counted", *(f"result_{code}" for code in _LABELS),
+)
+THAI = {
+    **dict(zip(SUMMARY_KEYS, SUMMARY)), **dict(zip(DETAIL_KEYS, DETAIL)),
+    "sheet_summary": "สรุปผลตรวจนับ", "sheet_detail": "รายละเอียดการนับ", "location_blank": "(ไม่ระบุ)",
+    "entry_voided": "ยกเลิก (ไม่รวมยอด)", "entry_counted": "รวมยอด",
+    **{f"result_{code}": text for code, text in _LABELS.items()},
+}
 
 
 def _append(sheet, values):
@@ -64,8 +86,11 @@ def _utc_iso(value):
     return value.astimezone(UTC).isoformat()
 
 
-def workbook(snapshot: Mapping) -> bytes:
+def workbook(snapshot: Mapping, texts: Mapping | None = None) -> bytes:
     """Render service.report() output, preserving its item and entry order.
+
+    `texts` maps every key in TEXT_KEYS to the exporter's language; without it the
+    workbook is the Thai one the source produced.
 
     entry_total is required so the 100-entry detail preview cannot accidentally
     become a complete export. Quantities accept the native exact strings or
@@ -85,18 +110,20 @@ def workbook(snapshot: Mapping) -> bytes:
             raise StocktakeValidationError("stocktake.request_invalid")
         grouped[entry["item_id"]].append(entry)
 
+    text = {**THAI, **{key: value for key, value in (texts or {}).items() if key in THAI and value}}
+    labels = {code: text[f"result_{code}"] for code in _LABELS}
     wb = Workbook()
     summary = wb.active
-    summary.title = "สรุปผลตรวจนับ"
-    _append(summary, SUMMARY)
+    summary.title = text["sheet_summary"]
+    _append(summary, [text[key] for key in SUMMARY_KEYS])
     for row in rows:
         values = summarize_item(row, grouped[row["id"]])
         _append(summary, [
             row["product_code"], row["product_name"], row["barcode"], row["unit"],
-            values["book_qty"], values["actual_qty"], values["difference"], _LABELS[values["count_result"]],
-            row["warehouse"], "\n".join(values["warehouses"]), _LABELS[values["warehouse_comparison"]],
-            row["location"], "\n".join(value or "(ไม่ระบุ)" for value in values["locations"]),
-            _LABELS[values["location_comparison"]], "",
+            values["book_qty"], values["actual_qty"], values["difference"], labels[values["count_result"]],
+            row["warehouse"], "\n".join(values["warehouses"]), labels[values["warehouse_comparison"]],
+            row["location"], "\n".join(value or text["location_blank"] for value in values["locations"]),
+            labels[values["location_comparison"]], "",
         ])
         if values["difference"] is not None and values["difference"] != 0:
             _highlight(summary, (5, 6, 7, 8))
@@ -105,8 +132,8 @@ def workbook(snapshot: Mapping) -> bytes:
         if values["location_comparison"] == "mismatched":
             _highlight(summary, (12, 13, 14))
 
-    detail = wb.create_sheet("รายละเอียดการนับ")
-    _append(detail, DETAIL)
+    detail = wb.create_sheet(text["sheet_detail"])
+    _append(detail, [text[key] for key in DETAIL_KEYS])
     for entry in entries:
         book = items[entry["item_id"]]
         warehouse = compare_location(book["warehouse"], [entry["warehouse"]])
@@ -115,9 +142,9 @@ def workbook(snapshot: Mapping) -> bytes:
             entry["product_code"], entry["product_name"], entry["barcode"], entry["warehouse"],
             entry["location"], entry["unit"], quantity(entry["quantity"], nonnegative=True),
             entry["counted_by_name"], _utc_iso(entry["counted_at"]),
-            "ยกเลิก (ไม่รวมยอด)" if entry["voided"] else "รวมยอด",
+            text["entry_voided"] if entry["voided"] else text["entry_counted"],
             entry["updated_by_name"], _utc_iso(entry["updated_at"]), book["warehouse"],
-            _LABELS[warehouse], book["location"], _LABELS[location], "",
+            labels[warehouse], book["location"], labels[location], "",
         ])
         if not entry["voided"]:
             if warehouse == "mismatched":

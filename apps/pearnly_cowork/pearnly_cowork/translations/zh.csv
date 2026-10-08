@@ -1,3 +1,4 @@
+(Not specified),（未指定）
 (the root folder itself),（根目录本身）
 1 day before,1 天前
 1 hour before,1 小时前
@@ -160,6 +161,7 @@ Book Qty,账面数量
 Book location,账面仓位
 Book position,账面仓库／仓位
 Book quantity,账面数量
+Book warehouse,账面仓库
 Bound,已绑定
 Bound Account Set,绑定账套
 Bound Invoice Records,已关联发票记录
@@ -289,15 +291,21 @@ Could not store this document,无法保存此单据
 Count Mode,盘点方式
 Count as expense,不抵扣，计入费用
 Count closed,盘点已结束
+Count details,盘点明细
+Count result,盘点结果
 Count saved,已保存
 Count sheet,盘点表
+Count summary,盘点汇总
 Counted,已盘点
 Counted At,盘点时间
 Counted By,盘点人
 Counted at,盘点时间
+Counted at (UTC),盘点时间（UTC）
 Counted by,盘点人
 Counted in total,计入合计
+Counted location,实盘仓位
 Counted quantity,实盘数量
+Counted warehouse,实盘仓库
 Cover,封面
 Cover Color,封面颜色
 Cover File,封面文件
@@ -483,6 +491,7 @@ Entries · {0},逐笔记录 · {0}
 Entries — {0},记录 — {0}
 Entry,记录
 Entry saved,已记录
+Entry status,记录状态
 Event Key,事件标识
 Every unit needs a factor to the base unit.,请为每个单位填写与基本单位的换算系数。
 Every unit needs a name.,请为每个单位填写名称。
@@ -586,6 +595,7 @@ In progress,进行中
 In progress ({0}),进行中（{0}）
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
+Included in total,计入合计
 Income Reconciliation,收入对账
 Income account,收入科目
 Initial Password,初始密码
@@ -655,6 +665,7 @@ Last Request Key,最近请求标识
 Last Seen Generation,最近确认代次
 Last Used At,最近使用时间
 Last day of the month,月末
+Last modified by,最后修改人
 Last used,上次使用
 Lease Expires At,租约到期时间
 Leave board,离开看板
@@ -674,6 +685,7 @@ List actions,列表操作
 List archived,列表已归档
 List name,列表名称
 Location,位置
+Location check,仓位比对结果
 Location mismatch,仓位不符
 Lock Key,锁键
 Lock Kind,锁类型
@@ -710,7 +722,9 @@ Members,成员
 Members and observers,成员和观察者
 Minimum Stock,最低库存
 Mirror,镜像
+Mismatched,不一致
 Missing page,此处缺页
+Modified at (UTC),修改时间（UTC）
 Monthly,每月
 Monthly on {0} at {1},每月 {0} {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",大部分发票在时限内未读取完成（{1} 份中 {0} 份），以下差异多为发票未读取所致，请稍后重新提交。
@@ -763,6 +777,7 @@ Not counted,未盘点
 Not entered,不录入
 Not permitted,没有权限
 Not set,未填
+Not specified in books,账面未指定
 Note,说明
 Notes,备注
 Notifications,提醒
@@ -805,6 +820,7 @@ Other,其他
 Outcome,执行结果
 Output VAT report,销项税报告
 Over,盘盈
+Over book quantity,盘盈
 Overdue,已过期
 Owner ID,所有者 ID
 Owner Id,执行者编号
@@ -1046,6 +1062,7 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",以下照片 / 扫描件识别的销项税报告页有多行与总账不一致，可能为识别错误（错位或漏行），请对照原件核对（括号内为不一致行数）：{0}
 Sheet,表格文件
 Short,盘亏
+Short of book quantity,盘亏
 Show,显示
 Show details,显示详情
 Show on Card,在卡片上显示
@@ -1413,6 +1430,7 @@ Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
 Too many rows to import.,导入行数过多。
 Total,含税
+Total counted quantity,实盘数量合计
 Track Batch,按批次管理
 Track Expiry,按有效期管理
 Transaction Date,交易日期
@@ -1477,6 +1495,7 @@ Valid,有效
 Value,值
 Version,版本
 View differences,查看差异
+View photo,查看图片
 View the ones to check,查看待处理
 Visibility,可见范围
 Void,撤销
@@ -1485,6 +1504,7 @@ Void match,作废一致
 Void this count of {0}?,确定要撤销 {0} 的这条记录吗？
 Void · no invoice needed,作废（无需发票）
 Voided,已作废
+Voided (excluded from total),已作废（不计入合计）
 "Voided, not in the total",已撤销，不计入合计
 Voucher no.,凭证号
 WHT amount,预扣税额
@@ -1494,6 +1514,7 @@ Waiting for the recognition charge to complete.,正在等待扣费完成。
 "Waiting in line, will submit automatically",排队中，稍后自动提交
 Waiting to start,排队中
 Warehouse,仓库
+Warehouse check,仓库比对结果
 Watch,关注
 Watchers,关注者
 Weekly,每周
@@ -2008,6 +2029,40 @@ cowork.stocktake.col.product_code,商品编码
 cowork.stocktake.col.product_name,商品名称
 cowork.stocktake.col.unit,单位
 cowork.stocktake.col.warehouse,仓库
+cowork.stocktake.export.actual_total,实盘数量合计
+cowork.stocktake.export.barcode,条码 / 二维码
+cowork.stocktake.export.book_location,账面仓位
+cowork.stocktake.export.book_qty,账面数量
+cowork.stocktake.export.book_warehouse,账面仓库
+cowork.stocktake.export.count_result,盘点结果
+cowork.stocktake.export.counted_at,盘点时间（UTC）
+cowork.stocktake.export.counted_by,盘点人
+cowork.stocktake.export.counted_location,实盘仓位
+cowork.stocktake.export.counted_qty,本次盘点数量
+cowork.stocktake.export.counted_warehouse,实盘仓库
+cowork.stocktake.export.difference,差异
+cowork.stocktake.export.entry_counted,计入合计
+cowork.stocktake.export.entry_status,记录状态
+cowork.stocktake.export.entry_voided,已作废（不计入合计）
+cowork.stocktake.export.location,仓位
+cowork.stocktake.export.location_blank,（未指定）
+cowork.stocktake.export.location_comparison,仓位比对结果
+cowork.stocktake.export.photo,查看图片
+cowork.stocktake.export.product_code,商品编码
+cowork.stocktake.export.product_name,商品名称
+cowork.stocktake.export.result_matched,一致
+cowork.stocktake.export.result_mismatched,不一致
+cowork.stocktake.export.result_not_counted,未盘点
+cowork.stocktake.export.result_not_specified,账面未指定
+cowork.stocktake.export.result_over,盘盈
+cowork.stocktake.export.result_short,盘亏
+cowork.stocktake.export.sheet_detail,盘点明细
+cowork.stocktake.export.sheet_summary,盘点汇总
+cowork.stocktake.export.unit,单位
+cowork.stocktake.export.updated_at,修改时间（UTC）
+cowork.stocktake.export.updated_by,最后修改人
+cowork.stocktake.export.warehouse,仓库
+cowork.stocktake.export.warehouse_comparison,仓库比对结果
 cowork.team.action.bulkDisable,停用 {0}
 cowork.team.action.bulkEnable,启用 {0}
 cowork.team.active,正常

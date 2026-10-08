@@ -1,3 +1,4 @@
+(Not specified),(ไม่ระบุ)
 (the root folder itself),(ตัวโฟลเดอร์หลัก)
 1 day before,ก่อน 1 วัน
 1 hour before,ก่อน 1 ชั่วโมง
@@ -160,6 +161,7 @@ Book Qty,จำนวนตามบัญชี
 Book location,ตำแหน่งตามบัญชี
 Book position,คลัง / ตำแหน่งตามบัญชี
 Book quantity,จำนวนตามบัญชี
+Book warehouse,คลังสินค้าตามบัญชี
 Bound,ผูกบัญชีแล้ว
 Bound Account Set,ชุดบัญชีที่ผูกไว้
 Bound Invoice Records,รายการใบกำกับภาษีที่เชื่อมโยงแล้ว
@@ -289,15 +291,21 @@ Could not store this document,ไม่สามารถบันทึกเ�
 Count Mode,วิธีตรวจนับ
 Count as expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
 Count closed,ปิดการตรวจนับแล้ว
+Count details,รายละเอียดการนับ
+Count result,ผลการตรวจนับ
 Count saved,บันทึกแล้ว
 Count sheet,ไฟล์ตรวจนับ
+Count summary,สรุปผลตรวจนับ
 Counted,นับแล้ว
 Counted At,เวลาตรวจนับ
 Counted By,ผู้ตรวจนับ
 Counted at,เวลาที่นับ
+Counted at (UTC),เวลาที่นับ (UTC)
 Counted by,ผู้ตรวจนับ
 Counted in total,รวมในยอดรวม
+Counted location,ตำแหน่งที่ตรวจนับ
 Counted quantity,จำนวนที่นับได้
+Counted warehouse,คลังสินค้าที่ตรวจนับ
 Cover,ปก
 Cover Color,สีปก
 Cover File,ไฟล์ปก
@@ -483,6 +491,7 @@ Entries · {0},รายการบันทึก · {0}
 Entries — {0},รายการ — {0}
 Entry,รายการ
 Entry saved,บันทึกแล้ว
+Entry status,สถานะรายการ
 Event Key,รหัสเหตุการณ์
 Every unit needs a factor to the base unit.,กรุณากรอกอัตราแปลงเป็นหน่วยฐานของทุกหน่วย
 Every unit needs a name.,กรุณากรอกชื่อของทุกหน่วย
@@ -586,6 +595,7 @@ In progress,กำลังดำเนินการ
 In progress ({0}),กำลังดำเนินการ ({0})
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
+Included in total,รวมยอด
 Income Reconciliation,กระทบยอดรายได้
 Income account,บัญชีรายได้
 Initial Password,รหัสผ่านเริ่มต้น
@@ -655,6 +665,7 @@ Last Request Key,คีย์คำขอล่าสุด
 Last Seen Generation,รุ่นล่าสุดที่ตรวจพบ
 Last Used At,ใช้ล่าสุดเมื่อ
 Last day of the month,วันสุดท้ายของเดือน
+Last modified by,ผู้แก้ไขล่าสุด
 Last used,ที่ใช้ล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
 Leave board,ออกจากบอร์ด
@@ -674,6 +685,7 @@ List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
 Location,ตำแหน่ง
+Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
 Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
@@ -710,7 +722,9 @@ Members,สมาชิก
 Members and observers,สมาชิกและผู้สังเกตการณ์
 Minimum Stock,สต็อกขั้นต่ำ
 Mirror,มิเรอร์
+Mismatched,ไม่ตรงกัน
 Missing page,หน้าขาดหาย
+Modified at (UTC),เวลาแก้ไข (UTC)
 Monthly,ทุกเดือน
 Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",ใบกำกับภาษีส่วนใหญ่ยังอ่านไม่เสร็จภายในเวลาที่กำหนด ({0} จาก {1} ไฟล์) ผลต่างด้านล่างส่วนใหญ่เกิดจากใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง
@@ -763,6 +777,7 @@ Not counted,ยังไม่นับ
 Not entered,ไม่บันทึก
 Not permitted,ไม่มีสิทธิ์
 Not set,ยังไม่กรอก
+Not specified in books,ไม่ได้ระบุในบัญชี
 Note,คำอธิบาย
 Notes,หมายเหตุ
 Notifications,การแจ้งเตือน
@@ -805,6 +820,7 @@ Other,อื่น ๆ
 Outcome,ผลการดำเนินการ
 Output VAT report,รายงานภาษีขาย
 Over,เกิน
+Over book quantity,เกินบัญชี
 Overdue,เลยกำหนด
 Owner ID,รหัสเจ้าของ
 Owner Id,รหัสผู้ดำเนินการ
@@ -1046,6 +1062,7 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านจากรูปถ่าย / ไฟล์สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท อาจเกิดจากการอ่านผิด (เหลื่อมแถวหรือตกหล่น) กรุณาตรวจสอบกับต้นฉบับ (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}
 Sheet,ไฟล์
 Short,ขาด
+Short of book quantity,ขาดบัญชี
 Show,แสดง
 Show details,แสดงรายละเอียด
 Show on Card,แสดงบนการ์ด
@@ -1413,6 +1430,7 @@ Too many items,รายการมากเกินไป
 Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
 Too many rows to import.,จำนวนแถวที่นำเข้ามากเกินไป
 Total,ยอดรวมทั้งสิ้น
+Total counted quantity,จำนวนที่นับได้รวม
 Track Batch,ติดตามล็อต
 Track Expiry,ติดตามวันหมดอายุ
 Transaction Date,วันที่ทำรายการ
@@ -1477,6 +1495,7 @@ Valid,ใช้งาน
 Value,ค่า
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
+View photo,ดูรูปภาพ
 View the ones to check,ดูรายการรอดำเนินการ
 Visibility,การมองเห็น
 Void,ยกเลิก
@@ -1485,6 +1504,7 @@ Void match,ยกเลิก · ตรงกัน
 Void this count of {0}?,ต้องการยกเลิกรายการนับ {0} นี้ใช่หรือไม่
 Void · no invoice needed,ยกเลิก · ไม่ต้องมีใบกำกับภาษี
 Voided,ยกเลิกแล้ว
+Voided (excluded from total),ยกเลิก (ไม่รวมยอด)
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Voucher no.,เลขที่ใบสำคัญ
 WHT amount,จำนวนภาษีหัก ณ ที่จ่าย
@@ -1494,6 +1514,7 @@ Waiting for the recognition charge to complete.,กำลังรอการ�
 "Waiting in line, will submit automatically",อยู่ในคิว ระบบจะส่งให้อัตโนมัติ
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
+Warehouse check,ผลเทียบคลังสินค้า
 Watch,ติดตาม
 Watchers,ผู้ติดตาม
 Weekly,ทุกสัปดาห์
@@ -2008,6 +2029,40 @@ cowork.stocktake.col.product_code,รหัสสินค้า
 cowork.stocktake.col.product_name,ชื่อสินค้า
 cowork.stocktake.col.unit,หน่วย
 cowork.stocktake.col.warehouse,คลังสินค้า
+cowork.stocktake.export.actual_total,จำนวนที่นับได้รวม
+cowork.stocktake.export.barcode,บาร์โค้ด / รหัส QR
+cowork.stocktake.export.book_location,ตำแหน่งตามบัญชี
+cowork.stocktake.export.book_qty,จำนวนตามบัญชี
+cowork.stocktake.export.book_warehouse,คลังสินค้าตามบัญชี
+cowork.stocktake.export.count_result,ผลการตรวจนับ
+cowork.stocktake.export.counted_at,เวลาที่นับ (UTC)
+cowork.stocktake.export.counted_by,ผู้ตรวจนับ
+cowork.stocktake.export.counted_location,ตำแหน่งที่ตรวจนับ
+cowork.stocktake.export.counted_qty,จำนวนที่นับครั้งนี้
+cowork.stocktake.export.counted_warehouse,คลังสินค้าที่ตรวจนับ
+cowork.stocktake.export.difference,ผลต่าง
+cowork.stocktake.export.entry_counted,รวมยอด
+cowork.stocktake.export.entry_status,สถานะรายการ
+cowork.stocktake.export.entry_voided,ยกเลิก (ไม่รวมยอด)
+cowork.stocktake.export.location,ตำแหน่งจัดเก็บ
+cowork.stocktake.export.location_blank,(ไม่ระบุ)
+cowork.stocktake.export.location_comparison,ผลเทียบตำแหน่ง
+cowork.stocktake.export.photo,ดูรูปภาพ
+cowork.stocktake.export.product_code,รหัสสินค้า
+cowork.stocktake.export.product_name,ชื่อสินค้า
+cowork.stocktake.export.result_matched,ตรงกัน
+cowork.stocktake.export.result_mismatched,ไม่ตรงกัน
+cowork.stocktake.export.result_not_counted,ยังไม่ได้นับ
+cowork.stocktake.export.result_not_specified,ไม่ได้ระบุในบัญชี
+cowork.stocktake.export.result_over,เกินบัญชี
+cowork.stocktake.export.result_short,ขาดบัญชี
+cowork.stocktake.export.sheet_detail,รายละเอียดการนับ
+cowork.stocktake.export.sheet_summary,สรุปผลตรวจนับ
+cowork.stocktake.export.unit,หน่วย
+cowork.stocktake.export.updated_at,เวลาแก้ไข (UTC)
+cowork.stocktake.export.updated_by,ผู้แก้ไขล่าสุด
+cowork.stocktake.export.warehouse,คลังสินค้า
+cowork.stocktake.export.warehouse_comparison,ผลเทียบคลังสินค้า
 cowork.team.action.bulkDisable,ปิดใช้งาน {0}
 cowork.team.action.bulkEnable,เปิดใช้งาน {0}
 cowork.team.active,ใช้งาน

@@ -45,6 +45,7 @@ Booking date,订车日期
 Booking failed · Retry,订车单建立失败 · 重试
 Booking location,订车地点
 Booking location — choose below,订车地点 — 请在下方选择
+Booking no.: {booking_no},订车单号：{booking_no}
 Booking summary — check before confirming,订车单汇总 — 确认前请核对
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
@@ -495,6 +496,7 @@ dms.card.TXT_BLURRY,身份证看不清，请重新拍照。
 dms.card.TXT_BOOKING_CANCELLED,已放弃，没有保存任何资料 · 输入 菜单 重新开始
 dms.card.TXT_BOOKING_CUSTOMER,系统中已有这位客户
 dms.card.TXT_BOOKING_FAIL,订车单建立失败，请重试。
+dms.card.TXT_BOOKING_REF,订车单号：{booking_no}
 dms.card.TXT_CANDIDATES_ALT,请选择对应的客户
 dms.card.TXT_CANDIDATES_HEAD,系统找到以下相似客户，请选择对应的客户；如均不符合，请选择「新客户」。
 dms.card.TXT_DIFF_ALT,客户资料有差异

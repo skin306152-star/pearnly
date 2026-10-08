@@ -1,3 +1,4 @@
+(Not specified),（未指定）
 (the root folder itself),（ルートフォルダー自体）
 1 day before,1日前
 1 hour before,1時間前
@@ -157,9 +158,10 @@ Board name,ボード名
 Board settings,ボード設定
 Book,帳簿
 Book Qty,帳簿数量
-Book location,帳簿上の棚番
+Book location,帳簿棚番
 Book position,帳簿上の倉庫・棚番
 Book quantity,帳簿数量
+Book warehouse,帳簿倉庫
 Bound,連携済み
 Bound Account Set,関連付けられた会計データ
 Bound Invoice Records,関連付け済みの請求書記録
@@ -289,15 +291,21 @@ Could not store this document,書類を保存できませんでした
 Count Mode,棚卸方式
 Count as expense,控除せず費用に含める
 Count closed,棚卸を終了しました
+Count details,棚卸明細
+Count result,棚卸結果
 Count saved,保存しました
 Count sheet,棚卸表
+Count summary,棚卸集計
 Counted,棚卸済み
 Counted At,棚卸日時
 Counted By,棚卸担当者
 Counted at,日時
+Counted at (UTC),棚卸日時（UTC）
 Counted by,担当者
 Counted in total,合計に含む
+Counted location,実地棚番
 Counted quantity,実地数量
+Counted warehouse,実地倉庫
 Cover,カバー
 Cover Color,カバーの色
 Cover File,カバーファイル
@@ -483,6 +491,7 @@ Entries · {0},記録 · {0}
 Entries — {0},記録 — {0}
 Entry,エントリー
 Entry saved,記録しました
+Entry status,記録状態
 Event Key,イベント識別子
 Every unit needs a factor to the base unit.,すべての単位に基準単位への換算係数を入力してください。
 Every unit needs a name.,すべての単位に名前を入力してください。
@@ -586,6 +595,7 @@ In progress,進行中
 In progress ({0}),進行中（{0}）
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
 Inactive,無効
+Included in total,合計に含める
 Income Reconciliation,収益照合
 Income account,収入科目
 Initial Password,初期パスワード
@@ -655,6 +665,7 @@ Last Request Key,最終要求キー
 Last Seen Generation,最終確認世代
 Last Used At,最終使用日時
 Last day of the month,月末
+Last modified by,最終更新者
 Last used,前回使用
 Lease Expires At,リース有効期限
 Leave board,ボードから退出
@@ -674,6 +685,7 @@ List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
 Location,場所
+Location check,棚番照合結果
 Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
@@ -710,7 +722,9 @@ Members,メンバー
 Members and observers,メンバーとオブザーバー
 Minimum Stock,最低在庫
 Mirror,ミラー
+Mismatched,不一致
 Missing page,ページ欠落
+Modified at (UTC),更新日時（UTC）
 Monthly,毎月
 Monthly on {0} at {1},毎月 {0} {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
@@ -763,6 +777,7 @@ Not counted,未棚卸
 Not entered,入力しない
 Not permitted,権限がありません
 Not set,未入力
+Not specified in books,帳簿に指定なし
 Note,メモ
 Notes,備考
 Notifications,通知
@@ -805,6 +820,7 @@ Other,その他
 Outcome,実行結果
 Output VAT report,売上税報告
 Over,過剰
+Over book quantity,帳簿超過
 Overdue,期限切れ
 Owner ID,所有者 ID
 Owner Id,実行者ID
@@ -1046,6 +1062,7 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",写真・スキャンから読み取った次の税務報告のページで複数の行が元帳と一致しません。読み取り誤りの可能性が高いため、実際の差異と判断する前に原本と照合してください（括弧内は不一致の行数）：{0}
 Sheet,シート
 Short,不足
+Short of book quantity,帳簿不足
 Show,表示
 Show details,詳細を表示
 Show on Card,カードに表示
@@ -1413,6 +1430,7 @@ Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。もう少し入力して絞り込んでください
 Too many rows to import.,インポートする行が多すぎます。
 Total,税込
+Total counted quantity,実地数量合計
 Track Batch,ロット管理
 Track Expiry,有効期限管理
 Transaction Date,取引日
@@ -1477,6 +1495,7 @@ Valid,有効
 Value,値
 Version,バージョン
 View differences,差異を見る
+View photo,写真を表示
 View the ones to check,要確認を見る
 Visibility,公開範囲
 Void,取消
@@ -1485,6 +1504,7 @@ Void match,取消 · 一致
 Void this count of {0}?,この {0} の記録を取り消しますか？
 Void · no invoice needed,取消 · 請求書不要
 Voided,無効化済み
+Voided (excluded from total),取消（合計に含めない）
 "Voided, not in the total",取消済み（合計に含まない）
 Voucher no.,伝票番号
 WHT amount,源泉税額
@@ -1494,6 +1514,7 @@ Waiting for the recognition charge to complete.,課金の完了待ち
 "Waiting in line, will submit automatically",順番待ち・自動で送信します
 Waiting to start,開始待ち
 Warehouse,倉庫
+Warehouse check,倉庫照合結果
 Watch,ウォッチ
 Watchers,ウォッチャー
 Weekly,毎週
@@ -2008,6 +2029,40 @@ cowork.stocktake.col.product_code,商品コード
 cowork.stocktake.col.product_name,商品名
 cowork.stocktake.col.unit,単位
 cowork.stocktake.col.warehouse,倉庫
+cowork.stocktake.export.actual_total,実地数量合計
+cowork.stocktake.export.barcode,バーコード / QR コード
+cowork.stocktake.export.book_location,帳簿棚番
+cowork.stocktake.export.book_qty,帳簿数量
+cowork.stocktake.export.book_warehouse,帳簿倉庫
+cowork.stocktake.export.count_result,棚卸結果
+cowork.stocktake.export.counted_at,棚卸日時（UTC）
+cowork.stocktake.export.counted_by,棚卸担当者
+cowork.stocktake.export.counted_location,実地棚番
+cowork.stocktake.export.counted_qty,今回の実地数量
+cowork.stocktake.export.counted_warehouse,実地倉庫
+cowork.stocktake.export.difference,差異
+cowork.stocktake.export.entry_counted,合計に含める
+cowork.stocktake.export.entry_status,記録状態
+cowork.stocktake.export.entry_voided,取消（合計に含めない）
+cowork.stocktake.export.location,棚番
+cowork.stocktake.export.location_blank,（未指定）
+cowork.stocktake.export.location_comparison,棚番照合結果
+cowork.stocktake.export.photo,写真を表示
+cowork.stocktake.export.product_code,商品コード
+cowork.stocktake.export.product_name,商品名
+cowork.stocktake.export.result_matched,一致
+cowork.stocktake.export.result_mismatched,不一致
+cowork.stocktake.export.result_not_counted,未棚卸
+cowork.stocktake.export.result_not_specified,帳簿に指定なし
+cowork.stocktake.export.result_over,帳簿超過
+cowork.stocktake.export.result_short,帳簿不足
+cowork.stocktake.export.sheet_detail,棚卸明細
+cowork.stocktake.export.sheet_summary,棚卸集計
+cowork.stocktake.export.unit,単位
+cowork.stocktake.export.updated_at,更新日時（UTC）
+cowork.stocktake.export.updated_by,最終更新者
+cowork.stocktake.export.warehouse,倉庫
+cowork.stocktake.export.warehouse_comparison,倉庫照合結果
 cowork.team.action.bulkDisable,{0}件を無効化
 cowork.team.action.bulkEnable,{0}件を有効化
 cowork.team.active,正常

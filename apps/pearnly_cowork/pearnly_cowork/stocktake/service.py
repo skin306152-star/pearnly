@@ -15,7 +15,7 @@ from pearnly_cowork.stocktake import access
 from pearnly_cowork.stocktake.calculations import active_quantity, summarize_item
 from pearnly_cowork.stocktake.contracts import StocktakeValidationError, entry_request
 from pearnly_cowork.stocktake.documents import persist
-from pearnly_cowork.stocktake.export import workbook
+from pearnly_cowork.stocktake.export import TEXT_KEYS, workbook
 from pearnly_cowork.stocktake.native_contract import decoded_import, encode, identifier, revision, void_flag
 
 TASK, ITEM, ENTRY, OPERATION = access.TYPES
@@ -335,5 +335,13 @@ def export_size(task_id):
 
 
 def export(task_id):
-    """Use the full authorized locked snapshot, never the paginated preview."""
-    return contract(workbook, report(task_id))
+    """Use the full authorized locked snapshot, never the paginated preview.
+
+    表头与标签按导出人的界面语言取（翻译包 `cowork.stocktake.export.*`）；取不到的回落泰文。"""
+    texts = {}
+    for key in TEXT_KEYS:
+        msgid = "cowork.stocktake.export." + key
+        value = _(msgid)
+        if value and value != msgid:
+            texts[key] = value
+    return contract(workbook, report(task_id), texts)

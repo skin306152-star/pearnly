@@ -582,6 +582,40 @@ Book quantity	账面数量	จำนวนตามบัญชี	帳簿数量	
 Counted quantity	实盘数量	จำนวนที่นับได้	実地数量	cowork.stocktake.col.actual_qty
 Warehouse	仓库	คลังสินค้า	倉庫	cowork.stocktake.col.warehouse
 Location	仓位	ตำแหน่งจัดเก็บ	棚番	cowork.stocktake.col.location
+Product code	商品编码	รหัสสินค้า	商品コード	cowork.stocktake.export.product_code
+Product name	商品名称	ชื่อสินค้า	商品名	cowork.stocktake.export.product_name
+Barcode / QR code	条码 / 二维码	บาร์โค้ด / รหัส QR	バーコード / QR コード	cowork.stocktake.export.barcode
+Unit	单位	หน่วย	単位	cowork.stocktake.export.unit
+Book quantity	账面数量	จำนวนตามบัญชี	帳簿数量	cowork.stocktake.export.book_qty
+Total counted quantity	实盘数量合计	จำนวนที่นับได้รวม	実地数量合計	cowork.stocktake.export.actual_total
+Difference	差异	ผลต่าง	差異	cowork.stocktake.export.difference
+Count result	盘点结果	ผลการตรวจนับ	棚卸結果	cowork.stocktake.export.count_result
+Book warehouse	账面仓库	คลังสินค้าตามบัญชี	帳簿倉庫	cowork.stocktake.export.book_warehouse
+Counted warehouse	实盘仓库	คลังสินค้าที่ตรวจนับ	実地倉庫	cowork.stocktake.export.counted_warehouse
+Warehouse check	仓库比对结果	ผลเทียบคลังสินค้า	倉庫照合結果	cowork.stocktake.export.warehouse_comparison
+Book location	账面仓位	ตำแหน่งตามบัญชี	帳簿棚番	cowork.stocktake.export.book_location
+Counted location	实盘仓位	ตำแหน่งที่ตรวจนับ	実地棚番	cowork.stocktake.export.counted_location
+Location check	仓位比对结果	ผลเทียบตำแหน่ง	棚番照合結果	cowork.stocktake.export.location_comparison
+View photo	查看图片	ดูรูปภาพ	写真を表示	cowork.stocktake.export.photo
+Warehouse	仓库	คลังสินค้า	倉庫	cowork.stocktake.export.warehouse
+Location	仓位	ตำแหน่งจัดเก็บ	棚番	cowork.stocktake.export.location
+Quantity counted this time	本次盘点数量	จำนวนที่นับครั้งนี้	今回の実地数量	cowork.stocktake.export.counted_qty
+Counted by	盘点人	ผู้ตรวจนับ	棚卸担当者	cowork.stocktake.export.counted_by
+Counted at (UTC)	盘点时间（UTC）	เวลาที่นับ (UTC)	棚卸日時（UTC）	cowork.stocktake.export.counted_at
+Entry status	记录状态	สถานะรายการ	記録状態	cowork.stocktake.export.entry_status
+Last modified by	最后修改人	ผู้แก้ไขล่าสุด	最終更新者	cowork.stocktake.export.updated_by
+Modified at (UTC)	修改时间（UTC）	เวลาแก้ไข (UTC)	更新日時（UTC）	cowork.stocktake.export.updated_at
+Count summary	盘点汇总	สรุปผลตรวจนับ	棚卸集計	cowork.stocktake.export.sheet_summary
+Count details	盘点明细	รายละเอียดการนับ	棚卸明細	cowork.stocktake.export.sheet_detail
+(Not specified)	（未指定）	(ไม่ระบุ)	（未指定）	cowork.stocktake.export.location_blank
+Voided (excluded from total)	已作废（不计入合计）	ยกเลิก (ไม่รวมยอด)	取消（合計に含めない）	cowork.stocktake.export.entry_voided
+Included in total	计入合计	รวมยอด	合計に含める	cowork.stocktake.export.entry_counted
+Not counted	未盘点	ยังไม่ได้นับ	未棚卸	cowork.stocktake.export.result_not_counted
+Not specified in books	账面未指定	ไม่ได้ระบุในบัญชี	帳簿に指定なし	cowork.stocktake.export.result_not_specified
+Matched	一致	ตรงกัน	一致	cowork.stocktake.export.result_matched
+Mismatched	不一致	ไม่ตรงกัน	不一致	cowork.stocktake.export.result_mismatched
+Over book quantity	盘盈	เกินบัญชี	帳簿超過	cowork.stocktake.export.result_over
+Short of book quantity	盘亏	ขาดบัญชี	帳簿不足	cowork.stocktake.export.result_short
 The file is larger than 5 MB.	文件超过 5 MB。	ไฟล์มีขนาดเกิน 5 MB	ファイルが5MBを超えています。	stocktake.file_too_large
 Upload the stock count sheet as an .xlsx file.	请上传 .xlsx 格式的盘点表。	กรุณาอัปโหลดใบตรวจนับสินค้าเป็นไฟล์ .xlsx	棚卸表は .xlsx 形式でアップロードしてください。	stocktake.file_invalid
 Enter a quantity	请填写数量	กรุณากรอกจำนวน	数量を入力してください
