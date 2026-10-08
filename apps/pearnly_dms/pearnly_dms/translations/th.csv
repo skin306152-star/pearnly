@@ -990,7 +990,7 @@ dms.err.ERR_NO_CREDS,กรุณากรอกชื่อผู้ใช้�
 dms.err.ERR_PLAYWRIGHT_MISSING,เซิร์ฟเวอร์ขาดไลบรารี Playwright
 dms.err.ERR_UNEXPECTED,ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน กรุณาติดต่อผู้ดูแล
 dms.manual.quick.booking,จัดทำใบจองรถ
-dms.manual.quick.customer,จัดทำข้อมูลลูกค้า
+dms.manual.quick.customer,ข้อมูลลูกค้า
 dms.manual.quick.setup,ตั้งค่าครั้งแรก
 dms.snapshot.as_of,ข้อมูล ณ {time}
 dms.snapshot.geo_as_of,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน

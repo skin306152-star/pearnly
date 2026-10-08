@@ -157,7 +157,7 @@ def main():
     check("订车回执带单号/车型/交车日",
           all(x in with_adv for x in ("BK001", "Camry", "18/09/2569")),
           with_adv.replace("\n", " / "))
-    check("有顾问 → 出顾问行（当场核对提成归属）", "ที่ปรึกษา: dmstest" in with_adv)
+    check("有顾问 → 出顾问行（当场核对提成归属）", "ที่ปรึกษาการขาย: dmstest" in with_adv)
     check("没顾问 → 整行不出，不留空槽",
           "ที่ปรึกษา" not in no_adv, no_adv.replace("\n", " / "))
 
