@@ -290,3 +290,38 @@ def test_footer_has_no_update_button_without_the_tray(tmp_path, monkeypatch):
     store = _store_with_one_connection(tmp_path, monkeypatch)
     dialog = _main_window(store, monkeypatch)
     assert dialog.upd_btn.isHidden() and dialog.upd_lbl.isHidden()
+
+
+def test_update_button_uses_the_windows_icons_refresh_then_download(tmp_path, monkeypatch):
+    # 平时循环箭头（检查更新），有新版箭头落进托盘（立即更新），取 Windows 自带图标字体；没有这套字体就只显示文字。
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+    store = _store_with_one_connection(tmp_path, monkeypatch)
+    status = {"value": ("none", "")}
+    monkeypatch.setattr(gui_profiles.autostart, "is_enabled", lambda: True)
+    present = ["Helvetica", "Arial", gui_profiles.QFontDatabase.families()[0]]
+    monkeypatch.setattr(gui_profiles, "ICON_FONTS", ("Segoe Fluent Icons", *present))
+    dialog = ProfileManagerDialog(lang="zh", profile_store=store, update_status=lambda: status["value"],
+                                  on_update=lambda: None)
+    dialog._live_refresh.stop()
+
+    assert dialog.upd_btn.property("glyph") == gui_profiles.GLYPH_REFRESH and not dialog.upd_btn.icon().isNull()
+    status["value"] = ("found", "1.4.0")
+    dialog._paint_update()
+    assert dialog.upd_btn.property("glyph") == gui_profiles.GLYPH_DOWNLOAD
+
+    monkeypatch.setattr(gui_profiles, "ICON_FONTS", ("Segoe Fluent Icons", "Segoe MDL2 Assets"))
+    if not any(name in gui_profiles.QFontDatabase.families() for name in gui_profiles.ICON_FONTS):
+        assert gui_profiles.glyph_icon(gui_profiles.GLYPH_REFRESH, "black").isNull()
+
+
+@pytest.mark.skipif(__import__("sys").platform != "win32", reason="Windows 自带图标字体只在 Windows 上有")
+def test_windows_has_the_icon_font_and_both_icons_draw_something():
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+    assert any(name in gui_profiles.QFontDatabase.families() for name in gui_profiles.ICON_FONTS)
+    for glyph in (gui_profiles.GLYPH_REFRESH, gui_profiles.GLYPH_DOWNLOAD):
+        image = gui_profiles.glyph_icon(glyph, "black").pixmap(16, 16).toImage()
+        assert any(image.pixelColor(x, y).alpha() for x in range(image.width()) for y in range(image.height()))

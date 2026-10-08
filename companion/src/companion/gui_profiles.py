@@ -6,7 +6,8 @@ from typing import Callable, Mapping, Optional
 
 import os
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QRect, QTimer, Qt
+from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -21,7 +22,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QStyle,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -61,6 +61,32 @@ def profile_status_key(record: ProfileRecord, state: Optional[tuple[str, str]]) 
     if current in {"waiting_lock", "error"}:
         return "profiles_attention"
     return "profiles_offline"
+
+
+# Windows 自带的系统图标字体（Windows 11 叫 Segoe Fluent Icons，Windows 10 叫 Segoe MDL2 Assets，同一编号同一个图标）：
+# 与 Windows 设置里那套线条图标一致，不往安装包里加图片。两套都没有（例如开发用的 Mac）就只显示文字。
+ICON_FONTS = ("Segoe Fluent Icons", "Segoe MDL2 Assets")
+GLYPH_REFRESH = "\ue72c"  # Refresh：循环箭头
+GLYPH_DOWNLOAD = "\ue896"  # Download：箭头落进托盘
+
+
+def glyph_icon(glyph: str, color, size: int = 16) -> QIcon:
+    family = next((name for name in ICON_FONTS if name in QFontDatabase.families()), "")
+    if not family:
+        return QIcon()
+    ratio = 2  # 高分屏也清楚
+    pixmap = QPixmap(size * ratio, size * ratio)
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.TextAntialiasing)
+    font = QFont(family)
+    font.setPixelSize(size)
+    painter.setFont(font)
+    painter.setPen(color)
+    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter, glyph)
+    painter.end()
+    return QIcon(pixmap)
 
 
 _STATUS_COLORS = {
@@ -191,7 +217,6 @@ class ProfileManagerDialog(QDialog):
         self.upd_lbl.setStyleSheet("color:#999")
         footer.addWidget(self.upd_lbl)
         self.upd_btn = QPushButton()
-        self.upd_btn.setIcon(self.style().standardIcon(QStyle.SP_ArrowDown))
         self.upd_btn.setFlat(True)
         self.upd_btn.clicked.connect(self._update_clicked)
         footer.addWidget(self.upd_btn)
@@ -351,7 +376,13 @@ class ProfileManagerDialog(QDialog):
             state, version = "none", ""
         self.upd_lbl.setText(t("upd_" + state, self.lang, ver=version) if state != "none" else "")
         busy = state in ("checking", "downloading", "installing")
-        self.upd_btn.setText(t("upd_now" if state in ("found", "ready", "failed") else "upd_check", self.lang))
+        waiting = state in ("found", "ready", "failed")
+        self.upd_btn.setText(t("upd_now" if waiting else "upd_check", self.lang))
+        # 平时循环箭头（检查更新），有新版换成箭头落进托盘（立即更新），同 Windows 更新 / 浏览器下载的习惯。
+        glyph = GLYPH_DOWNLOAD if waiting else GLYPH_REFRESH
+        if self.upd_btn.property("glyph") != glyph:
+            self.upd_btn.setProperty("glyph", glyph)
+            self.upd_btn.setIcon(glyph_icon(glyph, self.upd_btn.palette().buttonText().color()))
         self.upd_btn.setVisible(not busy)
 
     def _update_clicked(self) -> None:
