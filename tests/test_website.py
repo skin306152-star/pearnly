@@ -228,7 +228,7 @@ class WebsiteTest(unittest.TestCase):
                     self.assertIn(expect, m)
             mrerp = (self.out / build.url(lang, "mrerp").lstrip("/") / "index.html").read_text(encoding="utf-8")
             self.assertIn(html.escape(C.COMMON[lang]["cta_consult"]), mrerp)
-        for page in ("about", "privacy"):
+        for page in ("about", "privacy", "terms"):
             for lang in C.LANGS:
                 self.assertIn(build.url(lang, page), self.pages[build.url(lang, "home")].hrefs)
 

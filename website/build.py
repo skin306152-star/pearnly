@@ -209,7 +209,7 @@ def footer(lang):
   </div>
   <div class="wrap legal">
     <p>© 2026 Pearnly · {esc(t["operator"])} {esc(C.COMPANY["legal_name"])} · {esc(t["reg_no"])} {esc(C.COMPANY["reg_no"])}</p>
-    <p class="legal-links"><a href="{url(lang, "about")}">{esc(t["about"])}</a><a href="{url(lang, "privacy")}">{esc(t["privacy"])}</a></p>
+    <p class="legal-links"><a href="{url(lang, "about")}">{esc(t["about"])}</a><a href="{url(lang, "privacy")}">{esc(t["privacy"])}</a><a href="{url(lang, "terms")}">{esc(t["terms"])}</a></p>
     <p>{esc(C.COMPANY["address"][lang])}</p>
   </div>
 </footer>
@@ -787,7 +787,7 @@ def page_about(lang):
     return head(lang, "about", a["title"], a["description"], graph) + header(lang, "about") + body + contact(lang) + footer(lang)
 
 
-# ---------------- 隐私政策 ----------------
+# ---------------- 隐私政策与使用条款 ----------------
 
 def policy_blocks(blocks):
     """一节里的内容：字符串是段落，列表是要点。"""
@@ -795,16 +795,18 @@ def policy_blocks(blocks):
                    for b in blocks)
 
 
-def page_privacy(lang):
-    pv, t = C.PRIVACY[lang], C.COMMON[lang]
-    trail = [("home", t["home"]), ("privacy", t["privacy"])]
+def page_policy(lang, key):
+    """隐私政策（C.PRIVACY）与使用条款（C.TERMS）共用一个版式。"""
+    pv, t = (C.PRIVACY if key == "privacy" else C.TERMS)[lang], C.COMMON[lang]
+    effective = C.PRIVACY_EFFECTIVE if key == "privacy" else C.TERMS_EFFECTIVE
+    trail = [("home", t["home"]), (key, t[key])]
     toc = "".join(f'<li><a href="#s{i + 1}">{esc(h)}</a></li>' for i, (h, _b) in enumerate(pv["sections"]))
     sections = "".join(f'<h2 id="s{i + 1}">{esc(h)}</h2>{policy_blocks(b)}' for i, (h, b) in enumerate(pv["sections"]))
     contact_rows = (f'<p>{esc(C.COMPANY["legal_name"])} · {esc(C.COMPANY["address"][lang])}</p>'
                     f'<p><a href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a> · <a href="{C.LINE_URL}" rel="noopener">LINE {esc(C.LINE_ID)}</a></p>')
     graph = [ORG, breadcrumb(lang, trail),
-             {"@type": "WebPage", "name": pv["h1"], "url": absolute(url(lang, "privacy")), "inLanguage": C.LANGS[lang]["html"],
-              "dateModified": C.PRIVACY_EFFECTIVE, "publisher": {"@id": ORG["@id"]}}]
+             {"@type": "WebPage", "name": pv["h1"], "url": absolute(url(lang, key)), "inLanguage": C.LANGS[lang]["html"],
+              "dateModified": effective, "publisher": {"@id": ORG["@id"]}}]
     body = f"""<section class="hero sub">
   <div class="wrap center">
     {crumbs(lang, trail)}
@@ -818,7 +820,7 @@ def page_privacy(lang):
   <article class="prose policy">{sections}<h2>{esc(t["contact"])}</h2>{contact_rows}</article>
 </section>
 """
-    return head(lang, "privacy", pv["title"], pv["description"], graph) + header(lang, "privacy") + body + footer(lang)
+    return head(lang, key, pv["title"], pv["description"], graph) + header(lang, key) + body + footer(lang)
 
 
 def page_404(lang):
@@ -846,8 +848,8 @@ def render(lang, key):
         return page_mrerp(lang)
     if key == "about":
         return page_about(lang)
-    if key == "privacy":
-        return page_privacy(lang)
+    if key in ("privacy", "terms"):
+        return page_policy(lang, key)
     return page_tool(lang, key)
 
 

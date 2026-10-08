@@ -45,6 +45,7 @@ PAGES = {
     "mrerp": "/mrerp/",
     "about": "/about/",
     "privacy": "/privacy/",
+    "terms": "/terms/",
     "tools": "/tools/",
     "baht-text": "/tools/baht-text/",
     "vat": "/tools/vat/",
@@ -106,7 +107,7 @@ COMMON = {
         "overview": "วิดีโอแนะนำ",
         "play": "เล่นวิดีโอ",
         "others": "ผลิตภัณฑ์อื่น",
-        "about": "เกี่ยวกับเรา", "privacy": "นโยบายความเป็นส่วนตัว", "company": "บริษัท",
+        "about": "เกี่ยวกับเรา", "privacy": "นโยบายความเป็นส่วนตัว", "terms": "ข้อกำหนดการใช้งาน", "company": "บริษัท",
         "integrations": "ทำงานร่วมกับเครื่องมือที่คุณใช้อยู่",
     },
     "en": {
@@ -138,7 +139,7 @@ COMMON = {
         "overview": "Overview video",
         "play": "Play video",
         "others": "Other products",
-        "about": "About us", "privacy": "Privacy policy", "company": "Company",
+        "about": "About us", "privacy": "Privacy policy", "terms": "Terms of use", "company": "Company",
         "integrations": "Works with the tools you already use",
     },
     "zh": {
@@ -170,7 +171,7 @@ COMMON = {
         "overview": "介绍视频",
         "play": "播放视频",
         "others": "其他产品",
-        "about": "关于我们", "privacy": "隐私政策", "company": "公司",
+        "about": "关于我们", "privacy": "隐私政策", "terms": "使用条款", "company": "公司",
         "integrations": "接入你已经在用的工具",
     },
 }
@@ -662,13 +663,13 @@ ABOUT = {
 }
 
 # 隐私政策（PDPA）：每一条都对应实际系统（服务商、地区、保留期见 2026-10-05 的仓库核查），改系统时同步改这里。
-PRIVACY_EFFECTIVE = "2026-10-05"
+PRIVACY_EFFECTIVE = "2026-10-08"
 PRIVACY = {
     "th": {
         "title": "นโยบายความเป็นส่วนตัว | Pearnly",
         "description": "Pearnly และ MR. ERP COMPANY LIMITED เก็บ ใช้ ส่งต่อ และคุ้มครองข้อมูลส่วนบุคคลอย่างไร ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562",
         "h1": "นโยบายความเป็นส่วนตัว",
-        "effective": "มีผลตั้งแต่ 5 ตุลาคม 2569",
+        "effective": "มีผลตั้งแต่ 8 ตุลาคม 2569",
         "lead": "นโยบายนี้อธิบายว่าเราเก็บข้อมูลอะไร ใช้ทำอะไร ส่งให้ใคร เก็บไว้นานเท่าไร และคุณมีสิทธิอะไรบ้าง ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)",
         "sections": [
             ("ใครเป็นผู้ดูแลข้อมูล", [
@@ -681,16 +682,18 @@ PRIVACY = {
                 "การใช้งาน: ที่อยู่ IP ข้อมูลเบราว์เซอร์ ประวัติการเข้าสู่ระบบ และประวัติการเปิดหรือดาวน์โหลดไฟล์ต้นฉบับ",
                 "เอกสารที่ส่งเข้าระบบ: ใบกำกับภาษี ใบเสร็จ สเตทเมนต์ธนาคาร สลิปโอนเงิน และข้อมูลที่อ่านได้จากเอกสารเหล่านั้น",
                 "บัตรประชาชน (Pearnly DMS): รูปบัตร เลขประจำตัวประชาชน ชื่อ-นามสกุล วันเกิด ที่อยู่ เพศ และวันออกบัตรและวันหมดอายุ",
+                "ผู้ช่วย Windows: ชื่อเครื่องคอมพิวเตอร์ โฟลเดอร์ที่คุณอนุญาตและที่อยู่โฟลเดอร์แชร์ในเครือข่าย ไฟล์เอกสารในโฟลเดอร์ที่ตรงตามกฎ และข้อมูลชุดบัญชีที่ใช้ส่งข้อมูลเข้า ERP หรือโปรแกรมบัญชีของคุณ (รายการชุดบัญชี ผังบัญชี ลูกค้า ผู้ขาย สินค้า และแผนก) ผู้ช่วย Windows ไม่เก็บรหัสผ่านของโปรแกรมบัญชี",
                 "การเติมเงิน: สลิปโอนเงินที่คุณอัปโหลดเพื่อให้เจ้าหน้าที่ตรวจยอด เราไม่รับและไม่เก็บข้อมูลบัตรเครดิต",
             ]]),
             ("เราใช้ข้อมูลเพื่ออะไร", [[
                 "ให้บริการตามสัญญา: อ่าน ตรวจ และบันทึกเอกสาร ส่งเข้าระบบที่คุณเลือก และตอบกลับใน LINE",
                 "ยืนยันตัวตนและรักษาความปลอดภัยของบัญชีและระบบ (ประโยชน์โดยชอบด้วยกฎหมาย)",
+                "ตรวจหาสาเหตุปัญหา ตรวจและปรับปรุงคุณภาพการอ่านเอกสาร โดยใช้เอกสารของคุณและการแก้ไขผลการอ่านที่คุณบันทึกไว้ภายในระบบของเราเอง (ประโยชน์โดยชอบด้วยกฎหมาย คุณคัดค้านได้) ข้อมูลเหล่านี้ไม่ถูกใช้ฝึกโมเดล AI ของ Google หรือบุคคลภายนอก และไม่เปิดให้ลูกค้ารายอื่น",
                 "ตอบคำถาม ดูแลการใช้งาน และแจ้งเรื่องสำคัญเกี่ยวกับบริการ",
                 "ปฏิบัติตามกฎหมาย เช่น การเก็บเอกสารทางบัญชีและภาษีของเราเอง",
             ], "เราไม่ขายข้อมูลส่วนบุคคล ไม่นำเอกสารของคุณไปใช้ทำโฆษณา และไม่ส่งข้อความการตลาดถึงคุณโดยไม่ได้รับความยินยอม"]),
             ("ผู้ที่ได้รับข้อมูล", [[
-                "Google Cloud: อ่านเอกสารด้วย AI (Vertex AI Gemini, Cloud Vision, Document AI) และเก็บไฟล์ต้นฉบับใน Cloud Storage ที่ประเทศสิงคโปร์ ตามเงื่อนไขของ Google Cloud ข้อมูลที่ส่งไปอ่านจะไม่ถูกใช้ฝึกโมเดลของ Google",
+                "Google Cloud: อ่านเอกสารด้วย AI (Vertex AI Gemini, Cloud Vision, Document AI) โดยงานอ่านเอกสารทำงานบน Cloud Run ที่ประเทศสิงคโปร์ และเก็บไฟล์ต้นฉบับและชุดสำรองข้อมูลใน Cloud Storage ที่ประเทศสิงคโปร์ ตามเงื่อนไขของ Google Cloud ข้อมูลที่ส่งไปอ่านจะไม่ถูกใช้ฝึกโมเดลของ Google",
                 "SSD Nodes: ผู้ให้บริการเซิร์ฟเวอร์หลักที่ประเทศสิงคโปร์ ซึ่งเก็บฐานข้อมูลและไฟล์ของระบบ",
                 "LINE (LY Corporation): รับส่งข้อความและรูปภาพ และเข้าสู่ระบบด้วย LINE เมื่อคุณใช้บริการผ่าน LINE",
                 "Google (Gmail): ส่งอีเมลของระบบ เช่น อีเมลต้อนรับและแจ้งเตือนบัญชี",
@@ -706,12 +709,14 @@ PRIVACY = {
                 "ผลระหว่างทางจากการอ่านเอกสาร: ลบอัตโนมัติภายใน 7 วัน",
                 "ชุดสำรองข้อมูล: ชุดรายวันเก็บ 14 วัน ชุดรายสัปดาห์เก็บ 8 สัปดาห์ แล้วลบอัตโนมัติ ข้อมูลที่ลบแล้วจึงอาจยังอยู่ในชุดสำรองได้ไม่เกิน 8 สัปดาห์",
                 "บันทึกของระบบ: เก็บตามรอบหมุนเวียนของเซิร์ฟเวอร์เพื่อความปลอดภัย",
+                "ข้อมูลของผู้ช่วย Windows บนเครื่องของคุณ ได้แก่ บันทึกการทำงาน ประวัติการส่งข้อมูล และสำเนาชุดบัญชี (เก็บ 3 ชุดล่าสุดเป็นค่าเริ่มต้น) คุณเป็นผู้จัดการและลบได้เอง",
             ]]),
             ("เราดูแลข้อมูลอย่างไร", [[
                 "ทุกการเชื่อมต่อใช้ HTTPS",
                 "แต่ละบริษัทลูกค้ามีฐานข้อมูลแยกกัน",
                 "ไฟล์ต้นฉบับเก็บแบบส่วนตัว เปิดได้เฉพาะผู้มีสิทธิในบัญชีนั้น และมีบันทึกทุกครั้งที่เปิด",
                 "ชุดสำรองข้อมูลปิดการเข้าถึงจากภายนอก และไฟล์ตั้งค่าสำคัญถูกเข้ารหัส",
+                "รหัสเชื่อมต่อของผู้ช่วย Windows ถูกเข้ารหัสเก็บไว้บนเครื่องของคุณ",
                 "พนักงานเข้าถึงข้อมูลได้เท่าที่จำเป็นต่อการให้บริการ",
             ]]),
             ("สิทธิของคุณ", [
@@ -728,7 +733,7 @@ PRIVACY = {
         "title": "Privacy policy | Pearnly",
         "description": "How Pearnly and MR. ERP COMPANY LIMITED collect, use, share and protect personal data under Thailand's Personal Data Protection Act B.E. 2562 (PDPA).",
         "h1": "Privacy policy",
-        "effective": "Effective 5 October 2026",
+        "effective": "Effective 8 October 2026",
         "lead": "This policy explains what we collect, why, who receives it, how long we keep it and what your rights are under Thailand's Personal Data Protection Act B.E. 2562 (2019) (PDPA).",
         "sections": [
             ("Who is responsible", [
@@ -741,16 +746,18 @@ PRIVACY = {
                 "Usage: IP address, browser details, sign-in history and a log of who opened or downloaded original files.",
                 "Documents you send: tax invoices, receipts, bank statements, transfer slips and the data read from them.",
                 "ID cards (Pearnly DMS): the card image, ID number, name, date of birth, address, gender, and issue and expiry dates.",
+                "Windows helper: the computer name, the folders you authorise and their network share paths, document files in those folders that match your rules, and the account-set data needed to send entries into your ERP or accounting software (account-set list, chart of accounts, customers, suppliers, products and departments). The Windows helper does not store your accounting software password.",
                 "Top-ups: the transfer slip you upload so our staff can check the amount. We do not receive or store card details.",
             ]]),
             ("How we use it", [[
                 "To provide the service under our contract: reading, checking and recording documents, sending them to the systems you choose and replying in LINE.",
                 "To verify identity and keep accounts and systems secure (legitimate interest).",
+                "To investigate problems and to check and improve document-reading quality, using your documents and the corrections you save, within our own systems (legitimate interest; you may object). This data is not used to train AI models of Google or any other third party and is not made available to other customers.",
                 "To answer questions, support you and tell you about important service matters.",
                 "To meet legal duties, such as keeping our own accounting and tax records.",
             ], "We do not sell personal data, we do not use your documents for advertising, and we do not send you marketing without your consent."]),
             ("Who receives it", [[
-                "Google Cloud: AI document reading (Vertex AI Gemini, Cloud Vision, Document AI) and storage of original files in Cloud Storage in Singapore. Under Google Cloud's terms, data sent for reading is not used to train Google's models.",
+                "Google Cloud: AI document reading (Vertex AI Gemini, Cloud Vision, Document AI), with reading jobs run on Cloud Run in Singapore, and storage of original files and backups in Cloud Storage in Singapore. Under Google Cloud's terms, data sent for reading is not used to train Google's models.",
                 "SSD Nodes: our main server provider in Singapore, holding the databases and system files.",
                 "LINE (LY Corporation): messages, images and LINE sign-in when you use the service through LINE.",
                 "Google (Gmail): system emails such as welcome and account notices.",
@@ -766,12 +773,14 @@ PRIVACY = {
                 "Intermediate document-reading results: deleted automatically within 7 days.",
                 "Backups: daily copies are kept 14 days and weekly copies 8 weeks, then deleted automatically, so deleted data may remain in backups for up to 8 weeks.",
                 "System logs: kept on the server's normal rotation for security.",
+                "Windows helper data on your computer, namely its logs, push history and account-set snapshots (the latest 3 by default), is managed and deleted by you.",
             ]]),
             ("How we protect it", [[
                 "Every connection uses HTTPS.",
                 "Each business customer has its own separate database.",
                 "Original files are stored privately, open only to people with rights in that account, and every opening is logged.",
                 "Backups are closed to outside access and sensitive configuration files are encrypted.",
+                "The Windows helper's connection token is stored encrypted on your computer.",
                 "Staff access only what they need to provide the service.",
             ]]),
             ("Your rights", [
@@ -788,7 +797,7 @@ PRIVACY = {
         "title": "隐私政策 | Pearnly",
         "description": "Pearnly 与 MR. ERP COMPANY LIMITED 如何依据泰国《个人数据保护法》（PDPA，佛历 2562 年）收集、使用、提供和保护个人数据。",
         "h1": "隐私政策",
-        "effective": "自 2026 年 10 月 5 日起生效",
+        "effective": "自 2026 年 10 月 8 日起生效",
         "lead": "本政策说明我们收集哪些数据、用来做什么、提供给谁、保存多久，以及你依据泰国《个人数据保护法》（PDPA）享有哪些权利。",
         "sections": [
             ("谁负责你的数据", [
@@ -801,16 +810,18 @@ PRIVACY = {
                 "使用记录：IP 地址、浏览器信息、登录记录，以及谁打开或下载过原件的记录。",
                 "你送进系统的单据：税票、收据、银行流水、转账单，以及从中读出的数据。",
                 "身份证（Pearnly DMS）：证件照片、身份证号、姓名、出生日期、地址、性别、签发和到期日期。",
+                "Windows 小助手：电脑名称、你授权的文件夹及其网络共享路径、文件夹中符合规则的单据文件，以及推送到你的 ERP 或会计软件所需的账套资料（账套列表、科目表、客户、供应商、商品、部门）。小助手不保存会计软件的登录密码。",
                 "充值：你上传的转账单，用于人工核对金额。我们不接收、也不保存银行卡信息。",
             ]]),
             ("我们用数据做什么", [[
                 "按合同提供服务：读取、核对、入账，送到你选择的系统，并在 LINE 里回复。",
                 "核验身份，保障账号和系统安全（正当利益）。",
+                "排查问题，检验和改进单据读取质量：在我们自己的系统内使用你的单据和你保存的修改（正当利益，你可以反对）。这些数据不用于训练 Google 或其他第三方的 AI 模型，也不提供给其他客户。",
                 "回答问题、提供支持、通知服务相关的重要事项。",
                 "履行法律义务，例如保存我们自己的会计和税务记录。",
             ], "我们不出售个人数据，不把你的单据用于广告，未经同意不向你发送营销信息。"]),
             ("谁会收到数据", [[
-                "Google Cloud：用 AI 读取单据（Vertex AI Gemini、Cloud Vision、Document AI），原件存于新加坡的 Cloud Storage。根据 Google Cloud 的条款，送去读取的数据不会用于训练 Google 的模型。",
+                "Google Cloud：用 AI 读取单据（Vertex AI Gemini、Cloud Vision、Document AI），读取任务在新加坡的 Cloud Run 上运行，原件和备份存于新加坡的 Cloud Storage。根据 Google Cloud 的条款，送去读取的数据不会用于训练 Google 的模型。",
                 "SSD Nodes：位于新加坡的主服务器提供商，存放数据库和系统文件。",
                 "LINE（LY Corporation）：你通过 LINE 使用服务时的消息、图片和 LINE 登录。",
                 "Google（Gmail）：发送系统邮件，例如欢迎邮件和账号通知。",
@@ -826,12 +837,14 @@ PRIVACY = {
                 "单据读取的中间结果：7 天内自动删除。",
                 "备份：每日备份保留 14 天、每周备份保留 8 周后自动删除，因此已删除的数据最多可能在备份中再保留 8 周。",
                 "系统日志：按服务器常规轮转保存，用于安全。",
+                "小助手在你电脑上的日志、推送记录和账套快照（默认保留最近 3 份）由你自行管理和删除。",
             ]]),
             ("我们如何保护数据", [[
                 "所有连接都使用 HTTPS。",
                 "每家企业客户使用独立的数据库。",
                 "原件私密存储，只有该账号内有权限的人能打开，每次打开都有记录。",
                 "备份禁止外部访问，重要配置文件加密。",
+                "小助手的连接凭据在你的电脑上加密保存。",
                 "员工只能接触提供服务所必需的数据。",
             ]]),
             ("你的权利", [
@@ -841,6 +854,237 @@ PRIVACY = {
             ]),
             ("未成年人", ["我们的服务面向企业，不以未成年人为对象。"]),
             ("政策变更", ["如有重要变更，我们会在生效前在本页和服务内通知。"]),
+        ],
+    },
+}
+
+# 使用条款：每一条都对应实际系统与用户 2026-10-08 定的口径（余额不退、计费错 30 天内更正、赔偿上限为事发前 3 个月实付、调价提前 30 天）。
+# 计费规则见 apps/pearnly_control/pearnly_control/billing.py，开户与关户见 issues.py、teardown.py；改系统时同步改这里。
+TERMS_EFFECTIVE = "2026-10-08"
+TERMS = {
+    "th": {
+        "title": "ข้อกำหนดการใช้งาน | Pearnly",
+        "description": "ข้อกำหนดการใช้บริการ Pearnly Cowork, DMS, ERP และผู้ช่วย Windows: บัญชีผู้ใช้ ค่าบริการ การคืนเงิน ข้อมูล ผลการอ่านเอกสารด้วย AI ความรับผิด และกฎหมายที่ใช้บังคับ ให้บริการโดย MR. ERP COMPANY LIMITED",
+        "h1": "ข้อกำหนดการใช้งาน",
+        "effective": "มีผลตั้งแต่ 8 ตุลาคม 2569",
+        "lead": "ข้อกำหนดนี้กำหนดสิทธิและหน้าที่ระหว่างคุณกับ MR. ERP COMPANY LIMITED ในการใช้บริการ Pearnly",
+        "sections": [
+            ("การยอมรับข้อกำหนด", [
+                "ข้อกำหนดนี้ใช้กับ Pearnly Cowork, Pearnly DMS, Pearnly ERP, ผู้ช่วย Windows ของ Pearnly และเว็บไซต์ pearnly.com (รวมเรียกว่า “บริการ”) ซึ่งให้บริการโดย MR. ERP COMPANY LIMITED (เลขทะเบียนนิติบุคคล 0315551000297 ต่อไปเรียกว่า “เรา”)",
+                "การใช้บริการถือว่าคุณยอมรับข้อกำหนดนี้และนโยบายความเป็นส่วนตัวในนามของธุรกิจของคุณ หากไม่ยอมรับ โปรดอย่าใช้บริการ",
+            ]),
+            ("บริการ", [
+                "บริการอ่านเอกสาร เช่น ใบกำกับภาษี ใบเสร็จ สเตทเมนต์ธนาคาร สลิปโอนเงิน และบัตรประชาชน เพื่อให้คุณตรวจ บันทึกบัญชี และส่งเข้าระบบที่คุณเลือกตามคำสั่งของคุณ รวมถึงรับส่งเอกสารผ่าน LINE ฟังก์ชันที่ใช้ได้เป็นไปตามที่เปิดใช้ในบัญชีของคุณ",
+            ]),
+            ("บัญชีผู้ใช้", [[
+                "เราเปิดบัญชีให้ลูกค้าธุรกิจ ไม่เปิดรับการสมัครด้วยตนเอง",
+                "ผู้ดูแลระบบของธุรกิจเป็นผู้จัดการบัญชีและสิทธิของสมาชิก และธุรกิจรับผิดชอบทุกการกระทำภายใต้บัญชีของตน",
+                "เมื่อได้รับรหัสผ่านเริ่มต้น โปรดเปลี่ยนทันที และเก็บรหัสผ่านและรหัสจับคู่ผู้ช่วย Windows เป็นความลับ หากพบว่ามีผู้อื่นใช้บัญชี โปรดแจ้งเราทันที",
+            ]]),
+            ("ค่าบริการและการเติมเงิน", [[
+                "บริการใช้ยอดเงินคงเหลือแบบเติมเงินล่วงหน้า คุณโอนเงินผ่านธนาคารและอัปโหลดสลิป เราตรวจสอบแล้วจึงเพิ่มยอด โดยยึดยอดที่เข้าบัญชีธนาคารจริง ยอดคงเหลือไม่หมดอายุตลอดเวลาที่บัญชียังเปิดใช้งาน",
+                "ตัดเงินตามราคาที่ประกาศในบริการ และตัดเฉพาะเมื่ออ่านเอกสารสำเร็จ ทุกครั้งที่อัปโหลดจะมีการอ่านและตัดเงิน รวมถึงการอัปโหลดไฟล์เดิมซ้ำ",
+                "แพ็กเกจรายเดือนตัดเงินจากยอดคงเหลือ รอบละ 30 วัน และไม่ต่ออายุอัตโนมัติ โควตาที่ใช้ไม่หมดจะหมดอายุเมื่อสิ้นรอบ การเปลี่ยนแพ็กเกจระหว่างรอบจะเริ่มรอบใหม่ และโควตาที่เหลือของแพ็กเกจเดิมจะหมดอายุ",
+                "เมื่อยอดคงเหลือไม่พอ การอ่านเอกสารจะหยุดชั่วคราว งานที่ทำเสร็จแล้วคิดค่าบริการตามปกติ ยอดคงเหลือจึงอาจติดลบ และต้องเติมเงินให้ครบก่อนใช้งานต่อ",
+                "หากมีการปรับราคา เราจะแจ้งในบริการและบนเว็บไซต์นี้ล่วงหน้า 30 วันก่อนมีผล แพ็กเกจที่ซื้อแล้วใช้ราคาเดิมจนสิ้นรอบ",
+            ]]),
+            ("การคืนเงิน", [
+                "เงินที่เติมและค่าแพ็กเกจไม่สามารถขอคืน โอนสิทธิ หรือแลกเป็นเงินสดได้ หากตัดเงินผิดพลาด โปรดแจ้งทางอีเมลหรือ LINE ภายใน 30 วันนับแต่วันที่ตัดเงิน เมื่อตรวจสอบแล้วเราจะแก้ไขให้ เว้นแต่กฎหมายกำหนดไว้เป็นอย่างอื่น",
+            ]),
+            ("ข้อมูลของคุณ", [
+                "เอกสารและข้อมูลที่คุณส่งเข้าบริการเป็นของคุณ คุณอนุญาตให้เราจัดเก็บ ประมวลผล และส่งต่อข้อมูลเหล่านั้นเพื่อให้บริการ รวมถึงส่งให้ผู้ให้บริการที่ระบุในนโยบายความเป็นส่วนตัว",
+                "คุณรับรองว่ามีสิทธิส่งข้อมูลเหล่านั้น และหากมีข้อมูลส่วนบุคคลของผู้อื่น คุณได้แจ้งเจ้าของข้อมูลและมีฐานทางกฎหมายแล้ว การประมวลผลข้อมูลส่วนบุคคลเป็นไปตามนโยบายความเป็นส่วนตัว",
+            ]),
+            ("ผลการอ่านเอกสารด้วย AI", [
+                "เอกสารอ่านด้วย AI ผลลัพธ์อาจผิดพลาดหรือไม่ครบถ้วน โปรดตรวจสอบก่อนบันทึกบัญชี ยื่นภาษี หรือชำระเงิน บริการนี้ไม่ใช่คำแนะนำด้านบัญชี ภาษี หรือกฎหมาย การยื่นและการตัดสินใจที่อาศัยผลการอ่านเป็นความรับผิดชอบของคุณ",
+            ]),
+            ("การส่งข้อมูลเข้าระบบและผู้ช่วย Windows", [[
+                "เมื่อคุณสั่งส่งข้อมูล เราจะบันทึกข้อมูลเข้าระบบที่คุณเลือกตามคำสั่ง เอกสารเดียวกันส่งกี่ครั้งจะถูกบันทึกตามจำนวนครั้งนั้น",
+                "ผู้ช่วย Windows ติดตั้งบนเครื่องของคุณ อ่านโฟลเดอร์ที่คุณอนุญาต และบันทึกข้อมูลลงชุดบัญชีใน ERP หรือโปรแกรมบัญชีของคุณโดยตรง ผู้ช่วย Windows อัปเดตเป็นเวอร์ชันล่าสุดโดยอัตโนมัติ",
+                "คุณรับผิดชอบความปลอดภัยและการสำรองข้อมูลของเครื่องและชุดบัญชีของคุณ",
+            ]]),
+            ("ข้อห้าม", [
+                "ในการใช้บริการ ห้าม:",
+                ["ส่งเอกสารปลอม ใบกำกับภาษีปลอม หรือข้อมูลที่ได้มาโดยมิชอบ",
+                 "ใช้บริการเพื่อการกระทำที่ผิดกฎหมายหรือฉ้อโกง",
+                 "ใช้โปรแกรมดึงข้อมูลจำนวนมาก หลบเลี่ยงการควบคุมสิทธิ หรือทำให้ระบบรับภาระผิดปกติ",
+                 "ทำวิศวกรรมย้อนกลับ เจาะ หรือรบกวนมาตรการรักษาความปลอดภัยของบริการ",
+                 "ให้บุคคลภายนอกธุรกิจของคุณใช้บัญชี"],
+                "หากฝ่าฝืน เราอาจระงับหรือยุติบริการโดยไม่คืนค่าบริการที่ชำระแล้ว และจะรายงานต่อหน่วยงานที่เกี่ยวข้องเมื่อกฎหมายกำหนด",
+            ]),
+            ("ความพร้อมให้บริการ", [
+                "เราพยายามให้บริการอย่างต่อเนื่อง แต่ไม่รับประกันว่าบริการจะไม่หยุดชะงักหรือไม่มีข้อผิดพลาด บริการอาจหยุดชั่วคราวระหว่างการบำรุงรักษาและปรับปรุง บริการอาศัยผู้ให้บริการภายนอก เช่น LINE และ Google ซึ่งเหตุขัดข้องของผู้ให้บริการเหล่านั้นอยู่นอกการควบคุมของเรา",
+                "เราอาจปรับ เพิ่ม หรือยกเลิกฟังก์ชันบางส่วน ก่อนยกเลิกฟังก์ชันที่มีค่าบริการ เราจะแจ้งล่วงหน้า",
+            ]),
+            ("ทรัพย์สินทางปัญญา", [
+                "ซอฟต์แวร์ หน้าจอ แบรนด์ และเอกสารของบริการเป็นของ MR. ERP COMPANY LIMITED ระหว่างการใช้บริการ คุณใช้บริการเพื่อธุรกิจของคุณได้ แต่ห้ามทำซ้ำ ขายต่อ หรือนำบริการไปพัฒนาผลิตภัณฑ์ที่แข่งขันกัน",
+            ]),
+            ("การจำกัดความรับผิด", [
+                "ภายในขอบเขตที่กฎหมายอนุญาต:",
+                ["เราไม่รับผิดต่อความเสียหายทางอ้อม การสูญเสียกำไร ค่าปรับ หรือความเสียหายที่เกิดจากการกระทำของคุณหรือจากบริการของบุคคลภายนอก",
+                 "ความรับผิดรวมของเราต่อเหตุการณ์ใด ๆ ไม่เกินค่าบริการที่คุณชำระให้เราจริงในช่วง 3 เดือนก่อนเกิดเหตุ"],
+                "ข้อจำกัดนี้ไม่ใช้กับความเสียหายที่เกิดจากการจงใจหรือประมาทเลินเล่ออย่างร้ายแรงของเรา และความรับผิดที่กฎหมายไม่อนุญาตให้จำกัด",
+            ]),
+            ("การยกเลิกบริการ", [
+                "คุณขอยกเลิกบัญชีได้ทุกเมื่อทางอีเมลหรือ LINE เมื่อยกเลิกแล้ว ข้อมูลจะถูกลบตามนโยบายความเป็นส่วนตัวและไม่สามารถกู้คืนได้ โปรดส่งออกข้อมูลที่ต้องการไว้ก่อน ยอดคงเหลือจะไม่คืน",
+                "เราอาจระงับหรือยุติบริการเมื่อมีค่าบริการค้างชำระ เมื่อมีการฝ่าฝืนข้อกำหนดนี้ หรือเมื่อกฎหมายกำหนด",
+            ]),
+            ("การเปลี่ยนแปลงข้อกำหนด", [
+                "หากมีการเปลี่ยนแปลงสำคัญ เราจะแจ้งในหน้านี้และในบริการก่อนมีผล การใช้บริการต่อหลังการเปลี่ยนแปลงมีผลถือว่าคุณยอมรับข้อกำหนดที่เปลี่ยนแปลงแล้ว",
+            ]),
+            ("กฎหมายที่ใช้บังคับ", [
+                "ข้อกำหนดนี้อยู่ภายใต้กฎหมายไทย ข้อพิพาทให้เจรจากันก่อน หากตกลงกันไม่ได้ ให้เสนอต่อศาลไทยที่มีเขตอำนาจ หากฉบับภาษาไทยกับฉบับภาษาอื่นไม่ตรงกัน ให้ใช้ฉบับภาษาไทย",
+            ]),
+        ],
+    },
+    "en": {
+        "title": "Terms of use | Pearnly",
+        "description": "Terms for using Pearnly Cowork, DMS, ERP and the Windows helper: accounts, fees, refunds, data, AI reading results, liability and governing law. Provided by MR. ERP COMPANY LIMITED.",
+        "h1": "Terms of use",
+        "effective": "Effective 8 October 2026",
+        "lead": "These terms set out the rights and obligations between you and MR. ERP COMPANY LIMITED for using Pearnly.",
+        "sections": [
+            ("Acceptance", [
+                "These terms apply to Pearnly Cowork, Pearnly DMS, Pearnly ERP, the Pearnly Windows helper and the pearnly.com website (together, the “service”), provided by MR. ERP COMPANY LIMITED (registration no. 0315551000297, “we”).",
+                "By using the service, you accept these terms and the privacy policy on behalf of your business. If you do not agree, do not use the service.",
+            ]),
+            ("The service", [
+                "The service reads documents such as tax invoices, receipts, bank statements, transfer slips and ID cards so that you can check and record them and, on your instruction, send them to the systems you choose. Documents can also be sent and received through LINE. Available features are those enabled in your account.",
+            ]),
+            ("Accounts", [[
+                "We open accounts for business customers. Self sign-up is not available.",
+                "Your business's administrators manage member accounts and permissions, and the business is responsible for all activity under its accounts.",
+                "Change the initial password as soon as you receive it, and keep passwords and Windows helper pairing codes confidential. Tell us immediately if someone else is using your account.",
+            ]]),
+            ("Fees and top-ups", [[
+                "The service uses a prepaid balance. You top up by bank transfer and upload the slip; we check it and then credit the amount actually received in our bank account. The balance does not expire while the account is active.",
+                "Charges follow the prices published in the service and apply only when a document is read successfully. Every upload is read and charged, including a file uploaded again.",
+                "Monthly plans are paid from the balance, run for 30 days and do not renew automatically. Unused quota expires at the end of the cycle. Changing plans during a cycle starts a new cycle, and the remaining quota of the old plan expires.",
+                "When the balance is insufficient, document reading pauses. Work already completed is charged as normal, so the balance may become negative and must be topped up before you continue.",
+                "We announce price changes in the service and on this website 30 days before they take effect. A plan already purchased keeps its price until the end of its cycle.",
+            ]]),
+            ("Refunds", [
+                "Top-ups and plan fees are non-refundable, non-transferable and cannot be exchanged for cash. If you are charged in error, tell us by email or LINE within 30 days of the charge and we will correct it once verified, unless the law provides otherwise.",
+            ]),
+            ("Your data", [
+                "Documents and data you send to the service remain yours. You authorise us to store, process and transfer them to provide the service, including to the providers listed in the privacy policy.",
+                "You confirm that you are entitled to send this data and that, where it contains other people's personal data, you have informed them and have a lawful basis. Personal data is processed as described in the privacy policy.",
+            ]),
+            ("AI reading results", [
+                "Documents are read by AI, and results may contain errors or omissions. Check them before recording, filing taxes or making payments. The service is not accounting, tax or legal advice; filings and decisions based on the results are your responsibility.",
+            ]),
+            ("Sending data and the Windows helper", [[
+                "When you instruct a push, we write the data into the system you choose as instructed. A document pushed several times is written that many times.",
+                "The Windows helper is installed on your computer, reads the folders you authorise and writes entries directly into the account set of your ERP or accounting software. The Windows helper updates itself to the latest version automatically.",
+                "You are responsible for the security and backup of your computer and account sets.",
+            ]]),
+            ("Prohibited use", [
+                "When using the service, you must not:",
+                ["submit forged documents, fake tax invoices or improperly obtained data",
+                 "use the service for unlawful or fraudulent purposes",
+                 "use automated tools to harvest data, bypass access controls or place abnormal load on the system",
+                 "reverse engineer, break into or interfere with the service's security measures",
+                 "let anyone outside your business use your accounts"],
+                "If you do, we may suspend or end the service without refunding fees paid, and we will report to the authorities where the law requires.",
+            ]),
+            ("Availability", [
+                "We work to keep the service running but do not guarantee that it will be uninterrupted or error-free. The service may pause during maintenance and upgrades. It relies on third parties such as LINE and Google, whose outages are beyond our control.",
+                "We may change, add or withdraw features. We will give notice before withdrawing a paid feature.",
+            ]),
+            ("Intellectual property", [
+                "The service's software, interfaces, brand and documentation belong to MR. ERP COMPANY LIMITED. While you use the service, you may use it for your business, but you may not copy or resell it or use it to build a competing product.",
+            ]),
+            ("Limitation of liability", [
+                "To the extent permitted by law:",
+                ["we are not liable for indirect loss, loss of profit, fines, or loss caused by your actions or by third-party services",
+                 "our total liability for any event is limited to the fees you actually paid us in the 3 months before the event"],
+                "These limits do not apply to loss caused by our wilful misconduct or gross negligence, or to liability that cannot be limited by law.",
+            ]),
+            ("Closing an account", [
+                "You may ask us to close your account at any time by email or LINE. After closure, data is deleted as set out in the privacy policy and cannot be recovered, so export what you need first. Remaining balance is not refunded.",
+                "We may suspend or end the service for unpaid fees, breach of these terms or where the law requires.",
+            ]),
+            ("Changes to these terms", [
+                "If we make important changes, we will announce them on this page and in the service before they take effect. Continuing to use the service after a change takes effect means you accept the updated terms.",
+            ]),
+            ("Governing law", [
+                "These terms are governed by Thai law. Disputes are first resolved by negotiation; failing that, they go to the competent Thai courts. If the Thai version differs from another language version, the Thai version prevails.",
+            ]),
+        ],
+    },
+    "zh": {
+        "title": "使用条款 | Pearnly",
+        "description": "使用 Pearnly Cowork、DMS、ERP 和 Windows 小助手的条款：账号、费用、退款、数据、AI 读取结果、责任与适用法律。由 MR. ERP COMPANY LIMITED 提供。",
+        "h1": "使用条款",
+        "effective": "自 2026 年 10 月 8 日起生效",
+        "lead": "本条款规定你与 MR. ERP COMPANY LIMITED 之间使用 Pearnly 服务的权利与义务。",
+        "sections": [
+            ("接受条款", [
+                "本条款适用于 Pearnly Cowork、Pearnly DMS、Pearnly ERP、Pearnly Windows 小助手和 pearnly.com 网站（统称“服务”）。服务由 MR. ERP COMPANY LIMITED（企业注册号 0315551000297，以下称“我们”）提供。",
+                "使用服务即表示你代表所属企业接受本条款和隐私政策。不同意的，请不要使用服务。",
+            ]),
+            ("服务内容", [
+                "服务读取税票、收据、银行流水、转账单和身份证等单据，供你核对、入账，并按你的指示送到你选择的系统；也可以通过 LINE 收发单据。可用功能以你账号内已开通的为准。",
+            ]),
+            ("账号", [[
+                "账号由我们为企业客户开设，不接受自助注册。",
+                "企业管理员负责管理本企业成员的账号和权限，企业对其账号下的全部操作负责。",
+                "收到初始密码后请立即修改，并妥善保管密码和小助手配对码。发现账号被他人使用时，请立即通知我们。",
+            ]]),
+            ("费用与充值", [[
+                "服务采用预付余额。你通过银行转账充值并上传转账单，我们核对后入账，入账金额以银行实际到账为准。余额在账号存续期间不过期。",
+                "按服务内公布的价格扣费，仅在识别成功时扣费。每次上传都会识别并扣费，同一文件再次上传照常扣费。",
+                "月度套餐从余额扣费，周期 30 天，不自动续订。周期结束时未用完的额度作废；周期内更换套餐即开始新周期，原套餐剩余额度作废。",
+                "余额不足时暂停识别。已完成的工作照常扣费，余额可能为负数，需补足后继续使用。",
+                "调整价格时，我们在生效前 30 天在服务内和本网站通知；已购套餐在当期内价格不变。",
+            ]]),
+            ("退款", [
+                "充值余额和套餐费用不退还、不转让、不兑换现金。扣费有误的，请在扣费后 30 天内通过邮件或 LINE 提出，经核实后更正。法律另有规定的，从其规定。",
+            ]),
+            ("你的数据", [
+                "你送进服务的单据和数据归你所有。你授权我们为提供服务而存储、处理和传输这些数据，包括交给隐私政策列出的服务商。",
+                "你保证有权提交这些数据；其中含有他人个人数据的，你已告知数据主体并具备合法依据。个人数据按隐私政策处理。",
+            ]),
+            ("AI 读取结果", [
+                "单据由 AI 读取，结果可能有错漏。入账、申报或付款前，请自行核对。服务不构成会计、税务或法律意见；依据读取结果作出的申报和决定，由你负责。",
+            ]),
+            ("推送与 Windows 小助手", [[
+                "你下达推送指令后，我们按指示把数据写入你选择的系统。同一单据推送几次，就写入几次。",
+                "小助手安装在你的电脑上，读取你授权的文件夹，并把数据直接写入你的 ERP 或会计软件账套。小助手会自动更新到最新版本。",
+                "你负责电脑和账套的安全与备份。",
+            ]]),
+            ("禁止行为", [
+                "使用服务时，不得：",
+                ["提交伪造的单据、虚假税票或非法取得的数据",
+                 "将服务用于违法或欺诈目的",
+                 "用程序批量抓取数据、绕过权限控制或给系统造成异常负载",
+                 "反向工程、破解或干扰服务的安全措施",
+                 "将账号提供给本企业以外的人使用"],
+                "违反上述规定的，我们可以暂停或终止服务，已付费用不退；法律要求时，我们会向主管机关报告。",
+            ]),
+            ("服务可用性", [
+                "我们尽力保持服务稳定，但不保证服务不中断或没有错误。维护和升级期间服务可能暂停。服务依赖 LINE、Google 等第三方，其故障不在我们控制范围内。",
+                "我们可以调整、新增或停止部分功能。停止收费功能前，我们会提前通知。",
+            ]),
+            ("知识产权", [
+                "服务的软件、界面、品牌和文档归 MR. ERP COMPANY LIMITED 所有。使用期内，你可以为本企业业务使用服务，但不得复制、转售服务，或利用服务开发竞争产品。",
+            ]),
+            ("责任限制", [
+                "在法律允许的范围内：",
+                ["我们不对间接损失、利润损失、罚款，或因你的操作、第三方服务造成的损失承担责任",
+                 "我们对任何事件的赔偿总额，以事件发生前 3 个月内你实际支付给我们的费用为限"],
+                "因我们故意或重大过失造成的损失，以及法律不允许限制的责任，不受上述限制。",
+            ]),
+            ("停用账号", [
+                "你可以随时通过邮件或 LINE 要求停用账号。停用后，数据按隐私政策删除且无法恢复，请事先导出需要的资料；剩余余额不退还。",
+                "你欠费、违反本条款或法律要求时，我们可以暂停或终止服务。",
+            ]),
+            ("条款变更", [
+                "重要变更会在生效前在本页和服务内通知。变更生效后继续使用服务，即表示接受变更后的条款。",
+            ]),
+            ("适用法律", [
+                "本条款适用泰国法律。争议先协商解决；协商不成的，提交泰国有管辖权的法院。泰文版与其他语言版本不一致时，以泰文版为准。",
+            ]),
         ],
     },
 }
