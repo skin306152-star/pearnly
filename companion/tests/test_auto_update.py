@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """强制自动更新（auto_update.py）：发现新版就下载，空闲才停手，停稳才装；不在写账套中途换版本。"""
-from src.companion.auto_update import RETRY_SECONDS, AutoUpdate
+from src.companion.auto_update import INSTALL_RETRY_SECONDS, INSTALL_TIMEOUT_SECONDS, RETRY_SECONDS, AutoUpdate
 
 
 class Box:
@@ -10,6 +10,7 @@ class Box:
         self.stopped = False
         self.calls = []
         self.install_error = None
+        self.installer = Installer()
         self.flow = AutoUpdate(
             busy=lambda: self.busy,
             stop_work=lambda: self.calls.append("stop"),
@@ -23,6 +24,17 @@ class Box:
         if self.install_error:
             raise self.install_error
         self.calls.append(("install", path))
+        return self.installer
+
+
+class Installer:
+    """安装包进程：exit_code 为 None = 还在跑。"""
+
+    def __init__(self):
+        self.exit_code = None
+
+    def poll(self):
+        return self.exit_code
 
 
 def test_nothing_to_do_without_a_new_version():
@@ -71,7 +83,62 @@ def test_installer_that_cannot_start_resumes_work_and_tries_later():
     assert box.calls[-1] == "resume"
     assert box.flow.tick() == "waiting_retry"
     box.now += RETRY_SECONDS + 1
+    assert box.flow.tick() == "waiting_retry"  # 安装没成：同一版本隔一天再试，不是 10 分钟
+    box.now += INSTALL_RETRY_SECONDS
     box.install_error = None
+    box.stopped = False
+    assert box.flow.tick() == "stopping"
+
+
+def ready_to_install(box):
+    box.flow.offer("1.3.8", "/x.exe")
+    box.flow.tick()
+    box.flow.downloaded("C:/setup.exe")
+    box.flow.tick()
+    box.stopped = True
+    assert box.flow.tick() == "installing"
+
+
+def test_the_installer_is_started_only_once_while_it_runs():
+    # 2026-10-08：以前「installing」之后每 2 秒又启动一次安装包，Windows 智能应用控制拦下时不停弹提示
+    box = Box()
+    ready_to_install(box)
+    for _ in range(50):
+        box.now += 2
+        assert box.flow.tick() == "installing"
+    assert box.calls.count(("install", "C:/setup.exe")) == 1
+    assert "resume" not in box.calls
+
+
+def test_an_installer_that_exits_while_we_still_run_did_not_install():
+    box = Box()
+    ready_to_install(box)
+    box.installer.exit_code = 1  # 被拦 / 出错退出了，本进程没被关掉
+    assert box.flow.tick() == "failed"
+    assert box.calls[-1] == "resume"
+    assert box.flow.state() == ("failed", "1.3.8")
+    box.now += INSTALL_RETRY_SECONDS - 1
+    assert box.flow.tick() == "waiting_retry"
+    assert box.calls.count(("install", "C:/setup.exe")) == 1
+
+
+def test_an_installer_that_never_closes_us_counts_as_failed_after_a_while():
+    box = Box()
+    box.installer = object()  # 看不了进程状态：只按时间判
+    ready_to_install(box)
+    box.now += INSTALL_TIMEOUT_SECONDS - 1
+    assert box.flow.tick() == "installing"
+    box.now += 1
+    assert box.flow.tick() == "failed"
+    assert box.calls[-1] == "resume"
+
+
+def test_update_now_retries_at_once_after_a_failed_install():
+    box = Box()
+    ready_to_install(box)
+    box.installer.exit_code = 1
+    box.flow.tick()
+    box.flow.retry_now()
     box.stopped = False
     assert box.flow.tick() == "stopping"
 

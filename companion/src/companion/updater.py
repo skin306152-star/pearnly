@@ -59,12 +59,12 @@ def download_installer(backend_url: str, rel_url: str, timeout: float = 180.0) -
     return path
 
 
-def run_installer_silent(installer_path: str) -> None:
+def run_installer_silent(installer_path: str) -> "subprocess.Popen":
     """静默运行安装包:Inno CloseApplications=force 会关掉当前 companion → 装新 → 自启。
 
-    本进程随之被安装器关闭,故 detached 起,不等待。
+    本进程随之被安装器关闭,故 detached 起,不等待;返回进程,调用方据此看安装包是否已自己退出(没装上)。
     """
-    subprocess.Popen(
+    return subprocess.Popen(
         [installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
         creationflags=getattr(subprocess, "DETACHED_PROCESS", 0)
         | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),

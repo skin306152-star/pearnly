@@ -376,6 +376,7 @@ class TrayApp(QObject):
     def _do_update(self) -> None:
         """手动点「更新」：和自动更新走同一条路（下载 → 等空闲 → 停稳 → 安装），不在写账套中途换版本。"""
         self._update_requested = True
+        self._auto_update.retry_now()
         if self._update_action:
             self._update_action.setEnabled(False)
         self.tray.showMessage(
@@ -444,10 +445,10 @@ class TrayApp(QObject):
         if getattr(self, "_folders", None) is not None:
             self._folders.start()
 
-    def _install_update(self, path: str) -> None:
+    def _install_update(self, path: str):
         from .updater import run_installer_silent
 
-        run_installer_silent(path)  # 安装器关本进程→装新→自启(本进程随之退出)
+        return run_installer_silent(path)  # 安装器关本进程→装新→自启(本进程随之退出)
 
     def _on_update_failed(self) -> None:
         if self._update_action:
