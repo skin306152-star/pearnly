@@ -228,7 +228,9 @@ def request_master(
                 account_dir,
                 account_sets_only,
                 authorized_roots,
-                bool(force and discover),
+                # 找新年度文件夹：网页「重新读取」时，以及每次整套重扫时（启动后第一次、之后每天一次），
+                # 新建的年度（如明年的 71EXP）不用等人去点（2026-10-08）。
+                bool(discover and (force or full)),
                 None if full else refresh.signature,
             ),
             name="pearnly-master-refresh",

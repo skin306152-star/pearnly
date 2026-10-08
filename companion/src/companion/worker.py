@@ -413,8 +413,9 @@ def _run_periodic(
                 now,
                 bool(refresh_request_id and refresh_scope == "endpoint"),
                 authorized,
-                # 配对时选了「全部授权」(授权了不止一个年度文件夹):「重新读取」时连新建的年度文件夹一起找。
-                discover=len(authorized) > 1,
+                # 配对时检测到的年度文件夹全部授权（网页第一步再选）：新建的年度文件夹也照样找进来，
+                # 只授权过一个年度的也一样（2026-10-08：原来只在授权多个、且有人点「重新读取」时才找）。
+                discover=True,
             )
             if master is not None:
                 _remember_roots(cfg, authorized, master.get("roots"))

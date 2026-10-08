@@ -24,6 +24,9 @@ import ntpath
 import os
 import shutil
 import subprocess
+import threading
+import time
+from collections import deque
 from pathlib import Path
 from typing import List, Mapping, Optional, Sequence, Tuple
 
@@ -34,6 +37,18 @@ _EXP_GLOBS = (_EXP_GLOB, "*exp*")
 # 直连账套服务器共享(未映射盘符时仍可命中);映射成 P:/S: 的场景由挂载盘扫描覆盖。
 _SHARE_PARENTS = (r"\\accserver\ACCOUNT",)
 _SHORTCUT_TIMEOUT_SECONDS = 3.0
+# 深层扫描（2026-10-08，换事务所 / 局域网布局不漏扫）：不认文件夹名，只认 `secure\SCCOMP.DBF`；
+# 在各个起点下最多往下 3 层，遇到账套文件夹（直接放着 .DBF）与系统目录不再往下钻；
+# 每个起点单独限时、限目录数，起点并行扫，整体也限时 —— 够不到的网络盘只会让那一个起点超时，不拖住别的。
+_DEEP_DEPTH = 3
+_DEEP_SECONDS_PER_PARENT = 8.0
+_DEEP_MAX_DIRS_PER_PARENT = 5000
+_DEEP_TOTAL_SECONDS = 20.0
+_SKIP_DIR_NAMES = frozenset({
+    "windows", "program files", "program files (x86)", "programdata", "$recycle.bin",
+    "system volume information", "recovery", "perflogs", "msocache", "appdata", "node_modules",
+    "$windows.~bt", "$windows.~ws", "windowsapps", "secure",
+})
 
 log = logging.getLogger("pearnly_companion.express_locate")
 
@@ -320,6 +335,144 @@ def _mounted_drive_roots() -> List[str]:
     return [f"{chr(65 + i)}:\\" for i in range(26) if bitmask & (1 << i)]
 
 
+def _is_data_root(path: str) -> bool:
+    try:
+        return os.path.isfile(os.path.join(path, "secure", "SCCOMP.DBF"))
+    except OSError:
+        return False
+
+
+def _walk_data_roots(parent: str, *, depth: int = _DEEP_DEPTH, seconds: float = _DEEP_SECONDS_PER_PARENT,
+                     max_dirs: int = _DEEP_MAX_DIRS_PER_PARENT) -> List[str]:
+    """从 parent 往下最多 depth 层找数据根（任何文件夹名）。找到的数据根、账套文件夹、系统目录都不再往下。"""
+    found: List[str] = []
+    deadline = time.monotonic() + seconds
+    queue = deque([(parent, 0)])
+    listed = 0
+    while queue and listed < max_dirs and time.monotonic() < deadline:
+        current, level = queue.popleft()
+        try:
+            with os.scandir(current) as entries:
+                children = list(entries)
+        except OSError:
+            continue
+        listed += 1
+        if level and any(entry.name.casefold().endswith(".dbf") and _plain_file(entry) for entry in children):
+            continue  # 账套文件夹（一堆 .DBF）：里面不会再套一个数据根
+        for entry in children:
+            if not _plain_dir(entry) or entry.name.casefold() in _SKIP_DIR_NAMES or entry.name.startswith((".", "~")):
+                continue
+            if _is_data_root(entry.path):
+                found.append(entry.path)
+            elif level + 1 < depth:
+                queue.append((entry.path, level + 1))
+    return found
+
+
+def _plain_dir(entry) -> bool:
+    """真目录（不跟符号链接、不进 NTFS 联接点，免得绕圈）。"""
+    try:
+        if entry.is_symlink() or (hasattr(entry, "is_junction") and entry.is_junction()):
+            return False
+        return entry.is_dir(follow_symlinks=False)
+    except OSError:
+        return False
+
+
+def _plain_file(entry) -> bool:
+    try:
+        return entry.is_file(follow_symlinks=False)
+    except OSError:
+        return False
+
+
+def _deep_scan(parents: Sequence[str], total_seconds: float = _DEEP_TOTAL_SECONDS) -> List[str]:
+    """各起点并行做有界深层扫描，整体限时；超时的起点结果丢掉。用后台守护线程：卡在够不到的网络盘上的线程
+    不会拖住小助手退出（线程池在解释器退出时会等它）。"""
+    starts, seen = [], set()
+    for parent in parents:
+        key = ntpath.normcase(ntpath.normpath(str(parent or "")))
+        if parent and key not in seen:
+            seen.add(key)
+            starts.append(str(parent))
+    results: dict = {}
+
+    def run(index: int, start: str) -> None:
+        try:
+            results[index] = _walk_data_roots(start)
+        except Exception as exc:  # noqa: BLE001 - 某个起点读不了就跳过
+            log.debug("Express deep scan failed (%s, %s)", _safe_path_label(start), type(exc).__name__)
+
+    workers = [threading.Thread(target=run, args=(index, start), name="pearnly-express-scan", daemon=True)
+               for index, start in enumerate(starts)]
+    deadline = time.monotonic() + total_seconds
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(max(0.0, deadline - time.monotonic()))
+    found: List[str] = []
+    for index in range(len(starts)):  # 按起点顺序，结果稳定
+        found.extend(results.get(index, []))
+    return found
+
+
+def _network_share_roots() -> List[str]:
+    """这台电脑登记过的网络共享：映射过的网络盘的真实地址（断开的也在）与「映射网络驱动器」用过的地址。"""
+    out: List[str] = []
+    try:
+        import winreg
+    except ImportError:
+        return out
+
+    def values(path: str):
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as key:
+                index = 0
+                while True:
+                    try:
+                        name, value, _kind = winreg.EnumValue(key, index)
+                    except OSError:
+                        return
+                    index += 1
+                    yield name, value
+        except OSError:
+            return
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Network") as network:
+            index = 0
+            while True:
+                try:
+                    letter = winreg.EnumKey(network, index)
+                except OSError:
+                    break
+                index += 1
+                for name, value in values("Network\\" + letter):
+                    if name == "RemotePath":
+                        out.append(str(value))
+    except OSError:
+        pass
+    for name, value in values(r"Software\Microsoft\Windows\CurrentVersion\Explorer\Map Network Drive MRU"):
+        if name != "MRUList":
+            out.append(str(value))
+    seen, ordered = set(), []
+    for path in out:
+        clean = path.strip().rstrip("\\/")
+        if clean.startswith("\\\\") and clean.casefold() not in seen:
+            seen.add(clean.casefold())
+            ordered.append(clean)
+    return ordered
+
+
+def _user_folders(environ: Optional[Mapping[str, str]] = None) -> List[str]:
+    """小办公室常把账套放在个人文件夹（桌面、文档）下，那里比盘符根深一层，单独作为起点。"""
+    env = environ if environ is not None else os.environ
+    home = (env.get("USERPROFILE") or "").strip()
+    if not home:
+        return []
+    return [home, ntpath.join(home, "Desktop"), ntpath.join(home, "Documents")]
+
+
 def _scan_exp_roots(parents: List[str]) -> List[str]:
     """在候选父目录下按 `*EXP*/secure/SCCOMP.DBF` 找数据根,兼顾年份子目录(深度≤2)。
 
@@ -359,11 +512,15 @@ def candidate_roots() -> List[str]:
     install_dirs = _registry_install_dirs()
     cands.extend(install_dirs)  # 安装目录本身也可能直接是数据根
     cands.extend(_shortcut_candidate_roots())
-    parents = _mounted_drive_roots() + list(_SHARE_PARENTS)
+    shares = _network_share_roots()
+    parents = _mounted_drive_roots() + list(_SHARE_PARENTS) + shares
     for loc in install_dirs:  # 安装目录及其父目录当扫描父(年度根常与 exe 同级/邻级)
         parents.append(loc)
         parents.append(str(Path(loc).parent))
     cands.extend(_scan_exp_roots(parents))
+    # 再按「只认登记表、不认文件夹名」往深处找一遍：文件夹不叫 *EXP*、放得更深、在没映射成盘符的共享上的，
+    # 都在这里补上（原来那一遍照旧在前，结果顺序不变）。
+    cands.extend(_deep_scan([*parents, *_user_folders()]))
     seen, ordered = set(), []
     for c in cands:
         key = c.lower().rstrip("\\/")

@@ -234,3 +234,23 @@ def test_slow_registry_stamp_does_not_hold_back_a_full_scan(monkeypatch):
 
     assert result[0] == {"account_sets": [{"path": r"\\server\books/A"}]}
     assert time.monotonic() - started < 1.0
+
+
+def test_a_full_rescan_also_looks_for_new_year_folders_without_anyone_clicking(monkeypatch):
+    """2026-10-08：启动后第一次整套扫描（之后每天一次）就找新年度文件夹，不用等网页「重新读取」；
+    平时只比登记表变没变的那几次不找（不额外跑盘）。"""
+    looked = []
+    monkeypatch.setattr(master_refresh, "_WATCH_INTERVAL_S", 0.0)
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: (1, 1) if root != "E:/71EXP" else (2, 2))
+    monkeypatch.setattr(express_locate, "candidate_roots", lambda: looked.append(True) or ["E:/71EXP"])
+    monkeypatch.setattr(express_locate, "sccomp_company_count", lambda root: 5)
+    monkeypatch.setattr(account_probe, "account_sets_payload", lambda root: [{"path": f"{root}/A", "root": root}])
+    monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
+
+    first = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", discover=True))
+    assert first[0]["roots"] == ["C:/books", "E:/71EXP"]
+    assert looked == [True]
+
+    master_refresh.request_master("C:/books", "C:/books/A", newer_than=first[1], discover=True)
+    time.sleep(0.1)
+    assert looked == [True]  # 平时的变化检查不找
