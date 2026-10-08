@@ -43,4 +43,11 @@
 
 - 小助手 604 通过（新增 `test_account_rules.py` 7、写入层 5：对方档科目、HP / HS 现金、期末盘存制、现金客户）。
 - `test_cowork_mrerp_masters` 10、`test_cowork_express_choices` 9、Development checks 各步 0 失败；Cowork 全量与 main 失败项相同。
-- 生产镜像推送测试与离线检查：见提交记录。
+- 生产镜像（测试机，挂本工作树源码）：mrerp_push 39、mrerp_menus 17、express_choices 9、folder_intake 18、push_lifecycle 30、
+  push_native_contract 12、push_contract 19、targets 39、line_intake 27、express_mapper 31、express_sales_mapper 31、
+  express_preflight 23 等全部通过；`ci-candidate-checks.sh offline` 通过。
+- 62 套真实账套副本离线写入回归（只写临时副本，原件未动）：每套写 RR / HP / IV / HS 合成单 242 张，239 张成功且逐项核对通过
+  （科目存在可记账、控制科目、现金科目、到期日、单位 ชน、主仓、类型码、PEARNLY、期末盘存 7 套记购货）。3 张失败是账套里
+  个别行带 cp874 解不出的字节（3 套）→ 改为读表时替换坏字节（`S.UNICODE_ERRORS`，原字节不动）；另发现新建现金客户没标
+  新建主档 → 已修。修后 8 套复跑（含失败的 3 套）32 张全过，原有记录逐字节未变。
+- 未验证：Express 的 CDX 索引重建与回查（需 Windows 上的重建程序）、Express 界面打开、库存模式明细。
