@@ -115,7 +115,7 @@ class Workbook(unittest.TestCase):
 		book = self.sheets()
 		match = book.worksheets[1]
 		layers = [match.cell(row, 2).value for row in range(2, 6)]
-		self.assertEqual(layers[0], "L1-精确日期")
+		self.assertEqual(layers[0], "L1-日期一致")
 		self.assertEqual(layers[1:], ["L4-合计匹配（按预设） #1"] * 3)
 
 	def test_the_ledger_sheet_skips_the_bank_side_of_a_group(self):

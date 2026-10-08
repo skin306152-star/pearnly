@@ -129,8 +129,8 @@ def build_summary_sheet(
     # ── 1. Title ──
     _RECON_TITLE = {
         "en": "Bank Reconciliation",
-        "zh": "银行对账",
-        "th": "กระทบยอด GL กับบัญชีธนาคาร",
+        "zh": "银行存款余额调节表",
+        "th": "งบกระทบยอดเงินฝากธนาคาร",
         "ja": "銀行照合",
     }
     r = 1

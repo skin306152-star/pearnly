@@ -48,7 +48,7 @@ class SheetLayout(unittest.TestCase):
 	"""Cowork 统一复核表（用户 2026-09-26）：没有 KPI 与使用说明，外观走 export/theme.py。"""
 
 	def test_the_two_sheets_are_named_in_the_requested_language(self):
-		for lang, names in [("th", ("รายละเอียดผลต่าง", "กระทบยอด")),
+		for lang, names in [("th", ("รายละเอียดผลต่าง", "สรุปการกระทบยอด")),
 				("zh", ("差异明细", "对账汇总")),
 				("en", ("Detail", "Reconciliation")),
 				("ja", ("差異明細", "照合まとめ"))]:
@@ -59,7 +59,7 @@ class SheetLayout(unittest.TestCase):
 
 	def test_an_unknown_language_falls_back_to_thai(self):
 		book = sheets(income_workbook.export_gl_vat_excel([], summary(), lang="bogus"))
-		self.assertEqual(book.sheetnames, ["รายละเอียดผลต่าง", "กระทบยอด"])
+		self.assertEqual(book.sheetnames, ["รายละเอียดผลต่าง", "สรุปการกระทบยอด"])
 
 	def test_the_detail_sheet_starts_with_its_header(self):
 		content = income_workbook.export_gl_vat_excel([detail_row(), detail_row("GL-2")],

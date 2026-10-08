@@ -83,7 +83,7 @@ class WorkbookTest(unittest.TestCase):
         self.assertEqual(kinds.count("invoice_orphan") + kinds.count("report_orphan"), 2)
         book = openpyxl.load_workbook(io.BytesIO(content))
         # 统一复核表：没有使用说明页；对账结果第 1 行就是表头（不写标题、期间说明与 KPI 卡）。
-        self.assertEqual(book.sheetnames, ["发票明细", "VAT 报告明细", "对账结果"])
+        self.assertEqual(book.sheetnames, ["发票明细", "销项税报告明细", "对账结果"])
         result = book["对账结果"]
         self.assertEqual((result.cell(1, 1).value, result.freeze_panes), ("#", "A2"))
         self.assertEqual(result.max_row, 1 + len(summary["rows"]))
