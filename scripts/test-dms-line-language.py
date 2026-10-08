@@ -147,7 +147,7 @@ class EditorAndDiffLabels(unittest.TestCase):
              patch("pearnly_core.line.user_language", return_value="zh"):
             result = browser_api.browser_save("t", "n1", {})
         self.assertEqual((result["nonce"], seen["lang"], seen["kept"]), ("n2", "zh", True))
-        self.assertEqual(result["marker"], f"已修改资料 #{result['code']}", "the chat sentence is in the recipient's language")
+        self.assertEqual(result["marker"], f"资料已修改 #{result['code']}", "the chat sentence is in the recipient's language")
         self.assertEqual(i18n.line_lang(), "th", "the language block ends with the request")
 
 

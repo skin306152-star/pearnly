@@ -675,7 +675,7 @@ class DmsPageReply(unittest.TestCase):
     def test_saved_card_goes_back_once_with_the_free_reply_token(self):
         with patch.object(frappe.local, "dms_line_lang", "zh", create=True):
             held = self.page_reply.hold("U-sales", [{"type": "flex", "altText": "card"}])
-        self.assertEqual(held["marker"], f"已修改资料 #{held['code']}")
+        self.assertEqual(held["marker"], f"资料已修改 #{held['code']}")
         self.assertTrue(self.page_reply.route("U-sales", "tok-1", held["marker"]))
         self.send.assert_called_once_with("U-sales", [{"type": "flex", "altText": "card"}], "tok-1")
         self.assertTrue(self.page_reply.route("U-sales", "tok-2", held["marker"]))
@@ -788,7 +788,7 @@ class DmsReviewLanguage(unittest.TestCase):
 
     def test_checksum_sentence_is_translated_and_thai_keeps_its_wording(self):
         text, _ = self.say("zh", ["people_id_checksum"])
-        self.assertEqual(text, "已读到 13 位身份证号，但校验位不符。请核对卡面上的号码，再重新拍照，让号码清晰可见。")
+        self.assertEqual(text, "身份证号校验位不符，请核对卡面号码后重新拍照，确保号码清晰可见。")
         text, _ = self.say("th", ["people_id_checksum"])
         self.assertTrue(text.startswith("อ่านเลขบัตรประชาชนได้ครบ 13 หลัก แต่หลักตรวจสอบไม่ผ่าน"), text)
         text, _ = self.say("ja", [])
