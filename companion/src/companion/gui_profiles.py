@@ -7,8 +7,8 @@ from typing import Callable, Mapping, Optional
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QRect, QTimer, Qt
-from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QRect, QSize, QTimer, Qt
+from PySide6.QtGui import QFont, QFontDatabase, QFontInfo, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -237,6 +237,9 @@ class ProfileManagerDialog(QDialog):
         footer.addWidget(self.upd_lbl)
         self.upd_btn = QPushButton()
         self.upd_btn.setFlat(True)
+        # 图标与按钮文字一样高（9 号字约 12 像素）；原来固定 16 像素，比旁边的字大一圈（用户 2026-10-08：图标太大）。
+        self._icon_px = max(10, QFontInfo(self.upd_btn.font()).pixelSize())
+        self.upd_btn.setIconSize(QSize(self._icon_px, self._icon_px))
         self.upd_btn.clicked.connect(self._update_clicked)
         footer.addWidget(self.upd_btn)
         footer.addStretch(1)
@@ -401,7 +404,7 @@ class ProfileManagerDialog(QDialog):
         glyph = GLYPH_DOWNLOAD if waiting else GLYPH_REFRESH
         if self.upd_btn.property("glyph") != glyph:
             self.upd_btn.setProperty("glyph", glyph)
-            self.upd_btn.setIcon(glyph_icon(glyph, self.upd_btn.palette().buttonText().color()))
+            self.upd_btn.setIcon(glyph_icon(glyph, self.upd_btn.palette().buttonText().color(), self._icon_px))
         self.upd_btn.setVisible(not busy)
 
     def _update_clicked(self) -> None:

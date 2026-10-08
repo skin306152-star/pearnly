@@ -303,10 +303,11 @@ def test_update_button_uses_the_windows_icons_refresh_then_download(tmp_path, mo
     monkeypatch.setattr(gui_profiles.autostart, "is_enabled", lambda: True)
     from PySide6.QtGui import QIcon, QPixmap
 
-    drawn = []
+    drawn, sizes = [], []
 
-    def fake_icon(glyph, _color):
+    def fake_icon(glyph, _color, size=16):
         drawn.append(glyph)
+        sizes.append(size)
         pixmap = QPixmap(16, 16)
         pixmap.fill()
         return QIcon(pixmap)
@@ -322,6 +323,10 @@ def test_update_button_uses_the_windows_icons_refresh_then_download(tmp_path, mo
     assert dialog.upd_btn.property("glyph") == gui_profiles.GLYPH_DOWNLOAD
     dialog._paint_update()  # 状态没变不重画图标
     assert drawn == [gui_profiles.GLYPH_REFRESH, gui_profiles.GLYPH_DOWNLOAD]
+    # 图标与按钮文字一样高，不是固定 16 像素
+    from PySide6.QtGui import QFontInfo
+    text_px = QFontInfo(dialog.upd_btn.font()).pixelSize()
+    assert set(sizes) == {max(10, text_px)} and dialog.upd_btn.iconSize().height() == max(10, text_px)
 
 
 def test_without_the_windows_icon_font_the_button_is_text_only(monkeypatch, tmp_path):
