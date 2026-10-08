@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""盯住"写死的用户可见文案"：Frappe 原生这一层（DocType、Desk 脚本、服务端消息、工作区）。
+"""盯住"写死的用户可见文案"（中文与泰文）：Frappe 原生这一层（DocType、Desk 脚本、服务端消息、工作区）。
 
 用户 2026-09-19 的要求："不许写死任何文案和语言，包括管理后台租户的语言一样"。
 所以需要一台机器来盯着这件事，而不是靠人记得 —— 这就是本脚本。
@@ -17,14 +17,15 @@
 
   · 代码注释与文档字符串 —— 写给开发看的，不进界面（用 ast 精确排除，不靠正则猜）
   · pearnly_dms 的 LINE 卡片文案 —— 已经走自己的语义键（dms.card.*），有各自的防漏键守卫
-  · Vue 业务前端（frontend/）—— 按 ADR-005/006 是 Vue I18n 那一摊，单独一批做
+  · Vue 业务前端（frontend/）—— 按 ADR-005/006 是 Vue I18n 那一摊，由 check-frontend-i18n.py 管
+  · 测试文件（test_*.py）—— 里面的中文 / 泰文是样例数据
 
 用法：
 
     python3 scripts/check-i18n.py                 # 报告：按类型 / 按 app / 按文件 / 去重文案
     python3 scripts/check-i18n.py --app pearnly_control
     python3 scripts/check-i18n.py --list          # 逐条明细（file:line kind text）
-    python3 scripts/check-i18n.py --strict        # 有发现就退出码 1（给闸门用）
+    python3 scripts/check-i18n.py --strict        # 有界面文案就退出码 1（CI 闸门；日志等 py-internal-* 只列不拦）
     python3 scripts/check-i18n.py --missing zh    # 英文 msgid 里缺 zh 译文的
     python3 scripts/check-i18n.py --missing-all   # zh / th / ja 一起看
 """
@@ -52,7 +53,9 @@ APPS = ("pearnly_core", "pearnly_control", "pearnly_cowork", "pearnly_dms", "pea
 # 翻译包要覆盖的语言（租户默认泰语，控制面中文，英文是 msgid 本身不用翻）
 LANGS = ("zh", "th", "ja")
 
-CJK = re.compile(r"[\u4e00-\u9fff]")
+# 写死在代码里的中文和泰文都算（泰文是客户主要语言，2026-10-08 起一并盯）。
+# 泰文只认字母与符号，不认 ฿（U+0E3F）：货币符号夹在英文 msgid 里是正常的。
+CJK = re.compile(r"[\u4e00-\u9fff\u0e01-\u0e3a\u0e40-\u0e5b]")
 
 SKIP_DIRS = {
     "node_modules",
@@ -583,6 +586,9 @@ def collect(apps: tuple) -> list:
         for path in _walk_app(app, (".js",)):
             findings += scan_js(path)
         for path in _walk_app(app, (".py",)):
+            # 测试文件里的中文 / 泰文是样例数据（模拟用户输入、票面字样），不进界面
+            if os.path.basename(path).startswith("test_"):
+                continue
             findings += scan_python(path)
     return findings
 
@@ -671,8 +677,10 @@ def main() -> int:
                 continue
             seen_reason.add(reason)
             print("  %s" % reason)
-    if args.strict and real:
-        print("RESULT: FAIL（--strict）")
+    # 日志、断言、内部异常（py-internal-*）只列出来，不拦：它们不进界面
+    blocking = [item for item in real if not item["kind"].startswith("py-internal-")]
+    if args.strict and blocking:
+        print("RESULT: FAIL（--strict，界面文案 %d 条）" % len(blocking))
         return 1
     print("RESULT: REPORT-ONLY")
     return 0

@@ -22,12 +22,12 @@ def render(system_url, username, password, language):
     home = origin + root + "/home/home.php"
     nonce = secrets.token_urlsafe(24)
     text = lambda key: html.escape(t("dms.account." + key, lang=language))
+    # 2026-09-25 操作员反馈：这个中转页原来只有一个贴着左边的小按钮。
+    # 现在正文居中、按钮做大并居中；样式走 nonce，不放松整页 CSP。
     page = f'''<!doctype html><html lang="{html.escape(language or '', quote=True)}"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>DMS</title>
 <style nonce="{nonce}">
-  /* 2026-09-25 操作员反馈：这个中转页原来只有一个贴着左边的小按钮。
-     现在正文居中、按钮做大并居中；样式走 nonce，不放松整页 CSP。 */
   html, body {{ margin: 0; height: 100%; }}
   body {{ display: flex; align-items: center; justify-content: center;
           font-family: -apple-system, "Noto Sans Thai", "Helvetica Neue", sans-serif;
