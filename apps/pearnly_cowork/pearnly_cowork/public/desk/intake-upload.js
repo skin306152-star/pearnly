@@ -856,10 +856,10 @@
 		};
 
 		/* ── 识别进度：白底 + 官方转圈（`p.waiting`，用户 2026-09-30「白屏加动画」，原来是整屏灰遮罩）。
-		 * 第一屏（压测窗口转用户 2026-10-02）：选完图片马上在转圈下面摆本机原图，不等上传和识别；进度只写真实阶段的最短词
+		 * 不摆原件（用户 2026-10-08：只显示一张、几乎静止，没用）；进度只写真实阶段的最短词
 		 * —— 上传中 / 排队中（已交给识别、还没从队列取出）/ 识别中（服务端开始识别时推的 `reading`）/ 第几页（多页文件，
 		 * `pages_done`：开始读第 N 页时前 N−1 页已读完）；一次传多份时每个阶段后面跟真实份数。不估百分比。 */
-		const progress = {rows: [], frozen: null, image: ""};
+		const progress = {rows: [], frozen: null};
 		const row_pages = row => Math.max(1, Number(row.pages) || 1);
 		const stage_of = row => {
 			if (row.state === "new" || row.state === "uploading") return "uploading";
@@ -885,14 +885,12 @@
 		};
 		const paint_progress = () => {
 			if (!live) return;
-			if (!progress.frozen) progress.frozen = p.waiting(page, "", {image: progress.image});
+			if (!progress.frozen) progress.frozen = p.waiting(page, "");
 			progress.frozen.update(progress_lines().join("\n"));
 		};
 		const end_progress = () => {
 			progress.frozen?.done();
 			progress.frozen = null;
-			if (progress.image) URL.revokeObjectURL(progress.image);
-			progress.image = "";
 		};
 
 		/** 等一个识别批次出结论；读状态失败不弹窗（静默重试），连续读不到才算失联。 */
@@ -1010,9 +1008,6 @@
 		const run_batch = async waiting => {
 			if (!waiting.length) return;
 			progress.rows = waiting;
-			// 第一屏：这一批第一张图片直接在本机显示（PDF、表格不摆）
-			const shown = waiting.find(row => /^image\//.test(row.file?.type || ""));
-			progress.image = shown ? URL.createObjectURL(shown.file) : "";
 			paint_progress();
 			const pool = async (items, job) => {
 				const queue = items.slice();

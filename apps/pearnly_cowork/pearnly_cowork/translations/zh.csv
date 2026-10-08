@@ -650,6 +650,7 @@ No account sets yet. Use Reload in New Intake first.,还没有账套目录。请
 No cards are assigned to you,还没有分给你的卡片
 No due date,无到期日
 No folder rules yet. Create one and put the documents into its folder.,还没有规则。新建一条，把单据放进对应的文件夹即可。
+No folders on this PC yet. Add them in the Companion on that PC.,这台电脑还没有可选的文件夹，请在这台电脑的小助手里添加。
 No invoice could be read.,没有读出任何发票。
 No invoice summary found,未识别到摘要
 No invoice was found in this document.,这份单据里没有识别到发票。
@@ -1468,6 +1469,7 @@ cowork.folder.lastDay,月末
 cowork.folder.mastersLoading,小助手还在读这份账套，稍后重新打开即可选科目。
 cowork.folder.new,新建规则
 cowork.folder.noExpress,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
+cowork.folder.noRoots,这台电脑还没有可选的文件夹，请在这台电脑的小助手里添加。
 cowork.folder.noRuns,还没有运行记录
 cowork.folder.off,已停用
 cowork.folder.on,启用中

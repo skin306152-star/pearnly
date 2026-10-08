@@ -650,6 +650,7 @@ No account sets yet. Use Reload in New Intake first.,ยังไม่มีร
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No due date,ไม่มีกำหนดส่ง
 No folder rules yet. Create one and put the documents into its folder.,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
+No folders on this PC yet. Add them in the Companion on that PC.,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนั้น
 No invoice could be read.,ไม่สามารถอ่านใบกำกับได้เลย
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 No invoice was found in this document.,ไม่พบเอกสารที่อ่านได้ในไฟล์นี้
@@ -1468,6 +1469,7 @@ cowork.folder.lastDay,วันสุดท้ายของเดือน
 cowork.folder.mastersLoading,ผู้ช่วยกำลังอ่านชุดบัญชีนี้ เปิดกฎอีกครั้งในอีกสักครู่เพื่อเลือกบัญชี
 cowork.folder.new,สร้างกฎ
 cowork.folder.noExpress,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
+cowork.folder.noRoots,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนั้น
 cowork.folder.noRuns,ยังไม่มีประวัติ
 cowork.folder.off,ปิดใช้งานแล้ว
 cowork.folder.on,เปิดใช้งาน

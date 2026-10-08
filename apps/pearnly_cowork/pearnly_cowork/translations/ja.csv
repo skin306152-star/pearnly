@@ -650,6 +650,7 @@ No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだあり
 No cards are assigned to you,割り当てられたカードはありません
 No due date,期日なし
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
+No folders on this PC yet. Add them in the Companion on that PC.,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
@@ -1468,6 +1469,7 @@ cowork.folder.lastDay,月末
 cowork.folder.mastersLoading,コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。
 cowork.folder.new,ルールを作成
 cowork.folder.noExpress,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
+cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
 cowork.folder.noRuns,実行履歴はまだありません
 cowork.folder.off,停止中
 cowork.folder.on,有効

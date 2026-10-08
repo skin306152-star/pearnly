@@ -175,8 +175,10 @@
 				folders.unshift({value: saved, label: [rule.root_label, rule.folder].filter(Boolean).join("\\") || rule.folder});
 			}
 			set_options("folder", folders, rule ? `${rule.root_id}|${rule.folder || ""}` : null);
-			d.set_df_property("folder", "description", state.options && !state.options.agent?.fresh
-				? ft("cowork.folder.agentStaleHint") : ft("cowork.folder.folderHint"));
+			// 小助手在线但这台电脑还没给这条连接添加文件夹：下拉是空的，说清去哪添加。
+			const hint = !state.options ? "cowork.folder.folderHint" : !state.options.agent?.fresh ? "cowork.folder.agentStaleHint"
+				: !(state.options.roots || []).length ? "cowork.folder.noRoots" : "cowork.folder.folderHint";
+			d.set_df_property("folder", "description", ft(hint));
 		};
 		const load_options = async () => {
 			if (!state.connection) return;

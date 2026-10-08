@@ -650,6 +650,7 @@ No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Re
 No cards are assigned to you,No cards are assigned to you
 No due date,No due date
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
+No folders on this PC yet. Add them in the Companion on that PC.,No folders on this PC yet. Add them in the Companion on that PC.
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
@@ -1468,6 +1469,7 @@ cowork.folder.lastDay,Last day of the month
 cowork.folder.mastersLoading,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
 cowork.folder.new,New folder rule
 cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
+cowork.folder.noRoots,No folders on this PC yet. Add them in the Companion on that PC.
 cowork.folder.noRuns,No runs yet
 cowork.folder.off,Rule is off
 cowork.folder.on,Rule is on
