@@ -10,7 +10,6 @@ from pathlib import Path
 from PySide6.QtCore import QRect, QTimer, Qt
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QDialog,
     QFileDialog,
@@ -628,8 +627,9 @@ def open_profile_manager(
         except RuntimeError:
             pass
         _OPEN_MANAGER = None
-    if QApplication.instance() is None:
-        QApplication([])
+    from .gui_font import qt_app
+
+    qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
     _OPEN_MANAGER = ProfileManagerDialog(
         parent,
         profile_states=profile_states,

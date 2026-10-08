@@ -11,7 +11,6 @@ from typing import List, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QFormLayout,
     QHBoxLayout,
@@ -259,8 +258,9 @@ def open_pairing(
         except RuntimeError:
             pass  # 旧 Qt 对象已被回收 → 当作没开着
         _OPEN_DIALOG = None
-    if QApplication.instance() is None:
-        QApplication([])
+    from .gui_font import qt_app
+
+    qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
     _OPEN_DIALOG = PairingDialog(
         parent, lang=lang, profile_id=profile_id, profile_store=profile_store, roots=roots
     )

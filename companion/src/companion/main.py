@@ -45,11 +45,13 @@ def _notify_already_running(cfg: CompanionConfig, headless: bool) -> None:
         print(t("already_running_body", lang))
         return
     try:
-        from PySide6.QtWidgets import QApplication, QMessageBox
+        from PySide6.QtWidgets import QMessageBox
 
         from .gui_tray import pearnly_icon
 
-        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from .gui_font import qt_app
+
+        app = qt_app()  # noqa: F841
         box = QMessageBox()
         box.setWindowIcon(pearnly_icon())
         box.setIcon(QMessageBox.Information)

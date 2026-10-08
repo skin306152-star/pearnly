@@ -13,12 +13,13 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
+from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
 from . import watchdog
 from .config import CompanionConfig
 from .auto_update import AutoUpdate
 from .folder_worker import FolderIntake
+from .gui_font import qt_app
 from .gui_pairing_support import ProbeThread
 from .gui_tray_workers import (
     PollWorker,
@@ -142,7 +143,7 @@ class TrayApp(QObject):
     worker_stopped = Signal(object)
 
     def __init__(self, configs, *, open_connections: bool = False) -> None:
-        app = QApplication.instance() or QApplication([])
+        app = qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
         super().__init__()
         if isinstance(configs, CompanionConfig):
             configs = [configs]
