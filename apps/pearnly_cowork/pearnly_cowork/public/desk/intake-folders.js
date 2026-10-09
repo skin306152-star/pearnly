@@ -61,7 +61,8 @@
 					format: (value, row) => value || row.root_label || ""},
 				{fieldname: "run_day", width: 110, min_width: 90, label: ft("cowork.folder.col.schedule"),
 					format: (value, row) => `${day_label(value)} ${row.run_time || ""}`},
-				{fieldname: "counts", width: 130, min_width: 100, label: ft("cowork.folder.col.result"),
+				// 「ส่งแล้ว 100 · รอดำเนินการ 20」约 178 像素：最窄也放得下，窄窗口时先收任务名、账套、文件夹（10-09 #21）。
+				{fieldname: "counts", width: 210, min_width: 200, label: ft("cowork.folder.col.result"),
 					format: (value, row) => ft("cowork.folder.counts", row.results?.entered || 0, row.results?.attention || 0)},
 				// 状态列与对账任务列表同宽：泰文「เปิดใช้งานอยู่」等比中文长，90 宽会把药丸连圆角一起切掉（10-09）。
 				{fieldname: "enabled", width: 170, min_width: 140, label: t("intake.col.status"),
@@ -106,7 +107,7 @@
 		const ADAPTERS = ["mrerp", "express"];
 		const picked = {target: rule?.adapter || null};
 		const state = {groups: [], options: null, loading: 0, catalog: 0,
-			account_set_key: rule?.account_set_key || null, group: null};
+			account_set_key: rule?.account_set_key || null, group: null, requested: null};
 		// 「新建录入」记在这台浏览器上的「这条连接上次选的账套」，同一个键，两边互相预选。
 		const remembered = name => {
 			try { return name ? localStorage.getItem("pearnly.intake.account_set." + name) || "" : ""; } catch (error) { return ""; }
@@ -203,7 +204,7 @@
 		$("<div class='pearnly-choice-title'>").text(__("intake.target.title")).appendTo(host);
 		const target_choice = p.cowork_choice(host, {value: picked.target, enabled: !rule, on_change: value => {
 			picked.target = value;
-			Object.assign(state, {groups: [], options: null, account_set_key: null, group: null});
+			Object.assign(state, {groups: [], options: null, account_set_key: null, group: null, requested: null});
 			for (const name of ["year", "account_set_key", "folder", "d_account", "d_department"]) d.set_value(name, "");
 			open_steps();
 		}});
@@ -309,7 +310,6 @@
 			// 回来时账套已经换了（例如打开弹窗时先按空账套取了一次）：这一份没有那份账套的科目，不用。
 			if (ticket !== state.loading || !options || key !== (express() ? d.get_value("account_set_key") || null : null)) return;
 			state.options = options;
-			state.options_key = key;
 			paint_folders();
 			paint_stock();
 			paint_defaults();
@@ -348,15 +348,17 @@
 		const on_group = async () => {
 			const group = state.groups.find(row => row.value === d.get_value("year"));
 			const items = (group?.items || []).map(row => ({value: row.value, label: row.label}));
-			set_options("account_set_key", items, state.account_set_key);
+			// 官方 set_value 是异步的：等值落定再读，否则预选的账套读成空、不请小助手读主档（10-09 实测 #19）。
+			await set_options("account_set_key", items, state.account_set_key);
 			enable("account_set_key", Boolean(items.length));
 			await on_account();
 		};
 		const on_account = async () => {
 			const next = d.get_value("account_set_key") || null;
 			// 换年度时下拉先被清空一次：不把任务原来的账套也清掉，等新的选项铺好再按它预选。
-			if (!next || (next === state.account_set_key && state.options_key === next)) return;
-			state.account_set_key = next;
+			// 同一份账套只请求一次（预选时 on_group 与下拉的 onchange 都会走到这里）。
+			if (!next || next === state.requested) return;
+			state.requested = state.account_set_key = next;
 			// 与「新建录入」一样：选了 Express 账套就请小助手读这份账套的主档（科目、部门、存货科目组）；打开已有任务不重复请求。
 			if (express() && next !== rule?.account_set_key) p.intake_targets.prefetch_account(connection(), next);
 			await load_options();
@@ -378,14 +380,16 @@
 		return d;
 	}
 
-	/** 运行记录：每次扫了几份、传了几份，以及这一次的文件各走到哪一步。 */
+	/** 运行记录：每次扫了几份、传了几份；推完的按发票算已推送 / 待处理（与列表「结果」同一口径），
+	 * 还在路上的文件写走到哪一步。 */
 	async function runs(rule) {
 		const view = await p.call(API + "runs", {name: rule.name});
-		const STATES = ["done", "pushing", "recognized", "submitted", "source_ready", "uploaded", "registered",
-			"not_invoice", "failed"];
+		const STATES = ["pushing", "recognized", "submitted", "source_ready", "uploaded", "registered", "not_invoice"];
 		const lines = (view.runs || []).map(run => {
-			const states = STATES.filter(name => run.states?.[name])
-				.map(name => `${ft("cowork.folder.state." + name)} ${run.states[name]}`).join(" · ");
+			const {entered = 0, attention = 0} = run.results || {};
+			const states = [...(entered || attention ? [ft("cowork.folder.counts", entered, attention)] : []),
+				...STATES.filter(name => run.states?.[name])
+					.map(name => `${ft("cowork.folder.state." + name)} ${run.states[name]}`)].join(" · ");
 			const missing = ["root_missing", "folder_missing"].includes(run.note) ? ` · ${ft("cowork.folder.folderMissing")}` : "";
 			return `<div class="pearnly-folder-run"><div>${p.escape(frappe.datetime.str_to_user(run.started_at))} · `
 				+ `${p.escape(ft("cowork.folder.trigger." + (run.trigger || "schedule")) + missing)}</div>`

@@ -1735,8 +1735,6 @@ cowork.folder.section.defaults,Default handling for this folder
 cowork.folder.section.folder,Folder and schedule
 cowork.folder.section.target,Where the documents go
 cowork.folder.size_invalid,The file is empty or too large.
-cowork.folder.state.done,Entered into Express
-cowork.folder.state.failed,Could not finish
 cowork.folder.state.not_invoice,Not an invoice file
 cowork.folder.state.pushing,Entering into Express
 cowork.folder.state.recognized,"Recognized, waiting to enter"

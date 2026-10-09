@@ -242,12 +242,9 @@ def reserve(*, context, request_key, frozen_target, frozen_payload,
         business_key = call(business_identity, context, history.invoice_no, history.seller_name)
         rows = frappe.db.sql('''SELECT name,status,result_unknown FROM `tabCowork Push Record`
             WHERE document_key=%s ORDER BY creation DESC,name DESC FOR UPDATE''', (document_key,), as_dict=True)
+        # 只按这张票自己（document_key）挡重复准备；同号票（另一次上传、同发票号同卖方）照常推，不查重
+        # （用户 2026-09-30 / 10-08：Express 手录不拦重复，我们也不拦；10-09 定时任务实测同号票因此卡在「推送中」）。
         for priority in ('already_success', 'active', 'unknown'):
-            if priority == 'active':
-                previous_business = _business_success(business_key)
-                if previous_business:
-                    return {**project(previous_business), 'replayed': False,
-                            'blocked_by': previous_business.name, 'blocked_reason': 'already_success'}
             for candidate in rows:
                 if duplicate_reason(candidate) == priority:
                     previous = _current(RECORD, candidate.name)
@@ -320,15 +317,6 @@ def _supersede_pristine(row, context, loaded):
     row.completed_at = now_utc()
     _save_record(row, row.completed_at)  # modified_by records the current actor.
     return True
-
-
-def _business_success(key, exclude=None):
-    if not key:
-        return None
-    rows = frappe.db.sql("""SELECT name FROM `tabCowork Push Record`
-        WHERE business_key=%s AND status='success' AND name<>%s
-        ORDER BY creation DESC,name DESC LIMIT 1 FOR UPDATE""", (key, exclude or ''))
-    return _current(RECORD, rows[0][0]) if rows else None
 
 
 def read_success(*, context, history=None):
@@ -502,11 +490,6 @@ def lease(name, *, context, adapter, now=None):
         _dispatch_record(row, context)
         if row.status != 'pending' or row.result_unknown:
             raise LeaseUnavailable()
-        duplicate = _business_success(row.business_key, row.name)
-        if duplicate:
-            row.status, row.reason, row.blocked_by = 'manual', 'already_success', duplicate.name
-            _save_record(row, now_utc(now))
-            return {'leased': False, 'reason': 'already_success', 'record': project(row)}
         if any(lock.holder for lock in locks):
             return {'leased': False, 'reason': 'waiting_lock', 'record': project(row)}
         timestamp = now_utc(now)

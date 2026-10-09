@@ -365,21 +365,21 @@ class NativePush(unittest.TestCase):
         self.assertEqual(frappe.db.get_value('Cowork ERP Connection', self.connection['name'], 'record_revision'), 1)
         self.assertEqual(frappe.db.get_value(self.native.RECORD, name, 'status'), 'cancelled')
 
-    def test_business_success_blocks_another_history_and_prepared_before_success(self):
+    def test_same_invoice_in_another_history_is_pushed_again(self):
+        # 不查重（用户 2026-09-30 / 10-08）：同发票号同卖方的另一张票照常准备、照常领取写入。
         first, first_context, claim = self.claimed()
         self.history = self.another_history(invoice=FIXTURE['FIELDS']['invoice_number'])
         self.key = uuid4().hex
         second, second_context = self.prepared()
         self.native.activate(second, context=second_context, adapter=self.adapter)
         self.acknowledge(first, first_context, claim, success=True, express_docnum='BIZ-OK')
-        blocked = self.native.lease(second, context=second_context, adapter=self.adapter)
-        self.assertEqual((blocked['leased'], blocked['reason']), (False, 'already_success'))
-        self.assertEqual(blocked['record']['blocked_by'], first)
-        self.assertEqual(frappe.db.count(self.native.ATTEMPT, {'push_record': second}), 0)
+        leased = self.native.lease(second, context=second_context, adapter=self.adapter)
+        self.assertTrue(leased['leased'], leased)
         self.history = self.another_history(invoice=FIXTURE['FIELDS']['invoice_number'])
-        blocked = self.prepare(request_key=uuid4().hex)
-        self.assertEqual((blocked['name'], blocked['blocked_reason']), (first, 'already_success'))
-        self.assertEqual(frappe.db.count(self.native.RECORD, {'history': self.history['name']}), 0)
+        third = self.prepare(request_key=uuid4().hex)
+        self.assertEqual(third['status'], 'prepared', third)
+        self.assertNotIn(third['name'], (first, second))
+        self.assertFalse(third.get('blocked_by'))
 
     def test_lease_and_ack_failure_roll_back_all_rows(self):
         name, context = self.prepared()

@@ -81,8 +81,44 @@ class Sources(unittest.TestCase):
     def test_editing_a_task_keeps_its_default_account_until_the_accounts_are_read(self):
         source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js").read_text()
         self.assertIn("if (state.options?.accounts) {", source)
-        self.assertIn("state.options_key = key;", source)
-        self.assertIn("next === state.account_set_key && state.options_key === next", source)
+        # 打开已有任务时也按任务的账套读一次选项（同一份账套只请求一次，见 `state.requested`）。
+        self.assertIn("if (!next || next === state.requested) return;", source)
+        self.assertIn("state.requested = state.account_set_key = next;", source)
+
+
+class FieldTestSecondRound(unittest.TestCase):
+    """10-09 定时任务实测 17–21。"""
+    APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
+
+    def test_the_same_invoice_from_another_upload_is_pushed_again(self):
+        # 17：账本不再按「发票号 + 卖方」跨票查重（准备、领取写入两处都不拦）；同一张票自己的重复准备照旧挡。
+        source = (self.APP / "push/native/service.py").read_text()
+        self.assertNotIn("_business_success", source)
+        self.assertIn("for priority in ('already_success', 'active', 'unknown'):", source)
+
+    def test_a_file_waits_only_while_its_push_is_in_flight(self):
+        source = (self.APP / "folder_intake/pump.py").read_text()
+        self.assertIn('IN_FLIGHT = ("prepared", "pending", "leased")', source)
+        self.assertIn('== "sent" and status in IN_FLIGHT:', source)
+
+    def test_a_preselected_account_set_reads_its_masters(self):
+        # 19 / 1 补充：官方 set_value 异步，等值落定再读账套，预选的账套也请小助手读主档、按它取选项。
+        source = (self.APP / "public/desk/intake-folders.js").read_text()
+        self.assertIn('await set_options("account_set_key", items, state.account_set_key);', source)
+        self.assertIn("Object.assign(state, {groups: [], options: null, account_set_key: null, group: null, requested: null});",
+                      source)
+
+    def test_run_records_count_invoices_like_the_list(self):
+        rules = (self.APP / "folder_intake/rules.py").read_text()
+        self.assertIn('row["results"] = results(rule.name, row.name)', rules)
+        self.assertIn("def results(rule, run=None):", rules)
+        source = (self.APP / "public/desk/intake-folders.js").read_text()
+        self.assertIn('ft("cowork.folder.counts", entered, attention)', source)
+        self.assertNotIn('"done", "pushing", "recognized"', source)
+
+    def test_the_result_column_fits_the_thai_text(self):
+        source = (self.APP / "public/desk/intake-folders.js").read_text()
+        self.assertIn('{fieldname: "counts", width: 210, min_width: 200,', source)
 
 
 if __name__ == "__main__":

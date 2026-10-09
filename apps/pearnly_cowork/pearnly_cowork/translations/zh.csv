@@ -1735,8 +1735,6 @@ cowork.folder.section.defaults,默认处理
 cowork.folder.section.folder,文件夹与时间
 cowork.folder.section.target,去向
 cowork.folder.size_invalid,文件为空或过大。
-cowork.folder.state.done,已推送
-cowork.folder.state.failed,失败
 cowork.folder.state.not_invoice,不是发票
 cowork.folder.state.pushing,推送中
 cowork.folder.state.recognized,已识别

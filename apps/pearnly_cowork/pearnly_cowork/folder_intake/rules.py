@@ -320,18 +320,22 @@ def project(rule):
             "last_run": last[0] if last else None, "counts": counts(rule.name), "results": results(rule.name)}
 
 
-def results(rule):
-    """按发票算：已推成功几张、要人处理几张（停下待选、退回、失败的文件）、还在路上几份文件。"""
+def results(rule, run=None):
+    """按发票算：已推成功几张、要人处理几张（停下待选、退回、失败的文件）、还在路上几份文件。
+    给了 `run` 就只算那一次运行的（运行记录与列表同一口径，10-09 实测 #20：运行记录按文件数、把退回的也算成已推送）。"""
     entered = attention = 0
-    for row in frappe.db.sql(f"SELECT state, outcome_json FROM `tab{FILE}` WHERE rule=%s AND state IN ('done', 'failed')",
-                             (rule,), as_dict=True):
+    sql, values = f"SELECT state, outcome_json FROM `tab{FILE}` WHERE rule=%s AND state IN ('done', 'failed')", [rule]
+    if run:
+        sql += " AND run=%s"
+        values.append(run)
+    for row in frappe.db.sql(sql, values, as_dict=True):
         if row.state == "failed":
             attention += 1
             continue
         for _name, status, _reason in json.loads(row.outcome_json or "{}").get("_signature") or []:
             entered += status == "success"
             attention += status != "success"
-    moving = sum(count for state, count in counts(rule).items() if state not in ("done", "failed", "not_invoice"))
+    moving = sum(count for state, count in counts(rule, run).items() if state not in ("done", "failed", "not_invoice"))
     return {"entered": entered, "attention": attention, "moving": moving}
 
 
@@ -355,4 +359,5 @@ def runs(name):
                                   "upload_failed", "note"], ignore_permissions=True)
     for row in rows:
         row["states"] = counts(rule.name, row.name)
+        row["results"] = results(rule.name, row.name)
     return {"rule": project(rule), "runs": rows}

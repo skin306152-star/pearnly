@@ -1735,8 +1735,6 @@ cowork.folder.section.defaults,既定の処理
 cowork.folder.section.folder,フォルダーとスケジュール
 cowork.folder.section.target,書類の登録先
 cowork.folder.size_invalid,ファイルが空か大きすぎます。
-cowork.folder.state.done,登録済み
-cowork.folder.state.failed,失敗
 cowork.folder.state.not_invoice,請求書以外
 cowork.folder.state.pushing,登録中
 cowork.folder.state.recognized,読み取り済み

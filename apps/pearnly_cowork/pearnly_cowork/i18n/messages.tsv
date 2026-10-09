@@ -1441,7 +1441,6 @@ Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื
 Record as expense	不抵扣，计入费用	ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย	費用に計上	cowork.folder.vat.expense
 Create it from the document	按票面新建	สร้างใหม่ตามเอกสาร	書類どおり新規作成	cowork.folder.item.new
 Stop and let me choose	暂停并手动选择	หยุดเพื่อเลือกเอง	止めて選択する	cowork.folder.item.ask
-Entered into Express	已推送	ส่งแล้ว	登録済み	cowork.folder.state.done
 Entering into Express	推送中	กำลังส่ง	登録中	cowork.folder.state.pushing
 Recognized, waiting to enter	已识别	อ่านแล้ว	読み取り済み	cowork.folder.state.recognized
 Being recognized	识别中	กำลังอ่าน	読み取り中	cowork.folder.state.submitted
@@ -1449,7 +1448,6 @@ Waiting for recognition	等待识别	รอการอ่าน	読み取り待
 Uploaded from the PC	已上传	อัปโหลดแล้ว	アップロード済み	cowork.folder.state.uploaded
 Uploading from the PC	上传中	กำลังอัปโหลด	アップロード中	cowork.folder.state.registered
 Not an invoice file	不是发票	ไม่ใช่ใบกำกับภาษี	請求書以外	cowork.folder.state.not_invoice
-Could not finish	失败	ไม่สำเร็จ	失敗	cowork.folder.state.failed
 On schedule	定时	ตามกำหนดเวลา	スケジュール	cowork.folder.trigger.schedule
 Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cowork.folder.trigger.manual
 Catch-up after start	开机补运行	ทำงานที่ค้างหลังเปิดเครื่อง	起動後の追い実行	cowork.folder.trigger.catch_up

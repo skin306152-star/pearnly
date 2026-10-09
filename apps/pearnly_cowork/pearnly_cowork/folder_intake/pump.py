@@ -26,6 +26,7 @@ BATCH = "Cowork OCR Batch"
 WORK = "Pearnly OCR Work"
 HISTORY = "Cowork OCR History"
 ACTIVE = ("queued", "running", "deferred")
+IN_FLIGHT = ("prepared", "pending", "leased")  # 推送还在路上的票状态（见 `_settle_step`）
 LOCK = "cowork:folder:pump"
 LOCK_SECONDS = 120
 STEP_SECONDS = 45
@@ -354,12 +355,15 @@ def _signature(entry):
 
 
 def _settle_step(cfg, deadline):
-    """推送都有了结论（成功 / 待人工 / 没推）：这份完成，结果表格可以取了。"""
+    """推送都有了结论（成功 / 待人工 / 没推）：这份完成，结果表格可以取了。
+
+    只等还在路上的（已准备 / 排队 / 小助手正在写）；其余状态都算有了结论，不会因为某种没想到的状态一直等
+    （10-09 实测：同号票没建推送记录，票上一直没有状态，整份永远停在「推送中」）。"""
     def settle(entry):
         outcome = json.loads(entry.outcome_json or "{}")
         signature = _signature(entry)
         for name, status, _reason in signature:
-            if (outcome.get(name) or {}).get("status") == "sent" and status not in ("success", "manual", contracts.DELETED):
+            if (outcome.get(name) or {}).get("status") == "sent" and status in IN_FLIGHT:
                 return _later(entry, 30, "")
         entry.state, entry.finished_at = "done", now_datetime()
         entry.workbook_revision = int(entry.workbook_revision or 0) + 1

@@ -13,7 +13,7 @@
 | 固定来源 | 保持的合同 | 原生落点 |
 | --- | --- | --- |
 | `services/erp/confirmed_push_reservation.py` | 原目标冻结；成功→活跃→未知的阻断；未知结果不直接再投 | `reserve`、`lookup_request`、`recover_expired` |
-| `services/erp/push_dedup_store.py` | 同票已有成功优先；同 owner/endpoint/account、精确票号和卖方名的跨 History 成功防重 | `document_identity`、`business_identity`、`reserve` 及领取前复核 |
+| `services/erp/push_dedup_store.py` | 同票已有成功优先；~~同 owner/endpoint/account、精确票号和卖方名的跨 History 成功防重~~（2026-10-09 有意取消：同号票另一次上传照常准备与领取，用户定不查重；`business_key` 仍记在记录上） | `document_identity`、`reserve` |
 | `services/erp/express_push/agent_store.py`、`agent_lease_store.py` | 120 秒租约；ACK 各 stage；legacy waiting_lock 不消耗 wire attempt；失败三次人工；成功不被晚失败覆盖 | 复用已迁 `push.lifecycle.acknowledgement`，由原生事务执行 |
 | `services/erp/shared_express_agent_queue.py` | managed generation/attempt 验证；managed waiting_lock 推进 wire attempt | 同一原生 attempt 层按冻结 branch 保持 wire 差异 |
 | `services/erp/internal_push_guard.py` | `erp_web`、`line_erp` 属内部 ERP，不能外推 | 复用 `contracts.push.require_external_history`，从当前 History 来源校验 |
@@ -80,7 +80,7 @@ PYTHONPATH=apps/pearnly_cowork:tests python3 -m unittest test_cowork_push_native
 python3 scripts/check-architecture.py
 ```
 
-`scripts/cowork-push-native-lab-verify.py` 24 项为真实 Site 事务验证，要求 `PEARNLY_COWORK_BACKEND_LAB=1`、允许名单中的 Site、专属 marker 和本任务挂载。它复用原生准备的合成 fixture；每个用例独立合成 root，同一互斥用例内部仍共享 root。并发用两个独立数据库进程及旧 RR 快照，测试同/不同 key 准备与双领取。其它场景覆盖 writer 互斥、旧 token、ACK 幂等/失败耗尽/人工、未知保留锁及晚 ACK、撤权/停用、修改后不能重新激活、目录证据失效、撤销与撤权后安全接替、跨 History 防重、事务中断回滚、通用权限与分享，以及 legacy/managed 每种 stage 的真实入口回执格式对照。脚本只输出测试摘要，不打印 token 或载荷；保留带 Synthetic 标识的已提交 lab fixture，不清理共享数据。
+`scripts/cowork-push-native-lab-verify.py` 24 项为真实 Site 事务验证，要求 `PEARNLY_COWORK_BACKEND_LAB=1`、允许名单中的 Site、专属 marker 和本任务挂载。它复用原生准备的合成 fixture；每个用例独立合成 root，同一互斥用例内部仍共享 root。并发用两个独立数据库进程及旧 RR 快照，测试同/不同 key 准备与双领取。其它场景覆盖 writer 互斥、旧 token、ACK 幂等/失败耗尽/人工、未知保留锁及晚 ACK、撤权/停用、修改后不能重新激活、目录证据失效、撤销与撤权后安全接替、同号票另一 History 照常推送（10-09 起）、事务中断回滚、通用权限与分享，以及 legacy/managed 每种 stage 的真实入口回执格式对照。脚本只输出测试摘要，不打印 token 或载荷；保留带 Synthetic 标识的已提交 lab fixture，不清理共享数据。
 
 第一轮 22 项真实 Site 验证有 11 failure + 1 error，没有标为通过：并发用例提交的 holder 与后续用例共用公司/root/account，正确阻挡了后续领取；非默认 DATAB fixture 缺独立 mapping，被源规则正确判 `no_purchase_account`；并发旧 RR 快照触发 MariaDB 1020。已分别修复夹具隔离、补齐目标 mapping，并在合成领取进程的完整本地事务边界增加最多三次仅 QueryDeadlockError 的 rollback→重新读取/授权/领取。内部 service 保持抛出冲突，不能在子步骤吞错或回滚调用方其它工作；未来真实运输调用方也必须先拥有整个本地事务，再采用该模式，不能覆盖任何外部请求或未知结果。增加无 revision 变化的撤权测试后的 23 项由主任务真实 Site 复跑通过（7.970s）。最终回执格式修正另补一项 branch/stage 对照，24 项结果待主任务复跑回填。
 
