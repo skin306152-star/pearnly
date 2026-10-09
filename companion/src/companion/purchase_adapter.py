@@ -16,6 +16,8 @@
 """
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field as df
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
@@ -34,6 +36,25 @@ def allowed_account_sets(selected: str = "") -> tuple:
 
 # Express 采购页 Tab 录入顺序(票头字段;明细分录由 Express 自过账)
 PURCHASE_FIELD_ORDER = ("supplier_code", "ref_no", "doc_date", "base_amount", "vat_rate")
+
+REF_NO_BYTES = 15  # Express 的 REFNUM C(15)（APTRN / ISVAT），按账套编码 cp874 计
+
+
+def fit_ref_no(value, limit: int = REF_NO_BYTES) -> str:
+    """票号放进 Express 的 REFNUM：放得下原样；放不下先去掉分隔符（- / . 空格），还放不下保留后面 limit 字节
+    （流水号在后）。会计手录超长票号也是这样缩（10-09 实测：简易税票号 G0012-69-0045871 共 16 位，停在「字段太长」）。
+    只用于进项（供应商的票号）；销项是自家开的票，税表里的号要和印出来的一致，超长照旧拦下（`dbf_sales`）。"""
+    text = str(value or "").strip()
+
+    def size(item: str) -> int:
+        return len(item.encode("cp874", "replace"))
+
+    if size(text) <= limit:
+        return text
+    compact = re.sub(r"[\s\-/.]", "", text)
+    while size(compact) > limit:
+        compact = compact[1:]
+    return compact
 
 ERR_ACCOUNT_SET_NOT_ALLOWED = "ACCOUNT_SET_NOT_ALLOWED"
 ERR_BAD_DOCTYPE = "BAD_DOCTYPE"
@@ -253,7 +274,7 @@ def build_purchase_entry(payload: Dict[str, Any]) -> PurchaseEntry:
         supplier_address=str(supplier.get("address") or "").strip(),
         supplier_branch=str(supplier.get("branch") or "").strip(),
         supplier_confirmed_new=supplier.get("confirmed_new") is True,
-        ref_no=str(payload.get("ref_no") or "").strip(),
+        ref_no=fit_ref_no(payload.get("ref_no")),
         doc_date=be_date_to_express(payload.get("docdate_be")),
         vat_period=be_period_to_express(payload.get("vat_period_be")),
         vat_rate=_vat_rate_str(payload),

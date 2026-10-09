@@ -29,7 +29,9 @@ from .version import VERSION
 log = get_logger(__name__)
 
 IDLE_SECONDS = 60
-FOLDER_REPORT_SECONDS = 15 * 60
+# 根目录下的文件夹名每 2 分钟重扫一次（原 15 分钟：新建的子文件夹要等很久才出现在网页下拉，10-09 实测）；只读文件夹名、
+# 最多三层两千项，开销很小。
+FOLDER_REPORT_SECONDS = 2 * 60
 UNSTABLE_ROUNDS = 3
 # 服务端「这会儿不收、过后会收」的原因：留着补传。其余（类型、大小…）是这份文件本身不收，不再传。
 RETRY_CODES = {"cowork.folder.owner_not_ready", "cowork.folder.rule_disabled", "cowork.folder.disabled",
@@ -151,7 +153,7 @@ class FolderIntake:
             client.close()
 
     def _report(self, key: str, local_roots: list) -> list:
-        """根目录与下级文件夹名，每 15 分钟重扫一次（文件夹多时扫一遍也要时间）。"""
+        """根目录与下级文件夹名，每 2 分钟重扫一次（根目录数量变了立即重扫）。"""
         now = self._clock()
         cached = self._folders.get(key)
         if cached and now - cached[0] < FOLDER_REPORT_SECONDS and len(cached[1]) == len(local_roots):

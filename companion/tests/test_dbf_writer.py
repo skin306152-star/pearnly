@@ -439,13 +439,18 @@ def test_reject_supplier_no_code_no_name(datat):
     assert not res.ok and res.error_code in (W.ERR_VALIDATION, W.ERR_NEW_SUPPLIER)
 
 
-def test_reject_overlong_ref_no(datat):
-    # REFNUM 是 C(15);16 字节须写前拒,不进 append 才不需回滚。
+def test_overlong_supplier_ref_no_is_fitted_into_refnum(datat):
+    # REFNUM 是 C(15):供应商票号超长先去分隔符(会计手录也这样缩),还长就留后 15 位(流水号在后)。
     res = W.write_purchase(
         _payload(ref_no="PEARNLY-TEST-001"), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False
     )
-    assert not res.ok and res.error_code == W.ERR_FIELD_WIDTH
-    assert _rows(datat, "APTRN", REFNUM="PEARNLY-TEST-001") == []
+    assert res.ok, res.error
+    assert len(_rows(datat, "APTRN", REFNUM="PEARNLYTEST001")) == 1
+    from companion.purchase_adapter import fit_ref_no
+
+    assert fit_ref_no("G0012-69-0045871") == "G0012690045871"
+    assert fit_ref_no("IV2569000000012345") == "569000000012345"
+    assert fit_ref_no("RR/69-001") == "RR/69-001"
 
 
 # ── 零税 ────────────────────────────────────────────────────
