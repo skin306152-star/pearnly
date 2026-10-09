@@ -72,6 +72,20 @@ def face(ex, ey, r=5, gap=24):
 #   dms：身体就是一张蓝色身份证，举着一台黑色小相机
 #   erp：戴黄色小店遮阳帽，身上一段条码带红色扫描线，提着黄色购物篮
 def costume(kind):
+    if kind == "mrerp":   # MR.ERP：蓝色大账本，书脊深蓝、右边一排彩色书签、白框眼镜、黄领带，封面一块 MR.ERP 名牌
+        tabs = "".join(f'<rect x="40" y="{-96 + i * 18}" width="7" height="13" rx="2" fill="{c}" stroke-width="1.6"/>'
+                       for i, c in enumerate(("#ffd84d", "#ff9ba3", "#9fd3b0", "#c9dcee", "#ffd84d")))
+        body = (tabs + '<rect x="-42" y="-104" width="84" height="104" rx="9" fill="#2f5d8a"/>'
+                '<path d="M-31 -104 V0" stroke-width="2.4"/><rect x="-42" y="-104" width="11" height="104" rx="6" fill="#244a6f"/>'
+                '<rect x="-20" y="-94" width="54" height="16" rx="4" fill="#fffdf6" stroke-width="2"/>'
+                + t(7, -82, "MR.ERP", 10, "#2d2b27", "middle", ' stroke="none" font-weight="700"')
+                + '<g class="m-look"><g class="hm-eyes"><rect x="-14" y="-70" width="16" height="13" rx="4" fill="none" stroke="#fffdf6" stroke-width="2.6"/>'
+                '<rect x="8" y="-70" width="16" height="13" rx="4" fill="none" stroke="#fffdf6" stroke-width="2.6"/>'
+                '<path d="M2 -63 h6" stroke="#fffdf6" stroke-width="2.6"/>'
+                '<circle cx="-6" cy="-63.5" r="2.8" fill="#fffdf6" stroke="none"/><circle cx="16" cy="-63.5" r="2.8" fill="#fffdf6" stroke="none"/></g></g>'
+                '<path class="hm-mouth" d="M0 -48 q5 5 10 0" stroke="#fffdf6" stroke-width="2.4"/>'
+                '<path d="M1 -40 h8 l-2 6 l4 22 l-6 7 l-6 -7 l4 -22 Z" fill="#ffd84d" stroke-width="2"/>')
+        return body, (-40, -52), (40, -52), 16, 50
     if kind == "cowork":
         body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
                 '<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V-86 H-39 Z" fill="#ffd84d"/>'
@@ -109,6 +123,10 @@ def prop_svg(kind):
                 '<rect x="-20" y="-15" width="40" height="28" rx="7" fill="#3d362c"/><rect x="-12" y="-21" width="12" height="7" rx="2" fill="#3d362c"/>'
                 '<circle cx="3" cy="-1" r="9" fill="#ffd84d"/><circle cx="3" cy="-1" r="3.5" fill="#fffdf6" stroke="none"/>'
                 '<g class="hm-flash" stroke="#f0b400" stroke-width="3"><path d="M24 -24 l9 -9 M30 -10 h12 M16 -30 v-12"/></g></g>')
+    if kind == "stamp":                       # MR.ERP：审批用的橡皮章（红色章面朝下）
+        return ('<g transform="translate(20 30)" stroke-width="2.6">'
+                '<path d="M-5 -14 Q-5 -22 0 -22 Q5 -22 5 -14 Z" fill="#c49a6b"/><rect x="-3" y="-14" width="6" height="10" fill="#c49a6b"/>'
+                '<rect x="-11" y="-4" width="22" height="9" rx="2" fill="#3d362c"/><rect x="-11" y="5" width="22" height="4" rx="1" fill="#e0565b"/></g>')
     if kind == "basket":                      # ERP：黄色购物篮
         return ('<g transform="translate(22 46)" stroke-width="2.6">'
                 '<path d="M-12 -12 Q0 -32 12 -12" fill="none"/>'
@@ -381,6 +399,94 @@ def erp(L):
     flies = "".join(flyer(f"-{q}", "#er-reg", f"#er-sk{i}", T[i] + 800) for i, (_k, _n, _a, q) in enumerate(prods))
     flies += flyer("+24", "#er-bill", "#er-sk1", 6000, "doc")
     return f'<div class="scene hd-scene" data-scene="erp" data-total="9800">{real}{sys_}{flies}</div>'
+
+
+# ---------------- MR.ERP（专业版）：一张单据保存一次，库存、税、总账一起过账，报表随时出 ----------------
+# 以 MR.ERP 源码为准（/Users/skin/mrerp-source/src）：8 个系统见 index.php；保存采购 / 销售单据时在同一笔事务里写库存卡、
+# 进项 / 销项税、总账（aptran/allsave.php、artran/allsave.php 的 insacglhd）；单据有审批（appsign.php）；
+# 报表有 งบกำไรขาดทุน、งบทดลอง、รายงานภาษีขาย（report/296、284、232）。
+
+def mrerp(L):
+    T = [500, 2900, 5300]                       # 三张单据各自进来的时刻；+700 盖章，+1100 飞进系统，+1500 各模块更新
+    docs = [("ใบรับสินค้า", "หจก. ตัวอย่างวัสดุ", "กระดาษ A4 ×50", "10,700.00", "#ffa94d"),
+            ("ใบกำกับภาษีขาย", "บจ. ลูกค้าตัวอย่าง", "กระดาษ A4 ×12", "2,568.00", "#4cc3c3"),
+            ("ใบเสร็จรับเงิน", "บจ. ลูกค้าตัวอย่าง", "เช็ค · ธนาคารตัวอย่าง", "2,568.00", "#b48cf0")]
+    A = [x + 1500 for x in T]
+
+    # ---- 现实：三张单据一张张进来，MR.ERP 大账本逐张盖审批章
+    papers = ""
+    for i, (title, party, line, amt, logo) in enumerate(docs):
+        y, r = 74 + i * 126, (-2, 1.5, -1)[i]
+        papers += (f'<g transform="translate(26 {y}) rotate({r})"><g class="hd-pop" id="mr-doc{i}" data-at="{T[i]}">'
+                   f'<path d="M0 3 Q120 -1 246 2 L248 108 Q120 112 1 109 Z" fill="{PAPER}" {OUT}/>'
+                   f'<circle cx="20" cy="22" r="9" fill="{logo}" {OUT}/>' + t(36, 28, title, 16, "#2d2b27")
+                   + t(14, 58, party, 14, "#6b6356") + t(14, 84, line, 14, "#6b6356") + t(234, 96, amt, 18, "#2d2b27", "end")
+                   + '<path d="M14 66 q60 -4 120 0" stroke="#e4dccb" stroke-width="1.6" fill="none"/>'
+                   + f'<g transform="translate(190 34) rotate(-10)"><g class="hd-stamp" data-at="{T[i] + 700}">'
+                   f'<rect x="-40" y="-15" width="80" height="30" rx="7" fill="none" stroke="#e0565b" stroke-width="3"/>'
+                   + t(0, 6, L["mr_ok"], 14, "#e0565b", "middle") + '</g></g></g></g>')
+    jots = ",".join(f"{T[i] + 450}:hm-jot,{T[i] + 1000}:-hm-jot" for i in range(3))
+    mm = mascot(406, 430, 1.3, f' data-at="{jots},8800:hm-hopping,8800:hm-cheer"', prop="stamp", kind="mrerp")
+    real = panel("sc-real", label(L["real"]) + papers + mm)
+
+    # ---- 系统里：8 个模块，单据保存时对应的模块一起更新；最后报表升起来
+    mods = L["mr_mods"]
+    tiles = ""
+    hits = {0: [A[0]], 1: [A[0], A[1]], 2: [A[1], A[2]], 3: [A[2]], 5: [A[0], A[1]], 6: [A[0], A[1], A[2]]}
+    for k, name in enumerate(mods):
+        c, rw = k % 4, k // 4
+        x, y = 14 + c * 124, 74 + rw * 104
+        flash = ",".join(f"{a},{a + 900}:-on" for a in hits.get(k, []))
+        body = ""
+        if k == 0:
+            body = f'<g class="hd-chip" data-at="{A[0]}">' + t(56, 72, "10,700.00", 15, "#2d2b27", "middle") + '</g>'
+        elif k == 1:
+            # 计数的步骤名用 mr- 前缀，别撞上全站的 .on 以外的样式（.paid 是 Cowork 演示里的章）
+            body = (f'<text x="56" y="68" font-family="{HAND}" font-size="28" fill="#2d2b27" text-anchor="middle" '
+                    f'data-count="on:120:170|mr-out:170:158" data-at="{A[0]}:on,{A[1]}:mr-out">120</text>'
+                    + t(56, 84, L["mr_unit_stock"], 11, "#8a8170", "middle"))
+        elif k == 2:
+            body = (f'<g class="hd-chip" data-at="{A[1]}">' + t(56, 72, "2,568.00", 15, "#2d2b27", "middle") + '</g>'
+                    + tick(100, 66, at=f"{A[2]}"))
+        elif k == 3:
+            body = f'<g class="hd-chip" data-at="{A[2]}">' + t(56, 72, L["mr_cheque"], 14, "#2e8a55", "middle") + '</g>'
+        elif k == 5:
+            body = (f'<g class="hd-chip" data-at="{A[0]}">' + t(56, 60, "+700.00", 13, "#5b7fd8", "middle") + '</g>'
+                    f'<g class="hd-chip" data-at="{A[1]}">' + t(56, 80, "+168.00", 13, "#e0565b", "middle") + '</g>')
+        elif k == 6:
+            body = (f'<text x="56" y="68" font-family="{HAND}" font-size="28" fill="#2d2b27" text-anchor="middle" '
+                    f'data-count="on:0:1|mr-2:1:2|mr-3:2:3" data-at="{A[0]}:on,{A[1]}:mr-2,{A[2]}:mr-3">0</text>'
+                    + t(56, 84, L["mr_unit_gl"], 11, "#8a8170", "middle"))
+        idle = k in (4, 7)
+        tiles += (f'<g transform="translate({x} {y})" id="mr-t{k}">'
+                  f'<path d="M2 2 Q56 0 110 2 L112 90 Q56 92 1 90 Z" fill="{"#f6f2e8" if idle else PAPER}" {OUT}/>'
+                  + (f'<rect class="hd-pop" data-at="{flash}" x="4" y="4" width="104" height="84" rx="6" fill="#fff1a8" stroke="none"/>' if flash else "")
+                  + t(10, 26, name, 14, "#8a8170" if idle else "#2d2b27") + body + '</g>')
+    reports = ""
+    for i, (name, at) in enumerate(zip(L["mr_reports"], (7300, 7550, 7800))):
+        x, r = 22 + i * 162, (-3, 1, -2)[i]
+        inner = ""
+        if i == 0:   # 损益表：三根小柱
+            inner = "".join(f'<rect x="{24 + j * 30}" y="{98 - h}" width="18" height="{h}" fill="{c}" stroke-width="1.8" stroke="{LINE}"/>'
+                            for j, (h, c) in enumerate(((30, "#c9dcee"), (44, "#9fd3b0"), (58, "#43b36f"))))
+        elif i == 1:  # 试算表：借贷相等
+            inner = t(72, 76, "Dr = Cr", 18, "#2d2b27", "middle") + tick(118, 70)
+        else:        # 销项税报表
+            inner = (''.join(f'<path d="M16 {58 + j * 12} H{110 - j * 14}" stroke="#d9cfba" stroke-width="2"/>' for j in range(3))
+                     + t(126, 104, "168.00", 15, "#e0565b", "end"))
+        reports += (f'<g transform="translate({x} 296) rotate({r})"><g class="hd-pop" data-at="{at}">'
+                    f'<path d="M0 2 Q70 -1 144 2 L145 118 Q70 121 1 118 Z" fill="{PAPER}" {OUT}/>'
+                    + t(10, 26, name, 14, "#2d2b27") + '<path d="M10 34 q50 4 100 -1" stroke="#ffd84d" stroke-width="6" fill="none" stroke-linecap="round" opacity=".7"/>'
+                    + inner.replace('class="hd-tick"', 'class="hd-tick" data-at="' + str(at + 300) + '"') + '</g></g>')
+    done = (f'<g transform="translate(262 466) rotate(-3)"><g class="hd-stamp" data-at="8800">'
+            f'<rect x="-226" y="-22" width="452" height="44" rx="12" fill="#43b36f" {OUT}/>'
+            + t(0, 7, L["mr_done"], 15, "#fff", "middle") + '</g></g>')
+    sys_ = panel("sc-sys", label(L["system"]) + tiles + reports + done)
+
+    flies = (flyer("+50", "#mr-doc0", "#mr-t1", T[0] + 1100) + flyer("10,700.00", "#mr-doc0", "#mr-t0", T[0] + 1150, "doc")
+             + flyer("-12", "#mr-doc1", "#mr-t1", T[1] + 1100) + flyer("2,568.00", "#mr-doc1", "#mr-t2", T[1] + 1150, "doc")
+             + flyer("2,568.00", "#mr-doc2", "#mr-t3", T[2] + 1100, "doc"))
+    return f'<div class="scene hd-scene" data-scene="mrerp" data-total="9800">{real}{sys_}{flies}</div>'
 
 
 # ---------------- 首页产品卡片角上的小单（手绘版，替代 mascot.py 的粗线版） ----------------

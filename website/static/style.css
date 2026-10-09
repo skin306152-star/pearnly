@@ -779,6 +779,9 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'%3E%3Cpath d='M9 6 Q50 2 92 5 Q99 6 98 19 Q98 33 90 35 Q50 39 9 36 Q2 35 2 21 Q2 7 9 6 Z' fill='%23ffe066' fill-opacity='.75' stroke='%233d362c' stroke-width='2.2' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M12 4 Q60 0 95 8' stroke='%233d362c' stroke-width='1.4' fill='none' opacity='.45' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
 }
 .demo .seg button:focus-visible { outline: 2px dashed #3d362c; outline-offset: 2px; }
+/* 四个页签在窄屏也排一行：不折行，收紧左右留白和字号 */
+.demo .seg button { white-space: nowrap; }
+@media (max-width: 560px) { .demo .seg { gap: 0; } .demo .seg button { padding: 4px 8px 6px; font-size: 14.5px; } }
 
 /* ---------- 首页手绘（试验，build.py 首页外面包一层 .sketch）：正文、按钮仍是印刷体；边框、标题下划线、对勾、标签换成铅笔手绘 ----------
    铅笔框：一张拉伸的 SVG（描边不随拉伸变粗），外加一块平涂的投影，和主视觉、演示里的纸一样。 */

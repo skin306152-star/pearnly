@@ -276,10 +276,12 @@ def flyer(text, src, dst, at, cls=""):
 
 def demo(lang):
     L = C.DEMO_LABELS[lang]
+    # 页签：Pearnly 三个产品 + 专业版 MR.ERP（ERP 写全名，免得和 MR.ERP 混淆）
+    names = {"cowork": "Cowork", "dms": "DMS", "erp": "Pearnly ERP", "mrerp": "MR.ERP"}
     tabs = "".join(
-        f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(C.PRODUCT[k][lang]["name"])}</button>'
-        for i, k in enumerate(C.PRODUCTS))
-    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + S.dms(L) + S.erp(L)
+        f'<button type="button" role="tab" data-tab="{k}" aria-selected="{"true" if i == 0 else "false"}">{esc(names[k])}</button>'
+        for i, k in enumerate(("cowork", "dms", "erp", "mrerp")))
+    body = S.DEFS + S.cowork(L).replace('class="scene ', 'class="scene active ', 1) + S.dms(L) + S.erp(L) + S.mrerp(L)
     return window(f'<div class="demo-body" aria-hidden="true">{body}</div>',
                   f'<div class="seg" role="tablist">{tabs}</div>', "demo reveal")
 
