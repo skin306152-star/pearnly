@@ -11,7 +11,7 @@ so the caller can retain raw OCR evidence independently of merged fields.
 """
 
 from copy import deepcopy
-from decimal import ROUND_HALF_EVEN, localcontext
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 import re
 from difflib import SequenceMatcher
 from typing import List, Dict, Any
@@ -169,12 +169,48 @@ def _merge_items(pages: List[Dict]) -> List[Dict]:
     return [e["item"] for e in entries]
 
 
+# 金额块：同一张票的小计 / 折扣 / 税额 / 合计必须整组取自同一页。合计只印在最后一页的多页票，第 1 页常被读出一组
+# 编出来的数（明细加总、税额 0），逐字段「取第一个非空」就让它盖掉末页印着的真合计（10-09 实测：54,056.40 的票
+# 记成 28,770、税 0）。从最后一页往前取第一组自己对得上（小计 − 折扣 + 税额 ≈ 合计）且税额大于 0 的；编出来的那组
+# 恰是「税 0、小计 = 合计」，也自洽，不能当证据（金标 215 份重放：只认自洽就弄坏 2 份续页是税 0 汇总的票）。
+# 没有这样的页照旧逐字段取。
+_MONEY_BLOCK = ("subtotal", "discount", "vat", "total_amount")
+_MONEY_NEAR_BLOCK = ("wht_rate", "wht_amount", "cash_amount", "change_amount")  # 印在合计旁：那页没有才取别页的
+_BLOCK_TOLERANCE = Decimal("1.00")
+
+
+def _consistent_money_block(fields: Dict[str, Any]) -> bool:
+    total, sub = normalize_money(fields.get("total_amount")), normalize_money(fields.get("subtotal"))
+    if total is None or sub is None or total <= 0:
+        return False
+    vat = normalize_money(fields.get("vat"))
+    if vat is None or vat <= 0:
+        return False
+    discount = normalize_money(fields.get("discount")) or Decimal(0)
+    return any(abs(base + vat - total) <= _BLOCK_TOLERANCE for base in (sub - discount, sub))
+
+
+def _money_page(pages_group: List[Dict]):
+    for page in reversed(pages_group):
+        fields = page.get("fields") or {}
+        if _consistent_money_block(fields):
+            return fields
+    return None
+
+
 def _build_invoice_from_pages(pages_group: List[Dict]) -> Dict[str, Any]:
     """把同一张发票的 N 页合并成一个 fields 字典"""
     if not pages_group:
         return {}
     # 标量字段一律取第一个非空(跨页发票各字段可能散在不同页)
     merged_fields: Dict[str, Any] = {k: _first_non_empty(pages_group, k) for k in _SCALAR_FIELDS}
+    money = _money_page(pages_group) if len(pages_group) > 1 else None
+    if money is not None:
+        for key in _MONEY_BLOCK:
+            merged_fields[key] = money.get(key) if not _is_empty(money.get(key)) else None
+        for key in _MONEY_NEAR_BLOCK:
+            if not _is_empty(money.get(key)):
+                merged_fields[key] = money.get(key)
     # 录不录的类别标记要每页一致才算：并成一张的几页里只有一页带标记时，不让整张票跟着这一页走（2026-10-07）
     flags = {str((p.get("fields") or {}).get("document_flag") or "") for p in pages_group}
     merged_fields["document_flag"] = flags.pop() if len(flags) == 1 else ""

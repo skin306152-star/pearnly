@@ -170,5 +170,48 @@ class InvoiceGrouping(unittest.TestCase):
         self.assertEqual([p["page_index"] for p in history_pages(same_number)], [4, 4])
 
 
+
+class MoneyBlock(unittest.TestCase):
+    """多页合成一张票：金额块整组取末尾第一页自己对得上的（10-09 实测：合计只印在第 2 页的票，第 1 页编出
+    28,770 / 税 0，逐字段取第一个非空把真合计 54,056.40 丢了）。"""
+
+    def test_totals_on_the_last_page_beat_a_made_up_first_page(self):
+        pages = [page(1, invoice_number="RP-2569-0456", subtotal="28770.00", vat="0", total_amount="28770.00",
+                      items=[item("A", "1", "28770.00")]),
+                 page(2, invoice_number="RP-2569-0456", subtotal="50520.00", vat="3536.40", total_amount="54056.40",
+                      items=[item("B", "1", "21750.00")])]
+        fields = group_invoices(pages)[0]["invoice_fields"]
+        self.assertEqual((fields["subtotal"], fields["vat"], fields["total_amount"]), ("50520.00", "3536.40", "54056.40"))
+        self.assertEqual(len(fields["items"]), 2)
+
+    def test_the_block_is_taken_whole_with_its_discount(self):
+        pages = [page(1, invoice_number="X", subtotal="999", discount="1", total_amount="999"),
+                 page(2, invoice_number="X", subtotal="5000", discount="500", vat="315", total_amount="4815")]
+        fields = group_invoices(pages)[0]["invoice_fields"]
+        self.assertEqual((fields["subtotal"], fields["discount"], fields["vat"], fields["total_amount"]),
+                         ("5000", "500", "315", "4815"))
+
+    def test_without_a_consistent_page_the_first_value_rule_stays(self):
+        pages = [page(1, invoice_number="Y", total_amount="107"), page(2, invoice_number="Y", vat="7")]
+        fields = group_invoices(pages)[0]["invoice_fields"]
+        self.assertEqual((fields["total_amount"], fields["vat"]), ("107", "7"))
+
+    def test_totals_only_on_the_first_page_stay_there(self):
+        pages = [page(1, invoice_number="Z", subtotal="100", vat="7", total_amount="107"),
+                 page(2, invoice_number="Z", items=[item("Tail")])]
+        fields = group_invoices(pages)[0]["invoice_fields"]
+        self.assertEqual((fields["subtotal"], fields["vat"], fields["total_amount"]), ("100", "7", "107"))
+
+    def test_a_zero_vat_block_on_a_later_page_is_not_evidence(self):
+        # 金标 6901827：续页是一组「税 0、小计 = 合计」，第 1 页才是印着的真金额块。
+        pages = [page(1, invoice_number="INV1", subtotal="5230.00", vat="366.10", total_amount="5596.10"),
+                 page(2, invoice_number="INV1", subtotal="5596.10", vat="0", total_amount="5596.10")]
+        fields = group_invoices(pages)[0]["invoice_fields"]
+        self.assertEqual((fields["subtotal"], fields["vat"], fields["total_amount"]), ("5230.00", "366.10", "5596.10"))
+
+    def test_a_single_page_is_unchanged(self):
+        fields = group_invoices([page(1, invoice_number="S", subtotal="100", vat="0", total_amount="999")])[0]["invoice_fields"]
+        self.assertEqual((fields["subtotal"], fields["vat"], fields["total_amount"]), ("100", "0", "999"))
+
 if __name__ == "__main__":
     unittest.main()

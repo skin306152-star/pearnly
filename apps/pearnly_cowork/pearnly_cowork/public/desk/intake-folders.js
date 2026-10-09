@@ -12,7 +12,8 @@
 	const ft = (key, ...args) => __(key, args);
 	// 任务弹窗里的读取（目录、选项）只是为了铺下拉：读不到就下次再铺，不弹错误框打断填写。
 	const quiet = async (method, args) => (await frappe.call({method, args, type: "GET", silent: true})).message;
-	const days = () => [...Array.from({length: 28}, (_, i) => ({value: String(i + 1), label: ft("cowork.folder.day", i + 1)})),
+	// 1–31 日与月末；当月没有这一天时小助手在当月最后一天跑（`folder_plan._slot`，用户 2026-10-09）。
+	const days = () => [...Array.from({length: 31}, (_, i) => ({value: String(i + 1), label: ft("cowork.folder.day", i + 1)})),
 		{value: "0", label: ft("cowork.folder.lastDay")}];
 	const times = () => Array.from({length: 48}, (_, i) => {
 		const value = `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`;
@@ -62,7 +63,8 @@
 					format: (value, row) => `${day_label(value)} ${row.run_time || ""}`},
 				{fieldname: "counts", width: 130, min_width: 100, label: ft("cowork.folder.col.result"),
 					format: (value, row) => ft("cowork.folder.counts", row.results?.entered || 0, row.results?.attention || 0)},
-				{fieldname: "enabled", width: 90, min_width: 80, label: t("intake.col.status"),
+				// 状态列与对账任务列表同宽：泰文「เปิดใช้งานอยู่」等比中文长，90 宽会把药丸连圆角一起切掉（10-09）。
+				{fieldname: "enabled", width: 170, min_width: 140, label: t("intake.col.status"),
 					format: (value, row) => status(row)[1], cell_class: (value, row) => `indicator-pill ${status(row)[0]}`},
 			],
 			load: async () => {

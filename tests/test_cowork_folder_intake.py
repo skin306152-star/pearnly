@@ -41,7 +41,8 @@ class ContractTests(unittest.TestCase):
     def test_schedule(self):
         self.assertEqual(contracts.schedule("1", "22:00"), (1, "22:00"))
         self.assertEqual(contracts.schedule(0, "07:30"), (0, "07:30"))
-        for day, at in ((29, "22:00"), (1, "24:00"), (1, "7:00"), (True, "22:00")):
+        self.assertEqual(contracts.schedule(29, "22:00"), (29, "22:00"))  # 2026-10-09 起可选 29–31 日
+        for day, at in ((32, "22:00"), (-1, "22:00"), (1, "24:00"), (1, "7:00"), (True, "22:00")):
             with self.assertRaises(contracts.ContractError):
                 contracts.schedule(day, at)
 

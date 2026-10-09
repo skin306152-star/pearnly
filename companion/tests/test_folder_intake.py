@@ -25,6 +25,11 @@ def test_latest_slot_and_month_end():
     assert plan.latest_slot(_at(2026, 10, 7, 12, 0), 1, "22:00") == _at(2026, 10, 1, 22, 0)
     assert plan.latest_slot(_at(2026, 10, 1, 21, 0), 1, "22:00") == _at(2026, 9, 1, 22, 0)
     assert plan.latest_slot(_at(2026, 3, 1, 0, 0), 0, "23:30") == _at(2026, 2, 28, 23, 30)
+    # 选 29 / 31 日：当月没有这一天就在当月最后一天跑（2026-10-09）
+    assert plan.latest_slot(_at(2026, 3, 1, 0, 0), 29, "22:00") == _at(2026, 2, 28, 22, 0)
+    assert plan.latest_slot(_at(2028, 3, 1, 0, 0), 29, "22:00") == _at(2028, 2, 29, 22, 0)
+    assert plan.latest_slot(_at(2026, 5, 1, 0, 0), 31, "22:00") == _at(2026, 4, 30, 22, 0)
+    assert plan.latest_slot(_at(2026, 4, 1, 0, 0), 31, "22:00") == _at(2026, 3, 31, 22, 0)
 
 
 def test_due_runs_once_and_catches_up_only_the_latest():

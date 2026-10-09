@@ -59,12 +59,26 @@ def item(name="Rice", qty="1", price="10"):
     return {"name": name, "qty": qty, "price": price, "subtotal": "10", "source_note": "retain"}
 
 
+# 有意差异（2026-10-09）：多页合成一张票时金额块（小计 / 折扣 / 税额 / 合计及旁边几项）整组取自末尾第一页对得上的，
+# 旧线上逐字段取第一个非空。对照时多页票的这几项不比（新规则见 test_cowork_invoice_grouping 的 MoneyBlock），其余逐条一致。
+_MONEY_KEYS = grouping._MONEY_BLOCK + grouping._MONEY_NEAR_BLOCK
+
+
+def _without_money_block(groups):
+    out = deepcopy(groups)
+    for group in out:
+        if len(group.get("source_pages") or []) > 1:
+            for key in _MONEY_KEYS:
+                group["invoice_fields"].pop(key, None)
+    return out
+
+
 def compare_groups(namespace, value):
     old = namespace["group_pages_to_invoices"](deepcopy(value))
     original = deepcopy(value)
     new = grouping.group_invoices(value)
     assert value == original, "New grouping changed caller evidence"
-    assert old == new, (value, old, new)
+    assert _without_money_block(old) == _without_money_block(new), (value, old, new)
 
 
 def verify(contents):

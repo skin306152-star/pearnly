@@ -204,3 +204,10 @@
 .pearnly-upload-input {
 	display: none;
 }
+
+/* 列表里的状态药丸限在格子里（同对账表 `.pearnly-recon-table .indicator-pill`）：再长也只在药丸里省略，
+ * 两头圆角保留，悬停看全文；不让格子把药丸连圆角一起切掉（10-09 泰文定时任务列表）。 */
+.page-container[data-page-route^="pearnly-intake"] .list-row-col .indicator-pill {
+	max-width: 100%;
+	vertical-align: middle;
+}

@@ -94,10 +94,11 @@ def root_id(value: Any) -> str:
 
 
 def schedule(day: Any, at: Any) -> tuple:
-    """每月几号（1–28，0 = 月末）几点（曼谷 HH:MM）。"""
+    """每月几号（1–31，0 = 月末）几点（曼谷 HH:MM）。当月没有这一天（2 月的 29–31 日、小月的 31 日）就在当月
+    最后一天跑（小助手 `folder_plan._slot` 取 min(这一天, 当月天数)，用户 2026-10-09 要能选 29 日）。"""
     if isinstance(day, str) and day.strip().isdigit():
         day = int(day.strip())
-    if type(day) is not int or not 0 <= day <= 28:
+    if type(day) is not int or not 0 <= day <= 31:
         raise ContractError("cowork.folder.schedule_invalid")
     if not isinstance(at, str) or not _TIME.fullmatch(at.strip()):
         raise ContractError("cowork.folder.schedule_invalid")
