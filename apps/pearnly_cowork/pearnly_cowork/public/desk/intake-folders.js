@@ -105,11 +105,17 @@
 		const picked = {target: rule?.adapter || null};
 		const state = {groups: [], options: null, loading: 0, catalog: 0,
 			account_set_key: rule?.account_set_key || null, group: null};
+		// 「新建录入」记在这台浏览器上的「这条连接上次选的账套」，同一个键，两边互相预选。
+		const remembered = name => {
+			try { return name ? localStorage.getItem("pearnly.intake.account_set." + name) || "" : ""; } catch (error) { return ""; }
+		};
 		const connection = () => (rule ? {name: rule.connection, adapter: rule.adapter}
 			: snapshot.connections[picked.target] || null);
 		const express = () => picked.target === "express";
 		const fields = [
+			// 目标 ERP 卡片独占一行（与「新建录入」一样在最上面），下面才分两栏。
 			{fieldtype: "HTML", fieldname: "target"},
+			{fieldtype: "Section Break"},
 			{fieldtype: "Data", fieldname: "title", label: ft("cowork.folder.field.title"), reqd: 1, default: rule?.title || ""},
 			{fieldtype: "Select", fieldname: "year", label: __("Company"), options: [], onchange: () => void on_group()},
 			{fieldtype: "Select", fieldname: "account_set_key", label: __("intake.target.year"), reqd: 1, options: [],
@@ -301,9 +307,18 @@
 				else if (view.error_code) note = p.intake_targets.catalog_error(view.error_code);
 				else if (!state.groups.length) note = __("intake.catalog.ERR_ACCOUNT_SET_EMPTY");
 				d.set_df_property("year", "description", note);
-				const wanted = state.account_set_key || view.default_key;
-				const owner = state.groups.find(group => group.items.some(item => item.value === wanted));
-				set_options("year", state.groups.map(row => ({value: row.value, label: row.label})), owner?.value);
+				// 预选与「新建录入」一样：这个任务原来的账套 → 这台浏览器上次在这条连接选的 → 连接的默认账套。
+				// Express 的账套键是规范化后的路径（小写、反斜杠），连接上存的默认账套是原样路径。
+				const norm = value => String(value || "").replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+				let found = null;
+				for (const key of [state.account_set_key, remembered(target.name), view.default_key]) {
+					for (const group of key ? state.groups : []) {
+						const item = group.items.find(row => norm(row.value) === norm(key));
+						if (item && !found) found = {group, item};
+					}
+				}
+				if (found) state.account_set_key = found.item.value;
+				set_options("year", state.groups.map(row => ({value: row.value, label: row.label})), found?.group.value);
 				enable("year", Boolean(state.groups.length));
 				void on_group();
 			}});
