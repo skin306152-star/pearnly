@@ -522,6 +522,15 @@ def legs():
             f'{shoe("l")}{shoe("r")}</g>')
 
 
+def back_legs():
+    """背对我们时：坐垫下面露出两截小腿和鞋跟（坐垫和底座画在它前面挡着），站姿跟着身子左右挪。转过来以后换成 legs()。"""
+    pen = f'color="{INK}" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+    heel = lambda x: (f'<path d="M{x - 13} 616 Q{x - 13} 605 {x} 605 Q{x + 13} 605 {x + 13} 616 Z" fill="#5b86d6" stroke="currentColor" stroke-width="2.6"/>'
+                      f'<path d="M{x - 13} 616 H{x + 13}" stroke="currentColor" stroke-width="2.6"/>')
+    return (f'<g class="st-backlegs" {pen} filter="url(#st-pencil)">'
+            f'<path d="M548 548 L544 606 M592 548 L596 606"/>{heel(544)}{heel(596)}</g>')
+
+
 def zigzag(top=-100, half=39):
     zig, up = [], True
     for _ in range(8):
@@ -621,6 +630,7 @@ def svg(L, rows):
 <g class="st-pile">{pile}</g>{tray()}<g class="st-done">{done}</g>{phone_flat()}{keyboard()}</g>
 {arm("l", (466, 400))}{arm("r", (740, 392))}
 <g transform="{CHAIR}" filter="url(#st-pencil)">{chair_back("st-chair2", 0)}</g>
+{back_legs()}
 {mascot()}
 <g transform="{CHAIR}" filter="url(#st-pencil)">{chair_seat()}</g>
 {legs()}

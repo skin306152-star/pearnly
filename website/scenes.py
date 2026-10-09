@@ -126,8 +126,14 @@ def mascot(x, y, k=1.0, data="", prop="pencil", kind="base", flip=False):
     关节都用 translate 包一层，CSS 只在局部原点 (0,0) 上旋转。
     """
     body, (lx, ly), (rx, ry), hip, shadow = costume(kind)
-    legs = (f'<g transform="translate({-hip} 0)"><path class="hm-leg l" d="M0 0 L-4 40 h-14"/></g>'
-            f'<g transform="translate({hip} 0)"><path class="hm-leg r" d="M0 0 L4 40 h14"/></g>')
+    if kind == "cowork":   # Cowork 小人穿一双蓝色小鞋（和首页主视觉的小单同一双），鞋跟在腿下、鞋尖朝外
+        shoe = lambda sd: (f'<g transform="translate({4 * sd} 41) scale({sd} 1)"><path d="M-6 0 Q-6 -8 4 -8 Q15 -8 16 0 Z" fill="#5b86d6" stroke-width="2.4"/>'
+                           '<path d="M-6 0 H16" stroke-width="2.4"/></g>')
+        legs = (f'<g transform="translate({-hip} 0)"><g class="hm-leg l"><path d="M0 0 L-4 34"/>{shoe(-1)}</g></g>'
+                f'<g transform="translate({hip} 0)"><g class="hm-leg r"><path d="M0 0 L4 34"/>{shoe(1)}</g></g>')
+    else:
+        legs = (f'<g transform="translate({-hip} 0)"><path class="hm-leg l" d="M0 0 L-4 40 h-14"/></g>'
+                f'<g transform="translate({hip} 0)"><path class="hm-leg r" d="M0 0 L4 40 h14"/></g>')
     wave = (f'<g transform="translate({lx} {ly})"><g class="hm-wave"><path d="M0 0 Q-22 12 -24 36"/>'
             f'<circle cx="-24" cy="36" r="8.5" fill="{PAPER}"/></g></g>')
     arm = (f'<g transform="translate({rx} {ry})"><g class="hm-arm"><path d="M0 0 Q12 16 20 36"/>{prop_svg(prop)}'

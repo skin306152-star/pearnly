@@ -262,7 +262,7 @@
     function qa(s) { return Array.prototype.slice.call(svg.querySelectorAll(s)); }
     var E = {
       body: q('.st-body'), front: q('.st-front'), back: q('.st-back'), face: q('.st-face'), look: q('.st-look'),
-      sweat: q('.st-sweat'), excl: q('.st-excl'), chair: q('.st-chair'), chair2: q('.st-chair2'), legs: q('.st-legs'), legL: q('.st-leg-l'), legR: q('.st-leg-r'), shoeL: q('.st-shoe-l'), shoeR: q('.st-shoe-r'),
+      sweat: q('.st-sweat'), excl: q('.st-excl'), chair: q('.st-chair'), chair2: q('.st-chair2'), legs: q('.st-legs'), backLegs: q('.st-backlegs'), legL: q('.st-leg-l'), legR: q('.st-leg-r'), shoeL: q('.st-shoe-l'), shoeR: q('.st-shoe-r'),
       catBody: q('.st-cat-body'), catHead: q('.st-cat-head'), catEar: q('.st-cat-ear'), catShut: q('.st-cat-shut'), catPeek: q('.st-cat-peek'), catOpen: q('.st-cat-open'), catEyes: q('.st-cat-eyes'), catTail: q('.st-cat-tail'), zs: qa('.st-z'), air: qa('.st-air'),
       armL: q('.st-arm-l'), armR: q('.st-arm-r'), handL: q('.st-hand-l'), handR: q('.st-hand-r'),
       held: q('.st-held'), slabs: qa('.st-slab'), ptop: q('.st-slab-top'), dsheets: qa('.st-dsheet'), dtop: q('.st-dsheet-top'),
@@ -419,6 +419,7 @@
       set(E.chair, 'transform', chairT); set(E.chair2, 'transform', chairT); op(E.chair, front ? 0 : 1); op(E.chair2, front ? 1 : 0);
       // 腿：转过来正对我们才看得到，挥手时晃一晃
       op(E.legs, front ? c01((m.a - 120) / 40) : 0);
+      op(E.backLegs, m.a < 60 ? 1 : 0); move(E.backLegs, m.x - 570, 0);
       var kk = m.kick * 10;
       // 腿从身子底下伸出来、搭过坐垫前沿（膝盖在前沿外一点），小腿垂下；挥手时两只脚一前一后晃
       // 大腿从身子下沿（坐垫上面）往前、往外搭过坐垫，膝盖在坐垫前沿外圆圆地弯下去，小腿垂到底座前面
