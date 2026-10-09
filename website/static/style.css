@@ -628,6 +628,8 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 
 .st-wrap { position: relative; }
 .st-card { margin: 0; }
+/* 画面一直铺到左、右、下三条边：不要窗口描边，窗口底色用画里的墙色/地板色，缩放差零点几像素时边上也不会透出白底 */
+.st-win { border: 0; background: linear-gradient(#f6ecd8, #f6ecd8) 0 0 / 100% 55% no-repeat, #e4cfa8; }
 .st-win .winbar { gap: 16px; }
 .st { display: block; width: 100%; height: auto; }
 .st text { user-select: none; }

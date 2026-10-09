@@ -601,6 +601,7 @@ def svg(L, rows):
     return f"""<svg class="st" viewBox="{VIEW}" data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-table="{n(table[0])} {n(table[1])}" role="img" aria-label="{esc(L["alt"])}">
 {DEFS}
 <g clip-path="url(#st-frame)">
+<rect width="{W}" height="{FLOOR}" fill="#f6ecd8"/><rect y="{FLOOR}" width="{W}" height="{H - FLOOR}" fill="#e4cfa8"/><!-- 墙和地板的底色不加手抖滤镜，一直铺到窗口框边（滤镜会把边缘往里推，露出白边） -->
 <g filter="url(#st-wobble)">{room()}{window()}{corkboard()}{cabinet()}{clock()}{aircon()}{sofa()}</g>
 <g filter="url(#st-pencil)">{cat()}</g>
 <g filter="url(#st-wobble)">{desk()}</g>
