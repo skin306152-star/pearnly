@@ -1098,21 +1098,21 @@ TOOL_BIG_LINK = {"th": "ติดต่อทีม Pearnly เพื่อใ�
 
 TOOLS_INDEX = {
     "th": {
-        "title": "เครื่องมือสำหรับงานบัญชี | Pearnly",
-        "description": "เครื่องมือสำหรับงานบัญชีไทย ใช้ฟรี: แปลงตัวเลขเป็นคำอ่านภาษาไทย (บาทถ้วน) คำนวณ VAT 7% คำนวณภาษีหัก ณ ที่จ่าย ค้นหาบริษัทจากเลขประจำตัวผู้เสียภาษี 13 หลัก แปลงรูปภาพเป็น PDF รวมและแยกไฟล์ PDF สร้าง QR พร้อมเพย์ แปลง พ.ศ. ↔ ค.ศ. และแปลง PDF ⇄ Excel",
-        "h1": "เครื่องมือสำหรับงานบัญชี",
+        "title": "เครื่องมือใช้งานด่วน | Pearnly",
+        "description": "เครื่องมือใช้งานด่วนสำหรับงานบัญชีไทย ใช้ฟรี: แปลงตัวเลขเป็นคำอ่านภาษาไทย (บาทถ้วน) คำนวณ VAT 7% คำนวณภาษีหัก ณ ที่จ่าย ค้นหาบริษัทจากเลขประจำตัวผู้เสียภาษี 13 หลัก แปลงรูปภาพเป็น PDF รวมและแยกไฟล์ PDF สร้าง QR พร้อมเพย์ แปลง พ.ศ. ↔ ค.ศ. และแปลง PDF ⇄ Excel",
+        "h1": "เครื่องมือใช้งานด่วน",
         "lead": "ใช้ได้ทันที ไม่ต้องสมัคร คำนวณในเครื่องของคุณ",
     },
     "en": {
-        "title": "Tools for Thai accounting | Pearnly",
-        "description": "Tools for Thai accounting, free to use: Thai baht text converter, 7% VAT calculator, withholding tax calculator, company lookup by 13-digit tax ID, image to PDF, merge and split PDF, PromptPay QR generator, Buddhist ↔ Gregorian year converter and PDF ⇄ Excel converter.",
-        "h1": "Tools for Thai accounting",
+        "title": "Quick tools | Pearnly",
+        "description": "Quick tools for Thai accounting, free to use: Thai baht text converter, 7% VAT calculator, withholding tax calculator, company lookup by 13-digit tax ID, image to PDF, merge and split PDF, PromptPay QR generator, Buddhist ↔ Gregorian year converter and PDF ⇄ Excel converter.",
+        "h1": "Quick tools",
         "lead": "Ready to use, no sign-up, calculated on your device.",
     },
     "zh": {
-        "title": "泰国会计工具 | Pearnly",
-        "description": "泰国会计工具（免费使用）：金额转泰文大写（บาทถ้วน）、7% VAT 计算、预扣税计算、税号查公司、图片转 PDF、合并 / 拆分 PDF、PromptPay 收款二维码、佛历 ↔ 公历换算、PDF ⇄ Excel 转换。",
-        "h1": "泰国会计工具",
+        "title": "快捷工具 | Pearnly",
+        "description": "泰国会计快捷工具（免费使用）：金额转泰文大写（บาทถ้วน）、7% VAT 计算、预扣税计算、税号查公司、图片转 PDF、合并 / 拆分 PDF、PromptPay 收款二维码、佛历 ↔ 公历换算、PDF ⇄ Excel 转换。",
+        "h1": "快捷工具",
         "lead": "打开就能用，无需注册，在你的设备上计算。",
     },
 }
