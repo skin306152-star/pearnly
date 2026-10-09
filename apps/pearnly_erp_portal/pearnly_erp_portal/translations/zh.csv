@@ -555,6 +555,7 @@ No stock count in progress,无进行中的盘点
 No terminal yet,还没有收银台
 No warehouse is available for this company,该公司无可用仓库
 No warehouse matches that name,该仓库名不存在
+Non-cash payment cannot exceed the amount due,非现金付款不能超过应付金额
 Non-claimable VAT,不可抵扣的增值税
 None,无
 Normal,正常
@@ -970,7 +971,10 @@ That warehouse belongs to another company,该仓库属于其他公司
 The LINE account that sent the document,发送此文件的 LINE 账号
 The Revenue Department replied in an unreadable format,税务局返回的数据格式无法解析
 The account you give customers for transfers,收款时给对方看的账号
+The amount is invalid,金额无效
+The amount payable cannot be negative,应付金额不能为负数
 The amount received is less than the total,实收金额小于应收金额
+The amount received is short,实收金额不足
 The balance could not be checked right now. Please try again in a minute.,暂时无法查询余额，请稍后重试。
 The cart is empty,购物车为空
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
@@ -978,24 +982,32 @@ The cashier is not enabled for this company,该公司未启用收银
 The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
+The discount exceeds the line amount,折扣超过该行金额
+The discount exceeds the total,折扣超过合计
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
 The opening stock amount is too large,期初库存金额过大
 The opening stock file is too large,期初库存文件过大
 The opening stock value is too large to preserve its decimal precision,期初数值过大，无法保持所需小数精度
 The password must be at least {0} characters,密码至少 {0} 位
+The payment details are invalid,付款信息无效
 The payment is more than the net payable,付款金额超过应付金额
+The payment method is invalid,付款方式无效
 The product code cannot be changed,物料编码不可修改
 The product identifiers refer to different products,该行的物料标识、编码或条码对应不同物料
 The quantity is not a valid number,数量不是有效数字
+The quantity on line {0} is invalid,第 {0} 行数量无效
 The recognition queue is busy. Please send the document again shortly.,识别队列繁忙，请稍后重新发送
 The recognition result needs checking. Please do not resend this document yet.,识别结果待核对，请勿重复发送
 The recognition service did not answer in time. Please try again.,识别服务响应超时，请重试。
 The row has no product code or barcode,该行缺少物料编码或条码
 The sheet needs a product name column,表格中必须包含物料名称列
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
+The total is invalid,合计无效
+The total is zero,合计为零
 The value is not a number,该值不是数字
 The value must be zero or more,该值不能小于 0
+There are no lines,缺少明细
 There is nothing to save,没有需要保存的内容
 There were errors while sending email. Please try again.,发送邮件时出错，请重试
 This LINE account is not bound to an ERP user,该 LINE 账号未绑定 ERP 用户
@@ -1275,6 +1287,18 @@ completed,已完成
 count,盘点
 discount applied,已应用折扣
 draft,草稿
+erp.detail.amount,金额无效
+erp.detail.discount,折扣超过合计
+erp.detail.grand_total,合计无效
+erp.detail.line_discount,折扣超过该行金额
+erp.detail.line_qty,第 {0} 行数量无效
+erp.detail.lines,缺少明细
+erp.detail.method,付款方式无效
+erp.detail.net_payable,应付金额不能为负数
+erp.detail.noncash_overpay,非现金付款不能超过应付金额
+erp.detail.payment,付款信息无效
+erp.detail.underpaid,实收金额不足
+erp.detail.zero_total,合计为零
 erp.line.boundAt,绑定时间
 erp.line.code,绑定码
 erp.line.expired,绑定码已过期

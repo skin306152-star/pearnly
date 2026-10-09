@@ -74,7 +74,9 @@ class PurchaseDocument(Document):
                 rounding=self.rounding,
             )
         except ValueError as exc:
-            frappe.throw(str(exc))
+            # 校验句是内部英文：按词条翻给用户（`contracts.detail_key`，2026-10-09）
+            key, args = contracts.detail_key(exc)
+            frappe.throw(f"{_('Invalid value')}: {_(key).format(*args)}" if key else _("Invalid value"))
 
         # 行小计回填，明细与合计对得上。
         for line in self.lines:

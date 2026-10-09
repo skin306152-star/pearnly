@@ -82,5 +82,23 @@ class Sources(unittest.TestCase):
         self.assertIn("pearnly_cowork.patches.v0_0_15_push_reason_source", (APP / "patches.txt").read_text())
 
 
+class HelperCodesHaveText(unittest.TestCase):
+    """小助手回报的每个错误码都有词条（大小写都认），否则界面原样显示小助手的英文细节（10-09 补了 13 个）。"""
+
+    def test_every_helper_error_code_has_an_entry(self):
+        import re
+
+        codes = set()
+        for path in (ROOT / "companion/src/companion").glob("*.py"):
+            codes.update(re.findall(r'^ERR_[A-Z0-9_]+\s*=\s*"([A-Za-z0-9_]+)"', path.read_text(), re.M))
+        keys = set()
+        for path in ROOT.glob("apps/*/*/i18n/messages.tsv"):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                key = line.split("\t")[-1]
+                if key.startswith("intake.error."):
+                    keys.add(key[len("intake.error."):])
+        self.assertGreater(len(codes), 20)
+        self.assertEqual(sorted(code for code in codes if code not in keys and code.lower() not in keys), [])
+
 if __name__ == "__main__":
     unittest.main()

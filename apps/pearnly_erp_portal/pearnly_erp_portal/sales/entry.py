@@ -171,7 +171,9 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
         price_includes_vat=flag(payload.get("price_includes_vat"), False))
     reasons = contracts.confirm_gates({"doc_kind": kind, "grand_total": totals["grand_total"]})
     if reasons:
-        frappe.throw(f"{_(BLOCKED)}: {', '.join(reasons)}")
+        # 拒因码翻成话（`erp.detail.*`）；认不出的码不拼给用户（2026-10-09）
+        details = [_("erp.detail.zero_total") for reason in reasons if reason == "zero_amount"]
+        frappe.throw(f"{_(BLOCKED)}: {'; '.join(details)}" if details else _(BLOCKED))
     if payload.get("image_sha256") and not allow_duplicate:
         duplicates = frappe.get_all(DOCTYPE, filters={"image_sha256": payload["image_sha256"],
             "status": ["!=", contracts.VOID]}, pluck="name")

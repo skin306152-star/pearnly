@@ -18,6 +18,7 @@ A date could not be read. Check the date format in the file,部分日期无法�
 A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
 A file is larger than 25 MB.,文件超过 25 MB。
+A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
 A name is required.,请填写名称。
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
 A numeric value in the invoice is invalid. Correct it before exporting.,发票中有无效数值，请更正后再导出。
@@ -1218,6 +1219,7 @@ The VAT report content is invalid.,销项税报告内容无效。
 The VAT report has no rows.,销项税报告中没有明细行。
 The account balance could not be checked right now. Try again in a moment.,暂时无法查询账户余额，请稍后重试。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
+The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up. Correct them and submit again,金额合计不一致，请更正后重新提交
 The bank statement could not be read.,无法读取银行账单。
@@ -1236,6 +1238,7 @@ The connection has changed. Reload and try again.,连接已更新，请重新加
 The credential changed. Reload before resetting or revoking it.,凭据已变更，请刷新后再重置或撤销。
 The credential request is invalid.,凭据请求无效。
 The credential request receipt limit has been reached.,凭据请求回执数量已达到上限。
+The customer is missing. Choose the customer and submit again.,缺少客户，请选择客户后重新提交
 The date reference year is invalid. Reload and try again.,日期参考年份无效，请重新加载后重试。
 The date reference year is missing. Reload and try again.,缺少日期参考年份，请重新加载后重试。
 The default board cannot be archived,默认看板不能归档
@@ -1251,6 +1254,7 @@ The document contains too much text.,文档文本总量超过上限。
 The document contains unsupported XML declarations.,文档包含不支持的 XML 声明。
 The document content is invalid.,文档内容无效。
 The document could not be read. Check the file and try again.,无法读取文档，请检查文件后重试。
+The document date is invalid. Correct it and submit again.,单据日期无效，请修改后重新提交
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,单据日期不在所选账套的会计期间内，请核对年度后重新发送。
 The document exceeds the allowed size after decompression.,文档解压后的大小超过上限。
 The document file is damaged or cannot be decompressed.,文档文件已损坏或无法解压。
@@ -1297,10 +1301,13 @@ The invoice date is missing or unreadable. Fill it in and submit again,票面日
 The invoice date looks wrong. Correct it and submit again,票面日期可能有误，请核对后重新提交
 The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
+The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
 The invoice page data has an invalid format.,发票页面数据格式不正确。
 The ledger file content is invalid.,总账内容无效。
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",此发票的明细金额、未税金额、税额与合计不一致，请在编辑页核对后再导出。
 The line items do not add up to the invoice amount. Fix the lines and submit again,明细合计与票面金额不一致，请修改明细后重新提交
+The lines cannot be written to Express. Check them and submit again.,明细无法写入 Express，请核对后重新提交
+The matching stock item is missing. Choose it and submit again.,缺少对应存货，请选择后重新提交
 The opening and closing values are invalid.,期初期末数值无效。
 The original document manifest cannot be changed.,原件内容索引不能修改。
 The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
@@ -1359,6 +1366,7 @@ The stock count record was not found.,找不到盘点记录。
 The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
 "The stock lines could not be posted. Check the items, quantities and prices",无法记录库存明细，请核对品名、数量和单价
 The stocktake export snapshot is incomplete. Reload and try again.,盘点导出数据不完整，请刷新后重试。
+The supplier is missing. Add it and submit again.,缺少供应商，请补充后重新提交
 The system is busy and the reconciliation was not finished. Please try again shortly.,系统繁忙，对账未完成，请稍后重试。
 The task owner can no longer enter documents with this connection.,定时任务负责人已无权使用此连接录入。
 The tax ID is not valid. Correct it and submit again,税号无效，请更正后重新提交
@@ -1407,6 +1415,7 @@ This customer is not in Express and could not be created. Check the customer nam
 This delivery conflicts with the current task state.,此回执与任务当前状态冲突。
 This document does not need this choice,此单据无需选择是否录入
 This document format is not supported.,不支持此文档格式。
+This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",此文件为总账而非银行账单。请将其放在总账一侧，左侧放置银行账单或网银导出文件。
 This file is too large to send from this PC.,文件过大，无法从此电脑上传。
@@ -1417,6 +1426,7 @@ This folder overlaps the folder of rule «{0}».,与规则「{0}」的文件夹�
 This folder overlaps the folder of scheduled task «{0}».,与定时任务「{0}」的文件夹重叠
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This inventory account group cannot be chosen for this account set.,此账套不能选择该存货科目组。
+This invoice has no lines. Add them and submit again.,此发票没有明细，请补充后重新提交
 This invoice was already sent successfully,此发票已推送成功
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",此文件为销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
@@ -2438,12 +2448,16 @@ intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,小助手没有此账套的写入权限，请检查小助手所选账套
+intake.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
+intake.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+intake.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 intake.error.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
 intake.error.CUSTOMER_BRANCH_AMBIGUOUS,Express 中有多个客户使用此税号，请选择客户后重新提交
 intake.error.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选择该客户或确认为新客户
 intake.error.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
 intake.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重试
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
+intake.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
@@ -2457,6 +2471,15 @@ intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 已受理导入，但所选菜�
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 intake.error.ERR_PAYLOAD_VERSION,小助手版本过旧，请更新后重新提交
 intake.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
+intake.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
+intake.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
+intake.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
+intake.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+intake.error.MAPPING_MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
+intake.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交
+intake.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
+intake.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
+intake.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 intake.error.NO_ACCOUNT_SELECTION,此电脑的小助手中没有此账套或无写入权限，请检查小助手所选账套
 intake.error.PAYLOAD_INVALID,小助手无法读取此发票，请核对字段后重新提交
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」

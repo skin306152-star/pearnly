@@ -555,6 +555,7 @@ No stock count in progress,ไม่มีการตรวจนับที�
 No terminal yet,ยังไม่มีเครื่องขาย
 No warehouse is available for this company,บริษัทนี้ไม่มีคลังสินค้าที่ใช้งานได้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
+Non-cash payment cannot exceed the amount due,การชำระที่ไม่ใช่เงินสดต้องไม่เกินยอดที่ต้องชำระ
 Non-claimable VAT,ภาษีซื้อที่ขอคืนไม่ได้
 None,ไม่มี
 Normal,ปกติ
@@ -970,7 +971,10 @@ That warehouse belongs to another company,คลังสินค้านี�
 The LINE account that sent the document,บัญชี LINE ที่ส่งเอกสารนี้
 The Revenue Department replied in an unreadable format,ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
+The amount is invalid,จำนวนเงินไม่ถูกต้อง
+The amount payable cannot be negative,ยอดที่ต้องชำระต้องไม่ติดลบ
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
+The amount received is short,ยอดรับชำระไม่พอ
 The balance could not be checked right now. Please try again in a minute.,ไม่สามารถตรวจสอบยอดคงเหลือได้ในขณะนี้ กรุณาลองอีกครั้งในภายหลัง
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)
@@ -978,24 +982,32 @@ The cashier is not enabled for this company,บริษัทนี้ยัง
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
+The discount exceeds the line amount,ส่วนลดเกินยอดของบรรทัด
+The discount exceeds the total,ส่วนลดเกินยอดรวม
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
 The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
 The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามีขนาดใหญ่เกินไป ไม่สามารถรักษาความละเอียดทศนิยมได้
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
+The payment details are invalid,ข้อมูลการชำระเงินไม่ถูกต้อง
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
+The payment method is invalid,วิธีชำระเงินไม่ถูกต้อง
 The product code cannot be changed,ไม่สามารถแก้ไขรหัสสินค้าได้
 The product identifiers refer to different products,รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
+The quantity on line {0} is invalid,จำนวนในบรรทัดที่ {0} ไม่ถูกต้อง
 The recognition queue is busy. Please send the document again shortly.,ระบบอ่านเอกสารมีคิวหนาแน่น กรุณาส่งเอกสารใหม่อีกครั้งในภายหลัง
 The recognition result needs checking. Please do not resend this document yet.,ผลการอ่านอยู่ระหว่างรอตรวจสอบ กรุณาอย่าส่งเอกสารนี้ซ้ำ
 The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแปลงแล้ว กรุณาตรวจสอบผลต่างอีกครั้ง
+The total is invalid,ยอดรวมไม่ถูกต้อง
+The total is zero,ยอดรวมเป็นศูนย์
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
+There are no lines,ไม่มีรายการ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
 There were errors while sending email. Please try again.,เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองอีกครั้ง
 This LINE account is not bound to an ERP user,บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP
@@ -1275,6 +1287,18 @@ completed,เสร็จสิ้น
 count,ตรวจนับ
 discount applied,ใช้ส่วนลดแล้ว
 draft,ฉบับร่าง
+erp.detail.amount,จำนวนเงินไม่ถูกต้อง
+erp.detail.discount,ส่วนลดเกินยอดรวม
+erp.detail.grand_total,ยอดรวมไม่ถูกต้อง
+erp.detail.line_discount,ส่วนลดเกินยอดของบรรทัด
+erp.detail.line_qty,จำนวนในบรรทัดที่ {0} ไม่ถูกต้อง
+erp.detail.lines,ไม่มีรายการ
+erp.detail.method,วิธีชำระเงินไม่ถูกต้อง
+erp.detail.net_payable,ยอดที่ต้องชำระต้องไม่ติดลบ
+erp.detail.noncash_overpay,การชำระที่ไม่ใช่เงินสดต้องไม่เกินยอดที่ต้องชำระ
+erp.detail.payment,ข้อมูลการชำระเงินไม่ถูกต้อง
+erp.detail.underpaid,ยอดรับชำระไม่พอ
+erp.detail.zero_total,ยอดรวมเป็นศูนย์
 erp.line.boundAt,เวลาที่ผูกบัญชี
 erp.line.code,รหัสผูกบัญชี
 erp.line.expired,รหัสหมดอายุแล้ว

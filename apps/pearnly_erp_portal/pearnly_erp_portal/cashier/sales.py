@@ -10,6 +10,8 @@
 4. **退货必须有原单**，且退货数量不得超过原单已售数量；退货把库存加回来。
 """
 
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import now, nowdate
@@ -28,6 +30,19 @@ LINES_REQUIRED = "Provide at least one line item"
 SHIFT_REQUIRED = "Open a shift before selling"
 SHIFT_CLOSED = "This shift is closed"
 INVALID = "Invalid value"
+
+
+
+def _invalid(detail):
+    """「值无效」后面接结算细节的翻译（`erp.detail.*`）；认不出的细节不接（不把内部码 / 英文拼给用户，2026-10-09）。"""
+    code = str(detail or "")
+    match = re.fullmatch(r"line_(\d+)_qty", code)
+    if match:
+        return f"{_(INVALID)}: {_('erp.detail.line_qty').format(match.group(1))}"
+    if code in ("underpaid", "noncash_overpay", "line_discount", "lines", "discount", "amount", "method", "payment",
+                "grand_total", "zero_total"):
+        return f"{_(INVALID)}: {_('erp.detail.' + code)}"
+    return _(INVALID)
 REFUND_NEEDS_ORIGINAL = "A refund needs the original sale"
 REFUND_TOO_MUCH = "A refund cannot be more than the original sale"
 ALREADY_VOID = "This sale is already voided"
@@ -155,7 +170,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
                                        has_vat=has_vat in (True, 1, "1", "true"), vat_rate=vat_rate)
         normalized, paid_total, change = contracts.settle(payments, totals["grand_total"])
     except contracts.SettlementError as exc:
-        frappe.throw(f"{_(INVALID)}: {exc.detail}")
+        frappe.throw(_invalid(exc.detail))
     # 收款方式也得是**这家公司开了的那几种**（建公司时勾的，见 `masters/company.payment_methods_of`）：
     # 服务端兜底，免得关掉"转账"之后老页面还能塞一张转账进来。
     allowed = companies.payment_methods_of(terminal_doc.company)
@@ -393,7 +408,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
         totals = contracts.sale_totals(wanted, has_vat=False, vat_rate=0)
         normalized, paid_total, change = contracts.settle(payments or [], totals["grand_total"])
     except contracts.SettlementError as exc:
-        frappe.throw(f"{_(INVALID)}: {exc.detail}")
+        frappe.throw(_invalid(exc.detail))
 
     doc = frappe.get_doc({
         "doctype": DT, "sold_at": now(), "sale_type": contracts.REFUND, "status": "completed",

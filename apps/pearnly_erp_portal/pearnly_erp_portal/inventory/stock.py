@@ -129,7 +129,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
         base_qty = contracts.signed_base(movement_type, qty, factor)
         cost = None if unit_cost in (None, "") else contracts.d(unit_cost) / factor
     except ValueError as exc:
-        frappe.throw(f"{_(INVALID)}: {exc}")
+        frappe.throw(_(INVALID))  # 细节是内部英文句子，不拼给用户（2026-10-09）
 
     warehouse_doc = frappe.db.exists("ERP Warehouse", warehouse)
     if not warehouse_doc:

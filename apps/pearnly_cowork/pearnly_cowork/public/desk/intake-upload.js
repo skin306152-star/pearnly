@@ -167,7 +167,9 @@
 		} catch (error) {
 			// 不是标准错误体（网关 502 之类）—— 下面按状态码说。
 		}
-		return payload?.exception || `HTTP ${status}`;
+		// 没有标准报错：按状态说现成的话（不把服务端异常原文 / 英文给人看，2026-10-09）。
+		if (Number(status) === 413) return __("The uploaded file exceeds the 100 MiB limit.");
+		return Number(status) ? __("intake.error.http", [status]) : __("intake.error.poll_unreachable");
 	};
 
 	/** 手机上的分区导航，照 ERP 采购页 `purchase-layout.js`：借 Desk 的 `form-tabs-list` 样式，
@@ -1003,7 +1005,8 @@
 				}
 			} catch (error) {
 				row.state = "failed";
-				row.message = error?.status !== undefined ? failure(error, error.status) : String(error?.message || error);
+				// 断网等没有响应的失败（浏览器只给英文的「Failed to fetch」）说「网络错误」。
+				row.message = error?.status !== undefined ? failure(error, error.status) : __("intake.error.poll_unreachable");
 			}
 			if (!live) return;
 			render_batch();

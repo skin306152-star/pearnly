@@ -555,6 +555,7 @@ No stock count in progress,進行中の棚卸はありません
 No terminal yet,レジはまだありません
 No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
+Non-cash payment cannot exceed the amount due,現金以外の支払いは支払額を超えられません
 Non-claimable VAT,控除できない消費税
 None,なし
 Normal,正常
@@ -970,7 +971,10 @@ That warehouse belongs to another company,この倉庫は別会社のもので�
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
 The account you give customers for transfers,入金時に相手へ伝える口座
+The amount is invalid,金額が無効です
+The amount payable cannot be negative,支払額はマイナスにできません
 The amount received is less than the total,受取額が合計に足りません
+The amount received is short,受取額が不足しています
 The balance could not be checked right now. Please try again in a minute.,現在残高を確認できません。1 分後にもう一度お試しください。
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
@@ -978,24 +982,32 @@ The cashier is not enabled for this company,この会社ではレジが有効に
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
+The discount exceeds the line amount,割引が行の金額を超えています
+The discount exceeds the total,割引が合計を超えています
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
 The opening stock amount is too large,期首在庫金額が大きすぎます
 The opening stock file is too large,期首在庫ファイルが大きすぎます
 The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
 The password must be at least {0} characters,パスワードは{0}文字以上にしてください
+The payment details are invalid,支払情報が無効です
 The payment is more than the net payable,支払金額が支払残高を超えています
+The payment method is invalid,支払方法が無効です
 The product code cannot be changed,商品コードは変更できません
 The product identifiers refer to different products,この行の商品ID・コード・バーコードは別の商品を指しています
 The quantity is not a valid number,数量が正しい数値ではありません
+The quantity on line {0} is invalid,{0} 行目の数量が無効です
 The recognition queue is busy. Please send the document again shortly.,読み取りが混み合っています。しばらくしてからもう一度送ってください
 The recognition result needs checking. Please do not resend this document yet.,読み取り結果の確認が必要です。まだ再送しないでください
 The recognition service did not answer in time. Please try again.,読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
+The total is invalid,合計が無効です
+The total is zero,合計がゼロです
 The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
+There are no lines,明細がありません
 There is nothing to save,保存する行がありません
 There were errors while sending email. Please try again.,メール送信中にエラーが発生しました。再試行してください
 This LINE account is not bound to an ERP user,この LINE アカウントは ERP ユーザーに紐付いていません
@@ -1275,6 +1287,18 @@ completed,完了
 count,棚卸
 discount applied,割引を適用しました
 draft,下書き
+erp.detail.amount,金額が無効です
+erp.detail.discount,割引が合計を超えています
+erp.detail.grand_total,合計が無効です
+erp.detail.line_discount,割引が行の金額を超えています
+erp.detail.line_qty,{0} 行目の数量が無効です
+erp.detail.lines,明細がありません
+erp.detail.method,支払方法が無効です
+erp.detail.net_payable,支払額はマイナスにできません
+erp.detail.noncash_overpay,現金以外の支払いは支払額を超えられません
+erp.detail.payment,支払情報が無効です
+erp.detail.underpaid,受取額が不足しています
+erp.detail.zero_total,合計がゼロです
 erp.line.boundAt,連携日時
 erp.line.code,連携コード
 erp.line.expired,コードの有効期限が切れました

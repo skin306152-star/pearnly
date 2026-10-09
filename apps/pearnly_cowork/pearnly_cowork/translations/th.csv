@@ -18,6 +18,7 @@ A date could not be read. Check the date format in the file,มีวันท�
 A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
+A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 A name is required.,กรุณาระบุชื่อ
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,ค่าตัวเลขในใบกำกับภาษีเกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
 A numeric value in the invoice is invalid. Correct it before exporting.,มีค่าตัวเลขในใบกำกับภาษีไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
@@ -1218,6 +1219,7 @@ The VAT report content is invalid.,ข้อมูลรายงานภาษ
 The VAT report has no rows.,รายงานภาษีขายไม่มีรายการ
 The account balance could not be checked right now. Try again in a moment.,ไม่สามารถตรวจสอบยอดคงเหลือในบัญชีได้ในขณะนี้ กรุณาลองใหม่ภายหลัง
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย กรุณารีเฟรชใหม่
+The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 The amounts do not add up. Correct them and submit again,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
@@ -1236,6 +1238,7 @@ The connection has changed. Reload and try again.,การเชื่อมต
 The credential changed. Reload before resetting or revoking it.,ข้อมูลรับรองมีการเปลี่ยนแปลง กรุณารีเฟรชก่อนรีเซ็ตหรือยกเลิก
 The credential request is invalid.,คำขอข้อมูลรับรองไม่ถูกต้อง
 The credential request receipt limit has been reached.,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว
+The customer is missing. Choose the customer and submit again.,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 The date reference year is invalid. Reload and try again.,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The date reference year is missing. Reload and try again.,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The default board cannot be archived,ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้
@@ -1251,6 +1254,7 @@ The document contains too much text.,เอกสารมีปริมาณ�
 The document contains unsupported XML declarations.,เอกสารมีการประกาศ XML ที่ไม่รองรับ
 The document content is invalid.,เนื้อหาเอกสารไม่ถูกต้อง
 The document could not be read. Check the file and try again.,ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง
+The document date is invalid. Correct it and submit again.,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.,วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่
 The document exceeds the allowed size after decompression.,เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด
 The document file is damaged or cannot be decompressed.,ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้
@@ -1297,10 +1301,13 @@ The invoice date is missing or unreadable. Fill it in and submit again,ไม่
 The invoice date looks wrong. Correct it and submit again,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
 The invoice fields have an invalid format.,รูปแบบข้อมูลในช่องใบกำกับภาษีไม่ถูกต้อง
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง กรุณาเตรียมใหม่
+The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบกำกับภาษีไม่ถูกต้อง
 The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",ยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวมของใบกำกับภาษีนี้ไม่ตรงกัน กรุณาตรวจสอบในหน้าแก้ไขก่อนส่งออก
 The line items do not add up to the invoice amount. Fix the lines and submit again,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
+The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+The matching stock item is missing. Choose it and submit again.,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
 The opening and closing values are invalid.,ยอดยกมาและยอดยกไปไม่ถูกต้อง
 The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
 The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
@@ -1359,6 +1366,7 @@ The stock count record was not found.,ไม่พบรายการตรว
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสินค้าไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 The stocktake export snapshot is incomplete. Reload and try again.,ข้อมูลส่งออกการตรวจนับสินค้าไม่ครบถ้วน กรุณารีเฟรชแล้วลองอีกครั้ง
+The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 The system is busy and the reconciliation was not finished. Please try again shortly.,ระบบไม่ว่าง การกระทบยอดยังไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้งภายหลัง
 The task owner can no longer enter documents with this connection.,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 The tax ID is not valid. Correct it and submit again,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
@@ -1407,6 +1415,7 @@ This customer is not in Express and could not be created. Check the customer nam
 This delivery conflicts with the current task state.,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 This document does not need this choice,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
+This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย
 This file is too large to send from this PC.,ไฟล์มีขนาดใหญ่เกินไป ไม่สามารถอัปโหลดจากเครื่องนี้ได้
@@ -1417,6 +1426,7 @@ This folder overlaps the folder of rule «{0}».,โฟลเดอร์ซ้�
 This folder overlaps the folder of scheduled task «{0}».,โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
+This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
@@ -2438,12 +2448,16 @@ intake.catalog.reload,อ่านใหม่
 intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,ผู้ช่วยไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย
+intake.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
+intake.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 intake.error.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 intake.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 intake.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 intake.error.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 intake.error.DUPLICATE_CONTENT_DIFFERS,"ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
+intake.error.EMPTY_ITEMS,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
@@ -2457,6 +2471,15 @@ intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข�
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 intake.error.ERR_PAYLOAD_VERSION,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+intake.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+intake.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+intake.error.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+intake.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.MAPPING_MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+intake.error.MAPPING_MISSING_ITEM,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
+intake.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+intake.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+intake.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 intake.error.NO_ACCOUNT_SELECTION,ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์บันทึกข้อมูล กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย
 intake.error.PAYLOAD_INVALID,ผู้ช่วยไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""

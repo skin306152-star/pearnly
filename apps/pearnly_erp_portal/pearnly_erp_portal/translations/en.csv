@@ -555,6 +555,7 @@ No stock count in progress,No stock count in progress
 No terminal yet,No terminal yet
 No warehouse is available for this company,No warehouse is available for this company
 No warehouse matches that name,No warehouse matches that name
+Non-cash payment cannot exceed the amount due,Non-cash payment cannot exceed the amount due
 Non-claimable VAT,Non-claimable VAT
 None,None
 Normal,Normal
@@ -970,7 +971,10 @@ That warehouse belongs to another company,That warehouse belongs to another comp
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
 The account you give customers for transfers,The account you give customers for transfers
+The amount is invalid,The amount is invalid
+The amount payable cannot be negative,The amount payable cannot be negative
 The amount received is less than the total,The amount received is less than the total
+The amount received is short,The amount received is short
 The balance could not be checked right now. Please try again in a minute.,The balance could not be checked right now. Please try again in a minute.
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
@@ -978,24 +982,32 @@ The cashier is not enabled for this company,The cashier is not enabled for this 
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
+The discount exceeds the line amount,The discount exceeds the line amount
+The discount exceeds the total,The discount exceeds the total
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The opening stock amount is too large,The opening stock amount is too large
 The opening stock file is too large,The opening stock file is too large
 The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
 The password must be at least {0} characters,The password must be at least {0} characters
+The payment details are invalid,The payment details are invalid
 The payment is more than the net payable,The payment is more than the net payable
+The payment method is invalid,The payment method is invalid
 The product code cannot be changed,The product code cannot be changed
 The product identifiers refer to different products,The product identifiers refer to different products
 The quantity is not a valid number,The quantity is not a valid number
+The quantity on line {0} is invalid,The quantity on line {0} is invalid
 The recognition queue is busy. Please send the document again shortly.,The recognition queue is busy. Please send the document again shortly.
 The recognition result needs checking. Please do not resend this document yet.,The recognition result needs checking. Please do not resend this document yet.
 The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
+The total is invalid,The total is invalid
+The total is zero,The total is zero
 The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
+There are no lines,There are no lines
 There is nothing to save,There is nothing to save
 There were errors while sending email. Please try again.,There were errors while sending email. Please try again.
 This LINE account is not bound to an ERP user,This LINE account is not bound to an ERP user
@@ -1275,6 +1287,18 @@ completed,completed
 count,count
 discount applied,discount applied
 draft,draft
+erp.detail.amount,The amount is invalid
+erp.detail.discount,The discount exceeds the total
+erp.detail.grand_total,The total is invalid
+erp.detail.line_discount,The discount exceeds the line amount
+erp.detail.line_qty,The quantity on line {0} is invalid
+erp.detail.lines,There are no lines
+erp.detail.method,The payment method is invalid
+erp.detail.net_payable,The amount payable cannot be negative
+erp.detail.noncash_overpay,Non-cash payment cannot exceed the amount due
+erp.detail.payment,The payment details are invalid
+erp.detail.underpaid,The amount received is short
+erp.detail.zero_total,The total is zero
 erp.line.boundAt,Bound at
 erp.line.code,Binding code
 erp.line.expired,Code expired

@@ -1310,3 +1310,15 @@ Source File Record	源文件记录	ไฟล์ต้นฉบับ	元ファ�
 That file has too many rows	文件行数过多	ไฟล์มีจำนวนแถวมากเกินไป	ファイルの行数が多すぎます	
 The cashier is not enabled for this company	该公司未启用收银	บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)	この会社ではレジが有効になっていません	
 Value Change	金额变动	มูลค่าที่เปลี่ยนแปลง	金額変動	
+The amount received is short	实收金额不足	ยอดรับชำระไม่พอ	受取額が不足しています	erp.detail.underpaid
+Non-cash payment cannot exceed the amount due	非现金付款不能超过应付金额	การชำระที่ไม่ใช่เงินสดต้องไม่เกินยอดที่ต้องชำระ	現金以外の支払いは支払額を超えられません	erp.detail.noncash_overpay
+The quantity on line {0} is invalid	第 {0} 行数量无效	จำนวนในบรรทัดที่ {0} ไม่ถูกต้อง	{0} 行目の数量が無効です	erp.detail.line_qty
+The discount exceeds the line amount	折扣超过该行金额	ส่วนลดเกินยอดของบรรทัด	割引が行の金額を超えています	erp.detail.line_discount
+The discount exceeds the total	折扣超过合计	ส่วนลดเกินยอดรวม	割引が合計を超えています	erp.detail.discount
+There are no lines	缺少明细	ไม่มีรายการ	明細がありません	erp.detail.lines
+The total is zero	合计为零	ยอดรวมเป็นศูนย์	合計がゼロです	erp.detail.zero_total
+The amount is invalid	金额无效	จำนวนเงินไม่ถูกต้อง	金額が無効です	erp.detail.amount
+The payment method is invalid	付款方式无效	วิธีชำระเงินไม่ถูกต้อง	支払方法が無効です	erp.detail.method
+The payment details are invalid	付款信息无效	ข้อมูลการชำระเงินไม่ถูกต้อง	支払情報が無効です	erp.detail.payment
+The total is invalid	合计无效	ยอดรวมไม่ถูกต้อง	合計が無効です	erp.detail.grand_total
+The amount payable cannot be negative	应付金额不能为负数	ยอดที่ต้องชำระต้องไม่ติดลบ	支払額はマイナスにできません	erp.detail.net_payable

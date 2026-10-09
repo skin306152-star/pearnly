@@ -17,7 +17,9 @@
 		} catch (error) {
 			// 不是标准错误体（网关 502 之类）——下面按状态码说。
 		}
-		return payload?.exception || `HTTP ${status}`;
+		// 没有标准报错：按状态说现成的话（不把服务端异常原文 / 英文给人看，2026-10-09）。
+		if (Number(status) === 413) return __("The uploaded file exceeds the 100 MiB limit.");
+		return Number(status) ? __("intake.error.http", [status]) : __("intake.error.poll_unreachable");
 	};
 
 	// 选一个文件：系统文件框由官方按钮点开。选择框用 DOM 建、用完即删（与录入工作台同一做法，

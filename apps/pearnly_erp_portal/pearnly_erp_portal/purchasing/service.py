@@ -21,17 +21,13 @@ LINE_DOCTYPE = "Purchase Line"
 
 NOT_FOUND = "Purchase document not found"
 INVALID = "Invalid value"
-DUPLICATE = "This document is already recorded: {0}"
-LOCKED = "A submitted document cannot be changed"
-VOIDED = "This document is void"
-BAD_TRANSITION = "This status change is not allowed"
-LINES_REQUIRED = "Provide at least one line item"
 
-LIST_FIELDS = (
-    "name", "company", "doc_kind", "supplier", "supplier_name", "doc_no", "system_no", "doc_date", "due_date",
-    "status", "approval_status", "source", "currency", "grand_total", "net_payable",
-    "paid_amount", "payment_status",
-)
+
+
+def invalid_text(error):
+    """「值无效」后面接明细校验的翻译（`contracts.detail_key`）；认不出的不接英文（2026-10-09）。"""
+    key, args = contracts.detail_key(error)
+    return f"{_(INVALID)}: {_(key).format(*args)}" if key else _(INVALID)
 
 
 def _q2(value) -> Decimal:
@@ -109,7 +105,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
             rounding=rounding,
         )
     except ValueError as exc:
-        frappe.throw(f"{_(INVALID)}: {exc}")
+        frappe.throw(invalid_text(exc))
 
     doc = frappe.get_doc({
         "doctype": DOCTYPE,

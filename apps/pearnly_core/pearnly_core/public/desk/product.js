@@ -431,7 +431,8 @@ frappe.provide("frappe.pearnly");
 				if (message) return String(message).replace(/<[^>]*>/g, "").trim();
 			}
 		} catch (error) { /* 不是标准错误体（网关之类），按状态码说 */ }
-		return payload?.exception || `HTTP ${status}`;
+		// 不把服务端异常原文 / 英文给人看（2026-10-09）：说现成的话。
+		return Number(status) ? __("intake.error.http", [status]) : __("intake.error.poll_unreachable");
 	};
 	const save_blob = (blob, name) => {
 		const url = URL.createObjectURL(blob);

@@ -4,6 +4,7 @@
 的矛盾组合（旧线上同样口径）。
 """
 
+import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 TWO = Decimal("0.01")
@@ -126,3 +127,16 @@ def duplicate_key(supplier: str, doc_no: str):
     if not doc_no or not supplier:
         return None
     return f"{supplier}:{doc_no}"
+
+
+def detail_key(error):
+    """`compute_totals` 的校验句 → 给人看的词条 `(键, 参数)`（`erp.detail.*`，2026-10-09）；认不出的回 `(None, ())`，
+    调用方只报「值无效」，不把英文句子拼给用户。"""
+    text = str(error or "")
+    line = re.fullmatch(r"line (\d+): quantity must be greater than 0", text)
+    if line:
+        return "erp.detail.line_qty", (line.group(1),)
+    if re.fullmatch(r"line \d+: discount exceeds the line", text):
+        return "erp.detail.line_discount", ()
+    return {"lines: required": ("erp.detail.lines", ()),
+            "net_payable: negative": ("erp.detail.net_payable", ())}.get(text, (None, ()))
