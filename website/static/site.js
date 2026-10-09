@@ -326,6 +326,10 @@
       var m = { x: HOME[0], y: HOME[1], r: 0, sy: 1, a: 0, hl: HL0.slice(), hr: HR0.slice(), eyes: 'open', mouth: 'big', look: [0, 0],
                 sweat: 0, excl: 0, held: null, phone: 'flat', kick: 0 };
       if (t < T2) act1(t, m); else if (t < T3) act2(t, m); else if (t < T4) act3(t, m); else act4(t, m);
+      // 一直在的轻微呼吸，动作之间停下来时身子也不会僵住；举着手机时手也微微晃
+      var br = Math.sin(t / 430);
+      m.y += 1.6 * br; m.sy *= 1 + .012 * br;
+      if (m.phone === 'up') { m.hl[0] += 1.4 * Math.sin(t / 310); m.hl[1] += 1.2 * Math.sin(t / 370); }
       return m;
     }
     // ① 过去：左手拿一张举到眼前看，右手一根手指敲；看完放进托盘。越到晚上越累：往下塌、冒汗
@@ -377,13 +381,14 @@
       m.y -= 6 * (1 - sit); m.r = -3 * (1 - sit);
       m.hl = t < 11950 ? mix(PHONE_HOLD, PHONE_DESK, sit) : mix(PHONE_DESK, HL0, seg(t, 11950, 12150));
       m.phone = t < 11950 ? 'up' : 'flat';
-      var lean = seg(t, 12150, 12500) * (1 - seg(t, 12800, 13000));
+      // 往椅背一靠，不停顿，顺势连人带椅子转过来（转身开始时靠背正好回正）
+      var lean = seg(t, 12150, 12450) * (1 - seg(t, 12450, 12700));
       m.y += 6 * lean; m.sy = 1 + .03 * lean;
-      m.a = 180 * seg(t, 12950, 13450, back);
-      m.eyes = t < 13500 ? 'happy' : 'open'; m.mouth = 'big';
-      if (t >= 13300) {
-        var w = seg(t, 13300, 13600), wave = Math.sin(seg(t, 13600, END, lin) * Math.PI * 4) * 18;
-        m.hr = mix(m.hr, [430 + wave, 344], w); m.hl = mix(m.hl, [700, 418], w); m.kick = Math.sin(seg(t, 13600, END, lin) * Math.PI * 6) * w;
+      m.a = 180 * seg(t, 12400, 12900);
+      m.eyes = t < 13000 ? 'happy' : 'open'; m.mouth = 'big';
+      if (t >= 12750) {
+        var w = seg(t, 12750, 13050), wave = Math.sin(seg(t, 13050, END, lin) * Math.PI * 6) * 18;
+        m.hr = mix(m.hr, [430 + wave, 344], w); m.hl = mix(m.hl, [700, 418], w); m.kick = Math.sin(seg(t, 13050, END, lin) * Math.PI * 8) * w;
       }
     }
 
@@ -536,7 +541,7 @@
       var top = bp(m, 10, -104), rise = seg(tt, 5150, 5680, lin);
       op(E.puff, puff); move(E.puff, top[0] + 14 * rise, top[1] - 8 - 30 * rise, ' scale(' + f2(.8 + .5 * rise) + ')');
       E.sparks.forEach(function (el, i) {
-        var k = seg(tt, 13400 + i * 90, 13650 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
+        var k = seg(tt, 12850 + i * 90, 13100 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
         var base = el._base || (el._base = el.getAttribute('transform'));
         op(el, k); set(el, 'transform', base + ' scale(' + f2(Math.max(.01, k) * tw) + ') rotate(' + f((t / 20 + i * 40) % 360) + ')');
       });
