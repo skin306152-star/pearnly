@@ -43,12 +43,18 @@ def kick():
 
 @contextmanager
 def _as(user):
-    previous = frappe.session.user
+    """以负责人的身份推进；语言也换成负责人的网页语言 —— 退回原因、结果表格都按这个人的语言记，
+    不随后台进程的语言变（10-09 实测：同一原因到点运行存泰文、立即运行存英文）。与 `machine._as` 同一做法。"""
+    from frappe.translate import get_user_lang
+
+    previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(user)
+    frappe.local.lang = get_user_lang(user)
     try:
         yield
     finally:
         frappe.set_user(previous)
+        frappe.local.lang = previous_lang
 
 
 def _lock():

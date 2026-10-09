@@ -92,9 +92,11 @@ def doc_totals(
 
     computed = vat_of(base)
     printed = to_money(printed_vat)
+    # 票面明确印 0（无税收据、未登记增值税的卖方）就是无税票，不补 7%（10-09 实测：无税餐厅收据已入账，
+    # 结果表格却因「补了 7% 对不上合计」只出说明页）。空着的照旧按税基重算。
     vat = (
         printed
-        if printed is not None and abs(quantize_money(printed) - computed) <= _VAT_TRUST_TOL
+        if printed is not None and (printed == 0 or abs(quantize_money(printed) - computed) <= _VAT_TRUST_TOL)
         else computed
     )
     vat = quantize_money(vat)

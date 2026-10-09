@@ -22,6 +22,13 @@ SRC_NONE = ""  # 全无信号 · 留给各 mapper 的固定默认
 
 
 
+def payment_written(fields: Dict[str, Any]) -> bool:
+    """票面自己写明了现购 / 赊购（付款状态或付款方式，即下面漏斗的第②级）：任务默认值与记过的选择都不盖它。"""
+    status = str((fields or {}).get("payment_status") or "").strip().lower()
+    method = str((fields or {}).get("payment_method") or "").strip().lower()
+    return status in ("paid", "unpaid", "credit") or bool(method and any(tok in method for tok in _PAID_TOKENS))
+
+
 def payment_verdict(
     fields: Dict[str, Any],
     *,

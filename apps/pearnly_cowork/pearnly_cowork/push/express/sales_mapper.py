@@ -174,7 +174,10 @@ def build_express_sales_payload(
     )
     address = clean_address(fields.get("buyer_addr"))
     branch = clean_branch_no(fields.get("buyer_branch"))
-    if _is_cash_buyer(raw_buyer):
+    # 票面没有买方（门店简易税票开给散客：没名字也没税号）同现金客户：记到账套的现金客户，不建新客户、不拦
+    # （10-09 实测停在 vendor_missing）。有税号却没名字的照旧按客户找 / 建。
+    walk_in = not clean_seller(raw_buyer) and not tax_id
+    if walk_in or _is_cash_buyer(raw_buyer):
         name = CASH_CUSTOMER_NAME
         # 现金/散客客户用现成档(不新建)→ 不带地址(简易税票无须买方地址)。
         customer = {

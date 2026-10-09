@@ -20,6 +20,8 @@ import unicodedata
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
+from pearnly_cowork.push.express.payment import payment_written
+
 NEW = "__new__"
 KINDS = ("party", "item", "account", "payment", "vat", "department")
 PAYMENT_VALUES = ("cash", "credit")
@@ -147,11 +149,16 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
 
     party_key = supplier_subject(direction, tax, name)
     if direction == "purchase":
-        # ── 付款方式：票面人工裁决 / 票面写明的优先；没有就按这家记过的；都没有要问 ──
+        # ── 付款方式：票面人工裁决 / 票面写明的优先；没有就按任务的默认值 / 这家记过的；都没有要问 ──
+        # 票面写明了（付款状态 / 方式，例如收据上的「เงินสด」）就照票面，任务默认值与记过的只管票面没写的
+        # （10-09 实测：任务默认赊购把三张票面写明现金的票记成了 RR 赊购）。
         explicit = str(fields.get("posting_payment_manual") or "").strip()
         value = chosen("payment", party_key)
+        written = payment_written(fields)
         if explicit in PAYMENT_VALUES:
             applied["remember_payment"] = explicit
+        elif written:
+            pass
         elif value in PAYMENT_VALUES:
             applied["payment"] = value
         elif not str(fields.get("payment_status") or "").strip():

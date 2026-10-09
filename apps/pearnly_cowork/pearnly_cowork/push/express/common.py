@@ -299,6 +299,13 @@ def extract_line_items(
         ex = _rescale_items_exvat(items, base, total)
         if ex is not None:
             return {"items": ex, "status": ITEMS_OK, "line_sum": _s(base)}
+    # 票面整单折扣（泰国进货票常见）：行合计 − 折扣 ≈ 税前额也是对得上的。小助手的明细没有折扣列（折扣固定写 0），
+    # 折扣按金额比例摊进各行，余数落末行，摊后逐行合计 == 税前额（10-09 实测：读对了折扣 500 仍停在明细不符）。
+    discount = _d(fields.get("discount"))
+    if discount is not None and discount > 0 and line_sum > 0 and matched_target(line_sum - discount, base) == "base":
+        spread = _rescale_items_exvat(items, base, line_sum)
+        if spread is not None:
+            return {"items": spread, "status": ITEMS_OK, "line_sum": _s(base)}
     return {"items": items, "status": ITEMS_MISMATCH, "line_sum": _s(line_sum)}
 
 
@@ -428,6 +435,11 @@ def amounts(fields: Dict[str, Any], history: Dict[str, Any]) -> Optional[tuple]:
         base = total - vat
 
     base, vat, total = _q(base), _q(vat), _q(total)
+    # 小计印的是折扣前的数：小计 − 折扣 + 税 ≈ 总额时，税前额取折后（与识别校验 `sanity.line_sum_mismatch` 同口径）。
+    discount = _d(fields.get("discount"))
+    if (discount is not None and discount > 0 and abs(base + vat - total) > _BALANCE_TOL
+            and abs(base - discount + vat - total) <= _BALANCE_TOL):
+        base = _q(base - discount)
     if base <= 0 or vat < 0:
         return None
     if abs(base + vat - total) > _BALANCE_TOL:

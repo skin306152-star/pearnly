@@ -60,8 +60,10 @@ def review_status(fields: dict) -> str | None:
         if not str(item.get("name") or "").strip() or amount is None:
             return "incomplete"
         line_sum += amount
-    # 票面折扣行常被读成负数明细：行合计对上未扣折扣的小计也算对得上。
-    if matched_target(line_sum, base, total) or (subtotal is not None and matched_target(line_sum, subtotal)):
+    # 票面折扣行常被读成负数明细：行合计对上未扣折扣的小计也算对得上；小计印的是折后数时，行合计 − 折扣 ≈ 小计
+    # 同样对得上（与推送的明细闸同口径，`push/express/common.extract_line_items`）。
+    if matched_target(line_sum, base, total) or (subtotal is not None and matched_target(line_sum, subtotal)) or (
+            subtotal is not None and discount and matched_target(line_sum - discount, subtotal)):
         return None
     return "mismatch"
 

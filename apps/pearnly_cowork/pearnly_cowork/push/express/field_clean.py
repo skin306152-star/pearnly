@@ -95,8 +95,14 @@ def clean_seller(raw) -> str:
     """卖家清洗:剥空白;纯金额/字段标签/完整日期/无内容/过短(<2)→ ''(不展示假值)。
 
     「1780.00」「Total」「VAT」「13」「13/06/26」→ '';「Bangchak」「บางจาก」「7-11」「711」→ 保留。
+    票面名称常是泰文名一行、英文名另起一行（识别原样带换行）：只取第一行，第二行英文名不写进 ERP 主档
+    （10-09 实测：「…จำกัด\nSIAM HOME APPLIANCE CO., LTD.」整段建进了 Express 供应商档）；
+    第一行只是「บริษัท」这类短前缀时接上第二行。
     """
-    s = str(raw or "").strip()
+    lines = [" ".join(line.split()) for line in str(raw or "").splitlines() if line.strip()]
+    s = lines[0] if lines else ""
+    if len(lines) > 1 and len(s) <= 8:
+        s = f"{s} {lines[1]}"
     if len(s) < 2 or not _ALNUM_RE.search(s):
         return ""
     if s.lower() in _SELLER_STOPWORDS:

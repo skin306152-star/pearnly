@@ -255,10 +255,16 @@
 			const show = {payment: purchase, vat: purchase, account: purchase && !stock, item: stock,
 				department: Boolean(state.options?.departments?.length)};
 			for (const [kind, visible] of Object.entries(show)) d.set_df_property("d_" + kind, "hidden", express() && visible ? 0 : 1);
-			set_options("d_account", (state.options?.accounts || []).map(row => ({value: row.code, label: `${row.code} · ${row.name}`})),
-				rule?.defaults?.account);
-			set_options("d_department", (state.options?.departments || []).map(row => ({value: row.code,
-				label: `${row.code} · ${row.name}`})), rule?.defaults?.department);
+			// 科目 / 部门这份账套的选项还没读到（打开弹窗时、换账套途中）就不动下拉：否则先被清空，只改了运行时间保存
+			// 也会把任务原来的默认科目丢掉（10-09 实测：服务类票全部停在「要选科目」）。读到了再按任务原来的值预选。
+			if (state.options?.accounts) {
+				set_options("d_account", state.options.accounts.map(row => ({value: row.code, label: `${row.code} · ${row.name}`})),
+					d.get_value("d_account") || rule?.defaults?.account);
+			}
+			if (state.options?.departments) {
+				set_options("d_department", state.options.departments.map(row => ({value: row.code,
+					label: `${row.code} · ${row.name}`})), d.get_value("d_department") || rule?.defaults?.department);
+			}
 		};
 		// 文件夹一个下拉：能读文件夹的小助手（Express 任务只有它自己那台；MR.ERP 任务是工作空间里已配好的每一台，
 		// 同时用两种 ERP 的直接借用 Express 的小助手，2026-10-09）允许读取的根目录与其下文件夹。不止一台时前面带电脑名。
@@ -295,10 +301,13 @@
 			const target = connection();
 			if (!target) return;
 			const ticket = ++state.loading;  // 连着换了几次账套：只认最后一次的结果
-			const options = await quiet(API + "options", {connection: target.name,
-				account_set_key: express() ? d.get_value("account_set_key") || undefined : undefined}).catch(() => null);
-			if (ticket !== state.loading || !options) return;
+			const key = express() ? d.get_value("account_set_key") || null : null;
+			const options = await quiet(API + "options", {connection: target.name, account_set_key: key || undefined})
+				.catch(() => null);
+			// 回来时账套已经换了（例如打开弹窗时先按空账套取了一次）：这一份没有那份账套的科目，不用。
+			if (ticket !== state.loading || !options || key !== (express() ? d.get_value("account_set_key") || null : null)) return;
 			state.options = options;
+			state.options_key = key;
 			paint_folders();
 			paint_stock();
 			paint_defaults();
@@ -344,7 +353,7 @@
 		const on_account = async () => {
 			const next = d.get_value("account_set_key") || null;
 			// 换年度时下拉先被清空一次：不把任务原来的账套也清掉，等新的选项铺好再按它预选。
-			if (!next || (next === state.account_set_key && state.options)) return;
+			if (!next || (next === state.account_set_key && state.options_key === next)) return;
 			state.account_set_key = next;
 			// 与「新建录入」一样：选了 Express 账套就请小助手读这份账套的主档（科目、部门、存货科目组）；打开已有任务不重复请求。
 			if (express() && next !== rule?.account_set_key) p.intake_targets.prefetch_account(connection(), next);

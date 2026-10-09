@@ -132,5 +132,23 @@ class FolderRuleDefaults(unittest.TestCase):
         self.assertNotIn("payment", {item["kind"] for item in ruled["needed"]})
 
 
+class PaymentWrittenOnTheInvoice(unittest.TestCase):
+    """票面写明现购 / 赊购就照票面；任务默认值与这家记过的只管票面没写的（10-09 实测）。"""
+
+    def test_written_cash_beats_the_task_default_and_the_remembered_choice(self):
+        subject = C.supplier_subject("purchase", SUPPLIER, "BANGCHAK GREENNET CO.,LTD.")
+        for written in ({"payment_status": "paid"}, {"payment_method": "เงินสด"}, {"payment_status": "credit"}):
+            result = C.resolve(purchase(**written), direction="purchase", posting_kind="service", config=CONFIG,
+                               remembered={"payment": {subject: "credit"}}, account_resolved=True,
+                               fixed={"payment": "cash" if written.get("payment_status") == "credit" else "credit"})
+            self.assertNotIn("payment", result["applied"], written)
+            self.assertNotIn("payment", {item["kind"] for item in result["needed"]})
+
+    def test_unwritten_payment_takes_the_task_default(self):
+        result = C.resolve(purchase(), direction="purchase", posting_kind="service", config=CONFIG,
+                           remembered={}, account_resolved=True, fixed={"payment": "cash"})
+        self.assertEqual(result["applied"].get("payment"), "cash")
+
+
 if __name__ == "__main__":
     unittest.main()
