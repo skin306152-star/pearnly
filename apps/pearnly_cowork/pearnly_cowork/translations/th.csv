@@ -1036,6 +1036,7 @@ Run history,ประวัติการทำงาน
 Run now,เรียกใช้ทันที
 Run on day,วันที่ทำงานประจำเดือน
 Run requested. The Companion starts within a few minutes.,ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที
+Run time,เวลาทำงาน
 SHA-256,SHA-256
 SKU,SKU
 Sales area,พื้นที่การขาย
@@ -1675,7 +1676,7 @@ cowork.folder.field.connection,เครื่อง Express
 cowork.folder.field.day,วันที่ทำงานประจำเดือน
 cowork.folder.field.folder,โฟลเดอร์
 cowork.folder.field.root,โฟลเดอร์หลักที่อนุญาต
-cowork.folder.field.time,เวลาทำงาน (เวลากรุงเทพฯ)
+cowork.folder.field.time,เวลาทำงาน
 cowork.folder.field.title,ชื่องาน
 cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 cowork.folder.folderMissing,ไม่พบโฟลเดอร์

@@ -36,10 +36,15 @@ class Destinations(unittest.TestCase):
 
 
 class SaveMrerpTask(unittest.TestCase):
+    """MR.ERP 任务：付款方式口径；读文件夹的可以是它自己配的小助手，也可以借用同一工作空间里 Express 的小助手。"""
+
+    ROOT_A, ROOT_B = "a" * 16, "b" * 16
+
     def _rules(self, adapter):
-        db = FakeDB({"Cowork ERP Connection": {"C1": {"adapter": adapter, "workspace": "W", "client": "",
-                                                       "binding_generation": 0}},
-                     "Cowork Folder Intake Rule": {}})
+        connections = {"C1": Row(name="C1", adapter=adapter, workspace="W", client="", binding_generation=0, label=adapter),
+                       "EX": Row(name="EX", adapter="express", workspace="W", client="", binding_generation=0, label="Express")}
+        db = FakeDB({"Cowork Folder Intake Rule": {}})
+        db.sql = lambda query, values=None, as_dict=False: [[0]] if "COUNT(*)" in query else []
         saved = []
 
         class Doc(Row):
@@ -55,24 +60,25 @@ class SaveMrerpTask(unittest.TestCase):
         def write(doc):
             doc["name"] = "R1"
             saved.append(dict(doc))
-            db.tables["Cowork Folder Intake Rule"]["R1"] = Row(doc)
 
         stub = types.SimpleNamespace
-        connection = Row(name="C1", adapter=adapter, workspace="W", client="", binding_generation=0)
-        frappe = _frappe(db, get_doc=lambda doctype, name: connection, new_doc=lambda doctype: Doc(),
+        frappe = _frappe(db, get_doc=lambda doctype, name: connections[name], new_doc=lambda doctype: Doc(),
                          session=stub(user="owner@example.com"))
-        frappe.db.count = lambda doctype, filters: 0
+        frappe.db.get_value = lambda doctype, name, field: "{}" if field == "report_json" else connections[name].get(field)
         group = {"label": "Company", "items": [{"value": "Y1", "label": "2569"}]}
         masters = mock.Mock(return_value={})
+        agents = {"C1": {"roots": [{"id": self.ROOT_A, "label": "D:\\Bills"}], "version": "1.3.23"},
+                  "EX": {"roots": [{"id": self.ROOT_B, "label": "S:\\Scans"}], "version": "1.3.23"}}
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: "2026-10-09 10:00:00"),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None)),
-                   "pearnly_cowork.connections": stub(access=stub(require_connection=lambda doc: None),
-                                                      preparation=stub(reported_masters=masters),
-                                                      service=stub(targets=lambda name: {"groups": [group]},
-                                                                   stock_acc_group=lambda *a: {})),
+                   "pearnly_cowork.connections": stub(
+                       access=stub(require_connection=lambda doc: None),
+                       preparation=stub(reported_masters=masters),
+                       service=stub(targets=lambda name: {"groups": [group]}, stock_acc_group=lambda *a: {},
+                                    records=lambda *a: [dict(row) for row in connections.values()])),
                    "pearnly_cowork.folder_intake": stub(
-                       agent=stub(read=lambda name: {"roots": [{"id": "r" * 16, "label": "D:\\Invoices"}]}),
+                       agent=stub(read=lambda name: agents.get(name, {}), fresh=lambda state: True),
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),
                        inbox=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="Cowork Folder Intake Rule", RUN="U",
@@ -84,14 +90,24 @@ class SaveMrerpTask(unittest.TestCase):
 
     def values(self, **extra):
         return {"title": "Bills", "connection": "C1", "account_set_key": "Y1", "direction": "purchase",
-                "root_id": "r" * 16, "folder": "", "run_day": 1, "run_time": "22:00", **extra}
+                "root_id": self.ROOT_A, "folder": "", "run_day": 1, "run_time": "22:00", **extra}
 
     def test_mrerp_task_keeps_payment_and_no_posting_kind_or_defaults(self):
         rules, saved, masters = self._rules("mrerp")
         rules.save(json.dumps(self.values(payment="credit", posting_kind="stock", defaults={"payment": "cash"})))
         row = saved[-1]
-        self.assertEqual((row["payment"], row["posting_kind"], json.loads(row["defaults_json"])), ("credit", "", {}))
+        self.assertEqual((row["payment"], row["posting_kind"], json.loads(row["defaults_json"]), row["reader"]),
+                         ("credit", "", {}, "C1"))
         masters.assert_not_called()  # 不读 Express 主档
+
+    def test_mrerp_task_can_borrow_the_express_helper(self):
+        rules, saved, _masters = self._rules("mrerp")
+        rules.save(json.dumps(self.values(payment="credit", reader="EX", root_id=self.ROOT_B)))
+        self.assertEqual((saved[-1]["connection"], saved[-1]["reader"]), ("C1", "EX"))
+        view = rules.options("C1")
+        self.assertEqual([reader["connection"] for reader in view["readers"]], ["C1", "EX"])
+        with self.assertRaises(Exception):  # 文件夹不是那台小助手的
+            rules.save(json.dumps(self.values(payment="credit", reader="EX", root_id=self.ROOT_A)))
 
     def test_mrerp_purchase_cash_and_missing_payment_are_refused(self):
         rules, saved, _masters = self._rules("mrerp")
@@ -101,12 +117,26 @@ class SaveMrerpTask(unittest.TestCase):
         rules.save(json.dumps(self.values(direction="sales", payment="cash")))
         self.assertEqual(saved[-1]["payment"], "cash")
 
-    def test_express_task_still_needs_a_posting_kind_and_has_no_payment(self):
+    def test_express_task_reads_only_on_its_own_helper(self):
         rules, saved, _masters = self._rules("express")
         with self.assertRaises(Exception):
             rules.save(json.dumps(self.values()))
         rules.save(json.dumps(self.values(posting_kind="service", payment="cash")))
-        self.assertEqual((saved[-1]["posting_kind"], saved[-1]["payment"]), ("service", ""))
+        self.assertEqual((saved[-1]["posting_kind"], saved[-1]["payment"], saved[-1]["reader"]), ("service", "", "C1"))
+        self.assertEqual([reader["connection"] for reader in rules.options("C1")["readers"]], ["C1"])
+        with self.assertRaises(Exception):
+            rules.save(json.dumps(self.values(posting_kind="service", reader="EX", root_id=self.ROOT_B)))
+
+
+class Reader(unittest.TestCase):
+    def test_machine_side_follows_the_reader(self):
+        source = (APP / "folder_intake/machine.py").read_text()
+        self.assertIn("if (rule.reader or rule.connection) != context.connection:", source)
+        self.assertIn("IFNULL(NULLIF(reader, ''), connection) = %s", source)
+        self.assertIn('"connection": context.connection, "run": run', source)
+        patch = (APP / "patches/v0_0_14_folder_task_reader.py").read_text()
+        self.assertIn("SET reader = connection WHERE IFNULL(reader, '') = ''", patch)
+        self.assertIn("pearnly_cowork.patches.v0_0_14_folder_task_reader", (APP / "patches.txt").read_text())
 
 
 class Probe(unittest.TestCase):

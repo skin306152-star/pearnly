@@ -1417,7 +1417,7 @@ No runs yet	暂无运行记录	ยังไม่มีประวัติก�
 Task name	任务名称	ชื่องาน	タスク名	cowork.folder.field.title
 Folder to read	文件夹	โฟลเดอร์	フォルダー	cowork.folder.field.folder
 Run on day	每月运行日	วันที่ทำงานประจำเดือน	実行日	cowork.folder.field.day
-Run at (Bangkok time)	运行时间（曼谷时间）	เวลาทำงาน (เวลากรุงเทพฯ)	時刻（バンコク）	cowork.folder.field.time
+Run time	运行时间	เวลาทำงาน	実行時刻	cowork.folder.field.time
 Default handling for this folder	默认处理	การจัดการเริ่มต้น	既定の処理	cowork.folder.section.defaults
 When the document does not show cash or credit	票面未注明现购 / 赊购	เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ	現金・掛けが書類から分からない場合	cowork.folder.default.payment
 VAT on receipts and abbreviated tax invoices	收据、简易税票上的税额	ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ	領収書・簡易税請求書の税額	cowork.folder.default.vat

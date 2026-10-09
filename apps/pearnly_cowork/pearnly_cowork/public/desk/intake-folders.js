@@ -112,32 +112,38 @@
 		const connection = () => (rule ? {name: rule.connection, adapter: rule.adapter}
 			: snapshot.connections[picked.target] || null);
 		const express = () => picked.target === "express";
+		// 版面（用户 2026-10-09：布局要规整）：任务名称、目标 ERP 卡片各占一整行；下面一行一对，左右对齐 ——
+		// 账套两级｜进项销项与入账方式｜文件夹（整行）｜每月运行日与时间；Express 另有可收起的默认处理。
+		const row = () => ({fieldtype: "Section Break", hide_border: 1});
 		const fields = [
-			// 目标 ERP 卡片独占一行（与「新建录入」一样在最上面），下面才分两栏。
-			{fieldtype: "HTML", fieldname: "target"},
-			{fieldtype: "Section Break"},
 			{fieldtype: "Data", fieldname: "title", label: ft("cowork.folder.field.title"), reqd: 1, default: rule?.title || ""},
+			{fieldtype: "HTML", fieldname: "target"},
+			row(),
 			{fieldtype: "Select", fieldname: "year", label: __("Company"), options: [], onchange: () => void on_group()},
+			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "account_set_key", label: __("intake.target.year"), reqd: 1, options: [],
 				max_items: 1000, onchange: () => void on_account()},
-			{fieldtype: "Column Break"},
+			row(),
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"), reqd: 1,
 				options: [{value: "purchase", label: t("intake.dir.purchase")}, {value: "sales", label: t("intake.dir.sales")}],
 				default: rule?.direction || "purchase", onchange: () => {paint_mode(); paint_defaults();}},
+			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"),
 				options: [{value: "service", label: __("Service")}, {value: "stock", label: __("Stock")}],
 				default: rule?.posting_kind || "service", onchange: () => {paint_stock(); paint_defaults();}},
 			{fieldtype: "Select", fieldname: "payment", label: __("Payment Method"), options: []},
 			{fieldtype: "Select", fieldname: "stock_acc_group", label: __("Inventory account group"), options: [], hidden: 1},
 			{fieldtype: "Section Break"},
+			// 文件夹：能读的小助手允许读取的根目录与其下文件夹，值是「小助手连接|根目录编号|相对路径」。
 			{fieldtype: "Select", fieldname: "folder", label: ft("cowork.folder.field.folder"), reqd: 1, options: [],
 				max_items: 2000, description: ft("cowork.folder.folderHint")},
 			// 按钮一开始隐藏时 Frappe 还没建元素：点击写在字段定义上（同「新建录入」的「重新读取」）。
 			{fieldtype: "Button", fieldname: "connect_helper", label: ft("cowork.folder.connectHelper"), hidden: 1,
 				click: () => void connect_helper()},
-			{fieldtype: "Column Break"},
+			row(),
 			{fieldtype: "Select", fieldname: "run_day", label: ft("cowork.folder.field.day"), reqd: 1, options: days(),
 				default: String(rule?.run_day ?? 1)},
+			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "run_time", label: ft("cowork.folder.field.time"), reqd: 1, options: times(),
 				default: rule?.run_time || "22:00"},
 			{fieldtype: "Section Break", fieldname: "defaults_section", label: ft("cowork.folder.section.defaults"),
@@ -168,9 +174,9 @@
 			for (const kind of ["payment", "vat", "account", "department", "item"]) {
 				if (express() && !d.fields_dict["d_" + kind].df.hidden && values["d_" + kind]) defaults[kind] = values["d_" + kind];
 			}
-			const [root_id, ...folder] = String(values.folder || "").split("|");
+			const [reader, root_id, ...folder] = String(values.folder || "").split("|");
 			await p.call(API + "save", {values: JSON.stringify({name: rule?.name || null, title: values.title,
-				connection: target.name, account_set_key: values.account_set_key, direction: values.direction,
+				connection: target.name, reader, account_set_key: values.account_set_key, direction: values.direction,
 				posting_kind: express() ? values.posting_kind : "", payment: express() ? "" : values.payment,
 				root_id, folder: folder.join("|"), run_day: Number(values.run_day), run_time: values.run_time, defaults})},
 			"POST");
@@ -254,25 +260,29 @@
 			set_options("d_department", (state.options?.departments || []).map(row => ({value: row.code,
 				label: `${row.code} · ${row.name}`})), rule?.defaults?.department);
 		};
-		// 文件夹一个下拉：这条连接的小助手允许读取的根目录与其下的文件夹，值是「根目录编号|相对路径」。
+		// 文件夹一个下拉：能读文件夹的小助手（Express 任务只有它自己那台；MR.ERP 任务是工作空间里已配好的每一台，
+		// 同时用两种 ERP 的直接借用 Express 的小助手，2026-10-09）允许读取的根目录与其下文件夹。不止一台时前面带电脑名。
 		const paint_folders = () => {
-			const folders = (state.options?.roots || []).flatMap(item => [
-				{value: `${item.id}|`, label: item.label},
-				...(item.folders || []).map(name => ({value: `${item.id}|${name}`, label: `${item.label}\\${name}`}))]);
+			const readers = state.options?.readers || [];
+			const many = readers.filter(reader => (reader.roots || []).length).length > 1;
+			const prefix = reader => (many ? `${reader.label} · ` : "");
+			const folders = readers.flatMap(reader => (reader.roots || []).flatMap(item => [
+				{value: `${reader.connection}|${item.id}|`, label: prefix(reader) + item.label},
+				...(item.folders || []).map(name => ({value: `${reader.connection}|${item.id}|${name}`,
+					label: `${prefix(reader)}${item.label}\\${name}`}))]));
 			// 小助手这会儿还没报上来（刚重启等）：任务原来的文件夹照样摆着，不让编辑时被清空。
-			const saved = rule ? `${rule.root_id}|${rule.folder || ""}` : null;
+			const saved = rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : null;
 			if (saved && !folders.some(row => row.value === saved)) {
 				folders.unshift({value: saved, label: [rule.root_label, rule.folder].filter(Boolean).join("\\") || rule.folder});
 			}
 			set_options("folder", folders, saved);
 			enable("folder", Boolean(folders.length));
-			const agent = state.options?.agent;
-			// 没配过小助手（只可能是 MR.ERP：Express 卡片要小助手在线才可选）→「连接小助手」，同「连接 Express」的弹窗。
-			const unpaired = Boolean(picked.target) && !express() && !agent?.version && !(state.options?.roots || []).length;
+			// 工作空间里一台小助手都没配过（只用 MR.ERP 的公司）→「连接小助手」，与「连接 Express」同一个弹窗。
+			const unpaired = Boolean(picked.target) && Boolean(state.options) && !readers.some(reader => reader.version);
 			d.set_df_property("connect_helper", "hidden", unpaired && !rule ? 0 : 1);
 			const hint = !state.options ? "cowork.folder.folderHint" : unpaired ? "cowork.folder.noRootsAny"
-				: !agent?.fresh ? "cowork.folder.agentStaleHint"
-				: !(state.options.roots || []).length ? "cowork.folder.noRoots" : "cowork.folder.folderHint";
+				: !readers.some(reader => reader.fresh) ? "cowork.folder.agentStaleHint"
+				: !folders.length ? (express() ? "cowork.folder.noRoots" : "cowork.folder.noRootsAny") : "cowork.folder.folderHint";
 			d.set_df_property("folder", "description", ft(hint));
 		};
 		const connect_helper = async () => {

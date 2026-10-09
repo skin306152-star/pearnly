@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-09 15:39:43.725695",
+ "modified": "2026-10-09 15:52:53.000610",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -19,6 +19,7 @@
   "workspace",
   "client",
   "connection",
+  "reader",
   "rule_owner",
   "enabled",
   "active_since",
@@ -69,6 +70,12 @@
    "options": "Cowork ERP Connection",
    "reqd": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "reader",
+   "fieldtype": "Link",
+   "label": "Reader",
+   "options": "Cowork ERP Connection"
   },
   {
    "fieldname": "rule_owner",

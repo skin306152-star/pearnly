@@ -61,13 +61,44 @@ def _masters(doc, account_set_key):
             found)
 
 
+def _readers(doc):
+    """能给这个任务读文件夹的小助手（各自的连接）：Express 任务只能是它自己那台（写账套的也是它）；MR.ERP 任务可以是
+    同一工作空间里任一台已配好的小助手 —— Express 的，或 MR.ERP 自己发配对码配的（2026-10-09：同时用两种 ERP 的
+    不用再配第二个配对码，只用 MR.ERP 的才在 MR.ERP 上配一台）。都要当前用户能用这条连接。"""
+    if doc.adapter == "express":
+        return [doc]
+    found = [doc]
+    for row in connections.records(doc.workspace, doc.client or None, 0, 100) or []:
+        if row.get("name") == doc.name or row.get("adapter") != "express":
+            continue
+        try:
+            found.append(_connection(row["name"]))
+        except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+    return found
+
+
+def _reader_view(doc):
+    state = agent.read(doc.name)
+    report = {}
+    try:
+        report = json.loads(frappe.db.get_value(CONNECTION, doc.name, "report_json") or "{}")
+    except (TypeError, ValueError):
+        pass
+    # 电脑名：小助手同步文件夹时报的（1.3.23 起）→ Express 心跳报的本机名 → 连接名。
+    label = state.get("device") or (report.get("agent_device_name") if isinstance(report, dict) else "") or doc.label
+    return {"connection": doc.name, "adapter": doc.adapter, "label": str(label or doc.name)[:80],
+            "fresh": agent.fresh(state), "version": state.get("version") or "", "roots": state.get("roots") or []}
+
+
 def options(connection, account_set_key=None):
-    """规则表单要的选项：这台小助手允许读取的根目录与文件夹；Express 另有账套的科目与部门、存货科目组。"""
+    """任务表单要的选项：能读文件夹的小助手与它们允许读取的根目录、文件夹；Express 另有账套的科目与部门、存货科目组。"""
     _require()
     doc = _connection(connection)
-    state = agent.read(doc.name)
-    result = {"agent": {"fresh": agent.fresh(state), "version": state.get("version") or "", "at": state.get("at")},
-              "roots": state.get("roots") or [], "accounts": None, "departments": None, "stock_group": None}
+    readers = [_reader_view(reader) for reader in _readers(doc)]
+    own = readers[0]
+    result = {"agent": {"fresh": own["fresh"], "version": own["version"]}, "roots": own["roots"], "readers": readers,
+              "accounts": None, "departments": None, "stock_group": None}
     if account_set_key and doc.adapter == "express":
         _value, _label = _catalog_item(doc.name, account_set_key)
         _a, _d, found = _masters(doc, account_set_key)
@@ -118,20 +149,24 @@ def save(values):
     account_set_key, label = _catalog_item(doc.name, values.get("account_set_key"))
     if posting_kind == "stock":
         _stock_ready(doc.name, account_set_key)
-    roots = {row["id"] for row in agent.read(doc.name).get("roots") or []}
+    reader = values.get("reader") or doc.name
+    if reader not in {item.name for item in _readers(doc)}:
+        frappe.throw(_("cowork.folder.root_invalid"))
+    roots = {row["id"] for row in agent.read(reader).get("roots") or []}
     if root not in roots:
         frappe.throw(_("cowork.folder.root_invalid"))
     name = values.get("name") or None
     rule = read(RULE, name, for_update=True) if name else frappe.new_doc(RULE)
     if name and rule.connection != doc.name:
-        # 换连接（换电脑）等于另一条规则：原规则停用，另建一条。
+        # 换目标 ERP 等于另一个任务：原任务停用，另建一个。
         frappe.throw(_("cowork.folder.connection_fixed"))
-    _no_overlap(doc.name, root, folder, rule.name if name else None)
-    if not name and frappe.db.count(RULE, {"connection": doc.name}) >= MAX_RULES:
+    _no_overlap(reader, root, folder, rule.name if name else None)
+    if not name and _count(reader) >= MAX_RULES:
         frappe.throw(_("cowork.folder.too_many"))
     before = _routing(rule) if name else None
     rule.update({"title": title, "workspace": doc.workspace, "client": doc.client or "", "connection": doc.name,
-                 "rule_owner": frappe.session.user, "account_set_key": account_set_key, "account_label": label,
+                 "reader": reader, "rule_owner": frappe.session.user, "account_set_key": account_set_key,
+                 "account_label": label,
                  "direction": direction, "posting_kind": posting_kind, "payment": payment, "root_id": root, "folder": folder,
                  "run_day": day, "run_time": at, "defaults_json": json.dumps(defaults, sort_keys=True)})
     if not name:
@@ -145,30 +180,41 @@ def save(values):
 
 
 def _routing(rule):
-    return [rule.get(key) for key in ("account_set_key", "direction", "posting_kind", "payment", "root_id", "folder",
+    return [rule.get(key) for key in ("account_set_key", "direction", "posting_kind", "payment", "reader", "root_id", "folder",
                                       "run_day", "run_time", "defaults_json", "rule_owner")]
 
 
-def _no_overlap(connection, root, folder, current):
-    """启用的规则，文件夹不能相同或互相包含：否则同一份文件会按两套口径各推一次（推进两个账套）。
+def _reader(row):
+    return row.get("reader") or row.get("connection")
 
-    同一台电脑：小助手授权时就不许两个授权文件夹相同或互相包含（不分成员，`companion/folder_store.py`），
-    这里再管同一个授权文件夹之内。不同电脑：本机盘（C:\…）是各自的文件夹，不算重叠；网络共享（含映射盘换算回的
-    网络路径）可能是同一个文件夹 —— 同一工作空间里其他电脑的规则按网络路径比对（2026-10-08）。同一个共享在一台电脑
-    映射成盘符、另一台用网络路径但小助手读不到映射的（非持久映射），认不出来。"""
-    rows = frappe.get_all(RULE, filters={"connection": connection, "enabled": 1, "root_id": root},
-                          fields=["name", "title", "folder"], ignore_permissions=True)
+
+def _count(reader):
+    return frappe.db.sql(f"""SELECT COUNT(*) FROM `tab{RULE}` WHERE IFNULL(NULLIF(reader, ''), connection) = %s""",
+                         (reader,))[0][0]
+
+
+def _no_overlap(reader, root, folder, current):
+    """启用的任务，文件夹不能相同或互相包含：否则同一份文件会按两套口径各推一次（推进两个账套）。
+
+    按「读文件夹的小助手」比（`reader`，MR.ERP 任务可以借用 Express 的小助手，2026-10-09）。同一台电脑：小助手授权时
+    就不许两个授权文件夹相同或互相包含（不分成员，`companion/folder_store.py`），这里再管同一个授权文件夹之内。
+    不同电脑：本机盘（C:\…）是各自的文件夹，不算重叠；网络共享（含映射盘换算回的网络路径）可能是同一个文件夹 ——
+    同一工作空间里其他小助手的任务按网络路径比对（2026-10-08）。同一个共享在一台电脑映射成盘符、另一台用网络路径
+    但小助手读不到映射的（非持久映射），认不出来。"""
+    rows = frappe.db.sql(f"""SELECT name, title, folder FROM `tab{RULE}` WHERE enabled = 1 AND root_id = %s
+        AND IFNULL(NULLIF(reader, ''), connection) = %s""", (root, reader), as_dict=True)
     for row in rows:
         if row.name != current and contracts.nested(row.folder or "", folder):
             frappe.throw(_("cowork.folder.overlap_with").format(row.title))
-    mine = contracts.share_path(_share(connection, root), folder)
+    mine = contracts.share_path(_share(reader, root), folder)
     if not mine:
         return
-    workspace = frappe.db.get_value(CONNECTION, connection, "workspace")
-    others = frappe.get_all(RULE, filters={"workspace": workspace, "enabled": 1, "connection": ["!=", connection]},
-                            fields=["name", "title", "connection", "root_id", "folder"], ignore_permissions=True)
+    workspace = frappe.db.get_value(CONNECTION, reader, "workspace")
+    others = frappe.db.sql(f"""SELECT name, title, connection, reader, root_id, folder FROM `tab{RULE}`
+        WHERE workspace = %s AND enabled = 1 AND IFNULL(NULLIF(reader, ''), connection) != %s""",
+                           (workspace, reader), as_dict=True)
     for row in others:
-        theirs = contracts.share_path(_share(row.connection, row.root_id), row.folder or "")
+        theirs = contracts.share_path(_share(_reader(row), row.root_id), row.folder or "")
         if row.name != current and theirs and contracts.path_nested(mine, theirs):
             frappe.throw(_("cowork.folder.overlap_with").format(row.title))
 
@@ -185,7 +231,7 @@ def set_enabled(name, enabled):
     _connection(rule.connection)
     enabled = 1 if str(enabled) in ("1", "true", "True") else 0
     if enabled and not rule.enabled:
-        _no_overlap(rule.connection, rule.root_id, rule.folder or "", rule.name)
+        _no_overlap(_reader(rule), rule.root_id, rule.folder or "", rule.name)
         rule.active_since = now_datetime()
         rule.rule_owner = frappe.session.user
     if enabled != int(rule.enabled or 0):
@@ -246,11 +292,12 @@ def listing():
             frappe.clear_messages()
             continue
         usable.append({"name": doc.name, "label": connection.get("label") or doc.name})
-        state = agent.read(doc.name)
-        fresh, labels = agent.fresh(state), {row["id"]: row["label"] for row in state.get("roots") or []}
         for name in frappe.get_all(RULE, filters={"connection": doc.name}, pluck="name",
                                    order_by="creation asc", ignore_permissions=True):
             row = project(read(RULE, name))
+            # 文件夹在不在、小助手在不在线，看的是读文件夹的那台小助手（`reader`）。
+            state = agent.read(row["reader"])
+            fresh, labels = agent.fresh(state), {item["id"]: item["label"] for item in state.get("roots") or []}
             row.update(connection_label=usable[-1]["label"], agent_fresh=fresh, root_label=labels.get(row["root_id"], ""),
                        # 小助手报这条规则的文件夹不在了（授权移除 / 改名 / 子文件夹删了）：列表显示「文件夹不可用」
                        folder_state=(state.get("health") or {}).get(name) if fresh else None)
@@ -263,6 +310,7 @@ def project(rule):
                           order_by="started_at desc", limit=1, ignore_permissions=True)
     return {"name": rule.name, "title": rule.title, "connection": rule.connection, "enabled": int(rule.enabled or 0),
             "adapter": frappe.db.get_value(CONNECTION, rule.connection, "adapter") or "",
+            "reader": _reader(rule),
             "account_set_key": rule.account_set_key, "account_label": rule.account_label,
             "direction": rule.direction, "posting_kind": rule.posting_kind or "", "payment": rule.payment or "",
             "root_id": rule.root_id,

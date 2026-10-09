@@ -64,7 +64,8 @@ def _rule(name, context):
     if not isinstance(name, str) or not name or len(name) > 140 or not frappe.db.exists(RULE, name):
         raise contracts.ContractError("cowork.folder.rule_missing")
     rule = read(RULE, name)
-    if rule.connection != context.connection:
+    # 认的是「读文件夹的小助手」（`reader`）：MR.ERP 任务可以由同一工作空间里任一台小助手读（2026-10-09）。
+    if (rule.reader or rule.connection) != context.connection:
         raise contracts.ContractError("cowork.folder.rule_missing")
     return rule
 
@@ -111,7 +112,7 @@ def _sync(context, body):
         return {"server_time": time.time(), "rules": [], "entries": {}, **identity}
     roots = contracts.roots(body.get("roots"))
     agent.remember(context.connection, roots=roots, version=body.get("version"),
-                   health=contracts.health(body.get("rule_health")))
+                   health=contracts.health(body.get("rule_health")), device=contracts.device(body.get("device")))
     for row in (body.get("runs") or [])[:50]:
         try:
             _record_run(context, row)
@@ -119,8 +120,8 @@ def _sync(context, body):
             # 规则已不在 / 记录不合形状：这一条不收，其余照收（不让一条坏记录堵住小助手每一次同步）。
             continue
     rules = []
-    for name in frappe.get_all(RULE, filters={"connection": context.connection, "enabled": 1}, pluck="name",
-                               ignore_permissions=True):
+    for name in frappe.db.sql_list(f"""SELECT name FROM `tab{RULE}` WHERE enabled = 1
+            AND IFNULL(NULLIF(reader, ''), connection) = %s ORDER BY creation""", (context.connection,)):
         rule = read(RULE, name)
         rules.append({"name": rule.name, "revision": int(rule.rule_revision or 0), "title": rule.title,
                       "root_id": rule.root_id, "folder": rule.folder or "", "run_day": int(rule.run_day or 0),
@@ -186,7 +187,8 @@ def _begin(context, body):
         if not owner_ready(rule):
             return {"skip": "cowork.folder.owner_not_ready"}
         entry = frappe.new_doc(FILE)
-        entry.update({"input_key": key, "rule": rule.name, "connection": rule.connection, "run": run,
+        # 文件记在读它的那台小助手名下（`reader`）：之后上传完成、取表格都由它来，按它核身份。
+        entry.update({"input_key": key, "rule": rule.name, "connection": context.connection, "run": run,
                       "relpath": relpath, "filename": filename, "byte_size": size, "sha256": digest,
                       "actor": rule.rule_owner, "state": "registered", "registered_at": now_datetime()})
         write(entry)

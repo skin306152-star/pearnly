@@ -1036,6 +1036,7 @@ Run history,Run history
 Run now,Run now
 Run on day,Run on day
 Run requested. The Companion starts within a few minutes.,Run requested. The Companion starts within a few minutes.
+Run time,Run time
 SHA-256,SHA-256
 SKU,SKU
 Sales area,Sales area
@@ -1675,7 +1676,7 @@ cowork.folder.field.connection,Express PC
 cowork.folder.field.day,Run on day
 cowork.folder.field.folder,Folder to read
 cowork.folder.field.root,Allowed root folder on the PC
-cowork.folder.field.time,Run at (Bangkok time)
+cowork.folder.field.time,Run time
 cowork.folder.field.title,Task name
 cowork.folder.folderHint,One folder per scheduled task. PDF and image files only.
 cowork.folder.folderMissing,Folder not available

@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from . import folder_plan as plan
+from .queue_client import _device_name
 from .folder_client import FolderClient, Refused, put_direct
 from .folder_store import Ledger, connection_key, roots
 from .logger import activity, get_logger
@@ -116,7 +117,8 @@ class FolderIntake:
         client = self._client_factory(cfg.backend_url, cfg.bearer_token)
         try:
             local_roots = roots(key)
-            response = client.sync({"version": VERSION, "roots": self._report(key, local_roots),
+            # device：本机名，网页文件夹下拉在有几台小助手时用它区分电脑（MR.ERP 任务可借用任一台，2026-10-09）。
+            response = client.sync({"version": VERSION, "device": _device_name(), "roots": self._report(key, local_roots),
                                     "runs": list(ledger.runs), "watch": ledger.watch(),
                                     "rule_health": self._health.get(key, {})})
             if not response.get("ok"):

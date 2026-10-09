@@ -282,3 +282,9 @@ def workbook_name(invoice_no: Any, seller_tax: Any, fallback: str, no_number: st
         prefix = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", str(no_number or "")).strip()[:40]
         stem = prefix + base
     return stem + ".xlsx"
+
+
+def device(value) -> str:
+    """小助手报的电脑名（只用于网页显示）：去掉控制字符，最多 60 字。"""
+    text = "".join(ch for ch in str(value or "") if ch.isprintable()).strip()
+    return text[:60]

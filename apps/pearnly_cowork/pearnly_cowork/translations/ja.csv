@@ -1036,6 +1036,7 @@ Run history,実行履歴
 Run now,今すぐ実行
 Run on day,実行日
 Run requested. The Companion starts within a few minutes.,実行を依頼しました。数分以内に開始します。
+Run time,実行時刻
 SHA-256,SHA-256
 SKU,SKU
 Sales area,販売地域
@@ -1675,7 +1676,7 @@ cowork.folder.field.connection,Express の PC
 cowork.folder.field.day,実行日
 cowork.folder.field.folder,フォルダー
 cowork.folder.field.root,許可されたルートフォルダー
-cowork.folder.field.time,時刻（バンコク）
+cowork.folder.field.time,実行時刻
 cowork.folder.field.title,タスク名
 cowork.folder.folderHint,1 フォルダーに 1 定期タスク。PDF と画像のみ。
 cowork.folder.folderMissing,フォルダーが見つかりません

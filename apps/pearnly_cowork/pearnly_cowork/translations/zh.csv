@@ -1036,6 +1036,7 @@ Run history,运行记录
 Run now,立即运行
 Run on day,每月运行日
 Run requested. The Companion starts within a few minutes.,已请求运行，小助手将在几分钟内开始。
+Run time,运行时间
 SHA-256,SHA-256
 SKU,SKU
 Sales area,销售区域
@@ -1675,7 +1676,7 @@ cowork.folder.field.connection,Express 电脑
 cowork.folder.field.day,每月运行日
 cowork.folder.field.folder,文件夹
 cowork.folder.field.root,允许读取的根目录
-cowork.folder.field.time,运行时间（曼谷时间）
+cowork.folder.field.time,运行时间
 cowork.folder.field.title,任务名称
 cowork.folder.folderHint,每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。
 cowork.folder.folderMissing,文件夹不可用
