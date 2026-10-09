@@ -245,7 +245,7 @@
   function story() {
     var svg = document.querySelector('.st');
     if (!svg) return;
-    var card = svg.closest('.st-card'), capEl = card.querySelector('.st-cap');
+    var card = svg.closest('.st-card'), capEl = card.querySelector('.st-cap-now');
     var CAPS = JSON.parse(card.getAttribute('data-caps'));
     var K = 2.42, HOME = [570, 538], SLAB = 6, PILE_BASE = 380, TRAY_BASE = 396, ITEMS = 16, END = 14000;
     var T2 = 4800, T3 = 6250, T4 = 11500;             // ② 转折、③ 现在（记号笔盖满画面的那一刻）、④ 完成

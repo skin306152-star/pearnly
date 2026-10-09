@@ -635,6 +635,9 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .st text { user-select: none; }
 .st-cap { flex: 1; min-width: 0; text-align: center; padding-right: 47px; font: 400 clamp(15px, 1.7vw, 20px)/1.3 Sriracha, "Long Cang", cursive; color: #2d2b27;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-cap { display: grid; }
+.st-cap > span { grid-area: 1 / 1; }
+.st-cap-size { visibility: hidden; }
 @media (max-width: 760px) {
   .st-win .winbar { height: auto; min-height: 46px; padding: 8px 12px; }
   .st-cap { padding-right: 0; white-space: normal; }

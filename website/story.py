@@ -27,7 +27,7 @@ import math
 from poster import esc, n, INK, LINE, PAPER, HAND
 
 W, H = 1440, 780
-VIEW, VIEW_SM = f"0 0 {W} {H}", "280 90 740 690"     # 电脑整张；手机取单据堆到显示器这一段
+VIEW, VIEW_SM = f"0 0 {W} {H}", "280 14 740 712"     # 电脑整张；手机取单据堆到显示器这一段（上到空调、下到地毯）
 VP = (780, 110)                                      # 消失点（视平线在显示器上方，略微俯视桌面）
 K = 2.42                                             # 小单的放大倍数（与 site.js 一致）
 HOME = (570, 538)                                    # 小单坐着时髋部的位置（坐垫上，椅子贴近桌子）
@@ -631,7 +631,10 @@ def figure(L, rows):
     caps = json.dumps(L["caps"], ensure_ascii=False)
     return (f'<figure class="st-card" data-caps="{esc(caps)}"><div class="window st-win">'
             f'<div class="winbar"><span class="lights"><i></i><i></i><i></i></span>'
-            f'<figcaption class="st-cap" aria-live="off">{esc(L["caps"][-1][1])}</figcaption></div>{svg(L, rows)}</div></figure>')
+            f'<figcaption class="st-cap" aria-live="off"><span class="st-cap-now">{esc(L["caps"][-1][1])}</span>'
+            # 每句字幕各放一份看不见的占位，顶栏高度按最长那句定，换字幕时（手机上折行不同）下面的画面不会跳
+            + "".join(f'<span class="st-cap-size" aria-hidden="true">{esc(c)}</span>' for _t, c in L["caps"])
+            + f'</figcaption></div>{svg(L, rows)}</div></figure>')
 
 
 def chars(L):
