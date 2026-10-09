@@ -38,9 +38,19 @@ def smile(x, y, w=14, stroke=7):
     return f'<path d="M{x - w} {y} Q{x} {y + 16} {x + w} {y}" stroke="{INK}" stroke-width="{stroke}"/>'
 
 
+SHOE = "#5b86d6"   # 所有小人同一双蓝鞋（和首页手绘里的一样）
+
+
+def shoe(x, y, side, sw=5):
+    """一只鞋：鞋跟在 x、鞋底在 y，鞋尖朝 side（-1 左、1 右）。"""
+    t, h = x + side * 26, x - side * 6
+    return (f'<path d="M{h} {y} Q{h} {y - 14} {x + side * 8} {y - 14} Q{t} {y - 14} {t} {y} Z" fill="{SHOE}" stroke="{INK}" stroke-width="{sw}" stroke-linejoin="round"/>'
+            f'<path d="M{h} {y} H{t}" stroke="{INK}" stroke-width="{sw}"/>')
+
+
 def legs(lx, rx, top, bottom=316):
-    return (f'<path d="M{lx} {top} V{bottom} M{rx} {top} V{bottom} M{lx - 14} {bottom + 2} h22 M{rx - 6} {bottom + 2} h22" '
-            f'stroke="{INK}" stroke-width="8"/>')
+    return (f'<path d="M{lx} {top} V{bottom - 8} M{rx} {top} V{bottom - 8}" stroke="{INK}" stroke-width="8"/>'
+            + shoe(lx, bottom + 4, -1) + shoe(rx, bottom + 4, 1))
 
 
 def hand(x, y, r=11):
@@ -88,7 +98,7 @@ def cowork():
 def dms():
     return "0 0 290 340", "".join([
         shadow(140, 100),
-        f'<path d="M100 236 V316 M170 236 V316 M86 318 h22 M162 318 h22" stroke="{INK}" stroke-width="8"/>',
+        f'<path d="M100 236 V308 M170 236 V308" stroke="{INK}" stroke-width="8"/>{shoe(100, 320, -1)}{shoe(170, 320, 1)}',
         f'<rect class="m-body" x="30" y="100" width="220" height="140" rx="20" fill="{BLUE}" stroke="{INK}" stroke-width="8"/>',
         f'<path d="M34 130 H246" stroke="{INK}" stroke-width="4" opacity=".2"/>',
         eyes(80, 122, 166), cheeks(64, 138, 190, 11, 6), smile(101, 192, 13),
@@ -128,7 +138,7 @@ def pro(dms=False):
             f'<g class="m-wave" style="transform-origin:60px 150px"><path d="M60 150 Q32 132 28 94" stroke="{INK}" stroke-width="12"/></g></g>')
     return "0 -60 320 400", "".join([
         shadow(160, 120),
-        f'<path d="M130 290 V318 M200 290 V318 M114 320 h26 M190 320 h26" stroke="{INK}" stroke-width="9"/>',
+        f'<path d="M130 290 V310 M200 290 V310" stroke="{INK}" stroke-width="9"/>{shoe(130, 322, -1, 6)}{shoe(200, 322, 1, 6)}',
         f'<g stroke="{INK}" stroke-width="4">{tabs}</g>',
         f'<rect x="86" y="-40" width="184" height="334" rx="16" fill="{PAPER}" stroke="{INK}" stroke-width="8"/>',
         f'<path d="M262 -24 V284 M254 -28 V288" stroke="#d6d2c7" stroke-width="3"/>',
