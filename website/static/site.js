@@ -324,7 +324,7 @@
     // ---- 小单每一帧的姿势：a 是转角（0 背对我们面朝屏幕，180 正对我们），左手管单据和手机，右手敲键盘 ----
     function pose(t) {
       var m = { x: HOME[0], y: HOME[1], r: 0, sy: 1, a: 0, hl: HL0.slice(), hr: HR0.slice(), eyes: 'open', mouth: 'big', look: [0, 0],
-                sweat: 0, excl: 0, exclS: .7, held: null, phone: 'flat', kick: 0 };
+                sweat: 0, excl: 0, held: null, phone: 'flat', kick: 0 };
       if (t < T2) act1(t, m); else if (t < T3) act2(t, m); else if (t < T4) act3(t, m); else act4(t, m);
       return m;
     }
@@ -345,7 +345,6 @@
           m.hl = [READ[0] + Math.sin(u / 90) * 1.5, READ[1] + Math.sin(u / 130) * 2]; m.held = { at: m.hl, rot: -6, sy: 1 };
           var p = Math.floor((u - 650) / 110), fr = ((u - 650) % 110) / 110, key = KEYS[(p + c) % KEYS.length];
           m.hr = [key[0], key[1] - Math.sin(fr * Math.PI) * 11];
-          if (typed(c, t)[2]) { m.excl = 1; m.exclS = .5; m.y -= 4; }      // 敲错了一位
         } else {
           k = seg(u, 1250, 1500); m.hl = mix(READ, drop, k); m.hr = mix(KEYS[(5 + c) % KEYS.length], HR0, k);
           m.held = { at: m.hl, rot: -6 * (1 - k), sy: 1 - .8 * k, o: u > 1480 ? 0 : 1 }; m.r = 2 * (1 - k);
@@ -409,7 +408,7 @@
       set(E.look, 'transform', 'translate(' + f(m.look[0]) + ' ' + f(m.look[1]) + ')');
       var sp = (t % 900) / 900;
       op(E.sweat, m.sweat * (sp < .15 ? sp / .15 : 1 - (sp - .15) / .85)); move(E.sweat, 0, 14 * sp);
-      var es = Math.max(.01, m.excl * m.exclS);
+      var es = Math.max(.01, m.excl * .7);
       op(E.excl, m.excl); set(E.excl, 'transform', 'translate(2 -128) scale(' + f2(es / sx) + ' ' + f2(es) + ') translate(-2 128)');
       var chairT = 'translate(570 0) scale(' + f2(sx) + ' 1) translate(-570 0)';   // 椅子画在自己的坐标里（story.py CHAIR），中线 x=570
       set(E.chair, 'transform', chairT); set(E.chair2, 'transform', chairT); op(E.chair, front ? 0 : 1); op(E.chair2, front ? 1 : 0);
@@ -532,9 +531,9 @@
       var st = seg(tt, 11550, 11900, back);
       op(E.stamp, tt >= 11550 ? c01((tt - 11550) / 150) : 0); set(E.stamp, 'transform', 'translate(1012 306) scale(' + f2(1.6 - .6 * st) + ')');
 
-      // 小特效：叹气、靠回椅背时的“呼”（从头顶冒出来）、星星
-      var puff = tt < T3 ? seg(tt, 5150, 5300) * (1 - seg(tt, 5500, 5680)) : seg(tt, 12350, 12500) * (1 - seg(tt, 12750, 12950));
-      var top = bp(m, 10, -104), rise = tt < T3 ? seg(tt, 5150, 5680, lin) : seg(tt, 12350, 12950, lin);
+      // 小特效：夜里趴下时叹的一口气（从头顶冒出来）、最后的星星
+      var puff = tt < T3 ? seg(tt, 5150, 5300) * (1 - seg(tt, 5500, 5680)) : 0;
+      var top = bp(m, 10, -104), rise = seg(tt, 5150, 5680, lin);
       op(E.puff, puff); move(E.puff, top[0] + 14 * rise, top[1] - 8 - 30 * rise, ' scale(' + f2(.8 + .5 * rise) + ')');
       E.sparks.forEach(function (el, i) {
         var k = seg(tt, 13400 + i * 90, 13650 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
