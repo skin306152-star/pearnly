@@ -140,6 +140,7 @@ def _menu_text(text: str) -> str:
 
 class TrayApp(QObject):
     worker_stopped = Signal(object)
+    folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline
 
     def __init__(self, configs, *, open_connections: bool = False) -> None:
         app = qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
@@ -193,7 +194,9 @@ class TrayApp(QObject):
         self._heal = watchdog.HealBackoff()  # 自愈退避:防目标永久不可达时无限重启空转
         self.worker = self._spawn_worker()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
-        self._folders = FolderIntake(lambda: self.configs, lang=lambda: self.lang)
+        self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
+        self._folders = FolderIntake(lambda: self.configs, lang=lambda: self.lang,
+                                     on_status=lambda profile_id, key: self.folder_status.emit(profile_id, key))
         self._folders.start()
         # 看门狗:主线程定时巡检 worker 存活时标,卡死即自愈重启。主线程 Qt 事件循环不受
         # worker(后台 QThread)卡死影响,QTimer 必按时触发 → 卡死能被稳稳兜住。
@@ -205,7 +208,8 @@ class TrayApp(QObject):
 
     def _spawn_worker(self) -> PollWorker:
         """建 poll worker、接好信号并启动(首次启动与自愈重启共用,避免两处接线漂移)。"""
-        w = PollWorker(self.configs)
+        # MR.ERP 的小助手成员只读文件夹：不进取任务 / 心跳线程，状态由文件夹线程报（`folder_status`）。
+        w = PollWorker([cfg for cfg in self.configs if getattr(cfg, "kind", "express") != "folder"])
         w.status.connect(self._on_status)
         w.update_available.connect(self._on_update_available)
         w.batch_done.connect(self._on_batch_done)

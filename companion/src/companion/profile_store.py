@@ -89,6 +89,7 @@ class ProfileRecord:
     endpoint_id: str = ""
     endpoint_name: str = ""
     pearnly_account: str = ""
+    kind: str = "express"  # folder = MR.ERP 的小助手成员：只读文件夹，没有 Express 账套
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ProfileRecord":
@@ -107,7 +108,7 @@ class ProfileRecord:
             raise ProfileStoreError("profile record is incomplete") from exc
         if not record.profile_id or not record.token_ciphertext:
             raise ProfileStoreError("profile identity or token is missing")
-        if not record.account_dir or not record.account_set:
+        if record.kind != "folder" and (not record.account_dir or not record.account_set):
             raise ProfileStoreError("profile account selection is incomplete")
         return record
 
@@ -238,6 +239,7 @@ class ProfileStore:
             endpoint_id=str(getattr(cfg, "endpoint_id", "") or ""),
             endpoint_name=str(getattr(cfg, "endpoint_name", "") or ""),
             pearnly_account=str(getattr(cfg, "pearnly_account", "") or ""),
+            kind="folder" if getattr(cfg, "kind", "") == "folder" else "express",
         )
 
     def _runtime(self, record: ProfileRecord) -> CompanionConfig:

@@ -72,10 +72,15 @@ def pick_default(roots) -> str:
     return roots[0][0]
 
 
+def express_members(store) -> list:
+    """有 Express 账套的成员（MR.ERP 的小助手成员只读文件夹，没有 Express 数据根，2026-10-09）。"""
+    return [record for record in store.profiles if getattr(record, "kind", "express") != "folder"]
+
+
 def profile_root_candidates(store, exclude_id: str = "") -> List[str]:
     """Reuse configured roots as candidates; rank_roots still validates SCCOMP."""
     roots = []
-    for record in store.profiles:
+    for record in express_members(store):
         if record.profile_id == exclude_id:
             continue
         root = str(record.express_root or "").strip()
@@ -106,7 +111,7 @@ def member_roots(record) -> List[str]:
 def machine_roots(store) -> List[str]:
     """这台电脑当前的 Express 数据根 = 全部成员数据根的并集（主根在前，按出现顺序）。"""
     found: List[str] = []
-    for record in store.profiles:
+    for record in express_members(store):
         for root in member_roots(record):
             if not any(same_root(root, known) for known in found):
                 found.append(root)
@@ -162,7 +167,7 @@ def apply_roots(store, roots: List[str]) -> int:
 
     fallback: list = []
     targets = []
-    for record in store.profiles:
+    for record in express_members(store):
         cfg = store.runtime_config(record.profile_id)
         account = str(cfg.account_dir or "").strip()
         home = next((root for root in roots

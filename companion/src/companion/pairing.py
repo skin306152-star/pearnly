@@ -290,3 +290,96 @@ def pair(
         writable=chosen.writable,
         account_sets=len(sets),
     )
+
+
+# ── MR.ERP 的小助手成员：只读文件夹（定时任务，2026-10-09）────────────────────────────
+# 配对码格式与 Express 相同；配对前先用文件夹同步接口问服务端「这条连接是哪种 ERP」（`probe`，不改任何东西）。
+# MR.ERP → 存成只读文件夹的成员（不找 Express、不上报账套、不领推送任务）；其余照 Express 配对。
+
+
+def _code_parts(code: str, cfg: CompanionConfig) -> tuple[str, str]:
+    """配对码 → (密钥, 站点)；编辑时留空 = 沿用当前密钥和它所属的站点。"""
+    if not str(code or "").strip():
+        if not bool(getattr(cfg, "paired", False)):
+            return "", ""
+        return str(cfg.bearer_token or "").strip(), str(cfg.backend_url or "").strip()
+    return split_pairing_code(code)
+
+
+def connection_kind(code: str, cfg: Optional[CompanionConfig] = None) -> str:
+    """这个配对码属于哪种连接：``mrerp`` / ``express``。问不出（旧服务端、网络、密钥不对）按 Express 走现有配对，
+    错误由那边照常提示。"""
+    from .folder_client import FolderClient
+
+    token, site = _code_parts(code, cfg or CompanionConfig())
+    if not token.startswith("exp_") or not site.startswith(("https://", "http://")):
+        return "express"
+    client = FolderClient(site, token, timeout=15.0)
+    try:
+        reply = client.sync({"probe": True})
+    except Exception as error:
+        log.info("配对前查询连接类型失败，按 Express 配对: %s", error)
+        return "express"
+    finally:
+        client.close()
+    return "mrerp" if isinstance(reply, dict) and reply.get("adapter") == "mrerp" else "express"
+
+
+def pair_folder(
+    *,
+    token: str,
+    enable_autostart: bool = True,
+    lang: str = "",
+    config: Optional[CompanionConfig] = None,
+    profile_store: Optional[ProfileStore] = None,
+) -> PairResult:
+    """MR.ERP 的小助手成员：确认配对码有效、是 MR.ERP 连接，存成只读文件夹的成员。"""
+    from .folder_client import FolderClient, Refused
+
+    cfg = config or CompanionConfig.load()
+    token, backend_url = _code_parts(token, cfg)
+    if not token:
+        return _failure("pair_err_code_required", lang)
+    if not token.startswith("exp_") or not backend_url.startswith(("https://", "http://")):
+        return _failure("pair_err_token_format", lang)
+    client = FolderClient(backend_url, token, timeout=15.0)
+    try:
+        reply = client.sync({"probe": True})
+    except Refused:
+        return _failure("pair_err_invalid_code", lang)
+    except httpx.HTTPStatusError as e:
+        return _failure("pair_err_http", lang, code=e.response.status_code)
+    except Exception:
+        log.exception("配对时连接 Pearnly 失败")
+        return _failure("pair_err_network", lang)
+    finally:
+        client.close()
+    if not isinstance(reply, dict) or not reply.get("ok") or reply.get("adapter") != "mrerp":
+        return _failure("pair_err_rejected", lang)
+    label = str(reply.get("label") or "MR.ERP").strip()[:80] or "MR.ERP"
+    target = replace(cfg) if profile_store is not None else cfg
+    target.update(
+        bearer_token=token,
+        backend_url=backend_url,
+        kind="folder",
+        paired=True,
+        endpoint_id=_endpoint_id_from_token(token),
+        endpoint_name=label,
+    )
+    try:
+        if profile_store is not None:
+            profile_store.save_profile(target)
+        else:
+            target.save()
+    except ProfileStoreError:
+        log.exception("保存 MR.ERP 小助手成员失败")
+        return _failure("pair_err_profile_save", lang)
+    if enable_autostart:
+        try:
+            autostart.enable()
+        except Exception:
+            log.exception("写开机自启失败(忽略 · 不阻断配对)")
+    from .logger import activity
+
+    activity("log_paired", lang=target.ui_lang, company=label)
+    return PairResult(True, company=label)

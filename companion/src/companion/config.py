@@ -105,6 +105,8 @@ class CompanionConfig:
     endpoint_id: str = ""
     endpoint_name: str = ""
     pearnly_account: str = ""
+    # 成员类型：express（读写 Express 账套、领推送任务、读文件夹）/ folder（MR.ERP 的小助手：只读文件夹，定时任务用，2026-10-09）
+    kind: str = "express"
 
     def resolved_express_root(self) -> Optional[str]:
         """探测账套用的数据根:显式 express_root 优先,否则取 account_dir 的父目录。"""

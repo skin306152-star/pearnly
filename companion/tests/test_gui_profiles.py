@@ -136,7 +136,8 @@ def test_without_express_the_machine_row_says_to_pick_it(tmp_path, monkeypatch):
     _wait_until(lambda: dialog._roots_state == "ready")
 
     assert "更换" in dialog.express_value.text()
-    assert not dialog.add_btn.isEnabled() and dialog.change_btn.isEnabled()
+    # 没有 Express 也能添加成员：MR.ERP 的小助手成员只读文件夹（2026-10-09）
+    assert dialog.add_btn.isEnabled() and dialog.change_btn.isEnabled()
 
 
 def _wait_until(condition, seconds=5):

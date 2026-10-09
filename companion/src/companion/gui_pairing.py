@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""添加成员 / 更换密钥：只填网页「连接 Express」给的配对码（2026-10-08）。
+"""添加成员 / 更换密钥：只填网页给的配对码（「连接 Express」，或定时任务里 MR.ERP 的「连接小助手」，2026-10-09）。
 
 Express 账套是这台电脑的全局设置（主窗口顶部，`express_machine`），这里不再检测、不再选择：
 配对时直接用主窗口传进来的数据根，读出账套名单随配对上报，成员的内部默认账套与科目照旧自动取。
@@ -29,6 +29,8 @@ from .logger import get_logger
 from .profile_store import ProfileStore, ProfileStoreError
 
 log = get_logger(__name__)
+
+NEED_ROOTS = "browse_hint"  # Express 配对码、但这台电脑还没找到 Express 数据根
 
 
 class PairingDialog(QDialog):
@@ -173,7 +175,13 @@ class PairingDialog(QDialog):
         return out
 
     def _pair_work(self, token: str, roots: List[str], autostart: bool, lang: str):
-        """后台：读这台电脑的账套名单 → 定内部默认账套与科目 → 配对（连 Pearnly 校验密钥并上报账套）。"""
+        """后台：先问这个配对码是哪种连接。MR.ERP → 只读文件夹的成员（不需要 Express）；
+        Express → 读这台电脑的账套名单 → 定内部默认账套与科目 → 配对（连 Pearnly 校验密钥并上报账套）。"""
+        if pairing.connection_kind(token, self._cfg) == "mrerp":
+            return pairing.pair_folder(token=token, enable_autostart=autostart, lang=lang, config=self._cfg,
+                                       profile_store=self._store)
+        if not roots:
+            return pairing.PairResult(False, error_key=NEED_ROOTS)
         sets = probe_account_sets(roots[0])
         index = self._prefill_account_index(sets)
         chosen = sets[index] if index >= 0 else None
@@ -203,9 +211,7 @@ class PairingDialog(QDialog):
         if not token.strip():
             return
         roots = list(self._roots)
-        if not roots:
-            self._set_status("browse_hint", ok=False)
-            return
+        # 没有 Express 数据根也先去问配对码：MR.ERP 的小助手成员不需要 Express（`_pair_work`）。
         # 开机启动在主窗口里设（全局一项）；配对沿用那里的选择，首次配对默认开。
         autostart = bool(getattr(self._store.global_settings, "autostart", True))
         lang = self.lang
@@ -216,6 +222,8 @@ class PairingDialog(QDialog):
             self._set_pairing_busy(False)
             if res is None:
                 self._set_status("status_reg_error", ok=False)
+            elif not res.ok and res.error_key == NEED_ROOTS:
+                self._set_status("browse_hint", ok=False)
             elif res.ok:
                 # 不弹「配对成功」框：回到主窗口就能看到这个成员的状态。
                 self.result_info = res

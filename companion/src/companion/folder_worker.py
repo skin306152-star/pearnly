@@ -37,8 +37,11 @@ RETRY_CODES = {"cowork.folder.owner_not_ready", "cowork.folder.rule_disabled", "
 
 class FolderIntake:
     def __init__(self, configs: Callable[[], Iterable], *, client_factory=FolderClient,
-                 clock: Callable[[], float] = time.time, lang: Callable[[], str] = lambda: "") -> None:
+                 clock: Callable[[], float] = time.time, lang: Callable[[], str] = lambda: "",
+                 on_status: Optional[Callable[[str, str], None]] = None) -> None:
         self._configs = configs
+        # MR.ERP 的小助手成员（kind=folder）没有心跳：它在主窗口与托盘上的「在线 / 断开」就看这里每次同步成没成。
+        self._on_status = on_status
         self._client_factory = client_factory
         self._clock = clock
         self._lang = lang
@@ -52,7 +55,8 @@ class FolderIntake:
     # ── 线程 ──────────────────────────────────────────────────────────────
 
     def wanted(self) -> bool:
-        return any(roots(connection_key(cfg)) for cfg in self._active())
+        # MR.ERP 的小助手成员没加文件夹也要同步：网页靠它知道小助手已配好（显示「请在小助手中添加」而不是「连接小助手」）。
+        return any(_folder_member(cfg) or roots(connection_key(cfg)) for cfg in self._active())
 
     def start(self) -> None:
         """有连接设了根目录才启动；已在跑就不重复启动。"""
@@ -84,15 +88,26 @@ class FolderIntake:
                 if self._stop.is_set():
                     return
                 key = connection_key(cfg)
-                if not key or not roots(key):
+                if not key or not (roots(key) or _folder_member(cfg)):
                     continue
                 try:
                     self.round(cfg, key)
+                    self._status(cfg, "idle")
                 except Refused as error:
                     log.info("文件夹录入本轮跳过: %s", error)
+                    self._status(cfg, "offline")
                 except Exception:
                     log.exception("文件夹录入本轮失败")
+                    self._status(cfg, "offline")
             self._stop.wait(IDLE_SECONDS)
+
+    def _status(self, cfg, key: str) -> None:
+        if self._on_status is None or getattr(cfg, "kind", "express") != "folder":
+            return
+        try:
+            self._on_status(str(getattr(cfg, "profile_id", "") or ""), key)
+        except Exception:
+            log.exception("文件夹成员状态回调失败")
 
     # ── 一轮 ──────────────────────────────────────────────────────────────
 
@@ -373,3 +388,8 @@ def _folder_health(rule: dict, root: Optional[dict]) -> str:
     except (OSError, ValueError):
         exists = False
     return "ok" if exists else "folder_missing"
+
+
+def _folder_member(cfg) -> bool:
+    """MR.ERP 的小助手成员（只读文件夹，2026-10-09）。"""
+    return getattr(cfg, "kind", "express") == "folder"

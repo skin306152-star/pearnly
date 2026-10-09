@@ -323,7 +323,8 @@ class ProfileManagerDialog(QDialog):
         self.express_value.setStyleSheet("" if ok else "color:#c0392b")
         busy = self._roots_state == "scanning"
         self.change_btn.setEnabled(not busy)
-        self.add_btn.setEnabled(bool(self._roots) and not busy)
+        # 没有 Express 也能添加：MR.ERP 的小助手成员只读文件夹（配对时由服务端说是哪种连接，2026-10-09）。
+        self.add_btn.setEnabled(not busy)
 
     def _detect_roots(self) -> None:
         """还没有成员：后台自动找 Express（读共享盘上的登记表较慢，窗口先打开）。"""
@@ -471,7 +472,9 @@ class ProfileManagerDialog(QDialog):
         self._paint_roots()
 
     def _build_card(self, record: ProfileRecord) -> dict:
-        box = QGroupBox(str(getattr(record, "pearnly_account", "") or "").strip() or "-")
+        # MR.ERP 的小助手成员没有心跳身份（只读文件夹），标题用连接名（MR.ERP）。
+        box = QGroupBox(str(getattr(record, "pearnly_account", "") or "").strip()
+                        or str(getattr(record, "endpoint_name", "") or "").strip() or "-")
         inner = QVBoxLayout(box)
         top = QHBoxLayout()
         status = QLabel()
@@ -583,7 +586,7 @@ class ProfileManagerDialog(QDialog):
             t(
                 "profiles_remove_body",
                 self.lang,
-                company=record.pearnly_account or record.account_company or "-",
+                company=record.pearnly_account or record.account_company or record.endpoint_name or "-",
             )
         )
         remove_btn = box.addButton(
