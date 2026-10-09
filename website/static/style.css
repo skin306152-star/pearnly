@@ -437,6 +437,14 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .qr-who b { color: var(--ink); }
 /* 年份换算：每种写法一行，右边一个复制按钮 */
 [data-date] .result div { align-items: center; }
+/* 税号查公司：一行一项，名称和地址右边可复制；地址可能很长，左对齐换行 */
+.company .result div { align-items: center; }
+.company .result div:last-child { border-top: 0; padding-top: 0; }
+.company .result div:last-child dd { font-size: inherit; }
+.company .result dt { flex: none; width: 170px; }
+.company .result dd { flex: 1; text-align: right; overflow-wrap: anywhere; }
+.company .result dd[data-out="address"] { text-align: left; font-weight: 500; }
+@media (max-width: 560px) { .company .result div { flex-wrap: wrap; } .company .result dt { width: 100%; } .company .result dd { text-align: left; } }
 [data-date] .result div:last-child { border-top: 0; padding-top: 0; }
 [data-date] .result div:last-child dd { font-size: inherit; }
 [data-date] .result dd { margin-left: auto; }

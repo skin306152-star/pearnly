@@ -314,7 +314,7 @@ def page_home(lang):
   <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{shot}</a>
 </article>"""
     samples = {"baht-text": "1,070 → หนึ่งพันเจ็ดสิบบาทถ้วน", "vat": "1,070.00 → VAT 70.00",
-               "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0-1055-99999-99-7 ✓",
+               "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0105546015062 → บริษัท …",
                "image-to-pdf": "JPG · PNG → PDF", "merge-split-pdf": "PDF + PDF → PDF", "promptpay-qr": "081-234-5678 · 100.00",
                "buddhist-year": "2026 → พ.ศ. 2569"}
     tools = "".join(
@@ -584,11 +584,19 @@ def tool_form(lang, key):
   <p class="warn" data-state="invalid" hidden>{esc(L["invalid"])}</p>
 </form>"""
     if key == "tax-id":
-        return f"""<form class="tool" data-tool="tax-id">
-  {control(L["id"], '<input name="id" inputmode="numeric" autocomplete="off" placeholder="0-1055-99999-99-7" maxlength="20">')}
-  <p class="ok" data-state="valid" hidden>✓ {esc(L["valid"])} · <span data-out="formatted"></span></p>
-  <p class="warn" data-state="invalid" hidden>✗ {esc(L["invalid"])}</p>
+        rows = "".join(f'<div><dt>{esc(L[k])}</dt><dd data-out="{k}" lang="th"></dd>'
+                       + (f'<button type="button" class="btn light sm" data-copy="{k}">{esc(L["copy"])}</button>' if k in ("name", "address") else "") + '</div>'
+                       for k in ("tin", "name", "branch", "address", "since"))
+        return f"""<form class="tool" data-tool="tax-id" data-head="{esc(L["head"])}" data-branch="{esc(L["branch_no"])}">
+  {control(L["id"], '<input name="id" inputmode="numeric" autocomplete="off" placeholder="0-1055-46015-06-2" maxlength="20">')}
   <p class="muted" data-state="incomplete" hidden>{esc(L["incomplete"])}</p>
+  <p class="warn" data-state="invalid" hidden>✗ {esc(L["invalid"])}</p>
+  <p class="muted" data-state="looking" hidden>{esc(L["looking"])}</p>
+  <div class="output company" data-state="found" hidden><dl class="result">{rows}</dl></div>
+  <p class="warn" data-state="not-vat" hidden>{esc(L["not_vat"])}</p>
+  <p class="warn" data-state="not-found" hidden>{esc(L["not_found"])}</p>
+  <p class="warn" data-state="busy" hidden>{esc(L["busy"])}</p>
+  <p class="warn" data-state="error" hidden>{esc(L["error"])}</p>
 </form>"""
     if key in ("image-to-pdf", "merge-split-pdf"):
         return file_tool(key, L)

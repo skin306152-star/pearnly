@@ -178,10 +178,44 @@
     return out;
   }
 
+  // ---- 税号查公司：解析税务局（กรมสรรพากร）公开接口的 SOAP 返回（经官网 nginx 的 /api/rd/vat、/api/rd/tin 转发） ----
+  // 规则和 ERP 的 apps/pearnly_erp_portal/pearnly_erp_portal/masters/rd_contracts.py 一致：字段是 <vXxx><anyType>值</anyType></vXxx>，
+  // 按别名取值，"-" 当没有；地址按门牌、Moo、巷、路、区、县、府、邮编拼起来。
+  var ADDRESS_PARTS = [['HouseNumber'], ['MooNumber', 'Moo'], ['Yaek'], ['VillageName'], ['BuildingName'], ['RoomNumber'], ['FloorNumber'],
+    ['SoiName', 'Soi'], ['StreetName', 'Street'], ['Thambol', 'ThambolName', 'ThumbolName', 'TambolName'], ['Amphur', 'AmphurName'],
+    ['Province', 'ProvinceName'], ['PostCode']];
+  function unescapeXml(t) {
+    return t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(+n); }).replace(/&amp;/g, '&');
+  }
+  function rdFields(xml) {
+    var out = {}, re = /<v([A-Z][A-Za-z]*)>\s*<anyType[^>]*>([\s\S]*?)<\/anyType>/g, m;
+    while ((m = re.exec(String(xml || '')))) {
+      var v = unescapeXml(m[2]).trim();
+      if (v && !(m[1] in out)) out[m[1]] = v;
+    }
+    return out;
+  }
+  function rdPick(f) {
+    for (var i = 1; i < arguments.length; i++) { var v = (f[arguments[i]] || '').trim(); if (v && v !== '-') return v; }
+    return '';
+  }
+  // VAT 登记查询的返回 → 公司资料；查不到（没有 NID）返回 null。regBE 是税务局给的佛历日期 "2546-02-14"。
+  function rdCompany(xml) {
+    var f = rdFields(xml), id = rdPick(f, 'NID', 'ID');
+    if (!id) return null;
+    var branch = parseInt(rdPick(f, 'BranchNumber') || '0', 10) || 0;
+    var name = [rdPick(f, 'BranchTitleName', 'BranchTitle', 'TitleName', 'Title'), rdPick(f, 'BranchName', 'Name')].filter(Boolean).join(' ');
+    var address = ADDRESS_PARTS.map(function (names) { return rdPick.apply(null, [f].concat(names)); }).filter(Boolean).join(' ');
+    return { taxId: id, branch: branch, name: name, address: address, regBE: rdPick(f, 'BusinessFirstDate') };
+  }
+  // 税号查询（TIN）的返回 → 税号是否存在。
+  function rdExists(xml) { return /^(yes|true|1|y)$/i.test(rdPick(rdFields(xml), 'IsExist')); }
+
   var api = {
     readInteger: readInteger, parseAmount: parseAmount, bahtText: bahtText, toSatang: toSatang,
     vat: vat, withholding: withholding, formatSatang: formatSatang, taxId: taxId,
     crc16: crc16, promptpay: promptpay, year: year, thaiDate: thaiDate, pageRange: pageRange,
+    rdFields: rdFields, rdCompany: rdCompany, rdExists: rdExists,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof document === 'undefined') return;
@@ -234,12 +268,30 @@
       show(form, 'pay', formatSatang(r.pay));
       state(form, 'ok');
     },
+    // 先用校验位挡掉打错的号码，校验通过再去税务局查；同一号码只查一次，旧请求的结果晚到就丢掉
     'tax-id': function (form) {
       var r = taxId(val(form, 'id'));
       if (!r.digits) return state(form, 'empty');
       if (!r.complete) return state(form, 'incomplete');
-      show(form, 'formatted', r.formatted);
-      state(form, r.valid ? 'valid' : 'invalid');
+      if (!r.valid) return state(form, 'invalid');
+      if (form._tin === r.digits) return;
+      form._tin = r.digits;
+      state(form, 'looking');
+      lookupCompany(r.digits).then(function (res) {
+        if (form._tin !== r.digits) return;
+        if (res.company) {
+          var c = res.company, head = form.getAttribute('data-head'), branch = form.getAttribute('data-branch');
+          show(form, 'tin', r.formatted);
+          show(form, 'name', c.name);
+          show(form, 'branch', c.branch ? branch.replace('{0}', String(c.branch).padStart(5, '0')) : head);
+          show(form, 'address', c.address);
+          var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(c.regBE), ce = m ? (+m[1] - 543) + '-' + m[2] + '-' + m[3] : '';
+          var d = ce && thaiDate(ce);
+          show(form, 'since', !d ? c.regBE : document.documentElement.lang === 'th' ? d.long : ce);
+          return state(form, 'found');
+        }
+        state(form, res.status);
+      });
     },
     // 二维码画在 canvas 上（qrcode-generator 只在这一页加载），下载成 PNG；下面写上收款账号和金额，方便打印贴在收银台
     'promptpay-qr': function (form) {
@@ -269,6 +321,26 @@
       if (dout) { dout.hidden = !d; if (d) { show(form, 'long', d.long); show(form, 'short', d.short); show(form, 'numeric', d.numeric); } }
     },
   };
+
+  var LOOKUPS = {};
+  function getText(path) {
+    return fetch(path, { credentials: 'omit' }).then(function (res) {
+      if (res.status === 429) throw new Error('busy');
+      if (!res.ok) throw new Error('error');
+      return res.text();
+    });
+  }
+  // → { company } 或 { status: 'not-vat' | 'not-found' | 'busy' | 'error' }
+  function lookupCompany(tin) {
+    if (LOOKUPS[tin]) return LOOKUPS[tin];
+    var p = getText('/api/rd/vat?tin=' + tin).then(function (xml) {
+      var company = rdCompany(xml);
+      if (company) return { company: company };
+      return getText('/api/rd/tin?tin=' + tin).then(function (t) { return { status: rdExists(t) ? 'not-vat' : 'not-found' }; });
+    }).catch(function (e) { delete LOOKUPS[tin]; return { status: e && e.message === 'busy' ? 'busy' : 'error' }; });
+    LOOKUPS[tin] = p;
+    return p;
+  }
 
   function bind(form) {
     var render = RENDER[form.getAttribute('data-tool')];

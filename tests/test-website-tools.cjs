@@ -107,3 +107,17 @@ test('PDF page ranges keep the typed order and stay inside the document', () => 
   assert.equal(t.pageRange('a', 5), null);
   assert.equal(t.pageRange('', 5), null);
 });
+
+test('tax ID company lookup reads the Revenue Department reply like the ERP does', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const fixture = name => fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8');
+  // 同一份夹具在 tests/test_erp_tax_lookup.py 里给 ERP 的 rd_contracts.py 用
+  const c = t.rdCompany(fixture('rd_vat_0105546015062.xml'));
+  assert.deepEqual(c, { taxId: '0105546015062', branch: 0, name: 'บริษัท ซินเซียร์ไอซ์ จำกัด',
+    address: '14 รามคำแหง 189 มีนบุรี มีนบุรี กรุงเทพมหานคร 10510', regBE: '2546-02-14' });
+  assert.equal(t.rdExists(fixture('rd_tin_0105546015062.xml')), true);
+  const notFound = '<vmsgerr><anyType xsi:type="xsd:string">ไม่พบข้อมูลที่ต้องการค้นหา &lt;br&gt; Data not found </anyType></vmsgerr>';
+  assert.equal(t.rdCompany(notFound), null);
+  assert.equal(t.rdExists('<vMessageErr><anyType>x</anyType></vMessageErr><vID /><vIsExist />'), false);
+  assert.equal(t.rdFields('<vName><anyType>A &amp; B</anyType></vName>').Name, 'A & B');
+});
