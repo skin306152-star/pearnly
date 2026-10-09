@@ -55,7 +55,7 @@ class ProfileRuntimeState:
     cfg: CompanionConfig
     client: Optional[QueueClient] = None
     periodic: Dict[str, float] = field(
-        default_factory=lambda: {"last_heartbeat": 0.0, "last_update_check": 0.0}
+        default_factory=lambda: {"last_heartbeat": 0.0}
     )
     fail_streak: int = 0
     status: str = "starting"

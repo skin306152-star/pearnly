@@ -131,7 +131,6 @@ def _window_open() -> bool:
 
 
 MENU_TEXT_MAX = 48
-UPDATE_CHECK_MS = 60_000  # 每分钟查一次新版
 
 
 def _menu_text(text: str) -> str:
@@ -172,14 +171,10 @@ class TrayApp(QObject):
             install=self._install_update)
         self._auto_timer = QTimer()
         self._auto_timer.timeout.connect(self._auto_update_tick)
-        # 发布后一分钟内发现新版（用户 2026-10-08）：托盘自己的后台线程查 latest.json（约 400 字节的静态文件，
-        # 不产生费用），不放在取任务线程里——网络慢时会拖慢领任务。取任务线程里原有的每小时检查保留，同一版本重复发现会被忽略。
+        # 新版本由服务端随心跳回复带来（worker._offer_update，用户 2026-10-09：不要定时任务做更新检查）；
+        # 这里只在有人点「检查更新」时查一次 latest.json。
         self._checking = None  # 在跑的检查线程（持引用防 GC）
         self._checked_latest = False  # 手动检查过、确实没有新版（界面显示「已是最新版本」）
-        self._check_timer = QTimer()
-        self._check_timer.timeout.connect(self._check_for_update)
-        self._check_timer.start(UPDATE_CHECK_MS)
-        QTimer.singleShot(5000, self._check_for_update)
         self._restart_pending = False
         self._quitting = False
         self.worker_stopped.connect(self._on_worker_finished)
@@ -613,8 +608,6 @@ class TrayApp(QObject):
         self._watchdog.stop()
         if getattr(self, "_auto_timer", None) is not None:
             self._auto_timer.stop()
-        if getattr(self, "_check_timer", None) is not None:
-            self._check_timer.stop()
         if getattr(self, "_folders", None) is not None:
             self._folders.stop()
         worker = self.worker

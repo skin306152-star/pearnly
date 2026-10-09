@@ -695,3 +695,34 @@ def test_heartbeat_sends_the_account_lists_only_when_they_change():
     state["sent_full_at"] = time.time() - worker._FULL_REPORT_S - 1  # 满 30 分钟：整份
     assert beat(qc, state)["account_sets"] == [{"path": "A"}, {"path": "B"}]
     assert beat(qc, state)["account_sets"] is None
+
+
+def test_a_newer_release_comes_with_the_heartbeat_reply():
+    """2026-10-09：不定时查更新；服务端在心跳回复里带上最新发布版本，比本机新才交给托盘。"""
+    from src.companion import worker as W
+
+    offered = []
+    W._offer_update({"companion_latest": {"version": "99.0.0", "url": "/r.exe"}}, offered.append)
+    W._offer_update({"companion_latest": {"version": VERSION, "url": "/same.exe"}}, offered.append)
+    W._offer_update({"companion_latest": {"version": "0.0.1", "url": "/old.exe"}}, offered.append)
+    W._offer_update({"companion_latest": "junk"}, offered.append)
+    W._offer_update({}, offered.append)
+    W._offer_update(None, offered.append)
+    assert offered == [{"version": "99.0.0", "url": "/r.exe"}]
+
+    class Reply(_FakeQC):
+        def health(self, **kwargs):
+            self.health_calls.append(kwargs)
+            return {"companion_latest": {"version": "99.0.0", "url": "/r.exe"}}
+
+    cfg = types.SimpleNamespace(
+        heartbeat_interval_s=60, method="dbf", account_set="", account_dir="", account_company="",
+        account_set_row=0, revenue_acc="", ar_acc="", vat_output_acc="", fallback_acc="", ap_acc="",
+        vat_input_acc="", resolved_express_root=lambda: "", backend_url="https://x")
+    offered.clear()
+    state = {"last_heartbeat": 0.0}
+    W._run_periodic(cfg, Reply(), state, on_update_available=offered.append)
+    assert offered == [{"version": "99.0.0", "url": "/r.exe"}]
+    W._run_periodic(cfg, Reply(), state, on_update_available=offered.append)  # 没到下一次心跳：不另查
+    assert len(offered) == 1
+    assert not hasattr(W, "_check_update")

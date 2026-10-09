@@ -368,22 +368,21 @@ def _remember_roots(cfg: CompanionConfig, authorized: list, found) -> None:
         log.info("[heartbeat] 新授权年度文件夹 %d 个", len(added))
 
 
-def _check_update(cfg: CompanionConfig, state: dict, on_update_available) -> None:
-    """自动更新检查(独立节流·每小时一次):拉云端 latest.json,有新版回调通知托盘。"""
-    if on_update_available is None:
-        return
-    now = time.time()
-    if now - state.get("last_update_check", 0.0) < 3600:
-        return
-    state["last_update_check"] = now
-    try:
-        from .updater import DOWNLOAD_SITE, check_update
+def _offer_update(hb, on_update_available) -> None:
+    """服务端随心跳回复带来我们最新发布的版本（`companion_latest`）：比本机新就交给托盘提示并更新。
 
-        up = check_update(DOWNLOAD_SITE)
-        if up:
-            on_update_available(up)
-    except Exception as e:
-        log.debug("update check failed: %s", e)
+    不另外定时去查（用户 2026-10-09：不要定时任务做更新检查，发布后客户端能收到就行）；心跳本来就每分钟一次。"""
+    if on_update_available is None or not isinstance(hb, dict):
+        return
+    latest = hb.get("companion_latest")
+    if not isinstance(latest, dict):
+        return
+    from .version import VERSION, version_tuple
+
+    version = str(latest.get("version") or "").strip()
+    url = str(latest.get("url") or "").strip()
+    if version and url and version_tuple(version) > version_tuple(VERSION):
+        on_update_available({"version": version, "url": url})
 
 
 _CATALOG_INTERVAL_S = 1800  # 目录+指纹上报节流(慢于心跳 · 上万条不必每拍重扫重传)
@@ -402,7 +401,7 @@ def _report_digest(account_sets, accounts) -> str:
 def _run_periodic(
     cfg: CompanionConfig, qc, state: dict, on_update_available=None
 ) -> None:
-    """循环每拍调:到点则上报账套心跳 + 自动更新检查。绝不抛(隔离·不拖垮直写)。"""
+    """循环每拍调:到点则上报账套心跳(回复里带着最新发布版本,见 _offer_update)。绝不抛(隔离·不拖垮直写)。"""
     now = time.time()
     refresh_request_id, refresh_scope, refresh_account_set = projection_refresh.command(
         state
@@ -526,6 +525,7 @@ def _run_periodic(
                 state["last_catalog"] = catalog_version
             _sync_account_set(cfg, hb)
             _sync_connection_identity(cfg, hb)
+            _offer_update(hb, on_update_available)
             next_refresh = hb.get("master_refresh") if isinstance(hb, dict) else None
             command_kept = projection_refresh.remember(state, next_refresh)
             if not command_kept and acknowledged_refresh:
@@ -538,7 +538,6 @@ def _run_periodic(
             )
         except Exception as e:
             log.warning("[heartbeat] 上报失败(忽略): %s", e)
-    _check_update(cfg, state, on_update_available)
 
 
 # 连续 N 次心跳/拉取失败才判离线 —— 容忍部署重启(~20s)/ 瞬时网络闪断,
@@ -568,7 +567,7 @@ def run_poll_loop(
     on_update_available({version,url}):发现新版回调(托盘据此提示更新)。
     on_tick():每拍开头调一次(哪怕这拍 poll/写盘随后卡住,已盖过时标)—— 供看门狗判存活。
     """
-    state = {"last_heartbeat": 0.0, "last_update_check": 0.0}
+    state = {"last_heartbeat": 0.0}
     qc_cfg = QueueClientConfig(
         backend_url=cfg.backend_url,
         bearer_token=cfg.bearer_token,

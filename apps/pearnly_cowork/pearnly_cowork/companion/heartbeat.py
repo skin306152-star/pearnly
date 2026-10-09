@@ -8,7 +8,7 @@ from frappe import _
 from pearnly_cowork.connections import collector, model
 from pearnly_cowork.connections.reports import ReportError, plan_report
 from pearnly_cowork.targets.projection import ProjectionContractError
-from . import credentials, http_auth
+from . import credentials, http_auth, release
 
 
 def _receive(context, body):
@@ -24,7 +24,12 @@ def _receive(context, body):
     credentials.record_seen(context.credential_id, context.token_generation, offline=plan.offline)
     # 告诉小助手：账套名单没变时可以只报「没变」（`plan_report` 的 `account_sets_unchanged`）。
     # 旧服务端不回这一项，小助手就照旧每次整份上传 —— 两边谁先上线都不会把网页上的账套目录清掉。
-    return {**result, 'account_sets_unchanged_ok': True}
+    reply = {**result, 'account_sets_unchanged_ok': True}
+    # 我们最新发布的小助手版本：小助手比它旧就提示并更新，不再自己定时去查（`release.py`，2026-10-09）。
+    latest = release.latest()
+    if latest:
+        reply['companion_latest'] = latest
+    return reply
 
 
 @frappe.whitelist(methods=['POST'])

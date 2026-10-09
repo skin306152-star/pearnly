@@ -262,7 +262,6 @@ def test_heartbeat_cadence_and_failure_state_are_isolated_per_profile():
     assert periodic_ids["A"] != periodic_ids["B"]
     assert worker.state("A").periodic == {
         "last_heartbeat": 0.0,
-        "last_update_check": 0.0,
         "profile": "A",
         "calls": 2,
     }

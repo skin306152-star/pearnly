@@ -66,7 +66,7 @@ def test_tray_menu_has_one_entry_and_left_click_opens_the_main_window():
 
 
 def test_tray_checks_for_a_new_version_in_the_background_and_hands_it_to_auto_update(monkeypatch):
-    # 2026-10-08：发布后一分钟内发现新版；检查在托盘自己的后台线程里，不占取任务线程。
+    # 2026-10-09：托盘不再定时查（新版随心跳回复带来）；只有点「检查更新」时在托盘自己的后台线程查一次。
     import time
 
     from PySide6.QtWidgets import QApplication
@@ -75,7 +75,7 @@ def test_tray_checks_for_a_new_version_in_the_background_and_hands_it_to_auto_up
     from src.companion.gui_tray import TrayApp
 
     QApplication.instance() or QApplication([])
-    assert gui_tray.UPDATE_CHECK_MS == 60_000
+    assert not hasattr(gui_tray, "UPDATE_CHECK_MS")
     app = TrayApp.__new__(TrayApp)
     app._quitting = app._updating = False
     app._checking = None
