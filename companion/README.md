@@ -38,7 +38,7 @@ Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/productio
 | --- | --- |
 | 网页「下载助手」 | `https://pearnly.com/downloads/companion/PearnlyCompanion-Setup.exe`（始终是最新正式版） |
 | 各版本（不可覆盖） | `https://pearnly.com/downloads/companion/releases/<版本>/<提交>/PearnlyCompanion-Setup.exe` |
-| 自动更新 | `https://pearnly.com/downloads/companion/latest.json`（小助手每小时查一次）；旧版查的 `/static/companion/latest.json` 指向同一份 |
+| 自动更新 | `https://pearnly.com/downloads/companion/latest.json`：服务器读本机这份、随心跳回复带给小助手（`pearnly_cowork/companion/release.py`；不定时查，用户 2026-10-09）；托盘「检查更新」时小助手自己查一次。旧版查的 `/static/companion/latest.json` 指向同一份 |
 
 ## 服务器一次性准备（已做则跳过）
 
