@@ -47,6 +47,12 @@ class SourceText(unittest.TestCase):
             self.assertEqual(push_state.source_text("[ENTRY_NOT_BALANCED] dr != cr"), "[ENTRY_NOT_BALANCED] dr != cr")
             self.assertEqual(push_state.source_text(""), "")
 
+    def test_unreadable_translations_store_the_text_as_is(self):
+        push_state, modules = _load("push_state_broken", APP / "history/push_state.py", "th")
+        broken = types.SimpleNamespace(get_all_translations=lambda code: (_ for _ in ()).throw(AttributeError("no cache")))
+        with mock.patch.dict(sys.modules, {**modules, "frappe.translate": broken}):
+            self.assertEqual(push_state.source_text("target offline"), "target offline")
+
 
 class ReasonText(unittest.TestCase):
     def _reason_text(self, lang):

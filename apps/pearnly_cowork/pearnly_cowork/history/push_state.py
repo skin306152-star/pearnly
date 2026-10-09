@@ -58,7 +58,11 @@ def source_text(reason):
     for lang in dict.fromkeys([getattr(frappe.local, "lang", None), "th", "zh", "ja"]):
         if not lang or lang == "en":
             continue
-        table = get_all_translations(lang) or {}
+        try:
+            table = get_all_translations(lang) or {}
+        except Exception:
+            # 读不到翻译表（缓存不可用等）就原样存：还原只是为了换语言好看，不能让记原因这一步失败。
+            return text
         cached = _REVERSE.get(lang)
         if cached is None or cached[0] != len(table):
             reverse = {}
