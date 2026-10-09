@@ -55,9 +55,12 @@ PAGES = {
     "merge-split-pdf": "/tools/merge-split-pdf/",
     "promptpay-qr": "/tools/promptpay-qr/",
     "buddhist-year": "/tools/buddhist-year/",
+    "pdf-excel": "/tools/pdf-excel/",
 }
 PRODUCTS = ("cowork", "dms", "erp")
-TOOLS = ("baht-text", "vat", "withholding-tax", "tax-id", "image-to-pdf", "merge-split-pdf", "promptpay-qr", "buddhist-year")
+# 按常用程度排（工具总页、页脚都按这个顺序）；首页“快捷工具”只放前 8 个，排得整齐（佛历换算只在工具页和页脚出现）
+TOOLS = ("pdf-excel", "image-to-pdf", "merge-split-pdf", "tax-id", "promptpay-qr", "baht-text", "vat", "withholding-tax", "buddhist-year")
+HOME_TOOLS = TOOLS[:8]
 
 # 每个产品页只放一段总览片。视频在 Cloudflare R2 桶 pearnly-media（media.pearnly.com，与 DMS LINE 手册视频同处，不进仓库）；
 # v 是文件 sha256 前 10 位，换片后改 v 才能绕过 CDN 旧缓存。封面在 static/posters/。
@@ -196,7 +199,7 @@ HOME = {
             ("ระบบอ่านและตรวจ", "อ่านข้อมูลสำคัญ ตรวจเลขผู้เสียภาษี ยอดรวม และ VAT รายการที่ตรวจไม่ผ่านจะถูกทำเครื่องหมายไว้"),
             ("บันทึกเข้าระบบ", "ส่งเข้า ERP ที่คุณใช้อยู่ (เชื่อมต่อแบบกำหนดเอง), MR.ERP DMS หรือ Pearnly ERP แล้วตรวจผลกลับหลังส่ง"),
         ],
-        "tools_title": "เครื่องมือสำหรับงานบัญชี",
+        "tools_title": "เครื่องมือใช้งานด่วน",
         "tools_text": "ใช้ได้ทันที ไม่ต้องสมัคร",
         "story": {
             "steps": ["ถ่าย", "อ่าน", "ตรวจ", "บันทึก"],
@@ -230,7 +233,7 @@ HOME = {
             ("It reads and checks", "Key fields are read; tax ID, totals and VAT are checked. Anything that fails a check is flagged."),
             ("It enters the data", "Into your own ERP through a custom integration, MR.ERP DMS or Pearnly ERP, and reads the result back after each push."),
         ],
-        "tools_title": "Tools for Thai accounting",
+        "tools_title": "Quick tools",
         "tools_text": "Ready to use, no sign-up.",
         "story": {
             "steps": ["Snap", "Read", "Check", "Post"],
@@ -264,7 +267,7 @@ HOME = {
             ("读取并核对", "读出关键字段，核对税号、合计和 VAT；核对不过的会标出来。"),
             ("录入系统", "推送到你在用的 ERP（定制接入）、MR.ERP DMS 或 Pearnly ERP，推送后回读核对结果。"),
         ],
-        "tools_title": "泰国会计工具",
+        "tools_title": "快捷工具",
         "tools_text": "打开就能用，无需注册。",
         "story": {
             "steps": ["拍", "读", "核", "记"],
@@ -1090,22 +1093,25 @@ TERMS = {
     },
 }
 
+# 文件超出免费工具上限时的引导（链到 LINE @pearnly）
+TOOL_BIG_LINK = {"th": "ติดต่อทีม Pearnly เพื่อใช้เวอร์ชันเต็ม", "en": "Contact the Pearnly team to use the full version", "zh": "联系 Pearnly 团队使用正式版"}
+
 TOOLS_INDEX = {
     "th": {
         "title": "เครื่องมือสำหรับงานบัญชี | Pearnly",
-        "description": "เครื่องมือสำหรับงานบัญชีไทย ใช้ฟรี: แปลงตัวเลขเป็นคำอ่านภาษาไทย (บาทถ้วน) คำนวณ VAT 7% คำนวณภาษีหัก ณ ที่จ่าย ค้นหาบริษัทจากเลขประจำตัวผู้เสียภาษี 13 หลัก แปลงรูปภาพเป็น PDF รวมและแยกไฟล์ PDF สร้าง QR พร้อมเพย์ และแปลง พ.ศ. ↔ ค.ศ.",
+        "description": "เครื่องมือสำหรับงานบัญชีไทย ใช้ฟรี: แปลงตัวเลขเป็นคำอ่านภาษาไทย (บาทถ้วน) คำนวณ VAT 7% คำนวณภาษีหัก ณ ที่จ่าย ค้นหาบริษัทจากเลขประจำตัวผู้เสียภาษี 13 หลัก แปลงรูปภาพเป็น PDF รวมและแยกไฟล์ PDF สร้าง QR พร้อมเพย์ แปลง พ.ศ. ↔ ค.ศ. และแปลง PDF ⇄ Excel",
         "h1": "เครื่องมือสำหรับงานบัญชี",
         "lead": "ใช้ได้ทันที ไม่ต้องสมัคร คำนวณในเครื่องของคุณ",
     },
     "en": {
         "title": "Tools for Thai accounting | Pearnly",
-        "description": "Tools for Thai accounting, free to use: Thai baht text converter, 7% VAT calculator, withholding tax calculator, company lookup by 13-digit tax ID, image to PDF, merge and split PDF, PromptPay QR generator and Buddhist ↔ Gregorian year converter.",
+        "description": "Tools for Thai accounting, free to use: Thai baht text converter, 7% VAT calculator, withholding tax calculator, company lookup by 13-digit tax ID, image to PDF, merge and split PDF, PromptPay QR generator, Buddhist ↔ Gregorian year converter and PDF ⇄ Excel converter.",
         "h1": "Tools for Thai accounting",
         "lead": "Ready to use, no sign-up, calculated on your device.",
     },
     "zh": {
         "title": "泰国会计工具 | Pearnly",
-        "description": "泰国会计工具（免费使用）：金额转泰文大写（บาทถ้วน）、7% VAT 计算、预扣税计算、税号查公司、图片转 PDF、合并 / 拆分 PDF、PromptPay 收款二维码、佛历 ↔ 公历换算。",
+        "description": "泰国会计工具（免费使用）：金额转泰文大写（บาทถ้วน）、7% VAT 计算、预扣税计算、税号查公司、图片转 PDF、合并 / 拆分 PDF、PromptPay 收款二维码、佛历 ↔ 公历换算、PDF ⇄ Excel 转换。",
         "h1": "泰国会计工具",
         "lead": "打开就能用，无需注册，在你的设备上计算。",
     },
@@ -1536,6 +1542,41 @@ TOOL = {
                 ("怎么判断输入的是佛历还是公历？", "2400 及以上按佛历算，小于 2400 按公历算。"),
                 ("泰国公文用哪种年份？", "泰国公文和税务局的申报表都用佛历年份。"),
             ],
+        },
+    },
+    "pdf-excel": {
+        "th": {
+            "name": 'แปลง PDF ⇄ Excel',
+            "short": 'แปลงสเตทเมนต์ PDF เป็น Excel หรือพิมพ์ Excel เป็น PDF',
+            "title": 'แปลง PDF เป็น Excel และ Excel เป็น PDF ออนไลน์ฟรี ไม่ต้องอัปโหลด | Pearnly',
+            "description": 'แปลงสเตทเมนต์ธนาคารและรายงาน PDF เป็น Excel ที่ตัวเลขและวันที่คำนวณต่อได้ หรือแปลง Excel เป็น PDF ภาษาไทยแสดงถูกต้อง ทำงานในเบราว์เซอร์ ไฟล์ไม่ถูกอัปโหลด',
+            "h1": 'แปลง PDF ⇄ Excel',
+            "lead": 'เลือกทิศทางการแปลง แล้วเลือกไฟล์ ดูตัวอย่างก่อนดาวน์โหลด',
+            "local": 'ไฟล์ประมวลผลในเบราว์เซอร์ของคุณ ไม่มีการอัปโหลด',
+            "labels": {'modes': ['PDF → Excel', 'Excel → PDF'], 'p2e': {'pick': 'เลือกไฟล์ PDF', 'drop': 'หรือลากไฟล์มาวางที่นี่', 'go': 'ดาวน์โหลด Excel', 'stats': '{pages} หน้า · {rows} แถว · {cols} คอลัมน์ (แสดง 40 แถวแรก)', 'scanned_link': 'อ่านด้วย Pearnly', 'states': {'too-big': 'ไฟล์นี้มีมากกว่า 200 หน้า เกินขีดจำกัดของเครื่องมือฟรี', 'busy': 'กำลังอ่านไฟล์…', 'done': 'บันทึกไฟล์ Excel แล้ว', 'failed': 'สร้างไฟล์ Excel ไม่สำเร็จ', 'scanned': 'PDF นี้เป็นภาพสแกนหรือรูปถ่าย ไม่มีตัวอักษรให้อ่าน', 'garbled': 'ตัวอักษรใน PDF นี้เข้ารหัสไม่มาตรฐาน อ่านออกมาเป็นอักขระผิดเพี้ยน จึงแปลงไม่ได้', 'locked': 'ไฟล์นี้มีรหัสผ่าน กรุณาปลดรหัสผ่านก่อน', 'unreadable': 'เปิดไฟล์ PDF นี้ไม่ได้'}, 'note': 'เหมาะกับ PDF ที่มีตัวอักษร เช่น สเตทเมนต์ที่ดาวน์โหลดจากธนาคารและรายงานจากระบบ'}, 'e2p': {'pick': 'เลือกไฟล์ Excel', 'drop': 'หรือลากไฟล์มาวางที่นี่ (.xlsx)', 'orient': 'แนวกระดาษ', 'auto': 'อัตโนมัติ', 'portrait': 'แนวตั้ง', 'landscape': 'แนวนอน', 'fit': 'ย่อให้พอดีความกว้างหน้ากระดาษเมื่อตารางกว้างเกิน', 'go': 'พิมพ์ / บันทึกเป็น PDF', 'hint': 'เมื่อกดปุ่ม หน้าต่างพิมพ์จะเปิดขึ้น ให้เลือก “บันทึกเป็น PDF” ที่ช่องเครื่องพิมพ์', 'states': {'too-big': 'ไฟล์นี้มีข้อมูลมากกว่า 6,000 เซลล์ เกินขีดจำกัดของเครื่องมือฟรี', 'busy': 'กำลังอ่านไฟล์…', 'ready': 'มี {0} แผ่นงาน ตัวอย่างอยู่ด้านล่าง', 'empty-book': 'ไฟล์นี้ไม่มีข้อมูล', 'old-xls': 'ยังไม่รองรับไฟล์ .xls รุ่นเก่า กรุณาบันทึกเป็น .xlsx ใน Excel แล้วลองใหม่', 'unreadable': 'เปิดไฟล์ Excel นี้ไม่ได้'}, 'note': 'เหมาะกับตาราง เช่น ใบเสนอราคา รายงาน และตารางกระทบยอด กราฟ รูปภาพ และหัวกระดาษที่ตั้งไว้ใน Excel จะไม่แสดงใน PDF'}},
+            "faq": [('PDF แบบไหนแปลงได้ดี', 'PDF ที่ดาวน์โหลดจากธนาคารหรือส่งออกจากระบบโดยตรง เช่น สเตทเมนต์ รายงาน และรายการใบแจ้งหนี้ ส่วนภาพสแกนและรูปถ่ายไม่มีตัวอักษรให้อ่าน'), ('ตัวเลขและวันที่เป็นอย่างไร', '1,234.50 และ (500.00) กลายเป็นตัวเลขที่รวมยอดได้ วันที่อย่าง 01/10/69 หรือ 9 ต.ค. 2569 กลายเป็นวันที่ของ Excel ส่วนเลขบัญชีและเลขประจำตัวผู้เสียภาษีที่ขึ้นต้นด้วย 0 คงไว้ตามเดิม'), ('ทำไมต้องผ่านหน้าต่างพิมพ์', 'การสร้าง PDF ด้วยการพิมพ์ของเบราว์เซอร์ทำให้ภาษาไทยแสดงถูกต้อง และตัวอักษรใน PDF ยังเลือกและค้นหาได้'), ('คงรูปแบบอะไรได้บ้าง', 'ความกว้างคอลัมน์ ความสูงแถว เซลล์ที่ผสาน ตัวหนา สีตัวอักษร สีพื้น เส้นขอบ การจัดแนว และรูปแบบตัวเลข รวมถึงพื้นที่พิมพ์ที่ตั้งไว้ใน Excel')],
+        },
+        "en": {
+            "name": 'PDF ⇄ Excel converter',
+            "short": 'Turn PDF statements into Excel, or print Excel to PDF.',
+            "title": 'PDF to Excel and Excel to PDF online, free, no upload | Pearnly',
+            "description": 'Convert PDF bank statements and reports into Excel with numbers and dates ready to calculate, or convert Excel to PDF with Thai text shown correctly. Runs in your browser; files are not uploaded.',
+            "h1": 'PDF ⇄ Excel converter',
+            "lead": 'Choose the direction, pick a file and preview it before you download.',
+            "local": 'Files are processed in your browser. Nothing is uploaded.',
+            "labels": {'modes': ['PDF → Excel', 'Excel → PDF'], 'p2e': {'pick': 'Choose a PDF file', 'drop': 'or drop a file here', 'go': 'Download Excel', 'stats': '{pages} pages · {rows} rows · {cols} columns (first 40 rows shown)', 'scanned_link': 'Read it with Pearnly', 'states': {'too-big': 'This file has more than 200 pages, beyond the limit of the free tool.', 'busy': 'Reading the file…', 'done': 'Excel file saved', 'failed': 'Could not create the Excel file.', 'scanned': 'This PDF is a scan or photo and has no text to read.', 'garbled': 'The text in this PDF uses a non-standard encoding and reads as garbled characters, so it cannot be converted.', 'locked': 'This file is password protected. Please remove the password first.', 'unreadable': 'This PDF cannot be opened.'}, 'note': 'Works best on PDFs that contain text, such as statements downloaded from your bank and reports exported from a system.'}, 'e2p': {'pick': 'Choose an Excel file', 'drop': 'or drop a file here (.xlsx)', 'orient': 'Orientation', 'auto': 'Automatic', 'portrait': 'Portrait', 'landscape': 'Landscape', 'fit': 'Shrink to page width when the table is too wide', 'go': 'Print / Save as PDF', 'hint': 'The button opens the print window; choose “Save as PDF” as the printer.', 'states': {'too-big': 'This file has more than 6,000 cells, beyond the limit of the free tool.', 'busy': 'Reading the file…', 'ready': '{0} worksheets; the preview is below.', 'empty-book': 'This file has no content.', 'old-xls': 'Old .xls files are not supported yet. Please save the file as .xlsx in Excel and try again.', 'unreadable': 'This Excel file cannot be opened.'}, 'note': 'Works best for tables such as quotations, reports and reconciliations. Charts, images and headers or footers set in Excel do not appear in the PDF.'}},
+            "faq": [('Which PDFs convert well?', 'PDFs downloaded from a bank or exported straight from a system, such as statements, reports and invoice listings. Scans and photos have no text to read.'), ('What happens to numbers and dates?', '1,234.50 and (500.00) become numbers you can total; dates such as 01/10/69 or 9 ต.ค. 2569 become Excel dates; account numbers and tax IDs starting with 0 stay as written.'), ('Why go through the print window?', "Creating the PDF with the browser's print keeps Thai text correct, and the text in the PDF can still be selected and searched."), ('Which formatting is kept?', 'Column widths, row heights, merged cells, bold, font colours, fills, borders, alignment and number formats, as well as the print area set in Excel.')],
+        },
+        "zh": {
+            "name": 'PDF ⇄ Excel 转换',
+            "short": 'PDF 对账单转 Excel，或把 Excel 打印成 PDF。',
+            "title": 'PDF 转 Excel、Excel 转 PDF 在线免费，不上传 | Pearnly',
+            "description": '把 PDF 银行对账单和报表转成数字、日期都能计算的 Excel，或把 Excel 转成泰文显示正确的 PDF。在浏览器中处理，文件不会上传。',
+            "h1": 'PDF ⇄ Excel 转换',
+            "lead": '选择转换方向，再选文件，先预览再下载。',
+            "local": '文件在你的浏览器中处理，不会上传。',
+            "labels": {'modes': ['PDF → Excel', 'Excel → PDF'], 'p2e': {'pick': '选择 PDF 文件', 'drop': '或把文件拖到这里', 'go': '下载 Excel', 'stats': '{pages} 页 · {rows} 行 · {cols} 列（预览前 40 行）', 'scanned_link': '用 Pearnly 识别', 'states': {'too-big': '这个文件超过 200 页，超出免费工具的处理范围。', 'busy': '正在读取文件…', 'done': 'Excel 已保存', 'failed': 'Excel 生成失败。', 'scanned': '这个 PDF 是扫描件或照片，里面没有文字可读。', 'garbled': '这个 PDF 的文字编码不规范，读出来是乱码，无法转换。', 'locked': '此文件有密码保护，请先解除密码。', 'unreadable': '无法打开此 PDF。'}, 'note': '适合有文字的 PDF，例如从网银下载的对账单、系统导出的报表。'}, 'e2p': {'pick': '选择 Excel 文件', 'drop': '或把文件拖到这里（.xlsx）', 'orient': '页面方向', 'auto': '自动', 'portrait': '纵向', 'landscape': '横向', 'fit': '表格太宽时缩放到一页宽', 'go': '打印 / 存为 PDF', 'hint': '点按钮后会打开打印窗口，在打印机一栏选择「存为 PDF」。', 'states': {'too-big': '这个文件超过 6,000 个有内容的单元格，超出免费工具的处理范围。', 'busy': '正在读取文件…', 'ready': '共 {0} 个工作表，下面是预览。', 'empty-book': '这个文件里没有内容。', 'old-xls': '暂不支持旧版 .xls，请在 Excel 里另存为 .xlsx 后再试。', 'unreadable': '无法打开这个 Excel 文件。'}, 'note': '适合报价单、报表、对账表这类表格；图表、图片和 Excel 里设置的页眉页脚不会出现在 PDF 里。'}},
+            "faq": [('哪些 PDF 转得好？', '从网银下载或系统直接导出的 PDF，例如对账单、报表、发票清单。扫描件和照片里没有文字，转不了。'), ('数字和日期会怎样？', '1,234.50、(500.00) 转成可以加总的数字；01/10/69、9 ต.ค. 2569 这类日期转成 Excel 日期；以 0 开头的账号、税号保持原样。'), ('为什么要用打印窗口？', '用浏览器打印生成 PDF，泰文显示正确，PDF 里的字也能选中和搜索。'), ('能保留哪些格式？', '列宽、行高、合并单元格、粗体、字体颜色、底色、边框、对齐和数字格式，以及 Excel 里设置的打印区域。')],
         },
     },
 }

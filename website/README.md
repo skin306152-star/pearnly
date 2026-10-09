@@ -15,6 +15,8 @@
 |---|---|---|---|
 | `static/vendor/pdf-lib-1.17.1.min.js` | npm `pdf-lib@1.17.1` 的 `dist/pdf-lib.min.js`，integrity `sha512-V/mpyJAoTsN4cnP31vc0wfNA1+p20evqqnap0KLoRUN0Yk/p3wN52DOEsL4oBFcLdb76hlpKPtzJIgo67j/XLw==` | MIT（`static/vendor/pdf-lib-LICENSE.md`） | 图片转 PDF、合并 / 拆分 PDF（`static/files.js`） |
 | `static/vendor/qrcode-generator-1.4.4.js` | npm `qrcode-generator@1.4.4` 的 `qrcode.js`，integrity `sha512-HM7yY8O2ilqhmULxGMpcHSF1EhJJ9yBj8gvDEuZ6M+KGJ0YY2hKpnXvRD+hZPLrDVck3ExIGhmPtSdcjC+guuw==` | MIT（文件头） | PromptPay 收款二维码 |
+| `static/vendor/pdfjs-6.3.289/` | npm `pdfjs-dist@6.3.289` 的 `legacy/build/pdf.min.mjs`、`pdf.worker.min.mjs`（改名为 `.js`，内容不变）和 `cmaps/`，integrity `sha512-ZHjSVpDa3D6izMq8/04lvkhkATUmL9px6ChPaXc1k6nU2Mrhlg1/7F0bdUqCwUjw3NsPTfPZsMDUU6ZIcRaeQw==` | Apache-2.0（`static/vendor/pdfjs-6.3.289/LICENSE`） | PDF ⇄ Excel 转换：读 PDF 文字（`static/sheets.js`） |
+| `static/vendor/exceljs-4.4.0.min.js` | npm `exceljs@4.4.0` 的 `dist/exceljs.min.js`，integrity `sha512-XctvKaEMaj1Ii9oDOqbW/6e1gXknSY4g/aLCDicOXqBE4M0nRWkUu0PTp++UPNzoFY12BNHMfs/VadKIS6llvg==` | MIT（`static/vendor/exceljs-LICENSE`） | PDF ⇄ Excel 转换：写 / 读 xlsx（`static/sheets.js`） |
 
 换版本：`npm pack <包>@<版本>`，核对 integrity 与 npm 一致、库里没有网络请求，再按新版本号改文件名和 `build.py` 的 `SCRIPTS`。
 

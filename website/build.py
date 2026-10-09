@@ -65,7 +65,7 @@ def video_url(overview):
 
 def asset_version():
     digest = hashlib.sha256()
-    for name in ("style.css", "site.js", "tools.js", "files.js"):
+    for name in ("style.css", "site.js", "tools.js", "files.js", "sheets.js"):
         digest.update((STATIC / name).read_bytes())
     return digest.hexdigest()[:10]
 
@@ -318,10 +318,10 @@ def page_home(lang):
     samples = {"baht-text": "1,070 → หนึ่งพันเจ็ดสิบบาทถ้วน", "vat": "1,070.00 → VAT 70.00",
                "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0105546015062 → บริษัท …",
                "image-to-pdf": "JPG · PNG → PDF", "merge-split-pdf": "PDF + PDF → PDF", "promptpay-qr": "081-234-5678 · 100.00",
-               "buddhist-year": "2026 → พ.ศ. 2569"}
+               "buddhist-year": "2026 → พ.ศ. 2569", "pdf-excel": "PDF ⇄ XLSX"}
     tools = "".join(
         f'<a class="tile reveal" href="{url(lang, k)}"><h3>{esc(C.TOOL[k][lang]["name"])}</h3><p>{esc(C.TOOL[k][lang]["short"])}</p><code>{esc(samples[k])}</code></a>'
-        for k in C.TOOLS
+        for k in C.HOME_TOOLS
     )
     graph = [ORG, {"@type": "WebSite", "@id": C.SITE + "/#site", "name": "Pearnly", "url": C.SITE + "/",
                    "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}]
@@ -348,7 +348,7 @@ def page_home(lang):
 <section class="wrap section">
   <h2 class="display center reveal">{esc(h["tools_title"])}</h2>
   <p class="lead center reveal">{esc(h["tools_text"])}</p>
-  <div class="tiles">{tools}</div>
+  <div class="tiles four">{tools}</div>
 </section>
 {home_guides(lang)}"""
     # 首页整页手绘（试验）：正文仍是印刷体，边框、标题下划线、对勾、标签小字换成铅笔手绘，见 style.css「首页手绘」
@@ -602,6 +602,13 @@ def tool_form(lang, key):
 </form>"""
     if key in ("image-to-pdf", "merge-split-pdf"):
         return file_tool(key, L)
+    if key == "pdf-excel":
+        # 两个方向一个页面：上面一排切换（页面地址带 #excel-to-pdf 时直接开第二个），下面各自一张表单
+        modes = "".join(f'<label><input type="radio" name="sheet-mode" value="{v}"{" checked" if i == 0 else ""}><span>{esc(text)}</span></label>'
+                        for i, (v, text) in enumerate(zip(("pdf-to-excel", "excel-to-pdf"), L["modes"])))
+        panes = "".join(f'<div data-sheet-pane="{k}"{"" if i == 0 else " hidden"}>{sheet_tool(lang, k, L[sub])}<p class="note">{esc(L[sub]["note"])}</p></div>'
+                        for i, (k, sub) in enumerate((("pdf-to-excel", "p2e"), ("excel-to-pdf", "e2p"))))
+        return f'<div class="sheet-tools"><div class="segmented sheet-mode" data-sheet-mode>{modes}</div>{panes}</div>'
     if key == "promptpay-qr":
         return f"""<form class="tool" data-tool="promptpay-qr">
   {control(L["target"], '<input name="target" inputmode="numeric" autocomplete="off" placeholder="081-234-5678" maxlength="20">')}
@@ -652,9 +659,43 @@ def file_tool(key, L):
 
 
 # 每个工具页要加载的脚本（按顺序执行）：第三方库只在用到它的那一页加载；files.js 要用 tools.js 的页码范围，排在它后面
+def sheet_tool(lang, key, L):
+    """表格类工具：选一个文件 → 浏览器里读出来、先预览 → 下载 Excel / 打印成 PDF。页面逻辑在 sheets.js，库在选文件后才加载。"""
+    pdf = key == "pdf-to-excel"
+    accept = "application/pdf,.pdf" if pdf else ".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    warn = ("scanned", "garbled", "locked", "unreadable", "failed", "empty-book", "old-xls", "too-big")
+    states = ""
+    for k, v in L["states"].items():
+        cls = "warn" if k in warn else "ok" if k == "done" else "muted"
+        fill = f' data-fill="{esc(v)}"' if "{0}" in v else ""
+        extra = (f' <a href="{url(lang, "cowork")}">{esc(L["scanned_link"])}</a>' if k == "scanned" else
+                 f' <a href="{C.LINE_URL}" rel="noopener">{esc(C.TOOL_BIG_LINK[lang])}</a>' if k == "too-big" else "")
+        states += f'<p class="{cls}" data-state="{k}"{fill} hidden>{esc(v.replace("{0}", ""))}{extra}</p>'
+    if pdf:
+        options = ""
+        preview = (f'<div class="sheet-preview" data-preview hidden><p class="muted small" data-stats data-fill="{esc(L["stats"])}"></p>'
+                   '<div class="sheet-scroll"><table class="sheet-grid"></table></div></div>')
+    else:
+        orient = radios("orient", [("auto", L["auto"]), ("portrait", L["portrait"]), ("landscape", L["landscape"])], "auto")
+        options = (f'<fieldset class="field"><legend>{esc(L["orient"])}</legend>{orient}</fieldset>'
+                   f'<label class="check"><input type="checkbox" name="fit" checked><span>{esc(L["fit"])}</span></label>')
+        preview = '<div class="sheet-preview" data-preview hidden><div class="sheet-scroll paper" data-sheet-preview></div></div>'
+    hint = f'<p class="muted small">{esc(L["hint"])}</p>' if L.get("hint") else ""
+    return f"""<form class="tool" data-sheet-tool="{key}">
+  <label class="drop" data-drop><input type="file" accept="{accept}"><span class="drop-title">{esc(L["pick"])}</span><span class="muted small">{esc(L["drop"])}</span></label>
+  <p class="file-name" data-file-name hidden></p>
+  {options}
+  {states}
+  {preview}
+  <button type="button" class="btn dark" data-go disabled>{esc(L["go"])}</button>
+  {hint}
+</form>"""
+
+
 SCRIPTS = {"image-to-pdf": ["tools.js", "vendor/pdf-lib-1.17.1.min.js", "files.js"],
            "merge-split-pdf": ["tools.js", "vendor/pdf-lib-1.17.1.min.js", "files.js"],
-           "promptpay-qr": ["vendor/qrcode-generator-1.4.4.js", "tools.js"]}
+           "promptpay-qr": ["vendor/qrcode-generator-1.4.4.js", "tools.js"],
+           "pdf-excel": ["tools.js", "sheets.js"]}
 
 
 def page_tool(lang, key):
@@ -670,7 +711,7 @@ def page_tool(lang, key):
     scripts = "".join(f'<script src="/static/{f}{"" if f.startswith("vendor/") else f"?v={VERSION}"}" defer></script>'
                       for f in SCRIPTS.get(key, ["tools.js"]))
     app = {"@type": "WebApplication", "name": p["name"], "description": p["description"], "url": absolute(url(lang, key)),
-           "applicationCategory": "UtilitiesApplication" if key in ("image-to-pdf", "merge-split-pdf", "buddhist-year") else "FinanceApplication", "operatingSystem": "Any", "isAccessibleForFree": True,
+           "applicationCategory": "UtilitiesApplication" if key in ("image-to-pdf", "merge-split-pdf", "buddhist-year", "pdf-excel") else "FinanceApplication", "operatingSystem": "Any", "isAccessibleForFree": True,
            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "THB"}, "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}
     body = f"""<section class="hero sub"><div class="wrap center">{crumbs(lang, trail)}<h1 class="display">{esc(p["h1"])}</h1><p class="lead">{esc(p["lead"])}</p></div></section>
 <section class="wrap narrow">

@@ -360,6 +360,10 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .tiles { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 40px; }
 .tiles.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 0; }
 .tiles.three { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 0; }
+/* 首页快捷工具固定 8 个：宽屏 4×2，平板 2×4，手机一列，每行都排满 */
+.tiles.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .tiles.four { grid-template-columns: 1fr; } }
 .tile { display: flex; flex-direction: column; gap: 6px; padding: 28px; border-radius: 20px; background: rgba(255, 255, 255, .9); border: 1px solid var(--line);
   transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s; }
 .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--line-strong); }
@@ -437,6 +441,32 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .qr-who b { color: var(--ink); }
 /* 年份换算：每种写法一行，右边一个复制按钮 */
 [data-date] .result div { align-items: center; }
+/* 表格类工具（PDF 转 Excel、Excel 转 PDF）：选中的文件名、可横向滚动的预览 */
+.sheet-tools { display: grid; gap: 22px; }
+.sheet-tools > [data-sheet-pane] { display: grid; gap: 18px; }
+.sheet-tools > [data-sheet-pane][hidden] { display: none; }
+.file-name { margin: -8px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.sheet-preview { display: grid; gap: 8px; min-width: 0; }
+.sheet-scroll { max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.sheet-grid { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sheet-grid td { border: 1px solid var(--line); padding: 4px 8px; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.sheet-grid td.num { text-align: right; }
+.sheet-scroll.paper { padding: 12px; background: #fafaf8; }
+/* Excel 转 PDF 的排版（预览和打印共用）：像 Excel 打印出来一样——没有网格线，只有单元格自己的边框 */
+.sheet-page table { border-collapse: collapse; table-layout: fixed; background: #fff;
+  font: 11pt/1.25 Calibri, "Sarabun", "TH Sarabun New", "Leelawadee UI", "Noto Sans Thai", "Tahoma", sans-serif; color: #000; }
+.sheet-page td { padding: 1px 4px; white-space: nowrap; overflow: hidden; vertical-align: bottom; }
+.sheet-page td.spill { overflow: visible; position: relative; z-index: 1; }
+.sheet-scroll.paper .sheet-page + .sheet-page { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line-strong); }
+#sheet-print { display: none; }
+@media print {
+  body.printing-sheet > :not(#sheet-print) { display: none !important; }
+  body.printing-sheet { background: #fff; }
+  body.printing-sheet #sheet-print { display: block; }
+  #sheet-print .sheet-page + .sheet-page { break-before: page; }
+  #sheet-print tr { break-inside: avoid; }
+  #sheet-print td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 /* 税号查公司：一行一项，名称和地址右边可复制；地址可能很长，左对齐换行 */
 .company .result div { align-items: center; }
 .company .result div:last-child { border-top: 0; padding-top: 0; }
