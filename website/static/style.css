@@ -411,6 +411,35 @@ h2.display { font-size: clamp(28px, 3.6vw, 44px); margin-bottom: 44px; }
 .result div:last-child dd { font-size: 22px; }
 .ok { color: var(--green); font-weight: 600; }
 .warn { color: #b42318; }
+/* 文件类工具（图片转 PDF、合并 / 拆分 PDF）：虚线拖放区、可调顺序的文件列表 */
+.drop { position: relative; display: grid; justify-items: center; gap: 4px; padding: 30px 18px; border: 1.5px dashed var(--line-strong); border-radius: 16px;
+  background: var(--soft); text-align: center; cursor: pointer; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.drop:hover, .drop.over { border-color: var(--ink); background: #fff; }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+.drop-title { font-weight: 600; color: var(--ink); }
+.files { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.files li { display: grid; grid-template-columns: 44px 1fr auto auto; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.files .thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: var(--soft); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); }
+.files .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; }
+.files .file-meta { font-size: 13px; color: var(--faint); white-space: nowrap; }
+.row-actions { display: flex; gap: 4px; }
+.row-actions button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; font-size: 15px; line-height: 1; }
+.row-actions button:hover:not(:disabled) { border-color: var(--ink); }
+.row-actions button:disabled { opacity: .35; cursor: default; }
+.tool .btn.dark:disabled { opacity: .4; cursor: default; }
+.tool > .btn { justify-self: start; }
+@media (max-width: 560px) { .files li { grid-template-columns: 40px 1fr auto; } .files .file-meta { display: none; } }
+/* PromptPay：二维码居中，下面一行账号和金额 */
+.qr-out { display: grid; justify-items: center; gap: 12px; background: #fff; border: 1px solid var(--line); }
+.qr-out canvas { width: min(280px, 100%); height: auto; image-rendering: pixelated; }
+.qr-who { margin: 0; font-variant-numeric: tabular-nums; color: var(--muted); }
+.qr-who b { color: var(--ink); }
+/* 年份换算：每种写法一行，右边一个复制按钮 */
+[data-date] .result div { align-items: center; }
+[data-date] .result div:last-child { border-top: 0; padding-top: 0; }
+[data-date] .result div:last-child dd { font-size: inherit; }
+[data-date] .result dd { margin-left: auto; }
 .note { font-size: 14px; color: var(--muted); margin-top: 22px; }
 .toolpanel > .muted { margin-top: 10px; }
 .faq details { border-bottom: 1px solid var(--line); padding: 18px 0; }

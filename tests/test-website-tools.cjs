@@ -1,4 +1,4 @@
-// pearnly.com 免费工具的计算：数字转泰文金额、VAT、预扣税、税号校验。
+// pearnly.com 免费工具的计算：数字转泰文金额、VAT、预扣税、税号校验、PromptPay 收款码、佛历换算、PDF 页码范围。
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const t = require('../website/static/tools.js');
@@ -70,4 +70,40 @@ test('tax id check digit matches the shared MOD-11 rule', () => {
   assert.equal(t.taxId('0105599999998').valid, false);
   assert.equal(t.taxId('12345').complete, false);
   assert.equal(t.taxId('').digits, '');
+});
+
+test('PromptPay payload follows the EMVCo layout with a CRC-16/CCITT check', () => {
+  // 期望值的 CRC 另用 Python binascii.crc_hqx(…, 0xFFFF) 核过；二维码图片用 macOS Vision 扫回来也是这串
+  assert.equal(t.promptpay('081-234-5678', '').payload,
+    '00020101021129370016A0000006770101110113006681234567853037645802TH6304823E');
+  assert.equal(t.promptpay('0812345678', '100').payload,
+    '00020101021229370016A0000006770101110113006681234567853037645406100.005802TH6304F142');
+  assert.equal(t.promptpay('0105599999997', '1,070.50').payload,
+    '00020101021229370016A00000067701011102130105599999997530376454071070.505802TH63042556');
+  assert.equal(t.promptpay('123456789012345', '').payload,
+    '00020101021129390016A000000677010111031512345678901234553037645802TH6304AC13');
+  assert.equal(t.crc16('123456789'), '29B1');   // CRC-16/CCITT-FALSE 的标准校验值
+  assert.equal(t.promptpay('12345', '').error, 'target');
+  assert.equal(t.promptpay('0812345678', '0').error, 'amount');
+  assert.equal(t.promptpay('0812345678', 'abc').error, 'amount');
+});
+
+test('Buddhist and Gregorian years differ by 543 and dates are written the Thai way', () => {
+  assert.deepEqual(t.year('2569'), { be: 2569, ce: 2026 });
+  assert.deepEqual(t.year('2026'), { be: 2569, ce: 2026 });
+  assert.equal(t.year('20x6'), null);
+  assert.equal(t.year('0'), null);
+  assert.deepEqual(t.thaiDate('2026-10-09'), { long: '9 ตุลาคม 2569', short: '9 ต.ค. 69', numeric: '09/10/2569' });
+  assert.equal(t.thaiDate('2028-02-29').long, '29 กุมภาพันธ์ 2571');
+  assert.equal(t.thaiDate('2026-02-29'), null);
+});
+
+test('PDF page ranges keep the typed order and stay inside the document', () => {
+  assert.deepEqual(t.pageRange('1-3, 5, 8-', 10), [0, 1, 2, 4, 7, 8, 9]);
+  assert.deepEqual(t.pageRange('3,1,3', 5), [2, 0]);
+  assert.deepEqual(t.pageRange('2，4', 5), [1, 3]);
+  assert.equal(t.pageRange('6', 5), null);
+  assert.equal(t.pageRange('3-1', 5), null);
+  assert.equal(t.pageRange('a', 5), null);
+  assert.equal(t.pageRange('', 5), null);
 });

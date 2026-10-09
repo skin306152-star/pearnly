@@ -65,7 +65,7 @@ def video_url(overview):
 
 def asset_version():
     digest = hashlib.sha256()
-    for name in ("style.css", "site.js", "tools.js"):
+    for name in ("style.css", "site.js", "tools.js", "files.js"):
         digest.update((STATIC / name).read_bytes())
     return digest.hexdigest()[:10]
 
@@ -314,7 +314,9 @@ def page_home(lang):
   <a class="poster" href="{url(lang, k)}#overview" aria-label="{esc(t["overview"])} · Pearnly {esc(p["name"])}">{shot}</a>
 </article>"""
     samples = {"baht-text": "1,070 → หนึ่งพันเจ็ดสิบบาทถ้วน", "vat": "1,070.00 → VAT 70.00",
-               "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0-1055-99999-99-7 ✓"}
+               "withholding-tax": "10,000 · 3% → 300.00", "tax-id": "0-1055-99999-99-7 ✓",
+               "image-to-pdf": "JPG · PNG → PDF", "merge-split-pdf": "PDF + PDF → PDF", "promptpay-qr": "081-234-5678 · 100.00",
+               "buddhist-year": "2026 → พ.ศ. 2569"}
     tools = "".join(
         f'<a class="tile reveal" href="{url(lang, k)}"><h3>{esc(C.TOOL[k][lang]["name"])}</h3><p>{esc(C.TOOL[k][lang]["short"])}</p><code>{esc(samples[k])}</code></a>'
         for k in C.TOOLS
@@ -588,7 +590,61 @@ def tool_form(lang, key):
   <p class="warn" data-state="invalid" hidden>✗ {esc(L["invalid"])}</p>
   <p class="muted" data-state="incomplete" hidden>{esc(L["incomplete"])}</p>
 </form>"""
+    if key in ("image-to-pdf", "merge-split-pdf"):
+        return file_tool(key, L)
+    if key == "promptpay-qr":
+        return f"""<form class="tool" data-tool="promptpay-qr">
+  {control(L["target"], '<input name="target" inputmode="numeric" autocomplete="off" placeholder="081-234-5678" maxlength="20">')}
+  {control(L["amount"], '<input name="amount" inputmode="decimal" autocomplete="off" placeholder="' + esc(L["amount_hint"]) + '" class="short">')}
+  <div class="output qr-out" data-state="ok" hidden><canvas width="1" height="1" role="img" aria-label="{esc(L["qr"])}"></canvas>
+    <p class="qr-who"><span data-out="who"></span> <b data-out="how-much"></b></p>
+    <button type="button" class="btn light sm" data-save-png="PromptPay.png">{esc(L["save"])}</button></div>
+  <p class="warn" data-state="bad-target" hidden>{esc(L["bad_target"])}</p>
+  <p class="warn" data-state="bad-amount" hidden>{esc(L["bad_amount"])}</p>
+</form>"""
+    if key == "buddhist-year":
+        return f"""<form class="tool" data-tool="buddhist-year">
+  {control(L["year"], '<input name="year" inputmode="numeric" autocomplete="off" placeholder="2026 / 2569" maxlength="4" class="short">')}
+  <div class="output" data-year hidden>{result_rows([("ce", L["ce"]), ("be", L["be"])])}</div>
+  <p class="warn" data-state="bad-year" hidden>{esc(L["bad_year"])}</p>
+  {control(L["date"], '<input name="date" type="date">')}
+  <div class="output" data-date hidden><dl class="result">{"".join(f'<div><dt>{esc(L[k])}</dt><dd data-out="{k}" lang="th"></dd><button type="button" class="btn light sm" data-copy="{k}">{esc(L["copy"])}</button></div>' for k in ("long", "short", "numeric"))}</dl></div>
+</form>"""
     raise KeyError(key)
+
+
+PAGES_INPUT = '<input name="pages" autocomplete="off" placeholder="1-3, 5">'
+
+
+def file_tool(key, L):
+    """文件类工具：选文件或拖进来 → 列表（可调顺序、删掉）→ 生成 PDF 下载。页面逻辑在 files.js。"""
+    pdf = key == "merge-split-pdf"
+    accept = "application/pdf,.pdf" if pdf else "image/*"
+    options = ""
+    if pdf:
+        options = (f'<fieldset class="field"><legend>{esc(L["mode"])}</legend>{radios("mode", [("merge", L["merge"]), ("split", L["split"])], "merge")}</fieldset>'
+                   f'<div data-split hidden>{control(L["pages"], PAGES_INPUT)}'
+                   f'<p class="muted small">{esc(L["total"])} <span data-total>–</span></p></div>')
+        go = f'<span data-go-merge>{esc(L["go_merge"])}</span><span data-go-split hidden>{esc(L["go_split"])}</span>'
+    else:
+        options = f'<fieldset class="field"><legend>{esc(L["size"])}</legend>{radios("size", [("a4", L["a4"]), ("fit", L["fit"])], "a4")}</fieldset>'
+        go = esc(L["go"])
+    warn = ("failed", "locked", "unreadable", "bad-pages", "one-file", "need-two")
+    states = "".join(f'<p class="{"warn" if k in warn else "ok" if k == "done" else "muted"}" data-state="{k}" hidden>{esc(v)}</p>'
+                     for k, v in L["states"].items())
+    return f"""<form class="tool" data-file-tool="{key}" data-name="{esc(L["file"])}">
+  <label class="drop" data-drop><input type="file" accept="{accept}" multiple><span class="drop-title">{esc(L["pick"])}</span><span class="muted small">{esc(L["drop"])}</span></label>
+  <ol class="files" data-list data-up="{esc(L["up"])}" data-down="{esc(L["down"])}" data-remove="{esc(L["remove"])}" data-pages="{esc(L.get("page_unit", ""))}" hidden></ol>
+  {options}
+  <button type="button" class="btn dark" data-go disabled>{go}</button>
+  {states}
+</form>"""
+
+
+# 每个工具页要加载的脚本（按顺序执行）：第三方库只在用到它的那一页加载；files.js 要用 tools.js 的页码范围，排在它后面
+SCRIPTS = {"image-to-pdf": ["tools.js", "vendor/pdf-lib-1.17.1.min.js", "files.js"],
+           "merge-split-pdf": ["tools.js", "vendor/pdf-lib-1.17.1.min.js", "files.js"],
+           "promptpay-qr": ["vendor/qrcode-generator-1.4.4.js", "tools.js"]}
 
 
 def page_tool(lang, key):
@@ -600,12 +656,15 @@ def page_tool(lang, key):
         for k in C.TOOLS if k != key
     )
     trail = [("home", t["home"]), ("tools", t["nav"]["tools"]), (key, p["name"])]
+    # 第三方库文件名带版本号、内容不变，不再加 ?v
+    scripts = "".join(f'<script src="/static/{f}{"" if f.startswith("vendor/") else f"?v={VERSION}"}" defer></script>'
+                      for f in SCRIPTS.get(key, ["tools.js"]))
     app = {"@type": "WebApplication", "name": p["name"], "description": p["description"], "url": absolute(url(lang, key)),
-           "applicationCategory": "FinanceApplication", "operatingSystem": "Any", "isAccessibleForFree": True,
+           "applicationCategory": "UtilitiesApplication" if key in ("image-to-pdf", "merge-split-pdf", "buddhist-year") else "FinanceApplication", "operatingSystem": "Any", "isAccessibleForFree": True,
            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "THB"}, "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}
     body = f"""<section class="hero sub"><div class="wrap center">{crumbs(lang, trail)}<h1 class="display">{esc(p["h1"])}</h1><p class="lead">{esc(p["lead"])}</p></div></section>
 <section class="wrap narrow">
-  <div class="panel toolpanel">{tool_form(lang, key)}{note}<p class="muted small">{esc(t["tool_local"])}</p></div>
+  <div class="panel toolpanel">{tool_form(lang, key)}{note}<p class="muted small">{esc(p.get("local", t["tool_local"]))}</p></div>
 </section>
 <section class="wrap narrow section">
   <h2 class="display">{esc(t["faq"])}</h2>
@@ -617,7 +676,7 @@ def page_tool(lang, key):
   <h2 class="display center">{esc(t["tools_more"])}</h2>
   <div class="tiles three">{others}</div>
 </section>
-<script src="/static/tools.js?v={VERSION}" defer></script>
+{scripts}
 """
     return head(lang, key, p["title"], p["description"], [ORG, breadcrumb(lang, trail), app]) + header(lang, key) + body + footer(lang)
 

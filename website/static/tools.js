@@ -1,5 +1,6 @@
 /* pearnly.com 免费工具：全部在浏览器里算，不发请求。纯函数同时导出给 node 测试（tests/test-website-tools.cjs）。
- * 金额一律按“分”（สตางค์）用 BigInt 算，第三位小数四舍五入，避免浮点误差。 */
+ * 金额一律按“分”（สตางค์）用 BigInt 算，第三位小数四舍五入，避免浮点误差。
+ * 文件类工具（图片转 PDF、合并 / 拆分 PDF）的页面逻辑在 files.js；这里只放它们要用的纯函数（页码范围）。 */
 (function (root) {
   'use strict';
 
@@ -105,12 +106,86 @@
     return { digits: raw, complete: true, valid: valid, formatted: formatted };
   }
 
+  // ---- PromptPay 收款码：按泰国央行公布的 EMVCo 格式拼出二维码内容，最后是 CRC-16/CCITT（初值 FFFF） ----
+  function tlv(id, value) { return id + String(value.length).padStart(2, '0') + value; }
+  function crc16(text) {
+    var crc = 0xFFFF;
+    for (var i = 0; i < text.length; i++) {
+      crc ^= text.charCodeAt(i) << 8;
+      for (var b = 0; b < 8; b++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
+  }
+  // 收款账号：手机号 10 位（转成 0066 开头的 13 位）、身份证号 / 税号 13 位、电子钱包 15 位。金额可空（空 = 付款人自己填）。
+  function promptpay(target, amount) {
+    var id = String(target == null ? '' : target).replace(/[\s-]/g, '');
+    var kind;
+    if (/^0\d{9}$/.test(id)) { kind = '01'; id = '0066' + id.slice(1); }
+    else if (/^\d{13}$/.test(id)) kind = '02';
+    else if (/^\d{15}$/.test(id)) kind = '03';
+    else return { error: 'target' };
+    var money = '';
+    if (String(amount == null ? '' : amount).trim()) {
+      var x = toSatang(amount);
+      if (x === null || x <= 0n) return { error: 'amount' };
+      money = formatSatang(x).replace(/,/g, '');
+    }
+    var body = tlv('00', '01') + tlv('01', money ? '12' : '11')
+      + tlv('29', tlv('00', 'A000000677010111') + tlv(kind, id))
+      + tlv('53', '764') + (money ? tlv('54', money) : '') + tlv('58', 'TH') + '6304';
+    return { payload: body + crc16(body), kind: kind };
+  }
+
+  // ---- 佛历 / 公历 ----
+  var MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+  var MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  // 一个年份：2400 以上当作佛历，否则当作公历；相差 543 年。
+  function year(input) {
+    var s = String(input == null ? '' : input).trim();
+    if (!/^\d{1,4}$/.test(s)) return null;
+    var y = +s;
+    if (y < 1) return null;
+    return y >= 2400 ? { be: y, ce: y - 543 } : { be: y + 543, ce: y };
+  }
+  // 公历日期 "2026-10-09"（日期选择框的值）→ 泰文写法。
+  function thaiDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], d = +m[3];
+    var dt = new Date(Date.UTC(y, mo - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+    var be = y + 543;
+    return {
+      long: d + ' ' + MONTHS[mo - 1] + ' ' + be,
+      short: d + ' ' + MONTHS_SHORT[mo - 1] + ' ' + String(be).slice(-2),
+      numeric: String(d).padStart(2, '0') + '/' + String(mo).padStart(2, '0') + '/' + be,
+    };
+  }
+
+  // ---- 拆分 PDF 的页码范围："1-3, 5, 8-" → 从 0 开始的页序号（按输入顺序，去重）；超出总页数或写错返回 null ----
+  function pageRange(input, total) {
+    var s = String(input == null ? '' : input).replace(/\s/g, '');
+    if (!s || !(total > 0)) return null;
+    var out = [], seen = {};
+    var parts = s.split(/[,，]/);
+    for (var i = 0; i < parts.length; i++) {
+      var m = /^(\d+)?(?:(-)(\d+)?)?$/.exec(parts[i]);
+      if (!m || (!m[1] && !m[3]) || (!m[1] && !m[2])) return null;
+      var a = m[1] ? +m[1] : 1, b = m[2] ? (m[3] ? +m[3] : total) : a;
+      if (a < 1 || b < a || b > total) return null;
+      for (var p = a; p <= b; p++) if (!seen[p]) { seen[p] = 1; out.push(p - 1); }
+    }
+    return out;
+  }
+
   var api = {
     readInteger: readInteger, parseAmount: parseAmount, bahtText: bahtText, toSatang: toSatang,
     vat: vat, withholding: withholding, formatSatang: formatSatang, taxId: taxId,
+    crc16: crc16, promptpay: promptpay, year: year, thaiDate: thaiDate, pageRange: pageRange,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof document === 'undefined') return;
+  root.PearnlyTools = api;   // files.js 用（页码范围）
 
   // ---- 页面绑定：每个工具是一个 form[data-tool]，结果写进 [data-out] ----
   function $(form, sel) { return form.querySelector(sel); }
@@ -166,6 +241,33 @@
       show(form, 'formatted', r.formatted);
       state(form, r.valid ? 'valid' : 'invalid');
     },
+    // 二维码画在 canvas 上（qrcode-generator 只在这一页加载），下载成 PNG；下面写上收款账号和金额，方便打印贴在收银台
+    'promptpay-qr': function (form) {
+      var target = val(form, 'target').trim(), amount = val(form, 'amount');
+      if (!target) return state(form, 'empty');
+      var r = promptpay(target, amount);
+      if (r.error) return state(form, r.error === 'amount' ? 'bad-amount' : 'bad-target');
+      var canvas = $(form, 'canvas'), qr = root.qrcode && root.qrcode(0, 'M');
+      if (!qr || !canvas) return state(form, 'empty');
+      qr.addData(r.payload); qr.make();
+      var n = qr.getModuleCount(), cell = Math.max(4, Math.floor(560 / (n + 8))), size = (n + 8) * cell;
+      var ctx = canvas.getContext('2d');
+      canvas.width = size; canvas.height = size;
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size); ctx.fillStyle = '#000';
+      for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) if (qr.isDark(y, x)) ctx.fillRect((x + 4) * cell, (y + 4) * cell, cell, cell);
+      var t = toSatang(amount);
+      show(form, 'who', target.replace(/[\s-]/g, ''));
+      show(form, 'how-much', t === null || !String(amount).trim() ? '' : formatSatang(t) + ' ฿');
+      state(form, 'ok');
+    },
+    'buddhist-year': function (form) {
+      var y = year(val(form, 'year')), d = thaiDate(val(form, 'date'));
+      var yo = $(form, '[data-year]'), dout = $(form, '[data-date]');
+      if (yo) { yo.hidden = !y; if (y) { show(form, 'be', String(y.be)); show(form, 'ce', String(y.ce)); } }
+      var bad = $(form, '[data-state="bad-year"]');
+      if (bad) bad.hidden = !!y || !String(val(form, 'year')).trim();
+      if (dout) { dout.hidden = !d; if (d) { show(form, 'long', d.long); show(form, 'short', d.short); show(form, 'numeric', d.numeric); } }
+    },
   };
 
   function bind(form) {
@@ -175,11 +277,24 @@
     form.addEventListener('input', run);
     form.addEventListener('change', run);
     form.addEventListener('submit', function (e) { e.preventDefault(); run(); });
-    var copy = $(form, '[data-copy]');
-    if (copy && navigator.clipboard) {
+    form.querySelectorAll('[data-copy]').forEach(function (copy) {
+      if (!navigator.clipboard) return;
       copy.addEventListener('click', function () {
         var out = $(form, '[data-out="' + copy.getAttribute('data-copy') + '"]');
         if (out && out.textContent) navigator.clipboard.writeText(out.textContent);
+      });
+    });
+    var save = $(form, '[data-save-png]');
+    if (save) {
+      save.addEventListener('click', function () {
+        var canvas = $(form, 'canvas');
+        if (!canvas || !canvas.toBlob) return;
+        canvas.toBlob(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = save.getAttribute('data-save-png');
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        }, 'image/png');
       });
     }
     run();
