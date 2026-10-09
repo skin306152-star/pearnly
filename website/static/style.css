@@ -612,20 +612,7 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .demo-band { padding-top: 72px; }
 @media (max-width: 760px) { .demo-band { padding-top: 56px; } }
 
-/* ---------- 首页主视觉（website/story.py）：手绘动画放进一张液态玻璃卡片（同顶栏的玻璃做法） ---------- */
-.st-card {
-  position: relative; isolation: isolate; margin: 0 auto; max-width: 1060px; padding: 16px 16px 4px; border-radius: 34px;
-  border: 1px solid rgba(255, 255, 255, .7); background: rgba(255, 255, 255, .015);
-  -webkit-backdrop-filter: blur(1.5px) saturate(1.6); backdrop-filter: blur(1.5px) saturate(1.6);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .45),
-              inset 1px 0 0 rgba(255, 255, 255, .45), inset -1px 0 0 rgba(255, 255, 255, .45),
-              inset 0 0 10px rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(20, 20, 19, .07),
-              0 14px 40px -22px rgba(20, 20, 19, .22), 0 1px 4px -1px rgba(20, 20, 19, .06);
-}
-.st-card::before {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .3) 0%, rgba(255, 255, 255, .04) 14%, rgba(255, 255, 255, 0) 26%);
-}
+/* ---------- 首页主视觉（website/story.py）：和下面产品演示一样的窗口外框，顶栏里逐字写出手写字幕 ---------- */
 .hero-doodle { position: absolute; z-index: 2; width: 128px; height: auto; right: 7%; top: -128px; }
 /* 标题里一个词下面的荧光笔，和相片里便利贴、荧光笔是同一种黄 */
 .hero h1 { isolation: isolate; }
@@ -640,17 +627,18 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 :lang(en) .hl::after { bottom: .36em; height: .3em; }
 @keyframes hl-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .hl::after { animation: none; } }
-@media (max-width: 760px) { .hero-doodle { display: none; } .st-card { padding: 10px 10px 2px; border-radius: 24px; } }
+@media (max-width: 760px) { .hero-doodle { display: none; } }
 
-/* 主视觉下面一行手写字：随剧情逐字写出（过去 / 现在） */
 .st-wrap { position: relative; }
-.st-card { padding-bottom: 10px; }
-.st { display: block; width: 100%; height: auto; border-radius: 22px; }
+.st-card { margin: 0; }
+.st-win .winbar { gap: 16px; }
+.st { display: block; width: 100%; height: auto; }
 .st text { user-select: none; }
-.st-cap { min-height: 1.5em; margin: 10px 4.2% 2px; font: 400 clamp(16px, 2.1vw, 25px)/1.35 Sriracha, "Long Cang", cursive; color: #3b3934; }
+.st-cap { flex: 1; min-width: 0; text-align: center; padding-right: 47px; font: 400 clamp(15px, 1.7vw, 20px)/1.3 Sriracha, "Long Cang", cursive; color: #2d2b27;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 760px) {
-  .st { border-radius: 16px; }
-  .st-cap { margin: 8px 6px 2px; min-height: 2.7em; }
+  .st-win .winbar { height: auto; min-height: 46px; padding: 8px 12px; }
+  .st-cap { padding-right: 0; white-space: normal; }
 }
 
 /* ---------- 首页演示 · 手绘版（website/scenes.py）：左右两张内联 SVG，元素按 site.js demo() 的时间轴加类 ---------- */

@@ -1,7 +1,8 @@
 """首页主视觉“过去 / 现在”：一间手绘办公室，镜头在小单身后，越过他的肩膀看到桌上和屏幕，循环播放。
 
-构图是最常见的“从身后看人用电脑”：小单坐在办公椅上背对我们、面朝显示器，整个画面用同一个透视（桌面近宽远窄，
-消失点在显示器上方），单据堆、手机、已录的托盘都在他左手边，键盘在右手边，伸手就够得着。
+构图是最常见的“从身后看人用电脑”：小单坐在矮背办公椅上背对我们、面朝显示器，整个画面用同一个透视（桌面近宽远窄、
+地板往里收，消失点在显示器上方），单据堆、手机、已录的托盘都在他左手边，键盘在右手边，伸手就够得着；
+右边窗户下面靠墙一张沙发，上面蜷着一只睡觉的橘猫（呼吸、冒 Zzz，手机震的时候耳朵抖一下、睁一只眼）。
 同一张桌子，靠窗外天色、墙上的钟、桌上的单据讲对比：
   ① 过去：左手从单据堆拿一张举到眼前看，右手一根手指敲旧表格（第二张还敲错一位、删掉重敲），看完放进左手边的托盘；
      钟一下午快转，窗外从白天到黄昏到夜里，台灯亮起，咖啡凉了、空杯越摆越多，冒汗。
@@ -14,7 +15,8 @@
      停一下，记号笔再刷一下，从头再来。
 
 小单是一张纸：背对我们时看到的是纸背（透出一点反着的字），转身时按 cos(转角) 压窄，过了 90° 换成正面。
-画面是一个内联 SVG（不加图片、不发请求）；每一帧的位置、表情、计数都由 site.js 的 story() 按时间 t 算出来，
+画面放在和下面产品演示一样的窗口外框里，手写字幕在窗口顶栏；画面是一个内联 SVG（不加图片、不发请求）；
+每一帧的位置、表情、计数都由 site.js 的 story() 按时间 t 算出来，
 同一个 t 永远画出同一帧。系统开了“减少动态效果”时直接停在最后一帧。手机上只取中间一段（单据堆 → 显示器）。
 桌上的单据、便利贴、旧软件里的字是泰国办公室的实物，三种语言都用泰文原样。
 """
@@ -23,14 +25,15 @@ import math
 
 from poster import esc, n, INK, LINE, PAPER, HAND
 
-W, H = 1440, 540
-VIEW, VIEW_SM = f"0 0 {W} {H}", "290 20 760 520"     # 电脑整张；手机取单据堆到显示器这一段
+W, H = 1440, 780
+VIEW, VIEW_SM = f"0 0 {W} {H}", "280 90 740 690"     # 电脑整张；手机取单据堆到显示器这一段
 VP = (780, 110)                                      # 消失点（视平线在显示器上方，略微俯视桌面）
 K = 2.6                                              # 小单的放大倍数（与 site.js 一致）
-HOME = (600, 540)                                    # 小单坐着时髋部的位置（被椅背挡住，在画面底边）
+HOME = (570, 584)                                    # 小单坐着时髋部的位置（坐垫上）
 FRONT, BACK = 400, 300                               # 桌面前沿、后沿的 y
-DESK_X = (250, 1250)                                 # 桌面前沿左右端
-PILE = (380, 340)                                    # 待录单据堆：左下角 x、底边 y（桌面靠后、左手边）
+DESK_X = (250, 1060)                                 # 桌面前沿左右端（右边留给窗下的沙发）
+FLOOR = 405                                          # 墙脚线（远处），桌腿落地在 560
+PILE = (380, 380)                                    # 待录单据堆：左下角 x、底边 y（桌面左手边）
 TRAY = (282, 398)                                    # 已录托盘：左下角 x、底边 y（桌面靠前、最左）
 SLAB = 6                                             # 每张单据的厚度
 PILE_MAX = 16
@@ -108,12 +111,17 @@ DEFS = f"""<defs>
 # ---------------- 房间 ----------------
 
 def room():
+    """墙、墙脚线、往消失点收的木地板，椅子下面一块地毯。"""
     strokes = "".join(f'<path d="M{x} {y} q{w / 2:.0f} -4 {w} 0" stroke="#eadcc0" stroke-width="5" fill="none" stroke-linecap="round" opacity=".7"/>'
-                      for x, y, w in [(620, 40, 90), (980, 280, 110), (60, 40, 110), (300, 250, 70)])
-    boards = "".join(f'<path d="M0 {y} H{W}" stroke="#d2b98d" stroke-width="2"/>' for y in (446, 498))
+                      for x, y, w in [(620, 40, 90), (980, 300, 110), (60, 40, 110), (300, 250, 70)])
+    k = (FLOOR - VP[1]) / (H - VP[1])
+    planks = "".join(f'<path d="M{n(VP[0] + (xb - VP[0]) * k)} {FLOOR} L{xb} {H}" stroke="#d2b98d" stroke-width="2"/>' for xb in range(-900, 2500, 170))
+    seams = "".join(f'<path d="M0 {y} H{W}" stroke="#d9c39a" stroke-width="1.6"/>' for y in (430, 470, 530, 610, 712))
+    rug = (f'<ellipse cx="{HOME[0]}" cy="716" rx="300" ry="50" fill="#e9b8a3" {OUT}/>'
+           f'<ellipse cx="{HOME[0]}" cy="716" rx="262" ry="38" fill="none" stroke="#f6d8c8" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round"/>')
     return (f'<rect width="{W}" height="{H}" fill="#f6ecd8"/>{strokes}'
-            f'<rect y="405" width="{W}" height="{H - 405}" fill="#e4cfa8"/>{boards}'
-            f'<rect y="396" width="{W}" height="11" fill="#fffaf0" {OUT} stroke-width="2"/>')
+            f'<rect y="{FLOOR}" width="{W}" height="{H - FLOOR}" fill="#e4cfa8"/>{planks}{seams}'
+            f'<rect y="{FLOOR - 9}" width="{W}" height="11" fill="#fffaf0" {OUT} stroke-width="2"/>{rug}')
 
 
 def window():
@@ -196,18 +204,19 @@ def cabinet():
 # ---------------- 桌子与桌上的东西 ----------------
 
 def desk():
-    """桌面（近宽远窄）、前沿的厚度、桌下的阴影和桌腿、右边的抽屉柜。"""
+    """桌面（近宽远窄）、前沿的厚度、桌下的阴影、桌腿和右边的抽屉柜，落地在 560。"""
     l, r = DESK_X
     top = pts((l, FRONT), (r, FRONT), (back_x(r, BACK), BACK), (back_x(l, BACK), BACK))
     grain = "".join(f'<path d="M{x} {y} q{w / 4:.0f} -2 {w / 2:.0f} 0 t{w / 2:.0f} 0" stroke="#c99a62" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>'
-                    for x, y, w in [(560, 320, 160), (880, 350, 200), (470, 372, 120), (1060, 384, 150)])
-    under = f'<rect x="{l}" y="{FRONT + 14}" width="{r - l}" height="{H - FRONT - 14}" fill="#8a6a46" opacity=".35"/>'
-    pedestal = (f'<rect x="1068" y="{FRONT + 14}" width="170" height="{H - FRONT}" fill="#d8ab73" {OUT}/>'
-                + "".join(f'<rect x="1080" y="{FRONT + 24 + i * 44}" width="146" height="34" rx="4" fill="#e3b880" {OUT} stroke-width="2"/>'
-                          f'<path d="M1136 {FRONT + 41 + i * 44} h34" stroke="{LINE}" stroke-width="4" stroke-linecap="round"/>' for i in range(3)))
-    leg = lambda x: (f'<path d="M{x} {FRONT + 10} V{H + 10}" stroke="{LINE}" stroke-width="15" stroke-linecap="round"/>'
-                     f'<path d="M{x} {FRONT + 12} V{H + 10}" stroke="#c4925b" stroke-width="10" stroke-linecap="round"/>')
-    return (under + leg(266) + pedestal
+                    for x, y, w in [(560, 320, 160), (760, 350, 160), (470, 372, 120), (900, 384, 110)])
+    under = (f'<ellipse cx="{(l + r) / 2}" cy="562" rx="{(r - l) / 2 + 20}" ry="12" fill="#3a2a14" opacity=".14"/>'
+             f'<polygon points="{pts((l, FRONT + 14), (r, FRONT + 14), (r - 40, 556), (l + 40, 556))}" fill="#8a6a46" opacity=".3"/>')
+    pedestal = (f'<rect x="880" y="{FRONT + 14}" width="168" height="{560 - FRONT - 14}" fill="#d8ab73" {OUT}/>'
+                + "".join(f'<rect x="892" y="{FRONT + 24 + i * 44}" width="144" height="34" rx="4" fill="#e3b880" {OUT} stroke-width="2"/>'
+                          f'<path d="M948 {FRONT + 41 + i * 44} h32" stroke="{LINE}" stroke-width="4" stroke-linecap="round"/>' for i in range(3)))
+    leg = (f'<path d="M266 {FRONT + 10} V560" stroke="{LINE}" stroke-width="15" stroke-linecap="round"/>'
+           f'<path d="M266 {FRONT + 12} V558" stroke="#c4925b" stroke-width="10" stroke-linecap="round"/>')
+    return (under + leg + pedestal
             + f'<polygon points="{top}" fill="#e8c897" {OUT}/>{grain}'
             f'<path d="M{l} {FRONT} H{r} V{FRONT + 15} H{l} Z" fill="#c4925b" {OUT}/>'
             f'<path d="M{l + 10} {FRONT + 4} H{r - 10}" stroke="#d9a86e" stroke-width="2" stroke-linecap="round"/>')
@@ -293,21 +302,55 @@ def screen(L, rows):
 
 
 def lamp():
-    bx, by = 1090, BACK + 20
-    return (f'<ellipse cx="{bx}" cy="{by}" rx="30" ry="7" fill="#5b7fd8" {OUT}/>'
-            f'<path d="M{bx} {by - 4} L{bx + 22} {by - 84} L{bx - 26} {by - 126}" {PEN} stroke-width="7"/>'
-            f'<path d="M{bx} {by - 4} L{bx + 22} {by - 84} L{bx - 26} {by - 126}" stroke="#5b7fd8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-            f'<circle cx="{bx + 22}" cy="{by - 84}" r="5.5" fill="#fffdf6" {OUT}/>'
-            f'<path d="M{bx - 14} {by - 140} L{bx - 62} {by - 102} Q{bx - 50} {by - 82} {bx - 24} {by - 88} L{bx - 2} {by - 124} Z" fill="#5b7fd8" {OUT}/>'
-            f'<ellipse class="st-bulb" cx="{bx - 44}" cy="{by - 93}" rx="13" ry="6.5" fill="#fff7d1" stroke="{LINE}" stroke-width="2"/>')
+    """台灯立在桌面左后角（单据堆后面），灯头朝右下照着键盘一带。"""
+    bx, by = 470, BACK + 16
+    return (f'<ellipse cx="{bx}" cy="{by}" rx="28" ry="6.5" fill="#5b7fd8" {OUT}/>'
+            f'<path d="M{bx} {by - 4} L{bx - 20} {by - 82} L{bx + 26} {by - 120}" {PEN} stroke-width="7"/>'
+            f'<path d="M{bx} {by - 4} L{bx - 20} {by - 82} L{bx + 26} {by - 120}" stroke="#5b7fd8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            f'<circle cx="{bx - 20}" cy="{by - 82}" r="5.5" fill="#fffdf6" {OUT}/>'
+            f'<path d="M{bx + 12} {by - 134} L{bx + 60} {by - 96} Q{bx + 48} {by - 76} {bx + 22} {by - 82} L{bx} {by - 118} Z" fill="#5b7fd8" {OUT}/>'
+            f'<ellipse class="st-bulb" cx="{bx + 42}" cy="{by - 87}" rx="13" ry="6.5" fill="#fff7d1" stroke="{LINE}" stroke-width="2"/>')
 
 
-def cactus():
-    x, y = 1196, FRONT - 6
-    return (f'<path d="M{x - 15} {y - 22} L{x + 17} {y - 22} L{x + 13} {y} L{x - 11} {y} Z" fill="#e58f6a" {OUT}/>'
-            f'<path d="M{x - 4} {y - 22} V{y - 62} Q{x + 2} {y - 72} {x + 8} {y - 62} V{y - 22} Z" fill="#7cc27a" {OUT}/>'
-            f'<path d="M{x + 8} {y - 44} h8 v-12 q4 -4 6 0 v18 h-14" fill="#7cc27a" {OUT}/>'
-            f'<circle cx="{x + 2}" cy="{y - 66}" r="3.4" fill="#ff9ba3" stroke="{LINE}" stroke-width="1.4"/>')
+def sofa():
+    """窗户下面靠墙的一张布沙发（在远处，比例按墙脚线），两个靠垫。"""
+    x0, x1 = 1076, 1420
+    return (f'<ellipse cx="{(x0 + x1) / 2}" cy="{FLOOR + 22}" rx="{(x1 - x0) / 2 + 10}" ry="9" fill="#3a2a14" opacity=".12"/>'
+            f'<path d="M{x0 + 30} {FLOOR + 16} v8 M{x1 - 30} {FLOOR + 16} v8" stroke="{LINE}" stroke-width="6" stroke-linecap="round"/>'
+            f'<rect x="{x0 + 22}" y="288" width="{x1 - x0 - 44}" height="80" rx="20" fill="#8fbfa6" {OUT}/>'
+            f'<path d="M{(x0 + x1) / 2} 300 V356" stroke="#7aa992" stroke-width="3" stroke-linecap="round"/>'
+            f'<rect x="{x0 + 30}" y="340" width="{x1 - x0 - 60}" height="40" rx="12" fill="#a3cdb6" {OUT}/>'
+            f'<path d="M{(x0 + x1) / 2} 344 V378" stroke="#8fbfa6" stroke-width="3" stroke-linecap="round"/>'
+            f'<rect x="{x0 + 24}" y="372" width="{x1 - x0 - 48}" height="44" rx="10" fill="#8fbfa6" {OUT}/>'
+            f'<rect x="{x0}" y="318" width="44" height="98" rx="20" fill="#8fbfa6" {OUT}/><rect x="{x1 - 44}" y="318" width="44" height="98" rx="20" fill="#8fbfa6" {OUT}/>'
+            f'<g transform="translate({x0 + 74} 330) rotate(-10)"><rect x="-26" y="-22" width="52" height="44" rx="14" fill="#ffb7a8" {OUT}/>'
+            f'<path d="M-14 -8 h28 M-14 4 h20" stroke="#e58f80" stroke-width="2.4" stroke-linecap="round"/></g>'
+            f'<g transform="translate({x1 - 120} 326) rotate(8)"><rect x="-24" y="-20" width="48" height="40" rx="12" fill="#ffe066" {OUT}/>'
+            f'<circle r="7" fill="none" stroke="#e8b923" stroke-width="2.4"/></g>')
+
+
+def cat():
+    """沙发上蜷成一团睡觉的橘猫：身体随呼吸起伏，尾巴绕到前面，头上冒 Zzz；手机震的时候耳朵抖一下、睁一只眼。"""
+    return ('<g class="st-cat" transform="translate(1262 342)">'
+            '<ellipse cx="0" cy="2" rx="62" ry="9" fill="#3a2a14" opacity=".12"/>'
+            '<g class="st-cat-body">'
+            f'<path d="M-52 0 C-56 -30 -20 -46 10 -42 C40 -40 58 -24 56 -4 C54 2 46 4 40 4 H-46 Q-52 4 -52 0 Z" fill="#f2a65a" {OUT}/>'
+            '<path d="M-14 -40 q4 10 0 20 M4 -42 q4 12 0 24 M22 -38 q4 10 0 20" stroke="#d9823a" stroke-width="4" fill="none" stroke-linecap="round"/>'
+            f'<path d="M44 2 C70 0 74 -20 60 -26 C54 -28 50 -22 56 -18 C62 -14 58 -6 40 -4" fill="#f2a65a" {OUT}/>'
+            '<path d="M62 -22 l4 2 M64 -12 l5 1" stroke="#d9823a" stroke-width="3" stroke-linecap="round"/></g>'
+            '<g class="st-cat-head" transform="translate(-40 -10)">'
+            f'<path class="st-cat-ear" d="M-18 -14 L-20 -34 L-4 -22 Z" fill="#f2a65a" {OUT}/>'
+            f'<path d="M4 -22 L16 -34 L18 -12 Z" fill="#f2a65a" {OUT}/>'
+            f'<ellipse cx="0" cy="-4" rx="24" ry="19" fill="#f2a65a" {OUT}/>'
+            '<path d="M-6 -20 q2 6 0 10 M4 -21 q2 6 0 10" stroke="#d9823a" stroke-width="3" fill="none" stroke-linecap="round"/>'
+            f'<path class="st-cat-shut" d="M-14 -2 q4 4 8 0 M4 -2 q4 4 8 0" stroke="{LINE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+            f'<g class="st-cat-peek" opacity="0"><path d="M-14 -2 q4 4 8 0" stroke="{LINE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+            f'<circle cx="8" cy="-2" r="3.4" fill="{LINE}"/><circle cx="9" cy="-3" r="1" fill="#fff"/></g>'
+            f'<path d="M-2 6 l2 2 l2 -2" stroke="{LINE}" stroke-width="2" fill="#ff9ba3" stroke-linejoin="round"/>'
+            '<ellipse cx="-14" cy="5" rx="4.5" ry="2.6" fill="#ff9ba3" opacity=".8"/><ellipse cx="14" cy="5" rx="4.5" ry="2.6" fill="#ff9ba3" opacity=".8"/>'
+            '<path d="M-24 6 h-10 M-24 10 l-9 3 M24 6 h10 M24 10 l9 3" stroke="#c98b55" stroke-width="1.4" stroke-linecap="round"/></g>'
+            + "".join(f'<text class="st-z" x="0" y="0" font-family="{HAND}" font-size="{s}" fill="#7a8fb8" opacity="0">z</text>' for s in (16, 20, 24))
+            + '</g>')
 
 
 def keyboard():
@@ -387,7 +430,7 @@ def phone_flat():
 
 
 def line_bubble():
-    return ('<g class="st-bubble" opacity="0" transform="translate(406 330)">'
+    return ('<g class="st-bubble" opacity="0" transform="translate(400 336)">'
             f'<path d="M-62 -24 H62 Q72 -24 72 -14 V12 Q72 22 62 22 H-14 L-30 44 L-34 22 H-62 Q-72 22 -72 12 V-14 Q-72 -24 -62 -24 Z" fill="#06c755" {OUT}/>'
             f'<rect x="-60" y="-14" width="26" height="26" rx="7" fill="#fff" stroke="{LINE}" stroke-width="1.6"/>'
             f'<rect x="-54" y="-8" width="14" height="16" rx="2" fill="#fffdf6" stroke="{LINE}" stroke-width="1.4"/>'
@@ -422,15 +465,35 @@ def stream():
 # ---------------- 椅子与小单 ----------------
 
 def chair_back(cls="st-chair", opacity=1):
-    """办公椅的椅背：背对我们时挡在小单身后下半截（cls=st-chair，画在小单前面）；转过来以后椅背到了他身后
+    """矮背办公椅的椅背：背对我们时挡住小单背后一小截（cls=st-chair，画在小单前面）；转过来以后椅背到了他身后
     （cls=st-chair2，画在小单后面）。两份都跟着转角压窄，site.js 按转角只显示其中一份。"""
-    x, w = HOME[0], 228
-    arms = "".join(f'<path d="M{x + sx * (w / 2 - 6)} 500 h{sx * 26} v40" stroke="{LINE}" stroke-width="10" stroke-linecap="round" fill="none"/>'
-                   f'<path d="M{x + sx * (w / 2 - 6)} 500 h{sx * 26} v40" stroke="#3a3d45" stroke-width="6" stroke-linecap="round" fill="none"/>' for sx in (-1, 1))
-    return (f'<g class="{cls}" opacity="{opacity}">{arms}<rect x="{x - w / 2}" y="426" width="{w}" height="150" rx="30" fill="#5b86d6" {OUT} stroke-width="2.8"/>'
-            f'<rect x="{x - w / 2 + 16}" y="446" width="{w - 32}" height="120" rx="20" fill="#6f95dc"/>'
-            f'<path d="M{x - 48} 470 V540 M{x} 466 V540 M{x + 48} 470 V540" stroke="#5b86d6" stroke-width="5" stroke-linecap="round"/>'
-            f'<path d="M{x - w / 2 + 12} 446 Q{x} 434 {x + w / 2 - 12} 446" stroke="#a9c1ee" stroke-width="4" fill="none" stroke-linecap="round"/></g>')
+    x, w = HOME[0], 216
+    return (f'<g class="{cls}" opacity="{opacity}"><rect x="{x - w / 2}" y="504" width="{w}" height="84" rx="30" fill="#5b86d6" {OUT} stroke-width="2.8"/>'
+            f'<rect x="{x - w / 2 + 14}" y="516" width="{w - 28}" height="60" rx="22" fill="#6f95dc"/>'
+            f'<path d="M{x - w / 2 + 14} 516 Q{x} 506 {x + w / 2 - 14} 516" stroke="#a9c1ee" stroke-width="4" fill="none" stroke-linecap="round"/></g>')
+
+
+def chair_seat():
+    """坐垫、扶手、气压杆、五爪底座和轮子（不随转身变化）。"""
+    x = HOME[0]
+    spokes = [(-118, 22), (-60, 34), (0, 38), (60, 34), (118, 22)]
+    base = "".join(f'<path d="M{x} 674 L{x + dx} {674 + dy}" {PEN} stroke-width="9"/><path d="M{x} 674 L{x + dx} {674 + dy}" stroke="#6b7280" stroke-width="5" stroke-linecap="round"/>'
+                   for dx, dy in spokes)
+    wheels = "".join(f'<circle cx="{x + dx}" cy="{682 + dy}" r="9" fill="#3a3d45" {OUT} stroke-width="2"/>' for dx, dy in spokes)
+    arms = "".join(f'<path d="M{x + sx * 112} 584 V556 h{sx * -24}" stroke="{LINE}" stroke-width="10" stroke-linecap="round" fill="none"/>'
+                   f'<path d="M{x + sx * 112} 584 V556 h{sx * -24}" stroke="#3a3d45" stroke-width="6" stroke-linecap="round" fill="none"/>' for sx in (-1, 1))
+    return (f'<ellipse cx="{x}" cy="714" rx="140" ry="16" fill="#3a2a14" opacity=".14"/>'
+            f'<rect x="{x - 8}" y="596" width="16" height="80" fill="#9aa1ad" {OUT}/>{base}{wheels}{arms}'
+            f'<rect x="{x - 122}" y="578" width="244" height="26" rx="12" fill="#5b86d6" {OUT}/>'
+            f'<path d="M{x - 108} 584 H{x + 108}" stroke="#7a9be0" stroke-width="4" stroke-linecap="round"/>')
+
+
+def legs():
+    """转过来正对我们时才看得到的两条腿：从坐垫前沿垂下来，脚踩在底座上（背对我们时被身子挡着）。"""
+    pen = f'color="{INK}" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+    x = HOME[0]
+    return (f'<g class="st-legs" opacity="0" {pen} filter="url(#st-pencil)">'
+            f'<path class="st-leg-l" d="M{x - 34} 600 L{x - 42} 662 h-18"/><path class="st-leg-r" d="M{x + 34} 600 L{x + 42} 662 h18"/></g>')
 
 
 def zigzag(top=-100, half=39):
@@ -496,21 +559,21 @@ def effects():
     puff = ('<g class="st-puff" opacity="0"><path d="M0 0 q-4 -12 8 -14 q4 -10 16 -4 q12 -2 10 10 q8 6 -2 12 H4 q-8 0 -4 -4 Z" '
             f'fill="#fff" {OUT} stroke-width="2"/></g>')
     sparks = "".join(f'<path class="st-spark" opacity="0" transform="translate({x} {y})" d="M0 -11 L3 -3 L11 0 L3 3 L0 11 L-3 3 L-11 0 L-3 -3 Z" '
-                     f'fill="#ffd84d" stroke="{LINE}" stroke-width="1.6"/>' for x, y in ((456, 238), (520, 200), (700, 206), (760, 262), (470, 318)))
+                     f'fill="#ffd84d" stroke="{LINE}" stroke-width="1.6"/>' for x, y in ((410, 330), (470, 290), (690, 300), (730, 360), (420, 420)))
     return puff + sparks
 
 
 def swipe():
     """转场：一道黄色记号笔从左刷到右，盖满画面的那一刻换到第二天早上（循环回开头时也刷一次）。"""
-    edge_l = " ".join(f"L{(-30 if i % 2 else 0) - i * 6} {i * 40}" for i in range(18))
-    edge_r = " ".join(f"L{2150 + (26 if i % 2 else 0) - (17 - i) * 6} {(17 - i) * 40}" for i in range(18))
-    streaks = "".join(f'<path d="M{40 + i * 30} {30 + i * 46} H{2050 - i * 20}" stroke="#f2c21b" stroke-width="10" stroke-linecap="round" opacity=".55"/>'
-                      for i in range(14))
-    sun = (f'<g transform="translate(1000 270)" {OUT} stroke-width="4">'
+    edge_l = " ".join(f"L{(-30 if i % 2 else 0) - i * 6} {i * 40}" for i in range(23))
+    edge_r = " ".join(f"L{2300 + (26 if i % 2 else 0) - (22 - i) * 6} {(22 - i) * 40}" for i in range(23))
+    streaks = "".join(f'<path d="M{40 + i * 30} {30 + i * 46} H{2200 - i * 20}" stroke="#f2c21b" stroke-width="10" stroke-linecap="round" opacity=".55"/>'
+                      for i in range(18))
+    sun = (f'<g transform="translate(1100 390)" {OUT} stroke-width="4">'
            '<path d="M0 -70 V-50 M0 50 V70 M-70 0 H-50 M50 0 H70 M-50 -50 L-36 -36 M36 36 L50 50 M50 -50 L36 -36 M-36 36 L-50 50" fill="none"/>'
            '<circle r="36" fill="#fff3b0"/><path d="M-14 -6 q4 -6 8 0 M6 -6 q4 -6 8 0 M-10 10 q10 10 20 0" fill="none"/></g>')
     return (f'<g class="st-swipe" transform="translate(-2600 0)"><g transform="skewX(-12)">'
-            f'<path d="M0 0 {edge_l} L2150 680 {edge_r} Z" fill="#ffd84d"/>{streaks}{sun}</g></g>')
+            f'<path d="M0 0 {edge_l} L2300 880 {edge_r} Z" fill="#ffd84d"/>{streaks}{sun}</g></g>')
 
 
 # ---------------- 组装 ----------------
@@ -528,22 +591,25 @@ def svg(L, rows):
     return f"""<svg class="st" viewBox="{VIEW}" data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-table="{n(table[0])} {n(table[1])}" role="img" aria-label="{esc(L["alt"])}">
 {DEFS}
 <g clip-path="url(#st-frame)">
-<g filter="url(#st-wobble)">{room()}{window()}{corkboard()}{cabinet()}{clock()}</g>
+<g filter="url(#st-wobble)">{room()}{window()}{corkboard()}{cabinet()}{clock()}{sofa()}</g>
+<g filter="url(#st-pencil)">{cat()}</g>
 <g filter="url(#st-wobble)">{desk()}</g>
-<g filter="url(#st-pencil)">{monitor()}{lamp()}{cactus()}</g>
+<g filter="url(#st-pencil)">{monitor()}{lamp()}</g>
 {screen(L, rows)}
-<g filter="url(#st-pencil)">{mug("st-mug", (1002, FRONT - 3))}{mug("st-mug2", (1042, FRONT - 4), False, False)}{mug("st-mug3", (962, FRONT - 26), False, False)}
+<g filter="url(#st-pencil)">{mug("st-mug", (928, FRONT - 3))}{mug("st-mug2", (968, FRONT - 4), False, False)}{mug("st-mug3", (1008, FRONT - 4), False, False)}
 <g class="st-pile">{pile}</g>{tray()}<g class="st-done">{done}</g>{phone_flat()}{keyboard()}</g>
-{arm("l", (586, 398))}{arm("r", (752, 390))}
+{arm("l", (466, 400))}{arm("r", (740, 392))}
 <g filter="url(#st-pencil)">{chair_back("st-chair2", 0)}</g>
 {mascot()}
+<g filter="url(#st-pencil)">{chair_seat()}</g>
+{legs()}
 <g filter="url(#st-pencil)">{chair_back()}</g>
 <g class="st-props">{paper_back("st-held", 50, 64, ' opacity="0"')}{phone_up()}</g>
 <g class="st-fx">{effects()}{stream()}{burst()}{flying}{chips}</g>
 <path class="st-night" d="{night}" fill-rule="evenodd" fill="#1a2142" opacity="0"/>
 <ellipse class="st-glow" cx="858" cy="230" rx="240" ry="150" fill="#cfe3ff" opacity="0" filter="url(#st-soft)"/>
 {line_bubble()}
-<path class="st-light" d="M1032 234 L1062 232 L1180 {FRONT} L920 {FRONT} Z" fill="url(#st-lampglow)" opacity="0"/>
+<path class="st-light" d="M498 236 L530 228 L780 {FRONT} L420 {FRONT} Z" fill="url(#st-lampglow)" opacity="0"/>
 <rect class="st-flash" width="{W}" height="{H}" fill="#fff" opacity="0"/>
 <rect width="{W}" height="{H}" filter="url(#st-tex)" opacity=".35" pointer-events="none"/>
 {swipe()}
@@ -552,9 +618,11 @@ def svg(L, rows):
 
 
 def figure(L, rows):
+    """和下面产品演示一样的窗口外框：顶栏三个圆点 + 逐字写出来的手写字幕，下面是整张画。"""
     caps = json.dumps(L["caps"], ensure_ascii=False)
-    return (f'<figure class="st-card" data-caps="{esc(caps)}">{svg(L, rows)}'
-            f'<figcaption class="st-cap" aria-live="off">{esc(L["caps"][-1][1])}</figcaption></figure>')
+    return (f'<figure class="st-card" data-caps="{esc(caps)}"><div class="window st-win">'
+            f'<div class="winbar"><span class="lights"><i></i><i></i><i></i></span>'
+            f'<figcaption class="st-cap" aria-live="off">{esc(L["caps"][-1][1])}</figcaption></div>{svg(L, rows)}</div></figure>')
 
 
 def chars(L):
