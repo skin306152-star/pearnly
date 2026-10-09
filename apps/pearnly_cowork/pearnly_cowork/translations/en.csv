@@ -33,6 +33,7 @@ A request key of 1 to 128 characters is required.,A request key of 1 to 128 char
 A required text field is empty. Fill it in and try again,A required text field is empty. Fill it in and try again
 A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
 A rule cannot move to another PC. Turn it off and create a new one.,A rule cannot move to another PC. Turn it off and create a new one.
+A scheduled task cannot move to another PC. Turn it off and create a new one.,A scheduled task cannot move to another PC. Turn it off and create a new one.
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 A step failed and will be retried in ten minutes.,A step failed and will be retried in ten minutes.
@@ -273,6 +274,7 @@ Completion Evidence,Completion Evidence
 Confirmation Request,Confirmation Request
 Confirmation Revision,Confirmation Revision
 Confirmed,Confirmed
+Connect Companion,Connect Companion
 Connection Configuration,Connection Configuration
 Connection Name,Connection Name
 Connection Revision,Connection Revision
@@ -752,6 +754,7 @@ New Files,New Files
 New code,New code
 New folder rule,New folder rule
 New records must start as drafts.,New records must start as drafts.
+New scheduled task,New scheduled task
 New stock count,New stock count
 New task,New task
 "New, as on the invoice","New, as on the invoice"
@@ -764,6 +767,7 @@ No cards are assigned to you,No cards are assigned to you
 No due date,No due date
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
 No folders on this PC yet. Add them in the Companion on that PC.,No folders on this PC yet. Add them in the Companion on that PC.
+No folders to choose yet. Add them in the Companion on the PC.,No folders to choose yet. Add them in the Companion on the PC.
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
@@ -802,6 +806,7 @@ On schedule,On schedule
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 One folder per rule. PDF and image files only.,One folder per rule. PDF and image files only.
+One folder per scheduled task. PDF and image files only.,One folder per scheduled task. PDF and image files only.
 One of the default choices is not valid for this account set.,One of the default choices is not valid for this account set.
 Only PDF and image files are read.,Only PDF and image files are read.
 Only an active count can be deleted,Only an active count can be deleted
@@ -1045,6 +1050,7 @@ Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned At,Scanned At
 Schedule,Schedule
+Scheduled tasks,Scheduled tasks
 Scope,Scope
 Scope Key,Scope Key
 Search cards,Search cards
@@ -1341,6 +1347,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,The review worksheet name contains extra spaces. Restore the original name.
 The row has no product code or barcode,The row has no product code or barcode
 The rule owner can no longer enter documents with this connection.,The rule owner can no longer enter documents with this connection.
+The scheduled task is incomplete or invalid.,The scheduled task is incomplete or invalid.
 The seller and buyer have the same tax ID. Correct it and submit again,The seller and buyer have the same tax ID. Correct it and submit again
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
@@ -1352,6 +1359,7 @@ The stock count request is invalid. Reload and try again.,The stock count reques
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The stocktake export snapshot is incomplete. Reload and try again.,The stocktake export snapshot is incomplete. Reload and try again.
 The system is busy and the reconciliation was not finished. Please try again shortly.,The system is busy and the reconciliation was not finished. Please try again shortly.
+The task owner can no longer enter documents with this connection.,The task owner can no longer enter documents with this connection.
 The tax ID is not valid. Correct it and submit again,The tax ID is not valid. Correct it and submit again
 The unsent preparation was cancelled.,The unsent preparation was cancelled.
 The uploaded file does not match the file on the PC.,The uploaded file does not match the file on the PC.
@@ -1380,6 +1388,7 @@ This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
 This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
 This PC already has the maximum number of folder rules.,This PC already has the maximum number of folder rules.
+This PC already has the maximum number of scheduled tasks.,This PC already has the maximum number of scheduled tasks.
 This account cannot send documents,This account cannot send documents
 This account set is not in the connection's list. Reload the list in New Intake.,This account set is not in the connection's list. Reload the list in New Intake.
 This account set is unavailable.,This account set is unavailable.
@@ -1390,6 +1399,7 @@ This client still has {0} invoice record(s). Reassign them first.,This client st
 This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
 This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
+This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
@@ -1403,6 +1413,7 @@ This file record was not found.,This file record was not found.
 This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
 This folder overlaps the folder of rule «{0}».,This folder overlaps the folder of rule «{0}».
+This folder overlaps the folder of scheduled task «{0}».,This folder overlaps the folder of scheduled task «{0}».
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
 This invoice was already sent successfully,This invoice was already sent successfully
@@ -1433,6 +1444,8 @@ This request was already used for different content.,This request was already us
 This rule is turned off.,This rule is turned off.
 This rule no longer exists for this PC.,This rule no longer exists for this PC.
 This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
+This scheduled task is turned off.,This scheduled task is turned off.
+This scheduled task no longer exists for this PC.,This scheduled task no longer exists for this PC.
 "This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.","This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF."
 "This statement shows no running balance, so balances cannot be checked line by line.","This statement shows no running balance, so balances cannot be checked line by line."
 This stock count task is closed.,This stock count task is closed.
@@ -1462,6 +1475,8 @@ Turn off,Turn off
 Turn on,Turn on
 Turn this rule off? Documents already entered stay as they are.,Turn this rule off? Documents already entered stay as they are.
 Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
+Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
+Turn this scheduled task on? Only files added to the folder from now on are processed.,Turn this scheduled task on? Only files added to the folder from now on are processed.
 Type,Type
 Type a few letters of the company or account set name to find it,Type a few letters of the company or account set name to find it
 "Type or scan, then press Enter","Type or scan, then press Enter"
@@ -1635,7 +1650,8 @@ cowork.folder.catalogEmpty,No account sets yet. Use Reload in New Intake first.
 cowork.folder.col.result,Folder results
 cowork.folder.col.schedule,Schedule
 cowork.folder.companion_offline,The helper was not connected when this invoice was ready to push; it will try again in ten minutes.
-cowork.folder.connection_fixed,A rule cannot move to another PC. Turn it off and create a new one.
+cowork.folder.connectHelper,Connect Companion
+cowork.folder.connection_fixed,A scheduled task cannot move to another PC. Turn it off and create a new one.
 cowork.folder.content_mismatch,The uploaded file does not match the file on the PC.
 cowork.folder.counts,Entered {0} · to check {1}
 cowork.folder.day,Day {0}
@@ -1647,12 +1663,12 @@ cowork.folder.default.vat,VAT on receipts and abbreviated tax invoices
 cowork.folder.defaultsHint,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 cowork.folder.defaults_invalid,One of the default choices is not valid for this account set.
 cowork.folder.disable,Turn off
-cowork.folder.disableConfirm,Turn this rule off? Documents already entered stay as they are.
+cowork.folder.disableConfirm,Turn this scheduled task off? Documents already entered stay as they are.
 cowork.folder.disabled,Folder auto-intake is not turned on for this site.
 cowork.folder.edit,Edit folder rule
 cowork.folder.empty,No folder rules yet. Create one and put the documents into its folder.
 cowork.folder.enable,Turn on
-cowork.folder.enableConfirm,Turn this rule on? Only files added to the folder from now on are processed.
+cowork.folder.enableConfirm,Turn this scheduled task on? Only files added to the folder from now on are processed.
 cowork.folder.entry_missing,This file record was not found.
 cowork.folder.express_only,Folder rules work with Express connections only.
 cowork.folder.field.connection,Express PC
@@ -1660,8 +1676,8 @@ cowork.folder.field.day,Run on day
 cowork.folder.field.folder,Folder to read
 cowork.folder.field.root,Allowed root folder on the PC
 cowork.folder.field.time,Run at (Bangkok time)
-cowork.folder.field.title,Folder rule name
-cowork.folder.folderHint,One folder per rule. PDF and image files only.
+cowork.folder.field.title,Task name
+cowork.folder.folderHint,One folder per scheduled task. PDF and image files only.
 cowork.folder.folderMissing,Folder not available
 cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 cowork.folder.guide.result,"made by the system, do not put documents here"
@@ -1677,26 +1693,27 @@ cowork.folder.guide.title,How to put documents in the folders
 cowork.folder.guide.typesRule,Only PDF and image files are read.
 cowork.folder.guide.yearRule,"When a new fiscal year starts, change the rule's account set."
 cowork.folder.inspect_busy,The file check is busy. It will be retried.
-cowork.folder.invalid,The folder rule is incomplete or invalid.
+cowork.folder.invalid,The scheduled task is incomplete or invalid.
 cowork.folder.item.ask,Stop and let me choose
 cowork.folder.item.new,Create it from the document
 cowork.folder.lastDay,Last day of the month
 cowork.folder.mastersLoading,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
-cowork.folder.new,New folder rule
+cowork.folder.new,New scheduled task
 cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
 cowork.folder.noRoots,No folders on this PC yet. Add them in the Companion on that PC.
+cowork.folder.noRootsAny,No folders to choose yet. Add them in the Companion on the PC.
 cowork.folder.noRuns,No runs yet
 cowork.folder.no_number_prefix,No number_
 cowork.folder.off,Rule is off
 cowork.folder.on,Rule is on
 cowork.folder.overlap,Another active rule already uses this folder or a folder containing it.
-cowork.folder.overlap_with,This folder overlaps the folder of rule «{0}».
-cowork.folder.owner_not_ready,The rule owner can no longer enter documents with this connection.
+cowork.folder.overlap_with,This folder overlaps the folder of scheduled task «{0}».
+cowork.folder.owner_not_ready,The task owner can no longer enter documents with this connection.
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
 cowork.folder.rootItself,(the root folder itself)
 cowork.folder.root_invalid,Choose an allowed root reported by the Companion.
-cowork.folder.rule_disabled,This rule is turned off.
-cowork.folder.rule_missing,This rule no longer exists for this PC.
+cowork.folder.rule_disabled,This scheduled task is turned off.
+cowork.folder.rule_missing,This scheduled task no longer exists for this PC.
 cowork.folder.runNow,Run now
 cowork.folder.runRequested,Run requested. The Companion starts within a few minutes.
 cowork.folder.runScan,Found {0} · new {1} · skipped {2} · upload failed {3}
@@ -1718,13 +1735,14 @@ cowork.folder.state.submitted,Being recognized
 cowork.folder.state.uploaded,Uploaded from the PC
 cowork.folder.step_error,A step failed and will be retried in ten minutes.
 cowork.folder.stock_group_needed,Choose the inventory account group for this account set first.
-cowork.folder.title,Folder auto-intake rules
+cowork.folder.title,Scheduled tasks
 cowork.folder.too_large,This file is too large to send from this PC.
-cowork.folder.too_many,This PC already has the maximum number of folder rules.
+cowork.folder.too_many,This PC already has the maximum number of scheduled tasks.
 cowork.folder.trigger.catch_up,Catch-up after start
 cowork.folder.trigger.manual,Run now
 cowork.folder.trigger.schedule,On schedule
 cowork.folder.type_invalid,Only PDF and image files are read.
+cowork.folder.unsupported_connection,This connection does not support scheduled tasks.
 cowork.folder.upload_lost,The uploaded file was not received. It will be sent again.
 cowork.folder.vat.claim,Claim as input VAT
 cowork.folder.vat.expense,Record as expense

@@ -19,6 +19,8 @@ _RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS.values())
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
 DIRECTIONS = ("purchase", "sales")
 POSTING_KINDS = ("service", "stock")
+# MR.ERP 在入口选付款方式（与「新建录入」同一口径：进项只有赊账，旧线上对 MR.ERP 进项现金明确拦截）。
+MRERP_PAYMENTS = {"purchase": ("credit",), "sales": ("cash", "credit")}
 # 规则可以预先定下的「这一类都这样处理」（与 push/express/choices.py 的选择项同名，对方档除外）
 KINDS = ("payment", "vat", "account", "item", "department")
 PAYMENT_VALUES = ("cash", "credit")

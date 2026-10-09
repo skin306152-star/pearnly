@@ -67,6 +67,12 @@ def _atomic():
         raise
 
 
+# 能发配对码的连接：Express（读写账套、领推送任务、读文件夹）；MR.ERP 的小助手只读文件夹（定时任务，2026-10-09），
+# 它的配对码只能调用文件夹的几个机器方法（`http_auth.FOLDER_METHODS`），心跳 / 领任务 / 回执一律拒绝。
+HELPER_ADAPTERS = ('express', 'mrerp')
+FOLDER_ONLY_ADAPTERS = ('mrerp',)
+
+
 def _read(doctype, name):
     try:
         return frappe.get_doc(doctype, name, for_update=True)
@@ -78,7 +84,7 @@ def _connection(name):
     _site()
     name = _value(contracts.text, name)
     doc = _read(CONNECTION, name)
-    if doc.adapter != 'express' or int(doc.binding_generation or 0) != 0:
+    if doc.adapter not in HELPER_ADAPTERS or int(doc.binding_generation or 0) != 0:
         _error('companion.unsupported_connection')
     return doc
 
@@ -300,7 +306,7 @@ def authenticate(token):
     _site()
     try:
         doc = frappe.get_doc(CONNECTION, parsed.connection, for_update=True)
-        if doc.adapter != 'express' or int(doc.binding_generation or 0) != 0:
+        if doc.adapter not in HELPER_ADAPTERS or int(doc.binding_generation or 0) != 0:
             _unauthorized()
         row = _active(doc)
         if row is None or not contracts.token_matches(row.token_digest, parsed.digest):
@@ -319,7 +325,7 @@ def revalidate(context):
         _error('companion.context_invalid')
     try:
         doc = frappe.get_doc(CONNECTION, context.connection, for_update=True)
-        if doc.adapter != 'express' or int(doc.binding_generation or 0) != 0:
+        if doc.adapter not in HELPER_ADAPTERS or int(doc.binding_generation or 0) != 0:
             _unauthorized()
         row = frappe.get_doc(DOCTYPE, context.credential_id, for_update=True)
         if (row.issuer, int(row.token_generation), row.workspace, row.client or '') != (

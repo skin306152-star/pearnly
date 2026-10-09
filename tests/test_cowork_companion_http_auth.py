@@ -144,3 +144,23 @@ class FolderMachineMethods(unittest.TestCase):
                     self.contract['_envelope'](**values)
 
 if __name__ == '__main__': unittest.main()
+
+
+class FolderOnlyKeys(unittest.TestCase):
+    """MR.ERP 的小助手配对码只读文件夹（2026-10-09）：鉴权后、绑定身份前，非文件夹方法一律 403。"""
+
+    def test_folder_only_adapters_are_refused_outside_the_folder_methods(self):
+        tree = ast.parse(SOURCE.read_text())
+        body = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == '_authenticate_request')
+        text = ast.unparse(body)
+        guard = text.index('credentials.FOLDER_ONLY_ADAPTERS')
+        self.assertIn('if operation not in FOLDER_METHODS and', text[text.rindex('if', 0, guard) - 4:guard])
+        self.assertLess(text.index('credentials.authenticate(token)'), guard)
+        self.assertLess(guard, text.index('frappe.set_user(context.issuer)'))
+        self.assertIn('_deny_permission()', text[guard:text.index('frappe.set_user(context.issuer)')])
+
+    def test_only_mrerp_is_folder_only_and_both_can_hold_a_key(self):
+        source = (SOURCE.parent / 'credentials.py').read_text()
+        self.assertIn("HELPER_ADAPTERS = ('express', 'mrerp')", source)
+        self.assertIn("FOLDER_ONLY_ADAPTERS = ('mrerp',)", source)
+        self.assertNotIn("adapter != 'express'", source)

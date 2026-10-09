@@ -108,6 +108,14 @@
 			connection = await p.call(API.connections + "configure",
 				{adapter: "express", request_key: key(), label: "Express", config: {}}, "POST");
 		}
+		return helper_dialog({connection, title: `${__("Connect")} Express`, on_done});
+	}
+
+	/**
+	 * 给一条连接配小助手：「下载助手」+ 配对码，Express 与 MR.ERP 同一个弹窗（2026-10-09）。
+	 * MR.ERP 的小助手只读文件夹（定时任务），配对码只能调用文件夹的接口（服务端 `companion/http_auth.py`）。
+	 */
+	async function helper_dialog({connection, title, on_done}) {
 		let status = await p.call(API.companion + "status", {connection: connection.name});
 		let token = "";
 		const issue = async (reset = false) => {
@@ -119,7 +127,7 @@
 		if (status.state !== "active") await issue();
 
 		const d = new frappe.ui.Dialog({
-			title: `${__("Connect")} Express`,
+			title,
 			fields: [
 				{fieldtype: "Button", fieldname: "download", label: __("intake.target.download"),
 					click: () => void download_agent()},
@@ -413,7 +421,7 @@
 
 	p.intake_targets = {TARGETS, RECOGNIZE_ONLY, catalog, catalog_error, connect_dialog, describe, download_agent,
 		prefetch_account,
-		express_dialog,
+		express_dialog, helper_dialog,
 		stock_group, stock_group_needed, stock_group_options, choose_stock_group, ask_stock_group,
 		mrerp_menu, mrerp_menu_needed, mrerp_default_needed, mrerp_menu_ready,
 		express_choices_ready,

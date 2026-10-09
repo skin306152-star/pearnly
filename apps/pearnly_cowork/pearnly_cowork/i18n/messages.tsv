@@ -1395,14 +1395,14 @@ Waiting in line, will submit automatically	排队中，稍后自动提交	อย
 Direct upload is not available. Please upload again.	暂时无法直接上传，请重新上传。	ไม่สามารถอัปโหลดโดยตรงได้ในขณะนี้ กรุณาอัปโหลดใหม่	現在直接アップロードできません。もう一度アップロードしてください。	
 The uploaded file was not received. Please upload again.	未收到上传的文件，请重新上传。	ไม่ได้รับไฟล์ที่อัปโหลด กรุณาอัปโหลดใหม่	アップロードしたファイルを受け取れませんでした。もう一度アップロードしてください。	
 The preview is temporarily unavailable. Please try again.	预览暂时无法显示，请稍后再试。	ไม่สามารถแสดงตัวอย่างได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง	プレビューを一時的に表示できません。もう一度お試しください。	
-Folder auto-intake rules	自动录入规则	กฎบันทึกอัตโนมัติจากโฟลเดอร์	フォルダー自動取込ルール	cowork.folder.title
-New folder rule	新建规则	สร้างกฎ	ルールを作成	cowork.folder.new
+Scheduled tasks	定时任务	งานตามกำหนดเวลา	定期タスク	cowork.folder.title
+New scheduled task	新建定时任务	สร้างงานตามกำหนดเวลา	定期タスクを作成	cowork.folder.new
 Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cowork.folder.runNow
 Run history	运行记录	ประวัติการทำงาน	実行履歴	cowork.folder.runs
 Turn off	停用	ปิดใช้งาน	停止	cowork.folder.disable
 Turn on	启用	เปิดใช้งาน	有効にする	cowork.folder.enable
-Turn this rule on? Only files added to the folder from now on are processed.	确定要启用此规则吗？仅处理此后放入该文件夹的文件。	ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้	このルールを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。	cowork.folder.enableConfirm
-Turn this rule off? Documents already entered stay as they are.	确定要停用此规则吗？已推送的单据不受影响。	ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ	このルールを停止しますか？登録済みの書類はそのままです。	cowork.folder.disableConfirm
+Turn this scheduled task on? Only files added to the folder from now on are processed.	确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。	ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้	この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。	cowork.folder.enableConfirm
+Turn this scheduled task off? Documents already entered stay as they are.	确定要停用此定时任务吗？已推送的单据不受影响。	ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ	この定期タスクを停止しますか？登録済みの書類はそのままです。	cowork.folder.disableConfirm
 Rule is on	启用中	เปิดใช้งานอยู่	有効	cowork.folder.on
 Rule is off	已停用	ปิดใช้งานแล้ว	停止中	cowork.folder.off
 Companion offline or needs update	小助手不在线或需升级	ผู้ช่วยออฟไลน์หรือต้องอัปเดต	コンパニオンがオフラインか更新が必要	cowork.folder.agentStale
@@ -1414,8 +1414,7 @@ Last day of the month	月末	วันสุดท้ายของเดือ
 Run requested. The Companion starts within a few minutes.	已请求运行，小助手将在几分钟内开始。	ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที	実行を依頼しました。数分以内に開始します。	cowork.folder.runRequested
 Found {0} · new {1} · skipped {2} · upload failed {3}	扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}	พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}	検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}	cowork.folder.runScan
 No runs yet	暂无运行记录	ยังไม่มีประวัติการทำงาน	実行履歴はまだありません	cowork.folder.noRuns
-Folder rule name	规则名称	ชื่อกฎ	ルール名	cowork.folder.field.title
-Express PC	Express 电脑	เครื่อง Express	Express の PC	cowork.folder.field.connection
+Task name	任务名称	ชื่องาน	タスク名	cowork.folder.field.title
 Folder to read	文件夹	โฟลเดอร์	フォルダー	cowork.folder.field.folder
 Run on day	每月运行日	วันที่ทำงานประจำเดือน	実行日	cowork.folder.field.day
 Run at (Bangkok time)	运行时间（曼谷时间）	เวลาทำงาน (เวลากรุงเทพฯ)	時刻（バンコク）	cowork.folder.field.time
@@ -1441,19 +1440,18 @@ Could not finish	失败	ไม่สำเร็จ	失敗	cowork.folder.state.f
 On schedule	定时	ตามกำหนดเวลา	スケジュール	cowork.folder.trigger.schedule
 Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cowork.folder.trigger.manual
 Catch-up after start	开机补运行	ทำงานที่ค้างหลังเปิดเครื่อง	起動後の追い実行	cowork.folder.trigger.catch_up
-Folder rules work with Express connections only.	自动录入只用于 Express 连接。	การบันทึกอัตโนมัติใช้ได้เฉพาะการเชื่อมต่อ Express เท่านั้น	Express 接続でのみ使えます。	cowork.folder.express_only
-The folder rule is incomplete or invalid.	规则内容不完整或不正确。	ข้อมูลกฎไม่ครบถ้วนหรือไม่ถูกต้อง	ルールの内容が不完全または不正です。	cowork.folder.invalid
+The scheduled task is incomplete or invalid.	定时任务内容不完整或不正确。	ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง	定期タスクの内容が不完全または不正です。	cowork.folder.invalid
 Choose a folder inside the allowed root, without system folders.	请选择允许读取的根目录下的文件夹，不能选择系统文件夹。	กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ	許可されたルート内の、システム以外のフォルダーを選んでください。	cowork.folder.path_invalid
 Choose an allowed root reported by the Companion.	请选择小助手上报的根目录。	กรุณาเลือกโฟลเดอร์หลักที่ผู้ช่วยรายงานไว้	コンパニオンが報告したルートを選んでください。	cowork.folder.root_invalid
 Choose a day and time for the monthly run.	请选择每月运行的日期和时间。	กรุณาเลือกวันและเวลาที่จะทำงานทุกเดือน	毎月の実行日と時刻を選んでください。	cowork.folder.schedule_invalid
 One of the default choices is not valid for this account set.	有一项默认处理在这份账套里不可用。	มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้	既定の処理の一部がこの帳簿では使えません。	cowork.folder.defaults_invalid
 This account set is not in the connection's list. Reload the list in New Intake.	此账套不在该连接的账套列表中，请在新建录入中重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่	この帳簿は一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	cowork.folder.stock_group_needed
-A rule cannot move to another PC. Turn it off and create a new one.	规则无法转移至其他电脑，请停用后新建规则。	ไม่สามารถย้ายกฎไปยังเครื่องอื่นได้ กรุณาปิดใช้กฎนี้แล้วสร้างกฎใหม่	ルールは別の PC に移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
-This PC already has the maximum number of folder rules.	此电脑的规则数量已达上限。	เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว	この PC のルール数が上限に達しています。	cowork.folder.too_many
-This rule is turned off.	此规则已停用。	กฎนี้ปิดใช้งานอยู่	このルールは停止中です。	cowork.folder.rule_disabled
-This rule no longer exists for this PC.	此电脑上不存在该规则。	ไม่พบกฎนี้ในเครื่องนี้	この PC にこのルールはありません。	cowork.folder.rule_missing
-The rule owner can no longer enter documents with this connection.	规则负责人已无权使用此连接录入。	ผู้รับผิดชอบกฎไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว	ルール担当者はこの接続で登録できなくなっています。	cowork.folder.owner_not_ready
+A scheduled task cannot move to another PC. Turn it off and create a new one.	定时任务无法转移至其他电脑，请停用后新建定时任务。	ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่	定期タスクは別の PC に移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
+This PC already has the maximum number of scheduled tasks.	此电脑的定时任务数量已达上限。	เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว	この PC の定期タスク数が上限に達しています。	cowork.folder.too_many
+This scheduled task is turned off.	此定时任务已停用。	งานตามกำหนดเวลานี้ปิดใช้งานอยู่	この定期タスクは停止中です。	cowork.folder.rule_disabled
+This scheduled task no longer exists for this PC.	此电脑上不存在该定时任务。	ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้	この PC にこの定期タスクはありません。	cowork.folder.rule_missing
+The task owner can no longer enter documents with this connection.	定时任务负责人已无权使用此连接录入。	ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว	定期タスクの担当者はこの接続で登録できなくなっています。	cowork.folder.owner_not_ready
 This file record was not found.	文件记录不存在。	ไม่พบรายการไฟล์นี้	このファイル記録が見つかりません。	cowork.folder.entry_missing
 Only PDF and image files are read.	仅支持 PDF 和图片文件。	รองรับเฉพาะไฟล์ PDF และรูปภาพ	読み取るのは PDF と画像だけです。	cowork.folder.type_invalid
 The file is empty or too large.	文件为空或过大。	ไฟล์ว่างหรือใหญ่เกินไป	ファイルが空か大きすぎます。	cowork.folder.size_invalid
@@ -1471,7 +1469,7 @@ Invoice number on the document	发票号	เลขที่ใบกำกับ
 Why it is not in the review sheet	未生成复核表的原因	สาเหตุที่ไม่มีตารางตรวจทาน	確認表がない理由	cowork.folder.wb.reason
 Schedule	每月运行	กำหนดการ	実行日時	cowork.folder.col.schedule
 Folder results	结果	ผลลัพธ์	結果	cowork.folder.col.result
-One folder per rule. PDF and image files only.	每个文件夹对应一条规则，仅支持 PDF 和图片文件。	หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ	1 フォルダーに 1 ルール。PDF と画像のみ。	cowork.folder.folderHint
+One folder per scheduled task. PDF and image files only.	每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。	หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ	1 フォルダーに 1 定期タスク。PDF と画像のみ。	cowork.folder.folderHint
 No folders on this PC yet. Add them in the Companion on that PC.	此电脑暂无可选文件夹，请在此电脑的小助手中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้	この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。	cowork.folder.noRoots
 View the ones to check	查看待处理	ดูรายการรอดำเนินการ	要確認を見る	cowork.folder.viewAttention
 A client needs a name.	请填写客户名称。	กรุณากรอกชื่อลูกค้า	顧客名を入力してください。	
@@ -1670,4 +1668,7 @@ This value cannot be chosen for this account set.	此账套不能选择该值。
 MR.ERP Master Defaults per Account Set	各账套的 MR.ERP 默认值	ค่าเริ่มต้น MR.ERP ของแต่ละชุดบัญชี	会計データ別 MR.ERP 既定値
 MR.ERP Master Options Seen	已读取的 MR.ERP 主档	ข้อมูลหลัก MR.ERP ที่พบ	取得済みの MR.ERP マスター
 Folder not available	文件夹不可用	ไม่พบโฟลเดอร์	フォルダーが見つかりません	cowork.folder.folderMissing
-This folder overlaps the folder of rule «{0}».	与规则「{0}」的文件夹重叠	โฟลเดอร์ซ้อนกับกฎ «{0}»	ルール「{0}」のフォルダーと重なっています	cowork.folder.overlap_with
+This folder overlaps the folder of scheduled task «{0}».	与定时任务「{0}」的文件夹重叠	โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»	定期タスク「{0}」のフォルダーと重なっています	cowork.folder.overlap_with
+This connection does not support scheduled tasks.	此连接不支持定时任务。	การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา	この接続は定期タスクに対応していません。	cowork.folder.unsupported_connection
+No folders to choose yet. Add them in the Companion on the PC.	暂无可选文件夹，请在电脑的小助手中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง	選べるフォルダーがまだありません。PC のコンパニオンで追加してください。	cowork.folder.noRootsAny
+Connect Companion	连接小助手	เชื่อมต่อผู้ช่วย	コンパニオンを接続	cowork.folder.connectHelper

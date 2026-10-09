@@ -33,6 +33,7 @@ A request key of 1 to 128 characters is required.,รหัสคำขอต้
 A required text field is empty. Fill it in and try again,มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่
 A review workbook must contain between 1 and 500 invoices.,สมุดงานตรวจทานต้องมีใบกำกับภาษี 1 ถึง 500 ใบ
 A rule cannot move to another PC. Turn it off and create a new one.,ไม่สามารถย้ายกฎไปยังเครื่องอื่นได้ กรุณาปิดใช้กฎนี้แล้วสร้างกฎใหม่
+A scheduled task cannot move to another PC. Turn it off and create a new one.,ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 A step failed and will be retried in ten minutes.,ขั้นตอนนี้ไม่สำเร็จ ระบบจะลองใหม่ในอีก 10 นาที
@@ -273,6 +274,7 @@ Completion Evidence,หลักฐานการเสร็จสิ้น
 Confirmation Request,คำขอยืนยัน
 Confirmation Revision,เวอร์ชันที่ยืนยัน
 Confirmed,ยืนยันแล้ว
+Connect Companion,เชื่อมต่อผู้ช่วย
 Connection Configuration,การตั้งค่าการเชื่อมต่อ
 Connection Name,ชื่อการเชื่อมต่อ
 Connection Revision,เวอร์ชันการเชื่อมต่อ
@@ -752,6 +754,7 @@ New Files,จำนวนไฟล์ใหม่
 New code,สร้างรหัสใหม่
 New folder rule,สร้างกฎ
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
+New scheduled task,สร้างงานตามกำหนดเวลา
 New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 "New, as on the invoice",สร้างใหม่ตามเอกสาร
@@ -764,6 +767,7 @@ No cards are assigned to you,ยังไม่มีการ์ดที่ม
 No due date,ไม่มีวันครบกำหนด
 No folder rules yet. Create one and put the documents into its folder.,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
 No folders on this PC yet. Add them in the Companion on that PC.,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้
+No folders to choose yet. Add them in the Companion on the PC.,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง
 No invoice could be read.,ไม่พบใบกำกับภาษีที่อ่านได้
 No invoice summary found,ไม่พบข้อมูลสรุปจากการอ่าน
 No invoice was found in this document.,ไม่พบใบกำกับภาษีในเอกสารนี้
@@ -802,6 +806,7 @@ On schedule,ตามกำหนดเวลา
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านได้ มียอดเงินกับเลขที่เอกสารเหลื่อมแถวกัน (ยอดเงินทุกรายการมีในบัญชีแยกประเภท เพียงแต่เลขที่เอกสารไม่ตรงกัน) เป็นการอ่านผิด กรุณาแก้ไขตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 One folder per rule. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ
+One folder per scheduled task. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 One of the default choices is not valid for this account set.,มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้
 Only PDF and image files are read.,รองรับเฉพาะไฟล์ PDF และรูปภาพ
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
@@ -1045,6 +1050,7 @@ Scan barcodes · Record quantities,สแกนบาร์โค้ด · บ�
 "Scan, enter the actual position and quantity, then save to continue.",สแกนแล้วระบุตำแหน่งจริงและจำนวน เมื่อบันทึกแล้วระบบจะไปยังรายการถัดไปโดยอัตโนมัติ
 Scanned At,เวลาที่สแกน
 Schedule,กำหนดการ
+Scheduled tasks,งานตามกำหนดเวลา
 Scope,ขอบเขต
 Scope Key,รหัสขอบเขตสิทธิ์
 Search cards,ค้นหาการ์ด
@@ -1341,6 +1347,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,ชื่อแผ่นงานตรวจทานมีช่องว่างเกินมา กรุณาคืนชื่อแผ่นงานเดิม
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The rule owner can no longer enter documents with this connection.,ผู้รับผิดชอบกฎไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
+The scheduled task is incomplete or invalid.,ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง
 The seller and buyer have the same tax ID. Correct it and submit again,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 The start date is after the due date,วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด
@@ -1352,6 +1359,7 @@ The stock count request is invalid. Reload and try again.,คำขอตรว�
 "The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 The stocktake export snapshot is incomplete. Reload and try again.,ข้อมูลส่งออกการตรวจนับสินค้าไม่ครบถ้วน กรุณารีเฟรชแล้วลองอีกครั้ง
 The system is busy and the reconciliation was not finished. Please try again shortly.,ระบบไม่ว่าง การกระทบยอดยังไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้งภายหลัง
+The task owner can no longer enter documents with this connection.,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 The tax ID is not valid. Correct it and submit again,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 The unsent preparation was cancelled.,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว
 The uploaded file does not match the file on the PC.,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
@@ -1380,6 +1388,7 @@ This ERP adapter is not connected yet.,อะแดปเตอร์ ERP นี
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ปิดใช้งานแล้ว
 This MR.ERP menu cannot be chosen for this account set.,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
 This PC already has the maximum number of folder rules.,เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว
+This PC already has the maximum number of scheduled tasks.,เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
 This account set is not in the connection's list. Reload the list in New Intake.,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
 This account set is unavailable.,ชุดบัญชีนี้ไม่พร้อมใช้งาน
@@ -1390,6 +1399,7 @@ This client still has {0} invoice record(s). Reassign them first.,ลูกค�
 This company does not enter transfer slips; this one is not sent,บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 This connection does not support an Express Companion credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Pearnly สำหรับ Express
+This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
@@ -1403,6 +1413,7 @@ This file record was not found.,ไม่พบรายการไฟล์น
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
 "This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
 This folder overlaps the folder of rule «{0}».,โฟลเดอร์ซ้อนกับกฎ «{0}»
+This folder overlaps the folder of scheduled task «{0}».,โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
@@ -1433,6 +1444,8 @@ This request was already used for different content.,คำขอนี้ถู
 This rule is turned off.,กฎนี้ปิดใช้งานอยู่
 This rule no longer exists for this PC.,ไม่พบกฎนี้ในเครื่องนี้
 This scanned or photographed document could not be read. Check the file and try again.,ไม่สามารถอ่านเอกสารสแกนหรือรูปถ่ายนี้ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
+This scheduled task is turned off.,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
+This scheduled task no longer exists for this PC.,ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้
 "This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",ตารางนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
 "This statement shows no running balance, so balances cannot be checked line by line.",รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงไม่สามารถตรวจสอบยอดคงเหลือทีละรายการได้
 This stock count task is closed.,งานตรวจนับสินค้านี้ปิดแล้ว
@@ -1462,6 +1475,8 @@ Turn off,ปิดใช้งาน
 Turn on,เปิดใช้งาน
 Turn this rule off? Documents already entered stay as they are.,ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this rule on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
+Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
+Turn this scheduled task on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Type,ประเภท
 Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
@@ -1635,7 +1650,8 @@ cowork.folder.catalogEmpty,ยังไม่มีรายการชุด�
 cowork.folder.col.result,ผลลัพธ์
 cowork.folder.col.schedule,กำหนดการ
 cowork.folder.companion_offline,ผู้ช่วยไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีก 10 นาที
-cowork.folder.connection_fixed,ไม่สามารถย้ายกฎไปยังเครื่องอื่นได้ กรุณาปิดใช้กฎนี้แล้วสร้างกฎใหม่
+cowork.folder.connectHelper,เชื่อมต่อผู้ช่วย
+cowork.folder.connection_fixed,ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่
 cowork.folder.content_mismatch,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
 cowork.folder.counts,ส่งแล้ว {0} · รอดำเนินการ {1}
 cowork.folder.day,วันที่ {0}
@@ -1647,12 +1663,12 @@ cowork.folder.default.vat,ภาษีในใบเสร็จรับเง
 cowork.folder.defaultsHint,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง
 cowork.folder.defaults_invalid,มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้
 cowork.folder.disable,ปิดใช้งาน
-cowork.folder.disableConfirm,ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
+cowork.folder.disableConfirm,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 cowork.folder.disabled,ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์
 cowork.folder.edit,แก้ไขกฎ
 cowork.folder.empty,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
 cowork.folder.enable,เปิดใช้งาน
-cowork.folder.enableConfirm,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
+cowork.folder.enableConfirm,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 cowork.folder.entry_missing,ไม่พบรายการไฟล์นี้
 cowork.folder.express_only,การบันทึกอัตโนมัติใช้ได้เฉพาะการเชื่อมต่อ Express เท่านั้น
 cowork.folder.field.connection,เครื่อง Express
@@ -1660,8 +1676,8 @@ cowork.folder.field.day,วันที่ทำงานประจำเด�
 cowork.folder.field.folder,โฟลเดอร์
 cowork.folder.field.root,โฟลเดอร์หลักที่อนุญาต
 cowork.folder.field.time,เวลาทำงาน (เวลากรุงเทพฯ)
-cowork.folder.field.title,ชื่อกฎ
-cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ
+cowork.folder.field.title,ชื่องาน
+cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 cowork.folder.folderMissing,ไม่พบโฟลเดอร์
 cowork.folder.guide.oneRule,หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 cowork.folder.guide.result,ระบบสร้างเอง ห้ามวางเอกสาร
@@ -1677,26 +1693,27 @@ cowork.folder.guide.title,วิธีวางเอกสารในโฟล
 cowork.folder.guide.typesRule,อ่านเฉพาะ PDF และรูปภาพ
 cowork.folder.guide.yearRule,เมื่อเริ่มปีบัญชีใหม่ ให้เปลี่ยนชุดบัญชีในกฎ
 cowork.folder.inspect_busy,ระบบตรวจไฟล์ไม่ว่าง ระบบจะลองใหม่ภายหลัง
-cowork.folder.invalid,ข้อมูลกฎไม่ครบถ้วนหรือไม่ถูกต้อง
+cowork.folder.invalid,ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง
 cowork.folder.item.ask,หยุดเพื่อเลือกเอง
 cowork.folder.item.new,สร้างใหม่ตามเอกสาร
 cowork.folder.lastDay,วันสุดท้ายของเดือน
 cowork.folder.mastersLoading,ผู้ช่วยกำลังอ่านชุดบัญชีนี้ เปิดกฎอีกครั้งในอีกสักครู่เพื่อเลือกบัญชี
-cowork.folder.new,สร้างกฎ
+cowork.folder.new,สร้างงานตามกำหนดเวลา
 cowork.folder.noExpress,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
 cowork.folder.noRoots,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้
+cowork.folder.noRootsAny,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง
 cowork.folder.noRuns,ยังไม่มีประวัติการทำงาน
 cowork.folder.no_number_prefix,ไม่มีเลขที่_
 cowork.folder.off,ปิดใช้งานแล้ว
 cowork.folder.on,เปิดใช้งานอยู่
 cowork.folder.overlap,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว
-cowork.folder.overlap_with,โฟลเดอร์ซ้อนกับกฎ «{0}»
-cowork.folder.owner_not_ready,ผู้รับผิดชอบกฎไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
+cowork.folder.overlap_with,โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»
+cowork.folder.owner_not_ready,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 cowork.folder.rootItself,(ตัวโฟลเดอร์หลัก)
 cowork.folder.root_invalid,กรุณาเลือกโฟลเดอร์หลักที่ผู้ช่วยรายงานไว้
-cowork.folder.rule_disabled,กฎนี้ปิดใช้งานอยู่
-cowork.folder.rule_missing,ไม่พบกฎนี้ในเครื่องนี้
+cowork.folder.rule_disabled,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
+cowork.folder.rule_missing,ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้
 cowork.folder.runNow,เรียกใช้ทันที
 cowork.folder.runRequested,ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที
 cowork.folder.runScan,พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}
@@ -1718,13 +1735,14 @@ cowork.folder.state.submitted,กำลังอ่าน
 cowork.folder.state.uploaded,อัปโหลดแล้ว
 cowork.folder.step_error,ขั้นตอนนี้ไม่สำเร็จ ระบบจะลองใหม่ในอีก 10 นาที
 cowork.folder.stock_group_needed,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
-cowork.folder.title,กฎบันทึกอัตโนมัติจากโฟลเดอร์
+cowork.folder.title,งานตามกำหนดเวลา
 cowork.folder.too_large,ไฟล์มีขนาดใหญ่เกินไป ไม่สามารถอัปโหลดจากเครื่องนี้ได้
-cowork.folder.too_many,เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว
+cowork.folder.too_many,เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว
 cowork.folder.trigger.catch_up,ทำงานที่ค้างหลังเปิดเครื่อง
 cowork.folder.trigger.manual,เรียกใช้ทันที
 cowork.folder.trigger.schedule,ตามกำหนดเวลา
 cowork.folder.type_invalid,รองรับเฉพาะไฟล์ PDF และรูปภาพ
+cowork.folder.unsupported_connection,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 cowork.folder.upload_lost,ไม่ได้รับไฟล์ที่อัปโหลด ระบบจะอัปโหลดใหม่
 cowork.folder.vat.claim,ใช้สิทธิ์ภาษีซื้อ
 cowork.folder.vat.expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย

@@ -103,6 +103,12 @@ def _guarded(operation, handler):
 
 
 def _sync(context, body):
+    # 这条连接是哪种 ERP：MR.ERP 的小助手成员只读文件夹（小助手配对时先问一次 `probe`，见 companion/pairing.py）。
+    connection = frappe.db.get_value(CONNECTION, context.connection, ["adapter", "label"], as_dict=True) or {}
+    identity = {"adapter": connection.get("adapter") or "", "label": connection.get("label") or ""}
+    if body.get("probe") is True:
+        # 只问身份：不记本机情况、不取定时任务（配对时还没有授权文件夹，不能把已有的清掉）。
+        return {"server_time": time.time(), "rules": [], "entries": {}, **identity}
     roots = contracts.roots(body.get("roots"))
     agent.remember(context.connection, roots=roots, version=body.get("version"),
                    health=contracts.health(body.get("rule_health")))
@@ -126,7 +132,7 @@ def _sync(context, body):
             entry = read(FILE, name)
             if entry.connection == context.connection:
                 entries[name] = workbook.status(entry)
-    return {"server_time": time.time(), "rules": rules, "entries": entries}
+    return {"server_time": time.time(), "rules": rules, "entries": entries, **identity}
 
 
 def _record_run(context, row):

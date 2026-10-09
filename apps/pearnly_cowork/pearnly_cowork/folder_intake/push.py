@@ -50,7 +50,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
     defaults = json.loads(rule.defaults_json or "{}")
     fixed = {kind: value for kind in contracts.KINDS if (value := contracts.default_value(defaults, kind))}
     try:
-        view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind,
+        view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind or None,
                                         fixed=fixed)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         # 与网页「提交」失败同一做法：原因记在票上（列表照常显示「失败」+ 原因），这份文件照样往下走、出表格。
@@ -70,7 +70,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
-                                rule.account_set_key, None, None, rule.posting_kind, fixed=fixed)
+                                rule.account_set_key, None, None, rule.posting_kind or None, fixed=fixed)
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}

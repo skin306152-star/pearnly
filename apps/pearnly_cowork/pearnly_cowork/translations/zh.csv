@@ -33,6 +33,7 @@ A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 �
 A required text field is empty. Fill it in and try again,必填文本字段为空，请填写后重试
 A review workbook must contain between 1 and 500 invoices.,复核工作簿须包含 1 至 500 张发票。
 A rule cannot move to another PC. Turn it off and create a new one.,规则无法转移至其他电脑，请停用后新建规则。
+A scheduled task cannot move to another PC. Turn it off and create a new one.,定时任务无法转移至其他电脑，请停用后新建定时任务。
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express 中已存在相似客户，请选择该客户或确认为新客户
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 A step failed and will be retried in ten minutes.,此步骤出错，将于十分钟后重试。
@@ -273,6 +274,7 @@ Completion Evidence,完成证据
 Confirmation Request,确认请求
 Confirmation Revision,确认版本
 Confirmed,已确认
+Connect Companion,连接小助手
 Connection Configuration,连接配置
 Connection Name,连接名称
 Connection Revision,连接版本
@@ -752,6 +754,7 @@ New Files,新文件数
 New code,重新生成绑定码
 New folder rule,新建规则
 New records must start as drafts.,新记录必须先保存为草稿。
+New scheduled task,新建定时任务
 New stock count,新建盘点
 New task,新建任务
 "New, as on the invoice",新建（按票面）
@@ -764,6 +767,7 @@ No cards are assigned to you,暂无分配给你的卡片
 No due date,无到期日
 No folder rules yet. Create one and put the documents into its folder.,还没有规则。新建一条，把单据放进对应的文件夹即可。
 No folders on this PC yet. Add them in the Companion on that PC.,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
+No folders to choose yet. Add them in the Companion on the PC.,暂无可选文件夹，请在电脑的小助手中添加。
 No invoice could be read.,未识别到任何发票。
 No invoice summary found,未识别到摘要
 No invoice was found in this document.,此单据中未识别到发票。
@@ -802,6 +806,7 @@ On schedule,定时
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",以下识别出的销项税报告页金额与单号错行（金额在总账中均存在，仅单号对应有误），属识别错误，请对照原件更正（括号内为行数）：{0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 One folder per rule. PDF and image files only.,每个文件夹对应一条规则，仅支持 PDF 和图片文件。
+One folder per scheduled task. PDF and image files only.,每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。
 One of the default choices is not valid for this account set.,有一项默认处理在这份账套里不可用。
 Only PDF and image files are read.,仅支持 PDF 和图片文件。
 Only an active count can be deleted,只能删除进行中的盘点
@@ -1045,6 +1050,7 @@ Scan barcodes · Record quantities,扫描条码 · 记录数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scanned At,扫描时间
 Schedule,每月运行
+Scheduled tasks,定时任务
 Scope,范围
 Scope Key,权限范围标识
 Search cards,搜索卡片
@@ -1341,6 +1347,7 @@ The review workbook has data after 50 consecutive blank rows. Remove the blank g
 The review worksheet name contains extra spaces. Restore the original name.,复核工作表名称包含多余空格，请恢复原工作表名。
 The row has no product code or barcode,此行缺少物料编码或条码
 The rule owner can no longer enter documents with this connection.,规则负责人已无权使用此连接录入。
+The scheduled task is incomplete or invalid.,定时任务内容不完整或不正确。
 The seller and buyer have the same tax ID. Correct it and submit again,卖方和买方税号相同，请更正后重新提交
 The source page number must be a positive integer.,源文件页码必须是正整数。
 The start date is after the due date,开始日期不能晚于到期日
@@ -1352,6 +1359,7 @@ The stock count request is invalid. Reload and try again.,盘点请求无效，�
 "The stock lines could not be posted. Check the items, quantities and prices",无法记录库存明细，请核对品名、数量和单价
 The stocktake export snapshot is incomplete. Reload and try again.,盘点导出数据不完整，请刷新后重试。
 The system is busy and the reconciliation was not finished. Please try again shortly.,系统繁忙，对账未完成，请稍后重试。
+The task owner can no longer enter documents with this connection.,定时任务负责人已无权使用此连接录入。
 The tax ID is not valid. Correct it and submit again,税号无效，请更正后重新提交
 The unsent preparation was cancelled.,尚未发送的推送准备已撤销。
 The uploaded file does not match the file on the PC.,上传的内容与电脑上的文件不一致。
@@ -1380,6 +1388,7 @@ This ERP adapter is not connected yet.,此 ERP 适配器尚未接通。
 This ERP connection is disabled.,此 ERP 连接已停用。
 This MR.ERP menu cannot be chosen for this account set.,此账套不能选择该 MR.ERP 菜单。
 This PC already has the maximum number of folder rules.,此电脑的规则数量已达上限。
+This PC already has the maximum number of scheduled tasks.,此电脑的定时任务数量已达上限。
 This account cannot send documents,此账号无权发送单据
 This account set is not in the connection's list. Reload the list in New Intake.,此账套不在该连接的账套列表中，请在新建录入中重新读取。
 This account set is unavailable.,此账套不可用。
@@ -1390,6 +1399,7 @@ This client still has {0} invoice record(s). Reassign them first.,该客户仍�
 This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
 This connection does not support an Express Companion credential.,此连接不支持 Express 小助手凭据。
+This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
 This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
@@ -1403,6 +1413,7 @@ This file record was not found.,文件记录不存在。
 This file type is not supported.,不支持此文件类型。
 "This file type is not supported. Use PDF, Excel or CSV.",不支持此文件类型，请使用 PDF、Excel 或 CSV。
 This folder overlaps the folder of rule «{0}».,与规则「{0}」的文件夹重叠
+This folder overlaps the folder of scheduled task «{0}».,与定时任务「{0}」的文件夹重叠
 This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
 This inventory account group cannot be chosen for this account set.,此账套不能选择该存货科目组。
 This invoice was already sent successfully,此发票已推送成功
@@ -1433,6 +1444,8 @@ This request was already used for different content.,此请求已用于其他内
 This rule is turned off.,此规则已停用。
 This rule no longer exists for this PC.,此电脑上不存在该规则。
 This scanned or photographed document could not be read. Check the file and try again.,无法读取此扫描件或照片，请检查文件后重试。
+This scheduled task is turned off.,此定时任务已停用。
+This scheduled task no longer exists for this PC.,此电脑上不存在该定时任务。
 "This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",这份表格不是网银导出的账单（没有余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。
 "This statement shows no running balance, so balances cannot be checked line by line.",此账单没有逐笔余额，无法逐行核对余额。
 This stock count task is closed.,此盘点任务已关闭。
@@ -1462,6 +1475,8 @@ Turn off,停用
 Turn on,启用
 Turn this rule off? Documents already entered stay as they are.,确定要停用此规则吗？已推送的单据不受影响。
 Turn this rule on? Only files added to the folder from now on are processed.,确定要启用此规则吗？仅处理此后放入该文件夹的文件。
+Turn this scheduled task off? Documents already entered stay as they are.,确定要停用此定时任务吗？已推送的单据不受影响。
+Turn this scheduled task on? Only files added to the folder from now on are processed.,确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。
 Type,类型
 Type a few letters of the company or account set name to find it,输入公司名称或账套名称的关键字查找账套
 "Type or scan, then press Enter",输入或扫码后按回车
@@ -1635,7 +1650,8 @@ cowork.folder.catalogEmpty,还没有账套目录。请先在新建录入里点�
 cowork.folder.col.result,结果
 cowork.folder.col.schedule,每月运行
 cowork.folder.companion_offline,推送时小助手未连接，将于十分钟后重新推送。
-cowork.folder.connection_fixed,规则无法转移至其他电脑，请停用后新建规则。
+cowork.folder.connectHelper,连接小助手
+cowork.folder.connection_fixed,定时任务无法转移至其他电脑，请停用后新建定时任务。
 cowork.folder.content_mismatch,上传的内容与电脑上的文件不一致。
 cowork.folder.counts,已推送 {0} · 待处理 {1}
 cowork.folder.day,{0} 日
@@ -1647,12 +1663,12 @@ cowork.folder.default.vat,收据、简易税票上的税额
 cowork.folder.defaultsHint,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。
 cowork.folder.defaults_invalid,有一项默认处理在这份账套里不可用。
 cowork.folder.disable,停用
-cowork.folder.disableConfirm,确定要停用此规则吗？已推送的单据不受影响。
+cowork.folder.disableConfirm,确定要停用此定时任务吗？已推送的单据不受影响。
 cowork.folder.disabled,本站没有开通文件夹自动录入。
 cowork.folder.edit,编辑规则
 cowork.folder.empty,还没有规则。新建一条，把单据放进对应的文件夹即可。
 cowork.folder.enable,启用
-cowork.folder.enableConfirm,确定要启用此规则吗？仅处理此后放入该文件夹的文件。
+cowork.folder.enableConfirm,确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。
 cowork.folder.entry_missing,文件记录不存在。
 cowork.folder.express_only,自动录入只用于 Express 连接。
 cowork.folder.field.connection,Express 电脑
@@ -1660,8 +1676,8 @@ cowork.folder.field.day,每月运行日
 cowork.folder.field.folder,文件夹
 cowork.folder.field.root,允许读取的根目录
 cowork.folder.field.time,运行时间（曼谷时间）
-cowork.folder.field.title,规则名称
-cowork.folder.folderHint,每个文件夹对应一条规则，仅支持 PDF 和图片文件。
+cowork.folder.field.title,任务名称
+cowork.folder.folderHint,每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。
 cowork.folder.folderMissing,文件夹不可用
 cowork.folder.guide.oneRule,一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 cowork.folder.guide.result,系统生成，别放单据
@@ -1677,26 +1693,27 @@ cowork.folder.guide.title,文件夹放法
 cowork.folder.guide.typesRule,只读 PDF 和图片。
 cowork.folder.guide.yearRule,换财年时在规则里改年度账套。
 cowork.folder.inspect_busy,原件核对繁忙，将稍后重试。
-cowork.folder.invalid,规则内容不完整或不正确。
+cowork.folder.invalid,定时任务内容不完整或不正确。
 cowork.folder.item.ask,暂停并手动选择
 cowork.folder.item.new,按票面新建
 cowork.folder.lastDay,月末
 cowork.folder.mastersLoading,小助手还在读这份账套，稍后重新打开即可选科目。
-cowork.folder.new,新建规则
+cowork.folder.new,新建定时任务
 cowork.folder.noExpress,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
 cowork.folder.noRoots,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
+cowork.folder.noRootsAny,暂无可选文件夹，请在电脑的小助手中添加。
 cowork.folder.noRuns,暂无运行记录
 cowork.folder.no_number_prefix,无发票号_
 cowork.folder.off,已停用
 cowork.folder.on,启用中
 cowork.folder.overlap,已有启用中的规则使用此文件夹或其上级文件夹。
-cowork.folder.overlap_with,与规则「{0}」的文件夹重叠
-cowork.folder.owner_not_ready,规则负责人已无权使用此连接录入。
+cowork.folder.overlap_with,与定时任务「{0}」的文件夹重叠
+cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录入。
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 cowork.folder.rootItself,（根目录本身）
 cowork.folder.root_invalid,请选择小助手上报的根目录。
-cowork.folder.rule_disabled,此规则已停用。
-cowork.folder.rule_missing,此电脑上不存在该规则。
+cowork.folder.rule_disabled,此定时任务已停用。
+cowork.folder.rule_missing,此电脑上不存在该定时任务。
 cowork.folder.runNow,立即运行
 cowork.folder.runRequested,已请求运行，小助手将在几分钟内开始。
 cowork.folder.runScan,扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
@@ -1718,13 +1735,14 @@ cowork.folder.state.submitted,识别中
 cowork.folder.state.uploaded,已上传
 cowork.folder.step_error,此步骤出错，将于十分钟后重试。
 cowork.folder.stock_group_needed,请先为此账套选择存货科目组。
-cowork.folder.title,自动录入规则
+cowork.folder.title,定时任务
 cowork.folder.too_large,文件过大，无法从此电脑上传。
-cowork.folder.too_many,此电脑的规则数量已达上限。
+cowork.folder.too_many,此电脑的定时任务数量已达上限。
 cowork.folder.trigger.catch_up,开机补运行
 cowork.folder.trigger.manual,立即运行
 cowork.folder.trigger.schedule,定时
 cowork.folder.type_invalid,仅支持 PDF 和图片文件。
+cowork.folder.unsupported_connection,此连接不支持定时任务。
 cowork.folder.upload_lost,未收到上传的文件，将重新上传。
 cowork.folder.vat.claim,抵扣进项税
 cowork.folder.vat.expense,不抵扣，计入费用

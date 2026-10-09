@@ -277,6 +277,10 @@ def _authenticate_request(request):
             # An unexpected authentication failure is visible as retryable 503,
             # with a fixed/type-only diagnostic. Never log original token frames.
             raise_busy(error, stage='authenticate')
+    # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法，心跳 / 领任务 / 回执拒绝（403）。
+    if operation not in FOLDER_METHODS and frappe.db.get_value(
+            'Cowork ERP Connection', context.connection, 'adapter') in credentials.FOLDER_ONLY_ADAPTERS:
+        _deny_permission()
     body = deepcopy(payload)
     # local.session aliases session_obj.data before this point. Never change it
     # in place. Also prevent sync_database's after_response session.update.

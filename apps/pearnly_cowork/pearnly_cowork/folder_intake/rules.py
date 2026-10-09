@@ -27,14 +27,14 @@ def _error(error):
 
 
 def _connection(name):
-    """规则只挂在能用的 Express 连接上（与新建录入同一判据：录入权限 + 连接使用授权 + 连接启用）。"""
+    """定时任务挂在能用的 Express / MR.ERP 连接上（与新建录入同一判据：录入权限 + 连接使用授权 + 连接启用）。"""
     if not isinstance(name, str) or not name or len(name) > 140:
         frappe.throw(_("cowork.folder.invalid"))
     doc = frappe.get_doc(CONNECTION, name)
     connection_access.require_connection(doc)
     # 读文件夹的是这条连接的 Windows 小助手（配对码身份）；去向的适配见 `destinations`。
     if not destinations.supported(doc.adapter) or int(doc.binding_generation or 0) != 0:
-        frappe.throw(_("cowork.folder.express_only"))
+        frappe.throw(_("cowork.folder.unsupported_connection"))
     return doc
 
 
@@ -62,13 +62,13 @@ def _masters(doc, account_set_key):
 
 
 def options(connection, account_set_key=None):
-    """规则表单要的选项：这台小助手允许读取的根目录与文件夹、账套的科目与部门、存货科目组。"""
+    """规则表单要的选项：这台小助手允许读取的根目录与文件夹；Express 另有账套的科目与部门、存货科目组。"""
     _require()
     doc = _connection(connection)
     state = agent.read(doc.name)
     result = {"agent": {"fresh": agent.fresh(state), "version": state.get("version") or "", "at": state.get("at")},
               "roots": state.get("roots") or [], "accounts": None, "departments": None, "stock_group": None}
-    if account_set_key:
+    if account_set_key and doc.adapter == "express":
         _value, _label = _catalog_item(doc.name, account_set_key)
         _a, _d, found = _masters(doc, account_set_key)
         if "reported_accounts" in found:
@@ -95,18 +95,24 @@ def save(values):
     if not isinstance(values, dict):
         frappe.throw(_("cowork.folder.invalid"))
     doc = _connection(values.get("connection"))
+    # 与「新建录入」同一口径：Express 选过账类型（及默认处理），MR.ERP 选付款方式（2026-10-09 加 MR.ERP）。
+    express = doc.adapter == "express"
     try:
         title = contracts.text(values.get("title"), maximum=140)
         direction = values.get("direction")
-        posting_kind = values.get("posting_kind")
-        if direction not in contracts.DIRECTIONS or posting_kind not in contracts.POSTING_KINDS:
+        posting_kind = values.get("posting_kind") if express else ""
+        payment = "" if express else values.get("payment")
+        if direction not in contracts.DIRECTIONS or (express and posting_kind not in contracts.POSTING_KINDS) or (
+                not express and payment not in contracts.MRERP_PAYMENTS[direction]):
             raise contracts.ContractError("cowork.folder.invalid")
         root = contracts.root_id(values.get("root_id"))
         folder = contracts.folder(values.get("folder"))
         day, at = contracts.schedule(values.get("run_day"), values.get("run_time"))
-        accounts, departments, _found = _masters(doc, values.get("account_set_key"))
-        defaults = contracts.defaults(values.get("defaults"), direction=direction, posting_kind=posting_kind,
-                                      accounts=accounts, departments=departments)
+        defaults = {}
+        if express:
+            accounts, departments, _found = _masters(doc, values.get("account_set_key"))
+            defaults = contracts.defaults(values.get("defaults"), direction=direction, posting_kind=posting_kind,
+                                          accounts=accounts, departments=departments)
     except contracts.ContractError as error:
         _error(error)
     account_set_key, label = _catalog_item(doc.name, values.get("account_set_key"))
@@ -126,7 +132,7 @@ def save(values):
     before = _routing(rule) if name else None
     rule.update({"title": title, "workspace": doc.workspace, "client": doc.client or "", "connection": doc.name,
                  "rule_owner": frappe.session.user, "account_set_key": account_set_key, "account_label": label,
-                 "direction": direction, "posting_kind": posting_kind, "root_id": root, "folder": folder,
+                 "direction": direction, "posting_kind": posting_kind, "payment": payment, "root_id": root, "folder": folder,
                  "run_day": day, "run_time": at, "defaults_json": json.dumps(defaults, sort_keys=True)})
     if not name:
         rule.enabled, rule.active_since = 1, now_datetime()
@@ -139,7 +145,7 @@ def save(values):
 
 
 def _routing(rule):
-    return [rule.get(key) for key in ("account_set_key", "direction", "posting_kind", "root_id", "folder",
+    return [rule.get(key) for key in ("account_set_key", "direction", "posting_kind", "payment", "root_id", "folder",
                                       "run_day", "run_time", "defaults_json", "rule_owner")]
 
 
@@ -256,8 +262,10 @@ def project(rule):
     last = frappe.get_all(RUN, filters={"rule": rule.name}, fields=["started_at", "found", "new_files", "trigger"],
                           order_by="started_at desc", limit=1, ignore_permissions=True)
     return {"name": rule.name, "title": rule.title, "connection": rule.connection, "enabled": int(rule.enabled or 0),
+            "adapter": frappe.db.get_value(CONNECTION, rule.connection, "adapter") or "",
             "account_set_key": rule.account_set_key, "account_label": rule.account_label,
-            "direction": rule.direction, "posting_kind": rule.posting_kind, "root_id": rule.root_id,
+            "direction": rule.direction, "posting_kind": rule.posting_kind or "", "payment": rule.payment or "",
+            "root_id": rule.root_id,
             "folder": rule.folder or "", "run_day": int(rule.run_day or 0), "run_time": rule.run_time,
             "defaults": json.loads(rule.defaults_json or "{}"), "rule_owner": rule.rule_owner,
             "active_since": rule.active_since, "run_request": int(rule.run_request or 0),

@@ -215,7 +215,8 @@ def _submit(entry):
     with _as(entry.actor):
         try:
             result = recognition.submit(entry.source_file, request_key(entry.name), direction=rule.direction,
-                                        posting_kind=rule.posting_kind, connection=rule.connection,
+                                        posting_kind=rule.posting_kind or None, payment=rule.payment or None,
+                                        connection=rule.connection,
                                         account_set_key=rule.account_set_key,
                                         target=destinations.of(_adapter(rule)).intake_target)
         except (Deferred, QueueFull) as error:
