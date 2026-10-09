@@ -241,175 +241,32 @@
     window.addEventListener('pointermove', function (e) { px = e.clientX; py = e.clientY; if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
   }
 
-  // ---- 首页主视觉：小单把书桌照片的一角卷起来，露出底下整理好的账（几何与 website/poster.py geom() 同一套） ----
-  function peel() {
-    var svg = document.querySelector('.pz');
-    if (!svg) return;
-    var card = svg.closest('.peel'), ask = card.querySelector('.pz-ask'), p0 = +svg.getAttribute('data-p0');
-    function q(sel) { return svg.querySelector(sel); }
-    function all(sel) { return svg.querySelectorAll(sel); }
-    var clip = q('.pz-clip'), body = q('.pz-body'), legs = all('.pz-leg'), armPen = q('.pz-arm-pen'), handPen = q('.pz-hand-pen'),
-      pen = q('.pz-pen'), armPush = q('.pz-arm-push'), handPush = q('.pz-hand-push'), ground = q('.pz-ground'),
-      flaps = all('.pz-flap'), gap = q('.pz-gapshade'), g1 = q('.pz-g'), g2 = q('.pz-g2'),
-      sheets = all('.pz-sheet'), front = q('.pz-front'), back = q('.pz-cheer');
-    var SCALE = 1.35, HP = 560, DRAWN = [1132, 482], BACK = DRAWN;
-    function f(v) { return Math.round(v * 10) / 10; }
-    function clamp(v) { return Math.max(0, Math.min(1, v)); }
-    function set(el, k, v) { el.setAttribute(k, v); }
-    function limb(a, b, bend) {
-      var dx = b[1] - a[1], dy = a[0] - b[0], d = Math.sqrt(dx * dx + dy * dy) || 1;
-      return 'M' + f(a[0]) + ' ' + f(a[1]) + 'Q' + f((a[0] + b[0]) / 2 + dx / d * bend) + ' ' + f((a[1] + b[1]) / 2 + dy / d * bend) + ' ' + f(b[0]) + ' ' + f(b[1]);
-    }
-    // 进度 p → 翻页角的几何（与 poster.py state() / curl() / half_plane() 同一套公式）；p 超过 1 就是整张往右上揭走
-    function geom(p) {
-      var a = 120 + 150 * p, b = a * 1.75, ln = Math.sqrt(a * a + b * b), ux = b / ln, uy = a / ln, nx = uy, ny = -ux;
-      var t0 = a * uy, fx = ux * t0, fy = HP - a + uy * t0, dist = a * b / ln;
-      return { a: a, b: b, ux: ux, uy: uy, nx: nx, ny: ny, fx: fx, fy: fy, dist: dist, tx: fx + nx * dist * .66, ty: fy + ny * dist * .66 };
-    }
-    function sheet(p) {
-      var g = geom(p), a = g.a, b = g.b, tx = g.tx, ty = g.ty, d = g.dist, far = 5000, ay = HP - a;
-      var p1 = [-g.ux * far, ay - g.uy * far], p2 = [g.ux * far, ay + g.uy * far];
-      set(clip, 'd', 'M' + f(p1[0]) + ' ' + f(p1[1]) + 'L' + f(p2[0]) + ' ' + f(p2[1]) + 'L' + f(p2[0] + g.nx * far) + ' ' + f(p2[1] + g.ny * far) +
-        'L' + f(p1[0] + g.nx * far) + ' ' + f(p1[1] + g.ny * far) + 'Z');
-      var flapD = 'M0 ' + f(ay) + 'Q' + f(tx / 2 - g.nx * d * .1) + ' ' + f((ay + ty) / 2 - g.ny * d * .1) + ' ' + f(tx) + ' ' + f(ty) +
-        'Q' + f((b + tx) / 2 - g.nx * d * .14) + ' ' + f((HP + ty) / 2 - g.ny * d * .14) + ' ' + f(b) + ' ' + HP + 'Z';
-      for (var i = 0; i < flaps.length; i++) set(flaps[i], 'd', flapD);
-      set(gap, 'd', 'M0 ' + f(ay) + 'L' + f(b) + ' ' + HP + 'H0Z');
-      set(g1, 'x1', f(g.fx)); set(g1, 'y1', f(g.fy)); set(g1, 'x2', f(tx)); set(g1, 'y2', f(ty));
-      set(g2, 'x1', f(g.fx)); set(g2, 'y1', f(g.fy));
-      return g;
-    }
-    // 小单：左手捏着纸尖往后拉、右手拿铅笔，掀得越开退得越多
-    function figure(g) {
-      var ph = g.a / 14, bob = -3 * Math.abs(Math.cos(ph)), t = 12 * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
-      var hip = [g.tx + 92, g.ty + 70 + bob], feet = hip[1] + 40 * SCALE - 2;
-      function rot(px, py) { px *= SCALE; py *= SCALE; return [hip[0] + px * c - py * sn, hip[1] + px * sn + py * c]; }
-      var swing = 14 * Math.sin(ph);
-      [[-14, swing], [14, -swing]].forEach(function (l, i) {
-        var h = rot(l[0], 0), x2 = h[0] + l[1] + 6;
-        set(legs[i], 'd', 'M' + f(h[0]) + ' ' + f(h[1]) + 'L' + f((h[0] + x2) / 2 + 7) + ' ' + f((h[1] + feet) / 2 - 2) + 'L' + f(x2) + ' ' + f(feet) + 'h' + (i ? 14 : -14));
-      });
-      var hand = [g.tx + 4, g.ty + 4], penAt = rot(60, -12), penSh = rot(38, -52), penCtrl = rot(50, -34);
-      set(body, 'transform', 'translate(' + f(hip[0]) + ' ' + f(hip[1]) + ') rotate(12) scale(' + SCALE + ')');
-      set(armPen, 'd', 'M' + f(penSh[0]) + ' ' + f(penSh[1]) + 'Q' + f(penCtrl[0]) + ' ' + f(penCtrl[1]) + ' ' + f(penAt[0]) + ' ' + f(penAt[1]));
-      set(handPen, 'cx', f(penAt[0])); set(handPen, 'cy', f(penAt[1]));
-      set(pen, 'transform', 'translate(' + f(penAt[0]) + ' ' + f(penAt[1]) + ') rotate(28) translate(0 -72)');
-      set(armPush, 'd', limb(rot(-34, -50), hand, 14));
-      set(handPush, 'cx', f(hand[0])); set(handPush, 'cy', f(hand[1]));
-      set(ground, 'cx', f(hip[0] + 6)); set(ground, 'cy', f(feet + 3));
-      return hip;
-    }
-    function draw(p) { return figure(sheet(p)); }
-    // 手机上只取左边一段
-    function fit() {
-      var view = svg.getAttribute(card.clientWidth < 640 ? 'data-view-sm' : 'data-view');
-      svg.setAttribute('viewBox', view);
-      q('.pz-frame').setAttribute('width', view.split(' ')[2]);
-      BACK = card.clientWidth < 640 ? [560, 482] : [1132, 482];
-    }
-    fit();
-    window.addEventListener('resize', fit);
-
-    // ---- 点整张画（或“下面是什么？”）：整张画往右上揭走、淡掉，小单松手跳到账旁边朝你挥手；再点一下盖回去 ----
-    var cur = 0, open = false, busy = false, OUT = 9;
-    function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-    function jump(from, to, t) {
-      var x = from[0] + (to[0] - from[0]) * t, y = from[1] + (to[1] - from[1]) * t - 150 * 4 * t * (1 - t);
-      var squash = t > .9 ? 1 - .1 * Math.sin((t - .9) / .1 * Math.PI) : 1;
-      return [x, y, squash];
-    }
-    function place(el, at, origin, squash, op) {
-      set(el, 'transform', 'translate(' + f(at[0] - origin[0]) + ' ' + f(at[1] - origin[1]) + ')' +
-        (squash !== 1 ? ' translate(' + f(at[0]) + ' ' + f(at[1] + 54) + ') scale(' + f((2 - squash) * 100) / 100 + ' ' + f(squash * 100) / 100 + ') translate(' + f(-at[0]) + ' ' + f(-at[1] - 54) + ')' : ''));
-      set(el, 'opacity', op);
-    }
-    function toggle() {
-      if (busy) return;
-      open = !open;
-      ask.setAttribute('aria-pressed', String(open));
-      card.classList.toggle('revealed', open);
-      var start = cur, hip = figure(geom(start));
-      var backHip = [BACK[0], BACK[1]];
-      if (reduce) {
-        sheet(open ? OUT : start);
-        for (var i = 0; i < sheets.length; i++) set(sheets[i], 'opacity', open ? 0 : 1);
-        set(front, 'opacity', open ? 0 : 1); set(front, 'transform', '');
-        set(back, 'opacity', open ? 1 : 0); place(back, BACK, DRAWN, 1, open ? 1 : 0);
-        return;
-      }
-      busy = true;
-      var t0 = performance.now(), dur = 1500;
-      (function step(now) {
-        var k = clamp((now - t0) / dur), e = ease(k), tt = open ? k : 1 - k;
-        // 纸：揭走 / 盖回（p 从当前进度到 OUT），最后 30% 时间淡掉
-        var p = start + (OUT - start) * ease(open ? k : 1 - k);
-        sheet(p);
-        var fade = clamp((ease(tt) - .7) / .3);
-        for (var i = 0; i < sheets.length; i++) set(sheets[i], 'opacity', f(1 - fade));
-        // 小单：跳起来一道弧，半空换成挥手的姿势，落到账旁边朝你挥手（盖回时倒着放）
-        var jt = clamp((tt - .12) / .7), at = jump(hip, backHip, ease(jt));
-        if (jt < .5) { place(front, at, hip, 1, 1); set(back, 'opacity', 0); }
-        else { place(back, at, DRAWN, at[2], 1); set(front, 'opacity', 0); }
-        if (k < 1) requestAnimationFrame(step);
-        else {
-          busy = false;
-          if (!open) { set(front, 'transform', ''); set(front, 'opacity', 1); set(back, 'opacity', 0); queue(); }
-        }
-      })(t0);
-    }
-    card.addEventListener('click', toggle);   // 按钮在卡片里，键盘按回车/空格时的点击也会冒泡到这里
-
-    if (reduce) { draw(p0); cur = p0; return; }
-    // 卡片从屏幕下方往上走约 3/4 屏就卷到头；平滑跟随，只在看得见、进度有变化时重画（揭开后不再跟着滚动）
-    var last = 0, queued = false, seen = true;
-    function goal() {
-      var r = svg.getBoundingClientRect(), vh = window.innerHeight;
-      return clamp((vh * .95 - r.top) / (vh * .75));
-    }
-    function frame(now) {
-      queued = false;
-      if (open || busy) return;
-      var g = goal();
-      cur += (g - cur) * Math.min(1, (now - last) / 120 || .15);
-      last = now;
-      draw(cur);
-      if (Math.abs(g - cur) > .0008) queue();
-    }
-    function queue() { if (!queued) { queued = true; requestAnimationFrame(frame); } }
-    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { seen = e[0].isIntersecting; if (seen) queue(); }).observe(svg);
-    window.addEventListener('scroll', function () { if (seen) queue(); }, { passive: true });
-    last = performance.now();
-    draw(0);
-    queue();
-  }
-
-  // ---- 首页主视觉“以前 / 现在”（website/story.py）：每一帧都由时间 t 算出来，同一个 t 永远画出同一帧，所以能重播、能停在最后一帧 ----
+  // ---- 首页主视觉“过去 / 现在”（website/story.py）：每一帧都由时间 t 算出来，同一个 t 永远画出同一帧；循环播放 ----
   function story() {
     var svg = document.querySelector('.st');
     if (!svg) return;
-    var card = svg.closest('.st-card'), capEl = card.querySelector('.st-cap'), replay = card.querySelector('.st-replay');
+    var card = svg.closest('.st-card'), capEl = card.querySelector('.st-cap');
     var CAPS = JSON.parse(card.getAttribute('data-caps'));
-    var K = 2, HOME = [640, 476], DESK = 428, SLAB = 7, ITEMS = 16, END = 14400;
-    var T2 = 4800, T3 = 6250, T4 = 11500;            // ② 转折、③ 现在（记号笔盖满画面的那一刻）、④ 完成
-    var C1 = [300, 1800, 3300];                       // 以前：每张 1.5 秒
-    var FALL = [1150, 2550, 3200, 4100];              // 以前：画面外伸进一只手，每次往堆上再放两张
-    var SNAP = [7750, 8350, 8880, 9330, 9700];        // 现在：前五张一张张拍，剩下的一口气
+    var K = 2, SX = .82, HOME = [470, 452], SLAB = 6, PILE_BASE = 358, DONE_BASE = 388, ITEMS = 16, END = 14000;
+    var T2 = 4800, T3 = 6250, T4 = 11500;             // ② 转折、③ 现在（记号笔盖满画面的那一刻）、④ 完成
+    var HOLD = 1200, WIPE = 700;                       // 播完停一下，记号笔刷过去接回开头
+    var C1 = [300, 1800, 3300];                        // 过去：每张 1.5 秒
+    var SNAP = [7750, 8350, 8880, 9330, 9700];         // 现在：前五张一张张拍，剩下的一口气
     for (var s0 = 0; SNAP.length < ITEMS; s0++) SNAP.push(10000 + s0 * 75);
     var ARRIVE = SNAP.map(function (s) { return s + 680; });
-    var HL0 = [586, 424], HR0 = [700, 424], READ = [522, 322], TRAY = [442, 408];
-    var KEYS = [[668, 419], [690, 414], [706, 419], [680, 416]];
-    var PHONE_DESK = [527, 421], PHONE_HOLD = [398, 256], MUG_DESK = [770, 428], TABLE = [1010, 258];
+    var HN0 = [606, 388], HF0 = [668, 380], READ = [580, 292], KEYS = [[652, 380], [676, 376], [700, 380], [664, 378]];
+    var PHONE_DESK = [687, 351], PHONE_HOLD = [588, 254], TABLE = svg.getAttribute('data-table').split(' ').map(Number);
     var OLD = ['บจ. ขนส่งด่วนไทย\t321.00', 'ร้านเครื่องเขียนสยาม\t193.10····⌫⌫⌫⌫⌫39.10', 'บจ. แพ็คกิ้งพลัส\t2,247.00'];
 
     function q(s) { return svg.querySelector(s); }
     function qa(s) { return Array.prototype.slice.call(svg.querySelectorAll(s)); }
     var E = {
-      body: q('.st-body'), look: q('.st-look'), bags: q('.st-bags'), sweat: q('.st-sweat'), excl: q('.st-excl'),
-      armL: q('.st-arm-l'), armR: q('.st-arm-r'), handL: q('.st-hand-l'), handR: q('.st-hand-r'),
-      held: q('.st-held'), helper: q('.st-helper'), stream: q('.st-stream'), slabs: qa('.st-slab'), ptop: q('.st-ptop'), tsheets: qa('.st-tsheet'),
+      body: q('.st-body'), face: q('.st-face'), look: q('.st-look'), bags: q('.st-bags'), sweat: q('.st-sweat'), excl: q('.st-excl'),
+      armN: q('.st-arm-n'), armF: q('.st-arm-f'), handN: q('.st-hand-n'), handF: q('.st-hand-f'), legN: q('.st-leg-near'), legF: q('.st-leg-far'),
+      held: q('.st-held'), slabs: qa('.st-slab'), ptop: q('.st-slab-top'), dsheets: qa('.st-dsheet'), dtop: q('.st-dsheet-top'),
       pflat: q('.st-pflat'), pglow: q('.st-pglow'), pscreen: q('.st-pscreen'), buzz: q('.st-buzz'), bubble: q('.st-bubble'),
-      pup: q('.st-pup'), shutter: q('.st-shutter'), ok: q('.st-ok'), vdoc: q('.st-vdoc'), burst: q('.st-burst'),
-      mug: q('.st-mug'), steam: q('.st-mug .st-steam'), mug2: q('.st-mug2'), mug3: q('.st-mug3'),
+      pup: q('.st-pup'), shutter: q('.st-shutter'), ok: q('.st-ok'), vdoc: q('.st-vdoc'), burst: q('.st-burst'), stream: q('.st-stream'),
+      steam: q('.st-mug .st-steam'), mug2: q('.st-mug2'), mug3: q('.st-mug3'),
       fly: qa('.st-fly'), chips: qa('.st-chip'), rows: qa('.st-row'), count: q('.st-count'), stamp: q('.st-stamp'),
       old: q('.st-scr-old'), oldS: qa('.st-old-s'), oldA: qa('.st-old-a'), cell: q('.st-cell'), typo: q('.st-typo'),
       app: q('.st-scr-app'), off: q('.st-scr-off'), boot: q('.st-scr-boot'),
@@ -439,10 +296,12 @@
     function move(el, x, y, extra) { set(el, 'transform', 'translate(' + f(x) + ' ' + f(y) + ')' + (extra || '')); }
     function text(el, v) { if (el._text !== v) { el._text = v; el.textContent = v; } }
     function arc(a, b, k, lift) { var p = mix(a, b, k); p[1] -= Math.sin(k * Math.PI) * lift; return p; }
+    function quad(a, c, b, k) { return [(1 - k) * (1 - k) * a[0] + 2 * k * (1 - k) * c[0] + k * k * b[0], (1 - k) * (1 - k) * a[1] + 2 * k * (1 - k) * c[1] + k * k * b[1]]; }
     function bump(t, list, dur) { var v = 0; list.forEach(function (s) { var d = t - s; if (d >= 0 && d < dur) v = Math.max(v, Math.sin(d / dur * Math.PI)); }); return v; }
 
-    // ---- 单据堆：以前一边拿一边掉新的；现在一张张被拍走 ----
-    function pileN(t) { return t < T3 ? 13 + 2 * count(FALL, t, 340) - count(C1, t, 350) : ITEMS - count(SNAP, t, 80); }
+    // ---- 单据：过去每看完一张，堆里少一张、手边那一小叠多一张；现在一张张被拍走 ----
+    function pileN(t) { return t < T3 ? 16 - count(C1, t, 350) : ITEMS - count(SNAP, t, 80); }
+    function doneN(t) { return t < T3 ? count(C1, t, 1500) : 0; }
 
     // ---- 旧软件里逐字敲出来的那一行（⌫ 删一个字，· 停一下）；返回 [供应商, 金额, 是否正在改错, 光标在第几格] ----
     function typed(c, t) {
@@ -460,36 +319,36 @@
       return tab < 0 ? [str, '', false, u < 600 ? 0 : -1] : [str.slice(0, tab), str.slice(tab + 1), err, u < 600 ? 1 : -1];
     }
 
-    // ---- 小单每一帧的姿势 ----
+    // ---- 小单每一帧的姿势：侧身坐在椅子上（turn=1 时转过来正对你），近手（左手）在身前，远手（右手）在身后 ----
     function pose(t) {
-      var m = { x: HOME[0], y: HOME[1], r: 0, sy: 1, hl: HL0.slice(), hr: HR0.slice(), eyes: 'open', mouth: 'smile', look: [0, 0],
-                bags: 0, sweat: 0, excl: 0, held: null, phone: 'flat', mug: null };
+      var m = { x: HOME[0], y: HOME[1], r: 0, sy: 1, turn: 0, hn: HN0.slice(), hf: HF0.slice(), eyes: 'open', mouth: 'smile', look: [3, 0],
+                bags: 0, sweat: 0, excl: 0, held: null, phone: 'flat', kick: 0 };
       if (t < T2) act1(t, m); else if (t < T3) act2(t, m); else if (t < T4) act3(t, m); else act4(t, m);
       return m;
     }
-    // ① 以前：左手拿一张、眯眼看，右手一根手指敲；看完放进“已录”筐。越到晚上越累：往下塌、冒汗、黑眼圈
+    // ① 过去：左手从手边的单据堆拿一张、凑近看，右手一根手指敲；看完放到手边那一小叠。越到晚上越累：往下塌、冒汗、黑眼圈
     function act1(t, m) {
       var tired = seg(t, 2400, 4400);
-      m.y += 7 * tired; m.bags = tired; m.mouth = t < 300 ? 'smile' : t < 2600 ? 'flat' : 'wavy'; m.sweat = t > 2000 ? 1 : 0;
+      m.y += 6 * tired; m.r = 3 * tired; m.bags = tired; m.mouth = t < 300 ? 'smile' : t < 2600 ? 'flat' : 'wavy'; m.sweat = t > 2000 ? 1 : 0;
       for (var c = 0; c < 3; c++) {
         var u = t - C1[c], k;
         if (u < 0 || u > 1500) continue;
-        var grab = [296, DESK - pileN(C1[c] + 349) * SLAB - 3];
+        var grab = [598, PILE_BASE - pileN(C1[c] + 349) * SLAB - 6], drop = [584, DONE_BASE - doneN(C1[c] + 1499) * SLAB - 8];
         if (u < 350) {
-          k = seg(u, 0, 350); m.hl = mix(HL0, grab, k); m.r = -5 * k; m.x -= 12 * k; m.look = [-3 * k, k];
+          k = seg(u, 0, 350); m.hn = mix(HN0, grab, k); m.r += 4 * k; m.look = [3, -2 * k];
         } else if (u < 650) {
-          k = seg(u, 350, 650); m.hl = mix(grab, READ, k); m.r = -5 + 2 * k; m.x -= 12; m.look = [-3, -1];
-          m.held = { at: m.hl, rot: -8, sy: 1 }; if (u > 450) m.eyes = 'squint';
+          k = seg(u, 350, 650); m.hn = mix(grab, READ, k); m.r += 4 - 2 * k; m.look = [4, -2];
+          m.held = { at: m.hn, rot: -6, sy: 1 }; if (u > 450) m.eyes = 'squint';
         } else if (u < 1250) {
-          k = seg(u, 650, 800); m.r = -3 + 7 * k; m.x -= 12 * (1 - k);
-          m.hl = [READ[0] + Math.sin(u / 90) * 1.5, READ[1] + Math.sin(u / 130) * 2]; m.held = { at: m.hl, rot: -8, sy: 1 };
+          k = seg(u, 650, 800); m.r += 2 + 3 * k;
+          m.hn = [READ[0] + Math.sin(u / 90) * 1.5, READ[1] + Math.sin(u / 130) * 2]; m.held = { at: m.hn, rot: -6, sy: 1 };
           var p = Math.floor((u - 650) / 110), fr = ((u - 650) % 110) / 110, key = KEYS[(p + c) % KEYS.length];
-          m.hr = [key[0], key[1] - Math.sin(fr * Math.PI) * 12];
-          m.look = [3, 1]; m.eyes = u < 820 ? 'squint' : 'open';
-          if (typed(c, t)[2]) { m.eyes = 'wide'; m.mouth = 'o'; m.look = [4, 0]; }      // 敲错了一位
+          m.hf = [key[0], key[1] - Math.sin(fr * Math.PI) * 11];
+          m.look = [4, 0]; m.eyes = u < 820 ? 'squint' : 'open';
+          if (typed(c, t)[2]) { m.eyes = 'wide'; m.mouth = 'o'; m.look = [5, -1]; }      // 敲错了一位
         } else {
-          k = seg(u, 1250, 1500); m.hl = mix(READ, TRAY, k); m.hr = mix(KEYS[(5 + c) % KEYS.length], HR0, k);
-          m.held = { at: m.hl, rot: -8 * (1 - k), sy: 1 - .75 * k, o: u > 1480 ? 0 : 1 }; m.r = 4 * (1 - k); m.look = [-2 * k, 0];
+          k = seg(u, 1250, 1500); m.hn = mix(READ, drop, k); m.hf = mix(KEYS[(5 + c) % KEYS.length], HF0, k);
+          m.held = { at: m.hn, rot: -6 * (1 - k), sy: 1 - .8 * k, o: u > 1480 ? 0 : 1 }; m.r += 5 * (1 - k); m.look = [3, 2 * k];
         }
       }
     }
@@ -497,40 +356,39 @@
     function act2(t, m) {
       m.bags = 1; m.mouth = 'wavy';
       var down = seg(t, 4800, 5250) * (1 - seg(t, 5650, 5900, back));
-      m.y = HOME[1] + 7 + 32 * down; m.sy = 1 - .07 * down; m.eyes = down > .5 ? 'closed' : 'open';
-      m.hl = mix(HL0, [548, 426], seg(t, 4800, 5200)); m.hr = mix(HR0, [726, 426], seg(t, 4800, 5200));
-      if (t >= 5650) { m.eyes = 'wide'; m.mouth = 'o'; m.look = [-4, 3]; m.excl = seg(t, 5650, 5820, back); }
+      m.y = HOME[1] + 6 + 8 * down; m.r = 3 + 17 * down; m.sy = 1 - .05 * down; m.eyes = down > .5 ? 'closed' : 'open';
+      m.hn = mix(HN0, [622, 390], seg(t, 4800, 5200)); m.hf = mix(HF0, [700, 384], seg(t, 4800, 5200));
+      if (t >= 5650) { m.eyes = 'wide'; m.mouth = 'o'; m.look = [6, 3]; m.excl = seg(t, 5650, 5820, back); }
     }
-    // ③ 现在：敲一下键盘开屏，拿起手机对着单据堆一张张拍，最后一口气全进去
+    // ③ 现在：敲一下键盘开屏，拿起手机对着手边的单据堆一张张拍，最后一口气全进去
     function act3(t, m) {
       var tap = seg(t, 6450, 6700, lin);
-      if (tap > 0 && tap < 1) m.hr = [650, 424 - Math.sin(tap * Math.PI) * 14];
+      if (tap > 0 && tap < 1) m.hf = [676, 380 - Math.sin(tap * Math.PI) * 13];
       var reach = seg(t, 7050, 7350), lift = seg(t, 7350, 7700);
-      m.hl = mix(mix(HL0, PHONE_DESK, reach), PHONE_HOLD, lift);
-      m.x -= 52 * lift; m.y -= 14 * lift; m.r = -7 * lift; m.phone = t < 7350 ? 'flat' : 'up';
+      m.hn = mix(mix(HN0, PHONE_DESK, reach), PHONE_HOLD, lift);
+      m.y -= 8 * lift; m.r = 3 * reach + 3 * lift; m.phone = t < 7350 ? 'flat' : 'up';
       var kick = bump(t, SNAP.slice(0, 5), 180) + .5 * bump(t, SNAP.slice(5), 70);
-      m.hl[1] -= 5 * kick; m.y -= 3 * kick;
-      if (t > 7700 && t < 9950) m.look = [-3, -2];
-      if (t >= 9950) { m.look = [4, -1]; m.mouth = t < 10700 ? 'o' : 'big'; m.eyes = t < 10700 ? 'wide' : 'happy'; }
+      m.hn[1] -= 5 * kick; m.y -= 2 * kick;
+      if (t > 7700 && t < 9950) m.look = [4, 2];
+      if (t >= 9950) { m.look = [5, -2]; m.mouth = t < 10700 ? 'o' : 'big'; m.eyes = t < 10700 ? 'wide' : 'happy'; }
       var pump = seg(t, 10900, 11150) * (1 - seg(t, 11300, 11500));
-      if (pump > 0) m.hr = mix(m.hr, [744, 324 - 12 * Math.sin(seg(t, 11050, 11300, lin) * Math.PI * 2)], pump);
+      if (pump > 0) m.hf = mix(m.hf, [540, 246 - 12 * Math.sin(seg(t, 11050, 11300, lin) * Math.PI * 2)], pump);
     }
-    // ④ 完成：坐回去放下手机，端起咖啡喝一口，朝你挥手
+    // ④ 完成：放下手机，往椅背一靠呼一口气，转过来朝你挥手，晃晃腿
     function act4(t, m) {
       m.eyes = 'happy'; m.mouth = 'big';
       var sit = seg(t, 11500, 11950);
-      m.x -= 52 * (1 - sit); m.y -= 14 * (1 - sit); m.r = -7 * (1 - sit);
-      m.hl = t < 11950 ? mix(PHONE_HOLD, PHONE_DESK, sit) : mix(PHONE_DESK, HL0, seg(t, 11950, 12150));
+      m.y -= 8 * (1 - sit); m.r = 6 * (1 - sit);
+      m.hn = t < 11950 ? mix(PHONE_HOLD, PHONE_DESK, sit) : mix(PHONE_DESK, HN0, seg(t, 11950, 12150));
       m.phone = t < 11950 ? 'up' : 'flat';
-      var handle = [MUG_DESK[0] + 24, MUG_DESK[1] - 20], sip = [702, 374];
-      var a = seg(t, 11950, 12350), b = seg(t, 12350, 12700), c = seg(t, 13100, 13450), d = seg(t, 13450, 13650);
-      m.hr = t < 13450 ? mix(mix(mix(HR0, handle, a), sip, b), handle, c) : mix(handle, HR0, d);
-      if (t >= 12350 && t < 13450) m.mug = { hand: m.hr, rot: -26 * b * (1 - c) };
-      m.r += -5 * b * (1 - c);
-      if (t >= 12600 && t < 13150) m.mouth = 'smile';
-      if (t >= 13450) {
-        var w = seg(t, 13450, 13750), wave = Math.sin(seg(t, 13750, END, lin) * Math.PI * 4) * 16;
-        m.hl = mix(m.hl, [494 + wave, 262], w); m.eyes = t < 13650 ? 'happy' : 'open';
+      var lean = seg(t, 12150, 12550) * (1 - seg(t, 12950, 13250));
+      m.r -= 10 * lean; m.x -= 6 * lean; m.hf = mix(HF0, [606, 394], lean);
+      if (t >= 12450 && t < 12950) m.mouth = 'smile';
+      m.turn = seg(t, 13050, 13450);
+      if (t >= 13250) {
+        var w = seg(t, 13250, 13550), wave = Math.sin(seg(t, 13550, END, lin) * Math.PI * 4) * 16;
+        m.hn = mix(m.hn, [372 + wave, 262], w); m.look = [0, 0]; m.eyes = t < 13450 ? 'happy' : 'open';
+        m.kick = Math.sin(seg(t, 13450, END, lin) * Math.PI * 6) * w;
       }
     }
 
@@ -539,90 +397,83 @@
       return 'M' + f(a[0]) + ' ' + f(a[1]) + 'Q' + f((a[0] + b[0]) / 2 + dx / d * bend) + ' ' + f((a[1] + b[1]) / 2 + dy / d * bend) + ' ' + f(b[0]) + ' ' + f(b[1]);
     }
     function bp(m, px, py) {
-      var a = m.r * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
-      px *= K; py *= K * m.sy;
+      var a = m.r * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), sx = SX + (1 - SX) * m.turn;
+      px *= K * sx; py *= K * m.sy;
       return [m.x + px * c - py * s, m.y + px * s + py * c];
     }
     function drawMascot(m, t) {
-      set(E.body, 'transform', 'translate(' + f(m.x) + ' ' + f(m.y) + ') rotate(' + f(m.r) + ') scale(' + K + ' ' + f2(K * m.sy) + ')');
+      var sx = SX + (1 - SX) * m.turn;
+      set(E.body, 'transform', 'translate(' + f(m.x) + ' ' + f(m.y) + ') rotate(' + f(m.r) + ') scale(' + f2(K * sx) + ' ' + f2(K * m.sy) + ')');
+      set(E.face, 'transform', 'translate(' + f(9 * (1 - m.turn)) + ' 0)');
       for (var e in EYES) op(EYES[e], e === m.eyes ? 1 : 0);
       for (var mo in MOUTHS) op(MOUTHS[mo], mo === m.mouth ? 1 : 0);
-      var blink = m.eyes === 'open' && (t % 2900) < 120 ? .12 : 1;
-      set(EYES.open, 'transform', blink === 1 ? '' : 'translate(0 -72) scale(1 .12) translate(0 72)');
+      set(EYES.open, 'transform', m.eyes === 'open' && (t % 2900) < 120 ? 'translate(0 -72) scale(1 .12) translate(0 72)' : '');
       set(E.look, 'transform', 'translate(' + f(m.look[0]) + ' ' + f(m.look[1]) + ')');
       op(E.bags, m.bags * .9);
       var sp = (t % 900) / 900;
       op(E.sweat, m.sweat * (sp < .15 ? sp / .15 : 1 - (sp - .15) / .85)); move(E.sweat, 0, 14 * sp);
       op(E.excl, m.excl); set(E.excl, 'transform', 'translate(2 -128) scale(' + f2(Math.max(.01, m.excl)) + ') translate(-2 128)');
-      var sl = bp(m, -38, -50), sr = bp(m, 38, -50);
-      set(E.armL, 'd', limb(sl, m.hl, 12)); set(E.armR, 'd', limb(sr, m.hr, -12));
-      set(E.handL, 'cx', f(m.hl[0])); set(E.handL, 'cy', f(m.hl[1])); set(E.handR, 'cx', f(m.hr[0])); set(E.handR, 'cy', f(m.hr[1]));
-      if (m.held) { op(E.held, m.held.o === undefined ? 1 : m.held.o); move(E.held, m.held.at[0] - 22, m.held.at[1] + 6, ' rotate(' + f(m.held.rot) + ') scale(1 ' + f2(m.held.sy) + ')'); }
+      var sn = bp(m, 26 - 64 * m.turn, -48), sf = bp(m, 34 + 4 * m.turn, -54);   // 侧身时两肩都在身体前侧，转过来时近肩回到左边
+      set(E.armN, 'd', limb(sn, m.hn, 14)); set(E.armF, 'd', limb(sf, m.hf, 12));
+      set(E.handN, 'cx', f(m.hn[0])); set(E.handN, 'cy', f(m.hn[1])); set(E.handF, 'cx', f(m.hf[0])); set(E.handF, 'cy', f(m.hf[1]));
+      // 腿：髋跟着身子走，脚踩在地上（挥手时晃一晃）
+      var hip = bp(m, 0, -2), kk = m.kick * 8;
+      set(E.legN, 'd', 'M' + f(hip[0]) + ' ' + f(hip[1]) + 'L552 450L' + f(560 + kk) + ' ' + f(522 - Math.abs(kk) * .6) + 'h16');
+      set(E.legF, 'd', 'M' + f(hip[0] + 14) + ' ' + f(hip[1] - 4) + 'L566 442L' + f(578 - kk) + ' ' + f(518 - Math.abs(kk) * .6) + 'h16');
+      if (m.held) { op(E.held, m.held.o === undefined ? 1 : m.held.o); move(E.held, m.held.at[0] + 18, m.held.at[1] - 22, ' rotate(' + f(m.held.rot) + ') scale(1 ' + f2(m.held.sy) + ')'); }
       else op(E.held, 0);
-      return { sl: sl, sr: sr };
     }
 
-    // ---- 每一帧 ----
-    function render(t) {
-      var m = pose(t), night = t < T3 ? seg(t, 2700, 3900) : 0, dusk = t < T3 ? seg(t, 1500, 2700) : 0;
+    // ---- 每一帧（looped：上一轮刚刷过来，开头先让记号笔刷走） ----
+    function render(t, looped) {
+      var m = pose(Math.min(t, END)), tt = Math.min(t, END);
+      var night = tt < T3 ? seg(tt, 2700, 3900) : 0, dusk = tt < T3 ? seg(tt, 1500, 2700) : 0;
       drawMascot(m, t);
 
       // 窗外：白天 → 黄昏 → 夜里（第二天早上又是白天）；太阳落下、月亮升起、星星眨眼，第二天飞过一只鸟
       op(E.dusk, dusk); op(E.nightSky, night); op(E.starG, night);
       E.stars.forEach(function (s, i) { op(s, .55 + .45 * Math.sin(t / 260 + i * 1.7)); });
-      var sun = t < T3 ? mix([286, 96], [196, 272], seg(t, 300, 3300)) : mix([262, 106], [288, 90], seg(t, T3, END, lin));
+      var sun = tt < T3 ? mix([1262, 96], [1176, 262], seg(tt, 300, 3300)) : mix([1240, 106], [1264, 90], seg(tt, T3, END, lin));
       move(E.sun, sun[0], sun[1]);
-      op(E.moon, t < T3 ? seg(t, 3300, 4100) : 0); var moon = mix([150, 196], [176, 104], seg(t, 3300, 5800)); move(E.moon, moon[0], moon[1]);
-      move(E.cloud1, 100 + (t * .012) % 300, 120); move(E.cloud2, 80 + (t * .008 + 160) % 300, 200, ' scale(.7)');
-      var bird = seg(t, 8200, 9600, lin);
+      op(E.moon, tt < T3 ? seg(tt, 3300, 4100) : 0); var moon = mix([1132, 196], [1156, 104], seg(tt, 3300, 5800)); move(E.moon, moon[0], moon[1]);
+      move(E.cloud1, 1090 + (t * .012) % 280, 120); move(E.cloud2, 1070 + (t * .008 + 150) % 280, 196, ' scale(.7)');
+      var bird = seg(tt, 8200, 9600, lin);
       op(E.bird, bird > 0 && bird < 1 ? 1 : 0);
-      move(E.bird, 96 + 270 * bird, 132 - 30 * bird + Math.sin(bird * 12) * 4, ' scale(1 ' + (Math.floor(t / 110) % 2 ? '-.6' : '1') + ')');
+      move(E.bird, 1086 + 250 * bird, 130 - 28 * bird + Math.sin(bird * 12) * 4, ' scale(1 ' + (Math.floor(t / 110) % 2 ? '-.6' : '1') + ')');
 
-      // 钟：以前一下午转过去十几个小时，现在只走了十几分钟
-      var h = t < T2 ? 9 + 11.5 * seg(t, 0, T2) : t < T3 ? 20.5 + .5 * seg(t, T2, T3, lin) : t < T4 ? 9 + .2 * seg(t, T3, T4, lin) : 9.2 + .05 * seg(t, T4, END, lin);
-      set(E.hour, 'transform', 'rotate(' + f((h % 12) * 30) + ' 520 110)'); set(E.min, 'transform', 'rotate(' + f((h % 1) * 360) + ' 520 110)');
+      // 钟：过去一下午转过去十几个小时，现在只走了十几分钟
+      var h = tt < T2 ? 9 + 11.5 * seg(tt, 0, T2) : tt < T3 ? 20.5 + .5 * seg(tt, T2, T3, lin) : tt < T4 ? 9 + .2 * seg(tt, T3, T4, lin) : 9.2 + .05 * seg(tt, T4, END, lin);
+      set(E.hour, 'transform', 'rotate(' + f((h % 12) * 30) + ' 440 96)'); set(E.min, 'transform', 'rotate(' + f((h % 1) * 360) + ' 440 96)');
 
       // 夜里屋里暗下来，台灯“啪”地亮起，屏幕的光照在脸上
       op(E.night, .36 * night);
-      var lampOn = t >= 3700 && t < T3 && !(t > 3740 && t < 3800);
+      var lampOn = tt >= 3700 && tt < T3 && !(tt > 3740 && tt < 3800);
       op(E.light, lampOn ? .85 : 0); set(E.bulb, 'fill', lampOn ? '#fff1a0' : '#fff7d1'); op(E.glow, .5 * night);
 
-      // 单据堆与“已录”筐
-      var N = pileN(t);
+      // 单据堆与手边已录的那一小叠
+      var N = pileN(tt), D = doneN(tt);
       E.slabs.forEach(function (s, i) { op(s, i < N ? 1 : 0); });
-      op(E.ptop, N > 0 ? 1 : 0); move(E.ptop, 0, DESK - N * SLAB - SLAB);
-      var D = count(C1, t, 1500);
-      E.tsheets.forEach(function (s, i) { op(s, i < D ? 1 : 0); });
-      // 同事的手：从画面左边伸进来，把两张新单据压到堆顶，松手缩回去
-      var hk = -1;
-      FALL.forEach(function (F, i) { if (t >= F && t < F + 650 && t < T3) hk = i; });
-      op(E.helper, hk >= 0 ? 1 : 0);
-      if (hk >= 0) {
-        var hu = t - FALL[hk], top = DESK - pileN(FALL[hk] + 339) * SLAB;
-        var hx = hu < 300 ? -160 + 430 * out(hu / 300) : hu < 380 ? 270 : 270 - 450 * io((hu - 380) / 270);
-        var hy = top - 22 + (hu >= 300 && hu < 380 ? 4 * Math.sin((hu - 300) / 80 * Math.PI) : 0);
-        move(E.helper, hx, hy);
-        Array.prototype.forEach.call(E.helper.querySelectorAll('rect'), function (r, i) { if (i < 2) op(r, hu < 340 ? 1 : 0); });
-      }
+      op(E.ptop, N > 0 ? 1 : 0); move(E.ptop, 0, PILE_BASE - N * SLAB);
+      E.dsheets.forEach(function (s, i) { op(s, i < D ? 1 : 0); });
+      op(E.dtop, D > 0 ? 1 : 0); move(E.dtop, 0, DONE_BASE - D * SLAB);
 
-      // 咖啡：以前凉了、空杯越摆越多；现在是一杯热的，最后端起来喝
-      op(E.mug2, t < T3 ? seg(t, 2300, 2500, back) : 0); op(E.mug3, t < T3 ? seg(t, 3900, 4100, back) : 0);
-      op(E.steam, t < T3 ? 1 - seg(t, 900, 1700) : 1); move(E.steam, Math.sin(t / 260) * 2.5, -((t / 30) % 6));
-      if (m.mug) move(E.mug, m.mug.hand[0] - 24, m.mug.hand[1] + 20, ' rotate(' + f(m.mug.rot) + ' 24 -20)'); else move(E.mug, MUG_DESK[0], MUG_DESK[1]);
+      // 咖啡：过去凉了、空杯越摆越多；现在是一杯热的
+      op(E.mug2, tt < T3 ? seg(tt, 2300, 2500, back) : 0); op(E.mug3, tt < T3 ? seg(tt, 3900, 4100, back) : 0);
+      op(E.steam, tt < T3 ? 1 - seg(tt, 900, 1700) : 1); move(E.steam, Math.sin(t / 260) * 2.5, -((t / 30) % 6));
 
       // 手机：桌上震动、弹出 Pearnly 的 LINE 消息；拿起来对着单据堆拍
-      var buzzing = t >= 5350 && t < 5950 && ((t - 5350) % 400) < 270;
+      var buzzing = tt >= 5350 && tt < 5950 && ((tt - 5350) % 400) < 270;
       op(E.pflat, m.phone === 'flat' ? 1 : 0); move(E.pflat, buzzing ? Math.sin(t / 12) * 2.6 : 0, 0);
       op(E.buzz, buzzing ? 1 : 0);
-      var lit = t >= 5350 && t < T3;
+      var lit = tt >= 5350 && tt < T3;
       op(E.pglow, lit ? .9 : 0); set(E.pscreen, 'fill', lit ? '#dff7e8' : '#2a2c33');
-      var bub = t >= 5400 && t < T3 ? seg(t, 5400, 5600, back) : 0;
-      op(E.bubble, bub); set(E.bubble, 'transform', 'translate(478 346) scale(' + f2(Math.max(.01, bub)) + ')');
-      var upK = m.phone === 'up' ? (t < T4 ? seg(t, 7350, 7480) : 1 - seg(t, 11800, 11950)) : 0;
-      var pc = [m.hl[0] - 50, m.hl[1] - 6];
-      op(E.pup, upK > .02 ? 1 : 0); move(E.pup, pc[0], pc[1], ' rotate(-6) scale(1 ' + f2(Math.max(.05, upK)) + ')');
+      var bub = tt >= 5400 && tt < T3 ? seg(tt, 5400, 5600, back) : 0;
+      op(E.bubble, bub); set(E.bubble, 'transform', 'translate(744 284) scale(' + f2(Math.max(.01, bub)) + ')');
+      var upK = m.phone === 'up' ? (tt < T4 ? seg(tt, 7350, 7480) : 1 - seg(tt, 11800, 11950)) : 0;
+      var pc = [m.hn[0] + 22, m.hn[1] - 32];   // 手从下面托着手机
+      op(E.pup, upK > .02 ? 1 : 0); move(E.pup, pc[0], pc[1], ' rotate(-3) scale(1 ' + f2(Math.max(.05, upK)) + ')');
       var snapD = -1, snapI = -1;
-      SNAP.forEach(function (s, i) { if (t >= s && (snapD < 0 || t - s < snapD)) { snapD = t - s; snapI = i; } });
+      SNAP.forEach(function (s, i) { if (tt >= s && (snapD < 0 || tt - s < snapD)) { snapD = tt - s; snapI = i; } });
       op(E.shutter, snapD >= 0 && snapD < 140 ? 1 - snapD / 140 : 0);
       var okK = snapD >= 120 && snapD < 520 ? seg(snapD, 120, 260, back) * (1 - seg(snapD, 420, 520)) : 0;
       op(E.ok, okK); set(E.ok, 'transform', 'translate(38 -16) scale(' + f2(Math.max(.01, okK)) + ')');
@@ -630,37 +481,37 @@
       var big = snapI >= 0 && snapI < 5, bd = snapD >= 0 && snapD < 220 ? 1 - snapD / 220 : 0;
       op(E.burst, big ? bd : bd * .5); move(E.burst, pc[0], pc[1] + 34, ' scale(' + f2(.6 + .6 * (1 - bd)) + ')');
       op(E.flash, snapD >= 0 && snapD < 160 ? (big ? .3 : .1) * (1 - snapD / 160) : 0);
-      var flow = t >= T3 ? seg(t, 9950, 10150) * (1 - seg(t, 11050, 11300)) : 0, s1 = [pc[0] + 40, pc[1] - 14];
+
+      // 拍下的单据飞进手机，数据从手机沿一道弧飞进屏幕（一口气全进去时连成一道数据流）
+      var a0 = [pc[0] + 40, pc[1] - 14], c0 = [(a0[0] + TABLE[0]) / 2, Math.min(a0[1], TABLE[1]) - 150];
+      E.fly.forEach(function (el, k) {
+        var d = tt - SNAP[k];
+        if (d < 0 || d >= 320) { op(el, 0); return; }
+        var p = io(d / 320), at = arc([598, PILE_BASE - (ITEMS - k) * SLAB - 8], pc, p, 50);
+        op(el, d > 260 ? 1 - (d - 260) / 60 : 1); move(el, at[0], at[1], ' rotate(' + f(-20 * p) + ') scale(' + f2(1 - .72 * p) + ')');
+      });
+      E.chips.forEach(function (el, k) {
+        var d = tt - SNAP[k] - 260;
+        if (d < 0 || d >= 420) { op(el, 0); return; }
+        var p = io(d / 420), at = quad(a0, c0, TABLE, p);
+        op(el, d < 60 ? d / 60 : d > 360 ? (420 - d) / 60 : 1); move(el, at[0], at[1], ' scale(' + f2(.8 + .4 * Math.sin(p * Math.PI)) + ')');
+      });
+      var flow = tt >= T3 ? seg(tt, 9950, 10150) * (1 - seg(tt, 11050, 11300)) : 0;
       op(E.stream, .75 * flow);
       if (flow > 0) {
-        set(E.stream, 'd', 'M' + f(s1[0]) + ' ' + f(s1[1]) + 'Q' + f((s1[0] + TABLE[0]) / 2) + ' ' + f(Math.min(s1[1], TABLE[1]) - 210) + ' ' + TABLE[0] + ' ' + TABLE[1]);
+        set(E.stream, 'd', 'M' + f(a0[0]) + ' ' + f(a0[1]) + 'Q' + f(c0[0]) + ' ' + f(c0[1]) + ' ' + TABLE[0] + ' ' + TABLE[1]);
         set(E.stream, 'stroke-dashoffset', String(f(-(t / 9) % 130)));
       }
 
-      // 拍下的单据飞进手机，数据从手机飞进屏幕
-      E.fly.forEach(function (el, k) {
-        var d = t - SNAP[k];
-        if (d < 0 || d >= 320) { op(el, 0); return; }
-        var p = io(d / 320), from = [296, DESK - (ITEMS - k) * SLAB - 6], at = arc(from, pc, p, 60);
-        op(el, d > 260 ? 1 - (d - 260) / 60 : 1); move(el, at[0], at[1], ' rotate(' + f(-24 * p) + ') scale(' + f2(1 - .72 * p) + ')');
-      });
-      E.chips.forEach(function (el, k) {
-        var d = t - SNAP[k] - 260;
-        if (d < 0 || d >= 420) { op(el, 0); return; }
-        var p = io(d / 420), a0 = [pc[0] + 40, pc[1] - 14], c0 = [(a0[0] + TABLE[0]) / 2, Math.min(a0[1], TABLE[1]) - 210];
-        var at = [(1 - p) * (1 - p) * a0[0] + 2 * p * (1 - p) * c0[0] + p * p * TABLE[0], (1 - p) * (1 - p) * a0[1] + 2 * p * (1 - p) * c0[1] + p * p * TABLE[1]];
-        op(el, d < 60 ? d / 60 : d > 360 ? (420 - d) / 60 : 1); move(el, at[0], at[1], ' scale(' + f2(.8 + .4 * Math.sin(p * Math.PI)) + ')');
-      });
-
-      // 屏幕：以前是旧表格（逐字敲、敲错删掉重敲）；第二天先黑屏，敲一下开机进 Pearnly，一行行长出来、打勾，最后盖“已入账”
-      op(E.old, t < T3 ? 1 : 0); op(E.off, t >= T3 && t < 6900 ? 1 : 0);
-      var boot = seg(t, 6650, 6900);
-      op(E.boot, t >= 6650 && t < 7000 ? 1 - seg(t, 6900, 7000) : 0);
+      // 屏幕：过去是旧表格（逐字敲、敲错删掉重敲）；第二天先黑屏，敲一下开机进 Pearnly，一行行长出来、打勾，最后盖“已入账”
+      op(E.old, tt < T3 ? 1 : 0); op(E.off, tt >= T3 && tt < 6900 ? 1 : 0);
+      var boot = seg(tt, 6650, 6900);
+      op(E.boot, tt >= 6650 && tt < 7000 ? 1 - seg(tt, 6900, 7000) : 0);
       set(E.boot, 'transform', 'translate(0 292) scale(1 ' + f2(1 + boot * 40) + ') translate(0 -292)');
-      op(E.app, t >= T3 ? seg(t, 6850, 7050) : 0);
+      op(E.app, tt >= T3 ? seg(tt, 6850, 7050) : 0);
       var cursor = null, err = false;
       for (var c = 0; c < 3; c++) {
-        var row = typed(c, t), blink = Math.floor(t / 260) % 2 === 0;
+        var row = typed(c, tt), blink = Math.floor(t / 260) % 2 === 0;
         if (row[3] >= 0) { cursor = [c, row[3]]; err = row[2]; }
         text(E.oldS[2 + c], row[0] + (row[3] === 0 && blink ? '|' : ''));
         text(E.oldA[2 + c], row[1] + (row[3] === 1 && blink ? '|' : ''));
@@ -668,65 +519,63 @@
       op(E.cell, cursor ? 1 : 0);
       if (cursor) { set(E.cell, 'y', String(249 + cursor[0] * 19 + 2 * 19 - 2)); set(E.cell, 'x', cursor[1] ? '1040' : '886'); set(E.cell, 'width', cursor[1] ? '92' : '154'); }
       op(E.typo, err ? 1 : 0);
-      var arrived = count(ARRIVE, t), fr = ARRIVE.map(function (a) { return out(c01((t - a) / 260)); });
+      var fr = ARRIVE.map(function (a) { return out(c01((tt - a) / 260)); });
       E.rows.forEach(function (r, k) {
-        if (t < T3 || fr[k] <= 0) { op(r.g, 0); return; }
+        if (tt < T3 || fr[k] <= 0) { op(r.g, 0); return; }
         var shift = 0; for (var j = k + 1; j < ITEMS; j++) shift += fr[j];
         op(r.g, fr[k]); move(r.g, 0, 22 * (shift - (1 - fr[k])));
-        set(r.tick, 'stroke-dashoffset', String(f2(1 - c01((t - ARRIVE[k] - 120) / 220))));
-        op(r.hl, fr[k] * (1 - c01((t - ARRIVE[k] - 350) / 700)));
+        set(r.tick, 'stroke-dashoffset', String(f2(1 - c01((tt - ARRIVE[k] - 120) / 220))));
+        op(r.hl, fr[k] * (1 - c01((tt - ARRIVE[k] - 350) / 700)));
       });
-      text(E.count, arrived + ' / ' + ITEMS);
-      var st = seg(t, 11550, 11900, back);
-      op(E.stamp, t >= 11550 ? c01((t - 11550) / 150) : 0); set(E.stamp, 'transform', 'translate(1012 306) scale(' + f2(1.6 - .6 * st) + ')');
+      text(E.count, count(ARRIVE, tt) + ' / ' + ITEMS);
+      var st = seg(tt, 11550, 11900, back);
+      op(E.stamp, tt >= 11550 ? c01((tt - 11550) / 150) : 0); set(E.stamp, 'transform', 'translate(1012 306) scale(' + f2(1.6 - .6 * st) + ')');
 
-      // 小特效：叹气、“啊”、星星
-      var puff = t < T3 ? seg(t, 5000, 5200) * (1 - seg(t, 5450, 5650)) : seg(t, 12900, 13050) * (1 - seg(t, 13250, 13450));
-      var mouth = bp(m, 14, -48), rise = t < T3 ? seg(t, 5000, 5650, lin) : seg(t, 12900, 13450, lin);
+      // 小特效：叹气、靠回椅背时的“呼”、星星
+      var puff = tt < T3 ? seg(tt, 5000, 5200) * (1 - seg(tt, 5450, 5650)) : seg(tt, 12450, 12600) * (1 - seg(tt, 12850, 13050));
+      var mouth = bp(m, 24, -48), rise = tt < T3 ? seg(tt, 5000, 5650, lin) : seg(tt, 12450, 13050, lin);
       op(E.puff, puff); move(E.puff, mouth[0] + 10 + 14 * rise, mouth[1] - 6 - 30 * rise, ' scale(' + f2(.7 + .5 * rise) + ')');
       E.sparks.forEach(function (el, i) {
-        var k = seg(t, 13500 + i * 90, 13750 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
+        var k = seg(tt, 13350 + i * 90, 13600 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
         var base = el._base || (el._base = el.getAttribute('transform'));
         op(el, k); set(el, 'transform', base + ' scale(' + f2(Math.max(.01, k) * tw) + ') rotate(' + f((t / 20 + i * 40) % 360) + ')');
       });
 
-      // 转场：黄色记号笔从左刷到右
-      move(E.swipe, -2500 + 4200 * seg(t, 5900, 6600, lin), 0);
+      // 转场：黄色记号笔从左刷到右（中间换到第二天；播完再刷一次接回开头）
+      var wk = tt >= 5900 && tt < 6600 ? (tt - 5900) / 700 : t >= END + HOLD ? (t - END - HOLD) / WIPE : looped && t < WIPE / 2 ? .5 + t / WIPE : -1;
+      move(E.swipe, wk < 0 ? -2600 : -2500 + 4200 * wk, 0);
 
       // 下面一行手写字：按剧情逐字写出来
       var cap = '';
-      CAPS.forEach(function (c) { if (t >= c[0]) cap = Array.from(c[1]).slice(0, Math.max(0, Math.floor((t - c[0]) / 40))).join(''); });
+      CAPS.forEach(function (c) { if (tt >= c[0]) cap = Array.from(c[1]).slice(0, Math.max(0, Math.floor((tt - c[0]) / 40))).join(''); });
       text(capEl, cap || ' ');
     }
 
-    // 手机上只取中间一段（单据堆 → 屏幕）
+    // 手机上只取中间一段（椅子 → 显示器）
     function fit() {
       var view = svg.getAttribute(card.clientWidth < 640 ? 'data-view-sm' : 'data-view'), v = view.split(' ');
-      svg.setAttribute('viewBox', view); set(E.frame, 'x', v[0]); set(E.frame, 'width', v[2]);
+      svg.setAttribute('viewBox', view);
+      set(E.frame, 'x', v[0]); set(E.frame, 'y', v[1]); set(E.frame, 'width', v[2]); set(E.frame, 'height', v[3]);
     }
     svg._render = render;   // 调试：在控制台里 document.querySelector('.st')._render(毫秒) 跳到任一帧
     fit();
     window.addEventListener('resize', fit);
     if (reduce) { render(END); return; }
 
-    // ---- 播放：出现在屏幕里才开始，滑走或切到别的标签页就暂停，播完停在最后一帧，可以再看一遍 ----
-    var start = 0, elapsed = 0, raf = 0, playing = false, done = false, visible = false;
+    // ---- 播放：出现在屏幕里才开始，滑走或切到别的标签页就暂停；播完停一下，记号笔刷过去从头再来 ----
+    var start = 0, elapsed = 0, raf = 0, playing = false, visible = false, looped = false, LOOP = END + HOLD + WIPE / 2;
     function frame(now) {
       raf = 0;
       if (!playing) return;
       var t = now - start;
-      if (t >= END) { t = END; playing = false; done = true; }
-      render(t);
-      if (playing) raf = requestAnimationFrame(frame);
-      else { replay.hidden = false; requestAnimationFrame(function () { replay.classList.add('show'); }); }
+      if (t >= LOOP) { start += LOOP; t -= LOOP; looped = true; }
+      render(t, looped);
+      raf = requestAnimationFrame(frame);
     }
-    function play() { if (playing || done || !visible || document.hidden) return; playing = true; start = performance.now() - elapsed; raf = requestAnimationFrame(frame); }
+    function play() { if (playing || !visible || document.hidden) return; playing = true; start = performance.now() - elapsed; raf = requestAnimationFrame(frame); }
     function pause() { if (!playing) return; playing = false; elapsed = performance.now() - start; if (raf) cancelAnimationFrame(raf); raf = 0; }
-    replay.addEventListener('click', function () {
-      replay.classList.remove('show'); replay.hidden = true; done = false; elapsed = 0; render(0); play();
-    });
     document.addEventListener('visibilitychange', function () { if (document.hidden) pause(); else play(); });
-    render(0);
+    render(0, false);
     if (!('IntersectionObserver' in window)) { visible = true; play(); return; }
     new IntersectionObserver(function (e) { visible = e[0].isIntersecting; if (visible) play(); else pause(); }, { threshold: .3 }).observe(svg);
   }
@@ -737,6 +586,6 @@
     document.querySelectorAll('[data-line-message]').forEach(function (a) { a.href = a.getAttribute('data-line-message'); });
   }
 
-  function init() { dots(); reveal(); topbar(); demo(); players(); mascots(); story(); peel(); lineMessages(); }
+  function init() { dots(); reveal(); topbar(); demo(); players(); mascots(); story(); lineMessages(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

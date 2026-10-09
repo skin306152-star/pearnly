@@ -4,7 +4,7 @@
 
 - 泰文在 `/`，英文 `/en/`，中文 `/zh/`；每页自带 canonical、三语 hreflang、Open Graph 与 schema.org 结构化数据，另生成 `sitemap.xml`、`robots.txt`、`404.html`。
 - 文案只写产品已有的能力，不写准确率、价格或客户数；改文案只改 `content.py`。
-- 视觉：暖白底 + 点阵，界面黑白为主，不用品牌紫；色彩交给首页主视觉（`poster.py`：彩铅插画的书桌放在液态玻璃卡片里，往下滑时小单站在画上捏着左下角往右上拉、边退边掀开（翻起的纸背用和画面同色的渐变与柔和投影做出真实感）、露出底下整理好的账，全是内联 SVG，逐帧由 `site.js` 的 `peel()` 按同一套公式重画）。字体 IBM Plex Sans Thai（正文）与 Source Serif 4（字标），手写字 Sriracha（泰/拉丁按字符集分片）与 Long Cang（中文只取用到的字），经 Google Fonts。
+- 视觉：暖白底 + 点阵，界面黑白为主，不用品牌紫；色彩交给首页主视觉（`story.py`：液态玻璃卡片里一间手绘办公室，侧面看小单坐在桌前，“过去”一张张手动录到天黑，“现在”手机拍一拍、数据飞进屏幕里的系统，循环播放；全是内联 SVG，每一帧由 `site.js` 的 `story()` 按时间算出来，减少动态效果时停在最后一帧；共用的颜色、手写字体在 `poster.py`）。字体 IBM Plex Sans Thai（正文）与 Source Serif 4（字标），手写字 Sriracha（泰/拉丁按字符集分片）与 Long Cang（中文只取用到的字），经 Google Fonts。
 - 每个产品页只放一段总览片：视频在 Cloudflare R2 桶 `pearnly-media`（`media.pearnly.com`，与 DMS LINE 手册视频同处，免费额度内），封面在 `static/posters/`。换片：`npx wrangler r2 object put pearnly-media/<文件名> --file <本地文件> --content-type video/mp4 --remote`，再把 `content.py` 里 `OVERVIEW` 的 `v` 改成新文件 sha256 前 10 位（绕过 CDN 旧缓存）。
 
 本地预览：
