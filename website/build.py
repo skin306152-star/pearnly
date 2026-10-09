@@ -20,6 +20,7 @@ import guides as G  # noqa: E402
 import mascot as M  # noqa: E402
 import poster as P  # noqa: E402
 import scenes as S  # noqa: E402
+import story as ST  # noqa: E402
 
 STATIC = HERE / "static"
 VERSION = ""
@@ -322,6 +323,7 @@ def page_home(lang):
                    "inLanguage": C.LANGS[lang]["html"], "publisher": {"@id": ORG["@id"]}}]
     steps = "".join(f"<li><b>{esc(a)}</b> {esc(b)}</li>" for a, b in h["steps"])
     peel = {**h["peel"], "cols": h["story"]["cols"], "rows": C.STORY_ROWS[:8], "ledger": h["story"]["ledger"], "saved": h["story"]["saved"]}
+    tale = {**h["tale"], "cols": h["story"]["cols"], "saved": h["story"]["saved"]}
     body = f"""<section class="hero">
   <div class="wrap center">
     <span class="badge"><i class="live"></i>{esc(h["badge"])}</span>
@@ -329,8 +331,9 @@ def page_home(lang):
     <p class="lead">{esc(h["lead"])}</p>
     {cta_buttons(lang, watch)}
   </div>
-  <div class="wrap wide"><figure class="peel">{P.doodle()}{P.svg(peel)}{P.ask(peel)}</figure></div>
+  <div class="wrap wide st-wrap">{P.doodle()}{ST.figure(tale, C.STORY_ROWS[:8])}</div>
 </section>
+<section class="wrap wide section peel-band"><figure class="peel">{P.svg(peel)}{P.ask(peel)}</figure></section>
 <section class="wrap wide section demo-band" aria-labelledby="steps-title"><h2 class="sr-only" id="steps-title">{esc(h["steps_title"])}</h2><ol class="sr-only">{steps}</ol><div class="hero-stage">{demo(lang)}</div></section>
 <section class="wrap section logos reveal">
   <p class="serif">{esc(t["integrations"])}</p>
@@ -348,7 +351,7 @@ def page_home(lang):
 </section>
 {home_guides(lang)}"""
     # 首页整页手绘（试验）：正文仍是印刷体，边框、标题下划线、对勾、标签小字换成铅笔手绘，见 style.css「首页手绘」
-    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel, hand_chars(lang))) + header(lang, "home")
+    return (head(lang, "home", h["title"], h["description"], graph, fonts=P.fonts(peel, hand_chars(lang) + ST.chars(tale))) + header(lang, "home")
             + '<div class="sketch">' + body + contact(lang) + '</div>' + footer(lang).replace('<footer class="footer', '<footer class="footer sketch', 1))
 
 

@@ -613,7 +613,7 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 @media (max-width: 760px) { .demo-band { padding-top: 56px; } }
 
 /* ---------- 首页主视觉“掀开纸堆”（website/poster.py）：彩铅插画放进一张液态玻璃卡片（同顶栏的玻璃做法），左下角被小单卷起 ---------- */
-.peel {
+.peel, .st-card {
   position: relative; isolation: isolate; margin: 0 auto; max-width: 1060px; padding: 16px 16px 4px; border-radius: 34px;
   border: 1px solid rgba(255, 255, 255, .7); background: rgba(255, 255, 255, .015);
   -webkit-backdrop-filter: blur(1.5px) saturate(1.6); backdrop-filter: blur(1.5px) saturate(1.6);
@@ -622,7 +622,7 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
               inset 0 0 10px rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(20, 20, 19, .07),
               0 14px 40px -22px rgba(20, 20, 19, .22), 0 1px 4px -1px rgba(20, 20, 19, .06);
 }
-.peel::before {
+.peel::before, .st-card::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
   background: linear-gradient(180deg, rgba(255, 255, 255, .3) 0%, rgba(255, 255, 255, .04) 14%, rgba(255, 255, 255, 0) 26%);
 }
@@ -654,7 +654,33 @@ a.flow-col:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 :lang(en) .hl::after { bottom: .36em; height: .3em; }
 @keyframes hl-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .hl::after { animation: none; } }
-@media (max-width: 760px) { .pz-doodle { display: none; } .peel { padding: 10px 10px 2px; border-radius: 24px; } }
+@media (max-width: 760px) { .pz-doodle { display: none; } .peel, .st-card { padding: 10px 10px 2px; border-radius: 24px; } }
+
+/* ---------- 首页主视觉“以前 / 现在”（website/story.py）：同一张玻璃卡片，下面一行手写字随剧情逐字写出，播完右边出现“再看一遍” ---------- */
+.st-wrap { position: relative; }
+.st-card { padding-bottom: 10px; }
+.st { display: block; width: 100%; height: auto; border-radius: 22px; }
+.st text { user-select: none; }
+.st-cap {
+  min-height: 1.5em; margin: 10px 4.2% 2px; padding-right: 150px;
+  font: 400 clamp(16px, 2.1vw, 25px)/1.35 Sriracha, "Long Cang", cursive; color: #3b3934;
+}
+.st-replay {
+  position: absolute; right: 3.4%; bottom: 14px; display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px 7px;
+  border: 0; border-radius: 999px; cursor: pointer; color: #2d2b27; font: 400 clamp(14px, 1.6vw, 18px)/1.2 Sriracha, "Long Cang", cursive;
+  background: rgba(255, 253, 246, .9); box-shadow: inset 0 0 0 1.6px #3d362c, 3px 4px 0 rgba(58, 42, 20, .14);
+  opacity: 0; transform: translateY(6px); transition: opacity .4s var(--ease), transform .4s var(--ease);
+}
+.st-replay[hidden] { display: none; }
+.st-replay.show { opacity: 1; transform: none; }
+.st-replay:hover { background: #ffe066; }
+.st-replay:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.peel-band { padding-top: 64px; }
+@media (max-width: 760px) {
+  .st { border-radius: 16px; }
+  .st-cap { margin: 8px 6px 2px; padding-right: 0; min-height: 2.7em; }
+  .st-replay { position: static; margin: 4px 6px 4px auto; display: flex; width: max-content; }
+}
 
 /* ---------- 首页演示 · 手绘版（website/scenes.py）：左右两张内联 SVG，元素按 site.js demo() 的时间轴加类 ---------- */
 .hd-defs { position: absolute; width: 0; height: 0; }
