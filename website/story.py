@@ -102,7 +102,7 @@ DEFS = f"""<defs>
 <linearGradient id="st-sky-dusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f7fc9"/><stop offset=".55" stop-color="#f29b72"/><stop offset="1" stop-color="#ffd38a"/></linearGradient>
 <linearGradient id="st-sky-night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141b38"/><stop offset="1" stop-color="#2e3a68"/></linearGradient>
 <radialGradient id="st-lampglow" cx=".5" cy="0" r="1"><stop offset="0" stop-color="#fff2b8" stop-opacity=".95"/><stop offset=".7" stop-color="#ffe08a" stop-opacity=".35"/><stop offset="1" stop-color="#ffe08a" stop-opacity="0"/></radialGradient>
-<clipPath id="st-frame"><rect class="st-frame" width="{W}" height="{H}" rx="26"/></clipPath>
+<clipPath id="st-frame"><rect class="st-frame" width="{W}" height="{H}"/></clipPath>   <!-- 直角：圆角交给外面的窗口框 -->
 <clipPath id="st-skyclip"><rect x="1104" y="54" width="212" height="182"/></clipPath>
 <clipPath id="st-scrclip"><rect x="{SCREEN[0]}" y="{SCREEN[1]}" width="{SCREEN[2]}" height="{SCREEN[3]}" rx="3"/></clipPath>
 <clipPath id="st-rowclip"><rect x="904" y="249" width="226" height="112"/></clipPath>
