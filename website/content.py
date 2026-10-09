@@ -180,7 +180,6 @@ HOME = {
     "th": {
         "title": "Pearnly | ถ่ายรูปเอกสาร ข้อมูลเข้าระบบให้เอง",
         "description": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน แล้วบันทึกเข้า ERP ที่คุณใช้อยู่ (เชื่อมต่อแบบกำหนดเอง), MR.ERP DMS หรือ Pearnly ERP ใช้งานได้ทั้งบนเว็บและใน LINE",
-        "badge": "LINE · เว็บ · MR.ERP DMS · เชื่อมต่อ ERP ภายนอก",
         "h1": "ถ่ายรูปเอกสาร\nข้อมูลเข้าระบบให้เอง",
         "h1_mark": "ให้เอง",
         "lead": "Pearnly อ่านใบกำกับภาษี ใบเสร็จ และบัตรประชาชน ตรวจตัวเลขให้ แล้วบันทึกเข้าโปรแกรมที่คุณใช้อยู่ ทั้งบนเว็บและใน LINE",
@@ -215,7 +214,6 @@ HOME = {
     "en": {
         "title": "Pearnly | Snap the document, the data enters itself",
         "description": "Pearnly reads Thai tax invoices, receipts and ID cards, then enters them into your own ERP through a custom integration, MR.ERP DMS or Pearnly ERP. Works on the web and in LINE.",
-        "badge": "LINE · Web · MR.ERP DMS · Custom ERP integration",
         "h1": "Snap the document.\nThe data enters itself.",
         "h1_mark": "itself",
         "lead": "Pearnly reads tax invoices, receipts and ID cards, checks the numbers, and enters them into the software you already use, on the web and in LINE.",
@@ -250,7 +248,6 @@ HOME = {
     "zh": {
         "title": "Pearnly | 拍下单据，数据自动进系统",
         "description": "Pearnly 读取泰国税务发票、收据和身份证，录入你在用的 ERP（定制接入）、MR.ERP DMS 或 Pearnly ERP。网页和 LINE 都能用。",
-        "badge": "LINE · 网页 · MR.ERP DMS · 定制接入第三方 ERP",
         "h1": "拍下单据\n数据自动进系统",
         "h1_mark": "自动",
         "lead": "Pearnly 读取税务发票、收据和身份证，核对数字，再录入你正在用的软件。网页和 LINE 都能用。",

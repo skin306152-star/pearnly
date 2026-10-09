@@ -2,12 +2,13 @@
 
 构图是最常见的“从身后看人用电脑”：小单坐在矮背办公椅上背对我们、面朝显示器，整个画面用同一个透视（桌面近宽远窄、
 地板往里收，消失点在显示器上方），单据堆、手机、已录的托盘都在他左手边，键盘在右手边，伸手就够得着；
-右边窗户下面靠墙一张沙发，上面蜷着一只睡觉的橘猫（呼吸、冒 Zzz，手机震的时候耳朵抖一下、睁一只眼）。
+右边窗户下面靠墙一张沙发，上面蜷着一只睡觉的橘猫（呼吸、冒 Zzz，手机震的时候耳朵抖一下、睁一只眼）；
+显示器上方墙上挂着空调，冷风一道道往下飘。
 同一张桌子，靠窗外天色、墙上的钟、桌上的单据讲对比：
   ① 过去：左手从单据堆拿一张举到眼前看，右手一根手指敲旧表格（第二张还敲错一位、删掉重敲），看完放进左手边的托盘；
      钟一下午快转，窗外从白天到黄昏到夜里，台灯亮起，咖啡凉了、空杯越摆越多，冒汗。
-  ② 转折：小单转过身看一眼墙上的钟（这时看得到他的黑眼圈和汗），转回去趴到桌上叹气；桌上的手机震起来、
-     弹出 Pearnly 的 LINE 消息，小单一下坐直；一道黄色记号笔刷过去，到了第二天早上。
+  ② 转折：小单趴到桌上叹气；桌上的手机震起来、弹出 Pearnly 的 LINE 消息，小单一下坐直；
+     一道黄色记号笔刷过去，到了第二天早上。
   ③ 现在：敲一下键盘，屏幕打开 Pearnly；左手拿起手机举到单据堆上方拍（屏幕朝着他，我们从身后也看得到取景框），
      每拍一下闪光，那张单据飞进手机，数据从手机飞进屏幕，表格多一行、打绿勾；拍了几张后一口气全飞进去，计数走到 16/16。
      钟只走了十几分钟。
@@ -28,8 +29,9 @@ from poster import esc, n, INK, LINE, PAPER, HAND
 W, H = 1440, 780
 VIEW, VIEW_SM = f"0 0 {W} {H}", "280 90 740 690"     # 电脑整张；手机取单据堆到显示器这一段
 VP = (780, 110)                                      # 消失点（视平线在显示器上方，略微俯视桌面）
-K = 2.6                                              # 小单的放大倍数（与 site.js 一致）
-HOME = (570, 584)                                    # 小单坐着时髋部的位置（坐垫上）
+K = 2.42                                             # 小单的放大倍数（与 site.js 一致）
+HOME = (570, 538)                                    # 小单坐着时髋部的位置（坐垫上，椅子贴近桌子）
+CHAIR = "translate(570 538) scale(.93) translate(-570 -584)"   # 椅子按原尺寸画在 (570, 584)，整体挪近桌子、按透视缩一点（腿也画在这组里）
 FRONT, BACK = 400, 300                               # 桌面前沿、后沿的 y
 DESK_X = (250, 1060)                                 # 桌面前沿左右端（右边留给窗下的沙发）
 FLOOR = 405                                          # 墙脚线（远处），桌腿落地在 560
@@ -117,8 +119,8 @@ def room():
     k = (FLOOR - VP[1]) / (H - VP[1])
     planks = "".join(f'<path d="M{n(VP[0] + (xb - VP[0]) * k)} {FLOOR} L{xb} {H}" stroke="#d2b98d" stroke-width="2"/>' for xb in range(-900, 2500, 170))
     seams = "".join(f'<path d="M0 {y} H{W}" stroke="#d9c39a" stroke-width="1.6"/>' for y in (430, 470, 530, 610, 712))
-    rug = (f'<ellipse cx="{HOME[0]}" cy="716" rx="300" ry="50" fill="#e9b8a3" {OUT}/>'
-           f'<ellipse cx="{HOME[0]}" cy="716" rx="262" ry="38" fill="none" stroke="#f6d8c8" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round"/>')
+    rug = (f'<ellipse cx="{HOME[0]}" cy="668" rx="290" ry="48" fill="#e9b8a3" {OUT}/>'
+           f'<ellipse cx="{HOME[0]}" cy="668" rx="254" ry="36" fill="none" stroke="#f6d8c8" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round"/>')
     return (f'<rect width="{W}" height="{H}" fill="#f6ecd8"/>{strokes}'
             f'<rect y="{FLOOR}" width="{W}" height="{H - FLOOR}" fill="#e4cfa8"/>{planks}{seams}'
             f'<rect y="{FLOOR - 9}" width="{W}" height="11" fill="#fffaf0" {OUT} stroke-width="2"/>{rug}')
@@ -312,6 +314,20 @@ def lamp():
             f'<ellipse class="st-bulb" cx="{bx + 42}" cy="{by - 87}" rx="13" ry="6.5" fill="#fff7d1" stroke="{LINE}" stroke-width="2"/>')
 
 
+def aircon():
+    """挂在显示器上方墙上的空调：白色挂机、出风口、面板小屏显示 25°；冷风一道道往下飘（site.js 让它动起来）。"""
+    x, y, w = 612, 30, 290
+    air = "".join(f'<path class="st-air" d="M{x + 40 + i * 80} {y + 74} q10 10 0 20 q-10 10 0 20" stroke="#9fd3f0" stroke-width="3" '
+                  'fill="none" stroke-linecap="round" opacity="0"/>' for i in range(3))
+    return (f'<ellipse cx="{x + w / 2 + 6}" cy="{y + 72}" rx="{w / 2}" ry="7" fill="#3a2a14" opacity=".08"/>'
+            f'<rect x="{x}" y="{y}" width="{w}" height="62" rx="16" fill="#fbfbf8" {OUT}/>'
+            f'<path d="M{x + 14} {y + 12} H{x + w - 14}" stroke="#e7e5df" stroke-width="3" stroke-linecap="round"/>'
+            f'<path d="M{x + 10} {y + 48} Q{x + w / 2} {y + 58} {x + w - 10} {y + 48}" stroke="{LINE}" stroke-width="2" fill="#eef1f3"/>'
+            f'<rect x="{x + w - 70}" y="{y + 20}" width="44" height="18" rx="5" fill="#2a2c33" stroke="{LINE}" stroke-width="1.6"/>'
+            f'<text x="{x + w - 48}" y="{y + 34}" font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#7fe0a6" text-anchor="middle">25°</text>'
+            f'<circle cx="{x + w - 16}" cy="{y + 29}" r="3" fill="#3fcb73"/>{air}')
+
+
 def sofa():
     """窗户下面靠墙的一张布沙发（在远处，比例按墙脚线），两个靠垫。"""
     x0, x1 = 1076, 1420
@@ -467,7 +483,7 @@ def stream():
 def chair_back(cls="st-chair", opacity=1):
     """矮背办公椅的椅背：背对我们时挡住小单背后一小截（cls=st-chair，画在小单前面）；转过来以后椅背到了他身后
     （cls=st-chair2，画在小单后面）。两份都跟着转角压窄，site.js 按转角只显示其中一份。"""
-    x, w = HOME[0], 216
+    x, w = 570, 216
     return (f'<g class="{cls}" opacity="{opacity}"><rect x="{x - w / 2}" y="504" width="{w}" height="84" rx="30" fill="#5b86d6" {OUT} stroke-width="2.8"/>'
             f'<rect x="{x - w / 2 + 14}" y="516" width="{w - 28}" height="60" rx="22" fill="#6f95dc"/>'
             f'<path d="M{x - w / 2 + 14} 516 Q{x} 506 {x + w / 2 - 14} 516" stroke="#a9c1ee" stroke-width="4" fill="none" stroke-linecap="round"/></g>')
@@ -475,7 +491,7 @@ def chair_back(cls="st-chair", opacity=1):
 
 def chair_seat():
     """坐垫、扶手、气压杆、五爪底座和轮子（不随转身变化）。"""
-    x = HOME[0]
+    x = 570
     spokes = [(-118, 22), (-60, 34), (0, 38), (60, 34), (118, 22)]
     base = "".join(f'<path d="M{x} 674 L{x + dx} {674 + dy}" {PEN} stroke-width="9"/><path d="M{x} 674 L{x + dx} {674 + dy}" stroke="#6b7280" stroke-width="5" stroke-linecap="round"/>'
                    for dx, dy in spokes)
@@ -491,7 +507,7 @@ def chair_seat():
 def legs():
     """转过来正对我们时才看得到的两条腿：从坐垫前沿垂下来，脚踩在底座上（背对我们时被身子挡着）。"""
     pen = f'color="{INK}" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" fill="none"'
-    x = HOME[0]
+    x = 570
     return (f'<g class="st-legs" opacity="0" {pen} filter="url(#st-pencil)">'
             f'<path class="st-leg-l" d="M{x - 34} 600 L{x - 42} 662 h-18"/><path class="st-leg-r" d="M{x + 34} 600 L{x + 42} 662 h18"/></g>')
 
@@ -506,23 +522,17 @@ def zigzag(top=-100, half=39):
 
 def mascot_body():
     """会计装扮的小单（头顶一道黄条、圆眼镜、身上印着金额）。背面（.st-back）是纸背：黄条、透出来的反字、眼镜腿；
-    正面（.st-front）有脸，眼睛、嘴、汗、黑眼圈都有几种，site.js 按剧情切换。"""
+    正面（.st-front）有脸，最后转过来挥手时露出来；眼睛、嘴有几种，site.js 按剧情切换。"""
     eyes = ('<g class="st-look">'
             '<g class="st-e st-e-open"><circle cx="-10" cy="-72" r="4.2" fill="currentColor" stroke="none"/><circle cx="14" cy="-72" r="4.2" fill="currentColor" stroke="none"/>'
             '<circle cx="-8.6" cy="-73.6" r="1.4" fill="#fff" stroke="none"/><circle cx="15.4" cy="-73.6" r="1.4" fill="#fff" stroke="none"/></g>'
-            '<g class="st-e st-e-wide" opacity="0"><circle cx="-10" cy="-72" r="6" fill="currentColor" stroke="none"/><circle cx="14" cy="-72" r="6" fill="currentColor" stroke="none"/>'
-            '<circle cx="-8" cy="-74" r="2" fill="#fff" stroke="none"/><circle cx="16" cy="-74" r="2" fill="#fff" stroke="none"/></g>'
-            '<path class="st-e st-e-tired" opacity="0" d="M-15 -71 q5 -3 10 0 M9 -71 q5 -3 10 0" stroke-width="2.6"/>'
             '<path class="st-e st-e-happy" opacity="0" d="M-15 -70 q5 -7 10 0 M9 -70 q5 -7 10 0" stroke-width="2.6"/>'
             '</g>')
-    mouths = ('<path class="st-m st-m-smile" d="M-4 -53 q6 6 12 0" stroke-width="2.6"/>'
-              '<path class="st-m st-m-wavy" opacity="0" d="M-7 -50 q2.5 -3 5 0 t5 0 t5 0" stroke-width="2.4"/>'
-              '<path class="st-m st-m-big" opacity="0" d="M-7 -55 q9 13 18 0 Z" fill="#e86a6a" stroke-width="2.4"/>')
+    mouths = '<path class="st-m st-m-big" d="M-7 -55 q9 13 18 0 Z" fill="#e86a6a" stroke-width="2.4"/>'
     front = ('<g class="st-front" opacity="0">'
              f'<path d="{zigzag()}" fill="{PAPER}"/>'
              '<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V-86 H-39 Z" fill="#ffd84d"/>'
              '<g class="st-face">'
-             '<path class="st-bags" opacity="0" d="M-18 -62 q8 4 16 0 M6 -62 q8 4 16 0" stroke="#9c8fb8" stroke-width="2.4"/>'
              '<ellipse cx="-23" cy="-60" rx="6.5" ry="3.8" fill="#ff9ba3" stroke="none" opacity=".85"/>'
              '<ellipse cx="27" cy="-60" rx="6.5" ry="3.8" fill="#ff9ba3" stroke="none" opacity=".85"/>'
              + eyes
@@ -559,7 +569,7 @@ def effects():
     puff = ('<g class="st-puff" opacity="0"><path d="M0 0 q-4 -12 8 -14 q4 -10 16 -4 q12 -2 10 10 q8 6 -2 12 H4 q-8 0 -4 -4 Z" '
             f'fill="#fff" {OUT} stroke-width="2"/></g>')
     sparks = "".join(f'<path class="st-spark" opacity="0" transform="translate({x} {y})" d="M0 -11 L3 -3 L11 0 L3 3 L0 11 L-3 3 L-11 0 L-3 -3 Z" '
-                     f'fill="#ffd84d" stroke="{LINE}" stroke-width="1.6"/>' for x, y in ((410, 330), (470, 290), (690, 300), (730, 360), (420, 420)))
+                     f'fill="#ffd84d" stroke="{LINE}" stroke-width="1.6"/>' for x, y in ((414, 290), (474, 250), (680, 260), (724, 320), (424, 380)))
     return puff + sparks
 
 
@@ -591,7 +601,7 @@ def svg(L, rows):
     return f"""<svg class="st" viewBox="{VIEW}" data-view="{VIEW}" data-view-sm="{VIEW_SM}" data-table="{n(table[0])} {n(table[1])}" role="img" aria-label="{esc(L["alt"])}">
 {DEFS}
 <g clip-path="url(#st-frame)">
-<g filter="url(#st-wobble)">{room()}{window()}{corkboard()}{cabinet()}{clock()}{sofa()}</g>
+<g filter="url(#st-wobble)">{room()}{window()}{corkboard()}{cabinet()}{clock()}{aircon()}{sofa()}</g>
 <g filter="url(#st-pencil)">{cat()}</g>
 <g filter="url(#st-wobble)">{desk()}</g>
 <g filter="url(#st-pencil)">{monitor()}{lamp()}</g>
@@ -599,11 +609,9 @@ def svg(L, rows):
 <g filter="url(#st-pencil)">{mug("st-mug", (928, FRONT - 3))}{mug("st-mug2", (968, FRONT - 4), False, False)}{mug("st-mug3", (1008, FRONT - 4), False, False)}
 <g class="st-pile">{pile}</g>{tray()}<g class="st-done">{done}</g>{phone_flat()}{keyboard()}</g>
 {arm("l", (466, 400))}{arm("r", (740, 392))}
-<g filter="url(#st-pencil)">{chair_back("st-chair2", 0)}</g>
+<g transform="{CHAIR}" filter="url(#st-pencil)">{chair_back("st-chair2", 0)}</g>
 {mascot()}
-<g filter="url(#st-pencil)">{chair_seat()}</g>
-{legs()}
-<g filter="url(#st-pencil)">{chair_back()}</g>
+<g transform="{CHAIR}"><g filter="url(#st-pencil)">{chair_seat()}</g>{legs()}<g filter="url(#st-pencil)">{chair_back()}</g></g>
 <g class="st-props">{paper_back("st-held", 50, 64, ' opacity="0"')}{phone_up()}</g>
 <g class="st-fx">{effects()}{stream()}{burst()}{flying}{chips}</g>
 <path class="st-night" d="{night}" fill-rule="evenodd" fill="#1a2142" opacity="0"/>
