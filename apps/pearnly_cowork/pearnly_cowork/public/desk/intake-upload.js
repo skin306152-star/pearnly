@@ -116,15 +116,19 @@
 		return [...new Set(indices.filter(Number.isInteger))].sort((a, b) => a - b);
 	};
 	/** 推送失败 / 退回原因 → 一句人话（`intake.error.<码>`）：小助手回报是 `[码] 原文`，服务端预检是 `码` 或 `码:细节`；
-	 * 认不出码、或这个码没有词条的，原样显示（服务端直接给的已翻译句子就是这种）。 */
+	 * 其余是服务端存的词条原文（英文原句或词条键，`push_state.source_text`），按看的人的语言再翻一次 ——
+	 * 不能原样显示：原样就是存的那种语言（10-09：泰文界面出现英文原因）。翻不了的才原样。 */
 	p.intake_push_reason = reason => {
 		const text = String(reason || "").trim();
 		const code = text.match(/^\[([A-Z0-9_]+)\]/)?.[1] || text.match(/^EXPRESS_MANUAL:\s*([a-z_]+)/)?.[1]
 			|| text.match(/^([A-Za-z][A-Za-z0-9_]*)(?=$|:)/)?.[1];
-		if (!code) return text;
-		const key = `intake.error.${code}`;
-		const translated = __(key);
-		return translated === key ? text : translated;
+		if (!code) return text ? __(text) : text;
+		// 小助手回报的码是大写（`[ENTRY_NOT_BALANCED]`），词条有的是小写（`intake.error.entry_not_balanced`）：两种都认。
+		for (const key of [`intake.error.${code}`, `intake.error.${code.toLowerCase()}`]) {
+			const translated = __(key);
+			if (translated !== key) return translated;
+		}
+		return __(text);
 	};
 	/** 结果不明（写入已发出、没拿到结果）的原因码：会计去 ERP 核对后在复核页解除。 */
 	const RESULT_UNKNOWN = /^(ERP_CONFIRMED_PUSH_RESULT_UNKNOWN|EXPRESS_MANUAL:\s*confirmed_push_unacked|confirmed_push_unacked|ERR_MRERP_READBACK_NOT_FOUND|ERR_MRERP_READBACK_NOT_LINKED|ERR_MRERP_LEGACY_MENU_UNVERIFIED)/;
@@ -136,9 +140,11 @@
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
 	const code_text = code => {
 		if (!code) return "";
-		const key = `intake.error.${code}`;
-		const text = __(key);
-		return text === key ? __(code) : text;
+		for (const key of [`intake.error.${code}`, `intake.error.${String(code).toLowerCase()}`]) {
+			const text = __(key);
+			if (text !== key) return text;
+		}
+		return __(code);
 	};
 	// 原件页图：Cowork 自己的私有文件服务（PDF 与图片都从它出，见 `files.api.page`）。
 	const page_url = (history, physical_page) => `/api/method/${FILES}page?`

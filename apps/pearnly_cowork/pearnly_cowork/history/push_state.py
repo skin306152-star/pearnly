@@ -43,12 +43,40 @@ def mirror(row, timestamp, *, select=False):
     _changed(row.history, row.get('owner'))
 
 
+_REVERSE = {}
+
+
+def source_text(reason):
+    """已按某种语言翻好的原因 → 词条原文（英文原句或词条键）：库里存原文，显示时按看的人的语言再翻
+    （网页 `p.intake_push_reason`、结果表格 `export_facts.reason_text`）。10-09：后台推送按当时的语言存成了英文句子，
+    泰文界面照样显示英文。认不出（带了单号等参数的句子、小助手回报的原文）的原样存。"""
+    text = str(reason or "").strip()
+    if not text:
+        return text
+    from frappe.translate import get_all_translations
+
+    for lang in dict.fromkeys([getattr(frappe.local, "lang", None), "th", "zh", "ja"]):
+        if not lang or lang == "en":
+            continue
+        table = get_all_translations(lang) or {}
+        cached = _REVERSE.get(lang)
+        if cached is None or cached[0] != len(table):
+            reverse = {}
+            for source, translated in table.items():
+                if isinstance(translated, str) and translated.strip() and translated != source:
+                    reverse.setdefault(translated.strip(), source)
+            cached = _REVERSE[lang] = (len(table), reverse)
+        if text in cached[1]:
+            return cached[1][text]
+    return text
+
+
 def record_failure(history, reason):
     """还没进账本就失败（目标不可用、目录证据失效、推送未开启……）：只记原因，不改推送状态。
 
     推送状态只由账本投影；这里写的原因让列表状态图标能显示「失败 + 原因」，下次推成功时由 mirror 清掉。
     调用方已核过这张票的读取范围。
     """
-    frappe.db.set_value('Cowork OCR History', history, 'last_push_reason', str(reason or '')[:500],
+    frappe.db.set_value('Cowork OCR History', history, 'last_push_reason', source_text(reason)[:500],
                         update_modified=False)
     _changed(history)

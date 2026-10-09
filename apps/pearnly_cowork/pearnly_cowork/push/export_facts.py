@@ -20,15 +20,19 @@ _REASON_CODES = (re.compile(r"^\[([A-Z0-9_]+)\]"), re.compile(r"^EXPRESS_MANUAL:
 
 def reason_text(reason):
     """推送账本记的原因 → 给人看的话，与网页列表 `p.intake_push_reason` 同一套词条 `intake.error.<码>`：
-    小助手回报 `[码] 原文`、服务端预检 `码` 或 `码:细节`；认不出码或这个码没有词条的原样返回。"""
+    小助手回报 `[码] 原文`、服务端预检 `码` 或 `码:细节`；其余是存的词条原文（`push_state.source_text`），
+    按当前语言再翻一次（结果表格按负责人的语言出）；翻不了的原样返回。"""
     text = str(reason or "").strip()
     for pattern in _REASON_CODES:
         match = pattern.match(text)
         if match:
-            key = "intake.error." + match.group(1)
-            translated = _(key)
-            return text if translated == key else translated
-    return text
+            # 小助手回报的码是大写，词条有的是小写：两种都认（与网页 `p.intake_push_reason` 同一做法）。
+            for key in dict.fromkeys(("intake.error." + match.group(1), "intake.error." + match.group(1).lower())):
+                translated = _(key)
+                if translated != key:
+                    return translated
+            return _(text)
+    return _(text) if text else text
 
 
 def for_histories(histories):

@@ -53,6 +53,10 @@ def _as(user):
     previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(user)
     frappe.local.lang = get_user_lang(user)
+    # Frappe 16 后台任务第一次翻译时会按排队用户重设语言（`execution.work.job_language`）：标成已定，不被冲掉。
+    job = getattr(frappe.local, "job", None)
+    if job is not None:
+        job.lang_resolved = True
     try:
         yield
     finally:

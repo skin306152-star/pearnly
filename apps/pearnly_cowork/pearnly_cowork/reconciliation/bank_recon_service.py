@@ -17,6 +17,7 @@ from pearnly_cowork.reconciliation import (
 	bank_warnings,
 	bank_groups,
 	bank_card_fee,
+	messages,
 	preset_store,
 	presets,
 	recon_contracts,
@@ -1048,7 +1049,8 @@ def _check_review(value, rows):
 	try:
 		validated, canonical = bank_review.validate_rows(rows, value["statement_rows"], value["gl_rows"])
 	except bank_recon_contracts.ReconciliationContractError as error:
-		frappe.throw(_(str(error)))
+		# 错误是「码:字段」：按码查词条（同 `revision.py`），不把整串原码当词条（查不到就把原码显示给人）。
+		frappe.throw(messages.error_text(error))
 	header = bank_recon_contracts.header(value["header"])
 	checks = bank_review.balance_chain(validated, header["stmt_opening"])
 	return validated, canonical, header, checks

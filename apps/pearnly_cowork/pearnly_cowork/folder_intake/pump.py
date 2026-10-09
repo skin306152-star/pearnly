@@ -50,6 +50,10 @@ def _as(user):
     previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(user)
     frappe.local.lang = get_user_lang(user)
+    # Frappe 16 后台任务第一次翻译时会按排队用户重设语言（`execution.work.job_language`）：标成已定，不被冲掉。
+    job = getattr(frappe.local, "job", None)
+    if job is not None:
+        job.lang_resolved = True
     try:
         yield
     finally:
@@ -92,7 +96,10 @@ def _later(entry, seconds, code):
 
 
 def _fail(entry, code):
-    entry.state, entry.last_code, entry.finished_at = "failed", str(code or "")[:140], now_datetime()
+    # 记词条原文（不是按后台语言翻好的句子）：之后谁看都按自己的语言翻（`push_state.source_text`，10-09）。
+    from pearnly_cowork.history.push_state import source_text
+
+    entry.state, entry.last_code, entry.finished_at = "failed", source_text(code)[:140], now_datetime()
     entry.next_attempt_at = None
     write(entry)
     frappe.db.commit()
