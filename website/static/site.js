@@ -247,22 +247,23 @@
     if (!svg) return;
     var card = svg.closest('.st-card'), capEl = card.querySelector('.st-cap');
     var CAPS = JSON.parse(card.getAttribute('data-caps'));
-    var K = 2, SX = .82, HOME = [470, 452], SLAB = 6, PILE_BASE = 358, DONE_BASE = 388, ITEMS = 16, END = 14000;
+    var K = 2.6, HOME = [600, 540], SLAB = 6, PILE_BASE = 340, TRAY_BASE = 396, ITEMS = 16, END = 14000;
     var T2 = 4800, T3 = 6250, T4 = 11500;             // ② 转折、③ 现在（记号笔盖满画面的那一刻）、④ 完成
     var HOLD = 1200, WIPE = 700;                       // 播完停一下，记号笔刷过去接回开头
     var C1 = [300, 1800, 3300];                        // 过去：每张 1.5 秒
     var SNAP = [7750, 8350, 8880, 9330, 9700];         // 现在：前五张一张张拍，剩下的一口气
     for (var s0 = 0; SNAP.length < ITEMS; s0++) SNAP.push(10000 + s0 * 75);
     var ARRIVE = SNAP.map(function (s) { return s + 680; });
-    var HN0 = [606, 388], HF0 = [668, 380], READ = [580, 292], KEYS = [[652, 380], [676, 376], [700, 380], [664, 378]];
-    var PHONE_DESK = [687, 351], PHONE_HOLD = [588, 254], TABLE = svg.getAttribute('data-table').split(' ').map(Number);
+    var HL0 = [488, 398], HR0 = [752, 390], READ = [446, 296], KEYS = [[732, 388], [758, 384], [786, 388], [746, 386]];
+    var PHONE_DESK = [410, 392], PHONE_HOLD = [432, 244], TABLE = svg.getAttribute('data-table').split(' ').map(Number);
     var OLD = ['บจ. ขนส่งด่วนไทย\t321.00', 'ร้านเครื่องเขียนสยาม\t193.10····⌫⌫⌫⌫⌫39.10', 'บจ. แพ็คกิ้งพลัส\t2,247.00'];
 
     function q(s) { return svg.querySelector(s); }
     function qa(s) { return Array.prototype.slice.call(svg.querySelectorAll(s)); }
     var E = {
-      body: q('.st-body'), face: q('.st-face'), look: q('.st-look'), bags: q('.st-bags'), sweat: q('.st-sweat'), excl: q('.st-excl'),
-      armN: q('.st-arm-n'), armF: q('.st-arm-f'), handN: q('.st-hand-n'), handF: q('.st-hand-f'), legN: q('.st-leg-near'), legF: q('.st-leg-far'),
+      body: q('.st-body'), front: q('.st-front'), back: q('.st-back'), face: q('.st-face'), look: q('.st-look'), bags: q('.st-bags'),
+      sweat: q('.st-sweat'), excl: q('.st-excl'), chair: q('.st-chair'), chair2: q('.st-chair2'),
+      armL: q('.st-arm-l'), armR: q('.st-arm-r'), handL: q('.st-hand-l'), handR: q('.st-hand-r'),
       held: q('.st-held'), slabs: qa('.st-slab'), ptop: q('.st-slab-top'), dsheets: qa('.st-dsheet'), dtop: q('.st-dsheet-top'),
       pflat: q('.st-pflat'), pglow: q('.st-pglow'), pscreen: q('.st-pscreen'), buzz: q('.st-buzz'), bubble: q('.st-bubble'),
       pup: q('.st-pup'), shutter: q('.st-shutter'), ok: q('.st-ok'), vdoc: q('.st-vdoc'), burst: q('.st-burst'), stream: q('.st-stream'),
@@ -299,7 +300,7 @@
     function quad(a, c, b, k) { return [(1 - k) * (1 - k) * a[0] + 2 * k * (1 - k) * c[0] + k * k * b[0], (1 - k) * (1 - k) * a[1] + 2 * k * (1 - k) * c[1] + k * k * b[1]]; }
     function bump(t, list, dur) { var v = 0; list.forEach(function (s) { var d = t - s; if (d >= 0 && d < dur) v = Math.max(v, Math.sin(d / dur * Math.PI)); }); return v; }
 
-    // ---- 单据：过去每看完一张，堆里少一张、手边那一小叠多一张；现在一张张被拍走 ----
+    // ---- 单据：过去每看完一张，堆里少一张、托盘里多一张；现在一张张被拍走 ----
     function pileN(t) { return t < T3 ? 16 - count(C1, t, 350) : ITEMS - count(SNAP, t, 80); }
     function doneN(t) { return t < T3 ? count(C1, t, 1500) : 0; }
 
@@ -319,76 +320,71 @@
       return tab < 0 ? [str, '', false, u < 600 ? 0 : -1] : [str.slice(0, tab), str.slice(tab + 1), err, u < 600 ? 1 : -1];
     }
 
-    // ---- 小单每一帧的姿势：侧身坐在椅子上（turn=1 时转过来正对你），近手（左手）在身前，远手（右手）在身后 ----
+    // ---- 小单每一帧的姿势：a 是转角（0 背对我们面朝屏幕，180 正对我们），左手管单据和手机，右手敲键盘 ----
     function pose(t) {
-      var m = { x: HOME[0], y: HOME[1], r: 0, sy: 1, turn: 0, hn: HN0.slice(), hf: HF0.slice(), eyes: 'open', mouth: 'smile', look: [3, 0],
-                bags: 0, sweat: 0, excl: 0, held: null, phone: 'flat', kick: 0 };
+      var m = { x: HOME[0], y: HOME[1], r: 0, sy: 1, a: 0, hl: HL0.slice(), hr: HR0.slice(), eyes: 'open', mouth: 'smile', look: [0, 0],
+                bags: 0, sweat: 0, excl: 0, exclS: .7, held: null, phone: 'flat' };
       if (t < T2) act1(t, m); else if (t < T3) act2(t, m); else if (t < T4) act3(t, m); else act4(t, m);
       return m;
     }
-    // ① 过去：左手从手边的单据堆拿一张、凑近看，右手一根手指敲；看完放到手边那一小叠。越到晚上越累：往下塌、冒汗、黑眼圈
+    // ① 过去：左手拿一张举到眼前看，右手一根手指敲；看完放进托盘。越到晚上越累：往下塌、冒汗
     function act1(t, m) {
       var tired = seg(t, 2400, 4400);
-      m.y += 6 * tired; m.r = 3 * tired; m.bags = tired; m.mouth = t < 300 ? 'smile' : t < 2600 ? 'flat' : 'wavy'; m.sweat = t > 2000 ? 1 : 0;
+      m.y += 8 * tired; m.sweat = t > 2000 ? 1 : 0;
       for (var c = 0; c < 3; c++) {
         var u = t - C1[c], k;
         if (u < 0 || u > 1500) continue;
-        var grab = [598, PILE_BASE - pileN(C1[c] + 349) * SLAB - 6], drop = [584, DONE_BASE - doneN(C1[c] + 1499) * SLAB - 8];
+        var grab = [430, PILE_BASE - pileN(C1[c] + 349) * SLAB - 6], drop = [324, TRAY_BASE - doneN(C1[c] + 1499) * 5 - 10];
         if (u < 350) {
-          k = seg(u, 0, 350); m.hn = mix(HN0, grab, k); m.r += 4 * k; m.look = [3, -2 * k];
+          k = seg(u, 0, 350); m.hl = mix(HL0, grab, k); m.r = -4 * k;
         } else if (u < 650) {
-          k = seg(u, 350, 650); m.hn = mix(grab, READ, k); m.r += 4 - 2 * k; m.look = [4, -2];
-          m.held = { at: m.hn, rot: -6, sy: 1 }; if (u > 450) m.eyes = 'squint';
+          k = seg(u, 350, 650); m.hl = mix(grab, READ, k); m.r = -4 + 2 * k; m.held = { at: m.hl, rot: -6, sy: 1 };
         } else if (u < 1250) {
-          k = seg(u, 650, 800); m.r += 2 + 3 * k;
-          m.hn = [READ[0] + Math.sin(u / 90) * 1.5, READ[1] + Math.sin(u / 130) * 2]; m.held = { at: m.hn, rot: -6, sy: 1 };
+          k = seg(u, 650, 800); m.r = -2 + 4 * k;
+          m.hl = [READ[0] + Math.sin(u / 90) * 1.5, READ[1] + Math.sin(u / 130) * 2]; m.held = { at: m.hl, rot: -6, sy: 1 };
           var p = Math.floor((u - 650) / 110), fr = ((u - 650) % 110) / 110, key = KEYS[(p + c) % KEYS.length];
-          m.hf = [key[0], key[1] - Math.sin(fr * Math.PI) * 11];
-          m.look = [4, 0]; m.eyes = u < 820 ? 'squint' : 'open';
-          if (typed(c, t)[2]) { m.eyes = 'wide'; m.mouth = 'o'; m.look = [5, -1]; }      // 敲错了一位
+          m.hr = [key[0], key[1] - Math.sin(fr * Math.PI) * 11];
+          if (typed(c, t)[2]) { m.excl = 1; m.exclS = .5; m.y -= 4; }      // 敲错了一位
         } else {
-          k = seg(u, 1250, 1500); m.hn = mix(READ, drop, k); m.hf = mix(KEYS[(5 + c) % KEYS.length], HF0, k);
-          m.held = { at: m.hn, rot: -6 * (1 - k), sy: 1 - .8 * k, o: u > 1480 ? 0 : 1 }; m.r += 5 * (1 - k); m.look = [3, 2 * k];
+          k = seg(u, 1250, 1500); m.hl = mix(READ, drop, k); m.hr = mix(KEYS[(5 + c) % KEYS.length], HR0, k);
+          m.held = { at: m.hl, rot: -6 * (1 - k), sy: 1 - .8 * k, o: u > 1480 ? 0 : 1 }; m.r = 2 * (1 - k);
         }
       }
     }
-    // ② 转折：趴到桌上叹气；手机震、弹出 Pearnly 的消息，一下坐直
+    // ② 转折：转过身看一眼钟（看得到黑眼圈和汗），转回去趴到桌上叹气；手机震、弹出 Pearnly 的消息，一下坐直
     function act2(t, m) {
-      m.bags = 1; m.mouth = 'wavy';
-      var down = seg(t, 4800, 5250) * (1 - seg(t, 5650, 5900, back));
-      m.y = HOME[1] + 6 + 8 * down; m.r = 3 + 17 * down; m.sy = 1 - .05 * down; m.eyes = down > .5 ? 'closed' : 'open';
-      m.hn = mix(HN0, [622, 390], seg(t, 4800, 5200)); m.hf = mix(HF0, [700, 384], seg(t, 4800, 5200));
-      if (t >= 5650) { m.eyes = 'wide'; m.mouth = 'o'; m.look = [6, 3]; m.excl = seg(t, 5650, 5820, back); }
+      m.y += 8; m.bags = 1; m.sweat = 1; m.eyes = 'tired'; m.mouth = 'wavy'; m.look = [-4, -3];
+      m.a = 130 * seg(t, 4800, 4980) * (1 - seg(t, 5100, 5240));
+      var down = seg(t, 5240, 5460) * (1 - seg(t, 5700, 5920, back));
+      m.y += 30 * down; m.sy = 1 - .08 * down;
+      m.hl = mix(HL0, [500, 400], seg(t, 5240, 5460)); m.hr = mix(HR0, [722, 398], seg(t, 5240, 5460));
+      if (t >= 5700) { m.excl = seg(t, 5700, 5860, back); m.sweat = 0; }
     }
-    // ③ 现在：敲一下键盘开屏，拿起手机对着手边的单据堆一张张拍，最后一口气全进去
+    // ③ 现在：敲一下键盘开屏，左手拿起手机举到单据堆上方一张张拍，最后一口气全进去
     function act3(t, m) {
       var tap = seg(t, 6450, 6700, lin);
-      if (tap > 0 && tap < 1) m.hf = [676, 380 - Math.sin(tap * Math.PI) * 13];
+      if (tap > 0 && tap < 1) m.hr = [758, 388 - Math.sin(tap * Math.PI) * 13];
       var reach = seg(t, 7050, 7350), lift = seg(t, 7350, 7700);
-      m.hn = mix(mix(HN0, PHONE_DESK, reach), PHONE_HOLD, lift);
-      m.y -= 8 * lift; m.r = 3 * reach + 3 * lift; m.phone = t < 7350 ? 'flat' : 'up';
+      m.hl = mix(mix(HL0, PHONE_DESK, reach), PHONE_HOLD, lift);
+      m.y -= 6 * lift; m.r = -3 * lift; m.phone = t < 7350 ? 'flat' : 'up';
       var kick = bump(t, SNAP.slice(0, 5), 180) + .5 * bump(t, SNAP.slice(5), 70);
-      m.hn[1] -= 5 * kick; m.y -= 2 * kick;
-      if (t > 7700 && t < 9950) m.look = [4, 2];
-      if (t >= 9950) { m.look = [5, -2]; m.mouth = t < 10700 ? 'o' : 'big'; m.eyes = t < 10700 ? 'wide' : 'happy'; }
+      m.hl[1] -= 5 * kick; m.y -= 2 * kick;
       var pump = seg(t, 10900, 11150) * (1 - seg(t, 11300, 11500));
-      if (pump > 0) m.hf = mix(m.hf, [540, 246 - 12 * Math.sin(seg(t, 11050, 11300, lin) * Math.PI * 2)], pump);
+      if (pump > 0) m.hr = mix(m.hr, [742, 292 - 12 * Math.sin(seg(t, 11050, 11300, lin) * Math.PI * 2)], pump);
     }
-    // ④ 完成：放下手机，往椅背一靠呼一口气，转过来朝你挥手，晃晃腿
+    // ④ 完成：放下手机，往椅背一靠，连人带椅子转过来朝你挥手
     function act4(t, m) {
-      m.eyes = 'happy'; m.mouth = 'big';
       var sit = seg(t, 11500, 11950);
-      m.y -= 8 * (1 - sit); m.r = 6 * (1 - sit);
-      m.hn = t < 11950 ? mix(PHONE_HOLD, PHONE_DESK, sit) : mix(PHONE_DESK, HN0, seg(t, 11950, 12150));
+      m.y -= 6 * (1 - sit); m.r = -3 * (1 - sit);
+      m.hl = t < 11950 ? mix(PHONE_HOLD, PHONE_DESK, sit) : mix(PHONE_DESK, HL0, seg(t, 11950, 12150));
       m.phone = t < 11950 ? 'up' : 'flat';
-      var lean = seg(t, 12150, 12550) * (1 - seg(t, 12950, 13250));
-      m.r -= 10 * lean; m.x -= 6 * lean; m.hf = mix(HF0, [606, 394], lean);
-      if (t >= 12450 && t < 12950) m.mouth = 'smile';
-      m.turn = seg(t, 13050, 13450);
-      if (t >= 13250) {
-        var w = seg(t, 13250, 13550), wave = Math.sin(seg(t, 13550, END, lin) * Math.PI * 4) * 16;
-        m.hn = mix(m.hn, [372 + wave, 262], w); m.look = [0, 0]; m.eyes = t < 13450 ? 'happy' : 'open';
-        m.kick = Math.sin(seg(t, 13450, END, lin) * Math.PI * 6) * w;
+      var lean = seg(t, 12150, 12500) * (1 - seg(t, 12800, 13000));
+      m.y += 6 * lean; m.sy = 1 + .03 * lean;
+      m.a = 180 * seg(t, 12950, 13450, back);
+      m.eyes = t < 13500 ? 'happy' : 'open'; m.mouth = 'big';
+      if (t >= 13300) {
+        var w = seg(t, 13300, 13600), wave = Math.sin(seg(t, 13600, END, lin) * Math.PI * 4) * 18;
+        m.hr = mix(m.hr, [446 + wave, 300], w); m.hl = mix(m.hl, [742, 398], w);
       }
     }
 
@@ -396,15 +392,17 @@
       var dx = b[1] - a[1], dy = a[0] - b[0], d = Math.sqrt(dx * dx + dy * dy) || 1;
       return 'M' + f(a[0]) + ' ' + f(a[1]) + 'Q' + f((a[0] + b[0]) / 2 + dx / d * bend) + ' ' + f((a[1] + b[1]) / 2 + dy / d * bend) + ' ' + f(b[0]) + ' ' + f(b[1]);
     }
+    // 身上一点（本地坐标）→ 画面坐标：转身时横向按 cos(转角) 收窄（转过 90° 左右对调）
     function bp(m, px, py) {
-      var a = m.r * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), sx = SX + (1 - SX) * m.turn;
-      px *= K * sx; py *= K * m.sy;
+      var r = m.r * Math.PI / 180, c = Math.cos(r), s = Math.sin(r), ca = Math.cos(m.a * Math.PI / 180);
+      px *= K * ca; py *= K * m.sy;
       return [m.x + px * c - py * s, m.y + px * s + py * c];
     }
     function drawMascot(m, t) {
-      var sx = SX + (1 - SX) * m.turn;
+      var ca = Math.cos(m.a * Math.PI / 180), sx = Math.max(.06, Math.abs(ca)), front = m.a > 90;
       set(E.body, 'transform', 'translate(' + f(m.x) + ' ' + f(m.y) + ') rotate(' + f(m.r) + ') scale(' + f2(K * sx) + ' ' + f2(K * m.sy) + ')');
-      set(E.face, 'transform', 'translate(' + f(9 * (1 - m.turn)) + ' 0)');
+      op(E.front, front ? 1 : 0); op(E.back, front ? 0 : 1);
+      set(E.face, 'transform', 'translate(' + f(-10 * Math.sin(m.a * Math.PI / 180)) + ' 0)');
       for (var e in EYES) op(EYES[e], e === m.eyes ? 1 : 0);
       for (var mo in MOUTHS) op(MOUTHS[mo], mo === m.mouth ? 1 : 0);
       set(EYES.open, 'transform', m.eyes === 'open' && (t % 2900) < 120 ? 'translate(0 -72) scale(1 .12) translate(0 72)' : '');
@@ -412,21 +410,20 @@
       op(E.bags, m.bags * .9);
       var sp = (t % 900) / 900;
       op(E.sweat, m.sweat * (sp < .15 ? sp / .15 : 1 - (sp - .15) / .85)); move(E.sweat, 0, 14 * sp);
-      op(E.excl, m.excl); set(E.excl, 'transform', 'translate(2 -128) scale(' + f2(Math.max(.01, m.excl)) + ') translate(-2 128)');
-      var sn = bp(m, 26 - 64 * m.turn, -48), sf = bp(m, 34 + 4 * m.turn, -54);   // 侧身时两肩都在身体前侧，转过来时近肩回到左边
-      set(E.armN, 'd', limb(sn, m.hn, 14)); set(E.armF, 'd', limb(sf, m.hf, 12));
-      set(E.handN, 'cx', f(m.hn[0])); set(E.handN, 'cy', f(m.hn[1])); set(E.handF, 'cx', f(m.hf[0])); set(E.handF, 'cy', f(m.hf[1]));
-      // 腿：髋跟着身子走，脚踩在地上（挥手时晃一晃）
-      var hip = bp(m, 0, -2), kk = m.kick * 8;
-      set(E.legN, 'd', 'M' + f(hip[0]) + ' ' + f(hip[1]) + 'L552 450L' + f(560 + kk) + ' ' + f(522 - Math.abs(kk) * .6) + 'h16');
-      set(E.legF, 'd', 'M' + f(hip[0] + 14) + ' ' + f(hip[1] - 4) + 'L566 442L' + f(578 - kk) + ' ' + f(518 - Math.abs(kk) * .6) + 'h16');
-      if (m.held) { op(E.held, m.held.o === undefined ? 1 : m.held.o); move(E.held, m.held.at[0] + 18, m.held.at[1] - 22, ' rotate(' + f(m.held.rot) + ') scale(1 ' + f2(m.held.sy) + ')'); }
+      var es = Math.max(.01, m.excl * m.exclS);
+      op(E.excl, m.excl); set(E.excl, 'transform', 'translate(2 -128) scale(' + f2(es / sx) + ' ' + f2(es) + ') translate(-2 128)');
+      var chairT = 'translate(' + HOME[0] + ' 0) scale(' + f2(sx) + ' 1) translate(' + (-HOME[0]) + ' 0)';
+      set(E.chair, 'transform', chairT); set(E.chair2, 'transform', chairT); op(E.chair, front ? 0 : 1); op(E.chair2, front ? 1 : 0);
+      var sl = bp(m, -38, -66), sr = bp(m, 38, -66);
+      set(E.armL, 'd', limb(sl, m.hl, -10)); set(E.armR, 'd', limb(sr, m.hr, 10));
+      set(E.handL, 'cx', f(m.hl[0])); set(E.handL, 'cy', f(m.hl[1])); set(E.handR, 'cx', f(m.hr[0])); set(E.handR, 'cy', f(m.hr[1]));
+      if (m.held) { op(E.held, m.held.o === undefined ? 1 : m.held.o); move(E.held, m.held.at[0] - 6, m.held.at[1] - 30, ' rotate(' + f(m.held.rot) + ') scale(1 ' + f2(m.held.sy) + ')'); }
       else op(E.held, 0);
     }
 
     // ---- 每一帧（looped：上一轮刚刷过来，开头先让记号笔刷走） ----
     function render(t, looped) {
-      var m = pose(Math.min(t, END)), tt = Math.min(t, END);
+      var tt = Math.min(t, END), m = pose(tt);
       var night = tt < T3 ? seg(tt, 2700, 3900) : 0, dusk = tt < T3 ? seg(tt, 1500, 2700) : 0;
       drawMascot(m, t);
 
@@ -443,35 +440,35 @@
 
       // 钟：过去一下午转过去十几个小时，现在只走了十几分钟
       var h = tt < T2 ? 9 + 11.5 * seg(tt, 0, T2) : tt < T3 ? 20.5 + .5 * seg(tt, T2, T3, lin) : tt < T4 ? 9 + .2 * seg(tt, T3, T4, lin) : 9.2 + .05 * seg(tt, T4, END, lin);
-      set(E.hour, 'transform', 'rotate(' + f((h % 12) * 30) + ' 440 96)'); set(E.min, 'transform', 'rotate(' + f((h % 1) * 360) + ' 440 96)');
+      set(E.hour, 'transform', 'rotate(' + f((h % 12) * 30) + ' 196 100)'); set(E.min, 'transform', 'rotate(' + f((h % 1) * 360) + ' 196 100)');
 
-      // 夜里屋里暗下来，台灯“啪”地亮起，屏幕的光照在脸上
+      // 夜里屋里暗下来，台灯“啪”地亮起，屏幕的光照亮小单
       op(E.night, .36 * night);
       var lampOn = tt >= 3700 && tt < T3 && !(tt > 3740 && tt < 3800);
       op(E.light, lampOn ? .85 : 0); set(E.bulb, 'fill', lampOn ? '#fff1a0' : '#fff7d1'); op(E.glow, .5 * night);
 
-      // 单据堆与手边已录的那一小叠
+      // 单据堆与托盘
       var N = pileN(tt), D = doneN(tt);
       E.slabs.forEach(function (s, i) { op(s, i < N ? 1 : 0); });
       op(E.ptop, N > 0 ? 1 : 0); move(E.ptop, 0, PILE_BASE - N * SLAB);
       E.dsheets.forEach(function (s, i) { op(s, i < D ? 1 : 0); });
-      op(E.dtop, D > 0 ? 1 : 0); move(E.dtop, 0, DONE_BASE - D * SLAB);
+      op(E.dtop, D > 0 ? 1 : 0); move(E.dtop, 0, TRAY_BASE - 2 - D * SLAB);
 
       // 咖啡：过去凉了、空杯越摆越多；现在是一杯热的
       op(E.mug2, tt < T3 ? seg(tt, 2300, 2500, back) : 0); op(E.mug3, tt < T3 ? seg(tt, 3900, 4100, back) : 0);
       op(E.steam, tt < T3 ? 1 - seg(tt, 900, 1700) : 1); move(E.steam, Math.sin(t / 260) * 2.5, -((t / 30) % 6));
 
-      // 手机：桌上震动、弹出 Pearnly 的 LINE 消息；拿起来对着单据堆拍
-      var buzzing = tt >= 5350 && tt < 5950 && ((tt - 5350) % 400) < 270;
+      // 手机：桌上震动、弹出 Pearnly 的 LINE 消息；拿起来举到单据堆上方拍
+      var buzzing = tt >= 5450 && tt < 5950 && ((tt - 5450) % 400) < 270;
       op(E.pflat, m.phone === 'flat' ? 1 : 0); move(E.pflat, buzzing ? Math.sin(t / 12) * 2.6 : 0, 0);
       op(E.buzz, buzzing ? 1 : 0);
-      var lit = tt >= 5350 && tt < T3;
+      var lit = tt >= 5450 && tt < T3;
       op(E.pglow, lit ? .9 : 0); set(E.pscreen, 'fill', lit ? '#dff7e8' : '#2a2c33');
-      var bub = tt >= 5400 && tt < T3 ? seg(tt, 5400, 5600, back) : 0;
-      op(E.bubble, bub); set(E.bubble, 'transform', 'translate(744 284) scale(' + f2(Math.max(.01, bub)) + ')');
+      var bub = tt >= 5480 && tt < T3 ? seg(tt, 5480, 5680, back) : 0;
+      op(E.bubble, bub); set(E.bubble, 'transform', 'translate(406 330) scale(' + f2(Math.max(.01, bub)) + ')');
       var upK = m.phone === 'up' ? (tt < T4 ? seg(tt, 7350, 7480) : 1 - seg(tt, 11800, 11950)) : 0;
-      var pc = [m.hn[0] + 22, m.hn[1] - 32];   // 手从下面托着手机
-      op(E.pup, upK > .02 ? 1 : 0); move(E.pup, pc[0], pc[1], ' rotate(-3) scale(1 ' + f2(Math.max(.05, upK)) + ')');
+      var pc = [m.hl[0], m.hl[1] - 38];   // 手在手机底边托着
+      op(E.pup, upK > .02 ? 1 : 0); move(E.pup, pc[0], pc[1], ' rotate(-2) scale(1 ' + f2(Math.max(.05, upK)) + ')');
       var snapD = -1, snapI = -1;
       SNAP.forEach(function (s, i) { if (tt >= s && (snapD < 0 || tt - s < snapD)) { snapD = tt - s; snapI = i; } });
       op(E.shutter, snapD >= 0 && snapD < 140 ? 1 - snapD / 140 : 0);
@@ -483,12 +480,12 @@
       op(E.flash, snapD >= 0 && snapD < 160 ? (big ? .3 : .1) * (1 - snapD / 160) : 0);
 
       // 拍下的单据飞进手机，数据从手机沿一道弧飞进屏幕（一口气全进去时连成一道数据流）
-      var a0 = [pc[0] + 40, pc[1] - 14], c0 = [(a0[0] + TABLE[0]) / 2, Math.min(a0[1], TABLE[1]) - 150];
+      var a0 = [pc[0] + 50, pc[1] - 10], c0 = [(a0[0] + TABLE[0]) / 2, Math.min(a0[1], TABLE[1]) - 120];
       E.fly.forEach(function (el, k) {
         var d = tt - SNAP[k];
         if (d < 0 || d >= 320) { op(el, 0); return; }
-        var p = io(d / 320), at = arc([598, PILE_BASE - (ITEMS - k) * SLAB - 8], pc, p, 50);
-        op(el, d > 260 ? 1 - (d - 260) / 60 : 1); move(el, at[0], at[1], ' rotate(' + f(-20 * p) + ') scale(' + f2(1 - .72 * p) + ')');
+        var p = io(d / 320), at = arc([430, PILE_BASE - (ITEMS - k) * SLAB - 8], pc, p, 30);
+        op(el, d > 260 ? 1 - (d - 260) / 60 : 1); move(el, at[0], at[1], ' rotate(' + f(-16 * p) + ') scale(' + f2(1 - .72 * p) + ')');
       });
       E.chips.forEach(function (el, k) {
         var d = tt - SNAP[k] - 260;
@@ -531,12 +528,12 @@
       var st = seg(tt, 11550, 11900, back);
       op(E.stamp, tt >= 11550 ? c01((tt - 11550) / 150) : 0); set(E.stamp, 'transform', 'translate(1012 306) scale(' + f2(1.6 - .6 * st) + ')');
 
-      // 小特效：叹气、靠回椅背时的“呼”、星星
-      var puff = tt < T3 ? seg(tt, 5000, 5200) * (1 - seg(tt, 5450, 5650)) : seg(tt, 12450, 12600) * (1 - seg(tt, 12850, 13050));
-      var mouth = bp(m, 24, -48), rise = tt < T3 ? seg(tt, 5000, 5650, lin) : seg(tt, 12450, 13050, lin);
-      op(E.puff, puff); move(E.puff, mouth[0] + 10 + 14 * rise, mouth[1] - 6 - 30 * rise, ' scale(' + f2(.7 + .5 * rise) + ')');
+      // 小特效：叹气、靠回椅背时的“呼”（从头顶冒出来）、星星
+      var puff = tt < T3 ? seg(tt, 5300, 5450) * (1 - seg(tt, 5600, 5760)) : seg(tt, 12350, 12500) * (1 - seg(tt, 12750, 12950));
+      var top = bp(m, 10, -104), rise = tt < T3 ? seg(tt, 5300, 5760, lin) : seg(tt, 12350, 12950, lin);
+      op(E.puff, puff); move(E.puff, top[0] + 14 * rise, top[1] - 8 - 30 * rise, ' scale(' + f2(.8 + .5 * rise) + ')');
       E.sparks.forEach(function (el, i) {
-        var k = seg(tt, 13350 + i * 90, 13600 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
+        var k = seg(tt, 13400 + i * 90, 13650 + i * 90, back), tw = 1 + .15 * Math.sin(t / 140 + i);
         var base = el._base || (el._base = el.getAttribute('transform'));
         op(el, k); set(el, 'transform', base + ' scale(' + f2(Math.max(.01, k) * tw) + ') rotate(' + f((t / 20 + i * 40) % 360) + ')');
       });
@@ -551,7 +548,7 @@
       text(capEl, cap || ' ');
     }
 
-    // 手机上只取中间一段（椅子 → 显示器）
+    // 手机上只取中间一段（单据堆 → 显示器）
     function fit() {
       var view = svg.getAttribute(card.clientWidth < 640 ? 'data-view-sm' : 'data-view'), v = view.split(' ');
       svg.setAttribute('viewBox', view);
