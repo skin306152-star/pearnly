@@ -262,8 +262,8 @@
     function qa(s) { return Array.prototype.slice.call(svg.querySelectorAll(s)); }
     var E = {
       body: q('.st-body'), front: q('.st-front'), back: q('.st-back'), face: q('.st-face'), look: q('.st-look'),
-      sweat: q('.st-sweat'), excl: q('.st-excl'), chair: q('.st-chair'), chair2: q('.st-chair2'), legs: q('.st-legs'), legL: q('.st-leg-l'), legR: q('.st-leg-r'),
-      catBody: q('.st-cat-body'), catHead: q('.st-cat-head'), catEar: q('.st-cat-ear'), catShut: q('.st-cat-shut'), catPeek: q('.st-cat-peek'), zs: qa('.st-z'), air: qa('.st-air'),
+      sweat: q('.st-sweat'), excl: q('.st-excl'), chair: q('.st-chair'), chair2: q('.st-chair2'), legs: q('.st-legs'), legL: q('.st-leg-l'), legR: q('.st-leg-r'), shoeL: q('.st-shoe-l'), shoeR: q('.st-shoe-r'),
+      catBody: q('.st-cat-body'), catHead: q('.st-cat-head'), catEar: q('.st-cat-ear'), catShut: q('.st-cat-shut'), catPeek: q('.st-cat-peek'), catOpen: q('.st-cat-open'), catEyes: q('.st-cat-eyes'), catTail: q('.st-cat-tail'), zs: qa('.st-z'), air: qa('.st-air'),
       armL: q('.st-arm-l'), armR: q('.st-arm-r'), handL: q('.st-hand-l'), handR: q('.st-hand-r'),
       held: q('.st-held'), slabs: qa('.st-slab'), ptop: q('.st-slab-top'), dsheets: qa('.st-dsheet'), dtop: q('.st-dsheet-top'),
       pflat: q('.st-pflat'), pglow: q('.st-pglow'), pscreen: q('.st-pscreen'), buzz: q('.st-buzz'), bubble: q('.st-bubble'),
@@ -420,8 +420,15 @@
       // 腿：转过来正对我们才看得到，挥手时晃一晃
       op(E.legs, front ? c01((m.a - 120) / 40) : 0);
       var kk = m.kick * 10;
-      set(E.legL, 'd', 'M' + f(m.x - 34) + ' 600 L' + f(m.x - 42 - kk) + ' ' + f(662 - Math.abs(kk) * .5) + ' h-18');
-      set(E.legR, 'd', 'M' + f(m.x + 34) + ' 600 L' + f(m.x + 42 + kk) + ' ' + f(662 - Math.abs(kk) * .5) + ' h18');
+      // 腿从身子底下伸出来、搭过坐垫前沿（膝盖在前沿外一点），小腿垂下；挥手时两只脚一前一后晃
+      // 大腿从身子下沿（坐垫上面）往前、往外搭过坐垫，膝盖在坐垫前沿外圆圆地弯下去，小腿垂到底座前面
+      var top = m.y - 6, knee = 568, foot = 614;
+      [[E.legL, E.shoeL, -1], [E.legR, E.shoeR, 1]].forEach(function (L) {
+        var sd = L[2], hx = m.x + sd * 22, kx = m.x + sd * 40, fx = m.x + sd * 36 + sd * kk, fy = foot - Math.abs(kk) * .6;
+        set(L[0], 'd', 'M' + f(hx) + ' ' + f(top) + ' C' + f(hx + sd * 8) + ' ' + f(top + 16) + ' ' + f(kx + sd * 4) + ' ' + f(knee - 14) + ' ' + f(kx) + ' ' + knee +
+          ' Q' + f(kx - sd * 3) + ' ' + f((knee + fy) / 2) + ' ' + f(fx) + ' ' + f(fy));
+        move(L[1], fx + sd * 4, fy + 4, sd < 0 ? ' scale(-1 1)' : '');
+      });
       var sl = bp(m, -38, -66), sr = bp(m, 38, -66);
       set(E.armL, 'd', limb(sl, m.hl, -10)); set(E.armR, 'd', limb(sr, m.hr, 10));
       set(E.handL, 'cx', f(m.hl[0])); set(E.handL, 'cy', f(m.hl[1])); set(E.handR, 'cx', f(m.hr[0])); set(E.handR, 'cy', f(m.hr[1]));
@@ -546,17 +553,21 @@
         op(el, k); set(el, 'transform', base + ' scale(' + f2(Math.max(.01, k) * tw) + ') rotate(' + f((t / 20 + i * 40) % 360) + ')');
       });
 
-      // 沙发上的猫：一直在睡（身子随呼吸起伏、头上冒 Zzz）；手机震的时候耳朵抖一下、睁一只眼看看
-      var breath = Math.sin(t / 520 * Math.PI);
-      set(E.catBody, 'transform', 'translate(0 2) scale(1 ' + f2(1 + .035 * breath) + ') translate(0 -2)');
-      move(E.catHead, -40, -10 - 1.2 * breath);
+      // 沙发上的猫：白天醒着（抬头、睁眼、眨眼、慢慢甩尾巴），天黑后低头睡着（呼吸起伏、头上冒 Zzz）；
+      // 夜里手机震的时候耳朵抖一下、睁一只眼看看
+      var asleep = tt < T3 ? seg(tt, 2900, 3500) : 0, breath = Math.sin(t / 520 * Math.PI);
+      set(E.catBody, 'transform', 'translate(0 2) scale(1 ' + f2(1 + .035 * breath * asleep + .012 * breath) + ') translate(0 -2)');
+      move(E.catHead, -40 + 2 * (1 - asleep), -10 - 7 * (1 - asleep) - 1.2 * breath, ' rotate(' + f(-6 * (1 - asleep)) + ')');
+      set(E.catTail, 'transform', 'rotate(' + f((1 - asleep) * 9 * Math.sin(t / 700)) + ' 44 0)');
+      var catBlink = (t % 3400) < 140 ? .1 : 1;
+      set(E.catEyes, 'transform', catBlink === 1 ? '' : 'translate(0 -3) scale(1 ' + catBlink + ') translate(0 3)');
       var twitch = tt >= 5450 && tt < 5800 ? Math.sin((tt - 5450) / 35) * 14 * (1 - (tt - 5450) / 350) : 0;
       set(E.catEar, 'transform', 'rotate(' + f(twitch) + ' -12 -16)');
-      var peek = tt >= 5560 && tt < 6000;
-      op(E.catPeek, peek ? 1 : 0); op(E.catShut, peek ? 0 : 1);
+      var peek = tt >= 5560 && tt < 6000, awake = asleep < .5;
+      op(E.catOpen, awake ? 1 : 0); op(E.catPeek, !awake && peek ? 1 : 0); op(E.catShut, !awake && !peek ? 1 : 0);
       E.zs.forEach(function (z, i) {
         var k = ((t / 2600) + i / 3) % 1;
-        op(z, peek ? 0 : (k < .2 ? k / .2 : 1 - (k - .2) / .8));
+        op(z, peek ? 0 : asleep * (k < .2 ? k / .2 : 1 - (k - .2) / .8));
         move(z, -30 + 26 * k + i * 4, -40 - 50 * k);
       });
 

@@ -31,7 +31,7 @@ VIEW, VIEW_SM = f"0 0 {W} {H}", "280 14 740 712"     # 电脑整张；手机取�
 VP = (780, 110)                                      # 消失点（视平线在显示器上方，略微俯视桌面）
 K = 2.42                                             # 小单的放大倍数（与 site.js 一致）
 HOME = (570, 538)                                    # 小单坐着时髋部的位置（坐垫上，椅子贴近桌子）
-CHAIR = "translate(570 538) scale(.93) translate(-570 -584)"   # 椅子按原尺寸画在 (570, 584)，整体挪近桌子、按透视缩一点（腿也画在这组里）
+CHAIR = "translate(570 538) scale(.93) translate(-570 -584)"   # 椅子按原尺寸画在 (570, 584)，整体挪近桌子、按透视缩一点
 FRONT, BACK = 400, 300                               # 桌面前沿、后沿的 y
 DESK_X = (250, 1060)                                 # 桌面前沿左右端（右边留给窗下的沙发）
 FLOOR = 405                                          # 墙脚线（远处），桌腿落地在 560
@@ -346,14 +346,15 @@ def sofa():
 
 
 def cat():
-    """沙发上蜷成一团睡觉的橘猫：身体随呼吸起伏，尾巴绕到前面，头上冒 Zzz；手机震的时候耳朵抖一下、睁一只眼。"""
+    """沙发上蜷成一团的橘猫：白天醒着，抬着头睁眼、眨眼、甩尾巴；天黑后低头睡着（身体随呼吸起伏、头上冒 Zzz），
+    手机震的时候耳朵抖一下、睁一只眼。睡醒由 site.js 按天色切换。"""
     return ('<g class="st-cat" transform="translate(1262 342)">'
             '<ellipse cx="0" cy="2" rx="62" ry="9" fill="#3a2a14" opacity=".12"/>'
             '<g class="st-cat-body">'
             f'<path d="M-52 0 C-56 -30 -20 -46 10 -42 C40 -40 58 -24 56 -4 C54 2 46 4 40 4 H-46 Q-52 4 -52 0 Z" fill="#f2a65a" {OUT}/>'
             '<path d="M-14 -40 q4 10 0 20 M4 -42 q4 12 0 24 M22 -38 q4 10 0 20" stroke="#d9823a" stroke-width="4" fill="none" stroke-linecap="round"/>'
-            f'<path d="M44 2 C70 0 74 -20 60 -26 C54 -28 50 -22 56 -18 C62 -14 58 -6 40 -4" fill="#f2a65a" {OUT}/>'
-            '<path d="M62 -22 l4 2 M64 -12 l5 1" stroke="#d9823a" stroke-width="3" stroke-linecap="round"/></g>'
+            f'<g class="st-cat-tail"><path d="M44 2 C70 0 74 -20 60 -26 C54 -28 50 -22 56 -18 C62 -14 58 -6 40 -4" fill="#f2a65a" {OUT}/>'
+            '<path d="M62 -22 l4 2 M64 -12 l5 1" stroke="#d9823a" stroke-width="3" stroke-linecap="round"/></g></g>'
             '<g class="st-cat-head" transform="translate(-40 -10)">'
             f'<path class="st-cat-ear" d="M-18 -14 L-20 -34 L-4 -22 Z" fill="#f2a65a" {OUT}/>'
             f'<path d="M4 -22 L16 -34 L18 -12 Z" fill="#f2a65a" {OUT}/>'
@@ -362,6 +363,12 @@ def cat():
             f'<path class="st-cat-shut" d="M-14 -2 q4 4 8 0 M4 -2 q4 4 8 0" stroke="{LINE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
             f'<g class="st-cat-peek" opacity="0"><path d="M-14 -2 q4 4 8 0" stroke="{LINE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
             f'<circle cx="8" cy="-2" r="3.4" fill="{LINE}"/><circle cx="9" cy="-3" r="1" fill="#fff"/></g>'
+            # 醒着：两只绿眼睛，竖瞳略朝左（看着屋里的小单），眨眼时整组压扁
+            '<g class="st-cat-open" opacity="0"><g class="st-cat-eyes">'
+            + "".join(f'<ellipse cx="{x}" cy="-3" rx="4.6" ry="5.2" fill="#a8d86e" stroke="{LINE}" stroke-width="1.8"/>'
+                      f'<ellipse class="st-cat-pupil" cx="{x - 1}" cy="-3" rx="1.6" ry="3.8" fill="{LINE}"/>'
+                      f'<circle cx="{x + 1.4}" cy="-5" r="1.1" fill="#fff"/>' for x in (-10, 9))
+            + '</g></g>'
             f'<path d="M-2 6 l2 2 l2 -2" stroke="{LINE}" stroke-width="2" fill="#ff9ba3" stroke-linejoin="round"/>'
             '<ellipse cx="-14" cy="5" rx="4.5" ry="2.6" fill="#ff9ba3" opacity=".8"/><ellipse cx="14" cy="5" rx="4.5" ry="2.6" fill="#ff9ba3" opacity=".8"/>'
             '<path d="M-24 6 h-10 M-24 10 l-9 3 M24 6 h10 M24 10 l9 3" stroke="#c98b55" stroke-width="1.4" stroke-linecap="round"/></g>'
@@ -505,11 +512,14 @@ def chair_seat():
 
 
 def legs():
-    """转过来正对我们时才看得到的两条腿：从坐垫前沿垂下来，脚踩在底座上（背对我们时被身子挡着）。"""
-    pen = f'color="{INK}" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" fill="none"'
-    x = 570
+    """转过来正对我们时才看得到的两条腿：从身子底下伸出来、搭过坐垫前沿，膝盖一弯，小腿垂下，脚上一双鞋踩在椅子底座前面。
+    画在坐垫上面（不在椅子那组里），位置由 site.js 跟着身子算；背对我们时被身子挡着、不显示。"""
+    pen = f'color="{INK}" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+    shoe = lambda side: (f'<g class="st-shoe-{side}"><path d="M-12 0 Q-12 -9 0 -9 Q14 -9 15 0 Z" fill="#5b86d6" stroke="currentColor" stroke-width="2.6"/>'
+                         '<path d="M-12 0 H15" stroke="currentColor" stroke-width="2.6"/></g>')
     return (f'<g class="st-legs" opacity="0" {pen} filter="url(#st-pencil)">'
-            f'<path class="st-leg-l" d="M{x - 34} 600 L{x - 42} 662 h-18"/><path class="st-leg-r" d="M{x + 34} 600 L{x + 42} 662 h18"/></g>')
+            '<path class="st-leg-l" d="M540 538 Q534 556 530 600"/><path class="st-leg-r" d="M600 538 Q606 556 610 600"/>'
+            f'{shoe("l")}{shoe("r")}</g>')
 
 
 def zigzag(top=-100, half=39):
@@ -612,7 +622,9 @@ def svg(L, rows):
 {arm("l", (466, 400))}{arm("r", (740, 392))}
 <g transform="{CHAIR}" filter="url(#st-pencil)">{chair_back("st-chair2", 0)}</g>
 {mascot()}
-<g transform="{CHAIR}"><g filter="url(#st-pencil)">{chair_seat()}</g>{legs()}<g filter="url(#st-pencil)">{chair_back()}</g></g>
+<g transform="{CHAIR}" filter="url(#st-pencil)">{chair_seat()}</g>
+{legs()}
+<g transform="{CHAIR}" filter="url(#st-pencil)">{chair_back()}</g>
 <g class="st-props">{paper_back("st-held", 50, 64, ' opacity="0"')}{phone_up()}</g>
 <g class="st-fx">{effects()}{stream()}{burst()}{flying}{chips}</g>
 <path class="st-night" d="{night}" fill-rule="evenodd" fill="#1a2142" opacity="0"/>
