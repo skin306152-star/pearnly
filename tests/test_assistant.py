@@ -1,8 +1,10 @@
-"""智能体底座（ADR-019）的离线检查：纯约定、工具声明与智能体定义同源、按密钥自动建智能体不重复建。
+"""智能体底座（ADR-019）的离线检查：纯约定、引擎目录与适配器、工具声明与智能体说明同源、
+按设置自动备好远端资源不重复建、管理后台的设置校验。
 
-不连库、不连 Anthropic：Frappe 与 SDK 用最小替身。
+不连库、不连厂商：Frappe 与 SDK 用最小替身。
 """
 import importlib.util
+import inspect
 import json
 import pathlib
 import re
@@ -12,6 +14,8 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CORE = ROOT / "apps/pearnly_core/pearnly_core"
+CONTROL = ROOT / "apps/pearnly_control/pearnly_control"
+KEY = "sk-ant-api03-" + "x" * 40
 
 
 def _load(name, path):
@@ -26,7 +30,7 @@ contracts = _load("assistant_contracts", CORE / "assistant/contracts.py")
 
 
 class _Frappe(types.ModuleType):
-    """够 tools / definition / provision 导入与运行的最小 frappe。"""
+    """够 config / tools / definition / engine 与控制面设置校验导入、运行的最小 frappe。"""
 
     class ValidationError(Exception):
         pass
@@ -36,7 +40,7 @@ class _Frappe(types.ModuleType):
 
     def __init__(self):
         super().__init__("frappe")
-        self.conf = {"pearnly_product": "erp", "pearnly_assistant_api_key": "sk-ant-test"}
+        self.conf = {}
         self.hooks = []
         self.local = types.SimpleNamespace(site="t1.example", lang="th")
         self.session = types.SimpleNamespace(user="a@example.com")
@@ -67,37 +71,69 @@ class _Frappe(types.ModuleType):
     def throw(self, message, exc=None):
         raise (exc or self.ValidationError)(message)
 
+    def whitelist(self, *args, **kwargs):
+        return lambda fn: fn
+
+    def only_for(self, role):
+        return None
+
     @staticmethod
     def _(text):
         return text
 
 
+class _Sdk(types.ModuleType):
+    """`anthropic` 替身：`Anthropic(...)` 交回测试放进去的假账号。"""
+
+    def __init__(self):
+        super().__init__("anthropic")
+        self.api = None
+        self.APIStatusError = type("APIStatusError", (Exception,), {"status_code": 500})
+
+    def Anthropic(self, **kwargs):
+        self.api.kwargs = kwargs
+        return self.api
+
+
 def _install_fakes():
-    frappe = _Frappe()
-    sys.modules["frappe"] = frappe
-    sys.modules["anthropic"] = types.SimpleNamespace(Anthropic=object, APIStatusError=Exception)
+    frappe, sdk = _Frappe(), _Sdk()
+    sys.modules["frappe"], sys.modules["anthropic"] = frappe, sdk
     for name in ("pearnly_core", "pearnly_core.assistant"):
         sys.modules[name] = types.ModuleType(name)
-    for part in ("config", "tools", "definition", "client", "provision"):
+    engines = _load("pearnly_core.assistant.engines", CORE / "assistant/engines/__init__.py")
+    sys.modules["pearnly_core.assistant"].engines = engines
+    for part in ("base", "anthropic_managed_agents"):
+        setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
+    for part in ("config", "tools", "definition", "engine"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
-    return frappe
+    return frappe, sdk
 
 
-frappe = _install_fakes()
+frappe, sdk = _install_fakes()
+engines = sys.modules["pearnly_core.assistant.engines"]
+claude = sys.modules["pearnly_core.assistant.engines.anthropic_managed_agents"]
+config = sys.modules["pearnly_core.assistant.config"]
 tools = sys.modules["pearnly_core.assistant.tools"]
 definition = sys.modules["pearnly_core.assistant.definition"]
-provision = sys.modules["pearnly_core.assistant.provision"]
+engine = sys.modules["pearnly_core.assistant.engine"]
+CLAUDE = "anthropic-managed-agents"
+
+
+def _configure(engine_code=CLAUDE, key=KEY, model=""):
+    frappe.conf = {"pearnly_product": "erp", "pearnly_assistant_engine": engine_code,
+                   "pearnly_assistant_api_key": key, "pearnly_assistant_model": model}
 
 
 class ContractTests(unittest.TestCase):
-    def test_ids(self):
+    def test_ids_are_opaque_and_safe(self):
         self.assertEqual(contracts.session_id(" sesn_011CZxAbc123 "), "sesn_011CZxAbc123")
-        for bad in ("", "sesn_", "evil/../x", "sevt_abc12345", "sesn_a b"):
+        self.assertEqual(contracts.session_id("conv-2026.10:abc"), "conv-2026.10:abc")  # 别家引擎的编号格式
+        for bad in ("", "abc", "evil/../x", "-lead", "a b", "x" * 200):
             with self.assertRaises(contracts.ContractError):
                 contracts.session_id(bad)
         with self.assertRaises(contracts.ContractError):
-            contracts.event_id("sesn_abc12345")
+            contracts.file_id("../file_x")
 
     def test_message_and_title(self):
         with self.assertRaises(contracts.ContractError):
@@ -132,9 +168,6 @@ class ContractTests(unittest.TestCase):
         for name, size in (("a.exe", 1), ("noext", 1), ("a.pdf", 0), ("a.pdf", contracts.UPLOAD_MAX_BYTES + 1)):
             with self.assertRaises(contracts.ContractError):
                 contracts.upload_name(name, size)
-        self.assertEqual(contracts.mount_path("file_abc1", "a.pdf"), "/mnt/session/uploads/file_abc1/a.pdf")
-        with self.assertRaises(contracts.ContractError):
-            contracts.file_id("../file_x")
 
     def test_answered_tool_uses(self):
         self.assertEqual(contracts.answered_tool_uses([
@@ -142,9 +175,72 @@ class ContractTests(unittest.TestCase):
             {"type": "agent.custom_tool_use", "id": "sevt_2"}]), {"sevt_1"})
 
 
+class EngineRegistryTests(unittest.TestCase):
+    """引擎只在目录登记一次；后台、站点、开通步骤都按目录走，别处不写死厂商。"""
+
+    def test_check_follows_each_engines_own_rules(self):
+        self.assertEqual(engines.check(CLAUDE, f"  {KEY} ", " "), (CLAUDE, KEY, ""))
+        self.assertEqual(engines.check(CLAUDE, KEY, "claude-sonnet-5-5")[2], "claude-sonnet-5-5")
+        for code, key, model in ((CLAUDE, "sk-proj-abc", ""), ("someone-else", KEY, ""), ("", KEY, ""),
+                                 (CLAUDE, "", ""), (CLAUDE, KEY, "bad model")):
+            with self.assertRaises(engines.EngineError):
+                engines.check(code, key, model)
+
+    def test_every_registered_engine_is_complete(self):
+        codes = [e.code for e in engines.ENGINES]
+        self.assertEqual(len(codes), len(set(codes)))
+        self.assertEqual([o["value"] for o in engines.options()], codes)
+        dockerfile = (ROOT / "infrastructure/images/frappe.Dockerfile").read_text(encoding="utf-8")
+        for e in engines.ENGINES:
+            module, _, name = e.adapter.rpartition(".")
+            adapter = getattr(sys.modules[module], name)
+            self.assertTrue(issubclass(adapter, engines.base.Adapter))
+            self.assertFalse(inspect.isabstract(adapter), f"{e.code} adapter misses part of the interface")
+            self.assertRegex(e.package, r"^[A-Za-z0-9_.-]+==[0-9][0-9.]*$")
+            self.assertIn(e.package, dockerfile, f"{e.code} SDK must be pinned in the runtime image")
+
+    def test_registry_and_contracts_stay_pure(self):
+        for path in (CORE / "assistant/engines/__init__.py", CORE / "assistant/engines/base.py",
+                     CORE / "assistant/contracts.py"):
+            source = path.read_text(encoding="utf-8")
+            self.assertNotRegex(source, r"(?m)^\s*(import|from)\s+(frappe|anthropic)\b", path.name)
+
+    def test_no_vendor_is_hardcoded_outside_its_adapter(self):
+        vendor = re.compile(r"anthropic|sk-ant|claude-", re.I)
+        shared = [p for p in (CORE / "assistant").rglob("*.py") if p.parent.name != "engines"]
+        shared += [CORE / "assistant/engines/base.py", CONTROL / "onboarding/assistant.py",
+                   CONTROL / "public/js/assistant_settings.js", CONTROL / "provisioning.py", CONTROL / "issues.py",
+                   CONTROL / "pearnly_control/doctype/pearnly_tenant/pearnly_tenant.py"]
+        for path in shared:
+            self.assertIsNone(vendor.search(path.read_text(encoding="utf-8")), str(path.relative_to(ROOT)))
+        step = (ROOT / "infrastructure/production/site-step.py").read_text(encoding="utf-8")
+        branch = step.split('elif action == "set_assistant":', 1)[1].split("elif action", 1)[0]
+        self.assertIsNone(vendor.search(branch))
+        for doctype in ("pearnly_tenant", "pearnly_issue"):
+            meta = (CONTROL / f"pearnly_control/doctype/{doctype}/{doctype}.json").read_text(encoding="utf-8")
+            self.assertIsNone(vendor.search(meta), doctype)
+
+
+class ConfigTests(unittest.TestCase):
+    def test_settings_come_from_the_site_and_default_the_model(self):
+        _configure()
+        s = config.settings()
+        self.assertEqual((s.engine.code, s.api_key, s.model), (CLAUDE, KEY, engines.get(CLAUDE).default_model))
+        _configure(model="claude-sonnet-5-5")
+        self.assertEqual(config.settings().model, "claude-sonnet-5-5")
+
+    def test_missing_or_unknown_settings_mean_not_set_up(self):
+        for setup in ({"engine_code": ""}, {"key": ""}, {"engine_code": "gone-vendor"}, {"key": "sk-other"}):
+            _configure(**setup)
+            with self.assertRaises(frappe.ValidationError):
+                config.settings()
+            self.assertEqual(config.engine_code(), "")
+
+
 class ToolAndDefinitionTests(unittest.TestCase):
     def setUp(self):
         frappe.hooks = []
+        _configure()
 
     def test_product_declarations_join_core_tools_and_agent_definition(self):
         product = types.ModuleType("fake_product_tools")
@@ -157,9 +253,10 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertEqual(names, sorted(names))
         self.assertIn("erp_ping", names)
         self.assertIn("pearnly_whoami", names)
-        spec = definition.spec("erp")
-        custom = [t["name"] for t in spec["tools"] if t["type"] == "custom"]
-        self.assertEqual(custom, names)  # 给模型看的工具表与服务端派发同源
+        brief = definition.brief("erp")
+        self.assertEqual([t["name"] for t in brief["tools"]], names)  # 给模型看的工具表与服务端派发同源
+        spec = claude.spec(brief, "claude-opus-5-5")
+        self.assertEqual([t["name"] for t in spec["tools"] if t["type"] == "custom"], names)
         self.assertEqual(tools.run("erp_ping", {}), ("pong", False))
         self.assertTrue(tools.run("not_declared", {})[1])
 
@@ -181,13 +278,13 @@ class ToolAndDefinitionTests(unittest.TestCase):
         english = {line.split("\t", 1)[0] for line in terms[1:] if line.strip()}
         for tool in tools.CORE_TOOLS:
             self.assertIn(tool.get("label"), english, f"{tool['name']} needs a label in the core term table")
-        spec = definition.spec("erp")
-        self.assertNotIn("label", json.dumps([t for t in spec["tools"] if t["type"] == "custom"]))
+        self.assertNotIn("label", json.dumps(definition.brief("erp")["tools"]))
 
-    def test_fingerprint_follows_the_definition(self):
-        first = definition.spec("erp")["metadata"]["pearnly_spec"]
-        self.assertEqual(first, definition.spec("erp")["metadata"]["pearnly_spec"])
-        self.assertNotEqual(first, definition.spec("dms")["metadata"]["pearnly_spec"])
+    def test_fingerprint_follows_the_definition_and_model(self):
+        first = claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"]
+        self.assertEqual(first, claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"])
+        self.assertNotEqual(first, claude.spec(definition.brief("dms"), "claude-opus-5-5")["metadata"]["pearnly_spec"])
+        self.assertNotEqual(first, claude.spec(definition.brief("erp"), "claude-sonnet-5-5")["metadata"]["pearnly_spec"])
 
 
 class _FakeApi:
@@ -217,43 +314,41 @@ class _FakeApi:
         self.beta = types.SimpleNamespace(agents=Agents(), environments=Environments())
 
 
-class ProvisionTests(unittest.TestCase):
+class PrepareTests(unittest.TestCase):
     def setUp(self):
         frappe.hooks, frappe.store = [], {}
+        _configure()
 
-    def _use(self, api):
-        sys.modules["pearnly_core.assistant.client"].client = lambda: api
+    def _prepare(self, api):
+        sdk.api = api
+        adapter = engine.adapter()
+        self.assertEqual(api.kwargs["api_key"], frappe.conf["pearnly_assistant_api_key"])
+        return engine.prepared(adapter)
 
     def test_creates_once_then_uses_the_cache(self):
         api = _FakeApi()
-        self._use(api)
-        self.assertEqual(provision.ensure(), ("agent_new", "env_new"))
+        self.assertEqual(self._prepare(api), {"agent": "agent_new", "environment": "env_new"})
         self.assertEqual(len(api.created), 2)
-        self._use(_FakeApi())
-        self.assertEqual(provision.ensure(), ("agent_new", "env_new"))  # 缓存命中，不再建
+        self.assertEqual(api.created[0]["model"]["id"], engines.get(CLAUDE).default_model)
+        self.assertEqual(self._prepare(_FakeApi()), {"agent": "agent_new", "environment": "env_new"})  # 缓存命中
 
     def test_reuses_the_existing_agent_and_updates_a_stale_definition(self):
-        spec = definition.spec("erp")
+        spec = claude.spec(definition.brief("erp"), engines.get(CLAUDE).default_model)
         stale = types.SimpleNamespace(id="agent_old", metadata={**spec["metadata"], "pearnly_spec": "old"})
         other = types.SimpleNamespace(id="agent_dms", metadata={**spec["metadata"], "pearnly_product": "dms"})
-        env = types.SimpleNamespace(id="env_old", name=definition.ENVIRONMENT_NAME)
+        env = types.SimpleNamespace(id="env_old", name=claude.ENVIRONMENT["name"])
         api = _FakeApi(agents=[other, stale], environments=[env])
-        self._use(api)
-        self.assertEqual(provision.ensure(), ("agent_old", "env_old"))
+        self.assertEqual(self._prepare(api), {"agent": "agent_old", "environment": "env_old"})
         self.assertEqual(api.updated, ["agent_old"])
         self.assertEqual(api.created, [])
 
-    def test_a_new_key_does_not_reuse_another_accounts_ids(self):
-        self._use(_FakeApi())
-        provision.ensure()
-        frappe.conf["pearnly_assistant_api_key"] = "sk-ant-other"
-        try:
-            api = _FakeApi(agents=[], environments=[])
-            self._use(api)
-            provision.ensure()
-            self.assertEqual(len(api.created), 2)
-        finally:
-            frappe.conf["pearnly_assistant_api_key"] = "sk-ant-test"
+    def test_a_new_key_or_model_prepares_again(self):
+        self._prepare(_FakeApi())
+        for change in ({"key": "sk-ant-api03-" + "y" * 40}, {"model": "claude-sonnet-5-5"}):
+            _configure(**change)
+            api = _FakeApi()
+            self._prepare(api)
+            self.assertEqual(len(api.created), 2, change)
 
 
 class PageTests(unittest.TestCase):
@@ -289,8 +384,60 @@ class BrandAndLoginTests(unittest.TestCase):
         self.assertIn("pearnly_core.identity.begin_login?redirect_to=/assistant", page)
 
 
-class ControlPlaneKeyTests(unittest.TestCase):
-    """密钥由租户管理后台填写、可改可换，经开通步骤推到站点（ADR-019）。"""
+class _Doc(types.SimpleNamespace):
+    """开户单 / 租户表单替身：`stored` 是库里那份密钥，`before` 是保存前的字段。"""
+
+    def __init__(self, new=False, stored="", before=None, **fields):
+        super().__init__(flags=types.SimpleNamespace(),
+                         **{"assistant_engine": "", "assistant_model": "", "assistant_api_key": "", **fields})
+        self._new, self._stored, self._before = new, stored, before or {}
+
+    def is_new(self):
+        return self._new
+
+    def get(self, field):
+        return getattr(self, field, None)
+
+    def get_password(self, field, raise_exception=True):
+        return self._stored
+
+    def has_value_changed(self, field):
+        return self._before.get(field, "") != (getattr(self, field) or "")
+
+
+settings = _load("control_assistant_settings", CONTROL / "onboarding/assistant.py")
+
+
+class ControlPlaneSettingsTests(unittest.TestCase):
+    """引擎、模型、密钥由租户管理后台填写、可改可换，经开通步骤推到站点（ADR-019）。"""
+
+    def test_validation_follows_the_engine_registry(self):
+        settings.validate(_Doc(new=True))  # 三项全空：不开通
+        ok = _Doc(new=True, assistant_engine=CLAUDE, assistant_api_key=KEY)
+        settings.validate(ok)
+        self.assertTrue(ok.flags.assistant_changed)
+        self.assertEqual(settings.read(ok), {"engine": CLAUDE, "model": "", "api_key": KEY})
+        for bad in (_Doc(new=True, assistant_api_key=KEY), _Doc(new=True, assistant_engine=CLAUDE),
+                    _Doc(new=True, assistant_engine=CLAUDE, assistant_api_key="sk-other-1234567890123456789"),
+                    _Doc(new=True, assistant_engine="gone-vendor", assistant_api_key=KEY)):
+            with self.assertRaises(frappe.ValidationError):
+                settings.validate(bad)
+
+    def test_saved_key_is_read_back_and_same_length_rotation_is_noticed(self):
+        masked = "*" * len(KEY)
+        kept = _Doc(stored=KEY, assistant_engine=CLAUDE, assistant_api_key=masked,
+                    before={"assistant_engine": CLAUDE, "assistant_api_key": masked})
+        settings.validate(kept)
+        self.assertFalse(kept.flags.assistant_changed)
+        self.assertEqual(settings.read(kept)["api_key"], KEY)
+        rotated = _Doc(stored=KEY, assistant_engine=CLAUDE, assistant_api_key="sk-ant-api03-" + "z" * 40,
+                       before={"assistant_engine": CLAUDE, "assistant_api_key": masked})
+        settings.validate(rotated)
+        self.assertTrue(rotated.flags.assistant_changed)
+        model = _Doc(stored=KEY, assistant_engine=CLAUDE, assistant_model="claude-sonnet-5-5",
+                     assistant_api_key=masked, before={"assistant_engine": CLAUDE, "assistant_api_key": masked})
+        settings.validate(model)
+        self.assertTrue(model.flags.assistant_changed)
 
     def test_production_agent_accepts_the_step(self):
         spec = importlib.util.spec_from_file_location("provision_agent", ROOT / "infrastructure/production/provision-agent.py")
@@ -300,24 +447,34 @@ class ControlPlaneKeyTests(unittest.TestCase):
                                                        "tenant": "T-2026-1", "deployment": "DEP-2026-1"}}
         self.assertEqual(agent.validate(job)[0], "set_assistant")
 
-    def test_site_step_writes_only_the_assistant_key(self):
+    def test_site_step_checks_with_the_registry_and_writes_only_assistant_settings(self):
         source = (ROOT / "infrastructure/production/site-step.py").read_text(encoding="utf-8")
         branch = source.split('elif action == "set_assistant":', 1)[1].split("elif action", 1)[0]
-        self.assertIn("config(pearnly_assistant_api_key=key)", branch)
+        self.assertIn("engines.check(", branch)
+        self.assertIn("config(pearnly_assistant_engine=engine, pearnly_assistant_model=model, "
+                      "pearnly_assistant_api_key=key)", branch)
         self.assertNotIn("restart", branch)
 
-    def test_plan_requeue_and_onboarding_carry_the_key(self):
-        control = ROOT / "apps/pearnly_control/pearnly_control"
-        plan = (control / "provisioning.py").read_text(encoding="utf-8")
+    def test_plan_requeue_and_onboarding_carry_the_settings(self):
+        plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
         self.assertLess(plan.index('f"{dep.name}:set_assistant"'), plan.index('f"{dep.name}:bind_user"'))
         self.assertIn("def queue_assistant_config(tenant", plan)
-        tenant = (control / "pearnly_control/doctype/pearnly_tenant/pearnly_tenant.py").read_text(encoding="utf-8")
-        self.assertIn('has_value_changed("assistant_api_key")', tenant)
-        self.assertIn('get_password("assistant_api_key"', (control / "issues.py").read_text(encoding="utf-8"))
+        tenant = (CONTROL / "pearnly_control/doctype/pearnly_tenant/pearnly_tenant.py").read_text(encoding="utf-8")
+        self.assertIn("assistant.validate(self)", tenant)
+        self.assertIn("self.flags.assistant_changed", tenant)
+        issue = (CONTROL / "pearnly_control/doctype/pearnly_issue/pearnly_issue.py").read_text(encoding="utf-8")
+        self.assertIn("assistant.validate(self)", issue)
+        self.assertIn("assistant.read(doc)", (CONTROL / "issues.py").read_text(encoding="utf-8"))
+        hooks = (CONTROL / "hooks.py").read_text(encoding="utf-8")
+        for doctype in ("Pearnly Tenant", "Pearnly Issue"):
+            self.assertIn(f'"{doctype}": "public/js/assistant_settings.js"', hooks)
         for doctype in ("pearnly_tenant", "pearnly_issue"):
-            meta = json.loads((control / f"pearnly_control/doctype/{doctype}/{doctype}.json").read_text(encoding="utf-8"))
-            field = next(f for f in meta["fields"] if f["fieldname"] == "assistant_api_key")
-            self.assertEqual(field["fieldtype"], "Password")
+            meta = json.loads((CONTROL / f"pearnly_control/doctype/{doctype}/{doctype}.json").read_text(encoding="utf-8"))
+            fields = {f["fieldname"]: f for f in meta["fields"]}
+            self.assertEqual(fields["assistant_api_key"]["fieldtype"], "Password")
+            self.assertEqual(fields["assistant_model"]["fieldtype"], "Data")
+            self.assertEqual(fields["assistant_engine"]["fieldtype"], "Select")
+            self.assertNotIn("options", fields["assistant_engine"])  # 选项来自引擎目录，不写死在表单定义里
 
 
 if __name__ == "__main__":

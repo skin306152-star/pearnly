@@ -18,14 +18,15 @@
 | 部分 | 位置 |
 | --- | --- |
 | 纯约定 | `apps/pearnly_core/pearnly_core/assistant/contracts.py` |
-| 配置（产品、密钥） | `assistant/config.py`；站点键 `pearnly_assistant_api_key` 已登记在 `architecture-policy.json` |
-| 智能体定义 / 按密钥自动建 | `assistant/definition.py`、`assistant/provision.py` |
+| 引擎目录与适配器 | `assistant/engines/__init__.py`（唯一登记处）、`engines/base.py`（接口）、`engines/anthropic_managed_agents.py`（首家） |
+| 配置（产品、引擎、模型、密钥） | `assistant/config.py`；站点键 `pearnly_assistant_engine / _model / _api_key` 已登记在 `architecture-policy.json` |
+| 智能体说明 / 按设置自动备好远端 | `assistant/definition.py`（与厂商无关）、`assistant/engine.py`（取适配器 + 缓存） |
 | 工具声明与派发 | `assistant/tools.py`；产品经 `hooks.py` 的 `pearnly_assistant_tools` 声明 |
 | 会话归属与读写、接口 | `assistant/sessions.py`、`assistant/api.py` |
 | 表 | `Pearnly Assistant Session`、`Pearnly Assistant Tool Run`（Core，仅 System Manager 可读） |
 | 页面 | `apps/pearnly_core/pearnly_core/www/assistant.{html,py}` → `/assistant` |
 | 前端 | `frontend/assistant/`（产物 `pearnly_core/public/assistant/`，不入库） |
-| 依赖 | `frappe.Dockerfile` 新增 `anthropic==1.8.0`；版本矩阵已登记 |
+| 依赖 | `frappe.Dockerfile` 新增 `anthropic==1.8.0`（引擎目录登记的首家 SDK）；版本矩阵已登记 |
 | CI | `development.yml`：`tests/test_assistant.py`、前端类型检查与构建；`build-production.yml`：构建前端、镜像内核对产物与 SDK 版本 |
 | 架构守卫 | `check-architecture.py`：React 只允许在 `frontend/assistant` |
 
@@ -60,10 +61,25 @@
 逐字流式仍按 ADR-019 放到真实环境接通、实时推送验证之后。
 界面均在本机「界面预览」（真实前端 + 假后端，不进仓库）里点过：拖入附件、发送、右侧面板自动打开并预览网页 / 表格、加星标、重命名、用户菜单、手机宽度。
 
+## 引擎与密钥框架（2026-10-10，同一分支）
+
+用户：「请你先把密钥框架搭建好，任何可扩展可维护的框架不要写死」。原先管理后台字段叫「Anthropic API Key」、开通步骤写死 `sk-ant-` 前缀、站点直接调 Anthropic SDK，改为：
+
+| 层 | 现在 |
+| --- | --- |
+| 引擎目录 | `pearnly_core.assistant.engines.ENGINES`：代码、显示名、适配器、密钥格式、默认模型、镜像依赖。全平台唯一登记处，纯数据 |
+| 站点 | 会话、文件、工具结果只经适配器接口；会话表记 `engine_code`，换了引擎只列当前引擎的会话；对话页只认统一对话事件 |
+| 管理后台 | 开户单与租户表单：「Assistant Engine」（下拉，选项取自引擎目录）、「Assistant Model」（留空用默认，输入框提示默认模型）、「Assistant API Key」；保存时按目录校验；同长度换密钥也能识别为变更并重排推送 |
+| 开通步骤 | `set_assistant` 载荷带引擎、模型、密钥；站点写配置前按同一目录再校验，只写配置不重启 |
+| 守卫 | 离线测试逐家检查适配器接口完整、SDK 已在镜像锁定；共用层、控制面、开通步骤、表单定义里出现厂商名或密钥前缀即失败 |
+
+新接一家：`engines/` 加适配器模块 + 目录一行 + 镜像锁定 SDK；后台、站点、开通步骤无需改动。
+
 ## 已知限制
 
 - 实时进度是轮询，回复整段到达；改站点实时通道转发需先做并发验证（ADR-019）。
-- 工具由浏览器提醒服务端执行，页面关闭则不执行；做「下班用手机派活」之前要改成 Anthropic 回调触发。
+- 工具由浏览器提醒服务端执行，页面关闭则不执行；做「下班用手机派活」之前要改成引擎回调触发（作为适配器可选能力）。
+- 同一引擎换成另一个账号的密钥时，旧会话在新账号里读不到（换引擎则旧会话不再列出）。
 - 工具执行记录若停在 `running`（执行中进程崩溃），当前不会自动重试，后续加超时回收。
 
 ## 下一步

@@ -1,5 +1,5 @@
 // 本站白名单方法的调用（站点会话登录；写操作带 www/assistant 注入的 CSRF 令牌）。
-// 浏览器从不直接连 Anthropic：密钥只在服务端。
+// 浏览器从不直接连模型厂商：引擎与密钥只在服务端。
 
 const BASE = "/api/method/pearnly_core.assistant.api.";
 

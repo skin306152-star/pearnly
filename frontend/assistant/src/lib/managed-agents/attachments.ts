@@ -1,7 +1,7 @@
 // 输入框附件（「+」按钮、拖进来、粘贴截图都走这里）。
 //
 // 选中文件时先确保有会话（新对话会在这一步建会话），再交给本站：服务端校验类型和大小、HEIC 转 JPEG、
-// 存进 Anthropic 文件库并只读挂进该会话的沙箱。随消息带过去的只是沙箱里的路径，智能体自己去读。
+// 交给当前引擎放进该会话。随消息带过去的只是智能体读取它的位置，智能体自己去读。
 // 改自 Anthropic 官方示例的 attachments.ts（MIT，见 NOTICE.md）。
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";

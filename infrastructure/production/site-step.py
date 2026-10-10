@@ -396,10 +396,14 @@ def main():
             # LINE 绑定即登录：渠道带了 LINE Login 频道密钥才开；没带就关（站点侧回落密码登录）。
             config(pearnly_line_login_idp=line_login(p, group, runtime))
     elif action == "set_assistant":
-        # 智能体（ADR-019）：本租户的 Anthropic 密钥由租户管理后台填写、可改可换；空值即未开通。
-        key = (p.get("api_key") or "").strip() if p.get("configured") else ""
-        assert not key or key.startswith("sk-ant-")
-        config(pearnly_assistant_api_key=key)
+        # 智能体（ADR-019）：引擎、模型与密钥由租户管理后台填写、可改可换；空值即未开通。
+        # 按引擎目录再校验一遍（与后台同一份规则），不在这里写死任何厂商。
+        from pearnly_core.assistant import engines
+
+        engine = model = key = ""
+        if p.get("configured"):
+            engine, key, model = engines.check(p.get("engine"), p.get("api_key"), p.get("model"))
+        config(pearnly_assistant_engine=engine, pearnly_assistant_model=model, pearnly_assistant_api_key=key)
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()

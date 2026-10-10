@@ -9,6 +9,7 @@
   "session_id",
   "user",
   "product",
+  "engine_code",
   "title",
   "starred",
   "archived"
@@ -39,6 +40,13 @@
    "reqd": 1
   },
   {
+   "fieldname": "engine_code",
+   "fieldtype": "Data",
+   "label": "Engine",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Title",
@@ -61,7 +69,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-10 00:00:00.000000",
+ "modified": "2026-10-10 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",

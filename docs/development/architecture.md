@@ -132,7 +132,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 ### 智能体底座（ADR-019，2026-10-10）
 
-`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`config` 读本站密钥与产品；`provision` 按密钥在所属 Anthropic 账号里确保本产品的智能体与运行环境；`definition` 从工具声明生成智能体定义；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。产品不得在自己 App 里另起会话或直连 Anthropic；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
+`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`engines` 是引擎目录（唯一登记处，纯数据）与适配器接口 `engines/base.py`，各厂商实现放 `engines/<code>.py`；`config` 读本站的引擎、模型、密钥与产品；`engine` 取当前适配器并缓存其远端资源；`definition` 从工具声明生成与厂商无关的智能体说明；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。产品不得在自己 App 里另起会话或直连模型厂商，共用层除适配器外不得出现厂商名、密钥格式或模型名；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
 
 ### 操作员提成归属的读取边界（2026-09-20）
 

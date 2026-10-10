@@ -1,12 +1,13 @@
 """智能体对话的纯约定（ADR-019）：编号、消息、批准与事件增量的校验。
 
 不依赖 Frappe、网络或 SDK，离线测试直接加载本文件。会话归谁、能不能看，由 `sessions` 按
-站点数据库判定；这里只保证进出的形状不越界。
+站点数据库判定；这里只保证进出的形状不越界。编号由引擎生成，各家格式不同，这里只限定为安全的不透明字符串；
+事件沿用统一对话事件的形状（见 `engines.base`）。
 """
 import re
 
-SESSION_ID = re.compile(r"^sesn_[A-Za-z0-9_-]{4,128}$")
-EVENT_ID = re.compile(r"^sevt_[A-Za-z0-9_-]{4,128}$")
+# 会话、事件、文件编号：引擎生成的不透明编号。
+OPAQUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
 TITLE_MAX = 60
 TEXT_MAX = 20_000
 DENY_MAX = 2_000
@@ -17,7 +18,6 @@ TAIL_MAX = 500
 UPLOAD_MAX_BYTES = 30 * 1024 * 1024
 UPLOAD_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif", ".pdf",
                                ".xlsx", ".xls", ".csv", ".tsv", ".docx", ".txt", ".md", ".json"})
-FILE_ID = re.compile(r"^file_[A-Za-z0-9_-]{4,128}$")
 
 
 class ContractError(ValueError):
@@ -26,14 +26,14 @@ class ContractError(ValueError):
 
 def session_id(value) -> str:
     text = str(value or "").strip()
-    if not SESSION_ID.match(text):
+    if not OPAQUE_ID.match(text):
         raise ContractError("invalid session id")
     return text
 
 
 def event_id(value) -> str:
     text = str(value or "").strip()
-    if not EVENT_ID.match(text):
+    if not OPAQUE_ID.match(text):
         raise ContractError("invalid event id")
     return text
 
@@ -110,13 +110,8 @@ def upload_name(filename, size) -> str:
     return safe[:120] + ext
 
 
-def mount_path(file_id, filename) -> str:
-    """附件在沙箱里的位置：按文件编号分目录，同名文件不互相覆盖；最后一段保留可读的名字。"""
-    return f"/mnt/session/uploads/{file_id}/{filename}"
-
-
 def file_id(value) -> str:
     text = str(value or "").strip()
-    if not FILE_ID.match(text):
+    if not OPAQUE_ID.match(text):
         raise ContractError("invalid file id")
     return text

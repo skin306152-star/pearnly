@@ -16,9 +16,11 @@ Amount must be greater than 0,จำนวนเงินต้องมาก�
 An adjustment cannot be 0,ยอดปรับต้องไม่เป็น 0
 An adjustment must have a reason,การปรับยอดต้องระบุเหตุผล
 An employee identity is used by another tenant; review it before deleting this tenant,มีบัญชีพนักงานที่ใช้งานในพื้นที่ทำงานอื่น กรุณาตรวจสอบก่อนลบพื้นที่ทำงานนี้
-Anthropic API Key,คีย์ API ของ Anthropic
 Approve and credit,อนุมัติและบันทึกเข้าบัญชี
 Approve top-up,อนุมัติการเติมเงิน
+Assistant API Key,คีย์ API ของผู้ช่วย
+Assistant Engine,เอนจินผู้ช่วย
+Assistant Model,โมเดลผู้ช่วย
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,เมื่อเปิดใช้งาน ระบบจะสร้างบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานและมอบสิทธิ์ให้ เว้นว่างหมายถึงฟีเจอร์นี้ไม่ต้องควบคุมสิทธิ์ (เช่น หน้าหลัก)
 Balance (THB),ยอดคงเหลือ (บาท)
 Balance After,ยอดคงเหลือหลังเปลี่ยนแปลง
@@ -97,6 +99,7 @@ Enable HTTPS access,เปิดการเข้าถึงผ่าน HTTPS
 Enabled Features,ฟีเจอร์ที่เปิดใช้
 Enabled — {0} steps,เปิดใช้งานแล้ว ({0} ขั้นตอน)
 Enforcement,การควบคุมสิทธิ์
+Enter the assistant API key.,โปรดกรอกคีย์ API ของผู้ช่วย
 External Reference,เลขที่อ้างอิงภายนอก
 Failed,ไม่สำเร็จ
 Feature,ฟีเจอร์
@@ -247,6 +250,7 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,แถ�
 Row {0}: a LINE channel needs both the channel secret and the access token,แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง channel secret และ access token
 Run provisioning,เริ่มเปิดใช้งาน
 Running,กำลังดำเนินการ
+Select the assistant engine.,โปรดเลือกเอนจินผู้ช่วย
 Service URL is required,ต้องระบุที่อยู่บริการ
 Set up OCR,ตั้งค่า OCR
 Set up the LINE channel,ตั้งค่าช่องทาง LINE
@@ -283,7 +287,8 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 "The URL to paste into the LINE console, derived from the deployment domain.",ที่อยู่สำหรับกรอกในหน้าจัดการ LINE สร้างจากโดเมนของการติดตั้ง
 The address this tenant is reached at.,ที่อยู่ที่เข้าถึงผู้เช่ารายนี้
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)
-The assistant key is being applied. Try again shortly.,กำลังส่งคีย์ผู้ช่วย โปรดลองอีกครั้งในอีกสักครู่
+"The assistant engine, model or API key is not valid.",เอนจิน โมเดล หรือคีย์ API ของผู้ช่วยไม่ถูกต้อง
+The assistant settings are being applied. Try again shortly.,กำลังส่งการตั้งค่าผู้ช่วย โปรดลองอีกครั้งในอีกสักครู่
 The balance could not be read; this is not 'insufficient balance',ไม่สามารถอ่านยอดคงเหลือได้
 The billing reference was already used for another request,เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",ใช้ค่าเดียวกับโดเมนของการติดตั้ง

@@ -1,6 +1,9 @@
 // Types shared by the server routes and the browser reducer. These are pure
 // type re-exports (erased at build time), so importing them client-side pulls
 // none of the SDK into the bundle.
+//
+// 这就是站点交给对话页的统一对话事件（沿用 Managed Agents 事件格式，见 pearnly_core/assistant/engines/base.py）：
+// 换引擎时由服务端适配器翻译成这一种，对话页不改。
 import type {
   BetaManagedAgentsSessionEvent,
   BetaManagedAgentsStreamSessionEvents,

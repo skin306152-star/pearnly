@@ -16,9 +16,11 @@ Amount must be greater than 0,Amount must be greater than 0
 An adjustment cannot be 0,An adjustment cannot be 0
 An adjustment must have a reason,An adjustment must have a reason
 An employee identity is used by another tenant; review it before deleting this tenant,An employee identity is used by another tenant; review it before deleting this tenant
-Anthropic API Key,Anthropic API Key
 Approve and credit,Approve and credit
 Approve top-up,Approve top-up
+Assistant API Key,Assistant API Key
+Assistant Engine,Assistant Engine
+Assistant Model,Assistant Model
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).
 Balance (THB),Balance (THB)
 Balance After,Balance After
@@ -97,6 +99,7 @@ Enable HTTPS access,Enable HTTPS access
 Enabled Features,Enabled Features
 Enabled — {0} steps,Enabled — {0} steps
 Enforcement,Enforcement
+Enter the assistant API key.,Enter the assistant API key.
 External Reference,External Reference
 Failed,Failed
 Feature,Feature
@@ -244,6 +247,7 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,Row {0}
 Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Run provisioning,Run provisioning
 Running,Running
+Select the assistant engine.,Select the assistant engine.
 Service URL is required,Service URL is required
 Set up OCR,Set up OCR
 Set up the LINE channel,Set up the LINE channel
@@ -280,7 +284,8 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 "The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
 The address this tenant is reached at.,The address this tenant is reached at.
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)
-The assistant key is being applied. Try again shortly.,The assistant key is being applied. Try again shortly.
+"The assistant engine, model or API key is not valid.","The assistant engine, model or API key is not valid."
+The assistant settings are being applied. Try again shortly.,The assistant settings are being applied. Try again shortly.
 The balance could not be read; this is not 'insufficient balance',The balance could not be read; this is not 'insufficient balance'
 The billing reference was already used for another request,The billing reference was already used for another request
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.","The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value."

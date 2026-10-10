@@ -29,19 +29,25 @@
 1. **落位：共用层 `pearnly_core.assistant`**（与身份、OCR 同类的跨产品底座）。产品只**声明**自己的工具：`hooks.py` 里 `pearnly_assistant_tools = ["<app>.<module>.TOOLS"]`，每条声明含 `name / description / input_schema / handler`（ADR-009 的「产品自己声明」）。
 2. **入口**：每个产品的租户站点提供 `/assistant`（`pearnly_core/www/assistant`），登录就是本站会话（后台开户账号经 Keycloak 登录）；没有 `pearnly_product` 的站点（本机管理后台）拒绝。
 3. **隔离**
-   - 租户：站点即租户。会话归属记在本站表 `Pearnly Assistant Session`，接口先按「本站 + 当前用户」核对归属再碰 Anthropic；会话列表只读本站表。Anthropic 侧会话带 `pearnly_site / pearnly_product / pearnly_user` 元数据，仅作追溯。
+   - 租户：站点即租户。会话归属记在本站表 `Pearnly Assistant Session`，接口先按「本站 + 当前用户 + 当前引擎」核对归属再碰厂商服务；会话列表只读本站表。引擎侧会话带 `pearnly_site / pearnly_product / pearnly_user` 元数据，仅作追溯。
    - 用户权限、套账、数据范围：工具在服务端以当前登录用户身份执行，只调用产品已有服务（沿用其校验），业务拒绝作为 `is_error` 结果交回模型。工具名和参数由服务端从会话里读回，不信浏览器。
    - 幂等与审计：每次工具调用按唯一 `tool_use_id` 记一条 `Pearnly Assistant Tool Run`，同一调用只执行一遍。
-4. **密钥与智能体配置**：`pearnly_assistant_api_key` 由**租户管理后台**在开户时写入、之后可改可换，经开通执行器推到站点（与 LINE 凭据同一条链路，后续批次实现）；用户不接触。智能体与运行环境**不需要人工配置**：站点按「密钥指纹 + 定义指纹」在该密钥所属账号中查找、缺则建、定义变了则更新（`provision`），换密钥 / 换账号无需手工步骤，同一账号同一产品只有一个智能体。
+4. **引擎、模型与密钥**：站点配置 `pearnly_assistant_engine / pearnly_assistant_model / pearnly_assistant_api_key` 由**租户管理后台**在开户单或租户表单填写、之后可改可换，经开通步骤 `set_assistant` 推到该租户每个产品站点（与 LINE 凭据同一条链路，只写配置不重启）；用户不接触。模型留空用所选引擎的默认模型。远端资源**不需要人工配置**：站点按「引擎 + 密钥指纹 + 模型 + 智能体说明」缓存，由适配器在该账号中查找、缺则建、变了则更新（`engine.prepared`），换引擎 / 换密钥 / 换账号 / 换模型无需手工步骤。
 5. **前端**：`frontend/assistant/`（Vite + React 19 + assistant-ui，Tailwind 4），构建为静态文件放 `pearnly_core/public/assistant/`，由站点提供；**不新增 Node 服务**。PWA 清单随产物发布。会话逻辑与工具卡片改自 Anthropic 官方示例（`NOTICE.md`）。
 6. **例外范围**：React 只允许在 `frontend/assistant/`，只服务 `/assistant` 这一个入口；不得扩展成第二套普通产品 Web。
-7. **模型**：`claude-opus-5-5`，effort `medium`；内置沙箱工具开启（自动批准策略），网页搜索 / 抓取关闭，业务只经 Pearnly 工具。
+7. **引擎可换，不写死厂商**（2026-10-10 用户：「任何可扩展可维护的框架不要写死」）：
+   - 引擎目录 `pearnly_core.assistant.engines.ENGINES` 是唯一登记处：代码、显示名、适配器、密钥格式、默认模型、运行镜像依赖。管理后台下拉与保存校验、开通步骤写配置前的校验、站点取用都读它。
+   - 适配器接口 `engines/base.py`：备资源、开会话、状态、改名、归档、删除、读事件、发事件、附件、文件列表、读文件。站点的会话、文件、工具派发只经这层；对话页只认统一对话事件（沿用 Managed Agents 事件格式），别家适配器负责翻译。
+   - 智能体说明（名字、系统提示词、Pearnly 工具表）与厂商无关（`definition.brief`），适配器补自家的模型参数与自带工具。
+   - 新接一家 = 加一个适配器模块 + 目录一行 + 镜像锁定其 SDK；离线测试逐家检查接口完整、依赖已锁定，并拦截共用层、控制面与开通步骤里出现厂商名。
+   - 首家：Claude Managed Agents（默认 `claude-opus-5-5`，effort `medium`；内置沙箱工具开启、自动批准，网页搜索 / 抓取关闭，业务只经 Pearnly 工具）。
+   - 后台换了引擎，旧引擎的会话不再列出（会话表记 `engine_code`）；同一引擎换账号时旧会话在新账号里读不到，属于已知限制。
 
 ## 后果与验证
 
 - 第一版实时进度用**轮询**（会话运行中约 1.2 秒一次，空闲 6 秒，页面在后台暂停）：回复整段到达，不逐字出现。改为站点实时通道转发事件流是待验证项，验证通过前不在 gunicorn 里挂长连接。
-- 浏览器只负责提醒服务端「有待执行的工具」；页面关闭时工具不会被执行。改为 Anthropic 回调（`session.status_idled` webhook）触发服务端执行，是做「下班用手机派活、做完通知」的前置项。
-- 依赖：镜像新增 `anthropic==1.8.0`（Python）；前端依赖逐个锁定版本（`frontend/assistant/package-lock.json`）。改了共用层，合并前按「共用层候选检查」在生产镜像跑完整离线检查。
+- 浏览器只负责提醒服务端「有待执行的工具」；页面关闭时工具不会被执行。改为引擎回调（Managed Agents 为 `session.status_idled` webhook，接入时作为适配器的可选能力）触发服务端执行，是做「下班用手机派活、做完通知」的前置项。
+- 依赖：镜像按引擎目录锁定各家 SDK（首家 `anthropic==1.8.0`）；前端依赖逐个锁定版本（`frontend/assistant/package-lock.json`）。改了共用层，合并前按「共用层候选检查」在生产镜像跑完整离线检查。
 - 成本：模型 token 按量 + 会话运行时间 0.08 美元/小时，空闲不计费；无固定月费。
-- 待办（后续批次，各自记录）：控制面密钥录入与推送；附件（拍照 / 文件）接本站文件存储；对话页文案与组件内英文提示的三语化（新文案先经用户批准）；Service Worker 与推送通知；桌面端由小助手内嵌；LINE 桥接；各产品第一批业务工具。
+- 待办（后续批次，各自记录）：对话页文案与组件内英文提示的三语化（新文案先经用户批准）；Service Worker 与推送通知；桌面端由小助手内嵌；LINE 桥接；各产品第一批业务工具。
 - 回退：本功能只有新入口与新表，不改现有业务；撤掉入口与 hooks 即停用，不影响其他页面。

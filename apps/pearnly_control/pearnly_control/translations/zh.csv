@@ -16,9 +16,11 @@ Amount must be greater than 0,金额必须大于 0
 An adjustment cannot be 0,调账金额不能为 0
 An adjustment must have a reason,调账必须填写原因
 An employee identity is used by another tenant; review it before deleting this tenant,有员工身份被其他租户使用，请先核对后再删除本租户
-Anthropic API Key,Anthropic API 密钥
 Approve and credit,批准并入账
 Approve top-up,批准充值
+Assistant API Key,智能体 API 密钥
+Assistant Engine,智能体引擎
+Assistant Model,智能体模型
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,开通时在租户站点创建并授予该角色。留空表示该功能无需权限控制（例如首页）。
 Balance (THB),余额（泰铢）
 Balance After,变动后余额
@@ -97,6 +99,7 @@ Enable HTTPS access,开启 HTTPS 访问
 Enabled Features,已开通功能
 Enabled — {0} steps,已开通（{0} 步）
 Enforcement,权限控制
+Enter the assistant API key.,请填写智能体 API 密钥。
 External Reference,外部单号
 Failed,失败
 Feature,功能
@@ -247,6 +250,7 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,第 {0}
 Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：LINE 渠道要同时填 channel secret 与 access token
 Run provisioning,执行开通
 Running,进行中
+Select the assistant engine.,请选择智能体引擎。
 Service URL is required,服务地址必填
 Set up OCR,设置 OCR
 Set up the LINE channel,配置 LINE 频道
@@ -283,7 +287,8 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 "The URL to paste into the LINE console, derived from the deployment domain.",填写到 LINE 后台的地址，根据部署域名生成。
 The address this tenant is reached at.,这个租户的访问地址
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),缺少管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）
-The assistant key is being applied. Try again shortly.,智能体密钥正在下发，请稍后再保存。
+"The assistant engine, model or API key is not valid.",智能体引擎、模型或 API 密钥无效。
+The assistant settings are being applied. Try again shortly.,智能体设置正在下发，请稍后再保存。
 The balance could not be read; this is not 'insufficient balance',无法读取余额
 The billing reference was already used for another request,该计费参考号已被其他请求使用
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",与部署域名相同。
