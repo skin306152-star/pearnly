@@ -154,6 +154,18 @@
 
 验证：小助手测试 599 项（本机）、Windows CI 通过；预览页用假数据点过设置各栏、配对失败提示；测试机装上新包，Ctrl+, 打开设置，「连接」读到测试机真实的成员（已连接）与 Express 账套（17 个年度）。
 
+## 产品名 CC、入口域名 fatcc.com（2026-10-10，同一分支）
+
+- 产品名改为 **CC**（Tomo 作废）；登录页左上角只放 CC 图标（白字带胡须原版），对话页侧栏不放图标；浏览器标签图标 16–48 像素用去胡须简化版。图标源文件 `frontend/assistant/src/brand/cc-icon*.svg`（另一窗口定稿，橙底 #F28C28）。
+- 形象用用户自己用 Gemini 生成的水彩橘猫：登录框顶部探头那只（`website/static/cc/top.webp`，眼珠抠成单独小图跟鼠标转，输密码时往上看）；底部一排最右边睡觉的猫视频（前 5 秒循环，逐帧抠掉棋盘格，`apps/pearnly_control/pearnly_control/public/cc/cat-nap.{webm,mp4}`）。抠图脚本在 `website/static/cc/source/`。
+- 登录框去掉「还没有账号？」「联系我们开通账号或预约演示」两行；设置和对话页的选中 / 悬停统一用中性灰。
+- **入口域名 fatcc.com**（用户在 Cloudflare 注册）：
+  - Cloudflare：本机令牌 pearnly-testenv-switch 加了 fatcc.com 的 DNS 编辑权限（用户确认后在其 Chrome 里保存）；DNS `fatcc.com A 生产服务器`、`www CNAME fatcc.com`，只解析不代理（同 pearnly.com）。
+  - 服务器：`infrastructure/production/fatcc.conf` 装为 `/etc/nginx/conf.d/pearnly-fatcc.conf`；certbot 证书 fatcc.com + www（到 2027-01-08，自动续期）；http→https、www→fatcc.com；网页转计费服务 8184 上的入口站点 fatcc.com，睡觉猫视频目录转 Cowork 前端 8181。
+  - 生产登录服务：`configure-ai-entry.py --origin https://fatcc.com --origin https://testai.pearnly.com --tenant-logout` 已执行并读回（入口客户端两个账号池；6 个租户客户端追加退出回 fatcc.com，只追加）。
+  - 代码：登出回跳、开户写入的退出地址、桌面端入口与允许打开的域名都改为 fatcc.com；测试入口仍是 testai.pearnly.com（其静态文件经测试隧道转测试栈 Cowork 前端）。
+  - **未完成**：入口站点 fatcc.com 还没建（入口程序在任务分支，未进生产镜像），现在访问 fatcc.com 证书正常、页面 404；随本批合入 main 部署时在计费服务上建站点 fatcc.com 并写站点配置、补登记。
+
 ## 已知限制
 
 - 实时进度是轮询，回复整段到达；改站点实时通道转发需先做并发验证（ADR-019）。
