@@ -143,8 +143,8 @@ def roots_for_pick(path: str) -> List[str]:
         parent = str(Path(path).parent)
         others = [root for root, _count in rank_roots(_scan_exp_roots([parent])) if not same_root(root, path)]
         return [path, *others]
-    ranked = rank_roots([*_scan_exp_roots([path]),
-                         *_deep_scan([path], total_seconds=PICK_SECONDS, seconds=PICK_SECONDS, max_dirs=PICK_MAX_DIRS)])
+    # 只做深层扫描（认登记表、任何名字、3 层内，已覆盖按 *EXP* 名字找的那一遍）：整体不超过 PICK_SECONDS。
+    ranked = rank_roots(_deep_scan([path], total_seconds=PICK_SECONDS, seconds=PICK_SECONDS, max_dirs=PICK_MAX_DIRS))
     if not ranked:
         return []
     first = pick_default(ranked)

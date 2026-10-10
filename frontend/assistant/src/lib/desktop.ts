@@ -125,6 +125,16 @@ export type Desktop = {
 
 function wrap(channel: Channel): Desktop {
   const lang = (document.documentElement.lang || "th").slice(0, 2);
+  // 慢的操作（配对、换 Express 文件夹、找 Express）：先回 job，做完发 done。done 可能比 job 编号先到（很快做完时），
+  // 所以一直听着：先到的结果先存起来，拿到编号再取（2026-10-10 测试机选本地小文件夹后一直「正在查找…」）。
+  const early = new Map<string, string>();
+  const waiting = new Map<string, (result: string) => void>();
+  channel.done.connect((job, result) => {
+    const deliver = waiting.get(job);
+    if (!deliver) return void early.set(job, result);
+    waiting.delete(job);
+    deliver(result);
+  });
   return {
     state: () => new Promise((resolve) => channel.state((json) => resolve(JSON.parse(json)))),
     call: (method, args = {}) =>
@@ -132,13 +142,12 @@ function wrap(channel: Channel): Desktop {
         channel.call(method, JSON.stringify({ ...args, lang }), (json) => {
           const first = JSON.parse(json) as DesktopResult & { job?: string };
           if (!first.job) return resolve(first);
-          // 慢的操作（配对、换 Express 文件夹、找 Express）：先回 job，做完发 done
-          const done = (job: string, result: string) => {
-            if (job !== first.job) return;
-            channel.done.disconnect(done);
-            resolve(JSON.parse(result));
-          };
-          channel.done.connect(done);
+          const result = early.get(first.job);
+          if (result !== undefined) {
+            early.delete(first.job);
+            return resolve(JSON.parse(result));
+          }
+          waiting.set(first.job, (text) => resolve(JSON.parse(text)));
         });
       }),
     onChanged(cb) {

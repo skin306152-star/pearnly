@@ -15,11 +15,12 @@ import ntpath
 import os
 import subprocess
 import sys
+import time
 from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
 from . import autostart, folder_store, pairing, pairing_flow
-from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick
+from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore
@@ -216,11 +217,21 @@ class DesktopSettings:
 
     def change_roots(self, picked: str, lang: str) -> dict:
         """（后台线程）「更换…」选的 Express 数据所在文件夹：有成员时同步到全部成员（服务端下次心跳拿到，不用重新配对）。"""
-        return self._use_roots(roots_for_pick(picked), lang)
+        began = time.monotonic()
+        found = roots_for_pick(picked)
+        log.info("更换 Express 数据文件夹：找到 %d 个年度，用时 %.1f 秒", len(found), time.monotonic() - began)
+        # 选到的排前面，原来已授权的接在后面（合并、不覆盖）：心跳本来也会把同一位置的年度补回来，覆盖只会让
+        # 局域网上的年度空窗一两分钟、期间推送那些账套被拒（2026-10-10 测试机）。
+        current = machine_roots(self._store())
+        return self._use_roots(found and [*found, *(root for root in current
+                                                    if not any(same_root(root, new) for new in found))], lang)
 
     def rescan(self, lang: str) -> dict:
         """（后台线程）「重新查找」：全机 + 局域网再找一遍 Express，找到的全部授权（同「更换…」写到全部成员）。"""
-        return self._use_roots(rescan_roots(self._store()), lang)
+        began = time.monotonic()
+        roots = rescan_roots(self._store())
+        log.info("重新查找 Express：找到 %d 个年度，用时 %.1f 秒", len(roots), time.monotonic() - began)
+        return self._use_roots(roots, lang)
 
     def _use_roots(self, roots: list, lang: str) -> dict:
         if not roots:
