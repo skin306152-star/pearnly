@@ -1595,7 +1595,10 @@ TOOLS = [
     {"name": "cowork_recon_result", "label": "Viewed a reconciliation",
      "description": "A finished reconciliation: title, status (needs_review means the statement was read from a "
                     "scan and must be checked on the page before export), notes, questions to answer once "
-                    "(cowork_recon_answer), and for bank / income the rows that did not match (up to 30).",
+                    "(cowork_recon_answer), and for bank / income the summary counts and amounts as stored, "
+                    "rows_total, unmatched_total and the first 30 unmatched rows. The reconciliation compares the "
+                    "bank with one GL account only; report its figures as they are and do not tell the user to post "
+                    "entries from them (for example fees the user says are booked in another account).",
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."}, "task": {"type": "string"}},
                       "required": ["kind", "task"]},
      "handler": "pearnly_cowork.assistant.tools.recon_result"},
