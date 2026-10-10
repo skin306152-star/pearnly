@@ -166,6 +166,23 @@
   - 代码：登出回跳、开户写入的退出地址、桌面端入口与允许打开的域名都改为 fatcc.com；测试入口仍是 testai.pearnly.com（其静态文件经测试隧道转测试栈 Cowork 前端）。
   - **未完成**：入口站点 fatcc.com 还没建（入口程序在任务分支，未进生产镜像），现在访问 fatcc.com 证书正常、页面 404；随本批合入 main 部署时在计费服务上建站点 fatcc.com 并写站点配置、补登记。
 
+## 按账号连接这台电脑，不再手抄配对码（2026-10-10，同一分支）
+
+用户定：电脑端用账号登录就自动连上，电脑上设好的文件夹自动给这个账号的网页端用。
+
+- 服务端 `pearnly_cowork.companion.api.register`（`credentials.register`）：登录的管理员给「这台电脑」申请密钥。
+  装了 Express 的连 Express（没有 Express 通道就建一条），没装的连 MR.ERP（只读文件夹），再没有退回 Express；
+  无可连的回 `no_connection`。权限、签发人、失权即失效都与原配对码同一判据；这条连接已有电脑连着时回 `in_use`
+  不抢，用户点「改用这台电脑」带代数重发，旧电脑立即断开。旧配对码照常有效。
+- 对话页（桌面端里、Cowork 站点）打开时自动申请并把密钥直接交给本机桌面端静默配对（`lib/desktop.ts`
+  `useAutoConnect` / `connectComputer`），密钥不显示。一台电脑只连一家公司：已连别家时不自动改，设置里点
+  「改连 <本站>」才断开原来的全部成员再配对；同一条连接重连时换原成员的密钥，不多出成员。
+- 设置「连接」改单页：公司一行（站点、Express / MR.ERP、状态，⋯ 暂停 / 断开连接）、Express 数据文件夹、
+  网页可读取的文件夹（记在 Express 成员上，没有才记在 MR.ERP 上）；去掉配对码输入和单独的「文件夹」分栏。
+- 网页「连接 Express」/「连接小助手」弹窗：连接状态 +「下载小助手」+「安装后用本账号登录即可连接。」，
+  开着每 3 秒问一次在不在线；不再生成或显示配对码（词条 `intake.agent.key/copy/reset/resetConfirm` 已从术语表删除）。
+- 测试：`tests/test_cowork_companion_register.py`（已登记候选离线检查）、`companion/tests/test_desktop_settings.py`。
+
 ## 已知限制
 
 - 实时进度是轮询，回复整段到达；改站点实时通道转发需先做并发验证（ADR-019）。

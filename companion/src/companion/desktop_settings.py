@@ -15,8 +15,9 @@ import os
 import subprocess
 import sys
 from typing import Callable, Mapping, Optional
+from urllib.parse import urlsplit
 
-from . import autostart, folder_store, pairing_flow
+from . import autostart, folder_store, pairing, pairing_flow
 from .express_machine import apply_roots, detect_roots, machine_roots, roots_for_pick
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
@@ -40,6 +41,18 @@ def status_key(record: ProfileRecord, state: Optional[tuple]) -> str:
     if current in {"waiting_lock", "error"}:
         return "attention"
     return "offline"
+
+
+def site_of(store: ProfileStore) -> str:
+    """这台电脑连的是哪家公司（站点域名）：所有成员同一个后端（global backend_url），没有成员就是空。"""
+    if not store.profiles:
+        return ""
+    return (urlsplit(str(store.global_settings.backend_url or "")).hostname or "").lower()
+
+
+def code_site(code: str) -> str:
+    """配对码 `密钥@域名` 里的域名（2026-09-27 起的格式）；旧格式没有域名就是空。"""
+    return str(code or "").rpartition("@")[2].strip().lower() if "@" in str(code or "") else ""
 
 
 def member_name(record: ProfileRecord) -> str:
@@ -93,6 +106,7 @@ class DesktopSettings:
             update_state, update_version = "none", ""
         return {
             "version": VERSION,
+            "site": site_of(store),
             "express_roots": roots,
             "members": members,
             "autostart": self._autostart(store),
@@ -116,9 +130,30 @@ class DesktopSettings:
         return self._detected
 
     # ── 写 ──
-    def pair(self, code: str, lang: str, profile_id: Optional[str] = None) -> dict:
-        """（后台线程）用配对码添加成员；给了 profile_id 就是更换这个成员的配对码。"""
+    def pair(self, code: str, lang: str, profile_id: Optional[str] = None, switch: bool = False) -> dict:
+        """（后台线程）用配对码添加成员；给了 profile_id 就是更换这个成员的配对码。
+
+        CC 登录后自动连接（2026-10-10）也走这里，配对码由对话页向本站申请后交过来。一台电脑只连一家公司：
+        已连着别家时不混进来，回 other_site；用户点了「改连本公司」（switch）才先断开原来的全部成员。"""
         store = self._store()
+        current, wanted = site_of(store), code_site(code)
+        switched = False
+        if profile_id is None and current and wanted and wanted != current:
+            if not switch:
+                return {"ok": False, "other_site": current}
+            for record in list(store.profiles):
+                store.remove_profile(record.profile_id)
+            store, switched = self._store(), True
+        if profile_id is None:
+            # 这台电脑原来就连着这条连接（被别的电脑顶掉后重新连接）：换这个成员的密钥，不多出一个成员
+            endpoint = pairing._endpoint_id_from_token(str(code or "").strip().partition("@")[0])
+            profile_id = next((r.profile_id for r in store.profiles if endpoint and r.endpoint_id == endpoint), None)
+        result = self._pair(store, code, lang, profile_id)
+        if switched:
+            result["profiles_changed"] = True   # 原来的成员已断开：失败也要重启取任务线程
+        return result
+
+    def _pair(self, store: ProfileStore, code: str, lang: str, profile_id: Optional[str]) -> dict:
         roots = machine_roots(store) or list(self._detected or [])
         try:
             result = pairing_flow.run(store, str(code or "").strip(), roots=roots, profile_id=profile_id,

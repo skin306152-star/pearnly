@@ -302,6 +302,7 @@ IP,IP
 Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
+"Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
 "Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
 Intake Workbench,取り込みワークベンチ
 Integrations,連携
@@ -934,6 +935,7 @@ intake.action.new,新規入力
 intake.action.queue,送信
 intake.agent.copy,コピー
 intake.agent.key,ペアリングコード
+intake.agent.loginHint,インストール後、このアカウントでログインすると接続されます。
 intake.agent.reset,再生成
 intake.agent.resetConfirm,古いキーはすぐに使えなくなります。
 intake.agent.state.missing,アシスタント未接続

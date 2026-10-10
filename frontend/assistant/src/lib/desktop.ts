@@ -93,13 +93,14 @@ export type MemberStatus = "online" | "processing" | "attention" | "offline" | "
 export type DesktopMember = { id: string; name: string; kind: string; paused: boolean; status: MemberStatus; folders: string[] | null };
 export type DesktopState = {
   version: string;
+  site: string; // 这台电脑连的公司（站点域名），没连是空
   express_roots: string[];
   members: DesktopMember[];
   autostart: boolean;
   hotkey: boolean;
   update: { state: string; version: string };
 };
-export type DesktopResult = { ok: boolean; message?: string; cancelled?: boolean; roots?: string[] };
+export type DesktopResult = { ok: boolean; message?: string; cancelled?: boolean; roots?: string[]; other_site?: string };
 
 type Signal<A extends unknown[]> = { connect(cb: (...args: A) => void): void; disconnect(cb: (...args: A) => void): void };
 type Channel = {
@@ -159,6 +160,98 @@ export function desktop(): Promise<Desktop | null> {
     setTimeout(() => resolve(window.tomoDesktop ? wrap(window.tomoDesktop) : null), 5000);
   });
   return pending;
+}
+
+// ---------------------------------------------------------------------------
+// 用登录的账号连上这台电脑（2026-10-10 起取代手抄配对码）：桌面端打开对话页时自动做一次，
+// 本站按账号权限发一把只交给本机的密钥（pearnly_cowork.companion.api.register），桌面端拿它静默配对。
+// 只在 Cowork 站点上做；已连着这家公司不重复做；已连着别家、或这条连接正被另一台电脑用着，
+// 都不自动抢，等用户在设置里点。
+
+export type Link =
+  | { kind: "idle" }
+  | { kind: "connecting" }
+  | { kind: "in_use"; generation: number }
+  | { kind: "other_site"; site: string }
+  | { kind: "not_admin" }
+  | { kind: "no_connection" }
+  | { kind: "failed"; message: string };
+
+let link: Link = { kind: "idle" };
+const listeners = new Set<(value: Link) => void>();
+
+function setLink(value: Link) {
+  link = value;
+  for (const cb of listeners) cb(value);
+}
+
+export function currentLink(): Link {
+  return link;
+}
+
+export function onLink(cb: (value: Link) => void): () => void {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+type Registered =
+  | { status: "created"; token: string }
+  | { status: "in_use"; generation: number }
+  | { status: "no_connection" };
+
+async function register(express: boolean, replace?: number): Promise<Registered | Link> {
+  const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+    body: JSON.stringify({
+      request_key: crypto.randomUUID(),
+      express,
+      ...(replace ? { replace: true, expected_generation: replace } : {}),
+    }),
+  });
+  if (res.status === 403) return { kind: "not_admin" };
+  const body = (await res.json().catch(() => null)) as { message?: Registered } | null;
+  if (!res.ok || !body?.message) return { kind: "failed", message: "" };
+  return body.message;
+}
+
+/** 连接这台电脑。replace：这条连接正被另一台电脑用着时，用户确认改用这台（带那把密钥的代数）；switchSite：断开原来连的别家公司。 */
+export async function connectComputer(api: Desktop, options: { replace?: number; switchSite?: boolean } = {}) {
+  if (link.kind === "connecting") return;
+  setLink({ kind: "connecting" });
+  try {
+    const state = await api.state();
+    let roots = state.express_roots ?? [];
+    if (!roots.length) roots = (await api.call("detect")).roots ?? [];
+    const found = await register(roots.length > 0, options.replace);
+    if ("kind" in found) return setLink(found);
+    if (found.status === "in_use") return setLink({ kind: "in_use", generation: found.generation });
+    if (found.status === "no_connection") return setLink({ kind: "no_connection" });
+    const paired = await api.call("pair", { code: `${found.token}@${location.host}`, switch: !!options.switchSite });
+    if (paired.other_site) return setLink({ kind: "other_site", site: paired.other_site });
+    setLink(paired.ok ? { kind: "idle" } : { kind: "failed", message: paired.message ?? "" });
+  } catch {
+    setLink({ kind: "failed", message: "" });
+  }
+}
+
+/** 对话页打开时：Cowork 站点、在桌面端里、这台电脑还没连这家公司 → 自动连一次。 */
+export function useAutoConnect(product: string | undefined) {
+  useEffect(() => {
+    if (product !== "cowork") return;
+    let alive = true;
+    void desktop().then(async (api) => {
+      if (!api || !alive) return;
+      const state = await api.state();
+      if (!state || !("members" in state)) return;
+      if (state.site && state.site !== location.host) return setLink({ kind: "other_site", site: state.site });
+      if (!state.members.length) await connectComputer(api);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [product]);
 }
 
 // 对话文字大小（设置 → 常规），只存在本机浏览器里

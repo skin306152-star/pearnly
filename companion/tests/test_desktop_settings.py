@@ -49,6 +49,7 @@ def test_snapshot_lists_members_with_status_folders_and_the_machine_roots(tmp_pa
     snap = settings.snapshot()
 
     assert snap["express_roots"] == [r"S:\\EXP68", r"S:\\EXP69"]
+    assert snap["site"] == "testcowork.pearnly.com"
     assert snap["members"] == [{"id": member, "name": "owner@example.com", "kind": "express", "paused": False,
                                 "status": "online", "folders": []}]
     assert snap["autostart"] is True and snap["hotkey"] is True
@@ -153,6 +154,43 @@ def test_pairing_errors_come_back_as_customer_text(tmp_path, monkeypatch):
     monkeypatch.setattr(pairing_flow, "run", lambda *a, **k: SimpleNamespace(ok=False, error_key=pairing_flow.NEED_ROOTS,
                                                                            error_fmt={}))
     assert _settings(store).pair("exp_x", "zh") == {"ok": False, "message": t("browse_hint", "zh")}
+
+
+def test_one_computer_one_company_another_company_needs_an_explicit_switch(tmp_path, monkeypatch):
+    store = _store(tmp_path, monkeypatch)
+    paired = []
+    monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: paired.append(
+        [p.profile_id for p in _store.profiles]) or SimpleNamespace(ok=True, error_key="", error_fmt={}))
+    settings = _settings(store)
+
+    assert settings.pair("exp_c_s@other.pearnly.com", "zh") == {"ok": False, "other_site": "testcowork.pearnly.com"}
+    assert paired == [] and len(settings.snapshot()["members"]) == 1
+    # 同一家公司再连一条（例如 MR.ERP）照常添加
+    assert settings.pair("exp_m_s@TestCowork.pearnly.com", "zh")["ok"] is True
+    assert paired[-1] == [store.profiles[0].profile_id]
+    # 用户点了「改连本公司」：原来的成员全部断开后再配对；配对失败也要重启取任务线程
+    monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: paired.append(
+        [p.profile_id for p in _store.profiles]) or SimpleNamespace(ok=False, error_key="pair_err_token_format",
+                                                                     error_fmt={}))
+    result = settings.pair("exp_c_s@other.pearnly.com", "zh", switch=True)
+    assert result["ok"] is False and result["profiles_changed"] is True
+    assert paired[-1] == [] and settings.snapshot()["members"] == [] and settings.snapshot()["site"] == ""
+
+
+def test_reconnecting_the_same_connection_replaces_its_member(tmp_path, monkeypatch):
+    store = _store(tmp_path, monkeypatch)
+    member = store.profiles[0]
+    cfg = store.runtime_config(member.profile_id)
+    cfg.update(endpoint_id="CWEC-1")
+    store.save_profile(cfg)
+    seen = []
+    monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: seen.append(profile_id) or
+                        SimpleNamespace(ok=True, error_key="", error_fmt={}))
+    settings = _settings(store)
+
+    settings.pair("exp_CWEC-1_new@testcowork.pearnly.com", "zh")
+    settings.pair("exp_CWEC-2_new@testcowork.pearnly.com", "zh")
+    assert seen == [member.profile_id, None]
 
 
 # ── 配对流程（原配对窗里的逻辑） ──

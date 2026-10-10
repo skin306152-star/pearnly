@@ -98,58 +98,48 @@
 	}
 
 	/**
-	 * Express 的连接：打开就是「下载助手」和配对码两样。
-	 * 还没有 Express 通道就先建一条；还没有密钥就当场生成（同一通道已有有效密钥时服务端直接回它，
-	 * 不会重复生成）。明文只在生成那一次拿得到，之后只剩末 4 位；丢了就「重新生成」，旧的立即失效。
-	 * 配对码 = 密钥 + `@` + 本站域名（2026-09-27）：小助手从配对码知道该连哪家租户，不再写死域名。
+	 * Express 的连接：「下载助手」+ 连接状态。2026-10-10 起不用配对码：在装有 Express 的电脑上装 CC、
+	 * 用本账号登录，桌面端就按账号权限自动连上（服务端 `companion.api.register`，没有 Express 通道时由它建）。
 	 */
 	async function express_dialog({connection, on_done}) {
-		if (!connection) {
-			connection = await p.call(API.connections + "configure",
-				{adapter: "express", request_key: key(), label: "Express", config: {}}, "POST");
-		}
-		return helper_dialog({connection, title: `${__("Connect")} Express`, on_done});
+		return helper_dialog({connection, adapter: "express", title: `${__("Connect")} Express`, on_done});
 	}
 
 	/**
-	 * 给一条连接配小助手：「下载助手」+ 配对码，Express 与 MR.ERP 同一个弹窗（2026-10-09）。
-	 * MR.ERP 的小助手只读文件夹（定时任务），配对码只能调用文件夹的接口（服务端 `companion/http_auth.py`）。
+	 * 给一条连接配小助手，Express 与 MR.ERP 同一个弹窗（2026-10-09）。MR.ERP 的小助手只读文件夹（定时任务）。
+	 * 开着时每 3 秒问一次在不在线（`online`，录入角色也能问），电脑一连上就变「已连接」。
 	 */
-	async function helper_dialog({connection, title, on_done}) {
-		let status = await p.call(API.companion + "status", {connection: connection.name});
-		let token = "";
-		const issue = async (reset = false) => {
-			const result = await p.call(API.companion + "issue", {connection: connection.name, request_key: key(),
-				...(reset ? {reset: 1, expected_generation: status.generation} : {})}, "POST");
-			token = result.token || "";
-			status = result;
-		};
-		if (status.state !== "active") await issue();
-
+	async function helper_dialog({connection, adapter, title, on_done}) {
 		const d = new frappe.ui.Dialog({
 			title,
 			fields: [
+				{fieldtype: "HTML", fieldname: "state"},
 				{fieldtype: "Button", fieldname: "download", label: __("intake.target.download"),
-					click: () => void download_agent()},
-				{fieldtype: "Data", fieldname: "key", label: __("intake.agent.key"), read_only: 1},
-				{fieldtype: "Button", fieldname: "copy", label: __("intake.agent.copy"),
-					click: () => frappe.utils.copy_to_clipboard(`${token}@${window.location.host}`)},
+					description: __("intake.agent.loginHint"), click: () => void download_agent()},
 			],
-			primary_action_label: __("intake.agent.reset"),
-			primary_action: () => frappe.confirm(__("intake.agent.resetConfirm"), async () => {
-				await issue(true);
-				paint();
-			}),
 		});
-		const paint = () => {
-			d.set_value("key", `${token || `exp_…${status.tail || ""}`}@${window.location.host}`);
-			// 完整密钥只在刚生成时有（服务端只存指纹），这时才有「复制」。
-			d.set_df_property("copy", "hidden", token ? 0 : 1);
+		const paint = online => d.fields_dict.state.$wrapper.html(online
+			? `<span class="indicator-pill green">${__("connect.state.connected")}</span>`
+			: `<span class="indicator-pill orange">${__("intake.agent.state.missing")}</span>`);
+		const check = async () => {
+			if (!connection && adapter) {
+				// 还没有通道：电脑登录 CC 时服务端会建，建好后接着问它
+				const rows = await frappe.xcall(API.connections + "records", {limit: 100}).catch(() => []);
+				connection = (rows || []).find(row => row.adapter === adapter) || null;
+			}
+			if (!connection) return paint(false);
+			const result = await frappe.xcall(API.companion + "online", {connection: connection.name}).catch(() => null);
+			paint(Boolean(result?.online));
 		};
+		const timer = setInterval(() => void check(), 3000);
 		d.$wrapper.addClass("pearnly-dialog");
-		d.onhide = () => void on_done?.();
+		d.onhide = () => {
+			clearInterval(timer);
+			void on_done?.();
+		};
+		paint(false);
 		d.show();
-		paint();
+		await check();
 		return d;
 	}
 

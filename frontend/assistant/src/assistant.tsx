@@ -37,7 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { openSettings, useDesktopBridge } from "@/lib/desktop";
+import { openSettings, useAutoConnect, useDesktopBridge } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
 import { assistantMascot, useProfile, type Profile } from "@/lib/profile";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
@@ -231,11 +231,12 @@ function useResultsPanel() {
   return { sessionId, files, selected, setSelected, openFile, open: open && files.length > 0, setOpen };
 }
 
-// 桌面端快捷提问、回复完成通知、整窗拖文件（lib/desktop.ts）
+// 桌面端快捷提问、回复完成通知、整窗拖文件、登录后自动连接这台电脑（lib/desktop.ts）
 function DesktopBridge() {
   const snapshot = useActiveSessionSnapshot();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   useDesktopBridge(isBusy(snapshot), snapshot.messages, title);
+  useAutoConnect(useProfile()?.product);
   return null;
 }
 

@@ -1,8 +1,8 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
 //   常规      — 对话文字大小、语言
-//   此电脑    — 只在 Tomo 桌面端出现（lib/desktop.ts 的 desktop()）：
-//     连接    — Express 账套、成员（配对码、暂停、移除）、每个成员网页可选的文件夹（原小助手主窗口）
+//   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
+//     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹、网页可读取的文件夹
 //     系统    — 开机自动启动、快捷提问、版本与更新、日志
 //
 // 桌面端托盘「连接与设置」直接打开「连接」一栏（window.tomo.settings）。
@@ -12,10 +12,13 @@ import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  connectComputer,
+  currentLink,
   type Desktop,
-  type DesktopMember,
   type DesktopState,
   desktop,
+  type Link,
+  onLink,
   setTextSize,
   type TextSize,
   textSize,
@@ -244,14 +247,26 @@ function useAction(api: Desktop, refresh: () => void) {
   return { busy, error, setError, run };
 }
 
+// 这台电脑只连一家公司（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹、网页可读取的文件夹。
+// 公司下可能有 Express 和 MR.ERP 两个成员（旧配对留下的），合成一行；文件夹记在 Express 成员上，没有才记在 MR.ERP 上。
+
+const menuItem =
+  "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted";
+
+function useLink() {
+  const [value, setValue] = useState<Link>(currentLink());
+  useEffect(() => onLink(setValue), []);
+  return value;
+}
+
 function Connections({ api }: { api: Desktop }) {
   const { state, refresh } = useDesktopState(api);
   const { busy, error, setError, run } = useAction(api, refresh);
-  const [pairing, setPairing] = useState<{ id: string | null } | null>(null);
+  const linkState = useLink();
   const [scanned, setScanned] = useState(false);
 
   useEffect(() => {
-    // 还没有成员也没找到 Express：后台找一次（读共享盘较慢）
+    // 还没连也没找到 Express：后台找一次（读共享盘较慢）
     if (state && !scanned && !state.members.length && !state.express_roots.length) {
       setScanned(true);
       void run("scan", "detect");
@@ -259,6 +274,8 @@ function Connections({ api }: { api: Desktop }) {
   }, [state, scanned, run]);
 
   if (!state) return null;
+  const members = state.members;
+  const main = members.find((m) => m.kind !== "folder") ?? members[0];
   const roots = state.express_roots;
   const express =
     busy === "scan" || busy === "roots"
@@ -268,165 +285,90 @@ function Connections({ api }: { api: Desktop }) {
         : roots.length > 1
           ? st.years(roots[0], roots.length)
           : roots[0];
+  const kinds = [...new Set(members.map((m) => (m.kind === "folder" ? "MR.ERP" : "Express")))].join(" · ");
+  const connect = (options?: Parameters<typeof connectComputer>[1]) => {
+    setError("");
+    void connectComputer(api, options).then(refresh);
+  };
+  const pickRoots = async () => {
+    const result = await run("roots", "pick_roots");
+    if (result.ok && !members.length) connect(); // 找到 Express 就接着连上
+  };
 
   return (
     <>
-      <Row label={st.express}>
-        <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-[#c0392b]")} title={express}>
-          {express}
-        </span>
-        <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("roots", "pick_roots")}>
-          {st.change}
-        </Button>
-      </Row>
-
-      <div className="mt-6 flex items-center justify-between">
-        <Heading>{st.members}</Heading>
-        <Button variant="outline" size="sm" disabled={!!busy} onClick={() => setPairing({ id: null })}>
-          {st.addMember}
-        </Button>
+      <div className="flex items-center gap-3 border-b py-4">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm">{state.site || location.host}</div>
+          {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
+        </div>
+        {main ? (
+          <>
+            <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[main.status] }}>
+              <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[main.status] }} />
+              {st.status[main.status] ?? main.status}
+            </span>
+            <DropdownMenu.Root onOpenChange={(o) => o && setError("")}>
+              <DropdownMenu.Trigger
+                disabled={!!busy}
+                aria-label={t("more")}
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+              >
+                <MoreHorizontalIcon className="size-4" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-white p-1.5 shadow-lg">
+                  <DropdownMenu.Item
+                    className={menuItem}
+                    onSelect={() => void Promise.all(members.map((m) => api.call("pause", { id: m.id, paused: !main.paused }))).then(refresh)}
+                  >
+                    {main.paused ? st.resume : st.pause}
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                  <DropdownMenu.Item
+                    className={cn(menuItem, "text-[#c0392b]")}
+                    onSelect={() => void Promise.all(members.map((m) => api.call("remove", { id: m.id }))).then(refresh)}
+                  >
+                    {st.disconnect}
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          </>
+        ) : (
+          <LinkAction link={linkState} onConnect={connect} disabled={!!busy} />
+        )}
       </div>
-      {pairing && (
-        <PairForm
-          api={api}
-          editing={pairing.id ? state.members.find((m) => m.id === pairing.id)?.name : undefined}
-          memberId={pairing.id}
-          onClose={() => setPairing(null)}
-          refresh={refresh}
-        />
+      {main && linkState.kind === "other_site" && state.site !== location.host && (
+        <div className="flex items-center justify-end border-b py-3">
+          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
+            {st.switchTo(location.host)}
+          </Button>
+        </div>
       )}
-      {error && <p className="mt-3 text-[#c0392b] text-sm">{error}</p>}
-      {!state.members.length && !pairing && <p className="mt-3 text-muted-foreground text-sm">{st.noMembers}</p>}
-      <div className="mt-3 flex flex-col gap-3">
-        {state.members.map((member) => (
-          <MemberCard
-            key={member.id}
-            member={member}
-            disabled={!!busy}
-            onChangeCode={() => setPairing({ id: member.id })}
-            onPause={() => void run("pause", "pause", { id: member.id, paused: !member.paused })}
-            onRemove={() => void run("remove", "remove", { id: member.id })}
-            onAddFolder={() => void run("folder", "add_folder", { id: member.id })}
-            onRemoveFolder={(path) => void run("folder", "remove_folder", { id: member.id, path })}
-            onClearError={() => setError("")}
-          />
-        ))}
-      </div>
-    </>
-  );
-}
 
-function PairForm({
-  api,
-  memberId,
-  editing,
-  onClose,
-  refresh,
-}: {
-  api: Desktop;
-  memberId: string | null;
-  editing?: string;
-  onClose: () => void;
-  refresh: () => void;
-}) {
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const submit = async () => {
-    if (!code.trim() || busy) return;
-    setBusy(true);
-    setMessage(st.pairing);
-    const result = await api.call("pair", { code, id: memberId ?? "" });
-    setBusy(false);
-    refresh();
-    if (result.ok) onClose();
-    else setMessage(result.message || st.failed);
-  };
-  return (
-    <div className="mt-3 rounded-xl border p-4">
-      <div className="mb-2 text-sm">{editing ? `${st.changeCode.replace("…", "")} · ${editing}` : st.code}</div>
-      <div className="flex flex-wrap gap-2">
-        <input
-          autoFocus
-          value={code}
-          disabled={busy}
-          onChange={(e) => setCode(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void submit()}
-          placeholder={st.codeHint}
-          spellCheck={false}
-          className="h-9 min-w-0 flex-1 rounded-lg border bg-white px-3 font-mono text-sm outline-none focus:border-[#a8a59c]"
-        />
-        <Button variant="ghost" size="sm" className="h-9" disabled={busy} onClick={onClose}>
-          {st.cancel}
-        </Button>
-        <Button size="sm" className="h-9" disabled={busy || !code.trim()} onClick={() => void submit()}>
-          {editing ? st.save : st.pair}
-        </Button>
-      </div>
-      {message && <p className={cn("mt-2 text-sm", busy ? "text-muted-foreground" : "text-[#c0392b]")}>{message}</p>}
-    </div>
-  );
-}
+      {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
+        <Row label={st.expressFolder}>
+          <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-[#c0392b]")} title={express}>
+            {express}
+          </span>
+          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void pickRoots()}>
+            {st.change}
+          </Button>
+        </Row>
+      )}
 
-const menuItem =
-  "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted";
-
-function MemberCard({
-  member,
-  disabled,
-  onChangeCode,
-  onPause,
-  onRemove,
-  onAddFolder,
-  onRemoveFolder,
-  onClearError,
-}: {
-  member: DesktopMember;
-  disabled: boolean;
-  onChangeCode: () => void;
-  onPause: () => void;
-  onRemove: () => void;
-  onAddFolder: () => void;
-  onRemoveFolder: (path: string) => void;
-  onClearError: () => void;
-}) {
-  return (
-    <div className="rounded-xl border p-4">
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1 truncate font-medium text-sm">{member.name}</div>
-        <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[member.status] }}>
-          <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[member.status] }} />
-          {st.status[member.status] ?? member.status}
-        </span>
-        <DropdownMenu.Root onOpenChange={(o) => o && onClearError()}>
-          <DropdownMenu.Trigger
-            disabled={disabled}
-            aria-label={t("more")}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
-          >
-            <MoreHorizontalIcon className="size-4" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-white p-1.5 shadow-lg">
-              <DropdownMenu.Item className={menuItem} onSelect={onChangeCode}>
-                {st.changeCode}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item className={menuItem} onSelect={onPause}>
-                {member.paused ? st.resume : st.pause}
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator className="my-1 h-px bg-border" />
-              <DropdownMenu.Item className={cn(menuItem, "text-[#c0392b]")} onSelect={onRemove}>
-                {st.remove}
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-      </div>
-      {member.folders && (
-        <div className="mt-3 border-t pt-3">
-          <div className="mb-1.5 text-muted-foreground text-xs">{st.folders}</div>
-          {member.folders.map((path) => (
-            <div key={path} className="group flex items-center gap-2 rounded-md py-1 text-sm">
+      {main && main.folders !== null && (
+        <>
+          <div className="mt-8 flex items-center justify-between">
+            <Heading>{st.folders}</Heading>
+            <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("folder", "add_folder", { id: main.id })}>
+              {st.addFolder}
+            </Button>
+          </div>
+          {!main.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
+          {main.folders.map((path) => (
+            <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
               <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate" title={path}>
                 {path}
@@ -435,25 +377,42 @@ function MemberCard({
                 type="button"
                 aria-label={st.remove}
                 title={st.remove}
-                disabled={disabled}
-                onClick={() => onRemoveFolder(path)}
-                className="flex size-6 items-center justify-center rounded text-muted-foreground opacity-60 hover:bg-muted hover:opacity-100"
+                disabled={!!busy}
+                onClick={() => void run("folder", "remove_folder", { id: main.id, path })}
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
               >
-                <XIcon className="size-3.5" />
+                <XIcon className="size-4" />
               </button>
             </div>
           ))}
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onAddFolder}
-            className="mt-1 rounded-md px-1 py-0.5 text-muted-foreground text-sm hover:text-foreground"
-          >
-            {st.addFolder}
-          </button>
-        </div>
+        </>
       )}
-    </div>
+      {error && <p className="mt-3 text-[#c0392b] text-sm">{error}</p>}
+    </>
+  );
+}
+
+/** 还没连上时公司一行右边：正在连接 / 被另一台电脑用着（改用这台）/ 不是管理员 / 失败重试 / 连接。 */
+function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?: { replace?: number }) => void; disabled: boolean }) {
+  const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-sm", tone)}>{text}</span>;
+  if (link.kind === "connecting") return note(st.connecting);
+  if (link.kind === "not_admin") return note(st.notAdmin);
+  if (link.kind === "in_use")
+    return (
+      <>
+        {note(st.inUse)}
+        <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect({ replace: link.generation })}>
+          {st.useHere}
+        </Button>
+      </>
+    );
+  return (
+    <>
+      {link.kind === "failed" ? note(link.message || st.linkFailed, "text-[#c0392b]") : note(st.notConnected)}
+      <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect()}>
+        {link.kind === "failed" ? st.retry : st.connect}
+      </Button>
+    </>
   );
 }
 

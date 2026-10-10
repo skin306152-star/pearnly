@@ -17,10 +17,10 @@ class _Settings:
     def snapshot(self):
         return {"members": [{"id": "m1", "folders": ["C:/in"]}], "version": "1.4.0"}
 
-    def pair(self, code, lang, profile_id):
+    def pair(self, code, lang, profile_id, switch=False):
         import threading
 
-        self.calls.append(("pair", code, lang, profile_id, threading.current_thread().name))
+        self.calls.append(("pair", code, lang, profile_id, threading.current_thread().name) + ((switch,) if switch else ()))
         return {"ok": True, "profiles_changed": True}
 
     def profiles_changed(self):

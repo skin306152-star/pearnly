@@ -59,3 +59,9 @@ def installer():
     url = str(frappe.conf.get('pearnly_cowork_agent_installer') or '').strip() or INSTALLER_URL
     version = str(frappe.conf.get('pearnly_cowork_agent_version') or '').strip()
     return {'url': url, 'version': version, 'configured': bool(url)}
+
+
+@frappe.whitelist(methods=['POST'])
+def register(request_key, express=False, replace=False, expected_generation=None):
+    """CC 桌面端登录后连上这台电脑：回给对话页的密钥只交给本机桌面端，不显示（见 credentials.register）。"""
+    return _local_transaction(credentials.register, request_key, express, replace, expected_generation)

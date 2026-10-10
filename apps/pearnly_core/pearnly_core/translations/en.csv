@@ -301,6 +301,7 @@ IP,IP
 Identity Session,Identity Session
 Image Fingerprint,Image Fingerprint
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
+"Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
 "Install, pair, upgrade and uninstall guide for Companion","Install, pair, upgrade and uninstall guide for Companion"
 Intake Workbench,Intake Workbench
 Integrations,Integrations
@@ -932,6 +933,7 @@ intake.action.new,New entry
 intake.action.queue,Push
 intake.agent.copy,Copy
 intake.agent.key,Pairing code
+intake.agent.loginHint,"Install it, then sign in with this account to connect."
 intake.agent.reset,Regenerate
 intake.agent.resetConfirm,The old key stops working right away.
 intake.agent.state.missing,Assistant not connected

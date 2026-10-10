@@ -77,7 +77,8 @@ class TomoBridge(QObject):
             return {"ok": True}
         if method == "pair":
             code, profile_id = str(args.get("code") or ""), (member or None)
-            return self._job(lambda: s.pair(code, lang, profile_id))
+            switch = bool(args.get("switch"))
+            return self._job(lambda: s.pair(code, lang, profile_id, switch))
         if method == "detect":
             return self._job(lambda: {"ok": True, "roots": s.detect()})
         if method == "pick_roots":

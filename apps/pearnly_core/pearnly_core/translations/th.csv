@@ -302,6 +302,7 @@ IP,IP
 Identity Session,เซสชันตัวตน
 Image Fingerprint,ลายนิ้วมือภาพ
 Inbound = invoices received; outbound = invoices issued,ภาษีซื้อ = ใบกำกับภาษีที่ได้รับ ภาษีขาย = ใบกำกับภาษีที่ออก
+"Install it, then sign in with this account to connect.",ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
 "Install, pair, upgrade and uninstall guide for Companion",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย
 Intake Workbench,ศูนย์บันทึกเอกสาร
 Integrations,การเชื่อมต่อ
@@ -934,6 +935,7 @@ intake.action.new,บันทึกใหม่
 intake.action.queue,ส่ง
 intake.agent.copy,คัดลอก
 intake.agent.key,รหัสจับคู่
+intake.agent.loginHint,ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
 intake.agent.reset,สร้างใหม่
 intake.agent.resetConfirm,รหัสจับคู่เดิมจะใช้ไม่ได้ทันที
 intake.agent.state.missing,ผู้ช่วย Pearnly ยังไม่เชื่อมต่อ

@@ -794,11 +794,8 @@ Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรี�
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Target ERP	目标 ERP	ERP ปลายทาง	連携先 ERP	intake.target.title
 Assistant not connected	小助手未连接	ผู้ช่วย Pearnly ยังไม่เชื่อมต่อ	アシスタント未接続	intake.agent.state.missing
-Pairing code	配对码	รหัสจับคู่	ペアリングコード	intake.agent.key
-Copy	复制	คัดลอก	コピー	intake.agent.copy
-Regenerate	重新生成	สร้างใหม่	再生成	intake.agent.reset
-The old key stops working right away.	原配对码将立即失效。	รหัสจับคู่เดิมจะใช้ไม่ได้ทันที	古いキーはすぐに使えなくなります。	intake.agent.resetConfirm
 Download assistant	下载小助手	ดาวน์โหลดผู้ช่วย Pearnly	アシスタントをダウンロード	intake.target.download
+Install it, then sign in with this account to connect.	安装后用本账号登录即可连接。	ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ	インストール後、このアカウントでログインすると接続されます。	intake.agent.loginHint
 This site has no assistant installer address yet.	本站点未配置小助手安装包地址。	ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้งผู้ช่วย Pearnly	このサイトにはアシスタントのインストーラーURLがまだありません。	intake.installerMissing
 Connect	连接	เชื่อมต่อ	接続
 Fiscal year	年度	ปีบัญชี	年度	intake.target.year

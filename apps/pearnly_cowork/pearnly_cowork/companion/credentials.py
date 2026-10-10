@@ -236,6 +236,49 @@ def issue(connection, request_key, reset=False, expected_generation=None):
         return {**_dto(doc, row), 'status': 'created', 'replayed': False, 'token': token}
 
 
+def _device_connection(express):
+    """这台电脑该连哪条连接：装了 Express 的连 Express；没装的连 MR.ERP（只读文件夹给定时任务），
+    没有 MR.ERP 再退回 Express。只看本站那一份归属下启用的连接，网页上每种只用一条。"""
+    rows = frappe.db.sql('''SELECT name, adapter FROM `tabCowork ERP Connection`
+        WHERE workspace=%s AND COALESCE(client,'')='' AND enabled=1 AND binding_generation=0
+        AND adapter IN %s ORDER BY creation, name''', (access.default_workspace(), HELPER_ADAPTERS), as_dict=True)
+    order = ('express', 'mrerp') if express else ('mrerp', 'express')
+    for adapter in order:
+        found = next((row.name for row in rows if row.adapter == adapter), None)
+        if found:
+            return found
+    return None
+
+
+def register(request_key, express=False, replace=False, expected_generation=None):
+    """CC 桌面端用登录的账号连上这台电脑（2026-10-10 起取代手抄配对码，旧配对码照常有效）。
+
+    权限与网页「连接 Express」同一判据：管理员、且在这条连接的可用名单里；密钥照旧以本人为签发人，
+    本人失去权限密钥即失效。这条连接已有电脑连着时不抢：回 `in_use`，用户确认「改用这台电脑」后
+    带上那把密钥的代数再来（`replace`），旧电脑立即断开。
+    """
+    _enabled()
+    actor = access.require_actor(management=True)
+    express, replace = (contracts.wire_flag(v) in (True, 1) for v in (express, replace))
+    # 同一归属下串行：两台电脑同时登录不会各建一条 Express 连接
+    frappe.db.get_value('Cowork Workspace', access.default_workspace(), 'name', for_update=True)
+    name = _device_connection(express)
+    if name is None:
+        if not express:
+            return {'status': 'no_connection'}
+        from pearnly_cowork.connections import model, service
+        try:
+            name = service.configure(None, 'express', request_key, 'Express', {})['name']
+        except model.ConnectionError as error:
+            _error(error.code)
+    result = issue(name, request_key, replace, expected_generation if replace else None)
+    adapter = frappe.db.get_value(CONNECTION, name, 'adapter')
+    if result.get('token'):
+        return {'status': 'created', 'connection': name, 'adapter': adapter, 'token': result['token']}
+    return {'status': 'in_use', 'connection': name, 'adapter': adapter, 'generation': result['generation'],
+            'online': result['online'], 'issuer': result['issuer'], 'self': result['issuer'] == actor}
+
+
 def revoke(connection, request_key, expected_generation, reason=''):
     intent = _value(contracts.revoke_intent, expected_generation, reason)
     with _atomic():

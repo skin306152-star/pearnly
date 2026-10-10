@@ -302,6 +302,7 @@ IP,IP
 Identity Session,身份会话
 Image Fingerprint,影像指纹
 Inbound = invoices received; outbound = invoices issued,进项 = 收到的发票；销项 = 开出的发票
+"Install it, then sign in with this account to connect.",安装后用本账号登录即可连接。
 "Install, pair, upgrade and uninstall guide for Companion",小助手的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
 Integrations,集成
@@ -934,6 +935,7 @@ intake.action.new,新建录入
 intake.action.queue,推送
 intake.agent.copy,复制
 intake.agent.key,配对码
+intake.agent.loginHint,安装后用本账号登录即可连接。
 intake.agent.reset,重新生成
 intake.agent.resetConfirm,原配对码将立即失效。
 intake.agent.state.missing,小助手未连接
