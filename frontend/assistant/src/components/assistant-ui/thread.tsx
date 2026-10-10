@@ -6,19 +6,8 @@ import {
 } from "@/components/assistant-ui/attachment";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningRoot,
-  ReasoningText,
-  ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
+import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
+import { StepRow, StepsGroup } from "@/components/tool-uis/steps";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -44,14 +33,17 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
+  DownloadIcon,
   MicIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
+import { fileUrl } from "@/lib/managed-agents/api";
 import {
   createContext,
   useContext,
+  useMemo,
   type ComponentType,
   type FC,
   type PropsWithChildren,
@@ -70,12 +62,6 @@ export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
-  ToolGroup?:
-    | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
-    | undefined;
-  ReasoningGroup?:
-    | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
-    | undefined;
 };
 
 export type ThreadProps = {
@@ -327,17 +313,11 @@ const MessageError: FC = () => {
   );
 };
 
-// QUICKSTART DIVERGENCE from the stock copy-in Thread — keep when
-// regenerating with `npx assistant-ui add thread`: standard grouping, with
-// one override. A tool call carrying an UNRESOLVED approval never groups.
-// Registered tools are all standalone already, but MCP and unknown tools
-// fall through to ToolFallback and would otherwise collapse into the
-// "N tool calls" group — an Allow/Deny gate folded inside a collapsed group
-// is a gate nobody sees, wedging the parked session. (GroupedParts has no
-// injection point for this, so it must live here.)
+// 思考与工具调用连续的一段收成一组「步骤」（同 claude.ai）。停下来等批准的那一步不收进组：
+// 收在折叠里的「允许 / 拒绝」没人看得见，会话就卡住了。
 const groupByBase = groupPartByType({
-  reasoning: ["group-chainOfThought", "group-reasoning"],
-  "tool-call": ["group-chainOfThought", "group-tool"],
+  reasoning: ["group-chainOfThought"],
+  "tool-call": ["group-chainOfThought"],
   "standalone-tool-call": [],
 });
 const groupByWithVisibleGates: typeof groupByBase = (part, context) => {
@@ -348,11 +328,7 @@ const groupByWithVisibleGates: typeof groupByBase = (part, context) => {
 };
 
 const AssistantMessage: FC = () => {
-  const {
-    ToolFallback: ToolFallbackComponent = ToolFallback,
-    ToolGroup,
-    ReasoningGroup,
-  } = useContext(ThreadComponentsContext);
+  const { ToolFallback: ToolFallbackComponent = StepRow } = useContext(ThreadComponentsContext);
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -372,40 +348,11 @@ const AssistantMessage: FC = () => {
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-tool":
-                if (ToolGroup) {
-                  return <ToolGroup group={part}>{children}</ToolGroup>;
-                }
-                return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
-                );
-              case "group-reasoning": {
-                if (ReasoningGroup) {
-                  return (
-                    <ReasoningGroup group={part}>{children}</ReasoningGroup>
-                  );
-                }
-                const running = part.status.type === "running";
-                return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
-                );
-              }
+                return <StepsGroup group={part}>{children}</StepsGroup>;
               case "text":
                 return <MarkdownText />;
               case "reasoning":
-                return <Reasoning {...part} />;
+                return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
               case "tool-call":
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
@@ -426,6 +373,7 @@ const AssistantMessage: FC = () => {
           }}
         </MessagePrimitive.GroupedParts>
         <MessageError />
+        <MessageFiles />
       </div>
 
       <div
@@ -436,6 +384,52 @@ const AssistantMessage: FC = () => {
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+/** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定。 */
+const MessageFiles: FC = () => {
+  const { sessionId, files, openFile } = useResults();
+  const id = useAuiState((s) => s.message.id);
+  const messages = useAuiState((s) => s.thread.messages);
+  const mine = useMemo(() => {
+    const index = messages.findIndex((m) => m.id === id);
+    if (index < 0) return [];
+    const from = messages[index]!.createdAt.getTime();
+    const until = messages[index + 1]?.createdAt.getTime() ?? Number.POSITIVE_INFINITY;
+    return files.filter((f) => {
+      const at = new Date(f.created_at).getTime();
+      return at >= from && at < until;
+    });
+  }, [files, messages, id]);
+  if (!sessionId || !mine.length) return null;
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      {mine.map((file) => (
+        <div
+          key={file.id}
+          className="flex max-w-md items-center gap-3 rounded-xl border border-[#e8e6dc] bg-white px-3 py-2.5 hover:border-[#d6d3c7]"
+        >
+          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#f5f4ef] text-[#5b5950]">
+              <FileTypeIcon filename={file.filename} className="size-4.5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium text-[#1a1a18] text-sm">{file.filename}</span>
+              <span className="block text-[#8a887f] text-xs">{fileTypeLabel(file.filename)}</span>
+            </span>
+          </button>
+          <a
+            href={fileUrl(sessionId, file.id)}
+            title={t("download")}
+            aria-label={t("download")}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#5b5950] hover:bg-muted"
+          >
+            <DownloadIcon className="size-4" />
+          </a>
+        </div>
+      ))}
+    </div>
   );
 };
 

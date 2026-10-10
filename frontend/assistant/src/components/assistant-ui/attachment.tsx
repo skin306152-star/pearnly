@@ -32,6 +32,7 @@ import {
   AvatarFallback,
 } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { localPreview } from "@/lib/managed-agents/attachments";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 
@@ -60,8 +61,8 @@ const useAttachmentSrc = () => {
     useShallow((s): { file?: File; src?: string } => {
       if (s.attachment.type !== "image") return {};
       if (s.attachment.file) return { file: s.attachment.file };
-      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
-        ?.image;
+      const src =
+        s.attachment.content?.filter((c) => c.type === "image")[0]?.image ?? localPreview(s.attachment.id);
       if (!src) return {};
       return { src };
     }),

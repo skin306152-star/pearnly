@@ -13,7 +13,8 @@ import anthropic
 from pearnly_core.assistant.engines import base
 
 BETA = "managed-agents-2026-04-01"
-EFFORT = "medium"
+# 思考强度：所有模型默认最低档（用户 2026-10-10）；四个可选模型都实测接受 low。
+EFFORT = "low"
 MANAGED_BY = "pearnly-assistant"
 ENVIRONMENT = {"name": "pearnly-assistant", "config": {"type": "cloud", "networking": {"type": "limited"}}}
 UPLOADS = "/mnt/session/uploads"
@@ -25,7 +26,8 @@ Files in this workspace:
 - Files the user attaches are in {UPLOADS}/ and are read-only.
 - When the user asks for a table, list, report, spreadsheet, document, chart or any other result to keep, \
 create it as a file in {OUTPUTS}/ (tables and lists as .xlsx, documents as .docx or .pdf, charts and pages as .html) \
-and reply with a short summary of what the file contains instead of repeating its full content."""
+and reply with a short summary of what the file contains instead of repeating its full content.
+- In spreadsheets write the calculated values; use formulas only when the user asks for them."""
 # 浏览器等着这些请求，不能挂太久；SDK 自己会对 429 / 5xx / 超时重试。
 TIMEOUT = 30
 RETRIES = 2

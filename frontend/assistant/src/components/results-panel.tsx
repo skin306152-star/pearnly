@@ -1,25 +1,69 @@
-// 右侧结果面板（同 claude.ai 的 Artifacts 面板）：智能体写到 /mnt/session/outputs/ 的文件在这里预览、下载。
+// 右侧结果面板（同 claude.ai 的 Artifacts 面板）：智能体产出的文件在这里预览、下载。
 //
 // 预览方式沿用 assistant-ui 官方 Artifacts 示例：网页放进无同源权限的沙箱 iframe（srcDoc），并可切到代码；
-// 图片、PDF 用服务端的内联地址；表格与文本按原文显示；其余类型只给下载。
-// 新结果出现时自动打开；回看历史时不自动打开，标题栏的按钮可随时打开。
+// 图片、PDF 用服务端的内联地址；Excel 由服务端读成表格后显示；文本按原文显示；其余类型给下载。
+// 新结果出现时自动打开；对话里的文件卡片点一下打开对应文件（ResultsContext）。
 
 import { Tabs } from "radix-ui";
-import { DownloadIcon, FileIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { fileUrl, listSessionFiles, type SessionFile } from "@/lib/managed-agents/api";
+import {
+  DownloadIcon,
+  FileIcon,
+  FileImageIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
+  GlobeIcon,
+  LoaderIcon,
+  XIcon,
+} from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { fileUrl, listSessionFiles, previewFile, type SessionFile, type SheetPreview } from "@/lib/managed-agents/api";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 
-type Kind = "html" | "image" | "pdf" | "text" | "none";
+type Kind = "html" | "image" | "pdf" | "sheet" | "text" | "none";
 
-function kindOf(file: SessionFile): Kind {
-  const name = file.filename.toLowerCase();
+function kindOf(filename: string): Kind {
+  const name = filename.toLowerCase();
   if (/\.html?$/.test(name)) return "html";
   if (/\.(png|jpe?g|gif|webp)$/.test(name)) return "image";
   if (name.endsWith(".pdf")) return "pdf";
+  if (/\.xlsx?m?$/.test(name)) return "sheet";
   if (/\.(csv|tsv|txt|md|json|log)$/.test(name)) return "text";
   return "none";
+}
+
+/** 文件类型图标（对话里的文件卡片与面板共用）。 */
+export function FileTypeIcon({ filename, className }: { filename: string; className?: string }) {
+  const kind = kindOf(filename);
+  const Icon =
+    kind === "sheet" || /\.(csv|tsv)$/i.test(filename)
+      ? FileSpreadsheetIcon
+      : kind === "image"
+        ? FileImageIcon
+        : kind === "html"
+          ? GlobeIcon
+          : kind === "none"
+            ? FileIcon
+            : FileTextIcon;
+  return <Icon className={className} />;
+}
+
+/** 扩展名大写，作文件卡片的类型说明（XLSX、PDF…）。 */
+export function fileTypeLabel(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  return dot > 0 ? filename.slice(dot + 1).toUpperCase() : "";
+}
+
+export type Results = {
+  sessionId: string | null;
+  files: SessionFile[];
+  openFile: (id: string) => void;
+};
+
+export const ResultsContext = createContext<Results>({ sessionId: null, files: [], openFile: () => undefined });
+
+export function useResults(): Results {
+  return useContext(ResultsContext);
 }
 
 /** 本会话的结果文件；会话从「运行中」变回空闲时重新取一次（结果文件有 1–3 秒的入库延迟，取不到再补一次）。 */
@@ -87,8 +131,72 @@ function useText(url: string | null) {
   return text;
 }
 
+function useSheets(sessionId: string, fileId: string | null) {
+  const [sheets, setSheets] = useState<SheetPreview | null>(null);
+  useEffect(() => {
+    setSheets(null);
+    if (!fileId) return;
+    let cancelled = false;
+    void previewFile(sessionId, fileId).then(
+      (body) => !cancelled && setSheets(body),
+      () => !cancelled && setSheets({ type: "none" }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, fileId]);
+  return sheets;
+}
+
+// 数额靠右；收据号、税号这类以 0 开头或很长的数字编号仍按文字靠左。
+const isAmount = (cell: string) => cell.length < 13 && /^-?(0|[1-9][\d,]*)(\.\d+)?$/.test(cell);
+
+function SheetTable({ rows }: { rows: string[][] }) {
+  return (
+    <div className="h-full overflow-auto">
+      <table className="border-collapse text-[13px]">
+        <tbody>
+          {rows.map((row, r) => (
+            <tr key={r} className={r === 0 ? "bg-[#f5f4ef] font-medium" : undefined}>
+              {row.map((cell, c) => (
+                <td
+                  key={c}
+                  className={cn(
+                    "max-w-72 truncate border border-[#e8e6dc] px-2.5 py-1.5",
+                    isAmount(cell) && "text-right tabular-nums",
+                  )}
+                  title={cell}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
+      <FileTypeIcon filename={file.filename} className="size-10" />
+      <span className="max-w-[80%] truncate text-foreground">{file.filename}</span>
+      <a
+        href={fileUrl(sessionId, file.id)}
+        className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-foreground hover:bg-muted"
+      >
+        <DownloadIcon className="size-4" />
+        {t("download")}
+      </a>
+    </div>
+  );
+}
+
 function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
-  const kind = kindOf(file);
+  const kind = kindOf(file.filename);
+  const sheets = useSheets(sessionId, kind === "sheet" ? file.id : null);
   const text = useText(kind === "html" || kind === "text" ? fileUrl(sessionId, file.id) : null);
 
   if (kind === "image") {
@@ -99,6 +207,37 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
   }
   if (kind === "text") {
     return <pre className="h-full overflow-auto p-4 font-mono text-[13px] whitespace-pre-wrap">{text ?? ""}</pre>;
+  }
+  if (kind === "sheet") {
+    if (!sheets) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (sheets.type !== "sheets" || !sheets.sheets.length) return <NoPreview sessionId={sessionId} file={file} />;
+    if (sheets.sheets.length === 1) return <SheetTable rows={sheets.sheets[0]!.rows} />;
+    return (
+      <Tabs.Root defaultValue="0" className="flex h-full flex-col">
+        {sheets.sheets.map((sheet, i) => (
+          <Tabs.Content key={i} value={String(i)} className="min-h-0 flex-1">
+            <SheetTable rows={sheet.rows} />
+          </Tabs.Content>
+        ))}
+        <Tabs.List className="flex gap-1 overflow-x-auto border-t px-2 text-sm">
+          {sheets.sheets.map((sheet, i) => (
+            <Tabs.Trigger
+              key={i}
+              value={String(i)}
+              className="-mt-px border-transparent border-t-2 px-2 py-1.5 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
+            >
+              {sheet.name}
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
+      </Tabs.Root>
+    );
   }
   if (kind === "html") {
     return (
@@ -124,26 +263,24 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
       </Tabs.Root>
     );
   }
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
-      <FileIcon className="size-8" />
-      {t("noPreview")}
-    </div>
-  );
+  return <NoPreview sessionId={sessionId} file={file} />;
 }
 
 export function ResultsPanel({
   sessionId,
   files,
+  selected,
+  onSelect,
   onClose,
   className,
 }: {
   sessionId: string;
   files: SessionFile[];
+  selected: string | null;
+  onSelect: (id: string) => void;
   onClose: () => void;
   className?: string;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
   const current = files.find((f) => f.id === selected) ?? files[files.length - 1];
   if (!current) return null;
   return (
@@ -151,7 +288,7 @@ export function ResultsPanel({
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <select
           value={current.id}
-          onChange={(e) => setSelected(e.target.value)}
+          onChange={(e) => onSelect(e.target.value)}
           className="min-w-0 flex-1 truncate bg-transparent font-medium text-sm outline-none"
         >
           {files.map((f) => (

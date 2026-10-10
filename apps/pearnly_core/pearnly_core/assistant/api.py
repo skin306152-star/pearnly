@@ -80,5 +80,10 @@ def download(session_id, file_id, inline=0):
 
 
 @frappe.whitelist(methods=["GET"])
+def preview(session_id, file_id):
+    return files.preview(session_id, file_id)
+
+
+@frappe.whitelist(methods=["GET"])
 def tool_labels():
     return tools.labels()

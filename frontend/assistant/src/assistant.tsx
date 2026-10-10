@@ -20,10 +20,10 @@ import {
   MessageSquareIcon,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { Mascot } from "@/components/mascot";
-import { ResultsPanel, useResultFiles } from "@/components/results-panel";
+import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { ManagedAgentsToolFallback, toolkit } from "@/components/tool-uis";
 import {
@@ -208,26 +208,40 @@ function CollapsedTrigger() {
   );
 }
 
-// 右侧结果面板：新结果出现时自动打开，右上角按钮随时开关（同 claude.ai 的 Artifacts）。
-function useResults() {
+// 右侧结果面板：新结果出现时自动打开最新的一个；对话里的文件卡片、右上角按钮随时打开（同 claude.ai 的 Artifacts）。
+function useResultsPanel() {
   const { sessionId, isRunning } = useActiveSessionSnapshot();
   const { files, fresh, clearFresh } = useResultFiles(sessionId, isRunning);
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [sessionId]);
+  const [selected, setSelected] = useState<string | null>(null);
+  useEffect(() => {
+    setOpen(false);
+    setSelected(null);
+  }, [sessionId]);
   useEffect(() => {
     if (fresh) {
+      setSelected(null);
       setOpen(true);
       clearFresh();
     }
   }, [fresh, clearFresh]);
-  return { sessionId, files, open: open && files.length > 0, setOpen };
+  const openFile = useCallback((id: string) => {
+    setSelected(id);
+    setOpen(true);
+  }, []);
+  return { sessionId, files, selected, setSelected, openFile, open: open && files.length > 0, setOpen };
 }
 
 function Workspace() {
   const aui = useAui({ tools: Tools({ toolkit }) });
-  const results = useResults();
+  const results = useResultsPanel();
+  const context = useMemo(
+    () => ({ sessionId: results.sessionId, files: results.files, openFile: results.openFile }),
+    [results.sessionId, results.files, results.openFile],
+  );
   return (
     <AuiProvider value={aui}>
+      <ResultsContext.Provider value={context}>
       <SidebarProvider>
         <div className="flex h-dvh w-full">
           <AppSidebar />
@@ -255,6 +269,8 @@ function Workspace() {
               <ResultsPanel
                 sessionId={results.sessionId}
                 files={results.files}
+                selected={results.selected}
+                onSelect={results.setSelected}
                 onClose={() => results.setOpen(false)}
                 className="max-md:fixed max-md:inset-0 max-md:z-50 md:w-[45%]"
               />
@@ -262,6 +278,7 @@ function Workspace() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+      </ResultsContext.Provider>
     </AuiProvider>
   );
 }

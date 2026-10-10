@@ -79,6 +79,13 @@ export function listSessionFiles(id: string): Promise<SessionFile[]> {
   return get("session_files", { session_id: id });
 }
 
+export type SheetPreview = { type: "sheets"; sheets: Array<{ name: string; rows: string[][] }> } | { type: "none" };
+
+/** 结果文件的结构化预览（目前是 Excel 表格）。 */
+export function previewFile(id: string, fileId: string): Promise<SheetPreview> {
+  return get("preview", { session_id: id, file_id: fileId });
+}
+
 /** 结果文件的地址。inline 只对图片、PDF 生效，其余类型服务端一律按下载给出。 */
 export function fileUrl(id: string, fileId: string, inline = false): string {
   const query = new URLSearchParams({ session_id: id, file_id: fileId, inline: inline ? "1" : "0" });

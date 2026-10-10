@@ -11,6 +11,13 @@ export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,
 
 /** 已上传附件在沙箱里的位置，按 assistant-ui 的附件编号记，发送时拼进消息。 */
 const uploaded = new Map<string, UploadedFile>();
+/** 本页上传的图片的本地预览，按沙箱位置记（消息气泡里的附件以它为编号）：发出去的图片在气泡里显示缩略图。
+ *  引擎那边的附件不可下载，刷新后没有缩略图，显示文件图标。 */
+const previews = new Map<string, string>();
+
+export function localPreview(mountPath: string): string | undefined {
+  return previews.get(mountPath);
+}
 
 export function attachedFilesOf(attachments: readonly CompleteAttachment[] | undefined) {
   return (attachments ?? [])
@@ -31,7 +38,9 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       try {
         const sessionId = await getSessionId();
         yield { ...base, status: { type: "running", reason: "uploading", progress: 0.5 } };
-        uploaded.set(id, await uploadFile(sessionId, file));
+        const stored = await uploadFile(sessionId, file);
+        uploaded.set(id, stored);
+        if (/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) previews.set(stored.mountPath, URL.createObjectURL(file));
         yield { ...base, status: { type: "requires-action", reason: "composer-send" } };
       } catch (err) {
         yield {
