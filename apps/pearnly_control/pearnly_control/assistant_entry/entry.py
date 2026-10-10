@@ -35,13 +35,20 @@ def enabled() -> bool:
 # 入口站点只开放这几个地址：入口页与三个登录接口。Frappe 自带的登录页、后台、通用接口一律拒绝（同计费站点的做法）。
 ALLOWED_PATHS = frozenset({"/", "/ai"} | {f"/api/method/pearnly_control.assistant_entry.api.{name}"
                                           for name in ("start", "callback", "choose")})
+# 入口页底部那只睡觉的猫（视频文件，scripts/build-ai-entry.py）：只放行这一个静态目录
+ALLOWED_PREFIX = "/assets/pearnly_control/cc/"
+
+
+def allowed(path: str) -> bool:
+    path = str(path or "")
+    return path in ALLOWED_PATHS or (path.startswith(ALLOWED_PREFIX) and ".." not in path)
 
 
 def guard_entry_site():
     if not enabled():
         return
     request = getattr(frappe.local, "request", None)
-    if request and (request.path not in ALLOWED_PATHS or frappe.form_dict.get("cmd")):
+    if request and (not allowed(request.path) or frappe.form_dict.get("cmd")):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
