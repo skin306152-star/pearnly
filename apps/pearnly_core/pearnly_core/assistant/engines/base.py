@@ -27,6 +27,10 @@ class Adapter(abc.ABC):
     def open(self, handle: dict, metadata: dict) -> tuple[str, str]:
         """新建一个会话，返回 (会话编号, 状态)。"""
 
+    def refresh(self, conversation: str, brief: dict) -> bool:
+        """把已有会话的工具换成当前说明里的（新接的工具老对话也能用）。厂商不支持就不做，返回 False。"""
+        return False
+
     @abc.abstractmethod
     def status(self, conversation: str) -> str:
         """`idle` / `running` / …"""

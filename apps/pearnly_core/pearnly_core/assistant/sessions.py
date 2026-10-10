@@ -80,6 +80,7 @@ def create() -> dict:
     user, product = _user(), config.product()
     api = engine.adapter()
     sid, status = api.open(engine.prepared(api), _metadata(user, product))
+    engine.tools_current(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": ""}).insert(ignore_permissions=True)
     return _summary(doc, status)
@@ -125,10 +126,12 @@ def segment_for_turn(row, api) -> str:
     limit = engines.context_limit(s.engine.code, s.model)
     remote = current(row)
     if not limit or int(row.get("context_tokens") or 0) < limit:
+        engine.keep_tools_current(api, remote)
         return remote
     carry = contracts.carry_over(api.events(remote))
     fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
                                                      "pearnly_conversation": row.session_id})
+    engine.tools_current(fresh)
     remote_ids = json.dumps(segments(row) + [fresh])
     frappe.db.set_value(SESSION, row.name, {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})
     row.update({"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})

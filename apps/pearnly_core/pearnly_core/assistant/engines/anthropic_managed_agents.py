@@ -98,6 +98,11 @@ class Adapter(base.Adapter):
                                                 title="", metadata=metadata)
         return session.id, session.status
 
+    def refresh(self, conversation: str, brief: dict) -> bool:
+        # 会话建好后绑定建时的智能体版本、系统提示词不能再改；工具可以整组替换（官方「会话中更新智能体配置」）。
+        self.api.beta.sessions.update(conversation, agent={"tools": spec(brief, self.model)["tools"]})
+        return True
+
     def status(self, conversation: str) -> str:
         return self.api.beta.sessions.retrieve(conversation).status
 

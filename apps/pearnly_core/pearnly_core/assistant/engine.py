@@ -29,6 +29,32 @@ def _digest(value: str, size: int) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:size]
 
 
+TOOLS_TTL = 30 * 86400
+
+
+def _tools_shape(brief) -> str:
+    return _digest(json.dumps(brief["tools"], sort_keys=True), 16)
+
+
+def tools_current(conversation: str) -> None:
+    """刚按当前说明建的会话：记下它的工具已是最新，第一条消息不必再换。"""
+    frappe.cache.set_value(f"pearnly_assistant:tools:{conversation}", _tools_shape(definition.brief(config.product())),
+                           expires_in_sec=TOOLS_TTL)
+
+
+def keep_tools_current(api, conversation: str) -> None:
+    """老对话用上新工具：这段远端会话上次换上的工具与当前说明不同（或没记过）就整组换一次。换不了不影响发消息。"""
+    brief = definition.brief(config.product())
+    key = f"pearnly_assistant:tools:{conversation}"
+    if frappe.cache.get_value(key) == _tools_shape(brief):
+        return
+    try:
+        if api.refresh(conversation, brief):
+            frappe.cache.set_value(key, _tools_shape(brief), expires_in_sec=TOOLS_TTL)
+    except Exception:
+        frappe.log_error(title="Assistant tools refresh failed")
+
+
 def prepared(api) -> dict:
     """本站产品在当前引擎账号里的句柄（交给 `api.open`）。"""
     s = config.settings()

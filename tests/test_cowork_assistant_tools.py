@@ -149,6 +149,25 @@ class BehaviourTests(unittest.TestCase):
 
 
 
+class PushTargetTests(unittest.TestCase):
+    """仅识别的单据也能推：这次说的连接与账套优先，没说就用识别时选的。"""
+
+    def test_the_named_account_set_is_used_for_a_recognize_only_document(self):
+        seen = []
+        doc = types.SimpleNamespace(last_push_status="", push_connection="", push_account_set="", posting_kind="",
+                                    record_version=2, last_push_record="", last_push_reason="")
+        tools.storage.read = lambda name: doc
+        tools.application.choices_view = lambda name, target, account_set, kind: seen.append((target, account_set, kind)) or {"needed": []}
+        tools.application.submit = lambda *a: {"status": "failed", "reason": "stop here"}
+        tools._push_one("H1", "EXP1", "c:\\70exp\\t9", "stock")
+        self.assertEqual(seen[-1], ("EXP1", "c:\\70exp\\t9", "stock"))
+        doc.push_connection, doc.push_account_set = "EXP1", "c:\\70exp\\t8"
+        tools._push_one("H1")
+        self.assertEqual(seen[-1][:2], ("EXP1", "c:\\70exp\\t8"))
+        tools._push_one("H1", "EXP2")  # 换了连接就不沿用原连接的账套
+        self.assertEqual(seen[-1][:2], ("EXP2", None))
+
+
 class RecognizeAttachmentTests(unittest.TestCase):
     """对话里的附件交给录入工作台识别：同一附件同一请求号（不重复扣费）、只识别时不带推送目标、余额不足照实回。"""
 

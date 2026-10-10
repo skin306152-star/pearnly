@@ -95,7 +95,7 @@ def _key(name, version, last) -> str:
     return "assistant:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
 
 
-def _push_one(name, connection=None) -> dict:
+def _push_one(name, connection=None, account_set_key=None, posting_kind=None) -> dict:
     try:
         doc = storage.read(name)
     except (frappe.DoesNotExistError, frappe.PermissionError):
@@ -109,7 +109,10 @@ def _push_one(name, connection=None) -> dict:
     adapter, revision = frappe.db.get_value(CONNECTION, target, ["adapter", "record_revision"]) or (None, None)
     if not adapter:
         return {"document": name, "status": "failed", "reason": "no_push_target"}
-    account_set, posting_kind = doc.push_account_set or None, doc.posting_kind or None
+    # 推到哪个账套：用户这次说的优先（例如仅识别的单据要录进某个账套），否则用识别时选的口径
+    account_set = account_set_key or (doc.push_account_set if not connection or connection == doc.push_connection
+                                      else None) or None
+    posting_kind = posting_kind or doc.posting_kind or None
     frappe.db.commit()  # choices_view 只看不记、结束时整笔回滚：先把前面的落掉
     try:
         view = application.choices_view(name, target, account_set, posting_kind)
@@ -157,7 +160,9 @@ def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
         frappe.throw(_("No documents were given."))
-    return _json({"results": [_push_one(name, tool_input.get("connection") or None) for name in names]})
+    return _json({"results": [_push_one(name, tool_input.get("connection") or None,
+                                        tool_input.get("account_set_key") or None,
+                                        tool_input.get("posting_kind") or None) for name in names]})
 
 
 # ---------------- 对话里的票据：上传识别 ----------------
@@ -907,10 +912,14 @@ TOOLS = [
     {"name": "cowork_push_documents", "label": "Pushed documents",
      "description": "Push recognized documents to their accounting target (Express through the companion, or MR.ERP), "
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time; each "
-                    "result says sent, needs_choice (the user must pick in the web page), failed with a reason, or already pushed.",
+                    "result says sent, needs_choice (get the choices with cowork_push_choices, ask the user, save them "
+                    "and push again), failed with a reason, or already pushed. connection and account_set_key choose "
+                    "where to push (from cowork_intake_options), e.g. for a recognize-only document; left out, the "
+                    "target chosen at upload is used.",
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
-         "connection": {"type": "string", "description": "Optional; defaults to the target chosen at upload."}},
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."}},
          "required": ["documents"]},
      "handler": "pearnly_cowork.assistant.tools.push_documents"},
     {"name": "cowork_push_choices", "label": "Checked push choices",

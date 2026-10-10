@@ -320,6 +320,18 @@ class RelayTests(unittest.TestCase):
         self.assertIn("frappe.UniqueValidationError", run)  # 推送线程与页面同时执行：唯一冲突不弹到页面上
         self.assertIn("frappe.clear_messages()", run.split("UniqueValidationError", 1)[1].split("return", 1)[0])
 
+    def test_existing_conversations_get_the_current_tools(self):
+        # 会话绑定建时的智能体版本；工具可在会话中整组替换：每轮先核对，旧对话也能用新工具；新建的直接记为最新
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        turn = source.split("def segment_for_turn(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("engine.keep_tools_current(api, remote)", turn)
+        self.assertIn("engine.tools_current(fresh)", turn)
+        self.assertIn("engine.tools_current(sid)", source)
+        adapter = (CORE / "assistant/engines/anthropic_managed_agents.py").read_text(encoding="utf-8")
+        self.assertIn('sessions.update(conversation, agent={"tools": spec(brief, self.model)["tools"]})', adapter)
+        base = (CORE / "assistant/engines/base.py").read_text(encoding="utf-8")
+        self.assertIn("def refresh(self, conversation: str, brief: dict) -> bool:", base)
+
     def test_titles_leave_out_the_attachment_note(self):
         note = "\n\n[Attached file, mounted read-only in the sandbox:\n- r.jpg → /mnt/session/uploads/file_1/r.jpg]"
         self.assertEqual(contracts.title_from("识别后结果发给我" + note), "识别后结果发给我")
