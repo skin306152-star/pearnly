@@ -434,6 +434,7 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 **E. 收尾**
 
 - [ ] 25. 清理：本机预览服务（5199 Vite、5201 静态预览）、`pearnly-ai-theme-preview` 容器、测试机环境变量 `PEARNLY_TOMO_ENTRY`、测试机 `C:\Users\Public\tomo-test` 与计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`（本窗口截图用，计划任务 `CCLoginCheck` 已删）；合入后删本工作树与本地 / 远端分支（AGENTS.md「收工清理」）。生产父主题目录里的 `._*` 苹果隐藏文件（旧上传带进去的，非本任务）删除需用户同意。生产 testai 隧道 `^/assets/` 路由已无用途，下次改隧道时去掉。
+  - 进度（2026-10-11 凌晨，上线后）：已清本机 5199 / 5201 预览服务、`pearnly-ai-theme-preview` 容器、测试机 `C:\Users\Public\tomo-test`、计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`、WSL `/opt/cc-candidate`；测试机环境变量 `PEARNLY_TOMO_ENTRY` 已不存在。工作树与分支见下「收尾登记」（第 17a 项还要用，暂留）。
 
 ### 规矩（用户今天强调的）
 
@@ -458,12 +459,19 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 
 ## 收尾登记
 
+- 2026-10-11 上线后（main f3450a4b，已推送、远端回读一致）：
+  - 工作树 `/Users/skin/pearnly-agent-foundation`、分支 `pearnly/agent-foundation`（本地与远端，与 main 同一提交）：**交接保留**。用途：第 17a 项（对账引擎）还在这里做；本机管理后台（`pearnly-sample-control-*`）与测试环境实时源码都挂着这个工作树。解除条件：17a 合入后，把本机管理后台与测试环境改挂主目录或下一个任务的工作树，再删工作树与本地 / 远端分支。
+  - 引擎控制台 Default 工作区回调地址「CC testcowork」（指测试站）与签名密钥（本机 `~/.config/pearnly-testenv/assistant-webhook-secret`，测试站站点配置）：测试环境继续用，保留。
+  - 测试站 testcowork 域名仍指测试机实验栈（实时源码）：继续测 CC 用；生产验收时 `testenv.sh lab-stop cowork`。
+  - 测试数据：testcowork 上的测试对话、单据、盘点、看板卡片；Express 测试账套 T9SINCER 里本次真推的 IV69/00095、IV69/00076（测试账套，保留作对照）。
+  - 桌面 App 为本会话建的工作树 `.claude/worktrees/beautiful-merkle-8ade02` 与分支 `pearnly/beautiful-merkle-8ade02`：无独有提交、无改动、无远端分支；会话结束时删。
+
 - 工作树 `/Users/skin/pearnly-agent-foundation`、本地分支 `pearnly/agent-foundation`、远端同名分支：**交接保留**，所属本任务，用途为继续桌面端与试用；解除条件：合入 `main` 后按收工清理删除。
 - 本机 `ant` 命令行（Homebrew）：为本任务装，后续配置智能体可能用到，保留；不需要时 `brew uninstall ant`。
 - LobeHub 评估环境（容器、卷、镜像、`~/lobehub-eval`）与官方示例演示目录：已删除。
 - 2026-10-10 晚测试夜（与测试窗口「Cowork 智能体测试」配合）收尾：
   - 已删：测试机容器与 WSL 里本窗口的 `/tmp/cc_*.py` 查询脚本、计划任务 `CCLoginCheck`；测试窗口删了 QA 定时任务 36f12t4v3p、CC 设置里的 CC-QA-empty 文件夹、`C:\Users\Public\qa`、`qa-state.ps1`、计划任务 `QaCCTest`、它复制进容器的查询脚本。
-  - 保留 `C:\Users\Public\cc-check`（1.4.0 测试安装包，源码 `ef5487eb`，sha256 `2e54a50f…`，及装包脚本）：下次换桌面端测试包还要用；解除条件：第 25 项清理或正式版发布后删。
+  - `C:\Users\Public\cc-check`：正式版 1.4.0 已发，2026-10-11 已删。
   - 保留测试机 skin3「下载」里测试时 CC 下载的 7 个文件：共享目录，按规矩不自行删，由用户定。
   - 保留测试租户 testcowork 上的测试单据、对账、盘点、看板卡片与对话：测试数据，后续回归可复用；用户要清时再清。
   - 测试环境 cowork 实时源码挂的是本工作树（最新同步 `955ad059`）：继续测试用；解除条件：合入 main 后 `testenv.sh live-off cowork` 或改挂主线。
