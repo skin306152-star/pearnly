@@ -1688,6 +1688,9 @@ Refreshed account sets	刷新了账套	รีเฟรชชุดบัญช�
 Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
 Recognized documents	识别了单据	อ่านเอกสารแล้ว	書類を読み取りました
 Checked recognition results	查看了识别结果	ตรวจสอบผลการอ่านเอกสารแล้ว	読み取り結果を確認しました
+Checked intake choices	查看了录入口径	ตรวจสอบตัวเลือกการบันทึกแล้ว	入力設定を確認しました
+Checked the stock account group	查看了存货科目组	ตรวจสอบกลุ่มบัญชีสินค้าคงเหลือแล้ว	在庫勘定グループを確認しました
+Checked MR.ERP import settings	查看了 MR.ERP 导入设置	ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว	MR.ERP の取り込み設定を確認しました
 Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました
 Edited a document	修改了单据	แก้ไขเอกสารแล้ว	書類を修正しました
 Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました

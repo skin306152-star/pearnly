@@ -210,13 +210,16 @@ Check the ERP connection settings.,请检查 ERP 连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checkbox,勾选
+Checked MR.ERP import settings,查看了 MR.ERP 导入设置
 Checked folder task runs,查看了文件夹任务记录
 Checked folder tasks,查看了文件夹任务
 Checked in the ERP,已在 ERP 核对
 Checked in the ERP: not entered. It can be sent again,已在 ERP 核对：未入账，可重新推送
+Checked intake choices,查看了录入口径
 Checked push results,查看了推送结果
 Checked recognition results,查看了识别结果
 Checked the companion,查看了小助手
+Checked the stock account group,查看了存货科目组
 Checking,核对中
 Checklist,清单
 Checklist Id,清单 ID

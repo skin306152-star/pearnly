@@ -210,13 +210,16 @@ Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checkbox,チェックボックス
+Checked MR.ERP import settings,MR.ERP の取り込み設定を確認しました
 Checked folder task runs,フォルダータスクの実行履歴を確認しました
 Checked folder tasks,フォルダータスクを確認しました
 Checked in the ERP,ERP で確認済み
 Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
+Checked intake choices,入力設定を確認しました
 Checked push results,送信結果を確認しました
 Checked recognition results,読み取り結果を確認しました
 Checked the companion,アシスタントを確認しました
+Checked the stock account group,在庫勘定グループを確認しました
 Checking,照合中
 Checklist,チェックリスト
 Checklist Id,チェックリスト ID

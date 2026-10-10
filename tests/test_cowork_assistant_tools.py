@@ -29,6 +29,7 @@ class _Frappe(types.ModuleType):
     def __init__(self):
         super().__init__("frappe")
         self.calls, self.commits = [], 0
+        self.session = types.SimpleNamespace(user="a@example.com")
         self.db = types.SimpleNamespace(commit=self._commit, rollback=lambda: None,
                                         get_value=lambda *a, **k: ("express", 3))
 
@@ -298,6 +299,61 @@ class EditDocumentTests(unittest.TestCase):
         out = json.loads(tools.edit_document({"document": "H1", "version": 3, "changes": {"notes": "x"}}))
         self.assertEqual(out["status"], "not_saved")
         self.assertIn("changed", out["reason"])
+
+
+
+class IntakeChoiceTests(unittest.TestCase):
+    """录入口径：每种 ERP 一条连接与状态、上次用的账套排第一、上次口径来自上一次识别；科目组与 MR.ERP 设置走连接服务。"""
+
+    def setUp(self):
+        search = types.ModuleType("pearnly_cowork.connections.account_search")
+        search.usable = lambda adapter, rows: [r for r in rows if r.get("active", True)]
+        search.label = lambda adapter, row: row["label"]
+        search.search = lambda adapter, rows, query: [{"value": r["source_id"], "label": r["label"]}
+                                                      for r in rows if query.lower() in r["label"].lower()]
+        sys.modules["pearnly_cowork.connections.account_search"] = search
+        tools.connections.records = lambda *a: [
+            {"name": "EXP1", "adapter": "express", "enabled": True, "label": "Office"},
+            {"name": "EXP2", "adapter": "express", "enabled": True},
+            {"name": "MR1", "adapter": "mrerp", "enabled": False}]
+        tools.connections.targets = lambda name: {"account_sets": [
+            {"source_id": "A", "label": "Alpha Co"}, {"source_id": "B", "label": "Beta Co"},
+            {"source_id": "X", "label": "Old Co", "active": False}]}
+        tools.destinations.online = lambda adapter, name: True
+        frappe.get_list = lambda doctype, **kw: [{"intake_target": "express", "target_connection": "EXP1",
+                                                  "target_account_set": "B", "direction": "purchase",
+                                                  "posting_kind": "stock", "payment": None}]
+
+    def tearDown(self):
+        frappe.get_list = types.MethodType(_Frappe.get_list, frappe)
+
+    def test_targets_states_and_the_last_used_account_set_first(self):
+        out = json.loads(tools.intake_options({}))
+        express, mrerp, none = out["targets"]
+        self.assertEqual((express["connection"], express["state"], express["account_sets_total"]), ("EXP1", "ready", 2))
+        self.assertEqual([a["key"] for a in express["account_sets"]], ["B", "A"])
+        self.assertEqual(mrerp["state"], "disabled")
+        self.assertEqual(none, {"target": "none", "state": "ready"})
+        self.assertEqual(out["last_used"], {"target": "express", "connection": "EXP1", "account_set_key": "B",
+                                            "direction": "purchase", "posting_kind": "stock"})
+        found = json.loads(tools.intake_options({"search": "alp"}))["targets"][0]["account_sets"]
+        self.assertEqual(found, [{"key": "A", "label": "Alpha Co"}])
+
+    def test_offline_companion_is_not_ready(self):
+        tools.destinations.online = lambda adapter, name: False
+        self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "companion_offline")
+
+    def test_stock_group_and_mrerp_choices_go_through_the_connection_services(self):
+        calls = []
+        tools.connections_api.choose_stock_acc_group = lambda *a: calls.append(("stock",) + a) or {"chosen": a[2]}
+        tools.connections_api.choose_mrerp_menu = lambda *a: calls.append(("menu",) + a) or {}
+        tools.connections_api.choose_mrerp_default = lambda *a: calls.append(("default",) + a) or {}
+        tools.connections_api.mrerp_menu = lambda *a: {"known": True}
+        tools.stock_group({"connection": "EXP1", "account_set_key": "B", "acccod": "1140"})
+        tools.mrerp_setup({"connection": "MR1", "account_set_key": "1:2", "menus": {"purchase": 7},
+                           "defaults": {"department": "D1"}})
+        self.assertEqual(calls, [("stock", "EXP1", "B", "1140"), ("menu", "MR1", "1:2", "purchase", "7"),
+                                 ("default", "MR1", "1:2", "department", "D1")])
 
 
 if __name__ == "__main__":

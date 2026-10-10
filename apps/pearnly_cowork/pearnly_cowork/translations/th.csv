@@ -210,13 +210,16 @@ Check the ERP connection settings.,กรุณาตรวจสอบการ
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checkbox,ช่องทำเครื่องหมาย
+Checked MR.ERP import settings,ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว
 Checked folder task runs,ตรวจสอบประวัติงานโฟลเดอร์แล้ว
 Checked folder tasks,ตรวจสอบงานโฟลเดอร์แล้ว
 Checked in the ERP,ตรวจใน ERP แล้ว
 Checked in the ERP: not entered. It can be sent again,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
+Checked intake choices,ตรวจสอบตัวเลือกการบันทึกแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
 Checked recognition results,ตรวจสอบผลการอ่านเอกสารแล้ว
 Checked the companion,ตรวจสอบผู้ช่วย Pearnly แล้ว
+Checked the stock account group,ตรวจสอบกลุ่มบัญชีสินค้าคงเหลือแล้ว
 Checking,กำลังตรวจสอบ
 Checklist,รายการตรวจสอบ
 Checklist Id,ID รายการตรวจสอบ

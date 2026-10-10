@@ -301,6 +301,126 @@ def recognition_results(tool_input) -> str:
     return _json({"results": out})
 
 
+# ---------------- 录入口径（同网页「新建录入」与 LINE；问一次、记住） ----------------
+
+BATCH = "Cowork OCR Batch"
+OPTIONS_SHOWN = 30
+MRERP_READ_WAIT_SECONDS = 60
+
+
+def _target_state(row) -> str:
+    """同 LINE `flow._state`：没连、停用、Express 的小助手不在线都不能选。"""
+    if not row:
+        return "not_connected"
+    if not row.get("enabled"):
+        return "disabled"
+    if row.get("adapter") == "express" and not destinations.online("express", row["name"]):
+        return "companion_offline"
+    return "ready"
+
+
+def _last_used() -> dict:
+    """上一次识别用的口径（不论在网页、LINE 还是这里）：问过一次就沿用，不另存一份。"""
+    rows = frappe.get_list(BATCH, filters={"actor": frappe.session.user},
+                           fields=["intake_target", "target_connection", "target_account_set", "direction",
+                                   "posting_kind", "payment"], order_by="creation desc", limit_page_length=1)
+    if not rows:
+        return {}
+    row = rows[0]
+    return _filled({"target": row.get("intake_target"), "connection": row.get("target_connection"),
+                    "account_set_key": row.get("target_account_set"), "direction": row.get("direction"),
+                    "posting_kind": row.get("posting_kind"), "payment": row.get("payment")})
+
+
+def intake_options(tool_input) -> str:
+    from pearnly_cowork.connections import account_search
+
+    scope.require("intake")
+    search = str(tool_input.get("search") or "").strip()
+    first = {}
+    for row in connections.records(None, None, 0, 100) or []:
+        first.setdefault(row.get("adapter"), row)  # 每种 ERP 取第一条连接，同 LINE
+    last = _last_used()
+    targets = []
+    for adapter in ("express", "mrerp"):
+        row = first.get(adapter)
+        item = {"target": adapter, "state": _target_state(row)}
+        if row:
+            item["connection"] = row["name"]
+            item["label"] = row.get("label")
+        if item["state"] == "ready":
+            try:
+                catalog = connections.targets(row["name"])
+            except (frappe.ValidationError, frappe.PermissionError):
+                frappe.clear_messages()
+                catalog = {}
+            usable = account_search.usable(adapter, catalog.get("account_sets") or [])
+            item["account_sets_total"] = len(usable)
+            if search:
+                found = account_search.search(adapter, usable, search)
+            else:
+                found = [{"value": r["source_id"], "label": account_search.label(adapter, r)} for r in usable]
+                remembered = last.get("account_set_key") if last.get("connection") == row["name"] else None
+                found.sort(key=lambda r: r["value"] != remembered)  # 上次用的排第一
+            item["account_sets"] = [{"key": r["value"], "label": r["label"]} for r in found[:OPTIONS_SHOWN]]
+            if not usable:
+                item["account_sets_status"] = catalog.get("status") or "missing"
+        targets.append(item)
+    targets.append({"target": "none", "state": "ready"})
+    return _json({"targets": targets, "last_used": last,
+                  "modes": {"express": "posting_kind: service or stock", "mrerp": "payment: cash or credit "
+                            "(purchases are credit only)", "none": "recognize only, nothing else to choose"}})
+
+
+def _connection_call(fn, *args):
+    try:
+        return fn(*args)
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"status": "failed", "reason": str(error)[:300]}
+
+
+def stock_group(tool_input) -> str:
+    """Express 记成存货时的存货科目组：每个账套选一次、记住（大家共用，同网页）。"""
+    scope.require("intake")
+    name, key = str(tool_input.get("connection") or ""), str(tool_input.get("account_set_key") or "")
+    if tool_input.get("acccod"):
+        result = _connection_call(connections_api.choose_stock_acc_group, name, key, str(tool_input["acccod"]))
+        frappe.db.commit()
+        return _json(result)
+    return _json(_connection_call(connections_api.stock_acc_group, name, key))
+
+
+def mrerp_setup(tool_input) -> str:
+    """MR.ERP 推送用的导入菜单与默认值：每个账套每类单据选一次、记住（同网页推送前那一步）。"""
+    scope.require("intake")
+    name, key = str(tool_input.get("connection") or ""), str(tool_input.get("account_set_key") or "")
+    if tool_input.get("read_again"):
+        request = _connection_call(connections_api.request_mrerp_menu, name, key)
+        frappe.db.commit()
+        if request.get("status") == "failed":
+            return _json(request)
+        deadline = time.monotonic() + MRERP_READ_WAIT_SECONDS
+        while time.monotonic() < deadline:
+            frappe.db.rollback()  # 后台读完提交的结果要重新读才看得到
+            view = _connection_call(connections_api.mrerp_menu, name, key)
+            stamps = [view.get("observed_at"), view.get("error_at")]
+            if any(str(stamp or "") >= str(request["requested_at"]) for stamp in stamps):
+                break
+            time.sleep(2)
+    for doc_type, idmenu in (tool_input.get("menus") or {}).items():
+        result = _connection_call(connections_api.choose_mrerp_menu, name, key, doc_type, str(idmenu))
+        if result.get("status") == "failed":
+            return _json(result)
+    for field, code in (tool_input.get("defaults") or {}).items():
+        result = _connection_call(connections_api.choose_mrerp_default, name, key, field, str(code))
+        if result.get("status") == "failed":
+            return _json(result)
+    frappe.db.commit()
+    return _json(_connection_call(connections_api.mrerp_menu, name, key))
+
+
 # ---------------- 复核与修改（同录入工作台复核页） ----------------
 
 # 复核页能改的字段（intake-upload.js FIELD_KEYS）；日期按原文写进 date_raw，由单据服务解析（泰历、两位年份都认）。
@@ -482,12 +602,14 @@ TOOLS = [
                     "the workbench and can be reviewed and pushed). Use it whenever the user sends a document photo or "
                     "PDF and wants it recognized, read, entered or recorded. Pass each attachment's file id: the folder "
                     "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
-                    "to recognize only. target express or mrerp also needs connection (and account_set_key for "
-                    "Express), as listed by cowork_companion_status. Waits up to about 90 seconds and returns the "
+                    "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
+                    "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
+                    "where in this conversation, get the choices there first. Otherwise call it directly, without "
+                    "listing documents or checking the companion first. Waits up to about 90 seconds and returns the "
                     "recognized documents; anything still running comes back with its batch for "
-                    "cowork_recognition_results. Call it directly, without listing documents or checking the "
-                    "companion first. Each attachment is charged once like a web upload; calling again for the same "
-                    "attachment returns the same result at no extra charge, so never tell the user it was charged "
+                    "cowork_recognition_results. Each attachment is charged once like a web upload; calling again "
+                    "for the same attachment returns the same result at no extra charge, so never tell the user it "
+                    "was charged "
                     "twice. needs_review true means the workbench flagged it for a person to check. Report the "
                     "recognized values, not your own reading of the image, and leave out fields that are not given.",
      "input_schema": {"type": "object", "properties": {
@@ -500,6 +622,38 @@ TOOLS = [
          "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP only."}},
          "required": ["files"]},
      "handler": "pearnly_cowork.assistant.tools.recognize_attachments"},
+    {"name": "cowork_intake_options", "label": "Checked intake choices",
+     "description": "Where recognized documents can go, as on the web's New intake and in LINE: each target ERP "
+                    "(express, mrerp) with its state and account sets (the last-used one first), recognize only "
+                    "(none), and last_used: the choices of the user's previous recognition anywhere. Ask once: "
+                    "propose last_used, and once the user agrees reuse it for the rest of the conversation without "
+                    "asking again. Only ready targets can be chosen. Large lists are cut to 30; pass search (company "
+                    "name, tax ID or folder) to narrow them.",
+     "input_schema": {"type": "object", "properties": {"search": {"type": "string"}}},
+     "handler": "pearnly_cowork.assistant.tools.intake_options"},
+    {"name": "cowork_stock_group", "label": "Checked the stock account group",
+     "description": "Express documents posted as stock need the account set's stock account group, chosen once per "
+                    "account set and shared by everyone. Without acccod it shows the groups and the current choice "
+                    "(needed only when there is no choice and two or more groups); with acccod it records the "
+                    "user's choice.",
+     "input_schema": {"type": "object", "properties": {"connection": {"type": "string"},
+                                                        "account_set_key": {"type": "string"},
+                                                        "acccod": {"type": "string"}},
+                      "required": ["connection", "account_set_key"]},
+     "handler": "pearnly_cowork.assistant.tools.stock_group"},
+    {"name": "cowork_mrerp_setup", "label": "Checked MR.ERP import settings",
+     "description": "MR.ERP import menus per document kind and default values, chosen once per account set before "
+                    "pushing (shared by everyone, like on the web). read_again reads the menus and defaults from "
+                    "MR.ERP first (up to a minute). menus maps document kind to idmenu, defaults maps field to code; "
+                    "both only with values listed in the result, and only after the user chose them. Items with "
+                    "needed true still need a choice.",
+     "input_schema": {"type": "object", "properties": {
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "read_again": {"type": "boolean"},
+         "menus": {"type": "object", "additionalProperties": {"type": "string"}},
+         "defaults": {"type": "object", "additionalProperties": {"type": "string"}}},
+         "required": ["connection", "account_set_key"]},
+     "handler": "pearnly_cowork.assistant.tools.mrerp_setup"},
     {"name": "cowork_document_detail", "label": "Viewed a document",
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
                     "buyer, tax IDs, invoice number, date, amounts, line items, push status, and the version needed "
