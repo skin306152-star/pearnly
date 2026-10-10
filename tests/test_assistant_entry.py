@@ -163,6 +163,18 @@ class WiringTests(unittest.TestCase):
         self.assertIn("site=dep.site_name, issuer=_issuer_url(issue.target, dep.product)", plan)
         self.assertIn("registry.record(", (CONTROL / "billing_control.py").read_text(encoding="utf-8"))
 
+    def test_existing_tenants_are_registered_the_same_way_as_onboarding(self):
+        # 入口上线前开通的云端部署：补登记用开户计划同一个调用（可重复），只补登记不重跑开户
+        backfill = (CONTROL / "assistant_entry/backfill.py").read_text(encoding="utf-8")
+        self.assertIn("billing_remote.provision_scope(", backfill)
+        self.assertIn("site=dep.site_name, issuer=provisioning._issuer_url(issue.target, dep.product)", backfill)
+        self.assertIn("infra.is_cloud(issue.target)", backfill)
+        # 生产入口站点只建 fatcc.com，令牌不打印
+        entry = (ROOT / "infrastructure/production/bootstrap-ai-entry.py").read_text(encoding="utf-8")
+        self.assertIn('if SITE != "fatcc.com":', entry)
+        self.assertIn("contracts.entry_token(root)", entry)
+        self.assertNotIn("print(root", entry)
+
     def test_ai_prefixes_are_reserved(self):
         agent = (ROOT / "infrastructure/production/provision-agent.py").read_text(encoding="utf-8")
         issue = (CONTROL / "pearnly_control/doctype/pearnly_issue/pearnly_issue.py").read_text(encoding="utf-8")
