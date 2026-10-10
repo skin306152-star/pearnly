@@ -299,7 +299,8 @@ def _ensure_oidc_client(dep, target: str | None = None) -> None:
     attributes = {}
     if infra.is_cloud(target):
         attributes = {
-            "post.logout.redirect.uris": base + "/",
+            # 本站首页，以及从智能体对话页退出时回到的智能体入口（ADR-019）
+            "post.logout.redirect.uris": base + "/##https://ai.pearnly.com/*",
             "backchannel.logout.url": base + "/api/method/pearnly_core.identity.backchannel_logout",
             "backchannel.logout.session.required": "true",
         }

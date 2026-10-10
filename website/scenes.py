@@ -505,7 +505,7 @@ def mrerp(L):
 
 # ---------------- 首页产品卡片角上的小单（手绘版，替代 mascot.py 的粗线版） ----------------
 
-PROPS = {"cowork": "pencil", "dms": "camera", "erp": "basket"}
+PROPS = {"cowork": "pencil", "dms": "camera", "erp": "basket", "ai": "plane"}
 
 
 def badge(kind, cls="poster-mascot"):

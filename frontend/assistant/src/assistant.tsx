@@ -3,7 +3,7 @@
 //   左侧导航（可收起）— 搜索、新建、按日期分组的历史、底部当前用户
 //   右侧              — 空对话时是产品形象 + 问候 + 输入框；有内容时是对话
 //
-// 站点只属于一个产品：形象与工具都按本站产品来（lib/profile.ts）。
+// 站点只属于一个产品：工具按本站产品来；欢迎处的形象是智能体自己的（lib/profile.ts）。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
@@ -37,7 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { brandIcon, useProfile, type Profile } from "@/lib/profile";
+import { assistantMascot, useProfile, type Profile } from "@/lib/profile";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 function firstName(profile: Profile | null): string {
@@ -46,7 +46,7 @@ function firstName(profile: Profile | null): string {
 
 function Welcome() {
   const profile = useProfile();
-  const icon = brandIcon(profile?.product);
+  const icon = assistantMascot();
   const name = firstName(profile);
   return (
     <div className="aui-thread-welcome-root -mb-2 flex items-center justify-center gap-3 px-4 text-center">
@@ -72,8 +72,8 @@ function SessionStatusBar() {
 }
 
 async function signOut() {
-  // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出）。
-  const res = await fetch("/api/method/pearnly_core.identity.sign_out", {
+  // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出），退出后回到智能体入口。
+  const res = await fetch("/api/method/pearnly_core.identity.sign_out?to=assistant", {
     method: "POST",
     credentials: "same-origin",
     headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },

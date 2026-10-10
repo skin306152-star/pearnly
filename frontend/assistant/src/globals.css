@@ -149,6 +149,12 @@
 .hm .hm-eyes { animation: hm-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes hm-blink { 0%, 95%, 100% { transform: none; } 97% { transform: scaleY(.1); } }
 .hm-laser { opacity: .35; }
+/* 智能体小人：胸前三个点一跳一跳、头顶星光闪（同宣传页 / 入口登录页） */
+.hm-typing, .hm-spark { transform-box: fill-box; transform-origin: center; }
+.hm-typing { animation: hm-typing 1.2s infinite; } .hm-typing.t1 { animation-delay: .15s; } .hm-typing.t2 { animation-delay: .3s; }
+@keyframes hm-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .35; } 30% { transform: translateY(-5px); opacity: 1; } }
+.hm-spark { animation: hm-spark 2.2s ease-in-out infinite; }
+@keyframes hm-spark { 50% { transform: scale(.55) rotate(25deg); opacity: .5; } }
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
 

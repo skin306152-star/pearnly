@@ -22,10 +22,10 @@ export function useProfile(): Profile | null {
   return profile;
 }
 
-// 宣传页的产品形象（scripts/build-assistant-brand.py 从 website/ 生成到 src/brand/）。经 Vite 打包带内容哈希，
-// 换了形象地址就变，不会被浏览器或 Cloudflare 缓存住旧图。
+// 智能体自己的形象（scripts/build-assistant-brand.py 从 website/ 生成到 src/brand/）：欢迎处不分产品都用它。
+// 经 Vite 打包带内容哈希，换了形象地址就变，不会被浏览器或 Cloudflare 缓存住旧图。
 const BRANDS = import.meta.glob("../brand/*.svg", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 
-export function brandIcon(product: string | undefined): string | null {
-  return (product && BRANDS[`../brand/${product}.svg`]) || null;
+export function assistantMascot(): string | null {
+  return BRANDS["../brand/ai.svg"] || null;
 }

@@ -7,7 +7,10 @@
 - 登录页样式用 ai 专用主题 pearnly-ai（客户端属性 login_theme），产品站点的登录页不受影响。
 可重复执行：已有就按同一份配置更新，最后读回核对。在服务器上以部署操作员身份运行；管理密码只读 runtime.env，不打印。
 
-用法：configure-ai-entry.py --origin https://ai.pearnly.com [--origin https://testai.pearnly.com]
+用法：configure-ai-entry.py --origin https://ai.pearnly.com [--origin https://testai.pearnly.com] [--tenant-logout]
+
+--tenant-logout：另给每个租户站点客户端的退出跳转追加智能体入口（从对话页退出回到 ai.pearnly.com，ADR-019；
+用户 2026-10-10 同意改现有配置）。只追加不删，读回核对。
 """
 import json
 from pathlib import Path
@@ -58,6 +61,39 @@ def configure(api, origins) -> None:
         raise RuntimeError(f"{api.realm}: {CLIENT_ID} readback failed: {', '.join(failed)}")
 
 
+SITE_CLIENT = __import__("re").compile(r"^[a-z0-9-]+\.pearnly\.com$")
+
+
+def logout_targets(client_id: str) -> list[str]:
+    """租户站点客户端要追加的退出跳转：正式入口；test 开头的测试租户再加测试入口。"""
+    targets = ["https://ai.pearnly.com/*"]
+    if client_id.startswith("test"):
+        targets.append("https://testai.pearnly.com/*")
+    return targets
+
+
+def allow_logout_back(api) -> int:
+    """给每个租户站点客户端的 post.logout.redirect.uris 追加智能体入口（只追加，不删原有地址），读回核对。"""
+    clients = f"/admin/realms/{api.realm}/clients"
+    changed = 0
+    for row in api.request(clients + "?max=1000") or []:
+        client_id = row.get("clientId") or ""
+        attributes = row.get("attributes") or {}
+        if not SITE_CLIENT.match(client_id) or "backchannel.logout.url" not in attributes:
+            continue  # 只动开户建的站点客户端（有后台登出地址的那些）
+        existing = [u for u in (attributes.get("post.logout.redirect.uris") or "").split("##") if u]
+        wanted = existing + [u for u in logout_targets(client_id) if u not in existing]
+        if wanted == existing:
+            continue
+        api.request(clients + f"/{row['id']}", "PUT", {**row, "attributes": {**attributes,
+                    "post.logout.redirect.uris": "##".join(wanted)}})
+        back = api.request(clients + f"/{row['id']}")
+        if (back.get("attributes") or {}).get("post.logout.redirect.uris") != "##".join(wanted):
+            raise RuntimeError(f"{api.realm}: {client_id} logout redirect readback failed")
+        changed += 1
+    return changed
+
+
 def main():
     origins = [sys.argv[i + 1].rstrip("/") for i, arg in enumerate(sys.argv) if arg == "--origin"]
     if not origins or not all(o.startswith("https://") and o.endswith(".pearnly.com") for o in origins):
@@ -65,8 +101,11 @@ def main():
     member = import_module("configure-member-identity")
     env = dict(line.split("=", 1) for line in Path("/opt/pearnly/secrets/runtime.env").read_text().splitlines() if "=" in line)
     for realm in REALMS:
-        configure(member.Keycloak("http://127.0.0.1:8180", realm, "pearnly-bootstrap", env["KEYCLOAK_ADMIN_PASSWORD"]), origins)
+        api = member.Keycloak("http://127.0.0.1:8180", realm, "pearnly-bootstrap", env["KEYCLOAK_ADMIN_PASSWORD"])
+        configure(api, origins)
         print(f"{realm}: {CLIENT_ID} configured and verified ({len(origins)} origin(s))")
+        if "--tenant-logout" in sys.argv:
+            print(f"{realm}: logout back to the ai entry allowed on {allow_logout_back(api)} more tenant client(s)")
 
 
 if __name__ == "__main__":

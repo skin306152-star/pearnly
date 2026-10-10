@@ -31,6 +31,8 @@ STATE_TTL = 600  # 秒
 # 同一秒 499 + 417），第二次不报错，而是续上登录。
 CONSUMED_TTL = 120
 DISCOVERY_TTL = 3600
+# 智能体入口（ADR-019）的正式地址；测试环境用站点配置 pearnly_assistant_entry_url 指到 testai。
+ASSISTANT_ENTRY = "https://ai.pearnly.com"
 
 
 # ── 配置 ────────────────────────────────────────────────────────────────────
@@ -244,12 +246,19 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
 
 
 @frappe.whitelist(methods=["POST"])
-def sign_out():
-    """After the in-app confirmation, end this session via native OIDC logout."""
+def sign_out(to=None):
+    """After the in-app confirmation, end this session via native OIDC logout.
+
+    从智能体对话页退出（`to=assistant`）回到智能体入口 ai.pearnly.com（ADR-019），其余回本站首页。
+    入口地址的跳转已登记在各站点的身份服务客户端（post.logout.redirect.uris）。
+    """
     endpoint = _discovery()["end_session_endpoint"]
+    back = str(_conf("host_name")).rstrip("/") + "/"
+    if to == "assistant":
+        back = str(frappe.conf.get("pearnly_assistant_entry_url") or ASSISTANT_ENTRY).rstrip("/") + "/?fresh=1"
     params = {
         "client_id": _conf("pearnly_oidc_client_id"),
-        "post_logout_redirect_uri": str(_conf("host_name")).rstrip("/") + "/",
+        "post_logout_redirect_uri": back,
     }
     hint = oidc_session.logout_hint()
     if hint:

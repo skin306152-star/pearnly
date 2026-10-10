@@ -185,6 +185,51 @@ class KeycloakTests(unittest.TestCase):
         self.assertIn("../keycloak/themes/pearnly-ai:/opt/keycloak/themes/pearnly-ai:ro", compose)
 
 
+class LogoutBackTests(unittest.TestCase):
+    """从对话页退出回到智能体入口（ADR-019）：只追加不删，只动开户建的站点客户端。"""
+
+    def setUp(self):
+        sys.path.insert(0, str(ROOT / "infrastructure/production"))
+        self.module = _load("configure_ai_entry_logout", ROOT / "infrastructure/production/configure-ai-entry.py")
+
+    def test_existing_tenant_clients_only_gain_the_entry(self):
+        rows = {
+            "1": {"id": "1", "clientId": "acme-erp.pearnly.com", "attributes": {
+                "backchannel.logout.url": "x", "post.logout.redirect.uris": "https://acme-erp.pearnly.com/"}},
+            "2": {"id": "2", "clientId": "testcowork.pearnly.com", "attributes": {"backchannel.logout.url": "x"}},
+            "3": {"id": "3", "clientId": "pearnly-control", "attributes": {}},
+            "4": {"id": "4", "clientId": "done.pearnly.com", "attributes": {
+                "backchannel.logout.url": "x", "post.logout.redirect.uris": "https://done.pearnly.com/##https://ai.pearnly.com/*"}},
+        }
+
+        class Api:
+            realm = "pearnly-business"
+
+            def request(self, path, method="GET", data=None):
+                if method == "PUT":
+                    rows[path.rsplit("/", 1)[1]] = data
+                    return None
+                if path.endswith("?max=1000"):
+                    return list(rows.values())
+                return rows[path.rsplit("/", 1)[1]]
+
+        self.assertEqual(self.module.allow_logout_back(Api()), 2)
+        self.assertEqual(rows["1"]["attributes"]["post.logout.redirect.uris"],
+                         "https://acme-erp.pearnly.com/##https://ai.pearnly.com/*")
+        self.assertEqual(rows["2"]["attributes"]["post.logout.redirect.uris"],
+                         "https://ai.pearnly.com/*##https://testai.pearnly.com/*")
+        self.assertNotIn("post.logout.redirect.uris", rows["3"]["attributes"])
+
+    def test_chat_sign_out_and_new_tenants_go_back_to_the_entry(self):
+        identity = (ROOT / "apps/pearnly_core/pearnly_core/identity.py").read_text(encoding="utf-8")
+        self.assertIn('if to == "assistant":', identity)
+        self.assertIn('ASSISTANT_ENTRY = "https://ai.pearnly.com"', identity)
+        page = (ROOT / "frontend/assistant/src/assistant.tsx").read_text(encoding="utf-8")
+        self.assertIn("pearnly_core.identity.sign_out?to=assistant", page)
+        plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
+        self.assertIn('"post.logout.redirect.uris": base + "/##https://ai.pearnly.com/*"', plan)
+
+
 class PageTests(unittest.TestCase):
     def test_generated_files_match_the_generator(self):
         result = subprocess.run([sys.executable, str(ROOT / "scripts/build-ai-entry.py"), "--check"],

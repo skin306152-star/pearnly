@@ -271,7 +271,7 @@
     "pearnly_assistant_engine": "智能体（ADR-019）：本租户用哪家引擎，取值见 pearnly_core.assistant.engines.ENGINES；由租户管理后台写入",
     "pearnly_assistant_model": "智能体（ADR-019）：模型，留空用所选引擎的默认模型；由租户管理后台写入",
     "pearnly_assistant_entry": "智能体入口站点 ai.pearnly.com（ADR-019）：只在入口站点上为真，入口页与登录接口只在它上面可用",
-    "pearnly_assistant_entry_url": "智能体入口站点的公开地址（如 https://ai.pearnly.com），登录回调地址按它拼",
+    "pearnly_assistant_entry_url": "智能体入口的公开地址（默认 https://ai.pearnly.com）：入口站点按它拼登录回调；租户站点从对话页退出时回到它（测试环境配 testai）",
     "pearnly_assistant_entry_billing_url": "智能体入口站点查询计费服务的内网地址（http://billing-web:8000）",
     "pearnly_assistant_entry_billing_host": "智能体入口站点查询计费服务时带的 Host（billing.internal）",
     "pearnly_assistant_entry_token": "智能体入口站点查询计费服务的专用令牌，由计费服务根密钥派生（assistant_entry.contracts.entry_token）",
