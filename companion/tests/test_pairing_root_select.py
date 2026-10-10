@@ -217,3 +217,9 @@ def test_find_again_keeps_the_root_in_use_first(monkeypatch):
     assert gui_pairing.rescan_roots(None) == [r"C:\70EXP", r"S:\71EXP", r"C:\69EXP"]
     monkeypatch.setattr(gui_pairing, "machine_roots", lambda store: [r"D:\GONE"])
     assert gui_pairing.rescan_roots(None) == [r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"]
+
+
+def test_the_same_folder_written_two_ways_is_one_root():
+    assert gui_pairing.same_root("C:/PearnlyExpress\\70EXP", "c:\\pearnlyexpress\\70exp\\")
+    assert not gui_pairing.same_root("C:/PearnlyExpress/70EXP", "C:/PearnlyExpress/69EXP")
+    assert not gui_pairing.same_root("", "")

@@ -218,7 +218,7 @@ class DesktopSettings:
     def change_roots(self, picked: str, lang: str) -> dict:
         """（后台线程）「更换…」选的 Express 数据所在文件夹：有成员时同步到全部成员（服务端下次心跳拿到，不用重新配对）。"""
         began = time.monotonic()
-        found = roots_for_pick(picked)
+        found = roots_for_pick(ntpath.normpath(picked))  # Qt 给的是正斜杠，存成 Windows 写法
         log.info("更换 Express 数据文件夹：找到 %d 个年度，用时 %.1f 秒", len(found), time.monotonic() - began)
         # 选到的排前面，原来已授权的接在后面（合并、不覆盖）：心跳本来也会把同一位置的年度补回来，覆盖只会让
         # 局域网上的年度空窗一两分钟、期间推送那些账套被拒（2026-10-10 测试机）。

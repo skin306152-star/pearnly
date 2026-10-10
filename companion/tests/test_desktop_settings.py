@@ -118,7 +118,8 @@ def test_changing_the_express_folder_writes_every_member_and_asks_for_a_reload(t
 
     assert result == {"ok": True, "profiles_changed": True}   # 重启取任务线程由桥回到界面线程做
     # 选到的排前面，原来已授权的（成员原有的 S: 年度）接在后面：合并、不覆盖
-    assert applied == [(store.path, [r"T:\\EXP70", r"T:\\EXP69", r"S:\\EXP68", r"S:\\EXP69"])]
+    # 选的路径按 Windows 写法存（Qt 给的是正斜杠时也一样）
+    assert applied == [(store.path, [r"T:\EXP70", r"T:\\EXP69", r"S:\\EXP68", r"S:\\EXP69"])]
 
 
 def test_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypatch):

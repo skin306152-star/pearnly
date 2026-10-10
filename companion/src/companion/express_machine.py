@@ -26,7 +26,9 @@ _DEFAULT_MIN_COMPANIES = 10
 
 
 def norm_root(path) -> str:
-    return str(path or "").lower().rstrip("\\/")
+    """同一个文件夹的不同写法算一个：Qt 选择窗口给的是 C:/a\\b 这种正斜杠（2026-10-10 测试机合并后多出一条重复）。"""
+    text = str(path or "").strip()
+    return ntpath.normpath(text).lower().rstrip("\\/") if text else ""
 
 
 def same_root(left, right) -> bool:
