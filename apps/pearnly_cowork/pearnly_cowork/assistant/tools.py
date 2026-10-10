@@ -961,9 +961,9 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
     {"name": "cowork_delete_documents", "label": "Deleted documents",
      "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "
-                    "in the list; documents already pushed are skipped. Only after the user confirmed exactly which "
-                    "documents (list them by number, seller and amount and wait for a yes). Returns deleted and "
-                    "skipped counts.",
+                    "in the list; documents already pushed are skipped. When the user clearly named the documents, "
+                    "delete them right away (no extra confirmation step); only when it is unclear which ones they "
+                    "mean, list them by number, seller and amount and ask first. Returns deleted and skipped counts.",
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": DELETE_MAX}},
          "required": ["documents"]},
@@ -1011,7 +1011,8 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
     {"name": "cowork_delete_folder_tasks", "label": "Deleted folder tasks",
      "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
-                    "Intake workbench. Only after the user confirmed exactly which tasks.",
+                    "Intake workbench. When the user clearly named the tasks, delete right away; only ask which ones "
+                    "when it is unclear.",
      "input_schema": {"type": "object", "properties": {"tasks": {"type": "array", "items": {"type": "string"},
                                                                  "minItems": 1}}, "required": ["tasks"]},
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},

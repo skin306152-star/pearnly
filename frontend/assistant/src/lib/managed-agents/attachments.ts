@@ -6,7 +6,7 @@
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
 import { uploadFile, type UploadedFile } from "./api";
-import { beginPending } from "./pending-send";
+import { beginPending, clearPending } from "./pending-send";
 
 export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
 
@@ -49,7 +49,8 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       try {
         await upload;
       } catch (err) {
-        if (sent.has(id)) return;
+        // 已点了发送：先让 send 那边失败、组件库把原来的附件放回输入框，再把这一项标成上传失败
+        await new Promise((resolve) => setTimeout(resolve, 0));
         yield {
           ...base,
           status: { type: "incomplete", reason: "error", message: err instanceof Error ? err.message : String(err) },
@@ -73,7 +74,17 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       sent.add(attachment.id);
       const waiting = uploading.get(attachment.id);
       if (!uploaded.has(attachment.id) && waiting) beginPending(attachment.name);
-      const info = uploaded.get(attachment.id) ?? (await waiting?.catch(() => undefined));
+      let info = uploaded.get(attachment.id);
+      if (!info && waiting) {
+        try {
+          info = await waiting;
+        } catch (err) {
+          // 上传失败：不发出去（否则消息里没有这个附件、用户也不知道）；组件库把文字和附件放回输入框
+          sent.delete(attachment.id);
+          clearPending();
+          throw err;
+        }
+      }
       return {
         ...attachment,
         status: { type: "complete" },
