@@ -79,13 +79,23 @@ def costume(kind):
                 '<path d="M-31 -104 V0" stroke-width="2.4"/><rect x="-42" y="-104" width="11" height="104" rx="6" fill="#244a6f"/>'
                 '<rect x="-20" y="-94" width="54" height="16" rx="4" fill="#fffdf6" stroke-width="2"/>'
                 + t(7, -82, "MR.ERP", 10, "#2d2b27", "middle", ' stroke="none" font-weight="700"')
-                + '<g class="m-look"><g class="hm-eyes"><rect x="-14" y="-70" width="16" height="13" rx="4" fill="none" stroke="#fffdf6" stroke-width="2.6"/>'
+                # 镜框不动，只有眼珠跟着鼠标转、会眨眼（.m-look 只包眼珠）
+                + '<rect x="-14" y="-70" width="16" height="13" rx="4" fill="none" stroke="#fffdf6" stroke-width="2.6"/>'
                 '<rect x="8" y="-70" width="16" height="13" rx="4" fill="none" stroke="#fffdf6" stroke-width="2.6"/>'
                 '<path d="M2 -63 h6" stroke="#fffdf6" stroke-width="2.6"/>'
+                '<g class="m-look"><g class="hm-eyes">'
                 '<circle cx="-6" cy="-63.5" r="2.8" fill="#fffdf6" stroke="none"/><circle cx="16" cy="-63.5" r="2.8" fill="#fffdf6" stroke="none"/></g></g>'
                 '<path class="hm-mouth" d="M0 -48 q5 5 10 0" stroke="#fffdf6" stroke-width="2.4"/>'
                 '<path d="M1 -40 h8 l-2 6 l4 22 l-6 7 l-6 -7 l4 -22 Z" fill="#ffd84d" stroke-width="2"/>')
         return body, (-40, -52), (40, -52), 16, 50
+    if kind == "ai":    # 智能体：薄荷绿的对话泡身体（左下角带小尾巴），头顶天线挑着一颗会闪的黄色星光，胸前三个「正在输入」的点
+        body = ('<path d="M0 -104 Q-3 -114 0 -124" stroke-width="2.6"/>'
+                '<g class="hm-spark"><path d="M0 -148 Q2.6 -136 14 -133 Q2.6 -130 0 -118 Q-2.6 -130 -14 -133 Q-2.6 -136 0 -148 Z" fill="#ffd84d" stroke-width="2.2"/>'
+                '<path d="M15 -146 l5 -5 M19 -133 h7 M-15 -146 l-5 -5" stroke-width="2.2"/></g>'
+                '<path d="M-26 -104 H26 Q46 -104 46 -84 V-34 Q46 -14 26 -14 H-4 L-22 3 L-17 -14 H-26 Q-46 -14 -46 -34 V-84 Q-46 -104 -26 -104 Z" fill="#dff2e6"/>'
+                + face(-12, -80, 4.4)
+                + ''.join(f'<circle class="hm-typing t{i}" cx="{-14 + i * 14}" cy="-38" r="4.4" fill="#2e8a55" stroke="none"/>' for i in range(3)))
+        return body, (-46, -58), (46, -58), 14, 50
     if kind == "cowork":
         body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
                 '<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V-86 H-39 Z" fill="#ffd84d"/>'
@@ -123,6 +133,10 @@ def prop_svg(kind):
                 '<rect x="-20" y="-15" width="40" height="28" rx="7" fill="#3d362c"/><rect x="-12" y="-21" width="12" height="7" rx="2" fill="#3d362c"/>'
                 '<circle cx="3" cy="-1" r="9" fill="#ffd84d"/><circle cx="3" cy="-1" r="3.5" fill="#fffdf6" stroke="none"/>'
                 '<g class="hm-flash" stroke="#f0b400" stroke-width="3"><path d="M24 -24 l9 -9 M30 -10 h12 M16 -30 v-12"/></g></g>')
+    if kind == "plane":                       # 智能体：一架纸飞机（交出去，就帮你办），机头朝右上
+        return ('<g transform="translate(30 20) rotate(-14) scale(1.25)" stroke-width="2.2">'
+                f'<path d="M24 -8 L-20 -3 L-3 3 Z" fill="{PAPER}"/><path d="M24 -8 L-3 3 L-8 14 Z" fill="#e6effb"/>'
+                '<path d="M-3 3 L-6 9" stroke-width="1.8"/></g>')
     if kind == "stamp":                       # MR.ERP：审批用的橡皮章（红色章面朝下）
         return ('<g transform="translate(20 30)" stroke-width="2.6">'
                 '<path d="M-5 -14 Q-5 -22 0 -22 Q5 -22 5 -14 Z" fill="#c49a6b"/><rect x="-3" y="-14" width="6" height="10" fill="#c49a6b"/>'

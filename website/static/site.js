@@ -234,7 +234,8 @@
         // 整张 SVG 里只有一只小单的（品牌形象）按整张算；手绘场景里的小单按它自己的身体算
         var r = (g.closest('.hm') || g.ownerSVGElement).getBoundingClientRect();
         if (r.bottom < 0 || r.top > window.innerHeight) return;
-        var dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height * 0.3), d = Math.sqrt(dx * dx + dy * dy) || 1, k = Math.min(1, d / 240) * 5;
+        var dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height * 0.3), d = Math.sqrt(dx * dx + dy * dy) || 1,
+          k = Math.min(1, d / 240) * (g.closest('.hm-mrerp') ? 3 : 5);  // MR.ERP 的眼珠在镜框里，转动幅度小一些
         g.setAttribute('transform', 'translate(' + (dx / d * k).toFixed(2) + ' ' + (dy / d * k).toFixed(2) + ')');
       });
     }
