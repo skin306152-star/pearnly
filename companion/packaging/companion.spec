@@ -68,7 +68,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="companion",
-    icon="../assets/cc.ico",  # 桌面/任务栏图标 = CC（小尺寸去胡须）
+    icon="../assets/cc.ico",  # 桌面/任务栏图标 = CC（各尺寸都带胡须，用户 2026-10-10 定）
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

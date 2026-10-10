@@ -156,7 +156,7 @@
 
 ## 产品名 CC、入口域名 fatcc.com（2026-10-10，同一分支）
 
-- 产品名改为 **CC**（Tomo 作废）；登录页左上角只放 CC 图标（白字带胡须原版），对话页侧栏不放图标；浏览器标签图标 16–48 像素用去胡须简化版。图标源文件 `frontend/assistant/src/brand/cc-icon*.svg`（另一窗口定稿，橙底 #F28C28）。
+- 产品名改为 **CC**（Tomo 作废）；登录页左上角只放 CC 图标（白字带胡须原版），对话页侧栏不放图标；**所有尺寸都用带胡须的原版**（用户 2026-10-10 晚明确：不要去胡须的简化版，已从项目删除）：桌面端 `companion/assets/cc.ico`（16–256 七个尺寸）/ `cc.png`、对话页 `frontend/assistant/public/*`、登录页图标都取设计原稿 `~/Downloads/cc-icon/png/white-cc/`（另一窗口定稿，橙底 #F28C28），矢量源 `frontend/assistant/src/brand/cc-icon.svg`。
 - 登录页不放猫（2026-10-10 晚用户定：探头的猫、睡觉的猫视频都删，图片 / 视频 / 抠图脚本一并删除，入口站点不再放行静态目录）。
   左上角是 CC 图标（橙底白 cc 带胡须）；CC 的形象「吐司胖橘」（用户在 Vikeno logo design 窗口选定，原稿 `website/static/cc/source/cc-loaf.svg`，
   画法 `website/scenes.py` 的 `cc_loaf`）站在底部那排小人最右边：眼睛跟鼠标、眨眼，隔一会儿 / 悬停 / 点一下眯眼张嘴笑，尾巴摆、铃铛晃、泡泡里的勾反复画出来。
@@ -215,9 +215,47 @@ CC 1.4.0（CI run 38041288991，源码 `cea61bad`，安装包 sha256 `ba7ce579�
 **截图发现问题**：CC 窗口打开的是上次的公司对话页（testcowork），登录已过期 → 公司站点自己的登录页（**旧 Pearnly 主题**，不是 CC 登录页）。账号密码照样能登，但外观不对；设置页因此还没截到。
 修法方向（未做）：对话页 `/assistant` 未登录时送去 CC 入口（生产 fatcc.com、测试 testai.pearnly.com，按站点配置），或桌面端发现跳到非 `pearnly-ai` 客户端的登录页时改走入口；注意入口登录后回公司站点 `begin_login` 不能形成循环。
 
+### 功能接入 CC（Agent）的进度（2026-10-10 晚盘点）
+
+原则（用户 2026-10-10 晚）：**按功能一项一项接到 CC**，每接一项都以当前登录用户调现有服务、权限与网页一致，接完先自己在测试环境跑通、核对是最新版再请用户试。工具声明在各产品 `hooks.py` 的 `pearnly_assistant_tools`，Cowork 的在 `apps/pearnly_cowork/pearnly_cowork/assistant/tools.py`。
+
+Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报告核查、库存盘点、任务管理。**目前只接了录入工作台的一部分，其余五项都还没接。**
+
+录入工作台逐项对照（网页能做的 → CC 现状）：
+
+| 网页功能（服务端接口） | CC 现状 |
+| --- | --- |
+| 连接状态与账套目录（`connections.records/targets`、`companion.online`） | 已接：`cowork_companion_status` |
+| 重新读取账套（`connections.request_refresh/refresh_status`） | 已接：`cowork_refresh_account_sets` |
+| 待办列表、按推送状态 / 日期 / 待复核筛选（`history.workbench`） | 已接：`cowork_list_documents` |
+| 推送（`push.application.submit`、Express `companion.submission.confirm`） | 已接：`cowork_push_documents`（一次最多 20 张）；**真推送还没在对话里跑过** |
+| 推送结果（失败原因 / 进行中 / 成功） | 已接：`cowork_push_results` |
+| 定时任务列表 / 立即运行 / 运行记录（`folder_intake.listing/run_now/runs`） | 已接：`cowork_folder_tasks`、`cowork_run_folder_task`、`cowork_folder_task_runs` |
+| 上传原件并识别（`files.upload` 或直传、`ocr.submit/detail`） | **未接** |
+| 复核：看识别结果、改字段、选单据处理方式（`history.detail/save/choose_document_policy`） | **未接** |
+| 推送结果不明时确认（`push.application.resolve_unknown`） | **未接** |
+| 新建录入的口径：目标 ERP、两级账套、进项 / 销项、过账类型、存货科目组、MR.ERP 菜单与默认值（`history.choices/save_choices`、`connections.choose_*`、`request_mrerp_menu`） | **未接** |
+| 删除记录（`history.delete`） | **未接** |
+| 仅识别：导出复核工作簿（`roundtrip.export`） | **未接** |
+| 定时任务新建 / 修改 / 停用 / 删除（`folder_intake.save/set_enabled/delete/options`） | **未接** |
+| 连接 MR.ERP（填账号密码，`connections.configure`） | 不接：凭据只在网页表单填，不经对话 |
+| 连接 Express | 不用接：桌面端登录即自动连接（本分支） |
+
+**录入工作台还没接完。** 接下来按这个顺序一项一项接（每项一个小批次：工具 + 测试 + 测试环境跑通 + 自己核对 + 请用户试）：
+
+1. 上传识别：对话里发票据照片 / PDF → 建录入并识别，回报识别结果（要把对话附件交给 Cowork 的上传与识别服务，扣费口径与网页一致）。
+2. 复核与修改：查看某张单据的识别字段、按用户说的改字段、选单据处理方式。
+3. 新建录入口径：目标 ERP、账套、进项 / 销项、过账类型等，按「问一次、记住」的现有口径。
+4. 推送收尾：结果不明的确认；在对话里实际推一次测试账套（先征得用户同意，会写测试账套）。
+5. 删除记录、导出复核工作簿。
+6. 定时任务的新建 / 修改 / 停用 / 删除（文件夹只能选电脑上开放的，见只读「连接」）。
+
+录入工作台接完后，再按侧边栏顺序接：银行对账 → 收入对账 → 销项税报告核查 → 库存盘点 → 任务管理，每项开工前先列出该页全部功能与接口做同样的对照表。
+
 ### 还没做（按顺序）
 
 0. **修上面的「桌面端过期后落到旧 Pearnly 登录页」**，修完先自己在测试机截图核对再请用户验收。
+0.5 **按上面「功能接入 CC」的顺序一项一项接功能**（从「上传识别」开始）。
 1. **用户在测试机上验收**桌面端：CC 里登录 → 自动连接 → 设置里加文件夹 → 网页设置「连接」里看到 → 网页定时任务能选这个文件夹 → 推送到 Express。
 2. **上线批次**（用户还没下令；按《按批次自主部署》五道关）：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `ci-candidate-checks offline` → 合入 main 并推送 → 从 main 构建镜像 → 生产部署 → 在计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 1.4.0 正式版（小助手发布流程见 `companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404，「回到应用」会跳过去。
 3. 生产 Keycloak 的 `pearnly-ai` 主题是拷进容器的，**容器重建会丢**：上线时重装（或改成像父主题一样挂载）。

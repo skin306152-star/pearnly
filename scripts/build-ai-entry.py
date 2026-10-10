@@ -28,7 +28,7 @@ FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
 # CC 图标（白字带胡须的原版，frontend/assistant/src/brand/cc-icon.svg）放在登录框里面最上方正中（用户 2026-10-10 晚），顶上只留语言
 BRAND_MARK = ('<div class="card-logo">' + (ROOT / "frontend/assistant/src/brand/cc-icon.svg").read_text()
               .replace('width="1024" height="1024"', 'width="56" height="56" role="img" aria-label="CC"').strip() + '<span class="card-name">CC</span></div>')
-# 标签页小图标：白字 CC（32 像素去胡须版，frontend/assistant/public/icon-32.png），直接内嵌
+# 标签页小图标：白字 CC（32 像素带胡须原版，frontend/assistant/public/icon-32.png），直接内嵌
 FAVICON = ('<link rel="icon" type="image/png" href="data:image/png;base64,'
            + base64.b64encode((ROOT / "frontend/assistant/public/icon-32.png").read_bytes()).decode() + '">')
 MAIL_ICON = ('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f5e5a" stroke-width="1.9" stroke-linecap="round" '

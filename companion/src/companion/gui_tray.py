@@ -99,7 +99,7 @@ def _pearnly_pixmap() -> QPixmap:
 
 
 def _status_icon(key: str) -> QIcon:
-    """托盘图标 = CC 图标（小尺寸去胡须版）+ 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
+    """托盘图标 = CC 图标（带胡须原版）+ 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
     icon = _ICON_CACHE.get("logo:" + key)
     if icon is not None:
         return icon
