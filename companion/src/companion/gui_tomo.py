@@ -117,7 +117,7 @@ class TomoWindow(QMainWindow):
         self._pending_ask: str | None = None
         self._pending_settings: str | None = None
         self._settings = QSettings("Pearnly", "Tomo")
-        self.setWindowTitle("Tomo")
+        self.setWindowTitle("CC")
         self.setWindowIcon(icon)
         self.setMinimumSize(420, 520)
 
@@ -223,7 +223,7 @@ class TomoWindow(QMainWindow):
         self.hide()
         if not self._settings.value("told_background", False, type=bool):
             self._settings.setValue("told_background", True)
-            self._notify("Tomo", t("tomo_still_running", self.lang), self.show_front)
+            self._notify("CC", t("tomo_still_running", self.lang), self.show_front)
 
     def shutdown(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
@@ -238,7 +238,7 @@ class TomoWindow(QMainWindow):
             self.show_front()
             n.click()
 
-        self._notify(notification.title() or "Tomo", notification.message(), clicked)
+        self._notify(notification.title() or "CC", notification.message(), clicked)
 
     def _download(self, request: QWebEngineDownloadRequest) -> None:
         folder = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or Path.home())
@@ -249,7 +249,7 @@ class TomoWindow(QMainWindow):
 
         def finished(r=request, p=path) -> None:
             if r.state() == QWebEngineDownloadRequest.DownloadState.DownloadCompleted:
-                self._notify("Tomo", t("tomo_downloaded", self.lang, name=p.name), lambda: reveal(p))
+                self._notify("CC", t("tomo_downloaded", self.lang, name=p.name), lambda: reveal(p))
             elif r.state() == QWebEngineDownloadRequest.DownloadState.DownloadInterrupted:
                 log.warning("Tomo 下载中断：%s", r.interruptReasonString())
 

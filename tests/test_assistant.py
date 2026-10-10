@@ -459,7 +459,7 @@ class BrandAndLoginTests(unittest.TestCase):
         for name, body in builder.render().items():
             actual = (ROOT / f"frontend/assistant/src/brand/{name}").read_text(encoding="utf-8")
             self.assertEqual(actual, body, f"run scripts/build-assistant-brand.py ({name} drifted from website/)")
-        self.assertEqual(sorted(builder.render()), ["ai.svg", "icon.svg"])
+        self.assertEqual(sorted(builder.render()), ["ai.svg"])
 
     def test_assistant_uses_the_single_login_entry(self):
         source = (CORE / "login_redirect.py").read_text(encoding="utf-8")

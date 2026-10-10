@@ -12,7 +12,6 @@ import {
   ChevronRightIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
-  CloudIcon,
   ExternalLinkIcon,
   FilesIcon,
   GlobeIcon,
@@ -188,12 +187,10 @@ function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <CloudIcon className="size-4" />
-          </div>
-          <span className="font-semibold">Tomo</span>
-        </div>
+        {/* 同登录页左上角：纯黑粗体「CC」（用户 2026-10-10） */}
+        <span className="ps-1 font-extrabold text-[22px] text-black leading-none tracking-wide" style={{ fontFamily: '"Helvetica Neue", Arial, "PingFang SC", sans-serif' }}>
+          CC
+        </span>
         <SidebarTrigger aria-label={t("sidebar")} />
       </SidebarHeader>
       <SidebarContent className="px-2">

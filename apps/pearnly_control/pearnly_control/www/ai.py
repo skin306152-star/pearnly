@@ -15,12 +15,6 @@ PRODUCTS = {"cowork": "Cowork", "erp": "ERP", "dms": "DMS"}
 SITE_PATH = {"th": "", "en": "/en", "zh": "/zh"}
 
 
-def _marked(text: str) -> str:
-    """把译文里 [[…]] 包住的词标成黄色记号笔，其余照常转义。"""
-    html = escape_html(text)
-    return html.replace("[[", '<span class="hl">', 1).replace("]]", "</span>", 1)
-
-
 def get_context(context):
     if not entry.enabled():
         raise frappe.PageDoesNotExistError
@@ -42,7 +36,6 @@ def get_context(context):
     context.update({
         "lang": lang, "langs": LANG_LABELS, "products": PRODUCTS, "mode": mode, "sites": sites,
         "pick": args.get("pick") or "",
-        "title_html": _marked(_("Your personal [[AI assistant]]")),
         "legal_html": escape_html(_("By continuing, you agree to Pearnly's {0} and {1}.")).format(terms, privacy),
         "csrf_token": frappe.sessions.get_csrf_token(),
         "no_breadcrumbs": True,

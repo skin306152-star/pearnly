@@ -7,7 +7,7 @@ $py64 = 'C:\Users\skin3\AppData\Local\Programs\Python\Python311\python.exe'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 
-Write-Host '=== [1/3] 64 位主程序文件夹 dist\companion (PySide6 托盘+Tomo 窗口+DBF) ==='
+Write-Host '=== [1/3] 64 位主程序文件夹 dist\companion (PySide6 托盘+CC 窗口+DBF) ==='
 & $py64 -m PyInstaller --noconfirm --distpath dist --workpath build\b64 packaging\companion.spec
 if ($LASTEXITCODE -ne 0) { throw '64 位打包失败' }
 
@@ -19,4 +19,4 @@ Copy-Item $cdxSrc (Join-Path $root 'dist\cdx_reindex_runner.exe') -Force
 
 Write-Host '=== [3/3] 产物 ==='
 Get-ChildItem dist\*.exe, dist\companion\companion.exe | Select-Object FullName, @{n = 'MB'; e = { [math]::Round($_.Length / 1MB, 1) } } | Format-Table -AutoSize
-Write-Host '提示:companion.exe 手动打开即打开 Tomo 窗口;cdx_reindex_runner.exe 由主程序写盘后自动调用,勿手动跑。'
+Write-Host '提示:companion.exe 手动打开即打开 CC 窗口;cdx_reindex_runner.exe 由主程序写盘后自动调用,勿手动跑。'

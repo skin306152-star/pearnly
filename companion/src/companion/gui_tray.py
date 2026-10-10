@@ -93,13 +93,13 @@ def pearnly_icon() -> QIcon:
 def _pearnly_pixmap() -> QPixmap:
     global _BASE_PM
     if _BASE_PM is None:
-        p = asset_path("tomo.png")
+        p = asset_path("cc.png")
         _BASE_PM = QPixmap(str(p)) if p.exists() else QPixmap()
     return _BASE_PM
 
 
 def _status_icon(key: str) -> QIcon:
-    """托盘图标 = Tomo 图标 + 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
+    """托盘图标 = CC 图标（小尺寸去胡须版）+ 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
     icon = _ICON_CACHE.get("logo:" + key)
     if icon is not None:
         return icon

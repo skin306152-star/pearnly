@@ -9,7 +9,9 @@
 用法：python3 scripts/build-ai-entry.py          生成
       python3 scripts/build-ai-entry.py --check  只检查生成物是否与本脚本一致（CI 用）
 """
+import base64
 import hashlib
+import json
 import pathlib
 import sys
 
@@ -23,8 +25,29 @@ THEME = ROOT / "infrastructure/keycloak/themes/pearnly-ai/login"
 LINE_URL = "https://line.me/R/ti/p/@pearnly"
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sriracha&display=swap" rel="stylesheet">')
-BRAND_ICON = ('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" '
-              'stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>')
+# 登录框旁只有橘猫（左上角是黑体「CC」，不放标题和副标题，用户 2026-10-10）
+# 猫用用户自己用 Gemini 生成的水彩橘猫（2026-10-10 定稿：趴在登录框上沿后面探头，两只前爪搭在框边，尾巴翘着）。
+# 抠图脚本 website/static/cc/source/cut_top.py：去掉棋盘格背景和原图那条横边（登录框上沿代替它），
+# 两颗眼珠抠成单独的小图叠回眼睛里，跟着鼠标转、输密码时往上看（不看你输入）。直接内嵌进页面（入口页与 Keycloak 主题都不用另放静态文件）。
+def _data(name, kind="image/webp"):
+    return f"data:{kind};base64," + base64.b64encode((ROOT / "website/static/cc" / name).read_bytes()).decode()
+
+
+def _cat_svg():
+    meta = json.loads((ROOT / "website/static/cc/top.json").read_text())
+    w, h = meta["size"]
+    clips = "".join(f'<clipPath id="cc-eye{i}"><polygon points="{" ".join(f"{x:.1f},{y:.1f}" for x, y in e["clip"])}"/></clipPath>'
+                    for i, e in enumerate(meta["eyes"]))
+    eyes = "".join(f'<g clip-path="url(#cc-eye{i})"><g class="cc-look"><image href="{_data(e["img"])}" x="{e["x"]}" y="{e["y"]}" '
+                   f'width="{e["size"]}" height="{e["size"]}"/></g></g>' for i, e in enumerate(meta["eyes"]))
+    return (f'<svg class="cc-perch" viewBox="0 0 {w} {h}" aria-hidden="true" focusable="false"><defs>{clips}</defs>'
+            f'<image href="{_data("top.webp")}" width="{w}" height="{h}"/>{eyes}</svg>')
+
+
+CC_CAT = _cat_svg()
+# 标签页小图标：白字 CC（32 像素去胡须版，frontend/assistant/public/icon-32.png），直接内嵌
+FAVICON = ('<link rel="icon" type="image/png" href="data:image/png;base64,'
+           + base64.b64encode((ROOT / "frontend/assistant/public/icon-32.png").read_bytes()).decode() + '">')
 MAIL_ICON = ('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f5e5a" stroke-width="1.9" stroke-linecap="round" '
              'stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>')
 YOUTUBE_ICON = ('<svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4.5" fill="#ff0033"/>'
@@ -34,6 +57,8 @@ CONTACTS = ('<div class="contacts">'
             '<a href="mailto:hello@pearnly.com">' + "{mail}" + 'hello@pearnly.com</a>'
             '<a href="https://www.youtube.com/@pearnlyth" target="_blank" rel="noopener">' + "{yt}" + 'YouTube</a></div>')
 LINE_ICON = ('<svg width="17" height="17" viewBox="0 0 24 24" fill="#06c755" aria-hidden="true"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.1.8.2.9.5.1.3.1.7 0 .9l-.1.9c0 .3-.2 1 .9.6 1.1-.5 5.9-3.5 8-6C21.4 14.2 22 12.7 22 11c0-4.4-4.5-8-10-8Z"/></svg>')
+
+
 
 
 CONTACTS = CONTACTS.format(line=LINE_ICON.replace('width="17" height="17"', 'width="16" height="16"'), mail=MAIL_ICON, yt=YOUTUBE_ICON)
@@ -86,20 +111,18 @@ def stand(x, ground, k, prop, kind, lift=8):
 
 
 SCENE = scene("wide", "0 0 1200 300", "M40 286 H1160", [
-    bubble(176, 92, 76, 40, DOTS, "typing"), bubble(368, 118, 66, 44, PHOTO, "b2"),
-    bubble(556, 66, 92, 42, MONEY, "b3"), bubble(1034, 28, 70, 44, CHART, "b4"), bubble(1108, 96, 62, 42, TICK, "b2"),
+    bubble(196, 92, 76, 40, DOTS, "typing"), bubble(428, 118, 66, 44, PHOTO, "b2"),
+    bubble(650, 66, 92, 42, MONEY, "b3"), bubble(974, 28, 70, 44, CHART, "b4"), bubble(1048, 96, 62, 42, TICK, "b2"),
     sparkle(96, 120, 0.9, "s1"), sparkle(470, 74, 0.7, "s2"), sparkle(660, 128, 0.9, "s3"), sparkle(1160, 160, 0.8, "s4"),
     receipt(628, 204, -14, "r1"), receipt(1128, 214, 12, "r2"), plane(860, 30, "p1"),
-    stand(150, 286, 0.95, "pencil", "cowork"), stand(345, 286, 0.95, "camera", "dms"),
-    stand(535, 286, 0.95, "basket", "erp"), stand(745, 286, 1.2, "none", "ai"),
-    stand(985, 286, 1.55, "stamp", "mrerp")]) + scene(
+    stand(170, 286, 0.95, "pencil", "cowork"), stand(405, 286, 0.95, "camera", "dms"),
+    stand(630, 286, 0.95, "basket", "erp"), stand(925, 286, 1.55, "stamp", "mrerp")]) + scene(
     "phone", "0 0 620 330", "M10 316 H610", [
-    bubble(66, 150, 70, 38, DOTS, "typing"), bubble(186, 170, 66, 44, PHOTO, "b2"), bubble(286, 120, 92, 42, MONEY, "b3"),
-    bubble(566, 40, 70, 44, CHART, "b4"), sparkle(26, 150, 0.8, "s1"), sparkle(452, 110, 0.7, "s2"), sparkle(608, 130, 0.7, "s4"),
+    bubble(86, 150, 70, 38, DOTS, "typing"), bubble(226, 170, 66, 44, PHOTO, "b2"), bubble(346, 120, 92, 42, MONEY, "b3"),
+    bubble(536, 40, 70, 44, CHART, "b4"), sparkle(26, 150, 0.8, "s1"), sparkle(452, 110, 0.7, "s2"), sparkle(608, 130, 0.7, "s4"),
     plane(430, 62, "p1"),
-    stand(52, 316, 0.74, "pencil", "cowork", 7), stand(160, 316, 0.74, "camera", "dms", 7),
-    stand(270, 316, 0.74, "basket", "erp", 7), stand(390, 316, 0.95, "none", "ai", 7),
-    stand(530, 316, 1.18, "stamp", "mrerp", 7)])
+    stand(70, 316, 0.74, "pencil", "cowork", 7), stand(200, 316, 0.74, "camera", "dms", 7),
+    stand(330, 316, 0.74, "basket", "erp", 7), stand(500, 316, 1.18, "stamp", "mrerp", 7)])
 
 # ---------------- 样式：宣传页的底色、点阵、记号笔与按钮；也给 Keycloak 流程页的表单类名上样式 ----------------
 
@@ -110,23 +133,14 @@ CSS = """
 :lang(zh) body,:lang(zh-CN) body{font-family:"PingFang SC","Noto Sans SC","Microsoft YaHei",var(--sans)}
 canvas.dots{position:fixed;inset:0;z-index:0;pointer-events:none}
 .hd-defs{position:absolute}
-.page{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center}
+.page{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow-x:clip}
 .top{align-self:stretch;display:flex;align-items:center;justify-content:space-between;padding:18px 24px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;color:var(--ink);text-decoration:none}
-.brand .mark{width:28px;height:28px;border-radius:8px;background:var(--ink);display:grid;place-items:center}
+.brand{font-family:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;color:#000}
 .langs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.7)}
 .langs a{font-size:13px;color:var(--muted);padding:3px 11px;border-radius:999px;text-decoration:none}
 .langs a.on{background:var(--ink);color:#fff}
 .hero{width:100%;max-width:560px;padding:clamp(28px,8vh,84px) 16px 0;text-align:center}
-h1{margin:0;font-size:clamp(38px,5.6vw,58px);font-weight:700;letter-spacing:-.015em;line-height:1.12;color:var(--ink);isolation:isolate}
-.hl{position:relative;white-space:nowrap}
-.hl::after{content:"";position:absolute;z-index:-1;left:-.06em;right:-.06em;bottom:.04em;height:.4em;
-background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 24' preserveAspectRatio='none'%3E%3Cpath d='M4 13 C40 7 92 10 196 6 L197 17 C130 19 64 22 3 21 Z' fill='%23ffd84d' opacity='.85'/%3E%3C/svg%3E") no-repeat 0 0/100% 100%;
-transform-origin:left center;animation:hl-draw .9s .45s var(--ease) both}
-:lang(th) .hl::after{bottom:.24em;height:.36em}:lang(en) .hl::after{bottom:.36em;height:.3em}
-@keyframes hl-draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-.sub{margin:14px 0 34px;color:var(--muted);font-size:clamp(16px,2vw,19px)}
-.card{width:100%;max-width:392px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;
+.card{position:relative;width:100%;max-width:392px;margin:212px auto 0;background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;
 box-shadow:0 1px 2px rgba(20,20,19,.04),0 16px 40px -12px rgba(20,20,19,.14),0 48px 96px -32px rgba(20,20,19,.12)}
 .card h2{margin:0 0 14px;font-size:17px;font-weight:600;color:var(--ink);text-align:center}
 .input,.field input{display:block;width:100%;height:44px;border:1px solid var(--line-strong);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
@@ -198,6 +212,9 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 @keyframes glide{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-12px)}}
 .step{animation:in .35s var(--ease)}@keyframes in{from{opacity:0;transform:translateY(6px)}}
 @media (max-width:640px){.card{padding:20px;border-radius:18px}.top{padding:14px 16px}.scene{padding-top:24px}.scene-svg.wide{display:none}.scene-svg.phone{display:block}}
+.cc-look{transition:transform .25s var(--ease)}
+.cc-perch{position:absolute;left:50%;margin-left:-112px;top:-219px;width:250px;height:234px;overflow:visible;user-select:none;pointer-events:none}
+@media (max-width:640px){.cc-perch{margin-left:-98px;width:220px;height:206px;top:-193px}.card{margin-top:188px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 """.strip()
 
@@ -219,12 +236,18 @@ function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0)return 'h
 window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000);play(m,'hm-laughing',2000)},i*120)})};
 if(!reduce){setInterval(function(){var m=all[Math.floor(Math.random()*all.length)];if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
 all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700);play(m,'hm-laughing',1400)})});
-document.addEventListener('focusin',function(e){if(scene&&e.target.type==='password')scene.classList.add('shy')});
-document.addEventListener('focusout',function(e){if(scene&&e.target.type==='password')scene.classList.remove('shy')});
+document.addEventListener('focusin',function(e){if(e.target.type==='password')document.body.classList.add('shy')});
+document.addEventListener('focusout',function(e){if(e.target.type==='password')document.body.classList.remove('shy')});
 var looks=[].slice.call(document.querySelectorAll('.hm .m-look')),px=0,py=0,q=false;
-function upd(){q=false;if(scene&&scene.classList.contains('shy'))return;looks.forEach(function(g){var r=g.closest('.hm').getBoundingClientRect();if(!r.width)return;
+function upd(){q=false;if(document.body.classList.contains('shy'))return;looks.forEach(function(g){var r=g.closest('.hm').getBoundingClientRect();if(!r.width)return;
 var dx=px-(r.left+r.width/2),dy=py-(r.top+r.height*.3),d=Math.sqrt(dx*dx+dy*dy)||1,k=Math.min(1,d/240)*(g.closest('.hm-mrerp')?3:5);g.setAttribute('transform','translate('+(dx/d*k).toFixed(2)+' '+(dy/d*k).toFixed(2)+')')})}
 if(!reduce)addEventListener('pointermove',function(e){px=e.clientX;py=e.clientY;if(!q){q=true;requestAnimationFrame(upd)}},{passive:true});
+var ccEyes=[].slice.call(document.querySelectorAll('.cc-look')),cq=false;
+function ccLook(){cq=false;var shy=document.body.classList.contains('shy');ccEyes.forEach(function(g){var r=g.parentNode.getBoundingClientRect();if(!r.width)return;
+var dx=shy?.4:px-(r.left+r.width/2),dy=shy?-1:py-(r.top+r.height/2),d=Math.sqrt(dx*dx+dy*dy)||1,k=shy?1:Math.min(1,d/260),ux=dx/d*k*8,uy=dy/d*k*(dy>0?3:5);
+g.setAttribute('transform','translate('+ux.toFixed(2)+' '+uy.toFixed(2)+')')})}
+if(!reduce&&ccEyes.length){addEventListener('pointermove',function(){if(!cq){cq=true;requestAnimationFrame(ccLook)}},{passive:true});
+document.addEventListener('focusin',ccLook);document.addEventListener('focusout',function(){setTimeout(ccLook,0)})}
 })();
 """.strip()
 
@@ -235,30 +258,28 @@ GENERATED = "生成文件：改设计请改 scripts/build-ai-entry.py 后重新�
 PAGE_HTML = """<!doctype html>
 <!-- """ + GENERATED + """ -->
 <html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tomo</title><meta name="robots" content="noindex">""" + FONTS + """
+<title>CC</title>""" + FAVICON + """<meta name="robots" content="noindex">""" + FONTS + """
 <style>""" + CSS + """</style></head>
 <body>
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand"><span class="mark">""" + BRAND_ICON + """</span>Tomo</span>
+    <span class="brand">CC</span>
     <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
   </header>
   <section class="hero">
-    <h1>{{ title_html | safe }}</h1>
-    <p class="sub">{{ _("Get your work done in conversation") }}</p>
     {% if mode == "pick" %}
-    <div class="card step">
+    <div class="card step">""" + CC_CAT + """
       <h2>{{ _("Choose a workspace") }}</h2>
       <div class="picks">{% for s in sites %}<a class="pick" href="/api/method/pearnly_control.assistant_entry.api.choose?pick={{ pick | urlencode }}&amp;site={{ s.site | urlencode }}"><b>{{ s.company | e }}</b><small>{{ products.get(s.product, s.product) }}</small></a>{% endfor %}</div>
     </div>
     {% elif mode == "none" %}
-    <div class="card step">
+    <div class="card step">""" + CC_CAT + """
       <p class="notice">{{ _("This account has no workspace available. Contact your administrator.") }}</p>
       <a class="btn" href="/?fresh=1">{{ _("Back") }}</a>
     </div>
     {% else %}
-    <form class="card" id="entry" novalidate>
+    <form class="card" id="entry" novalidate>""" + CC_CAT + """
       <input class="input" id="login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="{{ _("Username or email") }}" autofocus>
       <span class="err" id="err" role="alert" hidden></span>
       <button class="btn" type="submit" id="go">{{ _("Continue") }}</button>
@@ -327,7 +348,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false resetResult=false>
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tomo</title><meta name="robots" content="noindex">""" + FONTS + """
+<title>CC</title>""" + FAVICON + """<meta name="robots" content="noindex">""" + FONTS + """
 <link href="${url.resourcesPath}/css/""" + CSS_NAME + """" rel="stylesheet" />
 <#if scripts??><#list scripts as script><script src="${script}" type="text/javascript"></script></#list></#if>
 <script src="${url.resourcesPath}/js/""" + JS_NAME + """" defer></script>
@@ -336,15 +357,13 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand"><span class="mark">""" + BRAND_ICON + """</span>Tomo</span>
+    <span class="brand">CC</span>
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
     <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>
   </header>
   <section class="hero">
-    <h1>${msg("pearnlyAiTitle")?no_esc}</h1>
-    <p class="sub">${msg("pearnlyAiSub")}</p>
-    <div class="card">
+    <div class="card">""" + CC_CAT + """
       <#nested "header">
       <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
         <div class="auth-message ${message.type}" role="alert">${kcSanitize(message.summary)?no_esc}</div>
@@ -398,16 +417,13 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
 # Keycloak 文案：只放 ai 主题新增的键，其余（密码、登录、忘记密码…）继承 pearnly 主题。
 MESSAGES = {
     "zh_CN": {"pearnlyAiNoAccount": "还没有账号？", "pearnlyAiContactNote": "联系我们开通账号或预约演示",
-              "pearnlyAiTitle": '您的个人<span class="hl">智能体</span>', "pearnlyAiSub": "让工作在对话中完成",
               "pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱",
               "pearnlyAiLegal": "继续即表示您已阅读并同意 Pearnly 的{0}和{1}。", "pearnlyAiTerms": "服务条款", "pearnlyAiPrivacy": "隐私政策"},
     "th": {"pearnlyAiNoAccount": "ยังไม่มีบัญชีใช่ไหม", "pearnlyAiContactNote": "ติดต่อเราเพื่อเปิดบัญชีหรือนัดชมเดโม",
-           "pearnlyAiTitle": '<span class="hl">ผู้ช่วย AI</span> ส่วนตัวของคุณ', "pearnlyAiSub": "ทำงานให้เสร็จได้ในบทสนทนา",
            "pearnlyAiChange": "เปลี่ยน", "pearnlyAiLogin": "ชื่อผู้ใช้หรืออีเมล",
            "pearnlyAiLegal": "การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly", "pearnlyAiTerms": "ข้อกำหนดการให้บริการ",
            "pearnlyAiPrivacy": "นโยบายความเป็นส่วนตัว"},
     "en": {"pearnlyAiNoAccount": "Don't have an account?", "pearnlyAiContactNote": "Contact us to open an account or book a demo",
-           "pearnlyAiTitle": 'Your personal <span class="hl">AI assistant</span>', "pearnlyAiSub": "Get your work done in conversation",
            "pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email",
            "pearnlyAiLegal": "By continuing, you agree to Pearnly''s {0} and {1}.", "pearnlyAiTerms": "Terms of Service",
            "pearnlyAiPrivacy": "Privacy Policy"},

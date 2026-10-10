@@ -23,7 +23,7 @@ a = Analysis(
     ["launcher_companion.py"],
     pathex=_pathex,
     binaries=[],
-    datas=[("../assets/tomo.png", "assets"), ("../assets/pearnly.png", "assets")],  # 托盘/窗口图标(spec 相对路径=packaging/·故 ..)
+    datas=[("../assets/cc.png", "assets"), ("../assets/pearnly.png", "assets")],  # 托盘/窗口图标(spec 相对路径=packaging/·故 ..)
     hiddenimports=_hidden,
     hookspath=[],
     hooksconfig={},
@@ -68,7 +68,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="companion",
-    icon="../assets/tomo.ico",  # 桌面/任务栏图标 = Tomo
+    icon="../assets/cc.ico",  # 桌面/任务栏图标 = CC（小尺寸去胡须）
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

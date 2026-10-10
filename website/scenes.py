@@ -73,7 +73,7 @@ def face(ex, ey, r=5, gap=24):
 #   ai（Tomo）：一朵云，头顶一颗小星光
 #   erp：戴黄色小店遮阳帽，身上一段条码带红色扫描线，提着黄色购物篮
 TOMO_SPARK = "M30 -128 Q32 -119 40 -117 Q32 -115 30 -106 Q28 -115 20 -117 Q28 -119 30 -128 Z"   # Tomo 头顶的小星光
-TOMO_CLOUD = "M-40 0 H40 Q62 0 60 -22 Q74 -44 52 -60 Q52 -92 20 -90 Q4 -112 -20 -98 Q-46 -102 -50 -74 Q-70 -62 -60 -40 Q-72 -14 -50 -2 Z"   # Tomo 的云朵身体（应用图标也用它，scripts/build-assistant-brand.py）
+TOMO_CLOUD = "M-40 0 H40 Q62 0 60 -22 Q74 -44 52 -60 Q52 -92 20 -90 Q4 -112 -20 -98 Q-46 -102 -50 -74 Q-70 -62 -60 -40 Q-72 -14 -50 -2 Z"   # 对话页欢迎处的云朵身体（scripts/build-assistant-brand.py）
 
 
 def costume(kind):

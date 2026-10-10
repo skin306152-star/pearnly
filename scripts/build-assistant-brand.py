@@ -29,20 +29,7 @@ def render() -> dict[str, str]:
         svg = svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1)
         svg = svg.replace('focusable="false">', f'focusable="false"><defs>{pencil}</defs>', 1)
         files[f"{kind}.svg"] = svg + "\n"
-    files["icon.svg"] = icon(scenes, pencil)
     return files
-
-
-def icon(scenes, pencil) -> str:
-    """应用图标（PWA 与桌面端）：白色圆角底、黑色铅笔线的 Tomo 云朵脸（无填色、无腮红、不带手脚；用户 2026-10-10 定）。
-    PNG / ICO 由这份 SVG 渲染（见 docs/work/2026-10-10-assistant-foundation.md「桌面端」），不另画。"""
-    face = ('<circle cx="-12" cy="-62" r="4.4" fill="currentColor" stroke="none"/>'
-            '<circle cx="12" cy="-62" r="4.4" fill="currentColor" stroke="none"/><path d="M-6 -40 q6 6 12 0" stroke-width="2.6"/>')
-    pen = scenes.PEN.replace(f'color="{scenes.INK}"', 'color="#000000"')
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
-            f'<defs>{pencil}</defs><rect width="512" height="512" rx="112" fill="#ffffff"/>'
-            f'<g transform="translate(256 420) scale(2.6)" filter="url(#hd-pencil)" {pen}>'
-            f'<path d="{scenes.TOMO_SPARK}" stroke-width="2"/><path d="{scenes.TOMO_CLOUD}"/>{face}</g></svg>\n')
 
 
 def main() -> int:

@@ -60,7 +60,7 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
     wasRunning.current = isRunning;
     if (!finished || document.hasFocus() || typeof Notification === "undefined") return;
     if (Notification.permission !== "granted") return;
-    const note = new Notification(title || "Tomo", { body: lastReply(messages), tag: "tomo-reply" });
+    const note = new Notification(title || "CC", { body: lastReply(messages), tag: "tomo-reply" });
     note.onclick = () => window.focus();
   }, [isRunning, messages, title]);
 

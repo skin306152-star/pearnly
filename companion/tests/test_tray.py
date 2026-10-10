@@ -35,7 +35,7 @@ def test_tray_menu_opens_tomo_first_and_left_click_opens_tomo():
 
     texts = [action.text() for action in app.tray.contextMenu().actions()
              if action.isVisible() and not action.isSeparator()]
-    assert texts == ["启动中…", "打开 Tomo", "连接与设置", "退出"]
+    assert texts == ["启动中…", "打开 CC", "连接与设置", "退出"]
 
     app._on_tray_activated(QSystemTrayIcon.Context)
     assert opened == []

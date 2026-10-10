@@ -1,6 +1,6 @@
 {
-  "name": "Tomo",
-  "short_name": "Tomo",
+  "name": "CC",
+  "short_name": "CC",
   "start_url": "/assistant",
   "scope": "/assistant",
   "display": "standalone",
