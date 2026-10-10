@@ -216,6 +216,7 @@ Checked folder tasks,フォルダータスクを確認しました
 Checked in the ERP,ERP で確認済み
 Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
 Checked intake choices,入力設定を確認しました
+Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
 Checked recognition results,読み取り結果を確認しました
 Checked the companion,アシスタントを確認しました
@@ -284,6 +285,7 @@ Completion Evidence,完了証跡
 Confirmation Request,確認リクエスト
 Confirmation Revision,確認リビジョン
 Confirmed,確認済み
+Confirmed a push result,送信結果を確定しました
 Connect Companion,コンパニオンを接続
 Connection Configuration,接続設定
 Connection Name,接続名
@@ -1064,6 +1066,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,売上�
 Sample Key,修正例識別子
 Save and next,保存して次へ
 Saved,保存しました
+Saved push choices,送信の選択を保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
 Scan barcode or QR code,バーコード・QRコードを読む
 Scan barcodes · Record quantities,バーコード読取 · 数量記録

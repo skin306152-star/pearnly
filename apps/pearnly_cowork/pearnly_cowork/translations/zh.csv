@@ -216,6 +216,7 @@ Checked folder tasks,查看了文件夹任务
 Checked in the ERP,已在 ERP 核对
 Checked in the ERP: not entered. It can be sent again,已在 ERP 核对：未入账，可重新推送
 Checked intake choices,查看了录入口径
+Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
 Checked recognition results,查看了识别结果
 Checked the companion,查看了小助手
@@ -284,6 +285,7 @@ Completion Evidence,完成证据
 Confirmation Request,确认请求
 Confirmation Revision,确认版本
 Confirmed,已确认
+Confirmed a push result,确认了推送结果
 Connect Companion,连接小助手
 Connection Configuration,连接配置
 Connection Name,连接名称
@@ -1064,6 +1066,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,销项�
 Sample Key,修正例标识
 Save and next,保存并下一项
 Saved,已保存
+Saved push choices,保存了推送选项
 Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
 Scan barcodes · Record quantities,扫描条码 · 记录数量

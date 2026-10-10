@@ -21,6 +21,7 @@ from pearnly_cowork.connections import api as connections_api
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import destinations, rules
 from pearnly_cowork.history import push_state, storage
+from pearnly_cowork.push.application import api as application_api
 from pearnly_cowork.push.application import service as application
 
 HISTORY = "Cowork OCR History"
@@ -573,6 +574,87 @@ def choose_document_policy(tool_input) -> str:
     return _json({"status": "saved", **result})
 
 
+# ---------------- 推送前要人选的项、结果不明的确认（同复核页） ----------------
+
+CHOICE_OPTIONS_SHOWN = 30
+
+
+def _push_target_of(doc, tool_input):
+    connection = tool_input.get("connection") or doc.push_connection
+    account_set = tool_input.get("account_set_key") or doc.push_account_set or None
+    return connection, account_set
+
+
+def push_choices(tool_input) -> str:
+    """Express 推送前这张单据在这份账套里要人选一次的（对方档 / 商品 / 费用科目 / 付款 / 抵进项 / 部门）与可选值。"""
+    scope.require("intake")
+    name = str(tool_input.get("document") or "")
+    try:
+        doc = storage.read(name)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_found"})
+    connection, account_set = _push_target_of(doc, tool_input)
+    if not connection:
+        return _json({"document": name, "status": "failed", "reason": "no_push_target"})
+    frappe.db.commit()  # choices_view 只看、结束时整笔回滚
+    try:
+        view = application.choices_view(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind)
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "failed", "reason": str(error)[:300]})
+    search = str(tool_input.get("search") or "").strip().casefold()
+    options = {}
+    for kind, rows in (view.get("options") or {}).items():
+        found = [r for r in rows if not search or search in f"{r.get('code')} {r.get('name')}".casefold()]
+        options[kind] = {"total": len(found), "shown": found[:CHOICE_OPTIONS_SHOWN]}
+    return _json({"document": name, "connection": connection, "account_set": view.get("account_set") or account_set,
+                  "needed": view.get("needed") or [], "options": options})
+
+
+def save_push_choices(tool_input) -> str:
+    scope.require("intake")
+    name = str(tool_input.get("document") or "")
+    try:
+        doc = storage.read(name)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_found"})
+    connection, account_set = _push_target_of(doc, tool_input)
+    try:
+        result = application_api.save_choices(name, connection, account_set, json.dumps(tool_input.get("items") or []))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
+    return _json({"document": name, "status": "saved", "result": result})
+
+
+def resolve_push_result(tool_input) -> str:
+    """推送结果不明：用户在 ERP 里核对后告诉 CC 已入账（可带 ERP 单号）或未入账（之后可重推）。"""
+    scope.require("intake")
+    name = str(tool_input.get("document") or "")
+    try:
+        doc = storage.read(name)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_found"})
+    if not doc.last_push_record:
+        return _json({"document": name, "status": "not_saved", "reason": "This document has no push to confirm."})
+    try:
+        result = application_api.resolve_unknown(doc.last_push_record, 1 if tool_input.get("entered") else 0,
+                                                 str(tool_input.get("docnum") or "") or None)
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
+    return _json({"document": name, "status": "saved", "push": _filled(
+        {key: result.get(key) for key in ("status", "docnum", "reason")} if isinstance(result, dict) else {})})
+
+
 # ---------------- 文件夹定时任务 ----------------
 
 def folder_tasks(_input) -> str:
@@ -723,6 +805,36 @@ TOOLS = [
          "connection": {"type": "string", "description": "Optional; defaults to the target chosen at upload."}},
          "required": ["documents"]},
      "handler": "pearnly_cowork.assistant.tools.push_documents"},
+    {"name": "cowork_push_choices", "label": "Checked push choices",
+     "description": "Before pushing to Express, what this document still needs a person to choose once in this "
+                    "account set (party, product, expense account, payment, VAT claim, department; kinds in needed) "
+                    "and the allowed values (up to 30 per kind; pass search to narrow by code or name). Use it when a "
+                    "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
+                    "again.",
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"]}, "search": {"type": "string"}},
+         "required": ["document"]},
+     "handler": "pearnly_cowork.assistant.tools.push_choices"},
+    {"name": "cowork_save_push_choices", "label": "Saved push choices",
+     "description": "Record what the user chose for the items listed by cowork_push_choices: each item is the needed "
+                    "entry's kind and subject with the chosen value (a listed code; party and product also accept "
+                    "the NEW value given there). The account set reuses them for later documents of the same kind.",
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "items": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
+             "kind": {"type": "string"}, "subject": {"type": "string"}, "value": {"type": "string"},
+             "label": {"type": "string"}}, "required": ["kind", "value"]}}},
+         "required": ["document", "items"]},
+     "handler": "pearnly_cowork.assistant.tools.save_push_choices"},
+    {"name": "cowork_resolve_push_result", "label": "Confirmed a push result",
+     "description": "When a push result is unknown (the ERP may or may not have it), record what the user found "
+                    "after checking in the ERP: entered true (with the ERP document number if they have it) or "
+                    "false, so it can be pushed again. Only with the user's own answer; never guess.",
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string"}, "entered": {"type": "boolean"}, "docnum": {"type": "string"}},
+         "required": ["document", "entered"]},
+     "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
      "input_schema": {"type": "object", "properties": {

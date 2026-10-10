@@ -67,6 +67,7 @@ def _install():
         "pearnly_cowork.history.push_state": dict(record_failure=lambda *a: None),
         "pearnly_cowork.history.storage": dict(read=lambda name: None),
         "pearnly_cowork.push.application.service": dict(),
+        "pearnly_cowork.push.application.api": dict(),
     }
     for name, attrs in leaf.items():
         module = types.ModuleType(name)
@@ -354,6 +355,45 @@ class IntakeChoiceTests(unittest.TestCase):
                            "defaults": {"department": "D1"}})
         self.assertEqual(calls, [("stock", "EXP1", "B", "1140"), ("menu", "MR1", "1:2", "purchase", "7"),
                                  ("default", "MR1", "1:2", "department", "D1")])
+
+
+
+class PushFollowUpTests(unittest.TestCase):
+    """推送前要人选的项（可搜、每类最多 30 个）、保存、结果不明的确认：都走复核页同一套服务。"""
+
+    def setUp(self):
+        self.calls = []
+        doc = types.SimpleNamespace(push_connection="EXP1", push_account_set="K", posting_kind="stock",
+                                    last_push_record="PR1")
+        tools.storage.read = lambda name: doc
+        self.doc = doc
+        tools.application.choices_view = lambda *a: {"needed": [{"kind": "item", "subject": "Coffee"}],
+                                                     "options": {"products": [{"code": f"P{i}", "name": f"Item {i}"}
+                                                                              for i in range(100)]},
+                                                     "account_set": "K"}
+        tools.application_api.save_choices = lambda *a: self.calls.append(("save",) + a) or {"saved": 1}
+        tools.application_api.resolve_unknown = lambda *a: self.calls.append(("resolve",) + a) or {"status": "success"}
+
+    def test_options_are_capped_and_searchable(self):
+        out = json.loads(tools.push_choices({"document": "H1"}))
+        self.assertEqual((out["connection"], out["needed"][0]["kind"]), ("EXP1", "item"))
+        self.assertEqual((out["options"]["products"]["total"], len(out["options"]["products"]["shown"])), (100, 30))
+        found = json.loads(tools.push_choices({"document": "H1", "search": "item 42"}))["options"]["products"]
+        self.assertEqual(found["shown"], [{"code": "P42", "name": "Item 42"}])
+
+    def test_choices_are_saved_for_the_document_target(self):
+        items = [{"kind": "item", "subject": "Coffee", "value": "P1"}]
+        out = json.loads(tools.save_push_choices({"document": "H1", "items": items}))
+        self.assertEqual(out["status"], "saved")
+        self.assertEqual(self.calls[0][:4], ("save", "H1", "EXP1", "K"))
+        self.assertEqual(json.loads(self.calls[0][4]), items)
+
+    def test_unknown_result_is_confirmed_only_with_a_push_to_confirm(self):
+        tools.resolve_push_result({"document": "H1", "entered": True, "docnum": "RR001"})
+        self.assertEqual(self.calls[-1], ("resolve", "PR1", 1, "RR001"))
+        self.doc.last_push_record = ""
+        out = json.loads(tools.resolve_push_result({"document": "H1", "entered": False}))
+        self.assertEqual(out["status"], "not_saved")
 
 
 if __name__ == "__main__":

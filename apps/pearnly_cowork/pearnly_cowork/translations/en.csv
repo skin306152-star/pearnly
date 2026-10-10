@@ -216,6 +216,7 @@ Checked folder tasks,Checked folder tasks
 Checked in the ERP,Checked in the ERP
 Checked in the ERP: not entered. It can be sent again,Checked in the ERP: not entered. It can be sent again
 Checked intake choices,Checked intake choices
+Checked push choices,Checked push choices
 Checked push results,Checked push results
 Checked recognition results,Checked recognition results
 Checked the companion,Checked the companion
@@ -284,6 +285,7 @@ Completion Evidence,Completion Evidence
 Confirmation Request,Confirmation Request
 Confirmation Revision,Confirmation Revision
 Confirmed,Confirmed
+Confirmed a push result,Confirmed a push result
 Connect Companion,Connect Companion
 Connection Configuration,Connection Configuration
 Connection Name,Connection Name
@@ -1064,6 +1066,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,Sales i
 Sample Key,Sample Key
 Save and next,Save and next
 Saved,Saved
+Saved push choices,Saved push choices
 Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities

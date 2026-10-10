@@ -216,6 +216,7 @@ Checked folder tasks,ตรวจสอบงานโฟลเดอร์แ�
 Checked in the ERP,ตรวจใน ERP แล้ว
 Checked in the ERP: not entered. It can be sent again,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
 Checked intake choices,ตรวจสอบตัวเลือกการบันทึกแล้ว
+Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
 Checked recognition results,ตรวจสอบผลการอ่านเอกสารแล้ว
 Checked the companion,ตรวจสอบผู้ช่วย Pearnly แล้ว
@@ -284,6 +285,7 @@ Completion Evidence,หลักฐานการเสร็จสิ้น
 Confirmation Request,คำขอยืนยัน
 Confirmation Revision,เวอร์ชันที่ยืนยัน
 Confirmed,ยืนยันแล้ว
+Confirmed a push result,ยืนยันผลการส่งแล้ว
 Connect Companion,เชื่อมต่อผู้ช่วย
 Connection Configuration,การตั้งค่าการเชื่อมต่อ
 Connection Name,ชื่อการเชื่อมต่อ
@@ -1064,6 +1066,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,ใบ�
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
 Saved,บันทึกแล้ว
+Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
