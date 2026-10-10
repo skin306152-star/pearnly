@@ -447,3 +447,10 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 - 工作树 `/Users/skin/pearnly-agent-foundation`、本地分支 `pearnly/agent-foundation`、远端同名分支：**交接保留**，所属本任务，用途为继续桌面端与试用；解除条件：合入 `main` 后按收工清理删除。
 - 本机 `ant` 命令行（Homebrew）：为本任务装，后续配置智能体可能用到，保留；不需要时 `brew uninstall ant`。
 - LobeHub 评估环境（容器、卷、镜像、`~/lobehub-eval`）与官方示例演示目录：已删除。
+- 2026-10-10 晚测试夜（与测试窗口「Cowork 智能体测试」配合）收尾：
+  - 已删：测试机容器与 WSL 里本窗口的 `/tmp/cc_*.py` 查询脚本、计划任务 `CCLoginCheck`；测试窗口删了 QA 定时任务 36f12t4v3p、CC 设置里的 CC-QA-empty 文件夹、`C:\Users\Public\qa`、`qa-state.ps1`、计划任务 `QaCCTest`、它复制进容器的查询脚本。
+  - 保留 `C:\Users\Public\cc-check`（1.4.0 测试安装包，源码 `ef5487eb`，sha256 `2e54a50f…`，及装包脚本）：下次换桌面端测试包还要用；解除条件：第 25 项清理或正式版发布后删。
+  - 保留测试机 skin3「下载」里测试时 CC 下载的 7 个文件：共享目录，按规矩不自行删，由用户定。
+  - 保留测试租户 testcowork 上的测试单据、对账、盘点、看板卡片与对话：测试数据，后续回归可复用；用户要清时再清。
+  - 测试环境 cowork 实时源码挂的是本工作树（最新同步 `955ad059`）：继续测试用；解除条件：合入 main 后 `testenv.sh live-off cowork` 或改挂主线。
+  - 桌面 App 为本会话建的工作树 `.claude/worktrees/beautiful-merkle-8ade02` 与本地分支 `pearnly/beautiful-merkle-8ade02`：无独有提交、无改动、无远端分支；会话还在用，会话结束时删。
