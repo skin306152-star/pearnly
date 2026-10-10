@@ -215,6 +215,10 @@ class RecognizeAttachmentTests(unittest.TestCase):
         sys.modules["pearnly_core.assistant"].files = chat
         sys.modules["pearnly_core.execution"].errors = errors
         tools.scope.default_workspace = lambda: "WS"
+        search = types.ModuleType("pearnly_cowork.connections.account_search")
+        search.usable = lambda adapter, rows: rows
+        sys.modules["pearnly_cowork.connections.account_search"] = search
+        tools.connections.targets = lambda name: {"account_sets": [{"source_id": "K"}]}
         tools.storage.read = lambda name: name
         tools.storage.project = lambda doc: {"name": doc, "invoice_no": "R308", "seller_name": "CP ALL", "total_amount": 90,
                                              "staged": 1, "pages": [{"fields": {"seller_tax": "0107542000011", "vat": 5.89,
@@ -259,6 +263,13 @@ class RecognizeAttachmentTests(unittest.TestCase):
         tools.recognize_attachments({"files": ["file_b"], "target": "express"})
         self.assertEqual((self.submitted[0][2]["connection"], self.submitted[0][2]["account_set_key"]), ("C1", "K"))
         self.assertIsNone(self.submitted[1][2]["connection"])
+
+    def test_an_account_set_no_longer_in_the_list_is_not_written_into_documents(self):
+        out = json.loads(tools.recognize_attachments({"files": ["file_a"], "target": "express", "connection": "C1",
+                                                      "account_set_key": "c:\\70exp\\gone"}))["results"][0]
+        self.assertEqual(out["status"], "not_started")
+        self.assertIn("account_set_unavailable", out["reason"])
+        self.assertEqual(self.created, [])
 
     def test_not_enough_balance_is_reported_and_nothing_waits(self):
         def refuse(source, key, **choices):
@@ -372,6 +383,14 @@ class IntakeChoiceTests(unittest.TestCase):
         found = json.loads(tools.intake_options({"search": "alp"}))["targets"][0]["account_sets"]
         self.assertEqual(found, [{"key": "A", "label": "Alpha Co"}])
 
+    def test_a_last_used_account_set_that_is_gone_is_not_suggested(self):
+        frappe.get_all = lambda doctype, **kw: [{"intake_target": "express", "target_connection": "EXP1",
+                                                 "target_account_set": "c:\\70exp\\gone", "direction": "purchase"}]
+        out = json.loads(tools.intake_options({}))
+        self.assertIsNone(out["suggested"])
+        self.assertEqual(out["last_used_unavailable"]["account_set_key"], "c:\\70exp\\gone")
+        self.assertNotIn("_keys", out["targets"][0])
+
     def test_offline_companion_is_not_ready(self):
         tools.destinations.online = lambda adapter, name: False
         self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "companion_offline")
@@ -434,6 +453,22 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertEqual((calls[0][0], calls[0][1], calls[0][3]), ("request", "EXP1", "K"))
         self.assertEqual(out["needed"], [])
 
+    def test_an_account_set_the_computer_cannot_read_is_explained(self):
+        def stale(*a):
+            raise frappe.ValidationError("catalog_refresh_invalid")
+
+        tools.application.choices_view = stale
+        tools.connections_api.request_refresh = lambda *a: {"request_id": "R1", "status": "requested"}
+        tools.connections_api.refresh_status = lambda *a: {"status": "failed", "error_code": "account_set_missing"}
+        saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
+        try:
+            out = json.loads(tools.push_choices({"document": "H1"}))
+        finally:
+            tools.time.sleep = saved_sleep
+        self.assertEqual(out["status"], "failed")
+        self.assertIn("account_set_missing", out["reason"])
+        self.assertIn("Choose another account set", out["reason"])
+
     def test_choices_are_saved_for_the_document_target(self):
         items = [{"kind": "item", "subject": "Coffee", "value": "P1"}]
         out = json.loads(tools.save_push_choices({"document": "H1", "items": items}))
@@ -480,8 +515,8 @@ class DeleteAndExportTests(unittest.TestCase):
     def test_export_adds_the_workbook_to_the_conversation(self):
         out = json.loads(tools.export_review_workbook({"documents": ["H1", "H1", "H2"]}))
         self.assertEqual(self.calls[0], ("export", ["H1", "H2"]))
-        self.assertEqual(self.calls[1], ("attach", "cowork-review.xlsx", b"PK-xlsx"))
-        self.assertEqual(out["file"], "/mnt/session/uploads/file_x/cowork-review.xlsx")
+        self.assertEqual(self.calls[1][2], b"PK-xlsx")
+        self.assertRegex(self.calls[1][1], r"^cowork-review-\d{8}-\d{6}\.xlsx$")  # 每次导出新名字，对话里出新卡片
 
 
 

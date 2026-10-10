@@ -113,26 +113,27 @@ def _catalog_stale(error) -> bool:
     return any(code in text or _(code) in text for code in CATALOG_STALE)
 
 
-def _refresh_account(connection, account_set) -> str:
-    """请小助手读这份账套的目录与主档，等它读完（最多一分钟）；返回最后的状态。"""
+def _refresh_account(connection, account_set) -> tuple[str, str]:
+    """请小助手读这份账套的目录与主档，等它读完（最多一分钟）；返回（最后的状态, 失败原因代码）。"""
     try:
         request = connections_api.request_refresh(connection, "assistant:" + uuid.uuid4().hex, account_set)
         frappe.db.commit()
-    except (frappe.ValidationError, frappe.PermissionError):
+    except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
-        return "failed"
-    status = request.get("status")
+        return "failed", str(error)[:120]
+    status, code = request.get("status"), request.get("error_code") or ""
     deadline = time.monotonic() + REFRESH_WAIT_SECONDS
     while status not in ("succeeded", "failed") and time.monotonic() < deadline:
         time.sleep(3)
         frappe.db.rollback()  # 小助手读完是在别的请求里提交的
         try:
-            status = connections_api.refresh_status(connection, request["request_id"]).get("status")
-        except (frappe.ValidationError, frappe.PermissionError):
+            latest = connections_api.refresh_status(connection, request["request_id"])
+        except (frappe.ValidationError, frappe.PermissionError) as error:
             frappe.clear_messages()
-            return "failed"
-    return status or "failed"
+            return "failed", str(error)[:120]
+        status, code = latest.get("status"), latest.get("error_code") or ""
+    return status or "failed", code or ("timeout" if status not in ("succeeded", "failed") else "")
 
 
 def _choices_view(name, connection, account_set, posting_kind):
@@ -143,8 +144,13 @@ def _choices_view(name, connection, account_set, posting_kind):
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
-        if not _catalog_stale(error) or _refresh_account(connection, account_set) != "succeeded":
+        if not _catalog_stale(error):
             raise
+        status, code = _refresh_account(connection, account_set)
+        if status != "succeeded":
+            # 小助手也读不到（账套在 Express 里删了 / 改名了、所在的共享盘连不上）：说清楚，别让用户再去「刷新」
+            frappe.throw("The computer could not read this account set ({0}). It may have been removed or renamed in "
+                         "Express, or its folder is offline. Choose another account set.".format(code or status))
     return application.choices_view(name, connection, account_set, posting_kind)
 
 
@@ -323,12 +329,30 @@ def _result(batch) -> dict:
     return out
 
 
+def _selectable(choices) -> bool:
+    """识别时选的账套还在可选清单里（同网页下拉：在用、Express 可写），免得把不存在的账套写进单据口径。"""
+    from pearnly_cowork.connections import account_search
+
+    try:
+        catalog = connections.targets(choices["connection"])
+    except (frappe.ValidationError, frappe.PermissionError):
+        frappe.clear_messages()
+        return False
+    usable = account_search.usable(choices.get("target"), catalog.get("account_sets") or [])
+    wanted = str(choices["account_set_key"]).casefold()
+    return any(str(row["source_id"]).casefold() == wanted for row in usable)
+
+
 def recognize_attachments(tool_input) -> str:
     scope.require("intake")
     file_ids = [str(f) for f in (tool_input.get("files") or [])][:RECOGNIZE_MAX]
     if not file_ids:
         frappe.throw(_("No attachments were given."))
     choices = _choices(tool_input)
+    if choices.get("account_set_key") and not _selectable(choices):
+        return _json({"results": [{"file": f, "status": "not_started", "reason": "account_set_unavailable: this account "
+                                   "set is not in the current list; choose one from cowork_intake_options"}
+                                  for f in file_ids]})
     if choices.get("target") == "express" and choices.get("account_set_key"):
         # 同网页选定 Express 账套后：请小助手趁识别时读这份账套，推送前就有它的目录与主档（读不到不拦识别）
         try:
@@ -414,6 +438,15 @@ def _last_used() -> dict:
                     "posting_kind": row.get("posting_kind"), "payment": row.get("payment")})
 
 
+def _still_available(last, targets) -> bool:
+    for item in targets:
+        if item.get("connection") == last.get("connection"):
+            if item.get("state") != "ready":
+                return False
+            return item.get("_keys") is None or str(last.get("account_set_key") or "").casefold() in item["_keys"]
+    return False
+
+
 def intake_options(tool_input) -> str:
     from pearnly_cowork.connections import account_search
 
@@ -437,6 +470,7 @@ def intake_options(tool_input) -> str:
                 frappe.clear_messages()
                 catalog = {}
             usable = account_search.usable(adapter, catalog.get("account_sets") or [])
+            item["_keys"] = {str(r["source_id"]).casefold() for r in usable}
             item["account_sets_total"] = len(usable)
             if search:
                 found = account_search.search(adapter, usable, search)
@@ -451,7 +485,14 @@ def intake_options(tool_input) -> str:
                 item["account_sets_status"] = catalog.get("status") or "missing"
         targets.append(item)
     targets.append({"target": "none", "state": "ready"})
-    return _json({"suggested": last or None, "targets": targets,
+    extra = {}
+    if last and not _still_available(last, targets):
+        # 上次用的账套已不在可选清单（删了、改名、不可写或那条连接停了）：不推荐，告诉用户另选
+        extra["last_used_unavailable"] = last
+        last = {}
+    for item in targets:
+        item.pop("_keys", None)
+    return _json({"suggested": last or None, **extra, "targets": targets,
                   "modes": {"express": "posting_kind: service or stock", "mrerp": "payment: cash or credit "
                             "(purchases are credit only)", "none": "recognize only, nothing else to choose"}})
 
@@ -780,7 +821,8 @@ def export_review_workbook(tool_input) -> str:
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.clear_messages()
         return _json({"status": "not_exported", "reason": str(error)[:300]})
-    path = chat_files.add_to_conversation("cowork-review.xlsx", content, XLSX)
+    # 每次导出一个新名字：同名会盖掉上一份，对话里就不再出新的文件卡片
+    path = chat_files.add_to_conversation(f"cowork-review-{time.strftime('%Y%m%d-%H%M%S')}.xlsx", content, XLSX)
     return _json({"status": "exported", "documents": len(names), "file": path})
 
 
