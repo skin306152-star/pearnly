@@ -5,7 +5,9 @@ from src.companion import tomo_links as links
 
 
 def test_only_pearnly_https_pages_open_in_the_window():
-    assert links.route("https://ai.pearnly.com/") == "load"
+    assert links.route("https://fatcc.com/") == "load"
+    assert links.route("https://www.fatcc.com/") == "load"
+    assert links.route("https://fatcc.com.evil.io/") == "external"
     assert links.route("https://auth.pearnly.com/realms/x") == "load"
     assert links.route("https://acme.pearnly.com/assistant") == "load"
     assert links.route("https://pearnly.com/privacy/") == "load"
@@ -20,15 +22,15 @@ def test_only_pearnly_https_pages_open_in_the_window():
 
 
 def test_resume_returns_to_the_last_chat_page_of_the_same_side():
-    assert links.resume_url("", {}) == "https://ai.pearnly.com"
+    assert links.resume_url("", {}) == "https://fatcc.com"
     assert links.resume_url("https://acme.pearnly.com/assistant", {}) == "https://acme.pearnly.com/assistant"
-    assert links.resume_url("https://acme.pearnly.com/app/home", {}) == "https://ai.pearnly.com"
-    assert links.resume_url("https://example.com/assistant", {}) == "https://ai.pearnly.com"
+    assert links.resume_url("https://acme.pearnly.com/app/home", {}) == "https://fatcc.com"
+    assert links.resume_url("https://example.com/assistant", {}) == "https://fatcc.com"
     test = {"PEARNLY_TOMO_ENTRY": "https://testai.pearnly.com/"}
     assert links.resume_url("https://acme.pearnly.com/assistant", test) == "https://testai.pearnly.com"
     assert links.resume_url("https://testcowork.pearnly.com/assistant", test) == "https://testcowork.pearnly.com/assistant"
-    assert links.resume_url("https://testcowork.pearnly.com/assistant", {}) == "https://ai.pearnly.com"
-    assert links.entry_url({"PEARNLY_TOMO_ENTRY": "https://evil.example"}) == "https://ai.pearnly.com"
+    assert links.resume_url("https://testcowork.pearnly.com/assistant", {}) == "https://fatcc.com"
+    assert links.entry_url({"PEARNLY_TOMO_ENTRY": "https://evil.example"}) == "https://fatcc.com"
 
 
 def test_quick_question_is_handed_to_the_page_as_a_string():

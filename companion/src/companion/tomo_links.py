@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """Tomo 窗口的地址规则（纯函数，不碰 Qt，单测直接测）。
 
-- 窗口里只开 Pearnly 自己的 https 页面（ai.pearnly.com 入口、auth.pearnly.com 登录、各公司 <租户>.pearnly.com）；
+- 窗口里只开自己的 https 页面（fatcc.com 入口、auth.pearnly.com 登录、各公司 <租户>.pearnly.com）；
   别的网址交给系统浏览器，本地文件、data: 等一律不在窗口里打开。
-- 下次打开回到上次停留的对话页（/assistant），没有就从入口 ai.pearnly.com 进。
+- 下次打开回到上次停留的对话页（/assistant），没有就从入口 fatcc.com 进。
 - 测试时用环境变量 PEARNLY_TOMO_ENTRY 换入口（例如 https://testai.pearnly.com），同样只认 Pearnly 的 https 地址。
 """
 from __future__ import annotations
@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
-ENTRY = "https://ai.pearnly.com"
-OWN_DOMAIN = "pearnly.com"
+ENTRY = "https://fatcc.com"
+OWN_DOMAINS = ("pearnly.com", "fatcc.com")   # 入口 fatcc.com（2026-10-10 起），登录与各公司站点在 pearnly.com
 CHAT_PATH = "/assistant"
 
 
@@ -24,7 +24,7 @@ def is_own(url: str) -> bool:
     except ValueError:
         return False
     host = (parts.hostname or "").lower()
-    return parts.scheme == "https" and (host == OWN_DOMAIN or host.endswith("." + OWN_DOMAIN))
+    return parts.scheme == "https" and any(host == d or host.endswith("." + d) for d in OWN_DOMAINS)
 
 
 def is_chat(url: str) -> bool:

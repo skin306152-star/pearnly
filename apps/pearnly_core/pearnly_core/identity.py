@@ -32,7 +32,7 @@ STATE_TTL = 600  # 秒
 CONSUMED_TTL = 120
 DISCOVERY_TTL = 3600
 # 智能体入口（ADR-019）的正式地址；测试环境用站点配置 pearnly_assistant_entry_url 指到 testai。
-ASSISTANT_ENTRY = "https://ai.pearnly.com"
+ASSISTANT_ENTRY = "https://fatcc.com"   # 智能体（CC）入口，2026-10-10 起用独立域名
 
 
 # ── 配置 ────────────────────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
 def sign_out(to=None):
     """After the in-app confirmation, end this session via native OIDC logout.
 
-    从智能体对话页退出（`to=assistant`）回到智能体入口 ai.pearnly.com（ADR-019），其余回本站首页。
+    从智能体对话页退出（`to=assistant`）回到智能体入口 fatcc.com（ADR-019），其余回本站首页。
     入口地址的跳转已登记在各站点的身份服务客户端（post.logout.redirect.uris）。
     """
     endpoint = _discovery()["end_session_endpoint"]

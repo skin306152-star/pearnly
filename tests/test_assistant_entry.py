@@ -1,4 +1,4 @@
-"""智能体入口 ai.pearnly.com（ADR-019）的离线检查：纯约定、计费查询、入口站点封口、Keycloak 登录配置、生成的登录页。
+"""智能体入口 fatcc.com（ADR-019）的离线检查：纯约定、计费查询、入口站点封口、Keycloak 登录配置、生成的登录页。
 
 不连库、不连 Keycloak：Frappe 用最小替身。
 """
@@ -62,7 +62,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(contracts.ordered_issuers([], COWORK), [])
 
     def test_authorize_url(self):
-        url = contracts.authorize_url(COWORK, redirect_uri="https://ai.pearnly.com/cb", state="s", nonce="n",
+        url = contracts.authorize_url(COWORK, redirect_uri="https://fatcc.com/cb", state="s", nonce="n",
                                       challenge="c", login_hint="somchai", locale="zh", silent=True)
         parts = urlsplit(url)
         query = {k: v[0] for k, v in parse_qs(parts.query).items()}
@@ -176,11 +176,11 @@ class KeycloakTests(unittest.TestCase):
     def test_ai_client_is_public_pkce_with_fixed_callbacks(self):
         sys.path.insert(0, str(ROOT / "infrastructure/production"))
         module = _load("configure_ai_entry", ROOT / "infrastructure/production/configure-ai-entry.py")
-        rep = module.representation(["https://ai.pearnly.com", "https://testai.pearnly.com"])
+        rep = module.representation(["https://fatcc.com", "https://testai.pearnly.com"])
         self.assertTrue(rep["publicClient"])
         self.assertFalse(rep["directAccessGrantsEnabled"] or rep["implicitFlowEnabled"] or rep["serviceAccountsEnabled"])
         self.assertEqual(rep["redirectUris"], [
-            "https://ai.pearnly.com/api/method/pearnly_control.assistant_entry.api.callback",
+            "https://fatcc.com/api/method/pearnly_control.assistant_entry.api.callback",
             "https://testai.pearnly.com/api/method/pearnly_control.assistant_entry.api.callback"])
         self.assertEqual(rep["attributes"]["pkce.code.challenge.method"], "S256")
         self.assertEqual(rep["attributes"]["login_theme"], "pearnly-ai")
@@ -202,7 +202,7 @@ class LogoutBackTests(unittest.TestCase):
             "2": {"id": "2", "clientId": "testcowork.pearnly.com", "attributes": {"backchannel.logout.url": "x"}},
             "3": {"id": "3", "clientId": "pearnly-control", "attributes": {}},
             "4": {"id": "4", "clientId": "done.pearnly.com", "attributes": {
-                "backchannel.logout.url": "x", "post.logout.redirect.uris": "https://done.pearnly.com/##https://ai.pearnly.com/*"}},
+                "backchannel.logout.url": "x", "post.logout.redirect.uris": "https://done.pearnly.com/##https://fatcc.com/*"}},
         }
 
         class Api:
@@ -218,19 +218,19 @@ class LogoutBackTests(unittest.TestCase):
 
         self.assertEqual(self.module.allow_logout_back(Api()), 2)
         self.assertEqual(rows["1"]["attributes"]["post.logout.redirect.uris"],
-                         "https://acme-erp.pearnly.com/##https://ai.pearnly.com/*")
+                         "https://acme-erp.pearnly.com/##https://fatcc.com/*")
         self.assertEqual(rows["2"]["attributes"]["post.logout.redirect.uris"],
-                         "https://ai.pearnly.com/*##https://testai.pearnly.com/*")
+                         "https://fatcc.com/*##https://testai.pearnly.com/*")
         self.assertNotIn("post.logout.redirect.uris", rows["3"]["attributes"])
 
     def test_chat_sign_out_and_new_tenants_go_back_to_the_entry(self):
         identity = (ROOT / "apps/pearnly_core/pearnly_core/identity.py").read_text(encoding="utf-8")
         self.assertIn('if to == "assistant":', identity)
-        self.assertIn('ASSISTANT_ENTRY = "https://ai.pearnly.com"', identity)
+        self.assertIn('ASSISTANT_ENTRY = "https://fatcc.com"', identity)
         page = (ROOT / "frontend/assistant/src/assistant.tsx").read_text(encoding="utf-8")
         self.assertIn("pearnly_core.identity.sign_out?to=assistant", page)
         plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
-        self.assertIn('"post.logout.redirect.uris": base + "/##https://ai.pearnly.com/*"', plan)
+        self.assertIn('"post.logout.redirect.uris": base + "/##https://fatcc.com/*"', plan)
 
 
 class PageTests(unittest.TestCase):

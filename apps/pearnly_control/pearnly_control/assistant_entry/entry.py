@@ -1,4 +1,4 @@
-"""智能体入口站点 ai.pearnly.com 的登录流程（ADR-019，只在 `pearnly_assistant_entry` 站点运行）。
+"""智能体入口站点 fatcc.com 的登录流程（ADR-019，只在 `pearnly_assistant_entry` 站点运行）。
 
 1. 用户填用户名或邮箱 → 问计费服务这个账号在哪个账号池（不透露公司与站点；查不到就用默认账号池，
    照常进密码页、登录失败，不提示「没有这个账号」）。

@@ -1,4 +1,4 @@
-"""生成智能体入口 ai.pearnly.com 的两步登录页（ADR-019），同一份设计出两处，保证两步看起来是同一个页面：
+"""生成智能体入口 fatcc.com 的两步登录页（ADR-019），同一份设计出两处，保证两步看起来是同一个页面：
 
 1. 入口站点的第一步（用户名或邮箱 → 继续；多家公司时选一次）：apps/pearnly_control/pearnly_control/www/ai.html
 2. Keycloak 的 ai 专用登录主题（密码页、找回密码、设新密码、出错页）：infrastructure/keycloak/themes/pearnly-ai/
@@ -347,7 +347,7 @@ CSS_NAME = "ai." + hashlib.sha256(CSS.encode()).hexdigest()[:10] + ".css"
 JS_NAME = "ai." + hashlib.sha256(THEME_JS.encode()).hexdigest()[:10] + ".js"
 
 
-THEME_PROPERTIES = """# Pearnly 智能体入口（ai.pearnly.com）的登录主题，只给 pearnly-ai 客户端用（客户端属性 login_theme）。""" + """
+THEME_PROPERTIES = """# Pearnly 智能体入口（fatcc.com）的登录主题，只给 pearnly-ai 客户端用（客户端属性 login_theme）。""" + """
 # """ + GENERATED + """
 # 继承 pearnly：找回密码、设新密码、出错页沿用其模板与文案，只换外壳（template.ftl）与样式（resources/css/ai.<指纹>.css）；
 # 登录页（login.ftl）重写为「上面显示账号 + 下面只有密码框」，与入口第一步是同一个页面的样子。

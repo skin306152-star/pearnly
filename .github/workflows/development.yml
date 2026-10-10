@@ -69,7 +69,7 @@ jobs:
         run: python3 tests/test_website.py
       - name: Verify the assistant base (contracts, tool declarations, per-key agent provisioning)
         run: python3 tests/test_assistant.py
-      - name: Verify the ai.pearnly.com entry (lookup, private billing, Keycloak client, generated sign-in pages)
+      - name: Verify the fatcc.com entry (lookup, private billing, Keycloak client, generated sign-in pages)
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
         run: python3 tests/test_cowork_assistant_tools.py
