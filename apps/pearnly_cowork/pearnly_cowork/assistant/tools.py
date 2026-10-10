@@ -394,6 +394,10 @@ def edit_document(tool_input) -> str:
     items = tool_input.get("items")
     if not changes and items is None:
         frappe.throw(_("No changes were given."))
+    if not tool_input.get("version"):
+        # 不带版本就等于跳过「别人刚改过不覆盖」：先查详情拿版本
+        return _json({"document": name, "status": "not_saved",
+                      "reason": "Read the document with cowork_document_detail first and pass its version."})
     unknown = [key for key in changes if key not in EDITABLE]
     if unknown:
         return _json({"status": "not_saved", "reason": f"Not editable: {', '.join(unknown)}", "editable": EDITABLE})
@@ -425,7 +429,7 @@ def edit_document(tool_input) -> str:
         fields["items"] = rows
     pages[index] = {**pages[index], "fields": fields}
     try:
-        saved = storage.update_pages(name, pages, str(tool_input.get("version") or doc.get("record_version")))
+        saved = storage.update_pages(name, pages, str(tool_input["version"]))
         frappe.db.commit()
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
@@ -517,7 +521,7 @@ TOOLS = [
          "items": {"type": "array", "items": {"type": "object", "properties": {
              "name": {"type": "string"}, "qty": {"type": ["string", "number"]},
              "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}}},
-         "required": ["document"]},
+         "required": ["document", "version"]},
      "handler": "pearnly_cowork.assistant.tools.edit_document"},
     {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
      "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "

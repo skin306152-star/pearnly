@@ -282,8 +282,12 @@ class EditDocumentTests(unittest.TestCase):
 
     def test_bad_values_and_unknown_fields_are_refused_before_saving(self):
         for changes in ({"total_amount": "abc"}, {"seller_tax": "123"}, {"direction": "refund"}, {"push_state": "x"}):
-            out = json.loads(tools.edit_document({"document": "H1", "changes": changes}))
+            out = json.loads(tools.edit_document({"document": "H1", "version": 4, "changes": changes}))
             self.assertEqual(out["status"], "not_saved", changes)
+        self.assertEqual(self.saved, [])
+        # 不带版本不保存（否则就跳过了「别人刚改过不覆盖」）
+        out = json.loads(tools.edit_document({"document": "H1", "changes": {"notes": "x"}}))
+        self.assertEqual(out["status"], "not_saved")
         self.assertEqual(self.saved, [])
 
     def test_someone_elses_newer_edit_is_reported_not_overwritten(self):
