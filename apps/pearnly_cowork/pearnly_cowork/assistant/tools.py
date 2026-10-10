@@ -174,6 +174,8 @@ RECOGNIZE_WAIT_SECONDS = 90
 FINISHED = ("saved", "not_invoice")
 BROKEN = ("failed", "uncertain", "cancelled")
 ITEMS_SHOWN = 30
+# 对话里能交给识别的：票据照片与 PDF（HEIC 照片在对话上传时已转成 JPEG）。表格、文本等不在这里识别。
+RECOGNIZABLE = (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".tiff", ".tif", ".bmp", ".gif")
 
 
 def _recognition():
@@ -193,6 +195,13 @@ def _admit(file_id, choices) -> dict:
     key = "assistant:" + str(file_id)
     try:
         filename, content = chat_files.attachment(file_id)
+    except frappe.ValidationError:
+        frappe.clear_messages()
+        return {"file": file_id, "status": "not_found", "attachments_in_this_chat": chat_files.attachments()}
+    if not filename.lower().endswith(RECOGNIZABLE):
+        return {"file": file_id, "filename": filename, "status": "unsupported_type",
+                "reason": "Only document photos and PDF files can be recognized."}
+    try:
         source = originals.create(scope.default_workspace(), filename, content, key)
         frappe.db.commit()
         batch = _recognition().submit(source["name"], key, **choices)
@@ -206,6 +215,11 @@ def _admit(file_id, choices) -> dict:
         frappe.clear_messages()
         return {"file": file_id, "status": "not_started", "reason": str(exc)[:300]}
     return {"file": file_id, "filename": filename, "batch": batch["name"]}
+
+
+def _filled(values: dict) -> dict:
+    """空值不给：模型会把「币种：未识别到」之类的空项当成要说的事。"""
+    return {key: value for key, value in values.items() if value not in (None, "", [], {})}
 
 
 def _choices(tool_input) -> dict:
@@ -225,23 +239,22 @@ def _document(name) -> dict:
     doc = storage.project(storage.read(name))
     page = history_contracts.primary_page_fields(doc.get("pages") or [])
     out = {key: doc.get(key) for key in ("name", "invoice_no", "invoice_date", "seller_name", "total_amount",
-                                          "quality_status", "posting_kind", "intake_target", "push_connection",
-                                          "push_account_set")}
+                                          "posting_kind", "intake_target", "push_connection", "push_account_set",
+                                          "duplicate_warning")}
     out.update({key: page.get(key) for key in ("document_type", "seller_tax", "seller_branch", "buyer_name",
                                                 "buyer_tax", "subtotal", "vat", "discount", "wht_amount", "currency")})
-    out["waiting_review"] = bool(doc.get("staged"))
     out["items"] = (page.get("items") or [])[:ITEMS_SHOWN]
-    if doc.get("duplicate_warning"):
-        out["duplicate_warning"] = doc.get("duplicate_warning")
-    return out
+    return _filled(out)
 
 
 def _result(batch) -> dict:
+    # 扣费等内部状态不交给模型（识别刚存完那一刻还是「待扣」，模型会误报成扣了两次）；扣费口径写在工具说明里。
     detail = _recognition().detail(batch)
     state = detail.get("state")
-    out = {"batch": batch, "state": state, "pages": detail.get("page_count"), "billing": detail.get("billing_state")}
+    out = {"batch": batch, "state": state, "pages": detail.get("page_count")}
     if state == "saved":
         out["documents"] = [_document(name) for name in detail.get("history_records") or []]
+        out["needs_review"] = bool(detail.get("requires_review"))
     elif state in BROKEN:
         out["reason"] = detail.get("last_code") or state
     return out
@@ -314,7 +327,11 @@ TOOLS = [
                     "to recognize only. target express or mrerp also needs connection (and account_set_key for "
                     "Express), as listed by cowork_companion_status. Waits up to about 90 seconds and returns the "
                     "recognized documents; anything still running comes back with its batch for "
-                    "cowork_recognition_results. Report the recognized values, not your own reading of the image.",
+                    "cowork_recognition_results. Call it directly, without listing documents or checking the "
+                    "companion first. Each attachment is charged once like a web upload; calling again for the same "
+                    "attachment returns the same result at no extra charge, so never tell the user it was charged "
+                    "twice. needs_review true means the workbench flagged it for a person to check. Report the "
+                    "recognized values, not your own reading of the image, and leave out fields that are not given.",
      "input_schema": {"type": "object", "properties": {
          "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX},
          "direction": {"type": "string", "enum": ["purchase", "sales"]},

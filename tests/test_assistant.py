@@ -309,12 +309,22 @@ class RelayTests(unittest.TestCase):
         files = (CORE / "assistant/files.py").read_text(encoding="utf-8")
         upload = files.split("def upload(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn('_keep(row, stored["file_id"], name, content)', upload)
-        attachment = files.split("def attachment(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("sessions.owned(", attachment)
-        self.assertIn('"attached_to_name": row.name', attachment)
+        kept = files.split("def _kept(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("sessions.owned(", kept)
+        self.assertIn('"attached_to_name": row.name', kept)
+        for name in ("attachment(", "attachments("):
+            self.assertIn("_kept(", files.split("def " + name, 1)[1].split("\ndef ", 1)[0])
         run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
         self.assertIn('frappe.local.pearnly_assistant = {"session_id": conversation}', run)
         self.assertIn("frappe.local.pearnly_assistant = None", run.split("finally:", 1)[1])
+        self.assertIn("frappe.UniqueValidationError", run)  # 推送线程与页面同时执行：唯一冲突不弹到页面上
+        self.assertIn("frappe.clear_messages()", run.split("UniqueValidationError", 1)[1].split("return", 1)[0])
+
+    def test_titles_leave_out_the_attachment_note(self):
+        note = "\n\n[Attached file, mounted read-only in the sandbox:\n- r.jpg → /mnt/session/uploads/file_1/r.jpg]"
+        self.assertEqual(contracts.title_from("识别后结果发给我" + note), "识别后结果发给我")
+        self.assertEqual(contracts.title_from(note.strip()), "r.jpg")
+        self.assertEqual(contracts.title_from("a   b"), "a b")
 
     def test_new_turns_and_uploads_go_to_the_current_segment(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")

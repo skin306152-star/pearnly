@@ -21,8 +21,11 @@ def execute(conversation: str, remote: str, call: dict) -> str:
                               "user": frappe.session.user, "tool": call.get("name") or "", "status": "running"})
         run.insert(ignore_permissions=True)
         frappe.db.commit()
-    except frappe.DuplicateEntryError:
+    except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
+        # 推送线程与页面兜底同时到：唯一字段冲突在 Frappe 里以 UniqueValidationError 抛出并顺手 msgprint，
+        # 那条提示要清掉，否则会跟着页面的请求弹到对话页顶上（2026-10-10 测试：「Tool Use ID必须是唯一的」）。
         frappe.db.rollback()
+        frappe.clear_messages()
         return "running"
     # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）；工具函数本身只收模型给的参数。
     frappe.local.pearnly_assistant = {"session_id": conversation}

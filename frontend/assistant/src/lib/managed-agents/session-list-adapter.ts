@@ -8,8 +8,8 @@
 //   rename      → sessions.update title
 //   archive     → sessions.archive
 //   delete      → sessions.delete
-//   generateTitle → the server retitles from the first message; we surface
-//                   the resulting title so the sidebar row updates in place
+//   generateTitle → the first user message without the attachment note
+//                   (the server writes the same title when the message is sent)
 
 import type { RemoteThreadListAdapter } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -22,8 +22,10 @@ import {
   renameSession,
   starSession,
 } from "./api";
-import type { SessionSummary } from "./events";
+import { type SessionSummary, splitAttachmentNote } from "./events";
 import { dropSessionController } from "./session-controller";
+
+const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
 
 const toThreadMetadata = (s: SessionSummary) => ({
   status: (s.archived_at ? "archived" : "regular") as "archived" | "regular",
@@ -79,13 +81,16 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     return toThreadMetadata(await getSession(threadId));
   },
 
-  async generateTitle(remoteId) {
-    // The messages route already retitled the session server-side from
-    // the first message. Read it back and emit it as the "generated"
-    // title so the sidebar renames the row without another model call.
-    const session = await getSession(remoteId);
+  async generateTitle(remoteId, messages) {
+    // 标题取用户第一句原文（不含给智能体看的附件说明，同服务端 contracts.title_from），不另调模型。
+    // 服务端在发消息时写同样的标题；这里不等它，免得读得太早拿到空标题、侧栏一直是「新对话」。
+    const first = messages.find((m) => m.role === "user");
+    const text = (first?.content ?? []).map((part) => (part.type === "text" ? part.text : "")).join(" ");
+    const { text: body, files } = splitAttachmentNote(text);
+    let title = (body.replace(/\s+/g, " ").trim() || files[0]?.filename || "").slice(0, TITLE_MAX);
+    if (!title) title = (await getSession(remoteId)).title || "";
     return createAssistantStream((controller) => {
-      controller.appendText(session.title || "New chat");
+      controller.appendText(title || "New chat");
       controller.close();
     });
   },

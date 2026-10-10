@@ -39,16 +39,31 @@ def _keep(row, file_id, name, content) -> None:
                     "attached_to_name": row.name, "is_private": 1, "content": content}).insert(ignore_permissions=True)
 
 
-def attachment(file_id) -> tuple[str, bytes]:
-    """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。"""
+def _kept(file_id=None) -> list:
     context = getattr(frappe.local, "pearnly_assistant", None) or {}
     row = sessions.owned(context.get("session_id"), allow_archived=True)
+    filters = {"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name}
+    if file_id:
+        filters["file_name"] = ["like", file_id + "--%"]
+    return frappe.get_all("File", filters=filters, fields=["name", "file_name"], order_by="creation asc")
+
+
+def attachments() -> list[dict]:
+    """当前工具调用所在对话里留存的附件：[{file_id, filename}]（工具拿错编号时据此告诉智能体有哪些）。"""
+    out = []
+    for row in _kept():
+        file_id, sep, filename = str(row.file_name or "").partition("--")
+        if sep:
+            out.append({"file_id": file_id, "filename": filename})
+    return out
+
+
+def attachment(file_id) -> tuple[str, bytes]:
+    """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。"""
     fid = sessions._guard(contracts.file_id, file_id)
-    for name in frappe.get_all("File", filters={"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name,
-                                                "file_name": ["like", fid + "--%"]}, pluck="name"):
-        doc = frappe.get_doc("File", name)
-        if doc.file_name.startswith(fid + "--"):
-            return doc.file_name[len(fid) + 2:], doc.get_content()
+    for row in _kept(fid):
+        if row.file_name.startswith(fid + "--"):
+            return row.file_name[len(fid) + 2:], frappe.get_doc("File", row.name).get_content()
     frappe.throw(_("This attachment is not in this conversation."))
 
 

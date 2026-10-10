@@ -47,8 +47,19 @@ def message_text(value) -> str:
     return text
 
 
+# 对话页给智能体附在消息末尾的附件说明（frontend/assistant/src/lib/managed-agents/events.ts）：标题、接续的前文里都不要它。
+ATTACHMENT_NOTE = re.compile(r"(?:^|\n\n)\[Attached files?, mounted read-only in the sandbox:\n((?:- .+ → .+\n?)+)\]$")
+
+
 def title_from(text) -> str:
-    return " ".join(str(text or "").split())[:TITLE_MAX]
+    """标题取用户原文；只发了附件就用第一个附件的文件名。"""
+    text = str(text or "")
+    note = ATTACHMENT_NOTE.search(text)
+    if note:
+        body = text[:note.start()]
+        first = re.match(r"- (.+) → ", note.group(1))
+        text = body if body.strip() else (first.group(1) if first else "")
+    return " ".join(text.split())[:TITLE_MAX]
 
 
 def confirmations(items) -> list[dict]:
@@ -107,7 +118,6 @@ CARRY_MAX_CHARS = 24_000
 CARRY_INTRO = ("This conversation continues from an earlier context that was closed to keep it short. "
                "Files attached earlier are no longer readable unless the user attaches them again. "
                "Earlier messages, most recent last:\n\n")
-ATTACHMENT_NOTE = re.compile(r"(?:^|\n\n)\[Attached files?, mounted read-only in the sandbox:\n(?:- .+ → .+\n?)+\]$")
 
 
 def _text(event) -> str:

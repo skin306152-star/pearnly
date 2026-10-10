@@ -165,12 +165,14 @@ class RecognizeAttachmentTests(unittest.TestCase):
         errors.Deferred, errors.QueueFull = Deferred, type("QueueFull", (Exception,), {})
         self.Deferred = Deferred
         chat = types.ModuleType("pearnly_core.assistant.files")
-        chat.attachment = lambda file_id: ("receipt.jpg", b"img-" + file_id.encode())
+        chat.attachment = self._attachment
+        chat.attachments = lambda: [{"file_id": "file_abc", "filename": "receipt.jpg"}]
         originals = types.ModuleType("pearnly_cowork.files.service")
         originals.create = lambda workspace, name, content, key: self.created.append((name, content, key)) or {"name": "CWS-1"}
         ocr = types.ModuleType("pearnly_cowork.ocr.execution.service")
         ocr.submit = self._submit
-        ocr.detail = lambda batch: {"state": "saved", "page_count": 1, "billing_state": "charged", "history_records": ["H1"]}
+        ocr.detail = lambda batch: {"state": "saved", "page_count": 1, "billing_state": "pending", "requires_review": 0,
+                                    "history_records": ["H1"]}
         history = types.ModuleType("pearnly_cowork.contracts.history")
         history.primary_page_fields = lambda pages: pages[0]["fields"]
         for name, module in {"pearnly_core.execution.errors": errors, "pearnly_core.assistant.files": chat,
@@ -191,6 +193,11 @@ class RecognizeAttachmentTests(unittest.TestCase):
                                              "staged": 1, "pages": [{"fields": {"seller_tax": "0107542000011", "vat": 5.89,
                                                                                  "items": [{"description": "Americano"}]}}]}
 
+    def _attachment(self, file_id):
+        if file_id == "file_gone":
+            raise frappe.ValidationError("This attachment is not in this conversation.")
+        return ("note.txt" if file_id == "file_txt" else "receipt.jpg"), b"img-" + file_id.encode()
+
     def _submit(self, source, key, **choices):
         self.submitted.append((source, key, choices))
         return {"name": "B1"}
@@ -205,8 +212,18 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertNotIn("payment", choices)  # 空的付款方式会被识别服务拒绝：没选就不带
         doc = out["documents"][0]
         self.assertEqual((out["state"], doc["invoice_no"], doc["seller_tax"], doc["vat"]), ("saved", "R308", "0107542000011", 5.89))
-        self.assertTrue(doc["waiting_review"])
         self.assertEqual(doc["items"], [{"description": "Americano"}])
+        self.assertFalse(out["needs_review"])
+        self.assertNotIn("billing", out)  # 刚存完那一刻的「待扣」会被模型说成扣了两次
+        self.assertNotIn("currency", doc)  # 空项不给
+
+    def test_wrong_ids_and_unsupported_files_are_explained_not_attempted(self):
+        missing = json.loads(tools.recognize_attachments({"files": ["file_gone"]}))["results"][0]
+        self.assertEqual(missing["status"], "not_found")
+        self.assertEqual(missing["attachments_in_this_chat"], [{"file_id": "file_abc", "filename": "receipt.jpg"}])
+        text = json.loads(tools.recognize_attachments({"files": ["file_txt"]}))["results"][0]
+        self.assertEqual(text["status"], "unsupported_type")
+        self.assertEqual(self.created, [])
 
     def test_a_push_target_is_only_sent_with_its_connection(self):
         tools.recognize_attachments({"files": ["file_a"], "target": "express", "connection": "C1", "account_set_key": "K"})
