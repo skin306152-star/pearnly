@@ -215,6 +215,7 @@ Checked folder tasks,查看了文件夹任务
 Checked in the ERP,已在 ERP 核对
 Checked in the ERP: not entered. It can be sent again,已在 ERP 核对：未入账，可重新推送
 Checked push results,查看了推送结果
+Checked recognition results,查看了识别结果
 Checked the companion,查看了小助手
 Checking,核对中
 Checklist,清单
@@ -769,6 +770,7 @@ No Companion credential has been issued for this connection.,此连接尚未签�
 No ERP is ready to use,暂无可用的 ERP
 No account set matches “{0}”,没有找到包含「{0}」的账套
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
+No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
 No documents were given.,没有指定单据。
 No due date,无到期日
@@ -785,6 +787,7 @@ No number_,无发票号_
 No presets yet,暂无预设
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,未找到该编码对应的物料
+No recognition tasks were given.,没有指定识别任务。
 No rules yet,还没有规则
 No runs yet,暂无运行记录
 No templates yet,暂无模板
@@ -944,6 +947,7 @@ Recognition is busy. Try again in a moment.,识别服务繁忙，请稍后重试
 Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
 Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
 Recognition was interrupted (not charged). Upload this file again,识别已中断（未扣费），请重新上传此文件
+Recognized documents,识别了单据
 Recognized with high confidence,高置信识别
 "Recognized, waiting to enter",已识别
 Reconciled,参与对账

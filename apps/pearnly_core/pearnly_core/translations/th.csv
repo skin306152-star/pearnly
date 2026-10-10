@@ -673,6 +673,7 @@ This LINE account is not bound to this account on this site. Sign in with your p
 This Operator's Own DMS Credentials,ข้อมูลรับรอง DMS ของพนักงานรายนี้
 "This account has no identity binding, so it cannot change its own password; contact an admin",บัญชีนี้ยังไม่ได้ผูกตัวตน จึงไม่สามารถเปลี่ยนรหัสผ่านด้วยตนเองได้ กรุณาติดต่อผู้ดูแลระบบ
 This advisor is no longer in the current DMS list. Please select again.,ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่
+This attachment is not in this conversation.,ไฟล์แนบนี้ไม่ได้อยู่ในการสนทนานี้
 This company’s LINE official account is not configured yet.,บริษัทยังไม่ได้ตั้งค่าบัญชี LINE ทางการ
 This connection has no username and password yet.,การเชื่อมต่อนี้ยังไม่มีชื่อผู้ใช้และรหัสผ่าน
 This document has already been recorded: {0},เอกสารนี้บันทึกไว้แล้ว: {0}

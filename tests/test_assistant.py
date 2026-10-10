@@ -304,6 +304,18 @@ class RelayTests(unittest.TestCase):
         self.assertIn("DuplicateEntryError", run)  # 推送线程与页面兜底谁先到谁执行，只执行一遍
         self.assertIn("except Exception", run)  # 意外出错也回结果，不让会话卡住
 
+    def test_tools_can_reach_this_conversations_attachments_and_only_those(self):
+        # 引擎不让下载用户上传的文件：原件在本站留一份挂在会话上；工具执行时知道是哪个对话，只取这个对话的附件。
+        files = (CORE / "assistant/files.py").read_text(encoding="utf-8")
+        upload = files.split("def upload(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn('_keep(row, stored["file_id"], name, content)', upload)
+        attachment = files.split("def attachment(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("sessions.owned(", attachment)
+        self.assertIn('"attached_to_name": row.name', attachment)
+        run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
+        self.assertIn('frappe.local.pearnly_assistant = {"session_id": conversation}', run)
+        self.assertIn("frappe.local.pearnly_assistant = None", run.split("finally:", 1)[1])
+
     def test_new_turns_and_uploads_go_to_the_current_segment(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         send = source.split("def send(", 1)[1].split("\ndef ", 1)[0]

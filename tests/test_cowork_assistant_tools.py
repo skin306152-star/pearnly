@@ -149,5 +149,79 @@ class BehaviourTests(unittest.TestCase):
         self.assertEqual(result[1]["reason"], "no_push_target")
 
 
+
+class RecognizeAttachmentTests(unittest.TestCase):
+    """对话里的附件交给录入工作台识别：同一附件同一请求号（不重复扣费）、只识别时不带推送目标、余额不足照实回。"""
+
+    def setUp(self):
+        self.created, self.submitted = [], []
+        errors = types.ModuleType("pearnly_core.execution.errors")
+
+        class Deferred(Exception):
+            def __init__(self, reason):
+                super().__init__(reason)
+                self.reason = reason
+
+        errors.Deferred, errors.QueueFull = Deferred, type("QueueFull", (Exception,), {})
+        self.Deferred = Deferred
+        chat = types.ModuleType("pearnly_core.assistant.files")
+        chat.attachment = lambda file_id: ("receipt.jpg", b"img-" + file_id.encode())
+        originals = types.ModuleType("pearnly_cowork.files.service")
+        originals.create = lambda workspace, name, content, key: self.created.append((name, content, key)) or {"name": "CWS-1"}
+        ocr = types.ModuleType("pearnly_cowork.ocr.execution.service")
+        ocr.submit = self._submit
+        ocr.detail = lambda batch: {"state": "saved", "page_count": 1, "billing_state": "charged", "history_records": ["H1"]}
+        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history.primary_page_fields = lambda pages: pages[0]["fields"]
+        for name, module in {"pearnly_core.execution.errors": errors, "pearnly_core.assistant.files": chat,
+                             "pearnly_cowork.files.service": originals, "pearnly_cowork.ocr.execution.service": ocr,
+                             "pearnly_cowork.contracts.history": history}.items():
+            sys.modules[name] = module
+        for parent in ("pearnly_core", "pearnly_core.execution", "pearnly_core.assistant", "pearnly_cowork.files",
+                       "pearnly_cowork.ocr", "pearnly_cowork.ocr.execution", "pearnly_cowork.contracts"):
+            sys.modules.setdefault(parent, types.ModuleType(parent))
+        sys.modules["pearnly_cowork.files"].service = originals
+        sys.modules["pearnly_cowork.ocr.execution"].service = ocr
+        sys.modules["pearnly_cowork.contracts"].history = history
+        sys.modules["pearnly_core.assistant"].files = chat
+        sys.modules["pearnly_core.execution"].errors = errors
+        tools.scope.default_workspace = lambda: "WS"
+        tools.storage.read = lambda name: name
+        tools.storage.project = lambda doc: {"name": doc, "invoice_no": "R308", "seller_name": "CP ALL", "total_amount": 90,
+                                             "staged": 1, "pages": [{"fields": {"seller_tax": "0107542000011", "vat": 5.89,
+                                                                                 "items": [{"description": "Americano"}]}}]}
+
+    def _submit(self, source, key, **choices):
+        self.submitted.append((source, key, choices))
+        return {"name": "B1"}
+
+    def test_recognize_only_uses_one_fixed_key_and_returns_the_recognized_values(self):
+        out = json.loads(tools.recognize_attachments({"files": ["file_abc"], "direction": "purchase"}))["results"][0]
+        self.assertEqual(self.created, [("receipt.jpg", b"img-file_abc", "assistant:file_abc")])
+        source, key, choices = self.submitted[0]
+        self.assertEqual((source, key), ("CWS-1", "assistant:file_abc"))
+        self.assertEqual(choices["direction"], "purchase")
+        self.assertIsNone(choices["connection"])
+        self.assertNotIn("payment", choices)  # 空的付款方式会被识别服务拒绝：没选就不带
+        doc = out["documents"][0]
+        self.assertEqual((out["state"], doc["invoice_no"], doc["seller_tax"], doc["vat"]), ("saved", "R308", "0107542000011", 5.89))
+        self.assertTrue(doc["waiting_review"])
+        self.assertEqual(doc["items"], [{"description": "Americano"}])
+
+    def test_a_push_target_is_only_sent_with_its_connection(self):
+        tools.recognize_attachments({"files": ["file_a"], "target": "express", "connection": "C1", "account_set_key": "K"})
+        tools.recognize_attachments({"files": ["file_b"], "target": "express"})
+        self.assertEqual((self.submitted[0][2]["connection"], self.submitted[0][2]["account_set_key"]), ("C1", "K"))
+        self.assertIsNone(self.submitted[1][2]["connection"])
+
+    def test_not_enough_balance_is_reported_and_nothing_waits(self):
+        def refuse(source, key, **choices):
+            raise self.Deferred("insufficient_balance")
+
+        sys.modules["pearnly_cowork.ocr.execution.service"].submit = refuse
+        out = json.loads(tools.recognize_attachments({"files": ["file_c"]}))["results"][0]
+        self.assertEqual(out, {"file": "file_c", "status": "not_started", "reason": "insufficient_balance"})
+
+
 if __name__ == "__main__":
     unittest.main()

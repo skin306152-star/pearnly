@@ -215,6 +215,7 @@ Checked folder tasks,フォルダータスクを確認しました
 Checked in the ERP,ERP で確認済み
 Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
 Checked push results,送信結果を確認しました
+Checked recognition results,読み取り結果を確認しました
 Checked the companion,アシスタントを確認しました
 Checking,照合中
 Checklist,チェックリスト
@@ -769,6 +770,7 @@ No Companion credential has been issued for this connection.,この接続には�
 No ERP is ready to use,使用できるERPがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
+No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No documents were given.,書類が指定されていません。
 No due date,期日なし
@@ -785,6 +787,7 @@ No number_,番号なし_
 No presets yet,プリセットはまだありません
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
+No recognition tasks were given.,読み取りタスクが指定されていません。
 No rules yet,ルールはまだありません
 No runs yet,実行履歴はまだありません
 No templates yet,テンプレートはまだありません
@@ -944,6 +947,7 @@ Recognition is busy. Try again in a moment.,読み取りが混み合っていま
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
+Recognized documents,書類を読み取りました
 Recognized with high confidence,高い信頼度で認識
 "Recognized, waiting to enter",読み取り済み
 Reconciled,照合に含める

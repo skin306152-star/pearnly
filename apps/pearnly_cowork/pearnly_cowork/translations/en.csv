@@ -215,6 +215,7 @@ Checked folder tasks,Checked folder tasks
 Checked in the ERP,Checked in the ERP
 Checked in the ERP: not entered. It can be sent again,Checked in the ERP: not entered. It can be sent again
 Checked push results,Checked push results
+Checked recognition results,Checked recognition results
 Checked the companion,Checked the companion
 Checking,Checking
 Checklist,Checklist
@@ -769,6 +770,7 @@ No Companion credential has been issued for this connection.,No Companion creden
 No ERP is ready to use,No ERP is ready to use
 No account set matches “{0}”,No account set matches “{0}”
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
+No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
 No documents were given.,No documents were given.
 No due date,No due date
@@ -785,6 +787,7 @@ No number_,No number_
 No presets yet,No presets yet
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
+No recognition tasks were given.,No recognition tasks were given.
 No rules yet,No rules yet
 No runs yet,No runs yet
 No templates yet,No templates yet
@@ -944,6 +947,7 @@ Recognition is busy. Try again in a moment.,Recognition is busy. Try again in a 
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
+Recognized documents,Recognized documents
 Recognized with high confidence,Recognized with high confidence
 "Recognized, waiting to enter","Recognized, waiting to enter"
 Reconciled,Reconciled

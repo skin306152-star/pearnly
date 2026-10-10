@@ -215,6 +215,7 @@ Checked folder tasks,ตรวจสอบงานโฟลเดอร์แ�
 Checked in the ERP,ตรวจใน ERP แล้ว
 Checked in the ERP: not entered. It can be sent again,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
 Checked push results,ตรวจสอบผลการส่งแล้ว
+Checked recognition results,ตรวจสอบผลการอ่านเอกสารแล้ว
 Checked the companion,ตรวจสอบผู้ช่วย Pearnly แล้ว
 Checking,กำลังตรวจสอบ
 Checklist,รายการตรวจสอบ
@@ -769,6 +770,7 @@ No Companion credential has been issued for this connection.,ยังไม่�
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
 No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
+No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
@@ -785,6 +787,7 @@ No number_,ไม่มีเลขที่_
 No presets yet,ยังไม่มีค่าที่ตั้งไว้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
+No recognition tasks were given.,ไม่ได้ระบุงานอ่านเอกสาร
 No rules yet,ยังไม่มีกฎ
 No runs yet,ยังไม่มีประวัติการทำงาน
 No templates yet,ยังไม่มีเทมเพลต
@@ -944,6 +947,7 @@ Recognition is busy. Try again in a moment.,บริการอ่านเอ
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
 Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
+Recognized documents,อ่านเอกสารแล้ว
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
 "Recognized, waiting to enter",อ่านแล้ว
 Reconciled,นำมากระทบยอด

@@ -178,8 +178,11 @@
     "assistant": [
       "access",
       "connections",
+      "contracts",
+      "files",
       "folder_intake",
       "history",
+      "ocr",
       "push"
     ],
     "companion": [

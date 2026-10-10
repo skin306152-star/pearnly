@@ -673,6 +673,7 @@ This LINE account is not bound to this account on this site. Sign in with your p
 This Operator's Own DMS Credentials,该操作员的 DMS 凭据
 "This account has no identity binding, so it cannot change its own password; contact an admin",当前账号未绑定身份，无法自行修改密码，请联系管理员
 This advisor is no longer in the current DMS list. Please select again.,该顾问已不在当前 DMS 名册中，请重新选择。
+This attachment is not in this conversation.,这个附件不在本对话里。
 This company’s LINE official account is not configured yet.,本公司尚未配置 LINE 官方账号。
 This connection has no username and password yet.,此连接未填写账号和密码。
 This document has already been recorded: {0},该单据已录入：{0}

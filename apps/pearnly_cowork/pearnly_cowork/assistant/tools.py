@@ -1,4 +1,5 @@
-"""Cowork 的智能体工具（ADR-019）：小助手状态与账套、单据推送到 Express、文件夹定时任务、推送结果。
+"""Cowork 的智能体工具（ADR-019）：对话里发来的票据交给录入工作台识别、小助手状态与账套、单据推送到 Express、
+文件夹定时任务、推送结果。
 
 - 工具以当前登录用户身份在服务端执行，只调用各域现有的公开服务（与网页同一入口），权限、作用域与连接的允许名单
   都由那些服务自己校验，这里不另开口子、不直接写表。
@@ -8,6 +9,7 @@
 """
 import hashlib
 import json
+import time
 import uuid
 
 import frappe
@@ -165,6 +167,121 @@ def push_documents(tool_input) -> str:
     return _json({"results": [_push_one(name, tool_input.get("connection") or None) for name in names]})
 
 
+# ---------------- 对话里的票据：上传识别 ----------------
+
+RECOGNIZE_MAX = 10
+RECOGNIZE_WAIT_SECONDS = 90
+FINISHED = ("saved", "not_invoice")
+BROKEN = ("failed", "uncertain", "cancelled")
+ITEMS_SHOWN = 30
+
+
+def _recognition():
+    from pearnly_cowork.ocr.execution import service
+
+    return service
+
+
+def _admit(file_id, choices) -> dict:
+    """一个附件 → 录入工作台的原件 + 识别任务，与 LINE 发票据同一条路（`line/intake._admit`）：扣费口径与网页一致；
+    请求号按附件固定，同一个附件再调一次拿回原来的任务，不重复扣费。"""
+    from pearnly_core.assistant import files as chat_files
+    from pearnly_core.execution.errors import Deferred, QueueFull
+
+    from pearnly_cowork.files import service as originals
+
+    key = "assistant:" + str(file_id)
+    try:
+        filename, content = chat_files.attachment(file_id)
+        source = originals.create(scope.default_workspace(), filename, content, key)
+        frappe.db.commit()
+        batch = _recognition().submit(source["name"], key, **choices)
+        frappe.db.commit()
+    except (Deferred, QueueFull) as exc:
+        frappe.db.rollback()
+        return {"file": file_id, "status": "not_started",
+                "reason": exc.reason if isinstance(exc, Deferred) else "queue_full"}
+    except frappe.ValidationError as exc:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"file": file_id, "status": "not_started", "reason": str(exc)[:300]}
+    return {"file": file_id, "filename": filename, "batch": batch["name"]}
+
+
+def _choices(tool_input) -> dict:
+    target = tool_input.get("target") or None
+    push = target in ("express", "mrerp") and tool_input.get("connection")
+    choices = {"direction": tool_input.get("direction") or None, "posting_kind": tool_input.get("posting_kind") or None,
+               "target": target, "connection": tool_input.get("connection") if push else None,
+               "account_set_key": tool_input.get("account_set_key") if push else None}
+    if tool_input.get("payment"):
+        choices["payment"] = tool_input["payment"]
+    return choices
+
+
+def _document(name) -> dict:
+    from pearnly_cowork.contracts import history as history_contracts
+
+    doc = storage.project(storage.read(name))
+    page = history_contracts.primary_page_fields(doc.get("pages") or [])
+    out = {key: doc.get(key) for key in ("name", "invoice_no", "invoice_date", "seller_name", "total_amount",
+                                          "quality_status", "posting_kind", "intake_target", "push_connection",
+                                          "push_account_set")}
+    out.update({key: page.get(key) for key in ("document_type", "seller_tax", "seller_branch", "buyer_name",
+                                                "buyer_tax", "subtotal", "vat", "discount", "wht_amount", "currency")})
+    out["waiting_review"] = bool(doc.get("staged"))
+    out["items"] = (page.get("items") or [])[:ITEMS_SHOWN]
+    if doc.get("duplicate_warning"):
+        out["duplicate_warning"] = doc.get("duplicate_warning")
+    return out
+
+
+def _result(batch) -> dict:
+    detail = _recognition().detail(batch)
+    state = detail.get("state")
+    out = {"batch": batch, "state": state, "pages": detail.get("page_count"), "billing": detail.get("billing_state")}
+    if state == "saved":
+        out["documents"] = [_document(name) for name in detail.get("history_records") or []]
+    elif state in BROKEN:
+        out["reason"] = detail.get("last_code") or state
+    return out
+
+
+def recognize_attachments(tool_input) -> str:
+    scope.require("intake")
+    file_ids = [str(f) for f in (tool_input.get("files") or [])][:RECOGNIZE_MAX]
+    if not file_ids:
+        frappe.throw(_("No attachments were given."))
+    choices = _choices(tool_input)
+    admitted = [_admit(file_id, choices) for file_id in file_ids]
+    waiting = [a for a in admitted if a.get("batch")]
+    deadline = time.monotonic() + RECOGNIZE_WAIT_SECONDS
+    while waiting:
+        frappe.db.rollback()  # 识别在队列里另一进程做：每次重新读，看得到它刚提交的结果
+        for item in waiting:
+            item.update(_result(item["batch"]))
+        waiting = [a for a in waiting if a.get("state") not in FINISHED + BROKEN]
+        if not waiting or time.monotonic() >= deadline:
+            break
+        time.sleep(3)
+    return _json({"results": admitted})
+
+
+def recognition_results(tool_input) -> str:
+    scope.require_read()
+    batches = [str(b) for b in (tool_input.get("batches") or [])][:RECOGNIZE_MAX]
+    if not batches:
+        frappe.throw(_("No recognition tasks were given."))
+    out = []
+    for batch in batches:
+        try:
+            out.append(_result(batch))
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.clear_messages()
+            out.append({"batch": batch, "state": "not_found"})
+    return _json({"results": out})
+
+
 # ---------------- 文件夹定时任务 ----------------
 
 def folder_tasks(_input) -> str:
@@ -188,6 +305,32 @@ def folder_task_runs(tool_input) -> str:
 
 _OBJ = {"type": "object", "properties": {}}
 TOOLS = [
+    {"name": "cowork_recognize_attachments", "label": "Recognized documents",
+     "description": "Recognize receipts and invoices the user attached in this chat with Pearnly's own recognition, "
+                    "exactly like uploading them on the Intake workbench (same billing, the documents then appear in "
+                    "the workbench and can be reviewed and pushed). Use it whenever the user sends a document photo or "
+                    "PDF and wants it recognized, read, entered or recorded. Pass each attachment's file id: the folder "
+                    "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
+                    "to recognize only. target express or mrerp also needs connection (and account_set_key for "
+                    "Express), as listed by cowork_companion_status. Waits up to about 90 seconds and returns the "
+                    "recognized documents; anything still running comes back with its batch for "
+                    "cowork_recognition_results. Report the recognized values, not your own reading of the image.",
+     "input_schema": {"type": "object", "properties": {
+         "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX},
+         "direction": {"type": "string", "enum": ["purchase", "sales"]},
+         "target": {"type": "string", "enum": ["express", "mrerp", "none"]},
+         "connection": {"type": "string"},
+         "account_set_key": {"type": "string"},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express only."},
+         "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP only."}},
+         "required": ["files"]},
+     "handler": "pearnly_cowork.assistant.tools.recognize_attachments"},
+    {"name": "cowork_recognition_results", "label": "Checked recognition results",
+     "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments.",
+     "input_schema": {"type": "object", "properties": {
+         "batches": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX}},
+         "required": ["batches"]},
+     "handler": "pearnly_cowork.assistant.tools.recognition_results"},
     {"name": "cowork_companion_status", "label": "Checked the companion",
      "description": "List the user's ERP connections (Express / MR.ERP) with whether the Windows companion is online "
                     "and the account sets it reports (total plus the first 30; pass search to find one by company name). "

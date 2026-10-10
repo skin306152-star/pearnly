@@ -24,12 +24,16 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     except frappe.DuplicateEntryError:
         frappe.db.rollback()
         return "running"
+    # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）；工具函数本身只收模型给的参数。
+    frappe.local.pearnly_assistant = {"session_id": conversation}
     try:
         text, is_error = tools.run(call.get("name"), call.get("input"))
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant tool failed")
         text, is_error = _("The tool failed. Try again later."), True
+    finally:
+        frappe.local.pearnly_assistant = None
     engine.adapter().post(remote, [contracts.tool_result(use_id, text, is_error)])
     status = "error" if is_error else "done"
     frappe.db.set_value(TOOL_RUN, run.name, "status", status)

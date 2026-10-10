@@ -190,6 +190,18 @@
   连着哪台电脑（电脑名、Express / MR.ERP）、在不在线（Express 看心跳，MR.ERP 看最近同步文件夹）、网页可读取的文件夹；
   没有电脑时给「下载 CC」。数据来自 `pearnly_cowork.folder_intake.api.computers`（与定时任务页同一权限，只读）。
 
+## 对话里发票据 → 录入工作台识别（2026-10-10 晚，清单第 9 项）
+
+用户在 CC 里发一张 7-Eleven 小票说「识别后结果发给我」，CC 只能列单据（空）后说「在 Pearnly 没找到」，再自己读图——上传识别还没接进 CC。
+
+| 部分 | 做法 |
+| --- | --- |
+| 附件原件 | `pearnly_core.assistant.files.upload` 在交给引擎的同时，本站留一份私有 `File`（挂在 `Pearnly Assistant Session` 上，文件名 `<file_id>--<原名>`）：引擎文件库不让下载用户上传的文件 |
+| 工具取附件 | `toolrun.execute` 执行工具时设 `frappe.local.pearnly_assistant = {session_id}`，`files.attachment(file_id)` 只认这个对话、这个人的附件 |
+| Cowork 工具 | `cowork_recognize_attachments`：附件 → `files.service.create` + `ocr.execution.service.submit`（与 LINE 发票据同一条路，扣费口径同网页；请求号 `assistant:<file_id>` 固定，同一附件再调不重复扣费）；最多等约 90 秒回识别结果（单号、日期、卖方与税号、金额、增值税、明细前 30 行、待复核、疑似重复）。没识别完的用 `cowork_recognition_results` 再查 |
+| 口径 | 方向、目标 ERP、连接 / 账套、过账类型、付款方式都可选；都不给就是「仅识别」（第 10 项再做「问一次、记住」） |
+| 架构 | Cowork `assistant` 域新增依赖 `files`、`ocr`（同 LINE 录入）与纯约定 `contracts`，已登记 `architecture-policy.json` |
+
 ## 交接（2026-10-10 晚，给下一个窗口）
 
 ### 今天的目标

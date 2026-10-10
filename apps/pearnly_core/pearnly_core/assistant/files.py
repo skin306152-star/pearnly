@@ -4,6 +4,8 @@
   智能体按返回的位置读取。
 - 结果：智能体产出的文件按会话列出，可预览、下载。
 - 文件不脱离会话存在：下载前先核对「会话属于当前用户」且「文件属于这个会话」，猜编号读不到别人的文件。
+- 附件原件在本站也留一份（私有文件，挂在会话上）：引擎的文件库不让下载用户上传的文件，产品工具要用原件
+  （例如 Cowork 把对话里发来的票据交给录入工作台识别）只能从这里取，见 `attachment`。
 """
 import frappe
 from frappe import _
@@ -28,7 +30,26 @@ def upload(session_id) -> dict:
         content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
     api = engine.adapter()
     stored = api.attach(sessions.segment_for_turn(row, api), name, content, mime)
+    _keep(row, stored["file_id"], name, content)
     return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], "size_bytes": len(content)}
+
+
+def _keep(row, file_id, name, content) -> None:
+    frappe.get_doc({"doctype": "File", "file_name": f"{file_id}--{name}", "attached_to_doctype": sessions.SESSION,
+                    "attached_to_name": row.name, "is_private": 1, "content": content}).insert(ignore_permissions=True)
+
+
+def attachment(file_id) -> tuple[str, bytes]:
+    """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。"""
+    context = getattr(frappe.local, "pearnly_assistant", None) or {}
+    row = sessions.owned(context.get("session_id"), allow_archived=True)
+    fid = sessions._guard(contracts.file_id, file_id)
+    for name in frappe.get_all("File", filters={"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name,
+                                                "file_name": ["like", fid + "--%"]}, pluck="name"):
+        doc = frappe.get_doc("File", name)
+        if doc.file_name.startswith(fid + "--"):
+            return doc.file_name[len(fid) + 2:], doc.get_content()
+    frappe.throw(_("This attachment is not in this conversation."))
 
 
 def listing(session_id) -> list[dict]:
