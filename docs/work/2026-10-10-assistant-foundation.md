@@ -186,6 +186,10 @@
   开着每 3 秒问一次在不在线；不再生成或显示配对码（词条 `intake.agent.key/copy/reset/resetConfirm` 已从术语表删除）。
 - 测试：`tests/test_cowork_companion_register.py`（已登记候选离线检查）、`companion/tests/test_desktop_settings.py`。
 
+- 浏览器里打开的设置（没有桌面端）在 Cowork 站点多一栏只读「连接」（用户 2026-10-10 晚：客户端才能变更，网页端只能看）：
+  连着哪台电脑（电脑名、Express / MR.ERP）、在不在线（Express 看心跳，MR.ERP 看最近同步文件夹）、网页可读取的文件夹；
+  没有电脑时给「下载 CC」。数据来自 `pearnly_cowork.folder_intake.api.computers`（与定时任务页同一权限，只读）。
+
 ## 已知限制
 
 - 实时进度是轮询，回复整段到达；改站点实时通道转发需先做并发验证（ADR-019）。

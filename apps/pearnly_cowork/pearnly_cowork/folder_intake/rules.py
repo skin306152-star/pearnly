@@ -91,6 +91,32 @@ def _reader_view(doc):
             "fresh": agent.fresh(state), "version": state.get("version") or "", "roots": state.get("roots") or []}
 
 
+def computers():
+    """网页设置里只读的「连接」（2026-10-10）：本工作空间里连着电脑的 Express / MR.ERP 连接 —— 哪台电脑、在不在线、
+    网页可读取的文件夹。只能看；连接、断开、加减文件夹都只在那台电脑的 CC 桌面端上做（文件夹权限是电脑上的安全边界）。
+    与定时任务页同一判据：录入权限 + 这条连接的使用授权；没有连过电脑的连接不列。"""
+    from pearnly_cowork.companion import credentials
+
+    _require()
+    result = []
+    for row in connections.records(None, None, 0, 100) or []:
+        if row.get("adapter") not in ("express", "mrerp") or not row.get("enabled"):
+            continue
+        try:
+            doc = _connection(row["name"])
+        except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+            continue
+        view = _reader_view(doc)
+        # Express 以心跳为准（3 分钟内报过到）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
+        online = bool(credentials.online(doc.name)) if doc.adapter == "express" else view["fresh"]
+        if not (online or view["version"]):
+            continue
+        result.append({"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
+                       "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)]})
+    return result
+
+
 def options(connection, account_set_key=None):
     """任务表单要的选项：能读文件夹的小助手与它们允许读取的根目录、文件夹；Express 另有账套的科目与部门、存货科目组。"""
     _require()

@@ -1,6 +1,7 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
 //   常规      — 对话文字大小、语言
+//   连接      — 只在浏览器里（Cowork 站点）出现：只读，连着哪台电脑、在不在线、网页可读取的文件夹；改只在电脑上的 CC 里
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
 //     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹、网页可读取的文件夹
 //     系统    — 开机自动启动、快捷提问、版本与更新、日志
@@ -23,6 +24,7 @@ import {
   type TextSize,
   textSize,
 } from "@/lib/desktop";
+import { useProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 import { lang, LANGUAGES, st, t } from "../i18n";
 
@@ -79,7 +81,10 @@ export function Settings() {
     };
   }, []);
 
-  const current = !api && section !== "general" ? "general" : section;
+  // 浏览器里打开（没有桌面端）：Cowork 站点只给只读的「连接」看连着哪台电脑；改只在电脑上的 CC 里（用户 2026-10-10）
+  const product = useProfile()?.product;
+  const web = !api && product === "cowork";
+  const current = !api && !(web && section === "connections") && section !== "general" ? "general" : section;
   const titles: Record<Section, string> = { general: st.general, connections: st.connections, system: st.system };
 
   return (
@@ -97,6 +102,11 @@ export function Settings() {
             <NavItem active={current === "general"} onClick={() => setSection("general")} icon={<Settings2Icon />}>
               {st.general}
             </NavItem>
+            {web && (
+              <NavItem active={current === "connections"} onClick={() => setSection("connections")} icon={<PlugIcon />}>
+                {st.connections}
+              </NavItem>
+            )}
             {api && (
               <>
                 <div className="hidden px-2.5 pt-4 pb-2 text-muted-foreground text-xs md:block">{st.thisComputer}</div>
@@ -113,6 +123,7 @@ export function Settings() {
             <h2 className="mb-6 font-medium text-xl">{titles[current]}</h2>
             {current === "general" && <General />}
             {current === "connections" && api && <Connections api={api} />}
+            {current === "connections" && web && <WebConnections />}
             {current === "system" && api && <System api={api} />}
           </main>
           <DialogPrimitive.Close
@@ -412,6 +423,74 @@ function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?:
       <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect()}>
         {link.kind === "failed" ? st.retry : st.connect}
       </Button>
+    </>
+  );
+}
+
+// ── 浏览器里：只读的连接（连着哪台电脑、在不在线、网页可读取的文件夹；pearnly_cowork.folder_intake.api.computers） ──
+
+type Computer = { adapter: string; device: string; online: boolean; version: string; folders: string[] };
+
+async function getJson<T>(method: string): Promise<T | null> {
+  const res = await fetch(`/api/method/${method}`, { credentials: "same-origin", cache: "no-store" }).catch(() => null);
+  if (!res?.ok) return null;
+  return ((await res.json()) as { message: T }).message;
+}
+
+function WebConnections() {
+  const [rows, setRows] = useState<Computer[] | null>(null);
+  useEffect(() => {
+    const load = () => void getJson<Computer[]>("pearnly_cowork.folder_intake.api.computers").then((r) => setRows(r ?? []));
+    load();
+    const timer = setInterval(load, 10000);
+    return () => clearInterval(timer);
+  }, []);
+  if (!rows) return null;
+  if (!rows.length)
+    return (
+      <Row label={<span className="text-muted-foreground">{st.noComputer}</span>}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            void getJson<{ url?: string }>("pearnly_cowork.companion.api.installer").then(
+              (info) => info?.url && window.open(info.url, "_blank", "noopener,noreferrer"),
+            )
+          }
+        >
+          {st.download}
+        </Button>
+      </Row>
+    );
+  return (
+    <>
+      {rows.map((row, i) => {
+        const status = row.online ? "online" : "offline";
+        return (
+          <section key={`${row.adapter}-${row.device}-${i}`} className="mb-8 last:mb-0">
+            <div className="flex items-center gap-3 border-b py-4">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm">{row.device}</div>
+                <div className="text-muted-foreground text-xs">{row.adapter === "mrerp" ? "MR.ERP" : "Express"}</div>
+              </div>
+              <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[status] }}>
+                <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[status] }} />
+                {st.status[status]}
+              </span>
+            </div>
+            <Heading>{st.folders}</Heading>
+            {!row.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
+            {row.folders.map((path) => (
+              <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
+                <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate" title={path}>
+                  {path}
+                </span>
+              </div>
+            ))}
+          </section>
+        );
+      })}
     </>
   );
 }

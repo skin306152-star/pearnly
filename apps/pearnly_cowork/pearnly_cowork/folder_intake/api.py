@@ -9,6 +9,12 @@ def listing():
     return rules.listing()
 
 
+@frappe.whitelist(methods=["GET"])
+def computers():
+    """网页设置「连接」只读：连着的电脑、在不在线、网页可读取的文件夹（改只在电脑上的 CC 里）。"""
+    return rules.computers()
+
+
 @frappe.whitelist()
 def options(connection, account_set_key=None):
     # 读目录 / 存货科目组都锁这条连接行，与小助手心跳、刷新目录并发时可能死锁：只读请求，回滚重试即可。
