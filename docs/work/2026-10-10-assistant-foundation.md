@@ -233,25 +233,30 @@ CC 1.4.0（CI run 38041288991，源码 `cea61bad`，安装包 sha256 `ba7ce579�
 
 Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报告核查、库存盘点、任务管理。**目前只接了录入工作台的一部分，其余五项都还没接。**
 
-录入工作台逐项对照（网页能做的 → CC 现状）：
+录入工作台逐项对照（网页能做的 → CC 现状，2026-10-10 晚复核）：
 
-| 网页功能（服务端接口） | CC 现状 |
-| --- | --- |
-| 连接状态与账套目录（`connections.records/targets`、`companion.online`） | 已接：`cowork_companion_status` |
-| 重新读取账套（`connections.request_refresh/refresh_status`） | 已接：`cowork_refresh_account_sets` |
-| 待办列表、按推送状态 / 日期 / 待复核筛选（`history.workbench`） | 已接：`cowork_list_documents` |
-| 推送（`push.application.submit`、Express `companion.submission.confirm`） | 已接：`cowork_push_documents`（一次最多 20 张）；**真推送还没在对话里跑过** |
-| 推送结果（失败原因 / 进行中 / 成功） | 已接：`cowork_push_results` |
-| 定时任务列表 / 立即运行 / 运行记录（`folder_intake.listing/run_now/runs`） | 已接：`cowork_folder_tasks`、`cowork_run_folder_task`、`cowork_folder_task_runs` |
-| 上传原件并识别（`files.upload` 或直传、`ocr.submit/detail`） | **未接** |
-| 复核：看识别结果、改字段、选单据处理方式（`history.detail/save/choose_document_policy`） | **未接** |
-| 推送结果不明时确认（`push.application.resolve_unknown`） | **未接** |
-| 新建录入的口径：目标 ERP、两级账套、进项 / 销项、过账类型、存货科目组、MR.ERP 菜单与默认值（`history.choices/save_choices`、`connections.choose_*`、`request_mrerp_menu`） | **未接** |
-| 删除记录（`history.delete`） | **未接** |
-| 仅识别：导出复核工作簿（`roundtrip.export`） | **未接** |
-| 定时任务新建 / 修改 / 停用 / 删除（`folder_intake.save/set_enabled/delete/options`） | **未接** |
-| 连接 MR.ERP（填账号密码，`connections.configure`） | 不接：凭据只在网页表单填，不经对话 |
-| 连接 Express | 不用接：桌面端登录即自动连接（本分支） |
+| 网页功能（服务端接口） | CC 工具 | 状态 |
+| --- | --- | --- |
+| 连接状态（`connections.records`、`companion.online`） | `cowork_companion_status`（只报状态，账套清单交给录入口径） | 已接 |
+| 重新读取账套（`connections.request_refresh/refresh_status`） | `cowork_refresh_account_sets` | 已接 |
+| 待办列表、按推送状态 / 日期 / 待复核筛选（`history.workbench`） | `cowork_list_documents` | 已接 |
+| 上传原件并识别（`files.upload`、`ocr.submit/detail`） | `cowork_recognize_attachments`、`cowork_recognition_results`（第 9 项） | 已接 |
+| 复核：看字段、改字段（`history.detail/save`） | `cowork_document_detail`、`cowork_edit_document`（第 10 项） | 已接 |
+| 这类单据录不录（`history.choose_document_policy`） | `cowork_choose_document_policy`（第 10 项） | 已接 |
+| 新建录入口径：目标 ERP、两级账套、进项 / 销项、过账类型 / 付款方式 | `cowork_intake_options`（上次口径来自本人上一次录进 ERP 的识别，网页 / LINE / 对话共用）（第 11 项） | 已接 |
+| 存货科目组（`connections.stock_acc_group/choose_stock_acc_group`） | `cowork_stock_group`（第 11 项） | 已接 |
+| MR.ERP 导入菜单与默认值（`connections.mrerp_menu/request_mrerp_menu/choose_*`） | `cowork_mrerp_setup`（第 11 项） | 已接 |
+| 推送（`push.application.submit`、Express `companion.submission.confirm`） | `cowork_push_documents`（可指定连接、账套、过账类型） | 已接；**真推送待用户同意后实测**（第 12 项） |
+| 推送前要人选的项（`push.application.choices/save_choices`） | `cowork_push_choices`、`cowork_save_push_choices`（第 12 项） | 已接 |
+| 推送结果不明时确认（`push.application.resolve_unknown`） | `cowork_resolve_push_result`（第 12 项） | 已接；要有一次结果不明的真推送才能实测 |
+| 推送结果（失败原因 / 进行中 / 成功） | `cowork_push_results` | 已接 |
+| 删除记录（`history.delete`） | `cowork_delete_documents`（第 13 项） | 已接 |
+| 仅识别：导出复核工作簿（`roundtrip.export`） | `cowork_export_review_workbook`（第 13 项，文件放进对话、在结果面板下载） | 已接 |
+| 定时任务列表 / 立即运行 / 运行记录 | `cowork_folder_tasks`、`cowork_run_folder_task`、`cowork_folder_task_runs` | 已接 |
+| 定时任务新建 / 修改 / 停用 / 删除、选项（`folder_intake.save/set_enabled/delete/options`） | `cowork_folder_task_options`、`cowork_save_folder_task`、`cowork_set_folder_task_enabled`、`cowork_delete_folder_tasks`（第 14 项） | 已接 |
+| 连接 MR.ERP（填账号密码，`connections.configure`） | — | 不接：凭据只在网页表单填，不经对话 |
+| 连接 Express | — | 不用接：桌面端登录即自动连接 |
+| 改好的复核工作簿发回（网页同样走上传识别，表格按导入解析） | `cowork_recognize_attachments` 接受表格（xlsx / xls / xlsm / csv） | 已接（第 15 项复核时补上） |
 
 **录入工作台还没接完。** 接下来按这个顺序一项一项接（每项一个小批次：工具 + 测试 + 测试环境跑通 + 自己核对 + 请用户试）：
 

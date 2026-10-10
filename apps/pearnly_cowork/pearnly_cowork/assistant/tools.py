@@ -172,8 +172,10 @@ RECOGNIZE_WAIT_SECONDS = 90
 FINISHED = ("saved", "not_invoice")
 BROKEN = ("failed", "uncertain", "cancelled")
 ITEMS_SHOWN = 30
-# 对话里能交给识别的：票据照片与 PDF（HEIC 照片在对话上传时已转成 JPEG）。表格、文本等不在这里识别。
-RECOGNIZABLE = (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".tiff", ".tif", ".bmp", ".gif")
+# 对话里能交给识别的：票据照片与 PDF（HEIC 照片在对话上传时已转成 JPEG），以及表格（改好发回的复核工作簿走同一条
+# 识别路，同网页上传）。文本、Word 等不在这里识别：说不清是什么单据，识别服务只会回「文件是空的」这种误导的话。
+RECOGNIZABLE = (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".tiff", ".tif", ".bmp", ".gif", ".xlsx", ".xls", ".xlsm",
+                ".csv")
 
 
 def _recognition():
@@ -198,7 +200,8 @@ def _admit(file_id, choices) -> dict:
         return {"file": file_id, "status": "not_found", "attachments_in_this_chat": chat_files.attachments()}
     if not filename.lower().endswith(RECOGNIZABLE):
         return {"file": file_id, "filename": filename, "status": "unsupported_type",
-                "reason": "Only document photos and PDF files can be recognized."}
+                "reason": "Only document photos, PDF files and spreadsheets (such as a returned review workbook) "
+                          "can be recognized."}
     try:
         source = originals.create(scope.default_workspace(), filename, content, key)
         frappe.db.commit()
@@ -802,7 +805,8 @@ TOOLS = [
      "description": "Recognize receipts and invoices the user attached in this chat with Pearnly's own recognition, "
                     "exactly like uploading them on the Intake workbench (same billing, the documents then appear in "
                     "the workbench and can be reviewed and pushed). Use it whenever the user sends a document photo or "
-                    "PDF and wants it recognized, read, entered or recorded. Pass each attachment's file id: the folder "
+                    "PDF and wants it recognized, read, entered or recorded, or sends back a review workbook (Excel) "
+                    "they corrected. Pass each attachment's file id: the folder "
                     "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
                     "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
                     "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
