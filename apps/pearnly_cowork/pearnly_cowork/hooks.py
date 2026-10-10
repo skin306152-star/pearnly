@@ -518,6 +518,9 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
 
 # 后台 worker 父进程预先导入的模块（`pearnly_core/execution/worker.py`）：对账长任务与每分钟的定时任务。
 # 任务照旧每次 fork，只是不再每个任务重新导入；导入不能开连接、不能依赖 Site。
+# 智能体工具（ADR-019 / ADR-009）：Cowork 自己声明，共用层汇总并以当前用户身份在服务端执行。
+pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]
+
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",
     "pearnly_cowork.recon_center.document_ocr",

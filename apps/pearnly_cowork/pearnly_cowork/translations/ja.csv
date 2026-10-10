@@ -210,8 +210,12 @@ Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checkbox,チェックボックス
+Checked folder task runs,フォルダータスクの実行履歴を確認しました
+Checked folder tasks,フォルダータスクを確認しました
 Checked in the ERP,ERP で確認済み
 Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
+Checked push results,送信結果を確認しました
+Checked the companion,アシスタントを確認しました
 Checking,照合中
 Checklist,チェックリスト
 Checklist Id,チェックリスト ID
@@ -695,6 +699,7 @@ List,リスト
 List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
+Listed documents,書類を一覧しました
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
@@ -765,6 +770,7 @@ No ERP is ready to use,使用できるERPがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No cards are assigned to you,割り当てられたカードはありません
+No documents were given.,書類が指定されていません。
 No due date,期日なし
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
 No folders on this PC yet. Add them in the Companion on that PC.,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
@@ -899,6 +905,7 @@ Push Attempt,送信試行
 Push Connection,送信先接続
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
+Pushed documents,書類を送信しました
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 "Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
 Quantity,数量
@@ -966,6 +973,7 @@ Refresh Request Aliases,更新要求の冪等索引
 Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
+Refreshed account sets,帳簿を更新しました
 Registered At,登録日時
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
 Relative Path,相対パス
@@ -1121,6 +1129,7 @@ Start counting,棚卸を開始
 Start date,開始日
 Start reconciliation,照合を開始
 Started At,開始日時
+Started a folder task,フォルダータスクを開始しました
 Started at,開始日時
 Statement Autocorrected,明細自動補正済み
 Statement Balance,明細残高

@@ -175,6 +175,13 @@
   },
   "cowork_domain_dependencies": {
     "access": [],
+    "assistant": [
+      "access",
+      "connections",
+      "folder_intake",
+      "history",
+      "push"
+    ],
     "companion": [
       "connections",
       "push",

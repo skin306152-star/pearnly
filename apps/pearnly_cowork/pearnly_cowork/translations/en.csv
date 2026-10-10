@@ -210,8 +210,12 @@ Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checkbox,Checkbox
+Checked folder task runs,Checked folder task runs
+Checked folder tasks,Checked folder tasks
 Checked in the ERP,Checked in the ERP
 Checked in the ERP: not entered. It can be sent again,Checked in the ERP: not entered. It can be sent again
+Checked push results,Checked push results
+Checked the companion,Checked the companion
 Checking,Checking
 Checklist,Checklist
 Checklist Id,Checklist Id
@@ -695,6 +699,7 @@ List,List
 List actions,List actions
 List archived,List archived
 List name,List name
+Listed documents,Listed documents
 Location,Location
 Location check,Location check
 Location mismatch,Location mismatch
@@ -765,6 +770,7 @@ No ERP is ready to use,No ERP is ready to use
 No account set matches “{0}”,No account set matches “{0}”
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No cards are assigned to you,No cards are assigned to you
+No documents were given.,No documents were given.
 No due date,No due date
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
 No folders on this PC yet. Add them in the Companion on that PC.,No folders on this PC yet. Add them in the Companion on that PC.
@@ -899,6 +905,7 @@ Push Attempt,Push Attempt
 Push Connection,Push Connection
 Push Record,Push Record
 Push record not found.,Push record not found.
+Pushed documents,Pushed documents
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
 "Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
 Quantity,Quantity
@@ -966,6 +973,7 @@ Refresh Request Aliases,Refresh Request Aliases
 Refresh Started At (UTC),Refresh Started At (UTC)
 Refresh Status,Refresh Status
 Refresh the account directory before continuing.,Refresh the account directory before continuing.
+Refreshed account sets,Refreshed account sets
 Registered At,Registered At
 Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
 Relative Path,Relative Path
@@ -1121,6 +1129,7 @@ Start counting,Start counting
 Start date,Start date
 Start reconciliation,Start reconciliation
 Started At,Started At
+Started a folder task,Started a folder task
 Started at,Started at
 Statement Autocorrected,Statement Autocorrected
 Statement Balance,Statement Balance

@@ -1683,3 +1683,12 @@ This folder overlaps the folder of scheduled task «{0}».	与定时任务「{0}
 This connection does not support scheduled tasks.	此连接不支持定时任务。	การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา	この接続は定期タスクに対応していません。	cowork.folder.unsupported_connection
 No folders to choose yet. Add them in the Companion on the PC.	暂无可选文件夹，请在电脑的小助手中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง	選べるフォルダーがまだありません。PC のコンパニオンで追加してください。	cowork.folder.noRootsAny
 Connect Companion	连接小助手	เชื่อมต่อผู้ช่วย	コンパニオンを接続	cowork.folder.connectHelper
+Checked the companion	查看了小助手	ตรวจสอบผู้ช่วย Pearnly แล้ว	アシスタントを確認しました
+Refreshed account sets	刷新了账套	รีเฟรชชุดบัญชีแล้ว	帳簿を更新しました
+Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
+Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
+Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
+Checked folder tasks	查看了文件夹任务	ตรวจสอบงานโฟลเดอร์แล้ว	フォルダータスクを確認しました
+Started a folder task	启动了文件夹任务	เริ่มงานโฟลเดอร์แล้ว	フォルダータスクを開始しました
+Checked folder task runs	查看了文件夹任务记录	ตรวจสอบประวัติงานโฟลเดอร์แล้ว	フォルダータスクの実行履歴を確認しました
+No documents were given.	没有指定单据。	ไม่ได้ระบุเอกสาร	書類が指定されていません。

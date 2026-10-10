@@ -210,8 +210,12 @@ Check the ERP connection settings.,กรุณาตรวจสอบการ
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checkbox,ช่องทำเครื่องหมาย
+Checked folder task runs,ตรวจสอบประวัติงานโฟลเดอร์แล้ว
+Checked folder tasks,ตรวจสอบงานโฟลเดอร์แล้ว
 Checked in the ERP,ตรวจใน ERP แล้ว
 Checked in the ERP: not entered. It can be sent again,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
+Checked push results,ตรวจสอบผลการส่งแล้ว
+Checked the companion,ตรวจสอบผู้ช่วย Pearnly แล้ว
 Checking,กำลังตรวจสอบ
 Checklist,รายการตรวจสอบ
 Checklist Id,ID รายการตรวจสอบ
@@ -695,6 +699,7 @@ List,รายการ
 List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
+Listed documents,ดูรายการเอกสารแล้ว
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
@@ -765,6 +770,7 @@ No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใ�
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
 No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
+No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No folder rules yet. Create one and put the documents into its folder.,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
 No folders on this PC yet. Add them in the Companion on that PC.,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้
@@ -899,6 +905,7 @@ Push Attempt,การพยายามส่ง
 Push Connection,การเชื่อมต่อปลายทาง
 Push Record,รายการส่ง
 Push record not found.,ไม่พบรายการส่ง
+Pushed documents,ส่งเอกสารแล้ว
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ
 "Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดใช้การส่งข้อมูล จึงไม่มีการส่งข้อมูลใด ๆ
 Quantity,จำนวน
@@ -966,6 +973,7 @@ Refresh Request Aliases,ดัชนีป้องกันคำขอรี�
 Refresh Started At (UTC),เวลาเริ่มรีเฟรช (UTC)
 Refresh Status,สถานะการรีเฟรช
 Refresh the account directory before continuing.,กรุณารีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
+Refreshed account sets,รีเฟรชชุดบัญชีแล้ว
 Registered At,เวลาที่ลงทะเบียน
 Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 Relative Path,พาธสัมพัทธ์
@@ -1121,6 +1129,7 @@ Start counting,เริ่มตรวจนับ
 Start date,วันเริ่ม
 Start reconciliation,เริ่มกระทบยอด
 Started At,เริ่มเมื่อ
+Started a folder task,เริ่มงานโฟลเดอร์แล้ว
 Started at,เวลาเริ่ม
 Statement Autocorrected,รายการเดินบัญชีแก้ไขอัตโนมัติแล้ว
 Statement Balance,ยอดคงเหลือตามรายการเดินบัญชี

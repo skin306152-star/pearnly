@@ -69,6 +69,7 @@
 | `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |
 | `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
 | `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；所有 Cowork 租户都有，不设站点开关（用户 2026-10-07） |
+| `assistant` | 智能体工具（ADR-019）：小助手状态与账套、单据推送、文件夹任务、推送结果 | 只声明工具（`pearnly_assistant_tools`）并调用 `connections` / `push.application` / `folder_intake` / `history` 的公开入口，以当前用户身份执行，不另写表、不绕过权限 |
 | `work` | 任务管理：多块看板（成员、可见范围、看板权限）、卡片、标签、评论与活动、附件（原生私有 File） | `contracts`（含看板权限矩阵）/ `access`（判据）/ `boards` / `service` / `api`；只依赖 `access`；原生资源只读且按看板过滤，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
 
