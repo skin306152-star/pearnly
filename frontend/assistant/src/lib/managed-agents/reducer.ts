@@ -17,7 +17,7 @@
 //   session.error                       → an error message + retry chip
 
 import type { StreamEvent, ToolUseEvent } from "./events";
-import { isPersisted } from "./events";
+import { isPersisted, splitAttachmentNote } from "./events";
 
 // ---------------------------------------------------------------------------
 // Message model (a structural subset of assistant-ui's ThreadMessageLike;
@@ -60,13 +60,26 @@ export type MessageStatus =
   | { type: "complete"; reason: "stop" | "unknown" }
   | { type: "incomplete"; reason: "cancelled" | "error"; error?: string };
 
+export type MessageAttachment = {
+  id: string;
+  type: "image" | "document";
+  name: string;
+  contentType: string;
+  status: { type: "complete" };
+  content: [];
+};
+
 export type ThreadMessage = {
   id: string;
   role: "assistant" | "user";
   content: ContentPart[];
   createdAt: Date;
   status?: MessageStatus;
+  /** Files the user attached, shown as chips in the bubble (parsed back out of the message text). */
+  attachments?: MessageAttachment[];
 };
+
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp)$/i;
 
 // ---------------------------------------------------------------------------
 // State
@@ -256,6 +269,12 @@ function sameOpening(a: readonly ContentPart[], b: readonly ContentPart[]): bool
   return at.text === bt.text || bt.text.startsWith(at.text) || at.text.startsWith(bt.text);
 }
 
+/** A files-only message has no text to compare: match the echo by its attachments. */
+function sameAttachments(a: ThreadMessage, b: ThreadMessage): boolean {
+  const ids = (m: ThreadMessage) => (m.attachments ?? []).map((x) => x.id).join("|");
+  return !a.content.length && !b.content.length && ids(a) !== "" && ids(a) === ids(b);
+}
+
 /** Find a tool-call part by its toolCallId (= the tool-use event id). */
 function findToolPart(messages: readonly ThreadMessage[], toolCallId: string) {
   for (let mi = messages.length - 1; mi >= 0; mi--) {
@@ -353,11 +372,24 @@ function applyEventInner(state: Projection, event: StreamEvent): Projection {
     // ---------------------------------------------------------------- turns
     case "user.message": {
       const messages = draft(state.messages);
+      const { text, files } = splitAttachmentNote(textOfBlocks(event.content));
       const bubble: ThreadMessage = {
         id: event.id,
         role: "user",
-        content: [{ type: "text", text: textOfBlocks(event.content) }],
+        content: text ? [{ type: "text", text }] : [],
         createdAt: timeOf(event.processed_at),
+        ...(files.length
+          ? {
+              attachments: files.map((f) => ({
+                id: f.mountPath,
+                type: IMAGE_EXT.test(f.filename) ? ("image" as const) : ("document" as const),
+                name: f.filename,
+                contentType: "",
+                status: { type: "complete" as const },
+                content: [] as [],
+              })),
+            }
+          : {}),
       };
       // The controller shows a sent message immediately as an "optimistic-"
       // bubble; the real echoed event replaces its content but KEEPS the id.
@@ -376,7 +408,7 @@ function applyEventInner(state: Projection, event: StreamEvent): Projection {
         !!last &&
         last.role === "user" &&
         last.id.startsWith("optimistic-") &&
-        sameOpening(last.content, bubble.content);
+        (sameOpening(last.content, bubble.content) || sameAttachments(last, bubble));
       if (isEcho) {
         messages[messages.length - 1] = { ...bubble, id: last.id };
         // The echo landed: this bubble is delivered, so a late send-failure

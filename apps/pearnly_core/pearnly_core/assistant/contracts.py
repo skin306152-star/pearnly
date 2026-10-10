@@ -13,6 +13,11 @@ DENY_MAX = 2_000
 TOOL_RESULT_MAX = 50_000
 # 增量拉取一次最多回溯这么多条；超过说明客户端离线太久，改为整段重放。
 TAIL_MAX = 500
+# 附件：票据照片、PDF、表格、文档。限制类型和大小，不让可执行文件或大视频进沙箱和文件额度。
+UPLOAD_MAX_BYTES = 30 * 1024 * 1024
+UPLOAD_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif", ".pdf",
+                               ".xlsx", ".xls", ".csv", ".tsv", ".docx", ".txt", ".md", ".json"})
+FILE_ID = re.compile(r"^file_[A-Za-z0-9_-]{4,128}$")
 
 
 class ContractError(ValueError):
@@ -88,3 +93,30 @@ def newer_than(events_newest_first, after: str):
 def answered_tool_uses(events) -> set[str]:
     """已经回过结果的自定义工具调用（防止同一次调用被执行两遍）。"""
     return {e.get("custom_tool_use_id") for e in events if e.get("type") == "user.custom_tool_result"}
+
+
+def upload_name(filename, size) -> str:
+    """校验附件的名字与大小，返回只含安全字符的文件名（扩展名保留原样小写）。"""
+    name = str(filename or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
+    stem, dot, ext = name.rpartition(".")
+    ext = ("." + ext.lower()) if dot else ""
+    if ext not in UPLOAD_EXTENSIONS:
+        raise ContractError("unsupported file type")
+    if not isinstance(size, int) or size <= 0:
+        raise ContractError("file is empty")
+    if size > UPLOAD_MAX_BYTES:
+        raise ContractError("file too large")
+    safe = re.sub(r'[\s\\/:*?"<>|\x00-\x1f\x7f]+', "_", stem).strip("._") or "upload"
+    return safe[:120] + ext
+
+
+def mount_path(file_id, filename) -> str:
+    """附件在沙箱里的位置：按文件编号分目录，同名文件不互相覆盖；最后一段保留可读的名字。"""
+    return f"/mnt/session/uploads/{file_id}/{filename}"
+
+
+def file_id(value) -> str:
+    text = str(value or "").strip()
+    if not FILE_ID.match(text):
+        raise ContractError("invalid file id")
+    return text

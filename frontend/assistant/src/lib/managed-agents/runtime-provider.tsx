@@ -22,6 +22,7 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
@@ -94,6 +95,8 @@ function useSessionThreadRuntime() {
     [aui],
   );
 
+  const attachments = useMemo(() => createAttachmentAdapter(ensureSession), [ensureSession]);
+
   return useExternalStoreRuntime<ThreadMessageLike>({
     // Cast is safe: the reducer's message model is a structural subset of
     // ThreadMessageLike (see reducer.ts).
@@ -103,12 +106,12 @@ function useSessionThreadRuntime() {
     // Busy = the agent is working, or a gate/custom tool is waiting on us.
     isRunning: isBusy(snapshot),
     isDisabled: snapshot.isDead,
+    adapters: { attachments },
 
     onNew: async (message: AppendMessage) => {
       const id = await ensureSession();
       const text = textOf(message);
-      // 附件（拍照 / 文件）在后续批次接本站文件存储，第一版只发文字。
-      await getSessionController(id).sendMessage(text, []);
+      await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments));
     },
 
     // Stop button: a real interrupt, not just dropping the response.

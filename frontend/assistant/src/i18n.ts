@@ -2,6 +2,9 @@
 
 const MESSAGES = {
   en: {
+    attach: "Add files",
+    removeFile: "Remove",
+    uploadFailed: "Upload failed",
     allow: "Allow",
     deny: "Deny",
     allowed: "Allowed",
@@ -32,6 +35,9 @@ const MESSAGES = {
     sidebar: "Toggle sidebar",
   },
   zh: {
+    attach: "添加文件",
+    removeFile: "移除",
+    uploadFailed: "上传失败",
     allow: "允许",
     deny: "拒绝",
     allowed: "已允许",
@@ -62,6 +68,9 @@ const MESSAGES = {
     sidebar: "切换侧栏",
   },
   th: {
+    attach: "เพิ่มไฟล์",
+    removeFile: "นำออก",
+    uploadFailed: "อัปโหลดไม่สำเร็จ",
     allow: "อนุญาต",
     deny: "ปฏิเสธ",
     allowed: "อนุญาตแล้ว",

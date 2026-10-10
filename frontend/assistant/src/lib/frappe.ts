@@ -48,3 +48,16 @@ export async function post<T>(method: string, args: Record<string, unknown> = {}
   });
   return parse<T>(res);
 }
+
+export async function upload<T>(method: string, args: Record<string, string>, file: File): Promise<T> {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(args)) form.set(k, v);
+  form.set("file", file, file.name);
+  const res = await fetch(`${BASE}${method}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+    body: form,
+  });
+  return parse<T>(res);
+}

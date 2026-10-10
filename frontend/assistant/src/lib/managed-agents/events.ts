@@ -60,17 +60,6 @@ export type SessionSummary = Pick<
   "id" | "title" | "status" | "created_at" | "updated_at" | "archived_at"
 >;
 
-/** A file that belongs to one session (an upload we mounted, or a
- *  deliverable the agent wrote to /mnt/session/outputs/). */
-export type SessionFile = {
-  id: string;
-  filename: string;
-  size_bytes: number;
-  mime_type: string;
-  downloadable: boolean;
-  created_at: string;
-};
-
 export const CUSTOM_TOOL_ACK_TEXT = "Rendered to the user in the chat.";
 
 export type AttachedFileRef = { filename: string; mountPath: string };
@@ -89,7 +78,22 @@ export function attachmentNote(files: readonly AttachedFileRef[]): string {
   return `\n\n[Attached ${noun}:\n${lines.join("\n")}]`;
 }
 
+/** Display side of attachmentNote(): the bubble shows the user's own words
+ *  plus file chips, not the sandbox note the agent reads. Inverse of the
+ *  format above; anything that doesn't match stays as plain text. */
+export function splitAttachmentNote(text: string): { text: string; files: AttachedFileRef[] } {
+  const match = /(?:^|\n\n)\[Attached files?, mounted read-only in the sandbox:\n((?:- .+ → .+\n?)+)\]$/.exec(text);
+  if (!match) return { text, files: [] };
+  const files = match[1]
+    .trim()
+    .split("\n")
+    .map((line) => /^- (.+) → (.+)$/.exec(line))
+    .filter((m): m is RegExpExecArray => !!m)
+    .map((m) => ({ filename: m[1], mountPath: m[2] }));
+  return { text: text.slice(0, match.index), files };
+}
+
 /** The full user-message text as it will be sent (and echoed back). */
 export function messageText(text: string, files: readonly AttachedFileRef[]): string {
-  return (text || "Take a look at the attached data.") + attachmentNote(files);
+  return text + attachmentNote(files);
 }

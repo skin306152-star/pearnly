@@ -1,6 +1,6 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
-import { get, post } from "@/lib/frappe";
+import { get, post, upload } from "@/lib/frappe";
 import type { SessionSummary, StreamEvent } from "./events";
 
 export type EventsPage = { events: StreamEvent[]; full: boolean };
@@ -52,4 +52,31 @@ export async function interruptSession(id: string): Promise<void> {
 /** 提醒服务端执行一次自定义工具调用；工具名和参数服务端自己从会话里读，不由浏览器给。 */
 export async function runTool(id: string, toolUseId: string): Promise<void> {
   await post("run_tool", { session_id: id, tool_use_id: toolUseId });
+}
+
+export type UploadedFile = { fileId: string; filename: string; mountPath: string; size_bytes: number };
+
+export type SessionFile = {
+  id: string;
+  filename: string;
+  size_bytes: number;
+  mime_type: string;
+  downloadable: boolean;
+  created_at: string;
+  kind: "upload" | "output";
+};
+
+/** 附件：传到本站，服务端校验后存进会话（HEIC 照片会转成 JPEG）。 */
+export function uploadFile(id: string, file: File): Promise<UploadedFile> {
+  return upload("upload", { session_id: id }, file);
+}
+
+export function listSessionFiles(id: string): Promise<SessionFile[]> {
+  return get("session_files", { session_id: id });
+}
+
+/** 结果文件的地址。inline 只对图片、PDF 生效，其余类型服务端一律按下载给出。 */
+export function fileUrl(id: string, fileId: string, inline = false): string {
+  const query = new URLSearchParams({ session_id: id, file_id: fileId, inline: inline ? "1" : "0" });
+  return `/api/method/pearnly_core.assistant.api.download?${query}`;
 }

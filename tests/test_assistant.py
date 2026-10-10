@@ -124,6 +124,18 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(contracts.newer_than(iter(newest_first), "sevt_00000009"), [])
         self.assertIsNone(contracts.newer_than(iter(newest_first), "sevt_99999999"))
 
+    def test_upload_names(self):
+        self.assertEqual(contracts.upload_name("IMG 0001 (1).HEIC", 10), "IMG_0001_(1).heic")
+        self.assertEqual(contracts.upload_name("ใบเสร็จ.pdf", 5), "ใบเสร็จ.pdf")
+        self.assertEqual(contracts.upload_name("C:\\fake\\发票.jpg", 3), "发票.jpg")
+        self.assertEqual(contracts.upload_name("../../etc/x.csv", 1), "x.csv")
+        for name, size in (("a.exe", 1), ("noext", 1), ("a.pdf", 0), ("a.pdf", contracts.UPLOAD_MAX_BYTES + 1)):
+            with self.assertRaises(contracts.ContractError):
+                contracts.upload_name(name, size)
+        self.assertEqual(contracts.mount_path("file_abc1", "a.pdf"), "/mnt/session/uploads/file_abc1/a.pdf")
+        with self.assertRaises(contracts.ContractError):
+            contracts.file_id("../file_x")
+
     def test_answered_tool_uses(self):
         self.assertEqual(contracts.answered_tool_uses([
             {"type": "user.custom_tool_result", "custom_tool_use_id": "sevt_1"},
