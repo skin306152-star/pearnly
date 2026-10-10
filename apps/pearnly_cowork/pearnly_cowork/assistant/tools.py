@@ -316,6 +316,11 @@ def _target_state(row) -> str:
     return "ready"
 
 
+def _blank_template(row) -> bool:
+    """Express 每份数据文件夹里自带的空白模板账套（DAT 文件夹）排到最后：没人往里录。"""
+    return str(row.get("source_id") or "").replace("/", "\\").rstrip("\\").rsplit("\\", 1)[-1].casefold() == "dat"
+
+
 def _year(row) -> int:
     """账套所在年度（Express 数据文件夹名里的两位年份，如 70EXP；MR.ERP 的年度名），排序用：新的在前。"""
     import re
@@ -367,15 +372,17 @@ def intake_options(tool_input) -> str:
             if search:
                 found = account_search.search(adapter, usable, search)
             else:
-                remembered = last.get("account_set_key") if last.get("connection") == row["name"] else None
-                ranked = sorted(usable, key=lambda r: (r["source_id"] != remembered, -_year(r)))
+                remembered = str(last.get("account_set_key") or "").casefold() \
+                    if last.get("connection") == row["name"] else ""
+                ranked = sorted(usable, key=lambda r: (str(r["source_id"]).casefold() != remembered,
+                                                       _blank_template(r), -_year(r)))
                 found = [{"value": r["source_id"], "label": account_search.label(adapter, r)} for r in ranked]
             item["account_sets"] = [{"key": r["value"], "label": r["label"]} for r in found[:OPTIONS_SHOWN]]
             if not usable:
                 item["account_sets_status"] = catalog.get("status") or "missing"
         targets.append(item)
     targets.append({"target": "none", "state": "ready"})
-    return _json({"targets": targets, "last_used": last,
+    return _json({"suggested": last or None, "targets": targets,
                   "modes": {"express": "posting_kind: service or stock", "mrerp": "payment: cash or credit "
                             "(purchases are credit only)", "none": "recognize only, nothing else to choose"}})
 
@@ -820,9 +827,9 @@ TOOLS = [
     {"name": "cowork_intake_options", "label": "Checked intake choices",
      "description": "Where recognized documents can go, as on the web's New intake and in LINE: each target ERP "
                     "(express, mrerp) with its state and account sets (the last-used one first), recognize only "
-                    "(none), and last_used: the choices of the user's previous recognition anywhere. Ask once: "
-                    "propose last_used, and once the user agrees reuse it for the rest of the conversation without "
-                    "asking again. Only ready targets can be chosen. Large lists are cut to 30; pass search (company "
+                    "(none), and suggested: the choices of the user's previous recognition that went to an ERP, from "
+                    "the web, LINE or this chat. Ask once: offer suggested first (say which account set it is), and "
+                    "once the user agrees reuse it for the rest of the conversation without asking again. Only ready targets can be chosen. Large lists are cut to 30; pass search (company "
                     "name, tax ID or folder) to narrow them.",
      "input_schema": {"type": "object", "properties": {"search": {"type": "string"}}},
      "handler": "pearnly_cowork.assistant.tools.intake_options"},

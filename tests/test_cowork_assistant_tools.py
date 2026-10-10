@@ -334,6 +334,7 @@ class IntakeChoiceTests(unittest.TestCase):
             {"name": "EXP2", "adapter": "express", "enabled": True},
             {"name": "MR1", "adapter": "mrerp", "enabled": False}]
         tools.connections.targets = lambda name: {"account_sets": [
+            {"source_id": "c:\\70exp\\dat", "label": "Z. blank", "attributes": {"root_label": "70EXP"}},
             {"source_id": "A", "label": "Alpha Co", "attributes": {"root_label": "59EXP"}},
             {"source_id": "C", "label": "Gamma Co", "attributes": {"root_label": "70EXP"}},
             {"source_id": "B", "label": "Beta Co", "attributes": {"root_label": "68EXP"}},
@@ -341,7 +342,7 @@ class IntakeChoiceTests(unittest.TestCase):
         tools.destinations.online = lambda adapter, name: True
         self.batch_filters = []
         frappe.get_all = lambda doctype, **kw: self.batch_filters.append(kw["filters"]) or [
-            {"intake_target": "express", "target_connection": "EXP1", "target_account_set": "B",
+            {"intake_target": "express", "target_connection": "EXP1", "target_account_set": "b",
              "direction": "purchase", "posting_kind": "stock", "payment": None}]
 
     def tearDown(self):
@@ -350,14 +351,14 @@ class IntakeChoiceTests(unittest.TestCase):
     def test_targets_states_and_the_last_used_account_set_first(self):
         out = json.loads(tools.intake_options({}))
         express, mrerp, none = out["targets"]
-        self.assertEqual((express["connection"], express["state"], express["account_sets_total"]), ("EXP1", "ready", 3))
-        # 上次用的第一，其余新年度在前（不是按路径字母序的历年空模板）
-        self.assertEqual([a["key"] for a in express["account_sets"]], ["B", "C", "A"])
+        self.assertEqual((express["connection"], express["state"], express["account_sets_total"]), ("EXP1", "ready", 4))
+        # 上次用的第一（大小写不同也认），其余新年度在前，Express 自带的空白模板（DAT）最后
+        self.assertEqual([a["key"] for a in express["account_sets"]], ["B", "C", "A", "c:\\70exp\\dat"])
         # 上次口径只取本人录进 ERP 的那次（仅识别的不算）
         self.assertEqual(self.batch_filters[0], {"actor": "a@example.com", "intake_target": ["in", ["express", "mrerp"]]})
         self.assertEqual(mrerp["state"], "disabled")
         self.assertEqual(none, {"target": "none", "state": "ready"})
-        self.assertEqual(out["last_used"], {"target": "express", "connection": "EXP1", "account_set_key": "B",
+        self.assertEqual(out["suggested"], {"target": "express", "connection": "EXP1", "account_set_key": "b",
                                             "direction": "purchase", "posting_kind": "stock"})
         found = json.loads(tools.intake_options({"search": "alp"}))["targets"][0]["account_sets"]
         self.assertEqual(found, [{"key": "A", "label": "Alpha Co"}])

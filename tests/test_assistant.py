@@ -6,6 +6,7 @@
 import importlib.util
 import inspect
 import json
+import os
 import pathlib
 import re
 import sys
@@ -331,6 +332,39 @@ class RelayTests(unittest.TestCase):
         self.assertIn('sessions.update(conversation, agent={"tools": spec(brief, self.model)["tools"]})', adapter)
         base = (CORE / "assistant/engines/base.py").read_text(encoding="utf-8")
         self.assertIn("def refresh(self, conversation: str, brief: dict) -> bool:", base)
+
+    def test_attachment_copies_live_in_a_private_folder_per_conversation(self):
+        # 不进 File 表：同一张票识别过以后，同内容的 File 会被 Cowork 原件守卫拒绝（2026-10-10 测试第二次发同一张票失败）
+        import tempfile
+
+        root = tempfile.mkdtemp()
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.SESSION = "Pearnly Assistant Session"
+        sessions.owned = lambda sid, allow_archived=False: types.SimpleNamespace(name={"s1": "row1", "s2": "row2"}[sid])
+        sessions._guard = lambda fn, *a: fn(*a)
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = types.ModuleType("heic")
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "get_all", None))
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.get_all = lambda *a, **k: []
+        try:
+            files._keep(types.SimpleNamespace(name="row1"), "file_A", "6800951.jpg", b"jpeg-bytes")
+            files._keep(types.SimpleNamespace(name="row2"), "file_B", "6800951.jpg", b"jpeg-bytes")  # 同内容再发一次
+            frappe.local.pearnly_assistant = {"session_id": "s1"}
+            self.assertEqual(files.attachment("file_A"), ("6800951.jpg", b"jpeg-bytes"))
+            self.assertEqual(files.attachments(), [{"file_id": "file_A", "filename": "6800951.jpg"}])
+            with self.assertRaises(Exception):
+                files.attachment("file_B")  # 另一个对话的附件拿不到
+            self.assertFalse(os.path.exists(os.path.join(root, "public")))
+        finally:
+            frappe.local.pearnly_assistant = None
+            for name, value in zip(("get_site_path", "get_all"), saved):
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
 
     def test_titles_leave_out_the_attachment_note(self):
         note = "\n\n[Attached file, mounted read-only in the sandbox:\n- r.jpg → /mnt/session/uploads/file_1/r.jpg]"

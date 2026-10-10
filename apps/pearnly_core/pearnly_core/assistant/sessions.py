@@ -118,6 +118,9 @@ def delete(session_id) -> None:
     for remote in segments(row):
         api.delete(remote)
     frappe.delete_doc(SESSION, row.name, ignore_permissions=True)
+    from pearnly_core.assistant import files
+
+    files.forget(row.name)
 
 
 def segment_for_turn(row, api) -> str:

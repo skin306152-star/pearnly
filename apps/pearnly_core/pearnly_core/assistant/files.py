@@ -4,9 +4,15 @@
   智能体按返回的位置读取。
 - 结果：智能体产出的文件按会话列出，可预览、下载。
 - 文件不脱离会话存在：下载前先核对「会话属于当前用户」且「文件属于这个会话」，猜编号读不到别人的文件。
-- 附件原件在本站也留一份（私有文件，挂在会话上）：引擎的文件库不让下载用户上传的文件，产品工具要用原件
-  （例如 Cowork 把对话里发来的票据交给录入工作台识别）只能从这里取，见 `attachment`。
+- 附件原件在本站也留一份：引擎的文件库不让下载用户上传的文件，产品工具要用原件（例如 Cowork 把对话里发来的
+  票据交给录入工作台识别）只能从这里取，见 `attachment`。存在站点私有目录 `private/assistant-attachments/<会话>/`
+  （不进 File 表、没有下载地址）：同一张票识别过以后，它在 File 表里是受保护的原件，再存一份同内容的 File 会被
+  Cowork 的原件守卫拒绝（`pearnly_cowork/files/guard.py`，2026-10-10 测试：第二次发同一张票上传失败）。删对话时一并删。
 """
+import os
+import re
+import shutil
+
 import frappe
 from frappe import _
 
@@ -34,26 +40,57 @@ def upload(session_id) -> dict:
     return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], "size_bytes": len(content)}
 
 
+KEPT = "assistant-attachments"
+
+
+def _folder(session_name: str) -> str:
+    return frappe.get_site_path("private", KEPT, re.sub(r"[^A-Za-z0-9_-]", "_", session_name))
+
+
 def _keep(row, file_id, name, content) -> None:
-    frappe.get_doc({"doctype": "File", "file_name": f"{file_id}--{name}", "attached_to_doctype": sessions.SESSION,
-                    "attached_to_name": row.name, "is_private": 1, "content": content}).insert(ignore_permissions=True)
+    folder = _folder(row.name)
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, f"{file_id}--{os.path.basename(name)}")
+    with open(path + ".part", "wb") as handle:
+        handle.write(content)
+    os.replace(path + ".part", path)
 
 
-def _kept(file_id=None) -> list:
+def forget(session_name: str) -> None:
+    """删对话时把留存的附件一起删（提交以后再删，回滚时不丢）。"""
+    folder = _folder(session_name)
+    frappe.db.after_commit.add(lambda: shutil.rmtree(folder, ignore_errors=True))
+
+
+def _read(path: str) -> bytes:
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+def _kept(file_id=None) -> list[tuple[str, callable]]:
+    """[(「<编号>--<文件名>」, 取内容)]：先看私有目录，再看 2026-10-10 晚以前存在 File 表里的旧留存。"""
     context = getattr(frappe.local, "pearnly_assistant", None) or {}
     row = sessions.owned(context.get("session_id"), allow_archived=True)
+    folder = _folder(row.name)
+    found = []
+    if os.path.isdir(folder):
+        for entry in sorted(os.listdir(folder)):
+            if "--" in entry and not entry.endswith(".part") and (not file_id or entry.startswith(file_id + "--")):
+                found.append((entry, lambda path=os.path.join(folder, entry): _read(path)))
     filters = {"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name}
     if file_id:
         filters["file_name"] = ["like", file_id + "--%"]
-    return frappe.get_all("File", filters=filters, fields=["name", "file_name"], order_by="creation asc")
+    for old in frappe.get_all("File", filters=filters, fields=["name", "file_name"], order_by="creation asc"):
+        found.append((old.file_name, lambda name=old.name: frappe.get_doc("File", name).get_content()))
+    return found
 
 
 def attachments() -> list[dict]:
     """当前工具调用所在对话里留存的附件：[{file_id, filename}]（工具拿错编号时据此告诉智能体有哪些）。"""
     out = []
-    for row in _kept():
-        file_id, sep, filename = str(row.file_name or "").partition("--")
-        if sep:
+    for entry, _read in _kept():
+        file_id, sep, filename = entry.partition("--")
+        if sep and not any(item["file_id"] == file_id for item in out):
             out.append({"file_id": file_id, "filename": filename})
     return out
 
@@ -70,9 +107,9 @@ def add_to_conversation(filename: str, content: bytes, mime: str) -> str:
 def attachment(file_id) -> tuple[str, bytes]:
     """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。"""
     fid = sessions._guard(contracts.file_id, file_id)
-    for row in _kept(fid):
-        if row.file_name.startswith(fid + "--"):
-            return row.file_name[len(fid) + 2:], frappe.get_doc("File", row.name).get_content()
+    for entry, read in _kept(fid):
+        if entry.startswith(fid + "--"):
+            return entry[len(fid) + 2:], read()
     frappe.throw(_("This attachment is not in this conversation."))
 
 
