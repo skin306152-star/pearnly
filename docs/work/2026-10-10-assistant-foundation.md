@@ -290,17 +290,21 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 - [ ] 16. 银行对账
 - [ ] 17. 收入对账
 - [ ] 18. 销项税报告核查
-- [ ] 19. 库存盘点
-- [ ] 20. 任务管理
+- [ ] 20. 库存盘点
+- [ ] 21. 任务管理
+
+**C2. CC 经授权代用户操作 Pearnly 账户**（用户 2026-10-10 晚：「当用户有需求或遇到不知道怎么做或设置操作不当时，agent 在得到授权后可以操作用户的 pearnly 账户进行帮助」）
+
+- [ ] 19. 用户说要做什么、问怎么做、或设置弄错了时，CC 先查清现状（只读，不用授权），说明要改哪几处；用户在对话里点「允许」后，CC 以该用户自己的身份和权限代为操作，做完读回结果告诉用户。开工前先列对照表写进本文件：哪些设置 / 操作可代办（连接与账套、录入口径、定时任务、各页设置等，取 B、C 已接的工具和网页现有接口）、哪些不代办（密码与各类凭据只在网页表单填；删除类先单独确认；权限只能等于用户自己的，不能借 CC 提权）。要求：每次写操作单独授权（沿用现有命令卡片「允许」），授权只管这一步、不延续；操作留记录（谁、何时、改了什么、改前改后），网页能看到；失败如实说。完成标准：测试环境里挑一个常见的错设置（例如定时任务选错文件夹 / 账套），CC 查出来、说清、用户允许后改好并读回；不允许时一处都不改；自己核对过再请用户试。
 
 **D. 上线（等用户下令再做；按《按批次自主部署》五道关）**
 
-- [ ] 21. 上线批次：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `scripts/ci-candidate-checks.sh offline` → 合入 main 并推送、回读远端 SHA → 从 main 构建镜像 → 生产部署 → 计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 正式版（`companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404。
-- [ ] 22. 生产 Keycloak `pearnly-ai` 主题重装（现装的是 docker cp 进容器的，容器重建会丢；且标签小图标还是去胡须旧图；第 3 项的自适应排版也要重装后才到输错密码 / 找回密码等页）：随上线一起装，或改成像父主题一样宿主机挂载。重装停登约 40 秒，先问用户。
+- [ ] 22. 上线批次：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `scripts/ci-candidate-checks.sh offline` → 合入 main 并推送、回读远端 SHA → 从 main 构建镜像 → 生产部署 → 计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 正式版（`companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404。
+- [ ] 23. 生产 Keycloak `pearnly-ai` 主题重装（现装的是 docker cp 进容器的，容器重建会丢；且标签小图标还是去胡须旧图；第 3 项的自适应排版也要重装后才到输错密码 / 找回密码等页）：随上线一起装，或改成像父主题一样宿主机挂载。重装停登约 40 秒，先问用户。
 
 **E. 收尾**
 
-- [ ] 23. 清理：本机预览服务（5199 Vite、5201 静态预览）、`pearnly-ai-theme-preview` 容器、测试机环境变量 `PEARNLY_TOMO_ENTRY`、测试机 `C:\Users\Public\tomo-test` 与计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`（本窗口截图用，计划任务 `CCLoginCheck` 已删）；合入后删本工作树与本地 / 远端分支（AGENTS.md「收工清理」）。生产父主题目录里的 `._*` 苹果隐藏文件（旧上传带进去的，非本任务）删除需用户同意。生产 testai 隧道 `^/assets/` 路由已无用途，下次改隧道时去掉。
+- [ ] 24. 清理：本机预览服务（5199 Vite、5201 静态预览）、`pearnly-ai-theme-preview` 容器、测试机环境变量 `PEARNLY_TOMO_ENTRY`、测试机 `C:\Users\Public\tomo-test` 与计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`（本窗口截图用，计划任务 `CCLoginCheck` 已删）；合入后删本工作树与本地 / 远端分支（AGENTS.md「收工清理」）。生产父主题目录里的 `._*` 苹果隐藏文件（旧上传带进去的，非本任务）删除需用户同意。生产 testai 隧道 `^/assets/` 路由已无用途，下次改隧道时去掉。
 
 ### 规矩（用户今天强调的）
 
