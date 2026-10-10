@@ -121,16 +121,12 @@ def _status_icon(key: str) -> QIcon:
 
 
 def _window_open() -> bool:
-    """小助手的主窗口或配对窗正开着（只看已经打开过的模块，不为这个去导入界面）。"""
-    for module_name, attribute in ((__package__ + ".gui_profiles", "_OPEN_MANAGER"),
-                                   (__package__ + ".gui_pairing", "_OPEN_DIALOG")):
-        window = getattr(sys.modules.get(module_name), attribute, None)
-        try:
-            if window is not None and window.isVisible():
-                return True
-        except RuntimeError:
-            continue  # Qt 对象已回收
-    return False
+    """有人正在用 Tomo 窗口（开着且在最前面）：自动更新先不装（只看已经打开过的模块，不为这个去导入界面）。"""
+    window = getattr(sys.modules.get(__package__ + ".gui_tomo"), "OPEN_WINDOW", None)
+    try:
+        return bool(window is not None and window.isVisible() and window.isActiveWindow())
+    except RuntimeError:
+        return False  # Qt 对象已回收
 
 
 MENU_TEXT_MAX = 48
@@ -532,8 +528,7 @@ class TrayApp(QObject):
         if self._tomo is None:
             from .gui_tomo import TomoWindow
 
-            self._tomo = TomoWindow(lang=self.lang, icon=pearnly_icon(), notify=self._notify,
-                                    open_settings=self._repair, quit_app=self._quit)
+            self._tomo = TomoWindow(lang=self.lang, icon=pearnly_icon(), notify=self._notify, bridge=self._make_bridge())
         if text is None:
             self._tomo.show_front()
         else:
@@ -549,31 +544,37 @@ class TrayApp(QObject):
             action()
 
     def _repair(self) -> None:
-        """打开小助手主窗口（进程内唯一，已开着就提到最前）。"""
-        from .gui_profiles import open_profile_manager
+        """「连接与设置」：打开 Tomo 并打开对话页设置的「连接」一栏（2026-10-10 起取代原小助手主窗口）。"""
+        self.open_tomo()
+        self._tomo.open_settings("connections")
 
-        live = {"profiles": False, "pending": False}
+    def _make_bridge(self):
+        from . import tomo_links
+        from .desktop_settings import DesktopSettings
+        from .tomo_bridge import TomoBridge
 
-        def language_changed(lang: str) -> None:
-            self._apply_language(lang)
-            live["pending"] = True
+        settings = DesktopSettings(
+            states=lambda: dict(self._profile_states), update_status=self.update_status, on_update=self._update_now,
+            on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
+            hotkey=lambda: bool(getattr(self._hotkey, "registered", False)))
+        self._bridge = TomoBridge(
+            settings,
+            allowed=lambda: self._tomo is not None and tomo_links.is_chat(self._tomo.page.url().toString()),
+            window=lambda: self._tomo, set_lang=self._set_lang)
+        return self._bridge
 
-        def profiles_changed() -> None:
-            self._reload_profiles()
-            live["profiles"] = True
-            live["pending"] = False
+    def _set_lang(self, lang: str) -> None:
+        """对话页的语言（中文 / 泰文）同步给托盘与通知文案。"""
+        from .i18n import persist_ui_lang
+        from .profile_store import ProfileStore
 
-        changed = open_profile_manager(
-            profile_states=dict(self._profile_states),
-            profile_state_provider=lambda: dict(self._profile_states),
-            on_language_changed=language_changed,
-            on_profiles_changed=profiles_changed,
-            on_folders_changed=self._start_folders,
-            update_status=self.update_status,
-            on_update=self._update_now,
-        )
-        if changed and (not live["profiles"] or live["pending"]):
-            self._reload_profiles()
+        if normalize(lang) == self.lang:
+            return
+        try:
+            persist_ui_lang(ProfileStore.load(), lang)
+        except Exception:
+            log.exception("保存界面语言失败")
+        self._apply_language(lang)
 
     def _reload_profiles(self) -> None:
         """Reload persisted Profiles, then cooperatively replace the single worker."""
@@ -659,6 +660,8 @@ class TrayApp(QObject):
         self._watchdog.stop()
         if getattr(self, "_hotkey", None) is not None:
             self._hotkey.release()
+        if getattr(self, "_bridge", None) is not None:
+            self._bridge.shutdown()
         if getattr(self, "_tomo", None) is not None:
             self._tomo.shutdown()
         if getattr(self, "_auto_timer", None) is not None:

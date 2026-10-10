@@ -214,7 +214,7 @@ def pair(
         "account_company": chosen.company,  # 法定公司名(ISINFO.THINAM · PACK 硬闸期望)
         "account_set_row": row,
     }
-    # 科目映射(配对窗全自动取值,见 gui_pairing._auto_mapping)· 随配对即时上报 + 存本地。
+    # 科目映射(配对窗全自动取值,见 pairing_flow.auto_mapping)· 随配对即时上报 + 存本地。
     _mapping = {k: str((mapping or {}).get(k) or "").strip() for k in ACCOUNT_MAP_KEYS}
     try:
         with QueueClient(qc_cfg) as qc:

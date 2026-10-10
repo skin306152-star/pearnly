@@ -7,20 +7,25 @@
 - 对话页里下载的文件存进「下载」文件夹，完成后通知，点一下在资源管理器里选中它。
 - 快捷输入条（Ctrl+Alt+Space，tomo_hotkey.py）：输入一句回车，Tomo 窗口开新对话发出去。
 - 网页内核只在第一次打开 Tomo 时加载（开机自启时不占内存），之后一直留着，通知才能在窗口关着时到达。
+- 没有「文件 / 视图」菜单栏（同 Claude 桌面端）：设置在对话页左下角菜单里，「此电脑」一栏经 tomo_bridge 读写本机；
+  快捷键 Ctrl+N 新对话、Ctrl+, 设置、Ctrl+R 重新加载、Ctrl+= / Ctrl+- / Ctrl+0 缩放。
 """
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QSettings, QStandardPaths, Qt, QUrl, Signal
-from PySide6.QtGui import QAction, QDesktopServices, QKeySequence
+from PySide6.QtCore import QEvent, QFile, QIODevice, QSettings, QStandardPaths, Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
+from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import (
     QWebEngineDownloadRequest,
     QWebEnginePage,
     QWebEnginePermission,
     QWebEngineProfile,
+    QWebEngineScript,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
@@ -41,6 +46,22 @@ from .logger import get_logger
 log = get_logger(__name__)
 
 GRANTED = (QWebEnginePermission.PermissionType.Notifications, QWebEnginePermission.PermissionType.ClipboardReadWrite)
+
+
+def _channel_script() -> QWebEngineScript:
+    """把 QWebChannel 的网页端接上，连好后在页面上放 window.tomoDesktop 并发 tomo-desktop 事件。"""
+    source = QFile(":/qtwebchannel/qwebchannel.js")
+    source.open(QIODevice.OpenModeFlag.ReadOnly)
+    code = bytes(source.readAll().data()).decode("utf-8")
+    source.close()
+    script = QWebEngineScript()
+    script.setName("tomo-desktop")
+    script.setSourceCode(code + "\nnew QWebChannel(qt.webChannelTransport,function(c){window.tomoDesktop=c.objects.tomoDesktop;"
+                         "window.dispatchEvent(new Event('tomo-desktop'))});")
+    script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+    script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+    script.setRunsOnSubFrames(False)
+    return script
 
 
 def reveal(path: Path) -> None:
@@ -83,12 +104,18 @@ class TomoPage(QWebEnginePage):
             permission.deny()
 
 
+OPEN_WINDOW = None   # 进程内唯一的 Tomo 窗口（gui_tray._window_open 看它是否正在用）
+
+
 class TomoWindow(QMainWindow):
-    def __init__(self, *, lang: str, icon, notify, open_settings, quit_app) -> None:
+    def __init__(self, *, lang: str, icon, notify, bridge=None) -> None:
         super().__init__()
+        global OPEN_WINDOW
+        OPEN_WINDOW = self
         self.lang = lang
         self._notify = notify          # notify(title, body, on_click)
         self._pending_ask: str | None = None
+        self._pending_settings: str | None = None
         self._settings = QSettings("Pearnly", "Tomo")
         self.setWindowTitle("Tomo")
         self.setWindowIcon(icon)
@@ -110,28 +137,23 @@ class TomoWindow(QMainWindow):
         self.page.urlChanged.connect(self._remember)
         self.page.loadFinished.connect(self._loaded)
         self.setCentralWidget(self.view)
-        self._build_menu(open_settings, quit_app)
+        if bridge is not None:
+            self.channel = QWebChannel(self.page)
+            self.channel.registerObject("tomoDesktop", bridge)
+            self.page.setWebChannel(self.channel)
+            self.page.scripts().insert(_channel_script())
+        self._shortcuts()
 
         if not self.restoreGeometry(self._settings.value("geometry", b"")):
             self.resize(1180, 800)
         self.page.setUrl(QUrl(tomo_links.resume_url(str(self._settings.value("last_url", "") or ""))))
 
-    # ── 菜单（同 Claude 桌面端：文件 / 视图 / 帮助的位置放 Express 连接、缩放、重新加载） ──
-    def _build_menu(self, open_settings, quit_app) -> None:
-        bar = self.menuBar()
-        file_menu = bar.addMenu(t("menu_file", self.lang))
-        file_menu.addAction(t("tomo_new_chat", self.lang), lambda: self.ask(""), QKeySequence("Ctrl+N"))
-        file_menu.addAction(t("tray_open", self.lang), open_settings)
-        file_menu.addSeparator()
-        file_menu.addAction(t("tray_quit", self.lang), quit_app, QKeySequence("Ctrl+Q"))
-        view_menu = bar.addMenu(t("menu_view", self.lang))
-        view_menu.addAction(t("menu_reload", self.lang), self.view.reload, QKeySequence("Ctrl+R"))
-        view_menu.addSeparator()
-        for key, step, shortcut in (("menu_zoom_in", 0.1, "Ctrl+="), ("menu_zoom_out", -0.1, "Ctrl+-"), ("menu_zoom_reset", 0, "Ctrl+0")):
-            action = QAction(t(key, self.lang), self)
-            action.setShortcut(QKeySequence(shortcut))
-            action.triggered.connect(lambda _=False, s=step: self._zoom(s))
-            view_menu.addAction(action)
+    def _shortcuts(self) -> None:
+        for keys, action in (("Ctrl+N", lambda: self.ask("")), ("Ctrl+,", lambda: self.open_settings("")),
+                             ("Ctrl+R", self.view.reload), ("Ctrl+=", lambda: self._zoom(0.1)),
+                             ("Ctrl++", lambda: self._zoom(0.1)), ("Ctrl+-", lambda: self._zoom(-0.1)),
+                             ("Ctrl+0", lambda: self._zoom(0))):
+            QShortcut(QKeySequence(keys), self, activated=action)
 
     def _zoom(self, step: float) -> None:
         factor = 1.0 if not step else min(2.0, max(0.5, round(self.view.zoomFactor() + step, 2)))
@@ -168,6 +190,16 @@ class TomoWindow(QMainWindow):
         else:
             self._pending_ask = text   # 还在登录 / 加载：进了对话页再交过去
 
+    def open_settings(self, section: str = "") -> None:
+        """托盘「连接与设置」/ Ctrl+,：拿到前面并打开对话页的设置（section 为空 = 常规）。"""
+        self.show_front()
+        script = "(function f(n){if(window.tomo&&window.tomo.settings){window.tomo.settings(%s);return}" \
+                 "if(n>0)setTimeout(function(){f(n-1)},250)})(40)" % json.dumps(section or "")
+        if tomo_links.is_chat(self.page.url().toString()) and not self.page.isLoading():
+            self.page.runJavaScript(script)
+        else:
+            self._pending_settings = script
+
     def _loaded(self, ok: bool) -> None:
         zoom = float(self._settings.value("zoom", 1.0) or 1.0)
         if abs(self.view.zoomFactor() - zoom) > 0.001:
@@ -175,6 +207,9 @@ class TomoWindow(QMainWindow):
         if ok and self._pending_ask is not None and tomo_links.is_chat(self.page.url().toString()):
             text, self._pending_ask = self._pending_ask, None
             self.page.runJavaScript(tomo_links.ask_script(text))
+        if ok and self._pending_settings and tomo_links.is_chat(self.page.url().toString()):
+            script, self._pending_settings = self._pending_settings, None
+            self.page.runJavaScript(script)
 
     def _remember(self, url: QUrl) -> None:
         value = url.toString()

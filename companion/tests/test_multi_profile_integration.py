@@ -65,12 +65,16 @@ def _gui_tray_with_fake_qt(monkeypatch):
     # 托盘还会带进其它窗口模块：没列出的 Qt 名字一律给个空壳。
     for module in (qtcore, qtgui, qtwidgets):
         module.__getattr__ = lambda name: Dummy
-    sys.modules.pop("src.companion.gui_folders", None)
     monkeypatch.setitem(sys.modules, "PySide6", pyside)
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qtcore)
     monkeypatch.setitem(sys.modules, "PySide6.QtGui", qtgui)
     monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qtwidgets)
-    sys.modules.pop("src.companion.gui_tray", None)
+    # 假 Qt 版的托盘模块只在本测试里用：测试结束换回真的，后面的测试不受影响
+    import src.companion as package
+
+    for name in ("gui_tray", "gui_tomo"):
+        monkeypatch.delitem(sys.modules, "src.companion." + name, raising=False)
+        monkeypatch.delattr(package, name, raising=False)   # 包上的同名属性也要换回去
     return importlib.import_module("src.companion.gui_tray")
 
 
@@ -229,55 +233,17 @@ def test_worker_stop_pauses_only_its_runtime_copies(monkeypatch):
     assert worker.configs[0].paused is True
 
 
-def test_profile_callback_reloads_immediately_without_close_restart(monkeypatch):
+def test_connections_and_settings_opens_tomo_at_the_connections_section(monkeypatch):
+    # 2026-10-10：原小助手主窗口并入 Tomo 设置页；成员变化由设置页经桥回到界面线程重启取任务线程（test_tomo_bridge.py）
     gui_tray = _gui_tray_with_fake_qt(monkeypatch)
-    manager = ModuleType("src.companion.gui_profiles")
-
-    def open_manager(**kwargs):
-        kwargs["on_profiles_changed"]()
-        return True
-
-    manager.open_profile_manager = open_manager
-    monkeypatch.setitem(sys.modules, "src.companion.gui_profiles", manager)
     app = gui_tray.TrayApp.__new__(gui_tray.TrayApp)
-    app._profile_states = {}
-    reloads = _CallSink()
-    app._reload_profiles = reloads
-    app._apply_language = lambda _lang: None
+    opened = []
+    app._tomo = SimpleNamespace(open_settings=opened.append)
+    app.open_tomo = lambda text=None: None
 
     app._repair()
 
-    assert reloads.calls == 1
-
-
-def test_profile_callback_failure_keeps_close_fallback(monkeypatch):
-    gui_tray = _gui_tray_with_fake_qt(monkeypatch)
-    manager = ModuleType("src.companion.gui_profiles")
-
-    def open_manager(**kwargs):
-        try:
-            kwargs["on_profiles_changed"]()
-        except RuntimeError:
-            pass
-        return True
-
-    manager.open_profile_manager = open_manager
-    monkeypatch.setitem(sys.modules, "src.companion.gui_profiles", manager)
-    app = gui_tray.TrayApp.__new__(gui_tray.TrayApp)
-    app._profile_states = {}
-    calls = {"count": 0}
-
-    def reload_profiles():
-        calls["count"] += 1
-        if calls["count"] == 1:
-            raise RuntimeError("live reload failed")
-
-    app._reload_profiles = reload_profiles
-    app._apply_language = lambda _lang: None
-
-    app._repair()
-
-    assert calls["count"] == 2
+    assert opened == ["connections"]
 
 
 def test_stopping_for_an_update_waits_for_both_threads_and_never_respawns(monkeypatch):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""添加成员窗只有配对码一行（2026-10-08：账套是这台电脑的全局设置，在主窗口里）。无 PySide6 则跳过。"""
+"""托盘：打开 Tomo、连接与设置、通知点击、自动更新时机（2026-10-10 起小助手并入 Tomo）。无 PySide6 则跳过。"""
 
 from types import SimpleNamespace
 
@@ -7,31 +7,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from src.companion.gui_pairing import PairingDialog  # noqa: E402
 from src.companion.gui_tray import MENU_TEXT_MAX, _menu_text  # noqa: E402
-
-
-def test_add_member_window_has_only_the_pairing_code():
-    from PySide6.QtWidgets import QApplication, QLineEdit
-
-    from src.companion.profile_store import ProfileStore
-
-    QApplication.instance() or QApplication([])
-    store = ProfileStore.__new__(ProfileStore)
-    store.new_runtime_config = lambda: SimpleNamespace(paired=False, ui_lang="zh", account_set="", account_dir="")
-    dialog = PairingDialog(profile_store=store, lang="zh", roots=[r"S:\\EXP68"])
-
-    assert dialog.windowTitle() == "添加成员"
-    assert dialog.findChildren(QLineEdit) == [dialog.token]
-    # 语言、版本、开机启动、Express 账套都在主窗口（2026-10-08）
-    for name in ("lang_btn", "ver_lbl", "autostart", "browse_btn", "root_combo", "account"):
-        assert not hasattr(dialog, name)
-    assert dialog.pair_btn.text() == "配对" and not dialog.pair_btn.isEnabled()  # 没填配对码不能点
-    dialog.token.setText("exp_e_s@testcowork.pearnly.com")
-    assert dialog.pair_btn.isEnabled()
-    from test_gui_profiles import _assert_free_window
-
-    _assert_free_window(dialog)
 
 
 def test_tray_status_line_is_capped():
@@ -157,13 +133,15 @@ def test_auto_update_waits_while_a_helper_window_is_open_unless_someone_asked(mo
     assert app._busy() is True
 
 
-def test_window_open_sees_the_open_main_window(monkeypatch):
+def test_auto_update_only_waits_while_someone_is_using_the_tomo_window(monkeypatch):
+    # 2026-10-10：原小助手窗口并入 Tomo；Tomo 窗口开着且在最前面才算「正在用」，开着放在后面照常更新
     from types import SimpleNamespace
 
-    from src.companion import gui_profiles, gui_tray
+    from src.companion import gui_tomo, gui_tray
 
-    assert gui_tray._window_open() is False or gui_profiles._OPEN_MANAGER is not None
-    monkeypatch.setattr(gui_profiles, "_OPEN_MANAGER", SimpleNamespace(isVisible=lambda: True))
+    monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", None)
+    assert gui_tray._window_open() is False
+    monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", SimpleNamespace(isVisible=lambda: True, isActiveWindow=lambda: True))
     assert gui_tray._window_open() is True
-    monkeypatch.setattr(gui_profiles, "_OPEN_MANAGER", SimpleNamespace(isVisible=lambda: False))
+    monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", SimpleNamespace(isVisible=lambda: True, isActiveWindow=lambda: False))
     assert gui_tray._window_open() is False

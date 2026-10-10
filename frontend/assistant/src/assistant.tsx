@@ -18,11 +18,13 @@ import {
   GlobeIcon,
   InfoIcon,
   LogOutIcon,
+  SettingsIcon,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { Mascot } from "@/components/mascot";
+import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { ManagedAgentsToolFallback, toolkit } from "@/components/tool-uis";
@@ -37,7 +39,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { useDesktopBridge } from "@/lib/desktop";
+import { openSettings, useDesktopBridge } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
 import { assistantMascot, useProfile, type Profile } from "@/lib/profile";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
@@ -127,6 +129,11 @@ function UserFooter() {
       <DropdownMenu.Portal>
         <DropdownMenu.Content side="top" align="start" sideOffset={6} className={menuContent}>
           <div className="truncate px-2.5 py-1.5 text-muted-foreground text-sm">{profile.user}</div>
+          <DropdownMenu.Item onSelect={() => openSettings()} className={menuItem}>
+            <SettingsIcon className="size-4" />
+            <span className="flex-1">{t("settings")}</span>
+            <span className="text-muted-foreground text-xs">Ctrl ,</span>
+          </DropdownMenu.Item>
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger className={menuItem}>
               <GlobeIcon className="size-4" />
@@ -253,6 +260,7 @@ function Workspace() {
     <AuiProvider value={aui}>
       <ResultsContext.Provider value={context}>
       <DesktopBridge />
+      <Settings />
       <SidebarProvider>
         <div className="flex h-dvh w-full">
           <AppSidebar />

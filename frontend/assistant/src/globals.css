@@ -172,3 +172,7 @@
 .typing-dots-sm i { animation-name: typing-hop-sm; }
 @keyframes typing-hop-sm { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .typing-dots i { animation: none; } }
+
+/* 对话文字大小（设置 → 常规，lib/desktop.ts 写在 <html data-text-size>）：只缩放对话记录 */
+html[data-text-size="small"] [data-slot="aui_message-group"] { zoom: 0.92; }
+html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
