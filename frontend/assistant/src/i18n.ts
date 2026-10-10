@@ -1,16 +1,112 @@
-// 对话页外壳的文案（语言跟站点：www/assistant 把本次请求的语言写进 <html lang>）。
-// 只放必要的几条；产品名待定，先用 Pearnly。
+// 对话页的文案（语言跟站点：www/assistant 把本次请求的语言写进 <html lang>）。官方、简短；不加说明性文字。
 
-type Key = "title" | "reconnecting";
+const MESSAGES = {
+  en: {
+    allow: "Allow",
+    deny: "Deny",
+    allowed: "Allowed",
+    denied: "Denied",
+    tools: "Tools",
+    newChat: "New chat",
+    search: "Search",
+    today: "Today",
+    yesterday: "Yesterday",
+    untitled: "New chat",
+    noResults: "No results",
+    archive: "Archive",
+    delete: "Delete",
+    more: "More",
+    placeholder: "How can I help you today?",
+    send: "Send",
+    stop: "Stop",
+    copy: "Copy",
+    retry: "Retry",
+    edit: "Edit",
+    previous: "Previous",
+    next: "Next",
+    scrollToBottom: "Scroll to bottom",
+    reconnecting: "Reconnecting…",
+    morning: "Good morning",
+    afternoon: "Good afternoon",
+    evening: "Good evening",
+    sidebar: "Toggle sidebar",
+  },
+  zh: {
+    allow: "允许",
+    deny: "拒绝",
+    allowed: "已允许",
+    denied: "已拒绝",
+    tools: "工具",
+    newChat: "新建",
+    search: "搜索",
+    today: "今天",
+    yesterday: "昨天",
+    untitled: "新对话",
+    noResults: "没有结果",
+    archive: "归档",
+    delete: "删除",
+    more: "更多",
+    placeholder: "今天我能为您做些什么？",
+    send: "发送",
+    stop: "停止",
+    copy: "复制",
+    retry: "重试",
+    edit: "编辑",
+    previous: "上一个",
+    next: "下一个",
+    scrollToBottom: "滚动到底部",
+    reconnecting: "正在重新连接…",
+    morning: "早上好",
+    afternoon: "下午好",
+    evening: "晚上好",
+    sidebar: "切换侧栏",
+  },
+  th: {
+    allow: "อนุญาต",
+    deny: "ปฏิเสธ",
+    allowed: "อนุญาตแล้ว",
+    denied: "ปฏิเสธแล้ว",
+    tools: "เครื่องมือ",
+    newChat: "สร้างใหม่",
+    search: "ค้นหา",
+    today: "วันนี้",
+    yesterday: "เมื่อวาน",
+    untitled: "แชทใหม่",
+    noResults: "ไม่พบผลลัพธ์",
+    archive: "เก็บถาวร",
+    delete: "ลบ",
+    more: "เพิ่มเติม",
+    placeholder: "วันนี้ต้องการให้ช่วยอะไร",
+    send: "ส่ง",
+    stop: "หยุด",
+    copy: "คัดลอก",
+    retry: "ลองใหม่",
+    edit: "แก้ไข",
+    previous: "ก่อนหน้า",
+    next: "ถัดไป",
+    scrollToBottom: "เลื่อนลงล่างสุด",
+    reconnecting: "กำลังเชื่อมต่อใหม่…",
+    morning: "สวัสดีตอนเช้า",
+    afternoon: "สวัสดีตอนบ่าย",
+    evening: "สวัสดีตอนเย็น",
+    sidebar: "เปิด/ปิดแถบด้านข้าง",
+  },
+} as const;
 
-const MESSAGES: Record<string, Record<Key, string>> = {
-  en: { title: "Pearnly", reconnecting: "Reconnecting…" },
-  zh: { title: "Pearnly", reconnecting: "正在重新连接…" },
-  th: { title: "Pearnly", reconnecting: "กำลังเชื่อมต่อใหม่…" },
-};
+type Key = keyof (typeof MESSAGES)["en"];
 
-const lang = (document.documentElement.lang || "th").slice(0, 2);
+export const lang = (document.documentElement.lang || "th").slice(0, 2);
 
 export function t(key: Key): string {
-  return (MESSAGES[lang] ?? MESSAGES.th)[key];
+  return ((MESSAGES as Record<string, Record<Key, string>>)[lang] ?? MESSAGES.th)[key];
+}
+
+/** 历史分组标题里的日期：按站点语言显示「10月8日」这类。 */
+export function dayLabel(date: Date): string {
+  return new Intl.DateTimeFormat(lang, { month: "long", day: "numeric" }).format(date);
+}
+
+export function greeting(now = new Date()): string {
+  const h = now.getHours();
+  return t(h < 12 ? "morning" : h < 18 ? "afternoon" : "evening");
 }

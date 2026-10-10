@@ -1,9 +1,9 @@
-// 整个对话页：外层 assistant-ui，底下是 Managed Agents（ADR-019）。
+// 整个对话页：外层 assistant-ui，底下是 Managed Agents（ADR-019）。布局按 claude.ai：
 //
-//   ManagedAgentsRuntimeProvider — 会话列表 = 本站该用户的会话；当前会话的事件记录 = 对话内容
-//   PearnlySidebar               — 会话列表（新建 / 切换 / 归档 / 删除）
-//   Thread                       — 对话，带工具卡片与「允许 / 拒绝」
+//   左侧导航（可收起）— 搜索、新建、按日期分组的历史、底部当前用户
+//   右侧              — 空对话时是产品形象 + 问候 + 输入框；有内容时是对话
 //
+// 站点只属于一个产品：形象与工具都按本站产品来（lib/profile.ts）。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
@@ -14,23 +14,31 @@ import { ManagedAgentsToolFallback, toolkit } from "@/components/tool-uis";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { t } from "./i18n";
+import { brandIcon, useProfile, type Profile } from "@/lib/profile";
+import { greeting, lang, t } from "./i18n";
 
-// 空白对话只显示标题，不加说明文字。
+function firstName(profile: Profile | null): string {
+  return (profile?.full_name || "").trim().split(/\s+/)[0] ?? "";
+}
+
 function Welcome() {
+  const profile = useProfile();
+  const icon = brandIcon(profile?.product);
+  const name = firstName(profile);
   return (
-    <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
-      <h1 className="font-semibold text-2xl">{t("title")}</h1>
+    <div className="aui-thread-welcome-root mb-8 flex items-center justify-center gap-3 px-4 text-center">
+      {icon && <img src={icon} alt="" className="h-12 w-auto shrink-0" />}
+      <h1 className="font-serif text-3xl text-foreground sm:text-4xl">
+        {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
+      </h1>
     </div>
   );
 }
@@ -38,47 +46,57 @@ function Welcome() {
 function SessionStatusBar() {
   const { sessionId, isTailing, isLoaded, transportError, lastError } = useActiveSessionSnapshot();
   if (!sessionId) return null;
+  const message = transportError || (lastError?.retryStatus === "retrying" ? lastError.message : "");
+  if (!message && !(isLoaded && !isTailing)) return null;
   return (
-    <div className="mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-1 px-4 pt-2">
-      {transportError && (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-red-700 text-xs">
-          {transportError}
-        </div>
-      )}
-      {lastError && lastError.retryStatus === "retrying" && (
-        <div className="rounded-md bg-muted px-3 py-1.5 text-muted-foreground text-xs">
-          {lastError.message}
-        </div>
-      )}
-      {isLoaded && !isTailing && !transportError && (
-        <div className="px-1 text-[11px] text-muted-foreground">{t("reconnecting")}</div>
-      )}
+    <div className="mx-auto w-full max-w-(--thread-max-width) px-4 pt-2 text-muted-foreground text-xs">
+      {message || t("reconnecting")}
     </div>
   );
 }
 
-function PearnlySidebar() {
+function UserFooter() {
+  const profile = useProfile();
+  if (!profile) return null;
+  const initials = (profile.full_name || profile.user).trim().slice(0, 2).toUpperCase();
+  return (
+    <div className="flex items-center gap-2.5 px-1 py-1">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-xs">{initials}</div>
+      <div className="min-w-0 truncate text-sm">
+        {profile.full_name || profile.user}
+        <span className="text-muted-foreground"> · {profile.product_label}</span>
+      </div>
+    </div>
+  );
+}
+
+function AppSidebar() {
   return (
     <Sidebar>
-      <SidebarHeader className="mb-2 border-b">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <div>
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <MessageSquareIcon className="size-4" />
-                </div>
-                <span className="font-semibold">{t("title")}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+          <MessageSquareIcon className="size-4" />
+        </div>
+        <SidebarTrigger aria-label={t("sidebar")} />
       </SidebarHeader>
       <SidebarContent className="px-2">
         <ThreadList />
       </SidebarContent>
-      <SidebarRail />
+      <SidebarFooter className="border-t">
+        <UserFooter />
+      </SidebarFooter>
     </Sidebar>
+  );
+}
+
+// 侧栏收起时，左上角只留一个展开按钮（同 claude.ai）。
+function CollapsedTrigger() {
+  const { open, isMobile, openMobile } = useSidebar();
+  if (isMobile ? openMobile : open) return null;
+  return (
+    <div className="absolute top-3 left-3 z-10">
+      <SidebarTrigger aria-label={t("sidebar")} />
+    </div>
   );
 }
 
@@ -88,13 +106,10 @@ function Workspace() {
     <AuiProvider value={aui}>
       <SidebarProvider>
         <div className="flex h-dvh w-full">
-          <PearnlySidebar />
-          <SidebarInset>
-            <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-              <SidebarTrigger />
-              <span className="font-medium text-sm">{t("title")}</span>
-            </header>
-            <div className="flex flex-1 flex-col overflow-hidden" style={{ ["--thread-max-width" as string]: "44rem" }}>
+          <AppSidebar />
+          <SidebarInset className="relative">
+            <CollapsedTrigger />
+            <div className="flex flex-1 flex-col overflow-hidden" style={{ ["--thread-max-width" as string]: "48rem" }}>
               <SessionStatusBar />
               <div className="min-h-0 flex-1">
                 <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />

@@ -26,7 +26,7 @@ function errorOf(body: unknown, status: number): string {
 async function parse<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => null);
   if (res.status === 401 || res.status === 403) {
-    if (res.status === 401) location.href = "/login?redirect-to=/assistant";
+    if (res.status === 401) location.href = "/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant";
   }
   if (!res.ok) throw new Error(errorOf(body, res.status));
   return (body as { message: T }).message;

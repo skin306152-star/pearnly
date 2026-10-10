@@ -41,16 +41,6 @@ export const BashToolUI: ToolCallMessagePartComponent<BashArgs, ToolResultPayloa
         <div className="flex items-center gap-2 text-muted-foreground text-xs">
           <TerminalIcon className="size-3.5" />
           <span>bash</span>
-          {awaiting && (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
-              awaiting approval
-            </span>
-          )}
-          {denied && (
-            <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] text-red-700 dark:text-red-400">
-              denied
-            </span>
-          )}
         </div>
         {running && <LoaderIcon className="size-3.5 animate-spin text-muted-foreground" />}
       </div>

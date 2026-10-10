@@ -25,7 +25,8 @@ from werkzeug.utils import redirect as werkzeug_redirect
 # 未登录访客在这几个入口会被送去身份服务
 # `/pearnly-app` 是业务前端的入口（见 www/pearnly-app.html）—— 访客打开它
 # 也该先去身份服务，而不是先看到一屏"取不到启动数据"的错误。
-GUEST_ENTRY_PATHS = {"/", "/login", "/app", "/desk", "/pearnly-app"}
+# `/assistant` 是智能体对话页（ADR-019），同样从这一个登录口进。
+GUEST_ENTRY_PATHS = {"/", "/login", "/app", "/desk", "/pearnly-app", "/assistant"}
 
 # 业务前端的入口**前缀**：它的子路径同样是入口。`/pearnly-app/roster` 这种是
 # 别人发来的深链接，访客打开时也该先去登录，而不是先看到一屏取不到数据的空壳。

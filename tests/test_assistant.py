@@ -250,5 +250,25 @@ class PageTests(unittest.TestCase):
             self.assertTrue(any(f.get("unique") for f in meta["fields"]))
 
 
+class BrandAndLoginTests(unittest.TestCase):
+    def test_product_icons_are_the_website_mascots(self):
+        sys.path.insert(0, str(ROOT / "website"))
+        try:
+            import mascot
+        finally:
+            sys.path.pop(0)
+        for kind in ("cowork", "erp", "dms"):
+            expected = mascot.svg(kind).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1) + "\n"
+            actual = (ROOT / f"frontend/assistant/public/brand/{kind}.svg").read_text(encoding="utf-8")
+            self.assertEqual(actual, expected, f"regenerate brand/{kind}.svg from website/mascot.py")
+
+    def test_assistant_uses_the_single_login_entry(self):
+        source = (CORE / "login_redirect.py").read_text(encoding="utf-8")
+        entries = re.search(r"GUEST_ENTRY_PATHS = \{([^}]*)\}", source).group(1)
+        self.assertIn('"/assistant"', entries)
+        page = (CORE / "www/assistant.py").read_text(encoding="utf-8")
+        self.assertIn("pearnly_core.identity.begin_login?redirect_to=/assistant", page)
+
+
 if __name__ == "__main__":
     unittest.main()
