@@ -1,4 +1,4 @@
-// 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容：
+// 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
 //   常规      — 对话文字大小、语言
 //   此电脑    — 只在 Tomo 桌面端出现（lib/desktop.ts 的 desktop()）：
@@ -87,7 +87,7 @@ export function Settings() {
           aria-describedby={undefined}
           className="fixed top-1/2 left-1/2 z-[71] flex h-[min(680px,92dvh)] w-[min(980px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-white text-[#1a1a18] shadow-2xl outline-none md:flex-row"
         >
-          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-[#faf9f7] p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-[#fafafa] p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
             <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-xs md:block">
               {st.settings}
             </DialogPrimitive.Title>
@@ -131,7 +131,7 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
       onClick={onClick}
       className={cn(
         "flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-start text-sm [&_svg]:size-4",
-        active ? "bg-[#ebe9e3] font-medium" : "hover:bg-[#f0eee8]",
+        active ? "bg-muted font-medium" : "hover:bg-[#f5f5f5]",
       )}
     >
       {icon}
@@ -155,7 +155,7 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
 
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
   return (
-    <div className="flex rounded-lg bg-[#f0eee8] p-0.5">
+    <div className="flex rounded-lg bg-muted p-0.5">
       {options.map(([key, label]) => (
         <button
           key={key}
@@ -178,7 +178,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-6 w-10 rounded-full transition-colors", checked ? "bg-[#1a1a18]" : "bg-[#d6d3cc]")}
+      className={cn("relative h-6 w-10 rounded-full transition-colors", checked ? "bg-[#1a1a18]" : "bg-[#d4d4d4]")}
     >
       <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform", checked && "translate-x-4")} />
     </button>
@@ -475,7 +475,7 @@ function System({ api }: { api: Desktop }) {
       </Row>
       <Row label={st.quickAsk}>
         {state.hotkey ? (
-          <kbd className="rounded-md border bg-[#faf9f7] px-2 py-0.5 font-sans text-muted-foreground text-xs">Ctrl + Alt + Space</kbd>
+          <kbd className="rounded-md border bg-[#fafafa] px-2 py-0.5 font-sans text-muted-foreground text-xs">Ctrl + Alt + Space</kbd>
         ) : (
           <span className="text-muted-foreground text-sm">{st.hotkeyBusy}</span>
         )}

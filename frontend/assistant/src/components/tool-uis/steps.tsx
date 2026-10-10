@@ -100,7 +100,7 @@ export const StepRow: ToolCallMessagePartComponent = ({
         type="button"
         disabled={!expandable}
         onClick={() => setOpen((o) => !o)}
-        className="group/step flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left text-[#5b5950] text-sm enabled:hover:bg-[#f5f4ef]"
+        className="group/step flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left text-[#5b5950] text-sm enabled:hover:bg-[#f5f5f5]"
       >
         {running ? (
           <TypingDots size="sm" className="w-3.5 shrink-0 justify-center" />
@@ -114,13 +114,13 @@ export const StepRow: ToolCallMessagePartComponent = ({
         )}
       </button>
       {open && expandable && (
-        <div className="ms-7 mt-1 mb-2 overflow-hidden rounded-md border border-[#e8e6dc] bg-[#faf9f5] font-mono text-[12px] text-[#3d3d3a] leading-5">
+        <div className="ms-7 mt-1 mb-2 overflow-hidden rounded-md border border-[#e5e5e5] bg-[#fafafa] font-mono text-[12px] text-[#3d3d3a] leading-5">
           {step.input && <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all px-3 py-2">{step.input}</pre>}
           {shownOutput && (
             <pre
               className={cn(
                 "max-h-56 overflow-auto whitespace-pre-wrap break-all px-3 py-2",
-                step.input && "border-[#e8e6dc] border-t",
+                step.input && "border-[#e5e5e5] border-t",
                 errored && "text-red-600",
               )}
             >
@@ -170,7 +170,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
         <span className="truncate">{title}</span>
         {tools.length > 0 && <ChevronRightIcon className={cn("size-3.5 shrink-0 transition", open && "rotate-90")} />}
       </button>
-      {open && <div className="mt-1 ms-1.5 border-[#e8e6dc] border-s ps-2">{children}</div>}
+      {open && <div className="mt-1 ms-1.5 border-[#e5e5e5] border-s ps-2">{children}</div>}
     </div>
   );
 };

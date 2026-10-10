@@ -401,10 +401,10 @@ const MessageFiles: FC = () => {
       {mine.map((file) => (
         <div
           key={file.id}
-          className="flex max-w-md items-center gap-3 rounded-xl border border-[#e8e6dc] bg-white px-3 py-2.5 hover:border-[#d6d3c7]"
+          className="flex max-w-md items-center gap-3 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5 hover:border-[#d6d3c7]"
         >
           <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#f5f4ef] text-[#5b5950]">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#f5f5f5] text-[#5b5950]">
               <FileTypeIcon filename={file.filename} className="size-4.5" />
             </span>
             <span className="min-w-0">

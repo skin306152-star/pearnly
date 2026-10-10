@@ -45,6 +45,9 @@ def _cat_svg():
 
 
 CC_CAT = _cat_svg()
+# 左上角：白字 CC 图标（去胡须的小尺寸版，frontend/assistant/src/brand/cc-icon-small.svg）+ 黑体「CC」
+BRAND_MARK = ((ROOT / "frontend/assistant/src/brand/cc-icon-small.svg").read_text()
+              .replace('width="1024" height="1024"', 'width="30" height="30" aria-hidden="true" focusable="false"').strip())
 # 标签页小图标：白字 CC（32 像素去胡须版，frontend/assistant/public/icon-32.png），直接内嵌
 FAVICON = ('<link rel="icon" type="image/png" href="data:image/png;base64,'
            + base64.b64encode((ROOT / "frontend/assistant/public/icon-32.png").read_bytes()).decode() + '">')
@@ -110,19 +113,33 @@ def stand(x, ground, k, prop, kind, lift=8):
     return mascot(x, ground - lift - 41 * k, k, "", prop, kind)
 
 
-SCENE = scene("wide", "0 0 1200 300", "M40 286 H1160", [
-    bubble(196, 92, 76, 40, DOTS, "typing"), bubble(428, 118, 66, 44, PHOTO, "b2"),
-    bubble(650, 66, 92, 42, MONEY, "b3"), bubble(974, 28, 70, 44, CHART, "b4"), bubble(1048, 96, 62, 42, TICK, "b2"),
-    sparkle(96, 120, 0.9, "s1"), sparkle(470, 74, 0.7, "s2"), sparkle(660, 128, 0.9, "s3"), sparkle(1160, 160, 0.8, "s4"),
-    receipt(628, 204, -14, "r1"), receipt(1128, 214, 12, "r2"), plane(860, 30, "p1"),
-    stand(170, 286, 0.95, "pencil", "cowork"), stand(405, 286, 0.95, "camera", "dms"),
-    stand(630, 286, 0.95, "basket", "erp"), stand(925, 286, 1.55, "stamp", "mrerp")]) + scene(
-    "phone", "0 0 620 330", "M10 316 H610", [
+# 底部一排：宣传页的小人往左挪，右边留给睡觉的橘猫视频（用户 2026-10-10，Gemini 生成的视频剪前 5 秒循环）
+SCENE_WIDE = scene("wide", "0 0 1200 300", "M40 286 H1160", [
+    bubble(166, 92, 76, 40, DOTS, "typing"), bubble(373, 118, 66, 44, PHOTO, "b2"),
+    bubble(575, 66, 92, 42, MONEY, "b3"), bubble(869, 28, 70, 44, CHART, "b4"), bubble(943, 96, 62, 42, TICK, "b2"),
+    sparkle(76, 120, 0.9, "s1"), sparkle(440, 74, 0.7, "s2"), sparkle(612, 128, 0.9, "s3"),
+    receipt(520, 204, -14, "r1"), plane(760, 30, "p1"),
+    stand(140, 286, 0.95, "pencil", "cowork"), stand(350, 286, 0.95, "camera", "dms"),
+    stand(555, 286, 0.95, "basket", "erp"), stand(820, 286, 1.55, "stamp", "mrerp")])
+SCENE_PHONE = scene("phone", "0 0 620 330", "M10 316 H610", [
     bubble(86, 150, 70, 38, DOTS, "typing"), bubble(226, 170, 66, 44, PHOTO, "b2"), bubble(346, 120, 92, 42, MONEY, "b3"),
     bubble(536, 40, 70, 44, CHART, "b4"), sparkle(26, 150, 0.8, "s1"), sparkle(452, 110, 0.7, "s2"), sparkle(608, 130, 0.7, "s4"),
     plane(430, 62, "p1"),
     stand(70, 316, 0.74, "pencil", "cowork", 7), stand(200, 316, 0.74, "camera", "dms", 7),
     stand(330, 316, 0.74, "basket", "erp", 7), stand(500, 316, 1.18, "stamp", "mrerp", 7)])
+
+# 睡觉的橘猫：逐帧抠掉棋盘格背景（website/static/cc/source/cut_nap_video.py）的透明视频，
+# Safari 用 HEVC 带透明的 mp4，Chrome / Edge / Firefox 用 VP9 带透明的 webm；放在宽屏那排的最右边，躺在地面线上，5 秒循环。
+NAP_DIR = ROOT / "apps/pearnly_control/pearnly_control/public/cc"
+NAP_FILES = {ext: f"cat-nap.{hashlib.sha256((NAP_DIR / f'cat-nap.{ext}').read_bytes()).hexdigest()[:10]}.{ext}" for ext in ("webm", "mp4")}
+
+
+def scene_with_nap(base, hashed):
+    names = NAP_FILES if hashed else {ext: f"cat-nap.{ext}?v={NAP_FILES[ext].split('.')[1]}" for ext in NAP_FILES}
+    video = ('<video class="cc-nap" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1">'
+             f'<source src="{base}{names["mp4"]}" type=\'video/mp4; codecs="hvc1"\'>'
+             f'<source src="{base}{names["webm"]}" type="video/webm"></video>')
+    return f'<div class="nap-wrap">{SCENE_WIDE}{video}</div>{SCENE_PHONE}'
 
 # ---------------- 样式：宣传页的底色、点阵、记号笔与按钮；也给 Keycloak 流程页的表单类名上样式 ----------------
 
@@ -135,7 +152,7 @@ canvas.dots{position:fixed;inset:0;z-index:0;pointer-events:none}
 .hd-defs{position:absolute}
 .page{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow-x:clip}
 .top{align-self:stretch;display:flex;align-items:center;justify-content:space-between;padding:18px 24px}
-.brand{font-family:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;color:#000}
+.brand{display:flex;align-items:center;gap:9px;font-family:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;color:#000}.brand svg{display:block;flex:none}
 .langs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.7)}
 .langs a{font-size:13px;color:var(--muted);padding:3px 11px;border-radius:999px;text-decoration:none}
 .langs a.on{background:var(--ink);color:#fff}
@@ -152,8 +169,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .btn[disabled]{opacity:.6;cursor:default;transform:none}
 .btn.light{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 1px 2px rgba(20,20,19,.06);margin-top:0}
 .btn.light:hover{background:#fff;border-color:var(--line-strong)}
-.contact-note{margin:0 0 10px;text-align:center;color:var(--muted);font-size:13px}
-.contacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px}
+.contacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin-top:20px}
 .contacts a{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-size:13px;text-decoration:none;padding:2px 0;border-bottom:1px solid transparent}
 .contacts a:hover{border-bottom-color:var(--line-strong)}
 .hm-spark{transform-box:fill-box;transform-origin:center}
@@ -186,6 +202,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .checkline{display:flex;align-items:center;gap:6px;color:var(--muted)}
 .pn-info{margin-top:14px;text-align:center;font-size:13px;color:var(--muted)}
 .scene{width:100%;max-width:1200px;margin-top:auto;padding:24px 8px 0}
+.nap-wrap{position:relative}.cc-nap{position:absolute;left:80%;bottom:4.4%;width:18%;height:auto;pointer-events:none}
 .scene-svg{display:block;width:100%;height:auto;overflow:visible}.scene-svg.phone{display:none}
 .hm-hop,.hm-eyes,.deco,.dot{transform-box:fill-box;transform-origin:center}
 .hm-arm,.hm-wave,.hm-leg{transition:transform .35s var(--ease)}
@@ -211,7 +228,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .plane{animation:glide 9s ease-in-out infinite}
 @keyframes glide{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-12px)}}
 .step{animation:in .35s var(--ease)}@keyframes in{from{opacity:0;transform:translateY(6px)}}
-@media (max-width:640px){.card{padding:20px;border-radius:18px}.top{padding:14px 16px}.scene{padding-top:24px}.scene-svg.wide{display:none}.scene-svg.phone{display:block}}
+@media (max-width:640px){.card{padding:20px;border-radius:18px}.top{padding:14px 16px}.scene{padding-top:24px}.scene-svg.wide{display:none}.scene-svg.phone{display:block}.cc-nap{display:none}}
 .cc-look{transition:transform .25s var(--ease)}
 .cc-perch{position:absolute;left:50%;margin-left:-112px;top:-219px;width:250px;height:234px;overflow:visible;user-select:none;pointer-events:none}
 @media (max-width:640px){.cc-perch{margin-left:-98px;width:220px;height:206px;top:-193px}.card{margin-top:188px}}
@@ -264,7 +281,7 @@ PAGE_HTML = """<!doctype html>
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand">CC</span>
+    <span class="brand">""" + BRAND_MARK + """CC</span>
     <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
   </header>
   <section class="hero">
@@ -283,14 +300,12 @@ PAGE_HTML = """<!doctype html>
       <input class="input" id="login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="{{ _("Username or email") }}" autofocus>
       <span class="err" id="err" role="alert" hidden></span>
       <button class="btn" type="submit" id="go">{{ _("Continue") }}</button>
-      <div class="or"><span>{{ _("Don't have an account?") }}</span></div>
-      <p class="contact-note">{{ _("Contact us to open an account or book a demo") }}</p>
       """ + CONTACTS + """
       <p class="legal">{{ legal_html | safe }}</p>
     </form>
     {% endif %}
   </section>
-  <div class="scene">""" + SCENE + """</div>
+  <div class="scene">""" + scene_with_nap("/assets/pearnly_control/cc/", False) + """</div>
 </div>
 <script>""" + JS + """
 (function(){
@@ -357,7 +372,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand">CC</span>
+    <span class="brand">""" + BRAND_MARK + """CC</span>
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
     <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>
@@ -370,14 +385,12 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
       </#if>
       <#nested "form">
       <#if displayInfo><div class="pn-info"><#nested "info"></div></#if>
-      <div class="or"><span>${msg("pearnlyAiNoAccount")}</span></div>
-      <p class="contact-note">${msg("pearnlyAiContactNote")}</p>
       """ + CONTACTS + """
       <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en")?then("/en", ""))>
       <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
     </div>
   </section>
-  <div class="scene">""" + SCENE + """</div>
+  <div class="scene">""" + scene_with_nap("${url.resourcesPath}/video/", True) + """</div>
 </div>
 </body></html>
 </#macro>
@@ -416,15 +429,12 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
 
 # Keycloak 文案：只放 ai 主题新增的键，其余（密码、登录、忘记密码…）继承 pearnly 主题。
 MESSAGES = {
-    "zh_CN": {"pearnlyAiNoAccount": "还没有账号？", "pearnlyAiContactNote": "联系我们开通账号或预约演示",
-              "pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱",
+    "zh_CN": {"pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱",
               "pearnlyAiLegal": "继续即表示您已阅读并同意 Pearnly 的{0}和{1}。", "pearnlyAiTerms": "服务条款", "pearnlyAiPrivacy": "隐私政策"},
-    "th": {"pearnlyAiNoAccount": "ยังไม่มีบัญชีใช่ไหม", "pearnlyAiContactNote": "ติดต่อเราเพื่อเปิดบัญชีหรือนัดชมเดโม",
-           "pearnlyAiChange": "เปลี่ยน", "pearnlyAiLogin": "ชื่อผู้ใช้หรืออีเมล",
+    "th": {"pearnlyAiChange": "เปลี่ยน", "pearnlyAiLogin": "ชื่อผู้ใช้หรืออีเมล",
            "pearnlyAiLegal": "การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly", "pearnlyAiTerms": "ข้อกำหนดการให้บริการ",
            "pearnlyAiPrivacy": "นโยบายความเป็นส่วนตัว"},
-    "en": {"pearnlyAiNoAccount": "Don't have an account?", "pearnlyAiContactNote": "Contact us to open an account or book a demo",
-           "pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email",
+    "en": {"pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email",
            "pearnlyAiLegal": "By continuing, you agree to Pearnly''s {0} and {1}.", "pearnlyAiTerms": "Terms of Service",
            "pearnlyAiPrivacy": "Privacy Policy"},
 }
@@ -448,6 +458,20 @@ def main():
     check = "--check" in sys.argv
     stale = []
     wanted = outputs()
+    binaries = {THEME / "resources/video" / name: (NAP_DIR / f"cat-nap.{ext}").read_bytes() for ext, name in NAP_FILES.items()}
+    for path, data in binaries.items():
+        if check:
+            if not path.exists() or path.read_bytes() != data:
+                stale.append(str(path.relative_to(ROOT)))
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+    for old in ((THEME / "resources/video").glob("*") if (THEME / "resources/video").exists() else ()):
+        if old not in binaries:
+            if check:
+                stale.append(str(old.relative_to(ROOT)) + " (remove)")
+            else:
+                old.unlink()
     for folder in (THEME / "resources/css", THEME / "resources/js"):   # 换了指纹的旧文件不留
         for old in (folder.glob("*") if folder.exists() else ()):
             if old not in wanted:

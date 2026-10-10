@@ -157,12 +157,12 @@ function SheetTable({ rows }: { rows: string[][] }) {
       <table className="border-collapse text-[13px]">
         <tbody>
           {rows.map((row, r) => (
-            <tr key={r} className={r === 0 ? "bg-[#f5f4ef] font-medium" : undefined}>
+            <tr key={r} className={r === 0 ? "bg-[#f5f5f5] font-medium" : undefined}>
               {row.map((cell, c) => (
                 <td
                   key={c}
                   className={cn(
-                    "max-w-72 truncate border border-[#e8e6dc] px-2.5 py-1.5",
+                    "max-w-72 truncate border border-[#e5e5e5] px-2.5 py-1.5",
                     isAmount(cell) && "text-right tabular-nums",
                   )}
                   title={cell}
