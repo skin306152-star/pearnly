@@ -23,6 +23,7 @@ import {
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
+import { clearPending } from "./pending-send";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
@@ -112,7 +113,13 @@ function useSessionThreadRuntime() {
       // 按「还没有用户消息」判断首条：先加附件时会话在上传那一刻就建好了，按「有没有会话」判断会漏掉取标题，
       // 侧栏一直是「新对话」（2026-10-10 测试）。
       const isFirst = !snapshot.messages.some((m) => m.role === "user");
-      const id = await ensureSession();
+      let id: string;
+      try {
+        id = await ensureSession();
+      } finally {
+        // 真正的气泡由 sendMessage 同步放进对话（历史已读完时），发送中的气泡在同一刻撤掉，不会两个都在
+        clearPending();
+      }
       const text = textOf(message);
       await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments));
       // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；

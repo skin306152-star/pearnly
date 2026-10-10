@@ -35,15 +35,18 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
+  LoaderIcon,
   MicIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
+import { setDraft, usePendingSend } from "@/lib/managed-agents/pending-send";
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   type ComponentType,
   type FC,
@@ -81,7 +84,8 @@ const isNewChatView = (s: AssistantState) =>
   (!s.thread.isLoading || s.threads.isLoading);
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
-  const isEmpty = useAuiState(isNewChatView);
+  const pending = usePendingSend();
+  const isEmpty = useAuiState(isNewChatView) && !pending;
 
   return (
     <ThreadComponentsContext.Provider value={components}>
@@ -114,9 +118,11 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             isEmpty && "justify-center",
           )}
         >
-          <AuiIf condition={isNewChatView}>
-            <Welcome />
-          </AuiIf>
+          {isEmpty && (
+            <AuiIf condition={isNewChatView}>
+              <Welcome />
+            </AuiIf>
+          )}
 
           <div
             data-slot="aui_message-group"
@@ -125,6 +131,7 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             <ThreadPrimitive.Messages>
               {() => <ThreadMessage />}
             </ThreadPrimitive.Messages>
+            <PendingSendBubble />
           </div>
 
           <ThreadPrimitive.ViewportFooter
@@ -145,6 +152,34 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
+};
+
+/** 附件还在上传时就发送：先显示发送中的用户气泡（附件名旁转圈），真正的气泡出来就换掉（lib/managed-agents/pending-send.ts）。 */
+const PendingSendBubble: FC = () => {
+  const pending = usePendingSend();
+  if (!pending) return null;
+  return (
+    <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        {pending.files.map((name, i) => (
+          <span key={i} className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] px-2.5 py-1.5 text-sm">
+            <LoaderIcon className="size-3.5 animate-spin text-muted-foreground" />
+            {name}
+          </span>
+        ))}
+      </div>
+      {pending.text && (
+        <div className="rounded-2xl bg-[#f0f0f0] px-4 py-2.5 wrap-break-word whitespace-pre-wrap text-[#1a1a18]">{pending.text}</div>
+      )}
+    </div>
+  );
+};
+
+/** 发送那一刻组件库先调附件的 send、后清空输入框：随时记下输入框的文字，发送中的气泡才有字。 */
+const DraftWatcher: FC = () => {
+  const text = useAuiState((s) => s.composer.text);
+  useEffect(() => setDraft(text), [text]);
+  return null;
 };
 
 const ThreadMessage: FC = () => {
@@ -217,6 +252,7 @@ const Composer: FC = () => {
           className="flex w-full flex-col gap-2 rounded-2xl border border-[#e5e5e5] bg-white px-3.5 pt-3 pb-2.5 transition-colors focus-within:border-[#d4d4d4] data-[dragging=true]:border-dashed"
         >
           <ComposerAttachments />
+          <DraftWatcher />
           <ComposerPrimitive.Input
             placeholder={t("placeholder")}
             className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans text-base text-[#1a1a18] outline-none placeholder:text-[#9a9893]"

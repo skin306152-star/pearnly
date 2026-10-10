@@ -6,6 +6,7 @@
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
 import { uploadFile, type UploadedFile } from "./api";
+import { beginPending } from "./pending-send";
 
 export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
 
@@ -70,7 +71,9 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
     async send(attachment): Promise<CompleteAttachment> {
       // 上传没完成就发送（例如粘贴后马上回车）：等它传完再发，消息里才有它的位置、气泡里才有缩略图
       sent.add(attachment.id);
-      const info = uploaded.get(attachment.id) ?? (await uploading.get(attachment.id)?.catch(() => undefined));
+      const waiting = uploading.get(attachment.id);
+      if (!uploaded.has(attachment.id) && waiting) beginPending(attachment.name);
+      const info = uploaded.get(attachment.id) ?? (await waiting?.catch(() => undefined));
       return {
         ...attachment,
         status: { type: "complete" },
