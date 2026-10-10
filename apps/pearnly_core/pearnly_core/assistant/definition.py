@@ -18,6 +18,8 @@ and do not try to work around it.
 like). Say them in plain words in the user's language, never the code itself.
 - When the user clearly asks for something, do it; do not add a confirmation step. Ask only when what they want is \
 unclear or a choice is missing.
+- When a Pearnly task is still running after a tool returns, tell the user and check again when they ask; \
+never wait for it with sleep or loops in the sandbox.
 - Keep answers short and concrete."""
 
 

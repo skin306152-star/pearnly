@@ -270,6 +270,7 @@ Collapse list,ย่อรายการ
 Collection is not connected for this ERP data type.,ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Color,สี
 Comment,ความคิดเห็น
+Commented on a task,แสดงความคิดเห็นในงานแล้ว
 Commenting,สิทธิ์แสดงความคิดเห็น
 Comments,ความคิดเห็น
 Comments and activity,ความคิดเห็นและกิจกรรม
@@ -370,6 +371,8 @@ Create invoice records through the Cowork intake service.,กรุณาสร�
 Create it from the document,สร้างใหม่ตามเอกสาร
 Created,สร้างเมื่อ
 Created By,ผู้สร้าง
+Created a stock count,สร้างการตรวจนับสต็อกแล้ว
+Created a task,สร้างงานแล้ว
 Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เงินเชื่อ
@@ -415,6 +418,7 @@ Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการล
 Deleted documents,ลบเอกสารแล้ว
 Deleted folder tasks,ลบงานโฟลเดอร์แล้ว
 Deleted reconciliations,ลบการกระทบยอดแล้ว
+Deleted stock counts,ลบการตรวจนับสต็อกแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} stock counts,ลบการตรวจนับ {0} รายการแล้ว
 Delivery type,ประเภทขนส่ง
@@ -534,6 +538,7 @@ Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
 Exported a reconciliation,ส่งออกผลการกระทบยอดแล้ว
+Exported a stock count,ส่งออกผลต่างการตรวจนับแล้ว
 Exported the review workbook,ส่งออกสมุดงานตรวจทานแล้ว
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express PC,เครื่อง Express
@@ -561,6 +566,7 @@ Fingerprint,ลายนิ้วมือข้อมูล
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วจะดูและส่งออกได้เท่านั้น
+Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 Folder,โฟลเดอร์
@@ -718,6 +724,8 @@ List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
 Listed documents,ดูรายการเอกสารแล้ว
 Listed reconciliations,ดูรายการกระทบยอดแล้ว
+Listed stock counts,ดูรายการตรวจนับสต็อกแล้ว
+Listed task boards,ดูบอร์ดงานแล้ว
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
@@ -769,6 +777,7 @@ Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
+Moved a task,ย้ายงานแล้ว
 My cards,การ์ดของฉัน
 Name,ชื่อ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
@@ -902,6 +911,7 @@ Posting Kind,ประเภทการลงบัญชี
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
 Preparation data does not match the connection or account set.,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
 Preparation data for this account set is incomplete.,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
+Prepared a stock count template,เตรียมแม่แบบตรวจนับสต็อกแล้ว
 Presets,ค่าที่ตั้งไว้
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
 Private,ส่วนตัว
@@ -982,6 +992,7 @@ Record Key,คีย์รายการ
 Record Revision,เวอร์ชันของรายการ
 Record a count,บันทึกการตรวจนับ
 Record as expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
+Recorded a count,บันทึกจำนวนที่นับได้แล้ว
 Recount,นับใหม่
 Recount this product,นับสินค้านี้ใหม่
 Recurring,การทำซ้ำ
@@ -1090,6 +1101,7 @@ Scope,ขอบเขต
 Scope Key,รหัสขอบเขตสิทธิ์
 Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
+Searched tasks,ค้นหางานแล้ว
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 100 distinct history records to export.,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
 Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500 รายการ
@@ -1538,6 +1550,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,แต่ล�
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบกำกับภาษีผ่านฟังก์ชันตรวจทานของ Cowork
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
+Updated a task,แก้ไขงานแล้ว
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คนแล้ว
 Upload,อัปโหลด
 Upload Failed,จำนวนที่อัปโหลดไม่สำเร็จ
@@ -1583,6 +1596,9 @@ View photo,ดูรูปภาพ
 View the ones to check,ดูรายการรอดำเนินการ
 Viewed a document,ดูเอกสารแล้ว
 Viewed a reconciliation,ดูผลการกระทบยอดแล้ว
+Viewed a stock count,ดูผลการตรวจนับสต็อกแล้ว
+Viewed a task,ดูงานแล้ว
+Viewed a task board,ดูบอร์ดแล้ว
 Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ

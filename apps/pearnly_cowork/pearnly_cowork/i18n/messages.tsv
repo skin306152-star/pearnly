@@ -1696,6 +1696,22 @@ Edited a document	修改了单据	แก้ไขเอกสารแล้ว	
 Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました
 Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
 Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
+Listed stock counts	查看了盘点列表	ดูรายการตรวจนับสต็อกแล้ว	棚卸の一覧を確認しました
+Prepared a stock count template	准备了盘点模板	เตรียมแม่แบบตรวจนับสต็อกแล้ว	棚卸テンプレートを用意しました
+Created a stock count	新建了盘点	สร้างการตรวจนับสต็อกแล้ว	棚卸を作成しました
+Viewed a stock count	查看了盘点结果	ดูผลการตรวจนับสต็อกแล้ว	棚卸結果を確認しました
+Recorded a count	记录了实盘数	บันทึกจำนวนที่นับได้แล้ว	実数を記録しました
+Finished a stock count	结束了盘点	ปิดการตรวจนับสต็อกแล้ว	棚卸を終了しました
+Exported a stock count	导出了盘点差异	ส่งออกผลต่างการตรวจนับแล้ว	棚卸差異を書き出しました
+Deleted stock counts	删除了盘点	ลบการตรวจนับสต็อกแล้ว	棚卸を削除しました
+Listed task boards	查看了任务看板	ดูบอร์ดงานแล้ว	タスクボードを確認しました
+Viewed a task board	查看了看板	ดูบอร์ดแล้ว	ボードを確認しました
+Viewed a task	查看了任务	ดูงานแล้ว	タスクを確認しました
+Created a task	新建了任务	สร้างงานแล้ว	タスクを作成しました
+Updated a task	修改了任务	แก้ไขงานแล้ว	タスクを更新しました
+Moved a task	移动了任务	ย้ายงานแล้ว	タスクを移動しました
+Commented on a task	评论了任务	แสดงความคิดเห็นในงานแล้ว	タスクにコメントしました
+Searched tasks	搜索了任务	ค้นหางานแล้ว	タスクを検索しました
 Started a reconciliation	开始了对账	เริ่มกระทบยอดแล้ว	照合を開始しました
 Checked a reconciliation's progress	查看了对账进度	ตรวจสอบความคืบหน้าการกระทบยอดแล้ว	照合の進行状況を確認しました
 Listed reconciliations	查看了对账列表	ดูรายการกระทบยอดแล้ว	照合の一覧を確認しました

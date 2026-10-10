@@ -270,6 +270,7 @@ Collapse list,リストを折りたたむ
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
 Color,色
 Comment,コメント
+Commented on a task,タスクにコメントしました
 Commenting,コメント権限
 Comments,コメント
 Comments and activity,コメントとアクティビティ
@@ -370,6 +371,8 @@ Create invoice records through the Cowork intake service.,Coworkの取り込み�
 Create it from the document,書類どおり新規作成
 Created,作成日時
 Created By,作成者
+Created a stock count,棚卸を作成しました
+Created a task,タスクを作成しました
 Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
@@ -415,6 +418,7 @@ Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の�
 Deleted documents,書類を削除しました
 Deleted folder tasks,フォルダータスクを削除しました
 Deleted reconciliations,照合を削除しました
+Deleted stock counts,棚卸を削除しました
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
@@ -534,6 +538,7 @@ Export,エクスポート
 Export Excel,Excel に出力
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
 Exported a reconciliation,照合結果を書き出しました
+Exported a stock count,棚卸差異を書き出しました
 Exported the review workbook,確認用ワークブックを書き出しました
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
 Express PC,Express の PC
@@ -561,6 +566,7 @@ Fingerprint,フィンガープリント
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。
+Finished a stock count,棚卸を終了しました
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
 Folder,フォルダー
@@ -718,6 +724,8 @@ List archived,リストをアーカイブしました
 List name,リスト名
 Listed documents,書類を一覧しました
 Listed reconciliations,照合の一覧を確認しました
+Listed stock counts,棚卸の一覧を確認しました
+Listed task boards,タスクボードを確認しました
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
@@ -769,6 +777,7 @@ Monthly on {0} at {1},毎月 {0} {1}
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
+Moved a task,タスクを移動しました
 My cards,自分のカード
 Name,名前
 Native Content Hash,標準ファイルの内容ハッシュ
@@ -902,6 +911,7 @@ Posting Kind,記帳区分
 Preparation Evidence,準備情報の証拠
 Preparation data does not match the connection or account set.,準備情報が接続または会計データと一致しません。
 Preparation data for this account set is incomplete.,この会計データの送信準備情報が不足しています。
+Prepared a stock count template,棚卸テンプレートを用意しました
 Presets,プリセット
 Previous Json,変更前のデータ（JSON）
 Private,非公開
@@ -982,6 +992,7 @@ Record Key,記録キー
 Record Revision,レコードの版
 Record a count,棚卸を入力
 Record as expense,費用に計上
+Recorded a count,実数を記録しました
 Recount,再棚卸
 Recount this product,この商品を再棚卸
 Recurring,繰り返し
@@ -1090,6 +1101,7 @@ Scope,範囲
 Scope Key,権限範囲識別子
 Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
+Searched tasks,タスクを検索しました
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
@@ -1538,6 +1550,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につ
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
+Updated a task,タスクを更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
 Upload,アップロード
 Upload Failed,アップロード失敗数
@@ -1583,6 +1596,9 @@ View photo,写真を表示
 View the ones to check,要確認を見る
 Viewed a document,書類を確認しました
 Viewed a reconciliation,照合結果を確認しました
+Viewed a stock count,棚卸結果を確認しました
+Viewed a task,タスクを確認しました
+Viewed a task board,ボードを確認しました
 Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

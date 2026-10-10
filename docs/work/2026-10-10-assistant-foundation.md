@@ -288,6 +288,39 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 | 改单元格后自动重配、保存、余额断点确认 | `sheets.recalc/save/breaks` | — | 暂不接：要整表回写，对话里改单元格不如在网页上改；用户点名要时再接 |
 | 完成提醒 | 实时事件 `cowork_recon_finished` | — | 不用接：CC 自己等结果 / 查进度 |
 
+### 库存盘点逐项对照（第 20 项开工前列，2026-10-10 晚）
+
+页面 `pearnly-stocktake`（接口 `stocktake/desk_api.py`；Cowork 没有库存系统，盘点单只从上传的表建）。
+
+| 页面功能 | 现有接口 | CC 工具 | 结论 |
+|---|---|---|---|
+| 盘点列表 | `api_list_stock_counts` | `cowork_stocktake_list` | 接 |
+| 下载模板 | `upload.template` | `cowork_stocktake_template`（放进对话） | 接 |
+| 新建（上传账面数表，可带实盘数） | `upload.create(title, request_id, content)` | `cowork_stocktake_create`（表取自对话附件；单号按对话 + 附件固定，同一份重复建只得一张） | 接 |
+| 工作台：各项账面 / 实盘 / 差异 | `api_stock_count_review` | `cowork_stocktake_report`（默认只列有差异或没盘的，最多 40 行） | 接 |
+| 扫码 / 输代码记实盘数 | `api_stock_count_lookup` + `api_stock_count_add_entry` | `cowork_stocktake_count` | 接 |
+| 重盘某项 | `api_stock_count_recount` | `cowork_stocktake_count`（recount） | 接 |
+| 结束盘点 | `api_stock_count_close` | `cowork_stocktake_close` | 接 |
+| 导出差异表 | `service.export` | `cowork_stocktake_export`（放进对话） | 接 |
+| 删除 | `api_stock_count_delete` | `cowork_stocktake_delete`（点名明确直接删） | 接 |
+| 改单笔 / 作废单笔、拍照留证 | `api_stock_count_edit_entry` / `*_photos` | — | 暂不接：现场在手机网页上扫码拍照更顺手；用户点名要时再接 |
+
+### 任务管理逐项对照（第 21 项开工前列，2026-10-10 晚）
+
+页面 `pearnly-work`（团队看板，接口 `work/api.py`，输入错误按术语键翻成当前语言）。
+
+| 页面功能 | 现有接口 | CC 工具 | 结论 |
+|---|---|---|---|
+| 切换看板 | `boards_list` | `cowork_work_boards` | 接 |
+| 看板：列表与卡片 | `board` | `cowork_work_board`（mine 只看指派给我的；模板卡、归档不列） | 接 |
+| 卡片详情 | `card` | `cowork_work_card` | 接 |
+| 新建卡片 | `create(title, board_list)` | `cowork_work_create_card` | 接 |
+| 改标题、描述、日期、提醒、重复、负责人、标签、清单、完成 | `update(name, modified, values)` | `cowork_work_update_card`（带 modified，别人刚改过不覆盖） | 接 |
+| 移动 / 勾完成 | `move` / `toggle_done` | `cowork_work_move_card` | 接 |
+| 评论 | `comment` | `cowork_work_comment` | 接 |
+| 搜索 | `search` | `cowork_work_search` | 接 |
+| 复制 / 镜像 / 归档 / 删除卡片，列表与看板的增删改，附件 | 各接口 | — | 暂不接：看板结构调整在网页拖拽更直观；用户点名要时再接 |
+
 ### 逐项清单（下个窗口从第 1 项起一项一项做）
 
 做法：**一次只做一项**。每项做完 → 自己按「规矩」里的五步证明测试环境 / 测试机上是最新版 → 把证据和要用户看的地方告诉用户 → 用户试过没问题，在这里把 `[ ]` 改成 `[x]` 并写一行结果（日期、提交号），再做下一项。用户中途插进来的新要求，先记到本清单合适的位置再做。
@@ -341,6 +374,7 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 **C. 侧边栏其余功能，同样一项一项接**（每项开工前先列该页全部功能与接口，做对照表写进本文件，再按 B 的做法逐个接）
 
 - [ ] 17. 银行对账
+  - 进度（2026-10-10 晚，`f36d6eaf` 起）：`cowork_recon_*` 八个工具（三种对账同一套，按 kind）。测试窗口实测 TTB 5 月（账单 + 总账）：后台 9 秒出结果，但 CC 一直读到「排队中」、在沙箱里 sleep 干等。原因：推送线程一轮里连着执行工具，Frappe 进程内缓存（`frappe.local.cache`）停在第一次读到的状态。改为每次执行工具、每次查进度前清掉（`toolrun.fresh`）；同一对话同一组附件只开一套；查进度也等 90 秒；还没完就告诉用户、不 sleep 等（系统提示与工具说明）。待复测。
 - [ ] 18. 收入对账
 - [ ] 19. 销项税报告核查
 - [ ] 20. 库存盘点

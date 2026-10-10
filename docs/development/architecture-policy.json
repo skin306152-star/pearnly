@@ -186,7 +186,9 @@
       "push",
       "recon_center",
       "reconciliation",
-      "roundtrip"
+      "roundtrip",
+      "stocktake",
+      "work"
     ],
     "companion": [
       "connections",

@@ -270,6 +270,7 @@ Collapse list,收起列表
 Collection is not connected for this ERP data type.,此 ERP 数据类型暂不支持采集。
 Color,颜色
 Comment,评论
+Commented on a task,评论了任务
 Commenting,评论权限
 Comments,评论
 Comments and activity,评论和活动
@@ -370,6 +371,8 @@ Create invoice records through the Cowork intake service.,请通过 Cowork 录�
 Create it from the document,按票面新建
 Created,创建时间
 Created By,创建人
+Created a stock count,新建了盘点
+Created a task,新建了任务
 Creation Request Hash,创建请求摘要
 Credential ID,凭据 ID
 Credit,赊账
@@ -415,6 +418,7 @@ Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的
 Deleted documents,删除了单据
 Deleted folder tasks,删除了文件夹任务
 Deleted reconciliations,删除了对账
+Deleted stock counts,删除了盘点
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
 Delivery type,运输方式
@@ -534,6 +538,7 @@ Export,导出
 Export Excel,导出 Excel
 Export records from the same company and client together.,同次导出只能包含同一公司、同一客户的记录。
 Exported a reconciliation,导出了对账结果
+Exported a stock count,导出了盘点差异
 Exported the review workbook,导出了复核工作簿
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
 Express PC,Express 电脑
@@ -561,6 +566,7 @@ Fingerprint,指纹
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项。结束后仅可查看和导出。
+Finished a stock count,结束了盘点
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 Folder,文件夹
@@ -718,6 +724,8 @@ List archived,列表已归档
 List name,列表名称
 Listed documents,查看了单据
 Listed reconciliations,查看了对账列表
+Listed stock counts,查看了盘点列表
+Listed task boards,查看了任务看板
 Location,位置
 Location check,仓位比对结果
 Location mismatch,仓位不符
@@ -769,6 +777,7 @@ Monthly on {0} at {1},每月 {0} {1}
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
+Moved a task,移动了任务
 My cards,我的卡片
 Name,名称
 Native Content Hash,原生文件内容哈希
@@ -902,6 +911,7 @@ Posting Kind,过账类型
 Preparation Evidence,准备资料证据
 Preparation data does not match the connection or account set.,推送准备资料与当前连接或账套不一致。
 Preparation data for this account set is incomplete.,此账套的推送准备资料尚未完整获取。
+Prepared a stock count template,准备了盘点模板
 Presets,对账预设
 Previous Json,更改前数据（JSON）
 Private,私有
@@ -982,6 +992,7 @@ Record Key,记录键
 Record Revision,记录版本
 Record a count,录入盘点
 Record as expense,不抵扣，计入费用
+Recorded a count,记录了实盘数
 Recount,重盘
 Recount this product,重新盘点该物料
 Recurring,重复性
@@ -1090,6 +1101,7 @@ Scope,范围
 Scope Key,权限范围标识
 Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
+Searched tasks,搜索了任务
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
@@ -1538,6 +1550,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录�
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
 Updated At,更新时间
 Updated By,更新人
+Updated a task,修改了任务
 Updated {0} user(s),已更新 {0} 位用户
 Upload,上传
 Upload Failed,上传失败数
@@ -1583,6 +1596,9 @@ View photo,查看图片
 View the ones to check,查看待处理
 Viewed a document,查看了单据详情
 Viewed a reconciliation,查看了对账结果
+Viewed a stock count,查看了盘点结果
+Viewed a task,查看了任务
+Viewed a task board,查看了看板
 Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。

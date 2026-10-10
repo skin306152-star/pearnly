@@ -8,6 +8,7 @@ import pathlib
 import sys
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 COWORK = ROOT / "apps/pearnly_cowork/pearnly_cowork"
@@ -596,7 +597,46 @@ class ReconTests(unittest.TestCase):
             sys.modules[name] = module
             parent, _, child = name.rpartition(".")
             setattr(sys.modules[parent], child, module)
-        frappe.local = types.SimpleNamespace(lang="th")
+        toolrun = types.ModuleType("pearnly_core.assistant.toolrun")
+        toolrun.fresh = lambda: self.calls.append(("fresh",))
+        sys.modules["pearnly_core.assistant.toolrun"] = toolrun
+        sys.modules["pearnly_core.assistant"].toolrun = toolrun
+        self.store = {}
+        store = self.store
+
+        class Cache:
+            def set(self, key, value, nx=False, ex=None):
+                if nx and key in store:
+                    return False
+                store[key] = value.encode() if isinstance(value, str) else value
+                return True
+
+            def get(self, key):
+                return store.get(key)
+
+            def delete(self, key):
+                store.pop(key, None)
+
+        frappe.cache = Cache()
+        frappe.local = types.SimpleNamespace(lang="th", site="s1", pearnly_assistant={"session_id": "sesn_1"})
+        sleeper = mock.patch.object(tools.time, "sleep", lambda _s: None)
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+
+    def test_the_same_files_twice_start_one_reconciliation(self):
+        """模型一次发了两个同样的开始调用（2026-10-10 测试）：第二个接着等第一套，不再开第二套对账。"""
+        first = json.loads(tools.recon_start({"kind": "bank", "left_files": ["s"], "right_files": ["gl"]}))
+        second = json.loads(tools.recon_start({"kind": "bank", "left_files": ["s"], "right_files": ["gl"]}))
+        self.assertEqual(len([c for c in self.calls if c[0] == "start"]), 1)
+        self.assertEqual((first["job"], second["job"]), ("J1", "J1"))
+
+    def test_status_reads_afresh_until_the_reconciliation_finishes(self):
+        """推送线程里读过一次的状态会停在进程缓存里：每次查都要先清掉，读到后台刚写的「完成」（2026-10-10 测试一直读到排队中）。"""
+        states = iter(["queued", "running", "done"])
+        sys.modules["pearnly_cowork.recon_center.jobs"].status = lambda job: {"state": next(states), "task": "T1"}
+        out = json.loads(tools.recon_status({"job": "J1"}))
+        self.assertEqual((out["state"], out["task"]), ("done", "T1"))
+        self.assertEqual(len([c for c in self.calls if c[0] == "fresh"]), 3)
 
     def test_start_hands_both_sides_from_the_chat_and_reports_the_finished_task(self):
         out = json.loads(tools.recon_start({"kind": "bank", "left_files": ["file_s1", "file_s2"], "right_files": ["file_gl"]}))
@@ -616,6 +656,66 @@ class ReconTests(unittest.TestCase):
         self.assertEqual(out["file"], "/mnt/x/BBL Feb.xlsx")
         with self.assertRaises(frappe.ValidationError):
             tools.recon_list({"kind": "payroll"})
+
+
+
+class StocktakeAndWorkTests(unittest.TestCase):
+    """库存盘点、任务看板：调页面同一个接口；结果只给要点，业务拒绝回原因不抛给模型。"""
+
+    def setUp(self):
+        self.calls = []
+        for name in ("pearnly_cowork.stocktake", "pearnly_cowork.work"):
+            sys.modules.setdefault(name, types.ModuleType(name))
+        desk = types.ModuleType("pearnly_cowork.stocktake.desk_api")
+        desk.api_stock_count_review = lambda count: {
+            "task": {"title": "March", "status": "Active", "item_total": 3, "counted_total": 2, "difference_total": 1},
+            "items": [{"code": "A", "product_name": "Apple", "book_qty": 5.0, "counted": 1, "counted_qty": 5.0, "difference": 0.0},
+                      {"code": "B", "product_name": "Bean", "book_qty": 5.0, "counted": 1, "counted_qty": 3.0, "difference": -2.0},
+                      {"code": "C", "product_name": "Corn", "book_qty": 1.0, "counted": 0, "counted_qty": None, "difference": None}]}
+        desk.api_stock_count_lookup = lambda count, code: {"product": {"name": "ITEM-" + code}}
+        desk.api_stock_count_recount = lambda count, product: self.calls.append(("recount", product)) or {"cleared": 1}
+        desk.api_stock_count_add_entry = lambda count, qty, **kw: self.calls.append(("add", qty, kw["item"])) or {"entry": "E1"}
+
+        def delete(name):
+            if name == "closed":
+                frappe.throw("stocktake.closed")
+            return {"deleted": 1}
+
+        desk.api_stock_count_delete = delete
+        work = types.ModuleType("pearnly_cowork.work.api")
+        work.board = lambda board: {"board": {"name": "B1", "title": "Team"},
+                                    "lists": [{"name": "L1", "title": "To do"}, {"name": "L2", "title": "Done", "is_done_list": 1}],
+                                    "cards": [{"name": "C1", "title": "Pay VAT", "board_list": "L1", "assignees": ["a@example.com"]},
+                                              {"name": "C2", "title": "Template", "board_list": "L1", "is_template": 1},
+                                              {"name": "C3", "title": "File PND", "board_list": "L2", "completed": 1, "assignees": []}]}
+        for name, module in {"pearnly_cowork.stocktake.desk_api": desk, "pearnly_cowork.work.api": work}.items():
+            sys.modules[name] = module
+            parent, _, child = name.rpartition(".")
+            setattr(sys.modules[parent], child, module)
+        frappe.session = types.SimpleNamespace(user="a@example.com")
+
+    def test_report_lists_only_differences_and_uncounted_items(self):
+        out = json.loads(tools.stocktake_report({"count": "S1"}))
+        self.assertEqual([r["code"] for r in out["items"]], ["B", "C"])
+        self.assertEqual((out["items_total"], out["difference_total"]), (3, 1))
+        out = json.loads(tools.stocktake_report({"count": "S1", "all_items": True}))
+        self.assertEqual(len(out["items"]), 3)
+
+    def test_recount_clears_then_records_the_new_quantity(self):
+        tools.stocktake_count({"count": "S1", "code": "B", "qty": 4, "recount": True})
+        self.assertEqual(self.calls, [("recount", "ITEM-B"), ("add", 4, "ITEM-B")])
+
+    def test_delete_reports_each_count_and_refusals_do_not_raise(self):
+        out = json.loads(tools.stocktake_delete({"counts": ["S1", "closed"]}))
+        self.assertEqual(out["deleted"], ["S1"])
+        self.assertIn("closed", out["not_deleted"])
+
+    def test_board_hides_templates_and_mine_keeps_my_cards(self):
+        out = json.loads(tools.work_board({}))
+        self.assertEqual([c["card"] for c in out["cards"]], ["C1", "C3"])
+        self.assertEqual(out["cards"][1]["list"], "Done")
+        out = json.loads(tools.work_board({"mine": True}))
+        self.assertEqual([c["card"] for c in out["cards"]], ["C1"])
 
 
 if __name__ == "__main__":

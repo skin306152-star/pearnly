@@ -830,6 +830,9 @@ def export_review_workbook(tool_input) -> str:
 
 RECON_KINDS = ("bank", "income", "vat")
 RECON_WAIT_SECONDS = 90
+RECON_DEDUP_SECONDS = 600
+RECON_STILL_RUNNING = ("Still running in the background. Tell the user it is still being reconciled and that you "
+                       "will give the result when they ask; do not wait with sleep.")
 RECON_ROWS_SHOWN = 30
 
 
@@ -851,21 +854,57 @@ def _recon_status(job) -> dict:
                     "pages_done": sum(int(f.get("done") or 0) for f in files) or None})
 
 
+def _recon_wait(job) -> dict:
+    """等到对账结束或等满 RECON_WAIT_SECONDS；每次都重新读（后台进程刚写的状态）。"""
+    from pearnly_core.assistant import toolrun
+
+    state = {}
+    deadline = time.monotonic() + RECON_WAIT_SECONDS
+    while True:
+        toolrun.fresh()
+        state = _recon_status(job)
+        if state.get("state") not in ("queued", "running") or time.monotonic() >= deadline:
+            break
+        time.sleep(4)
+    if state.get("state") in ("queued", "running"):
+        state["note"] = RECON_STILL_RUNNING
+    return state
+
+
+def _recon_started_key(kind, sides) -> str:
+    conversation = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
+    files = "|".join(",".join(sides.get(side) or []) for side in ("left", "right"))
+    return f"pearnly_assistant:recon:{frappe.local.site}:{conversation}:{kind}:{files}"
+
+
 def recon_start(tool_input) -> str:
-    """同对账页「新建」：两口文件取自对话附件（银行：账单 / 总账；收入：总账 / 销项税报告；销项核查：报告 / 发票）。"""
+    """同对账页「新建」：两口文件取自对话附件（银行：账单 / 总账；收入：总账 / 销项税报告；销项核查：报告 / 发票）。
+    同一对话同一组附件只开一套（模型一次发两个同样的调用时，第二个接着等第一套，不重复对账）。"""
     from pearnly_core.assistant import files as chat_files
 
     from pearnly_cowork.recon_center import jobs
 
     kind = _recon_kind(tool_input)
+    ids = {side: [str(f) for f in tool_input.get(side + "_files") or []] for side in ("left", "right")}
+    key = _recon_started_key(kind, ids)
+    if not frappe.cache.set(key, "", nx=True, ex=RECON_DEDUP_SECONDS):
+        job = ""
+        for _attempt in range(30):  # 第一个调用还在存文件、排任务：等它记下任务号
+            job = (frappe.cache.get(key) or b"").decode()
+            if job:
+                break
+            time.sleep(1)
+        if job:
+            return _json(_recon_wait(job))
     sides = {}
     for side in ("left", "right"):
         sides[side] = []
-        for file_id in tool_input.get(side + "_files") or []:
+        for file_id in ids[side]:
             try:
-                sides[side].append(chat_files.attachment(str(file_id)))
+                sides[side].append(chat_files.attachment(file_id))
             except frappe.ValidationError:
                 frappe.clear_messages()
+                frappe.cache.delete(key)
                 return _json({"status": "not_started", "reason": f"attachment {file_id} is not in this conversation",
                               "attachments_in_this_chat": chat_files.attachments()})
     try:
@@ -874,21 +913,15 @@ def recon_start(tool_input) -> str:
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
+        frappe.cache.delete(key)
         return _json({"status": "not_started", "reason": str(error)[:300]})
-    state = {}
-    deadline = time.monotonic() + RECON_WAIT_SECONDS
-    while time.monotonic() < deadline:
-        frappe.db.rollback()
-        state = _recon_status(started["job"])
-        if state.get("state") not in ("queued", "running"):
-            break
-        time.sleep(4)
-    return _json(state or {"job": started["job"], "state": "queued"})
+    frappe.cache.set(key, started["job"], ex=RECON_DEDUP_SECONDS)
+    return _json(_recon_wait(started["job"]))
 
 
 def recon_status(tool_input) -> str:
     try:
-        return _json(_recon_status(str(tool_input.get("job") or "")))
+        return _json(_recon_wait(str(tool_input.get("job") or "")))
     except frappe.DoesNotExistError:
         frappe.clear_messages()
         return _json({"job": tool_input.get("job"), "state": "not_found"})
@@ -1014,6 +1047,202 @@ def recon_delete(tool_input) -> str:
         frappe.clear_messages()
         return _json({"status": "not_deleted", "reason": str(error)[:300]})
     return _json(result if isinstance(result, dict) else {"deleted": result})
+
+
+# ---------------- 库存盘点（同盘点页，`stocktake.desk_api`） ----------------
+
+STOCK_ROWS_SHOWN = 40
+
+
+def _call(fn, *args, **kwargs) -> dict:
+    """调页面同一个接口；业务拒绝回 not_saved 与原因（已翻译），不抛给模型。"""
+    try:
+        result = fn(*args, **kwargs)
+        frappe.db.commit()
+        return result if isinstance(result, dict) else {"result": result}
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"status": "not_saved", "reason": str(error)[:300]}
+
+
+def stocktake_list(tool_input) -> str:
+    from pearnly_cowork.stocktake import desk_api
+
+    return _json(_call(desk_api.api_list_stock_counts, 0, max(1, min(int(tool_input.get("limit") or 20), 100))))
+
+
+def stocktake_template(_input) -> str:
+    """建盘点用的 Excel 模板（产品代码、名称、单位、账面数，可带实盘数），放进对话给用户下载填写。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.stocktake import upload
+
+    path = chat_files.add_to_conversation("stocktake-template.xlsx", upload.template(), XLSX)
+    return _json({"status": "ready", "file": path})
+
+
+def stocktake_create(tool_input) -> str:
+    """同盘点页「新建」：用对话里发来的 Excel（账面数，可带实盘数）建一张盘点单。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.stocktake import upload
+
+    try:
+        _name, content = chat_files.attachment(str(tool_input.get("file") or ""))
+    except frappe.ValidationError:
+        frappe.clear_messages()
+        return _json({"status": "not_saved", "reason": "This attachment is not in this conversation.",
+                      "attachments_in_this_chat": chat_files.attachments()})
+    # 盘点单号要 UUID：按对话 + 附件算一个固定的，同一份表重复建只得到同一张（页面接口的幂等）
+    conversation = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
+    key = str(uuid.uuid5(uuid.NAMESPACE_URL, f"pearnly-assistant:{conversation}:{tool_input.get('file')}"))
+    title = (str(tool_input.get("title") or "").strip() or _name.rsplit(".", 1)[0])[:120]
+    return _json(_call(upload.create, title, key, content))
+
+
+def stocktake_report(tool_input) -> str:
+    """盘点结果：各项账面数、实盘数、差异；默认只列有差异或还没盘的。"""
+    from pearnly_cowork.stocktake import desk_api
+
+    count = str(tool_input.get("count") or "")
+    data = _call(desk_api.api_stock_count_review, count)
+    if data.get("status") == "not_saved":
+        return _json(data)
+    items = data.get("items") or []
+    if not tool_input.get("all_items"):
+        items = [r for r in items if not r.get("counted") or r.get("difference")]
+    keep = ("code", "product_name", "unit", "location", "book_qty", "counted_qty", "difference")
+    rows = [{k: r.get(k) for k in keep if r.get(k) not in (None, "")} | {"counted": bool(r.get("counted"))}
+            for r in items[:STOCK_ROWS_SHOWN]]
+    head = data.get("task") or {}
+    return _json({"count": count, "title": head.get("title"), "status": head.get("status"),
+                  "items_total": head.get("item_total"), "counted_total": head.get("counted_total"),
+                  "difference_total": head.get("difference_total"), "listed": len(items), "items": rows})
+
+
+def stocktake_count(tool_input) -> str:
+    """按产品代码或条码记一笔实盘数（同扫码录入：同一产品多笔累加）；recount 先清掉这个产品已记的数再记。"""
+    from pearnly_cowork.stocktake import desk_api
+
+    count = str(tool_input.get("count") or "")
+    found = _call(desk_api.api_stock_count_lookup, count, str(tool_input.get("code") or ""))
+    if found.get("status") == "not_saved":
+        return _json(found)
+    item = found["product"]["name"]
+    if tool_input.get("recount"):
+        cleared = _call(desk_api.api_stock_count_recount, count, item)
+        if cleared.get("status") == "not_saved" or tool_input.get("qty") is None:
+            return _json(cleared)
+    if tool_input.get("qty") is None:
+        return _json({"status": "not_saved", "reason": "qty is required."})
+    return _json(_call(desk_api.api_stock_count_add_entry, count, tool_input.get("qty"), item=item,
+                       location=tool_input.get("location") or None, request_id=str(uuid.uuid4())))
+
+
+def stocktake_close(tool_input) -> str:
+    from pearnly_cowork.stocktake import desk_api
+
+    return _json(_call(desk_api.api_stock_count_close, str(tool_input.get("count") or "")))
+
+
+def stocktake_export(tool_input) -> str:
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.stocktake import service as stocktake_service
+
+    count = str(tool_input.get("count") or "")
+    try:
+        content = stocktake_service.export(count)
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.clear_messages()
+        return _json({"status": "not_exported", "reason": str(error)[:300]})
+    return _json({"status": "exported", "file": chat_files.add_to_conversation(f"stocktake-{count}.xlsx", content, XLSX)})
+
+
+def stocktake_delete(tool_input) -> str:
+    from pearnly_cowork.stocktake import desk_api
+
+    names = [str(n) for n in (tool_input.get("counts") or [])]
+    if not names:
+        frappe.throw(_("No tasks were given."))
+    results = {name: _call(desk_api.api_stock_count_delete, name) for name in names}
+    return _json({"deleted": [n for n, r in results.items() if r.get("status") != "not_saved"],
+                  "not_deleted": {n: r["reason"] for n, r in results.items() if r.get("status") == "not_saved"}})
+
+
+# ---------------- 任务管理（团队看板，同任务页，`work.api`） ----------------
+
+WORK_CARDS_SHOWN = 100
+
+
+def _card_brief(card, lists) -> dict:
+    return _filled({"card": card.get("name"), "title": card.get("title"), "list": lists.get(card.get("board_list")),
+                    "due": card.get("due_date"), "done": bool(card.get("completed")),
+                    "assignees": card.get("assignees"), "labels": card.get("labels")})
+
+
+def work_boards(_input) -> str:
+    from pearnly_cowork.work import api as work_api
+
+    return _json(_call(work_api.boards_list))
+
+
+def work_board(tool_input) -> str:
+    """一块看板（不给就是默认看板）：各列表与卡片要点（标题、列表、截止、完成、负责人、标签）。"""
+    from pearnly_cowork.work import api as work_api
+
+    data = _call(work_api.board, tool_input.get("board") or None)
+    if data.get("status") == "not_saved":
+        return _json(data)
+    lists = {row.get("name"): row.get("title") for row in data.get("lists") or []}
+    cards = [c for c in data.get("cards") or [] if not c.get("is_template") and not c.get("archived")]
+    if tool_input.get("mine"):
+        cards = [c for c in cards if frappe.session.user in (c.get("assignees") or [])]
+    return _json({"board": data.get("board"),
+                  "lists": [_filled({"list": row.get("name"), "title": row.get("title"),
+                                     "done_list": bool(row.get("is_done_list"))}) for row in data.get("lists") or []],
+                  "cards_total": len(cards), "cards": [_card_brief(c, lists) for c in cards[:WORK_CARDS_SHOWN]]})
+
+
+def work_card(tool_input) -> str:
+    from pearnly_cowork.work import api as work_api
+
+    return _json(_call(work_api.card, str(tool_input.get("card") or "")))
+
+
+def work_create_card(tool_input) -> str:
+    from pearnly_cowork.work import api as work_api
+
+    return _json(_call(work_api.create, str(tool_input.get("title") or ""), str(tool_input.get("list") or "")))
+
+
+def work_update_card(tool_input) -> str:
+    """改卡片（标题、描述、开始 / 截止、提醒、重复、负责人、标签、清单、完成）：带上查卡片时的 modified，别人刚改过就不覆盖。"""
+    from pearnly_cowork.work import api as work_api
+
+    return _json(_call(work_api.update, str(tool_input.get("card") or ""), str(tool_input.get("modified") or ""),
+                       json.dumps(tool_input.get("values") or {})))
+
+
+def work_move_card(tool_input) -> str:
+    from pearnly_cowork.work import api as work_api
+
+    if tool_input.get("toggle_done"):
+        return _json(_call(work_api.toggle_done, str(tool_input.get("card") or "")))
+    return _json(_call(work_api.move, str(tool_input.get("card") or ""), str(tool_input.get("list") or "")))
+
+
+def work_comment(tool_input) -> str:
+    from pearnly_cowork.work import api as work_api
+
+    return _json(_call(work_api.comment, str(tool_input.get("card") or ""), str(tool_input.get("content") or "")))
+
+
+def work_search(tool_input) -> str:
+    from pearnly_cowork.work import api as work_api
+
+    return _json(_call(work_api.search, str(tool_input.get("keyword") or ""), tool_input.get("board") or None))
 
 
 # ---------------- 文件夹定时任务 ----------------
@@ -1327,7 +1556,8 @@ TOOLS = [
                     "right_files = sales invoices. Excel/CSV and text PDFs are read free; scanned PDFs and photos are "
                     "read with paid recognition per page like invoices, so say so before starting when files are "
                     "scanned. The bank, account and period are worked out from the files. Waits up to 90 seconds; "
-                    "otherwise check later with cowork_recon_status. Use this rather than reconciling yourself.",
+                    "if it is still running, tell the user and check again with cowork_recon_status when they ask "
+                    "(never wait with sleep). Use this rather than reconciling yourself.",
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
          "left_files": {"type": "array", "items": {"type": "string"}, "minItems": 1},
          "right_files": {"type": "array", "items": {"type": "string"}, "minItems": 1},
@@ -1335,7 +1565,7 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.recon_start"},
     {"name": "cowork_recon_status", "label": "Checked a reconciliation's progress",
      "description": "Progress of a reconciliation started by cowork_recon_start or a preset answer that re-runs it: "
-                    "state, stage, pages read, and the finished task.",
+                    "state, stage, pages read, and the finished task. Waits up to 90 seconds for it to finish.",
      "input_schema": {"type": "object", "properties": {"job": {"type": "string"}}, "required": ["job"]},
      "handler": "pearnly_cowork.assistant.tools.recon_status"},
     {"name": "cowork_recon_list", "label": "Listed reconciliations",
@@ -1377,6 +1607,70 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
          "tasks": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["kind", "tasks"]},
      "handler": "pearnly_cowork.assistant.tools.recon_delete"},
+    {"name": "cowork_stocktake_list", "label": "Listed stock counts",
+     "description": "The company's stock counts (stocktakes), newest first.",
+     "input_schema": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": []},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_list"},
+    {"name": "cowork_stocktake_template", "label": "Prepared a stock count template",
+     "description": "The Excel template for a new stock count (product code, name, unit, book quantity, optional counted quantity), added to this conversation; copy it into the results folder for the user to fill in.",
+     "input_schema": {"type": "object", "properties": {}, "required": []},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_template"},
+    {"name": "cowork_stocktake_create", "label": "Created a stock count",
+     "description": "Create a stock count from an Excel file the user attached in this chat (the template's columns; book quantities, counted quantities optional), like New on the stocktake page. Returns the count and rows that were skipped with reasons.",
+     "input_schema": {"type": "object", "properties": {"file": {"type": "string"}, "title": {"type": "string"}}, "required": ["file"]},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_create"},
+    {"name": "cowork_stocktake_report", "label": "Viewed a stock count",
+     "description": "Book quantity, counted quantity and difference per item of a stock count; by default only items with a difference or not counted yet (up to 40), all_items for everything.",
+     "input_schema": {"type": "object", "properties": {"count": {"type": "string"}, "all_items": {"type": "boolean"}}, "required": ["count"]},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_report"},
+    {"name": "cowork_stocktake_count", "label": "Recorded a count",
+     "description": "Record a counted quantity for a product by code or barcode, like scanning on the page: entries for the same product add up. recount true clears that product's earlier counts first and then records qty.",
+     "input_schema": {"type": "object", "properties": {"count": {"type": "string"}, "code": {"type": "string"}, "qty": {"type": "number", "minimum": 0}, "location": {"type": "string"}, "recount": {"type": "boolean"}}, "required": ["count", "code"]},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_count"},
+    {"name": "cowork_stocktake_close", "label": "Finished a stock count",
+     "description": "Finish a stock count; it becomes read-only (export only). Only when the user says counting is done.",
+     "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_close"},
+    {"name": "cowork_stocktake_export", "label": "Exported a stock count",
+     "description": "The variance workbook of a stock count, added to this conversation; copy it into the results folder for the user.",
+     "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_export"},
+    {"name": "cowork_stocktake_delete", "label": "Deleted stock counts",
+     "description": "Delete stock counts the user clearly named (ask only when unclear which).",
+     "input_schema": {"type": "object", "properties": {"counts": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["counts"]},
+     "handler": "pearnly_cowork.assistant.tools.stocktake_delete"},
+    {"name": "cowork_work_boards", "label": "Listed task boards",
+     "description": "The team task boards the user can see.",
+     "input_schema": {"type": "object", "properties": {}, "required": []},
+     "handler": "pearnly_cowork.assistant.tools.work_boards"},
+    {"name": "cowork_work_board", "label": "Viewed a task board",
+     "description": "One task board (default board when left out): its lists and cards with title, list, due date, done, assignees and labels (up to 100). mine true keeps only cards assigned to the user.",
+     "input_schema": {"type": "object", "properties": {"board": {"type": "string"}, "mine": {"type": "boolean"}}, "required": []},
+     "handler": "pearnly_cowork.assistant.tools.work_board"},
+    {"name": "cowork_work_card", "label": "Viewed a task",
+     "description": "A task card's full detail: description, dates, reminder, recurrence, assignees, labels, checklists, attachments, recent activity, and modified (needed to change it).",
+     "input_schema": {"type": "object", "properties": {"card": {"type": "string"}}, "required": ["card"]},
+     "handler": "pearnly_cowork.assistant.tools.work_card"},
+    {"name": "cowork_work_create_card", "label": "Created a task",
+     "description": "Create a task card at the end of a list (list id from cowork_work_board).",
+     "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "list": {"type": "string"}}, "required": ["title", "list"]},
+     "handler": "pearnly_cowork.assistant.tools.work_create_card"},
+    {"name": "cowork_work_update_card", "label": "Updated a task",
+     "description": "Change a task card: values may hold title, description, start_date, due_date, due_time, reminder (none, at_due, 5m, 10m, 15m, 1h, 2h, 1d, 2d), recurrence (never, daily, weekly, monthly, yearly), assignees (user ids of board editors), labels, checklists, completed. Pass modified from cowork_work_card so a newer edit by someone else is not overwritten.",
+     "input_schema": {"type": "object", "properties": {"card": {"type": "string"}, "modified": {"type": "string"}, "values": {"type": "object"}}, "required": ["card", "modified", "values"]},
+     "handler": "pearnly_cowork.assistant.tools.work_update_card"},
+    {"name": "cowork_work_move_card", "label": "Moved a task",
+     "description": "Move a task card to another list (moving into the done list completes it), or toggle_done to mark it done / not done (a recurring task rolls its due date forward instead).",
+     "input_schema": {"type": "object", "properties": {"card": {"type": "string"}, "list": {"type": "string"}, "toggle_done": {"type": "boolean"}}, "required": ["card"]},
+     "handler": "pearnly_cowork.assistant.tools.work_move_card"},
+    {"name": "cowork_work_comment", "label": "Commented on a task",
+     "description": "Add a comment to a task card.",
+     "input_schema": {"type": "object", "properties": {"card": {"type": "string"}, "content": {"type": "string"}}, "required": ["card", "content"]},
+     "handler": "pearnly_cowork.assistant.tools.work_comment"},
+    {"name": "cowork_work_search", "label": "Searched tasks",
+     "description": "Search task cards by keyword (title, description, comments, checklist items, field values; at least 2 characters).",
+     "input_schema": {"type": "object", "properties": {"keyword": {"type": "string"}, "board": {"type": "string"}}, "required": ["keyword"]},
+     "handler": "pearnly_cowork.assistant.tools.work_search"},
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
      "input_schema": {"type": "object", "properties": {

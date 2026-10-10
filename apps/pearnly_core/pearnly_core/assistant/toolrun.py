@@ -13,6 +13,16 @@ from pearnly_core.assistant import contracts, engine, tools
 TOOL_RUN = "Pearnly Assistant Tool Run"
 
 
+def fresh():
+    """推送线程一轮里连着执行多次工具，用的是同一个 Frappe 上下文：读过的缓存（`frappe.local.cache`）和数据库快照会一直
+    停在第一次读到的样子。每次执行工具、工具里每次重新查进度前都要清掉（2026-10-10 测试：对账 9 秒就做完，工具却一直读到
+    「排队中」，智能体在沙箱里 sleep 干等）。"""
+    frappe.db.rollback()
+    cache = getattr(frappe.local, "cache", None)
+    if isinstance(cache, dict):
+        cache.clear()
+
+
 def execute(conversation: str, remote: str, call: dict) -> str:
     """执行 `call`（一条 `agent.custom_tool_use` 事件）并把结果交回引擎。返回 done / error / running（别处已在执行）。"""
     use_id = contracts.event_id(call.get("id"))
@@ -29,6 +39,7 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         return "running"
     # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）；工具函数本身只收模型给的参数。
     frappe.local.pearnly_assistant = {"session_id": conversation}
+    fresh()
     try:
         text, is_error = tools.run(call.get("name"), call.get("input"))
     except Exception:
