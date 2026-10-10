@@ -45,9 +45,9 @@ def _cat_svg():
 
 
 CC_CAT = _cat_svg()
-# 左上角：白字 CC 图标（去胡须的小尺寸版，frontend/assistant/src/brand/cc-icon-small.svg）+ 黑体「CC」
-BRAND_MARK = ((ROOT / "frontend/assistant/src/brand/cc-icon-small.svg").read_text()
-              .replace('width="1024" height="1024"', 'width="30" height="30" aria-hidden="true" focusable="false"').strip())
+# 左上角只放 CC 图标（白字带胡须的原版，frontend/assistant/src/brand/cc-icon.svg；用户 2026-10-10：不要文字、图标大一点）
+BRAND_MARK = ((ROOT / "frontend/assistant/src/brand/cc-icon.svg").read_text()
+              .replace('width="1024" height="1024"', 'width="46" height="46" role="img" aria-label="CC"').strip())
 # 标签页小图标：白字 CC（32 像素去胡须版，frontend/assistant/public/icon-32.png），直接内嵌
 FAVICON = ('<link rel="icon" type="image/png" href="data:image/png;base64,'
            + base64.b64encode((ROOT / "frontend/assistant/public/icon-32.png").read_bytes()).decode() + '">')
@@ -281,7 +281,7 @@ PAGE_HTML = """<!doctype html>
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand">""" + BRAND_MARK + """CC</span>
+    <span class="brand">""" + BRAND_MARK + """</span>
     <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
   </header>
   <section class="hero">
@@ -372,7 +372,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand">""" + BRAND_MARK + """CC</span>
+    <span class="brand">""" + BRAND_MARK + """</span>
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
     <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>

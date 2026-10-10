@@ -22,7 +22,7 @@ import {
 import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
-import ccMark from "@/brand/cc-icon-small.svg";
+import ccMark from "@/brand/cc-icon.svg";
 import { Mascot } from "@/components/mascot";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
@@ -188,11 +188,8 @@ function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
-        {/* 同登录页左上角：CC 图标 + 纯黑粗体「CC」（用户 2026-10-10） */}
-        <span className="flex items-center gap-2 ps-1 font-extrabold text-[22px] text-black leading-none tracking-wide" style={{ fontFamily: '"Helvetica Neue", Arial, "PingFang SC", sans-serif' }}>
-          <img src={ccMark} alt="" className="size-7" />
-          CC
-        </span>
+        {/* 同登录页左上角：只放 CC 图标（白字带胡须的原版，用户 2026-10-10） */}
+        <img src={ccMark} alt="CC" className="ms-0.5 size-10" />
         <SidebarTrigger aria-label={t("sidebar")} />
       </SidebarHeader>
       <SidebarContent className="px-2">

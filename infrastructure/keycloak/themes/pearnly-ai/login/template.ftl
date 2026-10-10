@@ -13,14 +13,17 @@
 <canvas class="dots" aria-hidden="true"></canvas><svg class="hd-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="hd-pencil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="5" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
 <div class="page">
   <header class="top">
-    <span class="brand"><svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" aria-hidden="true" focusable="false" viewBox="0 0 200 200">
+    <span class="brand"><svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" role="img" aria-label="CC" viewBox="0 0 200 200">
   <rect width="200" height="200" rx="46" fill="#F28C28"/>
-  <g fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round">
+  <g fill="none" stroke="#FFFFFF" stroke-width="12.75" stroke-linecap="round">
     <path d="M92.455 80.45A25.5 25.5 0 1 0 92.455 119.55"/>
     <path d="M146.855 80.45A25.5 25.5 0 1 0 146.855 119.55"/>
   </g>
-  
-</svg>CC</span>
+  <g stroke="#111111" stroke-width="5" stroke-linecap="round">
+    <path d="M36 88 14 80M36 100H13M36 112 14 120"/>
+    <path d="M164 88 186 80M164 100H187M164 112 186 120"/>
+  </g>
+</svg></span>
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
     <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>

@@ -104,6 +104,7 @@ cmd_tunnel_create() {
       {"hostname": "testdms.pearnly.com", "service": "http://127.0.0.1:8183"},
       {"hostname": "testerp.pearnly.com", "service": "http://127.0.0.1:8182"},
       {"hostname": "testcowork.pearnly.com", "service": "http://127.0.0.1:8181"},
+      {"hostname": "testai.pearnly.com", "path": "^/assets/", "service": "http://127.0.0.1:8181"},
       {"hostname": "testai.pearnly.com", "service": "http://127.0.0.1:8184"},
       {"service": "http_status:404"}
     ]
