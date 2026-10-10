@@ -9,8 +9,7 @@
 canvas.dots{position:fixed;inset:0;z-index:0;pointer-events:none}
 .hd-defs{position:absolute}
 .page{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow-x:clip}
-.top{align-self:stretch;display:flex;align-items:center;justify-content:space-between;padding:18px 24px}
-.brand{display:flex;align-items:center;gap:9px;font-family:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;color:#000}.brand svg{display:block;flex:none}
+.top{align-self:stretch;display:flex;align-items:center;justify-content:flex-end;padding:18px 24px}
 .langs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.7)}
 .langs a{font-size:13px;color:var(--muted);padding:3px 11px;border-radius:999px;text-decoration:none}
 .langs a.on{background:var(--ink);color:#fff}
@@ -58,6 +57,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .pick:hover{border-color:var(--line-strong);background:#fbfbf9}
 .pick b{font-weight:500}.pick small{color:var(--faint);font-size:12.5px}
 .form-stack{display:grid;gap:12px}.form-row label{display:block;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.card-logo{display:flex;justify-content:center;margin:2px 0 20px}.card-logo svg{display:block}
 .field{position:relative}.field-icon{display:none}.pn-auto .card{visibility:hidden}
 .toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--faint);padding:4px;cursor:pointer;width:30px;height:30px}
 .toggle-password svg{width:18px;height:18px}
@@ -96,7 +96,11 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 <canvas class="dots" aria-hidden="true"></canvas><svg class="hd-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="hd-pencil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="5" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
 <div class="page">
   <header class="top">
-    <span class="brand"><svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" role="img" aria-label="CC" viewBox="0 0 200 200">
+    <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+  </header>
+  <section class="hero">
+    {% if mode == "pick" %}
+    <div class="card step"><div class="card-logo"><svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" role="img" aria-label="CC" viewBox="0 0 200 200">
   <rect width="200" height="200" rx="46" fill="#F28C28"/>
   <g fill="none" stroke="#FFFFFF" stroke-width="12.75" stroke-linecap="round">
     <path d="M92.455 80.45A25.5 25.5 0 1 0 92.455 119.55"/>
@@ -106,22 +110,37 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
     <path d="M36 88 14 80M36 100H13M36 112 14 120"/>
     <path d="M164 88 186 80M164 100H187M164 112 186 120"/>
   </g>
-</svg></span>
-    <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
-  </header>
-  <section class="hero">
-    {% if mode == "pick" %}
-    <div class="card step">
+</svg></div>
       <h2>{{ _("Choose a workspace") }}</h2>
       <div class="picks">{% for s in sites %}<a class="pick" href="/api/method/pearnly_control.assistant_entry.api.choose?pick={{ pick | urlencode }}&amp;site={{ s.site | urlencode }}"><b>{{ s.company | e }}</b><small>{{ products.get(s.product, s.product) }}</small></a>{% endfor %}</div>
     </div>
     {% elif mode == "none" %}
-    <div class="card step">
+    <div class="card step"><div class="card-logo"><svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" role="img" aria-label="CC" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="46" fill="#F28C28"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="12.75" stroke-linecap="round">
+    <path d="M92.455 80.45A25.5 25.5 0 1 0 92.455 119.55"/>
+    <path d="M146.855 80.45A25.5 25.5 0 1 0 146.855 119.55"/>
+  </g>
+  <g stroke="#111111" stroke-width="5" stroke-linecap="round">
+    <path d="M36 88 14 80M36 100H13M36 112 14 120"/>
+    <path d="M164 88 186 80M164 100H187M164 112 186 120"/>
+  </g>
+</svg></div>
       <p class="notice">{{ _("This account has no workspace available. Contact your administrator.") }}</p>
       <a class="btn" href="/?fresh=1">{{ _("Back") }}</a>
     </div>
     {% else %}
-    <form class="card" id="entry" novalidate>
+    <form class="card" id="entry" novalidate><div class="card-logo"><svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" role="img" aria-label="CC" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="46" fill="#F28C28"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="12.75" stroke-linecap="round">
+    <path d="M92.455 80.45A25.5 25.5 0 1 0 92.455 119.55"/>
+    <path d="M146.855 80.45A25.5 25.5 0 1 0 146.855 119.55"/>
+  </g>
+  <g stroke="#111111" stroke-width="5" stroke-linecap="round">
+    <path d="M36 88 14 80M36 100H13M36 112 14 120"/>
+    <path d="M164 88 186 80M164 100H187M164 112 186 120"/>
+  </g>
+</svg></div>
       <input class="input" id="login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="{{ _("Username or email") }}" autofocus>
       <div class="field" style="margin-top:10px">
         <input id="password" name="password" type="password" autocomplete="current-password" placeholder="{{ _("Password") }}">

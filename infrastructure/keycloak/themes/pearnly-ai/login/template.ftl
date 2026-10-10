@@ -6,7 +6,7 @@
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CC</title><link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADNElEQVR4nMWXTWxUVRTHf+e++WinUzCZpm2MC5RBB2ONH2BdGDfGWWBI1MQvJIBpEOLKSNKdLmBlgaQuiIuCNlVDjCa61EoTwa8YJCF0A3ZK4w4Spwh0mL6ZefeY98bWNvMB7Wjff3XvPefe//+de885ecISqCI3j2b2omQR+lBNI2JoBaoWkRzoBZDvOg9cHBFBF8yyMJgbvrfHK8fHRMi2RHhbPYw7UXdX8u2Zq4sC5oYyWWsYA3pYG1w1ll3JwYvjQXg9o++sIbmPHiv6lj+Qm0ce2K/Ih4QAUfuaUZU9hATF7DeKZkITIGwwIrI+LAGC9raW461LiIcsAFYkwKQ24vQ+DLFkfQdxML19mFQaTPSOzozciVPs0Z3EntyHJLoW1yq/f8P8qUNocRYicdqeeZdoZhtE2qsOXhn3l2OUzp4AW2l4ttw4klmsy/UQHPzIjro2+9cfFMZepGPHSUzX/XV9Sr99jHt6aHURcDY8tUheyZ3C/XEYLV4n+tALxPvfRAt52p4+UCVXD/eHYUqTX2DW3U186wCRzHNo8VozCppGIPH658Gd23yOwuj25RsTXUgiRcfur6tfevYj3DOHl/mY1CbstZmmV2AaWyI43Zv/OfxEjVlv/Ym5657qxCtTOjda42PzU03JmwvwG6U4TTcv6earhmlosWXs7EwwjG0dqKVOpPDyuerEiRJ7vLalSLK7BQFUX3DglErT/vyxoA74dx97Yi/JgW9pzx6kkpuoityyO1gnvg7TvZn2bYdJ7jtNbMsbTQXIbdMwe5Bo30uN0/DTl+l49ZPGaXhuFPf791dfCefH32N+4lDw6JbCT8tbJ3eCe4PCZ69QnvwSKsV/HfxC9NMHuGeOthaBpQiuINqBN3sZSnPULcU9D0K5GETHF/GflOIF2Pw0TaEe9sokK4EhZJjwBaheCo1d9ZJR4Xxo/MJ5I2hoAnxu/w0cR5laa3JVnaZkRoJucn3ovk1ioj+DdK0NO/mYVvrbBnPTQRasH7w81Vkpp1FGgt/H/49ZQY93eqWNPrm/UtNPC0Ppx6wT2a5WnwXpR1ZWrGo5qYD+qiITjvW+Sg5OLXtzfwN/GCoDrT6UCQAAAABJRU5ErkJggg=="><meta name="robots" content="noindex"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sriracha&display=swap" rel="stylesheet">
 <script>if(/^#pn/.test(location.hash))document.documentElement.classList.add('pn-auto')</script>
-<link href="${url.resourcesPath}/css/ai.8a2fd10c99.css" rel="stylesheet" />
+<link href="${url.resourcesPath}/css/ai.a51859633f.css" rel="stylesheet" />
 <#if scripts??><#list scripts as script><script src="${script}" type="text/javascript"></script></#list></#if>
 <script src="${url.resourcesPath}/js/ai.5c502b034c.js" defer></script>
 </head>
@@ -14,7 +14,12 @@
 <canvas class="dots" aria-hidden="true"></canvas><svg class="hd-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="hd-pencil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="5" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
 <div class="page">
   <header class="top">
-    <span class="brand"><svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" role="img" aria-label="CC" viewBox="0 0 200 200">
+    <#if realm.internationalizationEnabled && locale.supported?size gt 1>
+    <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
+    </#if>
+  </header>
+  <section class="hero">
+    <div class="card"><div class="card-logo"><svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" role="img" aria-label="CC" viewBox="0 0 200 200">
   <rect width="200" height="200" rx="46" fill="#F28C28"/>
   <g fill="none" stroke="#FFFFFF" stroke-width="12.75" stroke-linecap="round">
     <path d="M92.455 80.45A25.5 25.5 0 1 0 92.455 119.55"/>
@@ -24,13 +29,7 @@
     <path d="M36 88 14 80M36 100H13M36 112 14 120"/>
     <path d="M164 88 186 80M164 100H187M164 112 186 120"/>
   </g>
-</svg></span>
-    <#if realm.internationalizationEnabled && locale.supported?size gt 1>
-    <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
-    </#if>
-  </header>
-  <section class="hero">
-    <div class="card">
+</svg></div>
       <#nested "header">
       <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
         <div class="auth-message ${message.type}" role="alert">${kcSanitize(message.summary)?no_esc}</div>

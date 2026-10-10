@@ -25,9 +25,9 @@ LINE_URL = "https://line.me/R/ti/p/@pearnly"
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sriracha&display=swap" rel="stylesheet">')
 # 登录页不放猫（用户 2026-10-10 晚：探头的猫、睡觉的猫都删掉）；CC 的形象「吐司胖橘」站在底部那排小人里（scenes.cc_loaf）。
-# 左上角只放 CC 图标（白字带胡须的原版，frontend/assistant/src/brand/cc-icon.svg；用户 2026-10-10：不要文字、图标大一点）
-BRAND_MARK = ((ROOT / "frontend/assistant/src/brand/cc-icon.svg").read_text()
-              .replace('width="1024" height="1024"', 'width="46" height="46" role="img" aria-label="CC"').strip())
+# CC 图标（白字带胡须的原版，frontend/assistant/src/brand/cc-icon.svg）放在登录框里面最上方正中（用户 2026-10-10 晚），顶上只留语言
+BRAND_MARK = ('<div class="card-logo">' + (ROOT / "frontend/assistant/src/brand/cc-icon.svg").read_text()
+              .replace('width="1024" height="1024"', 'width="56" height="56" role="img" aria-label="CC"').strip() + '</div>')
 # 标签页小图标：白字 CC（32 像素去胡须版，frontend/assistant/public/icon-32.png），直接内嵌
 FAVICON = ('<link rel="icon" type="image/png" href="data:image/png;base64,'
            + base64.b64encode((ROOT / "frontend/assistant/public/icon-32.png").read_bytes()).decode() + '">')
@@ -119,8 +119,7 @@ CSS = """
 canvas.dots{position:fixed;inset:0;z-index:0;pointer-events:none}
 .hd-defs{position:absolute}
 .page{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow-x:clip}
-.top{align-self:stretch;display:flex;align-items:center;justify-content:space-between;padding:18px 24px}
-.brand{display:flex;align-items:center;gap:9px;font-family:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;color:#000}.brand svg{display:block;flex:none}
+.top{align-self:stretch;display:flex;align-items:center;justify-content:flex-end;padding:18px 24px}
 .langs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.7)}
 .langs a{font-size:13px;color:var(--muted);padding:3px 11px;border-radius:999px;text-decoration:none}
 .langs a.on{background:var(--ink);color:#fff}
@@ -168,6 +167,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .pick:hover{border-color:var(--line-strong);background:#fbfbf9}
 .pick b{font-weight:500}.pick small{color:var(--faint);font-size:12.5px}
 .form-stack{display:grid;gap:12px}.form-row label{display:block;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.card-logo{display:flex;justify-content:center;margin:2px 0 20px}.card-logo svg{display:block}
 .field{position:relative}.field-icon{display:none}.pn-auto .card{visibility:hidden}
 .toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--faint);padding:4px;cursor:pointer;width:30px;height:30px}
 .toggle-password svg{width:18px;height:18px}
@@ -244,22 +244,21 @@ PAGE_HTML = """<!doctype html>
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand">""" + BRAND_MARK + """</span>
     <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
   </header>
   <section class="hero">
     {% if mode == "pick" %}
-    <div class="card step">
+    <div class="card step">""" + BRAND_MARK + """
       <h2>{{ _("Choose a workspace") }}</h2>
       <div class="picks">{% for s in sites %}<a class="pick" href="/api/method/pearnly_control.assistant_entry.api.choose?pick={{ pick | urlencode }}&amp;site={{ s.site | urlencode }}"><b>{{ s.company | e }}</b><small>{{ products.get(s.product, s.product) }}</small></a>{% endfor %}</div>
     </div>
     {% elif mode == "none" %}
-    <div class="card step">
+    <div class="card step">""" + BRAND_MARK + """
       <p class="notice">{{ _("This account has no workspace available. Contact your administrator.") }}</p>
       <a class="btn" href="/?fresh=1">{{ _("Back") }}</a>
     </div>
     {% else %}
-    <form class="card" id="entry" novalidate>
+    <form class="card" id="entry" novalidate>""" + BRAND_MARK + """
       <input class="input" id="login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="{{ _("Username or email") }}" autofocus>
       <div class="field" style="margin-top:10px">
         <input id="password" name="password" type="password" autocomplete="current-password" placeholder="{{ _("Password") }}">
@@ -361,13 +360,12 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand">""" + BRAND_MARK + """</span>
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
     <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>
   </header>
   <section class="hero">
-    <div class="card">
+    <div class="card">""" + BRAND_MARK + """
       <#nested "header">
       <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
         <div class="auth-message ${message.type}" role="alert">${kcSanitize(message.summary)?no_esc}</div>

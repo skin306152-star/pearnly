@@ -5,8 +5,7 @@
 canvas.dots{position:fixed;inset:0;z-index:0;pointer-events:none}
 .hd-defs{position:absolute}
 .page{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow-x:clip}
-.top{align-self:stretch;display:flex;align-items:center;justify-content:space-between;padding:18px 24px}
-.brand{display:flex;align-items:center;gap:9px;font-family:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;color:#000}.brand svg{display:block;flex:none}
+.top{align-self:stretch;display:flex;align-items:center;justify-content:flex-end;padding:18px 24px}
 .langs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.7)}
 .langs a{font-size:13px;color:var(--muted);padding:3px 11px;border-radius:999px;text-decoration:none}
 .langs a.on{background:var(--ink);color:#fff}
@@ -54,6 +53,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .pick:hover{border-color:var(--line-strong);background:#fbfbf9}
 .pick b{font-weight:500}.pick small{color:var(--faint);font-size:12.5px}
 .form-stack{display:grid;gap:12px}.form-row label{display:block;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.card-logo{display:flex;justify-content:center;margin:2px 0 20px}.card-logo svg{display:block}
 .field{position:relative}.field-icon{display:none}.pn-auto .card{visibility:hidden}
 .toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--faint);padding:4px;cursor:pointer;width:30px;height:30px}
 .toggle-password svg{width:18px;height:18px}
