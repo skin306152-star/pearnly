@@ -684,6 +684,43 @@ def edit_document(tool_input) -> str:
     return _json({"status": "saved", **_detail(saved)})
 
 
+ORIGINAL_PAGES_MAX = 3
+
+
+def document_original(tool_input) -> str:
+    """同复核页右侧的原件：把单据的原件页图放进对话（智能体能看着原件核对字段，用户能点开看）。
+    取图与网页同一入口（`files.service.page_source` 判权限 → 存好的预览图或现画一页），并照网页记访问日志。"""
+    import requests
+    from frappe.core.doctype.access_log.access_log import make_access_log
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.files import access as file_access
+    from pearnly_cowork.files import service as file_service
+    from pearnly_cowork.ocr import originals
+
+    name = str(tool_input.get("document") or "")
+    try:
+        doc = storage.read(name)
+        pages = sorted(file_access.page_indices(doc.source_page_indices))
+        wanted = [int(tool_input["page"])] if tool_input.get("page") else pages[:ORIGINAL_PAGES_MAX]
+        shown = []
+        for number in wanted:
+            source, number = file_service.page_source(name, number)
+            link = file_service.preview_link(source, number)
+            data = requests.get(link, timeout=30).content if link else file_service.render_page(source, number)
+            make_access_log(doctype="Cowork OCR History", document=name, file_type="page_png")
+            kind = originals.preview_type(data)
+            label = re.sub(r"[^\w.-]+", "-", str(doc.invoice_no or name)).strip("-") or "document"
+            shown.append(chat_files.add_to_conversation(f"{label}-p{number}.{'jpg' if kind == 'image/jpeg' else 'png'}",
+                                                        data, kind))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError, requests.RequestException) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_available", "reason": str(error)[:300]})
+    return _json({"document": name, "pages_total": len(pages), "files": shown})
+
+
 def choose_document_policy(tool_input) -> str:
     from pearnly_cowork.history import document_policy
 
@@ -1602,6 +1639,14 @@ TOOLS = [
      "ask": "Change how this kind of document is handled?",
      "preview": "pearnly_cowork.assistant.tools.preview_choose_document_policy",
      "handler": "pearnly_cowork.assistant.tools.choose_document_policy"},
+    {"name": "cowork_document_original", "label": "Opened the original",
+     "description": "Put the original page image(s) of a document into this conversation, like the original beside "
+                    "the review page: look at it to check recognized fields against the original, or when the user "
+                    "wants to see it (the user can open it from the chat). The first 3 pages unless page is given.",
+     "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
+                                                        "page": {"type": "integer", "minimum": 1}},
+                      "required": ["document"]},
+     "handler": "pearnly_cowork.assistant.tools.document_original"},
     {"name": "cowork_recognition_results", "label": "Checked recognition results",
      "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments.",
      "input_schema": {"type": "object", "properties": {

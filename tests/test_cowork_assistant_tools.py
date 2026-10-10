@@ -785,5 +785,40 @@ class ApprovalPreviewTests(unittest.TestCase):
         self.assertEqual((saved[0]["posting_kind"], saved[0]["folder"], saved[0]["run_time"]), ("service", "f", "22:00"))
 
 
+class OriginalTests(unittest.TestCase):
+    """复核页右侧的原件：页图放进对话（同网页入口判权限、记访问日志）。"""
+
+    def test_original_pages_go_into_the_conversation(self):
+        added, logged = [], []
+        files_mod = types.ModuleType("pearnly_cowork.files")
+        access = types.ModuleType("pearnly_cowork.files.access")
+        access.page_indices = lambda value: {1, 2}
+        service = types.ModuleType("pearnly_cowork.files.service")
+        service.page_source = lambda name, number: ("SRC", number)
+        service.preview_link = lambda source, number: None
+        service.render_page = lambda source, number: b"\xff\xd8\xff-page%d" % number
+        originals = types.ModuleType("pearnly_cowork.ocr.originals")
+        originals.preview_type = lambda data: "image/jpeg"
+        chat = sys.modules.get("pearnly_core.assistant.files") or types.ModuleType("pearnly_core.assistant.files")
+        chat.add_to_conversation = lambda name, content, mime: added.append((name, mime)) or "/mnt/x/" + name
+        access_log = types.ModuleType("frappe.core.doctype.access_log.access_log")
+        access_log.make_access_log = lambda **kw: logged.append(kw)
+        requests = types.ModuleType("requests")
+        requests.RequestException = type("RequestException", (Exception,), {})
+        mods = {"requests": requests, "pearnly_cowork.files": files_mod, "pearnly_cowork.files.access": access,
+                "pearnly_cowork.files.service": service, "pearnly_cowork.ocr": types.ModuleType("pearnly_cowork.ocr"),
+                "pearnly_cowork.ocr.originals": originals, "pearnly_core.assistant.files": chat,
+                "frappe.core": types.ModuleType("frappe.core"), "frappe.core.doctype": types.ModuleType("x"),
+                "frappe.core.doctype.access_log": types.ModuleType("y"),
+                "frappe.core.doctype.access_log.access_log": access_log}
+        doc = types.SimpleNamespace(source_page_indices="[1, 2]", invoice_no="IV69/00095")
+        with mock.patch.dict(sys.modules, mods), mock.patch.object(tools.storage, "read", return_value=doc, create=True):
+            files_mod.access, files_mod.service = access, service
+            mods["pearnly_cowork.ocr"].originals = originals
+            out = json.loads(tools.document_original({"document": "H1"}))
+        self.assertEqual(added, [("IV69-00095-p1.jpg", "image/jpeg"), ("IV69-00095-p2.jpg", "image/jpeg")])
+        self.assertEqual((out["pages_total"], len(logged)), (2, 2))
+
+
 if __name__ == "__main__":
     unittest.main()
