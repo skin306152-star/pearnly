@@ -1696,6 +1696,8 @@ Edited a document	修改了单据	แก้ไขเอกสารแล้ว	
 Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました
 Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
 Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
+Deleted documents	删除了单据	ลบเอกสารแล้ว	書類を削除しました
+Exported the review workbook	导出了复核工作簿	ส่งออกสมุดงานตรวจทานแล้ว	確認用ワークブックを書き出しました
 Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました
 Saved push choices	保存了推送选项	บันทึกตัวเลือกการส่งแล้ว	送信の選択を保存しました
 Confirmed a push result	确认了推送结果	ยืนยันผลการส่งแล้ว	送信結果を確定しました

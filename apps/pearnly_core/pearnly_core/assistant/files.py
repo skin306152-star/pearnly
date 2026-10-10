@@ -58,6 +58,15 @@ def attachments() -> list[dict]:
     return out
 
 
+def add_to_conversation(filename: str, content: bytes, mime: str) -> str:
+    """工具生成的文件（例如 Cowork 导出的复核工作簿）放进当前对话，返回智能体能读到的位置；它再放进结果目录给用户。"""
+    context = getattr(frappe.local, "pearnly_assistant", None) or {}
+    row = sessions.owned(context.get("session_id"))
+    name = sessions._guard(contracts.upload_name, filename, len(content))
+    api = engine.adapter()
+    return api.attach(sessions.current(row), name, content, mime)["path"]
+
+
 def attachment(file_id) -> tuple[str, bytes]:
     """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。"""
     fid = sessions._guard(contracts.file_id, file_id)

@@ -396,5 +396,40 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertEqual(out["status"], "not_saved")
 
 
+
+class DeleteAndExportTests(unittest.TestCase):
+    """删除走列表同一个删除服务（已推送的由它跳过）；导出的工作簿放进对话、回位置给智能体。"""
+
+    def setUp(self):
+        self.calls = []
+        removal = types.ModuleType("pearnly_cowork.history.removal")
+        removal.delete = lambda records: self.calls.append(("delete", json.loads(records))) or {"deleted": 1, "skipped": 1}
+        sys.modules["pearnly_cowork.history.removal"] = removal
+        sys.modules["pearnly_cowork.history"].removal = removal
+        roundtrip = types.ModuleType("pearnly_cowork.roundtrip.service")
+        roundtrip.export = lambda names: self.calls.append(("export", json.loads(names))) or b"PK-xlsx"
+        export = types.ModuleType("pearnly_cowork.roundtrip.export")
+        export.ExportError = type("ExportError", (Exception,), {"code": "x"})
+        sys.modules.setdefault("pearnly_cowork.roundtrip", types.ModuleType("pearnly_cowork.roundtrip"))
+        sys.modules["pearnly_cowork.roundtrip.service"], sys.modules["pearnly_cowork.roundtrip.export"] = roundtrip, export
+        sys.modules["pearnly_cowork.roundtrip"].service, sys.modules["pearnly_cowork.roundtrip"].export = roundtrip, export
+        chat = sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("pearnly_core.assistant.files"))
+        chat.add_to_conversation = lambda name, content, mime: self.calls.append(("attach", name, content)) or \
+            "/mnt/session/uploads/file_x/" + name
+        sys.modules.setdefault("pearnly_core", types.ModuleType("pearnly_core"))
+        sys.modules.setdefault("pearnly_core.assistant", types.ModuleType("pearnly_core.assistant")).files = chat
+
+    def test_delete_passes_the_list_and_reports_skipped(self):
+        out = json.loads(tools.delete_documents({"documents": ["H1", "H2"]}))
+        self.assertEqual(self.calls, [("delete", ["H1", "H2"])])
+        self.assertEqual(out, {"deleted": 1, "skipped": 1})
+
+    def test_export_adds_the_workbook_to_the_conversation(self):
+        out = json.loads(tools.export_review_workbook({"documents": ["H1", "H1", "H2"]}))
+        self.assertEqual(self.calls[0], ("export", ["H1", "H2"]))
+        self.assertEqual(self.calls[1], ("attach", "cowork-review.xlsx", b"PK-xlsx"))
+        self.assertEqual(out["file"], "/mnt/session/uploads/file_x/cowork-review.xlsx")
+
+
 if __name__ == "__main__":
     unittest.main()

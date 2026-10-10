@@ -655,6 +655,53 @@ def resolve_push_result(tool_input) -> str:
         {key: result.get(key) for key in ("status", "docnum", "reason")} if isinstance(result, dict) else {})})
 
 
+# ---------------- 删除记录、导出复核工作簿（同录入工作台列表） ----------------
+
+DELETE_MAX = 500
+EXPORT_MAX = 100
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def delete_documents(tool_input) -> str:
+    """同列表「删除」：真删记录与原件，已推送的跳过（由删除服务判断）。"""
+    from pearnly_cowork.history import removal
+
+    scope.require("intake")
+    names = [str(n) for n in (tool_input.get("documents") or [])][:DELETE_MAX]
+    if not names:
+        frappe.throw(_("No documents were given."))
+    try:
+        result = removal.delete(json.dumps(names))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_deleted", "reason": str(error)[:300]})
+    return _json(result)
+
+
+def export_review_workbook(tool_input) -> str:
+    """同列表「导出复核工作簿」（仅识别的单据给会计在 Excel 里核对）；文件放进对话，智能体再放进结果目录。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.roundtrip import service as roundtrip
+    from pearnly_cowork.roundtrip.export import ExportError
+
+    scope.require_read()
+    names = list(dict.fromkeys(str(n) for n in (tool_input.get("documents") or [])))[:EXPORT_MAX]
+    if not names:
+        frappe.throw(_("No documents were given."))
+    try:
+        content = roundtrip.export(json.dumps(names))
+    except ExportError as error:
+        return _json({"status": "not_exported", "reason": _(error.code)})
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.clear_messages()
+        return _json({"status": "not_exported", "reason": str(error)[:300]})
+    path = chat_files.add_to_conversation("cowork-review.xlsx", content, XLSX)
+    return _json({"status": "exported", "documents": len(names), "file": path})
+
+
 # ---------------- 文件夹定时任务 ----------------
 
 def folder_tasks(_input) -> str:
@@ -835,6 +882,23 @@ TOOLS = [
          "document": {"type": "string"}, "entered": {"type": "boolean"}, "docnum": {"type": "string"}},
          "required": ["document", "entered"]},
      "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
+    {"name": "cowork_delete_documents", "label": "Deleted documents",
+     "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "
+                    "in the list; documents already pushed are skipped. Only after the user confirmed exactly which "
+                    "documents (list them by number, seller and amount and wait for a yes). Returns deleted and "
+                    "skipped counts.",
+     "input_schema": {"type": "object", "properties": {
+         "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": DELETE_MAX}},
+         "required": ["documents"]},
+     "handler": "pearnly_cowork.assistant.tools.delete_documents"},
+    {"name": "cowork_export_review_workbook", "label": "Exported the review workbook",
+     "description": "Export documents (up to 100) to the review workbook, the Excel file accountants check and send "
+                    "back on the Intake workbench. The file is added to this conversation at the returned path; copy "
+                    "it into the results folder so the user can open and download it, and name it only by file name.",
+     "input_schema": {"type": "object", "properties": {
+         "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": EXPORT_MAX}},
+         "required": ["documents"]},
+     "handler": "pearnly_cowork.assistant.tools.export_review_workbook"},
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
      "input_schema": {"type": "object", "properties": {

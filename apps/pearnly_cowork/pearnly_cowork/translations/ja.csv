@@ -408,6 +408,7 @@ Delete {0},{0}件を削除
 Delete {0} reconciliation(s)?,{0}件の照合を削除しますか？
 Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
+Deleted documents,書類を削除しました
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
@@ -526,6 +527,7 @@ Expires At,有効期限
 Export,エクスポート
 Export Excel,Excel に出力
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
+Exported the review workbook,確認用ワークブックを書き出しました
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
 Express PC,Express の PC
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください

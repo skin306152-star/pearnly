@@ -408,6 +408,7 @@ Delete {0},ลบ {0} รายการ
 Delete {0} reconciliation(s)?,ต้องการลบงานกระทบยอด {0} รายการใช่หรือไม่
 Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
+Deleted documents,ลบเอกสารแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} stock counts,ลบการตรวจนับ {0} รายการแล้ว
 Delivery type,ประเภทขนส่ง
@@ -526,6 +527,7 @@ Expires At,เวลาหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
+Exported the review workbook,ส่งออกสมุดงานตรวจทานแล้ว
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express PC,เครื่อง Express
 "Express already has this invoice number with different content. Check it, or choose Send anyway","ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""

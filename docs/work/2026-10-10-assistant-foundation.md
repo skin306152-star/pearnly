@@ -200,7 +200,7 @@
 | 工具取附件 | `toolrun.execute` 执行工具时设 `frappe.local.pearnly_assistant = {session_id}`，`files.attachment(file_id)` 只认这个对话、这个人的附件 |
 | Cowork 工具 | `cowork_recognize_attachments`：附件 → `files.service.create` + `ocr.execution.service.submit`（与 LINE 发票据同一条路，扣费口径同网页；请求号 `assistant:<file_id>` 固定，同一附件再调不重复扣费）；最多等约 90 秒回识别结果（单号、日期、卖方与税号、金额、增值税、明细前 30 行、待复核、疑似重复）。没识别完的用 `cowork_recognition_results` 再查 |
 | 口径 | 方向、目标 ERP、连接 / 账套、过账类型、付款方式都可选；都不给就是「仅识别」（第 10 项再做「问一次、记住」） |
-| 架构 | Cowork `assistant` 域新增依赖 `files`、`ocr`（同 LINE 录入）与纯约定 `contracts`，已登记 `architecture-policy.json` |
+| 架构 | Cowork `assistant` 域新增依赖 `files`、`ocr`（同 LINE 录入）、纯约定 `contracts`，以及第 13 项导出复核工作簿用的 `roundtrip`，已登记 `architecture-policy.json` |
 
 ## 交接（2026-10-10 晚，给下一个窗口）
 

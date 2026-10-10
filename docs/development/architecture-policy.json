@@ -183,7 +183,8 @@
       "folder_intake",
       "history",
       "ocr",
-      "push"
+      "push",
+      "roundtrip"
     ],
     "companion": [
       "connections",
