@@ -22,9 +22,10 @@ export function useProfile(): Profile | null {
   return profile;
 }
 
-const BRANDS = new Set(["cowork", "erp", "dms"]);
+// 宣传页的产品形象（scripts/build-assistant-brand.py 从 website/ 生成到 src/brand/）。经 Vite 打包带内容哈希，
+// 换了形象地址就变，不会被浏览器或 Cloudflare 缓存住旧图。
+const BRANDS = import.meta.glob("../brand/*.svg", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 
-/** 宣传页的产品形象（scripts/build-assistant-brand.py 从 website/ 生成，见 public/brand/）。 */
 export function brandIcon(product: string | undefined): string | null {
-  return product && BRANDS.has(product) ? `${import.meta.env.BASE_URL}brand/${product}.svg` : null;
+  return (product && BRANDS[`../brand/${product}.svg`]) || null;
 }

@@ -219,6 +219,9 @@ live() {
     [[ -f "$src/apps/$spa/index.html" ]] || {
       echo "PEARNLY_TESTENV_LOCAL_SPA=1 but $src/apps/$spa is not built (run vite build in frontend/)" >&2; exit 2; }
     list+=$'\n'$(cd "$src/apps" && find "$spa" -type f | LC_ALL=C sort)
+    # 智能体对话页（ADR-019，frontend/assistant）本地构建过就一起带上；没构建就用镜像里那份。
+    local assistant=pearnly_core/pearnly_core/public/assistant
+    [[ -f "$src/apps/$assistant/index.html" ]] && list+=$'\n'$(cd "$src/apps" && find "$assistant" -type f | LC_ALL=C sort)
   fi
   (cd "$src/apps" && printf '%s\n' "$list" | COPYFILE_DISABLE=1 tar -czf "$tarball" -T -)
   migrate_hash=$(cd "$src/apps" && printf '%s\n' "$list" \

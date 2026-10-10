@@ -129,8 +129,10 @@ live_sync() {
   # 镜像里有、仓库不跟踪的构建产物（前端 SPA、构建时生成的图标）：从镜像补进来，挂载后不能把它们盖没。
   # 源码包里已带的（PEARNLY_TESTENV_LOCAL_SPA=1 时本地构建的 SPA）优先：--skip-old-files 不覆盖已有文件。
   image=$(grep -E '^PEARNLY_IMAGE=' "$env_file" | cut -d= -f2-)
-  docker run --rm --entrypoint tar "$image" -C /home/frappe/frappe-bench/apps -cf - \
-    pearnly_core/pearnly_core/public/pearnly-app pearnly_control/pearnly_control/public/icons \
+  # 智能体对话页（ADR-019）的产物 public/assistant 同样不进仓库；老镜像里没有这个目录，只打包镜像里实际存在的路径。
+  docker run --rm --entrypoint sh "$image" -c 'cd /home/frappe/frappe-bench/apps && tar -cf - $(ls -d \
+    pearnly_core/pearnly_core/public/pearnly-app pearnly_core/pearnly_core/public/assistant \
+    pearnly_control/pearnly_control/public/icons 2>/dev/null)' \
     | tar -xf - -C "$staging" --skip-old-files
   mkdir -p "$live_dir"
   # 原地同步（不换目录）：运行中的容器挂的是这个目录本身，换掉它容器就看不到新代码。

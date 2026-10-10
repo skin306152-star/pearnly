@@ -277,7 +277,7 @@ class BrandAndLoginTests(unittest.TestCase):
     def test_brand_files_come_from_the_website(self):
         builder = _load("assistant_brand", ROOT / "scripts/build-assistant-brand.py")
         for name, body in builder.render().items():
-            actual = (ROOT / f"frontend/assistant/public/brand/{name}").read_text(encoding="utf-8")
+            actual = (ROOT / f"frontend/assistant/src/brand/{name}").read_text(encoding="utf-8")
             self.assertEqual(actual, body, f"run scripts/build-assistant-brand.py ({name} drifted from website/)")
         self.assertEqual(sorted(builder.render()), ["cowork.svg", "dms.svg", "erp.svg"])
 

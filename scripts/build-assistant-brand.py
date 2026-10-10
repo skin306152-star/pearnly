@@ -11,7 +11,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-OUT = ROOT / "frontend/assistant/public/brand"
+OUT = ROOT / "frontend/assistant/src/brand"
 PRODUCTS = ("cowork", "erp", "dms")
 
 
