@@ -289,5 +289,36 @@ class BrandAndLoginTests(unittest.TestCase):
         self.assertIn("pearnly_core.identity.begin_login?redirect_to=/assistant", page)
 
 
+class ControlPlaneKeyTests(unittest.TestCase):
+    """密钥由租户管理后台填写、可改可换，经开通步骤推到站点（ADR-019）。"""
+
+    def test_production_agent_accepts_the_step(self):
+        spec = importlib.util.spec_from_file_location("provision_agent", ROOT / "infrastructure/production/provision-agent.py")
+        agent = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(agent)
+        job = {"action": "set_assistant", "payload": {"site": "acme-cowork.pearnly.com", "group": "cowork",
+                                                       "tenant": "T-2026-1", "deployment": "DEP-2026-1"}}
+        self.assertEqual(agent.validate(job)[0], "set_assistant")
+
+    def test_site_step_writes_only_the_assistant_key(self):
+        source = (ROOT / "infrastructure/production/site-step.py").read_text(encoding="utf-8")
+        branch = source.split('elif action == "set_assistant":', 1)[1].split("elif action", 1)[0]
+        self.assertIn("config(pearnly_assistant_api_key=key)", branch)
+        self.assertNotIn("restart", branch)
+
+    def test_plan_requeue_and_onboarding_carry_the_key(self):
+        control = ROOT / "apps/pearnly_control/pearnly_control"
+        plan = (control / "provisioning.py").read_text(encoding="utf-8")
+        self.assertLess(plan.index('f"{dep.name}:set_assistant"'), plan.index('f"{dep.name}:bind_user"'))
+        self.assertIn("def queue_assistant_config(tenant", plan)
+        tenant = (control / "pearnly_control/doctype/pearnly_tenant/pearnly_tenant.py").read_text(encoding="utf-8")
+        self.assertIn('has_value_changed("assistant_api_key")', tenant)
+        self.assertIn('get_password("assistant_api_key"', (control / "issues.py").read_text(encoding="utf-8"))
+        for doctype in ("pearnly_tenant", "pearnly_issue"):
+            meta = json.loads((control / f"pearnly_control/doctype/{doctype}/{doctype}.json").read_text(encoding="utf-8"))
+            field = next(f for f in meta["fields"] if f["fieldname"] == "assistant_api_key")
+            self.assertEqual(field["fieldtype"], "Password")
+
+
 if __name__ == "__main__":
     unittest.main()

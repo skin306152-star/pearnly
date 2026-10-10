@@ -316,3 +316,6 @@ Identity Provider	身份提供方	ผู้ให้บริการยืน�
 Identity Realm	身份 Realm	Realm ยืนยันตัวตน	認証レルム	
 Usage Checked	用量核对日期	วันที่ตรวจสอบยอดใช้งาน	利用量確認日	
 Usage Month	用量月份	เดือนของยอดใช้งาน	利用月	
+Anthropic API Key	Anthropic API 密钥	คีย์ API ของ Anthropic	Anthropic API キー
+Set up the assistant	配置智能体	ตั้งค่าผู้ช่วย	アシスタントを設定
+The assistant key is being applied. Try again shortly.	智能体密钥正在下发，请稍后再保存。	กำลังส่งคีย์ผู้ช่วย โปรดลองอีกครั้งในอีกสักครู่	アシスタントのキーを反映中です。しばらくしてからもう一度お試しください。

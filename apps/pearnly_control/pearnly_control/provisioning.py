@@ -16,6 +16,7 @@
   new_site      {site, group, admin_password}
   install_app   {site, group, app}
   set_config    {site, group, key, value}
+  set_assistant {site, group, configured, api_key}   智能体密钥（ADR-019），租户改密钥时单独重排
   restart_web   {group}
   bind_user     {site, group, email, full_name, subject, issuer}
   mark_active   {deployment}
@@ -534,6 +535,49 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     # Commit together with the channel save. The runner sees only committed state.
 
 
+def _assistant_payload(dep) -> dict:
+    """该部署的智能体密钥：取租户上的（开户单填的会在发号时带到租户）。"""
+    key = ""
+    if dep.tenant and frappe.db.exists("Pearnly Tenant", dep.tenant):
+        key = frappe.get_doc("Pearnly Tenant", dep.tenant).get_password("assistant_api_key", raise_exception=False) or ""
+    return {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
+            "configured": bool(key.strip()), "api_key": key.strip()}
+
+
+def queue_assistant_config(tenant: str) -> int:
+    """租户的 Anthropic 密钥填了 / 改了 / 清了：把它的每个云端部署重排 `set_assistant`。
+
+    同 LINE 渠道：开户后才配、之后可改可换都走这里。开户单里还没有这一步的老部署补上一步；
+    正在执行的那一步不打断，提示稍后再存。只写站点配置、不重启：站点按配置缓存最多一分钟后生效，
+    不为换一把密钥把同产品的其他租户一起踢下线。
+    """
+    if frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting":
+        return 0
+    count = 0
+    for name in frappe.get_all(DEPLOYMENT, filters={"tenant": tenant}, pluck="name"):
+        dep = frappe.get_doc(DEPLOYMENT, name)
+        if not dep.issue or not infra.is_cloud(frappe.db.get_value(ISSUE, dep.issue, "target")):
+            continue
+        parent = frappe.db.get_value(REQUEST, {"idempotency_key": dep.issue}, "name")
+        if not parent:
+            continue  # 开户计划还没生成：生成时会带上租户当下的密钥
+        req = frappe.get_doc(REQUEST, parent, for_update=True)
+        step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_assistant"), None)
+        if step and step.status == "running":
+            frappe.throw(_("The assistant key is being applied. Try again shortly."))
+        payload = json.dumps(_assistant_payload(dep), ensure_ascii=False)
+        if step:
+            step.payload = payload
+            step.status, step.output, step.finished_at = "pending", "", None
+        else:
+            req.append("steps", {"step_key": f"{dep.name}:set_assistant", "deployment": dep.name,
+                                 "action": "set_assistant", "status": "pending", "payload": payload})
+        req.status, req.error, req.finished_at = "pending", "", None
+        req.save(ignore_permissions=True)
+        count += 1
+    return count
+
+
 def _roles_for(issue, dep) -> dict:
     """该部署要建的角色与权限 = 开单上**勾了**的功能。
 
@@ -647,6 +691,10 @@ def _steps_for(issue, dep, row) -> list[dict]:
         {"step_key": f"{dep.name}:set_line", "deployment": dep.name,
          "action": "set_line", "status": "pending",
          "payload": json.dumps(_line_payload(dep, site, group), ensure_ascii=False)},
+        # 智能体（ADR-019）：本租户的 Anthropic 密钥写进站点配置；没填就写空（站点上智能体显示未开通）。
+        {"step_key": f"{dep.name}:set_assistant", "deployment": dep.name,
+         "action": "set_assistant", "status": "pending",
+         "payload": json.dumps(_assistant_payload(dep), ensure_ascii=False)},
         {"step_key": f"{dep.name}:bind_user", "deployment": dep.name,
          "action": "bind_user", "status": "pending",
          "payload": json.dumps({

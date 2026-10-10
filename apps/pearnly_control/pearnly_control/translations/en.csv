@@ -16,6 +16,7 @@ Amount must be greater than 0,Amount must be greater than 0
 An adjustment cannot be 0,An adjustment cannot be 0
 An adjustment must have a reason,An adjustment must have a reason
 An employee identity is used by another tenant; review it before deleting this tenant,An employee identity is used by another tenant; review it before deleting this tenant
+Anthropic API Key,Anthropic API Key
 Approve and credit,Approve and credit
 Approve top-up,Approve top-up
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).
@@ -246,6 +247,7 @@ Running,Running
 Service URL is required,Service URL is required
 Set up OCR,Set up OCR
 Set up the LINE channel,Set up the LINE channel
+Set up the assistant,Set up the assistant
 Set up unified sign-in,Set up unified sign-in
 Sign in to your account,Sign in to your account
 Sign-in account,Sign-in account
@@ -278,6 +280,7 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 "The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
 The address this tenant is reached at.,The address this tenant is reached at.
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)
+The assistant key is being applied. Try again shortly.,The assistant key is being applied. Try again shortly.
 The balance could not be read; this is not 'insufficient balance',The balance could not be read; this is not 'insufficient balance'
 The billing reference was already used for another request,The billing reference was already used for another request
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.","The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value."

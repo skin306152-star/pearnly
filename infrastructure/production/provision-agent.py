@@ -18,7 +18,7 @@ STATE = Path("/opt/pearnly/state/sites")
 APPS = {"dms": "pearnly_dms", "erp": "pearnly_erp_portal", "cowork": "pearnly_cowork"}
 PORTS = {"dms": 8183, "erp": 8182, "cowork": 8181}
 RESERVED = {"auth", "www", "work", "api", "admin", "mail", "control", "billing", "cowork", "erp", "dms"}
-ACTIONS = {"new_site", "install_app", "set_oidc", "set_billing", "set_ocr", "set_line",
+ACTIONS = {"new_site", "install_app", "set_oidc", "set_billing", "set_ocr", "set_line", "set_assistant",
            "finalize_site", "bind_user", "set_roles", "set_workspace", "restart_web", "publish_site",
            "verify_site", "drop_site"}
 MAINTENANCE_PREFIX = "pearnly-maintenance-"

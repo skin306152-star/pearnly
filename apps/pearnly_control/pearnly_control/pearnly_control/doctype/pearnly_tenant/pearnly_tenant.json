@@ -11,6 +11,7 @@
   "column_break_main",
   "contact_name",
   "contact_phone",
+  "assistant_api_key",
   "notes"
  ],
  "fields": [
@@ -19,6 +20,7 @@
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
   {"fieldname": "contact_name", "fieldtype": "Data", "label": "Contact Name"},
   {"fieldname": "contact_phone", "fieldtype": "Data", "label": "Contact Phone"},
+  {"fieldname": "assistant_api_key", "fieldtype": "Password", "label": "Anthropic API Key", "length": 255},
   {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
  ],
  "index_web_pages_for_search": 1,

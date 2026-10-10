@@ -16,6 +16,7 @@ Amount must be greater than 0,จำนวนเงินต้องมาก�
 An adjustment cannot be 0,ยอดปรับต้องไม่เป็น 0
 An adjustment must have a reason,การปรับยอดต้องระบุเหตุผล
 An employee identity is used by another tenant; review it before deleting this tenant,มีบัญชีพนักงานที่ใช้งานในพื้นที่ทำงานอื่น กรุณาตรวจสอบก่อนลบพื้นที่ทำงานนี้
+Anthropic API Key,คีย์ API ของ Anthropic
 Approve and credit,อนุมัติและบันทึกเข้าบัญชี
 Approve top-up,อนุมัติการเติมเงิน
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,เมื่อเปิดใช้งาน ระบบจะสร้างบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานและมอบสิทธิ์ให้ เว้นว่างหมายถึงฟีเจอร์นี้ไม่ต้องควบคุมสิทธิ์ (เช่น หน้าหลัก)
@@ -249,6 +250,7 @@ Running,กำลังดำเนินการ
 Service URL is required,ต้องระบุที่อยู่บริการ
 Set up OCR,ตั้งค่า OCR
 Set up the LINE channel,ตั้งค่าช่องทาง LINE
+Set up the assistant,ตั้งค่าผู้ช่วย
 Set up unified sign-in,ตั้งค่าการเข้าสู่ระบบแบบรวม
 Sign in to your account,เข้าสู่ระบบ
 Sign-in account,บัญชีผู้ใช้
@@ -281,6 +283,7 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 "The URL to paste into the LINE console, derived from the deployment domain.",ที่อยู่สำหรับกรอกในหน้าจัดการ LINE สร้างจากโดเมนของการติดตั้ง
 The address this tenant is reached at.,ที่อยู่ที่เข้าถึงผู้เช่ารายนี้
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)
+The assistant key is being applied. Try again shortly.,กำลังส่งคีย์ผู้ช่วย โปรดลองอีกครั้งในอีกสักครู่
 The balance could not be read; this is not 'insufficient balance',ไม่สามารถอ่านยอดคงเหลือได้
 The billing reference was already used for another request,เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",ใช้ค่าเดียวกับโดเมนของการติดตั้ง

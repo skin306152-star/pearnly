@@ -15,3 +15,10 @@ class PearnlyTenant(Document):
         self.tenant_name = (self.tenant_name or "").strip()
         if not self.tenant_name:
             frappe.throw(_("Company name is required"))
+
+    def on_update(self):
+        # 密钥在租户管理后台填 / 改 / 清：推到这个租户的每个产品站点（ADR-019）。
+        if self.has_value_changed("assistant_api_key"):
+            from pearnly_control import provisioning
+
+            provisioning.queue_assistant_config(self.name)

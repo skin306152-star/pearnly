@@ -16,6 +16,7 @@ Amount must be greater than 0,金額は0より大きい必要があります
 An adjustment cannot be 0,調整額は0にできません
 An adjustment must have a reason,調整には理由が必要です
 An employee identity is used by another tenant; review it before deleting this tenant,従業員アカウントが他のテナントで使用されています。このテナントを削除する前に確認してください
+Anthropic API Key,Anthropic API キー
 Approve and credit,承認して入金
 Approve top-up,チャージを承認
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
@@ -249,6 +250,7 @@ Running,実行中
 Service URL is required,サービスURLは必須です
 Set up OCR,OCR を設定
 Set up the LINE channel,LINEチャネルを設定
+Set up the assistant,アシスタントを設定
 Set up unified sign-in,統一ログインを設定
 Sign in to your account,ログイン
 Sign-in account,ログインアカウント
@@ -281,6 +283,7 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 "The URL to paste into the LINE console, derived from the deployment domain.",LINE管理画面に貼るURL。デプロイのドメインから算出します。
 The address this tenant is reached at.,このテナントのアクセス先アドレス
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
+The assistant key is being applied. Try again shortly.,アシスタントのキーを反映中です。しばらくしてからもう一度お試しください。
 The balance could not be read; this is not 'insufficient balance',残高を読み取れません。残高不足ではありません
 The billing reference was already used for another request,この課金参照番号は別のリクエストで使用済みです
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
