@@ -211,6 +211,7 @@ Check the statement balance differences before confirming.,กรุณาแก
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checkbox,ช่องทำเครื่องหมาย
 Checked MR.ERP import settings,ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว
+Checked folder task options,ตรวจสอบตัวเลือกงานโฟลเดอร์แล้ว
 Checked folder task runs,ตรวจสอบประวัติงานโฟลเดอร์แล้ว
 Checked folder tasks,ตรวจสอบงานโฟลเดอร์แล้ว
 Checked in the ERP,ตรวจใน ERP แล้ว
@@ -409,6 +410,7 @@ Delete {0} reconciliation(s)?,ต้องการลบงานกระท�
 Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted documents,ลบเอกสารแล้ว
+Deleted folder tasks,ลบงานโฟลเดอร์แล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} stock counts,ลบการตรวจนับ {0} รายการแล้ว
 Delivery type,ประเภทขนส่ง
@@ -800,6 +802,7 @@ No product matches that code,ไม่พบสินค้าที่ตรง
 No recognition tasks were given.,ไม่ได้ระบุงานอ่านเอกสาร
 No rules yet,ยังไม่มีกฎ
 No runs yet,ยังไม่มีประวัติการทำงาน
+No tasks were given.,ไม่ได้ระบุงาน
 No templates yet,ยังไม่มีเทมเพลต
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 "No, check line by line",ไม่ใช่ ตรวจทีละรายการ
@@ -1068,6 +1071,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,ใบ�
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
 Saved,บันทึกแล้ว
+Saved a folder task,บันทึกงานโฟลเดอร์แล้ว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
@@ -1512,6 +1516,7 @@ Turn this rule off? Documents already entered stay as they are.,ต้องก�
 Turn this rule on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this scheduled task on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
+Turned a folder task on or off,เปิดหรือปิดงานโฟลเดอร์แล้ว
 Type,ประเภท
 Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter

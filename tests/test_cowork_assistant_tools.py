@@ -434,5 +434,47 @@ class DeleteAndExportTests(unittest.TestCase):
         self.assertEqual(out["file"], "/mnt/session/uploads/file_x/cowork-review.xlsx")
 
 
+
+class FolderTaskTests(unittest.TestCase):
+    """定时任务：选项（文件夹只列电脑开放的、可搜、截断）、保存 / 启停 / 删除都走任务服务，服务拒绝时照实回。"""
+
+    def setUp(self):
+        self.calls = []
+        tools.rules.options = lambda connection, key: {
+            "readers": [{"connection": "EXP1", "label": "DESKTOP-1", "fresh": True,
+                         "roots": [{"id": "r1", "label": "C:\\Bills", "folders": [f"2026-{i:02d}" for i in range(1, 80)]}]}],
+            "accounts": None, "departments": None, "stock_group": None}
+        tools.rules.save = lambda values: self.calls.append(("save", values)) or {"name": "R1", "title": values["title"], "enabled": 1}
+        tools.rules.set_enabled = lambda name, enabled: self.calls.append(("enabled", name, enabled)) or {"name": name, "enabled": enabled}
+        tools.rules.delete = lambda names: self.calls.append(("delete", json.loads(names))) or {"deleted": 1}
+
+    def test_options_list_the_open_folders_trimmed_and_searchable(self):
+        out = json.loads(tools.folder_task_options({"connection": "EXP1"}))
+        root = out["computers"][0]["roots"][0]
+        self.assertEqual((out["computers"][0]["computer"], root["root_id"], root["folders_total"], len(root["folders"])),
+                         ("DESKTOP-1", "r1", 79, tools.FOLDERS_SHOWN))
+        found = json.loads(tools.folder_task_options({"connection": "EXP1", "search": "2026-07"}))
+        self.assertEqual(found["computers"][0]["roots"][0]["folders"], ["2026-07"])
+
+    def test_save_enable_delete_go_through_the_task_service(self):
+        values = {"title": "Ice", "connection": "EXP1", "direction": "purchase", "posting_kind": "stock",
+                  "root_id": "r1", "folder": "2026-10", "run_day": 0, "run_time": "22:00", "ignored": 1}
+        out = json.loads(tools.save_folder_task(values))
+        self.assertEqual(out, {"status": "saved", "task": "R1", "title": "Ice", "enabled": 1})
+        self.assertNotIn("ignored", self.calls[0][1])
+        tools.set_folder_task_enabled({"task": "R1", "enabled": False})
+        tools.delete_folder_tasks({"tasks": ["R1"]})
+        self.assertEqual(self.calls[1:], [("enabled", "R1", 0), ("delete", ["R1"])])
+
+    def test_refusals_from_the_service_come_back_as_not_saved(self):
+        def overlap(values):
+            raise frappe.ValidationError("The folder overlaps task Ice")
+
+        tools.rules.save = overlap
+        out = json.loads(tools.save_folder_task({"title": "B", "connection": "EXP1"}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertIn("overlaps", out["reason"])
+
+
 if __name__ == "__main__":
     unittest.main()

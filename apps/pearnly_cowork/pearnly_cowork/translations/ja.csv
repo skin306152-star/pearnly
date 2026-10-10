@@ -211,6 +211,7 @@ Check the statement balance differences before confirming.,明細の残高差異
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checkbox,チェックボックス
 Checked MR.ERP import settings,MR.ERP の取り込み設定を確認しました
+Checked folder task options,フォルダータスクの選択肢を確認しました
 Checked folder task runs,フォルダータスクの実行履歴を確認しました
 Checked folder tasks,フォルダータスクを確認しました
 Checked in the ERP,ERP で確認済み
@@ -409,6 +410,7 @@ Delete {0} reconciliation(s)?,{0}件の照合を削除しますか？
 Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted documents,書類を削除しました
+Deleted folder tasks,フォルダータスクを削除しました
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
@@ -800,6 +802,7 @@ No product matches that code,そのコードの商品が見つかりません
 No recognition tasks were given.,読み取りタスクが指定されていません。
 No rules yet,ルールはまだありません
 No runs yet,実行履歴はまだありません
+No tasks were given.,タスクが指定されていません。
 No templates yet,テンプレートはまだありません
 No warehouse matches that name,その倉庫名は存在しません
 "No, check line by line",いいえ、1 件ずつ照合
@@ -1068,6 +1071,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,売上�
 Sample Key,修正例識別子
 Save and next,保存して次へ
 Saved,保存しました
+Saved a folder task,フォルダータスクを保存しました
 Saved push choices,送信の選択を保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
 Scan barcode or QR code,バーコード・QRコードを読む
@@ -1512,6 +1516,7 @@ Turn this rule off? Documents already entered stay as they are.,このルール�
 Turn this rule on? Only files added to the folder from now on are processed.,このルールを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
 Turn this scheduled task off? Documents already entered stay as they are.,この定期タスクを停止しますか？登録済みの書類はそのままです。
 Turn this scheduled task on? Only files added to the folder from now on are processed.,この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
+Turned a folder task on or off,フォルダータスクを有効化／停止しました
 Type,種別
 Type a few letters of the company or account set name to find it,会社名または会計データ名の一部を入力して検索してください
 "Type or scan, then press Enter",入力またはスキャンして Enter

@@ -211,6 +211,7 @@ Check the statement balance differences before confirming.,Check the statement b
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checkbox,Checkbox
 Checked MR.ERP import settings,Checked MR.ERP import settings
+Checked folder task options,Checked folder task options
 Checked folder task runs,Checked folder task runs
 Checked folder tasks,Checked folder tasks
 Checked in the ERP,Checked in the ERP
@@ -409,6 +410,7 @@ Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
 Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted documents,Deleted documents
+Deleted folder tasks,Deleted folder tasks
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Delivery type,Delivery type
@@ -800,6 +802,7 @@ No product matches that code,No product matches that code
 No recognition tasks were given.,No recognition tasks were given.
 No rules yet,No rules yet
 No runs yet,No runs yet
+No tasks were given.,No tasks were given.
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 "No, check line by line","No, check line by line"
@@ -1068,6 +1071,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,Sales i
 Sample Key,Sample Key
 Save and next,Save and next
 Saved,Saved
+Saved a folder task,Saved a folder task
 Saved push choices,Saved push choices
 Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
@@ -1512,6 +1516,7 @@ Turn this rule off? Documents already entered stay as they are.,Turn this rule o
 Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
 Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
 Turn this scheduled task on? Only files added to the folder from now on are processed.,Turn this scheduled task on? Only files added to the folder from now on are processed.
+Turned a folder task on or off,Turned a folder task on or off
 Type,Type
 Type a few letters of the company or account set name to find it,Type a few letters of the company or account set name to find it
 "Type or scan, then press Enter","Type or scan, then press Enter"

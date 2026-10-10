@@ -211,6 +211,7 @@ Check the statement balance differences before confirming.,请先修正账单余
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checkbox,勾选
 Checked MR.ERP import settings,查看了 MR.ERP 导入设置
+Checked folder task options,查看了文件夹任务可选项
 Checked folder task runs,查看了文件夹任务记录
 Checked folder tasks,查看了文件夹任务
 Checked in the ERP,已在 ERP 核对
@@ -409,6 +410,7 @@ Delete {0} reconciliation(s)?,确定要删除 {0} 个对账任务吗？
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 Deleted documents,删除了单据
+Deleted folder tasks,删除了文件夹任务
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
 Delivery type,运输方式
@@ -800,6 +802,7 @@ No product matches that code,未找到该编码对应的物料
 No recognition tasks were given.,没有指定识别任务。
 No rules yet,还没有规则
 No runs yet,暂无运行记录
+No tasks were given.,没有指定任务。
 No templates yet,暂无模板
 No warehouse matches that name,该仓库名不存在
 "No, check line by line",不是，逐笔核对
@@ -1068,6 +1071,7 @@ Sales invoices need line items with tax-exclusive amounts before export.,销项�
 Sample Key,修正例标识
 Save and next,保存并下一项
 Saved,已保存
+Saved a folder task,保存了文件夹任务
 Saved push choices,保存了推送选项
 Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
@@ -1512,6 +1516,7 @@ Turn this rule off? Documents already entered stay as they are.,确定要停用�
 Turn this rule on? Only files added to the folder from now on are processed.,确定要启用此规则吗？仅处理此后放入该文件夹的文件。
 Turn this scheduled task off? Documents already entered stay as they are.,确定要停用此定时任务吗？已推送的单据不受影响。
 Turn this scheduled task on? Only files added to the folder from now on are processed.,确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。
+Turned a folder task on or off,启用或停用了文件夹任务
 Type,类型
 Type a few letters of the company or account set name to find it,输入公司名称或账套名称的关键字查找账套
 "Type or scan, then press Enter",输入或扫码后按回车

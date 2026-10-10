@@ -725,6 +725,65 @@ def folder_task_runs(tool_input) -> str:
     return _json({"task": data.get("rule"), "runs": [{k: r.get(k) for k in keep} for r in data.get("runs") or []][:10]})
 
 
+FOLDERS_SHOWN = 50
+
+
+def _task_call(fn, *args):
+    try:
+        result = fn(*args)
+        frappe.db.commit()
+        return result
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"status": "not_saved", "reason": str(error)[:300]}
+
+
+def folder_task_options(tool_input) -> str:
+    """同定时任务表单：能读文件夹的电脑与它们开放给网页的文件夹（只在那台电脑的 CC 里加减）、Express 账套的科目与部门。"""
+    search = str(tool_input.get("search") or "").strip().casefold()
+    data = _task_call(rules.options, str(tool_input.get("connection") or ""), tool_input.get("account_set_key") or None)
+    if data.get("status") == "not_saved":
+        return _json(data)
+    readers = []
+    for reader in data.get("readers") or []:
+        roots = []
+        for root in reader.get("roots") or []:
+            folders = [f for f in root.get("folders") or [] if not search or search in str(f).casefold()]
+            roots.append({"root_id": root.get("id"), "label": root.get("label"), "folders_total": len(folders),
+                          "folders": folders[:FOLDERS_SHOWN]})
+        readers.append({"reader": reader.get("connection"), "computer": reader.get("label"), "online": reader.get("fresh"),
+                        "roots": roots})
+    out = {"computers": readers, "stock_group": data.get("stock_group")}
+    for kind in ("accounts", "departments"):
+        rows = [r for r in data.get(kind) or [] if not search or search in f"{r.get('code')} {r.get('name')}".casefold()]
+        if data.get(kind) is not None:
+            out[kind] = {"total": len(rows), "shown": rows[:CHOICE_OPTIONS_SHOWN]}
+    return _json(_filled(out))
+
+
+def save_folder_task(tool_input) -> str:
+    keep = ("name", "title", "connection", "account_set_key", "direction", "posting_kind", "payment", "reader",
+            "root_id", "folder", "run_day", "run_time", "defaults")
+    values = {key: tool_input[key] for key in keep if key in tool_input}
+    row = _task_call(rules.save, values)
+    return _json(row if row.get("status") == "not_saved" else {"status": "saved", "task": row.get("name"),
+                                                               "title": row.get("title"), "enabled": row.get("enabled")})
+
+
+def set_folder_task_enabled(tool_input) -> str:
+    row = _task_call(rules.set_enabled, str(tool_input.get("task") or ""), 1 if tool_input.get("enabled") else 0)
+    return _json(row if row.get("status") == "not_saved" else {"status": "saved", "task": row.get("name"),
+                                                               "enabled": row.get("enabled")})
+
+
+def delete_folder_tasks(tool_input) -> str:
+    names = [str(n) for n in (tool_input.get("tasks") or [])]
+    if not names:
+        frappe.throw(_("No tasks were given."))
+    return _json(_task_call(rules.delete, json.dumps(names)))
+
+
 _OBJ = {"type": "object", "properties": {}}
 TOOLS = [
     {"name": "cowork_recognize_attachments", "label": "Recognized documents",
@@ -901,6 +960,45 @@ TOOLS = [
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": EXPORT_MAX}},
          "required": ["documents"]},
      "handler": "pearnly_cowork.assistant.tools.export_review_workbook"},
+    {"name": "cowork_folder_task_options", "label": "Checked folder task options",
+     "description": "What a scheduled folder task can use, like the task form: each computer (reader) that reads "
+                    "folders, whether it is online, the folders its CC desktop app opened to the website (root_id and "
+                    "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
+                    "and stock account group for defaults. Folders can only be added in the CC app on that computer; "
+                    "if the one the user wants is missing, tell them to add it there.",
+     "input_schema": {"type": "object", "properties": {
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"}, "search": {"type": "string"}},
+         "required": ["connection"]},
+     "handler": "pearnly_cowork.assistant.tools.folder_task_options"},
+    {"name": "cowork_save_folder_task", "label": "Saved a folder task",
+     "description": "Create or change a scheduled folder task: on run_day at run_time it recognizes the new photos and "
+                    "PDFs put in the folder with these intake choices. Same rules as the web form: Express needs "
+                    "posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the target ERP of an "
+                    "existing task cannot change. Only after the user agreed the details.",
+     "input_schema": {"type": "object", "properties": {
+         "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
+         "title": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "direction": {"type": "string", "enum": ["purchase", "sales"]},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."},
+         "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP; purchases are credit."},
+         "reader": {"type": "string", "description": "The computer (reader) whose folder is used."},
+         "root_id": {"type": "string"}, "folder": {"type": "string", "description": "Subfolder; empty for the root."},
+         "run_day": {"type": "integer", "minimum": 0, "maximum": 31, "description": "Day of month; 0 = last day."},
+         "run_time": {"type": "string", "description": "HH:MM, Bangkok time."},
+         "defaults": {"type": "object"}},
+         "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
+     "handler": "pearnly_cowork.assistant.tools.save_folder_task"},
+    {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
+     "description": "Pause or resume a scheduled folder task. Resuming only handles files put in the folder after now.",
+     "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"}},
+                      "required": ["task", "enabled"]},
+     "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
+    {"name": "cowork_delete_folder_tasks", "label": "Deleted folder tasks",
+     "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
+                    "Intake workbench. Only after the user confirmed exactly which tasks.",
+     "input_schema": {"type": "object", "properties": {"tasks": {"type": "array", "items": {"type": "string"},
+                                                                 "minItems": 1}}, "required": ["tasks"]},
+     "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
      "input_schema": {"type": "object", "properties": {
