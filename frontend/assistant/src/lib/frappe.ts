@@ -23,10 +23,20 @@ function errorOf(body: unknown, status: number): string {
   return `request failed (${status})`;
 }
 
+// 登录过期：重新打开本页，由站点决定去哪（CC 入口，见 pearnly_core/login_redirect.py）。
+// 403 也可能只是没有权限，先问一下本页是否要跳登录，只有要跳才走。
+async function signedOut(status: number): Promise<boolean> {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  const page = await fetch("/assistant", { redirect: "manual", cache: "no-store", credentials: "same-origin" }).catch(() => null);
+  return page?.type === "opaqueredirect";
+}
+
 async function parse<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => null);
-  if (res.status === 401 || res.status === 403) {
-    if (res.status === 401) location.href = "/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant";
+  if (await signedOut(res.status)) {
+    location.href = "/assistant";
+    await new Promise(() => {});
   }
   if (!res.ok) throw new Error(errorOf(body, res.status));
   return (body as { message: T }).message;

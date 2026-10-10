@@ -461,12 +461,38 @@ class BrandAndLoginTests(unittest.TestCase):
             self.assertEqual(actual, body, f"run scripts/build-assistant-brand.py ({name} drifted from website/)")
         self.assertEqual(sorted(builder.render()), ["cc.svg"])
 
-    def test_assistant_uses_the_single_login_entry(self):
+    def test_assistant_guests_go_to_the_cc_entry_once(self):
         source = (CORE / "login_redirect.py").read_text(encoding="utf-8")
         entries = re.search(r"GUEST_ENTRY_PATHS = \{([^}]*)\}", source).group(1)
         self.assertIn('"/assistant"', entries)
+        stubs = {"frappe": types.ModuleType("frappe"), "werkzeug": types.ModuleType("werkzeug"),
+                 "werkzeug.exceptions": types.SimpleNamespace(HTTPException=Exception),
+                 "werkzeug.utils": types.SimpleNamespace(redirect=None)}
+        saved = {name: sys.modules.get(name) for name in stubs}
+        sys.modules.update(stubs)
+        try:
+            gate = _load("assistant_login_redirect", CORE / "login_redirect.py")
+        finally:
+            for name, module in saved.items():
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
+        # 第一次：去 CC 入口并留记号；记号还在又回来（本站没登上）：走本站登录口，不来回跳。
+        self.assertEqual(gate.assistant_gate({}, "https://testai.pearnly.com/"), ("https://testai.pearnly.com/", True))
+        self.assertEqual(gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com"),
+                         ("/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant", False))
+        cookies = {}
+        gate.set_entry_mark(lambda key, value, **kw: cookies.update({key: (value, kw)}))
+        self.assertEqual(cookies[gate.CC_ENTRY_MARK][1]["max_age"], 120)
+        self.assertTrue(cookies[gate.CC_ENTRY_MARK][1]["httponly"])
         page = (CORE / "www/assistant.py").read_text(encoding="utf-8")
-        self.assertIn("pearnly_core.identity.begin_login?redirect_to=/assistant", page)
+        self.assertIn("login_redirect.assistant_gate(", page)
+        self.assertNotIn("begin_login", page)
+        identity = (CORE / "identity.py").read_text(encoding="utf-8")
+        self.assertIn('back = assistant_entry_url() + "/?fresh=1"', identity)
+        client = (ROOT / "frontend/assistant/src/lib/frappe.ts").read_text(encoding="utf-8")
+        self.assertNotIn("begin_login", client)
 
 
 class _Doc(types.SimpleNamespace):

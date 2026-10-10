@@ -38,6 +38,10 @@ ASSISTANT_ENTRY = "https://fatcc.com"   # 智能体（CC）入口，2026-10-10 �
 # ── 配置 ────────────────────────────────────────────────────────────────────
 
 
+def assistant_entry_url() -> str:
+    return str(frappe.conf.get("pearnly_assistant_entry_url") or ASSISTANT_ENTRY).rstrip("/")
+
+
 def _conf(key, required=True):
     value = frappe.conf.get(key)
     if required and not value:
@@ -255,7 +259,7 @@ def sign_out(to=None):
     endpoint = _discovery()["end_session_endpoint"]
     back = str(_conf("host_name")).rstrip("/") + "/"
     if to == "assistant":
-        back = str(frappe.conf.get("pearnly_assistant_entry_url") or ASSISTANT_ENTRY).rstrip("/") + "/?fresh=1"
+        back = assistant_entry_url() + "/?fresh=1"
     params = {
         "client_id": _conf("pearnly_oidc_client_id"),
         "post_logout_redirect_uri": back,

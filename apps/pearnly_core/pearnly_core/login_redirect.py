@@ -7,7 +7,7 @@
 永远得到 "Invalid credentials" —— 密码是对的，页面是错的。
 
 所以这里把**未登录访客**在站点壳上的入口一律送到身份服务：
-`/`、`/login`、`/app`、`/desk` → `pearnly_core.identity.begin_login`。
+`/`、`/login`、`/app`、`/desk` → `pearnly_core.identity.begin_login`；智能体对话页 `/assistant` → CC 入口。
 身份服务登录完再带 code 回来，由 callback 建本地会话。
 
 三个产品共用这一套（用户要求"一个登录口"）。
@@ -40,6 +40,13 @@ SKIP_PREFIXES = (
     "/private/",
 )
 
+BEGIN_LOGIN = "/api/method/pearnly_core.identity.begin_login?redirect_to="
+
+# 对话页 `/assistant` 的访客送去 CC 入口（ADR-019），登录页是 CC 的样子；入口登录后经本站登录口回到对话页。
+# 送去时留一个两分钟的记号：记号还在又以访客身份回来（本站没登上），改走本站登录口，不在两边来回跳。
+CC_ENTRY_MARK = "pearnly_cc_entry"
+CC_ENTRY_MARK_SECONDS = 120
+
 
 class _Redirect(HTTPException):
     """把重定向当成"HTTP 异常"抛出去。
@@ -56,13 +63,30 @@ class _Redirect(HTTPException):
 
     code = 302
 
-    def __init__(self, location: str, code: int = 302):
+    def __init__(self, location: str, code: int = 302, mark: bool = False):
         super().__init__()
         self.location = location
         self.code = code
+        self.mark = mark
 
     def get_response(self, environ=None, scope=None):
-        return werkzeug_redirect(self.location, self.code)
+        response = werkzeug_redirect(self.location, self.code)
+        if self.mark:
+            set_entry_mark(response.set_cookie)
+        return response
+
+
+def set_entry_mark(set_cookie) -> None:
+    # 参数取 Frappe CookieManager.set_cookie 与 werkzeug 都认的那几个（Frappe 的不收 path，两边默认都是 /）
+    set_cookie(CC_ENTRY_MARK, "1", max_age=CC_ENTRY_MARK_SECONDS,
+               secure=True, httponly=True, samesite="Lax")
+
+
+def assistant_gate(cookies, entry_url: str) -> tuple[str, bool]:
+    """访客打开对话页去哪：CC 入口（并留记号）；记号还在就是刚从入口回来仍没登上，改走本站登录口。"""
+    if (cookies or {}).get(CC_ENTRY_MARK):
+        return BEGIN_LOGIN + quote("/assistant"), False
+    return entry_url.rstrip("/") + "/", True
 
 
 def is_business_site() -> bool:
@@ -87,12 +111,16 @@ def redirect_guests_to_identity() -> None:
     if normalized not in GUEST_ENTRY_PATHS and not normalized.startswith((APP_ENTRY_PREFIX, "/desk/")):
         return
 
+    if normalized == "/assistant":
+        from pearnly_core.identity import assistant_entry_url
+
+        location, mark = assistant_gate(frappe.request.cookies, assistant_entry_url())
+        raise _Redirect(location, 302, mark=mark)
+
     # 把访客**本来要去的那个入口**带过去，登录成功后由首页规则决定最终落点
     # （现在是租户自己的产品工作台，见 pearnly_core/workspace.py）。
     # 以前这里写死 "/desk"，等于绕开首页规则，所有人登录后都要先过一屏桌面。
-    gate = (
-        "/api/method/pearnly_core.identity.begin_login?redirect_to=" + quote(normalized)
-    )
+    gate = BEGIN_LOGIN + quote(normalized)
     # 必须用 302：301 会被浏览器**永久缓存**，以后即使登录了也会一直被弹回登录页
     # （踩过：表现为"清缓存才好"的假故障）
     raise _Redirect(gate, 302)
