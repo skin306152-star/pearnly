@@ -7,7 +7,18 @@
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
-import { ChevronsUpDownIcon, FilesIcon, LogOutIcon, MessageSquareIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  ChevronsUpDownIcon,
+  CircleHelpIcon,
+  ExternalLinkIcon,
+  FilesIcon,
+  GlobeIcon,
+  InfoIcon,
+  LogOutIcon,
+  MessageSquareIcon,
+} from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useEffect, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -27,7 +38,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { brandIcon, useProfile, type Profile } from "@/lib/profile";
-import { greeting, lang, t } from "./i18n";
+import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 function firstName(profile: Profile | null): string {
   return (profile?.full_name || "").trim().split(/\s+/)[0] ?? "";
@@ -39,7 +50,8 @@ function Welcome() {
   const name = firstName(profile);
   return (
     <div className="aui-thread-welcome-root mb-8 flex items-center justify-center gap-3 px-4 text-center">
-      {icon && <Mascot src={icon} className="pearnly-mascot-host h-20 shrink-0 sm:h-24" />}
+      {/* 形象图上方留了约 27% 空白（挥手的余量）；负外边距把它扣掉，文字就对准小人本身居中 */}
+      {icon && <Mascot src={icon} className="pearnly-mascot-host -mt-5.5 h-20 shrink-0 sm:-mt-6.5 sm:h-24" />}
       <h1 className="font-serif text-3xl text-foreground sm:text-4xl">
         {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
       </h1>
@@ -70,6 +82,32 @@ async function signOut() {
   location.href = body?.message?.redirect_url || "/";
 }
 
+async function setLanguage(code: string) {
+  await fetch("/api/method/pearnly_core.account.preferences.set_language", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+    body: JSON.stringify({ language: code }),
+  });
+  location.reload();
+}
+
+// 用户菜单（同 claude.ai）：账号、语言、帮助、了解更多、退出登录。外链都是宣传页上已有的页面。
+const menuItem =
+  "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted data-[state=open]:bg-muted";
+const menuContent = "z-[60] min-w-56 rounded-xl border bg-white p-1.5 shadow-lg";
+
+function MenuLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <DropdownMenu.Item asChild className={menuItem}>
+      <a href={href} target="_blank" rel="noopener">
+        <span className="flex-1">{children}</span>
+        <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
+      </a>
+    </DropdownMenu.Item>
+  );
+}
+
 function UserFooter() {
   const profile = useProfile();
   if (!profile) return null;
@@ -85,17 +123,49 @@ function UserFooter() {
         <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          side="top"
-          align="start"
-          sideOffset={6}
-          className="z-[60] min-w-(--radix-dropdown-menu-trigger-width) rounded-xl border bg-white p-1.5 shadow-lg"
-        >
-          <div className="truncate px-2.5 py-1.5 text-muted-foreground text-xs">{profile.user}</div>
-          <DropdownMenu.Item
-            onSelect={() => void signOut()}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted"
-          >
+        <DropdownMenu.Content side="top" align="start" sideOffset={6} className={menuContent}>
+          <div className="truncate px-2.5 py-1.5 text-muted-foreground text-sm">{profile.user}</div>
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger className={menuItem}>
+              <GlobeIcon className="size-4" />
+              <span className="flex-1">{t("language")}</span>
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.SubContent sideOffset={8} className={menuContent}>
+                {LANGUAGES.map((l) => (
+                  <DropdownMenu.Item key={l.code} className={menuItem} onSelect={() => void setLanguage(l.code)}>
+                    <span className="flex-1">{l.label}</span>
+                    {l.code === lang && <CheckIcon className="size-4" />}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Sub>
+          <DropdownMenu.Item asChild className={menuItem}>
+            <a href={HELP_URL} target="_blank" rel="noopener">
+              <CircleHelpIcon className="size-4" />
+              <span className="flex-1">{t("help")}</span>
+              <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
+            </a>
+          </DropdownMenu.Item>
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger className={menuItem}>
+              <InfoIcon className="size-4" />
+              <span className="flex-1">{t("learnMore")}</span>
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.SubContent sideOffset={8} className={menuContent}>
+                <MenuLink href={siteUrl("/about/")}>{t("about")}</MenuLink>
+                <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                <MenuLink href={siteUrl("/privacy/")}>{t("privacy")}</MenuLink>
+                <MenuLink href={siteUrl("/terms/")}>{t("terms")}</MenuLink>
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Sub>
+          <DropdownMenu.Separator className="my-1 h-px bg-border" />
+          <DropdownMenu.Item onSelect={() => void signOut()} className={menuItem}>
             <LogOutIcon className="size-4" />
             {t("logout")}
           </DropdownMenu.Item>

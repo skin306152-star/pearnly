@@ -2,6 +2,12 @@
 
 const MESSAGES = {
   en: {
+    language: "Language",
+    help: "Get help",
+    learnMore: "Learn more",
+    about: "About us",
+    privacy: "Privacy policy",
+    terms: "Terms of use",
     starred: "Starred",
     star: "Star",
     unstar: "Unstar",
@@ -46,6 +52,12 @@ const MESSAGES = {
     sidebar: "Toggle sidebar",
   },
   zh: {
+    language: "语言",
+    help: "获取帮助",
+    learnMore: "了解更多",
+    about: "关于我们",
+    privacy: "隐私政策",
+    terms: "使用条款",
     starred: "已加星标",
     star: "加星标",
     unstar: "取消星标",
@@ -90,6 +102,12 @@ const MESSAGES = {
     sidebar: "切换侧栏",
   },
   th: {
+    language: "ภาษา",
+    help: "ขอความช่วยเหลือ",
+    learnMore: "ดูข้อมูลเพิ่มเติม",
+    about: "เกี่ยวกับเรา",
+    privacy: "นโยบายความเป็นส่วนตัว",
+    terms: "ข้อกำหนดการใช้งาน",
     starred: "ติดดาว",
     star: "ติดดาว",
     unstar: "เลิกติดดาว",
@@ -183,3 +201,18 @@ const STEPS = {
 };
 
 export const steps = (STEPS as Record<string, (typeof STEPS)["en"]>)[lang] ?? STEPS.th;
+
+// 宣传页（pearnly.com）上已有的页面：语言前缀与路径同 website/content.py。
+const SITE = "https://pearnly.com";
+const SITE_PREFIX: Record<string, string> = { th: "", en: "/en", zh: "/zh" };
+export function siteUrl(path: string): string {
+  return `${SITE}${SITE_PREFIX[lang] ?? ""}${path}`;
+}
+export const HELP_URL = `${SITE}/guides/`; // 使用指南目前只有泰文版
+
+/** 对话页可选的语言（与站点账户语言一致，切换走 pearnly_core.account.preferences.set_language）。 */
+export const LANGUAGES = [
+  { code: "zh", label: "中文" },
+  { code: "th", label: "ไทย" },
+  { code: "en", label: "English" },
+];
