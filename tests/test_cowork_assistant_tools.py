@@ -514,7 +514,12 @@ class DeleteAndExportTests(unittest.TestCase):
         self.assertEqual(out, {"deleted": 1, "skipped": 1})
 
     def test_export_adds_the_workbook_to_the_conversation(self):
-        out = json.loads(tools.export_review_workbook({"documents": ["H1", "H1", "H2"]}))
+        import datetime
+
+        site_now = datetime.datetime(2026, 10, 11, 2, 2, 8)  # 站点时区（曼谷）的时间，不是容器的 UTC
+        with mock.patch.object(tools.frappe, "utils", types.SimpleNamespace(now_datetime=lambda: site_now), create=True):
+            out = json.loads(tools.export_review_workbook({"documents": ["H1", "H1", "H2"]}))
+        self.assertEqual(self.calls[1][1], "cowork-review-20261011-020208.xlsx")
         self.assertEqual(self.calls[0], ("export", ["H1", "H2"]))
         self.assertEqual(self.calls[1][2], b"PK-xlsx")
         self.assertRegex(self.calls[1][1], r"^cowork-review-\d{8}-\d{6}\.xlsx$")  # 每次导出新名字，对话里出新卡片

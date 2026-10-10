@@ -823,7 +823,9 @@ def export_review_workbook(tool_input) -> str:
         frappe.clear_messages()
         return _json({"status": "not_exported", "reason": str(error)[:300]})
     # 每次导出一个新名字：同名会盖掉上一份，对话里就不再出新的文件卡片
-    path = chat_files.add_to_conversation(f"cowork-review-{time.strftime('%Y%m%d-%H%M%S')}.xlsx", content, XLSX)
+    # 站点时区的时间（容器里的 time.strftime 是 UTC，2026-10-11 测试：凌晨 2 点导出的文件名写成前一天 19 点）
+    stamp = frappe.utils.now_datetime().strftime("%Y%m%d-%H%M%S")
+    path = chat_files.add_to_conversation(f"cowork-review-{stamp}.xlsx", content, XLSX)
     return _json({"status": "exported", "documents": len(names), "file": path})
 
 
