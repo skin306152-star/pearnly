@@ -130,6 +130,9 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* 细滚动条、不带上下箭头（Windows 桌面端默认是带箭头的粗条），同 claude.ai */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(0 0 0 / 0.18) transparent;
   }
   :root {
     color-scheme: light;
