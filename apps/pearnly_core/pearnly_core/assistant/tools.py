@@ -5,6 +5,8 @@
   智能体配置（给模型看的工具表）与服务端派发都从这同一份生成，不会两边对不上。
 - 共用工具在 `CORE_TOOLS`；各产品在自己 `hooks.py` 声明
   `pearnly_assistant_tools = ["<app>.<module>.TOOLS"]`（指向本产品的声明列表）。
+- 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
+  也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
 - 工具一律在本站服务端、以当前登录用户身份执行：权限、租户、套账与数据范围沿用各产品现有服务的
   校验，工具只调已有服务，不绕过它们读库。业务拒绝用 `frappe.throw`，作为 `is_error` 结果交回模型。
 """
@@ -66,6 +68,15 @@ def declared() -> list[dict]:
 def labels() -> dict[str, str]:
     """对话里步骤行显示的名字（按当前用户语言）；没写 label 的工具显示原名。"""
     return {t["name"]: _(t["label"]) if t.get("label") else t["name"] for t in declared()}
+
+
+def needs_approval(name: str, tool_input) -> bool:
+    tool = next((t for t in declared() if t["name"] == str(name or "")), None)
+    gate = (tool or {}).get("approval")
+    if isinstance(gate, (list, tuple)):
+        values = tool_input if isinstance(tool_input, dict) else {}
+        return any(values.get(key) not in (None, "", {}, []) for key in gate)
+    return bool(gate)
 
 
 def run(name: str, tool_input) -> tuple[str, bool]:

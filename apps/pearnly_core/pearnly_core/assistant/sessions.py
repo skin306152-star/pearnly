@@ -197,10 +197,21 @@ def send(session_id, text) -> None:
 
 
 def confirm(session_id, confirmations) -> int:
+    """对话里点的「允许 / 拒绝」。我们自己拦下的工具调用（要授权的 Pearnly 工具，`toolrun.decide`）在本站处理；
+    其余照旧交给引擎。"""
     row = owned(session_id)
     batch = _guard(contracts.confirmations, confirmations)
-    relay.ensure(row.session_id, current(row), frappe.session.user)
-    engine.adapter().post(current(row), batch)
+    remote = current(row)
+    relay.ensure(row.session_id, remote, frappe.session.user)
+    ours = set(frappe.get_all(toolrun.TOOL_RUN, filters={
+        "session_id": row.session_id, "user": frappe.session.user, "status": "awaiting_approval",
+        "tool_use_id": ["in", [item["tool_use_id"] for item in batch]]}, pluck="tool_use_id"))
+    rest = [item for item in batch if item["tool_use_id"] not in ours]
+    if rest:
+        engine.adapter().post(remote, rest)
+    for item in batch:
+        if item["tool_use_id"] in ours:
+            toolrun.decide(row.session_id, remote, item["tool_use_id"], item["result"] == "allow")
     return len(batch)
 
 

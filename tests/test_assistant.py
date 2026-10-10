@@ -306,6 +306,57 @@ class RelayTests(unittest.TestCase):
         self.assertIn("DuplicateEntryError", run)  # 推送线程与页面兜底谁先到谁执行，只执行一遍
         self.assertIn("except Exception", run)  # 意外出错也回结果，不让会话卡住
 
+    def test_settings_tools_wait_for_allow_and_run_once_as_the_user(self):
+        """改共用设置的工具先拦下等「允许」（用户 2026-10-10：经授权后代为操作）；允许只执行这一次，拒绝不执行。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        declared = [{"name": "always", "approval": True}, {"name": "when_writing", "approval": ["acccod"]},
+                    {"name": "plain"}]
+        with mock.patch.object(tools, "declared", return_value=declared):
+            self.assertTrue(tools.needs_approval("always", {}))
+            self.assertFalse(tools.needs_approval("when_writing", {"connection": "E1"}))  # 只是查看
+            self.assertTrue(tools.needs_approval("when_writing", {"acccod": "1150"}))
+            self.assertFalse(tools.needs_approval("plain", {"x": 1}))
+        rows = {"r1": {"status": "awaiting_approval", "tool": "always", "tool_input": '{"task": "T1"}'}}
+        posted, ran = [], []
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def get_value(self, doctype, filters, field, as_dict=False):
+                if isinstance(filters, dict):
+                    return next((n for n, r in rows.items() if r["status"] == filters.get("status", r["status"])), None)
+                row = rows[filters]
+                return types.SimpleNamespace(**row) if as_dict else row[field]
+
+            def sql(self, query, values):
+                status, name = values
+                hit = rows[name]["status"] == "awaiting_approval"
+                if hit:
+                    rows[name]["status"] = status
+                self._cursor = types.SimpleNamespace(rowcount=int(hit))
+
+            def set_value(self, doctype, name, field, value=None):
+                rows[name].update(field if isinstance(field, dict) else {field: value})
+
+            def commit(self):
+                pass
+
+            rollback = commit
+
+        adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        with mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+                mock.patch.object(toolrun.frappe, "local", types.SimpleNamespace(cache={}), create=True), \
+                mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data)) or ("saved", False)):
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")  # 重复点击不再执行
+        self.assertEqual(ran, [("always", {"task": "T1"})])
+        self.assertEqual((rows["r1"]["status"], rows["r1"]["result"]), ("done", "saved"))
+        self.assertEqual(len(posted), 1)
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        confirm = source.split("def confirm(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("toolrun.decide(", confirm)  # 我们拦下的在本站处理，其余照旧交引擎
+
     def test_tools_can_reach_this_conversations_attachments_and_only_those(self):
         # 引擎不让下载用户上传的文件：原件在本站留一份挂在会话上；工具执行时知道是哪个对话，只取这个对话的附件。
         files = (CORE / "assistant/files.py").read_text(encoding="utf-8")

@@ -1401,6 +1401,7 @@ TOOLS = [
                                                         "account_set_key": {"type": "string"},
                                                         "acccod": {"type": "string"}},
                       "required": ["connection", "account_set_key"]},
+     "approval": ["acccod"],
      "handler": "pearnly_cowork.assistant.tools.stock_group"},
     {"name": "cowork_mrerp_setup", "label": "Checked MR.ERP import settings",
      "description": "MR.ERP import menus per document kind and default values, chosen once per account set before "
@@ -1414,6 +1415,7 @@ TOOLS = [
          "menus": {"type": "object", "additionalProperties": {"type": "string"}},
          "defaults": {"type": "object", "additionalProperties": {"type": "string"}}},
          "required": ["connection", "account_set_key"]},
+     "approval": ["menus", "defaults"],
      "handler": "pearnly_cowork.assistant.tools.mrerp_setup"},
     {"name": "cowork_document_detail", "label": "Viewed a document",
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
@@ -1441,11 +1443,12 @@ TOOLS = [
     {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
      "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "
                     "records documents of this kind, skip leaves them out. It applies to every document of this kind "
-                    "for the whole company from now on, so ask the user first and say so. Then push the document "
+                    "for the whole company from now on (the user allows it in the chat). Then push the document "
                     "again.",
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
                                                         "value": {"type": "string", "enum": ["enter", "skip"]}},
                       "required": ["document", "value"]},
+     "approval": True,
      "handler": "pearnly_cowork.assistant.tools.choose_document_policy"},
     {"name": "cowork_recognition_results", "label": "Checked recognition results",
      "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments.",
@@ -1552,7 +1555,7 @@ TOOLS = [
      "description": "Create or change a scheduled folder task: on run_day at run_time it recognizes the new photos and "
                     "PDFs put in the folder with these intake choices. Same rules as the web form: Express needs "
                     "posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the target ERP of an "
-                    "existing task cannot change. Only after the user agreed the details.",
+                    "existing task cannot change.",
      "input_schema": {"type": "object", "properties": {
          "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
          "title": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
@@ -1565,18 +1568,20 @@ TOOLS = [
          "run_time": {"type": "string", "description": "HH:MM, Bangkok time."},
          "defaults": {"type": "object"}},
          "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
+     "approval": True,
      "handler": "pearnly_cowork.assistant.tools.save_folder_task"},
     {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
      "description": "Pause or resume a scheduled folder task. Resuming only handles files put in the folder after now.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"}},
                       "required": ["task", "enabled"]},
+     "approval": True,
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
     {"name": "cowork_delete_folder_tasks", "label": "Deleted folder tasks",
      "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
-                    "Intake workbench. When the user clearly named the tasks, delete right away; only ask which ones "
-                    "when it is unclear.",
+                    "Intake workbench. Only ask which ones when it is unclear.",
      "input_schema": {"type": "object", "properties": {"tasks": {"type": "array", "items": {"type": "string"},
                                                                  "minItems": 1}}, "required": ["tasks"]},
+     "approval": True,
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
     {"name": "cowork_recon_start", "label": "Started a reconciliation",
      "description": "Start a reconciliation like New on the reconciliation pages, with files the user attached in "

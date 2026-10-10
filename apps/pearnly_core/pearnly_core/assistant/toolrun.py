@@ -5,6 +5,8 @@
 工具一律以会话主人的身份执行（权限、租户、套账与数据范围沿用各产品自己的校验）；意外出错也要回一个错误结果，
 不能让会话一直停在等待里。
 """
+import json
+
 import frappe
 from frappe import _
 
@@ -24,11 +26,15 @@ def fresh():
 
 
 def execute(conversation: str, remote: str, call: dict) -> str:
-    """执行 `call`（一条 `agent.custom_tool_use` 事件）并把结果交回引擎。返回 done / error / running（别处已在执行）。"""
+    """执行 `call`（一条 `agent.custom_tool_use` 事件）并把结果交回引擎。返回 done / error / running（别处已在执行）
+    / awaiting_approval（要用户在对话里点「允许」，`decide`）。"""
     use_id = contracts.event_id(call.get("id"))
+    gated = tools.needs_approval(call.get("name"), call.get("input"))
     try:
         run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": conversation,
-                              "user": frappe.session.user, "tool": call.get("name") or "", "status": "running"})
+                              "user": frappe.session.user, "tool": call.get("name") or "",
+                              "status": "awaiting_approval" if gated else "running",
+                              "tool_input": json.dumps(call.get("input") or {}, ensure_ascii=False)})
         run.insert(ignore_permissions=True)
         frappe.db.commit()
     except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
@@ -36,12 +42,44 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         # 那条提示要清掉，否则会跟着页面的请求弹到对话页顶上（2026-10-10 测试：「Tool Use ID必须是唯一的」）。
         frappe.db.rollback()
         frappe.clear_messages()
-        return "running"
+        # 等「允许」的要告诉页面（重开页面也要把按钮补上）；其余在执行或已执行
+        waiting = frappe.db.get_value(TOOL_RUN, {"tool_use_id": use_id, "session_id": conversation}, "status")
+        return "awaiting_approval" if waiting == "awaiting_approval" else "running"
+    if gated:
+        return "awaiting_approval"
+    return _finish(conversation, remote, run.name, use_id, call.get("name"), call.get("input"))
+
+
+def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
+    """用户在对话里对一次要授权的工具调用点了「允许 / 拒绝」：允许就以本人身份执行，拒绝就告诉智能体没得到同意。
+    只认本对话、本人、还在等的那一次；授权只管这一次调用，不延续到下一次。"""
+    name = frappe.db.get_value(TOOL_RUN, {"tool_use_id": use_id, "session_id": conversation,
+                                          "user": frappe.session.user, "status": "awaiting_approval"}, "name")
+    if not name:
+        return "not_waiting"
+    # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走
+    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s WHERE name=%s AND status='awaiting_approval'",
+                  ("running" if allow else "denied", name))
+    claimed = frappe.db._cursor.rowcount == 1
+    frappe.db.commit()
+    if not claimed:
+        return "not_waiting"
+    if not allow:
+        text = _("The user did not allow this change. Do not try it again unless the user asks.")
+        engine.adapter().post(remote, [contracts.tool_result(use_id, text, False)])
+        frappe.db.set_value(TOOL_RUN, name, "result", text)
+        frappe.db.commit()
+        return "denied"
+    run = frappe.db.get_value(TOOL_RUN, name, ["tool", "tool_input"], as_dict=True)
+    return _finish(conversation, remote, name, use_id, run.tool, json.loads(run.tool_input or "{}"))
+
+
+def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
     # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）；工具函数本身只收模型给的参数。
     frappe.local.pearnly_assistant = {"session_id": conversation}
     fresh()
     try:
-        text, is_error = tools.run(call.get("name"), call.get("input"))
+        text, is_error = tools.run(tool, tool_input)
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant tool failed")
@@ -50,6 +88,7 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         frappe.local.pearnly_assistant = None
     engine.adapter().post(remote, [contracts.tool_result(use_id, text, is_error)])
     status = "error" if is_error else "done"
-    frappe.db.set_value(TOOL_RUN, run.name, "status", status)
+    # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）
+    frappe.db.set_value(TOOL_RUN, run_name, {"status": status, "result": text[:60000]})
     frappe.db.commit()
     return status

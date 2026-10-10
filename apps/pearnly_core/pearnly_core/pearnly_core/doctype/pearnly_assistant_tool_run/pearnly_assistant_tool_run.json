@@ -5,17 +5,19 @@
  "creation": "2026-10-10 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["tool_use_id", "session_id", "user", "tool", "status"],
+ "field_order": ["tool_use_id", "session_id", "user", "tool", "status", "tool_input", "result"],
  "fields": [
   {"fieldname": "tool_use_id", "fieldtype": "Data", "label": "Tool Use ID", "read_only": 1, "reqd": 1, "unique": 1},
   {"fieldname": "session_id", "fieldtype": "Data", "label": "Session ID", "read_only": 1, "reqd": 1, "search_index": 1},
   {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "read_only": 1, "reqd": 1},
   {"fieldname": "tool", "fieldtype": "Data", "label": "Tool", "read_only": 1},
-  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "running\ndone\nerror", "default": "running", "read_only": 1, "reqd": 1}
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "running\ndone\nerror\nawaiting_approval\ndenied", "default": "running", "read_only": 1, "reqd": 1},
+  {"fieldname": "tool_input", "fieldtype": "Long Text", "label": "Tool Input", "read_only": 1},
+  {"fieldname": "result", "fieldtype": "Long Text", "label": "Result", "read_only": 1}
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-10 00:00:00.000000",
+ "modified": "2026-10-10 23:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Tool Run",

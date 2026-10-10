@@ -21,6 +21,7 @@ import {
   isBusy,
   markResuming,
   restoreGates,
+  gateCustomTool,
   type Projection,
 } from "./reducer";
 
@@ -419,7 +420,14 @@ export class SessionController {
       this.answerAttempts.set(id, attempt);
       this.answering.add(id);
       void runTool(this.sessionId, id)
-        .then(() => {
+        .then((status) => {
+          if (status === "awaiting_approval") {
+            // Held for the user's Allow/Deny: show the gate, don't treat it as answered.
+            this.answerAttempts.delete(id);
+            this.retryAfter.delete(id);
+            this.mergeProjection(gateCustomTool(this.state, id));
+            return;
+          }
           this.source?.nudge();
           this.answerAttempts.delete(id);
           this.retryAfter.delete(id);

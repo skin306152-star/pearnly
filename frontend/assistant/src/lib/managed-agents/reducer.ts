@@ -789,6 +789,27 @@ export function restoreGates(state: Projection, ids: readonly string[]): Project
   return withDerivedStatuses({ ...state, messages, pendingApprovals, isRunning: false });
 }
 
+/** The server held a Pearnly tool call for the user's Allow/Deny (a tool
+ *  that changes company-wide settings; pearnly_core.assistant.toolrun). Turn
+ *  the owed custom tool into an approval gate on its part: the click goes to
+ *  /confirm, which the server answers by running or refusing the call. */
+export function gateCustomTool(state: Projection, id: string): Projection {
+  const found = findToolPart(state.messages, id);
+  if (!found) return state;
+  const part = state.messages[found.mi]!.content[found.pi]!;
+  if (part.type !== "tool-call" || part.result !== undefined) return state;
+  if (part.approval && part.approval.approved !== undefined) return state;
+  const messages = draft(state.messages);
+  updatePart(messages, found.mi, found.pi, updateTool({ approval: { id } }));
+  return withDerivedStatuses({
+    ...state,
+    messages,
+    pendingApprovals: state.pendingApprovals.includes(id) ? state.pendingApprovals : [...state.pendingApprovals, id],
+    pendingCustomTools: state.pendingCustomTools.filter((x) => x !== id),
+    isRunning: false,
+  });
+}
+
 /** A message POST failed. If the bubble was never echoed, it wasn't sent and
  *  must not sit in the transcript reading as delivered: evict it (and the
  *  optimistic "running" it started). If the echo already landed, the message
