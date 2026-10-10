@@ -292,7 +292,7 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 **D. 上线（等用户下令再做；按《按批次自主部署》五道关）**
 
 - [ ] 19. 上线批次：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `scripts/ci-candidate-checks.sh offline` → 合入 main 并推送、回读远端 SHA → 从 main 构建镜像 → 生产部署 → 计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 正式版（`companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404。
-- [ ] 20. 生产 Keycloak `pearnly-ai` 主题重装（现装的是 docker cp 进容器的，容器重建会丢；且标签小图标还是去胡须旧图）：随上线一起装，或改成像父主题一样宿主机挂载。重装停登约 40 秒，先问用户。
+- [ ] 20. 生产 Keycloak `pearnly-ai` 主题重装（现装的是 docker cp 进容器的，容器重建会丢；且标签小图标还是去胡须旧图；第 3 项的自适应排版也要重装后才到输错密码 / 找回密码等页）：随上线一起装，或改成像父主题一样宿主机挂载。重装停登约 40 秒，先问用户。
 
 **E. 收尾**
 

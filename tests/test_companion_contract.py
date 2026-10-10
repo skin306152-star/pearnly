@@ -2,7 +2,8 @@
 
 只读源码（AST / 文本），不导入 Frappe、不起服务，CI 离线跑。守住的是 2026-09-27 那次漏掉的几处：
 - 小助手调用的三个机器接口 = 服务端 `http_auth` 认的三个原生地址，且都是只收 POST 的白名单方法；
-- 网页复制出的配对码是 `密钥@本站域名`，小助手的 `split_pairing_code` 能拆开；
+- 对话页向本站申请的这台电脑的密钥（`companion.api.register`，只收 POST）以 `密钥@本站域名` 交给桌面端，
+  小助手的 `split_pairing_code` 能拆开（2026-10-10 起网页不再显示 / 复制配对码）；
 - 下载地址三处一致：小助手查更新、nginx 下载目录、发布接收脚本，以及网页「下载助手」的默认地址。
 """
 import ast
@@ -68,9 +69,13 @@ class MachineEndpoints(unittest.TestCase):
 
 
 class PairingCode(unittest.TestCase):
-    def test_the_web_copies_key_at_this_site_and_the_helper_splits_it(self):
+    def test_the_chat_page_hands_key_at_this_site_and_the_helper_splits_it(self):
+        page = (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8")
+        self.assertIn('fetch("/api/method/pearnly_cowork.companion.api.register"', page)
+        self.assertIn('api.call("pair", { code: `${found.token}@${location.host}`', page)
+        self.assertTrue(whitelisted_post(SERVER / "api.py", "register"))
         web = (ROOT / "apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js").read_text(encoding="utf-8")
-        self.assertIn("copy_to_clipboard(`${token}@${window.location.host}`)", web)
+        self.assertNotIn("copy_to_clipboard(`${token}@", web)
         split_pairing_code = helper_function(COMPANION / "pairing.py", "split_pairing_code",
                                              {"_HOST", "_LOCAL_HOSTS"})
         self.assertEqual(split_pairing_code("exp_CWEC-1_secret@testcowork.pearnly.com"),
