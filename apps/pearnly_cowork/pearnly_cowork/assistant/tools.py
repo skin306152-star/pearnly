@@ -28,7 +28,8 @@ HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"
 PUSH_MAX = 20
 LIST_MAX = 50
-DOC_FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "total_amount", "quality_status", "staged",
+DOC_FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
+              "total_amount", "quality_status", "staged",
               "posting_kind", "intake_target", "push_connection", "push_account_set", "last_push_status",
               "last_push_reason", "last_pushed_at", "filename", "creation"]
 
@@ -84,9 +85,20 @@ def list_documents(tool_input) -> str:
     if tool_input.get("waiting_review") is not None:
         filters["staged"] = 1 if tool_input.get("waiting_review") else 0
     limit = max(1, min(int(tool_input.get("limit") or 20), LIST_MAX))
+    search = str(tool_input.get("search") or "").strip()
+    failed_only = or_filters is not None
+    if search:
+        # 按单号、双方名称或税号找（税号去掉分隔符比），不限最近几张；「失败」那组条件改在取回后筛
+        digits = "".join(ch for ch in search if ch.isdigit())
+        or_filters = [[field, "like", f"%{search}%"] for field in ("invoice_no", "seller_name", "buyer_name")]
+        if len(digits) >= 5:
+            or_filters += [[field, "like", f"%{digits}%"] for field in ("seller_tax", "buyer_tax", "invoice_no")]
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
     rows = frappe.get_list(HISTORY, filters=filters, or_filters=or_filters, fields=DOC_FIELDS,
-                           order_by="modified desc, name desc", limit_page_length=limit)
+                           order_by="modified desc, name desc",
+                           limit_page_length=LIST_MAX if search and failed_only else limit)
+    if search and failed_only:
+        rows = [r for r in rows if r.get("last_push_status") == "manual" or r.get("last_push_reason")][:limit]
     return _json({"documents": rows, "count": len(rows)})
 
 
@@ -963,9 +975,12 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"connection": {"type": "string"}}, "required": ["connection"]},
      "handler": "pearnly_cowork.assistant.tools.refresh_account_sets"},
     {"name": "cowork_list_documents", "label": "Listed documents",
-     "description": "List recognized documents (receipts, tax invoices) the user can see, newest first. Filter by push "
-                    "state (not_pushed, pending, success, failed), upload date, invoice date or waiting for review.",
+     "description": "List recognized documents (receipts, tax invoices) the user can see, newest first, with both "
+                    "parties' names and tax IDs. Filter by push state (not_pushed, pending, success, failed), upload "
+                    "date, invoice date or waiting for review; search finds documents by invoice number, seller or "
+                    "buyer name, or tax ID across all documents, not only the latest ones.",
      "input_schema": {"type": "object", "properties": {
+         "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["not_pushed", "pending", "success", "failed"]},
          "uploaded_from": {"type": "string", "description": "YYYY-MM-DD"},
          "invoice_date_from": {"type": "string", "description": "YYYY-MM-DD"},

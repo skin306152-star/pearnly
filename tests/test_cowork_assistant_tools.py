@@ -131,6 +131,15 @@ class BehaviourTests(unittest.TestCase):
         self.assertEqual(frappe.calls[-1]["or_filters"],
                          [["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"]])
 
+    def test_documents_can_be_found_by_tax_id_or_party(self):
+        tools.list_documents({"search": "0107-5650-00620"})
+        call = frappe.calls[-1]
+        self.assertIn(["seller_tax", "like", "%0107565000620%"], call["or_filters"])
+        self.assertIn(["seller_name", "like", "%0107-5650-00620%"], call["or_filters"])
+        self.assertIn("seller_tax", call["fields"])
+        tools.list_documents({"search": "Advice", "push_state": "failed"})
+        self.assertEqual(frappe.calls[-1]["limit_page_length"], tools.LIST_MAX)  # 失败条件改在取回后筛
+
     def test_companion_status_leaves_account_set_lists_to_intake_options(self):
         tools.connections.records = lambda *a: [{"name": "C1", "label": "Office", "adapter": "express", "enabled": True}]
         tools.connections.targets = lambda name: {"account_sets": [{"source_id": "x", "label": "Acme"}], "status": "fresh"}
