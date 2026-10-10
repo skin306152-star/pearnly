@@ -98,6 +98,7 @@ An original file is already stored for this source.,ข้อมูลต้น�
 Anchor Date,วันที่อ้างอิง
 Another active rule already uses this folder or a folder containing it.,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
+Answered a reconciliation question,ตอบคำถามการกระทบยอดแล้ว
 Any due date,วันครบกำหนดทั้งหมด
 Archive,เก็บถาวร
 Archive all cards in this list,เก็บถาวรการ์ดทั้งหมดในรายการนี้
@@ -211,6 +212,7 @@ Check the statement balance differences before confirming.,กรุณาแก
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checkbox,ช่องทำเครื่องหมาย
 Checked MR.ERP import settings,ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว
+Checked a reconciliation's progress,ตรวจสอบความคืบหน้าการกระทบยอดแล้ว
 Checked folder task options,ตรวจสอบตัวเลือกงานโฟลเดอร์แล้ว
 Checked folder task runs,ตรวจสอบประวัติงานโฟลเดอร์แล้ว
 Checked folder tasks,ตรวจสอบงานโฟลเดอร์แล้ว
@@ -220,6 +222,7 @@ Checked intake choices,ตรวจสอบตัวเลือกการบ
 Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
 Checked recognition results,ตรวจสอบผลการอ่านเอกสารแล้ว
+Checked reconciliation presets,ตรวจสอบค่าที่ตั้งไว้ของการกระทบยอดแล้ว
 Checked the companion,ตรวจสอบผู้ช่วย Pearnly แล้ว
 Checked the stock account group,ตรวจสอบกลุ่มบัญชีสินค้าคงเหลือแล้ว
 Checking,กำลังตรวจสอบ
@@ -411,6 +414,7 @@ Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายก
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted documents,ลบเอกสารแล้ว
 Deleted folder tasks,ลบงานโฟลเดอร์แล้ว
+Deleted reconciliations,ลบการกระทบยอดแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} stock counts,ลบการตรวจนับ {0} รายการแล้ว
 Delivery type,ประเภทขนส่ง
@@ -529,6 +533,7 @@ Expires At,เวลาหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
+Exported a reconciliation,ส่งออกผลการกระทบยอดแล้ว
 Exported the review workbook,ส่งออกสมุดงานตรวจทานแล้ว
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express PC,เครื่อง Express
@@ -712,6 +717,7 @@ List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
 Listed documents,ดูรายการเอกสารแล้ว
+Listed reconciliations,ดูรายการกระทบยอดแล้ว
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
@@ -1149,6 +1155,7 @@ Start date,วันเริ่ม
 Start reconciliation,เริ่มกระทบยอด
 Started At,เริ่มเมื่อ
 Started a folder task,เริ่มงานโฟลเดอร์แล้ว
+Started a reconciliation,เริ่มกระทบยอดแล้ว
 Started at,เวลาเริ่ม
 Statement Autocorrected,รายการเดินบัญชีแก้ไขอัตโนมัติแล้ว
 Statement Balance,ยอดคงเหลือตามรายการเดินบัญชี
@@ -1575,6 +1582,7 @@ View differences,ดูผลต่าง
 View photo,ดูรูปภาพ
 View the ones to check,ดูรายการรอดำเนินการ
 Viewed a document,ดูเอกสารแล้ว
+Viewed a reconciliation,ดูผลการกระทบยอดแล้ว
 Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ

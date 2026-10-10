@@ -98,6 +98,7 @@ An original file is already stored for this source.,この参照元には既に�
 Anchor Date,基準日
 Another active rule already uses this folder or a folder containing it.,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
+Answered a reconciliation question,照合の質問に回答しました
 Any due date,すべての期日
 Archive,アーカイブ
 Archive all cards in this list,このリストのカードをすべてアーカイブ
@@ -211,6 +212,7 @@ Check the statement balance differences before confirming.,明細の残高差異
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checkbox,チェックボックス
 Checked MR.ERP import settings,MR.ERP の取り込み設定を確認しました
+Checked a reconciliation's progress,照合の進行状況を確認しました
 Checked folder task options,フォルダータスクの選択肢を確認しました
 Checked folder task runs,フォルダータスクの実行履歴を確認しました
 Checked folder tasks,フォルダータスクを確認しました
@@ -220,6 +222,7 @@ Checked intake choices,入力設定を確認しました
 Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
 Checked recognition results,読み取り結果を確認しました
+Checked reconciliation presets,照合の既定値を確認しました
 Checked the companion,アシスタントを確認しました
 Checked the stock account group,在庫勘定グループを確認しました
 Checking,照合中
@@ -411,6 +414,7 @@ Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted documents,書類を削除しました
 Deleted folder tasks,フォルダータスクを削除しました
+Deleted reconciliations,照合を削除しました
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
@@ -529,6 +533,7 @@ Expires At,有効期限
 Export,エクスポート
 Export Excel,Excel に出力
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
+Exported a reconciliation,照合結果を書き出しました
 Exported the review workbook,確認用ワークブックを書き出しました
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
 Express PC,Express の PC
@@ -712,6 +717,7 @@ List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
 Listed documents,書類を一覧しました
+Listed reconciliations,照合の一覧を確認しました
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
@@ -1149,6 +1155,7 @@ Start date,開始日
 Start reconciliation,照合を開始
 Started At,開始日時
 Started a folder task,フォルダータスクを開始しました
+Started a reconciliation,照合を開始しました
 Started at,開始日時
 Statement Autocorrected,明細自動補正済み
 Statement Balance,明細残高
@@ -1575,6 +1582,7 @@ View differences,差異を見る
 View photo,写真を表示
 View the ones to check,要確認を見る
 Viewed a document,書類を確認しました
+Viewed a reconciliation,照合結果を確認しました
 Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

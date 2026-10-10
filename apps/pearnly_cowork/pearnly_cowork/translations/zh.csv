@@ -98,6 +98,7 @@ An original file is already stored for this source.,此来源已保存原始文�
 Anchor Date,参考日期
 Another active rule already uses this folder or a folder containing it.,已有启用中的规则使用此文件夹或其上级文件夹。
 Another push holds the writer lock.,另一笔推送正在占用写入锁。
+Answered a reconciliation question,回答了对账的问题
 Any due date,全部到期日
 Archive,归档
 Archive all cards in this list,将此列表中的所有卡片归档
@@ -211,6 +212,7 @@ Check the statement balance differences before confirming.,请先修正账单余
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checkbox,勾选
 Checked MR.ERP import settings,查看了 MR.ERP 导入设置
+Checked a reconciliation's progress,查看了对账进度
 Checked folder task options,查看了文件夹任务可选项
 Checked folder task runs,查看了文件夹任务记录
 Checked folder tasks,查看了文件夹任务
@@ -220,6 +222,7 @@ Checked intake choices,查看了录入口径
 Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
 Checked recognition results,查看了识别结果
+Checked reconciliation presets,查看了对账预设
 Checked the companion,查看了小助手
 Checked the stock account group,查看了存货科目组
 Checking,核对中
@@ -411,6 +414,7 @@ Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 Deleted documents,删除了单据
 Deleted folder tasks,删除了文件夹任务
+Deleted reconciliations,删除了对账
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
 Delivery type,运输方式
@@ -529,6 +533,7 @@ Expires At,到期时间
 Export,导出
 Export Excel,导出 Excel
 Export records from the same company and client together.,同次导出只能包含同一公司、同一客户的记录。
+Exported a reconciliation,导出了对账结果
 Exported the review workbook,导出了复核工作簿
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
 Express PC,Express 电脑
@@ -712,6 +717,7 @@ List actions,列表操作
 List archived,列表已归档
 List name,列表名称
 Listed documents,查看了单据
+Listed reconciliations,查看了对账列表
 Location,位置
 Location check,仓位比对结果
 Location mismatch,仓位不符
@@ -1149,6 +1155,7 @@ Start date,开始日期
 Start reconciliation,开始对账
 Started At,开始时间
 Started a folder task,启动了文件夹任务
+Started a reconciliation,开始了对账
 Started at,开始时间
 Statement Autocorrected,对账单已自动更正
 Statement Balance,对账单余额
@@ -1575,6 +1582,7 @@ View differences,查看差异
 View photo,查看图片
 View the ones to check,查看待处理
 Viewed a document,查看了单据详情
+Viewed a reconciliation,查看了对账结果
 Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。

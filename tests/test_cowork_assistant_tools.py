@@ -561,5 +561,62 @@ class FolderTaskTests(unittest.TestCase):
         self.assertIn("overlaps", out["reason"])
 
 
+
+class ReconTests(unittest.TestCase):
+    """对账：两口文件取自对话附件交给对账任务、结果只给要点与没对上的行、导出放进对话；kind 只认三种。"""
+
+    def setUp(self):
+        self.calls = []
+        mods = {}
+        for name in ("pearnly_cowork.recon_center", "pearnly_cowork.reconciliation", "pearnly_core",
+                     "pearnly_core.assistant"):
+            mods[name] = sys.modules.setdefault(name, types.ModuleType(name))
+        jobs = types.ModuleType("pearnly_cowork.recon_center.jobs")
+        jobs.start = lambda kind, title, sides, options: self.calls.append(("start", kind, sides)) or {"job": "J1"}
+        jobs.status = lambda job: {"state": "done", "stage": "done", "task": "T1",
+                                   "files": [{"pages": 3, "done": 3}]}
+        api = types.ModuleType("pearnly_cowork.recon_center.api")
+        api.detail = lambda kind, task, start, limit: {"rows": [{"match_status": "matched"},
+                                                                {"match_status": "stmt_deposit_only", "amount": 5}]}
+        sheets = types.ModuleType("pearnly_cowork.recon_center.sheets")
+        sheets.load = lambda kind, task, lang: {"task": {"name": task, "title": "BBL Feb", "status": "completed",
+                                                         "questions": [{"rule": "card_fee"}]}, "sheets": ["big"]}
+        bank = types.ModuleType("pearnly_cowork.reconciliation.bank_recon_service")
+        bank.export = lambda task, lang: ("BBL Feb.xlsx", b"PK")
+        chat = sys.modules.get("pearnly_core.assistant.files") or types.ModuleType("pearnly_core.assistant.files")
+        chat.attachment = lambda file_id: (file_id + ".pdf", b"pdf")
+        chat.attachments = lambda: []
+        chat.add_to_conversation = lambda name, content, mime: self.calls.append(("attach", name)) or "/mnt/x/" + name
+        for name, module in {"pearnly_cowork.recon_center.jobs": jobs, "pearnly_cowork.recon_center.api": api,
+                             "pearnly_cowork.recon_center.sheets": sheets,
+                             "pearnly_cowork.reconciliation.bank_recon_service": bank,
+                             "pearnly_cowork.reconciliation.income_recon_service": types.ModuleType("income"),
+                             "pearnly_cowork.reconciliation.vat_check_service": types.ModuleType("vat"),
+                             "pearnly_core.assistant.files": chat}.items():
+            sys.modules[name] = module
+            parent, _, child = name.rpartition(".")
+            setattr(sys.modules[parent], child, module)
+        frappe.local = types.SimpleNamespace(lang="th")
+
+    def test_start_hands_both_sides_from_the_chat_and_reports_the_finished_task(self):
+        out = json.loads(tools.recon_start({"kind": "bank", "left_files": ["file_s1", "file_s2"], "right_files": ["file_gl"]}))
+        kind, sides = self.calls[0][1], self.calls[0][2]
+        self.assertEqual((kind, [n for n, _c in sides["left"]], [n for n, _c in sides["right"]]),
+                         ("bank", ["file_s1.pdf", "file_s2.pdf"], ["file_gl.pdf"]))
+        self.assertEqual((out["state"], out["task"], out["pages"]), ("done", "T1", 3))
+
+    def test_result_gives_the_gist_and_only_unmatched_rows(self):
+        out = json.loads(tools.recon_result({"kind": "bank", "task": "T1"}))
+        self.assertEqual((out["title"], out["unmatched_total"], out["rows_total"]), ("BBL Feb", 1, 2))
+        self.assertNotIn("sheets", out)
+        self.assertEqual(out["questions"], [{"rule": "card_fee"}])
+
+    def test_export_goes_into_the_conversation_and_kinds_are_checked(self):
+        out = json.loads(tools.recon_export({"kind": "bank", "task": "T1"}))
+        self.assertEqual(out["file"], "/mnt/x/BBL Feb.xlsx")
+        with self.assertRaises(frappe.ValidationError):
+            tools.recon_list({"kind": "payroll"})
+
+
 if __name__ == "__main__":
     unittest.main()

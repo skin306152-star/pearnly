@@ -98,6 +98,7 @@ An original file is already stored for this source.,An original file is already 
 Anchor Date,Anchor Date
 Another active rule already uses this folder or a folder containing it.,Another active rule already uses this folder or a folder containing it.
 Another push holds the writer lock.,Another push holds the writer lock.
+Answered a reconciliation question,Answered a reconciliation question
 Any due date,Any due date
 Archive,Archive
 Archive all cards in this list,Archive all cards in this list
@@ -211,6 +212,7 @@ Check the statement balance differences before confirming.,Check the statement b
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checkbox,Checkbox
 Checked MR.ERP import settings,Checked MR.ERP import settings
+Checked a reconciliation's progress,Checked a reconciliation's progress
 Checked folder task options,Checked folder task options
 Checked folder task runs,Checked folder task runs
 Checked folder tasks,Checked folder tasks
@@ -220,6 +222,7 @@ Checked intake choices,Checked intake choices
 Checked push choices,Checked push choices
 Checked push results,Checked push results
 Checked recognition results,Checked recognition results
+Checked reconciliation presets,Checked reconciliation presets
 Checked the companion,Checked the companion
 Checked the stock account group,Checked the stock account group
 Checking,Checking
@@ -411,6 +414,7 @@ Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted documents,Deleted documents
 Deleted folder tasks,Deleted folder tasks
+Deleted reconciliations,Deleted reconciliations
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Delivery type,Delivery type
@@ -529,6 +533,7 @@ Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
+Exported a reconciliation,Exported a reconciliation
 Exported the review workbook,Exported the review workbook
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
 Express PC,Express PC
@@ -712,6 +717,7 @@ List actions,List actions
 List archived,List archived
 List name,List name
 Listed documents,Listed documents
+Listed reconciliations,Listed reconciliations
 Location,Location
 Location check,Location check
 Location mismatch,Location mismatch
@@ -1149,6 +1155,7 @@ Start date,Start date
 Start reconciliation,Start reconciliation
 Started At,Started At
 Started a folder task,Started a folder task
+Started a reconciliation,Started a reconciliation
 Started at,Started at
 Statement Autocorrected,Statement Autocorrected
 Statement Balance,Statement Balance
@@ -1575,6 +1582,7 @@ View differences,View differences
 View photo,View photo
 View the ones to check,View the ones to check
 Viewed a document,Viewed a document
+Viewed a reconciliation,Viewed a reconciliation
 Visibility,Visibility
 Void,Void
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.

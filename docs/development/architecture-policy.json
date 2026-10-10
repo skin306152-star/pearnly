@@ -184,6 +184,8 @@
       "history",
       "ocr",
       "push",
+      "recon_center",
+      "reconciliation",
       "roundtrip"
     ],
     "companion": [

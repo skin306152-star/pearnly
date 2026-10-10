@@ -269,6 +269,25 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 
 录入工作台接完后，再按侧边栏顺序接：银行对账 → 收入对账 → 销项税报告核查 → 库存盘点 → 任务管理，每项开工前先列出该页全部功能与接口做同样的对照表。
 
+### 银行对账逐项对照（第 17 项开工前列，2026-10-10 晚）
+
+页面 `pearnly-recon-bank`（`public/desk/recon.js`，收入对账、销项税核查同一套页面与 `recon_center` 接口，按 kind 区分）。
+银行对账：左口银行账单（可多份）、右口总账（可多份）；识别：Excel / CSV 与有文字层的 PDF 免费，扫描件 / 照片按页走付费识别（同票据价）。
+
+| 网页功能 | 服务端 | CC 工具 | 状态 |
+| --- | --- | --- | --- |
+| 新建对账（上传账单 + 总账，标题可选；银行、账号、期间由服务端自己认） | `recon_center.api.start` → `jobs.start(kind, title, sides, options)`，后台任务 | `cowork_recon_start`（文件取自对话附件） | 接 |
+| 进度（逐页） / 进行中列表 | `jobs.status`、`api.active` | `cowork_recon_status` | 接 |
+| 对账列表 | `api.tasks` | `cowork_recon_list` | 接 |
+| 打开结果（汇总、提示、要定一次的问题） | `sheets.load` | `cowork_recon_result`（汇总 + 未对上的行，不给整张表） | 接 |
+| 结果明细行（已对上 / 只在账单 / 只在总账） | `api.detail` | `cowork_recon_result` 带 only_unmatched | 接 |
+| 回答问题（分组、总账科目、刷卡手续费率；问一次按账户记住） | `recon_center.presets.answer`（总账科目会用原文件重跑） | `cowork_recon_answer` | 接 |
+| 管理预设（看、改、删） | `presets.listing/change/remove` | `cowork_recon_presets` | 接 |
+| 导出 Excel（须已完成） | 各 kind 的 `*_service.export` | `cowork_recon_export`（文件放进对话、结果面板下载） | 接 |
+| 删除（多选） | `api.delete` | `cowork_recon_delete`（点名明确直接删） | 接 |
+| 改单元格后自动重配、保存、余额断点确认 | `sheets.recalc/save/breaks` | — | 暂不接：要整表回写，对话里改单元格不如在网页上改；用户点名要时再接 |
+| 完成提醒 | 实时事件 `cowork_recon_finished` | — | 不用接：CC 自己等结果 / 查进度 |
+
 ### 逐项清单（下个窗口从第 1 项起一项一项做）
 
 做法：**一次只做一项**。每项做完 → 自己按「规矩」里的五步证明测试环境 / 测试机上是最新版 → 把证据和要用户看的地方告诉用户 → 用户试过没问题，在这里把 `[ ]` 改成 `[x]` 并写一行结果（日期、提交号），再做下一项。用户中途插进来的新要求，先记到本清单合适的位置再做。

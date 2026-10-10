@@ -826,6 +826,196 @@ def export_review_workbook(tool_input) -> str:
     return _json({"status": "exported", "documents": len(names), "file": path})
 
 
+# ---------------- 对账：银行对账、收入对账、销项税核查（同一套 recon_center，按 kind） ----------------
+
+RECON_KINDS = ("bank", "income", "vat")
+RECON_WAIT_SECONDS = 90
+RECON_ROWS_SHOWN = 30
+
+
+def _recon_kind(tool_input) -> str:
+    kind = str(tool_input.get("kind") or "")
+    if kind not in RECON_KINDS:
+        frappe.throw(_("reconciliation.type_invalid"))
+    return kind
+
+
+def _recon_status(job) -> dict:
+    from pearnly_cowork.recon_center import jobs
+
+    state = jobs.status(job)
+    files = state.get("files") or []
+    return _filled({"job": job, "state": state.get("state"), "stage": state.get("stage"), "task": state.get("task"),
+                    "error": state.get("error"), "title": state.get("title"),
+                    "pages": sum(int(f.get("pages") or 0) for f in files) or None,
+                    "pages_done": sum(int(f.get("done") or 0) for f in files) or None})
+
+
+def recon_start(tool_input) -> str:
+    """同对账页「新建」：两口文件取自对话附件（银行：账单 / 总账；收入：总账 / 销项税报告；销项核查：报告 / 发票）。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.recon_center import jobs
+
+    kind = _recon_kind(tool_input)
+    sides = {}
+    for side in ("left", "right"):
+        sides[side] = []
+        for file_id in tool_input.get(side + "_files") or []:
+            try:
+                sides[side].append(chat_files.attachment(str(file_id)))
+            except frappe.ValidationError:
+                frappe.clear_messages()
+                return _json({"status": "not_started", "reason": f"attachment {file_id} is not in this conversation",
+                              "attachments_in_this_chat": chat_files.attachments()})
+    try:
+        started = jobs.start(kind, str(tool_input.get("title") or ""), sides, {"lang": frappe.local.lang or "th"})
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_started", "reason": str(error)[:300]})
+    state = {}
+    deadline = time.monotonic() + RECON_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        frappe.db.rollback()
+        state = _recon_status(started["job"])
+        if state.get("state") not in ("queued", "running"):
+            break
+        time.sleep(4)
+    return _json(state or {"job": started["job"], "state": "queued"})
+
+
+def recon_status(tool_input) -> str:
+    try:
+        return _json(_recon_status(str(tool_input.get("job") or "")))
+    except frappe.DoesNotExistError:
+        frappe.clear_messages()
+        return _json({"job": tool_input.get("job"), "state": "not_found"})
+
+
+def recon_list(tool_input) -> str:
+    from pearnly_cowork.recon_center import api as recon_api
+
+    kind = _recon_kind(tool_input)
+    rows = recon_api.tasks(kind, 0, max(1, min(int(tool_input.get("limit") or 20), LIST_MAX)))
+    rows = rows.get("data") if isinstance(rows, dict) else rows
+    return _json({"kind": kind, "tasks": rows or []})
+
+
+def recon_result(tool_input) -> str:
+    """结果页的要点：标题、状态、系统提示、要定一次的问题；银行 / 收入另给没对上的行（最多 30 行）。"""
+    from pearnly_cowork.recon_center import api as recon_api
+    from pearnly_cowork.recon_center import sheets
+
+    kind = _recon_kind(tool_input)
+    task = str(tool_input.get("task") or "")
+    try:
+        view = sheets.load(kind, task, frappe.local.lang or "th")
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return _json({"task": task, "status": "not_found"})
+    if view.get("moved"):
+        return _json({"task": task, "moved_to": view["moved"]})
+    head = view.get("task") or {}
+    out = {key: head.get(key) for key in ("name", "title", "status", "notes", "questions")}
+    if kind in ("bank", "income"):
+        detail = recon_api.detail(kind, task, 0, 200) or {}
+        rows = detail.get("rows") if isinstance(detail, dict) else detail
+        rows = rows or []
+        out["rows_total"] = len(rows)
+        unmatched = [r for r in rows if str(r.get("match_status") or "") not in ("matched", "")]
+        out["unmatched_total"] = len(unmatched)
+        out["unmatched"] = [_filled(dict(r)) for r in unmatched[:RECON_ROWS_SHOWN]]
+        for key in ("summary", "matched_count", "row_count"):
+            if isinstance(detail, dict) and detail.get(key) is not None:
+                out[key] = detail[key]
+    return _json(_filled(out))
+
+
+def recon_answer(tool_input) -> str:
+    from pearnly_cowork.recon_center import presets as recon_presets
+
+    kind = _recon_kind(tool_input)
+    try:
+        result = recon_presets.answer(kind, str(tool_input.get("task") or ""), str(tool_input.get("rule") or ""),
+                                      str(tool_input.get("value") or ""), tool_input.get("subject") or None,
+                                      frappe.local.lang or "th")
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_saved", "reason": str(error)[:300]})
+    if isinstance(result, dict) and result.get("job"):
+        return _json({"status": "saved", "rerun_job": result["job"],
+                      "note": "The reconciliation runs again from the original files; check it with cowork_recon_status."})
+    head = (result or {}).get("task") or {}
+    return _json({"status": "saved", "task": head.get("name"), "questions": head.get("questions"),
+                  "notes": head.get("notes")})
+
+
+def recon_presets(tool_input) -> str:
+    from pearnly_cowork.recon_center import presets as recon_presets
+
+    kind = _recon_kind(tool_input)
+    action = tool_input.get("action") or "list"
+    try:
+        if action == "change":
+            rows = recon_presets.change(kind, tool_input.get("scope_key"), tool_input.get("rule"), tool_input.get("value"))
+        elif action == "remove":
+            rows = recon_presets.remove(kind, tool_input.get("scope_key"), tool_input.get("rule"))
+        else:
+            rows = recon_presets.listing(kind)
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_saved", "reason": str(error)[:300]})
+    return _json({"kind": kind, "presets": rows})
+
+
+def recon_export(tool_input) -> str:
+    """结果工作簿（须已完成），放进对话、结果面板下载。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.reconciliation import bank_recon_service, income_recon_service, vat_check_service
+
+    kind = _recon_kind(tool_input)
+    service = {"bank": bank_recon_service, "income": income_recon_service, "vat": vat_check_service}[kind]
+    task = str(tool_input.get("task") or "")
+    try:
+        built = service.export(task, frappe.local.lang or "th")
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.clear_messages()
+        return _json({"status": "not_exported", "reason": str(error)[:300]})
+    if isinstance(built, dict):
+        filename, content = built.get("filename"), built.get("content")
+    elif isinstance(built, (tuple, list)):
+        filename, content = built[0], built[1]
+    else:
+        filename, content = None, built
+    filename = str(filename or f"recon-{kind}-{task}.xlsx")
+    path = chat_files.add_to_conversation(filename, content, XLSX)
+    return _json({"status": "exported", "file": path})
+
+
+def recon_delete(tool_input) -> str:
+    from pearnly_cowork.recon_center import api as recon_api
+
+    kind = _recon_kind(tool_input)
+    names = [str(n) for n in (tool_input.get("tasks") or [])]
+    if not names:
+        frappe.throw(_("No tasks were given."))
+    try:
+        result = recon_api.delete(kind, json.dumps(names))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_deleted", "reason": str(error)[:300]})
+    return _json(result if isinstance(result, dict) else {"deleted": result})
+
+
 # ---------------- 文件夹定时任务 ----------------
 
 def folder_tasks(_input) -> str:
@@ -1130,6 +1320,63 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"tasks": {"type": "array", "items": {"type": "string"},
                                                                  "minItems": 1}}, "required": ["tasks"]},
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
+    {"name": "cowork_recon_start", "label": "Started a reconciliation",
+     "description": "Start a reconciliation like New on the reconciliation pages, with files the user attached in "
+                    "this chat. bank: left_files = bank statements, right_files = general ledger. income: left_files "
+                    "= one general ledger, right_files = output VAT reports. vat: left_files = output VAT reports, "
+                    "right_files = sales invoices. Excel/CSV and text PDFs are read free; scanned PDFs and photos are "
+                    "read with paid recognition per page like invoices, so say so before starting when files are "
+                    "scanned. The bank, account and period are worked out from the files. Waits up to 90 seconds; "
+                    "otherwise check later with cowork_recon_status. Use this rather than reconciling yourself.",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
+         "left_files": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+         "right_files": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+         "title": {"type": "string"}}, "required": ["kind", "left_files", "right_files"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_start"},
+    {"name": "cowork_recon_status", "label": "Checked a reconciliation's progress",
+     "description": "Progress of a reconciliation started by cowork_recon_start or a preset answer that re-runs it: "
+                    "state, stage, pages read, and the finished task.",
+     "input_schema": {"type": "object", "properties": {"job": {"type": "string"}}, "required": ["job"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_status"},
+    {"name": "cowork_recon_list", "label": "Listed reconciliations",
+     "description": "The user's reconciliations of one kind, newest first.",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
+         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}, "required": ["kind"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_list"},
+    {"name": "cowork_recon_result", "label": "Viewed a reconciliation",
+     "description": "A finished reconciliation: title, status (needs_review means the statement was read from a "
+                    "scan and must be checked on the page before export), notes, questions to answer once "
+                    "(cowork_recon_answer), and for bank / income the rows that did not match (up to 30).",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."}, "task": {"type": "string"}},
+                      "required": ["kind", "task"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_result"},
+    {"name": "cowork_recon_answer", "label": "Answered a reconciliation question",
+     "description": "Answer one of the result's questions (rule and the allowed values come from the question; for "
+                    "example grouped yes/no, gl_account = one of the offered account codes, card_fee = a rate or "
+                    "no). It is remembered for that account or company and the result is recomputed; a gl_account "
+                    "answer re-runs from the original files (returns rerun_job).",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."}, "task": {"type": "string"},
+         "rule": {"type": "string"}, "value": {"type": "string"}, "subject": {"type": "string"}},
+         "required": ["kind", "task", "rule", "value"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_answer"},
+    {"name": "cowork_recon_presets", "label": "Checked reconciliation presets",
+     "description": "The remembered reconciliation answers of one kind (action list), or change / remove one by "
+                    "scope_key and rule as listed.",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
+         "action": {"type": "string", "enum": ["list", "change", "remove"]}, "scope_key": {"type": "string"},
+         "rule": {"type": "string"}, "value": {"type": "string"}}, "required": ["kind"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_presets"},
+    {"name": "cowork_recon_export", "label": "Exported a reconciliation",
+     "description": "The reconciliation workbook (Excel) of a completed task, added to this conversation at the "
+                    "returned path; copy it into the results folder for the user, naming it only by file name.",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."}, "task": {"type": "string"}},
+                      "required": ["kind", "task"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_export"},
+    {"name": "cowork_recon_delete", "label": "Deleted reconciliations",
+     "description": "Delete reconciliations the user clearly named (ask only when it is unclear which).",
+     "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
+         "tasks": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["kind", "tasks"]},
+     "handler": "pearnly_cowork.assistant.tools.recon_delete"},
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
      "input_schema": {"type": "object", "properties": {

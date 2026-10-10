@@ -1696,6 +1696,14 @@ Edited a document	修改了单据	แก้ไขเอกสารแล้ว	
 Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました
 Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
 Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
+Started a reconciliation	开始了对账	เริ่มกระทบยอดแล้ว	照合を開始しました
+Checked a reconciliation's progress	查看了对账进度	ตรวจสอบความคืบหน้าการกระทบยอดแล้ว	照合の進行状況を確認しました
+Listed reconciliations	查看了对账列表	ดูรายการกระทบยอดแล้ว	照合の一覧を確認しました
+Viewed a reconciliation	查看了对账结果	ดูผลการกระทบยอดแล้ว	照合結果を確認しました
+Answered a reconciliation question	回答了对账的问题	ตอบคำถามการกระทบยอดแล้ว	照合の質問に回答しました
+Checked reconciliation presets	查看了对账预设	ตรวจสอบค่าที่ตั้งไว้ของการกระทบยอดแล้ว	照合の既定値を確認しました
+Exported a reconciliation	导出了对账结果	ส่งออกผลการกระทบยอดแล้ว	照合結果を書き出しました
+Deleted reconciliations	删除了对账	ลบการกระทบยอดแล้ว	照合を削除しました
 Deleted documents	删除了单据	ลบเอกสารแล้ว	書類を削除しました
 Exported the review workbook	导出了复核工作簿	ส่งออกสมุดงานตรวจทานแล้ว	確認用ワークブックを書き出しました
 Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました
