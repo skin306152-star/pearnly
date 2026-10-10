@@ -62,12 +62,24 @@ def member_name(record: ProfileRecord) -> str:
             or str(getattr(record, "endpoint_name", "") or "").strip() or "-")
 
 
-def picker_start(current, documents: str) -> str:
-    """选文件夹的窗口从哪打开：上次那个文件夹的上一级，没有就是「文档」。不能给空值——空值时 Qt 从工作目录打开，
-    而 CC 的工作目录是它自己的程序文件夹，一点「选择文件夹」就把程序目录开放给了网页（2026-10-10 测试机上发生过）。"""
+def program_folder() -> str:
+    """CC 自己的程序文件夹（打包后才有；开发时为空）。"""
+    return os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else ""
+
+
+def inside(path: str, folder: str) -> bool:
+    """path 是 folder 本身或在它下面（Windows 路径，不分大小写）。"""
+    left = ntpath.normcase(ntpath.normpath(str(path or ""))).rstrip("\\")
+    right = ntpath.normcase(ntpath.normpath(str(folder or ""))).rstrip("\\")
+    return bool(left and right) and (left == right or left.startswith(right + "\\"))
+
+
+def picker_start(current, documents: str, program: str = "") -> str:
+    """选文件夹的窗口从哪打开：上次那个文件夹的上一级，没有就是「文档」；不从 CC 的程序文件夹里打开。不能给空值——
+    空值时 Qt 从工作目录打开，而 CC 的工作目录就是程序文件夹，一点「选择文件夹」就把它开放给了网页（2026-10-10 测试机上发生过）。"""
     for path in reversed([str(p) for p in current or [] if p]):
         parent = ntpath.dirname(path.rstrip("\\/"))
-        if parent and os.path.isdir(parent):
+        if parent and os.path.isdir(parent) and not (program and inside(parent, program)):
             return parent
     return documents
 

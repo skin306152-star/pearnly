@@ -18,7 +18,7 @@ from typing import Callable
 from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
 from PySide6.QtWidgets import QFileDialog
 
-from .desktop_settings import DesktopSettings, picker_start
+from .desktop_settings import DesktopSettings, inside, picker_start, program_folder
 from .gui_pairing_support import Probes
 from .i18n import normalize, t
 from .logger import get_logger
@@ -97,6 +97,8 @@ class TomoBridge(QObject):
                                                       self._start(current))
             if not picked:
                 return {"ok": False, "cancelled": True}
+            if program_folder() and inside(picked, program_folder()):
+                return {"ok": False, "message": t("folders_program", normalize(lang))}
             if picked in current:
                 return {"ok": True}
             return self._changed(s.set_folders(member, current + [picked], lang))
@@ -113,7 +115,8 @@ class TomoBridge(QObject):
 
     @staticmethod
     def _start(current: list) -> str:
-        return picker_start(current, QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation))
+        return picker_start(current, QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation),
+                            program_folder())
 
     def _folders(self, member: str) -> list:
         row = next((m for m in self._settings.snapshot()["members"] if m["id"] == member), None)
