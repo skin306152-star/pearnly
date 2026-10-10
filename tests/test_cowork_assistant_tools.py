@@ -577,8 +577,9 @@ class ReconTests(unittest.TestCase):
         jobs.status = lambda job: {"state": "done", "stage": "done", "task": "T1",
                                    "files": [{"pages": 3, "done": 3}]}
         api = types.ModuleType("pearnly_cowork.recon_center.api")
-        api.detail = lambda kind, task, start, limit: {"rows": [{"match_status": "matched"},
-                                                                {"match_status": "stmt_deposit_only", "amount": 5}]}
+        rows = [{"match_status": "matched", "record_id": "r"}] * 250 + [{"match_status": "stmt_deposit_only", "amount": 5}]
+        api.detail = lambda kind, task, start, limit: {"rows": rows[start:start + limit], "total": len(rows),
+                                                       "summary": {"matched_count": 250}}
         sheets = types.ModuleType("pearnly_cowork.recon_center.sheets")
         sheets.load = lambda kind, task, lang: {"task": {"name": task, "title": "BBL Feb", "status": "completed",
                                                          "questions": [{"rule": "card_fee"}]}, "sheets": ["big"]}
@@ -647,7 +648,10 @@ class ReconTests(unittest.TestCase):
 
     def test_result_gives_the_gist_and_only_unmatched_rows(self):
         out = json.loads(tools.recon_result({"kind": "bank", "task": "T1"}))
-        self.assertEqual((out["title"], out["unmatched_total"], out["rows_total"]), ("BBL Feb", 1, 2))
+        # 翻完全部明细（不只第一页 200 行），汇总用对账自己存的数
+        self.assertEqual((out["title"], out["unmatched_total"], out["rows_total"]), ("BBL Feb", 1, 251))
+        self.assertEqual(out["summary"], {"matched_count": 250})
+        self.assertEqual(out["unmatched"], [{"match_status": "stmt_deposit_only", "amount": 5}])
         self.assertNotIn("sheets", out)
         self.assertEqual(out["questions"], [{"rule": "card_fee"}])
 

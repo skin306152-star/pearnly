@@ -953,17 +953,36 @@ def recon_result(tool_input) -> str:
     head = view.get("task") or {}
     out = {key: head.get(key) for key in ("name", "title", "status", "notes", "questions")}
     if kind in ("bank", "income"):
-        detail = recon_api.detail(kind, task, 0, 200) or {}
-        rows = detail.get("rows") if isinstance(detail, dict) else detail
-        rows = rows or []
-        out["rows_total"] = len(rows)
-        unmatched = [r for r in rows if str(r.get("match_status") or "") not in ("matched", "")]
-        out["unmatched_total"] = len(unmatched)
-        out["unmatched"] = [_filled(dict(r)) for r in unmatched[:RECON_ROWS_SHOWN]]
-        for key in ("summary", "matched_count", "row_count"):
-            if isinstance(detail, dict) and detail.get(key) is not None:
-                out[key] = detail[key]
+        # 汇总用对账自己存的数（与结果页同一份）；没对上的行翻完全部明细再数（一页最多 200 行，2026-10-10 测试只看了
+        # 第一页：368 笔流水说成 200 行、未匹配说成 0）。
+        rows, total, summary = [], None, None
+        while total is None or len(rows) < min(total, RECON_ROWS_READ):
+            page = recon_api.detail(kind, task, len(rows), RECON_PAGE) or {}
+            total, summary = int(page.get("total") or 0), page.get("summary")
+            rows += page.get("rows") or []
+            if not page.get("rows"):
+                break
+        unmatched = [r for r in rows if not _recon_row_matched(kind, r)]
+        out.update({"summary": summary, "rows_total": total, "unmatched_total": len(unmatched),
+                    "unmatched": [_recon_row(r) for r in unmatched[:RECON_ROWS_SHOWN]]})
     return _json(_filled(out))
+
+
+RECON_PAGE = 200
+RECON_ROWS_READ = 5000
+RECON_ROW_SKIP = ("name", "owner", "creation", "modified", "modified_by", "docstatus", "idx", "record_id", "workspace",
+                  "task", "row_index", "parent", "parentfield", "parenttype")
+
+
+def _recon_row_matched(kind, row) -> bool:
+    """银行：配上了才算；收入：总账里有、且金额没差额。"""
+    if kind == "bank":
+        return str(row.get("match_status") or "") == "matched"
+    return bool(row.get("has_gl_match")) and not Decimal(str(row.get("diff") or 0))
+
+
+def _recon_row(row) -> dict:
+    return _filled({key: value for key, value in dict(row).items() if key not in RECON_ROW_SKIP})
 
 
 def recon_answer(tool_input) -> str:
