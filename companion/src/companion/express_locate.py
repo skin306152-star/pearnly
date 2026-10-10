@@ -386,7 +386,7 @@ def _plain_file(entry) -> bool:
         return False
 
 
-def _deep_scan(parents: Sequence[str], total_seconds: float = _DEEP_TOTAL_SECONDS) -> List[str]:
+def _deep_scan(parents: Sequence[str], total_seconds: float = _DEEP_TOTAL_SECONDS, **limits) -> List[str]:
     """各起点并行做有界深层扫描，整体限时；超时的起点结果丢掉。用后台守护线程：卡在够不到的网络盘上的线程
     不会拖住小助手退出（线程池在解释器退出时会等它）。"""
     starts, seen = [], set()
@@ -399,7 +399,7 @@ def _deep_scan(parents: Sequence[str], total_seconds: float = _DEEP_TOTAL_SECOND
 
     def run(index: int, start: str) -> None:
         try:
-            results[index] = _walk_data_roots(start)
+            results[index] = _walk_data_roots(start, **limits)
         except Exception as exc:  # noqa: BLE001 - 某个起点读不了就跳过
             log.debug("Express deep scan failed (%s, %s)", _safe_path_label(start), type(exc).__name__)
 

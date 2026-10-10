@@ -127,6 +127,12 @@ def detect_roots(store) -> List[str]:
     return [first, *(root for root, _count in ranked if not same_root(root, first))]
 
 
+# 手动选上层文件夹 / 盘符时往下找的上限：人在等（界面显示「正在查找…」），大的共享盘给足时间与目录数
+# （测试机 S 盘 60 秒只列完 1300 多个文件夹，自动查找那 8 秒不够）。
+PICK_SECONDS = 60.0
+PICK_MAX_DIRS = 20000
+
+
 def roots_for_pick(path: str) -> List[str]:
     """「更换…」选的文件夹 → 要授权的数据根。
 
@@ -137,7 +143,8 @@ def roots_for_pick(path: str) -> List[str]:
         parent = str(Path(path).parent)
         others = [root for root, _count in rank_roots(_scan_exp_roots([parent])) if not same_root(root, path)]
         return [path, *others]
-    ranked = rank_roots([*_scan_exp_roots([path]), *_deep_scan([path])])
+    ranked = rank_roots([*_scan_exp_roots([path]),
+                         *_deep_scan([path], total_seconds=PICK_SECONDS, seconds=PICK_SECONDS, max_dirs=PICK_MAX_DIRS)])
     if not ranked:
         return []
     first = pick_default(ranked)
