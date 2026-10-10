@@ -218,8 +218,10 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
     }
     if (sheets.type !== "sheets" || !sheets.sheets.length) return <NoPreview sessionId={sessionId} file={file} />;
     if (sheets.sheets.length === 1) return <SheetTable rows={sheets.sheets[0]!.rows} />;
+    // 先打开第一张有数据的表（只有表头的跳过）：复核工作簿进项单据的数据在后面的表里
+    const first = Math.max(0, sheets.sheets.findIndex((sheet) => sheet.rows.length > 1));
     return (
-      <Tabs.Root defaultValue="0" className="flex h-full flex-col">
+      <Tabs.Root defaultValue={String(first)} className="flex h-full flex-col">
         {sheets.sheets.map((sheet, i) => (
           <Tabs.Content key={i} value={String(i)} className="min-h-0 flex-1">
             <SheetTable rows={sheet.rows} />

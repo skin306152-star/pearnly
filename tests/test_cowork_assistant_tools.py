@@ -404,6 +404,27 @@ class PushFollowUpTests(unittest.TestCase):
         found = json.loads(tools.push_choices({"document": "H1", "search": "item 42"}))["options"]["products"]
         self.assertEqual(found["shown"], [{"code": "P42", "name": "Item 42"}])
 
+    def test_an_unread_account_set_is_read_by_the_companion_then_tried_again(self):
+        attempts, calls = [], []
+
+        def view(*a):
+            attempts.append(a)
+            if len(attempts) == 1:
+                raise frappe.ValidationError("catalog_refresh_invalid")
+            return {"needed": [], "options": {}, "account_set": "K"}
+
+        tools.application.choices_view = view
+        tools.connections_api.request_refresh = lambda *a: calls.append(("request",) + a) or {"request_id": "R1", "status": "requested"}
+        tools.connections_api.refresh_status = lambda *a: calls.append(("status",) + a) or {"status": "succeeded"}
+        saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
+        try:
+            out = json.loads(tools.push_choices({"document": "H1"}))
+        finally:
+            tools.time.sleep = saved_sleep
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual((calls[0][0], calls[0][1], calls[0][3]), ("request", "EXP1", "K"))
+        self.assertEqual(out["needed"], [])
+
     def test_choices_are_saved_for_the_document_target(self):
         items = [{"kind": "item", "subject": "Coffee", "value": "P1"}]
         out = json.loads(tools.save_push_choices({"document": "H1", "items": items}))

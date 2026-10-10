@@ -90,6 +90,52 @@ def list_documents(tool_input) -> str:
     return _json({"documents": rows, "count": len(rows)})
 
 
+# 推送要证明这份账套的目录刚由小助手读过（`targets/freeze.py`）；网页选定账套时会先请小助手读一次，对话里没有这一步，
+# 没读过的账套就报这几种。遇到时请小助手读这份账套、等它读完再试一次（同网页「刷新」，2026-10-10 测试 t9pdem2）。
+CATALOG_STALE = ("catalog_refresh_invalid", "catalog_refresh_required", "catalog_refresh_stale", "catalog_refresh_pending")
+REFRESH_WAIT_SECONDS = 60
+
+
+def _catalog_stale(error) -> bool:
+    text = str(error)
+    return any(code in text or _(code) in text for code in CATALOG_STALE)
+
+
+def _refresh_account(connection, account_set) -> str:
+    """请小助手读这份账套的目录与主档，等它读完（最多一分钟）；返回最后的状态。"""
+    try:
+        request = connections_api.request_refresh(connection, "assistant:" + uuid.uuid4().hex, account_set)
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError):
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return "failed"
+    status = request.get("status")
+    deadline = time.monotonic() + REFRESH_WAIT_SECONDS
+    while status not in ("succeeded", "failed") and time.monotonic() < deadline:
+        time.sleep(3)
+        frappe.db.rollback()  # 小助手读完是在别的请求里提交的
+        try:
+            status = connections_api.refresh_status(connection, request["request_id"]).get("status")
+        except (frappe.ValidationError, frappe.PermissionError):
+            frappe.clear_messages()
+            return "failed"
+    return status or "failed"
+
+
+def _choices_view(name, connection, account_set, posting_kind):
+    """同复核页的「要人选的项」；目录没读过就先请小助手读一次再看。"""
+    frappe.db.commit()  # choices_view 只看不记、结束时整笔回滚：先把前面的落掉
+    try:
+        return application.choices_view(name, connection, account_set, posting_kind)
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        if not _catalog_stale(error) or _refresh_account(connection, account_set) != "succeeded":
+            raise
+    return application.choices_view(name, connection, account_set, posting_kind)
+
+
 def _key(name, version, last) -> str:
     seed = f"{name}\0{version}\0{last or ''}"
     return "assistant:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
@@ -113,9 +159,8 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
     account_set = account_set_key or (doc.push_account_set if not connection or connection == doc.push_connection
                                       else None) or None
     posting_kind = posting_kind or doc.posting_kind or None
-    frappe.db.commit()  # choices_view 只看不记、结束时整笔回滚：先把前面的落掉
     try:
-        view = application.choices_view(name, target, account_set, posting_kind)
+        view = _choices_view(name, target, account_set, posting_kind)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         reason = str(error)[:300]
         application.submission_failed(name, reason)
@@ -272,6 +317,15 @@ def recognize_attachments(tool_input) -> str:
     if not file_ids:
         frappe.throw(_("No attachments were given."))
     choices = _choices(tool_input)
+    if choices.get("target") == "express" and choices.get("account_set_key"):
+        # 同网页选定 Express 账套后：请小助手趁识别时读这份账套，推送前就有它的目录与主档（读不到不拦识别）
+        try:
+            connections_api.request_refresh(choices["connection"], "assistant:" + uuid.uuid4().hex,
+                                            choices["account_set_key"])
+            frappe.db.commit()
+        except (frappe.ValidationError, frappe.PermissionError):
+            frappe.db.rollback()
+            frappe.clear_messages()
     admitted = [_admit(file_id, choices) for file_id in file_ids]
     waiting = [a for a in admitted if a.get("batch")]
     deadline = time.monotonic() + RECOGNIZE_WAIT_SECONDS
@@ -614,9 +668,8 @@ def push_choices(tool_input) -> str:
     connection, account_set = _push_target_of(doc, tool_input)
     if not connection:
         return _json({"document": name, "status": "failed", "reason": "no_push_target"})
-    frappe.db.commit()  # choices_view 只看、结束时整笔回滚
     try:
-        view = application.choices_view(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind)
+        view = _choices_view(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
