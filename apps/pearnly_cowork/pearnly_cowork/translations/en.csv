@@ -202,8 +202,12 @@ Cash sales,Cash sales
 Catch-up after start,Catch-up after start
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
+Change how this kind of document is handled?,Change how this kind of document is handled?
 Change list color,Change list color
 Change members,Change members
+Change the MR.ERP import settings?,Change the MR.ERP import settings?
+Change the inventory account group?,Change the inventory account group?
+Change the stock account group?,Change the stock account group?
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
 Check line by line,Check line by line
@@ -409,6 +413,7 @@ Default board,Default board
 Default handling for this folder,Default handling for this folder
 Defaults,Defaults
 Delete selected ({0}),Delete selected ({0})
+Delete these folder tasks?,Delete these folder tasks?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0},Delete {0}
@@ -1087,6 +1092,7 @@ Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
 Save and next,Save and next
+Save this folder task?,Save this folder task?
 Saved,Saved
 Saved a folder task,Saved a folder task
 Saved push choices,Saved push choices
@@ -1529,8 +1535,10 @@ Track Expiry,Track Expiry
 Transaction Date,Transaction Date
 Transaction type,Transaction type
 Transfer,Transfer
+Transfer slips,Transfer slips
 Turn off,Turn off
 Turn on,Turn on
+Turn this folder task on or off?,Turn this folder task on or off?
 Turn this rule off? Documents already entered stay as they are.,Turn this rule off? Documents already entered stay as they are.
 Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
 Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
@@ -1630,6 +1638,7 @@ Why it is not in the review sheet,Why it is not in the review sheet
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
+Withholding tax certificates,Withholding tax certificates
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workbook Revision,Workbook Revision

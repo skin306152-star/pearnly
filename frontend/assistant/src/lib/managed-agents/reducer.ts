@@ -31,10 +31,16 @@ export type ToolResultPayload = {
   searchResults?: Array<{ title: string; url: string; snippet: string }>;
 };
 
+/** One line of what a held Pearnly tool call would change (server-computed). */
+export type ApprovalChange = { field: string; before: string; after: string };
+
 export type ToolApproval = {
   id: string;
   approved?: boolean;
   reason?: string;
+  /** Held Pearnly tool calls: what the step asks ("Save this folder task?") and what it changes. */
+  ask?: string;
+  preview?: ApprovalChange[];
 };
 
 export type TextPart = { type: "text"; text: string };
@@ -793,14 +799,18 @@ export function restoreGates(state: Projection, ids: readonly string[]): Project
  *  that changes company-wide settings; pearnly_core.assistant.toolrun). Turn
  *  the owed custom tool into an approval gate on its part: the click goes to
  *  /confirm, which the server answers by running or refusing the call. */
-export function gateCustomTool(state: Projection, id: string): Projection {
+export function gateCustomTool(
+  state: Projection,
+  id: string,
+  view: { ask?: string; preview?: ApprovalChange[] } = {},
+): Projection {
   const found = findToolPart(state.messages, id);
   if (!found) return state;
   const part = state.messages[found.mi]!.content[found.pi]!;
   if (part.type !== "tool-call" || part.result !== undefined) return state;
   if (part.approval && part.approval.approved !== undefined) return state;
   const messages = draft(state.messages);
-  updatePart(messages, found.mi, found.pi, updateTool({ approval: { id } }));
+  updatePart(messages, found.mi, found.pi, updateTool({ approval: { id, ask: view.ask, preview: view.preview } }));
   return withDerivedStatuses({
     ...state,
     messages,

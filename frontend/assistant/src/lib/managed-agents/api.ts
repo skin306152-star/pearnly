@@ -55,9 +55,15 @@ export async function interruptSession(id: string): Promise<void> {
 
 /** 提醒服务端执行一次自定义工具调用；工具名和参数服务端自己从会话里读，不由浏览器给。
  *  回 awaiting_approval：改共用设置的工具要用户先点「允许」（服务端拦下，答复走 confirm）。 */
-export async function runTool(id: string, toolUseId: string): Promise<string> {
-  const out = await post<{ status?: string }>("run_tool", { session_id: id, tool_use_id: toolUseId });
-  return out?.status ?? "";
+export type ToolRunReply = {
+  status: string;
+  ask?: string;
+  preview?: Array<{ field: string; before: string; after: string }>;
+};
+
+export async function runTool(id: string, toolUseId: string): Promise<ToolRunReply> {
+  const out = await post<Partial<ToolRunReply>>("run_tool", { session_id: id, tool_use_id: toolUseId });
+  return { status: out?.status ?? "", ask: out?.ask, preview: out?.preview };
 }
 
 export type UploadedFile = { fileId: string; filename: string; mountPath: string; size_bytes: number };

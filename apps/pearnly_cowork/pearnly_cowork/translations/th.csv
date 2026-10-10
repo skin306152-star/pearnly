@@ -202,8 +202,12 @@ Cash sales,ขายเงินสด
 Catch-up after start,ทำงานที่ค้างหลังเปิดเครื่อง
 Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
 Change cover,เปลี่ยนปก
+Change how this kind of document is handled?,เปลี่ยนวิธีจัดการเอกสารประเภทนี้หรือไม่
 Change list color,เปลี่ยนสีรายการ
 Change members,เปลี่ยนสมาชิก
+Change the MR.ERP import settings?,เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่
+Change the inventory account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
+Change the stock account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
 Check line by line,ตรวจทีละรายการ
@@ -409,6 +413,7 @@ Default board,บอร์ดเริ่มต้น
 Default handling for this folder,การจัดการเริ่มต้น
 Defaults,ค่าเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete these folder tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0},ลบ {0} รายการ
@@ -1087,6 +1092,7 @@ Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบกำกับภาษีขายไม่มีรายการยอดก่อนภาษี จึงไม่สามารถส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
+Save this folder task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
 Saved,บันทึกแล้ว
 Saved a folder task,บันทึกงานโฟลเดอร์แล้ว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
@@ -1529,8 +1535,10 @@ Track Expiry,ติดตามวันหมดอายุ
 Transaction Date,วันที่ทำรายการ
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
+Transfer slips,สลิปโอนเงิน
 Turn off,ปิดใช้งาน
 Turn on,เปิดใช้งาน
+Turn this folder task on or off?,เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่
 Turn this rule off? Documents already entered stay as they are.,ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this rule on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
@@ -1630,6 +1638,7 @@ Why it is not in the review sheet,สาเหตุที่ไม่มีต�
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
 Withdrawal,ถอน
+Withholding tax certificates,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก

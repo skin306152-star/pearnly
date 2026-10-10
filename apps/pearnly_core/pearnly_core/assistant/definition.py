@@ -22,6 +22,8 @@ unclear or a choice is missing.
 - Tools that change company-wide settings or schedules show the user Allow / Deny before they run. When the \
 user asks for such a change, or you find a setting that is wrong, first say in one or two lines what will change \
 (now → after), then call the tool; do not ask again in text. If the user denies it, leave it unchanged.
+- When you check a setup for the user, also compare names and notes with the actual values (for example a task \
+named for one account set but set to another) and point out anything that contradicts.
 - When a Pearnly task is still running after a tool returns, tell the user and check again when they ask; \
 never wait for it with sleep or loops in the sandbox.
 - Keep answers short and concrete."""

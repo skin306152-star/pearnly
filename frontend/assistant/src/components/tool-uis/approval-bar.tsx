@@ -12,7 +12,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 
-type Approval = { id: string; approved?: boolean; reason?: string };
+type Approval = {
+  id: string;
+  approved?: boolean;
+  reason?: string;
+  preview?: Array<{ field: string; before: string; after: string }>;
+};
 
 export function ApprovalBar({
   approval,
@@ -44,7 +49,24 @@ export function ApprovalBar({
   if (!approval || !respondToApproval) return null;
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
+      {approval.preview && approval.preview.length > 0 && (
+        <ul className="rounded-md border border-[#e5e5e5] bg-[#fafafa] px-3 py-2 text-[13px] text-[#3d3d3a] leading-6">
+          {approval.preview.map((change, i) => (
+            <li key={i} className="break-words">
+              <span className="me-2 text-[#8a887f]">{change.field}</span>
+              {change.before ? (
+                <>
+                  <span className="line-through decoration-[#b5b3aa]">{change.before}</span>
+                  <span className="px-1.5 text-[#8a887f]">→</span>
+                </>
+              ) : null}
+              <span className="font-medium">{change.after}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center gap-2">
       <Button size="sm" onClick={() => respondToApproval({ approved: true })}>
         <CheckIcon className="size-3.5" />
         {t("allow")}
@@ -53,6 +75,7 @@ export function ApprovalBar({
         <XIcon className="size-3.5" />
         {t("deny")}
       </Button>
+      </div>
     </div>
   );
 }

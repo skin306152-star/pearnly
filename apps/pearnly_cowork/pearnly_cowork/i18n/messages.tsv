@@ -1712,6 +1712,14 @@ Updated a task	修改了任务	แก้ไขงานแล้ว	タスクを
 Moved a task	移动了任务	ย้ายงานแล้ว	タスクを移動しました
 Commented on a task	评论了任务	แสดงความคิดเห็นในงานแล้ว	タスクにコメントしました
 Searched tasks	搜索了任务	ค้นหางานแล้ว	タスクを検索しました
+Change the inventory account group?	要更改存货科目组吗？	เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่	在庫勘定グループを変更しますか？
+Change the MR.ERP import settings?	要更改 MR.ERP 导入设置吗？	เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่	MR.ERP の取込設定を変更しますか？
+Change how this kind of document is handled?	要更改这类单据的处理方式吗？	เปลี่ยนวิธีจัดการเอกสารประเภทนี้หรือไม่	この種類の書類の扱いを変更しますか？
+Save this folder task?	要保存这个定时任务吗？	บันทึกงานตามกำหนดเวลานี้หรือไม่	この定期タスクを保存しますか？
+Turn this folder task on or off?	要启用或停用这个定时任务吗？	เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่	この定期タスクをオン／オフにしますか？
+Delete these folder tasks?	要删除这些定时任务吗？	ลบงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを削除しますか？
+Transfer slips	转账凭条	สลิปโอนเงิน	振込明細
+Withholding tax certificates	预扣税凭证	หนังสือรับรองการหักภาษี ณ ที่จ่าย	源泉徴収票
 Started a reconciliation	开始了对账	เริ่มกระทบยอดแล้ว	照合を開始しました
 Checked a reconciliation's progress	查看了对账进度	ตรวจสอบความคืบหน้าการกระทบยอดแล้ว	照合の進行状況を確認しました
 Listed reconciliations	查看了对账列表	ดูรายการกระทบยอดแล้ว	照合の一覧を確認しました

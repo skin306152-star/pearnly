@@ -932,9 +932,11 @@ def recon_list(tool_input) -> str:
     from pearnly_cowork.recon_center import api as recon_api
 
     kind = _recon_kind(tool_input)
-    rows = recon_api.tasks(kind, 0, max(1, min(int(tool_input.get("limit") or 20), LIST_MAX)))
-    rows = rows.get("data") if isinstance(rows, dict) else rows
-    return _json({"kind": kind, "tasks": rows or []})
+    # 页面列表接口回 {"tasks", "total"}（2026-10-10 测试：读成 data，三种对账都列成空的）
+    page = recon_api.tasks(kind, 0, max(1, min(int(tool_input.get("limit") or 20), LIST_MAX))) or {}
+    rows = page.get("tasks") if isinstance(page, dict) else page
+    return _json({"kind": kind, "total": page.get("total") if isinstance(page, dict) else None,
+                  "tasks": [_filled(dict(r)) for r in rows or []]})
 
 
 def recon_result(tool_input) -> str:
@@ -1376,6 +1378,118 @@ def delete_folder_tasks(tool_input) -> str:
     return _json(_task_call(rules.delete, json.dumps(names)))
 
 
+# ---------------- 要「允许」的那一步：卡片上先说清改什么（现在 → 改后），不写任何东西 ----------------
+
+DIRECTION_LABELS = {"purchase": "intake.dir.purchase", "sales": "intake.dir.sales"}
+POSTING_LABELS = {"service": "Service", "stock": "Stock"}
+PAYMENT_LABELS = {"cash": "Cash", "credit": "Credit"}
+POLICY_CLASS_LABELS = {"payment_evidence": "Transfer slips", "withholding_certificate": "Withholding tax certificates"}
+POLICY_VALUE_LABELS = {"enter": "cowork.policy.enter", "skip": "cowork.policy.skip"}
+
+
+def _shown(value) -> str:
+    return "" if value in (None, "") else str(value)
+
+
+def _change(field, before, after) -> dict:
+    return {"field": _(field), "before": _shown(before), "after": _shown(after)}
+
+
+def _time(value) -> str:
+    text = _shown(value)
+    return text[:5] if len(text) >= 5 and text[2:3] == ":" else ("0" + text)[:5] if text[1:2] == ":" else text
+
+
+def _task_row(name) -> dict:
+    return next((r for r in rules.listing().get("rules") or [] if r.get("name") == name), {}) if name else {}
+
+
+def _task_shown(row, account=None, folder=None) -> dict:
+    """定时任务各项的显示值（同任务页的叫法）。"""
+    day = row.get("run_day")
+    return {"cowork.folder.field.title": row.get("title"),
+            "intake.target.accountSet": account if account is not None else row.get("account_label"),
+            "intake.field.direction": _(DIRECTION_LABELS.get(row.get("direction"), _shown(row.get("direction")))),
+            "intake.field.itemType": _(POSTING_LABELS[row["posting_kind"]]) if row.get("posting_kind") in POSTING_LABELS else _shown(row.get("posting_kind")),
+            "cowork.choice.payment": _(PAYMENT_LABELS[row["payment"]]) if row.get("payment") in PAYMENT_LABELS else _shown(row.get("payment")),
+            "cowork.folder.field.folder": folder if folder is not None else "\\".join(
+                p for p in (row.get("root_label"), row.get("folder")) if p),
+            "cowork.folder.field.day": _("cowork.folder.day").format(day) if str(day or "").isdigit() and int(day) else _shown(day),
+            "cowork.folder.field.time": _time(row.get("run_time"))}
+
+
+INPUT_OF = {"cowork.folder.field.title": ("title",), "intake.target.accountSet": ("account_set_key",),
+            "intake.field.direction": ("direction",), "intake.field.itemType": ("posting_kind",),
+            "cowork.choice.payment": ("payment",), "cowork.folder.field.folder": ("reader", "root_id", "folder"),
+            "cowork.folder.field.day": ("run_day",), "cowork.folder.field.time": ("run_time",)}
+
+
+def preview_save_folder_task(tool_input) -> list:
+    current = _task_row(str(tool_input.get("name") or ""))
+    merged = {**current, **{k: v for k, v in tool_input.items() if v not in (None, "")}}
+    account = None
+    if tool_input.get("account_set_key"):
+        try:
+            account = rules._catalog_item(merged.get("connection"), tool_input["account_set_key"])[1]
+        except Exception:
+            frappe.clear_messages()
+            account = tool_input["account_set_key"]
+    folder = None
+    if any(tool_input.get(k) for k in ("reader", "root_id", "folder")):
+        reader = merged.get("reader") or merged.get("connection")
+        try:
+            roots = {r.get("id"): r.get("label") for r in rules.agent.read(reader).get("roots") or []}
+        except Exception:
+            frappe.clear_messages()
+            roots = {}
+        folder = "\\".join(p for p in (roots.get(merged.get("root_id"), ""), merged.get("folder")) if p)
+    before, after = (_task_shown(current) if current else {}), _task_shown(merged, account, folder)
+    rows = []
+    for field, keys in INPUT_OF.items():
+        if not any(k in tool_input for k in keys):
+            continue
+        if current and before.get(field) == after.get(field):
+            continue
+        rows.append(_change(field, before.get(field) if current else "", after.get(field)))
+    if current and not any(r["field"] == _("cowork.folder.field.title") for r in rows):
+        rows = [_change("cowork.folder.field.title", "", current.get("title"))] + rows
+    return rows
+
+
+def preview_set_folder_task_enabled(tool_input) -> list:
+    row = _task_row(str(tool_input.get("task") or ""))
+    state = lambda on: _("cowork.folder.on") if on else _("cowork.folder.off")
+    return [_change("cowork.folder.field.title", "", row.get("title") or tool_input.get("task")),
+            _change("intake.col.status", state(row.get("enabled")) if row else "", state(tool_input.get("enabled")))]
+
+
+def preview_delete_folder_tasks(tool_input) -> list:
+    names = {r.get("name"): r.get("title") for r in rules.listing().get("rules") or []}
+    return [_change("Delete", "", names.get(str(n)) or n) for n in tool_input.get("tasks") or []]
+
+
+def preview_choose_document_policy(tool_input) -> list:
+    from pearnly_cowork.contracts import document_policy as policy_rules
+    from pearnly_cowork.contracts.history import primary_page_fields
+    from pearnly_cowork.history import document_policy, storage
+
+    doc = storage.read(str(tool_input.get("document") or ""))
+    kind = policy_rules.document_class(primary_page_fields(json.loads(doc.pages or "[]")))
+    now = document_policy.read(doc.workspace).get(kind)
+    label = lambda value: _(POLICY_VALUE_LABELS[value]) if value in POLICY_VALUE_LABELS else ""
+    return [_change(POLICY_CLASS_LABELS.get(kind, kind or "Document"), label(now), label(tool_input.get("value")))]
+
+
+def preview_stock_group(tool_input) -> list:
+    current = _connection_call(connections_api.stock_acc_group, str(tool_input.get("connection") or ""),
+                               str(tool_input.get("account_set_key") or ""))
+    names = {g.get("acccod"): g.get("label") for g in current.get("groups") or []}
+    chosen = current.get("chosen")
+    chosen = chosen.get("acccod") if isinstance(chosen, dict) else chosen
+    shown = lambda code: names.get(str(code or "").strip()) or _shown(code)
+    return [_change("Inventory account group", shown(chosen), shown(tool_input.get("acccod")))]
+
+
 _OBJ = {"type": "object", "properties": {}}
 TOOLS = [
     {"name": "cowork_recognize_attachments", "label": "Recognized documents",
@@ -1424,6 +1538,8 @@ TOOLS = [
                                                         "acccod": {"type": "string"}},
                       "required": ["connection", "account_set_key"]},
      "approval": ["acccod"],
+     "ask": "Change the inventory account group?",
+     "preview": "pearnly_cowork.assistant.tools.preview_stock_group",
      "handler": "pearnly_cowork.assistant.tools.stock_group"},
     {"name": "cowork_mrerp_setup", "label": "Checked MR.ERP import settings",
      "description": "MR.ERP import menus per document kind and default values, chosen once per account set before "
@@ -1438,6 +1554,7 @@ TOOLS = [
          "defaults": {"type": "object", "additionalProperties": {"type": "string"}}},
          "required": ["connection", "account_set_key"]},
      "approval": ["menus", "defaults"],
+     "ask": "Change the MR.ERP import settings?",
      "handler": "pearnly_cowork.assistant.tools.mrerp_setup"},
     {"name": "cowork_document_detail", "label": "Viewed a document",
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
@@ -1471,6 +1588,8 @@ TOOLS = [
                                                         "value": {"type": "string", "enum": ["enter", "skip"]}},
                       "required": ["document", "value"]},
      "approval": True,
+     "ask": "Change how this kind of document is handled?",
+     "preview": "pearnly_cowork.assistant.tools.preview_choose_document_policy",
      "handler": "pearnly_cowork.assistant.tools.choose_document_policy"},
     {"name": "cowork_recognition_results", "label": "Checked recognition results",
      "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments.",
@@ -1591,12 +1710,16 @@ TOOLS = [
          "defaults": {"type": "object"}},
          "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
      "approval": True,
+     "ask": "Save this folder task?",
+     "preview": "pearnly_cowork.assistant.tools.preview_save_folder_task",
      "handler": "pearnly_cowork.assistant.tools.save_folder_task"},
     {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
      "description": "Pause or resume a scheduled folder task. Resuming only handles files put in the folder after now.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"}},
                       "required": ["task", "enabled"]},
      "approval": True,
+     "ask": "Turn this folder task on or off?",
+     "preview": "pearnly_cowork.assistant.tools.preview_set_folder_task_enabled",
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
     {"name": "cowork_delete_folder_tasks", "label": "Deleted folder tasks",
      "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
@@ -1604,6 +1727,8 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"tasks": {"type": "array", "items": {"type": "string"},
                                                                  "minItems": 1}}, "required": ["tasks"]},
      "approval": True,
+     "ask": "Delete these folder tasks?",
+     "preview": "pearnly_cowork.assistant.tools.preview_delete_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
     {"name": "cowork_recon_start", "label": "Started a reconciliation",
      "description": "Start a reconciliation like New on the reconciliation pages, with files the user attached in "

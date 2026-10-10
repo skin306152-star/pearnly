@@ -202,8 +202,12 @@ Cash sales,现金销售
 Catch-up after start,开机补运行
 Change cards on the work board,请在工作看板上修改卡片
 Change cover,更改封面
+Change how this kind of document is handled?,要更改这类单据的处理方式吗？
 Change list color,更改列表颜色
 Change members,变更成员
+Change the MR.ERP import settings?,要更改 MR.ERP 导入设置吗？
+Change the inventory account group?,要更改存货科目组吗？
+Change the stock account group?,要更改存货科目组吗？
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
 Check line by line,逐笔核对
@@ -409,6 +413,7 @@ Default board,默认看板
 Default handling for this folder,默认处理
 Defaults,默认值
 Delete selected ({0}),删除所选（{0}）
+Delete these folder tasks?,要删除这些定时任务吗？
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
 Delete this list and all its cards permanently? This cannot be undone.,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
 Delete {0},删除 {0} 项
@@ -1087,6 +1092,7 @@ Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票缺少未税金额明细，无法导出。
 Sample Key,修正例标识
 Save and next,保存并下一项
+Save this folder task?,要保存这个定时任务吗？
 Saved,已保存
 Saved a folder task,保存了文件夹任务
 Saved push choices,保存了推送选项
@@ -1529,8 +1535,10 @@ Track Expiry,按有效期管理
 Transaction Date,交易日期
 Transaction type,业务类型
 Transfer,转账
+Transfer slips,转账凭条
 Turn off,停用
 Turn on,启用
+Turn this folder task on or off?,要启用或停用这个定时任务吗？
 Turn this rule off? Documents already entered stay as they are.,确定要停用此规则吗？已推送的单据不受影响。
 Turn this rule on? Only files added to the folder from now on are processed.,确定要启用此规则吗？仅处理此后放入该文件夹的文件。
 Turn this scheduled task off? Documents already entered stay as they are.,确定要停用此定时任务吗？已推送的单据不受影响。
@@ -1630,6 +1638,7 @@ Why it is not in the review sheet,未生成复核表的原因
 Wire Attempt,发送尝试次数
 With differences,有差异
 Withdrawal,提款
+Withholding tax certificates,预扣税凭证
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workbook Revision,工作簿版本

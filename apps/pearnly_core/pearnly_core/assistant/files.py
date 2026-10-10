@@ -156,7 +156,12 @@ def download(session_id, file_id, inline=False) -> None:
     meta, remote = _output(row, api, fid)
     frappe.local.response.filename = meta["filename"]
     frappe.local.response.filecontent = api.read_file(remote, fid)
-    frappe.local.response.type = "binary" if inline and meta["mime_type"] in INLINE_TYPES else "download"
+    # Frappe 的 binary 回应是「附件 + octet-stream」：图片用 <img> 照样显示，PDF 放进结果面板却成了下载、一片空白
+    # （2026-10-10 测试，桌面端每打开一次还多存一份）。PDF 用 Frappe 的 pdf 回应（inline + application/pdf）。
+    if inline and meta["mime_type"] == "application/pdf" or inline and str(meta["filename"]).lower().endswith(".pdf"):
+        frappe.local.response.type = "pdf"
+    else:
+        frappe.local.response.type = "binary" if inline and meta["mime_type"] in INLINE_TYPES else "download"
 
 
 # 结果面板的表格预览：只读前几张表的前若干行列，单个文件超过上限就不预览（下载照常）。

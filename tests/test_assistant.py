@@ -353,7 +353,20 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(ran, [("always", {"task": "T1"})])
         self.assertEqual((rows["r1"]["status"], rows["r1"]["result"]), ("done", "saved"))
         self.assertEqual(len(posted), 1)
+        # 卡片在点之前说清改什么：工具的 preview 现算；没写就列参数；ask 没写用步骤名
+        declared = [{"name": "always", "label": "Saved", "ask": "Save?", "approval": True, "preview": "x.preview"},
+                    {"name": "plain", "label": "Did", "approval": True}]
+        with mock.patch.object(tools, "declared", return_value=declared), \
+                mock.patch.object(tools.frappe, "get_attr", return_value=lambda data: [{"field": "Day", "before": "1", "after": "5"}], create=True):
+            self.assertEqual(tools.approval_view("always", {"run_day": 5}),
+                             {"ask": "Save?", "preview": [{"field": "Day", "before": "1", "after": "5"}]})
+            self.assertEqual(tools.approval_view("plain", {"task": "T1"}),
+                             {"ask": "Did", "preview": [{"field": "task", "before": "", "after": "T1"}]})
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        self.assertIn("tools.approval_view(", source.split("def run_tool(", 1)[1])
+        # 结果面板预览 PDF：用 inline 的 pdf 回应，不是附件（binary 会变成下载、面板空白）
+        files_source = (CORE / "assistant/files.py").read_text(encoding="utf-8").split("def download(", 1)[1]
+        self.assertIn('frappe.local.response.type = "pdf"', files_source)
         confirm = source.split("def confirm(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("toolrun.decide(", confirm)  # 我们拦下的在本站处理，其余照旧交引擎
 

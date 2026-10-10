@@ -79,6 +79,29 @@ def needs_approval(name: str, tool_input) -> bool:
     return bool(gate)
 
 
+PREVIEW_ROWS = 20
+
+
+def approval_view(name: str, tool_input) -> dict:
+    """等「允许」时卡片上显示的：这一步要做什么（`ask`，没写就用步骤名）和要改哪几项（`preview`：
+    [{field, before, after}]，由工具的 `preview` 按当前设置现算；没写或算不出就列参数）。不写任何东西。"""
+    tool = next((t for t in declared() if t["name"] == str(name or "")), None) or {}
+    values = tool_input if isinstance(tool_input, dict) else {}
+    rows = None
+    if tool.get("preview"):
+        try:
+            rows = frappe.get_attr(tool["preview"])(values)
+        except Exception:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            frappe.log_error(title="Assistant approval preview failed")
+    if rows is None:
+        rows = [{"field": key, "before": "", "after": value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)}
+                for key, value in values.items()]
+    ask = tool.get("ask") or tool.get("label") or str(name or "")
+    return {"ask": _(ask), "preview": rows[:PREVIEW_ROWS]}
+
+
 def run(name: str, tool_input) -> tuple[str, bool]:
     tool = next((t for t in declared() if t["name"] == str(name or "")), None)
     if not tool:

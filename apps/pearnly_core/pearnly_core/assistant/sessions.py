@@ -18,7 +18,7 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import config, context, contracts, engine, engines, relay, toolrun
+from pearnly_core.assistant import config, context, contracts, engine, engines, relay, toolrun, tools
 
 SESSION = context.SESSION
 LIST_LIMIT = 100
@@ -232,4 +232,8 @@ def run_tool(session_id, tool_use_id) -> dict:
     if use_id in contracts.answered_tool_uses(recent):
         return {"status": "answered"}
     relay.ensure(row.session_id, remote, frappe.session.user)
-    return {"status": toolrun.execute(row.session_id, remote, call)}
+    status = toolrun.execute(row.session_id, remote, call)
+    if status == "awaiting_approval":
+        # 卡片在点之前就要说清改什么（2026-10-10 测试：说明在点了拒绝之后才出来）
+        return {"status": status, **tools.approval_view(call.get("name"), call.get("input"))}
+    return {"status": status}

@@ -655,6 +655,13 @@ class ReconTests(unittest.TestCase):
         self.assertNotIn("sheets", out)
         self.assertEqual(out["questions"], [{"rule": "card_fee"}])
 
+    def test_list_reads_the_tasks_the_page_lists(self):
+        """列表接口回 {"tasks", "total"}（2026-10-10 测试：读错字段，三种对账都列成空的）。"""
+        sys.modules["pearnly_cowork.recon_center.api"].tasks = lambda kind, start, limit: {
+            "tasks": [{"name": "CVC-1", "title": "SINCERE 7"}], "total": 1}
+        out = json.loads(tools.recon_list({"kind": "vat"}))
+        self.assertEqual((out["total"], out["tasks"]), (1, [{"name": "CVC-1", "title": "SINCERE 7"}]))
+
     def test_vat_result_lists_the_lines_with_problems(self):
         """销项核查也给有问题的行（2026-10-10 测试：只有状态，智能体只好导出再读）。"""
         vat = types.ModuleType("pearnly_cowork.reconciliation.vat_check_service")
@@ -743,6 +750,21 @@ class StocktakeAndWorkTests(unittest.TestCase):
         self.assertEqual(out["cards"][1]["list"], "Done")
         out = json.loads(tools.work_board({"mine": True}))
         self.assertEqual([c["card"] for c in out["cards"]], ["C1"])
+
+
+
+class ApprovalPreviewTests(unittest.TestCase):
+    """要「允许」的那一步：卡片上先列改什么（2026-10-10 测试：只有卡片，点之前不知道要改什么）。"""
+
+    def test_folder_task_change_lists_only_what_changes(self):
+        current = {"name": "R1", "title": "QA 月度进项（T9SINCER）", "connection": "EXP1", "account_label": "70EXP · T.7 SINCER",
+                   "direction": "purchase", "run_day": 1, "run_time": "22:00:00", "root_label": "Docs", "folder": "CC-QA-empty"}
+        with mock.patch.object(tools.rules, "listing", return_value={"rules": [current]}, create=True), \
+                mock.patch.object(tools.rules, "_catalog_item", return_value=("k9", "70EXP · T.9 SINCER"), create=True):
+            rows = tools.preview_save_folder_task({"name": "R1", "account_set_key": "c:\\70exp\\t9sincer",
+                                                   "run_time": "22:00", "direction": "purchase"})
+        self.assertEqual([(r["before"], r["after"]) for r in rows],
+                         [("", "QA 月度进项（T9SINCER）"), ("70EXP · T.7 SINCER", "70EXP · T.9 SINCER")])
 
 
 if __name__ == "__main__":

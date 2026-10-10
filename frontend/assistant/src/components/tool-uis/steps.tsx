@@ -17,7 +17,7 @@ import {
   WrenchIcon,
 } from "lucide-react";
 import { useState, type FC, type PropsWithChildren } from "react";
-import type { ToolResultPayload } from "@/lib/managed-agents/reducer";
+import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
 import { useToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 import { steps } from "@/i18n";
@@ -90,6 +90,8 @@ export const StepRow: ToolCallMessagePartComponent = ({
   const running = !output && !awaiting && approval?.approved !== false && status.type === "running";
   const errored = !!output?.isError || !!isError || status.type === "incomplete";
   const step = describe(toolName, args as Args, running, labels);
+  // Held for Allow/Deny: say what it is about to do, not the past-tense label ("Saved …" before anything ran).
+  const asking = awaiting ? (approval as ToolApproval).ask : undefined;
   const shownOutput = step.showOutput && output?.text ? output.text : "";
   const expandable = Boolean(step.input || shownOutput);
   const Icon = step.icon;
@@ -107,7 +109,7 @@ export const StepRow: ToolCallMessagePartComponent = ({
         ) : (
           <Icon className={cn("size-3.5 shrink-0", errored && "text-red-500")} />
         )}
-        <span className="shrink-0">{step.verb}</span>
+        <span className="shrink-0">{asking ?? step.verb}</span>
         {step.target && <span className="min-w-0 truncate font-mono text-[#8a887f] text-[12.5px]">{step.target}</span>}
         {expandable && (
           <ChevronRightIcon className={cn("ms-auto size-3.5 shrink-0 opacity-0 transition group-hover/step:opacity-100", open && "rotate-90 opacity-100")} />
