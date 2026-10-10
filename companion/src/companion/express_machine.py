@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 from .account_probe import AccountSet, probe_account_sets, probe_default_accounts
-from .express_locate import _scan_exp_roots, candidate_roots, sccomp_company_count, sccomp_path
+from .express_locate import _deep_scan, _scan_exp_roots, candidate_roots, sccomp_company_count, sccomp_path
 from .pairing import ACCOUNT_MAP_KEYS
 
 _DEFAULT_MIN_COMPANIES = 10
@@ -128,12 +128,29 @@ def detect_roots(store) -> List[str]:
 
 
 def roots_for_pick(path: str) -> List[str]:
-    """手动选的数据根放第一，同一位置下的其它年度一并授权（网页上再选年度 / 账套）；选的不是数据根返回空。"""
-    if sccomp_company_count(path) <= 0:
+    """「更换…」选的文件夹 → 要授权的数据根。
+
+    选的就是某个年度的数据根：它放第一，同一位置下的其它年度一并授权（网页上再选年度 / 账套）。
+    选的是上层文件夹或盘符（如映射的共享盘）：往下找（同自动查找：认登记表不认名字、最多 3 层、限时），
+    找到的全部授权、默认年度放第一（2026-10-10 用户在测试机选 S 盘被拒）。都没有返回空。"""
+    if sccomp_company_count(path) > 0:
+        parent = str(Path(path).parent)
+        others = [root for root, _count in rank_roots(_scan_exp_roots([parent])) if not same_root(root, path)]
+        return [path, *others]
+    ranked = rank_roots([*_scan_exp_roots([path]), *_deep_scan([path])])
+    if not ranked:
         return []
-    parent = str(Path(path).parent)
-    others = [root for root, _count in rank_roots(_scan_exp_roots([parent])) if not same_root(root, path)]
-    return [path, *others]
+    first = pick_default(ranked)
+    return [first, *(root for root, _count in ranked if not same_root(root, first))]
+
+
+def rescan_roots(store) -> List[str]:
+    """「重新查找」：全机 + 局域网再找一遍（同第一次连接时）；现在用的主数据根还找得到就仍排第一。"""
+    found = detect_roots(store)
+    current = machine_roots(store)[:1]
+    if current and any(same_root(current[0], root) for root in found):
+        return [current[0], *(root for root in found if not same_root(root, current[0]))]
+    return found
 
 
 def default_account(sets: List[AccountSet], keep: str = "") -> Optional[AccountSet]:

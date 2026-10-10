@@ -19,7 +19,7 @@ from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
 from . import autostart, folder_store, pairing, pairing_flow
-from .express_machine import apply_roots, detect_roots, machine_roots, roots_for_pick
+from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore
@@ -216,9 +216,15 @@ class DesktopSettings:
 
     def change_roots(self, picked: str, lang: str) -> dict:
         """（后台线程）「更换…」选的 Express 数据所在文件夹：有成员时同步到全部成员（服务端下次心跳拿到，不用重新配对）。"""
-        roots = roots_for_pick(picked)
+        return self._use_roots(roots_for_pick(picked), lang)
+
+    def rescan(self, lang: str) -> dict:
+        """（后台线程）「重新查找」：全机 + 局域网再找一遍 Express，找到的全部授权（同「更换…」写到全部成员）。"""
+        return self._use_roots(rescan_roots(self._store()), lang)
+
+    def _use_roots(self, roots: list, lang: str) -> dict:
         if not roots:
-            return {"ok": False, "message": t("status_reg_error", lang)}
+            return {"ok": False, "message": t("express_not_found", lang)}
         store = self._store()
         if store.profiles:
             apply_roots(store, roots)

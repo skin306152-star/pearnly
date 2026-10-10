@@ -228,7 +228,7 @@ const SETTINGS = {
   en: {
     settings: "Settings", general: "General", thisComputer: "This computer", connections: "Connections", system: "System",
     appearance: "Appearance", textSize: "Chat text size", small: "Small", medium: "Medium", large: "Large",
-    change: "Change…", scanning: "Searching…",
+    change: "Change…", findAgain: "Find again", scanning: "Searching…",
     expressMissing: "Express not found. Click “Change…” and choose the Express data folder.",
     years: (path: string, n: number) => `${path} · ${n} years`,
     expressFolder: "Express data folder", noFolders: "No folders yet.", noComputer: "No computer connected yet.", download: "Download CC",
@@ -246,7 +246,7 @@ const SETTINGS = {
   zh: {
     settings: "设置", general: "常规", thisComputer: "此电脑", connections: "连接", system: "系统",
     appearance: "外观", textSize: "对话文字大小", small: "小号", medium: "中等", large: "大号",
-    change: "更换…", scanning: "正在查找…",
+    change: "更换…", findAgain: "重新查找", scanning: "正在查找…",
     expressMissing: "未找到 Express，请点击「更换…」选择 Express 数据所在文件夹。",
     years: (path: string, n: number) => `${path} 等 ${n} 个年度`,
     expressFolder: "Express 数据文件夹", noFolders: "还没有文件夹。", noComputer: "还没有电脑连接。", download: "下载 CC",
@@ -264,7 +264,7 @@ const SETTINGS = {
   th: {
     settings: "การตั้งค่า", general: "ทั่วไป", thisComputer: "คอมพิวเตอร์เครื่องนี้", connections: "การเชื่อมต่อ", system: "ระบบ",
     appearance: "รูปลักษณ์", textSize: "ขนาดตัวอักษรในแชท", small: "เล็ก", medium: "กลาง", large: "ใหญ่",
-    change: "เปลี่ยน…", scanning: "กำลังค้นหา…",
+    change: "เปลี่ยน…", findAgain: "ค้นหาอีกครั้ง", scanning: "กำลังค้นหา…",
     expressMissing: "ไม่พบ Express กรุณากด «เปลี่ยน…» แล้วเลือกโฟลเดอร์ข้อมูล Express",
     years: (path: string, n: number) => `${path} รวม ${n} ปีบัญชี`,
     expressFolder: "โฟลเดอร์ข้อมูล Express", noFolders: "ยังไม่มีโฟลเดอร์", noComputer: "ยังไม่มีคอมพิวเตอร์เชื่อมต่อ", download: "ดาวน์โหลด CC",

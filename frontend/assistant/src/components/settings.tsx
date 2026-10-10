@@ -363,6 +363,9 @@ function Connections({ api }: { api: Desktop }) {
           <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-[#c0392b]")} title={express}>
             {express}
           </span>
+          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
+            {st.findAgain}
+          </Button>
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void pickRoots()}>
             {st.change}
           </Button>

@@ -150,6 +150,16 @@ def test_a_picked_root_comes_first_with_the_other_years_beside_it(tmp_path):
     assert gui_pairing.roots_for_pick(str(tmp_path / "NOTEXP")) == []
 
 
+def test_picking_a_drive_or_parent_folder_finds_the_express_data_below_it(tmp_path):
+    # 选的是上层文件夹（如映射的共享盘 S:）：往下找，名字不带 EXP、在第 2 层的也认；默认年度（公司够多的最新年）放第一。
+    share = tmp_path / "share"
+    _registry(share / "2569" / "ACC69", 12)
+    _registry(share / "บัญชี" / "68EXP", 15)
+    (share / "Admin").mkdir(parents=True)
+    assert gui_pairing.roots_for_pick(str(share)) == [str(share / "2569" / "ACC69"), str(share / "บัญชี" / "68EXP")]
+    assert gui_pairing.roots_for_pick(str(share / "Admin")) == []
+
+
 def test_changing_the_machine_root_updates_every_member_and_keeps_what_still_fits(tmp_path, monkeypatch):
     # 2026-10-08：Express 账套是这台电脑的全局设置，「更换…」同步到全部成员（暂停的也同步、仍保持暂停）。
     root70, root69 = tmp_path / "70EXP", tmp_path / "69EXP"
@@ -199,3 +209,11 @@ def test_nothing_is_written_when_a_member_has_no_usable_account_set(tmp_path, mo
     with pytest.raises(ValueError):
         gui_pairing.apply_roots(store, [str(tmp_path / "70EXP")])
     assert (tmp_path / "c.json").read_bytes() == before
+
+
+def test_find_again_keeps_the_root_in_use_first(monkeypatch):
+    monkeypatch.setattr(gui_pairing, "detect_roots", lambda store: [r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"])
+    monkeypatch.setattr(gui_pairing, "machine_roots", lambda store: [r"C:\70EXP"])
+    assert gui_pairing.rescan_roots(None) == [r"C:\70EXP", r"S:\71EXP", r"C:\69EXP"]
+    monkeypatch.setattr(gui_pairing, "machine_roots", lambda store: [r"D:\GONE"])
+    assert gui_pairing.rescan_roots(None) == [r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"]

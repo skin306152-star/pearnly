@@ -127,7 +127,7 @@ def test_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypatch):
 
     result = _settings(store).change_roots(str(tmp_path), "zh")
 
-    assert result == {"ok": False, "message": t("status_reg_error", "zh")}
+    assert result == {"ok": False, "message": t("express_not_found", "zh")}
     assert store.path.read_bytes() == before
 
 
@@ -258,3 +258,14 @@ def test_cc_program_folder_is_never_offered_or_added():
     assert not desktop_settings.inside("C:\\Users\\a", program)
     # 上次加的就是程序文件夹（旧版留下的）：不从它的上一级（还是程序文件夹）打开，改从「文档」打开。
     assert desktop_settings.picker_start([program + "\\_internal"], "DOCS", program) == "DOCS"
+
+
+def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path, monkeypatch):
+    store = _store(tmp_path, monkeypatch)
+    applied = []
+    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh: [r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"])
+    monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots: applied.append(roots))
+    assert _settings(store).rescan("zh") == {"ok": True, "profiles_changed": True}
+    assert applied == [[r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"]]
+    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh: [])
+    assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}

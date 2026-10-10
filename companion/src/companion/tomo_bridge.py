@@ -87,6 +87,8 @@ class TomoBridge(QObject):
             if not picked:
                 return {"ok": False, "cancelled": True}
             return self._job(lambda: s.change_roots(picked, lang))
+        if method == "rescan":
+            return self._job(lambda: s.rescan(lang))
         if method == "pause":
             return self._changed(s.set_paused(member, bool(args.get("paused"))))
         if method == "remove":
