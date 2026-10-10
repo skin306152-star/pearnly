@@ -53,12 +53,14 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .pick:hover{border-color:var(--line-strong);background:#fbfbf9}
 .pick b{font-weight:500}.pick small{color:var(--faint);font-size:12.5px}
 .form-stack{display:grid;gap:12px}.form-row label{display:block;margin:0 0 6px;font-size:13px;color:var(--muted)}
-.card-logo{display:flex;justify-content:center;margin:2px 0 20px}.card-logo svg{display:block}
+.card-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin:2px 0 20px}.card-logo svg{display:block}
+.card-name{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:800;font-size:40px;line-height:1;letter-spacing:.02em;color:#F28C28}
 .field{position:relative}.field-icon{display:none}.pn-auto .card{visibility:hidden}
 .toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--faint);padding:4px;cursor:pointer;width:30px;height:30px}
 .toggle-password svg{width:18px;height:18px}
 .form-split{display:flex;align-items:center;justify-content:space-between;font-size:13px}
-.checkline{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.checkline{display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer}.checkline input{width:15px;height:15px;margin:0;accent-color:var(--ink)}
+.form-split.remember{margin:10px 2px 0}.form-split.remember .forgot{display:inline;margin:0}.form-split.remember .link-btn{padding:4px 0}
 .pn-info{margin-top:14px;text-align:center;font-size:13px;color:var(--muted)}
 .scene{width:100%;max-width:1200px;margin-top:auto;padding:24px 8px 0}
 .scene-svg{display:block;width:100%;height:auto;overflow:visible}.scene-svg.phone{display:none}

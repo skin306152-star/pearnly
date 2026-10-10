@@ -34,6 +34,7 @@ Billing Units,Billing Units
 Billing service unavailable; please retry,Billing service unavailable; please retry
 Build the workspace,Build the workspace
 "By continuing, you agree to Pearnly's {0} and {1}.","By continuing, you agree to Pearnly's {0} and {1}."
+"By logging in, you agree to Pearnly's {0} and {1}.","By logging in, you agree to Pearnly's {0} and {1}."
 "Cannot read the provisioning target, so the identity service URL is unknown","Cannot read the provisioning target, so the identity service URL is unknown"
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
@@ -242,6 +243,7 @@ Received amount (as actually credited by the bank),Received amount (as actually 
 Reject,Reject
 Reject top-up,Reject top-up
 Rejected,Rejected
+Remember me,Remember me
 Removed At,Removed At
 Removed By,Removed By
 Requested Amount,Requested Amount

@@ -29,7 +29,9 @@ if(!reduce)addEventListener('pointermove',function(e){px=e.clientX;py=e.clientY;
     var f=document.getElementById('kc-form-login'),p=document.getElementById('password'),u=document.getElementById('username'),a=document.querySelector('.forgot a');
     if(h==='#pn-forgot'&&a){location.replace(a.href);return}
     if(h.indexOf('#pn=')===0&&f&&p&&u&&u.value&&!document.querySelector('.pn-field-error,.auth-message.error')){
-      try{p.value=decodeURIComponent(h.slice(4))}catch(e){p.value=''}
+      var parts=h.slice(4).split('&'),rm=document.getElementById('rememberMe');
+      try{p.value=decodeURIComponent(parts[0])}catch(e){p.value=''}
+      if(rm)rm.checked=parts.indexOf('rm=1')>0;
       if(p.value){f.submit();return}}
     document.documentElement.classList.remove('pn-auto')}
   var change=document.getElementById('who-change');

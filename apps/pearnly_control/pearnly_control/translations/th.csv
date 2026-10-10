@@ -34,6 +34,7 @@ Billing Units,หน่วยคิดค่าบริการ
 Billing service unavailable; please retry,บริการเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาลองใหม่
 Build the workspace,สร้างพื้นที่ทำงาน
 "By continuing, you agree to Pearnly's {0} and {1}.",การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly
+"By logging in, you agree to Pearnly's {0} and {1}.",การเข้าสู่ระบบถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly
 "Cannot read the provisioning target, so the identity service URL is unknown",ไม่สามารถอ่านเป้าหมายการเปิดใช้ได้ จึงไม่ทราบที่อยู่บริการตัวตน
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
@@ -245,6 +246,7 @@ Reference,เลขที่อ้างอิงภายนอก
 Reject,ปฏิเสธ
 Reject top-up,ปฏิเสธการเติมเงิน
 Rejected,ปฏิเสธแล้ว
+Remember me,จดจำการเข้าสู่ระบบ
 Removed At,เวลาที่ลบ
 Removed By,ผู้ลบ
 Requested Amount,จำนวนเงินที่ขอ

@@ -329,7 +329,7 @@ This account has no workspace available. Contact your administrator.	此账号�
 Back	返回	กลับ	戻る
 Username or email	用户名或邮箱	ชื่อผู้ใช้หรืออีเมล	ユーザー名またはメールアドレス
 Continue	继续	ดำเนินการต่อ	続ける
-By continuing, you agree to Pearnly's {0} and {1}.	继续即表示您已阅读并同意 Pearnly 的{0}和{1}。	การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly	続行すると、Pearnly の{0}と{1}に同意したものとみなされます。
+By logging in, you agree to Pearnly's {0} and {1}.	登录即表示您已阅读并同意 Pearnly 的{0}和{1}。	การเข้าสู่ระบบถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly	ログインすると、Pearnly の{0}と{1}に同意したものとみなされます。
 Terms of Service	服务条款	ข้อกำหนดการให้บริการ	利用規約
 Privacy Policy	隐私政策	นโยบายความเป็นส่วนตัว	プライバシーポリシー
 Enter your username or email.	请输入用户名或邮箱。	กรุณากรอกชื่อผู้ใช้หรืออีเมล	ユーザー名またはメールアドレスを入力してください。
@@ -338,5 +338,6 @@ Enter your password.	请输入密码。	กรุณากรอกรหัส�
 Forgot password ?	忘记密码 ?	ลืมรหัสผ่าน ?	パスワードをお忘れですか？
 Show or hide password	显示或隐藏密码	แสดงหรือซ่อนรหัสผ่าน	パスワードの表示・非表示
 Log in	登录	เข้าสู่ระบบ	ログイン
+Remember me	记住登录	จดจำการเข้าสู่ระบบ	ログイン状態を保持
 The sign-in service is not available. Try again later.	登录服务暂时不可用，请稍后再试。	บริการเข้าสู่ระบบไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งภายหลัง	ログインサービスは現在利用できません。しばらくしてからもう一度お試しください。
 Sign-in failed. Try again.	登录失败，请重试。	เข้าสู่ระบบไม่สำเร็จ โปรดลองอีกครั้ง	ログインに失敗しました。もう一度お試しください。

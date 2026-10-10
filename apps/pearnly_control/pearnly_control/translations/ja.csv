@@ -34,6 +34,7 @@ Billing Units,課金単位
 Billing service unavailable; please retry,課金サービスが利用できません。再試行してください
 Build the workspace,ワークスペースを作成
 "By continuing, you agree to Pearnly's {0} and {1}.",続行すると、Pearnly の{0}と{1}に同意したものとみなされます。
+"By logging in, you agree to Pearnly's {0} and {1}.",ログインすると、Pearnly の{0}と{1}に同意したものとみなされます。
 "Cannot read the provisioning target, so the identity service URL is unknown",開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません
 Channel Access Token,チャネルアクセストークン
 Channel ID,チャネルID
@@ -245,6 +246,7 @@ Reference,外部参照番号
 Reject,却下
 Reject top-up,チャージを却下
 Rejected,却下済み
+Remember me,ログイン状態を保持
 Removed At,削除日時
 Removed By,削除者
 Requested Amount,申請額

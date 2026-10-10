@@ -27,7 +27,7 @@ FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
 # 登录页不放猫（用户 2026-10-10 晚：探头的猫、睡觉的猫都删掉）；CC 的形象「吐司胖橘」站在底部那排小人里（scenes.cc_loaf）。
 # CC 图标（白字带胡须的原版，frontend/assistant/src/brand/cc-icon.svg）放在登录框里面最上方正中（用户 2026-10-10 晚），顶上只留语言
 BRAND_MARK = ('<div class="card-logo">' + (ROOT / "frontend/assistant/src/brand/cc-icon.svg").read_text()
-              .replace('width="1024" height="1024"', 'width="56" height="56" role="img" aria-label="CC"').strip() + '</div>')
+              .replace('width="1024" height="1024"', 'width="56" height="56" role="img" aria-label="CC"').strip() + '<span class="card-name">CC</span></div>')
 # 标签页小图标：白字 CC（32 像素去胡须版，frontend/assistant/public/icon-32.png），直接内嵌
 FAVICON = ('<link rel="icon" type="image/png" href="data:image/png;base64,'
            + base64.b64encode((ROOT / "frontend/assistant/public/icon-32.png").read_bytes()).decode() + '">')
@@ -167,12 +167,14 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .pick:hover{border-color:var(--line-strong);background:#fbfbf9}
 .pick b{font-weight:500}.pick small{color:var(--faint);font-size:12.5px}
 .form-stack{display:grid;gap:12px}.form-row label{display:block;margin:0 0 6px;font-size:13px;color:var(--muted)}
-.card-logo{display:flex;justify-content:center;margin:2px 0 20px}.card-logo svg{display:block}
+.card-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin:2px 0 20px}.card-logo svg{display:block}
+.card-name{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:800;font-size:40px;line-height:1;letter-spacing:.02em;color:#F28C28}
 .field{position:relative}.field-icon{display:none}.pn-auto .card{visibility:hidden}
 .toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--faint);padding:4px;cursor:pointer;width:30px;height:30px}
 .toggle-password svg{width:18px;height:18px}
 .form-split{display:flex;align-items:center;justify-content:space-between;font-size:13px}
-.checkline{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.checkline{display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer}.checkline input{width:15px;height:15px;margin:0;accent-color:var(--ink)}
+.form-split.remember{margin:10px 2px 0}.form-split.remember .forgot{display:inline;margin:0}.form-split.remember .link-btn{padding:4px 0}
 .pn-info{margin-top:14px;text-align:center;font-size:13px;color:var(--muted)}
 .scene{width:100%;max-width:1200px;margin-top:auto;padding:24px 8px 0}
 .scene-svg{display:block;width:100%;height:auto;overflow:visible}.scene-svg.phone{display:none}
@@ -264,9 +266,12 @@ PAGE_HTML = """<!doctype html>
         <input id="password" name="password" type="password" autocomplete="current-password" placeholder="{{ _("Password") }}">
         <button class="toggle-password" type="button" data-toggle-password="password" aria-label="{{ _("Show or hide password") }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
+      <div class="form-split remember">
+        <label class="checkline"><input type="checkbox" id="remember"> {{ _("Remember me") }}</label>
+        <a class="link-btn" href="#" id="forgot">{{ _("Forgot password ?") }}</a>
+      </div>
       <span class="err" id="err" role="alert" hidden></span>
       <button class="btn" type="submit" id="go">{{ _("Log in") }}</button>
-      <span class="forgot"><a class="link-btn" href="#" id="forgot">{{ _("Forgot password ?") }}</a></span>
       """ + CONTACTS + """
       <p class="legal">{{ legal_html | safe }}</p>
     </form>
@@ -286,6 +291,7 @@ PAGE_HTML = """<!doctype html>
     var i=document.getElementById(b.getAttribute('data-toggle-password'));if(i)i.type=i.type==='password'?'text':'password'})});
   var form=document.getElementById('entry');if(!form)return;
   var input=document.getElementById('login'),pw=document.getElementById('password'),err=document.getElementById('err'),go=document.getElementById('go');
+  var remember=document.getElementById('remember');try{remember.checked=localStorage.getItem('pn-remember')==='1'}catch(e){}
   function fail(text){err.textContent=text;err.hidden=false;go.disabled=false}
   input.addEventListener('input',function(){err.hidden=true});pw.addEventListener('input',function(){err.hidden=true});
   function start(tail){var v=input.value.trim();
@@ -299,7 +305,8 @@ PAGE_HTML = """<!doctype html>
     .catch(function(){fail({{ _("The sign-in service is not available. Try again later.") | tojson }})})}
   form.addEventListener('submit',function(e){e.preventDefault();
     if(input.value.trim()&&!pw.value){pw.focus();return fail({{ _("Enter your password.") | tojson }})}
-    start(function(){return '#pn='+encodeURIComponent(pw.value)})});
+    try{localStorage.setItem('pn-remember',remember.checked?'1':'0')}catch(e){}
+    start(function(){return '#pn='+encodeURIComponent(pw.value)+(remember.checked?'&rm=1':'')})});
   document.getElementById('forgot').addEventListener('click',function(e){e.preventDefault();start(function(){return '#pn-forgot'})});
 })();
 </script>
@@ -317,7 +324,9 @@ THEME_JS = JS + """
     var f=document.getElementById('kc-form-login'),p=document.getElementById('password'),u=document.getElementById('username'),a=document.querySelector('.forgot a');
     if(h==='#pn-forgot'&&a){location.replace(a.href);return}
     if(h.indexOf('#pn=')===0&&f&&p&&u&&u.value&&!document.querySelector('.pn-field-error,.auth-message.error')){
-      try{p.value=decodeURIComponent(h.slice(4))}catch(e){p.value=''}
+      var parts=h.slice(4).split('&'),rm=document.getElementById('rememberMe');
+      try{p.value=decodeURIComponent(parts[0])}catch(e){p.value=''}
+      if(rm)rm.checked=parts.indexOf('rm=1')>0;
       if(p.value){f.submit();return}}
     document.documentElement.classList.remove('pn-auto')}
   var change=document.getElementById('who-change');
@@ -374,7 +383,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
       <#if displayInfo><div class="pn-info"><#nested "info"></div></#if>
       """ + CONTACTS + """
       <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en")?then("/en", ""))>
-      <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
+      <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms/" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy/" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
     </div>
   </section>
   <div class="scene">""" + SCENE_WIDE + SCENE_PHONE + """</div>
@@ -405,10 +414,13 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
       <span class="pn-field-error">${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}</span>
     </#if>
     <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if> />
+    <div class="form-split remember">
+      <#if realm.rememberMe><label class="checkline"><input id="rememberMe" name="rememberMe" type="checkbox" <#if login.rememberMe??>checked</#if> /> ${msg("pearnlyAiRemember")}</label><#else><span></span></#if>
+      <#if realm.resetPasswordAllowed>
+        <span class="forgot"><a class="link-btn" href="${url.loginResetCredentialsUrl?keep_before("?")}?client_id=${client.clientId?url("UTF-8")}&amp;kc_locale=${locale.currentLanguageTag?url("UTF-8")}">${msg("pearnlyForgot")}</a></span>
+      </#if>
+    </div>
     <button class="btn" id="kc-login" name="login" type="submit">${msg("pearnlyLoginBtn")}</button>
-    <#if realm.resetPasswordAllowed>
-      <span class="forgot"><a class="link-btn" href="${url.loginResetCredentialsUrl?keep_before("?")}?client_id=${client.clientId?url("UTF-8")}&amp;kc_locale=${locale.currentLanguageTag?url("UTF-8")}">${msg("pearnlyForgot")}</a></span>
-    </#if>
   </form>
 </#if>
 </@layout.registrationLayout>
@@ -416,13 +428,13 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
 
 # Keycloak 文案：只放 ai 主题新增的键，其余（密码、登录、忘记密码…）继承 pearnly 主题。
 MESSAGES = {
-    "zh_CN": {"pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱",
-              "pearnlyAiLegal": "继续即表示您已阅读并同意 Pearnly 的{0}和{1}。", "pearnlyAiTerms": "服务条款", "pearnlyAiPrivacy": "隐私政策"},
-    "th": {"pearnlyAiChange": "เปลี่ยน", "pearnlyAiLogin": "ชื่อผู้ใช้หรืออีเมล",
-           "pearnlyAiLegal": "การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly", "pearnlyAiTerms": "ข้อกำหนดการให้บริการ",
+    "zh_CN": {"pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱", "pearnlyAiRemember": "记住登录",
+              "pearnlyAiLegal": "登录即表示您已阅读并同意 Pearnly 的{0}和{1}。", "pearnlyAiTerms": "服务条款", "pearnlyAiPrivacy": "隐私政策"},
+    "th": {"pearnlyAiChange": "เปลี่ยน", "pearnlyAiLogin": "ชื่อผู้ใช้หรืออีเมล", "pearnlyAiRemember": "จดจำการเข้าสู่ระบบ",
+           "pearnlyAiLegal": "การเข้าสู่ระบบถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly", "pearnlyAiTerms": "ข้อกำหนดการให้บริการ",
            "pearnlyAiPrivacy": "นโยบายความเป็นส่วนตัว"},
-    "en": {"pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email",
-           "pearnlyAiLegal": "By continuing, you agree to Pearnly''s {0} and {1}.", "pearnlyAiTerms": "Terms of Service",
+    "en": {"pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email", "pearnlyAiRemember": "Remember me",
+           "pearnlyAiLegal": "By logging in, you agree to Pearnly''s {0} and {1}.", "pearnlyAiTerms": "Terms of Service",
            "pearnlyAiPrivacy": "Privacy Policy"},
 }
 

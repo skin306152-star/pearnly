@@ -34,6 +34,7 @@ Billing Units,计费单位
 Billing service unavailable; please retry,计费服务不可用，请重试
 Build the workspace,创建工作台
 "By continuing, you agree to Pearnly's {0} and {1}.",继续即表示您已阅读并同意 Pearnly 的{0}和{1}。
+"By logging in, you agree to Pearnly's {0} and {1}.",登录即表示您已阅读并同意 Pearnly 的{0}和{1}。
 "Cannot read the provisioning target, so the identity service URL is unknown",无法读取开户目标，身份服务地址未知
 Channel Access Token,频道访问令牌
 Channel ID,频道 ID
@@ -245,6 +246,7 @@ Reference,外部单号
 Reject,拒绝
 Reject top-up,拒绝充值
 Rejected,已拒绝
+Remember me,记住登录
 Removed At,移除时间
 Removed By,移除人
 Requested Amount,申请金额

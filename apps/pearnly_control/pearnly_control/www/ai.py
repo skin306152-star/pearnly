@@ -27,8 +27,8 @@ def get_context(context):
             frappe.local.flags.redirect_location = url
             raise frappe.Redirect
     site = "https://pearnly.com" + SITE_PATH.get(lang, "")
-    terms = f'<a href="{site}/terms" target="_blank" rel="noopener">{escape_html(_("Terms of Service"))}</a>'
-    privacy = f'<a href="{site}/privacy" target="_blank" rel="noopener">{escape_html(_("Privacy Policy"))}</a>'
+    terms = f'<a href="{site}/terms/" target="_blank" rel="noopener">{escape_html(_("Terms of Service"))}</a>'
+    privacy = f'<a href="{site}/privacy/" target="_blank" rel="noopener">{escape_html(_("Privacy Policy"))}</a>'
     mode = "pick" if args.get("pick") else "none" if args.get("none") else "login"
     sites = entry.picks(args.get("pick")) if mode == "pick" else []
     if mode == "pick" and not sites:
@@ -36,7 +36,7 @@ def get_context(context):
     context.update({
         "lang": lang, "langs": LANG_LABELS, "products": PRODUCTS, "mode": mode, "sites": sites,
         "pick": args.get("pick") or "",
-        "legal_html": escape_html(_("By continuing, you agree to Pearnly's {0} and {1}.")).format(terms, privacy),
+        "legal_html": escape_html(_("By logging in, you agree to Pearnly's {0} and {1}.")).format(terms, privacy),
         "csrf_token": frappe.sessions.get_csrf_token(),
         "no_breadcrumbs": True,
     })
