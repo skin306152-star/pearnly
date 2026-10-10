@@ -1,0 +1,28 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-10 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["tool_use_id", "session_id", "user", "tool", "status"],
+ "fields": [
+  {"fieldname": "tool_use_id", "fieldtype": "Data", "label": "Tool Use ID", "read_only": 1, "reqd": 1, "unique": 1},
+  {"fieldname": "session_id", "fieldtype": "Data", "label": "Session ID", "read_only": 1, "reqd": 1, "search_index": 1},
+  {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "read_only": 1, "reqd": 1},
+  {"fieldname": "tool", "fieldtype": "Data", "label": "Tool", "read_only": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "running\ndone\nerror", "default": "running", "read_only": 1, "reqd": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly Assistant Tool Run",
+ "owner": "Administrator",
+ "permissions": [{"role": "System Manager", "read": 1}],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

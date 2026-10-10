@@ -23,7 +23,9 @@ jobs:
         with:
           node-version: '22.14.0'
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/assistant/package-lock.json
       - name: Enforce architecture boundaries
         run: |
           python3 scripts/check-architecture.py
@@ -38,6 +40,9 @@ jobs:
         run: node --test tests/test_pos_lifecycle.js
       - name: Build the shared frontend
         working-directory: frontend
+        run: npm ci && npm run build
+      - name: Build the assistant frontend (ADR-019)
+        working-directory: frontend/assistant
         run: npm ci && npm run build
       - name: Verify offline DMS editor snapshot rendering
         run: node --test scripts/test-dms-editor-snapshot.cjs
@@ -88,6 +93,11 @@ jobs:
           root = Path("/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core/public/pearnly-app")
           assert (root / "index.html").is_file()
           assert list((root / "assets").glob("*.js"))
+          assistant = Path("/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core/public/assistant")
+          assert (assistant / "index.html").is_file() and (assistant / "manifest.webmanifest").is_file()
+          assert list((assistant / "assets").glob("*.js"))
+          import anthropic
+          assert anthropic.__version__ == "1.8.0", anthropic.__version__
           from playwright.sync_api import sync_playwright
           with sync_playwright() as p:
               browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])

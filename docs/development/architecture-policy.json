@@ -267,6 +267,7 @@
   },
   "site_config_keys": {
     "_rule": "站点配置只放运行配置（通道、凭据、地址、并发参数）与售卖目录；产品功能对所有租户直接生效，不加按租户的启用开关（用户 2026-10-07）。新键须在此登记用途。",
+    "pearnly_assistant_api_key": "智能体（ADR-019）：本租户的 Anthropic 密钥；只由租户管理后台在开户时写入、之后可改可换，经开通执行器推到站点，用户不接触",
     "pearnly_base_domain": "控制面：产品域名后缀",
     "pearnly_billing_api": "计费服务地址",
     "pearnly_billing_host_header": "计费服务 Host 头",

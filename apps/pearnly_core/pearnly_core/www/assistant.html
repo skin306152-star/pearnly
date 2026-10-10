@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- 智能体对话页（ADR-019）。产物带内容哈希，标签不抄在这里：运行时读产物里那份 index.html，
+     把 script / link 逐个 createElement 搬过来（innerHTML 塞的 script 不执行，见 pearnly-app.html 的说明）。
+
+     ⚠️ 本文件过 Jinja 渲染：正文（含注释）不能出现双层花括号，除了下面两处真要渲染的变量。 -->
+<html lang="{{ lang }}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#7c4dff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/assets/pearnly_core/assistant/manifest.webmanifest" />
+    <title>Pearnly</title>
+    <script>
+      window.csrf_token = "{{ csrf_token }}";
+      (function () {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/assets/pearnly_core/assistant/index.html?v=" + Date.now(), false);
+        try { xhr.send(null); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        var tags = /<(script|link)\b[^>]*>/gi;
+        var attrRe = /([a-zA-Z-]+)="([^"]*)"/g;
+        var tag;
+        while ((tag = tags.exec(xhr.responseText)) !== null) {
+          var attrs = {};
+          var a;
+          attrRe.lastIndex = 0;
+          while ((a = attrRe.exec(tag[0])) !== null) attrs[a[1].toLowerCase()] = a[2];
+          var el;
+          if (tag[1].toLowerCase() === "script") {
+            if (!attrs.src) continue;
+            el = document.createElement("script");
+            el.src = attrs.src;
+            if (attrs.type) el.type = attrs.type;
+          } else {
+            if (!attrs.href || attrs.rel === "manifest") continue;
+            el = document.createElement("link");
+            el.rel = attrs.rel || "stylesheet";
+            el.href = attrs.href;
+          }
+          if ("crossorigin" in attrs) el.crossOrigin = "anonymous";
+          document.head.appendChild(el);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

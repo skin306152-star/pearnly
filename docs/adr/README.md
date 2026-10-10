@@ -33,3 +33,4 @@
 已确认但不重复询问的事项见计划包 `10-IMPLEMENTATION-HANDOFF.md` 的「已确认，不要重问」。
 - [ADR-017 识别引擎可切换：新增 Claude（Anthropic）供应商与「只读一遍」读法（已废止）](0017-ocr-engine-claude.md)
 - [ADR-018 Claude 批处理识别（已废止）](0018-claude-batch-delivery.md)
+- [ADR-019 Pearnly 智能体底座（Claude Managed Agents + assistant-ui，三产品共用）](0019-assistant-foundation.md)

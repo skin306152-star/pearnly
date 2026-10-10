@@ -298,6 +298,13 @@ def check(root=ROOT):
         # 三个都是 LINE 一次性票据页（编辑草稿 / 账号 / 扫身份证），不是产品 Web 的第二套外壳。
         if any(route not in {"/dms/editor", "/dms/account", "/dms/scan"} for route in routes):
             errors.append("frontend/src/router.ts: product Web routes must use native Desk; only scoped LINE editors are standalone")
+    # ADR-019: React is allowed only for the assistant page (frontend/assistant), never as a general product shell.
+    for path in (root / "frontend").rglob("package.json"):
+        if "node_modules" in path.parts or path.relative_to(root).as_posix() == "frontend/assistant/package.json":
+            continue
+        declared = json.loads(path.read_text())
+        if "react" in {**declared.get("dependencies", {}), **declared.get("devDependencies", {})}:
+            errors.append(f"{path.relative_to(root)}: React is scoped to frontend/assistant (ADR-019)")
     for path in (root / "apps").glob("*/*/public/desk/*.js"):
         source = path.read_text()
         if re.search(r"(?<![\w.])(?:window\.)?(?:alert|confirm|prompt)\(", source):

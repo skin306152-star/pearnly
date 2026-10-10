@@ -64,6 +64,10 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
 # Pillow 12.3.0。
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pi-heif==1.4.0"
 
+# 智能体（ADR-019，`pearnly_core.assistant`）：Anthropic 官方 Python SDK，调用 Claude Managed Agents。
+# 1.8.0（2026-09-22 发布）要求 Python >= 3.10，纯 Python 轮子；依赖 httpx2 / anyio / jiter / pydantic 2（镜像已有 pydantic）。
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "anthropic==1.8.0"
+
 # ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
 #
 # 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走

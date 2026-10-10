@@ -21,6 +21,8 @@
 | Cowork PDF文本提取 pypdf | `6.15.0` | 2026-09-21 独立lab锁定镜像实查，与固定旧来源requirements.lock同版；frappe.Dockerfile显式锁定 |
 | Cowork 表格/Word | `openpyxl 3.1.5` / `et-xmlfile 2.0.0` / `python-docx 1.2.0` / `lxml 6.1.2` | 前三项与固定旧来源 lock 相同；lxml 保留锁定原生镜像已安装的6.1.2（旧来源6.1.1），以表格差分与真实Site检查验证；不降级底座 |
 | HEIC 解码 pi-heif | `1.4.0` | 2026-10-02 PyPI 实查：BSD-3-Clause，cp314 manylinux_2_28 x86_64 轮子，只解码（libheif / libde265 LGPL，不含 x265）；frappe.Dockerfile 显式锁定 |
+| 智能体 Anthropic SDK（Python） | `anthropic 1.8.0` | 2026-10-10 PyPI 实查：2026-09-22 发布，要求 Python >= 3.10，纯 Python 轮子；frappe.Dockerfile 显式锁定（ADR-019） |
+| 智能体前端 | `react 19.2.8` / `@assistant-ui/react 0.14.27` / `vite 6.4.3` / `tailwindcss 4.3.3` | 2026-10-10，与 Anthropic 官方示例锁文件同版；`frontend/assistant/package.json` 全部精确版本 + 锁文件（ADR-019） |
 
 ## 尚未锁定（不能凭记忆写）
 

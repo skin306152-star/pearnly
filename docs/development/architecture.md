@@ -128,6 +128,12 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 只有 LINE 票据编辑器保留独立 Vue + Frappe UI，因为它使用一次性票据而非 Desk 登录。Keycloak 与邮件分别保留自己的原生认证主题、邮件兼容模板。此例外不得扩展成第二套产品 Web 壳。
 
+智能体对话页 `/assistant` 是第二个限定例外（[ADR-019](../adr/0019-assistant-foundation.md)）：React + assistant-ui，只在 `frontend/assistant/`，只服务这一个入口。
+
+### 智能体底座（ADR-019，2026-10-10）
+
+`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`config` 读本站密钥与产品；`provision` 按密钥在所属 Anthropic 账号里确保本产品的智能体与运行环境；`definition` 从工具声明生成智能体定义；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。产品不得在自己 App 里另起会话或直连 Anthropic；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
+
 ### 操作员提成归属的读取边界（2026-09-20）
 
 `operators.advisors` 的下拉选项只读手动发布的 `company` 快照，缺缓存或范围失效不回退实时读取。保存非空顾问 ID 才经 `adapter.operations.run_logged_in(authoritative_read=True)` 窄读原生顾问 selector 的全部分页，并按实时 ID 取名；不再调用旧全量 `masters_cache`。返回前以当前锁定读重验同一启用管理员，并核对唯一主连接及凭据范围，失败拒绝保存，不提交调用方事务。登记的单向依赖改为 operators → snapshots/adapter；没有反向引用 roster，也没有外部业务写入。顾问业务校验归 operators，抓取与账号互斥仍归 adapter。
