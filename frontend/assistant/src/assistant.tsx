@@ -26,11 +26,11 @@ import {
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { t } from "./i18n";
 
+// 空白对话只显示标题，不加说明文字。
 function Welcome() {
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
       <h1 className="font-semibold text-2xl">{t("title")}</h1>
-      <p className="mt-2 max-w-md text-muted-foreground text-sm">{t("welcome")}</p>
     </div>
   );
 }
@@ -47,7 +47,7 @@ function SessionStatusBar() {
       )}
       {lastError && lastError.retryStatus === "retrying" && (
         <div className="rounded-md bg-muted px-3 py-1.5 text-muted-foreground text-xs">
-          {t("transient")} {lastError.message}
+          {lastError.message}
         </div>
       )}
       {isLoaded && !isTailing && !transportError && (

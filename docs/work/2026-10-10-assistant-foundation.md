@@ -35,16 +35,15 @@
 | --- | --- | --- | --- |
 | 工作树（未提交时） | 本机 macOS，Python 3 | `python3 tests/test_assistant.py`（13 项：约定、工具声明与定义同源、业务拒绝转错误结果、按密钥建 / 复用 / 更新 / 换密钥不串号、页面 Jinja、表权限） | 通过 |
 | 同上 | 本机 | `python3 scripts/check-architecture.py`；`python3 tests/test_architecture_guard.py` | 通过 |
-| 同上 | 本机 Node 22.23 | `frontend/assistant`：`tsc --noEmit`、`vite build` | 通过（主包约 1 MB，后续拆分） |
+| 同上 | 本机 Node 22.23 | `frontend/assistant`：`tsc --noEmit`、`vite build` | 通过（主包约 0.9 MB，后续拆分） |
+| 同上 | 本机浏览器，界面预览（真实前端 + 假后端，不连站点 / Anthropic，不进仓库） | 会话列表、历史回放、工具调用折叠、命令卡片「允许」后出结果与回复、发送新消息、手机尺寸 | 通过；首次装依赖时 assistant-ui 内部包漂到新版（tap 0.9.22）导致渲染死循环，改为以官方示例锁文件为基准安装（tap 0.9.4，间接依赖与官方一致）后正常 |
 | 同上 | 本机 | `check-frontend-i18n --strict`、`i18n-build --check` 通过；`check-i18n --strict` 为只报告，新增英文提示缺译文（见下「待批文案」） | 见说明 |
 | — | 真实产品站点 | 会话创建、收发、工具调用 | **未做**：需要测试用 Anthropic 密钥，以及运行环境决定（见下一步） |
 | — | 生产镜像 | 共用层候选离线检查 | **未做**（合并前必须做） |
 
-## 待用户批准的新文案
+## 文案
 
-服务端提示（英文原文，待批后补 zh / th / ja）：`The assistant is only available on product sites.`、`The assistant is not set up for this site yet.`、`Not signed in`、`Conversation not found`、`Tool call not found`、`This tool is not available on this site.`、`The request was refused.`。
-
-对话页外壳（`frontend/assistant/src/i18n.ts`，已拟三语）：标题「Pearnly 助手 / ผู้ช่วย Pearnly」、欢迎语「说说你要办什么。」、「临时出错，正在重试：」、「正在重新连接…」。assistant-ui 组件内仍有英文按钮提示（如输入框占位、复制、重试），后续批次统一三语化。
+按用户 2026-10-10 口径：官方、简短、能沿用官方就沿用，不加说明性文案。对话页外壳只有标题与「正在重新连接…」；标题先用 Pearnly，产品名等用户看到界面后再定。服务端提示为英文原文的简短陈述，译文随后补齐。assistant-ui 组件自带的英文提示（输入框占位、复制、重试等）后续统一三语化。
 
 ## 已知限制
 
