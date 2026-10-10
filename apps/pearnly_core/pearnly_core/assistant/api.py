@@ -1,7 +1,7 @@
 """智能体对话页的接口（站点会话登录；读用 GET，写只收 POST）。逻辑都在 `sessions`。"""
 import frappe
 
-from pearnly_core.assistant import files, sessions
+from pearnly_core.assistant import files, sessions, tools
 
 
 @frappe.whitelist(methods=["GET"])
@@ -77,3 +77,8 @@ def session_files(session_id):
 @frappe.whitelist(methods=["GET"])
 def download(session_id, file_id, inline=0):
     files.download(session_id, file_id, inline=frappe.utils.cint(inline) == 1)
+
+
+@frappe.whitelist(methods=["GET"])
+def tool_labels():
+    return tools.labels()

@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import {
   useScrollLock,
   useAuiState,
@@ -24,6 +24,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { steps } from "@/i18n";
 
 const ANIMATION_DURATION = 200;
 
@@ -171,6 +172,7 @@ function ReasoningTrigger({
   active?: boolean;
   duration?: number;
 }) {
+  const label = active ? steps.thinking : steps.thought;
   const durationText = duration ? ` (${duration}s)` : "";
 
   return (
@@ -182,22 +184,18 @@ function ReasoningTrigger({
       )}
       {...props}
     >
-      <BrainIcon
-        data-slot="reasoning-trigger-icon"
-        className="aui-reasoning-trigger-icon size-4 shrink-0"
-      />
       <span
         data-slot="reasoning-trigger-label"
         className="aui-reasoning-trigger-label-wrapper relative inline-block leading-none tabular-nums"
       >
-        <span>Reasoning{durationText}</span>
+        <span>{label}{durationText}</span>
         {active ? (
           <span
             aria-hidden
             data-slot="reasoning-trigger-shimmer"
             className="aui-reasoning-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
           >
-            Reasoning{durationText}
+            {label}{durationText}
           </span>
         ) : null}
       </span>

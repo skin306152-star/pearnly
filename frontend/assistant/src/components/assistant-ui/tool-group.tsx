@@ -16,7 +16,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { t } from "@/i18n";
+import { steps } from "@/i18n";
 
 const ANIMATION_DURATION = 200;
 
@@ -101,7 +101,7 @@ function ToolGroupTrigger({
   count: number;
   active?: boolean;
 }) {
-  const label = `${t("tools")} · ${count}`;
+  const label = steps.steps(count);
 
   return (
     <CollapsibleTrigger

@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { dayLabel, t } from "@/i18n";
 import {
@@ -74,8 +75,16 @@ ThreadListSearch.displayName = "ThreadListSearch";
 export const ThreadListRoot: FC<
   ComponentPropsWithoutRef<typeof ThreadListPrimitive.Root>
 > = ({ className, ...props }) => {
+  // 手机宽度下侧栏是覆盖层：选了对话或点了新建就收起（同 claude.ai）。
+  const { isMobile, setOpenMobile } = useSidebar();
   return (
     <ThreadListPrimitive.Root
+      onClickCapture={(e) => {
+        const target = e.target as HTMLElement;
+        if (isMobile && target.closest('[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]')) {
+          setOpenMobile(false);
+        }
+      }}
       data-slot="aui_thread-list-root"
       className={cn("flex flex-col gap-0.5", className)}
       {...props}

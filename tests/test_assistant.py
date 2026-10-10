@@ -176,6 +176,14 @@ class ToolAndDefinitionTests(unittest.TestCase):
         frappe.hooks = ["fake_refuse.TOOLS"]
         self.assertEqual(tools.run("refuse", {}), ("no access to this account set", True))
 
+    def test_core_tools_have_translated_labels(self):
+        terms = (CORE / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()
+        english = {line.split("\t", 1)[0] for line in terms[1:] if line.strip()}
+        for tool in tools.CORE_TOOLS:
+            self.assertIn(tool.get("label"), english, f"{tool['name']} needs a label in the core term table")
+        spec = definition.spec("erp")
+        self.assertNotIn("label", json.dumps([t for t in spec["tools"] if t["type"] == "custom"]))
+
     def test_fingerprint_follows_the_definition(self):
         first = definition.spec("erp")["metadata"]["pearnly_spec"]
         self.assertEqual(first, definition.spec("erp")["metadata"]["pearnly_spec"])

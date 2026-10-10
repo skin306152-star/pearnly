@@ -1,6 +1,7 @@
 """智能体工具：声明、汇总与派发（ADR-009 / ADR-019）。
 
-- 每个工具是一条声明 `{"name", "description", "input_schema", "handler"}`，说明和实现放在一处，
+- 每个工具是一条声明 `{"name", "label", "description", "input_schema", "handler"}`，说明和实现放在一处，
+  `label` 是对话里那一行步骤显示的英文原文（译文进声明它的 App 的术语表），
   智能体配置（给模型看的工具表）与服务端派发都从这同一份生成，不会两边对不上。
 - 共用工具在 `CORE_TOOLS`；各产品在自己 `hooks.py` 声明
   `pearnly_assistant_tools = ["<app>.<module>.TOOLS"]`（指向本产品的声明列表）。
@@ -28,6 +29,7 @@ def whoami(_tool_input) -> str:
 
 CORE_TOOLS = [
     {"name": "pearnly_whoami",
+     "label": "Checked your account",
      "description": "Return who the signed-in Pearnly user is: user id, full name, product, company and language. "
                     "Call it when you need to address the user or check which product and company you are working in.",
      "input_schema": {"type": "object", "properties": {}},
@@ -41,6 +43,11 @@ def declared() -> list[dict]:
         for tool in frappe.get_attr(path) or []:
             found[tool["name"]] = tool
     return [found[name] for name in sorted(found)]
+
+
+def labels() -> dict[str, str]:
+    """对话里步骤行显示的名字（按当前用户语言）；没写 label 的工具显示原名。"""
+    return {t["name"]: _(t["label"]) if t.get("label") else t["name"] for t in declared()}
 
 
 def run(name: str, tool_input) -> tuple[str, bool]:

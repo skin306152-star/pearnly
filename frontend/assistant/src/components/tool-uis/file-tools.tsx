@@ -17,6 +17,7 @@ import { useState } from "react";
 import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
 import type { ToolResultPayload } from "@/lib/managed-agents/reducer";
 import { cn } from "@/lib/utils";
+import { steps } from "@/i18n";
 import { ApprovalBar } from "./approval-bar";
 
 const short = (path: string) => (path.length > 60 ? `…${path.slice(-58)}` : path);
@@ -62,10 +63,8 @@ function CollapsibleOutput({ text, errored }: { text: string; errored: boolean }
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between px-3 py-1.5 text-muted-foreground text-xs hover:bg-muted/50"
       >
-        <span>{open ? "Hide output" : "Show output"}</span>
-        <span>
-          {lines} line{lines === 1 ? "" : "s"}
-        </span>
+        <span>{open ? steps.hideOutput : steps.showOutput}</span>
+        <span>{steps.lines(lines)}</span>
       </button>
       {open && (
         <pre
@@ -100,7 +99,7 @@ export const ReadToolUI: ToolCallMessagePartComponent<ReadArgs, ToolResultPayloa
     <div className="aui-tool-read my-1 rounded-lg border border-border">
       <FileCardHeader
         icon={FileIcon}
-        verb={running ? "Reading" : result ? "Read" : "Read file"}
+        verb={steps.read[running ? 0 : result ? 1 : 2]}
         target={args?.file_path ?? "…"}
         running={running}
         errored={result?.isError}
@@ -128,7 +127,7 @@ export const WriteToolUI: ToolCallMessagePartComponent<WriteArgs, ToolResultPayl
     <div className="aui-tool-write my-1 rounded-lg border border-border">
       <FileCardHeader
         icon={FilePlusIcon}
-        verb={running ? "Writing" : result ? "Wrote" : "Write file"}
+        verb={steps.write[running ? 0 : result ? 1 : 2]}
         target={args?.file_path ?? "…"}
         running={running}
         errored={result?.isError}
@@ -160,7 +159,7 @@ export const EditToolUI: ToolCallMessagePartComponent<EditArgs, ToolResultPayloa
     <div className="aui-tool-edit my-1 rounded-lg border border-border">
       <FileCardHeader
         icon={FilePenIcon}
-        verb={running ? "Editing" : result ? "Edited" : "Edit file"}
+        verb={steps.edit[running ? 0 : result ? 1 : 2]}
         target={path}
         running={running}
         errored={result?.isError}
@@ -193,7 +192,7 @@ function patternCard(
   icon: typeof FileIcon,
   // [in-progress, done, proposed/cancelled] — the third avoids claiming a
   // search "Globbed"/"Grepped" when it never ran (denied or interrupted).
-  verbs: [string, string, string],
+  verbs: readonly string[],
   name: string,
 ): ToolCallMessagePartComponent<PatternArgs, ToolResultPayload> {
   const Card: ToolCallMessagePartComponent<PatternArgs, ToolResultPayload> = ({
@@ -213,7 +212,7 @@ function patternCard(
           target={`${args?.pattern ?? "…"}${args?.path ? `  in ${args.path}` : ""}`}
           running={running}
           errored={result?.isError}
-          meta={result ? `${matches} match${matches === 1 ? "" : "es"}` : undefined}
+          meta={result ? steps.matches(matches) : undefined}
         />
         <ApprovalBar approval={approval} respondToApproval={respondToApproval} what="search these files" className="border-t px-3 py-2" />
         {result?.text && <CollapsibleOutput text={result.text} errored={!!result.isError} />}
@@ -224,5 +223,5 @@ function patternCard(
   return Card;
 }
 
-export const GlobToolUI = patternCard(FolderSearchIcon, ["Globbing", "Globbed", "Glob"], "GlobToolUI");
-export const GrepToolUI = patternCard(ScanSearchIcon, ["Grepping", "Grepped", "Grep"], "GrepToolUI");
+export const GlobToolUI = patternCard(FolderSearchIcon, steps.glob, "GlobToolUI");
+export const GrepToolUI = patternCard(ScanSearchIcon, steps.grep, "GrepToolUI");

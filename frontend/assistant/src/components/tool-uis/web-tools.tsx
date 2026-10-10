@@ -8,6 +8,7 @@ import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { GlobeIcon, LoaderIcon, SearchIcon } from "lucide-react";
 import type { ToolResultPayload } from "@/lib/managed-agents/reducer";
 import { cn } from "@/lib/utils";
+import { steps } from "@/i18n";
 import { ApprovalBar } from "./approval-bar";
 
 function hostOf(url: string): string {
@@ -41,7 +42,7 @@ export const WebSearchToolUI: ToolCallMessagePartComponent<SearchArgs, ToolResul
           <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
         )}
         <span className="text-muted-foreground text-xs">
-          {running ? "Searching" : result ? "Searched" : "Search"}
+          {steps.search[running ? 0 : result ? 1 : 2]}
         </span>
         <span className="truncate rounded-md bg-muted px-2 py-0.5 font-medium">{args?.query ?? "…"}</span>
         {result && (
@@ -110,7 +111,7 @@ export const WebFetchToolUI: ToolCallMessagePartComponent<FetchArgs, ToolResultP
           <GlobeIcon className={cn("size-3.5 shrink-0", errored ? "text-red-500" : "text-muted-foreground")} />
         )}
         <span className="text-muted-foreground text-xs">
-          {running ? "Fetching" : errored ? "Failed" : result ? "Fetched" : "Fetch"}
+          {running ? steps.fetch[0] : errored ? steps.failed : result ? steps.fetch[1] : steps.fetch[2]}
         </span>
         <a
           href={url}

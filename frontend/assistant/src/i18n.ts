@@ -152,3 +152,34 @@ export function greeting(now = new Date()): string {
   const h = now.getHours();
   return t(h < 12 ? "morning" : h < 18 ? "afternoon" : "evening");
 }
+
+// 工具步骤的说明（同 claude.ai：灰色一行，进行中 / 完成 / 未执行三种说法）。
+const STEPS = {
+  en: {
+    thinking: "Thinking…", thought: "Thought process", usedTool: "Used a tool", cancelled: "Cancelled", error: "Error",
+    showOutput: "Show output", hideOutput: "Hide output",
+    read: ["Reading", "Read", "Read file"], write: ["Writing", "Wrote", "Write file"], edit: ["Editing", "Edited", "Edit file"],
+    glob: ["Finding files", "Found files", "Find files"], grep: ["Searching files", "Searched files", "Search files"],
+    search: ["Searching the web", "Searched the web", "Search the web"], fetch: ["Opening", "Opened", "Open page"], failed: "Failed",
+    steps: (n: number) => `${n} ${n === 1 ? "step" : "steps"}`, lines: (n: number) => `${n} ${n === 1 ? "line" : "lines"}`,
+    matches: (n: number) => `${n} ${n === 1 ? "match" : "matches"}`,
+  },
+  zh: {
+    thinking: "正在思考…", thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", error: "错误",
+    showOutput: "显示输出", hideOutput: "收起输出",
+    read: ["正在读取", "已读取", "读取文件"], write: ["正在写入", "已写入", "写入文件"], edit: ["正在编辑", "已编辑", "编辑文件"],
+    glob: ["正在查找文件", "已查找文件", "查找文件"], grep: ["正在搜索文件内容", "已搜索文件内容", "搜索文件内容"],
+    search: ["正在搜索网页", "已搜索网页", "搜索网页"], fetch: ["正在打开", "已打开", "打开网页"], failed: "失败",
+    steps: (n: number) => `${n} 个步骤`, lines: (n: number) => `${n} 行`, matches: (n: number) => `${n} 处匹配`,
+  },
+  th: {
+    thinking: "กำลังคิด…", thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", error: "ข้อผิดพลาด",
+    showOutput: "แสดงผลลัพธ์", hideOutput: "ซ่อนผลลัพธ์",
+    read: ["กำลังอ่าน", "อ่านแล้ว", "อ่านไฟล์"], write: ["กำลังเขียน", "เขียนแล้ว", "เขียนไฟล์"], edit: ["กำลังแก้ไข", "แก้ไขแล้ว", "แก้ไขไฟล์"],
+    glob: ["กำลังค้นหาไฟล์", "ค้นหาไฟล์แล้ว", "ค้นหาไฟล์"], grep: ["กำลังค้นหาในไฟล์", "ค้นหาในไฟล์แล้ว", "ค้นหาในไฟล์"],
+    search: ["กำลังค้นหาเว็บ", "ค้นหาเว็บแล้ว", "ค้นหาเว็บ"], fetch: ["กำลังเปิด", "เปิดแล้ว", "เปิดหน้าเว็บ"], failed: "ไม่สำเร็จ",
+    steps: (n: number) => `${n} ขั้นตอน`, lines: (n: number) => `${n} บรรทัด`, matches: (n: number) => `${n} รายการที่ตรง`,
+  },
+};
+
+export const steps = (STEPS as Record<string, (typeof STEPS)["en"]>)[lang] ?? STEPS.th;

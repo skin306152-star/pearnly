@@ -22,6 +22,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { steps } from "@/i18n";
+import { useToolLabels } from "@/lib/tool-labels";
 import { Button } from "@/components/ui/button";
 
 const ANIMATION_DURATION = 200;
@@ -138,7 +140,10 @@ function ToolFallbackTrigger({
     status?.type === "incomplete" && status.reason === "cancelled";
 
   const Icon = statusIconMap[statusType];
-  const label = isCancelled ? "Cancelled tool" : "Used tool";
+  const label = isCancelled ? steps.cancelled : steps.usedTool;
+  // Pearnly 工具有自己的显示名（如「已查看账号信息」），直接显示它；其他工具显示「已使用工具: 名称」。
+  const friendly = useToolLabels()[toolName];
+  const text = friendly && friendly !== toolName ? <>{friendly}</> : <>{label}: <b>{toolName}</b></>;
 
   return (
     <CollapsibleTrigger
@@ -164,16 +169,14 @@ function ToolFallbackTrigger({
           isCancelled && "text-muted-foreground line-through",
         )}
       >
-        <span>
-          {label}: <b>{toolName}</b>
-        </span>
+        <span>{text}</span>
         {isRunning && (
           <span
             aria-hidden
             data-slot="tool-fallback-trigger-shimmer"
             className="aui-tool-fallback-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
           >
-            {label}: <b>{toolName}</b>
+            {text}
           </span>
         )}
       </span>
@@ -293,7 +296,7 @@ function ToolFallbackError({
   if (!errorText) return null;
 
   const isCancelled = status.reason === "cancelled";
-  const headerText = isCancelled ? "Cancelled reason:" : "Error:";
+  const headerText = isCancelled ? steps.cancelled : steps.error;
 
   return (
     <div
