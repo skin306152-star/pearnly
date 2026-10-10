@@ -3,7 +3,6 @@
 
 - 产品形象：`website/scenes.py` 的 `badge()`（首页产品卡片上的手绘小单：Cowork 拿铅笔、DMS 举相机、
   ERP 提购物篮），连同它用的铅笔描边滤镜写成独立 SVG；眨眼与眼睛跟随鼠标在前端照搬 site.js / style.css。
-- Pearnly 标：原样复制 `website/static/icon.svg`。
 
 用法：`python3 scripts/build-assistant-brand.py`；`--check` 只比对不写（tests/test_assistant.py 也会比对）。
 """
@@ -29,7 +28,6 @@ def render() -> dict[str, str]:
         svg = svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1)
         svg = svg.replace('focusable="false">', f'focusable="false"><defs>{pencil}</defs>', 1)
         files[f"{kind}.svg"] = svg + "\n"
-    files["pearnly.svg"] = (ROOT / "website/static/icon.svg").read_text(encoding="utf-8")
     return files
 
 

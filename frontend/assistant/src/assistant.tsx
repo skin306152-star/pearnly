@@ -7,6 +7,7 @@
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { MessageSquareIcon } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { Mascot } from "@/components/mascot";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
@@ -22,7 +23,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { brandIcon, PEARNLY_ICON, useProfile, type Profile } from "@/lib/profile";
+import { brandIcon, useProfile, type Profile } from "@/lib/profile";
 import { greeting, lang, t } from "./i18n";
 
 function firstName(profile: Profile | null): string {
@@ -74,7 +75,12 @@ function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
-        <img src={PEARNLY_ICON} alt="Pearnly" className="size-8 rounded-lg" />
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <MessageSquareIcon className="size-4" />
+          </div>
+          <span className="font-semibold">Pearnly</span>
+        </div>
         <SidebarTrigger aria-label={t("sidebar")} />
       </SidebarHeader>
       <SidebarContent className="px-2">
