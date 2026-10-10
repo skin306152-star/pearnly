@@ -251,16 +251,12 @@ class PageTests(unittest.TestCase):
 
 
 class BrandAndLoginTests(unittest.TestCase):
-    def test_product_icons_are_the_website_mascots(self):
-        sys.path.insert(0, str(ROOT / "website"))
-        try:
-            import mascot
-        finally:
-            sys.path.pop(0)
-        for kind in ("cowork", "erp", "dms"):
-            expected = mascot.svg(kind).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1) + "\n"
-            actual = (ROOT / f"frontend/assistant/public/brand/{kind}.svg").read_text(encoding="utf-8")
-            self.assertEqual(actual, expected, f"regenerate brand/{kind}.svg from website/mascot.py")
+    def test_brand_files_come_from_the_website(self):
+        builder = _load("assistant_brand", ROOT / "scripts/build-assistant-brand.py")
+        for name, body in builder.render().items():
+            actual = (ROOT / f"frontend/assistant/public/brand/{name}").read_text(encoding="utf-8")
+            self.assertEqual(actual, body, f"run scripts/build-assistant-brand.py ({name} drifted from website/)")
+        self.assertEqual(sorted(builder.render()), ["cowork.svg", "dms.svg", "erp.svg", "pearnly.svg"])
 
     def test_assistant_uses_the_single_login_entry(self):
         source = (CORE / "login_redirect.py").read_text(encoding="utf-8")

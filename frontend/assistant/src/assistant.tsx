@@ -7,8 +7,8 @@
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
-import { MessageSquareIcon } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
+import { Mascot } from "@/components/mascot";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { ManagedAgentsToolFallback, toolkit } from "@/components/tool-uis";
 import {
@@ -22,7 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { brandIcon, useProfile, type Profile } from "@/lib/profile";
+import { brandIcon, PEARNLY_ICON, useProfile, type Profile } from "@/lib/profile";
 import { greeting, lang, t } from "./i18n";
 
 function firstName(profile: Profile | null): string {
@@ -35,7 +35,7 @@ function Welcome() {
   const name = firstName(profile);
   return (
     <div className="aui-thread-welcome-root mb-8 flex items-center justify-center gap-3 px-4 text-center">
-      {icon && <img src={icon} alt="" className="h-12 w-auto shrink-0" />}
+      {icon && <Mascot src={icon} className="pearnly-mascot-host h-20 shrink-0 sm:h-24" />}
       <h1 className="font-serif text-3xl text-foreground sm:text-4xl">
         {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
       </h1>
@@ -74,9 +74,7 @@ function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-          <MessageSquareIcon className="size-4" />
-        </div>
+        <img src={PEARNLY_ICON} alt="Pearnly" className="size-8 rounded-lg" />
         <SidebarTrigger aria-label={t("sidebar")} />
       </SidebarHeader>
       <SidebarContent className="px-2">

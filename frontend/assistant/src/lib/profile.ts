@@ -24,7 +24,9 @@ export function useProfile(): Profile | null {
 
 const BRANDS = new Set(["cowork", "erp", "dms"]);
 
-/** 宣传页同一套产品形象（website/mascot.py 生成，见 public/brand/）。 */
+/** 宣传页的 Pearnly 标与产品形象（scripts/build-assistant-brand.py 从 website/ 生成，见 public/brand/）。 */
+export const PEARNLY_ICON = `${import.meta.env.BASE_URL}brand/pearnly.svg`;
+
 export function brandIcon(product: string | undefined): string | null {
   return product && BRANDS.has(product) ? `${import.meta.env.BASE_URL}brand/${product}.svg` : null;
 }

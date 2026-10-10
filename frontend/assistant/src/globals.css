@@ -141,3 +141,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
+.hd-badge { overflow: visible; }
+.hd-badge .hm-shadow { display: none; }
+.hd-badge .hm-hop { stroke-width: 3; }
+.hm .hm-eyes { animation: hm-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes hm-blink { 0%, 95%, 100% { transform: none; } 97% { transform: scaleY(.1); } }
+.hm-laser { opacity: .35; }
+@media (prefers-reduced-motion: reduce) { .hm .hm-eyes { animation: none; } }
+.pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
