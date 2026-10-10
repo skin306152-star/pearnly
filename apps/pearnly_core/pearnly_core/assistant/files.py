@@ -132,10 +132,12 @@ def attachment(file_id) -> tuple[str, bytes]:
 
 
 def listing(session_id) -> list[dict]:
-    """本会话的全部文件：挂进去的附件（只作输入）+ 智能体产出的结果（可下载）。"""
+    """本会话的全部文件：挂进去的附件（只作输入）+ 智能体产出的结果（可下载）。按生成时间从早到晚排：引擎列文件是
+    新的在前，结果面板默认打开最后一个，新导出的文件出来时面板却停在最早那份（2026-10-10 测试）。"""
     row = sessions.owned(session_id, allow_archived=True)
     api = engine.adapter()
-    return [f for remote in sessions.segments(row) for f in api.files(remote)]
+    return sorted((f for remote in sessions.segments(row) for f in api.files(remote)),
+                  key=lambda f: str(f.get("created_at") or ""))
 
 
 def _output(row, api, fid) -> tuple[dict, str]:

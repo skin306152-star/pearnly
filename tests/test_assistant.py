@@ -12,6 +12,7 @@ import re
 import sys
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CORE = ROOT / "apps/pearnly_core/pearnly_core"
@@ -368,6 +369,20 @@ class RelayTests(unittest.TestCase):
                     delattr(frappe, name)
                 else:
                     setattr(frappe, name, value)
+
+    def test_session_files_are_listed_oldest_first_so_the_panel_opens_the_newest(self):
+        # 引擎列文件新的在前；面板默认打开最后一个（2026-10-10 测试：新导出出来面板停在旧的那份）
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.owned = lambda sid, allow_archived=False: "row"
+        sessions.segments = lambda row: ["seg1", "seg2"]
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = types.ModuleType("heic")
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        listed = {"seg1": [{"id": "b", "created_at": "2026-10-10 22:05:00"}, {"id": "a", "created_at": "2026-10-10 21:00:00"}],
+                  "seg2": [{"id": "c", "created_at": "2026-10-10 22:17:32"}]}
+        with mock.patch.object(files.engine, "adapter", return_value=types.SimpleNamespace(files=listed.get)):
+            self.assertEqual([f["id"] for f in files.listing("s1")], ["a", "b", "c"])
 
     def test_titles_leave_out_the_attachment_note(self):
         note = "\n\n[Attached file, mounted read-only in the sandbox:\n- r.jpg → /mnt/session/uploads/file_1/r.jpg]"
