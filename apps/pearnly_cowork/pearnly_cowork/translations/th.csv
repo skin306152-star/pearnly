@@ -245,6 +245,7 @@ Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
+Chose how a kind of document is handled,กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว
 Chosen At,เวลาที่เลือก
 Chosen By,ผู้เลือก
 Claim as input VAT,ใช้สิทธิ์ภาษีซื้อ
@@ -475,6 +476,7 @@ Edit dates,แก้ไขวันที่
 Edit folder rule,แก้ไขกฎ
 Edit in Full Page,แก้ไขแบบเต็มหน้าจอ
 Edit labels,แก้ไขป้ายกำกับ
+Edited a document,แก้ไขเอกสารแล้ว
 Electronic,อิเล็กทรอนิกส์
 Electronic file,ไฟล์อิเล็กทรอนิกส์
 Email,อีเมล
@@ -772,6 +774,7 @@ No account set matches “{0}”,ไม่พบชุดบัญชีที�
 No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
+No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No folder rules yet. Create one and put the documents into its folder.,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
@@ -1558,6 +1561,7 @@ Version,เวอร์ชัน
 View differences,ดูผลต่าง
 View photo,ดูรูปภาพ
 View the ones to check,ดูรายการรอดำเนินการ
+Viewed a document,ดูเอกสารแล้ว
 Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ

@@ -1,5 +1,5 @@
-"""Cowork 的智能体工具（ADR-019）：对话里发来的票据交给录入工作台识别、小助手状态与账套、单据推送到 Express、
-文件夹定时任务、推送结果。
+"""Cowork 的智能体工具（ADR-019）：对话里发来的票据交给录入工作台识别、复核与修改、小助手状态与账套、
+单据推送到 Express、文件夹定时任务、推送结果。
 
 - 工具以当前登录用户身份在服务端执行，只调用各域现有的公开服务（与网页同一入口），权限、作用域与连接的允许名单
   都由那些服务自己校验，这里不另开口子、不直接写表。
@@ -11,6 +11,7 @@ import hashlib
 import json
 import time
 import uuid
+from decimal import Decimal, InvalidOperation
 
 import frappe
 from frappe import _
@@ -295,6 +296,154 @@ def recognition_results(tool_input) -> str:
     return _json({"results": out})
 
 
+# ---------------- 复核与修改（同录入工作台复核页） ----------------
+
+# 复核页能改的字段（intake-upload.js FIELD_KEYS）；日期按原文写进 date_raw，由单据服务解析（泰历、两位年份都认）。
+EDITABLE = ("seller_name", "seller_tax", "seller_addr", "seller_branch", "buyer_name", "buyer_tax", "buyer_addr",
+            "buyer_branch", "invoice_number", "date", "document_type", "subtotal", "vat", "discount", "total_amount",
+            "wht_amount", "currency", "notes", "direction", "posting_kind")
+AMOUNTS = ("subtotal", "vat", "discount", "total_amount", "wht_amount")
+TAX_IDS = ("seller_tax", "buyer_tax")
+CHOICES = {"document_type": ("tax_invoice", "simplified_tax_invoice", "receipt", "credit_note", "payment_evidence",
+                             "order_evidence", "other"),
+           "direction": ("purchase", "sales"), "posting_kind": ("service", "stock")}
+ITEM_COLUMNS = ("name", "qty", "price", "subtotal")
+DETAIL_FIELDS = ("document_type", "invoice_number", "date", "date_raw", "seller_name", "seller_tax", "seller_branch",
+                 "seller_addr", "buyer_name", "buyer_tax", "buyer_branch", "buyer_addr", "subtotal", "vat", "discount",
+                 "total_amount", "wht_amount", "currency", "notes", "direction", "posting_kind")
+
+
+def _amount(value) -> str:
+    try:
+        number = Decimal(str(value).replace(",", "").strip())
+    except InvalidOperation:
+        number = Decimal("NaN")
+    if not number.is_finite():
+        raise ValueError(f"{value!r} is not an amount")
+    return str(number)
+
+
+def _tax_id(value) -> str:
+    from pearnly_core.tax_documents.amounts import valid_tax_id
+
+    raw = "".join(ch for ch in str(value) if ch.isdigit())
+    if len(raw) != 13 or not valid_tax_id(raw):
+        raise ValueError(f"{value!r} is not a valid 13-digit Thai tax ID")
+    return raw
+
+
+def _clean(key, value) -> str:
+    if key in AMOUNTS:
+        return _amount(value)
+    if key in TAX_IDS:
+        return _tax_id(value)
+    if key in CHOICES and value not in CHOICES[key]:
+        raise ValueError(f"{key} must be one of {', '.join(CHOICES[key])}")
+    return str(value).strip()
+
+
+def _primary(pages) -> int:
+    from pearnly_cowork.contracts import history as history_contracts
+
+    page = history_contracts.primary_page(pages)
+    return next((i for i, p in enumerate(pages) if p is page), 0)
+
+
+def _detail(doc) -> dict:
+    pages = doc.get("pages") or []
+    fields = (pages[_primary(pages)].get("fields") or {}) if pages else {}
+    out = {"document": doc.get("name"), "version": doc.get("record_version"), "filename": doc.get("filename"),
+           "push_status": doc.get("last_push_status"), "push_reason": doc.get("last_push_reason"),
+           "push_connection": doc.get("push_connection"), "push_account_set": doc.get("push_account_set"),
+           "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages)}
+    out.update({key: fields.get(key) for key in DETAIL_FIELDS})
+    out["items"] = [_filled({key: row.get(key) if key != "subtotal" else row.get("subtotal", row.get("amount"))
+                             for key in ITEM_COLUMNS}) for row in (fields.get("items") or [])[:ITEMS_SHOWN]
+                    if isinstance(row, dict)]
+    reason = str(doc.get("last_push_reason") or "")
+    if reason.startswith("document_policy_needed_"):
+        out["handling_choice_needed"] = reason[len("document_policy_needed_"):]
+    return _filled(out)
+
+
+def _read(name):
+    try:
+        return storage.project(storage.read(name))
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return None
+
+
+def document_detail(tool_input) -> str:
+    scope.require_read()
+    name = str(tool_input.get("document") or "")
+    doc = _read(name)
+    return _json(_detail(doc) if doc else {"document": name, "status": "not_found"})
+
+
+def edit_document(tool_input) -> str:
+    """按用户说的改复核字段：只动主页（同复核页），其余页原样；版本号对不上不覆盖别人刚改的。"""
+    scope.require("intake")
+    name = str(tool_input.get("document") or "")
+    changes = dict(tool_input.get("changes") or {})
+    items = tool_input.get("items")
+    if not changes and items is None:
+        frappe.throw(_("No changes were given."))
+    unknown = [key for key in changes if key not in EDITABLE]
+    if unknown:
+        return _json({"status": "not_saved", "reason": f"Not editable: {', '.join(unknown)}", "editable": EDITABLE})
+    try:
+        cleaned = {key: (None if value in (None, "") else _clean(key, value)) for key, value in changes.items()}
+        rows = None if items is None else [
+            _filled({"name": str(row.get("name") or "").strip(),
+                     **{key: _amount(row[key]) for key in ("qty", "price", "subtotal") if row.get(key) not in (None, "")}})
+            for row in items if isinstance(row, dict)]
+    except ValueError as error:
+        return _json({"status": "not_saved", "reason": str(error)})
+    doc = _read(name)
+    if not doc:
+        return _json({"document": name, "status": "not_found"})
+    pages = doc.get("pages") or []
+    if not pages:
+        return _json({"document": name, "status": "not_saved", "reason": "This document has no recognized page."})
+    index = _primary(pages)
+    fields = dict(pages[index].get("fields") or {})
+    for key, value in cleaned.items():
+        target = "date_raw" if key == "date" else key
+        if value is None:
+            fields.pop(target, None)
+            if key == "date":
+                fields.pop("date", None)
+        else:
+            fields[target] = value
+    if rows is not None:
+        fields["items"] = rows
+    pages[index] = {**pages[index], "fields": fields}
+    try:
+        saved = storage.update_pages(name, pages, str(tool_input.get("version") or doc.get("record_version")))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
+    return _json({"status": "saved", **_detail(saved)})
+
+
+def choose_document_policy(tool_input) -> str:
+    from pearnly_cowork.history import document_policy
+
+    scope.require("intake")
+    name = str(tool_input.get("document") or "")
+    try:
+        result = document_policy.choose(name, tool_input.get("value"))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
+    return _json({"status": "saved", **result})
+
+
 # ---------------- 文件夹定时任务 ----------------
 
 def folder_tasks(_input) -> str:
@@ -342,6 +491,38 @@ TOOLS = [
          "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP only."}},
          "required": ["files"]},
      "handler": "pearnly_cowork.assistant.tools.recognize_attachments"},
+    {"name": "cowork_document_detail", "label": "Viewed a document",
+     "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
+                    "buyer, tax IDs, invoice number, date, amounts, line items, push status, and the version needed "
+                    "to edit it. handling_choice_needed means the push waits for cowork_choose_document_policy.",
+     "input_schema": {"type": "object", "properties": {"document": {"type": "string"}}, "required": ["document"]},
+     "handler": "pearnly_cowork.assistant.tools.document_detail"},
+    {"name": "cowork_edit_document", "label": "Edited a document",
+     "description": "Change recognized fields of one document, like correcting it on the review page. Only when the "
+                    "user asked for the change; change only what they asked. changes maps field to new value (an "
+                    "empty value clears it); date takes the date as written (Thai Buddhist years are fine); amounts "
+                    "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
+                    "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
+                    "and tell the user. A pushed document must be pushed again to change the ERP.",
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string"},
+         "version": {"type": "integer"},
+         "changes": {"type": "object", "properties": {key: {"type": ["string", "number", "null"]} for key in EDITABLE},
+                     "additionalProperties": False},
+         "items": {"type": "array", "items": {"type": "object", "properties": {
+             "name": {"type": "string"}, "qty": {"type": ["string", "number"]},
+             "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}}},
+         "required": ["document"]},
+     "handler": "pearnly_cowork.assistant.tools.edit_document"},
+    {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
+     "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "
+                    "records documents of this kind, skip leaves them out. It applies to every document of this kind "
+                    "for the whole company from now on, so ask the user first and say so. Then push the document "
+                    "again.",
+     "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
+                                                        "value": {"type": "string", "enum": ["enter", "skip"]}},
+                      "required": ["document", "value"]},
+     "handler": "pearnly_cowork.assistant.tools.choose_document_policy"},
     {"name": "cowork_recognition_results", "label": "Checked recognition results",
      "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments.",
      "input_schema": {"type": "object", "properties": {

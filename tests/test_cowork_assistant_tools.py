@@ -240,5 +240,59 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertEqual(out, {"file": "file_c", "status": "not_started", "reason": "insufficient_balance"})
 
 
+
+class EditDocumentTests(unittest.TestCase):
+    """复核修改：只改主页、日期写原文、金额按十进制校验、税号校验、带版本号保存，冲突与错误照实回。"""
+
+    def setUp(self):
+        self.saved = []
+        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history.primary_page = lambda pages: next(p for p in pages if not p.get("is_copy"))
+        sys.modules["pearnly_cowork.contracts.history"] = history
+        sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts")).history = history
+        amounts = types.ModuleType("pearnly_core.tax_documents.amounts")
+        amounts.valid_tax_id = lambda raw: raw == "0107542000011"
+        sys.modules["pearnly_core.tax_documents.amounts"] = amounts
+        for parent in ("pearnly_core", "pearnly_core.tax_documents"):
+            sys.modules.setdefault(parent, types.ModuleType(parent))
+        sys.modules["pearnly_core.tax_documents"].amounts = amounts
+        self.doc = {"name": "H1", "record_version": 4, "pages": [
+            {"is_copy": True, "fields": {"total_amount": 1}},
+            {"fields": {"seller_name": "CP ALL", "total_amount": 90, "date": "2026-09-29", "items": [{"name": "A"}]}}]}
+        tools.storage.read = lambda name: name
+        tools.storage.project = lambda doc: self.doc
+        tools.storage.update_pages = self._update
+
+    def _update(self, name, pages, version):
+        self.saved.append((name, pages, version))
+        return {**self.doc, "pages": pages, "record_version": 5}
+
+    def test_only_the_primary_page_changes_and_the_version_is_passed(self):
+        out = json.loads(tools.edit_document({"document": "H1", "version": 4, "changes": {
+            "total_amount": "1,070.00", "date": "29/09/69", "seller_tax": "0107-5420-00011"}}))
+        name, pages, version = self.saved[0]
+        self.assertEqual((name, version), ("H1", "4"))
+        self.assertEqual(pages[0], {"is_copy": True, "fields": {"total_amount": 1}})
+        fields = pages[1]["fields"]
+        self.assertEqual((fields["total_amount"], fields["date_raw"], fields["seller_tax"]), ("1070.00", "29/09/69", "0107542000011"))
+        self.assertEqual(fields["items"], [{"name": "A"}])
+        self.assertEqual((out["status"], out["version"]), ("saved", 5))
+
+    def test_bad_values_and_unknown_fields_are_refused_before_saving(self):
+        for changes in ({"total_amount": "abc"}, {"seller_tax": "123"}, {"direction": "refund"}, {"push_state": "x"}):
+            out = json.loads(tools.edit_document({"document": "H1", "changes": changes}))
+            self.assertEqual(out["status"], "not_saved", changes)
+        self.assertEqual(self.saved, [])
+
+    def test_someone_elses_newer_edit_is_reported_not_overwritten(self):
+        def stale(name, pages, version):
+            raise frappe.ValidationError("The record changed. Reload it before saving.")
+
+        tools.storage.update_pages = stale
+        out = json.loads(tools.edit_document({"document": "H1", "version": 3, "changes": {"notes": "x"}}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertIn("changed", out["reason"])
+
+
 if __name__ == "__main__":
     unittest.main()

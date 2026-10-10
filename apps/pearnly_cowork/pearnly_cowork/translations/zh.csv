@@ -245,6 +245,7 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择操作
+Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
 Claim as input VAT,抵扣进项税
@@ -475,6 +476,7 @@ Edit dates,编辑日期
 Edit folder rule,编辑规则
 Edit in Full Page,全屏编辑
 Edit labels,修改标签
+Edited a document,修改了单据
 Electronic,电子版
 Electronic file,电子文件
 Email,邮箱
@@ -772,6 +774,7 @@ No account set matches “{0}”,没有找到包含「{0}」的账套
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
+No changes were given.,没有指定要改的内容。
 No documents were given.,没有指定单据。
 No due date,无到期日
 No folder rules yet. Create one and put the documents into its folder.,还没有规则。新建一条，把单据放进对应的文件夹即可。
@@ -1558,6 +1561,7 @@ Version,版本
 View differences,查看差异
 View photo,查看图片
 View the ones to check,查看待处理
+Viewed a document,查看了单据详情
 Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。

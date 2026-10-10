@@ -1688,6 +1688,9 @@ Refreshed account sets	刷新了账套	รีเฟรชชุดบัญช�
 Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
 Recognized documents	识别了单据	อ่านเอกสารแล้ว	書類を読み取りました
 Checked recognition results	查看了识别结果	ตรวจสอบผลการอ่านเอกสารแล้ว	読み取り結果を確認しました
+Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました
+Edited a document	修改了单据	แก้ไขเอกสารแล้ว	書類を修正しました
+Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました
 Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
 Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
 Checked folder tasks	查看了文件夹任务	ตรวจสอบงานโฟลเดอร์แล้ว	フォルダータスクを確認しました
@@ -1696,3 +1699,4 @@ Checked folder task runs	查看了文件夹任务记录	ตรวจสอบป
 No documents were given.	没有指定单据。	ไม่ได้ระบุเอกสาร	書類が指定されていません。
 No attachments were given.	没有指定附件。	ไม่ได้ระบุไฟล์แนบ	添付ファイルが指定されていません。
 No recognition tasks were given.	没有指定识别任务。	ไม่ได้ระบุงานอ่านเอกสาร	読み取りタスクが指定されていません。
+No changes were given.	没有指定要改的内容。	ไม่ได้ระบุสิ่งที่จะแก้ไข	変更内容が指定されていません。

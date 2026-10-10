@@ -245,6 +245,7 @@ Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
+Chose how a kind of document is handled,この種類の書類の扱いを設定しました
 Chosen At,選択日時
 Chosen By,選択者
 Claim as input VAT,仕入税額控除する
@@ -475,6 +476,7 @@ Edit dates,日付を編集
 Edit folder rule,ルールを編集
 Edit in Full Page,全画面で編集
 Edit labels,ラベルを編集
+Edited a document,書類を修正しました
 Electronic,電子版
 Electronic file,電子ファイル
 Email,メール
@@ -772,6 +774,7 @@ No account set matches “{0}”,「{0}」に一致する会計データがあ�
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
+No changes were given.,変更内容が指定されていません。
 No documents were given.,書類が指定されていません。
 No due date,期日なし
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
@@ -1558,6 +1561,7 @@ Version,バージョン
 View differences,差異を見る
 View photo,写真を表示
 View the ones to check,要確認を見る
+Viewed a document,書類を確認しました
 Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

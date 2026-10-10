@@ -245,6 +245,7 @@ Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
+Chose how a kind of document is handled,Chose how a kind of document is handled
 Chosen At,Chosen At
 Chosen By,Chosen By
 Claim as input VAT,Claim as input VAT
@@ -475,6 +476,7 @@ Edit dates,Edit dates
 Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
+Edited a document,Edited a document
 Electronic,Electronic
 Electronic file,Electronic file
 Email,Email
@@ -772,6 +774,7 @@ No account set matches “{0}”,No account set matches “{0}”
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
+No changes were given.,No changes were given.
 No documents were given.,No documents were given.
 No due date,No due date
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
@@ -1558,6 +1561,7 @@ Version,Version
 View differences,View differences
 View photo,View photo
 View the ones to check,View the ones to check
+Viewed a document,Viewed a document
 Visibility,Visibility
 Void,Void
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
