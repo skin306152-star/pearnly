@@ -131,15 +131,12 @@ class BehaviourTests(unittest.TestCase):
         self.assertEqual(frappe.calls[-1]["or_filters"],
                          [["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"]])
 
-    def test_account_sets_are_capped_and_searchable(self):
-        sets = [{"source_id": str(i), "label": f"Company {i}"} for i in range(100)] + [{"source_id": "x", "label": "Acme Trading"}]
+    def test_companion_status_leaves_account_set_lists_to_intake_options(self):
         tools.connections.records = lambda *a: [{"name": "C1", "label": "Office", "adapter": "express", "enabled": True}]
-        tools.connections.targets = lambda name: {"account_sets": sets, "status": "fresh"}
+        tools.connections.targets = lambda name: {"account_sets": [{"source_id": "x", "label": "Acme"}], "status": "fresh"}
         data = json.loads(tools.companion_status({}))["connections"][0]
-        self.assertEqual(data["account_sets_total"], 101)
-        self.assertEqual(len(data["account_sets"]), tools.ACCOUNT_SETS_SHOWN)
-        found = json.loads(tools.companion_status({"search": "acme"}))["connections"][0]
-        self.assertEqual([a["key"] for a in found["account_sets"]], ["x"])
+        self.assertEqual(data["account_sets_status"], "fresh")
+        self.assertNotIn("account_sets", data)
 
     def test_already_pushed_documents_are_not_pushed_again_and_each_is_settled(self):
         docs = {"A": types.SimpleNamespace(last_push_status="success"),
@@ -318,21 +315,27 @@ class IntakeChoiceTests(unittest.TestCase):
             {"name": "EXP2", "adapter": "express", "enabled": True},
             {"name": "MR1", "adapter": "mrerp", "enabled": False}]
         tools.connections.targets = lambda name: {"account_sets": [
-            {"source_id": "A", "label": "Alpha Co"}, {"source_id": "B", "label": "Beta Co"},
+            {"source_id": "A", "label": "Alpha Co", "attributes": {"root_label": "59EXP"}},
+            {"source_id": "C", "label": "Gamma Co", "attributes": {"root_label": "70EXP"}},
+            {"source_id": "B", "label": "Beta Co", "attributes": {"root_label": "68EXP"}},
             {"source_id": "X", "label": "Old Co", "active": False}]}
         tools.destinations.online = lambda adapter, name: True
-        frappe.get_list = lambda doctype, **kw: [{"intake_target": "express", "target_connection": "EXP1",
-                                                  "target_account_set": "B", "direction": "purchase",
-                                                  "posting_kind": "stock", "payment": None}]
+        self.batch_filters = []
+        frappe.get_all = lambda doctype, **kw: self.batch_filters.append(kw["filters"]) or [
+            {"intake_target": "express", "target_connection": "EXP1", "target_account_set": "B",
+             "direction": "purchase", "posting_kind": "stock", "payment": None}]
 
     def tearDown(self):
-        frappe.get_list = types.MethodType(_Frappe.get_list, frappe)
+        del frappe.get_all
 
     def test_targets_states_and_the_last_used_account_set_first(self):
         out = json.loads(tools.intake_options({}))
         express, mrerp, none = out["targets"]
-        self.assertEqual((express["connection"], express["state"], express["account_sets_total"]), ("EXP1", "ready", 2))
-        self.assertEqual([a["key"] for a in express["account_sets"]], ["B", "A"])
+        self.assertEqual((express["connection"], express["state"], express["account_sets_total"]), ("EXP1", "ready", 3))
+        # 上次用的第一，其余新年度在前（不是按路径字母序的历年空模板）
+        self.assertEqual([a["key"] for a in express["account_sets"]], ["B", "C", "A"])
+        # 上次口径只取本人录进 ERP 的那次（仅识别的不算）
+        self.assertEqual(self.batch_filters[0], {"actor": "a@example.com", "intake_target": ["in", ["express", "mrerp"]]})
         self.assertEqual(mrerp["state"], "disabled")
         self.assertEqual(none, {"target": "none", "state": "ready"})
         self.assertEqual(out["last_used"], {"target": "express", "connection": "EXP1", "account_set_key": "B",

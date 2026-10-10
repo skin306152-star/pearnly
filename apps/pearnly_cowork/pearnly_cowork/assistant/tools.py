@@ -39,12 +39,9 @@ def _json(value) -> str:
 
 # ---------------- 小助手状态与账套 ----------------
 
-ACCOUNT_SETS_SHOWN = 30
-
-
 def companion_status(tool_input) -> str:
-    """一台小助手可能报上千个账套（测试机实测 1,068 个）：只回总数和前若干个，按名称搜索再缩小。"""
-    search = str((tool_input or {}).get("search") or "").strip().lower()
+    """连接与小助手在不在线、账套目录读到没有。选录入账套用 `intake_options`（只列能选的、可搜），这里不再给清单，
+    免得两份数字（全部 / 能选的）和两条搜索让模型挑错（2026-10-10 测试）。"""
     out = []
     for row in connections.records(None, None, 0, 100) or []:
         item = {"connection": row["name"], "label": row.get("label"), "adapter": row.get("adapter"),
@@ -53,12 +50,6 @@ def companion_status(tool_input) -> str:
             item["companion_online"] = destinations.online("express", row["name"])
         try:
             targets = connections.targets(row["name"])
-            sets = [{"key": a["source_id"], "label": a.get("label"), "active": a.get("active", True)}
-                    for a in targets.get("account_sets") or []]
-            if search:
-                sets = [a for a in sets if search in str(a["label"] or "").lower()]
-            item["account_sets_total"] = len(sets)
-            item["account_sets"] = sets[:ACCOUNT_SETS_SHOWN]
             item["account_sets_status"] = targets.get("status")
             item["refresh_status"] = targets.get("refresh_status")
         except (frappe.ValidationError, frappe.PermissionError):
@@ -320,9 +311,20 @@ def _target_state(row) -> str:
     return "ready"
 
 
+def _year(row) -> int:
+    """账套所在年度（Express 数据文件夹名里的两位年份，如 70EXP；MR.ERP 的年度名），排序用：新的在前。"""
+    import re
+
+    attributes = row.get("attributes") or {}
+    text = " ".join(str(attributes.get(key) or "") for key in ("root_label", "root", "year", "year_name"))
+    years = [int(y) for y in re.findall(r"(?<!\d)(\d{2}|25\d{2})(?!\d)", text)]
+    return max(years, default=-1)
+
+
 def _last_used() -> dict:
-    """上一次识别用的口径（不论在网页、LINE 还是这里）：问过一次就沿用，不另存一份。"""
-    rows = frappe.get_list(BATCH, filters={"actor": frappe.session.user},
+    """上一次录进 ERP 的识别用的口径（不论在网页、LINE 还是这里；仅识别的不算）：问过一次就沿用，不另存一份。
+    识别批次的读权限不对普通用户开放列表，这里按「本人提交的」明确过滤（actor 即提交人）。"""
+    rows = frappe.get_all(BATCH, filters={"actor": frappe.session.user, "intake_target": ["in", ["express", "mrerp"]]},
                            fields=["intake_target", "target_connection", "target_account_set", "direction",
                                    "posting_kind", "payment"], order_by="creation desc", limit_page_length=1)
     if not rows:
@@ -360,9 +362,9 @@ def intake_options(tool_input) -> str:
             if search:
                 found = account_search.search(adapter, usable, search)
             else:
-                found = [{"value": r["source_id"], "label": account_search.label(adapter, r)} for r in usable]
                 remembered = last.get("account_set_key") if last.get("connection") == row["name"] else None
-                found.sort(key=lambda r: r["value"] != remembered)  # 上次用的排第一
+                ranked = sorted(usable, key=lambda r: (r["source_id"] != remembered, -_year(r)))
+                found = [{"value": r["source_id"], "label": account_search.label(adapter, r)} for r in ranked]
             item["account_sets"] = [{"key": r["value"], "label": r["label"]} for r in found[:OPTIONS_SHOWN]]
             if not usable:
                 item["account_sets_status"] = catalog.get("status") or "missing"
@@ -822,10 +824,10 @@ TOOLS = [
          "required": ["batches"]},
      "handler": "pearnly_cowork.assistant.tools.recognition_results"},
     {"name": "cowork_companion_status", "label": "Checked the companion",
-     "description": "List the user's ERP connections (Express / MR.ERP) with whether the Windows companion is online "
-                    "and the account sets it reports (total plus the first 30; pass search to find one by company name). "
-                    "Use before pushing to Express or when asked about the companion.",
-     "input_schema": {"type": "object", "properties": {"search": {"type": "string"}}},
+     "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether the Windows companion is "
+                    "online, and whether the account set list has been read. To find or choose an account set for "
+                    "recognition or pushing, use cowork_intake_options instead.",
+     "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_cowork.assistant.tools.companion_status"},
     {"name": "cowork_refresh_account_sets", "label": "Refreshed account sets",
      "description": "Ask a connection to re-read its account sets from the accounting program. Check the result later "
