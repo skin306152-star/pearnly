@@ -7,9 +7,11 @@
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
-import { MessageSquareIcon } from "lucide-react";
+import { FilesIcon, MessageSquareIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { Mascot } from "@/components/mascot";
+import { ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { ManagedAgentsToolFallback, toolkit } from "@/components/tool-uis";
 import {
@@ -104,21 +106,57 @@ function CollapsedTrigger() {
   );
 }
 
+// 右侧结果面板：新结果出现时自动打开，右上角按钮随时开关（同 claude.ai 的 Artifacts）。
+function useResults() {
+  const { sessionId, isRunning } = useActiveSessionSnapshot();
+  const { files, fresh, clearFresh } = useResultFiles(sessionId, isRunning);
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [sessionId]);
+  useEffect(() => {
+    if (fresh) {
+      setOpen(true);
+      clearFresh();
+    }
+  }, [fresh, clearFresh]);
+  return { sessionId, files, open: open && files.length > 0, setOpen };
+}
+
 function Workspace() {
   const aui = useAui({ tools: Tools({ toolkit }) });
+  const results = useResults();
   return (
     <AuiProvider value={aui}>
       <SidebarProvider>
         <div className="flex h-dvh w-full">
           <AppSidebar />
-          <SidebarInset className="relative">
+          <SidebarInset className="relative flex-row">
             <CollapsedTrigger />
-            <div className="flex flex-1 flex-col overflow-hidden" style={{ ["--thread-max-width" as string]: "48rem" }}>
+            {results.files.length > 0 && !results.open && (
+              <button
+                type="button"
+                onClick={() => results.setOpen(true)}
+                title={t("files")}
+                aria-label={t("files")}
+                className="absolute top-3 right-3 z-10 flex h-8 items-center gap-1.5 rounded-md px-2 text-[#5b5950] text-sm hover:bg-muted"
+              >
+                <FilesIcon className="size-4" />
+                {results.files.length}
+              </button>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden" style={{ ["--thread-max-width" as string]: "48rem" }}>
               <SessionStatusBar />
               <div className="min-h-0 flex-1">
                 <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />
               </div>
             </div>
+            {results.open && results.sessionId && (
+              <ResultsPanel
+                sessionId={results.sessionId}
+                files={results.files}
+                onClose={() => results.setOpen(false)}
+                className="max-md:fixed max-md:inset-0 max-md:z-50 md:w-[45%]"
+              />
+            )}
           </SidebarInset>
         </div>
       </SidebarProvider>

@@ -2,6 +2,12 @@
 
 const MESSAGES = {
   en: {
+    files: "Files",
+    preview: "Preview",
+    source: "Code",
+    download: "Download",
+    close: "Close",
+    noPreview: "Preview not available",
     attach: "Add files",
     removeFile: "Remove",
     uploadFailed: "Upload failed",
@@ -35,6 +41,12 @@ const MESSAGES = {
     sidebar: "Toggle sidebar",
   },
   zh: {
+    files: "文件",
+    preview: "预览",
+    source: "代码",
+    download: "下载",
+    close: "关闭",
+    noPreview: "不支持预览",
     attach: "添加文件",
     removeFile: "移除",
     uploadFailed: "上传失败",
@@ -68,6 +80,12 @@ const MESSAGES = {
     sidebar: "切换侧栏",
   },
   th: {
+    files: "ไฟล์",
+    preview: "ตัวอย่าง",
+    source: "โค้ด",
+    download: "ดาวน์โหลด",
+    close: "ปิด",
+    noPreview: "ไม่รองรับการแสดงตัวอย่าง",
     attach: "เพิ่มไฟล์",
     removeFile: "นำออก",
     uploadFailed: "อัปโหลดไม่สำเร็จ",
