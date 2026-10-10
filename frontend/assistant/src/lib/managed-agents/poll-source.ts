@@ -93,6 +93,9 @@ export class PollingSource {
       this.schedule(this.interval());
     } catch {
       if (this.readyState === PollingSource.CLOSED) return;
+      // 同 EventSource 自动重连：先回到「连接中」，下一次取到就再报一次 onopen（会话据此补拉、收起「正在重新连接…」）。
+      // 以前停在「已连上」，恢复后不再报 onopen，提示一直挂着、错过的文件卡片也不补（2026-10-10 测试）。
+      this.readyState = PollingSource.CONNECTING;
       this.onerror?.();
       this.schedule(SLOW_MS);
     }

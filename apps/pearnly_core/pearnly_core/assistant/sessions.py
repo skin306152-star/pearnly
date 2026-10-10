@@ -147,7 +147,12 @@ def events(session_id, after=None) -> dict:
     api = engine.adapter()
     if after:
         anchor = _guard(contracts.event_id, after)
-        newer = contracts.newer_than(api.events(current(row), newest_first=True), anchor)
+        try:
+            newer = contracts.newer_than(api.events(current(row), newest_first=True), anchor)
+        except Exception:
+            # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：这一次当作没有新事件，页面下一轮再取，不报 500
+            frappe.log_error(title="Assistant events fetch failed")
+            return {"events": [], "full": False}
         if newer is not None:
             _remember_context(row, newer)
             return {"events": newer, "full": False}
@@ -161,10 +166,15 @@ def events(session_id, after=None) -> dict:
 
 
 def _remember_context(row, events_of_current) -> None:
+    """记下输入量（接续判断用）。只是附带的：写不进（例如推送线程正在写同一行）不影响取事件。"""
     size = contracts.context_size(events_of_current)
     if size is not None and size != int(row.get("context_tokens") or 0):
-        context.note(row.session_id, events_of_current)
-        frappe.db.commit()  # GET 请求不自动提交
+        try:
+            context.note(row.session_id, events_of_current)
+            frappe.db.commit()  # GET 请求不自动提交
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(title="Assistant context note failed")
 
 
 def send(session_id, text) -> None:
