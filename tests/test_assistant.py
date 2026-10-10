@@ -344,7 +344,8 @@ class RelayTests(unittest.TestCase):
             rollback = commit
 
         adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
-        with mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+        with mock.patch.object(toolrun, "_use_lang", lambda conversation: None), \
+                mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
                 mock.patch.object(toolrun.frappe, "local", types.SimpleNamespace(cache={}), create=True), \
                 mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
                 mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data)) or ("saved", False)):
@@ -400,6 +401,10 @@ class RelayTests(unittest.TestCase):
         self.assertIsNone(claude.Adapter.wake(claude.Adapter, {"data": {"type": "agent.created", "id": "agent_1234"}}))
         self._receive_flow()
         source = (CORE / "assistant/webhook.py").read_text(encoding="utf-8")
+        run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
+        self.assertIn("_use_lang(conversation)", run.split("def _finish(", 1)[1])  # 后台执行按对话的语言出结果
+        sessions_src = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("def send(", 1)[1]
+        self.assertLess(sessions_src.index("toolrun.remember_lang("), sessions_src.index("api.post("))
         self.assertIn("allow_redirects=False", source)  # 3xx 会让引擎停用回调地址
         self.assertIn("toolrun.execute(", source)  # 与推送线程、页面兜底共用执行记录，只执行一遍
 

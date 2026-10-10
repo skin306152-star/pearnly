@@ -13,6 +13,33 @@ from frappe import _
 from pearnly_core.assistant import contracts, engine, tools
 
 TOOL_RUN = "Pearnly Assistant Tool Run"
+LANG_TTL = 30 * 86400
+
+
+def _lang_key(conversation: str) -> str:
+    return f"pearnly_assistant:lang:{conversation}"
+
+
+def remember_lang(conversation: str) -> None:
+    """用户发消息时记下对话的界面语言：推送线程、引擎回调的后台任务里执行工具没有这个请求，要按它翻译工具结果
+    （2026-10-11 测试：后台执行时按站点默认泰文出结果，中文提问被答成泰文）。"""
+    from pearnly_core.execution import state as pearnly_state
+
+    if getattr(frappe.local, "lang", None):
+        pearnly_state.store().set_value(_lang_key(conversation), frappe.local.lang, expires_in_sec=LANG_TTL)
+
+
+def _use_lang(conversation: str) -> None:
+    from pearnly_core.execution import state as pearnly_state
+
+    lang = pearnly_state.store().get_value(_lang_key(conversation), use_local_cache=False) or \
+        frappe.db.get_value("User", frappe.session.user, "language")
+    if lang:
+        frappe.local.lang = lang
+        # Frappe 16 在后台任务里第一次翻译时会按任务用户重设语言（同 `recon_center.jobs`）：标成已定
+        job = getattr(frappe.local, "job", None)
+        if job is not None and hasattr(job, "lang_resolved"):
+            job.lang_resolved = True
 
 
 def fresh():
@@ -78,6 +105,7 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
     # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）；工具函数本身只收模型给的参数。
     frappe.local.pearnly_assistant = {"session_id": conversation}
     fresh()
+    _use_lang(conversation)
     try:
         text, is_error = tools.run(tool, tool_input)
     except Exception:

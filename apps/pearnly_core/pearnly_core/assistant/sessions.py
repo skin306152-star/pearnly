@@ -184,6 +184,7 @@ def send(session_id, text) -> None:
     text = _guard(contracts.message_text, text)
     api = engine.adapter()
     remote = segment_for_turn(row, api)
+    toolrun.remember_lang(row.session_id)
     relay.ensure(row.session_id, remote, frappe.session.user)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
     if row.get("pending_carry"):
