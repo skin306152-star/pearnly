@@ -189,11 +189,25 @@ def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch, given,
     assert [p.name for p in written] == ["INV-1_2808.xlsx"] and written[0].read_bytes() == b"PK-xlsx"
 
 
-def test_no_roots_means_no_thread_and_no_network(tmp_path):
+def test_no_roots_tells_the_cloud_once_then_stays_quiet(tmp_path):
+    # 没有文件夹：只报一次空的（启动时 / 刚删光时），云端就不再留着旧文件夹；之后不再联网。
+    cfg = _cfg()
+    key = folder_store.connection_key(cfg)
     fake = FakeClient([])
-    worker = FolderIntake(lambda: [_cfg()], client_factory=fake)
-    worker.start()
-    assert worker._thread is None and fake.calls == []
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    assert worker.wanted()
+    worker.round(cfg, key)
+    assert [c[1]["roots"] for c in fake.calls if c[0] == "sync"] == [[]]
+    assert not worker.wanted()
+    folder_store.set_roots(key, [str(tmp_path / "S")])
+    (tmp_path / "S").mkdir()
+    assert worker.wanted()
+    worker.round(cfg, key)
+    folder_store.set_roots(key, [])
+    assert worker.wanted()  # 刚删光：再报一次空的
+    worker.round(cfg, key)
+    assert [c[1]["roots"] for c in fake.calls if c[0] == "sync"][-1] == []
+    assert not worker.wanted()
 
 
 def test_companion_json_untouched(tmp_path, monkeypatch):

@@ -54,15 +54,21 @@ class FolderIntake:
         # 上一轮看到的各规则文件夹在不在（{连接: {规则名: ok | root_missing | folder_missing}}），下一次同步报给云端，
         # 网页规则列表据此显示「文件夹不可用」（以前文件夹没了只在本机记一笔，规则静静地不跑）。
         self._health: dict[str, dict] = {}
+        # 已告诉云端「这条连接没有文件夹」的连接（本次运行内）。文件夹删光后、以及每次启动，都要报一次空的，
+        # 否则云端一直留着上一次报的文件夹（缓存 7 天），网页「连接」与定时任务还能选到已删掉的文件夹（2026-10-10 测试机）。
+        self._told_empty: set[str] = set()
 
     # ── 线程 ──────────────────────────────────────────────────────────────
 
     def wanted(self) -> bool:
         # MR.ERP 的小助手成员没加文件夹也要同步：网页靠它知道小助手已配好（显示「请在小助手中添加」而不是「连接小助手」）。
-        return any(_folder_member(cfg) or roots(connection_key(cfg)) for cfg in self._active())
+        return any(self._due(cfg, connection_key(cfg)) for cfg in self._active())
+
+    def _due(self, cfg, key: str) -> bool:
+        return bool(key) and bool(_folder_member(cfg) or roots(key) or key not in self._told_empty)
 
     def start(self) -> None:
-        """有连接设了根目录才启动；已在跑就不重复启动。"""
+        """有连接设了根目录（或还没向云端报过「没有文件夹」）才启动；已在跑就不重复启动。"""
         if self._thread and self._thread.is_alive():
             return
         if not self.wanted():
@@ -91,7 +97,7 @@ class FolderIntake:
                 if self._stop.is_set():
                     return
                 key = connection_key(cfg)
-                if not key or not (roots(key) or _folder_member(cfg)):
+                if not self._due(cfg, key):
                     continue
                 try:
                     self.round(cfg, key)
@@ -125,6 +131,10 @@ class FolderIntake:
                                     "rule_health": self._health.get(key, {})})
             if not response.get("ok"):
                 return
+            if local_roots:
+                self._told_empty.discard(key)
+            else:
+                self._told_empty.add(key)
             ledger.runs = []
             now = self._clock()
             offset = float(response.get("server_time") or now) - now

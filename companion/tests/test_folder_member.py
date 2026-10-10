@@ -112,6 +112,7 @@ def test_folder_member_syncs_without_folders_and_reports_its_status(tmp_path, mo
     intake = FolderIntake(lambda: [express, member], client_factory=Client, on_status=report)
     assert intake.wanted()  # 只有 MR.ERP 成员、还没加文件夹也要同步
     intake._loop()
-    # Express 成员没加文件夹照旧跳过；MR.ERP 成员没文件夹也同步一次（网页据此知道小助手已配好）
-    assert len(bodies) == 1 and bodies[0]["roots"] == []
+    # MR.ERP 成员没文件夹也同步（网页据此知道小助手已配好）；Express 成员没文件夹只报一次空的（云端不留旧文件夹），之后不再报
+    assert len(bodies) == 2 and all(body["roots"] == [] for body in bodies)
+    assert [cfg.profile_id for cfg in (express, member) if intake._due(cfg, folder_store.connection_key(cfg))] == ["m1"]
     assert statuses == [("m1", "idle")]  # Express 成员的状态仍由取任务线程报
