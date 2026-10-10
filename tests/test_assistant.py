@@ -374,6 +374,71 @@ class RelayTests(unittest.TestCase):
         confirm = source.split("def confirm(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("toolrun.decide(", confirm)  # 我们拦下的在本站处理，其余照旧交引擎
 
+    def test_engine_callbacks_are_verified_and_find_the_waiting_calls(self):
+        """页面关着由服务端接手（清单第 16 项）：回调按 Standard Webhooks 验签（官方示例向量），找出最近一次等待的调用。"""
+        headers = {"Webhook-Id": "msg_p5jXN8AQM9LWM0D4loKWxJek", "Webhook-Timestamp": "1614265330",
+                   "Webhook-Signature": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="}
+        secret, body = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw", '{"test": 2432232314}'
+        contracts.verify_webhook(secret, headers, body, 1614265330)
+        for bad in ({**headers, "Webhook-Signature": "v1,AAAA"}, {k: v for k, v in headers.items() if k != "Webhook-Id"}):
+            with self.assertRaises(contracts.ContractError):
+                contracts.verify_webhook(secret, bad, body, 1614265330)
+        with self.assertRaises(contracts.ContractError):
+            contracts.verify_webhook(secret, headers, body, 1614265330 + 301)  # 超过 5 分钟：防重放
+        newest_first = [{"type": "session.status_idle", "stop_reason": {"type": "requires_action", "event_ids": ["e2", "e3"]}},
+                        {"type": "agent.custom_tool_use", "id": "e3", "name": "b"},
+                        {"type": "agent.custom_tool_use", "id": "e2", "name": "a"},
+                        {"type": "agent.custom_tool_use", "id": "e1", "name": "old"}]
+        self.assertEqual([c["id"] for c in contracts.pending_calls(newest_first)], ["e2", "e3"])
+        self.assertEqual(contracts.pending_calls([{"type": "session.status_running"}] + newest_first), [])
+        self.assertEqual(contracts.pending_calls([{"type": "session.status_idle", "stop_reason": {"type": "end_turn"}}]), [])
+        self.assertTrue(contracts.site_host("testcowork.pearnly.com"))
+        for bad in ("http://x.com", "x.com/a", "x.com:8000", "localhost", ""):
+            self.assertFalse(contracts.site_host(bad), bad)
+        self.assertEqual(claude.Adapter.wake(claude.Adapter, {"data": {"type": "session.status_idled", "id": "sesn_abcd1234"}}),
+                         "sesn_abcd1234")
+        self.assertIsNone(claude.Adapter.wake(claude.Adapter, {"data": {"type": "agent.created", "id": "agent_1234"}}))
+        self._receive_flow()
+        source = (CORE / "assistant/webhook.py").read_text(encoding="utf-8")
+        self.assertIn("allow_redirects=False", source)  # 3xx 会让引擎停用回调地址
+        self.assertIn("toolrun.execute(", source)  # 与推送线程、页面兜底共用执行记录，只执行一遍
+
+    def _receive_flow(self):
+        """回调：验签过、同一事件只处理一次、本站的对话排后台任务以会话主人执行；验签不过回 401。"""
+        import base64
+        import hashlib
+        import hmac
+
+        sys.modules.setdefault("pearnly_core.execution", types.ModuleType("pearnly_core.execution"))
+        seen = set()
+        store = types.SimpleNamespace(make_key=lambda k: "t1|" + k,
+                                      set=lambda key, value, nx=False, ex=None: (key not in seen) and not seen.add(key))
+        state = types.ModuleType("pearnly_core.execution.state")
+        state.store = lambda: store
+        sys.modules["pearnly_core.execution.state"] = sys.modules["pearnly_core.execution"].state = state
+        webhook = _load("pearnly_core.assistant.webhook", CORE / "assistant/webhook.py")
+        secret = "whsec_" + base64.b64encode(b"k" * 32).decode()
+        body = '{"type": "event", "id": "whe_0001abcd", "data": {"type": "session.status_idled", "id": "sesn_abcd1234"}}'
+        now = int(webhook.time.time())
+        sign = base64.b64encode(hmac.new(b"k" * 32, f"msg_1.{now}.{body}".encode(), hashlib.sha256).digest()).decode()
+        headers = {"webhook-id": "msg_1", "webhook-timestamp": str(now), "webhook-signature": "v1," + sign}
+        queued, response = [], types.SimpleNamespace()
+        fake = types.SimpleNamespace(
+            conf={"pearnly_assistant_webhook_secret": secret}, local=types.SimpleNamespace(site="t1", response=response),
+            request=types.SimpleNamespace(get_data=lambda as_text=True: body, headers=headers),
+            db=types.SimpleNamespace(get_value=lambda *a, **k: types.SimpleNamespace(
+                session_id="sesn_abcd1234", user="owner@example.com", engine_code="anthropic-managed-agents")),
+            enqueue=lambda method, **kw: queued.append(kw), whitelist=frappe.whitelist)
+        adapter = types.SimpleNamespace(wake=lambda event: event["data"]["id"])
+        with mock.patch.object(webhook, "frappe", fake), mock.patch.object(webhook.engine, "adapter", return_value=adapter), \
+                mock.patch.object(webhook.config, "engine_code", return_value="anthropic-managed-agents"):
+            self.assertEqual(webhook.receive(), {"status": "queued"})
+            self.assertEqual(webhook.receive(), {"status": "duplicate"})  # 引擎重送同一事件
+            self.assertEqual((queued[0]["user"], queued[0]["remote"]), ("owner@example.com", "sesn_abcd1234"))
+            headers["webhook-signature"] = "v1,AAAA"
+            self.assertEqual(webhook.receive(), {"status": "rejected"})
+            self.assertEqual(response.http_status_code, 401)
+
     def test_tools_can_reach_this_conversations_attachments_and_only_those(self):
         # 引擎不让下载用户上传的文件：原件在本站留一份挂在会话上；工具执行时知道是哪个对话，只取这个对话的附件。
         files = (CORE / "assistant/files.py").read_text(encoding="utf-8")

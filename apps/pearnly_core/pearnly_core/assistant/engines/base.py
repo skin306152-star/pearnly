@@ -27,6 +27,15 @@ class Adapter(abc.ABC):
     def open(self, handle: dict, metadata: dict) -> tuple[str, str]:
         """新建一个会话，返回 (会话编号, 状态)。"""
 
+    def wake(self, event: dict) -> str | None:
+        """引擎回调（已验签的通知）若意味着某个会话可能在等工具结果，回那个会话编号；其余回 None。
+        厂商没有回调就一直回 None（只靠推送线程与页面兜底）。"""
+        return None
+
+    def metadata(self, conversation: str) -> dict:
+        """建会话时记下的附带信息（`pearnly_site` 等），引擎回调据此找到会话属于哪个站点。不支持就回空。"""
+        return {}
+
     def refresh(self, conversation: str, brief: dict) -> bool:
         """把已有会话的工具换成当前说明里的（新接的工具老对话也能用）。厂商不支持就不做，返回 False。"""
         return False

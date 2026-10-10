@@ -108,6 +108,69 @@ def since(events_newest_first, target: str):
     return newer_than(events_newest_first, target, keep_anchor=True)
 
 
+# 引擎回调（ADR-019：页面关着也由服务端接手工具调用）按 Standard Webhooks 签名：
+# 签名内容 `{webhook-id}.{webhook-timestamp}.{原文}`，密钥是 `whsec_` 后的 base64，HMAC-SHA256 后 base64，
+# 头里可带多个 `v1,<签名>`（换密钥期间）。时间戳超过 5 分钟的拒收（防重放）。
+WEBHOOK_TOLERANCE = 300
+
+
+def verify_webhook(secret: str, headers: dict, body: str, now: float) -> None:
+    """验不过抛 ContractError。`headers` 的键不分大小写。"""
+    import base64
+    import hashlib
+    import hmac
+
+    lower = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    msg_id, stamp, signatures = lower.get("webhook-id"), lower.get("webhook-timestamp"), lower.get("webhook-signature")
+    if not (secret and msg_id and stamp and signatures):
+        raise ContractError("missing webhook signature")
+    try:
+        sent_at = int(stamp)
+        key = base64.b64decode(secret[len("whsec_"):] if secret.startswith("whsec_") else secret)
+    except ValueError:
+        raise ContractError("invalid webhook signature") from None
+    if abs(now - sent_at) > WEBHOOK_TOLERANCE:
+        raise ContractError("webhook timestamp out of range")
+    expected = base64.b64encode(hmac.new(key, f"{msg_id}.{stamp}.{body}".encode(), hashlib.sha256).digest()).decode()
+    for item in signatures.split():
+        version, _, value = item.partition(",")
+        if version == "v1" and hmac.compare_digest(value, expected):
+            return
+    raise ContractError("invalid webhook signature")
+
+
+SITE_HOST = re.compile(r"^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
+
+
+def site_host(value) -> bool:
+    """回调转发的目标只能是一个普通域名（站点名）：不带协议、端口、路径。"""
+    return bool(SITE_HOST.match(str(value or "").strip().lower()))
+
+
+def pending_calls(events_newest_first) -> list[dict]:
+    """最近一次「空闲、等待处理」所等的自定义工具调用（从「新 → 旧」的事件里找，找齐即停）。
+    最近一次空闲不是在等（已结束 / 已在跑），回空。"""
+    wanted, found = None, {}
+    for event in events_newest_first:
+        kind = event.get("type")
+        if wanted is None:
+            if kind == "session.status_running":
+                return []
+            if kind == "session.status_idle":
+                stop = event.get("stop_reason") or {}
+                if stop.get("type") != "requires_action":
+                    return []
+                wanted = [str(i) for i in stop.get("event_ids") or []]
+                if not wanted:
+                    return []
+            continue
+        if kind == "agent.custom_tool_use" and event.get("id") in wanted:
+            found[event["id"]] = event
+            if len(found) == len(wanted):
+                break
+    return [found[i] for i in wanted or [] if i in found]
+
+
 def answered_tool_uses(events) -> set[str]:
     """已经回过结果的自定义工具调用（防止同一次调用被执行两遍）。"""
     return {e.get("custom_tool_use_id") for e in events if e.get("type") == "user.custom_tool_result"}
