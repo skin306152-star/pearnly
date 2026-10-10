@@ -258,7 +258,7 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 0.5 **按上面「功能接入 CC」的顺序一项一项接功能**（从「上传识别」开始）。
 1. **用户在测试机上验收**桌面端：CC 里登录 → 自动连接 → 设置里加文件夹 → 网页设置「连接」里看到 → 网页定时任务能选这个文件夹 → 推送到 Express。
 2. **上线批次**（用户还没下令；按《按批次自主部署》五道关）：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `ci-candidate-checks offline` → 合入 main 并推送 → 从 main 构建镜像 → 生产部署 → 在计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 1.4.0 正式版（小助手发布流程见 `companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404，「回到应用」会跳过去。
-3. 生产 Keycloak 的 `pearnly-ai` 主题是拷进容器的，**容器重建会丢**：上线时重装（或改成像父主题一样挂载）。
+3. 生产 Keycloak 的 `pearnly-ai` 主题是拷进容器的，**容器重建会丢**：上线时重装（或改成像父主题一样挂载）。 另外生产上现装的这版主题，标签页小图标还是去胡须的旧图（`2815e6fd` 之后仓库里已换成带胡须原版），随上线一起重装；重装要停登约 40 秒，先问用户。
 4. 收尾清理：本机预览服务（5199 Vite、5201 静态预览）、`pearnly-ai-theme-preview` 容器、测试机环境变量 `PEARNLY_TOMO_ENTRY`、测试机 `C:\Users\Public\tomo-test`、计划任务 `TomoTestInstall`；合入后删本工作树与本地 / 远端分支（AGENTS.md「收工清理」）。生产父主题目录里有一批 `._*` 苹果隐藏文件（旧上传带进去的，非本任务），删除需用户同意。
 5. 待定小项：生产 `testai` 隧道 `^/assets/` 路由已无用途（睡觉猫视频已删），可在下次改隧道时去掉。
 
