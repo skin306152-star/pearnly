@@ -255,7 +255,8 @@ function Workspace() {
       <SidebarProvider>
         <div className="flex h-dvh w-full">
           <AppSidebar />
-          <SidebarInset className="relative flex-row">
+          {/* min-w-0：右侧结果面板里的宽表格在面板内横向滚动，不把整页撑宽、把「下载」「关闭」挤出窗口 */}
+          <SidebarInset className="relative min-w-0 flex-row">
             <CollapsedTrigger />
             {results.files.length > 0 && !results.open && (
               <button
