@@ -79,20 +79,26 @@ def scene(cls, view, ground, parts):
             + "".join(parts) + '</g></svg>')
 
 
+def stand(x, ground, k, prop, kind, lift=8):
+    """小人站在虚线上方一点点（脚底离线 lift），不踩线；脚底在髋部下方 41 个单位。"""
+    return mascot(x, ground - lift - 41 * k, k, "", prop, kind)
+
+
 SCENE = scene("wide", "0 0 1200 300", "M40 286 H1160", [
-    bubble(196, 92, 76, 40, DOTS, "typing"), bubble(392, 118, 66, 44, PHOTO, "b2"),
-    bubble(566, 66, 92, 42, MONEY, "b3"), bubble(1000, 34, 70, 44, CHART, "b4"), bubble(1078, 96, 62, 42, TICK, "b2"),
-    sparkle(150, 110, 0.9, "s1"), sparkle(500, 70, 0.7, "s2"), sparkle(760, 120, 1.0, "s3"), sparkle(1110, 140, 0.8, "s4"),
-    receipt(640, 200, -14, "r1"), receipt(1090, 210, 12, "r2"), plane(810, 40, "p1"),
-    mascot(170, 245, 0.95, "", "pencil", "cowork"), mascot(360, 250, 0.95, "", "camera", "dms"),
-    mascot(540, 245, 0.95, "", "basket", "erp"), mascot(742, 236, 1.2, "", "plane", "ai"),
-    mascot(930, 222, 1.55, "", "stamp", "mrerp")]) + scene(
+    bubble(176, 92, 76, 40, DOTS, "typing"), bubble(368, 118, 66, 44, PHOTO, "b2"),
+    bubble(556, 66, 92, 42, MONEY, "b3"), bubble(1034, 28, 70, 44, CHART, "b4"), bubble(1108, 96, 62, 42, TICK, "b2"),
+    sparkle(96, 120, 0.9, "s1"), sparkle(470, 74, 0.7, "s2"), sparkle(660, 128, 0.9, "s3"), sparkle(1160, 160, 0.8, "s4"),
+    receipt(628, 204, -14, "r1"), receipt(1128, 214, 12, "r2"), plane(860, 30, "p1"),
+    stand(150, 286, 0.95, "pencil", "cowork"), stand(345, 286, 0.95, "camera", "dms"),
+    stand(535, 286, 0.95, "basket", "erp"), stand(745, 286, 1.2, "plane", "ai"),
+    stand(985, 286, 1.55, "stamp", "mrerp")]) + scene(
     "phone", "0 0 620 330", "M10 316 H610", [
-    bubble(96, 132, 70, 38, DOTS, "typing"), bubble(240, 150, 66, 44, PHOTO, "b2"), bubble(350, 120, 92, 42, MONEY, "b3"),
-    bubble(470, 40, 70, 44, CHART, "b4"), sparkle(40, 150, 0.8, "s1"), sparkle(360, 100, 0.7, "s2"), sparkle(600, 120, 0.7, "s4"),
-    plane(330, 60, "p1"), mascot(62, 278, 0.78, "", "pencil", "cowork"), mascot(168, 282, 0.78, "", "camera", "dms"),
-    mascot(272, 278, 0.78, "", "basket", "erp"), mascot(400, 270, 1.0, "", "plane", "ai"),
-    mascot(532, 262, 1.25, "", "stamp", "mrerp")])
+    bubble(66, 150, 70, 38, DOTS, "typing"), bubble(186, 170, 66, 44, PHOTO, "b2"), bubble(286, 120, 92, 42, MONEY, "b3"),
+    bubble(566, 40, 70, 44, CHART, "b4"), sparkle(26, 150, 0.8, "s1"), sparkle(452, 110, 0.7, "s2"), sparkle(608, 130, 0.7, "s4"),
+    plane(430, 62, "p1"),
+    stand(52, 316, 0.74, "pencil", "cowork", 7), stand(160, 316, 0.74, "camera", "dms", 7),
+    stand(270, 316, 0.74, "basket", "erp", 7), stand(390, 316, 0.95, "plane", "ai", 7),
+    stand(530, 316, 1.18, "stamp", "mrerp", 7)])
 
 # ---------------- 样式：宣传页的底色、点阵、记号笔与按钮；也给 Keycloak 流程页的表单类名上样式 ----------------
 
@@ -326,6 +332,9 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
       </#if>
       <#nested "form">
       <#if displayInfo><div class="pn-info"><#nested "info"></div></#if>
+      <div class="or"><span>${msg("pearnlyAiNoAccount")}</span></div>
+      <p class="contact-note">${msg("pearnlyAiContactNote")}</p>
+      """ + CONTACTS + """
       <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en")?then("/en", ""))>
       <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
     </div>
@@ -380,14 +389,17 @@ THEME_JS = JS + """
 
 # Keycloak 文案：只放 ai 主题新增的键，其余（密码、登录、忘记密码…）继承 pearnly 主题。
 MESSAGES = {
-    "zh_CN": {"pearnlyAiTitle": '您的个人<span class="hl">智能体</span>', "pearnlyAiSub": "让工作在对话中完成",
+    "zh_CN": {"pearnlyAiNoAccount": "还没有账号？", "pearnlyAiContactNote": "联系我们开通账号或预约演示",
+              "pearnlyAiTitle": '您的个人<span class="hl">智能体</span>', "pearnlyAiSub": "让工作在对话中完成",
               "pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱",
               "pearnlyAiLegal": "继续即表示您已阅读并同意 Pearnly 的{0}和{1}。", "pearnlyAiTerms": "服务条款", "pearnlyAiPrivacy": "隐私政策"},
-    "th": {"pearnlyAiTitle": '<span class="hl">ผู้ช่วย AI</span> ส่วนตัวของคุณ', "pearnlyAiSub": "ทำงานให้เสร็จได้ในบทสนทนา",
+    "th": {"pearnlyAiNoAccount": "ยังไม่มีบัญชีใช่ไหม", "pearnlyAiContactNote": "ติดต่อเราเพื่อเปิดบัญชีหรือนัดชมเดโม",
+           "pearnlyAiTitle": '<span class="hl">ผู้ช่วย AI</span> ส่วนตัวของคุณ', "pearnlyAiSub": "ทำงานให้เสร็จได้ในบทสนทนา",
            "pearnlyAiChange": "เปลี่ยน", "pearnlyAiLogin": "ชื่อผู้ใช้หรืออีเมล",
            "pearnlyAiLegal": "การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly", "pearnlyAiTerms": "ข้อกำหนดการให้บริการ",
            "pearnlyAiPrivacy": "นโยบายความเป็นส่วนตัว"},
-    "en": {"pearnlyAiTitle": 'Your personal <span class="hl">AI assistant</span>', "pearnlyAiSub": "Get your work done in conversation",
+    "en": {"pearnlyAiNoAccount": "Don't have an account?", "pearnlyAiContactNote": "Contact us to open an account or book a demo",
+           "pearnlyAiTitle": 'Your personal <span class="hl">AI assistant</span>', "pearnlyAiSub": "Get your work done in conversation",
            "pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email",
            "pearnlyAiLegal": "By continuing, you agree to Pearnly''s {0} and {1}.", "pearnlyAiTerms": "Terms of Service",
            "pearnlyAiPrivacy": "Privacy Policy"},

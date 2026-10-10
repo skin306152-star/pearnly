@@ -88,14 +88,14 @@ def costume(kind):
                 '<path class="hm-mouth" d="M0 -48 q5 5 10 0" stroke="#fffdf6" stroke-width="2.4"/>'
                 '<path d="M1 -40 h8 l-2 6 l4 22 l-6 7 l-6 -7 l4 -22 Z" fill="#ffd84d" stroke-width="2"/>')
         return body, (-40, -52), (40, -52), 16, 50
-    if kind == "ai":    # 智能体：薄荷绿的对话泡身体（左下角带小尾巴），头顶天线挑着一颗会闪的黄色星光，胸前三个「正在输入」的点
-        body = ('<path d="M0 -104 Q-3 -114 0 -124" stroke-width="2.6"/>'
-                '<g class="hm-spark"><path d="M0 -148 Q2.6 -136 14 -133 Q2.6 -130 0 -118 Q-2.6 -130 -14 -133 Q-2.6 -136 0 -148 Z" fill="#ffd84d" stroke-width="2.2"/>'
-                '<path d="M15 -146 l5 -5 M19 -133 h7 M-15 -146 l-5 -5" stroke-width="2.2"/></g>'
-                '<path d="M-26 -104 H26 Q46 -104 46 -84 V-34 Q46 -14 26 -14 H-4 L-22 3 L-17 -14 H-26 Q-46 -14 -46 -34 V-84 Q-46 -104 -26 -104 Z" fill="#dff2e6"/>'
-                + face(-12, -80, 4.4)
-                + ''.join(f'<circle class="hm-typing t{i}" cx="{-14 + i * 14}" cy="-38" r="4.4" fill="#2e8a55" stroke="none"/>' for i in range(3)))
-        return body, (-46, -58), (46, -58), 14, 50
+    if kind == "ai":    # 智能体：薄荷绿的对话泡身体（小尾巴在左下角，往外侧斜出去），头顶天线挑着一颗会闪的黄色星光，胸前三个「正在输入」的点
+        body = ('<path d="M0 -92 Q-3 -102 0 -112" stroke-width="2.6"/>'
+                '<g class="hm-spark"><path d="M0 -136 Q2.6 -124 14 -121 Q2.6 -118 0 -106 Q-2.6 -118 -14 -121 Q-2.6 -124 0 -136 Z" fill="#ffd84d" stroke-width="2.2"/>'
+                '<path d="M15 -134 l5 -5 M19 -121 h7 M-15 -134 l-5 -5" stroke-width="2.2"/></g>'
+                '<path d="M-26 -92 H26 Q46 -92 46 -72 V-20 Q46 0 26 0 H-28 L-58 7 L-46 -16 V-72 Q-46 -92 -26 -92 Z" fill="#dff2e6"/>'
+                + face(-12, -68, 4.4)
+                + ''.join(f'<circle class="hm-typing t{i}" cx="{-14 + i * 14}" cy="-26" r="4.4" fill="#2e8a55" stroke="none"/>' for i in range(3)))
+        return body, (-46, -46), (46, -46), 14, 50
     if kind == "cowork":
         body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
                 '<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V-86 H-39 Z" fill="#ffd84d"/>'
