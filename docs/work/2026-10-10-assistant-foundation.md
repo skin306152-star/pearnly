@@ -111,12 +111,38 @@
 | 查询 | `assistant_entry.billing.resolve`：计费站点上唯一新增的放行地址，专用令牌（根密钥派生），只答「账号在哪个池」（登录前，不透露公司）与「已验证身份能进哪些站点」（登录后） |
 | 入口站点 | 计费服务那套程序上的独立站点（`pearnly_assistant_entry`），只开放入口页与 start / callback / choose 三个接口，其余 403；页面由 `scripts/build-ai-entry.py` 生成 |
 | 登录 | 两个账号池各一个公开客户端 `pearnly-ai`（PKCE，回调只允许 ai / testai），ai 专用主题 `pearnly-ai`（密码页、找回密码等沿用 pearnly 主题模板换外壳）；回调后交给站点自己的统一登录口，账号池里已有登录状态不再要密码 |
-| 设计 | 宣传页底色点阵与记号笔；宣传页小人 + 新画的智能体小人（薄荷绿对话泡）；联系方式与条款隐私两步都有 |
+| 设计 | 宣传页底色点阵与记号笔；宣传页小人 + Tomo 云朵（原薄荷绿对话泡已换掉）；联系方式与条款隐私两步都有 |
 
 验证：离线测试 15 项；本机临时 Keycloak 看过密码页、输错提示、找回密码页；测试机 testai.pearnly.com 首页 200、后台 / 登录页 / 通用接口 403、填账号后正确给出 ERP/DMS 池登录地址；testcowork 的测试登记读回正确。
 生产 Keycloak（用户已批准）：两个池已加 `pearnly-ai` 客户端并读回；ai 主题临时拷进运行中的容器（未重启，无停机），正式挂载随下次部署（compose 已改）。
 
-限制：账号池拆分前开的测试租户（testcowork）登记要手工写；正式租户的登记在本批部署后重跑开户计划的登记步骤补齐；产品名未定。
+限制：账号池拆分前开的测试租户（testcowork）登记要手工写；正式租户的登记在本批部署后重跑开户计划的登记步骤补齐。
+
+## Cowork 第一批工具（2026-10-10，同一分支）
+
+`apps/pearnly_cowork/pearnly_cowork/assistant/tools.py`（hooks `pearnly_assistant_tools`）：小助手状态与账套（总数 + 前 30 个，可按公司名搜）、刷新账套、列单据、推送到 Express（一次最多 20 张，已推过的不再推，逐张提交）、查推送结果、文件夹定时任务 / 立即执行 / 执行记录。都以当前登录用户调现有服务。测试机用真实测试用户跑过只读工具；真推送未在对话里跑过（会写测试账套，留给用户试）。
+
+## 产品名 Tomo 与云朵形象（2026-10-10，同一分支）
+
+用户定名 **Tomo**（Pearnly 是公司名）。形象从三个候选里选了云朵：空手、眼睛跟鼠标、会眨眼、隔几秒眯眼张嘴笑一下，悬停 / 点它也笑；源头 `website/scenes.py`（`TOMO_CLOUD` / `TOMO_SPARK`、`costume("ai")`），登录页、对话页由脚本生成。
+应用图标（PWA、桌面端、托盘）用户指定白底黑线云朵脸：`scripts/build-assistant-brand.py` 的 `icon()` 生成 `frontend/assistant/src/brand/icon.svg`；PNG（192 / 256 / 512）与 `companion/assets/tomo.ico` 用 Chrome 无头模式渲染该 SVG、Pillow 合成 ico（一次性产物，改图标时重做）。
+登录页 / 对话页左上角、页面标题、PWA 名称都改成 Tomo；登录主题的生产 Keycloak 文件随下次部署更新。
+
+## 桌面端：小助手并入 Tomo（2026-10-10，同一分支）
+
+用户口径：「做成和 Claude 桌面端一样」，小助手以后融入桌面端。做法：在小助手程序（`companion/`，PySide6）里加 Tomo 窗口，不另起程序。
+
+| 部分 | 位置 / 做法 |
+| --- | --- |
+| 窗口 | `gui_tomo.TomoWindow`：QtWebEngine 打开同一个对话页；登录状态存本机（强制持久 Cookie）；下次回到上次的 `/assistant`；只开 `*.pearnly.com` 的 https 页面，其他链接 / 新窗口交给系统浏览器，本地文件不开（`tomo_links.py`）；右键只留编辑项；关窗口藏到托盘（第一次提示一次） |
+| 快捷输入条 | `QuickAsk` + `tomo_hotkey.py`（Windows RegisterHotKey，Ctrl+Alt+Space，被占用就不注册）：回车后窗口开新对话发出去（对话页 `window.tomo.ask`，`frontend/assistant/src/lib/desktop.ts`） |
+| 通知 / 下载 | 对话页在窗口不在前台时回复完成发网页通知（桌面端自动授权，浏览器只在已授权时弹），桌面端转成系统通知，点了回到窗口；下载存「下载」文件夹，不覆盖同名，完成后通知、点了在资源管理器选中 |
+| 托盘 | 左键 / 「打开 Tomo」打开窗口；原主窗口改名「连接与设置」；没配对 Express 也能启动（托盘显示「未连接 Express」）；再次打开程序经本地管道把 Tomo 拿到前面（`instance_channel.py`） |
+| 内存 | 网页内核只在第一次打开 Tomo 时加载，开机自启不加载 |
+| 打包 | onefile → 文件夹（带网页内核）；安装包名称、快捷方式改 Tomo（安装目录、AppId、自动更新地址不变，原地升级）；静默自动更新后以 `--background` 重启，不弹窗打断人；版本 1.4.0；分支的 Companion checks 每次真打一次包并核对网页内核在包里，安装包作为运行附件（7 天、不发布） |
+
+验证：小助手全量测试 605 项通过（本机 Python 3.14 + PySide6 6.11.1）；本机离屏打开 Tomo 窗口，读回页面为 testai 的 Tomo 登录页；快捷输入条截图正常。Windows 真机（测试机）试装待做。
+限制：与 Express 的自动配对（登录 Tomo 后不再贴配对码）未做；Mac 版未做；网页内核随我们发版更新（只开 Pearnly 自己的页面，降低风险）。
 
 ## 已知限制
 
@@ -134,6 +160,6 @@
 
 ## 收尾登记
 
-- 工作树 `/Users/skin/pearnly-agent-foundation`、本地分支 `pearnly/agent-foundation`：**交接保留**，所属本任务，用途为继续第二批；解除条件：合入 `main` 后按收工清理删除。远端分支：不存在（未推送）。
+- 工作树 `/Users/skin/pearnly-agent-foundation`、本地分支 `pearnly/agent-foundation`、远端同名分支：**交接保留**，所属本任务，用途为继续桌面端与试用；解除条件：合入 `main` 后按收工清理删除。
 - 本机 `ant` 命令行（Homebrew）：为本任务装，后续配置智能体可能用到，保留；不需要时 `brew uninstall ant`。
 - LobeHub 评估环境（容器、卷、镜像、`~/lobehub-eval`）与官方示例演示目录：已删除。
