@@ -443,6 +443,19 @@ class PageTests(unittest.TestCase):
         self.assertEqual(html.count("{{"), 2)
         self.assertNotIn("{%", html)
 
+    def test_icons_are_fingerprinted_not_fixed_addresses(self):
+        # /assets 缓存一年（Cloudflare 照存）：图标与 manifest 的地址由构建带内容指纹，页面不写死。
+        html = (CORE / "www/assistant.html").read_text(encoding="utf-8")
+        for name in ("favicon.ico", "icon-192.png", "apple-touch-icon.png", "manifest.webmanifest"):
+            self.assertNotIn(name, html)
+        self.assertNotIn('"manifest"', html)
+        self.assertFalse((ROOT / "frontend/assistant/public/manifest.webmanifest").exists())
+        config = (ROOT / "frontend/assistant/vite.config.ts").read_text(encoding="utf-8")
+        self.assertIn("ccIcons()", config)
+        for name in ("favicon.ico", "icon-192.png", "icon-512.png", "apple-touch-icon.png"):
+            self.assertIn(f'icon("{name}")', config)
+            self.assertTrue((ROOT / "frontend/assistant/public" / name).exists())
+
     def test_doctypes_are_platform_records_not_customer_desk_pages(self):
         for name in ("pearnly_assistant_session", "pearnly_assistant_tool_run"):
             meta = json.loads((CORE / f"pearnly_core/doctype/{name}/{name}.json").read_text(encoding="utf-8"))
