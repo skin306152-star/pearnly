@@ -359,6 +359,7 @@ case "${1:-}" in
     target=$group; [[ "$group" == billing ]] && target=$(resolve_app)
     sync; bash_remote_app "$target" migrate "$group" "$site"
     ;;
+  ai-entry) sync; bash_remote_app "$(resolve_app)" ai-entry "${2:-testai.pearnly.com}" ;;
   sh) shift; bash_remote_app "$(resolve_app)" sh "$@" ;;
   urls) urls ;;
   lab-start) shift; lab_start "$@" ;;

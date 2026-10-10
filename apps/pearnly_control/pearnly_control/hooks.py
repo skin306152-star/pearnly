@@ -19,6 +19,8 @@ boot_session = "pearnly_control.boot.boot_session"
 before_request = [
     "pearnly_control.billing_control.guard_private_site",
     "pearnly_control.billing_remote.before_request",
+    # 智能体入口站点 ai.pearnly.com（ADR-019）：只开放入口页与登录接口
+    "pearnly_control.assistant_entry.entry.guard_entry_site",
 ]
 after_request = ["pearnly_control.account.member_api.after_request"]
 

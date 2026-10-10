@@ -140,7 +140,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
       JAVA_OPTS_APPEND: -Xms256m -Xmx512m
     ports: ['127.0.0.1:8180:8080', '127.0.0.1:9180:9000']
-    volumes: ['../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro']
+    volumes: ['../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro', '../keycloak/themes/pearnly-ai:/opt/keycloak/themes/pearnly-ai:ro']
     networks: [runtime]
     logging: *logging
     depends_on:

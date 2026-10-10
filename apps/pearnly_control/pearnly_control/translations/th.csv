@@ -22,6 +22,7 @@ Assistant API Key,คีย์ API ของผู้ช่วย
 Assistant Engine,เอนจินผู้ช่วย
 Assistant Model,โมเดลผู้ช่วย
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,เมื่อเปิดใช้งาน ระบบจะสร้างบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานและมอบสิทธิ์ให้ เว้นว่างหมายถึงฟีเจอร์นี้ไม่ต้องควบคุมสิทธิ์ (เช่น หน้าหลัก)
+Back,กลับ
 Balance (THB),ยอดคงเหลือ (บาท)
 Balance After,ยอดคงเหลือหลังเปลี่ยนแปลง
 "Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",ยอดคงเหลือไม่เพียงพอสำหรับชำระค่าบริการรายเดือน (ต้องใช้ ฿{0} คงเหลือ ฿{1})
@@ -32,10 +33,12 @@ Billing Month,เดือนที่คิดค่าบริการ
 Billing Units,หน่วยคิดค่าบริการ
 Billing service unavailable; please retry,บริการเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาลองใหม่
 Build the workspace,สร้างพื้นที่ทำงาน
+"By continuing, you agree to Pearnly's {0} and {1}.",การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly
 "Cannot read the provisioning target, so the identity service URL is unknown",ไม่สามารถอ่านเป้าหมายการเปิดใช้ได้ จึงไม่ทราบที่อยู่บริการตัวตน
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
 Channel Secret,Channel Secret
+Choose a workspace,เลือกบริษัทที่จะเข้าใช้งาน
 Client ID for Invitation Links,Client ID สำหรับลิงก์เชิญ
 "Client with only the password grant, used to verify the current password. Shared by all three products.",ไคลเอนต์ที่เปิดเฉพาะ password grant ใช้ตรวจสอบ 'รหัสผ่านปัจจุบัน' ทั้งสามผลิตภัณฑ์ใช้ร่วมกัน
 Close,ปิด
@@ -49,6 +52,8 @@ Connect cloud billing,เชื่อมต่อการเรียกเก�
 Contact Name,ชื่อผู้ติดต่อ
 Contact Phone,เบอร์ติดต่อ
 Contact us,ติดต่อเรา
+Contact us to open an account or book a demo,ติดต่อเราเพื่อเปิดบัญชีหรือนัดชมเดโม
+Continue,ดำเนินการต่อ
 Control API URL,ที่อยู่ Control API
 Control-plane records,บันทึกในระบบควบคุม
 Copy,คัดลอก
@@ -92,6 +97,7 @@ Domain Prefix,คำนำหน้าโดเมน
 Domain already taken: {0} (issue {1}),โดเมนถูกใช้แล้ว: {0} (ใบเปิดใช้งาน {1})
 Domain prefix cannot be all digits: {0},คำนำหน้าโดเมนต้องไม่เป็นตัวเลขล้วน: {0}
 Domain prefix {0} is reserved; pick another,คำนำหน้าโดเมน {0} เป็นชื่อที่สงวนไว้ กรุณาเปลี่ยน
+Don't have an account?,ยังไม่มีบัญชีใช่ไหม
 Done,เสร็จแล้ว
 Duplicate domain on the same issue: {0},โดเมนซ้ำในใบเดียวกัน: {0}
 Email,อีเมล
@@ -100,6 +106,7 @@ Enabled Features,ฟีเจอร์ที่เปิดใช้
 Enabled — {0} steps,เปิดใช้งานแล้ว ({0} ขั้นตอน)
 Enforcement,การควบคุมสิทธิ์
 Enter the assistant API key.,โปรดกรอกคีย์ API ของผู้ช่วย
+Enter your username or email.,กรุณากรอกชื่อผู้ใช้หรืออีเมล
 External Reference,เลขที่อ้างอิงภายนอก
 Failed,ไม่สำเร็จ
 Feature,ฟีเจอร์
@@ -115,6 +122,7 @@ Finished At,สิ้นสุดเมื่อ
 For example http://keycloak.localhost:8105,ตัวอย่าง http://keycloak.localhost:8105
 For example: local sample / production,ตัวอย่าง: ระบบตัวอย่างในเครื่อง / ระบบจริง
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น
+Get your work done in conversation,ทำงานให้เสร็จได้ในบทสนทนา
 Grant feature roles,มอบสิทธิ์ตามฟีเจอร์
 Granted DocTypes,DocType ที่อนุญาต
 Idempotency Key,คีย์กันซ้ำ
@@ -208,6 +216,7 @@ Plan,แพ็กเกจ
 Plan {0} ({1} days · {2} pages),สมัครใช้งานแพ็กเกจ {0} ({1} วัน · {2} หน้า)
 Please change your initial password promptly,กรุณาเปลี่ยนรหัสผ่านเริ่มต้นโดยเร็ว
 "Prefix only, e.g. aerp",ใส่เฉพาะคำนำหน้า เช่น aerp
+Privacy Policy,นโยบายความเป็นส่วนตัว
 Product App,แอปผลิตภัณฑ์
 Product {0} is selected twice,เลือกผลิตภัณฑ์ {0} ซ้ำ
 Products & Domains,ผลิตภัณฑ์และโดเมน
@@ -259,6 +268,7 @@ Set up unified sign-in,ตั้งค่าการเข้าสู่ระ
 Sign in to your account,เข้าสู่ระบบ
 Sign-in account,บัญชีผู้ใช้
 Sign-in accounts,บัญชีเข้าสู่ระบบ
+Sign-in failed. Try again.,เข้าสู่ระบบไม่สำเร็จ โปรดลองอีกครั้ง
 Site,เว็บไซต์
 Site Name,ชื่อเว็บไซต์
 Site Provisioning API,API สร้างเว็บไซต์
@@ -281,6 +291,7 @@ Tenant,พื้นที่ทำงาน
 Tenant Note,หมายเหตุจากพื้นที่ทำงาน
 Tenant Provisioning,การเปิดใช้งานพื้นที่ทำงาน
 Tenant {0} does not exist,ไม่พบพื้นที่ทำงาน {0}
+Terms of Service,ข้อกำหนดการให้บริการ
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,ขอบคุณที่เลือก Pearnly บัญชีของคุณเปิดใช้งานแล้ว คุณสามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที
 "The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again",ช่องทาง LINE Login {0} มีแอป LIFF ครบจำนวนสูงสุด (30 แอป) แล้ว กรุณาลบแอปที่ไม่ใช้แล้วใน LINE Developers แล้วลองอีกครั้ง
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Basic ID ของช่องทาง Messaging API (@xxx) ใช้ระบุและตรวจสอบปัญหา
@@ -301,8 +312,10 @@ The product app installed on this site; pearnly_core is shared by every product.
 The received amount must be greater than 0,จำนวนเงินที่ได้รับจริงต้องมากกว่า 0
 The requested amount must be greater than 0,จำนวนเงินที่ขอต้องมากกว่า 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,ส่งคีย์เดิมซ้ำจะได้ทรัพยากรชุดเดียวเท่านั้น ค่าเริ่มต้นคือเลขใบเปิดใช้งาน
+The sign-in service is not available. Try again later.,บริการเข้าสู่ระบบไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งภายหลัง
 "The top-up amount must be between ฿0.01 and ฿500,000","จำนวนเติมเงินต้องอยู่ระหว่าง ฿0.01 ถึง ฿500,000"
 These accounts could not be deleted: {0},ไม่สามารถลบบัญชีต่อไปนี้ได้: {0}
+This account has no workspace available. Contact your administrator.,บัญชีนี้ยังไม่มีบริษัทที่เข้าใช้งานได้ โปรดติดต่อผู้ดูแลระบบ
 This is a read-only copy of the cloud billing request,นี่คือสำเนาอ่านอย่างเดียวของคำขอเรียกเก็บเงินบนคลาวด์
 "This is an account activation notice. If you did not request this account, please contact our support team.",อีเมลฉบับนี้เป็นการแจ้งเปิดใช้งานบัญชี หากคุณไม่ได้ขอเปิดใช้งาน โปรดติดต่อฝ่ายบริการลูกค้า
 This issue has no usable initial password; fill it in again before issuing,ใบเปิดใช้งานนี้ไม่มีรหัสผ่านเริ่มต้นที่ใช้ได้ กรุณากรอกใหม่ก่อนออกใบ
@@ -326,6 +339,7 @@ Used to send messages (long-lived).,ใช้ส่งข้อความ (โ
 Username,ชื่อผู้ใช้
 Username and initial password are both required: they are the credentials for the user's first sign-in,ต้องกรอกชื่อผู้ใช้และรหัสผ่านเริ่มต้น
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดล่าง และขีดกลาง ความยาว 3–30 ตัวอักษร
+Username or email,ชื่อผู้ใช้หรืออีเมล
 View progress,ดูความคืบหน้า
 View transfer slip,ดูสลิปโอนเงิน
 View welcome email,ดูอีเมลต้อนรับ
@@ -338,6 +352,7 @@ Welcome to,ยินดีต้อนรับสู่
 Welcome to {0} — your account is ready,ยินดีต้อนรับสู่ {0} บัญชีของคุณเปิดใช้งานแล้ว
 Your access domain,โดเมนสำหรับเข้าใช้งาน
 Your account is ready,เปิดใช้งานสำเร็จ
+Your personal [[AI assistant]],[[ผู้ช่วย AI]] ส่วนตัวของคุณ
 grant only handles money in (topup / adjustment); use charge() for deductions,grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()
 "{0} in-plan scan ({1} pages, within quota)",{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)
 {0} out-of-plan scan ({1} over quota),{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)

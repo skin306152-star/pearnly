@@ -22,6 +22,7 @@ Assistant API Key,智能体 API 密钥
 Assistant Engine,智能体引擎
 Assistant Model,智能体模型
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,开通时在租户站点创建并授予该角色。留空表示该功能无需权限控制（例如首页）。
+Back,返回
 Balance (THB),余额（泰铢）
 Balance After,变动后余额
 "Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",余额不足以支付月费（需 ฿{0}，当前 ฿{1}）
@@ -32,10 +33,12 @@ Billing Month,计费月份
 Billing Units,计费单位
 Billing service unavailable; please retry,计费服务不可用，请重试
 Build the workspace,创建工作台
+"By continuing, you agree to Pearnly's {0} and {1}.",继续即表示您已阅读并同意 Pearnly 的{0}和{1}。
 "Cannot read the provisioning target, so the identity service URL is unknown",无法读取开户目标，身份服务地址未知
 Channel Access Token,频道访问令牌
 Channel ID,频道 ID
 Channel Secret,频道密钥
+Choose a workspace,选择要进入的公司
 Client ID for Invitation Links,邀请链接用的客户端 ID
 "Client with only the password grant, used to verify the current password. Shared by all three products.",仅启用密码授权，用于校验当前密码。三个产品共用。
 Close,关闭
@@ -49,6 +52,8 @@ Connect cloud billing,连接云端计费
 Contact Name,联系人
 Contact Phone,联系电话
 Contact us,联系我们
+Contact us to open an account or book a demo,联系我们开通账号或预约演示
+Continue,继续
 Control API URL,控制接口地址
 Control-plane records,控制面记录
 Copy,复制
@@ -92,6 +97,7 @@ Domain Prefix,域名前缀
 Domain already taken: {0} (issue {1}),域名已被占用：{0}（发号单 {1}）
 Domain prefix cannot be all digits: {0},域名前缀不能全是数字：{0}
 Domain prefix {0} is reserved; pick another,域名前缀 {0} 为保留名称，请更换
+Don't have an account?,还没有账号？
 Done,完成
 Duplicate domain on the same issue: {0},同一发号单中域名重复：{0}
 Email,邮箱
@@ -100,6 +106,7 @@ Enabled Features,已开通功能
 Enabled — {0} steps,已开通（{0} 步）
 Enforcement,权限控制
 Enter the assistant API key.,请填写智能体 API 密钥。
+Enter your username or email.,请输入用户名或邮箱。
 External Reference,外部单号
 Failed,失败
 Feature,功能
@@ -115,6 +122,7 @@ Finished At,结束时间
 For example http://keycloak.localhost:8105,例如 http://keycloak.localhost:8105
 For example: local sample / production,例如：本地样板 / 生产
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。
+Get your work done in conversation,让工作在对话中完成
 Grant feature roles,授予功能权限
 Granted DocTypes,授予的 DocType
 Idempotency Key,幂等键
@@ -208,6 +216,7 @@ Plan,套餐
 Plan {0} ({1} days · {2} pages),订阅套餐 {0}（{1} 天 · {2} 张）
 Please change your initial password promptly,请尽快修改初始密码
 "Prefix only, e.g. aerp",仅填写前缀，例如 aerp
+Privacy Policy,隐私政策
 Product App,产品 App
 Product {0} is selected twice,产品 {0} 重复选择
 Products & Domains,产品与域名
@@ -259,6 +268,7 @@ Set up unified sign-in,配置统一登录
 Sign in to your account,登录账户
 Sign-in account,登录账号
 Sign-in accounts,登录账号
+Sign-in failed. Try again.,登录失败，请重试。
 Site,站点
 Site Name,站点名
 Site Provisioning API,建站接口
@@ -281,6 +291,7 @@ Tenant,租户
 Tenant Note,租户备注
 Tenant Provisioning,租户开通
 Tenant {0} does not exist,租户 {0} 不存在
+Terms of Service,服务条款
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。
 "The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again",LINE Login 频道 {0} 的 LIFF 应用已达上限（30 个）。请在 LINE Developers 删除不再使用的应用后重试
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging API 频道的基本 ID（@xxx），用于识别与排查
@@ -301,8 +312,10 @@ The product app installed on this site; pearnly_core is shared by every product.
 The received amount must be greater than 0,实收金额必须大于 0
 The requested amount must be greater than 0,申请金额必须大于 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,相同的键重复提交只创建一套资源。默认为发号单号。
+The sign-in service is not available. Try again later.,登录服务暂时不可用，请稍后再试。
 "The top-up amount must be between ฿0.01 and ฿500,000","充值金额须介于 ฿0.01 至 ฿500,000 之间"
 These accounts could not be deleted: {0},以下账号无法删除：{0}
+This account has no workspace available. Contact your administrator.,此账号暂无可进入的公司，请联系管理员。
 This is a read-only copy of the cloud billing request,这是云端计费请求的只读副本
 "This is an account activation notice. If you did not request this account, please contact our support team.",这是一封账户开通通知。若您未申请开通，请联系官方客服。
 This issue has no usable initial password; fill it in again before issuing,该发号单没有可用的初始密码，请重新填写后再发号
@@ -326,6 +339,7 @@ Used to send messages (long-lived).,用于发送消息（长期令牌）。
 Username,用户名
 Username and initial password are both required: they are the credentials for the user's first sign-in,用户名和初始密码为必填项
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30
+Username or email,用户名或邮箱
 View progress,查看进度
 View transfer slip,查看转账凭证
 View welcome email,查看欢迎邮件
@@ -338,6 +352,7 @@ Welcome to,欢迎使用
 Welcome to {0} — your account is ready,欢迎使用 {0}，您的账户已开通
 Your access domain,您的访问域名
 Your account is ready,已成功开通
+Your personal [[AI assistant]],您的个人[[智能体]]
 grant only handles money in (topup / adjustment); use charge() for deductions,grant 仅处理入账（topup / adjustment）；扣费请使用 charge()
 "{0} in-plan scan ({1} pages, within quota)",{0} 套餐内扫描（{1} 张，额度内）
 {0} out-of-plan scan ({1} over quota),{0} 套餐外扫描（超额 {1} 张）

@@ -28,10 +28,14 @@ def call(action, **payload):
         frappe.throw(_("Billing service unavailable; please retry"))
 
 
-def provision_scope(tenant, product, company_name, owner_subject=None):
+def provision_scope(tenant, product, company_name, owner_subject=None, *, site=None, issuer=None,
+                    owner_username=None, owner_email=None):
     payload = {"tenant": tenant, "product": product, "company_name": company_name}
     if owner_subject:
         payload["owner_subject"] = owner_subject
+    if site:
+        # 智能体入口（ADR-019）的站点登记：站点域名、实际账号池、开户管理员的账号名与邮箱。
+        payload.update(site=site, issuer=issuer, owner_username=owner_username or "", owner_email=owner_email or "")
     return call("register", **payload)
 
 

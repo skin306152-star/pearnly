@@ -50,7 +50,7 @@ RESERVED_PREFIXES = {
     "status", "support", "help", "docs", "blog", "shop", "store", "pay", "billing",
     "keycloak", "auth", "sso", "id", "login", "account", "accounts", "console",
     "control", "desk", "dev", "test", "staging", "stage", "demo", "sandbox",
-    "pearnly", "cowork", "erp", "dms", "internal", "monitor", "grafana", "work",
+    "pearnly", "cowork", "erp", "dms", "internal", "monitor", "grafana", "work", "ai", "testai",
 }
 
 

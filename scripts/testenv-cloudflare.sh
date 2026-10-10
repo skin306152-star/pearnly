@@ -23,14 +23,15 @@ config_dir=${PEARNLY_TESTENV_CFG:-$HOME/.config/pearnly-testenv}
 token_file=$config_dir/cloudflare.token
 env_file=$config_dir/cloudflare.env
 zone_name=${PEARNLY_TESTENV_ZONE:-pearnly.com}
-hosts=(testdms.pearnly.com testerp.pearnly.com testcowork.pearnly.com)
+hosts=(testdms.pearnly.com testerp.pearnly.com testcowork.pearnly.com testai.pearnly.com)
 
 host_for() {
   case "$1" in
     dms) echo testdms.pearnly.com ;;
     erp) echo testerp.pearnly.com ;;
     cowork) echo testcowork.pearnly.com ;;
-    *) echo "unknown app: $1 (expected dms|erp|cowork)" >&2; exit 2 ;;
+    ai) echo testai.pearnly.com ;;  # 智能体入口（ADR-019），在本栈账本容器上
+    *) echo "unknown app: $1 (expected dms|erp|cowork|ai)" >&2; exit 2 ;;
   esac
 }
 
@@ -103,6 +104,7 @@ cmd_tunnel_create() {
       {"hostname": "testdms.pearnly.com", "service": "http://127.0.0.1:8183"},
       {"hostname": "testerp.pearnly.com", "service": "http://127.0.0.1:8182"},
       {"hostname": "testcowork.pearnly.com", "service": "http://127.0.0.1:8181"},
+      {"hostname": "testai.pearnly.com", "service": "http://127.0.0.1:8184"},
       {"service": "http_status:404"}
     ]
   }

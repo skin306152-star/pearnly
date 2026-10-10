@@ -1,0 +1,25 @@
+{
+ "doctype": "DocType",
+ "name": "Pearnly Tenant Site",
+ "module": "Pearnly Control",
+ "engine": "InnoDB",
+ "autoname": "field:site",
+ "allow_rename": 0,
+ "field_order": ["tenant", "product", "site", "issuer", "owner_username", "owner_email", "owner_subject"],
+ "fields": [
+  {"fieldname": "tenant", "fieldtype": "Link", "options": "Pearnly Tenant", "label": "Tenant", "reqd": 1, "read_only": 1, "in_list_view": 1, "search_index": 1},
+  {"fieldname": "product", "fieldtype": "Select", "options": "erp\ndms\ncowork", "label": "Product", "reqd": 1, "read_only": 1, "in_list_view": 1},
+  {"fieldname": "site", "fieldtype": "Data", "label": "Site", "reqd": 1, "unique": 1, "read_only": 1, "in_list_view": 1},
+  {"fieldname": "issuer", "fieldtype": "Data", "label": "Issuer", "reqd": 1, "read_only": 1},
+  {"fieldname": "owner_username", "fieldtype": "Data", "label": "Owner Username", "read_only": 1, "search_index": 1},
+  {"fieldname": "owner_email", "fieldtype": "Data", "label": "Owner Email", "read_only": 1, "search_index": 1},
+  {"fieldname": "owner_subject", "fieldtype": "Data", "label": "Owner Subject", "read_only": 1, "search_index": 1}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1}],
+ "modified": "2026-10-10 15:00:00.000000",
+ "creation": "2026-10-10 15:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

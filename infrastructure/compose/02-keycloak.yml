@@ -43,6 +43,7 @@ services:
       # （清 gzip 缓存 + 重启）—— 只重启不够：Keycloak 把主题资源的 gzip 副本缓存在
       # 容器里 /opt/keycloak/data/tmp/kc-gzip-cache/，重启不会清，浏览器会一直拿旧文件。
       - ../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro
+      - ../keycloak/themes/pearnly-ai:/opt/keycloak/themes/pearnly-ai:ro
     networks:
       sample:
         # 容器内也能按这个名字找到它，保证 iss 两边一致

@@ -324,3 +324,18 @@ Select the assistant engine.	请选择智能体引擎。	โปรดเลื�
 Enter the assistant API key.	请填写智能体 API 密钥。	โปรดกรอกคีย์ API ของผู้ช่วย	アシスタント API キーを入力してください。
 The assistant engine, model or API key is not valid.	智能体引擎、模型或 API 密钥无效。	เอนจิน โมเดล หรือคีย์ API ของผู้ช่วยไม่ถูกต้อง	アシスタントのエンジン、モデル、または API キーが無効です。
 The assistant settings are being applied. Try again shortly.	智能体设置正在下发，请稍后再保存。	กำลังส่งการตั้งค่าผู้ช่วย โปรดลองอีกครั้งในอีกสักครู่	アシスタントの設定を反映中です。しばらくしてからもう一度お試しください。
+Your personal [[AI assistant]]	您的个人[[智能体]]	[[ผู้ช่วย AI]] ส่วนตัวของคุณ	あなた専用の[[AIアシスタント]]
+Get your work done in conversation	让工作在对话中完成	ทำงานให้เสร็จได้ในบทสนทนา	会話で仕事を完了
+Choose a workspace	选择要进入的公司	เลือกบริษัทที่จะเข้าใช้งาน	利用する会社を選択
+This account has no workspace available. Contact your administrator.	此账号暂无可进入的公司，请联系管理员。	บัญชีนี้ยังไม่มีบริษัทที่เข้าใช้งานได้ โปรดติดต่อผู้ดูแลระบบ	このアカウントで利用できる会社がありません。管理者にお問い合わせください。
+Back	返回	กลับ	戻る
+Username or email	用户名或邮箱	ชื่อผู้ใช้หรืออีเมล	ユーザー名またはメールアドレス
+Continue	继续	ดำเนินการต่อ	続ける
+Don't have an account?	还没有账号？	ยังไม่มีบัญชีใช่ไหม	アカウントをお持ちでない場合
+By continuing, you agree to Pearnly's {0} and {1}.	继续即表示您已阅读并同意 Pearnly 的{0}和{1}。	การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly	続行すると、Pearnly の{0}と{1}に同意したものとみなされます。
+Terms of Service	服务条款	ข้อกำหนดการให้บริการ	利用規約
+Privacy Policy	隐私政策	นโยบายความเป็นส่วนตัว	プライバシーポリシー
+Enter your username or email.	请输入用户名或邮箱。	กรุณากรอกชื่อผู้ใช้หรืออีเมล	ユーザー名またはメールアドレスを入力してください。
+The sign-in service is not available. Try again later.	登录服务暂时不可用，请稍后再试。	บริการเข้าสู่ระบบไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งภายหลัง	ログインサービスは現在利用できません。しばらくしてからもう一度お試しください。
+Sign-in failed. Try again.	登录失败，请重试。	เข้าสู่ระบบไม่สำเร็จ โปรดลองอีกครั้ง	ログインに失敗しました。もう一度お試しください。
+Contact us to open an account or book a demo	联系我们开通账号或预约演示	ติดต่อเราเพื่อเปิดบัญชีหรือนัดชมเดโม	アカウント開設やデモのご予約はお問い合わせください

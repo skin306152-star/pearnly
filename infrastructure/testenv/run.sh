@@ -101,7 +101,12 @@ init_sites() {
   done
 }
 
-app_services() { dc config --services | grep "^$app-"; }
+# 本产品的容器，加上同一套栈的账本（billing-web）：智能体入口与站点登记的代码在账本上跑（ADR-019），实时源码也要挂到它。
+app_services() { dc config --services | grep -E "^($app-|billing-web$)"; }
+
+billing_sites() {
+  dc exec -T billing-web bash -c 'cd /home/frappe/frappe-bench/sites && ls -d */site_config.json 2>/dev/null | cut -d/ -f1'
+}
 
 write_live_override() {
   # 本产品的每个应用容器（web / worker / 识别 / 定时 / socketio / 前端）都挂同一份源码（只读）。
@@ -165,9 +170,18 @@ live_sync() {
     for site in $(dc exec -T "$app-web" bash -c 'cd /home/frappe/frappe-bench/sites && ls -d */site_config.json 2>/dev/null | cut -d/ -f1'); do
       dc exec -T -w /home/frappe/frappe-bench "$app-web" bench --site "$site" clear-cache >/dev/null && echo "  clear-cache $site"
     done
+    for site in $(billing_sites); do
+      dc exec -T -w /home/frappe/frappe-bench billing-web bench --site "$site" clear-cache >/dev/null && echo "  clear-cache $site"
+    done
   else
     echo "· 表结构 / 补丁 / hooks 有变化：迁移 + 清缓存"
     finish_start
+    local billing
+    for billing in $(billing_sites); do
+      dc exec -T -w /home/frappe/frappe-bench billing-web bench --site "$billing" migrate >/dev/null \
+        && dc exec -T -w /home/frappe/frappe-bench billing-web bench --site "$billing" clear-cache >/dev/null \
+        && echo "· $billing migrate：ok"
+    done
     [[ -n "$migrate_hash" ]] && echo "$migrate_hash" > "$stamp"
   fi
   wait_healthy
@@ -181,6 +195,13 @@ case "${1:-}" in
     dc up -d --no-deps $(app_services)
     finish_start
     wait_healthy
+    ;;
+  ai-entry)
+    # 智能体入口站点（ADR-019）：建在本栈账本容器里，只接受 testai.* 站点名。
+    dc run --rm --no-deps -T -e TESTENV_SITE="${2:-testai.pearnly.com}" \
+      -e TESTENV_DB_ROOT_PASSWORD="$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)" \
+      -e TESTENV_ADMIN_PASSWORD="${TESTENV_ADMIN_PASSWORD:-testenv-admin}" \
+      billing-web /home/frappe/frappe-bench/env/bin/python /workspace/testenv/ai-entry-init.py
     ;;
   volumes)
     ensure_volumes

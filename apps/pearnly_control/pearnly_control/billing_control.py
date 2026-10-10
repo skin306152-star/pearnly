@@ -27,6 +27,8 @@ def guard_private_site():
     allowed = {f"/api/method/pearnly_control.billing_api.{name}" for name in SERVICE_METHODS}
     allowed.add("/api/method/pearnly_control.billing_control.dispatch")
     allowed.add("/api/method/pearnly_control.account.member_api.execute")
+    # 智能体入口站点的只读查询（ADR-019），专用令牌，见 assistant_entry.billing。
+    allowed.add("/api/method/pearnly_control.assistant_entry.billing.resolve")
     # No legacy cmd, alternate REST route, login, generic DocType API or Desk.
     if request.method != "POST" or request.path not in allowed or frappe.form_dict.get("cmd"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -72,6 +74,14 @@ def dispatch(action: str, payload=None):
             try:
                 member_service.register_owner(tenant, payload["owner_subject"])
             except MemberError:
+                frappe.throw(_("Not permitted"), frappe.PermissionError)
+        if payload.get("site"):
+            # 智能体入口（ADR-019）按它找账号所在的账号池与站点；重复执行就是更新。
+            from pearnly_control.assistant_entry import contracts as entry_contracts, registry
+            try:
+                registry.record(tenant, product, payload["site"], payload.get("issuer"),
+                                payload.get("owner_username"), payload.get("owner_email"), payload.get("owner_subject"))
+            except entry_contracts.ContractError:
                 frappe.throw(_("Not permitted"), frappe.PermissionError)
         frappe.db.commit()
         return {"token": tenant_token(billing_api.service_token(create=False), tenant, product)}

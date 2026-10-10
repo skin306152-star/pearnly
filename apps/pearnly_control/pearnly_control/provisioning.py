@@ -630,7 +630,9 @@ def _billing_payload(issue, dep) -> dict:
     from pearnly_control import billing_remote
     if infra.is_cloud(issue.target):
         scope = billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name,
-                                               owner_subject=identity_pools.subject_of(issue, dep.product))
+                                               owner_subject=identity_pools.subject_of(issue, dep.product),
+                                               site=dep.site_name, issuer=_issuer_url(issue.target, dep.product),
+                                               owner_username=issue.account_username, owner_email=issue.account_email)
         return {
             "site": dep.site_name, "group": dep.bench_group, "tenant": issue.tenant,
             "api": "http://billing-web:8000", "host_header": "billing.internal", "token": scope["token"],
