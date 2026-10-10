@@ -260,7 +260,8 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 
 - [x] 1. 桌面端登录过期后落到旧 Pearnly 登录页（见上「测试机安装」）。完成标准：测试机上 CC 退出登录或会话过期后，出现的是 CC 登录页（测试为 testai.pearnly.com），登录后回到对话页；不出现循环跳转。测试机截图自己核对过。
   - 结果（2026-10-10，`03d2bf9a`）：对话页未登录 / 会话过期 → CC 入口（测试 testai，正式 fatcc.com）；两分钟记号防来回跳。测试机 CC 重开落到 CC 登录页（截图核对），用户登录后回到对话页、退出回 CC 登录页，验收通过。
-- [ ] 2. 对话页图标缓存一年、换了内容不换地址：`/assets/pearnly_core/assistant/{favicon.ico,icon-*.png,apple-touch-icon.png,manifest.webmanifest}` 回 `max-age=31536000`，Cloudflare 命中旧图（2026-10-10 实测 favicon.ico、icon-192.png 仍是旧的）。完成标准：图标地址带内容指纹（`www/assistant.html` 与 manifest 里加 `?v=<内容哈希>` 或交给 Vite 出带哈希的文件名），从外面取到的就是带胡须原版；不靠清 Cloudflare 缓存。
+- [x] 2. 对话页图标缓存一年、换了内容不换地址：`/assets/pearnly_core/assistant/{favicon.ico,icon-*.png,apple-touch-icon.png,manifest.webmanifest}` 回 `max-age=31536000`，Cloudflare 命中旧图（2026-10-10 实测 favicon.ico、icon-192.png 仍是旧的）。完成标准：图标地址带内容指纹（`www/assistant.html` 与 manifest 里加 `?v=<内容哈希>` 或交给 Vite 出带哈希的文件名），从外面取到的就是带胡须原版；不靠清 Cloudflare 缓存。
+  - 结果（2026-10-10，`227ebf23`）：图标与 manifest 地址由前端构建带内容指纹（`vite.config.ts` 的 `ccIcons`），对话页从产物搬标签；外网取到的 5 个文件与本地逐字节一致，favicon 三个尺寸与带胡须原稿逐像素一致；用户看过标签图标，验收通过。
 - [ ] 3. CC 窗口里的登录页别扭（用户 2026-10-10 验收第 1 项时提出）：窗口高度下出现竖向滚动条，底部那排小人被截掉。开工先请用户说清哪里别扭，再按 CC 窗口常见尺寸（含 1.5 倍缩放的 1080p）调到一屏放下、不出滚动条。完成标准：测试机 CC 窗口截图无滚动条、小人完整，用户看过。
 - [ ] 4. 测试机装含 1–3 的新 CC 包（桌面图标也随之变成带胡须原版），截图核对：设置 →「连接」是新单页（公司一行、Express 数据文件夹、网页可读取的文件夹）。
 - [ ] 5. 用户在测试机验收桌面端：CC 里登录 → 自动连接 → 设置里加文件夹 → 网页设置「连接」（只读）里看到 → 网页定时任务能选这个文件夹。
