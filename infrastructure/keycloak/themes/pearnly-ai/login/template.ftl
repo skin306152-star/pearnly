@@ -5,9 +5,9 @@
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tomo</title><meta name="robots" content="noindex"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sriracha&display=swap" rel="stylesheet">
-<link href="${url.resourcesPath}/css/ai.css" rel="stylesheet" />
+<link href="${url.resourcesPath}/css/ai.72acdf079d.css" rel="stylesheet" />
 <#if scripts??><#list scripts as script><script src="${script}" type="text/javascript"></script></#list></#if>
-<script src="${url.resourcesPath}/js/ai.js" defer></script>
+<script src="${url.resourcesPath}/js/ai.781516a88a.js" defer></script>
 </head>
 <body class="${bodyClass}">
 <canvas class="dots" aria-hidden="true"></canvas><svg class="hd-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="hd-pencil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="5" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>

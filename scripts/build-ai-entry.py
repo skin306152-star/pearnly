@@ -9,6 +9,7 @@
 用法：python3 scripts/build-ai-entry.py          生成
       python3 scripts/build-ai-entry.py --check  只检查生成物是否与本脚本一致（CI 用）
 """
+import hashlib
 import pathlib
 import sys
 
@@ -294,9 +295,25 @@ PAGE_HTML = """<!doctype html>
 
 # ---------------- 2. Keycloak ai 专用主题（第二步：密码；以及找回 / 设新密码 / 出错页） ----------------
 
+THEME_JS = JS + """
+(function(){
+  var change=document.getElementById('who-change');
+  if(change)change.addEventListener('click',function(){var who=document.getElementById('who'),u=document.getElementById('username');
+    var input=document.createElement('input');input.className='input';input.id='username';input.name='username';input.type='text';input.autocomplete='username';
+    input.style.marginBottom='10px';input.value='';u.remove();who.replaceWith(input);input.focus()});
+  document.querySelectorAll('[data-toggle-password]').forEach(function(b){b.addEventListener('click',function(){
+    var i=document.getElementById(b.getAttribute('data-toggle-password'));if(i)i.type=i.type==='password'?'text':'password'})});
+})();
+"""
+
+# 样式 / 脚本文件名带内容指纹：Keycloak 给主题资源的缓存期很长，文件名不变时浏览器（含 Tomo 桌面端）会一直用旧样式。
+CSS_NAME = "ai." + hashlib.sha256(CSS.encode()).hexdigest()[:10] + ".css"
+JS_NAME = "ai." + hashlib.sha256(THEME_JS.encode()).hexdigest()[:10] + ".js"
+
+
 THEME_PROPERTIES = """# Pearnly 智能体入口（ai.pearnly.com）的登录主题，只给 pearnly-ai 客户端用（客户端属性 login_theme）。""" + """
 # """ + GENERATED + """
-# 继承 pearnly：找回密码、设新密码、出错页沿用其模板与文案，只换外壳（template.ftl）与样式（resources/css/ai.css）；
+# 继承 pearnly：找回密码、设新密码、出错页沿用其模板与文案，只换外壳（template.ftl）与样式（resources/css/ai.<指纹>.css）；
 # 登录页（login.ftl）重写为「上面显示账号 + 下面只有密码框」，与入口第一步是同一个页面的样子。
 parent=pearnly
 import=common/keycloak
@@ -311,9 +328,9 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tomo</title><meta name="robots" content="noindex">""" + FONTS + """
-<link href="${url.resourcesPath}/css/ai.css" rel="stylesheet" />
+<link href="${url.resourcesPath}/css/""" + CSS_NAME + """" rel="stylesheet" />
 <#if scripts??><#list scripts as script><script src="${script}" type="text/javascript"></script></#list></#if>
-<script src="${url.resourcesPath}/js/ai.js" defer></script>
+<script src="${url.resourcesPath}/js/""" + JS_NAME + """" defer></script>
 </head>
 <body class="${bodyClass}">
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
@@ -378,17 +395,6 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
 </@layout.registrationLayout>
 """
 
-THEME_JS = JS + """
-(function(){
-  var change=document.getElementById('who-change');
-  if(change)change.addEventListener('click',function(){var who=document.getElementById('who'),u=document.getElementById('username');
-    var input=document.createElement('input');input.className='input';input.id='username';input.name='username';input.type='text';input.autocomplete='username';
-    input.style.marginBottom='10px';input.value='';u.remove();who.replaceWith(input);input.focus()});
-  document.querySelectorAll('[data-toggle-password]').forEach(function(b){b.addEventListener('click',function(){
-    var i=document.getElementById(b.getAttribute('data-toggle-password'));if(i)i.type=i.type==='password'?'text':'password'})});
-})();
-"""
-
 # Keycloak 文案：只放 ai 主题新增的键，其余（密码、登录、忘记密码…）继承 pearnly 主题。
 MESSAGES = {
     "zh_CN": {"pearnlyAiNoAccount": "还没有账号？", "pearnlyAiContactNote": "联系我们开通账号或预约演示",
@@ -416,7 +422,7 @@ def properties(values: dict) -> str:
 
 def outputs() -> dict:
     files = {PAGE: PAGE_HTML, THEME / "theme.properties": THEME_PROPERTIES, THEME / "template.ftl": TEMPLATE_FTL,
-             THEME / "login.ftl": LOGIN_FTL, THEME / "resources/css/ai.css": CSS + "\n", THEME / "resources/js/ai.js": THEME_JS}
+             THEME / "login.ftl": LOGIN_FTL, THEME / "resources/css" / CSS_NAME: CSS + "\n", THEME / "resources/js" / JS_NAME: THEME_JS}
     for code, values in MESSAGES.items():
         files[THEME / f"messages/messages_{code}.properties"] = properties(values)
     return files
@@ -425,7 +431,15 @@ def outputs() -> dict:
 def main():
     check = "--check" in sys.argv
     stale = []
-    for path, body in outputs().items():
+    wanted = outputs()
+    for folder in (THEME / "resources/css", THEME / "resources/js"):   # 换了指纹的旧文件不留
+        for old in (folder.glob("*") if folder.exists() else ()):
+            if old not in wanted:
+                if check:
+                    stale.append(str(old.relative_to(ROOT)) + " (remove)")
+                else:
+                    old.unlink()
+    for path, body in wanted.items():
         if check:
             if not path.exists() or path.read_text(encoding="utf-8") != body:
                 stale.append(str(path.relative_to(ROOT)))
