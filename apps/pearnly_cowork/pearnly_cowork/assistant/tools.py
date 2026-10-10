@@ -966,7 +966,29 @@ def recon_result(tool_input) -> str:
         unmatched = [r for r in rows if not _recon_row_matched(kind, r)]
         out.update({"summary": summary, "rows_total": total, "unmatched_total": len(unmatched),
                     "unmatched": [_recon_row(r) for r in unmatched[:RECON_ROWS_SHOWN]]})
+    else:
+        # 销项核查：逐张对照由存下的两边输入现算（同结果页、导出）；只给有问题的（2026-10-10 测试：没有明细，
+        # 智能体只好先导出工作簿再读）
+        from pearnly_cowork.reconciliation import vat_check_service
+
+        doc = vat_check_service.task(task)
+        _content, summary = vat_check_service.compute(vat_check_service.stored_inputs(doc),
+                                                       frappe.local.lang or "th")
+        rows = summary.get("rows") or []
+        issues = [r for r in rows if r.get("status_key") not in VAT_FINE]
+        out.update({"summary": {key: summary.get(key) for key in ("n_total", "n_ok", "n_diff", "n_void",
+                                                                    "diff_amount_total")},
+                    "rows_total": len(rows), "unmatched_total": len(issues),
+                    "unmatched": [_filled({"status": r.get("status"), "customer": r.get("customer"),
+                                           "invoice_no": r.get("invoice_no"), "amount_invoice": r.get("amount_inv"),
+                                           "amount_report": r.get("amount_rep"),
+                                           "differences": _filled(dict(r.get("dims") or {}))})
+                                  for r in issues[:RECON_ROWS_SHOWN]]})
     return _json(_filled(out))
+
+
+# 销项核查里不算问题的：一致、现金单、作废（含报告里作废、没有发票的）
+VAT_FINE = ("st_ok", "st_cash", "st_void", "st_void_no_inv")
 
 
 RECON_PAGE = 200
@@ -1610,8 +1632,9 @@ TOOLS = [
     {"name": "cowork_recon_result", "label": "Viewed a reconciliation",
      "description": "A finished reconciliation: title, status (needs_review means the statement was read from a "
                     "scan and must be checked on the page before export), notes, questions to answer once "
-                    "(cowork_recon_answer), and for bank / income the summary counts and amounts as stored, "
-                    "rows_total, unmatched_total and the first 30 unmatched rows. The reconciliation compares the "
+                    "(cowork_recon_answer), the summary counts and amounts, rows_total, unmatched_total and the first 30 "
+                    "rows that did not match (for vat: invoices and report lines with a difference or missing on one "
+                    "side, with which fields differ). The reconciliation compares the "
                     "bank with one GL account only; report its figures as they are and do not tell the user to post "
                     "entries from them (for example fees the user says are booked in another account).",
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."}, "task": {"type": "string"}},

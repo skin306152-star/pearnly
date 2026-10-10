@@ -655,6 +655,21 @@ class ReconTests(unittest.TestCase):
         self.assertNotIn("sheets", out)
         self.assertEqual(out["questions"], [{"rule": "card_fee"}])
 
+    def test_vat_result_lists_the_lines_with_problems(self):
+        """销项核查也给有问题的行（2026-10-10 测试：只有状态，智能体只好导出再读）。"""
+        vat = types.ModuleType("pearnly_cowork.reconciliation.vat_check_service")
+        vat.task = lambda task: types.SimpleNamespace(name=task)
+        vat.stored_inputs = lambda doc: {}
+        vat.compute = lambda inputs, lang: (b"", {"n_total": 3, "n_ok": 1, "rows": [
+            {"status_key": "st_ok", "invoice_no": "A"},
+            {"status_key": "st_no_inv", "status": "Report only", "invoice_no": "B", "dims": {"tax_id": ""}},
+            {"status_key": "st_void", "invoice_no": "C"}]})
+        sys.modules["pearnly_cowork.reconciliation.vat_check_service"] = vat
+        sys.modules["pearnly_cowork.reconciliation"].vat_check_service = vat
+        out = json.loads(tools.recon_result({"kind": "vat", "task": "CVC-1"}))
+        self.assertEqual((out["rows_total"], out["unmatched_total"]), (3, 1))
+        self.assertEqual(out["unmatched"], [{"status": "Report only", "invoice_no": "B"}])
+
     def test_export_goes_into_the_conversation_and_kinds_are_checked(self):
         out = json.loads(tools.recon_export({"kind": "bank", "task": "T1"}))
         self.assertEqual(out["file"], "/mnt/x/BBL Feb.xlsx")
