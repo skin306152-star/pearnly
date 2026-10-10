@@ -66,6 +66,7 @@ Booking Defaults,ค่าเริ่มต้นการสร้างใบ
 Both account and password are required,กรุณากรอกบัญชีและรหัสผ่าน
 Both issuer and subject are required,ต้องระบุทั้ง issuer และ subject
 Bound At,ผูกเมื่อ
+Branch {0},สาขา {0}
 Branches {0},สาขา {0}
 Builder,วิธีสร้างไฟล์
 Business Key,คีย์ธุรกิจ
@@ -289,6 +290,7 @@ Grand Total,ยอดรวมทั้งสิ้น
 Guests are not allowed to upload files for {0} Doctype,ผู้เยี่ยมชมไม่สามารถอัปโหลดไฟล์ให้ {0} ได้
 Guide,คู่มือใช้งาน
 HTTP Status,สถานะ HTTP
+Head Office,สำนักงานใหญ่
 Home,หน้าหลัก
 Home (Subscription & Billing),หน้าหลัก (แพ็กเกจและค่าบริการ)
 How each push to the external ERP went,ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก
@@ -352,6 +354,7 @@ Loading…,กำลังโหลด…
 Local Account,บัญชีในเครื่อง
 Local Session,เซสชันในเครื่อง
 "Local sample site: not sent to LINE, the raw text is only recorded",เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ
+Looked up a tax ID,ตรวจสอบเลขประจำตัวผู้เสียภาษีแล้ว
 Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
 Manage purchase orders and payment details.,จัดการเอกสารซื้อและรายละเอียดการชำระเงิน
 Manual,บันทึกด้วยตนเอง

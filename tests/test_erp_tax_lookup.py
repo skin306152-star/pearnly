@@ -13,9 +13,9 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "apps/pearnly_erp_portal"))
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 
-from pearnly_erp_portal.masters import rd_contracts as rd  # noqa: E402
+from pearnly_core.revenue_department import contracts as rd  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 TAX_ID = "0105546015062"
@@ -101,6 +101,51 @@ class ClientsContract(unittest.TestCase):
         self.assertIn("<vat:BranchNumber>3</vat:BranchNumber>", vat)
         tin = rd.TIN_SOAP_TPL.format(tax_id=TAX_ID)
         self.assertIn(f"<chec:TIN>{TAX_ID}</chec:TIN>", tin)
+
+
+
+class SharedLookupTests(unittest.TestCase):
+    """共用层查询流程（ERP 录对方档与 CC 税号查询同一套）：用真实响应离线跑一遍，缓存可替换、查不到给原因。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import types
+
+        frappe = types.ModuleType("frappe")
+        frappe._ = lambda text: text
+        frappe.cache = types.SimpleNamespace(get_value=lambda key: None, set_value=lambda *a, **k: None)
+        sys.modules.setdefault("frappe", frappe)
+        from pearnly_core.revenue_department import service
+
+        cls.service = service
+
+    def _cache(self):
+        store = {}
+
+        class Cache:
+            get = staticmethod(lambda tin, branch, kind: store.get((tin, branch, kind)))
+            set = staticmethod(lambda tin, branch, kind, payload, ok, error=None:
+                               store.__setitem__((tin, branch, kind), {"ok": ok, "data": payload, "cached": True}
+                                                 if ok else {"ok": False, "error": error, "cached": True}))
+        return Cache(), store
+
+    def test_vat_registered_company_comes_back_with_name_and_address_and_is_cached(self):
+        cache, store = self._cache()
+        posts = []
+        post = lambda url, body: posts.append(url) or fixture("rd_vat_0105546015062.xml")
+        first = self.service.lookup("0-1055-46015-06-2", cache=cache, post=post)
+        self.assertTrue(first["ok"])
+        self.assertEqual(first["data"]["tax_id"], "0105546015062")
+        self.assertTrue(first["data"]["name"] and first["data"]["address"])
+        again = self.service.lookup("0105546015062", cache=cache, post=post)
+        self.assertTrue(again["cached"])
+        self.assertEqual(len(posts), 1)
+
+    def test_failures_say_why(self):
+        cache, _store = self._cache()
+        self.assertEqual(self.service.lookup("123", cache=cache)["error"], "invalid_format")
+        self.assertEqual(self.service.lookup("0105546015062", cache=cache, post=lambda u, b: None)["error"],
+                         "rd_unreachable")
 
 
 if __name__ == "__main__":

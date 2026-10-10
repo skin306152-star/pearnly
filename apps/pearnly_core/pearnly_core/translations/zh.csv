@@ -66,6 +66,7 @@ Booking Defaults,建单默认值
 Both account and password are required,请填写账号和密码
 Both issuer and subject are required,issuer 与 subject 不能为空
 Bound At,绑定时间
+Branch {0},分支机构 {0}
 Branches {0},分店 {0}
 Builder,生成方式
 Business Key,业务键
@@ -289,6 +290,7 @@ Grand Total,价税合计
 Guests are not allowed to upload files for {0} Doctype,访客不能为 {0} 上传文件
 Guide,使用教程
 HTTP Status,HTTP 状态
+Head Office,总部
 Home,首页
 Home (Subscription & Billing),首页（订阅与计费）
 How each push to the external ERP went,推送到外部 ERP 的过程与结果
@@ -352,6 +354,7 @@ Loading…,加载中…
 Local Account,本地账号
 Local Session,本地会话
 "Local sample site: not sent to LINE, the raw text is only recorded",本机样例站点：未发往 LINE，仅记录原文
+Looked up a tax ID,查了税号
 Looking up the OIDC client failed: {0} {1},查询 OIDC 客户端失败：{0} {1}
 Manage purchase orders and payment details.,管理采购单据及付款明细。
 Manual,手工

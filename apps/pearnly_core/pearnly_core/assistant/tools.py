@@ -27,6 +27,14 @@ def whoami(_tool_input) -> str:
     }, ensure_ascii=False)
 
 
+def tax_id_lookup(tool_input) -> str:
+    """税务局公开登记信息（同 ERP 录对方档、pearnly.com 税号工具）：缓存 7 天，查不到给原因，不抛错。"""
+    from pearnly_core.revenue_department import service
+
+    result = service.lookup(tool_input.get("tax_id"), tool_input.get("branch") or 0)
+    return json.dumps(result, ensure_ascii=False, default=str)
+
+
 CORE_TOOLS = [
     {"name": "pearnly_whoami",
      "label": "Checked your account",
@@ -34,6 +42,16 @@ CORE_TOOLS = [
                     "Call it when you need to address the user or check which product and company you are working in.",
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_core.assistant.tools.whoami"},
+    {"name": "pearnly_tax_id_lookup",
+     "label": "Looked up a tax ID",
+     "description": "Look up a Thai 13-digit tax ID in the Revenue Department's public register: registered name, "
+                    "head office or branch, address, VAT registration date. Use it whenever the user asks who a tax ID "
+                    "belongs to or wants a counterparty's official name or address. branch is the branch number "
+                    "(0 = head office). error not_vat_registered means the ID exists but is not VAT-registered; "
+                    "rd_unreachable means the Revenue Department did not answer, so say so and suggest trying later.",
+     "input_schema": {"type": "object", "properties": {
+         "tax_id": {"type": "string"}, "branch": {"type": "integer", "minimum": 0}}, "required": ["tax_id"]},
+     "handler": "pearnly_core.assistant.tools.tax_id_lookup"},
 ]
 
 

@@ -66,6 +66,7 @@ Booking Defaults,Booking Defaults
 Both account and password are required,Both account and password are required
 Both issuer and subject are required,Both issuer and subject are required
 Bound At,Bound At
+Branch {0},Branch {0}
 Branches {0},Branches {0}
 Builder,Builder
 Business Key,Business Key
@@ -288,6 +289,7 @@ Grand Total,Grand Total
 Guests are not allowed to upload files for {0} Doctype,Guests are not allowed to upload files for {0} Doctype
 Guide,Guide
 HTTP Status,HTTP Status
+Head Office,Head Office
 Home,Home
 Home (Subscription & Billing),Home (Subscription & Billing)
 How each push to the external ERP went,How each push to the external ERP went
@@ -351,6 +353,7 @@ Loading…,Loading…
 Local Account,Local Account
 Local Session,Local Session
 "Local sample site: not sent to LINE, the raw text is only recorded","Local sample site: not sent to LINE, the raw text is only recorded"
+Looked up a tax ID,Looked up a tax ID
 Looking up the OIDC client failed: {0} {1},Looking up the OIDC client failed: {0} {1}
 Manage purchase orders and payment details.,Manage purchase orders and payment details.
 Manual,Manual

@@ -24,12 +24,11 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, now_datetime
 
-from pearnly_erp_portal.masters import rd_contracts as contracts
+from pearnly_core.revenue_department import contracts
+from pearnly_core.revenue_department import service as core
 
 CACHE = "ERP Tax Lookup Cache"
 
-TIMEOUT_SEC = 5
-RETRY_TIMES = 1
 CACHE_DAYS = 7
 
 normalize_tin = contracts.normalize_tin
@@ -74,89 +73,33 @@ def _cache_set(tax_id: str, branch: int, service: str, payload: Any,
         frappe.db.rollback()
 
 
-# ── SOAP ────────────────────────────────────────────────────────────────────
+# ── 查询（流程在共用层 `pearnly_core.revenue_department.service`，这里只提供本 App 的缓存表） ─────────────────────
+
+
+class _DocTypeCache:
+    get = staticmethod(lambda tin, branch, service: _cache_get(tin, branch, service))
+    set = staticmethod(lambda tin, branch, service, payload, is_success, error_msg=None:
+                       _cache_set(tin, branch, service, payload, is_success, error_msg))
 
 
 def _soap_post(url: str, body: str) -> Optional[str]:
-    """发 SOAP 1.2 请求；失败返回 None（超时 5 秒，重试 1 次）。"""
-    import requests
+    return core.soap_post(url, body)
 
-    headers = {"Content-Type": "application/soap+xml; charset=utf-8"}
-    for attempt in range(RETRY_TIMES + 1):
-        try:
-            response = requests.post(url, data=body.encode("utf-8"), headers=headers,
-                                     timeout=TIMEOUT_SEC)
-            if response.status_code == 200:
-                return response.text
-        except Exception:
-            pass
-        if attempt < RETRY_TIMES:
-            continue
-    return None
+
+def _post(url: str, body: str) -> Optional[str]:
+    return _soap_post(url, body)  # 按名字取，实验室校验脚本替换 `_soap_post` 仍然有效
 
 
 def verify_tin(raw_tax_id) -> dict:
     """13 位税号是否真实存在（TIN Service）。"""
-    tin = normalize_tin(raw_tax_id)
-    if not tin:
-        return {"ok": False, "error": "invalid_format"}
-    cached = _cache_get(tin, 0, "tin")
-    if cached:
-        return cached
-    xml = _soap_post(contracts.TIN_ENDPOINT, contracts.TIN_SOAP_TPL.format(tax_id=tin))
-    if not xml:
-        return {"ok": False, "error": "rd_unreachable"}
-    fields = contracts.raw_fields(xml)
-    if not fields:
-        # 解析不出来就不缓存：下次重试还能拿到真实响应。
-        return {"ok": False, "error": "parse_error"}
-    data = contracts.tin_payload(fields, tin)
-    _cache_set(tin, 0, "tin", data, True)
-    return {"ok": True, "data": data, "cached": False}
+    return core.verify_tin(raw_tax_id, cache=_DocTypeCache(), post=_post)
 
 
 def lookup_vat(raw_tax_id, branch: int = 0) -> dict:
     """VAT 注册主体的官方信息。返回 `{ok, data: {tax_id, name, address, ...}}`。"""
-    tin = normalize_tin(raw_tax_id)
-    if not tin:
-        return {"ok": False, "error": "invalid_format"}
-    try:
-        branch = max(0, int(branch or 0))
-    except (TypeError, ValueError):
-        branch = 0
-    cached = _cache_get(tin, branch, "vat")
-    if cached:
-        return cached
-    xml = _soap_post(contracts.VAT_ENDPOINT,
-                     contracts.VAT_SOAP_TPL.format(tax_id=tin, branch_no=branch))
-    if not xml:
-        return {"ok": False, "error": "rd_unreachable"}
-    fields = contracts.raw_fields(xml)
-    if not contracts.pick(fields, "NID", "ID"):
-        # 没找到这家（也可能税号没注册 VAT）：缓存"查不到"，免得每次开单都打接口。
-        _cache_set(tin, branch, "vat", {}, False, "not_found")
-        return {"ok": False, "error": "not_found"}
-    data = contracts.vat_payload(fields, tin, _("Head Office"), _("Branch {0}"))
-    _cache_set(tin, branch, "vat", data, True)
-    return {"ok": True, "data": data, "cached": False}
+    return core.lookup_vat(raw_tax_id, branch, cache=_DocTypeCache(), post=_post)
 
 
 def lookup(raw_tax_id, branch: int = 0) -> dict:
-    """给界面用的一个入口：查得到就回字段，查不到给出**能说人话的原因**。
-
-    失败原因分三种，界面按它出不同提示：税号格式不对 / 税局那边没有这家登记 /
-    外部接口现在连不上（本实验室容器就是这种情况）。
-    """
-    if not normalize_tin(raw_tax_id):
-        return {"ok": False, "error": "invalid_format"}
-    result = lookup_vat(raw_tax_id, branch)
-    if result.get("ok"):
-        data = dict(result["data"])
-        return {"ok": True, "data": data, "cached": result.get("cached", False)}
-    if result.get("error") != "not_found":
-        return result
-    # 查不到 VAT 登记时再看税号本身存不存在，好把"没注册 VAT"和"税号不存在"分开说。
-    tin = verify_tin(raw_tax_id)
-    if tin.get("ok") and tin["data"].get("exists"):
-        return {"ok": False, "error": "not_vat_registered"}
-    return {"ok": False, "error": result.get("error") or "not_found"}
+    """给界面用的一个入口：查得到就回字段，查不到给出**能说人话的原因**（见共用层 `lookup`）。"""
+    return core.lookup(raw_tax_id, branch, cache=_DocTypeCache(), post=_post)

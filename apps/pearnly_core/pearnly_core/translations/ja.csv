@@ -66,6 +66,7 @@ Booking Defaults,起票の既定値
 Both account and password are required,アカウントとパスワードの両方が必要です
 Both issuer and subject are required,issuer と subject はどちらも必須です
 Bound At,連携日時
+Branch {0},支店 {0}
 Branches {0},支店 {0}
 Builder,生成方法
 Business Key,業務キー
@@ -289,6 +290,7 @@ Grand Total,税込合計
 Guests are not allowed to upload files for {0} Doctype,ゲストは {0} にファイルをアップロードできません
 Guide,使い方
 HTTP Status,HTTPステータス
+Head Office,本店
 Home,ホーム
 Home (Subscription & Billing),ホーム（プランと請求）
 How each push to the external ERP went,外部ERPへの連携過程と結果
@@ -352,6 +354,7 @@ Loading…,読み込み中…
 Local Account,ローカルアカウント
 Local Session,ローカルセッション
 "Local sample site: not sent to LINE, the raw text is only recorded",ローカル見本サイト：LINEへは送信せず、原文のみ記録
+Looked up a tax ID,税番号を照会しました
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
 Manage purchase orders and payment details.,仕入伝票と支払明細を管理します。
 Manual,手入力

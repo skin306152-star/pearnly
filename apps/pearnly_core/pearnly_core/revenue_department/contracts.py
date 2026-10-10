@@ -2,7 +2,8 @@
 """泰国税务局（RD）接口的**纯规则**：请求形状、响应解析、字段归一。
 
 不 import 框架、不联网、不写库 —— 所以可以拿真实抓下来的响应离线断言
-（`tests/test_erp_tax_lookup.py`）。落点与缓存见 `masters/rd.py`。
+（`tests/test_erp_tax_lookup.py`）。多产品共用（2026-10-10 从 ERP `masters/` 移来，CC 的税号查询也用）：
+查询流程见同目录 `service.py`，ERP 的缓存表落点见 `pearnly_erp_portal/masters/rd.py`。
 
 为什么解析按**别名**取值：旧项目的解析表只认 `vProvinceName` / `vThumbolName` 这类
 带 Name 的标签，而线上实际返回的是 `vProvince` / `vThambol` / `vAmphur`（抓下来的
