@@ -72,6 +72,10 @@ def face(ex, ey, r=5, gap=24):
 #   dms：身体就是一张蓝色身份证，举着一台黑色小相机
 #   ai（Tomo）：一朵云，头顶一颗小星光
 #   erp：戴黄色小店遮阳帽，身上一段条码带红色扫描线，提着黄色购物篮
+TOMO_SPARK = "M30 -128 Q32 -119 40 -117 Q32 -115 30 -106 Q28 -115 20 -117 Q28 -119 30 -128 Z"   # Tomo 头顶的小星光
+TOMO_CLOUD = "M-40 0 H40 Q62 0 60 -22 Q74 -44 52 -60 Q52 -92 20 -90 Q4 -112 -20 -98 Q-46 -102 -50 -74 Q-70 -62 -60 -40 Q-72 -14 -50 -2 Z"   # Tomo 的云朵身体（应用图标也用它，scripts/build-assistant-brand.py）
+
+
 def costume(kind):
     if kind == "mrerp":   # MR.ERP：蓝色大账本，书脊深蓝、右边一排彩色书签、白框眼镜、黄领带，封面一块 MR.ERP 名牌
         tabs = "".join(f'<rect x="40" y="{-96 + i * 18}" width="7" height="13" rx="2" fill="{c}" stroke-width="1.6"/>'
@@ -91,8 +95,8 @@ def costume(kind):
         return body, (-40, -52), (40, -52), 16, 50
     if kind == "ai":    # Tomo：一朵软软的云，头顶冒一颗会闪的小星光（在想事情），空着手；
         # 平时是 .hm-calm（眼睛跟着鼠标、会眨眼），笑起来换成 .hm-laugh（眯眼 + 张嘴笑），由 CSS 定时 / 悬停 / .hm-laughing 切换
-        body = ('<g class="hm-spark"><path d="M30 -128 Q32 -119 40 -117 Q32 -115 30 -106 Q28 -115 20 -117 Q28 -119 30 -128 Z" fill="#ffd84d" stroke-width="2"/></g>'
-                '<path d="M-40 0 H40 Q62 0 60 -22 Q74 -44 52 -60 Q52 -92 20 -90 Q4 -112 -20 -98 Q-46 -102 -50 -74 Q-70 -62 -60 -40 Q-72 -14 -50 -2 Z" fill="#eef3fb"/>'
+        body = (f'<g class="hm-spark"><path d="{TOMO_SPARK}" fill="#ffd84d" stroke-width="2"/></g>'
+                f'<path d="{TOMO_CLOUD}" fill="#eef3fb"/>'
                 '<g class="hm-calm">' + face(-12, -62, 4.4, 24) + '</g>'
                 '<g class="hm-laugh"><path d="M-18 -60 q6 -8 12 0 M6 -60 q6 -8 12 0" stroke-width="2.8"/>'
                 '<ellipse cx="-23" cy="-48" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
