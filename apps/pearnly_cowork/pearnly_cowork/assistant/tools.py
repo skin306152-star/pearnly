@@ -9,6 +9,7 @@
 """
 import hashlib
 import json
+import re
 import time
 import uuid
 from decimal import Decimal, InvalidOperation
@@ -1131,7 +1132,7 @@ def stocktake_report(tool_input) -> str:
     items = data.get("items") or []
     if not tool_input.get("all_items"):
         items = [r for r in items if not r.get("counted") or r.get("difference")]
-    keep = ("code", "product_name", "unit", "location", "book_qty", "counted_qty", "difference")
+    keep = ("code", "product_name", "unit", "warehouse", "location", "book_qty", "counted_qty", "difference")
     rows = [{k: r.get(k) for k in keep if r.get(k) not in (None, "")} | {"counted": bool(r.get("counted"))}
             for r in items[:STOCK_ROWS_SHOWN]]
     head = data.get("task") or {}
@@ -1149,6 +1150,10 @@ def stocktake_count(tool_input) -> str:
     if found.get("status") == "not_saved":
         return _json(found)
     item = found["product"]["name"]
+    # 仓库必填（同页面录入框「实际仓库」）：没说就用这一项账面上的仓库、库位（页面也是默认带出账面位置）
+    book = (found.get("rows") or [{}])[0]
+    warehouse = str(tool_input.get("warehouse") or book.get("warehouse") or "").strip()
+    location = str(tool_input.get("location") or book.get("location") or "").strip()
     if tool_input.get("recount"):
         cleared = _call(desk_api.api_stock_count_recount, count, item)
         if cleared.get("status") == "not_saved" or tool_input.get("qty") is None:
@@ -1156,7 +1161,7 @@ def stocktake_count(tool_input) -> str:
     if tool_input.get("qty") is None:
         return _json({"status": "not_saved", "reason": "qty is required."})
     return _json(_call(desk_api.api_stock_count_add_entry, count, tool_input.get("qty"), item=item,
-                       location=tool_input.get("location") or None, request_id=str(uuid.uuid4())))
+                       warehouse=warehouse, location=location, request_id=str(uuid.uuid4())))
 
 
 def stocktake_close(tool_input) -> str:
@@ -1176,7 +1181,12 @@ def stocktake_export(tool_input) -> str:
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
         frappe.clear_messages()
         return _json({"status": "not_exported", "reason": str(error)[:300]})
-    return _json({"status": "exported", "file": chat_files.add_to_conversation(f"stocktake-{count}.xlsx", content, XLSX)})
+    # 文件名用盘点名称 + 日期（不用内部单号，2026-10-10 测试）；文件名里不能有的字符换成「-」
+    title = frappe.db.get_value("Cowork Stocktake Task", count, "title") or "stocktake"
+    name = re.sub(r'[\\/:*?"<>|]+', "-", str(title)).strip(" .-")[:80] or "stocktake"
+    stamp = frappe.utils.now_datetime().strftime("%Y%m%d")
+    return _json({"status": "exported",
+                  "file": chat_files.add_to_conversation(f"{name}-{stamp}.xlsx", content, XLSX)})
 
 
 def stocktake_delete(tool_input) -> str:
@@ -1646,8 +1656,8 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}, "all_items": {"type": "boolean"}}, "required": ["count"]},
      "handler": "pearnly_cowork.assistant.tools.stocktake_report"},
     {"name": "cowork_stocktake_count", "label": "Recorded a count",
-     "description": "Record a counted quantity for a product by code or barcode, like scanning on the page: entries for the same product add up. recount true clears that product's earlier counts first and then records qty.",
-     "input_schema": {"type": "object", "properties": {"count": {"type": "string"}, "code": {"type": "string"}, "qty": {"type": "number", "minimum": 0}, "location": {"type": "string"}, "recount": {"type": "boolean"}}, "required": ["count", "code"]},
+     "description": "Record a counted quantity for a product by code or barcode, like scanning on the page: entries for the same product add up. Warehouse and location default to the product's book position; give them when it was found elsewhere. recount true clears that product's earlier counts first and then records qty.",
+     "input_schema": {"type": "object", "properties": {"count": {"type": "string"}, "code": {"type": "string"}, "qty": {"type": "number", "minimum": 0}, "warehouse": {"type": "string"}, "location": {"type": "string"}, "recount": {"type": "boolean"}}, "required": ["count", "code"]},
      "handler": "pearnly_cowork.assistant.tools.stocktake_count"},
     {"name": "cowork_stocktake_close", "label": "Finished a stock count",
      "description": "Finish a stock count; it becomes read-only (export only). Only when the user says counting is done.",

@@ -27,8 +27,8 @@ Files in this workspace:
 - When the user asks for a table, list, report, spreadsheet, document, chart or any other result to keep, \
 create it as a file in {OUTPUTS}/ (tables and lists as .xlsx, documents as .docx or .pdf, charts and pages as .html) \
 and reply with a short summary of what the file contains instead of repeating its full content.
-- When you mention a file, give only its file name (the user opens it from the panel beside the chat); never show \
-paths such as {OUTPUTS} or {UPLOADS}.
+- When you mention a file, give only its file name (the user clicks it in the chat or opens it from the panel beside \
+the chat, so do not call it a folder); never show paths such as {OUTPUTS} or {UPLOADS}.
 - In spreadsheets write the calculated values; use formulas only when the user asks for them."""
 # 浏览器等着这些请求，不能挂太久；SDK 自己会对 429 / 5xx / 超时重试。
 TIMEOUT = 30

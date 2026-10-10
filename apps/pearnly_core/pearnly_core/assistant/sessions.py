@@ -172,6 +172,8 @@ def _remember_context(row, events_of_current) -> None:
         try:
             context.note(row.session_id, events_of_current)
             frappe.db.commit()  # GET 请求不自动提交
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()  # 推送线程正在写同一行（常见、无害）：这次不记，下一轮再记
         except Exception:
             frappe.db.rollback()
             frappe.log_error(title="Assistant context note failed")
