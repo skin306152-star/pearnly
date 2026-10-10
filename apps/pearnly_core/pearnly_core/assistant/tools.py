@@ -102,12 +102,25 @@ def approval_view(name: str, tool_input) -> dict:
     return {"ask": _(ask), "preview": rows[:PREVIEW_ROWS]}
 
 
+REFUSED = ("not_saved", "not_started", "not_exported", "failed")
+
+
+def _refused(text: str) -> bool:
+    """业务上没办成（工具回 status not_saved 等）也按出错交回：对话里那一步显示失败，不只靠模型转述。"""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and data.get("status") in REFUSED
+
+
 def run(name: str, tool_input) -> tuple[str, bool]:
     tool = next((t for t in declared() if t["name"] == str(name or "")), None)
     if not tool:
         return _("This tool is not available on this site."), True
     try:
-        return str(frappe.get_attr(tool["handler"])(tool_input if isinstance(tool_input, dict) else {})), False
+        text = str(frappe.get_attr(tool["handler"])(tool_input if isinstance(tool_input, dict) else {}))
+        return text, _refused(text)
     except (frappe.ValidationError, frappe.PermissionError) as err:
         frappe.db.rollback()
         return str(err) or _("The request was refused."), True

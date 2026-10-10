@@ -362,6 +362,10 @@ class RelayTests(unittest.TestCase):
                              {"ask": "Save?", "preview": [{"field": "Day", "before": "1", "after": "5"}]})
             self.assertEqual(tools.approval_view("plain", {"task": "T1"}),
                              {"ask": "Did", "preview": [{"field": "task", "before": "", "after": "T1"}]})
+        # 业务上没办成（status not_saved 等）也按出错交回，对话里那一步显示失败
+        self.assertTrue(tools._refused('{"status": "not_saved", "reason": "x"}'))
+        self.assertFalse(tools._refused('{"status": "saved"}'))
+        self.assertFalse(tools._refused("plain text"))
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         self.assertIn("tools.approval_view(", source.split("def run_tool(", 1)[1])
         # 结果面板预览 PDF：用 inline 的 pdf 回应，不是附件（binary 会变成下载、面板空白）

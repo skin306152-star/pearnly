@@ -978,8 +978,12 @@ def recon_result(tool_input) -> str:
                                                        frappe.local.lang or "th")
         rows = summary.get("rows") or []
         issues = [r for r in rows if r.get("status_key") not in VAT_FINE]
+        counted = {}
+        for r in issues:
+            counted[r.get("status") or r.get("status_key")] = counted.get(r.get("status") or r.get("status_key"), 0) + 1
         out.update({"summary": {key: summary.get(key) for key in ("n_total", "n_ok", "n_diff", "n_void",
                                                                     "diff_amount_total")},
+                    "problems_by_type": counted,
                     "rows_total": len(rows), "unmatched_total": len(issues),
                     "unmatched": [_filled({"status": r.get("status"), "customer": r.get("customer"),
                                            "invoice_no": r.get("invoice_no"), "amount_invoice": r.get("amount_inv"),
@@ -1302,8 +1306,8 @@ def work_search(tool_input) -> str:
 
 def folder_tasks(_input) -> str:
     listing = rules.listing()
-    keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "folder", "root_label",
-            "run_day", "run_time", "last_run", "counts", "results", "agent_fresh", "folder_state")
+    keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
+            "folder", "root_label", "run_day", "run_time", "last_run", "counts", "results", "agent_fresh", "folder_state")
     return _json({"tasks": [{k: r.get(k) for k in keep} for r in listing.get("rules") or []]})
 
 
@@ -1359,7 +1363,12 @@ def folder_task_options(tool_input) -> str:
 def save_folder_task(tool_input) -> str:
     keep = ("name", "title", "connection", "account_set_key", "direction", "posting_kind", "payment", "reader",
             "root_id", "folder", "run_day", "run_time", "defaults")
-    values = {key: tool_input[key] for key in keep if key in tool_input}
+    # 改已有任务：以库里现值为底，只换这次说的几项（保存接口要整份表单；2026-10-10 测试只传了账套，缺入账方式被拒）
+    current = _task_row(str(tool_input.get("name") or "")) if tool_input.get("name") else {}
+    values = {key: current[key] for key in keep if current.get(key) not in (None, "")}
+    if "run_time" in values:
+        values["run_time"] = _time(values["run_time"])
+    values.update({key: tool_input[key] for key in keep if key in tool_input})
     row = _task_call(rules.save, values)
     return _json(row if row.get("status") == "not_saved" else {"status": "saved", "task": row.get("name"),
                                                                "title": row.get("title"), "enabled": row.get("enabled")})

@@ -767,5 +767,18 @@ class ApprovalPreviewTests(unittest.TestCase):
                          [("", "QA 月度进项（T9SINCER）"), ("70EXP · T.7 SINCER", "70EXP · T.9 SINCER")])
 
 
+    def test_changing_a_task_keeps_what_was_not_mentioned(self):
+        """改已有任务只说了账套：其余照库里现值（2026-10-10 测试缺入账方式被拒）。"""
+        current = {"name": "R1", "title": "QA", "connection": "EXP1", "account_set_key": "k7", "direction": "purchase",
+                   "posting_kind": "service", "reader": "EXP1", "root_id": "r", "folder": "f", "run_day": 1,
+                   "run_time": "22:00:00", "defaults": {}}
+        saved = []
+        with mock.patch.object(tools.rules, "listing", return_value={"rules": [current]}, create=True), \
+                mock.patch.object(tools.rules, "save", lambda values: saved.append(values) or {"name": "R1"}, create=True):
+            tools.save_folder_task({"name": "R1", "account_set_key": "k9"})
+        self.assertEqual(saved[0]["account_set_key"], "k9")
+        self.assertEqual((saved[0]["posting_kind"], saved[0]["folder"], saved[0]["run_time"]), ("service", "f", "22:00"))
+
+
 if __name__ == "__main__":
     unittest.main()
