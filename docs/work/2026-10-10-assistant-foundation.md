@@ -426,8 +426,10 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 
 用户 2026-10-11：清单做完、验证没问题再上线（定时任务改为先点「允许」也已同意，第 22 项）。
 
-- [ ] 23. 上线批次：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `scripts/ci-candidate-checks.sh offline` → 合入 main 并推送、回读远端 SHA → 从 main 构建镜像 → 生产部署 → 计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 正式版（`companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404。
-- [ ] 24. 生产 Keycloak `pearnly-ai` 主题重装（现装的是 docker cp 进容器的，容器重建会丢；且标签小图标还是去胡须旧图；第 3 项的自适应排版也要重装后才到输错密码 / 找回密码等页）：随上线一起装，或改成像父主题一样宿主机挂载。重装停登约 40 秒，先问用户。
+- [x] 23. 上线批次：变基最新 `origin/main` → 改了 `pearnly_core` 要在生产镜像跑完整 `scripts/ci-candidate-checks.sh offline` → 合入 main 并推送、回读远端 SHA → 从 main 构建镜像 → 生产部署 → 计费服务上建入口站点 **fatcc.com**（站点配置 `pearnly_assistant_entry`、登记表回填；nginx 用 `infrastructure/production/fatcc.conf`，证书已签到 2027-01-08）→ 发 CC 正式版（`companion/README.md`，先部署服务端）→ 回读。fatcc.com 现在仍是 404。
+  - 结果（2026-10-11 凌晨）：已上线 main 8cfdeba6，见 [上线记录](2026-10-11-release-8cfdeba6.md)；fatcc.com 入口站点已建、现有 6 个站点已补登记；CC 正式版 1.4.0 已发。
+- [x] 24. 生产 Keycloak `pearnly-ai` 主题重装（现装的是 docker cp 进容器的，容器重建会丢；且标签小图标还是去胡须旧图；第 3 项的自适应排版也要重装后才到输错密码 / 找回密码等页）：随上线一起装，或改成像父主题一样宿主机挂载。重装停登约 40 秒，先问用户。
+  - 结果（2026-10-11 凌晨，用户同意）：随基础层激活重建 Keycloak（19:41:33 UTC），`pearnly-ai` 主题改为宿主机挂载（容器重建不再丢），登录页实测为新主题。
 
 **E. 收尾**
 
