@@ -131,8 +131,11 @@ class CloudOnly(unittest.TestCase):
 
     def test_native_document_validation_rejects_local_before_account_validation(self):
         from pearnly_control.pearnly_control.doctype.pearnly_issue.pearnly_issue import PearnlyIssue
+        # 开户单另有智能体设置（ADR-019，`onboarding.assistant`）：这里三项都空，即不开通
         doc = SimpleNamespace(target="local", status="draft", is_new=lambda: True,
-                              _validate_account=Mock(), _validate_apps=Mock(), _summarize_features=Mock())
+                              _validate_account=Mock(), _validate_apps=Mock(), _summarize_features=Mock(),
+                              assistant_engine="", assistant_model="", assistant_api_key="",
+                              flags=SimpleNamespace(), has_value_changed=lambda field: False)
         with self.assertRaises(Rejected): PearnlyIssue.validate(doc)
         doc._validate_account.assert_not_called()
         doc.target = "cloud"
