@@ -238,3 +238,13 @@ def test_pairing_uses_the_machine_roots_and_reports_every_account_set(monkeypatc
     assert pair["express_root"] == r"S:\\EXP68"
     assert pair["authorized_roots"] == [r"S:\\EXP69", r"S:\\EXP68"]  # 与旧版一致：新年度在前
     assert pair["enable_autostart"] is True
+
+
+def test_folder_picker_never_opens_in_the_program_folder(tmp_path):
+    # 空值时 Qt 从工作目录（CC 的程序文件夹）打开；没加过文件夹就从「文档」打开，加过就从上次那个的上一级打开。
+    documents = str(tmp_path / "Documents")
+    assert desktop_settings.picker_start([], documents) == documents
+    picked = tmp_path / "票据" / "十月"
+    picked.mkdir(parents=True)
+    assert desktop_settings.picker_start([str(picked)], documents) == str(tmp_path / "票据")
+    assert desktop_settings.picker_start([str(tmp_path / "gone" / "x")], documents) == documents

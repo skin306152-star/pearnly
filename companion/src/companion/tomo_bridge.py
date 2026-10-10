@@ -15,10 +15,10 @@ import json
 import uuid
 from typing import Callable
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
 from PySide6.QtWidgets import QFileDialog
 
-from .desktop_settings import DesktopSettings
+from .desktop_settings import DesktopSettings, picker_start
 from .gui_pairing_support import Probes
 from .i18n import normalize, t
 from .logger import get_logger
@@ -82,7 +82,8 @@ class TomoBridge(QObject):
         if method == "detect":
             return self._job(lambda: {"ok": True, "roots": s.detect()})
         if method == "pick_roots":
-            picked = QFileDialog.getExistingDirectory(self._window(), t("browse_title", normalize(lang)))
+            picked = QFileDialog.getExistingDirectory(self._window(), t("browse_title", normalize(lang)),
+                                                      self._start(s.snapshot().get("express_roots") or []))
             if not picked:
                 return {"ok": False, "cancelled": True}
             return self._job(lambda: s.change_roots(picked, lang))
@@ -91,10 +92,11 @@ class TomoBridge(QObject):
         if method == "remove":
             return self._changed(s.remove(member))
         if method == "add_folder":
-            picked = QFileDialog.getExistingDirectory(self._window(), t("folders_pick", normalize(lang)))
+            current = self._folders(member)
+            picked = QFileDialog.getExistingDirectory(self._window(), t("folders_pick", normalize(lang)),
+                                                      self._start(current))
             if not picked:
                 return {"ok": False, "cancelled": True}
-            current = self._folders(member)
             if picked in current:
                 return {"ok": True}
             return self._changed(s.set_folders(member, current + [picked], lang))
@@ -108,6 +110,10 @@ class TomoBridge(QObject):
         if method == "logs":
             return s.open_logs()
         return {"ok": False}
+
+    @staticmethod
+    def _start(current: list) -> str:
+        return picker_start(current, QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation))
 
     def _folders(self, member: str) -> list:
         row = next((m for m in self._settings.snapshot()["members"] if m["id"] == member), None)

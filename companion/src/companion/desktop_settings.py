@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import ntpath
 import os
 import subprocess
 import sys
@@ -60,6 +61,15 @@ def member_name(record: ProfileRecord) -> str:
     return (str(getattr(record, "pearnly_account", "") or "").strip()
             or str(getattr(record, "endpoint_name", "") or "").strip() or "-")
 
+
+def picker_start(current, documents: str) -> str:
+    """选文件夹的窗口从哪打开：上次那个文件夹的上一级，没有就是「文档」。不能给空值——空值时 Qt 从工作目录打开，
+    而 CC 的工作目录是它自己的程序文件夹，一点「选择文件夹」就把程序目录开放给了网页（2026-10-10 测试机上发生过）。"""
+    for path in reversed([str(p) for p in current or [] if p]):
+        parent = ntpath.dirname(path.rstrip("\\/"))
+        if parent and os.path.isdir(parent):
+            return parent
+    return documents
 
 class DesktopSettings:
     def __init__(self, *, states: Callable[[], Mapping[str, tuple]] = dict,
