@@ -12,7 +12,10 @@
   "engine_code",
   "title",
   "starred",
-  "archived"
+  "archived",
+  "remote_ids",
+  "context_tokens",
+  "pending_carry"
  ],
  "fields": [
   {
@@ -65,11 +68,30 @@
    "fieldtype": "Check",
    "label": "Archived",
    "read_only": 1
+  },
+  {
+   "fieldname": "remote_ids",
+   "fieldtype": "Small Text",
+   "label": "Remote Sessions",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "context_tokens",
+   "fieldtype": "Int",
+   "label": "Context Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pending_carry",
+   "fieldtype": "Long Text",
+   "label": "Pending Carry-over",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-10 12:00:00.000000",
+ "modified": "2026-10-10 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",

@@ -41,4 +41,4 @@ def settings() -> Settings:
     except engines.EngineError:
         frappe.throw(_("The assistant is not set up for this site yet."))
     engine = engines.get(code)
-    return Settings(engine, key, model or engine.default_model)
+    return Settings(engine, key, model or engines.default_model(code))

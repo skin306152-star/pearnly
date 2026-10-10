@@ -52,7 +52,7 @@ function Welcome() {
     <div className="aui-thread-welcome-root -mb-2 flex items-center justify-center gap-3 px-4 text-center">
       {/* 形象图上方留了约 27% 空白（挥手的余量）；负外边距把它扣掉，文字就对准小人本身居中 */}
       {icon && <Mascot src={icon} className="pearnly-mascot-host -mt-5.5 h-20 shrink-0 sm:-mt-6.5 sm:h-24" />}
-      <h1 className="font-serif text-3xl text-foreground sm:text-4xl">
+      <h1 className="text-3xl text-foreground sm:text-4xl">
         {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
       </h1>
     </div>

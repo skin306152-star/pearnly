@@ -26,23 +26,25 @@ def upload(session_id) -> dict:
     mime = sent.mimetype or "application/octet-stream"
     if heic.is_heic(content):
         content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
-    stored = engine.adapter().attach(row.session_id, name, content, mime)
+    api = engine.adapter()
+    stored = api.attach(sessions.segment_for_turn(row, api), name, content, mime)
     return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], "size_bytes": len(content)}
 
 
 def listing(session_id) -> list[dict]:
     """本会话的全部文件：挂进去的附件（只作输入）+ 智能体产出的结果（可下载）。"""
     row = sessions.owned(session_id, allow_archived=True)
-    return engine.adapter().files(row.session_id)
+    api = engine.adapter()
+    return [f for remote in sessions.segments(row) for f in api.files(remote)]
 
 
 def download(session_id, file_id, inline=False) -> None:
     row = sessions.owned(session_id, allow_archived=True)
     fid = sessions._guard(contracts.file_id, file_id)
     api = engine.adapter()
-    meta = next((f for f in api.files(row.session_id) if f["id"] == fid), None)
+    meta, remote = next(((f, r) for r in sessions.segments(row) for f in api.files(r) if f["id"] == fid), (None, None))
     if not meta or not meta["downloadable"]:
         frappe.throw(_("File not found"), frappe.DoesNotExistError)
     frappe.local.response.filename = meta["filename"]
-    frappe.local.response.filecontent = api.read_file(row.session_id, fid)
+    frappe.local.response.filecontent = api.read_file(remote, fid)
     frappe.local.response.type = "binary" if inline and meta["mime_type"] in INLINE_TYPES else "download"

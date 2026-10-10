@@ -4,17 +4,27 @@
   `owned()`：属于当前用户、未归档、且是当前引擎建的，才去碰厂商服务。会话列表也只读本站表。
 - 聊天记录本身存在引擎那边的会话里：网页、桌面、手机打开的是同一个会话，所以天然同步。
   后台换了引擎，旧引擎的会话不再列出（编号在新引擎里没有意义）。
+- 新事件经实时通道推给会话主人（`relay`）：每次用户一侧发出前先确保本会话的转发已接上。
 - 工具调用由服务端执行（`tools`），浏览器只负责「提醒有待办」；同一次调用靠 `Pearnly Assistant Tool Run`
   的唯一编号只执行一遍。
+
+上下文接续（计价分档）：一个对话在引擎那边可以由几段会话接成（`remote_ids`，旧 → 新），浏览器始终只认第一段的
+编号。所选模型有计价分档（`engines.context_limit`）时，记下最近一次模型请求的输入量（`context_tokens`）；
+一到界线，下一条消息就在新的一段里开始，并用系统消息带上前文要点（`contracts.carry_over`）。
+历史、文件按全部分段合起来给浏览器，所以看起来仍是同一个对话。
 """
+import json
+
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import config, contracts, engine, tools
+from pearnly_core.assistant import config, context, contracts, engine, engines, relay, tools
 
-SESSION = "Pearnly Assistant Session"
+SESSION = context.SESSION
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LIST_LIMIT = 100
+FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified",
+          "remote_ids", "context_tokens", "pending_carry"]
 
 
 def _guard(fn, *args, **kwargs):
@@ -34,10 +44,19 @@ def _user() -> str:
 def owned(session_id, allow_archived=False) -> dict:
     sid = _guard(contracts.session_id, session_id)
     row = frappe.db.get_value(SESSION, {"session_id": sid, "user": _user(), "engine_code": config.engine_code()},
-                              ["name", "session_id", "title", "starred", "archived", "creation", "modified"], as_dict=True)
+                              FIELDS, as_dict=True)
     if not row or (row.archived and not allow_archived):
         frappe.throw(_("Conversation not found"), frappe.DoesNotExistError)
     return row
+
+
+def segments(row) -> list[str]:
+    """组成这个对话的各段远端会话，旧 → 新；最后一段是当前在用的。"""
+    return json.loads(row.get("remote_ids") or "[]") or [row.session_id]
+
+
+def current(row) -> str:
+    return segments(row)[-1]
 
 
 def _summary(row, status="idle") -> dict:
@@ -54,11 +73,14 @@ def listing(archived=False) -> dict:
     return {"sessions": [_summary(row) for row in rows], "nextCursor": None}
 
 
+def _metadata(user, product) -> dict:
+    return {"pearnly_site": frappe.local.site, "pearnly_product": product, "pearnly_user": user}
+
+
 def create() -> dict:
     user, product = _user(), config.product()
     api = engine.adapter()
-    sid, status = api.open(engine.prepared(api), {"pearnly_site": frappe.local.site, "pearnly_product": product,
-                                                  "pearnly_user": user})
+    sid, status = api.open(engine.prepared(api), _metadata(user, product))
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": ""}).insert(ignore_permissions=True)
     return _summary(doc, status)
@@ -66,14 +88,14 @@ def create() -> dict:
 
 def get(session_id) -> dict:
     row = owned(session_id, allow_archived=True)
-    return _summary(row, engine.adapter().status(row.session_id))
+    return _summary(row, engine.adapter().status(current(row)))
 
 
 def rename(session_id, title) -> None:
     row = owned(session_id)
     title = contracts.title_from(title)
     frappe.db.set_value(SESSION, row.name, "title", title)
-    engine.adapter().rename(row.session_id, title)
+    engine.adapter().rename(current(row), title)
 
 
 def star(session_id, starred) -> None:
@@ -84,48 +106,90 @@ def star(session_id, starred) -> None:
 
 def archive(session_id) -> None:
     row = owned(session_id)
-    engine.adapter().archive(row.session_id)
+    api = engine.adapter()
+    for remote in segments(row):
+        api.archive(remote)
     frappe.db.set_value(SESSION, row.name, "archived", 1)
 
 
 def delete(session_id) -> None:
     row = owned(session_id, allow_archived=True)
-    engine.adapter().delete(row.session_id)
+    api = engine.adapter()
+    for remote in segments(row):
+        api.delete(remote)
     frappe.delete_doc(SESSION, row.name, ignore_permissions=True)
 
 
+def segment_for_turn(row, api) -> str:
+    """新一轮（发消息、传附件）用哪段远端会话：输入量到了所选模型的计价界线就接续到新的一段。"""
+    s = config.settings()
+    limit = engines.context_limit(s.engine.code, s.model)
+    remote = current(row)
+    if not limit or int(row.get("context_tokens") or 0) < limit:
+        return remote
+    carry = contracts.carry_over(api.events(remote))
+    fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
+                                                     "pearnly_conversation": row.session_id})
+    remote_ids = json.dumps(segments(row) + [fresh])
+    frappe.db.set_value(SESSION, row.name, {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})
+    row.update({"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})
+    return fresh
+
+
 def events(session_id, after=None) -> dict:
-    """整段重放（after 为空）或只取 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。"""
+    """整段重放（after 为空，各段合起来）或只取当前段 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。"""
     row = owned(session_id, allow_archived=True)
     api = engine.adapter()
     if after:
         anchor = _guard(contracts.event_id, after)
-        newer = contracts.newer_than(api.events(row.session_id, newest_first=True), anchor)
+        newer = contracts.newer_than(api.events(current(row), newest_first=True), anchor)
         if newer is not None:
+            _remember_context(row, newer)
             return {"events": newer, "full": False}
-    history = list(api.events(row.session_id))
+    history = []
+    for remote in segments(row):
+        part = list(api.events(remote))
+        history += part
+    _remember_context(row, part)
     return {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
                                                          "archived_at": str(row.modified) if row.archived else None}}
+
+
+def _remember_context(row, events_of_current) -> None:
+    size = contracts.context_size(events_of_current)
+    if size is not None and size != int(row.get("context_tokens") or 0):
+        context.note(row.session_id, events_of_current)
+        frappe.db.commit()  # GET 请求不自动提交
 
 
 def send(session_id, text) -> None:
     row = owned(session_id)
     text = _guard(contracts.message_text, text)
-    engine.adapter().post(row.session_id, [{"type": "user.message", "content": [{"type": "text", "text": text}]}])
+    api = engine.adapter()
+    remote = segment_for_turn(row, api)
+    relay.ensure(row.session_id, remote, frappe.session.user)
+    batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
+    if row.get("pending_carry"):
+        batch.append(contracts.carry_message(row.pending_carry))  # 系统消息只能放在一批事件的最后
+    api.post(remote, batch)
+    if row.get("pending_carry"):
+        frappe.db.set_value(SESSION, row.name, "pending_carry", "")
     if not row.title:
-        rename(row.session_id, text)
+        # 首条消息当标题：只写本站（会话列表读本站表）；不再多一次远端请求拖慢发送。
+        frappe.db.set_value(SESSION, row.name, "title", contracts.title_from(text))
 
 
 def confirm(session_id, confirmations) -> int:
     row = owned(session_id)
     batch = _guard(contracts.confirmations, confirmations)
-    engine.adapter().post(row.session_id, batch)
+    relay.ensure(row.session_id, current(row), frappe.session.user)
+    engine.adapter().post(current(row), batch)
     return len(batch)
 
 
 def interrupt(session_id) -> None:
     row = owned(session_id)
-    engine.adapter().post(row.session_id, [{"type": "user.interrupt"}])
+    engine.adapter().post(current(row), [{"type": "user.interrupt"}])
 
 
 def run_tool(session_id, tool_use_id) -> dict:
@@ -133,11 +197,12 @@ def run_tool(session_id, tool_use_id) -> dict:
     row = owned(session_id)
     use_id = _guard(contracts.event_id, tool_use_id)
     api = engine.adapter()
-    history = list(api.events(row.session_id))
-    call = next((e for e in history if e.get("id") == use_id and e.get("type") == "agent.custom_tool_use"), None)
+    remote = current(row)
+    recent = contracts.since(api.events(remote, newest_first=True), use_id) or []
+    call = recent[0] if recent and recent[0].get("type") == "agent.custom_tool_use" else None
     if not call:
         frappe.throw(_("Tool call not found"), frappe.DoesNotExistError)
-    if use_id in contracts.answered_tool_uses(history):
+    if use_id in contracts.answered_tool_uses(recent):
         return {"status": "answered"}
     try:
         run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": row.session_id,
@@ -148,6 +213,7 @@ def run_tool(session_id, tool_use_id) -> dict:
         frappe.db.rollback()
         return {"status": "running"}
     text, is_error = tools.run(call.get("name"), call.get("input"))
-    api.post(row.session_id, [contracts.tool_result(use_id, text, is_error)])
+    relay.ensure(row.session_id, remote, frappe.session.user)
+    api.post(remote, [contracts.tool_result(use_id, text, is_error)])
     frappe.db.set_value(TOOL_RUN, run.name, "status", "error" if is_error else "done")
     return {"status": "error" if is_error else "done"}

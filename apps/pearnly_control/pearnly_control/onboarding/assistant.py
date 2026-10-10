@@ -1,6 +1,6 @@
 """租户的智能体设置：引擎、模型、密钥（ADR-019）。开户单与租户表单共用这一份校验与读取。
 
-可选的引擎、各家密钥格式与默认模型都来自 `pearnly_core.assistant.engines`（全平台唯一登记处），
+可选的引擎与模型、各家密钥格式都来自 `pearnly_core.assistant.engines`（全平台唯一登记处），
 这里不写死任何厂商。三项全空表示不开通；填了就必须是一组能用的设置。
 """
 import frappe
@@ -50,5 +50,4 @@ def read(doc) -> dict:
 @frappe.whitelist()
 def engine_options() -> list[dict]:
     frappe.only_for("System Manager")
-    return [{**option, "default_model": engines.get(option["value"]).default_model}
-            for option in engines.options()]
+    return engines.options()

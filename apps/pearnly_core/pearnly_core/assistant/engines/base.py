@@ -10,7 +10,7 @@
 （`tools.run`），这里都不碰。纯接口，不依赖 Frappe。
 """
 import abc
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Iterator
 
 
 class Adapter(abc.ABC):
@@ -45,6 +45,12 @@ class Adapter(abc.ABC):
     @abc.abstractmethod
     def events(self, conversation: str, newest_first: bool = False) -> Iterable[dict]:
         """统一对话事件。可以是惰性的：增量拉取只读到锚点为止。"""
+
+    @abc.abstractmethod
+    def stream(self, conversation: str, opened: Callable[[], None]) -> Iterator[dict]:
+        """实时事件流：接上后先调一次 `opened()`，之后每产生一条统一对话事件就交出一条（只含接上之后的）。
+        可以夹带回复的逐字预览（`event_start` / `event_delta`，不入事件记录、没有自己的编号）。
+        由站点的转发线程消费（见 `relay`），断线或超时直接结束迭代 / 抛错，由调用方决定是否重接。"""
 
     @abc.abstractmethod
     def post(self, conversation: str, events: list[dict]) -> None:

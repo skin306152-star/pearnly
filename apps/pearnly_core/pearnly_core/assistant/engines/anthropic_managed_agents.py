@@ -17,9 +17,24 @@ EFFORT = "medium"
 MANAGED_BY = "pearnly-assistant"
 ENVIRONMENT = {"name": "pearnly-assistant", "config": {"type": "cloud", "networking": {"type": "limited"}}}
 UPLOADS = "/mnt/session/uploads"
-# 浏览器等着这些请求，不能挂太久；SDK 自己会对 429 / 5xx 重试。
+OUTPUTS = "/mnt/session/outputs"
+# 产出约定只与本引擎的沙箱有关，所以写在适配器里：写进这个目录的文件才会出现在对话页右侧的结果面板。
+WORKSPACE = f"""
+
+Files in this workspace:
+- Files the user attaches are in {UPLOADS}/ and are read-only.
+- When the user asks for a table, list, report, spreadsheet, document, chart or any other result to keep, \
+create it as a file in {OUTPUTS}/ (tables and lists as .xlsx, documents as .docx or .pdf, charts and pages as .html) \
+and reply with a short summary of what the file contains instead of repeating its full content."""
+# 浏览器等着这些请求，不能挂太久；SDK 自己会对 429 / 5xx / 超时重试。
 TIMEOUT = 30
 RETRIES = 2
+# 「列出事件」偶尔单次要 30 多秒才返回、换一次请求又是零点几秒（2026-10-10 测试机与本机同样实测），
+# 所以单次只等几秒，超时由 SDK 立即重发。
+LIST_TIMEOUT = 6
+LIST_RETRIES = 3
+# 事件流两条事件之间最长等这么久；模型长时间思考时超时由转发线程查状态后重接。
+STREAM_TIMEOUT = 120
 
 
 def _plain(obj) -> dict:
@@ -35,7 +50,7 @@ def spec(brief: dict, model: str) -> dict:
     body = {
         "name": brief["name"],
         "model": {"id": model, "effort": EFFORT},
-        "system": brief["system"],
+        "system": brief["system"] + WORKSPACE,
         "tools": [
             # 沙箱自带的读写文件、执行命令；联网工具关闭，业务数据只经 Pearnly 工具取得。
             {"type": "agent_toolset_20260401",
@@ -98,7 +113,16 @@ class Adapter(base.Adapter):
 
     def events(self, conversation: str, newest_first: bool = False):
         order = "desc" if newest_first else "asc"
-        return (_plain(e) for e in self.api.beta.sessions.events.list(conversation, order=order))
+        listing = self.api.with_options(timeout=LIST_TIMEOUT, max_retries=LIST_RETRIES).beta.sessions.events
+        return (_plain(e) for e in listing.list(conversation, order=order))
+
+    def stream(self, conversation: str, opened):
+        # 带上回复的逐字增量（只在流上、不入事件记录），对话页边生成边显示。
+        with self.api.beta.sessions.events.stream(conversation, event_deltas=["agent.message", "agent.thinking"],
+                                                  timeout=STREAM_TIMEOUT) as events:
+            opened()
+            for event in events:
+                yield _plain(event)
 
     def post(self, conversation: str, events: list[dict]) -> None:
         self.api.beta.sessions.events.send(conversation, events=events)

@@ -100,11 +100,12 @@ def _install_fakes():
     sys.modules["frappe"], sys.modules["anthropic"] = frappe, sdk
     for name in ("pearnly_core", "pearnly_core.assistant"):
         sys.modules[name] = types.ModuleType(name)
+    sys.modules["pearnly_core.assistant.contracts"] = sys.modules["pearnly_core.assistant"].contracts = contracts
     engines = _load("pearnly_core.assistant.engines", CORE / "assistant/engines/__init__.py")
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("config", "tools", "definition", "engine"):
+    for part in ("config", "tools", "definition", "engine", "context", "relay"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -169,6 +170,31 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(contracts.ContractError):
                 contracts.upload_name(name, size)
 
+    def test_since_keeps_the_target_and_what_follows(self):
+        newest_first = [{"id": f"sevt_{i:08d}"} for i in range(9, 0, -1)]
+        self.assertEqual([e["id"] for e in contracts.since(iter(newest_first), "sevt_00000008")],
+                         ["sevt_00000008", "sevt_00000009"])
+        self.assertIsNone(contracts.since(iter(newest_first), "sevt_99999999"))
+
+    def test_carry_over_keeps_recent_words_without_attachment_notes(self):
+        def msg(kind, text):
+            return {"type": kind, "content": [{"type": "text", "text": text}]}
+        events = [msg("user.message", "old question"), msg("agent.message", "old answer"),
+                  {"type": "agent.tool_use", "name": "read"},
+                  msg("user.message", "这是什么\n\n[Attached file, mounted read-only in the sandbox:\n- a.jpg → /x/a.jpg]"),
+                  msg("agent.message", "一张收据")]
+        text = contracts.carry_over(events)
+        self.assertEqual(text, "User: old question\n\nAssistant: old answer\n\nUser: 这是什么\n\nAssistant: 一张收据")
+        self.assertEqual(contracts.carry_over(events, max_chars=30), "User: 这是什么\n\nAssistant: 一张收据")
+        self.assertEqual(contracts.carry_message("x")["type"], "system.message")
+
+    def test_context_size_counts_cached_input_too(self):
+        events = [{"type": "span.model_request_end", "model_usage": {"input_tokens": 2, "cache_read_input_tokens": 100,
+                                                                      "cache_creation_input_tokens": 10, "output_tokens": 50}},
+                  {"type": "agent.message"}]
+        self.assertEqual(contracts.context_size(events), 112)
+        self.assertIsNone(contracts.context_size([{"type": "agent.message"}]))
+
     def test_answered_tool_uses(self):
         self.assertEqual(contracts.answered_tool_uses([
             {"type": "user.custom_tool_result", "custom_tool_use_id": "sevt_1"},
@@ -178,11 +204,19 @@ class ContractTests(unittest.TestCase):
 class EngineRegistryTests(unittest.TestCase):
     """引擎只在目录登记一次；后台、站点、开通步骤都按目录走，别处不写死厂商。"""
 
+    def test_price_tiers_set_the_continuation_point(self):
+        self.assertEqual(engines.context_limit(CLAUDE, "claude-haiku-5-5"), 60_000)  # 10 万分档线的 60%
+        self.assertIsNone(engines.context_limit(CLAUDE, "claude-opus-5-5"))  # 1M 内同价：交给引擎自带的压缩
+        for e in engines.ENGINES:
+            for model, limit in e.tiers:
+                self.assertIn(model, e.models)
+                self.assertGreater(limit, 0)
+
     def test_check_follows_each_engines_own_rules(self):
         self.assertEqual(engines.check(CLAUDE, f"  {KEY} ", " "), (CLAUDE, KEY, ""))
         self.assertEqual(engines.check(CLAUDE, KEY, "claude-sonnet-5-5")[2], "claude-sonnet-5-5")
         for code, key, model in ((CLAUDE, "sk-proj-abc", ""), ("someone-else", KEY, ""), ("", KEY, ""),
-                                 (CLAUDE, "", ""), (CLAUDE, KEY, "bad model")):
+                                 (CLAUDE, "", ""), (CLAUDE, KEY, "bad model"), (CLAUDE, KEY, "claude-not-listed")):
             with self.assertRaises(engines.EngineError):
                 engines.check(code, key, model)
 
@@ -190,6 +224,9 @@ class EngineRegistryTests(unittest.TestCase):
         codes = [e.code for e in engines.ENGINES]
         self.assertEqual(len(codes), len(set(codes)))
         self.assertEqual([o["value"] for o in engines.options()], codes)
+        for option in engines.options():
+            self.assertTrue(option["models"], option["value"])
+            self.assertEqual(len(option["models"]), len(set(option["models"])))
         dockerfile = (ROOT / "infrastructure/images/frappe.Dockerfile").read_text(encoding="utf-8")
         for e in engines.ENGINES:
             module, _, name = e.adapter.rpartition(".")
@@ -225,7 +262,7 @@ class ConfigTests(unittest.TestCase):
     def test_settings_come_from_the_site_and_default_the_model(self):
         _configure()
         s = config.settings()
-        self.assertEqual((s.engine.code, s.api_key, s.model), (CLAUDE, KEY, engines.get(CLAUDE).default_model))
+        self.assertEqual((s.engine.code, s.api_key, s.model), (CLAUDE, KEY, engines.default_model(CLAUDE)))
         _configure(model="claude-sonnet-5-5")
         self.assertEqual(config.settings().model, "claude-sonnet-5-5")
 
@@ -235,6 +272,32 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(frappe.ValidationError):
                 config.settings()
             self.assertEqual(config.engine_code(), "")
+
+
+class RelayTests(unittest.TestCase):
+    """实时推送：一轮结束才收线，停下来等工具结果或批准时继续接着。"""
+
+    def test_turn_end_is_idle_without_pending_action(self):
+        relay = sys.modules["pearnly_core.assistant.relay"]
+        self.assertTrue(relay.finished({"type": "session.status_idle", "stop_reason": {"type": "end_turn"}}))
+        self.assertTrue(relay.finished({"type": "session.status_terminated"}))
+        self.assertFalse(relay.finished({"type": "session.status_idle", "stop_reason": {"type": "requires_action"}}))
+        self.assertFalse(relay.finished({"type": "agent.message"}))
+
+    def test_user_side_actions_attach_the_relay_before_posting(self):
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        for name in ("send", "confirm", "run_tool"):
+            body = source.split(f"def {name}(", 1)[1].split("\ndef ", 1)[0]
+            self.assertLess(body.index("relay.ensure("), body.index(".post("), name)
+        relay_source = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
+        self.assertNotIn("sessions", relay_source.split('"""', 2)[2])  # 不与 sessions 互相导入
+
+    def test_new_turns_and_uploads_go_to_the_current_segment(self):
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        send = source.split("def send(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("segment_for_turn(row, api)", send)
+        self.assertIn("carry_message(", send)
+        self.assertIn("sessions.segment_for_turn(row, api)", (CORE / "assistant/files.py").read_text(encoding="utf-8"))
 
 
 class ToolAndDefinitionTests(unittest.TestCase):
@@ -317,10 +380,20 @@ class _FakeApi:
 class PrepareTests(unittest.TestCase):
     def setUp(self):
         frappe.hooks, frappe.store = [], {}
+        engine._adapters.clear()
         _configure()
+
+    def test_adapter_is_reused_per_settings(self):
+        sdk.api = _FakeApi()
+        first = engine.adapter()
+        self.assertIs(engine.adapter(), first)  # 同一组设置复用同一个客户端（保持连接）
+        _configure(model="claude-sonnet-5-5")
+        sdk.api = _FakeApi()
+        self.assertIsNot(engine.adapter(), first)
 
     def _prepare(self, api):
         sdk.api = api
+        engine._adapters.clear()  # 换一个假账号：不用上一个测试留在进程里的客户端
         adapter = engine.adapter()
         self.assertEqual(api.kwargs["api_key"], frappe.conf["pearnly_assistant_api_key"])
         return engine.prepared(adapter)
@@ -329,11 +402,11 @@ class PrepareTests(unittest.TestCase):
         api = _FakeApi()
         self.assertEqual(self._prepare(api), {"agent": "agent_new", "environment": "env_new"})
         self.assertEqual(len(api.created), 2)
-        self.assertEqual(api.created[0]["model"]["id"], engines.get(CLAUDE).default_model)
+        self.assertEqual(api.created[0]["model"]["id"], engines.default_model(CLAUDE))
         self.assertEqual(self._prepare(_FakeApi()), {"agent": "agent_new", "environment": "env_new"})  # 缓存命中
 
     def test_reuses_the_existing_agent_and_updates_a_stale_definition(self):
-        spec = claude.spec(definition.brief("erp"), engines.get(CLAUDE).default_model)
+        spec = claude.spec(definition.brief("erp"), engines.default_model(CLAUDE))
         stale = types.SimpleNamespace(id="agent_old", metadata={**spec["metadata"], "pearnly_spec": "old"})
         other = types.SimpleNamespace(id="agent_dms", metadata={**spec["metadata"], "pearnly_product": "dms"})
         env = types.SimpleNamespace(id="env_old", name=claude.ENVIRONMENT["name"])
@@ -472,9 +545,9 @@ class ControlPlaneSettingsTests(unittest.TestCase):
             meta = json.loads((CONTROL / f"pearnly_control/doctype/{doctype}/{doctype}.json").read_text(encoding="utf-8"))
             fields = {f["fieldname"]: f for f in meta["fields"]}
             self.assertEqual(fields["assistant_api_key"]["fieldtype"], "Password")
-            self.assertEqual(fields["assistant_model"]["fieldtype"], "Data")
-            self.assertEqual(fields["assistant_engine"]["fieldtype"], "Select")
-            self.assertNotIn("options", fields["assistant_engine"])  # 选项来自引擎目录，不写死在表单定义里
+            for name in ("assistant_engine", "assistant_model"):
+                self.assertEqual(fields[name]["fieldtype"], "Select")
+                self.assertNotIn("options", fields[name])  # 选项来自引擎目录，不写死在表单定义里
 
 
 if __name__ == "__main__":

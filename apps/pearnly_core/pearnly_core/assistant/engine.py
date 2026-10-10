@@ -12,11 +12,17 @@ from pearnly_core.assistant import config, definition
 
 CACHE_TTL = 6 * 3600
 LOCK_TIMEOUT = 60
+# 适配器按「引擎 + 密钥 + 模型」在本进程复用：同一个 HTTP 客户端保持连接，不每个请求重新握手。
+_adapters: dict = {}
 
 
 def adapter():
     s = config.settings()
-    return frappe.get_attr(s.engine.adapter)(s.api_key, s.model)
+    key = (s.engine.code, _digest(s.api_key, 16), s.model)
+    found = _adapters.get(key)
+    if found is None:
+        found = _adapters[key] = frappe.get_attr(s.engine.adapter)(s.api_key, s.model)
+    return found
 
 
 def _digest(value: str, size: int) -> str:

@@ -74,14 +74,16 @@ def tool_result(tool_use_id, text, is_error=False) -> dict:
             "is_error": bool(is_error)}
 
 
-def newer_than(events_newest_first, after: str):
-    """从「新 → 旧」的事件流里取出 `after` 之后的事件，按「旧 → 新」返回。
+def newer_than(events_newest_first, after: str, keep_anchor: bool = False):
+    """从「新 → 旧」的事件流里取出 `after` 之后的事件（`keep_anchor` 时连同它本身），按「旧 → 新」返回。
 
     找不到 `after`（客户端掉线太久或编号不属于本会话）返回 None，调用方改为整段重放。
     """
     newer = []
     for event in events_newest_first:
         if event.get("id") == after:
+            if keep_anchor:
+                newer.append(event)
             newer.reverse()
             return newer
         newer.append(event)
@@ -90,9 +92,62 @@ def newer_than(events_newest_first, after: str):
     return None
 
 
+def since(events_newest_first, target: str):
+    """从「新 → 旧」的事件流里取出 `target` 本身及其后的事件，按「旧 → 新」返回；找不到返回 None。"""
+    return newer_than(events_newest_first, target, keep_anchor=True)
+
+
 def answered_tool_uses(events) -> set[str]:
     """已经回过结果的自定义工具调用（防止同一次调用被执行两遍）。"""
     return {e.get("custom_tool_use_id") for e in events if e.get("type") == "user.custom_tool_result"}
+
+
+# 接续新上下文时带过去的前文（见 `sessions` 的接续）：只取双方的文字，去掉附件说明（旧附件在新上下文里读不到）。
+CARRY_MAX_CHARS = 24_000
+CARRY_INTRO = ("This conversation continues from an earlier context that was closed to keep it short. "
+               "Files attached earlier are no longer readable unless the user attaches them again. "
+               "Earlier messages, most recent last:\n\n")
+ATTACHMENT_NOTE = re.compile(r"(?:^|\n\n)\[Attached files?, mounted read-only in the sandbox:\n(?:- .+ → .+\n?)+\]$")
+
+
+def _text(event) -> str:
+    return "".join(b.get("text", "") for b in event.get("content") or [] if b.get("type") == "text").strip()
+
+
+def carry_over(events, max_chars: int = CARRY_MAX_CHARS) -> str:
+    """按顺序取用户与智能体的文字，只保留最近、合计不超过 `max_chars` 的部分。"""
+    lines = []
+    for event in events:
+        kind = event.get("type")
+        if kind not in ("user.message", "agent.message"):
+            continue
+        text = ATTACHMENT_NOTE.sub("", _text(event)).strip() if kind == "user.message" else _text(event)
+        if text:
+            lines.append(("User: " if kind == "user.message" else "Assistant: ") + text)
+    kept, size = [], 0
+    for line in reversed(lines):
+        if size + len(line) > max_chars:
+            if not kept:
+                kept.append(line[-max_chars:])
+            break
+        kept.append(line)
+        size += len(line) + 2
+    return "\n\n".join(reversed(kept))
+
+
+def carry_message(transcript: str) -> dict:
+    return {"type": "system.message", "content": [{"type": "text", "text": CARRY_INTRO + transcript}]}
+
+
+def context_size(events):
+    """最近一次模型请求的输入 token 数（含缓存读写，计价分档按它算）；事件里没有就返回 None。"""
+    size = None
+    for event in events:
+        if event.get("type") == "span.model_request_end":
+            usage = event.get("model_usage") or {}
+            size = sum(int(usage.get(k) or 0) for k in
+                       ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    return size
 
 
 def upload_name(filename, size) -> str:
