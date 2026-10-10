@@ -106,6 +106,7 @@ Enabled Features,Enabled Features
 Enabled — {0} steps,Enabled — {0} steps
 Enforcement,Enforcement
 Enter the assistant API key.,Enter the assistant API key.
+Enter your password.,Enter your password.
 Enter your username or email.,Enter your username or email.
 External Reference,External Reference
 Failed,Failed
@@ -122,6 +123,7 @@ Finished At,Finished At
 For example http://keycloak.localhost:8105,For example http://keycloak.localhost:8105
 For example: local sample / production,For example: local sample / production
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.","For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email."
+Forgot password ?,Forgot password ?
 Get your work done in conversation,Get your work done in conversation
 Grant feature roles,Grant feature roles
 Granted DocTypes,Granted DocTypes
@@ -175,6 +177,7 @@ Leave empty to use the company name,Leave empty to use the company name
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.
 Local Port,Local Port
 Local URL,Local URL
+Log in,Log in
 Manual adjustment · {0},Manual adjustment · {0}
 Mark provisioning done,Mark provisioning done
 Matches the feature key in the product's own feature catalog (features.json).,Matches the feature key in the product's own feature catalog (features.json).
@@ -200,6 +203,7 @@ Over-rate (per page),Over-rate (per page)
 Pages,Pages
 Pages Used This Month,Pages Used This Month
 Partly done {0}/{1},Partly done {0}/{1}
+Password,Password
 Password Delivered At,Password Delivered At
 Password-check Client ID,Password-check Client ID
 Password-check Client Secret,Password-check Client Secret
@@ -262,6 +266,7 @@ Set up OCR,Set up OCR
 Set up the LINE channel,Set up the LINE channel
 Set up the assistant,Set up the assistant
 Set up unified sign-in,Set up unified sign-in
+Show or hide password,Show or hide password
 Sign in to your account,Sign in to your account
 Sign-in account,Sign-in account
 Sign-in accounts,Sign-in accounts

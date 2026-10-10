@@ -106,6 +106,7 @@ Enabled Features,有効な機能
 Enabled — {0} steps,開通済み {0} ステップ
 Enforcement,権限の適用
 Enter the assistant API key.,アシスタント API キーを入力してください。
+Enter your password.,パスワードを入力してください。
 Enter your username or email.,ユーザー名またはメールアドレスを入力してください。
 External Reference,外部参照番号
 Failed,失敗
@@ -122,6 +123,7 @@ Finished At,終了日時
 For example http://keycloak.localhost:8105,例: http://keycloak.localhost:8105
 For example: local sample / production,例：ローカル見本 / 本番
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
+Forgot password ?,パスワードをお忘れですか？
 Get your work done in conversation,会話で仕事を完了
 Grant feature roles,機能ロールを付与
 Granted DocTypes,付与するDocType
@@ -175,6 +177,7 @@ Leave empty to use the company name,空欄なら会社名を使います
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,空欄で構いません。サイトが Channel ID とシークレットから短期トークンを発行します。2026-10-05 より前に開設したチャネルだけが長期トークンを保持しています。
 Local Port,ローカルポート
 Local URL,ローカルURL
+Log in,ログイン
 Manual adjustment · {0},手動調整 · {0}
 Mark provisioning done,開通完了にする
 Matches the feature key in the product's own feature catalog (features.json).,製品自身の機能カタログ (features.json) の機能キーと一致します。
@@ -201,6 +204,7 @@ Over-rate (per page),超過単価（1枚あたり）
 Pages,ページ数
 Pages Used This Month,今月の使用ページ数
 Partly done {0}/{1},一部完了 {0}/{1}
+Password,パスワード
 Password Delivered At,初期パスワード交付日時
 Password-check Client ID,パスワード確認用クライアントID
 Password-check Client Secret,パスワード確認用クライアントシークレット
@@ -265,6 +269,7 @@ Set up OCR,OCR を設定
 Set up the LINE channel,LINEチャネルを設定
 Set up the assistant,アシスタントを設定
 Set up unified sign-in,統一ログインを設定
+Show or hide password,パスワードの表示・非表示
 Sign in to your account,ログイン
 Sign-in account,ログインアカウント
 Sign-in accounts,ログインアカウント

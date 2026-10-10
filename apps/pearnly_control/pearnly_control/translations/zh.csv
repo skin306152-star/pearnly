@@ -106,6 +106,7 @@ Enabled Features,已开通功能
 Enabled — {0} steps,已开通（{0} 步）
 Enforcement,权限控制
 Enter the assistant API key.,请填写智能体 API 密钥。
+Enter your password.,请输入密码。
 Enter your username or email.,请输入用户名或邮箱。
 External Reference,外部单号
 Failed,失败
@@ -122,6 +123,7 @@ Finished At,结束时间
 For example http://keycloak.localhost:8105,例如 http://keycloak.localhost:8105
 For example: local sample / production,例如：本地样板 / 生产
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。
+Forgot password ?,忘记密码 ?
 Get your work done in conversation,让工作在对话中完成
 Grant feature roles,授予功能权限
 Granted DocTypes,授予的 DocType
@@ -175,6 +177,7 @@ Leave empty to use the company name,留空则使用公司名称
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,无需填写。仅 2026-10-05 前开通的频道在此保存长期令牌。
 Local Port,本机端口
 Local URL,本机访问地址
+Log in,登录
 Manual adjustment · {0},人工调账 · {0}
 Mark provisioning done,标记开通完成
 Matches the feature key in the product's own feature catalog (features.json).,须与产品功能目录（features.json）中的功能键一致。
@@ -201,6 +204,7 @@ Over-rate (per page),超额单价（每张）
 Pages,张数
 Pages Used This Month,本月已用张数
 Partly done {0}/{1},部分完成 {0}/{1}
+Password,密码
 Password Delivered At,初始密码交付时间
 Password-check Client ID,改密校验客户端 ID
 Password-check Client Secret,改密校验客户端密钥
@@ -265,6 +269,7 @@ Set up OCR,设置 OCR
 Set up the LINE channel,配置 LINE 频道
 Set up the assistant,配置智能体
 Set up unified sign-in,配置统一登录
+Show or hide password,显示或隐藏密码
 Sign in to your account,登录账户
 Sign-in account,登录账号
 Sign-in accounts,登录账号

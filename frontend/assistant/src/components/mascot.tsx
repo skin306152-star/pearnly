@@ -38,7 +38,7 @@ export function Mascot({ src, className }: { src: string; className?: string }) 
         const dx = px - (r.left + r.width / 2);
         const dy = py - (r.top + r.height * 0.3);
         const d = Math.sqrt(dx * dx + dy * dy) || 1;
-        const k = Math.min(1, d / 240) * 5;
+        const k = Math.min(1, d / 240) * (g.closest(".hm-cc") ? 7 : 5);
         g.setAttribute("transform", `translate(${((dx / d) * k).toFixed(2)} ${((dy / d) * k).toFixed(2)})`);
       }
     };

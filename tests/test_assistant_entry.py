@@ -155,9 +155,8 @@ class WiringTests(unittest.TestCase):
         self.assertIn("pearnly_control.assistant_entry.entry.guard_entry_site", (CONTROL / "hooks.py").read_text())
         api = (CONTROL / "assistant_entry/api.py").read_text(encoding="utf-8")
         self.assertIn("rate_limit", api)
-        # 静态文件只放行入口页那只猫的目录，且不允许 .. 跳出去（2026-10-10）
-        self.assertIn('ALLOWED_PREFIX = "/assets/pearnly_control/cc/"', entry)
-        self.assertIn('".." not in path', entry)
+        # 入口页的样式、脚本、插图都内联，不放行任何静态目录（睡觉的猫视频 2026-10-10 晚已删）
+        self.assertNotIn("/assets/", entry)
 
     def test_registration_carries_site_and_pool(self):
         plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")

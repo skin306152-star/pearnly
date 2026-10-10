@@ -10,7 +10,7 @@ if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.
 document.addEventListener('visibilitychange',function(){if(!document.hidden)requestAnimationFrame(draw)})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
-function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
+function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0||k.indexOf('hm-cc')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
 window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000);play(m,'hm-laughing',2000)},i*120)})};
 if(!reduce){setInterval(function(){var m=all[Math.floor(Math.random()*all.length)];if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
 all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700);play(m,'hm-laughing',1400)})});
@@ -18,16 +18,20 @@ document.addEventListener('focusin',function(e){if(e.target.type==='password')do
 document.addEventListener('focusout',function(e){if(e.target.type==='password')document.body.classList.remove('shy')});
 var looks=[].slice.call(document.querySelectorAll('.hm .m-look')),px=0,py=0,q=false;
 function upd(){q=false;if(document.body.classList.contains('shy'))return;looks.forEach(function(g){var r=g.closest('.hm').getBoundingClientRect();if(!r.width)return;
-var dx=px-(r.left+r.width/2),dy=py-(r.top+r.height*.3),d=Math.sqrt(dx*dx+dy*dy)||1,k=Math.min(1,d/240)*(g.closest('.hm-mrerp')?3:5);g.setAttribute('transform','translate('+(dx/d*k).toFixed(2)+' '+(dy/d*k).toFixed(2)+')')})}
+var dx=px-(r.left+r.width/2),dy=py-(r.top+r.height*.3),d=Math.sqrt(dx*dx+dy*dy)||1,k=Math.min(1,d/240)*(g.closest('.hm-mrerp')?3:g.closest('.hm-cc')?7:5);g.setAttribute('transform','translate('+(dx/d*k).toFixed(2)+' '+(dy/d*k).toFixed(2)+')')})}
 if(!reduce)addEventListener('pointermove',function(e){px=e.clientX;py=e.clientY;if(!q){q=true;requestAnimationFrame(upd)}},{passive:true});
-var ccEyes=[].slice.call(document.querySelectorAll('.cc-look')),cq=false;
-function ccLook(){cq=false;var shy=document.body.classList.contains('shy');ccEyes.forEach(function(g){var r=g.parentNode.getBoundingClientRect();if(!r.width)return;
-var dx=shy?.4:px-(r.left+r.width/2),dy=shy?-1:py-(r.top+r.height/2),d=Math.sqrt(dx*dx+dy*dy)||1,k=shy?1:Math.min(1,d/260),ux=dx/d*k*8,uy=dy/d*k*(dy>0?3:5);
-g.setAttribute('transform','translate('+ux.toFixed(2)+' '+uy.toFixed(2)+')')})}
-if(!reduce&&ccEyes.length){addEventListener('pointermove',function(){if(!cq){cq=true;requestAnimationFrame(ccLook)}},{passive:true});
-document.addEventListener('focusin',ccLook);document.addEventListener('focusout',function(){setTimeout(ccLook,0)})}
 })();
 (function(){
+  // 入口第一页带过来的密码 / 找回密码（# 后面，见入口页脚本）：先从地址栏抹掉，再自动提交或打开找回密码页。
+  // 登录页出错（密码不对等）时不自动提交，照常显示出错的登录框。
+  var h=location.hash;
+  if(/^#pn/.test(h)){history.replaceState(null,'',location.pathname+location.search);
+    var f=document.getElementById('kc-form-login'),p=document.getElementById('password'),u=document.getElementById('username'),a=document.querySelector('.forgot a');
+    if(h==='#pn-forgot'&&a){location.replace(a.href);return}
+    if(h.indexOf('#pn=')===0&&f&&p&&u&&u.value&&!document.querySelector('.pn-field-error,.auth-message.error')){
+      try{p.value=decodeURIComponent(h.slice(4))}catch(e){p.value=''}
+      if(p.value){f.submit();return}}
+    document.documentElement.classList.remove('pn-auto')}
   var change=document.getElementById('who-change');
   if(change)change.addEventListener('click',function(){var who=document.getElementById('who'),u=document.getElementById('username');
     var input=document.createElement('input');input.className='input';input.id='username';input.name='username';input.type='text';input.autocomplete='username';

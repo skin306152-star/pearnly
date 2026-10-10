@@ -11,40 +11,20 @@
 """
 import base64
 import hashlib
-import json
 import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "website"))
 from poster import INK, PAPER  # noqa: E402
-from scenes import DEFS, PEN, mascot  # noqa: E402
+from scenes import DEFS, PEN, cc_loaf, mascot  # noqa: E402
 
 PAGE = ROOT / "apps/pearnly_control/pearnly_control/www/ai.html"
 THEME = ROOT / "infrastructure/keycloak/themes/pearnly-ai/login"
 LINE_URL = "https://line.me/R/ti/p/@pearnly"
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sriracha&display=swap" rel="stylesheet">')
-# 登录框旁只有橘猫（左上角是黑体「CC」，不放标题和副标题，用户 2026-10-10）
-# 猫用用户自己用 Gemini 生成的水彩橘猫（2026-10-10 定稿：趴在登录框上沿后面探头，两只前爪搭在框边，尾巴翘着）。
-# 抠图脚本 website/static/cc/source/cut_top.py：去掉棋盘格背景和原图那条横边（登录框上沿代替它），
-# 两颗眼珠抠成单独的小图叠回眼睛里，跟着鼠标转、输密码时往上看（不看你输入）。直接内嵌进页面（入口页与 Keycloak 主题都不用另放静态文件）。
-def _data(name, kind="image/webp"):
-    return f"data:{kind};base64," + base64.b64encode((ROOT / "website/static/cc" / name).read_bytes()).decode()
-
-
-def _cat_svg():
-    meta = json.loads((ROOT / "website/static/cc/top.json").read_text())
-    w, h = meta["size"]
-    clips = "".join(f'<clipPath id="cc-eye{i}"><polygon points="{" ".join(f"{x:.1f},{y:.1f}" for x, y in e["clip"])}"/></clipPath>'
-                    for i, e in enumerate(meta["eyes"]))
-    eyes = "".join(f'<g clip-path="url(#cc-eye{i})"><g class="cc-look"><image href="{_data(e["img"])}" x="{e["x"]}" y="{e["y"]}" '
-                   f'width="{e["size"]}" height="{e["size"]}"/></g></g>' for i, e in enumerate(meta["eyes"]))
-    return (f'<svg class="cc-perch" viewBox="0 0 {w} {h}" aria-hidden="true" focusable="false"><defs>{clips}</defs>'
-            f'<image href="{_data("top.webp")}" width="{w}" height="{h}"/>{eyes}</svg>')
-
-
-CC_CAT = _cat_svg()
+# 登录页不放猫（用户 2026-10-10 晚：探头的猫、睡觉的猫都删掉）；CC 的形象「吐司胖橘」站在底部那排小人里（scenes.cc_loaf）。
 # 左上角只放 CC 图标（白字带胡须的原版，frontend/assistant/src/brand/cc-icon.svg；用户 2026-10-10：不要文字、图标大一点）
 BRAND_MARK = ((ROOT / "frontend/assistant/src/brand/cc-icon.svg").read_text()
               .replace('width="1024" height="1024"', 'width="46" height="46" role="img" aria-label="CC"').strip())
@@ -113,33 +93,21 @@ def stand(x, ground, k, prop, kind, lift=8):
     return mascot(x, ground - lift - 41 * k, k, "", prop, kind)
 
 
-# 底部一排：宣传页的小人往左挪，右边留给睡觉的橘猫视频（用户 2026-10-10，Gemini 生成的视频剪前 5 秒循环）
+# 底部一排：宣传页的小人加上 CC 的吐司胖橘，从左到右由矮到高（用户 2026-10-10 晚）：DMS、ERP、Cowork、胖橘、MR.ERP；
+# 气泡跟着各自的小人走（胖橘自己举着打勾的泡泡，这排不再另放打勾泡泡）。
 SCENE_WIDE = scene("wide", "0 0 1200 300", "M40 286 H1160", [
-    bubble(166, 92, 76, 40, DOTS, "typing"), bubble(373, 118, 66, 44, PHOTO, "b2"),
-    bubble(575, 66, 92, 42, MONEY, "b3"), bubble(869, 28, 70, 44, CHART, "b4"), bubble(943, 96, 62, 42, TICK, "b2"),
-    sparkle(76, 120, 0.9, "s1"), sparkle(440, 74, 0.7, "s2"), sparkle(612, 128, 0.9, "s3"),
-    receipt(520, 204, -14, "r1"), plane(760, 30, "p1"),
-    stand(140, 286, 0.95, "pencil", "cowork"), stand(350, 286, 0.95, "camera", "dms"),
-    stand(555, 286, 0.95, "basket", "erp"), stand(820, 286, 1.55, "stamp", "mrerp")])
+    bubble(163, 118, 66, 44, PHOTO, "b2"), bubble(370, 66, 92, 42, MONEY, "b3"),
+    bubble(581, 92, 76, 40, DOTS, "typing"), bubble(1079, 28, 70, 44, CHART, "b4"),
+    sparkle(76, 120, 0.9, "s1"), sparkle(460, 74, 0.7, "s2"), sparkle(690, 128, 0.9, "s3"),
+    receipt(300, 204, -14, "r1"), plane(960, 30, "p1"),
+    stand(140, 286, 0.95, "camera", "dms"), stand(350, 286, 0.95, "basket", "erp"),
+    stand(555, 286, 0.95, "pencil", "cowork"), cc_loaf(790, 286, 0.6), stand(1030, 286, 1.55, "stamp", "mrerp")])
 SCENE_PHONE = scene("phone", "0 0 620 330", "M10 316 H610", [
-    bubble(86, 150, 70, 38, DOTS, "typing"), bubble(226, 170, 66, 44, PHOTO, "b2"), bubble(346, 120, 92, 42, MONEY, "b3"),
-    bubble(536, 40, 70, 44, CHART, "b4"), sparkle(26, 150, 0.8, "s1"), sparkle(452, 110, 0.7, "s2"), sparkle(608, 130, 0.7, "s4"),
-    plane(430, 62, "p1"),
-    stand(70, 316, 0.74, "pencil", "cowork", 7), stand(200, 316, 0.74, "camera", "dms", 7),
-    stand(330, 316, 0.74, "basket", "erp", 7), stand(500, 316, 1.18, "stamp", "mrerp", 7)])
-
-# 睡觉的橘猫：逐帧抠掉棋盘格背景（website/static/cc/source/cut_nap_video.py）的透明视频，
-# Safari 用 HEVC 带透明的 mp4，Chrome / Edge / Firefox 用 VP9 带透明的 webm；放在宽屏那排的最右边，躺在地面线上，5 秒循环。
-NAP_DIR = ROOT / "apps/pearnly_control/pearnly_control/public/cc"
-NAP_FILES = {ext: f"cat-nap.{hashlib.sha256((NAP_DIR / f'cat-nap.{ext}').read_bytes()).hexdigest()[:10]}.{ext}" for ext in ("webm", "mp4")}
-
-
-def scene_with_nap(base, hashed):
-    names = NAP_FILES if hashed else {ext: f"cat-nap.{ext}?v={NAP_FILES[ext].split('.')[1]}" for ext in NAP_FILES}
-    video = ('<video class="cc-nap" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1">'
-             f'<source src="{base}{names["mp4"]}" type=\'video/mp4; codecs="hvc1"\'>'
-             f'<source src="{base}{names["webm"]}" type="video/webm"></video>')
-    return f'<div class="nap-wrap">{SCENE_WIDE}{video}</div>{SCENE_PHONE}'
+    bubble(76, 170, 66, 44, PHOTO, "b2"), bubble(180, 120, 92, 42, MONEY, "b3"), bubble(300, 150, 70, 38, DOTS, "typing"),
+    bubble(540, 30, 70, 44, CHART, "b4"), sparkle(22, 150, 0.8, "s1"), sparkle(262, 96, 0.7, "s2"), sparkle(604, 120, 0.7, "s4"),
+    plane(440, 50, "p1"),
+    stand(58, 316, 0.74, "camera", "dms", 7), stand(172, 316, 0.74, "basket", "erp", 7),
+    stand(286, 316, 0.74, "pencil", "cowork", 7), cc_loaf(404, 316, 0.46, 7), stand(528, 316, 1.04, "stamp", "mrerp", 7)])
 
 # ---------------- 样式：宣传页的底色、点阵、记号笔与按钮；也给 Keycloak 流程页的表单类名上样式 ----------------
 
@@ -157,7 +125,7 @@ canvas.dots{position:fixed;inset:0;z-index:0;pointer-events:none}
 .langs a{font-size:13px;color:var(--muted);padding:3px 11px;border-radius:999px;text-decoration:none}
 .langs a.on{background:var(--ink);color:#fff}
 .hero{width:100%;max-width:560px;padding:clamp(28px,8vh,84px) 16px 0;text-align:center}
-.card{position:relative;width:100%;max-width:392px;margin:212px auto 0;background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;
+.card{position:relative;width:100%;max-width:392px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;
 box-shadow:0 1px 2px rgba(20,20,19,.04),0 16px 40px -12px rgba(20,20,19,.14),0 48px 96px -32px rgba(20,20,19,.12)}
 .card h2{margin:0 0 14px;font-size:17px;font-weight:600;color:var(--ink);text-align:center}
 .input,.field input{display:block;width:100%;height:44px;border:1px solid var(--line-strong);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
@@ -174,9 +142,14 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .contacts a:hover{border-bottom-color:var(--line-strong)}
 .hm-spark{transform-box:fill-box;transform-origin:center}
 .hm-spark{animation:twinkle 2.2s ease-in-out infinite}
-.hm-laugh{opacity:0}.hm-ai .hm-calm,.hm-ai .hm-laugh{animation:tomo-calm 8s infinite}.hm-ai .hm-laugh{animation-name:tomo-laugh}
+.hm-laugh{opacity:0}.hm-ai .hm-calm,.hm-ai .hm-laugh,.hm-cc .hm-calm,.hm-cc .hm-laugh{animation:tomo-calm 8s infinite}.hm-ai .hm-laugh,.hm-cc .hm-laugh{animation-name:tomo-laugh}
+.hm-cc .hm-calm,.hm-cc .hm-laugh{animation-delay:-3s}
 @keyframes tomo-calm{0%,72%,92%,100%{opacity:1}75%,89%{opacity:0}}@keyframes tomo-laugh{0%,72%,92%,100%{opacity:0}75%,89%{opacity:1}}
-.hm-ai:hover .hm-calm,.hm.hm-laughing .hm-calm{animation:none;opacity:0}.hm-ai:hover .hm-laugh,.hm.hm-laughing .hm-laugh{animation:none;opacity:1}
+.hm-ai:hover .hm-calm,.hm-cc:hover .hm-calm,.hm.hm-laughing .hm-calm{animation:none;opacity:0}.hm-ai:hover .hm-laugh,.hm-cc:hover .hm-laugh,.hm.hm-laughing .hm-laugh{animation:none;opacity:1}
+.cc-tail{animation:cc-tail 2.6s ease-in-out infinite}@keyframes cc-tail{50%{transform:rotate(-14deg)}}
+.cc-bell{animation:cc-bell 2.2s ease-in-out infinite}@keyframes cc-bell{25%{transform:rotate(12deg)}75%{transform:rotate(-12deg)}}
+.cc-hold{animation:cc-hold 5s ease-in-out infinite}@keyframes cc-hold{50%{transform:rotate(-5deg)}}
+.cc-tick{stroke-dasharray:1;animation:cc-tick 5s ease-out infinite}@keyframes cc-tick{0%{stroke-dashoffset:1}18%,100%{stroke-dashoffset:0}}
 .or{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:var(--faint);font-size:12.5px}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .who{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 6px 0 14px;border-radius:12px;background:var(--soft);margin-bottom:10px;font-size:15px;color:var(--ink)}
@@ -195,14 +168,13 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .pick:hover{border-color:var(--line-strong);background:#fbfbf9}
 .pick b{font-weight:500}.pick small{color:var(--faint);font-size:12.5px}
 .form-stack{display:grid;gap:12px}.form-row label{display:block;margin:0 0 6px;font-size:13px;color:var(--muted)}
-.field{position:relative}.field-icon{display:none}
+.field{position:relative}.field-icon{display:none}.pn-auto .card{visibility:hidden}
 .toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--faint);padding:4px;cursor:pointer;width:30px;height:30px}
 .toggle-password svg{width:18px;height:18px}
 .form-split{display:flex;align-items:center;justify-content:space-between;font-size:13px}
 .checkline{display:flex;align-items:center;gap:6px;color:var(--muted)}
 .pn-info{margin-top:14px;text-align:center;font-size:13px;color:var(--muted)}
 .scene{width:100%;max-width:1200px;margin-top:auto;padding:24px 8px 0}
-.nap-wrap{position:relative}.cc-nap{position:absolute;left:80%;bottom:4.4%;width:18%;height:auto;pointer-events:none}
 .scene-svg{display:block;width:100%;height:auto;overflow:visible}.scene-svg.phone{display:none}
 .hm-hop,.hm-eyes,.deco,.dot{transform-box:fill-box;transform-origin:center}
 .hm-arm,.hm-wave,.hm-leg{transition:transform .35s var(--ease)}
@@ -228,10 +200,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .plane{animation:glide 9s ease-in-out infinite}
 @keyframes glide{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-12px)}}
 .step{animation:in .35s var(--ease)}@keyframes in{from{opacity:0;transform:translateY(6px)}}
-@media (max-width:640px){.card{padding:20px;border-radius:18px}.top{padding:14px 16px}.scene{padding-top:24px}.scene-svg.wide{display:none}.scene-svg.phone{display:block}.cc-nap{display:none}}
-.cc-look{transition:transform .25s var(--ease)}
-.cc-perch{position:absolute;left:50%;margin-left:-112px;top:-219px;width:250px;height:234px;overflow:visible;user-select:none;pointer-events:none}
-@media (max-width:640px){.cc-perch{margin-left:-98px;width:220px;height:206px;top:-193px}.card{margin-top:188px}}
+@media (max-width:640px){.card{padding:20px;border-radius:18px}.top{padding:14px 16px}.scene{padding-top:24px}.scene-svg.wide{display:none}.scene-svg.phone{display:block}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 """.strip()
 
@@ -249,7 +218,7 @@ if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.
 document.addEventListener('visibilitychange',function(){if(!document.hidden)requestAnimationFrame(draw)})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
-function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
+function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0||k.indexOf('hm-cc')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
 window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000);play(m,'hm-laughing',2000)},i*120)})};
 if(!reduce){setInterval(function(){var m=all[Math.floor(Math.random()*all.length)];if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
 all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700);play(m,'hm-laughing',1400)})});
@@ -257,14 +226,8 @@ document.addEventListener('focusin',function(e){if(e.target.type==='password')do
 document.addEventListener('focusout',function(e){if(e.target.type==='password')document.body.classList.remove('shy')});
 var looks=[].slice.call(document.querySelectorAll('.hm .m-look')),px=0,py=0,q=false;
 function upd(){q=false;if(document.body.classList.contains('shy'))return;looks.forEach(function(g){var r=g.closest('.hm').getBoundingClientRect();if(!r.width)return;
-var dx=px-(r.left+r.width/2),dy=py-(r.top+r.height*.3),d=Math.sqrt(dx*dx+dy*dy)||1,k=Math.min(1,d/240)*(g.closest('.hm-mrerp')?3:5);g.setAttribute('transform','translate('+(dx/d*k).toFixed(2)+' '+(dy/d*k).toFixed(2)+')')})}
+var dx=px-(r.left+r.width/2),dy=py-(r.top+r.height*.3),d=Math.sqrt(dx*dx+dy*dy)||1,k=Math.min(1,d/240)*(g.closest('.hm-mrerp')?3:g.closest('.hm-cc')?7:5);g.setAttribute('transform','translate('+(dx/d*k).toFixed(2)+' '+(dy/d*k).toFixed(2)+')')})}
 if(!reduce)addEventListener('pointermove',function(e){px=e.clientX;py=e.clientY;if(!q){q=true;requestAnimationFrame(upd)}},{passive:true});
-var ccEyes=[].slice.call(document.querySelectorAll('.cc-look')),cq=false;
-function ccLook(){cq=false;var shy=document.body.classList.contains('shy');ccEyes.forEach(function(g){var r=g.parentNode.getBoundingClientRect();if(!r.width)return;
-var dx=shy?.4:px-(r.left+r.width/2),dy=shy?-1:py-(r.top+r.height/2),d=Math.sqrt(dx*dx+dy*dy)||1,k=shy?1:Math.min(1,d/260),ux=dx/d*k*8,uy=dy/d*k*(dy>0?3:5);
-g.setAttribute('transform','translate('+ux.toFixed(2)+' '+uy.toFixed(2)+')')})}
-if(!reduce&&ccEyes.length){addEventListener('pointermove',function(){if(!cq){cq=true;requestAnimationFrame(ccLook)}},{passive:true});
-document.addEventListener('focusin',ccLook);document.addEventListener('focusout',function(){setTimeout(ccLook,0)})}
 })();
 """.strip()
 
@@ -286,44 +249,59 @@ PAGE_HTML = """<!doctype html>
   </header>
   <section class="hero">
     {% if mode == "pick" %}
-    <div class="card step">""" + CC_CAT + """
+    <div class="card step">
       <h2>{{ _("Choose a workspace") }}</h2>
       <div class="picks">{% for s in sites %}<a class="pick" href="/api/method/pearnly_control.assistant_entry.api.choose?pick={{ pick | urlencode }}&amp;site={{ s.site | urlencode }}"><b>{{ s.company | e }}</b><small>{{ products.get(s.product, s.product) }}</small></a>{% endfor %}</div>
     </div>
     {% elif mode == "none" %}
-    <div class="card step">""" + CC_CAT + """
+    <div class="card step">
       <p class="notice">{{ _("This account has no workspace available. Contact your administrator.") }}</p>
       <a class="btn" href="/?fresh=1">{{ _("Back") }}</a>
     </div>
     {% else %}
-    <form class="card" id="entry" novalidate>""" + CC_CAT + """
+    <form class="card" id="entry" novalidate>
       <input class="input" id="login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="{{ _("Username or email") }}" autofocus>
+      <div class="field" style="margin-top:10px">
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="{{ _("Password") }}">
+        <button class="toggle-password" type="button" data-toggle-password="password" aria-label="{{ _("Show or hide password") }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
       <span class="err" id="err" role="alert" hidden></span>
-      <button class="btn" type="submit" id="go">{{ _("Continue") }}</button>
+      <button class="btn" type="submit" id="go">{{ _("Log in") }}</button>
+      <span class="forgot"><a class="link-btn" href="#" id="forgot">{{ _("Forgot password ?") }}</a></span>
       """ + CONTACTS + """
       <p class="legal">{{ legal_html | safe }}</p>
     </form>
     {% endif %}
   </section>
-  <div class="scene">""" + scene_with_nap("/assets/pearnly_control/cc/", False) + """</div>
+  <div class="scene">""" + SCENE_WIDE + SCENE_PHONE + """</div>
 </div>
 <script>""" + JS + """
 (function(){
   document.querySelectorAll('[data-lang]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();
     document.cookie='pearnly_locale='+a.getAttribute('data-lang')+'; path=/; max-age=31536000; samesite=lax; secure';location.reload()})});
+  // 账号密码在同一个框里填（用户 2026-10-10 晚）。密码校验在账号所在账号池的登录服务（另一个域名）上：
+  // 这里只问出该去哪个登录服务，密码放在跳转地址的 # 后面带过去（# 后面的内容浏览器不发给任何服务器），
+  // 那边的登录页读出来、马上从地址栏抹掉、自动提交（THEME_JS）。「忘记密码」同样先找到账号池，再直接打开那边的找回密码页。
+  if(/^#pn/.test(location.hash))history.replaceState(null,'',location.pathname+location.search);
+  document.querySelectorAll('[data-toggle-password]').forEach(function(b){b.addEventListener('click',function(){
+    var i=document.getElementById(b.getAttribute('data-toggle-password'));if(i)i.type=i.type==='password'?'text':'password'})});
   var form=document.getElementById('entry');if(!form)return;
-  var input=document.getElementById('login'),err=document.getElementById('err'),go=document.getElementById('go');
+  var input=document.getElementById('login'),pw=document.getElementById('password'),err=document.getElementById('err'),go=document.getElementById('go');
   function fail(text){err.textContent=text;err.hidden=false;go.disabled=false}
-  input.addEventListener('input',function(){err.hidden=true});
-  form.addEventListener('submit',function(e){e.preventDefault();var v=input.value.trim();
-    if(!v)return fail({{ _("Enter your username or email.") | tojson }});
+  input.addEventListener('input',function(){err.hidden=true});pw.addEventListener('input',function(){err.hidden=true});
+  function start(tail){var v=input.value.trim();
+    if(!v){input.focus();return fail({{ _("Enter your username or email.") | tojson }})}
     go.disabled=true;if(window.pearnlyCheer)window.pearnlyCheer();
     fetch('/api/method/pearnly_control.assistant_entry.api.start',{method:'POST',credentials:'same-origin',
       headers:{'Content-Type':'application/json','X-Frappe-CSRF-Token':{{ csrf_token | tojson }}},body:JSON.stringify({login:v})})
     .then(function(r){return r.json().then(function(b){return {ok:r.ok,b:b}})})
-    .then(function(x){if(x.ok&&x.b.message&&x.b.message.url){location.href=x.b.message.url;return}
+    .then(function(x){if(x.ok&&x.b.message&&x.b.message.url){location.href=x.b.message.url+tail();return}
       fail({{ _("The sign-in service is not available. Try again later.") | tojson }})})
-    .catch(function(){fail({{ _("The sign-in service is not available. Try again later.") | tojson }})})});
+    .catch(function(){fail({{ _("The sign-in service is not available. Try again later.") | tojson }})})}
+  form.addEventListener('submit',function(e){e.preventDefault();
+    if(input.value.trim()&&!pw.value){pw.focus();return fail({{ _("Enter your password.") | tojson }})}
+    start(function(){return '#pn='+encodeURIComponent(pw.value)})});
+  document.getElementById('forgot').addEventListener('click',function(e){e.preventDefault();start(function(){return '#pn-forgot'})});
 })();
 </script>
 </body></html>
@@ -333,6 +311,16 @@ PAGE_HTML = """<!doctype html>
 
 THEME_JS = JS + """
 (function(){
+  // 入口第一页带过来的密码 / 找回密码（# 后面，见入口页脚本）：先从地址栏抹掉，再自动提交或打开找回密码页。
+  // 登录页出错（密码不对等）时不自动提交，照常显示出错的登录框。
+  var h=location.hash;
+  if(/^#pn/.test(h)){history.replaceState(null,'',location.pathname+location.search);
+    var f=document.getElementById('kc-form-login'),p=document.getElementById('password'),u=document.getElementById('username'),a=document.querySelector('.forgot a');
+    if(h==='#pn-forgot'&&a){location.replace(a.href);return}
+    if(h.indexOf('#pn=')===0&&f&&p&&u&&u.value&&!document.querySelector('.pn-field-error,.auth-message.error')){
+      try{p.value=decodeURIComponent(h.slice(4))}catch(e){p.value=''}
+      if(p.value){f.submit();return}}
+    document.documentElement.classList.remove('pn-auto')}
   var change=document.getElementById('who-change');
   if(change)change.addEventListener('click',function(){var who=document.getElementById('who'),u=document.getElementById('username');
     var input=document.createElement('input');input.className='input';input.id='username';input.name='username';input.type='text';input.autocomplete='username';
@@ -364,6 +352,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CC</title>""" + FAVICON + """<meta name="robots" content="noindex">""" + FONTS + """
+<script>if(/^#pn/.test(location.hash))document.documentElement.classList.add('pn-auto')</script>
 <link href="${url.resourcesPath}/css/""" + CSS_NAME + """" rel="stylesheet" />
 <#if scripts??><#list scripts as script><script src="${script}" type="text/javascript"></script></#list></#if>
 <script src="${url.resourcesPath}/js/""" + JS_NAME + """" defer></script>
@@ -378,7 +367,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
     </#if>
   </header>
   <section class="hero">
-    <div class="card">""" + CC_CAT + """
+    <div class="card">
       <#nested "header">
       <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
         <div class="auth-message ${message.type}" role="alert">${kcSanitize(message.summary)?no_esc}</div>
@@ -390,7 +379,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
       <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
     </div>
   </section>
-  <div class="scene">""" + scene_with_nap("${url.resourcesPath}/video/", True) + """</div>
+  <div class="scene">""" + SCENE_WIDE + SCENE_PHONE + """</div>
 </div>
 </body></html>
 </#macro>
@@ -458,21 +447,7 @@ def main():
     check = "--check" in sys.argv
     stale = []
     wanted = outputs()
-    binaries = {THEME / "resources/video" / name: (NAP_DIR / f"cat-nap.{ext}").read_bytes() for ext, name in NAP_FILES.items()}
-    for path, data in binaries.items():
-        if check:
-            if not path.exists() or path.read_bytes() != data:
-                stale.append(str(path.relative_to(ROOT)))
-        else:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
-    for old in ((THEME / "resources/video").glob("*") if (THEME / "resources/video").exists() else ()):
-        if old not in binaries:
-            if check:
-                stale.append(str(old.relative_to(ROOT)) + " (remove)")
-            else:
-                old.unlink()
-    for folder in (THEME / "resources/css", THEME / "resources/js"):   # 换了指纹的旧文件不留
+    for folder in (THEME / "resources/css", THEME / "resources/js", THEME / "resources/video"):   # 换了指纹的旧文件不留
         for old in (folder.glob("*") if folder.exists() else ()):
             if old not in wanted:
                 if check:

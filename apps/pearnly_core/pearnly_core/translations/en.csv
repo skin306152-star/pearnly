@@ -224,6 +224,7 @@ Document date,Document date
 Document no.,Document no.
 Documents,Documents
 Done · {0} ok · {1} failed,Done · {0} ok · {1} failed
+Download CC,Download CC
 Download assistant,Download assistant
 Draft,Draft
 Due Date,Due Date
@@ -1023,7 +1024,7 @@ intake.status.recognized,Recognized
 intake.status.recognizing,Recognizing
 intake.status.rejected,Returned
 intake.subtitle,Review and confirm documents before sending.
-intake.target.download,Download assistant
+intake.target.download,Download CC
 intake.target.recognizeOnly,Recognize and export
 intake.target.title,Target ERP
 intake.target.year,Fiscal year

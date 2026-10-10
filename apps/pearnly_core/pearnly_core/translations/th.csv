@@ -224,6 +224,7 @@ Document date,วันที่เอกสาร
 Document no.,เลขที่เอกสาร
 Documents,จำนวนเอกสาร
 Done · {0} ok · {1} failed,เสร็จสิ้น · สำเร็จ {0} · ล้มเหลว {1}
+Download CC,ดาวน์โหลด CC
 Download assistant,ดาวน์โหลดผู้ช่วย Pearnly
 Draft,ฉบับร่าง
 Due Date,วันครบกำหนด
@@ -1025,7 +1026,7 @@ intake.status.recognized,อ่านแล้ว
 intake.status.recognizing,กำลังอ่าน
 intake.status.rejected,ตีกลับแล้ว
 intake.subtitle,ตรวจสอบและยืนยันเอกสารก่อนส่ง
-intake.target.download,ดาวน์โหลดผู้ช่วย Pearnly
+intake.target.download,ดาวน์โหลด CC
 intake.target.recognizeOnly,อ่านแล้วส่งออก
 intake.target.title,ERP ปลายทาง
 intake.target.year,ปีบัญชี

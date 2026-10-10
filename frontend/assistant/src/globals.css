@@ -149,16 +149,17 @@
 .hm .hm-eyes { animation: hm-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes hm-blink { 0%, 95%, 100% { transform: none; } 97% { transform: scaleY(.1); } }
 .hm-laser { opacity: .35; }
-/* Tomo（云朵）：头顶星光闪；隔一会儿眯眼张嘴笑一下，鼠标放上去也笑（同入口登录页） */
-.hm-spark { transform-box: fill-box; transform-origin: center; }
-.hm-spark { animation: hm-spark 2.2s ease-in-out infinite; }
-@keyframes hm-spark { 50% { transform: scale(.55) rotate(25deg); opacity: .5; } }
+/* CC（吐司胖橘）：隔一会儿眯眼张嘴笑一下，鼠标放上去也笑；尾巴摆、铃铛晃、泡泡里的勾反复画出来（同入口登录页） */
 .hm-laugh { opacity: 0; }
-.hm-ai .hm-calm { animation: tomo-calm 8s infinite; } .hm-ai .hm-laugh { animation: tomo-laugh 8s infinite; }
-@keyframes tomo-calm { 0%, 72%, 92%, 100% { opacity: 1; } 75%, 89% { opacity: 0; } }
-@keyframes tomo-laugh { 0%, 72%, 92%, 100% { opacity: 0; } 75%, 89% { opacity: 1; } }
-.hm-ai:hover .hm-calm { animation: none; opacity: 0; } .hm-ai:hover .hm-laugh { animation: none; opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .hm .hm-eyes, .hm-ai .hm-calm, .hm-ai .hm-laugh { animation: none; } }
+.hm-cc .hm-calm { animation: cc-calm 8s infinite; } .hm-cc .hm-laugh { animation: cc-laugh 8s infinite; }
+@keyframes cc-calm { 0%, 72%, 92%, 100% { opacity: 1; } 75%, 89% { opacity: 0; } }
+@keyframes cc-laugh { 0%, 72%, 92%, 100% { opacity: 0; } 75%, 89% { opacity: 1; } }
+.hm-cc:hover .hm-calm { animation: none; opacity: 0; } .hm-cc:hover .hm-laugh { animation: none; opacity: 1; }
+.cc-tail { animation: cc-tail 2.6s ease-in-out infinite; } @keyframes cc-tail { 50% { transform: rotate(-14deg); } }
+.cc-bell { animation: cc-bell 2.2s ease-in-out infinite; } @keyframes cc-bell { 25% { transform: rotate(12deg); } 75% { transform: rotate(-12deg); } }
+.cc-hold { animation: cc-hold 5s ease-in-out infinite; } @keyframes cc-hold { 50% { transform: rotate(-5deg); } }
+.cc-tick { stroke-dasharray: 1; animation: cc-tick 5s ease-out infinite; } @keyframes cc-tick { 0% { stroke-dashoffset: 1; } 18%, 100% { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .hm .hm-eyes, .hm-cc .hm-calm, .hm-cc .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
 
 /* 等待中的三个点（components/typing-dots.tsx）：同智能体小人胸前的三个点，黑色深 → 浅，依次跳起 */

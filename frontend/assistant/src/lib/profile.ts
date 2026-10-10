@@ -27,5 +27,5 @@ export function useProfile(): Profile | null {
 const BRANDS = import.meta.glob("../brand/*.svg", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 
 export function assistantMascot(): string | null {
-  return BRANDS["../brand/ai.svg"] || null;
+  return BRANDS["../brand/cc.svg"] || null;
 }

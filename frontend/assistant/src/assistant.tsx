@@ -52,8 +52,8 @@ function Welcome() {
   const name = firstName(profile);
   return (
     <div className="aui-thread-welcome-root -mb-2 flex items-center justify-center gap-3 px-4 text-center">
-      {/* 形象图上方留了约 27% 空白（挥手的余量）；负外边距把它扣掉，文字就对准小人本身居中 */}
-      {icon && <Mascot src={icon} className="pearnly-mascot-host -mt-5.5 h-20 shrink-0 sm:-mt-6.5 sm:h-24" />}
+      {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
+      {icon && <Mascot src={icon} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
       <h1 className="text-3xl text-foreground sm:text-4xl">
         {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
       </h1>

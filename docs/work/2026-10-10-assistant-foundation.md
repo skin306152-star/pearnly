@@ -157,7 +157,10 @@
 ## 产品名 CC、入口域名 fatcc.com（2026-10-10，同一分支）
 
 - 产品名改为 **CC**（Tomo 作废）；登录页左上角只放 CC 图标（白字带胡须原版），对话页侧栏不放图标；浏览器标签图标 16–48 像素用去胡须简化版。图标源文件 `frontend/assistant/src/brand/cc-icon*.svg`（另一窗口定稿，橙底 #F28C28）。
-- 形象用用户自己用 Gemini 生成的水彩橘猫：登录框顶部探头那只（`website/static/cc/top.webp`，眼珠抠成单独小图跟鼠标转，输密码时往上看）；底部一排最右边睡觉的猫视频（前 5 秒循环，逐帧抠掉棋盘格，`apps/pearnly_control/pearnly_control/public/cc/cat-nap.{webm,mp4}`）。抠图脚本在 `website/static/cc/source/`。
+- 登录页不放猫（2026-10-10 晚用户定：探头的猫、睡觉的猫视频都删，图片 / 视频 / 抠图脚本一并删除，入口站点不再放行静态目录）。
+  左上角是 CC 图标（橙底白 cc 带胡须）；CC 的形象「吐司胖橘」（用户在 Vikeno logo design 窗口选定，原稿 `website/static/cc/source/cc-loaf.svg`，
+  画法 `website/scenes.py` 的 `cc_loaf`）站在底部那排小人最右边：眼睛跟鼠标、眨眼，隔一会儿 / 悬停 / 点一下眯眼张嘴笑，尾巴摆、铃铛晃、泡泡里的勾反复画出来。
+- 网页「下载小助手」按钮改为「下载 CC」（用户 2026-10-10 晚定）。
 - 登录框去掉「还没有账号？」「联系我们开通账号或预约演示」两行；设置和对话页的选中 / 悬停统一用中性灰。
 - **入口域名 fatcc.com**（用户在 Cloudflare 注册）：
   - Cloudflare：本机令牌 pearnly-testenv-switch 加了 fatcc.com 的 DNS 编辑权限（用户确认后在其 Chrome 里保存）；DNS `fatcc.com A 生产服务器`、`www CNAME fatcc.com`，只解析不代理（同 pearnly.com）。

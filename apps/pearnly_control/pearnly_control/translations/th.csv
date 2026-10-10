@@ -106,6 +106,7 @@ Enabled Features,ฟีเจอร์ที่เปิดใช้
 Enabled — {0} steps,เปิดใช้งานแล้ว ({0} ขั้นตอน)
 Enforcement,การควบคุมสิทธิ์
 Enter the assistant API key.,โปรดกรอกคีย์ API ของผู้ช่วย
+Enter your password.,กรุณากรอกรหัสผ่าน
 Enter your username or email.,กรุณากรอกชื่อผู้ใช้หรืออีเมล
 External Reference,เลขที่อ้างอิงภายนอก
 Failed,ไม่สำเร็จ
@@ -122,6 +123,7 @@ Finished At,สิ้นสุดเมื่อ
 For example http://keycloak.localhost:8105,ตัวอย่าง http://keycloak.localhost:8105
 For example: local sample / production,ตัวอย่าง: ระบบตัวอย่างในเครื่อง / ระบบจริง
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น
+Forgot password ?,ลืมรหัสผ่าน ?
 Get your work done in conversation,ทำงานให้เสร็จได้ในบทสนทนา
 Grant feature roles,มอบสิทธิ์ตามฟีเจอร์
 Granted DocTypes,DocType ที่อนุญาต
@@ -175,6 +177,7 @@ Leave empty to use the company name,เว้นว่างเพื่อใ�
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,ไม่ต้องกรอก เฉพาะช่องทางที่เปิดก่อน 2026-10-05 เท่านั้นที่เก็บโทเคนระยะยาวไว้ที่นี่
 Local Port,พอร์ตในเครื่อง
 Local URL,ที่อยู่ในเครื่อง
+Log in,เข้าสู่ระบบ
 Manual adjustment · {0},ปรับยอดด้วยตนเอง · {0}
 Mark provisioning done,ทำเครื่องหมายว่าเปิดใช้งานเสร็จ
 Matches the feature key in the product's own feature catalog (features.json).,ต้องตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกฟีเจอร์ของผลิตภัณฑ์ (features.json)
@@ -201,6 +204,7 @@ Over-rate (per page),ราคาส่วนเกิน (ต่อหน้า
 Pages,จำนวนหน้า
 Pages Used This Month,จำนวนหน้าที่ใช้เดือนนี้
 Partly done {0}/{1},เสร็จบางส่วน {0}/{1}
+Password,รหัสผ่าน
 Password Delivered At,ส่งรหัสผ่านเริ่มต้นเมื่อ
 Password-check Client ID,Client ID ตรวจรหัสผ่าน
 Password-check Client Secret,Client Secret ตรวจรหัสผ่าน
@@ -265,6 +269,7 @@ Set up OCR,ตั้งค่า OCR
 Set up the LINE channel,ตั้งค่าช่องทาง LINE
 Set up the assistant,ตั้งค่าผู้ช่วย
 Set up unified sign-in,ตั้งค่าการเข้าสู่ระบบแบบรวม
+Show or hide password,แสดงหรือซ่อนรหัสผ่าน
 Sign in to your account,เข้าสู่ระบบ
 Sign-in account,บัญชีผู้ใช้
 Sign-in accounts,บัญชีเข้าสู่ระบบ

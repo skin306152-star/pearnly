@@ -178,6 +178,54 @@ def mascot(x, y, k=1.0, data="", prop="pencil", kind="base", flip=False):
             f'{legs}{wave}<g>{body}</g>{arm}</g></g></g>')
 
 
+def cc_loaf(x, ground, k=0.5, lift=8):
+    """CC 的形象「吐司胖橘」（用户 2026-10-10 在 Vikeno logo design 窗口选定，原稿 website/static/cc/source/cc-loaf.svg）：
+    和小单同一套画法，方身子长出猫耳、蓝项圈金铃铛、尾巴在左后、右手举着打勾的对话泡泡。
+
+    动起来的方式和其他小人一样（.hm 那套 CSS / 脚本）：眼睛 .m-look 跟着鼠标、.hm-eyes 眨眼，平时 .hm-calm，
+    隔一会儿 / 悬停 / 点一下换成 .hm-laugh（眯眼张嘴笑）；另外尾巴 .cc-tail 摆、铃铛 .cc-bell 晃、泡泡里的勾 .cc-tick 反复画出来。
+    原稿坐标里两只鞋底在 y=320、身子中线 x=130；关节用 translate 包一层，CSS 只在局部原点上旋转。"""
+    ink = 'stroke="#141413"'
+    joint = lambda jx, jy, cls, inner: (f'<g transform="translate({jx} {jy})"><g class="{cls}"><g transform="translate({-jx} {-jy})">'
+                                        f'{inner}</g></g></g>')
+    tail = (f'<path d="M56 256 Q16 262 16 226 Q16 200 40 206" {ink} stroke-width="22"/>'
+            '<path d="M56 256 Q16 262 16 226 Q16 200 40 206" stroke="#f59a3c" stroke-width="14"/>')
+    legs = (f'<path d="M108 282 V308 M152 282 V308" {ink} stroke-width="8"/>'
+            f'<path d="M114 320 Q114 306 100 306 Q82 306 82 320 Z" fill="#5b86d6" {ink} stroke-width="5"/><path d="M114 320 H82" {ink} stroke-width="5"/>'
+            f'<path d="M146 320 Q146 306 160 306 Q178 306 178 320 Z" fill="#5b86d6" {ink} stroke-width="5"/><path d="M146 320 H178" {ink} stroke-width="5"/>')
+    body = (f'<path d="M50 112 Q50 84 62 74 L70 36 L108 66 H152 L190 36 L198 74 Q210 84 210 112 V258 Q210 282 186 282 H74 Q50 282 50 258 Z" fill="#f59a3c" {ink} stroke-width="8"/>'
+            '<path d="M74 70 L78 50 L96 66 Z M186 70 L182 50 L164 66 Z" fill="#ff9ba3" stroke="none"/>'
+            '<path d="M116 74 V92 M130 72 V96 M144 74 V92" stroke="#c9681a" stroke-width="6"/>'
+            '<path d="M50 214 H64 M50 234 H60 M210 214 H196 M210 234 H200" stroke="#c9681a" stroke-width="6"/>'
+            '<ellipse cx="130" cy="232" rx="50" ry="40" fill="#fff3e0" stroke="none"/>')
+    calm = ('<g class="hm-calm"><g class="m-look"><g class="hm-eyes">'
+            '<circle cx="104" cy="128" r="9" fill="#141413" stroke="none"/><circle cx="156" cy="128" r="9" fill="#141413" stroke="none"/>'
+            '<circle cx="107.15" cy="124.85" r="3.15" fill="#fff" stroke="none"/><circle cx="159.15" cy="124.85" r="3.15" fill="#fff" stroke="none"/></g></g>'
+            f'<path class="hm-mouth" d="M117.2 152 Q123.6 160 130 152 Q136.4 160 142.8 152" {ink} stroke-width="4.5"/></g>')
+    laugh = (f'<g class="hm-laugh"><path d="M93 132 Q104 117 115 132 M145 132 Q156 117 167 132" {ink} stroke-width="5.5"/>'
+             f'<path d="M116 153 H144 Q144 174 130 174 Q116 174 116 153 Z" fill="#7a3b3b" {ink} stroke-width="4"/>'
+             '<path d="M122 167 Q130 161 138 167 Q135 172 130 172 Q125 172 122 167 Z" fill="#ff9ba3" stroke="none"/></g>')
+    face = ('<ellipse cx="86" cy="150" rx="11" ry="6.5" fill="#ff9ba3" opacity=".8" stroke="none"/>'
+            '<ellipse cx="174" cy="150" rx="11" ry="6.5" fill="#ff9ba3" opacity=".8" stroke="none"/>'
+            + calm + laugh +
+            f'<path d="M125 143 H135 L130 148 Z" fill="#ff9ba3" {ink} stroke-width="3"/>'
+            f'<path d="M74 140 L40 132 M74 150 L38 152 M186 140 L220 132 M186 150 L222 152" {ink} stroke-width="3.5"/>')
+    collar = (f'<path d="M54 176 Q130 194 206 176" {ink} stroke-width="17"/><path d="M54 176 Q130 194 206 176" stroke="#5b86d6" stroke-width="9"/>'
+              + joint(130, 184, "cc-bell", f'<circle cx="130" cy="195" r="13" fill="#ffd84d" {ink} stroke-width="5"/>'
+                      f'<path d="M122.85 196.95 H137.15" {ink} stroke-width="3"/><circle cx="130" cy="201.5" r="2.21" fill="#141413" stroke="none"/>'))
+    hold = joint(210, 198, "cc-hold",
+                 f'<path d="M210 198 Q236 186 240 150" {ink} stroke-width="8"/>'
+                 f'<path d="M188 20 H246 Q256 20 256 30 V62 Q256 72 246 72 H214 L204 84 L204 72 H198 Q188 72 188 62 V30 Q188 20 198 20 Z" fill="#fff" {ink} stroke-width="5"/>'
+                 '<path class="cc-tick" pathLength="1" d="M204 46 L216 58 L240 34" stroke="#3a9a5b" stroke-width="7"/>'
+                 f'<circle cx="241" cy="140" r="11" fill="#fff3e0" {ink} stroke-width="6"/>')
+    wave = joint(50, 196, "hm-wave", f'<path d="M50 196 Q30 214 34 240" {ink} stroke-width="8"/>'
+                 f'<circle cx="34" cy="250" r="11" fill="#fff3e0" {ink} stroke-width="6"/>')
+    return (f'<g class="hm hm-cc" transform="translate({n(x)} {n(ground - lift)}) scale({k})"><g class="hm-move"><g class="hm-hop">'
+            '<g transform="translate(-130 -320)">'
+            '<ellipse class="hm-shadow" cx="130" cy="326" rx="82" ry="9" fill="#3a2a14" stroke="none" opacity=".14"/>'
+            + legs + joint(56, 256, "cc-tail", tail) + body + face + collar + wave + hold + '</g></g></g></g>')
+
+
 def flyer(text, src, dst, at, cls=""):
     return f'<span class="fly hd-fly {cls}" data-from="{src}" data-to="{dst}" data-at="{at}">{esc(text)}</span>'
 

@@ -35,13 +35,10 @@ def enabled() -> bool:
 # 入口站点只开放这几个地址：入口页与三个登录接口。Frappe 自带的登录页、后台、通用接口一律拒绝（同计费站点的做法）。
 ALLOWED_PATHS = frozenset({"/", "/ai"} | {f"/api/method/pearnly_control.assistant_entry.api.{name}"
                                           for name in ("start", "callback", "choose")})
-# 入口页底部那只睡觉的猫（视频文件，scripts/build-ai-entry.py）：只放行这一个静态目录
-ALLOWED_PREFIX = "/assets/pearnly_control/cc/"
 
 
 def allowed(path: str) -> bool:
-    path = str(path or "")
-    return path in ALLOWED_PATHS or (path.startswith(ALLOWED_PREFIX) and ".." not in path)
+    return str(path or "") in ALLOWED_PATHS
 
 
 def guard_entry_site():
@@ -134,8 +131,10 @@ def _remember(name: str, value: str) -> None:
 
 
 def _redirect(location: str) -> None:
+    # 地址带一个空的 #：入口第一页把密码放在 # 后面带去登录服务（浏览器不发给服务器）；登录服务已有登录状态时会直接跳回这里，
+    # 浏览器跳转时会把原来的 # 一路带下去，显式给空 # 才会在这里断掉，不会跟到公司页面的地址栏里。
     frappe.local.response["type"] = "redirect"
-    frappe.local.response["location"] = location
+    frappe.local.response["location"] = location if "#" in location else location + "#"
 
 
 def start(login: str) -> str:
