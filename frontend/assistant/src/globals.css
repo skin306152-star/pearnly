@@ -69,8 +69,8 @@
 
 :root {
   --radius: 0.625rem;
-  /* 暖白底、近黑字，与 claude.ai 同一观感；输入框与卡片保持纯白 */
-  --background: #faf9f5;
+  /* 纯白底、近黑字；选中与悬停是浅灰 */
+  --background: #ffffff;
   --foreground: #141413;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
@@ -80,21 +80,21 @@
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: #efede6;
+  --muted: #f0f0f0;
   --muted-foreground: oklch(0.552 0.016 285.938);
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #e8e6dc;
-  --input: #e8e6dc;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
   --ring: oklch(0.705 0.015 286.067);
-  --sidebar: #f5f4ef;
+  --sidebar: #ffffff;
   --sidebar-foreground: #141413;
   --sidebar-primary: oklch(0.21 0.006 285.885);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: #ebe9e1;
+  --sidebar-accent: #f0f0f0;
   --sidebar-accent-foreground: #141413;
-  --sidebar-border: #e8e6dc;
+  --sidebar-border: #e5e5e5;
   --sidebar-ring: oklch(0.705 0.015 286.067);
 }
 
