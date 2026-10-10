@@ -29,6 +29,12 @@ def fix_ui_font(app: QApplication) -> bool:
 
 def qt_app() -> QApplication:
     """已有就用已有的，没有就建一个；两种情况都核对一次界面字体。"""
-    app = QApplication.instance() or QApplication([])
+    app = QApplication.instance()
+    if app is None:
+        # Tomo 窗口用网页内核（QtWebEngine），它要求在建 QApplication 之前开共享 OpenGL 上下文
+        from PySide6.QtCore import QCoreApplication, Qt
+
+        QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+        app = QApplication([])
     fix_ui_font(app)
     return app

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """系统托盘常驻(PySide6)· 后台线程跑 DBF 直写 poll loop,托盘显示连接/活动状态。
 
+2026-10-10 起小助手并入 Tomo 桌面端：托盘左键、Ctrl+Alt+Space、再次打开程序都是打开 Tomo 窗口（gui_tomo.py）；
+Express / MR.ERP 的连接与设置留在「连接与设置」主窗口，取任务、直写、文件夹录入照旧在后台跑，没配对也能单用 Tomo。
+
 主线程 = Qt 事件循环 + 托盘图标(绿空闲/黄工作/红错误/灰离线)+ 右键菜单(状态/打开小助手/
 退出;左键单击也打开小助手主窗口);后台 QThread = QueueClient poll → _handle_dbf_task 直写 → 周期心跳 +
 夜间 PACK tick(复用 main 的核心,不重复直写逻辑)。worker 出状态/离线通过信号回主线程。
@@ -90,13 +93,13 @@ def pearnly_icon() -> QIcon:
 def _pearnly_pixmap() -> QPixmap:
     global _BASE_PM
     if _BASE_PM is None:
-        p = asset_path("pearnly.png")
+        p = asset_path("tomo.png")
         _BASE_PM = QPixmap(str(p)) if p.exists() else QPixmap()
     return _BASE_PM
 
 
 def _status_icon(key: str) -> QIcon:
-    """托盘图标 = Pearnly logo + 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
+    """托盘图标 = Tomo 图标 + 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
     icon = _ICON_CACHE.get("logo:" + key)
     if icon is not None:
         return icon
@@ -142,7 +145,7 @@ class TrayApp(QObject):
     worker_stopped = Signal(object)
     folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline
 
-    def __init__(self, configs, *, open_connections: bool = False) -> None:
+    def __init__(self, configs, *, open_tomo: bool = False) -> None:
         app = qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
         super().__init__()
         if isinstance(configs, CompanionConfig):
@@ -198,13 +201,26 @@ class TrayApp(QObject):
         self._folders = FolderIntake(lambda: self.configs, lang=lambda: self.lang,
                                      on_status=lambda profile_id, key: self.folder_status.emit(profile_id, key))
         self._folders.start()
+        # Tomo：窗口第一次打开时才建（开机自启不加载网页内核）；快捷输入条、全局快捷键、「再打开一次」的管道一开始就在。
+        self._tomo = None
+        self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知才有）
+        self.tray.messageClicked.connect(self._on_message_clicked)
+        from .gui_tomo import QuickAsk
+        from .tomo_hotkey import GlobalHotkey
+        from . import instance_channel
+
+        self._quick = QuickAsk(lang=self.lang, icon=pearnly_icon())
+        self._quick.submitted.connect(lambda text: self.open_tomo(text))
+        self._hotkey = GlobalHotkey()
+        self._hotkey.pressed.connect(self._quick.popup)
+        self._channel = instance_channel.listen(lambda: self.open_tomo())
         # 看门狗:主线程定时巡检 worker 存活时标,卡死即自愈重启。主线程 Qt 事件循环不受
         # worker(后台 QThread)卡死影响,QTimer 必按时触发 → 卡死能被稳稳兜住。
         self._watchdog = QTimer()
         self._watchdog.timeout.connect(self._watchdog_check)
         self._watchdog.start(15000)
-        if open_connections:
-            QTimer.singleShot(0, self._repair)
+        if open_tomo:
+            QTimer.singleShot(0, self.open_tomo)
 
     def _spawn_worker(self) -> PollWorker:
         """建 poll worker、接好信号并启动(首次启动与自愈重启共用,避免两处接线漂移)。"""
@@ -229,7 +245,11 @@ class TrayApp(QObject):
         self._update_action.setVisible(False)
         self._update_action.triggered.connect(self._do_update)
         menu.addSeparator()
-        # 只留一个入口：连接、网页可选的文件夹、开机启动、日志都在主窗口（2026-10-08）。
+        self._tomo_action = menu.addAction(t("tomo_open", self.lang), self.open_tomo)
+        font = self._tomo_action.font()
+        font.setBold(True)
+        self._tomo_action.setFont(font)
+        # 连接、网页可选的文件夹、开机启动、日志都在「连接与设置」主窗口（2026-10-08）。
         self._open_action = menu.addAction(t("tray_open", self.lang), self._repair)
         menu.addSeparator()
         self._quit_action = menu.addAction(t("tray_quit", self.lang), self._quit)
@@ -240,6 +260,8 @@ class TrayApp(QObject):
         self._retranslate()
 
     def _retranslate(self) -> None:
+        if getattr(self, "_tomo_action", None):
+            self._tomo_action.setText(t("tomo_open", self.lang))
         if self._open_action:
             self._open_action.setText(t("tray_open", self.lang))
         if self._quit_action:
@@ -257,7 +279,7 @@ class TrayApp(QObject):
 
     def _render_status(self) -> None:
         if not self._profile_states:
-            text = t("tray_starting", self.lang)
+            text = t("tray_starting" if self.configs else "tray_no_connection", self.lang)
             self.tray.setIcon(_status_icon("offline"))
             self.tray.setToolTip(f"{t('tray_tooltip', self.lang)} · {text}")
             if self._status_action:
@@ -282,6 +304,7 @@ class TrayApp(QObject):
             self._update_action.setText(t("tray_update_to", self.lang, ver=version))
             self._update_action.setVisible(True)
         activity("log_update_found", lang=self.lang, ver=version)
+        self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
         self.tray.showMessage(
             t("update_avail_title", self.lang),
             t("update_avail_body", self.lang, ver=version),
@@ -310,6 +333,7 @@ class TrayApp(QObject):
                 body = t("notif_failed_body", self.lang, fail=n_fail)
             if len([cfg for cfg in self.configs if not cfg.paused]) > 1:
                 title = f"{self._profile_label(profile_id)} · {title}"
+            self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
             self.tray.showMessage(title, body, pearnly_icon())
         except Exception:
             log.exception("批次完成通知失败")
@@ -378,6 +402,7 @@ class TrayApp(QObject):
         self._auto_update.retry_now()
         if self._update_action:
             self._update_action.setEnabled(False)
+        self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
         self.tray.showMessage(
             t("update_avail_title", self.lang),
             t("update_downloading", self.lang),
@@ -452,6 +477,7 @@ class TrayApp(QObject):
     def _on_update_failed(self) -> None:
         if self._update_action:
             self._update_action.setEnabled(True)  # 放回,允许重试
+        self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
         self.tray.showMessage(
             t("update_avail_title", self.lang),
             t("update_failed", self.lang),
@@ -497,9 +523,30 @@ class TrayApp(QObject):
         self._last_keys[profile_id] = key
 
     def _on_tray_activated(self, reason) -> None:
-        """左键单击 / 双击托盘图标 = 打开主窗口（右键仍是菜单）。"""
+        """左键单击 / 双击托盘图标 = 打开 Tomo（右键仍是菜单）。"""
         if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
-            self._repair()
+            self.open_tomo()
+
+    # ── Tomo 桌面窗口 ──
+    def open_tomo(self, text: str | None = None) -> None:
+        if self._tomo is None:
+            from .gui_tomo import TomoWindow
+
+            self._tomo = TomoWindow(lang=self.lang, icon=pearnly_icon(), notify=self._notify,
+                                    open_settings=self._repair, quit_app=self._quit)
+        if text is None:
+            self._tomo.show_front()
+        else:
+            self._tomo.ask(text)
+
+    def _notify(self, title: str, body: str, on_click=None) -> None:
+        self._message_action = on_click
+        self.tray.showMessage(title, body, pearnly_icon(), 8000)
+
+    def _on_message_clicked(self) -> None:
+        action, self._message_action = self._message_action, None
+        if action is not None:
+            action()
 
     def _repair(self) -> None:
         """打开小助手主窗口（进程内唯一，已开着就提到最前）。"""
@@ -610,6 +657,10 @@ class TrayApp(QObject):
         self._restart_pending = False
         activity("log_quit", lang=self.lang)
         self._watchdog.stop()
+        if getattr(self, "_hotkey", None) is not None:
+            self._hotkey.release()
+        if getattr(self, "_tomo", None) is not None:
+            self._tomo.shutdown()
         if getattr(self, "_auto_timer", None) is not None:
             self._auto_timer.stop()
         if getattr(self, "_folders", None) is not None:

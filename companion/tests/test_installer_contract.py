@@ -34,3 +34,16 @@ def test_installs_per_user_so_silent_updates_never_ask_for_admin_rights():
     assert lines["defaultdirname"].startswith(("{autopf}", "{userpf}", "{localappdata}"))
     assert lines["usepreviousappdir"].lower() == "no"  # 不沿用旧版的 Program Files 目录
     assert "{commondesktop}" not in INSTALLER_SCRIPT.read_text(encoding="utf-8").lower()
+
+
+def test_tomo_installs_as_a_folder_and_silent_updates_restart_in_the_background():
+    # 2026-10-10：并入 Tomo 桌面端：打成文件夹（带网页内核）；自动更新后在后台重启，不弹 Tomo 窗口打断人
+    script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
+    assert 'Source: "..\\dist\\companion\\*"' in script and "recursesubdirs" in script
+    assert 'Type: filesandordirs; Name: "{app}\\_internal"' in script
+    run = script.split("[Run]", 1)[1].split("[Code]", 1)[0]
+    silent = next(line for line in run.splitlines() if "WizardSilent" in line)
+    assert 'Parameters: "--background"' in silent and "not WizardSilent" not in silent
+    spec = (INSTALLER_SCRIPT.parent / "companion.spec").read_text(encoding="utf-8")
+    assert "COLLECT(" in spec and "exclude_binaries=True" in spec
+    assert '"PySide6.QtWebEngineCore"' not in spec and '"PySide6.QtNetwork"' not in spec

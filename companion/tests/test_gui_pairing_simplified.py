@@ -40,8 +40,8 @@ def test_tray_status_line_is_capped():
     assert _menu_text("离线") == "离线"
 
 
-def test_tray_menu_has_one_entry_and_left_click_opens_the_main_window():
-    # 2026-10-08：托盘只留状态、打开小助手、退出；文件夹、日志、设置都在主窗口。
+def test_tray_menu_opens_tomo_first_and_left_click_opens_tomo():
+    # 2026-10-10：小助手并入 Tomo 桌面端：托盘是状态、打开 Tomo、连接与设置、退出；左键打开 Tomo。
     from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
     from src.companion.gui_tray import TrayApp
@@ -49,20 +49,57 @@ def test_tray_menu_has_one_entry_and_left_click_opens_the_main_window():
     QApplication.instance() or QApplication([])
     app = TrayApp.__new__(TrayApp)
     app.lang = "zh"
+    app.configs = []
     app.tray = QSystemTrayIcon()
     app._quit = lambda: None
-    opened = []
-    app._repair = lambda: opened.append(True)
+    opened, settings = [], []
+    app.open_tomo = lambda text=None: opened.append(text)
+    app._repair = lambda: settings.append(True)
     app._build_menu()
 
     texts = [action.text() for action in app.tray.contextMenu().actions()
              if action.isVisible() and not action.isSeparator()]
-    assert texts == ["启动中…", "打开小助手", "退出"]
+    assert texts == ["启动中…", "打开 Tomo", "连接与设置", "退出"]
 
     app._on_tray_activated(QSystemTrayIcon.Context)
     assert opened == []
     app._on_tray_activated(QSystemTrayIcon.Trigger)
-    assert opened == [True]
+    assert opened == [None]
+    assert settings == []
+
+
+def test_tray_without_express_says_not_connected():
+    from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    app.lang = "zh"
+    app.configs = []
+    app.tray = QSystemTrayIcon()
+    app._quit = lambda: None
+    app._repair = lambda: None
+    app.open_tomo = lambda text=None: None
+    app._profile_states = {}
+    app._build_menu()
+    app._render_status()
+    assert app._status_action.text() == "未连接 Express"
+
+
+def test_tomo_notifications_run_their_click_action_once():
+    from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    app.tray = QSystemTrayIcon()
+    clicked = []
+    app._notify("Tomo", "done", lambda: clicked.append(1))
+    app._on_message_clicked()
+    app._on_message_clicked()
+    assert clicked == [1]
 
 
 def test_tray_checks_for_a_new_version_in_the_background_and_hands_it_to_auto_update(monkeypatch):

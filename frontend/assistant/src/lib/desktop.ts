@@ -1,6 +1,6 @@
 // 桌面端（companion/ 里的 Tomo 窗口）和网页一起用的三件事，浏览器里打开时也照常生效：
 //
-//   window.tomo.ask(text) — 桌面端快捷键呼出的输入条把文字交给这里：开一个新对话发出去
+//   window.tomo.ask(text) — 桌面端快捷键呼出的输入条把文字交给这里：开一个新对话发出去（空文字只开新对话）
 //   回复完成通知          — 窗口不在前台时回复完成，用网页原生通知提醒（桌面端已授权；浏览器只在用户授权过时弹）
 //   整窗拖文件            — 文件拖到对话页任何地方都加进输入框，不会被浏览器当成网页打开
 
@@ -30,8 +30,8 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
     window.tomo = {
       ask(text: string) {
         const value = String(text ?? "").trim();
-        if (!value) return;
         aui.threads().switchToNewThread();
+        if (!value) return;   // 只开新对话（桌面端菜单「新对话」）
         // 新对话切过去后下一帧才是当前对话，再把文字放进输入框发出
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {

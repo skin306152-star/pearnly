@@ -3,14 +3,15 @@
 工作流:
   1. 装载 config + 启动 logger
   2. 单实例守卫(同机第二个实例友好退出)
-  3. 首次未配对 → 配对窗;已配对 → 托盘常驻(或 --headless console 直写循环)
+  3. 托盘常驻 + Tomo 窗口(手动打开时直接打开 Tomo;没配对 Express 也能用 Tomo,连接在「连接与设置」里配)
+     (或 --headless console 直写循环,须已配对)
   4. poll loop:queue_client.poll() 拉任务 → DBF 直写 → 写盘后即重建索引(后台 CDX)→ ack
   5. Ctrl+C / SIGTERM 优雅停止
 
 CLI:
   python -m src.companion.main              # 托盘常驻
   python -m src.companion.main --headless   # 无托盘 console 直写循环(测试/服务器)
-  python -m src.companion.main --background # 开机自启:跳过配对窗直接后台常驻(已配对)
+  python -m src.companion.main --background # 开机自启:后台常驻,不弹 Tomo 窗口
   python -m src.companion.main --debug      # 调试日志
 """
 
@@ -37,13 +38,22 @@ _INSTANCE_GUARD = None  # 单实例锁,进程存活期间持有(模块级防 GC 
 
 
 def _notify_already_running(cfg: CompanionConfig, headless: bool) -> None:
-    """已有实例在跑 → 友好告知后退出(标准托盘应用行为)。headless 只记日志。"""
+    """已有实例在跑 → 让它把 Tomo 窗口拿到前面(同 Claude 桌面端再点一次图标);连不上才提示后退出。headless 只记日志。"""
     from .i18n import default_lang, normalize, t
 
     lang = normalize(getattr(cfg, "ui_lang", "") or default_lang())
     if headless:
         print(t("already_running_body", lang))
         return
+    try:
+        from .gui_font import qt_app
+        from . import instance_channel
+
+        qt_app()
+        if instance_channel.ask_running_to_show():
+            return
+    except Exception:
+        log.exception("通知正在运行的实例失败")
     try:
         from PySide6.QtWidgets import QMessageBox
 
@@ -121,18 +131,9 @@ def step_poll_loop(configs) -> None:
 
 
 def _run_dbf(store, args) -> int:
-    """DBF 直写入口:连接管理 → 校验账套白名单 → 托盘常驻(或 --headless console)。"""
-    from .profile_store import ProfileStore
-
+    """入口:校验账套白名单 → 托盘常驻 + Tomo(或 --headless console 直写,须已配对)。"""
     configs = store.runtime_configs(include_paused=True)
-    if not configs and not args.background and not args.headless:
-        from .gui_profiles import open_profile_manager
-
-        open_profile_manager()
-        store = ProfileStore.load()
-        configs = store.runtime_configs(include_paused=True)
-
-    if not configs:
+    if not configs and args.headless:
         log.error("dbf 需要至少一个已配对 Profile")
         return 2
     for cfg in configs:
@@ -145,7 +146,8 @@ def _run_dbf(store, args) -> int:
                 cfg.account_dir,
                 cfg.account_set,
             )
-            return 2
+            if args.headless:
+                return 2   # 托盘模式照常启动：Tomo 不受影响，连接问题在「连接与设置」里看到并修
 
     if args.headless:
         try:
@@ -158,7 +160,7 @@ def _run_dbf(store, args) -> int:
     from .gui_tray import TrayApp
 
     log.info("托盘常驻 · method=dbf · profiles=%d", len(configs))
-    return TrayApp(configs, open_connections=not args.background).run()
+    return TrayApp(configs, open_tomo=not args.background).run()
 
 
 # ── 入口 ─────────────────────────────────────────────────────
@@ -168,7 +170,7 @@ def main() -> int:
     parser.add_argument(
         "--background",
         action="store_true",
-        help="开机自启用:跳过配对窗,直接后台常驻(已配对)",
+        help="开机自启用:后台常驻,不弹 Tomo 窗口",
     )
     parser.add_argument(
         "--headless",
@@ -213,7 +215,7 @@ def main() -> int:
 
     setup_logging(cfg)
 
-    # DBF 直写法:不碰界面。首次未配对进配对流程;已配对托盘常驻。
+    # 托盘常驻;手动打开时直接打开 Tomo。
     return _run_dbf(store, args)
 
 

@@ -29,8 +29,8 @@ def _install_runtime_stubs(monkeypatch, *, reloaded_store):
     tray = ModuleType("src.companion.gui_tray")
 
     class FakeTrayApp:
-        def __init__(self, configs, *, open_connections=False):
-            launched.append((list(configs), open_connections))
+        def __init__(self, configs, *, open_tomo=False):
+            launched.append((list(configs), open_tomo))
 
         def run(self):
             return 17
@@ -40,39 +40,35 @@ def _install_runtime_stubs(monkeypatch, *, reloaded_store):
     return opened, launched
 
 
-def test_manual_first_launch_opens_connection_manager(monkeypatch):
-    configured = SimpleNamespace(
-        profile_id="profile-1",
-        paused=False,
-        account_dir=r"C:\Express\TEST",
-        account_set="TEST",
-    )
-    opened, launched = _install_runtime_stubs(
-        monkeypatch, reloaded_store=_Store([configured])
-    )
-
-    result = main._run_dbf(
-        _Store(), SimpleNamespace(background=False, headless=False)
-    )
-
-    assert result == 17
-    assert opened == [True]
-    assert launched == [([configured], True)]
-
-
-def test_background_start_never_opens_connection_manager(monkeypatch):
+def test_manual_first_launch_without_express_opens_tomo(monkeypatch):
+    # 2026-10-10：小助手并入 Tomo：没配对 Express 也启动，直接打开 Tomo（连接在「连接与设置」里配）
     opened, launched = _install_runtime_stubs(monkeypatch, reloaded_store=_Store())
 
-    result = main._run_dbf(
-        _Store(), SimpleNamespace(background=True, headless=False)
-    )
+    result = main._run_dbf(_Store(), SimpleNamespace(background=False, headless=False))
 
-    assert result == 2
+    assert result == 17
     assert opened == []
+    assert launched == [([], True)]
+
+
+def test_background_start_stays_in_the_tray(monkeypatch):
+    opened, launched = _install_runtime_stubs(monkeypatch, reloaded_store=_Store())
+
+    result = main._run_dbf(_Store(), SimpleNamespace(background=True, headless=False))
+
+    assert result == 17
+    assert opened == []
+    assert launched == [([], False)]
+
+
+def test_headless_still_needs_a_paired_profile(monkeypatch):
+    opened, launched = _install_runtime_stubs(monkeypatch, reloaded_store=_Store())
+
+    assert main._run_dbf(_Store(), SimpleNamespace(background=False, headless=True)) == 2
     assert launched == []
 
 
-def test_manual_launch_with_profile_opens_manager_from_tray(monkeypatch):
+def test_manual_launch_with_profile_opens_tomo(monkeypatch):
     configured = SimpleNamespace(
         profile_id="profile-1",
         paused=False,
