@@ -26,6 +26,7 @@ from PySide6.QtWebEngineCore import (
     QWebEnginePermission,
     QWebEngineProfile,
     QWebEngineScript,
+    QWebEngineSettings,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
@@ -128,6 +129,10 @@ class TomoWindow(QMainWindow):
         self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
         self.profile.setNotificationPresenter(self._present)
         self.profile.downloadRequested.connect(self._download)
+        # 结果面板里的 PDF 用内置查看器显示：Qt 的 PDF 查看器要开插件才工作，不开就当成下载、预览一片空白
+        # （2026-10-10 测试：图片、表格能预览，PDF 空白）
+        for attribute in (QWebEngineSettings.WebAttribute.PluginsEnabled, QWebEngineSettings.WebAttribute.PdfViewerEnabled):
+            self.profile.settings().setAttribute(attribute, True)
 
         self.view = QWebEngineView(self)
         self.page = TomoPage(self.profile, self.view)
