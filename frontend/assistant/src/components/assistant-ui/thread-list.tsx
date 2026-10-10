@@ -29,14 +29,21 @@ import {
   useState,
   type ComponentPropsWithoutRef,
   type FC,
+  type ReactNode,
 } from "react";
 
-export const ThreadList: FC = () => {
+// trailing：搜索框同一行右边放的东西（侧栏的收起按钮；侧栏顶部不再单独占一行，用户 2026-10-10）
+export const ThreadList: FC<{ trailing?: ReactNode }> = ({ trailing }) => {
   const [search, setSearch] = useState("");
 
   return (
     <ThreadListRoot>
-      <ThreadListSearch value={search} onValueChange={setSearch} />
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <ThreadListSearch value={search} onValueChange={setSearch} />
+        </div>
+        {trailing}
+      </div>
       <ThreadListNew />
       <ThreadListItems searchQuery={search} />
     </ThreadListRoot>

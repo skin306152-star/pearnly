@@ -22,7 +22,6 @@ import {
 import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
-import ccMark from "@/brand/cc-icon.svg";
 import { Mascot } from "@/components/mascot";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
@@ -32,7 +31,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
@@ -187,13 +185,9 @@ function UserFooter() {
 function AppSidebar() {
   return (
     <Sidebar>
-      <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
-        {/* 同登录页左上角：只放 CC 图标（白字带胡须的原版，用户 2026-10-10） */}
-        <img src={ccMark} alt="CC" className="ms-0.5 size-10" />
-        <SidebarTrigger aria-label={t("sidebar")} />
-      </SidebarHeader>
-      <SidebarContent className="px-2">
-        <ThreadList />
+      {/* 侧栏顶部不放图标（用户 2026-10-10）：搜索框直接在最上面，收起按钮放在它同一行 */}
+      <SidebarContent className="px-2 pt-2">
+        <ThreadList trailing={<SidebarTrigger aria-label={t("sidebar")} />} />
       </SidebarContent>
       <SidebarFooter className="border-t">
         <UserFooter />
