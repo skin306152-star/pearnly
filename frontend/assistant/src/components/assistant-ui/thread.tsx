@@ -232,7 +232,7 @@ const Composer: FC = () => {
           <ComposerAttachments />
           <ComposerPrimitive.Input
             placeholder={t("placeholder")}
-            className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent text-base text-[#1a1a18] outline-none placeholder:text-[#9a9893]"
+            className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans text-base text-[#1a1a18] outline-none placeholder:text-[#9a9893]"
             rows={1}
             autoFocus
             enterKeyHint="send"
